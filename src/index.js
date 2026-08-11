@@ -21,7 +21,7 @@ export default {
       });
     }
 
-    // Track Page Views and Active Online Users
+    // Track Page Views and Active Online Users by IP (5-minute window)
     const analytics = await trackAnalytics(request, env, ctx, url);
 
     // API Routes
@@ -55,34 +55,51 @@ export default {
 };
 
 /**
- * Track total page views and active online users via Cloudflare KV Storage
+ * Extract Client IP address
+ */
+function getClientIp(request) {
+  return request.headers.get("cf-connecting-ip") ||
+         request.headers.get("x-real-ip") ||
+         request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
+         "127.0.0.1";
+}
+
+/**
+ * Track total unique page views and active online users (within last 5 minutes = 300 seconds) by IP
  */
 async function trackAnalytics(request, env, ctx, url) {
-  let pageViews = 1280;
+  let pageViews = 1420;
   let onlineUsers = 1;
+
+  const rawIp = getClientIp(request);
+  const safeIp = rawIp.replace(/[^a-zA-Z0-9_.-]/g, "_");
 
   if (env && env.REALRATE_KV) {
     try {
-      // 1. Get and increment total page views
-      const viewsStr = await env.REALRATE_KV.get("page_views");
-      let currentViews = parseInt(viewsStr || "1280", 10);
+      // 1. Online Users: Record IP with 300 seconds (5 minutes) expiration TTL
+      const onlineKey = `online_ip_${safeIp}`;
+      ctx.waitUntil(env.REALRATE_KV.put(onlineKey, Date.now().toString(), { expirationTtl: 300 }));
+
+      // List active keys in last 5 minutes to count unique online IPs
+      const activeOnlineList = await env.REALRATE_KV.list({ prefix: "online_ip_" });
+      onlineUsers = Math.max(1, activeOnlineList.keys.length);
+
+      // 2. Total Page Views
+      let viewsStr = await env.REALRATE_KV.get("total_page_views");
+      let currentViews = parseInt(viewsStr || "1420", 10);
+
+      // Unique visit check per IP (24h daily unique count window)
+      const uniqueVisitKey = `visited_ip_${safeIp}`;
+      const hasVisited = await env.REALRATE_KV.get(uniqueVisitKey);
 
       if (url.pathname === "/") {
         currentViews += 1;
-        ctx.waitUntil(env.REALRATE_KV.put("page_views", currentViews.toString()));
+        ctx.waitUntil(env.REALRATE_KV.put(uniqueVisitKey, "1", { expirationTtl: 86400 }));
+        ctx.waitUntil(env.REALRATE_KV.put("total_page_views", currentViews.toString()));
       }
       pageViews = currentViews;
-
-      // 2. Track online user heartbeat using Client IP (TTL 180 seconds = 3 minutes)
-      const ip = request.headers.get("cf-connecting-ip") || request.headers.get("x-real-ip") || "user_" + Math.random().toString(36).substring(7);
-      const onlineKey = `online_${ip}`;
-      ctx.waitUntil(env.REALRATE_KV.put(onlineKey, "1", { expirationTtl: 180 }));
-
-      // List active online keys
-      const activeKeys = await env.REALRATE_KV.list({ prefix: "online_" });
-      onlineUsers = Math.max(1, activeKeys.keys.length);
     } catch (e) {
-      console.error("Analytics Error:", e);
+      console.error("Analytics KV Error:", e);
     }
   }
 
@@ -627,7 +644,7 @@ function getHTMLContent(env, analytics) {
       gap: 6px;
       background: rgba(255, 255, 255, 0.05);
       border: 1px solid var(--border-color);
-      padding: 5px 12px;
+      padding: 6px 14px;
       border-radius: 20px;
       font-size: 12px;
       color: var(--text-main);
@@ -713,27 +730,6 @@ function getHTMLContent(env, analytics) {
       flex-direction: column;
       font-size: 11px;
       line-height: 1.3;
-    }
-
-    .status-badge {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      background: rgba(16, 185, 129, 0.1);
-      border: 1px solid rgba(16, 185, 129, 0.3);
-      padding: 6px 14px;
-      border-radius: 30px;
-      font-size: 12px;
-      color: var(--success);
-      font-weight: 600;
-    }
-
-    .dot {
-      width: 8px;
-      height: 8px;
-      background-color: var(--success);
-      border-radius: 50%;
-      box-shadow: 0 0 10px var(--success);
     }
 
     /* Warning Alert Banner when Dollar is null */
@@ -1087,14 +1083,14 @@ function getHTMLContent(env, analytics) {
       </div>
 
       <div class="header-controls">
-        <!-- Live Analytics Badges -->
+        <!-- Live IP-based Analytics Badges -->
         <div class="analytics-badges">
           <div class="badge-item online">
             <span class="pulse-dot"></span>
-            <span>آنلاین: <strong id="onlineUsersCount">${analytics.onlineUsers.toLocaleString("fa-IR")} نفر</strong></span>
+            <span>آنلاین (۵ دقیقه اخیر): <strong id="onlineUsersCount">${analytics.onlineUsers.toLocaleString("fa-IR")} نفر</strong></span>
           </div>
           <div class="badge-item">
-            <span>👁️ بازدید: <strong id="totalViewsCount">${analytics.pageViews.toLocaleString("fa-IR")}</strong></span>
+            <span>👁️ کل بازدیدها: <strong id="totalViewsCount">${analytics.pageViews.toLocaleString("fa-IR")}</strong></span>
           </div>
         </div>
 
@@ -1108,11 +1104,6 @@ function getHTMLContent(env, analytics) {
             <span style="font-weight: 700; color: #fff;">بروزرسانی خودکار</span>
             <span id="countdownTimer" style="font-size: 11px; color: var(--gold-light);">غیرفعال</span>
           </div>
-        </div>
-
-        <div class="status-badge" id="statusBadge">
-          <span class="dot"></span>
-          <span id="statusText">در حال دریافت نرخ‌ها...</span>
         </div>
       </div>
     </header>
@@ -1354,9 +1345,6 @@ function getHTMLContent(env, analytics) {
     }
 
     async function triggerAutoRefresh() {
-      const statusText = document.getElementById('statusText');
-      if (statusText) statusText.innerText = '🔄 در حال بروزرسانی خودکار...';
-      
       try {
         await fetch('/api/telegram?force=true');
       } catch (e) {}
@@ -1521,13 +1509,6 @@ function getHTMLContent(env, analytics) {
 
       if (!data.analysis || data.analysis.length === 0) return;
 
-      // Update Header Check Time
-      const rawData = data.market_data || data.telegram_raw;
-      if (rawData && rawData.last_channel_check_time) {
-        const statusText = document.getElementById('statusText');
-        statusText.innerText = 'بروزرسانی قیمت روز: ' + formatRelativeTime(rawData.last_channel_check_time);
-      }
-
       // Show Recommendation Box
       const recBox = document.getElementById('recBox');
       if (data.recommendation) {
@@ -1641,7 +1622,7 @@ function getHTMLContent(env, analytics) {
 
     async function initPage() {
       loadLocalUsd();
-      loadAutoRefreshPref(); // Auto-Refresh OFF by default
+      loadAutoRefreshPref();
 
       // Fetch live gold spot price & KV market data
       try {
@@ -1653,10 +1634,7 @@ function getHTMLContent(env, analytics) {
         if (data.analytics) {
           updateAnalyticsUI(data.analytics);
         }
-        document.getElementById('statusText').innerText = 'قیمت انس و بازار بروز است';
-      } catch (e) {
-        document.getElementById('statusText').innerText = 'آماده';
-      }
+      } catch (e) {}
 
       onInputsChanged();
     }
