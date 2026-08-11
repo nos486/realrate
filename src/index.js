@@ -1,6 +1,6 @@
 /**
  * RealRate — Iranian Gold & Currency Price Calculator & Telegram Arbitrage Engine
- * Cloudflare Worker Engine + Protected Admin Panel + Persistent KV Cache & Clean UI
+ * Cloudflare Worker Engine + Protected Admin Panel + Live KV Prices
  */
 
 // In-memory fallback cache if KV is not bound
@@ -1328,7 +1328,7 @@ function getHTMLContent(env, analytics, globalSettings) {
             <span id="usdSourceTag" style="font-size: 11px; color: var(--success); font-weight: 700;">🌐 زنده از بازار</span>
           </label>
           <div class="input-wrapper">
-            <input type="text" id="usdToman" placeholder="مثلاً ۶۲,۰۰۰" oninput="onInputsChanged(true)">
+            <input type="text" id="usdToman" placeholder="مثلاً ۶۲,۰۰۰" oninput="onInputsChanged()">
             <span class="input-suffix">تومان</span>
           </div>
         </div>
@@ -1339,7 +1339,7 @@ function getHTMLContent(env, analytics, globalSettings) {
             <span style="font-size: 11px; color: var(--success); font-weight: 700;">🌐 انس جهانی</span>
           </label>
           <div class="input-wrapper">
-            <input type="text" id="goldUsd" value="${defaultGoldUsd}" oninput="onInputsChanged(true)">
+            <input type="text" id="goldUsd" value="${defaultGoldUsd}" oninput="onInputsChanged()">
             <span class="input-suffix">USD</span>
           </div>
         </div>
@@ -1498,23 +1498,6 @@ function getHTMLContent(env, analytics, globalSettings) {
       }
     }
 
-    function saveLocalUsd() {
-      const el = document.getElementById('usdToman');
-      if (el && el.value) {
-        try { localStorage.setItem('realrate_usd_toman', el.value); } catch (e) {}
-      } else {
-        try { localStorage.removeItem('realrate_usd_toman'); } catch (e) {}
-      }
-    }
-
-    function loadLocalUsd() {
-      try {
-        return localStorage.getItem('realrate_usd_toman') || null;
-      } catch (e) {
-        return null;
-      }
-    }
-
     function switchTab(tabId, btn) {
       document.querySelectorAll('.tab-content').forEach(el => el.style.display = 'none');
       document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
@@ -1523,7 +1506,7 @@ function getHTMLContent(env, analytics, globalSettings) {
       btn.classList.add('active');
     }
 
-    function onInputsChanged(isManualTyping = false) {
+    function onInputsChanged() {
       const inputEl = document.getElementById('usdToman');
       const usdToman = parsePersianNum(inputEl.value);
       const usdAlert = document.getElementById('usdAlert');
@@ -1540,7 +1523,7 @@ function getHTMLContent(env, analytics, globalSettings) {
 
       usdAlert.style.display = 'none';
       
-      // Update label tag indicator without "(قابل ویرایش)"
+      // Update label tag indicator
       if (tagEl) {
         if (serverLiveUsdToman && Math.abs(usdToman - serverLiveUsdToman) < 1) {
           tagEl.innerText = '🌐 زنده از بازار';
@@ -1551,9 +1534,6 @@ function getHTMLContent(env, analytics, globalSettings) {
         }
       }
 
-      if (isManualTyping) {
-        saveLocalUsd();
-      }
       calculateAll();
     }
 
@@ -1778,7 +1758,8 @@ function getHTMLContent(env, analytics, globalSettings) {
     }
 
     async function initPage() {
-      const savedUsd = loadLocalUsd();
+      // Clear any legacy localStorage values to keep browser clean
+      try { localStorage.removeItem('realrate_usd_toman'); } catch (e) {}
 
       try {
         const res = await fetch('/api/rates');
@@ -1789,12 +1770,6 @@ function getHTMLContent(env, analytics, globalSettings) {
           }
           if (data.live_usd_toman) {
             serverLiveUsdToman = data.live_usd_toman;
-          }
-
-          // Fill USD Toman: User Saved or Live Fetched Rate
-          if (savedUsd) {
-            document.getElementById('usdToman').value = savedUsd;
-          } else if (serverLiveUsdToman) {
             document.getElementById('usdToman').value = serverLiveUsdToman.toLocaleString('en-US');
           } else if (data.globalSettings && data.globalSettings.default_usd_toman) {
             document.getElementById('usdToman').value = data.globalSettings.default_usd_toman.toLocaleString('en-US');
