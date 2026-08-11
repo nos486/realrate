@@ -1,75 +1,115 @@
-# RealRate 🪙
-### Iranian Gold & Currency Price Calculator (Cloudflare Worker)
+# 🪙 RealRate — محاسبه‌گر طلا، سکه و ارزهای جهان
 
-**RealRate** is a full-stack, edge-computing application built for Cloudflare Workers that calculates real-time prices for Iranian gold items, coins, and foreign currencies based on manual USD/Toman input and automatic global gold spot price fetching.
+سامانه هوشمند و پیشرفته **RealRate** جهت تحلیل حباب طلا و سکه، محاسبه ارزش واقعی بر اساس دلار و انس جهانی، نمایش نرخ روز ارزهای مطرح جهان، محاسبه‌گر اجرت طلا و پنل مدیریت متصل به **Cloudflare KV Storage**.
 
----
-
-## ✨ Key Features
-
-- **⚡ Edge Computation**: Single-file Cloudflare Worker architecture running on edge nodes worldwide.
-- **🌐 Automatic Global Gold Spot Price**: Auto-fetches live XAU/USD gold spot price from public APIs while keeping the field 100% manually editable.
-- **💵 Manual USD/Toman Input**: Enter the daily free-market dollar rate in Toman.
-- **✨ Complete Iranian Gold Suite**:
-  - **طلا ۱۸ عیار** (18K Gold per gram)
-  - **طلا ۲۴ عیار** (24K Gold per gram)
-  - **مثقال طلا (مظنه ۱۷ عیار)** (Standard Tehran retail benchmark)
-  - **مثقال ۲۴ عیار**
-- **🪙 Bahar Azadi Coins with Intrinsic vs Bubble Analysis**:
-  - **تمام سکه امامی** (Full Coin - 8.133g 22K)
-  - **نیم سکه** (Half Coin - 4.066g 22K)
-  - **ربع سکه** (Quarter Coin - 2.033g 22K)
-  - Calculates pure gold intrinsic value (ارزش ذاتی) vs market price (قیمت روز با حباب).
-- **💶 Foreign Currencies via USD Cross-Rates**:
-  - Euro (EUR), Emirates Dirham (AED), Turkish Lira (TRY), British Pound (GBP), Canadian Dollar (CAD).
-- **💎 Jewelry Purchasing Calculator (محاسبه‌گر اجرت و خرید طلا)**:
-  - Calculate total payable price including weight, labor wage %, shop profit %, and VAT tax on wage/profit.
-- **🎈 Coin Bubble Estimator**:
-  - Interactive sliders to adjust daily market bubble % (0% to 50%).
-- **🔄 Reverse Budget Calculator (محاسبه‌گر معکوس)**:
-  - Input budget in Toman to calculate equivalent gold grams, coins, or USD.
-- **📲 Telegram/WhatsApp Announcement Copying**:
-  - One-click copy formatted text report ready to post to financial channels.
+![RealRate UI](https://raw.githubusercontent.com/nos486/realrate/main/preview.png)
 
 ---
 
-## 🛠️ Project Structure
+## ✨ امکانات و ویژگی‌های اصلی
 
+### 📊 ۱. تحلیل حباب طلا و سکه
+- **محاسبه ارزش واقعی خام طلا**: محاسبه ارزش خالص طلای به‌کار رفته در سکه و طلا عیار ۱۸ بر اساس فرمول بین‌المللی انس طلا و نرخ دلار آزاد.
+- **محاسبه قیمت برآوردی با حباب مصوب**: امکان تعریف درصد حباب هدف برای سکه تمام، نیم سکه و ربع سکه در پنل مدیریت.
+- **تحلیل حباب دوگانه**:
+  - نمایش میزان و درصد حباب نسبت به **ارزش خام طلا**.
+  - نمایش انحراف قیمت روز بازار نسبت به **قیمت محاسباتی (با حباب مصوب)**.
+- **شناسایی حباب منفی**: نمایش متمایز و متمایل به آبی برای اقلامی که قیمت بازار آن‌ها کمتر از ارزش واقعی یا محاسباتی است.
+- **مدیریت اقلام ناموجود**: اقلامی که در بازار موجود نیستند بدون قیمت‌سازی کاذب به صورت «ناموجود در بازار» نشان داده می‌شوند.
+
+### 💱 ۲. تب قیمت روز ارزهای جهان
+- دریافت زنده نرخ برابری ارزهای جهانی از API معتبر بین‌المللی.
+- محاسبه واکنش‌گرا و لحظه‌ای قیمت ارزها به تومان بر اساس دلار وارد شده:
+  - 🇪🇺 **یورو (EUR)**
+  - 🇦🇪 **درهم امارات (AED)**
+  - 🇹🇷 **لیر ترکیه (TRY)**
+  - 🇨🇳 **یوان چین (CNY)**
+  - 🇬🇧 **پوند انگلیس (GBP)**
+  - 🇨🇦 **دلار کانادا (CAD)**
+- طراحی به صورت **لیست فشرده و مرتب (Compact List)** جهت بررسی سریع.
+
+### 💎 ۳. محاسبه‌گر فاکتور طلا و اجرت
+- محاسبه دقیق مبلغ نهایی فاکتور خرید طلا شامل:
+  - وزن طلا (گرم)
+  - درصد اجرت ساخت (٪)
+  - درصد سود طلافروش (٪)
+  - درصد مالیات بر ارزش افزوده (٪)
+
+### 🔐 ۴. پنل مدیریت پیشرفته (`/admin`)
+- حفاظت‌شده با رمز عبور ذخیره‌شده در **Cloudflare KV Storage**.
+- **تنظیمات عمومی پیش‌فرض**:
+  - قیمت پیش‌فرض دلار آزاد (تومان)
+  - پیش‌فرض انس جهانی طلا ($)
+  - درصد حباب مصوب سکه تمام، نیم سکه و ربع سکه
+  - ارسال پیام یا اطلاعیه عمومی بالای سایت
+- **تغییر رمز عبور مدیریت**: امکان تغییر رمز عبور به صورت کاملاً امن با ذخیره در دیتابیس KV.
+
+### 👁️ ۵. سیستم آمارگیری بر اساس IP
+- **شمارش کاربران آنلاین**: محاسبه کاربران فعال طی ۵ دقیقه اخیر بر اساس IP اختصاصی.
+- **بازدید کل**: شمارش بی‌همتای بازدیدکنندگان بر اساس IP به صورت ۲۴ ساعته.
+
+---
+
+## 🛠️ تکنولوژی‌های استفاده‌شده
+
+- **تکنولوژی اجرا (Runtime)**: Cloudflare Workers (JavaScript ES Modules)
+- **دیتابیس و حافظه**: Cloudflare KV Storage (`REALRATE_KV`)
+- **طراحی و رابط کاربری**: Vanilla HTML5, Modern CSS3 (Dark Glassmorphism UI), Vector SVG Logo
+- **منابع قیمت**: استعلام زنده قیمت‌های روز بازار طلا + دریافت لحظه‌ای انس طلا و نرخ برابری Forex
+
+---
+
+## 🚀 راه اندازی و اجرا روی محیط محلی (Local Development)
+
+۱. **کلون کردن مخزن**:
+```bash
+git clone https://github.com/nos486/realrate.git
+cd realrate
 ```
-realrate/
-├── src/
-│   └── index.js         # Main Cloudflare Worker API & Embedded UI
-├── wrangler.toml        # Cloudflare Worker deployment config
-├── package.json
-└── README.md
-```
 
----
-
-## 🚀 Getting Started
-
-### Local Development
+۲. **نصب وابستگی‌ها**:
 ```bash
 npm install
-npm run dev
 ```
-Open `http://localhost:8787` in your browser.
 
-### Deployment to Cloudflare Workers
+۳. **اجرای سرور توسعه (Wrangler Dev)**:
 ```bash
-npm run deploy
+npx wrangler dev --port 8787
+```
+سایت در آدرس `http://127.0.0.1:8787` و پنل مدیریت در `http://127.0.0.1:8787/admin` در دسترس خواهد بود.
+
+---
+
+## 🌐 انتشار روی Cloudflare Workers (Deploy)
+
+برای انتشار نسخه نهایی روی حساب Cloudflare خود:
+
+```bash
+npx wrangler deploy
 ```
 
 ---
 
-## 🌐 API Endpoints
+## 🔑 ساخت دیتابیس Cloudflare KV
 
-- `GET /` — Serves the glassmorphic Persian web interface.
-- `GET /api/calculate` — JSON calculation endpoint.
-  - Parameters: `usd_toman`, `gold_usd`, `bubble_full`, `bubble_half`, `bubble_quarter`.
-- `GET /api/rates` — Fetches live gold spot price and currency cross-rates.
+در صورت عدم وجود دیتابیس KV، یک Namespace جدید بسازید و ID آن را در فایل `wrangler.toml` جایگزین کنید:
+
+```bash
+npx wrangler kv:namespace create REALRATE_KV
+```
+
+تنظیمات `wrangler.toml`:
+```toml
+name = "realrate"
+main = "src/index.js"
+compatibility_date = "2024-01-01"
+
+[[kv_namespaces]]
+binding = "REALRATE_KV"
+id = "<YOUR_KV_NAMESPACE_ID>"
+```
 
 ---
 
-## 📄 License
-MIT License.
+## 📜 لایسنس
+این پروژه تحت لایسنس MIT منتشر شده است.
