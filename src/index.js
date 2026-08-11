@@ -770,7 +770,7 @@ function getHTMLContent(env, analytics, globalSettings) {
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>RealRate | محاسبه‌گر طلا، سکه و ارزهای جهان</title>
+  <title>RealRate</title>
   <meta name="description" content="محاسبه قیمت واقعی طلا، سکه و ارزهای مطرح جهان بر اساس دلار و انس جهانی">
   <link rel="icon" type="image/svg+xml" href="${REALRATE_FAVICON_DATA_URI}">
   
@@ -1931,7 +1931,7 @@ function getAdminHTMLContent(globalSettings) {
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>RealRate | پنل مدیریت سیستم</title>
+  <title>RealRate Admin</title>
   <link rel="icon" type="image/svg+xml" href="${REALRATE_FAVICON_DATA_URI}">
   
   <link rel="preconnect" href="https://fonts.googleapis.com">
