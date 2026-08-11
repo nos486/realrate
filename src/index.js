@@ -1,6 +1,6 @@
 /**
  * RealRate — Iranian Gold & Currency Price Calculator & Telegram Arbitrage Engine
- * Cloudflare Worker Engine + Protected Admin Panel + PWA Add to Home Screen Footer Icon
+ * Cloudflare Worker Engine + Protected Admin Panel + 1-Minute KV Throttled Spot Gold & Forex APIs
  */
 
 // In-memory fallback cache if KV is not bound
@@ -366,9 +366,64 @@ async function trackAnalytics(request, env, ctx, url) {
 }
 
 /**
- * Fetch Live International Forex Exchange Rates against USD
+ * Fetch Live International Spot Gold Price (XAU/USD)
+ * Throttled to 1 minute (>60s). Uses Cloudflare KV + In-Memory cache to reduce external API calls.
  */
-async function fetchForexRates() {
+async function fetchGlobalSpotGold(env, forceRefresh = false) {
+  const cacheKey = "spot_gold_usd";
+  let stored = inMemoryCache[cacheKey] || null;
+  const nowMs = Date.now();
+
+  if (env && env.REALRATE_KV) {
+    try {
+      const kvVal = await env.REALRATE_KV.get(cacheKey, "json");
+      if (kvVal) stored = kvVal;
+    } catch (e) {
+      console.error("KV Read Error for Spot Gold:", e);
+    }
+  }
+
+  const lastCheckMs = (stored && stored.last_updated) ? new Date(stored.last_updated).getTime() : 0;
+  const isFresh = (nowMs - lastCheckMs) < 60000; // 1 minute throttle
+
+  if (isFresh && !forceRefresh && stored && typeof stored.price === "number") {
+    return stored.price;
+  }
+
+  try {
+    const res = await fetch("https://api.gold-api.com/price/XAU", {
+      headers: { "User-Agent": "RealRate/1.0" }
+    });
+    if (res.ok) {
+      const data = await res.json();
+      if (data && data.price) {
+        const newPrice = Math.round(data.price * 100) / 100;
+        const record = { price: newPrice, last_updated: new Date().toISOString() };
+        inMemoryCache[cacheKey] = record;
+
+        if (env && env.REALRATE_KV) {
+          try {
+            await env.REALRATE_KV.put(cacheKey, JSON.stringify(record));
+          } catch (e) {
+            console.error("KV Write Error for Spot Gold:", e);
+          }
+        }
+        return newPrice;
+      }
+    }
+  } catch (e) {
+    console.error("Gold spot API fetch error:", e);
+  }
+
+  return stored ? stored.price : null;
+}
+
+/**
+ * Fetch Live International Forex Exchange Rates against USD
+ * Throttled to 10 minutes (600s). Uses Cloudflare KV + In-Memory cache to reduce API calls.
+ */
+async function fetchForexRates(env, forceRefresh = false) {
+  const cacheKey = "forex_rates";
   const fallback = {
     EUR: 0.915,  // 1 EUR = 1.093 USD
     AED: 3.6725, // 1 AED = 0.2723 USD
@@ -378,12 +433,29 @@ async function fetchForexRates() {
     CAD: 1.370   // 1 CAD = 0.7299 USD
   };
 
+  let stored = inMemoryCache[cacheKey] || null;
+  const nowMs = Date.now();
+
+  if (env && env.REALRATE_KV) {
+    try {
+      const kvVal = await env.REALRATE_KV.get(cacheKey, "json");
+      if (kvVal) stored = kvVal;
+    } catch (e) {}
+  }
+
+  const lastCheckMs = (stored && stored.last_updated) ? new Date(stored.last_updated).getTime() : 0;
+  const isFresh = (nowMs - lastCheckMs) < 600000; // 10 minute throttle for Forex
+
+  if (isFresh && !forceRefresh && stored && stored.rates) {
+    return stored.rates;
+  }
+
   try {
     const res = await fetch("https://open.er-api.com/v6/latest/USD");
     if (res.ok) {
       const data = await res.json();
       if (data && data.rates) {
-        return {
+        const fetchedRates = {
           EUR: data.rates.EUR || fallback.EUR,
           AED: data.rates.AED || fallback.AED,
           TRY: data.rates.TRY || fallback.TRY,
@@ -391,13 +463,23 @@ async function fetchForexRates() {
           GBP: data.rates.GBP || fallback.GBP,
           CAD: data.rates.CAD || fallback.CAD
         };
+
+        const record = { rates: fetchedRates, last_updated: new Date().toISOString() };
+        inMemoryCache[cacheKey] = record;
+
+        if (env && env.REALRATE_KV) {
+          try {
+            await env.REALRATE_KV.put(cacheKey, JSON.stringify(record));
+          } catch (e) {}
+        }
+        return fetchedRates;
       }
     }
   } catch (e) {
     console.error("Forex fetch error:", e);
   }
 
-  return fallback;
+  return stored ? stored.rates : fallback;
 }
 
 /**
@@ -615,14 +697,21 @@ function parseUsdTelegramHtml(html) {
  * Handle Price Calculation & Arbitrage Analysis
  */
 async function handleCalculate(url, env, analytics, globalSettings) {
-  const [tgPrices, forex] = await Promise.all([
-    fetchTelegramPrices(env),
-    fetchForexRates()
+  const spotGoldPromise = fetchGlobalSpotGold(env);
+  const tgPricesPromise = fetchTelegramPrices(env);
+  const forexPromise = fetchForexRates(env);
+
+  const [liveSpotGold, tgPrices, forex] = await Promise.all([
+    spotGoldPromise,
+    tgPricesPromise,
+    forexPromise
   ]);
 
   const usd_toman_raw = url.searchParams.get("usd_toman");
   let usd_toman = usd_toman_raw ? parseFloat(usd_toman_raw) : (tgPrices.usd_toman ? tgPrices.usd_toman.price : (globalSettings.default_usd_toman || null));
-  const gold_usd = parseFloat(url.searchParams.get("gold_usd")) || globalSettings.default_gold_usd || 2450;
+  
+  const userGoldUsd = url.searchParams.get("gold_usd");
+  const gold_usd = userGoldUsd ? parseFloat(userGoldUsd) : (liveSpotGold || globalSettings.default_gold_usd || 2450);
 
   if (!usd_toman || isNaN(usd_toman) || usd_toman <= 0) {
     return new Response(
@@ -785,24 +874,16 @@ async function handleCalculate(url, env, analytics, globalSettings) {
 }
 
 /**
- * Fetch Live Gold Spot Price & Rates
+ * Fetch Live Gold Spot Price & Rates (1-minute throttled in KV)
  */
 async function handleFetchRates(env, analytics, globalSettings) {
   try {
-    let gold_usd = globalSettings.default_gold_usd || 2450;
-    try {
-      const goldRes = await fetch("https://api.gold-api.com/price/XAU");
-      if (goldRes.ok) {
-        const gData = await goldRes.json();
-        if (gData && gData.price) {
-          gold_usd = Math.round(gData.price * 100) / 100;
-        }
-      }
-    } catch (e) {}
+    const liveSpotGold = await fetchGlobalSpotGold(env);
+    const gold_usd = liveSpotGold || globalSettings.default_gold_usd || 2450;
 
     const [tgPrices, forex] = await Promise.all([
       fetchTelegramPrices(env),
-      fetchForexRates()
+      fetchForexRates(env)
     ]);
 
     const live_usd_item = tgPrices.usd_toman || null;
@@ -1974,11 +2055,6 @@ function getHTMLContent(env, analytics, globalSettings) {
             <div class="price-row">
               <span class="price-label">قیمت روز بازار:</span>
               \${marketDisplayStr}
-            </div>
-
-            <div class="price-row" style="margin-top: 10px; border-top: 1px dashed var(--border-color); padding-top: 8px;">
-              <span class="price-label">حباب نسبت به ارزش خام طلا:</span>
-              \${rawBubbleDisplayStr}
             </div>
 
             \${expectedDiffDisplayStr}
