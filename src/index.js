@@ -118,10 +118,7 @@ async function fetchTelegramPrices(env, forceRefresh = false) {
 
 /**
  * Parse Telegram Channel Web Preview HTML for Gold & Coin Prices
- * Channel prices are in Toman:
- * - 18K Gold lot: 18,983,000 Toman per 5g -> 3,796,600 Toman per 1 gram
- * - Full Coin 86 lot: 187,850,000 Toman per 5 coins -> 37,570,000 Toman per 1 coin
- * - Mesghal lot: 82,230,000 Toman per 10 mesghal -> 8,223,000 Toman per 1 mesghal
+ * Stores the EXACT raw price numbers from the channel as Toman without any division
  */
 function parseTelegramHtml(html) {
   const result = {};
@@ -143,41 +140,38 @@ function parseTelegramHtml(html) {
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i];
 
-      // 1. Gram 18K Gold (گرم 18 عیار) - Toman per 1 Gram
+      // 1. Gram 18K Gold (گرم 18 عیار)
       if (!result.gold_18k && (line.includes("گرم 18 عیار") || line.includes("18 عیار") || line.includes("۱۸ عیار"))) {
         const chunk = lines.slice(i, i + 3).join(" ");
         const saleMatch = chunk.match(/فروش:\s*([\d,]+)/);
         if (saleMatch) {
           const rawNum = parseInt(saleMatch[1].replace(/,/g, ""), 10);
           if (rawNum > 0) {
-            const pricePerGram = rawNum > 10000000 ? Math.round(rawNum / 5) : rawNum;
-            result.gold_18k = { price: pricePerGram, raw: rawNum, datetime, label: "طلا ۱۸ عیار (هر گرم)" };
+            result.gold_18k = { price: rawNum, datetime, label: "طلا ۱۸ عیار" };
           }
         }
       }
 
-      // 2. Full Coin 86 (سکه تمام 86 / سکه تمام / تمام سکه) - Toman per 1 Coin
+      // 2. Full Coin 86 (سکه تمام 86 / سکه تمام / تمام سکه)
       if (!result.full_coin && (line.includes("سکه تمام 86") || line.includes("سکه تمام") || line.includes("تمام سکه") || line.includes("سکه امامی"))) {
         const chunk = lines.slice(i, i + 3).join(" ");
         const saleMatch = chunk.match(/فروش:\s*([\d,]+)/);
         if (saleMatch) {
           const rawNum = parseInt(saleMatch[1].replace(/,/g, ""), 10);
           if (rawNum > 0) {
-            const pricePerCoin = rawNum > 100000000 ? Math.round(rawNum / 5) : rawNum;
-            result.full_coin = { price: pricePerCoin, raw: rawNum, datetime, label: "سکه تمام ۸۶" };
+            result.full_coin = { price: rawNum, datetime, label: "سکه تمام ۸۶" };
           }
         }
       }
 
-      // 3. Mesghal (آبشده نقد / مثقال) - Toman per 1 Mesghal
+      // 3. Mesghal (آبشده نقد / مثقال)
       if (!result.mesghal && (line.includes("آبشده نقد") || line.includes("آبشده") || line.includes("مثقال"))) {
         const chunk = lines.slice(i, i + 3).join(" ");
         const saleMatch = chunk.match(/فروش:\s*([\d,]+)/);
         if (saleMatch) {
           const rawNum = parseInt(saleMatch[1].replace(/,/g, ""), 10);
           if (rawNum > 0) {
-            const pricePerMesghal = rawNum > 30000000 ? Math.round(rawNum / 10) : rawNum;
-            result.mesghal = { price: pricePerMesghal, raw: rawNum, datetime, label: "مثقال طلا (۱۷ عیار)" };
+            result.mesghal = { price: rawNum, datetime, label: "مثقال طلا (۱۷ عیار)" };
           }
         }
       }
@@ -189,8 +183,7 @@ function parseTelegramHtml(html) {
         if (saleMatch) {
           const rawNum = parseInt(saleMatch[1].replace(/,/g, ""), 10);
           if (rawNum > 0) {
-            const pricePerCoin = rawNum > 50000000 ? Math.round(rawNum / 5) : rawNum;
-            result.half_coin = { price: pricePerCoin, raw: rawNum, datetime, label: "نیم سکه بهار آزادی" };
+            result.half_coin = { price: rawNum, datetime, label: "نیم سکه بهار آزادی" };
           }
         }
       }
@@ -202,8 +195,7 @@ function parseTelegramHtml(html) {
         if (saleMatch) {
           const rawNum = parseInt(saleMatch[1].replace(/,/g, ""), 10);
           if (rawNum > 0) {
-            const pricePerCoin = rawNum > 30000000 ? Math.round(rawNum / 5) : rawNum;
-            result.quarter_coin = { price: pricePerCoin, raw: rawNum, datetime, label: "ربع سکه بهار آزادی" };
+            result.quarter_coin = { price: rawNum, datetime, label: "ربع سکه بهار آزادی" };
           }
         }
       }
@@ -240,7 +232,7 @@ async function handleCalculate(url, env) {
   // Fetch or get last telegram prices from KV (> 1 min auto refresh policy)
   const tgPrices = await fetchTelegramPrices(env);
 
-  // Real Intrinsic Gold Calculations
+  // Real Intrinsic Gold Calculations based on USD Toman rate & Global Gold Spot
   const gold_24k_gram = (gold_usd / 31.1034768) * usd_toman;
   const gold_18k_gram = gold_24k_gram * 0.75;
   const mesghal_17k = gold_24k_gram * 4.608 * 0.705;
@@ -249,7 +241,7 @@ async function handleCalculate(url, env) {
   const half_intrinsic = gold_24k_gram * 3.6594;
   const quarter_intrinsic = gold_24k_gram * 1.8297;
 
-  // Comparison & Bubble Calculation against Telegram Market Prices
+  // Comparison & Bubble Calculation against Telegram Market Prices (exact numbers stored in DB)
   const itemsAnalysis = [];
 
   // 18K Gold
@@ -259,7 +251,7 @@ async function handleCalculate(url, env) {
   const bubble_18k_pct = ((bubble_18k / gold_18k_gram) * 100);
   itemsAnalysis.push({
     id: "gold_18k",
-    name: "طلا ۱۸ عیار (هر گرم)",
+    name: "طلا ۱۸ عیار",
     intrinsic: Math.round(gold_18k_gram),
     market: Math.round(market_18k),
     bubble: Math.round(bubble_18k),
@@ -835,7 +827,7 @@ function getHTMLContent(env) {
         <div class="brand-logo">🪙</div>
         <div class="brand-title">
           <h1>RealRate</h1>
-          <p>تحلیل قیمت واقعی طلا و سکه بر اساس تلگرام زرماگلد (قیمت‌ها به تومان)</p>
+          <p>تحلیل قیمت واقعی طلا و سکه بر اساس تلگرام زرماگلد (قیمت مستقیم کانال به تومان)</p>
         </div>
       </div>
       <div class="status-badge" id="statusBadge">
@@ -1145,17 +1137,17 @@ function getHTMLContent(env) {
           </div>
 
           <div class="price-row">
-            <span class="price-label">ارزش واقعی طلا (بر اساس دلار):</span>
+            <span class="price-label">ارزش واقعی (بر اساس دلار و انس):</span>
             <span class="price-val gold">\${formatNum(item.intrinsic)} تومان</span>
           </div>
 
           <div class="price-row">
-            <span class="price-label">قیمت بازار زرماگلد (تومان):</span>
+            <span class="price-label">قیمت اعلامی کانال تلگرام:</span>
             <span class="price-val">\${item.market ? formatNum(item.market) + ' تومان' : 'ناموجود در پیام جدید'}</span>
           </div>
 
           <div class="price-row" style="margin-top: 10px; border-top: 1px dashed var(--border-color); padding-top: 8px;">
-            <span class="price-label">مقدار حباب ریالی/تومانی:</span>
+            <span class="price-label">اختلاف / حباب تومانی:</span>
             <span style="font-weight: 700; color: var(--gold-light);">\${formatNum(item.bubble)} تومان</span>
           </div>
 
