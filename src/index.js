@@ -1,6 +1,6 @@
 /**
  * RealRate — Iranian Gold & Currency Price Calculator & Telegram Arbitrage Engine
- * Cloudflare Worker Engine + Protected Admin Panel + Dual Bubble Engine
+ * Cloudflare Worker Engine + Protected Admin Panel + Compact Sleek UI
  */
 
 // In-memory fallback cache if KV is not bound
@@ -666,7 +666,7 @@ function getHTMLContent(env, analytics, globalSettings) {
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>RealRate | محاسبه‌گر طلا، سکه و ارزهای جهان</title>
-  <meta name="description" content="محاسبه قیمت واقعی طلا، سکه و ارزهای مطرح جهان (یورو، درهم، لیر، یوان) بر اساس دلار و انس جهانی">
+  <meta name="description" content="محاسبه قیمت واقعی طلا، سکه و ارزهای مطرح جهان بر اساس دلار و انس جهانی">
   
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -692,9 +692,9 @@ function getHTMLContent(env, analytics, globalSettings) {
       --warning: #f59e0b;
       --info-blue: #3b82f6;
 
-      --radius-md: 14px;
-      --radius-lg: 20px;
-      --radius-xl: 28px;
+      --radius-md: 10px;
+      --radius-lg: 14px;
+      --radius-xl: 18px;
     }
 
     * {
@@ -707,11 +707,11 @@ function getHTMLContent(env, analytics, globalSettings) {
     body {
       background-color: var(--bg-primary);
       background-image: 
-        radial-gradient(circle at 10% 20%, rgba(245, 158, 11, 0.08) 0%, transparent 40%),
-        radial-gradient(circle at 90% 80%, rgba(16, 185, 129, 0.05) 0%, transparent 40%);
+        radial-gradient(circle at 10% 20%, rgba(245, 158, 11, 0.06) 0%, transparent 40%),
+        radial-gradient(circle at 90% 80%, rgba(16, 185, 129, 0.04) 0%, transparent 40%);
       color: var(--text-main);
       min-height: 100vh;
-      padding: 24px 16px;
+      padding: 16px 12px;
       display: flex;
       flex-direction: column;
       align-items: center;
@@ -719,7 +719,7 @@ function getHTMLContent(env, analytics, globalSettings) {
 
     .container {
       width: 100%;
-      max-width: 1050px;
+      max-width: 980px;
       margin: 0 auto;
     }
 
@@ -727,36 +727,36 @@ function getHTMLContent(env, analytics, globalSettings) {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      margin-bottom: 24px;
-      padding: 16px 24px;
+      margin-bottom: 14px;
+      padding: 12px 18px;
       background: var(--bg-glass);
       backdrop-filter: blur(16px);
       border: 1px solid var(--border-color);
       border-radius: var(--radius-lg);
       flex-wrap: wrap;
-      gap: 16px;
+      gap: 12px;
     }
 
     .brand {
       display: flex;
       align-items: center;
-      gap: 12px;
+      gap: 10px;
     }
 
     .brand-logo {
-      width: 44px;
-      height: 44px;
+      width: 36px;
+      height: 36px;
       background: var(--gold-gradient);
       border-radius: var(--radius-md);
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: 24px;
-      box-shadow: 0 4px 20px rgba(245, 158, 11, 0.35);
+      font-size: 20px;
+      box-shadow: 0 4px 14px rgba(245, 158, 11, 0.3);
     }
 
     .brand-title h1 {
-      font-size: 20px;
+      font-size: 18px;
       font-weight: 800;
       background: linear-gradient(135deg, #fff 0%, #fde047 100%);
       -webkit-background-clip: text;
@@ -764,33 +764,32 @@ function getHTMLContent(env, analytics, globalSettings) {
     }
 
     .brand-title p {
-      font-size: 12px;
+      font-size: 11px;
       color: var(--text-muted);
     }
 
     .header-controls {
       display: flex;
       align-items: center;
-      gap: 12px;
-      flex-wrap: wrap;
+      gap: 10px;
     }
 
     /* Analytics Badges */
     .analytics-badges {
       display: flex;
       align-items: center;
-      gap: 8px;
+      gap: 6px;
     }
 
     .badge-item {
       display: flex;
       align-items: center;
-      gap: 6px;
+      gap: 5px;
       background: rgba(255, 255, 255, 0.05);
       border: 1px solid var(--border-color);
-      padding: 6px 14px;
-      border-radius: 20px;
-      font-size: 12px;
+      padding: 4px 10px;
+      border-radius: 16px;
+      font-size: 11px;
       color: var(--text-main);
     }
 
@@ -801,17 +800,17 @@ function getHTMLContent(env, analytics, globalSettings) {
     }
 
     .pulse-dot {
-      width: 7px;
-      height: 7px;
+      width: 6px;
+      height: 6px;
       background-color: var(--success);
       border-radius: 50%;
-      box-shadow: 0 0 8px var(--success);
+      box-shadow: 0 0 6px var(--success);
       animation: pulse 1.8s infinite;
     }
 
     @keyframes pulse {
       0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); }
-      70% { transform: scale(1); box-shadow: 0 0 0 6px rgba(16, 185, 129, 0); }
+      70% { transform: scale(1); box-shadow: 0 0 0 5px rgba(16, 185, 129, 0); }
       100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
     }
 
@@ -820,13 +819,13 @@ function getHTMLContent(env, analytics, globalSettings) {
       background: linear-gradient(135deg, rgba(59, 130, 246, 0.2) 0%, rgba(18, 24, 36, 0.8) 100%);
       border: 1px solid var(--info-blue);
       border-radius: var(--radius-md);
-      padding: 12px 18px;
-      margin-bottom: 20px;
+      padding: 10px 14px;
+      margin-bottom: 14px;
       display: flex;
       align-items: center;
-      gap: 10px;
+      gap: 8px;
       color: #93c5fd;
-      font-size: 13px;
+      font-size: 12px;
       font-weight: 600;
     }
 
@@ -835,40 +834,40 @@ function getHTMLContent(env, analytics, globalSettings) {
       background: rgba(245, 158, 11, 0.12);
       border: 1px solid var(--gold-primary);
       border-radius: var(--radius-md);
-      padding: 14px 20px;
-      margin-bottom: 24px;
+      padding: 10px 14px;
+      margin-bottom: 14px;
       display: flex;
       align-items: center;
-      gap: 12px;
+      gap: 8px;
       color: var(--gold-light);
-      font-size: 14px;
+      font-size: 13px;
       font-weight: 700;
     }
 
-    /* Inputs Panel */
+    /* Inputs Panel - COMPACT & CLEAN */
     .input-panel {
       background: var(--bg-glass);
       backdrop-filter: blur(16px);
       border: 1px solid var(--border-color);
       border-radius: var(--radius-xl);
-      padding: 24px;
-      margin-bottom: 28px;
+      padding: 16px 20px;
+      margin-bottom: 16px;
     }
 
     .inputs-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-      gap: 20px;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 16px;
     }
 
     .input-group {
       display: flex;
       flex-direction: column;
-      gap: 8px;
+      gap: 6px;
     }
 
     .input-group label {
-      font-size: 14px;
+      font-size: 13px;
       font-weight: 600;
       display: flex;
       justify-content: space-between;
@@ -885,10 +884,10 @@ function getHTMLContent(env, analytics, globalSettings) {
       background: rgba(10, 13, 20, 0.7);
       border: 1px solid var(--border-color);
       border-radius: var(--radius-md);
-      padding: 14px 16px;
-      padding-left: 80px;
+      padding: 10px 14px;
+      padding-left: 70px;
       color: #fff;
-      font-size: 18px;
+      font-size: 16px;
       font-weight: 700;
       outline: none;
       transition: all 0.25s ease;
@@ -896,63 +895,40 @@ function getHTMLContent(env, analytics, globalSettings) {
 
     .input-wrapper input:focus {
       border-color: var(--gold-primary);
-      box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.2);
+      box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.15);
     }
 
     .input-suffix {
       position: absolute;
-      left: 16px;
-      font-size: 13px;
+      left: 14px;
+      font-size: 12px;
       font-weight: 600;
       color: var(--gold-light);
       pointer-events: none;
     }
 
-    .quick-btns {
-      display: flex;
-      gap: 6px;
-      margin-top: 6px;
-    }
-
-    .q-btn {
-      background: rgba(255, 255, 255, 0.05);
-      border: 1px solid var(--border-color);
-      border-radius: 6px;
-      color: var(--text-muted);
-      padding: 4px 10px;
-      font-size: 11px;
-      cursor: pointer;
-      transition: 0.2s;
-    }
-
-    .q-btn:hover {
-      background: rgba(245, 158, 11, 0.15);
-      border-color: var(--gold-primary);
-      color: var(--gold-light);
-    }
-
     /* Tabs */
     .tabs-nav {
       display: flex;
-      gap: 8px;
-      margin-bottom: 24px;
+      gap: 6px;
+      margin-bottom: 16px;
       background: rgba(18, 24, 36, 0.5);
-      padding: 6px;
+      padding: 4px;
       border-radius: var(--radius-lg);
       border: 1px solid var(--border-color);
     }
 
     .tab-btn {
       flex: 1;
-      padding: 12px 16px;
+      padding: 10px 12px;
       border: none;
       background: transparent;
       color: var(--text-muted);
-      font-size: 14px;
+      font-size: 13px;
       font-weight: 700;
       border-radius: var(--radius-md);
       cursor: pointer;
-      transition: 0.25s;
+      transition: 0.2s;
     }
 
     .tab-btn.active {
@@ -963,30 +939,26 @@ function getHTMLContent(env, analytics, globalSettings) {
 
     /* Recommendation Box */
     .rec-box {
-      background: linear-gradient(135deg, rgba(16, 185, 129, 0.15) 0%, rgba(10, 13, 20, 0.8) 100%);
-      border: 1.5px solid var(--success);
+      background: linear-gradient(135deg, rgba(16, 185, 129, 0.12) 0%, rgba(10, 13, 20, 0.8) 100%);
+      border: 1px solid var(--success);
       border-radius: var(--radius-lg);
-      padding: 20px 24px;
-      margin-bottom: 28px;
+      padding: 14px 18px;
+      margin-bottom: 16px;
       display: flex;
       align-items: center;
       justify-content: space-between;
-      gap: 16px;
-      box-shadow: 0 10px 30px rgba(16, 185, 129, 0.15);
+      gap: 12px;
     }
 
     .rec-info h3 {
-      font-size: 18px;
+      font-size: 15px;
       font-weight: 800;
       color: #fff;
-      margin-bottom: 4px;
-      display: flex;
-      align-items: center;
-      gap: 8px;
+      margin-bottom: 2px;
     }
 
     .rec-info p {
-      font-size: 13px;
+      font-size: 12px;
       color: var(--text-muted);
     }
 
@@ -994,18 +966,18 @@ function getHTMLContent(env, analytics, globalSettings) {
       background: var(--success);
       color: #000;
       font-weight: 800;
-      padding: 8px 18px;
-      border-radius: 30px;
-      font-size: 13px;
+      padding: 6px 14px;
+      border-radius: 20px;
+      font-size: 12px;
       white-space: nowrap;
     }
 
-    /* Comparison Cards Grid - 2 CARDS PER ROW */
+    /* Comparison Cards Grid - 2 CARDS PER ROW COMPACT */
     .cards-grid {
       display: grid;
       grid-template-columns: repeat(2, 1fr);
-      gap: 20px;
-      margin-bottom: 32px;
+      gap: 14px;
+      margin-bottom: 24px;
     }
 
     @media (max-width: 768px) {
@@ -1019,9 +991,9 @@ function getHTMLContent(env, analytics, globalSettings) {
       backdrop-filter: blur(12px);
       border: 1px solid var(--border-color);
       border-radius: var(--radius-lg);
-      padding: 22px;
+      padding: 16px;
       position: relative;
-      transition: transform 0.25s, border-color 0.25s;
+      transition: transform 0.2s, border-color 0.2s;
       display: flex;
       flex-direction: column;
       justify-content: space-between;
@@ -1029,28 +1001,24 @@ function getHTMLContent(env, analytics, globalSettings) {
 
     .card:hover {
       border-color: rgba(245, 158, 11, 0.3);
-      transform: translateY(-2px);
     }
 
     .card.highlight {
       border-color: var(--success);
-      box-shadow: 0 0 24px rgba(16, 185, 129, 0.2);
+      box-shadow: 0 0 16px rgba(16, 185, 129, 0.15);
     }
 
     .card-header {
       display: flex;
       justify-content: space-between;
       align-items: flex-start;
-      margin-bottom: 16px;
+      margin-bottom: 12px;
     }
 
     .card-title h3 {
-      font-size: 18px;
+      font-size: 16px;
       font-weight: 800;
       color: #fff;
-      display: flex;
-      align-items: center;
-      gap: 8px;
     }
 
     .card-title span {
@@ -1059,9 +1027,9 @@ function getHTMLContent(env, analytics, globalSettings) {
     }
 
     .bubble-badge {
-      padding: 6px 12px;
-      border-radius: 20px;
-      font-size: 12px;
+      padding: 4px 10px;
+      border-radius: 14px;
+      font-size: 11px;
       font-weight: 700;
       white-space: nowrap;
     }
@@ -1076,7 +1044,6 @@ function getHTMLContent(env, analytics, globalSettings) {
       background: rgba(59, 130, 246, 0.15);
       border: 1px solid var(--info-blue);
       color: #60a5fa;
-      box-shadow: 0 0 12px rgba(59, 130, 246, 0.25);
     }
 
     .bubble-badge.good {
@@ -1095,16 +1062,16 @@ function getHTMLContent(env, analytics, globalSettings) {
       display: flex;
       justify-content: space-between;
       align-items: baseline;
-      margin-bottom: 10px;
+      margin-bottom: 8px;
     }
 
     .price-label {
-      font-size: 13px;
+      font-size: 12px;
       color: var(--text-muted);
     }
 
     .price-val {
-      font-size: 19px;
+      font-size: 17px;
       font-weight: 800;
       color: #fff;
     }
@@ -1118,10 +1085,10 @@ function getHTMLContent(env, analytics, globalSettings) {
     }
 
     .timestamp-tag {
-      font-size: 11px;
+      font-size: 10px;
       color: var(--text-muted);
-      margin-top: 14px;
-      padding-top: 10px;
+      margin-top: 10px;
+      padding-top: 8px;
       border-top: 1px dashed var(--border-color);
       display: flex;
       justify-content: space-between;
@@ -1132,10 +1099,10 @@ function getHTMLContent(env, analytics, globalSettings) {
       background: var(--bg-glass);
       border: 1px solid var(--border-color);
       border-radius: var(--radius-xl);
-      padding: 24px;
+      padding: 18px;
       display: grid;
       grid-template-columns: 1fr 1fr;
-      gap: 24px;
+      gap: 18px;
     }
 
     @media (max-width: 768px) {
@@ -1145,28 +1112,28 @@ function getHTMLContent(env, analytics, globalSettings) {
     .receipt-line {
       display: flex;
       justify-content: space-between;
-      padding: 10px 0;
+      padding: 8px 0;
       border-bottom: 1px dashed var(--border-color);
-      font-size: 14px;
+      font-size: 13px;
     }
 
     .receipt-line.total {
       border-bottom: none;
       border-top: 2px solid var(--gold-primary);
-      margin-top: 12px;
-      padding-top: 16px;
+      margin-top: 10px;
+      padding-top: 12px;
       font-weight: 800;
-      font-size: 18px;
+      font-size: 16px;
       color: var(--gold-light);
     }
 
     footer {
-      margin-top: 40px;
+      margin-top: 28px;
       text-align: center;
-      font-size: 12px;
+      font-size: 11px;
       color: var(--text-muted);
       border-top: 1px solid var(--border-color);
-      padding-top: 20px;
+      padding-top: 16px;
       width: 100%;
       display: flex;
       justify-content: space-between;
@@ -1222,7 +1189,7 @@ function getHTMLContent(env, analytics, globalSettings) {
       <span>⚠️ لطفاً ابتدا نرخ دلار آزاد (تومان) را وارد کنید تا محاسبات انجام شود.</span>
     </div>
 
-    <!-- Inputs Panel -->
+    <!-- Inputs Panel (COMPACT NO QUICK BUTTONS) -->
     <div class="input-panel">
       <div class="inputs-grid">
         <div class="input-group">
@@ -1234,12 +1201,6 @@ function getHTMLContent(env, analytics, globalSettings) {
             <input type="text" id="usdToman" placeholder="مثلاً ۶۲,۰۰۰" oninput="onInputsChanged()">
             <span class="input-suffix">تومان</span>
           </div>
-          <div class="quick-btns">
-            <button class="q-btn" onclick="adjustInput('usdToman', 500)">+۵۰۰</button>
-            <button class="q-btn" onclick="adjustInput('usdToman', 1000)">+۱,۰۰۰</button>
-            <button class="q-btn" onclick="adjustInput('usdToman', -500)">-۵۰۰</button>
-            <button class="q-btn" onclick="adjustInput('usdToman', -1000)">-۱,۰۰۰</button>
-          </div>
         </div>
 
         <div class="input-group">
@@ -1250,12 +1211,6 @@ function getHTMLContent(env, analytics, globalSettings) {
           <div class="input-wrapper">
             <input type="text" id="goldUsd" value="${defaultGoldUsd}" oninput="onInputsChanged()">
             <span class="input-suffix">USD</span>
-          </div>
-          <div class="quick-btns">
-            <button class="q-btn" onclick="adjustInput('goldUsd', 5)">+۵</button>
-            <button class="q-btn" onclick="adjustInput('goldUsd', 10)">+۱۰</button>
-            <button class="q-btn" onclick="adjustInput('goldUsd', -5)">-۵</button>
-            <button class="q-btn" onclick="adjustInput('goldUsd', -10)">-۱۰</button>
           </div>
         </div>
       </div>
@@ -1279,7 +1234,7 @@ function getHTMLContent(env, analytics, globalSettings) {
         <div class="rec-badge" id="recBadge">پیشنهادی RealRate</div>
       </div>
 
-      <!-- Items Grid (2 Cards per Row) -->
+      <!-- Items Grid (2 Cards per Row Compact) -->
       <div class="cards-grid" id="cardsGrid">
         <!-- Dynamic Cards Inserted via JS -->
       </div>
@@ -1295,8 +1250,8 @@ function getHTMLContent(env, analytics, globalSettings) {
     <!-- Tab 3: Jewelry Calculator -->
     <div id="jewelryTab" class="tab-content" style="display: none;">
       <div class="calc-box">
-        <div style="display: flex; flex-direction: column; gap: 16px;">
-          <h3 style="font-size: 16px; font-weight: 700; color: var(--gold-light);">فاکتور خرید طلا</h3>
+        <div style="display: flex; flex-direction: column; gap: 14px;">
+          <h3 style="font-size: 15px; font-weight: 700; color: var(--gold-light);">فاکتور خرید طلا</h3>
           
           <div class="input-group">
             <label>وزن طلا (گرم)</label>
@@ -1331,9 +1286,9 @@ function getHTMLContent(env, analytics, globalSettings) {
           </div>
         </div>
 
-        <div style="background: rgba(10, 13, 20, 0.8); border: 1px solid var(--border-glow); border-radius: var(--radius-lg); padding: 20px; display: flex; flex-direction: column; justify-content: space-between;">
+        <div style="background: rgba(10, 13, 20, 0.8); border: 1px solid var(--border-glow); border-radius: var(--radius-lg); padding: 16px; display: flex; flex-direction: column; justify-content: space-between;">
           <div>
-            <h4 style="font-size: 15px; color: #fff; margin-bottom: 16px; font-weight: 800;">📝 صورت‌حساب پرداختی شما</h4>
+            <h4 style="font-size: 14px; color: #fff; margin-bottom: 12px; font-weight: 800;">📝 صورت‌حساب پرداختی شما</h4>
             
             <div class="receipt-line">
               <span>قیمت طلا ۱۸ عیار خام:</span>
@@ -1425,15 +1380,6 @@ function getHTMLContent(env, analytics, globalSettings) {
           document.getElementById('usdToman').value = '';
         }
       } catch (e) {}
-    }
-
-    function adjustInput(id, delta) {
-      const el = document.getElementById(id);
-      let val = parsePersianNum(el.value);
-      val = Math.max(0, val + delta);
-      el.value = val > 0 ? val.toLocaleString('en-US') : '';
-      if (id === 'usdToman') saveLocalUsd();
-      onInputsChanged();
     }
 
     function switchTab(tabId, btn) {
@@ -1528,14 +1474,14 @@ function getHTMLContent(env, analytics, globalSettings) {
               <span class="bubble-badge good">\${c.symbol}</span>
             </div>
 
-            <div class="price-row" style="margin-top: 8px;">
+            <div class="price-row" style="margin-top: 6px;">
               <span class="price-label">قیمت محاسباتی به تومان:</span>
               <span class="price-val gold">\${formatNum(c.toman_price)} تومان</span>
             </div>
 
-            <div class="price-row" style="margin-top: 14px; border-top: 1px dashed var(--border-color); padding-top: 10px;">
+            <div class="price-row" style="margin-top: 10px; border-top: 1px dashed var(--border-color); padding-top: 8px;">
               <span class="price-label">نرخ برابری با دلار:</span>
-              <span style="font-weight: 700; font-size: 14px; color: var(--gold-light);">\${c.note}</span>
+              <span style="font-weight: 700; font-size: 13px; color: var(--gold-light);">\${c.note}</span>
             </div>
           </div>
 
@@ -1594,8 +1540,8 @@ function getHTMLContent(env, analytics, globalSettings) {
 
         const timeStr = formatRelativeTime(item.updated_at);
         
-        let marketDisplayStr = '<span class="price-val" style="color: var(--text-muted); font-size: 16px;">ناموجود در بازار</span>';
-        let rawBubbleDisplayStr = '<span style="color: var(--text-muted); font-size: 13px;">اطلاعات بازار موجود نیست</span>';
+        let marketDisplayStr = '<span class="price-val" style="color: var(--text-muted); font-size: 15px;">ناموجود در بازار</span>';
+        let rawBubbleDisplayStr = '<span style="color: var(--text-muted); font-size: 12px;">اطلاعات بازار موجود نیست</span>';
         let expectedDiffDisplayStr = '';
 
         if (hasMarket) {
@@ -1606,7 +1552,7 @@ function getHTMLContent(env, analytics, globalSettings) {
           rawBubbleDisplayStr = isNegative ? 
             ('حباب منفی ' + formatNum(Math.abs(item.bubble)) + ' تومان (' + item.bubble_pct.toLocaleString('fa-IR') + '٪)') : 
             ('+' + formatNum(item.bubble) + ' تومان (' + item.bubble_pct.toLocaleString('fa-IR') + '٪)');
-          rawBubbleDisplayStr = '<span style="font-weight: 800; font-size: 15px; color: ' + bubbleColor + ';">' + rawBubbleDisplayStr + '</span>';
+          rawBubbleDisplayStr = '<span style="font-weight: 800; font-size: 14px; color: ' + bubbleColor + ';">' + rawBubbleDisplayStr + '</span>';
 
           // 2. Expected Price Variance Display (for coins with target bubble)
           if (item.target_bubble_pct > 0 && item.diff_from_expected !== null) {
@@ -1617,9 +1563,9 @@ function getHTMLContent(env, analytics, globalSettings) {
               ('+' + formatNum(item.diff_from_expected) + ' تومان (' + item.diff_from_expected_pct.toLocaleString('fa-IR') + '٪)');
             
             expectedDiffDisplayStr = \`
-              <div class="price-row" style="margin-top: 8px;">
+              <div class="price-row" style="margin-top: 6px;">
                 <span class="price-label">انحراف بازار از قیمت محاسباتی:</span>
-                <span style="font-weight: 800; font-size: 14px; color: \${expDiffColor};">\${expDiffText}</span>
+                <span style="font-weight: 800; font-size: 13px; color: \${expDiffColor};">\${expDiffText}</span>
               </div>
             \`;
           }
@@ -1657,7 +1603,7 @@ function getHTMLContent(env, analytics, globalSettings) {
               \${marketDisplayStr}
             </div>
 
-            <div class="price-row" style="margin-top: 14px; border-top: 1px dashed var(--border-color); padding-top: 10px;">
+            <div class="price-row" style="margin-top: 10px; border-top: 1px dashed var(--border-color); padding-top: 8px;">
               <span class="price-label">حباب نسبت به ارزش خام طلا:</span>
               \${rawBubbleDisplayStr}
             </div>
@@ -1754,7 +1700,7 @@ function getAdminHTMLContent(globalSettings) {
       --text-muted: #9ca3af;
       --success: #10b981;
       --danger: #ef4444;
-      --radius-lg: 20px;
+      --radius-lg: 16px;
     }
 
     * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Vazirmatn', sans-serif; }
@@ -1763,7 +1709,7 @@ function getAdminHTMLContent(globalSettings) {
       background-color: var(--bg-primary);
       color: var(--text-main);
       min-height: 100vh;
-      padding: 30px 16px;
+      padding: 20px 16px;
       display: flex;
       justify-content: center;
       align-items: center;
@@ -1771,40 +1717,40 @@ function getAdminHTMLContent(globalSettings) {
 
     .admin-container {
       width: 100%;
-      max-width: 540px;
+      max-width: 500px;
       background: var(--bg-glass);
       border: 1px solid var(--border-color);
       border-radius: var(--radius-lg);
-      padding: 32px;
-      box-shadow: 0 20px 40px rgba(0,0,0,0.5);
+      padding: 24px;
+      box-shadow: 0 16px 36px rgba(0,0,0,0.5);
     }
 
     .admin-header {
       text-align: center;
-      margin-bottom: 28px;
+      margin-bottom: 20px;
     }
 
     .admin-header h2 {
-      font-size: 22px;
+      font-size: 20px;
       font-weight: 800;
       color: var(--gold-light);
-      margin-bottom: 6px;
+      margin-bottom: 4px;
     }
 
     .admin-header p {
-      font-size: 13px;
+      font-size: 12px;
       color: var(--text-muted);
     }
 
     .form-group {
-      margin-bottom: 20px;
+      margin-bottom: 14px;
       display: flex;
       flex-direction: column;
-      gap: 8px;
+      gap: 6px;
     }
 
     .form-group label {
-      font-size: 13px;
+      font-size: 12px;
       font-weight: 700;
       color: var(--text-main);
     }
@@ -1813,23 +1759,23 @@ function getAdminHTMLContent(globalSettings) {
       width: 100%;
       background: rgba(10, 13, 20, 0.8);
       border: 1px solid var(--border-color);
-      border-radius: 12px;
-      padding: 12px 16px;
+      border-radius: 10px;
+      padding: 10px 14px;
       color: #fff;
-      font-size: 15px;
+      font-size: 14px;
       outline: none;
       transition: 0.25s;
     }
 
     .form-group input:focus, .form-group textarea:focus {
       border-color: var(--gold-primary);
-      box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.2);
+      box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.15);
     }
 
     .grid-2 {
       display: grid;
       grid-template-columns: 1fr 1fr;
-      gap: 12px;
+      gap: 10px;
     }
 
     .btn {
@@ -1838,12 +1784,12 @@ function getAdminHTMLContent(globalSettings) {
       border: none;
       color: #000;
       font-weight: 800;
-      font-size: 15px;
-      padding: 14px;
-      border-radius: 12px;
+      font-size: 14px;
+      padding: 12px;
+      border-radius: 10px;
       cursor: pointer;
-      transition: 0.25s;
-      margin-top: 10px;
+      transition: 0.2s;
+      margin-top: 8px;
     }
 
     .btn:hover {
@@ -1854,15 +1800,15 @@ function getAdminHTMLContent(globalSettings) {
     .btn-secondary {
       background: rgba(255, 255, 255, 0.1);
       color: #fff;
-      margin-top: 10px;
+      margin-top: 8px;
     }
 
     .msg-box {
-      padding: 12px;
-      border-radius: 10px;
-      font-size: 13px;
+      padding: 10px;
+      border-radius: 8px;
+      font-size: 12px;
       font-weight: 700;
-      margin-bottom: 20px;
+      margin-bottom: 16px;
       display: none;
     }
 
@@ -1870,11 +1816,11 @@ function getAdminHTMLContent(globalSettings) {
     .msg-box.error { background: rgba(239, 68, 68, 0.15); border: 1px solid var(--danger); color: #f87171; }
 
     .section-title {
-      font-size: 15px;
+      font-size: 14px;
       font-weight: 800;
       color: var(--gold-light);
-      margin: 24px 0 14px 0;
-      padding-bottom: 8px;
+      margin: 18px 0 10px 0;
+      padding-bottom: 6px;
       border-bottom: 1px dashed var(--border-color);
     }
   </style>
