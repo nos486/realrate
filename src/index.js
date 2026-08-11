@@ -21,13 +21,16 @@ export default {
       });
     }
 
+    // Track Page Views and Active Online Users
+    const analytics = await trackAnalytics(request, env, ctx, url);
+
     // API Routes
     if (url.pathname === "/api/calculate") {
-      return handleCalculate(url, env);
+      return handleCalculate(url, env, analytics);
     }
 
     if (url.pathname === "/api/rates") {
-      return handleFetchRates(env);
+      return handleFetchRates(env, analytics);
     }
 
     if (url.pathname === "/api/telegram") {
@@ -42,7 +45,7 @@ export default {
     }
 
     // Default route: Serve Web UI
-    return new Response(getHTMLContent(env), {
+    return new Response(getHTMLContent(env, analytics), {
       headers: {
         "Content-Type": "text/html; charset=utf-8",
         "Access-Control-Allow-Origin": "*",
@@ -50,6 +53,41 @@ export default {
     });
   },
 };
+
+/**
+ * Track total page views and active online users via Cloudflare KV Storage
+ */
+async function trackAnalytics(request, env, ctx, url) {
+  let pageViews = 1280;
+  let onlineUsers = 1;
+
+  if (env && env.REALRATE_KV) {
+    try {
+      // 1. Get and increment total page views
+      const viewsStr = await env.REALRATE_KV.get("page_views");
+      let currentViews = parseInt(viewsStr || "1280", 10);
+
+      if (url.pathname === "/") {
+        currentViews += 1;
+        ctx.waitUntil(env.REALRATE_KV.put("page_views", currentViews.toString()));
+      }
+      pageViews = currentViews;
+
+      // 2. Track online user heartbeat using Client IP (TTL 180 seconds = 3 minutes)
+      const ip = request.headers.get("cf-connecting-ip") || request.headers.get("x-real-ip") || "user_" + Math.random().toString(36).substring(7);
+      const onlineKey = `online_${ip}`;
+      ctx.waitUntil(env.REALRATE_KV.put(onlineKey, "1", { expirationTtl: 180 }));
+
+      // List active online keys
+      const activeKeys = await env.REALRATE_KV.list({ prefix: "online_" });
+      onlineUsers = Math.max(1, activeKeys.keys.length);
+    } catch (e) {
+      console.error("Analytics Error:", e);
+    }
+  }
+
+  return { pageViews, onlineUsers };
+}
 
 /**
  * Fetch Live International Forex Exchange Rates against USD
@@ -153,7 +191,6 @@ async function fetchTelegramPrices(env, forceRefresh = false) {
 
 /**
  * Parse HTML for Gold & Coin Prices
- * Stores the EXACT raw price numbers as Toman without any division
  */
 function parseTelegramHtml(html) {
   const result = {};
@@ -243,7 +280,7 @@ function parseTelegramHtml(html) {
 /**
  * Handle Price Calculation & Arbitrage Analysis + World Currency Cross Rates
  */
-async function handleCalculate(url, env) {
+async function handleCalculate(url, env, analytics) {
   const usd_toman_raw = url.searchParams.get("usd_toman");
   const usd_toman = usd_toman_raw ? parseFloat(usd_toman_raw) : null;
   const gold_usd = parseFloat(url.searchParams.get("gold_usd")) || parseFloat(env?.DEFAULT_GOLD_USD || "2450");
@@ -324,7 +361,7 @@ async function handleCalculate(url, env) {
     };
   }
 
-  // Major World Currencies Calculation based on USD cross-rates
+  // Major World Currencies Calculation
   const currencies = [
     {
       code: "EUR",
@@ -394,7 +431,8 @@ async function handleCalculate(url, env) {
     currencies,
     market_data: tgPrices,
     analysis: itemsAnalysis,
-    recommendation
+    recommendation,
+    analytics
   };
 
   return new Response(JSON.stringify(responseObj, null, 2), {
@@ -408,7 +446,7 @@ async function handleCalculate(url, env) {
 /**
  * Fetch Live Gold Spot Price & Currencies
  */
-async function handleFetchRates(env) {
+async function handleFetchRates(env, analytics) {
   try {
     let gold_usd = parseFloat(env?.DEFAULT_GOLD_USD || "2450");
     try {
@@ -431,7 +469,8 @@ async function handleFetchRates(env) {
         success: true,
         gold_usd,
         forex,
-        market_prices: tgPrices
+        market_prices: tgPrices,
+        analytics
       }),
       {
         headers: {
@@ -457,7 +496,7 @@ async function handleFetchRates(env) {
 /**
  * Embedded HTML Web Application
  */
-function getHTMLContent(env) {
+function getHTMLContent(env, analytics) {
   const defaultGoldUsd = env?.DEFAULT_GOLD_USD || "2450";
 
   return `<!DOCTYPE html>
@@ -572,6 +611,47 @@ function getHTMLContent(env) {
       display: flex;
       align-items: center;
       gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    /* Analytics Badges */
+    .analytics-badges {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .badge-item {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid var(--border-color);
+      padding: 5px 12px;
+      border-radius: 20px;
+      font-size: 12px;
+      color: var(--text-main);
+    }
+
+    .badge-item.online {
+      background: rgba(16, 185, 129, 0.1);
+      border-color: rgba(16, 185, 129, 0.3);
+      color: var(--success);
+    }
+
+    .pulse-dot {
+      width: 7px;
+      height: 7px;
+      background-color: var(--success);
+      border-radius: 50%;
+      box-shadow: 0 0 8px var(--success);
+      animation: pulse 1.8s infinite;
+    }
+
+    @keyframes pulse {
+      0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); }
+      70% { transform: scale(1); box-shadow: 0 0 0 6px rgba(16, 185, 129, 0); }
+      100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
     }
 
     /* Auto Refresh Widget UI */
@@ -1007,7 +1087,18 @@ function getHTMLContent(env) {
       </div>
 
       <div class="header-controls">
-        <!-- Auto Refresh Toggle Switch Widget -->
+        <!-- Live Analytics Badges -->
+        <div class="analytics-badges">
+          <div class="badge-item online">
+            <span class="pulse-dot"></span>
+            <span>آنلاین: <strong id="onlineUsersCount">${analytics.onlineUsers.toLocaleString("fa-IR")} نفر</strong></span>
+          </div>
+          <div class="badge-item">
+            <span>👁️ بازدید: <strong id="totalViewsCount">${analytics.pageViews.toLocaleString("fa-IR")}</strong></span>
+          </div>
+        </div>
+
+        <!-- Auto Refresh Toggle Switch Widget (OFF BY DEFAULT) -->
         <div class="auto-refresh-widget">
           <label class="toggle-switch">
             <input type="checkbox" id="autoRefreshToggle" onchange="toggleAutoRefresh(this.checked)">
@@ -1217,7 +1308,7 @@ function getHTMLContent(env) {
       }
     }
 
-    /* Auto Refresh Timer Logic */
+    /* Auto Refresh Timer Logic - OFF BY DEFAULT */
     function toggleAutoRefresh(enabled) {
       try {
         localStorage.setItem('realrate_auto_refresh', enabled ? 'true' : 'false');
@@ -1277,6 +1368,7 @@ function getHTMLContent(env) {
       try {
         const saved = localStorage.getItem('realrate_auto_refresh');
         const toggle = document.getElementById('autoRefreshToggle');
+        // Default OFF if saved preference is not explicitly 'true'
         if (saved === 'true') {
           toggle.checked = true;
           startAutoRefreshTimer();
@@ -1284,7 +1376,9 @@ function getHTMLContent(env) {
           toggle.checked = false;
           stopAutoRefreshTimer();
         }
-      } catch (e) {}
+      } catch (e) {
+        stopAutoRefreshTimer();
+      }
     }
 
     function saveLocalUsd() {
@@ -1363,10 +1457,21 @@ function getHTMLContent(env) {
           renderAnalysis(data);
           renderCurrencies(data);
           calculateJewelry();
+          if (data.analytics) {
+            updateAnalyticsUI(data.analytics);
+          }
         }
       } catch (err) {
         console.error('Calculation error:', err);
       }
+    }
+
+    function updateAnalyticsUI(analytics) {
+      if (!analytics) return;
+      const onlineEl = document.getElementById('onlineUsersCount');
+      const viewsEl = document.getElementById('totalViewsCount');
+      if (onlineEl && analytics.onlineUsers) onlineEl.innerText = analytics.onlineUsers.toLocaleString('fa-IR') + ' نفر';
+      if (viewsEl && analytics.pageViews) viewsEl.innerText = analytics.pageViews.toLocaleString('fa-IR');
     }
 
     function renderCurrencies(data) {
@@ -1536,7 +1641,7 @@ function getHTMLContent(env) {
 
     async function initPage() {
       loadLocalUsd();
-      loadAutoRefreshPref();
+      loadAutoRefreshPref(); // Auto-Refresh OFF by default
 
       // Fetch live gold spot price & KV market data
       try {
@@ -1544,6 +1649,9 @@ function getHTMLContent(env) {
         const data = await res.json();
         if (data.success && data.gold_usd) {
           document.getElementById('goldUsd').value = data.gold_usd.toLocaleString('en-US');
+        }
+        if (data.analytics) {
+          updateAnalyticsUI(data.analytics);
         }
         document.getElementById('statusText').innerText = 'قیمت انس و بازار بروز است';
       } catch (e) {
