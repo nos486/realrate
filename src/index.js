@@ -52,9 +52,9 @@ export default {
 };
 
 /**
- * Fetch and parse Telegram Channel posts (https://t.me/s/zarmagoldd)
+ * Fetch and parse market prices (https://t.me/s/zarmagoldd)
  * If last check was less than 1 minute (60,000ms) ago, returns cached KV data.
- * Otherwise, fetches fresh Telegram posts and updates Cloudflare KV Storage.
+ * Otherwise, fetches fresh market posts and updates Cloudflare KV Storage.
  */
 async function fetchTelegramPrices(env, forceRefresh = false) {
   let stored = { ...inMemoryCache };
@@ -78,7 +78,7 @@ async function fetchTelegramPrices(env, forceRefresh = false) {
     return stored;
   }
 
-  // Cache is older than 1 minute or force refresh requested: Fetch fresh Telegram data
+  // Cache is older than 1 minute or force refresh requested: Fetch fresh market data
   try {
     const res = await fetch("https://t.me/s/zarmagoldd", {
       headers: {
@@ -110,15 +110,15 @@ async function fetchTelegramPrices(env, forceRefresh = false) {
       }
     }
   } catch (err) {
-    console.error("Telegram fetch error:", err);
+    console.error("Market fetch error:", err);
   }
 
   return stored;
 }
 
 /**
- * Parse Telegram Channel Web Preview HTML for Gold & Coin Prices
- * Stores the EXACT raw price numbers from the channel as Toman without any division
+ * Parse HTML for Gold & Coin Prices
+ * Stores the EXACT raw price numbers as Toman without any division
  */
 function parseTelegramHtml(html) {
   const result = {};
@@ -207,7 +207,6 @@ function parseTelegramHtml(html) {
 
 /**
  * Handle Price Calculation & Arbitrage Analysis
- * If an item is missing from Telegram AND KV database, market and bubble remain null (NO fallback market prices)
  */
 async function handleCalculate(url, env) {
   const usd_toman_raw = url.searchParams.get("usd_toman");
@@ -230,7 +229,7 @@ async function handleCalculate(url, env) {
     );
   }
 
-  // Fetch or get last telegram prices from KV
+  // Fetch or get last market prices from KV
   const tgPrices = await fetchTelegramPrices(env);
 
   // Real Intrinsic Gold Calculations based on USD Toman rate & Global Gold Spot
@@ -242,7 +241,7 @@ async function handleCalculate(url, env) {
   const half_intrinsic = gold_24k_gram * 3.6594;
   const quarter_intrinsic = gold_24k_gram * 1.8297;
 
-  // Helper to build item analysis (strictly returns null market & bubble if missing)
+  // Helper to build item analysis
   function analyzeItem(id, name, intrinsic, tgItem) {
     const market = (tgItem && typeof tgItem.price === "number") ? tgItem.price : null;
     let bubble = null;
@@ -296,8 +295,7 @@ async function handleCalculate(url, env) {
       gold_18k_gram: Math.round(gold_18k_gram),
       mesghal_17k: Math.round(mesghal_17k)
     },
-    telegram_channel: "t.me/zarmagoldd",
-    telegram_raw: tgPrices,
+    market_data: tgPrices,
     analysis: itemsAnalysis,
     recommendation
   };
@@ -332,7 +330,7 @@ async function handleFetchRates(env) {
       JSON.stringify({
         success: true,
         gold_usd,
-        telegram_prices: tgPrices
+        market_prices: tgPrices
       }),
       {
         headers: {
@@ -367,7 +365,7 @@ function getHTMLContent(env) {
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>RealRate | تحلیل حباب واقعی سکه و طلا</title>
-  <meta name="description" content="محاسبه قیمت واقعی طلا و سکه بر اساس دلار و انس و تحلیل هوشمند بهترین گزینه برای خرید با اطلاعات کانال تلگرام زرماگلد">
+  <meta name="description" content="محاسبه قیمت واقعی طلا و سکه بر اساس دلار و انس و تحلیل هوشمند بهترین گزینه برای خرید بر اساس قیمت روز بازار">
   
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -831,7 +829,7 @@ function getHTMLContent(env) {
         <div class="brand-logo">🪙</div>
         <div class="brand-title">
           <h1>RealRate</h1>
-          <p>تحلیل قیمت واقعی طلا و سکه بر اساس تلگرام زرماگلد</p>
+          <p>تحلیل قیمت واقعی طلا و سکه بر اساس قیمت روز بازار</p>
         </div>
       </div>
       <div class="status-badge" id="statusBadge">
@@ -984,7 +982,7 @@ function getHTMLContent(env) {
 
     <!-- Footer -->
     <footer>
-      <p>منبع اطلاعات بازار: کانال تلگرام زرماگلد (t.me/zarmagoldd) | ذخیره در Cloudflare KV Storage</p>
+      <p>منبع اطلاعات: قیمت روز بازار طلا و سکه | اجرا در Cloudflare Worker</p>
     </footer>
   </div>
 
@@ -1107,10 +1105,11 @@ function getHTMLContent(env) {
 
       if (!data.analysis || data.analysis.length === 0) return;
 
-      // Update Header Channel Check Time
-      if (data.telegram_raw && data.telegram_raw.last_channel_check_time) {
+      // Update Header Check Time
+      const rawData = data.market_data || data.telegram_raw;
+      if (rawData && rawData.last_channel_check_time) {
         const statusText = document.getElementById('statusText');
-        statusText.innerText = 'بروزرسانی تلگرام زرماگلد: ' + formatRelativeTime(data.telegram_raw.last_channel_check_time);
+        statusText.innerText = 'بروزرسانی قیمت روز: ' + formatRelativeTime(rawData.last_channel_check_time);
       }
 
       // Show Recommendation Box
@@ -1136,7 +1135,7 @@ function getHTMLContent(env) {
 
         // Determine badge styling
         let bubbleClass = 'disabled';
-        let badgeText = 'ناموجود در کانال';
+        let badgeText = 'ناموجود در بازار';
 
         if (hasMarket) {
           if (isNegative) {
@@ -1153,7 +1152,7 @@ function getHTMLContent(env) {
 
         const timeStr = formatRelativeTime(item.updated_at);
         
-        let marketDisplayStr = '<span class="price-val" style="color: var(--text-muted); font-size: 16px;">ناموجود در کانال</span>';
+        let marketDisplayStr = '<span class="price-val" style="color: var(--text-muted); font-size: 16px;">ناموجود در بازار</span>';
         let bubbleDisplayStr = '<span style="color: var(--text-muted); font-size: 13px;">اطلاعات بازار موجود نیست</span>';
 
         if (hasMarket) {
@@ -1170,7 +1169,7 @@ function getHTMLContent(env) {
             <div class="card-header">
               <div class="card-title">
                 <h3>\${item.name}</h3>
-                <span>ارزش واقعی vs قیمت بازار تلگرام</span>
+                <span>ارزش واقعی vs قیمت روز بازار</span>
               </div>
               <span class="bubble-badge \${bubbleClass}">\${badgeText}</span>
             </div>
@@ -1181,7 +1180,7 @@ function getHTMLContent(env) {
             </div>
 
             <div class="price-row">
-              <span class="price-label">قیمت کانال تلگرام:</span>
+              <span class="price-label">قیمت روز بازار:</span>
               \${marketDisplayStr}
             </div>
 
@@ -1192,8 +1191,8 @@ function getHTMLContent(env) {
           </div>
 
           <div class="timestamp-tag">
-            <span>منبع: کانال تلگرام zarmagoldd</span>
-            <span>زمان انتشار: <strong>\${timeStr}</strong></span>
+            <span>منبع: قیمت روز بازار</span>
+            <span>زمان بروزرسانی: <strong>\${timeStr}</strong></span>
           </div>
         \`;
 
@@ -1227,14 +1226,14 @@ function getHTMLContent(env) {
     async function initPage() {
       loadLocalUsd();
 
-      // Fetch live gold spot price & Telegram KV data
+      // Fetch live gold spot price & KV market data
       try {
         const res = await fetch('/api/rates');
         const data = await res.json();
         if (data.success && data.gold_usd) {
           document.getElementById('goldUsd').value = data.gold_usd.toLocaleString('en-US');
         }
-        document.getElementById('statusText').innerText = 'قیمت انس و تلگرام بروز است';
+        document.getElementById('statusText').innerText = 'قیمت انس و بازار بروز است';
       } catch (e) {
         document.getElementById('statusText').innerText = 'آماده';
       }
