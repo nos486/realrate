@@ -1,6 +1,6 @@
 /**
  * RealRate — Iranian Gold & Currency Price Calculator & Telegram Arbitrage Engine
- * Cloudflare Worker Engine + Protected Admin Panel + Coin Target Bubble Engine
+ * Cloudflare Worker Engine + Protected Admin Panel + Dual Bubble Engine
  */
 
 // In-memory fallback cache if KV is not bound
@@ -134,7 +134,7 @@ async function handleAdminLogin(request, env) {
 }
 
 /**
- * Handle Admin Saving Global Settings (USD Rate, Gold USD, Coin Target Bubbles, Announcement)
+ * Handle Admin Saving Global Settings
  */
 async function handleAdminSaveSettings(request, env) {
   try {
@@ -474,11 +474,14 @@ async function handleCalculate(url, env, analytics, globalSettings) {
     let bubble = null;
     let bubble_pct = null;
     let diff_from_expected = null;
+    let diff_from_expected_pct = null;
 
     if (market !== null) {
       bubble = market - intrinsic;
       bubble_pct = parseFloat(((bubble / intrinsic) * 100).toFixed(1));
+
       diff_from_expected = market - expected_price;
+      diff_from_expected_pct = parseFloat(((diff_from_expected / expected_price) * 100).toFixed(1));
     }
 
     return {
@@ -491,6 +494,7 @@ async function handleCalculate(url, env, analytics, globalSettings) {
       bubble: bubble !== null ? Math.round(bubble) : null,
       bubble_pct,
       diff_from_expected: diff_from_expected !== null ? Math.round(diff_from_expected) : null,
+      diff_from_expected_pct,
       updated_at: tgItem ? tgItem.datetime : null
     };
   }
@@ -1591,18 +1595,36 @@ function getHTMLContent(env, analytics, globalSettings) {
         const timeStr = formatRelativeTime(item.updated_at);
         
         let marketDisplayStr = '<span class="price-val" style="color: var(--text-muted); font-size: 16px;">ناموجود در بازار</span>';
-        let bubbleDisplayStr = '<span style="color: var(--text-muted); font-size: 13px;">اطلاعات بازار موجود نیست</span>';
+        let rawBubbleDisplayStr = '<span style="color: var(--text-muted); font-size: 13px;">اطلاعات بازار موجود نیست</span>';
+        let expectedDiffDisplayStr = '';
 
         if (hasMarket) {
           marketDisplayStr = '<span class="price-val">' + formatNum(item.market) + ' تومان</span>';
+          
+          // 1. Raw Bubble Display
           const bubbleColor = isNegative ? '#60a5fa' : (item.bubble_pct <= 10 ? 'var(--success)' : '#f87171');
-          bubbleDisplayStr = isNegative ? 
+          rawBubbleDisplayStr = isNegative ? 
             ('حباب منفی ' + formatNum(Math.abs(item.bubble)) + ' تومان (' + item.bubble_pct.toLocaleString('fa-IR') + '٪)') : 
             ('+' + formatNum(item.bubble) + ' تومان (' + item.bubble_pct.toLocaleString('fa-IR') + '٪)');
-          bubbleDisplayStr = '<span style="font-weight: 800; font-size: 15px; color: ' + bubbleColor + ';">' + bubbleDisplayStr + '</span>';
+          rawBubbleDisplayStr = '<span style="font-weight: 800; font-size: 15px; color: ' + bubbleColor + ';">' + rawBubbleDisplayStr + '</span>';
+
+          // 2. Expected Price Variance Display (for coins with target bubble)
+          if (item.target_bubble_pct > 0 && item.diff_from_expected !== null) {
+            const isExpNeg = item.diff_from_expected < 0;
+            const expDiffColor = isExpNeg ? '#60a5fa' : (item.diff_from_expected_pct <= 5 ? 'var(--success)' : '#f87171');
+            const expDiffText = isExpNeg ?
+              ('اختلاف منفی ' + formatNum(Math.abs(item.diff_from_expected)) + ' تومان (' + item.diff_from_expected_pct.toLocaleString('fa-IR') + '٪)') :
+              ('+' + formatNum(item.diff_from_expected) + ' تومان (' + item.diff_from_expected_pct.toLocaleString('fa-IR') + '٪)');
+            
+            expectedDiffDisplayStr = \`
+              <div class="price-row" style="margin-top: 8px;">
+                <span class="price-label">انحراف بازار از قیمت محاسباتی:</span>
+                <span style="font-weight: 800; font-size: 14px; color: \${expDiffColor};">\${expDiffText}</span>
+              </div>
+            \`;
+          }
         }
 
-        // Expected Price Display (with Target Bubble if coin)
         let expectedRowHtml = '';
         if (item.target_bubble_pct > 0) {
           expectedRowHtml = \`
@@ -1636,9 +1658,11 @@ function getHTMLContent(env, analytics, globalSettings) {
             </div>
 
             <div class="price-row" style="margin-top: 14px; border-top: 1px dashed var(--border-color); padding-top: 10px;">
-              <span class="price-label">وضعیت حباب واقعی:</span>
-              \${bubbleDisplayStr}
+              <span class="price-label">حباب نسبت به ارزش خام طلا:</span>
+              \${rawBubbleDisplayStr}
             </div>
+
+            \${expectedDiffDisplayStr}
           </div>
 
           <div class="timestamp-tag">
