@@ -1,0 +1,7 @@
+name = "realrate"
+main = "src/index.js"
+compatibility_date = "2024-08-01"
+
+[vars]
+DEFAULT_USD_TOMAN = "62000"
+DEFAULT_GOLD_USD = "2450"
