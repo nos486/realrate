@@ -31,7 +31,8 @@ export default {
     }
 
     if (url.pathname === "/api/telegram") {
-      const tgData = await fetchTelegramPrices(env);
+      const forceRefresh = url.searchParams.get("force") === "true";
+      const tgData = await fetchTelegramPrices(env, forceRefresh);
       return new Response(JSON.stringify(tgData, null, 2), {
         headers: {
           "Content-Type": "application/json; charset=utf-8",
@@ -52,10 +53,12 @@ export default {
 
 /**
  * Fetch and parse Telegram Channel posts (https://t.me/s/zarmagoldd)
- * Remembers last known prices and timestamps in Cloudflare KV Storage.
+ * If last check was less than 1 minute (60,000ms) ago, returns cached KV data.
+ * Otherwise, fetches fresh Telegram posts and updates Cloudflare KV Storage.
  */
-async function fetchTelegramPrices(env) {
+async function fetchTelegramPrices(env, forceRefresh = false) {
   let stored = { ...inMemoryCache };
+  const nowMs = Date.now();
 
   // Read stored prices from Cloudflare KV Storage if bound
   if (env && env.REALRATE_KV) {
@@ -67,6 +70,15 @@ async function fetchTelegramPrices(env) {
     }
   }
 
+  // Check if cache is still fresh (< 1 minute / 60,000 ms old)
+  const lastCheckMs = stored.last_channel_check_time ? new Date(stored.last_channel_check_time).getTime() : 0;
+  const isFresh = (nowMs - lastCheckMs) < 60000;
+
+  if (isFresh && !forceRefresh && Object.keys(stored).length > 1) {
+    return stored;
+  }
+
+  // Cache is older than 1 minute or force refresh requested: Fetch fresh Telegram data
   try {
     const res = await fetch("https://t.me/s/zarmagoldd", {
       headers: {
@@ -78,13 +90,14 @@ async function fetchTelegramPrices(env) {
       const html = await res.text();
       const parsed = parseTelegramHtml(html);
 
-      // Merge newly parsed items with stored items (preserves last price & timestamp if missing in new post)
+      // Merge newly parsed items with stored items (preserves last item price & timestamp if missing in new post)
       for (const [key, item] of Object.entries(parsed)) {
         if (item && item.price) {
           stored[key] = item;
         }
       }
 
+      stored.last_channel_check_time = new Date().toISOString();
       inMemoryCache = { ...stored };
 
       // Persist updated prices in Cloudflare KV Storage
@@ -105,6 +118,10 @@ async function fetchTelegramPrices(env) {
 
 /**
  * Parse Telegram Channel Web Preview HTML for Gold & Coin Prices
+ * Converts wholesale lots in zarmagoldd to per-gram and per-coin prices in Toman:
+ * - 18K Gold lot: quoted per 5g -> divide by 5 for 1 gram Toman
+ * - Full Coin 86 lot: quoted per 5 coins -> divide by 5 for 1 coin Toman
+ * - Mesghal lot: quoted per 10 mesghal -> divide by 10 for 1 mesghal Toman
  */
 function parseTelegramHtml(html) {
   const result = {};
@@ -121,88 +138,72 @@ function parseTelegramHtml(html) {
     if (!textMatch) continue;
 
     const rawText = textMatch[1].replace(/<br\s*\/?>/gi, "\n").replace(/<[^>]+>/g, "").trim();
-    const lines = rawText.split("\n");
+    const lines = rawText.split("\n").map(l => l.trim()).filter(Boolean);
 
-    // 1. Gram 18K Gold (گرم 18 عیار) - e.g. "گرم 18 عیار 🔴 فروش: 18,667,000"
-    if (!result.gold_18k && (rawText.includes("18 عیار") || rawText.includes("۱۸ عیار"))) {
-      for (let i = 0; i < lines.length; i++) {
-        if (lines[i].includes("18 عیار") || lines[i].includes("۱۸ عیار")) {
-          const chunk = lines.slice(i, i + 4).join(" ");
-          const saleMatch = chunk.match(/فروش:\s*([\d,]+)/);
-          if (saleMatch) {
-            const rawNum = parseInt(saleMatch[1].replace(/,/g, ""), 10);
-            if (rawNum > 0) {
-              const pricePerGram = rawNum > 10000000 ? Math.round(rawNum / 5) : rawNum;
-              result.gold_18k = { price: pricePerGram, datetime, label: "طلا ۱۸ عیار" };
-            }
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+
+      // 1. Gram 18K Gold (گرم 18 عیار) - quoted per 5g lot in Toman -> divide by 5 for 1 gram Toman
+      if (!result.gold_18k && (line.includes("گرم 18 عیار") || line.includes("18 عیار") || line.includes("۱۸ عیار"))) {
+        const chunk = lines.slice(i, i + 3).join(" ");
+        const saleMatch = chunk.match(/فروش:\s*([\d,]+)/);
+        if (saleMatch) {
+          const rawNum = parseInt(saleMatch[1].replace(/,/g, ""), 10);
+          if (rawNum > 1000000) {
+            const pricePerGram = Math.round(rawNum / 5);
+            result.gold_18k = { price: pricePerGram, datetime, label: "طلا ۱۸ عیار (هر گرم)" };
           }
         }
       }
-    }
 
-    // 2. Full Coin 86 (سکه تمام 86 / سکه تمام / تمام سکه) - e.g. "سکه تمام 86 🔴 فروش: 185,050,000"
-    if (!result.full_coin && (rawText.includes("سکه تمام") || rawText.includes("تمام سکه") || rawText.includes("سکه امامی"))) {
-      for (let i = 0; i < lines.length; i++) {
-        if (lines[i].includes("سکه تمام") || lines[i].includes("تمام سکه") || lines[i].includes("سکه امامی")) {
-          const chunk = lines.slice(i, i + 4).join(" ");
-          const saleMatch = chunk.match(/(?:فروش:|قیمت:)?\s*([\d,]{7,12})/);
-          if (saleMatch) {
-            const rawNum = parseInt(saleMatch[1].replace(/,/g, ""), 10);
-            if (rawNum > 5000000) {
-              const priceToman = rawNum > 100000000 ? Math.round(rawNum / 10) : rawNum;
-              result.full_coin = { price: priceToman, datetime, label: "سکه تمام ۸۶" };
-            }
+      // 2. Full Coin 86 (سکه تمام 86 / سکه تمام / تمام سکه) - quoted per 5-coin lot in Toman -> divide by 5 for 1 coin Toman
+      if (!result.full_coin && (line.includes("سکه تمام 86") || line.includes("سکه تمام") || line.includes("تمام سکه") || line.includes("سکه امامی"))) {
+        const chunk = lines.slice(i, i + 3).join(" ");
+        const saleMatch = chunk.match(/فروش:\s*([\d,]+)/);
+        if (saleMatch) {
+          const rawNum = parseInt(saleMatch[1].replace(/,/g, ""), 10);
+          if (rawNum > 10000000) {
+            const pricePerCoin = Math.round(rawNum / 5);
+            result.full_coin = { price: pricePerCoin, datetime, label: "سکه تمام ۸۶" };
           }
         }
       }
-    }
 
-    // 3. Mesghal (آبشده / مظنه) - e.g. "آبشده نقد 🔴 فروش: 81,920,000"
-    if (!result.mesghal && (rawText.includes("آبشده") || rawText.includes("مثقال") || rawText.includes("مظنه"))) {
-      for (let i = 0; i < lines.length; i++) {
-        if (lines[i].includes("آبشده") || lines[i].includes("مثقال")) {
-          const chunk = lines.slice(i, i + 4).join(" ");
-          const saleMatch = chunk.match(/فروش:\s*([\d,]+)/);
-          if (saleMatch) {
-            const rawNum = parseInt(saleMatch[1].replace(/,/g, ""), 10);
-            if (rawNum > 0) {
-              const pricePerMesghal = rawNum > 30000000 ? Math.round(rawNum / 10) : rawNum;
-              result.mesghal = { price: pricePerMesghal, datetime, label: "مثقال طلا (۱۷ عیار)" };
-            }
+      // 3. Mesghal (آبشده نقد / مثقال) - quoted per 10 mesghal lot -> divide by 10 for 1 mesghal Toman
+      if (!result.mesghal && (line.includes("آبشده نقد") || line.includes("آبشده") || line.includes("مثقال"))) {
+        const chunk = lines.slice(i, i + 3).join(" ");
+        const saleMatch = chunk.match(/فروش:\s*([\d,]+)/);
+        if (saleMatch) {
+          const rawNum = parseInt(saleMatch[1].replace(/,/g, ""), 10);
+          if (rawNum > 10000000) {
+            const pricePerMesghal = Math.round(rawNum / 10);
+            result.mesghal = { price: pricePerMesghal, datetime, label: "مثقال طلا (۱۷ عیار)" };
           }
         }
       }
-    }
 
-    // 4. Half Coin (نیم سکه)
-    if (!result.half_coin && rawText.includes("نیم سکه")) {
-      for (let i = 0; i < lines.length; i++) {
-        if (lines[i].includes("نیم سکه")) {
-          const chunk = lines.slice(i, i + 4).join(" ");
-          const saleMatch = chunk.match(/(?:فروش:|قیمت:)?\s*([\d,]{7,12})/);
-          if (saleMatch) {
-            const rawNum = parseInt(saleMatch[1].replace(/,/g, ""), 10);
-            if (rawNum > 5000000) {
-              const priceToman = rawNum > 50000000 ? Math.round(rawNum / 10) : rawNum;
-              result.half_coin = { price: priceToman, datetime, label: "نیم سکه بهار آزادی" };
-            }
+      // 4. Half Coin (نیم سکه) - divide by 5 if 5-coin lot, or keep
+      if (!result.half_coin && line.includes("نیم سکه")) {
+        const chunk = lines.slice(i, i + 3).join(" ");
+        const saleMatch = chunk.match(/فروش:\s*([\d,]+)/);
+        if (saleMatch) {
+          const rawNum = parseInt(saleMatch[1].replace(/,/g, ""), 10);
+          if (rawNum > 5000000) {
+            const pricePerCoin = rawNum > 50000000 ? Math.round(rawNum / 5) : rawNum;
+            result.half_coin = { price: pricePerCoin, datetime, label: "نیم سکه بهار آزادی" };
           }
         }
       }
-    }
 
-    // 5. Quarter Coin (ربع سکه)
-    if (!result.quarter_coin && rawText.includes("ربع سکه")) {
-      for (let i = 0; i < lines.length; i++) {
-        if (lines[i].includes("ربع سکه")) {
-          const chunk = lines.slice(i, i + 4).join(" ");
-          const saleMatch = chunk.match(/(?:فروش:|قیمت:)?\s*([\d,]{7,12})/);
-          if (saleMatch) {
-            const rawNum = parseInt(saleMatch[1].replace(/,/g, ""), 10);
-            if (rawNum > 3000000) {
-              const priceToman = rawNum > 30000000 ? Math.round(rawNum / 10) : rawNum;
-              result.quarter_coin = { price: priceToman, datetime, label: "ربع سکه بهار آزادی" };
-            }
+      // 5. Quarter Coin (ربع سکه) - divide by 5 if 5-coin lot, or keep
+      if (!result.quarter_coin && line.includes("ربع سکه")) {
+        const chunk = lines.slice(i, i + 3).join(" ");
+        const saleMatch = chunk.match(/فروش:\s*([\d,]+)/);
+        if (saleMatch) {
+          const rawNum = parseInt(saleMatch[1].replace(/,/g, ""), 10);
+          if (rawNum > 3000000) {
+            const pricePerCoin = rawNum > 30000000 ? Math.round(rawNum / 5) : rawNum;
+            result.quarter_coin = { price: pricePerCoin, datetime, label: "ربع سکه بهار آزادی" };
           }
         }
       }
@@ -218,7 +219,7 @@ function parseTelegramHtml(html) {
 async function handleCalculate(url, env) {
   const usd_toman_raw = url.searchParams.get("usd_toman");
   const usd_toman = usd_toman_raw ? parseFloat(usd_toman_raw) : null;
-  const gold_usd = parseFloat(url.searchParams.get("gold_usd")) || 2450;
+  const gold_usd = parseFloat(url.searchParams.get("gold_usd")) || parseFloat(env?.DEFAULT_GOLD_USD || "2450");
 
   if (!usd_toman || isNaN(usd_toman) || usd_toman <= 0) {
     return new Response(
@@ -236,7 +237,7 @@ async function handleCalculate(url, env) {
     );
   }
 
-  // Fetch or get last telegram prices from KV
+  // Fetch or get last telegram prices from KV (> 1 min auto refresh policy)
   const tgPrices = await fetchTelegramPrices(env);
 
   // Real Intrinsic Gold Calculations
@@ -348,7 +349,7 @@ async function handleCalculate(url, env) {
  */
 async function handleFetchRates(env) {
   try {
-    let gold_usd = 2450;
+    let gold_usd = parseFloat(env?.DEFAULT_GOLD_USD || "2450");
     try {
       const goldRes = await fetch("https://api.gold-api.com/price/XAU");
       if (goldRes.ok) {
@@ -392,6 +393,8 @@ async function handleFetchRates(env) {
  * Embedded HTML Web Application
  */
 function getHTMLContent(env) {
+  const defaultGoldUsd = env?.DEFAULT_GOLD_USD || "2450";
+
   return `<!DOCTYPE html>
 <html lang="fa" dir="rtl">
 <head>
@@ -872,7 +875,7 @@ function getHTMLContent(env) {
             <span style="font-size: 11px; color: var(--success); font-weight: 700;">🌐 خودکار (قابل ویرایش)</span>
           </label>
           <div class="input-wrapper">
-            <input type="text" id="goldUsd" value="2450" oninput="onInputsChanged()">
+            <input type="text" id="goldUsd" value="${defaultGoldUsd}" oninput="onInputsChanged()">
             <span class="input-suffix">USD</span>
           </div>
           <div class="quick-btns">
@@ -1108,6 +1111,12 @@ function getHTMLContent(env) {
 
       if (!data.analysis || data.analysis.length === 0) return;
 
+      // Update Header Channel Check Time
+      if (data.telegram_raw && data.telegram_raw.last_channel_check_time) {
+        const statusText = document.getElementById('statusText');
+        statusText.innerText = 'بروزرسانی کانال تلگرام: ' + formatRelativeTime(data.telegram_raw.last_channel_check_time);
+      }
+
       // Show Recommendation Box
       if (data.recommendation) {
         const recBox = document.getElementById('recBox');
@@ -1152,7 +1161,7 @@ function getHTMLContent(env) {
 
           <div class="timestamp-tag">
             <span>منبع: کانال تلگرام zarmagoldd</span>
-            <span>زمان دریافت قیمت: <strong>\${timeStr}</strong></span>
+            <span>زمان انتشار پست: <strong>\${timeStr}</strong></span>
           </div>
         \`;
 
@@ -1186,7 +1195,7 @@ function getHTMLContent(env) {
     async function initPage() {
       loadLocalUsd();
 
-      // Fetch live gold spot price
+      // Fetch live gold spot price & Telegram KV data
       try {
         const res = await fetch('/api/rates');
         const data = await res.json();
