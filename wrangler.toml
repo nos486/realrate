@@ -3,5 +3,9 @@ main = "src/index.js"
 compatibility_date = "2024-08-01"
 
 [vars]
-DEFAULT_USD_TOMAN = "62000"
+DEFAULT_USD_TOMAN = ""
 DEFAULT_GOLD_USD = "2450"
+
+[[kv_namespaces]]
+binding = "REALRATE_KV"
+id = "realrate_kv_storage"
