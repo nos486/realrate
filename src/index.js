@@ -1,6 +1,6 @@
 /**
  * RealRate — Iranian Gold & Currency Price Calculator & Telegram Arbitrage Engine
- * Cloudflare Worker Engine + Protected Admin Panel + Compact List Currencies
+ * Cloudflare Worker Engine + Protected Admin Panel + Custom Vector SVG Logo
  */
 
 // In-memory fallback cache if KV is not bound
@@ -655,6 +655,32 @@ async function handleFetchRates(env, analytics, globalSettings) {
 }
 
 /**
+ * Embedded SVG Logo Component
+ */
+const REALRATE_SVG_LOGO = `<svg width="34" height="34" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <circle cx="20" cy="20" r="18" fill="url(#logo_grad_bg)" stroke="url(#logo_grad_stroke)" stroke-width="1.8" />
+  <circle cx="20" cy="20" r="13.5" stroke="rgba(251, 191, 36, 0.35)" stroke-width="1" stroke-dasharray="2 2" />
+  <path d="M12 24L17 19L21 22L28 14" stroke="url(#logo_grad_gold)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M24 14H28V18" stroke="url(#logo_grad_gold)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="20" cy="20" r="2.8" fill="url(#logo_grad_gold)"/>
+  <defs>
+    <linearGradient id="logo_grad_bg" x1="0" y1="0" x2="40" y2="40" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#f59e0b" stop-opacity="0.3"/>
+      <stop offset="1" stop-color="#b45309" stop-opacity="0.12"/>
+    </linearGradient>
+    <linearGradient id="logo_grad_stroke" x1="0" y1="0" x2="40" y2="40" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#fbbf24"/>
+      <stop offset="1" stop-color="#d97706"/>
+    </linearGradient>
+    <linearGradient id="logo_grad_gold" x1="12" y1="14" x2="28" y2="24" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#fef08a"/>
+      <stop offset="0.5" stop-color="#f59e0b"/>
+      <stop offset="1" stop-color="#d97706"/>
+    </linearGradient>
+  </defs>
+</svg>`;
+
+/**
  * Embedded HTML Web Application (User UI)
  */
 function getHTMLContent(env, analytics, globalSettings) {
@@ -743,16 +769,11 @@ function getHTMLContent(env, analytics, globalSettings) {
       gap: 10px;
     }
 
-    .brand-logo {
-      width: 36px;
-      height: 36px;
-      background: var(--gold-gradient);
-      border-radius: var(--radius-md);
+    .brand-logo-svg {
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: 20px;
-      box-shadow: 0 4px 14px rgba(245, 158, 11, 0.3);
+      filter: drop-shadow(0 0 10px rgba(245, 158, 11, 0.4));
     }
 
     .brand-title h1 {
@@ -972,7 +993,7 @@ function getHTMLContent(env, analytics, globalSettings) {
       white-space: nowrap;
     }
 
-    /* Comparison Cards Grid - 2 CARDS PER ROW COMPACT */
+    /* Comparison Cards Grid */
     .cards-grid {
       display: grid;
       grid-template-columns: repeat(2, 1fr);
@@ -1209,7 +1230,9 @@ function getHTMLContent(env, analytics, globalSettings) {
     <!-- Header -->
     <header>
       <div class="brand">
-        <div class="brand-logo">🪙</div>
+        <div class="brand-logo-svg">
+          ${REALRATE_SVG_LOGO}
+        </div>
         <div class="brand-title">
           <h1>RealRate</h1>
           <p>تحلیل قیمت واقعی طلا، سکه و ارزهای جهان بر اساس دلار</p>
@@ -1764,13 +1787,16 @@ function getAdminHTMLContent(globalSettings) {
     .admin-header {
       text-align: center;
       margin-bottom: 20px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
     }
 
     .admin-header h2 {
       font-size: 20px;
       font-weight: 800;
       color: var(--gold-light);
-      margin-bottom: 4px;
     }
 
     .admin-header p {
@@ -1865,7 +1891,10 @@ function getAdminHTMLContent(globalSettings) {
 
   <div class="admin-container">
     <div class="admin-header">
-      <h2>🔐 پنل مدیریت RealRate</h2>
+      <div style="filter: drop-shadow(0 0 10px rgba(245, 158, 11, 0.4));">
+        ${REALRATE_SVG_LOGO}
+      </div>
+      <h2>پنل مدیریت RealRate</h2>
       <p>تنظیمات سیستم</p>
     </div>
 
