@@ -1,6 +1,6 @@
 /**
  * RealRate — Iranian Gold & Currency Price Calculator & Telegram Arbitrage Engine
- * Cloudflare Worker Engine + Protected Admin Panel + Live KV Prices with Timestamps
+ * Cloudflare Worker Engine + Protected Admin Panel + Smart KV Price & Timestamp Tracker
  */
 
 // In-memory fallback cache if KV is not bound
@@ -292,7 +292,7 @@ async function fetchForexRates() {
 
 /**
  * Fetch and parse market prices (Gold/Coins from zarmagoldd & USD Toman from tahran_sabza)
- * Saves latest extracted market prices permanently into Cloudflare KV Storage
+ * Checked every 1 minute (>60s). Updates KV only if prices change; preserves timestamp if price is identical.
  */
 async function fetchTelegramPrices(env, forceRefresh = false) {
   let stored = { ...inMemoryCache };
@@ -308,7 +308,7 @@ async function fetchTelegramPrices(env, forceRefresh = false) {
   }
 
   const lastCheckMs = stored.last_channel_check_time ? new Date(stored.last_channel_check_time).getTime() : 0;
-  const isFresh = (nowMs - lastCheckMs) < 60000;
+  const isFresh = (nowMs - lastCheckMs) < 60000; // 1 minute throttle
 
   if (isFresh && !forceRefresh && Object.keys(stored).length > 1) {
     return stored;
@@ -329,7 +329,17 @@ async function fetchTelegramPrices(env, forceRefresh = false) {
       const parsedGold = parseGoldTelegramHtml(goldHtml);
       for (const [key, item] of Object.entries(parsedGold)) {
         if (item && item.price) {
-          stored[key] = item;
+          const existingItem = stored[key];
+          if (existingItem && existingItem.price === item.price) {
+            // Price unchanged -> preserve original publication datetime timestamp
+            stored[key] = {
+              ...item,
+              datetime: existingItem.datetime || item.datetime
+            };
+          } else {
+            // Price changed -> update to new price & timestamp
+            stored[key] = item;
+          }
         }
       }
     }
@@ -338,7 +348,22 @@ async function fetchTelegramPrices(env, forceRefresh = false) {
       const usdHtml = await usdRes.text();
       const parsedUsd = parseUsdTelegramHtml(usdHtml);
       if (parsedUsd && parsedUsd.price) {
-        stored.usd_toman = parsedUsd;
+        const existingUsd = stored.usd_toman;
+        if (existingUsd && existingUsd.price === parsedUsd.price) {
+          // Price HAS NOT CHANGED -> Keep original datetime timestamp
+          stored.usd_toman = {
+            price: existingUsd.price,
+            datetime: existingUsd.datetime || parsedUsd.datetime,
+            label: "دلار نقدی تهران"
+          };
+        } else {
+          // Price HAS CHANGED -> Update price and timestamp
+          stored.usd_toman = {
+            price: parsedUsd.price,
+            datetime: parsedUsd.datetime || new Date().toISOString(),
+            label: "دلار نقدی تهران"
+          };
+        }
       }
     }
 
