@@ -403,7 +403,7 @@ function getHTMLContent(env) {
     :root {
       --bg-primary: #0a0d14;
       --bg-glass: rgba(18, 24, 36, 0.75);
-      --bg-card: rgba(26, 34, 52, 0.65);
+      --bg-card: rgba(26, 34, 52, 0.75);
       --border-color: rgba(255, 255, 255, 0.08);
       --border-glow: rgba(245, 158, 11, 0.35);
       
@@ -417,6 +417,7 @@ function getHTMLContent(env) {
       --success: #10b981;
       --danger: #ef4444;
       --warning: #f59e0b;
+      --info-blue: #3b82f6;
 
       --radius-md: 14px;
       --radius-lg: 20px;
@@ -445,7 +446,7 @@ function getHTMLContent(env) {
 
     .container {
       width: 100%;
-      max-width: 1000px;
+      max-width: 1050px;
       margin: 0 auto;
     }
 
@@ -683,12 +684,18 @@ function getHTMLContent(env) {
       white-space: nowrap;
     }
 
-    /* Comparison Cards Grid */
+    /* Comparison Cards Grid - EXACTLY 2 CARDS PER ROW */
     .cards-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      grid-template-columns: repeat(2, 1fr);
       gap: 20px;
       margin-bottom: 32px;
+    }
+
+    @media (max-width: 768px) {
+      .cards-grid {
+        grid-template-columns: 1fr;
+      }
     }
 
     .card {
@@ -696,24 +703,33 @@ function getHTMLContent(env) {
       backdrop-filter: blur(12px);
       border: 1px solid var(--border-color);
       border-radius: var(--radius-lg);
-      padding: 20px;
+      padding: 22px;
       position: relative;
       transition: transform 0.25s, border-color 0.25s;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+
+    .card:hover {
+      border-color: rgba(245, 158, 11, 0.3);
+      transform: translateY(-2px);
     }
 
     .card.highlight {
       border-color: var(--success);
-      box-shadow: 0 0 20px rgba(16, 185, 129, 0.2);
+      box-shadow: 0 0 24px rgba(16, 185, 129, 0.2);
     }
 
     .card-header {
       display: flex;
       justify-content: space-between;
-      margin-bottom: 14px;
+      align-items: flex-start;
+      margin-bottom: 16px;
     }
 
     .card-title h3 {
-      font-size: 17px;
+      font-size: 18px;
       font-weight: 800;
       color: #fff;
     }
@@ -723,11 +739,20 @@ function getHTMLContent(env) {
       color: var(--text-muted);
     }
 
+    /* Bubble Badge Colors: Positive vs Negative */
     .bubble-badge {
-      padding: 4px 10px;
+      padding: 6px 12px;
       border-radius: 20px;
-      font-size: 11px;
+      font-size: 12px;
       font-weight: 700;
+      white-space: nowrap;
+    }
+
+    .bubble-badge.negative {
+      background: rgba(59, 130, 246, 0.15);
+      border: 1px solid var(--info-blue);
+      color: #60a5fa;
+      box-shadow: 0 0 12px rgba(59, 130, 246, 0.25);
     }
 
     .bubble-badge.good {
@@ -737,20 +762,20 @@ function getHTMLContent(env) {
     }
 
     .bubble-badge.warn {
-      background: rgba(245, 158, 11, 0.15);
-      border: 1px solid var(--warning);
-      color: var(--gold-light);
+      background: rgba(239, 68, 68, 0.15);
+      border: 1px solid var(--danger);
+      color: #f87171;
     }
 
     .price-row {
       display: flex;
       justify-content: space-between;
       align-items: baseline;
-      margin-bottom: 8px;
+      margin-bottom: 10px;
     }
 
     .price-label {
-      font-size: 12px;
+      font-size: 13px;
       color: var(--text-muted);
     }
 
@@ -767,8 +792,8 @@ function getHTMLContent(env) {
     .timestamp-tag {
       font-size: 11px;
       color: var(--text-muted);
-      margin-top: 10px;
-      padding-top: 8px;
+      margin-top: 14px;
+      padding-top: 10px;
       border-top: 1px dashed var(--border-color);
       display: flex;
       justify-content: space-between;
@@ -827,7 +852,7 @@ function getHTMLContent(env) {
         <div class="brand-logo">🪙</div>
         <div class="brand-title">
           <h1>RealRate</h1>
-          <p>تحلیل قیمت واقعی طلا و سکه بر اساس تلگرام زرماگلد (قیمت مستقیم کانال به تومان)</p>
+          <p>تحلیل قیمت واقعی طلا و سکه بر اساس تلگرام زرماگلد</p>
         </div>
       </div>
       <div class="status-badge" id="statusBadge">
@@ -897,7 +922,7 @@ function getHTMLContent(env) {
         <div class="rec-badge" id="recBadge">پیشنهادی RealRate</div>
       </div>
 
-      <!-- Items Grid -->
+      <!-- Items Grid (2 Cards per Row) -->
       <div class="cards-grid" id="cardsGrid">
         <!-- Dynamic Cards Inserted via JS -->
       </div>
@@ -988,7 +1013,7 @@ function getHTMLContent(env) {
     let currentCalcData = null;
 
     function formatNum(num) {
-      if (num === null || num === undefined || isNaN(num) || num <= 0) return '-';
+      if (num === null || num === undefined || isNaN(num)) return '-';
       return Math.round(num).toLocaleString('fa-IR');
     }
 
@@ -1113,47 +1138,70 @@ function getHTMLContent(env) {
       if (data.recommendation) {
         const recBox = document.getElementById('recBox');
         recBox.style.display = 'flex';
-        document.getElementById('recTitle').innerText = '🏆 پیشنهاد خرید: ' + data.recommendation.best_name;
+        document.getElementById('recTitle').innerText = '🏆 بهترین گزینه برای خرید: ' + data.recommendation.best_name;
         document.getElementById('recReason').innerText = data.recommendation.reason;
-        document.getElementById('recBadge').innerText = 'کمترین حباب: ' + data.recommendation.best_bubble_pct + '٪';
+        
+        const bestPct = data.recommendation.best_bubble_pct;
+        document.getElementById('recBadge').innerText = (bestPct < 0 ? 'حباب منفی: ' : 'حباب: ') + bestPct.toLocaleString('fa-IR') + '٪';
       }
 
       data.analysis.forEach(item => {
         const isBest = data.recommendation && data.recommendation.best_id === item.id;
+        const isNegative = item.bubble < 0;
         
         const card = document.createElement('div');
         card.className = 'card ' + (isBest ? 'highlight' : '');
 
-        const bubbleClass = item.bubble_pct <= 10 ? 'good' : 'warn';
+        // Determine badge styling: Negative (Blue), Low positive bubble (Green), High bubble (Red)
+        let bubbleClass = 'warn';
+        let badgeText = '';
+
+        if (isNegative) {
+          bubbleClass = 'negative';
+          badgeText = 'حباب منفی: ' + item.bubble_pct.toLocaleString('fa-IR') + '٪';
+        } else if (item.bubble_pct <= 10) {
+          bubbleClass = 'good';
+          badgeText = 'حباب: +' + item.bubble_pct.toLocaleString('fa-IR') + '٪';
+        } else {
+          bubbleClass = 'warn';
+          badgeText = 'حباب: +' + item.bubble_pct.toLocaleString('fa-IR') + '٪';
+        }
+
         const timeStr = formatRelativeTime(item.updated_at);
+        const bubbleColor = isNegative ? '#60a5fa' : (item.bubble_pct <= 10 ? 'var(--success)' : '#f87171');
+        const bubbleDisplayStr = isNegative ? 
+          ('حباب منفی ' + formatNum(Math.abs(item.bubble)) + ' تومان (' + item.bubble_pct.toLocaleString('fa-IR') + '٪)') : 
+          ('+' + formatNum(item.bubble) + ' تومان (' + item.bubble_pct.toLocaleString('fa-IR') + '٪)');
 
         card.innerHTML = \`
-          <div class="card-header">
-            <div class="card-title">
-              <h3>\${item.name}</h3>
-              <span>ارزش واقعی vs قیمت بازار تلگرام</span>
+          <div>
+            <div class="card-header">
+              <div class="card-title">
+                <h3>\${item.name}</h3>
+                <span>ارزش واقعی vs قیمت بازار تلگرام</span>
+              </div>
+              <span class="bubble-badge \${bubbleClass}">\${badgeText}</span>
             </div>
-            <span class="bubble-badge \${bubbleClass}">حباب: \${item.bubble_pct}٪</span>
-          </div>
 
-          <div class="price-row">
-            <span class="price-label">ارزش واقعی (بر اساس دلار و انس):</span>
-            <span class="price-val gold">\${formatNum(item.intrinsic)} تومان</span>
-          </div>
+            <div class="price-row">
+              <span class="price-label">ارزش واقعی (دلار و انس):</span>
+              <span class="price-val gold">\${formatNum(item.intrinsic)} تومان</span>
+            </div>
 
-          <div class="price-row">
-            <span class="price-label">قیمت اعلامی کانال تلگرام:</span>
-            <span class="price-val">\${item.market ? formatNum(item.market) + ' تومان' : 'ناموجود در پیام جدید'}</span>
-          </div>
+            <div class="price-row">
+              <span class="price-label">قیمت کانال تلگرام:</span>
+              <span class="price-val">\${item.market ? formatNum(item.market) + ' تومان' : 'ناموجود در پیام جدید'}</span>
+            </div>
 
-          <div class="price-row" style="margin-top: 10px; border-top: 1px dashed var(--border-color); padding-top: 8px;">
-            <span class="price-label">اختلاف / حباب تومانی:</span>
-            <span style="font-weight: 700; color: var(--gold-light);">\${formatNum(item.bubble)} تومان</span>
+            <div class="price-row" style="margin-top: 14px; border-top: 1px dashed var(--border-color); padding-top: 10px;">
+              <span class="price-label">وضعیت حباب:</span>
+              <span style="font-weight: 800; font-size: 15px; color: \${bubbleColor};">\${bubbleDisplayStr}</span>
+            </div>
           </div>
 
           <div class="timestamp-tag">
             <span>منبع: کانال تلگرام zarmagoldd</span>
-            <span>زمان انتشار پست: <strong>\${timeStr}</strong></span>
+            <span>زمان انتشار: <strong>\${timeStr}</strong></span>
           </div>
         \`;
 
