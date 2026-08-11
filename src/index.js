@@ -1,6 +1,6 @@
 /**
  * RealRate — Iranian Gold & Currency Price Calculator & Telegram Arbitrage Engine
- * Cloudflare Worker Engine
+ * Cloudflare Worker Engine + Protected Admin Panel
  */
 
 // In-memory fallback cache if KV is not bound
@@ -23,14 +23,26 @@ export default {
 
     // Track Page Views and Active Online Users by IP (5-minute window)
     const analytics = await trackAnalytics(request, env, ctx, url);
+    const globalSettings = await getGlobalSettings(env);
 
-    // API Routes
+    // Admin API Routes
+    if (url.pathname === "/api/admin/login" && request.method === "POST") {
+      return handleAdminLogin(request, env);
+    }
+    if (url.pathname === "/api/admin/settings" && request.method === "POST") {
+      return handleAdminSaveSettings(request, env);
+    }
+    if (url.pathname === "/api/admin/change-password" && request.method === "POST") {
+      return handleAdminChangePassword(request, env);
+    }
+
+    // Public API Routes
     if (url.pathname === "/api/calculate") {
-      return handleCalculate(url, env, analytics);
+      return handleCalculate(url, env, analytics, globalSettings);
     }
 
     if (url.pathname === "/api/rates") {
-      return handleFetchRates(env, analytics);
+      return handleFetchRates(env, analytics, globalSettings);
     }
 
     if (url.pathname === "/api/telegram") {
@@ -44,8 +56,18 @@ export default {
       });
     }
 
+    // Admin Dashboard View
+    if (url.pathname === "/admin") {
+      return new Response(getAdminHTMLContent(globalSettings), {
+        headers: {
+          "Content-Type": "text/html; charset=utf-8",
+          "Access-Control-Allow-Origin": "*",
+        },
+      });
+    }
+
     // Default route: Serve Web UI
-    return new Response(getHTMLContent(env, analytics), {
+    return new Response(getHTMLContent(env, analytics, globalSettings), {
       headers: {
         "Content-Type": "text/html; charset=utf-8",
         "Access-Control-Allow-Origin": "*",
@@ -53,6 +75,131 @@ export default {
     });
   },
 };
+
+/**
+ * Get or initialize Admin Global Settings from Cloudflare KV Storage
+ */
+async function getGlobalSettings(env) {
+  const defaultSettings = {
+    default_usd_toman: 62000,
+    default_gold_usd: 2450,
+    announcement: ""
+  };
+
+  if (env && env.REALRATE_KV) {
+    try {
+      const storedStr = await env.REALRATE_KV.get("global_settings");
+      if (storedStr) {
+        const parsed = JSON.parse(storedStr);
+        return { ...defaultSettings, ...parsed };
+      }
+    } catch (e) {
+      console.error("Error reading global_settings from KV:", e);
+    }
+  }
+
+  return defaultSettings;
+}
+
+/**
+ * Handle Admin Password Login
+ */
+async function handleAdminLogin(request, env) {
+  try {
+    const body = await request.json();
+    const inputPass = body.password || "";
+    let correctPass = "admin123"; // Default initial password
+
+    if (env && env.REALRATE_KV) {
+      const kvPass = await env.REALRATE_KV.get("admin_password");
+      if (kvPass) correctPass = kvPass;
+    }
+
+    if (inputPass === correctPass) {
+      return new Response(JSON.stringify({ success: true, token: "admin_authenticated_session" }), {
+        headers: { "Content-Type": "application/json; charset=utf-8" }
+      });
+    } else {
+      return new Response(JSON.stringify({ success: false, message: "رمز عبور وارد شده اشتباه است." }), {
+        status: 401,
+        headers: { "Content-Type": "application/json; charset=utf-8" }
+      });
+    }
+  } catch (e) {
+    return new Response(JSON.stringify({ success: false, message: "خطا در پردازش درخواست" }), { status: 400 });
+  }
+}
+
+/**
+ * Handle Admin Saving Global Settings (USD Rate, Gold USD, Announcement)
+ */
+async function handleAdminSaveSettings(request, env) {
+  try {
+    const body = await request.json();
+    const token = body.token;
+    let correctPass = "admin123";
+
+    if (env && env.REALRATE_KV) {
+      const kvPass = await env.REALRATE_KV.get("admin_password");
+      if (kvPass) correctPass = kvPass;
+    }
+
+    if (token !== "admin_authenticated_session" && body.password !== correctPass) {
+      return new Response(JSON.stringify({ success: false, message: "دسترسی غیرمجاز" }), { status: 403 });
+    }
+
+    const newSettings = {
+      default_usd_toman: parseFloat(body.default_usd_toman) || 62000,
+      default_gold_usd: parseFloat(body.default_gold_usd) || 2450,
+      announcement: (body.announcement || "").trim()
+    };
+
+    if (env && env.REALRATE_KV) {
+      await env.REALRATE_KV.put("global_settings", JSON.stringify(newSettings));
+    }
+
+    return new Response(JSON.stringify({ success: true, message: "تنظیمات عمومی با موفقیت در دیتابیس ذخیره شد.", settings: newSettings }), {
+      headers: { "Content-Type": "application/json; charset=utf-8" }
+    });
+  } catch (e) {
+    return new Response(JSON.stringify({ success: false, message: e.message }), { status: 500 });
+  }
+}
+
+/**
+ * Handle Admin Changing Password
+ */
+async function handleAdminChangePassword(request, env) {
+  try {
+    const body = await request.json();
+    const currentPass = body.current_password;
+    const newPass = body.new_password;
+
+    let storedPass = "admin123";
+    if (env && env.REALRATE_KV) {
+      const kvPass = await env.REALRATE_KV.get("admin_password");
+      if (kvPass) storedPass = kvPass;
+    }
+
+    if (currentPass !== storedPass) {
+      return new Response(JSON.stringify({ success: false, message: "رمز عبور فعلی اشتباه است." }), { status: 400 });
+    }
+
+    if (!newPass || newPass.length < 4) {
+      return new Response(JSON.stringify({ success: false, message: "رمز عبور جدید باید حداقل ۴ کاراکتر باشد." }), { status: 400 });
+    }
+
+    if (env && env.REALRATE_KV) {
+      await env.REALRATE_KV.put("admin_password", newPass);
+    }
+
+    return new Response(JSON.stringify({ success: true, message: "رمز عبور مدیریت با موفقیت تغییر یافت." }), {
+      headers: { "Content-Type": "application/json; charset=utf-8" }
+    });
+  } catch (e) {
+    return new Response(JSON.stringify({ success: false, message: e.message }), { status: 500 });
+  }
+}
 
 /**
  * Extract Client IP address
@@ -88,7 +235,7 @@ async function trackAnalytics(request, env, ctx, url) {
       let viewsStr = await env.REALRATE_KV.get("total_page_views");
       let currentViews = parseInt(viewsStr || "1420", 10);
 
-      // Unique visit check per IP (24h daily unique count window)
+      // Unique visit check per IP
       const uniqueVisitKey = `visited_ip_${safeIp}`;
       const hasVisited = await env.REALRATE_KV.get(uniqueVisitKey);
 
@@ -142,15 +289,12 @@ async function fetchForexRates() {
 }
 
 /**
- * Fetch and parse market prices (https://t.me/s/zarmagoldd)
- * If last check was less than 1 minute (60,000ms) ago, returns cached KV data.
- * Otherwise, fetches fresh market posts and updates Cloudflare KV Storage.
+ * Fetch and parse market prices
  */
 async function fetchTelegramPrices(env, forceRefresh = false) {
   let stored = { ...inMemoryCache };
   const nowMs = Date.now();
 
-  // Read stored prices from Cloudflare KV Storage if bound
   if (env && env.REALRATE_KV) {
     try {
       const kvVal = await env.REALRATE_KV.get("tg_prices", "json");
@@ -160,7 +304,6 @@ async function fetchTelegramPrices(env, forceRefresh = false) {
     }
   }
 
-  // Check if cache is still fresh (< 1 minute / 60,000 ms old)
   const lastCheckMs = stored.last_channel_check_time ? new Date(stored.last_channel_check_time).getTime() : 0;
   const isFresh = (nowMs - lastCheckMs) < 60000;
 
@@ -168,7 +311,6 @@ async function fetchTelegramPrices(env, forceRefresh = false) {
     return stored;
   }
 
-  // Cache is older than 1 minute or force refresh requested: Fetch fresh market data
   try {
     const res = await fetch("https://t.me/s/zarmagoldd", {
       headers: {
@@ -180,7 +322,6 @@ async function fetchTelegramPrices(env, forceRefresh = false) {
       const html = await res.text();
       const parsed = parseTelegramHtml(html);
 
-      // Merge newly parsed items with stored items
       for (const [key, item] of Object.entries(parsed)) {
         if (item && item.price) {
           stored[key] = item;
@@ -190,7 +331,6 @@ async function fetchTelegramPrices(env, forceRefresh = false) {
       stored.last_channel_check_time = new Date().toISOString();
       inMemoryCache = { ...stored };
 
-      // Persist updated prices in Cloudflare KV Storage
       if (env && env.REALRATE_KV) {
         try {
           await env.REALRATE_KV.put("tg_prices", JSON.stringify(stored));
@@ -213,7 +353,6 @@ function parseTelegramHtml(html) {
   const result = {};
   const messageBlocks = html.split(/<div class="tgme_widget_message\b/);
 
-  // Iterate messages from newest to oldest
   for (let bIdx = messageBlocks.length - 1; bIdx >= 0; bIdx--) {
     const block = messageBlocks[bIdx];
 
@@ -229,7 +368,6 @@ function parseTelegramHtml(html) {
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i];
 
-      // 1. Gram 18K Gold (گرم 18 عیار)
       if (!result.gold_18k && (line.includes("گرم 18 عیار") || line.includes("18 عیار") || line.includes("۱۸ عیار"))) {
         const chunk = lines.slice(i, i + 3).join(" ");
         const saleMatch = chunk.match(/فروش:\s*([\d,]+)/);
@@ -241,7 +379,6 @@ function parseTelegramHtml(html) {
         }
       }
 
-      // 2. Full Coin 86 (سکه تمام 86 / سکه تمام / تمام سکه)
       if (!result.full_coin && (line.includes("سکه تمام 86") || line.includes("سکه تمام") || line.includes("تمام سکه") || line.includes("سکه امامی"))) {
         const chunk = lines.slice(i, i + 3).join(" ");
         const saleMatch = chunk.match(/فروش:\s*([\d,]+)/);
@@ -253,7 +390,6 @@ function parseTelegramHtml(html) {
         }
       }
 
-      // 3. Mesghal (آبشده نقد / مثقال)
       if (!result.mesghal && (line.includes("آبشده نقد") || line.includes("آبشده") || line.includes("مثقال"))) {
         const chunk = lines.slice(i, i + 3).join(" ");
         const saleMatch = chunk.match(/فروش:\s*([\d,]+)/);
@@ -265,7 +401,6 @@ function parseTelegramHtml(html) {
         }
       }
 
-      // 4. Half Coin (نیم سکه)
       if (!result.half_coin && line.includes("نیم سکه")) {
         const chunk = lines.slice(i, i + 3).join(" ");
         const saleMatch = chunk.match(/فروش:\s*([\d,]+)/);
@@ -277,7 +412,6 @@ function parseTelegramHtml(html) {
         }
       }
 
-      // 5. Quarter Coin (ربع سکه)
       if (!result.quarter_coin && line.includes("ربع سکه")) {
         const chunk = lines.slice(i, i + 3).join(" ");
         const saleMatch = chunk.match(/فروش:\s*([\d,]+)/);
@@ -295,12 +429,12 @@ function parseTelegramHtml(html) {
 }
 
 /**
- * Handle Price Calculation & Arbitrage Analysis + World Currency Cross Rates
+ * Handle Price Calculation & Arbitrage Analysis
  */
-async function handleCalculate(url, env, analytics) {
+async function handleCalculate(url, env, analytics, globalSettings) {
   const usd_toman_raw = url.searchParams.get("usd_toman");
-  const usd_toman = usd_toman_raw ? parseFloat(usd_toman_raw) : null;
-  const gold_usd = parseFloat(url.searchParams.get("gold_usd")) || parseFloat(env?.DEFAULT_GOLD_USD || "2450");
+  const usd_toman = usd_toman_raw ? parseFloat(usd_toman_raw) : (globalSettings.default_usd_toman || null);
+  const gold_usd = parseFloat(url.searchParams.get("gold_usd")) || globalSettings.default_gold_usd || 2450;
 
   if (!usd_toman || isNaN(usd_toman) || usd_toman <= 0) {
     return new Response(
@@ -318,13 +452,11 @@ async function handleCalculate(url, env, analytics) {
     );
   }
 
-  // Fetch parallel market gold prices & forex rates
   const [tgPrices, forex] = await Promise.all([
     fetchTelegramPrices(env),
     fetchForexRates()
   ]);
 
-  // Real Intrinsic Gold Calculations
   const gold_24k_gram = (gold_usd / 31.1034768) * usd_toman;
   const gold_18k_gram = gold_24k_gram * 0.75;
   const mesghal_17k = gold_24k_gram * 4.608 * 0.705;
@@ -333,7 +465,6 @@ async function handleCalculate(url, env, analytics) {
   const half_intrinsic = gold_24k_gram * 3.6594;
   const quarter_intrinsic = gold_24k_gram * 1.8297;
 
-  // Gold & Coin Analysis
   function analyzeItem(id, name, intrinsic, tgItem) {
     const market = (tgItem && typeof tgItem.price === "number") ? tgItem.price : null;
     let bubble = null;
@@ -362,7 +493,6 @@ async function handleCalculate(url, env, analytics) {
     analyzeItem("quarter_coin", "ربع سکه بهار آزادی", quarter_intrinsic, tgPrices.quarter_coin)
   ];
 
-  // Best Purchase Recommendation
   const availableItems = itemsAnalysis.filter(i => i.market !== null && i.bubble_pct !== null);
   let bestItem = null;
   let recommendation = null;
@@ -378,7 +508,6 @@ async function handleCalculate(url, env, analytics) {
     };
   }
 
-  // Major World Currencies Calculation
   const currencies = [
     {
       code: "EUR",
@@ -449,7 +578,8 @@ async function handleCalculate(url, env, analytics) {
     market_data: tgPrices,
     analysis: itemsAnalysis,
     recommendation,
-    analytics
+    analytics,
+    globalSettings
   };
 
   return new Response(JSON.stringify(responseObj, null, 2), {
@@ -461,11 +591,11 @@ async function handleCalculate(url, env, analytics) {
 }
 
 /**
- * Fetch Live Gold Spot Price & Currencies
+ * Fetch Live Gold Spot Price & Rates
  */
-async function handleFetchRates(env, analytics) {
+async function handleFetchRates(env, analytics, globalSettings) {
   try {
-    let gold_usd = parseFloat(env?.DEFAULT_GOLD_USD || "2450");
+    let gold_usd = globalSettings.default_gold_usd || 2450;
     try {
       const goldRes = await fetch("https://api.gold-api.com/price/XAU");
       if (goldRes.ok) {
@@ -487,7 +617,8 @@ async function handleFetchRates(env, analytics) {
         gold_usd,
         forex,
         market_prices: tgPrices,
-        analytics
+        analytics,
+        globalSettings
       }),
       {
         headers: {
@@ -511,10 +642,10 @@ async function handleFetchRates(env, analytics) {
 }
 
 /**
- * Embedded HTML Web Application
+ * Embedded HTML Web Application (User UI)
  */
-function getHTMLContent(env, analytics) {
-  const defaultGoldUsd = env?.DEFAULT_GOLD_USD || "2450";
+function getHTMLContent(env, analytics, globalSettings) {
+  const defaultGoldUsd = globalSettings.default_gold_usd || "2450";
 
   return `<!DOCTYPE html>
 <html lang="fa" dir="rtl">
@@ -669,6 +800,21 @@ function getHTMLContent(env, analytics) {
       0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); }
       70% { transform: scale(1); box-shadow: 0 0 0 6px rgba(16, 185, 129, 0); }
       100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+    }
+
+    /* System Announcement Banner */
+    .system-announcement {
+      background: linear-gradient(135deg, rgba(59, 130, 246, 0.2) 0%, rgba(18, 24, 36, 0.8) 100%);
+      border: 1px solid var(--info-blue);
+      border-radius: var(--radius-md);
+      padding: 12px 18px;
+      margin-bottom: 20px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      color: #93c5fd;
+      font-size: 13px;
+      font-weight: 600;
     }
 
     /* Warning Alert Banner when Dollar is null */
@@ -1005,6 +1151,19 @@ function getHTMLContent(env, analytics) {
       border-top: 1px solid var(--border-color);
       padding-top: 20px;
       width: 100%;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    footer a {
+      color: var(--gold-light);
+      text-decoration: none;
+      font-weight: 600;
+    }
+
+    footer a:hover {
+      text-decoration: underline;
     }
   </style>
 </head>
@@ -1022,11 +1181,11 @@ function getHTMLContent(env, analytics) {
       </div>
 
       <div class="header-controls">
-        <!-- Live IP-based Analytics Badges -->
+        <!-- Live IP-based Analytics Badges (CLEAN TEXT) -->
         <div class="analytics-badges">
           <div class="badge-item online">
             <span class="pulse-dot"></span>
-            <span>آنلاین (۵ دقیقه اخیر): <strong id="onlineUsersCount">${analytics.onlineUsers.toLocaleString("fa-IR")} نفر</strong></span>
+            <span>آنلاین: <strong id="onlineUsersCount">${analytics.onlineUsers.toLocaleString("fa-IR")} نفر</strong></span>
           </div>
           <div class="badge-item">
             <span>👁️ کل بازدیدها: <strong id="totalViewsCount">${analytics.pageViews.toLocaleString("fa-IR")}</strong></span>
@@ -1034,6 +1193,12 @@ function getHTMLContent(env, analytics) {
         </div>
       </div>
     </header>
+
+    <!-- Optional System Announcement Banner -->
+    <div class="system-announcement" id="sysAnnouncement" style="${globalSettings.announcement ? 'display: flex;' : 'display: none;'}">
+      <span>📢</span>
+      <span id="sysAnnouncementText">${globalSettings.announcement || ''}</span>
+    </div>
 
     <!-- Alert Banner (shown when Dollar is null) -->
     <div class="alert-banner" id="usdAlert" style="display: flex;">
@@ -1188,6 +1353,7 @@ function getHTMLContent(env, analytics) {
     <!-- Footer -->
     <footer>
       <p>منبع اطلاعات: قیمت روز بازار طلا و نرخ برابری ارزهای جهان | اجرا در Cloudflare Worker</p>
+      <a href="/admin" target="_blank">🔐 ورود به پنل مدیریت</a>
     </footer>
   </div>
 
@@ -1303,6 +1469,14 @@ function getHTMLContent(env, analytics) {
           if (data.analytics) {
             updateAnalyticsUI(data.analytics);
           }
+          if (data.globalSettings && data.globalSettings.announcement) {
+            const annBox = document.getElementById('sysAnnouncement');
+            const annText = document.getElementById('sysAnnouncementText');
+            if (annBox && annText) {
+              annText.innerText = data.globalSettings.announcement;
+              annBox.style.display = 'flex';
+            }
+          }
         }
       } catch (err) {
         console.error('Calculation error:', err);
@@ -1385,7 +1559,6 @@ function getHTMLContent(env, analytics) {
         const card = document.createElement('div');
         card.className = 'card ' + (isBest ? 'highlight' : '');
 
-        // Determine badge styling
         let bubbleClass = 'disabled';
         let badgeText = 'ناموجود در بازار';
 
@@ -1478,15 +1651,19 @@ function getHTMLContent(env, analytics) {
     async function initPage() {
       loadLocalUsd();
 
-      // Fetch live gold spot price & KV market data
       try {
         const res = await fetch('/api/rates');
         const data = await res.json();
-        if (data.success && data.gold_usd) {
-          document.getElementById('goldUsd').value = data.gold_usd.toLocaleString('en-US');
-        }
-        if (data.analytics) {
-          updateAnalyticsUI(data.analytics);
+        if (data.success) {
+          if (data.gold_usd) {
+            document.getElementById('goldUsd').value = data.gold_usd.toLocaleString('en-US');
+          }
+          if (data.globalSettings && data.globalSettings.default_usd_toman && !document.getElementById('usdToman').value) {
+            document.getElementById('usdToman').value = data.globalSettings.default_usd_toman.toLocaleString('en-US');
+          }
+          if (data.analytics) {
+            updateAnalyticsUI(data.analytics);
+          }
         }
       } catch (e) {}
 
@@ -1494,6 +1671,330 @@ function getHTMLContent(env, analytics) {
     }
 
     window.addEventListener('DOMContentLoaded', initPage);
+  </script>
+</body>
+</html>`;
+}
+
+/**
+ * Embedded HTML Web Application (Admin Panel UI)
+ */
+function getAdminHTMLContent(globalSettings) {
+  return `<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>RealRate | پنل مدیریت عمومی سیستم</title>
+  
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+
+  <style>
+    :root {
+      --bg-primary: #0a0d14;
+      --bg-glass: rgba(18, 24, 36, 0.85);
+      --bg-card: rgba(26, 34, 52, 0.75);
+      --border-color: rgba(255, 255, 255, 0.1);
+      --gold-primary: #f59e0b;
+      --gold-light: #fbbf24;
+      --gold-gradient: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+      --text-main: #f3f4f6;
+      --text-muted: #9ca3af;
+      --success: #10b981;
+      --danger: #ef4444;
+      --radius-lg: 20px;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Vazirmatn', sans-serif; }
+
+    body {
+      background-color: var(--bg-primary);
+      color: var(--text-main);
+      min-height: 100vh;
+      padding: 30px 16px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+
+    .admin-container {
+      width: 100%;
+      max-width: 520px;
+      background: var(--bg-glass);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-lg);
+      padding: 32px;
+      box-shadow: 0 20px 40px rgba(0,0,0,0.5);
+    }
+
+    .admin-header {
+      text-align: center;
+      margin-bottom: 28px;
+    }
+
+    .admin-header h2 {
+      font-size: 22px;
+      font-weight: 800;
+      color: var(--gold-light);
+      margin-bottom: 6px;
+    }
+
+    .admin-header p {
+      font-size: 13px;
+      color: var(--text-muted);
+    }
+
+    .form-group {
+      margin-bottom: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .form-group label {
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--text-main);
+    }
+
+    .form-group input, .form-group textarea {
+      width: 100%;
+      background: rgba(10, 13, 20, 0.8);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      padding: 12px 16px;
+      color: #fff;
+      font-size: 15px;
+      outline: none;
+      transition: 0.25s;
+    }
+
+    .form-group input:focus, .form-group textarea:focus {
+      border-color: var(--gold-primary);
+      box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.2);
+    }
+
+    .btn {
+      width: 100%;
+      background: var(--gold-gradient);
+      border: none;
+      color: #000;
+      font-weight: 800;
+      font-size: 15px;
+      padding: 14px;
+      border-radius: 12px;
+      cursor: pointer;
+      transition: 0.25s;
+      margin-top: 10px;
+    }
+
+    .btn:hover {
+      opacity: 0.9;
+      transform: translateY(-1px);
+    }
+
+    .btn-secondary {
+      background: rgba(255, 255, 255, 0.1);
+      color: #fff;
+      margin-top: 10px;
+    }
+
+    .msg-box {
+      padding: 12px;
+      border-radius: 10px;
+      font-size: 13px;
+      font-weight: 700;
+      margin-bottom: 20px;
+      display: none;
+    }
+
+    .msg-box.success { background: rgba(16, 185, 129, 0.15); border: 1px solid var(--success); color: var(--success); }
+    .msg-box.error { background: rgba(239, 68, 68, 0.15); border: 1px solid var(--danger); color: #f87171; }
+
+    .section-title {
+      font-size: 15px;
+      font-weight: 800;
+      color: var(--gold-light);
+      margin: 24px 0 14px 0;
+      padding-bottom: 8px;
+      border-bottom: 1px dashed var(--border-color);
+    }
+  </style>
+</head>
+<body>
+
+  <div class="admin-container">
+    <div class="admin-header">
+      <h2>🔐 پنل مدیریت RealRate</h2>
+      <p>تنظیم پیش‌فرض دلار، سیستم و دیتابیس Cloudflare KV</p>
+    </div>
+
+    <div class="msg-box" id="msgBox"></div>
+
+    <!-- Login View -->
+    <div id="loginForm">
+      <div class="form-group">
+        <label for="adminPass">رمز عبور مدیریت</label>
+        <input type="password" id="adminPass" placeholder="رمز عبور را وارد کنید (پیش‌فرض: admin123)">
+      </div>
+      <button class="btn" onclick="doLogin()">ورود به مدیریت</button>
+    </div>
+
+    <!-- Dashboard View (Shown after auth) -->
+    <div id="dashboardForm" style="display: none;">
+      <div class="section-title">⚙️ تنظیمات عمومی کلیه کاربران</div>
+
+      <div class="form-group">
+        <label for="adminUsdToman">قیمت پیش‌فرض دلار آزاد (تومان)</label>
+        <input type="number" id="adminUsdToman" value="${globalSettings.default_usd_toman || 62000}">
+      </div>
+
+      <div class="form-group">
+        <label for="adminGoldUsd">پیش‌فرض انس جهانی طلا ($)</label>
+        <input type="number" id="adminGoldUsd" value="${globalSettings.default_gold_usd || 2450}">
+      </div>
+
+      <div class="form-group">
+        <label for="adminAnnouncement">پیام یا اطلاعیه عمومی بالای سایت</label>
+        <textarea id="adminAnnouncement" rows="2" placeholder="متن پیام عمومی را وارد کنید...">${globalSettings.announcement || ''}</textarea>
+      </div>
+
+      <button class="btn" onclick="saveSettings()">💾 ذخیره تغییرات در KV</button>
+
+      <div class="section-title">🔑 تغییر رمز عبور مدیریت</div>
+
+      <div class="form-group">
+        <label for="currPass">رمز عبور فعلی</label>
+        <input type="password" id="currPass">
+      </div>
+
+      <div class="form-group">
+        <label for="newPass">رمز عبور جدید</label>
+        <input type="password" id="newPass">
+      </div>
+
+      <button class="btn btn-secondary" onclick="changePassword()">تغییر رمز عبور</button>
+      <button class="btn btn-secondary" style="background: rgba(239,68,68,0.2); color: #f87171;" onclick="logout()">خروج</button>
+    </div>
+  </div>
+
+  <script>
+    let authToken = null;
+
+    function showMsg(text, isSuccess) {
+      const box = document.getElementById('msgBox');
+      box.innerText = text;
+      box.className = 'msg-box ' + (isSuccess ? 'success' : 'error');
+      box.style.display = 'block';
+    }
+
+    async function doLogin() {
+      const pass = document.getElementById('adminPass').value;
+      if (!pass) {
+        showMsg('لطفاً رمز عبور را وارد کنید.', false);
+        return;
+      }
+
+      try {
+        const res = await fetch('/api/admin/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ password: pass })
+        });
+        const data = await res.json();
+
+        if (data.success) {
+          authToken = data.token;
+          sessionStorage.setItem('admin_token', authToken);
+          sessionStorage.setItem('admin_pass', pass);
+          document.getElementById('loginForm').style.display = 'none';
+          document.getElementById('dashboardForm').style.display = 'block';
+          showMsg('با موفقیت وارد شدید.', true);
+        } else {
+          showMsg(data.message || 'رمز عبور اشتباه است.', false);
+        }
+      } catch (e) {
+        showMsg('خطا در برقراری ارتباط با سرور', false);
+      }
+    }
+
+    async function saveSettings() {
+      const default_usd_toman = parseFloat(document.getElementById('adminUsdToman').value);
+      const default_gold_usd = parseFloat(document.getElementById('adminGoldUsd').value);
+      const announcement = document.getElementById('adminAnnouncement').value;
+      const pass = sessionStorage.getItem('admin_pass');
+
+      try {
+        const res = await fetch('/api/admin/settings', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            token: authToken,
+            password: pass,
+            default_usd_toman,
+            default_gold_usd,
+            announcement
+          })
+        });
+        const data = await res.json();
+
+        if (data.success) {
+          showMsg(data.message, true);
+        } else {
+          showMsg(data.message, false);
+        }
+      } catch (e) {
+        showMsg('خطا در ذخیره‌سازی تنظیمات', false);
+      }
+    }
+
+    async function changePassword() {
+      const current_password = document.getElementById('currPass').value;
+      const new_password = document.getElementById('newPass').value;
+
+      if (!current_password || !new_password) {
+        showMsg('لطفاً رمز عبور فعلی و جدید را وارد کنید.', false);
+        return;
+      }
+
+      try {
+        const res = await fetch('/api/admin/change-password', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ current_password, new_password })
+        });
+        const data = await res.json();
+
+        if (data.success) {
+          sessionStorage.setItem('admin_pass', new_password);
+          document.getElementById('currPass').value = '';
+          document.getElementById('newPass').value = '';
+          showMsg(data.message, true);
+        } else {
+          showMsg(data.message, false);
+        }
+      } catch (e) {
+        showMsg('خطا در تغییر رمز عبور', false);
+      }
+    }
+
+    function logout() {
+      sessionStorage.removeItem('admin_token');
+      sessionStorage.removeItem('admin_pass');
+      location.reload();
+    }
+
+    // Auto load session if exists
+    window.addEventListener('DOMContentLoaded', () => {
+      const savedToken = sessionStorage.getItem('admin_token');
+      if (savedToken) {
+        authToken = savedToken;
+        document.getElementById('loginForm').style.display = 'none';
+        document.getElementById('dashboardForm').style.display = 'block';
+      }
+    });
   </script>
 </body>
 </html>`;
