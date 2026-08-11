@@ -1,6 +1,6 @@
 /**
  * RealRate — Iranian Gold & Currency Price Calculator & Telegram Arbitrage Engine
- * Cloudflare Worker Engine + Protected Admin Panel + Live USD Telegram Parser
+ * Cloudflare Worker Engine + Protected Admin Panel + Persistent KV Cache & Clean UI
  */
 
 // In-memory fallback cache if KV is not bound
@@ -292,6 +292,7 @@ async function fetchForexRates() {
 
 /**
  * Fetch and parse market prices (Gold/Coins from zarmagoldd & USD Toman from tahran_sabza)
+ * Saves latest extracted market prices permanently into Cloudflare KV Storage
  */
 async function fetchTelegramPrices(env, forceRefresh = false) {
   let stored = { ...inMemoryCache };
@@ -669,13 +670,15 @@ async function handleFetchRates(env, analytics, globalSettings) {
       fetchForexRates()
     ]);
 
-    const live_usd_toman = tgPrices.usd_toman ? tgPrices.usd_toman.price : (globalSettings.default_usd_toman || 62000);
+    const live_usd_item = tgPrices.usd_toman || null;
+    const live_usd_toman = live_usd_item ? live_usd_item.price : (globalSettings.default_usd_toman || 62000);
 
     return new Response(
       JSON.stringify({
         success: true,
         gold_usd,
         live_usd_toman,
+        live_usd_item,
         forex,
         market_prices: tgPrices,
         analytics,
@@ -1322,7 +1325,7 @@ function getHTMLContent(env, analytics, globalSettings) {
         <div class="input-group">
           <label for="usdToman">
             <span>قیمت دلار آزاد (تومان)</span>
-            <span id="usdSourceTag" style="font-size: 11px; color: var(--success); font-weight: 700;">🌐 زنده از بازار (قابل ویرایش)</span>
+            <span id="usdSourceTag" style="font-size: 11px; color: var(--success); font-weight: 700;">🌐 زنده از بازار</span>
           </label>
           <div class="input-wrapper">
             <input type="text" id="usdToman" placeholder="مثلاً ۶۲,۰۰۰" oninput="onInputsChanged(true)">
@@ -1333,7 +1336,7 @@ function getHTMLContent(env, analytics, globalSettings) {
         <div class="input-group">
           <label for="goldUsd">
             <span>انس جهانی طلا ($)</span>
-            <span style="font-size: 11px; color: var(--success); font-weight: 700;">🌐 خودکار (قابل ویرایش)</span>
+            <span style="font-size: 11px; color: var(--success); font-weight: 700;">🌐 انس جهانی</span>
           </label>
           <div class="input-wrapper">
             <input type="text" id="goldUsd" value="${defaultGoldUsd}" oninput="onInputsChanged(true)">
@@ -1537,10 +1540,10 @@ function getHTMLContent(env, analytics, globalSettings) {
 
       usdAlert.style.display = 'none';
       
-      // Update label tag indicator
+      // Update label tag indicator without "(قابل ویرایش)"
       if (tagEl) {
         if (serverLiveUsdToman && Math.abs(usdToman - serverLiveUsdToman) < 1) {
-          tagEl.innerText = '🌐 زنده از بازار (قابل ویرایش)';
+          tagEl.innerText = '🌐 زنده از بازار';
           tagEl.style.color = 'var(--success)';
         } else {
           tagEl.innerText = '✍️ ورودی دستی شما';
