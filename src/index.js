@@ -1,6 +1,6 @@
 /**
  * RealRate — Iranian Gold & Currency Price Calculator & Telegram Arbitrage Engine
- * Cloudflare Worker Engine + Protected Admin Panel + Compact Sleek UI
+ * Cloudflare Worker Engine + Protected Admin Panel + Compact List Currencies
  */
 
 // In-memory fallback cache if KV is not bound
@@ -529,7 +529,7 @@ async function handleCalculate(url, env, analytics, globalSettings) {
       symbol: "€",
       usd_cross_rate: parseFloat((1 / forex.EUR).toFixed(4)),
       toman_price: Math.round((1 / forex.EUR) * usd_toman),
-      note: `۱ یورو = ${(1 / forex.EUR).toFixed(4)} دلار آمریکا`
+      note: `۱ یورو = ${(1 / forex.EUR).toFixed(4)} دلار`
     },
     {
       code: "AED",
@@ -565,7 +565,7 @@ async function handleCalculate(url, env, analytics, globalSettings) {
       symbol: "£",
       usd_cross_rate: parseFloat((1 / forex.GBP).toFixed(4)),
       toman_price: Math.round((1 / forex.GBP) * usd_toman),
-      note: `۱ پوند = ${(1 / forex.GBP).toFixed(4)} دلار آمریکا`
+      note: `۱ پوند = ${(1 / forex.GBP).toFixed(4)} دلار`
     },
     {
       code: "CAD",
@@ -574,7 +574,7 @@ async function handleCalculate(url, env, analytics, globalSettings) {
       symbol: "C$",
       usd_cross_rate: parseFloat((1 / forex.CAD).toFixed(4)),
       toman_price: Math.round((1 / forex.CAD) * usd_toman),
-      note: `۱ دلار کانادا = ${(1 / forex.CAD).toFixed(4)} دلار آمریکا`
+      note: `۱ دلار کانادا = ${(1 / forex.CAD).toFixed(4)} دلار`
     }
   ];
 
@@ -844,7 +844,7 @@ function getHTMLContent(env, analytics, globalSettings) {
       font-weight: 700;
     }
 
-    /* Inputs Panel - COMPACT & CLEAN */
+    /* Inputs Panel */
     .input-panel {
       background: var(--bg-glass);
       backdrop-filter: blur(16px);
@@ -1094,6 +1094,58 @@ function getHTMLContent(env, analytics, globalSettings) {
       justify-content: space-between;
     }
 
+    /* COMPACT CURRENCIES LIST */
+    .currency-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      margin-bottom: 24px;
+    }
+
+    .currency-row {
+      background: var(--bg-card);
+      backdrop-filter: blur(12px);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-md);
+      padding: 10px 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      transition: background 0.2s;
+    }
+
+    .currency-row:hover {
+      background: rgba(26, 34, 52, 0.9);
+      border-color: rgba(245, 158, 11, 0.3);
+    }
+
+    .curr-info {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .curr-flag {
+      font-size: 22px;
+    }
+
+    .curr-name {
+      font-size: 14px;
+      font-weight: 700;
+      color: #fff;
+    }
+
+    .curr-note {
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    .curr-price {
+      font-size: 16px;
+      font-weight: 800;
+      color: var(--gold-light);
+    }
+
     /* Jewelry Tab */
     .calc-box {
       background: var(--bg-glass);
@@ -1189,7 +1241,7 @@ function getHTMLContent(env, analytics, globalSettings) {
       <span>⚠️ لطفاً ابتدا نرخ دلار آزاد (تومان) را وارد کنید تا محاسبات انجام شود.</span>
     </div>
 
-    <!-- Inputs Panel (COMPACT NO QUICK BUTTONS) -->
+    <!-- Inputs Panel -->
     <div class="input-panel">
       <div class="inputs-grid">
         <div class="input-group">
@@ -1234,16 +1286,16 @@ function getHTMLContent(env, analytics, globalSettings) {
         <div class="rec-badge" id="recBadge">پیشنهادی RealRate</div>
       </div>
 
-      <!-- Items Grid (2 Cards per Row Compact) -->
+      <!-- Items Grid -->
       <div class="cards-grid" id="cardsGrid">
         <!-- Dynamic Cards Inserted via JS -->
       </div>
     </div>
 
-    <!-- Tab 2: World Currencies -->
+    <!-- Tab 2: World Currencies (COMPACT LIST) -->
     <div id="currenciesTab" class="tab-content" style="display: none;">
-      <div class="cards-grid" id="currenciesGrid">
-        <!-- Dynamic Currency Cards Inserted via JS -->
+      <div class="currency-list" id="currenciesList">
+        <!-- Dynamic Compact List Rows Inserted via JS -->
       </div>
     </div>
 
@@ -1399,7 +1451,7 @@ function getHTMLContent(env, analytics, globalSettings) {
         usdAlert.style.display = 'flex';
         recBox.style.display = 'none';
         document.getElementById('cardsGrid').innerHTML = '';
-        document.getElementById('currenciesGrid').innerHTML = '';
+        document.getElementById('currenciesList').innerHTML = '';
         return;
       }
 
@@ -1455,43 +1507,27 @@ function getHTMLContent(env, analytics, globalSettings) {
     }
 
     function renderCurrencies(data) {
-      const grid = document.getElementById('currenciesGrid');
-      grid.innerHTML = '';
+      const list = document.getElementById('currenciesList');
+      list.innerHTML = '';
 
       if (!data.currencies || data.currencies.length === 0) return;
 
       data.currencies.forEach(c => {
-        const card = document.createElement('div');
-        card.className = 'card';
+        const row = document.createElement('div');
+        row.className = 'currency-row';
 
-        card.innerHTML = \`
-          <div>
-            <div class="card-header">
-              <div class="card-title">
-                <h3><span>\${c.flag}</span> \${c.name} (\${c.code})</h3>
-                <span>بر اساس نرخ برابری جهانی با دلار</span>
-              </div>
-              <span class="bubble-badge good">\${c.symbol}</span>
-            </div>
-
-            <div class="price-row" style="margin-top: 6px;">
-              <span class="price-label">قیمت محاسباتی به تومان:</span>
-              <span class="price-val gold">\${formatNum(c.toman_price)} تومان</span>
-            </div>
-
-            <div class="price-row" style="margin-top: 10px; border-top: 1px dashed var(--border-color); padding-top: 8px;">
-              <span class="price-label">نرخ برابری با دلار:</span>
-              <span style="font-weight: 700; font-size: 13px; color: var(--gold-light);">\${c.note}</span>
+        row.innerHTML = \`
+          <div class="curr-info">
+            <span class="curr-flag">\${c.flag}</span>
+            <div>
+              <div class="curr-name">\${c.name} (\${c.code})</div>
+              <div class="curr-note">\${c.note}</div>
             </div>
           </div>
-
-          <div class="timestamp-tag">
-            <span>محاسبه با دلار: <strong>\${formatNum(data.inputs.usd_toman)} تومان</strong></span>
-            <span>ارز جهانی</span>
-          </div>
+          <div class="curr-price">\${formatNum(c.toman_price)} تومان</div>
         \`;
 
-        grid.appendChild(card);
+        list.appendChild(row);
       });
     }
 
