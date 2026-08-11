@@ -8,4 +8,4 @@ DEFAULT_GOLD_USD = "2450"
 
 [[kv_namespaces]]
 binding = "REALRATE_KV"
-id = "realrate_kv_storage"
+id = "4c1bbe085e964f2a8d3eb82a17befde8"
