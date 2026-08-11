@@ -840,7 +840,7 @@ function getHTMLContent(env) {
         <div class="input-group">
           <label for="usdToman">
             <span>قیمت دلار آزاد (تومان)</span>
-            <span style="font-size: 11px; color: var(--gold-light); font-weight: 700;">✍️ ورودی دستی شما</span>
+            <span style="font-size: 11px; color: var(--gold-light); font-weight: 700;">💾 ذخیره خودکار در مرورگر</span>
           </label>
           <div class="input-wrapper">
             <input type="text" id="usdToman" value="${defaultUsdToman}">
@@ -1236,6 +1236,25 @@ function getHTMLContent(env) {
       cad_usd: 0.732
     };
 
+    // Save & Restore LocalStorage
+    function saveLocalUsd() {
+      const el = document.getElementById('usdToman');
+      if (el && el.value) {
+        try {
+          localStorage.setItem('realrate_usd_toman', el.value);
+        } catch (e) {}
+      }
+    }
+
+    function loadLocalUsd() {
+      try {
+        const savedUsd = localStorage.getItem('realrate_usd_toman');
+        if (savedUsd) {
+          document.getElementById('usdToman').value = savedUsd;
+        }
+      } catch (e) {}
+    }
+
     // Formatters
     function formatNum(num) {
       if (num === null || num === undefined || isNaN(num)) return '-';
@@ -1257,6 +1276,7 @@ function getHTMLContent(env) {
       let val = parsePersianNum(el.value);
       val = Math.max(0, val + delta);
       el.value = val.toLocaleString('en-US');
+      if (id === 'usdToman') saveLocalUsd();
       calculateAll();
     }
 
@@ -1459,7 +1479,7 @@ function getHTMLContent(env) {
       });
     }
 
-    // Number Input Formatting listeners
+    // Number Input Formatting listeners & LocalStorage persistence
     ['usdToman', 'goldUsd', 'budgetInput'].forEach(id => {
       const el = document.getElementById(id);
       if (el) {
@@ -1470,13 +1490,17 @@ function getHTMLContent(env) {
               el.value = raw.toLocaleString('en-US');
             }
           }
+          if (id === 'usdToman') {
+            saveLocalUsd();
+          }
           calculateAll();
         });
       }
     });
 
-    // Initial Load: Auto-fetch Gold Spot Price & Cross Rates
+    // Initial Load: Restore saved USD price & Auto-fetch Gold Spot Price
     window.addEventListener('DOMContentLoaded', () => {
+      loadLocalUsd();
       fetchLiveRates();
     });
   </script>
