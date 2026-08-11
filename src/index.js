@@ -207,6 +207,7 @@ function parseTelegramHtml(html) {
 
 /**
  * Handle Price Calculation & Arbitrage Analysis
+ * If an item is missing from Telegram AND KV database, market and bubble remain null (NO fallback market prices)
  */
 async function handleCalculate(url, env) {
   const usd_toman_raw = url.searchParams.get("usd_toman");
@@ -229,7 +230,7 @@ async function handleCalculate(url, env) {
     );
   }
 
-  // Fetch or get last telegram prices from KV (> 1 min auto refresh policy)
+  // Fetch or get last telegram prices from KV
   const tgPrices = await fetchTelegramPrices(env);
 
   // Real Intrinsic Gold Calculations based on USD Toman rate & Global Gold Spot
@@ -241,72 +242,50 @@ async function handleCalculate(url, env) {
   const half_intrinsic = gold_24k_gram * 3.6594;
   const quarter_intrinsic = gold_24k_gram * 1.8297;
 
-  // Comparison & Bubble Calculation against Telegram Market Prices (exact numbers stored in DB)
-  const itemsAnalysis = [];
+  // Helper to build item analysis (strictly returns null market & bubble if missing)
+  function analyzeItem(id, name, intrinsic, tgItem) {
+    const market = (tgItem && typeof tgItem.price === "number") ? tgItem.price : null;
+    let bubble = null;
+    let bubble_pct = null;
 
-  // 18K Gold
-  const tg_18k = tgPrices.gold_18k ? tgPrices.gold_18k.price : null;
-  const bubble_18k = tg_18k ? (tg_18k - gold_18k_gram) : (gold_18k_gram * 0.03);
-  const market_18k = tg_18k ? tg_18k : (gold_18k_gram + bubble_18k);
-  const bubble_18k_pct = ((bubble_18k / gold_18k_gram) * 100);
-  itemsAnalysis.push({
-    id: "gold_18k",
-    name: "طلا ۱۸ عیار",
-    intrinsic: Math.round(gold_18k_gram),
-    market: Math.round(market_18k),
-    bubble: Math.round(bubble_18k),
-    bubble_pct: parseFloat(bubble_18k_pct.toFixed(1)),
-    updated_at: tgPrices.gold_18k ? tgPrices.gold_18k.datetime : null
-  });
+    if (market !== null) {
+      bubble = market - intrinsic;
+      bubble_pct = parseFloat(((bubble / intrinsic) * 100).toFixed(1));
+    }
 
-  // Full Coin
-  const tg_full = tgPrices.full_coin ? tgPrices.full_coin.price : null;
-  const bubble_full = tg_full ? (tg_full - full_intrinsic) : (full_intrinsic * 0.12);
-  const market_full = tg_full ? tg_full : (full_intrinsic + bubble_full);
-  const bubble_full_pct = ((bubble_full / full_intrinsic) * 100);
-  itemsAnalysis.push({
-    id: "full_coin",
-    name: "سکه تمام ۸۶",
-    intrinsic: Math.round(full_intrinsic),
-    market: Math.round(market_full),
-    bubble: Math.round(bubble_full),
-    bubble_pct: parseFloat(bubble_full_pct.toFixed(1)),
-    updated_at: tgPrices.full_coin ? tgPrices.full_coin.datetime : null
-  });
+    return {
+      id,
+      name,
+      intrinsic: Math.round(intrinsic),
+      market: market ? Math.round(market) : null,
+      bubble: bubble !== null ? Math.round(bubble) : null,
+      bubble_pct,
+      updated_at: tgItem ? tgItem.datetime : null
+    };
+  }
 
-  // Half Coin
-  const tg_half = tgPrices.half_coin ? tgPrices.half_coin.price : null;
-  const bubble_half = tg_half ? (tg_half - half_intrinsic) : (half_intrinsic * 0.15);
-  const market_half = tg_half ? tg_half : (half_intrinsic + bubble_half);
-  const bubble_half_pct = ((bubble_half / half_intrinsic) * 100);
-  itemsAnalysis.push({
-    id: "half_coin",
-    name: "نیم سکه بهار آزادی",
-    intrinsic: Math.round(half_intrinsic),
-    market: Math.round(market_half),
-    bubble: Math.round(bubble_half),
-    bubble_pct: parseFloat(bubble_half_pct.toFixed(1)),
-    updated_at: tgPrices.half_coin ? tgPrices.half_coin.datetime : null
-  });
+  const itemsAnalysis = [
+    analyzeItem("gold_18k", "طلا ۱۸ عیار", gold_18k_gram, tgPrices.gold_18k),
+    analyzeItem("full_coin", "سکه تمام ۸۶", full_intrinsic, tgPrices.full_coin),
+    analyzeItem("half_coin", "نیم سکه بهار آزادی", half_intrinsic, tgPrices.half_coin),
+    analyzeItem("quarter_coin", "ربع سکه بهار آزادی", quarter_intrinsic, tgPrices.quarter_coin)
+  ];
 
-  // Quarter Coin
-  const tg_quarter = tgPrices.quarter_coin ? tgPrices.quarter_coin.price : null;
-  const bubble_quarter = tg_quarter ? (tg_quarter - quarter_intrinsic) : (quarter_intrinsic * 0.20);
-  const market_quarter = tg_quarter ? tg_quarter : (quarter_intrinsic + bubble_quarter);
-  const bubble_quarter_pct = ((bubble_quarter / quarter_intrinsic) * 100);
-  itemsAnalysis.push({
-    id: "quarter_coin",
-    name: "ربع سکه بهار آزادی",
-    intrinsic: Math.round(quarter_intrinsic),
-    market: Math.round(market_quarter),
-    bubble: Math.round(bubble_quarter),
-    bubble_pct: parseFloat(bubble_quarter_pct.toFixed(1)),
-    updated_at: tgPrices.quarter_coin ? tgPrices.quarter_coin.datetime : null
-  });
+  // Determine Best Purchase Recommendation (Lowest Bubble Percentage among items with ACTUAL market prices)
+  const availableItems = itemsAnalysis.filter(i => i.market !== null && i.bubble_pct !== null);
+  let bestItem = null;
+  let recommendation = null;
 
-  // Determine Best Purchase Recommendation (Lowest Bubble Percentage)
-  const sortedByBubble = [...itemsAnalysis].sort((a, b) => a.bubble_pct - b.bubble_pct);
-  const bestItem = sortedByBubble[0];
+  if (availableItems.length > 0) {
+    const sortedByBubble = [...availableItems].sort((a, b) => a.bubble_pct - b.bubble_pct);
+    bestItem = sortedByBubble[0];
+    recommendation = {
+      best_id: bestItem.id,
+      best_name: bestItem.name,
+      best_bubble_pct: bestItem.bubble_pct,
+      reason: `«${bestItem.name}» با حباب ${bestItem.bubble_pct}٪ دارای کمترین حباب و بالاترین ارزش خرید اقتصادی می‌باشد.`
+    };
+  }
 
   const responseObj = {
     success: true,
@@ -320,12 +299,7 @@ async function handleCalculate(url, env) {
     telegram_channel: "t.me/zarmagoldd",
     telegram_raw: tgPrices,
     analysis: itemsAnalysis,
-    recommendation: {
-      best_id: bestItem.id,
-      best_name: bestItem.name,
-      best_bubble_pct: bestItem.bubble_pct,
-      reason: `«${bestItem.name}» با حباب ${bestItem.bubble_pct}٪ دارای کمترین حباب و بالاترین ارزش خرید اقتصادی می‌باشد.`
-    }
+    recommendation
   };
 
   return new Response(JSON.stringify(responseObj, null, 2), {
@@ -403,7 +377,7 @@ function getHTMLContent(env) {
     :root {
       --bg-primary: #0a0d14;
       --bg-glass: rgba(18, 24, 36, 0.75);
-      --bg-card: rgba(26, 34, 52, 0.75);
+      --bg-card: rgba(26, 34, 52, 0.65);
       --border-color: rgba(255, 255, 255, 0.08);
       --border-glow: rgba(245, 158, 11, 0.35);
       
@@ -684,7 +658,7 @@ function getHTMLContent(env) {
       white-space: nowrap;
     }
 
-    /* Comparison Cards Grid - EXACTLY 2 CARDS PER ROW */
+    /* Comparison Cards Grid - 2 CARDS PER ROW */
     .cards-grid {
       display: grid;
       grid-template-columns: repeat(2, 1fr);
@@ -739,13 +713,18 @@ function getHTMLContent(env) {
       color: var(--text-muted);
     }
 
-    /* Bubble Badge Colors: Positive vs Negative */
     .bubble-badge {
       padding: 6px 12px;
       border-radius: 20px;
       font-size: 12px;
       font-weight: 700;
       white-space: nowrap;
+    }
+
+    .bubble-badge.disabled {
+      background: rgba(156, 163, 175, 0.1);
+      border: 1px solid rgba(156, 163, 175, 0.2);
+      color: var(--text-muted);
     }
 
     .bubble-badge.negative {
@@ -1028,7 +1007,7 @@ function getHTMLContent(env) {
     }
 
     function formatRelativeTime(isoStr) {
-      if (!isoStr) return 'ثبت شده';
+      if (!isoStr) return 'ثبت نشده';
       try {
         const d = new Date(isoStr);
         const diffMins = Math.floor((new Date() - d) / 60000);
@@ -1038,7 +1017,7 @@ function getHTMLContent(env) {
         if (diffHours < 24) return diffHours.toLocaleString('fa-IR') + ' ساعت پیش';
         return d.toLocaleTimeString('fa-IR', { hour: '2-digit', minute: '2-digit' });
       } catch (e) {
-        return 'ثبت شده';
+        return 'ثبت نشده';
       }
     }
 
@@ -1135,43 +1114,56 @@ function getHTMLContent(env) {
       }
 
       // Show Recommendation Box
+      const recBox = document.getElementById('recBox');
       if (data.recommendation) {
-        const recBox = document.getElementById('recBox');
         recBox.style.display = 'flex';
-        document.getElementById('recTitle').innerText = '🏆 بهترین گزینه برای خرید: ' + data.recommendation.best_name;
+        document.getElementById('recTitle').innerText = '🏆 پیشنهاد خرید: ' + data.recommendation.best_name;
         document.getElementById('recReason').innerText = data.recommendation.reason;
         
         const bestPct = data.recommendation.best_bubble_pct;
         document.getElementById('recBadge').innerText = (bestPct < 0 ? 'حباب منفی: ' : 'حباب: ') + bestPct.toLocaleString('fa-IR') + '٪';
+      } else {
+        recBox.style.display = 'none';
       }
 
       data.analysis.forEach(item => {
         const isBest = data.recommendation && data.recommendation.best_id === item.id;
-        const isNegative = item.bubble < 0;
+        const hasMarket = item.market !== null;
+        const isNegative = hasMarket && item.bubble < 0;
         
         const card = document.createElement('div');
         card.className = 'card ' + (isBest ? 'highlight' : '');
 
-        // Determine badge styling: Negative (Blue), Low positive bubble (Green), High bubble (Red)
-        let bubbleClass = 'warn';
-        let badgeText = '';
+        // Determine badge styling
+        let bubbleClass = 'disabled';
+        let badgeText = 'ناموجود در کانال';
 
-        if (isNegative) {
-          bubbleClass = 'negative';
-          badgeText = 'حباب منفی: ' + item.bubble_pct.toLocaleString('fa-IR') + '٪';
-        } else if (item.bubble_pct <= 10) {
-          bubbleClass = 'good';
-          badgeText = 'حباب: +' + item.bubble_pct.toLocaleString('fa-IR') + '٪';
-        } else {
-          bubbleClass = 'warn';
-          badgeText = 'حباب: +' + item.bubble_pct.toLocaleString('fa-IR') + '٪';
+        if (hasMarket) {
+          if (isNegative) {
+            bubbleClass = 'negative';
+            badgeText = 'حباب منفی: ' + item.bubble_pct.toLocaleString('fa-IR') + '٪';
+          } else if (item.bubble_pct <= 10) {
+            bubbleClass = 'good';
+            badgeText = 'حباب: +' + item.bubble_pct.toLocaleString('fa-IR') + '٪';
+          } else {
+            bubbleClass = 'warn';
+            badgeText = 'حباب: +' + item.bubble_pct.toLocaleString('fa-IR') + '٪';
+          }
         }
 
         const timeStr = formatRelativeTime(item.updated_at);
-        const bubbleColor = isNegative ? '#60a5fa' : (item.bubble_pct <= 10 ? 'var(--success)' : '#f87171');
-        const bubbleDisplayStr = isNegative ? 
-          ('حباب منفی ' + formatNum(Math.abs(item.bubble)) + ' تومان (' + item.bubble_pct.toLocaleString('fa-IR') + '٪)') : 
-          ('+' + formatNum(item.bubble) + ' تومان (' + item.bubble_pct.toLocaleString('fa-IR') + '٪)');
+        
+        let marketDisplayStr = '<span class="price-val" style="color: var(--text-muted); font-size: 16px;">ناموجود در کانال</span>';
+        let bubbleDisplayStr = '<span style="color: var(--text-muted); font-size: 13px;">اطلاعات بازار موجود نیست</span>';
+
+        if (hasMarket) {
+          marketDisplayStr = '<span class="price-val">' + formatNum(item.market) + ' تومان</span>';
+          const bubbleColor = isNegative ? '#60a5fa' : (item.bubble_pct <= 10 ? 'var(--success)' : '#f87171');
+          bubbleDisplayStr = isNegative ? 
+            ('حباب منفی ' + formatNum(Math.abs(item.bubble)) + ' تومان (' + item.bubble_pct.toLocaleString('fa-IR') + '٪)') : 
+            ('+' + formatNum(item.bubble) + ' تومان (' + item.bubble_pct.toLocaleString('fa-IR') + '٪)');
+          bubbleDisplayStr = '<span style="font-weight: 800; font-size: 15px; color: ' + bubbleColor + ';">' + bubbleDisplayStr + '</span>';
+        }
 
         card.innerHTML = \`
           <div>
@@ -1190,12 +1182,12 @@ function getHTMLContent(env) {
 
             <div class="price-row">
               <span class="price-label">قیمت کانال تلگرام:</span>
-              <span class="price-val">\${item.market ? formatNum(item.market) + ' تومان' : 'ناموجود در پیام جدید'}</span>
+              \${marketDisplayStr}
             </div>
 
             <div class="price-row" style="margin-top: 14px; border-top: 1px dashed var(--border-color); padding-top: 10px;">
               <span class="price-label">وضعیت حباب:</span>
-              <span style="font-weight: 800; font-size: 15px; color: \${bubbleColor};">\${bubbleDisplayStr}</span>
+              \${bubbleDisplayStr}
             </div>
           </div>
 
