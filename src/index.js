@@ -1,6 +1,6 @@
 /**
  * RealRate — Iranian Gold & Currency Price Calculator & Telegram Arbitrage Engine
- * Cloudflare Worker Engine + Protected Admin Panel + Custom Vector SVG Logo
+ * Cloudflare Worker Engine + Protected Admin Panel + GitHub Link Footer
  */
 
 // In-memory fallback cache if KV is not bound
@@ -1211,15 +1211,19 @@ function getHTMLContent(env, analytics, globalSettings) {
       display: flex;
       justify-content: space-between;
       align-items: center;
+      flex-wrap: wrap;
+      gap: 12px;
     }
 
     footer a {
       color: var(--gold-light);
       text-decoration: none;
       font-weight: 600;
+      transition: color 0.2s;
     }
 
     footer a:hover {
+      color: #fff;
       text-decoration: underline;
     }
   </style>
@@ -1400,7 +1404,12 @@ function getHTMLContent(env, analytics, globalSettings) {
     <!-- Footer -->
     <footer>
       <p>منبع اطلاعات: قیمت روز بازار طلا و نرخ برابری ارزهای جهان | اجرا در Cloudflare Worker</p>
-      <a href="/admin" target="_blank">🔐 ورود به پنل مدیریت</a>
+      <div style="display: flex; gap: 16px; align-items: center; flex-wrap: wrap;">
+        <a href="https://github.com/nos486/realrate" target="_blank" style="display: flex; align-items: center; gap: 4px;">
+          <span>📦 سورس پروژه در گیت‌هاب</span>
+        </a>
+        <a href="/admin" target="_blank">🔐 ورود به پنل مدیریت</a>
+      </div>
     </footer>
   </div>
 
