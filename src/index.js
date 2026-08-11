@@ -108,7 +108,7 @@ async function handleAdminLogin(request, env) {
   try {
     const body = await request.json();
     const inputPass = body.password || "";
-    let correctPass = "admin123"; // Default initial password
+    let correctPass = "admin123";
 
     if (env && env.REALRATE_KV) {
       const kvPass = await env.REALRATE_KV.get("admin_password");
@@ -158,7 +158,7 @@ async function handleAdminSaveSettings(request, env) {
       await env.REALRATE_KV.put("global_settings", JSON.stringify(newSettings));
     }
 
-    return new Response(JSON.stringify({ success: true, message: "تنظیمات عمومی با موفقیت در دیتابیس ذخیره شد.", settings: newSettings }), {
+    return new Response(JSON.stringify({ success: true, message: "تنظیمات عمومی با موفقیت ذخیره شد.", settings: newSettings }), {
       headers: { "Content-Type": "application/json; charset=utf-8" }
     });
   } catch (e) {
@@ -1181,7 +1181,7 @@ function getHTMLContent(env, analytics, globalSettings) {
       </div>
 
       <div class="header-controls">
-        <!-- Live IP-based Analytics Badges (CLEAN TEXT) -->
+        <!-- Live IP-based Analytics Badges -->
         <div class="analytics-badges">
           <div class="badge-item online">
             <span class="pulse-dot"></span>
@@ -1685,7 +1685,7 @@ function getAdminHTMLContent(globalSettings) {
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>RealRate | پنل مدیریت عمومی سیستم</title>
+  <title>RealRate | پنل مدیریت سیستم</title>
   
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -1828,7 +1828,7 @@ function getAdminHTMLContent(globalSettings) {
   <div class="admin-container">
     <div class="admin-header">
       <h2>🔐 پنل مدیریت RealRate</h2>
-      <p>تنظیم پیش‌فرض دلار، سیستم و دیتابیس Cloudflare KV</p>
+      <p>تنظیمات سیستم</p>
     </div>
 
     <div class="msg-box" id="msgBox"></div>
@@ -1837,7 +1837,7 @@ function getAdminHTMLContent(globalSettings) {
     <div id="loginForm">
       <div class="form-group">
         <label for="adminPass">رمز عبور مدیریت</label>
-        <input type="password" id="adminPass" placeholder="رمز عبور را وارد کنید (پیش‌فرض: admin123)">
+        <input type="password" id="adminPass" placeholder="رمز عبور را وارد کنید">
       </div>
       <button class="btn" onclick="doLogin()">ورود به مدیریت</button>
     </div>
@@ -1861,7 +1861,7 @@ function getAdminHTMLContent(globalSettings) {
         <textarea id="adminAnnouncement" rows="2" placeholder="متن پیام عمومی را وارد کنید...">${globalSettings.announcement || ''}</textarea>
       </div>
 
-      <button class="btn" onclick="saveSettings()">💾 ذخیره تغییرات در KV</button>
+      <button class="btn" onclick="saveSettings()">💾 ذخیره تغییرات</button>
 
       <div class="section-title">🔑 تغییر رمز عبور مدیریت</div>
 
@@ -1986,7 +1986,6 @@ function getAdminHTMLContent(globalSettings) {
       location.reload();
     }
 
-    // Auto load session if exists
     window.addEventListener('DOMContentLoaded', () => {
       const savedToken = sessionStorage.getItem('admin_token');
       if (savedToken) {
