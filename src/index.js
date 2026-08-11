@@ -1,6 +1,6 @@
 /**
  * RealRate — Iranian Gold & Currency Price Calculator & Telegram Arbitrage Engine
- * Cloudflare Worker Engine + Protected Admin Panel + PWA Add to Home Screen Support
+ * Cloudflare Worker Engine + Protected Admin Panel + PWA Add to Home Screen Footer Icon
  */
 
 // In-memory fallback cache if KV is not bound
@@ -1034,52 +1034,6 @@ function getHTMLContent(env, analytics, globalSettings) {
       100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
     }
 
-    /* PWA Install Banner */
-    .pwa-banner {
-      background: linear-gradient(135deg, rgba(245, 158, 11, 0.18) 0%, rgba(18, 24, 36, 0.95) 100%);
-      border: 1px solid var(--gold-primary);
-      border-radius: var(--radius-md);
-      padding: 10px 14px;
-      margin-bottom: 14px;
-      box-shadow: 0 4px 16px rgba(245, 158, 11, 0.15);
-    }
-
-    .pwa-banner-content {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 10px;
-      font-size: 12px;
-      font-weight: 700;
-      color: var(--gold-light);
-    }
-
-    .pwa-btn {
-      background: var(--gold-gradient);
-      color: #000;
-      border: none;
-      font-weight: 800;
-      font-size: 12px;
-      padding: 6px 14px;
-      border-radius: 20px;
-      cursor: pointer;
-      white-space: nowrap;
-      transition: transform 0.2s;
-    }
-
-    .pwa-btn:hover {
-      transform: scale(1.04);
-    }
-
-    .pwa-close-btn {
-      background: transparent;
-      border: none;
-      color: var(--text-muted);
-      font-size: 14px;
-      cursor: pointer;
-      padding: 2px 6px;
-    }
-
     /* System Announcement Banner */
     .system-announcement {
       background: linear-gradient(135deg, rgba(59, 130, 246, 0.2) 0%, rgba(18, 24, 36, 0.8) 100%);
@@ -1494,16 +1448,15 @@ function getHTMLContent(env, analytics, globalSettings) {
       gap: 12px;
     }
 
-    footer a {
+    footer a, footer button {
       color: var(--gold-light);
       text-decoration: none;
       font-weight: 600;
       transition: color 0.2s;
     }
 
-    footer a:hover {
+    footer a:hover, footer button:hover {
       color: #fff;
-      text-decoration: underline;
     }
   </style>
 </head>
@@ -1539,20 +1492,6 @@ function getHTMLContent(env, analytics, globalSettings) {
         </div>
       </div>
     </header>
-
-    <!-- PWA Install Banner -->
-    <div id="pwaInstallBanner" style="display: none;" class="pwa-banner">
-      <div class="pwa-banner-content">
-        <div style="display: flex; align-items: center; gap: 8px;">
-          <span>📲</span>
-          <span id="pwaInstallText">نصب اپلیکیشن RealRate روی صفحه اصلی گوشی</span>
-        </div>
-        <div style="display: flex; align-items: center; gap: 6px;">
-          <button id="pwaInstallBtn" class="pwa-btn" style="display: none;">نصب سریع</button>
-          <button onclick="dismissPwaBanner()" class="pwa-close-btn" title="بستن">✕</button>
-        </div>
-      </div>
-    </div>
 
     <!-- Optional System Announcement Banner -->
     <div class="system-announcement" id="sysAnnouncement" style="${globalSettings.announcement ? 'display: flex;' : 'display: none;'}">
@@ -1727,11 +1666,21 @@ function getHTMLContent(env, analytics, globalSettings) {
     <footer>
       <p>منبع اطلاعات: قیمت روز بازار طلا و نرخ برابری ارزهای جهان</p>
       <div style="display: flex; gap: 14px; align-items: center; flex-wrap: wrap;">
+        <!-- PWA Install Mobile Icon Button -->
+        <button id="pwaInstallFooterBtn" onclick="triggerPwaInstall()" title="نصب اپلیکیشن RealRate روی صفحه اصلی گوشی" style="display: flex; align-items: center; justify-content: center; background: transparent; border: none; cursor: pointer; color: var(--gold-light); transition: opacity 0.2s;" onmouseover="this.style.opacity='0.7'" onmouseout="this.style.opacity='1'">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" xmlns="http://www.w3.org/2000/svg">
+            <rect x="5" y="2" width="14" height="20" rx="2" ry="2"></rect>
+            <line x1="12" y1="18" x2="12.01" y2="18"></line>
+            <path d="M12 6v6m-3-3l3 3 3-3"></path>
+          </svg>
+        </button>
+
         <a href="https://github.com/nos486/realrate" target="_blank" title="مشاهده سورس در گیت‌هاب" style="display: flex; align-items: center; justify-content: center; color: var(--gold-light); transition: opacity 0.2s;" onmouseover="this.style.opacity='0.7'" onmouseout="this.style.opacity='1'">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
             <path fill-rule="evenodd" clip-rule="evenodd" d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.53 1.032 1.53 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z"/>
           </svg>
         </a>
+
         <a href="/admin" target="_blank" title="ورود به پنل مدیریت" style="display: flex; align-items: center; justify-content: center; color: var(--gold-light); transition: opacity 0.2s;" onmouseover="this.style.opacity='0.7'" onmouseout="this.style.opacity='1'">
           <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" xmlns="http://www.w3.org/2000/svg">
             <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
@@ -2068,48 +2017,27 @@ function getHTMLContent(env, analytics, globalSettings) {
       document.getElementById('rec_final_total').innerText = formatNum(finalTotal) + ' تومان';
     }
 
-    // PWA Add to Home Screen Prompt Handler
+    // PWA Add to Home Screen Event Listener
     window.addEventListener('beforeinstallprompt', (e) => {
       e.preventDefault();
       deferredPrompt = e;
-      if (!sessionStorage.getItem('pwa_banner_dismissed')) {
-        const banner = document.getElementById('pwaInstallBanner');
-        const btn = document.getElementById('pwaInstallBtn');
-        if (banner && btn) {
-          banner.style.display = 'block';
-          btn.style.display = 'inline-block';
-        }
-      }
     });
 
-    document.getElementById('pwaInstallBtn')?.addEventListener('click', async () => {
+    async function triggerPwaInstall() {
       if (deferredPrompt) {
         deferredPrompt.prompt();
         const { outcome } = await deferredPrompt.userChoice;
         if (outcome === 'accepted') {
-          dismissPwaBanner();
+          deferredPrompt = null;
         }
-        deferredPrompt = null;
-      }
-    });
-
-    function checkIosPwaPrompt() {
-      const isIos = /iphone|ipad|ipod/i.test(navigator.userAgent);
-      const isStandalone = window.navigator.standalone || window.matchMedia('(display-mode: standalone)').matches;
-      if (isIos && !isStandalone && !sessionStorage.getItem('pwa_banner_dismissed')) {
-        const banner = document.getElementById('pwaInstallBanner');
-        const text = document.getElementById('pwaInstallText');
-        if (banner && text) {
-          text.innerHTML = 'جهت نصب روی آیفون: دکمه <strong>Share 🔗</strong> در مرورگر و سپس <strong>Add to Home Screen ➕</strong> را بزنید.';
-          banner.style.display = 'block';
+      } else {
+        const isIos = /iphone|ipad|ipod/i.test(navigator.userAgent);
+        if (isIos) {
+          alert('جهت نصب اپلیکیشن روی آیفون:\\n۱. دکمه Share 🔗 در پایین مرورگر Safari را بزنید.\\n۲. گزینه "Add to Home Screen" ➕ را انتخاب کنید.');
+        } else {
+          alert('جهت نصب اپلیکیشن روی گوشی:\\n۱. منوی ۳ نقطه مرورگر را بزنید.\\n۲. گزینه "Add to Home Screen" یا "Install app" را انتخاب کنید.');
         }
       }
-    }
-
-    function dismissPwaBanner() {
-      const banner = document.getElementById('pwaInstallBanner');
-      if (banner) banner.style.display = 'none';
-      sessionStorage.setItem('pwa_banner_dismissed', 'true');
     }
 
     async function initPage() {
@@ -2120,8 +2048,6 @@ function getHTMLContent(env, analytics, globalSettings) {
       if ('serviceWorker' in navigator) {
         navigator.serviceWorker.register('/sw.js').catch(() => {});
       }
-
-      checkIosPwaPrompt();
 
       try {
         const res = await fetch('/api/rates');
