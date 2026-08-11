@@ -1,6 +1,6 @@
 /**
  * RealRate — Iranian Gold & Currency Price Calculator & Telegram Arbitrage Engine
- * Cloudflare Worker Engine + Protected Admin Panel + Unique Visitor Analytics
+ * Cloudflare Worker Engine + Protected Admin Panel + Unique IP Analytics Counter
  */
 
 // In-memory fallback cache if KV is not bound
@@ -21,13 +21,13 @@ export default {
       });
     }
 
-    // Track Page Views, Unique Visitors, and Active Online Users by IP (5-minute window)
+    // Track Page Views, Unique IPs and Active Online Users
     const analytics = await trackAnalytics(request, env, ctx, url);
     const globalSettings = await getGlobalSettings(env);
 
     // Admin API Routes
     if (url.pathname === "/api/admin/login" && request.method === "POST") {
-      return handleAdminLogin(request, env, analytics);
+      return handleAdminLogin(request, env);
     }
     if (url.pathname === "/api/admin/settings" && request.method === "POST") {
       return handleAdminSaveSettings(request, env);
@@ -36,7 +36,8 @@ export default {
       return handleAdminChangePassword(request, env);
     }
     if (url.pathname === "/api/admin/stats") {
-      return new Response(JSON.stringify({ success: true, analytics }), {
+      const stats = await getAdminStats(env);
+      return new Response(JSON.stringify(stats), {
         headers: { "Content-Type": "application/json; charset=utf-8", "Access-Control-Allow-Origin": "*" }
       });
     }
@@ -63,7 +64,7 @@ export default {
 
     // Admin Dashboard View
     if (url.pathname === "/admin") {
-      return new Response(getAdminHTMLContent(globalSettings, analytics), {
+      return new Response(getAdminHTMLContent(globalSettings), {
         headers: {
           "Content-Type": "text/html; charset=utf-8",
           "Access-Control-Allow-Origin": "*",
@@ -110,9 +111,40 @@ async function getGlobalSettings(env) {
 }
 
 /**
+ * Fetch Live Admin Stats from Cloudflare KV
+ */
+async function getAdminStats(env) {
+  let pageViews = 1420;
+  let uniqueIps = 380;
+  let onlineUsers = 1;
+
+  if (env && env.REALRATE_KV) {
+    try {
+      const viewsStr = await env.REALRATE_KV.get("total_page_views");
+      if (viewsStr) pageViews = parseInt(viewsStr, 10);
+
+      const uniqueStr = await env.REALRATE_KV.get("total_unique_ips");
+      if (uniqueStr) {
+        uniqueIps = parseInt(uniqueStr, 10);
+      } else {
+        const uniqueList = await env.REALRATE_KV.list({ prefix: "visited_ip_" });
+        uniqueIps = Math.max(uniqueList.keys.length, 1);
+      }
+
+      const activeOnlineList = await env.REALRATE_KV.list({ prefix: "online_ip_" });
+      onlineUsers = Math.max(activeOnlineList.keys.length, 1);
+    } catch (e) {
+      console.error("Error fetching admin stats from KV:", e);
+    }
+  }
+
+  return { success: true, pageViews, uniqueIps, onlineUsers };
+}
+
+/**
  * Handle Admin Password Login
  */
-async function handleAdminLogin(request, env, analytics) {
+async function handleAdminLogin(request, env) {
   try {
     const body = await request.json();
     const inputPass = body.password || "";
@@ -124,7 +156,7 @@ async function handleAdminLogin(request, env, analytics) {
     }
 
     if (inputPass === correctPass) {
-      return new Response(JSON.stringify({ success: true, token: "admin_authenticated_session", analytics }), {
+      return new Response(JSON.stringify({ success: true, token: "admin_authenticated_session" }), {
         headers: { "Content-Type": "application/json; charset=utf-8" }
       });
     } else {
@@ -223,51 +255,55 @@ function getClientIp(request) {
 }
 
 /**
- * Track total page views, unique visitors (by IP), and active online users
+ * Track total unique page views, unique IPs and active online users by IP
  */
 async function trackAnalytics(request, env, ctx, url) {
   let pageViews = 1420;
-  let uniqueVisitors = 850;
   let onlineUsers = 1;
+  let uniqueIps = 380;
 
   const rawIp = getClientIp(request);
   const safeIp = rawIp.replace(/[^a-zA-Z0-9_.-]/g, "_");
 
   if (env && env.REALRATE_KV) {
     try {
+      // 1. Track online user (5-min window)
       const onlineKey = `online_ip_${safeIp}`;
       ctx.waitUntil(env.REALRATE_KV.put(onlineKey, Date.now().toString(), { expirationTtl: 300 }));
 
       const activeOnlineList = await env.REALRATE_KV.list({ prefix: "online_ip_" });
       onlineUsers = Math.max(1, activeOnlineList.keys.length);
 
+      // 2. Track total page views
       let viewsStr = await env.REALRATE_KV.get("total_page_views");
       let currentViews = parseInt(viewsStr || "1420", 10);
 
-      let uniqueStr = await env.REALRATE_KV.get("total_unique_visitors");
-      let currentUniques = parseInt(uniqueStr || "850", 10);
+      // 3. Track unique IP
+      let uniqueCountStr = await env.REALRATE_KV.get("total_unique_ips");
+      let currentUniqueIps = parseInt(uniqueCountStr || "380", 10);
 
       const uniqueVisitKey = `visited_ip_${safeIp}`;
       const hasVisited = await env.REALRATE_KV.get(uniqueVisitKey);
 
       if (url.pathname === "/") {
-        if (!hasVisited) {
-          currentUniques += 1;
-          ctx.waitUntil(env.REALRATE_KV.put("total_unique_visitors", currentUniques.toString()));
-          ctx.waitUntil(env.REALRATE_KV.put(uniqueVisitKey, "1", { expirationTtl: 86400 }));
-        }
         currentViews += 1;
         ctx.waitUntil(env.REALRATE_KV.put("total_page_views", currentViews.toString()));
+
+        if (!hasVisited) {
+          currentUniqueIps += 1;
+          ctx.waitUntil(env.REALRATE_KV.put(uniqueVisitKey, Date.now().toString()));
+          ctx.waitUntil(env.REALRATE_KV.put("total_unique_ips", currentUniqueIps.toString()));
+        }
       }
 
       pageViews = currentViews;
-      uniqueVisitors = currentUniques;
+      uniqueIps = currentUniqueIps;
     } catch (e) {
       console.error("Analytics KV Error:", e);
     }
   }
 
-  return { pageViews, uniqueVisitors, onlineUsers };
+  return { pageViews, onlineUsers, uniqueIps };
 }
 
 /**
@@ -650,7 +686,7 @@ async function handleCalculate(url, env, analytics, globalSettings) {
       flag: "🇬🇧",
       symbol: "£",
       usd_cross_rate: parseFloat((1 / forex.GBP).toFixed(4)),
-      toman_price: Math.round((1 / forex.GBP).toFixed(4)),
+      toman_price: Math.round((1 / forex.GBP) * usd_toman),
       note: `۱ پوند = ${(1 / forex.GBP).toFixed(4)} دلار`
     },
     {
@@ -1945,11 +1981,7 @@ function getHTMLContent(env, analytics, globalSettings) {
 /**
  * Embedded HTML Web Application (Admin Panel UI)
  */
-function getAdminHTMLContent(globalSettings, analytics) {
-  const onlineCount = (analytics && analytics.onlineUsers) ? analytics.onlineUsers : 1;
-  const uniquesCount = (analytics && analytics.uniqueVisitors) ? analytics.uniqueVisitors : 850;
-  const viewsCount = (analytics && analytics.pageViews) ? analytics.pageViews : 1420;
-
+function getAdminHTMLContent(globalSettings) {
   return `<!DOCTYPE html>
 <html lang="fa" dir="rtl">
 <head>
@@ -1992,7 +2024,7 @@ function getAdminHTMLContent(globalSettings, analytics) {
 
     .admin-container {
       width: 100%;
-      max-width: 520px;
+      max-width: 500px;
       background: var(--bg-glass);
       border: 1px solid var(--border-color);
       border-radius: var(--radius-lg);
@@ -2101,6 +2133,19 @@ function getAdminHTMLContent(globalSettings, analytics) {
       padding-bottom: 6px;
       border-bottom: 1px dashed var(--border-color);
     }
+
+    .stat-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 8px 0;
+      border-bottom: 1px dashed rgba(255, 255, 255, 0.06);
+      font-size: 13px;
+    }
+
+    .stat-row:last-child {
+      border-bottom: none;
+    }
   </style>
 </head>
 <body>
@@ -2111,7 +2156,7 @@ function getAdminHTMLContent(globalSettings, analytics) {
         ${REALRATE_SVG_LOGO}
       </div>
       <h2>پنل مدیریت RealRate</h2>
-      <p>تنظیمات سیستم و آمار بازدیدکنندگان</p>
+      <p>تنظیمات سیستم</p>
     </div>
 
     <div class="msg-box" id="msgBox"></div>
@@ -2127,24 +2172,20 @@ function getAdminHTMLContent(globalSettings, analytics) {
 
     <!-- Dashboard View (Shown after auth) -->
     <div id="dashboardForm" style="display: none;">
-      
-      <!-- Analytics Summary Grid in Admin Dashboard -->
-      <div class="section-title">📊 آمار دقیق ترافیک و بازدیدکنندگان</div>
+      <div class="section-title">📊 آمار و آنالیتیکس اختصاصی (Cloudflare KV)</div>
 
-      <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 16px;">
-        <div style="background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.3); border-radius: 10px; padding: 10px 6px; text-align: center;">
-          <div style="font-size: 10px; color: var(--success); font-weight: 700;">🟢 آنلاین فعلی</div>
-          <div style="font-size: 17px; font-weight: 800; color: #fff; margin-top: 4px;" id="statOnline">${onlineCount.toLocaleString("fa-IR")}</div>
+      <div style="background: rgba(10, 13, 20, 0.6); border: 1px solid var(--border-color); border-radius: 12px; padding: 14px; margin-bottom: 16px;">
+        <div class="stat-row">
+          <span>🌐 تعداد آی‌پي‌های یونیک (Unique IPs):</span>
+          <strong id="statUniqueIps" style="color: var(--gold-light); font-size: 15px;">در حال دریافت...</strong>
         </div>
-
-        <div style="background: rgba(59, 130, 246, 0.1); border: 1px solid rgba(59, 130, 246, 0.3); border-radius: 10px; padding: 10px 6px; text-align: center;">
-          <div style="font-size: 10px; color: #60a5fa; font-weight: 700;">👥 بازدیدکنندگان یونیک</div>
-          <div style="font-size: 17px; font-weight: 800; color: #fff; margin-top: 4px;" id="statUniques">${uniquesCount.toLocaleString("fa-IR")}</div>
+        <div class="stat-row">
+          <span>👁️ کل صفحات بازدید شده (Total Views):</span>
+          <strong id="statTotalViews" style="color: #fff; font-size: 15px;">در حال دریافت...</strong>
         </div>
-
-        <div style="background: rgba(245, 158, 11, 0.1); border: 1px solid rgba(245, 158, 11, 0.3); border-radius: 10px; padding: 10px 6px; text-align: center;">
-          <div style="font-size: 10px; color: var(--gold-light); font-weight: 700;">👁️ کل بازدیدها</div>
-          <div style="font-size: 17px; font-weight: 800; color: #fff; margin-top: 4px;" id="statViews">${viewsCount.toLocaleString("fa-IR")}</div>
+        <div class="stat-row">
+          <span>🟢 کاربران هم‌زمان آنلاین (Online Users):</span>
+          <strong id="statOnlineUsers" style="color: var(--success); font-size: 15px;">در حال دریافت...</strong>
         </div>
       </div>
 
@@ -2217,15 +2258,14 @@ function getAdminHTMLContent(globalSettings, analytics) {
       box.style.display = 'block';
     }
 
-    async function loadStats() {
+    async function loadAdminStats() {
       try {
         const res = await fetch('/api/admin/stats');
         const data = await res.json();
-        if (data.success && data.analytics) {
-          const a = data.analytics;
-          if (a.onlineUsers !== undefined) document.getElementById('statOnline').innerText = a.onlineUsers.toLocaleString('fa-IR');
-          if (a.uniqueVisitors !== undefined) document.getElementById('statUniques').innerText = a.uniqueVisitors.toLocaleString('fa-IR');
-          if (a.pageViews !== undefined) document.getElementById('statViews').innerText = a.pageViews.toLocaleString('fa-IR');
+        if (data.success) {
+          document.getElementById('statUniqueIps').innerText = data.uniqueIps.toLocaleString('fa-IR') + ' آی‌پی';
+          document.getElementById('statTotalViews').innerText = data.pageViews.toLocaleString('fa-IR');
+          document.getElementById('statOnlineUsers').innerText = data.onlineUsers.toLocaleString('fa-IR') + ' نفر';
         }
       } catch (e) {}
     }
@@ -2251,12 +2291,7 @@ function getAdminHTMLContent(globalSettings, analytics) {
           sessionStorage.setItem('admin_pass', pass);
           document.getElementById('loginForm').style.display = 'none';
           document.getElementById('dashboardForm').style.display = 'block';
-          if (data.analytics) {
-            const a = data.analytics;
-            if (a.onlineUsers !== undefined) document.getElementById('statOnline').innerText = a.onlineUsers.toLocaleString('fa-IR');
-            if (a.uniqueVisitors !== undefined) document.getElementById('statUniques').innerText = a.uniqueVisitors.toLocaleString('fa-IR');
-            if (a.pageViews !== undefined) document.getElementById('statViews').innerText = a.pageViews.toLocaleString('fa-IR');
-          }
+          loadAdminStats();
           showMsg('با موفقیت وارد شدید.', true);
         } else {
           showMsg(data.message || 'رمز عبور اشتباه است.', false);
@@ -2294,7 +2329,6 @@ function getAdminHTMLContent(globalSettings, analytics) {
 
         if (data.success) {
           showMsg(data.message, true);
-          loadStats();
         } else {
           showMsg(data.message, false);
         }
@@ -2345,7 +2379,7 @@ function getAdminHTMLContent(globalSettings, analytics) {
         authToken = savedToken;
         document.getElementById('loginForm').style.display = 'none';
         document.getElementById('dashboardForm').style.display = 'block';
-        loadStats();
+        loadAdminStats();
       }
     });
   </script>
