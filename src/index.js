@@ -1,6 +1,6 @@
 /**
  * RealRate — Iranian Gold & Currency Price Calculator & Telegram Arbitrage Engine
- * Cloudflare Worker Engine + Protected Admin Panel
+ * Cloudflare Worker Engine + Protected Admin Panel + Coin Target Bubble Engine
  */
 
 // In-memory fallback cache if KV is not bound
@@ -83,6 +83,9 @@ async function getGlobalSettings(env) {
   const defaultSettings = {
     default_usd_toman: 62000,
     default_gold_usd: 2450,
+    bubble_pct_full: 15,
+    bubble_pct_half: 20,
+    bubble_pct_quarter: 25,
     announcement: ""
   };
 
@@ -131,7 +134,7 @@ async function handleAdminLogin(request, env) {
 }
 
 /**
- * Handle Admin Saving Global Settings (USD Rate, Gold USD, Announcement)
+ * Handle Admin Saving Global Settings (USD Rate, Gold USD, Coin Target Bubbles, Announcement)
  */
 async function handleAdminSaveSettings(request, env) {
   try {
@@ -151,6 +154,9 @@ async function handleAdminSaveSettings(request, env) {
     const newSettings = {
       default_usd_toman: parseFloat(body.default_usd_toman) || 62000,
       default_gold_usd: parseFloat(body.default_gold_usd) || 2450,
+      bubble_pct_full: parseFloat(body.bubble_pct_full) >= 0 ? parseFloat(body.bubble_pct_full) : 15,
+      bubble_pct_half: parseFloat(body.bubble_pct_half) >= 0 ? parseFloat(body.bubble_pct_half) : 20,
+      bubble_pct_quarter: parseFloat(body.bubble_pct_quarter) >= 0 ? parseFloat(body.bubble_pct_quarter) : 25,
       announcement: (body.announcement || "").trim()
     };
 
@@ -212,7 +218,7 @@ function getClientIp(request) {
 }
 
 /**
- * Track total unique page views and active online users (within last 5 minutes = 300 seconds) by IP
+ * Track total unique page views and active online users by IP
  */
 async function trackAnalytics(request, env, ctx, url) {
   let pageViews = 1420;
@@ -223,19 +229,15 @@ async function trackAnalytics(request, env, ctx, url) {
 
   if (env && env.REALRATE_KV) {
     try {
-      // 1. Online Users: Record IP with 300 seconds (5 minutes) expiration TTL
       const onlineKey = `online_ip_${safeIp}`;
       ctx.waitUntil(env.REALRATE_KV.put(onlineKey, Date.now().toString(), { expirationTtl: 300 }));
 
-      // List active keys in last 5 minutes to count unique online IPs
       const activeOnlineList = await env.REALRATE_KV.list({ prefix: "online_ip_" });
       onlineUsers = Math.max(1, activeOnlineList.keys.length);
 
-      // 2. Total Page Views
       let viewsStr = await env.REALRATE_KV.get("total_page_views");
       let currentViews = parseInt(viewsStr || "1420", 10);
 
-      // Unique visit check per IP
       const uniqueVisitKey = `visited_ip_${safeIp}`;
       const hasVisited = await env.REALRATE_KV.get(uniqueVisitKey);
 
@@ -465,32 +467,39 @@ async function handleCalculate(url, env, analytics, globalSettings) {
   const half_intrinsic = gold_24k_gram * 3.6594;
   const quarter_intrinsic = gold_24k_gram * 1.8297;
 
-  function analyzeItem(id, name, intrinsic, tgItem) {
+  function analyzeItem(id, name, intrinsic, targetBubblePct, tgItem) {
     const market = (tgItem && typeof tgItem.price === "number") ? tgItem.price : null;
+    const expected_price = Math.round(intrinsic * (1 + targetBubblePct / 100));
+
     let bubble = null;
     let bubble_pct = null;
+    let diff_from_expected = null;
 
     if (market !== null) {
       bubble = market - intrinsic;
       bubble_pct = parseFloat(((bubble / intrinsic) * 100).toFixed(1));
+      diff_from_expected = market - expected_price;
     }
 
     return {
       id,
       name,
       intrinsic: Math.round(intrinsic),
+      target_bubble_pct: targetBubblePct,
+      expected_price,
       market: market ? Math.round(market) : null,
       bubble: bubble !== null ? Math.round(bubble) : null,
       bubble_pct,
+      diff_from_expected: diff_from_expected !== null ? Math.round(diff_from_expected) : null,
       updated_at: tgItem ? tgItem.datetime : null
     };
   }
 
   const itemsAnalysis = [
-    analyzeItem("gold_18k", "طلا ۱۸ عیار", gold_18k_gram, tgPrices.gold_18k),
-    analyzeItem("full_coin", "سکه تمام ۸۶", full_intrinsic, tgPrices.full_coin),
-    analyzeItem("half_coin", "نیم سکه بهار آزادی", half_intrinsic, tgPrices.half_coin),
-    analyzeItem("quarter_coin", "ربع سکه بهار آزادی", quarter_intrinsic, tgPrices.quarter_coin)
+    analyzeItem("gold_18k", "طلا ۱۸ عیار", gold_18k_gram, 0, tgPrices.gold_18k),
+    analyzeItem("full_coin", "سکه تمام ۸۶", full_intrinsic, globalSettings.bubble_pct_full ?? 15, tgPrices.full_coin),
+    analyzeItem("half_coin", "نیم سکه بهار آزادی", half_intrinsic, globalSettings.bubble_pct_half ?? 20, tgPrices.half_coin),
+    analyzeItem("quarter_coin", "ربع سکه بهار آزادی", quarter_intrinsic, globalSettings.bubble_pct_quarter ?? 25, tgPrices.quarter_coin)
   ];
 
   const availableItems = itemsAnalysis.filter(i => i.market !== null && i.bubble_pct !== null);
@@ -1091,13 +1100,17 @@ function getHTMLContent(env, analytics, globalSettings) {
     }
 
     .price-val {
-      font-size: 20px;
+      font-size: 19px;
       font-weight: 800;
       color: #fff;
     }
 
     .price-val.gold {
       color: var(--gold-light);
+    }
+
+    .price-val.expected {
+      color: #60a5fa;
     }
 
     .timestamp-tag {
@@ -1589,6 +1602,17 @@ function getHTMLContent(env, analytics, globalSettings) {
           bubbleDisplayStr = '<span style="font-weight: 800; font-size: 15px; color: ' + bubbleColor + ';">' + bubbleDisplayStr + '</span>';
         }
 
+        // Expected Price Display (with Target Bubble if coin)
+        let expectedRowHtml = '';
+        if (item.target_bubble_pct > 0) {
+          expectedRowHtml = \`
+            <div class="price-row">
+              <span class="price-label">قیمت محاسباتی (با حباب \${item.target_bubble_pct.toLocaleString('fa-IR')}٪):</span>
+              <span class="price-val expected">\${formatNum(item.expected_price)} تومان</span>
+            </div>
+          \`;
+        }
+
         card.innerHTML = \`
           <div>
             <div class="card-header">
@@ -1600,9 +1624,11 @@ function getHTMLContent(env, analytics, globalSettings) {
             </div>
 
             <div class="price-row">
-              <span class="price-label">ارزش واقعی (دلار و انس):</span>
+              <span class="price-label">ارزش واقعی (طلا و انس):</span>
               <span class="price-val gold">\${formatNum(item.intrinsic)} تومان</span>
             </div>
+
+            \${expectedRowHtml}
 
             <div class="price-row">
               <span class="price-label">قیمت روز بازار:</span>
@@ -1610,7 +1636,7 @@ function getHTMLContent(env, analytics, globalSettings) {
             </div>
 
             <div class="price-row" style="margin-top: 14px; border-top: 1px dashed var(--border-color); padding-top: 10px;">
-              <span class="price-label">وضعیت حباب:</span>
+              <span class="price-label">وضعیت حباب واقعی:</span>
               \${bubbleDisplayStr}
             </div>
           </div>
@@ -1721,7 +1747,7 @@ function getAdminHTMLContent(globalSettings) {
 
     .admin-container {
       width: 100%;
-      max-width: 520px;
+      max-width: 540px;
       background: var(--bg-glass);
       border: 1px solid var(--border-color);
       border-radius: var(--radius-lg);
@@ -1774,6 +1800,12 @@ function getAdminHTMLContent(globalSettings) {
     .form-group input:focus, .form-group textarea:focus {
       border-color: var(--gold-primary);
       box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.2);
+    }
+
+    .grid-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
     }
 
     .btn {
@@ -1844,24 +1876,47 @@ function getAdminHTMLContent(globalSettings) {
 
     <!-- Dashboard View (Shown after auth) -->
     <div id="dashboardForm" style="display: none;">
-      <div class="section-title">⚙️ تنظیمات عمومی کلیه کاربران</div>
+      <div class="section-title">⚙️ تنظیمات قیمت و انس عمومی</div>
 
-      <div class="form-group">
-        <label for="adminUsdToman">قیمت پیش‌فرض دلار آزاد (تومان)</label>
-        <input type="number" id="adminUsdToman" value="${globalSettings.default_usd_toman || 62000}">
+      <div class="grid-2">
+        <div class="form-group">
+          <label for="adminUsdToman">قیمت پیش‌فرض دلار (تومان)</label>
+          <input type="number" id="adminUsdToman" value="${globalSettings.default_usd_toman || 62000}">
+        </div>
+
+        <div class="form-group">
+          <label for="adminGoldUsd">پیش‌فرض انس طلا ($)</label>
+          <input type="number" id="adminGoldUsd" value="${globalSettings.default_gold_usd || 2450}">
+        </div>
       </div>
 
-      <div class="form-group">
-        <label for="adminGoldUsd">پیش‌فرض انس جهانی طلا ($)</label>
-        <input type="number" id="adminGoldUsd" value="${globalSettings.default_gold_usd || 2450}">
-      </div>
+      <div class="section-title">🪙 تنظیم درصد حباب مصوب سکه‌ها</div>
 
       <div class="form-group">
-        <label for="adminAnnouncement">پیام یا اطلاعیه عمومی بالای سایت</label>
+        <label for="adminBubbleFull">درصد حباب مصوب سکه تمام (٪)</label>
+        <input type="number" id="adminBubbleFull" value="${globalSettings.bubble_pct_full ?? 15}" step="0.5">
+      </div>
+
+      <div class="grid-2">
+        <div class="form-group">
+          <label for="adminBubbleHalf">حباب مصوب نیم سکه (٪)</label>
+          <input type="number" id="adminBubbleHalf" value="${globalSettings.bubble_pct_half ?? 20}" step="0.5">
+        </div>
+
+        <div class="form-group">
+          <label for="adminBubbleQuarter">حباب مصوب ربع سکه (٪)</label>
+          <input type="number" id="adminBubbleQuarter" value="${globalSettings.bubble_pct_quarter ?? 25}" step="0.5">
+        </div>
+      </div>
+
+      <div class="section-title">📢 پیام عمومی سیستم</div>
+
+      <div class="form-group">
+        <label for="adminAnnouncement">پیام یا اطلاعیه بالای سایت</label>
         <textarea id="adminAnnouncement" rows="2" placeholder="متن پیام عمومی را وارد کنید...">${globalSettings.announcement || ''}</textarea>
       </div>
 
-      <button class="btn" onclick="saveSettings()">💾 ذخیره تغییرات</button>
+      <button class="btn" onclick="saveSettings()">💾 ذخیره کلیه تغییرات</button>
 
       <div class="section-title">🔑 تغییر رمز عبور مدیریت</div>
 
@@ -1923,6 +1978,9 @@ function getAdminHTMLContent(globalSettings) {
     async function saveSettings() {
       const default_usd_toman = parseFloat(document.getElementById('adminUsdToman').value);
       const default_gold_usd = parseFloat(document.getElementById('adminGoldUsd').value);
+      const bubble_pct_full = parseFloat(document.getElementById('adminBubbleFull').value);
+      const bubble_pct_half = parseFloat(document.getElementById('adminBubbleHalf').value);
+      const bubble_pct_quarter = parseFloat(document.getElementById('adminBubbleQuarter').value);
       const announcement = document.getElementById('adminAnnouncement').value;
       const pass = sessionStorage.getItem('admin_pass');
 
@@ -1935,6 +1993,9 @@ function getAdminHTMLContent(globalSettings) {
             password: pass,
             default_usd_toman,
             default_gold_usd,
+            bubble_pct_full,
+            bubble_pct_half,
+            bubble_pct_quarter,
             announcement
           })
         });
