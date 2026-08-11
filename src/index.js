@@ -1,6 +1,6 @@
 /**
  * RealRate — Iranian Gold & Currency Price Calculator & Telegram Arbitrage Engine
- * Cloudflare Worker Engine + Protected Admin Panel + Custom SVG Favicon
+ * Cloudflare Worker Engine + Protected Admin Panel + Compact Analytics Icons
  */
 
 // In-memory fallback cache if KV is not bound
@@ -1347,14 +1347,18 @@ function getHTMLContent(env, analytics, globalSettings) {
       </div>
 
       <div class="header-controls">
-        <!-- Live IP-based Analytics Badges -->
+        <!-- Live IP-based Analytics Badges (Super Compact Icons) -->
         <div class="analytics-badges">
-          <div class="badge-item online">
+          <div class="badge-item online" title="کاربران آنلاین فعلی">
             <span class="pulse-dot"></span>
-            <span>آنلاین: <strong id="onlineUsersCount">${analytics.onlineUsers.toLocaleString("fa-IR")} نفر</strong></span>
+            <strong id="onlineUsersCount">${analytics.onlineUsers.toLocaleString("fa-IR")}</strong>
           </div>
-          <div class="badge-item">
-            <span>👁️ کل بازدیدها: <strong id="totalViewsCount">${analytics.pageViews.toLocaleString("fa-IR")}</strong></span>
+          <div class="badge-item" title="کل بازدیدهای ثبت شده">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: var(--gold-light);">
+              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+              <circle cx="12" cy="12" r="3"></circle>
+            </svg>
+            <strong id="totalViewsCount">${analytics.pageViews.toLocaleString("fa-IR")}</strong>
           </div>
         </div>
       </div>
@@ -1672,7 +1676,7 @@ function getHTMLContent(env, analytics, globalSettings) {
       if (!analytics) return;
       const onlineEl = document.getElementById('onlineUsersCount');
       const viewsEl = document.getElementById('totalViewsCount');
-      if (onlineEl && analytics.onlineUsers) onlineEl.innerText = analytics.onlineUsers.toLocaleString('fa-IR') + ' نفر';
+      if (onlineEl && analytics.onlineUsers) onlineEl.innerText = analytics.onlineUsers.toLocaleString('fa-IR');
       if (viewsEl && analytics.pageViews) viewsEl.innerText = analytics.pageViews.toLocaleString('fa-IR');
     }
 
