@@ -1,6 +1,6 @@
 /**
  * RealRate — Iranian Gold & Currency Price Calculator & Telegram Arbitrage Engine
- * Cloudflare Worker Engine + Protected Admin Panel + Unique IP Analytics Counter
+ * Cloudflare Worker Engine + Protected Admin Panel + PWA Add to Home Screen Support
  */
 
 // In-memory fallback cache if KV is not bound
@@ -18,6 +18,65 @@ export default {
           "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
           "Access-Control-Allow-Headers": "Content-Type",
         },
+      });
+    }
+
+    // PWA Manifest Route
+    if (url.pathname === "/manifest.json") {
+      const manifest = {
+        name: "RealRate — تحلیل قیمت طلا، سکه و ارز",
+        short_name: "RealRate",
+        description: "محاسبه قیمت واقعی طلا، سکه و ارزهای مطرح جهان بر اساس دلار و انس جهانی",
+        start_url: "/",
+        display: "standalone",
+        background_color: "#0a0d14",
+        theme_color: "#0a0d14",
+        orientation: "portrait-primary",
+        icons: [
+          {
+            src: REALRATE_FAVICON_DATA_URI,
+            sizes: "192x192 512x512",
+            type: "image/svg+xml",
+            purpose: "any maskable"
+          }
+        ]
+      };
+      return new Response(JSON.stringify(manifest), {
+        headers: { "Content-Type": "application/json; charset=utf-8", "Cache-Control": "public, max-age=86400" }
+      });
+    }
+
+    // PWA Service Worker Route
+    if (url.pathname === "/sw.js") {
+      const swScript = `
+        const CACHE_NAME = 'realrate-cache-v1';
+        const ASSETS = ['/', '/manifest.json'];
+
+        self.addEventListener('install', (evt) => {
+          evt.waitUntil(
+            caches.open(CACHE_NAME).then((cache) => cache.addAll(ASSETS))
+          );
+          self.skipWaiting();
+        });
+
+        self.addEventListener('activate', (evt) => {
+          evt.waitUntil(
+            caches.keys().then((keys) => Promise.all(
+              keys.filter((key) => key !== CACHE_NAME).map((key) => caches.delete(key))
+            ))
+          );
+          self.clients.claim();
+        });
+
+        self.addEventListener('fetch', (evt) => {
+          if (evt.request.method !== 'GET') return;
+          evt.respondWith(
+            fetch(evt.request).catch(() => caches.match(evt.request))
+          );
+        });
+      `;
+      return new Response(swScript, {
+        headers: { "Content-Type": "application/javascript; charset=utf-8", "Cache-Control": "public, max-age=86400" }
       });
     }
 
@@ -820,11 +879,20 @@ function getHTMLContent(env, analytics, globalSettings) {
 <html lang="fa" dir="rtl">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>RealRate</title>
   <meta name="description" content="محاسبه قیمت واقعی طلا، سکه و ارزهای مطرح جهان بر اساس دلار و انس جهانی">
-  <link rel="icon" type="image/svg+xml" href="${REALRATE_FAVICON_DATA_URI}">
   
+  <!-- PWA & Mobile Icons / Meta -->
+  <link rel="icon" type="image/svg+xml" href="${REALRATE_FAVICON_DATA_URI}">
+  <link rel="manifest" href="/manifest.json">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="RealRate">
+  <meta name="theme-color" content="#0a0d14">
+  <link rel="apple-touch-icon" href="${REALRATE_FAVICON_DATA_URI}">
+
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
@@ -964,6 +1032,52 @@ function getHTMLContent(env, analytics, globalSettings) {
       0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); }
       70% { transform: scale(1); box-shadow: 0 0 0 5px rgba(16, 185, 129, 0); }
       100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+    }
+
+    /* PWA Install Banner */
+    .pwa-banner {
+      background: linear-gradient(135deg, rgba(245, 158, 11, 0.18) 0%, rgba(18, 24, 36, 0.95) 100%);
+      border: 1px solid var(--gold-primary);
+      border-radius: var(--radius-md);
+      padding: 10px 14px;
+      margin-bottom: 14px;
+      box-shadow: 0 4px 16px rgba(245, 158, 11, 0.15);
+    }
+
+    .pwa-banner-content {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--gold-light);
+    }
+
+    .pwa-btn {
+      background: var(--gold-gradient);
+      color: #000;
+      border: none;
+      font-weight: 800;
+      font-size: 12px;
+      padding: 6px 14px;
+      border-radius: 20px;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: transform 0.2s;
+    }
+
+    .pwa-btn:hover {
+      transform: scale(1.04);
+    }
+
+    .pwa-close-btn {
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      font-size: 14px;
+      cursor: pointer;
+      padding: 2px 6px;
     }
 
     /* System Announcement Banner */
@@ -1426,6 +1540,20 @@ function getHTMLContent(env, analytics, globalSettings) {
       </div>
     </header>
 
+    <!-- PWA Install Banner -->
+    <div id="pwaInstallBanner" style="display: none;" class="pwa-banner">
+      <div class="pwa-banner-content">
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <span>📲</span>
+          <span id="pwaInstallText">نصب اپلیکیشن RealRate روی صفحه اصلی گوشی</span>
+        </div>
+        <div style="display: flex; align-items: center; gap: 6px;">
+          <button id="pwaInstallBtn" class="pwa-btn" style="display: none;">نصب سریع</button>
+          <button onclick="dismissPwaBanner()" class="pwa-close-btn" title="بستن">✕</button>
+        </div>
+      </div>
+    </div>
+
     <!-- Optional System Announcement Banner -->
     <div class="system-announcement" id="sysAnnouncement" style="${globalSettings.announcement ? 'display: flex;' : 'display: none;'}">
       <span>📢</span>
@@ -1619,6 +1747,7 @@ function getHTMLContent(env, analytics, globalSettings) {
     let serverLiveUsdToman = null;
     let serverUsdDatetime = null;
     let serverLastCheckTime = null;
+    let deferredPrompt = null;
 
     function formatNum(num) {
       if (num === null || num === undefined || isNaN(num)) return '-';
@@ -1939,9 +2068,60 @@ function getHTMLContent(env, analytics, globalSettings) {
       document.getElementById('rec_final_total').innerText = formatNum(finalTotal) + ' تومان';
     }
 
+    // PWA Add to Home Screen Prompt Handler
+    window.addEventListener('beforeinstallprompt', (e) => {
+      e.preventDefault();
+      deferredPrompt = e;
+      if (!sessionStorage.getItem('pwa_banner_dismissed')) {
+        const banner = document.getElementById('pwaInstallBanner');
+        const btn = document.getElementById('pwaInstallBtn');
+        if (banner && btn) {
+          banner.style.display = 'block';
+          btn.style.display = 'inline-block';
+        }
+      }
+    });
+
+    document.getElementById('pwaInstallBtn')?.addEventListener('click', async () => {
+      if (deferredPrompt) {
+        deferredPrompt.prompt();
+        const { outcome } = await deferredPrompt.userChoice;
+        if (outcome === 'accepted') {
+          dismissPwaBanner();
+        }
+        deferredPrompt = null;
+      }
+    });
+
+    function checkIosPwaPrompt() {
+      const isIos = /iphone|ipad|ipod/i.test(navigator.userAgent);
+      const isStandalone = window.navigator.standalone || window.matchMedia('(display-mode: standalone)').matches;
+      if (isIos && !isStandalone && !sessionStorage.getItem('pwa_banner_dismissed')) {
+        const banner = document.getElementById('pwaInstallBanner');
+        const text = document.getElementById('pwaInstallText');
+        if (banner && text) {
+          text.innerHTML = 'جهت نصب روی آیفون: دکمه <strong>Share 🔗</strong> در مرورگر و سپس <strong>Add to Home Screen ➕</strong> را بزنید.';
+          banner.style.display = 'block';
+        }
+      }
+    }
+
+    function dismissPwaBanner() {
+      const banner = document.getElementById('pwaInstallBanner');
+      if (banner) banner.style.display = 'none';
+      sessionStorage.setItem('pwa_banner_dismissed', 'true');
+    }
+
     async function initPage() {
       // Clear any legacy localStorage values to keep browser clean
       try { localStorage.removeItem('realrate_usd_toman'); } catch (e) {}
+
+      // Register Service Worker for PWA
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('/sw.js').catch(() => {});
+      }
+
+      checkIosPwaPrompt();
 
       try {
         const res = await fetch('/api/rates');
