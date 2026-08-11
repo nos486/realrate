@@ -1,6 +1,6 @@
 /**
  * RealRate — Iranian Gold & Currency Price Calculator & Telegram Arbitrage Engine
- * Cloudflare Worker Engine + Protected Admin Panel + GitHub Link Footer
+ * Cloudflare Worker Engine + Protected Admin Panel + Live USD Telegram Parser
  */
 
 // In-memory fallback cache if KV is not bound
@@ -291,7 +291,7 @@ async function fetchForexRates() {
 }
 
 /**
- * Fetch and parse market prices
+ * Fetch and parse market prices (Gold/Coins from zarmagoldd & USD Toman from tahran_sabza)
  */
 async function fetchTelegramPrices(env, forceRefresh = false) {
   let stored = { ...inMemoryCache };
@@ -314,31 +314,41 @@ async function fetchTelegramPrices(env, forceRefresh = false) {
   }
 
   try {
-    const res = await fetch("https://t.me/s/zarmagoldd", {
-      headers: {
-        "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-      },
-    });
+    const [goldRes, usdRes] = await Promise.all([
+      fetch("https://t.me/s/zarmagoldd", {
+        headers: { "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36" }
+      }).catch(() => null),
+      fetch("https://t.me/s/tahran_sabza", {
+        headers: { "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36" }
+      }).catch(() => null)
+    ]);
 
-    if (res.ok) {
-      const html = await res.text();
-      const parsed = parseTelegramHtml(html);
-
-      for (const [key, item] of Object.entries(parsed)) {
+    if (goldRes && goldRes.ok) {
+      const goldHtml = await goldRes.text();
+      const parsedGold = parseGoldTelegramHtml(goldHtml);
+      for (const [key, item] of Object.entries(parsedGold)) {
         if (item && item.price) {
           stored[key] = item;
         }
       }
+    }
 
-      stored.last_channel_check_time = new Date().toISOString();
-      inMemoryCache = { ...stored };
+    if (usdRes && usdRes.ok) {
+      const usdHtml = await usdRes.text();
+      const parsedUsd = parseUsdTelegramHtml(usdHtml);
+      if (parsedUsd && parsedUsd.price) {
+        stored.usd_toman = parsedUsd;
+      }
+    }
 
-      if (env && env.REALRATE_KV) {
-        try {
-          await env.REALRATE_KV.put("tg_prices", JSON.stringify(stored));
-        } catch (e) {
-          console.error("KV Write Error:", e);
-        }
+    stored.last_channel_check_time = new Date().toISOString();
+    inMemoryCache = { ...stored };
+
+    if (env && env.REALRATE_KV) {
+      try {
+        await env.REALRATE_KV.put("tg_prices", JSON.stringify(stored));
+      } catch (e) {
+        console.error("KV Write Error:", e);
       }
     }
   } catch (err) {
@@ -351,7 +361,7 @@ async function fetchTelegramPrices(env, forceRefresh = false) {
 /**
  * Parse HTML for Gold & Coin Prices
  */
-function parseTelegramHtml(html) {
+function parseGoldTelegramHtml(html) {
   const result = {};
   const messageBlocks = html.split(/<div class="tgme_widget_message\b/);
 
@@ -431,11 +441,51 @@ function parseTelegramHtml(html) {
 }
 
 /**
+ * Parse HTML for USD Toman Price ("دلار نــقدی تهران")
+ */
+function parseUsdTelegramHtml(html) {
+  const messageBlocks = html.split(/<div class="tgme_widget_message\b/);
+
+  for (let bIdx = messageBlocks.length - 1; bIdx >= 0; bIdx--) {
+    const block = messageBlocks[bIdx];
+
+    const timeMatch = block.match(/<time datetime="([^"]+)"/);
+    const datetime = timeMatch ? timeMatch[1] : null;
+
+    const textMatch = block.match(/class="tgme_widget_message_text[^"]*"[^>]*>([\s\S]*?)<\/div>/);
+    if (!textMatch) continue;
+
+    const rawText = textMatch[1].replace(/<br\s*\/?>/gi, "\n").replace(/<[^>]+>/g, "").trim();
+    if ((rawText.includes("دلار") || rawText.includes("تهران")) && (rawText.includes("نقدی") || rawText.includes("نــقدی"))) {
+      const lines = rawText.split("\n").map(l => l.trim()).filter(Boolean);
+      for (const line of lines) {
+        if ((line.includes("نقدی") || line.includes("نــقدی")) && line.includes("فروش")) {
+          const match = line.match(/([\d,]+)\s*فروش/);
+          if (match) {
+            const rawNum = parseInt(match[1].replace(/,/g, ""), 10);
+            if (rawNum > 0) {
+              return { price: rawNum, datetime, label: "دلار نقدی تهران" };
+            }
+          }
+        }
+      }
+    }
+  }
+
+  return null;
+}
+
+/**
  * Handle Price Calculation & Arbitrage Analysis
  */
 async function handleCalculate(url, env, analytics, globalSettings) {
+  const [tgPrices, forex] = await Promise.all([
+    fetchTelegramPrices(env),
+    fetchForexRates()
+  ]);
+
   const usd_toman_raw = url.searchParams.get("usd_toman");
-  const usd_toman = usd_toman_raw ? parseFloat(usd_toman_raw) : (globalSettings.default_usd_toman || null);
+  let usd_toman = usd_toman_raw ? parseFloat(usd_toman_raw) : (tgPrices.usd_toman ? tgPrices.usd_toman.price : (globalSettings.default_usd_toman || null));
   const gold_usd = parseFloat(url.searchParams.get("gold_usd")) || globalSettings.default_gold_usd || 2450;
 
   if (!usd_toman || isNaN(usd_toman) || usd_toman <= 0) {
@@ -453,11 +503,6 @@ async function handleCalculate(url, env, analytics, globalSettings) {
       }
     );
   }
-
-  const [tgPrices, forex] = await Promise.all([
-    fetchTelegramPrices(env),
-    fetchForexRates()
-  ]);
 
   const gold_24k_gram = (gold_usd / 31.1034768) * usd_toman;
   const gold_18k_gram = gold_24k_gram * 0.75;
@@ -624,10 +669,13 @@ async function handleFetchRates(env, analytics, globalSettings) {
       fetchForexRates()
     ]);
 
+    const live_usd_toman = tgPrices.usd_toman ? tgPrices.usd_toman.price : (globalSettings.default_usd_toman || 62000);
+
     return new Response(
       JSON.stringify({
         success: true,
         gold_usd,
+        live_usd_toman,
         forex,
         market_prices: tgPrices,
         analytics,
@@ -1274,10 +1322,10 @@ function getHTMLContent(env, analytics, globalSettings) {
         <div class="input-group">
           <label for="usdToman">
             <span>قیمت دلار آزاد (تومان)</span>
-            <span style="font-size: 11px; color: var(--gold-light); font-weight: 700;">✍️ ورودی دستی شما</span>
+            <span id="usdSourceTag" style="font-size: 11px; color: var(--success); font-weight: 700;">🌐 زنده از بازار (قابل ویرایش)</span>
           </label>
           <div class="input-wrapper">
-            <input type="text" id="usdToman" placeholder="مثلاً ۶۲,۰۰۰" oninput="onInputsChanged()">
+            <input type="text" id="usdToman" placeholder="مثلاً ۶۲,۰۰۰" oninput="onInputsChanged(true)">
             <span class="input-suffix">تومان</span>
           </div>
         </div>
@@ -1288,7 +1336,7 @@ function getHTMLContent(env, analytics, globalSettings) {
             <span style="font-size: 11px; color: var(--success); font-weight: 700;">🌐 خودکار (قابل ویرایش)</span>
           </label>
           <div class="input-wrapper">
-            <input type="text" id="goldUsd" value="${defaultGoldUsd}" oninput="onInputsChanged()">
+            <input type="text" id="goldUsd" value="${defaultGoldUsd}" oninput="onInputsChanged(true)">
             <span class="input-suffix">USD</span>
           </div>
         </div>
@@ -1415,6 +1463,7 @@ function getHTMLContent(env, analytics, globalSettings) {
 
   <script>
     let currentCalcData = null;
+    let serverLiveUsdToman = null;
 
     function formatNum(num) {
       if (num === null || num === undefined || isNaN(num)) return '-';
@@ -1457,13 +1506,10 @@ function getHTMLContent(env, analytics, globalSettings) {
 
     function loadLocalUsd() {
       try {
-        const savedUsd = localStorage.getItem('realrate_usd_toman');
-        if (savedUsd) {
-          document.getElementById('usdToman').value = savedUsd;
-        } else {
-          document.getElementById('usdToman').value = '';
-        }
-      } catch (e) {}
+        return localStorage.getItem('realrate_usd_toman') || null;
+      } catch (e) {
+        return null;
+      }
     }
 
     function switchTab(tabId, btn) {
@@ -1474,10 +1520,12 @@ function getHTMLContent(env, analytics, globalSettings) {
       btn.classList.add('active');
     }
 
-    function onInputsChanged() {
-      const usdToman = parsePersianNum(document.getElementById('usdToman').value);
+    function onInputsChanged(isManualTyping = false) {
+      const inputEl = document.getElementById('usdToman');
+      const usdToman = parsePersianNum(inputEl.value);
       const usdAlert = document.getElementById('usdAlert');
       const recBox = document.getElementById('recBox');
+      const tagEl = document.getElementById('usdSourceTag');
 
       if (usdToman <= 0) {
         usdAlert.style.display = 'flex';
@@ -1488,7 +1536,21 @@ function getHTMLContent(env, analytics, globalSettings) {
       }
 
       usdAlert.style.display = 'none';
-      saveLocalUsd();
+      
+      // Update label tag indicator
+      if (tagEl) {
+        if (serverLiveUsdToman && Math.abs(usdToman - serverLiveUsdToman) < 1) {
+          tagEl.innerText = '🌐 زنده از بازار (قابل ویرایش)';
+          tagEl.style.color = 'var(--success)';
+        } else {
+          tagEl.innerText = '✍️ ورودی دستی شما';
+          tagEl.style.color = 'var(--gold-light)';
+        }
+      }
+
+      if (isManualTyping) {
+        saveLocalUsd();
+      }
       calculateAll();
     }
 
@@ -1713,7 +1775,7 @@ function getHTMLContent(env, analytics, globalSettings) {
     }
 
     async function initPage() {
-      loadLocalUsd();
+      const savedUsd = loadLocalUsd();
 
       try {
         const res = await fetch('/api/rates');
@@ -1722,9 +1784,19 @@ function getHTMLContent(env, analytics, globalSettings) {
           if (data.gold_usd) {
             document.getElementById('goldUsd').value = data.gold_usd.toLocaleString('en-US');
           }
-          if (data.globalSettings && data.globalSettings.default_usd_toman && !document.getElementById('usdToman').value) {
+          if (data.live_usd_toman) {
+            serverLiveUsdToman = data.live_usd_toman;
+          }
+
+          // Fill USD Toman: User Saved or Live Fetched Rate
+          if (savedUsd) {
+            document.getElementById('usdToman').value = savedUsd;
+          } else if (serverLiveUsdToman) {
+            document.getElementById('usdToman').value = serverLiveUsdToman.toLocaleString('en-US');
+          } else if (data.globalSettings && data.globalSettings.default_usd_toman) {
             document.getElementById('usdToman').value = data.globalSettings.default_usd_toman.toLocaleString('en-US');
           }
+
           if (data.analytics) {
             updateAnalyticsUI(data.analytics);
           }
