@@ -52,6 +52,41 @@ export default {
 };
 
 /**
+ * Fetch Live International Forex Exchange Rates against USD
+ */
+async function fetchForexRates() {
+  const fallback = {
+    EUR: 0.915,  // 1 EUR = 1.093 USD
+    AED: 3.6725, // 1 AED = 0.2723 USD
+    TRY: 33.50,  // 1 TRY = 0.0298 USD
+    CNY: 7.18,   // 1 CNY = 0.1392 USD
+    GBP: 0.782,  // 1 GBP = 1.278 USD
+    CAD: 1.370   // 1 CAD = 0.7299 USD
+  };
+
+  try {
+    const res = await fetch("https://open.er-api.com/v6/latest/USD");
+    if (res.ok) {
+      const data = await res.json();
+      if (data && data.rates) {
+        return {
+          EUR: data.rates.EUR || fallback.EUR,
+          AED: data.rates.AED || fallback.AED,
+          TRY: data.rates.TRY || fallback.TRY,
+          CNY: data.rates.CNY || fallback.CNY,
+          GBP: data.rates.GBP || fallback.GBP,
+          CAD: data.rates.CAD || fallback.CAD
+        };
+      }
+    }
+  } catch (e) {
+    console.error("Forex fetch error:", e);
+  }
+
+  return fallback;
+}
+
+/**
  * Fetch and parse market prices (https://t.me/s/zarmagoldd)
  * If last check was less than 1 minute (60,000ms) ago, returns cached KV data.
  * Otherwise, fetches fresh market posts and updates Cloudflare KV Storage.
@@ -90,7 +125,7 @@ async function fetchTelegramPrices(env, forceRefresh = false) {
       const html = await res.text();
       const parsed = parseTelegramHtml(html);
 
-      // Merge newly parsed items with stored items (preserves last item price & timestamp if missing in new post)
+      // Merge newly parsed items with stored items
       for (const [key, item] of Object.entries(parsed)) {
         if (item && item.price) {
           stored[key] = item;
@@ -118,7 +153,6 @@ async function fetchTelegramPrices(env, forceRefresh = false) {
 
 /**
  * Parse HTML for Gold & Coin Prices
- * Stores the EXACT raw price numbers as Toman without any division
  */
 function parseTelegramHtml(html) {
   const result = {};
@@ -206,7 +240,7 @@ function parseTelegramHtml(html) {
 }
 
 /**
- * Handle Price Calculation & Arbitrage Analysis
+ * Handle Price Calculation & Arbitrage Analysis + World Currency Cross Rates
  */
 async function handleCalculate(url, env) {
   const usd_toman_raw = url.searchParams.get("usd_toman");
@@ -229,10 +263,13 @@ async function handleCalculate(url, env) {
     );
   }
 
-  // Fetch or get last market prices from KV
-  const tgPrices = await fetchTelegramPrices(env);
+  // Fetch parallel market gold prices & forex rates
+  const [tgPrices, forex] = await Promise.all([
+    fetchTelegramPrices(env),
+    fetchForexRates()
+  ]);
 
-  // Real Intrinsic Gold Calculations based on USD Toman rate & Global Gold Spot
+  // Real Intrinsic Gold Calculations
   const gold_24k_gram = (gold_usd / 31.1034768) * usd_toman;
   const gold_18k_gram = gold_24k_gram * 0.75;
   const mesghal_17k = gold_24k_gram * 4.608 * 0.705;
@@ -241,7 +278,7 @@ async function handleCalculate(url, env) {
   const half_intrinsic = gold_24k_gram * 3.6594;
   const quarter_intrinsic = gold_24k_gram * 1.8297;
 
-  // Helper to build item analysis
+  // Gold & Coin Analysis
   function analyzeItem(id, name, intrinsic, tgItem) {
     const market = (tgItem && typeof tgItem.price === "number") ? tgItem.price : null;
     let bubble = null;
@@ -270,7 +307,7 @@ async function handleCalculate(url, env) {
     analyzeItem("quarter_coin", "ربع سکه بهار آزادی", quarter_intrinsic, tgPrices.quarter_coin)
   ];
 
-  // Determine Best Purchase Recommendation (Lowest Bubble Percentage among items with ACTUAL market prices)
+  // Best Purchase Recommendation
   const availableItems = itemsAnalysis.filter(i => i.market !== null && i.bubble_pct !== null);
   let bestItem = null;
   let recommendation = null;
@@ -286,6 +323,64 @@ async function handleCalculate(url, env) {
     };
   }
 
+  // Major World Currencies Calculation based on USD cross-rates
+  const currencies = [
+    {
+      code: "EUR",
+      name: "یورو",
+      flag: "🇪🇺",
+      symbol: "€",
+      usd_cross_rate: parseFloat((1 / forex.EUR).toFixed(4)),
+      toman_price: Math.round((1 / forex.EUR) * usd_toman),
+      note: `۱ یورو = ${(1 / forex.EUR).toFixed(4)} دلار آمریکا`
+    },
+    {
+      code: "AED",
+      name: "درهم امارات",
+      flag: "🇦🇪",
+      symbol: "د.إ",
+      usd_cross_rate: parseFloat((1 / forex.AED).toFixed(4)),
+      toman_price: Math.round((1 / forex.AED) * usd_toman),
+      note: `۱ دلار = ${forex.AED.toFixed(4)} درهم`
+    },
+    {
+      code: "TRY",
+      name: "لیر ترکیه",
+      flag: "🇹🇷",
+      symbol: "₺",
+      usd_cross_rate: parseFloat((1 / forex.TRY).toFixed(4)),
+      toman_price: Math.round((1 / forex.TRY) * usd_toman),
+      note: `۱ دلار = ${forex.TRY.toFixed(2)} لیر`
+    },
+    {
+      code: "CNY",
+      name: "یوان چین",
+      flag: "🇨🇳",
+      symbol: "¥",
+      usd_cross_rate: parseFloat((1 / forex.CNY).toFixed(4)),
+      toman_price: Math.round((1 / forex.CNY) * usd_toman),
+      note: `۱ دلار = ${forex.CNY.toFixed(2)} یوان`
+    },
+    {
+      code: "GBP",
+      name: "پوند انگلیس",
+      flag: "🇬🇧",
+      symbol: "£",
+      usd_cross_rate: parseFloat((1 / forex.GBP).toFixed(4)),
+      toman_price: Math.round((1 / forex.GBP) * usd_toman),
+      note: `۱ پوند = ${(1 / forex.GBP).toFixed(4)} دلار آمریکا`
+    },
+    {
+      code: "CAD",
+      name: "دلار کانادا",
+      flag: "🇨🇦",
+      symbol: "C$",
+      usd_cross_rate: parseFloat((1 / forex.CAD).toFixed(4)),
+      toman_price: Math.round((1 / forex.CAD) * usd_toman),
+      note: `۱ دلار کانادا = ${(1 / forex.CAD).toFixed(4)} دلار آمریکا`
+    }
+  ];
+
   const responseObj = {
     success: true,
     timestamp: new Date().toISOString(),
@@ -295,6 +390,7 @@ async function handleCalculate(url, env) {
       gold_18k_gram: Math.round(gold_18k_gram),
       mesghal_17k: Math.round(mesghal_17k)
     },
+    currencies,
     market_data: tgPrices,
     analysis: itemsAnalysis,
     recommendation
@@ -324,12 +420,16 @@ async function handleFetchRates(env) {
       }
     } catch (e) {}
 
-    const tgPrices = await fetchTelegramPrices(env);
+    const [tgPrices, forex] = await Promise.all([
+      fetchTelegramPrices(env),
+      fetchForexRates()
+    ]);
 
     return new Response(
       JSON.stringify({
         success: true,
         gold_usd,
+        forex,
         market_prices: tgPrices
       }),
       {
@@ -364,8 +464,8 @@ function getHTMLContent(env) {
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>RealRate | تحلیل حباب واقعی سکه و طلا</title>
-  <meta name="description" content="محاسبه قیمت واقعی طلا و سکه بر اساس دلار و انس و تحلیل هوشمند بهترین گزینه برای خرید بر اساس قیمت روز بازار">
+  <title>RealRate | محاسبه‌گر طلا، سکه و ارزهای جهان</title>
+  <meta name="description" content="محاسبه قیمت واقعی طلا، سکه و ارزهای مطرح جهان (یورو، درهم، لیر، یوان) بر اساس دلار و انس جهانی">
   
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -704,6 +804,9 @@ function getHTMLContent(env) {
       font-size: 18px;
       font-weight: 800;
       color: #fff;
+      display: flex;
+      align-items: center;
+      gap: 8px;
     }
 
     .card-title span {
@@ -829,7 +932,7 @@ function getHTMLContent(env) {
         <div class="brand-logo">🪙</div>
         <div class="brand-title">
           <h1>RealRate</h1>
-          <p>تحلیل قیمت واقعی طلا و سکه بر اساس قیمت روز بازار</p>
+          <p>تحلیل قیمت واقعی طلا، سکه و ارزهای جهان بر اساس دلار</p>
         </div>
       </div>
       <div class="status-badge" id="statusBadge">
@@ -840,7 +943,7 @@ function getHTMLContent(env) {
 
     <!-- Alert Banner (shown when Dollar is null) -->
     <div class="alert-banner" id="usdAlert" style="display: flex;">
-      <span>⚠️ لطفاً ابتدا نرخ دلار آزاد (تومان) را وارد کنید تا محاسبات و تحلیل خرید انجام شود.</span>
+      <span>⚠️ لطفاً ابتدا نرخ دلار آزاد (تومان) را وارد کنید تا محاسبات انجام شود.</span>
     </div>
 
     <!-- Inputs Panel -->
@@ -884,8 +987,9 @@ function getHTMLContent(env) {
 
     <!-- Navigation Tabs -->
     <div class="tabs-nav">
-      <button class="tab-btn active" onclick="switchTab('analysisTab', this)">📊 مقایسه قیمت‌ها و پیشنهاد خرید</button>
-      <button class="tab-btn" onclick="switchTab('jewelryTab', this)">💎 محاسبه‌گر خرید و اجرت طلا</button>
+      <button class="tab-btn active" onclick="switchTab('analysisTab', this)">📊 حباب طلا و سکه</button>
+      <button class="tab-btn" onclick="switchTab('currenciesTab', this)">💱 قیمت روز ارزهای جهان</button>
+      <button class="tab-btn" onclick="switchTab('jewelryTab', this)">💎 محاسبه‌گر طلا و اجرت</button>
     </div>
 
     <!-- Tab 1: Analysis & Comparison -->
@@ -905,7 +1009,14 @@ function getHTMLContent(env) {
       </div>
     </div>
 
-    <!-- Tab 2: Jewelry Calculator -->
+    <!-- Tab 2: World Currencies -->
+    <div id="currenciesTab" class="tab-content" style="display: none;">
+      <div class="cards-grid" id="currenciesGrid">
+        <!-- Dynamic Currency Cards Inserted via JS -->
+      </div>
+    </div>
+
+    <!-- Tab 3: Jewelry Calculator -->
     <div id="jewelryTab" class="tab-content" style="display: none;">
       <div class="calc-box">
         <div style="display: flex; flex-direction: column; gap: 16px;">
@@ -982,7 +1093,7 @@ function getHTMLContent(env) {
 
     <!-- Footer -->
     <footer>
-      <p>منبع اطلاعات: قیمت روز بازار طلا و سکه | اجرا در Cloudflare Worker</p>
+      <p>منبع اطلاعات: قیمت روز بازار طلا و نرخ برابری ارزهای جهان | اجرا در Cloudflare Worker</p>
     </footer>
   </div>
 
@@ -1065,6 +1176,7 @@ function getHTMLContent(env) {
         usdAlert.style.display = 'flex';
         recBox.style.display = 'none';
         document.getElementById('cardsGrid').innerHTML = '';
+        document.getElementById('currenciesGrid').innerHTML = '';
         return;
       }
 
@@ -1092,11 +1204,53 @@ function getHTMLContent(env) {
         if (data.success) {
           currentCalcData = data;
           renderAnalysis(data);
+          renderCurrencies(data);
           calculateJewelry();
         }
       } catch (err) {
         console.error('Calculation error:', err);
       }
+    }
+
+    function renderCurrencies(data) {
+      const grid = document.getElementById('currenciesGrid');
+      grid.innerHTML = '';
+
+      if (!data.currencies || data.currencies.length === 0) return;
+
+      data.currencies.forEach(c => {
+        const card = document.createElement('div');
+        card.className = 'card';
+
+        card.innerHTML = \`
+          <div>
+            <div class="card-header">
+              <div class="card-title">
+                <h3><span>\${c.flag}</span> \${c.name} (\${c.code})</h3>
+                <span>بر اساس نرخ برابری جهانی با دلار</span>
+              </div>
+              <span class="bubble-badge good">\${c.symbol}</span>
+            </div>
+
+            <div class="price-row" style="margin-top: 8px;">
+              <span class="price-label">قیمت محاسباتی به تومان:</span>
+              <span class="price-val gold">\${formatNum(c.toman_price)} تومان</span>
+            </div>
+
+            <div class="price-row" style="margin-top: 14px; border-top: 1px dashed var(--border-color); padding-top: 10px;">
+              <span class="price-label">نرخ برابری با دلار:</span>
+              <span style="font-weight: 700; font-size: 14px; color: var(--gold-light);">\${c.note}</span>
+            </div>
+          </div>
+
+          <div class="timestamp-tag">
+            <span>محاسبه با دلار: <strong>\${formatNum(data.inputs.usd_toman)} تومان</strong></span>
+            <span>ارز جهانی</span>
+          </div>
+        \`;
+
+        grid.appendChild(card);
+      });
     }
 
     function renderAnalysis(data) {
@@ -1116,7 +1270,7 @@ function getHTMLContent(env) {
       const recBox = document.getElementById('recBox');
       if (data.recommendation) {
         recBox.style.display = 'flex';
-        document.getElementById('recTitle').innerText = '🏆 پیشنهاد خرید: ' + data.recommendation.best_name;
+        document.getElementById('recTitle').innerText = '🏆 بهترین گزینه برای خرید: ' + data.recommendation.best_name;
         document.getElementById('recReason').innerText = data.recommendation.reason;
         
         const bestPct = data.recommendation.best_bubble_pct;
