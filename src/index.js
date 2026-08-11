@@ -1,6 +1,6 @@
 /**
  * RealRate — Iranian Gold & Currency Price Calculator & Telegram Arbitrage Engine
- * Cloudflare Worker Engine + Protected Admin Panel + Sleek Icon-only Footer
+ * Cloudflare Worker Engine + Protected Admin Panel + Sleek SVG Navigation Icons
  */
 
 // In-memory fallback cache if KV is not bound
@@ -871,6 +871,26 @@ function getHTMLContent(env, analytics, globalSettings) {
       gap: 10px;
     }
 
+    .nav-icon-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid var(--border-color);
+      color: var(--gold-light);
+      transition: all 0.2s;
+      text-decoration: none;
+    }
+
+    .nav-icon-btn:hover {
+      background: rgba(245, 158, 11, 0.15);
+      border-color: var(--gold-primary);
+      color: #fff;
+    }
+
     /* Analytics Badges */
     .analytics-badges {
       display: flex;
@@ -1011,7 +1031,7 @@ function getHTMLContent(env, analytics, globalSettings) {
       padding-right: 4px;
     }
 
-    /* Tabs */
+    /* Tabs Navigation */
     .tabs-nav {
       display: flex;
       gap: 6px;
@@ -1033,12 +1053,28 @@ function getHTMLContent(env, analytics, globalSettings) {
       border-radius: var(--radius-md);
       cursor: pointer;
       transition: 0.2s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 7px;
+    }
+
+    .tab-btn svg {
+      transition: transform 0.2s, stroke 0.2s;
+    }
+
+    .tab-btn:hover svg {
+      transform: scale(1.1);
     }
 
     .tab-btn.active {
       background: rgba(245, 158, 11, 0.15);
       border: 1px solid var(--gold-primary);
       color: var(--gold-light);
+    }
+
+    .tab-btn.active svg {
+      stroke: var(--gold-light);
     }
 
     /* Recommendation Box */
@@ -1314,7 +1350,7 @@ function getHTMLContent(env, analytics, globalSettings) {
 <body>
 
   <div class="container">
-    <!-- Header -->
+    <!-- Header Navbar -->
     <header>
       <div class="brand">
         <div class="brand-logo-svg">
@@ -1337,6 +1373,19 @@ function getHTMLContent(env, analytics, globalSettings) {
             <span>👁️ کل بازدیدها: <strong id="totalViewsCount">${analytics.pageViews.toLocaleString("fa-IR")}</strong></span>
           </div>
         </div>
+
+        <!-- Header Nav Icon Actions (GitHub & Admin Lock) -->
+        <a href="https://github.com/nos486/realrate" target="_blank" title="مشاهده سورس در گیت‌هاب" class="nav-icon-btn">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+            <path fill-rule="evenodd" clip-rule="evenodd" d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.53 1.032 1.53 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z"/>
+          </svg>
+        </a>
+        <a href="/admin" target="_blank" title="ورود به پنل مدیریت" class="nav-icon-btn">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" xmlns="http://www.w3.org/2000/svg">
+            <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+            <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+          </svg>
+        </a>
       </div>
     </header>
 
@@ -1380,11 +1429,34 @@ function getHTMLContent(env, analytics, globalSettings) {
       </div>
     </div>
 
-    <!-- Navigation Tabs -->
+    <!-- Navigation Tabs with Sleek SVG Icons -->
     <div class="tabs-nav">
-      <button class="tab-btn active" onclick="switchTab('analysisTab', this)">📊 حباب طلا و سکه</button>
-      <button class="tab-btn" onclick="switchTab('currenciesTab', this)">💱 قیمت روز ارزهای جهان</button>
-      <button class="tab-btn" onclick="switchTab('jewelryTab', this)">💎 محاسبه‌گر طلا و اجرت</button>
+      <button class="tab-btn active" onclick="switchTab('analysisTab', this)">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" xmlns="http://www.w3.org/2000/svg">
+          <line x1="18" y1="20" x2="18" y2="10"></line>
+          <line x1="12" y1="20" x2="12" y2="4"></line>
+          <line x1="6" y1="20" x2="6" y2="14"></line>
+        </svg>
+        <span>حباب طلا و سکه</span>
+      </button>
+
+      <button class="tab-btn" onclick="switchTab('currenciesTab', this)">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" xmlns="http://www.w3.org/2000/svg">
+          <circle cx="12" cy="12" r="10"></circle>
+          <line x1="2" y1="12" x2="22" y2="12"></line>
+          <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>
+        </svg>
+        <span>قیمت روز ارزهای جهان</span>
+      </button>
+
+      <button class="tab-btn" onclick="switchTab('jewelryTab', this)">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" xmlns="http://www.w3.org/2000/svg">
+          <path d="M6 3h12l4 6-10 12L2 9z"></path>
+          <path d="M11 3v18"></path>
+          <path d="M2 9h20"></path>
+        </svg>
+        <span>محاسبه‌گر طلا و اجرت</span>
+      </button>
     </div>
 
     <!-- Tab 1: Analysis & Comparison -->
