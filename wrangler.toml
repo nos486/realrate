@@ -4,7 +4,7 @@ compatibility_date = "2024-08-01"
 
 [vars]
 DEFAULT_USD_TOMAN = ""
-DEFAULT_GOLD_USD = "2450"
+DEFAULT_GOLD_USD = "4000"
 
 [[kv_namespaces]]
 binding = "REALRATE_KV"
