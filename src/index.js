@@ -1,6 +1,6 @@
 /**
  * RealRate — Iranian Gold & Currency Price Calculator & Telegram Arbitrage Engine
- * Cloudflare Worker Engine + Protected Admin Panel + Sleek SVG Navigation Icons
+ * Cloudflare Worker Engine + Protected Admin Panel + Custom SVG Favicon
  */
 
 // In-memory fallback cache if KV is not bound
@@ -756,6 +756,9 @@ const REALRATE_SVG_LOGO = `<svg width="34" height="34" viewBox="0 0 40 40" fill=
   </defs>
 </svg>`;
 
+// Custom SVG Favicon Data URI
+const REALRATE_FAVICON_DATA_URI = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'%3E%3Ccircle cx='20' cy='20' r='18' fill='%230a0d14' stroke='%23f59e0b' stroke-width='2.5'/%3E%3Cpath d='M12 24L17 19L21 22L28 14' stroke='%23fbbf24' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'/%3E%3Cpath d='M24 14H28V18' stroke='%23fbbf24' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'/%3E%3Ccircle cx='20' cy='20' r='2.8' fill='%23fbbf24'/%3E%3C/svg%3E";
+
 /**
  * Embedded HTML Web Application (User UI)
  */
@@ -769,6 +772,7 @@ function getHTMLContent(env, analytics, globalSettings) {
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>RealRate | محاسبه‌گر طلا، سکه و ارزهای جهان</title>
   <meta name="description" content="محاسبه قیمت واقعی طلا، سکه و ارزهای مطرح جهان بر اساس دلار و انس جهانی">
+  <link rel="icon" type="image/svg+xml" href="${REALRATE_FAVICON_DATA_URI}">
   
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -1928,6 +1932,7 @@ function getAdminHTMLContent(globalSettings) {
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>RealRate | پنل مدیریت سیستم</title>
+  <link rel="icon" type="image/svg+xml" href="${REALRATE_FAVICON_DATA_URI}">
   
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
