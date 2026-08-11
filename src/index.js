@@ -1,6 +1,6 @@
 /**
  * RealRate — Iranian Gold & Currency Price Calculator & Telegram Arbitrage Engine
- * Cloudflare Worker Engine + Protected Admin Panel + 1-Minute KV Throttled Spot Gold & Forex APIs
+ * Cloudflare Worker Engine + Protected Admin Panel + Quick 4 Currencies Bar + Full Forex List
  */
 
 // In-memory fallback cache if KV is not bound
@@ -425,12 +425,21 @@ async function fetchGlobalSpotGold(env, forceRefresh = false) {
 async function fetchForexRates(env, forceRefresh = false) {
   const cacheKey = "forex_rates";
   const fallback = {
-    EUR: 0.915,  // 1 EUR = 1.093 USD
-    AED: 3.6725, // 1 AED = 0.2723 USD
-    TRY: 33.50,  // 1 TRY = 0.0298 USD
-    CNY: 7.18,   // 1 CNY = 0.1392 USD
-    GBP: 0.782,  // 1 GBP = 1.278 USD
-    CAD: 1.370   // 1 CAD = 0.7299 USD
+    EUR: 0.915,   // 1 EUR = 1.093 USD
+    AED: 3.6725,  // 1 AED = 0.2723 USD
+    TRY: 33.50,   // 1 TRY = 0.0298 USD
+    CNY: 7.18,    // 1 CNY = 0.1392 USD
+    GBP: 0.782,   // 1 GBP = 1.278 USD
+    CAD: 1.370,   // 1 CAD = 0.7299 USD
+    AUD: 1.520,   // 1 AUD = 0.6578 USD
+    CHF: 0.865,   // 1 CHF = 1.1560 USD
+    JPY: 147.50,  // 1 USD = 147.50 JPY
+    SAR: 3.75,    // 1 USD = 3.75 SAR
+    QAR: 3.64,    // 1 USD = 3.64 QAR
+    KWD: 0.306,   // 1 KWD = 3.267 USD
+    RUB: 88.50,   // 1 USD = 88.50 RUB
+    IQD: 1310.0,  // 1 USD = 1310 IQD
+    AFN: 70.50    // 1 USD = 70.50 AFN
   };
 
   let stored = inMemoryCache[cacheKey] || null;
@@ -446,8 +455,8 @@ async function fetchForexRates(env, forceRefresh = false) {
   const lastCheckMs = (stored && stored.last_updated) ? new Date(stored.last_updated).getTime() : 0;
   const isFresh = (nowMs - lastCheckMs) < 600000; // 10 minute throttle for Forex
 
-  if (isFresh && !forceRefresh && stored && stored.rates) {
-    return stored.rates;
+  if (isFresh && !forceRefresh && stored && stored.rates && stored.rates.AUD) {
+    return { ...fallback, ...stored.rates };
   }
 
   try {
@@ -461,7 +470,16 @@ async function fetchForexRates(env, forceRefresh = false) {
           TRY: data.rates.TRY || fallback.TRY,
           CNY: data.rates.CNY || fallback.CNY,
           GBP: data.rates.GBP || fallback.GBP,
-          CAD: data.rates.CAD || fallback.CAD
+          CAD: data.rates.CAD || fallback.CAD,
+          AUD: data.rates.AUD || fallback.AUD,
+          CHF: data.rates.CHF || fallback.CHF,
+          JPY: data.rates.JPY || fallback.JPY,
+          SAR: data.rates.SAR || fallback.SAR,
+          QAR: data.rates.QAR || fallback.QAR,
+          KWD: data.rates.KWD || fallback.KWD,
+          RUB: data.rates.RUB || fallback.RUB,
+          IQD: data.rates.IQD || fallback.IQD,
+          AFN: data.rates.AFN || fallback.AFN
         };
 
         const record = { rates: fetchedRates, last_updated: new Date().toISOString() };
@@ -479,7 +497,7 @@ async function fetchForexRates(env, forceRefresh = false) {
     console.error("Forex fetch error:", e);
   }
 
-  return stored ? stored.rates : fallback;
+  return (stored && stored.rates) ? { ...fallback, ...stored.rates } : fallback;
 }
 
 /**
@@ -791,60 +809,161 @@ async function handleCalculate(url, env, analytics, globalSettings) {
     };
   }
 
+  const fx = (code, fallbackVal) => (forex && typeof forex[code] === "number" && forex[code] > 0) ? forex[code] : fallbackVal;
+
+  // Quick 4 Main Currencies
+  const quick_currencies = {
+    USD: Math.round(usd_toman),
+    EUR: Math.round((1 / fx("EUR", 0.915)) * usd_toman),
+    AED: Math.round((1 / fx("AED", 3.6725)) * usd_toman),
+    TRY: Math.round((1 / fx("TRY", 33.50)) * usd_toman)
+  };
+
+  // Full Expanded World Currencies List
   const currencies = [
+    {
+      code: "USD",
+      name: "دلار آمریکا",
+      flag: "🇺🇸",
+      symbol: "$",
+      usd_cross_rate: 1.0,
+      toman_price: Math.round(usd_toman),
+      note: "نرخ دلار نقدی بازار آزاد"
+    },
     {
       code: "EUR",
       name: "یورو",
       flag: "🇪🇺",
       symbol: "€",
-      usd_cross_rate: parseFloat((1 / forex.EUR).toFixed(4)),
-      toman_price: Math.round((1 / forex.EUR) * usd_toman),
-      note: `۱ یورو = ${(1 / forex.EUR).toFixed(4)} دلار`
+      usd_cross_rate: parseFloat((1 / fx("EUR", 0.915)).toFixed(4)),
+      toman_price: Math.round((1 / fx("EUR", 0.915)) * usd_toman),
+      note: `۱ یورو = ${(1 / fx("EUR", 0.915)).toFixed(4)} دلار`
     },
     {
       code: "AED",
       name: "درهم امارات",
       flag: "🇦🇪",
       symbol: "د.إ",
-      usd_cross_rate: parseFloat((1 / forex.AED).toFixed(4)),
-      toman_price: Math.round((1 / forex.AED) * usd_toman),
-      note: `۱ دلار = ${forex.AED.toFixed(4)} درهم`
+      usd_cross_rate: parseFloat((1 / fx("AED", 3.6725)).toFixed(4)),
+      toman_price: Math.round((1 / fx("AED", 3.6725)) * usd_toman),
+      note: `۱ دلار = ${fx("AED", 3.6725).toFixed(4)} درهم`
     },
     {
       code: "TRY",
       name: "لیر ترکیه",
       flag: "🇹🇷",
       symbol: "₺",
-      usd_cross_rate: parseFloat((1 / forex.TRY).toFixed(4)),
-      toman_price: Math.round((1 / forex.TRY) * usd_toman),
-      note: `۱ دلار = ${forex.TRY.toFixed(2)} لیر`
-    },
-    {
-      code: "CNY",
-      name: "یوان چین",
-      flag: "🇨🇳",
-      symbol: "¥",
-      usd_cross_rate: parseFloat((1 / forex.CNY).toFixed(4)),
-      toman_price: Math.round((1 / forex.CNY).toFixed(4)),
-      note: `۱ دلار = ${forex.CNY.toFixed(2)} یوان`
+      usd_cross_rate: parseFloat((1 / fx("TRY", 33.50)).toFixed(4)),
+      toman_price: Math.round((1 / fx("TRY", 33.50)) * usd_toman),
+      note: `۱ دلار = ${fx("TRY", 33.50).toFixed(2)} لیر`
     },
     {
       code: "GBP",
       name: "پوند انگلیس",
       flag: "🇬🇧",
       symbol: "£",
-      usd_cross_rate: parseFloat((1 / forex.GBP).toFixed(4)),
-      toman_price: Math.round((1 / forex.GBP) * usd_toman),
-      note: `۱ پوند = ${(1 / forex.GBP).toFixed(4)} دلار`
+      usd_cross_rate: parseFloat((1 / fx("GBP", 0.782)).toFixed(4)),
+      toman_price: Math.round((1 / fx("GBP", 0.782)) * usd_toman),
+      note: `۱ پوند = ${(1 / fx("GBP", 0.782)).toFixed(4)} دلار`
     },
     {
       code: "CAD",
       name: "دلار کانادا",
       flag: "🇨🇦",
       symbol: "C$",
-      usd_cross_rate: parseFloat((1 / forex.CAD).toFixed(4)),
-      toman_price: Math.round((1 / forex.CAD) * usd_toman),
-      note: `۱ دلار کانادا = ${(1 / forex.CAD).toFixed(4)} دلار`
+      usd_cross_rate: parseFloat((1 / fx("CAD", 1.370)).toFixed(4)),
+      toman_price: Math.round((1 / fx("CAD", 1.370)) * usd_toman),
+      note: `۱ دلار کانادا = ${(1 / fx("CAD", 1.370)).toFixed(4)} دلار`
+    },
+    {
+      code: "AUD",
+      name: "دلار استرالیا",
+      flag: "🇦🇺",
+      symbol: "A$",
+      usd_cross_rate: parseFloat((1 / fx("AUD", 1.520)).toFixed(4)),
+      toman_price: Math.round((1 / fx("AUD", 1.520)) * usd_toman),
+      note: `۱ دلار استرالیا = ${(1 / fx("AUD", 1.520)).toFixed(4)} دلار`
+    },
+    {
+      code: "CHF",
+      name: "فرانک سوئیس",
+      flag: "🇨🇭",
+      symbol: "CHF",
+      usd_cross_rate: parseFloat((1 / fx("CHF", 0.865)).toFixed(4)),
+      toman_price: Math.round((1 / fx("CHF", 0.865)) * usd_toman),
+      note: `۱ فرانک = ${(1 / fx("CHF", 0.865)).toFixed(4)} دلار`
+    },
+    {
+      code: "CNY",
+      name: "یوان چین",
+      flag: "🇨🇳",
+      symbol: "¥",
+      usd_cross_rate: parseFloat((1 / fx("CNY", 7.18)).toFixed(4)),
+      toman_price: Math.round((1 / fx("CNY", 7.18)) * usd_toman),
+      note: `۱ دلار = ${fx("CNY", 7.18).toFixed(2)} یوان`
+    },
+    {
+      code: "SAR",
+      name: "ریال عربستان",
+      flag: "🇸🇦",
+      symbol: "ر.س",
+      usd_cross_rate: parseFloat((1 / fx("SAR", 3.75)).toFixed(4)),
+      toman_price: Math.round((1 / fx("SAR", 3.75)) * usd_toman),
+      note: `۱ دلار = ${fx("SAR", 3.75).toFixed(2)} ریال`
+    },
+    {
+      code: "QAR",
+      name: "ریال قطر",
+      flag: "🇶🇦",
+      symbol: "ر.ق",
+      usd_cross_rate: parseFloat((1 / fx("QAR", 3.64)).toFixed(4)),
+      toman_price: Math.round((1 / fx("QAR", 3.64)) * usd_toman),
+      note: `۱ دلار = ${fx("QAR", 3.64).toFixed(2)} ریال`
+    },
+    {
+      code: "KWD",
+      name: "دینار کویت",
+      flag: "🇰🇼",
+      symbol: "د.ك",
+      usd_cross_rate: parseFloat((1 / fx("KWD", 0.306)).toFixed(4)),
+      toman_price: Math.round((1 / fx("KWD", 0.306)) * usd_toman),
+      note: `۱ دینار کویت = ${(1 / fx("KWD", 0.306)).toFixed(4)} دلار`
+    },
+    {
+      code: "JPY",
+      name: "۱۰۰ ین ژاپن",
+      flag: "🇯🇵",
+      symbol: "¥",
+      usd_cross_rate: parseFloat((100 / fx("JPY", 147.50)).toFixed(4)),
+      toman_price: Math.round((100 / fx("JPY", 147.50)) * usd_toman),
+      note: `۱۰۰ ین = ${(100 / fx("JPY", 147.50)).toFixed(4)} دلار`
+    },
+    {
+      code: "RUB",
+      name: "روبل روسیه",
+      flag: "🇷🇺",
+      symbol: "₽",
+      usd_cross_rate: parseFloat((1 / fx("RUB", 88.50)).toFixed(4)),
+      toman_price: Math.round((1 / fx("RUB", 88.50)) * usd_toman),
+      note: `۱ دلار = ${fx("RUB", 88.50).toFixed(1)} روبل`
+    },
+    {
+      code: "IQD",
+      name: "۱,۰۰۰ دینار عراق",
+      flag: "🇮🇶",
+      symbol: "د.ع",
+      usd_cross_rate: parseFloat((1000 / fx("IQD", 1310.0)).toFixed(4)),
+      toman_price: Math.round((1000 / fx("IQD", 1310.0)) * usd_toman),
+      note: `۱,۰۰۰ دینار = ${(1000 / fx("IQD", 1310.0)).toFixed(4)} دلار`
+    },
+    {
+      code: "AFN",
+      name: "افغانی افغانستان",
+      flag: "🇦🇫",
+      symbol: "؋",
+      usd_cross_rate: parseFloat((1 / fx("AFN", 70.50)).toFixed(4)),
+      toman_price: Math.round((1 / fx("AFN", 70.50)) * usd_toman),
+      note: `۱ دلار = ${fx("AFN", 70.50).toFixed(1)} افغانی`
     }
   ];
 
@@ -857,6 +976,7 @@ async function handleCalculate(url, env, analytics, globalSettings) {
       gold_18k_gram: Math.round(gold_18k_gram),
       mesghal_17k: Math.round(mesghal_17k)
     },
+    quick_currencies,
     currencies,
     market_data: tgPrices,
     analysis: itemsAnalysis,
@@ -1113,6 +1233,55 @@ function getHTMLContent(env, analytics, globalSettings) {
       0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); }
       70% { transform: scale(1); box-shadow: 0 0 0 5px rgba(16, 185, 129, 0); }
       100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+    }
+
+    /* Quick 4-Currencies Row Bar */
+    .quick-currencies-bar {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 10px;
+      margin-bottom: 16px;
+      background: var(--bg-glass);
+      backdrop-filter: blur(16px);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-lg);
+      padding: 10px 14px;
+    }
+
+    @media (max-width: 640px) {
+      .quick-currencies-bar {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 8px;
+        padding: 8px 10px;
+      }
+    }
+
+    .quick-curr-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: rgba(10, 13, 20, 0.5);
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      border-radius: var(--radius-md);
+      padding: 8px 12px;
+      gap: 6px;
+    }
+
+    .quick-curr-flag {
+      font-size: 18px;
+    }
+
+    .quick-curr-name {
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--text-main);
+    }
+
+    .quick-curr-price {
+      font-size: 13px;
+      font-weight: 800;
+      color: var(--gold-light);
+      white-space: nowrap;
     }
 
     /* System Announcement Banner */
@@ -1580,6 +1749,38 @@ function getHTMLContent(env, analytics, globalSettings) {
       <span id="sysAnnouncementText">${globalSettings.announcement || ''}</span>
     </div>
 
+    <!-- Quick 4 Main Currencies Bar (1 Single Row: USD, EUR, AED, TRY) -->
+    <div class="quick-currencies-bar" id="quickCurrenciesBar">
+      <div class="quick-curr-item">
+        <span style="display: flex; align-items: center; gap: 6px;">
+          <span class="quick-curr-flag">🇺🇸</span>
+          <span class="quick-curr-name">دلار</span>
+        </span>
+        <strong id="q_usd_val" class="quick-curr-price">در حال دریافت...</strong>
+      </div>
+      <div class="quick-curr-item">
+        <span style="display: flex; align-items: center; gap: 6px;">
+          <span class="quick-curr-flag">🇪🇺</span>
+          <span class="quick-curr-name">یورو</span>
+        </span>
+        <strong id="q_eur_val" class="quick-curr-price">در حال دریافت...</strong>
+      </div>
+      <div class="quick-curr-item">
+        <span style="display: flex; align-items: center; gap: 6px;">
+          <span class="quick-curr-flag">🇦🇪</span>
+          <span class="quick-curr-name">درهم</span>
+        </span>
+        <strong id="q_aed_val" class="quick-curr-price">در حال دریافت...</strong>
+      </div>
+      <div class="quick-curr-item">
+        <span style="display: flex; align-items: center; gap: 6px;">
+          <span class="quick-curr-flag">🇹🇷</span>
+          <span class="quick-curr-name">لیر</span>
+        </span>
+        <strong id="q_try_val" class="quick-curr-price">در حال دریافت...</strong>
+      </div>
+    </div>
+
     <!-- Alert Banner (shown when Dollar is null) -->
     <div class="alert-banner" id="usdAlert" style="display: flex;">
       <span>⚠️ لطفاً ابتدا نرخ دلار آزاد (تومان) را وارد کنید تا محاسبات انجام شود.</span>
@@ -1873,6 +2074,7 @@ function getHTMLContent(env, analytics, globalSettings) {
 
         if (data.success) {
           currentCalcData = data;
+          renderQuickCurrencies(data);
           renderAnalysis(data);
           renderCurrencies(data);
           calculateJewelry();
@@ -1891,6 +2093,21 @@ function getHTMLContent(env, analytics, globalSettings) {
       } catch (err) {
         console.error('Calculation error:', err);
       }
+    }
+
+    function renderQuickCurrencies(data) {
+      if (!data.quick_currencies) return;
+      const qc = data.quick_currencies;
+
+      const uEl = document.getElementById('q_usd_val');
+      const eEl = document.getElementById('q_eur_val');
+      const aEl = document.getElementById('q_aed_val');
+      const tEl = document.getElementById('q_try_val');
+
+      if (uEl) uEl.innerText = formatNum(qc.USD) + ' تومان';
+      if (eEl) eEl.innerText = formatNum(qc.EUR) + ' تومان';
+      if (aEl) aEl.innerText = formatNum(qc.AED) + ' تومان';
+      if (tEl) tEl.innerText = formatNum(qc.TRY) + ' تومان';
     }
 
     function updateAnalyticsUI(analytics) {
@@ -2055,6 +2272,11 @@ function getHTMLContent(env, analytics, globalSettings) {
             <div class="price-row">
               <span class="price-label">قیمت روز بازار:</span>
               \${marketDisplayStr}
+            </div>
+
+            <div class="price-row" style="margin-top: 10px; border-top: 1px dashed var(--border-color); padding-top: 8px;">
+              <span class="price-label">حباب نسبت به ارزش خام طلا:</span>
+              \${rawBubbleDisplayStr}
             </div>
 
             \${expectedDiffDisplayStr}
