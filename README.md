@@ -2,7 +2,6 @@
 
 سامانه هوشمند و پیشرفته **RealRate** جهت تحلیل حباب طلا و سکه، محاسبه ارزش واقعی بر اساس دلار و انس جهانی، نمایش نرخ روز ارزهای مطرح جهان، محاسبه‌گر اجرت طلا و پنل مدیریت متصل به **Cloudflare KV Storage**.
 
-![RealRate UI](https://raw.githubusercontent.com/nos486/realrate/main/preview.png)
 
 ---
 
