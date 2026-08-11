@@ -1,6 +1,6 @@
 /**
  * RealRate — Iranian Gold & Currency Price Calculator & Telegram Arbitrage Engine
- * Cloudflare Worker Engine + Protected Admin Panel + Compact Analytics Icons
+ * Cloudflare Worker Engine + Protected Admin Panel + Custom Bubble Color Scheme
  */
 
 // In-memory fallback cache if KV is not bound
@@ -626,7 +626,7 @@ async function handleCalculate(url, env, analytics, globalSettings) {
       flag: "🇨🇳",
       symbol: "¥",
       usd_cross_rate: parseFloat((1 / forex.CNY).toFixed(4)),
-      toman_price: Math.round((1 / forex.CNY) * usd_toman),
+      toman_price: Math.round((1 / forex.CNY).toFixed(4)),
       note: `۱ دلار = ${forex.CNY.toFixed(2)} یوان`
     },
     {
@@ -1150,6 +1150,7 @@ function getHTMLContent(env, analytics, globalSettings) {
       color: var(--text-muted);
     }
 
+    /* Custom Color Badges for Bubble Percentages */
     .bubble-badge {
       padding: 4px 10px;
       border-radius: 14px;
@@ -1164,19 +1165,29 @@ function getHTMLContent(env, analytics, globalSettings) {
       color: var(--text-muted);
     }
 
-    .bubble-badge.negative {
-      background: rgba(59, 130, 246, 0.15);
-      border: 1px solid var(--info-blue);
-      color: #60a5fa;
-    }
-
+    /* Green for Negative Bubble (< 0%) */
     .bubble-badge.good {
       background: rgba(16, 185, 129, 0.15);
       border: 1px solid var(--success);
       color: var(--success);
     }
 
-    .bubble-badge.warn {
+    /* Blue for 0% to 5% */
+    .bubble-badge.blue {
+      background: rgba(59, 130, 246, 0.15);
+      border: 1px solid var(--info-blue);
+      color: #60a5fa;
+    }
+
+    /* Orange for 5% to 15% */
+    .bubble-badge.orange {
+      background: rgba(245, 158, 11, 0.15);
+      border: 1px solid var(--warning);
+      color: var(--gold-light);
+    }
+
+    /* Red for > 15% */
+    .bubble-badge.danger {
       background: rgba(239, 68, 68, 0.15);
       border: 1px solid var(--danger);
       color: #f87171;
@@ -1736,14 +1747,17 @@ function getHTMLContent(env, analytics, globalSettings) {
         let badgeText = 'ناموجود در بازار';
 
         if (hasMarket) {
-          if (isNegative) {
-            bubbleClass = 'negative';
+          if (item.bubble_pct < 0) {
+            bubbleClass = 'good'; // Green (< 0%)
             badgeText = 'حباب منفی: ' + item.bubble_pct.toLocaleString('fa-IR') + '٪';
-          } else if (item.bubble_pct <= 10) {
-            bubbleClass = 'good';
+          } else if (item.bubble_pct <= 5) {
+            bubbleClass = 'blue'; // Blue (0% to 5%)
+            badgeText = 'حباب: +' + item.bubble_pct.toLocaleString('fa-IR') + '٪';
+          } else if (item.bubble_pct <= 15) {
+            bubbleClass = 'orange'; // Orange (5% to 15%)
             badgeText = 'حباب: +' + item.bubble_pct.toLocaleString('fa-IR') + '٪';
           } else {
-            bubbleClass = 'warn';
+            bubbleClass = 'danger'; // Red (> 15%)
             badgeText = 'حباب: +' + item.bubble_pct.toLocaleString('fa-IR') + '٪';
           }
         }
@@ -1757,8 +1771,18 @@ function getHTMLContent(env, analytics, globalSettings) {
         if (hasMarket) {
           marketDisplayStr = '<span class="price-val">' + formatNum(item.market) + ' تومان</span>';
           
-          // 1. Raw Bubble Display
-          const bubbleColor = isNegative ? '#60a5fa' : (item.bubble_pct <= 10 ? 'var(--success)' : '#f87171');
+          // 1. Raw Bubble Display with Color Palette: Green (<0), Blue (0-5), Orange (5-15), Red (>15)
+          let bubbleColor = '#f87171';
+          if (item.bubble_pct < 0) {
+            bubbleColor = 'var(--success)';
+          } else if (item.bubble_pct <= 5) {
+            bubbleColor = '#60a5fa';
+          } else if (item.bubble_pct <= 15) {
+            bubbleColor = 'var(--warning)';
+          } else {
+            bubbleColor = '#f87171';
+          }
+
           rawBubbleDisplayStr = isNegative ? 
             ('حباب منفی ' + formatNum(Math.abs(item.bubble)) + ' تومان (' + item.bubble_pct.toLocaleString('fa-IR') + '٪)') : 
             ('+' + formatNum(item.bubble) + ' تومان (' + item.bubble_pct.toLocaleString('fa-IR') + '٪)');
@@ -1767,7 +1791,17 @@ function getHTMLContent(env, analytics, globalSettings) {
           // 2. Expected Price Variance Display (for coins with target bubble)
           if (item.target_bubble_pct > 0 && item.diff_from_expected !== null) {
             const isExpNeg = item.diff_from_expected < 0;
-            const expDiffColor = isExpNeg ? '#60a5fa' : (item.diff_from_expected_pct <= 5 ? 'var(--success)' : '#f87171');
+            let expDiffColor = '#f87171';
+            if (item.diff_from_expected_pct < 0) {
+              expDiffColor = 'var(--success)';
+            } else if (item.diff_from_expected_pct <= 5) {
+              expDiffColor = '#60a5fa';
+            } else if (item.diff_from_expected_pct <= 15) {
+              expDiffColor = 'var(--warning)';
+            } else {
+              expDiffColor = '#f87171';
+            }
+
             const expDiffText = isExpNeg ?
               ('اختلاف منفی ' + formatNum(Math.abs(item.diff_from_expected)) + ' تومان (' + item.diff_from_expected_pct.toLocaleString('fa-IR') + '٪)') :
               ('+' + formatNum(item.diff_from_expected) + ' تومان (' + item.diff_from_expected_pct.toLocaleString('fa-IR') + '٪)');
