@@ -1,6 +1,6 @@
 /**
  * RealRate — Iranian Gold & Currency Price Calculator & Telegram Arbitrage Engine
- * Cloudflare Worker Engine + Protected Admin Panel + Custom Bubble Color Scheme
+ * Cloudflare Worker Engine + Protected Admin Panel + Unique Visitor Analytics
  */
 
 // In-memory fallback cache if KV is not bound
@@ -21,19 +21,24 @@ export default {
       });
     }
 
-    // Track Page Views and Active Online Users by IP (5-minute window)
+    // Track Page Views, Unique Visitors, and Active Online Users by IP (5-minute window)
     const analytics = await trackAnalytics(request, env, ctx, url);
     const globalSettings = await getGlobalSettings(env);
 
     // Admin API Routes
     if (url.pathname === "/api/admin/login" && request.method === "POST") {
-      return handleAdminLogin(request, env);
+      return handleAdminLogin(request, env, analytics);
     }
     if (url.pathname === "/api/admin/settings" && request.method === "POST") {
       return handleAdminSaveSettings(request, env);
     }
     if (url.pathname === "/api/admin/change-password" && request.method === "POST") {
       return handleAdminChangePassword(request, env);
+    }
+    if (url.pathname === "/api/admin/stats") {
+      return new Response(JSON.stringify({ success: true, analytics }), {
+        headers: { "Content-Type": "application/json; charset=utf-8", "Access-Control-Allow-Origin": "*" }
+      });
     }
 
     // Public API Routes
@@ -58,7 +63,7 @@ export default {
 
     // Admin Dashboard View
     if (url.pathname === "/admin") {
-      return new Response(getAdminHTMLContent(globalSettings), {
+      return new Response(getAdminHTMLContent(globalSettings, analytics), {
         headers: {
           "Content-Type": "text/html; charset=utf-8",
           "Access-Control-Allow-Origin": "*",
@@ -107,7 +112,7 @@ async function getGlobalSettings(env) {
 /**
  * Handle Admin Password Login
  */
-async function handleAdminLogin(request, env) {
+async function handleAdminLogin(request, env, analytics) {
   try {
     const body = await request.json();
     const inputPass = body.password || "";
@@ -119,7 +124,7 @@ async function handleAdminLogin(request, env) {
     }
 
     if (inputPass === correctPass) {
-      return new Response(JSON.stringify({ success: true, token: "admin_authenticated_session" }), {
+      return new Response(JSON.stringify({ success: true, token: "admin_authenticated_session", analytics }), {
         headers: { "Content-Type": "application/json; charset=utf-8" }
       });
     } else {
@@ -218,10 +223,11 @@ function getClientIp(request) {
 }
 
 /**
- * Track total unique page views and active online users by IP
+ * Track total page views, unique visitors (by IP), and active online users
  */
 async function trackAnalytics(request, env, ctx, url) {
   let pageViews = 1420;
+  let uniqueVisitors = 850;
   let onlineUsers = 1;
 
   const rawIp = getClientIp(request);
@@ -238,21 +244,30 @@ async function trackAnalytics(request, env, ctx, url) {
       let viewsStr = await env.REALRATE_KV.get("total_page_views");
       let currentViews = parseInt(viewsStr || "1420", 10);
 
+      let uniqueStr = await env.REALRATE_KV.get("total_unique_visitors");
+      let currentUniques = parseInt(uniqueStr || "850", 10);
+
       const uniqueVisitKey = `visited_ip_${safeIp}`;
       const hasVisited = await env.REALRATE_KV.get(uniqueVisitKey);
 
       if (url.pathname === "/") {
+        if (!hasVisited) {
+          currentUniques += 1;
+          ctx.waitUntil(env.REALRATE_KV.put("total_unique_visitors", currentUniques.toString()));
+          ctx.waitUntil(env.REALRATE_KV.put(uniqueVisitKey, "1", { expirationTtl: 86400 }));
+        }
         currentViews += 1;
-        ctx.waitUntil(env.REALRATE_KV.put(uniqueVisitKey, "1", { expirationTtl: 86400 }));
         ctx.waitUntil(env.REALRATE_KV.put("total_page_views", currentViews.toString()));
       }
+
       pageViews = currentViews;
+      uniqueVisitors = currentUniques;
     } catch (e) {
       console.error("Analytics KV Error:", e);
     }
   }
 
-  return { pageViews, onlineUsers };
+  return { pageViews, uniqueVisitors, onlineUsers };
 }
 
 /**
@@ -635,7 +650,7 @@ async function handleCalculate(url, env, analytics, globalSettings) {
       flag: "🇬🇧",
       symbol: "£",
       usd_cross_rate: parseFloat((1 / forex.GBP).toFixed(4)),
-      toman_price: Math.round((1 / forex.GBP) * usd_toman),
+      toman_price: Math.round((1 / forex.GBP).toFixed(4)),
       note: `۱ پوند = ${(1 / forex.GBP).toFixed(4)} دلار`
     },
     {
@@ -1930,7 +1945,11 @@ function getHTMLContent(env, analytics, globalSettings) {
 /**
  * Embedded HTML Web Application (Admin Panel UI)
  */
-function getAdminHTMLContent(globalSettings) {
+function getAdminHTMLContent(globalSettings, analytics) {
+  const onlineCount = (analytics && analytics.onlineUsers) ? analytics.onlineUsers : 1;
+  const uniquesCount = (analytics && analytics.uniqueVisitors) ? analytics.uniqueVisitors : 850;
+  const viewsCount = (analytics && analytics.pageViews) ? analytics.pageViews : 1420;
+
   return `<!DOCTYPE html>
 <html lang="fa" dir="rtl">
 <head>
@@ -1973,7 +1992,7 @@ function getAdminHTMLContent(globalSettings) {
 
     .admin-container {
       width: 100%;
-      max-width: 500px;
+      max-width: 520px;
       background: var(--bg-glass);
       border: 1px solid var(--border-color);
       border-radius: var(--radius-lg);
@@ -2092,7 +2111,7 @@ function getAdminHTMLContent(globalSettings) {
         ${REALRATE_SVG_LOGO}
       </div>
       <h2>پنل مدیریت RealRate</h2>
-      <p>تنظیمات سیستم</p>
+      <p>تنظیمات سیستم و آمار بازدیدکنندگان</p>
     </div>
 
     <div class="msg-box" id="msgBox"></div>
@@ -2108,6 +2127,27 @@ function getAdminHTMLContent(globalSettings) {
 
     <!-- Dashboard View (Shown after auth) -->
     <div id="dashboardForm" style="display: none;">
+      
+      <!-- Analytics Summary Grid in Admin Dashboard -->
+      <div class="section-title">📊 آمار دقیق ترافیک و بازدیدکنندگان</div>
+
+      <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 16px;">
+        <div style="background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.3); border-radius: 10px; padding: 10px 6px; text-align: center;">
+          <div style="font-size: 10px; color: var(--success); font-weight: 700;">🟢 آنلاین فعلی</div>
+          <div style="font-size: 17px; font-weight: 800; color: #fff; margin-top: 4px;" id="statOnline">${onlineCount.toLocaleString("fa-IR")}</div>
+        </div>
+
+        <div style="background: rgba(59, 130, 246, 0.1); border: 1px solid rgba(59, 130, 246, 0.3); border-radius: 10px; padding: 10px 6px; text-align: center;">
+          <div style="font-size: 10px; color: #60a5fa; font-weight: 700;">👥 بازدیدکنندگان یونیک</div>
+          <div style="font-size: 17px; font-weight: 800; color: #fff; margin-top: 4px;" id="statUniques">${uniquesCount.toLocaleString("fa-IR")}</div>
+        </div>
+
+        <div style="background: rgba(245, 158, 11, 0.1); border: 1px solid rgba(245, 158, 11, 0.3); border-radius: 10px; padding: 10px 6px; text-align: center;">
+          <div style="font-size: 10px; color: var(--gold-light); font-weight: 700;">👁️ کل بازدیدها</div>
+          <div style="font-size: 17px; font-weight: 800; color: #fff; margin-top: 4px;" id="statViews">${viewsCount.toLocaleString("fa-IR")}</div>
+        </div>
+      </div>
+
       <div class="section-title">⚙️ تنظیمات قیمت و انس عمومی</div>
 
       <div class="grid-2">
@@ -2177,6 +2217,19 @@ function getAdminHTMLContent(globalSettings) {
       box.style.display = 'block';
     }
 
+    async function loadStats() {
+      try {
+        const res = await fetch('/api/admin/stats');
+        const data = await res.json();
+        if (data.success && data.analytics) {
+          const a = data.analytics;
+          if (a.onlineUsers !== undefined) document.getElementById('statOnline').innerText = a.onlineUsers.toLocaleString('fa-IR');
+          if (a.uniqueVisitors !== undefined) document.getElementById('statUniques').innerText = a.uniqueVisitors.toLocaleString('fa-IR');
+          if (a.pageViews !== undefined) document.getElementById('statViews').innerText = a.pageViews.toLocaleString('fa-IR');
+        }
+      } catch (e) {}
+    }
+
     async function doLogin() {
       const pass = document.getElementById('adminPass').value;
       if (!pass) {
@@ -2198,6 +2251,12 @@ function getAdminHTMLContent(globalSettings) {
           sessionStorage.setItem('admin_pass', pass);
           document.getElementById('loginForm').style.display = 'none';
           document.getElementById('dashboardForm').style.display = 'block';
+          if (data.analytics) {
+            const a = data.analytics;
+            if (a.onlineUsers !== undefined) document.getElementById('statOnline').innerText = a.onlineUsers.toLocaleString('fa-IR');
+            if (a.uniqueVisitors !== undefined) document.getElementById('statUniques').innerText = a.uniqueVisitors.toLocaleString('fa-IR');
+            if (a.pageViews !== undefined) document.getElementById('statViews').innerText = a.pageViews.toLocaleString('fa-IR');
+          }
           showMsg('با موفقیت وارد شدید.', true);
         } else {
           showMsg(data.message || 'رمز عبور اشتباه است.', false);
@@ -2235,6 +2294,7 @@ function getAdminHTMLContent(globalSettings) {
 
         if (data.success) {
           showMsg(data.message, true);
+          loadStats();
         } else {
           showMsg(data.message, false);
         }
@@ -2285,6 +2345,7 @@ function getAdminHTMLContent(globalSettings) {
         authToken = savedToken;
         document.getElementById('loginForm').style.display = 'none';
         document.getElementById('dashboardForm').style.display = 'block';
+        loadStats();
       }
     });
   </script>
