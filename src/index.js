@@ -1,6 +1,6 @@
 /**
  * RealRate — Iranian Gold & Currency Price Calculator & Telegram Arbitrage Engine
- * Cloudflare Worker Engine + Protected Admin Panel + Live KV Prices
+ * Cloudflare Worker Engine + Protected Admin Panel + Live KV Prices with Timestamps
  */
 
 // In-memory fallback cache if KV is not bound
@@ -979,6 +979,13 @@ function getHTMLContent(env, analytics, globalSettings) {
       pointer-events: none;
     }
 
+    .input-time-tag {
+      font-size: 10px;
+      color: var(--text-muted);
+      margin-top: 2px;
+      padding-right: 4px;
+    }
+
     /* Tabs */
     .tabs-nav {
       display: flex;
@@ -1331,6 +1338,7 @@ function getHTMLContent(env, analytics, globalSettings) {
             <input type="text" id="usdToman" placeholder="مثلاً ۶۲,۰۰۰" oninput="onInputsChanged()">
             <span class="input-suffix">تومان</span>
           </div>
+          <div class="input-time-tag" id="usdTimeTag">آخرین بروزرسانی: <strong>در حال استعلام...</strong></div>
         </div>
 
         <div class="input-group">
@@ -1342,6 +1350,7 @@ function getHTMLContent(env, analytics, globalSettings) {
             <input type="text" id="goldUsd" value="${defaultGoldUsd}" oninput="onInputsChanged()">
             <span class="input-suffix">USD</span>
           </div>
+          <div class="input-time-tag" id="goldTimeTag">آخرین بروزرسانی: <strong>در حال استعلام...</strong></div>
         </div>
       </div>
     </div>
@@ -1467,6 +1476,8 @@ function getHTMLContent(env, analytics, globalSettings) {
   <script>
     let currentCalcData = null;
     let serverLiveUsdToman = null;
+    let serverUsdDatetime = null;
+    let serverLastCheckTime = null;
 
     function formatNum(num) {
       if (num === null || num === undefined || isNaN(num)) return '-';
@@ -1512,6 +1523,7 @@ function getHTMLContent(env, analytics, globalSettings) {
       const usdAlert = document.getElementById('usdAlert');
       const recBox = document.getElementById('recBox');
       const tagEl = document.getElementById('usdSourceTag');
+      const usdTimeEl = document.getElementById('usdTimeTag');
 
       if (usdToman <= 0) {
         usdAlert.style.display = 'flex';
@@ -1523,14 +1535,20 @@ function getHTMLContent(env, analytics, globalSettings) {
 
       usdAlert.style.display = 'none';
       
-      // Update label tag indicator
+      // Update label tag indicator & small time tag below inputs
       if (tagEl) {
         if (serverLiveUsdToman && Math.abs(usdToman - serverLiveUsdToman) < 1) {
           tagEl.innerText = '🌐 زنده از بازار';
           tagEl.style.color = 'var(--success)';
+          if (usdTimeEl) {
+            usdTimeEl.innerHTML = 'آخرین بروزرسانی: <strong>' + formatRelativeTime(serverUsdDatetime) + '</strong>';
+          }
         } else {
           tagEl.innerText = '✍️ ورودی دستی شما';
           tagEl.style.color = 'var(--gold-light)';
+          if (usdTimeEl) {
+            usdTimeEl.innerHTML = 'تنظیم شده توسط <strong>ورودی دستی کاربر</strong>';
+          }
         }
       }
 
@@ -1765,14 +1783,20 @@ function getHTMLContent(env, analytics, globalSettings) {
         const res = await fetch('/api/rates');
         const data = await res.json();
         if (data.success) {
+          serverLastCheckTime = data.market_prices?.last_channel_check_time || new Date().toISOString();
+          
           if (data.gold_usd) {
             document.getElementById('goldUsd').value = data.gold_usd.toLocaleString('en-US');
+            document.getElementById('goldTimeTag').innerHTML = 'آخرین بروزرسانی: <strong>' + formatRelativeTime(serverLastCheckTime) + '</strong>';
           }
           if (data.live_usd_toman) {
             serverLiveUsdToman = data.live_usd_toman;
+            serverUsdDatetime = data.live_usd_item?.datetime || serverLastCheckTime;
             document.getElementById('usdToman').value = serverLiveUsdToman.toLocaleString('en-US');
+            document.getElementById('usdTimeTag').innerHTML = 'آخرین بروزرسانی: <strong>' + formatRelativeTime(serverUsdDatetime) + '</strong>';
           } else if (data.globalSettings && data.globalSettings.default_usd_toman) {
             document.getElementById('usdToman').value = data.globalSettings.default_usd_toman.toLocaleString('en-US');
+            document.getElementById('usdTimeTag').innerHTML = 'استفاده از <strong>نرخ پیش‌فرض سیستم</strong>';
           }
 
           if (data.analytics) {
