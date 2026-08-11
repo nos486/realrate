@@ -153,6 +153,7 @@ async function fetchTelegramPrices(env, forceRefresh = false) {
 
 /**
  * Parse HTML for Gold & Coin Prices
+ * Stores the EXACT raw price numbers as Toman without any division
  */
 function parseTelegramHtml(html) {
   const result = {};
@@ -532,6 +533,8 @@ function getHTMLContent(env) {
       backdrop-filter: blur(16px);
       border: 1px solid var(--border-color);
       border-radius: var(--radius-lg);
+      flex-wrap: wrap;
+      gap: 16px;
     }
 
     .brand {
@@ -563,6 +566,73 @@ function getHTMLContent(env) {
     .brand-title p {
       font-size: 12px;
       color: var(--text-muted);
+    }
+
+    .header-controls {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    /* Auto Refresh Widget UI */
+    .auto-refresh-widget {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid var(--border-color);
+      padding: 6px 14px;
+      border-radius: 30px;
+      backdrop-filter: blur(10px);
+    }
+
+    .toggle-switch {
+      position: relative;
+      display: inline-block;
+      width: 38px;
+      height: 22px;
+    }
+
+    .toggle-switch input {
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+
+    .slider {
+      position: absolute;
+      cursor: pointer;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background-color: rgba(255, 255, 255, 0.2);
+      transition: .3s;
+      border-radius: 22px;
+    }
+
+    .slider:before {
+      position: absolute;
+      content: "";
+      height: 16px;
+      width: 16px;
+      left: 3px;
+      bottom: 3px;
+      background-color: white;
+      transition: .3s;
+      border-radius: 50%;
+    }
+
+    input:checked + .slider {
+      background-color: var(--success);
+    }
+
+    input:checked + .slider:before {
+      transform: translateX(16px);
+    }
+
+    .refresh-timer-info {
+      display: flex;
+      flex-direction: column;
+      font-size: 11px;
+      line-height: 1.3;
     }
 
     .status-badge {
@@ -935,9 +1005,24 @@ function getHTMLContent(env) {
           <p>تحلیل قیمت واقعی طلا، سکه و ارزهای جهان بر اساس دلار</p>
         </div>
       </div>
-      <div class="status-badge" id="statusBadge">
-        <span class="dot"></span>
-        <span id="statusText">در حال دریافت نرخ‌ها...</span>
+
+      <div class="header-controls">
+        <!-- Auto Refresh Toggle Switch Widget -->
+        <div class="auto-refresh-widget">
+          <label class="toggle-switch">
+            <input type="checkbox" id="autoRefreshToggle" onchange="toggleAutoRefresh(this.checked)">
+            <span class="slider"></span>
+          </label>
+          <div class="refresh-timer-info">
+            <span style="font-weight: 700; color: #fff;">بروزرسانی خودکار</span>
+            <span id="countdownTimer" style="font-size: 11px; color: var(--gold-light);">غیرفعال</span>
+          </div>
+        </div>
+
+        <div class="status-badge" id="statusBadge">
+          <span class="dot"></span>
+          <span id="statusText">در حال دریافت نرخ‌ها...</span>
+        </div>
       </div>
     </header>
 
@@ -1099,6 +1184,8 @@ function getHTMLContent(env) {
 
   <script>
     let currentCalcData = null;
+    let countdownInterval = null;
+    let secondsRemaining = 300; // 5 minutes timer
 
     function formatNum(num) {
       if (num === null || num === undefined || isNaN(num)) return '-';
@@ -1128,6 +1215,76 @@ function getHTMLContent(env) {
       } catch (e) {
         return 'ثبت نشده';
       }
+    }
+
+    /* Auto Refresh Timer Logic */
+    function toggleAutoRefresh(enabled) {
+      try {
+        localStorage.setItem('realrate_auto_refresh', enabled ? 'true' : 'false');
+      } catch (e) {}
+
+      if (enabled) {
+        startAutoRefreshTimer();
+      } else {
+        stopAutoRefreshTimer();
+      }
+    }
+
+    function startAutoRefreshTimer() {
+      stopAutoRefreshTimer();
+      secondsRemaining = 300;
+      updateCountdownDisplay();
+
+      countdownInterval = setInterval(() => {
+        secondsRemaining--;
+        if (secondsRemaining <= 0) {
+          secondsRemaining = 300;
+          triggerAutoRefresh();
+        }
+        updateCountdownDisplay();
+      }, 1000);
+    }
+
+    function stopAutoRefreshTimer() {
+      if (countdownInterval) clearInterval(countdownInterval);
+      countdownInterval = null;
+      const el = document.getElementById('countdownTimer');
+      if (el) el.innerText = 'غیرفعال';
+    }
+
+    function updateCountdownDisplay() {
+      const el = document.getElementById('countdownTimer');
+      if (!el) return;
+      const mins = Math.floor(secondsRemaining / 60);
+      const secs = secondsRemaining % 60;
+      const formattedMins = mins.toLocaleString('fa-IR');
+      const formattedSecs = secs < 10 ? '۰' + secs.toLocaleString('fa-IR') : secs.toLocaleString('fa-IR');
+      el.innerText = '⏳ بعدی در: ' + formattedMins + ':' + formattedSecs;
+    }
+
+    async function triggerAutoRefresh() {
+      const statusText = document.getElementById('statusText');
+      if (statusText) statusText.innerText = '🔄 در حال بروزرسانی خودکار...';
+      
+      try {
+        await fetch('/api/telegram?force=true');
+      } catch (e) {}
+
+      onInputsChanged();
+    }
+
+    function loadAutoRefreshPref() {
+      try {
+        const saved = localStorage.getItem('realrate_auto_refresh');
+        const toggle = document.getElementById('autoRefreshToggle');
+        if (saved === 'true') {
+          toggle.checked = true;
+          startAutoRefreshTimer();
+        } else {
+          toggle.checked = false;
+          stopAutoRefreshTimer();
+        }
+      } catch (e) {}
     }
 
     function saveLocalUsd() {
@@ -1379,6 +1536,7 @@ function getHTMLContent(env) {
 
     async function initPage() {
       loadLocalUsd();
+      loadAutoRefreshPref();
 
       // Fetch live gold spot price & KV market data
       try {
