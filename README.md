@@ -34,27 +34,87 @@
   - درصد سود طلافروش (٪)
   - درصد مالیات بر ارزش افزوده (٪)
 
-### 🔐 ۴. پنل مدیریت پیشرفته (`/admin`)
-- حفاظت‌شده با رمز عبور ذخیره‌شده در **Cloudflare KV Storage**.
-- **تنظیمات عمومی پیش‌فرض**:
+### 🔐 ۴. احراز هویت با گوگل (Google Sign-In) و جدول کاربران
+- **ورود سریع با گوگل برای عموم کاربران**: هر کاربری می‌تواند با حساب گوگل خود در سایت وارد شود.
+- **جدول کاربران (User Table)**: مشخصات کاربران لاگین کرده (نام، ایمیل، تصویر پروفایل، تاریخ اولین ورود، آخرین فعالیت و دفعات ورود) در Cloudflare KV ذخیره و نگهداری می‌شود.
+- **حذف رمز عبور استاتیک و احراز مدیر با ADMIN_EMAIL**:
+  - رمزهای پیش‌فرض و استاتیک حذف شده‌اند.
+  - دسترسی به پنل مدیریت (`/admin`) تنها به ایمیل(های) تعیین‌شده در متغیر محیطی `ADMIN_EMAIL` داده می‌شود.
+  - امکان تعیین چندین ایمیل مدیر با کاما وجود دارد (مانند: `admin@gmail.com,owner@gmail.com`).
+- **تنظیمات عمومی پیش‌فرض در پنل مدیریت**:
   - قیمت پیش‌فرض دلار آزاد (تومان)
   - پیش‌فرض انس جهانی طلا ($)
   - درصد حباب مصوب سکه تمام، نیم سکه و ربع سکه
   - ارسال پیام یا اطلاعیه عمومی بالای سایت
-- **تغییر رمز عبور مدیریت**: امکان تغییر رمز عبور به صورت کاملاً امن با ذخیره در دیتابیس KV.
+- **مدیریت کاربران در پنل مدیریت**: مشاهده کامل لیست کاربران ثبت‌نام شده به همراه نقش و تاریخچه فعالیت.
 
-### 👁️ ۵. سیستم آمارگیری بر اساس IP
+### 👁️ ۵. سیستم آمارگیری بر اساس IP و کاربران
 - **شمارش کاربران آنلاین**: محاسبه کاربران فعال طی ۵ دقیقه اخیر بر اساس IP اختصاصی.
 - **بازدید کل**: شمارش بی‌همتای بازدیدکنندگان بر اساس IP به صورت ۲۴ ساعته.
+- **مجموع کاربران ثبت‌شده**: نمایش تعداد کل حساب‌هایی که با گوگل وارد شده‌اند.
 
 ---
 
 ## 🛠️ تکنولوژی‌های استفاده‌شده
 
 - **تکنولوژی اجرا (Runtime)**: Cloudflare Workers (JavaScript ES Modules)
-- **دیتابیس و حافظه**: Cloudflare KV Storage (`REALRATE_KV`)
+- **دیتابیس رابطه‌ای (SQL)**: Cloudflare D1 Serverless SQLite (`env.DB`) جهت ذخیره ساخت‌یافته کاربران، سشن‌ها و تنظیمات
+- **احراز هویت (Auth)**: Google Identity Services (GIS) + اعتبارسنجی سمت سرور TokenInfo API
+- **دیتابیس و حافظه کش (KV)**: Cloudflare KV Storage (`REALRATE_KV`) برای سشن‌ها، تنظیمات، آمار و کش
 - **طراحی و رابط کاربری**: Vanilla HTML5, Modern CSS3 (Dark Glassmorphism UI), Vector SVG Logo
 - **منابع قیمت**: استعلام زنده قیمت‌های روز بازار طلا + دریافت لحظه‌ای انس طلا و نرخ برابری Forex
+
+---
+
+## 🔑 راهنمای گام‌به‌گام راه‌اندازی ورود با گوگل (Google OAuth Setup)
+
+برای فعال‌سازی ورود با گوگل روی سایت، مراحل زیر را در **Google Cloud Console** دنبال کنید:
+
+### گام ۱: ساخت پروژه در گوگل کلود
+1. وارد [Google Cloud Console](https://console.cloud.google.com/) شوید.
+2. روی منوی انتخاب پروژه در بالای صفحه کلیک کرده و گزینه **New Project** را انتخاب کنید.
+3. نام دلخواه (مثلاً `RealRate`) را وارد کرده و دکمه **Create** را بزنید.
+
+### گام ۲: پیکربندی صفحه رضایت (OAuth Consent Screen)
+1. از منوی سمت چپ به مسیر **APIs & Services** > **OAuth consent screen** بروید.
+2. نوع کاربر را **External** انتخاب کرده و روی **Create** کلیک کنید.
+3. فیلدهای مورد نیاز را پر کنید:
+   - **App name**: نام برنامه (مثلاً `RealRate`)
+   - **User support email**: ایمیل خودتان
+   - **Developer contact information**: ایمیل شما
+4. روی **Save and Continue** کلیک کنید.
+5. در مرحله Scopes، موارد پیش‌فرض (`email` و `profile`) کافی هستند؛ روی **Save and Continue** کلیک کنید.
+6. در بخش Audience یا Publishing status، دکمه **Publish App** را بزنید تا برنامه فعال شود و همه کاربران بتوانند لاگین کنند.
+
+### گام ۳: ساخت شناسه کلاینت (Web Client ID)
+1. از منوی سمت چپ به مسیر **APIs & Services** > **Credentials** بروید.
+2. روی **+ CREATE CREDENTIALS** در بالای صفحه کلیک کرده و **OAuth client ID** را انتخاب کنید.
+3. فیلد **Application type** را روی **Web application** قرار دهید.
+4. در بخش **Authorized JavaScript origins**، آدرس‌های مجاز سایت خود را اضافه کنید:
+   - برای محیط توسعه محلی:
+     - `http://localhost:8787`
+     - `http://127.0.0.1:8787`
+   - برای محیط پروداکشن (Cloudflare Workers و دامنه اختصاصی):
+     - `https://your-worker-subdomain.workers.dev`
+     - دامنه اصلی شما (مانند `https://realrate.ir`)
+   > ⚠️ **نکته**: در انتهای آدرس‌ها اسلش `/` قرار ندهید و برای آدرس‌های غیرلوکال حتماً پروتکل `https://` الزامی است.
+5. روی دکمه **Create** کلیک کنید.
+6. پنجره‌ای شامل **Client ID** به شما نمایش داده می‌شود (مثال: `1234567890-abcdefg.apps.googleusercontent.com`). این مقدار را کپی کنید.
+
+### گام ۴: تنظیم مقادیر در `wrangler.toml` یا Cloudflare Secrets
+شناسه کلاینت گوگل و ایمیل(های) مدیر را در فایل `wrangler.toml` وارد کنید:
+
+```toml
+[vars]
+ADMIN_EMAIL = "your-admin-email@gmail.com"
+GOOGLE_CLIENT_ID = "1234567890-abcdefg.apps.googleusercontent.com"
+```
+
+> 💡 **نکته امنیتی در پروداکشن**: می‌توانید مقادیر را به صورت Secret در کلاودفلر ذخیره کنید:
+> ```bash
+> npx wrangler secret put ADMIN_EMAIL
+> npx wrangler secret put GOOGLE_CLIENT_ID
+> ```
 
 ---
 
@@ -107,6 +167,39 @@ compatibility_date = "2024-01-01"
 binding = "REALRATE_KV"
 id = "<YOUR_KV_NAMESPACE_ID>"
 ```
+
+---
+
+## 🗄️ ساخت و راه‌اندازی دیتابیس Cloudflare D1 (SQL)
+
+سامانه RealRate از **Cloudflare D1 (SQLite)** برای ذخیره‌سازی داده‌های ساخت‌یافته کاربران، سشن‌ها و تنظیمات استفاده می‌کند.
+
+### ۱. ساخت دیتابیس D1 در کلاودفلر:
+```bash
+npx wrangler d1 create realrate-db
+```
+پس از اجرای این دستور، کلاودفلر یک `database_id` به شما می‌دهد.
+
+### ۲. اتصال دیتابیس در `wrangler.toml`:
+```toml
+[[d1_databases]]
+binding = "DB"
+database_name = "realrate-db"
+database_id = "<YOUR_D1_DATABASE_ID>"
+```
+
+### ۳. اعمال جداول دیتابیس (Schema Migration):
+برای اعمال فایل `schema.sql`:
+- **محیط محلی (Local)**:
+  ```bash
+  npx wrangler d1 execute realrate-db --local --file=./schema.sql
+  ```
+- **محیط آنلاین (Remote)**:
+  ```bash
+  npx wrangler d1 execute realrate-db --remote --file=./schema.sql
+  ```
+
+> 💡 **نکته**: ورکر RealRate مجهز به مکانیزم Auto-Bootstrap است؛ یعنی حتی اگر مایگریشن دستی اجرا نشود، جداول به صورت خودکار (`CREATE TABLE IF NOT EXISTS`) در اولین درخواست ایجاد می‌شوند.
 
 ---
 

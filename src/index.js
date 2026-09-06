@@ -84,21 +84,26 @@ export default {
     const analytics = await trackAnalytics(request, env, ctx, url);
     const globalSettings = await getGlobalSettings(env);
 
-    // Admin API Routes
-    if (url.pathname === "/api/admin/login" && request.method === "POST") {
-      return handleAdminLogin(request, env);
+    // Auth API Routes
+    if (url.pathname === "/api/auth/google" && request.method === "POST") {
+      return handleGoogleAuth(request, env);
+    }
+    if (url.pathname === "/api/auth/me" && request.method === "GET") {
+      return handleGetMe(request, env);
+    }
+    if (url.pathname === "/api/auth/logout" && request.method === "POST") {
+      return handleLogout(request, env);
+    }
+
+    // Protected Admin API Routes
+    if (url.pathname === "/api/admin/stats") {
+      return handleAdminStatsRoute(request, env);
+    }
+    if (url.pathname === "/api/admin/users") {
+      return handleAdminUsersRoute(request, env);
     }
     if (url.pathname === "/api/admin/settings" && request.method === "POST") {
       return handleAdminSaveSettings(request, env);
-    }
-    if (url.pathname === "/api/admin/change-password" && request.method === "POST") {
-      return handleAdminChangePassword(request, env);
-    }
-    if (url.pathname === "/api/admin/stats") {
-      const stats = await getAdminStats(env);
-      return new Response(JSON.stringify(stats), {
-        headers: { "Content-Type": "application/json; charset=utf-8", "Access-Control-Allow-Origin": "*" }
-      });
     }
 
     // Public API Routes
@@ -123,7 +128,7 @@ export default {
 
     // Admin Dashboard View
     if (url.pathname === "/admin") {
-      return new Response(getAdminHTMLContent(globalSettings), {
+      return new Response(getAdminHTMLContent(env, globalSettings), {
         headers: {
           "Content-Type": "text/html; charset=utf-8",
           "Access-Control-Allow-Origin": "*",
@@ -142,7 +147,257 @@ export default {
 };
 
 /**
- * Get or initialize Admin Global Settings from Cloudflare KV Storage
+ * Global variable to cache D1 initialization status per isolate
+ */
+let d1Initialized = false;
+
+/**
+ * Automatically create Cloudflare D1 SQL tables if not already existing
+ */
+async function ensureD1Tables(env) {
+  if (!env || !env.DB) return;
+  if (d1Initialized) return;
+
+  try {
+    await env.DB.exec(`
+      CREATE TABLE IF NOT EXISTS users (
+        id TEXT PRIMARY KEY,
+        email TEXT UNIQUE NOT NULL,
+        name TEXT,
+        picture TEXT,
+        role TEXT DEFAULT 'user',
+        created_at TEXT NOT NULL,
+        last_login TEXT NOT NULL,
+        login_count INTEGER DEFAULT 1
+      );
+      CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
+      CREATE INDEX IF NOT EXISTS idx_users_last_login ON users(last_login DESC);
+
+      CREATE TABLE IF NOT EXISTS sessions (
+        token TEXT PRIMARY KEY,
+        user_id TEXT NOT NULL,
+        email TEXT NOT NULL,
+        name TEXT,
+        picture TEXT,
+        role TEXT NOT NULL,
+        created_at TEXT NOT NULL,
+        expires_at INTEGER NOT NULL
+      );
+      CREATE INDEX IF NOT EXISTS idx_sessions_expires_at ON sessions(expires_at);
+
+      CREATE TABLE IF NOT EXISTS settings (
+        id INTEGER PRIMARY KEY CHECK (id = 1),
+        default_usd_toman REAL DEFAULT 62000,
+        default_gold_usd REAL DEFAULT 2450,
+        bubble_pct_full REAL DEFAULT 15,
+        bubble_pct_half REAL DEFAULT 20,
+        bubble_pct_quarter REAL DEFAULT 25,
+        announcement TEXT DEFAULT '',
+        updated_at TEXT
+      );
+    `);
+    d1Initialized = true;
+  } catch (e) {
+    console.error("D1 schema bootstrap error:", e);
+  }
+}
+
+/**
+ * Upsert User into Cloudflare D1 SQL Database (and sync with KV)
+ */
+async function dbUpsertUser(env, userData) {
+  if (env && env.DB) {
+    await ensureD1Tables(env);
+    try {
+      await env.DB.prepare(`
+        INSERT INTO users (id, email, name, picture, role, created_at, last_login, login_count)
+        VALUES (?, ?, ?, ?, ?, ?, ?, 1)
+        ON CONFLICT(email) DO UPDATE SET
+          name = excluded.name,
+          picture = excluded.picture,
+          role = excluded.role,
+          last_login = excluded.last_login,
+          login_count = users.login_count + 1
+      `).bind(
+        userData.id,
+        userData.email,
+        userData.name,
+        userData.picture,
+        userData.role,
+        userData.createdAt,
+        userData.lastLogin
+      ).run();
+
+      const updated = await env.DB.prepare("SELECT * FROM users WHERE email = ?").bind(userData.email).first();
+      if (updated) {
+        userData.loginCount = updated.login_count;
+        userData.createdAt = updated.created_at;
+      }
+    } catch (e) {
+      console.error("D1 dbUpsertUser error:", e);
+    }
+  }
+
+  // Also sync with KV
+  if (env && env.REALRATE_KV) {
+    try {
+      const userKey = `user:${userData.email}`;
+      await env.REALRATE_KV.put(userKey, JSON.stringify(userData));
+
+      let usersList = [];
+      const listStr = await env.REALRATE_KV.get("users_list");
+      if (listStr) usersList = JSON.parse(listStr);
+      if (!Array.isArray(usersList)) usersList = [];
+      const idx = usersList.findIndex(u => u.email === userData.email);
+      const summaryItem = {
+        id: userData.id,
+        email: userData.email,
+        name: userData.name,
+        picture: userData.picture,
+        role: userData.role,
+        createdAt: userData.createdAt,
+        lastLogin: userData.lastLogin,
+        loginCount: userData.loginCount,
+      };
+      if (idx >= 0) usersList[idx] = summaryItem;
+      else usersList.unshift(summaryItem);
+      await env.REALRATE_KV.put("users_list", JSON.stringify(usersList));
+    } catch (e) {
+      console.error("KV sync error in dbUpsertUser:", e);
+    }
+  }
+
+  return userData;
+}
+
+/**
+ * Fetch all registered users from Cloudflare D1 SQL (or KV fallback)
+ */
+async function dbGetUsers(env) {
+  if (env && env.DB) {
+    await ensureD1Tables(env);
+    try {
+      const { results } = await env.DB.prepare(`
+        SELECT id, email, name, picture, role, created_at AS createdAt, last_login AS lastLogin, login_count AS loginCount
+        FROM users
+        ORDER BY last_login DESC
+      `).all();
+      if (Array.isArray(results) && results.length > 0) {
+        return results;
+      }
+    } catch (e) {
+      console.error("D1 dbGetUsers error:", e);
+    }
+  }
+
+  if (env && env.REALRATE_KV) {
+    try {
+      const listStr = await env.REALRATE_KV.get("users_list");
+      if (listStr) {
+        const parsed = JSON.parse(listStr);
+        if (Array.isArray(parsed)) return parsed;
+      }
+    } catch (e) {}
+  }
+
+  return [];
+}
+
+/**
+ * Save session to D1 SQL database (and KV)
+ */
+async function dbSaveSession(env, sessionData, ttlSeconds = 30 * 24 * 3600) {
+  const expiresAt = Date.now() + ttlSeconds * 1000;
+
+  if (env && env.DB) {
+    await ensureD1Tables(env);
+    try {
+      await env.DB.prepare(`
+        INSERT OR REPLACE INTO sessions (token, user_id, email, name, picture, role, created_at, expires_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      `).bind(
+        sessionData.token,
+        sessionData.userId,
+        sessionData.email,
+        sessionData.name,
+        sessionData.picture,
+        sessionData.role,
+        sessionData.createdAt,
+        expiresAt
+      ).run();
+    } catch (e) {
+      console.error("D1 dbSaveSession error:", e);
+    }
+  }
+
+  if (env && env.REALRATE_KV) {
+    try {
+      await env.REALRATE_KV.put(`session:${sessionData.token}`, JSON.stringify(sessionData), {
+        expirationTtl: ttlSeconds,
+      });
+    } catch (e) {}
+  }
+}
+
+/**
+ * Retrieve session from D1 SQL database (or KV fallback)
+ */
+async function dbGetSession(env, token) {
+  if (!token) return null;
+
+  if (env && env.DB) {
+    await ensureD1Tables(env);
+    try {
+      const row = await env.DB.prepare(`
+        SELECT token, user_id AS userId, email, name, picture, role, created_at AS createdAt, expires_at AS expiresAt
+        FROM sessions
+        WHERE token = ? AND expires_at > ?
+      `).bind(token, Date.now()).first();
+
+      if (row) {
+        return row;
+      }
+    } catch (e) {
+      console.error("D1 dbGetSession error:", e);
+    }
+  }
+
+  if (env && env.REALRATE_KV) {
+    try {
+      const sessionStr = await env.REALRATE_KV.get(`session:${token}`);
+      if (sessionStr) {
+        return JSON.parse(sessionStr);
+      }
+    } catch (e) {}
+  }
+
+  return null;
+}
+
+/**
+ * Delete session from D1 SQL database (and KV)
+ */
+async function dbDeleteSession(env, token) {
+  if (!token) return;
+
+  if (env && env.DB) {
+    await ensureD1Tables(env);
+    try {
+      await env.DB.prepare("DELETE FROM sessions WHERE token = ?").bind(token).run();
+    } catch (e) {
+      console.error("D1 dbDeleteSession error:", e);
+    }
+  }
+
+  if (env && env.REALRATE_KV) {
+    try {
+      await env.REALRATE_KV.delete(`session:${token}`);
+    } catch (e) {}
+  }
+}
+
+/**
+ * Get or initialize Admin Global Settings from Cloudflare D1 SQL (or KV fallback)
  */
 async function getGlobalSettings(env) {
   const defaultSettings = {
@@ -154,6 +409,27 @@ async function getGlobalSettings(env) {
     announcement: ""
   };
 
+  // 1. Try D1 SQL database
+  if (env && env.DB) {
+    await ensureD1Tables(env);
+    try {
+      const row = await env.DB.prepare("SELECT * FROM settings WHERE id = 1").first();
+      if (row) {
+        return {
+          default_usd_toman: row.default_usd_toman ?? defaultSettings.default_usd_toman,
+          default_gold_usd: row.default_gold_usd ?? defaultSettings.default_gold_usd,
+          bubble_pct_full: row.bubble_pct_full ?? defaultSettings.bubble_pct_full,
+          bubble_pct_half: row.bubble_pct_half ?? defaultSettings.bubble_pct_half,
+          bubble_pct_quarter: row.bubble_pct_quarter ?? defaultSettings.bubble_pct_quarter,
+          announcement: row.announcement || "",
+        };
+      }
+    } catch (e) {
+      console.error("Error reading settings from D1:", e);
+    }
+  }
+
+  // 2. Try KV Storage
   if (env && env.REALRATE_KV) {
     try {
       const storedStr = await env.REALRATE_KV.get("global_settings");
@@ -170,7 +446,7 @@ async function getGlobalSettings(env) {
 }
 
 /**
- * Fetch Live Admin Stats from Cloudflare KV
+ * Fetch Live Admin Stats from Cloudflare KV & D1
  */
 async function getAdminStats(env) {
   let pageViews = 1420;
@@ -197,56 +473,293 @@ async function getAdminStats(env) {
     }
   }
 
-  return { success: true, pageViews, uniqueIps, onlineUsers };
+  const users = await dbGetUsers(env);
+  const registeredUsers = users.length;
+
+  return { success: true, pageViews, uniqueIps, onlineUsers, registeredUsers };
 }
 
 /**
- * Handle Admin Password Login
+ * Helper to check if an email matches the ADMIN_EMAIL environment variable.
+ * Supports comma-separated list of admin emails, case-insensitive.
  */
-async function handleAdminLogin(request, env) {
+function isUserAdmin(email, env) {
+  if (!email || !env) return false;
+  const adminConfig = (env.ADMIN_EMAIL || "").toLowerCase();
+  const adminEmails = adminConfig.split(",").map(e => e.trim()).filter(Boolean);
+  return adminEmails.includes(email.toLowerCase().trim());
+}
+
+/**
+ * Extract and authenticate user from Bearer header or Cookie using D1 SQL (or KV fallback)
+ */
+async function getAuthenticatedUser(request, env) {
+  let token = null;
+
+  // 1. Check Authorization header
+  const authHeader = request.headers.get("Authorization");
+  if (authHeader && authHeader.startsWith("Bearer ")) {
+    token = authHeader.slice(7).trim();
+  }
+
+  // 2. Check Cookie header
+  if (!token) {
+    const cookieHeader = request.headers.get("Cookie");
+    if (cookieHeader) {
+      const match = cookieHeader.match(/realrate_session=([^;]+)/);
+      if (match) token = decodeURIComponent(match[1].trim());
+    }
+  }
+
+  if (!token) return null;
+
   try {
-    const body = await request.json();
-    const inputPass = body.password || "";
-    let correctPass = "admin123";
+    const session = await dbGetSession(env, token);
+    if (!session || !session.email) return null;
 
-    if (env && env.REALRATE_KV) {
-      const kvPass = await env.REALRATE_KV.get("admin_password");
-      if (kvPass) correctPass = kvPass;
-    }
+    // Dynamically evaluate role based on current ADMIN_EMAIL
+    const isAdmin = isUserAdmin(session.email, env);
+    const role = isAdmin ? "admin" : "user";
 
-    if (inputPass === correctPass) {
-      return new Response(JSON.stringify({ success: true, token: "admin_authenticated_session" }), {
-        headers: { "Content-Type": "application/json; charset=utf-8" }
-      });
-    } else {
-      return new Response(JSON.stringify({ success: false, message: "رمز عبور وارد شده اشتباه است." }), {
-        status: 401,
-        headers: { "Content-Type": "application/json; charset=utf-8" }
-      });
-    }
+    return {
+      ...session,
+      role,
+      isAdmin,
+    };
   } catch (e) {
-    return new Response(JSON.stringify({ success: false, message: "خطا در پردازش درخواست" }), { status: 400 });
+    console.error("Error retrieving user session:", e);
+    return null;
   }
 }
 
 /**
- * Handle Admin Saving Global Settings
+ * Handle Google Sign-In verification, user table upsert in D1 SQL, and session creation
  */
-async function handleAdminSaveSettings(request, env) {
+async function handleGoogleAuth(request, env) {
   try {
     const body = await request.json();
-    const token = body.token;
-    let correctPass = "admin123";
+    const credential = body.credential;
 
-    if (env && env.REALRATE_KV) {
-      const kvPass = await env.REALRATE_KV.get("admin_password");
-      if (kvPass) correctPass = kvPass;
+    if (!credential) {
+      return new Response(JSON.stringify({ success: false, message: "توکن احراز هویت گوگل ارسال نشده است." }), {
+        status: 400,
+        headers: { "Content-Type": "application/json; charset=utf-8" },
+      });
     }
 
-    if (token !== "admin_authenticated_session" && body.password !== correctPass) {
-      return new Response(JSON.stringify({ success: false, message: "دسترسی غیرمجاز" }), { status: 403 });
+    // Verify token with Google's official tokeninfo API
+    const verifyUrl = `https://oauth2.googleapis.com/tokeninfo?id_token=${encodeURIComponent(credential)}`;
+    const googleRes = await fetch(verifyUrl);
+
+    if (!googleRes.ok) {
+      const errData = await googleRes.json().catch(() => ({}));
+      return new Response(JSON.stringify({
+        success: false,
+        message: "توکن گوگل نامعتبر یا منقضی شده است.",
+        error: errData.error_description || errData.error || "Invalid token"
+      }), {
+        status: 401,
+        headers: { "Content-Type": "application/json; charset=utf-8" },
+      });
     }
 
+    const payload = await googleRes.json();
+
+    // Check Audience if GOOGLE_CLIENT_ID is configured
+    if (env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_ID.trim()) {
+      if (payload.aud !== env.GOOGLE_CLIENT_ID.trim()) {
+        return new Response(JSON.stringify({
+          success: false,
+          message: "شناسه کلاینت با گوگل همخوانی ندارد (Audience mismatch)."
+        }), {
+          status: 401,
+          headers: { "Content-Type": "application/json; charset=utf-8" },
+        });
+      }
+    }
+
+    const email = (payload.email || "").toLowerCase().trim();
+    if (!email) {
+      return new Response(JSON.stringify({ success: false, message: "ایمیل از حساب گوگل دریافت نشد." }), {
+        status: 400,
+        headers: { "Content-Type": "application/json; charset=utf-8" },
+      });
+    }
+
+    const isAdmin = isUserAdmin(email, env);
+    const role = isAdmin ? "admin" : "user";
+    const now = new Date().toISOString();
+    const userId = payload.sub || `user_${Date.now()}`;
+    const name = payload.name || payload.given_name || email.split("@")[0];
+    const picture = payload.picture || "";
+
+    const userData = {
+      id: userId,
+      email,
+      name,
+      picture,
+      role,
+      createdAt: now,
+      lastLogin: now,
+      loginCount: 1,
+    };
+
+    // 1. Store/update User in D1 SQL (and sync to KV)
+    await dbUpsertUser(env, userData);
+
+    // 2. Create Session in D1 SQL (and sync to KV)
+    const sessionToken = crypto.randomUUID();
+    const sessionData = {
+      token: sessionToken,
+      userId: userData.id,
+      email: userData.email,
+      name: userData.name,
+      picture: userData.picture,
+      role: userData.role,
+      createdAt: now,
+    };
+
+    await dbSaveSession(env, sessionData, 30 * 24 * 3600);
+
+    const cookieValue = `realrate_session=${sessionToken}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=2592000`;
+
+    return new Response(JSON.stringify({
+      success: true,
+      message: isAdmin ? "خوش آمدید، مدیر سیستم!" : "ورود موفقیت‌آمیز به حساب کاربری",
+      token: sessionToken,
+      user: {
+        id: userData.id,
+        email: userData.email,
+        name: userData.name,
+        picture: userData.picture,
+        role: userData.role,
+        createdAt: userData.createdAt,
+      },
+    }), {
+      headers: {
+        "Content-Type": "application/json; charset=utf-8",
+        "Set-Cookie": cookieValue,
+      },
+    });
+  } catch (e) {
+    console.error("Error in handleGoogleAuth:", e);
+    return new Response(JSON.stringify({ success: false, message: "خطای سرور در احراز هویت با گوگل: " + e.message }), {
+      status: 500,
+      headers: { "Content-Type": "application/json; charset=utf-8" },
+    });
+  }
+}
+
+/**
+ * Return currently authenticated user
+ */
+async function handleGetMe(request, env) {
+  const user = await getAuthenticatedUser(request, env);
+  if (!user) {
+    return new Response(JSON.stringify({ authenticated: false, user: null }), {
+      headers: { "Content-Type": "application/json; charset=utf-8" },
+    });
+  }
+
+  return new Response(JSON.stringify({
+    authenticated: true,
+    user: {
+      id: user.userId || user.id,
+      email: user.email,
+      name: user.name,
+      picture: user.picture,
+      role: user.role,
+      isAdmin: user.role === "admin",
+    },
+  }), {
+    headers: { "Content-Type": "application/json; charset=utf-8" },
+  });
+}
+
+/**
+ * Handle Logout
+ */
+async function handleLogout(request, env) {
+  let token = null;
+  const authHeader = request.headers.get("Authorization");
+  if (authHeader && authHeader.startsWith("Bearer ")) {
+    token = authHeader.slice(7).trim();
+  }
+  if (!token) {
+    const cookieHeader = request.headers.get("Cookie");
+    if (cookieHeader) {
+      const match = cookieHeader.match(/realrate_session=([^;]+)/);
+      if (match) token = decodeURIComponent(match[1].trim());
+    }
+  }
+
+  if (token) {
+    await dbDeleteSession(env, token);
+  }
+
+  return new Response(JSON.stringify({ success: true, message: "با موفقیت خارج شدید." }), {
+    headers: {
+      "Content-Type": "application/json; charset=utf-8",
+      "Set-Cookie": "realrate_session=; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=0",
+    },
+  });
+}
+
+/**
+ * Protected Admin Stats Route
+ */
+async function handleAdminStatsRoute(request, env) {
+  const user = await getAuthenticatedUser(request, env);
+  if (!user || user.role !== "admin") {
+    return new Response(JSON.stringify({ success: false, message: "دسترسی غیرمجاز. فقط مدیر سیستم مجاز است." }), {
+      status: 403,
+      headers: { "Content-Type": "application/json; charset=utf-8" },
+    });
+  }
+
+  const stats = await getAdminStats(env);
+  return new Response(JSON.stringify(stats), {
+    headers: { "Content-Type": "application/json; charset=utf-8", "Access-Control-Allow-Origin": "*" },
+  });
+}
+
+/**
+ * Protected Admin Users Route (User Table from D1 SQL / KV)
+ */
+async function handleAdminUsersRoute(request, env) {
+  const user = await getAuthenticatedUser(request, env);
+  if (!user || user.role !== "admin") {
+    return new Response(JSON.stringify({ success: false, message: "دسترسی غیرمجاز. فقط مدیر سیستم مجاز است." }), {
+      status: 403,
+      headers: { "Content-Type": "application/json; charset=utf-8" },
+    });
+  }
+
+  const users = await dbGetUsers(env);
+
+  return new Response(JSON.stringify({
+    success: true,
+    total: users.length,
+    users,
+  }), {
+    headers: { "Content-Type": "application/json; charset=utf-8" },
+  });
+}
+
+/**
+ * Protected Admin Settings Route (Saved to D1 SQL & KV)
+ */
+async function handleAdminSaveSettings(request, env) {
+  const user = await getAuthenticatedUser(request, env);
+  if (!user || user.role !== "admin") {
+    return new Response(JSON.stringify({ success: false, message: "دسترسی غیرمجاز. فقط مدیر سیستم مجاز است." }), {
+      status: 403,
+      headers: { "Content-Type": "application/json; charset=utf-8" },
+    });
+  }
+
+  try {
+    const body = await request.json();
     const newSettings = {
       default_usd_toman: parseFloat(body.default_usd_toman) || 62000,
       default_gold_usd: parseFloat(body.default_gold_usd) || 2450,
@@ -256,47 +769,45 @@ async function handleAdminSaveSettings(request, env) {
       announcement: (body.announcement || "").trim()
     };
 
+    // 1. Save to D1 SQL database
+    if (env && env.DB) {
+      await ensureD1Tables(env);
+      try {
+        await env.DB.prepare(`
+          INSERT INTO settings (id, default_usd_toman, default_gold_usd, bubble_pct_full, bubble_pct_half, bubble_pct_quarter, announcement, updated_at)
+          VALUES (1, ?, ?, ?, ?, ?, ?, datetime('now'))
+          ON CONFLICT(id) DO UPDATE SET
+            default_usd_toman = excluded.default_usd_toman,
+            default_gold_usd = excluded.default_gold_usd,
+            bubble_pct_full = excluded.bubble_pct_full,
+            bubble_pct_half = excluded.bubble_pct_half,
+            bubble_pct_quarter = excluded.bubble_pct_quarter,
+            announcement = excluded.announcement,
+            updated_at = excluded.updated_at
+        `).bind(
+          newSettings.default_usd_toman,
+          newSettings.default_gold_usd,
+          newSettings.bubble_pct_full,
+          newSettings.bubble_pct_half,
+          newSettings.bubble_pct_quarter,
+          newSettings.announcement
+        ).run();
+      } catch (e) {
+        console.error("Error saving settings to D1:", e);
+      }
+    }
+
+    // 2. Save to KV
     if (env && env.REALRATE_KV) {
       await env.REALRATE_KV.put("global_settings", JSON.stringify(newSettings));
     }
 
-    return new Response(JSON.stringify({ success: true, message: "تنظیمات عمومی با موفقیت ذخیره شد.", settings: newSettings }), {
-      headers: { "Content-Type": "application/json; charset=utf-8" }
-    });
-  } catch (e) {
-    return new Response(JSON.stringify({ success: false, message: e.message }), { status: 500 });
-  }
-}
-
-/**
- * Handle Admin Changing Password
- */
-async function handleAdminChangePassword(request, env) {
-  try {
-    const body = await request.json();
-    const currentPass = body.current_password;
-    const newPass = body.new_password;
-
-    let storedPass = "admin123";
-    if (env && env.REALRATE_KV) {
-      const kvPass = await env.REALRATE_KV.get("admin_password");
-      if (kvPass) storedPass = kvPass;
-    }
-
-    if (currentPass !== storedPass) {
-      return new Response(JSON.stringify({ success: false, message: "رمز عبور فعلی اشتباه است." }), { status: 400 });
-    }
-
-    if (!newPass || newPass.length < 4) {
-      return new Response(JSON.stringify({ success: false, message: "رمز عبور جدید باید حداقل ۴ کاراکتر باشد." }), { status: 400 });
-    }
-
-    if (env && env.REALRATE_KV) {
-      await env.REALRATE_KV.put("admin_password", newPass);
-    }
-
-    return new Response(JSON.stringify({ success: true, message: "رمز عبور مدیریت با موفقیت تغییر یافت." }), {
-      headers: { "Content-Type": "application/json; charset=utf-8" }
+    return new Response(JSON.stringify({
+      success: true,
+      message: "تنظیمات عمومی با موفقیت ذخیره شد.",
+      settings: newSettings,
+    }), {
+      headers: { "Content-Type": "application/json; charset=utf-8" },
     });
   } catch (e) {
     return new Response(JSON.stringify({ success: false, message: e.message }), { status: 500 });
@@ -326,9 +837,17 @@ async function trackAnalytics(request, env, ctx, url) {
 
   if (env && env.REALRATE_KV) {
     try {
+      const safeWaitUntil = (p) => {
+        if (ctx && typeof ctx.waitUntil === "function") {
+          ctx.waitUntil(p);
+        } else if (p && typeof p.catch === "function") {
+          p.catch(() => {});
+        }
+      };
+
       // 1. Track online user (5-min window)
       const onlineKey = `online_ip_${safeIp}`;
-      ctx.waitUntil(env.REALRATE_KV.put(onlineKey, Date.now().toString(), { expirationTtl: 300 }));
+      safeWaitUntil(env.REALRATE_KV.put(onlineKey, Date.now().toString(), { expirationTtl: 300 }));
 
       const activeOnlineList = await env.REALRATE_KV.list({ prefix: "online_ip_" });
       onlineUsers = Math.max(1, activeOnlineList.keys.length);
@@ -346,12 +865,12 @@ async function trackAnalytics(request, env, ctx, url) {
 
       if (url.pathname === "/") {
         currentViews += 1;
-        ctx.waitUntil(env.REALRATE_KV.put("total_page_views", currentViews.toString()));
+        safeWaitUntil(env.REALRATE_KV.put("total_page_views", currentViews.toString()));
 
         if (!hasVisited) {
           currentUniqueIps += 1;
-          ctx.waitUntil(env.REALRATE_KV.put(uniqueVisitKey, Date.now().toString()));
-          ctx.waitUntil(env.REALRATE_KV.put("total_unique_ips", currentUniqueIps.toString()));
+          safeWaitUntil(env.REALRATE_KV.put(uniqueVisitKey, Date.now().toString()));
+          safeWaitUntil(env.REALRATE_KV.put("total_unique_ips", currentUniqueIps.toString()));
         }
       }
 
@@ -1075,6 +1594,7 @@ const REALRATE_FAVICON_DATA_URI = "data:image/svg+xml,%3Csvg xmlns='http://www.w
  */
 function getHTMLContent(env, analytics, globalSettings) {
   const defaultGoldUsd = globalSettings.default_gold_usd || "2450";
+  const googleClientId = (env && env.GOOGLE_CLIENT_ID) ? env.GOOGLE_CLIENT_ID.trim() : "";
 
   return `<!DOCTYPE html>
 <html lang="fa" dir="rtl">
@@ -1093,6 +1613,9 @@ function getHTMLContent(env, analytics, globalSettings) {
   <meta name="apple-mobile-web-app-title" content="RealRate">
   <meta name="theme-color" content="#0a0d14">
   <link rel="apple-touch-icon" href="${REALRATE_FAVICON_DATA_URI}">
+
+  <!-- Google Identity Services -->
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
 
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -1233,6 +1756,159 @@ function getHTMLContent(env, analytics, globalSettings) {
       0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); }
       70% { transform: scale(1); box-shadow: 0 0 0 5px rgba(16, 185, 129, 0); }
       100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+    }
+
+    /* Google Auth & User Profile Widget */
+    .user-auth-section {
+      display: flex;
+      align-items: center;
+      position: relative;
+    }
+
+    .google-btn-custom {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid var(--border-color);
+      border-radius: 18px;
+      padding: 4px 10px;
+      color: var(--text-main);
+      cursor: pointer;
+      font-size: 11px;
+      font-weight: 600;
+      transition: all 0.2s ease;
+      white-space: nowrap;
+    }
+
+    .google-btn-custom:hover {
+      background: rgba(255, 255, 255, 0.14);
+      border-color: rgba(245, 158, 11, 0.5);
+      transform: translateY(-1px);
+    }
+
+    .user-profile-widget {
+      position: relative;
+      display: flex;
+      align-items: center;
+    }
+
+    .user-pill-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: rgba(255, 255, 255, 0.07);
+      border: 1px solid var(--border-color);
+      border-radius: 18px;
+      padding: 3px 9px 3px 5px;
+      color: var(--text-main);
+      cursor: pointer;
+      font-size: 11px;
+      transition: all 0.2s ease;
+    }
+
+    .user-pill-btn:hover {
+      background: rgba(255, 255, 255, 0.12);
+      border-color: rgba(245, 158, 11, 0.4);
+    }
+
+    .user-avatar-img {
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      object-fit: cover;
+      border: 1.5px solid var(--gold-light);
+      background: #1f2937;
+    }
+
+    .user-name-span {
+      font-weight: 700;
+      max-width: 80px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .user-role-badge {
+      font-size: 9px;
+      padding: 1px 6px;
+      border-radius: 8px;
+      font-weight: 700;
+    }
+
+    .user-role-badge.admin {
+      background: var(--gold-gradient);
+      color: #000;
+      box-shadow: 0 0 6px rgba(245, 158, 11, 0.4);
+    }
+
+    .user-role-badge.user {
+      background: rgba(255, 255, 255, 0.12);
+      color: var(--text-muted);
+    }
+
+    .user-dropdown-menu {
+      position: absolute;
+      top: calc(100% + 8px);
+      left: 0;
+      min-width: 200px;
+      background: rgba(18, 24, 36, 0.96);
+      backdrop-filter: blur(20px);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      box-shadow: 0 12px 32px rgba(0, 0, 0, 0.65);
+      padding: 6px;
+      z-index: 1000;
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+    }
+
+    .user-dropdown-header {
+      padding: 6px 8px;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .user-dropdown-divider {
+      height: 1px;
+      background: var(--border-color);
+      margin: 3px 0;
+    }
+
+    .user-dropdown-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 7px 10px;
+      border-radius: 8px;
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text-main);
+      text-decoration: none;
+      background: transparent;
+      border: none;
+      cursor: pointer;
+      width: 100%;
+      text-align: right;
+      transition: background 0.15s;
+    }
+
+    .user-dropdown-item:hover {
+      background: rgba(255, 255, 255, 0.08);
+    }
+
+    .user-dropdown-item.admin-link {
+      color: var(--gold-light);
+    }
+
+    .user-dropdown-item.logout {
+      color: #f87171;
+    }
+
+    .user-dropdown-item.logout:hover {
+      background: rgba(239, 68, 68, 0.15);
     }
 
     /* Quick 4-Currencies Row Bar */
@@ -1738,6 +2414,45 @@ function getHTMLContent(env, analytics, globalSettings) {
               <circle cx="12" cy="12" r="3"></circle>
             </svg>
             <strong id="totalViewsCount">${analytics.pageViews.toLocaleString("fa-IR")}</strong>
+          </div>
+        </div>
+
+        <!-- Google Auth / User Profile Widget -->
+        <div class="user-auth-section" id="userAuthSection">
+          <div id="googleHeaderBtnContainer">
+            <button class="google-btn-custom" onclick="triggerGoogleLogin()" id="googleLoginBtn" title="ورود با حساب گوگل">
+              <svg width="14" height="14" viewBox="0 0 24 24">
+                <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+                <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+                <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/>
+                <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/>
+              </svg>
+              <span>ورود با گوگل</span>
+            </button>
+            <div id="hiddenGsiBtn" style="position: absolute; opacity: 0; pointer-events: none; width: 1px; height: 1px; overflow: hidden;"></div>
+          </div>
+          <div id="userProfileWidget" class="user-profile-widget" style="display: none;">
+            <button class="user-pill-btn" id="userPillBtn" onclick="toggleUserDropdown(event)" title="حساب کاربری">
+              <img id="userAvatarImg" class="user-avatar-img" src="" alt="کاربر" onerror="this.src='data:image/svg+xml;utf8,<svg xmlns=\\'http://www.w3.org/2000/svg\\' viewBox=\\'0 0 24 24\\' fill=\\'%23fbbf24\\'><path d=\\'M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z\\'/></svg>'">
+              <span id="userNameSpan" class="user-name-span"></span>
+              <span id="userRoleBadge" class="user-role-badge"></span>
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
+            </button>
+            <div class="user-dropdown-menu" id="userDropdownMenu" style="display: none;">
+              <div class="user-dropdown-header">
+                <span id="dropdownUserName" style="font-weight: 700; color: #fff;"></span>
+                <span id="dropdownUserEmail" style="font-size: 11px; color: var(--text-muted); direction: ltr; text-align: right;"></span>
+              </div>
+              <div class="user-dropdown-divider"></div>
+              <a href="/admin" id="dropdownAdminLink" class="user-dropdown-item admin-link" style="display: none;">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+                <span>ورود به پنل مدیریت</span>
+              </a>
+              <button class="user-dropdown-item logout" onclick="handleSiteLogout()">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
+                <span>خروج از حساب</span>
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -2338,6 +3053,161 @@ function getHTMLContent(env, analytics, globalSettings) {
       }
     }
 
+    let currentUser = null;
+    const googleClientId = "${googleClientId}";
+
+    function renderAuthState(user) {
+      const loginBtnWrapper = document.getElementById('googleHeaderBtnContainer');
+      const profileWidget = document.getElementById('userProfileWidget');
+
+      if (user) {
+        if (loginBtnWrapper) loginBtnWrapper.style.display = 'none';
+        if (profileWidget) profileWidget.style.display = 'flex';
+
+        const avatarImg = document.getElementById('userAvatarImg');
+        const nameSpan = document.getElementById('userNameSpan');
+        const roleBadge = document.getElementById('userRoleBadge');
+        const dropdownName = document.getElementById('dropdownUserName');
+        const dropdownEmail = document.getElementById('dropdownUserEmail');
+        const adminLink = document.getElementById('dropdownAdminLink');
+
+        if (avatarImg) {
+          avatarImg.src = user.picture || "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23fbbf24'><path d='M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z'/></svg>";
+        }
+        if (nameSpan) nameSpan.innerText = user.name || user.email.split('@')[0];
+        if (dropdownName) dropdownName.innerText = user.name || user.email;
+        if (dropdownEmail) dropdownEmail.innerText = user.email;
+
+        if (roleBadge) {
+          if (user.role === 'admin') {
+            roleBadge.innerText = 'مدیر';
+            roleBadge.className = 'user-role-badge admin';
+          } else {
+            roleBadge.innerText = 'کاربر';
+            roleBadge.className = 'user-role-badge user';
+          }
+        }
+
+        if (adminLink) {
+          adminLink.style.display = (user.role === 'admin') ? 'flex' : 'none';
+        }
+      } else {
+        if (loginBtnWrapper) loginBtnWrapper.style.display = 'block';
+        if (profileWidget) profileWidget.style.display = 'none';
+      }
+    }
+
+    async function checkAuthSession() {
+      try {
+        const res = await fetch('/api/auth/me');
+        const data = await res.json();
+        if (data.authenticated && data.user) {
+          currentUser = data.user;
+          renderAuthState(currentUser);
+        } else {
+          currentUser = null;
+          renderAuthState(null);
+        }
+      } catch (e) {
+        currentUser = null;
+        renderAuthState(null);
+      }
+    }
+
+    function toggleUserDropdown(event) {
+      if (event) event.stopPropagation();
+      const menu = document.getElementById('userDropdownMenu');
+      if (menu) {
+        menu.style.display = (menu.style.display === 'flex') ? 'none' : 'flex';
+      }
+    }
+
+    document.addEventListener('click', (e) => {
+      const widget = document.getElementById('userProfileWidget');
+      const menu = document.getElementById('userDropdownMenu');
+      if (menu && widget && !widget.contains(e.target)) {
+        menu.style.display = 'none';
+      }
+    });
+
+    async function handleSiteLogout() {
+      try {
+        await fetch('/api/auth/logout', { method: 'POST' });
+      } catch (e) {}
+      currentUser = null;
+      renderAuthState(null);
+      location.reload();
+    }
+
+    async function handleGoogleCredentialResponse(response) {
+      if (!response || !response.credential) return;
+      try {
+        const res = await fetch('/api/auth/google', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ credential: response.credential })
+        });
+        const data = await res.json();
+        if (data.success && data.user) {
+          currentUser = data.user;
+          renderAuthState(currentUser);
+        } else {
+          alert(data.message || 'خطا در ورود با گوگل');
+        }
+      } catch (e) {
+        console.error('Auth error:', e);
+        alert('خطا در ارتباط با سرور جهت احراز هویت با گوگل');
+      }
+    }
+
+    function initGoogleAuth() {
+      if (!googleClientId) return;
+      if (window.google && window.google.accounts && window.google.accounts.id) {
+        try {
+          google.accounts.id.initialize({
+            client_id: googleClientId,
+            callback: handleGoogleCredentialResponse,
+            auto_select: false,
+            cancel_on_tap_outside: true
+          });
+          const hiddenBtn = document.getElementById('hiddenGsiBtn');
+          if (hiddenBtn) {
+            google.accounts.id.renderButton(hiddenBtn, {
+              type: 'standard',
+              theme: 'outline',
+              size: 'large'
+            });
+          }
+        } catch (err) {
+          console.error('GIS init error:', err);
+        }
+      } else {
+        setTimeout(initGoogleAuth, 400);
+      }
+    }
+
+    function triggerGoogleLogin() {
+      if (!googleClientId) {
+        alert('شناسه GOOGLE_CLIENT_ID هنوز در فایل wrangler.toml تنظیم نشده است.\\nلطفاً شناسه کلاینت گوگل را تنظیم کنید.');
+        return;
+      }
+      if (window.google && window.google.accounts && window.google.accounts.id) {
+        try {
+          google.accounts.id.prompt((notification) => {
+            if (notification.isNotDisplayed() || notification.isSkippedMoment()) {
+              const hiddenBtn = document.querySelector('#hiddenGsiBtn div[role="button"]');
+              if (hiddenBtn) hiddenBtn.click();
+            }
+          });
+        } catch (e) {
+          const hiddenBtn = document.querySelector('#hiddenGsiBtn div[role="button"]');
+          if (hiddenBtn) hiddenBtn.click();
+        }
+      } else {
+        alert('کتابخانه گوگل در حال بارگذاری است، لطفاً چند لحظه بعد مجدداً تلاش کنید.');
+      }
+    }
+
     async function initPage() {
       // Clear any legacy localStorage values to keep browser clean
       try { localStorage.removeItem('realrate_usd_toman'); } catch (e) {}
@@ -2346,6 +3216,9 @@ function getHTMLContent(env, analytics, globalSettings) {
       if ('serviceWorker' in navigator) {
         navigator.serviceWorker.register('/sw.js').catch(() => {});
       }
+
+      checkAuthSession();
+      initGoogleAuth();
 
       try {
         const res = await fetch('/api/rates');
@@ -2385,15 +3258,21 @@ function getHTMLContent(env, analytics, globalSettings) {
 /**
  * Embedded HTML Web Application (Admin Panel UI)
  */
-function getAdminHTMLContent(globalSettings) {
+function getAdminHTMLContent(env, globalSettings) {
+  const googleClientId = (env && env.GOOGLE_CLIENT_ID) ? env.GOOGLE_CLIENT_ID.trim() : "";
+  const adminEmail = (env && env.ADMIN_EMAIL) ? env.ADMIN_EMAIL.trim() : "";
+
   return `<!DOCTYPE html>
 <html lang="fa" dir="rtl">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>RealRate Admin</title>
+  <title>پنل مدیریت RealRate</title>
   <link rel="icon" type="image/svg+xml" href="${REALRATE_FAVICON_DATA_URI}">
   
+  <!-- Google Identity Services -->
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
+
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
@@ -2401,7 +3280,7 @@ function getAdminHTMLContent(globalSettings) {
   <style>
     :root {
       --bg-primary: #0a0d14;
-      --bg-glass: rgba(18, 24, 36, 0.85);
+      --bg-glass: rgba(18, 24, 36, 0.88);
       --bg-card: rgba(26, 34, 52, 0.75);
       --border-color: rgba(255, 255, 255, 0.1);
       --gold-primary: #f59e0b;
@@ -2418,27 +3297,32 @@ function getAdminHTMLContent(globalSettings) {
 
     body {
       background-color: var(--bg-primary);
+      background-image: 
+        radial-gradient(circle at 15% 15%, rgba(245, 158, 11, 0.08) 0%, transparent 45%),
+        radial-gradient(circle at 85% 85%, rgba(16, 185, 129, 0.05) 0%, transparent 45%);
       color: var(--text-main);
       min-height: 100vh;
-      padding: 20px 16px;
+      padding: 24px 16px;
       display: flex;
       justify-content: center;
-      align-items: center;
+      align-items: flex-start;
     }
 
     .admin-container {
       width: 100%;
-      max-width: 500px;
+      max-width: 760px;
       background: var(--bg-glass);
+      backdrop-filter: blur(20px);
       border: 1px solid var(--border-color);
       border-radius: var(--radius-lg);
-      padding: 24px;
-      box-shadow: 0 16px 36px rgba(0,0,0,0.5);
+      padding: 28px;
+      box-shadow: 0 20px 48px rgba(0, 0, 0, 0.6);
+      margin: auto;
     }
 
     .admin-header {
       text-align: center;
-      margin-bottom: 20px;
+      margin-bottom: 24px;
       display: flex;
       flex-direction: column;
       align-items: center;
@@ -2446,16 +3330,220 @@ function getAdminHTMLContent(globalSettings) {
     }
 
     .admin-header h2 {
-      font-size: 20px;
+      font-size: 22px;
       font-weight: 800;
       color: var(--gold-light);
     }
 
     .admin-header p {
-      font-size: 12px;
+      font-size: 13px;
       color: var(--text-muted);
     }
 
+    /* Admin Profile Bar */
+    .admin-profile-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 12px;
+      background: rgba(10, 13, 20, 0.6);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      padding: 12px 16px;
+      margin-bottom: 20px;
+    }
+
+    .admin-user-info {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .admin-avatar {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      object-fit: cover;
+      border: 2px solid var(--gold-light);
+    }
+
+    .admin-role-badge {
+      background: var(--gold-gradient);
+      color: #000;
+      font-size: 11px;
+      font-weight: 800;
+      padding: 2px 8px;
+      border-radius: 10px;
+      margin-right: 6px;
+    }
+
+    .admin-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .btn-sm {
+      padding: 6px 12px;
+      font-size: 12px;
+      border-radius: 8px;
+      font-weight: 600;
+      cursor: pointer;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      border: none;
+      transition: 0.2s;
+    }
+
+    .btn-sm.logout {
+      background: rgba(239, 68, 68, 0.15);
+      color: #f87171;
+      border: 1px solid rgba(239, 68, 68, 0.3);
+    }
+    .btn-sm.logout:hover {
+      background: rgba(239, 68, 68, 0.25);
+    }
+
+    .btn-sm.site-link {
+      background: rgba(255, 255, 255, 0.08);
+      color: var(--text-main);
+      border: 1px solid var(--border-color);
+    }
+    .btn-sm.site-link:hover {
+      background: rgba(255, 255, 255, 0.14);
+      color: var(--gold-light);
+    }
+
+    /* Stats Grid */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+
+    @media (max-width: 600px) {
+      .stats-grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+    }
+
+    .stat-card {
+      background: rgba(10, 13, 20, 0.6);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      padding: 12px;
+      text-align: center;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .stat-card-title {
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    .stat-card-val {
+      font-size: 16px;
+      font-weight: 800;
+      color: #fff;
+    }
+
+    .stat-card-val.gold { color: var(--gold-light); }
+    .stat-card-val.green { color: var(--success); }
+    .stat-card-val.blue { color: #60a5fa; }
+
+    .section-title {
+      font-size: 14px;
+      font-weight: 800;
+      color: var(--gold-light);
+      margin: 22px 0 12px 0;
+      padding-bottom: 6px;
+      border-bottom: 1px dashed var(--border-color);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    /* Users Table */
+    .users-table-wrap {
+      background: rgba(10, 13, 20, 0.6);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      overflow-x: auto;
+      margin-bottom: 20px;
+    }
+
+    .users-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12px;
+      text-align: right;
+    }
+
+    .users-table th {
+      background: rgba(255, 255, 255, 0.04);
+      color: var(--text-muted);
+      padding: 10px 14px;
+      font-weight: 700;
+      border-bottom: 1px solid var(--border-color);
+      white-space: nowrap;
+    }
+
+    .users-table td {
+      padding: 10px 14px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+      color: var(--text-main);
+      white-space: nowrap;
+    }
+
+    .users-table tr:last-child td {
+      border-bottom: none;
+    }
+
+    .users-table tr:hover td {
+      background: rgba(255, 255, 255, 0.02);
+    }
+
+    .user-cell {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .user-cell img {
+      width: 26px;
+      height: 26px;
+      border-radius: 50%;
+      object-fit: cover;
+      background: #1f2937;
+    }
+
+    .role-tag {
+      display: inline-block;
+      padding: 2px 7px;
+      border-radius: 6px;
+      font-size: 10px;
+      font-weight: 700;
+    }
+
+    .role-tag.admin {
+      background: rgba(245, 158, 11, 0.2);
+      color: var(--gold-light);
+      border: 1px solid rgba(245, 158, 11, 0.4);
+    }
+
+    .role-tag.user {
+      background: rgba(255, 255, 255, 0.07);
+      color: var(--text-muted);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    /* Forms */
     .form-group {
       margin-bottom: 14px;
       display: flex;
@@ -2492,6 +3580,12 @@ function getAdminHTMLContent(globalSettings) {
       gap: 10px;
     }
 
+    @media (max-width: 550px) {
+      .grid-2 {
+        grid-template-columns: 1fr;
+      }
+    }
+
     .btn {
       width: 100%;
       background: var(--gold-gradient);
@@ -2503,7 +3597,7 @@ function getAdminHTMLContent(globalSettings) {
       border-radius: 10px;
       cursor: pointer;
       transition: 0.2s;
-      margin-top: 8px;
+      margin-top: 10px;
     }
 
     .btn:hover {
@@ -2511,16 +3605,10 @@ function getAdminHTMLContent(globalSettings) {
       transform: translateY(-1px);
     }
 
-    .btn-secondary {
-      background: rgba(255, 255, 255, 0.1);
-      color: #fff;
-      margin-top: 8px;
-    }
-
     .msg-box {
-      padding: 10px;
-      border-radius: 8px;
-      font-size: 12px;
+      padding: 12px;
+      border-radius: 10px;
+      font-size: 13px;
       font-weight: 700;
       margin-bottom: 16px;
       display: none;
@@ -2528,27 +3616,38 @@ function getAdminHTMLContent(globalSettings) {
 
     .msg-box.success { background: rgba(16, 185, 129, 0.15); border: 1px solid var(--success); color: var(--success); }
     .msg-box.error { background: rgba(239, 68, 68, 0.15); border: 1px solid var(--danger); color: #f87171; }
+    .msg-box.info { background: rgba(59, 130, 246, 0.15); border: 1px solid #3b82f6; color: #93c5fd; }
 
-    .section-title {
-      font-size: 14px;
-      font-weight: 800;
-      color: var(--gold-light);
-      margin: 18px 0 10px 0;
-      padding-bottom: 6px;
-      border-bottom: 1px dashed var(--border-color);
-    }
-
-    .stat-row {
+    /* Login View Styles */
+    .login-box {
       display: flex;
-      justify-content: space-between;
+      flex-direction: column;
       align-items: center;
-      padding: 8px 0;
-      border-bottom: 1px dashed rgba(255, 255, 255, 0.06);
-      font-size: 13px;
+      text-align: center;
+      gap: 16px;
+      padding: 20px 0;
     }
 
-    .stat-row:last-child {
-      border-bottom: none;
+    .google-admin-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      background: #ffffff;
+      color: #1f2937;
+      border: none;
+      border-radius: 24px;
+      padding: 12px 24px;
+      font-size: 14px;
+      font-weight: 700;
+      cursor: pointer;
+      box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4);
+      transition: all 0.2s ease;
+    }
+
+    .google-admin-btn:hover {
+      background: #f3f4f6;
+      transform: translateY(-1px);
+      box-shadow: 0 6px 20px rgba(0, 0, 0, 0.5);
     }
   </style>
 </head>
@@ -2556,43 +3655,132 @@ function getAdminHTMLContent(globalSettings) {
 
   <div class="admin-container">
     <div class="admin-header">
-      <div style="filter: drop-shadow(0 0 10px rgba(245, 158, 11, 0.4));">
+      <div style="filter: drop-shadow(0 0 12px rgba(245, 158, 11, 0.4));">
         ${REALRATE_SVG_LOGO}
       </div>
       <h2>پنل مدیریت RealRate</h2>
-      <p>تنظیمات سیستم</p>
+      <p>تنظیمات قیمت، انس و پایش کاربران سیستم</p>
     </div>
 
     <div class="msg-box" id="msgBox"></div>
 
-    <!-- Login View -->
-    <div id="loginForm">
-      <div class="form-group">
-        <label for="adminPass">رمز عبور مدیریت</label>
-        <input type="password" id="adminPass" placeholder="رمز عبور را وارد کنید">
+    <!-- 1. Login View (Shown when not authenticated) -->
+    <div id="loginView" style="display: none;">
+      <div class="login-box">
+        <p style="font-size: 14px; color: var(--text-muted); max-width: 380px;">
+          جهت ورود به پنل مدیریت، لطفاً با حساب گوگل تعیین‌شده برای مدیر وارد شوید.
+        </p>
+
+        <div id="adminGoogleContainer">
+          <button class="google-admin-btn" onclick="triggerAdminGoogleLogin()" id="adminGoogleBtn">
+            <svg width="18" height="18" viewBox="0 0 24 24">
+              <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+              <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+              <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/>
+              <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/>
+            </svg>
+            <span>ورود به مدیریت با گوگل</span>
+          </button>
+          <div id="hiddenAdminGsiBtn" style="position: absolute; opacity: 0; pointer-events: none; width: 1px; height: 1px; overflow: hidden;"></div>
+        </div>
+
+        <p style="font-size: 11px; color: var(--text-muted); margin-top: 10px;">
+          🛡️ احراز هویت اختصاصی بر اساس متغیر محیطی <code>ADMIN_EMAIL</code>
+        </p>
+
+        <a href="/" class="btn-sm site-link" style="margin-top: 12px;">← بازگشت به صفحه اصلی سایت</a>
       </div>
-      <button class="btn" onclick="doLogin()">ورود به مدیریت</button>
     </div>
 
-    <!-- Dashboard View (Shown after auth) -->
-    <div id="dashboardForm" style="display: none;">
-      <div class="section-title">📊 آمار و آنالیتیکس اختصاصی (Cloudflare KV)</div>
+    <!-- 2. Unauthorized View (Logged in via Google, but not admin) -->
+    <div id="unauthorizedView" style="display: none;">
+      <div class="login-box">
+        <div style="font-size: 40px;">⛔</div>
+        <h3 style="color: #f87171; font-weight: 800;">عدم دسترسی مدیریت</h3>
+        <p style="font-size: 13px; color: var(--text-muted); max-width: 420px; line-height: 1.8;">
+          شما با حساب گوگل <strong id="unauthEmailTxt" style="color: #fff; direction: ltr; display: inline-block;"></strong> وارد شده‌اید، اما این حساب در متغیر <code>ADMIN_EMAIL</code> ورکر به عنوان مدیر ثبت نشده است.
+        </p>
+        <div style="display: flex; gap: 10px; margin-top: 10px; flex-wrap: wrap; justify-content: center;">
+          <button class="btn-sm logout" onclick="logoutAdmin()">🔄 خروج و تعویض حساب گوگل</button>
+          <a href="/" class="btn-sm site-link">🏠 بازگشت به سایت</a>
+        </div>
+      </div>
+    </div>
 
-      <div style="background: rgba(10, 13, 20, 0.6); border: 1px solid var(--border-color); border-radius: 12px; padding: 14px; margin-bottom: 16px;">
-        <div class="stat-row">
-          <span>🌐 تعداد آی‌پي‌های یونیک (Unique IPs):</span>
-          <strong id="statUniqueIps" style="color: var(--gold-light); font-size: 15px;">در حال دریافت...</strong>
+    <!-- 3. Dashboard View (Shown after admin authentication) -->
+    <div id="dashboardView" style="display: none;">
+      <!-- Admin Profile Bar -->
+      <div class="admin-profile-bar">
+        <div class="admin-user-info">
+          <img id="adminAvatarImg" class="admin-avatar" src="" alt="Admin" onerror="this.src='data:image/svg+xml;utf8,<svg xmlns=\\'http://www.w3.org/2000/svg\\' viewBox=\\'0 0 24 24\\' fill=\\'%23fbbf24\\'><path d=\\'M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z\\'/></svg>'">
+          <div>
+            <div style="display: flex; align-items: center; gap: 4px;">
+              <strong id="adminNameTxt" style="font-size: 13px; color: #fff;">مدیر</strong>
+              <span class="admin-role-badge">مدیر کل</span>
+            </div>
+            <span id="adminEmailTxt" style="font-size: 11px; color: var(--text-muted); direction: ltr; display: block;"></span>
+          </div>
         </div>
-        <div class="stat-row">
-          <span>👁️ کل صفحات بازدید شده (Total Views):</span>
-          <strong id="statTotalViews" style="color: #fff; font-size: 15px;">در حال دریافت...</strong>
-        </div>
-        <div class="stat-row">
-          <span>🟢 کاربران هم‌زمان آنلاین (Online Users):</span>
-          <strong id="statOnlineUsers" style="color: var(--success); font-size: 15px;">در حال دریافت...</strong>
+        <div class="admin-actions">
+          <a href="/" target="_blank" class="btn-sm site-link" title="مشاهده سایت">مشاهده سایت ↗</a>
+          <button class="btn-sm logout" onclick="logoutAdmin()">خروج</button>
         </div>
       </div>
 
+      <!-- Live Stats (Cloudflare KV) -->
+      <div class="section-title">
+        <span>📊 آمار و آنالیتیکس سیستم (Cloudflare KV)</span>
+        <button onclick="loadAdminStats()" class="btn-sm site-link" style="padding: 2px 8px; font-size: 11px;">🔄 بروزرسانی</button>
+      </div>
+
+      <div class="stats-grid">
+        <div class="stat-card">
+          <span class="stat-card-title">🌐 آی‌پی‌های یونیک</span>
+          <span class="stat-card-val gold" id="statUniqueIps">...</span>
+        </div>
+        <div class="stat-card">
+          <span class="stat-card-title">👁️ کل صفحات بازدید</span>
+          <span class="stat-card-val" id="statTotalViews">...</span>
+        </div>
+        <div class="stat-card">
+          <span class="stat-card-title">🟢 کاربران آنلاین</span>
+          <span class="stat-card-val green" id="statOnlineUsers">...</span>
+        </div>
+        <div class="stat-card">
+          <span class="stat-card-title">👥 کاربران ثبت‌نام شده</span>
+          <span class="stat-card-val blue" id="statRegisteredUsers">...</span>
+        </div>
+      </div>
+
+      <!-- Registered Users Table (User Table in KV) -->
+      <div class="section-title">
+        <span>👥 جدول کاربران ثبت‌نام شده (Google Sign-In)</span>
+        <button onclick="loadAdminUsers()" class="btn-sm site-link" style="padding: 2px 8px; font-size: 11px;">🔄 تازه‌سازی کاربران</button>
+      </div>
+
+      <div class="users-table-wrap">
+        <table class="users-table">
+          <thead>
+            <tr>
+              <th>کاربر</th>
+              <th>ایمیل</th>
+              <th>نقش</th>
+              <th>تاریخ عضویت</th>
+              <th>آخرین ورود</th>
+              <th>دفعات ورود</th>
+            </tr>
+          </thead>
+          <tbody id="usersTableBody">
+            <tr>
+              <td colspan="6" style="text-align: center; color: var(--text-muted); padding: 18px;">
+                در حال دریافت اطلاعات کاربران...
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Price & Gold Global Settings -->
       <div class="section-title">⚙️ تنظیمات قیمت و انس عمومی</div>
 
       <div class="grid-2">
@@ -2607,6 +3795,7 @@ function getAdminHTMLContent(globalSettings) {
         </div>
       </div>
 
+      <!-- Bubble Percentages -->
       <div class="section-title">🪙 تنظیم درصد حباب مصوب سکه‌ها</div>
 
       <div class="form-group">
@@ -2626,40 +3815,39 @@ function getAdminHTMLContent(globalSettings) {
         </div>
       </div>
 
+      <!-- System Announcement -->
       <div class="section-title">📢 پیام عمومی سیستم</div>
 
       <div class="form-group">
-        <label for="adminAnnouncement">پیام یا اطلاعیه بالای سایت</label>
+        <label for="adminAnnouncement">پیام یا اطلاعیه بالای سایت (در صورت خالی بودن نمایش داده نمی‌شود)</label>
         <textarea id="adminAnnouncement" rows="2" placeholder="متن پیام عمومی را وارد کنید...">${globalSettings.announcement || ''}</textarea>
       </div>
 
       <button class="btn" onclick="saveSettings()">💾 ذخیره کلیه تغییرات</button>
-
-      <div class="section-title">🔑 تغییر رمز عبور مدیریت</div>
-
-      <div class="form-group">
-        <label for="currPass">رمز عبور فعلی</label>
-        <input type="password" id="currPass">
-      </div>
-
-      <div class="form-group">
-        <label for="newPass">رمز عبور جدید</label>
-        <input type="password" id="newPass">
-      </div>
-
-      <button class="btn btn-secondary" onclick="changePassword()">تغییر رمز عبور</button>
-      <button class="btn btn-secondary" style="background: rgba(239,68,68,0.2); color: #f87171;" onclick="logout()">خروج</button>
     </div>
   </div>
 
   <script>
-    let authToken = null;
+    const googleClientId = "${googleClientId}";
 
-    function showMsg(text, isSuccess) {
+    function showMsg(text, type) {
       const box = document.getElementById('msgBox');
       box.innerText = text;
-      box.className = 'msg-box ' + (isSuccess ? 'success' : 'error');
+      box.className = 'msg-box ' + (type || 'info');
       box.style.display = 'block';
+      setTimeout(() => {
+        if (type === 'success') box.style.display = 'none';
+      }, 5000);
+    }
+
+    function formatPersianDate(isoStr) {
+      if (!isoStr) return '-';
+      try {
+        const d = new Date(isoStr);
+        return d.toLocaleDateString('fa-IR') + ' ' + d.toLocaleTimeString('fa-IR', { hour: '2-digit', minute: '2-digit' });
+      } catch (e) {
+        return isoStr;
+      }
     }
 
     async function loadAdminStats() {
@@ -2667,41 +3855,49 @@ function getAdminHTMLContent(globalSettings) {
         const res = await fetch('/api/admin/stats');
         const data = await res.json();
         if (data.success) {
-          document.getElementById('statUniqueIps').innerText = data.uniqueIps.toLocaleString('fa-IR') + ' آی‌پی';
+          document.getElementById('statUniqueIps').innerText = data.uniqueIps.toLocaleString('fa-IR');
           document.getElementById('statTotalViews').innerText = data.pageViews.toLocaleString('fa-IR');
-          document.getElementById('statOnlineUsers').innerText = data.onlineUsers.toLocaleString('fa-IR') + ' نفر';
+          document.getElementById('statOnlineUsers').innerText = data.onlineUsers.toLocaleString('fa-IR');
         }
       } catch (e) {}
     }
 
-    async function doLogin() {
-      const pass = document.getElementById('adminPass').value;
-      if (!pass) {
-        showMsg('لطفاً رمز عبور را وارد کنید.', false);
-        return;
-      }
-
+    async function loadAdminUsers() {
       try {
-        const res = await fetch('/api/admin/login', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ password: pass })
-        });
+        const res = await fetch('/api/admin/users');
         const data = await res.json();
+        if (data.success && Array.isArray(data.users)) {
+          document.getElementById('statRegisteredUsers').innerText = (data.total || data.users.length).toLocaleString('fa-IR');
+          const tbody = document.getElementById('usersTableBody');
+          if (data.users.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; color: var(--text-muted); padding: 16px;">هنوز کاربری ثبت نشده است.</td></tr>';
+            return;
+          }
 
-        if (data.success) {
-          authToken = data.token;
-          sessionStorage.setItem('admin_token', authToken);
-          sessionStorage.setItem('admin_pass', pass);
-          document.getElementById('loginForm').style.display = 'none';
-          document.getElementById('dashboardForm').style.display = 'block';
-          loadAdminStats();
-          showMsg('با موفقیت وارد شدید.', true);
-        } else {
-          showMsg(data.message || 'رمز عبور اشتباه است.', false);
+          let rows = '';
+          data.users.forEach(u => {
+            const avatar = u.picture || "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23fbbf24'><path d='M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z'/></svg>";
+            const roleBadge = u.role === 'admin' ? '<span class="role-tag admin">مدیر کل</span>' : '<span class="role-tag user">کاربر عادی</span>';
+            rows += \`
+              <tr>
+                <td>
+                  <div class="user-cell">
+                    <img src="\${avatar}" alt="\${u.name || ''}" onerror="this.src='data:image/svg+xml;utf8,<svg xmlns=\\'http://www.w3.org/2000/svg\\' viewBox=\\'0 0 24 24\\' fill=\\'%23fbbf24\\'><path d=\\'M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z\\'/></svg>'">
+                    <strong>\${u.name || '-'}</strong>
+                  </div>
+                </td>
+                <td style="direction: ltr; text-align: right;">\${u.email}</td>
+                <td>\${roleBadge}</td>
+                <td>\${formatPersianDate(u.createdAt)}</td>
+                <td>\${formatPersianDate(u.lastLogin)}</td>
+                <td>\${(u.loginCount || 1).toLocaleString('fa-IR')}</td>
+              </tr>
+            \`;
+          });
+          tbody.innerHTML = rows;
         }
       } catch (e) {
-        showMsg('خطا در برقراری ارتباط با سرور', false);
+        console.error('Error loading users:', e);
       }
     }
 
@@ -2712,15 +3908,12 @@ function getAdminHTMLContent(globalSettings) {
       const bubble_pct_half = parseFloat(document.getElementById('adminBubbleHalf').value);
       const bubble_pct_quarter = parseFloat(document.getElementById('adminBubbleQuarter').value);
       const announcement = document.getElementById('adminAnnouncement').value;
-      const pass = sessionStorage.getItem('admin_pass');
 
       try {
         const res = await fetch('/api/admin/settings', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            token: authToken,
-            password: pass,
             default_usd_toman,
             default_gold_usd,
             bubble_pct_full,
@@ -2730,62 +3923,130 @@ function getAdminHTMLContent(globalSettings) {
           })
         });
         const data = await res.json();
-
         if (data.success) {
-          showMsg(data.message, true);
+          showMsg(data.message || 'تنظیمات با موفقیت ذخیره شد.', 'success');
         } else {
-          showMsg(data.message, false);
+          showMsg(data.message || 'خطا در ذخیره‌سازی تنظیمات', 'error');
         }
       } catch (e) {
-        showMsg('خطا در ذخیره‌سازی تنظیمات', false);
+        showMsg('خطا در ذخیره‌سازی تنظیمات: ' + e.message, 'error');
       }
     }
 
-    async function changePassword() {
-      const current_password = document.getElementById('currPass').value;
-      const new_password = document.getElementById('newPass').value;
-
-      if (!current_password || !new_password) {
-        showMsg('لطفاً رمز عبور فعلی و جدید را وارد کنید.', false);
-        return;
-      }
-
+    async function logoutAdmin() {
       try {
-        const res = await fetch('/api/admin/change-password', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ current_password, new_password })
-        });
-        const data = await res.json();
-
-        if (data.success) {
-          sessionStorage.setItem('admin_pass', new_password);
-          document.getElementById('currPass').value = '';
-          document.getElementById('newPass').value = '';
-          showMsg(data.message, true);
-        } else {
-          showMsg(data.message, false);
-        }
-      } catch (e) {
-        showMsg('خطا در تغییر رمز عبور', false);
-      }
-    }
-
-    function logout() {
-      sessionStorage.removeItem('admin_token');
-      sessionStorage.removeItem('admin_pass');
+        await fetch('/api/auth/logout', { method: 'POST' });
+      } catch (e) {}
       location.reload();
     }
 
-    window.addEventListener('DOMContentLoaded', () => {
-      const savedToken = sessionStorage.getItem('admin_token');
-      if (savedToken) {
-        authToken = savedToken;
-        document.getElementById('loginForm').style.display = 'none';
-        document.getElementById('dashboardForm').style.display = 'block';
-        loadAdminStats();
+    async function handleGoogleCredentialResponse(response) {
+      if (!response || !response.credential) return;
+      try {
+        const res = await fetch('/api/auth/google', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ credential: response.credential })
+        });
+        const data = await res.json();
+        if (data.success) {
+          checkAdminAuth();
+        } else {
+          showMsg(data.message || 'خطا در احراز هویت با گوگل', 'error');
+        }
+      } catch (e) {
+        showMsg('خطا در ارتباط با سرور', 'error');
       }
-    });
+    }
+
+    function initAdminGoogleAuth() {
+      if (!googleClientId) return;
+      if (window.google && window.google.accounts && window.google.accounts.id) {
+        try {
+          google.accounts.id.initialize({
+            client_id: googleClientId,
+            callback: handleGoogleCredentialResponse,
+            auto_select: false,
+            cancel_on_tap_outside: true
+          });
+          const hiddenBtn = document.getElementById('hiddenAdminGsiBtn');
+          if (hiddenBtn) {
+            google.accounts.id.renderButton(hiddenBtn, {
+              type: 'standard',
+              theme: 'outline',
+              size: 'large'
+            });
+          }
+        } catch (err) {
+          console.error('GIS init error:', err);
+        }
+      } else {
+        setTimeout(initAdminGoogleAuth, 400);
+      }
+    }
+
+    function triggerAdminGoogleLogin() {
+      if (!googleClientId) {
+        alert('شناسه GOOGLE_CLIENT_ID در wrangler.toml تنظیم نشده است.\\nلطفاً طبق راهنمای README.md ابتدا شناسه کلاینت گوگل را تنظیم فرمایید.');
+        return;
+      }
+      if (window.google && window.google.accounts && window.google.accounts.id) {
+        try {
+          google.accounts.id.prompt((notification) => {
+            if (notification.isNotDisplayed() || notification.isSkippedMoment()) {
+              const hiddenBtn = document.querySelector('#hiddenAdminGsiBtn div[role="button"]');
+              if (hiddenBtn) hiddenBtn.click();
+            }
+          });
+        } catch (e) {
+          const hiddenBtn = document.querySelector('#hiddenAdminGsiBtn div[role="button"]');
+          if (hiddenBtn) hiddenBtn.click();
+        }
+      } else {
+        alert('کتابخانه گوگل در حال بارگذاری است، لطفاً چند لحظه بعد تلاش کنید.');
+      }
+    }
+
+    async function checkAdminAuth() {
+      try {
+        const res = await fetch('/api/auth/me');
+        const data = await res.json();
+
+        const loginView = document.getElementById('loginView');
+        const unauthView = document.getElementById('unauthorizedView');
+        const dashView = document.getElementById('dashboardView');
+
+        if (data.authenticated && data.user) {
+          if (data.user.role === 'admin') {
+            loginView.style.display = 'none';
+            unauthView.style.display = 'none';
+            dashView.style.display = 'block';
+
+            document.getElementById('adminAvatarImg').src = data.user.picture || "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23fbbf24'><path d='M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z'/></svg>";
+            document.getElementById('adminNameTxt').innerText = data.user.name || 'مدیر سیستم';
+            document.getElementById('adminEmailTxt').innerText = data.user.email;
+
+            loadAdminStats();
+            loadAdminUsers();
+          } else {
+            loginView.style.display = 'none';
+            unauthView.style.display = 'block';
+            dashView.style.display = 'none';
+            document.getElementById('unauthEmailTxt').innerText = data.user.email;
+          }
+        } else {
+          loginView.style.display = 'block';
+          unauthView.style.display = 'none';
+          dashView.style.display = 'none';
+          initAdminGoogleAuth();
+        }
+      } catch (e) {
+        document.getElementById('loginView').style.display = 'block';
+        initAdminGoogleAuth();
+      }
+    }
+
+    window.addEventListener('DOMContentLoaded', checkAdminAuth);
   </script>
 </body>
 </html>`;

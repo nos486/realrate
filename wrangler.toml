@@ -5,7 +5,15 @@ compatibility_date = "2024-08-01"
 [vars]
 DEFAULT_USD_TOMAN = ""
 DEFAULT_GOLD_USD = "4000"
+ADMIN_EMAIL = "nos486@gmail.com"
+GOOGLE_CLIENT_ID = "420432138114-sfg3n1k34ke674192pct6envne50o1c7.apps.googleusercontent.com"
 
 [[kv_namespaces]]
 binding = "REALRATE_KV"
 id = "4c1bbe085e964f2a8d3eb82a17befde8"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "realrate-db"
+database_id = "19efe9ed-fc88-4e87-aaee-43ba6c6b3797"
+
