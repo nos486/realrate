@@ -1673,6 +1673,8 @@ function getHTMLContent(env, analytics, globalSettings) {
     }
 
     header {
+      position: relative;
+      z-index: 50;
       display: flex;
       justify-content: space-between;
       align-items: center;
@@ -1791,25 +1793,41 @@ function getHTMLContent(env, analytics, globalSettings) {
       position: relative;
       display: flex;
       align-items: center;
+      z-index: 60;
     }
 
     .user-pill-btn {
       display: inline-flex;
       align-items: center;
-      gap: 6px;
+      gap: 7px;
       background: rgba(255, 255, 255, 0.07);
       border: 1px solid var(--border-color);
-      border-radius: 18px;
-      padding: 3px 9px 3px 5px;
+      border-radius: 20px;
+      padding: 4px 9px 4px 6px;
       color: var(--text-main);
       cursor: pointer;
       font-size: 11px;
       transition: all 0.2s ease;
+      user-select: none;
     }
 
     .user-pill-btn:hover {
       background: rgba(255, 255, 255, 0.12);
       border-color: rgba(245, 158, 11, 0.4);
+    }
+
+    .user-pill-btn.active {
+      background: rgba(255, 255, 255, 0.14);
+      border-color: var(--gold-primary);
+    }
+
+    .dropdown-arrow {
+      transition: transform 0.2s ease;
+      opacity: 0.75;
+    }
+
+    .user-pill-btn.active .dropdown-arrow {
+      transform: rotate(180deg);
     }
 
     .user-avatar-img {
@@ -1823,10 +1841,20 @@ function getHTMLContent(env, analytics, globalSettings) {
 
     .user-name-span {
       font-weight: 700;
-      max-width: 80px;
+      max-width: 140px;
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
+      direction: ltr;
+      unicode-bidi: plaintext;
+      display: inline-block;
+      vertical-align: middle;
+    }
+
+    @media (max-width: 640px) {
+      .user-name-span {
+        max-width: 85px;
+      }
     }
 
     .user-role-badge {
@@ -1834,6 +1862,7 @@ function getHTMLContent(env, analytics, globalSettings) {
       padding: 1px 6px;
       border-radius: 8px;
       font-weight: 700;
+      white-space: nowrap;
     }
 
     .user-role-badge.admin {
@@ -1851,24 +1880,27 @@ function getHTMLContent(env, analytics, globalSettings) {
       position: absolute;
       top: calc(100% + 8px);
       left: 0;
-      min-width: 200px;
-      background: rgba(18, 24, 36, 0.96);
-      backdrop-filter: blur(20px);
-      border: 1px solid var(--border-color);
-      border-radius: 12px;
-      box-shadow: 0 12px 32px rgba(0, 0, 0, 0.65);
-      padding: 6px;
+      min-width: 220px;
+      background: #111827;
+      background: rgba(18, 24, 38, 0.98);
+      backdrop-filter: blur(24px);
+      border: 1px solid rgba(255, 255, 255, 0.16);
+      border-radius: 14px;
+      box-shadow: 0 16px 36px rgba(0, 0, 0, 0.8), 0 0 0 1px rgba(255, 255, 255, 0.08);
+      padding: 8px;
       z-index: 1000;
       display: flex;
       flex-direction: column;
-      gap: 3px;
+      gap: 4px;
     }
 
     .user-dropdown-header {
-      padding: 6px 8px;
+      padding: 8px 10px;
       display: flex;
       flex-direction: column;
-      gap: 2px;
+      gap: 3px;
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.04);
     }
 
     .user-dropdown-divider {
@@ -1881,9 +1913,9 @@ function getHTMLContent(env, analytics, globalSettings) {
       display: flex;
       align-items: center;
       gap: 8px;
-      padding: 7px 10px;
+      padding: 8px 10px;
       border-radius: 8px;
-      font-size: 11px;
+      font-size: 12px;
       font-weight: 600;
       color: var(--text-main);
       text-decoration: none;
@@ -2436,12 +2468,12 @@ function getHTMLContent(env, analytics, globalSettings) {
               <img id="userAvatarImg" class="user-avatar-img" src="" alt="کاربر" onerror="this.src='data:image/svg+xml;utf8,<svg xmlns=\\'http://www.w3.org/2000/svg\\' viewBox=\\'0 0 24 24\\' fill=\\'%23fbbf24\\'><path d=\\'M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z\\'/></svg>'">
               <span id="userNameSpan" class="user-name-span"></span>
               <span id="userRoleBadge" class="user-role-badge"></span>
-              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
+              <svg class="dropdown-arrow" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
             </button>
             <div class="user-dropdown-menu" id="userDropdownMenu" style="display: none;">
               <div class="user-dropdown-header">
-                <span id="dropdownUserName" style="font-weight: 700; color: #fff;"></span>
-                <span id="dropdownUserEmail" style="font-size: 11px; color: var(--text-muted); direction: ltr; text-align: right;"></span>
+                <span id="dropdownUserName" style="font-weight: 700; color: #fff; font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;"></span>
+                <span id="dropdownUserEmail" style="font-size: 11px; color: var(--text-muted); direction: ltr; text-align: right; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;"></span>
               </div>
               <div class="user-dropdown-divider"></div>
               <a href="/admin" id="dropdownAdminLink" class="user-dropdown-item admin-link" style="display: none;">
@@ -3074,9 +3106,17 @@ function getHTMLContent(env, analytics, globalSettings) {
         if (avatarImg) {
           avatarImg.src = user.picture || "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23fbbf24'><path d='M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z'/></svg>";
         }
-        if (nameSpan) nameSpan.innerText = user.name || user.email.split('@')[0];
+        if (nameSpan) {
+          nameSpan.innerText = user.name || user.email.split('@')[0];
+          nameSpan.title = user.name || user.email;
+        }
         if (dropdownName) dropdownName.innerText = user.name || user.email;
         if (dropdownEmail) dropdownEmail.innerText = user.email;
+
+        const pillBtn = document.getElementById('userPillBtn');
+        if (pillBtn) {
+          pillBtn.title = user.name ? (user.name + ' (' + user.email + ')') : user.email;
+        }
 
         if (roleBadge) {
           if (user.role === 'admin') {
@@ -3117,16 +3157,25 @@ function getHTMLContent(env, analytics, globalSettings) {
     function toggleUserDropdown(event) {
       if (event) event.stopPropagation();
       const menu = document.getElementById('userDropdownMenu');
+      const pill = document.getElementById('userPillBtn');
       if (menu) {
-        menu.style.display = (menu.style.display === 'flex') ? 'none' : 'flex';
+        const isCurrentlyOpen = (menu.style.display === 'flex');
+        menu.style.display = isCurrentlyOpen ? 'none' : 'flex';
+        if (pill) {
+          pill.classList.toggle('active', !isCurrentlyOpen);
+        }
       }
     }
 
     document.addEventListener('click', (e) => {
       const widget = document.getElementById('userProfileWidget');
       const menu = document.getElementById('userDropdownMenu');
+      const pill = document.getElementById('userPillBtn');
       if (menu && widget && !widget.contains(e.target)) {
         menu.style.display = 'none';
+        if (pill) {
+          pill.classList.remove('active');
+        }
       }
     });
 
