@@ -11,9 +11,9 @@ function formatRelativeTime(isoStr) {
     const d = new Date(isoStr);
     const diffMins = Math.floor((new Date() - d) / 60000);
     if (diffMins < 1) return 'چند لحظه پیش';
-    if (diffMins < 60) return diffMins.toLocaleString('fa-IR') + ' دقیقه پیش';
+    if (diffMins < 60) return `${diffMins.toLocaleString('fa-IR')} دقیقه پیش`;
     const diffHours = Math.floor(diffMins / 60);
-    if (diffHours < 24) return diffHours.toLocaleString('fa-IR') + ' ساعت پیش';
+    if (diffHours < 24) return `${diffHours.toLocaleString('fa-IR')} ساعت پیش`;
     return d.toLocaleTimeString('fa-IR', { hour: '2-digit', minute: '2-digit' });
   } catch {
     return 'ثبت نشده';
@@ -24,134 +24,132 @@ export default function AnalysisCards({ analysis, recommendation }) {
   if (!analysis || analysis.length === 0) return null;
 
   return (
-    <div>
-      {/* Recommendation Box */}
+    <div className="analysis-wrapper">
+      {/* Smart Recommendation Banner */}
       {recommendation && (
-        <div className="rec-box">
-          <div className="rec-info">
-            <h3>🏆 بهترین گزینه برای خرید: {recommendation.best_name}</h3>
-            <p>{recommendation.reason}</p>
+        <div className="smart-rec-banner">
+          <div className="rec-badge-icon">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
+            </svg>
           </div>
-          <div className="rec-badge">
-            {recommendation.best_bubble_pct < 0 ? 'حباب منفی: ' : 'حباب: '}
-            {recommendation.best_bubble_pct?.toLocaleString('fa-IR')}٪
+          <div className="rec-text-group">
+            <div className="rec-title">
+              بهترین فرصت خرید: <strong>{recommendation.best_name}</strong>
+            </div>
+            <div className="rec-desc">{recommendation.reason}</div>
+          </div>
+          <div className={`rec-chip ${recommendation.best_bubble_pct < 0 ? 'negative' : 'positive'}`}>
+            <span>{recommendation.best_bubble_pct < 0 ? 'حباب منفی: ' : 'حباب: '}</span>
+            <strong>{recommendation.best_bubble_pct?.toLocaleString('fa-IR')}٪</strong>
           </div>
         </div>
       )}
 
       {/* Cards Grid */}
-      <div className="cards-grid">
+      <div className="cards-modern-grid">
         {analysis.map((item) => {
           const isBest = recommendation && recommendation.best_id === item.id;
           const hasMarket = item.market !== null && item.market !== undefined;
-          const isNegative = hasMarket && item.bubble < 0;
+          const isNeg = hasMarket && item.bubble < 0;
 
-          let bubbleClass = 'disabled';
+          let badgeClass = 'disabled';
           let badgeText = 'ناموجود در بازار';
 
           if (hasMarket) {
             if (item.bubble_pct < 0) {
-              bubbleClass = 'good';
+              badgeClass = 'badge-good';
               badgeText = `حباب منفی: ${item.bubble_pct?.toLocaleString('fa-IR')}٪`;
             } else if (item.bubble_pct <= 5) {
-              bubbleClass = 'blue';
+              badgeClass = 'badge-blue';
               badgeText = `حباب: +${item.bubble_pct?.toLocaleString('fa-IR')}٪`;
             } else if (item.bubble_pct <= 15) {
-              bubbleClass = 'orange';
+              badgeClass = 'badge-orange';
               badgeText = `حباب: +${item.bubble_pct?.toLocaleString('fa-IR')}٪`;
             } else {
-              bubbleClass = 'danger';
+              badgeClass = 'badge-danger';
               badgeText = `حباب: +${item.bubble_pct?.toLocaleString('fa-IR')}٪`;
             }
           }
 
-          let bubbleColor = '#f87171';
-          if (hasMarket) {
-            if (item.bubble_pct < 0) bubbleColor = 'var(--success)';
-            else if (item.bubble_pct <= 5) bubbleColor = '#60a5fa';
-            else if (item.bubble_pct <= 15) bubbleColor = 'var(--warning)';
-          }
-
-          let expDiffColor = '#f87171';
-          if (item.diff_from_expected_pct < 0) expDiffColor = 'var(--success)';
-          else if (item.diff_from_expected_pct <= 5) expDiffColor = '#60a5fa';
-          else if (item.diff_from_expected_pct <= 15) expDiffColor = 'var(--warning)';
+          // Visual bubble meter percent (clamped between 0 and 100 for visual bar)
+          const meterWidth = hasMarket ? Math.min(Math.max((item.bubble_pct || 0) * 3, 4), 100) : 0;
 
           return (
-            <div key={item.id} className={`card ${isBest ? 'highlight' : ''}`}>
-              <div>
-                <div className="card-header">
-                  <div className="card-title">
-                    <h3>{item.name}</h3>
-                    <span>ارزش واقعی vs قیمت روز بازار</span>
-                  </div>
-                  <span className={`bubble-badge ${bubbleClass}`}>{badgeText}</span>
+            <div key={item.id} className={`fintech-card ${isBest ? 'best-choice' : ''}`}>
+              <div className="card-top-row">
+                <div className="card-identity">
+                  <h3 className="card-name">{item.name}</h3>
+                  {item.target_bubble_pct > 0 && (
+                    <span className="target-badge">حباب مصوب: {item.target_bubble_pct?.toLocaleString('fa-IR')}٪</span>
+                  )}
                 </div>
+                <span className={`bubble-pill ${badgeClass}`}>{badgeText}</span>
+              </div>
 
-                <div className="price-row">
-                  <span className="price-label">ارزش واقعی (طلا و انس):</span>
-                  <span className="price-val gold">{formatNum(item.intrinsic)} تومان</span>
+              {/* Main Market Price */}
+              <div className="main-price-block">
+                <span className="price-title">قیمت روز بازار</span>
+                <div className="price-big-row">
+                  {hasMarket ? (
+                    <>
+                      <span className="price-big-number">{formatNum(item.market)}</span>
+                      <span className="price-big-unit">تومان</span>
+                    </>
+                  ) : (
+                    <span className="price-unavailable">ناموجود در بازار</span>
+                  )}
+                </div>
+              </div>
+
+              {/* Bubble Meter Bar */}
+              {hasMarket && (
+                <div className="bubble-meter-container">
+                  <div className="meter-label-row">
+                    <span>حباب طلا</span>
+                    <span className={`meter-val ${isNeg ? 'neg' : ''}`}>
+                      {isNeg ? 'حباب منفی ' : '+'}
+                      {formatNum(Math.abs(item.bubble))} تومان
+                    </span>
+                  </div>
+                  <div className="meter-track">
+                    <div
+                      className={`meter-bar ${badgeClass}`}
+                      style={{ width: `${meterWidth}%` }}
+                    ></div>
+                  </div>
+                </div>
+              )}
+
+              {/* Data Breakdown Table */}
+              <div className="card-metrics-table">
+                <div className="metric-row">
+                  <span className="metric-key">ارزش ذاتی (طلای خام):</span>
+                  <strong className="metric-val gold-val">{formatNum(item.intrinsic)} تومان</strong>
                 </div>
 
                 {item.target_bubble_pct > 0 && (
-                  <div className="price-row">
-                    <span className="price-label">
-                      قیمت محاسباتی (با حباب {item.target_bubble_pct?.toLocaleString('fa-IR')}٪):
-                    </span>
-                    <span className="price-val expected">{formatNum(item.expected_price)} تومان</span>
+                  <div className="metric-row">
+                    <span className="metric-key">قیمت محاسباتی استاندارد:</span>
+                    <strong className="metric-val blue-val">{formatNum(item.expected_price)} تومان</strong>
                   </div>
                 )}
 
-                <div className="price-row">
-                  <span className="price-label">قیمت روز بازار:</span>
-                  {hasMarket ? (
-                    <span className="price-val">{formatNum(item.market)} تومان</span>
-                  ) : (
-                    <span className="price-val" style={{ color: 'var(--text-muted)', fontSize: '15px' }}>
-                      ناموجود در بازار
-                    </span>
-                  )}
-                </div>
-
-                <div
-                  className="price-row"
-                  style={{
-                    marginTop: '10px',
-                    borderTop: '1px dashed var(--border-color)',
-                    paddingTop: '8px',
-                  }}
-                >
-                  <span className="price-label">حباب نسبت به ارزش خام طلا:</span>
-                  {hasMarket ? (
-                    <span style={{ fontWeight: 800, fontSize: '14px', color: bubbleColor }}>
-                      {isNegative
-                        ? `حباب منفی ${formatNum(Math.abs(item.bubble))} تومان (${item.bubble_pct?.toLocaleString('fa-IR')}٪)`
-                        : `+${formatNum(item.bubble)} تومان (${item.bubble_pct?.toLocaleString('fa-IR')}٪)`}
-                    </span>
-                  ) : (
-                    <span style={{ color: 'var(--text-muted)', fontSize: '12px' }}>
-                      اطلاعات بازار موجود نیست
-                    </span>
-                  )}
-                </div>
-
                 {hasMarket && item.target_bubble_pct > 0 && item.diff_from_expected !== null && (
-                  <div className="price-row" style={{ marginTop: '6px' }}>
-                    <span className="price-label">انحراف بازار از قیمت محاسباتی:</span>
-                    <span style={{ fontWeight: 800, fontSize: '13px', color: expDiffColor }}>
-                      {item.diff_from_expected < 0
-                        ? `اختلاف منفی ${formatNum(Math.abs(item.diff_from_expected))} تومان (${item.diff_from_expected_pct?.toLocaleString('fa-IR')}٪)`
-                        : `+${formatNum(item.diff_from_expected)} تومان (${item.diff_from_expected_pct?.toLocaleString('fa-IR')}٪)`}
-                    </span>
+                  <div className="metric-row">
+                    <span className="metric-key">انحراف از قیمت محاسباتی:</span>
+                    <strong className={`metric-val ${item.diff_from_expected < 0 ? 'good-val' : 'warn-val'}`}>
+                      {item.diff_from_expected < 0 ? 'اختلاف منفی ' : '+'}
+                      {formatNum(Math.abs(item.diff_from_expected))} تومان ({item.diff_from_expected_pct?.toLocaleString('fa-IR')}٪)
+                    </strong>
                   </div>
                 )}
               </div>
 
-              <div className="timestamp-tag">
-                <span>منبع: قیمت روز بازار</span>
-                <span>
-                  زمان بروزرسانی: <strong>{formatRelativeTime(item.updated_at)}</strong>
-                </span>
+              {/* Footer Timestamp */}
+              <div className="card-timestamp-footer">
+                <span>قیمت لحظه‌ای بازار</span>
+                <span>بروزرسانی: {formatRelativeTime(item.updated_at)}</span>
               </div>
             </div>
           );

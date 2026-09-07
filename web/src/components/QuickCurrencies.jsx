@@ -1,7 +1,7 @@
 import React from 'react';
 
 function formatNum(num) {
-  if (num === null || num === undefined || isNaN(num)) return '-';
+  if (num === null || num === undefined || isNaN(num)) return '...';
   return Math.round(num).toLocaleString('fa-IR');
 }
 
@@ -16,16 +16,17 @@ export default function QuickCurrencies({ quickCurrencies }) {
   ];
 
   return (
-    <div className="quick-currencies-bar">
+    <div className="ticker-strip">
       {items.map((item) => (
-        <div key={item.code} className="quick-curr-item">
-          <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <span className="quick-curr-flag">{item.flag}</span>
-            <span className="quick-curr-name">{item.name}</span>
-          </span>
-          <strong className="quick-curr-price">
-            {item.val ? `${formatNum(item.val)} تومان` : 'در حال دریافت...'}
-          </strong>
+        <div key={item.code} className="ticker-item">
+          <div className="ticker-left">
+            <span className="ticker-flag">{item.flag}</span>
+            <span className="ticker-title">{item.name}</span>
+          </div>
+          <div className="ticker-right">
+            <span className="ticker-price">{formatNum(item.val)}</span>
+            <span className="ticker-currency">تومان</span>
+          </div>
         </div>
       ))}
     </div>
