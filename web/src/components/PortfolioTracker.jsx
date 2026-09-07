@@ -139,12 +139,12 @@ export default function PortfolioTracker({ calcData, rates, usdToman, goldUsd })
     return calcData?.silver?.silver_usd || rates?.silver_usd || rates?.silver?.silver_usd || 33.5;
   }, [calcData, rates]);
 
-  // 2. Real / Intrinsic Price Calculation (قیمت واقعی طلا، نقره و ارزها)
-  const intrinsicPriceMap = useMemo(() => {
+  // 2. Real / Intrinsic Price Calculation (قیمت فقط بر اساس ارزش واقعی با طلا، نقره، دلار یا قیمت خود کالا)
+  const realPriceMap = useMemo(() => {
     const map = {};
     if (!usdVal) return map;
 
-    // A. Gold calculations
+    // A. Gold calculations (Pure intrinsic gold value)
     if (goldUsdVal) {
       const gold_24k_gram = (goldUsdVal / 31.1034768) * usdVal;
       map['gold_18k'] = Math.round(gold_24k_gram * 0.75);
@@ -155,7 +155,7 @@ export default function PortfolioTracker({ calcData, rates, usdToman, goldUsd })
       map['gram'] = Math.round(gold_24k_gram * 0.909);
     }
 
-    // B. Silver calculations (1 Troy Ounce = 31.1034768g)
+    // B. Silver calculations (Pure intrinsic silver value)
     if (silverUsdVal) {
       const silver_999_gram = (silverUsdVal / 31.1034768) * usdVal;
       map['silver_999'] = Math.round(silver_999_gram);
@@ -180,63 +180,7 @@ export default function PortfolioTracker({ calcData, rates, usdToman, goldUsd })
     return map;
   }, [usdVal, goldUsdVal, silverUsdVal, calcData, rates]);
 
-  // 3. Live Market Price Map (قیمت روز بازار آزاد)
-  const marketPriceMap = useMemo(() => {
-    const map = {};
-    const usd = usdVal;
-
-    // A. Gold & Coins from analysis
-    if (calcData?.analysis) {
-      calcData.analysis.forEach((item) => {
-        if (item.id === 'full_coin' || item.id === 'full_new') map['full_new'] = item.market || item.intrinsic;
-        if (item.id === 'full_old') map['full_old'] = item.market || item.intrinsic;
-        if (item.id === 'half_coin' || item.id === 'half') map['half'] = item.market || item.intrinsic;
-        if (item.id === 'quarter_coin' || item.id === 'quarter') map['quarter'] = item.market || item.intrinsic;
-        if (item.id === 'gram') map['gram'] = item.market || item.intrinsic;
-        if (item.id === 'gold_18k') map['gold_18k'] = item.market || item.intrinsic;
-      });
-    }
-
-    // Telegram prices
-    const tg = calcData?.market_data || rates?.market_prices;
-    if (tg) {
-      if (tg.full_coin?.price) map['full_new'] = tg.full_coin.price;
-      if (tg.half_coin?.price) map['half'] = tg.half_coin.price;
-      if (tg.quarter_coin?.price) map['quarter'] = tg.quarter_coin.price;
-      if (tg.gold_18k?.price) map['gold_18k'] = tg.gold_18k.price;
-    }
-
-    if (!map['gold_18k'] && (calcData?.gold?.gold_18k_gram || rates?.gold?.gold_18k_gram)) {
-      map['gold_18k'] = calcData?.gold?.gold_18k_gram || rates?.gold?.gold_18k_gram;
-    }
-
-    // B. Silver prices
-    if (calcData?.silver || rates?.silver) {
-      const sil = calcData?.silver || rates?.silver;
-      if (sil.silver_999_gram) map['silver_999'] = sil.silver_999_gram;
-      if (sil.silver_925_gram) map['silver_925'] = sil.silver_925_gram;
-      if (sil.silver_ounce) map['silver_ounce'] = sil.silver_ounce;
-    }
-
-    map['USD'] = usd;
-    map['USDT'] = usd;
-
-    const currList = calcData?.currencies || rates?.currencies;
-    if (currList && Array.isArray(currList)) {
-      currList.forEach((c) => {
-        if (c.code) map[c.code] = c.toman_price;
-      });
-    }
-
-    // Fallback to intrinsic if market price is absent
-    Object.keys(intrinsicPriceMap).forEach((k) => {
-      if (!map[k]) map[k] = intrinsicPriceMap[k];
-    });
-
-    return map;
-  }, [calcData, rates, usdVal, intrinsicPriceMap]);
-
-  // 4. Open Modal for Adding
+  // 3. Open Modal for Adding
   const handleOpenAdd = () => {
     setEditingHolding(null);
     setSelectedAssetId('gold_18k');
@@ -250,7 +194,7 @@ export default function PortfolioTracker({ calcData, rates, usdToman, goldUsd })
     setModalOpen(true);
   };
 
-  // 5. Open Modal for Editing
+  // 4. Open Modal for Editing
   const handleOpenEdit = (item) => {
     setEditingHolding(item);
     const isKnown = ASSET_TYPES.some((a) => a.id === item.assetId && a.id !== 'custom');
@@ -272,7 +216,7 @@ export default function PortfolioTracker({ calcData, rates, usdToman, goldUsd })
     setModalOpen(true);
   };
 
-  // 6. Handle Submit (Add or Edit)
+  // 5. Handle Submit (Add or Edit)
   const handleSubmitHolding = async (e) => {
     e.preventDefault();
     const qty = parseInputNumber(amount);
@@ -300,7 +244,7 @@ export default function PortfolioTracker({ calcData, rates, usdToman, goldUsd })
 
     const finalCurrentPrice = isCustom
       ? (parseInputNumber(customCurrentPrice) || price)
-      : (marketPriceMap[selectedAssetId] || intrinsicPriceMap[selectedAssetId] || price);
+      : (realPriceMap[selectedAssetId] || price);
 
     setSubmitting(true);
 
@@ -344,7 +288,7 @@ export default function PortfolioTracker({ calcData, rates, usdToman, goldUsd })
     }
   };
 
-  // 7. Handle Delete Holding from Database
+  // 6. Handle Delete Holding from Database
   const handleDeleteHolding = async (id) => {
     if (!window.confirm('آیا از حذف این دارایی از پورتفو اطمینان دارید؟')) return;
 
@@ -364,78 +308,55 @@ export default function PortfolioTracker({ calcData, rates, usdToman, goldUsd })
     }
   };
 
-  // 8. Portfolio Metrics & PnL Calculations
+  // 7. Portfolio Metrics & Calculations (Based on Real / Intrinsic Value)
   const portfolioMetrics = useMemo(() => {
     let totalCost = 0;
-    let totalMarketValue = 0;
-    let totalIntrinsicValue = 0;
+    let totalRealValue = 0;
 
     const items = holdings.map((h) => {
       const amountNum = Number(h.amount) || 0;
       const buyPriceNum = Number(h.buyPrice) || 0;
       const isCustomItem = h.assetType === 'custom' || h.assetId?.startsWith('custom_');
 
-      const intrinsicUnit = isCustomItem
+      // Unit real price: strictly based on spot gold/silver & USD, or custom price
+      const unitRealPrice = isCustomItem
         ? (Number(h.currentPrice) || buyPriceNum)
-        : (intrinsicPriceMap[h.assetId] || 0);
-
-      const marketUnit = isCustomItem
-        ? (Number(h.currentPrice) || buyPriceNum)
-        : (marketPriceMap[h.assetId] || intrinsicUnit || buyPriceNum);
+        : (realPriceMap[h.assetId] || buyPriceNum);
 
       const itemCost = amountNum * buyPriceNum;
-      const itemMarketVal = amountNum * marketUnit;
-      const itemIntrinsicVal = amountNum * (intrinsicUnit || marketUnit);
-
-      const itemPnl = itemMarketVal - itemCost;
+      const itemRealVal = amountNum * unitRealPrice;
+      const itemPnl = itemRealVal - itemCost;
       const itemPnlPct = itemCost > 0 ? (itemPnl / itemCost) * 100 : 0;
 
-      let bubble = null;
-      let bubblePct = null;
-      if (!isCustomItem && intrinsicUnit > 0 && marketUnit > 0) {
-        bubble = marketUnit - intrinsicUnit;
-        bubblePct = parseFloat(((bubble / intrinsicUnit) * 100).toFixed(1));
-      }
-
       totalCost += itemCost;
-      totalMarketValue += itemMarketVal;
-      totalIntrinsicValue += itemIntrinsicVal;
+      totalRealValue += itemRealVal;
 
       return {
         ...h,
         isCustomItem,
-        intrinsicUnit,
-        marketUnit,
+        unitRealPrice,
         itemCost,
-        itemMarketVal,
-        itemIntrinsicVal,
+        itemRealVal,
         itemPnl,
         itemPnlPct,
-        bubble,
-        bubblePct,
       };
     });
 
-    const totalPnl = totalMarketValue - totalCost;
+    const totalPnl = totalRealValue - totalCost;
     const totalPnlPct = totalCost > 0 ? (totalPnl / totalCost) * 100 : 0;
 
     return {
       items,
       totalCost,
-      totalMarketValue,
-      totalIntrinsicValue,
+      totalRealValue,
       totalPnl,
       totalPnlPct,
     };
-  }, [holdings, intrinsicPriceMap, marketPriceMap]);
+  }, [holdings, realPriceMap]);
 
   const isModalCustom = selectedAssetId === 'custom';
   const selectedAssetMeta = ASSET_TYPES.find((a) => a.id === selectedAssetId);
-  const currentModalIntrinsic = intrinsicPriceMap[selectedAssetId] || 0;
-  const currentModalMarket = marketPriceMap[selectedAssetId] || currentModalIntrinsic || 0;
-  const currentModalBubble = currentModalIntrinsic > 0 && currentModalMarket > 0
-    ? parseFloat((((currentModalMarket - currentModalIntrinsic) / currentModalIntrinsic) * 100).toFixed(1))
-    : null;
+  const currentModalRealPrice = realPriceMap[selectedAssetId] || 0;
 
   // ─── AUTH GATE (Required Login Screen) ──────────────────────────────────
   if (authLoading) {
@@ -458,8 +379,8 @@ export default function PortfolioTracker({ calcData, rates, usdToman, goldUsd })
 
           <h3 className="auth-gate-title">مدیریت هوشمند پورتفوی سرمایه‌گذاری</h3>
           <p className="auth-gate-desc">
-            اطلاعات دارایی‌های شما (طلا، نقره، سکه، ارز و دارایی‌های شخصی) به صورت اختصاصی در پایگاه داده ابری
-            ذخیره شده و ارزش روز و سود/زیان آنها همگام با نوسانات بازار لحظه‌به‌لحظه محاسبه می‌گردد.
+            اطلاعات دارایی‌های شما به صورت امن در پایگاه داده ابری ذخیره شده و ارزش واقعی آنها
+            بر پایه نرخ لحظه‌ای انس جهانی طلا، نقره و دلار محاسبه می‌گردد.
           </p>
 
           <div className="auth-gate-features">
@@ -467,21 +388,21 @@ export default function PortfolioTracker({ calcData, rates, usdToman, goldUsd })
               <span className="feature-icon">☁️</span>
               <div className="feature-info">
                 <strong>ذخیره ابری دائمی در دیتابیس</strong>
-                <span>دسترسی به پورتفو از تمام گوشی‌ها و کامپیوترها بدون از دست رفتن داده‌ها</span>
+                <span>دسترسی به پورتفو از تمام دستگاه‌ها بدون از دست رفتن داده‌ها</span>
               </div>
             </div>
             <div className="gate-feature-item">
-              <span className="feature-icon">🥈</span>
+              <span className="feature-icon">💎</span>
               <div className="feature-info">
-                <strong>پشتیبانی از طلا، نقره و دارایی‌های دلخواه</strong>
-                <span>ثبت انواع سکه، طلای ۱۸ عیار، نقره ساچمه و استرلینگ، ارزها و دارایی‌های شخصی (بورس، مسکن و...)</span>
+                <strong>محاسبه بر پایه ارزش واقعی و خالص</strong>
+                <span>محاسبه خالص ارزش طلا و نقره بر اساس انس جهانی و دلار بدون حباب</span>
               </div>
             </div>
             <div className="gate-feature-item">
-              <span className="feature-icon">⚖️</span>
+              <span className="feature-icon">✨</span>
               <div className="feature-info">
-                <strong>سنجش ارزش واقعی و حباب</strong>
-                <span>محاسبه مستقیم ارزش خالص طلا و نقره بر اساس انس جهانی و نرخ دلار روز</span>
+                <strong>پشتیبانی از طلا، نقره، ارز و دارایی‌های شخصی</strong>
+                <span>امکان ثبت انواع سکه، طلا، نقره، ارزها و دارایی‌های دلخواه (بورس، مسکن و...)</span>
               </div>
             </div>
             <div className="gate-feature-item">
@@ -515,17 +436,16 @@ export default function PortfolioTracker({ calcData, rates, usdToman, goldUsd })
     <div className="portfolio-section">
       {/* Overview Cards Grid */}
       <div className="portfolio-overview-grid">
-        {/* Card 1: Live Market Value */}
+        {/* Card 1: Total Real Value */}
         <div className="portfolio-stat-card main-val">
           <div className="stat-header">
-            <span className="stat-label">ارزش کل روز دارایی‌ها (بازار)</span>
-            <span className="live-pill">
-              <span className="live-dot"></span>
-              نرخ روز بازار
+            <span className="stat-label">ارزش واقعی کل دارایی‌ها</span>
+            <span className="real-pill">
+              🌐 انس طلا + نقره + دلار
             </span>
           </div>
           <div className="stat-number gold-gradient-text">
-            {formatNum(portfolioMetrics.totalMarketValue)}
+            {formatNum(portfolioMetrics.totalRealValue)}
             <span className="stat-unit">تومان</span>
           </div>
           <div className="stat-sub">
@@ -533,27 +453,10 @@ export default function PortfolioTracker({ calcData, rates, usdToman, goldUsd })
           </div>
         </div>
 
-        {/* Card 2: Intrinsic Real Value */}
-        <div className="portfolio-stat-card intrinsic-val">
-          <div className="stat-header">
-            <span className="stat-label">ارزش واقعی و خالص طلا، نقره و ارز</span>
-            <span className="real-pill">
-              🌐 انس جهانی + دلار
-            </span>
-          </div>
-          <div className="stat-number sky-gradient-text">
-            {formatNum(portfolioMetrics.totalIntrinsicValue)}
-            <span className="stat-unit">تومان</span>
-          </div>
-          <div className="stat-sub">
-            طلا: {goldUsdVal ? `$${goldUsdVal.toLocaleString()}` : '-'} • نقره: {silverUsdVal ? `$${silverUsdVal.toFixed(2)}` : '-'} • دلار: {formatNum(usdVal)}
-          </div>
-        </div>
-
-        {/* Card 3: Total PnL */}
+        {/* Card 2: Total PnL */}
         <div className={`portfolio-stat-card pnl-card ${portfolioMetrics.totalPnl >= 0 ? 'profit' : 'loss'}`}>
           <div className="stat-header">
-            <span className="stat-label">سود / زیان کل پورتفو</span>
+            <span className="stat-label">سود / زیان واقعی کل</span>
             <span className={`pnl-badge ${portfolioMetrics.totalPnl >= 0 ? 'profit' : 'loss'}`}>
               {portfolioMetrics.totalPnl >= 0 ? '+' : ''}
               {portfolioMetrics.totalPnlPct.toFixed(2).replace('-', '')}٪
@@ -565,11 +468,11 @@ export default function PortfolioTracker({ calcData, rates, usdToman, goldUsd })
             <span className="stat-unit">تومان</span>
           </div>
           <div className="stat-sub">
-            {portfolioMetrics.totalPnl >= 0 ? '🟢 سبد شما در سود است' : '🔴 سبد شما در زیان است'}
+            {portfolioMetrics.totalPnl >= 0 ? '🟢 پورتفوی شما در سود است' : '🔴 پورتفوی شما در زیان است'}
           </div>
         </div>
 
-        {/* Card 4: Actions & Count */}
+        {/* Card 3: Actions & Count */}
         <div className="portfolio-stat-card action-card">
           <div className="stat-header">
             <span className="stat-label">مدیریت سبد دارایی</span>
@@ -591,7 +494,7 @@ export default function PortfolioTracker({ calcData, rates, usdToman, goldUsd })
           <div className="table-title">
             <h3>📋 جزئیات سبد سرمایه‌گذاری ({user.name || user.email})</h3>
             <span>
-              محاسبه آنلاین بر پایه انس جهانی طلا ({goldUsdVal ? `$${goldUsdVal.toLocaleString()}` : ''})، انس نقره ({silverUsdVal ? `$${silverUsdVal.toFixed(2)}` : ''}) و دلار آزاد ({formatNum(usdVal)} تومان)
+              محاسبه بر پایه ارزش واقعی طلا (${goldUsdVal ? goldUsdVal.toLocaleString() : ''})، نقره (${silverUsdVal ? silverUsdVal.toFixed(2) : ''}) و نرخ دلار ({formatNum(usdVal)} تومان)
             </span>
           </div>
           {holdings.length > 0 && (
@@ -612,7 +515,7 @@ export default function PortfolioTracker({ calcData, rates, usdToman, goldUsd })
             <h4>هنوز دارایی در پورتفوی شما ثبت نشده است</h4>
             <p>
               می‌توانید انواع طلا، سکه، نقره ساچمه و استرلینگ، ارزها یا دارایی‌های دلخواه خود (سهام بورس، صندوق، مسکن و...) را
-              ثبت کنید تا سود و زیان آنها به صورت زنده رصد شود.
+              ثبت کنید تا سود و زیان آنها بر مبنای ارزش واقعی رصد شود.
             </p>
             <button className="btn-add-asset-center" onClick={handleOpenAdd}>
               + ثبت اولین دارایی
@@ -643,26 +546,9 @@ export default function PortfolioTracker({ calcData, rates, usdToman, goldUsd })
                     <div className="item-price-meta">
                       <span>خرید: {formatNum(item.buyPrice)} تومان</span>
                       <span className="meta-sep">•</span>
-                      {!item.isCustomItem ? (
-                        <>
-                          <span className="meta-real-price" title="محاسبه مستقیم از انس جهانی و دلار">
-                            قیمت واقعی: {formatNum(item.intrinsicUnit)} تومان
-                          </span>
-                          <span className="meta-sep">•</span>
-                          <span className="meta-market-price">
-                            نرخ روز بازار: {formatNum(item.marketUnit)} تومان
-                          </span>
-                          {item.bubblePct !== null && (
-                            <span className={`meta-bubble-tag ${item.bubblePct < 0 ? 'negative' : ''}`}>
-                              {item.bubblePct >= 0 ? '+' : ''}{item.bubblePct}٪ حباب
-                            </span>
-                          )}
-                        </>
-                      ) : (
-                        <span className="meta-market-price">
-                          نرخ جاری ثبت‌شده: {formatNum(item.marketUnit)} تومان
-                        </span>
-                      )}
+                      <span className="meta-real-price" title="محاسبه مستقیم بر مبنای ارزش واقعی">
+                        قیمت واقعی روز: {formatNum(item.unitRealPrice)} تومان
+                      </span>
                     </div>
 
                     {/* Meta info: Purchase date & notes */}
@@ -684,14 +570,9 @@ export default function PortfolioTracker({ calcData, rates, usdToman, goldUsd })
 
                   <div className="item-values-col">
                     <div className="item-live-val">
-                      {formatNum(item.itemMarketVal)}
+                      {formatNum(item.itemRealVal)}
                       <span className="val-unit">تومان</span>
                     </div>
-                    {!item.isCustomItem && (
-                      <div className="item-intrinsic-sub" title="ارزش کل واقعی بر اساس طلای خام و نقره">
-                        ارزش واقعی: {formatNum(item.itemIntrinsicVal)} تومان
-                      </div>
-                    )}
                     <div className={`item-pnl-tag ${isProfit ? 'profit' : 'loss'}`}>
                       <span>{isProfit ? '+' : ''}{formatNum(item.itemPnl)} تومان</span>
                       <span className="pct">({isProfit ? '+' : ''}{item.itemPnlPct.toFixed(1).replace('-', '')}٪)</span>
@@ -887,22 +768,13 @@ export default function PortfolioTracker({ calcData, rates, usdToman, goldUsd })
                 </div>
               </div>
 
-              {/* Real & Market Price Comparison Hint Box (for standard assets) */}
-              {!isModalCustom && currentModalIntrinsic > 0 && (
+              {/* Real Price Hint Box (for standard assets) */}
+              {!isModalCustom && currentModalRealPrice > 0 && (
                 <div className="live-hint-box-detailed">
                   <div className="hint-row">
-                    <span className="hint-label">💎 قیمت واقعی (ارزش ذاتی خالص):</span>
-                    <strong className="hint-val-sky">{formatNum(currentModalIntrinsic)} تومان</strong>
+                    <span className="hint-label">💎 قیمت واقعی بر اساس طلای جهانی و دلار:</span>
+                    <strong className="hint-val-sky">{formatNum(currentModalRealPrice)} تومان</strong>
                   </div>
-                  <div className="hint-row">
-                    <span className="hint-label">📈 نرخ روز در بازار آزاد:</span>
-                    <strong className="hint-val-gold">{formatNum(currentModalMarket)} تومان</strong>
-                  </div>
-                  {currentModalBubble !== null && (
-                    <div className="hint-sub">
-                      حباب نسبت به ارزش خام: <strong>{currentModalBubble >= 0 ? '+' : ''}{currentModalBubble}٪</strong>
-                    </div>
-                  )}
                 </div>
               )}
 

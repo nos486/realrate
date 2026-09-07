@@ -23,7 +23,7 @@ function formatRelativeTime(isoStr) {
 }
 
 export default function MainPage() {
-  const [activeTab, setActiveTab] = useState('analysis');
+  const [activeTab, setActiveTab] = useState('market');
   const {
     rates,
     calcData,
@@ -117,27 +117,15 @@ export default function MainPage() {
         {/* Modern Segmented Navigation Tabs */}
         <div className="segmented-tab-bar">
           <button
-            className={`tab-segment-btn ${activeTab === 'analysis' ? 'active' : ''}`}
-            onClick={() => setActiveTab('analysis')}
+            className={`tab-segment-btn ${activeTab === 'market' ? 'active' : ''}`}
+            onClick={() => setActiveTab('market')}
           >
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <line x1="18" y1="20" x2="18" y2="10"></line>
               <line x1="12" y1="20" x2="12" y2="4"></line>
               <line x1="6" y1="20" x2="6" y2="14"></line>
             </svg>
-            <span>حباب طلا و سکه</span>
-          </button>
-
-          <button
-            className={`tab-segment-btn ${activeTab === 'currencies' ? 'active' : ''}`}
-            onClick={() => setActiveTab('currencies')}
-          >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <circle cx="12" cy="12" r="10"></circle>
-              <line x1="2" y1="12" x2="22" y2="12"></line>
-              <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>
-            </svg>
-            <span>نرخ ارزهای جهان</span>
+            <span>نرخ و حباب طلا، سکه و ارز</span>
           </button>
 
           <button
@@ -149,18 +137,17 @@ export default function MainPage() {
               <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path>
             </svg>
             <span>پورتفوی دارایی من</span>
-            <span className="new-tag">جدید</span>
+            <span className="new-tag">ابری</span>
           </button>
         </div>
 
         {/* Tab Views */}
         <section className="tab-view-container">
-          {activeTab === 'analysis' && (
-            <AnalysisCards analysis={analysis} recommendation={recommendation} />
-          )}
-
-          {activeTab === 'currencies' && (
-            <CurrenciesList currencies={currencies} />
+          {activeTab === 'market' && (
+            <div className="market-tab-content" style={{ display: 'flex', flexDirection: 'column', gap: '28px' }}>
+              <AnalysisCards analysis={analysis} recommendation={recommendation} />
+              <CurrenciesList currencies={currencies} />
+            </div>
           )}
 
           {activeTab === 'portfolio' && (
