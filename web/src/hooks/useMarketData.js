@@ -30,10 +30,20 @@ export function useMarketData() {
       .finally(() => setLoading(false));
   }, []);
 
+function parseNum(val) {
+  if (!val) return 0;
+  const pers = ['۰', '۱', '۲', '۳', '۴', '۵', '۶', '۷', '۸', '۹'];
+  let s = String(val);
+  for (let i = 0; i < 10; i++) {
+    s = s.replace(new RegExp(pers[i], 'g'), i);
+  }
+  return parseFloat(s.replace(/,/g, '')) || 0;
+}
+
   // Re-calculate whenever inputs change
   const calculate = useCallback(async (usd, gold) => {
-    const usdNum = parseFloat(String(usd).replace(/,/g, ''));
-    const goldNum = parseFloat(String(gold).replace(/,/g, ''));
+    const usdNum = parseNum(usd);
+    const goldNum = parseNum(gold);
     if (!usdNum || usdNum <= 0 || !goldNum) return;
 
     try {
