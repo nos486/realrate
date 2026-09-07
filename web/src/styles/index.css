@@ -1325,6 +1325,16 @@ input, select, textarea { font-family: inherit; }
   font-size: 15px;
   font-weight: 800;
   color: #fff;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.table-title-icon {
+  font-size: 16px;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
 }
 
 .table-title span {
@@ -2826,6 +2836,13 @@ footer {
   color: #fff;
 }
 
+.shared-portfolio-container {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  width: 100%;
+}
+
 .shared-owner-banner {
   display: flex;
   justify-content: space-between;
@@ -2836,7 +2853,7 @@ footer {
   border: 1px solid rgba(255, 255, 255, 0.04);
   border-radius: var(--radius-lg);
   padding: 14px 20px;
-  margin-bottom: 20px;
+  margin-bottom: 0;
 }
 
 .owner-badge {

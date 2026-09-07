@@ -298,7 +298,7 @@ export default function SharedPortfolioPage() {
           </div>
         ) : (
           /* Unlocked Shared Portfolio View */
-          <div className="shared-portfolio-container">
+          <div className="portfolio-section shared-portfolio-container">
             {/* Owner Banner */}
             <div className="shared-owner-banner">
               <div className="owner-badge">
@@ -366,7 +366,10 @@ export default function SharedPortfolioPage() {
             <div className="portfolio-table-card">
               <div className="portfolio-table-header">
                 <div className="table-title">
-                  <h3>📋 جزئیات سبد دارایی</h3>
+                  <h3>
+                    <span className="table-title-icon">📋</span>
+                    <span>جزئیات سبد دارایی</span>
+                  </h3>
                 </div>
                 <div className="portfolio-header-actions">
                   <button
