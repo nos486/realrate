@@ -51,7 +51,6 @@ export default function AnalysisCards({ analysis, recommendation }) {
         {analysis.map((item) => {
           const isBest = recommendation && recommendation.best_id === item.id;
           const hasMarket = item.market !== null && item.market !== undefined;
-          const isNeg = hasMarket && item.bubble < 0;
 
           let badgeClass = 'disabled';
           let badgeText = 'ناموجود در بازار';
@@ -71,9 +70,6 @@ export default function AnalysisCards({ analysis, recommendation }) {
               badgeText = `حباب: +${item.bubble_pct?.toLocaleString('fa-IR')}٪`;
             }
           }
-
-          // Visual bubble meter percent (clamped between 0 and 100 for visual bar)
-          const meterWidth = hasMarket ? Math.min(Math.max((item.bubble_pct || 0) * 3, 4), 100) : 0;
 
           return (
             <div key={item.id} className={`fintech-card ${isBest ? 'best-choice' : ''}`}>
@@ -101,25 +97,6 @@ export default function AnalysisCards({ analysis, recommendation }) {
                   )}
                 </div>
               </div>
-
-              {/* Bubble Meter Bar */}
-              {hasMarket && (
-                <div className="bubble-meter-container">
-                  <div className="meter-label-row">
-                    <span>حباب طلا</span>
-                    <span className={`meter-val ${isNeg ? 'neg' : ''}`}>
-                      {isNeg ? 'حباب منفی ' : '+'}
-                      {formatNum(Math.abs(item.bubble))} تومان
-                    </span>
-                  </div>
-                  <div className="meter-track">
-                    <div
-                      className={`meter-bar ${badgeClass}`}
-                      style={{ width: `${meterWidth}%` }}
-                    ></div>
-                  </div>
-                </div>
-              )}
 
               {/* Data Breakdown Table */}
               <div className="card-metrics-table">
