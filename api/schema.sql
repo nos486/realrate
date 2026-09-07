@@ -69,10 +69,27 @@ INSERT OR IGNORE INTO settings (
   datetime('now')
 );
 
--- 4. Portfolio Holdings Table (Per-user cloud asset tracking)
+-- 4. Portfolios Table (Multi-portfolio support per user)
+CREATE TABLE IF NOT EXISTS portfolios (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL,
+  name TEXT NOT NULL,
+  is_default INTEGER DEFAULT 0,
+  share_slug TEXT UNIQUE,
+  share_password TEXT,
+  share_enabled INTEGER DEFAULT 0,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_portfolios_user ON portfolios(user_id);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_portfolios_slug ON portfolios(share_slug);
+
+-- 5. Portfolio Holdings Table (Per-portfolio cloud asset tracking)
 CREATE TABLE IF NOT EXISTS portfolio_holdings (
   id TEXT PRIMARY KEY,
   user_id TEXT NOT NULL,
+  portfolio_id TEXT,
   asset_id TEXT NOT NULL,
   asset_name TEXT NOT NULL,
   asset_type TEXT NOT NULL,
@@ -87,4 +104,6 @@ CREATE TABLE IF NOT EXISTS portfolio_holdings (
 );
 
 CREATE INDEX IF NOT EXISTS idx_portfolio_holdings_user ON portfolio_holdings(user_id);
+CREATE INDEX IF NOT EXISTS idx_portfolio_holdings_portfolio ON portfolio_holdings(portfolio_id);
 CREATE INDEX IF NOT EXISTS idx_portfolio_holdings_created ON portfolio_holdings(created_at DESC);
+

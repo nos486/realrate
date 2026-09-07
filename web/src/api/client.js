@@ -110,10 +110,43 @@ export async function apiAdminSaveSettings(settings) {
   return res.json();
 }
 
-// ─── Portfolio ───────────────────────────────────────────────────────────────
+// ─── Portfolios (Multi-portfolio Management) ───────────────────────────────
 
-export async function apiGetPortfolio() {
-  const res = await apiFetch('/api/portfolio');
+export async function apiGetPortfolios() {
+  const res = await apiFetch('/api/portfolios');
+  return res.json();
+}
+
+export async function apiCreatePortfolio(portfolioData) {
+  const res = await apiFetch('/api/portfolios', {
+    method: 'POST',
+    body: JSON.stringify(portfolioData),
+  });
+  return res.json();
+}
+
+export async function apiUpdatePortfolio(portfolioData) {
+  const res = await apiFetch('/api/portfolios', {
+    method: 'PUT',
+    body: JSON.stringify(portfolioData),
+  });
+  return res.json();
+}
+
+export async function apiDeletePortfolio(id) {
+  const res = await apiFetch(`/api/portfolios?id=${encodeURIComponent(id)}`, {
+    method: 'DELETE',
+  });
+  return res.json();
+}
+
+// ─── Holdings ───────────────────────────────────────────────────────────────
+
+export async function apiGetPortfolio(portfolioId = null) {
+  const url = portfolioId
+    ? `/api/portfolio?portfolioId=${encodeURIComponent(portfolioId)}`
+    : '/api/portfolio';
+  const res = await apiFetch(url);
   return res.json();
 }
 
@@ -163,8 +196,11 @@ export async function apiGetSharedPortfolio(slug, password = '') {
   return res.json();
 }
 
-export async function apiAdminGetUserPortfolio(userId) {
-  const res = await apiFetch(`/api/admin/users/portfolio?userId=${encodeURIComponent(userId)}`);
+export async function apiAdminGetUserPortfolio(userId, portfolioId = null) {
+  const url = portfolioId
+    ? `/api/admin/users/portfolio?userId=${encodeURIComponent(userId)}&portfolioId=${encodeURIComponent(portfolioId)}`
+    : `/api/admin/users/portfolio?userId=${encodeURIComponent(userId)}`;
+  const res = await apiFetch(url);
   return res.json();
 }
 

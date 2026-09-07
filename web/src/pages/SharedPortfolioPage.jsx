@@ -67,6 +67,7 @@ export default function SharedPortfolioPage() {
       const res = await apiGetSharedPortfolio(slug, pwd);
       if (res.requirePassword) {
         setRequirePassword(true);
+        setPortfolioData(res);
         if (res.message && pwd) {
           setErrorMsg(res.message);
         }
@@ -225,6 +226,7 @@ export default function SharedPortfolioPage() {
   }, [portfolioMetrics.items]);
 
   const ownerName = portfolioData?.user?.name || slug;
+  const portfolioName = portfolioData?.portfolio?.name;
 
   return (
     <div className="app-layout">
@@ -248,7 +250,9 @@ export default function SharedPortfolioPage() {
                 <span className="badge-text">پورتفوی محافظت‌شده</span>
               </div>
 
-              <h2 className="auth-gate-title">پورتفوی سرمایه‌گذاری {ownerName}</h2>
+              <h2 className="auth-gate-title">
+                {portfolioName ? `پورتفوی «${portfolioName}»` : 'پورتفوی سرمایه‌گذاری'} {ownerName ? `(${ownerName})` : ''}
+              </h2>
               <p className="auth-gate-desc">
                 مالک این پورتفو برای دسترسی به جزئیات دارایی‌ها، رمز عبور تعیین کرده است.
                 جهت مشاهده، لطفاً رمز عبور را وارد نمایید.
@@ -304,7 +308,7 @@ export default function SharedPortfolioPage() {
               <div className="owner-badge">
                 <span className="owner-avatar">💼</span>
                 <div className="owner-info">
-                  <h2>پورتفوی سرمایه‌گذاری {ownerName}</h2>
+                  <h2>{portfolioName ? `پورتفوی «${portfolioName}»` : 'پورتفوی سرمایه‌گذاری'} • {ownerName}</h2>
                   <span className="shared-view-tag">
                     {portfolioMetrics.items.length.toLocaleString('fa-IR')} قلم دارایی در {categoryGroups.length.toLocaleString('fa-IR')} دسته‌بندی
                   </span>

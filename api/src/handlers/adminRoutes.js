@@ -4,7 +4,7 @@
  */
 
 import { getAuthenticatedUser } from "../lib/auth.js";
-import { dbGetUsers, dbGetUserById, dbGetPortfolioHoldings } from "../lib/db.js";
+import { dbGetUsers, dbGetUserById, dbGetPortfolioHoldings, dbGetUserPortfolios } from "../lib/db.js";
 import { getAdminStats } from "../lib/analytics.js";
 import { saveGlobalSettings } from "../lib/settings.js";
 import { jsonResponse, errorResponse, forbiddenResponse } from "../lib/helpers.js";
@@ -30,21 +30,23 @@ export async function handleAdminUsersRoute(request, env) {
   if (!user || user.role !== "admin") return forbiddenResponse(request);
 
   const users = await dbGetUsers(env);
-  return jsonResponse({ success: true, total: users.length, users }, 200, request);
+  return jsonResponse({ success: true, users }, 200, request);
 }
 
 /**
- * GET /api/admin/users/portfolio?userId=...
- * Fetch any user's portfolio holdings for admin inspection
+ * GET /api/admin/users/portfolio?userId=...&portfolioId=...
+ * Return specific user's portfolios and holdings for inspection — admin only
  */
 export async function handleAdminGetUserPortfolio(request, env) {
-  const adminUser = await getAuthenticatedUser(request, env);
-  if (!adminUser || adminUser.role !== "admin") return forbiddenResponse(request);
+  const user = await getAuthenticatedUser(request, env);
+  if (!user || user.role !== "admin") return forbiddenResponse(request);
 
   const url = new URL(request.url);
   const targetUserId = url.searchParams.get("userId");
+  const portfolioId = url.searchParams.get("portfolioId") || null;
+
   if (!targetUserId) {
-    return errorResponse("شناسه کاربر ارسال نشده است.", 400, request);
+    return errorResponse("شناسه کاربر الزامی است.", 400, request);
   }
 
   const targetUser = await dbGetUserById(env, targetUserId);
@@ -52,7 +54,8 @@ export async function handleAdminGetUserPortfolio(request, env) {
     return errorResponse("کاربر مورد نظر یافت نشد.", 404, request);
   }
 
-  const holdings = await dbGetPortfolioHoldings(env, targetUser.id);
+  const portfolios = await dbGetUserPortfolios(env, targetUser.id);
+  const holdings = await dbGetPortfolioHoldings(env, targetUser.id, portfolioId);
 
   return jsonResponse({
     success: true,
@@ -67,6 +70,8 @@ export async function handleAdminGetUserPortfolio(request, env) {
       createdAt: targetUser.createdAt,
       lastLogin: targetUser.lastLogin,
     },
+    portfolios,
+    portfolioId,
     holdings,
   }, 200, request);
 }

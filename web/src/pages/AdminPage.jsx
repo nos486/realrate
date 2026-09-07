@@ -43,6 +43,8 @@ export default function AdminPage() {
   // Portfolio Inspector Modal State
   const [inspectUser, setInspectUser] = useState(null);
   const [inspectHoldings, setInspectHoldings] = useState([]);
+  const [inspectPortfolios, setInspectPortfolios] = useState([]);
+  const [inspectActivePortfolioId, setInspectActivePortfolioId] = useState(null);
   const [loadingInspect, setLoadingInspect] = useState(false);
   const [inspectModalOpen, setInspectModalOpen] = useState(false);
 
@@ -231,19 +233,39 @@ export default function AdminPage() {
     );
   }, [users, userSearch]);
 
-  const handleInspectPortfolio = async (targetUser) => {
+  const handleInspectPortfolio = async (targetUser, targetPortfolioId = null) => {
     setInspectUser(targetUser);
     setInspectHoldings([]);
+    setInspectPortfolios([]);
+    setInspectActivePortfolioId(targetPortfolioId);
     setLoadingInspect(true);
     setInspectModalOpen(true);
     try {
-      const res = await apiAdminGetUserPortfolio(targetUser.id);
+      const res = await apiAdminGetUserPortfolio(targetUser.id, targetPortfolioId);
       if (res.success) {
         setInspectHoldings(res.holdings || []);
         if (res.user) setInspectUser(res.user);
+        setInspectPortfolios(res.portfolios || []);
+        setInspectActivePortfolioId(res.activePortfolioId || targetPortfolioId || res.portfolios?.[0]?.id || null);
       }
     } catch (e) {
       console.error('Failed to load user portfolio:', e);
+    } finally {
+      setLoadingInspect(false);
+    }
+  };
+
+  const handleSelectInspectPortfolio = async (portfolioId) => {
+    if (!inspectUser || portfolioId === inspectActivePortfolioId) return;
+    setInspectActivePortfolioId(portfolioId);
+    setLoadingInspect(true);
+    try {
+      const res = await apiAdminGetUserPortfolio(inspectUser.id, portfolioId);
+      if (res.success) {
+        setInspectHoldings(res.holdings || []);
+      }
+    } catch (e) {
+      console.error('Failed to switch inspect portfolio:', e);
     } finally {
       setLoadingInspect(false);
     }
@@ -597,13 +619,38 @@ export default function AdminPage() {
                 <div className="spinner-glow"></div>
                 <p>در حال دریافت اطلاعات پورتفوی کاربر...</p>
               </div>
-            ) : inspectHoldings.length === 0 ? (
+            ) : inspectHoldings.length === 0 && inspectPortfolios.length === 0 ? (
               <div className="portfolio-empty-state" style={{ padding: '30px' }}>
                 <div className="empty-icon">💼</div>
                 <h4>هیچ دارایی توسط این کاربر ثبت نشده است.</h4>
               </div>
             ) : (
               <div className="admin-inspect-body">
+                {/* Portfolios Tab Selector (if multiple or named) */}
+                {inspectPortfolios.length > 0 && (
+                  <div className="portfolio-tabs-scroll" style={{ marginBottom: '16px' }}>
+                    <span className="portfolio-nav-label">پورتفوها ({inspectPortfolios.length.toLocaleString('fa-IR')} سبد):</span>
+                    {inspectPortfolios.map((p) => {
+                      const isActive = p.id === inspectActivePortfolioId;
+                      return (
+                        <button
+                          key={p.id}
+                          type="button"
+                          className={`portfolio-tab-pill ${isActive ? 'active' : ''}`}
+                          onClick={() => handleSelectInspectPortfolio(p.id)}
+                        >
+                          <span className="tab-pill-icon">{p.isDefault ? '⭐' : '📁'}</span>
+                          <span className="tab-pill-name">{p.name}</span>
+                          {p.shareSlug && (
+                            <span className="tab-pill-shared" title={`لینک: /p/${p.shareSlug}`}>🔗</span>
+                          )}
+                          <span className="tab-pill-count">{(p.itemCount ?? 0).toLocaleString('fa-IR')}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+
                 {/* Summary Cards */}
                 <div className="portfolio-overview-grid" style={{ marginBottom: '20px' }}>
                   <div className="portfolio-stat-card main-val">
@@ -641,7 +688,16 @@ export default function AdminPage() {
                       <span className="count-pill">{inspectHoldings.length} قلم دارایی</span>
                     </div>
                     <div className="stat-sub" style={{ marginTop: '8px' }}>
-                      وضعیت لینک: {inspectUser?.shareEnabled ? '🟢 اشتراک‌گذاری فعال' : '⚪ خصوصی'}
+                      وضعیت لینک: {(() => {
+                        const activeP = inspectPortfolios.find((p) => p.id === inspectActivePortfolioId);
+                        if (activeP?.shareEnabled) {
+                          return `🟢 اشتراک فعال (${activeP.shareSlug ? `/p/${activeP.shareSlug}` : 'عمومی'})`;
+                        }
+                        if (inspectUser?.shareEnabled) {
+                          return '🟢 اشتراک فعال';
+                        }
+                        return '⚪ خصوصی';
+                      })()}
                     </div>
                   </div>
                 </div>

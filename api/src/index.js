@@ -23,6 +23,10 @@ import {
 } from "./handlers/adminRoutes.js";
 import { handleCalculate, handleFetchRates } from "./handlers/apiRoutes.js";
 import {
+  handleGetPortfolios,
+  handleCreatePortfolio,
+  handleUpdatePortfolio,
+  handleDeletePortfolioGroup,
   handleGetPortfolio,
   handleAddPortfolio,
   handleDeletePortfolio,
@@ -75,6 +79,12 @@ export default {
 
     // ── Portfolio API Routes ────────────────────────────────────────────────
     if (url.pathname === "/api/portfolio/shared")                              return handleGetSharedPortfolio(request, env);
+    if (url.pathname === "/api/portfolios") {
+      if (request.method === "GET") return handleGetPortfolios(request, env);
+      if (request.method === "POST") return handleCreatePortfolio(request, env);
+      if (request.method === "PUT") return handleUpdatePortfolio(request, env);
+      if (request.method === "DELETE") return handleDeletePortfolioGroup(request, env);
+    }
     if (url.pathname === "/api/portfolio") {
       if (request.method === "GET") return handleGetPortfolio(request, env);
       if (request.method === "POST" || request.method === "PUT") return handleAddPortfolio(request, env);

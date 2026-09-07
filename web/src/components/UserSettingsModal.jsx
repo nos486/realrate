@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { apiGetUserSettings, apiUpdateUserSettings } from '../api/client.js';
+import { apiGetUserSettings, apiUpdateUserSettings, apiUpdatePortfolio } from '../api/client.js';
 
 export function generateRandomSlug(len = 8) {
   const chars = '23456789abcdefghjkmnpqrstuvwxyz';
@@ -10,7 +10,8 @@ export function generateRandomSlug(len = 8) {
   return slug;
 }
 
-export default function UserSettingsModal({ isOpen, onClose, onSaved }) {
+export default function UserSettingsModal({ isOpen, portfolio, onClose, onSaved }) {
+  const [portfolioName, setPortfolioName] = useState('');
   const [customName, setCustomName] = useState('');
   const [shareSlug, setShareSlug] = useState('');
   const [shareEnabled, setShareEnabled] = useState(false);
@@ -27,14 +28,24 @@ export default function UserSettingsModal({ isOpen, onClose, onSaved }) {
       setLoading(true);
       setMsg({ text: '', type: '' });
       setCopied(false);
+
+      if (portfolio) {
+        setPortfolioName(portfolio.name || '');
+        setShareSlug(portfolio.shareSlug || generateRandomSlug(8));
+        setShareEnabled(!!portfolio.shareEnabled);
+        setSharePassword(portfolio.sharePassword || '');
+      }
+
       apiGetUserSettings()
         .then((res) => {
           if (res.success && res.settings) {
             const s = res.settings;
             setCustomName(s.customName || '');
-            setShareSlug(s.shareSlug || generateRandomSlug(8));
-            setShareEnabled(!!s.shareEnabled);
-            setSharePassword(s.sharePassword || '');
+            if (!portfolio) {
+              setShareSlug(s.shareSlug || generateRandomSlug(8));
+              setShareEnabled(!!s.shareEnabled);
+              setSharePassword(s.sharePassword || '');
+            }
           }
         })
         .catch((err) => {
@@ -42,7 +53,7 @@ export default function UserSettingsModal({ isOpen, onClose, onSaved }) {
         })
         .finally(() => setLoading(false));
     }
-  }, [isOpen]);
+  }, [isOpen, portfolio]);
 
   if (!isOpen) return null;
 
@@ -63,6 +74,16 @@ export default function UserSettingsModal({ isOpen, onClose, onSaved }) {
     setMsg({ text: '', type: '' });
 
     try {
+      if (portfolio && portfolio.id) {
+        await apiUpdatePortfolio({
+          id: portfolio.id,
+          name: portfolioName.trim() || portfolio.name,
+          shareSlug,
+          sharePassword: sharePassword ? sharePassword.trim() : '',
+          shareEnabled,
+        });
+      }
+
       const res = await apiUpdateUserSettings({
         customName,
         shareSlug,
@@ -72,10 +93,10 @@ export default function UserSettingsModal({ isOpen, onClose, onSaved }) {
 
       if (res.success) {
         setMsg({ text: 'تنظیمات با موفقیت ذخیره شد.', type: 'success' });
-        if (onSaved) onSaved(res.settings);
+        if (onSaved) onSaved({ ...res.settings, portfolioName });
         setTimeout(() => {
           onClose();
-        }, 1200);
+        }, 1100);
       } else {
         setMsg({ text: res.message || 'خطا در ذخیره تنظیمات', type: 'error' });
       }
@@ -94,8 +115,8 @@ export default function UserSettingsModal({ isOpen, onClose, onSaved }) {
           <div className="modal-title-wrap">
             <span className="modal-icon">⚙️</span>
             <div>
-              <h3>تنظیمات حساب و اشتراک‌گذاری پورتفو</h3>
-              <p className="modal-subtitle">مدیریت آدرس اختصاصی، لینک عمومی و رمز عبور محافظ پورتفو</p>
+              <h3>تنظیمات و اشتراک‌گذاری «{portfolioName || 'پورتفو'}»</h3>
+              <p className="modal-subtitle">مدیریت نام، آدرس اختصاصی، لینک اشتراک و رمز عبور این پورتفو</p>
             </div>
           </div>
           <button className="modal-close-btn" onClick={onClose} aria-label="بستن">✕</button>
@@ -115,13 +136,27 @@ export default function UserSettingsModal({ isOpen, onClose, onSaved }) {
               </div>
             )}
 
-            {/* Display Name */}
+            {/* Portfolio Name */}
             <div className="form-group">
-              <label htmlFor="settingsCustomName">نام نمایشی پورتفو</label>
+              <label htmlFor="settingsPortfolioName">نام این پورتفو</label>
+              <input
+                type="text"
+                id="settingsPortfolioName"
+                placeholder="مثلاً: سبد طلا و سکه، پس‌انداز ارزی..."
+                value={portfolioName}
+                onChange={(e) => setPortfolioName(e.target.value)}
+                required
+              />
+              <span className="input-hint">نام اختصاصی برای تفکیک این پورتفو از سایر سبدهای شما.</span>
+            </div>
+
+            {/* Owner Display Name */}
+            <div className="form-group">
+              <label htmlFor="settingsCustomName">نام نمایشی شما (مالک پورتفو)</label>
               <input
                 type="text"
                 id="settingsCustomName"
-                placeholder="مثلاً: پورتفوی سرمایه‌گذاری سینا"
+                placeholder="مثلاً: سینا"
                 value={customName}
                 onChange={(e) => setCustomName(e.target.value)}
               />

@@ -1,6 +1,10 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useAuth } from '../context/AuthContext.jsx';
 import {
+  apiGetPortfolios,
+  apiCreatePortfolio,
+  apiUpdatePortfolio,
+  apiDeletePortfolio,
   apiGetPortfolio,
   apiAddPortfolioHolding,
   apiUpdatePortfolioHolding,
@@ -88,10 +92,25 @@ function parseInputNumber(val) {
 export default function PortfolioTracker({ calcData, rates, usdToman, goldUsd }) {
   const { user, loading: authLoading, triggerLogin } = useAuth();
 
+  // Multi-portfolio State
+  const [portfolios, setPortfolios] = useState([]);
+  const [activePortfolioId, setActivePortfolioId] = useState(null);
+  const [loadingPortfolios, setLoadingPortfolios] = useState(true);
+
+  // New Portfolio Modal State
+  const [newPortfolioModalOpen, setNewPortfolioModalOpen] = useState(false);
+  const [newPortfolioName, setNewPortfolioName] = useState('');
+  const [creatingPortfolio, setCreatingPortfolio] = useState(false);
+
   const [holdings, setHoldings] = useState([]);
   const [loadingHoldings, setLoadingHoldings] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [deletingId, setDeletingId] = useState(null);
+
+  // Active Portfolio Resolution
+  const activePortfolio = useMemo(() => {
+    return portfolios.find((p) => p.id === activePortfolioId) || portfolios[0] || null;
+  }, [portfolios, activePortfolioId]);
 
   // Privacy Mode State (Mask values as ****)
   const [hideValues, setHideValues] = useState(() => {
@@ -127,60 +146,98 @@ export default function PortfolioTracker({ calcData, rates, usdToman, goldUsd })
   const [buyDate, setBuyDate] = useState('');
   const [notes, setNotes] = useState('');
 
-  // 1. Fetch holdings from backend when user logs in
-  const fetchHoldings = useCallback(async () => {
+  // 1. Fetch Portfolios and Holdings for active portfolio
+  const fetchPortfoliosAndHoldings = useCallback(async (targetPortfolioId = null) => {
     if (!user) {
+      setPortfolios([]);
       setHoldings([]);
+      setActivePortfolioId(null);
+      setLoadingPortfolios(false);
       setLoadingHoldings(false);
       return;
     }
 
     try {
-      setLoadingHoldings(true);
-      const res = await apiGetPortfolio();
-      if (res.success && Array.isArray(res.holdings)) {
-        setHoldings(res.holdings);
+      setLoadingPortfolios(true);
+      const res = await apiGetPortfolios();
+      if (res.success && Array.isArray(res.portfolios) && res.portfolios.length > 0) {
+        setPortfolios(res.portfolios);
+        const resolvedId = targetPortfolioId || activePortfolioId || res.portfolios.find((p) => p.isDefault)?.id || res.portfolios[0]?.id;
+        setActivePortfolioId(resolvedId);
 
-        // Check if there are local holdings to migrate
-        try {
-          const localStr = localStorage.getItem('realrate_portfolio_v1');
-          if (localStr && res.holdings.length === 0) {
-            const localItems = JSON.parse(localStr);
-            if (Array.isArray(localItems) && localItems.length > 0) {
-              for (const itm of localItems) {
-                await apiAddPortfolioHolding({
-                  assetId: itm.assetId,
-                  assetName: itm.name,
-                  assetType: itm.category || 'custom',
-                  unit: itm.unit,
-                  amount: itm.amount,
-                  buyPrice: itm.buyPrice,
-                  currentPrice: itm.currentPrice || 0,
-                  buyDate: itm.buyDate || '',
-                  notes: itm.notes || '',
-                });
-              }
-              localStorage.removeItem('realrate_portfolio_v1');
-              const refreshed = await apiGetPortfolio();
-              if (refreshed.success && Array.isArray(refreshed.holdings)) {
-                setHoldings(refreshed.holdings);
-              }
-            }
-          }
-        } catch (mErr) {
-          console.warn('Migration error:', mErr);
+        setLoadingHoldings(true);
+        const holdingsRes = await apiGetPortfolio(resolvedId);
+        if (holdingsRes.success && Array.isArray(holdingsRes.holdings)) {
+          setHoldings(holdingsRes.holdings);
         }
       }
     } catch (err) {
-      console.error('Failed to fetch portfolio:', err);
+      console.error('Failed to fetch portfolios:', err);
+    } finally {
+      setLoadingPortfolios(false);
+      setLoadingHoldings(false);
+    }
+  }, [user, activePortfolioId]);
+
+  useEffect(() => {
+    fetchPortfoliosAndHoldings();
+  }, [fetchPortfoliosAndHoldings]);
+
+  // Handle switching active portfolio
+  const handleSelectPortfolio = async (portfolioId) => {
+    if (portfolioId === activePortfolioId) return;
+    setActivePortfolioId(portfolioId);
+    setLoadingHoldings(true);
+    try {
+      const res = await apiGetPortfolio(portfolioId);
+      if (res.success && Array.isArray(res.holdings)) {
+        setHoldings(res.holdings);
+      }
+    } catch (err) {
+      console.error('Failed to load portfolio holdings:', err);
     } finally {
       setLoadingHoldings(false);
     }
-  }, [user]);
+  };
 
-  useEffect(() => {
-    fetchHoldings();
-  }, [fetchHoldings]);
+  // Handle creating a new portfolio
+  const handleCreatePortfolio = async (e) => {
+    e.preventDefault();
+    if (!newPortfolioName.trim()) return;
+    setCreatingPortfolio(true);
+    try {
+      const res = await apiCreatePortfolio({ name: newPortfolioName.trim() });
+      if (res.success && res.portfolio) {
+        setNewPortfolioName('');
+        setNewPortfolioModalOpen(false);
+        await fetchPortfoliosAndHoldings(res.portfolio.id);
+      }
+    } catch (err) {
+      alert('خطا در ساخت پورتفو: ' + (err.message || 'نامعتبر'));
+    } finally {
+      setCreatingPortfolio(false);
+    }
+  };
+
+  // Handle deleting active portfolio
+  const handleDeleteActivePortfolio = async () => {
+    if (!activePortfolio) return;
+    if (portfolios.length <= 1) {
+      alert('امکان حذف تنها پورتفوی فعال وجود ندارد. هر کاربر باید حداقل یک پورتفو داشته باشد.');
+      return;
+    }
+    const confirmMsg = `آیا از حذف پورتفوی «${activePortfolio.name}» و تمام دارایی‌های درون آن اطمینان دارید؟`;
+    if (!window.confirm(confirmMsg)) return;
+
+    try {
+      const res = await apiDeletePortfolio(activePortfolio.id);
+      if (res.success) {
+        await fetchPortfoliosAndHoldings();
+      }
+    } catch (err) {
+      alert('خطا در حذف پورتفو: ' + (err.message || 'نامعتبر'));
+    }
+  };
 
   // Active USD & Spot Gold & Silver resolution
   const usdVal = useMemo(() => {
@@ -307,6 +364,7 @@ export default function PortfolioTracker({ calcData, rates, usdToman, goldUsd })
     try {
       const payload = {
         id: editingHolding ? editingHolding.id : undefined,
+        portfolioId: activePortfolio?.id || null,
         assetId: isCustom ? (editingHolding?.assetId?.startsWith('custom_') ? editingHolding.assetId : `custom_${Date.now()}`) : selectedAssetId,
         assetName: finalName,
         assetType: finalCategory,
@@ -331,6 +389,13 @@ export default function PortfolioTracker({ calcData, rates, usdToman, goldUsd })
         const res = await apiAddPortfolioHolding(payload);
         if (res.success && res.item) {
           setHoldings((prev) => [res.item, ...prev]);
+          if (activePortfolio?.id) {
+            setPortfolios((prev) =>
+              prev.map((p) =>
+                p.id === activePortfolio.id ? { ...p, itemCount: (p.itemCount || 0) + 1 } : p
+              )
+            );
+          }
           setModalOpen(false);
         } else {
           alert(res.message || 'خطا در ثبت دارایی');
@@ -353,6 +418,15 @@ export default function PortfolioTracker({ calcData, rates, usdToman, goldUsd })
       const res = await apiDeletePortfolioHolding(id);
       if (res.success) {
         setHoldings((prev) => prev.filter((h) => h.id !== id));
+        if (activePortfolio?.id) {
+          setPortfolios((prev) =>
+            prev.map((p) =>
+              p.id === activePortfolio.id
+                ? { ...p, itemCount: Math.max(0, (p.itemCount || 1) - 1) }
+                : p
+            )
+          );
+        }
       } else {
         alert(res.message || 'خطا در حذف دارایی');
       }
@@ -509,12 +583,78 @@ export default function PortfolioTracker({ calcData, rates, usdToman, goldUsd })
   // ─── LOGGED IN VIEW ─────────────────────────────────────────────────────
   return (
     <div className="portfolio-section">
+      {/* Portfolios Navigation Bar */}
+      <div className="portfolio-nav-bar">
+        <div className="portfolio-tabs-scroll">
+          <span className="portfolio-nav-label">پورتفوها:</span>
+          {portfolios.map((p) => {
+            const isActive = p.id === activePortfolio?.id;
+            return (
+              <button
+                key={p.id}
+                type="button"
+                className={`portfolio-tab-pill ${isActive ? 'active' : ''}`}
+                onClick={() => handleSelectPortfolio(p.id)}
+              >
+                <span className="tab-pill-icon">{p.isDefault ? '⭐' : '📁'}</span>
+                <span className="tab-pill-name">{p.name}</span>
+                {p.shareEnabled && (
+                  <span className="tab-pill-shared" title="لینک اشتراک‌گذاری عمومی فعال است">🔗</span>
+                )}
+                <span className="tab-pill-count">
+                  {(p.id === activePortfolio?.id ? holdings.length : (p.itemCount ?? 0)).toLocaleString('fa-IR')}
+                </span>
+              </button>
+            );
+          })}
+          <button
+            type="button"
+            className="btn-new-portfolio-tab"
+            onClick={() => setNewPortfolioModalOpen(true)}
+            title="ایجاد پورتفوی جدید با نام دلخواه"
+          >
+            <span>+ پورتفوی جدید</span>
+          </button>
+        </div>
+
+        {activePortfolio && (
+          <div className="portfolio-bar-actions">
+            <button
+              type="button"
+              className="btn-portfolio-settings"
+              onClick={() => setSettingsModalOpen(true)}
+              title="تنظیمات، تغییر نام و لینک اشتراک این پورتفو"
+            >
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="12" cy="12" r="3"></circle>
+                <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+              </svg>
+              <span>تنظیمات و اشتراک «{activePortfolio.name}»</span>
+            </button>
+            {portfolios.length > 1 && (
+              <button
+                type="button"
+                className="btn-delete-portfolio"
+                onClick={handleDeleteActivePortfolio}
+                title={`حذف پورتفوی «${activePortfolio.name}»`}
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="3 6 5 6 21 6"></polyline>
+                  <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                </svg>
+                <span>حذف پورتفو</span>
+              </button>
+            )}
+          </div>
+        )}
+      </div>
+
       {/* Overview Cards Grid */}
       <div className="portfolio-overview-grid">
         {/* Card 1: Total Real Value */}
         <div className="portfolio-stat-card main-val">
           <div className="stat-header">
-            <span className="stat-label">ارزش واقعی کل دارایی‌ها</span>
+            <span className="stat-label">ارزش واقعی کل {activePortfolio?.name ? `(«${activePortfolio.name}»)` : 'دارایی‌ها'}</span>
             <span className="real-pill">
               🌐 انس طلا + نقره + دلار
             </span>
@@ -565,7 +705,7 @@ export default function PortfolioTracker({ calcData, rates, usdToman, goldUsd })
       <div className="portfolio-table-card">
         <div className="portfolio-table-header">
           <div className="table-title">
-            <h3>📋 جزئیات و دسته‌بندی سبد دارایی ({user.name || user.email})</h3>
+            <h3>📋 جزئیات {activePortfolio?.name ? `پورتفوی «${activePortfolio.name}»` : 'سبد دارایی'} ({user.name || user.email})</h3>
             <span>
               محاسبه بر پایه ارزش واقعی طلا (${goldUsdVal ? goldUsdVal.toLocaleString() : ''})، نقره (${silverUsdVal ? silverUsdVal.toFixed(2) : ''}) و نرخ دلار ({formatNum(usdVal)} تومان)
             </span>
@@ -949,11 +1089,67 @@ export default function PortfolioTracker({ calcData, rates, usdToman, goldUsd })
         </div>
       )}
 
+      {/* New Portfolio Modal */}
+      {newPortfolioModalOpen && (
+        <div className="modal-backdrop" onClick={() => !creatingPortfolio && setNewPortfolioModalOpen(false)}>
+          <div className="modal-content new-portfolio-modal-box" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <div className="modal-title-wrap">
+                <span className="modal-icon">📁</span>
+                <h3>ایجاد پورتفوی جدید</h3>
+              </div>
+              <button
+                className="modal-close-btn"
+                disabled={creatingPortfolio}
+                onClick={() => setNewPortfolioModalOpen(false)}
+              >
+                ✕
+              </button>
+            </div>
+            <form onSubmit={handleCreatePortfolio} className="modal-form">
+              <div className="form-item">
+                <label>نام پورتفو (سبد دارایی)</label>
+                <input
+                  type="text"
+                  placeholder="مثلاً: پس‌انداز طلا، سبد ارزی، صندوق بازنشستگی..."
+                  value={newPortfolioName}
+                  onChange={(e) => setNewPortfolioName(e.target.value)}
+                  className="form-input"
+                  required
+                  autoFocus
+                />
+                <span className="field-sub-note">
+                  برای هر پورتفو می‌توانید لینک اشتراک‌گذاری و رمز عبور مستقل تنظیم کنید.
+                </span>
+              </div>
+              <div className="modal-actions">
+                <button
+                  type="button"
+                  className="btn-modal-cancel"
+                  disabled={creatingPortfolio}
+                  onClick={() => setNewPortfolioModalOpen(false)}
+                >
+                  انصراف
+                </button>
+                <button
+                  type="submit"
+                  className="btn-modal-submit"
+                  disabled={creatingPortfolio || !newPortfolioName.trim()}
+                >
+                  {creatingPortfolio ? 'در حال ایجاد...' : 'ایجاد پورتفو'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
       {/* User & Share Settings Modal */}
       <UserSettingsModal
         isOpen={settingsModalOpen}
         onClose={() => setSettingsModalOpen(false)}
-        onSaved={fetchHoldings}
+        portfolio={activePortfolio}
+        onSaved={fetchPortfoliosAndHoldings}
       />
     </div>
   );
