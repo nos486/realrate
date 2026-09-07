@@ -56,7 +56,9 @@ export async function handleCalculate(url, env, analytics, globalSettings, reque
     ? parseFloat(userGoldUsd)
     : (liveSpotGold || globalSettings.default_gold_usd || 2450);
 
+  if (!usd_toman || isNaN(usd_toman) || usd_toman <= 0) {
     return jsonResponse({ success: false, requires_usd: true, message: "لطفاً ابتدا قیمت دلار (تومان) را وارد کنید." }, 400, request);
+  }
 
   // Gold price calculations
   const gold_24k_gram  = (gold_usd / 31.1034768) * usd_toman;
