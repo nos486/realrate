@@ -194,6 +194,17 @@ export default function PortfolioTracker({ calcData, rates, usdToman, goldUsd })
     fetchPortfoliosAndHoldings();
   }, [fetchPortfoliosAndHoldings]);
 
+  // Lock background body scroll when any modal is open
+  useEffect(() => {
+    if (modalOpen || settingsModalOpen || newPortfolioModalOpen) {
+      const originalOverflow = document.body.style.overflow;
+      document.body.style.overflow = 'hidden';
+      return () => {
+        document.body.style.overflow = originalOverflow;
+      };
+    }
+  }, [modalOpen, settingsModalOpen, newPortfolioModalOpen]);
+
   // Handle switching active portfolio
   const handleSelectPortfolio = async (portfolioId) => {
     if (!portfolioId || portfolioId === activePortfolioId || switchingRef.current) return;
