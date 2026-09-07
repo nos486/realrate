@@ -372,44 +372,6 @@ input, select, textarea { font-family: inherit; }
   flex-shrink: 0;
 }
 
-.status-indicators {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.status-pill {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  padding: 5px 12px;
-  border-radius: var(--radius-full);
-  font-size: 11px;
-  background: rgba(255, 255, 255, 0.03);
-  border: none;
-  color: var(--text-secondary);
-}
-
-.status-pill.live {
-  color: var(--green-emerald);
-  background: rgba(16, 185, 129, 0.08);
-}
-
-.dot-pulse {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background-color: var(--green-emerald);
-  box-shadow: 0 0 6px var(--green-emerald);
-  animation: pulseAnim 2s infinite;
-}
-
-@keyframes pulseAnim {
-  0% { transform: scale(0.9); opacity: 0.8; }
-  50% { transform: scale(1.15); opacity: 1; box-shadow: 0 0 10px var(--green-emerald); }
-  100% { transform: scale(0.9); opacity: 0.8; }
-}
-
 /* User Auth Widget */
 .auth-widget {
   position: relative;

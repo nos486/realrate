@@ -25,7 +25,7 @@ function formatHeaderNum(num) {
   return Math.round(clean).toLocaleString('fa-IR');
 }
 
-export default function Header({ analytics, usdToman, gold18kPrice, activeTab, setActiveTab }) {
+export default function Header({ usdToman, gold18kPrice, activeTab, setActiveTab }) {
   const { user, triggerLogin, logout } = useAuth();
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [settingsModalOpen, setSettingsModalOpen] = useState(false);
@@ -108,28 +108,8 @@ export default function Header({ analytics, usdToman, gold18kPrice, activeTab, s
           </div>
         </div>
 
-        {/* Header Right: Stats & User Profile */}
+        {/* Header Right: User Profile & Auth */}
         <div className="header-right">
-          {/* Live Market & Stats Pills (Desktop Only) */}
-          <div className="status-indicators desktop-only">
-            <div className="status-pill live" title="کاربران فعال لحظه‌ای">
-              <span className="dot-pulse"></span>
-              <span className="pill-text">
-                <strong>{analytics?.onlineUsers ? analytics.onlineUsers.toLocaleString('fa-IR') : '۱'}</strong> آنلاین
-              </span>
-            </div>
-
-            <div className="status-pill views" title="کل بازدیدهای ثبت شده">
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
-                <circle cx="12" cy="12" r="3"></circle>
-              </svg>
-              <span className="pill-text">
-                {analytics?.pageViews ? analytics.pageViews.toLocaleString('fa-IR') : '...'}
-              </span>
-            </div>
-          </div>
-
           {/* User Auth / Profile */}
           <div className="auth-widget" ref={dropdownRef}>
             {user ? (

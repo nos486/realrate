@@ -37,7 +37,6 @@ export default function MainPage() {
   } = useMarketData();
 
   const announcement = calcData?.globalSettings?.announcement || rates?.globalSettings?.announcement;
-  const analytics = calcData?.analytics || rates?.analytics;
   const quickCurrencies = calcData?.quick_currencies || rates?.quick_currencies;
   const analysis = calcData?.analysis;
   const recommendation = calcData?.recommendation;
@@ -56,7 +55,6 @@ export default function MainPage() {
   return (
     <div className="app-layout">
       <Header
-        analytics={analytics}
         usdToman={usdToman}
         gold18kPrice={gold18kPrice}
         activeTab={activeTab}

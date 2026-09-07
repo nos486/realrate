@@ -383,21 +383,15 @@ export default function AdminPage() {
 
       <div className="stats-grid">
         <div className="stat-card">
-          <span className="stat-card-title">🌐 آی‌پی‌های یونیک</span>
-          <span className="stat-card-val gold">{stats?.uniqueIps?.toLocaleString('fa-IR') ?? '...'}</span>
-        </div>
-        <div className="stat-card">
-          <span className="stat-card-title">👁️ کل صفحات بازدید</span>
-          <span className="stat-card-val">{stats?.pageViews?.toLocaleString('fa-IR') ?? '...'}</span>
-        </div>
-        <div className="stat-card">
-          <span className="stat-card-title">🟢 کاربران آنلاین</span>
-          <span className="stat-card-val green">{stats?.onlineUsers?.toLocaleString('fa-IR') ?? '...'}</span>
-        </div>
-        <div className="stat-card">
           <span className="stat-card-title">👥 کاربران ثبت‌نام شده</span>
           <span className="stat-card-val blue">
             {stats?.registeredUsers?.toLocaleString('fa-IR') || users.length.toLocaleString('fa-IR')}
+          </span>
+        </div>
+        <div className="stat-card">
+          <span className="stat-card-title">🔗 پورتفوهای عمومی فعال</span>
+          <span className="stat-card-val green">
+            {users.filter((u) => u.shareEnabled).length.toLocaleString('fa-IR')}
           </span>
         </div>
       </div>
