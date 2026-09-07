@@ -3,7 +3,6 @@ import Header from '../components/Header.jsx';
 import QuickCurrencies from '../components/QuickCurrencies.jsx';
 import AnalysisCards from '../components/AnalysisCards.jsx';
 import CurrenciesList from '../components/CurrenciesList.jsx';
-import JewelryCalc from '../components/JewelryCalc.jsx';
 import PortfolioTracker from '../components/PortfolioTracker.jsx';
 import Footer from '../components/Footer.jsx';
 import { useMarketData } from '../hooks/useMarketData.js';
@@ -43,7 +42,6 @@ export default function MainPage() {
   const analysis = calcData?.analysis;
   const recommendation = calcData?.recommendation;
   const currencies = calcData?.currencies || rates?.currencies;
-  const gold18k = calcData?.gold?.gold_18k_gram || rates?.gold?.gold_18k_gram;
 
   const hasUsd = parseFloat(String(usdToman).replace(/,/g, '')) > 0;
 
@@ -143,18 +141,6 @@ export default function MainPage() {
           </button>
 
           <button
-            className={`tab-segment-btn ${activeTab === 'jewelry' ? 'active' : ''}`}
-            onClick={() => setActiveTab('jewelry')}
-          >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M6 3h12l4 6-10 12L2 9z"></path>
-              <path d="M11 3v18"></path>
-              <path d="M2 9h20"></path>
-            </svg>
-            <span>محاسبه‌گر طلا و اجرت</span>
-          </button>
-
-          <button
             className={`tab-segment-btn ${activeTab === 'portfolio' ? 'active' : ''}`}
             onClick={() => setActiveTab('portfolio')}
           >
@@ -175,10 +161,6 @@ export default function MainPage() {
 
           {activeTab === 'currencies' && (
             <CurrenciesList currencies={currencies} />
-          )}
-
-          {activeTab === 'jewelry' && (
-            <JewelryCalc gold18kGram={gold18k} />
           )}
 
           {activeTab === 'portfolio' && (

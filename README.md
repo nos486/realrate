@@ -19,7 +19,6 @@
 #### 🚀 Key Features
 - **🪙 Gold & Coin Bubble Analysis**: Calculates pure gold intrinsic value for Emami, Bahar Azadi, Half, and Quarter coins and 18K gold based on international ounce prices and free-market USD exchange rates. Includes comparative bubble metrics and smart buy recommendations.
 - **💱 Global Forex Rates**: Instant conversion of major currencies (USD, EUR, AED, TRY, GBP, CAD, etc.) into Tomans using live cross-rates.
-- **💎 Gold Jewelry Invoice Calculator**: Accurate calculation of final purchase prices including artisan wage presets, jeweler profit margin, and VAT, complete with a digital receipt.
 - **💼 Cloud Portfolio Tracker (NEW)**: Secure, authenticated personal asset tracking for gold, coins, currencies, and USDT. Persisted in Cloudflare D1 (SQLite) database with purchase dates, buy prices, custom notes, and live calculation of total net worth and profit/loss (PnL in Tomans & %).
 - **🔐 Google OAuth (GIS)**: Seamless authentication with Google Identity Services, 30-day secure session management, and role-based access control.
 - **📊 Admin Panel & Analytics**: Real-time traffic monitoring, active users within the last 5 minutes, registered user management, and dynamic system-wide configuration without redeploying.
@@ -80,17 +79,7 @@ RealRate is structured as an **npm workspaces monorepo**:
 
 ---
 
-### 💎 ۴. محاسبه‌گر پیشرفته فاکتور طلا و اجرت
-- محاسبه دقیق مبلغ نهایی خرید طلا با اجرت ساخت و مالیات:
-  - وزن طلا به گرم
-  - دکمه‌های سریع و دستی برای درصد اجرت ساخت (٪۷، ٪۱۰، ٪۱۵، ٪۱۸، ٪۲۲)
-  - درصد سود طلافروش (پیش‌فرض ٪۷ اتحادیه)
-  - درصد مالیات بر ارزش افزوده (پیش‌فرض ٪۹)
-  - صدور فاکتور و رسید دیجیتال با تفکیک اجزا.
-
----
-
-### 🔐 ۵. سیستم احراز هویت و پنل مدیریت
+### 🔐 ۴. سیستم احراز هویت و پنل مدیریت
 - **ورود سریع با حساب گوگل (Google GIS)**: بدون نیاز به رمز عبور، با توکن‌های امن و نشست ۳۰ روزه.
 - **مدیریت سطح دسترسی (RBAC)**: شناسایی مدیر سیستم بر اساس ایمیل تعیین‌شده در `ADMIN_EMAIL`.
 - **پنل مدیریت پیشرفته (`/admin`)**:
@@ -142,7 +131,6 @@ realrate/
         │   ├── QuickCurrencies.jsx
         │   ├── AnalysisCards.jsx
         │   ├── CurrenciesList.jsx
-        │   ├── JewelryCalc.jsx
         │   ├── PortfolioTracker.jsx # ردیاب پورتفو با گیت احراز هویت
         │   ├── AdminPanel.jsx
         │   └── Footer.jsx
