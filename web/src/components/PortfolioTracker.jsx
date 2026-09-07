@@ -90,6 +90,70 @@ function parseInputNumber(val) {
   return parseFloat(s.replace(/,/g, '')) || 0;
 }
 
+const PERSIAN_MONTHS = [
+  { value: '01', label: 'فروردین' },
+  { value: '02', label: 'اردیبهشت' },
+  { value: '03', label: 'خرداد' },
+  { value: '04', label: 'تیر' },
+  { value: '05', label: 'مرداد' },
+  { value: '06', label: 'شهریور' },
+  { value: '07', label: 'مهر' },
+  { value: '08', label: 'آبان' },
+  { value: '09', label: 'آذر' },
+  { value: '10', label: 'دی' },
+  { value: '11', label: 'بهمن' },
+  { value: '12', label: 'اسفند' }
+];
+
+const YEARS_LIST = Array.from({ length: 18 }, (_, i) => String(1390 + i)).reverse();
+const DAYS_LIST = Array.from({ length: 31 }, (_, i) => String(i + 1).padStart(2, '0'));
+
+function getTodayShamsi() {
+  try {
+    const formatter = new Intl.DateTimeFormat('fa-IR-u-nu-latn', {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit'
+    });
+    return formatter.format(new Date());
+  } catch (e) {
+    return '';
+  }
+}
+
+function gregorianToShamsi(dateStr) {
+  try {
+    if (!dateStr) return '';
+    const date = new Date(dateStr);
+    if (isNaN(date.getTime())) return '';
+    const formatter = new Intl.DateTimeFormat('fa-IR-u-nu-latn', {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit'
+    });
+    return formatter.format(date);
+  } catch (e) {
+    return dateStr;
+  }
+}
+
+function parseShamsiDate(str) {
+  const parts = (str || '').split('/');
+  if (parts.length === 3 && parts[0].length === 4) {
+    return {
+      year: parts[0].trim(),
+      month: parts[1].trim().padStart(2, '0'),
+      day: parts[2].trim().padStart(2, '0')
+    };
+  }
+  const todayParts = getTodayShamsi().split('/');
+  return {
+    year: todayParts[0] || '1405',
+    month: todayParts[1] || '01',
+    day: todayParts[2] || '01'
+  };
+}
+
 export default function PortfolioTracker({ calcData, rates, usdToman, goldUsd }) {
   const { user, loading: authLoading, triggerLogin } = useAuth();
 
@@ -151,6 +215,18 @@ export default function PortfolioTracker({ calcData, rates, usdToman, goldUsd })
   const [buyPrice, setBuyPrice] = useState('');
   const [buyDate, setBuyDate] = useState('');
   const [notes, setNotes] = useState('');
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const nativeDateRef = useRef(null);
+
+  const handleSetToday = () => {
+    setBuyDate(getTodayShamsi());
+  };
+
+  const handleDatePartChange = (part, val) => {
+    const current = parseShamsiDate(buyDate);
+    const updated = { ...current, [part]: val };
+    setBuyDate(`${updated.year}/${updated.month}/${updated.day}`);
+  };
 
   // 1. Fetch Portfolios and Holdings for active portfolio
   const fetchPortfoliosAndHoldings = useCallback(async (targetPortfolioId = null) => {
@@ -329,6 +405,7 @@ export default function PortfolioTracker({ calcData, rates, usdToman, goldUsd })
     setBuyPrice('');
     setBuyDate('');
     setNotes('');
+    setShowDatePicker(false);
     setModalOpen(true);
   };
 
@@ -351,6 +428,7 @@ export default function PortfolioTracker({ calcData, rates, usdToman, goldUsd })
     setBuyPrice(String(item.buyPrice));
     setBuyDate(item.buyDate || '');
     setNotes(item.notes || '');
+    setShowDatePicker(false);
     setModalOpen(true);
   };
 
@@ -1192,14 +1270,131 @@ export default function PortfolioTracker({ calcData, rates, usdToman, goldUsd })
 
               <div className="form-row-dual">
                 <div className="form-item flex-1">
-                  <label>تاریخ یا زمان خرید (اختیاری)</label>
-                  <input
-                    type="text"
-                    placeholder="مثلاً ۱۴۰۳/۱۱/۲۰ یا آبان ۱۴۰۳"
-                    value={buyDate}
-                    onChange={(e) => setBuyDate(e.target.value)}
-                    className="form-input"
-                  />
+                  <div className="label-with-action">
+                    <label>تاریخ یا زمان خرید (اختیاری)</label>
+                    <button
+                      type="button"
+                      className="btn-set-today"
+                      onClick={handleSetToday}
+                      title="تنظیم خودکار تاریخ امروز"
+                    >
+                      ⚡ امروز
+                    </button>
+                  </div>
+                  <div className="date-input-wrap">
+                    <input
+                      type="text"
+                      placeholder="مثلاً ۱۴۰۳/۱۱/۲۰ یا آبان ۱۴۰۳"
+                      value={buyDate}
+                      onChange={(e) => setBuyDate(e.target.value)}
+                      className="form-input date-text-input"
+                    />
+                    <button
+                      type="button"
+                      className={`btn-toggle-datepicker ${showDatePicker ? 'active' : ''}`}
+                      onClick={() => setShowDatePicker((prev) => !prev)}
+                      title="انتخاب از تقویم شمسی"
+                    >
+                      📅
+                    </button>
+                    {/* Hidden native system date picker */}
+                    <input
+                      type="date"
+                      ref={nativeDateRef}
+                      className="hidden-native-date-picker"
+                      onChange={(e) => {
+                        if (e.target.value) {
+                          setBuyDate(gregorianToShamsi(e.target.value));
+                        }
+                      }}
+                    />
+                  </div>
+
+                  {/* Shamsi Date Selector Popover Box */}
+                  {showDatePicker && (
+                    <div className="shamsi-date-selector-box">
+                      <div className="date-selector-row">
+                        {/* Day Select */}
+                        <div className="date-select-col">
+                          <span className="select-col-label">روز:</span>
+                          <select
+                            value={parseShamsiDate(buyDate).day}
+                            onChange={(e) => handleDatePartChange('day', e.target.value)}
+                            className="form-select date-part-select"
+                          >
+                            {DAYS_LIST.map((d) => (
+                              <option key={d} value={d}>
+                                {Number(d).toLocaleString('fa-IR')}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+
+                        {/* Month Select */}
+                        <div className="date-select-col">
+                          <span className="select-col-label">ماه:</span>
+                          <select
+                            value={parseShamsiDate(buyDate).month}
+                            onChange={(e) => handleDatePartChange('month', e.target.value)}
+                            className="form-select date-part-select"
+                          >
+                            {PERSIAN_MONTHS.map((m) => (
+                              <option key={m.value} value={m.value}>
+                                {m.label}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+
+                        {/* Year Select */}
+                        <div className="date-select-col">
+                          <span className="select-col-label">سال:</span>
+                          <select
+                            value={parseShamsiDate(buyDate).year}
+                            onChange={(e) => handleDatePartChange('year', e.target.value)}
+                            className="form-select date-part-select"
+                          >
+                            {YEARS_LIST.map((y) => (
+                              <option key={y} value={y}>
+                                {Number(y).toLocaleString('fa-IR')}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                      </div>
+
+                      <div className="date-selector-footer">
+                        <button
+                          type="button"
+                          className="btn-date-today-mini"
+                          onClick={() => handleSetToday()}
+                        >
+                          ⚡ امروز
+                        </button>
+                        <button
+                          type="button"
+                          className="btn-date-system-mini"
+                          onClick={() => {
+                            try {
+                              nativeDateRef.current?.showPicker?.() || nativeDateRef.current?.click();
+                            } catch {
+                              nativeDateRef.current?.click();
+                            }
+                          }}
+                          title="باز کردن تقویم سیستمی"
+                        >
+                          🗓️ تقویم سیستم
+                        </button>
+                        <button
+                          type="button"
+                          className="btn-date-done-mini"
+                          onClick={() => setShowDatePicker(false)}
+                        >
+                          تأیید ✓
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 <div className="form-item flex-1">

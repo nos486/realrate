@@ -2303,6 +2303,198 @@ input, select, textarea { font-family: inherit; }
   flex: 1;
 }
 
+.label-with-action {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6px;
+}
+
+.label-with-action label {
+  margin-bottom: 0;
+}
+
+.btn-set-today {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  background: rgba(16, 185, 129, 0.12);
+  border: 1px solid rgba(16, 185, 129, 0.35);
+  color: #34d399;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  line-height: 1.4;
+}
+
+.btn-set-today:hover {
+  background: rgba(16, 185, 129, 0.25);
+  border-color: rgba(16, 185, 129, 0.6);
+  transform: translateY(-1px);
+}
+
+.date-input-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.date-input-wrap .date-text-input {
+  width: 100%;
+  padding-left: 36px;
+}
+
+.btn-toggle-datepicker {
+  position: absolute;
+  left: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: transparent;
+  border: none;
+  font-size: 16px;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s ease;
+  line-height: 1;
+}
+
+.btn-toggle-datepicker:hover,
+.btn-toggle-datepicker.active {
+  background: rgba(245, 158, 11, 0.15);
+  transform: translateY(-50%) scale(1.1);
+}
+
+.hidden-native-date-picker {
+  position: absolute;
+  width: 0;
+  height: 0;
+  opacity: 0;
+  pointer-events: none;
+  visibility: hidden;
+}
+
+.shamsi-date-selector-box {
+  margin-top: 8px;
+  background: rgba(15, 23, 42, 0.96);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(245, 158, 11, 0.35);
+  border-radius: 10px;
+  padding: 10px 12px;
+  box-shadow: 0 8px 24px -4px rgba(0, 0, 0, 0.5), 0 0 12px rgba(245, 158, 11, 0.12);
+  animation: fadeInPop 0.18s ease-out;
+}
+
+@keyframes fadeInPop {
+  from {
+    opacity: 0;
+    transform: translateY(-6px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.date-selector-row {
+  display: grid;
+  grid-template-columns: 1fr 1.3fr 1.1fr;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.date-select-col {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.select-col-label {
+  font-size: 11px;
+  color: var(--text-muted, #94a3b8);
+  font-weight: 600;
+}
+
+.date-part-select {
+  font-size: 12px !important;
+  padding: 5px 6px !important;
+  border-radius: 6px !important;
+  background: rgba(30, 41, 59, 0.85) !important;
+  color: #f8fafc !important;
+  border: 1px solid rgba(255, 255, 255, 0.14) !important;
+  outline: none;
+  cursor: pointer;
+  height: 32px;
+}
+
+.date-part-select:focus {
+  border-color: var(--gold-primary) !important;
+}
+
+.date-selector-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  padding-top: 8px;
+}
+
+.btn-date-today-mini {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 4px 8px;
+  border-radius: 6px;
+  background: rgba(16, 185, 129, 0.15);
+  color: #34d399;
+  border: 1px solid rgba(16, 185, 129, 0.35);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.btn-date-today-mini:hover {
+  background: rgba(16, 185, 129, 0.28);
+}
+
+.btn-date-system-mini {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 4px 8px;
+  border-radius: 6px;
+  background: rgba(56, 189, 248, 0.12);
+  color: #38bdf8;
+  border: 1px solid rgba(56, 189, 248, 0.3);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.btn-date-system-mini:hover {
+  background: rgba(56, 189, 248, 0.25);
+}
+
+.btn-date-done-mini {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 4px 12px;
+  border-radius: 6px;
+  background: rgba(245, 158, 11, 0.2);
+  color: #f59e0b;
+  border: 1px solid rgba(245, 158, 11, 0.45);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.btn-date-done-mini:hover {
+  background: rgba(245, 158, 11, 0.35);
+}
+
+
 .portfolio-loading-state {
   display: flex;
   flex-direction: column;
