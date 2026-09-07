@@ -43,11 +43,19 @@ export default function MainPage() {
   const recommendation = calcData?.recommendation;
   const currencies = calcData?.currencies || rates?.currencies;
 
-  const hasUsd = parseFloat(String(usdToman).replace(/,/g, '')) > 0;
+  const usdNum = parseFloat(String(usdToman).replace(/,/g, '')) || 0;
+  const goldUsdNum = parseFloat(String(goldUsd).replace(/,/g, '')) || 0;
+  const gold18kItem = calcData?.analysis?.find((i) => i.id === 'gold_18k');
+  const computed18k = (goldUsdNum > 0 && usdNum > 0)
+    ? Math.round(((goldUsdNum / 31.1034768) * usdNum) * 0.75)
+    : null;
+  const gold18kPrice = gold18kItem?.market || gold18kItem?.intrinsic || computed18k;
+
+  const hasUsd = usdNum > 0;
 
   return (
     <div className="app-layout">
-      <Header analytics={analytics} />
+      <Header analytics={analytics} usdToman={usdToman} gold18kPrice={gold18kPrice} />
 
       <main className="main-content">
         {/* System Announcement Banner */}

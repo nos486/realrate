@@ -17,7 +17,14 @@ const LogoMark = () => (
   </svg>
 );
 
-export default function Header({ analytics }) {
+function formatHeaderNum(num) {
+  if (num === null || num === undefined || isNaN(num) || num === 0) return '...';
+  const clean = typeof num === 'string' ? parseFloat(num.replace(/,/g, '')) : num;
+  if (isNaN(clean) || clean === 0) return '...';
+  return Math.round(clean).toLocaleString('fa-IR');
+}
+
+export default function Header({ analytics, usdToman, gold18kPrice }) {
   const { user, triggerLogin, logout } = useAuth();
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const dropdownRef = useRef(null);
@@ -42,6 +49,25 @@ export default function Header({ analytics }) {
             <span className="brand-tagline">سامانه تحلیل زنده طلا، سکه و ارز</span>
           </div>
         </Link>
+      </div>
+
+      {/* Permanent Live USD & Gold 18k Ticker */}
+      <div className="header-live-ticker">
+        <div className="header-ticker-item gold" title="نرخ روز هر گرم طلای ۱۸ عیار">
+          <span className="ticker-pulse gold"></span>
+          <span className="ticker-tag">طلای ۱۸:</span>
+          <strong className="ticker-amount">{formatHeaderNum(gold18kPrice)}</strong>
+          <span className="ticker-unit">تومان</span>
+        </div>
+
+        <div className="ticker-separator"></div>
+
+        <div className="header-ticker-item usd" title="نرخ روز دلار نقدی آزاد">
+          <span className="ticker-pulse green"></span>
+          <span className="ticker-tag">دلار آزاد:</span>
+          <strong className="ticker-amount">{formatHeaderNum(usdToman)}</strong>
+          <span className="ticker-unit">تومان</span>
+        </div>
       </div>
 
       <div className="header-right">

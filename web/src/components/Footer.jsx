@@ -14,13 +14,13 @@ export default function Footer() {
   return (
     <footer style={{
       marginTop: 'auto',
-      padding: '24px 0 12px 0',
+      padding: '24px clamp(16px, 3.5vw, 64px) 24px clamp(16px, 3.5vw, 64px)',
       display: 'flex',
       justifyContent: 'space-between',
       alignItems: 'center',
       flexWrap: 'wrap',
       gap: '12px',
-      borderTop: '1px solid var(--border-color)',
+      borderTop: '1px solid rgba(255, 255, 255, 0.05)',
       color: 'var(--text-muted)',
       fontSize: '12px',
       width: '100%'
