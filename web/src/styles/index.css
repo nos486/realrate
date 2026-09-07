@@ -2963,6 +2963,20 @@ footer {
   transform: translateY(-1px);
 }
 
+.btn-export-csv.icon-only,
+.btn-privacy-toggle.icon-only {
+  width: 32px;
+  height: 32px;
+  min-width: 32px;
+  min-height: 32px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-full);
+  flex-shrink: 0;
+}
+
 .btn-privacy-toggle {
   display: inline-flex;
   align-items: center;
