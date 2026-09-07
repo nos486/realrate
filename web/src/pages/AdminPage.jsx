@@ -133,12 +133,14 @@ export default function AdminPage() {
     const silverGram925Real = silverGram999Real * 0.925;
     const silverOunceReal = silverUsdVal * usdVal;
 
+    const goldGram24kReal = goldGram18kReal * (24 / 18);
     const coinFullReal = goldGram18kReal * (24 / 18) * 7.3197;
     const coinHalfReal = goldGram18kReal * (24 / 18) * 3.6594;
     const coinQuarterReal = goldGram18kReal * (24 / 18) * 1.8297;
     const coinGramReal = goldGram18kReal * (24 / 18) * 0.909;
 
     const map = {
+      gold_24k: Math.round(goldGram24kReal),
       gold_18k: Math.round(goldGram18kReal),
       full_new: Math.round(coinFullReal),
       full_old: Math.round(coinFullReal),

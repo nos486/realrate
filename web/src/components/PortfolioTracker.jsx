@@ -15,6 +15,7 @@ import UserSettingsModal from './UserSettingsModal.jsx';
 const ASSET_TYPES = [
   // طلا و مسکوکات
   { id: 'gold_18k', name: 'طلای ۱۸ عیار (خام / آب‌شده)', unit: 'گرم', category: 'gold' },
+  { id: 'gold_24k', name: 'طلای ۲۴ عیار (شمش / ساچمه / خام)', unit: 'گرم', category: 'gold' },
   { id: 'full_new', name: 'سکه امامی (طرح جدید)', unit: 'عدد', category: 'coin' },
   { id: 'full_old', name: 'سکه بهار آزادی (طرح قدیم)', unit: 'عدد', category: 'coin' },
   { id: 'half', name: 'نیم سکه بهار آزادی', unit: 'عدد', category: 'coin' },
@@ -272,6 +273,7 @@ export default function PortfolioTracker({ calcData, rates, usdToman, goldUsd })
     // A. Gold calculations (Pure intrinsic gold value)
     if (goldUsdVal) {
       const gold_24k_gram = (goldUsdVal / 31.1034768) * usdVal;
+      map['gold_24k'] = Math.round(gold_24k_gram);
       map['gold_18k'] = Math.round(gold_24k_gram * 0.75);
       map['full_new'] = Math.round(gold_24k_gram * 7.3197);
       map['full_old'] = Math.round(gold_24k_gram * 7.3197);
@@ -942,6 +944,7 @@ export default function PortfolioTracker({ calcData, rates, usdToman, goldUsd })
                 >
                   <optgroup label="طلا و مسکوکات">
                     <option value="gold_18k">طلای ۱۸ عیار (خام / آب‌شده)</option>
+                    <option value="gold_24k">طلای ۲۴ عیار (شمش / ساچمه / خام)</option>
                     <option value="full_new">سکه امامی (طرح جدید)</option>
                     <option value="full_old">سکه بهار آزادی (طرح قدیم)</option>
                     <option value="half">نیم سکه بهار آزادی</option>

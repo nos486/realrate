@@ -130,6 +130,7 @@ export default function SharedPortfolioPage() {
 
     // A. Gold calculations (Pure intrinsic gold value)
     const gold24kGram = (goldUsdVal / 31.1034768) * usdVal;
+    map['gold_24k'] = Math.round(gold24kGram);
     map['gold_18k'] = Math.round(gold24kGram * 0.75);
     map['full_new'] = Math.round(gold24kGram * 7.3197);
     map['full_old'] = Math.round(gold24kGram * 7.3197);
