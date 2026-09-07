@@ -521,6 +521,80 @@ export default function PortfolioTracker({ calcData, rates, usdToman, goldUsd })
   const selectedAssetMeta = ASSET_TYPES.find((a) => a.id === selectedAssetId);
   const currentModalRealPrice = realPriceMap[selectedAssetId] || 0;
 
+  // 9. Export Portfolio to CSV with UTF-8 BOM
+  const handleExportCSV = useCallback(() => {
+    if (!activePortfolio || portfolioMetrics.items.length === 0) {
+      alert('دارایی برای دریافت خروجی در این پورتفو وجود ندارد.');
+      return;
+    }
+
+    const headers = [
+      'نام دارایی',
+      'دسته‌بندی',
+      'نوع دارایی',
+      'مقدار / وزن',
+      'واحد',
+      'قیمت خرید واحد (تومان)',
+      'بهای تمام‌شده کل (تومان)',
+      'قیمت واقعی روز واحد (تومان)',
+      'ارزش واقعی روز کل (تومان)',
+      'سود / زیان کل (تومان)',
+      'درصد سود / زیان',
+      'تاریخ خرید',
+      'یادداشت / توضیحات'
+    ];
+
+    const escapeCSV = (val) => {
+      if (val === null || val === undefined) return '""';
+      const str = String(val).replace(/"/g, '""');
+      return `"${str}"`;
+    };
+
+    const rows = portfolioMetrics.items.map((item) => {
+      const assetTypeLabel =
+        item.assetType === 'silver' ? 'نقره' :
+        item.assetType === 'gold' ? 'طلا' :
+        item.assetType === 'coin' ? 'سکه' :
+        item.assetType === 'currency' ? 'ارز' :
+        item.assetType === 'crypto' ? 'کریپتو' : 'سفارشی';
+
+      const catLabel =
+        item.assetType === 'gold' ? 'طلا و آب‌شده' :
+        item.assetType === 'coin' ? 'سکه بهار آزادی' :
+        item.assetType === 'silver' ? 'نقره ساچمه و شمش' :
+        item.assetType === 'currency' || item.assetType === 'crypto' ? 'ارزهای خارجی و رمزارزها' : 'سایر دارایی‌ها';
+
+      return [
+        escapeCSV(item.assetName || item.name),
+        escapeCSV(catLabel),
+        escapeCSV(assetTypeLabel),
+        escapeCSV(item.amount),
+        escapeCSV(item.unit),
+        escapeCSV(item.buyPrice),
+        escapeCSV(item.itemCost),
+        escapeCSV(item.unitRealPrice),
+        escapeCSV(item.itemRealVal),
+        escapeCSV(item.itemPnl),
+        escapeCSV(item.itemPnlPct ? item.itemPnlPct.toFixed(2) + '%' : '0%'),
+        escapeCSV(item.buyDate || ''),
+        escapeCSV(item.notes || '')
+      ].join(',');
+    });
+
+    const csvContent = '\uFEFF' + [headers.map(escapeCSV).join(','), ...rows].join('\r\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    const safeName = (activePortfolio.name || 'portfolio').replace(/[/\\?%*:|"<>]/g, '-');
+    const dateStr = new Date().toISOString().slice(0, 10);
+    a.download = `portfolio-${safeName}-${dateStr}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }, [activePortfolio, portfolioMetrics.items]);
+
   // ─── AUTH GATE (Required Login Screen) ──────────────────────────────────
   if (authLoading) {
     return (
@@ -678,6 +752,20 @@ export default function PortfolioTracker({ calcData, rates, usdToman, goldUsd })
               <div className="portfolio-header-actions">
                 <button
                   type="button"
+                  className="btn-export-csv"
+                  onClick={handleExportCSV}
+                  title="دریافت خروجی اکسل / CSV از اقلام این پورتفو"
+                  disabled={holdings.length === 0}
+                >
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                    <polyline points="7 10 12 15 17 10"></polyline>
+                    <line x1="12" y1="15" x2="12" y2="3"></line>
+                  </svg>
+                  <span>خروجی CSV</span>
+                </button>
+                <button
+                  type="button"
                   className={`btn-privacy-toggle ${hideValues ? 'active' : ''}`}
                   onClick={toggleHideValues}
                   title={hideValues ? 'نمایش مجدد مقادیر مالی' : 'مخفی کردن مبالغ با ****'}
@@ -783,6 +871,8 @@ export default function PortfolioTracker({ calcData, rates, usdToman, goldUsd })
                             <th className="th-real-price">قیمت واقعی روز</th>
                             <th className="th-total-val">ارزش کل روز</th>
                             <th className="th-pnl">سود / زیان</th>
+                            <th className="th-date">تاریخ خرید</th>
+                            <th className="th-notes">یادداشت / توضیحات</th>
                             <th className="th-actions">عملیات</th>
                           </tr>
                         </thead>
@@ -793,27 +883,15 @@ export default function PortfolioTracker({ calcData, rates, usdToman, goldUsd })
                             return (
                               <tr key={item.id} className="portfolio-table-row">
                                 <td className="td-asset">
-                                  <div className="asset-cell-main">
-                                    <div className="asset-title-row">
-                                      <span className="asset-name-text">{item.assetName || item.name}</span>
-                                      <span className={`item-category-pill cat-${item.assetType || 'custom'}`}>
-                                        {item.assetType === 'silver' ? '🥈 نقره' :
-                                         item.assetType === 'gold' ? '🥇 طلا' :
-                                         item.assetType === 'coin' ? '🪙 سکه' :
-                                         item.assetType === 'currency' ? '💵 ارز' :
-                                         item.assetType === 'crypto' ? '⚡ کریپتو' : '✨ سفارشی'}
-                                      </span>
-                                    </div>
-                                    {(item.buyDate || item.notes) && (
-                                      <div className="asset-extra-meta">
-                                        {item.buyDate && (
-                                          <span className="item-date-tag">📅 {item.buyDate}</span>
-                                        )}
-                                        {item.notes && (
-                                          <span className="item-notes-tag" title={item.notes}>💬 {item.notes}</span>
-                                        )}
-                                      </div>
-                                    )}
+                                  <div className="asset-cell-compact">
+                                    <span className="asset-name-text">{item.assetName || item.name}</span>
+                                    <span className={`item-category-pill cat-${item.assetType || 'custom'}`}>
+                                      {item.assetType === 'silver' ? '🥈 نقره' :
+                                       item.assetType === 'gold' ? '🥇 طلا' :
+                                       item.assetType === 'coin' ? '🪙 سکه' :
+                                       item.assetType === 'currency' ? '💵 ارز' :
+                                       item.assetType === 'crypto' ? '⚡ کریپتو' : '✨ سفارشی'}
+                                    </span>
                                   </div>
                                 </td>
 
@@ -859,6 +937,18 @@ export default function PortfolioTracker({ calcData, rates, usdToman, goldUsd })
                                       {hideValues ? '****' : `(${isProfit ? '+' : ''}${item.itemPnlPct.toFixed(1).replace('-', '')}٪)`}
                                     </span>
                                   </div>
+                                </td>
+
+                                <td className="td-date">
+                                  <span className="table-date-text">
+                                    {item.buyDate ? `📅 ${item.buyDate}` : '—'}
+                                  </span>
+                                </td>
+
+                                <td className="td-notes">
+                                  <span className="table-notes-text" title={item.notes || ''}>
+                                    {item.notes ? `💬 ${item.notes}` : '—'}
+                                  </span>
                                 </td>
 
                                 <td className="td-actions">

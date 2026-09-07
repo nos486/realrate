@@ -1599,12 +1599,57 @@ input, select, textarea { font-family: inherit; }
   direction: rtl;
 }
 
+/* ── High-Density Portfolio Data Table ───────────────────────────────────── */
+.btn-export-csv {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 13px;
+  background: rgba(16, 185, 129, 0.09);
+  border: 1px solid rgba(16, 185, 129, 0.2);
+  color: #34d399;
+  border-radius: var(--radius-full);
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: var(--transition-fast);
+  white-space: nowrap;
+}
+
+.btn-export-csv:hover:not(:disabled) {
+  background: rgba(16, 185, 129, 0.18);
+  border-color: rgba(16, 185, 129, 0.35);
+  transform: translateY(-1px);
+}
+
+.btn-export-csv:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.portfolio-table-responsive {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  border-radius: var(--radius-lg);
+  margin-top: 4px;
+}
+
+.portfolio-data-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: 12.5px;
+  text-align: right;
+  direction: rtl;
+}
+
 .portfolio-data-table thead th {
   background: rgba(255, 255, 255, 0.02);
   color: var(--text-muted);
   font-size: 11px;
   font-weight: 800;
-  padding: 10px 14px;
+  padding: 8px 10px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.05);
   white-space: nowrap;
   letter-spacing: -0.2px;
@@ -1625,11 +1670,17 @@ input, select, textarea { font-family: inherit; }
   text-align: center;
 }
 
+.portfolio-data-table th.th-date,
+.portfolio-data-table td.td-date {
+  text-align: center;
+  white-space: nowrap;
+}
+
 .portfolio-data-table th.th-actions,
 .portfolio-data-table td.td-actions {
   text-align: center;
-  width: 76px;
-  min-width: 76px;
+  width: 74px;
+  min-width: 74px;
 }
 
 .portfolio-table-row {
@@ -1642,42 +1693,47 @@ input, select, textarea { font-family: inherit; }
 }
 
 .portfolio-table-row td {
-  padding: 12px 14px;
+  padding: 7px 10px;
   vertical-align: middle;
   border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+  white-space: nowrap;
 }
 
 .portfolio-table-row:last-child td {
   border-bottom: none;
 }
 
-/* Asset Cell */
-.asset-cell-main {
-  display: flex;
-  flex-direction: column;
-  gap: 5px;
-  min-width: 170px;
-}
-
-.asset-title-row {
+/* Asset Cell - strictly single line */
+.asset-cell-compact {
   display: flex;
   align-items: center;
   gap: 7px;
-  flex-wrap: wrap;
+  white-space: nowrap;
 }
 
 .asset-name-text {
-  font-size: 13.5px;
+  font-size: 13px;
   font-weight: 800;
   color: #fff;
-  line-height: 1.35;
+  line-height: 1.25;
 }
 
-.asset-extra-meta {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  flex-wrap: wrap;
+.table-date-text {
+  font-size: 11.5px;
+  color: var(--text-muted);
+  direction: ltr;
+  display: inline-block;
+}
+
+.table-notes-text {
+  max-width: 170px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  display: inline-block;
+  font-size: 11.5px;
+  color: var(--text-muted);
+  vertical-align: middle;
 }
 
 .item-date-tag, .item-notes-tag {
@@ -1731,11 +1787,11 @@ input, select, textarea { font-family: inherit; }
 /* Quantity Cell */
 .table-qty-badge {
   display: inline-block;
-  font-size: 11.5px;
+  font-size: 11px;
   font-weight: 800;
   color: var(--gold-light);
   background: var(--gold-soft-bg);
-  padding: 3px 8px;
+  padding: 2px 7px;
   border-radius: var(--radius-xs);
   white-space: nowrap;
 }
@@ -1749,7 +1805,7 @@ input, select, textarea { font-family: inherit; }
 }
 
 .cell-val {
-  font-size: 13px;
+  font-size: 12.5px;
   font-weight: 700;
   color: #f1f5f9;
 }
@@ -1758,12 +1814,12 @@ input, select, textarea { font-family: inherit; }
   color: #38bdf8;
   font-weight: 800;
   background: rgba(56, 189, 248, 0.08);
-  padding: 2px 7px;
+  padding: 2px 6px;
   border-radius: var(--radius-xs);
 }
 
 .cell-val-bold {
-  font-size: 14px;
+  font-size: 13.5px;
   font-weight: 900;
   color: #fff;
 }
@@ -1773,7 +1829,7 @@ input, select, textarea { font-family: inherit; }
 }
 
 .cell-unit {
-  font-size: 10.5px;
+  font-size: 10px;
   color: var(--text-muted);
 }
 
@@ -1781,29 +1837,29 @@ input, select, textarea { font-family: inherit; }
 .table-pnl-cell {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: 5px;
   white-space: nowrap;
 }
 
 .table-pnl-cell.profit .pnl-amount {
   color: var(--green-emerald);
   font-weight: 800;
-  font-size: 13px;
+  font-size: 12.5px;
 }
 
 .table-pnl-cell.loss .pnl-amount {
   color: var(--rose-red);
   font-weight: 800;
-  font-size: 13px;
+  font-size: 12.5px;
 }
 
 .pnl-unit {
-  font-size: 10.5px;
+  font-size: 10px;
   color: var(--text-muted);
 }
 
 .table-pnl-cell .pnl-pct-badge {
-  font-size: 10.5px;
+  font-size: 10px;
   font-weight: 800;
   padding: 2px 6px;
   border-radius: var(--radius-full);
@@ -1831,7 +1887,7 @@ input, select, textarea { font-family: inherit; }
   background: transparent;
   border: none;
   color: var(--text-muted);
-  padding: 5px;
+  padding: 4px;
   border-radius: var(--radius-xs);
   cursor: pointer;
   transition: var(--transition-fast);
