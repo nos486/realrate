@@ -62,17 +62,11 @@ export default function UserSettingsModal({ isOpen, onClose, onSaved }) {
     setSaving(true);
     setMsg({ text: '', type: '' });
 
-    if (shareEnabled && (!sharePassword || sharePassword.trim().length === 0)) {
-      setMsg({ text: 'لطفاً برای اشتراک‌گذاری پورتفو، حتماً یک رمز عبور تعیین فرمایید.', type: 'error' });
-      setSaving(false);
-      return;
-    }
-
     try {
       const res = await apiUpdateUserSettings({
         customName,
         shareSlug,
-        sharePassword,
+        sharePassword: sharePassword ? sharePassword.trim() : '',
         shareEnabled,
       });
 
@@ -202,13 +196,13 @@ export default function UserSettingsModal({ isOpen, onClose, onSaved }) {
             <div className="form-group">
               <label htmlFor="settingsSharePassword">
                 <span>رمز عبور محافظت از پورتفو</span>
-                <span className="required-tag">* الزامی برای اشتراک‌گذاری</span>
+                <span className="optional-tag">اختیاری</span>
               </label>
               <div className="password-input-wrapper">
                 <input
                   type={showPassword ? 'text' : 'password'}
                   id="settingsSharePassword"
-                  placeholder="یک رمز عبور امن وارد فرمایید..."
+                  placeholder="رمز عبور دلخواه (اختیاری - خالی بگذارید برای دسترسی آزاد)..."
                   value={sharePassword}
                   onChange={(e) => setSharePassword(e.target.value)}
                 />
@@ -222,7 +216,7 @@ export default function UserSettingsModal({ isOpen, onClose, onSaved }) {
                 </button>
               </div>
               <span className="input-hint">
-                🔒 بینندگان پورتفو قبل از باز شدن اقلام، موظف به وارد کردن این رمز عبور خواهند بود.
+                🔓 اختیاری: اگر خالی باشد، پورتفو بدون رمز برای دارندگان لینک باز می‌شود. در صورت تعیین رمز، بیننده موظف به وارد کردن آن خواهد بود.
               </span>
             </div>
 

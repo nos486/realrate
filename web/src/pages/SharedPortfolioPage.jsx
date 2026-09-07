@@ -1,8 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { apiGetSharedPortfolio, apiGetRates } from '../api/client.js';
+import { apiGetSharedPortfolio, apiGetRates, apiCalculate } from '../api/client.js';
 import Header from '../components/Header.jsx';
-import Footer from '../components/Footer.jsx';
 import { CATEGORY_DEFINITIONS } from '../components/PortfolioTracker.jsx';
 
 function formatNum(num) {
@@ -41,12 +40,22 @@ export default function SharedPortfolioPage() {
 
   const [portfolioData, setPortfolioData] = useState(null); // { user, holdings }
   const [marketRates, setMarketRates] = useState(null);
+  const [calcData, setCalcData] = useState(null);
 
-  // 1. Fetch live market rates (gold, dollar, silver)
+  // 1. Fetch live market rates (gold, dollar, silver) & calculate real prices
   useEffect(() => {
     apiGetRates()
       .then((data) => {
-        if (data) setMarketRates(data);
+        if (data) {
+          setMarketRates(data);
+          const u = data.live_usd_toman || data.globalSettings?.default_usd_toman || 95000;
+          const g = data.gold_usd || data.globalSettings?.default_gold_usd || 2700;
+          apiCalculate(u, g)
+            .then((cRes) => {
+              if (cRes && cRes.success) setCalcData(cRes);
+            })
+            .catch(console.error);
+        }
       })
       .catch(console.error);
   }, []);
@@ -92,54 +101,70 @@ export default function SharedPortfolioPage() {
     loadPortfolio(password);
   };
 
-  // 3. Calculate Real Values & Metrics
-  const usdToman = marketRates?.usdToman || 0;
-  const goldUsd = marketRates?.goldUsd || 0;
-
+  // 3. Accurate Real Values & Metrics calculation
   const realPriceMap = useMemo(() => {
-    const usdVal = Number(usdToman) || 0;
-    const goldUsdVal = Number(goldUsd) || 0;
+    const usdVal = Number(
+      marketRates?.live_usd_toman ||
+      calcData?.inputs?.usd_toman ||
+      marketRates?.globalSettings?.default_usd_toman ||
+      0
+    );
 
-    const goldGram18kReal = (goldUsdVal > 0 && usdVal > 0)
-      ? ((goldUsdVal / 31.1034768) * usdVal) * 0.75
-      : 0;
+    const goldUsdVal = Number(
+      marketRates?.gold_usd ||
+      calcData?.inputs?.gold_usd ||
+      marketRates?.globalSettings?.default_gold_usd ||
+      2700
+    );
 
-    const silverUsdVal = Number(marketRates?.silverUsd) || 32.5;
-    const silverGram999Real = (silverUsdVal > 0 && usdVal > 0)
-      ? (silverUsdVal / 31.1034768) * usdVal
-      : 0;
-    const silverGram925Real = silverGram999Real * 0.925;
-    const silverOunceReal = silverUsdVal * usdVal;
+    const silverUsdVal = Number(
+      calcData?.silver?.silver_usd ||
+      marketRates?.silver?.silver_usd ||
+      marketRates?.silver_usd ||
+      33.5
+    );
 
-    const coinFullReal = goldGram18kReal * (24 / 18) * 7.3197;
-    const coinHalfReal = goldGram18kReal * (24 / 18) * 3.6594;
-    const coinQuarterReal = goldGram18kReal * (24 / 18) * 1.8297;
-    const coinGramReal = goldGram18kReal * (24 / 18) * 0.909;
+    const map = {};
+    if (!usdVal) return map;
 
-    const map = {
-      gold_18k: Math.round(goldGram18kReal),
-      full_new: Math.round(coinFullReal),
-      full_old: Math.round(coinFullReal),
-      half: Math.round(coinHalfReal),
-      quarter: Math.round(coinQuarterReal),
-      gram: Math.round(coinGramReal),
-      silver_999: Math.round(silverGram999Real),
-      silver_925: Math.round(silverGram925Real),
-      silver_ounce: Math.round(silverOunceReal),
-      USD: Math.round(usdVal),
-      USDT: Math.round(usdVal),
-    };
+    // A. Gold calculations (Pure intrinsic gold value)
+    const gold24kGram = (goldUsdVal / 31.1034768) * usdVal;
+    map['gold_18k'] = Math.round(gold24kGram * 0.75);
+    map['full_new'] = Math.round(gold24kGram * 7.3197);
+    map['full_old'] = Math.round(gold24kGram * 7.3197);
+    map['half'] = Math.round(gold24kGram * 3.6594);
+    map['quarter'] = Math.round(gold24kGram * 1.8297);
+    map['gram'] = Math.round(gold24kGram * 0.909);
 
-    if (marketRates?.currencies && Array.isArray(marketRates.currencies)) {
-      for (const c of marketRates.currencies) {
-        if (c.code && c.toman_price) {
-          map[c.code] = Math.round(c.toman_price);
+    // B. Silver calculations (Pure intrinsic silver value)
+    const silver999Gram = (silverUsdVal / 31.1034768) * usdVal;
+    map['silver_999'] = Math.round(silver999Gram);
+    map['silver_925'] = Math.round(silver999Gram * 0.925);
+    map['silver_ounce'] = Math.round(silverUsdVal * usdVal);
+
+    // C. Currencies & Crypto
+    map['USD'] = Math.round(usdVal);
+    map['USDT'] = Math.round(usdVal);
+
+    if (calcData?.currencies && Array.isArray(calcData.currencies)) {
+      calcData.currencies.forEach((c) => {
+        if (c.code) {
+          map[c.code] = c.toman_price ? Math.round(c.toman_price) : Math.round((c.usd_cross_rate || 1) * usdVal);
         }
+      });
+    } else if (marketRates?.forex) {
+      const ratesObj = marketRates.forex.rates || marketRates.forex;
+      if (typeof ratesObj === 'object') {
+        Object.entries(ratesObj).forEach(([code, rate]) => {
+          if (rate && Number(rate) > 0) {
+            map[code] = Math.round((1 / Number(rate)) * usdVal);
+          }
+        });
       }
     }
 
     return map;
-  }, [marketRates, usdToman, goldUsd]);
+  }, [marketRates, calcData]);
 
   const portfolioMetrics = useMemo(() => {
     if (!portfolioData?.holdings) return { items: [], totalCost: 0, totalRealValue: 0, totalPnl: 0, totalPnlPct: 0 };
@@ -204,8 +229,8 @@ export default function SharedPortfolioPage() {
   return (
     <div className="app-layout">
       <Header
-        usdToman={usdToman}
-        gold18kPrice={realPriceMap['gold_18k']}
+        usdToman={marketRates?.live_usd_toman || calcData?.inputs?.usd_toman || 0}
+        gold18kPrice={realPriceMap['gold_18k'] || 0}
       />
 
       <main className="main-content">
@@ -280,31 +305,46 @@ export default function SharedPortfolioPage() {
                 <span className="owner-avatar">💼</span>
                 <div className="owner-info">
                   <h2>پورتفوی سرمایه‌گذاری {ownerName}</h2>
-                  <span className="shared-view-tag">👀 حالت مشاهده زنده (فقط‌خواندنی)</span>
+                  <span className="shared-view-tag">
+                    {portfolioMetrics.items.length.toLocaleString('fa-IR')} قلم دارایی در {categoryGroups.length.toLocaleString('fa-IR')} دسته‌بندی
+                  </span>
                 </div>
-              </div>
-
-              <div className="shared-url-pill" dir="ltr">
-                realrate.geekio.org/p/{slug}
               </div>
             </div>
 
-            {/* Overview Cards Grid */}
+            {/* Overview Cards Grid - 100% Portfolio Information */}
             <div className="portfolio-overview-grid">
+              {/* Card 1: Total Real Value */}
               <div className="portfolio-stat-card main-val">
                 <div className="stat-header">
                   <span className="stat-label">ارزش واقعی کل دارایی‌ها</span>
-                  <span className="real-pill">🌐 انس طلا + نقره + دلار</span>
+                  <span className="real-pill">🌐 نرخ روز طلا و ارز</span>
                 </div>
                 <div className={`stat-number gold-gradient-text ${hideValues ? 'is-masked' : ''}`}>
                   {hideValues ? '****' : formatNum(portfolioMetrics.totalRealValue)}
                   <span className="stat-unit">تومان</span>
                 </div>
                 <div className="stat-sub">
-                  سرمایه اولیه خرید: {hideValues ? '**** تومان' : `${formatNum(portfolioMetrics.totalCost)} تومان`}
+                  ارزش خالص دارایی‌ها بدون حباب
                 </div>
               </div>
 
+              {/* Card 2: Initial Investment Cost */}
+              <div className="portfolio-stat-card">
+                <div className="stat-header">
+                  <span className="stat-label">سرمایه اولیه خرید</span>
+                  <span className="count-pill">{portfolioMetrics.items.length.toLocaleString('fa-IR')} قلم</span>
+                </div>
+                <div className={`stat-number ${hideValues ? 'is-masked' : ''}`}>
+                  {hideValues ? '****' : formatNum(portfolioMetrics.totalCost)}
+                  <span className="stat-unit">تومان</span>
+                </div>
+                <div className="stat-sub">
+                  بهای تمام‌شده اولیه سبد دارایی
+                </div>
+              </div>
+
+              {/* Card 3: Total Real PnL */}
               <div className={`portfolio-stat-card pnl-card ${portfolioMetrics.totalPnl >= 0 ? 'profit' : 'loss'}`}>
                 <div className="stat-header">
                   <span className="stat-label">سود / زیان واقعی کل</span>
@@ -320,27 +360,13 @@ export default function SharedPortfolioPage() {
                   {portfolioMetrics.totalPnl >= 0 ? '🟢 پورتفوی در سود است' : '🔴 پورتفوی در زیان است'}
                 </div>
               </div>
-
-              <div className="portfolio-stat-card action-card">
-                <div className="stat-header">
-                  <span className="stat-label">تعداد و تنوع دارایی‌ها</span>
-                  <span className="count-pill">{portfolioMetrics.items.length} قلم دارایی</span>
-                </div>
-                <div className="shared-cta-note">
-                  <span>محاسبه شده به صورت لحظه‌ای با نرخ‌های زنده بازار</span>
-                </div>
-                <Link to="/" className="btn-add-asset" style={{ textAlign: 'center', textDecoration: 'none' }}>
-                  <span>ایجاد پورتفوی شخصی من 🚀</span>
-                </Link>
-              </div>
             </div>
 
             {/* Categorized Holdings List */}
             <div className="portfolio-table-card">
               <div className="portfolio-table-header">
                 <div className="table-title">
-                  <h3>📋 جزئیات سبد سرمایه‌گذاری به تفکیک دسته</h3>
-                  <span>محاسبه مستقیم بر پایه ارزش خالص بدون حباب بازار</span>
+                  <h3>📋 جزئیات سبد دارایی</h3>
                 </div>
                 <div className="portfolio-header-actions">
                   <button
@@ -468,7 +494,9 @@ export default function SharedPortfolioPage() {
         )}
       </main>
 
-      <Footer />
+      <footer className="shared-clean-footer">
+        <span>RealRate • سامانه پایش ارزش واقعی دارایی‌ها</span>
+      </footer>
     </div>
   );
 }

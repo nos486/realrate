@@ -2962,3 +2962,23 @@ footer {
   margin-top: 16px;
 }
 
+.optional-tag {
+  font-size: 10.5px;
+  color: var(--text-muted);
+  background: rgba(255, 255, 255, 0.06);
+  padding: 2px 8px;
+  border-radius: var(--radius-full);
+  font-weight: 600;
+  margin-right: 6px;
+}
+
+.shared-clean-footer {
+  margin-top: auto;
+  padding: 24px 16px;
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 11.5px;
+  border-top: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+
