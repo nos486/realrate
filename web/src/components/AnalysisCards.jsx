@@ -25,27 +25,6 @@ export default function AnalysisCards({ analysis, recommendation }) {
 
   return (
     <div className="analysis-wrapper">
-      {/* Smart Recommendation Banner */}
-      {recommendation && (
-        <div className="smart-rec-banner">
-          <div className="rec-badge-icon">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-              <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
-            </svg>
-          </div>
-          <div className="rec-text-group">
-            <div className="rec-title">
-              بهترین فرصت خرید: <strong>{recommendation.best_name}</strong>
-            </div>
-            <div className="rec-desc">{recommendation.reason}</div>
-          </div>
-          <div className={`rec-chip ${recommendation.best_bubble_pct < 0 ? 'negative' : 'positive'}`}>
-            <span>{recommendation.best_bubble_pct < 0 ? 'حباب منفی: ' : 'حباب: '}</span>
-            <strong>{recommendation.best_bubble_pct?.toLocaleString('fa-IR')}٪</strong>
-          </div>
-        </div>
-      )}
-
       {/* Cards Grid */}
       <div className="cards-modern-grid">
         {analysis.map((item) => {

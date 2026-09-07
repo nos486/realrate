@@ -99,50 +99,74 @@ export default function MainPage() {
         <section className="tab-view-container">
           {activeTab === 'market' && (
             <div className="market-tab-content" style={{ display: 'flex', flexDirection: 'column', gap: '28px' }}>
-              {/* Compact Inputs Bar */}
-              <div className="inputs-toolbar">
-                <div className="toolbar-input-item">
-                  <div className="toolbar-label-row">
-                    <label htmlFor="usdToman">قیمت دلار آزاد (تومان)</label>
-                    {liveUsdSource === 'live' ? (
-                      <span className="source-tag live">🟢 زنده از بازار</span>
-                    ) : (
-                      <span className="source-tag manual">✍️ ورودی دستی</span>
-                    )}
+              {/* Market Top Controls (Inputs Toolbar & Smart Recommendation Side-by-Side on Desktop) */}
+              <div className={`market-top-controls ${recommendation ? 'has-rec' : ''}`}>
+                {/* Compact Inputs Bar */}
+                <div className="inputs-toolbar">
+                  <div className="toolbar-input-item">
+                    <div className="toolbar-label-row">
+                      <label htmlFor="usdToman">قیمت دلار آزاد (تومان)</label>
+                      {liveUsdSource === 'live' ? (
+                        <span className="source-tag live">🟢 زنده از بازار</span>
+                      ) : (
+                        <span className="source-tag manual">✍️ ورودی دستی</span>
+                      )}
+                    </div>
+                    <div className="toolbar-input-wrapper">
+                      <input
+                        type="text"
+                        id="usdToman"
+                        placeholder="مثلاً ۶۵,۰۰۰"
+                        value={usdToman}
+                        onChange={(e) => setUsdToman(e.target.value)}
+                      />
+                      <span className="input-affix">تومان</span>
+                    </div>
+                    <span className="toolbar-sub-hint">
+                      {liveUsdSource === 'live' && liveUsdDatetime
+                        ? `بروزرسانی: ${formatRelativeTime(liveUsdDatetime)}`
+                        : 'تنظیم دستی توسط کاربر'}
+                    </span>
                   </div>
-                  <div className="toolbar-input-wrapper">
-                    <input
-                      type="text"
-                      id="usdToman"
-                      placeholder="مثلاً ۶۵,۰۰۰"
-                      value={usdToman}
-                      onChange={(e) => setUsdToman(e.target.value)}
-                    />
-                    <span className="input-affix">تومان</span>
+
+                  <div className="toolbar-input-item">
+                    <div className="toolbar-label-row">
+                      <label htmlFor="goldUsd">انس جهانی طلا ($)</label>
+                      <span className="source-tag live">🌐 انس جهانی</span>
+                    </div>
+                    <div className="toolbar-input-wrapper">
+                      <input
+                        type="text"
+                        id="goldUsd"
+                        value={goldUsd}
+                        onChange={(e) => setGoldUsd(e.target.value)}
+                      />
+                      <span className="input-affix">USD</span>
+                    </div>
+                    <span className="toolbar-sub-hint">استعلام زنده از بازار جهانی</span>
                   </div>
-                  <span className="toolbar-sub-hint">
-                    {liveUsdSource === 'live' && liveUsdDatetime
-                      ? `بروزرسانی: ${formatRelativeTime(liveUsdDatetime)}`
-                      : 'تنظیم دستی توسط کاربر'}
-                  </span>
                 </div>
 
-                <div className="toolbar-input-item">
-                  <div className="toolbar-label-row">
-                    <label htmlFor="goldUsd">انس جهانی طلا ($)</label>
-                    <span className="source-tag live">🌐 انس جهانی</span>
+                {/* Smart Recommendation Banner */}
+                {recommendation && (
+                  <div className="smart-rec-banner">
+                    <div className="rec-badge-icon">
+                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                        <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
+                      </svg>
+                    </div>
+                    <div className="rec-text-group">
+                      <div className="rec-title">
+                        بهترین فرصت خرید: <strong>{recommendation.best_name}</strong>
+                      </div>
+                      <div className="rec-desc">{recommendation.reason}</div>
+                    </div>
+                    <div className={`rec-chip ${recommendation.best_bubble_pct < 0 ? 'negative' : 'positive'}`}>
+                      <span>{recommendation.best_bubble_pct < 0 ? 'حباب منفی: ' : 'حباب: '}</span>
+                      <strong>{recommendation.best_bubble_pct?.toLocaleString('fa-IR')}٪</strong>
+                    </div>
                   </div>
-                  <div className="toolbar-input-wrapper">
-                    <input
-                      type="text"
-                      id="goldUsd"
-                      value={goldUsd}
-                      onChange={(e) => setGoldUsd(e.target.value)}
-                    />
-                    <span className="input-affix">USD</span>
-                  </div>
-                  <span className="toolbar-sub-hint">استعلام زنده از بازار جهانی</span>
-                </div>
+                )}
               </div>
 
               {/* Alert Banner if USD is null or 0 */}
