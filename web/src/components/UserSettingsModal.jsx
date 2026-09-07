@@ -10,7 +10,7 @@ export function generateRandomSlug(len = 8) {
   return slug;
 }
 
-export default function UserSettingsModal({ isOpen, portfolio, onClose, onSaved }) {
+export default function UserSettingsModal({ isOpen, portfolio, onClose, onSaved, canDelete, onDelete }) {
   const [portfolioName, setPortfolioName] = useState('');
   const [customName, setCustomName] = useState('');
   const [shareSlug, setShareSlug] = useState('');
@@ -118,8 +118,7 @@ export default function UserSettingsModal({ isOpen, portfolio, onClose, onSaved 
           <div className="modal-title-wrap">
             <span className="modal-icon">⚙️</span>
             <div>
-              <h3>تنظیمات و اشتراک‌گذاری «{portfolioName || 'پورتفو'}»</h3>
-              <p className="modal-subtitle">مدیریت نام، آدرس اختصاصی، لینک اشتراک و رمز عبور این پورتفو</p>
+              <h3>تنظیمات «{portfolioName || 'پورتفو'}»</h3>
             </div>
           </div>
           <button className="modal-close-btn" onClick={onClose} aria-label="بستن">✕</button>
@@ -141,29 +140,27 @@ export default function UserSettingsModal({ isOpen, portfolio, onClose, onSaved 
 
             {/* Portfolio Name */}
             <div className="form-group">
-              <label htmlFor="settingsPortfolioName">نام این پورتفو</label>
+              <label htmlFor="settingsPortfolioName">نام پورتفو</label>
               <input
                 type="text"
                 id="settingsPortfolioName"
-                placeholder="مثلاً: سبد طلا و سکه، پس‌انداز ارزی..."
+                placeholder="نام پورتفو..."
                 value={portfolioName}
                 onChange={(e) => setPortfolioName(e.target.value)}
                 required
               />
-              <span className="input-hint">نام اختصاصی برای تفکیک این پورتفو از سایر سبدهای شما.</span>
             </div>
 
             {/* Owner Display Name */}
             <div className="form-group">
-              <label htmlFor="settingsCustomName">نام نمایشی شما (مالک پورتفو)</label>
+              <label htmlFor="settingsCustomName">نام نمایشی مالک</label>
               <input
                 type="text"
                 id="settingsCustomName"
-                placeholder="مثلاً: سینا"
+                placeholder="نام نمایشی..."
                 value={customName}
                 onChange={(e) => setCustomName(e.target.value)}
               />
-              <span className="input-hint">این نام در بالای صفحه اشتراک‌گذاری شده به بینندگان نمایش داده می‌شود.</span>
             </div>
 
             {/* Default Portfolio Toggle */}
@@ -171,13 +168,8 @@ export default function UserSettingsModal({ isOpen, portfolio, onClose, onSaved 
               <div className="toggle-info">
                 <div className="toggle-title-row">
                   <span className="share-status-indicator" style={{ backgroundColor: isDefault ? '#f59e0b' : '#64748b' }}></span>
-                  <strong>تعیین به عنوان پورتفوی پیش‌فرض (اصلی) ⭐</strong>
+                  <strong>پورتفوی پیش‌فرض (اصلی) ⭐</strong>
                 </div>
-                <span>
-                  {isDefault 
-                    ? 'این پورتفو هم‌اکنون به عنوان سبد پیش‌فرض اصلی شما تعیین شده و هنگام ورود به سایت ابتدا نمایش داده می‌شود.' 
-                    : 'با فعال‌سازی این گزینه، این پورتفو به عنوان سبد پیش‌فرض و اولیه شما باز خواهد شد.'}
-                </span>
               </div>
               <label className="switch-wrapper">
                 <input
@@ -194,9 +186,8 @@ export default function UserSettingsModal({ isOpen, portfolio, onClose, onSaved 
               <div className="toggle-info">
                 <div className="toggle-title-row">
                   <span className="share-status-indicator" style={{ backgroundColor: shareEnabled ? '#10b981' : '#64748b' }}></span>
-                  <strong>قابلیت مشاهده عمومی پورتفو (اشتراک‌گذاری)</strong>
+                  <strong>اشتراک‌گذاری عمومی</strong>
                 </div>
-                <span>در صورت فعال بودن، هر کس با داشتن لینک اختصاصی و وارد کردن رمز عبور می‌تواند پورتفوی شما را ببیند.</span>
               </div>
               <label className="switch-wrapper">
                 <input
@@ -211,7 +202,7 @@ export default function UserSettingsModal({ isOpen, portfolio, onClose, onSaved 
             {/* Share Slug / URL */}
             <div className="form-group">
               <div className="label-with-action">
-                <label htmlFor="settingsShareSlug">آدرس اختصاصی پورتفو (شناسه URL)</label>
+                <label htmlFor="settingsShareSlug">آدرس اختصاصی (URL)</label>
                 <button
                   type="button"
                   className="btn-regenerate-slug"
@@ -221,7 +212,7 @@ export default function UserSettingsModal({ isOpen, portfolio, onClose, onSaved 
                   <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
                     <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/>
                   </svg>
-                  <span>تولید مجدد آدرس تصادفی 🎲</span>
+                  <span>تولید مجدد آدرس 🎲</span>
                 </button>
               </div>
               <div className="slug-input-wrapper slug-readonly-box">
@@ -236,7 +227,6 @@ export default function UserSettingsModal({ isOpen, portfolio, onClose, onSaved 
                 />
                 <span className="slug-lock-badge" title="آدرس تصادفی غیرقابل ویرایش دستی است">🔒</span>
               </div>
-              <span className="input-hint">آدرس اختصاصی به صورت خودکار و تصادفی اختصاص می‌یابد و برای حفظ امنیت و یکتایی، قابلیت ویرایش دستی ندارد.</span>
             </div>
 
             {/* Live Copy Link Box */}
@@ -255,15 +245,12 @@ export default function UserSettingsModal({ isOpen, portfolio, onClose, onSaved 
 
             {/* Share Password Protection */}
             <div className="form-group">
-              <label htmlFor="settingsSharePassword">
-                <span>رمز عبور محافظت از پورتفو</span>
-                <span className="optional-tag">اختیاری</span>
-              </label>
+              <label htmlFor="settingsSharePassword">رمز عبور مشاهده (اختیاری)</label>
               <div className="password-input-wrapper">
                 <input
                   type={showPassword ? 'text' : 'password'}
                   id="settingsSharePassword"
-                  placeholder="رمز عبور دلخواه (اختیاری - خالی بگذارید برای دسترسی آزاد)..."
+                  placeholder="رمز عبور دلخواه..."
                   value={sharePassword}
                   onChange={(e) => setSharePassword(e.target.value)}
                 />
@@ -276,19 +263,36 @@ export default function UserSettingsModal({ isOpen, portfolio, onClose, onSaved 
                   {showPassword ? '🙈' : '👁️'}
                 </button>
               </div>
-              <span className="input-hint">
-                🔓 اختیاری: اگر خالی باشد، پورتفو بدون رمز برای دارندگان لینک باز می‌شود. در صورت تعیین رمز، بیننده موظف به وارد کردن آن خواهد بود.
-              </span>
             </div>
 
             {/* Modal Actions */}
-            <div className="modal-actions">
-              <button type="button" className="btn-modal-cancel" onClick={onClose} disabled={saving}>
-                انصراف
-              </button>
-              <button type="submit" className="btn-modal-submit" disabled={saving}>
-                {saving ? 'در حال ذخیره‌سازی...' : '💾 ذخیره تغییرات'}
-              </button>
+            <div className="modal-actions-split">
+              {canDelete ? (
+                <button
+                  type="button"
+                  className="btn-modal-delete"
+                  onClick={onDelete}
+                  disabled={saving}
+                  title={`حذف پورتفوی «${portfolio?.name || ''}»`}
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <polyline points="3 6 5 6 21 6"></polyline>
+                    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                  </svg>
+                  <span>حذف پورتفو</span>
+                </button>
+              ) : (
+                <div />
+              )}
+
+              <div className="modal-actions-right">
+                <button type="button" className="btn-modal-cancel" onClick={onClose} disabled={saving}>
+                  انصراف
+                </button>
+                <button type="submit" className="btn-modal-submit" disabled={saving}>
+                  {saving ? 'در حال ذخیره...' : '💾 ذخیره تغییرات'}
+                </button>
+              </div>
             </div>
           </form>
         )}

@@ -3406,6 +3406,49 @@ footer {
   margin-right: 6px;
 }
 
+.modal-actions-split {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 14px;
+  flex-wrap: wrap;
+}
+
+.modal-actions-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1;
+  justify-content: flex-end;
+}
+
+.btn-modal-delete {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(244, 63, 94, 0.08);
+  border: 1px solid rgba(244, 63, 94, 0.25);
+  border-radius: var(--radius-md);
+  padding: 10px 14px;
+  font-size: 12.5px;
+  font-weight: 700;
+  color: #fb7185;
+  cursor: pointer;
+  transition: var(--transition-fast);
+}
+
+.btn-modal-delete:hover:not(:disabled) {
+  background: rgba(244, 63, 94, 0.18);
+  border-color: #f43f5e;
+  color: #fff;
+}
+
+.btn-modal-delete:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 /* ── Shared Portfolio Page Styles ────────────────────────────────────────── */
 .shared-auth-gate-wrap {
   display: flex;
