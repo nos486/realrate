@@ -10,9 +10,16 @@ const ALLOWED_ORIGINS = [
   "http://localhost:5173",      // Vite dev server
   "http://localhost:4173",      // Vite preview
   "https://realrate.pages.dev", // Cloudflare Pages (production)
-  // Add custom domain below if you have one, e.g.:
-  // "https://realrate.ir",
+  "https://realrate.geekio.org",
+  "https://geekio.org",
 ];
+
+function isOriginAllowed(origin) {
+  if (!origin) return false;
+  if (ALLOWED_ORIGINS.includes(origin)) return true;
+  if (origin.endsWith(".pages.dev") || origin.endsWith(".geekio.org")) return true;
+  return false;
+}
 
 /**
  * Build CORS headers for a given request origin.
@@ -29,7 +36,7 @@ export function getCorsHeaders(requestOrOrigin) {
     origin = requestOrOrigin.headers.get("Origin") || "";
   }
 
-  const allowedOrigin = ALLOWED_ORIGINS.includes(origin)
+  const allowedOrigin = isOriginAllowed(origin)
     ? origin
     : ALLOWED_ORIGINS[0];
 
