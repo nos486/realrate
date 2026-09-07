@@ -74,6 +74,7 @@ CREATE TABLE IF NOT EXISTS portfolio_holdings (
   unit TEXT NOT NULL,
   amount REAL NOT NULL,
   buy_price REAL NOT NULL,
+  current_price REAL DEFAULT 0,
   buy_date TEXT DEFAULT '',
   notes TEXT DEFAULT '',
   created_at TEXT NOT NULL,

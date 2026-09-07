@@ -5,31 +5,53 @@
  * /api/telegram — Raw Telegram market prices
  */
 
-import { fetchGlobalSpotGold } from "../services/goldPrice.js";
+import { fetchGlobalSpotGold, fetchGlobalSpotSilver } from "../services/goldPrice.js";
 import { fetchForexRates } from "../services/forexRates.js";
 import { fetchTelegramPrices } from "../services/telegramPrices.js";
 import { jsonResponse, errorResponse, getCorsHeaders } from "../lib/helpers.js";
 
 /**
  * GET /api/rates
- * Return live gold spot price, USD/Toman, and forex rates
+ * Return live gold & silver spot price, USD/Toman, and forex rates
  */
 export async function handleFetchRates(env, analytics, globalSettings, request = null) {
   try {
-    const liveSpotGold = await fetchGlobalSpotGold(env);
-    const gold_usd = liveSpotGold || globalSettings.default_gold_usd || 2450;
-
-    const [tgPrices, forex] = await Promise.all([
+    const [liveSpotGold, liveSpotSilver, tgPrices, forex] = await Promise.all([
+      fetchGlobalSpotGold(env),
+      fetchGlobalSpotSilver(env),
       fetchTelegramPrices(env),
       fetchForexRates(env),
     ]);
+
+    const gold_usd = liveSpotGold || globalSettings.default_gold_usd || 2450;
+    const silver_usd = liveSpotSilver || 33.5;
 
     const live_usd_item = tgPrices.usd_toman || null;
     const live_usd_toman = live_usd_item
       ? live_usd_item.price
       : (globalSettings.default_usd_toman || 62000);
 
-    return jsonResponse({ success: true, gold_usd, live_usd_toman, live_usd_item, forex, market_prices: tgPrices, analytics, globalSettings }, 200, request);
+    const silver_999_gram = (silver_usd / 31.1034768) * live_usd_toman;
+    const silver_925_gram = silver_999_gram * 0.925;
+    const silver_ounce = silver_usd * live_usd_toman;
+
+    return jsonResponse({
+      success: true,
+      gold_usd,
+      silver_usd,
+      silver: {
+        silver_usd,
+        silver_999_gram: Math.round(silver_999_gram),
+        silver_925_gram: Math.round(silver_925_gram),
+        silver_ounce: Math.round(silver_ounce),
+      },
+      live_usd_toman,
+      live_usd_item,
+      forex,
+      market_prices: tgPrices,
+      analytics,
+      globalSettings,
+    }, 200, request);
   } catch (err) {
     return jsonResponse({ success: false, error: err.message }, 500, request);
   }
@@ -37,11 +59,12 @@ export async function handleFetchRates(env, analytics, globalSettings, request =
 
 /**
  * GET /api/calculate?usd_toman=&gold_usd=
- * Full gold bubble analysis, coin arbitrage, and all currency conversions
+ * Full gold & silver bubble analysis, coin arbitrage, and all currency conversions
  */
 export async function handleCalculate(url, env, analytics, globalSettings, request = null) {
-  const [liveSpotGold, tgPrices, forex] = await Promise.all([
+  const [liveSpotGold, liveSpotSilver, tgPrices, forex] = await Promise.all([
     fetchGlobalSpotGold(env),
+    fetchGlobalSpotSilver(env),
     fetchTelegramPrices(env),
     fetchForexRates(env),
   ]);
@@ -138,11 +161,23 @@ export async function handleCalculate(url, env, analytics, globalSettings, reque
   ];
 
 
+  // Silver calculations
+  const silver_usd = liveSpotSilver || 33.5;
+  const silver_999_gram = (silver_usd / 31.1034768) * usd_toman;
+  const silver_925_gram = silver_999_gram * 0.925;
+  const silver_ounce = silver_usd * usd_toman;
+
   return new Response(JSON.stringify({
     success: true,
     timestamp: new Date().toISOString(),
-    inputs: { usd_toman, gold_usd },
+    inputs: { usd_toman, gold_usd, silver_usd },
     gold: { gold_24k_gram: Math.round(gold_24k_gram), gold_18k_gram: Math.round(gold_18k_gram), mesghal_17k: Math.round(mesghal_17k) },
+    silver: {
+      silver_usd,
+      silver_999_gram: Math.round(silver_999_gram),
+      silver_925_gram: Math.round(silver_925_gram),
+      silver_ounce: Math.round(silver_ounce),
+    },
     quick_currencies,
     currencies,
     market_data: tgPrices,

@@ -69,6 +69,7 @@ export async function handleAddPortfolio(request, env) {
       unit: String(body.unit || "واحد"),
       amount,
       buyPrice,
+      currentPrice: parseFloat(body.currentPrice) || 0,
       buyDate: String(body.buyDate || "").trim(),
       notes: String(body.notes || "").trim(),
       createdAt: body.createdAt || new Date().toISOString(),

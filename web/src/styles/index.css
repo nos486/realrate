@@ -1212,6 +1212,56 @@ input, select, textarea { font-family: inherit; }
   border-radius: var(--radius-xs);
 }
 
+.item-category-pill {
+  font-size: 10px;
+  font-weight: 800;
+  padding: 1px 7px;
+  border-radius: var(--radius-xs);
+  border: 1px solid transparent;
+}
+
+.item-category-pill.cat-gold {
+  color: var(--gold-light);
+  background: var(--gold-soft-bg);
+  border-color: rgba(245, 158, 11, 0.2);
+}
+
+.item-category-pill.cat-silver {
+  color: #e2e8f0;
+  background: rgba(226, 232, 240, 0.1);
+  border-color: rgba(226, 232, 240, 0.25);
+}
+
+.item-category-pill.cat-coin {
+  color: #fbbf24;
+  background: rgba(251, 191, 36, 0.1);
+  border-color: rgba(251, 191, 36, 0.2);
+}
+
+.item-category-pill.cat-currency {
+  color: #34d399;
+  background: rgba(52, 211, 153, 0.1);
+  border-color: rgba(52, 211, 153, 0.2);
+}
+
+.item-category-pill.cat-crypto {
+  color: #a78bfa;
+  background: rgba(167, 139, 250, 0.1);
+  border-color: rgba(167, 139, 250, 0.2);
+}
+
+.item-category-pill.cat-custom {
+  color: #38bdf8;
+  background: rgba(56, 189, 248, 0.1);
+  border-color: rgba(56, 189, 248, 0.2);
+}
+
+.field-sub-note {
+  font-size: 10.5px;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
 .item-price-meta {
   font-size: 11px;
   color: var(--text-muted);

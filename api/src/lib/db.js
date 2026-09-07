@@ -57,6 +57,7 @@ export async function ensureD1Tables(env) {
       unit TEXT NOT NULL,
       amount REAL NOT NULL,
       buy_price REAL NOT NULL,
+      current_price REAL DEFAULT 0,
       buy_date TEXT DEFAULT '',
       notes TEXT DEFAULT '',
       created_at TEXT NOT NULL,
@@ -70,6 +71,10 @@ export async function ensureD1Tables(env) {
     for (const sql of statements) {
       await env.DB.prepare(sql).run();
     }
+    // Backward-compat: ensure current_price column exists
+    try {
+      await env.DB.prepare("ALTER TABLE portfolio_holdings ADD COLUMN current_price REAL DEFAULT 0").run();
+    } catch (ignore) {}
     d1Initialized = true;
   } catch (e) {
     console.error("D1 schema bootstrap error:", e);
@@ -295,7 +300,8 @@ export async function dbGetPortfolioHoldings(env, userId) {
       const { results } = await env.DB.prepare(`
         SELECT id, user_id AS userId, asset_id AS assetId, asset_name AS assetName,
                asset_type AS assetType, unit, amount, buy_price AS buyPrice,
-               buy_date AS buyDate, notes, created_at AS createdAt, updated_at AS updatedAt
+               current_price AS currentPrice, buy_date AS buyDate, notes,
+               created_at AS createdAt, updated_at AS updatedAt
         FROM portfolio_holdings
         WHERE user_id = ?
         ORDER BY created_at DESC
@@ -339,6 +345,7 @@ export async function dbAddPortfolioHolding(env, item) {
     unit: item.unit || 'واحد',
     amount: Number(item.amount) || 0,
     buyPrice: Number(item.buyPrice) || 0,
+    currentPrice: Number(item.currentPrice) || 0,
     buyDate: item.buyDate || '',
     notes: item.notes || '',
     createdAt: item.createdAt || now,
@@ -349,8 +356,8 @@ export async function dbAddPortfolioHolding(env, item) {
     await ensureD1Tables(env);
     try {
       await env.DB.prepare(`
-        INSERT INTO portfolio_holdings (id, user_id, asset_id, asset_name, asset_type, unit, amount, buy_price, buy_date, notes, created_at, updated_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO portfolio_holdings (id, user_id, asset_id, asset_name, asset_type, unit, amount, buy_price, current_price, buy_date, notes, created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ON CONFLICT(id) DO UPDATE SET
           asset_id = excluded.asset_id,
           asset_name = excluded.asset_name,
@@ -358,6 +365,7 @@ export async function dbAddPortfolioHolding(env, item) {
           unit = excluded.unit,
           amount = excluded.amount,
           buy_price = excluded.buy_price,
+          current_price = excluded.current_price,
           buy_date = excluded.buy_date,
           notes = excluded.notes,
           updated_at = excluded.updated_at
@@ -370,6 +378,7 @@ export async function dbAddPortfolioHolding(env, item) {
         holding.unit,
         holding.amount,
         holding.buyPrice,
+        holding.currentPrice,
         holding.buyDate,
         holding.notes,
         holding.createdAt,
