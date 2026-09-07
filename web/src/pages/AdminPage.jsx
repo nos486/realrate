@@ -169,26 +169,36 @@ export default function AdminPage() {
   const inspectMetrics = useMemo(() => {
     let totalCost = 0;
     let totalRealValue = 0;
+    let totalCostWithBuyPrice = 0;
+    let totalRealValWithBuyPrice = 0;
+    let itemsWithBuyPriceCount = 0;
 
     const items = inspectHoldings.map((h) => {
       const amountNum = Number(h.amount) || 0;
       const buyPriceNum = Number(h.buyPrice) || 0;
+      const hasBuyPrice = buyPriceNum > 0;
       const isCustomItem = h.assetType === 'custom' || h.assetId?.startsWith('custom_');
 
       const unitRealPrice = isCustomItem
-        ? (Number(h.currentPrice) || buyPriceNum)
-        : (realPriceMap[h.assetId] || buyPriceNum);
+        ? (Number(h.currentPrice) || (hasBuyPrice ? buyPriceNum : 0))
+        : (realPriceMap[h.assetId] || (hasBuyPrice ? buyPriceNum : 0));
 
-      const itemCost = amountNum * buyPriceNum;
+      const itemCost = hasBuyPrice ? (amountNum * buyPriceNum) : 0;
       const itemRealVal = amountNum * unitRealPrice;
-      const itemPnl = itemRealVal - itemCost;
-      const itemPnlPct = itemCost > 0 ? (itemPnl / itemCost) * 100 : 0;
+      const itemPnl = hasBuyPrice ? (itemRealVal - itemCost) : null;
+      const itemPnlPct = (hasBuyPrice && itemCost > 0) ? (itemPnl / itemCost) * 100 : null;
 
-      totalCost += itemCost;
       totalRealValue += itemRealVal;
+      if (hasBuyPrice) {
+        totalCost += itemCost;
+        totalCostWithBuyPrice += itemCost;
+        totalRealValWithBuyPrice += itemRealVal;
+        itemsWithBuyPriceCount += 1;
+      }
 
       return {
         ...h,
+        hasBuyPrice,
         isCustomItem,
         unitRealPrice,
         itemCost,
@@ -198,19 +208,26 @@ export default function AdminPage() {
       };
     });
 
-    const totalPnl = totalRealValue - totalCost;
-    const totalPnlPct = totalCost > 0 ? (totalPnl / totalCost) * 100 : 0;
+    const hasAnyBuyPrice = itemsWithBuyPriceCount > 0;
+    const totalPnl = hasAnyBuyPrice ? (totalRealValWithBuyPrice - totalCostWithBuyPrice) : 0;
+    const totalPnlPct = (hasAnyBuyPrice && totalCostWithBuyPrice > 0) ? (totalPnl / totalCostWithBuyPrice) * 100 : 0;
 
-    return { items, totalCost, totalRealValue, totalPnl, totalPnlPct };
+    return { items, totalCost, totalRealValue, totalPnl, totalPnlPct, hasAnyBuyPrice };
   }, [inspectHoldings, realPriceMap]);
 
   const inspectCategoryGroups = useMemo(() => {
     return CATEGORY_DEFINITIONS.map((cat) => {
       const groupItems = inspectMetrics.items.filter(cat.match);
-      const groupCost = groupItems.reduce((acc, it) => acc + it.itemCost, 0);
+      const itemsWithBuyPrice = groupItems.filter((it) => it.hasBuyPrice);
+
+      const groupCost = itemsWithBuyPrice.reduce((acc, it) => acc + it.itemCost, 0);
       const groupRealVal = groupItems.reduce((acc, it) => acc + it.itemRealVal, 0);
-      const groupPnl = groupRealVal - groupCost;
-      const groupPnlPct = groupCost > 0 ? (groupPnl / groupCost) * 100 : 0;
+      const groupRealValForPnl = itemsWithBuyPrice.reduce((acc, it) => acc + it.itemRealVal, 0);
+
+      const hasAnyBuyPrice = itemsWithBuyPrice.length > 0;
+      const groupPnl = hasAnyBuyPrice ? (groupRealValForPnl - groupCost) : 0;
+      const groupPnlPct = (hasAnyBuyPrice && groupCost > 0) ? (groupPnl / groupCost) * 100 : 0;
+
       return {
         ...cat,
         items: groupItems,
@@ -218,6 +235,7 @@ export default function AdminPage() {
         totalRealValue: groupRealVal,
         totalPnl: groupPnl,
         totalPnlPct: groupPnlPct,
+        hasAnyBuyPrice,
       };
     }).filter((group) => group.items.length > 0);
   }, [inspectMetrics.items]);
@@ -753,7 +771,7 @@ export default function AdminPage() {
                                 </div>
 
                                 <div className="item-price-meta">
-                                  <span>خرید: {formatNum(item.buyPrice)} تومان</span>
+                                  <span>{item.hasBuyPrice ? `خرید: ${formatNum(item.buyPrice)} تومان` : 'خرید: ثبت نشده'}</span>
                                   <span className="meta-sep">•</span>
                                   <span className="meta-real-price">
                                     قیمت واقعی روز: {formatNum(item.unitRealPrice)} تومان
@@ -773,10 +791,16 @@ export default function AdminPage() {
                                   {formatNum(item.itemRealVal)}
                                   <span className="val-unit">تومان</span>
                                 </div>
-                                <div className={`item-pnl-tag ${isProfit ? 'profit' : 'loss'}`}>
-                                  <span>{isProfit ? '+' : ''}{formatNum(item.itemPnl)} تومان</span>
-                                  <span className="pct">({isProfit ? '+' : ''}{item.itemPnlPct.toFixed(1).replace('-', '')}٪)</span>
-                                </div>
+                                {item.hasBuyPrice ? (
+                                  <div className={`item-pnl-tag ${isProfit ? 'profit' : 'loss'}`}>
+                                    <span>{isProfit ? '+' : ''}{formatNum(item.itemPnl)} تومان</span>
+                                    <span className="pct">({isProfit ? '+' : ''}{item.itemPnlPct.toFixed(1).replace('-', '')}٪)</span>
+                                  </div>
+                                ) : (
+                                  <div className="item-pnl-tag neutral">
+                                    <span>بدون محاسبه سود/زیان</span>
+                                  </div>
+                                )}
                               </div>
                             </div>
                           );

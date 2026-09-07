@@ -425,7 +425,7 @@ export default function PortfolioTracker({ calcData, rates, usdToman, goldUsd })
       setCustomCurrentPrice(item.currentPrice ? String(item.currentPrice) : '');
     }
     setAmount(String(item.amount));
-    setBuyPrice(String(item.buyPrice));
+    setBuyPrice(item.buyPrice && Number(item.buyPrice) > 0 ? String(item.buyPrice) : '');
     setBuyDate(item.buyDate || '');
     setNotes(item.notes || '');
     setShowDatePicker(false);
@@ -436,10 +436,10 @@ export default function PortfolioTracker({ calcData, rates, usdToman, goldUsd })
   const handleSubmitHolding = async (e) => {
     e.preventDefault();
     const qty = parseInputNumber(amount);
-    const price = parseInputNumber(buyPrice);
+    const price = parseInputNumber(buyPrice) || 0;
 
-    if (qty <= 0 || price <= 0) {
-      alert('لطفاً مقادیر معتبر برای تعداد/وزن و قیمت خرید وارد فرمایید.');
+    if (qty <= 0) {
+      alert('لطفاً مقدار یا وزن معتبری برای دارایی وارد فرمایید.');
       return;
     }
 
@@ -459,8 +459,8 @@ export default function PortfolioTracker({ calcData, rates, usdToman, goldUsd })
       : (assetMeta?.category || 'custom');
 
     const finalCurrentPrice = isCustom
-      ? (parseInputNumber(customCurrentPrice) || price)
-      : (realPriceMap[selectedAssetId] || price);
+      ? (parseInputNumber(customCurrentPrice) || price || 0)
+      : (realPriceMap[selectedAssetId] || price || 0);
 
     setSubmitting(true);
 
@@ -545,27 +545,37 @@ export default function PortfolioTracker({ calcData, rates, usdToman, goldUsd })
   const portfolioMetrics = useMemo(() => {
     let totalCost = 0;
     let totalRealValue = 0;
+    let totalCostWithBuyPrice = 0;
+    let totalRealValWithBuyPrice = 0;
+    let itemsWithBuyPriceCount = 0;
 
     const items = holdings.map((h) => {
       const amountNum = Number(h.amount) || 0;
       const buyPriceNum = Number(h.buyPrice) || 0;
+      const hasBuyPrice = buyPriceNum > 0;
       const isCustomItem = h.assetType === 'custom' || h.assetId?.startsWith('custom_');
 
       // Unit real price: strictly based on spot gold/silver & USD, or custom price
       const unitRealPrice = isCustomItem
-        ? (Number(h.currentPrice) || buyPriceNum)
-        : (realPriceMap[h.assetId] || buyPriceNum);
+        ? (Number(h.currentPrice) || (hasBuyPrice ? buyPriceNum : 0))
+        : (realPriceMap[h.assetId] || (hasBuyPrice ? buyPriceNum : 0));
 
-      const itemCost = amountNum * buyPriceNum;
+      const itemCost = hasBuyPrice ? (amountNum * buyPriceNum) : 0;
       const itemRealVal = amountNum * unitRealPrice;
-      const itemPnl = itemRealVal - itemCost;
-      const itemPnlPct = itemCost > 0 ? (itemPnl / itemCost) * 100 : 0;
+      const itemPnl = hasBuyPrice ? (itemRealVal - itemCost) : null;
+      const itemPnlPct = (hasBuyPrice && itemCost > 0) ? (itemPnl / itemCost) * 100 : null;
 
-      totalCost += itemCost;
       totalRealValue += itemRealVal;
+      if (hasBuyPrice) {
+        totalCost += itemCost;
+        totalCostWithBuyPrice += itemCost;
+        totalRealValWithBuyPrice += itemRealVal;
+        itemsWithBuyPriceCount += 1;
+      }
 
       return {
         ...h,
+        hasBuyPrice,
         isCustomItem,
         unitRealPrice,
         itemCost,
@@ -575,8 +585,11 @@ export default function PortfolioTracker({ calcData, rates, usdToman, goldUsd })
       };
     });
 
-    const totalPnl = totalRealValue - totalCost;
-    const totalPnlPct = totalCost > 0 ? (totalPnl / totalCost) * 100 : 0;
+    const hasAnyBuyPrice = itemsWithBuyPriceCount > 0;
+    const totalPnl = hasAnyBuyPrice ? (totalRealValWithBuyPrice - totalCostWithBuyPrice) : 0;
+    const totalPnlPct = (hasAnyBuyPrice && totalCostWithBuyPrice > 0)
+      ? (totalPnl / totalCostWithBuyPrice) * 100
+      : 0;
 
     return {
       items,
@@ -659,12 +672,12 @@ export default function PortfolioTracker({ calcData, rates, usdToman, goldUsd })
         escapeCSV(assetTypeLabel),
         escapeCSV(item.amount),
         escapeCSV(item.unit),
-        escapeCSV(item.buyPrice),
-        escapeCSV(item.itemCost),
+        escapeCSV(item.hasBuyPrice ? item.buyPrice : ''),
+        escapeCSV(item.hasBuyPrice ? item.itemCost : ''),
         escapeCSV(item.unitRealPrice),
         escapeCSV(item.itemRealVal),
-        escapeCSV(item.itemPnl),
-        escapeCSV(item.itemPnlPct ? item.itemPnlPct.toFixed(2) + '%' : '0%'),
+        escapeCSV(item.hasBuyPrice && item.itemPnl !== null ? item.itemPnl : ''),
+        escapeCSV(item.hasBuyPrice && item.itemPnlPct !== null ? item.itemPnlPct.toFixed(2) + '%' : ''),
         escapeCSV(item.buyDate || ''),
         escapeCSV(item.notes || '')
       ].join(',');
@@ -937,15 +950,22 @@ export default function PortfolioTracker({ calcData, rates, usdToman, goldUsd })
                           <span className="subtotal-unit">تومان</span>
                         </div>
 
-                        <div className={`cat-subtotal-pnl ${group.totalPnl >= 0 ? 'profit' : 'loss'}`}>
-                          <span className="subtotal-pnl-label">سود/زیان:</span>
-                          <strong>
-                            {hideValues ? '**** تومان' : `${group.totalPnl >= 0 ? '+' : ''}${formatNum(group.totalPnl)} تومان`}
-                          </strong>
-                          <span className="subtotal-pnl-pct">
-                            {hideValues ? '(****)' : `(${group.totalPnl >= 0 ? '+' : ''}${group.totalPnlPct.toFixed(1).replace('-', '')}٪)`}
-                          </span>
-                        </div>
+                        {group.hasAnyBuyPrice ? (
+                          <div className={`cat-subtotal-pnl ${group.totalPnl >= 0 ? 'profit' : 'loss'}`}>
+                            <span className="subtotal-pnl-label">سود/زیان:</span>
+                            <strong>
+                              {hideValues ? '**** تومان' : `${group.totalPnl >= 0 ? '+' : ''}${formatNum(group.totalPnl)} تومان`}
+                            </strong>
+                            <span className="subtotal-pnl-pct">
+                              {hideValues ? '(****)' : `(${group.totalPnl >= 0 ? '+' : ''}${group.totalPnlPct.toFixed(1).replace('-', '')}٪)`}
+                            </span>
+                          </div>
+                        ) : (
+                          <div className="cat-subtotal-pnl neutral">
+                            <span className="subtotal-pnl-label">سود/زیان:</span>
+                            <span className="table-empty-val">—</span>
+                          </div>
+                        )}
                       </div>
                     </div>
 
@@ -991,12 +1011,16 @@ export default function PortfolioTracker({ calcData, rates, usdToman, goldUsd })
                                 </td>
 
                                 <td className="td-buy-price">
-                                  <div className="cell-currency-wrap">
-                                    <span className={`cell-val ${hideValues ? 'is-masked' : ''}`}>
-                                      {hideValues ? '****' : formatNum(item.buyPrice)}
-                                    </span>
-                                    <span className="cell-unit">تومان</span>
-                                  </div>
+                                  {item.hasBuyPrice ? (
+                                    <div className="cell-currency-wrap">
+                                      <span className={`cell-val ${hideValues ? 'is-masked' : ''}`}>
+                                        {hideValues ? '****' : formatNum(item.buyPrice)}
+                                      </span>
+                                      <span className="cell-unit">تومان</span>
+                                    </div>
+                                  ) : (
+                                    <span className="table-empty-val" title="قیمت خرید ثبت نشده است">—</span>
+                                  )}
                                 </td>
 
                                 <td className="td-real-price">
@@ -1018,14 +1042,18 @@ export default function PortfolioTracker({ calcData, rates, usdToman, goldUsd })
                                 </td>
 
                                 <td className="td-pnl">
-                                  <div className={`table-pnl-cell ${isProfit ? 'profit' : 'loss'}`}>
-                                    <span className={`pnl-amount ${hideValues ? 'is-masked' : ''}`}>
-                                      {hideValues ? '****' : `${isProfit ? '+' : ''}${formatNum(item.itemPnl)} تومان`}
-                                    </span>
-                                    <span className="pnl-pct-badge">
-                                      {hideValues ? '****' : `(${isProfit ? '+' : ''}${item.itemPnlPct.toFixed(1).replace('-', '')}٪)`}
-                                    </span>
-                                  </div>
+                                  {item.hasBuyPrice ? (
+                                    <div className={`table-pnl-cell ${isProfit ? 'profit' : 'loss'}`}>
+                                      <span className={`pnl-amount ${hideValues ? 'is-masked' : ''}`}>
+                                        {hideValues ? '****' : `${isProfit ? '+' : ''}${formatNum(item.itemPnl)} تومان`}
+                                      </span>
+                                      <span className="pnl-pct-badge">
+                                        {hideValues ? '****' : `(${isProfit ? '+' : ''}${item.itemPnlPct.toFixed(1).replace('-', '')}٪)`}
+                                      </span>
+                                    </div>
+                                  ) : (
+                                    <span className="table-empty-val" title="قیمت خرید ثبت نشده است">—</span>
+                                  )}
                                 </td>
 
                                 <td className="td-date">
@@ -1100,24 +1128,28 @@ export default function PortfolioTracker({ calcData, rates, usdToman, goldUsd })
                 <span className="stat-unit">تومان</span>
               </div>
               <div className="stat-sub">
-                سرمایه اولیه خرید: {hideValues ? '**** تومان' : `${formatNum(portfolioMetrics.totalCost)} تومان`}
+                سرمایه اولیه خرید: {hideValues ? '**** تومان' : (portfolioMetrics.hasAnyBuyPrice ? `${formatNum(portfolioMetrics.totalCost)} تومان` : 'ثبت نشده')}
               </div>
             </div>
 
             {/* Card 2: Total PnL */}
-            <div className={`portfolio-stat-card pnl-card ${portfolioMetrics.totalPnl >= 0 ? 'profit' : 'loss'}`}>
+            <div className={`portfolio-stat-card pnl-card ${portfolioMetrics.hasAnyBuyPrice ? (portfolioMetrics.totalPnl >= 0 ? 'profit' : 'loss') : 'neutral'}`}>
               <div className="stat-header">
                 <span className="stat-label">سود / زیان واقعی کل</span>
-                <span className={`pnl-badge ${portfolioMetrics.totalPnl >= 0 ? 'profit' : 'loss'}`}>
-                  {hideValues ? '****' : `${portfolioMetrics.totalPnl >= 0 ? '+' : ''}${portfolioMetrics.totalPnlPct.toFixed(2).replace('-', '')}٪`}
+                <span className={`pnl-badge ${portfolioMetrics.hasAnyBuyPrice ? (portfolioMetrics.totalPnl >= 0 ? 'profit' : 'loss') : 'neutral'}`}>
+                  {hideValues ? '****' : (portfolioMetrics.hasAnyBuyPrice ? `${portfolioMetrics.totalPnl >= 0 ? '+' : ''}${portfolioMetrics.totalPnlPct.toFixed(2).replace('-', '')}٪` : '—')}
                 </span>
               </div>
               <div className={`stat-number ${hideValues ? 'is-masked' : ''}`}>
-                {hideValues ? '****' : `${portfolioMetrics.totalPnl >= 0 ? '+' : ''}${formatNum(portfolioMetrics.totalPnl)}`}
-                <span className="stat-unit">تومان</span>
+                {hideValues ? '****' : (portfolioMetrics.hasAnyBuyPrice ? `${portfolioMetrics.totalPnl >= 0 ? '+' : ''}${formatNum(portfolioMetrics.totalPnl)}` : '—')}
+                {portfolioMetrics.hasAnyBuyPrice && <span className="stat-unit">تومان</span>}
               </div>
               <div className="stat-sub">
-                {portfolioMetrics.totalPnl >= 0 ? '🟢 پورتفوی شما در سود است' : '🔴 پورتفوی شما در زیان است'}
+                {portfolioMetrics.hasAnyBuyPrice ? (
+                  portfolioMetrics.totalPnl >= 0 ? '🟢 پورتفوی شما در سود است' : '🔴 پورتفوی شما در زیان است'
+                ) : (
+                  'بدون محاسبه سود/زیان (قیمت خریدی وارد نشده)'
+                )}
               </div>
             </div>
 
@@ -1241,15 +1273,14 @@ export default function PortfolioTracker({ calcData, rates, usdToman, goldUsd })
 
               <div className="form-item">
                 <label>
-                  قیمت خرید هر واحد (به ازای هر {isModalCustom ? (customUnit || 'واحد') : selectedAssetMeta?.unit} - تومان)
+                  قیمت خرید هر واحد (به ازای هر {isModalCustom ? (customUnit || 'واحد') : selectedAssetMeta?.unit} - تومان) (اختیاری)
                 </label>
                 <input
                   type="text"
-                  placeholder="مثلاً ۵۴,۲۰۰,۰۰۰"
+                  placeholder="مثلاً ۵۴,۲۰۰,۰۰۰ (اختیاری - جهت محاسبه سود و زیان)"
                   value={buyPrice}
                   onChange={(e) => setBuyPrice(e.target.value)}
                   className="form-input"
-                  required
                 />
               </div>
 
