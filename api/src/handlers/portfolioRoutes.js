@@ -211,7 +211,12 @@ export async function handleGetPortfolio(request, env) {
     }
 
     const url = new URL(request.url);
-    const portfolioId = url.searchParams.get("portfolioId") || null;
+    let portfolioId = url.searchParams.get("portfolioId");
+    if (!portfolioId || portfolioId === "null" || portfolioId === "undefined" || portfolioId === "[object Object]" || !portfolioId.trim()) {
+      portfolioId = null;
+    } else {
+      portfolioId = portfolioId.trim();
+    }
     const userId = user.userId || user.id || user.email;
 
     const holdings = await dbGetPortfolioHoldings(env, userId, portfolioId);

@@ -93,7 +93,7 @@ export default function UserSettingsModal({ isOpen, portfolio, onClose, onSaved 
 
       if (res.success) {
         setMsg({ text: 'تنظیمات با موفقیت ذخیره شد.', type: 'success' });
-        if (onSaved) onSaved({ ...res.settings, portfolioName });
+        if (onSaved) onSaved({ ...res.settings, portfolioName, portfolioId: portfolio?.id });
         setTimeout(() => {
           onClose();
         }, 1100);

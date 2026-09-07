@@ -190,8 +190,13 @@ export async function apiDeletePortfolio(id) {
 // ─── Holdings ───────────────────────────────────────────────────────────────
 
 export async function apiGetPortfolio(portfolioId = null) {
-  const url = portfolioId
-    ? `/api/portfolio?portfolioId=${encodeURIComponent(portfolioId)}`
+  const cleanId = (typeof portfolioId === 'string' && portfolioId.trim() && portfolioId !== '[object Object]')
+    ? portfolioId.trim()
+    : (typeof portfolioId === 'object' && portfolioId !== null && typeof portfolioId.id === 'string' && portfolioId.id.trim())
+      ? portfolioId.id.trim()
+      : null;
+  const url = cleanId
+    ? `/api/portfolio?portfolioId=${encodeURIComponent(cleanId)}`
     : '/api/portfolio';
   const res = await apiFetch(url);
   return res.json();

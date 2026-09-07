@@ -239,6 +239,15 @@ export default function PortfolioTracker({ calcData, rates, usdToman, goldUsd })
       return;
     }
 
+    // Extract valid string portfolioId, ignoring any settings objects or event objects passed in callbacks
+    const validTargetId = (typeof targetPortfolioId === 'string' && targetPortfolioId.trim() && targetPortfolioId !== '[object Object]')
+      ? targetPortfolioId.trim()
+      : (typeof targetPortfolioId === 'object' && targetPortfolioId !== null && typeof targetPortfolioId.portfolioId === 'string' && targetPortfolioId.portfolioId.trim())
+        ? targetPortfolioId.portfolioId.trim()
+        : (typeof targetPortfolioId === 'object' && targetPortfolioId !== null && typeof targetPortfolioId.id === 'string' && targetPortfolioId.id.trim())
+          ? targetPortfolioId.id.trim()
+          : null;
+
     try {
       setLoadingPortfolios(true);
       const res = await apiGetPortfolios();
@@ -248,9 +257,14 @@ export default function PortfolioTracker({ calcData, rates, usdToman, goldUsd })
         // Keep current active if valid, or use target, or default/first
         const currentActive = activePortfolioIdRef.current;
         const exists = currentActive && res.portfolios.some((p) => p.id === currentActive);
-        const resolvedId = targetPortfolioId || (exists ? currentActive : (res.portfolios.find((p) => p.isDefault)?.id || res.portfolios[0]?.id));
+        const targetExists = validTargetId && res.portfolios.some((p) => p.id === validTargetId);
+
+        const resolvedId = targetExists
+          ? validTargetId
+          : (exists ? currentActive : (res.portfolios.find((p) => p.isDefault)?.id || res.portfolios[0]?.id));
         
         setActivePortfolioId(resolvedId);
+        activePortfolioIdRef.current = resolvedId;
 
         setLoadingHoldings(true);
         const holdingsRes = await apiGetPortfolio(resolvedId);
@@ -1541,7 +1555,12 @@ export default function PortfolioTracker({ calcData, rates, usdToman, goldUsd })
         isOpen={settingsModalOpen}
         onClose={() => setSettingsModalOpen(false)}
         portfolio={activePortfolio}
-        onSaved={fetchPortfoliosAndHoldings}
+        onSaved={(data) => {
+          const targetId = (data && typeof data === 'object' && data.portfolioId)
+            ? data.portfolioId
+            : activePortfolio?.id;
+          fetchPortfoliosAndHoldings(targetId);
+        }}
       />
     </div>
   );
