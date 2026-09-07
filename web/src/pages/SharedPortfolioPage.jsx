@@ -20,6 +20,25 @@ export default function SharedPortfolioPage() {
   const [loading, setLoading] = useState(true);
   const [unlocking, setUnlocking] = useState(false);
 
+  // Privacy Mode State (Mask values as ****)
+  const [hideValues, setHideValues] = useState(() => {
+    try {
+      return localStorage.getItem('realrate_hide_values') === 'true';
+    } catch {
+      return false;
+    }
+  });
+
+  const toggleHideValues = () => {
+    setHideValues((prev) => {
+      const next = !prev;
+      try {
+        localStorage.setItem('realrate_hide_values', String(next));
+      } catch {}
+      return next;
+    });
+  };
+
   const [portfolioData, setPortfolioData] = useState(null); // { user, holdings }
   const [marketRates, setMarketRates] = useState(null);
 
@@ -277,12 +296,12 @@ export default function SharedPortfolioPage() {
                   <span className="stat-label">ارزش واقعی کل دارایی‌ها</span>
                   <span className="real-pill">🌐 انس طلا + نقره + دلار</span>
                 </div>
-                <div className="stat-number gold-gradient-text">
-                  {formatNum(portfolioMetrics.totalRealValue)}
+                <div className={`stat-number gold-gradient-text ${hideValues ? 'is-masked' : ''}`}>
+                  {hideValues ? '****' : formatNum(portfolioMetrics.totalRealValue)}
                   <span className="stat-unit">تومان</span>
                 </div>
                 <div className="stat-sub">
-                  سرمایه اولیه خرید: {formatNum(portfolioMetrics.totalCost)} تومان
+                  سرمایه اولیه خرید: {hideValues ? '**** تومان' : `${formatNum(portfolioMetrics.totalCost)} تومان`}
                 </div>
               </div>
 
@@ -290,13 +309,11 @@ export default function SharedPortfolioPage() {
                 <div className="stat-header">
                   <span className="stat-label">سود / زیان واقعی کل</span>
                   <span className={`pnl-badge ${portfolioMetrics.totalPnl >= 0 ? 'profit' : 'loss'}`}>
-                    {portfolioMetrics.totalPnl >= 0 ? '+' : ''}
-                    {portfolioMetrics.totalPnlPct.toFixed(2).replace('-', '')}٪
+                    {hideValues ? '****' : `${portfolioMetrics.totalPnl >= 0 ? '+' : ''}${portfolioMetrics.totalPnlPct.toFixed(2).replace('-', '')}٪`}
                   </span>
                 </div>
-                <div className="stat-number">
-                  {portfolioMetrics.totalPnl >= 0 ? '+' : ''}
-                  {formatNum(portfolioMetrics.totalPnl)}
+                <div className={`stat-number ${hideValues ? 'is-masked' : ''}`}>
+                  {hideValues ? '****' : `${portfolioMetrics.totalPnl >= 0 ? '+' : ''}${formatNum(portfolioMetrics.totalPnl)}`}
                   <span className="stat-unit">تومان</span>
                 </div>
                 <div className="stat-sub">
@@ -325,6 +342,32 @@ export default function SharedPortfolioPage() {
                   <h3>📋 جزئیات سبد سرمایه‌گذاری به تفکیک دسته</h3>
                   <span>محاسبه مستقیم بر پایه ارزش خالص بدون حباب بازار</span>
                 </div>
+                <div className="portfolio-header-actions">
+                  <button
+                    type="button"
+                    className={`btn-privacy-toggle ${hideValues ? 'active' : ''}`}
+                    onClick={toggleHideValues}
+                    title={hideValues ? 'نمایش مجدد مقادیر مالی' : 'مخفی کردن مقادیر با ****'}
+                  >
+                    {hideValues ? (
+                      <>
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                          <circle cx="12" cy="12" r="3"></circle>
+                        </svg>
+                        <span>نمایش مقادیر 👁️</span>
+                      </>
+                    ) : (
+                      <>
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path>
+                          <line x1="1" y1="1" x2="23" y2="23"></line>
+                        </svg>
+                        <span>مخفی‌سازی مقادیر (****) 🙈</span>
+                      </>
+                    )}
+                  </button>
+                </div>
               </div>
 
               {categoryGroups.length === 0 ? (
@@ -348,14 +391,20 @@ export default function SharedPortfolioPage() {
                         <div className="cat-header-subtotals">
                           <div className="cat-subtotal-val">
                             <span className="subtotal-label">ارزش مجموعه:</span>
-                            <strong className="subtotal-amount">{formatNum(group.totalRealValue)}</strong>
+                            <strong className={`subtotal-amount ${hideValues ? 'is-masked' : ''}`}>
+                              {hideValues ? '****' : formatNum(group.totalRealValue)}
+                            </strong>
                             <span className="subtotal-unit">تومان</span>
                           </div>
 
                           <div className={`cat-subtotal-pnl ${group.totalPnl >= 0 ? 'profit' : 'loss'}`}>
                             <span className="subtotal-pnl-label">سود/زیان:</span>
-                            <strong>{group.totalPnl >= 0 ? '+' : ''}{formatNum(group.totalPnl)} تومان</strong>
-                            <span className="subtotal-pnl-pct">({group.totalPnl >= 0 ? '+' : ''}{group.totalPnlPct.toFixed(1).replace('-', '')}٪)</span>
+                            <strong>
+                              {hideValues ? '**** تومان' : `${group.totalPnl >= 0 ? '+' : ''}${formatNum(group.totalPnl)} تومان`}
+                            </strong>
+                            <span className="subtotal-pnl-pct">
+                              {hideValues ? '(****)' : `(${group.totalPnl >= 0 ? '+' : ''}${group.totalPnlPct.toFixed(1).replace('-', '')}٪)`}
+                            </span>
                           </div>
                         </div>
                       </div>
@@ -376,15 +425,15 @@ export default function SharedPortfolioPage() {
                                      item.assetType === 'crypto' ? '⚡ کریپتو' : '✨ سفارشی'}
                                   </span>
                                   <span className="item-qty-tag">
-                                    {Number(item.amount).toLocaleString('fa-IR')} {item.unit}
+                                    {hideValues ? '****' : `${Number(item.amount).toLocaleString('fa-IR')} ${item.unit}`}
                                   </span>
                                 </div>
 
                                 <div className="item-price-meta">
-                                  <span>خرید: {formatNum(item.buyPrice)} تومان</span>
+                                  <span>خرید: {hideValues ? '****' : formatNum(item.buyPrice)} تومان</span>
                                   <span className="meta-sep">•</span>
                                   <span className="meta-real-price">
-                                    قیمت واقعی روز: {formatNum(item.unitRealPrice)} تومان
+                                    قیمت واقعی روز: {hideValues ? '****' : formatNum(item.unitRealPrice)} تومان
                                   </span>
                                 </div>
 
@@ -397,13 +446,13 @@ export default function SharedPortfolioPage() {
                               </div>
 
                               <div className="item-values-col">
-                                <div className="item-live-val">
-                                  {formatNum(item.itemRealVal)}
+                                <div className={`item-live-val ${hideValues ? 'is-masked' : ''}`}>
+                                  {hideValues ? '****' : formatNum(item.itemRealVal)}
                                   <span className="val-unit">تومان</span>
                                 </div>
                                 <div className={`item-pnl-tag ${isProfit ? 'profit' : 'loss'}`}>
-                                  <span>{isProfit ? '+' : ''}{formatNum(item.itemPnl)} تومان</span>
-                                  <span className="pct">({isProfit ? '+' : ''}{item.itemPnlPct.toFixed(1).replace('-', '')}٪)</span>
+                                  <span>{hideValues ? '**** تومان' : `${isProfit ? '+' : ''}${formatNum(item.itemPnl)} تومان`}</span>
+                                  <span className="pct">{hideValues ? '(****)' : `(${isProfit ? '+' : ''}${item.itemPnlPct.toFixed(1).replace('-', '')}٪)`}</span>
                                 </div>
                               </div>
                             </div>

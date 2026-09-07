@@ -138,16 +138,29 @@ export async function dbUpsertUser(env, userData) {
         userData.loginCount = updated.login_count;
         userData.createdAt = updated.created_at;
 
-        // Auto-assign default share_slug if none set
+        // Auto-assign default random share_slug if none set
         if (!updated.share_slug) {
-          const rawSlug = (userData.email.split('@')[0].replace(/[^a-zA-Z0-9_-]/g, '') || `user_${Date.now().toString(36)}`).toLowerCase();
-          try {
-            await env.DB.prepare("UPDATE users SET share_slug = ? WHERE id = ?").bind(rawSlug, updated.id).run();
-            userData.shareSlug = rawSlug;
-          } catch (e) {
-            const fallbackSlug = `${rawSlug}-${Math.random().toString(36).slice(2, 6)}`;
-            await env.DB.prepare("UPDATE users SET share_slug = ? WHERE id = ?").bind(fallbackSlug, updated.id).run();
-            userData.shareSlug = fallbackSlug;
+          const chars = '23456789abcdefghjkmnpqrstuvwxyz';
+          let assignedSlug = '';
+          for (let i = 0; i < 8; i++) {
+            assignedSlug += chars.charAt(Math.floor(Math.random() * chars.length));
+          }
+          let saved = false;
+          for (let attempt = 0; attempt < 5; attempt++) {
+            try {
+              await env.DB.prepare("UPDATE users SET share_slug = ? WHERE id = ?").bind(assignedSlug, updated.id).run();
+              userData.shareSlug = assignedSlug;
+              saved = true;
+              break;
+            } catch (e) {
+              assignedSlug = '';
+              for (let i = 0; i < 8; i++) {
+                assignedSlug += chars.charAt(Math.floor(Math.random() * chars.length));
+              }
+            }
+          }
+          if (!saved) {
+            userData.shareSlug = assignedSlug;
           }
         } else {
           userData.shareSlug = updated.share_slug;

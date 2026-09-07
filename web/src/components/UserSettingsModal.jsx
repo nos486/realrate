@@ -1,6 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { apiGetUserSettings, apiUpdateUserSettings } from '../api/client.js';
 
+export function generateRandomSlug(len = 8) {
+  const chars = '23456789abcdefghjkmnpqrstuvwxyz';
+  let slug = '';
+  for (let i = 0; i < len; i++) {
+    slug += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return slug;
+}
+
 export default function UserSettingsModal({ isOpen, onClose, onSaved }) {
   const [customName, setCustomName] = useState('');
   const [shareSlug, setShareSlug] = useState('');
@@ -23,7 +32,7 @@ export default function UserSettingsModal({ isOpen, onClose, onSaved }) {
           if (res.success && res.settings) {
             const s = res.settings;
             setCustomName(s.customName || '');
-            setShareSlug(s.shareSlug || '');
+            setShareSlug(s.shareSlug || generateRandomSlug(8));
             setShareEnabled(!!s.shareEnabled);
             setSharePassword(s.sharePassword || '');
           }
@@ -146,19 +155,33 @@ export default function UserSettingsModal({ isOpen, onClose, onSaved }) {
 
             {/* Share Slug / URL */}
             <div className="form-group">
-              <label htmlFor="settingsShareSlug">آدرس اختصاصی پورتفو (شناسه URL)</label>
-              <div className="slug-input-wrapper">
+              <div className="label-with-action">
+                <label htmlFor="settingsShareSlug">آدرس اختصاصی پورتفو (شناسه URL)</label>
+                <button
+                  type="button"
+                  className="btn-regenerate-slug"
+                  onClick={() => setShareSlug(generateRandomSlug(8))}
+                  title="تولید شناسه تصادفی جدید"
+                >
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/>
+                  </svg>
+                  <span>تولید مجدد آدرس تصادفی 🎲</span>
+                </button>
+              </div>
+              <div className="slug-input-wrapper slug-readonly-box">
                 <span className="slug-prefix">realrate.geekio.org/p/</span>
                 <input
                   type="text"
                   id="settingsShareSlug"
-                  placeholder="sina"
                   dir="ltr"
                   value={shareSlug}
-                  onChange={(e) => setShareSlug(e.target.value.toLowerCase().replace(/[^a-z0-9_-]/g, ''))}
+                  readOnly={true}
+                  className="slug-input-readonly"
                 />
+                <span className="slug-lock-badge" title="آدرس تصادفی غیرقابل ویرایش دستی است">🔒</span>
               </div>
-              <span className="input-hint">فقط از حروف و ارقام انگلیسی، خط تیره (-) یا زیرخط (_) استفاده کنید.</span>
+              <span className="input-hint">آدرس اختصاصی به صورت خودکار و تصادفی اختصاص می‌یابد و برای حفظ امنیت و یکتایی، قابلیت ویرایش دستی ندارد.</span>
             </div>
 
             {/* Live Copy Link Box */}
