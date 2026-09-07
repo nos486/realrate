@@ -109,3 +109,34 @@ export async function apiAdminSaveSettings(settings) {
   });
   return res.json();
 }
+
+// ─── Portfolio ───────────────────────────────────────────────────────────────
+
+export async function apiGetPortfolio() {
+  const res = await apiFetch('/api/portfolio');
+  return res.json();
+}
+
+export async function apiAddPortfolioHolding(holdingData) {
+  const res = await apiFetch('/api/portfolio', {
+    method: 'POST',
+    body: JSON.stringify(holdingData),
+  });
+  return res.json();
+}
+
+export async function apiUpdatePortfolioHolding(holdingData) {
+  const res = await apiFetch('/api/portfolio', {
+    method: 'PUT',
+    body: JSON.stringify(holdingData),
+  });
+  return res.json();
+}
+
+export async function apiDeletePortfolioHolding(id) {
+  const res = await apiFetch(`/api/portfolio?id=${encodeURIComponent(id)}`, {
+    method: 'DELETE',
+  });
+  return res.json();
+}
+

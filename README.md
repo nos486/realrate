@@ -1,250 +1,267 @@
-# 🪙 RealRate — محاسبه‌گر طلا، سکه و ارزهای جهان
+# 🪙 RealRate — Real-Time Gold, Coin, Forex & Cloud Portfolio Platform
 
-سامانه هوشمند و پیشرفته **RealRate** جهت تحلیل حباب طلا و سکه، محاسبه ارزش واقعی بر اساس دلار و انس جهانی، نمایش نرخ روز ارزهای مطرح جهان، محاسبه‌گر اجرت طلا و پنل مدیریت متصل به **Cloudflare KV Storage**.
+<div align="center">
 
+[![Cloudflare Workers](https://img.shields.io/badge/Cloudflare-Workers-F38020?style=for-the-badge&logo=cloudflare&logoColor=white)](https://workers.cloudflare.com/)
+[![React 19](https://img.shields.io/badge/React-19-61DAFB?style=for-the-badge&logo=react&logoColor=black)](https://react.dev/)
+[![Vite](https://img.shields.io/badge/Vite-8-646CFF?style=for-the-badge&logo=vite&logoColor=white)](https://vitejs.dev/)
+[![Cloudflare D1](https://img.shields.io/badge/Database-Cloudflare_D1_(SQLite)-blue?style=for-the-badge&logo=sqlite&logoColor=white)](https://developers.cloudflare.com/d1/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-green?style=for-the-badge)](LICENSE)
+
+</div>
 
 ---
 
-## ✨ امکانات و ویژگی‌های اصلی
+### 🌐 Overview (English)
 
-### 📊 ۱. تحلیل حباب طلا و سکه
-- **محاسبه ارزش واقعی خام طلا**: محاسبه ارزش خالص طلای به‌کار رفته در سکه و طلا عیار ۱۸ بر اساس فرمول بین‌المللی انس طلا و نرخ دلار آزاد.
-- **محاسبه قیمت برآوردی با حباب مصوب**: امکان تعریف درصد حباب هدف برای سکه تمام، نیم سکه و ربع سکه در پنل مدیریت.
-- **تحلیل حباب دوگانه**:
-  - نمایش میزان و درصد حباب نسبت به **ارزش خام طلا**.
-  - نمایش انحراف قیمت روز بازار نسبت به **قیمت محاسباتی (با حباب مصوب)**.
-- **شناسایی حباب منفی**: نمایش متمایز و متمایل به آبی برای اقلامی که قیمت بازار آن‌ها کمتر از ارزش واقعی یا محاسباتی است.
-- **مدیریت اقلام ناموجود**: اقلامی که در بازار موجود نیستند بدون قیمت‌سازی کاذب به صورت «ناموجود در بازار» نشان داده می‌شوند.
+**RealRate** is a modern, high-performance financial analysis suite and cloud portfolio tracker designed for the Iranian gold, coin, and foreign exchange markets. It calculates intrinsic values and market bubbles using global spot gold prices and open-market USD rates, provides instantaneous currency conversions, generates gold jewelry invoice breakdowns, and allows authenticated users to manage their investment holdings in a serverless relational database with real-time profit and loss (PnL) analytics.
 
-### 💱 ۲. تب قیمت روز ارزهای جهان
-- دریافت زنده نرخ برابری ارزهای جهانی از API معتبر بین‌المللی.
-- محاسبه واکنش‌گرا و لحظه‌ای قیمت ارزها به تومان بر اساس دلار وارد شده:
-  - 🇪🇺 **یورو (EUR)**
+#### 🚀 Key Features
+- **🪙 Gold & Coin Bubble Analysis**: Calculates pure gold intrinsic value for Emami, Bahar Azadi, Half, and Quarter coins and 18K gold based on international ounce prices and free-market USD exchange rates. Includes comparative bubble metrics and smart buy recommendations.
+- **💱 Global Forex Rates**: Instant conversion of major currencies (USD, EUR, AED, TRY, GBP, CAD, etc.) into Tomans using live cross-rates.
+- **💎 Gold Jewelry Invoice Calculator**: Accurate calculation of final purchase prices including artisan wage presets, jeweler profit margin, and VAT, complete with a digital receipt.
+- **💼 Cloud Portfolio Tracker (NEW)**: Secure, authenticated personal asset tracking for gold, coins, currencies, and USDT. Persisted in Cloudflare D1 (SQLite) database with purchase dates, buy prices, custom notes, and live calculation of total net worth and profit/loss (PnL in Tomans & %).
+- **🔐 Google OAuth (GIS)**: Seamless authentication with Google Identity Services, 30-day secure session management, and role-based access control.
+- **📊 Admin Panel & Analytics**: Real-time traffic monitoring, active users within the last 5 minutes, registered user management, and dynamic system-wide configuration without redeploying.
+
+#### 🏗️ Architecture
+RealRate is structured as an **npm workspaces monorepo**:
+- **`api/`**: Pure JSON REST API running on Cloudflare Workers, integrated with Cloudflare D1 (SQLite) and Cloudflare KV.
+- **`web/`**: Modern Single Page Application (SPA) built with React 19, Vite, and custom dark glassmorphism CSS, hosted on Cloudflare Pages.
+
+---
+
+# 🪙 راهنمای جامع فارسی سامانه RealRate
+
+سامانه هوشمند و پیشرفته **RealRate**، پلتفرم تحلیل بازار طلا، سکه، ارزهای مطرح جهان و **مدیریت پورتفوی ابری سرمایه‌گذاری** با تمرکز بر شفافیت قیمت‌ها و رابط کاربری مدرن (Fintech Dark Glassmorphism) است.
+
+---
+
+## ✨ امکانات و قابلیت‌های اصلی
+
+### 💼 ۱. پورتفوی هوشمند دارایی‌های من (Cloud Portfolio Tracker)
+- **ذخیره‌سازی ابری در پایگاه داده Cloudflare D1**: اطلاعات دارایی‌های کاربر به صورت کاملاً امن در دیتابیس ابری ذخیره شده و از هر دستگاه و گوشی در دسترس است.
+- **فیلدهای کامل برای هر دارایی**:
+  - **نوع دارایی**: انواع سکه بهار آزادی (تمام طرح جدید/قدیم، نیم، ربع، گرمی)، طلای ۱۸ عیار خام، دلار، یورو، درهم، لیر، تتر (USDT) و ...
+  - **مقدار یا وزن**: به عدد یا گرم با پشتیبانی از ارقام فارسی و اعشار.
+  - **قیمت خرید واحد**: ثبت قیمت تمام‌شده خرید به ازای هر واحد به تومان.
+  - **تاریخ یا زمان خرید**: ثبت زمان خرید (مثلاً `۱۴۰۳/۱۱/۲۰` یا `آبان ۱۴۰۳`) جهت شفافیت سرمایه‌گذاری.
+  - **توضیحات و یادداشت**: یادداشت اختصاصی برای هر قلم دارایی (مثلاً «خرید از طلافروشی پاساژ»، «پله اول»).
+- **محاسبه آنلاین و زنده سود و زیان (PnL)**:
+  - محاسبه آنی ارزش روز دارایی‌ها بر اساس آخرین قیمت‌های بازار.
+  - نمایش سود/زیان تومانی و درصدی برای تک‌تک اقلام.
+  - نمایش ارزش کل پورتفو، مجموع سود یا زیان و درصد بازدهی کل سبد دارایی.
+- **احراز هویت اختصاصی (Auth Gating)**: دسترسی به بخش پورتفو نیازمند ورود با حساب کاربری گوگل است.
+- **انتقال خودکار داده‌ها (Auto-Migration)**: چنانچه کاربری دارایی‌های پیشین خود را در حافظه مرورگر داشته باشد، در اولین ورود به طور خودکار به دیتابیس ابری منتقل می‌شود.
+
+---
+
+### 📊 ۲. تحلیل حباب طلا و انواع سکه
+- **محاسبه ارزش ذاتی و واقعی خام طلا**: محاسبه ارزش ریاضی طلای خالص بر پایه انس جهانی ($) و نرخ دلار آزاد (تومان).
+- **تحلیل دوگانه حباب**:
+  - سنجش حباب نسبت به **ارزش طلای خام**.
+  - سنجش انحراف نسبت به **قیمت انتظاری با حباب مصوب**.
+- **پیشنهاد هوشمند اقتصادی (Smart Recommendation)**: شناسایی خودکار کم‌حباب‌ترین و باارزش‌ترین قلم طلا/سکه جهت خرید.
+- **شناسایی حباب منفی و وضعیت اقلام**: تفکیک بصری وضعیت حباب و مدیریت اقلام ناموجود در بازار بدون قیمت‌سازی کاذب.
+
+---
+
+### 💱 ۳. نرخ لحظه‌ای ارزهای جهان
+- دریافت زنده نرخ‌های برابری از مراجع بین‌المللی و تبدیل خودکار به تومان:
+  - 🇺🇸 **دلار آمریکا (USD)**
+  - 🇪🇺 **یورو اروپا (EUR)**
   - 🇦🇪 **درهم امارات (AED)**
   - 🇹🇷 **لیر ترکیه (TRY)**
-  - 🇨🇳 **یوان چین (CNY)**
   - 🇬🇧 **پوند انگلیس (GBP)**
   - 🇨🇦 **دلار کانادا (CAD)**
-- طراحی به صورت **لیست فشرده و مرتب (Compact List)** جهت بررسی سریع.
-
-### 💎 ۳. محاسبه‌گر فاکتور طلا و اجرت
-- محاسبه دقیق مبلغ نهایی فاکتور خرید طلا شامل:
-  - وزن طلا (گرم)
-  - درصد اجرت ساخت (٪)
-  - درصد سود طلافروش (٪)
-  - درصد مالیات بر ارزش افزوده (٪)
-
-### 🔐 ۴. احراز هویت با گوگل (Google Sign-In) و جدول کاربران
-- **ورود سریع با گوگل برای عموم کاربران**: هر کاربری می‌تواند با حساب گوگل خود در سایت وارد شود.
-- **جدول کاربران (User Table)**: مشخصات کاربران لاگین کرده (نام، ایمیل، تصویر پروفایل، تاریخ اولین ورود، آخرین فعالیت و دفعات ورود) در Cloudflare KV ذخیره و نگهداری می‌شود.
-- **حذف رمز عبور استاتیک و احراز مدیر با ADMIN_EMAIL**:
-  - رمزهای پیش‌فرض و استاتیک حذف شده‌اند.
-  - دسترسی به پنل مدیریت (`/admin`) تنها به ایمیل(های) تعیین‌شده در متغیر محیطی `ADMIN_EMAIL` داده می‌شود.
-  - امکان تعیین چندین ایمیل مدیر با کاما وجود دارد (مانند: `admin@gmail.com,owner@gmail.com`).
-- **تنظیمات عمومی پیش‌فرض در پنل مدیریت**:
-  - قیمت پیش‌فرض دلار آزاد (تومان)
-  - پیش‌فرض انس جهانی طلا ($)
-  - درصد حباب مصوب سکه تمام، نیم سکه و ربع سکه
-  - ارسال پیام یا اطلاعیه عمومی بالای سایت
-- **مدیریت کاربران در پنل مدیریت**: مشاهده کامل لیست کاربران ثبت‌نام شده به همراه نقش و تاریخچه فعالیت.
-
-### 👁️ ۵. سیستم آمارگیری بر اساس IP و کاربران
-- **شمارش کاربران آنلاین**: محاسبه کاربران فعال طی ۵ دقیقه اخیر بر اساس IP اختصاصی.
-- **بازدید کل**: شمارش بی‌همتای بازدیدکنندگان بر اساس IP به صورت ۲۴ ساعته.
-- **مجموع کاربران ثبت‌شده**: نمایش تعداد کل حساب‌هایی که با گوگل وارد شده‌اند.
+  - 🇨🇳 **یوان چین (CNY)**
+  - 🇸🇦 **ریال عربستان (SAR)** و سایر ارزهای رایج
+- قابلیت جستجوی سریع در نام و کد اختصاری ارزها.
 
 ---
 
-## 🏗️ ساختار Monorepo
+### 💎 ۴. محاسبه‌گر پیشرفته فاکتور طلا و اجرت
+- محاسبه دقیق مبلغ نهایی خرید طلا با اجرت ساخت و مالیات:
+  - وزن طلا به گرم
+  - دکمه‌های سریع و دستی برای درصد اجرت ساخت (٪۷، ٪۱۰، ٪۱۵، ٪۱۸، ٪۲۲)
+  - درصد سود طلافروش (پیش‌فرض ٪۷ اتحادیه)
+  - درصد مالیات بر ارزش افزوده (پیش‌فرض ٪۹)
+  - صدور فاکتور و رسید دیجیتال با تفکیک اجزا.
 
-پروژه به دو بخش کاملاً مجزا و ماژولار تقسیم شده است:
-- `api/`: بک‌اند **Cloudflare Worker** (فقط JSON REST API، D1 Database، KV Storage، احراز هویت و کرون‌جاب‌ها)
-- `web/`: فرانت‌اند **React 19 + Vite SPA** (رابط کاربری واکنش‌گرا و سریع، دیپلوی روی Cloudflare Pages)
+---
 
-```bash
+### 🔐 ۵. سیستم احراز هویت و پنل مدیریت
+- **ورود سریع با حساب گوگل (Google GIS)**: بدون نیاز به رمز عبور، با توکن‌های امن و نشست ۳۰ روزه.
+- **مدیریت سطح دسترسی (RBAC)**: شناسایی مدیر سیستم بر اساس ایمیل تعیین‌شده در `ADMIN_EMAIL`.
+- **پنل مدیریت پیشرفته (`/admin`)**:
+  - آمار زنده تعداد کاربران آنلاین طی ۵ دقیقه گذشته بر پایه IP.
+  - تعداد کل بازدیدها و شمارش کاربران ثبت‌نام شده.
+  - لیست کاربران به همراه تصویر پروفایل، تاریخ اولین و آخرین ورود و تعداد دفعات لاگین.
+  - تغییر پویای درصد حباب مصوب و ارسال پیام/اطلاعیه همگانی در بالای سایت.
+
+---
+
+## 🏗️ ساختار مخزن (Monorepo Architecture)
+
+```text
 realrate/
-├── package.json          # مدیریت پکیج‌های monorepo (npm workspaces)
-├── api/                  # Cloudflare Worker API
-│   ├── wrangler.toml
-│   ├── schema.sql
+├── package.json               # تنظیمات اصلی Workspaces و اسکریپت‌های مشترک
+├── README.md                  # راهنمای جامع پروژه
+│
+├── api/                       # سرویس بک‌اند (Cloudflare Worker REST API)
+│   ├── wrangler.toml          # پیکربندی کلاودفلر (Bindings: D1, KV, Vars)
+│   ├── schema.sql             # ساختار جداول پایگاه داده SQLite/D1
+│   ├── package.json
 │   └── src/
-└── web/                  # React + Vite Frontend
-    ├── vite.config.js
-    ├── .env.local
+│       ├── index.js           # روتر اصلی و ورودی ورکر
+│       ├── handlers/          # کنترلرهای مسیرها (api, auth, admin, portfolio)
+│       │   ├── apiRoutes.js
+│       │   ├── authRoutes.js
+│       │   ├── adminRoutes.js
+│       │   └── portfolioRoutes.js
+│       ├── lib/               # ابزارهای پایگاه داده، احراز هویت و تنظیمات
+│       │   ├── db.js          # ارتباط با D1 و KV به همراه Auto-Migration
+│       │   ├── auth.js        # احراز هویت سشن و بررسی ادمین
+│       │   ├── settings.js
+│       │   ├── analytics.js
+│       │   └── helpers.js     # پاسخ‌های JSON و هدرهای داینامیک CORS
+│       └── services/          # دریافت داده‌های خارجی (انس طلا، ارزها، تلگرام)
+│
+└── web/                       # سرویس فرانت‌اند (React 19 + Vite SPA)
+    ├── vite.config.js         # کانفیگ بیلد و پروکسی توسعه
+    ├── package.json
+    ├── .env.production        # آدرس API پروداکشن (VITE_API_URL)
     └── src/
+        ├── App.jsx            # روتینگ برنامه با React Router
+        ├── main.jsx
+        ├── api/client.js      # کلاینت متمرکز فراخوانی APIها با توکن احراز هویت
+        ├── context/           # کانتکست احراز هویت (AuthContext)
+        ├── hooks/             # هوک‌های داده بازار و محاسبات
+        ├── components/        # کامپوننت‌های رابط کاربری
+        │   ├── Header.jsx
+        │   ├── QuickCurrencies.jsx
+        │   ├── AnalysisCards.jsx
+        │   ├── CurrenciesList.jsx
+        │   ├── JewelryCalc.jsx
+        │   ├── PortfolioTracker.jsx # ردیاب پورتفو با گیت احراز هویت
+        │   ├── AdminPanel.jsx
+        │   └── Footer.jsx
+        ├── pages/
+        │   ├── MainPage.jsx   # صفحه اصلی با تب‌بندی مدرن
+        │   └── AdminPage.jsx  # صفحه پنل مدیریت
+        └── styles/
+            └── index.css      # سیستم طراحی دارک و گلس‌مورفیسم فین‌تک
 ```
 
 ---
 
-## 🚀 نحوه اجرا در محیط توسعه (Local Development)
+## 🚀 راهنمای نصب و اجرای محلی (Local Development)
 
-برای اجرای همزمان بک‌اند و فرانت‌اند با یک دستور:
-```bash
-# نصب تمام وابستگی‌های monorepo
-npm install
+### پیش‌نیازها
+- Node.js نسخه 20 یا بالاتر
+- npm نسخه 9 یا بالاتر
 
-# اجرای همزمان API (پورت 8787) و Web (پورت 5173)
-npm run dev
-```
-
-یا اجرای مجزای هر سرویس:
-```bash
-npm run api:dev   # اجرای Cloudflare Worker API روی localhost:8787
-npm run web:dev   # اجرای فرانت‌اند Vite روی localhost:5173
-```
-
----
-
-## 🛠️ تکنولوژی‌های استفاده‌شده
-
-- **Frontend (web/)**: React 19, Vite 8, React Router 7, Vanilla Modern CSS (Dark Mode & Glassmorphism)
-- **Backend (api/)**: Cloudflare Workers (JavaScript ES Modules)
-- **دیتابیس رابطه‌ای (SQL)**: Cloudflare D1 Serverless SQLite (`env.DB`)
-- **احراز هویت (Auth)**: Google Identity Services (GIS) + JWT / Bearer Token & Session Cookie
-- **حافظه کش و آمار (KV)**: Cloudflare KV Storage (`REALRATE_KV`)
-- **منابع قیمت**: دریافت زنده قیمت‌های روز بازار طلا و نرخ برابری ارزها
-
----
-
-## 🔑 راهنمای گام‌به‌گام راه‌اندازی ورود با گوگل (Google OAuth Setup)
-
-برای فعال‌سازی ورود با گوگل روی سایت، مراحل زیر را در **Google Cloud Console** دنبال کنید:
-
-### گام ۱: ساخت پروژه در گوگل کلود
-1. وارد [Google Cloud Console](https://console.cloud.google.com/) شوید.
-2. روی منوی انتخاب پروژه در بالای صفحه کلیک کرده و گزینه **New Project** را انتخاب کنید.
-3. نام دلخواه (مثلاً `RealRate`) را وارد کرده و دکمه **Create** را بزنید.
-
-### گام ۲: پیکربندی صفحه رضایت (OAuth Consent Screen)
-1. از منوی سمت چپ به مسیر **APIs & Services** > **OAuth consent screen** بروید.
-2. نوع کاربر را **External** انتخاب کرده و روی **Create** کلیک کنید.
-3. فیلدهای مورد نیاز را پر کنید:
-   - **App name**: نام برنامه (مثلاً `RealRate`)
-   - **User support email**: ایمیل خودتان
-   - **Developer contact information**: ایمیل شما
-4. روی **Save and Continue** کلیک کنید.
-5. در مرحله Scopes، موارد پیش‌فرض (`email` و `profile`) کافی هستند؛ روی **Save and Continue** کلیک کنید.
-6. در بخش Audience یا Publishing status، دکمه **Publish App** را بزنید تا برنامه فعال شود و همه کاربران بتوانند لاگین کنند.
-
-### گام ۳: ساخت شناسه کلاینت (Web Client ID)
-1. از منوی سمت چپ به مسیر **APIs & Services** > **Credentials** بروید.
-2. روی **+ CREATE CREDENTIALS** در بالای صفحه کلیک کرده و **OAuth client ID** را انتخاب کنید.
-3. فیلد **Application type** را روی **Web application** قرار دهید.
-4. در بخش **Authorized JavaScript origins**، آدرس‌های مجاز سایت خود را اضافه کنید:
-    - برای محیط توسعه محلی:
-      - `http://localhost:5173` (پورت پیش‌فرض فرانت‌اند React/Vite)
-      - `http://localhost:8787` (پورت پیش‌فرض ورکر API)
-      - `http://127.0.0.1:5173`
-      - `http://127.0.0.1:8787`
-    - برای محیط پروداکشن (Cloudflare Pages و Cloudflare Workers):
-      - `https://realrate.pages.dev` (آدرس Cloudflare Pages فرانت‌اند)
-      - `https://your-worker-subdomain.workers.dev`
-      - دامنه اصلی اختصاصی شما (مانند `https://realrate.ir`)
-   > ⚠️ **نکته**: در انتهای آدرس‌ها اسلش `/` قرار ندهید و برای آدرس‌های غیرلوکال حتماً پروتکل `https://` الزامی است.
-5. روی دکمه **Create** کلیک کنید.
-6. پنجره‌ای شامل **Client ID** به شما نمایش داده می‌شود (مثال: `1234567890-abcdefg.apps.googleusercontent.com`). این مقدار را کپی کنید.
-
-### گام ۴: تنظیم مقادیر در `wrangler.toml` یا Cloudflare Secrets
-شناسه کلاینت گوگل و ایمیل(های) مدیر را در فایل `wrangler.toml` وارد کنید:
-
-```toml
-[vars]
-ADMIN_EMAIL = "your-admin-email@gmail.com"
-GOOGLE_CLIENT_ID = "1234567890-abcdefg.apps.googleusercontent.com"
-```
-
-> 💡 **نکته امنیتی در پروداکشن**: می‌توانید مقادیر را به صورت Secret در کلاودفلر ذخیره کنید:
-> ```bash
-> npx wrangler secret put ADMIN_EMAIL
-> npx wrangler secret put GOOGLE_CLIENT_ID
-> ```
-
----
-
-## 🚀 راه اندازی و اجرا روی محیط محلی (Local Development)
-
-۱. **کلون کردن مخزن**:
+### ۱. دریافت پروژه و نصب پکیج‌ها
 ```bash
 git clone https://github.com/nos486/realrate.git
 cd realrate
-```
-
-۲. **نصب وابستگی‌ها**:
-```bash
 npm install
 ```
 
-۳. **اجرای سرور توسعه (Wrangler Dev)**:
+### ۲. اجرای همزمان بک‌اند و فرانت‌اند
+با اجرای یک دستور، سرور ورکر (پورت `8787`) و فرانت‌اند Vite (پورت `5173`) اجرا می‌شوند:
 ```bash
-npx wrangler dev --port 8787
-```
-سایت در آدرس `http://127.0.0.1:8787` و پنل مدیریت در `http://127.0.0.1:8787/admin` در دسترس خواهد بود.
-
----
-
-## 🌐 انتشار روی Cloudflare Workers (Deploy)
-
-برای انتشار نسخه نهایی روی حساب Cloudflare خود:
-
-```bash
-npx wrangler deploy
+npm run dev
 ```
 
----
+آدرس‌های محلی:
+- فرانت‌اند: `http://localhost:5173`
+- بک‌اند API: `http://localhost:8787`
 
-## 🔑 ساخت دیتابیس Cloudflare KV
-
-در صورت عدم وجود دیتابیس KV، یک Namespace جدید بسازید و ID آن را در فایل `wrangler.toml` جایگزین کنید:
-
+همچنین می‌توانید هر کدام را به صورت مجزا اجرا کنید:
 ```bash
-npx wrangler kv:namespace create REALRATE_KV
-```
-
-تنظیمات `wrangler.toml`:
-```toml
-name = "realrate"
-main = "src/index.js"
-compatibility_date = "2024-01-01"
-
-[[kv_namespaces]]
-binding = "REALRATE_KV"
-id = "<YOUR_KV_NAMESPACE_ID>"
+npm run api:dev   # اجرای فقط بک‌اند ورکر
+npm run web:dev   # اجرای فقط فرانت‌اند ری‌اکت
 ```
 
 ---
 
-## 🗄️ ساخت و راه‌اندازی دیتابیس Cloudflare D1 (SQL)
+## 🗄️ راه‌اندازی پایگاه‌داده Cloudflare D1 و KV
 
-سامانه RealRate از **Cloudflare D1 (SQLite)** برای ذخیره‌سازی داده‌های ساخت‌یافته کاربران، سشن‌ها و تنظیمات استفاده می‌کند.
+پروژه از دیتابیس **Cloudflare D1 (SQLite)** برای ذخیره کاربران، نشست‌ها، تنظیمات و دارایی‌های پورتفو استفاده می‌کند.
 
-### ۱. ساخت دیتابیس D1 در کلاودفلر:
+### ۱. ساخت دیتابیس D1 در کلاودفلر
 ```bash
 npx wrangler d1 create realrate-db
 ```
-پس از اجرای این دستور، کلاودفلر یک `database_id` به شما می‌دهد.
-
-### ۲. اتصال دیتابیس در `wrangler.toml`:
+شناسه برگشتی (`database_id`) را در فایل `api/wrangler.toml` قرار دهید:
 ```toml
 [[d1_databases]]
 binding = "DB"
 database_name = "realrate-db"
-database_id = "<YOUR_D1_DATABASE_ID>"
+database_id = "<شناسه_دیتابیس_شما>"
 ```
 
-### ۳. اعمال جداول دیتابیس (Schema Migration):
-برای اعمال فایل `schema.sql`:
-- **محیط محلی (Local)**:
-  ```bash
-  npx wrangler d1 execute realrate-db --local --file=./schema.sql
-  ```
-- **محیط آنلاین (Remote)**:
-  ```bash
-  npx wrangler d1 execute realrate-db --remote --file=./schema.sql
-  ```
+### ۲. ساخت فضای KV
+```bash
+npx wrangler kv:namespace create REALRATE_KV
+```
+شناسه برگشتی را در `api/wrangler.toml` بخش `kv_namespaces` وارد کنید.
 
-> 💡 **نکته**: ورکر RealRate مجهز به مکانیزم Auto-Bootstrap است؛ یعنی حتی اگر مایگریشن دستی اجرا نشود، جداول به صورت خودکار (`CREATE TABLE IF NOT EXISTS`) در اولین درخواست ایجاد می‌شوند.
+### ۳. اعمال مایگریشن جداول
+جداول پایگاه داده به صورت خودکار با قابلیت **Auto-Bootstrap** در اولین درخواست ورکر ساخته می‌شوند، اما می‌توانید فایل `schema.sql` را دستی نیز اعمال کنید:
+```bash
+# محیط آنلاین
+npx wrangler d1 execute realrate-db --remote --file=./api/schema.sql
+```
+
+---
+
+## 🔑 تنظیم ورود با گوگل (Google OAuth Setup)
+
+1. وارد [Google Cloud Console](https://console.cloud.google.com/) شوید و یک پروژه بسازید.
+2. از مسیر **APIs & Services > Credentials** یک **OAuth 2.0 Client ID** از نوع **Web application** بسازید.
+3. در بخش **Authorized JavaScript origins** آدرس‌های مجاز را اضافه کنید:
+   - `http://localhost:5173`
+   - `http://localhost:8787`
+   - `https://realrate.pages.dev` (یا دامنه اختصاصی فرانت‌اند شما)
+4. شناسه کلاینت دریافت شده (`Client ID`) را در تنظیمات وارد کنید:
+   - در `api/wrangler.toml` زیر `[vars]`:
+     ```toml
+     GOOGLE_CLIENT_ID = "YOUR_CLIENT_ID.apps.googleusercontent.com"
+     ADMIN_EMAIL = "your-email@gmail.com"
+     ```
+   - در فرانت‌اند برای بیلد محلی در فایل `web/.env.local`:
+     ```env
+     VITE_GOOGLE_CLIENT_ID=YOUR_CLIENT_ID.apps.googleusercontent.com
+     ```
+
+---
+
+## 🌐 راهنمای استقرار در سرور ابری (Deployment)
+
+### استقرار بک‌اند (Cloudflare Worker)
+```bash
+npm run api:deploy
+```
+یا از داخل دایرکتوری `api`:
+```bash
+cd api
+npx wrangler deploy
+```
+
+### استقرار فرانت‌اند (Cloudflare Pages)
+در پنل Cloudflare Dashboard به بخش **Workers & Pages > Create application > Pages > Connect to Git** بروید:
+- **Project name**: `realrate`
+- **Framework preset**: `Vite`
+- **Root directory**: `web`
+- **Build command**: `npm run build`
+- **Build output directory**: `dist`
+- **Environment variables**:
+  - `VITE_API_URL`: آدرس ورکر بک‌اند شما (مثلاً `https://realrate-api.geekio.org`)
+  - `VITE_GOOGLE_CLIENT_ID`: شناسه کلاینت گوگل
 
 ---
 
 ## 📜 لایسنس
-این پروژه تحت لایسنس MIT منتشر شده است.
+این پروژه تحت مجوز [MIT License](LICENSE) منتشر شده است و استفاده از آن آزاد می‌باشد.

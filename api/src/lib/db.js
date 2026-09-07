@@ -48,6 +48,22 @@ export async function ensureD1Tables(env) {
       announcement TEXT DEFAULT '',
       updated_at TEXT
     )`,
+    `CREATE TABLE IF NOT EXISTS portfolio_holdings (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL,
+      asset_id TEXT NOT NULL,
+      asset_name TEXT NOT NULL,
+      asset_type TEXT NOT NULL,
+      unit TEXT NOT NULL,
+      amount REAL NOT NULL,
+      buy_price REAL NOT NULL,
+      buy_date TEXT DEFAULT '',
+      notes TEXT DEFAULT '',
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    )`,
+    `CREATE INDEX IF NOT EXISTS idx_portfolio_holdings_user ON portfolio_holdings(user_id)`,
+    `CREATE INDEX IF NOT EXISTS idx_portfolio_holdings_created ON portfolio_holdings(created_at DESC)`,
   ];
 
   try {
@@ -262,4 +278,160 @@ export async function dbDeleteSession(env, token) {
       await env.REALRATE_KV.delete(`session:${token}`);
     } catch (e) {}
   }
+}
+
+/**
+ * Fetch all portfolio holdings for a user
+ * @param {object} env
+ * @param {string} userId
+ * @returns {Promise<Array>}
+ */
+export async function dbGetPortfolioHoldings(env, userId) {
+  if (!userId) return [];
+
+  if (env && env.DB) {
+    await ensureD1Tables(env);
+    try {
+      const { results } = await env.DB.prepare(`
+        SELECT id, user_id AS userId, asset_id AS assetId, asset_name AS assetName,
+               asset_type AS assetType, unit, amount, buy_price AS buyPrice,
+               buy_date AS buyDate, notes, created_at AS createdAt, updated_at AS updatedAt
+        FROM portfolio_holdings
+        WHERE user_id = ?
+        ORDER BY created_at DESC
+      `).bind(userId).all();
+      if (Array.isArray(results)) {
+        return results;
+      }
+    } catch (e) {
+      console.error("D1 dbGetPortfolioHoldings error:", e);
+    }
+  }
+
+  // Fallback to KV
+  if (env && env.REALRATE_KV) {
+    try {
+      const dataStr = await env.REALRATE_KV.get(`portfolio:${userId}`);
+      if (dataStr) {
+        const parsed = JSON.parse(dataStr);
+        if (Array.isArray(parsed)) return parsed;
+      }
+    } catch (e) {}
+  }
+
+  return [];
+}
+
+/**
+ * Add or update a portfolio holding for a user
+ * @param {object} env
+ * @param {object} item
+ * @returns {Promise<object>}
+ */
+export async function dbAddPortfolioHolding(env, item) {
+  const now = new Date().toISOString();
+  const holding = {
+    id: item.id || `h_${Date.now()}_${crypto.randomUUID().slice(0, 8)}`,
+    userId: item.userId,
+    assetId: item.assetId,
+    assetName: item.assetName || item.assetId,
+    assetType: item.assetType || 'custom',
+    unit: item.unit || 'واحد',
+    amount: Number(item.amount) || 0,
+    buyPrice: Number(item.buyPrice) || 0,
+    buyDate: item.buyDate || '',
+    notes: item.notes || '',
+    createdAt: item.createdAt || now,
+    updatedAt: now,
+  };
+
+  if (env && env.DB) {
+    await ensureD1Tables(env);
+    try {
+      await env.DB.prepare(`
+        INSERT INTO portfolio_holdings (id, user_id, asset_id, asset_name, asset_type, unit, amount, buy_price, buy_date, notes, created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ON CONFLICT(id) DO UPDATE SET
+          asset_id = excluded.asset_id,
+          asset_name = excluded.asset_name,
+          asset_type = excluded.asset_type,
+          unit = excluded.unit,
+          amount = excluded.amount,
+          buy_price = excluded.buy_price,
+          buy_date = excluded.buy_date,
+          notes = excluded.notes,
+          updated_at = excluded.updated_at
+      `).bind(
+        holding.id,
+        holding.userId,
+        holding.assetId,
+        holding.assetName,
+        holding.assetType,
+        holding.unit,
+        holding.amount,
+        holding.buyPrice,
+        holding.buyDate,
+        holding.notes,
+        holding.createdAt,
+        holding.updatedAt
+      ).run();
+    } catch (e) {
+      console.error("D1 dbAddPortfolioHolding error:", e);
+    }
+  }
+
+  // Sync to KV
+  if (env && env.REALRATE_KV) {
+    try {
+      let list = [];
+      const listStr = await env.REALRATE_KV.get(`portfolio:${holding.userId}`);
+      if (listStr) list = JSON.parse(listStr);
+      if (!Array.isArray(list)) list = [];
+
+      const idx = list.findIndex(h => h.id === holding.id);
+      if (idx >= 0) list[idx] = holding;
+      else list.unshift(holding);
+
+      await env.REALRATE_KV.put(`portfolio:${holding.userId}`, JSON.stringify(list));
+    } catch (e) {}
+  }
+
+  return holding;
+}
+
+/**
+ * Delete a portfolio holding
+ * @param {object} env
+ * @param {string} id
+ * @param {string} userId
+ */
+export async function dbDeletePortfolioHolding(env, id, userId) {
+  if (!id || !userId) return false;
+
+  if (env && env.DB) {
+    await ensureD1Tables(env);
+    try {
+      await env.DB.prepare(`
+        DELETE FROM portfolio_holdings WHERE id = ? AND user_id = ?
+      `).bind(id, userId).run();
+    } catch (e) {
+      console.error("D1 dbDeletePortfolioHolding error:", e);
+    }
+  }
+
+  // Sync to KV
+  if (env && env.REALRATE_KV) {
+    try {
+      const listStr = await env.REALRATE_KV.get(`portfolio:${userId}`);
+      if (listStr) {
+        let list = JSON.parse(listStr);
+        if (Array.isArray(list)) {
+          list = list.filter(h => h.id !== id);
+          await env.REALRATE_KV.put(`portfolio:${userId}`, JSON.stringify(list));
+        }
+      }
+    } catch (e) {}
+  }
+
+  return true;
 }

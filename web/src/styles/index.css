@@ -1124,12 +1124,8 @@ input, select, textarea { font-family: inherit; }
 
 .portfolio-overview-grid {
   display: grid;
-  grid-template-columns: 1.4fr 1.2fr 1fr;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
   gap: 12px;
-}
-
-@media (max-width: 768px) {
-  .portfolio-overview-grid { grid-template-columns: 1fr; }
 }
 
 .portfolio-stat-card {
@@ -1147,6 +1143,26 @@ input, select, textarea { font-family: inherit; }
 
 .portfolio-stat-card.main-val {
   border-color: rgba(245, 158, 11, 0.3);
+}
+
+.portfolio-stat-card.intrinsic-val {
+  border-color: rgba(56, 189, 248, 0.3);
+}
+
+.real-pill {
+  font-size: 10px;
+  font-weight: 800;
+  color: #38bdf8;
+  background: rgba(56, 189, 248, 0.1);
+  border: 1px solid rgba(56, 189, 248, 0.25);
+  border-radius: 999px;
+  padding: 2px 8px;
+}
+
+.sky-gradient-text {
+  background: linear-gradient(135deg, #7dd3fc 0%, #38bdf8 50%, #0284c7 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
 }
 
 .stat-header {
@@ -1426,6 +1442,24 @@ input, select, textarea { font-family: inherit; }
 .item-actions-col {
   display: flex;
   align-items: center;
+  gap: 4px;
+}
+
+.btn-edit-item {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  padding: 6px;
+  border-radius: var(--radius-xs);
+  cursor: pointer;
+  transition: var(--transition-fast);
+  display: flex;
+  align-items: center;
+}
+
+.btn-edit-item:hover {
+  color: var(--gold-light);
+  background: var(--gold-soft-bg);
 }
 
 .btn-del-item {
@@ -1445,7 +1479,41 @@ input, select, textarea { font-family: inherit; }
   background: var(--rose-soft);
 }
 
-/* ── Add Asset Modal ─────────────────────────────────────────────────────── */
+.meta-real-price {
+  color: #38bdf8;
+  font-weight: 700;
+  background: rgba(56, 189, 248, 0.08);
+  padding: 1px 6px;
+  border-radius: var(--radius-xs);
+  border: 1px solid rgba(56, 189, 248, 0.2);
+}
+
+.meta-market-price {
+  color: var(--text-secondary);
+}
+
+.meta-bubble-tag {
+  color: var(--gold-light);
+  font-size: 10px;
+  font-weight: 700;
+  background: rgba(245, 158, 11, 0.1);
+  padding: 1px 5px;
+  border-radius: 4px;
+}
+
+.meta-bubble-tag.negative {
+  color: #38bdf8;
+  background: rgba(56, 189, 248, 0.1);
+}
+
+.item-intrinsic-sub {
+  font-size: 11px;
+  color: #38bdf8;
+  opacity: 0.9;
+  font-weight: 700;
+}
+
+/* ── Add / Edit Asset Modal ────────────────────────────────────────────────── */
 .modal-backdrop {
   position: fixed;
   inset: 0;
@@ -1527,15 +1595,43 @@ input, select, textarea { font-family: inherit; }
   box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.12);
 }
 
-.live-hint-box {
-  background: rgba(245, 158, 11, 0.08);
-  border: 1px solid rgba(245, 158, 11, 0.25);
-  border-radius: var(--radius-xs);
-  padding: 8px 12px;
-  font-size: 11.5px;
+.live-hint-box-detailed {
+  background: rgba(14, 19, 30, 0.85);
+  border: 1px solid rgba(245, 158, 11, 0.2);
+  border-radius: var(--radius-sm);
+  padding: 10px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.live-hint-box-detailed .hint-row {
   display: flex;
   justify-content: space-between;
+  align-items: center;
+  font-size: 12px;
+}
+
+.live-hint-box-detailed .hint-label {
+  color: var(--text-secondary);
+}
+
+.live-hint-box-detailed .hint-val-sky {
+  color: #38bdf8;
+  font-weight: 800;
+}
+
+.live-hint-box-detailed .hint-val-gold {
   color: var(--gold-light);
+  font-weight: 800;
+}
+
+.live-hint-box-detailed .hint-sub {
+  font-size: 11px;
+  color: var(--text-muted);
+  border-top: 1px dashed rgba(255, 255, 255, 0.08);
+  padding-top: 5px;
+  margin-top: 2px;
 }
 
 .modal-actions {
@@ -1565,6 +1661,225 @@ input, select, textarea { font-family: inherit; }
   font-size: 13px;
   font-weight: 800;
 }
+
+/* ── Portfolio Auth Gate & Details ─────────────────────────────────────── */
+.portfolio-auth-gate {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 24px 8px;
+  animation: fadeIn 0.3s ease;
+}
+
+.auth-gate-card {
+  max-width: 540px;
+  width: 100%;
+  background: linear-gradient(145deg, rgba(16, 22, 36, 0.85) 0%, rgba(9, 13, 22, 0.95) 100%);
+  border: 1px solid rgba(245, 158, 11, 0.2);
+  border-radius: var(--radius-lg);
+  padding: 32px 26px;
+  text-align: center;
+  box-shadow: 0 16px 36px -12px rgba(0, 0, 0, 0.7), 0 0 24px rgba(245, 158, 11, 0.06);
+  position: relative;
+  overflow: hidden;
+}
+
+.auth-gate-card::before {
+  content: '';
+  position: absolute;
+  top: -80px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 220px;
+  height: 220px;
+  background: radial-gradient(circle, rgba(245, 158, 11, 0.15) 0%, transparent 70%);
+  pointer-events: none;
+}
+
+.auth-gate-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(245, 158, 11, 0.1);
+  border: 1px solid rgba(245, 158, 11, 0.28);
+  padding: 4px 12px;
+  border-radius: 999px;
+  margin-bottom: 14px;
+}
+
+.auth-gate-badge .lock-icon {
+  font-size: 14px;
+}
+
+.auth-gate-badge .badge-text {
+  font-size: 11.5px;
+  font-weight: 700;
+  color: var(--gold-light);
+}
+
+.auth-gate-title {
+  font-size: 20px;
+  font-weight: 900;
+  color: #fff;
+  margin-bottom: 10px;
+  letter-spacing: -0.3px;
+}
+
+.auth-gate-desc {
+  font-size: 13px;
+  color: var(--text-secondary);
+  line-height: 1.7;
+  max-width: 460px;
+  margin: 0 auto 22px auto;
+}
+
+.auth-gate-features {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  text-align: right;
+  background: rgba(8, 11, 19, 0.6);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: 16px;
+  margin-bottom: 24px;
+}
+
+.gate-feature-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.gate-feature-item .feature-icon {
+  font-size: 18px;
+  margin-top: 1px;
+}
+
+.gate-feature-item .feature-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.gate-feature-item .feature-info strong {
+  font-size: 13px;
+  color: #fff;
+  font-weight: 800;
+}
+
+.gate-feature-item .feature-info span {
+  font-size: 11.5px;
+  color: var(--text-muted);
+  line-height: 1.5;
+}
+
+.auth-gate-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+
+.btn-google-gate-login {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  width: 100%;
+  max-width: 320px;
+  padding: 12px 20px;
+  background: #ffffff;
+  color: #1f2937;
+  border: 1px solid #d1d5db;
+  border-radius: var(--radius-md);
+  font-size: 14px;
+  font-weight: 800;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25);
+}
+
+.btn-google-gate-login:hover {
+  background: #f8fafc;
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.35);
+}
+
+.gate-privacy-note {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+/* Extra meta tags inside portfolio item row */
+.item-extra-meta {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.item-date-tag {
+  font-size: 10.5px;
+  color: var(--text-secondary);
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-xs);
+  padding: 1px 7px;
+}
+
+.item-notes-tag {
+  font-size: 10.5px;
+  color: var(--gold-light);
+  background: rgba(245, 158, 11, 0.07);
+  border: 1px solid rgba(245, 158, 11, 0.15);
+  border-radius: var(--radius-xs);
+  padding: 1px 7px;
+  max-width: 220px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.form-row-dual {
+  display: flex;
+  gap: 10px;
+}
+
+.form-row-dual .flex-1 {
+  flex: 1;
+}
+
+.portfolio-loading-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 60px 20px;
+  gap: 14px;
+  color: var(--text-secondary);
+  font-size: 13px;
+}
+
+.spinner-glow {
+  width: 32px;
+  height: 32px;
+  border: 3px solid rgba(245, 158, 11, 0.2);
+  border-top-color: var(--gold-primary);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+.mini-spinner {
+  width: 14px;
+  height: 14px;
+  border: 2px solid rgba(244, 63, 94, 0.3);
+  border-top-color: var(--rose-red);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
 
 /* ── Admin Page Styles ───────────────────────────────────────────────────── */
 .admin-container {

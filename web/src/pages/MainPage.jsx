@@ -182,7 +182,7 @@ export default function MainPage() {
           )}
 
           {activeTab === 'portfolio' && (
-            <PortfolioTracker calcData={calcData} rates={rates} usdToman={usdToman} />
+            <PortfolioTracker calcData={calcData} rates={rates} usdToman={usdToman} goldUsd={goldUsd} />
           )}
         </section>
       </main>

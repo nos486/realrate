@@ -63,3 +63,22 @@ INSERT OR IGNORE INTO settings (
   '',
   datetime('now')
 );
+
+-- 4. Portfolio Holdings Table (Per-user cloud asset tracking)
+CREATE TABLE IF NOT EXISTS portfolio_holdings (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL,
+  asset_id TEXT NOT NULL,
+  asset_name TEXT NOT NULL,
+  asset_type TEXT NOT NULL,
+  unit TEXT NOT NULL,
+  amount REAL NOT NULL,
+  buy_price REAL NOT NULL,
+  buy_date TEXT DEFAULT '',
+  notes TEXT DEFAULT '',
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_portfolio_holdings_user ON portfolio_holdings(user_id);
+CREATE INDEX IF NOT EXISTS idx_portfolio_holdings_created ON portfolio_holdings(created_at DESC);
