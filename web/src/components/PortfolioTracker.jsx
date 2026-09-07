@@ -180,6 +180,7 @@ export default function PortfolioTracker({ calcData, rates, usdToman, goldUsd })
   const [newPortfolioModalOpen, setNewPortfolioModalOpen] = useState(false);
   const [newPortfolioName, setNewPortfolioName] = useState('');
   const [creatingPortfolio, setCreatingPortfolio] = useState(false);
+  const [settingDefault, setSettingDefault] = useState(false);
 
   const [holdings, setHoldings] = useState([]);
   const [loadingHoldings, setLoadingHoldings] = useState(true);
@@ -339,6 +340,30 @@ export default function PortfolioTracker({ calcData, rates, usdToman, goldUsd })
       alert('خطا در ساخت پورتفو: ' + (err.message || 'نامعتبر'));
     } finally {
       setCreatingPortfolio(false);
+    }
+  };
+
+  // Handle setting active portfolio as default
+  const handleSetDefaultPortfolio = async (portfolioId) => {
+    if (!portfolioId || settingDefault) return;
+    setSettingDefault(true);
+    try {
+      const res = await apiUpdatePortfolio({ id: portfolioId, isDefault: true });
+      if (res.success) {
+        setPortfolios((prev) =>
+          prev.map((p) => ({
+            ...p,
+            isDefault: p.id === portfolioId,
+          }))
+        );
+      } else {
+        alert(res.message || 'خطا در تعیین پورتفوی پیش‌فرض');
+      }
+    } catch (err) {
+      console.error('Error setting default portfolio:', err);
+      alert('خطا در ارتباط با سرور.');
+    } finally {
+      setSettingDefault(false);
     }
   };
 
@@ -835,6 +860,24 @@ export default function PortfolioTracker({ calcData, rates, usdToman, goldUsd })
 
         {activePortfolio && (
           <div className="portfolio-bar-actions">
+            {activePortfolio.isDefault ? (
+              <span className="badge-default-portfolio" title="این پورتفو، پورتفوی پیش‌فرض اصلی شماست">
+                <span className="badge-star-icon">⭐</span>
+                <span>پورتفوی اصلی</span>
+              </span>
+            ) : (
+              <button
+                type="button"
+                className="btn-set-default"
+                onClick={() => handleSetDefaultPortfolio(activePortfolio.id)}
+                disabled={settingDefault}
+                title="تعیین این پورتفو به عنوان پورتفوی پیش‌فرض اصلی هنگام باز شدن برنامه"
+              >
+                <span className="btn-star-icon">⭐</span>
+                <span>{settingDefault ? 'در حال ثبت...' : 'پیش‌فرض کردن'}</span>
+              </button>
+            )}
+
             <button
               type="button"
               className="btn-portfolio-settings"

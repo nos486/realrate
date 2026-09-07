@@ -645,7 +645,7 @@ export async function dbCreatePortfolio(env, userId, { name }) {
 /**
  * Update portfolio name and share settings
  */
-export async function dbUpdatePortfolio(env, portfolioId, userId, { name, shareSlug, sharePassword, shareEnabled }) {
+export async function dbUpdatePortfolio(env, portfolioId, userId, { name, shareSlug, sharePassword, shareEnabled, isDefault }) {
   if (!portfolioId || !userId) throw new Error("شناسه پورتفو و کاربر الزامی است.");
   if (env && env.DB) {
     await ensureD1Tables(env);
@@ -663,6 +663,13 @@ export async function dbUpdatePortfolio(env, portfolioId, userId, { name, shareS
         throw new Error("این آدرس اختصاصی (slug) قبلاً برای پورتفوی دیگری ثبت شده است.");
       }
       shareSlug = cleanedSlug;
+    }
+
+    if (isDefault) {
+      // Clear default flag on other portfolios of this user
+      await env.DB.prepare(`
+        UPDATE portfolios SET is_default = 0 WHERE user_id = ?
+      `).bind(userId).run();
     }
 
     const updates = ["updated_at = ?"];
@@ -684,6 +691,10 @@ export async function dbUpdatePortfolio(env, portfolioId, userId, { name, shareS
       updates.push("share_enabled = ?");
       bindings.push(shareEnabled ? 1 : 0);
     }
+    if (isDefault !== undefined) {
+      updates.push("is_default = ?");
+      bindings.push(isDefault ? 1 : 0);
+    }
 
     bindings.push(portfolioId, userId);
     await env.DB.prepare(`
@@ -691,6 +702,14 @@ export async function dbUpdatePortfolio(env, portfolioId, userId, { name, shareS
       SET ${updates.join(", ")}
       WHERE id = ? AND user_id = ?
     `).bind(...bindings).run();
+
+    // Refresh KV if used
+    if (env && env.REALRATE_KV) {
+      try {
+        const list = await dbGetUserPortfolios(env, userId);
+        await env.REALRATE_KV.put(`portfolios:${userId}`, JSON.stringify(list));
+      } catch (e) {}
+    }
 
     const updated = await env.DB.prepare(`
       SELECT p.id, p.user_id AS userId, p.name, p.is_default AS isDefault,

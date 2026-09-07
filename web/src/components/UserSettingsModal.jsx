@@ -17,6 +17,7 @@ export default function UserSettingsModal({ isOpen, portfolio, onClose, onSaved 
   const [shareEnabled, setShareEnabled] = useState(false);
   const [sharePassword, setSharePassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [isDefault, setIsDefault] = useState(false);
 
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -34,6 +35,7 @@ export default function UserSettingsModal({ isOpen, portfolio, onClose, onSaved 
         setShareSlug(portfolio.shareSlug || generateRandomSlug(8));
         setShareEnabled(!!portfolio.shareEnabled);
         setSharePassword(portfolio.sharePassword || '');
+        setIsDefault(!!portfolio.isDefault);
       }
 
       apiGetUserSettings()
@@ -81,6 +83,7 @@ export default function UserSettingsModal({ isOpen, portfolio, onClose, onSaved 
           shareSlug,
           sharePassword: sharePassword ? sharePassword.trim() : '',
           shareEnabled,
+          isDefault,
         });
       }
 
@@ -161,6 +164,29 @@ export default function UserSettingsModal({ isOpen, portfolio, onClose, onSaved 
                 onChange={(e) => setCustomName(e.target.value)}
               />
               <span className="input-hint">این نام در بالای صفحه اشتراک‌گذاری شده به بینندگان نمایش داده می‌شود.</span>
+            </div>
+
+            {/* Default Portfolio Toggle */}
+            <div className="share-toggle-card default-portfolio-toggle">
+              <div className="toggle-info">
+                <div className="toggle-title-row">
+                  <span className="share-status-indicator" style={{ backgroundColor: isDefault ? '#f59e0b' : '#64748b' }}></span>
+                  <strong>تعیین به عنوان پورتفوی پیش‌فرض (اصلی) ⭐</strong>
+                </div>
+                <span>
+                  {isDefault 
+                    ? 'این پورتفو هم‌اکنون به عنوان سبد پیش‌فرض اصلی شما تعیین شده و هنگام ورود به سایت ابتدا نمایش داده می‌شود.' 
+                    : 'با فعال‌سازی این گزینه، این پورتفو به عنوان سبد پیش‌فرض و اولیه شما باز خواهد شد.'}
+                </span>
+              </div>
+              <label className="switch-wrapper">
+                <input
+                  type="checkbox"
+                  checked={isDefault}
+                  onChange={(e) => setIsDefault(e.target.checked)}
+                />
+                <span className="switch-slider"></span>
+              </label>
             </div>
 
             {/* Share Enabled Toggle */}

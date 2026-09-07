@@ -133,6 +133,7 @@ export async function handleUpdatePortfolio(request, env) {
       shareSlug: body.shareSlug,
       sharePassword: body.sharePassword,
       shareEnabled: body.shareEnabled,
+      isDefault: body.isDefault !== undefined ? !!body.isDefault : undefined,
     });
 
     if (!updated) {
