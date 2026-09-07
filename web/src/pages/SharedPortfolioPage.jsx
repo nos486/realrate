@@ -229,7 +229,7 @@ export default function SharedPortfolioPage() {
         totalCost: groupCost,
         totalRealValue: groupRealVal,
         totalPnl: hasCostedItems ? groupPnl : null,
-        totalPnlPct,
+        totalPnlPct: groupPnlPct,
         hasCostedItems,
       };
     }).filter((group) => group.items.length > 0);
