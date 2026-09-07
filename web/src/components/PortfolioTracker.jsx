@@ -663,260 +663,301 @@ export default function PortfolioTracker({ calcData, rates, usdToman, goldUsd })
         )}
       </div>
 
-      {/* Overview Cards Grid */}
-      <div className="portfolio-overview-grid">
-        {/* Card 1: Total Real Value */}
-        <div className="portfolio-stat-card main-val">
-          <div className="stat-header">
-            <span className="stat-label">ارزش واقعی کل {activePortfolio?.name ? `(«${activePortfolio.name}»)` : 'دارایی‌ها'}</span>
-            <span className="real-pill">
-              🌐 انس طلا + نقره + دلار
-            </span>
-          </div>
-          <div className={`stat-number gold-gradient-text ${hideValues ? 'is-masked' : ''}`}>
-            {hideValues ? '****' : formatNum(portfolioMetrics.totalRealValue)}
-            <span className="stat-unit">تومان</span>
-          </div>
-          <div className="stat-sub">
-            سرمایه اولیه خرید: {hideValues ? '**** تومان' : `${formatNum(portfolioMetrics.totalCost)} تومان`}
-          </div>
-        </div>
-
-        {/* Card 2: Total PnL */}
-        <div className={`portfolio-stat-card pnl-card ${portfolioMetrics.totalPnl >= 0 ? 'profit' : 'loss'}`}>
-          <div className="stat-header">
-            <span className="stat-label">سود / زیان واقعی کل</span>
-            <span className={`pnl-badge ${portfolioMetrics.totalPnl >= 0 ? 'profit' : 'loss'}`}>
-              {hideValues ? '****' : `${portfolioMetrics.totalPnl >= 0 ? '+' : ''}${portfolioMetrics.totalPnlPct.toFixed(2).replace('-', '')}٪`}
-            </span>
-          </div>
-          <div className={`stat-number ${hideValues ? 'is-masked' : ''}`}>
-            {hideValues ? '****' : `${portfolioMetrics.totalPnl >= 0 ? '+' : ''}${formatNum(portfolioMetrics.totalPnl)}`}
-            <span className="stat-unit">تومان</span>
-          </div>
-          <div className="stat-sub">
-            {portfolioMetrics.totalPnl >= 0 ? '🟢 پورتفوی شما در سود است' : '🔴 پورتفوی شما در زیان است'}
-          </div>
-        </div>
-
-        {/* Card 3: Actions & Count */}
-        <div className="portfolio-stat-card action-card">
-          <div className="stat-header">
-            <span className="stat-label">مدیریت سبد دارایی</span>
-            <span className="count-pill">{holdings.length} قلم دارایی</span>
-          </div>
-          <button className="btn-add-asset" onClick={handleOpenAdd}>
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-              <line x1="12" y1="5" x2="12" y2="19"></line>
-              <line x1="5" y1="12" x2="19" y2="12"></line>
-            </svg>
-            <span>افزودن دارایی جدید</span>
-          </button>
-        </div>
-      </div>
-
-      {/* Holdings List Grouped by Category */}
-      <div className="portfolio-table-card">
-        <div className="portfolio-table-header">
-          <div className="table-title">
-            <h3>📋 جزئیات {activePortfolio?.name ? `پورتفوی «${activePortfolio.name}»` : 'سبد دارایی'} ({user.name || user.email})</h3>
-            <span>
-              محاسبه بر پایه ارزش واقعی طلا (${goldUsdVal ? goldUsdVal.toLocaleString() : ''})، نقره (${silverUsdVal ? silverUsdVal.toFixed(2) : ''}) و نرخ دلار ({formatNum(usdVal)} تومان)
-            </span>
-          </div>
-          <div className="portfolio-header-actions">
-            <button
-              type="button"
-              className={`btn-privacy-toggle ${hideValues ? 'active' : ''}`}
-              onClick={toggleHideValues}
-              title={hideValues ? 'نمایش مجدد مقادیر مالی' : 'مخفی کردن مبالغ با ****'}
-            >
-              {hideValues ? (
-                <>
+      {/* Two Column Split: Right (Content & Holdings Tables), Left (Overview Summary Cards) */}
+      <div className="portfolio-layout-split">
+        {/* Right Column: Holdings List Grouped by Category */}
+        <div className="portfolio-content-column">
+          <div className="portfolio-table-card">
+            <div className="portfolio-table-header">
+              <div className="table-title">
+                <h3>📋 جزئیات {activePortfolio?.name ? `پورتفوی «${activePortfolio.name}»` : 'سبد دارایی'} ({user.name || user.email})</h3>
+                <span>
+                  محاسبه بر پایه ارزش واقعی طلا (${goldUsdVal ? goldUsdVal.toLocaleString() : ''})، نقره (${silverUsdVal ? silverUsdVal.toFixed(2) : ''}) و نرخ دلار ({formatNum(usdVal)} تومان)
+                </span>
+              </div>
+              <div className="portfolio-header-actions">
+                <button
+                  type="button"
+                  className={`btn-privacy-toggle ${hideValues ? 'active' : ''}`}
+                  onClick={toggleHideValues}
+                  title={hideValues ? 'نمایش مجدد مقادیر مالی' : 'مخفی کردن مبالغ با ****'}
+                >
+                  {hideValues ? (
+                    <>
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                        <circle cx="12" cy="12" r="3"></circle>
+                      </svg>
+                      <span>نمایش مقادیر 👁️</span>
+                    </>
+                  ) : (
+                    <>
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path>
+                        <line x1="1" y1="1" x2="23" y2="23"></line>
+                      </svg>
+                      <span>مخفی‌سازی مقادیر (****) 🙈</span>
+                    </>
+                  )}
+                </button>
+                <button
+                  className="btn-share-settings"
+                  onClick={() => setSettingsModalOpen(true)}
+                  title="تنظیمات اشتراک‌گذاری و رمز عبور پورتفو"
+                >
                   <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
-                    <circle cx="12" cy="12" r="3"></circle>
+                    <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"></path>
+                    <polyline points="16 6 12 2 8 6"></polyline>
+                    <line x1="12" y1="2" x2="12" y2="15"></line>
                   </svg>
-                  <span>نمایش مقادیر 👁️</span>
-                </>
-              ) : (
-                <>
-                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path>
-                    <line x1="1" y1="1" x2="23" y2="23"></line>
-                  </svg>
-                  <span>مخفی‌سازی مقادیر (****) 🙈</span>
-                </>
-              )}
-            </button>
-            <button
-              className="btn-share-settings"
-              onClick={() => setSettingsModalOpen(true)}
-              title="تنظیمات اشتراک‌گذاری و رمز عبور پورتفو"
-            >
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"></path>
-                <polyline points="16 6 12 2 8 6"></polyline>
-                <line x1="12" y1="2" x2="12" y2="15"></line>
-              </svg>
-              <span>اشتراک‌گذاری پورتفو 🔗</span>
-            </button>
-            {holdings.length > 0 && (
-              <button className="btn-quick-add" onClick={handleOpenAdd}>
-                + افزودن دارایی جدید
-              </button>
+                  <span>اشتراک‌گذاری پورتفو 🔗</span>
+                </button>
+                {holdings.length > 0 && (
+                  <button className="btn-quick-add" onClick={handleOpenAdd}>
+                    + افزودن دارایی جدید
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {loadingHoldings ? (
+              <div className="portfolio-empty-state">
+                <div className="spinner-glow"></div>
+                <p>در حال دریافت اطلاعات پورتفوی شما از دیتابیس...</p>
+              </div>
+            ) : portfolioMetrics.items.length === 0 ? (
+              <div className="portfolio-empty-state">
+                <div className="empty-icon">💼</div>
+                <h4>هنوز دارایی در پورتفوی شما ثبت نشده است</h4>
+                <p>
+                  می‌توانید انواع طلا، سکه، نقره ساچمه و استرلینگ، ارزها یا دارایی‌های دلخواه خود (سهام بورس، صندوق، مسکن و...) را
+                  ثبت کنید تا سود و زیان آنها بر مبنای ارزش واقعی رصد شود.
+                </p>
+                <button className="btn-add-asset-center" onClick={handleOpenAdd}>
+                  + ثبت اولین دارایی
+                </button>
+              </div>
+            ) : (
+              <div className="portfolio-categories-container">
+                {categoryGroups.map((group) => (
+                  <div key={group.key} className="category-group-card">
+                    {/* Category Subtotal Header */}
+                    <div className="category-group-header">
+                      <div className="cat-header-identity">
+                        <span className="cat-group-icon">{group.icon}</span>
+                        <div className="cat-group-titles">
+                          <h4 className="cat-group-name">{group.name}</h4>
+                          <span className="cat-group-count">{group.items.length.toLocaleString('fa-IR')} قلم</span>
+                        </div>
+                      </div>
+
+                      <div className="cat-header-subtotals">
+                        <div className="cat-subtotal-val">
+                          <span className="subtotal-label">ارزش مجموعه:</span>
+                          <strong className={`subtotal-amount ${hideValues ? 'is-masked' : ''}`}>
+                            {hideValues ? '****' : formatNum(group.totalRealValue)}
+                          </strong>
+                          <span className="subtotal-unit">تومان</span>
+                        </div>
+
+                        <div className={`cat-subtotal-pnl ${group.totalPnl >= 0 ? 'profit' : 'loss'}`}>
+                          <span className="subtotal-pnl-label">سود/زیان:</span>
+                          <strong>
+                            {hideValues ? '**** تومان' : `${group.totalPnl >= 0 ? '+' : ''}${formatNum(group.totalPnl)} تومان`}
+                          </strong>
+                          <span className="subtotal-pnl-pct">
+                            {hideValues ? '(****)' : `(${group.totalPnl >= 0 ? '+' : ''}${group.totalPnlPct.toFixed(1).replace('-', '')}٪)`}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* High-density Data Table for this category */}
+                    <div className="portfolio-table-responsive">
+                      <table className="portfolio-data-table">
+                        <thead>
+                          <tr>
+                            <th className="th-asset">دارایی</th>
+                            <th className="th-qty">مقدار / وزن</th>
+                            <th className="th-buy-price">قیمت خرید (واحد)</th>
+                            <th className="th-real-price">قیمت واقعی روز</th>
+                            <th className="th-total-val">ارزش کل روز</th>
+                            <th className="th-pnl">سود / زیان</th>
+                            <th className="th-actions">عملیات</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {group.items.map((item) => {
+                            const isProfit = item.itemPnl >= 0;
+                            const isDeleting = deletingId === item.id;
+                            return (
+                              <tr key={item.id} className="portfolio-table-row">
+                                <td className="td-asset">
+                                  <div className="asset-cell-main">
+                                    <div className="asset-title-row">
+                                      <span className="asset-name-text">{item.assetName || item.name}</span>
+                                      <span className={`item-category-pill cat-${item.assetType || 'custom'}`}>
+                                        {item.assetType === 'silver' ? '🥈 نقره' :
+                                         item.assetType === 'gold' ? '🥇 طلا' :
+                                         item.assetType === 'coin' ? '🪙 سکه' :
+                                         item.assetType === 'currency' ? '💵 ارز' :
+                                         item.assetType === 'crypto' ? '⚡ کریپتو' : '✨ سفارشی'}
+                                      </span>
+                                    </div>
+                                    {(item.buyDate || item.notes) && (
+                                      <div className="asset-extra-meta">
+                                        {item.buyDate && (
+                                          <span className="item-date-tag">📅 {item.buyDate}</span>
+                                        )}
+                                        {item.notes && (
+                                          <span className="item-notes-tag" title={item.notes}>💬 {item.notes}</span>
+                                        )}
+                                      </div>
+                                    )}
+                                  </div>
+                                </td>
+
+                                <td className="td-qty">
+                                  <span className="table-qty-badge">
+                                    {hideValues ? '****' : `${Number(item.amount).toLocaleString('fa-IR')} ${item.unit}`}
+                                  </span>
+                                </td>
+
+                                <td className="td-buy-price">
+                                  <div className="cell-currency-wrap">
+                                    <span className={`cell-val ${hideValues ? 'is-masked' : ''}`}>
+                                      {hideValues ? '****' : formatNum(item.buyPrice)}
+                                    </span>
+                                    <span className="cell-unit">تومان</span>
+                                  </div>
+                                </td>
+
+                                <td className="td-real-price">
+                                  <div className="cell-currency-wrap">
+                                    <span className={`cell-val real-val ${hideValues ? 'is-masked' : ''}`} title="محاسبه مستقیم بر مبنای ارزش واقعی">
+                                      {hideValues ? '****' : formatNum(item.unitRealPrice)}
+                                    </span>
+                                    <span className="cell-unit">تومان</span>
+                                  </div>
+                                </td>
+
+                                <td className="td-total-val">
+                                  <div className="cell-currency-wrap">
+                                    <strong className={`cell-val-bold gold-text ${hideValues ? 'is-masked' : ''}`}>
+                                      {hideValues ? '****' : formatNum(item.itemRealVal)}
+                                    </strong>
+                                    <span className="cell-unit">تومان</span>
+                                  </div>
+                                </td>
+
+                                <td className="td-pnl">
+                                  <div className={`table-pnl-cell ${isProfit ? 'profit' : 'loss'}`}>
+                                    <span className={`pnl-amount ${hideValues ? 'is-masked' : ''}`}>
+                                      {hideValues ? '****' : `${isProfit ? '+' : ''}${formatNum(item.itemPnl)} تومان`}
+                                    </span>
+                                    <span className="pnl-pct-badge">
+                                      {hideValues ? '****' : `(${isProfit ? '+' : ''}${item.itemPnlPct.toFixed(1).replace('-', '')}٪)`}
+                                    </span>
+                                  </div>
+                                </td>
+
+                                <td className="td-actions">
+                                  <div className="row-actions-group">
+                                    <button
+                                      type="button"
+                                      className="btn-table-action edit"
+                                      title="ویرایش دارایی"
+                                      onClick={() => handleOpenEdit(item)}
+                                    >
+                                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                        <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                                        <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                                      </svg>
+                                    </button>
+                                    <button
+                                      type="button"
+                                      className="btn-table-action delete"
+                                      title="حذف از پورتفو"
+                                      disabled={isDeleting}
+                                      onClick={() => handleDeleteHolding(item.id)}
+                                    >
+                                      {isDeleting ? (
+                                        <div className="mini-spinner"></div>
+                                      ) : (
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                          <polyline points="3 6 5 6 21 6"></polyline>
+                                          <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                                        </svg>
+                                      )}
+                                    </button>
+                                  </div>
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                ))}
+              </div>
             )}
           </div>
         </div>
 
-        {loadingHoldings ? (
-          <div className="portfolio-empty-state">
-            <div className="spinner-glow"></div>
-            <p>در حال دریافت اطلاعات پورتفوی شما از دیتابیس...</p>
-          </div>
-        ) : portfolioMetrics.items.length === 0 ? (
-          <div className="portfolio-empty-state">
-            <div className="empty-icon">💼</div>
-            <h4>هنوز دارایی در پورتفوی شما ثبت نشده است</h4>
-            <p>
-              می‌توانید انواع طلا، سکه، نقره ساچمه و استرلینگ، ارزها یا دارایی‌های دلخواه خود (سهام بورس، صندوق، مسکن و...) را
-              ثبت کنید تا سود و زیان آنها بر مبنای ارزش واقعی رصد شود.
-            </p>
-            <button className="btn-add-asset-center" onClick={handleOpenAdd}>
-              + ثبت اولین دارایی
-            </button>
-          </div>
-        ) : (
-          <div className="portfolio-categories-container">
-            {categoryGroups.map((group) => (
-              <div key={group.key} className="category-group-card">
-                {/* Category Subtotal Header */}
-                <div className="category-group-header">
-                  <div className="cat-header-identity">
-                    <span className="cat-group-icon">{group.icon}</span>
-                    <div className="cat-group-titles">
-                      <h4 className="cat-group-name">{group.name}</h4>
-                      <span className="cat-group-count">{group.items.length.toLocaleString('fa-IR')} قلم</span>
-                    </div>
-                  </div>
-
-                  <div className="cat-header-subtotals">
-                    <div className="cat-subtotal-val">
-                      <span className="subtotal-label">ارزش مجموعه:</span>
-                      <strong className={`subtotal-amount ${hideValues ? 'is-masked' : ''}`}>
-                        {hideValues ? '****' : formatNum(group.totalRealValue)}
-                      </strong>
-                      <span className="subtotal-unit">تومان</span>
-                    </div>
-
-                    <div className={`cat-subtotal-pnl ${group.totalPnl >= 0 ? 'profit' : 'loss'}`}>
-                      <span className="subtotal-pnl-label">سود/زیان:</span>
-                      <strong>
-                        {hideValues ? '**** تومان' : `${group.totalPnl >= 0 ? '+' : ''}${formatNum(group.totalPnl)} تومان`}
-                      </strong>
-                      <span className="subtotal-pnl-pct">
-                        {hideValues ? '(****)' : `(${group.totalPnl >= 0 ? '+' : ''}${group.totalPnlPct.toFixed(1).replace('-', '')}٪)`}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Items in this category */}
-                <div className="portfolio-items-list">
-                  {group.items.map((item) => {
-                    const isProfit = item.itemPnl >= 0;
-                    const isDeleting = deletingId === item.id;
-                    return (
-                      <div key={item.id} className="portfolio-item-row">
-                        <div className="item-main-col">
-                          <div className="item-name-wrap">
-                            <span className="item-name">{item.assetName || item.name}</span>
-                            <span className={`item-category-pill cat-${item.assetType || 'custom'}`}>
-                              {item.assetType === 'silver' ? '🥈 نقره' :
-                               item.assetType === 'gold' ? '🥇 طلا' :
-                               item.assetType === 'coin' ? '🪙 سکه' :
-                               item.assetType === 'currency' ? '💵 ارز' :
-                               item.assetType === 'crypto' ? '⚡ کریپتو' : '✨ سفارشی'}
-                            </span>
-                            <span className="item-qty-tag">
-                              {hideValues ? '****' : `${Number(item.amount).toLocaleString('fa-IR')} ${item.unit}`}
-                            </span>
-                          </div>
-
-                          <div className="item-price-meta">
-                            <span>خرید: {hideValues ? '****' : formatNum(item.buyPrice)} تومان</span>
-                            <span className="meta-sep">•</span>
-                            <span className="meta-real-price" title="محاسبه مستقیم بر مبنای ارزش واقعی">
-                              قیمت واقعی روز: {hideValues ? '****' : formatNum(item.unitRealPrice)} تومان
-                            </span>
-                          </div>
-
-                          {/* Meta info: Purchase date & notes */}
-                          {(item.buyDate || item.notes) && (
-                            <div className="item-extra-meta">
-                              {item.buyDate && (
-                                <span className="item-date-tag">
-                                  📅 {item.buyDate}
-                                </span>
-                              )}
-                              {item.notes && (
-                                <span className="item-notes-tag" title={item.notes}>
-                                  💬 {item.notes}
-                                </span>
-                              )}
-                            </div>
-                          )}
-                        </div>
-
-                        <div className="item-values-col">
-                          <div className={`item-live-val ${hideValues ? 'is-masked' : ''}`}>
-                            {hideValues ? '****' : formatNum(item.itemRealVal)}
-                            <span className="val-unit">تومان</span>
-                          </div>
-                          <div className={`item-pnl-tag ${isProfit ? 'profit' : 'loss'}`}>
-                            <span>{hideValues ? '**** تومان' : `${isProfit ? '+' : ''}${formatNum(item.itemPnl)} تومان`}</span>
-                            <span className="pct">{hideValues ? '(****)' : `(${isProfit ? '+' : ''}${item.itemPnlPct.toFixed(1).replace('-', '')}٪)`}</span>
-                          </div>
-                        </div>
-
-                        <div className="item-actions-col">
-                          {/* Edit Button */}
-                          <button
-                            className="btn-edit-item"
-                            title="ویرایش دارایی"
-                            onClick={() => handleOpenEdit(item)}
-                          >
-                            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                              <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
-                              <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
-                            </svg>
-                          </button>
-
-                          {/* Delete Button */}
-                          <button
-                            className="btn-del-item"
-                            title="حذف از پورتفو"
-                            disabled={isDeleting}
-                            onClick={() => handleDeleteHolding(item.id)}
-                          >
-                            {isDeleting ? (
-                              <div className="mini-spinner"></div>
-                            ) : (
-                              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                <polyline points="3 6 5 6 21 6"></polyline>
-                                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
-                              </svg>
-                            )}
-                          </button>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
+        {/* Left Column: Summary Overview Cards */}
+        <div className="portfolio-sidebar-column">
+          <div className="portfolio-overview-grid">
+            {/* Card 1: Total Real Value */}
+            <div className="portfolio-stat-card main-val">
+              <div className="stat-header">
+                <span className="stat-label">ارزش واقعی کل {activePortfolio?.name ? `(«${activePortfolio.name}»)` : 'دارایی‌ها'}</span>
+                <span className="real-pill">
+                  🌐 انس طلا + نقره + دلار
+                </span>
               </div>
-            ))}
+              <div className={`stat-number gold-gradient-text ${hideValues ? 'is-masked' : ''}`}>
+                {hideValues ? '****' : formatNum(portfolioMetrics.totalRealValue)}
+                <span className="stat-unit">تومان</span>
+              </div>
+              <div className="stat-sub">
+                سرمایه اولیه خرید: {hideValues ? '**** تومان' : `${formatNum(portfolioMetrics.totalCost)} تومان`}
+              </div>
+            </div>
+
+            {/* Card 2: Total PnL */}
+            <div className={`portfolio-stat-card pnl-card ${portfolioMetrics.totalPnl >= 0 ? 'profit' : 'loss'}`}>
+              <div className="stat-header">
+                <span className="stat-label">سود / زیان واقعی کل</span>
+                <span className={`pnl-badge ${portfolioMetrics.totalPnl >= 0 ? 'profit' : 'loss'}`}>
+                  {hideValues ? '****' : `${portfolioMetrics.totalPnl >= 0 ? '+' : ''}${portfolioMetrics.totalPnlPct.toFixed(2).replace('-', '')}٪`}
+                </span>
+              </div>
+              <div className={`stat-number ${hideValues ? 'is-masked' : ''}`}>
+                {hideValues ? '****' : `${portfolioMetrics.totalPnl >= 0 ? '+' : ''}${formatNum(portfolioMetrics.totalPnl)}`}
+                <span className="stat-unit">تومان</span>
+              </div>
+              <div className="stat-sub">
+                {portfolioMetrics.totalPnl >= 0 ? '🟢 پورتفوی شما در سود است' : '🔴 پورتفوی شما در زیان است'}
+              </div>
+            </div>
+
+            {/* Card 3: Actions & Count */}
+            <div className="portfolio-stat-card action-card">
+              <div className="stat-header">
+                <span className="stat-label">مدیریت سبد دارایی</span>
+                <span className="count-pill">{holdings.length} قلم دارایی</span>
+              </div>
+              <button className="btn-add-asset" onClick={handleOpenAdd}>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <line x1="12" y1="5" x2="12" y2="19"></line>
+                  <line x1="5" y1="12" x2="19" y2="12"></line>
+                </svg>
+                <span>افزودن دارایی جدید</span>
+              </button>
+            </div>
           </div>
-        )}
+        </div>
       </div>
 
       {/* Add / Edit Asset Modal */}
