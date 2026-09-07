@@ -15,10 +15,10 @@ import { jsonResponse, errorResponse, forbiddenResponse } from "../lib/helpers.j
  */
 export async function handleAdminStatsRoute(request, env) {
   const user = await getAuthenticatedUser(request, env);
-  if (!user || user.role !== "admin") return forbiddenResponse();
+  if (!user || user.role !== "admin") return forbiddenResponse(request);
 
   const stats = await getAdminStats(env);
-  return jsonResponse(stats);
+  return jsonResponse(stats, 200, request);
 }
 
 /**
@@ -27,10 +27,10 @@ export async function handleAdminStatsRoute(request, env) {
  */
 export async function handleAdminUsersRoute(request, env) {
   const user = await getAuthenticatedUser(request, env);
-  if (!user || user.role !== "admin") return forbiddenResponse();
+  if (!user || user.role !== "admin") return forbiddenResponse(request);
 
   const users = await dbGetUsers(env);
-  return jsonResponse({ success: true, total: users.length, users });
+  return jsonResponse({ success: true, total: users.length, users }, 200, request);
 }
 
 /**
@@ -39,7 +39,7 @@ export async function handleAdminUsersRoute(request, env) {
  */
 export async function handleAdminSaveSettings(request, env) {
   const user = await getAuthenticatedUser(request, env);
-  if (!user || user.role !== "admin") return forbiddenResponse();
+  if (!user || user.role !== "admin") return forbiddenResponse(request);
 
   try {
     const body = await request.json();
@@ -54,8 +54,8 @@ export async function handleAdminSaveSettings(request, env) {
 
     await saveGlobalSettings(env, newSettings);
 
-    return jsonResponse({ success: true, message: "تنظیمات عمومی با موفقیت ذخیره شد.", settings: newSettings });
+    return jsonResponse({ success: true, message: "تنظیمات عمومی با موفقیت ذخیره شد.", settings: newSettings }, 200, request);
   } catch (e) {
-    return errorResponse(e.message, 500);
+    return errorResponse(e.message, 500, request);
   }
 }

@@ -55,14 +55,54 @@
 
 ---
 
+## 🏗️ ساختار Monorepo
+
+پروژه به دو بخش کاملاً مجزا و ماژولار تقسیم شده است:
+- `api/`: بک‌اند **Cloudflare Worker** (فقط JSON REST API، D1 Database، KV Storage، احراز هویت و کرون‌جاب‌ها)
+- `web/`: فرانت‌اند **React 19 + Vite SPA** (رابط کاربری واکنش‌گرا و سریع، دیپلوی روی Cloudflare Pages)
+
+```bash
+realrate/
+├── package.json          # مدیریت پکیج‌های monorepo (npm workspaces)
+├── api/                  # Cloudflare Worker API
+│   ├── wrangler.toml
+│   ├── schema.sql
+│   └── src/
+└── web/                  # React + Vite Frontend
+    ├── vite.config.js
+    ├── .env.local
+    └── src/
+```
+
+---
+
+## 🚀 نحوه اجرا در محیط توسعه (Local Development)
+
+برای اجرای همزمان بک‌اند و فرانت‌اند با یک دستور:
+```bash
+# نصب تمام وابستگی‌های monorepo
+npm install
+
+# اجرای همزمان API (پورت 8787) و Web (پورت 5173)
+npm run dev
+```
+
+یا اجرای مجزای هر سرویس:
+```bash
+npm run api:dev   # اجرای Cloudflare Worker API روی localhost:8787
+npm run web:dev   # اجرای فرانت‌اند Vite روی localhost:5173
+```
+
+---
+
 ## 🛠️ تکنولوژی‌های استفاده‌شده
 
-- **تکنولوژی اجرا (Runtime)**: Cloudflare Workers (JavaScript ES Modules)
-- **دیتابیس رابطه‌ای (SQL)**: Cloudflare D1 Serverless SQLite (`env.DB`) جهت ذخیره ساخت‌یافته کاربران، سشن‌ها و تنظیمات
-- **احراز هویت (Auth)**: Google Identity Services (GIS) + اعتبارسنجی سمت سرور TokenInfo API
-- **دیتابیس و حافظه کش (KV)**: Cloudflare KV Storage (`REALRATE_KV`) برای سشن‌ها، تنظیمات، آمار و کش
-- **طراحی و رابط کاربری**: Vanilla HTML5, Modern CSS3 (Dark Glassmorphism UI), Vector SVG Logo
-- **منابع قیمت**: استعلام زنده قیمت‌های روز بازار طلا + دریافت لحظه‌ای انس طلا و نرخ برابری Forex
+- **Frontend (web/)**: React 19, Vite 8, React Router 7, Vanilla Modern CSS (Dark Mode & Glassmorphism)
+- **Backend (api/)**: Cloudflare Workers (JavaScript ES Modules)
+- **دیتابیس رابطه‌ای (SQL)**: Cloudflare D1 Serverless SQLite (`env.DB`)
+- **احراز هویت (Auth)**: Google Identity Services (GIS) + JWT / Bearer Token & Session Cookie
+- **حافظه کش و آمار (KV)**: Cloudflare KV Storage (`REALRATE_KV`)
+- **منابع قیمت**: دریافت زنده قیمت‌های روز بازار طلا و نرخ برابری ارزها
 
 ---
 
@@ -91,12 +131,15 @@
 2. روی **+ CREATE CREDENTIALS** در بالای صفحه کلیک کرده و **OAuth client ID** را انتخاب کنید.
 3. فیلد **Application type** را روی **Web application** قرار دهید.
 4. در بخش **Authorized JavaScript origins**، آدرس‌های مجاز سایت خود را اضافه کنید:
-   - برای محیط توسعه محلی:
-     - `http://localhost:8787`
-     - `http://127.0.0.1:8787`
-   - برای محیط پروداکشن (Cloudflare Workers و دامنه اختصاصی):
-     - `https://your-worker-subdomain.workers.dev`
-     - دامنه اصلی شما (مانند `https://realrate.ir`)
+    - برای محیط توسعه محلی:
+      - `http://localhost:5173` (پورت پیش‌فرض فرانت‌اند React/Vite)
+      - `http://localhost:8787` (پورت پیش‌فرض ورکر API)
+      - `http://127.0.0.1:5173`
+      - `http://127.0.0.1:8787`
+    - برای محیط پروداکشن (Cloudflare Pages و Cloudflare Workers):
+      - `https://realrate.pages.dev` (آدرس Cloudflare Pages فرانت‌اند)
+      - `https://your-worker-subdomain.workers.dev`
+      - دامنه اصلی اختصاصی شما (مانند `https://realrate.ir`)
    > ⚠️ **نکته**: در انتهای آدرس‌ها اسلش `/` قرار ندهید و برای آدرس‌های غیرلوکال حتماً پروتکل `https://` الزامی است.
 5. روی دکمه **Create** کلیک کنید.
 6. پنجره‌ای شامل **Client ID** به شما نمایش داده می‌شود (مثال: `1234567890-abcdefg.apps.googleusercontent.com`). این مقدار را کپی کنید.

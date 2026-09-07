@@ -1,0 +1,110 @@
+/**
+ * api/client.js — Centralized API fetch wrapper
+ *
+ * - In development: requests go to /api/* (proxied by Vite to localhost:8787)
+ * - In production: requests go to VITE_API_URL env var (e.g. https://realrate-api.workers.dev)
+ *
+ * Auth: token stored in localStorage, sent as Authorization: Bearer <token>
+ */
+
+const API_BASE = import.meta.env.VITE_API_URL
+  ? import.meta.env.VITE_API_URL.replace(/\/$/, '')
+  : '';  // empty = use Vite proxy in dev, same-origin in prod
+
+/**
+ * Get the stored auth token from localStorage
+ */
+export function getToken() {
+  try {
+    return localStorage.getItem('realrate_token') || null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Store auth token in localStorage
+ */
+export function setToken(token) {
+  try {
+    if (token) {
+      localStorage.setItem('realrate_token', token);
+    } else {
+      localStorage.removeItem('realrate_token');
+    }
+  } catch {}
+}
+
+/**
+ * Core fetch wrapper — adds Authorization header if token exists
+ */
+async function apiFetch(path, options = {}) {
+  const token = getToken();
+  const headers = {
+    'Content-Type': 'application/json',
+    ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+    ...(options.headers || {}),
+  };
+
+  const res = await fetch(`${API_BASE}${path}`, {
+    ...options,
+    headers,
+    credentials: 'include',  // also send cookies if present
+  });
+
+  return res;
+}
+
+// ─── Auth ────────────────────────────────────────────────────────────────────
+
+export async function apiGetMe() {
+  const res = await apiFetch('/api/auth/me');
+  return res.json();
+}
+
+export async function apiGoogleLogin(credential) {
+  const res = await apiFetch('/api/auth/google', {
+    method: 'POST',
+    body: JSON.stringify({ credential }),
+  });
+  return res.json();
+}
+
+export async function apiLogout() {
+  const res = await apiFetch('/api/auth/logout', { method: 'POST' });
+  setToken(null);
+  return res.json();
+}
+
+// ─── Market Data ─────────────────────────────────────────────────────────────
+
+export async function apiGetRates() {
+  const res = await apiFetch('/api/rates');
+  return res.json();
+}
+
+export async function apiCalculate(usdToman, goldUsd) {
+  const params = new URLSearchParams({ usd_toman: usdToman, gold_usd: goldUsd });
+  const res = await apiFetch(`/api/calculate?${params}`);
+  return res.json();
+}
+
+// ─── Admin ───────────────────────────────────────────────────────────────────
+
+export async function apiAdminStats() {
+  const res = await apiFetch('/api/admin/stats');
+  return res.json();
+}
+
+export async function apiAdminUsers() {
+  const res = await apiFetch('/api/admin/users');
+  return res.json();
+}
+
+export async function apiAdminSaveSettings(settings) {
+  const res = await apiFetch('/api/admin/settings', {
+    method: 'POST',
+    body: JSON.stringify(settings),
+  });
+  return res.json();
+}

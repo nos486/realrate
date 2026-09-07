@@ -8,13 +8,13 @@
 import { fetchGlobalSpotGold } from "../services/goldPrice.js";
 import { fetchForexRates } from "../services/forexRates.js";
 import { fetchTelegramPrices } from "../services/telegramPrices.js";
-import { jsonResponse, CORS_HEADERS } from "../lib/helpers.js";
+import { jsonResponse, errorResponse, getCorsHeaders } from "../lib/helpers.js";
 
 /**
  * GET /api/rates
  * Return live gold spot price, USD/Toman, and forex rates
  */
-export async function handleFetchRates(env, analytics, globalSettings) {
+export async function handleFetchRates(env, analytics, globalSettings, request = null) {
   try {
     const liveSpotGold = await fetchGlobalSpotGold(env);
     const gold_usd = liveSpotGold || globalSettings.default_gold_usd || 2450;
@@ -29,9 +29,9 @@ export async function handleFetchRates(env, analytics, globalSettings) {
       ? live_usd_item.price
       : (globalSettings.default_usd_toman || 62000);
 
-    return jsonResponse({ success: true, gold_usd, live_usd_toman, live_usd_item, forex, market_prices: tgPrices, analytics, globalSettings });
+    return jsonResponse({ success: true, gold_usd, live_usd_toman, live_usd_item, forex, market_prices: tgPrices, analytics, globalSettings }, 200, request);
   } catch (err) {
-    return jsonResponse({ success: false, error: err.message }, 500);
+    return jsonResponse({ success: false, error: err.message }, 500, request);
   }
 }
 
@@ -39,7 +39,7 @@ export async function handleFetchRates(env, analytics, globalSettings) {
  * GET /api/calculate?usd_toman=&gold_usd=
  * Full gold bubble analysis, coin arbitrage, and all currency conversions
  */
-export async function handleCalculate(url, env, analytics, globalSettings) {
+export async function handleCalculate(url, env, analytics, globalSettings, request = null) {
   const [liveSpotGold, tgPrices, forex] = await Promise.all([
     fetchGlobalSpotGold(env),
     fetchTelegramPrices(env),
@@ -56,9 +56,7 @@ export async function handleCalculate(url, env, analytics, globalSettings) {
     ? parseFloat(userGoldUsd)
     : (liveSpotGold || globalSettings.default_gold_usd || 2450);
 
-  if (!usd_toman || isNaN(usd_toman) || usd_toman <= 0) {
-    return jsonResponse({ success: false, requires_usd: true, message: "لطفاً ابتدا قیمت دلار (تومان) را وارد کنید." });
-  }
+    return jsonResponse({ success: false, requires_usd: true, message: "لطفاً ابتدا قیمت دلار (تومان) را وارد کنید." }, 400, request);
 
   // Gold price calculations
   const gold_24k_gram  = (gold_usd / 31.1034768) * usd_toman;
@@ -137,6 +135,7 @@ export async function handleCalculate(url, env, analytics, globalSettings) {
     { code:"AFN", name:"افغانی افغانستان",  flag:"🇦🇫", symbol:"؋",   usd_cross_rate:parseFloat((1/fx("AFN",70.50)).toFixed(4)),       toman_price:Math.round((1/fx("AFN",70.50))*usd_toman),        note:`۱ دلار = ${fx("AFN",70.50).toFixed(1)} افغانی` },
   ];
 
+
   return new Response(JSON.stringify({
     success: true,
     timestamp: new Date().toISOString(),
@@ -150,6 +149,6 @@ export async function handleCalculate(url, env, analytics, globalSettings) {
     analytics,
     globalSettings,
   }, null, 2), {
-    headers: { "Content-Type": "application/json; charset=utf-8", ...CORS_HEADERS },
+    headers: { "Content-Type": "application/json; charset=utf-8", ...getCorsHeaders(request) },
   });
 }

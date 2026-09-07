@@ -1,10 +1,16 @@
 /**
  * authRoutes.js — Auth route handlers: Google Sign-In, session check, logout
+ *
+ * Session strategy:
+ *  - Session token is returned in BOTH a cookie AND the JSON response body.
+ *  - The frontend SPA stores the token in localStorage and sends it as:
+ *      Authorization: Bearer <token>
+ *  - Cookie is also set for backward compat (SameSite=None for cross-origin).
  */
 
 import { isUserAdmin, getAuthenticatedUser } from "../lib/auth.js";
 import { dbUpsertUser, dbSaveSession, dbDeleteSession } from "../lib/db.js";
-import { jsonResponse, errorResponse } from "../lib/helpers.js";
+import { jsonResponse, errorResponse, getCorsHeaders } from "../lib/helpers.js";
 
 /**
  * POST /api/auth/google
@@ -16,7 +22,7 @@ export async function handleGoogleAuth(request, env) {
     const credential = body.credential;
 
     if (!credential) {
-      return errorResponse("توکن احراز هویت گوگل ارسال نشده است.", 400);
+      return errorResponse("توکن احراز هویت گوگل ارسال نشده است.", 400, request);
     }
 
     // Verify token with Google's official tokeninfo API
@@ -29,7 +35,7 @@ export async function handleGoogleAuth(request, env) {
         success: false,
         message: "توکن گوگل نامعتبر یا منقضی شده است.",
         error: errData.error_description || errData.error || "Invalid token",
-      }, 401);
+      }, 401, request);
     }
 
     const payload = await googleRes.json();
@@ -37,13 +43,13 @@ export async function handleGoogleAuth(request, env) {
     // Validate audience if GOOGLE_CLIENT_ID is configured
     if (env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_ID.trim()) {
       if (payload.aud !== env.GOOGLE_CLIENT_ID.trim()) {
-        return errorResponse("شناسه کلاینت با گوگل همخوانی ندارد (Audience mismatch).", 401);
+        return errorResponse("شناسه کلاینت با گوگل همخوانی ندارد (Audience mismatch).", 401, request);
       }
     }
 
     const email = (payload.email || "").toLowerCase().trim();
     if (!email) {
-      return errorResponse("ایمیل از حساب گوگل دریافت نشد.", 400);
+      return errorResponse("ایمیل از حساب گوگل دریافت نشد.", 400, request);
     }
 
     const isAdmin = isUserAdmin(email, env);
@@ -71,22 +77,26 @@ export async function handleGoogleAuth(request, env) {
     };
     await dbSaveSession(env, sessionData, 30 * 24 * 3600);
 
-    const cookieValue = `realrate_session=${sessionToken}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=2592000`;
+    // SameSite=None; Secure needed for cross-origin (SPA on different domain)
+    const cookieValue = `realrate_session=${sessionToken}; Path=/; HttpOnly; Secure; SameSite=None; Max-Age=2592000`;
+
+    const corsHeaders = getCorsHeaders(request);
 
     return new Response(JSON.stringify({
       success: true,
       message: isAdmin ? "خوش آمدید، مدیر سیستم!" : "ورود موفقیت‌آمیز به حساب کاربری",
-      token: sessionToken,
+      token: sessionToken,   // ← frontend stores this in localStorage
       user: { id: userData.id, email: userData.email, name: userData.name, picture: userData.picture, role: userData.role, createdAt: userData.createdAt },
     }), {
       headers: {
         "Content-Type": "application/json; charset=utf-8",
         "Set-Cookie": cookieValue,
+        ...corsHeaders,
       },
     });
   } catch (e) {
     console.error("Error in handleGoogleAuth:", e);
-    return errorResponse("خطای سرور در احراز هویت با گوگل: " + e.message, 500);
+    return errorResponse("خطای سرور در احراز هویت با گوگل: " + e.message, 500, request);
   }
 }
 
@@ -97,7 +107,7 @@ export async function handleGoogleAuth(request, env) {
 export async function handleGetMe(request, env) {
   const user = await getAuthenticatedUser(request, env);
   if (!user) {
-    return jsonResponse({ authenticated: false, user: null });
+    return jsonResponse({ authenticated: false, user: null }, 200, request);
   }
 
   return jsonResponse({
@@ -110,7 +120,7 @@ export async function handleGetMe(request, env) {
       role: user.role,
       isAdmin: user.role === "admin",
     },
-  });
+  }, 200, request);
 }
 
 /**
@@ -132,10 +142,13 @@ export async function handleLogout(request, env) {
 
   if (token) await dbDeleteSession(env, token);
 
+  const corsHeaders = getCorsHeaders(request);
+
   return new Response(JSON.stringify({ success: true, message: "با موفقیت خارج شدید." }), {
     headers: {
       "Content-Type": "application/json; charset=utf-8",
-      "Set-Cookie": "realrate_session=; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=0",
+      "Set-Cookie": "realrate_session=; Path=/; HttpOnly; Secure; SameSite=None; Max-Age=0",
+      ...corsHeaders,
     },
   });
 }

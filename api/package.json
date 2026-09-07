@@ -1,0 +1,15 @@
+{
+  "name": "realrate-api",
+  "version": "1.0.0",
+  "description": "RealRate — Cloudflare Worker API (Gold & Currency)",
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev --port 8787",
+    "deploy": "wrangler deploy",
+    "db:migrate:local": "wrangler d1 execute realrate-db --local --file=./schema.sql",
+    "db:migrate:remote": "wrangler d1 execute realrate-db --remote --file=./schema.sql"
+  },
+  "devDependencies": {
+    "wrangler": "^3.80.0"
+  }
+}
