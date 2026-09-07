@@ -55,7 +55,13 @@ export default function MainPage() {
 
   return (
     <div className="app-layout">
-      <Header analytics={analytics} usdToman={usdToman} gold18kPrice={gold18kPrice} />
+      <Header
+        analytics={analytics}
+        usdToman={usdToman}
+        gold18kPrice={gold18kPrice}
+        activeTab={activeTab}
+        setActiveTab={setActiveTab}
+      />
 
       <main className="main-content">
         {/* System Announcement Banner */}

@@ -24,7 +24,7 @@ function formatHeaderNum(num) {
   return Math.round(clean).toLocaleString('fa-IR');
 }
 
-export default function Header({ analytics, usdToman, gold18kPrice }) {
+export default function Header({ analytics, usdToman, gold18kPrice, activeTab, setActiveTab }) {
   const { user, triggerLogin, logout } = useAuth();
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const dropdownRef = useRef(null);
@@ -41,76 +41,114 @@ export default function Header({ analytics, usdToman, gold18kPrice }) {
 
   return (
     <header className="site-header">
-      <div className="header-brand">
-        <Link to="/" className="brand-link">
-          <LogoMark />
-          <div className="brand-texts">
-            <span className="brand-name">RealRate</span>
-            <span className="brand-tagline">سامانه تحلیل زنده طلا، سکه و ارز</span>
-          </div>
-        </Link>
-      </div>
-
-      {/* Permanent Live USD & Gold 18k Ticker */}
-      <div className="header-live-ticker">
-        <div className="header-ticker-item gold" title="نرخ روز هر گرم طلای ۱۸ عیار">
-          <span className="ticker-pulse gold"></span>
-          <span className="ticker-tag">طلای ۱۸:</span>
-          <strong className="ticker-amount">{formatHeaderNum(gold18kPrice)}</strong>
-          <span className="ticker-unit">تومان</span>
+      <div className="header-main-row">
+        {/* Brand */}
+        <div className="header-brand">
+          <Link to="/" className="brand-link">
+            <LogoMark />
+            <div className="brand-texts">
+              <span className="brand-name">RealRate</span>
+              <span className="brand-tagline">سامانه تحلیل زنده طلا، سکه و ارز</span>
+            </div>
+          </Link>
         </div>
 
-        <div className="ticker-separator"></div>
+        {/* Mobile Tab Switcher (Icon-only on Mobile) */}
+        {setActiveTab && (
+          <nav className="header-tabs-switcher" aria-label="انتخاب تب">
+            <button
+              type="button"
+              className={`header-tab-btn ${activeTab === 'market' ? 'active' : ''}`}
+              onClick={() => setActiveTab('market')}
+              title="نرخ و حباب طلا، سکه و ارز"
+              aria-label="بازار"
+            >
+              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="18" y1="20" x2="18" y2="10"></line>
+                <line x1="12" y1="20" x2="12" y2="4"></line>
+                <line x1="6" y1="20" x2="6" y2="14"></line>
+              </svg>
+              <span className="tab-btn-title">نرخ و حباب</span>
+            </button>
 
-        <div className="header-ticker-item usd" title="نرخ روز دلار نقدی آزاد">
-          <span className="ticker-pulse green"></span>
-          <span className="ticker-tag">دلار آزاد:</span>
-          <strong className="ticker-amount">{formatHeaderNum(usdToman)}</strong>
-          <span className="ticker-unit">تومان</span>
-        </div>
-      </div>
+            <button
+              type="button"
+              className={`header-tab-btn ${activeTab === 'portfolio' ? 'active' : ''}`}
+              onClick={() => setActiveTab('portfolio')}
+              title="پورتفوی دارایی من"
+              aria-label="پورتفو"
+            >
+              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="2" y="7" width="20" height="14" rx="2" ry="2"></rect>
+                <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path>
+              </svg>
+              <span className="tab-btn-title">پورتفو</span>
+            </button>
+          </nav>
+        )}
 
-      <div className="header-right">
-        {/* Live Market & Stats Pills */}
-        <div className="status-indicators">
-          <div className="status-pill live" title="کاربران فعال لحظه‌ای">
-            <span className="dot-pulse"></span>
-            <span className="pill-text">
-              <strong>{analytics?.onlineUsers ? analytics.onlineUsers.toLocaleString('fa-IR') : '۱'}</strong> آنلاین
-            </span>
+        {/* Desktop Ticker (Hidden on Mobile) */}
+        <div className="header-live-ticker desktop-only">
+          <div className="header-ticker-item gold" title="نرخ روز هر گرم طلای ۱۸ عیار">
+            <span className="ticker-pulse gold"></span>
+            <span className="ticker-tag">طلای ۱۸:</span>
+            <strong className="ticker-amount">{formatHeaderNum(gold18kPrice)}</strong>
+            <span className="ticker-unit">تومان</span>
           </div>
 
-          <div className="status-pill views" title="کل بازدیدهای ثبت شده">
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
-              <circle cx="12" cy="12" r="3"></circle>
-            </svg>
-            <span className="pill-text">
-              {analytics?.pageViews ? analytics.pageViews.toLocaleString('fa-IR') : '...'}
-            </span>
+          <div className="ticker-separator"></div>
+
+          <div className="header-ticker-item usd" title="نرخ روز دلار نقدی آزاد">
+            <span className="ticker-pulse green"></span>
+            <span className="ticker-tag">دلار آزاد:</span>
+            <strong className="ticker-amount">{formatHeaderNum(usdToman)}</strong>
+            <span className="ticker-unit">تومان</span>
           </div>
         </div>
 
-        {/* User Auth / Profile */}
-        <div className="auth-widget" ref={dropdownRef}>
-          {user ? (
-            <div className="user-profile-menu">
-              <button
-                className={`user-trigger-btn ${dropdownOpen ? 'active' : ''}`}
-                onClick={() => setDropdownOpen((v) => !v)}
-              >
-                <img
-                  src={user.picture || ''}
-                  alt={user.name}
-                  className="user-avatar"
-                  onError={(e) => { e.target.style.display = 'none'; }}
-                />
-                <span className="user-firstname">{user.name?.split(' ')[0] || 'کاربر'}</span>
-                {user.role === 'admin' && <span className="admin-badge">مدیر</span>}
-                <svg className="chevron-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M6 9l6 6 6-6"/>
-                </svg>
-              </button>
+        {/* Header Right: Stats & User Profile */}
+        <div className="header-right">
+          {/* Live Market & Stats Pills (Desktop Only) */}
+          <div className="status-indicators desktop-only">
+            <div className="status-pill live" title="کاربران فعال لحظه‌ای">
+              <span className="dot-pulse"></span>
+              <span className="pill-text">
+                <strong>{analytics?.onlineUsers ? analytics.onlineUsers.toLocaleString('fa-IR') : '۱'}</strong> آنلاین
+              </span>
+            </div>
+
+            <div className="status-pill views" title="کل بازدیدهای ثبت شده">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                <circle cx="12" cy="12" r="3"></circle>
+              </svg>
+              <span className="pill-text">
+                {analytics?.pageViews ? analytics.pageViews.toLocaleString('fa-IR') : '...'}
+              </span>
+            </div>
+          </div>
+
+          {/* User Auth / Profile */}
+          <div className="auth-widget" ref={dropdownRef}>
+            {user ? (
+              <div className="user-profile-menu">
+                <button
+                  className={`user-trigger-btn ${dropdownOpen ? 'active' : ''}`}
+                  onClick={() => setDropdownOpen((v) => !v)}
+                  title={user.name || 'حساب کاربری'}
+                >
+                  <img
+                    src={user.picture || ''}
+                    alt={user.name}
+                    className="user-avatar"
+                    onError={(e) => { e.target.style.display = 'none'; }}
+                  />
+                  <span className="user-firstname desktop-only">{user.name?.split(' ')[0] || 'کاربر'}</span>
+                  {user.role === 'admin' && <span className="admin-badge desktop-only">مدیر</span>}
+                  <svg className="chevron-icon desktop-only" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M6 9l6 6 6-6"/>
+                  </svg>
+                </button>
 
               {dropdownOpen && (
                 <div className="dropdown-panel">
@@ -148,6 +186,24 @@ export default function Header({ analytics, usdToman, gold18kPrice }) {
               <span>ورود با گوگل</span>
             </button>
           )}
+        </div>
+      </div>
+    </div>
+
+      {/* Mobile Live Sub-Ticker Strip: Ultra compact, single-line, zero overflow */}
+      <div className="header-mobile-ticker mobile-only">
+        <div className="mobile-ticker-chip gold">
+          <span className="ticker-pulse gold"></span>
+          <span className="chip-label">طلا ۱۸:</span>
+          <strong>{formatHeaderNum(gold18kPrice)}</strong>
+          <span className="chip-unit">تومان</span>
+        </div>
+        <div className="ticker-dot-sep">•</div>
+        <div className="mobile-ticker-chip usd">
+          <span className="ticker-pulse green"></span>
+          <span className="chip-label">دلار:</span>
+          <strong>{formatHeaderNum(usdToman)}</strong>
+          <span className="chip-unit">تومان</span>
         </div>
       </div>
     </header>
