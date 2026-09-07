@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useAuth } from '../context/AuthContext.jsx';
 import {
   apiGetPortfolios,
@@ -97,6 +97,11 @@ export default function PortfolioTracker({ calcData, rates, usdToman, goldUsd })
   const [activePortfolioId, setActivePortfolioId] = useState(null);
   const [loadingPortfolios, setLoadingPortfolios] = useState(true);
 
+  // Refs to avoid circular state-dependencies in fetchPortfoliosAndHoldings
+  const activePortfolioIdRef = useRef(activePortfolioId);
+  activePortfolioIdRef.current = activePortfolioId;
+  const switchingRef = useRef(false);
+
   // New Portfolio Modal State
   const [newPortfolioModalOpen, setNewPortfolioModalOpen] = useState(false);
   const [newPortfolioName, setNewPortfolioName] = useState('');
@@ -162,7 +167,12 @@ export default function PortfolioTracker({ calcData, rates, usdToman, goldUsd })
       const res = await apiGetPortfolios();
       if (res.success && Array.isArray(res.portfolios) && res.portfolios.length > 0) {
         setPortfolios(res.portfolios);
-        const resolvedId = targetPortfolioId || activePortfolioId || res.portfolios.find((p) => p.isDefault)?.id || res.portfolios[0]?.id;
+
+        // Keep current active if valid, or use target, or default/first
+        const currentActive = activePortfolioIdRef.current;
+        const exists = currentActive && res.portfolios.some((p) => p.id === currentActive);
+        const resolvedId = targetPortfolioId || (exists ? currentActive : (res.portfolios.find((p) => p.isDefault)?.id || res.portfolios[0]?.id));
+        
         setActivePortfolioId(resolvedId);
 
         setLoadingHoldings(true);
@@ -177,7 +187,7 @@ export default function PortfolioTracker({ calcData, rates, usdToman, goldUsd })
       setLoadingPortfolios(false);
       setLoadingHoldings(false);
     }
-  }, [user, activePortfolioId]);
+  }, [user]);
 
   useEffect(() => {
     fetchPortfoliosAndHoldings();
@@ -185,7 +195,8 @@ export default function PortfolioTracker({ calcData, rates, usdToman, goldUsd })
 
   // Handle switching active portfolio
   const handleSelectPortfolio = async (portfolioId) => {
-    if (portfolioId === activePortfolioId) return;
+    if (!portfolioId || portfolioId === activePortfolioId || switchingRef.current) return;
+    switchingRef.current = true;
     setActivePortfolioId(portfolioId);
     setLoadingHoldings(true);
     try {
@@ -197,6 +208,7 @@ export default function PortfolioTracker({ calcData, rates, usdToman, goldUsd })
       console.error('Failed to load portfolio holdings:', err);
     } finally {
       setLoadingHoldings(false);
+      switchingRef.current = false;
     }
   };
 
