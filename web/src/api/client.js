@@ -7,9 +7,10 @@
  * Auth: token stored in localStorage, sent as Authorization: Bearer <token>
  */
 
-const API_BASE = import.meta.env.VITE_API_URL
-  ? import.meta.env.VITE_API_URL.replace(/\/$/, '')
-  : '';  // empty = use Vite proxy in dev, same-origin in prod
+const API_BASE = (
+  import.meta.env.VITE_API_URL ||
+  (import.meta.env.PROD ? 'https://realrate-api.geekio.org' : '')
+).replace(/\/$/, '');
 
 /**
  * Get the stored auth token from localStorage
