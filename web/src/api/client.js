@@ -36,24 +36,71 @@ export function setToken(token) {
   } catch {}
 }
 
+let activeLoadingCount = 0;
+const loadingListeners = new Set();
+
+function emitLoadingChange() {
+  const isLoading = activeLoadingCount > 0;
+  loadingListeners.forEach((fn) => {
+    try {
+      fn(isLoading);
+    } catch (err) {
+      console.error('Loading listener error:', err);
+    }
+  });
+}
+
+/**
+ * Subscribe to global active network loading state
+ */
+export function subscribeLoading(listener) {
+  loadingListeners.add(listener);
+  listener(activeLoadingCount > 0);
+  return () => {
+    loadingListeners.delete(listener);
+  };
+}
+
+export function startGlobalLoading() {
+  activeLoadingCount++;
+  emitLoadingChange();
+}
+
+export function stopGlobalLoading() {
+  activeLoadingCount = Math.max(0, activeLoadingCount - 1);
+  emitLoadingChange();
+}
+
 /**
  * Core fetch wrapper — adds Authorization header if token exists
+ * Tracks active loading requests unless options.silent is true
  */
 async function apiFetch(path, options = {}) {
-  const token = getToken();
-  const headers = {
-    'Content-Type': 'application/json',
-    ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
-    ...(options.headers || {}),
-  };
+  const isSilent = Boolean(options.silent);
+  if (!isSilent) {
+    startGlobalLoading();
+  }
 
-  const res = await fetch(`${API_BASE}${path}`, {
-    ...options,
-    headers,
-    credentials: 'include',  // also send cookies if present
-  });
+  try {
+    const token = getToken();
+    const headers = {
+      'Content-Type': 'application/json',
+      ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+      ...(options.headers || {}),
+    };
 
-  return res;
+    const res = await fetch(`${API_BASE}${path}`, {
+      ...options,
+      headers,
+      credentials: 'include',  // also send cookies if present
+    });
+
+    return res;
+  } finally {
+    if (!isSilent) {
+      stopGlobalLoading();
+    }
+  }
 }
 
 // ─── Auth ────────────────────────────────────────────────────────────────────
@@ -84,9 +131,9 @@ export async function apiGetRates() {
   return res.json();
 }
 
-export async function apiCalculate(usdToman, goldUsd) {
+export async function apiCalculate(usdToman, goldUsd, options = {}) {
   const params = new URLSearchParams({ usd_toman: usdToman, gold_usd: goldUsd });
-  const res = await apiFetch(`/api/calculate?${params}`);
+  const res = await apiFetch(`/api/calculate?${params}`, options);
   return res.json();
 }
 

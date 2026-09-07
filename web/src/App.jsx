@@ -3,6 +3,7 @@ import MainPage from './pages/MainPage.jsx'
 import AdminPage from './pages/AdminPage.jsx'
 import SharedPortfolioPage from './pages/SharedPortfolioPage.jsx'
 import { useAuth } from './context/AuthContext.jsx'
+import FullscreenLoader from './components/FullscreenLoader.jsx'
 
 function ProtectedAdmin() {
   const { user, loading } = useAuth()
@@ -13,11 +14,14 @@ function ProtectedAdmin() {
 
 export default function App() {
   return (
-    <Routes>
-      <Route path="/" element={<MainPage />} />
-      <Route path="/admin" element={<ProtectedAdmin />} />
-      <Route path="/p/:slug" element={<SharedPortfolioPage />} />
-      <Route path="*" element={<Navigate to="/" replace />} />
-    </Routes>
+    <>
+      <Routes>
+        <Route path="/" element={<MainPage />} />
+        <Route path="/admin" element={<ProtectedAdmin />} />
+        <Route path="/p/:slug" element={<SharedPortfolioPage />} />
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+      <FullscreenLoader />
+    </>
   )
 }

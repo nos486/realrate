@@ -47,7 +47,7 @@ function parseNum(val) {
     if (!usdNum || usdNum <= 0 || !goldNum) return;
 
     try {
-      const data = await apiCalculate(usdNum, goldNum);
+      const data = await apiCalculate(usdNum, goldNum, { silent: true });
       if (data.success) setCalcData(data);
     } catch (e) {
       console.error('Calculate error:', e);
