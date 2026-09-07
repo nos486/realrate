@@ -78,3 +78,31 @@ export function errorResponse(message, status = 400, request = null) {
 export function forbiddenResponse(request = null) {
   return errorResponse("دسترسی غیرمجاز. فقط مدیر سیستم مجاز است.", 403, request);
 }
+
+/**
+ * Extract real client IP from Cloudflare/proxy headers
+ * @param {Request} request
+ * @returns {string}
+ */
+export function getClientIp(request) {
+  return (
+    request?.headers?.get("cf-connecting-ip") ||
+    request?.headers?.get("x-real-ip") ||
+    request?.headers?.get("x-forwarded-for")?.split(",")[0]?.trim() ||
+    "127.0.0.1"
+  );
+}
+
+/**
+ * Safe ctx.waitUntil() wrapper — works even when ctx is undefined (e.g., unit tests)
+ * @param {ExecutionContext|undefined} ctx
+ * @param {Promise} promise
+ */
+export function safeWaitUntil(ctx, promise) {
+  if (ctx && typeof ctx.waitUntil === "function") {
+    ctx.waitUntil(promise);
+  } else if (promise && typeof promise.catch === "function") {
+    promise.catch(() => {});
+  }
+}
+
