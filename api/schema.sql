@@ -6,8 +6,12 @@ CREATE TABLE IF NOT EXISTS users (
   id TEXT PRIMARY KEY,
   email TEXT UNIQUE NOT NULL,
   name TEXT,
+  custom_name TEXT,
   picture TEXT,
   role TEXT DEFAULT 'user',
+  share_slug TEXT UNIQUE,
+  share_password TEXT,
+  share_enabled INTEGER DEFAULT 0,
   created_at TEXT NOT NULL,
   last_login TEXT NOT NULL,
   login_count INTEGER DEFAULT 1
@@ -15,6 +19,7 @@ CREATE TABLE IF NOT EXISTS users (
 
 CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
 CREATE INDEX IF NOT EXISTS idx_users_last_login ON users(last_login DESC);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_users_share_slug ON users(share_slug);
 
 -- 2. Sessions Table
 CREATE TABLE IF NOT EXISTS sessions (

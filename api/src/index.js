@@ -15,9 +15,21 @@ import { getGlobalSettings } from "./lib/settings.js";
 import { getCorsHeaders } from "./lib/helpers.js";
 
 import { handleGoogleAuth, handleGetMe, handleLogout } from "./handlers/authRoutes.js";
-import { handleAdminStatsRoute, handleAdminUsersRoute, handleAdminSaveSettings } from "./handlers/adminRoutes.js";
+import {
+  handleAdminStatsRoute,
+  handleAdminUsersRoute,
+  handleAdminSaveSettings,
+  handleAdminGetUserPortfolio,
+} from "./handlers/adminRoutes.js";
 import { handleCalculate, handleFetchRates } from "./handlers/apiRoutes.js";
-import { handleGetPortfolio, handleAddPortfolio, handleDeletePortfolio } from "./handlers/portfolioRoutes.js";
+import {
+  handleGetPortfolio,
+  handleAddPortfolio,
+  handleDeletePortfolio,
+  handleGetUserSettings,
+  handleUpdateUserSettings,
+  handleGetSharedPortfolio,
+} from "./handlers/portfolioRoutes.js";
 import { fetchTelegramPrices } from "./services/telegramPrices.js";
 
 export default {
@@ -49,12 +61,20 @@ export default {
     if (url.pathname === "/api/auth/me"     && request.method === "GET")  return handleGetMe(request, env);
     if (url.pathname === "/api/auth/logout" && request.method === "POST") return handleLogout(request, env);
 
+    // ── User Settings API Routes (Requires Login) ────────────────────────────
+    if (url.pathname === "/api/user/settings") {
+      if (request.method === "GET") return handleGetUserSettings(request, env);
+      if (request.method === "POST" || request.method === "PUT") return handleUpdateUserSettings(request, env);
+    }
+
     // ── Admin API Routes ────────────────────────────────────────────────────
     if (url.pathname === "/api/admin/stats")                                   return handleAdminStatsRoute(request, env);
+    if (url.pathname === "/api/admin/users/portfolio")                         return handleAdminGetUserPortfolio(request, env);
     if (url.pathname === "/api/admin/users")                                   return handleAdminUsersRoute(request, env);
     if (url.pathname === "/api/admin/settings" && request.method === "POST")   return handleAdminSaveSettings(request, env);
 
-    // ── Portfolio API Routes (Requires Login) ────────────────────────────────
+    // ── Portfolio API Routes ────────────────────────────────────────────────
+    if (url.pathname === "/api/portfolio/shared")                              return handleGetSharedPortfolio(request, env);
     if (url.pathname === "/api/portfolio") {
       if (request.method === "GET") return handleGetPortfolio(request, env);
       if (request.method === "POST" || request.method === "PUT") return handleAddPortfolio(request, env);

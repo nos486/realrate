@@ -140,3 +140,32 @@ export async function apiDeletePortfolioHolding(id) {
   return res.json();
 }
 
+// ─── User Settings & Shared Portfolio ────────────────────────────────────────
+
+export async function apiGetUserSettings() {
+  const res = await apiFetch('/api/user/settings');
+  return res.json();
+}
+
+export async function apiUpdateUserSettings(settings) {
+  const res = await apiFetch('/api/user/settings', {
+    method: 'POST',
+    body: JSON.stringify(settings),
+  });
+  return res.json();
+}
+
+export async function apiGetSharedPortfolio(slug, password = '') {
+  const res = await apiFetch('/api/portfolio/shared', {
+    method: 'POST',
+    body: JSON.stringify({ slug, password }),
+  });
+  return res.json();
+}
+
+export async function apiAdminGetUserPortfolio(userId) {
+  const res = await apiFetch(`/api/admin/users/portfolio?userId=${encodeURIComponent(userId)}`);
+  return res.json();
+}
+
+

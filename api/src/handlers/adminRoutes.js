@@ -4,7 +4,7 @@
  */
 
 import { getAuthenticatedUser } from "../lib/auth.js";
-import { dbGetUsers } from "../lib/db.js";
+import { dbGetUsers, dbGetUserById, dbGetPortfolioHoldings } from "../lib/db.js";
 import { getAdminStats } from "../lib/analytics.js";
 import { saveGlobalSettings } from "../lib/settings.js";
 import { jsonResponse, errorResponse, forbiddenResponse } from "../lib/helpers.js";
@@ -31,6 +31,44 @@ export async function handleAdminUsersRoute(request, env) {
 
   const users = await dbGetUsers(env);
   return jsonResponse({ success: true, total: users.length, users }, 200, request);
+}
+
+/**
+ * GET /api/admin/users/portfolio?userId=...
+ * Fetch any user's portfolio holdings for admin inspection
+ */
+export async function handleAdminGetUserPortfolio(request, env) {
+  const adminUser = await getAuthenticatedUser(request, env);
+  if (!adminUser || adminUser.role !== "admin") return forbiddenResponse(request);
+
+  const url = new URL(request.url);
+  const targetUserId = url.searchParams.get("userId");
+  if (!targetUserId) {
+    return errorResponse("شناسه کاربر ارسال نشده است.", 400, request);
+  }
+
+  const targetUser = await dbGetUserById(env, targetUserId);
+  if (!targetUser) {
+    return errorResponse("کاربر مورد نظر یافت نشد.", 404, request);
+  }
+
+  const holdings = await dbGetPortfolioHoldings(env, targetUser.id);
+
+  return jsonResponse({
+    success: true,
+    user: {
+      id: targetUser.id,
+      email: targetUser.email,
+      name: targetUser.name,
+      customName: targetUser.customName || "",
+      picture: targetUser.picture,
+      shareSlug: targetUser.shareSlug || "",
+      shareEnabled: !!targetUser.shareEnabled,
+      createdAt: targetUser.createdAt,
+      lastLogin: targetUser.lastLogin,
+    },
+    holdings,
+  }, 200, request);
 }
 
 /**

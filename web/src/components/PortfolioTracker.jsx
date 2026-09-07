@@ -6,6 +6,7 @@ import {
   apiUpdatePortfolioHolding,
   apiDeletePortfolioHolding,
 } from '../api/client.js';
+import UserSettingsModal from './UserSettingsModal.jsx';
 
 const ASSET_TYPES = [
   // طلا و مسکوکات
@@ -36,6 +37,39 @@ const ASSET_TYPES = [
   { id: 'custom', name: '✨ دارایی شخصی / سفارشی (بورس، مسکن، صندوق، خودرو...)', unit: 'واحد', category: 'custom' },
 ];
 
+export const CATEGORY_DEFINITIONS = [
+  {
+    key: 'gold',
+    name: 'طلا و آب‌شده',
+    icon: '🥇',
+    match: (item) => item.assetType === 'gold',
+  },
+  {
+    key: 'coin',
+    name: 'سکه‌های بهار آزادی',
+    icon: '🪙',
+    match: (item) => item.assetType === 'coin',
+  },
+  {
+    key: 'silver',
+    name: 'نقره و مسکوکات',
+    icon: '🥈',
+    match: (item) => item.assetType === 'silver',
+  },
+  {
+    key: 'currency',
+    name: 'ارزهای خارجی و رمزارزها',
+    icon: '💵',
+    match: (item) => item.assetType === 'currency' || item.assetType === 'crypto',
+  },
+  {
+    key: 'custom',
+    name: 'دارایی‌های شخصی و سفارشی',
+    icon: '✨',
+    match: (item) => item.assetType === 'custom' || (!['gold', 'coin', 'silver', 'currency', 'crypto'].includes(item.assetType)),
+  },
+];
+
 function formatNum(num) {
   if (num === null || num === undefined || isNaN(num)) return '۰';
   return Math.round(num).toLocaleString('fa-IR');
@@ -58,6 +92,9 @@ export default function PortfolioTracker({ calcData, rates, usdToman, goldUsd })
   const [loadingHoldings, setLoadingHoldings] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [deletingId, setDeletingId] = useState(null);
+
+  // Settings Modal State
+  const [settingsModalOpen, setSettingsModalOpen] = useState(false);
 
   // Modal Form State
   const [modalOpen, setModalOpen] = useState(false);
@@ -354,6 +391,25 @@ export default function PortfolioTracker({ calcData, rates, usdToman, goldUsd })
     };
   }, [holdings, realPriceMap]);
 
+  // 8. Grouped Categories with Sub-Totals (Real Value and PnL)
+  const categoryGroups = useMemo(() => {
+    return CATEGORY_DEFINITIONS.map((cat) => {
+      const groupItems = portfolioMetrics.items.filter(cat.match);
+      const groupCost = groupItems.reduce((acc, it) => acc + it.itemCost, 0);
+      const groupRealVal = groupItems.reduce((acc, it) => acc + it.itemRealVal, 0);
+      const groupPnl = groupRealVal - groupCost;
+      const groupPnlPct = groupCost > 0 ? (groupPnl / groupCost) * 100 : 0;
+      return {
+        ...cat,
+        items: groupItems,
+        totalCost: groupCost,
+        totalRealValue: groupRealVal,
+        totalPnl: groupPnl,
+        totalPnlPct: groupPnlPct,
+      };
+    }).filter((group) => group.items.length > 0);
+  }, [portfolioMetrics.items]);
+
   const isModalCustom = selectedAssetId === 'custom';
   const selectedAssetMeta = ASSET_TYPES.find((a) => a.id === selectedAssetId);
   const currentModalRealPrice = realPriceMap[selectedAssetId] || 0;
@@ -488,20 +544,34 @@ export default function PortfolioTracker({ calcData, rates, usdToman, goldUsd })
         </div>
       </div>
 
-      {/* Holdings List */}
+      {/* Holdings List Grouped by Category */}
       <div className="portfolio-table-card">
         <div className="portfolio-table-header">
           <div className="table-title">
-            <h3>📋 جزئیات سبد سرمایه‌گذاری ({user.name || user.email})</h3>
+            <h3>📋 جزئیات و دسته‌بندی سبد دارایی ({user.name || user.email})</h3>
             <span>
               محاسبه بر پایه ارزش واقعی طلا (${goldUsdVal ? goldUsdVal.toLocaleString() : ''})، نقره (${silverUsdVal ? silverUsdVal.toFixed(2) : ''}) و نرخ دلار ({formatNum(usdVal)} تومان)
             </span>
           </div>
-          {holdings.length > 0 && (
-            <button className="btn-quick-add" onClick={handleOpenAdd}>
-              + افزودن دارایی جدید
+          <div className="portfolio-header-actions">
+            <button
+              className="btn-share-settings"
+              onClick={() => setSettingsModalOpen(true)}
+              title="تنظیمات اشتراک‌گذاری و رمز عبور پورتفو"
+            >
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"></path>
+                <polyline points="16 6 12 2 8 6"></polyline>
+                <line x1="12" y1="2" x2="12" y2="15"></line>
+              </svg>
+              <span>اشتراک‌گذاری پورتفو 🔗</span>
             </button>
-          )}
+            {holdings.length > 0 && (
+              <button className="btn-quick-add" onClick={handleOpenAdd}>
+                + افزودن دارایی جدید
+              </button>
+            )}
+          </div>
         </div>
 
         {loadingHoldings ? (
@@ -522,96 +592,128 @@ export default function PortfolioTracker({ calcData, rates, usdToman, goldUsd })
             </button>
           </div>
         ) : (
-          <div className="portfolio-items-list">
-            {portfolioMetrics.items.map((item) => {
-              const isProfit = item.itemPnl >= 0;
-              const isDeleting = deletingId === item.id;
-              return (
-                <div key={item.id} className="portfolio-item-row">
-                  <div className="item-main-col">
-                    <div className="item-name-wrap">
-                      <span className="item-name">{item.assetName || item.name}</span>
-                      <span className={`item-category-pill cat-${item.assetType || 'custom'}`}>
-                        {item.assetType === 'silver' ? '🥈 نقره' :
-                         item.assetType === 'gold' ? '🥇 طلا' :
-                         item.assetType === 'coin' ? '🪙 سکه' :
-                         item.assetType === 'currency' ? '💵 ارز' :
-                         item.assetType === 'crypto' ? '⚡ کریپتو' : '✨ سفارشی'}
-                      </span>
-                      <span className="item-qty-tag">
-                        {Number(item.amount).toLocaleString('fa-IR')} {item.unit}
-                      </span>
-                    </div>
-
-                    <div className="item-price-meta">
-                      <span>خرید: {formatNum(item.buyPrice)} تومان</span>
-                      <span className="meta-sep">•</span>
-                      <span className="meta-real-price" title="محاسبه مستقیم بر مبنای ارزش واقعی">
-                        قیمت واقعی روز: {formatNum(item.unitRealPrice)} تومان
-                      </span>
-                    </div>
-
-                    {/* Meta info: Purchase date & notes */}
-                    {(item.buyDate || item.notes) && (
-                      <div className="item-extra-meta">
-                        {item.buyDate && (
-                          <span className="item-date-tag">
-                            📅 {item.buyDate}
-                          </span>
-                        )}
-                        {item.notes && (
-                          <span className="item-notes-tag" title={item.notes}>
-                            💬 {item.notes}
-                          </span>
-                        )}
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="item-values-col">
-                    <div className="item-live-val">
-                      {formatNum(item.itemRealVal)}
-                      <span className="val-unit">تومان</span>
-                    </div>
-                    <div className={`item-pnl-tag ${isProfit ? 'profit' : 'loss'}`}>
-                      <span>{isProfit ? '+' : ''}{formatNum(item.itemPnl)} تومان</span>
-                      <span className="pct">({isProfit ? '+' : ''}{item.itemPnlPct.toFixed(1).replace('-', '')}٪)</span>
+          <div className="portfolio-categories-container">
+            {categoryGroups.map((group) => (
+              <div key={group.key} className="category-group-card">
+                {/* Category Subtotal Header */}
+                <div className="category-group-header">
+                  <div className="cat-header-identity">
+                    <span className="cat-group-icon">{group.icon}</span>
+                    <div className="cat-group-titles">
+                      <h4 className="cat-group-name">{group.name}</h4>
+                      <span className="cat-group-count">{group.items.length.toLocaleString('fa-IR')} قلم</span>
                     </div>
                   </div>
 
-                  <div className="item-actions-col">
-                    {/* Edit Button */}
-                    <button
-                      className="btn-edit-item"
-                      title="ویرایش دارایی"
-                      onClick={() => handleOpenEdit(item)}
-                    >
-                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
-                        <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
-                      </svg>
-                    </button>
+                  <div className="cat-header-subtotals">
+                    <div className="cat-subtotal-val">
+                      <span className="subtotal-label">ارزش مجموعه:</span>
+                      <strong className="subtotal-amount">{formatNum(group.totalRealValue)}</strong>
+                      <span className="subtotal-unit">تومان</span>
+                    </div>
 
-                    {/* Delete Button */}
-                    <button
-                      className="btn-del-item"
-                      title="حذف از پورتفو"
-                      disabled={isDeleting}
-                      onClick={() => handleDeleteHolding(item.id)}
-                    >
-                      {isDeleting ? (
-                        <div className="mini-spinner"></div>
-                      ) : (
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                          <polyline points="3 6 5 6 21 6"></polyline>
-                          <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
-                        </svg>
-                      )}
-                    </button>
+                    <div className={`cat-subtotal-pnl ${group.totalPnl >= 0 ? 'profit' : 'loss'}`}>
+                      <span className="subtotal-pnl-label">سود/زیان:</span>
+                      <strong>{group.totalPnl >= 0 ? '+' : ''}{formatNum(group.totalPnl)} تومان</strong>
+                      <span className="subtotal-pnl-pct">({group.totalPnl >= 0 ? '+' : ''}{group.totalPnlPct.toFixed(1).replace('-', '')}٪)</span>
+                    </div>
                   </div>
                 </div>
-              );
-            })}
+
+                {/* Items in this category */}
+                <div className="portfolio-items-list">
+                  {group.items.map((item) => {
+                    const isProfit = item.itemPnl >= 0;
+                    const isDeleting = deletingId === item.id;
+                    return (
+                      <div key={item.id} className="portfolio-item-row">
+                        <div className="item-main-col">
+                          <div className="item-name-wrap">
+                            <span className="item-name">{item.assetName || item.name}</span>
+                            <span className={`item-category-pill cat-${item.assetType || 'custom'}`}>
+                              {item.assetType === 'silver' ? '🥈 نقره' :
+                               item.assetType === 'gold' ? '🥇 طلا' :
+                               item.assetType === 'coin' ? '🪙 سکه' :
+                               item.assetType === 'currency' ? '💵 ارز' :
+                               item.assetType === 'crypto' ? '⚡ کریپتو' : '✨ سفارشی'}
+                            </span>
+                            <span className="item-qty-tag">
+                              {Number(item.amount).toLocaleString('fa-IR')} {item.unit}
+                            </span>
+                          </div>
+
+                          <div className="item-price-meta">
+                            <span>خرید: {formatNum(item.buyPrice)} تومان</span>
+                            <span className="meta-sep">•</span>
+                            <span className="meta-real-price" title="محاسبه مستقیم بر مبنای ارزش واقعی">
+                              قیمت واقعی روز: {formatNum(item.unitRealPrice)} تومان
+                            </span>
+                          </div>
+
+                          {/* Meta info: Purchase date & notes */}
+                          {(item.buyDate || item.notes) && (
+                            <div className="item-extra-meta">
+                              {item.buyDate && (
+                                <span className="item-date-tag">
+                                  📅 {item.buyDate}
+                                </span>
+                              )}
+                              {item.notes && (
+                                <span className="item-notes-tag" title={item.notes}>
+                                  💬 {item.notes}
+                                </span>
+                              )}
+                            </div>
+                          )}
+                        </div>
+
+                        <div className="item-values-col">
+                          <div className="item-live-val">
+                            {formatNum(item.itemRealVal)}
+                            <span className="val-unit">تومان</span>
+                          </div>
+                          <div className={`item-pnl-tag ${isProfit ? 'profit' : 'loss'}`}>
+                            <span>{isProfit ? '+' : ''}{formatNum(item.itemPnl)} تومان</span>
+                            <span className="pct">({isProfit ? '+' : ''}{item.itemPnlPct.toFixed(1).replace('-', '')}٪)</span>
+                          </div>
+                        </div>
+
+                        <div className="item-actions-col">
+                          {/* Edit Button */}
+                          <button
+                            className="btn-edit-item"
+                            title="ویرایش دارایی"
+                            onClick={() => handleOpenEdit(item)}
+                          >
+                            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                              <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                              <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                            </svg>
+                          </button>
+
+                          {/* Delete Button */}
+                          <button
+                            className="btn-del-item"
+                            title="حذف از پورتفو"
+                            disabled={isDeleting}
+                            onClick={() => handleDeleteHolding(item.id)}
+                          >
+                            {isDeleting ? (
+                              <div className="mini-spinner"></div>
+                            ) : (
+                              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                <polyline points="3 6 5 6 21 6"></polyline>
+                                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                              </svg>
+                            )}
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
           </div>
         )}
       </div>
@@ -799,6 +901,13 @@ export default function PortfolioTracker({ calcData, rates, usdToman, goldUsd })
           </div>
         </div>
       )}
+
+      {/* User & Share Settings Modal */}
+      <UserSettingsModal
+        isOpen={settingsModalOpen}
+        onClose={() => setSettingsModalOpen(false)}
+        onSaved={fetchHoldings}
+      />
     </div>
   );
 }

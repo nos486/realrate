@@ -19,14 +19,19 @@ export async function ensureD1Tables(env) {
       id TEXT PRIMARY KEY,
       email TEXT UNIQUE NOT NULL,
       name TEXT,
+      custom_name TEXT,
       picture TEXT,
       role TEXT DEFAULT 'user',
+      share_slug TEXT UNIQUE,
+      share_password TEXT,
+      share_enabled INTEGER DEFAULT 0,
       created_at TEXT NOT NULL,
       last_login TEXT NOT NULL,
       login_count INTEGER DEFAULT 1
     )`,
     `CREATE INDEX IF NOT EXISTS idx_users_email ON users(email)`,
     `CREATE INDEX IF NOT EXISTS idx_users_last_login ON users(last_login DESC)`,
+    `CREATE UNIQUE INDEX IF NOT EXISTS idx_users_share_slug ON users(share_slug)`,
     `CREATE TABLE IF NOT EXISTS sessions (
       token TEXT PRIMARY KEY,
       user_id TEXT NOT NULL,
@@ -75,6 +80,24 @@ export async function ensureD1Tables(env) {
     try {
       await env.DB.prepare("ALTER TABLE portfolio_holdings ADD COLUMN current_price REAL DEFAULT 0").run();
     } catch (ignore) {}
+
+    // Backward-compat: ensure share columns exist on users
+    try {
+      await env.DB.prepare("ALTER TABLE users ADD COLUMN custom_name TEXT").run();
+    } catch (ignore) {}
+    try {
+      await env.DB.prepare("ALTER TABLE users ADD COLUMN share_slug TEXT").run();
+    } catch (ignore) {}
+    try {
+      await env.DB.prepare("ALTER TABLE users ADD COLUMN share_password TEXT").run();
+    } catch (ignore) {}
+    try {
+      await env.DB.prepare("ALTER TABLE users ADD COLUMN share_enabled INTEGER DEFAULT 0").run();
+    } catch (ignore) {}
+    try {
+      await env.DB.prepare("CREATE UNIQUE INDEX IF NOT EXISTS idx_users_share_slug ON users(share_slug)").run();
+    } catch (ignore) {}
+
     d1Initialized = true;
   } catch (e) {
     console.error("D1 schema bootstrap error:", e);
@@ -114,6 +137,24 @@ export async function dbUpsertUser(env, userData) {
       if (updated) {
         userData.loginCount = updated.login_count;
         userData.createdAt = updated.created_at;
+
+        // Auto-assign default share_slug if none set
+        if (!updated.share_slug) {
+          const rawSlug = (userData.email.split('@')[0].replace(/[^a-zA-Z0-9_-]/g, '') || `user_${Date.now().toString(36)}`).toLowerCase();
+          try {
+            await env.DB.prepare("UPDATE users SET share_slug = ? WHERE id = ?").bind(rawSlug, updated.id).run();
+            userData.shareSlug = rawSlug;
+          } catch (e) {
+            const fallbackSlug = `${rawSlug}-${Math.random().toString(36).slice(2, 6)}`;
+            await env.DB.prepare("UPDATE users SET share_slug = ? WHERE id = ?").bind(fallbackSlug, updated.id).run();
+            userData.shareSlug = fallbackSlug;
+          }
+        } else {
+          userData.shareSlug = updated.share_slug;
+        }
+
+        userData.shareEnabled = updated.share_enabled || 0;
+        userData.customName = updated.custom_name || '';
       }
     } catch (e) {
       console.error("D1 dbUpsertUser error:", e);
@@ -163,7 +204,9 @@ export async function dbGetUsers(env) {
     await ensureD1Tables(env);
     try {
       const { results } = await env.DB.prepare(`
-        SELECT id, email, name, picture, role, created_at AS createdAt, last_login AS lastLogin, login_count AS loginCount
+        SELECT id, email, name, custom_name AS customName, picture, role,
+               share_slug AS shareSlug, share_enabled AS shareEnabled,
+               created_at AS createdAt, last_login AS lastLogin, login_count AS loginCount
         FROM users
         ORDER BY last_login DESC
       `).all();
@@ -186,6 +229,107 @@ export async function dbGetUsers(env) {
   }
 
   return [];
+}
+
+/**
+ * Get user by ID or email
+ */
+export async function dbGetUserById(env, userId) {
+  if (!userId) return null;
+  if (env && env.DB) {
+    await ensureD1Tables(env);
+    try {
+      const row = await env.DB.prepare(`
+        SELECT id, email, name, custom_name AS customName, picture, role,
+               share_slug AS shareSlug, share_password AS sharePassword,
+               share_enabled AS shareEnabled, created_at AS createdAt, last_login AS lastLogin
+        FROM users
+        WHERE id = ? OR email = ?
+      `).bind(userId, userId).first();
+      return row || null;
+    } catch (e) {
+      console.error("D1 dbGetUserById error:", e);
+    }
+  }
+  return null;
+}
+
+/**
+ * Get user by Share Slug (for shared portfolio view)
+ */
+export async function dbGetUserByShareSlug(env, slug) {
+  if (!slug) return null;
+  if (env && env.DB) {
+    await ensureD1Tables(env);
+    try {
+      const row = await env.DB.prepare(`
+        SELECT id, email, name, custom_name AS customName, picture, role,
+               share_slug AS shareSlug, share_password AS sharePassword,
+               share_enabled AS shareEnabled
+        FROM users
+        WHERE LOWER(share_slug) = LOWER(?)
+      `).bind(slug.trim()).first();
+      return row || null;
+    } catch (e) {
+      console.error("D1 dbGetUserByShareSlug error:", e);
+    }
+  }
+  return null;
+}
+
+/**
+ * Update user settings (custom name, share slug, share password, share enabled)
+ */
+export async function dbUpdateUserSettings(env, userId, { customName, shareSlug, sharePassword, shareEnabled }) {
+  if (!userId) throw new Error("شناسه کاربر الزامی است.");
+  if (env && env.DB) {
+    await ensureD1Tables(env);
+
+    // Validate and check if new shareSlug is already taken by another user
+    if (shareSlug) {
+      const cleanedSlug = shareSlug.trim().toLowerCase().replace(/[^a-z0-9_-]/g, '-');
+      if (cleanedSlug.length < 2) {
+        throw new Error("آدرس اختصاصی باید حداقل ۲ کاراکتر و شامل حروف یا ارقام انگلیسی باشد.");
+      }
+      const existing = await env.DB.prepare(`
+        SELECT id FROM users WHERE LOWER(share_slug) = LOWER(?) AND id != ? AND email != ?
+      `).bind(cleanedSlug, userId, userId).first();
+      if (existing) {
+        throw new Error("این آدرس اختصاصی (slug) قبلاً توسط کاربر دیگری انتخاب شده است. لطفاً شناسه دیگری انتخاب فرمایید.");
+      }
+      shareSlug = cleanedSlug;
+    }
+
+    const updates = [];
+    const bindings = [];
+
+    if (customName !== undefined) {
+      updates.push("custom_name = ?");
+      bindings.push(customName ? customName.trim() : null);
+    }
+    if (shareSlug !== undefined) {
+      updates.push("share_slug = ?");
+      bindings.push(shareSlug);
+    }
+    if (sharePassword !== undefined) {
+      updates.push("share_password = ?");
+      bindings.push(sharePassword ? sharePassword.trim() : null);
+    }
+    if (shareEnabled !== undefined) {
+      updates.push("share_enabled = ?");
+      bindings.push(shareEnabled ? 1 : 0);
+    }
+
+    if (updates.length > 0) {
+      bindings.push(userId, userId);
+      await env.DB.prepare(`
+        UPDATE users SET ${updates.join(", ")} WHERE id = ? OR email = ?
+      `).bind(...bindings).run();
+    }
+
+    return await dbGetUserById(env, userId);
+  }
+  return null;
 }
 
 /**
