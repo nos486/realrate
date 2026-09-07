@@ -12,12 +12,12 @@ import {
 } from '../api/client.js';
 import UserSettingsModal from './UserSettingsModal.jsx';
 
-const ASSET_TYPES = [
+export const ASSET_TYPES = [
   // طلا و مسکوکات
-  { id: 'gold_18k', name: 'طلای ۱۸ عیار (خام / آب‌شده)', unit: 'گرم', category: 'gold' },
-  { id: 'gold_24k', name: 'طلای ۲۴ عیار (شمش / ساچمه / خام)', unit: 'گرم', category: 'gold' },
-  { id: 'full_new', name: 'سکه امامی (طرح جدید)', unit: 'عدد', category: 'coin' },
-  { id: 'full_old', name: 'سکه بهار آزادی (طرح قدیم)', unit: 'عدد', category: 'coin' },
+  { id: 'gold_18k', name: 'طلای ۱۸ عیار', unit: 'گرم', category: 'gold' },
+  { id: 'gold_24k', name: 'طلای ۲۴ عیار', unit: 'گرم', category: 'gold' },
+  { id: 'full_new', name: 'سکه امامی', unit: 'عدد', category: 'coin' },
+  { id: 'full_old', name: 'سکه بهار آزادی', unit: 'عدد', category: 'coin' },
   { id: 'half', name: 'نیم سکه بهار آزادی', unit: 'عدد', category: 'coin' },
   { id: 'quarter', name: 'ربع سکه بهار آزادی', unit: 'عدد', category: 'coin' },
   { id: 'gram', name: 'سکه گرمی', unit: 'عدد', category: 'coin' },
@@ -25,22 +25,31 @@ const ASSET_TYPES = [
   // نقره (Silver)
   { id: 'silver_999', name: 'نقره خام و ساچمه ۹۹۹', unit: 'گرم', category: 'silver' },
   { id: 'silver_925', name: 'نقره استرلینگ ۹۲۵', unit: 'گرم', category: 'silver' },
-  { id: 'silver_ounce', name: 'انس جهانی نقره (XAG)', unit: 'اونس', category: 'silver' },
+  { id: 'silver_ounce', name: 'انس جهانی نقره', unit: 'اونس', category: 'silver' },
 
   // ارزهای خارجی و رمزارزها
-  { id: 'USD', name: 'دلار آمریکا (اسکناس)', unit: 'دلار', category: 'currency' },
-  { id: 'USDT', name: 'تتر (USDT)', unit: 'تتر', category: 'crypto' },
+  { id: 'USD', name: 'دلار آمریکا', unit: 'دلار', category: 'currency' },
+  { id: 'USDT', name: 'تتر', unit: 'تتر', category: 'crypto' },
   { id: 'EUR', name: 'یورو اروپا', unit: 'یورو', category: 'currency' },
   { id: 'AED', name: 'درهم امارات', unit: 'درهم', category: 'currency' },
   { id: 'TRY', name: 'لیر ترکیه', unit: 'لیر', category: 'currency' },
   { id: 'GBP', name: 'پوند انگلیس', unit: 'پوند', category: 'currency' },
   { id: 'CAD', name: 'دلار کانادا', unit: 'دلار', category: 'currency' },
-  { id: 'BTC', name: 'بیت‌کوین (BTC)', unit: 'عدد', category: 'crypto' },
-  { id: 'ETH', name: 'اتریوم (ETH)', unit: 'عدد', category: 'crypto' },
+  { id: 'BTC', name: 'بیت‌کوین', unit: 'عدد', category: 'crypto' },
+  { id: 'ETH', name: 'اتریوم', unit: 'عدد', category: 'crypto' },
 
   // دارایی شخصی و سفارشی (Custom Asset)
-  { id: 'custom', name: '✨ دارایی شخصی / سفارشی (بورس، مسکن، صندوق، خودرو...)', unit: 'واحد', category: 'custom' },
+  { id: 'custom', name: '✨ دارایی شخصی / سفارشی', unit: 'واحد', category: 'custom' },
 ];
+
+export function formatAssetName(item) {
+  if (!item) return '';
+  const assetId = item.assetId || (typeof item === 'string' ? item : null);
+  const matched = ASSET_TYPES.find((a) => a.id === assetId && a.id !== 'custom');
+  if (matched) return matched.name;
+  const raw = typeof item === 'string' ? item : (item.assetName || item.name || '');
+  return raw.replace(/\s*\([^)]*\)/g, '').trim() || raw;
+}
 
 export const CATEGORY_DEFINITIONS = [
   {
@@ -684,7 +693,7 @@ export default function PortfolioTracker({ calcData, rates, usdToman, goldUsd })
         item.assetType === 'currency' || item.assetType === 'crypto' ? 'ارزهای خارجی و رمزارزها' : 'سایر دارایی‌ها';
 
       return [
-        escapeCSV(item.assetName || item.name),
+        escapeCSV(formatAssetName(item)),
         escapeCSV(catLabel),
         escapeCSV(assetTypeLabel),
         escapeCSV(item.amount),
@@ -1005,7 +1014,7 @@ export default function PortfolioTracker({ calcData, rates, usdToman, goldUsd })
                               <tr key={item.id} className="portfolio-table-row">
                                 <td className="td-asset">
                                   <div className="asset-cell-compact">
-                                    <span className="asset-name-text">{item.assetName || item.name}</span>
+                                    <span className="asset-name-text">{formatAssetName(item)}</span>
                                     <span className={`item-category-pill cat-${item.assetType || 'custom'}`}>
                                       {item.assetType === 'silver' ? '🥈 نقره' :
                                        item.assetType === 'gold' ? '🥇 طلا' :
@@ -1217,35 +1226,35 @@ export default function PortfolioTracker({ calcData, rates, usdToman, goldUsd })
                   className="form-select"
                 >
                   <optgroup label="طلا و مسکوکات">
-                    <option value="gold_18k">طلای ۱۸ عیار (خام / آب‌شده)</option>
-                    <option value="gold_24k">طلای ۲۴ عیار (شمش / ساچمه / خام)</option>
-                    <option value="full_new">سکه امامی (طرح جدید)</option>
-                    <option value="full_old">سکه بهار آزادی (طرح قدیم)</option>
+                    <option value="gold_18k">طلای ۱۸ عیار</option>
+                    <option value="gold_24k">طلای ۲۴ عیار</option>
+                    <option value="full_new">سکه امامی</option>
+                    <option value="full_old">سکه بهار آزادی</option>
                     <option value="half">نیم سکه بهار آزادی</option>
                     <option value="quarter">ربع سکه بهار آزادی</option>
                     <option value="gram">سکه گرمی</option>
                   </optgroup>
 
                   <optgroup label="نقره (Silver)">
-                    <option value="silver_999">نقره خام و ساچمه ۹۹۹ (گرم)</option>
-                    <option value="silver_925">نقره استرلینگ ۹۲۵ (گرم)</option>
-                    <option value="silver_ounce">انس جهانی نقره (XAG)</option>
+                    <option value="silver_999">نقره خام و ساچمه ۹۹۹</option>
+                    <option value="silver_925">نقره استرلینگ ۹۲۵</option>
+                    <option value="silver_ounce">انس جهانی نقره</option>
                   </optgroup>
 
                   <optgroup label="ارزهای خارجی و کریپتو">
-                    <option value="USD">دلار آمریکا (اسکناس)</option>
-                    <option value="USDT">تتر (USDT)</option>
+                    <option value="USD">دلار آمریکا</option>
+                    <option value="USDT">تتر</option>
                     <option value="EUR">یورو اروپا</option>
                     <option value="AED">درهم امارات</option>
                     <option value="TRY">لیر ترکیه</option>
                     <option value="GBP">پوند انگلیس</option>
                     <option value="CAD">دلار کانادا</option>
-                    <option value="BTC">بیت‌کوین (BTC)</option>
-                    <option value="ETH">اتریوم (ETH)</option>
+                    <option value="BTC">بیت‌کوین</option>
+                    <option value="ETH">اتریوم</option>
                   </optgroup>
 
                   <optgroup label="دارایی‌های دلخواه">
-                    <option value="custom">✨ دارایی شخصی / سفارشی (بورس، مسکن، صندوق و...)</option>
+                    <option value="custom">✨ دارایی شخصی / سفارشی</option>
                   </optgroup>
                 </select>
               </div>

@@ -8,7 +8,7 @@ import {
   apiGetRates,
   apiAdminGetUserPortfolio,
 } from '../api/client.js';
-import { CATEGORY_DEFINITIONS } from '../components/PortfolioTracker.jsx';
+import { CATEGORY_DEFINITIONS, formatAssetName } from '../components/PortfolioTracker.jsx';
 
 function formatNum(num) {
   if (num === null || num === undefined || isNaN(num)) return '۰';
@@ -757,7 +757,7 @@ export default function AdminPage() {
                             <div key={item.id} className="portfolio-item-row">
                               <div className="item-main-col">
                                 <div className="item-name-wrap">
-                                  <span className="item-name">{item.assetName || item.name}</span>
+                                  <span className="item-name">{formatAssetName(item)}</span>
                                   <span className={`item-category-pill cat-${item.assetType || 'custom'}`}>
                                     {item.assetType === 'silver' ? '🥈 نقره' :
                                      item.assetType === 'gold' ? '🥇 طلا' :

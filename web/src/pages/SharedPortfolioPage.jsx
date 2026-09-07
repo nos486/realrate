@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { apiGetSharedPortfolio, apiGetRates, apiCalculate } from '../api/client.js';
 import Header from '../components/Header.jsx';
-import { CATEGORY_DEFINITIONS } from '../components/PortfolioTracker.jsx';
+import { CATEGORY_DEFINITIONS, formatAssetName } from '../components/PortfolioTracker.jsx';
 
 function formatNum(num) {
   if (num === null || num === undefined || isNaN(num)) return '۰';
@@ -282,7 +282,7 @@ export default function SharedPortfolioPage() {
         item.assetType === 'currency' || item.assetType === 'crypto' ? 'ارزهای خارجی و رمزارزها' : 'سایر دارایی‌ها';
 
       return [
-        escapeCSV(item.assetName || item.name),
+        escapeCSV(formatAssetName(item)),
         escapeCSV(catLabel),
         escapeCSV(assetTypeLabel),
         escapeCSV(item.amount),
@@ -517,7 +517,7 @@ export default function SharedPortfolioPage() {
                                     <tr key={item.id} className="portfolio-table-row">
                                       <td className="td-asset">
                                         <div className="asset-cell-compact">
-                                          <span className="asset-name-text">{item.assetName || item.name}</span>
+                                          <span className="asset-name-text">{formatAssetName(item)}</span>
                                           <span className={`item-category-pill cat-${item.assetType || 'custom'}`}>
                                             {item.assetType === 'silver' ? '🥈 نقره' :
                                              item.assetType === 'gold' ? '🥇 طلا' :
