@@ -169,13 +169,10 @@ export default function SharedPortfolioPage() {
   }, [marketRates, calcData]);
 
   const portfolioMetrics = useMemo(() => {
-    if (!portfolioData?.holdings) return { items: [], totalCost: 0, totalRealValue: 0, totalPnl: 0, totalPnlPct: 0, hasAnyBuyPrice: false };
+    if (!portfolioData?.holdings) return { items: [], totalCost: 0, totalRealValue: 0, totalPnl: 0, totalPnlPct: 0, hasAnyCost: false };
 
     let totalCost = 0;
     let totalRealValue = 0;
-    let totalCostWithBuyPrice = 0;
-    let totalRealValWithBuyPrice = 0;
-    let itemsWithBuyPriceCount = 0;
 
     const items = portfolioData.holdings.map((h) => {
       const amountNum = Number(h.amount) || 0;
@@ -187,18 +184,15 @@ export default function SharedPortfolioPage() {
         ? (Number(h.currentPrice) || (hasBuyPrice ? buyPriceNum : 0))
         : (realPriceMap[h.assetId] || (hasBuyPrice ? buyPriceNum : 0));
 
-      const itemCost = hasBuyPrice ? (amountNum * buyPriceNum) : 0;
+      const itemCost = hasBuyPrice ? amountNum * buyPriceNum : 0;
       const itemRealVal = amountNum * unitRealPrice;
-      const itemPnl = hasBuyPrice ? (itemRealVal - itemCost) : null;
-      const itemPnlPct = (hasBuyPrice && itemCost > 0) ? (itemPnl / itemCost) * 100 : null;
+      const itemPnl = hasBuyPrice ? itemRealVal - itemCost : null;
+      const itemPnlPct = hasBuyPrice && itemCost > 0 ? (itemPnl / itemCost) * 100 : null;
 
-      totalRealValue += itemRealVal;
       if (hasBuyPrice) {
         totalCost += itemCost;
-        totalCostWithBuyPrice += itemCost;
-        totalRealValWithBuyPrice += itemRealVal;
-        itemsWithBuyPriceCount += 1;
       }
+      totalRealValue += itemRealVal;
 
       return {
         ...h,
@@ -212,34 +206,31 @@ export default function SharedPortfolioPage() {
       };
     });
 
-    const hasAnyBuyPrice = itemsWithBuyPriceCount > 0;
-    const totalPnl = hasAnyBuyPrice ? (totalRealValWithBuyPrice - totalCostWithBuyPrice) : 0;
-    const totalPnlPct = (hasAnyBuyPrice && totalCostWithBuyPrice > 0) ? (totalPnl / totalCostWithBuyPrice) * 100 : 0;
+    const costedItems = items.filter((it) => it.hasBuyPrice);
+    const hasAnyCost = costedItems.length > 0 && totalCost > 0;
+    const totalPnl = costedItems.reduce((acc, it) => acc + (it.itemPnl || 0), 0);
+    const totalPnlPct = hasAnyCost ? (totalPnl / totalCost) * 100 : 0;
 
-    return { items, totalCost, totalRealValue, totalPnl, totalPnlPct, hasAnyBuyPrice };
+    return { items, totalCost, totalRealValue, totalPnl, totalPnlPct, hasAnyCost };
   }, [portfolioData, realPriceMap]);
 
   const categoryGroups = useMemo(() => {
     return CATEGORY_DEFINITIONS.map((cat) => {
       const groupItems = portfolioMetrics.items.filter(cat.match);
-      const itemsWithBuyPrice = groupItems.filter((it) => it.hasBuyPrice);
-
-      const groupCost = itemsWithBuyPrice.reduce((acc, it) => acc + it.itemCost, 0);
+      const costedGroupItems = groupItems.filter((it) => it.hasBuyPrice);
+      const hasCostedItems = costedGroupItems.length > 0;
+      const groupCost = costedGroupItems.reduce((acc, it) => acc + it.itemCost, 0);
       const groupRealVal = groupItems.reduce((acc, it) => acc + it.itemRealVal, 0);
-      const groupRealValForPnl = itemsWithBuyPrice.reduce((acc, it) => acc + it.itemRealVal, 0);
-
-      const hasAnyBuyPrice = itemsWithBuyPrice.length > 0;
-      const groupPnl = hasAnyBuyPrice ? (groupRealValForPnl - groupCost) : 0;
-      const groupPnlPct = (hasAnyBuyPrice && groupCost > 0) ? (groupPnl / groupCost) * 100 : 0;
-
+      const groupPnl = costedGroupItems.reduce((acc, it) => acc + (it.itemPnl || 0), 0);
+      const groupPnlPct = groupCost > 0 ? (groupPnl / groupCost) * 100 : 0;
       return {
         ...cat,
         items: groupItems,
         totalCost: groupCost,
         totalRealValue: groupRealVal,
-        totalPnl: groupPnl,
-        totalPnlPct: groupPnlPct,
-        hasAnyBuyPrice,
+        totalPnl: hasCostedItems ? groupPnl : null,
+        totalPnlPct,
+        hasCostedItems,
       };
     }).filter((group) => group.items.length > 0);
   }, [portfolioMetrics.items]);
@@ -300,7 +291,7 @@ export default function SharedPortfolioPage() {
         escapeCSV(item.hasBuyPrice ? item.itemCost : ''),
         escapeCSV(item.unitRealPrice),
         escapeCSV(item.itemRealVal),
-        escapeCSV(item.hasBuyPrice && item.itemPnl !== null ? item.itemPnl : ''),
+        escapeCSV(item.hasBuyPrice ? item.itemPnl : ''),
         escapeCSV(item.hasBuyPrice && item.itemPnlPct !== null ? item.itemPnlPct.toFixed(2) + '%' : ''),
         escapeCSV(item.buyDate || ''),
         escapeCSV(item.notes || '')
@@ -490,7 +481,7 @@ export default function SharedPortfolioPage() {
                                 <span className="subtotal-unit">تومان</span>
                               </div>
 
-                              {group.hasAnyBuyPrice ? (
+                              {group.hasCostedItems && (
                                 <div className={`cat-subtotal-pnl ${group.totalPnl >= 0 ? 'profit' : 'loss'}`}>
                                   <span className="subtotal-pnl-label">سود/زیان:</span>
                                   <strong>
@@ -499,11 +490,6 @@ export default function SharedPortfolioPage() {
                                   <span className="subtotal-pnl-pct">
                                     {hideValues ? '(****)' : `(${group.totalPnl >= 0 ? '+' : ''}${group.totalPnlPct.toFixed(1).replace('-', '')}٪)`}
                                   </span>
-                                </div>
-                              ) : (
-                                <div className="cat-subtotal-pnl neutral">
-                                  <span className="subtotal-pnl-label">سود/زیان:</span>
-                                  <span className="table-empty-val">—</span>
                                 </div>
                               )}
                             </div>
@@ -526,7 +512,7 @@ export default function SharedPortfolioPage() {
                               </thead>
                               <tbody>
                                 {group.items.map((item) => {
-                                  const isProfit = item.itemPnl >= 0;
+                                  const isProfit = (item.itemPnl || 0) >= 0;
                                   return (
                                     <tr key={item.id} className="portfolio-table-row">
                                       <td className="td-asset">
@@ -557,7 +543,7 @@ export default function SharedPortfolioPage() {
                                             <span className="cell-unit">تومان</span>
                                           </div>
                                         ) : (
-                                          <span className="table-empty-val" title="قیمت خرید ثبت نشده است">—</span>
+                                          <span className="table-notes-text" title="قیمت خرید وارد نشده است">—</span>
                                         )}
                                       </td>
 
@@ -586,11 +572,11 @@ export default function SharedPortfolioPage() {
                                               {hideValues ? '****' : `${isProfit ? '+' : ''}${formatNum(item.itemPnl)} تومان`}
                                             </span>
                                             <span className="pnl-pct-badge">
-                                              {hideValues ? '****' : `(${isProfit ? '+' : ''}${item.itemPnlPct.toFixed(1).replace('-', '')}٪)`}
+                                              {hideValues ? '****' : `(${isProfit ? '+' : ''}${item.itemPnlPct?.toFixed(1).replace('-', '')}٪)`}
                                             </span>
                                           </div>
                                         ) : (
-                                          <span className="table-empty-val" title="قیمت خرید ثبت نشده است">—</span>
+                                          <span className="table-notes-text" title="بدون قیمت خرید در سود و زیان محاسبه نمی‌شود">—</span>
                                         )}
                                       </td>
 
@@ -643,31 +629,47 @@ export default function SharedPortfolioPage() {
                       <span className="count-pill">{portfolioMetrics.items.length.toLocaleString('fa-IR')} قلم</span>
                     </div>
                     <div className={`stat-number ${hideValues ? 'is-masked' : ''}`}>
-                      {hideValues ? '****' : (portfolioMetrics.hasAnyBuyPrice ? formatNum(portfolioMetrics.totalCost) : '—')}
-                      {portfolioMetrics.hasAnyBuyPrice && <span className="stat-unit">تومان</span>}
+                      {portfolioMetrics.hasAnyCost ? (
+                        <>
+                          {hideValues ? '****' : formatNum(portfolioMetrics.totalCost)}
+                          <span className="stat-unit">تومان</span>
+                        </>
+                      ) : (
+                        <span className="stat-sub" style={{ fontSize: '15px' }}>ثبت‌نشده</span>
+                      )}
                     </div>
                     <div className="stat-sub">
-                      {portfolioMetrics.hasAnyBuyPrice ? 'بهای تمام‌شده اولیه سبد دارایی' : 'قیمت خریدی ثبت نشده است'}
+                      {portfolioMetrics.hasAnyCost ? 'بهای تمام‌شده اولیه سبد دارایی' : 'محاسبه صرفاً به نرخ روز'}
                     </div>
                   </div>
 
                   {/* Card 3: Total Real PnL */}
-                  <div className={`portfolio-stat-card pnl-card ${portfolioMetrics.hasAnyBuyPrice ? (portfolioMetrics.totalPnl >= 0 ? 'profit' : 'loss') : 'neutral'}`}>
+                  <div className={`portfolio-stat-card pnl-card ${portfolioMetrics.hasAnyCost ? (portfolioMetrics.totalPnl >= 0 ? 'profit' : 'loss') : 'neutral'}`}>
                     <div className="stat-header">
                       <span className="stat-label">سود / زیان واقعی کل</span>
-                      <span className={`pnl-badge ${portfolioMetrics.hasAnyBuyPrice ? (portfolioMetrics.totalPnl >= 0 ? 'profit' : 'loss') : 'neutral'}`}>
-                        {hideValues ? '****' : (portfolioMetrics.hasAnyBuyPrice ? `${portfolioMetrics.totalPnl >= 0 ? '+' : ''}${portfolioMetrics.totalPnlPct.toFixed(2).replace('-', '')}٪` : '—')}
-                      </span>
+                      {portfolioMetrics.hasAnyCost ? (
+                        <span className={`pnl-badge ${portfolioMetrics.totalPnl >= 0 ? 'profit' : 'loss'}`}>
+                          {hideValues ? '****' : `${portfolioMetrics.totalPnl >= 0 ? '+' : ''}${portfolioMetrics.totalPnlPct.toFixed(2).replace('-', '')}٪`}
+                        </span>
+                      ) : (
+                        <span className="pnl-badge neutral">—</span>
+                      )}
                     </div>
                     <div className={`stat-number ${hideValues ? 'is-masked' : ''}`}>
-                      {hideValues ? '****' : (portfolioMetrics.hasAnyBuyPrice ? `${portfolioMetrics.totalPnl >= 0 ? '+' : ''}${formatNum(portfolioMetrics.totalPnl)}` : '—')}
-                      {portfolioMetrics.hasAnyBuyPrice && <span className="stat-unit">تومان</span>}
+                      {portfolioMetrics.hasAnyCost ? (
+                        <>
+                          {hideValues ? '****' : `${portfolioMetrics.totalPnl >= 0 ? '+' : ''}${formatNum(portfolioMetrics.totalPnl)}`}
+                          <span className="stat-unit">تومان</span>
+                        </>
+                      ) : (
+                        <span className="stat-sub" style={{ fontSize: '15px' }}>بدون قیمت خرید</span>
+                      )}
                     </div>
                     <div className="stat-sub">
-                      {portfolioMetrics.hasAnyBuyPrice ? (
+                      {portfolioMetrics.hasAnyCost ? (
                         portfolioMetrics.totalPnl >= 0 ? '🟢 پورتفوی در سود است' : '🔴 پورتفوی در زیان است'
                       ) : (
-                        'بدون محاسبه سود/زیان (قیمت خریدی وارد نشده)'
+                        'ارزش اقلام صرفاً به نرخ روز محاسبه می‌شود'
                       )}
                     </div>
                   </div>

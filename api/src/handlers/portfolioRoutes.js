@@ -241,11 +241,17 @@ export async function handleAddPortfolio(request, env) {
 
     const body = await request.json().catch(() => ({}));
     const amount = parseFloat(body.amount);
-    const rawBuyPrice = parseFloat(body.buyPrice);
-    const buyPrice = (!isNaN(rawBuyPrice) && rawBuyPrice > 0) ? rawBuyPrice : 0;
+    const rawBuyPrice = body.buyPrice;
+    const buyPrice = (rawBuyPrice !== undefined && rawBuyPrice !== null && rawBuyPrice !== '')
+      ? parseFloat(rawBuyPrice)
+      : 0;
 
     if (isNaN(amount) || amount <= 0) {
       return errorResponse("مقدار یا وزن دارایی باید یک عدد معتبر و بزرگتر از صفر باشد.", 400, request);
+    }
+
+    if (isNaN(buyPrice) || buyPrice < 0) {
+      return errorResponse("قیمت خرید واحد در صورت وارد شدن باید یک عدد معتبر و نامنفی باشد.", 400, request);
     }
 
     const userId = user.userId || user.id || user.email;
