@@ -4570,10 +4570,11 @@ footer {
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.04);
 }
 
-[data-theme="light"] .market-top-controls {
-  background: #ffffff;
-  border: 1px solid rgba(0, 0, 0, 0.07);
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.04);
+[data-theme="light"] .market-top-controls,
+[data-theme="light"] .market-top-controls.has-rec {
+  background: transparent;
+  border: none;
+  box-shadow: none;
 }
 
 [data-theme="light"] .recommendation-hero-card {
