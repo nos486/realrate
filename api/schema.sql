@@ -102,7 +102,6 @@ CREATE TABLE IF NOT EXISTS portfolio_holdings (
   current_price REAL DEFAULT 0,
   buy_date TEXT DEFAULT '',
   notes TEXT DEFAULT '',
-  encrypted_data TEXT DEFAULT '',
   created_at TEXT NOT NULL,
   updated_at TEXT NOT NULL
 );

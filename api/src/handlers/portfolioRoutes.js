@@ -258,17 +258,18 @@ export async function handleAddPortfolio(request, env) {
     }
 
     const body = await request.json().catch(() => ({}));
+    const isE2eeHolding = typeof body.notes === 'string' && body.notes.startsWith('enc:e2ee:v1:');
     const amount = parseFloat(body.amount);
     const rawBuyPrice = body.buyPrice;
     const buyPrice = (rawBuyPrice !== undefined && rawBuyPrice !== null && rawBuyPrice !== '')
       ? parseFloat(rawBuyPrice)
       : 0;
 
-    if (isNaN(amount) || amount <= 0) {
+    if (!isE2eeHolding && (isNaN(amount) || amount <= 0)) {
       return errorResponse("مقدار یا وزن دارایی باید یک عدد معتبر و بزرگتر از صفر باشد.", 400, request);
     }
 
-    if (isNaN(buyPrice) || buyPrice < 0) {
+    if (!isE2eeHolding && (isNaN(buyPrice) || buyPrice < 0)) {
       return errorResponse("قیمت خرید واحد در صورت وارد شدن باید یک عدد معتبر و نامنفی باشد.", 400, request);
     }
 
@@ -281,8 +282,8 @@ export async function handleAddPortfolio(request, env) {
       assetName: String(body.assetName || "طلا ۱۸ عیار"),
       assetType: String(body.assetType || "gold"),
       unit: String(body.unit || "واحد"),
-      amount,
-      buyPrice,
+      amount: isNaN(amount) ? 0 : amount,
+      buyPrice: isNaN(buyPrice) ? 0 : buyPrice,
       currentPrice: parseFloat(body.currentPrice) || 0,
       buyDate: String(body.buyDate || "").trim(),
       notes: String(body.notes || "").trim(),
