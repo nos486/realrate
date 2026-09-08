@@ -2989,6 +2989,26 @@ input:focus, select:focus, textarea:focus {
   animation: spin 0.8s linear infinite;
 }
 
+.empty-loading-block {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 60px 20px;
+  gap: 14px;
+  color: var(--text-secondary);
+  font-size: 13px;
+}
+
+.loading-spinner {
+  width: 32px;
+  height: 32px;
+  border: 3px solid rgba(245, 158, 11, 0.2);
+  border-top-color: var(--gold-primary);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
 
 /* ── Admin Page Styles ───────────────────────────────────────────────────── */
 .admin-container {
@@ -4805,8 +4825,69 @@ footer {
 [data-theme="light"] .back-home-link:hover {
   color: #0f172a;
 }
+/* Fullscreen Loader for Light Theme */
+[data-theme="light"] .fullscreen-loader-backdrop {
+  background: rgba(241, 244, 249, 0.85);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+}
+
+[data-theme="light"] .fullscreen-loader-box {
+  background: rgba(255, 255, 255, 0.96);
+  border: 1px solid rgba(0, 0, 0, 0.09);
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.08), 0 0 25px rgba(217, 119, 6, 0.06);
+}
+
 [data-theme="light"] .loader-main-title {
   color: #0f172a;
+}
+
+[data-theme="light"] .loader-sub-title {
+  color: #64748b;
+}
+
+[data-theme="light"] .loader-progress-track {
+  background: rgba(0, 0, 0, 0.07);
+}
+
+[data-theme="light"] .loader-ring.outer-ring {
+  border-top-color: #d97706;
+  border-right-color: #f59e0b;
+  border-bottom-color: rgba(217, 119, 6, 0.18);
+  filter: drop-shadow(0 0 6px rgba(217, 119, 6, 0.25));
+}
+
+[data-theme="light"] .loader-ring.inner-ring {
+  border-top-color: #0284c7;
+  border-left-color: #38bdf8;
+  filter: drop-shadow(0 0 6px rgba(2, 132, 199, 0.25));
+}
+
+[data-theme="light"] .loader-center-spark {
+  background: #d97706;
+  box-shadow: 0 0 10px rgba(217, 119, 6, 0.4);
+}
+
+[data-theme="light"] .portfolio-loading-state,
+[data-theme="light"] .empty-loading-block {
+  color: #475569;
+}
+
+[data-theme="light"] .spinner-glow,
+[data-theme="light"] .loading-spinner {
+  border-color: rgba(217, 119, 6, 0.2);
+  border-top-color: #d97706;
+}
+
+/* Primary Action Buttons in Light Theme: Crisp White Text on Vibrant Amber */
+[data-theme="light"] .btn-add-asset,
+[data-theme="light"] .btn-add-asset-center,
+[data-theme="light"] .btn-modal-submit,
+[data-theme="light"] .btn-vault-unlock,
+[data-theme="light"] .btn-unlock-shared,
+[data-theme="light"] .btn-primary {
+  color: #ffffff !important;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.22);
 }
 
 [data-theme="light"] .portfolio-stat-card {
