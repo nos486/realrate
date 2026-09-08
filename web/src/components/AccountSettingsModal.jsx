@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext.jsx';
+import { useTheme } from '../context/ThemeContext.jsx';
 import { apiGetUserSettings, apiUpdateUserSettings } from '../api/client.js';
 
 export default function AccountSettingsModal({ isOpen, onClose }) {
   const { user, updateUser } = useAuth();
+  const { theme, setTheme, themes } = useTheme();
   const [customName, setCustomName] = useState('');
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -41,7 +43,7 @@ export default function AccountSettingsModal({ isOpen, onClose }) {
       });
 
       if (res.success) {
-        setMsg({ text: 'نام مستعار ذخیره شد.', type: 'success' });
+        setMsg({ text: 'تنظیمات با موفقیت ذخیره شد.', type: 'success' });
         updateUser({ customName: customName.trim() });
         setTimeout(() => {
           onClose();
@@ -124,6 +126,70 @@ export default function AccountSettingsModal({ isOpen, onClose }) {
               <span className="field-sub-note">
                 این نام در پورتفوهای اشتراک‌گذاشته‌شده به عنوان نام مالک نمایش داده می‌شود.
               </span>
+            </div>
+
+            {/* Theme Selector */}
+            <div className="form-group" style={{ marginTop: '14px' }}>
+              <label>حالت نمایش (پوسته)</label>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginTop: '6px' }}>
+                <button
+                  type="button"
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '8px',
+                    padding: '9px 12px',
+                    borderRadius: '10px',
+                    border: theme === 'dark' ? '1.5px solid #f59e0b' : '1px solid rgba(255, 255, 255, 0.08)',
+                    background: theme === 'dark' ? 'rgba(245, 158, 11, 0.12)' : 'rgba(255, 255, 255, 0.03)',
+                    color: theme === 'dark' ? '#fbbf24' : 'var(--text-muted)',
+                    fontSize: '12.5px',
+                    fontWeight: '700',
+                    cursor: 'pointer',
+                    transition: 'all 0.18s ease',
+                  }}
+                  onClick={() => setTheme('dark')}
+                >
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
+                    <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+                  </svg>
+                  <span>حالت تاریک</span>
+                </button>
+
+                <button
+                  type="button"
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '8px',
+                    padding: '9px 12px',
+                    borderRadius: '10px',
+                    border: theme === 'light' ? '1.5px solid #d97706' : '1px solid rgba(0, 0, 0, 0.08)',
+                    background: theme === 'light' ? 'rgba(217, 119, 6, 0.12)' : 'rgba(0, 0, 0, 0.03)',
+                    color: theme === 'light' ? '#d97706' : 'var(--text-muted)',
+                    fontSize: '12.5px',
+                    fontWeight: '700',
+                    cursor: 'pointer',
+                    transition: 'all 0.18s ease',
+                  }}
+                  onClick={() => setTheme('light')}
+                >
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
+                    <circle cx="12" cy="12" r="5"></circle>
+                    <line x1="12" y1="1" x2="12" y2="3"></line>
+                    <line x1="12" y1="21" x2="12" y2="23"></line>
+                    <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+                    <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+                    <line x1="1" y1="12" x2="3" y2="12"></line>
+                    <line x1="21" y1="12" x2="23" y2="12"></line>
+                    <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+                    <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+                  </svg>
+                  <span>حالت روشن</span>
+                </button>
+              </div>
             </div>
 
             {/* Modal Actions */}
