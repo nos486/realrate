@@ -1,5 +1,6 @@
 import React from 'react';
 import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import { Megaphone, TrendingUp, Briefcase, Sparkles, AlertTriangle } from 'lucide-react';
 import Header from '../components/Header.jsx';
 import AnalysisCards from '../components/AnalysisCards.jsx';
 import CurrenciesList from '../components/CurrenciesList.jsx';
@@ -89,7 +90,7 @@ export default function MainPage() {
         {/* System Announcement Banner */}
         {announcement && (
           <div className="announcement-strip">
-            <span className="announcement-icon">📢</span>
+            <span className="announcement-icon"><Megaphone size={16} /></span>
             <span className="announcement-text">{announcement}</span>
           </div>
         )}
@@ -100,11 +101,7 @@ export default function MainPage() {
             className={`tab-segment-btn ${activeTab === 'market' ? 'active' : ''}`}
             onClick={() => handleTabChange('market')}
           >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <line x1="18" y1="20" x2="18" y2="10"></line>
-              <line x1="12" y1="20" x2="12" y2="4"></line>
-              <line x1="6" y1="20" x2="6" y2="14"></line>
-            </svg>
+            <TrendingUp size={16} strokeWidth={2} />
             <span>نرخ و حباب</span>
           </button>
 
@@ -112,10 +109,7 @@ export default function MainPage() {
             className={`tab-segment-btn ${activeTab === 'portfolio' ? 'active' : ''}`}
             onClick={() => handleTabChange('portfolio')}
           >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <rect x="2" y="7" width="20" height="14" rx="2" ry="2"></rect>
-              <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path>
-            </svg>
+            <Briefcase size={16} strokeWidth={2} />
             <span>پورتفو</span>
           </button>
         </div>
@@ -175,10 +169,8 @@ export default function MainPage() {
                 {/* Smart Recommendation Banner */}
                 {recommendation && (
                   <div className="smart-rec-banner">
-                    <div className="rec-badge-icon">
-                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                        <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
-                      </svg>
+                    <div className="rec-icon-badge">
+                      <Sparkles size={16} />
                     </div>
                     <div className="rec-text-group">
                       <div className="rec-title">
@@ -197,7 +189,8 @@ export default function MainPage() {
               {/* Alert Banner if USD is null or 0 */}
               {!hasUsd && (
                 <div className="warning-notice-bar">
-                  <span>⚠️ لطفاً نرخ دلار را برای محاسبه ارزش واقعی و حباب وارد کنید.</span>
+                  <AlertTriangle size={15} style={{ marginLeft: '6px', verticalAlign: 'middle', display: 'inline' }} />
+                  <span>لطفاً نرخ دلار را برای محاسبه ارزش واقعی و حباب وارد کنید.</span>
                 </div>
               )}
 

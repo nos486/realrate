@@ -1,7 +1,19 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { Link } from 'react-router-dom';
+import {
+  TrendingUp,
+  Briefcase,
+  Eye,
+  EyeOff,
+  Sun,
+  Moon,
+  ChevronDown,
+  User,
+  ShieldCheck,
+  LogOut,
+} from 'lucide-react';
 import { useAuth } from '../context/AuthContext.jsx';
 import { useTheme } from '../context/ThemeContext.jsx';
-import { Link } from 'react-router-dom';
 import AccountSettingsModal from './AccountSettingsModal.jsx';
 
 const LogoMark = () => (
@@ -97,11 +109,7 @@ export default function Header({ usdToman, gold18kPrice, activeTab, setActiveTab
               title="نرخ و حباب طلا، سکه و ارز"
               aria-label="بازار"
             >
-              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                <line x1="18" y1="20" x2="18" y2="10"></line>
-                <line x1="12" y1="20" x2="12" y2="4"></line>
-                <line x1="6" y1="20" x2="6" y2="14"></line>
-              </svg>
+              <TrendingUp size={17} strokeWidth={2.2} />
               <span className="tab-btn-title">نرخ و حباب</span>
             </button>
 
@@ -112,10 +120,7 @@ export default function Header({ usdToman, gold18kPrice, activeTab, setActiveTab
               title="پورتفوی دارایی من"
               aria-label="پورتفو"
             >
-              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                <rect x="2" y="7" width="20" height="14" rx="2" ry="2"></rect>
-                <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path>
-              </svg>
+              <Briefcase size={17} strokeWidth={2.2} />
               <span className="tab-btn-title">پورتفو</span>
             </button>
           </nav>
@@ -150,17 +155,7 @@ export default function Header({ usdToman, gold18kPrice, activeTab, setActiveTab
               title={hideValues ? 'نمایش مجدد مقادیر مالی' : 'مخفی‌سازی مبالغ دارایی (حالت محرمانگی)'}
               aria-label={hideValues ? 'نمایش مجدد مقادیر مالی' : 'مخفی‌سازی مبالغ دارایی (حالت محرمانگی)'}
             >
-              {hideValues ? (
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
-                  <circle cx="12" cy="12" r="3"></circle>
-                </svg>
-              ) : (
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path>
-                  <line x1="1" y1="1" x2="23" y2="23"></line>
-                </svg>
-              )}
+              {hideValues ? <Eye size={15} strokeWidth={2.2} /> : <EyeOff size={15} strokeWidth={2.2} />}
             </button>
           )}
 
@@ -172,23 +167,7 @@ export default function Header({ usdToman, gold18kPrice, activeTab, setActiveTab
             title={theme === 'dark' ? 'تغییر به تم روشن' : 'تغییر به تم تاریک'}
             aria-label={theme === 'dark' ? 'تغییر به تم روشن' : 'تغییر به تم تاریک'}
           >
-            {theme === 'dark' ? (
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                <circle cx="12" cy="12" r="5"></circle>
-                <line x1="12" y1="1" x2="12" y2="3"></line>
-                <line x1="12" y1="21" x2="12" y2="23"></line>
-                <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
-                <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
-                <line x1="1" y1="12" x2="3" y2="12"></line>
-                <line x1="21" y1="12" x2="23" y2="12"></line>
-                <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
-                <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
-              </svg>
-            ) : (
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
-              </svg>
-            )}
+            {theme === 'dark' ? <Sun size={15} strokeWidth={2.2} /> : <Moon size={15} strokeWidth={2.2} />}
           </button>
 
           {/* User Auth / Profile */}
@@ -208,9 +187,7 @@ export default function Header({ usdToman, gold18kPrice, activeTab, setActiveTab
                   />
                   <span className="user-firstname desktop-only">{user.customName || user.name?.split(' ')[0] || 'کاربر'}</span>
                   {user.role === 'admin' && <span className="admin-badge desktop-only">مدیر</span>}
-                  <svg className="chevron-icon desktop-only" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M6 9l6 6 6-6"/>
-                  </svg>
+                  <ChevronDown className="chevron-icon desktop-only" size={13} strokeWidth={2.5} />
                 </button>
 
               {dropdownOpen && (
@@ -226,26 +203,18 @@ export default function Header({ usdToman, gold18kPrice, activeTab, setActiveTab
                     className="dropdown-link"
                     onClick={() => { setAccountModalOpen(true); setDropdownOpen(false); }}
                   >
-                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
-                      <circle cx="12" cy="7" r="4"></circle>
-                    </svg>
+                    <User size={15} strokeWidth={2} />
                     <span>تنظیمات حساب</span>
                   </button>
 
                   {user.role === 'admin' && (
                     <Link to="/admin" className="dropdown-link admin" onClick={() => setDropdownOpen(false)}>
-                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>
-                      </svg>
+                      <ShieldCheck size={15} strokeWidth={2} />
                       <span>پنل مدیریت</span>
                     </Link>
                   )}
                   <button className="dropdown-link logout" onClick={() => { logout(); setDropdownOpen(false); }}>
-                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
-                      <polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/>
-                    </svg>
+                    <LogOut size={15} strokeWidth={2} />
                     <span>خروج</span>
                   </button>
                 </div>

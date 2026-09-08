@@ -186,7 +186,7 @@ export async function encryptHoldingForApi(key, holding) {
     currentPrice: 0,
     buyDate: "",
     notes: encryptedBundle,
-    assetName: "[🔐 گاوصندوق E2EE]",
+    assetName: "[گاوصندوق E2EE]",
   };
 }
 

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { User, X, Check, AlertTriangle, Moon, Sun } from 'lucide-react';
 import { useAuth } from '../context/AuthContext.jsx';
 import { useTheme } from '../context/ThemeContext.jsx';
 import { apiGetUserSettings, apiUpdateUserSettings } from '../api/client.js';
@@ -63,10 +64,12 @@ export default function AccountSettingsModal({ isOpen, onClose }) {
       <div className="modal-content settings-modal-box" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '420px' }}>
         <div className="modal-header">
           <div className="modal-title-wrap">
-            <span className="modal-icon">👤</span>
+            <span className="modal-icon"><User size={18} /></span>
             <h3>تنظیمات حساب کاربری</h3>
           </div>
-          <button className="modal-close-btn" onClick={onClose} aria-label="بستن">✕</button>
+          <button className="modal-close-btn" onClick={onClose} aria-label="بستن">
+            <X size={18} />
+          </button>
         </div>
 
         {loading ? (
@@ -78,7 +81,7 @@ export default function AccountSettingsModal({ isOpen, onClose }) {
           <form onSubmit={handleSave} className="settings-form">
             {msg.text && (
               <div className={`settings-alert-banner ${msg.type}`}>
-                {msg.type === 'success' ? '✓ ' : '⚠️ '}
+                {msg.type === 'success' ? <Check size={14} style={{ display: 'inline', verticalAlign: 'middle', marginLeft: '4px' }} /> : <AlertTriangle size={14} style={{ display: 'inline', verticalAlign: 'middle', marginLeft: '4px' }} />}
                 {msg.text}
               </div>
             )}
@@ -128,9 +131,7 @@ export default function AccountSettingsModal({ isOpen, onClose }) {
                   className={`theme-choice-btn ${theme === 'dark' ? 'active' : ''}`}
                   onClick={() => setTheme('dark')}
                 >
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
-                    <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
-                  </svg>
+                  <Moon size={16} strokeWidth={2.2} />
                   <span>حالت تاریک</span>
                 </button>
 
@@ -139,17 +140,7 @@ export default function AccountSettingsModal({ isOpen, onClose }) {
                   className={`theme-choice-btn ${theme === 'light' ? 'active' : ''}`}
                   onClick={() => setTheme('light')}
                 >
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
-                    <circle cx="12" cy="12" r="5"></circle>
-                    <line x1="12" y1="1" x2="12" y2="3"></line>
-                    <line x1="12" y1="21" x2="12" y2="23"></line>
-                    <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
-                    <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
-                    <line x1="1" y1="12" x2="3" y2="12"></line>
-                    <line x1="21" y1="12" x2="23" y2="12"></line>
-                    <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
-                    <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
-                  </svg>
+                  <Sun size={16} strokeWidth={2.2} />
                   <span>حالت روشن</span>
                 </button>
               </div>

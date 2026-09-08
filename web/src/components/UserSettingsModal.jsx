@@ -1,4 +1,15 @@
 import React, { useState, useEffect } from 'react';
+import {
+  Settings,
+  X,
+  Check,
+  CheckCircle2,
+  AlertTriangle,
+  Eye,
+  EyeOff,
+  Copy,
+  Trash2,
+} from 'lucide-react';
 import { apiUpdatePortfolio } from '../api/client.js';
 import {
   generateE2eeSalt,
@@ -165,12 +176,14 @@ export default function UserSettingsModal({ isOpen, portfolio, onClose, onSaved,
         {/* Modal Header */}
         <div className="modal-header">
           <div className="modal-title-wrap">
-            <span className="modal-icon">⚙️</span>
+            <span className="modal-icon"><Settings size={18} /></span>
             <div>
               <h3>تنظیمات «{portfolioName || 'پورتفو'}»</h3>
             </div>
           </div>
-          <button className="modal-close-btn" onClick={onClose} aria-label="بستن">✕</button>
+          <button className="modal-close-btn" onClick={onClose} aria-label="بستن">
+            <X size={18} />
+          </button>
         </div>
 
         {loading ? (
@@ -182,7 +195,11 @@ export default function UserSettingsModal({ isOpen, portfolio, onClose, onSaved,
           <form onSubmit={handleSave} className="settings-form">
             {msg.text && (
               <div className={`settings-alert-banner ${msg.type}`}>
-                {msg.type === 'success' ? '✅ ' : '⚠️ '}
+                {msg.type === 'success' ? (
+                  <CheckCircle2 size={15} style={{ display: 'inline', verticalAlign: 'middle', marginLeft: '4px' }} />
+                ) : (
+                  <AlertTriangle size={15} style={{ display: 'inline', verticalAlign: 'middle', marginLeft: '4px' }} />
+                )}
                 {msg.text}
               </div>
             )}
@@ -285,7 +302,7 @@ export default function UserSettingsModal({ isOpen, portfolio, onClose, onSaved,
                   onClick={() => setShowPassword(!showPassword)}
                   title={showPassword ? 'مخفی کردن' : 'نمایش رمز'}
                 >
-                  {showPassword ? '🙈' : '👁️'}
+                  {showPassword ? <EyeOff size={15} /> : <Eye size={15} />}
                 </button>
               </div>
             </div>
@@ -315,7 +332,7 @@ export default function UserSettingsModal({ isOpen, portfolio, onClose, onSaved,
               {isE2ee && (
                 <div className="vault-form-section">
                   <div className="vault-warning-box">
-                    <span className="warning-icon">⚠️</span>
+                    <span className="warning-icon"><AlertTriangle size={16} /></span>
                     <p>
                       این رمز در سرور ذخیره نمی‌شود. در صورت فراموشی، اطلاعات غیرقابل بازیابی خواهد بود.
                     </p>
@@ -338,7 +355,7 @@ export default function UserSettingsModal({ isOpen, portfolio, onClose, onSaved,
                         onClick={() => setShowVaultPassword(!showVaultPassword)}
                         title={showVaultPassword ? 'مخفی کردن' : 'نمایش رمز'}
                       >
-                        {showVaultPassword ? '🙈' : '👁️'}
+                        {showVaultPassword ? <EyeOff size={15} /> : <Eye size={15} />}
                       </button>
                     </div>
                   </div>
@@ -368,10 +385,7 @@ export default function UserSettingsModal({ isOpen, portfolio, onClose, onSaved,
                   disabled={saving}
                   title={`حذف «${portfolio?.name || ''}»`}
                 >
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <polyline points="3 6 5 6 21 6"></polyline>
-                    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
-                  </svg>
+                  <Trash2 size={14} />
                   <span>حذف</span>
                 </button>
               ) : (

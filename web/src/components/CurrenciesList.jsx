@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { Search, X } from 'lucide-react';
 
 function formatNum(num) {
   if (num === null || num === undefined || isNaN(num)) return '-';
@@ -32,10 +33,7 @@ export default function CurrenciesList({ currencies }) {
       {/* Search and count bar */}
       <div className="currencies-toolbar">
         <div className="search-box">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <circle cx="11" cy="11" r="8"></circle>
-            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
-          </svg>
+          <Search size={15} strokeWidth={2} />
           <input
             type="text"
             placeholder="جستجوی نام یا نماد ارز..."
@@ -43,7 +41,9 @@ export default function CurrenciesList({ currencies }) {
             onChange={(e) => setSearch(e.target.value)}
           />
           {search && (
-            <button className="clear-search-btn" onClick={() => setSearch('')}>✕</button>
+            <button className="clear-search-btn" onClick={() => setSearch('')}>
+              <X size={14} strokeWidth={2.2} />
+            </button>
           )}
         </div>
 

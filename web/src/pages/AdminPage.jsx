@@ -1,5 +1,21 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
+import {
+  ShieldCheck,
+  Ban,
+  RefreshCw,
+  Home,
+  ExternalLink,
+  BarChart3,
+  Users,
+  Share2,
+  Search,
+  X,
+  Sliders,
+  Coins,
+  Megaphone,
+  Save,
+} from 'lucide-react';
 import { useAuth } from '../context/AuthContext.jsx';
 import {
   apiAdminStats,
@@ -172,10 +188,11 @@ export default function AdminPage() {
             <span>ورود به مدیریت با گوگل</span>
           </button>
           <p style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '10px' }}>
-            🛡️ احراز هویت اختصاصی بر اساس متغیر محیطی ADMIN_EMAIL
+            <ShieldCheck size={14} style={{ verticalAlign: 'middle', marginLeft: '4px', display: 'inline' }} />
+            احراز هویت اختصاصی بر اساس متغیر محیطی ADMIN_EMAIL
           </p>
           <Link to="/" className="btn-sm site-link" style={{ marginTop: '12px' }}>
-            ← بازگشت به صفحه اصلی سایت
+            بازگشت به صفحه اصلی سایت
           </Link>
         </div>
       </div>
@@ -187,7 +204,9 @@ export default function AdminPage() {
     return (
       <div className="admin-container" style={{ margin: '40px auto' }}>
         <div className="login-box">
-          <div style={{ fontSize: '40px' }}>⛔</div>
+          <div style={{ display: 'flex', justifyContent: 'center', margin: '10px 0' }}>
+            <Ban size={44} color="#f87171" strokeWidth={1.8} />
+          </div>
           <h3 style={{ color: '#f87171', fontWeight: 800 }}>عدم دسترسی مدیریت</h3>
           <p style={{ fontSize: '13px', color: 'var(--text-muted)', maxWidth: '420px', lineHeight: '1.8' }}>
             شما با حساب گوگل{' '}
@@ -197,8 +216,14 @@ export default function AdminPage() {
             وارد شده‌اید، اما این حساب به عنوان مدیر ثبت نشده است.
           </p>
           <div style={{ display: 'flex', gap: '10px', marginTop: '10px', flexWrap: 'wrap', justifyContent: 'center' }}>
-            <button className="btn-sm logout" onClick={logout}>🔄 خروج و تعویض حساب گوگل</button>
-            <Link to="/" className="btn-sm site-link">🏠 بازگشت به سایت</Link>
+            <button className="btn-sm logout" onClick={logout}>
+              <RefreshCw size={13} style={{ verticalAlign: 'middle', marginLeft: '4px' }} />
+              خروج و تعویض حساب گوگل
+            </button>
+            <Link to="/" className="btn-sm site-link">
+              <Home size={13} style={{ verticalAlign: 'middle', marginLeft: '4px' }} />
+              بازگشت به سایت
+            </Link>
           </div>
         </div>
       </div>
@@ -239,28 +264,41 @@ export default function AdminPage() {
           </div>
         </div>
         <div className="admin-actions">
-          <Link to="/" className="btn-sm site-link" title="مشاهده سایت">مشاهده سایت ↗</Link>
+          <Link to="/" className="btn-sm site-link" title="مشاهده سایت">
+            <span>مشاهده سایت</span>
+            <ExternalLink size={12} style={{ marginRight: '4px' }} />
+          </Link>
           <button className="btn-sm logout" onClick={logout}>خروج</button>
         </div>
       </div>
 
       {/* Live Stats */}
       <div className="section-title">
-        <span>📊 آمار و آنالیتیکس سیستم (Cloudflare KV)</span>
+        <span>
+          <BarChart3 size={15} style={{ verticalAlign: 'middle', marginLeft: '6px', display: 'inline' }} />
+          آمار و آنالیتیکس سیستم (Cloudflare KV)
+        </span>
         <button onClick={loadStats} className="btn-sm site-link" style={{ padding: '2px 8px', fontSize: '11px' }}>
-          {loadingStats ? 'در حال دریافت...' : '🔄 بروزرسانی'}
+          <RefreshCw size={11} className={loadingStats ? 'spin-anim' : ''} style={{ verticalAlign: 'middle', marginLeft: '4px' }} />
+          {loadingStats ? 'در حال دریافت...' : 'بروزرسانی'}
         </button>
       </div>
 
       <div className="stats-grid">
         <div className="stat-card">
-          <span className="stat-card-title">👥 کاربران ثبت‌نام شده</span>
+          <span className="stat-card-title">
+            <Users size={13} style={{ verticalAlign: 'middle', marginLeft: '5px', display: 'inline' }} />
+            کاربران ثبت‌نام شده
+          </span>
           <span className="stat-card-val blue">
             {stats?.registeredUsers?.toLocaleString('fa-IR') || users.length.toLocaleString('fa-IR')}
           </span>
         </div>
         <div className="stat-card">
-          <span className="stat-card-title">🔗 پورتفوهای عمومی فعال</span>
+          <span className="stat-card-title">
+            <Share2 size={13} style={{ verticalAlign: 'middle', marginLeft: '5px', display: 'inline' }} />
+            پورتفوهای عمومی فعال
+          </span>
           <span className="stat-card-val green">
             {users.filter((u) => u.shareEnabled).length.toLocaleString('fa-IR')}
           </span>
@@ -269,18 +307,19 @@ export default function AdminPage() {
 
       {/* Registered Users Table */}
       <div className="section-title" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
-        <span>👥 جدول کاربران ({filteredUsers.length.toLocaleString('fa-IR')} کاربر)</span>
+        <span>
+          <Users size={15} style={{ verticalAlign: 'middle', marginLeft: '6px', display: 'inline' }} />
+          جدول کاربران ({filteredUsers.length.toLocaleString('fa-IR')} کاربر)
+        </span>
         <button onClick={loadUsers} className="btn-sm site-link" style={{ padding: '3px 10px', fontSize: '11px' }}>
-          {loadingUsers ? 'در حال دریافت...' : '🔄 تازه‌سازی کاربران'}
+          <RefreshCw size={11} className={loadingUsers ? 'spin-anim' : ''} style={{ verticalAlign: 'middle', marginLeft: '4px' }} />
+          {loadingUsers ? 'در حال دریافت...' : 'تازه‌سازی کاربران'}
         </button>
       </div>
 
       <div className="admin-user-search-wrap" style={{ marginBottom: '14px' }}>
         <div className="search-box">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <circle cx="11" cy="11" r="8"></circle>
-            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
-          </svg>
+          <Search size={15} strokeWidth={2} />
           <input
             type="text"
             placeholder="جستجوی کاربر با نام، ایمیل، شناسه یا اسلاگ پورتفو..."
@@ -288,7 +327,9 @@ export default function AdminPage() {
             onChange={(e) => setUserSearch(e.target.value)}
           />
           {userSearch && (
-            <button className="clear-search-btn" onClick={() => setUserSearch('')}>✕</button>
+            <button className="clear-search-btn" onClick={() => setUserSearch('')}>
+              <X size={14} strokeWidth={2.2} />
+            </button>
           )}
         </div>
       </div>
@@ -338,7 +379,7 @@ export default function AdminPage() {
                   <td>
                     {u.shareSlug ? (
                       <span className={`share-badge ${u.shareEnabled ? 'active' : 'disabled'}`}>
-                        {u.shareEnabled ? '🟢 فعال' : '⚪ خصوصی'}: {u.shareSlug}
+                        {u.shareEnabled ? 'فعال' : 'خصوصی'}: {u.shareSlug}
                       </span>
                     ) : (
                       <span style={{ color: 'var(--text-muted)', fontSize: '11px' }}>-</span>
@@ -354,7 +395,12 @@ export default function AdminPage() {
 
       {/* Settings Form */}
       <form onSubmit={handleSave}>
-        <div className="section-title">⚙️ تنظیمات قیمت و انس عمومی</div>
+        <div className="section-title">
+          <span>
+            <Sliders size={15} style={{ verticalAlign: 'middle', marginLeft: '6px', display: 'inline' }} />
+            تنظیمات قیمت و انس عمومی
+          </span>
+        </div>
 
         <div className="grid-2">
           <div className="form-group">
@@ -378,7 +424,12 @@ export default function AdminPage() {
           </div>
         </div>
 
-        <div className="section-title">🪙 تنظیم درصد حباب مصوب سکه‌ها</div>
+        <div className="section-title">
+          <span>
+            <Coins size={15} style={{ verticalAlign: 'middle', marginLeft: '6px', display: 'inline' }} />
+            تنظیم درصد حباب مصوب سکه‌ها
+          </span>
+        </div>
 
         <div className="form-group">
           <label htmlFor="adminBubbleFull">درصد حباب مصوب سکه تمام (٪)</label>
@@ -415,7 +466,12 @@ export default function AdminPage() {
           </div>
         </div>
 
-        <div className="section-title">📢 پیام عمومی سیستم</div>
+        <div className="section-title">
+          <span>
+            <Megaphone size={15} style={{ verticalAlign: 'middle', marginLeft: '6px', display: 'inline' }} />
+            پیام عمومی سیستم
+          </span>
+        </div>
 
         <div className="form-group">
           <label htmlFor="adminAnnouncement">
@@ -431,7 +487,8 @@ export default function AdminPage() {
         </div>
 
         <button type="submit" className="btn" disabled={saving}>
-          {saving ? 'در حال ذخیره‌سازی...' : '💾 ذخیره کلیه تغییرات'}
+          <Save size={16} style={{ verticalAlign: 'middle', marginLeft: '6px', display: 'inline' }} />
+          <span>{saving ? 'در حال ذخیره‌سازی...' : 'ذخیره کلیه تغییرات'}</span>
         </button>
       </form>
 
