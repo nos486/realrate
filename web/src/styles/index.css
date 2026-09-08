@@ -2159,33 +2159,33 @@ input, select, textarea { font-family: inherit; }
 }
 
 .item-category-pill.cat-gold {
-  color: var(--gold-light);
-  background: var(--gold-soft-bg);
-}
-
-.item-category-pill.cat-silver {
-  color: #e2e8f0;
-  background: rgba(226, 232, 240, 0.1);
+  color: #facc15;
+  background: rgba(234, 179, 8, 0.15);
 }
 
 .item-category-pill.cat-coin {
-  color: #fbbf24;
-  background: rgba(251, 191, 36, 0.1);
+  color: #38bdf8;
+  background: rgba(56, 189, 248, 0.15);
+}
+
+.item-category-pill.cat-silver {
+  color: #f87171;
+  background: rgba(239, 68, 68, 0.15);
 }
 
 .item-category-pill.cat-currency {
   color: #34d399;
-  background: rgba(52, 211, 153, 0.1);
+  background: rgba(16, 185, 129, 0.15);
 }
 
 .item-category-pill.cat-crypto {
-  color: #a78bfa;
-  background: rgba(167, 139, 250, 0.1);
+  color: #c084fc;
+  background: rgba(168, 85, 247, 0.15);
 }
 
 .item-category-pill.cat-custom {
-  color: #38bdf8;
-  background: rgba(56, 189, 248, 0.1);
+  color: #f472b6;
+  background: rgba(244, 114, 182, 0.15);
 }
 
 /* Quantity Cell */
@@ -3367,22 +3367,22 @@ footer {
 }
 
 .allocation-segment.cat-gold {
-  background: linear-gradient(90deg, #f59e0b, #fbbf24);
+  background: linear-gradient(90deg, #eab308, #fde047);
 }
 .allocation-segment.cat-coin {
-  background: linear-gradient(90deg, #d97706, #f97316);
+  background: linear-gradient(90deg, #0284c7, #38bdf8);
 }
 .allocation-segment.cat-silver {
-  background: linear-gradient(90deg, #94a3b8, #cbd5e1);
+  background: linear-gradient(90deg, #ef4444, #f87171);
 }
 .allocation-segment.cat-currency {
-  background: linear-gradient(90deg, #10b981, #34d399);
+  background: linear-gradient(90deg, #059669, #34d399);
 }
 .allocation-segment.cat-crypto {
-  background: linear-gradient(90deg, #6366f1, #818cf8);
+  background: linear-gradient(90deg, #7c3aed, #a855f7);
 }
 .allocation-segment.cat-custom {
-  background: linear-gradient(90deg, #ec4899, #f472b6);
+  background: linear-gradient(90deg, #db2777, #f472b6);
 }
 
 .allocation-chips {
@@ -3404,14 +3404,13 @@ footer {
   height: 8px;
   border-radius: 50%;
   flex-shrink: 0;
-  box-shadow: 0 0 6px rgba(0, 0, 0, 0.4);
 }
-.chip-dot.cat-gold { background: #fbbf24; }
-.chip-dot.cat-coin { background: #f97316; }
-.chip-dot.cat-silver { background: #cbd5e1; }
-.chip-dot.cat-currency { background: #10b981; }
-.chip-dot.cat-crypto { background: #6366f1; }
-.chip-dot.cat-custom { background: #ec4899; }
+.chip-dot.cat-gold { background: #eab308; box-shadow: 0 0 6px rgba(234, 179, 8, 0.5); }
+.chip-dot.cat-coin { background: #38bdf8; box-shadow: 0 0 6px rgba(56, 189, 248, 0.5); }
+.chip-dot.cat-silver { background: #ef4444; box-shadow: 0 0 6px rgba(239, 68, 68, 0.5); }
+.chip-dot.cat-currency { background: #10b981; box-shadow: 0 0 6px rgba(16, 185, 129, 0.5); }
+.chip-dot.cat-crypto { background: #a855f7; box-shadow: 0 0 6px rgba(168, 85, 247, 0.5); }
+.chip-dot.cat-custom { background: #f472b6; box-shadow: 0 0 6px rgba(244, 114, 182, 0.5); }
 
 .chip-name {
   color: var(--text-secondary);
