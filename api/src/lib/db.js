@@ -630,19 +630,20 @@ export async function dbGetPortfolioById(env, portfolioId, userId) {
 /**
  * Create a new portfolio for user
  */
-export async function dbCreatePortfolio(env, userId, { name }) {
+export async function dbCreatePortfolio(env, userId, { name, isE2ee = false, e2eeSalt = "", e2eeVerifier = "" }) {
   if (!userId) throw new Error("شناسه کاربر الزامی است.");
   const portfolioName = String(name || "").trim() || "پورتفوی جدید";
   const now = new Date().toISOString();
   const id = `p_${Date.now()}_${crypto.randomUUID().slice(0, 8)}`;
   const shareSlug = generateRandomSlug(8);
+  const e2eeVal = isE2ee ? 1 : 0;
 
   if (env && env.DB) {
     await ensureD1Tables(env);
     await env.DB.prepare(`
-      INSERT INTO portfolios (id, user_id, name, is_default, share_slug, share_password, share_enabled, created_at, updated_at)
-      VALUES (?, ?, ?, 0, ?, '', 0, ?, ?)
-    `).bind(id, userId, portfolioName, shareSlug, now, now).run();
+      INSERT INTO portfolios (id, user_id, name, is_default, share_slug, share_password, share_enabled, is_e2ee, e2ee_salt, e2ee_verifier, created_at, updated_at)
+      VALUES (?, ?, ?, 0, ?, '', 0, ?, ?, ?, ?, ?)
+    `).bind(id, userId, portfolioName, shareSlug, e2eeVal, e2eeSalt || "", e2eeVerifier || "", now, now).run();
   }
 
   // Update KV
@@ -661,6 +662,9 @@ export async function dbCreatePortfolio(env, userId, { name }) {
     shareSlug,
     sharePassword: '',
     shareEnabled: 0,
+    isE2ee: !!e2eeVal,
+    e2eeSalt: e2eeSalt || '',
+    e2eeVerifier: e2eeVerifier || '',
     itemCount: 0,
     createdAt: now,
     updatedAt: now,

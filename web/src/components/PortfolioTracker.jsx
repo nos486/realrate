@@ -3,7 +3,6 @@ import { useAuth } from '../context/AuthContext.jsx';
 import {
   apiGetPortfolios,
   apiCreatePortfolio,
-  apiUpdatePortfolio,
   apiDeletePortfolio,
   apiGetPortfolio,
   apiAddPortfolioHolding,
@@ -24,6 +23,7 @@ import {
 export const ASSET_TYPES = [
   // طلا و مسکوکات
   { id: 'gold_18k', name: 'طلای ۱۸ عیار', unit: 'گرم', category: 'gold' },
+  { id: 'gold_melted', name: 'طلای آبشده (گرم ۱۸)', unit: 'گرم', category: 'gold' },
   { id: 'gold_24k', name: 'طلای ۲۴ عیار', unit: 'گرم', category: 'gold' },
   { id: 'full_new', name: 'سکه امامی', unit: 'عدد', category: 'coin' },
   { id: 'full_old', name: 'سکه بهار آزادی', unit: 'عدد', category: 'coin' },
@@ -178,18 +178,18 @@ export default function PortfolioTracker({ calcData, rates, usdToman, goldUsd })
   // Multi-portfolio State
   const [portfolios, setPortfolios] = useState([]);
   const [activePortfolioId, setActivePortfolioId] = useState(null);
-  const [loadingPortfolios, setLoadingPortfolios] = useState(true);
 
   // Refs to avoid circular state-dependencies in fetchPortfoliosAndHoldings
   const activePortfolioIdRef = useRef(activePortfolioId);
-  activePortfolioIdRef.current = activePortfolioId;
+  useEffect(() => {
+    activePortfolioIdRef.current = activePortfolioId;
+  }, [activePortfolioId]);
   const switchingRef = useRef(false);
 
   // New Portfolio Modal State
   const [newPortfolioModalOpen, setNewPortfolioModalOpen] = useState(false);
   const [newPortfolioName, setNewPortfolioName] = useState('');
   const [creatingPortfolio, setCreatingPortfolio] = useState(false);
-  const [settingDefault, setSettingDefault] = useState(false);
 
   const [holdings, setHoldings] = useState([]);
   const [loadingHoldings, setLoadingHoldings] = useState(true);
@@ -199,7 +199,9 @@ export default function PortfolioTracker({ calcData, rates, usdToman, goldUsd })
   // E2EE Vault State
   const [vaultKeys, setVaultKeys] = useState({}); // { [portfolioId]: CryptoKey }
   const vaultKeysRef = useRef(vaultKeys);
-  vaultKeysRef.current = vaultKeys;
+  useEffect(() => {
+    vaultKeysRef.current = vaultKeys;
+  }, [vaultKeys]);
   const [vaultUnlockPassInput, setVaultUnlockPassInput] = useState('');
   const [showVaultUnlockPass, setShowVaultUnlockPass] = useState(false);
   const [vaultUnlockError, setVaultUnlockError] = useState('');
@@ -229,12 +231,27 @@ export default function PortfolioTracker({ calcData, rates, usdToman, goldUsd })
     }
   });
 
+  useEffect(() => {
+    const onPrivacyChange = () => {
+      try {
+        setHideValues(localStorage.getItem('realrate_hide_values') === 'true');
+      } catch {}
+    };
+    window.addEventListener('realrate_privacy_change', onPrivacyChange);
+    window.addEventListener('storage', onPrivacyChange);
+    return () => {
+      window.removeEventListener('realrate_privacy_change', onPrivacyChange);
+      window.removeEventListener('storage', onPrivacyChange);
+    };
+  }, []);
+
   const toggleHideValues = () => {
     setHideValues((prev) => {
       const next = !prev;
       try {
         localStorage.setItem('realrate_hide_values', String(next));
       } catch {}
+      window.dispatchEvent(new Event('realrate_privacy_change'));
       return next;
     });
   };
@@ -430,30 +447,6 @@ export default function PortfolioTracker({ calcData, rates, usdToman, goldUsd })
       alert('خطا در ساخت پورتفو: ' + (err.message || 'نامعتبر'));
     } finally {
       setCreatingPortfolio(false);
-    }
-  };
-
-  // Handle setting active portfolio as default
-  const handleSetDefaultPortfolio = async (portfolioId) => {
-    if (!portfolioId || settingDefault) return;
-    setSettingDefault(true);
-    try {
-      const res = await apiUpdatePortfolio({ id: portfolioId, isDefault: true });
-      if (res.success) {
-        setPortfolios((prev) =>
-          prev.map((p) => ({
-            ...p,
-            isDefault: p.id === portfolioId,
-          }))
-        );
-      } else {
-        alert(res.message || 'خطا در تعیین پورتفوی پیش‌فرض');
-      }
-    } catch (err) {
-      console.error('Error setting default portfolio:', err);
-      alert('خطا در ارتباط با سرور.');
-    } finally {
-      setSettingDefault(false);
     }
   };
 
@@ -756,9 +749,6 @@ export default function PortfolioTracker({ calcData, rates, usdToman, goldUsd })
 
   // 7. Portfolio Metrics & Calculations (Based on Real / Intrinsic Value)
   const portfolioMetrics = useMemo(() => {
-    let totalCost = 0;
-    let totalRealValue = 0;
-
     const items = holdings.map((h) => {
       const amountNum = Number(h.amount) || 0;
       const buyPriceNum = Number(h.buyPrice) || 0;
@@ -775,11 +765,6 @@ export default function PortfolioTracker({ calcData, rates, usdToman, goldUsd })
       const itemPnl = hasBuyPrice ? itemRealVal - itemCost : null;
       const itemPnlPct = hasBuyPrice && itemCost > 0 ? (itemPnl / itemCost) * 100 : null;
 
-      if (hasBuyPrice) {
-        totalCost += itemCost;
-      }
-      totalRealValue += itemRealVal;
-
       return {
         ...h,
         hasBuyPrice,
@@ -793,6 +778,8 @@ export default function PortfolioTracker({ calcData, rates, usdToman, goldUsd })
     });
 
     const costedItems = items.filter((it) => it.hasBuyPrice);
+    const totalCost = costedItems.reduce((acc, it) => acc + it.itemCost, 0);
+    const totalRealValue = items.reduce((acc, it) => acc + it.itemRealVal, 0);
     const hasAnyCost = costedItems.length > 0 && totalCost > 0;
     const totalPnl = costedItems.reduce((sum, it) => sum + (it.itemPnl || 0), 0);
     const totalPnlPct = hasAnyCost ? (totalPnl / totalCost) * 100 : 0;
@@ -1433,6 +1420,42 @@ export default function PortfolioTracker({ calcData, rates, usdToman, goldUsd })
                 <span>{isVaultLocked ? 'قفل است' : '+ ثبت دارایی'}</span>
               </button>
             </div>
+
+            {/* Card 4: Asset Allocation Distribution Breakdown */}
+            {categoryGroups.length > 0 && portfolioMetrics.totalRealValue > 0 && !isVaultLocked && (
+              <div className="portfolio-stat-card allocation-card">
+                <div className="stat-header">
+                  <span className="stat-label">ترکیب دارایی‌ها</span>
+                  <span className="count-pill">{categoryGroups.length.toLocaleString('fa-IR')} دسته</span>
+                </div>
+                <div className="allocation-bar" aria-label="نمودار تفکیک دارایی‌ها">
+                  {categoryGroups.map((cat) => {
+                    const pct = (cat.totalRealValue / portfolioMetrics.totalRealValue) * 100;
+                    if (pct < 0.5) return null;
+                    return (
+                      <div
+                        key={cat.id}
+                        className={`allocation-segment cat-${cat.id}`}
+                        style={{ width: `${pct}%` }}
+                        title={`${cat.title}: ${pct.toFixed(1)}٪`}
+                      />
+                    );
+                  })}
+                </div>
+                <div className="allocation-chips">
+                  {categoryGroups.map((cat) => {
+                    const pct = (cat.totalRealValue / portfolioMetrics.totalRealValue) * 100;
+                    return (
+                      <div key={cat.id} className="allocation-chip">
+                        <span className={`chip-dot cat-${cat.id}`} />
+                        <span className="chip-name">{cat.title}:</span>
+                        <strong className="chip-pct">{pct.toFixed(1)}٪</strong>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -1674,7 +1697,11 @@ export default function PortfolioTracker({ calcData, rates, usdToman, goldUsd })
                           className="btn-date-system-mini"
                           onClick={() => {
                             try {
-                              nativeDateRef.current?.showPicker?.() || nativeDateRef.current?.click();
+                              if (nativeDateRef.current?.showPicker) {
+                                nativeDateRef.current.showPicker();
+                              } else {
+                                nativeDateRef.current?.click();
+                              }
                             } catch {
                               nativeDateRef.current?.click();
                             }

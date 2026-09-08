@@ -167,11 +167,9 @@ export default function AdminPage() {
 
   // Metrics for currently inspected user
   const inspectMetrics = useMemo(() => {
-    let totalCost = 0;
-    let totalRealValue = 0;
-    let totalCostWithBuyPrice = 0;
-    let totalRealValWithBuyPrice = 0;
-    let itemsWithBuyPriceCount = 0;
+    if (!inspectHoldings || inspectHoldings.length === 0) {
+      return { items: [], totalCost: 0, totalRealValue: 0, totalPnl: 0, totalPnlPct: 0, hasAnyCost: false, itemsWithBuyPriceCount: 0 };
+    }
 
     const items = inspectHoldings.map((h) => {
       const amountNum = Number(h.amount) || 0;
@@ -188,14 +186,6 @@ export default function AdminPage() {
       const itemPnl = hasBuyPrice ? (itemRealVal - itemCost) : null;
       const itemPnlPct = (hasBuyPrice && itemCost > 0) ? (itemPnl / itemCost) * 100 : null;
 
-      totalRealValue += itemRealVal;
-      if (hasBuyPrice) {
-        totalCost += itemCost;
-        totalCostWithBuyPrice += itemCost;
-        totalRealValWithBuyPrice += itemRealVal;
-        itemsWithBuyPriceCount += 1;
-      }
-
       return {
         ...h,
         hasBuyPrice,
@@ -208,11 +198,22 @@ export default function AdminPage() {
       };
     });
 
-    const hasAnyBuyPrice = itemsWithBuyPriceCount > 0;
-    const totalPnl = hasAnyBuyPrice ? (totalRealValWithBuyPrice - totalCostWithBuyPrice) : 0;
-    const totalPnlPct = (hasAnyBuyPrice && totalCostWithBuyPrice > 0) ? (totalPnl / totalCostWithBuyPrice) * 100 : 0;
+    const costedItems = items.filter((it) => it.hasBuyPrice);
+    const totalCost = costedItems.reduce((acc, it) => acc + it.itemCost, 0);
+    const totalRealValue = items.reduce((acc, it) => acc + it.itemRealVal, 0);
+    const totalPnl = costedItems.reduce((sum, it) => sum + (it.itemPnl || 0), 0);
+    const hasAnyCost = costedItems.length > 0 && totalCost > 0;
+    const totalPnlPct = hasAnyCost ? (totalPnl / totalCost) * 100 : 0;
 
-    return { items, totalCost, totalRealValue, totalPnl, totalPnlPct, hasAnyBuyPrice };
+    return {
+      items,
+      totalCost,
+      totalRealValue,
+      totalPnl,
+      totalPnlPct,
+      hasAnyCost,
+      itemsWithBuyPriceCount: costedItems.length,
+    };
   }, [inspectHoldings, realPriceMap]);
 
   const inspectCategoryGroups = useMemo(() => {

@@ -220,9 +220,6 @@ export default function SharedPortfolioPage() {
   const portfolioMetrics = useMemo(() => {
     if (!portfolioData?.holdings) return { items: [], totalCost: 0, totalRealValue: 0, totalPnl: 0, totalPnlPct: 0, hasAnyCost: false };
 
-    let totalCost = 0;
-    let totalRealValue = 0;
-
     const items = portfolioData.holdings.map((h) => {
       const amountNum = Number(h.amount) || 0;
       const buyPriceNum = Number(h.buyPrice) || 0;
@@ -238,11 +235,6 @@ export default function SharedPortfolioPage() {
       const itemPnl = hasBuyPrice ? itemRealVal - itemCost : null;
       const itemPnlPct = hasBuyPrice && itemCost > 0 ? (itemPnl / itemCost) * 100 : null;
 
-      if (hasBuyPrice) {
-        totalCost += itemCost;
-      }
-      totalRealValue += itemRealVal;
-
       return {
         ...h,
         hasBuyPrice,
@@ -256,6 +248,8 @@ export default function SharedPortfolioPage() {
     });
 
     const costedItems = items.filter((it) => it.hasBuyPrice);
+    const totalCost = costedItems.reduce((acc, it) => acc + it.itemCost, 0);
+    const totalRealValue = items.reduce((acc, it) => acc + it.itemRealVal, 0);
     const hasAnyCost = costedItems.length > 0 && totalCost > 0;
     const totalPnl = costedItems.reduce((acc, it) => acc + (it.itemPnl || 0), 0);
     const totalPnlPct = hasAnyCost ? (totalPnl / totalCost) * 100 : 0;

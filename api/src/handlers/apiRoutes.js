@@ -117,6 +117,7 @@ export async function handleCalculate(url, env, analytics, globalSettings, reque
 
   const itemsAnalysis = [
     analyzeItem("gold_18k",     "طلا ۱۸ عیار",            gold_18k_gram,    0,                                         tgPrices.gold_18k),
+    analyzeItem("mesghal",      "مثقال طلا (مظنه)",       mesghal_17k,      0,                                         tgPrices.mesghal),
     analyzeItem("full_coin",    "سکه تمام ۸۶",             full_intrinsic,   globalSettings.bubble_pct_full    ?? 15,   tgPrices.full_coin),
     analyzeItem("half_coin",    "نیم سکه بهار آزادی",      half_intrinsic,   globalSettings.bubble_pct_half    ?? 20,   tgPrices.half_coin),
     analyzeItem("quarter_coin", "ربع سکه بهار آزادی",      quarter_intrinsic,globalSettings.bubble_pct_quarter ?? 25,   tgPrices.quarter_coin),
