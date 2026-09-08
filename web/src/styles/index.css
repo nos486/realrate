@@ -2402,96 +2402,153 @@ input:focus, select:focus, textarea:focus {
   }
 }
 
-/* ── Add / Edit Asset Modal (Frameless Glass Style) ─────────────────────────── */
+/* ── Modals & Dialogs (Desktop Centered & Mobile Bottom-Sheet Drawer) ─────── */
 .modal-backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.78);
+  background: rgba(0, 0, 0, 0.76);
   backdrop-filter: blur(14px);
   -webkit-backdrop-filter: blur(14px);
-  z-index: 999;
+  z-index: 1000;
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 20px 16px;
-  overflow-y: auto;
-  -webkit-overflow-scrolling: touch;
+  padding: 24px 16px;
+  overflow: hidden;
+  touch-action: none;
+  animation: modalBackdropFade 0.2s ease;
+}
+
+@keyframes modalBackdropFade {
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
 
 .modal-content {
   width: 100%;
-  max-width: 490px;
-  max-height: calc(100vh - 40px);
-  overflow-y: auto;
-  overscroll-behavior: contain;
+  max-width: 500px;
+  max-height: min(88dvh, 800px);
+  max-height: min(88vh, 800px);
+  display: flex;
+  flex-direction: column;
   background: rgba(14, 18, 28, 0.96);
   backdrop-filter: blur(28px);
   -webkit-backdrop-filter: blur(28px);
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: var(--radius-xl);
   box-shadow: 0 24px 60px rgba(0, 0, 0, 0.75), 0 0 40px rgba(0, 0, 0, 0.5);
-  padding: 24px 28px;
+  padding: 0;
   margin: auto;
-  scrollbar-width: thin;
-  scrollbar-color: rgba(255, 255, 255, 0.2) transparent;
+  overflow: hidden;
+  position: relative;
+  animation: modalPopIn 0.25s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-.modal-content::-webkit-scrollbar {
-  width: 6px;
-}
-
-.modal-content::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-.modal-content::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.2);
-  border-radius: 999px;
-}
-
-@media (max-height: 680px) {
-  .modal-backdrop {
-    align-items: flex-start;
-    padding-top: 12px;
-    padding-bottom: 12px;
+@keyframes modalPopIn {
+  from {
+    opacity: 0;
+    transform: scale(0.96) translateY(8px);
   }
-
-  .modal-content {
-    max-height: calc(100vh - 24px);
-    padding: 16px 20px;
-  }
-
-  .modal-header {
-    margin-bottom: 12px;
-    padding-bottom: 10px;
-  }
-
-  .modal-form {
-    gap: 10px;
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
   }
 }
 
+/* Modal Drag Handle (Visible on Mobile only) */
+.modal-drag-handle {
+  display: none;
+}
+
+/* Pinned Modal Header */
 .modal-header {
+  flex-shrink: 0;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 20px;
-  padding-bottom: 14px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  padding: 18px 24px 14px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  margin-bottom: 0;
 }
 
 .modal-header h3 {
   font-size: 16.5px;
   font-weight: 800;
   color: var(--text-heading);
+  margin: 0;
 }
 
 .modal-close-btn {
   background: transparent;
   border: none;
   color: var(--text-muted);
-  font-size: 18px;
   cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-sm);
+  transition: var(--transition-fast);
+}
+
+.modal-close-btn:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--text-heading);
+}
+
+/* Structured Form Layout */
+.modal-form-layout {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
+}
+
+/* Scrollable Form Body - Touch Friendly & Robust */
+.modal-scroll-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-y;
+  overscroll-behavior: contain;
+  padding: 20px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.2) transparent;
+}
+
+.modal-scroll-body::-webkit-scrollbar {
+  width: 6px;
+}
+.modal-scroll-body::-webkit-scrollbar-track {
+  background: transparent;
+}
+.modal-scroll-body::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 999px;
+}
+
+/* Pinned Modal Footer Actions */
+.modal-actions-pinned {
+  flex-shrink: 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  background: rgba(14, 18, 28, 0.92);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  padding: 14px 24px;
+}
+
+.modal-actions-pinned .modal-actions {
+  margin-top: 0;
+}
+
+.modal-actions-pinned .modal-actions-split {
+  margin-top: 0;
 }
 
 .modal-form {
@@ -2583,6 +2640,77 @@ input:focus, select:focus, textarea:focus {
   color: #000;
   font-size: 13px;
   font-weight: 800;
+}
+
+/* ── Mobile Modal & Bottom Sheet (max-width: 640px) ──────────────────────── */
+@media (max-width: 640px) {
+  .modal-backdrop {
+    align-items: flex-end;
+    padding: 0;
+    overflow: hidden;
+  }
+
+  .modal-content,
+  .settings-modal-box,
+  .asset-modal-box,
+  .new-portfolio-modal-box,
+  .account-modal-box {
+    width: 100% !important;
+    max-width: 100% !important;
+    max-height: 90dvh !important;
+    max-height: 90vh !important;
+    border-radius: 22px 22px 0 0 !important;
+    margin: 0 !important;
+    border-bottom: none !important;
+    border-left: none !important;
+    border-right: none !important;
+    animation: modalDrawerSlideUp 0.28s cubic-bezier(0.16, 1, 0.3, 1) !important;
+  }
+
+  @keyframes modalDrawerSlideUp {
+    from {
+      transform: translateY(100%);
+      opacity: 0.8;
+    }
+    to {
+      transform: translateY(0);
+      opacity: 1;
+    }
+  }
+
+  .modal-drag-handle {
+    display: block;
+    width: 38px;
+    height: 4.5px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.25);
+    margin: 10px auto 2px;
+    flex-shrink: 0;
+  }
+
+  .modal-header {
+    padding: 12px 18px 12px;
+  }
+
+  .modal-header h3 {
+    font-size: 15.5px;
+  }
+
+  .modal-scroll-body {
+    padding: 16px 18px 20px;
+    gap: 14px;
+    -webkit-overflow-scrolling: touch;
+    touch-action: pan-y;
+  }
+
+  .modal-actions-pinned {
+    padding: 12px 18px calc(12px + env(safe-area-inset-bottom, 10px));
+  }
+
+  .form-row-dual {
+    flex-direction: column;
+    gap: 12px;
+  }
 }
 
 /* ── Portfolio Auth Gate & Details ─────────────────────────────────────── */
@@ -3647,15 +3775,21 @@ footer {
   opacity: 0.9;
 }
 
-/* ── User & Share Settings Modal ─────────────────────────────────────────── */
+/* ── Modal Dimension Variants ────────────────────────────────────────────── */
 .settings-modal-box {
-  max-width: 520px;
-  width: 95%;
-  max-height: calc(100vh - 40px);
-  overflow-y: auto;
-  overscroll-behavior: contain;
-  margin: auto;
-  padding: 24px;
+  max-width: 530px;
+}
+
+.asset-modal-box {
+  max-width: 500px;
+}
+
+.new-portfolio-modal-box {
+  max-width: 460px;
+}
+
+.account-modal-box {
+  max-width: 440px;
 }
 
 .settings-loading {
@@ -5078,11 +5212,28 @@ footer {
   border: 1px solid rgba(0, 0, 0, 0.1);
   box-shadow: 0 24px 60px rgba(0, 0, 0, 0.15);
 }
+[data-theme="light"] .modal-drag-handle {
+  background: rgba(0, 0, 0, 0.18);
+}
 [data-theme="light"] .modal-header {
   border-bottom: 1px solid rgba(0, 0, 0, 0.07);
 }
 [data-theme="light"] .modal-header h3 {
   color: #0f172a;
+}
+[data-theme="light"] .modal-close-btn:hover:not(:disabled) {
+  background: rgba(0, 0, 0, 0.06);
+  color: #0f172a;
+}
+[data-theme="light"] .modal-scroll-body {
+  scrollbar-color: rgba(0, 0, 0, 0.2) transparent;
+}
+[data-theme="light"] .modal-scroll-body::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.2);
+}
+[data-theme="light"] .modal-actions-pinned {
+  background: rgba(255, 255, 255, 0.96);
+  border-top: 1px solid rgba(0, 0, 0, 0.07);
 }
 
 /* All inputs in light theme: clean solid white, visible slate border, dark slate text */

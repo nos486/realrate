@@ -51,6 +51,16 @@ export default function UserSettingsModal({ isOpen, portfolio, onClose, onSaved,
 
   useEffect(() => {
     if (isOpen) {
+      const origOverflow = document.body.style.overflow;
+      document.body.style.overflow = 'hidden';
+      return () => {
+        document.body.style.overflow = origOverflow;
+      };
+    }
+  }, [isOpen]);
+
+  useEffect(() => {
+    if (isOpen) {
       setLoading(true);
       setMsg({ text: '', type: '' });
       setCopied(false);
@@ -173,6 +183,7 @@ export default function UserSettingsModal({ isOpen, portfolio, onClose, onSaved,
   return (
     <div className="modal-backdrop" onClick={onClose}>
       <div className="modal-content settings-modal-box" onClick={(e) => e.stopPropagation()}>
+        <div className="modal-drag-handle" />
         {/* Modal Header */}
         <div className="modal-header">
           <div className="modal-title-wrap">
@@ -192,8 +203,9 @@ export default function UserSettingsModal({ isOpen, portfolio, onClose, onSaved,
             <span>در حال بارگذاری تنظیمات...</span>
           </div>
         ) : (
-          <form onSubmit={handleSave} className="settings-form">
-            {msg.text && (
+          <form onSubmit={handleSave} className="modal-form-layout">
+            <div className="modal-scroll-body">
+              {msg.text && (
               <div className={`settings-alert-banner ${msg.type}`}>
                 {msg.type === 'success' ? (
                   <CheckCircle2 size={15} style={{ display: 'inline', verticalAlign: 'middle', marginLeft: '4px' }} />
@@ -373,32 +385,35 @@ export default function UserSettingsModal({ isOpen, portfolio, onClose, onSaved,
                   </div>
                 </div>
               )}
+              </div>
             </div>
 
-            {/* Modal Actions */}
-            <div className="modal-actions-split">
-              {canDelete ? (
-                <button
-                  type="button"
-                  className="btn-modal-delete"
-                  onClick={onDelete}
-                  disabled={saving}
-                  title={`حذف «${portfolio?.name || ''}»`}
-                >
-                  <Trash2 size={14} />
-                  <span>حذف</span>
-                </button>
-              ) : (
-                <div />
-              )}
+            {/* Pinned Modal Actions */}
+            <div className="modal-actions-pinned">
+              <div className="modal-actions-split">
+                {canDelete ? (
+                  <button
+                    type="button"
+                    className="btn-modal-delete"
+                    onClick={onDelete}
+                    disabled={saving}
+                    title={`حذف «${portfolio?.name || ''}»`}
+                  >
+                    <Trash2 size={14} />
+                    <span>حذف</span>
+                  </button>
+                ) : (
+                  <div />
+                )}
 
-              <div className="modal-actions-right">
-                <button type="button" className="btn-modal-cancel" onClick={onClose} disabled={saving}>
-                  انصراف
-                </button>
-                <button type="submit" className="btn-modal-submit" disabled={saving}>
-                  {saving ? 'در حال ذخیره...' : 'ذخیره'}
-                </button>
+                <div className="modal-actions-right">
+                  <button type="button" className="btn-modal-cancel" onClick={onClose} disabled={saving}>
+                    انصراف
+                  </button>
+                  <button type="submit" className="btn-modal-submit" disabled={saving}>
+                    {saving ? 'در حال ذخیره...' : 'ذخیره'}
+                  </button>
+                </div>
               </div>
             </div>
           </form>

@@ -14,6 +14,16 @@ export default function AccountSettingsModal({ isOpen, onClose }) {
 
   useEffect(() => {
     if (isOpen) {
+      const origOverflow = document.body.style.overflow;
+      document.body.style.overflow = 'hidden';
+      return () => {
+        document.body.style.overflow = origOverflow;
+      };
+    }
+  }, [isOpen]);
+
+  useEffect(() => {
+    if (isOpen) {
       setMsg({ text: '', type: '' });
       setCustomName(user?.customName || '');
       setLoading(true);
@@ -61,7 +71,8 @@ export default function AccountSettingsModal({ isOpen, onClose }) {
 
   return (
     <div className="modal-backdrop" onClick={onClose}>
-      <div className="modal-content settings-modal-box" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '420px' }}>
+      <div className="modal-content settings-modal-box account-modal-box" onClick={(e) => e.stopPropagation()}>
+        <div className="modal-drag-handle" />
         <div className="modal-header">
           <div className="modal-title-wrap">
             <span className="modal-icon"><User size={18} /></span>
@@ -78,82 +89,86 @@ export default function AccountSettingsModal({ isOpen, onClose }) {
             <span>در حال دریافت اطلاعات...</span>
           </div>
         ) : (
-          <form onSubmit={handleSave} className="settings-form">
-            {msg.text && (
-              <div className={`settings-alert-banner ${msg.type}`}>
-                {msg.type === 'success' ? <Check size={14} style={{ display: 'inline', verticalAlign: 'middle', marginLeft: '4px' }} /> : <AlertTriangle size={14} style={{ display: 'inline', verticalAlign: 'middle', marginLeft: '4px' }} />}
-                {msg.text}
-              </div>
-            )}
-
-            {/* Read-only User Profile Overview */}
-            <div className="account-user-card">
-              {user?.picture && (
-                <img
-                  src={user.picture}
-                  alt={user.name}
-                  className="account-user-avatar"
-                />
+          <form onSubmit={handleSave} className="modal-form-layout">
+            <div className="modal-scroll-body">
+              {msg.text && (
+                <div className={`settings-alert-banner ${msg.type}`}>
+                  {msg.type === 'success' ? <Check size={14} style={{ display: 'inline', verticalAlign: 'middle', marginLeft: '4px' }} /> : <AlertTriangle size={14} style={{ display: 'inline', verticalAlign: 'middle', marginLeft: '4px' }} />}
+                  {msg.text}
+                </div>
               )}
-              <div className="account-user-meta">
-                <strong className="account-user-name">
-                  {user?.name || 'کاربر'}
-                </strong>
-                <span className="account-user-email">
-                  {user?.email}
+
+              {/* Read-only User Profile Overview */}
+              <div className="account-user-card">
+                {user?.picture && (
+                  <img
+                    src={user.picture}
+                    alt={user.name}
+                    className="account-user-avatar"
+                  />
+                )}
+                <div className="account-user-meta">
+                  <strong className="account-user-name">
+                    {user?.name || 'کاربر'}
+                  </strong>
+                  <span className="account-user-email">
+                    {user?.email}
+                  </span>
+                </div>
+              </div>
+
+              {/* Custom Nickname / Owner Name Input */}
+              <div className="form-group">
+                <label htmlFor="userCustomNickname">نام مستعار (Nickname)</label>
+                <input
+                  type="text"
+                  id="userCustomNickname"
+                  placeholder="مثلاً: آریا، سرمایه‌گذار..."
+                  value={customName}
+                  onChange={(e) => setCustomName(e.target.value)}
+                  maxLength={40}
+                  autoFocus
+                />
+                <span className="field-sub-note">
+                  این نام در پورتفوهای اشتراک‌گذاشته‌شده به عنوان نام مالک نمایش داده می‌شود.
                 </span>
               </div>
-            </div>
 
-            {/* Custom Nickname / Owner Name Input */}
-            <div className="form-group">
-              <label htmlFor="userCustomNickname">نام مستعار (Nickname)</label>
-              <input
-                type="text"
-                id="userCustomNickname"
-                placeholder="مثلاً: آریا، سرمایه‌گذار..."
-                value={customName}
-                onChange={(e) => setCustomName(e.target.value)}
-                maxLength={40}
-                autoFocus
-              />
-              <span className="field-sub-note">
-                این نام در پورتفوهای اشتراک‌گذاشته‌شده به عنوان نام مالک نمایش داده می‌شود.
-              </span>
-            </div>
+              {/* Theme Selector */}
+              <div className="form-group">
+                <label>حالت نمایش (پوسته)</label>
+                <div className="theme-switch-grid">
+                  <button
+                    type="button"
+                    className={`theme-choice-btn ${theme === 'dark' ? 'active' : ''}`}
+                    onClick={() => setTheme('dark')}
+                  >
+                    <Moon size={16} strokeWidth={2.2} />
+                    <span>حالت تاریک</span>
+                  </button>
 
-            {/* Theme Selector */}
-            <div className="form-group" style={{ marginTop: '14px' }}>
-              <label>حالت نمایش (پوسته)</label>
-              <div className="theme-switch-grid">
-                <button
-                  type="button"
-                  className={`theme-choice-btn ${theme === 'dark' ? 'active' : ''}`}
-                  onClick={() => setTheme('dark')}
-                >
-                  <Moon size={16} strokeWidth={2.2} />
-                  <span>حالت تاریک</span>
-                </button>
-
-                <button
-                  type="button"
-                  className={`theme-choice-btn ${theme === 'light' ? 'active' : ''}`}
-                  onClick={() => setTheme('light')}
-                >
-                  <Sun size={16} strokeWidth={2.2} />
-                  <span>حالت روشن</span>
-                </button>
+                  <button
+                    type="button"
+                    className={`theme-choice-btn ${theme === 'light' ? 'active' : ''}`}
+                    onClick={() => setTheme('light')}
+                  >
+                    <Sun size={16} strokeWidth={2.2} />
+                    <span>حالت روشن</span>
+                  </button>
+                </div>
               </div>
             </div>
 
-            {/* Modal Actions */}
-            <div className="modal-actions" style={{ marginTop: '20px' }}>
-              <button type="button" className="btn-modal-cancel" onClick={onClose} disabled={saving}>
-                انصراف
-              </button>
-              <button type="submit" className="btn-modal-submit" disabled={saving}>
-                {saving ? 'در حال ذخیره...' : 'ذخیره'}
-              </button>
+            {/* Pinned Modal Actions */}
+            <div className="modal-actions-pinned">
+              <div className="modal-actions">
+                <button type="button" className="btn-modal-cancel" onClick={onClose} disabled={saving}>
+                  انصراف
+                </button>
+                <button type="submit" className="btn-modal-submit" disabled={saving}>
+                  {saving ? 'در حال ذخیره...' : 'ذخیره'}
+                </button>
+              </div>
             </div>
           </form>
         )}

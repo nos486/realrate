@@ -1550,7 +1550,8 @@ export default function PortfolioTracker({ calcData, rates, usdToman, goldUsd, i
       {/* Add / Edit Asset Modal */}
       {modalOpen && (
         <div className="modal-backdrop" onClick={() => !submitting && setModalOpen(false)}>
-          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+          <div className="modal-content asset-modal-box" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-drag-handle" />
             <div className="modal-header">
               <h3>{editingHolding ? 'ویرایش دارایی' : 'افزودن دارایی'}</h3>
               <button
@@ -1563,8 +1564,9 @@ export default function PortfolioTracker({ calcData, rates, usdToman, goldUsd, i
               </button>
             </div>
 
-            <form onSubmit={handleSubmitHolding} className="modal-form">
-              <div className="form-item">
+            <form onSubmit={handleSubmitHolding} className="modal-form-layout">
+              <div className="modal-scroll-body">
+                <div className="form-item">
                 <label>نوع دارایی</label>
                 <select
                   value={selectedAssetId}
@@ -1832,22 +1834,26 @@ export default function PortfolioTracker({ calcData, rates, usdToman, goldUsd, i
                 </div>
               )}
 
-              <div className="modal-actions">
-                <button
-                  type="button"
-                  className="btn-modal-cancel"
-                  disabled={submitting}
-                  onClick={() => setModalOpen(false)}
-                >
-                  انصراف
-                </button>
-                <button type="submit" className="btn-modal-submit" disabled={submitting}>
-                  {submitting
-                    ? 'در حال ذخیره...'
-                    : editingHolding
-                    ? 'ذخیره'
-                    : 'ثبت دارایی'}
-                </button>
+              </div>
+
+              <div className="modal-actions-pinned">
+                <div className="modal-actions">
+                  <button
+                    type="button"
+                    className="btn-modal-cancel"
+                    disabled={submitting}
+                    onClick={() => setModalOpen(false)}
+                  >
+                    انصراف
+                  </button>
+                  <button type="submit" className="btn-modal-submit" disabled={submitting}>
+                    {submitting
+                      ? 'در حال ذخیره...'
+                      : editingHolding
+                      ? 'ذخیره'
+                      : 'ثبت دارایی'}
+                  </button>
+                </div>
               </div>
             </form>
           </div>
@@ -1858,6 +1864,7 @@ export default function PortfolioTracker({ calcData, rates, usdToman, goldUsd, i
       {newPortfolioModalOpen && (
         <div className="modal-backdrop" onClick={() => !creatingPortfolio && setNewPortfolioModalOpen(false)}>
           <div className="modal-content new-portfolio-modal-box" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-drag-handle" />
             <div className="modal-header">
               <div className="modal-title-wrap">
                 <span className="modal-icon"><FolderPlus size={18} /></span>
@@ -1872,38 +1879,42 @@ export default function PortfolioTracker({ calcData, rates, usdToman, goldUsd, i
                 <X size={18} />
               </button>
             </div>
-            <form onSubmit={handleCreatePortfolio} className="modal-form">
-              <div className="form-item">
-                <label>نام پورتفو</label>
-                <input
-                  type="text"
-                  placeholder="مثلاً: پس‌انداز طلا، سبد ارزی..."
-                  value={newPortfolioName}
-                  onChange={(e) => setNewPortfolioName(e.target.value)}
-                  className="form-input"
-                  required
-                  autoFocus
-                />
-                <span className="field-sub-note">
-                  امکان تنظیم رمز و لینک اشتراک اختصاصی در تنظیمات وجود دارد.
-                </span>
+            <form onSubmit={handleCreatePortfolio} className="modal-form-layout">
+              <div className="modal-scroll-body">
+                <div className="form-item">
+                  <label>نام پورتفو</label>
+                  <input
+                    type="text"
+                    placeholder="مثلاً: پس‌انداز طلا، سبد ارزی..."
+                    value={newPortfolioName}
+                    onChange={(e) => setNewPortfolioName(e.target.value)}
+                    className="form-input"
+                    required
+                    autoFocus
+                  />
+                  <span className="field-sub-note">
+                    امکان تنظیم رمز و لینک اشتراک اختصاصی در تنظیمات وجود دارد.
+                  </span>
+                </div>
               </div>
-              <div className="modal-actions">
-                <button
-                  type="button"
-                  className="btn-modal-cancel"
-                  disabled={creatingPortfolio}
-                  onClick={() => setNewPortfolioModalOpen(false)}
-                >
-                  انصراف
-                </button>
-                <button
-                  type="submit"
-                  className="btn-modal-submit"
-                  disabled={creatingPortfolio || !newPortfolioName.trim()}
-                >
-                  {creatingPortfolio ? 'در حال ایجاد...' : 'ایجاد'}
-                </button>
+              <div className="modal-actions-pinned">
+                <div className="modal-actions">
+                  <button
+                    type="button"
+                    className="btn-modal-cancel"
+                    disabled={creatingPortfolio}
+                    onClick={() => setNewPortfolioModalOpen(false)}
+                  >
+                    انصراف
+                  </button>
+                  <button
+                    type="submit"
+                    className="btn-modal-submit"
+                    disabled={creatingPortfolio || !newPortfolioName.trim()}
+                  >
+                    {creatingPortfolio ? 'در حال ایجاد...' : 'ایجاد'}
+                  </button>
+                </div>
               </div>
             </form>
           </div>
