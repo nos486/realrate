@@ -461,13 +461,9 @@ export default function SharedPortfolioPage() {
                           <span className="table-title-icon">📋</span>
                           <span>جزئیات سبد دارایی</span>
                         </h3>
-                        {isE2ee ? (
+                        {isE2ee && (
                           <span className={`portfolio-encryption-tag e2ee ${isVaultLocked ? 'locked' : 'unlocked'}`} title="حفاظت سرتاسری Zero-Knowledge E2EE">
                             {isVaultLocked ? '🔒 گاوصندوق E2EE (قفل)' : '🔓 گاوصندوق E2EE (باز)'}
-                          </span>
-                        ) : (
-                          <span className="portfolio-encryption-tag" title="حفاظت حریم خصوصی: تمام اقلام در دیتابیس با استاندارد AES-256 رمزنگاری شده‌اند.">
-                            🔒 رمزنگاری‌شده (AES-256)
                           </span>
                         )}
                       </div>

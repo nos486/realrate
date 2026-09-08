@@ -1008,24 +1008,6 @@ export async function dbAddPortfolioHolding(env, item) {
     updatedAt: now,
   };
 
-  // Derive per-user AES-256 key and encrypt sensitive payload
-  let encryptedData = '';
-  try {
-    const userKey = await deriveUserKey(env?.PORTFOLIO_ENCRYPTION_SECRET, holding.userId);
-    const sensitivePayload = {
-      amount: holding.amount,
-      buyPrice: holding.buyPrice,
-      currentPrice: holding.currentPrice,
-      buyDate: holding.buyDate,
-      notes: holding.notes,
-      assetName: holding.assetName,
-      unit: holding.unit,
-    };
-    encryptedData = await encryptField(userKey, sensitivePayload);
-  } catch (encErr) {
-    console.error("Error encrypting portfolio holding:", encErr);
-  }
-
   if (env && env.DB) {
     await ensureD1Tables(env);
     try {
@@ -1056,12 +1038,12 @@ export async function dbAddPortfolioHolding(env, item) {
         holding.assetName,
         holding.assetType,
         holding.unit,
-        0, // Masked in raw DB column for privacy
-        0, // Masked in raw DB column for privacy
-        0, // Masked in raw DB column for privacy
-        '', // Masked in raw DB column
-        '[ENCRYPTED]', // Masked in raw DB column
-        encryptedData,
+        holding.amount,
+        holding.buyPrice,
+        holding.currentPrice,
+        holding.buyDate,
+        holding.notes,
+        '',
         holding.createdAt,
         holding.updatedAt
       ).run();
@@ -1070,14 +1052,14 @@ export async function dbAddPortfolioHolding(env, item) {
     }
   }
 
-  // Sync to KV (stored encrypted)
+  // Sync to KV
   if (env && env.REALRATE_KV) {
     try {
-      const userKey = await deriveUserKey(env?.PORTFOLIO_ENCRYPTION_SECRET, holding.userId);
       let list = [];
       const listStr = await env.REALRATE_KV.get(`portfolio:${holding.userId}`);
       if (listStr) {
         if (listStr.startsWith('enc:v1:')) {
+          const userKey = await deriveUserKey(env?.PORTFOLIO_ENCRYPTION_SECRET, holding.userId);
           list = await decryptField(userKey, listStr);
         } else {
           list = JSON.parse(listStr);
@@ -1089,8 +1071,7 @@ export async function dbAddPortfolioHolding(env, item) {
       if (idx >= 0) list[idx] = holding;
       else list.unshift(holding);
 
-      const encryptedKv = await encryptField(userKey, list);
-      await env.REALRATE_KV.put(`portfolio:${holding.userId}`, encryptedKv);
+      await env.REALRATE_KV.put(`portfolio:${holding.userId}`, JSON.stringify(list));
     } catch (e) {
       console.error("KV sync error:", e);
     }
@@ -1122,19 +1103,18 @@ export async function dbDeletePortfolioHolding(env, id, userId) {
   // Sync to KV
   if (env && env.REALRATE_KV) {
     try {
-      const userKey = await deriveUserKey(env?.PORTFOLIO_ENCRYPTION_SECRET, userId);
       const listStr = await env.REALRATE_KV.get(`portfolio:${userId}`);
       if (listStr) {
         let list = [];
         if (listStr.startsWith('enc:v1:')) {
+          const userKey = await deriveUserKey(env?.PORTFOLIO_ENCRYPTION_SECRET, userId);
           list = await decryptField(userKey, listStr);
         } else {
           list = JSON.parse(listStr);
         }
         if (Array.isArray(list)) {
           list = list.filter(h => h.id !== id);
-          const encryptedKv = await encryptField(userKey, list);
-          await env.REALRATE_KV.put(`portfolio:${userId}`, encryptedKv);
+          await env.REALRATE_KV.put(`portfolio:${userId}`, JSON.stringify(list));
         }
       }
     } catch (e) {

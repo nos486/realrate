@@ -331,15 +331,6 @@ export default function UserSettingsModal({ isOpen, portfolio, onClose, onSaved,
               </div>
             </div>
 
-            {/* Security & Encryption Notice */}
-            <div className="security-encryption-badge">
-              <div className="security-badge-icon">🛡️</div>
-              <div className="security-badge-text">
-                <strong>حریم خصوصی و امنیت تضمین‌شده (مدل ۱)</strong>
-                <span>داده‌های تمام پورتفوها به شکل پایه با استاندارد AES-256 در دیتابیس رمزنگاری شده و ارقام ماسک شده‌اند.</span>
-              </div>
-            </div>
-
             {/* E2EE Vault Toggle Card */}
             <div className={`vault-toggle-card ${isE2ee ? 'active' : ''}`}>
               <div className="vault-toggle-header">

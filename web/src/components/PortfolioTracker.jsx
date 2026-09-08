@@ -1047,13 +1047,9 @@ export default function PortfolioTracker({ calcData, rates, usdToman, goldUsd })
               <div className="table-title">
                 <div className="table-title-main">
                   <h3>📋 جزئیات {activePortfolio?.name ? `پورتفوی «${activePortfolio.name}»` : 'سبد دارایی'} ({user.name || user.email})</h3>
-                  {activePortfolio?.isE2ee ? (
+                  {activePortfolio?.isE2ee && (
                     <span className={`portfolio-encryption-tag e2ee ${isVaultLocked ? 'locked' : 'unlocked'}`} title="حفاظت سرتاسری Zero-Knowledge E2EE: داده‌ها با کلید اختصاصی در مرورگر شما قفل شده‌اند و حتی سرور امکان خواندن آن‌ها را ندارد.">
                       {isVaultLocked ? '🔒 گاوصندوق E2EE (قفل)' : '🔓 گاوصندوق E2EE (باز)'}
-                    </span>
-                  ) : (
-                    <span className="portfolio-encryption-tag" title="حفاظت حریم خصوصی: تمام اقلام و مقادیر این پورتفو در دیتابیس با استاندارد AES-256 رمزنگاری شده‌اند.">
-                      🔒 رمزنگاری‌شده (AES-256)
                     </span>
                   )}
                 </div>
