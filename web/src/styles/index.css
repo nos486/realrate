@@ -480,8 +480,9 @@ input:focus, select:focus, textarea:focus {
   padding: 1px 6px;
   border-radius: 6px;
   background: var(--gold-gradient);
-  color: #000;
+  color: #ffffff;
   font-weight: 800;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.22);
 }
 
 .chevron-icon {
@@ -828,8 +829,9 @@ input:focus, select:focus, textarea:focus {
   padding: 1px 7px;
   border-radius: var(--radius-full);
   background: var(--green-emerald);
-  color: #000;
+  color: #ffffff;
   font-weight: 900;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
 }
 
 /* ── Recommendation Banner (Frameless Glass) ─────────────────────────────── */
@@ -897,7 +899,7 @@ input:focus, select:focus, textarea:focus {
   white-space: nowrap;
 }
 
-.rec-chip.negative { background: var(--green-emerald); color: #000; }
+.rec-chip.negative { background: var(--green-emerald); color: #ffffff; }
 .rec-chip.positive { background: rgba(16, 185, 129, 0.2); color: #a7f3d0; }
 
 /* ── Fintech Cards Grid (Wide 4-Column Full-Screen Layout) ─────────────────── */
@@ -4880,7 +4882,10 @@ footer {
   border-top-color: #d97706;
 }
 
-/* Primary Action Buttons in Light Theme: Crisp White Text on Vibrant Amber */
+/* Primary Action Buttons & Badges in Light Theme: Crisp White Text on Vibrant Amber/Green */
+[data-theme="light"] .admin-badge,
+[data-theme="light"] .new-tag,
+[data-theme="light"] .rec-chip.negative,
 [data-theme="light"] .btn-add-asset,
 [data-theme="light"] .btn-add-asset-center,
 [data-theme="light"] .btn-modal-submit,
