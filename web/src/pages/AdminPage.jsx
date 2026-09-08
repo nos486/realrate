@@ -6,9 +6,7 @@ import {
   apiAdminUsers,
   apiAdminSaveSettings,
   apiGetRates,
-  apiAdminGetUserPortfolio,
 } from '../api/client.js';
-import { CATEGORY_DEFINITIONS, formatAssetName } from '../components/PortfolioTracker.jsx';
 
 function formatNum(num) {
   if (num === null || num === undefined || isNaN(num)) return '۰';
@@ -40,15 +38,18 @@ export default function AdminPage() {
   const [marketRates, setMarketRates] = useState(null);
   const [userSearch, setUserSearch] = useState('');
 
-  // Portfolio Inspector Modal State
-  const [inspectUser, setInspectUser] = useState(null);
-  const [inspectHoldings, setInspectHoldings] = useState([]);
-  const [inspectPortfolios, setInspectPortfolios] = useState([]);
-  const [inspectActivePortfolioId, setInspectActivePortfolioId] = useState(null);
-  const [loadingInspect, setLoadingInspect] = useState(false);
-  const [inspectModalOpen, setInspectModalOpen] = useState(false);
-
-  // Settings form
+  const filteredUsers = useMemo(() => {
+    if (!userSearch.trim()) return users;
+    const q = userSearch.toLowerCase().trim();
+    return users.filter(
+      (u) =>
+        (u.name && u.name.toLowerCase().includes(q)) ||
+        (u.customName && u.customName.toLowerCase().includes(q)) ||
+        (u.email && u.email.toLowerCase().includes(q)) ||
+        (u.id && u.id.toLowerCase().includes(q)) ||
+        (u.shareSlug && u.shareSlug.toLowerCase().includes(q))
+    );
+  }, [users, userSearch]);
   const [usdToman, setUsdToman] = useState(62000);
   const [goldUsd, setGoldUsd] = useState(2450);
   const [bubbleFull, setBubbleFull] = useState(15);
@@ -117,180 +118,7 @@ export default function AdminPage() {
     }
   }, [user]);
 
-  // Real-time market price mapping
-  const realPriceMap = useMemo(() => {
-    const usdVal = Number(usdToman) || 0;
-    const goldUsdVal = Number(goldUsd) || 0;
 
-    const goldGram18kReal = (goldUsdVal > 0 && usdVal > 0)
-      ? ((goldUsdVal / 31.1034768) * usdVal) * 0.75
-      : 0;
-
-    const silverUsdVal = Number(marketRates?.silverUsd) || 32.5;
-    const silverGram999Real = (silverUsdVal > 0 && usdVal > 0)
-      ? (silverUsdVal / 31.1034768) * usdVal
-      : 0;
-    const silverGram925Real = silverGram999Real * 0.925;
-    const silverOunceReal = silverUsdVal * usdVal;
-
-    const goldGram24kReal = goldGram18kReal * (24 / 18);
-    const coinFullReal = goldGram18kReal * (24 / 18) * 7.3197;
-    const coinHalfReal = goldGram18kReal * (24 / 18) * 3.6594;
-    const coinQuarterReal = goldGram18kReal * (24 / 18) * 1.8297;
-    const coinGramReal = goldGram18kReal * (24 / 18) * 0.909;
-
-    const map = {
-      gold_24k: Math.round(goldGram24kReal),
-      gold_18k: Math.round(goldGram18kReal),
-      full_new: Math.round(coinFullReal),
-      full_old: Math.round(coinFullReal),
-      half: Math.round(coinHalfReal),
-      quarter: Math.round(coinQuarterReal),
-      gram: Math.round(coinGramReal),
-      silver_999: Math.round(silverGram999Real),
-      silver_925: Math.round(silverGram925Real),
-      silver_ounce: Math.round(silverOunceReal),
-      USD: Math.round(usdVal),
-      USDT: Math.round(usdVal),
-    };
-
-    if (marketRates?.currencies && Array.isArray(marketRates.currencies)) {
-      for (const c of marketRates.currencies) {
-        if (c.code && c.toman_price) {
-          map[c.code] = Math.round(c.toman_price);
-        }
-      }
-    }
-
-    return map;
-  }, [marketRates, usdToman, goldUsd]);
-
-  // Metrics for currently inspected user
-  const inspectMetrics = useMemo(() => {
-    if (!inspectHoldings || inspectHoldings.length === 0) {
-      return { items: [], totalCost: 0, totalRealValue: 0, totalPnl: 0, totalPnlPct: 0, hasAnyCost: false, itemsWithBuyPriceCount: 0 };
-    }
-
-    const items = inspectHoldings.map((h) => {
-      const amountNum = Number(h.amount) || 0;
-      const buyPriceNum = Number(h.buyPrice) || 0;
-      const hasBuyPrice = buyPriceNum > 0;
-      const isCustomItem = h.assetType === 'custom' || h.assetId?.startsWith('custom_');
-
-      const unitRealPrice = isCustomItem
-        ? (Number(h.currentPrice) || (hasBuyPrice ? buyPriceNum : 0))
-        : (realPriceMap[h.assetId] || (hasBuyPrice ? buyPriceNum : 0));
-
-      const itemCost = hasBuyPrice ? (amountNum * buyPriceNum) : 0;
-      const itemRealVal = amountNum * unitRealPrice;
-      const itemPnl = hasBuyPrice ? (itemRealVal - itemCost) : null;
-      const itemPnlPct = (hasBuyPrice && itemCost > 0) ? (itemPnl / itemCost) * 100 : null;
-
-      return {
-        ...h,
-        hasBuyPrice,
-        isCustomItem,
-        unitRealPrice,
-        itemCost,
-        itemRealVal,
-        itemPnl,
-        itemPnlPct,
-      };
-    });
-
-    const costedItems = items.filter((it) => it.hasBuyPrice);
-    const totalCost = costedItems.reduce((acc, it) => acc + it.itemCost, 0);
-    const totalRealValue = items.reduce((acc, it) => acc + it.itemRealVal, 0);
-    const totalPnl = costedItems.reduce((sum, it) => sum + (it.itemPnl || 0), 0);
-    const hasAnyCost = costedItems.length > 0 && totalCost > 0;
-    const totalPnlPct = hasAnyCost ? (totalPnl / totalCost) * 100 : 0;
-
-    return {
-      items,
-      totalCost,
-      totalRealValue,
-      totalPnl,
-      totalPnlPct,
-      hasAnyCost,
-      itemsWithBuyPriceCount: costedItems.length,
-    };
-  }, [inspectHoldings, realPriceMap]);
-
-  const inspectCategoryGroups = useMemo(() => {
-    return CATEGORY_DEFINITIONS.map((cat) => {
-      const groupItems = inspectMetrics.items.filter(cat.match);
-      const itemsWithBuyPrice = groupItems.filter((it) => it.hasBuyPrice);
-
-      const groupCost = itemsWithBuyPrice.reduce((acc, it) => acc + it.itemCost, 0);
-      const groupRealVal = groupItems.reduce((acc, it) => acc + it.itemRealVal, 0);
-      const groupRealValForPnl = itemsWithBuyPrice.reduce((acc, it) => acc + it.itemRealVal, 0);
-
-      const hasAnyBuyPrice = itemsWithBuyPrice.length > 0;
-      const groupPnl = hasAnyBuyPrice ? (groupRealValForPnl - groupCost) : 0;
-      const groupPnlPct = (hasAnyBuyPrice && groupCost > 0) ? (groupPnl / groupCost) * 100 : 0;
-
-      return {
-        ...cat,
-        items: groupItems,
-        totalCost: groupCost,
-        totalRealValue: groupRealVal,
-        totalPnl: groupPnl,
-        totalPnlPct: groupPnlPct,
-        hasAnyBuyPrice,
-      };
-    }).filter((group) => group.items.length > 0);
-  }, [inspectMetrics.items]);
-
-  // Filtered users by search query
-  const filteredUsers = useMemo(() => {
-    if (!userSearch.trim()) return users;
-    const q = userSearch.trim().toLowerCase();
-    return users.filter((u) =>
-      (u.name && u.name.toLowerCase().includes(q)) ||
-      (u.customName && u.customName.toLowerCase().includes(q)) ||
-      (u.email && u.email.toLowerCase().includes(q)) ||
-      (u.shareSlug && u.shareSlug.toLowerCase().includes(q)) ||
-      (u.id && String(u.id).toLowerCase().includes(q))
-    );
-  }, [users, userSearch]);
-
-  const handleInspectPortfolio = async (targetUser, targetPortfolioId = null) => {
-    setInspectUser(targetUser);
-    setInspectHoldings([]);
-    setInspectPortfolios([]);
-    setInspectActivePortfolioId(targetPortfolioId);
-    setLoadingInspect(true);
-    setInspectModalOpen(true);
-    try {
-      const res = await apiAdminGetUserPortfolio(targetUser.id, targetPortfolioId);
-      if (res.success) {
-        setInspectHoldings(res.holdings || []);
-        if (res.user) setInspectUser(res.user);
-        setInspectPortfolios(res.portfolios || []);
-        setInspectActivePortfolioId(res.activePortfolioId || targetPortfolioId || res.portfolios?.[0]?.id || null);
-      }
-    } catch (e) {
-      console.error('Failed to load user portfolio:', e);
-    } finally {
-      setLoadingInspect(false);
-    }
-  };
-
-  const handleSelectInspectPortfolio = async (portfolioId) => {
-    if (!inspectUser || portfolioId === inspectActivePortfolioId) return;
-    setInspectActivePortfolioId(portfolioId);
-    setLoadingInspect(true);
-    try {
-      const res = await apiAdminGetUserPortfolio(inspectUser.id, portfolioId);
-      if (res.success) {
-        setInspectHoldings(res.holdings || []);
-      }
-    } catch (e) {
-      console.error('Failed to switch inspect portfolio:', e);
-    } finally {
-      setLoadingInspect(false);
-    }
-  };
 
   const handleSave = async (e) => {
     e.preventDefault();
@@ -363,7 +191,7 @@ export default function AdminPage() {
           <h3 style={{ color: '#f87171', fontWeight: 800 }}>عدم دسترسی مدیریت</h3>
           <p style={{ fontSize: '13px', color: 'var(--text-muted)', maxWidth: '420px', lineHeight: '1.8' }}>
             شما با حساب گوگل{' '}
-            <strong style={{ color: '#fff', direction: 'ltr', display: 'inline-block' }}>
+            <strong style={{ color: 'var(--text-heading)', direction: 'ltr', display: 'inline-block' }}>
               {user.email}
             </strong>{' '}
             وارد شده‌اید، اما این حساب به عنوان مدیر ثبت نشده است.
@@ -402,7 +230,7 @@ export default function AdminPage() {
           />
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-              <strong style={{ fontSize: '13px', color: '#fff' }}>{user.name || 'مدیر سیستم'}</strong>
+              <strong style={{ fontSize: '13px', color: 'var(--text-heading)' }}>{user.name || 'مدیر سیستم'}</strong>
               <span className="admin-role-badge">مدیر کل</span>
             </div>
             <span style={{ fontSize: '11px', color: 'var(--text-muted)', direction: 'ltr', display: 'block' }}>
@@ -474,13 +302,12 @@ export default function AdminPage() {
               <th>نقش</th>
               <th>لینک اشتراک</th>
               <th>آخرین ورود</th>
-              <th>عملیات</th>
             </tr>
           </thead>
           <tbody>
             {filteredUsers.length === 0 ? (
               <tr>
-                <td colSpan="6" style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '18px' }}>
+                <td colSpan="5" style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '18px' }}>
                   {loadingUsers ? 'در حال دریافت اطلاعات کاربران...' : 'هیچ کاربری با این مشخصات یافت نشد.'}
                 </td>
               </tr>
@@ -518,16 +345,6 @@ export default function AdminPage() {
                     )}
                   </td>
                   <td>{formatPersianDate(u.lastLogin)}</td>
-                  <td>
-                    <button
-                      type="button"
-                      className="btn-inspect-portfolio"
-                      onClick={() => handleInspectPortfolio(u)}
-                      title="مشاهده سبد دارایی این کاربر"
-                    >
-                      💼 مشاهده پورتفو
-                    </button>
-                  </td>
                 </tr>
               ))
             )}
@@ -618,203 +435,7 @@ export default function AdminPage() {
         </button>
       </form>
 
-      {/* Admin User Portfolio Inspector Modal */}
-      {inspectModalOpen && (
-        <div className="modal-backdrop" onClick={() => setInspectModalOpen(false)}>
-          <div className="modal-content admin-inspect-modal" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
-              <div className="modal-title-wrap">
-                <span className="modal-icon">💼</span>
-                <div>
-                  <h3>پورتفوی کاربر: {inspectUser?.customName || inspectUser?.name || inspectUser?.email}</h3>
-                  <p className="modal-subtitle" dir="ltr">
-                    {inspectUser?.email} {inspectUser?.shareSlug ? `• /p/${inspectUser.shareSlug}` : ''}
-                  </p>
-                </div>
-              </div>
-              <button className="modal-close-btn" onClick={() => setInspectModalOpen(false)}>✕</button>
-            </div>
 
-            {loadingInspect ? (
-              <div className="portfolio-loading-state" style={{ padding: '40px' }}>
-                <div className="spinner-glow"></div>
-                <p>در حال دریافت اطلاعات پورتفوی کاربر...</p>
-              </div>
-            ) : inspectHoldings.length === 0 && inspectPortfolios.length === 0 ? (
-              <div className="portfolio-empty-state" style={{ padding: '30px' }}>
-                <div className="empty-icon">💼</div>
-                <h4>هیچ دارایی توسط این کاربر ثبت نشده است.</h4>
-              </div>
-            ) : (
-              <div className="admin-inspect-body">
-                {/* Portfolios Tab Selector (if multiple or named) */}
-                {inspectPortfolios.length > 0 && (
-                  <div className="portfolio-tabs-scroll" style={{ marginBottom: '16px' }}>
-                    <span className="portfolio-nav-label">پورتفوها ({inspectPortfolios.length.toLocaleString('fa-IR')} سبد):</span>
-                    {inspectPortfolios.map((p) => {
-                      const isActive = p.id === inspectActivePortfolioId;
-                      return (
-                        <button
-                          key={p.id}
-                          type="button"
-                          className={`portfolio-tab-pill ${isActive ? 'active' : ''}`}
-                          onClick={() => handleSelectInspectPortfolio(p.id)}
-                        >
-                          <span className="tab-pill-icon">{p.isDefault ? '⭐' : '📁'}</span>
-                          <span className="tab-pill-name">{p.name}</span>
-                          {p.shareSlug && (
-                            <span className="tab-pill-shared" title={`لینک: /p/${p.shareSlug}`}>🔗</span>
-                          )}
-                          <span className="tab-pill-count">{(p.itemCount ?? 0).toLocaleString('fa-IR')}</span>
-                        </button>
-                      );
-                    })}
-                  </div>
-                )}
-
-                {/* Summary Cards */}
-                <div className="portfolio-overview-grid" style={{ marginBottom: '20px' }}>
-                  <div className="portfolio-stat-card main-val">
-                    <div className="stat-header">
-                      <span className="stat-label">ارزش واقعی دارایی‌ها</span>
-                    </div>
-                    <div className="stat-number gold-gradient-text" style={{ fontSize: '20px' }}>
-                      {formatNum(inspectMetrics.totalRealValue)} <span className="stat-unit">تومان</span>
-                    </div>
-                    <div className="stat-sub">
-                      سرمایه خرید: {formatNum(inspectMetrics.totalCost)} تومان
-                    </div>
-                  </div>
-
-                  <div className={`portfolio-stat-card pnl-card ${inspectMetrics.totalPnl >= 0 ? 'profit' : 'loss'}`}>
-                    <div className="stat-header">
-                      <span className="stat-label">سود / زیان کل</span>
-                      <span className={`pnl-badge ${inspectMetrics.totalPnl >= 0 ? 'profit' : 'loss'}`}>
-                        {inspectMetrics.totalPnl >= 0 ? '+' : ''}
-                        {inspectMetrics.totalPnlPct.toFixed(2).replace('-', '')}٪
-                      </span>
-                    </div>
-                    <div className="stat-number" style={{ fontSize: '20px' }}>
-                      {inspectMetrics.totalPnl >= 0 ? '+' : ''}
-                      {formatNum(inspectMetrics.totalPnl)} <span className="stat-unit">تومان</span>
-                    </div>
-                    <div className="stat-sub">
-                      {inspectMetrics.totalPnl >= 0 ? '🟢 در سود' : '🔴 در زیان'}
-                    </div>
-                  </div>
-
-                  <div className="portfolio-stat-card action-card">
-                    <div className="stat-header">
-                      <span className="stat-label">اقلام ثبت‌شده</span>
-                      <span className="count-pill">{inspectHoldings.length} قلم دارایی</span>
-                    </div>
-                    <div className="stat-sub" style={{ marginTop: '8px' }}>
-                      وضعیت لینک: {(() => {
-                        const activeP = inspectPortfolios.find((p) => p.id === inspectActivePortfolioId);
-                        if (activeP?.shareEnabled) {
-                          return `🟢 اشتراک فعال (${activeP.shareSlug ? `/p/${activeP.shareSlug}` : 'عمومی'})`;
-                        }
-                        if (inspectUser?.shareEnabled) {
-                          return '🟢 اشتراک فعال';
-                        }
-                        return '⚪ خصوصی';
-                      })()}
-                    </div>
-                  </div>
-                </div>
-
-                {/* Categorized Holdings List */}
-                <div className="portfolio-categories-container">
-                  {inspectCategoryGroups.map((group) => (
-                    <div key={group.key} className="category-group-card">
-                      <div className="category-group-header">
-                        <div className="cat-header-identity">
-                          <span className="cat-group-icon">{group.icon}</span>
-                          <div className="cat-group-titles">
-                            <h4 className="cat-group-name">{group.name}</h4>
-                            <span className="cat-group-count">{group.items.length.toLocaleString('fa-IR')} قلم</span>
-                          </div>
-                        </div>
-
-                        <div className="cat-header-subtotals">
-                          <div className="cat-subtotal-val">
-                            <span className="subtotal-label">ارزش مجموعه:</span>
-                            <strong className="subtotal-amount">{formatNum(group.totalRealValue)}</strong>
-                            <span className="subtotal-unit">تومان</span>
-                          </div>
-
-                          <div className={`cat-subtotal-pnl ${group.totalPnl >= 0 ? 'profit' : 'loss'}`}>
-                            <span className="subtotal-pnl-label">سود/زیان:</span>
-                            <strong>{group.totalPnl >= 0 ? '+' : ''}{formatNum(group.totalPnl)} تومان</strong>
-                            <span className="subtotal-pnl-pct">({group.totalPnl >= 0 ? '+' : ''}{group.totalPnlPct.toFixed(1).replace('-', '')}٪)</span>
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="portfolio-items-list">
-                        {group.items.map((item) => {
-                          const isProfit = item.itemPnl >= 0;
-                          return (
-                            <div key={item.id} className="portfolio-item-row">
-                              <div className="item-main-col">
-                                <div className="item-name-wrap">
-                                  <span className="item-name">{formatAssetName(item)}</span>
-                                  <span className={`item-category-pill cat-${item.assetType || 'custom'}`}>
-                                    {item.assetType === 'silver' ? '🥈 نقره' :
-                                     item.assetType === 'gold' ? '🥇 طلا' :
-                                     item.assetType === 'coin' ? '🪙 سکه' :
-                                     item.assetType === 'currency' ? '💵 ارز' :
-                                     item.assetType === 'crypto' ? '⚡ کریپتو' : '✨ سفارشی'}
-                                  </span>
-                                  <span className="item-qty-tag">
-                                    {Number(item.amount).toLocaleString('fa-IR')} {item.unit}
-                                  </span>
-                                </div>
-
-                                <div className="item-price-meta">
-                                  <span>{item.hasBuyPrice ? `خرید: ${formatNum(item.buyPrice)} تومان` : 'خرید: ثبت نشده'}</span>
-                                  <span className="meta-sep">•</span>
-                                  <span className="meta-real-price">
-                                    قیمت واقعی روز: {formatNum(item.unitRealPrice)} تومان
-                                  </span>
-                                </div>
-
-                                {(item.buyDate || item.notes) && (
-                                  <div className="item-extra-meta">
-                                    {item.buyDate && <span className="item-date-tag">📅 {item.buyDate}</span>}
-                                    {item.notes && <span className="item-notes-tag">💬 {item.notes}</span>}
-                                  </div>
-                                )}
-                              </div>
-
-                              <div className="item-values-col">
-                                <div className="item-live-val">
-                                  {formatNum(item.itemRealVal)}
-                                  <span className="val-unit">تومان</span>
-                                </div>
-                                {item.hasBuyPrice ? (
-                                  <div className={`item-pnl-tag ${isProfit ? 'profit' : 'loss'}`}>
-                                    <span>{isProfit ? '+' : ''}{formatNum(item.itemPnl)} تومان</span>
-                                    <span className="pct">({isProfit ? '+' : ''}{item.itemPnlPct.toFixed(1).replace('-', '')}٪)</span>
-                                  </div>
-                                ) : (
-                                  <div className="item-pnl-tag neutral">
-                                    <span>بدون محاسبه سود/زیان</span>
-                                  </div>
-                                )}
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
     </div>
   );
 }
