@@ -4902,12 +4902,145 @@ footer {
   border-bottom: 1px solid rgba(0, 0, 0, 0.05);
 }
 
-[data-theme="light"] .category-section-header {
-  background: rgba(0, 0, 0, 0.02);
-  border: 1px solid rgba(0, 0, 0, 0.05);
+/* ── Category Group Cards in Light Theme ─────────────────────────────── */
+[data-theme="light"] .category-group-card {
+  background: #ffffff;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  border-radius: var(--radius-xl);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.04);
 }
+
+[data-theme="light"] .category-group-card:hover {
+  background: #ffffff;
+  border-color: rgba(0, 0, 0, 0.12);
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.06);
+}
+
+[data-theme="light"] .category-group-header {
+  border-bottom: 1px solid rgba(0, 0, 0, 0.07);
+}
+
 [data-theme="light"] .cat-group-name {
   color: #0f172a;
+  font-weight: 800;
+}
+
+[data-theme="light"] .cat-group-count {
+  color: #64748b;
+}
+
+[data-theme="light"] .cat-subtotal-val .subtotal-label {
+  color: #64748b;
+}
+
+[data-theme="light"] .cat-subtotal-val .subtotal-amount {
+  color: #b45309;
+}
+
+[data-theme="light"] .cat-subtotal-val .subtotal-unit {
+  color: #64748b;
+}
+
+[data-theme="light"] .cat-subtotal-pnl .subtotal-pnl-label {
+  color: #64748b;
+}
+
+[data-theme="light"] .cat-subtotal-pnl.profit {
+  color: #059669;
+}
+
+[data-theme="light"] .cat-subtotal-pnl.loss {
+  color: #e11d48;
+}
+
+[data-theme="light"] .portfolio-data-table thead th {
+  background: #f8fafc;
+  color: #475569;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.07);
+}
+
+[data-theme="light"] .table-qty-badge {
+  color: #b45309;
+  background: rgba(217, 119, 6, 0.1);
+  border: 1px solid rgba(217, 119, 6, 0.2);
+}
+
+[data-theme="light"] .cell-val {
+  color: #0f172a;
+}
+
+[data-theme="light"] .cell-val.real-val {
+  color: #0284c7;
+  background: rgba(2, 132, 199, 0.09);
+  border: 1px solid rgba(2, 132, 199, 0.18);
+}
+
+[data-theme="light"] .cell-val-bold {
+  color: #0f172a;
+}
+
+[data-theme="light"] .cell-val-bold.gold-text {
+  color: #b45309;
+}
+
+[data-theme="light"] .cell-unit {
+  color: #64748b;
+}
+
+[data-theme="light"] .item-date-tag,
+[data-theme="light"] .item-notes-tag {
+  color: #64748b;
+  background: rgba(0, 0, 0, 0.04);
+}
+
+[data-theme="light"] .btn-table-action {
+  color: #64748b;
+}
+
+[data-theme="light"] .btn-table-action.edit:hover {
+  color: #b45309;
+  background: rgba(217, 119, 6, 0.1);
+}
+
+[data-theme="light"] .btn-table-action.delete:hover {
+  color: #e11d48;
+  background: rgba(225, 29, 72, 0.1);
+}
+
+[data-theme="light"] .item-category-pill.cat-gold {
+  color: #b45309;
+  background: rgba(234, 179, 8, 0.14);
+  border: 1px solid rgba(234, 179, 8, 0.28);
+}
+
+[data-theme="light"] .item-category-pill.cat-coin {
+  color: #0284c7;
+  background: rgba(56, 189, 248, 0.14);
+  border: 1px solid rgba(56, 189, 248, 0.28);
+}
+
+[data-theme="light"] .item-category-pill.cat-silver {
+  color: #dc2626;
+  background: rgba(239, 68, 68, 0.14);
+  border: 1px solid rgba(239, 68, 68, 0.28);
+}
+
+[data-theme="light"] .item-category-pill.cat-currency {
+  color: #059669;
+  background: rgba(16, 185, 129, 0.14);
+  border: 1px solid rgba(16, 185, 129, 0.28);
+}
+
+[data-theme="light"] .item-category-pill.cat-crypto {
+  color: #7c3aed;
+  background: rgba(168, 85, 247, 0.14);
+  border: 1px solid rgba(168, 85, 247, 0.28);
+}
+
+[data-theme="light"] .item-category-pill.cat-custom {
+  color: #db2777;
+  background: rgba(244, 114, 182, 0.14);
+  border: 1px solid rgba(244, 114, 182, 0.28);
 }
 
 [data-theme="light"] .allocation-bar {
