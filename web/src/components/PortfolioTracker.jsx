@@ -245,17 +245,6 @@ export default function PortfolioTracker({ calcData, rates, usdToman, goldUsd })
     };
   }, []);
 
-  const toggleHideValues = () => {
-    setHideValues((prev) => {
-      const next = !prev;
-      try {
-        localStorage.setItem('realrate_hide_values', String(next));
-      } catch {}
-      window.dispatchEvent(new Event('realrate_privacy_change'));
-      return next;
-    });
-  };
-
   // Settings Modal State
   const [settingsModalOpen, setSettingsModalOpen] = useState(false);
 
@@ -1066,25 +1055,6 @@ export default function PortfolioTracker({ calcData, rates, usdToman, goldUsd })
                     <line x1="12" y1="15" x2="12" y2="3"></line>
                   </svg>
                 </button>
-                <button
-                  type="button"
-                  className={`btn-privacy-toggle icon-only ${hideValues ? 'active' : ''}`}
-                  onClick={toggleHideValues}
-                  title={hideValues ? 'نمایش مجدد مقادیر مالی' : 'مخفی کردن مبالغ با ****'}
-                  aria-label={hideValues ? 'نمایش مجدد مقادیر مالی' : 'مخفی کردن مبالغ با ****'}
-                >
-                  {hideValues ? (
-                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
-                      <circle cx="12" cy="12" r="3"></circle>
-                    </svg>
-                  ) : (
-                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path>
-                      <line x1="1" y1="1" x2="23" y2="23"></line>
-                    </svg>
-                  )}
-                </button>
               </div>
             </div>
 
@@ -1431,10 +1401,10 @@ export default function PortfolioTracker({ calcData, rates, usdToman, goldUsd })
                     if (pct < 0.5) return null;
                     return (
                       <div
-                        key={cat.id}
-                        className={`allocation-segment cat-${cat.id}`}
+                        key={cat.key}
+                        className={`allocation-segment cat-${cat.key}`}
                         style={{ width: `${pct}%` }}
-                        title={`${cat.title}: ${pct.toFixed(1)}٪`}
+                        title={`${cat.name}: ${parseFloat(pct.toFixed(1)).toLocaleString('fa-IR')}٪`}
                       />
                     );
                   })}
@@ -1443,10 +1413,10 @@ export default function PortfolioTracker({ calcData, rates, usdToman, goldUsd })
                   {categoryGroups.map((cat) => {
                     const pct = (cat.totalRealValue / portfolioMetrics.totalRealValue) * 100;
                     return (
-                      <div key={cat.id} className="allocation-chip">
-                        <span className={`chip-dot cat-${cat.id}`} />
-                        <span className="chip-name">{cat.title}:</span>
-                        <strong className="chip-pct">{pct.toFixed(1)}٪</strong>
+                      <div key={cat.key} className="allocation-chip">
+                        <span className={`chip-dot cat-${cat.key}`} />
+                        <span className="chip-name">{cat.name}:</span>
+                        <strong className="chip-pct">{parseFloat(pct.toFixed(1)).toLocaleString('fa-IR')}٪</strong>
                       </div>
                     );
                   })}
