@@ -1248,13 +1248,13 @@ input:focus, select:focus, textarea:focus {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  background: rgba(255, 255, 255, 0.035);
-  border: 1px solid rgba(255, 255, 255, 0.07);
+  background: var(--bg-control);
+  border: 1px solid var(--border-control);
   border-radius: var(--radius-full);
   padding: 6px 14px;
   font-size: 12.5px;
   font-weight: 700;
-  color: var(--text-muted);
+  color: var(--text-secondary);
   cursor: pointer;
   transition: var(--transition-fast);
   white-space: nowrap;
@@ -1262,9 +1262,9 @@ input:focus, select:focus, textarea:focus {
 }
 
 .portfolio-tab-pill:hover {
-  background: rgba(255, 255, 255, 0.07);
-  color: #fff;
-  border-color: rgba(255, 255, 255, 0.15);
+  background: var(--bg-control-hover);
+  color: var(--text-heading);
+  border-color: var(--border-strong);
 }
 
 .portfolio-tab-pill.active {
@@ -1335,62 +1335,62 @@ input:focus, select:focus, textarea:focus {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: var(--bg-control);
+  border: 1px solid var(--border-control);
   border-radius: var(--radius-full);
   padding: 6px 13px;
   font-size: 11.5px;
   font-weight: 700;
-  color: var(--text-muted);
+  color: var(--text-secondary);
   cursor: pointer;
   transition: var(--transition-fast);
 }
 
 .btn-portfolio-settings:hover {
-  background: rgba(255, 255, 255, 0.09);
-  color: #fff;
-  border-color: rgba(255, 255, 255, 0.2);
+  background: var(--bg-control-hover);
+  color: var(--text-heading);
+  border-color: var(--border-strong);
 }
 
 .btn-delete-portfolio {
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  background: rgba(244, 63, 94, 0.06);
-  border: 1px solid rgba(244, 63, 94, 0.15);
+  background: var(--rose-soft);
+  border: 1px solid rgba(244, 63, 94, 0.2);
   border-radius: var(--radius-full);
   padding: 6px 12px;
   font-size: 11.5px;
   font-weight: 700;
-  color: #fb7185;
+  color: var(--rose-red);
   cursor: pointer;
   transition: var(--transition-fast);
 }
 
 .btn-delete-portfolio:hover {
   background: rgba(244, 63, 94, 0.16);
-  border-color: #f43f5e;
+  border-color: var(--rose-red);
 }
 
 .btn-set-default {
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  background: rgba(245, 158, 11, 0.08);
+  background: var(--gold-soft-bg);
   border: 1px solid rgba(245, 158, 11, 0.28);
   border-radius: var(--radius-full);
   padding: 6px 13px;
   font-size: 11.5px;
   font-weight: 700;
-  color: #fbbf24;
+  color: var(--gold-light);
   cursor: pointer;
   transition: var(--transition-fast);
 }
 
 .btn-set-default:hover:not(:disabled) {
   background: rgba(245, 158, 11, 0.2);
-  border-color: #f59e0b;
-  color: #fff;
+  border-color: var(--gold-primary);
+  color: var(--text-heading);
   transform: translateY(-1px);
 }
 
@@ -1403,13 +1403,13 @@ input:focus, select:focus, textarea:focus {
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  background: rgba(245, 158, 11, 0.12);
+  background: var(--gold-soft-bg);
   border: 1px solid rgba(245, 158, 11, 0.35);
   border-radius: var(--radius-full);
   padding: 5px 12px;
   font-size: 11px;
   font-weight: 700;
-  color: #fbbf24;
+  color: var(--gold-light);
   user-select: none;
 }
 
@@ -3939,7 +3939,7 @@ footer {
 .btn-modal-delete:hover:not(:disabled) {
   background: rgba(244, 63, 94, 0.18);
   border-color: #f43f5e;
-  color: #fff;
+  color: var(--text-heading);
 }
 
 .btn-modal-delete:disabled {
@@ -3996,7 +3996,7 @@ footer {
 }
 
 .back-home-link:hover {
-  color: #fff;
+  color: var(--text-heading);
 }
 
 .shared-portfolio-container {
@@ -4638,6 +4638,174 @@ footer {
 }
 [data-theme="light"] .btn-new-portfolio-tab:hover {
   background: rgba(0, 0, 0, 0.08);
+  color: #0f172a;
+}
+
+[data-theme="light"] .btn-portfolio-settings {
+  background: rgba(0, 0, 0, 0.04);
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  color: #334155;
+}
+[data-theme="light"] .btn-portfolio-settings:hover {
+  background: rgba(0, 0, 0, 0.08);
+  border-color: rgba(0, 0, 0, 0.18);
+  color: #0f172a;
+}
+
+[data-theme="light"] .btn-set-default {
+  background: rgba(217, 119, 6, 0.08);
+  border: 1px solid rgba(217, 119, 6, 0.28);
+  color: #b45309;
+}
+[data-theme="light"] .btn-set-default:hover:not(:disabled) {
+  background: rgba(217, 119, 6, 0.15);
+  border-color: #d97706;
+  color: #78350f;
+}
+
+[data-theme="light"] .badge-default-portfolio {
+  background: rgba(217, 119, 6, 0.1);
+  border: 1px solid rgba(217, 119, 6, 0.3);
+  color: #b45309;
+}
+
+[data-theme="light"] .btn-delete-portfolio {
+  background: rgba(225, 29, 72, 0.06);
+  border: 1px solid rgba(225, 29, 72, 0.2);
+  color: #e11d48;
+}
+[data-theme="light"] .btn-delete-portfolio:hover {
+  background: rgba(225, 29, 72, 0.12);
+  border-color: #e11d48;
+  color: #be123c;
+}
+
+[data-theme="light"] .btn-lock-vault {
+  background: rgba(239, 68, 68, 0.08);
+  border: 1px solid rgba(239, 68, 68, 0.25);
+  color: #dc2626;
+}
+[data-theme="light"] .btn-lock-vault:hover {
+  background: rgba(239, 68, 68, 0.15);
+  border-color: rgba(239, 68, 68, 0.4);
+  color: #b91c1c;
+}
+
+[data-theme="light"] .btn-export-csv {
+  background: rgba(5, 150, 105, 0.08);
+  border: 1px solid rgba(5, 150, 105, 0.25);
+  color: #059669;
+}
+[data-theme="light"] .btn-export-csv:hover:not(:disabled) {
+  background: rgba(5, 150, 105, 0.16);
+  border-color: rgba(5, 150, 105, 0.45);
+  color: #047857;
+}
+
+[data-theme="light"] .btn-share-settings {
+  background: rgba(2, 132, 199, 0.08);
+  border: 1px solid rgba(2, 132, 199, 0.25);
+  color: #0284c7;
+}
+[data-theme="light"] .btn-share-settings:hover {
+  background: rgba(2, 132, 199, 0.16);
+  border-color: rgba(2, 132, 199, 0.4);
+  color: #0369a1;
+}
+
+[data-theme="light"] .btn-quick-add {
+  background: rgba(217, 119, 6, 0.08);
+  border: 1px solid rgba(217, 119, 6, 0.2);
+  color: #b45309;
+}
+[data-theme="light"] .btn-quick-add:hover {
+  background: rgba(217, 119, 6, 0.15);
+}
+
+[data-theme="light"] .btn-copy-link {
+  background: rgba(2, 132, 199, 0.1);
+  color: #0284c7;
+}
+[data-theme="light"] .btn-copy-link:hover {
+  background: rgba(2, 132, 199, 0.18);
+  color: #0369a1;
+}
+
+[data-theme="light"] .btn-regenerate-slug {
+  background: rgba(2, 132, 199, 0.08);
+  border: 1px solid rgba(2, 132, 199, 0.22);
+  color: #0284c7;
+}
+[data-theme="light"] .btn-regenerate-slug:hover {
+  background: rgba(2, 132, 199, 0.16);
+  border-color: #0284c7;
+}
+
+[data-theme="light"] .btn-modal-delete {
+  background: rgba(225, 29, 72, 0.07);
+  border: 1px solid rgba(225, 29, 72, 0.22);
+  color: #e11d48;
+}
+[data-theme="light"] .btn-modal-delete:hover:not(:disabled) {
+  background: #e11d48;
+  border-color: #e11d48;
+  color: #ffffff;
+}
+
+[data-theme="light"] .shamsi-date-selector-box {
+  background: #ffffff;
+  border: 1px solid rgba(217, 119, 6, 0.35);
+  box-shadow: 0 8px 24px -4px rgba(0, 0, 0, 0.12), 0 0 12px rgba(217, 119, 6, 0.1);
+}
+[data-theme="light"] .date-part-select {
+  background: #ffffff !important;
+  color: #0f172a !important;
+  border: 1px solid #cbd5e1 !important;
+}
+[data-theme="light"] .date-selector-footer {
+  border-top: 1px solid rgba(0, 0, 0, 0.08);
+}
+[data-theme="light"] .btn-set-today {
+  background: rgba(5, 150, 105, 0.1);
+  border: 1px solid rgba(5, 150, 105, 0.3);
+  color: #059669;
+}
+[data-theme="light"] .btn-set-today:hover {
+  background: rgba(5, 150, 105, 0.18);
+  border-color: #059669;
+}
+[data-theme="light"] .btn-date-today-mini {
+  background: rgba(5, 150, 105, 0.1);
+  border-color: rgba(5, 150, 105, 0.3);
+  color: #059669;
+}
+[data-theme="light"] .btn-date-today-mini:hover {
+  background: rgba(5, 150, 105, 0.2);
+}
+[data-theme="light"] .btn-date-system-mini {
+  background: rgba(2, 132, 199, 0.1);
+  border-color: rgba(2, 132, 199, 0.3);
+  color: #0284c7;
+}
+[data-theme="light"] .btn-date-system-mini:hover {
+  background: rgba(2, 132, 199, 0.2);
+}
+[data-theme="light"] .btn-date-done-mini {
+  background: rgba(217, 119, 6, 0.12);
+  border-color: rgba(217, 119, 6, 0.4);
+  color: #b45309;
+}
+[data-theme="light"] .btn-date-done-mini:hover {
+  background: rgba(217, 119, 6, 0.22);
+}
+
+[data-theme="light"] .back-home-link {
+  color: #64748b;
+}
+[data-theme="light"] .back-home-link:hover {
+  color: #0f172a;
+}
+[data-theme="light"] .loader-main-title {
   color: #0f172a;
 }
 
