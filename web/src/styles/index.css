@@ -3504,7 +3504,8 @@ footer {
 
 .btn-export-csv.icon-only,
 .btn-privacy-toggle.icon-only,
-.btn-theme-toggle.icon-only {
+.btn-theme-toggle.icon-only,
+.btn-portfolio-settings.icon-only {
   width: 32px;
   height: 32px;
   min-width: 32px;

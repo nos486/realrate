@@ -1097,20 +1097,6 @@ export default function PortfolioTracker({ calcData, rates, usdToman, goldUsd, i
             <span>پورتفو</span>
           </button>
         </div>
-
-        {activePortfolio && (
-          <div className="portfolio-bar-actions">
-            <button
-              type="button"
-              className="btn-portfolio-settings"
-              onClick={() => setSettingsModalOpen(true)}
-              title="تنظیمات پورتفو"
-            >
-              <Settings size={15} strokeWidth={2} />
-              <span>تنظیمات</span>
-            </button>
-          </div>
-        )}
       </div>
 
       {/* Two Column Split: Right (Content & Holdings Tables), Left (Overview Summary Cards) */}
@@ -1164,6 +1150,17 @@ export default function PortfolioTracker({ calcData, rates, usdToman, goldUsd, i
                 >
                   <Download size={15} strokeWidth={2} />
                 </button>
+                {activePortfolio && (
+                  <button
+                    type="button"
+                    className="btn-portfolio-settings icon-only"
+                    onClick={() => setSettingsModalOpen(true)}
+                    title="تنظیمات پورتفو"
+                    aria-label="تنظیمات پورتفو"
+                  >
+                    <Settings size={15} strokeWidth={2} />
+                  </button>
+                )}
               </div>
             </div>
 
