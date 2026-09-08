@@ -289,7 +289,6 @@ export default function PortfolioTracker({ calcData, rates, usdToman, goldUsd })
       setPortfolios([]);
       setHoldings([]);
       setActivePortfolioId(null);
-      setLoadingPortfolios(false);
       setLoadingHoldings(false);
       return;
     }
@@ -304,7 +303,6 @@ export default function PortfolioTracker({ calcData, rates, usdToman, goldUsd })
           : null;
 
     try {
-      setLoadingPortfolios(true);
       const res = await apiGetPortfolios();
       if (res.success && Array.isArray(res.portfolios) && res.portfolios.length > 0) {
         setPortfolios(res.portfolios);
@@ -360,7 +358,6 @@ export default function PortfolioTracker({ calcData, rates, usdToman, goldUsd })
     } catch (err) {
       console.error('Failed to fetch portfolios:', err);
     } finally {
-      setLoadingPortfolios(false);
       setLoadingHoldings(false);
     }
   }, [user]);
