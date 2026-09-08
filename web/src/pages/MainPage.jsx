@@ -79,7 +79,7 @@ export default function MainPage() {
               <line x1="12" y1="20" x2="12" y2="4"></line>
               <line x1="6" y1="20" x2="6" y2="14"></line>
             </svg>
-            <span>نرخ و حباب طلا، سکه و ارز</span>
+            <span>نرخ و حباب</span>
           </button>
 
           <button
@@ -90,8 +90,7 @@ export default function MainPage() {
               <rect x="2" y="7" width="20" height="14" rx="2" ry="2"></rect>
               <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path>
             </svg>
-            <span>پورتفوی دارایی من</span>
-            <span className="new-tag">ابری</span>
+            <span>پورتفو</span>
           </button>
         </div>
 
@@ -105,11 +104,11 @@ export default function MainPage() {
                 <div className="inputs-toolbar">
                   <div className="toolbar-input-item">
                     <div className="toolbar-label-row">
-                      <label htmlFor="usdToman">قیمت دلار آزاد (تومان)</label>
+                      <label htmlFor="usdToman">دلار آزاد</label>
                       {liveUsdSource === 'live' ? (
-                        <span className="source-tag live">🟢 زنده از بازار</span>
+                        <span className="source-tag live">زنده</span>
                       ) : (
-                        <span className="source-tag manual">✍️ ورودی دستی</span>
+                        <span className="source-tag manual">دستی</span>
                       )}
                     </div>
                     <div className="toolbar-input-wrapper">
@@ -125,14 +124,14 @@ export default function MainPage() {
                     <span className="toolbar-sub-hint">
                       {liveUsdSource === 'live' && liveUsdDatetime
                         ? `بروزرسانی: ${formatRelativeTime(liveUsdDatetime)}`
-                        : 'تنظیم دستی توسط کاربر'}
+                        : 'ورودی دستی'}
                     </span>
                   </div>
 
                   <div className="toolbar-input-item">
                     <div className="toolbar-label-row">
-                      <label htmlFor="goldUsd">انس جهانی طلا ($)</label>
-                      <span className="source-tag live">🌐 انس جهانی</span>
+                      <label htmlFor="goldUsd">انس جهانی طلا</label>
+                      <span className="source-tag live">زنده</span>
                     </div>
                     <div className="toolbar-input-wrapper">
                       <input
@@ -143,7 +142,7 @@ export default function MainPage() {
                       />
                       <span className="input-affix">USD</span>
                     </div>
-                    <span className="toolbar-sub-hint">استعلام زنده از بازار جهانی</span>
+                    <span className="toolbar-sub-hint">بازار جهانی</span>
                   </div>
                 </div>
 
@@ -157,7 +156,7 @@ export default function MainPage() {
                     </div>
                     <div className="rec-text-group">
                       <div className="rec-title">
-                        بهترین فرصت خرید: <strong>{recommendation.best_name}</strong>
+                        کمترین حباب: <strong>{recommendation.best_name}</strong>
                       </div>
                       <div className="rec-desc">{recommendation.reason}</div>
                     </div>
@@ -172,7 +171,7 @@ export default function MainPage() {
               {/* Alert Banner if USD is null or 0 */}
               {!hasUsd && (
                 <div className="warning-notice-bar">
-                  <span>⚠️ جهت محاسبه ارزش واقعی و حباب‌ها، لطفاً نرخ دلار را وارد فرمایید.</span>
+                  <span>⚠️ لطفاً نرخ دلار را برای محاسبه ارزش واقعی و حباب وارد کنید.</span>
                 </div>
               )}
 

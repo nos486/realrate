@@ -38,7 +38,7 @@ export default function CurrenciesList({ currencies }) {
           </svg>
           <input
             type="text"
-            placeholder="جستجوی نام ارز یا نماد (مثلاً یورو، USD)..."
+            placeholder="جستجوی نام یا نماد ارز..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
@@ -48,7 +48,7 @@ export default function CurrenciesList({ currencies }) {
         </div>
 
         <div className="currencies-count-badge">
-          <span>{filtered.length.toLocaleString('fa-IR')} ارز جهانی</span>
+          <span>{filtered.length.toLocaleString('fa-IR')} ارز</span>
         </div>
       </div>
 
@@ -72,7 +72,6 @@ export default function CurrenciesList({ currencies }) {
                 {formatNum(c.toman_price)}
                 <span className="curr-unit">تومان</span>
               </div>
-              <span className="curr-ratio-tag">نرخ برابری معتبر جهانی</span>
             </div>
           </div>
         ))}

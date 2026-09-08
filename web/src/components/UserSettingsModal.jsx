@@ -231,11 +231,11 @@ export default function UserSettingsModal({ isOpen, portfolio, onClose, onSaved,
 
             {/* Owner Display Name */}
             <div className="form-group">
-              <label htmlFor="settingsCustomName">نام نمایشی مالک</label>
+              <label htmlFor="settingsCustomName">نام مالک</label>
               <input
                 type="text"
                 id="settingsCustomName"
-                placeholder="نام نمایشی..."
+                placeholder="نام شما..."
                 value={customName}
                 onChange={(e) => setCustomName(e.target.value)}
               />
@@ -246,7 +246,7 @@ export default function UserSettingsModal({ isOpen, portfolio, onClose, onSaved,
               <div className="toggle-info">
                 <div className="toggle-title-row">
                   <span className="share-status-indicator" style={{ backgroundColor: isDefault ? '#f59e0b' : '#64748b' }}></span>
-                  <strong>پورتفوی پیش‌فرض (اصلی) ⭐</strong>
+                  <strong>پورتفوی پیش‌فرض</strong>
                 </div>
               </div>
               <label className="switch-wrapper">
@@ -264,7 +264,7 @@ export default function UserSettingsModal({ isOpen, portfolio, onClose, onSaved,
               <div className="toggle-info">
                 <div className="toggle-title-row">
                   <span className="share-status-indicator" style={{ backgroundColor: shareEnabled ? '#10b981' : '#64748b' }}></span>
-                  <strong>اشتراک‌گذاری عمومی</strong>
+                  <strong>اشتراک‌گذاری</strong>
                 </div>
               </div>
               <label className="switch-wrapper">
@@ -279,17 +279,17 @@ export default function UserSettingsModal({ isOpen, portfolio, onClose, onSaved,
 
             {/* Custom URL Slug */}
             <div className="form-group">
-              <label htmlFor="settingsShareSlug">آدرس اختصاصی (URL)</label>
+              <label htmlFor="settingsShareSlug">لینک اختصاصی</label>
               <div className="slug-input-wrapper">
                 <span className="slug-prefix">/p/</span>
                 <input
                   type="text"
                   id="settingsShareSlug"
-                  placeholder="مثال: my-gold-portfolio"
+                  placeholder="مثال: my-portfolio"
                   value={shareSlug}
                   onChange={(e) => setShareSlug(e.target.value.toLowerCase().replace(/[^a-z0-9_-]/g, '-'))}
                   pattern="[a-zA-Z0-9_-]{2,40}"
-                  title="فقط حروف انگلیسی، اعداد، خط فاصله (-) و زیرخط (_)"
+                  title="حروف انگلیسی، اعداد، خط فاصله (-) و زیرخط (_)"
                   dir="ltr"
                 />
               </div>
@@ -304,19 +304,19 @@ export default function UserSettingsModal({ isOpen, portfolio, onClose, onSaved,
                   className={`btn-copy-link ${copied ? 'copied' : ''}`}
                   onClick={handleCopyLink}
                 >
-                  {copied ? 'کپی شد! ✓' : 'کپی لینک 📋'}
+                  {copied ? 'کپی شد' : 'کپی لینک'}
                 </button>
               </div>
             )}
 
             {/* Share Password Protection */}
             <div className="form-group">
-              <label htmlFor="settingsSharePassword">رمز عبور مشاهده (اختیاری)</label>
+              <label htmlFor="settingsSharePassword">رمز عبور لینک (اختیاری)</label>
               <div className="password-input-wrapper">
                 <input
                   type={showPassword ? 'text' : 'password'}
                   id="settingsSharePassword"
-                  placeholder="رمز عبور دلخواه..."
+                  placeholder="رمز دلخواه..."
                   value={sharePassword}
                   onChange={(e) => setSharePassword(e.target.value)}
                 />
@@ -337,10 +337,10 @@ export default function UserSettingsModal({ isOpen, portfolio, onClose, onSaved,
                 <div className="toggle-info">
                   <div className="toggle-title-row">
                     <span className="share-status-indicator" style={{ backgroundColor: isE2ee ? '#10b981' : '#64748b' }}></span>
-                    <strong>گاوصندوق فوق امنیتی (رمزنگاری E2EE) 🔐</strong>
+                    <strong>رمزنگاری سرتاسری (E2EE)</strong>
                   </div>
                   <span className="vault-subtitle">
-                    رمزنگاری سرتاسری کلاینت (Zero-Knowledge) با رمز شخصی
+                    قفل دارایی‌ها با رمز عبور شخصی
                   </span>
                 </div>
                 <label className="switch-wrapper">
@@ -358,12 +358,12 @@ export default function UserSettingsModal({ isOpen, portfolio, onClose, onSaved,
                   <div className="vault-warning-box">
                     <span className="warning-icon">⚠️</span>
                     <p>
-                      <strong>هشدار فوق امنیتی:</strong> این رمز فقط در ذهن شما نگهداری می‌شود و حتی سرور یا مدیر سایت به آن دسترسی ندارد. در صورت فراموشی، دارایی‌های این پورتفو برای همیشه قفل و غیرقابل بازیابی خواهند بود.
+                      این رمز در سرور ذخیره نمی‌شود. در صورت فراموشی، اطلاعات غیرقابل بازیابی خواهد بود.
                     </p>
                   </div>
 
                   <div className="form-group">
-                    <label htmlFor="settingsVaultPassword">رمز عبور / PIN گاوصندوق</label>
+                    <label htmlFor="settingsVaultPassword">رمز عبور</label>
                     <div className="password-input-wrapper">
                       <input
                         type={showVaultPassword ? 'text' : 'password'}
@@ -385,7 +385,7 @@ export default function UserSettingsModal({ isOpen, portfolio, onClose, onSaved,
                   </div>
 
                   <div className="form-group">
-                    <label htmlFor="settingsVaultPasswordConfirm">تکرار رمز عبور گاوصندوق</label>
+                    <label htmlFor="settingsVaultPasswordConfirm">تکرار رمز عبور</label>
                     <input
                       type={showVaultPassword ? 'text' : 'password'}
                       id="settingsVaultPasswordConfirm"
@@ -407,13 +407,13 @@ export default function UserSettingsModal({ isOpen, portfolio, onClose, onSaved,
                   className="btn-modal-delete"
                   onClick={onDelete}
                   disabled={saving}
-                  title={`حذف پورتفوی «${portfolio?.name || ''}»`}
+                  title={`حذف «${portfolio?.name || ''}»`}
                 >
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                     <polyline points="3 6 5 6 21 6"></polyline>
                     <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
                   </svg>
-                  <span>حذف پورتفو</span>
+                  <span>حذف</span>
                 </button>
               ) : (
                 <div />
@@ -424,7 +424,7 @@ export default function UserSettingsModal({ isOpen, portfolio, onClose, onSaved,
                   انصراف
                 </button>
                 <button type="submit" className="btn-modal-submit" disabled={saving}>
-                  {saving ? 'در حال ذخیره...' : '💾 ذخیره تغییرات'}
+                  {saving ? 'در حال ذخیره...' : 'ذخیره'}
                 </button>
               </div>
             </div>

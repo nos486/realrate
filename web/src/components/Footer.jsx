@@ -25,7 +25,7 @@ export default function Footer() {
       fontSize: '12px',
       width: '100%'
     }}>
-      <p>منبع اطلاعات: قیمت روز بازار طلا و نرخ برابری ارزهای جهان</p>
+      <p>ارزش‌گذاری بر مبنای نرخ روز طلا، سکه و ارز</p>
       <div style={{ display: 'flex', gap: '14px', alignItems: 'center', flexWrap: 'wrap' }}>
         <button
           onClick={triggerPwaInstall}

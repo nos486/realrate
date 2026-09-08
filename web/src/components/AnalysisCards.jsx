@@ -56,7 +56,7 @@ export default function AnalysisCards({ analysis, recommendation }) {
                 <div className="card-identity">
                   <h3 className="card-name">{item.name}</h3>
                   {item.target_bubble_pct > 0 && (
-                    <span className="target-badge">حباب مصوب: {item.target_bubble_pct?.toLocaleString('fa-IR')}٪</span>
+                    <span className="target-badge">حباب استاندارد: {item.target_bubble_pct?.toLocaleString('fa-IR')}٪</span>
                   )}
                 </div>
                 <span className={`bubble-pill ${badgeClass}`}>{badgeText}</span>
@@ -64,7 +64,7 @@ export default function AnalysisCards({ analysis, recommendation }) {
 
               {/* Main Market Price */}
               <div className="main-price-block">
-                <span className="price-title">قیمت روز بازار</span>
+                <span className="price-title">قیمت بازار</span>
                 <div className="price-big-row">
                   {hasMarket ? (
                     <>
@@ -72,7 +72,7 @@ export default function AnalysisCards({ analysis, recommendation }) {
                       <span className="price-big-unit">تومان</span>
                     </>
                   ) : (
-                    <span className="price-unavailable">ناموجود در بازار</span>
+                    <span className="price-unavailable">ناموجود</span>
                   )}
                 </div>
               </div>
@@ -80,22 +80,22 @@ export default function AnalysisCards({ analysis, recommendation }) {
               {/* Data Breakdown Table */}
               <div className="card-metrics-table">
                 <div className="metric-row">
-                  <span className="metric-key">ارزش ذاتی (طلای خام):</span>
+                  <span className="metric-key">ارزش طلای خام:</span>
                   <strong className="metric-val gold-val">{formatNum(item.intrinsic)} تومان</strong>
                 </div>
 
                 {item.target_bubble_pct > 0 && (
                   <div className="metric-row">
-                    <span className="metric-key">قیمت محاسباتی استاندارد:</span>
+                    <span className="metric-key">قیمت استاندارد:</span>
                     <strong className="metric-val blue-val">{formatNum(item.expected_price)} تومان</strong>
                   </div>
                 )}
 
                 {hasMarket && item.target_bubble_pct > 0 && item.diff_from_expected !== null && (
                   <div className="metric-row">
-                    <span className="metric-key">انحراف از قیمت محاسباتی:</span>
+                    <span className="metric-key">انحراف از استاندارد:</span>
                     <strong className={`metric-val ${item.diff_from_expected < 0 ? 'good-val' : 'warn-val'}`}>
-                      {item.diff_from_expected < 0 ? 'اختلاف منفی ' : '+'}
+                      {item.diff_from_expected < 0 ? '-' : '+'}
                       {formatNum(Math.abs(item.diff_from_expected))} تومان ({item.diff_from_expected_pct?.toLocaleString('fa-IR')}٪)
                     </strong>
                   </div>
@@ -104,7 +104,6 @@ export default function AnalysisCards({ analysis, recommendation }) {
 
               {/* Footer Timestamp */}
               <div className="card-timestamp-footer">
-                <span>قیمت لحظه‌ای بازار</span>
                 <span>بروزرسانی: {formatRelativeTime(item.updated_at)}</span>
               </div>
             </div>

@@ -928,37 +928,37 @@ export default function PortfolioTracker({ calcData, rates, usdToman, goldUsd })
 
           <h3 className="auth-gate-title">مدیریت هوشمند پورتفوی سرمایه‌گذاری</h3>
           <p className="auth-gate-desc">
-            اطلاعات دارایی‌های شما به صورت امن در پایگاه داده ابری ذخیره شده و ارزش واقعی آنها
-            بر پایه نرخ لحظه‌ای انس جهانی طلا، نقره و دلار محاسبه می‌گردد.
+            اطلاعات دارایی‌های شما به صورت امن در پایگاه داده ابری ذخیره شده و ارزش روز آن‌ها
+            بر پایه نرخ لحظه‌ای طلا، نقره و دلار محاسبه می‌گردد.
           </p>
 
           <div className="auth-gate-features">
             <div className="gate-feature-item">
               <span className="feature-icon">☁️</span>
               <div className="feature-info">
-                <strong>ذخیره ابری دائمی در دیتابیس</strong>
-                <span>دسترسی به پورتفو از تمام دستگاه‌ها بدون از دست رفتن داده‌ها</span>
+                <strong>ذخیره ابری</strong>
+                <span>دسترسی به پورتفو از تمام دستگاه‌ها با امنیت کامل</span>
               </div>
             </div>
             <div className="gate-feature-item">
               <span className="feature-icon">💎</span>
               <div className="feature-info">
-                <strong>محاسبه بر پایه ارزش واقعی و خالص</strong>
-                <span>محاسبه خالص ارزش طلا و نقره بر اساس انس جهانی و دلار بدون حباب</span>
+                <strong>محاسبه ارزش واقعی</strong>
+                <span>ارزش خالص طلا و نقره بر اساس قیمت جهانی و دلار</span>
               </div>
             </div>
             <div className="gate-feature-item">
               <span className="feature-icon">✨</span>
               <div className="feature-info">
-                <strong>پشتیبانی از طلا، نقره، ارز و دارایی‌های شخصی</strong>
-                <span>امکان ثبت انواع سکه، طلا، نقره، ارزها و دارایی‌های دلخواه (بورس، مسکن و...)</span>
+                <strong>تنوع دارایی‌ها</strong>
+                <span>پشتیبانی از انواع طلا، سکه، نقره، ارزها و دارایی‌های شخصی</span>
               </div>
             </div>
             <div className="gate-feature-item">
               <span className="feature-icon">✏️</span>
               <div className="feature-info">
-                <strong>امکان ویرایش، ثبت تاریخ و یادداشت</strong>
-                <span>ویرایش آسان مقادیر، زمان دقیق خرید، قیمت تمام‌شده و توضیحات هر دارایی</span>
+                <strong>ثبت جزئیات</strong>
+                <span>امکان ثبت تاریخ خرید، قیمت تمام‌شده و یادداشت</span>
               </div>
             </div>
           </div>
@@ -971,9 +971,9 @@ export default function PortfolioTracker({ calcData, rates, usdToman, goldUsd })
                 <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/>
                 <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/>
               </svg>
-              <span>ورود سریع و امن با حساب گوگل</span>
+              <span>ورود با گوگل</span>
             </button>
-            <span className="gate-privacy-note">🔒 اطلاعات پورتفوی شما فقط برای خودتان قابل مشاهده است.</span>
+            <span className="gate-privacy-note">🔒 اطلاعات پورتفو کاملاً محرمانه است.</span>
           </div>
         </div>
       </div>
@@ -999,10 +999,10 @@ export default function PortfolioTracker({ calcData, rates, usdToman, goldUsd })
                 <span className="tab-pill-icon">{p.isDefault ? '⭐' : (p.isE2ee ? '🔐' : '📁')}</span>
                 <span className="tab-pill-name">{p.name}</span>
                 {p.isE2ee && (
-                  <span className="tab-pill-e2ee" title="گاوصندوق فوق امنیتی E2EE">🔒</span>
+                  <span className="tab-pill-e2ee" title="گاوصندوق E2EE">🔒</span>
                 )}
                 {p.shareEnabled && (
-                  <span className="tab-pill-shared" title="لینک اشتراک‌گذاری عمومی فعال است">🔗</span>
+                  <span className="tab-pill-shared" title="لینک اشتراک‌گذاری فعال است">🔗</span>
                 )}
                 <span className="tab-pill-count">
                   {(p.id === activePortfolio?.id ? holdings.length : (p.itemCount ?? 0)).toLocaleString('fa-IR')}
@@ -1014,9 +1014,9 @@ export default function PortfolioTracker({ calcData, rates, usdToman, goldUsd })
             type="button"
             className="btn-new-portfolio-tab"
             onClick={() => setNewPortfolioModalOpen(true)}
-            title="ایجاد پورتفوی جدید با نام دلخواه"
+            title="ایجاد پورتفوی جدید"
           >
-            <span>+ پورتفوی جدید</span>
+            <span>+ پورتفو</span>
           </button>
         </div>
 
@@ -1026,13 +1026,13 @@ export default function PortfolioTracker({ calcData, rates, usdToman, goldUsd })
               type="button"
               className="btn-portfolio-settings"
               onClick={() => setSettingsModalOpen(true)}
-              title="تنظیمات، اشتراک‌گذاری، پیش‌فرض و حذف پورتفو"
+              title="تنظیمات پورتفو"
             >
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <circle cx="12" cy="12" r="3"></circle>
                 <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
               </svg>
-              <span>تنظیمات پورتفو</span>
+              <span>تنظیمات</span>
             </button>
           </div>
         )}
@@ -1046,15 +1046,15 @@ export default function PortfolioTracker({ calcData, rates, usdToman, goldUsd })
             <div className="portfolio-table-header">
               <div className="table-title">
                 <div className="table-title-main">
-                  <h3>📋 جزئیات {activePortfolio?.name ? `پورتفوی «${activePortfolio.name}»` : 'سبد دارایی'} ({user.name || user.email})</h3>
+                  <h3>{activePortfolio?.name || 'سبد دارایی'}</h3>
                   {activePortfolio?.isE2ee && (
-                    <span className={`portfolio-encryption-tag e2ee ${isVaultLocked ? 'locked' : 'unlocked'}`} title="حفاظت سرتاسری Zero-Knowledge E2EE: داده‌ها با کلید اختصاصی در مرورگر شما قفل شده‌اند و حتی سرور امکان خواندن آن‌ها را ندارد.">
-                      {isVaultLocked ? '🔒 گاوصندوق E2EE (قفل)' : '🔓 گاوصندوق E2EE (باز)'}
+                    <span className={`portfolio-encryption-tag e2ee ${isVaultLocked ? 'locked' : 'unlocked'}`} title="داده‌ها با رمز اختصاصی شما در مرورگر رمزنگاری می‌شوند.">
+                      {isVaultLocked ? '🔒 قفل' : '🔓 باز'}
                     </span>
                   )}
                 </div>
                 <span>
-                  محاسبه بر پایه ارزش واقعی طلا (${goldUsdVal ? goldUsdVal.toLocaleString() : ''})، نقره (${silverUsdVal ? silverUsdVal.toFixed(2) : ''}) و نرخ دلار ({formatNum(usdVal)} تومان)
+                  ارزش‌گذاری بر اساس نرخ زنده طلا، نقره و دلار
                 </span>
               </div>
               <div className="portfolio-header-actions">
@@ -1063,9 +1063,9 @@ export default function PortfolioTracker({ calcData, rates, usdToman, goldUsd })
                     type="button"
                     className="btn-lock-vault"
                     onClick={handleLockVault}
-                    title="قفل کردن فوری گاوصندوق E2EE"
+                    title="قفل کردن گاوصندوق"
                   >
-                    <span>🔒 قفل کردن</span>
+                    <span>قفل</span>
                   </button>
                 )}
                 <button
@@ -1112,10 +1112,10 @@ export default function PortfolioTracker({ calcData, rates, usdToman, goldUsd })
             ) : isVaultLocked ? (
               <div className="vault-lock-container">
                 <div className="vault-lock-card">
-                  <div className="vault-lock-badge">🔐 گاوصندوق فوق امنیتی E2EE</div>
-                  <h4 className="vault-lock-title">این پورتفو با رمز شخصی شما قفل شده است</h4>
+                  <div className="vault-lock-badge">گاوصندوق E2EE</div>
+                  <h4 className="vault-lock-title">پورتفو قفل است</h4>
                   <p className="vault-lock-desc">
-                    جهت رمزگشایی و مشاهده موجودی، سود و زیان و ثبت تراکنش، رمز عبور شخصی پورتفوی «{activePortfolio?.name}» را وارد نمایید.
+                    برای دسترسی به اطلاعات، رمز عبور پورتفوی «{activePortfolio?.name}» را وارد کنید.
                   </p>
 
                   <form className="vault-unlock-form" onSubmit={handleUnlockVault}>
@@ -1123,7 +1123,7 @@ export default function PortfolioTracker({ calcData, rates, usdToman, goldUsd })
                       <input
                         type={showVaultUnlockPass ? 'text' : 'password'}
                         className="vault-unlock-input"
-                        placeholder="رمز عبور شخصی گاوصندوق..."
+                        placeholder="رمز عبور..."
                         value={vaultUnlockPassInput}
                         onChange={(e) => setVaultUnlockPassInput(e.target.value)}
                         autoFocus
@@ -1152,26 +1152,25 @@ export default function PortfolioTracker({ calcData, rates, usdToman, goldUsd })
                         className="btn-vault-unlock"
                         disabled={unlockingVault || !vaultUnlockPassInput}
                       >
-                        {unlockingVault ? 'در حال رمزگشایی...' : '🔓 بازگشایی و مشاهده گاوصندوق'}
+                        {unlockingVault ? 'در حال بررسی...' : 'بازگشایی'}
                       </button>
                     </div>
                   </form>
 
                   <div className="vault-lock-footer-note">
-                    🛡️ تمام اطلاعات در مرورگر شما رمزگشایی شده و کلید اختصاصی هرگز به سرور ارسال نمی‌شود.
+                    رمزگشایی در مرورگر انجام می‌شود و رمز در سرور ذخیره نمی‌گردد.
                   </div>
                 </div>
               </div>
             ) : portfolioMetrics.items.length === 0 ? (
               <div className="portfolio-empty-state">
                 <div className="empty-icon">💼</div>
-                <h4>هنوز دارایی در پورتفوی شما ثبت نشده است</h4>
+                <h4>پورتفو خالی است</h4>
                 <p>
-                  می‌توانید انواع طلا، سکه، نقره ساچمه و استرلینگ، ارزها یا دارایی‌های دلخواه خود (سهام بورس، صندوق، مسکن و...) را
-                  ثبت کنید تا سود و زیان آنها بر مبنای ارزش واقعی رصد شود.
+                  دارایی‌های خود اعم از طلا، سکه، نقره یا ارز را ثبت کنید تا ارزش روز و سود/زیان آن‌ها محاسبه شود.
                 </p>
                 <button className="btn-add-asset-center" onClick={handleOpenAdd}>
-                  + ثبت اولین دارایی
+                  + ثبت دارایی
                 </button>
               </div>
             ) : (
@@ -1190,7 +1189,7 @@ export default function PortfolioTracker({ calcData, rates, usdToman, goldUsd })
 
                       <div className="cat-header-subtotals">
                         <div className="cat-subtotal-val">
-                          <span className="subtotal-label">ارزش مجموعه:</span>
+                          <span className="subtotal-label">ارزش:</span>
                           <strong className={`subtotal-amount ${hideValues ? 'is-masked' : ''}`}>
                             {hideValues ? '****' : formatNum(group.totalRealValue)}
                           </strong>
@@ -1217,13 +1216,13 @@ export default function PortfolioTracker({ calcData, rates, usdToman, goldUsd })
                         <thead>
                           <tr>
                             <th className="th-asset">دارایی</th>
-                            <th className="th-qty">مقدار / وزن</th>
-                            <th className="th-buy-price">قیمت خرید (واحد)</th>
-                            <th className="th-real-price">قیمت واقعی روز</th>
-                            <th className="th-total-val">ارزش کل روز</th>
+                            <th className="th-qty">مقدار</th>
+                            <th className="th-buy-price">قیمت خرید</th>
+                            <th className="th-real-price">ارزش روز واحد</th>
+                            <th className="th-total-val">ارزش کل</th>
                             <th className="th-pnl">سود / زیان</th>
                             <th className="th-date">تاریخ خرید</th>
-                            <th className="th-notes">یادداشت / توضیحات</th>
+                            <th className="th-notes">یادداشت</th>
                             <th className="th-actions">عملیات</th>
                           </tr>
                         </thead>
@@ -1360,26 +1359,26 @@ export default function PortfolioTracker({ calcData, rates, usdToman, goldUsd })
             {/* Card 1: Total Real Value */}
             <div className="portfolio-stat-card main-val">
               <div className="stat-header">
-                <span className="stat-label">ارزش واقعی کل {activePortfolio?.name ? `(«${activePortfolio.name}»)` : 'دارایی‌ها'}</span>
+                <span className="stat-label">ارزش کل</span>
                 <span className="real-pill">
-                  🌐 انس طلا + نقره + دلار
+                  ارزش روز
                 </span>
               </div>
               <div className={`stat-number gold-gradient-text ${hideValues ? 'is-masked' : ''}`}>
-                {isVaultLocked ? '🔐 قفل است' : hideValues ? '****' : formatNum(portfolioMetrics.totalRealValue)}
+                {isVaultLocked ? '🔐 قفل' : hideValues ? '****' : formatNum(portfolioMetrics.totalRealValue)}
                 {!isVaultLocked && <span className="stat-unit">تومان</span>}
               </div>
               <div className="stat-sub">
                 {isVaultLocked
-                  ? 'جهت مشاهده ارزش کل، گاوصندوق را باز کنید'
-                  : `سرمایه اولیه خرید: ${portfolioMetrics.hasAnyCost ? (hideValues ? '**** تومان' : `${formatNum(portfolioMetrics.totalCost)} تومان`) : 'ثبت‌نشده (محاسبه صرفاً به نرخ روز)'}`}
+                  ? 'گاوصندوق قفل است'
+                  : `سرمایه اولیه: ${portfolioMetrics.hasAnyCost ? (hideValues ? '**** تومان' : `${formatNum(portfolioMetrics.totalCost)} تومان`) : 'ثبت‌نشده'}`}
               </div>
             </div>
 
             {/* Card 2: Total PnL */}
             <div className={`portfolio-stat-card pnl-card ${isVaultLocked ? 'neutral' : (portfolioMetrics.hasAnyCost ? (portfolioMetrics.totalPnl >= 0 ? 'profit' : 'loss') : 'neutral')}`}>
               <div className="stat-header">
-                <span className="stat-label">سود / زیان واقعی کل</span>
+                <span className="stat-label">سود / زیان</span>
                 {isVaultLocked ? (
                   <span className="pnl-badge neutral">🔐 قفل</span>
                 ) : portfolioMetrics.hasAnyCost ? (
@@ -1392,7 +1391,7 @@ export default function PortfolioTracker({ calcData, rates, usdToman, goldUsd })
               </div>
               <div className={`stat-number ${hideValues ? 'is-masked' : ''}`}>
                 {isVaultLocked ? (
-                  <span className="stat-sub" style={{ fontSize: '15px' }}>🔐 گاوصندوق قفل است</span>
+                  <span className="stat-sub" style={{ fontSize: '15px' }}>🔐 قفل است</span>
                 ) : portfolioMetrics.hasAnyCost ? (
                   <>
                     {hideValues ? '****' : `${portfolioMetrics.totalPnl >= 0 ? '+' : ''}${formatNum(portfolioMetrics.totalPnl)}`}
@@ -1404,11 +1403,11 @@ export default function PortfolioTracker({ calcData, rates, usdToman, goldUsd })
               </div>
               <div className="stat-sub">
                 {isVaultLocked ? (
-                  'برای مشاهده سود و زیان، رمز گاوصندوق را وارد کنید'
+                  'گاوصندوق قفل است'
                 ) : portfolioMetrics.hasAnyCost ? (
-                  portfolioMetrics.totalPnl >= 0 ? '🟢 پورتفوی شما در سود است' : '🔴 پورتفوی شما در زیان است'
+                  portfolioMetrics.totalPnl >= 0 ? 'سودده' : 'زیان‌ده'
                 ) : (
-                  'ارزش اقلام صرفاً به نرخ روز محاسبه می‌شود'
+                  'محاسبه به نرخ روز'
                 )}
               </div>
             </div>
@@ -1416,22 +1415,22 @@ export default function PortfolioTracker({ calcData, rates, usdToman, goldUsd })
             {/* Card 3: Actions & Count */}
             <div className="portfolio-stat-card action-card">
               <div className="stat-header">
-                <span className="stat-label">مدیریت سبد دارایی</span>
+                <span className="stat-label">تعداد اقلام</span>
                 <span className="count-pill">
-                  {isVaultLocked ? '🔐 قفل' : `${holdings.length} قلم دارایی`}
+                  {isVaultLocked ? '🔐 قفل' : `${holdings.length} قلم`}
                 </span>
               </div>
               <button
                 className="btn-add-asset"
                 onClick={handleOpenAdd}
                 disabled={isVaultLocked}
-                title={isVaultLocked ? 'ابتدا گاوصندوق را باز کنید' : 'افزودن دارایی جدید'}
+                title={isVaultLocked ? 'ابتدا گاوصندوق را باز کنید' : 'افزودن دارایی'}
               >
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                   <line x1="12" y1="5" x2="12" y2="19"></line>
                   <line x1="5" y1="12" x2="19" y2="12"></line>
                 </svg>
-                <span>{isVaultLocked ? 'گاوصندوق قفل است' : 'افزودن دارایی جدید'}</span>
+                <span>{isVaultLocked ? 'قفل است' : '+ ثبت دارایی'}</span>
               </button>
             </div>
           </div>
@@ -1443,7 +1442,7 @@ export default function PortfolioTracker({ calcData, rates, usdToman, goldUsd })
         <div className="modal-backdrop" onClick={() => !submitting && setModalOpen(false)}>
           <div className="modal-content" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
-              <h3>{editingHolding ? '✏️ ویرایش دارایی در پورتفو' : '➕ افزودن دارایی به پورتفو'}</h3>
+              <h3>{editingHolding ? 'ویرایش دارایی' : 'افزودن دارایی'}</h3>
               <button
                 className="modal-close-btn"
                 disabled={submitting}
@@ -1490,7 +1489,7 @@ export default function PortfolioTracker({ calcData, rates, usdToman, goldUsd })
                   </optgroup>
 
                   <optgroup label="دارایی‌های دلخواه">
-                    <option value="custom">✨ دارایی شخصی / سفارشی</option>
+                    <option value="custom">سایر دارایی‌ها</option>
                   </optgroup>
                 </select>
               </div>
@@ -1499,10 +1498,10 @@ export default function PortfolioTracker({ calcData, rates, usdToman, goldUsd })
               {isModalCustom && (
                 <div className="form-row-dual">
                   <div className="form-item flex-1">
-                    <label>نام دارایی سفارشی</label>
+                    <label>نام دارایی</label>
                     <input
                       type="text"
-                      placeholder="مثلاً صندوق طلای کهربا یا سهام فولاد"
+                      placeholder="مثلاً صندوق طلا یا سهام"
                       value={customName}
                       onChange={(e) => setCustomName(e.target.value)}
                       className="form-input"
@@ -1514,7 +1513,7 @@ export default function PortfolioTracker({ calcData, rates, usdToman, goldUsd })
                     <label>واحد شمارش</label>
                     <input
                       type="text"
-                      placeholder="مثلاً سهم، واحد، متر، عدد"
+                      placeholder="مثلاً سهم، واحد، عدد"
                       value={customUnit}
                       onChange={(e) => setCustomUnit(e.target.value)}
                       className="form-input"
@@ -1526,7 +1525,7 @@ export default function PortfolioTracker({ calcData, rates, usdToman, goldUsd })
 
               <div className="form-item">
                 <label>
-                  مقدار یا تعداد ({isModalCustom ? (customUnit || 'واحد') : selectedAssetMeta?.unit})
+                  مقدار ({isModalCustom ? (customUnit || 'واحد') : selectedAssetMeta?.unit})
                 </label>
                 <input
                   type="text"
@@ -1540,7 +1539,7 @@ export default function PortfolioTracker({ calcData, rates, usdToman, goldUsd })
 
               <div className="form-item">
                 <label>
-                  قیمت خرید هر واحد (اختیاری - به ازای هر {isModalCustom ? (customUnit || 'واحد') : selectedAssetMeta?.unit} - تومان)
+                  قیمت خرید واحد (تومان)
                 </label>
                 <input
                   type="text"
@@ -1549,13 +1548,13 @@ export default function PortfolioTracker({ calcData, rates, usdToman, goldUsd })
                   onChange={(e) => setBuyPrice(e.target.value)}
                   className="form-input"
                 />
-                <span className="field-sub-note">در صورت خالی گذاشتن، دارایی در سود و زیان وارد نمی‌شود و صرفاً طبق قیمت روز در پورتفو محاسبه می‌گردد.</span>
+                <span className="field-sub-note">اختیاری؛ برای محاسبه سود و زیان.</span>
               </div>
 
               {/* Custom Asset: Current Market Price field */}
               {isModalCustom && (
                 <div className="form-item">
-                  <label>قیمت روز هر واحد در بازار (تومان)</label>
+                  <label>قیمت روز واحد (تومان)</label>
                   <input
                     type="text"
                     placeholder="جهت محاسبه زنده ارزش و سود/زیان"
@@ -1563,21 +1562,21 @@ export default function PortfolioTracker({ calcData, rates, usdToman, goldUsd })
                     onChange={(e) => setCustomCurrentPrice(e.target.value)}
                     className="form-input"
                   />
-                  <span className="field-sub-note">در صورت خالی ماندن، برابر با قیمت خرید در نظر گرفته می‌شود.</span>
+                  <span className="field-sub-note">اختیاری؛ پیش‌فرض برابر با قیمت خرید است.</span>
                 </div>
               )}
 
               <div className="form-row-dual">
                 <div className="form-item flex-1">
                   <div className="label-with-action">
-                    <label>تاریخ یا زمان خرید (اختیاری)</label>
+                    <label>تاریخ خرید</label>
                     <button
                       type="button"
                       className="btn-set-today"
                       onClick={handleSetToday}
-                      title="تنظیم خودکار تاریخ امروز"
+                      title="تنظیم تاریخ امروز"
                     >
-                      ⚡ امروز
+                      امروز
                     </button>
                   </div>
                   <div className="date-input-wrap">
@@ -1592,7 +1591,7 @@ export default function PortfolioTracker({ calcData, rates, usdToman, goldUsd })
                       type="button"
                       className={`btn-toggle-datepicker ${showDatePicker ? 'active' : ''}`}
                       onClick={() => setShowDatePicker((prev) => !prev)}
-                      title="انتخاب از تقویم شمسی"
+                      title="انتخاب از تقویم"
                     >
                       📅
                     </button>
@@ -1668,7 +1667,7 @@ export default function PortfolioTracker({ calcData, rates, usdToman, goldUsd })
                           className="btn-date-today-mini"
                           onClick={() => handleSetToday()}
                         >
-                          ⚡ امروز
+                          امروز
                         </button>
                         <button
                           type="button"
@@ -1680,16 +1679,16 @@ export default function PortfolioTracker({ calcData, rates, usdToman, goldUsd })
                               nativeDateRef.current?.click();
                             }
                           }}
-                          title="باز کردن تقویم سیستمی"
+                          title="تقویم سیستم"
                         >
-                          🗓️ تقویم سیستم
+                          تقویم
                         </button>
                         <button
                           type="button"
                           className="btn-date-done-mini"
                           onClick={() => setShowDatePicker(false)}
                         >
-                          تأیید ✓
+                          تأیید
                         </button>
                       </div>
                     </div>
@@ -1697,7 +1696,7 @@ export default function PortfolioTracker({ calcData, rates, usdToman, goldUsd })
                 </div>
 
                 <div className="form-item flex-1">
-                  <label>توضیحات و یادداشت (اختیاری)</label>
+                  <label>یادداشت</label>
                   <input
                     type="text"
                     placeholder="مثلاً خرید از بورس یا بازار"
@@ -1712,7 +1711,7 @@ export default function PortfolioTracker({ calcData, rates, usdToman, goldUsd })
               {!isModalCustom && currentModalRealPrice > 0 && (
                 <div className="live-hint-box-detailed">
                   <div className="hint-row">
-                    <span className="hint-label">💎 قیمت واقعی بر اساس طلای جهانی و دلار:</span>
+                    <span className="hint-label">نرخ روز طلا و دلار:</span>
                     <strong className="hint-val-sky">{formatNum(currentModalRealPrice)} تومان</strong>
                   </div>
                 </div>
@@ -1729,10 +1728,10 @@ export default function PortfolioTracker({ calcData, rates, usdToman, goldUsd })
                 </button>
                 <button type="submit" className="btn-modal-submit" disabled={submitting}>
                   {submitting
-                    ? 'در حال ذخیره‌سازی...'
+                    ? 'در حال ذخیره...'
                     : editingHolding
-                    ? 'ذخیره تغییرات'
-                    : 'ثبت در دیتابیس پورتفو'}
+                    ? 'ذخیره'
+                    : 'ثبت دارایی'}
                 </button>
               </div>
             </form>
@@ -1747,7 +1746,7 @@ export default function PortfolioTracker({ calcData, rates, usdToman, goldUsd })
             <div className="modal-header">
               <div className="modal-title-wrap">
                 <span className="modal-icon">📁</span>
-                <h3>ایجاد پورتفوی جدید</h3>
+                <h3>پورتفوی جدید</h3>
               </div>
               <button
                 className="modal-close-btn"
@@ -1759,10 +1758,10 @@ export default function PortfolioTracker({ calcData, rates, usdToman, goldUsd })
             </div>
             <form onSubmit={handleCreatePortfolio} className="modal-form">
               <div className="form-item">
-                <label>نام پورتفو (سبد دارایی)</label>
+                <label>نام پورتفو</label>
                 <input
                   type="text"
-                  placeholder="مثلاً: پس‌انداز طلا، سبد ارزی، صندوق بازنشستگی..."
+                  placeholder="مثلاً: پس‌انداز طلا، سبد ارزی..."
                   value={newPortfolioName}
                   onChange={(e) => setNewPortfolioName(e.target.value)}
                   className="form-input"
@@ -1770,7 +1769,7 @@ export default function PortfolioTracker({ calcData, rates, usdToman, goldUsd })
                   autoFocus
                 />
                 <span className="field-sub-note">
-                  برای هر پورتفو می‌توانید لینک اشتراک‌گذاری و رمز عبور مستقل تنظیم کنید.
+                  امکان تنظیم رمز و لینک اشتراک اختصاصی در تنظیمات وجود دارد.
                 </span>
               </div>
               <div className="modal-actions">
@@ -1787,7 +1786,7 @@ export default function PortfolioTracker({ calcData, rates, usdToman, goldUsd })
                   className="btn-modal-submit"
                   disabled={creatingPortfolio || !newPortfolioName.trim()}
                 >
-                  {creatingPortfolio ? 'در حال ایجاد...' : 'ایجاد پورتفو'}
+                  {creatingPortfolio ? 'در حال ایجاد...' : 'ایجاد'}
                 </button>
               </div>
             </form>
