@@ -3,6 +3,11 @@ import { useParams, Link } from 'react-router-dom';
 import { apiGetSharedPortfolio, apiGetRates, apiCalculate } from '../api/client.js';
 import Header from '../components/Header.jsx';
 import { CATEGORY_DEFINITIONS, formatAssetName } from '../components/PortfolioTracker.jsx';
+import {
+  deriveE2eeKey,
+  verifyE2eeKey,
+  decryptHoldingFromApi,
+} from '../lib/e2ee.js';
 
 function formatNum(num) {
   if (num === null || num === undefined || isNaN(num)) return '۰';
@@ -18,6 +23,13 @@ export default function SharedPortfolioPage() {
   const [errorMsg, setErrorMsg] = useState('');
   const [loading, setLoading] = useState(true);
   const [unlocking, setUnlocking] = useState(false);
+
+  // E2EE Vault State for Shared Portfolio
+  const [vaultKey, setVaultKey] = useState(null);
+  const [vaultPassInput, setVaultPassInput] = useState('');
+  const [showVaultPass, setShowVaultPass] = useState(false);
+  const [vaultError, setVaultError] = useState('');
+  const [decryptingVault, setDecryptingVault] = useState(false);
 
   // Privacy Mode State (Mask values as ****)
   const [hideValues, setHideValues] = useState(() => {
@@ -100,6 +112,43 @@ export default function SharedPortfolioPage() {
     }
     setUnlocking(true);
     loadPortfolio(password);
+  };
+
+  const isE2ee = Boolean(portfolioData?.portfolio?.isE2ee);
+  const isVaultLocked = Boolean(isE2ee && !vaultKey);
+
+  const handleUnlockVault = async (e) => {
+    if (e) e.preventDefault();
+    if (!portfolioData?.portfolio?.isE2ee) return;
+    const pass = vaultPassInput.trim();
+    if (!pass) {
+      setVaultError('لطفاً رمز عبور شخصی گاوصندوق را وارد فرمایید.');
+      return;
+    }
+    setDecryptingVault(true);
+    setVaultError('');
+    try {
+      const key = await deriveE2eeKey(pass, portfolioData.portfolio.e2eeSalt);
+      const valid = await verifyE2eeKey(key, portfolioData.portfolio.e2eeVerifier);
+      if (!valid) {
+        setVaultError('رمز عبور وارد شده نادرست است.');
+        setDecryptingVault(false);
+        return;
+      }
+      setVaultKey(key);
+      if (Array.isArray(portfolioData.holdings)) {
+        const decrypted = await Promise.all(
+          portfolioData.holdings.map((h) => decryptHoldingFromApi(key, h))
+        );
+        setPortfolioData((prev) => ({ ...prev, holdings: decrypted }));
+      }
+      setVaultPassInput('');
+    } catch (err) {
+      console.error('Shared vault unlock error:', err);
+      setVaultError('خطا در رمزگشایی گاوصندوق: ' + (err.message || 'نامعتبر'));
+    } finally {
+      setDecryptingVault(false);
+    }
   };
 
   // 3. Accurate Real Values & Metrics calculation
@@ -407,10 +456,21 @@ export default function SharedPortfolioPage() {
                 <div className="portfolio-table-card">
                   <div className="portfolio-table-header">
                     <div className="table-title">
-                      <h3>
-                        <span className="table-title-icon">📋</span>
-                        <span>جزئیات سبد دارایی</span>
-                      </h3>
+                      <div className="table-title-main">
+                        <h3>
+                          <span className="table-title-icon">📋</span>
+                          <span>جزئیات سبد دارایی</span>
+                        </h3>
+                        {isE2ee ? (
+                          <span className={`portfolio-encryption-tag e2ee ${isVaultLocked ? 'locked' : 'unlocked'}`} title="حفاظت سرتاسری Zero-Knowledge E2EE">
+                            {isVaultLocked ? '🔒 گاوصندوق E2EE (قفل)' : '🔓 گاوصندوق E2EE (باز)'}
+                          </span>
+                        ) : (
+                          <span className="portfolio-encryption-tag" title="حفاظت حریم خصوصی: تمام اقلام در دیتابیس با استاندارد AES-256 رمزنگاری شده‌اند.">
+                            🔒 رمزنگاری‌شده (AES-256)
+                          </span>
+                        )}
+                      </div>
                     </div>
                     <div className="portfolio-header-actions">
                       <button
@@ -419,7 +479,7 @@ export default function SharedPortfolioPage() {
                         onClick={handleExportCSV}
                         title="دریافت فایل اکسل / CSV از اقلام این پورتفو"
                         aria-label="خروجی CSV"
-                        disabled={portfolioMetrics.items.length === 0}
+                        disabled={isVaultLocked || portfolioMetrics.items.length === 0}
                       >
                         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
                           <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
@@ -449,7 +509,60 @@ export default function SharedPortfolioPage() {
                     </div>
                   </div>
 
-                  {categoryGroups.length === 0 ? (
+                  {isVaultLocked ? (
+                    <div className="vault-lock-container">
+                      <div className="vault-lock-card">
+                        <div className="vault-lock-badge">🔐 گاوصندوق فوق امنیتی E2EE</div>
+                        <h4 className="vault-lock-title">این پورتفو دارای رمزنگاری سرتاسری است</h4>
+                        <p className="vault-lock-desc">
+                          مالک این پورتفو برای اقلام آن امنیت سرتاسری (Zero-Knowledge) را فعال کرده است. برای مشاهده و رمزگشایی دارایی‌ها، رمز عبور گاوصندوق را وارد نمایید.
+                        </p>
+
+                        <form className="vault-unlock-form" onSubmit={handleUnlockVault}>
+                          <div className="vault-pass-input-wrapper">
+                            <input
+                              type={showVaultPass ? 'text' : 'password'}
+                              className="vault-unlock-input"
+                              placeholder="رمز عبور شخصی گاوصندوق..."
+                              value={vaultPassInput}
+                              onChange={(e) => setVaultPassInput(e.target.value)}
+                              autoFocus
+                              dir="ltr"
+                            />
+                            <button
+                              type="button"
+                              className="btn-toggle-vault-eye"
+                              onClick={() => setShowVaultPass((prev) => !prev)}
+                              tabIndex={-1}
+                              title={showVaultPass ? 'مخفی کردن' : 'نمایش رمز'}
+                            >
+                              {showVaultPass ? '🙈' : '👁️'}
+                            </button>
+                          </div>
+
+                          {vaultError && (
+                            <div className="vault-unlock-error">
+                              ⚠️ {vaultError}
+                            </div>
+                          )}
+
+                          <div className="vault-unlock-actions">
+                            <button
+                              type="submit"
+                              className="btn-vault-unlock"
+                              disabled={decryptingVault || !vaultPassInput}
+                            >
+                              {decryptingVault ? 'در حال رمزگشایی...' : '🔓 رمزگشایی و مشاهده اقلام'}
+                            </button>
+                          </div>
+                        </form>
+
+                        <div className="vault-lock-footer-note">
+                          🛡️ تمام داده‌ها در مرورگر شما پردازش و رمزگشایی می‌شوند.
+                        </div>
+                      </div>
+                    </div>
+                  ) : categoryGroups.length === 0 ? (
                     <div className="portfolio-empty-state">
                       <div className="empty-icon">💼</div>
                       <h4>هنوز دارایی در این پورتفو ثبت نشده است</h4>
@@ -609,11 +722,11 @@ export default function SharedPortfolioPage() {
                       <span className="real-pill">🌐 نرخ روز طلا و ارز</span>
                     </div>
                     <div className={`stat-number gold-gradient-text ${hideValues ? 'is-masked' : ''}`}>
-                      {hideValues ? '****' : formatNum(portfolioMetrics.totalRealValue)}
-                      <span className="stat-unit">تومان</span>
+                      {isVaultLocked ? '🔐 قفل است' : hideValues ? '****' : formatNum(portfolioMetrics.totalRealValue)}
+                      {!isVaultLocked && <span className="stat-unit">تومان</span>}
                     </div>
                     <div className="stat-sub">
-                      ارزش خالص دارایی‌ها بدون حباب
+                      {isVaultLocked ? 'برای مشاهده ارزش، رمز گاوصندوق را وارد کنید' : 'ارزش خالص دارایی‌ها بدون حباب'}
                     </div>
                   </div>
 
@@ -621,10 +734,14 @@ export default function SharedPortfolioPage() {
                   <div className="portfolio-stat-card">
                     <div className="stat-header">
                       <span className="stat-label">سرمایه اولیه خرید</span>
-                      <span className="count-pill">{portfolioMetrics.items.length.toLocaleString('fa-IR')} قلم</span>
+                      <span className="count-pill">
+                        {isVaultLocked ? '🔐 قفل' : `${portfolioMetrics.items.length.toLocaleString('fa-IR')} قلم`}
+                      </span>
                     </div>
                     <div className={`stat-number ${hideValues ? 'is-masked' : ''}`}>
-                      {portfolioMetrics.hasAnyCost ? (
+                      {isVaultLocked ? (
+                        <span className="stat-sub" style={{ fontSize: '15px' }}>🔐 قفل است</span>
+                      ) : portfolioMetrics.hasAnyCost ? (
                         <>
                           {hideValues ? '****' : formatNum(portfolioMetrics.totalCost)}
                           <span className="stat-unit">تومان</span>
@@ -634,15 +751,17 @@ export default function SharedPortfolioPage() {
                       )}
                     </div>
                     <div className="stat-sub">
-                      {portfolioMetrics.hasAnyCost ? 'بهای تمام‌شده اولیه سبد دارایی' : 'محاسبه صرفاً به نرخ روز'}
+                      {isVaultLocked ? 'ابتدا گاوصندوق را بازگشایی کنید' : portfolioMetrics.hasAnyCost ? 'بهای تمام‌شده اولیه سبد دارایی' : 'محاسبه صرفاً به نرخ روز'}
                     </div>
                   </div>
 
                   {/* Card 3: Total Real PnL */}
-                  <div className={`portfolio-stat-card pnl-card ${portfolioMetrics.hasAnyCost ? (portfolioMetrics.totalPnl >= 0 ? 'profit' : 'loss') : 'neutral'}`}>
+                  <div className={`portfolio-stat-card pnl-card ${isVaultLocked ? 'neutral' : portfolioMetrics.hasAnyCost ? (portfolioMetrics.totalPnl >= 0 ? 'profit' : 'loss') : 'neutral'}`}>
                     <div className="stat-header">
                       <span className="stat-label">سود / زیان واقعی کل</span>
-                      {portfolioMetrics.hasAnyCost ? (
+                      {isVaultLocked ? (
+                        <span className="pnl-badge neutral">🔐 قفل</span>
+                      ) : portfolioMetrics.hasAnyCost ? (
                         <span className={`pnl-badge ${portfolioMetrics.totalPnl >= 0 ? 'profit' : 'loss'}`}>
                           {hideValues ? '****' : `${portfolioMetrics.totalPnl >= 0 ? '+' : ''}${portfolioMetrics.totalPnlPct.toFixed(2).replace('-', '')}٪`}
                         </span>
@@ -651,7 +770,9 @@ export default function SharedPortfolioPage() {
                       )}
                     </div>
                     <div className={`stat-number ${hideValues ? 'is-masked' : ''}`}>
-                      {portfolioMetrics.hasAnyCost ? (
+                      {isVaultLocked ? (
+                        <span className="stat-sub" style={{ fontSize: '15px' }}>🔐 قفل است</span>
+                      ) : portfolioMetrics.hasAnyCost ? (
                         <>
                           {hideValues ? '****' : `${portfolioMetrics.totalPnl >= 0 ? '+' : ''}${formatNum(portfolioMetrics.totalPnl)}`}
                           <span className="stat-unit">تومان</span>
@@ -661,7 +782,9 @@ export default function SharedPortfolioPage() {
                       )}
                     </div>
                     <div className="stat-sub">
-                      {portfolioMetrics.hasAnyCost ? (
+                      {isVaultLocked ? (
+                        'جهت محاسبه سود و زیان، گاوصندوق را باز کنید'
+                      ) : portfolioMetrics.hasAnyCost ? (
                         portfolioMetrics.totalPnl >= 0 ? '🟢 پورتفوی در سود است' : '🔴 پورتفوی در زیان است'
                       ) : (
                         'ارزش اقلام صرفاً به نرخ روز محاسبه می‌شود'

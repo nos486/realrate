@@ -11,6 +11,15 @@ import {
   apiDeletePortfolioHolding,
 } from '../api/client.js';
 import UserSettingsModal from './UserSettingsModal.jsx';
+import {
+  deriveE2eeKey,
+  verifyE2eeKey,
+  encryptHoldingForApi,
+  decryptHoldingFromApi,
+  saveVaultPassphraseToSession,
+  getVaultPassphraseFromSession,
+  clearVaultPassphraseFromSession,
+} from '../lib/e2ee.js';
 
 export const ASSET_TYPES = [
   // طلا و مسکوکات
@@ -187,10 +196,29 @@ export default function PortfolioTracker({ calcData, rates, usdToman, goldUsd })
   const [submitting, setSubmitting] = useState(false);
   const [deletingId, setDeletingId] = useState(null);
 
+  // E2EE Vault State
+  const [vaultKeys, setVaultKeys] = useState({}); // { [portfolioId]: CryptoKey }
+  const vaultKeysRef = useRef(vaultKeys);
+  vaultKeysRef.current = vaultKeys;
+  const [vaultUnlockPassInput, setVaultUnlockPassInput] = useState('');
+  const [showVaultUnlockPass, setShowVaultUnlockPass] = useState(false);
+  const [vaultUnlockError, setVaultUnlockError] = useState('');
+  const [unlockingVault, setUnlockingVault] = useState(false);
+
   // Active Portfolio Resolution
   const activePortfolio = useMemo(() => {
     return portfolios.find((p) => p.id === activePortfolioId) || portfolios[0] || null;
   }, [portfolios, activePortfolioId]);
+
+  const activeVaultKey = useMemo(() => {
+    if (!activePortfolio?.id || !activePortfolio?.isE2ee) return null;
+    return vaultKeys[activePortfolio.id] || null;
+  }, [activePortfolio, vaultKeys]);
+
+  const isVaultLocked = useMemo(() => {
+    if (!activePortfolio?.id || !activePortfolio?.isE2ee) return false;
+    return !activeVaultKey;
+  }, [activePortfolio, activeVaultKey]);
 
   // Privacy Mode State (Mask values as ****)
   const [hideValues, setHideValues] = useState(() => {
@@ -279,7 +307,37 @@ export default function PortfolioTracker({ calcData, rates, usdToman, goldUsd })
         setLoadingHoldings(true);
         const holdingsRes = await apiGetPortfolio(resolvedId);
         if (holdingsRes.success && Array.isArray(holdingsRes.holdings)) {
-          setHoldings(holdingsRes.holdings);
+          const rawItems = holdingsRes.holdings;
+          const matchedP = res.portfolios.find((p) => p.id === resolvedId);
+          if (matchedP?.isE2ee) {
+            let key = vaultKeysRef.current[resolvedId];
+            if (!key) {
+              const sessionPass = getVaultPassphraseFromSession(resolvedId);
+              if (sessionPass && matchedP.e2eeSalt) {
+                try {
+                  const derived = await deriveE2eeKey(sessionPass, matchedP.e2eeSalt);
+                  const valid = await verifyE2eeKey(derived, matchedP.e2eeVerifier);
+                  if (valid) {
+                    key = derived;
+                    setVaultKeys((prev) => ({ ...prev, [resolvedId]: derived }));
+                  } else {
+                    clearVaultPassphraseFromSession(resolvedId);
+                  }
+                } catch (e) {
+                  console.error('Error auto-unlocking vault on fetch:', e);
+                }
+              }
+            }
+
+            if (key) {
+              const decrypted = await Promise.all(rawItems.map((h) => decryptHoldingFromApi(key, h)));
+              setHoldings(decrypted);
+            } else {
+              setHoldings(rawItems);
+            }
+          } else {
+            setHoldings(rawItems);
+          }
         }
       }
     } catch (err) {
@@ -311,10 +369,42 @@ export default function PortfolioTracker({ calcData, rates, usdToman, goldUsd })
     switchingRef.current = true;
     setActivePortfolioId(portfolioId);
     setLoadingHoldings(true);
+    setVaultUnlockPassInput('');
+    setVaultUnlockError('');
     try {
       const res = await apiGetPortfolio(portfolioId);
       if (res.success && Array.isArray(res.holdings)) {
-        setHoldings(res.holdings);
+        const rawItems = res.holdings;
+        const targetPortfolio = portfolios.find((p) => p.id === portfolioId);
+        if (targetPortfolio?.isE2ee) {
+          let key = vaultKeysRef.current[portfolioId];
+          if (!key) {
+            const sessionPass = getVaultPassphraseFromSession(portfolioId);
+            if (sessionPass && targetPortfolio.e2eeSalt) {
+              try {
+                const derived = await deriveE2eeKey(sessionPass, targetPortfolio.e2eeSalt);
+                const valid = await verifyE2eeKey(derived, targetPortfolio.e2eeVerifier);
+                if (valid) {
+                  key = derived;
+                  setVaultKeys((prev) => ({ ...prev, [portfolioId]: derived }));
+                } else {
+                  clearVaultPassphraseFromSession(portfolioId);
+                }
+              } catch (e) {
+                console.error('Error auto-unlocking vault on switch:', e);
+              }
+            }
+          }
+
+          if (key) {
+            const decrypted = await Promise.all(rawItems.map((h) => decryptHoldingFromApi(key, h)));
+            setHoldings(decrypted);
+          } else {
+            setHoldings(rawItems);
+          }
+        } else {
+          setHoldings(rawItems);
+        }
       }
     } catch (err) {
       console.error('Failed to load portfolio holdings:', err);
@@ -385,6 +475,62 @@ export default function PortfolioTracker({ calcData, rates, usdToman, goldUsd })
       }
     } catch (err) {
       alert('خطا در حذف پورتفو: ' + (err.message || 'نامعتبر'));
+    }
+  };
+
+  // Handle unlocking E2EE Vault
+  const handleUnlockVault = async (e) => {
+    if (e) e.preventDefault();
+    if (!activePortfolio || !activePortfolio.isE2ee) return;
+    const pass = vaultUnlockPassInput.trim();
+    if (!pass) {
+      setVaultUnlockError('لطفاً رمز عبور شخصی گاوصندوق را وارد فرمایید.');
+      return;
+    }
+    setUnlockingVault(true);
+    setVaultUnlockError('');
+    try {
+      const key = await deriveE2eeKey(pass, activePortfolio.e2eeSalt);
+      const valid = await verifyE2eeKey(key, activePortfolio.e2eeVerifier);
+      if (!valid) {
+        setVaultUnlockError('رمز عبور وارد شده نادرست است.');
+        setUnlockingVault(false);
+        return;
+      }
+      saveVaultPassphraseToSession(activePortfolio.id, pass);
+      setVaultKeys((prev) => ({ ...prev, [activePortfolio.id]: key }));
+
+      // Decrypt holdings currently loaded in state
+      const decrypted = await Promise.all(holdings.map((h) => decryptHoldingFromApi(key, h)));
+      setHoldings(decrypted);
+      setVaultUnlockPassInput('');
+    } catch (err) {
+      console.error('Unlock vault error:', err);
+      setVaultUnlockError('خطا در بازگشایی گاوصندوق: ' + (err.message || 'نامعتبر'));
+    } finally {
+      setUnlockingVault(false);
+    }
+  };
+
+  // Handle locking E2EE Vault
+  const handleLockVault = async () => {
+    if (!activePortfolio?.id) return;
+    clearVaultPassphraseFromSession(activePortfolio.id);
+    setVaultKeys((prev) => {
+      const next = { ...prev };
+      delete next[activePortfolio.id];
+      return next;
+    });
+    try {
+      setLoadingHoldings(true);
+      const res = await apiGetPortfolio(activePortfolio.id);
+      if (res.success && Array.isArray(res.holdings)) {
+        setHoldings(res.holdings);
+      }
+    } catch (err) {
+      console.error('Error locking vault:', err);
+    } finally {
+      setLoadingHoldings(false);
     }
   };
 
@@ -520,7 +666,7 @@ export default function PortfolioTracker({ calcData, rates, usdToman, goldUsd })
     setSubmitting(true);
 
     try {
-      const payload = {
+      let payload = {
         id: editingHolding ? editingHolding.id : undefined,
         portfolioId: activePortfolio?.id || null,
         assetId: isCustom ? (editingHolding?.assetId?.startsWith('custom_') ? editingHolding.assetId : `custom_${Date.now()}`) : selectedAssetId,
@@ -534,10 +680,18 @@ export default function PortfolioTracker({ calcData, rates, usdToman, goldUsd })
         notes: notes.trim(),
       };
 
+      if (activePortfolio?.isE2ee && activeVaultKey) {
+        payload = await encryptHoldingForApi(activeVaultKey, payload);
+      }
+
       if (editingHolding) {
         const res = await apiUpdatePortfolioHolding(payload);
         if (res.success && res.item) {
-          setHoldings((prev) => prev.map((h) => (h.id === editingHolding.id ? res.item : h)));
+          let savedItem = res.item;
+          if (activePortfolio?.isE2ee && activeVaultKey) {
+            savedItem = await decryptHoldingFromApi(activeVaultKey, savedItem);
+          }
+          setHoldings((prev) => prev.map((h) => (h.id === editingHolding.id ? savedItem : h)));
           setModalOpen(false);
           setEditingHolding(null);
         } else {
@@ -546,7 +700,11 @@ export default function PortfolioTracker({ calcData, rates, usdToman, goldUsd })
       } else {
         const res = await apiAddPortfolioHolding(payload);
         if (res.success && res.item) {
-          setHoldings((prev) => [res.item, ...prev]);
+          let savedItem = res.item;
+          if (activePortfolio?.isE2ee && activeVaultKey) {
+            savedItem = await decryptHoldingFromApi(activeVaultKey, savedItem);
+          }
+          setHoldings((prev) => [savedItem, ...prev]);
           if (activePortfolio?.id) {
             setPortfolios((prev) =>
               prev.map((p) =>
@@ -838,8 +996,11 @@ export default function PortfolioTracker({ calcData, rates, usdToman, goldUsd })
                 className={`portfolio-tab-pill ${isActive ? 'active' : ''}`}
                 onClick={() => handleSelectPortfolio(p.id)}
               >
-                <span className="tab-pill-icon">{p.isDefault ? '⭐' : '📁'}</span>
+                <span className="tab-pill-icon">{p.isDefault ? '⭐' : (p.isE2ee ? '🔐' : '📁')}</span>
                 <span className="tab-pill-name">{p.name}</span>
+                {p.isE2ee && (
+                  <span className="tab-pill-e2ee" title="گاوصندوق فوق امنیتی E2EE">🔒</span>
+                )}
                 {p.shareEnabled && (
                   <span className="tab-pill-shared" title="لینک اشتراک‌گذاری عمومی فعال است">🔗</span>
                 )}
@@ -886,22 +1047,38 @@ export default function PortfolioTracker({ calcData, rates, usdToman, goldUsd })
               <div className="table-title">
                 <div className="table-title-main">
                   <h3>📋 جزئیات {activePortfolio?.name ? `پورتفوی «${activePortfolio.name}»` : 'سبد دارایی'} ({user.name || user.email})</h3>
-                  <span className="portfolio-encryption-tag" title="حفاظت حریم خصوصی: تمام اقلام و مقادیر این پورتفو در دیتابیس با استاندارد AES-256 رمزنگاری شده‌اند.">
-                    🔒 رمزنگاری‌شده (AES-256)
-                  </span>
+                  {activePortfolio?.isE2ee ? (
+                    <span className={`portfolio-encryption-tag e2ee ${isVaultLocked ? 'locked' : 'unlocked'}`} title="حفاظت سرتاسری Zero-Knowledge E2EE: داده‌ها با کلید اختصاصی در مرورگر شما قفل شده‌اند و حتی سرور امکان خواندن آن‌ها را ندارد.">
+                      {isVaultLocked ? '🔒 گاوصندوق E2EE (قفل)' : '🔓 گاوصندوق E2EE (باز)'}
+                    </span>
+                  ) : (
+                    <span className="portfolio-encryption-tag" title="حفاظت حریم خصوصی: تمام اقلام و مقادیر این پورتفو در دیتابیس با استاندارد AES-256 رمزنگاری شده‌اند.">
+                      🔒 رمزنگاری‌شده (AES-256)
+                    </span>
+                  )}
                 </div>
                 <span>
                   محاسبه بر پایه ارزش واقعی طلا (${goldUsdVal ? goldUsdVal.toLocaleString() : ''})، نقره (${silverUsdVal ? silverUsdVal.toFixed(2) : ''}) و نرخ دلار ({formatNum(usdVal)} تومان)
                 </span>
               </div>
               <div className="portfolio-header-actions">
+                {activePortfolio?.isE2ee && !isVaultLocked && (
+                  <button
+                    type="button"
+                    className="btn-lock-vault"
+                    onClick={handleLockVault}
+                    title="قفل کردن فوری گاوصندوق E2EE"
+                  >
+                    <span>🔒 قفل کردن</span>
+                  </button>
+                )}
                 <button
                   type="button"
                   className="btn-export-csv icon-only"
                   onClick={handleExportCSV}
                   title="دریافت خروجی اکسل / CSV از اقلام این پورتفو"
                   aria-label="خروجی CSV"
-                  disabled={holdings.length === 0}
+                  disabled={isVaultLocked || holdings.length === 0}
                 >
                   <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
                     <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
@@ -935,6 +1112,59 @@ export default function PortfolioTracker({ calcData, rates, usdToman, goldUsd })
               <div className="portfolio-empty-state">
                 <div className="spinner-glow"></div>
                 <p>در حال دریافت اطلاعات پورتفوی شما از دیتابیس...</p>
+              </div>
+            ) : isVaultLocked ? (
+              <div className="vault-lock-container">
+                <div className="vault-lock-card">
+                  <div className="vault-lock-badge">🔐 گاوصندوق فوق امنیتی E2EE</div>
+                  <h4 className="vault-lock-title">این پورتفو با رمز شخصی شما قفل شده است</h4>
+                  <p className="vault-lock-desc">
+                    جهت رمزگشایی و مشاهده موجودی، سود و زیان و ثبت تراکنش، رمز عبور شخصی پورتفوی «{activePortfolio?.name}» را وارد نمایید.
+                  </p>
+
+                  <form className="vault-unlock-form" onSubmit={handleUnlockVault}>
+                    <div className="vault-pass-input-wrapper">
+                      <input
+                        type={showVaultUnlockPass ? 'text' : 'password'}
+                        className="vault-unlock-input"
+                        placeholder="رمز عبور شخصی گاوصندوق..."
+                        value={vaultUnlockPassInput}
+                        onChange={(e) => setVaultUnlockPassInput(e.target.value)}
+                        autoFocus
+                        dir="ltr"
+                      />
+                      <button
+                        type="button"
+                        className="btn-toggle-vault-eye"
+                        onClick={() => setShowVaultUnlockPass((prev) => !prev)}
+                        tabIndex={-1}
+                        title={showVaultUnlockPass ? 'مخفی کردن' : 'نمایش رمز'}
+                      >
+                        {showVaultUnlockPass ? '🙈' : '👁️'}
+                      </button>
+                    </div>
+
+                    {vaultUnlockError && (
+                      <div className="vault-unlock-error">
+                        ⚠️ {vaultUnlockError}
+                      </div>
+                    )}
+
+                    <div className="vault-unlock-actions">
+                      <button
+                        type="submit"
+                        className="btn-vault-unlock"
+                        disabled={unlockingVault || !vaultUnlockPassInput}
+                      >
+                        {unlockingVault ? 'در حال رمزگشایی...' : '🔓 بازگشایی و مشاهده گاوصندوق'}
+                      </button>
+                    </div>
+                  </form>
+
+                  <div className="vault-lock-footer-note">
+                    🛡️ تمام اطلاعات در مرورگر شما رمزگشایی شده و کلید اختصاصی هرگز به سرور ارسال نمی‌شود.
+                  </div>
+                </div>
               </div>
             ) : portfolioMetrics.items.length === 0 ? (
               <div className="portfolio-empty-state">
@@ -1140,19 +1370,23 @@ export default function PortfolioTracker({ calcData, rates, usdToman, goldUsd })
                 </span>
               </div>
               <div className={`stat-number gold-gradient-text ${hideValues ? 'is-masked' : ''}`}>
-                {hideValues ? '****' : formatNum(portfolioMetrics.totalRealValue)}
-                <span className="stat-unit">تومان</span>
+                {isVaultLocked ? '🔐 قفل است' : hideValues ? '****' : formatNum(portfolioMetrics.totalRealValue)}
+                {!isVaultLocked && <span className="stat-unit">تومان</span>}
               </div>
               <div className="stat-sub">
-                سرمایه اولیه خرید: {portfolioMetrics.hasAnyCost ? (hideValues ? '**** تومان' : `${formatNum(portfolioMetrics.totalCost)} تومان`) : 'ثبت‌نشده (محاسبه صرفاً به نرخ روز)'}
+                {isVaultLocked
+                  ? 'جهت مشاهده ارزش کل، گاوصندوق را باز کنید'
+                  : `سرمایه اولیه خرید: ${portfolioMetrics.hasAnyCost ? (hideValues ? '**** تومان' : `${formatNum(portfolioMetrics.totalCost)} تومان`) : 'ثبت‌نشده (محاسبه صرفاً به نرخ روز)'}`}
               </div>
             </div>
 
             {/* Card 2: Total PnL */}
-            <div className={`portfolio-stat-card pnl-card ${portfolioMetrics.hasAnyCost ? (portfolioMetrics.totalPnl >= 0 ? 'profit' : 'loss') : 'neutral'}`}>
+            <div className={`portfolio-stat-card pnl-card ${isVaultLocked ? 'neutral' : (portfolioMetrics.hasAnyCost ? (portfolioMetrics.totalPnl >= 0 ? 'profit' : 'loss') : 'neutral')}`}>
               <div className="stat-header">
                 <span className="stat-label">سود / زیان واقعی کل</span>
-                {portfolioMetrics.hasAnyCost ? (
+                {isVaultLocked ? (
+                  <span className="pnl-badge neutral">🔐 قفل</span>
+                ) : portfolioMetrics.hasAnyCost ? (
                   <span className={`pnl-badge ${portfolioMetrics.totalPnl >= 0 ? 'profit' : 'loss'}`}>
                     {hideValues ? '****' : `${portfolioMetrics.totalPnl >= 0 ? '+' : ''}${portfolioMetrics.totalPnlPct.toFixed(2).replace('-', '')}٪`}
                   </span>
@@ -1161,7 +1395,9 @@ export default function PortfolioTracker({ calcData, rates, usdToman, goldUsd })
                 )}
               </div>
               <div className={`stat-number ${hideValues ? 'is-masked' : ''}`}>
-                {portfolioMetrics.hasAnyCost ? (
+                {isVaultLocked ? (
+                  <span className="stat-sub" style={{ fontSize: '15px' }}>🔐 گاوصندوق قفل است</span>
+                ) : portfolioMetrics.hasAnyCost ? (
                   <>
                     {hideValues ? '****' : `${portfolioMetrics.totalPnl >= 0 ? '+' : ''}${formatNum(portfolioMetrics.totalPnl)}`}
                     <span className="stat-unit">تومان</span>
@@ -1171,7 +1407,9 @@ export default function PortfolioTracker({ calcData, rates, usdToman, goldUsd })
                 )}
               </div>
               <div className="stat-sub">
-                {portfolioMetrics.hasAnyCost ? (
+                {isVaultLocked ? (
+                  'برای مشاهده سود و زیان، رمز گاوصندوق را وارد کنید'
+                ) : portfolioMetrics.hasAnyCost ? (
                   portfolioMetrics.totalPnl >= 0 ? '🟢 پورتفوی شما در سود است' : '🔴 پورتفوی شما در زیان است'
                 ) : (
                   'ارزش اقلام صرفاً به نرخ روز محاسبه می‌شود'
@@ -1183,14 +1421,21 @@ export default function PortfolioTracker({ calcData, rates, usdToman, goldUsd })
             <div className="portfolio-stat-card action-card">
               <div className="stat-header">
                 <span className="stat-label">مدیریت سبد دارایی</span>
-                <span className="count-pill">{holdings.length} قلم دارایی</span>
+                <span className="count-pill">
+                  {isVaultLocked ? '🔐 قفل' : `${holdings.length} قلم دارایی`}
+                </span>
               </div>
-              <button className="btn-add-asset" onClick={handleOpenAdd}>
+              <button
+                className="btn-add-asset"
+                onClick={handleOpenAdd}
+                disabled={isVaultLocked}
+                title={isVaultLocked ? 'ابتدا گاوصندوق را باز کنید' : 'افزودن دارایی جدید'}
+              >
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                   <line x1="12" y1="5" x2="12" y2="19"></line>
                   <line x1="5" y1="12" x2="19" y2="12"></line>
                 </svg>
-                <span>افزودن دارایی جدید</span>
+                <span>{isVaultLocked ? 'گاوصندوق قفل است' : 'افزودن دارایی جدید'}</span>
               </button>
             </div>
           </div>

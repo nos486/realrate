@@ -1,5 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { apiGetUserSettings, apiUpdateUserSettings, apiUpdatePortfolio } from '../api/client.js';
+import {
+  generateE2eeSalt,
+  deriveE2eeKey,
+  createE2eeVerifier,
+  verifyE2eeKey,
+  saveVaultPassphraseToSession,
+  getVaultPassphraseFromSession,
+  clearVaultPassphraseFromSession,
+} from '../lib/e2ee.js';
 
 export function generateRandomSlug(len = 8) {
   const chars = '23456789abcdefghjkmnpqrstuvwxyz';
@@ -19,6 +28,12 @@ export default function UserSettingsModal({ isOpen, portfolio, onClose, onSaved,
   const [showPassword, setShowPassword] = useState(false);
   const [isDefault, setIsDefault] = useState(false);
 
+  // E2EE Vault States
+  const [isE2ee, setIsE2ee] = useState(false);
+  const [vaultPassword, setVaultPassword] = useState('');
+  const [vaultPasswordConfirm, setVaultPasswordConfirm] = useState('');
+  const [showVaultPassword, setShowVaultPassword] = useState(false);
+
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState({ text: '', type: '' });
@@ -36,6 +51,16 @@ export default function UserSettingsModal({ isOpen, portfolio, onClose, onSaved,
         setShareEnabled(!!portfolio.shareEnabled);
         setSharePassword(portfolio.sharePassword || '');
         setIsDefault(!!portfolio.isDefault);
+        setIsE2ee(!!portfolio.isE2ee);
+
+        const cachedVaultPass = getVaultPassphraseFromSession(portfolio.id);
+        if (cachedVaultPass) {
+          setVaultPassword(cachedVaultPass);
+          setVaultPasswordConfirm(cachedVaultPass);
+        } else {
+          setVaultPassword('');
+          setVaultPasswordConfirm('');
+        }
       }
 
       apiGetUserSettings()
@@ -74,8 +99,49 @@ export default function UserSettingsModal({ isOpen, portfolio, onClose, onSaved,
     e.preventDefault();
     setSaving(true);
     setMsg({ text: '', type: '' });
-
     try {
+      let e2eeSalt = portfolio?.e2eeSalt || '';
+      let e2eeVerifier = portfolio?.e2eeVerifier || '';
+
+      if (isE2ee) {
+        const cleanPass = vaultPassword.trim();
+        if (!cleanPass || cleanPass.length < 4) {
+          setMsg({ text: 'رمز عبور گاوصندوق E2EE باید حداقل ۴ کاراکتر باشد.', type: 'error' });
+          setSaving(false);
+          return;
+        }
+        if (cleanPass !== vaultPasswordConfirm.trim()) {
+          setMsg({ text: 'تکرار رمز عبور گاوصندوق با رمز وارد شده همخوانی ندارد.', type: 'error' });
+          setSaving(false);
+          return;
+        }
+
+        // Generate or update salt & verifier
+        if (!e2eeSalt || !e2eeVerifier || (portfolio && !portfolio.isE2ee)) {
+          e2eeSalt = generateE2eeSalt();
+          const key = await deriveE2eeKey(cleanPass, e2eeSalt);
+          e2eeVerifier = await createE2eeVerifier(key);
+        } else {
+          // Check if password matches existing verifier or needs new salt
+          const key = await deriveE2eeKey(cleanPass, e2eeSalt);
+          const valid = await verifyE2eeKey(key, e2eeVerifier);
+          if (!valid) {
+            e2eeSalt = generateE2eeSalt();
+            const newKey = await deriveE2eeKey(cleanPass, e2eeSalt);
+            e2eeVerifier = await createE2eeVerifier(newKey);
+          }
+        }
+        if (portfolio && portfolio.id) {
+          saveVaultPassphraseToSession(portfolio.id, cleanPass);
+        }
+      } else {
+        e2eeSalt = '';
+        e2eeVerifier = '';
+        if (portfolio && portfolio.id) {
+          clearVaultPassphraseFromSession(portfolio.id);
+        }
+      }
+
       if (portfolio && portfolio.id) {
         await apiUpdatePortfolio({
           id: portfolio.id,
@@ -84,6 +150,9 @@ export default function UserSettingsModal({ isOpen, portfolio, onClose, onSaved,
           sharePassword: sharePassword ? sharePassword.trim() : '',
           shareEnabled,
           isDefault,
+          isE2ee,
+          e2eeSalt,
+          e2eeVerifier,
         });
       }
 
@@ -96,7 +165,16 @@ export default function UserSettingsModal({ isOpen, portfolio, onClose, onSaved,
 
       if (res.success) {
         setMsg({ text: 'تنظیمات با موفقیت ذخیره شد.', type: 'success' });
-        if (onSaved) onSaved({ ...res.settings, portfolioName, portfolioId: portfolio?.id });
+        if (onSaved) {
+          onSaved({
+            ...res.settings,
+            portfolioName,
+            portfolioId: portfolio?.id,
+            isE2ee,
+            e2eeSalt,
+            e2eeVerifier,
+          });
+        }
         setTimeout(() => {
           onClose();
         }, 1100);
@@ -182,7 +260,7 @@ export default function UserSettingsModal({ isOpen, portfolio, onClose, onSaved,
             </div>
 
             {/* Share Enabled Toggle */}
-            <div className="share-toggle-card">
+            <div className={`share-toggle-card ${shareEnabled ? 'active' : ''}`}>
               <div className="toggle-info">
                 <div className="toggle-title-row">
                   <span className="share-status-indicator" style={{ backgroundColor: shareEnabled ? '#10b981' : '#64748b' }}></span>
@@ -199,40 +277,28 @@ export default function UserSettingsModal({ isOpen, portfolio, onClose, onSaved,
               </label>
             </div>
 
-            {/* Share Slug / URL */}
+            {/* Custom URL Slug */}
             <div className="form-group">
-              <div className="label-with-action">
-                <label htmlFor="settingsShareSlug">آدرس اختصاصی (URL)</label>
-                <button
-                  type="button"
-                  className="btn-regenerate-slug"
-                  onClick={() => setShareSlug(generateRandomSlug(8))}
-                  title="تولید شناسه تصادفی جدید"
-                >
-                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/>
-                  </svg>
-                  <span>تولید مجدد آدرس 🎲</span>
-                </button>
-              </div>
-              <div className="slug-input-wrapper slug-readonly-box">
-                <span className="slug-prefix">realrate.geekio.org/p/</span>
+              <label htmlFor="settingsShareSlug">آدرس اختصاصی (URL)</label>
+              <div className="slug-input-wrapper">
+                <span className="slug-prefix">/p/</span>
                 <input
                   type="text"
                   id="settingsShareSlug"
-                  dir="ltr"
+                  placeholder="مثال: my-gold-portfolio"
                   value={shareSlug}
-                  readOnly={true}
-                  className="slug-input-readonly"
+                  onChange={(e) => setShareSlug(e.target.value.toLowerCase().replace(/[^a-z0-9_-]/g, '-'))}
+                  pattern="[a-zA-Z0-9_-]{2,40}"
+                  title="فقط حروف انگلیسی، اعداد، خط فاصله (-) و زیرخط (_)"
+                  dir="ltr"
                 />
-                <span className="slug-lock-badge" title="آدرس تصادفی غیرقابل ویرایش دستی است">🔒</span>
               </div>
             </div>
 
-            {/* Live Copy Link Box */}
-            {shareSlug && (
-              <div className="share-link-copy-box">
-                <div className="link-text" dir="ltr">{fullShareUrl}</div>
+            {/* Share Link Preview (Only when sharing is enabled) */}
+            {shareEnabled && shareSlug && (
+              <div className="share-url-preview-card">
+                <div className="preview-link-text" dir="ltr">{fullShareUrl}</div>
                 <button
                   type="button"
                   className={`btn-copy-link ${copied ? 'copied' : ''}`}
@@ -269,9 +335,77 @@ export default function UserSettingsModal({ isOpen, portfolio, onClose, onSaved,
             <div className="security-encryption-badge">
               <div className="security-badge-icon">🛡️</div>
               <div className="security-badge-text">
-                <strong>حریم خصوصی و امنیت تضمین‌شده</strong>
-                <span>تمام دارایی‌ها، مبالغ و یادداشت‌های این پورتفو با الگوریتم AES-256 در دیتابیس رمزنگاری شده و به جز شما هیچ کاربری به اطلاعات مالی‌تان دسترسی ندارد.</span>
+                <strong>حریم خصوصی و امنیت تضمین‌شده (مدل ۱)</strong>
+                <span>داده‌های تمام پورتفوها به شکل پایه با استاندارد AES-256 در دیتابیس رمزنگاری شده و ارقام ماسک شده‌اند.</span>
               </div>
+            </div>
+
+            {/* E2EE Vault Toggle Card */}
+            <div className={`vault-toggle-card ${isE2ee ? 'active' : ''}`}>
+              <div className="vault-toggle-header">
+                <div className="toggle-info">
+                  <div className="toggle-title-row">
+                    <span className="share-status-indicator" style={{ backgroundColor: isE2ee ? '#10b981' : '#64748b' }}></span>
+                    <strong>گاوصندوق فوق امنیتی (رمزنگاری E2EE) 🔐</strong>
+                  </div>
+                  <span className="vault-subtitle">
+                    رمزنگاری سرتاسری کلاینت (Zero-Knowledge) با رمز شخصی
+                  </span>
+                </div>
+                <label className="switch-wrapper">
+                  <input
+                    type="checkbox"
+                    checked={isE2ee}
+                    onChange={(e) => setIsE2ee(e.target.checked)}
+                  />
+                  <span className="switch-slider"></span>
+                </label>
+              </div>
+
+              {isE2ee && (
+                <div className="vault-form-section">
+                  <div className="vault-warning-box">
+                    <span className="warning-icon">⚠️</span>
+                    <p>
+                      <strong>هشدار فوق امنیتی:</strong> این رمز فقط در ذهن شما نگهداری می‌شود و حتی سرور یا مدیر سایت به آن دسترسی ندارد. در صورت فراموشی، دارایی‌های این پورتفو برای همیشه قفل و غیرقابل بازیابی خواهند بود.
+                    </p>
+                  </div>
+
+                  <div className="form-group">
+                    <label htmlFor="settingsVaultPassword">رمز عبور / PIN گاوصندوق</label>
+                    <div className="password-input-wrapper">
+                      <input
+                        type={showVaultPassword ? 'text' : 'password'}
+                        id="settingsVaultPassword"
+                        placeholder="حداقل ۴ کاراکتر یا عدد..."
+                        value={vaultPassword}
+                        onChange={(e) => setVaultPassword(e.target.value)}
+                        required={isE2ee}
+                      />
+                      <button
+                        type="button"
+                        className="btn-toggle-pwd"
+                        onClick={() => setShowVaultPassword(!showVaultPassword)}
+                        title={showVaultPassword ? 'مخفی کردن' : 'نمایش رمز'}
+                      >
+                        {showVaultPassword ? '🙈' : '👁️'}
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="form-group">
+                    <label htmlFor="settingsVaultPasswordConfirm">تکرار رمز عبور گاوصندوق</label>
+                    <input
+                      type={showVaultPassword ? 'text' : 'password'}
+                      id="settingsVaultPasswordConfirm"
+                      placeholder="تکرار رمز..."
+                      value={vaultPasswordConfirm}
+                      onChange={(e) => setVaultPasswordConfirm(e.target.value)}
+                      required={isE2ee}
+                    />
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Modal Actions */}

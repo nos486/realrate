@@ -78,6 +78,9 @@ CREATE TABLE IF NOT EXISTS portfolios (
   share_slug TEXT UNIQUE,
   share_password TEXT,
   share_enabled INTEGER DEFAULT 0,
+  is_e2ee INTEGER DEFAULT 0,
+  e2ee_salt TEXT DEFAULT '',
+  e2ee_verifier TEXT DEFAULT '',
   created_at TEXT NOT NULL,
   updated_at TEXT NOT NULL
 );

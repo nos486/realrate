@@ -63,6 +63,9 @@ export async function ensureD1Tables(env) {
       share_slug TEXT UNIQUE,
       share_password TEXT,
       share_enabled INTEGER DEFAULT 0,
+      is_e2ee INTEGER DEFAULT 0,
+      e2ee_salt TEXT DEFAULT '',
+      e2ee_verifier TEXT DEFAULT '',
       created_at TEXT NOT NULL,
       updated_at TEXT NOT NULL
     )`,
@@ -94,6 +97,17 @@ export async function ensureD1Tables(env) {
     for (const sql of statements) {
       await env.DB.prepare(sql).run();
     }
+    // Backward-compat: ensure E2EE columns exist on portfolios
+    try {
+      await env.DB.prepare("ALTER TABLE portfolios ADD COLUMN is_e2ee INTEGER DEFAULT 0").run();
+    } catch (ignore) {}
+    try {
+      await env.DB.prepare("ALTER TABLE portfolios ADD COLUMN e2ee_salt TEXT DEFAULT ''").run();
+    } catch (ignore) {}
+    try {
+      await env.DB.prepare("ALTER TABLE portfolios ADD COLUMN e2ee_verifier TEXT DEFAULT ''").run();
+    } catch (ignore) {}
+
     // Backward-compat: ensure current_price and portfolio_id columns exist
     try {
       await env.DB.prepare("ALTER TABLE portfolio_holdings ADD COLUMN current_price REAL DEFAULT 0").run();
@@ -498,7 +512,9 @@ export async function dbGetUserPortfolios(env, userId) {
       let { results } = await env.DB.prepare(`
         SELECT p.id, p.user_id AS userId, p.name, p.is_default AS isDefault,
                p.share_slug AS shareSlug, p.share_password AS sharePassword,
-               p.share_enabled AS shareEnabled, p.created_at AS createdAt, p.updated_at AS updatedAt,
+               p.share_enabled AS shareEnabled, p.is_e2ee AS isE2ee,
+               p.e2ee_salt AS e2eeSalt, p.e2ee_verifier AS e2eeVerifier,
+               p.created_at AS createdAt, p.updated_at AS updatedAt,
                COUNT(h.id) AS itemCount
         FROM portfolios p
         LEFT JOIN portfolio_holdings h ON p.id = h.portfolio_id
@@ -517,8 +533,8 @@ export async function dbGetUserPortfolios(env, userId) {
         const now = new Date().toISOString();
 
         await env.DB.prepare(`
-          INSERT INTO portfolios (id, user_id, name, is_default, share_slug, share_password, share_enabled, created_at, updated_at)
-          VALUES (?, ?, ?, 1, ?, ?, ?, ?, ?)
+          INSERT INTO portfolios (id, user_id, name, is_default, share_slug, share_password, share_enabled, is_e2ee, e2ee_salt, e2ee_verifier, created_at, updated_at)
+          VALUES (?, ?, ?, 1, ?, ?, ?, 0, '', '', ?, ?)
         `).bind(
           defaultPortfolioId,
           userId,
@@ -540,7 +556,9 @@ export async function dbGetUserPortfolios(env, userId) {
         const reQuery = await env.DB.prepare(`
           SELECT p.id, p.user_id AS userId, p.name, p.is_default AS isDefault,
                  p.share_slug AS shareSlug, p.share_password AS sharePassword,
-                 p.share_enabled AS shareEnabled, p.created_at AS createdAt, p.updated_at AS updatedAt,
+                 p.share_enabled AS shareEnabled, p.is_e2ee AS isE2ee,
+                 p.e2ee_salt AS e2eeSalt, p.e2ee_verifier AS e2eeVerifier,
+                 p.created_at AS createdAt, p.updated_at AS updatedAt,
                  COUNT(h.id) AS itemCount
           FROM portfolios p
           LEFT JOIN portfolio_holdings h ON p.id = h.portfolio_id
@@ -573,6 +591,9 @@ export async function dbGetUserPortfolios(env, userId) {
         shareSlug: generateRandomSlug(8),
         shareEnabled: 0,
         sharePassword: '',
+        isE2ee: 0,
+        e2eeSalt: '',
+        e2eeVerifier: '',
         itemCount: 0,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
@@ -596,7 +617,9 @@ export async function dbGetPortfolioById(env, portfolioId, userId) {
       const row = await env.DB.prepare(`
         SELECT p.id, p.user_id AS userId, p.name, p.is_default AS isDefault,
                p.share_slug AS shareSlug, p.share_password AS sharePassword,
-               p.share_enabled AS shareEnabled, p.created_at AS createdAt, p.updated_at AS updatedAt
+               p.share_enabled AS shareEnabled, p.is_e2ee AS isE2ee,
+               p.e2ee_salt AS e2eeSalt, p.e2ee_verifier AS e2eeVerifier,
+               p.created_at AS createdAt, p.updated_at AS updatedAt
         FROM portfolios p
         WHERE p.id = ? AND p.user_id = ?
       `).bind(portfolioId, userId).first();
@@ -651,7 +674,7 @@ export async function dbCreatePortfolio(env, userId, { name }) {
 /**
  * Update portfolio name and share settings
  */
-export async function dbUpdatePortfolio(env, portfolioId, userId, { name, shareSlug, sharePassword, shareEnabled, isDefault }) {
+export async function dbUpdatePortfolio(env, portfolioId, userId, { name, shareSlug, sharePassword, shareEnabled, isDefault, isE2ee, e2eeSalt, e2eeVerifier }) {
   if (!portfolioId || !userId) throw new Error("شناسه پورتفو و کاربر الزامی است.");
   if (env && env.DB) {
     await ensureD1Tables(env);
@@ -701,6 +724,18 @@ export async function dbUpdatePortfolio(env, portfolioId, userId, { name, shareS
       updates.push("is_default = ?");
       bindings.push(isDefault ? 1 : 0);
     }
+    if (isE2ee !== undefined) {
+      updates.push("is_e2ee = ?");
+      bindings.push(isE2ee ? 1 : 0);
+    }
+    if (e2eeSalt !== undefined) {
+      updates.push("e2ee_salt = ?");
+      bindings.push(String(e2eeSalt || '').trim());
+    }
+    if (e2eeVerifier !== undefined) {
+      updates.push("e2ee_verifier = ?");
+      bindings.push(String(e2eeVerifier || '').trim());
+    }
 
     bindings.push(portfolioId, userId);
     await env.DB.prepare(`
@@ -720,7 +755,9 @@ export async function dbUpdatePortfolio(env, portfolioId, userId, { name, shareS
     const updated = await env.DB.prepare(`
       SELECT p.id, p.user_id AS userId, p.name, p.is_default AS isDefault,
              p.share_slug AS shareSlug, p.share_password AS sharePassword,
-             p.share_enabled AS shareEnabled, p.created_at AS createdAt, p.updated_at AS updatedAt,
+             p.share_enabled AS shareEnabled, p.is_e2ee AS isE2ee,
+             p.e2ee_salt AS e2eeSalt, p.e2ee_verifier AS e2eeVerifier,
+             p.created_at AS createdAt, p.updated_at AS updatedAt,
              COUNT(h.id) AS itemCount
       FROM portfolios p
       LEFT JOIN portfolio_holdings h ON p.id = h.portfolio_id
@@ -788,7 +825,8 @@ export async function dbGetPortfolioByShareSlug(env, slug) {
       const portfolio = await env.DB.prepare(`
         SELECT p.id, p.user_id AS userId, p.name, p.is_default AS isDefault,
                p.share_slug AS shareSlug, p.share_password AS sharePassword,
-               p.share_enabled AS shareEnabled,
+               p.share_enabled AS shareEnabled, p.is_e2ee AS isE2ee,
+               p.e2ee_salt AS e2eeSalt, p.e2ee_verifier AS e2eeVerifier,
                u.name AS userName, u.custom_name AS userCustomName, u.email AS userEmail
         FROM portfolios p
         JOIN users u ON p.user_id = u.id
