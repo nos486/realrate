@@ -14,7 +14,13 @@ import { trackAnalytics } from "./lib/analytics.js";
 import { getGlobalSettings } from "./lib/settings.js";
 import { getCorsHeaders } from "./lib/helpers.js";
 
-import { handleGoogleAuth, handleGetMe, handleLogout } from "./handlers/authRoutes.js";
+import {
+  handleGoogleAuth,
+  handleGoogleLogin,
+  handleGoogleCallback,
+  handleGetMe,
+  handleLogout,
+} from "./handlers/authRoutes.js";
 import {
   handleAdminStatsRoute,
   handleAdminUsersRoute,
@@ -61,9 +67,11 @@ export default {
     ]);
 
     // ── Auth API Routes ─────────────────────────────────────────────────────
-    if (url.pathname === "/api/auth/google" && request.method === "POST") return handleGoogleAuth(request, env);
-    if (url.pathname === "/api/auth/me"     && request.method === "GET")  return handleGetMe(request, env);
-    if (url.pathname === "/api/auth/logout" && request.method === "POST") return handleLogout(request, env);
+    if (url.pathname === "/api/auth/google/login" && request.method === "GET")    return handleGoogleLogin(request, env);
+    if (url.pathname === "/api/auth/google/callback" && request.method === "GET") return handleGoogleCallback(request, env);
+    if (url.pathname === "/api/auth/google" && request.method === "POST")         return handleGoogleAuth(request, env);
+    if (url.pathname === "/api/auth/me"     && request.method === "GET")          return handleGetMe(request, env);
+    if (url.pathname === "/api/auth/logout" && request.method === "POST")         return handleLogout(request, env);
 
     // ── User Settings API Routes (Requires Login) ────────────────────────────
     if (url.pathname === "/api/user/settings") {

@@ -7,10 +7,15 @@
  * Auth: token stored in localStorage, sent as Authorization: Bearer <token>
  */
 
-const API_BASE = (
+export const API_BASE = (
   import.meta.env.VITE_API_URL ||
   (import.meta.env.PROD ? 'https://realrate-api.geekio.org' : '')
 ).replace(/\/$/, '');
+
+export function getGoogleLoginUrl(returnTo = '') {
+  const target = returnTo || (typeof window !== 'undefined' ? window.location.href : '/');
+  return `${API_BASE}/api/auth/google/login?return_to=${encodeURIComponent(target)}`;
+}
 
 /**
  * Get the stored auth token from localStorage

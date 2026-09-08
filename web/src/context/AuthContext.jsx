@@ -1,8 +1,5 @@
-/**
- * AuthContext.jsx — Global auth state + Google Sign-In integration
- */
 import { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import { apiGetMe, apiGoogleLogin, apiLogout, setToken } from '../api/client.js';
+import { apiGetMe, apiGoogleLogin, apiLogout, setToken, getGoogleLoginUrl } from '../api/client.js';
 
 const AuthContext = createContext(null);
 
@@ -10,36 +7,39 @@ export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  // On mount: check existing session
+  // On mount: check auth_token / auth_error from Google OAuth redirect, then check session
   useEffect(() => {
+    try {
+      if (typeof window !== 'undefined' && window.location.search) {
+        const url = new URL(window.location.href);
+        const authToken = url.searchParams.get('auth_token');
+        const authError = url.searchParams.get('auth_error');
+
+        if (authToken) {
+          setToken(authToken);
+          url.searchParams.delete('auth_token');
+          const cleanSearch = url.searchParams.toString() ? `?${url.searchParams.toString()}` : '';
+          window.history.replaceState({}, document.title, url.pathname + cleanSearch + url.hash);
+        } else if (authError) {
+          alert(`خطا در ورود با گوگل: ${decodeURIComponent(authError)}`);
+          url.searchParams.delete('auth_error');
+          const cleanSearch = url.searchParams.toString() ? `?${url.searchParams.toString()}` : '';
+          window.history.replaceState({}, document.title, url.pathname + cleanSearch + url.hash);
+        }
+      }
+    } catch (e) {
+      console.error('Error handling auth URL parameters:', e);
+    }
+
     apiGetMe()
-      .then(data => {
+      .then((data) => {
         if (data.authenticated && data.user) setUser(data.user);
       })
       .catch(() => {})
       .finally(() => setLoading(false));
   }, []);
 
-  // Initialize Google Sign-In after GIS script loads
-  useEffect(() => {
-    const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
-    if (!clientId) return;
-
-    const tryInit = () => {
-      if (window.google?.accounts?.id) {
-        window.google.accounts.id.initialize({
-          client_id: clientId,
-          callback: handleGoogleCredential,
-          auto_select: false,
-          cancel_on_tap_outside: true,
-        });
-      } else {
-        setTimeout(tryInit, 400);
-      }
-    };
-    tryInit();
-  }, []);
-
+  // Backward-compatibility: if Google One-Tap credential callback is ever triggered
   const handleGoogleCredential = useCallback(async (response) => {
     if (!response?.credential) return;
     try {
@@ -56,20 +56,10 @@ export function AuthProvider({ children }) {
     }
   }, []);
 
+  // Primary Login Flow: Redirect to server-side Google OAuth 2.0 endpoint with Authorized redirect URIs
   const triggerLogin = useCallback(() => {
-    const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
-    if (!clientId) {
-      alert('VITE_GOOGLE_CLIENT_ID در فایل .env.local تنظیم نشده است.');
-      return;
-    }
-    if (window.google?.accounts?.id) {
-      window.google.accounts.id.prompt((notification) => {
-        if (notification.isNotDisplayed() || notification.isSkippedMoment()) {
-          const btn = document.querySelector('#_hidden_gsi_btn div[role="button"]');
-          if (btn) btn.click();
-        }
-      });
-    }
+    const loginUrl = getGoogleLoginUrl(window.location.href);
+    window.location.href = loginUrl;
   }, []);
 
   const logout = useCallback(async () => {
@@ -82,10 +72,8 @@ export function AuthProvider({ children }) {
   }, []);
 
   return (
-    <AuthContext.Provider value={{ user, loading, triggerLogin, logout, updateUser }}>
+    <AuthContext.Provider value={{ user, loading, triggerLogin, logout, updateUser, handleGoogleCredential }}>
       {children}
-      {/* Hidden GSI button for fallback trigger */}
-      <div id="_hidden_gsi_btn" style={{ position: 'absolute', opacity: 0, pointerEvents: 'none', width: 1, height: 1, overflow: 'hidden' }} />
     </AuthContext.Provider>
   );
 }

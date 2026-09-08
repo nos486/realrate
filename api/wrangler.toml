@@ -7,6 +7,8 @@ DEFAULT_USD_TOMAN = ""
 DEFAULT_GOLD_USD = "4000"
 ADMIN_EMAIL = "nos486@gmail.com"
 GOOGLE_CLIENT_ID = "420432138114-sfg3n1k34ke674192pct6envne50o1c7.apps.googleusercontent.com"
+# GOOGLE_CLIENT_SECRET: For production, run `wrangler secret put GOOGLE_CLIENT_SECRET`
+# GOOGLE_REDIRECT_URI: Optional override. Defaults to {request.origin}/api/auth/google/callback
 
 [[kv_namespaces]]
 binding = "REALRATE_KV"
