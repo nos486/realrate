@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.jsx';
 import {
   apiGetPortfolios,
@@ -172,8 +173,11 @@ function parseShamsiDate(str) {
   };
 }
 
-export default function PortfolioTracker({ calcData, rates, usdToman, goldUsd }) {
+export default function PortfolioTracker({ calcData, rates, usdToman, goldUsd, initialPortfolioId = null }) {
   const { user, loading: authLoading, triggerLogin } = useAuth();
+  const navigate = useNavigate();
+  const params = useParams();
+  const [searchParams] = useSearchParams();
 
   // Multi-portfolio State
   const [portfolios, setPortfolios] = useState([]);
@@ -296,17 +300,38 @@ export default function PortfolioTracker({ calcData, rates, usdToman, goldUsd })
       if (res.success && Array.isArray(res.portfolios) && res.portfolios.length > 0) {
         setPortfolios(res.portfolios);
 
-        // Keep current active if valid, or use target, or default/first
+        // Priority for resolving active portfolio:
+        // 1. Explicit targetPortfolioId passed
+        // 2. URL parameter :portfolioId or ?p= / ?id=
+        // 3. initialPortfolioId prop
+        // 4. Last visited portfolio in localStorage
+        // 5. Default portfolio (isDefault) or first portfolio
+        const urlParamId = params?.portfolioId || searchParams.get('p') || searchParams.get('id');
+        let savedId = null;
+        try {
+          savedId = localStorage.getItem('realrate_last_portfolio_id');
+        } catch {}
+
+        const preferredId = validTargetId || urlParamId || initialPortfolioId || savedId;
+
         const currentActive = activePortfolioIdRef.current;
         const exists = currentActive && res.portfolios.some((p) => p.id === currentActive);
-        const targetExists = validTargetId && res.portfolios.some((p) => p.id === validTargetId);
+        const preferredExists = preferredId && res.portfolios.some((p) => p.id === preferredId);
 
-        const resolvedId = targetExists
-          ? validTargetId
+        const resolvedId = preferredExists
+          ? preferredId
           : (exists ? currentActive : (res.portfolios.find((p) => p.isDefault)?.id || res.portfolios[0]?.id));
         
         setActivePortfolioId(resolvedId);
         activePortfolioIdRef.current = resolvedId;
+        try {
+          localStorage.setItem('realrate_last_portfolio_id', resolvedId);
+        } catch {}
+
+        // Update URL path if on /portfolio and URL does not have resolvedId
+        if (resolvedId && window.location.pathname.startsWith('/portfolio') && params?.portfolioId !== resolvedId) {
+          navigate(`/portfolio/${resolvedId}`, { replace: true });
+        }
 
         setLoadingHoldings(true);
         const holdingsRes = await apiGetPortfolio(resolvedId);
@@ -349,7 +374,7 @@ export default function PortfolioTracker({ calcData, rates, usdToman, goldUsd })
     } finally {
       setLoadingHoldings(false);
     }
-  }, [user]);
+  }, [user, initialPortfolioId, params?.portfolioId, searchParams, navigate]);
 
   useEffect(() => {
     fetchPortfoliosAndHoldings();
@@ -367,10 +392,19 @@ export default function PortfolioTracker({ calcData, rates, usdToman, goldUsd })
   }, [modalOpen, settingsModalOpen, newPortfolioModalOpen]);
 
   // Handle switching active portfolio
-  const handleSelectPortfolio = async (portfolioId) => {
-    if (!portfolioId || portfolioId === activePortfolioId || switchingRef.current) return;
+  const handleSelectPortfolio = useCallback(async (portfolioId) => {
+    if (!portfolioId || portfolioId === activePortfolioIdRef.current || switchingRef.current) return;
     switchingRef.current = true;
     setActivePortfolioId(portfolioId);
+    activePortfolioIdRef.current = portfolioId;
+    try {
+      localStorage.setItem('realrate_last_portfolio_id', portfolioId);
+    } catch {}
+
+    if (window.location.pathname.startsWith('/portfolio')) {
+      navigate(`/portfolio/${portfolioId}`, { replace: true });
+    }
+
     setLoadingHoldings(true);
     setVaultUnlockPassInput('');
     setVaultUnlockError('');
@@ -415,7 +449,7 @@ export default function PortfolioTracker({ calcData, rates, usdToman, goldUsd })
       setLoadingHoldings(false);
       switchingRef.current = false;
     }
-  };
+  }, [portfolios, navigate]);
 
   // Handle creating a new portfolio
   const handleCreatePortfolio = async (e) => {
@@ -427,6 +461,12 @@ export default function PortfolioTracker({ calcData, rates, usdToman, goldUsd })
       if (res.success && res.portfolio) {
         setNewPortfolioName('');
         setNewPortfolioModalOpen(false);
+        try {
+          localStorage.setItem('realrate_last_portfolio_id', res.portfolio.id);
+        } catch {}
+        if (window.location.pathname.startsWith('/portfolio')) {
+          navigate(`/portfolio/${res.portfolio.id}`, { replace: true });
+        }
         await fetchPortfoliosAndHoldings(res.portfolio.id);
       }
     } catch (err) {
@@ -435,6 +475,17 @@ export default function PortfolioTracker({ calcData, rates, usdToman, goldUsd })
       setCreatingPortfolio(false);
     }
   };
+
+  // Listen for browser Back/Forward navigation changing route portfolioId
+  useEffect(() => {
+    const routeId = params?.portfolioId;
+    if (routeId && routeId !== activePortfolioIdRef.current && portfolios.length > 0) {
+      const targetExists = portfolios.some((p) => p.id === routeId);
+      if (targetExists) {
+        handleSelectPortfolio(routeId);
+      }
+    }
+  }, [params?.portfolioId, portfolios, handleSelectPortfolio]);
 
   // Handle deleting active portfolio
   const handleDeleteActivePortfolio = async () => {
@@ -450,6 +501,9 @@ export default function PortfolioTracker({ calcData, rates, usdToman, goldUsd })
       const res = await apiDeletePortfolio(activePortfolio.id);
       if (res.success) {
         setSettingsModalOpen(false);
+        try {
+          localStorage.removeItem('realrate_last_portfolio_id');
+        } catch {}
         await fetchPortfoliosAndHoldings();
       }
     } catch (err) {

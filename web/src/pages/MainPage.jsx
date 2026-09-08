@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React from 'react';
+import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import Header from '../components/Header.jsx';
 import AnalysisCards from '../components/AnalysisCards.jsx';
 import CurrenciesList from '../components/CurrenciesList.jsx';
@@ -22,7 +23,32 @@ function formatRelativeTime(isoStr) {
 }
 
 export default function MainPage() {
-  const [activeTab, setActiveTab] = useState('market');
+  const location = useLocation();
+  const navigate = useNavigate();
+  const params = useParams();
+  const [searchParams] = useSearchParams();
+
+  // Determine active tab from pathname or query params
+  const isPortfolio =
+    location.pathname.startsWith('/portfolio') ||
+    searchParams.get('tab') === 'portfolio';
+  const activeTab = isPortfolio ? 'portfolio' : 'market';
+
+  const handleTabChange = (nextTab) => {
+    if (nextTab === 'portfolio') {
+      if (!location.pathname.startsWith('/portfolio')) {
+        let lastId = null;
+        try {
+          lastId = localStorage.getItem('realrate_last_portfolio_id');
+        } catch {}
+        navigate(lastId ? `/portfolio/${lastId}` : '/portfolio');
+      }
+    } else {
+      if (location.pathname !== '/' && location.pathname !== '/rates') {
+        navigate('/');
+      }
+    }
+  };
   const {
     rates,
     calcData,
@@ -56,7 +82,7 @@ export default function MainPage() {
         usdToman={usdToman}
         gold18kPrice={gold18kPrice}
         activeTab={activeTab}
-        setActiveTab={setActiveTab}
+        setActiveTab={handleTabChange}
       />
 
       <main className="main-content">
@@ -72,7 +98,7 @@ export default function MainPage() {
         <div className="segmented-tab-bar">
           <button
             className={`tab-segment-btn ${activeTab === 'market' ? 'active' : ''}`}
-            onClick={() => setActiveTab('market')}
+            onClick={() => handleTabChange('market')}
           >
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <line x1="18" y1="20" x2="18" y2="10"></line>
@@ -84,7 +110,7 @@ export default function MainPage() {
 
           <button
             className={`tab-segment-btn ${activeTab === 'portfolio' ? 'active' : ''}`}
-            onClick={() => setActiveTab('portfolio')}
+            onClick={() => handleTabChange('portfolio')}
           >
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <rect x="2" y="7" width="20" height="14" rx="2" ry="2"></rect>
@@ -181,7 +207,13 @@ export default function MainPage() {
           )}
 
           {activeTab === 'portfolio' && (
-            <PortfolioTracker calcData={calcData} rates={rates} usdToman={usdToman} goldUsd={goldUsd} />
+            <PortfolioTracker
+              calcData={calcData}
+              rates={rates}
+              usdToman={usdToman}
+              goldUsd={goldUsd}
+              initialPortfolioId={params.portfolioId || searchParams.get('p') || searchParams.get('id') || null}
+            />
           )}
         </section>
       </main>

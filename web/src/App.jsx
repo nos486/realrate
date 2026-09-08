@@ -17,6 +17,10 @@ export default function App() {
     <>
       <Routes>
         <Route path="/" element={<MainPage />} />
+        <Route path="/rates" element={<MainPage />} />
+        <Route path="/market" element={<Navigate to="/" replace />} />
+        <Route path="/portfolio" element={<MainPage />} />
+        <Route path="/portfolio/:portfolioId" element={<MainPage />} />
         <Route path="/admin" element={<ProtectedAdmin />} />
         <Route path="/p/:slug" element={<SharedPortfolioPage />} />
         <Route path="*" element={<Navigate to="/" replace />} />
