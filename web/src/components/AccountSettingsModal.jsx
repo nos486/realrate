@@ -84,28 +84,19 @@ export default function AccountSettingsModal({ isOpen, onClose }) {
             )}
 
             {/* Read-only User Profile Overview */}
-            <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '12px',
-              padding: '12px 14px',
-              background: 'rgba(255, 255, 255, 0.03)',
-              borderRadius: '10px',
-              border: '1px solid rgba(255, 255, 255, 0.06)',
-              marginBottom: '16px',
-            }}>
+            <div className="account-user-card">
               {user?.picture && (
                 <img
                   src={user.picture}
                   alt={user.name}
-                  style={{ width: '40px', height: '40px', borderRadius: '50%', objectFit: 'cover' }}
+                  className="account-user-avatar"
                 />
               )}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', minWidth: 0 }}>
-                <strong style={{ fontSize: '13px', color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+              <div className="account-user-meta">
+                <strong className="account-user-name">
                   {user?.name || 'کاربر'}
                 </strong>
-                <span style={{ fontSize: '11px', color: 'var(--text-muted)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                <span className="account-user-email">
                   {user?.email}
                 </span>
               </div>
@@ -131,27 +122,13 @@ export default function AccountSettingsModal({ isOpen, onClose }) {
             {/* Theme Selector */}
             <div className="form-group" style={{ marginTop: '14px' }}>
               <label>حالت نمایش (پوسته)</label>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginTop: '6px' }}>
+              <div className="theme-switch-grid">
                 <button
                   type="button"
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: '8px',
-                    padding: '9px 12px',
-                    borderRadius: '10px',
-                    border: theme === 'dark' ? '1.5px solid #f59e0b' : '1px solid rgba(255, 255, 255, 0.08)',
-                    background: theme === 'dark' ? 'rgba(245, 158, 11, 0.12)' : 'rgba(255, 255, 255, 0.03)',
-                    color: theme === 'dark' ? '#fbbf24' : 'var(--text-muted)',
-                    fontSize: '12.5px',
-                    fontWeight: '700',
-                    cursor: 'pointer',
-                    transition: 'all 0.18s ease',
-                  }}
+                  className={`theme-choice-btn ${theme === 'dark' ? 'active' : ''}`}
                   onClick={() => setTheme('dark')}
                 >
-                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
                     <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
                   </svg>
                   <span>حالت تاریک</span>
@@ -159,24 +136,10 @@ export default function AccountSettingsModal({ isOpen, onClose }) {
 
                 <button
                   type="button"
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: '8px',
-                    padding: '9px 12px',
-                    borderRadius: '10px',
-                    border: theme === 'light' ? '1.5px solid #d97706' : '1px solid rgba(0, 0, 0, 0.08)',
-                    background: theme === 'light' ? 'rgba(217, 119, 6, 0.12)' : 'rgba(0, 0, 0, 0.03)',
-                    color: theme === 'light' ? '#d97706' : 'var(--text-muted)',
-                    fontSize: '12.5px',
-                    fontWeight: '700',
-                    cursor: 'pointer',
-                    transition: 'all 0.18s ease',
-                  }}
+                  className={`theme-choice-btn ${theme === 'light' ? 'active' : ''}`}
                   onClick={() => setTheme('light')}
                 >
-                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
                     <circle cx="12" cy="12" r="5"></circle>
                     <line x1="12" y1="1" x2="12" y2="3"></line>
                     <line x1="12" y1="21" x2="12" y2="23"></line>
