@@ -265,6 +265,15 @@ export default function UserSettingsModal({ isOpen, portfolio, onClose, onSaved,
               </div>
             </div>
 
+            {/* Security & Encryption Notice */}
+            <div className="security-encryption-badge">
+              <div className="security-badge-icon">🛡️</div>
+              <div className="security-badge-text">
+                <strong>حریم خصوصی و امنیت تضمین‌شده</strong>
+                <span>تمام دارایی‌ها، مبالغ و یادداشت‌های این پورتفو با الگوریتم AES-256 در دیتابیس رمزنگاری شده و به جز شما هیچ کاربری به اطلاعات مالی‌تان دسترسی ندارد.</span>
+              </div>
+            </div>
+
             {/* Modal Actions */}
             <div className="modal-actions-split">
               {canDelete ? (

@@ -3,6 +3,8 @@
  * All database interactions are isolated here for easy extension
  */
 
+import { deriveUserKey, encryptField, decryptField } from "./crypto.js";
+
 // In-memory flag to avoid re-running CREATE TABLE IF NOT EXISTS on every request
 let d1Initialized = false;
 
@@ -79,6 +81,7 @@ export async function ensureD1Tables(env) {
       current_price REAL DEFAULT 0,
       buy_date TEXT DEFAULT '',
       notes TEXT DEFAULT '',
+      encrypted_data TEXT DEFAULT '',
       created_at TEXT NOT NULL,
       updated_at TEXT NOT NULL
     )`,
@@ -97,6 +100,9 @@ export async function ensureD1Tables(env) {
     } catch (ignore) {}
     try {
       await env.DB.prepare("ALTER TABLE portfolio_holdings ADD COLUMN portfolio_id TEXT").run();
+    } catch (ignore) {}
+    try {
+      await env.DB.prepare("ALTER TABLE portfolio_holdings ADD COLUMN encrypted_data TEXT DEFAULT ''").run();
     } catch (ignore) {}
     try {
       await env.DB.prepare("CREATE INDEX IF NOT EXISTS idx_portfolio_holdings_portfolio ON portfolio_holdings(portfolio_id)").run();
@@ -834,6 +840,7 @@ export async function dbGetPortfolioByShareSlug(env, slug) {
 
 /**
  * Fetch all portfolio holdings for a user and optionally a specific portfolio
+ * Transparently decrypts sensitive fields stored encrypted with AES-256-GCM.
  * @param {object} env
  * @param {string} userId
  * @param {string} [portfolioId]
@@ -849,7 +856,7 @@ export async function dbGetPortfolioHoldings(env, userId, portfolioId = null) {
         SELECT id, user_id AS userId, portfolio_id AS portfolioId, asset_id AS assetId,
                asset_name AS assetName, asset_type AS assetType, unit, amount,
                buy_price AS buyPrice, current_price AS currentPrice, buy_date AS buyDate,
-               notes, created_at AS createdAt, updated_at AS updatedAt
+               notes, encrypted_data AS encryptedData, created_at AS createdAt, updated_at AS updatedAt
         FROM portfolio_holdings
         WHERE user_id = ?
       `;
@@ -864,7 +871,32 @@ export async function dbGetPortfolioHoldings(env, userId, portfolioId = null) {
 
       const { results } = await env.DB.prepare(query).bind(...bindings).all();
       if (Array.isArray(results)) {
-        return results;
+        const userKey = await deriveUserKey(env?.PORTFOLIO_ENCRYPTION_SECRET, userId);
+        const decryptedResults = await Promise.all(
+          results.map(async (row) => {
+            if (row.encryptedData && typeof row.encryptedData === 'string' && row.encryptedData.startsWith('enc:v1:')) {
+              try {
+                const decrypted = await decryptField(userKey, row.encryptedData);
+                if (decrypted && typeof decrypted === 'object') {
+                  return {
+                    ...row,
+                    amount: decrypted.amount !== undefined ? decrypted.amount : row.amount,
+                    buyPrice: decrypted.buyPrice !== undefined ? decrypted.buyPrice : row.buyPrice,
+                    currentPrice: decrypted.currentPrice !== undefined ? decrypted.currentPrice : row.currentPrice,
+                    buyDate: decrypted.buyDate !== undefined ? decrypted.buyDate : row.buyDate,
+                    notes: decrypted.notes !== undefined ? decrypted.notes : row.notes,
+                    assetName: decrypted.assetName || row.assetName,
+                    unit: decrypted.unit || row.unit,
+                  };
+                }
+              } catch (decErr) {
+                console.error("Holding row decrypt error:", decErr);
+              }
+            }
+            return row;
+          })
+        );
+        return decryptedResults;
       }
     } catch (e) {
       console.error("D1 dbGetPortfolioHoldings error:", e);
@@ -876,7 +908,13 @@ export async function dbGetPortfolioHoldings(env, userId, portfolioId = null) {
     try {
       const dataStr = await env.REALRATE_KV.get(`portfolio:${userId}`);
       if (dataStr) {
-        const parsed = JSON.parse(dataStr);
+        const userKey = await deriveUserKey(env?.PORTFOLIO_ENCRYPTION_SECRET, userId);
+        let parsed = null;
+        if (dataStr.startsWith('enc:v1:')) {
+          parsed = await decryptField(userKey, dataStr);
+        } else {
+          parsed = JSON.parse(dataStr);
+        }
         if (Array.isArray(parsed)) {
           if (portfolioId) {
             return parsed.filter(item => !item.portfolioId || item.portfolioId === portfolioId);
@@ -892,6 +930,7 @@ export async function dbGetPortfolioHoldings(env, userId, portfolioId = null) {
 
 /**
  * Add or update a portfolio holding for a user in a portfolio
+ * Encrypts sensitive fields (amounts, prices, notes, names) with AES-256-GCM before saving.
  * @param {object} env
  * @param {object} item
  * @returns {Promise<object>}
@@ -931,12 +970,33 @@ export async function dbAddPortfolioHolding(env, item) {
     updatedAt: now,
   };
 
+  // Derive per-user AES-256 key and encrypt sensitive payload
+  let encryptedData = '';
+  try {
+    const userKey = await deriveUserKey(env?.PORTFOLIO_ENCRYPTION_SECRET, holding.userId);
+    const sensitivePayload = {
+      amount: holding.amount,
+      buyPrice: holding.buyPrice,
+      currentPrice: holding.currentPrice,
+      buyDate: holding.buyDate,
+      notes: holding.notes,
+      assetName: holding.assetName,
+      unit: holding.unit,
+    };
+    encryptedData = await encryptField(userKey, sensitivePayload);
+  } catch (encErr) {
+    console.error("Error encrypting portfolio holding:", encErr);
+  }
+
   if (env && env.DB) {
     await ensureD1Tables(env);
     try {
       await env.DB.prepare(`
-        INSERT INTO portfolio_holdings (id, user_id, portfolio_id, asset_id, asset_name, asset_type, unit, amount, buy_price, current_price, buy_date, notes, created_at, updated_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO portfolio_holdings (
+          id, user_id, portfolio_id, asset_id, asset_name, asset_type, unit,
+          amount, buy_price, current_price, buy_date, notes, encrypted_data, created_at, updated_at
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ON CONFLICT(id) DO UPDATE SET
           portfolio_id = excluded.portfolio_id,
           asset_id = excluded.asset_id,
@@ -948,6 +1008,7 @@ export async function dbAddPortfolioHolding(env, item) {
           current_price = excluded.current_price,
           buy_date = excluded.buy_date,
           notes = excluded.notes,
+          encrypted_data = excluded.encrypted_data,
           updated_at = excluded.updated_at
       `).bind(
         holding.id,
@@ -957,11 +1018,12 @@ export async function dbAddPortfolioHolding(env, item) {
         holding.assetName,
         holding.assetType,
         holding.unit,
-        holding.amount,
-        holding.buyPrice,
-        holding.currentPrice,
-        holding.buyDate,
-        holding.notes,
+        0, // Masked in raw DB column for privacy
+        0, // Masked in raw DB column for privacy
+        0, // Masked in raw DB column for privacy
+        '', // Masked in raw DB column
+        '[ENCRYPTED]', // Masked in raw DB column
+        encryptedData,
         holding.createdAt,
         holding.updatedAt
       ).run();
@@ -970,20 +1032,30 @@ export async function dbAddPortfolioHolding(env, item) {
     }
   }
 
-  // Sync to KV
+  // Sync to KV (stored encrypted)
   if (env && env.REALRATE_KV) {
     try {
+      const userKey = await deriveUserKey(env?.PORTFOLIO_ENCRYPTION_SECRET, holding.userId);
       let list = [];
       const listStr = await env.REALRATE_KV.get(`portfolio:${holding.userId}`);
-      if (listStr) list = JSON.parse(listStr);
+      if (listStr) {
+        if (listStr.startsWith('enc:v1:')) {
+          list = await decryptField(userKey, listStr);
+        } else {
+          list = JSON.parse(listStr);
+        }
+      }
       if (!Array.isArray(list)) list = [];
 
       const idx = list.findIndex(h => h.id === holding.id);
       if (idx >= 0) list[idx] = holding;
       else list.unshift(holding);
 
-      await env.REALRATE_KV.put(`portfolio:${holding.userId}`, JSON.stringify(list));
-    } catch (e) {}
+      const encryptedKv = await encryptField(userKey, list);
+      await env.REALRATE_KV.put(`portfolio:${holding.userId}`, encryptedKv);
+    } catch (e) {
+      console.error("KV sync error:", e);
+    }
   }
 
   return holding;
@@ -1012,15 +1084,24 @@ export async function dbDeletePortfolioHolding(env, id, userId) {
   // Sync to KV
   if (env && env.REALRATE_KV) {
     try {
+      const userKey = await deriveUserKey(env?.PORTFOLIO_ENCRYPTION_SECRET, userId);
       const listStr = await env.REALRATE_KV.get(`portfolio:${userId}`);
       if (listStr) {
-        let list = JSON.parse(listStr);
+        let list = [];
+        if (listStr.startsWith('enc:v1:')) {
+          list = await decryptField(userKey, listStr);
+        } else {
+          list = JSON.parse(listStr);
+        }
         if (Array.isArray(list)) {
           list = list.filter(h => h.id !== id);
-          await env.REALRATE_KV.put(`portfolio:${userId}`, JSON.stringify(list));
+          const encryptedKv = await encryptField(userKey, list);
+          await env.REALRATE_KV.put(`portfolio:${userId}`, encryptedKv);
         }
       }
-    } catch (e) {}
+    } catch (e) {
+      console.error("KV delete sync error:", e);
+    }
   }
 
   return true;

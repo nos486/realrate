@@ -7,6 +7,7 @@ DEFAULT_USD_TOMAN = ""
 DEFAULT_GOLD_USD = "4000"
 ADMIN_EMAIL = "nos486@gmail.com"
 GOOGLE_CLIENT_ID = "420432138114-sfg3n1k34ke674192pct6envne50o1c7.apps.googleusercontent.com"
+PORTFOLIO_ENCRYPTION_SECRET = "realrate-aes256-d1-portfolio-secret-key-prod"
 
 [[kv_namespaces]]
 binding = "REALRATE_KV"

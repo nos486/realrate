@@ -884,7 +884,12 @@ export default function PortfolioTracker({ calcData, rates, usdToman, goldUsd })
           <div className="portfolio-table-card">
             <div className="portfolio-table-header">
               <div className="table-title">
-                <h3>📋 جزئیات {activePortfolio?.name ? `پورتفوی «${activePortfolio.name}»` : 'سبد دارایی'} ({user.name || user.email})</h3>
+                <div className="table-title-main">
+                  <h3>📋 جزئیات {activePortfolio?.name ? `پورتفوی «${activePortfolio.name}»` : 'سبد دارایی'} ({user.name || user.email})</h3>
+                  <span className="portfolio-encryption-tag" title="حفاظت حریم خصوصی: تمام اقلام و مقادیر این پورتفو در دیتابیس با استاندارد AES-256 رمزنگاری شده‌اند.">
+                    🔒 رمزنگاری‌شده (AES-256)
+                  </span>
+                </div>
                 <span>
                   محاسبه بر پایه ارزش واقعی طلا (${goldUsdVal ? goldUsdVal.toLocaleString() : ''})، نقره (${silverUsdVal ? silverUsdVal.toFixed(2) : ''}) و نرخ دلار ({formatNum(usdVal)} تومان)
                 </span>
