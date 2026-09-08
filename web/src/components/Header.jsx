@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext.jsx';
 import { Link } from 'react-router-dom';
+import AccountSettingsModal from './AccountSettingsModal.jsx';
 
 const LogoMark = () => (
   <svg width="28" height="28" viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -27,6 +28,7 @@ function formatHeaderNum(num) {
 export default function Header({ usdToman, gold18kPrice, activeTab, setActiveTab }) {
   const { user, triggerLogin, logout } = useAuth();
   const [dropdownOpen, setDropdownOpen] = useState(false);
+  const [accountModalOpen, setAccountModalOpen] = useState(false);
   const dropdownRef = useRef(null);
 
   useEffect(() => {
@@ -115,7 +117,7 @@ export default function Header({ usdToman, gold18kPrice, activeTab, setActiveTab
                 <button
                   className={`user-trigger-btn ${dropdownOpen ? 'active' : ''}`}
                   onClick={() => setDropdownOpen((v) => !v)}
-                  title={user.name || 'حساب کاربری'}
+                  title={user.customName || user.name || 'حساب کاربری'}
                 >
                   <img
                     src={user.picture || ''}
@@ -123,7 +125,7 @@ export default function Header({ usdToman, gold18kPrice, activeTab, setActiveTab
                     className="user-avatar"
                     onError={(e) => { e.target.style.display = 'none'; }}
                   />
-                  <span className="user-firstname desktop-only">{user.name?.split(' ')[0] || 'کاربر'}</span>
+                  <span className="user-firstname desktop-only">{user.customName || user.name?.split(' ')[0] || 'کاربر'}</span>
                   {user.role === 'admin' && <span className="admin-badge desktop-only">مدیر</span>}
                   <svg className="chevron-icon desktop-only" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                     <path d="M6 9l6 6 6-6"/>
@@ -133,10 +135,23 @@ export default function Header({ usdToman, gold18kPrice, activeTab, setActiveTab
               {dropdownOpen && (
                 <div className="dropdown-panel">
                   <div className="dropdown-user-info">
-                    <strong>{user.name}</strong>
+                    <strong>{user.customName ? `${user.customName} (${user.name})` : user.name}</strong>
                     <span>{user.email}</span>
                   </div>
                   <div className="dropdown-sep"></div>
+
+                  <button
+                    type="button"
+                    className="dropdown-link"
+                    onClick={() => { setAccountModalOpen(true); setDropdownOpen(false); }}
+                  >
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                      <circle cx="12" cy="7" r="4"></circle>
+                    </svg>
+                    <span>تنظیمات حساب</span>
+                  </button>
+
                   {user.role === 'admin' && (
                     <Link to="/admin" className="dropdown-link admin" onClick={() => setDropdownOpen(false)}>
                       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -187,6 +202,10 @@ export default function Header({ usdToman, gold18kPrice, activeTab, setActiveTab
         </div>
       </div>
 
+      <AccountSettingsModal
+        isOpen={accountModalOpen}
+        onClose={() => setAccountModalOpen(false)}
+      />
     </header>
   );
 }

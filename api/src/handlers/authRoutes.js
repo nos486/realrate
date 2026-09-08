@@ -9,7 +9,7 @@
  */
 
 import { isUserAdmin, getAuthenticatedUser } from "../lib/auth.js";
-import { dbUpsertUser, dbSaveSession, dbDeleteSession } from "../lib/db.js";
+import { dbUpsertUser, dbSaveSession, dbDeleteSession, dbGetUserById } from "../lib/db.js";
 import { jsonResponse, errorResponse, getCorsHeaders } from "../lib/helpers.js";
 
 /**
@@ -86,7 +86,7 @@ export async function handleGoogleAuth(request, env) {
       success: true,
       message: isAdmin ? "خوش آمدید، مدیر سیستم!" : "ورود موفقیت‌آمیز به حساب کاربری",
       token: sessionToken,   // ← frontend stores this in localStorage
-      user: { id: userData.id, email: userData.email, name: userData.name, picture: userData.picture, role: userData.role, createdAt: userData.createdAt },
+      user: { id: userData.id, email: userData.email, name: userData.name, customName: userData.customName || '', picture: userData.picture, role: userData.role, createdAt: userData.createdAt },
     }), {
       headers: {
         "Content-Type": "application/json; charset=utf-8",
@@ -110,12 +110,22 @@ export async function handleGetMe(request, env) {
     return jsonResponse({ authenticated: false, user: null }, 200, request);
   }
 
+  const userId = user.userId || user.id;
+  let customName = user.customName || "";
+  if (!customName) {
+    try {
+      const userData = await dbGetUserById(env, userId);
+      if (userData?.customName) customName = userData.customName;
+    } catch (e) {}
+  }
+
   return jsonResponse({
     authenticated: true,
     user: {
-      id: user.userId || user.id,
+      id: userId,
       email: user.email,
       name: user.name,
+      customName: customName || "",
       picture: user.picture,
       role: user.role,
       isAdmin: user.role === "admin",

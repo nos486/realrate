@@ -77,8 +77,12 @@ export function AuthProvider({ children }) {
     setUser(null);
   }, []);
 
+  const updateUser = useCallback((fields) => {
+    setUser((prev) => (prev ? { ...prev, ...fields } : null));
+  }, []);
+
   return (
-    <AuthContext.Provider value={{ user, loading, triggerLogin, logout }}>
+    <AuthContext.Provider value={{ user, loading, triggerLogin, logout, updateUser }}>
       {children}
       {/* Hidden GSI button for fallback trigger */}
       <div id="_hidden_gsi_btn" style={{ position: 'absolute', opacity: 0, pointerEvents: 'none', width: 1, height: 1, overflow: 'hidden' }} />

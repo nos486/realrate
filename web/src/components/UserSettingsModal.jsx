@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { apiGetUserSettings, apiUpdateUserSettings, apiUpdatePortfolio } from '../api/client.js';
+import { apiUpdatePortfolio } from '../api/client.js';
 import {
   generateE2eeSalt,
   deriveE2eeKey,
@@ -21,7 +21,6 @@ export function generateRandomSlug(len = 8) {
 
 export default function UserSettingsModal({ isOpen, portfolio, onClose, onSaved, canDelete, onDelete }) {
   const [portfolioName, setPortfolioName] = useState('');
-  const [customName, setCustomName] = useState('');
   const [shareSlug, setShareSlug] = useState('');
   const [shareEnabled, setShareEnabled] = useState(false);
   const [sharePassword, setSharePassword] = useState('');
@@ -62,23 +61,7 @@ export default function UserSettingsModal({ isOpen, portfolio, onClose, onSaved,
           setVaultPasswordConfirm('');
         }
       }
-
-      apiGetUserSettings()
-        .then((res) => {
-          if (res.success && res.settings) {
-            const s = res.settings;
-            setCustomName(s.customName || '');
-            if (!portfolio) {
-              setShareSlug(s.shareSlug || generateRandomSlug(8));
-              setShareEnabled(!!s.shareEnabled);
-              setSharePassword(s.sharePassword || '');
-            }
-          }
-        })
-        .catch((err) => {
-          setMsg({ text: 'خطا در دریافت تنظیمات: ' + err.message, type: 'error' });
-        })
-        .finally(() => setLoading(false));
+      setLoading(false);
     }
   }, [isOpen, portfolio]);
 
@@ -156,31 +139,19 @@ export default function UserSettingsModal({ isOpen, portfolio, onClose, onSaved,
         });
       }
 
-      const res = await apiUpdateUserSettings({
-        customName,
-        shareSlug,
-        sharePassword: sharePassword ? sharePassword.trim() : '',
-        shareEnabled,
-      });
-
-      if (res.success) {
-        setMsg({ text: 'تنظیمات با موفقیت ذخیره شد.', type: 'success' });
-        if (onSaved) {
-          onSaved({
-            ...res.settings,
-            portfolioName,
-            portfolioId: portfolio?.id,
-            isE2ee,
-            e2eeSalt,
-            e2eeVerifier,
-          });
-        }
-        setTimeout(() => {
-          onClose();
-        }, 1100);
-      } else {
-        setMsg({ text: res.message || 'خطا در ذخیره تنظیمات', type: 'error' });
+      setMsg({ text: 'تنظیمات با موفقیت ذخیره شد.', type: 'success' });
+      if (onSaved) {
+        onSaved({
+          portfolioName,
+          portfolioId: portfolio?.id,
+          isE2ee,
+          e2eeSalt,
+          e2eeVerifier,
+        });
       }
+      setTimeout(() => {
+        onClose();
+      }, 900);
     } catch (err) {
       setMsg({ text: err.message || 'خطای سرور', type: 'error' });
     } finally {
@@ -226,18 +197,6 @@ export default function UserSettingsModal({ isOpen, portfolio, onClose, onSaved,
                 value={portfolioName}
                 onChange={(e) => setPortfolioName(e.target.value)}
                 required
-              />
-            </div>
-
-            {/* Owner Display Name */}
-            <div className="form-group">
-              <label htmlFor="settingsCustomName">نام مالک</label>
-              <input
-                type="text"
-                id="settingsCustomName"
-                placeholder="نام شما..."
-                value={customName}
-                onChange={(e) => setCustomName(e.target.value)}
               />
             </div>
 
