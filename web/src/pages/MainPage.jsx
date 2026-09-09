@@ -1,6 +1,6 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { Megaphone, TrendingUp, Briefcase, Sparkles } from 'lucide-react';
+import { Megaphone, TrendingUp, Briefcase, Sparkles, ShieldCheck, Radio } from 'lucide-react';
 import AppLayout from '../components/ui/AppLayout.jsx';
 import FilterPills from '../components/ui/FilterPills.jsx';
 import AlertBanner from '../components/ui/AlertBanner.jsx';
@@ -8,19 +8,43 @@ import MarketInputsToolbar from '../components/MarketInputsToolbar.jsx';
 import AnalysisCards from '../components/AnalysisCards.jsx';
 import CurrenciesList from '../components/CurrenciesList.jsx';
 import PortfolioTracker from '../components/PortfolioTracker.jsx';
+import AdminPage from './AdminPage.jsx';
+import PriceSourcesPage from './PriceSourcesPage.jsx';
 import { useMarketData } from '../hooks/useMarketData.js';
+import { useAuth } from '../context/AuthContext.jsx';
 
 export default function MainPage() {
   const location = useLocation();
   const navigate = useNavigate();
   const params = useParams();
   const [searchParams] = useSearchParams();
+  const { user } = useAuth();
 
   // Determine active tab from pathname or query params
+  const isSources =
+    location.pathname.startsWith('/admin/sources') ||
+    location.pathname.startsWith('/sources') ||
+    searchParams.get('tab') === 'sources';
+
+  const isAdmin =
+    !isSources && (
+      location.pathname.startsWith('/admin') ||
+      searchParams.get('tab') === 'admin'
+    );
+
   const isPortfolio =
-    location.pathname.startsWith('/portfolio') ||
-    searchParams.get('tab') === 'portfolio';
-  const activeTab = isPortfolio ? 'portfolio' : 'market';
+    !isSources && !isAdmin && (
+      location.pathname.startsWith('/portfolio') ||
+      searchParams.get('tab') === 'portfolio'
+    );
+
+  const activeTab = isSources
+    ? 'sources'
+    : isAdmin
+    ? 'admin'
+    : isPortfolio
+    ? 'portfolio'
+    : 'market';
 
   const handleTabChange = (nextTab) => {
     if (nextTab === 'portfolio') {
@@ -31,12 +55,35 @@ export default function MainPage() {
         } catch {}
         navigate(lastId ? `/portfolio/${lastId}` : '/portfolio');
       }
+    } else if (nextTab === 'admin') {
+      if (location.pathname !== '/admin') {
+        navigate('/admin');
+      }
+    } else if (nextTab === 'sources') {
+      if (location.pathname !== '/admin/sources') {
+        navigate('/admin/sources');
+      }
     } else {
       if (location.pathname !== '/' && location.pathname !== '/rates') {
         navigate('/');
       }
     }
   };
+
+  const tabOptions = useMemo(() => {
+    const options = [
+      { value: 'market', label: 'نرخ و حباب', icon: <TrendingUp size={16} strokeWidth={2} /> },
+      { value: 'portfolio', label: 'پورتفو', icon: <Briefcase size={16} strokeWidth={2} /> },
+    ];
+    if (user?.role === 'admin') {
+      options.push(
+        { value: 'admin', label: 'پنل مدیریت و کاربران', icon: <ShieldCheck size={16} strokeWidth={2} /> },
+        { value: 'sources', label: 'سورس‌های قیمت و نمودارها', icon: <Radio size={16} strokeWidth={2} /> }
+      );
+    }
+    return options;
+  }, [user?.role]);
+
 
   const {
     rates,
@@ -86,10 +133,7 @@ export default function MainPage() {
       <FilterPills
         variant="segmented"
         size="lg"
-        options={[
-          { value: 'market', label: 'نرخ و حباب', icon: <TrendingUp size={16} strokeWidth={2} /> },
-          { value: 'portfolio', label: 'پورتفو', icon: <Briefcase size={16} strokeWidth={2} /> },
-        ]}
+        options={tabOptions}
         activeValue={activeTab}
         onChange={handleTabChange}
         style={{ marginBottom: '24px' }}
@@ -151,6 +195,18 @@ export default function MainPage() {
             usdToman={usdToman}
             goldUsd={goldUsd}
             initialPortfolioId={params.portfolioId || searchParams.get('p') || searchParams.get('id') || null}
+          />
+        )}
+
+        {activeTab === 'admin' && (
+          <AdminPage embedded={true} />
+        )}
+
+        {activeTab === 'sources' && (
+          <PriceSourcesPage
+            embedded={true}
+            usdToman={usdToman}
+            gold18kPrice={gold18kPrice}
           />
         )}
       </section>

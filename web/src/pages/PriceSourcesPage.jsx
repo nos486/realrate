@@ -141,11 +141,29 @@ function formatPersianDate(isoStr) {
   }
 }
 
-export default function PriceSourcesPage() {
+export default function PriceSourcesPage({ embedded = false, usdToman: propUsdToman, gold18kPrice: propGold18kPrice }) {
   const { user, loading: authLoading, triggerLogin } = useAuth();
-  const { usdToman, gold18kPrice } = useMarketData();
+  const marketData = useMarketData();
+  const usdToman = propUsdToman !== undefined ? propUsdToman : marketData.usdToman;
+  const gold18kPrice = propGold18kPrice !== undefined ? propGold18kPrice : marketData.gold18kPrice;
   const navigate = useNavigate();
   const chartSectionRef = useRef(null);
+
+  const renderLayout = (content) => {
+    if (embedded) return <div className="embedded-sources-view" style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '24px' }}>{content}</div>;
+    return (
+      <AppLayout
+        activeTab="sources"
+        setActiveTab={(tab) => navigate(tab === 'portfolio' ? '/portfolio' : '/')}
+        usdToman={usdToman}
+        gold18kPrice={gold18kPrice}
+        layoutClassName="price-sources-fullscreen-app"
+        className="sources-page-main full-width-sources-page"
+      >
+        {content}
+      </AppLayout>
+    );
+  };
 
   // Sources State
   const [sources, setSources] = useState([]);
@@ -459,57 +477,46 @@ export default function PriceSourcesPage() {
 
   // Not logged in or not admin check
   if (authLoading) {
-    return (
-      <AppLayout activeTab="sources">
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '60vh', textAlign: 'center' }}>
-          <div>
-            <RefreshCw size={28} className="spin-anim" style={{ color: 'var(--accent-blue)', margin: '0 auto 12px' }} />
-            <p style={{ color: 'var(--text-muted)' }}>در حال بررسی دسترسی مدیریت...</p>
-          </div>
+    return renderLayout(
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '60vh', textAlign: 'center' }}>
+        <div>
+          <RefreshCw size={28} className="spin-anim" style={{ color: 'var(--accent-blue)', margin: '0 auto 12px' }} />
+          <p style={{ color: 'var(--text-muted)' }}>در حال بررسی دسترسی مدیریت...</p>
         </div>
-      </AppLayout>
+      </div>
     );
   }
 
   if (!user || user.role !== 'admin') {
-    return (
-      <AppLayout activeTab="sources">
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '60vh' }}>
-          <Card className="admin-container" padding="lg" style={{ textAlign: 'center', maxWidth: '460px' }}>
-            <ShieldCheck size={48} style={{ color: 'var(--accent-amber, #f59e0b)', margin: '0 auto 16px' }} />
-            <h2 style={{ fontSize: '18px', fontWeight: 'bold', marginBottom: '8px', color: 'var(--text-heading)' }}>
-              دسترسی محدود به مدیر کل
-            </h2>
-            <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '20px', lineHeight: '1.7' }}>
-              صفحه مدیریت یکپارچه سورس‌های قیمت و نمودارهای تحلیلی تنها برای مدیران سیستم در دسترس است.
-            </p>
-            <div style={{ display: 'flex', justifyContent: 'center', gap: '10px' }}>
-              <Link to="/" className="btn-sm site-link" style={{ padding: '8px 16px', fontSize: '13px' }}>
-                بازگشت به خانه
-              </Link>
-              <button
-                onClick={triggerLogin}
-                className="btn-sm btn-primary-action"
-                style={{ padding: '8px 16px', fontSize: '13px' }}
-              >
-                ورود با حساب مدیر
-              </button>
-            </div>
-          </Card>
-        </div>
-      </AppLayout>
+    return renderLayout(
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '60vh' }}>
+        <Card className="admin-container" padding="lg" style={{ textAlign: 'center', maxWidth: '460px' }}>
+          <ShieldCheck size={48} style={{ color: 'var(--accent-amber, #f59e0b)', margin: '0 auto 16px' }} />
+          <h2 style={{ fontSize: '18px', fontWeight: 'bold', marginBottom: '8px', color: 'var(--text-heading)' }}>
+            دسترسی محدود به مدیر کل
+          </h2>
+          <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '20px', lineHeight: '1.7' }}>
+            صفحه مدیریت یکپارچه سورس‌های قیمت و نمودارهای تحلیلی تنها برای مدیران سیستم در دسترس است.
+          </p>
+          <div style={{ display: 'flex', justifyContent: 'center', gap: '10px' }}>
+            <Link to="/" className="btn-sm site-link" style={{ padding: '8px 16px', fontSize: '13px' }}>
+              بازگشت به خانه
+            </Link>
+            <button
+              onClick={triggerLogin}
+              className="btn-sm btn-primary-action"
+              style={{ padding: '8px 16px', fontSize: '13px' }}
+            >
+              ورود با حساب مدیر
+            </button>
+          </div>
+        </Card>
+      </div>
     );
   }
 
-  return (
-    <AppLayout
-      activeTab="sources"
-      setActiveTab={(tab) => navigate(tab === 'portfolio' ? '/portfolio' : '/')}
-      usdToman={usdToman}
-      gold18kPrice={gold18kPrice}
-      layoutClassName="price-sources-fullscreen-app"
-      className="sources-page-main full-width-sources-page"
-    >
+  return renderLayout(
+    <>
       {/* Top Breadcrumb & Page Title Strip */}
       <Card className="sources-page-hero-banner" padding="hero">
         <div className="hero-breadcrumbs">
@@ -1237,6 +1244,6 @@ export default function PriceSourcesPage() {
                 </div>
 
         </Modal>
-    </AppLayout>
+    </>
   );
 }

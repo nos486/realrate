@@ -125,7 +125,7 @@ export default function Header({ usdToman, gold18kPrice, activeTab, setActiveTab
           </Link>
         </div>
 
-        {/* Mobile Tab Switcher */}
+        {/* Tab Switcher */}
         <nav className="header-tabs-switcher" aria-label="انتخاب تب">
           {setActiveTab ? (
             <>
@@ -150,6 +150,32 @@ export default function Header({ usdToman, gold18kPrice, activeTab, setActiveTab
                 <Briefcase size={17} strokeWidth={2.2} />
                 <span className="tab-btn-title">پورتفو</span>
               </button>
+
+              {user?.role === 'admin' && (
+                <>
+                  <button
+                    type="button"
+                    className={`header-tab-btn ${activeTab === 'admin' ? 'active' : ''}`}
+                    onClick={() => setActiveTab('admin')}
+                    title="پنل مدیریت و کاربران"
+                    aria-label="مدیریت"
+                  >
+                    <ShieldCheck size={17} strokeWidth={2.2} />
+                    <span className="tab-btn-title">مدیریت</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    className={`header-tab-btn ${activeTab === 'sources' ? 'active' : ''}`}
+                    onClick={() => setActiveTab('sources')}
+                    title="سورس‌های قیمت و نمودارها"
+                    aria-label="سورس‌ها"
+                  >
+                    <Radio size={17} strokeWidth={2.2} />
+                    <span className="tab-btn-title">سورس‌ها</span>
+                  </button>
+                </>
+              )}
             </>
           ) : (
             <>
@@ -172,6 +198,30 @@ export default function Header({ usdToman, gold18kPrice, activeTab, setActiveTab
                 <Briefcase size={17} strokeWidth={2.2} />
                 <span className="tab-btn-title">پورتفو</span>
               </Link>
+
+              {user?.role === 'admin' && (
+                <>
+                  <Link
+                    to="/admin"
+                    className={`header-tab-btn ${activeTab === 'admin' ? 'active' : ''}`}
+                    title="پنل مدیریت و کاربران"
+                    aria-label="مدیریت"
+                  >
+                    <ShieldCheck size={17} strokeWidth={2.2} />
+                    <span className="tab-btn-title">مدیریت</span>
+                  </Link>
+
+                  <Link
+                    to="/admin/sources"
+                    className={`header-tab-btn ${activeTab === 'sources' ? 'active' : ''}`}
+                    title="سورس‌های قیمت و نمودارها"
+                    aria-label="سورس‌ها"
+                  >
+                    <Radio size={17} strokeWidth={2.2} />
+                    <span className="tab-btn-title">سورس‌ها</span>
+                  </Link>
+                </>
+              )}
             </>
           )}
         </nav>
@@ -259,14 +309,43 @@ export default function Header({ usdToman, gold18kPrice, activeTab, setActiveTab
 
                   {user.role === 'admin' && (
                     <>
-                      <Link to="/admin" className="dropdown-link admin" onClick={() => setDropdownOpen(false)}>
-                        <ShieldCheck size={15} strokeWidth={2} />
-                        <span>پنل مدیریت و کاربران</span>
-                      </Link>
-                      <Link to="/admin/sources" className="dropdown-link admin" onClick={() => setDropdownOpen(false)}>
-                        <Radio size={15} strokeWidth={2} />
-                        <span>سورس‌های قیمت و نمودارها</span>
-                      </Link>
+                      {setActiveTab ? (
+                        <>
+                          <button
+                            type="button"
+                            className="dropdown-link admin"
+                            onClick={() => {
+                              setActiveTab('admin');
+                              setDropdownOpen(false);
+                            }}
+                          >
+                            <ShieldCheck size={15} strokeWidth={2} />
+                            <span>پنل مدیریت و کاربران</span>
+                          </button>
+                          <button
+                            type="button"
+                            className="dropdown-link admin"
+                            onClick={() => {
+                              setActiveTab('sources');
+                              setDropdownOpen(false);
+                            }}
+                          >
+                            <Radio size={15} strokeWidth={2} />
+                            <span>سورس‌های قیمت و نمودارها</span>
+                          </button>
+                        </>
+                      ) : (
+                        <>
+                          <Link to="/admin" className="dropdown-link admin" onClick={() => setDropdownOpen(false)}>
+                            <ShieldCheck size={15} strokeWidth={2} />
+                            <span>پنل مدیریت و کاربران</span>
+                          </Link>
+                          <Link to="/admin/sources" className="dropdown-link admin" onClick={() => setDropdownOpen(false)}>
+                            <Radio size={15} strokeWidth={2} />
+                            <span>سورس‌های قیمت و نمودارها</span>
+                          </Link>
+                        </>
+                      )}
                     </>
                   )}
                   <button className="dropdown-link logout" onClick={() => { logout(); setDropdownOpen(false); }}>
