@@ -104,26 +104,6 @@ export default function Header({ usdToman, gold18kPrice, activeTab, setActiveTab
           </Link>
         </div>
 
-
-        {/* Desktop Ticker (Hidden on Mobile) */}
-        <div className="header-live-ticker desktop-only">
-          <div className="header-ticker-item gold" title="نرخ روز هر گرم طلای ۱۸ عیار">
-            <span className="ticker-pulse gold"></span>
-            <span className="ticker-tag">طلای ۱۸:</span>
-            <strong className="ticker-amount">{formatHeaderNum(displayGold)}</strong>
-            <span className="ticker-unit">تومان</span>
-          </div>
-
-          <div className="ticker-separator"></div>
-
-          <div className="header-ticker-item usd" title="نرخ روز دلار نقدی آزاد">
-            <span className="ticker-pulse green"></span>
-            <span className="ticker-tag">دلار آزاد:</span>
-            <strong className="ticker-amount">{formatHeaderNum(displayUsd)}</strong>
-            <span className="ticker-unit">تومان</span>
-          </div>
-        </div>
-
         {/* Header Right: User Profile & Auth */}
         <div className="header-right">
           {activeTab === 'portfolio' && (

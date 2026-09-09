@@ -911,40 +911,162 @@ input:focus, select:focus, textarea:focus {
 .main-nav-tabs-bar {
   display: flex;
   align-items: center;
-  justify-content: flex-start;
+  justify-content: space-between;
+  gap: 14px;
   margin-bottom: 12px;
   width: 100%;
-  overflow-x: auto;
-  padding-bottom: 2px;
-  scrollbar-width: none;
 }
 
-.main-nav-tabs-bar::-webkit-scrollbar {
+/* ── Main Nav Live Rates Ticker (Clean Glass Surface) ─────────────────────── */
+.main-live-ticker {
+  display: inline-flex;
+  align-items: center;
+  gap: 14px;
+  background: var(--card-bg);
+  border: var(--card-border);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  padding: 7px 18px;
+  border-radius: var(--radius-full);
+  box-shadow: var(--card-shadow);
+  user-select: none;
+  white-space: nowrap;
+  flex-shrink: 0;
+  transition: all var(--transition-fast);
+}
+
+.main-live-ticker .ticker-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.main-live-ticker .ticker-pulse {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.main-live-ticker .ticker-pulse.gold {
+  background-color: #fbbf24;
+  box-shadow: 0 0 8px #fbbf24;
+  animation: pulseGold 2s infinite;
+}
+
+.main-live-ticker .ticker-pulse.green {
+  background-color: #10b981;
+  box-shadow: 0 0 8px #10b981;
+  animation: pulseGreen 2s infinite;
+}
+
+@keyframes pulseGold {
+  0%, 100% { transform: scale(0.9); opacity: 0.8; }
+  50% { transform: scale(1.2); opacity: 1; box-shadow: 0 0 12px #fbbf24; }
+}
+
+@keyframes pulseGreen {
+  0%, 100% { transform: scale(0.9); opacity: 0.8; }
+  50% { transform: scale(1.2); opacity: 1; box-shadow: 0 0 12px #10b981; }
+}
+
+.main-live-ticker .ticker-tag {
+  color: var(--text-secondary);
+  font-weight: 700;
+  font-size: 12px;
+}
+
+.main-live-ticker .mobile-text {
   display: none;
+}
+
+.main-live-ticker .desktop-text {
+  display: inline;
+}
+
+.main-live-ticker .ticker-item.gold .ticker-amount {
+  color: #fbbf24;
+  font-weight: 800;
+  font-size: 14px;
+  letter-spacing: -0.3px;
+}
+
+.main-live-ticker .ticker-item.usd .ticker-amount {
+  color: #10b981;
+  font-weight: 800;
+  font-size: 14px;
+  letter-spacing: -0.3px;
+}
+
+.main-live-ticker .ticker-unit {
+  color: var(--text-muted);
+  font-size: 11px;
+}
+
+.main-live-ticker .ticker-separator {
+  width: 1px;
+  height: 14px;
+  background: rgba(255, 255, 255, 0.12);
 }
 
 @media (max-width: 768px) {
   .main-nav-tabs-bar {
-    justify-content: center;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
     margin-bottom: 8px;
-    padding-bottom: 0;
+    width: 100%;
+    overflow-x: visible;
+  }
+
+  .main-live-ticker {
+    padding: 4px 8px;
+    gap: 6px;
+    border-radius: var(--radius-full);
+  }
+
+  .main-live-ticker .desktop-text {
+    display: none !important;
+  }
+
+  .main-live-ticker .mobile-text {
+    display: inline !important;
+    font-size: 10.5px;
+    font-weight: 700;
+  }
+
+  .main-live-ticker .ticker-item {
+    gap: 3px;
+  }
+
+  .main-live-ticker .ticker-pulse {
+    width: 5px;
+    height: 5px;
+  }
+
+  .main-live-ticker .ticker-item.gold .ticker-amount,
+  .main-live-ticker .ticker-item.usd .ticker-amount {
+    font-size: 12px;
+    font-weight: 800;
+  }
+
+  .main-live-ticker .ticker-separator {
+    height: 10px;
+    margin: 0 1px;
   }
 
   .main-nav-tabs-bar .ui-filter-pills.variant-segmented {
     width: auto;
-    max-width: 100%;
-    padding: 4px;
-    gap: 4px;
-    margin: 0 auto;
+    padding: 3px;
+    gap: 3px;
+    margin: 0;
   }
 
   .main-nav-tabs-bar .filter-pill-btn {
-    padding: 8px 14px;
-    min-width: 44px;
-    height: 38px;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
+    padding: 6px 10px;
+    min-width: 38px;
+    height: 34px;
   }
 
   .main-nav-tabs-bar .filter-pill-btn .pill-label {
@@ -958,8 +1080,30 @@ input:focus, select:focus, textarea:focus {
   }
 
   .main-nav-tabs-bar .filter-pill-btn .pill-icon svg {
-    width: 19px;
-    height: 19px;
+    width: 17px;
+    height: 17px;
+  }
+}
+
+@media (max-width: 400px) {
+  .main-live-ticker {
+    padding: 3px 6px;
+    gap: 4px;
+  }
+
+  .main-live-ticker .mobile-text {
+    font-size: 10px;
+  }
+
+  .main-live-ticker .ticker-item.gold .ticker-amount,
+  .main-live-ticker .ticker-item.usd .ticker-amount {
+    font-size: 11px;
+  }
+
+  .main-nav-tabs-bar .filter-pill-btn {
+    padding: 5px 8px;
+    min-width: 34px;
+    height: 32px;
   }
 }
 

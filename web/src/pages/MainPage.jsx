@@ -11,6 +11,7 @@ import PortfolioTracker from '../components/PortfolioTracker.jsx';
 import AdminPage from './AdminPage.jsx';
 import PriceSourcesPage from './PriceSourcesPage.jsx';
 import AccountSettingsView from '../components/AccountSettingsView.jsx';
+import LiveRatesTicker from '../components/LiveRatesTicker.jsx';
 import { useMarketData } from '../hooks/useMarketData.js';
 import { useAuth } from '../context/AuthContext.jsx';
 
@@ -147,7 +148,7 @@ export default function MainPage() {
         />
       )}
 
-      {/* Modern Segmented Navigation Tabs */}
+      {/* Modern Segmented Navigation Tabs & Live Rates Ticker */}
       <div className="main-nav-tabs-bar">
         <FilterPills
           variant="segmented"
@@ -155,6 +156,11 @@ export default function MainPage() {
           options={tabOptions}
           activeValue={activeTab}
           onChange={handleTabChange}
+        />
+
+        <LiveRatesTicker
+          goldPrice={gold18kPrice}
+          usdPrice={usdToman}
         />
       </div>
 
