@@ -81,22 +81,24 @@
   display: flex;
   flex-direction: column;
   gap: 18px;
+  padding: 20px;
 }
 
 .category-group-card {
-  background: rgba(255, 255, 255, 0.015);
-  border-radius: var(--radius-xl);
-  padding: 16px;
-  border: 1px solid rgba(255, 255, 255, 0.035);
+  background: rgba(255, 255, 255, 0.02);
+  border-radius: var(--radius-lg);
+  padding: 16px 18px;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.25);
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 12px;
   transition: var(--transition-fast);
 }
 
 .category-group-card:hover {
-  background: rgba(255, 255, 255, 0.025);
-  border-color: rgba(255, 255, 255, 0.06);
+  background: rgba(255, 255, 255, 0.03);
+  border-color: rgba(255, 255, 255, 0.08);
 }
 
 .category-group-header {
@@ -106,7 +108,7 @@
   flex-wrap: wrap;
   gap: 10px;
   padding-bottom: 12px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
 }
 
 .cat-header-identity {

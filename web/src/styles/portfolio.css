@@ -13,12 +13,13 @@
   flex-wrap: wrap;
   gap: 12px;
   background: var(--card-bg);
-  border: none;
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
+  border: var(--card-border);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
   border-radius: var(--card-radius, 16px);
-  padding: 10px 16px;
+  padding: 10px 18px;
   box-shadow: var(--card-shadow);
+  margin-bottom: 20px;
 }
 
 .portfolio-tabs-scroll {
@@ -48,8 +49,8 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  background: var(--bg-control);
-  border: 1px solid var(--border-control);
+  background: rgba(255, 255, 255, 0.035);
+  border: 1px solid rgba(255, 255, 255, 0.06);
   border-radius: var(--radius-full);
   padding: 6px 14px;
   font-size: 12.5px;
@@ -62,16 +63,16 @@
 }
 
 .portfolio-tab-pill:hover {
-  background: var(--bg-control-hover);
+  background: rgba(255, 255, 255, 0.07);
   color: var(--text-heading);
-  border-color: var(--border-strong);
+  border-color: rgba(255, 255, 255, 0.12);
 }
 
 .portfolio-tab-pill.active {
   background: rgba(245, 158, 11, 0.12);
-  border-color: rgba(245, 158, 11, 0.45);
+  border-color: rgba(245, 158, 11, 0.4);
   color: #fbbf24;
-  box-shadow: 0 0 12px rgba(245, 158, 11, 0.12);
+  box-shadow: 0 0 16px rgba(245, 158, 11, 0.12);
 }
 
 .tab-pill-icon {
@@ -234,7 +235,7 @@
 .portfolio-layout-split {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 340px;
-  gap: 20px;
+  gap: 22px;
   align-items: start;
 }
 
@@ -290,21 +291,24 @@
 }
 
 .portfolio-stat-card {
-  background: rgba(255, 255, 255, 0.02);
-  backdrop-filter: blur(18px);
-  -webkit-backdrop-filter: blur(18px);
-  border: none;
-  border-radius: var(--radius-xl);
-  padding: 22px 24px;
+  background: var(--card-bg);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: var(--card-border);
+  border-radius: var(--card-radius);
+  padding: 20px 22px;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
   gap: 12px;
+  box-shadow: var(--card-shadow);
   transition: var(--transition-fast);
 }
 
 .portfolio-stat-card:hover {
-  background: rgba(255, 255, 255, 0.035);
+  border-color: rgba(255, 255, 255, 0.12);
+  box-shadow: var(--card-shadow-hover);
+  transform: translateY(-1px);
 }
 
 .real-pill {
@@ -404,42 +408,47 @@
   justify-content: center;
   gap: 8px;
   width: 100%;
-  padding: 11px;
-  background: var(--gold-gradient);
-  border: none;
+  padding: 12px 18px;
+  background: var(--primary-gradient);
+  border: 1px solid rgba(255, 255, 255, 0.15);
   border-radius: var(--radius-md);
-  color: #000;
-  font-size: 13px;
-  font-weight: 800;
+  color: #ffffff;
+  font-size: 13.5px;
+  font-weight: 700;
+  box-shadow: 0 4px 18px rgba(2, 132, 199, 0.4);
+  cursor: pointer;
   transition: var(--transition-fast);
   margin-top: auto;
 }
 
 .btn-add-asset:hover {
-  opacity: 0.92;
+  filter: brightness(1.1);
   transform: translateY(-1px);
+  box-shadow: 0 6px 24px rgba(2, 132, 199, 0.55);
 }
 
 /* Portfolio Table & Items (Frameless Glass Card) */
 .portfolio-table-card {
   background: var(--card-bg);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  border: none;
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: var(--card-border);
   border-radius: var(--card-radius, 16px);
-  padding: 24px;
+  padding: 0;
   box-shadow: var(--card-shadow);
+  overflow: hidden;
 }
 
 .portfolio-table-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 16px;
-  padding-bottom: 14px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+  margin-bottom: 0;
+  padding: 18px 22px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  background: rgba(255, 255, 255, 0.015);
   flex-wrap: wrap;
-  gap: 8px;
+  gap: 12px;
 }
 
 .table-title h3 {
@@ -908,11 +917,11 @@
 }
 
 .portfolio-data-table thead th {
-  background: rgba(255, 255, 255, 0.02);
+  background: rgba(255, 255, 255, 0.025);
   color: var(--text-muted);
-  font-size: 11px;
-  font-weight: 800;
-  padding: 8px 10px;
+  font-size: 11.5px;
+  font-weight: 700;
+  padding: 10px 14px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.05);
   white-space: nowrap;
   letter-spacing: -0.2px;
@@ -947,8 +956,8 @@
 }
 
 .portfolio-table-row {
-  transition: background 0.15s ease, border-color 0.15s ease;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+  transition: background 0.15s ease;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.035);
 }
 
 .portfolio-table-row:hover {
@@ -956,9 +965,9 @@
 }
 
 .portfolio-table-row td {
-  padding: 7px 10px;
+  padding: 12px 14px;
   vertical-align: middle;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.035);
   white-space: nowrap;
 }
 

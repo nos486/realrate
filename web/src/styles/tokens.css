@@ -1,54 +1,55 @@
-/* ── Global Theme & Design Tokens (Pure Dark Minimalist System) ──────────────── */
+/* ── Global Theme & Design Tokens (High-End Dark Minimalist System) ────────── */
 :root {
   /* Core Dark Canvas & Surfaces */
-  --bg-app: #06080d;
-  --bg-surface: #0b0f17;
-  --bg-surface-elevated: #111724;
+  --bg-app: #07090e;
+  --bg-surface: #0c101a;
+  --bg-surface-elevated: #111726;
 
-  /* Borderless Unified Card & Surface Design Tokens */
-  --card-bg: rgba(14, 20, 32, 0.72);
+  /* Unified Card & Elevated Glass Surface Tokens */
+  --card-bg: rgba(16, 22, 34, 0.72);
   --bg-card: var(--card-bg);
-  --card-bg-hover: rgba(20, 28, 44, 0.82);
-  --card-border: transparent;
-  --border-color: transparent;
-  --card-shadow: 0 10px 32px rgba(0, 0, 0, 0.38);
-  --card-radius: var(--radius-lg, 16px);
+  --card-bg-hover: rgba(22, 30, 48, 0.82);
+  --card-border: 1px solid rgba(255, 255, 255, 0.07);
+  --border-color: rgba(255, 255, 255, 0.07);
+  --card-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.5), 0 12px 36px -4px rgba(0, 0, 0, 0.65);
+  --card-shadow-hover: 0 8px 28px -2px rgba(0, 0, 0, 0.6), 0 20px 48px -4px rgba(0, 0, 0, 0.75);
+  --card-radius: 16px;
 
   --bg-card-hover: var(--card-bg-hover);
-  --bg-card-elevated: rgba(17, 24, 38, 0.92);
-  --bg-header: rgba(6, 8, 13, 0.85);
-  --bg-header-ticker: rgba(255, 255, 255, 0.025);
+  --bg-card-elevated: rgba(19, 27, 42, 0.92);
+  --bg-header: rgba(7, 9, 14, 0.88);
+  --bg-header-ticker: rgba(255, 255, 255, 0.035);
 
-  /* Inputs, Textareas & Form Controls (Borderless Minimal) */
+  /* Inputs, Textareas & Form Controls */
   --bg-input: rgba(255, 255, 255, 0.04);
   --bg-input-focus: rgba(255, 255, 255, 0.07);
-  --border-input: transparent;
+  --border-input: 1px solid rgba(255, 255, 255, 0.08);
   --border-input-focus: var(--primary-color, #0284c7);
   --shadow-input-focus: 0 0 0 2px rgba(2, 132, 199, 0.35);
   --text-input: #ffffff;
   --placeholder-color: rgba(255, 255, 255, 0.35);
 
-  /* Modals & Popups (Borderless Glass) */
-  --bg-modal: #0d121c;
-  --bg-modal-backdrop: rgba(0, 0, 0, 0.8);
-  --border-modal: transparent;
-  --shadow-modal: 0 24px 64px rgba(0, 0, 0, 0.85);
+  /* Modals & Popups (Glass Backdrop) */
+  --bg-modal: #0e131d;
+  --bg-modal-backdrop: rgba(0, 0, 0, 0.82);
+  --border-modal: 1px solid rgba(255, 255, 255, 0.09);
+  --shadow-modal: 0 24px 64px rgba(0, 0, 0, 0.88);
 
   /* Dropdowns */
   --bg-dropdown: #0e1420;
-  --border-dropdown: transparent;
+  --border-dropdown: 1px solid rgba(255, 255, 255, 0.08);
   --shadow-dropdown: 0 16px 40px rgba(0, 0, 0, 0.6);
 
   /* Tables & Lists */
-  --bg-table-header: rgba(255, 255, 255, 0.02);
+  --bg-table-header: rgba(255, 255, 255, 0.025);
   --bg-row-hover: rgba(255, 255, 255, 0.035);
-  --border-table-row: rgba(255, 255, 255, 0.035);
+  --border-table-row: rgba(255, 255, 255, 0.04);
 
-  /* Transparent / Minimal Borders */
-  --border-subtle: transparent;
-  --border-medium: transparent;
-  --border-strong: transparent;
-  --border-gold: transparent;
+  /* Subtly Defined Borders */
+  --border-subtle: rgba(255, 255, 255, 0.05);
+  --border-medium: rgba(255, 255, 255, 0.08);
+  --border-strong: rgba(255, 255, 255, 0.15);
+  --border-gold: rgba(245, 158, 11, 0.3);
 
   /* ── Unified Brand Palette (Ocean Blue & Sky Cyan) ── */
   --primary-color: #0284c7;
@@ -57,7 +58,7 @@
   --primary-glow: 0 4px 18px rgba(2, 132, 199, 0.35);
   --primary-glow-lg: 0 6px 26px rgba(2, 132, 199, 0.45);
   --primary-soft-bg: rgba(2, 132, 199, 0.12);
-  --primary-border: transparent;
+  --primary-border: 1px solid rgba(2, 132, 199, 0.3);
   --primary-text: #ffffff;
 
   --accent-color: #38bdf8;
@@ -69,14 +70,14 @@
   --gold-primary: #f59e0b;
   --gold-light: #fbbf24;
   --gold-gradient: linear-gradient(135deg, #fbbf24 0%, #d97706 100%);
-  --gold-soft-bg: rgba(245, 158, 11, 0.08);
+  --gold-soft-bg: rgba(245, 158, 11, 0.1);
 
   --green-emerald: #10b981;
-  --green-soft: rgba(16, 185, 129, 0.08);
+  --green-soft: rgba(16, 185, 129, 0.1);
   --rose-red: #f43f5e;
-  --rose-soft: rgba(244, 63, 94, 0.08);
+  --rose-soft: rgba(244, 63, 94, 0.1);
   --blue-sky: #38bdf8;
-  --blue-soft: rgba(56, 189, 248, 0.08);
+  --blue-soft: rgba(56, 189, 248, 0.1);
 
   /* Typography */
   --text-primary: #f8fafc;
@@ -84,10 +85,11 @@
   --text-secondary: #94a3b8;
   --text-muted: #64748b;
 
-  /* Controls & Badges (Borderless Minimal) */
-  --bg-control: rgba(255, 255, 255, 0.045);
+  /* Controls & Badges */
+  --bg-control: rgba(255, 255, 255, 0.04);
   --bg-control-hover: rgba(255, 255, 255, 0.08);
-  --border-control: transparent;
+  --border-control: 1px solid rgba(255, 255, 255, 0.08);
+  --border-hover: 1px solid rgba(255, 255, 255, 0.16);
 
   /* Standardized Radii */
   --radius-xs: 6px;

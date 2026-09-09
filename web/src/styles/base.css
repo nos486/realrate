@@ -15,8 +15,8 @@ html, body {
 body {
   background-color: var(--bg-app);
   background-image:
-    radial-gradient(ellipse 60% 40% at 50% -10%, rgba(245, 158, 11, 0.05) 0%, transparent 60%),
-    radial-gradient(ellipse 50% 30% at 85% 100%, rgba(16, 185, 129, 0.03) 0%, transparent 60%);
+    radial-gradient(ellipse 70% 35% at 50% -5%, rgba(245, 158, 11, 0.04) 0%, transparent 60%),
+    radial-gradient(ellipse 60% 30% at 85% 100%, rgba(2, 132, 199, 0.035) 0%, transparent 60%);
   color: var(--text-primary);
   min-height: 100vh;
   direction: rtl;
@@ -62,13 +62,11 @@ input:focus, select:focus, textarea:focus {
   flex: 1;
   width: 100%;
   max-width: 100%;
-  padding: 20px clamp(16px, 3.5vw, 64px) 48px clamp(16px, 3.5vw, 64px);
+  padding: 24px clamp(16px, 3.5vw, 64px) 56px clamp(16px, 3.5vw, 64px);
   display: flex;
   flex-direction: column;
   overflow-x: hidden;
-  background: var(--card-bg);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
+  background: transparent;
 }
 
 @media (max-width: 768px) {
@@ -111,12 +109,12 @@ input:focus, select:focus, textarea:focus {
 [role="tablist"].variant-segmented,
 .ui-filter-pills.variant-segmented {
   background: var(--card-bg);
-  border: none;
+  border: var(--card-border);
   border-radius: var(--card-radius);
   box-shadow: var(--card-shadow);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  transition: background var(--transition-fast), transform var(--transition-fast), box-shadow var(--transition-fast);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  transition: background var(--transition-fast), border-color var(--transition-fast), box-shadow var(--transition-fast);
 }
 
 .ui-card.p-none { padding: 0; }
@@ -912,10 +910,10 @@ input:focus, select:focus, textarea:focus {
   display: flex;
   align-items: center;
   justify-content: flex-start;
-  margin-bottom: 24px;
+  margin-bottom: 20px;
   width: 100%;
   overflow-x: auto;
-  padding-bottom: 4px;
+  padding-bottom: 2px;
   scrollbar-width: none;
 }
 
@@ -1089,44 +1087,46 @@ input:focus, select:focus, textarea:focus {
 /* ── Segmented Control Variant (Unified with Card Design) ───────────────── */
 .ui-filter-pills.variant-segmented {
   background: var(--card-bg);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  border: none;
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: var(--card-border);
   padding: 5px;
-  border-radius: var(--card-radius, 16px);
-  gap: 4px;
+  border-radius: var(--radius-full);
+  gap: 5px;
   width: fit-content;
   max-width: 100%;
   box-shadow: var(--card-shadow);
 }
 
 .ui-filter-pills.variant-segmented.size-lg {
-  padding: 6px;
-  gap: 6px;
-  border-radius: var(--card-radius, 16px);
+  padding: 5px;
+  gap: 5px;
+  border-radius: var(--radius-full);
 }
 
 .ui-filter-pills.variant-segmented .filter-pill-btn {
-  border: none;
+  border: 1px solid transparent;
   background: transparent;
-  color: rgba(255, 255, 255, 0.65);
-  font-weight: 500;
+  color: var(--text-secondary);
+  font-weight: 600;
   white-space: nowrap !important;
   flex-shrink: 0;
+  border-radius: var(--radius-full);
+  padding: 8px 18px;
   transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .ui-filter-pills.variant-segmented .filter-pill-btn:hover {
   color: #ffffff;
-  background: rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.07);
 }
 
 .ui-filter-pills.variant-segmented .filter-pill-btn.active {
   background: var(--primary-gradient);
   color: var(--primary-text, #ffffff) !important;
   font-weight: 700;
-  border: none;
-  box-shadow: var(--primary-glow);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  box-shadow: 0 4px 14px rgba(2, 132, 199, 0.45);
 }
 
 .ui-filter-pills.variant-segmented .filter-pill-btn.active .pill-icon {
