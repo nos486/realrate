@@ -105,62 +105,62 @@ export default function Header({ usdToman, gold18kPrice, activeTab, setActiveTab
           </Link>
         </div>
 
-        {/* Tab Switcher (When on main view) */}
+        {/* Mobile-only Tab Switcher (Desktop uses page-level tab bar) */}
         {setActiveTab && (
-          <nav className="flex items-center gap-1.5 bg-white/[0.04] p-1 rounded-2xl border border-white/5 light:bg-slate-100 light:border-slate-200" aria-label="انتخاب تب">
+          <nav className="flex md:hidden items-center gap-1 bg-white/[0.04] p-1 rounded-full border border-white/5 light:bg-slate-100 light:border-slate-200" aria-label="انتخاب تب">
             <button
               type="button"
               className={cn(
-                'inline-flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer select-none',
+                'p-2 rounded-full text-xs font-bold transition-all cursor-pointer select-none',
                 activeTab === 'market'
                   ? 'bg-amber-500 text-slate-950 shadow-md shadow-amber-500/20'
                   : 'text-slate-400 hover:text-white light:text-slate-600 light:hover:text-slate-900'
               )}
               onClick={() => setActiveTab('market')}
               title="نرخ و حباب طلا، سکه و ارز"
+              aria-label="بازار"
             >
-              <TrendingUp size={16} strokeWidth={2.4} />
-              <span className="hidden sm:inline">نرخ و حباب</span>
+              <TrendingUp size={16} strokeWidth={2.2} />
             </button>
 
             <button
               type="button"
               className={cn(
-                'inline-flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer select-none',
+                'p-2 rounded-full text-xs font-bold transition-all cursor-pointer select-none',
                 activeTab === 'portfolio'
                   ? 'bg-amber-500 text-slate-950 shadow-md shadow-amber-500/20'
                   : 'text-slate-400 hover:text-white light:text-slate-600 light:hover:text-slate-900'
               )}
               onClick={() => setActiveTab('portfolio')}
               title="پورتفوی دارایی من"
+              aria-label="پورتفو"
             >
-              <Briefcase size={16} strokeWidth={2.4} />
-              <span className="hidden sm:inline">پورتفو</span>
+              <Briefcase size={16} strokeWidth={2.2} />
             </button>
           </nav>
         )}
 
-        {/* Desktop Ticker (Hidden on Mobile) */}
-        <div className="hidden lg:flex items-center gap-4 bg-white/[0.03] border border-white/[0.08] px-4 py-2 rounded-2xl light:bg-slate-100 light:border-slate-200 text-xs shadow-inner">
+        {/* Desktop Live Ticker (Centered & Elegant) */}
+        <div className="hidden md:flex items-center gap-5 bg-white/[0.04] border border-white/[0.08] px-5 py-2 rounded-full light:bg-slate-100 light:border-slate-200 text-xs shadow-lg backdrop-blur-md select-none">
           <div className="flex items-center gap-2" title="نرخ روز هر گرم طلای ۱۸ عیار">
-            <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse ring-2 ring-amber-400/20" />
-            <span className="text-slate-400 light:text-slate-500">طلای ۱۸:</span>
-            <strong className="font-extrabold text-amber-400 text-xs tracking-wide">{formatHeaderNum(gold18kPrice)}</strong>
-            <span className="text-[10px] text-slate-500">تومان</span>
+            <span className="w-2 h-2 rounded-full bg-amber-400 shadow-[0_0_8px_#fbbf24] animate-pulse shrink-0" />
+            <span className="text-slate-300 light:text-slate-600 font-medium">طلای ۱۸:</span>
+            <strong className="font-mono font-black text-amber-400 text-sm tracking-tight">{formatHeaderNum(gold18kPrice)}</strong>
+            <span className="text-[11px] text-slate-400 font-normal">تومان</span>
           </div>
 
-          <div className="h-3.5 w-px bg-white/10 light:bg-slate-300" />
+          <div className="h-4 w-px bg-white/10 light:bg-slate-300" />
 
           <div className="flex items-center gap-2" title="نرخ روز دلار نقدی آزاد">
-            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse ring-2 ring-emerald-400/20" />
-            <span className="text-slate-400 light:text-slate-500">دلار آزاد:</span>
-            <strong className="font-extrabold text-emerald-400 text-xs tracking-wide">{formatHeaderNum(usdToman)}</strong>
-            <span className="text-[10px] text-slate-500">تومان</span>
+            <span className="w-2 h-2 rounded-full bg-emerald-400 shadow-[0_0_8px_#10b981] animate-pulse shrink-0" />
+            <span className="text-slate-300 light:text-slate-600 font-medium">دلار آزاد:</span>
+            <strong className="font-mono font-black text-emerald-400 text-sm tracking-tight">{formatHeaderNum(usdToman)}</strong>
+            <span className="text-[11px] text-slate-400 font-normal">تومان</span>
           </div>
         </div>
 
         {/* Header Right Actions */}
-        <div className="flex items-center gap-2.5">
+        <div className="flex items-center gap-2 sm:gap-2.5">
           {activeTab === 'portfolio' && (
             <button
               type="button"
@@ -196,8 +196,8 @@ export default function Header({ usdToman, gold18kPrice, activeTab, setActiveTab
                 <button
                   type="button"
                   className={cn(
-                    'flex items-center gap-2.5 p-1.5 ps-3 rounded-2xl border border-white/10 bg-white/[0.03] hover:bg-white/[0.07] light:bg-slate-100 light:border-slate-200 transition-all cursor-pointer',
-                    dropdownOpen && 'border-amber-500/50 ring-2 ring-amber-500/20 bg-amber-500/5'
+                    'flex items-center gap-2 p-1.5 pe-3 ps-2 rounded-full border border-white/[0.08] bg-white/[0.03] hover:bg-white/[0.07] light:bg-slate-100 light:border-slate-200 transition-all cursor-pointer select-none',
+                    dropdownOpen && 'border-amber-500/50 ring-2 ring-amber-500/20 bg-amber-500/10'
                   )}
                   onClick={() => setDropdownOpen((v) => !v)}
                   title={user.customName || user.name || 'حساب کاربری'}
@@ -205,26 +205,37 @@ export default function Header({ usdToman, gold18kPrice, activeTab, setActiveTab
                   <img
                     src={user.picture || ''}
                     alt={user.name || ''}
-                    className="w-8 h-8 rounded-full object-cover border-2 border-amber-500/60 bg-slate-800 shrink-0"
+                    className="w-7 h-7 rounded-full object-cover border border-amber-500/80 bg-slate-800 shrink-0 shadow-sm"
                     onError={(e) => { e.target.style.display = 'none'; }}
                   />
-                  <span className="hidden sm:inline text-xs font-bold text-slate-200 light:text-slate-800 max-w-[100px] truncate">
+                  <span className="hidden sm:inline text-xs font-bold text-slate-200 light:text-slate-800 max-w-[90px] truncate">
                     {user.customName || user.name?.split(' ')[0] || 'کاربر'}
                   </span>
                   {user.role === 'admin' && (
-                    <span className="hidden sm:inline text-[10px] px-2 py-0.5 rounded-md bg-amber-500/20 text-amber-400 border border-amber-500/40 font-black">
+                    <span className="hidden sm:inline text-[9.5px] px-1.5 py-0.5 rounded-md bg-gradient-to-r from-amber-500 to-amber-600 text-slate-950 font-black shadow-sm">
                       مدیر
                     </span>
                   )}
-                  <ChevronDown size={14} className="hidden sm:inline text-slate-400" />
+                  <ChevronDown
+                    size={13}
+                    strokeWidth={2.5}
+                    className={cn('hidden sm:inline text-slate-400 transition-transform duration-200', dropdownOpen && 'rotate-180')}
+                  />
                 </button>
 
                 {dropdownOpen && (
-                  <div className="absolute end-0 top-full mt-2 w-60 p-2.5 rounded-2xl border border-white/10 bg-[#0e131f] shadow-2xl z-50 text-xs flex flex-col gap-1 light:bg-white light:border-slate-200 animate-in fade-in zoom-in-95 duration-150">
-                    <div className="p-2.5 flex flex-col gap-0.5 bg-white/[0.02] rounded-xl mb-1 light:bg-slate-50">
-                      <strong className="text-white light:text-slate-900 font-bold truncate text-xs">
-                        {user.customName ? `${user.customName} (${user.name})` : user.name}
-                      </strong>
+                  <div className="absolute left-0 top-full mt-2.5 w-64 p-2 rounded-2xl border border-white/[0.08] bg-[#0e131f]/98 shadow-2xl backdrop-blur-xl z-50 text-xs flex flex-col gap-1 light:bg-white light:border-slate-200 animate-in fade-in zoom-in-95 duration-150">
+                    <div className="p-3 flex flex-col gap-1 bg-white/[0.03] rounded-xl mb-1 border border-white/5 light:bg-slate-50 light:border-slate-100">
+                      <div className="flex items-center justify-between gap-2">
+                        <strong className="text-white light:text-slate-900 font-bold truncate text-xs">
+                          {user.customName ? `${user.customName} (${user.name})` : user.name}
+                        </strong>
+                        {user.role === 'admin' && (
+                          <span className="text-[10px] px-2 py-0.5 rounded-full bg-gradient-to-r from-amber-500 to-amber-600 text-slate-950 font-black shadow-sm shrink-0">
+                            مدیر
+                          </span>
+                        )}
+                      </div>
                       <span className="text-[11px] text-slate-400 font-mono dir-ltr text-start truncate">
                         {user.email}
                       </span>
@@ -235,7 +246,7 @@ export default function Header({ usdToman, gold18kPrice, activeTab, setActiveTab
                       className="w-full flex items-center gap-2.5 p-2.5 rounded-xl text-slate-300 hover:text-white hover:bg-white/[0.07] light:text-slate-700 light:hover:text-slate-900 light:hover:bg-slate-100 transition-colors text-start cursor-pointer font-medium"
                       onClick={() => { setAccountModalOpen(true); setDropdownOpen(false); }}
                     >
-                      <User size={16} strokeWidth={2} />
+                      <User size={16} strokeWidth={2} className="text-slate-400 shrink-0" />
                       <span>تنظیمات حساب کاربری</span>
                     </button>
 
@@ -246,7 +257,7 @@ export default function Header({ usdToman, gold18kPrice, activeTab, setActiveTab
                           className="w-full flex items-center gap-2.5 p-2.5 rounded-xl text-amber-400 hover:bg-amber-500/10 transition-colors text-start font-medium"
                           onClick={() => setDropdownOpen(false)}
                         >
-                          <ShieldCheck size={16} strokeWidth={2} />
+                          <ShieldCheck size={16} strokeWidth={2} className="text-amber-400 shrink-0" />
                           <span>پنل مدیریت و کاربران</span>
                         </Link>
                         <Link
@@ -254,7 +265,7 @@ export default function Header({ usdToman, gold18kPrice, activeTab, setActiveTab
                           className="w-full flex items-center gap-2.5 p-2.5 rounded-xl text-sky-400 hover:bg-sky-500/10 transition-colors text-start font-medium"
                           onClick={() => setDropdownOpen(false)}
                         >
-                          <Radio size={16} strokeWidth={2} />
+                          <Radio size={16} strokeWidth={2} className="text-sky-400 shrink-0" />
                           <span>سورس‌های قیمت و نمودارها</span>
                         </Link>
                       </>
@@ -267,7 +278,7 @@ export default function Header({ usdToman, gold18kPrice, activeTab, setActiveTab
                       className="w-full flex items-center gap-2.5 p-2.5 rounded-xl text-rose-400 hover:bg-rose-500/10 transition-colors text-start cursor-pointer font-medium"
                       onClick={() => { logout(); setDropdownOpen(false); }}
                     >
-                      <LogOut size={16} strokeWidth={2} />
+                      <LogOut size={16} strokeWidth={2} className="text-rose-400 shrink-0" />
                       <span>خروج از حساب</span>
                     </button>
                   </div>
@@ -293,18 +304,18 @@ export default function Header({ usdToman, gold18kPrice, activeTab, setActiveTab
       </div>
 
       {/* Mobile Live Sub-Ticker Strip */}
-      <div className="lg:hidden flex items-center justify-center gap-4 py-2 px-4 bg-white/[0.02] border-t border-white/5 light:bg-slate-50 light:border-slate-200 text-xs">
+      <div className="md:hidden flex items-center justify-center gap-4 py-2 px-4 bg-white/[0.02] border-t border-white/5 light:bg-slate-50 light:border-slate-200 text-xs">
         <div className="flex items-center gap-1.5">
-          <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
+          <span className="w-1.5 h-1.5 rounded-full bg-amber-400 shadow-[0_0_6px_#fbbf24] animate-pulse" />
           <span className="text-slate-400 light:text-slate-500">طلا ۱۸:</span>
-          <strong className="font-extrabold text-amber-400">{formatHeaderNum(gold18kPrice)}</strong>
+          <strong className="font-mono font-black text-amber-400">{formatHeaderNum(gold18kPrice)}</strong>
           <span className="text-[10px] text-slate-500">تومان</span>
         </div>
         <div className="text-slate-600 light:text-slate-400">•</div>
         <div className="flex items-center gap-1.5">
-          <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+          <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shadow-[0_0_6px_#10b981] animate-pulse" />
           <span className="text-slate-400 light:text-slate-500">دلار:</span>
-          <strong className="font-extrabold text-emerald-400">{formatHeaderNum(usdToman)}</strong>
+          <strong className="font-mono font-black text-emerald-400">{formatHeaderNum(usdToman)}</strong>
           <span className="text-[10px] text-slate-500">تومان</span>
         </div>
       </div>
