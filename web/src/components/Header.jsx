@@ -6,7 +6,6 @@ import {
   LogOut,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext.jsx';
-import { apiGetPrices } from '../api/client.js';
 
 const LogoMark = () => (
   <svg width="28" height="28" viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -23,39 +22,8 @@ const LogoMark = () => (
   </svg>
 );
 
-function formatHeaderNum(num) {
-  if (num === null || num === undefined || isNaN(num) || num === 0) return '...';
-  const clean = typeof num === 'string' ? parseFloat(num.replace(/,/g, '')) : num;
-  if (isNaN(clean) || clean === 0) return '...';
-  return Math.round(clean).toLocaleString('fa-IR');
-}
-
-export default function Header({ usdToman, gold18kPrice, activeTab, setActiveTab }) {
+export default function Header({ activeTab, setActiveTab }) {
   const { user, triggerLogin, logout } = useAuth();
-
-  // Autonomous fallback for price ticker when props are not provided
-  const [internalPrices, setInternalPrices] = useState({ usd: null, gold: null });
-
-  useEffect(() => {
-    if (usdToman !== undefined && gold18kPrice !== undefined) return;
-    let mounted = true;
-    apiGetPrices()
-      .then((data) => {
-        if (!mounted || !data) return;
-        const usd = data.live_usd_toman || data.globalSettings?.default_usd_toman || 0;
-        const gold =
-          data.prices?.['18k']?.price ||
-          (data.gold_usd && usd ? Math.round((data.gold_usd * usd * 4.3318) / 31.1034768) : 0);
-        setInternalPrices({ usd, gold });
-      })
-      .catch(() => {});
-    return () => {
-      mounted = false;
-    };
-  }, [usdToman, gold18kPrice]);
-
-  const displayUsd = usdToman !== undefined ? usdToman : internalPrices.usd;
-  const displayGold = gold18kPrice !== undefined ? gold18kPrice : internalPrices.gold;
 
   const [hideValues, setHideValues] = useState(() => {
     try {
@@ -151,23 +119,6 @@ export default function Header({ usdToman, gold18kPrice, activeTab, setActiveTab
               </button>
             )}
           </div>
-        </div>
-      </div>
-
-      {/* Mobile Live Sub-Ticker Strip: Ultra compact, single-line, zero overflow */}
-      <div className="header-mobile-ticker mobile-only">
-        <div className="mobile-ticker-chip gold">
-          <span className="ticker-pulse gold"></span>
-          <span className="chip-label">طلا ۱۸:</span>
-          <strong>{formatHeaderNum(gold18kPrice)}</strong>
-          <span className="chip-unit">تومان</span>
-        </div>
-        <div className="ticker-dot-sep">•</div>
-        <div className="mobile-ticker-chip usd">
-          <span className="ticker-pulse green"></span>
-          <span className="chip-label">دلار:</span>
-          <strong>{formatHeaderNum(usdToman)}</strong>
-          <span className="chip-unit">تومان</span>
         </div>
       </div>
     </header>
