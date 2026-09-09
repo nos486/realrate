@@ -1,5 +1,4 @@
 import React from 'react';
-import { formatRelativeTime } from './ui/TimeAgoBadge.jsx';
 
 function formatNum(num) {
   if (num === null || num === undefined || isNaN(num)) return '-';
@@ -45,18 +44,12 @@ export default function AnalysisCards({ analysis, recommendation }) {
               <div className="card-top-row">
                 <div className="card-identity">
                   <h3 className="card-name">{item.name}</h3>
-                  {item.target_bubble_pct > 0 && (
-                    <span className="target-badge">
-                      حباب استاندارد: {Number(item.target_bubble_pct).toLocaleString('fa-IR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}٪
-                    </span>
-                  )}
                 </div>
                 <span className={`bubble-pill ${badgeClass}`}>{badgeText}</span>
               </div>
 
               {/* Main Market Price */}
               <div className="main-price-block">
-                <span className="price-title">قیمت بازار</span>
                 <div className="price-big-row">
                   {hasMarket ? (
                     <>
@@ -92,11 +85,6 @@ export default function AnalysisCards({ analysis, recommendation }) {
                     </strong>
                   </div>
                 )}
-              </div>
-
-              {/* Footer Timestamp */}
-              <div className="card-timestamp-footer">
-                <span>بروزرسانی: {formatRelativeTime(item.updated_at)}</span>
               </div>
             </div>
           );
