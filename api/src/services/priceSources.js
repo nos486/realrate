@@ -427,27 +427,6 @@ export async function handleScheduledPriceExtraction(env, forceAll = false) {
   if (env.REALRATE_KV) {
     try {
       await env.REALRATE_KV.put("latest_rates", JSON.stringify(latestRates));
-
-      // Compatibility mirrors for legacy code
-      await env.REALRATE_KV.put("tg_prices", JSON.stringify(latestRates));
-      if (latestRates.ons_gold?.price) {
-        await env.REALRATE_KV.put(
-          "spot_gold_usd",
-          JSON.stringify({
-            price: latestRates.ons_gold.price,
-            last_updated: latestRates.ons_gold.datetime,
-          })
-        );
-      }
-      if (latestRates.ons_silver?.price) {
-        await env.REALRATE_KV.put(
-          "spot_silver_usd",
-          JSON.stringify({
-            price: latestRates.ons_silver.price,
-            last_updated: latestRates.ons_silver.datetime,
-          })
-        );
-      }
     } catch (e) {
       console.error("KV write error for latest_rates:", e);
     }

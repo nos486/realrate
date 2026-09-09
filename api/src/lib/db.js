@@ -233,9 +233,13 @@ export async function ensureD1Tables(env) {
         `).bind(nowIso, nowIso).run().catch(() => {});
       }
 
-      // Cleanup bloated legacy KV cache key if present
+      // Cleanup bloated legacy and redundant KV cache keys if present
       if (env.REALRATE_KV) {
         env.REALRATE_KV.delete("price_sources_list").catch(() => {});
+        env.REALRATE_KV.delete("users_list").catch(() => {});
+        env.REALRATE_KV.delete("tg_prices").catch(() => {});
+        env.REALRATE_KV.delete("spot_gold_usd").catch(() => {});
+        env.REALRATE_KV.delete("spot_silver_usd").catch(() => {});
       }
     } catch (e) {
       console.error("Price sources seed error:", e);
@@ -317,36 +321,6 @@ export async function dbUpsertUser(env, userData) {
     }
   }
 
-  // Also sync with KV
-  if (env && env.REALRATE_KV) {
-    try {
-      const userKey = `user:${userData.email}`;
-      await env.REALRATE_KV.put(userKey, JSON.stringify(userData));
-
-      let usersList = [];
-      const listStr = await env.REALRATE_KV.get("users_list");
-      if (listStr) usersList = JSON.parse(listStr);
-      if (!Array.isArray(usersList)) usersList = [];
-
-      const idx = usersList.findIndex(u => u.email === userData.email);
-      const summaryItem = {
-        id: userData.id,
-        email: userData.email,
-        name: userData.name,
-        picture: userData.picture,
-        role: userData.role,
-        createdAt: userData.createdAt,
-        lastLogin: userData.lastLogin,
-        loginCount: userData.loginCount,
-      };
-      if (idx >= 0) usersList[idx] = summaryItem;
-      else usersList.unshift(summaryItem);
-      await env.REALRATE_KV.put("users_list", JSON.stringify(usersList));
-    } catch (e) {
-      console.error("KV sync error in dbUpsertUser:", e);
-    }
-  }
-
   return userData;
 }
 
@@ -372,16 +346,6 @@ export async function dbGetUsers(env) {
     } catch (e) {
       console.error("D1 dbGetUsers error:", e);
     }
-  }
-
-  if (env && env.REALRATE_KV) {
-    try {
-      const listStr = await env.REALRATE_KV.get("users_list");
-      if (listStr) {
-        const parsed = JSON.parse(listStr);
-        if (Array.isArray(parsed)) return parsed;
-      }
-    } catch (e) {}
   }
 
   return [];
@@ -677,34 +641,6 @@ export async function dbGetUserPortfolios(env, userId) {
     }
   }
 
-  // Fallback to KV
-  if (env && env.REALRATE_KV) {
-    try {
-      const pStr = await env.REALRATE_KV.get(`portfolios:${userId}`);
-      if (pStr) {
-        const parsed = JSON.parse(pStr);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
-      }
-      const def = [{
-        id: `p_default_${userId}`,
-        userId,
-        name: 'پورتفوی اصلی',
-        isDefault: 1,
-        shareSlug: generateRandomSlug(8),
-        shareEnabled: 0,
-        sharePassword: '',
-        isE2ee: 0,
-        e2eeSalt: '',
-        e2eeVerifier: '',
-        itemCount: 0,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      }];
-      await env.REALRATE_KV.put(`portfolios:${userId}`, JSON.stringify(def));
-      return def;
-    } catch (e) {}
-  }
-
   return [];
 }
 
@@ -750,14 +686,6 @@ export async function dbCreatePortfolio(env, userId, { name, isE2ee = false, e2e
       INSERT INTO portfolios (id, user_id, name, is_default, share_slug, share_password, share_enabled, is_e2ee, e2ee_salt, e2ee_verifier, created_at, updated_at)
       VALUES (?, ?, ?, 0, ?, '', 0, ?, ?, ?, ?, ?)
     `).bind(id, userId, portfolioName, shareSlug, e2eeVal, e2eeSalt || "", e2eeVerifier || "", now, now).run();
-  }
-
-  // Update KV
-  if (env && env.REALRATE_KV) {
-    try {
-      const list = await dbGetUserPortfolios(env, userId);
-      await env.REALRATE_KV.put(`portfolios:${userId}`, JSON.stringify(list));
-    } catch (e) {}
   }
 
   return {
@@ -849,14 +777,6 @@ export async function dbUpdatePortfolio(env, portfolioId, userId, { name, shareS
       SET ${updates.join(", ")}
       WHERE id = ? AND user_id = ?
     `).bind(...bindings).run();
-
-    // Refresh KV if used
-    if (env && env.REALRATE_KV) {
-      try {
-        const list = await dbGetUserPortfolios(env, userId);
-        await env.REALRATE_KV.put(`portfolios:${userId}`, JSON.stringify(list));
-      } catch (e) {}
-    }
 
     const updated = await env.DB.prepare(`
       SELECT p.id, p.user_id AS userId, p.name, p.is_default AS isDefault,
@@ -1021,25 +941,6 @@ export async function dbGetPortfolioHoldings(env, userId, portfolioId = null) {
     }
   }
 
-  // Fallback to KV
-  if (env && env.REALRATE_KV) {
-    try {
-      const dataStr = await env.REALRATE_KV.get(`portfolio:${userId}`);
-      if (dataStr) {
-        let parsed = [];
-        try {
-          parsed = JSON.parse(dataStr);
-        } catch (e) {}
-        if (Array.isArray(parsed)) {
-          if (portfolioId) {
-            return parsed.filter(item => !item.portfolioId || item.portfolioId === portfolioId);
-          }
-          return parsed;
-        }
-      }
-    } catch (e) {}
-  }
-
   return [];
 }
 
@@ -1126,28 +1027,6 @@ export async function dbAddPortfolioHolding(env, item) {
     }
   }
 
-  // Sync to KV
-  if (env && env.REALRATE_KV) {
-    try {
-      let list = [];
-      const listStr = await env.REALRATE_KV.get(`portfolio:${holding.userId}`);
-      if (listStr) {
-        try {
-          list = JSON.parse(listStr);
-        } catch (e) {}
-      }
-      if (!Array.isArray(list)) list = [];
-
-      const idx = list.findIndex(h => h.id === holding.id);
-      if (idx >= 0) list[idx] = holding;
-      else list.unshift(holding);
-
-      await env.REALRATE_KV.put(`portfolio:${holding.userId}`, JSON.stringify(list));
-    } catch (e) {
-      console.error("KV sync error:", e);
-    }
-  }
-
   return holding;
 }
 
@@ -1168,25 +1047,6 @@ export async function dbDeletePortfolioHolding(env, id, userId) {
       `).bind(id, userId).run();
     } catch (e) {
       console.error("D1 dbDeletePortfolioHolding error:", e);
-    }
-  }
-
-  // Sync to KV
-  if (env && env.REALRATE_KV) {
-    try {
-      const listStr = await env.REALRATE_KV.get(`portfolio:${userId}`);
-      if (listStr) {
-        let list = [];
-        try {
-          list = JSON.parse(listStr);
-        } catch (e) {}
-        if (Array.isArray(list)) {
-          list = list.filter(h => h.id !== id);
-          await env.REALRATE_KV.put(`portfolio:${userId}`, JSON.stringify(list));
-        }
-      }
-    } catch (e) {
-      console.error("KV delete sync error:", e);
     }
   }
 
@@ -1233,17 +1093,6 @@ export async function dbGetPriceSources(env) {
     } catch (e) {
       console.error("D1 dbGetPriceSources error:", e);
     }
-  }
-
-  // Fallback to KV
-  if (env && env.REALRATE_KV) {
-    try {
-      const cached = await env.REALRATE_KV.get("price_sources_list");
-      if (cached) {
-        const parsed = JSON.parse(cached);
-        if (Array.isArray(parsed)) return parsed;
-      }
-    } catch (ignore) {}
   }
 
   return [];
