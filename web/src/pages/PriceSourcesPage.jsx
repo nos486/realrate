@@ -30,6 +30,7 @@ import {
   Info,
   ShieldCheck,
   Zap,
+  Save,
 } from 'lucide-react';
 import Header from '../components/Header.jsx';
 import Footer from '../components/Footer.jsx';
@@ -990,7 +991,7 @@ export default function PriceSourcesPage() {
 
         {/* ── SECTION 4: Add/Edit Modal ───────────────────────────────────── */}
         {sourceModalOpen && (
-          <div className="admin-modal-overlay" onClick={() => setSourceModalOpen(false)}>
+          <div className="admin-modal-backdrop" onClick={() => setSourceModalOpen(false)}>
             <div
               className="admin-modal-card source-edit-modal-card"
               onClick={(e) => e.stopPropagation()}
@@ -1003,7 +1004,7 @@ export default function PriceSourcesPage() {
                 </div>
                 <button
                   type="button"
-                  className="admin-modal-close"
+                  className="modal-close-btn"
                   onClick={() => setSourceModalOpen(false)}
                 >
                   <X size={16} />
@@ -1225,7 +1226,7 @@ export default function PriceSourcesPage() {
                 </div>
 
                 {/* Modal Footer */}
-                <div className="admin-modal-footer">
+                <div className="admin-modal-actions">
                   <button type="button" className="btn-sm site-link" onClick={() => setSourceModalOpen(false)}>
                     انصراف
                   </button>
