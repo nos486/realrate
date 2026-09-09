@@ -16,30 +16,31 @@ import {
   Megaphone,
   Save,
   Radio,
-  Globe,
   CheckCircle2,
   AlertCircle,
-  PlayCircle,
-  Send,
-  Plus,
-  Trash2,
-  Edit3,
-  Star,
-  Clock,
-  Layers,
-  Sparkles,
-  Code,
-  Check,
+  Activity,
 } from 'lucide-react';
-import { useAuth } from '../context/AuthContext.jsx';
+import { useAuth } from '@/context/AuthContext.jsx';
 import {
   apiAdminStats,
   apiAdminUsers,
   apiAdminSaveSettings,
-  apiAdminTestUsdSource,
   apiGetRates,
-} from '../api/client.js';
+} from '@/api/client.js';
 
+import { Button } from '@/components/ui/button.jsx';
+import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card.jsx';
+import { Input, Textarea, Label } from '@/components/ui/input.jsx';
+import { Badge } from '@/components/ui/badge.jsx';
+import {
+  Table,
+  TableHeader,
+  TableBody,
+  TableRow,
+  TableHead,
+  TableCell,
+} from '@/components/ui/table.jsx';
+import { cn } from '@/lib/utils.js';
 
 function formatNum(num) {
   if (num === null || num === undefined || isNaN(num)) return '۰';
@@ -68,7 +69,6 @@ export default function AdminPage() {
   const [loadingStats, setLoadingStats] = useState(false);
   const [loadingUsers, setLoadingUsers] = useState(false);
 
-  const [marketRates, setMarketRates] = useState(null);
   const [userSearch, setUserSearch] = useState('');
 
   const filteredUsers = useMemo(() => {
@@ -92,15 +92,11 @@ export default function AdminPage() {
   const [bubbleQuarter, setBubbleQuarter] = useState(25);
   const [announcement, setAnnouncement] = useState('');
 
-  // USD dynamic source configuration
+  // USD source settings
   const [usdSourceType, setUsdSourceType] = useState('telegram');
   const [usdTelegramChannel, setUsdTelegramChannel] = useState('tahran_sabza');
   const [usdApiUrl, setUsdApiUrl] = useState('');
   const [usdApiJsonPath, setUsdApiJsonPath] = useState('');
-
-  // Test source state
-  const [testingUsdSource, setTestingUsdSource] = useState(false);
-  const [usdTestResult, setUsdTestResult] = useState(null);
 
   const [msg, setMsg] = useState({ text: '', type: '' });
   const [saving, setSaving] = useState(false);
@@ -148,7 +144,6 @@ export default function AdminPage() {
 
       apiGetRates()
         .then((data) => {
-          if (data) setMarketRates(data);
           if (data?.globalSettings) {
             const s = data.globalSettings;
             if (s.default_usd_toman) setUsdToman(s.default_usd_toman);
@@ -166,27 +161,6 @@ export default function AdminPage() {
         .catch(console.error);
     }
   }, [user]);
-
-  const handleTestUsdSource = async () => {
-    setTestingUsdSource(true);
-    setUsdTestResult(null);
-    try {
-      const res = await apiAdminTestUsdSource({
-        usd_source_type: usdSourceType,
-        usd_telegram_channel: usdTelegramChannel,
-        usd_api_url: usdApiUrl,
-        usd_api_json_path: usdApiJsonPath,
-      });
-      setUsdTestResult(res);
-    } catch (err) {
-      setUsdTestResult({
-        success: false,
-        error: 'خطا در ارتباط با سرور: ' + err.message,
-      });
-    } finally {
-      setTestingUsdSource(false);
-    }
-  };
 
   const handleSave = async (e) => {
     e.preventDefault();
@@ -210,8 +184,8 @@ export default function AdminPage() {
       } else {
         showMsg(res.message || 'خطا در ذخیره‌سازی تنظیمات', 'error');
       }
-    } catch (e) {
-      showMsg('خطا در ارتباط با سرور: ' + e.message, 'error');
+    } catch (err) {
+      showMsg('خطا در ارتباط با سرور: ' + err.message, 'error');
     } finally {
       setSaving(false);
     }
@@ -219,8 +193,11 @@ export default function AdminPage() {
 
   if (loading) {
     return (
-      <div style={{ textAlign: 'center', padding: '60px', color: 'var(--text-muted)' }}>
-        در حال بررسی دسترسی...
+      <div className="min-h-screen flex items-center justify-center bg-app text-primary">
+        <div className="text-center">
+          <RefreshCw size={32} className="animate-spin text-amber-500 mx-auto mb-3" />
+          <p className="text-xs text-slate-400">در حال بررسی دسترسی مدیریت...</p>
+        </div>
       </div>
     );
   }
@@ -228,13 +205,24 @@ export default function AdminPage() {
   // Not logged in
   if (!user) {
     return (
-      <div className="admin-container" style={{ margin: '40px auto' }}>
-        <div className="admin-header">
-          <h2>ورود به پنل مدیریت RealRate</h2>
-          <p>جهت ورود، لطفاً با حساب گوگل تعیین‌شده برای مدیر وارد شوید.</p>
-        </div>
-        <div className="login-box">
-          <button className="google-admin-btn" onClick={triggerLogin}>
+      <div className="min-h-screen flex items-center justify-center p-4 bg-app text-primary">
+        <Card className="max-w-md w-full p-8 text-center border-white/10 shadow-2xl">
+          <div className="mb-6 flex flex-col items-center">
+            <div className="w-12 h-12 rounded-2xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-500 mb-3">
+              <ShieldCheck size={28} />
+            </div>
+            <h2 className="text-lg font-bold text-white light:text-slate-900">
+              ورود به پنل مدیریت RealRate
+            </h2>
+            <p className="text-xs text-slate-400 mt-1">
+              جهت ورود، لطفاً با حساب گوگل تعیین‌شده برای مدیر وارد شوید.
+            </p>
+          </div>
+
+          <button
+            onClick={triggerLogin}
+            className="w-full flex items-center justify-center gap-3 h-11 px-4 rounded-xl font-medium text-sm text-slate-900 bg-white hover:bg-slate-100 active:scale-[0.98] transition-all shadow-md cursor-pointer select-none"
+          >
             <svg width="18" height="18" viewBox="0 0 24 24">
               <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
               <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
@@ -243,14 +231,20 @@ export default function AdminPage() {
             </svg>
             <span>ورود به مدیریت با گوگل</span>
           </button>
-          <p style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '10px' }}>
-            <ShieldCheck size={14} style={{ verticalAlign: 'middle', marginLeft: '4px', display: 'inline' }} />
-            احراز هویت اختصاصی بر اساس متغیر محیطی ADMIN_EMAIL
+
+          <p className="text-[11px] text-slate-500 mt-4 leading-relaxed">
+            احراز هویت بر اساس شناسه متغیر محیطی <code className="text-amber-400">ADMIN_EMAIL</code> کنترل می‌شود.
           </p>
-          <Link to="/" className="btn-sm site-link" style={{ marginTop: '12px' }}>
-            بازگشت به صفحه اصلی سایت
-          </Link>
-        </div>
+
+          <div className="mt-6 pt-4 border-t border-white/5 light:border-slate-100">
+            <Link to="/">
+              <Button variant="ghost" size="sm" className="text-xs">
+                <Home size={14} className="ms-1" />
+                <span>بازگشت به صفحه اصلی</span>
+              </Button>
+            </Link>
+          </div>
+        </Card>
       </div>
     );
   }
@@ -258,316 +252,418 @@ export default function AdminPage() {
   // Logged in but not admin
   if (user.role !== 'admin') {
     return (
-      <div className="admin-container" style={{ margin: '40px auto' }}>
-        <div className="login-box">
-          <div style={{ display: 'flex', justifyContent: 'center', margin: '10px 0' }}>
-            <Ban size={44} color="#f87171" strokeWidth={1.8} />
+      <div className="min-h-screen flex items-center justify-center p-4 bg-app text-primary">
+        <Card className="max-w-md w-full p-8 text-center border-white/10 shadow-2xl">
+          <div className="w-12 h-12 rounded-2xl bg-rose-500/10 border border-rose-500/20 flex items-center justify-center text-rose-500 mx-auto mb-3">
+            <Ban size={28} />
           </div>
-          <h3 style={{ color: '#f87171', fontWeight: 800 }}>عدم دسترسی مدیریت</h3>
-          <p style={{ fontSize: '13px', color: 'var(--text-muted)', maxWidth: '420px', lineHeight: '1.8' }}>
+          <h3 className="text-base font-bold text-rose-400 mb-2">عدم دسترسی مدیریت</h3>
+          <p className="text-xs text-slate-400 leading-relaxed mb-6">
             شما با حساب گوگل{' '}
-            <strong style={{ color: 'var(--text-heading)', direction: 'ltr', display: 'inline-block' }}>
+            <strong className="text-white light:text-slate-900 font-mono dir-ltr inline-block">
               {user.email}
             </strong>{' '}
-            وارد شده‌اید، اما این حساب به عنوان مدیر ثبت نشده است.
+            وارد شده‌اید، اما این حساب مجاز به دسترسی به پنل مدیریت نیست.
           </p>
-          <div style={{ display: 'flex', gap: '10px', marginTop: '10px', flexWrap: 'wrap', justifyContent: 'center' }}>
-            <button className="btn-sm logout" onClick={logout}>
-              <RefreshCw size={13} style={{ verticalAlign: 'middle', marginLeft: '4px' }} />
-              خروج و تعویض حساب گوگل
-            </button>
-            <Link to="/" className="btn-sm site-link">
-              <Home size={13} style={{ verticalAlign: 'middle', marginLeft: '4px' }} />
-              بازگشت به سایت
+
+          <div className="flex flex-wrap items-center justify-center gap-3">
+            <Button variant="destructive" size="sm" onClick={logout}>
+              <RefreshCw size={13} className="ms-1" />
+              <span>خروج و تعویض حساب</span>
+            </Button>
+            <Link to="/">
+              <Button variant="outline" size="sm">
+                <Home size={13} className="ms-1" />
+                <span>بازگشت به سایت</span>
+              </Button>
             </Link>
           </div>
-        </div>
+        </Card>
       </div>
     );
   }
 
   return (
-    <div className="admin-container" style={{ margin: '20px auto' }}>
-      {/* Header */}
-      <div className="admin-header">
-        <h2>پنل مدیریت RealRate</h2>
-        <p>تنظیمات قیمت، انس و پایش کاربران سیستم</p>
-      </div>
-
-      {msg.text && (
-        <div className={`msg-box ${msg.type}`} style={{ display: 'block' }}>
-          {msg.text}
-        </div>
-      )}
-
-      {/* Admin Profile Bar */}
-      <div className="admin-profile-bar admin-nav-header-bar">
-        <div className="admin-nav-brand-group">
-          <div className="admin-user-info">
-            <img
-              className="admin-avatar"
-              src={user.picture || ''}
-              alt={user.name}
-              onError={(e) => { e.target.style.display = 'none'; }}
-            />
-            <div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                <strong style={{ fontSize: '13px', color: 'var(--text-heading)' }}>{user.name || 'مدیر سیستم'}</strong>
-                <span className="admin-role-badge">مدیر کل</span>
-              </div>
-              <span style={{ fontSize: '11px', color: 'var(--text-muted)', direction: 'ltr', display: 'block' }}>
-                {user.email}
-              </span>
-            </div>
+    <div className="min-h-screen bg-app text-primary py-8 px-4 sm:px-6 lg:px-8 flex flex-col items-center">
+      <div className="w-full max-w-5xl flex flex-col gap-6">
+        {/* Header */}
+        <div className="text-center flex flex-col items-center gap-1.5">
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-400 text-xs font-semibold mb-1">
+            <ShieldCheck size={14} />
+            <span>پنل مدیریت سیستم RealRate</span>
           </div>
-
-          {/* Admin Navigation Tabs */}
-          <nav className="admin-nav-tabs">
-            <Link to="/admin" className="admin-nav-tab active">
-              <Users size={14} />
-              <span>داشبورد عمومی و کاربران</span>
-            </Link>
-            <Link to="/admin/sources" className="admin-nav-tab">
-              <Radio size={14} />
-              <span>مدیریت سورس‌ها و نمودار قیمت</span>
-            </Link>
-          </nav>
+          <h1 className="text-xl sm:text-2xl font-black text-white light:text-slate-900 tracking-tight">
+            مدیریت، نرخ‌های پایه و مانیتورینگ سیستم
+          </h1>
+          <p className="text-xs text-slate-400 light:text-slate-500">
+            پیکربندی نرخ‌های پیش‌فرض، انس طلا، درصد حباب سکه‌ها و پایش آمار کاربران
+          </p>
         </div>
 
-        <div className="admin-actions">
-          <Link to="/" className="btn-sm site-link" title="مشاهده سایت">
-            <span>مشاهده سایت</span>
-            <ExternalLink size={12} style={{ marginRight: '4px' }} />
-          </Link>
-          <button className="btn-sm logout" onClick={logout}>خروج</button>
-        </div>
-      </div>
-
-      {/* Live Stats */}
-      <div className="section-title">
-        <span>
-          <BarChart3 size={15} style={{ verticalAlign: 'middle', marginLeft: '6px', display: 'inline' }} />
-          آمار و آنالیتیکس سیستم (Cloudflare KV)
-        </span>
-        <button onClick={loadStats} className="btn-sm site-link" style={{ padding: '2px 8px', fontSize: '11px' }}>
-          <RefreshCw size={11} className={loadingStats ? 'spin-anim' : ''} style={{ verticalAlign: 'middle', marginLeft: '4px' }} />
-          {loadingStats ? 'در حال دریافت...' : 'بروزرسانی'}
-        </button>
-      </div>
-
-      <div className="stats-grid">
-        <div className="stat-card">
-          <span className="stat-card-title">
-            <Users size={13} style={{ verticalAlign: 'middle', marginLeft: '5px', display: 'inline' }} />
-            کاربران ثبت‌نام شده
-          </span>
-          <span className="stat-card-val blue">
-            {stats?.registeredUsers?.toLocaleString('fa-IR') || users.length.toLocaleString('fa-IR')}
-          </span>
-        </div>
-        <div className="stat-card">
-          <span className="stat-card-title">
-            <Share2 size={13} style={{ verticalAlign: 'middle', marginLeft: '5px', display: 'inline' }} />
-            پورتفوهای عمومی فعال
-          </span>
-          <span className="stat-card-val green">
-            {users.filter((u) => u.shareEnabled).length.toLocaleString('fa-IR')}
-          </span>
-        </div>
-      </div>
-
-      {/* Registered Users Table */}
-      <div className="section-title" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
-        <span>
-          <Users size={15} style={{ verticalAlign: 'middle', marginLeft: '6px', display: 'inline' }} />
-          جدول کاربران ({filteredUsers.length.toLocaleString('fa-IR')} کاربر)
-        </span>
-        <button onClick={loadUsers} className="btn-sm site-link" style={{ padding: '3px 10px', fontSize: '11px' }}>
-          <RefreshCw size={11} className={loadingUsers ? 'spin-anim' : ''} style={{ verticalAlign: 'middle', marginLeft: '4px' }} />
-          {loadingUsers ? 'در حال دریافت...' : 'تازه‌سازی کاربران'}
-        </button>
-      </div>
-
-      <div className="admin-user-search-wrap" style={{ marginBottom: '14px' }}>
-        <div className="search-box">
-          <Search size={15} strokeWidth={2} />
-          <input
-            type="text"
-            placeholder="جستجوی کاربر با نام، ایمیل، شناسه یا اسلاگ پورتفو..."
-            value={userSearch}
-            onChange={(e) => setUserSearch(e.target.value)}
-          />
-          {userSearch && (
-            <button className="clear-search-btn" onClick={() => setUserSearch('')}>
-              <X size={14} strokeWidth={2.2} />
-            </button>
-          )}
-        </div>
-      </div>
-
-      <div className="users-table-wrap">
-        <table className="users-table">
-          <thead>
-            <tr>
-              <th>کاربر</th>
-              <th>ایمیل</th>
-              <th>نقش</th>
-              <th>لینک اشتراک</th>
-              <th>آخرین ورود</th>
-            </tr>
-          </thead>
-          <tbody>
-            {filteredUsers.length === 0 ? (
-              <tr>
-                <td colSpan="5" style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '18px' }}>
-                  {loadingUsers ? 'در حال دریافت اطلاعات کاربران...' : 'هیچ کاربری با این مشخصات یافت نشد.'}
-                </td>
-              </tr>
-            ) : (
-              filteredUsers.map((u, idx) => (
-                <tr key={u.id || idx}>
-                  <td>
-                    <div className="user-cell">
-                      <img
-                        src={u.picture || ''}
-                        alt={u.name || ''}
-                        onError={(e) => { e.target.style.display = 'none'; }}
-                      />
-                      <div>
-                        <strong>{u.customName || u.name || '-'}</strong>
-                        {u.customName && u.name && <div style={{ fontSize: '10px', color: 'var(--text-muted)' }}>({u.name})</div>}
-                      </div>
-                    </div>
-                  </td>
-                  <td style={{ direction: 'ltr', textAlign: 'right' }}>{u.email}</td>
-                  <td>
-                    {u.role === 'admin' ? (
-                      <span className="role-tag admin">مدیر کل</span>
-                    ) : (
-                      <span className="role-tag user">کاربر عادی</span>
-                    )}
-                  </td>
-                  <td>
-                    {u.shareSlug ? (
-                      <span className={`share-badge ${u.shareEnabled ? 'active' : 'disabled'}`}>
-                        {u.shareEnabled ? 'فعال' : 'خصوصی'}: {u.shareSlug}
-                      </span>
-                    ) : (
-                      <span style={{ color: 'var(--text-muted)', fontSize: '11px' }}>-</span>
-                    )}
-                  </td>
-                  <td>{formatPersianDate(u.lastLogin)}</td>
-                </tr>
-              ))
+        {/* Global Alert Notification */}
+        {msg.text && (
+          <div
+            className={cn(
+              'flex items-center gap-2.5 p-3.5 rounded-xl text-xs font-semibold animate-in fade-in duration-200',
+              msg.type === 'success'
+                ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30'
+                : 'bg-rose-500/15 text-rose-400 border border-rose-500/30'
             )}
-          </tbody>
-        </table>
+          >
+            {msg.type === 'success' ? (
+              <CheckCircle2 size={16} className="shrink-0" />
+            ) : (
+              <AlertCircle size={16} className="shrink-0" />
+            )}
+            <span>{msg.text}</span>
+          </div>
+        )}
+
+        {/* Admin Profile & Navigation Bar */}
+        <div className="p-4 rounded-2xl border border-white/10 bg-[#0c1018]/90 light:bg-white light:border-slate-200 shadow-md flex flex-wrap items-center justify-between gap-4">
+          <div className="flex flex-wrap items-center gap-4">
+            {/* User Info */}
+            <div className="flex items-center gap-3">
+              <img
+                className="w-10 h-10 rounded-full border-2 border-amber-500/80 object-cover bg-slate-800"
+                src={user.picture || ''}
+                alt={user.name || ''}
+                onError={(e) => { e.target.style.display = 'none'; }}
+              />
+              <div className="flex flex-col">
+                <div className="flex items-center gap-2">
+                  <strong className="text-sm font-bold text-white light:text-slate-900">
+                    {user.name || 'مدیر سیستم'}
+                  </strong>
+                  <Badge variant="gold" className="text-[10px] py-0 px-1.5">مدیر کل</Badge>
+                </div>
+                <span className="text-xs text-slate-400 font-mono dir-ltr text-start">
+                  {user.email}
+                </span>
+              </div>
+            </div>
+
+            {/* Navigation Tabs */}
+            <nav className="flex items-center gap-1.5 bg-white/[0.04] p-1 rounded-xl border border-white/5 light:bg-slate-100 light:border-slate-200">
+              <Link
+                to="/admin"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-amber-500 text-slate-950 shadow-sm transition-colors"
+              >
+                <Users size={14} />
+                <span>داشبورد عمومی</span>
+              </Link>
+              <Link
+                to="/admin/sources"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-slate-300 hover:text-white hover:bg-white/5 light:text-slate-600 light:hover:text-slate-900 transition-colors"
+              >
+                <Radio size={14} />
+                <span>سورس‌ها و نمودارها</span>
+              </Link>
+            </nav>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <Link to="/">
+              <Button variant="outline" size="sm" title="مشاهده سایت">
+                <span>مشاهده سایت</span>
+                <ExternalLink size={12} className="me-1" />
+              </Button>
+            </Link>
+            <Button variant="destructive" size="sm" onClick={logout}>
+              خروج
+            </Button>
+          </div>
+        </div>
+
+        {/* Live Stats */}
+        <section className="flex flex-col gap-3">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-bold text-slate-300 light:text-slate-700 flex items-center gap-1.5">
+              <BarChart3 size={15} className="text-sky-400" />
+              <span>آمار و آنالیتیکس سیستم (Cloudflare KV)</span>
+            </span>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={loadStats}
+              isLoading={loadingStats}
+              className="h-7 px-2.5 text-xs"
+            >
+              <RefreshCw size={11} className={loadingStats ? 'animate-spin' : ''} />
+              <span>{loadingStats ? 'در حال دریافت...' : 'بروزرسانی'}</span>
+            </Button>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <Card className="p-5 flex items-center justify-between border-white/10">
+              <div className="flex flex-col gap-1">
+                <span className="text-xs text-slate-400 flex items-center gap-1.5">
+                  <Users size={14} className="text-sky-400" />
+                  <span>کاربران ثبت‌نام شده</span>
+                </span>
+                <span className="text-2xl font-black text-sky-400">
+                  {stats?.registeredUsers?.toLocaleString('fa-IR') || users.length.toLocaleString('fa-IR')}
+                </span>
+              </div>
+              <div className="w-12 h-12 rounded-xl bg-sky-500/10 border border-sky-500/20 flex items-center justify-center text-sky-400">
+                <Users size={24} />
+              </div>
+            </Card>
+
+            <Card className="p-5 flex items-center justify-between border-white/10">
+              <div className="flex flex-col gap-1">
+                <span className="text-xs text-slate-400 flex items-center gap-1.5">
+                  <Share2 size={14} className="text-emerald-400" />
+                  <span>پورتفوهای عمومی فعال</span>
+                </span>
+                <span className="text-2xl font-black text-emerald-400">
+                  {users.filter((u) => u.shareEnabled).length.toLocaleString('fa-IR')}
+                </span>
+              </div>
+              <div className="w-12 h-12 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400">
+                <Share2 size={24} />
+              </div>
+            </Card>
+          </div>
+        </section>
+
+        {/* Registered Users Table */}
+        <section className="flex flex-col gap-3">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <span className="text-xs font-bold text-slate-300 light:text-slate-700 flex items-center gap-1.5">
+              <Users size={15} className="text-amber-500" />
+              <span>جدول کاربران ({filteredUsers.length.toLocaleString('fa-IR')} کاربر)</span>
+            </span>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={loadUsers}
+              isLoading={loadingUsers}
+              className="h-7 px-2.5 text-xs"
+            >
+              <RefreshCw size={11} className={loadingUsers ? 'animate-spin' : ''} />
+              <span>{loadingUsers ? 'در حال دریافت...' : 'تازه‌سازی کاربران'}</span>
+            </Button>
+          </div>
+
+          {/* Search Box */}
+          <div className="relative w-full">
+            <div className="absolute inset-y-0 start-0 flex items-center ps-3.5 pointer-events-none text-slate-400">
+              <Search size={15} />
+            </div>
+            <Input
+              type="text"
+              placeholder="جستجوی کاربر با نام، ایمیل، شناسه یا اسلاگ پورتفو..."
+              value={userSearch}
+              onChange={(e) => setUserSearch(e.target.value)}
+              className="ps-10 pe-10"
+            />
+            {userSearch && (
+              <button
+                type="button"
+                onClick={() => setUserSearch('')}
+                className="absolute inset-y-0 end-0 flex items-center pe-3 text-slate-400 hover:text-white"
+              >
+                <X size={15} />
+              </button>
+            )}
+          </div>
+
+          {/* Table Container */}
+          <div className="rounded-2xl border border-white/10 bg-[#0c1018]/90 overflow-hidden shadow-xl light:bg-white light:border-slate-200">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>کاربر</TableHead>
+                  <TableHead>ایمیل</TableHead>
+                  <TableHead>نقش</TableHead>
+                  <TableHead>لینک اشتراک</TableHead>
+                  <TableHead>آخرین ورود</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filteredUsers.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={5} className="text-center py-10 text-slate-400">
+                      {loadingUsers ? 'در حال دریافت اطلاعات کاربران...' : 'هیچ کاربری با این مشخصات یافت نشد.'}
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  filteredUsers.map((u, idx) => (
+                    <TableRow key={u.id || idx}>
+                      <TableCell>
+                        <div className="flex items-center gap-2.5">
+                          <img
+                            src={u.picture || ''}
+                            alt={u.name || ''}
+                            className="w-8 h-8 rounded-full object-cover bg-slate-800"
+                            onError={(e) => { e.target.style.display = 'none'; }}
+                          />
+                          <div className="flex flex-col">
+                            <strong className="text-xs font-bold text-white light:text-slate-900">
+                              {u.customName || u.name || '-'}
+                            </strong>
+                            {u.customName && u.name && (
+                              <span className="text-[10px] text-slate-400">({u.name})</span>
+                            )}
+                          </div>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <span className="font-mono text-xs text-slate-300 light:text-slate-700 dir-ltr block text-start">
+                          {u.email}
+                        </span>
+                      </TableCell>
+                      <TableCell>
+                        {u.role === 'admin' ? (
+                          <Badge variant="gold">مدیر کل</Badge>
+                        ) : (
+                          <Badge variant="outline">کاربر عادی</Badge>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        {u.shareSlug ? (
+                          <Badge variant={u.shareEnabled ? 'success' : 'default'} className="font-mono text-[11px]">
+                            {u.shareEnabled ? 'فعال' : 'خصوصی'}: {u.shareSlug}
+                          </Badge>
+                        ) : (
+                          <span className="text-xs text-slate-500">-</span>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        <span className="text-xs text-slate-400">
+                          {formatPersianDate(u.lastLogin)}
+                        </span>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </div>
+        </section>
+
+        {/* Global Fallback Settings & Calculations Form */}
+        <form onSubmit={handleSave} className="flex flex-col gap-6">
+          <Card className="p-6 border-white/10 flex flex-col gap-4">
+            <CardHeader className="p-0 pb-2 border-b border-white/5 light:border-slate-100">
+              <CardTitle className="text-sm">
+                <Sliders size={16} className="text-amber-500" />
+                <span>تنظیمات قیمت و انس عمومی (Fallback و محاسبات پایه)</span>
+              </CardTitle>
+            </CardHeader>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="adminUsdToman">قیمت پیش‌فرض دلار (تومان):</Label>
+                <Input
+                  type="number"
+                  id="adminUsdToman"
+                  value={usdToman}
+                  onChange={(e) => setUsdToman(e.target.value)}
+                  className="dir-ltr text-center font-bold"
+                />
+              </div>
+
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="adminGoldUsd">پیش‌فرض انس طلا ($):</Label>
+                <Input
+                  type="number"
+                  id="adminGoldUsd"
+                  value={goldUsd}
+                  onChange={(e) => setGoldUsd(e.target.value)}
+                  className="dir-ltr text-center font-bold"
+                />
+              </div>
+            </div>
+          </Card>
+
+          <Card className="p-6 border-white/10 flex flex-col gap-4">
+            <CardHeader className="p-0 pb-2 border-b border-white/5 light:border-slate-100">
+              <CardTitle className="text-sm">
+                <Coins size={16} className="text-amber-500" />
+                <span>تنظیم درصد حباب مصوب سکه‌ها</span>
+              </CardTitle>
+            </CardHeader>
+
+            <div className="flex flex-col gap-4 pt-2">
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="adminBubbleFull">درصد حباب مصوب سکه تمام (٪):</Label>
+                <Input
+                  type="number"
+                  id="adminBubbleFull"
+                  step="0.5"
+                  value={bubbleFull}
+                  onChange={(e) => setBubbleFull(e.target.value)}
+                  className="dir-ltr text-center font-bold"
+                />
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="flex flex-col gap-1.5">
+                  <Label htmlFor="adminBubbleHalf">حباب مصوب نیم سکه (٪):</Label>
+                  <Input
+                    type="number"
+                    id="adminBubbleHalf"
+                    step="0.5"
+                    value={bubbleHalf}
+                    onChange={(e) => setBubbleHalf(e.target.value)}
+                    className="dir-ltr text-center font-bold"
+                  />
+                </div>
+
+                <div className="flex flex-col gap-1.5">
+                  <Label htmlFor="adminBubbleQuarter">حباب مصوب ربع سکه (٪):</Label>
+                  <Input
+                    type="number"
+                    id="adminBubbleQuarter"
+                    step="0.5"
+                    value={bubbleQuarter}
+                    onChange={(e) => setBubbleQuarter(e.target.value)}
+                    className="dir-ltr text-center font-bold"
+                  />
+                </div>
+              </div>
+            </div>
+          </Card>
+
+          <Card className="p-6 border-white/10 flex flex-col gap-4">
+            <CardHeader className="p-0 pb-2 border-b border-white/5 light:border-slate-100">
+              <CardTitle className="text-sm">
+                <Megaphone size={16} className="text-amber-500" />
+                <span>پیام عمومی سیستم</span>
+              </CardTitle>
+            </CardHeader>
+
+            <div className="flex flex-col gap-1.5 pt-2">
+              <Label htmlFor="adminAnnouncement">
+                پیام یا اطلاعیه بالای سایت (در صورت خالی بودن نمایش داده نمی‌شود):
+              </Label>
+              <Textarea
+                id="adminAnnouncement"
+                rows={3}
+                placeholder="متن پیام یا اطلاعیه عمومی را بنویسید..."
+                value={announcement}
+                onChange={(e) => setAnnouncement(e.target.value)}
+              />
+            </div>
+          </Card>
+
+          <div className="flex justify-end">
+            <Button
+              type="submit"
+              variant="primary"
+              size="lg"
+              disabled={saving}
+              isLoading={saving}
+              className="w-full sm:w-auto px-8"
+            >
+              <Save size={16} />
+              <span>{saving ? 'در حال ذخیره‌سازی...' : 'ذخیره کلیه تغییرات'}</span>
+            </Button>
+          </div>
+        </form>
       </div>
-
-      {/* ═════════════════════════════════════════════════════════════════════ */}
-      {/* ─── Global Fallback Settings & Calculations ───────────────────────── */}
-      {/* ═════════════════════════════════════════════════════════════════════ */}
-      <form onSubmit={handleSave}>
-
-
-        <div className="section-title">
-          <span>
-            <Sliders size={15} style={{ verticalAlign: 'middle', marginLeft: '6px', display: 'inline' }} />
-            تنظیمات قیمت و انس عمومی (Fallback و محاسبات پایه)
-          </span>
-        </div>
-
-        <div className="grid-2">
-          <div className="form-group">
-            <label htmlFor="adminUsdToman">قیمت پیش‌فرض دلار (تومان)</label>
-            <input
-              type="number"
-              id="adminUsdToman"
-              value={usdToman}
-              onChange={(e) => setUsdToman(e.target.value)}
-            />
-          </div>
-
-          <div className="form-group">
-            <label htmlFor="adminGoldUsd">پیش‌فرض انس طلا ($)</label>
-            <input
-              type="number"
-              id="adminGoldUsd"
-              value={goldUsd}
-              onChange={(e) => setGoldUsd(e.target.value)}
-            />
-          </div>
-        </div>
-
-        <div className="section-title">
-          <span>
-            <Coins size={15} style={{ verticalAlign: 'middle', marginLeft: '6px', display: 'inline' }} />
-            تنظیم درصد حباب مصوب سکه‌ها
-          </span>
-        </div>
-
-        <div className="form-group">
-          <label htmlFor="adminBubbleFull">درصد حباب مصوب سکه تمام (٪)</label>
-          <input
-            type="number"
-            id="adminBubbleFull"
-            step="0.5"
-            value={bubbleFull}
-            onChange={(e) => setBubbleFull(e.target.value)}
-          />
-        </div>
-
-        <div className="grid-2">
-          <div className="form-group">
-            <label htmlFor="adminBubbleHalf">حباب مصوب نیم سکه (٪)</label>
-            <input
-              type="number"
-              id="adminBubbleHalf"
-              step="0.5"
-              value={bubbleHalf}
-              onChange={(e) => setBubbleHalf(e.target.value)}
-            />
-          </div>
-
-          <div className="form-group">
-            <label htmlFor="adminBubbleQuarter">حباب مصوب ربع سکه (٪)</label>
-            <input
-              type="number"
-              id="adminBubbleQuarter"
-              step="0.5"
-              value={bubbleQuarter}
-              onChange={(e) => setBubbleQuarter(e.target.value)}
-            />
-          </div>
-        </div>
-
-        <div className="section-title">
-          <span>
-            <Megaphone size={15} style={{ verticalAlign: 'middle', marginLeft: '6px', display: 'inline' }} />
-            پیام عمومی سیستم
-          </span>
-        </div>
-
-        <div className="form-group">
-          <label htmlFor="adminAnnouncement">
-            پیام یا اطلاعیه بالای سایت (در صورت خالی بودن نمایش داده نمی‌شود)
-          </label>
-          <textarea
-            id="adminAnnouncement"
-            rows="2"
-            placeholder="متن پیام عمومی را وارد کنید..."
-            value={announcement}
-            onChange={(e) => setAnnouncement(e.target.value)}
-          />
-        </div>
-
-        <button type="submit" className="btn" disabled={saving}>
-          <Save size={16} style={{ verticalAlign: 'middle', marginLeft: '6px', display: 'inline' }} />
-          <span>{saving ? 'در حال ذخیره‌سازی...' : 'ذخیره کلیه تغییرات'}</span>
-        </button>
-      </form>
-
-
     </div>
   );
 }
