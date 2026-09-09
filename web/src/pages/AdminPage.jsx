@@ -37,7 +37,7 @@ import {
   apiAdminUsers,
   apiAdminSaveSettings,
   apiAdminTestUsdSource,
-  apiGetRates,
+  apiGetPrices,
 } from '../api/client.js';
 
 
@@ -146,7 +146,7 @@ export default function AdminPage() {
       loadStats();
       loadUsers();
 
-      apiGetRates()
+      apiGetPrices()
         .then((data) => {
           if (data) setMarketRates(data);
           if (data?.globalSettings) {

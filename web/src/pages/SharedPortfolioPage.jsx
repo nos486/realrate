@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { apiGetSharedPortfolio, apiGetRates, apiCalculate } from '../api/client.js';
+import { apiGetSharedPortfolio, apiGetPrices } from '../api/client.js';
+import { calculateMarketData } from '../utils/calculator.js';
 import Header from '../components/Header.jsx';
 import {
   CategoryIcon,
@@ -78,17 +79,21 @@ export default function SharedPortfolioPage() {
 
   // 1. Fetch live market rates (gold, dollar, silver) & calculate real prices
   useEffect(() => {
-    apiGetRates()
+    apiGetPrices()
       .then((data) => {
-        if (data) {
+        if (data && data.success) {
           setMarketRates(data);
           const u = data.live_usd_toman || data.globalSettings?.default_usd_toman || 95000;
-          const g = data.gold_usd || data.globalSettings?.default_gold_usd || 2700;
-          apiCalculate(u, g)
-            .then((cRes) => {
-              if (cRes && cRes.success) setCalcData(cRes);
-            })
-            .catch(console.error);
+          const g = data.gold_usd || data.globalSettings?.default_gold_usd || 2890;
+          const cRes = calculateMarketData({
+            usdToman: u,
+            goldUsd: g,
+            silverUsd: data.silver_usd,
+            marketPrices: data.prices || data.market_prices || {},
+            forex: data.forex || {},
+            globalSettings: data.globalSettings || {},
+          });
+          if (cRes && cRes.success) setCalcData(cRes);
         }
       })
       .catch(console.error);

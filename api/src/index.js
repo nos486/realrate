@@ -35,7 +35,7 @@ import {
   handleAdminFetchAllSources,
   handleAdminGetPriceHistory,
 } from "./handlers/adminRoutes.js";
-import { handleCalculate, handleFetchRates } from "./handlers/apiRoutes.js";
+import { handleGetPrices } from "./handlers/apiRoutes.js";
 import {
   handleGetPortfolios,
   handleCreatePortfolio,
@@ -128,8 +128,7 @@ export default {
     }
 
     // ── Public API Routes ───────────────────────────────────────────────────
-    if (url.pathname === "/api/calculate") return handleCalculate(url, env, analytics, globalSettings, request);
-    if (url.pathname === "/api/rates")     return handleFetchRates(env, analytics, globalSettings, request);
+    if (url.pathname === "/api/prices") return handleGetPrices(env, analytics, globalSettings, request);
 
     if (url.pathname === "/api/telegram") {
       const forceRefresh = url.searchParams.get("force") === "true";

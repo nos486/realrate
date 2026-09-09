@@ -1,34 +1,10 @@
 /**
  * useMarketData.js — Custom hook for fetching gold/currency market data
+ * Calculations performed 100% on the client with zero latency
  */
-import { useState, useEffect, useCallback, useRef } from 'react';
-import { apiGetRates, apiCalculate } from '../api/client.js';
-
-export function useMarketData() {
-  const [rates, setRates] = useState(null);
-  const [calcData, setCalcData] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [usdToman, setUsdToman] = useState('');
-  const [goldUsd, setGoldUsd] = useState('');
-
-  // Track if usd was manually edited
-  const userEditedUsd = useRef(false);
-
-  // Load initial rates
-  useEffect(() => {
-    apiGetRates()
-      .then(data => {
-        if (data.success) {
-          setRates(data);
-          const usd = data.live_usd_toman || data.globalSettings?.default_usd_toman || '';
-          const gold = data.gold_usd || data.globalSettings?.default_gold_usd || 2700;
-          setUsdToman(usd ? String(Math.round(usd)) : '');
-          setGoldUsd(String(gold));
-        }
-      })
-      .catch(console.error)
-      .finally(() => setLoading(false));
-  }, []);
+import { useState, useEffect, useRef } from 'react';
+import { apiGetPrices } from '../api/client.js';
+import { calculateMarketData } from '../utils/calculator.js';
 
 function parseNum(val) {
   if (!val) return 0;
@@ -40,26 +16,51 @@ function parseNum(val) {
   return parseFloat(s.replace(/,/g, '')) || 0;
 }
 
-  // Re-calculate whenever inputs change
-  const calculate = useCallback(async (usd, gold) => {
-    const usdNum = parseNum(usd);
-    const goldNum = parseNum(gold);
-    if (!usdNum || usdNum <= 0 || !goldNum) return;
+export function useMarketData() {
+  const [rates, setRates] = useState(null);
+  const [calcData, setCalcData] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [usdToman, setUsdToman] = useState('');
+  const [goldUsd, setGoldUsd] = useState('');
 
-    try {
-      const data = await apiCalculate(usdNum, goldNum, { silent: true });
-      if (data.success) setCalcData(data);
-    } catch (e) {
-      console.error('Calculate error:', e);
-    }
+  // Track if usd was manually edited
+  const userEditedUsd = useRef(false);
+
+  // Load initial raw prices from /api/prices
+  useEffect(() => {
+    apiGetPrices()
+      .then(data => {
+        if (data.success) {
+          setRates(data);
+          const usd = data.live_usd_toman || data.globalSettings?.default_usd_toman || '';
+          const gold = data.gold_usd || data.globalSettings?.default_gold_usd || 2890;
+          setUsdToman(usd ? String(Math.round(usd)) : '');
+          setGoldUsd(String(gold));
+        }
+      })
+      .catch(console.error)
+      .finally(() => setLoading(false));
   }, []);
 
-  // Debounce calculate on input changes
+  // Instant client-side calculation whenever inputs or rates change (0ms, zero network lag)
   useEffect(() => {
-    if (!usdToman || !goldUsd) return;
-    const timer = setTimeout(() => calculate(usdToman, goldUsd), 300);
-    return () => clearTimeout(timer);
-  }, [usdToman, goldUsd, calculate]);
+    const usdNum = parseNum(usdToman);
+    const goldNum = parseNum(goldUsd);
+    if (!usdNum || usdNum <= 0) return;
+
+    const data = calculateMarketData({
+      usdToman: usdNum,
+      goldUsd: goldNum,
+      silverUsd: rates?.silver_usd,
+      marketPrices: rates?.prices || rates?.market_prices || {},
+      forex: rates?.forex || {},
+      globalSettings: rates?.globalSettings || {},
+    });
+
+    if (data.success) {
+      setCalcData(data);
+    }
+  }, [usdToman, goldUsd, rates]);
 
   return {
     rates,

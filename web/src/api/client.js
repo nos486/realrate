@@ -131,16 +131,13 @@ export async function apiLogout() {
 
 // ─── Market Data ─────────────────────────────────────────────────────────────
 
-export async function apiGetRates() {
-  const res = await apiFetch('/api/rates');
+export async function apiGetPrices() {
+  const res = await apiFetch('/api/prices');
   return res.json();
 }
 
-export async function apiCalculate(usdToman, goldUsd, options = {}) {
-  const params = new URLSearchParams({ usd_toman: usdToman, gold_usd: goldUsd });
-  const res = await apiFetch(`/api/calculate?${params}`, options);
-  return res.json();
-}
+// Backward compatibility alias
+export const apiGetRates = apiGetPrices;
 
 // ─── Admin ───────────────────────────────────────────────────────────────────
 
