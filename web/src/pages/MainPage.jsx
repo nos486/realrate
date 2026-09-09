@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { Megaphone, TrendingUp, Briefcase, Sparkles, ShieldCheck, Radio, Settings } from 'lucide-react';
+import { Megaphone, TrendingUp, Briefcase, ShieldCheck, Radio, Settings } from 'lucide-react';
 import AppLayout from '../components/ui/AppLayout.jsx';
 import FilterPills from '../components/ui/FilterPills.jsx';
 import AlertBanner from '../components/ui/AlertBanner.jsx';
@@ -162,36 +162,15 @@ export default function MainPage() {
       <section className="tab-view-container">
         {activeTab === 'market' && (
           <div className="market-tab-content">
-            {/* Market Top Controls (Inputs Toolbar & Smart Recommendation Side-by-Side on Desktop) */}
-            <div className={`market-top-controls ${recommendation ? 'has-rec' : ''}`}>
-              <MarketInputsToolbar
-                usdToman={usdToman}
-                setUsdToman={setUsdToman}
-                goldUsd={goldUsd}
-                setGoldUsd={setGoldUsd}
-                liveUsdSource={liveUsdSource}
-                liveUsdDatetime={liveUsdDatetime}
-              />
-
-              {/* Smart Recommendation Banner */}
-              {recommendation && (
-                <div className="smart-rec-banner">
-                  <div className="rec-icon-badge">
-                    <Sparkles size={16} />
-                  </div>
-                  <div className="rec-text-group">
-                    <div className="rec-title">
-                      کمترین حباب: <strong>{recommendation.best_name}</strong>
-                    </div>
-                    <div className="rec-desc">{recommendation.reason}</div>
-                  </div>
-                  <div className={`rec-chip ${recommendation.best_bubble_pct < 0 ? 'negative' : 'positive'}`}>
-                    <span>{recommendation.best_bubble_pct < 0 ? 'حباب منفی: ' : 'حباب: '}</span>
-                    <strong>{recommendation.best_bubble_pct?.toLocaleString('fa-IR')}٪</strong>
-                  </div>
-                </div>
-              )}
-            </div>
+            {/* Market Inputs Toolbar */}
+            <MarketInputsToolbar
+              usdToman={usdToman}
+              setUsdToman={setUsdToman}
+              goldUsd={goldUsd}
+              setGoldUsd={setGoldUsd}
+              liveUsdSource={liveUsdSource}
+              liveUsdDatetime={liveUsdDatetime}
+            />
 
             {/* Alert Banner if USD is null or 0 */}
             {!hasUsd && (
