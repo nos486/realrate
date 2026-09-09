@@ -347,19 +347,6 @@
   transform: scale(1.05);
 }
 
-[data-theme="light"] .header-user-profile-direct {
-  background: #f1f5f9;
-  border-color: #cbd5e1;
-}
-
-[data-theme="light"] .header-user-profile-direct:hover {
-  background: #e2e8f0;
-}
-
-[data-theme="light"] .btn-header-logout:hover {
-  background: rgba(244, 63, 94, 0.12);
-  color: #e11d48;
-}
 
 .admin-badge {
   font-size: 9.5px;

@@ -198,30 +198,6 @@
   margin-right: auto;
 }
 
-/* Light Theme Overrides */
-[data-theme="light"] .modal-content,
-[data-theme="light"] .admin-modal-card {
-  background: #ffffff;
-  border-color: #e2e8f0;
-  box-shadow: 0 24px 60px rgba(15, 23, 42, 0.16);
-}
-
-[data-theme="light"] .modal-header,
-[data-theme="light"] .admin-modal-header {
-  background: #f8fafc;
-  border-bottom-color: #e2e8f0;
-}
-
-[data-theme="light"] .modal-actions-pinned,
-[data-theme="light"] .admin-modal-actions {
-  background: #f8fafc;
-  border-top-color: #e2e8f0;
-}
-
-[data-theme="light"] .modal-scroll-body,
-[data-theme="light"] .admin-modal-body {
-  background: #ffffff;
-}
 
 /* ── Mobile Modal & Bottom Sheet (max-width: 640px) ──────────────────────── */
 @media (max-width: 640px) {

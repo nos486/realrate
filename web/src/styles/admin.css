@@ -421,14 +421,6 @@
   margin-top: 6px;
 }
 
-[data-theme="light"] .usd-source-card {
-  background: rgba(0, 0, 0, 0.02);
-}
-
-[data-theme="light"] .source-type-tabs {
-  background: rgba(0, 0, 0, 0.05);
-}
-
 /* ── Unified Price Sources Management Styles ────────────────────────────── */
 .source-counter-badge {
   font-size: 11px;
@@ -792,41 +784,5 @@
 }
 
 
-
-[data-theme="light"] .regex-presets-box {
-  background: #f8fafc;
-  border-color: #e2e8f0;
-}
-
-[data-theme="light"] .regex-preset-item {
-  background: #ffffff;
-  border-color: #cbd5e1;
-}
-
-[data-theme="light"] .regex-preset-label {
-  color: #1e293b;
-}
-
-[data-theme="light"] .regex-preset-code {
-  background: #f3e8ff;
-  color: #7e22ce;
-  border-color: #d8b4fe;
-}
-
-[data-theme="light"] .filter-pill {
-  background: #f8fafc;
-  border-color: #e2e8f0;
-}
-
-[data-theme="light"] .filter-pill.active {
-  background: rgba(2, 132, 199, 0.1);
-  border-color: rgba(2, 132, 199, 0.4);
-  color: #0284c7;
-}
-
-[data-theme="light"] .cfg-badge {
-  background: #f1f5f9;
-  border-color: #cbd5e1;
-}
 
 

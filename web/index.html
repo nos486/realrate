@@ -19,11 +19,10 @@
     <script>
       (function() {
         try {
-          var saved = localStorage.getItem('realrate_theme');
-          var theme = saved || (window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark');
-          document.documentElement.setAttribute('data-theme', theme);
+          document.documentElement.setAttribute('data-theme', 'dark');
+          localStorage.setItem('realrate_theme', 'dark');
           var meta = document.querySelector('meta[name="theme-color"]');
-          if (meta) meta.setAttribute('content', theme === 'light' ? '#f1f4f9' : '#06080d');
+          if (meta) meta.setAttribute('content', '#06080d');
         } catch(e) {}
       })();
     </script>

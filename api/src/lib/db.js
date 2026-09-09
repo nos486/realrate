@@ -54,9 +54,6 @@ export async function ensureD1Tables(env) {
       usd_telegram_channel TEXT DEFAULT 'tahran_sabza',
       usd_api_url TEXT DEFAULT '',
       usd_api_json_path TEXT DEFAULT '',
-      primary_color TEXT DEFAULT '#0284c7',
-      accent_color TEXT DEFAULT '#38bdf8',
-      color_preset TEXT DEFAULT 'ocean',
       updated_at TEXT
     )`,
     `CREATE TABLE IF NOT EXISTS portfolios (
@@ -173,22 +170,6 @@ export async function ensureD1Tables(env) {
       await env.DB.prepare("CREATE UNIQUE INDEX IF NOT EXISTS idx_users_share_slug ON users(share_slug)").run();
     } catch (ignore) {}
 
-    // Backward-compat: ensure theme columns exist on settings
-    try {
-      await env.DB.prepare("ALTER TABLE settings ADD COLUMN primary_color TEXT DEFAULT '#0284c7'").run();
-    } catch (ignore) {}
-    try {
-      await env.DB.prepare("ALTER TABLE settings ADD COLUMN accent_color TEXT DEFAULT '#38bdf8'").run();
-    } catch (ignore) {}
-    try {
-      await env.DB.prepare("ALTER TABLE settings ADD COLUMN border_color TEXT DEFAULT '#1e293b'").run();
-    } catch (ignore) {}
-    try {
-      await env.DB.prepare("ALTER TABLE settings ADD COLUMN card_bg_color TEXT DEFAULT '#0d131f'").run();
-    } catch (ignore) {}
-    try {
-      await env.DB.prepare("ALTER TABLE settings ADD COLUMN color_preset TEXT DEFAULT 'ocean'").run();
-    } catch (ignore) {}
 
     // Backward-compat: ensure USD source columns exist on settings
     try {

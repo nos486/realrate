@@ -5,7 +5,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { apiGetPrices } from '../api/client.js';
 import { calculateMarketData } from '../utils/calculator.js';
-import { useTheme } from '../context/ThemeContext.jsx';
 
 function parseNum(val) {
   if (!val) return 0;
@@ -18,7 +17,6 @@ function parseNum(val) {
 }
 
 export function useMarketData() {
-  const { applyThemeColor } = useTheme();
   const [rates, setRates] = useState(null);
   const [calcData, setCalcData] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -34,15 +32,6 @@ export function useMarketData() {
       .then(data => {
         if (data.success) {
           setRates(data);
-          if (data.globalSettings?.primary_color) {
-            applyThemeColor(
-              data.globalSettings.primary_color,
-              data.globalSettings.accent_color,
-              data.globalSettings.color_preset,
-              data.globalSettings.border_color,
-              data.globalSettings.card_bg_color
-            );
-          }
           const usd = data.live_usd_toman || data.globalSettings?.default_usd_toman || '';
           const gold = data.gold_usd || data.globalSettings?.default_gold_usd || 2890;
           setUsdToman(usd ? String(Math.round(usd)) : '');
@@ -51,7 +40,7 @@ export function useMarketData() {
       })
       .catch(console.error)
       .finally(() => setLoading(false));
-  }, [applyThemeColor]);
+  }, []);
 
   // Instant client-side calculation whenever inputs or rates change (0ms, zero network lag)
   useEffect(() => {

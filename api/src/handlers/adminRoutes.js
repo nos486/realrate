@@ -111,11 +111,6 @@ export async function handleAdminSaveSettings(request, env) {
       usd_telegram_channel: (body.usd_telegram_channel || "tahran_sabza").trim(),
       usd_api_url:          (body.usd_api_url || "").trim(),
       usd_api_json_path:    (body.usd_api_json_path || "").trim(),
-      primary_color:        (/^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(body.primary_color || '')) ? body.primary_color : "#0284c7",
-      accent_color:         (/^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(body.accent_color || '')) ? body.accent_color : "#38bdf8",
-      border_color:         (typeof body.border_color === 'string' && body.border_color.trim()) ? body.border_color.trim().slice(0, 40) : "#1e293b",
-      card_bg_color:        (typeof body.card_bg_color === 'string' && body.card_bg_color.trim()) ? body.card_bg_color.trim().slice(0, 40) : "#0d131f",
-      color_preset:         (body.color_preset || "ocean").trim(),
     };
 
     await saveGlobalSettings(env, newSettings);

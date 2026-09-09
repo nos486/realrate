@@ -5,15 +5,12 @@ import {
   Briefcase,
   Eye,
   EyeOff,
-  Sun,
-  Moon,
   Settings,
   ShieldCheck,
   Radio,
   LogOut,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext.jsx';
-import { useTheme } from '../context/ThemeContext.jsx';
 import { apiGetPrices } from '../api/client.js';
 
 const LogoMark = () => (
@@ -40,7 +37,6 @@ function formatHeaderNum(num) {
 
 export default function Header({ usdToman, gold18kPrice, activeTab, setActiveTab }) {
   const { user, triggerLogin, logout } = useAuth();
-  const { theme, toggleTheme } = useTheme();
 
   // Autonomous fallback for price ticker when props are not provided
   const [internalPrices, setInternalPrices] = useState({ usd: null, gold: null });
@@ -271,17 +267,6 @@ export default function Header({ usdToman, gold18kPrice, activeTab, setActiveTab
               {hideValues ? <Eye size={15} strokeWidth={2.2} /> : <EyeOff size={15} strokeWidth={2.2} />}
             </button>
           )}
-
-          {/* Theme Toggle Button (Light / Dark) */}
-          <button
-            type="button"
-            className="btn-theme-toggle icon-only"
-            onClick={toggleTheme}
-            title={theme === 'dark' ? 'تغییر به تم روشن' : 'تغییر به تم تاریک'}
-            aria-label={theme === 'dark' ? 'تغییر به تم روشن' : 'تغییر به تم تاریک'}
-          >
-            {theme === 'dark' ? <Sun size={15} strokeWidth={2.2} /> : <Moon size={15} strokeWidth={2.2} />}
-          </button>
 
           {/* User Auth / Profile */}
           <div className="auth-widget">

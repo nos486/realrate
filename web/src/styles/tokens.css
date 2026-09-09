@@ -1,61 +1,63 @@
-/* ── Global Theme & Design Tokens ─────────────────────────────────────────── */
+/* ── Global Theme & Design Tokens (Pure Dark Minimalist System) ──────────────── */
 :root {
+  /* Core Dark Canvas & Surfaces */
   --bg-app: #06080d;
-  --bg-surface: #0c0f17;
-  --bg-surface-elevated: #131824;
+  --bg-surface: #0b0f17;
+  --bg-surface-elevated: #111724;
 
-  /* Unified Surface & Card Design Tokens */
-  --card-bg: rgba(13, 18, 28, 0.75);
+  /* Borderless Unified Card & Surface Design Tokens */
+  --card-bg: rgba(14, 20, 32, 0.72);
   --bg-card: var(--card-bg);
-  --card-bg-hover: rgba(20, 27, 42, 0.85);
-  --card-border: rgba(255, 255, 255, 0.08);
-  --border-color: var(--card-border);
-  --card-shadow: 0 10px 30px rgba(0, 0, 0, 0.28);
+  --card-bg-hover: rgba(20, 28, 44, 0.82);
+  --card-border: transparent;
+  --border-color: transparent;
+  --card-shadow: 0 10px 32px rgba(0, 0, 0, 0.38);
   --card-radius: var(--radius-lg, 16px);
 
   --bg-card-hover: var(--card-bg-hover);
-  --bg-card-elevated: rgba(18, 24, 38, 0.95);
-  --bg-header: rgba(6, 8, 13, 0.88);
-  --bg-header-ticker: rgba(255, 255, 255, 0.03);
+  --bg-card-elevated: rgba(17, 24, 38, 0.92);
+  --bg-header: rgba(6, 8, 13, 0.85);
+  --bg-header-ticker: rgba(255, 255, 255, 0.025);
 
-  /* Inputs, Textareas & Selects */
-  --bg-input: rgba(255, 255, 255, 0.038);
+  /* Inputs, Textareas & Form Controls (Borderless Minimal) */
+  --bg-input: rgba(255, 255, 255, 0.04);
   --bg-input-focus: rgba(255, 255, 255, 0.07);
-  --border-input: rgba(255, 255, 255, 0.08);
+  --border-input: transparent;
   --border-input-focus: var(--primary-color, #0284c7);
-  --shadow-input-focus: 0 0 0 3px rgba(2, 132, 199, 0.22);
+  --shadow-input-focus: 0 0 0 2px rgba(2, 132, 199, 0.35);
   --text-input: #ffffff;
-  --placeholder-color: rgba(255, 255, 255, 0.38);
+  --placeholder-color: rgba(255, 255, 255, 0.35);
 
-  /* Modals & Popups */
+  /* Modals & Popups (Borderless Glass) */
   --bg-modal: #0d121c;
-  --bg-modal-backdrop: rgba(0, 0, 0, 0.78);
-  --border-modal: rgba(255, 255, 255, 0.08);
-  --shadow-modal: 0 24px 60px rgba(0, 0, 0, 0.8);
+  --bg-modal-backdrop: rgba(0, 0, 0, 0.8);
+  --border-modal: transparent;
+  --shadow-modal: 0 24px 64px rgba(0, 0, 0, 0.85);
 
   /* Dropdowns */
-  --bg-dropdown: #0e131e;
-  --border-dropdown: rgba(255, 255, 255, 0.08);
-  --shadow-dropdown: 0 16px 36px rgba(0, 0, 0, 0.55);
+  --bg-dropdown: #0e1420;
+  --border-dropdown: transparent;
+  --shadow-dropdown: 0 16px 40px rgba(0, 0, 0, 0.6);
 
   /* Tables & Lists */
   --bg-table-header: rgba(255, 255, 255, 0.02);
   --bg-row-hover: rgba(255, 255, 255, 0.035);
-  --border-table-row: rgba(255, 255, 255, 0.04);
+  --border-table-row: rgba(255, 255, 255, 0.035);
 
+  /* Transparent / Minimal Borders */
   --border-subtle: transparent;
-  --border-medium: rgba(255, 255, 255, 0.05);
-  --border-strong: rgba(255, 255, 255, 0.1);
-  --border-gold: rgba(245, 158, 11, 0.3);
+  --border-medium: transparent;
+  --border-strong: transparent;
+  --border-gold: transparent;
 
-  /* ── Centralized Brand & Primary Theme Standards ── */
+  /* ── Unified Brand Palette (Ocean Blue & Sky Cyan) ── */
   --primary-color: #0284c7;
   --primary-color-hover: #0369a1;
   --primary-gradient: linear-gradient(135deg, #0284c7 0%, #2563eb 100%);
-  --primary-glow: 0 4px 16px rgba(2, 132, 199, 0.38);
-  --primary-glow-lg: 0 6px 24px rgba(2, 132, 199, 0.45);
+  --primary-glow: 0 4px 18px rgba(2, 132, 199, 0.35);
+  --primary-glow-lg: 0 6px 26px rgba(2, 132, 199, 0.45);
   --primary-soft-bg: rgba(2, 132, 199, 0.12);
-  --primary-border: rgba(2, 132, 199, 0.4);
+  --primary-border: transparent;
   --primary-text: #ffffff;
 
   --accent-color: #38bdf8;
@@ -64,9 +66,9 @@
   --accent-green: #10b981;
   --accent-rose: #f43f5e;
 
-  --gold-primary: var(--accent-color, #f59e0b);
-  --gold-light: var(--accent-color, #fbbf24);
-  --gold-gradient: linear-gradient(135deg, var(--accent-color, #fbbf24) 0%, var(--primary-color, #d97706) 100%);
+  --gold-primary: #f59e0b;
+  --gold-light: #fbbf24;
+  --gold-gradient: linear-gradient(135deg, #fbbf24 0%, #d97706 100%);
   --gold-soft-bg: rgba(245, 158, 11, 0.08);
 
   --green-emerald: #10b981;
@@ -82,97 +84,25 @@
   --text-secondary: #94a3b8;
   --text-muted: #64748b;
 
-  /* Controls & Badges */
-  --bg-control: rgba(255, 255, 255, 0.04);
+  /* Controls & Badges (Borderless Minimal) */
+  --bg-control: rgba(255, 255, 255, 0.045);
   --bg-control-hover: rgba(255, 255, 255, 0.08);
-  --border-control: rgba(255, 255, 255, 0.08);
+  --border-control: transparent;
 
+  /* Standardized Radii */
   --radius-xs: 6px;
-  --radius-sm: 10px;
-  --radius-md: 14px;
-  --radius-lg: 18px;
-  --radius-xl: 22px;
+  --radius-sm: 9px;
+  --radius-md: 13px;
+  --radius-lg: 16px;
+  --radius-xl: 20px;
   --radius-full: 9999px;
 
-  --shadow-sm: 0 4px 16px rgba(0, 0, 0, 0.25);
-  --shadow-md: 0 8px 30px rgba(0, 0, 0, 0.35);
-  --shadow-lg: 0 16px 48px rgba(0, 0, 0, 0.5);
-
-  --transition-fast: 0.18s cubic-bezier(0.4, 0, 0.2, 1);
-  --transition-smooth: 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-/* ── Light Mode Design Tokens ─────────────────────────────────────────────── */
-[data-theme="light"] {
-  --bg-app: #f8fafc;
-  --bg-surface: #ffffff;
-  --bg-surface-elevated: #ffffff;
-
-  /* Unified Light Surface Tokens */
-  --card-bg: #ffffff;
-  --bg-card: var(--card-bg);
-  --card-bg-hover: #f8fafc;
-  --card-border: #e2e8f0;
-  --border-color: var(--card-border);
-  --card-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
-
-  --bg-card-hover: var(--card-bg-hover);
-  --bg-card-elevated: #ffffff;
-  --bg-header: rgba(255, 255, 255, 0.94);
-  --bg-header-ticker: rgba(0, 0, 0, 0.03);
-
-  /* Inputs & Form Controls */
-  --bg-input: #ffffff;
-  --bg-input-focus: #ffffff;
-  --border-input: #cbd5e1;
-  --border-input-focus: var(--primary-color, #0284c7);
-  --shadow-input-focus: 0 0 0 3px rgba(2, 132, 199, 0.18);
-  --text-input: #0f172a;
-  --placeholder-color: #94a3b8;
-
-  /* Modals & Popups */
-  --bg-modal: #ffffff;
-  --bg-modal-backdrop: rgba(15, 23, 42, 0.6);
-  --border-modal: #e2e8f0;
-  --shadow-modal: 0 24px 60px rgba(15, 23, 42, 0.2);
-
-  /* Dropdowns */
-  --bg-dropdown: #ffffff;
-  --border-dropdown: #e2e8f0;
-  --shadow-dropdown: 0 16px 36px rgba(15, 23, 42, 0.12);
-
-  /* Borders */
-  --border-subtle: #f1f5f9;
-  --border-medium: #e2e8f0;
-  --border-strong: #cbd5e1;
-
-  /* Typography */
-  --text-primary: #0f172a;
-  --text-heading: #020617;
-  --text-secondary: #475569;
-  --text-muted: #64748b;
-
-  /* Controls & Badges */
-  --bg-control: #f1f5f9;
-  --bg-control-hover: #e2e8f0;
-  --border-control: #cbd5e1;
-
-  /* ── Centralized Brand & Primary Theme Standards (Light) ── */
-  --primary-color: #0284c7;
-  --primary-color-hover: #0369a1;
-  --primary-gradient: linear-gradient(135deg, #0284c7 0%, #2563eb 100%);
-  --primary-glow: 0 4px 14px rgba(2, 132, 199, 0.25);
-  --primary-glow-lg: 0 6px 20px rgba(2, 132, 199, 0.32);
-  --primary-soft-bg: rgba(2, 132, 199, 0.08);
-  --primary-border: rgba(2, 132, 199, 0.35);
-  --primary-text: #ffffff;
-
-  --accent-color: #38bdf8;
-  --accent-blue: var(--primary-color);
-
   /* Shadows */
-  --shadow-sm: 0 4px 16px rgba(0, 0, 0, 0.06);
-  --shadow-md: 0 8px 30px rgba(0, 0, 0, 0.08);
-  --shadow-lg: 0 16px 48px rgba(0, 0, 0, 0.12);
-}
+  --shadow-sm: 0 4px 16px rgba(0, 0, 0, 0.25);
+  --shadow-md: 0 8px 30px rgba(0, 0, 0, 0.38);
+  --shadow-lg: 0 16px 48px rgba(0, 0, 0, 0.55);
 
+  /* Transitions */
+  --transition-fast: 0.16s cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-smooth: 0.24s cubic-bezier(0.4, 0, 0.2, 1);
+}
