@@ -101,7 +101,12 @@ input:focus, select:focus, textarea:focus {
 .admin-profile-bar,
 .sources-card,
 .admin-card,
-.portfolio-card {
+.portfolio-card,
+.portfolio-nav-bar,
+.portfolio-table-card,
+.inputs-toolbar,
+[role="tablist"].variant-segmented,
+.ui-filter-pills.variant-segmented {
   background: var(--card-bg);
   border: none;
   border-radius: var(--card-radius);

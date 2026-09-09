@@ -30,6 +30,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext.jsx';
 import Modal from './ui/Modal.jsx';
+import Card from './ui/Card.jsx';
 import {
   apiGetPortfolios,
   apiCreatePortfolio,
@@ -1056,7 +1057,7 @@ export default function PortfolioTracker({ calcData, rates, usdToman, goldUsd, i
   return (
     <div className="portfolio-section">
       {/* Portfolios Navigation Bar */}
-      <div className="portfolio-nav-bar">
+      <Card className="portfolio-nav-bar" padding="none">
         <div className="portfolio-tabs-scroll">
           <span className="portfolio-nav-label">پورتفوها:</span>
           {portfolios.map((p) => {
@@ -1098,13 +1099,13 @@ export default function PortfolioTracker({ calcData, rates, usdToman, goldUsd, i
             <span>پورتفو</span>
           </button>
         </div>
-      </div>
+      </Card>
 
       {/* Two Column Split: Right (Content & Holdings Tables), Left (Overview Summary Cards) */}
       <div className="portfolio-layout-split">
         {/* Right Column: Holdings List Grouped by Category */}
         <div className="portfolio-content-column">
-          <div className="portfolio-table-card">
+          <Card className="portfolio-table-card" padding="none">
             <div className="portfolio-table-header">
               <div className="table-title">
                 <div className="table-title-main">
@@ -1423,7 +1424,7 @@ export default function PortfolioTracker({ calcData, rates, usdToman, goldUsd, i
                 ))}
               </div>
             )}
-          </div>
+          </Card>
         </div>
 
         {/* Left Column: Summary Overview Cards */}

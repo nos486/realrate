@@ -1,4 +1,5 @@
 import React from 'react';
+import Card from './ui/Card.jsx';
 import TimeAgoBadge, { formatRelativeTime } from './ui/TimeAgoBadge.jsx';
 
 /**
@@ -17,7 +18,7 @@ export default function MarketInputsToolbar({
   className = '',
 }) {
   return (
-    <div className={`inputs-toolbar ${className}`}>
+    <Card className={`inputs-toolbar ${className}`} padding="none">
       {/* Free USD Input */}
       <div className="toolbar-input-item">
         <div className="toolbar-label-row">
@@ -62,6 +63,6 @@ export default function MarketInputsToolbar({
         </div>
         <span className="toolbar-sub-hint">بازار جهانی</span>
       </div>
-    </div>
+    </Card>
   );
 }

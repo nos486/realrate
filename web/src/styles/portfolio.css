@@ -12,12 +12,13 @@
   justify-content: space-between;
   flex-wrap: wrap;
   gap: 12px;
-  background: rgba(255, 255, 255, 0.018);
-  border: 1px solid rgba(255, 255, 255, 0.04);
-  backdrop-filter: blur(14px);
-  -webkit-backdrop-filter: blur(14px);
-  border-radius: var(--radius-xl);
+  background: var(--card-bg);
+  border: none;
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border-radius: var(--card-radius, 16px);
   padding: 10px 16px;
+  box-shadow: var(--card-shadow);
 }
 
 .portfolio-tabs-scroll {
@@ -421,12 +422,13 @@
 
 /* Portfolio Table & Items (Frameless Glass Card) */
 .portfolio-table-card {
-  background: rgba(255, 255, 255, 0.018);
-  backdrop-filter: blur(18px);
-  -webkit-backdrop-filter: blur(18px);
+  background: var(--card-bg);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
   border: none;
-  border-radius: var(--radius-xl);
+  border-radius: var(--card-radius, 16px);
   padding: 24px;
+  box-shadow: var(--card-shadow);
 }
 
 .portfolio-table-header {
