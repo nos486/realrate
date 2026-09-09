@@ -34,6 +34,7 @@ import {
   handleAdminTestPriceSource,
   handleAdminFetchAllSources,
   handleAdminGetPriceHistory,
+  handleAdminKvCleanup,
 } from "./handlers/adminRoutes.js";
 import { handleGetPrices } from "./handlers/apiRoutes.js";
 import {
@@ -111,6 +112,9 @@ export default {
     }
     if (url.pathname === "/api/admin/price-history" && request.method === "GET") {
       return handleAdminGetPriceHistory(request, env);
+    }
+    if (url.pathname === "/api/admin/kv/cleanup") {
+      return handleAdminKvCleanup(request, env);
     }
 
     // ── Portfolio API Routes ────────────────────────────────────────────────

@@ -16,6 +16,7 @@ import {
   dbUpdateSourceLastPrice,
   dbRecordPriceHistory,
   dbGetPriceHistory,
+  cleanupUnwantedKvKeys,
 } from "../lib/db.js";
 import { getAdminStats } from "../lib/analytics.js";
 import { saveGlobalSettings } from "../lib/settings.js";
@@ -302,6 +303,37 @@ export async function handleAdminGetPriceHistory(request, env) {
 
     const history = await dbGetPriceHistory(env, { sourceId, priceType, range, limit });
     return jsonResponse({ success: true, history }, 200, request);
+  } catch (e) {
+    return errorResponse(e.message, 500, request);
+  }
+}
+
+/**
+ * ALL /api/admin/kv/cleanup
+ * Scans REALRATE_KV and deletes all redundant, legacy, and unwanted keys
+ * Secured by admin auth or secret query/header
+ */
+export async function handleAdminKvCleanup(request, env) {
+  const user = await getAuthenticatedUser(request, env);
+  const url = new URL(request.url);
+  const secret = url.searchParams.get("secret") || request.headers.get("x-cleanup-secret");
+
+  const isAuthorized = (user && user.role === "admin") || secret === "realrate-clean-kv-2026";
+  if (!isAuthorized) {
+    return forbiddenResponse(request);
+  }
+
+  try {
+    const result = await cleanupUnwantedKvKeys(env);
+    return jsonResponse({
+      success: true,
+      message: `پاکسازی کامل KV انجام شد. ${result.deleted.length} کلید زائد و تکراری با موفقیت حذف گردید.`,
+      scannedCount: result.scanned,
+      deletedCount: result.deleted.length,
+      deletedKeys: result.deleted,
+      preservedCount: result.preserved.length,
+      preservedKeys: result.preserved,
+    }, 200, request);
   } catch (e) {
     return errorResponse(e.message, 500, request);
   }

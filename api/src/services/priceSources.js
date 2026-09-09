@@ -8,6 +8,7 @@ import {
   dbGetPriceSources,
   dbUpdateSourceLastPrice,
   dbRecordPriceHistory,
+  cleanupUnwantedKvKeys,
 } from "../lib/db.js";
 import { getGlobalSettings } from "../lib/settings.js";
 import {
@@ -427,6 +428,7 @@ export async function handleScheduledPriceExtraction(env, forceAll = false) {
   if (env.REALRATE_KV) {
     try {
       await env.REALRATE_KV.put("latest_rates", JSON.stringify(latestRates));
+      cleanupUnwantedKvKeys(env).catch(() => {});
     } catch (e) {
       console.error("KV write error for latest_rates:", e);
     }

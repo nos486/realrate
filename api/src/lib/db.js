@@ -233,13 +233,9 @@ export async function ensureD1Tables(env) {
         `).bind(nowIso, nowIso).run().catch(() => {});
       }
 
-      // Cleanup bloated legacy and redundant KV cache keys if present
+      // Cleanup all obsolete, redundant, and extra keys from REALRATE_KV
       if (env.REALRATE_KV) {
-        env.REALRATE_KV.delete("price_sources_list").catch(() => {});
-        env.REALRATE_KV.delete("users_list").catch(() => {});
-        env.REALRATE_KV.delete("tg_prices").catch(() => {});
-        env.REALRATE_KV.delete("spot_gold_usd").catch(() => {});
-        env.REALRATE_KV.delete("spot_silver_usd").catch(() => {});
+        cleanupUnwantedKvKeys(env).catch(() => {});
       }
     } catch (e) {
       console.error("Price sources seed error:", e);
@@ -249,6 +245,58 @@ export async function ensureD1Tables(env) {
   } catch (e) {
     console.error("D1 schema bootstrap error:", e);
   }
+}
+
+/**
+ * Scans all keys in REALRATE_KV and deletes any key not in the allowed whitelist
+ * @param {object} env
+ * @returns {Promise<{scanned: number, deleted: string[], preserved: string[]}>}
+ */
+export async function cleanupUnwantedKvKeys(env) {
+  if (!env || !env.REALRATE_KV || typeof env.REALRATE_KV.list !== "function") {
+    return { scanned: 0, deleted: [], preserved: [] };
+  }
+
+  const allowedExact = new Set([
+    "latest_rates",
+    "global_settings",
+    "forex_rates",
+  ]);
+
+  const allowedPrefixes = [
+    "source_price:",
+    "session:",
+  ];
+
+  let cursor = undefined;
+  const deleted = [];
+  const preserved = [];
+  let scanned = 0;
+
+  try {
+    do {
+      const listResult = await env.REALRATE_KV.list({ cursor });
+      if (!listResult || !Array.isArray(listResult.keys)) break;
+      scanned += listResult.keys.length;
+
+      for (const k of listResult.keys) {
+        const name = k.name;
+        const isAllowed = allowedExact.has(name) || allowedPrefixes.some(p => name.startsWith(p));
+        if (!isAllowed) {
+          await env.REALRATE_KV.delete(name);
+          deleted.push(name);
+        } else {
+          preserved.push(name);
+        }
+      }
+
+      cursor = listResult.list_complete ? undefined : listResult.cursor;
+    } while (cursor);
+  } catch (err) {
+    console.error("[KV Cleanup] Error during KV list/delete:", err);
+  }
+
+  return { scanned, deleted, preserved };
 }
 
 /**
