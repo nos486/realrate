@@ -4,38 +4,26 @@ import {
   Radio,
   Plus,
   RefreshCw,
-  ExternalLink,
   PlayCircle,
   CheckCircle2,
   AlertCircle,
-  Clock,
   Trash2,
   Edit3,
   Star,
   Sparkles,
-  Code,
-  Check,
-  X,
   Sliders,
-  Users,
   LineChart,
   Activity,
-  ArrowRight,
-  TrendingUp,
-  TrendingDown,
-  Layers,
-  Send,
-  Globe,
   ChevronRight,
-  Info,
   ShieldCheck,
   Zap,
   Save,
+  X,
 } from 'lucide-react';
-import Header from '../components/Header.jsx';
-import Footer from '../components/Footer.jsx';
-import { useAuth } from '../context/AuthContext.jsx';
-import { useMarketData } from '../hooks/useMarketData.js';
+import Header from '@/components/Header.jsx';
+import Footer from '@/components/Footer.jsx';
+import { useAuth } from '@/context/AuthContext.jsx';
+import { useMarketData } from '@/hooks/useMarketData.js';
 import {
   apiGetPriceSources,
   apiSavePriceSource,
@@ -44,16 +32,39 @@ import {
   apiTestPriceSource,
   apiFetchAllSourcesNow,
   apiGetPriceHistory,
-} from '../api/client.js';
-import PriceHistoryChart from '../components/PriceHistoryChart.jsx';
+} from '@/api/client.js';
+import PriceHistoryChart from '@/components/PriceHistoryChart.jsx';
+
+import { Button } from '@/components/ui/button.jsx';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogBody,
+  DialogFooter,
+} from '@/components/ui/dialog.jsx';
+import { Input, Label } from '@/components/ui/input.jsx';
+import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card.jsx';
+import { Badge } from '@/components/ui/badge.jsx';
+import {
+  Table,
+  TableHeader,
+  TableBody,
+  TableRow,
+  TableHead,
+  TableCell,
+} from '@/components/ui/table.jsx';
+import { cn } from '@/lib/utils.js';
 
 const PRICE_TYPE_INFO = {
-  usd: { label: 'دلار (USD)', badgeColor: 'blue' },
-  gold_18k: { label: 'طلا ۱۸ عیار', badgeColor: 'gold' },
-  full_coin: { label: 'سکه تمام بهار', badgeColor: 'amber' },
-  half_coin: { label: 'نیم سکه بهار', badgeColor: 'orange' },
-  quarter_coin: { label: 'ربع سکه بهار', badgeColor: 'rose' },
-  mesghal: { label: 'مثقال طلا ۱۷ عیار', badgeColor: 'purple' },
+  usd: { label: 'دلار (USD)', badgeColor: 'blue', dotColor: 'bg-sky-400' },
+  gold_18k: { label: 'طلا ۱۸ عیار', badgeColor: 'gold', dotColor: 'bg-amber-400' },
+  full_coin: { label: 'سکه تمام بهار', badgeColor: 'amber', dotColor: 'bg-amber-500' },
+  half_coin: { label: 'نیم سکه بهار', badgeColor: 'orange', dotColor: 'bg-orange-400' },
+  quarter_coin: { label: 'ربع سکه بهار', badgeColor: 'rose', dotColor: 'bg-rose-400' },
+  mesghal: { label: 'مثقال طلا ۱۷ عیار', badgeColor: 'purple', dotColor: 'bg-purple-400' },
 };
 
 const PRESET_REGEX_PATTERNS = {
@@ -165,7 +176,6 @@ export default function PriceSourcesPage() {
       const res = await apiGetPriceSources();
       if (res.success && Array.isArray(res.sources)) {
         setSources(res.sources);
-        // If no source is selected yet, select the first one
         if (!selectedSourceId && res.sources.length > 0) {
           setSelectedSourceId(res.sources[0].id);
         }
@@ -317,7 +327,7 @@ export default function PriceSourcesPage() {
     }
   };
 
-  // Delete Source — Also removes all historical data per user request
+  // Delete Source
   const handleDeleteSource = async (src) => {
     if (!window.confirm(`آیا از حذف کامل سورس «${src.name}» و تمامی رکوردهای تاریخچه آن اطمینان دارید؟`)) return;
     try {
@@ -389,7 +399,7 @@ export default function PriceSourcesPage() {
     }
   };
 
-  // Test Row Source with LIVE UPDATE to state & isolated history
+  // Test Row Source
   const handleTestRowSource = async (src) => {
     setRowTestingId(src.id);
     try {
@@ -436,15 +446,15 @@ export default function PriceSourcesPage() {
     }
   };
 
-  // Not logged in or not admin check
+  // Not logged in or loading check
   if (authLoading) {
     return (
-      <div className="app-layout">
+      <div className="min-h-screen flex flex-col bg-app text-primary">
         <Header usdToman={usdToman} gold18kPrice={gold18kPrice} activeTab="sources" setActiveTab={() => navigate('/')} />
-        <main className="main-content" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '60vh' }}>
-          <div style={{ textAlign: 'center' }}>
-            <RefreshCw size={28} className="spin-anim" style={{ color: 'var(--accent-blue)', margin: '0 auto 12px' }} />
-            <p style={{ color: 'var(--text-muted)' }}>در حال بررسی دسترسی مدیریت...</p>
+        <main className="flex-1 flex items-center justify-center p-6">
+          <div className="text-center">
+            <RefreshCw size={32} className="animate-spin text-sky-400 mx-auto mb-3" />
+            <p className="text-sm text-slate-400">در حال بررسی دسترسی مدیریت...</p>
           </div>
         </main>
         <Footer />
@@ -454,30 +464,26 @@ export default function PriceSourcesPage() {
 
   if (!user || user.role !== 'admin') {
     return (
-      <div className="app-layout">
+      <div className="min-h-screen flex flex-col bg-app text-primary">
         <Header usdToman={usdToman} gold18kPrice={gold18kPrice} activeTab="sources" setActiveTab={() => navigate('/')} />
-        <main className="main-content" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '60vh' }}>
-          <div className="admin-container" style={{ textAlign: 'center', padding: '40px 20px', maxWidth: '460px' }}>
-            <ShieldCheck size={48} style={{ color: 'var(--accent-amber, #f59e0b)', margin: '0 auto 16px' }} />
-            <h2 style={{ fontSize: '18px', fontWeight: 'bold', marginBottom: '8px', color: 'var(--text-heading)' }}>
+        <main className="flex-1 flex items-center justify-center p-6">
+          <Card className="max-w-md w-full text-center p-8 border-white/10 shadow-xl">
+            <ShieldCheck size={48} className="text-amber-500 mx-auto mb-4" />
+            <h2 className="text-lg font-bold text-white light:text-slate-900 mb-2">
               دسترسی محدود به مدیر کل
             </h2>
-            <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '20px', lineHeight: '1.7' }}>
+            <p className="text-xs text-slate-400 light:text-slate-600 mb-6 leading-relaxed">
               صفحه مدیریت یکپارچه سورس‌های قیمت و نمودارهای تحلیلی تنها برای مدیران سیستم در دسترس است.
             </p>
-            <div style={{ display: 'flex', justifyContent: 'center', gap: '10px' }}>
-              <Link to="/" className="btn-sm site-link" style={{ padding: '8px 16px', fontSize: '13px' }}>
-                بازگشت به خانه
+            <div className="flex items-center justify-center gap-3">
+              <Link to="/">
+                <Button variant="outline" size="sm">بازگشت به خانه</Button>
               </Link>
-              <button
-                onClick={triggerLogin}
-                className="btn-sm btn-primary-action"
-                style={{ padding: '8px 16px', fontSize: '13px' }}
-              >
+              <Button variant="primary" size="sm" onClick={triggerLogin}>
                 ورود با حساب مدیر
-              </button>
+              </Button>
             </div>
-          </div>
+          </Card>
         </main>
         <Footer />
       </div>
@@ -485,7 +491,7 @@ export default function PriceSourcesPage() {
   }
 
   return (
-    <div className="app-layout price-sources-fullscreen-app">
+    <div className="min-h-screen flex flex-col bg-app text-primary">
       {/* Universal Top Header */}
       <Header
         usdToman={usdToman}
@@ -495,97 +501,110 @@ export default function PriceSourcesPage() {
       />
 
       {/* Main Full-Width Content Container */}
-      <main className="main-content sources-page-main full-width-sources-page">
-        {/* Top Breadcrumb & Page Title Strip */}
-        <div className="sources-page-hero-banner">
-          <div className="hero-breadcrumbs">
-            <Link to="/" className="breadcrumb-item">خانه</Link>
+      <main className="flex-1 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 flex flex-col gap-6">
+        {/* Top Breadcrumb & Page Title Banner */}
+        <div className="rounded-2xl border border-white/10 bg-gradient-to-b from-[#121826] to-[#0d111a] p-5 sm:p-6 shadow-xl light:from-white light:to-slate-50 light:border-slate-200">
+          <div className="flex items-center gap-1.5 text-xs text-slate-400 mb-3 select-none">
+            <Link to="/" className="hover:text-amber-400 transition-colors">خانه</Link>
             <ChevronRight size={13} />
-            <Link to="/admin" className="breadcrumb-item">پنل مدیریت و کاربران</Link>
+            <Link to="/admin" className="hover:text-amber-400 transition-colors">پنل مدیریت و کاربران</Link>
             <ChevronRight size={13} />
-            <span className="breadcrumb-item current">مدیریت سورس‌ها و نمودارهای اختصاصی قیمت</span>
+            <span className="text-slate-200 light:text-slate-800 font-medium">مدیریت سورس‌ها و نمودارها</span>
           </div>
 
-          <div className="hero-content-row">
-            <div className="hero-title-group">
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <div className="hero-icon-badge">
-                  <Radio size={22} style={{ color: 'var(--accent-blue, #38bdf8)' }} />
-                </div>
-                <div>
-                  <h1 className="hero-page-title">
-                    مدیریت سورس‌های بازار و تاریخچه نمودارها
-                  </h1>
-                  <p className="hero-page-desc">
-                    پیکربندی استخراج قیمت از کانال‌های تلگرام و وب‌سرویس‌های API، ثبت تاریخچه تفکیکی و گراف‌های اختصاصی
-                  </p>
-                </div>
+          <div className="flex flex-wrap items-center justify-between gap-4">
+            <div className="flex items-center gap-3.5">
+              <div className="w-12 h-12 rounded-xl bg-sky-500/10 border border-sky-500/20 flex items-center justify-center text-sky-400 shrink-0">
+                <Radio size={24} />
+              </div>
+              <div>
+                <h1 className="text-lg sm:text-xl font-extrabold text-white light:text-slate-900 tracking-tight">
+                  مدیریت سورس‌های بازار و تاریخچه نمودارها
+                </h1>
+                <p className="text-xs text-slate-400 light:text-slate-500 mt-1">
+                  پیکربندی استخراج قیمت از کانال‌های تلگرام و وب‌سرویس‌های API، ثبت تاریخچه تفکیکی و گراف‌های اختصاصی
+                </p>
               </div>
             </div>
 
-            <div className="hero-actions-group">
-              <button
+            <div className="flex items-center gap-2.5 flex-wrap">
+              <Button
                 type="button"
+                variant="primary"
                 onClick={handleFetchAllNow}
                 disabled={fetchingAll}
-                className="btn-hero-action primary-glow"
+                isLoading={fetchingAll}
                 title="فراخوانی همزمان تمام سورس‌های فعال و ثبت در تاریخچه دیتابیس"
               >
-                <Zap size={14} className={fetchingAll ? 'spin-anim' : ''} />
+                <Zap size={15} />
                 <span>{fetchingAll ? 'در حال دریافت نرخ‌ها...' : 'دریافت آنی قیمت همه سورس‌ها'}</span>
-              </button>
+              </Button>
 
-              <button
+              <Button
                 type="button"
+                variant="gold"
                 onClick={() => handleOpenAddSource(sourceFilter === 'all' ? 'usd' : sourceFilter)}
-                className="btn-hero-action accent"
               >
-                <Plus size={15} strokeWidth={2.5} />
+                <Plus size={16} strokeWidth={2.5} />
                 <span>افزودن سورس جدید</span>
-              </button>
+              </Button>
             </div>
           </div>
         </div>
 
         {/* Global Notification Banner */}
         {message && (
-          <div className={`admin-msg ${message.type}`} style={{ margin: '0 0 16px' }}>
+          <div
+            className={cn(
+              'flex items-center gap-2.5 p-3.5 rounded-xl text-xs font-semibold animate-in fade-in duration-200',
+              message.type === 'success'
+                ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30'
+                : message.type === 'error'
+                ? 'bg-rose-500/15 text-rose-400 border border-rose-500/30'
+                : 'bg-sky-500/15 text-sky-400 border border-sky-500/30'
+            )}
+          >
             {message.type === 'success' ? (
-              <CheckCircle2 size={16} />
+              <CheckCircle2 size={16} className="shrink-0" />
             ) : message.type === 'error' ? (
-              <AlertCircle size={16} />
+              <AlertCircle size={16} className="shrink-0" />
             ) : (
-              <Activity size={16} />
+              <Activity size={16} className="shrink-0" />
             )}
             <span>{message.text}</span>
           </div>
         )}
 
         {/* ── SECTION 1: Individual Source Selector & Dedicated Chart ───────── */}
-        <section ref={chartSectionRef} className="sources-chart-section">
-          {/* Source Tabs Bar — Separate chart per source */}
-          <div className="source-tabs-header">
-            <div className="source-tabs-title">
-              <LineChart size={16} style={{ color: 'var(--accent-blue, #38bdf8)' }} />
+        <section ref={chartSectionRef} className="flex flex-col gap-3">
+          {/* Source Tabs Bar */}
+          <div className="flex flex-col gap-2.5 p-3.5 rounded-2xl border border-white/10 bg-[#0c1018]/90 light:bg-white light:border-slate-200 shadow-sm">
+            <div className="flex items-center gap-2 text-xs font-bold text-slate-300 light:text-slate-700">
+              <LineChart size={16} className="text-sky-400" />
               <span>انتخاب سورس برای مشاهده نمودار اختصاصی:</span>
             </div>
-            <div className="source-pills-scroll-container">
+            <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
               {sources.map((src) => {
                 const isSelected = src.id === selectedSourceId;
-                const typeInfo = PRICE_TYPE_INFO[src.priceType] || { label: src.priceType, badgeColor: 'blue' };
+                const typeInfo = PRICE_TYPE_INFO[src.priceType] || { label: src.priceType, dotColor: 'bg-sky-400' };
                 return (
                   <button
                     key={src.id}
                     type="button"
-                    className={`source-selector-pill ${isSelected ? 'active' : ''}`}
+                    className={cn(
+                      'inline-flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-medium border transition-all cursor-pointer whitespace-nowrap',
+                      isSelected
+                        ? 'bg-amber-500/15 text-amber-400 border-amber-500/40 shadow-sm'
+                        : 'bg-white/[0.03] text-slate-300 border-white/10 hover:bg-white/[0.07] light:bg-slate-100 light:text-slate-700 light:border-slate-200'
+                    )}
                     onClick={() => setSelectedSourceId(src.id)}
                   >
-                    <span className={`pill-dot ${typeInfo.badgeColor}`} />
-                    <span className="pill-name">{src.name}</span>
+                    <span className={cn('w-2 h-2 rounded-full', typeInfo.dotColor)} />
+                    <span className="font-semibold">{src.name}</span>
                     {src.lastPrice > 0 && (
-                      <span className="pill-price">{formatNum(src.lastPrice)}</span>
+                      <span className="opacity-80 font-bold">{formatNum(src.lastPrice)}</span>
                     )}
-                    {src.isPrimary && <Star size={11} fill="#eab308" color="#eab308" />}
+                    {src.isPrimary && <Star size={11} className="fill-amber-400 text-amber-400" />}
                   </button>
                 );
               })}
@@ -617,112 +636,122 @@ export default function PriceSourcesPage() {
               priceTypeInfo={PRICE_TYPE_INFO}
             />
           ) : (
-            <div className="chart-empty-state" style={{ background: 'var(--card-bg)', borderRadius: '16px', padding: '40px' }}>
-              <Activity size={32} style={{ color: 'var(--text-muted)', marginBottom: '8px' }} />
-              <p>هیچ سورسی برای نمایش نمودار یافت نشد.</p>
-              <span>برای مشاهده نمودار اختصاصی، یک سورس از جدول زیر تعریف یا انتخاب کنید.</span>
+            <div className="flex flex-col items-center justify-center p-10 rounded-2xl border border-white/10 bg-[#0c1018]/90 text-center text-slate-400">
+              <Activity size={32} className="text-slate-500 mb-2" />
+              <p className="text-sm font-semibold">هیچ سورسی برای نمایش نمودار یافت نشد.</p>
+              <span className="text-xs text-slate-500">برای مشاهده نمودار اختصاصی، یک سورس از جدول زیر تعریف یا انتخاب کنید.</span>
             </div>
           )}
         </section>
 
         {/* ── SECTION 2: Sources Overview Cards Grid ──────────────────────── */}
-        <section className="sources-cards-grid-section">
-          <div className="section-subtitle-bar">
-            <span>
-              <Activity size={15} style={{ verticalAlign: 'middle', marginLeft: '6px' }} />
-              نمای کلی سورس‌های فعال بازار ({sources.length.toLocaleString('fa-IR')} سورس)
-            </span>
+        <section className="flex flex-col gap-3">
+          <div className="flex items-center gap-2 text-xs font-bold text-slate-300 light:text-slate-700">
+            <Activity size={15} className="text-amber-500" />
+            <span>نمای کلی سورس‌های فعال بازار ({sources.length.toLocaleString('fa-IR')} سورس)</span>
           </div>
 
-          <div className="sources-overview-grid">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
             {sources.map((src) => {
               const typeInfo = PRICE_TYPE_INFO[src.priceType] || { label: src.priceType, badgeColor: 'blue' };
               const isSelected = src.id === selectedSourceId;
 
               return (
-                <div
+                <Card
                   key={src.id}
-                  className={`source-mini-card ${isSelected ? 'selected-card' : ''}`}
                   onClick={() => handleSelectSourceForChart(src)}
+                  className={cn(
+                    'cursor-pointer border-white/10 hover:border-amber-500/40 hover:-translate-y-0.5 transition-all flex flex-col justify-between',
+                    isSelected && 'ring-2 ring-amber-500/50 border-amber-500/50'
+                  )}
                 >
-                  <div className="mini-card-header">
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                      <span className={`source-type-pill pill-${typeInfo.badgeColor}`}>
+                  <CardHeader className="p-4 pb-2 flex flex-row items-center justify-between gap-2">
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <Badge variant="outline" className="text-[11px]">
                         {typeInfo.label}
-                      </span>
+                      </Badge>
                       {src.isPrimary && (
-                        <span className="primary-tag" title="سورس مرجع">
-                          <Star size={10} fill="#eab308" color="#eab308" />
+                        <Badge variant="gold" className="text-[10px] gap-1">
+                          <Star size={10} className="fill-amber-400 text-amber-400" />
                           <span>مرجع</span>
-                        </span>
+                        </Badge>
                       )}
                     </div>
-                    <span className={`status-indicator ${src.isActive ? 'active' : 'inactive'}`}>
+                    <Badge variant={src.isActive ? 'success' : 'default'} className="text-[10px]">
                       {src.isActive ? 'فعال' : 'غیرفعال'}
-                    </span>
-                  </div>
+                    </Badge>
+                  </CardHeader>
 
-                  <div className="mini-card-body">
-                    <h4 className="source-card-title">{src.name}</h4>
-                    <span className="source-endpoint-line">
+                  <CardContent className="p-4 py-2 flex flex-col gap-1.5">
+                    <h4 className="text-sm font-bold text-white light:text-slate-900 truncate">
+                      {src.name}
+                    </h4>
+                    <span className="text-xs text-slate-400 font-mono dir-ltr text-end truncate block">
                       {src.sourceType === 'telegram'
                         ? `@${src.channelUsername || src.endpoint}`
                         : (src.apiUrl || src.endpoint || 'API URL')}
                     </span>
 
-                    <div className="source-card-price-row">
+                    <div className="mt-2 flex items-baseline gap-1.5">
                       {src.lastPrice > 0 ? (
                         <>
-                          <span className="card-price-value">{formatNum(src.lastPrice)}</span>
-                          <span className="card-price-unit">تومان</span>
+                          <span className="text-base font-extrabold text-emerald-400">
+                            {formatNum(src.lastPrice)}
+                          </span>
+                          <span className="text-xs text-slate-400">تومان</span>
                         </>
                       ) : (
-                        <span className="card-no-price">هنوز دریافت نشده</span>
+                        <span className="text-xs text-slate-500">هنوز دریافت نشده</span>
                       )}
                     </div>
-                  </div>
+                  </CardContent>
 
-                  <div className="mini-card-footer">
-                    <span className="last-fetched-hint">
+                  <CardFooter className="p-4 pt-2 flex items-center justify-between text-xs text-slate-400 border-t border-white/5 light:border-slate-100">
+                    <span className="text-[10px]">
                       {src.lastFetched ? formatPersianDate(src.lastFetched) : 'بدون ثبت تاریخچه'}
                     </span>
-                    <button
+                    <Button
                       type="button"
-                      className="btn-card-chart-focus"
+                      variant="ghost"
+                      size="sm"
+                      className="h-7 px-2 text-xs text-sky-400 hover:text-sky-300 hover:bg-sky-500/10"
                       onClick={(e) => {
                         e.stopPropagation();
                         handleSelectSourceForChart(src);
                       }}
                     >
-                      <LineChart size={13} />
+                      <LineChart size={12} className="me-1" />
                       <span>نمودار</span>
-                    </button>
-                  </div>
-                </div>
+                    </Button>
+                  </CardFooter>
+                </Card>
               );
             })}
           </div>
         </section>
 
         {/* ── SECTION 3: Unified Management Table ─────────────────────────── */}
-        <section className="sources-table-section">
-          <div className="table-header-toolbar">
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <Sliders size={17} style={{ color: 'var(--accent-blue)' }} />
-              <h3 style={{ fontSize: '15px', fontWeight: '800', margin: 0, color: 'var(--text-heading)' }}>
-                جدول مدیریت و پیکربندی سورس‌ها
-              </h3>
+        <section className="flex flex-col gap-3">
+          <div className="flex flex-wrap items-center justify-between gap-3 p-3.5 rounded-2xl border border-white/10 bg-[#0c1018]/90 light:bg-white light:border-slate-200">
+            <div className="flex items-center gap-2 text-xs font-bold text-slate-200 light:text-slate-800">
+              <Sliders size={16} className="text-sky-400" />
+              <h3 className="text-sm font-extrabold m-0">جدول مدیریت و پیکربندی سورس‌ها</h3>
             </div>
 
             {/* Filter Pills */}
-            <div className="sources-filter-bar" style={{ margin: 0 }}>
+            <div className="flex items-center gap-1.5 flex-wrap">
               <button
                 type="button"
-                className={`filter-pill ${sourceFilter === 'all' ? 'active' : ''}`}
+                className={cn(
+                  'px-2.5 py-1 rounded-lg text-xs font-medium border transition-colors cursor-pointer',
+                  sourceFilter === 'all'
+                    ? 'bg-amber-500 text-slate-950 font-bold border-amber-500'
+                    : 'bg-white/[0.04] text-slate-300 border-white/10 hover:bg-white/10 light:bg-slate-100 light:text-slate-700 light:border-slate-200'
+                )}
                 onClick={() => setSourceFilter('all')}
               >
                 <span>همه</span>
-                <span className="filter-count">{sources.length.toLocaleString('fa-IR')}</span>
+                <span className="ms-1 opacity-70">({sources.length.toLocaleString('fa-IR')})</span>
               </button>
               {Object.entries(PRICE_TYPE_INFO).map(([key, info]) => {
                 const count = sources.filter((s) => s.priceType === key).length;
@@ -730,11 +759,16 @@ export default function PriceSourcesPage() {
                   <button
                     key={key}
                     type="button"
-                    className={`filter-pill ${sourceFilter === key ? 'active' : ''}`}
+                    className={cn(
+                      'px-2.5 py-1 rounded-lg text-xs font-medium border transition-colors cursor-pointer',
+                      sourceFilter === key
+                        ? 'bg-amber-500 text-slate-950 font-bold border-amber-500'
+                        : 'bg-white/[0.04] text-slate-300 border-white/10 hover:bg-white/10 light:bg-slate-100 light:text-slate-700 light:border-slate-200'
+                    )}
                     onClick={() => setSourceFilter(key)}
                   >
                     <span>{info.label}</span>
-                    <span className="filter-count">{count.toLocaleString('fa-IR')}</span>
+                    <span className="ms-1 opacity-70">({count.toLocaleString('fa-IR')})</span>
                   </button>
                 );
               })}
@@ -742,27 +776,27 @@ export default function PriceSourcesPage() {
           </div>
 
           {/* Table Container */}
-          <div className="users-table-wrap sources-fullscreen-table-wrap">
-            <table className="users-table sources-table">
-              <thead>
-                <tr>
-                  <th>نام سورس و آدرس</th>
-                  <th>نوع نرخ</th>
-                  <th>پروتکل</th>
-                  <th>تنظیمات استخراج</th>
-                  <th>آخرین قیمت استخراجی</th>
-                  <th>سورس مرجع</th>
-                  <th>وضعیت</th>
-                  <th style={{ textAlign: 'center' }}>عملیات</th>
-                </tr>
-              </thead>
-              <tbody>
+          <div className="rounded-2xl border border-white/10 bg-[#0c1018]/90 overflow-hidden shadow-xl light:bg-white light:border-slate-200">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>نام سورس و آدرس</TableHead>
+                  <TableHead>نوع نرخ</TableHead>
+                  <TableHead>پروتکل</TableHead>
+                  <TableHead>تنظیمات استخراج</TableHead>
+                  <TableHead>آخرین قیمت استخراجی</TableHead>
+                  <TableHead>سورس مرجع</TableHead>
+                  <TableHead>وضعیت</TableHead>
+                  <TableHead className="text-center">عملیات</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
                 {filteredSources.length === 0 ? (
-                  <tr>
-                    <td colSpan="8" style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '36px' }}>
+                  <TableRow>
+                    <TableCell colSpan={8} className="text-center py-10 text-slate-400">
                       {loadingSources ? 'در حال دریافت لیست سورس‌ها...' : 'هیچ سورسی در این دسته‌بندی یافت نشد.'}
-                    </td>
-                  </tr>
+                    </TableCell>
+                  </TableRow>
                 ) : (
                   filteredSources.map((src) => {
                     const typeInfo = PRICE_TYPE_INFO[src.priceType] || { label: src.priceType, badgeColor: 'blue' };
@@ -772,59 +806,32 @@ export default function PriceSourcesPage() {
 
                     return (
                       <React.Fragment key={src.id}>
-                        <tr className={isSelectedInChart ? 'active-chart-row' : ''}>
-                          <td>
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
-                              <strong style={{ fontSize: '13.5px', color: 'var(--text-heading)' }}>
+                        <TableRow className={cn(isSelectedInChart && 'bg-amber-500/[0.04]')}>
+                          <TableCell>
+                            <div className="flex flex-col gap-0.5">
+                              <strong className="text-sm font-bold text-white light:text-slate-900">
                                 {src.name}
                               </strong>
-                              <span
-                                style={{
-                                  fontSize: '11px',
-                                  color: 'var(--text-muted)',
-                                  direction: 'ltr',
-                                  textAlign: 'right',
-                                  fontFamily: 'monospace',
-                                }}
-                              >
+                              <span className="text-xs text-slate-400 font-mono dir-ltr text-end truncate max-w-[180px]">
                                 {src.sourceType === 'telegram'
                                   ? `@${(src.channelUsername || src.endpoint || '').replace(/^@/, '')}`
                                   : (src.apiUrl || src.endpoint || '')}
                               </span>
                             </div>
-                          </td>
-                          <td>
-                            <span className={`source-type-pill pill-${typeInfo.badgeColor}`}>
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant="outline" className="text-xs">
                               {typeInfo.label}
-                            </span>
-                          </td>
-                          <td>
-                            <span
-                              className="source-proto-tag"
-                              style={{
-                                background:
-                                  src.sourceType === 'telegram'
-                                    ? 'rgba(0,136,204,0.12)'
-                                    : 'rgba(16,185,129,0.12)',
-                                color: src.sourceType === 'telegram' ? '#0088cc' : '#10b981',
-                              }}
-                            >
+                            </Badge>
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant={src.sourceType === 'telegram' ? 'telegram' : 'success'}>
                               {src.sourceType === 'telegram' ? 'کانال تلگرام' : 'وب‌سرویس API'}
-                            </span>
-                          </td>
-                          <td>
+                            </Badge>
+                          </TableCell>
+                          <TableCell>
                             <span
-                              style={{
-                                fontSize: '11px',
-                                fontFamily: 'monospace',
-                                direction: 'ltr',
-                                display: 'block',
-                                maxWidth: '220px',
-                                overflow: 'hidden',
-                                textOverflow: 'ellipsis',
-                                whiteSpace: 'nowrap',
-                                color: 'var(--text-muted)',
-                              }}
+                              className="text-xs font-mono dir-ltr text-end block max-w-[200px] truncate text-slate-400"
                               title={
                                 src.sourceType === 'telegram'
                                   ? `Regex: ${src.regexPattern || src.regex} (group ${src.regexGroupIndex || 1})`
@@ -835,131 +842,119 @@ export default function PriceSourcesPage() {
                                 ? (src.regexPattern || src.regex || 'پیش‌فرض')
                                 : (src.jsonPath || '—')}
                             </span>
-                          </td>
-                          <td>
+                          </TableCell>
+                          <TableCell>
                             {src.lastPrice && Number(src.lastPrice) > 0 ? (
-                              <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                                <strong
-                                  style={{
-                                    fontSize: '13.5px',
-                                    color: 'var(--accent-green, #10b981)',
-                                    fontWeight: '700',
-                                  }}
-                                >
+                              <div className="flex flex-col gap-0.5">
+                                <strong className="text-sm font-bold text-emerald-400">
                                   {formatNum(src.lastPrice)} تومان
                                 </strong>
-                                <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>
+                                <span className="text-[10px] text-slate-400">
                                   {formatPersianDate(src.lastFetched)}
                                 </span>
                               </div>
                             ) : (
-                              <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
-                                هنوز دریافت نشده
-                              </span>
+                              <span className="text-xs text-slate-500">هنوز دریافت نشده</span>
                             )}
-                          </td>
-                          <td>
+                          </TableCell>
+                          <TableCell>
                             {src.isPrimary ? (
-                              <span className="primary-badge" title="سورس پیش‌فرض این نوع قیمت">
-                                <Star size={11} fill="currentColor" />
+                              <Badge variant="gold" className="gap-1">
+                                <Star size={11} className="fill-amber-400" />
                                 <span>مرجع</span>
-                              </span>
+                              </Badge>
                             ) : (
-                              <button
+                              <Button
                                 type="button"
+                                variant="outline"
+                                size="sm"
                                 onClick={() => handleSetPrimary(src)}
-                                className="btn-set-primary"
-                                title="تبدیل به سورس مرجع برای محاسبات سایت"
+                                title="تبدیل به سورس مرجع"
+                                className="h-7 px-2 text-xs"
                               >
                                 <Star size={11} />
                                 <span>انتخاب مرجع</span>
-                              </button>
+                              </Button>
                             )}
-                          </td>
-                          <td>
+                          </TableCell>
+                          <TableCell>
                             <button
                               type="button"
                               onClick={() => handleToggleActive(src)}
-                              className={`source-toggle-btn ${src.isActive ? 'active' : 'inactive'}`}
+                              className={cn(
+                                'inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold border transition-all cursor-pointer select-none',
+                                src.isActive
+                                  ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30'
+                                  : 'bg-white/5 text-slate-400 border-white/10'
+                              )}
                               title={src.isActive ? 'کلیک برای غیرفعال‌سازی' : 'کلیک برای فعال‌سازی'}
                             >
-                              <span className="toggle-indicator" />
+                              <span className={cn('w-1.5 h-1.5 rounded-full', src.isActive ? 'bg-emerald-400' : 'bg-slate-500')} />
                               <span>{src.isActive ? 'فعال' : 'غیرفعال'}</span>
                             </button>
-                          </td>
-                          <td>
-                            <div
-                              style={{
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                gap: '6px',
-                              }}
-                            >
-                              <button
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex items-center justify-center gap-1">
+                              <Button
                                 type="button"
+                                variant="ghost"
+                                size="icon-sm"
                                 onClick={() => handleTestRowSource(src)}
                                 disabled={isRowTesting}
-                                className="action-icon-btn test-btn"
-                                title="تست استخراج قیمت و ذخیره در تاریخچه اختصاصی این سورس"
+                                title="تست استخراج قیمت"
+                                className="text-sky-400 hover:text-sky-300 hover:bg-sky-500/10"
                               >
-                                <PlayCircle
-                                  size={15}
-                                  className={isRowTesting ? 'spin-anim' : ''}
-                                  style={{ color: 'var(--accent-blue)' }}
-                                />
-                              </button>
-                              <button
+                                <PlayCircle size={15} className={isRowTesting ? 'animate-spin' : ''} />
+                              </Button>
+                              <Button
                                 type="button"
+                                variant="ghost"
+                                size="icon-sm"
                                 onClick={() => handleSelectSourceForChart(src)}
-                                className="action-icon-btn chart-btn"
-                                title="مشاهده نمودار اختصاصی این سورس"
+                                title="مشاهده نمودار"
+                                className="text-purple-400 hover:text-purple-300 hover:bg-purple-500/10"
                               >
-                                <LineChart size={15} style={{ color: '#8b5cf6' }} />
-                              </button>
-                              <button
+                                <LineChart size={15} />
+                              </Button>
+                              <Button
                                 type="button"
+                                variant="ghost"
+                                size="icon-sm"
                                 onClick={() => handleOpenEditSource(src)}
-                                className="action-icon-btn edit-btn"
-                                title="ویرایش تنظیمات سورس"
+                                title="ویرایش"
+                                className="text-slate-300 hover:text-white"
                               >
                                 <Edit3 size={15} />
-                              </button>
-                              <button
+                              </Button>
+                              <Button
                                 type="button"
+                                variant="ghost"
+                                size="icon-sm"
                                 onClick={() => handleDeleteSource(src)}
-                                className="action-icon-btn delete-btn"
-                                title="حذف سورس و تمامی رکوردهای تاریخچه‌اش"
+                                title="حذف سورس"
+                                className="text-rose-400 hover:text-rose-300 hover:bg-rose-500/10"
                               >
                                 <Trash2 size={15} />
-                              </button>
+                              </Button>
                             </div>
-                          </td>
-                        </tr>
+                          </TableCell>
+                        </TableRow>
 
                         {/* Inline Test Result Banner */}
                         {rowResult && (
-                          <tr className="test-result-row">
-                            <td colSpan="8" style={{ padding: '8px 16px', background: 'rgba(0,0,0,0.06)' }}>
-                              <div
-                                style={{
-                                  display: 'flex',
-                                  alignItems: 'center',
-                                  justifyContent: 'space-between',
-                                  fontSize: '12px',
-                                  gap: '8px',
-                                }}
-                              >
+                          <TableRow className="bg-black/30 light:bg-slate-50">
+                            <TableCell colSpan={8} className="py-2.5 px-4">
+                              <div className="flex items-center justify-between text-xs gap-2">
                                 {rowResult.success ? (
-                                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--accent-green, #10b981)' }}>
-                                    <CheckCircle2 size={14} />
+                                  <div className="flex items-center gap-2 text-emerald-400 font-medium">
+                                    <CheckCircle2 size={15} className="shrink-0" />
                                     <span>
-                                      قیمت با موفقیت استخراج و در تاریخچه اختصاصی ثبت شد: <strong>{formatNum(rowResult.price)} تومان</strong>
+                                      قیمت با موفقیت استخراج و ثبت شد: <strong>{formatNum(rowResult.price)} تومان</strong>
                                     </span>
                                   </div>
                                 ) : (
-                                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--accent-rose, #f43f5e)' }}>
-                                    <AlertCircle size={14} />
+                                  <div className="flex items-center gap-2 text-rose-400 font-medium">
+                                    <AlertCircle size={15} className="shrink-0" />
                                     <span>خطا در استخراج قیمت: {rowResult.error || 'عدم تطابق قیمت'}</span>
                                   </div>
                                 )}
@@ -972,50 +967,43 @@ export default function PriceSourcesPage() {
                                       return next;
                                     })
                                   }
-                                  style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)' }}
+                                  className="text-slate-400 hover:text-white p-1"
                                 >
-                                  <X size={13} />
+                                  <X size={14} />
                                 </button>
                               </div>
-                            </td>
-                          </tr>
+                            </TableCell>
+                          </TableRow>
                         )}
                       </React.Fragment>
                     );
                   })
                 )}
-              </tbody>
-            </table>
+              </TableBody>
+            </Table>
           </div>
         </section>
 
-        {/* ── SECTION 4: Add/Edit Modal ───────────────────────────────────── */}
-        {sourceModalOpen && (
-          <div className="admin-modal-backdrop" onClick={() => setSourceModalOpen(false)}>
-            <div
-              className="admin-modal-card source-edit-modal-card"
-              onClick={(e) => e.stopPropagation()}
-              style={{ maxWidth: '640px' }}
-            >
-              <div className="admin-modal-header">
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <Radio size={16} style={{ color: 'var(--accent-blue)' }} />
-                  <h3>{editingSourceId ? 'ویرایش سورس قیمت' : 'افزودن سورس قیمت جدید'}</h3>
-                </div>
-                <button
-                  type="button"
-                  className="modal-close-btn"
-                  onClick={() => setSourceModalOpen(false)}
-                >
-                  <X size={16} />
-                </button>
+        {/* ── SECTION 4: Add/Edit Modal (Dialog) ─────────────────────────────── */}
+        <Dialog open={sourceModalOpen} onOpenChange={setSourceModalOpen}>
+          <DialogContent onClose={() => setSourceModalOpen(false)}>
+            <DialogHeader>
+              <div className="flex items-center gap-2">
+                <Radio className="text-sky-400 w-5 h-5" />
+                <DialogTitle>
+                  {editingSourceId ? 'ویرایش سورس قیمت' : 'افزودن سورس قیمت جدید'}
+                </DialogTitle>
               </div>
+              <DialogDescription>
+                مشخصات استخراج قیمت از کانال تلگرام یا وب‌سرویس API و الگوی تطابق را تنظیم کنید.
+              </DialogDescription>
+            </DialogHeader>
 
-              <form onSubmit={handleSaveModalSource} className="admin-modal-body">
-                <div className="form-group">
-                  <label>نام سورس:</label>
-                  <input
-                    type="text"
+            <form onSubmit={handleSaveModalSource}>
+              <DialogBody className="space-y-4">
+                <div className="flex flex-col gap-1.5">
+                  <Label>نام سورس:</Label>
+                  <Input
                     required
                     placeholder="مثال: دلار هرات فردایی، سبزه میدان، صرافی زرما..."
                     value={sourceForm.name}
@@ -1023,10 +1011,11 @@ export default function PriceSourcesPage() {
                   />
                 </div>
 
-                <div className="form-row-2">
-                  <div className="form-group">
-                    <label>نوع قیمت:</label>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="flex flex-col gap-1.5">
+                    <Label>نوع قیمت:</Label>
                     <select
+                      className="w-full h-10 rounded-xl border border-white/10 bg-white/[0.04] px-3.5 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-amber-500/40 light:bg-slate-50 light:border-slate-200 light:text-slate-900"
                       value={sourceForm.priceType}
                       onChange={(e) => {
                         const newType = e.target.value;
@@ -1046,9 +1035,10 @@ export default function PriceSourcesPage() {
                     </select>
                   </div>
 
-                  <div className="form-group">
-                    <label>پروتکل استخراج:</label>
+                  <div className="flex flex-col gap-1.5">
+                    <Label>پروتکل استخراج:</Label>
                     <select
+                      className="w-full h-10 rounded-xl border border-white/10 bg-white/[0.04] px-3.5 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-amber-500/40 light:bg-slate-50 light:border-slate-200 light:text-slate-900"
                       value={sourceForm.sourceType}
                       onChange={(e) => setSourceForm({ ...sourceForm, sourceType: e.target.value })}
                     >
@@ -1059,12 +1049,11 @@ export default function PriceSourcesPage() {
                 </div>
 
                 {sourceForm.sourceType === 'telegram' ? (
-                  <div className="form-group">
-                    <label>نام کاربری یا آیدی کانال تلگرام:</label>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '4px', direction: 'ltr' }}>
-                      <span style={{ color: 'var(--text-muted)', fontSize: '14px' }}>@</span>
-                      <input
-                        type="text"
+                  <div className="flex flex-col gap-1.5">
+                    <Label>نام کاربری یا آیدی کانال تلگرام:</Label>
+                    <div className="flex items-center gap-2 dir-ltr">
+                      <span className="text-slate-400 font-mono text-sm">@</span>
+                      <Input
                         required
                         placeholder="tahran_sabza یا herat_rate"
                         value={sourceForm.channelUsername}
@@ -1074,67 +1063,65 @@ export default function PriceSourcesPage() {
                             channelUsername: e.target.value.replace(/^@/, '').trim(),
                           })
                         }
-                        style={{ direction: 'ltr', textAlign: 'left', flex: 1 }}
+                        className="dir-ltr text-start flex-1"
                       />
                     </div>
                   </div>
                 ) : (
                   <>
-                    <div className="form-group">
-                      <label>آدرس URL وب‌سرویس API:</label>
-                      <input
+                    <div className="flex flex-col gap-1.5">
+                      <Label>آدرس URL وب‌سرویس API:</Label>
+                      <Input
                         type="url"
                         required
                         placeholder="https://api.example.com/rates/live"
                         value={sourceForm.apiUrl}
                         onChange={(e) => setSourceForm({ ...sourceForm, apiUrl: e.target.value.trim() })}
-                        style={{ direction: 'ltr', textAlign: 'left' }}
+                        className="dir-ltr text-start font-mono text-xs"
                       />
                     </div>
 
-                    <div className="form-group">
-                      <label>مسیر کلید در JSON (اختیاری):</label>
-                      <input
-                        type="text"
+                    <div className="flex flex-col gap-1.5">
+                      <Label>مسیر کلید در JSON (اختیاری):</Label>
+                      <Input
                         placeholder="data.usd.price یا stats[0].latest"
                         value={sourceForm.jsonPath}
                         onChange={(e) => setSourceForm({ ...sourceForm, jsonPath: e.target.value.trim() })}
-                        style={{ direction: 'ltr', textAlign: 'left' }}
+                        className="dir-ltr text-start font-mono text-xs"
                       />
                     </div>
                   </>
                 )}
 
                 {/* Regex Configuration */}
-                <div className="form-group">
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
-                    <label style={{ margin: 0 }}>الگوی رجکس (Regex Pattern):</label>
-                    <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>فلگ چندخطی <code>ims</code></span>
+                <div className="flex flex-col gap-1.5">
+                  <div className="flex justify-between items-center">
+                    <Label>الگوی رجکس (Regex Pattern):</Label>
+                    <span className="text-[11px] text-slate-400">فلگ چندخطی <code className="text-amber-400">ims</code></span>
                   </div>
-                  <input
-                    type="text"
+                  <Input
                     placeholder="مثال: ([\d,]+)\s*فروش"
                     value={sourceForm.regexPattern}
                     onChange={(e) => setSourceForm({ ...sourceForm, regexPattern: e.target.value })}
-                    style={{ direction: 'ltr', textAlign: 'left', fontFamily: 'monospace' }}
+                    className="dir-ltr text-start font-mono text-xs"
                   />
 
                   {PRESET_REGEX_PATTERNS[sourceForm.priceType] && (
-                    <div className="regex-presets-box">
-                      <span className="regex-preset-title">
-                        <Sparkles size={11} style={{ color: 'var(--accent-amber)' }} />
+                    <div className="p-3 rounded-xl bg-white/[0.02] border border-white/5 light:bg-slate-50 light:border-slate-100 flex flex-col gap-2 mt-1">
+                      <span className="text-xs font-semibold text-slate-300 light:text-slate-700 flex items-center gap-1.5">
+                        <Sparkles size={13} className="text-amber-400" />
                         الگوهای آماده برای {PRICE_TYPE_INFO[sourceForm.priceType]?.label}:
                       </span>
-                      <div className="regex-chips-list">
+                      <div className="flex flex-wrap gap-1.5">
                         {PRESET_REGEX_PATTERNS[sourceForm.priceType].map((preset, idx) => (
                           <button
                             key={idx}
                             type="button"
-                            className="regex-preset-chip"
+                            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-mono bg-white/[0.04] border border-white/10 hover:border-amber-500/50 hover:bg-amber-500/10 transition-colors text-slate-300 light:bg-white light:border-slate-200 light:text-slate-700 cursor-pointer"
                             onClick={() => setSourceForm({ ...sourceForm, regexPattern: preset.pattern })}
                           >
                             <span>{preset.label}</span>
-                            <code>{preset.pattern}</code>
+                            <code className="text-amber-400 opacity-90 text-[10px]">{preset.pattern}</code>
                           </button>
                         ))}
                       </div>
@@ -1142,108 +1129,118 @@ export default function PriceSourcesPage() {
                   )}
                 </div>
 
-                <div className="form-row-2">
-                  <div className="form-group">
-                    <label>گروه استخراج رجکس:</label>
-                    <input
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="flex flex-col gap-1.5">
+                    <Label>گروه استخراج رجکس:</Label>
+                    <Input
                       type="number"
                       min="1"
                       max="9"
                       value={sourceForm.regexGroupIndex}
                       onChange={(e) => setSourceForm({ ...sourceForm, regexGroupIndex: e.target.value })}
-                      style={{ direction: 'ltr', textAlign: 'center' }}
+                      className="dir-ltr text-center"
                     />
                   </div>
 
-                  <div className="form-group">
-                    <label>بازه استخراج خودکار (دقیقه):</label>
-                    <input
+                  <div className="flex flex-col gap-1.5">
+                    <Label>بازه استخراج خودکار (دقیقه):</Label>
+                    <Input
                       type="number"
                       min="1"
                       max="1440"
                       value={sourceForm.fetchIntervalMinutes}
                       onChange={(e) => setSourceForm({ ...sourceForm, fetchIntervalMinutes: e.target.value })}
-                      style={{ direction: 'ltr', textAlign: 'center' }}
+                      className="dir-ltr text-center"
                     />
                   </div>
                 </div>
 
-                <div className="form-row-2" style={{ margin: '8px 0' }}>
-                  <label className="admin-checkbox-label">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                  <label className="flex items-center gap-2 text-xs font-medium text-slate-300 light:text-slate-700 select-none cursor-pointer">
                     <input
                       type="checkbox"
                       checked={sourceForm.isActive}
                       onChange={(e) => setSourceForm({ ...sourceForm, isActive: e.target.checked })}
+                      className="rounded border-white/20 text-amber-500 focus:ring-amber-500/40 w-4 h-4 cursor-pointer"
                     />
                     <span>سورس فعال باشد</span>
                   </label>
 
-                  <label className="admin-checkbox-label">
+                  <label className="flex items-center gap-2 text-xs font-medium text-slate-300 light:text-slate-700 select-none cursor-pointer">
                     <input
                       type="checkbox"
                       checked={sourceForm.isPrimary}
                       onChange={(e) => setSourceForm({ ...sourceForm, isPrimary: e.target.checked })}
+                      className="rounded border-white/20 text-amber-500 focus:ring-amber-500/40 w-4 h-4 cursor-pointer"
                     />
                     <span>به عنوان سورس مرجع این نرخ تنظیم شود</span>
                   </label>
                 </div>
 
                 {/* Modal Test Area */}
-                <div className="modal-test-area">
-                  <button
+                <div className="flex flex-col gap-2 pt-2 border-t border-white/5 light:border-slate-100">
+                  <Button
                     type="button"
+                    variant="outline"
+                    size="sm"
                     onClick={handleTestModalSource}
                     disabled={modalTesting}
-                    className="btn-sm site-link"
-                    style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '6px 14px' }}
+                    isLoading={modalTesting}
+                    className="self-start text-xs"
                   >
-                    <PlayCircle size={14} className={modalTesting ? 'spin-anim' : ''} />
+                    <PlayCircle size={14} />
                     <span>{modalTesting ? 'در حال برقراری ارتباط...' : 'تست اتصال و استخراج قبل از ذخیره'}</span>
-                  </button>
+                  </Button>
 
                   {modalTestResult && (
-                    <div className={`modal-test-result-box ${modalTestResult.success ? 'success' : 'error'}`}>
+                    <div
+                      className={cn(
+                        'p-3 rounded-xl text-xs font-medium border animate-in fade-in duration-150',
+                        modalTestResult.success
+                          ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30'
+                          : 'bg-rose-500/10 text-rose-400 border-rose-500/30'
+                      )}
+                    >
                       {modalTestResult.success ? (
-                        <>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                            <CheckCircle2 size={16} style={{ color: 'var(--accent-green)' }} />
+                        <div className="flex flex-col gap-2">
+                          <div className="flex items-center gap-2">
+                            <CheckCircle2 size={16} className="text-emerald-400" />
                             <strong>قیمت استخراج شده: {formatNum(modalTestResult.price)} تومان</strong>
                           </div>
                           {modalTestResult.post_text && (
-                            <div className="sample-snippet-box">
-                              <pre>{modalTestResult.post_text.substring(0, 180)}...</pre>
+                            <div className="bg-black/30 p-2 rounded-lg border border-white/10 font-mono text-[11px] text-slate-300 max-h-24 overflow-y-auto">
+                              <pre className="whitespace-pre-wrap">{modalTestResult.post_text.substring(0, 200)}...</pre>
                             </div>
                           )}
-                        </>
+                        </div>
                       ) : (
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                          <AlertCircle size={16} style={{ color: 'var(--accent-rose)' }} />
+                        <div className="flex items-center gap-2">
+                          <AlertCircle size={16} className="text-rose-400" />
                           <span>خطا: {modalTestResult.error}</span>
                         </div>
                       )}
                     </div>
                   )}
                 </div>
+              </DialogBody>
 
-                {/* Modal Footer */}
-                <div className="admin-modal-actions">
-                  <button type="button" className="btn-sm site-link" onClick={() => setSourceModalOpen(false)}>
-                    انصراف
-                  </button>
-                  <button
-                    type="submit"
-                    disabled={modalSaving}
-                    className="btn-sm btn-primary-action"
-                    style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
-                  >
-                    <Save size={14} className={modalSaving ? 'spin-anim' : ''} />
-                    <span>{modalSaving ? 'در حال ذخیره‌سازی...' : 'ذخیره سورس قیمت'}</span>
-                  </button>
-                </div>
-              </form>
-            </div>
-          </div>
-        )}
+              <DialogFooter>
+                <Button type="button" variant="ghost" onClick={() => setSourceModalOpen(false)}>
+                  انصراف
+                </Button>
+                <Button
+                  type="submit"
+                  variant="primary"
+                  disabled={modalSaving}
+                  isLoading={modalSaving}
+                >
+                  <Save size={15} />
+                  <span>{modalSaving ? 'در حال ذخیره‌سازی...' : 'ذخیره سورس قیمت'}</span>
+                </Button>
+              </DialogFooter>
+            </form>
+          </DialogContent>
+        </Dialog>
       </main>
 
       <Footer />

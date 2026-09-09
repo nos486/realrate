@@ -208,24 +208,34 @@ export default function PriceHistoryChart({
   const activeHoverPoint = hoverIndex !== null && chartPoints[hoverIndex] ? chartPoints[hoverIndex] : null;
 
   return (
-    <div className="price-history-chart-card">
+    <div className="relative flex flex-col gap-4 rounded-2xl border border-white/10 bg-[#0c1018]/95 p-5 shadow-xl backdrop-blur-md transition-all duration-200 light:border-slate-200 light:bg-white light:shadow-sm">
       {/* Card Header */}
-      <div className="chart-header-row">
-        <div className="chart-title-group">
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <Activity size={18} style={{ color: 'var(--accent-blue)' }} />
-            <h3 className="chart-title">{title}</h3>
-            {subtitle && <span className="chart-subtitle">{subtitle}</span>}
+      <div className="flex flex-wrap items-start justify-between gap-3.5">
+        <div className="flex flex-col gap-1.5">
+          <div className="flex items-center gap-2">
+            <Activity size={18} className="text-sky-400" />
+            <h3 className="text-base font-extrabold text-white light:text-slate-900 m-0">{title}</h3>
+            {subtitle && (
+              <span className="text-xs text-slate-400 light:text-slate-500 bg-white/[0.06] light:bg-slate-100 px-2 py-0.5 rounded-md">
+                {subtitle}
+              </span>
+            )}
           </div>
-          <div className="chart-metrics-row">
+          <div className="flex flex-wrap items-center gap-2 mt-1">
             {metrics.latest > 0 && (
-              <div className="metric-chip current-price">
-                <span className="metric-chip-label">آخرین قیمت:</span>
-                <span className="metric-chip-val">{formatNum(metrics.latest)} تومان</span>
+              <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold bg-sky-500/10 text-sky-400 border border-sky-500/25">
+                <span className="opacity-80">آخرین قیمت:</span>
+                <span className="font-extrabold">{formatNum(metrics.latest)} تومان</span>
               </div>
             )}
             {sortedData.length > 1 && (
-              <div className={`metric-chip change-chip ${metrics.isUp ? 'positive' : 'negative'}`}>
+              <div
+                className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold ${
+                  metrics.isUp
+                    ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/25'
+                    : 'bg-rose-500/10 text-rose-400 border border-rose-500/25'
+                }`}
+              >
                 {metrics.isUp ? <TrendingUp size={13} /> : <TrendingDown size={13} />}
                 <span>
                   {metrics.isUp ? '+' : ''}
@@ -238,8 +248,8 @@ export default function PriceHistoryChart({
         </div>
 
         {/* Range Selector & Controls */}
-        <div className="chart-controls-group">
-          <div className="range-pills-bar">
+        <div className="flex items-center gap-2.5">
+          <div className="flex items-center gap-1 bg-white/[0.04] light:bg-slate-100 p-1 rounded-xl border border-white/5 light:border-slate-200">
             {[
               { id: '24h', label: '۲۴ ساعت' },
               { id: '7d', label: '۷ روز' },
@@ -249,7 +259,11 @@ export default function PriceHistoryChart({
               <button
                 key={r.id}
                 type="button"
-                className={`range-pill ${range === r.id ? 'active' : ''}`}
+                className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-colors ${
+                  range === r.id
+                    ? 'bg-amber-500 text-slate-950 font-bold shadow-sm'
+                    : 'text-slate-400 hover:text-white light:text-slate-600 light:hover:text-slate-900'
+                }`}
                 onClick={() => onRangeChange(r.id)}
               >
                 {r.label}
@@ -258,22 +272,22 @@ export default function PriceHistoryChart({
           </div>
           <button
             type="button"
-            className="btn-sm site-link chart-refresh-btn"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium border border-white/10 bg-white/[0.03] text-slate-300 hover:bg-white/[0.08] hover:text-white light:border-slate-200 light:bg-slate-100 light:text-slate-700 light:hover:bg-slate-200 transition-colors"
             onClick={onRefresh}
             title="بروزرسانی داده‌های نمودار"
           >
-            <RefreshCw size={12} className={loading ? 'spin-anim' : ''} />
+            <RefreshCw size={12} className={loading ? 'animate-spin' : ''} />
             <span>بروزرسانی</span>
           </button>
         </div>
       </div>
 
       {/* Filter Selectors Bar */}
-      <div className="chart-selectors-bar">
-        <div className="selector-item">
-          <label className="selector-label">نوع ارز / طلا:</label>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-3 rounded-xl bg-white/[0.02] border border-white/5 light:bg-slate-50 light:border-slate-100">
+        <div className="flex flex-col gap-1.5">
+          <label className="text-xs font-semibold text-slate-300 light:text-slate-700">نوع ارز / طلا:</label>
           <select
-            className="chart-select"
+            className="w-full h-9 rounded-lg border border-white/10 bg-white/[0.05] px-3 text-xs text-slate-200 focus:outline-none focus:ring-1 focus:ring-amber-500/50 light:bg-white light:border-slate-200 light:text-slate-800"
             value={selectedPriceType}
             onChange={(e) => onSelectPriceType(e.target.value)}
           >
@@ -285,10 +299,10 @@ export default function PriceHistoryChart({
           </select>
         </div>
 
-        <div className="selector-item">
-          <label className="selector-label">سورس قیمت:</label>
+        <div className="flex flex-col gap-1.5">
+          <label className="text-xs font-semibold text-slate-300 light:text-slate-700">سورس قیمت:</label>
           <select
-            className="chart-select"
+            className="w-full h-9 rounded-lg border border-white/10 bg-white/[0.05] px-3 text-xs text-slate-200 focus:outline-none focus:ring-1 focus:ring-amber-500/50 light:bg-white light:border-slate-200 light:text-slate-800"
             value={selectedSourceId}
             onChange={(e) => onSelectSource(e.target.value)}
           >
@@ -306,40 +320,40 @@ export default function PriceHistoryChart({
 
       {/* Key Stats Bar */}
       {sortedData.length > 0 && (
-        <div className="chart-stats-summary-bar">
-          <div className="stat-item">
-            <span className="stat-lbl">کمترین:</span>
-            <span className="stat-val">{formatNum(metrics.min)} تومان</span>
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 p-3 rounded-xl bg-white/[0.02] border border-white/5 light:bg-slate-50 light:border-slate-100">
+          <div className="flex flex-col gap-0.5 text-center sm:text-start">
+            <span className="text-[11px] text-slate-400 light:text-slate-500">کمترین:</span>
+            <span className="text-xs font-bold text-slate-200 light:text-slate-800">{formatNum(metrics.min)} تومان</span>
           </div>
-          <div className="stat-item">
-            <span className="stat-lbl">بیشترین:</span>
-            <span className="stat-val">{formatNum(metrics.max)} تومان</span>
+          <div className="flex flex-col gap-0.5 text-center sm:text-start">
+            <span className="text-[11px] text-slate-400 light:text-slate-500">بیشترین:</span>
+            <span className="text-xs font-bold text-slate-200 light:text-slate-800">{formatNum(metrics.max)} تومان</span>
           </div>
-          <div className="stat-item">
-            <span className="stat-lbl">میانگین:</span>
-            <span className="stat-val">{formatNum(metrics.avg)} تومان</span>
+          <div className="flex flex-col gap-0.5 text-center sm:text-start">
+            <span className="text-[11px] text-slate-400 light:text-slate-500">میانگین:</span>
+            <span className="text-xs font-bold text-slate-200 light:text-slate-800">{formatNum(metrics.avg)} تومان</span>
           </div>
-          <div className="stat-item">
-            <span className="stat-lbl">نقاط ثبت‌شده:</span>
-            <span className="stat-val">{sortedData.length.toLocaleString('fa-IR')} رکورد</span>
+          <div className="flex flex-col gap-0.5 text-center sm:text-start">
+            <span className="text-[11px] text-slate-400 light:text-slate-500">نقاط ثبت‌شده:</span>
+            <span className="text-xs font-bold text-slate-200 light:text-slate-800">{sortedData.length.toLocaleString('fa-IR')} رکورد</span>
           </div>
         </div>
       )}
 
       {/* SVG Chart Area */}
-      <div className="svg-chart-container">
+      <div className="relative w-full overflow-hidden rounded-xl border border-white/5 bg-black/20 p-2 sm:p-4 light:bg-slate-50/50 light:border-slate-100 min-h-[300px] flex items-center justify-center">
         {loading && (
-          <div className="chart-loading-overlay">
-            <RefreshCw size={24} className="spin-anim" style={{ color: 'var(--accent-blue)' }} />
+          <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-2 bg-black/60 backdrop-blur-[2px] rounded-xl text-xs text-slate-300">
+            <RefreshCw size={24} className="animate-spin text-sky-400" />
             <span>در حال دریافت داده‌های تاریخچه...</span>
           </div>
         )}
 
         {sortedData.length === 0 && !loading ? (
-          <div className="chart-empty-state">
-            <Activity size={32} style={{ color: 'var(--text-muted)', marginBottom: '8px' }} />
-            <p>هنوز رکوردی از تاریخچه قیمت برای این بازه ثبت نشده است.</p>
-            <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
+          <div className="flex flex-col items-center justify-center p-8 text-center text-slate-400 gap-1">
+            <Activity size={32} className="text-slate-500 mb-2" />
+            <p className="text-sm font-semibold">هنوز رکوردی از تاریخچه قیمت برای این بازه ثبت نشده است.</p>
+            <span className="text-xs text-slate-500">
               با دریافت قیمت از سورس‌ها یا کلیک روی «دریافت آنی قیمت همه سورس‌ها»، نقاط جدید ثبت و در این نمودار نمایش داده می‌شوند.
             </span>
           </div>
@@ -347,7 +361,8 @@ export default function PriceHistoryChart({
           <svg
             ref={svgRef}
             viewBox={`0 0 ${width} ${height}`}
-            className="price-svg"
+            className="w-full h-auto max-h-[340px] select-none block"
+
             onMouseMove={handleMouseMove}
             onMouseLeave={handleMouseLeave}
           >
