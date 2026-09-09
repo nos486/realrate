@@ -299,7 +299,7 @@ export default function AdminPage({ embedded = false }) {
   }
 
   return renderLayout(
-    <Card className="admin-container" padding="lg" style={{ margin: '20px auto' }}>
+    <Card className="admin-container" padding="lg" style={{ width: '100%', maxWidth: '100%', margin: '0 0 32px 0' }}>
         {msg.text && (
           <AlertBanner
             type={msg.type || 'info'}

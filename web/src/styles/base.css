@@ -722,6 +722,14 @@ input:focus, select:focus, textarea:focus {
 /* ==========================================================================
    UI Components: FilterPills & SegmentedTabs
    ========================================================================== */
+.tab-view-container {
+  width: 100%;
+  max-width: 100%;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
 .main-nav-tabs-bar {
   display: flex;
   align-items: center;
@@ -743,6 +751,7 @@ input:focus, select:focus, textarea:focus {
   gap: 6px;
   overflow-x: auto;
   scrollbar-width: none;
+  flex-wrap: nowrap;
 }
 
 .ui-filter-pills::-webkit-scrollbar {
@@ -751,8 +760,11 @@ input:focus, select:focus, textarea:focus {
 
 .filter-pill-btn {
   display: inline-flex;
+  flex-direction: row;
   align-items: center;
-  gap: 6px;
+  justify-content: center;
+  gap: 7px;
+  direction: rtl;
   border: 1px solid var(--border-control, rgba(255, 255, 255, 0.08));
   background: var(--bg-control, rgba(255, 255, 255, 0.04));
   color: var(--text-secondary);
@@ -761,9 +773,12 @@ input:focus, select:focus, textarea:focus {
   font-size: 12px;
   font-weight: 600;
   cursor: pointer;
-  white-space: nowrap;
+  white-space: nowrap !important;
+  flex-shrink: 0;
+  line-height: 1;
   transition: all var(--transition-fast);
   font-family: inherit;
+  box-sizing: border-box;
 }
 
 .filter-pill-btn .pill-icon {
@@ -771,8 +786,22 @@ input:focus, select:focus, textarea:focus {
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
+  line-height: 0;
+  vertical-align: middle;
   opacity: 0.85;
   transition: opacity var(--transition-fast), color var(--transition-fast);
+}
+
+.filter-pill-btn .pill-icon svg {
+  display: block;
+  flex-shrink: 0;
+}
+
+.filter-pill-btn .pill-label {
+  display: inline-flex;
+  align-items: center;
+  white-space: nowrap !important;
+  line-height: 1.2;
 }
 
 .filter-pill-btn:hover .pill-icon {

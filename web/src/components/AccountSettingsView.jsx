@@ -62,7 +62,7 @@ export default function AccountSettingsView() {
 
   if (!user) {
     return (
-      <Card className="admin-container" padding="lg" style={{ margin: '30px auto', maxWidth: '480px', textAlign: 'center' }}>
+      <Card className="admin-container" padding="lg" style={{ width: '100%', maxWidth: '100%', margin: '0 0 32px 0', textAlign: 'center' }}>
         <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '14px' }}>
           <User size={44} style={{ color: 'var(--accent-blue, #38bdf8)' }} />
         </div>
@@ -86,7 +86,7 @@ export default function AccountSettingsView() {
   }
 
   return (
-    <Card className="admin-container" padding="lg" style={{ margin: '20px auto', maxWidth: '580px' }}>
+    <Card className="admin-container account-settings-fullscreen-card" padding="lg" style={{ width: '100%', maxWidth: '100%', margin: '0 0 32px 0' }}>
       <div className="section-title" style={{ marginTop: 0 }}>
         <span>
           <User size={18} style={{ verticalAlign: 'middle', marginLeft: '6px', display: 'inline', color: 'var(--accent-blue)' }} />
