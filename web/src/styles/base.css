@@ -722,8 +722,23 @@ input:focus, select:focus, textarea:focus {
 /* ==========================================================================
    UI Components: FilterPills & SegmentedTabs
    ========================================================================== */
-.ui-filter-pills {
+.main-nav-tabs-bar {
   display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  margin-bottom: 24px;
+  width: 100%;
+  overflow-x: auto;
+  padding-bottom: 4px;
+  scrollbar-width: none;
+}
+
+.main-nav-tabs-bar::-webkit-scrollbar {
+  display: none;
+}
+
+.ui-filter-pills {
+  display: inline-flex;
   align-items: center;
   gap: 6px;
   overflow-x: auto;
@@ -751,6 +766,19 @@ input:focus, select:focus, textarea:focus {
   font-family: inherit;
 }
 
+.filter-pill-btn .pill-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  opacity: 0.85;
+  transition: opacity var(--transition-fast), color var(--transition-fast);
+}
+
+.filter-pill-btn:hover .pill-icon {
+  opacity: 1;
+}
+
 .filter-pill-btn:hover {
   color: var(--text-primary);
   background: var(--bg-control-hover, rgba(255, 255, 255, 0.08));
@@ -758,19 +786,25 @@ input:focus, select:focus, textarea:focus {
 }
 
 .filter-pill-btn.active {
-  background: var(--accent-blue, #38bdf8);
-  border-color: var(--accent-blue, #38bdf8);
-  color: #000000;
+  background: linear-gradient(135deg, #0284c7 0%, #2563eb 100%);
+  border-color: rgba(56, 189, 248, 0.5);
+  color: #ffffff;
   font-weight: 700;
-  box-shadow: 0 2px 10px rgba(56, 189, 248, 0.35);
+  box-shadow: 0 4px 14px rgba(2, 132, 199, 0.35);
+}
+
+.filter-pill-btn.active .pill-icon {
+  opacity: 1;
+  color: #ffffff;
 }
 
 .filter-pill-btn .pill-badge {
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 700;
-  background: rgba(0, 0, 0, 0.2);
-  padding: 1px 6px;
-  border-radius: 10px;
+  background: rgba(0, 0, 0, 0.25);
+  padding: 1px 7px;
+  border-radius: 999px;
+  line-height: 1.2;
 }
 
 .filter-pill-btn:not(.active) .pill-badge {
@@ -778,27 +812,76 @@ input:focus, select:focus, textarea:focus {
   color: var(--text-muted);
 }
 
-/* Segmented Control Variant */
+/* ── Size Variants ────────────────────────────────────────────────────────── */
+.ui-filter-pills.size-sm .filter-pill-btn {
+  padding: 5px 10px;
+  font-size: 11.5px;
+  border-radius: 7px;
+  gap: 5px;
+}
+
+.ui-filter-pills.size-md .filter-pill-btn {
+  padding: 7px 14px;
+  font-size: 13px;
+  border-radius: 9px;
+  gap: 6px;
+}
+
+.ui-filter-pills.size-lg .filter-pill-btn {
+  padding: 9px 18px;
+  font-size: 13.5px;
+  font-weight: 600;
+  border-radius: 10px;
+  gap: 7px;
+}
+
+/* ── Segmented Control Variant (Modern Elevated Dock) ────────────────────── */
 .ui-filter-pills.variant-segmented {
-  background: rgba(0, 0, 0, 0.3);
-  border: 1px solid var(--border-subtle);
-  padding: 4px;
-  border-radius: var(--radius-lg, 12px);
+  background: rgba(15, 22, 36, 0.85);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  padding: 5px;
+  border-radius: 14px;
   gap: 4px;
+  width: fit-content;
+  max-width: 100%;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+
+.ui-filter-pills.variant-segmented.size-lg {
+  padding: 6px;
+  gap: 6px;
+  border-radius: 16px;
 }
 
 .ui-filter-pills.variant-segmented .filter-pill-btn {
-  border: none;
+  border: 1px solid transparent;
   background: transparent;
-  border-radius: var(--radius-md, 8px);
-  padding: 8px 16px;
+  color: rgba(255, 255, 255, 0.65);
+  font-weight: 500;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.ui-filter-pills.variant-segmented .filter-pill-btn:hover {
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.08);
 }
 
 .ui-filter-pills.variant-segmented .filter-pill-btn.active {
-  background: var(--accent-blue, #38bdf8);
-  color: #000;
+  background: linear-gradient(135deg, #0284c7 0%, #2563eb 100%);
+  color: #ffffff;
+  font-weight: 700;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  box-shadow: 0 4px 16px rgba(2, 132, 199, 0.42), inset 0 1px 0 rgba(255, 255, 255, 0.3);
 }
 
+.ui-filter-pills.variant-segmented .filter-pill-btn.active .pill-icon {
+  color: #ffffff;
+}
+
+/* Light Mode Overrides */
 [data-theme="light"] .filter-pill-btn {
   background: #f1f5f9;
   border-color: #cbd5e1;
@@ -812,10 +895,31 @@ input:focus, select:focus, textarea:focus {
   background: #0284c7;
   color: #ffffff;
   border-color: #0284c7;
+  box-shadow: 0 4px 12px rgba(2, 132, 199, 0.25);
 }
 [data-theme="light"] .ui-filter-pills.variant-segmented {
-  background: #e2e8f0;
+  background: #f1f5f9;
   border-color: #cbd5e1;
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+[data-theme="light"] .ui-filter-pills.variant-segmented .filter-pill-btn {
+  color: #64748b;
+  background: transparent;
+  border-color: transparent;
+}
+[data-theme="light"] .ui-filter-pills.variant-segmented .filter-pill-btn:hover {
+  color: #0f172a;
+  background: rgba(0, 0, 0, 0.05);
+  border-color: transparent;
+}
+[data-theme="light"] .ui-filter-pills.variant-segmented .filter-pill-btn.active {
+  background: #ffffff;
+  color: #0284c7;
+  border-color: rgba(0, 0, 0, 0.08);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.8);
+}
+[data-theme="light"] .ui-filter-pills.variant-segmented .filter-pill-btn.active .pill-icon {
+  color: #0284c7;
 }
 
 /* ==========================================================================

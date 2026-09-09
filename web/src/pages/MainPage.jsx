@@ -148,14 +148,15 @@ export default function MainPage() {
       )}
 
       {/* Modern Segmented Navigation Tabs */}
-      <FilterPills
-        variant="segmented"
-        size="lg"
-        options={tabOptions}
-        activeValue={activeTab}
-        onChange={handleTabChange}
-        style={{ marginBottom: '24px' }}
-      />
+      <div className="main-nav-tabs-bar">
+        <FilterPills
+          variant="segmented"
+          size="lg"
+          options={tabOptions}
+          activeValue={activeTab}
+          onChange={handleTabChange}
+        />
+      </div>
 
       {/* Tab Views */}
       <section className="tab-view-container">
