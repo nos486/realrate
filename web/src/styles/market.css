@@ -86,21 +86,27 @@
 .market-tab-content {
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 12px;
+}
+
+@media (max-width: 768px) {
+  .market-tab-content {
+    gap: 10px;
+  }
 }
 
 /* ── Inputs Toolbar (Spacious Elevated Glass Surface) ────────────────────── */
 .inputs-toolbar {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 20px;
+  gap: 16px;
   margin-bottom: 0;
   background: var(--card-bg);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
   border: var(--card-border);
   border-radius: var(--card-radius, 16px);
-  padding: 20px 24px;
+  padding: 16px 20px;
   width: 100%;
   box-sizing: border-box;
   box-shadow: var(--card-shadow);
@@ -109,8 +115,8 @@
 @media (max-width: 768px) {
   .inputs-toolbar {
     grid-template-columns: 1fr;
-    gap: 12px;
-    padding: 14px 16px;
+    gap: 10px;
+    padding: 12px 14px;
   }
   .toolbar-label-row label {
     font-size: 11.5px;
@@ -218,8 +224,14 @@
   border-radius: var(--radius-full);
   padding: 4px;
   gap: 4px;
-  margin-bottom: 24px;
+  margin-bottom: 12px;
   align-self: flex-start;
+}
+
+@media (max-width: 768px) {
+  .market-filter-tabs {
+    margin-bottom: 8px;
+  }
 }
 
 .tab-segment-btn {
@@ -263,14 +275,14 @@
 .cards-modern-grid {
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));
-  gap: 12px;
+  gap: 10px;
   margin-bottom: 0;
 }
 
 @media (max-width: 1280px) {
   .cards-modern-grid {
     grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 12px;
+    gap: 10px;
   }
 }
 
