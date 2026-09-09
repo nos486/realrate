@@ -517,16 +517,8 @@ export default function PriceSourcesPage({ embedded = false, usdToman: propUsdTo
 
   return renderLayout(
     <>
-      {/* Top Breadcrumb & Page Title Strip */}
+      {/* Top Page Title Strip */}
       <Card className="sources-page-hero-banner" padding="hero">
-        <div className="hero-breadcrumbs">
-          <Link to="/" className="breadcrumb-item">خانه</Link>
-          <ChevronRight size={13} />
-          <Link to="/admin" className="breadcrumb-item">پنل مدیریت و کاربران</Link>
-          <ChevronRight size={13} />
-          <span className="breadcrumb-item current">مدیریت سورس‌ها و نمودارهای اختصاصی قیمت</span>
-        </div>
-
         <div className="hero-content-row">
           <div className="hero-title-group">
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
@@ -538,7 +530,7 @@ export default function PriceSourcesPage({ embedded = false, usdToman: propUsdTo
                   مدیریت سورس‌های بازار و تاریخچه نمودارها
                 </h1>
                 <p className="hero-page-desc">
-                  پیکربندی استخراج قیمت از کانال‌های تلگرام و وب‌سرویس‌های API، ثبت تاریخچه تفکیکی و گراف‌های اختصاصی
+                  پیکربندی استخراج قیمت، ثبت تاریخچه تفکیکی و گراف‌های اختصاصی بازار
                 </p>
               </div>
             </div>
@@ -578,36 +570,8 @@ export default function PriceSourcesPage({ embedded = false, usdToman: propUsdTo
         />
       )}
 
-      {/* ── SECTION 1: Individual Source Selector & Dedicated Chart ───────── */}
+      {/* ── SECTION 1: Individual Source Dedicated Chart ───────── */}
       <section ref={chartSectionRef} className="sources-chart-section">
-        {/* Source Tabs Bar — Separate chart per source */}
-        <Card className="source-tabs-header" padding="sm">
-          <div className="source-tabs-title">
-            <LineChart size={16} style={{ color: 'var(--accent-blue, #38bdf8)' }} />
-            <span>انتخاب سورس برای مشاهده نمودار اختصاصی:</span>
-          </div>
-          <div className="source-pills-scroll-container">
-            {sources.map((src) => {
-              const isSelected = src.id === selectedSourceId;
-              const typeInfo = PRICE_TYPE_INFO[src.priceType] || { label: src.priceType, badgeColor: 'blue' };
-              return (
-                <button
-                  key={src.id}
-                  type="button"
-                  className={`source-selector-pill ${isSelected ? 'active' : ''}`}
-                  onClick={() => setSelectedSourceId(src.id)}
-                >
-                  <span className={`pill-dot ${typeInfo.badgeColor}`} />
-                  <span className="pill-name">{src.name}</span>
-                  {src.lastPrice > 0 && (
-                    <span className="pill-price">{formatNum(src.lastPrice, src.priceType)}</span>
-                  )}
-                  {src.isPrimary && <Star size={11} fill="#eab308" color="#eab308" />}
-                </button>
-              );
-            })}
-          </div>
-        </Card>
 
           {/* Interactive Chart for the active source */}
           {activeSelectedSource ? (

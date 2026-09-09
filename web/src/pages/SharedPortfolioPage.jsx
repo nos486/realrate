@@ -224,6 +224,12 @@ export default function SharedPortfolioPage() {
     // C. Currencies & Crypto
     map['USD'] = Math.round(usdVal);
     map['USDT'] = Math.round(usdVal);
+    map['EUR'] = Math.round((1 / 0.915) * usdVal);
+    map['CHF'] = Math.round((1 / 0.865) * usdVal);
+    map['AED'] = Math.round((1 / 3.6725) * usdVal);
+    map['TRY'] = Math.round((1 / 33.5) * usdVal);
+    map['GBP'] = Math.round((1 / 0.782) * usdVal);
+    map['CAD'] = Math.round((1 / 1.37) * usdVal);
 
     if (calcData?.currencies && Array.isArray(calcData.currencies)) {
       calcData.currencies.forEach((c) => {

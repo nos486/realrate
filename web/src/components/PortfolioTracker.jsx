@@ -70,6 +70,7 @@ export const ASSET_TYPES = [
   { id: 'USD', name: 'دلار آمریکا', unit: 'دلار', category: 'currency' },
   { id: 'USDT', name: 'تتر', unit: 'تتر', category: 'crypto' },
   { id: 'EUR', name: 'یورو اروپا', unit: 'یورو', category: 'currency' },
+  { id: 'CHF', name: 'فرانک سوئیس', unit: 'فرانک', category: 'currency' },
   { id: 'AED', name: 'درهم امارات', unit: 'درهم', category: 'currency' },
   { id: 'TRY', name: 'لیر ترکیه', unit: 'لیر', category: 'currency' },
   { id: 'GBP', name: 'پوند انگلیس', unit: 'پوند', category: 'currency' },
@@ -650,13 +651,19 @@ export default function PortfolioTracker({ calcData, rates, usdToman, goldUsd, i
     // C. Currencies (Cross rate * usdVal)
     map['USD'] = Math.round(usdVal);
     map['USDT'] = Math.round(usdVal);
+    map['EUR'] = Math.round((1 / 0.915) * usdVal);
+    map['CHF'] = Math.round((1 / 0.865) * usdVal);
+    map['AED'] = Math.round((1 / 3.6725) * usdVal);
+    map['TRY'] = Math.round((1 / 33.5) * usdVal);
+    map['GBP'] = Math.round((1 / 0.782) * usdVal);
+    map['CAD'] = Math.round((1 / 1.37) * usdVal);
 
     const currList = calcData?.currencies || rates?.currencies;
     if (currList && Array.isArray(currList)) {
       currList.forEach((c) => {
         if (c.code) {
           const cross = c.usd_cross_rate || 1;
-          map[c.code] = Math.round(cross * usdVal);
+          map[c.code] = c.toman_price ? Math.round(c.toman_price) : Math.round(cross * usdVal);
         }
       });
     }
@@ -1125,9 +1132,6 @@ export default function PortfolioTracker({ calcData, rates, usdToman, goldUsd, i
                     </span>
                   )}
                 </div>
-                <span>
-                  ارزش‌گذاری بر اساس نرخ زنده طلا، نقره و دلار
-                </span>
               </div>
               <div className="portfolio-header-actions">
                 {activePortfolio?.isE2ee && !isVaultLocked && (
@@ -1601,6 +1605,7 @@ export default function PortfolioTracker({ calcData, rates, usdToman, goldUsd, i
                     <option value="USD">دلار آمریکا</option>
                     <option value="USDT">تتر</option>
                     <option value="EUR">یورو اروپا</option>
+                    <option value="CHF">فرانک سوئیس</option>
                     <option value="AED">درهم امارات</option>
                     <option value="TRY">لیر ترکیه</option>
                     <option value="GBP">پوند انگلیس</option>
