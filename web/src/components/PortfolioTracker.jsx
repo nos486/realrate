@@ -30,6 +30,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext.jsx';
 import Modal from './ui/Modal.jsx';
+import NumericInput from './ui/NumericInput.jsx';
 import {
   apiGetPortfolios,
   apiCreatePortfolio,
@@ -1667,12 +1668,13 @@ export default function PortfolioTracker({ calcData, rates, usdToman, goldUsd, i
                 <label>
                   قیمت خرید واحد (تومان)
                 </label>
-                <input
-                  type="text"
+                <NumericInput
                   placeholder="مثلاً ۵۴,۲۰۰,۰۰۰ (اختیاری)"
                   value={buyPrice}
+                  onValueChange={setBuyPrice}
                   onChange={(e) => setBuyPrice(e.target.value)}
                   className="form-input"
+                  allowDecimals={false}
                 />
                 <span className="field-sub-note">اختیاری؛ برای محاسبه سود و زیان.</span>
               </div>
@@ -1681,12 +1683,13 @@ export default function PortfolioTracker({ calcData, rates, usdToman, goldUsd, i
               {isModalCustom && (
                 <div className="form-item">
                   <label>قیمت روز واحد (تومان)</label>
-                  <input
-                    type="text"
+                  <NumericInput
                     placeholder="جهت محاسبه زنده ارزش و سود/زیان"
                     value={customCurrentPrice}
+                    onValueChange={setCustomCurrentPrice}
                     onChange={(e) => setCustomCurrentPrice(e.target.value)}
                     className="form-input"
+                    allowDecimals={false}
                   />
                   <span className="field-sub-note">اختیاری؛ پیش‌فرض برابر با قیمت خرید است.</span>
                 </div>
