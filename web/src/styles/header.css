@@ -303,6 +303,64 @@
   object-fit: cover;
 }
 
+.header-user-profile-direct {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--border-control, rgba(255, 255, 255, 0.08));
+  padding: 3px 6px 3px 8px;
+  border-radius: var(--radius-full);
+  transition: var(--transition-fast);
+}
+
+.header-user-profile-direct:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: var(--border-hover, rgba(255, 255, 255, 0.15));
+}
+
+.header-avatar-direct {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  border: 1.5px solid var(--border-medium, rgba(255, 255, 255, 0.15));
+}
+
+.btn-header-logout {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: var(--transition-fast);
+  padding: 0;
+}
+
+.btn-header-logout:hover {
+  background: rgba(244, 63, 94, 0.15);
+  color: var(--accent-rose, #fb7185);
+  transform: scale(1.05);
+}
+
+[data-theme="light"] .header-user-profile-direct {
+  background: #f1f5f9;
+  border-color: #cbd5e1;
+}
+
+[data-theme="light"] .header-user-profile-direct:hover {
+  background: #e2e8f0;
+}
+
+[data-theme="light"] .btn-header-logout:hover {
+  background: rgba(244, 63, 94, 0.12);
+  color: #e11d48;
+}
+
 .admin-badge {
   font-size: 9.5px;
   padding: 1px 6px;

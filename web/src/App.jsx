@@ -12,6 +12,7 @@ export default function App() {
         <Route path="/market" element={<Navigate to="/" replace />} />
         <Route path="/portfolio" element={<MainPage />} />
         <Route path="/portfolio/:portfolioId" element={<MainPage />} />
+        <Route path="/settings" element={<MainPage />} />
         <Route path="/admin" element={<MainPage />} />
         <Route path="/admin/sources" element={<MainPage />} />
         <Route path="/sources" element={<MainPage />} />

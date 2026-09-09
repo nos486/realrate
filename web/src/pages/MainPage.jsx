@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { Megaphone, TrendingUp, Briefcase, Sparkles, ShieldCheck, Radio } from 'lucide-react';
+import { Megaphone, TrendingUp, Briefcase, Sparkles, ShieldCheck, Radio, Settings } from 'lucide-react';
 import AppLayout from '../components/ui/AppLayout.jsx';
 import FilterPills from '../components/ui/FilterPills.jsx';
 import AlertBanner from '../components/ui/AlertBanner.jsx';
@@ -10,6 +10,7 @@ import CurrenciesList from '../components/CurrenciesList.jsx';
 import PortfolioTracker from '../components/PortfolioTracker.jsx';
 import AdminPage from './AdminPage.jsx';
 import PriceSourcesPage from './PriceSourcesPage.jsx';
+import AccountSettingsView from '../components/AccountSettingsView.jsx';
 import { useMarketData } from '../hooks/useMarketData.js';
 import { useAuth } from '../context/AuthContext.jsx';
 
@@ -21,24 +22,32 @@ export default function MainPage() {
   const { user } = useAuth();
 
   // Determine active tab from pathname or query params
+  const isSettings =
+    location.pathname.startsWith('/settings') ||
+    searchParams.get('tab') === 'settings';
+
   const isSources =
-    location.pathname.startsWith('/admin/sources') ||
-    location.pathname.startsWith('/sources') ||
-    searchParams.get('tab') === 'sources';
+    !isSettings && (
+      location.pathname.startsWith('/admin/sources') ||
+      location.pathname.startsWith('/sources') ||
+      searchParams.get('tab') === 'sources'
+    );
 
   const isAdmin =
-    !isSources && (
+    !isSettings && !isSources && (
       location.pathname.startsWith('/admin') ||
       searchParams.get('tab') === 'admin'
     );
 
   const isPortfolio =
-    !isSources && !isAdmin && (
+    !isSettings && !isSources && !isAdmin && (
       location.pathname.startsWith('/portfolio') ||
       searchParams.get('tab') === 'portfolio'
     );
 
-  const activeTab = isSources
+  const activeTab = isSettings
+    ? 'settings'
+    : isSources
     ? 'sources'
     : isAdmin
     ? 'admin'
@@ -54,6 +63,10 @@ export default function MainPage() {
           lastId = localStorage.getItem('realrate_last_portfolio_id');
         } catch {}
         navigate(lastId ? `/portfolio/${lastId}` : '/portfolio');
+      }
+    } else if (nextTab === 'settings') {
+      if (location.pathname !== '/settings') {
+        navigate('/settings');
       }
     } else if (nextTab === 'admin') {
       if (location.pathname !== '/admin') {
@@ -75,6 +88,11 @@ export default function MainPage() {
       { value: 'market', label: 'نرخ و حباب', icon: <TrendingUp size={16} strokeWidth={2} /> },
       { value: 'portfolio', label: 'پورتفو', icon: <Briefcase size={16} strokeWidth={2} /> },
     ];
+    if (user) {
+      options.push(
+        { value: 'settings', label: 'تنظیمات', icon: <Settings size={16} strokeWidth={2} /> }
+      );
+    }
     if (user?.role === 'admin') {
       options.push(
         { value: 'admin', label: 'پنل مدیریت و کاربران', icon: <ShieldCheck size={16} strokeWidth={2} /> },
@@ -82,7 +100,7 @@ export default function MainPage() {
       );
     }
     return options;
-  }, [user?.role]);
+  }, [user]);
 
 
   const {
@@ -196,6 +214,10 @@ export default function MainPage() {
             goldUsd={goldUsd}
             initialPortfolioId={params.portfolioId || searchParams.get('p') || searchParams.get('id') || null}
           />
+        )}
+
+        {activeTab === 'settings' && (
+          <AccountSettingsView />
         )}
 
         {activeTab === 'admin' && (

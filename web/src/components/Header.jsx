@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import {
   TrendingUp,
@@ -7,8 +7,7 @@ import {
   EyeOff,
   Sun,
   Moon,
-  ChevronDown,
-  User,
+  Settings,
   ShieldCheck,
   Radio,
   LogOut,
@@ -16,7 +15,6 @@ import {
 import { useAuth } from '../context/AuthContext.jsx';
 import { useTheme } from '../context/ThemeContext.jsx';
 import { apiGetPrices } from '../api/client.js';
-import AccountSettingsModal from './AccountSettingsModal.jsx';
 
 const LogoMark = () => (
   <svg width="28" height="28" viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -43,9 +41,6 @@ function formatHeaderNum(num) {
 export default function Header({ usdToman, gold18kPrice, activeTab, setActiveTab }) {
   const { user, triggerLogin, logout } = useAuth();
   const { theme, toggleTheme } = useTheme();
-  const [dropdownOpen, setDropdownOpen] = useState(false);
-  const [accountModalOpen, setAccountModalOpen] = useState(false);
-  const dropdownRef = useRef(null);
 
   // Autonomous fallback for price ticker when props are not provided
   const [internalPrices, setInternalPrices] = useState({ usd: null, gold: null });
@@ -80,21 +75,14 @@ export default function Header({ usdToman, gold18kPrice, activeTab, setActiveTab
   });
 
   useEffect(() => {
-    const handleOutsideClick = (e) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
-        setDropdownOpen(false);
-      }
-    };
     const onPrivacyChange = () => {
       try {
         setHideValues(localStorage.getItem('realrate_hide_values') === 'true');
       } catch {}
     };
-    document.addEventListener('click', handleOutsideClick);
     window.addEventListener('realrate_privacy_change', onPrivacyChange);
     window.addEventListener('storage', onPrivacyChange);
     return () => {
-      document.removeEventListener('click', handleOutsideClick);
       window.removeEventListener('realrate_privacy_change', onPrivacyChange);
       window.removeEventListener('storage', onPrivacyChange);
     };
@@ -151,12 +139,25 @@ export default function Header({ usdToman, gold18kPrice, activeTab, setActiveTab
                 <span className="tab-btn-title">پورتفو</span>
               </button>
 
+              {user && (
+                <button
+                  type="button"
+                  className={`header-tab-btn ${activeTab === 'settings' ? 'active' : ''}`}
+                  onClick={() => setActiveTab ? setActiveTab('settings') : null}
+                  title="تنظیمات حساب کاربری"
+                  aria-label="تنظیمات"
+                >
+                  <Settings size={17} strokeWidth={2.2} />
+                  <span className="tab-btn-title">تنظیمات</span>
+                </button>
+              )}
+
               {user?.role === 'admin' && (
                 <>
                   <button
                     type="button"
                     className={`header-tab-btn ${activeTab === 'admin' ? 'active' : ''}`}
-                    onClick={() => setActiveTab('admin')}
+                    onClick={() => setActiveTab ? setActiveTab('admin') : null}
                     title="پنل مدیریت و کاربران"
                     aria-label="مدیریت"
                   >
@@ -167,7 +168,7 @@ export default function Header({ usdToman, gold18kPrice, activeTab, setActiveTab
                   <button
                     type="button"
                     className={`header-tab-btn ${activeTab === 'sources' ? 'active' : ''}`}
-                    onClick={() => setActiveTab('sources')}
+                    onClick={() => setActiveTab ? setActiveTab('sources') : null}
                     title="سورس‌های قیمت و نمودارها"
                     aria-label="سورس‌ها"
                   >
@@ -198,6 +199,18 @@ export default function Header({ usdToman, gold18kPrice, activeTab, setActiveTab
                 <Briefcase size={17} strokeWidth={2.2} />
                 <span className="tab-btn-title">پورتفو</span>
               </Link>
+
+              {user && (
+                <Link
+                  to="/settings"
+                  className={`header-tab-btn ${activeTab === 'settings' ? 'active' : ''}`}
+                  title="تنظیمات حساب کاربری"
+                  aria-label="تنظیمات"
+                >
+                  <Settings size={17} strokeWidth={2.2} />
+                  <span className="tab-btn-title">تنظیمات</span>
+                </Link>
+              )}
 
               {user?.role === 'admin' && (
                 <>
@@ -271,104 +284,40 @@ export default function Header({ usdToman, gold18kPrice, activeTab, setActiveTab
           </button>
 
           {/* User Auth / Profile */}
-          <div className="auth-widget" ref={dropdownRef}>
+          <div className="auth-widget">
             {user ? (
-              <div className="user-profile-menu">
+              <div className="header-user-profile-direct">
+                <img
+                  src={user.picture || ''}
+                  alt={user.name || 'کاربر'}
+                  className="user-avatar header-avatar-direct"
+                  title={`${user.customName || user.name} (${user.email})`}
+                  onError={(e) => { e.target.style.display = 'none'; }}
+                />
                 <button
-                  className={`user-trigger-btn ${dropdownOpen ? 'active' : ''}`}
-                  onClick={() => setDropdownOpen((v) => !v)}
-                  title={user.customName || user.name || 'حساب کاربری'}
+                  type="button"
+                  className="btn-header-logout"
+                  onClick={logout}
+                  title="خروج از حساب کاربری"
+                  aria-label="خروج"
                 >
-                  <img
-                    src={user.picture || ''}
-                    alt={user.name}
-                    className="user-avatar"
-                    onError={(e) => { e.target.style.display = 'none'; }}
-                  />
-                  <span className="user-firstname desktop-only">{user.customName || user.name?.split(' ')[0] || 'کاربر'}</span>
-                  {user.role === 'admin' && <span className="admin-badge desktop-only">مدیر</span>}
-                  <ChevronDown className="chevron-icon desktop-only" size={13} strokeWidth={2.5} />
+                  <LogOut size={16} strokeWidth={2.2} />
                 </button>
-
-              {dropdownOpen && (
-                <div className="dropdown-panel">
-                  <div className="dropdown-user-info">
-                    <strong>{user.customName ? `${user.customName} (${user.name})` : user.name}</strong>
-                    <span>{user.email}</span>
-                  </div>
-                  <div className="dropdown-sep"></div>
-
-                  <button
-                    type="button"
-                    className="dropdown-link"
-                    onClick={() => { setAccountModalOpen(true); setDropdownOpen(false); }}
-                  >
-                    <User size={15} strokeWidth={2} />
-                    <span>تنظیمات حساب</span>
-                  </button>
-
-                  {user.role === 'admin' && (
-                    <>
-                      {setActiveTab ? (
-                        <>
-                          <button
-                            type="button"
-                            className="dropdown-link admin"
-                            onClick={() => {
-                              setActiveTab('admin');
-                              setDropdownOpen(false);
-                            }}
-                          >
-                            <ShieldCheck size={15} strokeWidth={2} />
-                            <span>پنل مدیریت و کاربران</span>
-                          </button>
-                          <button
-                            type="button"
-                            className="dropdown-link admin"
-                            onClick={() => {
-                              setActiveTab('sources');
-                              setDropdownOpen(false);
-                            }}
-                          >
-                            <Radio size={15} strokeWidth={2} />
-                            <span>سورس‌های قیمت و نمودارها</span>
-                          </button>
-                        </>
-                      ) : (
-                        <>
-                          <Link to="/admin" className="dropdown-link admin" onClick={() => setDropdownOpen(false)}>
-                            <ShieldCheck size={15} strokeWidth={2} />
-                            <span>پنل مدیریت و کاربران</span>
-                          </Link>
-                          <Link to="/admin/sources" className="dropdown-link admin" onClick={() => setDropdownOpen(false)}>
-                            <Radio size={15} strokeWidth={2} />
-                            <span>سورس‌های قیمت و نمودارها</span>
-                          </Link>
-                        </>
-                      )}
-                    </>
-                  )}
-                  <button className="dropdown-link logout" onClick={() => { logout(); setDropdownOpen(false); }}>
-                    <LogOut size={15} strokeWidth={2} />
-                    <span>خروج</span>
-                  </button>
-                </div>
-              )}
-            </div>
-          ) : (
-            <button className="btn-google-login" onClick={triggerLogin}>
-              <svg width="15" height="15" viewBox="0 0 24 24">
-                <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
-                <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
-                <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/>
-                <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/>
-              </svg>
-              <span>ورود با گوگل</span>
-            </button>
-          )}
+              </div>
+            ) : (
+              <button className="btn-google-login" onClick={triggerLogin}>
+                <svg width="15" height="15" viewBox="0 0 24 24">
+                  <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+                  <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+                  <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/>
+                  <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/>
+                </svg>
+                <span>ورود با گوگل</span>
+              </button>
+            )}
+          </div>
         </div>
       </div>
-    </div>
 
       {/* Mobile Live Sub-Ticker Strip: Ultra compact, single-line, zero overflow */}
       <div className="header-mobile-ticker mobile-only">
@@ -386,11 +335,6 @@ export default function Header({ usdToman, gold18kPrice, activeTab, setActiveTab
           <span className="chip-unit">تومان</span>
         </div>
       </div>
-
-      <AccountSettingsModal
-        isOpen={accountModalOpen}
-        onClose={() => setAccountModalOpen(false)}
-      />
     </header>
   );
 }
