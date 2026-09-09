@@ -33,7 +33,6 @@ import {
   Save,
 } from 'lucide-react';
 import AppLayout from '../components/ui/AppLayout.jsx';
-import AdminNav from '../components/ui/AdminNav.jsx';
 import AlertBanner from '../components/ui/AlertBanner.jsx';
 import MiniCard from '../components/ui/MiniCard.jsx';
 import FilterPills from '../components/ui/FilterPills.jsx';
@@ -511,24 +510,6 @@ export default function PriceSourcesPage() {
       layoutClassName="price-sources-fullscreen-app"
       className="sources-page-main full-width-sources-page"
     >
-      {/* Shared Admin Navigation & Profile Bar */}
-      <AdminNav
-        activeTab="sources"
-        actions={
-          <button
-            type="button"
-            onClick={handleFetchAllNow}
-            disabled={fetchingAll}
-            className="btn-sm"
-            style={{ background: 'var(--accent-blue)', color: '#fff', border: 'none' }}
-            title="فراخوانی همزمان تمام سورس‌های فعال و ثبت در تاریخچه دیتابیس"
-          >
-            <Zap size={13} className={fetchingAll ? 'spin-anim' : ''} />
-            <span>{fetchingAll ? 'در حال دریافت...' : 'دریافت آنی سورس‌ها'}</span>
-          </button>
-        }
-      />
-
       {/* Top Breadcrumb & Page Title Strip */}
       <Card className="sources-page-hero-banner" padding="hero">
         <div className="hero-breadcrumbs">

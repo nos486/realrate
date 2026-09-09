@@ -40,7 +40,6 @@ import {
   apiGetPrices,
 } from '../api/client.js';
 import AppLayout from '../components/ui/AppLayout.jsx';
-import AdminNav from '../components/ui/AdminNav.jsx';
 import AlertBanner from '../components/ui/AlertBanner.jsx';
 import MiniCard from '../components/ui/MiniCard.jsx';
 import SearchBar from '../components/ui/SearchBar.jsx';
@@ -303,9 +302,6 @@ export default function AdminPage() {
   return (
     <AppLayout activeTab="admin">
       <Card className="admin-container" padding="lg" style={{ margin: '20px auto' }}>
-        {/* Admin Navigation & Profile Bar */}
-        <AdminNav activeTab="dashboard" />
-
         {msg.text && (
           <AlertBanner
             type={msg.type || 'info'}
