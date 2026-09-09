@@ -50,6 +50,10 @@ export async function ensureD1Tables(env) {
       bubble_pct_half REAL DEFAULT 20,
       bubble_pct_quarter REAL DEFAULT 25,
       announcement TEXT DEFAULT '',
+      usd_source_type TEXT DEFAULT 'telegram',
+      usd_telegram_channel TEXT DEFAULT 'tahran_sabza',
+      usd_api_url TEXT DEFAULT '',
+      usd_api_json_path TEXT DEFAULT '',
       updated_at TEXT
     )`,
     `CREATE TABLE IF NOT EXISTS portfolios (
@@ -133,6 +137,20 @@ export async function ensureD1Tables(env) {
     } catch (ignore) {}
     try {
       await env.DB.prepare("CREATE UNIQUE INDEX IF NOT EXISTS idx_users_share_slug ON users(share_slug)").run();
+    } catch (ignore) {}
+
+    // Backward-compat: ensure USD source columns exist on settings
+    try {
+      await env.DB.prepare("ALTER TABLE settings ADD COLUMN usd_source_type TEXT DEFAULT 'telegram'").run();
+    } catch (ignore) {}
+    try {
+      await env.DB.prepare("ALTER TABLE settings ADD COLUMN usd_telegram_channel TEXT DEFAULT 'tahran_sabza'").run();
+    } catch (ignore) {}
+    try {
+      await env.DB.prepare("ALTER TABLE settings ADD COLUMN usd_api_url TEXT DEFAULT ''").run();
+    } catch (ignore) {}
+    try {
+      await env.DB.prepare("ALTER TABLE settings ADD COLUMN usd_api_json_path TEXT DEFAULT ''").run();
     } catch (ignore) {}
 
     d1Initialized = true;

@@ -45,6 +45,10 @@ CREATE TABLE IF NOT EXISTS settings (
   bubble_pct_half REAL DEFAULT 20,
   bubble_pct_quarter REAL DEFAULT 25,
   announcement TEXT DEFAULT '',
+  usd_source_type TEXT DEFAULT 'telegram',
+  usd_telegram_channel TEXT DEFAULT 'tahran_sabza',
+  usd_api_url TEXT DEFAULT '',
+  usd_api_json_path TEXT DEFAULT '',
   updated_at TEXT
 );
 
@@ -57,6 +61,10 @@ INSERT OR IGNORE INTO settings (
   bubble_pct_half,
   bubble_pct_quarter,
   announcement,
+  usd_source_type,
+  usd_telegram_channel,
+  usd_api_url,
+  usd_api_json_path,
   updated_at
 ) VALUES (
   1,
@@ -65,6 +73,10 @@ INSERT OR IGNORE INTO settings (
   15,
   20,
   25,
+  '',
+  'telegram',
+  'tahran_sabza',
+  '',
   '',
   datetime('now')
 );

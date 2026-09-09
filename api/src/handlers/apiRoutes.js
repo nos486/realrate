@@ -19,7 +19,7 @@ export async function handleFetchRates(env, analytics, globalSettings, request =
     const [liveSpotGold, liveSpotSilver, tgPrices, forex] = await Promise.all([
       fetchGlobalSpotGold(env),
       fetchGlobalSpotSilver(env),
-      fetchTelegramPrices(env),
+      fetchTelegramPrices(env, false, globalSettings),
       fetchForexRates(env),
     ]);
 
@@ -65,7 +65,7 @@ export async function handleCalculate(url, env, analytics, globalSettings, reque
   const [liveSpotGold, liveSpotSilver, tgPrices, forex] = await Promise.all([
     fetchGlobalSpotGold(env),
     fetchGlobalSpotSilver(env),
-    fetchTelegramPrices(env),
+    fetchTelegramPrices(env, false, globalSettings),
     fetchForexRates(env),
   ]);
 

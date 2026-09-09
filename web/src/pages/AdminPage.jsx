@@ -15,12 +15,19 @@ import {
   Coins,
   Megaphone,
   Save,
+  Radio,
+  Globe,
+  CheckCircle2,
+  AlertCircle,
+  PlayCircle,
+  Send,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext.jsx';
 import {
   apiAdminStats,
   apiAdminUsers,
   apiAdminSaveSettings,
+  apiAdminTestUsdSource,
   apiGetRates,
 } from '../api/client.js';
 
@@ -66,12 +73,24 @@ export default function AdminPage() {
         (u.shareSlug && u.shareSlug.toLowerCase().includes(q))
     );
   }, [users, userSearch]);
+
+  // Fallback defaults
   const [usdToman, setUsdToman] = useState(62000);
   const [goldUsd, setGoldUsd] = useState(2450);
   const [bubbleFull, setBubbleFull] = useState(15);
   const [bubbleHalf, setBubbleHalf] = useState(20);
   const [bubbleQuarter, setBubbleQuarter] = useState(25);
   const [announcement, setAnnouncement] = useState('');
+
+  // USD dynamic source configuration
+  const [usdSourceType, setUsdSourceType] = useState('telegram');
+  const [usdTelegramChannel, setUsdTelegramChannel] = useState('tahran_sabza');
+  const [usdApiUrl, setUsdApiUrl] = useState('');
+  const [usdApiJsonPath, setUsdApiJsonPath] = useState('');
+
+  // Test source state
+  const [testingUsdSource, setTestingUsdSource] = useState(false);
+  const [usdTestResult, setUsdTestResult] = useState(null);
 
   const [msg, setMsg] = useState({ text: '', type: '' });
   const [saving, setSaving] = useState(false);
@@ -128,13 +147,36 @@ export default function AdminPage() {
             if (s.bubble_pct_half !== undefined) setBubbleHalf(s.bubble_pct_half);
             if (s.bubble_pct_quarter !== undefined) setBubbleQuarter(s.bubble_pct_quarter);
             if (s.announcement !== undefined) setAnnouncement(s.announcement || '');
+            if (s.usd_source_type) setUsdSourceType(s.usd_source_type);
+            if (s.usd_telegram_channel) setUsdTelegramChannel(s.usd_telegram_channel);
+            if (s.usd_api_url !== undefined) setUsdApiUrl(s.usd_api_url || '');
+            if (s.usd_api_json_path !== undefined) setUsdApiJsonPath(s.usd_api_json_path || '');
           }
         })
         .catch(console.error);
     }
   }, [user]);
 
-
+  const handleTestUsdSource = async () => {
+    setTestingUsdSource(true);
+    setUsdTestResult(null);
+    try {
+      const res = await apiAdminTestUsdSource({
+        usd_source_type: usdSourceType,
+        usd_telegram_channel: usdTelegramChannel,
+        usd_api_url: usdApiUrl,
+        usd_api_json_path: usdApiJsonPath,
+      });
+      setUsdTestResult(res);
+    } catch (err) {
+      setUsdTestResult({
+        success: false,
+        error: 'خطا در ارتباط با سرور: ' + err.message,
+      });
+    } finally {
+      setTestingUsdSource(false);
+    }
+  };
 
   const handleSave = async (e) => {
     e.preventDefault();
@@ -147,6 +189,10 @@ export default function AdminPage() {
         bubble_pct_half: parseFloat(bubbleHalf),
         bubble_pct_quarter: parseFloat(bubbleQuarter),
         announcement,
+        usd_source_type: usdSourceType,
+        usd_telegram_channel: usdTelegramChannel,
+        usd_api_url: usdApiUrl,
+        usd_api_json_path: usdApiJsonPath,
       });
 
       if (res.success) {
@@ -395,10 +441,138 @@ export default function AdminPage() {
 
       {/* Settings Form */}
       <form onSubmit={handleSave}>
+        {/* USD Dynamic Source Settings */}
+        <div className="section-title">
+          <span>
+            <Radio size={15} style={{ verticalAlign: 'middle', marginLeft: '6px', display: 'inline' }} />
+            تنظیمات سورس قیمت زنده دلار (دینامیک)
+          </span>
+        </div>
+
+        <div className="usd-source-card">
+          <div className="source-type-tabs">
+            <button
+              type="button"
+              className={`source-type-tab ${usdSourceType === 'telegram' ? 'active' : ''}`}
+              onClick={() => { setUsdSourceType('telegram'); setUsdTestResult(null); }}
+            >
+              <Send size={14} />
+              <span>کانال تلگرام عمومی</span>
+            </button>
+            <button
+              type="button"
+              className={`source-type-tab ${usdSourceType === 'api_url' ? 'active' : ''}`}
+              onClick={() => { setUsdSourceType('api_url'); setUsdTestResult(null); }}
+            >
+              <Globe size={14} />
+              <span>وب‌سرویس خارجی (API URL)</span>
+            </button>
+          </div>
+
+          {usdSourceType === 'telegram' ? (
+            <div className="form-group">
+              <label htmlFor="usdTelegramChannel">شناسه، آدرس کانال یا لینک پست تلگرام</label>
+              <input
+                type="text"
+                id="usdTelegramChannel"
+                dir="ltr"
+                placeholder="DollarAfshar یا tahran_sabza یا https://t.me/DollarAfshar/72785"
+                value={usdTelegramChannel}
+                onChange={(e) => setUsdTelegramChannel(e.target.value)}
+              />
+              <span className="source-hint">
+                می‌توانید نام کانال تلگرام (مانند <code>DollarAfshar</code> یا <code>tahran_sabza</code>) یا لینک مستقیم یک پیام/پست کانال را وارد کنید. سیستم آخرین قیمت فروش دلار اعلام‌شده در کانال را استخراج می‌کند.
+              </span>
+            </div>
+          ) : (
+            <>
+              <div className="form-group">
+                <label htmlFor="usdApiUrl">آدرس اینترنتی وب‌سرویس API (پاسخ JSON)</label>
+                <input
+                  type="url"
+                  id="usdApiUrl"
+                  dir="ltr"
+                  placeholder="https://api.example.com/v1/rates"
+                  value={usdApiUrl}
+                  onChange={(e) => setUsdApiUrl(e.target.value)}
+                />
+                <span className="source-hint">
+                  آدرس باید با <code>https://</code> یا <code>http://</code> آغاز شده و پاسخی با فرمت JSON یا عدد بازگرداند.
+                </span>
+              </div>
+
+              <div className="form-group" style={{ marginTop: '10px' }}>
+                <label htmlFor="usdApiJsonPath">مسیر کلید JSON برای قیمت دلار (اختیاری)</label>
+                <input
+                  type="text"
+                  id="usdApiJsonPath"
+                  dir="ltr"
+                  placeholder="data.usd یا price یا rates.USD"
+                  value={usdApiJsonPath}
+                  onChange={(e) => setUsdApiJsonPath(e.target.value)}
+                />
+                <span className="source-hint">
+                  برای مثال <code>data.price</code> یا <code>rates.USD</code>. در صورت خالی بودن، فیلدهای استاندارد مثل <code>price</code> یا <code>usd</code> به صورت خودکار شناسایی می‌شوند.
+                </span>
+              </div>
+            </>
+          )}
+
+          <div className="source-test-row">
+            <button
+              type="button"
+              className="btn-test-source"
+              onClick={handleTestUsdSource}
+              disabled={testingUsdSource}
+            >
+              {testingUsdSource ? (
+                <>
+                  <RefreshCw size={13} className="spin-anim" />
+                  <span>در حال بررسی و تست سورس...</span>
+                </>
+              ) : (
+                <>
+                  <PlayCircle size={14} />
+                  <span>تست برقراری ارتباط با سورس</span>
+                </>
+              )}
+            </button>
+            <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
+              تست بدون اعمال و ذخیره انجام می‌شود.
+            </span>
+          </div>
+
+          {usdTestResult && (
+            <div className={`test-result-box ${usdTestResult.success ? 'success' : 'error'}`}>
+              <div className="test-result-header">
+                {usdTestResult.success ? (
+                  <>
+                    <CheckCircle2 size={16} />
+                    <span>سورس با موفقیت پاسخ داد</span>
+                  </>
+                ) : (
+                  <>
+                    <AlertCircle size={16} />
+                    <span>خطا در بررسی سورس</span>
+                  </>
+                )}
+              </div>
+              <div>{usdTestResult.message || usdTestResult.error}</div>
+              {usdTestResult.success && (
+                <div className="test-result-details">
+                  <span><strong>قیمت شناسایی‌شده:</strong> {formatNum(usdTestResult.price)} تومان</span>
+                  {usdTestResult.label && <span><strong>عنوان:</strong> {usdTestResult.label}</span>}
+                  {usdTestResult.datetime && <span><strong>تاریخ ثبت:</strong> {formatPersianDate(usdTestResult.datetime)}</span>}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
         <div className="section-title">
           <span>
             <Sliders size={15} style={{ verticalAlign: 'middle', marginLeft: '6px', display: 'inline' }} />
-            تنظیمات قیمت و انس عمومی
+            تنظیمات قیمت و انس عمومی (Fallback و محاسبات پایه)
           </span>
         </div>
 

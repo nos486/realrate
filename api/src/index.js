@@ -26,6 +26,7 @@ import {
   handleAdminUsersRoute,
   handleAdminSaveSettings,
   handleAdminGetUserPortfolio,
+  handleAdminTestUsdSource,
 } from "./handlers/adminRoutes.js";
 import { handleCalculate, handleFetchRates } from "./handlers/apiRoutes.js";
 import {
@@ -84,6 +85,7 @@ export default {
     if (url.pathname === "/api/admin/users/portfolio")                         return handleAdminGetUserPortfolio(request, env);
     if (url.pathname === "/api/admin/users")                                   return handleAdminUsersRoute(request, env);
     if (url.pathname === "/api/admin/settings" && request.method === "POST")   return handleAdminSaveSettings(request, env);
+    if (url.pathname === "/api/admin/test-usd-source" && request.method === "POST") return handleAdminTestUsdSource(request, env);
 
     // ── Portfolio API Routes ────────────────────────────────────────────────
     if (url.pathname === "/api/portfolio/shared")                              return handleGetSharedPortfolio(request, env);
@@ -105,7 +107,7 @@ export default {
 
     if (url.pathname === "/api/telegram") {
       const forceRefresh = url.searchParams.get("force") === "true";
-      const tgData = await fetchTelegramPrices(env, forceRefresh);
+      const tgData = await fetchTelegramPrices(env, forceRefresh, globalSettings);
       return new Response(JSON.stringify(tgData, null, 2), {
         headers: { "Content-Type": "application/json; charset=utf-8", ...corsHeaders },
       });

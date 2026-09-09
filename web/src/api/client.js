@@ -162,6 +162,14 @@ export async function apiAdminSaveSettings(settings) {
   return res.json();
 }
 
+export async function apiAdminTestUsdSource(config) {
+  const res = await apiFetch('/api/admin/test-usd-source', {
+    method: 'POST',
+    body: JSON.stringify(config),
+  });
+  return res.json();
+}
+
 // ─── Portfolios (Multi-portfolio Management) ───────────────────────────────
 
 export async function apiGetPortfolios() {
