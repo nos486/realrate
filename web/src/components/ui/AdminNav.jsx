@@ -2,6 +2,7 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { Users, Radio, ExternalLink, LogOut, ShieldCheck } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext.jsx';
+import Card from './Card.jsx';
 
 /**
  * Reusable Admin Header & Navigation Bar
@@ -17,7 +18,7 @@ export default function AdminNav({
   const { user, logout } = useAuth();
 
   return (
-    <div className={`admin-profile-bar admin-nav-header-bar ${className}`}>
+    <Card className={`admin-profile-bar admin-nav-header-bar ${className}`} padding="sm">
       <div className="admin-nav-brand-group">
         {user && (
           <div className="admin-user-info">
@@ -76,6 +77,6 @@ export default function AdminNav({
           </button>
         )}
       </div>
-    </div>
+    </Card>
   );
 }

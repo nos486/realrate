@@ -10,6 +10,7 @@ import {
   Maximize2,
   Activity,
 } from 'lucide-react';
+import Card from './ui/Card.jsx';
 
 function formatNum(num, priceType = 'usd') {
   if (num === null || num === undefined || isNaN(num)) return '۰';
@@ -219,7 +220,7 @@ export default function PriceHistoryChart({
   const priceUnit = getPriceUnit(selectedPriceType);
 
   return (
-    <div className="price-history-chart-card">
+    <Card className="price-history-chart-card" padding="lg">
       {/* Card Header */}
       <div className="chart-header-row">
         <div className="chart-title-group">
@@ -541,6 +542,6 @@ export default function PriceHistoryChart({
           </svg>
         )}
       </div>
-    </div>
+    </Card>
   );
 }

@@ -91,20 +91,72 @@ input:focus, select:focus, textarea:focus {
   }
 }
 
-/* ── Unified Cards (Base Standard) ────────────────────────────────────────── */
+/* ── Unified Cards & Surface Base (Single Source of Truth) ─────────────────── */
 .ui-card,
 .card,
-.admin-card,
+.admin-container,
+.sources-page-hero-banner,
+.source-tabs-header,
+.price-history-chart-card,
+.admin-profile-bar,
 .sources-card,
+.admin-card,
 .portfolio-card {
-  background: var(--bg-card);
-  border: 1px solid var(--border-medium);
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-sm);
+  background: var(--card-bg);
+  border: 1px solid var(--card-border);
+  border-radius: var(--card-radius);
+  box-shadow: var(--card-shadow);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
   transition: border-color var(--transition-fast), background var(--transition-fast), transform var(--transition-fast), box-shadow var(--transition-fast);
 }
+
+.ui-card.p-none { padding: 0; }
+.ui-card.p-sm { padding: 12px 16px; }
+.ui-card.p-md { padding: 18px 22px; }
+.ui-card.p-lg { padding: 24px 28px; }
+.ui-card.p-hero { padding: 20px 24px; }
+
+.ui-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.ui-card-header-lead {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.ui-card-icon {
+  display: inline-flex;
+  align-items: center;
+  color: var(--accent-blue, #38bdf8);
+  flex-shrink: 0;
+}
+
+.ui-card-title {
+  font-size: 16px;
+  font-weight: 800;
+  color: var(--text-heading);
+  margin: 0;
+}
+
+.ui-card-subtitle {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin: 3px 0 0;
+}
+
+.ui-card-footer {
+  padding-top: 14px;
+  border-top: 1px solid var(--border-subtle);
+  margin-top: 16px;
+}
+
 
 /* ── Unified Buttons ───────────────────────────────────────────────────────── */
 .btn,

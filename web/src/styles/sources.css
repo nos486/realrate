@@ -265,11 +265,7 @@
 
 /* ── Price History Interactive Chart Card ───────────────────────────────── */
 .price-history-chart-card {
-  background: var(--card-bg, #0f172a);
-  border: 1px solid var(--border-color, rgba(255, 255, 255, 0.1));
-  border-radius: var(--radius-lg, 16px);
   padding: 20px;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
   display: flex;
   flex-direction: column;
   gap: 16px;
@@ -874,11 +870,7 @@
 
 /* Hero Top Banner Strip */
 .sources-page-hero-banner {
-  background: var(--card-bg, #0f172a);
-  border: 1px solid var(--border-color, rgba(255, 255, 255, 0.08));
-  border-radius: var(--radius-lg, 16px);
   padding: 20px 24px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
   display: flex;
   flex-direction: column;
   gap: 14px;
@@ -1000,9 +992,6 @@
   flex-wrap: wrap;
   gap: 12px;
   padding: 12px 18px;
-  background: var(--card-bg, #0f172a);
-  border: 1px solid var(--border-color, rgba(255, 255, 255, 0.08));
-  border-radius: var(--radius-md, 12px);
 }
 
 .source-tabs-title {
@@ -1095,9 +1084,9 @@
 }
 
 .source-mini-card {
-  background: var(--card-bg, #0f172a);
-  border: 1px solid var(--border-color, rgba(255, 255, 255, 0.08));
-  border-radius: var(--radius-md, 12px);
+  background: var(--card-bg);
+  border: 1px solid var(--card-border);
+  border-radius: var(--card-radius);
   padding: 16px;
   display: flex;
   flex-direction: column;
@@ -1247,10 +1236,10 @@
 
 .sources-fullscreen-table-wrap {
   width: 100%;
-  background: var(--card-bg, #0f172a);
-  border: 1px solid var(--border-color, rgba(255, 255, 255, 0.08));
-  border-radius: var(--radius-lg, 16px);
-  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.2);
+  background: var(--card-bg);
+  border: 1px solid var(--card-border);
+  border-radius: var(--card-radius);
+  box-shadow: var(--card-shadow);
   overflow-x: auto;
 }
 
@@ -1259,16 +1248,6 @@
 }
 
 /* Light Mode Overrides */
-[data-theme="light"] .sources-page-hero-banner {
-  background: #ffffff;
-  border-color: rgba(0, 0, 0, 0.08);
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04);
-}
-
-[data-theme="light"] .source-tabs-header {
-  background: #ffffff;
-  border-color: rgba(0, 0, 0, 0.08);
-}
 
 [data-theme="light"] .source-selector-pill {
   background: #f1f5f9;

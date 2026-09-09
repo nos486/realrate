@@ -45,6 +45,7 @@ import AlertBanner from '../components/ui/AlertBanner.jsx';
 import MiniCard from '../components/ui/MiniCard.jsx';
 import SearchBar from '../components/ui/SearchBar.jsx';
 import EmptyState from '../components/ui/EmptyState.jsx';
+import Card from '../components/ui/Card.jsx';
 
 
 function formatNum(num) {
@@ -238,7 +239,7 @@ export default function AdminPage() {
   if (!user) {
     return (
       <AppLayout activeTab="admin">
-        <div className="admin-container" style={{ margin: '40px auto' }}>
+        <Card className="admin-container" padding="lg" style={{ margin: '40px auto' }}>
           <div className="admin-header">
             <h2>ورود به پنل مدیریت RealRate</h2>
             <p>جهت ورود، لطفاً با حساب گوگل تعیین‌شده برای مدیر وارد شوید.</p>
@@ -261,7 +262,7 @@ export default function AdminPage() {
               بازگشت به صفحه اصلی سایت
             </Link>
           </div>
-        </div>
+        </Card>
       </AppLayout>
     );
   }
@@ -270,7 +271,7 @@ export default function AdminPage() {
   if (user.role !== 'admin') {
     return (
       <AppLayout activeTab="admin">
-        <div className="admin-container" style={{ margin: '40px auto' }}>
+        <Card className="admin-container" padding="lg" style={{ margin: '40px auto' }}>
           <div className="login-box">
             <div style={{ display: 'flex', justifyContent: 'center', margin: '10px 0' }}>
               <Ban size={44} color="#f87171" strokeWidth={1.8} />
@@ -294,14 +295,14 @@ export default function AdminPage() {
               </Link>
             </div>
           </div>
-        </div>
+        </Card>
       </AppLayout>
     );
   }
 
   return (
     <AppLayout activeTab="admin">
-      <div className="admin-container" style={{ margin: '20px auto' }}>
+      <Card className="admin-container" padding="lg" style={{ margin: '20px auto' }}>
         {/* Admin Navigation & Profile Bar */}
         <AdminNav activeTab="dashboard" />
 
@@ -537,7 +538,7 @@ export default function AdminPage() {
           <span>{saving ? 'در حال ذخیره‌سازی...' : 'ذخیره کلیه تغییرات'}</span>
         </button>
       </form>
-    </div>
+    </Card>
   </AppLayout>
   );
 }

@@ -38,6 +38,7 @@ import AlertBanner from '../components/ui/AlertBanner.jsx';
 import MiniCard from '../components/ui/MiniCard.jsx';
 import FilterPills from '../components/ui/FilterPills.jsx';
 import EmptyState from '../components/ui/EmptyState.jsx';
+import Card from '../components/ui/Card.jsx';
 import Modal from '../components/ui/Modal.jsx';
 import { useAuth } from '../context/AuthContext.jsx';
 import { useMarketData } from '../hooks/useMarketData.js';
@@ -475,7 +476,7 @@ export default function PriceSourcesPage() {
     return (
       <AppLayout activeTab="sources">
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '60vh' }}>
-          <div className="admin-container" style={{ textAlign: 'center', padding: '40px 20px', maxWidth: '460px' }}>
+          <Card className="admin-container" padding="lg" style={{ textAlign: 'center', maxWidth: '460px' }}>
             <ShieldCheck size={48} style={{ color: 'var(--accent-amber, #f59e0b)', margin: '0 auto 16px' }} />
             <h2 style={{ fontSize: '18px', fontWeight: 'bold', marginBottom: '8px', color: 'var(--text-heading)' }}>
               دسترسی محدود به مدیر کل
@@ -495,7 +496,7 @@ export default function PriceSourcesPage() {
                 ورود با حساب مدیر
               </button>
             </div>
-          </div>
+          </Card>
         </div>
       </AppLayout>
     );
@@ -529,7 +530,7 @@ export default function PriceSourcesPage() {
       />
 
       {/* Top Breadcrumb & Page Title Strip */}
-      <div className="sources-page-hero-banner">
+      <Card className="sources-page-hero-banner" padding="hero">
         <div className="hero-breadcrumbs">
           <Link to="/" className="breadcrumb-item">خانه</Link>
           <ChevronRight size={13} />
@@ -538,91 +539,87 @@ export default function PriceSourcesPage() {
           <span className="breadcrumb-item current">مدیریت سورس‌ها و نمودارهای اختصاصی قیمت</span>
         </div>
 
-          <div className="hero-content-row">
-            <div className="hero-title-group">
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <div className="hero-icon-badge">
-                  <Radio size={22} style={{ color: 'var(--accent-blue, #38bdf8)' }} />
-                </div>
-                <div>
-                  <h1 className="hero-page-title">
-                    مدیریت سورس‌های بازار و تاریخچه نمودارها
-                  </h1>
-                  <p className="hero-page-desc">
-                    پیکربندی استخراج قیمت از کانال‌های تلگرام و وب‌سرویس‌های API، ثبت تاریخچه تفکیکی و گراف‌های اختصاصی
-                  </p>
-                </div>
+        <div className="hero-content-row">
+          <div className="hero-title-group">
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <div className="hero-icon-badge">
+                <Radio size={22} style={{ color: 'var(--accent-blue, #38bdf8)' }} />
+              </div>
+              <div>
+                <h1 className="hero-page-title">
+                  مدیریت سورس‌های بازار و تاریخچه نمودارها
+                </h1>
+                <p className="hero-page-desc">
+                  پیکربندی استخراج قیمت از کانال‌های تلگرام و وب‌سرویس‌های API، ثبت تاریخچه تفکیکی و گراف‌های اختصاصی
+                </p>
               </div>
             </div>
+          </div>
 
-            <div className="hero-actions-group">
-              <button
-                type="button"
-                onClick={handleFetchAllNow}
-                disabled={fetchingAll}
-                className="btn-hero-action primary-glow"
-                title="فراخوانی همزمان تمام سورس‌های فعال و ثبت در تاریخچه دیتابیس"
-              >
-                <Zap size={14} className={fetchingAll ? 'spin-anim' : ''} />
-                <span>{fetchingAll ? 'در حال دریافت نرخ‌ها...' : 'دریافت آنی قیمت همه سورس‌ها'}</span>
-              </button>
+          <div className="hero-actions-group">
+            <button
+              type="button"
+              onClick={handleFetchAllNow}
+              disabled={fetchingAll}
+              className="btn-hero-action primary-glow"
+              title="فراخوانی همزمان تمام سورس‌های فعال و ثبت در تاریخچه دیتابیس"
+            >
+              <Zap size={14} className={fetchingAll ? 'spin-anim' : ''} />
+              <span>{fetchingAll ? 'در حال دریافت نرخ‌ها...' : 'دریافت آنی قیمت همه سورس‌ها'}</span>
+            </button>
 
-              <button
-                type="button"
-                onClick={() => handleOpenAddSource(sourceFilter === 'all' ? 'usd' : sourceFilter)}
-                className="btn-hero-action accent"
-              >
-                <Plus size={15} strokeWidth={2.5} />
-                <span>افزودن سورس جدید</span>
-              </button>
-            </div>
+            <button
+              type="button"
+              onClick={() => handleOpenAddSource(sourceFilter === 'all' ? 'usd' : sourceFilter)}
+              className="btn-hero-action accent"
+            >
+              <Plus size={15} strokeWidth={2.5} />
+              <span>افزودن سورس جدید</span>
+            </button>
           </div>
         </div>
+      </Card>
 
-        {/* Global Notification Banner */}
-        {message && (
-          <div className={`admin-msg ${message.type}`} style={{ margin: '0 0 16px' }}>
-            {message.type === 'success' ? (
-              <CheckCircle2 size={16} />
-            ) : message.type === 'error' ? (
-              <AlertCircle size={16} />
-            ) : (
-              <Activity size={16} />
-            )}
-            <span>{message.text}</span>
-          </div>
-        )}
+      {/* Global Notification Banner */}
+      {message && (
+        <AlertBanner
+          type={message.type}
+          message={message.text}
+          onClose={() => setMessage(null)}
+          style={{ margin: '0 0 16px' }}
+        />
+      )}
 
-        {/* ── SECTION 1: Individual Source Selector & Dedicated Chart ───────── */}
-        <section ref={chartSectionRef} className="sources-chart-section">
-          {/* Source Tabs Bar — Separate chart per source */}
-          <div className="source-tabs-header">
-            <div className="source-tabs-title">
-              <LineChart size={16} style={{ color: 'var(--accent-blue, #38bdf8)' }} />
-              <span>انتخاب سورس برای مشاهده نمودار اختصاصی:</span>
-            </div>
-            <div className="source-pills-scroll-container">
-              {sources.map((src) => {
-                const isSelected = src.id === selectedSourceId;
-                const typeInfo = PRICE_TYPE_INFO[src.priceType] || { label: src.priceType, badgeColor: 'blue' };
-                return (
-                  <button
-                    key={src.id}
-                    type="button"
-                    className={`source-selector-pill ${isSelected ? 'active' : ''}`}
-                    onClick={() => setSelectedSourceId(src.id)}
-                  >
-                    <span className={`pill-dot ${typeInfo.badgeColor}`} />
-                    <span className="pill-name">{src.name}</span>
-                    {src.lastPrice > 0 && (
-                      <span className="pill-price">{formatNum(src.lastPrice, src.priceType)}</span>
-                    )}
-                    {src.isPrimary && <Star size={11} fill="#eab308" color="#eab308" />}
-                  </button>
-                );
-              })}
-            </div>
+      {/* ── SECTION 1: Individual Source Selector & Dedicated Chart ───────── */}
+      <section ref={chartSectionRef} className="sources-chart-section">
+        {/* Source Tabs Bar — Separate chart per source */}
+        <Card className="source-tabs-header" padding="sm">
+          <div className="source-tabs-title">
+            <LineChart size={16} style={{ color: 'var(--accent-blue, #38bdf8)' }} />
+            <span>انتخاب سورس برای مشاهده نمودار اختصاصی:</span>
           </div>
+          <div className="source-pills-scroll-container">
+            {sources.map((src) => {
+              const isSelected = src.id === selectedSourceId;
+              const typeInfo = PRICE_TYPE_INFO[src.priceType] || { label: src.priceType, badgeColor: 'blue' };
+              return (
+                <button
+                  key={src.id}
+                  type="button"
+                  className={`source-selector-pill ${isSelected ? 'active' : ''}`}
+                  onClick={() => setSelectedSourceId(src.id)}
+                >
+                  <span className={`pill-dot ${typeInfo.badgeColor}`} />
+                  <span className="pill-name">{src.name}</span>
+                  {src.lastPrice > 0 && (
+                    <span className="pill-price">{formatNum(src.lastPrice, src.priceType)}</span>
+                  )}
+                  {src.isPrimary && <Star size={11} fill="#eab308" color="#eab308" />}
+                </button>
+              );
+            })}
+          </div>
+        </Card>
 
           {/* Interactive Chart for the active source */}
           {activeSelectedSource ? (
