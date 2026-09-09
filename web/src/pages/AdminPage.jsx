@@ -43,6 +43,8 @@ import AppLayout from '../components/ui/AppLayout.jsx';
 import AdminNav from '../components/ui/AdminNav.jsx';
 import AlertBanner from '../components/ui/AlertBanner.jsx';
 import MiniCard from '../components/ui/MiniCard.jsx';
+import SearchBar from '../components/ui/SearchBar.jsx';
+import EmptyState from '../components/ui/EmptyState.jsx';
 
 
 function formatNum(num) {
@@ -351,20 +353,12 @@ export default function AdminPage() {
       </div>
 
       <div className="admin-user-search-wrap" style={{ marginBottom: '14px' }}>
-        <div className="search-box">
-          <Search size={15} strokeWidth={2} />
-          <input
-            type="text"
-            placeholder="جستجوی کاربر با نام، ایمیل، شناسه یا اسلاگ پورتفو..."
-            value={userSearch}
-            onChange={(e) => setUserSearch(e.target.value)}
-          />
-          {userSearch && (
-            <button className="clear-search-btn" onClick={() => setUserSearch('')}>
-              <X size={14} strokeWidth={2.2} />
-            </button>
-          )}
-        </div>
+        <SearchBar
+          value={userSearch}
+          onChange={(e) => setUserSearch(e.target.value)}
+          onClear={() => setUserSearch('')}
+          placeholder="جستجوی کاربر با نام، ایمیل، شناسه یا اسلاگ پورتفو..."
+        />
       </div>
 
       <div className="users-table-wrap">
@@ -381,8 +375,23 @@ export default function AdminPage() {
           <tbody>
             {filteredUsers.length === 0 ? (
               <tr>
-                <td colSpan="5" style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '18px' }}>
-                  {loadingUsers ? 'در حال دریافت اطلاعات کاربران...' : 'هیچ کاربری با این مشخصات یافت نشد.'}
+                <td colSpan="5" style={{ textAlign: 'center', padding: '24px' }}>
+                  <EmptyState
+                    title={loadingUsers ? 'در حال دریافت اطلاعات کاربران...' : 'هیچ کاربری با این مشخصات یافت نشد.'}
+                    description={userSearch ? `کاربری با عبارت "${userSearch}" پیدا نشد.` : null}
+                    action={
+                      userSearch ? (
+                        <button
+                          type="button"
+                          className="btn-secondary"
+                          style={{ fontSize: '12px', padding: '6px 14px' }}
+                          onClick={() => setUserSearch('')}
+                        >
+                          پاک‌کردن فیلتر جستجو
+                        </button>
+                      ) : null
+                    }
+                  />
                 </td>
               </tr>
             ) : (

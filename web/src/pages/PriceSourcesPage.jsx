@@ -36,6 +36,8 @@ import AppLayout from '../components/ui/AppLayout.jsx';
 import AdminNav from '../components/ui/AdminNav.jsx';
 import AlertBanner from '../components/ui/AlertBanner.jsx';
 import MiniCard from '../components/ui/MiniCard.jsx';
+import FilterPills from '../components/ui/FilterPills.jsx';
+import EmptyState from '../components/ui/EmptyState.jsx';
 import Modal from '../components/ui/Modal.jsx';
 import { useAuth } from '../context/AuthContext.jsx';
 import { useMarketData } from '../hooks/useMarketData.js';
@@ -732,31 +734,19 @@ export default function PriceSourcesPage() {
               </h3>
             </div>
 
-            {/* Filter Pills */}
-            <div className="sources-filter-bar" style={{ margin: 0 }}>
-              <button
-                type="button"
-                className={`filter-pill ${sourceFilter === 'all' ? 'active' : ''}`}
-                onClick={() => setSourceFilter('all')}
-              >
-                <span>همه</span>
-                <span className="filter-count">{sources.length.toLocaleString('fa-IR')}</span>
-              </button>
-              {Object.entries(PRICE_TYPE_INFO).map(([key, info]) => {
-                const count = sources.filter((s) => s.priceType === key).length;
-                return (
-                  <button
-                    key={key}
-                    type="button"
-                    className={`filter-pill ${sourceFilter === key ? 'active' : ''}`}
-                    onClick={() => setSourceFilter(key)}
-                  >
-                    <span>{info.label}</span>
-                    <span className="filter-count">{count.toLocaleString('fa-IR')}</span>
-                  </button>
-                );
-              })}
-            </div>
+            {/* Reusable Filter Pills */}
+            <FilterPills
+              options={[
+                { value: 'all', label: 'همه', badge: sources.length.toLocaleString('fa-IR') },
+                ...Object.entries(PRICE_TYPE_INFO).map(([key, info]) => ({
+                  value: key,
+                  label: info.label,
+                  badge: sources.filter((s) => s.priceType === key).length.toLocaleString('fa-IR'),
+                })),
+              ]}
+              activeValue={sourceFilter}
+              onChange={setSourceFilter}
+            />
           </div>
 
           {/* Table Container */}
@@ -777,8 +767,23 @@ export default function PriceSourcesPage() {
               <tbody>
                 {filteredSources.length === 0 ? (
                   <tr>
-                    <td colSpan="8" style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '36px' }}>
-                      {loadingSources ? 'در حال دریافت لیست سورس‌ها...' : 'هیچ سورسی در این دسته‌بندی یافت نشد.'}
+                    <td colSpan="8" style={{ textAlign: 'center', padding: '24px' }}>
+                      <EmptyState
+                        title={loadingSources ? 'در حال دریافت لیست سورس‌ها...' : 'هیچ سورسی در این دسته‌بندی یافت نشد.'}
+                        description={sourceFilter !== 'all' ? `برای مشاهده سایر سورس‌ها، فیلتر "${PRICE_TYPE_INFO[sourceFilter]?.label || sourceFilter}" را تغییر دهید.` : null}
+                        action={
+                          sourceFilter !== 'all' ? (
+                            <button
+                              type="button"
+                              className="btn-secondary"
+                              style={{ fontSize: '12px', padding: '6px 14px' }}
+                              onClick={() => setSourceFilter('all')}
+                            >
+                              مشاهده همه سورس‌ها
+                            </button>
+                          ) : null
+                        }
+                      />
                     </td>
                   </tr>
                 ) : (

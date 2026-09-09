@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { Search, X } from 'lucide-react';
+import SearchBar from './ui/SearchBar.jsx';
+import EmptyState from './ui/EmptyState.jsx';
 
 function formatNum(num) {
   if (num === null || num === undefined || isNaN(num)) return '-';
@@ -32,50 +33,56 @@ export default function CurrenciesList({ currencies }) {
     <div className="currencies-container">
       {/* Search and count bar */}
       <div className="currencies-toolbar">
-        <div className="search-box">
-          <Search size={15} strokeWidth={2} />
-          <input
-            type="text"
-            placeholder="جستجوی نام یا نماد ارز..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-          />
-          {search && (
-            <button className="clear-search-btn" onClick={() => setSearch('')}>
-              <X size={14} strokeWidth={2.2} />
-            </button>
-          )}
-        </div>
-
-        <div className="currencies-count-badge">
-          <span>{filtered.length.toLocaleString('fa-IR')} ارز</span>
-        </div>
+        <SearchBar
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          onClear={() => setSearch('')}
+          placeholder="جستجوی نام یا نماد ارز..."
+          badge={`${filtered.length.toLocaleString('fa-IR')} ارز`}
+        />
       </div>
 
       {/* Modern Currencies Grid / Table */}
-      <div className="currency-cards-grid">
-        {filtered.map((c) => (
-          <div key={c.code} className="currency-item-card">
-            <div className="curr-lead">
-              <span className="curr-flag-emoji">{c.flag}</span>
-              <div className="curr-names">
-                <div className="curr-title-row">
-                  <span className="curr-persian-name">{c.name}</span>
-                  <span className="curr-code-pill">{c.code}</span>
+      {filtered.length === 0 ? (
+        <EmptyState
+          title="ارزی یافت نشد"
+          description={`ارزی با عنوان یا نماد "${search}" پیدا نشد.`}
+          action={
+            <button
+              type="button"
+              className="btn-secondary"
+              style={{ fontSize: '12px', padding: '6px 14px', marginTop: '8px' }}
+              onClick={() => setSearch('')}
+            >
+              پاک‌کردن فیلتر جستجو
+            </button>
+          }
+        />
+      ) : (
+        <div className="currency-cards-grid">
+          {filtered.map((c) => (
+            <div key={c.code} className="currency-item-card">
+              <div className="curr-lead">
+                <span className="curr-flag-emoji">{c.flag}</span>
+                <div className="curr-names">
+                  <div className="curr-title-row">
+                    <span className="curr-persian-name">{c.name}</span>
+                    <span className="curr-code-pill">{c.code}</span>
+                  </div>
+                  <span className="curr-desc">{c.note}</span>
                 </div>
-                <span className="curr-desc">{c.note}</span>
               </div>
-            </div>
 
-            <div className="curr-price-block">
-              <div className="curr-price-val">
-                {formatNum(c.toman_price)}
-                <span className="curr-unit">تومان</span>
+              <div className="curr-price-block">
+                <div className="curr-price-val">
+                  {formatNum(c.toman_price)}
+                  <span className="curr-unit">تومان</span>
+                </div>
               </div>
             </div>
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

@@ -1,27 +1,14 @@
 import React from 'react';
 import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { Megaphone, TrendingUp, Briefcase, Sparkles, AlertTriangle } from 'lucide-react';
-import Header from '../components/Header.jsx';
+import { Megaphone, TrendingUp, Briefcase, Sparkles } from 'lucide-react';
+import AppLayout from '../components/ui/AppLayout.jsx';
+import FilterPills from '../components/ui/FilterPills.jsx';
+import AlertBanner from '../components/ui/AlertBanner.jsx';
+import MarketInputsToolbar from '../components/MarketInputsToolbar.jsx';
 import AnalysisCards from '../components/AnalysisCards.jsx';
 import CurrenciesList from '../components/CurrenciesList.jsx';
 import PortfolioTracker from '../components/PortfolioTracker.jsx';
-import Footer from '../components/Footer.jsx';
 import { useMarketData } from '../hooks/useMarketData.js';
-
-function formatRelativeTime(isoStr) {
-  if (!isoStr) return 'ثبت نشده';
-  try {
-    const d = new Date(isoStr);
-    const diffMins = Math.floor((new Date() - d) / 60000);
-    if (diffMins < 1) return 'لحظاتی پیش';
-    if (diffMins < 60) return `${diffMins.toLocaleString('fa-IR')} دقیقه پیش`;
-    const diffHours = Math.floor(diffMins / 60);
-    if (diffHours < 24) return `${diffHours.toLocaleString('fa-IR')} ساعت پیش`;
-    return d.toLocaleTimeString('fa-IR', { hour: '2-digit', minute: '2-digit' });
-  } catch {
-    return 'ثبت نشده';
-  }
-}
 
 export default function MainPage() {
   const location = useLocation();
@@ -50,6 +37,7 @@ export default function MainPage() {
       }
     }
   };
+
   const {
     rates,
     calcData,
@@ -78,140 +66,95 @@ export default function MainPage() {
   const hasUsd = usdNum > 0;
 
   return (
-    <div className="app-layout">
-      <Header
-        usdToman={usdToman}
-        gold18kPrice={gold18kPrice}
-        activeTab={activeTab}
-        setActiveTab={handleTabChange}
+    <AppLayout
+      usdToman={usdToman}
+      gold18kPrice={gold18kPrice}
+      activeTab={activeTab}
+      setActiveTab={handleTabChange}
+    >
+      {/* System Announcement Banner */}
+      {announcement && (
+        <AlertBanner
+          type="info"
+          icon={<Megaphone size={16} />}
+          message={announcement}
+          style={{ marginBottom: '20px' }}
+        />
+      )}
+
+      {/* Modern Segmented Navigation Tabs */}
+      <FilterPills
+        variant="segmented"
+        size="lg"
+        options={[
+          { value: 'market', label: 'نرخ و حباب', icon: <TrendingUp size={16} strokeWidth={2} /> },
+          { value: 'portfolio', label: 'پورتفو', icon: <Briefcase size={16} strokeWidth={2} /> },
+        ]}
+        activeValue={activeTab}
+        onChange={handleTabChange}
+        style={{ marginBottom: '24px' }}
       />
 
-      <main className="main-content">
-        {/* System Announcement Banner */}
-        {announcement && (
-          <div className="announcement-strip">
-            <span className="announcement-icon"><Megaphone size={16} /></span>
-            <span className="announcement-text">{announcement}</span>
+      {/* Tab Views */}
+      <section className="tab-view-container">
+        {activeTab === 'market' && (
+          <div className="market-tab-content" style={{ display: 'flex', flexDirection: 'column', gap: '28px' }}>
+            {/* Market Top Controls (Inputs Toolbar & Smart Recommendation Side-by-Side on Desktop) */}
+            <div className={`market-top-controls ${recommendation ? 'has-rec' : ''}`}>
+              <MarketInputsToolbar
+                usdToman={usdToman}
+                setUsdToman={setUsdToman}
+                goldUsd={goldUsd}
+                setGoldUsd={setGoldUsd}
+                liveUsdSource={liveUsdSource}
+                liveUsdDatetime={liveUsdDatetime}
+              />
+
+              {/* Smart Recommendation Banner */}
+              {recommendation && (
+                <div className="smart-rec-banner">
+                  <div className="rec-icon-badge">
+                    <Sparkles size={16} />
+                  </div>
+                  <div className="rec-text-group">
+                    <div className="rec-title">
+                      کمترین حباب: <strong>{recommendation.best_name}</strong>
+                    </div>
+                    <div className="rec-desc">{recommendation.reason}</div>
+                  </div>
+                  <div className={`rec-chip ${recommendation.best_bubble_pct < 0 ? 'negative' : 'positive'}`}>
+                    <span>{recommendation.best_bubble_pct < 0 ? 'حباب منفی: ' : 'حباب: '}</span>
+                    <strong>{recommendation.best_bubble_pct?.toLocaleString('fa-IR')}٪</strong>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Alert Banner if USD is null or 0 */}
+            {!hasUsd && (
+              <AlertBanner
+                type="warning"
+                message="لطفاً نرخ دلار را برای محاسبه ارزش واقعی و حباب وارد کنید."
+                style={{ marginBottom: '8px' }}
+              />
+            )}
+
+            <AnalysisCards analysis={analysis} recommendation={recommendation} />
+            <CurrenciesList currencies={currencies} />
           </div>
         )}
 
-        {/* Modern Segmented Navigation Tabs */}
-        <div className="segmented-tab-bar">
-          <button
-            className={`tab-segment-btn ${activeTab === 'market' ? 'active' : ''}`}
-            onClick={() => handleTabChange('market')}
-          >
-            <TrendingUp size={16} strokeWidth={2} />
-            <span>نرخ و حباب</span>
-          </button>
-
-          <button
-            className={`tab-segment-btn ${activeTab === 'portfolio' ? 'active' : ''}`}
-            onClick={() => handleTabChange('portfolio')}
-          >
-            <Briefcase size={16} strokeWidth={2} />
-            <span>پورتفو</span>
-          </button>
-        </div>
-
-        {/* Tab Views */}
-        <section className="tab-view-container">
-          {activeTab === 'market' && (
-            <div className="market-tab-content" style={{ display: 'flex', flexDirection: 'column', gap: '28px' }}>
-              {/* Market Top Controls (Inputs Toolbar & Smart Recommendation Side-by-Side on Desktop) */}
-              <div className={`market-top-controls ${recommendation ? 'has-rec' : ''}`}>
-                {/* Compact Inputs Bar */}
-                <div className="inputs-toolbar">
-                  <div className="toolbar-input-item">
-                    <div className="toolbar-label-row">
-                      <label htmlFor="usdToman">دلار آزاد</label>
-                      {liveUsdSource === 'live' ? (
-                        <span className="source-tag live">زنده</span>
-                      ) : (
-                        <span className="source-tag manual">دستی</span>
-                      )}
-                    </div>
-                    <div className="toolbar-input-wrapper">
-                      <input
-                        type="text"
-                        id="usdToman"
-                        placeholder="مثلاً ۶۵,۰۰۰"
-                        value={usdToman}
-                        onChange={(e) => setUsdToman(e.target.value)}
-                      />
-                      <span className="input-affix">تومان</span>
-                    </div>
-                    <span className="toolbar-sub-hint">
-                      {liveUsdSource === 'live' && liveUsdDatetime
-                        ? `بروزرسانی: ${formatRelativeTime(liveUsdDatetime)}`
-                        : 'ورودی دستی'}
-                    </span>
-                  </div>
-
-                  <div className="toolbar-input-item">
-                    <div className="toolbar-label-row">
-                      <label htmlFor="goldUsd">انس جهانی طلا</label>
-                      <span className="source-tag live">زنده</span>
-                    </div>
-                    <div className="toolbar-input-wrapper">
-                      <input
-                        type="text"
-                        id="goldUsd"
-                        value={goldUsd}
-                        onChange={(e) => setGoldUsd(e.target.value)}
-                      />
-                      <span className="input-affix">USD</span>
-                    </div>
-                    <span className="toolbar-sub-hint">بازار جهانی</span>
-                  </div>
-                </div>
-
-                {/* Smart Recommendation Banner */}
-                {recommendation && (
-                  <div className="smart-rec-banner">
-                    <div className="rec-icon-badge">
-                      <Sparkles size={16} />
-                    </div>
-                    <div className="rec-text-group">
-                      <div className="rec-title">
-                        کمترین حباب: <strong>{recommendation.best_name}</strong>
-                      </div>
-                      <div className="rec-desc">{recommendation.reason}</div>
-                    </div>
-                    <div className={`rec-chip ${recommendation.best_bubble_pct < 0 ? 'negative' : 'positive'}`}>
-                      <span>{recommendation.best_bubble_pct < 0 ? 'حباب منفی: ' : 'حباب: '}</span>
-                      <strong>{recommendation.best_bubble_pct?.toLocaleString('fa-IR')}٪</strong>
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {/* Alert Banner if USD is null or 0 */}
-              {!hasUsd && (
-                <div className="warning-notice-bar">
-                  <AlertTriangle size={15} style={{ marginLeft: '6px', verticalAlign: 'middle', display: 'inline' }} />
-                  <span>لطفاً نرخ دلار را برای محاسبه ارزش واقعی و حباب وارد کنید.</span>
-                </div>
-              )}
-
-              <AnalysisCards analysis={analysis} recommendation={recommendation} />
-              <CurrenciesList currencies={currencies} />
-            </div>
-          )}
-
-          {activeTab === 'portfolio' && (
-            <PortfolioTracker
-              calcData={calcData}
-              rates={rates}
-              usdToman={usdToman}
-              goldUsd={goldUsd}
-              initialPortfolioId={params.portfolioId || searchParams.get('p') || searchParams.get('id') || null}
-            />
-          )}
-        </section>
-      </main>
-
-      <Footer />
-    </div>
+        {activeTab === 'portfolio' && (
+          <PortfolioTracker
+            calcData={calcData}
+            rates={rates}
+            usdToman={usdToman}
+            goldUsd={goldUsd}
+            initialPortfolioId={params.portfolioId || searchParams.get('p') || searchParams.get('id') || null}
+          />
+        )}
+      </section>
+    </AppLayout>
   );
 }
+

@@ -1,23 +1,9 @@
 import React from 'react';
+import { formatRelativeTime } from './ui/TimeAgoBadge.jsx';
 
 function formatNum(num) {
   if (num === null || num === undefined || isNaN(num)) return '-';
   return Math.round(num).toLocaleString('fa-IR');
-}
-
-function formatRelativeTime(isoStr) {
-  if (!isoStr) return 'ثبت نشده';
-  try {
-    const d = new Date(isoStr);
-    const diffMins = Math.floor((new Date() - d) / 60000);
-    if (diffMins < 1) return 'چند لحظه پیش';
-    if (diffMins < 60) return `${diffMins.toLocaleString('fa-IR')} دقیقه پیش`;
-    const diffHours = Math.floor(diffMins / 60);
-    if (diffHours < 24) return `${diffHours.toLocaleString('fa-IR')} ساعت پیش`;
-    return d.toLocaleTimeString('fa-IR', { hour: '2-digit', minute: '2-digit' });
-  } catch {
-    return 'ثبت نشده';
-  }
 }
 
 export default function AnalysisCards({ analysis, recommendation }) {
