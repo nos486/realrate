@@ -906,7 +906,6 @@ export default function PriceSourcesPage() {
                                 <PlayCircle
                                   size={15}
                                   className={isRowTesting ? 'spin-anim' : ''}
-                                  style={{ color: 'var(--accent-blue)' }}
                                 />
                               </button>
                               <button
@@ -915,7 +914,7 @@ export default function PriceSourcesPage() {
                                 className="action-icon-btn chart-btn"
                                 title="مشاهده نمودار اختصاصی این سورس"
                               >
-                                <LineChart size={15} style={{ color: '#8b5cf6' }} />
+                                <LineChart size={15} />
                               </button>
                               <button
                                 type="button"
