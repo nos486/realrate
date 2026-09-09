@@ -10,6 +10,7 @@ import {
   Trash2,
 } from 'lucide-react';
 import Modal from './ui/Modal.jsx';
+import AlertBanner from './ui/AlertBanner.jsx';
 import { apiUpdatePortfolio } from '../api/client.js';
 import {
   generateE2eeSalt,
@@ -235,15 +236,12 @@ export default function UserSettingsModal({ isOpen, portfolio, onClose, onSaved,
       ) : (
         <>
           {msg.text && (
-              <div className={`settings-alert-banner ${msg.type}`}>
-                {msg.type === 'success' ? (
-                  <CheckCircle2 size={15} style={{ display: 'inline', verticalAlign: 'middle', marginLeft: '4px' }} />
-                ) : (
-                  <AlertTriangle size={15} style={{ display: 'inline', verticalAlign: 'middle', marginLeft: '4px' }} />
-                )}
-                {msg.text}
-              </div>
-            )}
+            <AlertBanner
+              type={msg.type}
+              message={msg.text}
+              onClose={() => setMsg({ text: '', type: '' })}
+            />
+          )}
 
             {/* Portfolio Name */}
             <div className="form-group">
@@ -372,12 +370,11 @@ export default function UserSettingsModal({ isOpen, portfolio, onClose, onSaved,
 
               {isE2ee && (
                 <div className="vault-form-section">
-                  <div className="vault-warning-box">
-                    <span className="warning-icon"><AlertTriangle size={16} /></span>
-                    <p>
-                      این رمز در سرور ذخیره نمی‌شود. در صورت فراموشی، اطلاعات غیرقابل بازیابی خواهد بود.
-                    </p>
-                  </div>
+                  <AlertBanner
+                    type="warning"
+                    message="این رمز در سرور ذخیره نمی‌شود. در صورت فراموشی، اطلاعات غیرقابل بازیابی خواهد بود."
+                    style={{ marginBottom: '14px' }}
+                  />
 
                   <div className="form-group">
                     <label htmlFor="settingsVaultPassword">رمز عبور</label>

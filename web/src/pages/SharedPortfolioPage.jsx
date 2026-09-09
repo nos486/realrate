@@ -3,6 +3,7 @@ import { useParams, Link } from 'react-router-dom';
 import { apiGetSharedPortfolio, apiGetPrices } from '../api/client.js';
 import { calculateMarketData } from '../utils/calculator.js';
 import Header from '../components/Header.jsx';
+import AlertBanner from '../components/ui/AlertBanner.jsx';
 import {
   CategoryIcon,
   CATEGORY_DEFINITIONS,
@@ -414,10 +415,11 @@ export default function SharedPortfolioPage() {
               </p>
 
               {errorMsg && (
-                <div className="settings-alert-banner error" style={{ marginBottom: '16px' }}>
-                  <AlertTriangle size={15} style={{ verticalAlign: 'middle', marginLeft: '6px' }} />
-                  <span>{errorMsg}</span>
-                </div>
+                <AlertBanner
+                  type="error"
+                  message={errorMsg}
+                  style={{ marginBottom: '16px' }}
+                />
               )}
 
               <form onSubmit={handleUnlock} className="shared-pwd-form">

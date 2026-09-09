@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext.jsx';
 import { useTheme } from '../context/ThemeContext.jsx';
+import { apiGetPrices } from '../api/client.js';
 import AccountSettingsModal from './AccountSettingsModal.jsx';
 
 const LogoMark = () => (
@@ -45,6 +46,30 @@ export default function Header({ usdToman, gold18kPrice, activeTab, setActiveTab
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [accountModalOpen, setAccountModalOpen] = useState(false);
   const dropdownRef = useRef(null);
+
+  // Autonomous fallback for price ticker when props are not provided
+  const [internalPrices, setInternalPrices] = useState({ usd: null, gold: null });
+
+  useEffect(() => {
+    if (usdToman !== undefined && gold18kPrice !== undefined) return;
+    let mounted = true;
+    apiGetPrices()
+      .then((data) => {
+        if (!mounted || !data) return;
+        const usd = data.live_usd_toman || data.globalSettings?.default_usd_toman || 0;
+        const gold =
+          data.prices?.['18k']?.price ||
+          (data.gold_usd && usd ? Math.round((data.gold_usd * usd * 4.3318) / 31.1034768) : 0);
+        setInternalPrices({ usd, gold });
+      })
+      .catch(() => {});
+    return () => {
+      mounted = false;
+    };
+  }, [usdToman, gold18kPrice]);
+
+  const displayUsd = usdToman !== undefined ? usdToman : internalPrices.usd;
+  const displayGold = gold18kPrice !== undefined ? gold18kPrice : internalPrices.gold;
 
   const [hideValues, setHideValues] = useState(() => {
     try {
@@ -100,39 +125,63 @@ export default function Header({ usdToman, gold18kPrice, activeTab, setActiveTab
           </Link>
         </div>
 
-        {/* Mobile Tab Switcher (Icon-only on Mobile) */}
-        {setActiveTab && (
-          <nav className="header-tabs-switcher" aria-label="انتخاب تب">
-            <button
-              type="button"
-              className={`header-tab-btn ${activeTab === 'market' ? 'active' : ''}`}
-              onClick={() => setActiveTab('market')}
-              title="نرخ و حباب طلا، سکه و ارز"
-              aria-label="بازار"
-            >
-              <TrendingUp size={17} strokeWidth={2.2} />
-              <span className="tab-btn-title">نرخ و حباب</span>
-            </button>
+        {/* Mobile Tab Switcher */}
+        <nav className="header-tabs-switcher" aria-label="انتخاب تب">
+          {setActiveTab ? (
+            <>
+              <button
+                type="button"
+                className={`header-tab-btn ${activeTab === 'market' ? 'active' : ''}`}
+                onClick={() => setActiveTab('market')}
+                title="نرخ و حباب طلا، سکه و ارز"
+                aria-label="بازار"
+              >
+                <TrendingUp size={17} strokeWidth={2.2} />
+                <span className="tab-btn-title">نرخ و حباب</span>
+              </button>
 
-            <button
-              type="button"
-              className={`header-tab-btn ${activeTab === 'portfolio' ? 'active' : ''}`}
-              onClick={() => setActiveTab('portfolio')}
-              title="پورتفوی دارایی من"
-              aria-label="پورتفو"
-            >
-              <Briefcase size={17} strokeWidth={2.2} />
-              <span className="tab-btn-title">پورتفو</span>
-            </button>
-          </nav>
-        )}
+              <button
+                type="button"
+                className={`header-tab-btn ${activeTab === 'portfolio' ? 'active' : ''}`}
+                onClick={() => setActiveTab('portfolio')}
+                title="پورتفوی دارایی من"
+                aria-label="پورتفو"
+              >
+                <Briefcase size={17} strokeWidth={2.2} />
+                <span className="tab-btn-title">پورتفو</span>
+              </button>
+            </>
+          ) : (
+            <>
+              <Link
+                to="/"
+                className={`header-tab-btn ${activeTab === 'market' || !activeTab ? 'active' : ''}`}
+                title="نرخ و حباب طلا، سکه و ارز"
+                aria-label="بازار"
+              >
+                <TrendingUp size={17} strokeWidth={2.2} />
+                <span className="tab-btn-title">نرخ و حباب</span>
+              </Link>
+
+              <Link
+                to="/portfolio"
+                className={`header-tab-btn ${activeTab === 'portfolio' ? 'active' : ''}`}
+                title="پورتفوی دارایی من"
+                aria-label="پورتفو"
+              >
+                <Briefcase size={17} strokeWidth={2.2} />
+                <span className="tab-btn-title">پورتفو</span>
+              </Link>
+            </>
+          )}
+        </nav>
 
         {/* Desktop Ticker (Hidden on Mobile) */}
         <div className="header-live-ticker desktop-only">
           <div className="header-ticker-item gold" title="نرخ روز هر گرم طلای ۱۸ عیار">
             <span className="ticker-pulse gold"></span>
             <span className="ticker-tag">طلای ۱۸:</span>
-            <strong className="ticker-amount">{formatHeaderNum(gold18kPrice)}</strong>
+            <strong className="ticker-amount">{formatHeaderNum(displayGold)}</strong>
             <span className="ticker-unit">تومان</span>
           </div>
 
@@ -141,7 +190,7 @@ export default function Header({ usdToman, gold18kPrice, activeTab, setActiveTab
           <div className="header-ticker-item usd" title="نرخ روز دلار نقدی آزاد">
             <span className="ticker-pulse green"></span>
             <span className="ticker-tag">دلار آزاد:</span>
-            <strong className="ticker-amount">{formatHeaderNum(usdToman)}</strong>
+            <strong className="ticker-amount">{formatHeaderNum(displayUsd)}</strong>
             <span className="ticker-unit">تومان</span>
           </div>
         </div>

@@ -32,8 +32,10 @@ import {
   Zap,
   Save,
 } from 'lucide-react';
-import Header from '../components/Header.jsx';
-import Footer from '../components/Footer.jsx';
+import AppLayout from '../components/ui/AppLayout.jsx';
+import AdminNav from '../components/ui/AdminNav.jsx';
+import AlertBanner from '../components/ui/AlertBanner.jsx';
+import MiniCard from '../components/ui/MiniCard.jsx';
 import Modal from '../components/ui/Modal.jsx';
 import { useAuth } from '../context/AuthContext.jsx';
 import { useMarketData } from '../hooks/useMarketData.js';
@@ -456,24 +458,21 @@ export default function PriceSourcesPage() {
   // Not logged in or not admin check
   if (authLoading) {
     return (
-      <div className="app-layout">
-        <Header usdToman={usdToman} gold18kPrice={gold18kPrice} activeTab="sources" setActiveTab={() => navigate('/')} />
-        <main className="main-content" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '60vh' }}>
-          <div style={{ textAlign: 'center' }}>
+      <AppLayout activeTab="sources">
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '60vh', textAlign: 'center' }}>
+          <div>
             <RefreshCw size={28} className="spin-anim" style={{ color: 'var(--accent-blue)', margin: '0 auto 12px' }} />
             <p style={{ color: 'var(--text-muted)' }}>در حال بررسی دسترسی مدیریت...</p>
           </div>
-        </main>
-        <Footer />
-      </div>
+        </div>
+      </AppLayout>
     );
   }
 
   if (!user || user.role !== 'admin') {
     return (
-      <div className="app-layout">
-        <Header usdToman={usdToman} gold18kPrice={gold18kPrice} activeTab="sources" setActiveTab={() => navigate('/')} />
-        <main className="main-content" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '60vh' }}>
+      <AppLayout activeTab="sources">
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '60vh' }}>
           <div className="admin-container" style={{ textAlign: 'center', padding: '40px 20px', maxWidth: '460px' }}>
             <ShieldCheck size={48} style={{ color: 'var(--accent-amber, #f59e0b)', margin: '0 auto 16px' }} />
             <h2 style={{ fontSize: '18px', fontWeight: 'bold', marginBottom: '8px', color: 'var(--text-heading)' }}>
@@ -495,33 +494,47 @@ export default function PriceSourcesPage() {
               </button>
             </div>
           </div>
-        </main>
-        <Footer />
-      </div>
+        </div>
+      </AppLayout>
     );
   }
 
   return (
-    <div className="app-layout price-sources-fullscreen-app">
-      {/* Universal Top Header */}
-      <Header
-        usdToman={usdToman}
-        gold18kPrice={gold18kPrice}
+    <AppLayout
+      activeTab="sources"
+      setActiveTab={(tab) => navigate(tab === 'portfolio' ? '/portfolio' : '/')}
+      usdToman={usdToman}
+      gold18kPrice={gold18kPrice}
+      layoutClassName="price-sources-fullscreen-app"
+      className="sources-page-main full-width-sources-page"
+    >
+      {/* Shared Admin Navigation & Profile Bar */}
+      <AdminNav
         activeTab="sources"
-        setActiveTab={(tab) => navigate(tab === 'portfolio' ? '/portfolio' : '/')}
+        actions={
+          <button
+            type="button"
+            onClick={handleFetchAllNow}
+            disabled={fetchingAll}
+            className="btn-sm"
+            style={{ background: 'var(--accent-blue)', color: '#fff', border: 'none' }}
+            title="فراخوانی همزمان تمام سورس‌های فعال و ثبت در تاریخچه دیتابیس"
+          >
+            <Zap size={13} className={fetchingAll ? 'spin-anim' : ''} />
+            <span>{fetchingAll ? 'در حال دریافت...' : 'دریافت آنی سورس‌ها'}</span>
+          </button>
+        }
       />
 
-      {/* Main Full-Width Content Container */}
-      <main className="main-content sources-page-main full-width-sources-page">
-        {/* Top Breadcrumb & Page Title Strip */}
-        <div className="sources-page-hero-banner">
-          <div className="hero-breadcrumbs">
-            <Link to="/" className="breadcrumb-item">خانه</Link>
-            <ChevronRight size={13} />
-            <Link to="/admin" className="breadcrumb-item">پنل مدیریت و کاربران</Link>
-            <ChevronRight size={13} />
-            <span className="breadcrumb-item current">مدیریت سورس‌ها و نمودارهای اختصاصی قیمت</span>
-          </div>
+      {/* Top Breadcrumb & Page Title Strip */}
+      <div className="sources-page-hero-banner">
+        <div className="hero-breadcrumbs">
+          <Link to="/" className="breadcrumb-item">خانه</Link>
+          <ChevronRight size={13} />
+          <Link to="/admin" className="breadcrumb-item">پنل مدیریت و کاربران</Link>
+          <ChevronRight size={13} />
+          <span className="breadcrumb-item current">مدیریت سورس‌ها و نمودارهای اختصاصی قیمت</span>
+        </div>
 
           <div className="hero-content-row">
             <div className="hero-title-group">
@@ -657,65 +670,53 @@ export default function PriceSourcesPage() {
               const isSelected = src.id === selectedSourceId;
 
               return (
-                <div
+                <MiniCard
                   key={src.id}
-                  className={`source-mini-card ${isSelected ? 'selected-card' : ''}`}
+                  selected={isSelected}
                   onClick={() => handleSelectSourceForChart(src)}
-                >
-                  <div className="mini-card-header">
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                      <span className={`source-type-pill pill-${typeInfo.badgeColor}`}>
-                        {typeInfo.label}
-                      </span>
+                  className="source-overview-card"
+                  badge={
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                      <span>{typeInfo.label}</span>
                       {src.isPrimary && (
-                        <span className="primary-tag" title="سورس مرجع">
+                        <span className="primary-tag" title="سورس مرجع" style={{ display: 'inline-flex', alignItems: 'center', gap: '2px', marginRight: '4px' }}>
                           <Star size={10} fill="#eab308" color="#eab308" />
                           <span>مرجع</span>
                         </span>
                       )}
                     </div>
-                    <span className={`status-indicator ${src.isActive ? 'active' : 'inactive'}`}>
-                      {src.isActive ? 'فعال' : 'غیرفعال'}
-                    </span>
-                  </div>
-
-                  <div className="mini-card-body">
-                    <h4 className="source-card-title">{src.name}</h4>
-                    <span className="source-endpoint-line">
-                      {src.sourceType === 'telegram'
-                        ? `@${src.channelUsername || src.endpoint}`
-                        : (src.apiUrl || src.endpoint || 'API URL')}
-                    </span>
-
-                    <div className="source-card-price-row">
-                      {src.lastPrice > 0 ? (
-                        <>
-                          <span className="card-price-value">{formatNum(src.lastPrice, src.priceType)}</span>
-                          <span className="card-price-unit">{getPriceUnit(src.priceType)}</span>
-                        </>
-                      ) : (
-                        <span className="card-no-price">هنوز دریافت نشده</span>
-                      )}
-                    </div>
-                  </div>
-
-                  <div className="mini-card-footer">
-                    <span className="last-fetched-hint">
-                      {src.lastFetched ? formatPersianDate(src.lastFetched) : 'بدون ثبت تاریخچه'}
-                    </span>
-                    <button
-                      type="button"
-                      className="btn-card-chart-focus"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleSelectSourceForChart(src);
-                      }}
-                    >
-                      <LineChart size={13} />
-                      <span>نمودار</span>
-                    </button>
-                  </div>
-                </div>
+                  }
+                  badgeColor={typeInfo.badgeColor}
+                  status={src.isActive ? 'active' : 'inactive'}
+                  statusLabel={src.isActive ? 'فعال' : 'غیرفعال'}
+                  title={<h4 className="source-card-title" style={{ margin: 0 }}>{src.name}</h4>}
+                  subtitle={
+                    src.sourceType === 'telegram'
+                      ? `@${src.channelUsername || src.endpoint}`
+                      : (src.apiUrl || src.endpoint || 'API URL')
+                  }
+                  value={src.lastPrice > 0 ? formatNum(src.lastPrice, src.priceType) : 'هنوز دریافت نشده'}
+                  unit={src.lastPrice > 0 ? getPriceUnit(src.priceType) : null}
+                  color={src.lastPrice > 0 ? (typeInfo.badgeColor === 'green' ? 'green' : typeInfo.badgeColor === 'gold' ? 'gold' : 'blue') : 'default'}
+                  footer={
+                    <>
+                      <span className="last-fetched-hint">
+                        {src.lastFetched ? formatPersianDate(src.lastFetched) : 'بدون ثبت تاریخچه'}
+                      </span>
+                      <button
+                        type="button"
+                        className="btn-card-chart-focus"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleSelectSourceForChart(src);
+                        }}
+                      >
+                        <LineChart size={13} />
+                        <span>نمودار</span>
+                      </button>
+                    </>
+                  }
+                />
               );
             })}
           </div>
@@ -1253,9 +1254,6 @@ export default function PriceSourcesPage() {
                 </div>
 
         </Modal>
-      </main>
-
-      <Footer />
-    </div>
+    </AppLayout>
   );
 }

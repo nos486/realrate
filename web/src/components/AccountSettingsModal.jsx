@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { User, Check, AlertTriangle, Moon, Sun } from 'lucide-react';
+import { User, Moon, Sun } from 'lucide-react';
 import Modal from './ui/Modal.jsx';
+import AlertBanner from './ui/AlertBanner.jsx';
 import { useAuth } from '../context/AuthContext.jsx';
 import { useTheme } from '../context/ThemeContext.jsx';
 import { apiGetUserSettings, apiUpdateUserSettings } from '../api/client.js';
@@ -21,7 +22,7 @@ export default function AccountSettingsModal({ isOpen, onClose }) {
 
       apiGetUserSettings()
         .then((res) => {
-          if (res.success && res.settings) {
+          if (res?.success && res.settings) {
             setCustomName(res.settings.customName || user?.customName || '');
           }
         })
@@ -42,12 +43,12 @@ export default function AccountSettingsModal({ isOpen, onClose }) {
         customName: customName.trim(),
       });
 
-      if (res.success) {
-        setMsg({ text: 'تنظیمات با موفقیت ذخیره شد.', type: 'success' });
+      if (res?.success) {
         updateUser({ customName: customName.trim() });
+        setMsg({ text: 'تنظیمات با موفقیت ذخیره شد.', type: 'success' });
         setTimeout(() => {
           onClose();
-        }, 900);
+        }, 800);
       } else {
         setMsg({ text: res.message || 'خطا در ذخیره تنظیمات', type: 'error' });
       }
@@ -64,14 +65,14 @@ export default function AccountSettingsModal({ isOpen, onClose }) {
       onClose={onClose}
       title="تنظیمات حساب کاربری"
       icon={<User size={18} />}
-      maxWidth="480px"
-      onSubmit={!loading ? handleSave : null}
+      maxWidth="460px"
+      onSubmit={handleSave}
       footer={
         !loading ? (
-          <div className="modal-actions">
+          <div className="modal-actions-flex-end">
             <button
               type="button"
-              className="btn-cancel"
+              className="btn-secondary"
               onClick={onClose}
               disabled={saving}
             >
@@ -96,14 +97,11 @@ export default function AccountSettingsModal({ isOpen, onClose }) {
       ) : (
         <>
           {msg.text && (
-            <div className={`settings-alert-banner ${msg.type}`}>
-              {msg.type === 'success' ? (
-                <Check size={14} style={{ display: 'inline', verticalAlign: 'middle', marginLeft: '4px' }} />
-              ) : (
-                <AlertTriangle size={14} style={{ display: 'inline', verticalAlign: 'middle', marginLeft: '4px' }} />
-              )}
-              {msg.text}
-            </div>
+            <AlertBanner
+              type={msg.type}
+              message={msg.text}
+              onClose={() => setMsg({ text: '', type: '' })}
+            />
           )}
 
           {/* Read-only User Profile Overview */}
