@@ -154,4 +154,19 @@ VALUES
   ('src_def_quarter_coin', 'ربع سکه بهار آزادی (زرما)', 'quarter_coin', 'telegram', 'zarmagoldd', '', '', 60, 1, 1, 0, '', datetime('now'), datetime('now')),
   ('src_def_mesghal', 'مثقال طلا ۱۷ عیار (زرما)', 'mesghal', 'telegram', 'zarmagoldd', '', '', 60, 1, 1, 0, '', datetime('now'), datetime('now'));
 
+-- 7. Price History Table (Time-series audit trail & graph analytics)
+CREATE TABLE IF NOT EXISTS price_history (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  source_id TEXT NOT NULL,
+  price_type TEXT NOT NULL,
+  source_name TEXT NOT NULL,
+  price REAL NOT NULL,
+  timestamp TEXT NOT NULL,
+  created_at TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_price_history_source ON price_history(source_id, timestamp DESC);
+CREATE INDEX IF NOT EXISTS idx_price_history_type ON price_history(price_type, timestamp DESC);
+CREATE INDEX IF NOT EXISTS idx_price_history_timestamp ON price_history(timestamp DESC);
+
 

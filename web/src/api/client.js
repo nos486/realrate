@@ -208,6 +208,23 @@ export async function apiTestPriceSource(config) {
   return res.json();
 }
 
+export async function apiFetchAllSourcesNow() {
+  const res = await apiFetch('/api/admin/price-sources/fetch-all', {
+    method: 'POST',
+  });
+  return res.json();
+}
+
+export async function apiGetPriceHistory({ sourceId = null, priceType = null, range = '24h', limit = 200 } = {}) {
+  const params = new URLSearchParams();
+  if (sourceId) params.append('sourceId', sourceId);
+  if (priceType) params.append('priceType', priceType);
+  if (range) params.append('range', range);
+  if (limit) params.append('limit', limit);
+  const res = await apiFetch(`/api/admin/price-history?${params.toString()}`);
+  return res.json();
+}
+
 
 // ─── Portfolios (Multi-portfolio Management) ───────────────────────────────
 

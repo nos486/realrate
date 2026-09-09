@@ -7,6 +7,7 @@
 import {
   dbGetPriceSources,
   dbUpdateSourceLastPrice,
+  dbRecordPriceHistory,
 } from "../lib/db.js";
 import { getGlobalSettings } from "../lib/settings.js";
 import {
@@ -214,8 +215,8 @@ export function parseSourceContent(source, rawContent) {
 export async function testPriceSourceConfig(config = {}) {
   const sourceType = config.sourceType || config.source_type || "telegram";
   const priceType = config.priceType || config.price_type || "usd";
-  const endpoint = config.endpoint || config.usd_telegram_channel || config.usd_api_url || "";
-  const regex = config.regex || "";
+  const endpoint = config.endpoint || config.channelUsername || config.apiUrl || config.usd_telegram_channel || config.usd_api_url || "";
+  const regex = config.regex || config.regexPattern || "";
   const jsonPath = config.jsonPath || config.json_path || config.usd_api_json_path || "";
   const name = config.name || "سورس تست";
 
@@ -335,9 +336,16 @@ export async function fetchAllPrices(env, forceRefresh = false, settings = null)
           label: parsed.label,
         });
 
-        // Update DB last price in background
+        // Update DB last price & record history in background
         if (env) {
           dbUpdateSourceLastPrice(env, src.id, parsed.price, parsed.datetime).catch(() => {});
+          dbRecordPriceHistory(env, {
+            sourceId: src.id,
+            priceType: src.priceType,
+            sourceName: src.name,
+            price: parsed.price,
+            timestamp: parsed.datetime,
+          }).catch(() => {});
         }
       }
     } catch (parseErr) {

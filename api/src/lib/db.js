@@ -110,6 +110,18 @@ export async function ensureD1Tables(env) {
     `CREATE INDEX IF NOT EXISTS idx_price_sources_type ON price_sources(price_type)`,
     `CREATE INDEX IF NOT EXISTS idx_price_sources_primary ON price_sources(is_primary)`,
     `CREATE INDEX IF NOT EXISTS idx_price_sources_active ON price_sources(is_active)`,
+    `CREATE TABLE IF NOT EXISTS price_history (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      source_id TEXT NOT NULL,
+      price_type TEXT NOT NULL,
+      source_name TEXT NOT NULL,
+      price REAL NOT NULL,
+      timestamp TEXT NOT NULL,
+      created_at TEXT NOT NULL
+    )`,
+    `CREATE INDEX IF NOT EXISTS idx_price_history_source ON price_history(source_id, timestamp DESC)`,
+    `CREATE INDEX IF NOT EXISTS idx_price_history_type ON price_history(price_type, timestamp DESC)`,
+    `CREATE INDEX IF NOT EXISTS idx_price_history_timestamp ON price_history(timestamp DESC)`,
   ];
 
   try {
@@ -1189,12 +1201,20 @@ export async function dbGetPriceSources(env) {
       `).all();
 
       if (Array.isArray(results) && results.length > 0) {
+        const mapped = results.map(row => ({
+          ...row,
+          channelUsername: row.sourceType === "telegram" ? row.endpoint : "",
+          apiUrl: row.sourceType === "api_url" ? row.endpoint : "",
+          regexPattern: row.regex || "",
+          fetchIntervalMinutes: Math.round((row.fetchIntervalSec || 300) / 60),
+        }));
+
         if (env.REALRATE_KV) {
           try {
-            await env.REALRATE_KV.put("price_sources_list", JSON.stringify(results));
+            await env.REALRATE_KV.put("price_sources_list", JSON.stringify(mapped));
           } catch (ignore) {}
         }
-        return results;
+        return mapped;
       }
     } catch (e) {
       console.error("D1 dbGetPriceSources error:", e);
@@ -1236,7 +1256,14 @@ export async function dbGetPriceSourceById(env, id) {
         FROM price_sources
         WHERE id = ?
       `).bind(id).first();
-      return row || null;
+      if (!row) return null;
+      return {
+        ...row,
+        channelUsername: row.sourceType === "telegram" ? row.endpoint : "",
+        apiUrl: row.sourceType === "api_url" ? row.endpoint : "",
+        regexPattern: row.regex || "",
+        fetchIntervalMinutes: Math.round((row.fetchIntervalSec || 300) / 60),
+      };
     } catch (e) {
       console.error("D1 dbGetPriceSourceById error:", e);
     }
@@ -1251,19 +1278,22 @@ export async function dbGetPriceSourceById(env, id) {
  * @returns {Promise<object>}
  */
 export async function dbSavePriceSource(env, data) {
-  if (!data.name || !data.priceType || !data.endpoint) {
+  const name = String(data.name || "").trim();
+  const priceType = String(data.priceType || data.price_type || "").trim();
+  const endpoint = String(data.endpoint || data.channelUsername || data.apiUrl || "").trim();
+
+  if (!name || !priceType || !endpoint) {
     throw new Error("نام، نوع قیمت و آدرس سورس (endpoint) الزامی هستند.");
   }
 
   const now = new Date().toISOString();
   const id = data.id || `src_${Date.now()}_${crypto.randomUUID().slice(0, 8)}`;
-  const name = String(data.name).trim();
-  const priceType = String(data.priceType).trim();
   const sourceType = data.sourceType === "api_url" ? "api_url" : "telegram";
-  const endpoint = String(data.endpoint).trim();
-  const regex = String(data.regex || "").trim();
-  const jsonPath = String(data.jsonPath || "").trim();
-  const fetchIntervalSec = parseInt(data.fetchIntervalSec, 10) > 0 ? parseInt(data.fetchIntervalSec, 10) : 60;
+  const regex = String(data.regex || data.regexPattern || "").trim();
+  const jsonPath = String(data.jsonPath || data.json_path || "").trim();
+  const fetchIntervalSec = parseInt(data.fetchIntervalSec, 10) > 0
+    ? parseInt(data.fetchIntervalSec, 10)
+    : (parseInt(data.fetchIntervalMinutes, 10) > 0 ? parseInt(data.fetchIntervalMinutes, 10) * 60 : 300);
   const isActive = data.isActive !== undefined ? (data.isActive ? 1 : 0) : 1;
   let isPrimary = data.isPrimary !== undefined ? (data.isPrimary ? 1 : 0) : 0;
 
@@ -1446,16 +1476,146 @@ export async function dbSetPrimaryPriceSource(env, id, priceType = null) {
  * @param {string} [lastFetched]
  */
 export async function dbUpdateSourceLastPrice(env, id, lastPrice, lastFetched = null) {
-  if (!id || !env || !env.DB) return;
-  try {
-    await env.DB.prepare(`
-      UPDATE price_sources
-      SET last_price = ?, last_fetched = ?, updated_at = ?
-      WHERE id = ?
-    `).bind(Number(lastPrice) || 0, lastFetched || new Date().toISOString(), new Date().toISOString(), id).run();
-  } catch (e) {
-    console.error("D1 dbUpdateSourceLastPrice error:", e);
+  if (!id || !env) return;
+  const isoTime = lastFetched || new Date().toISOString();
+  const priceNum = Number(lastPrice) || 0;
+
+  if (env.DB) {
+    try {
+      await env.DB.prepare(`
+        UPDATE price_sources
+        SET last_price = ?, last_fetched = ?, updated_at = ?
+        WHERE id = ?
+      `).bind(priceNum, isoTime, new Date().toISOString(), id).run();
+    } catch (e) {
+      console.error("D1 dbUpdateSourceLastPrice error:", e);
+    }
+  }
+
+  // Also sync with KV so dbGetPriceSources returns fresh values
+  if (env.REALRATE_KV) {
+    try {
+      const cached = await env.REALRATE_KV.get("price_sources_list");
+      if (cached) {
+        let list = JSON.parse(cached);
+        if (Array.isArray(list)) {
+          const idx = list.findIndex(s => s.id === id);
+          if (idx >= 0) {
+            list[idx].lastPrice = priceNum;
+            list[idx].lastFetched = isoTime;
+            await env.REALRATE_KV.put("price_sources_list", JSON.stringify(list));
+          }
+        }
+      }
+    } catch (ignore) {}
   }
 }
+
+/**
+ * Record a price snapshot to price_history table
+ * Deduplication: only insert if price changed from last recorded price for this source,
+ * or if more than 30 minutes have elapsed since last entry.
+ * @param {object} env
+ * @param {object} entry - { sourceId, priceType, sourceName, price, timestamp }
+ */
+export async function dbRecordPriceHistory(env, { sourceId, priceType, sourceName, price, timestamp }) {
+  if (!env || !env.DB || !sourceId || !price || Number(price) <= 0) return;
+  await ensureD1Tables(env);
+
+  const timeIso = timestamp || new Date().toISOString();
+  const now = new Date().toISOString();
+  const numPrice = Number(price);
+
+  try {
+    // Check the latest recorded price for this source
+    const lastRecord = await env.DB.prepare(`
+      SELECT price, timestamp FROM price_history
+      WHERE source_id = ?
+      ORDER BY timestamp DESC
+      LIMIT 1
+    `).bind(sourceId).first();
+
+    let shouldInsert = false;
+    if (!lastRecord) {
+      shouldInsert = true;
+    } else if (Math.round(lastRecord.price) !== Math.round(numPrice)) {
+      shouldInsert = true;
+    } else {
+      // Check if more than 30 minutes passed
+      const diffMs = new Date(timeIso).getTime() - new Date(lastRecord.timestamp).getTime();
+      if (diffMs > 30 * 60 * 1000) {
+        shouldInsert = true;
+      }
+    }
+
+    if (shouldInsert) {
+      await env.DB.prepare(`
+        INSERT INTO price_history (source_id, price_type, source_name, price, timestamp, created_at)
+        VALUES (?, ?, ?, ?, ?, ?)
+      `).bind(sourceId, priceType, sourceName || '', numPrice, timeIso, now).run();
+    }
+  } catch (e) {
+    console.error("D1 dbRecordPriceHistory error:", e);
+  }
+}
+
+/**
+ * Get historical price records for graphing and analytics
+ * @param {object} env
+ * @param {object} options - { sourceId, priceType, range = '24h', limit = 200 }
+ * @returns {Promise<Array>}
+ */
+export async function dbGetPriceHistory(env, { sourceId = null, priceType = null, range = '24h', limit = 200 } = {}) {
+  if (!env || !env.DB) return [];
+  await ensureD1Tables(env);
+
+  try {
+    let whereClauses = [];
+    let bindings = [];
+
+    if (sourceId) {
+      whereClauses.push("source_id = ?");
+      bindings.push(sourceId);
+    }
+
+    if (priceType) {
+      whereClauses.push("price_type = ?");
+      bindings.push(priceType);
+    }
+
+    // Time range filter
+    if (range && range !== 'all') {
+      const nowMs = Date.now();
+      let sinceMs = nowMs - 24 * 3600 * 1000; // default 24h
+      if (range === '7d') sinceMs = nowMs - 7 * 24 * 3600 * 1000;
+      else if (range === '30d') sinceMs = nowMs - 30 * 24 * 3600 * 1000;
+      else if (range === '1y') sinceMs = nowMs - 365 * 24 * 3600 * 1000;
+
+      const sinceIso = new Date(sinceMs).toISOString();
+      whereClauses.push("timestamp >= ?");
+      bindings.push(sinceIso);
+    }
+
+    const whereStr = whereClauses.length > 0 ? `WHERE ${whereClauses.join(" AND ")}` : "";
+    const parsedLimit = Math.min(Math.max(parseInt(limit, 10) || 100, 10), 500);
+
+    const query = `
+      SELECT id, source_id AS sourceId, price_type AS priceType,
+             source_name AS sourceName, price, timestamp, created_at AS createdAt
+      FROM price_history
+      ${whereStr}
+      ORDER BY timestamp ASC
+      LIMIT ?
+    `;
+    bindings.push(parsedLimit);
+
+    const { results } = await env.DB.prepare(query).bind(...bindings).all();
+    return Array.isArray(results) ? results : [];
+  } catch (e) {
+    console.error("D1 dbGetPriceHistory error:", e);
+    return [];
+  }
+}
+
 
 

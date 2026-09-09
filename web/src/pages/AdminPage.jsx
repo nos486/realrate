@@ -350,6 +350,20 @@ export default function AdminPage() {
     try {
       const res = await apiTestPriceSource(src);
       setRowTestResults((prev) => ({ ...prev, [src.id]: res }));
+      if (res.success && res.price) {
+        setSources((prev) =>
+          prev.map((s) =>
+            s.id === src.id
+              ? {
+                  ...s,
+                  lastPrice: res.price,
+                  lastFetched: res.datetime || new Date().toISOString(),
+                }
+              : s
+          )
+        );
+        showMsg(`قیمت با موفقیت استخراج و ذخیره شد: ${formatNum(res.price)} تومان`, 'success');
+      }
     } catch (err) {
       setRowTestResults((prev) => ({
         ...prev,
@@ -527,24 +541,39 @@ export default function AdminPage() {
       )}
 
       {/* Admin Profile Bar */}
-      <div className="admin-profile-bar">
-        <div className="admin-user-info">
-          <img
-            className="admin-avatar"
-            src={user.picture || ''}
-            alt={user.name}
-            onError={(e) => { e.target.style.display = 'none'; }}
-          />
-          <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-              <strong style={{ fontSize: '13px', color: 'var(--text-heading)' }}>{user.name || 'مدیر سیستم'}</strong>
-              <span className="admin-role-badge">مدیر کل</span>
+      <div className="admin-profile-bar admin-nav-header-bar">
+        <div className="admin-nav-brand-group">
+          <div className="admin-user-info">
+            <img
+              className="admin-avatar"
+              src={user.picture || ''}
+              alt={user.name}
+              onError={(e) => { e.target.style.display = 'none'; }}
+            />
+            <div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                <strong style={{ fontSize: '13px', color: 'var(--text-heading)' }}>{user.name || 'مدیر سیستم'}</strong>
+                <span className="admin-role-badge">مدیر کل</span>
+              </div>
+              <span style={{ fontSize: '11px', color: 'var(--text-muted)', direction: 'ltr', display: 'block' }}>
+                {user.email}
+              </span>
             </div>
-            <span style={{ fontSize: '11px', color: 'var(--text-muted)', direction: 'ltr', display: 'block' }}>
-              {user.email}
-            </span>
           </div>
+
+          {/* Admin Navigation Tabs */}
+          <nav className="admin-nav-tabs">
+            <Link to="/admin" className="admin-nav-tab active">
+              <Users size={14} />
+              <span>داشبورد عمومی و کاربران</span>
+            </Link>
+            <Link to="/admin/sources" className="admin-nav-tab">
+              <Radio size={14} />
+              <span>مدیریت سورس‌ها و نمودار قیمت</span>
+            </Link>
+          </nav>
         </div>
+
         <div className="admin-actions">
           <Link to="/" className="btn-sm site-link" title="مشاهده سایت">
             <span>مشاهده سایت</span>
@@ -697,6 +726,15 @@ export default function AdminPage() {
             <RefreshCw size={11} className={loadingSources ? 'spin-anim' : ''} style={{ verticalAlign: 'middle', marginLeft: '4px' }} />
             <span>بروزرسانی</span>
           </button>
+          <Link
+            to="/admin/sources"
+            className="btn-sm site-link"
+            style={{ padding: '5px 12px', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '5px', borderColor: 'var(--accent-blue)', color: 'var(--accent-blue)' }}
+            title="رفتن به صفحه اختصاصی سورس‌ها و نمودار تاریخچه قیمت"
+          >
+            <span>صفحه اختصاصی و نمودار</span>
+            <ExternalLink size={12} />
+          </Link>
           <button
             type="button"
             onClick={() => handleOpenAddSource(sourceFilter === 'all' ? 'usd' : sourceFilter)}

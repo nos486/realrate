@@ -13,11 +13,14 @@ import {
   dbSavePriceSource,
   dbDeletePriceSource,
   dbSetPrimaryPriceSource,
+  dbUpdateSourceLastPrice,
+  dbRecordPriceHistory,
+  dbGetPriceHistory,
 } from "../lib/db.js";
 import { getAdminStats } from "../lib/analytics.js";
 import { saveGlobalSettings } from "../lib/settings.js";
 import { testUsdSource } from "../services/telegramPrices.js";
-import { testPriceSourceConfig } from "../services/priceSources.js";
+import { testPriceSourceConfig, fetchAllPrices } from "../services/priceSources.js";
 import { jsonResponse, errorResponse, forbiddenResponse } from "../lib/helpers.js";
 
 /**
@@ -229,7 +232,8 @@ export async function handleAdminSetPrimarySource(request, env) {
 
 /**
  * POST /api/admin/price-sources/test
- * Test a price source config without saving — admin only
+ * Test a price source config without saving — admin only.
+ * If body.id is provided and test succeeds, updates last_price and records price history.
  */
 export async function handleAdminTestPriceSource(request, env) {
   const user = await getAuthenticatedUser(request, env);
@@ -238,9 +242,69 @@ export async function handleAdminTestPriceSource(request, env) {
   try {
     const body = await request.json();
     const testResult = await testPriceSourceConfig(body);
+
+    if (testResult.success && body.id && testResult.price) {
+      const nowIso = testResult.datetime || new Date().toISOString();
+      await dbUpdateSourceLastPrice(env, body.id, testResult.price, nowIso);
+      await dbRecordPriceHistory(env, {
+        sourceId: body.id,
+        priceType: body.price_type || body.priceType || 'usd_toman',
+        sourceName: body.name || '',
+        price: testResult.price,
+        timestamp: nowIso,
+      });
+      testResult.saved = true;
+    }
+
     return jsonResponse(testResult, testResult.success ? 200 : 400, request);
   } catch (e) {
     return errorResponse(e.message, 500, request);
   }
 }
+
+/**
+ * POST /api/admin/price-sources/fetch-all
+ * Force refresh all active price sources, update last_price and record history — admin only
+ */
+export async function handleAdminFetchAllSources(request, env) {
+  const user = await getAuthenticatedUser(request, env);
+  if (!user || user.role !== "admin") return forbiddenResponse(request);
+
+  try {
+    const prices = await fetchAllPrices(env, true);
+    const updatedSources = await dbGetPriceSources(env);
+    return jsonResponse({
+      success: true,
+      message: "تمامی سورس‌های فعال با موفقیت فراخوانی و بروز شدند.",
+      prices,
+      sources: updatedSources,
+    }, 200, request);
+  } catch (e) {
+    return errorResponse(e.message, 500, request);
+  }
+}
+
+/**
+ * GET /api/admin/price-history
+ * Query historical prices for graphing — admin only
+ * Params: sourceId, priceType, range ('24h', '7d', '30d', '1y', 'all'), limit
+ */
+export async function handleAdminGetPriceHistory(request, env) {
+  const user = await getAuthenticatedUser(request, env);
+  if (!user || user.role !== "admin") return forbiddenResponse(request);
+
+  try {
+    const url = new URL(request.url);
+    const sourceId = url.searchParams.get("sourceId") || null;
+    const priceType = url.searchParams.get("priceType") || null;
+    const range = url.searchParams.get("range") || "24h";
+    const limit = url.searchParams.get("limit") || 200;
+
+    const history = await dbGetPriceHistory(env, { sourceId, priceType, range, limit });
+    return jsonResponse({ success: true, history }, 200, request);
+  } catch (e) {
+    return errorResponse(e.message, 500, request);
+  }
+}
+
 

@@ -32,6 +32,8 @@ import {
   handleAdminDeletePriceSource,
   handleAdminSetPrimarySource,
   handleAdminTestPriceSource,
+  handleAdminFetchAllSources,
+  handleAdminGetPriceHistory,
 } from "./handlers/adminRoutes.js";
 import { handleCalculate, handleFetchRates } from "./handlers/apiRoutes.js";
 import {
@@ -102,6 +104,12 @@ export default {
     }
     if (url.pathname === "/api/admin/price-sources/test" && request.method === "POST") {
       return handleAdminTestPriceSource(request, env);
+    }
+    if (url.pathname === "/api/admin/price-sources/fetch-all" && request.method === "POST") {
+      return handleAdminFetchAllSources(request, env);
+    }
+    if (url.pathname === "/api/admin/price-history" && request.method === "GET") {
+      return handleAdminGetPriceHistory(request, env);
     }
 
     // ── Portfolio API Routes ────────────────────────────────────────────────
