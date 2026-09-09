@@ -5,6 +5,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { apiGetPrices } from '../api/client.js';
 import { calculateMarketData } from '../utils/calculator.js';
+import { formatThousands } from '../utils/formatters.js';
 
 function parseNum(val) {
   if (!val) return 0;
@@ -34,8 +35,8 @@ export function useMarketData() {
           setRates(data);
           const usd = data.live_usd_toman || data.globalSettings?.default_usd_toman || '';
           const gold = data.gold_usd || data.globalSettings?.default_gold_usd || 2890;
-          setUsdToman(usd ? String(Math.round(usd)) : '');
-          setGoldUsd(String(gold));
+          setUsdToman(usd ? formatThousands(Math.round(usd), false) : '');
+          setGoldUsd(gold ? formatThousands(gold, true) : '');
         }
       })
       .catch(console.error)
