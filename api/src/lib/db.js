@@ -181,6 +181,12 @@ export async function ensureD1Tables(env) {
       await env.DB.prepare("ALTER TABLE settings ADD COLUMN accent_color TEXT DEFAULT '#38bdf8'").run();
     } catch (ignore) {}
     try {
+      await env.DB.prepare("ALTER TABLE settings ADD COLUMN border_color TEXT DEFAULT '#1e293b'").run();
+    } catch (ignore) {}
+    try {
+      await env.DB.prepare("ALTER TABLE settings ADD COLUMN card_bg_color TEXT DEFAULT '#0d131f'").run();
+    } catch (ignore) {}
+    try {
       await env.DB.prepare("ALTER TABLE settings ADD COLUMN color_preset TEXT DEFAULT 'ocean'").run();
     } catch (ignore) {}
 

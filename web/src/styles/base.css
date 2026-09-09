@@ -212,7 +212,7 @@ input:focus, select:focus, textarea:focus {
 .admin-btn-primary,
 .btn {
   background: var(--primary-gradient);
-  color: var(--primary-text, #ffffff);
+  color: var(--primary-text, #ffffff) !important;
   border: 1px solid var(--primary-border, rgba(255, 255, 255, 0.25));
   box-shadow: var(--primary-glow);
 }
@@ -821,14 +821,18 @@ input:focus, select:focus, textarea:focus {
 .filter-pill-btn.active {
   background: var(--primary-gradient);
   border-color: var(--primary-border, rgba(56, 189, 248, 0.5));
-  color: var(--primary-text, #ffffff);
+  color: var(--primary-text, #ffffff) !important;
   font-weight: 700;
   box-shadow: var(--primary-glow);
 }
 
 .filter-pill-btn.active .pill-icon {
   opacity: 1;
-  color: var(--primary-text, #ffffff);
+  color: var(--primary-text, #ffffff) !important;
+}
+
+.filter-pill-btn.active .pill-label {
+  color: var(--primary-text, #ffffff) !important;
 }
 
 .filter-pill-btn .pill-badge {
@@ -868,24 +872,24 @@ input:focus, select:focus, textarea:focus {
   gap: 7px;
 }
 
-/* ── Segmented Control Variant (Modern Elevated Dock) ────────────────────── */
+/* ── Segmented Control Variant (Unified with Card Design) ───────────────── */
 .ui-filter-pills.variant-segmented {
-  background: rgba(15, 22, 36, 0.85);
+  background: var(--card-bg);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  border: 1px solid var(--card-border);
   padding: 5px;
-  border-radius: 14px;
+  border-radius: var(--card-radius, 16px);
   gap: 4px;
   width: fit-content;
   max-width: 100%;
-  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  box-shadow: var(--card-shadow);
 }
 
 .ui-filter-pills.variant-segmented.size-lg {
   padding: 6px;
   gap: 6px;
-  border-radius: 16px;
+  border-radius: var(--card-radius, 16px);
 }
 
 .ui-filter-pills.variant-segmented .filter-pill-btn {

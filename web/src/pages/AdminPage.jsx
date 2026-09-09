@@ -33,7 +33,7 @@ import {
   Palette,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext.jsx';
-import { useTheme, COLOR_PRESETS } from '../context/ThemeContext.jsx';
+import { useTheme, COLOR_PRESETS, getContrastColor, shadeColor } from '../context/ThemeContext.jsx';
 import {
   apiAdminStats,
   apiAdminUsers,
@@ -112,28 +112,52 @@ export default function AdminPage({ embedded = false }) {
   const [usdApiJsonPath, setUsdApiJsonPath] = useState('');
 
   // Brand color theme standards state
-  const { primaryColor: currentPrimary, accentColor: currentAccent, colorPreset: currentPreset, applyThemeColor } = useTheme();
+  const {
+    primaryColor: currentPrimary,
+    accentColor: currentAccent,
+    borderColor: currentBorder,
+    cardBgColor: currentCardBg,
+    colorPreset: currentPreset,
+    applyThemeColor
+  } = useTheme();
+
   const [selectedPrimary, setSelectedPrimary] = useState(currentPrimary || '#0284c7');
   const [selectedAccent, setSelectedAccent] = useState(currentAccent || '#38bdf8');
+  const [selectedBorder, setSelectedBorder] = useState(currentBorder || '#1e293b');
+  const [selectedCardBg, setSelectedCardBg] = useState(currentCardBg || '#0d131f');
   const [selectedPreset, setSelectedPreset] = useState(currentPreset || 'ocean');
 
   const handleSelectPreset = (preset) => {
     setSelectedPreset(preset.id);
     setSelectedPrimary(preset.primary);
     setSelectedAccent(preset.accent);
-    applyThemeColor(preset.primary, preset.accent, preset.id);
+    setSelectedBorder(preset.border || '#1e293b');
+    setSelectedCardBg(preset.cardBg || '#0d131f');
+    applyThemeColor(preset.primary, preset.accent, preset.id, preset.border || '#1e293b', preset.cardBg || '#0d131f');
   };
 
   const handleCustomPrimaryChange = (color) => {
     setSelectedPreset('custom');
     setSelectedPrimary(color);
-    applyThemeColor(color, selectedAccent, 'custom');
+    applyThemeColor(color, selectedAccent, 'custom', selectedBorder, selectedCardBg);
   };
 
   const handleCustomAccentChange = (color) => {
     setSelectedPreset('custom');
     setSelectedAccent(color);
-    applyThemeColor(selectedPrimary, color, 'custom');
+    applyThemeColor(selectedPrimary, color, 'custom', selectedBorder, selectedCardBg);
+  };
+
+  const handleCustomBorderChange = (color) => {
+    setSelectedPreset('custom');
+    setSelectedBorder(color);
+    applyThemeColor(selectedPrimary, selectedAccent, 'custom', color, selectedCardBg);
+  };
+
+  const handleCustomCardBgChange = (color) => {
+    setSelectedPreset('custom');
+    setSelectedCardBg(color);
+    applyThemeColor(selectedPrimary, selectedAccent, 'custom', selectedBorder, color);
   };
 
   // Test source state
@@ -201,6 +225,8 @@ export default function AdminPage({ embedded = false }) {
             if (s.usd_api_json_path !== undefined) setUsdApiJsonPath(s.usd_api_json_path || '');
             if (s.primary_color) setSelectedPrimary(s.primary_color);
             if (s.accent_color) setSelectedAccent(s.accent_color);
+            if (s.border_color) setSelectedBorder(s.border_color);
+            if (s.card_bg_color) setSelectedCardBg(s.card_bg_color);
             if (s.color_preset) setSelectedPreset(s.color_preset);
           }
         })
@@ -246,11 +272,13 @@ export default function AdminPage({ embedded = false }) {
         usd_api_json_path: usdApiJsonPath,
         primary_color: selectedPrimary,
         accent_color: selectedAccent,
+        border_color: selectedBorder,
+        card_bg_color: selectedCardBg,
         color_preset: selectedPreset,
       });
 
       if (res.success) {
-        applyThemeColor(selectedPrimary, selectedAccent, selectedPreset);
+        applyThemeColor(selectedPrimary, selectedAccent, selectedPreset, selectedBorder, selectedCardBg);
         showMsg(res.message || 'تنظیمات با موفقیت ذخیره شد.', 'success');
       } else {
         showMsg(res.message || 'خطا در ذخیره‌سازی تنظیمات', 'error');
@@ -549,87 +577,206 @@ export default function AdminPage({ embedded = false }) {
             </div>
           </div>
 
-          {/* Custom Color Controls */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '16px', paddingTop: '16px', borderTop: '1px solid var(--border-medium)' }}>
+          {/* Custom Color Controls (4-dimension Design System) */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '14px', paddingTop: '16px', borderTop: '1px solid var(--border-medium)' }}>
+            {/* 1. Primary Color */}
             <div className="form-group" style={{ margin: 0 }}>
-              <label style={{ fontSize: '12.5px', fontWeight: 600, marginBottom: '6px', display: 'block' }}>
-                رنگ اصلی برنامه (Primary Brand Color)
+              <label style={{ fontSize: '12px', fontWeight: 700, marginBottom: '6px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: selectedPrimary }} />
+                رنگ اصلی برند (Primary)
               </label>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <input
                   type="color"
-                  value={selectedPrimary}
+                  value={selectedPrimary.startsWith('#') ? selectedPrimary : '#0284c7'}
                   onChange={(e) => handleCustomPrimaryChange(e.target.value)}
-                  style={{ width: '44px', height: '42px', padding: '2px', borderRadius: '10px', cursor: 'pointer', border: '1px solid var(--border-control)' }}
+                  style={{ width: '42px', height: '38px', padding: '2px', borderRadius: '8px', cursor: 'pointer', border: '1px solid var(--border-control)' }}
                 />
                 <input
                   type="text"
                   value={selectedPrimary}
                   onChange={(e) => handleCustomPrimaryChange(e.target.value)}
                   placeholder="#0284c7"
-                  style={{ direction: 'ltr', fontFamily: 'monospace', fontWeight: 700 }}
+                  style={{ direction: 'ltr', fontFamily: 'monospace', fontWeight: 700, fontSize: '13px' }}
                 />
               </div>
+              <span style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '4px', display: 'block' }}>
+                دکمه‌های اصلی، تب‌های فعال و فوکوس
+              </span>
             </div>
 
+            {/* 2. Accent & Highlight Color */}
             <div className="form-group" style={{ margin: 0 }}>
-              <label style={{ fontSize: '12.5px', fontWeight: 600, marginBottom: '6px', display: 'block' }}>
-                رنگ ثانویه / اکسنت (Accent / Highlight Color)
+              <label style={{ fontSize: '12px', fontWeight: 700, marginBottom: '6px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: selectedAccent }} />
+                متون هایلایت و اکسنت (Accent)
               </label>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <input
                   type="color"
-                  value={selectedAccent}
+                  value={selectedAccent.startsWith('#') ? selectedAccent : '#38bdf8'}
                   onChange={(e) => handleCustomAccentChange(e.target.value)}
-                  style={{ width: '44px', height: '42px', padding: '2px', borderRadius: '10px', cursor: 'pointer', border: '1px solid var(--border-control)' }}
+                  style={{ width: '42px', height: '38px', padding: '2px', borderRadius: '8px', cursor: 'pointer', border: '1px solid var(--border-control)' }}
                 />
                 <input
                   type="text"
                   value={selectedAccent}
                   onChange={(e) => handleCustomAccentChange(e.target.value)}
                   placeholder="#38bdf8"
-                  style={{ direction: 'ltr', fontFamily: 'monospace', fontWeight: 700 }}
+                  style={{ direction: 'ltr', fontFamily: 'monospace', fontWeight: 700, fontSize: '13px' }}
                 />
               </div>
+              <span style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '4px', display: 'block' }}>
+                تیتر بخش‌ها (متن‌های شاخص)، آیکون‌ها و بج‌ها
+              </span>
+            </div>
+
+            {/* 3. Border Color */}
+            <div className="form-group" style={{ margin: 0 }}>
+              <label style={{ fontSize: '12px', fontWeight: 700, marginBottom: '6px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: selectedBorder }} />
+                رنگ حاشیه‌ها و کادرها (Border)
+              </label>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <input
+                  type="color"
+                  value={selectedBorder.startsWith('#') ? selectedBorder : '#1e293b'}
+                  onChange={(e) => handleCustomBorderChange(e.target.value)}
+                  style={{ width: '42px', height: '38px', padding: '2px', borderRadius: '8px', cursor: 'pointer', border: '1px solid var(--border-control)' }}
+                />
+                <input
+                  type="text"
+                  value={selectedBorder}
+                  onChange={(e) => handleCustomBorderChange(e.target.value)}
+                  placeholder="#1e293b"
+                  style={{ direction: 'ltr', fontFamily: 'monospace', fontWeight: 700, fontSize: '13px' }}
+                />
+              </div>
+              <span style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '4px', display: 'block' }}>
+                خط دور یکپارچه تمام کارت‌ها و نوار تب‌ها
+              </span>
+            </div>
+
+            {/* 4. Card & Container Background */}
+            <div className="form-group" style={{ margin: 0 }}>
+              <label style={{ fontSize: '12px', fontWeight: 700, marginBottom: '6px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: selectedCardBg }} />
+                پس‌زمینه کارت‌ها و تب‌ها (Card Bg)
+              </label>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <input
+                  type="color"
+                  value={selectedCardBg.startsWith('#') ? selectedCardBg : '#0d131f'}
+                  onChange={(e) => handleCustomCardBgChange(e.target.value)}
+                  style={{ width: '42px', height: '38px', padding: '2px', borderRadius: '8px', cursor: 'pointer', border: '1px solid var(--border-control)' }}
+                />
+                <input
+                  type="text"
+                  value={selectedCardBg}
+                  onChange={(e) => handleCustomCardBgChange(e.target.value)}
+                  placeholder="#0d131f"
+                  style={{ direction: 'ltr', fontFamily: 'monospace', fontWeight: 700, fontSize: '13px' }}
+                />
+              </div>
+              <span style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '4px', display: 'block' }}>
+                پس‌زمینه سطوح کارت‌ها و داک شناور تب‌ها
+              </span>
             </div>
           </div>
 
           {/* Live Component Preview */}
           <div style={{
-            background: 'rgba(0, 0, 0, 0.25)',
-            border: '1px solid var(--border-subtle)',
-            borderRadius: '12px',
-            padding: '16px 18px',
+            background: selectedCardBg,
+            border: `1px solid ${selectedBorder}`,
+            borderRadius: '16px',
+            padding: '18px 20px',
             display: 'flex',
             flexDirection: 'column',
-            gap: '12px'
+            gap: '14px',
+            boxShadow: 'var(--card-shadow)',
+            transition: 'all 0.2s ease'
           }}>
-            <span style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <Sparkles size={14} style={{ color: selectedPrimary }} />
-              پیش‌نمایش زنده المان‌های سامانه با این تم رنگی (Live Preview):
-            </span>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px' }}>
+              <span style={{ fontSize: '12.5px', fontWeight: 700, color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '7px' }}>
+                <Sparkles size={14} style={{ color: selectedPrimary }} />
+                پیش‌نمایش زنده المان‌ها و استانداردهای رنگی سامانه (Live Preview):
+              </span>
+              <span style={{ fontSize: '11px', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                <CheckCircle2 size={13} style={{ color: selectedAccent }} />
+                بوردر تب و کارت کاملاً یکسان هستند
+              </span>
+            </div>
+
+            {/* Live Section Heading Demo (Orange text fix) */}
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '7px',
+              fontSize: '13.5px',
+              fontWeight: 800,
+              color: selectedAccent,
+              paddingBottom: '8px',
+              borderBottom: `1px dashed ${selectedBorder}`
+            }}>
+              <BarChart3 size={15} style={{ verticalAlign: 'middle' }} />
+              <span>عنوان بخش / متن شاخص (تکست‌های هایلایت با رنگ ثانویه: {selectedAccent})</span>
+            </div>
+
             <div style={{ display: 'flex', alignItems: 'center', gap: '14px', flexWrap: 'wrap' }}>
-              <button type="button" className="btn btn-primary" style={{ padding: '8px 18px', fontSize: '13px', pointerEvents: 'none' }}>
+              {/* Primary Button */}
+              <button
+                type="button"
+                className="btn btn-primary"
+                style={{
+                  padding: '9px 20px',
+                  fontSize: '13px',
+                  pointerEvents: 'none',
+                  background: `linear-gradient(135deg, ${selectedPrimary} 0%, ${shadeColor(selectedPrimary, -18)} 100%)`,
+                  color: `${getContrastColor(selectedPrimary)} !important`,
+                  border: `1px solid ${selectedPrimary}66`,
+                  boxShadow: `0 4px 16px ${selectedPrimary}44`
+                }}
+              >
                 دکمه اکشن اصلی (Primary Button)
               </button>
-              <div className="ui-filter-pills variant-segmented size-md" style={{ pointerEvents: 'none' }}>
-                <button type="button" className="filter-pill-btn active" style={{ pointerEvents: 'none' }}>
+
+              {/* Segmented Tab Dock */}
+              <div
+                className="ui-filter-pills variant-segmented size-md"
+                style={{
+                  pointerEvents: 'none',
+                  background: selectedCardBg,
+                  border: `1px solid ${selectedBorder}`
+                }}
+              >
+                <button
+                  type="button"
+                  className="filter-pill-btn active"
+                  style={{
+                    pointerEvents: 'none',
+                    background: `linear-gradient(135deg, ${selectedPrimary} 0%, ${shadeColor(selectedPrimary, -18)} 100%)`,
+                    color: `${getContrastColor(selectedPrimary)} !important`,
+                    boxShadow: `0 4px 16px ${selectedPrimary}44`
+                  }}
+                >
                   تب فعال سیستم
                 </button>
                 <button type="button" className="filter-pill-btn" style={{ pointerEvents: 'none' }}>
                   تب عادی
                 </button>
               </div>
+
+              {/* Accent Badge */}
               <span style={{
                 display: 'inline-flex',
                 alignItems: 'center',
-                padding: '4px 12px',
+                padding: '5px 13px',
                 borderRadius: '999px',
                 fontSize: '11px',
                 fontWeight: 700,
-                background: `var(--primary-soft-bg, ${selectedPrimary}22)`,
-                color: selectedPrimary,
-                border: `1px solid ${selectedPrimary}55`
+                background: `${selectedAccent}22`,
+                color: selectedAccent,
+                border: `1px solid ${selectedAccent}55`
               }}>
                 بج هایلایت فعال
               </span>
@@ -729,7 +876,7 @@ export default function AdminPage({ embedded = false }) {
           />
         </div>
 
-        <button type="submit" className="btn" disabled={saving}>
+        <button type="submit" className="btn btn-primary btn-admin-submit" disabled={saving}>
           <Save size={16} style={{ verticalAlign: 'middle', marginLeft: '6px', display: 'inline' }} />
           <span>{saving ? 'در حال ذخیره‌سازی...' : 'ذخیره کلیه تغییرات'}</span>
         </button>

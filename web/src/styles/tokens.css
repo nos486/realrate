@@ -64,9 +64,9 @@
   --accent-green: #10b981;
   --accent-rose: #f43f5e;
 
-  --gold-primary: #f59e0b;
-  --gold-light: #fbbf24;
-  --gold-gradient: linear-gradient(135deg, #fbbf24 0%, #d97706 100%);
+  --gold-primary: var(--accent-color, #f59e0b);
+  --gold-light: var(--accent-color, #fbbf24);
+  --gold-gradient: linear-gradient(135deg, var(--accent-color, #fbbf24) 0%, var(--primary-color, #d97706) 100%);
   --gold-soft-bg: rgba(245, 158, 11, 0.08);
 
   --green-emerald: #10b981;

@@ -17,6 +17,8 @@ const DEFAULT_SETTINGS = {
   usd_api_json_path: "",
   primary_color: "#0284c7",
   accent_color: "#38bdf8",
+  border_color: "#1e293b",
+  card_bg_color: "#0d131f",
   color_preset: "ocean",
 };
 
@@ -56,6 +58,8 @@ export async function getGlobalSettings(env, forceFresh = false) {
           usd_api_json_path: row.usd_api_json_path || "",
           primary_color:     row.primary_color || DEFAULT_SETTINGS.primary_color,
           accent_color:      row.accent_color || DEFAULT_SETTINGS.accent_color,
+          border_color:      row.border_color || DEFAULT_SETTINGS.border_color,
+          card_bg_color:     row.card_bg_color || DEFAULT_SETTINGS.card_bg_color,
           color_preset:      row.color_preset || DEFAULT_SETTINGS.color_preset,
         };
       }
@@ -101,9 +105,9 @@ export async function saveGlobalSettings(env, newSettings) {
         INSERT INTO settings (
           id, default_usd_toman, default_gold_usd, bubble_pct_full, bubble_pct_half, bubble_pct_quarter, announcement,
           usd_source_type, usd_telegram_channel, usd_api_url, usd_api_json_path,
-          primary_color, accent_color, color_preset, updated_at
+          primary_color, accent_color, border_color, card_bg_color, color_preset, updated_at
         )
-        VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
+        VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
         ON CONFLICT(id) DO UPDATE SET
           default_usd_toman    = excluded.default_usd_toman,
           default_gold_usd     = excluded.default_gold_usd,
@@ -117,6 +121,8 @@ export async function saveGlobalSettings(env, newSettings) {
           usd_api_json_path    = excluded.usd_api_json_path,
           primary_color        = excluded.primary_color,
           accent_color         = excluded.accent_color,
+          border_color         = excluded.border_color,
+          card_bg_color        = excluded.card_bg_color,
           color_preset         = excluded.color_preset,
           updated_at           = excluded.updated_at
       `).bind(
@@ -132,6 +138,8 @@ export async function saveGlobalSettings(env, newSettings) {
         mergedSettings.usd_api_json_path,
         mergedSettings.primary_color,
         mergedSettings.accent_color,
+        mergedSettings.border_color,
+        mergedSettings.card_bg_color,
         mergedSettings.color_preset
       ).run();
     } catch (e) {

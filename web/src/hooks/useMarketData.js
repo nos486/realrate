@@ -38,7 +38,9 @@ export function useMarketData() {
             applyThemeColor(
               data.globalSettings.primary_color,
               data.globalSettings.accent_color,
-              data.globalSettings.color_preset
+              data.globalSettings.color_preset,
+              data.globalSettings.border_color,
+              data.globalSettings.card_bg_color
             );
           }
           const usd = data.live_usd_toman || data.globalSettings?.default_usd_toman || '';

@@ -17,7 +17,7 @@
 .admin-header h2 {
   font-size: 22px;
   font-weight: 800;
-  color: var(--gold-light);
+  color: var(--accent-color, var(--primary-color));
 }
 
 .admin-header p {
@@ -47,12 +47,12 @@
   height: 36px;
   border-radius: 50%;
   object-fit: cover;
-  border: 2px solid var(--gold-light);
+  border: 2px solid var(--accent-color, var(--primary-color));
 }
 
 .admin-role-badge {
-  background: var(--gold-gradient);
-  color: #000;
+  background: var(--primary-gradient);
+  color: var(--primary-text, #ffffff);
   font-size: 11px;
   font-weight: 800;
   padding: 2px 8px;
@@ -132,7 +132,7 @@
 .section-title {
   font-size: 14px;
   font-weight: 800;
-  color: var(--gold-light);
+  color: var(--accent-color, var(--primary-color));
   margin: 22px 0 12px 0;
   padding-bottom: 6px;
   border-bottom: 1px dashed var(--border-subtle);
@@ -249,23 +249,9 @@
   .grid-2 { grid-template-columns: 1fr; }
 }
 
-.btn {
+.btn-admin-submit {
   width: 100%;
-  background: var(--gold-gradient);
-  border: none;
-  color: #000;
-  font-weight: 800;
-  font-size: 14px;
-  padding: 12px;
-  border-radius: var(--radius-sm);
-  cursor: pointer;
-  transition: var(--transition-fast);
   margin-top: 10px;
-}
-
-.btn:hover {
-  opacity: 0.92;
-  transform: translateY(-1px);
 }
 
 .msg-box {
@@ -455,20 +441,20 @@
 }
 
 .btn-primary-action {
-  background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
-  color: #ffffff;
-  border: none;
+  background: var(--primary-gradient);
+  color: var(--primary-text, #ffffff);
+  border: 1px solid var(--primary-border, rgba(255, 255, 255, 0.2));
   border-radius: var(--radius-sm);
   font-weight: 700;
   cursor: pointer;
   transition: var(--transition-fast);
-  box-shadow: 0 2px 8px rgba(37, 99, 235, 0.25);
+  box-shadow: var(--primary-glow);
 }
 
 .btn-primary-action:hover {
-  background: linear-gradient(135deg, #60a5fa 0%, #3b82f6 100%);
+  filter: brightness(1.08);
   transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.35);
+  box-shadow: var(--primary-glow-lg);
 }
 
 .sources-filter-bar {

@@ -51,6 +51,8 @@ CREATE TABLE IF NOT EXISTS settings (
   usd_api_json_path TEXT DEFAULT '',
   primary_color TEXT DEFAULT '#0284c7',
   accent_color TEXT DEFAULT '#38bdf8',
+  border_color TEXT DEFAULT '#1e293b',
+  card_bg_color TEXT DEFAULT '#0d131f',
   color_preset TEXT DEFAULT 'ocean',
   updated_at TEXT
 );
