@@ -10,6 +10,7 @@ import {
   ChevronDown,
   User,
   ShieldCheck,
+  Radio,
   LogOut,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext.jsx';
@@ -208,10 +209,16 @@ export default function Header({ usdToman, gold18kPrice, activeTab, setActiveTab
                   </button>
 
                   {user.role === 'admin' && (
-                    <Link to="/admin" className="dropdown-link admin" onClick={() => setDropdownOpen(false)}>
-                      <ShieldCheck size={15} strokeWidth={2} />
-                      <span>پنل مدیریت</span>
-                    </Link>
+                    <>
+                      <Link to="/admin" className="dropdown-link admin" onClick={() => setDropdownOpen(false)}>
+                        <ShieldCheck size={15} strokeWidth={2} />
+                        <span>پنل مدیریت و کاربران</span>
+                      </Link>
+                      <Link to="/admin/sources" className="dropdown-link admin" onClick={() => setDropdownOpen(false)}>
+                        <Radio size={15} strokeWidth={2} />
+                        <span>سورس‌های قیمت و نمودارها</span>
+                      </Link>
+                    </>
                   )}
                   <button className="dropdown-link logout" onClick={() => { logout(); setDropdownOpen(false); }}>
                     <LogOut size={15} strokeWidth={2} />

@@ -1354,6 +1354,16 @@ export async function dbSavePriceSource(env, data) {
 
     const saved = await dbGetPriceSourceById(env, id);
 
+    if (data.lastPrice && Number(data.lastPrice) > 0) {
+      await dbRecordPriceHistory(env, {
+        sourceId: id,
+        priceType,
+        sourceName: name,
+        price: Number(data.lastPrice),
+        timestamp: data.lastFetched || now,
+      });
+    }
+
     // Update KV
     try {
       const all = await dbGetPriceSources(env);
@@ -1381,8 +1391,9 @@ export async function dbDeletePriceSource(env, id) {
     await ensureD1Tables(env);
 
     const target = await dbGetPriceSourceById(env, id);
-    if (!target) return false;
-
+    // Delete all historical price points for this source
+    await env.DB.prepare("DELETE FROM price_history WHERE source_id = ?").bind(id).run();
+    // Delete the source configuration
     await env.DB.prepare("DELETE FROM price_sources WHERE id = ?").bind(id).run();
 
     // If was primary, promote the next active source of this price_type
