@@ -65,56 +65,7 @@
   }
 }
 
-/* ── Header Tab Switcher (Visible & Icon-only on Mobile) ──────────────────── */
-.header-tabs-switcher {
-  display: flex;
-  align-items: center;
-  background: rgba(255, 255, 255, 0.04);
-  border-radius: var(--radius-full);
-  padding: 3px;
-  gap: 3px;
-}
 
-@media (min-width: 769px) {
-  .header-tabs-switcher {
-    display: none; /* Desktop uses the body tab bar */
-  }
-}
-
-.header-tab-btn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  padding: 6px 12px;
-  border-radius: var(--radius-full);
-  background: transparent;
-  border: none;
-  color: var(--text-muted);
-  font-size: 12px;
-  font-weight: 700;
-  cursor: pointer;
-  transition: var(--transition-fast);
-}
-
-.header-tab-btn:hover {
-  color: var(--text-primary);
-}
-
-.header-tab-btn.active {
-  background: rgba(255, 255, 255, 0.12);
-  color: #fff;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
-}
-
-@media (max-width: 768px) {
-  .header-tab-btn {
-    padding: 6px 10px;
-  }
-  .header-tab-btn .tab-btn-title {
-    display: none; /* Strictly icon-only on mobile per user request */
-  }
-}
 
 /* ── Permanent Live USD & Gold 18k Ticker (Desktop) ────────────────────────── */
 .header-live-ticker {

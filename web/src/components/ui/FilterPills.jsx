@@ -27,6 +27,8 @@ export default function FilterPills({
         type="button"
         role="tab"
         aria-selected={isOptActive}
+        title={opt.label}
+        aria-label={opt.label}
         className={`filter-pill-btn ${isOptActive ? 'active' : ''}`}
         onClick={() => onChange(opt.value)}
       >

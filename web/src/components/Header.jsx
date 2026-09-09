@@ -1,13 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import {
-  TrendingUp,
-  Briefcase,
   Eye,
   EyeOff,
-  Settings,
-  ShieldCheck,
-  Radio,
   LogOut,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext.jsx';
@@ -109,131 +104,6 @@ export default function Header({ usdToman, gold18kPrice, activeTab, setActiveTab
           </Link>
         </div>
 
-        {/* Tab Switcher */}
-        <nav className="header-tabs-switcher" aria-label="انتخاب تب">
-          {setActiveTab ? (
-            <>
-              <button
-                type="button"
-                className={`header-tab-btn ${activeTab === 'market' ? 'active' : ''}`}
-                onClick={() => setActiveTab('market')}
-                title="نرخ و حباب طلا، سکه و ارز"
-                aria-label="بازار"
-              >
-                <TrendingUp size={17} strokeWidth={2.2} />
-                <span className="tab-btn-title">نرخ و حباب</span>
-              </button>
-
-              <button
-                type="button"
-                className={`header-tab-btn ${activeTab === 'portfolio' ? 'active' : ''}`}
-                onClick={() => setActiveTab('portfolio')}
-                title="پورتفوی دارایی من"
-                aria-label="پورتفو"
-              >
-                <Briefcase size={17} strokeWidth={2.2} />
-                <span className="tab-btn-title">پورتفو</span>
-              </button>
-
-              {user && (
-                <button
-                  type="button"
-                  className={`header-tab-btn ${activeTab === 'settings' ? 'active' : ''}`}
-                  onClick={() => setActiveTab ? setActiveTab('settings') : null}
-                  title="تنظیمات حساب کاربری"
-                  aria-label="تنظیمات"
-                >
-                  <Settings size={17} strokeWidth={2.2} />
-                  <span className="tab-btn-title">تنظیمات</span>
-                </button>
-              )}
-
-              {user?.role === 'admin' && (
-                <>
-                  <button
-                    type="button"
-                    className={`header-tab-btn ${activeTab === 'admin' ? 'active' : ''}`}
-                    onClick={() => setActiveTab ? setActiveTab('admin') : null}
-                    title="پنل مدیریت و کاربران"
-                    aria-label="مدیریت"
-                  >
-                    <ShieldCheck size={17} strokeWidth={2.2} />
-                    <span className="tab-btn-title">مدیریت</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    className={`header-tab-btn ${activeTab === 'sources' ? 'active' : ''}`}
-                    onClick={() => setActiveTab ? setActiveTab('sources') : null}
-                    title="سورس‌های قیمت و نمودارها"
-                    aria-label="سورس‌ها"
-                  >
-                    <Radio size={17} strokeWidth={2.2} />
-                    <span className="tab-btn-title">سورس‌ها</span>
-                  </button>
-                </>
-              )}
-            </>
-          ) : (
-            <>
-              <Link
-                to="/"
-                className={`header-tab-btn ${activeTab === 'market' || !activeTab ? 'active' : ''}`}
-                title="نرخ و حباب طلا، سکه و ارز"
-                aria-label="بازار"
-              >
-                <TrendingUp size={17} strokeWidth={2.2} />
-                <span className="tab-btn-title">نرخ و حباب</span>
-              </Link>
-
-              <Link
-                to="/portfolio"
-                className={`header-tab-btn ${activeTab === 'portfolio' ? 'active' : ''}`}
-                title="پورتفوی دارایی من"
-                aria-label="پورتفو"
-              >
-                <Briefcase size={17} strokeWidth={2.2} />
-                <span className="tab-btn-title">پورتفو</span>
-              </Link>
-
-              {user && (
-                <Link
-                  to="/settings"
-                  className={`header-tab-btn ${activeTab === 'settings' ? 'active' : ''}`}
-                  title="تنظیمات حساب کاربری"
-                  aria-label="تنظیمات"
-                >
-                  <Settings size={17} strokeWidth={2.2} />
-                  <span className="tab-btn-title">تنظیمات</span>
-                </Link>
-              )}
-
-              {user?.role === 'admin' && (
-                <>
-                  <Link
-                    to="/admin"
-                    className={`header-tab-btn ${activeTab === 'admin' ? 'active' : ''}`}
-                    title="پنل مدیریت و کاربران"
-                    aria-label="مدیریت"
-                  >
-                    <ShieldCheck size={17} strokeWidth={2.2} />
-                    <span className="tab-btn-title">مدیریت</span>
-                  </Link>
-
-                  <Link
-                    to="/admin/sources"
-                    className={`header-tab-btn ${activeTab === 'sources' ? 'active' : ''}`}
-                    title="سورس‌های قیمت و نمودارها"
-                    aria-label="سورس‌ها"
-                  >
-                    <Radio size={17} strokeWidth={2.2} />
-                    <span className="tab-btn-title">سورس‌ها</span>
-                  </Link>
-                </>
-              )}
-            </>
-          )}
-        </nav>
 
         {/* Desktop Ticker (Hidden on Mobile) */}
         <div className="header-live-ticker desktop-only">

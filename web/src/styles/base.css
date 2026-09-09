@@ -923,6 +923,46 @@ input:focus, select:focus, textarea:focus {
   display: none;
 }
 
+@media (max-width: 768px) {
+  .main-nav-tabs-bar {
+    justify-content: center;
+    margin-bottom: 18px;
+    padding-bottom: 0;
+  }
+
+  .main-nav-tabs-bar .ui-filter-pills.variant-segmented {
+    width: auto;
+    max-width: 100%;
+    padding: 4px;
+    gap: 4px;
+    margin: 0 auto;
+  }
+
+  .main-nav-tabs-bar .filter-pill-btn {
+    padding: 8px 14px;
+    min-width: 44px;
+    height: 38px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .main-nav-tabs-bar .filter-pill-btn .pill-label {
+    display: none !important;
+  }
+
+  .main-nav-tabs-bar .filter-pill-btn .pill-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .main-nav-tabs-bar .filter-pill-btn .pill-icon svg {
+    width: 19px;
+    height: 19px;
+  }
+}
+
 .ui-filter-pills {
   display: inline-flex;
   align-items: center;
