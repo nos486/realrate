@@ -208,35 +208,43 @@ export default function PriceHistoryChart({
   const activeHoverPoint = hoverIndex !== null && chartPoints[hoverIndex] ? chartPoints[hoverIndex] : null;
 
   return (
-    <div className="relative flex flex-col gap-4 rounded-2xl border border-white/10 bg-[#0c1018]/95 p-5 shadow-xl backdrop-blur-md transition-all duration-200 light:border-slate-200 light:bg-white light:shadow-sm">
+    <div className="relative flex flex-col gap-5 rounded-2xl border border-white/[0.08] bg-[#0f1422]/95 p-6 sm:p-7 shadow-2xl backdrop-blur-md transition-all duration-200 light:border-slate-200 light:bg-white light:shadow-md">
       {/* Card Header */}
-      <div className="flex flex-wrap items-start justify-between gap-3.5">
-        <div className="flex flex-col gap-1.5">
-          <div className="flex items-center gap-2">
-            <Activity size={18} className="text-sky-400" />
-            <h3 className="text-base font-extrabold text-white light:text-slate-900 m-0">{title}</h3>
-            {subtitle && (
-              <span className="text-xs text-slate-400 light:text-slate-500 bg-white/[0.06] light:bg-slate-100 px-2 py-0.5 rounded-md">
-                {subtitle}
-              </span>
-            )}
+      <div className="flex flex-wrap items-center justify-between gap-4 pb-2 border-b border-white/5 light:border-slate-100">
+        <div className="flex flex-wrap items-center gap-4">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-sky-500/10 border border-sky-500/20 flex items-center justify-center text-sky-400 shrink-0">
+              <Activity size={20} />
+            </div>
+            <div className="flex flex-col">
+              <div className="flex items-center gap-2">
+                <h3 className="text-base sm:text-lg font-black text-white light:text-slate-900 m-0">{title}</h3>
+                {subtitle && (
+                  <span className="text-[11px] text-slate-300 light:text-slate-600 bg-white/[0.06] light:bg-slate-100 px-2.5 py-0.5 rounded-md font-medium">
+                    {subtitle}
+                  </span>
+                )}
+              </div>
+              <span className="text-[11px] text-slate-400 mt-0.5">ثبت تاریخچه زنده و تحلیلی تغییرات قیمت</span>
+            </div>
           </div>
-          <div className="flex flex-wrap items-center gap-2 mt-1">
+
+          <div className="flex items-center gap-2.5">
             {metrics.latest > 0 && (
-              <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold bg-sky-500/10 text-sky-400 border border-sky-500/25">
-                <span className="opacity-80">آخرین قیمت:</span>
-                <span className="font-extrabold">{formatNum(metrics.latest)} تومان</span>
+              <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs font-extrabold bg-sky-500/10 text-sky-300 border border-sky-500/30">
+                <span className="text-[10px] opacity-70">آخرین نرخ:</span>
+                <span className="text-sm font-black">{formatNum(metrics.latest)} تومان</span>
               </div>
             )}
             {sortedData.length > 1 && (
               <div
-                className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold ${
+                className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold border ${
                   metrics.isUp
-                    ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/25'
-                    : 'bg-rose-500/10 text-rose-400 border border-rose-500/25'
+                    ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30'
+                    : 'bg-rose-500/15 text-rose-400 border-rose-500/30'
                 }`}
               >
-                {metrics.isUp ? <TrendingUp size={13} /> : <TrendingDown size={13} />}
+                {metrics.isUp ? <TrendingUp size={14} /> : <TrendingDown size={14} />}
                 <span>
                   {metrics.isUp ? '+' : ''}
                   {formatNum(metrics.change)} تومان ({metrics.isUp ? '+' : ''}
@@ -248,8 +256,8 @@ export default function PriceHistoryChart({
         </div>
 
         {/* Range Selector & Controls */}
-        <div className="flex items-center gap-2.5">
-          <div className="flex items-center gap-1 bg-white/[0.04] light:bg-slate-100 p-1 rounded-xl border border-white/5 light:border-slate-200">
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-1 bg-black/30 light:bg-slate-100 p-1 rounded-xl border border-white/5 light:border-slate-200">
             {[
               { id: '24h', label: '۲۴ ساعت' },
               { id: '7d', label: '۷ روز' },
@@ -259,9 +267,9 @@ export default function PriceHistoryChart({
               <button
                 key={r.id}
                 type="button"
-                className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-colors ${
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer select-none ${
                   range === r.id
-                    ? 'bg-amber-500 text-slate-950 font-bold shadow-sm'
+                    ? 'bg-amber-500 text-slate-950 shadow-md shadow-amber-500/20'
                     : 'text-slate-400 hover:text-white light:text-slate-600 light:hover:text-slate-900'
                 }`}
                 onClick={() => onRangeChange(r.id)}
@@ -272,76 +280,86 @@ export default function PriceHistoryChart({
           </div>
           <button
             type="button"
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium border border-white/10 bg-white/[0.03] text-slate-300 hover:bg-white/[0.08] hover:text-white light:border-slate-200 light:bg-slate-100 light:text-slate-700 light:hover:bg-slate-200 transition-colors"
+            className="inline-flex items-center gap-1.5 px-3.5 py-1.5 h-9 rounded-xl text-xs font-semibold border border-white/10 bg-white/[0.04] text-slate-300 hover:bg-white/[0.08] hover:text-white light:border-slate-200 light:bg-slate-100 light:text-slate-700 light:hover:bg-slate-200 transition-colors cursor-pointer select-none"
             onClick={onRefresh}
             title="بروزرسانی داده‌های نمودار"
           >
-            <RefreshCw size={12} className={loading ? 'animate-spin' : ''} />
+            <RefreshCw size={13} className={loading ? 'animate-spin' : ''} />
             <span>بروزرسانی</span>
           </button>
         </div>
       </div>
 
       {/* Filter Selectors Bar */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-3 rounded-xl bg-white/[0.02] border border-white/5 light:bg-slate-50 light:border-slate-100">
-        <div className="flex flex-col gap-1.5">
-          <label className="text-xs font-semibold text-slate-300 light:text-slate-700">نوع ارز / طلا:</label>
-          <select
-            className="w-full h-9 rounded-lg border border-white/10 bg-white/[0.05] px-3 text-xs text-slate-200 focus:outline-none focus:ring-1 focus:ring-amber-500/50 light:bg-white light:border-slate-200 light:text-slate-800"
-            value={selectedPriceType}
-            onChange={(e) => onSelectPriceType(e.target.value)}
-          >
-            {Object.entries(priceTypeInfo).map(([key, info]) => (
-              <option key={key} value={key}>
-                {info.label}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        <div className="flex flex-col gap-1.5">
-          <label className="text-xs font-semibold text-slate-300 light:text-slate-700">سورس قیمت:</label>
-          <select
-            className="w-full h-9 rounded-lg border border-white/10 bg-white/[0.05] px-3 text-xs text-slate-200 focus:outline-none focus:ring-1 focus:ring-amber-500/50 light:bg-white light:border-slate-200 light:text-slate-800"
-            value={selectedSourceId}
-            onChange={(e) => onSelectSource(e.target.value)}
-          >
-            <option value="">تمامی سورس‌های این نوع</option>
-            {sources
-              .filter((s) => !selectedPriceType || s.priceType === selectedPriceType)
-              .map((s) => (
-                <option key={s.id} value={s.id}>
-                  {s.name} ({s.sourceType === 'telegram' ? `@${s.channelUsername}` : 'API'})
+      <div className="flex flex-wrap items-center justify-between gap-4 p-3.5 sm:p-4 rounded-xl bg-black/25 border border-white/5 light:bg-slate-50 light:border-slate-200">
+        <div className="flex flex-wrap items-center gap-4">
+          <div className="flex items-center gap-2">
+            <label className="text-xs font-bold text-slate-400 light:text-slate-600 whitespace-nowrap">نوع ارز / طلا:</label>
+            <select
+              className="h-9 rounded-xl border border-white/10 bg-[#141b2a] light:bg-white px-3 text-xs text-slate-200 light:text-slate-800 font-semibold focus:outline-none focus:ring-2 focus:ring-amber-500/40 min-w-[150px] cursor-pointer"
+              value={selectedPriceType}
+              onChange={(e) => onSelectPriceType(e.target.value)}
+            >
+              {Object.entries(priceTypeInfo).map(([key, info]) => (
+                <option key={key} value={key}>
+                  {info.label}
                 </option>
               ))}
-          </select>
+            </select>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <label className="text-xs font-bold text-slate-400 light:text-slate-600 whitespace-nowrap">سورس قیمت:</label>
+            <select
+              className="h-9 rounded-xl border border-white/10 bg-[#141b2a] light:bg-white px-3 text-xs text-slate-200 light:text-slate-800 font-semibold focus:outline-none focus:ring-2 focus:ring-amber-500/40 min-w-[220px] cursor-pointer"
+              value={selectedSourceId}
+              onChange={(e) => onSelectSource(e.target.value)}
+            >
+              <option value="">تمامی سورس‌های این نوع</option>
+              {sources
+                .filter((s) => !selectedPriceType || s.priceType === selectedPriceType)
+                .map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {s.name} ({s.sourceType === 'telegram' ? `@${s.channelUsername}` : 'API'})
+                  </option>
+                ))}
+            </select>
+          </div>
         </div>
+
+        {sortedData.length > 0 && (
+          <span className="text-xs text-slate-400">
+            تعداد رکوردهای ثبت‌شده: <strong className="text-amber-400 font-black">{sortedData.length.toLocaleString('fa-IR')}</strong>
+          </span>
+        )}
       </div>
 
       {/* Key Stats Bar */}
       {sortedData.length > 0 && (
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 p-3 rounded-xl bg-white/[0.02] border border-white/5 light:bg-slate-50 light:border-slate-100">
-          <div className="flex flex-col gap-0.5 text-center sm:text-start">
-            <span className="text-[11px] text-slate-400 light:text-slate-500">کمترین:</span>
-            <span className="text-xs font-bold text-slate-200 light:text-slate-800">{formatNum(metrics.min)} تومان</span>
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <div className="flex flex-col p-3 rounded-xl bg-black/20 border border-white/5 light:bg-slate-50 light:border-slate-100">
+            <span className="text-[11px] text-slate-400">کمترین نرخ بازه:</span>
+            <span className="text-sm font-black text-emerald-400 mt-1">{formatNum(metrics.min)} تومان</span>
           </div>
-          <div className="flex flex-col gap-0.5 text-center sm:text-start">
-            <span className="text-[11px] text-slate-400 light:text-slate-500">بیشترین:</span>
-            <span className="text-xs font-bold text-slate-200 light:text-slate-800">{formatNum(metrics.max)} تومان</span>
+          <div className="flex flex-col p-3 rounded-xl bg-black/20 border border-white/5 light:bg-slate-50 light:border-slate-100">
+            <span className="text-[11px] text-slate-400">بیشترین نرخ بازه:</span>
+            <span className="text-sm font-black text-rose-400 mt-1">{formatNum(metrics.max)} تومان</span>
           </div>
-          <div className="flex flex-col gap-0.5 text-center sm:text-start">
-            <span className="text-[11px] text-slate-400 light:text-slate-500">میانگین:</span>
-            <span className="text-xs font-bold text-slate-200 light:text-slate-800">{formatNum(metrics.avg)} تومان</span>
+          <div className="flex flex-col p-3 rounded-xl bg-black/20 border border-white/5 light:bg-slate-50 light:border-slate-100">
+            <span className="text-[11px] text-slate-400">میانگین موزون:</span>
+            <span className="text-sm font-black text-amber-400 mt-1">{formatNum(metrics.avg)} تومان</span>
           </div>
-          <div className="flex flex-col gap-0.5 text-center sm:text-start">
-            <span className="text-[11px] text-slate-400 light:text-slate-500">نقاط ثبت‌شده:</span>
-            <span className="text-xs font-bold text-slate-200 light:text-slate-800">{sortedData.length.toLocaleString('fa-IR')} رکورد</span>
+          <div className="flex flex-col p-3 rounded-xl bg-black/20 border border-white/5 light:bg-slate-50 light:border-slate-100">
+            <span className="text-[11px] text-slate-400">دامنه نوسان:</span>
+            <span className="text-sm font-black text-sky-400 mt-1">
+              {formatNum(Math.max(0, metrics.max - metrics.min))} تومان
+            </span>
           </div>
         </div>
       )}
 
       {/* SVG Chart Area */}
-      <div className="relative w-full overflow-hidden rounded-xl border border-white/5 bg-black/20 p-2 sm:p-4 light:bg-slate-50/50 light:border-slate-100 min-h-[300px] flex items-center justify-center">
+      <div className="relative w-full overflow-hidden rounded-2xl border border-white/5 bg-black/25 p-3 sm:p-5 light:bg-slate-50/60 light:border-slate-100 min-h-[340px] sm:min-h-[380px] flex items-center justify-center">
         {loading && (
           <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-2 bg-black/60 backdrop-blur-[2px] rounded-xl text-xs text-slate-300">
             <RefreshCw size={24} className="animate-spin text-sky-400" />

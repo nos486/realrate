@@ -17,55 +17,55 @@
 
 :root {
   --bg-app: #06080d;
-  --bg-surface: #0c0f17;
-  --bg-surface-elevated: #131824;
-  --bg-card: rgba(255, 255, 255, 0.02);
-  --bg-card-hover: rgba(255, 255, 255, 0.042);
-  --bg-card-elevated: rgba(18, 24, 38, 0.95);
-  --bg-header: rgba(6, 8, 13, 0.88);
-  --bg-header-ticker: rgba(255, 255, 255, 0.03);
+  --bg-surface: #0f1422;
+  --bg-surface-elevated: #141b2e;
+  --bg-card: #0f1422;
+  --bg-card-hover: #151d30;
+  --bg-card-elevated: #161e33;
+  --bg-header: rgba(6, 8, 13, 0.92);
+  --bg-header-ticker: rgba(255, 255, 255, 0.04);
 
   /* Inputs, Textareas & Selects */
-  --bg-input: rgba(255, 255, 255, 0.038);
-  --bg-input-focus: rgba(255, 255, 255, 0.07);
-  --border-input: rgba(255, 255, 255, 0.08);
-  --border-input-focus: rgba(245, 158, 11, 0.45);
-  --shadow-input-focus: 0 0 0 3px rgba(245, 158, 11, 0.18);
+  --bg-input: #121827;
+  --bg-input-focus: #172033;
+  --border-input: rgba(255, 255, 255, 0.1);
+  --border-input-focus: rgba(245, 158, 11, 0.5);
+  --shadow-input-focus: 0 0 0 3px rgba(245, 158, 11, 0.2);
   --text-input: #ffffff;
-  --placeholder-color: rgba(255, 255, 255, 0.38);
+  --placeholder-color: rgba(255, 255, 255, 0.4);
 
   /* Modals & Popups */
-  --bg-modal: #0d121c;
-  --bg-modal-backdrop: rgba(0, 0, 0, 0.78);
-  --border-modal: rgba(255, 255, 255, 0.08);
-  --shadow-modal: 0 24px 60px rgba(0, 0, 0, 0.8);
+  --bg-modal: #0e1320;
+  --bg-modal-backdrop: rgba(0, 0, 0, 0.82);
+  --border-modal: rgba(255, 255, 255, 0.1);
+  --shadow-modal: 0 24px 60px rgba(0, 0, 0, 0.85);
 
   /* Dropdowns */
-  --bg-dropdown: #0e131e;
-  --border-dropdown: rgba(255, 255, 255, 0.08);
-  --shadow-dropdown: 0 16px 36px rgba(0, 0, 0, 0.55);
+  --bg-dropdown: #0e1320;
+  --border-dropdown: rgba(255, 255, 255, 0.1);
+  --shadow-dropdown: 0 16px 36px rgba(0, 0, 0, 0.6);
 
   /* Tables & Lists */
-  --bg-table-header: rgba(255, 255, 255, 0.02);
-  --bg-row-hover: rgba(255, 255, 255, 0.035);
-  --border-table-row: rgba(255, 255, 255, 0.04);
+  --bg-table-header: rgba(255, 255, 255, 0.03);
+  --bg-row-hover: rgba(255, 255, 255, 0.04);
+  --border-table-row: rgba(255, 255, 255, 0.06);
 
-  --border-subtle: transparent;
-  --border-medium: rgba(255, 255, 255, 0.05);
-  --border-strong: rgba(255, 255, 255, 0.1);
-  --border-gold: rgba(245, 158, 11, 0.3);
+  --border-subtle: rgba(255, 255, 255, 0.05);
+  --border-medium: rgba(255, 255, 255, 0.08);
+  --border-strong: rgba(255, 255, 255, 0.14);
+  --border-gold: rgba(245, 158, 11, 0.35);
 
   --gold-primary: #f59e0b;
   --gold-light: #fbbf24;
   --gold-gradient: linear-gradient(135deg, #fbbf24 0%, #d97706 100%);
-  --gold-soft-bg: rgba(245, 158, 11, 0.08);
+  --gold-soft-bg: rgba(245, 158, 11, 0.1);
 
   --green-emerald: #10b981;
-  --green-soft: rgba(16, 185, 129, 0.08);
+  --green-soft: rgba(16, 185, 129, 0.1);
   --rose-red: #f43f5e;
-  --rose-soft: rgba(244, 63, 94, 0.08);
+  --rose-soft: rgba(244, 63, 94, 0.1);
   --blue-sky: #38bdf8;
-  --blue-soft: rgba(56, 189, 248, 0.08);
+  --blue-soft: rgba(56, 189, 248, 0.1);
 
   /* Typography */
   --text-primary: #f8fafc;
@@ -74,9 +74,9 @@
   --text-muted: #64748b;
 
   /* Controls & Badges */
-  --bg-control: rgba(255, 255, 255, 0.04);
-  --bg-control-hover: rgba(255, 255, 255, 0.08);
-  --border-control: rgba(255, 255, 255, 0.08);
+  --bg-control: rgba(255, 255, 255, 0.05);
+  --bg-control-hover: rgba(255, 255, 255, 0.09);
+  --border-control: rgba(255, 255, 255, 0.1);
 
   --radius-xs: 6px;
   --radius-sm: 10px;
@@ -93,3 +93,53 @@
   --transition-smooth: 0.25s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
+/* ── Global Light Theme Variables ─────────────────────────────────────────── */
+[data-theme="light"] {
+  --bg-app: #f1f4f9;
+  --bg-surface: #ffffff;
+  --bg-surface-elevated: #f8fafc;
+  --bg-card: #ffffff;
+  --bg-card-hover: #f8fafc;
+  --bg-card-elevated: #ffffff;
+  --bg-header: rgba(255, 255, 255, 0.94);
+  --bg-header-ticker: rgba(0, 0, 0, 0.04);
+
+  --bg-input: #ffffff;
+  --bg-input-focus: #ffffff;
+  --border-input: #cbd5e1;
+  --border-input-focus: rgba(245, 158, 11, 0.6);
+  --shadow-input-focus: 0 0 0 3px rgba(245, 158, 11, 0.2);
+  --text-input: #0f172a;
+  --placeholder-color: #94a3b8;
+
+  --bg-modal: #ffffff;
+  --bg-modal-backdrop: rgba(15, 23, 42, 0.6);
+  --border-modal: #e2e8f0;
+  --shadow-modal: 0 24px 60px rgba(0, 0, 0, 0.15);
+
+  --bg-dropdown: #ffffff;
+  --border-dropdown: #e2e8f0;
+  --shadow-dropdown: 0 16px 36px rgba(0, 0, 0, 0.1);
+
+  --bg-table-header: #f8fafc;
+  --bg-row-hover: #f1f5f9;
+  --border-table-row: #e2e8f0;
+
+  --border-subtle: rgba(0, 0, 0, 0.06);
+  --border-medium: rgba(0, 0, 0, 0.1);
+  --border-strong: rgba(0, 0, 0, 0.18);
+  --border-gold: rgba(245, 158, 11, 0.4);
+
+  --text-primary: #0f172a;
+  --text-heading: #020617;
+  --text-secondary: #475569;
+  --text-muted: #64748b;
+
+  --bg-control: #f1f5f9;
+  --bg-control-hover: #e2e8f0;
+  --border-control: #cbd5e1;
+
+  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.04);
+  --shadow-md: 0 6px 20px rgba(0, 0, 0, 0.06);
+  --shadow-lg: 0 12px 36px rgba(0, 0, 0, 0.08);
+}

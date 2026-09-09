@@ -284,18 +284,18 @@ export default function AdminPage() {
   }
 
   return (
-    <div className="min-h-screen bg-app text-primary py-8 px-4 sm:px-6 lg:px-8 flex flex-col items-center">
-      <div className="w-full max-w-5xl flex flex-col gap-6">
+    <div className="min-h-screen bg-app text-primary py-8 px-4 sm:px-8 lg:px-12 flex flex-col items-center">
+      <div className="w-full max-w-6xl flex flex-col gap-6 sm:gap-8">
         {/* Header */}
         <div className="text-center flex flex-col items-center gap-1.5">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-400 text-xs font-semibold mb-1">
+          <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-400 text-xs font-semibold mb-1">
             <ShieldCheck size={14} />
             <span>پنل مدیریت سیستم RealRate</span>
           </div>
           <h1 className="text-xl sm:text-2xl font-black text-white light:text-slate-900 tracking-tight">
             مدیریت، نرخ‌های پایه و مانیتورینگ سیستم
           </h1>
-          <p className="text-xs text-slate-400 light:text-slate-500">
+          <p className="text-xs sm:text-sm text-slate-400 light:text-slate-500">
             پیکربندی نرخ‌های پیش‌فرض، انس طلا، درصد حباب سکه‌ها و پایش آمار کاربران
           </p>
         </div>
@@ -304,28 +304,28 @@ export default function AdminPage() {
         {msg.text && (
           <div
             className={cn(
-              'flex items-center gap-2.5 p-3.5 rounded-xl text-xs font-semibold animate-in fade-in duration-200',
+              'flex items-center gap-2.5 p-4 rounded-2xl text-xs font-semibold animate-in fade-in duration-200 shadow-lg',
               msg.type === 'success'
-                ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30'
-                : 'bg-rose-500/15 text-rose-400 border border-rose-500/30'
+                ? 'bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 shadow-emerald-500/5'
+                : 'bg-rose-500/15 text-rose-300 border border-rose-500/30 shadow-rose-500/5'
             )}
           >
             {msg.type === 'success' ? (
-              <CheckCircle2 size={16} className="shrink-0" />
+              <CheckCircle2 size={18} className="shrink-0 text-emerald-400" />
             ) : (
-              <AlertCircle size={16} className="shrink-0" />
+              <AlertCircle size={18} className="shrink-0 text-rose-400" />
             )}
-            <span>{msg.text}</span>
+            <span className="text-xs sm:text-sm">{msg.text}</span>
           </div>
         )}
 
         {/* Admin Profile & Navigation Bar */}
-        <div className="p-4 rounded-2xl border border-white/10 bg-[#0c1018]/90 light:bg-white light:border-slate-200 shadow-md flex flex-wrap items-center justify-between gap-4">
+        <div className="p-5 rounded-2xl border border-white/[0.08] bg-[#0f1422] light:bg-white light:border-slate-200 shadow-xl flex flex-wrap items-center justify-between gap-4">
           <div className="flex flex-wrap items-center gap-4">
             {/* User Info */}
             <div className="flex items-center gap-3">
               <img
-                className="w-10 h-10 rounded-full border-2 border-amber-500/80 object-cover bg-slate-800"
+                className="w-11 h-11 rounded-full border-2 border-amber-500/80 object-cover bg-slate-800 shadow-md"
                 src={user.picture || ''}
                 alt={user.name || ''}
                 onError={(e) => { e.target.style.display = 'none'; }}

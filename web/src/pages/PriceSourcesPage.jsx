@@ -501,51 +501,55 @@ export default function PriceSourcesPage() {
       />
 
       {/* Main Full-Width Content Container */}
-      <main className="flex-1 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 flex flex-col gap-6">
+      <main className="flex-1 w-full max-w-[1920px] mx-auto px-4 sm:px-8 lg:px-12 py-6 sm:py-8 flex flex-col gap-6 sm:gap-8">
         {/* Top Breadcrumb & Page Title Banner */}
-        <div className="rounded-2xl border border-white/10 bg-gradient-to-b from-[#121826] to-[#0d111a] p-5 sm:p-6 shadow-xl light:from-white light:to-slate-50 light:border-slate-200">
-          <div className="flex items-center gap-1.5 text-xs text-slate-400 mb-3 select-none">
+        <div className="rounded-2xl border border-white/[0.08] bg-gradient-to-l from-[#141b2e] via-[#0f1524] to-[#0c101c] p-6 sm:p-7 shadow-2xl backdrop-blur-md light:from-white light:to-slate-50 light:border-slate-200">
+          <div className="flex items-center gap-2 text-xs text-slate-400 mb-4 select-none">
             <Link to="/" className="hover:text-amber-400 transition-colors">خانه</Link>
-            <ChevronRight size={13} />
+            <ChevronRight size={13} className="text-slate-600" />
             <Link to="/admin" className="hover:text-amber-400 transition-colors">پنل مدیریت و کاربران</Link>
-            <ChevronRight size={13} />
-            <span className="text-slate-200 light:text-slate-800 font-medium">مدیریت سورس‌ها و نمودارها</span>
+            <ChevronRight size={13} className="text-slate-600" />
+            <span className="text-amber-400 font-semibold">مدیریت سورس‌ها و نمودارها</span>
           </div>
 
-          <div className="flex flex-wrap items-center justify-between gap-4">
-            <div className="flex items-center gap-3.5">
-              <div className="w-12 h-12 rounded-xl bg-sky-500/10 border border-sky-500/20 flex items-center justify-center text-sky-400 shrink-0">
-                <Radio size={24} />
+          <div className="flex flex-wrap items-center justify-between gap-5">
+            <div className="flex items-center gap-4">
+              <div className="w-14 h-14 rounded-2xl bg-sky-500/15 border border-sky-500/30 flex items-center justify-center text-sky-400 shrink-0 shadow-lg shadow-sky-500/10">
+                <Radio size={28} />
               </div>
               <div>
-                <h1 className="text-lg sm:text-xl font-extrabold text-white light:text-slate-900 tracking-tight">
+                <h1 className="text-xl sm:text-2xl font-black text-white light:text-slate-900 tracking-tight">
                   مدیریت سورس‌های بازار و تاریخچه نمودارها
                 </h1>
-                <p className="text-xs text-slate-400 light:text-slate-500 mt-1">
+                <p className="text-xs sm:text-sm text-slate-400 light:text-slate-500 mt-1.5 leading-relaxed">
                   پیکربندی استخراج قیمت از کانال‌های تلگرام و وب‌سرویس‌های API، ثبت تاریخچه تفکیکی و گراف‌های اختصاصی
                 </p>
               </div>
             </div>
 
-            <div className="flex items-center gap-2.5 flex-wrap">
+            <div className="flex items-center gap-3 flex-wrap">
               <Button
                 type="button"
                 variant="primary"
+                size="default"
                 onClick={handleFetchAllNow}
                 disabled={fetchingAll}
                 isLoading={fetchingAll}
+                className="h-11 px-5 shadow-lg shadow-sky-500/10 font-bold"
                 title="فراخوانی همزمان تمام سورس‌های فعال و ثبت در تاریخچه دیتابیس"
               >
-                <Zap size={15} />
+                <Zap size={16} />
                 <span>{fetchingAll ? 'در حال دریافت نرخ‌ها...' : 'دریافت آنی قیمت همه سورس‌ها'}</span>
               </Button>
 
               <Button
                 type="button"
                 variant="gold"
+                size="default"
                 onClick={() => handleOpenAddSource(sourceFilter === 'all' ? 'usd' : sourceFilter)}
+                className="h-11 px-5 shadow-lg shadow-amber-500/10 font-bold"
               >
-                <Plus size={16} strokeWidth={2.5} />
+                <Plus size={17} strokeWidth={2.5} />
                 <span>افزودن سورس جدید</span>
               </Button>
             </div>
@@ -556,34 +560,41 @@ export default function PriceSourcesPage() {
         {message && (
           <div
             className={cn(
-              'flex items-center gap-2.5 p-3.5 rounded-xl text-xs font-semibold animate-in fade-in duration-200',
+              'flex items-center gap-2.5 p-4 rounded-2xl text-xs font-semibold animate-in fade-in duration-200 shadow-lg',
               message.type === 'success'
-                ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30'
+                ? 'bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 shadow-emerald-500/5'
                 : message.type === 'error'
-                ? 'bg-rose-500/15 text-rose-400 border border-rose-500/30'
-                : 'bg-sky-500/15 text-sky-400 border border-sky-500/30'
+                ? 'bg-rose-500/15 text-rose-300 border border-rose-500/30 shadow-rose-500/5'
+                : 'bg-sky-500/15 text-sky-300 border border-sky-500/30 shadow-sky-500/5'
             )}
           >
             {message.type === 'success' ? (
-              <CheckCircle2 size={16} className="shrink-0" />
+              <CheckCircle2 size={18} className="shrink-0 text-emerald-400" />
             ) : message.type === 'error' ? (
-              <AlertCircle size={16} className="shrink-0" />
+              <AlertCircle size={18} className="shrink-0 text-rose-400" />
             ) : (
-              <Activity size={16} className="shrink-0" />
+              <Activity size={18} className="shrink-0 text-sky-400" />
             )}
-            <span>{message.text}</span>
+            <span className="text-xs sm:text-sm">{message.text}</span>
           </div>
         )}
 
         {/* ── SECTION 1: Individual Source Selector & Dedicated Chart ───────── */}
-        <section ref={chartSectionRef} className="flex flex-col gap-3">
+        <section ref={chartSectionRef} className="flex flex-col gap-4">
           {/* Source Tabs Bar */}
-          <div className="flex flex-col gap-2.5 p-3.5 rounded-2xl border border-white/10 bg-[#0c1018]/90 light:bg-white light:border-slate-200 shadow-sm">
-            <div className="flex items-center gap-2 text-xs font-bold text-slate-300 light:text-slate-700">
-              <LineChart size={16} className="text-sky-400" />
-              <span>انتخاب سورس برای مشاهده نمودار اختصاصی:</span>
+          <div className="flex flex-col gap-3 p-4 sm:p-5 rounded-2xl border border-white/[0.08] bg-[#0f1422]/95 light:bg-white light:border-slate-200 shadow-xl backdrop-blur-md">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2.5 text-xs sm:text-sm font-extrabold text-slate-200 light:text-slate-800">
+                <div className="w-6 h-6 rounded-lg bg-sky-500/10 border border-sky-500/20 flex items-center justify-center text-sky-400">
+                  <LineChart size={14} />
+                </div>
+                <span>انتخاب سورس برای مشاهده نمودار تحلیلی:</span>
+              </div>
+              <span className="text-xs text-slate-400 bg-white/[0.04] px-2.5 py-1 rounded-lg border border-white/5">
+                {sources.length.toLocaleString('fa-IR')} سورس تعریف‌شده
+              </span>
             </div>
-            <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
+            <div className="flex items-center gap-2.5 overflow-x-auto pb-2 pt-1 scrollbar-thin">
               {sources.map((src) => {
                 const isSelected = src.id === selectedSourceId;
                 const typeInfo = PRICE_TYPE_INFO[src.priceType] || { label: src.priceType, dotColor: 'bg-sky-400' };
@@ -592,19 +603,26 @@ export default function PriceSourcesPage() {
                     key={src.id}
                     type="button"
                     className={cn(
-                      'inline-flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-medium border transition-all cursor-pointer whitespace-nowrap',
+                      'inline-flex items-center gap-2.5 px-4 py-2.5 rounded-xl text-xs font-semibold border transition-all cursor-pointer whitespace-nowrap select-none',
                       isSelected
-                        ? 'bg-amber-500/15 text-amber-400 border-amber-500/40 shadow-sm'
-                        : 'bg-white/[0.03] text-slate-300 border-white/10 hover:bg-white/[0.07] light:bg-slate-100 light:text-slate-700 light:border-slate-200'
+                        ? 'bg-gradient-to-r from-amber-500/20 to-amber-600/10 text-amber-300 border-amber-500/50 shadow-md shadow-amber-500/10 ring-1 ring-amber-500/30'
+                        : 'bg-white/[0.04] text-slate-300 border-white/[0.08] hover:bg-white/[0.08] hover:border-white/15 light:bg-slate-100 light:text-slate-700 light:border-slate-200'
                     )}
                     onClick={() => setSelectedSourceId(src.id)}
                   >
-                    <span className={cn('w-2 h-2 rounded-full', typeInfo.dotColor)} />
-                    <span className="font-semibold">{src.name}</span>
+                    <span className={cn('w-2 h-2 rounded-full shrink-0', typeInfo.dotColor, isSelected && 'animate-pulse ring-2 ring-amber-400/30')} />
+                    <span className="font-bold">{src.name}</span>
                     {src.lastPrice > 0 && (
-                      <span className="opacity-80 font-bold">{formatNum(src.lastPrice)}</span>
+                      <span className="bg-black/30 light:bg-slate-200 px-2 py-0.5 rounded-md font-mono text-[11px] font-black text-amber-400 light:text-amber-700">
+                        {formatNum(src.lastPrice)}
+                      </span>
                     )}
-                    {src.isPrimary && <Star size={11} className="fill-amber-400 text-amber-400" />}
+                    {src.isPrimary && (
+                      <span className="flex items-center gap-1 text-[10px] text-amber-400 bg-amber-500/15 px-1.5 py-0.5 rounded font-bold">
+                        <Star size={10} className="fill-amber-400 text-amber-400" />
+                        مرجع
+                      </span>
+                    )}
                   </button>
                 );
               })}
@@ -636,22 +654,29 @@ export default function PriceSourcesPage() {
               priceTypeInfo={PRICE_TYPE_INFO}
             />
           ) : (
-            <div className="flex flex-col items-center justify-center p-10 rounded-2xl border border-white/10 bg-[#0c1018]/90 text-center text-slate-400">
-              <Activity size={32} className="text-slate-500 mb-2" />
-              <p className="text-sm font-semibold">هیچ سورسی برای نمایش نمودار یافت نشد.</p>
-              <span className="text-xs text-slate-500">برای مشاهده نمودار اختصاصی، یک سورس از جدول زیر تعریف یا انتخاب کنید.</span>
+            <div className="flex flex-col items-center justify-center p-12 rounded-2xl border border-white/[0.08] bg-[#0f1422] text-center text-slate-400 shadow-xl">
+              <Activity size={36} className="text-slate-500 mb-3" />
+              <p className="text-sm sm:text-base font-bold text-white">هیچ سورسی برای نمایش نمودار یافت نشد.</p>
+              <span className="text-xs text-slate-400 mt-1">برای مشاهده نمودار اختصاصی، یک سورس از جدول زیر تعریف یا انتخاب کنید.</span>
             </div>
           )}
         </section>
 
         {/* ── SECTION 2: Sources Overview Cards Grid ──────────────────────── */}
-        <section className="flex flex-col gap-3">
-          <div className="flex items-center gap-2 text-xs font-bold text-slate-300 light:text-slate-700">
-            <Activity size={15} className="text-amber-500" />
-            <span>نمای کلی سورس‌های فعال بازار ({sources.length.toLocaleString('fa-IR')} سورس)</span>
+        <section className="flex flex-col gap-4">
+          <div className="flex items-center justify-between pb-1">
+            <div className="flex items-center gap-2.5 text-xs sm:text-sm font-extrabold text-slate-200 light:text-slate-800">
+              <div className="w-6 h-6 rounded-lg bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400">
+                <Activity size={14} />
+              </div>
+              <span>نمای کلی سورس‌های فعال بازار</span>
+            </div>
+            <span className="text-xs text-slate-400 bg-white/[0.04] px-2.5 py-1 rounded-lg border border-white/5">
+              {sources.length.toLocaleString('fa-IR')} سورس
+            </span>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-5 gap-5">
             {sources.map((src) => {
               const typeInfo = PRICE_TYPE_INFO[src.priceType] || { label: src.priceType, badgeColor: 'blue' };
               const isSelected = src.id === selectedSourceId;
@@ -661,66 +686,66 @@ export default function PriceSourcesPage() {
                   key={src.id}
                   onClick={() => handleSelectSourceForChart(src)}
                   className={cn(
-                    'cursor-pointer border-white/10 hover:border-amber-500/40 hover:-translate-y-0.5 transition-all flex flex-col justify-between',
-                    isSelected && 'ring-2 ring-amber-500/50 border-amber-500/50'
+                    'cursor-pointer border-white/[0.08] bg-[#0f1422] hover:border-amber-500/40 hover:shadow-xl hover:shadow-amber-500/5 hover:-translate-y-1 transition-all duration-200 flex flex-col justify-between rounded-2xl',
+                    isSelected && 'ring-2 ring-amber-500/50 border-amber-500/50 bg-[#121829]'
                   )}
                 >
-                  <CardHeader className="p-4 pb-2 flex flex-row items-center justify-between gap-2">
+                  <CardHeader className="p-4 sm:p-5 pb-2 flex flex-row items-center justify-between gap-2">
                     <div className="flex items-center gap-1.5 flex-wrap">
-                      <Badge variant="outline" className="text-[11px]">
+                      <Badge variant="outline" className="text-[11px] font-semibold">
                         {typeInfo.label}
                       </Badge>
                       {src.isPrimary && (
-                        <Badge variant="gold" className="text-[10px] gap-1">
+                        <Badge variant="gold" className="text-[10px] gap-1 font-bold">
                           <Star size={10} className="fill-amber-400 text-amber-400" />
                           <span>مرجع</span>
                         </Badge>
                       )}
                     </div>
-                    <Badge variant={src.isActive ? 'success' : 'default'} className="text-[10px]">
+                    <Badge variant={src.isActive ? 'success' : 'default'} className="text-[10px] font-bold">
                       {src.isActive ? 'فعال' : 'غیرفعال'}
                     </Badge>
                   </CardHeader>
 
-                  <CardContent className="p-4 py-2 flex flex-col gap-1.5">
-                    <h4 className="text-sm font-bold text-white light:text-slate-900 truncate">
+                  <CardContent className="p-4 sm:p-5 py-2 flex flex-col gap-2">
+                    <h4 className="text-sm sm:text-base font-extrabold text-white light:text-slate-900 truncate">
                       {src.name}
                     </h4>
-                    <span className="text-xs text-slate-400 font-mono dir-ltr text-end truncate block">
+                    <span className="text-xs text-slate-400 font-mono dir-ltr text-end truncate block bg-black/25 px-2.5 py-1 rounded-lg border border-white/5">
                       {src.sourceType === 'telegram'
-                        ? `@${src.channelUsername || src.endpoint}`
+                        ? `@${(src.channelUsername || src.endpoint || '').replace(/^@/, '')}`
                         : (src.apiUrl || src.endpoint || 'API URL')}
                     </span>
 
-                    <div className="mt-2 flex items-baseline gap-1.5">
+                    <div className="mt-2 flex items-baseline gap-2">
                       {src.lastPrice > 0 ? (
                         <>
-                          <span className="text-base font-extrabold text-emerald-400">
+                          <span className="text-lg sm:text-xl font-black text-emerald-400 font-mono tracking-tight">
                             {formatNum(src.lastPrice)}
                           </span>
-                          <span className="text-xs text-slate-400">تومان</span>
+                          <span className="text-xs text-slate-400 font-normal">تومان</span>
                         </>
                       ) : (
-                        <span className="text-xs text-slate-500">هنوز دریافت نشده</span>
+                        <span className="text-xs text-slate-500 italic py-1">هنوز دریافت نشده</span>
                       )}
                     </div>
                   </CardContent>
 
-                  <CardFooter className="p-4 pt-2 flex items-center justify-between text-xs text-slate-400 border-t border-white/5 light:border-slate-100">
-                    <span className="text-[10px]">
+                  <CardFooter className="p-4 sm:p-5 pt-3 flex items-center justify-between text-xs text-slate-400 border-t border-white/[0.06] light:border-slate-100">
+                    <span className="text-[11px] text-slate-400">
                       {src.lastFetched ? formatPersianDate(src.lastFetched) : 'بدون ثبت تاریخچه'}
                     </span>
                     <Button
                       type="button"
                       variant="ghost"
                       size="sm"
-                      className="h-7 px-2 text-xs text-sky-400 hover:text-sky-300 hover:bg-sky-500/10"
+                      className="h-7 px-2.5 text-xs font-semibold text-sky-400 hover:text-sky-300 hover:bg-sky-500/10 rounded-lg"
                       onClick={(e) => {
                         e.stopPropagation();
                         handleSelectSourceForChart(src);
                       }}
                     >
-                      <LineChart size={12} className="me-1" />
+                      <LineChart size={13} className="me-1.5" />
                       <span>نمودار</span>
                     </Button>
                   </CardFooter>
@@ -731,11 +756,13 @@ export default function PriceSourcesPage() {
         </section>
 
         {/* ── SECTION 3: Unified Management Table ─────────────────────────── */}
-        <section className="flex flex-col gap-3">
-          <div className="flex flex-wrap items-center justify-between gap-3 p-3.5 rounded-2xl border border-white/10 bg-[#0c1018]/90 light:bg-white light:border-slate-200">
-            <div className="flex items-center gap-2 text-xs font-bold text-slate-200 light:text-slate-800">
-              <Sliders size={16} className="text-sky-400" />
-              <h3 className="text-sm font-extrabold m-0">جدول مدیریت و پیکربندی سورس‌ها</h3>
+        <section className="flex flex-col gap-4">
+          <div className="flex flex-wrap items-center justify-between gap-3 p-4 sm:p-5 rounded-2xl border border-white/[0.08] bg-[#0f1422] light:bg-white light:border-slate-200 shadow-xl">
+            <div className="flex items-center gap-2.5 text-xs sm:text-sm font-extrabold text-slate-200 light:text-slate-800">
+              <div className="w-6 h-6 rounded-lg bg-sky-500/10 border border-sky-500/20 flex items-center justify-center text-sky-400">
+                <Sliders size={14} />
+              </div>
+              <h3 className="text-sm sm:text-base font-extrabold m-0">جدول مدیریت و پیکربندی سورس‌ها</h3>
             </div>
 
             {/* Filter Pills */}
@@ -743,15 +770,15 @@ export default function PriceSourcesPage() {
               <button
                 type="button"
                 className={cn(
-                  'px-2.5 py-1 rounded-lg text-xs font-medium border transition-colors cursor-pointer',
+                  'px-3.5 py-1.5 rounded-xl text-xs font-bold border transition-all cursor-pointer select-none',
                   sourceFilter === 'all'
-                    ? 'bg-amber-500 text-slate-950 font-bold border-amber-500'
-                    : 'bg-white/[0.04] text-slate-300 border-white/10 hover:bg-white/10 light:bg-slate-100 light:text-slate-700 light:border-slate-200'
+                    ? 'bg-amber-500 text-slate-950 font-black border-amber-500 shadow-md shadow-amber-500/20'
+                    : 'bg-white/[0.04] text-slate-300 border-white/[0.08] hover:bg-white/[0.08] light:bg-slate-100 light:text-slate-700 light:border-slate-200'
                 )}
                 onClick={() => setSourceFilter('all')}
               >
                 <span>همه</span>
-                <span className="ms-1 opacity-70">({sources.length.toLocaleString('fa-IR')})</span>
+                <span className="ms-1 opacity-80">({sources.length.toLocaleString('fa-IR')})</span>
               </button>
               {Object.entries(PRICE_TYPE_INFO).map(([key, info]) => {
                 const count = sources.filter((s) => s.priceType === key).length;
@@ -760,15 +787,15 @@ export default function PriceSourcesPage() {
                     key={key}
                     type="button"
                     className={cn(
-                      'px-2.5 py-1 rounded-lg text-xs font-medium border transition-colors cursor-pointer',
+                      'px-3.5 py-1.5 rounded-xl text-xs font-bold border transition-all cursor-pointer select-none',
                       sourceFilter === key
-                        ? 'bg-amber-500 text-slate-950 font-bold border-amber-500'
-                        : 'bg-white/[0.04] text-slate-300 border-white/10 hover:bg-white/10 light:bg-slate-100 light:text-slate-700 light:border-slate-200'
+                        ? 'bg-amber-500 text-slate-950 font-black border-amber-500 shadow-md shadow-amber-500/20'
+                        : 'bg-white/[0.04] text-slate-300 border-white/[0.08] hover:bg-white/[0.08] light:bg-slate-100 light:text-slate-700 light:border-slate-200'
                     )}
                     onClick={() => setSourceFilter(key)}
                   >
                     <span>{info.label}</span>
-                    <span className="ms-1 opacity-70">({count.toLocaleString('fa-IR')})</span>
+                    <span className="ms-1 opacity-80">({count.toLocaleString('fa-IR')})</span>
                   </button>
                 );
               })}
@@ -776,7 +803,7 @@ export default function PriceSourcesPage() {
           </div>
 
           {/* Table Container */}
-          <div className="rounded-2xl border border-white/10 bg-[#0c1018]/90 overflow-hidden shadow-xl light:bg-white light:border-slate-200">
+          <div className="rounded-2xl border border-white/[0.08] bg-[#0f1422] overflow-hidden shadow-2xl light:bg-white light:border-slate-200">
             <Table>
               <TableHeader>
                 <TableRow>
