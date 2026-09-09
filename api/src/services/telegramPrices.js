@@ -316,18 +316,6 @@ export async function testUsdSource(config = {}) {
 }
 
 /**
- * Fetch and cache market prices from Telegram channels or configured external source
- * @param {object} env
- * @param {boolean} [forceRefresh=false]
- * @param {object} [settings=null]
- * @returns {object} market prices object
- */
-export async function fetchTelegramPrices(env, forceRefresh = false, settings = null) {
-  // Delegate directly to unified priceSources service (reads from KV / runs interval extraction)
-  return await fetchAllPrices(env, forceRefresh, settings);
-}
-
-/**
  * Parse gold and coin prices from Telegram channel HTML
  * @param {string} html
  * @returns {object}

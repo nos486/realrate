@@ -5,6 +5,7 @@
 
 import { getLatestMarketRates } from "../services/priceSources.js";
 import { fetchForexRates } from "../services/forexRates.js";
+import { getGlobalSettings } from "../lib/settings.js";
 import { jsonResponse } from "../lib/helpers.js";
 
 /**
@@ -12,11 +13,12 @@ import { jsonResponse } from "../lib/helpers.js";
  * Return live raw market prices, spot gold/silver, USD, forex rates, and global settings.
  * Reads directly from KV / memory cache (sub-2ms response, zero calculation overhead).
  */
-export async function handleGetPrices(env, analytics, globalSettings, request = null) {
+export async function handleGetPrices(env, request = null) {
   try {
-    const [prices, forex] = await Promise.all([
+    const [prices, forex, globalSettings] = await Promise.all([
       getLatestMarketRates(env),
       fetchForexRates(env),
+      getGlobalSettings(env),
     ]);
 
     const gold_usd = prices.ons_gold?.price || globalSettings?.default_gold_usd || 2890;
@@ -36,7 +38,6 @@ export async function handleGetPrices(env, analytics, globalSettings, request = 
       live_usd_item,
       forex,
       globalSettings,
-      analytics,
     }, 200, request);
   } catch (err) {
     return jsonResponse({ success: false, error: err.message }, 500, request);

@@ -17,19 +17,30 @@ const DEFAULT_SETTINGS = {
   usd_api_json_path: "",
 };
 
+let memorySettings = null;
+let memorySettingsTime = 0;
+
 /**
- * Read global settings from D1 SQL (preferred) or KV (fallback), or use defaults
+ * Read global settings from in-memory cache (60s), D1 SQL, or KV (fallback)
  * @param {object} env
+ * @param {boolean} [forceFresh=false]
  * @returns {object} settings object
  */
-export async function getGlobalSettings(env) {
+export async function getGlobalSettings(env, forceFresh = false) {
+  const now = Date.now();
+  if (!forceFresh && memorySettings && (now - memorySettingsTime < 60000)) {
+    return memorySettings;
+  }
+
+  let loaded = null;
+
   // 1. Try D1 SQL
   if (env && env.DB) {
     await ensureD1Tables(env);
     try {
       const row = await env.DB.prepare("SELECT * FROM settings WHERE id = 1").first();
       if (row) {
-        return {
+        loaded = {
           default_usd_toman: row.default_usd_toman ?? DEFAULT_SETTINGS.default_usd_toman,
           default_gold_usd:  row.default_gold_usd  ?? DEFAULT_SETTINGS.default_gold_usd,
           bubble_pct_full:   row.bubble_pct_full   ?? DEFAULT_SETTINGS.bubble_pct_full,
@@ -48,19 +59,21 @@ export async function getGlobalSettings(env) {
   }
 
   // 2. Try KV
-  if (env && env.REALRATE_KV) {
+  if (!loaded && env && env.REALRATE_KV) {
     try {
       const storedStr = await env.REALRATE_KV.get("global_settings");
       if (storedStr) {
         const parsed = JSON.parse(storedStr);
-        return { ...DEFAULT_SETTINGS, ...parsed };
+        loaded = { ...DEFAULT_SETTINGS, ...parsed };
       }
     } catch (e) {
       console.error("Error reading global_settings from KV:", e);
     }
   }
 
-  return { ...DEFAULT_SETTINGS };
+  memorySettings = loaded ? { ...DEFAULT_SETTINGS, ...loaded } : { ...DEFAULT_SETTINGS };
+  memorySettingsTime = Date.now();
+  return memorySettings;
 }
 
 /**
@@ -117,4 +130,7 @@ export async function saveGlobalSettings(env, newSettings) {
   if (env && env.REALRATE_KV) {
     await env.REALRATE_KV.put("global_settings", JSON.stringify(mergedSettings));
   }
+
+  memorySettings = { ...mergedSettings };
+  memorySettingsTime = Date.now();
 }

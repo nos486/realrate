@@ -10,7 +10,6 @@
  * The frontend (React + Vite) is hosted separately on Cloudflare Pages.
  */
 
-import { trackAnalytics } from "./lib/analytics.js";
 import { getGlobalSettings } from "./lib/settings.js";
 import { getCorsHeaders } from "./lib/helpers.js";
 
@@ -34,7 +33,6 @@ import {
   handleAdminTestPriceSource,
   handleAdminFetchAllSources,
   handleAdminGetPriceHistory,
-  handleAdminKvCleanup,
 } from "./handlers/adminRoutes.js";
 import { handleGetPrices } from "./handlers/apiRoutes.js";
 import {
@@ -49,7 +47,6 @@ import {
   handleUpdateUserSettings,
   handleGetSharedPortfolio,
 } from "./handlers/portfolioRoutes.js";
-import { fetchTelegramPrices } from "./services/telegramPrices.js";
 import { handleScheduledPriceExtraction, fetchAllPrices } from "./services/priceSources.js";
 
 export default {
@@ -69,12 +66,6 @@ export default {
         { status: 404, headers: { "Content-Type": "application/json", ...corsHeaders } }
       );
     }
-
-    // ── Analytics + Settings (needed for most routes) ───────────────────────
-    const [analytics, globalSettings] = await Promise.all([
-      trackAnalytics(request, env, ctx, url),
-      getGlobalSettings(env),
-    ]);
 
     // ── Auth API Routes ─────────────────────────────────────────────────────
     if (url.pathname === "/api/auth/google/login" && request.method === "GET")    return handleGoogleLogin(request, env);
@@ -113,9 +104,6 @@ export default {
     if (url.pathname === "/api/admin/price-history" && request.method === "GET") {
       return handleAdminGetPriceHistory(request, env);
     }
-    if (url.pathname === "/api/admin/kv/cleanup") {
-      return handleAdminKvCleanup(request, env);
-    }
 
     // ── Portfolio API Routes ────────────────────────────────────────────────
     if (url.pathname === "/api/portfolio/shared")                              return handleGetSharedPortfolio(request, env);
@@ -132,10 +120,11 @@ export default {
     }
 
     // ── Public API Routes ───────────────────────────────────────────────────
-    if (url.pathname === "/api/prices") return handleGetPrices(env, analytics, globalSettings, request);
+    if (url.pathname === "/api/prices") return handleGetPrices(env, request);
 
     if (url.pathname === "/api/telegram") {
       const forceRefresh = url.searchParams.get("force") === "true";
+      const globalSettings = await getGlobalSettings(env);
       const tgData = await fetchAllPrices(env, forceRefresh, globalSettings);
       return new Response(JSON.stringify(tgData, null, 2), {
         headers: { "Content-Type": "application/json; charset=utf-8", ...corsHeaders },
