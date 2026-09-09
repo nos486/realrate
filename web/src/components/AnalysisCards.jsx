@@ -21,18 +21,22 @@ export default function AnalysisCards({ analysis, recommendation }) {
           let badgeText = 'ناموجود در بازار';
 
           if (hasMarket) {
+            const formattedBubble = Math.abs(item.bubble_pct).toLocaleString('fa-IR', {
+              minimumFractionDigits: 1,
+              maximumFractionDigits: 1,
+            });
             if (item.bubble_pct < 0) {
               badgeClass = 'badge-good';
-              badgeText = `حباب منفی: ${item.bubble_pct?.toLocaleString('fa-IR')}٪`;
+              badgeText = `حباب منفی: ${formattedBubble}٪`;
             } else if (item.bubble_pct <= 5) {
               badgeClass = 'badge-blue';
-              badgeText = `حباب: +${item.bubble_pct?.toLocaleString('fa-IR')}٪`;
+              badgeText = `حباب: +${formattedBubble}٪`;
             } else if (item.bubble_pct <= 15) {
               badgeClass = 'badge-orange';
-              badgeText = `حباب: +${item.bubble_pct?.toLocaleString('fa-IR')}٪`;
+              badgeText = `حباب: +${formattedBubble}٪`;
             } else {
               badgeClass = 'badge-danger';
-              badgeText = `حباب: +${item.bubble_pct?.toLocaleString('fa-IR')}٪`;
+              badgeText = `حباب: +${formattedBubble}٪`;
             }
           }
 
@@ -42,7 +46,9 @@ export default function AnalysisCards({ analysis, recommendation }) {
                 <div className="card-identity">
                   <h3 className="card-name">{item.name}</h3>
                   {item.target_bubble_pct > 0 && (
-                    <span className="target-badge">حباب استاندارد: {item.target_bubble_pct?.toLocaleString('fa-IR')}٪</span>
+                    <span className="target-badge">
+                      حباب استاندارد: {Number(item.target_bubble_pct).toLocaleString('fa-IR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}٪
+                    </span>
                   )}
                 </div>
                 <span className={`bubble-pill ${badgeClass}`}>{badgeText}</span>
@@ -82,7 +88,7 @@ export default function AnalysisCards({ analysis, recommendation }) {
                     <span className="metric-key">انحراف از استاندارد:</span>
                     <strong className={`metric-val ${item.diff_from_expected < 0 ? 'good-val' : 'warn-val'}`}>
                       {item.diff_from_expected < 0 ? '-' : '+'}
-                      {formatNum(Math.abs(item.diff_from_expected))} تومان ({item.diff_from_expected_pct?.toLocaleString('fa-IR')}٪)
+                      {formatNum(Math.abs(item.diff_from_expected))} تومان ({Math.abs(item.diff_from_expected_pct).toLocaleString('fa-IR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}٪)
                     </strong>
                   </div>
                 )}

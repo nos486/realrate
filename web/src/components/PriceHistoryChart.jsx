@@ -116,7 +116,7 @@ export default function PriceHistoryChart({
     const first = prices[0];
     const latest = prices[prices.length - 1];
     const change = latest - first;
-    const changePct = first > 0 ? (change / first) * 100 : 0;
+    const changePct = first > 0 ? parseFloat(((change / first) * 100).toFixed(1)) : 0;
     const isUp = change >= 0;
 
     return { min, max, avg, latest, first, change, changePct, isUp };
@@ -242,7 +242,7 @@ export default function PriceHistoryChart({
                 <span>
                   {metrics.isUp ? '+' : ''}
                   {formatNum(metrics.change, selectedPriceType)} {priceUnit} ({metrics.isUp ? '+' : ''}
-                  {metrics.changePct.toFixed(2).replace('.', '/')}٪)
+                  {metrics.changePct.toFixed(1).replace('.', '/')}٪)
                 </span>
               </div>
             )}

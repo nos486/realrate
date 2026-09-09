@@ -261,7 +261,7 @@ export default function SharedPortfolioPage() {
       const itemCost = hasBuyPrice ? amountNum * buyPriceNum : 0;
       const itemRealVal = amountNum * unitRealPrice;
       const itemPnl = hasBuyPrice ? itemRealVal - itemCost : null;
-      const itemPnlPct = hasBuyPrice && itemCost > 0 ? (itemPnl / itemCost) * 100 : null;
+      const itemPnlPct = hasBuyPrice && itemCost > 0 ? parseFloat(((itemPnl / itemCost) * 100).toFixed(1)) : null;
 
       return {
         ...h,
@@ -280,7 +280,7 @@ export default function SharedPortfolioPage() {
     const totalRealValue = items.reduce((acc, it) => acc + it.itemRealVal, 0);
     const hasAnyCost = costedItems.length > 0 && totalCost > 0;
     const totalPnl = costedItems.reduce((acc, it) => acc + (it.itemPnl || 0), 0);
-    const totalPnlPct = hasAnyCost ? (totalPnl / totalCost) * 100 : 0;
+    const totalPnlPct = hasAnyCost ? parseFloat(((totalPnl / totalCost) * 100).toFixed(1)) : 0;
 
     return { items, totalCost, totalRealValue, totalPnl, totalPnlPct, hasAnyCost };
   }, [portfolioData, realPriceMap]);
@@ -293,7 +293,7 @@ export default function SharedPortfolioPage() {
       const groupCost = costedGroupItems.reduce((acc, it) => acc + it.itemCost, 0);
       const groupRealVal = groupItems.reduce((acc, it) => acc + it.itemRealVal, 0);
       const groupPnl = costedGroupItems.reduce((acc, it) => acc + (it.itemPnl || 0), 0);
-      const groupPnlPct = groupCost > 0 ? (groupPnl / groupCost) * 100 : 0;
+      const groupPnlPct = groupCost > 0 ? parseFloat(((groupPnl / groupCost) * 100).toFixed(1)) : 0;
       return {
         ...cat,
         items: groupItems,
@@ -363,7 +363,7 @@ export default function SharedPortfolioPage() {
         escapeCSV(item.unitRealPrice),
         escapeCSV(item.itemRealVal),
         escapeCSV(item.hasBuyPrice ? item.itemPnl : ''),
-        escapeCSV(item.hasBuyPrice && item.itemPnlPct !== null ? item.itemPnlPct.toFixed(2) + '%' : ''),
+        escapeCSV(item.hasBuyPrice && item.itemPnlPct !== null ? item.itemPnlPct.toFixed(1) + '%' : ''),
         escapeCSV(item.buyDate || ''),
         escapeCSV(item.notes || '')
       ].join(',');
@@ -797,7 +797,7 @@ export default function SharedPortfolioPage() {
                         </span>
                       ) : portfolioMetrics.hasAnyCost ? (
                         <span className={`pnl-badge ${portfolioMetrics.totalPnl >= 0 ? 'profit' : 'loss'}`}>
-                          {hideValues ? '****' : `${portfolioMetrics.totalPnl >= 0 ? '+' : ''}${portfolioMetrics.totalPnlPct.toFixed(2).replace('-', '')}٪`}
+                          {hideValues ? '****' : `${portfolioMetrics.totalPnl >= 0 ? '+' : ''}${Math.abs(portfolioMetrics.totalPnlPct).toFixed(1)}٪`}
                         </span>
                       ) : (
                         <span className="pnl-badge neutral">—</span>
