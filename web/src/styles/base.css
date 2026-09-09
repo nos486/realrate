@@ -106,6 +106,7 @@ input:focus, select:focus, textarea:focus {
 .portfolio-nav-bar,
 .portfolio-table-card,
 .inputs-toolbar,
+.currency-item-card,
 [role="tablist"].variant-segmented,
 .ui-filter-pills.variant-segmented {
   background: var(--card-bg);
@@ -834,15 +835,16 @@ input:focus, select:focus, textarea:focus {
   align-items: center;
   position: relative;
   background: var(--bg-input);
-  border: none;
-  border-radius: var(--radius-md, 12px);
-  padding: 0 12px;
-  height: 38px;
-  transition: box-shadow var(--transition-fast), background var(--transition-fast);
+  border: 1px solid var(--border-control, rgba(255, 255, 255, 0.08));
+  border-radius: var(--radius-full);
+  padding: 0 16px;
+  height: 40px;
+  transition: box-shadow var(--transition-fast), background var(--transition-fast), border-color var(--transition-fast);
 }
 
 .ui-search-bar:focus-within {
   background: var(--bg-input-focus);
+  border-color: var(--border-input-focus, #0284c7);
   box-shadow: var(--shadow-input-focus);
 }
 

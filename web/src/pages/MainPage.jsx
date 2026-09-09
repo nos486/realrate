@@ -161,7 +161,7 @@ export default function MainPage() {
       {/* Tab Views */}
       <section className="tab-view-container">
         {activeTab === 'market' && (
-          <div className="market-tab-content" style={{ display: 'flex', flexDirection: 'column', gap: '28px' }}>
+          <div className="market-tab-content">
             {/* Market Top Controls (Inputs Toolbar & Smart Recommendation Side-by-Side on Desktop) */}
             <div className={`market-top-controls ${recommendation ? 'has-rec' : ''}`}>
               <MarketInputsToolbar
