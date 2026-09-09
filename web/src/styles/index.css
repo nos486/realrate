@@ -21,11 +21,6 @@
 
 @import './tokens.css';
 @import './base.css';
-@import './header.css';
 @import './market.css';
 @import './portfolio.css';
-@import './modals.css';
-@import './footer.css';
 @import './portfolio-extras.css';
-@import './loading.css';
-@import './settings.css';

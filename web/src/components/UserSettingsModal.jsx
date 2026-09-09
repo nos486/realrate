@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import {
   Settings,
-  X,
   Check,
   CheckCircle2,
   AlertTriangle,
@@ -9,6 +8,8 @@ import {
   EyeOff,
   Copy,
   Trash2,
+  Lock,
+  Share2,
 } from 'lucide-react';
 import { apiUpdatePortfolio } from '../api/client.js';
 import {
@@ -20,6 +21,19 @@ import {
   getVaultPassphraseFromSession,
   clearVaultPassphraseFromSession,
 } from '../lib/e2ee.js';
+
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogBody,
+  DialogFooter,
+} from '@/components/ui/dialog.jsx';
+import { Button } from '@/components/ui/button.jsx';
+import { Input, Label } from '@/components/ui/input.jsx';
+import { cn } from '@/lib/utils.js';
 
 export function generateRandomSlug(len = 8) {
   const chars = '23456789abcdefghjkmnpqrstuvwxyz';
@@ -51,16 +65,6 @@ export default function UserSettingsModal({ isOpen, portfolio, onClose, onSaved,
 
   useEffect(() => {
     if (isOpen) {
-      const origOverflow = document.body.style.overflow;
-      document.body.style.overflow = 'hidden';
-      return () => {
-        document.body.style.overflow = origOverflow;
-      };
-    }
-  }, [isOpen]);
-
-  useEffect(() => {
-    if (isOpen) {
       setLoading(true);
       setMsg({ text: '', type: '' });
       setCopied(false);
@@ -85,8 +89,6 @@ export default function UserSettingsModal({ isOpen, portfolio, onClose, onSaved,
       setLoading(false);
     }
   }, [isOpen, portfolio]);
-
-  if (!isOpen) return null;
 
   const fullShareUrl = typeof window !== 'undefined'
     ? `${window.location.origin}/p/${shareSlug || ''}`
@@ -126,7 +128,6 @@ export default function UserSettingsModal({ isOpen, portfolio, onClose, onSaved,
           const key = await deriveE2eeKey(cleanPass, e2eeSalt);
           e2eeVerifier = await createE2eeVerifier(key);
         } else {
-          // Check if password matches existing verifier or needs new salt
           const key = await deriveE2eeKey(cleanPass, e2eeSalt);
           const valid = await verifyE2eeKey(key, e2eeVerifier);
           if (!valid) {
@@ -181,244 +182,257 @@ export default function UserSettingsModal({ isOpen, portfolio, onClose, onSaved,
   };
 
   return (
-    <div className="modal-backdrop" onClick={onClose}>
-      <div className="modal-content settings-modal-box" onClick={(e) => e.stopPropagation()}>
-        <div className="modal-drag-handle" />
-        {/* Modal Header */}
-        <div className="modal-header">
-          <div className="modal-title-wrap">
-            <span className="modal-icon"><Settings size={18} /></span>
-            <div>
-              <h3>تنظیمات «{portfolioName || 'پورتفو'}»</h3>
+    <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
+      <DialogContent onClose={onClose} className="max-w-lg">
+        <DialogHeader>
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 rounded-lg bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-500">
+              <Settings size={16} />
             </div>
+            <DialogTitle>تنظیمات «{portfolioName || 'پورتفو'}»</DialogTitle>
           </div>
-          <button className="modal-close-btn" onClick={onClose} aria-label="بستن">
-            <X size={18} />
-          </button>
-        </div>
+          <DialogDescription>
+            نام، نحوه اشتراک‌گذاری و امنیت گاوصندوق این پورتفو را مدیریت کنید.
+          </DialogDescription>
+        </DialogHeader>
 
         {loading ? (
-          <div className="settings-loading">
-            <div className="spinner-glow"></div>
+          <div className="py-12 flex flex-col items-center justify-center gap-2 text-xs text-slate-400">
+            <div className="w-6 h-6 border-2 border-amber-500 border-t-transparent rounded-full animate-spin" />
             <span>در حال بارگذاری تنظیمات...</span>
           </div>
         ) : (
-          <form onSubmit={handleSave} className="modal-form-layout">
-            <div className="modal-scroll-body">
+          <form onSubmit={handleSave}>
+            <DialogBody className="space-y-4">
               {msg.text && (
-              <div className={`settings-alert-banner ${msg.type}`}>
-                {msg.type === 'success' ? (
-                  <CheckCircle2 size={15} style={{ display: 'inline', verticalAlign: 'middle', marginLeft: '4px' }} />
-                ) : (
-                  <AlertTriangle size={15} style={{ display: 'inline', verticalAlign: 'middle', marginLeft: '4px' }} />
-                )}
-                {msg.text}
-              </div>
-            )}
-
-            {/* Portfolio Name */}
-            <div className="form-group">
-              <label htmlFor="settingsPortfolioName">نام پورتفو</label>
-              <input
-                type="text"
-                id="settingsPortfolioName"
-                placeholder="نام پورتفو..."
-                value={portfolioName}
-                onChange={(e) => setPortfolioName(e.target.value)}
-                required
-              />
-            </div>
-
-            {/* Default Portfolio Toggle */}
-            <div className="share-toggle-card default-portfolio-toggle">
-              <div className="toggle-info">
-                <div className="toggle-title-row">
-                  <span className="share-status-indicator" style={{ backgroundColor: isDefault ? '#f59e0b' : '#64748b' }}></span>
-                  <strong>پورتفوی پیش‌فرض</strong>
+                <div
+                  className={cn(
+                    'p-3 rounded-xl text-xs font-semibold flex items-center gap-2',
+                    msg.type === 'success'
+                      ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30'
+                      : 'bg-rose-500/15 text-rose-400 border border-rose-500/30'
+                  )}
+                >
+                  {msg.type === 'success' ? <CheckCircle2 size={15} /> : <AlertTriangle size={15} />}
+                  <span>{msg.text}</span>
                 </div>
-              </div>
-              <label className="switch-wrapper">
-                <input
-                  type="checkbox"
-                  checked={isDefault}
-                  onChange={(e) => setIsDefault(e.target.checked)}
-                />
-                <span className="switch-slider"></span>
-              </label>
-            </div>
+              )}
 
-            {/* Share Enabled Toggle */}
-            <div className={`share-toggle-card ${shareEnabled ? 'active' : ''}`}>
-              <div className="toggle-info">
-                <div className="toggle-title-row">
-                  <span className="share-status-indicator" style={{ backgroundColor: shareEnabled ? '#10b981' : '#64748b' }}></span>
-                  <strong>اشتراک‌گذاری</strong>
-                </div>
-              </div>
-              <label className="switch-wrapper">
-                <input
-                  type="checkbox"
-                  checked={shareEnabled}
-                  onChange={(e) => setShareEnabled(e.target.checked)}
-                />
-                <span className="switch-slider"></span>
-              </label>
-            </div>
-
-            {/* Custom URL Slug */}
-            <div className="form-group">
-              <label htmlFor="settingsShareSlug">لینک اختصاصی</label>
-              <div className="slug-input-wrapper">
-                <span className="slug-prefix">/p/</span>
-                <input
+              {/* Portfolio Name */}
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="settingsPortfolioName">نام پورتفو:</Label>
+                <Input
                   type="text"
-                  id="settingsShareSlug"
-                  placeholder="مثال: my-portfolio"
-                  value={shareSlug}
-                  onChange={(e) => setShareSlug(e.target.value.toLowerCase().replace(/[^a-z0-9_-]/g, '-'))}
-                  pattern="[a-zA-Z0-9_-]{2,40}"
-                  title="حروف انگلیسی، اعداد، خط فاصله (-) و زیرخط (_)"
-                  dir="ltr"
+                  id="settingsPortfolioName"
+                  placeholder="نام پورتفو..."
+                  value={portfolioName}
+                  onChange={(e) => setPortfolioName(e.target.value)}
+                  required
                 />
               </div>
-            </div>
 
-            {/* Share Link Preview (Only when sharing is enabled) */}
-            {shareEnabled && shareSlug && (
-              <div className="share-url-preview-card">
-                <div className="preview-link-text" dir="ltr">{fullShareUrl}</div>
-                <button
-                  type="button"
-                  className={`btn-copy-link ${copied ? 'copied' : ''}`}
-                  onClick={handleCopyLink}
-                >
-                  {copied ? 'کپی شد' : 'کپی لینک'}
-                </button>
-              </div>
-            )}
-
-            {/* Share Password Protection */}
-            <div className="form-group">
-              <label htmlFor="settingsSharePassword">رمز عبور لینک (اختیاری)</label>
-              <div className="password-input-wrapper">
-                <input
-                  type={showPassword ? 'text' : 'password'}
-                  id="settingsSharePassword"
-                  placeholder="رمز دلخواه..."
-                  value={sharePassword}
-                  onChange={(e) => setSharePassword(e.target.value)}
-                />
-                <button
-                  type="button"
-                  className="btn-toggle-pwd"
-                  onClick={() => setShowPassword(!showPassword)}
-                  title={showPassword ? 'مخفی کردن' : 'نمایش رمز'}
-                >
-                  {showPassword ? <EyeOff size={15} /> : <Eye size={15} />}
-                </button>
-              </div>
-            </div>
-
-            {/* E2EE Vault Toggle Card */}
-            <div className={`vault-toggle-card ${isE2ee ? 'active' : ''}`}>
-              <div className="vault-toggle-header">
-                <div className="toggle-info">
-                  <div className="toggle-title-row">
-                    <span className="share-status-indicator" style={{ backgroundColor: isE2ee ? '#10b981' : '#64748b' }}></span>
-                    <strong>رمزنگاری سرتاسری (E2EE)</strong>
-                  </div>
-                  <span className="vault-subtitle">
-                    قفل دارایی‌ها با رمز عبور شخصی
-                  </span>
+              {/* Default Portfolio Toggle Card */}
+              <div className="flex items-center justify-between p-3.5 rounded-xl bg-white/[0.03] border border-white/5 light:bg-slate-50 light:border-slate-200">
+                <div className="flex items-center gap-2">
+                  <span
+                    className={cn(
+                      'w-2 h-2 rounded-full',
+                      isDefault ? 'bg-amber-400' : 'bg-slate-500'
+                    )}
+                  />
+                  <strong className="text-xs font-bold text-white light:text-slate-900">
+                    پورتفوی پیش‌فرض
+                  </strong>
                 </div>
-                <label className="switch-wrapper">
+                <label className="relative inline-flex items-center cursor-pointer">
                   <input
                     type="checkbox"
-                    checked={isE2ee}
-                    onChange={(e) => setIsE2ee(e.target.checked)}
+                    checked={isDefault}
+                    onChange={(e) => setIsDefault(e.target.checked)}
+                    className="sr-only peer"
                   />
-                  <span className="switch-slider"></span>
+                  <div className="w-9 h-5 bg-white/10 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-amber-500"></div>
                 </label>
               </div>
 
-              {isE2ee && (
-                <div className="vault-form-section">
-                  <div className="vault-warning-box">
-                    <span className="warning-icon"><AlertTriangle size={16} /></span>
-                    <p>
-                      این رمز در سرور ذخیره نمی‌شود. در صورت فراموشی، اطلاعات غیرقابل بازیابی خواهد بود.
-                    </p>
+              {/* Public Sharing Section */}
+              <div className="flex flex-col gap-3 p-3.5 rounded-xl bg-white/[0.03] border border-white/5 light:bg-slate-50 light:border-slate-200">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Share2 size={15} className={shareEnabled ? 'text-emerald-400' : 'text-slate-400'} />
+                    <strong className="text-xs font-bold text-white light:text-slate-900">
+                      اشتراک‌گذاری عمومی
+                    </strong>
                   </div>
+                  <label className="relative inline-flex items-center cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={shareEnabled}
+                      onChange={(e) => setShareEnabled(e.target.checked)}
+                      className="sr-only peer"
+                    />
+                    <div className="w-9 h-5 bg-white/10 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-500"></div>
+                  </label>
+                </div>
 
-                  <div className="form-group">
-                    <label htmlFor="settingsVaultPassword">رمز عبور</label>
-                    <div className="password-input-wrapper">
-                      <input
-                        type={showVaultPassword ? 'text' : 'password'}
-                        id="settingsVaultPassword"
-                        placeholder="حداقل ۴ کاراکتر یا عدد..."
-                        value={vaultPassword}
-                        onChange={(e) => setVaultPassword(e.target.value)}
-                        required={isE2ee}
-                      />
-                      <button
-                        type="button"
-                        className="btn-toggle-pwd"
-                        onClick={() => setShowVaultPassword(!showVaultPassword)}
-                        title={showVaultPassword ? 'مخفی کردن' : 'نمایش رمز'}
-                      >
-                        {showVaultPassword ? <EyeOff size={15} /> : <Eye size={15} />}
-                      </button>
+                {shareEnabled && (
+                  <div className="space-y-3 pt-2 border-t border-white/5 light:border-slate-200">
+                    <div className="flex flex-col gap-1.5">
+                      <Label htmlFor="settingsShareSlug">لینک اختصاصی:</Label>
+                      <div className="flex items-center gap-2 dir-ltr">
+                        <span className="text-xs font-mono text-slate-400">/p/</span>
+                        <Input
+                          type="text"
+                          id="settingsShareSlug"
+                          placeholder="my-portfolio"
+                          value={shareSlug}
+                          onChange={(e) => setShareSlug(e.target.value.toLowerCase().replace(/[^a-z0-9_-]/g, '-'))}
+                          className="font-mono text-xs dir-ltr text-start flex-1"
+                        />
+                      </div>
+                    </div>
+
+                    {shareSlug && (
+                      <div className="flex items-center justify-between gap-2 p-2 rounded-lg bg-black/30 border border-white/10 text-xs">
+                        <span className="font-mono text-[11px] text-slate-300 truncate dir-ltr">
+                          {fullShareUrl}
+                        </span>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={handleCopyLink}
+                          className="h-7 px-2 text-xs"
+                        >
+                          <Copy size={12} className="me-1" />
+                          <span>{copied ? 'کپی شد' : 'کپی'}</span>
+                        </Button>
+                      </div>
+                    )}
+
+                    <div className="flex flex-col gap-1.5">
+                      <Label htmlFor="settingsSharePassword">رمز عبور لینک (اختیاری):</Label>
+                      <div className="relative">
+                        <Input
+                          type={showPassword ? 'text' : 'password'}
+                          id="settingsSharePassword"
+                          placeholder="رمز دلخواه..."
+                          value={sharePassword}
+                          onChange={(e) => setSharePassword(e.target.value)}
+                          className="pe-10"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowPassword(!showPassword)}
+                          className="absolute inset-y-0 end-0 pe-3 flex items-center text-slate-400 hover:text-white"
+                        >
+                          {showPassword ? <EyeOff size={15} /> : <Eye size={15} />}
+                        </button>
+                      </div>
                     </div>
                   </div>
-
-                  <div className="form-group">
-                    <label htmlFor="settingsVaultPasswordConfirm">تکرار رمز عبور</label>
-                    <input
-                      type={showVaultPassword ? 'text' : 'password'}
-                      id="settingsVaultPasswordConfirm"
-                      placeholder="تکرار رمز..."
-                      value={vaultPasswordConfirm}
-                      onChange={(e) => setVaultPasswordConfirm(e.target.value)}
-                      required={isE2ee}
-                    />
-                  </div>
-                </div>
-              )}
-              </div>
-            </div>
-
-            {/* Pinned Modal Actions */}
-            <div className="modal-actions-pinned">
-              <div className="modal-actions-split">
-                {canDelete ? (
-                  <button
-                    type="button"
-                    className="btn-modal-delete"
-                    onClick={onDelete}
-                    disabled={saving}
-                    title={`حذف «${portfolio?.name || ''}»`}
-                  >
-                    <Trash2 size={14} />
-                    <span>حذف</span>
-                  </button>
-                ) : (
-                  <div />
                 )}
-
-                <div className="modal-actions-right">
-                  <button type="button" className="btn-modal-cancel" onClick={onClose} disabled={saving}>
-                    انصراف
-                  </button>
-                  <button type="submit" className="btn-modal-submit" disabled={saving}>
-                    {saving ? 'در حال ذخیره...' : 'ذخیره'}
-                  </button>
-                </div>
               </div>
-            </div>
+
+              {/* E2EE Encrypted Vault Section */}
+              <div className="flex flex-col gap-3 p-3.5 rounded-xl bg-white/[0.03] border border-white/5 light:bg-slate-50 light:border-slate-200">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Lock size={15} className={isE2ee ? 'text-amber-400' : 'text-slate-400'} />
+                    <div className="flex flex-col">
+                      <strong className="text-xs font-bold text-white light:text-slate-900">
+                        رمزنگاری سرتاسری (E2EE)
+                      </strong>
+                      <span className="text-[10px] text-slate-400">
+                        قفل دارایی‌ها با رمز عبور شخصی روی مرورگر شما
+                      </span>
+                    </div>
+                  </div>
+                  <label className="relative inline-flex items-center cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={isE2ee}
+                      onChange={(e) => setIsE2ee(e.target.checked)}
+                      className="sr-only peer"
+                    />
+                    <div className="w-9 h-5 bg-white/10 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-amber-500"></div>
+                  </label>
+                </div>
+
+                {isE2ee && (
+                  <div className="space-y-3 pt-2 border-t border-white/5 light:border-slate-200">
+                    <div className="flex items-start gap-2 p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/25 text-amber-300 text-[11px] leading-relaxed">
+                      <AlertTriangle size={15} className="shrink-0 mt-0.5" />
+                      <span>این رمز در سرور ذخیره نمی‌شود. در صورت فراموشی، اطلاعات غیرقابل بازیابی خواهد بود.</span>
+                    </div>
+
+                    <div className="flex flex-col gap-1.5">
+                      <Label htmlFor="settingsVaultPassword">رمز عبور گاوصندوق:</Label>
+                      <div className="relative">
+                        <Input
+                          type={showVaultPassword ? 'text' : 'password'}
+                          id="settingsVaultPassword"
+                          placeholder="حداقل ۴ کاراکتر..."
+                          value={vaultPassword}
+                          onChange={(e) => setVaultPassword(e.target.value)}
+                          required={isE2ee}
+                          className="pe-10"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowVaultPassword(!showVaultPassword)}
+                          className="absolute inset-y-0 end-0 pe-3 flex items-center text-slate-400 hover:text-white"
+                        >
+                          {showVaultPassword ? <EyeOff size={15} /> : <Eye size={15} />}
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="flex flex-col gap-1.5">
+                      <Label htmlFor="settingsVaultPasswordConfirm">تکرار رمز عبور:</Label>
+                      <Input
+                        type={showVaultPassword ? 'text' : 'password'}
+                        id="settingsVaultPasswordConfirm"
+                        placeholder="تکرار رمز..."
+                        value={vaultPasswordConfirm}
+                        onChange={(e) => setVaultPasswordConfirm(e.target.value)}
+                        required={isE2ee}
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+            </DialogBody>
+
+            <DialogFooter className="flex items-center justify-between sm:justify-between w-full">
+              {canDelete ? (
+                <Button
+                  type="button"
+                  variant="destructive"
+                  size="sm"
+                  onClick={onDelete}
+                  disabled={saving}
+                  title={`حذف «${portfolio?.name || ''}»`}
+                >
+                  <Trash2 size={14} />
+                  <span>حذف</span>
+                </Button>
+              ) : (
+                <div />
+              )}
+
+              <div className="flex items-center gap-2">
+                <Button type="button" variant="ghost" onClick={onClose} disabled={saving}>
+                  انصراف
+                </Button>
+                <Button type="submit" variant="primary" disabled={saving} isLoading={saving}>
+                  {saving ? 'در حال ذخیره...' : 'ذخیره'}
+                </Button>
+              </div>
+            </DialogFooter>
           </form>
         )}
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 }
