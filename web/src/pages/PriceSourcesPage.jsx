@@ -34,6 +34,7 @@ import {
 } from 'lucide-react';
 import Header from '../components/Header.jsx';
 import Footer from '../components/Footer.jsx';
+import Modal from '../components/ui/Modal.jsx';
 import { useAuth } from '../context/AuthContext.jsx';
 import { useMarketData } from '../hooks/useMarketData.js';
 import {
@@ -1005,28 +1006,35 @@ export default function PriceSourcesPage() {
         </section>
 
         {/* ── SECTION 4: Add/Edit Modal ───────────────────────────────────── */}
-        {sourceModalOpen && (
-          <div className="admin-modal-backdrop" onClick={() => setSourceModalOpen(false)}>
-            <div
-              className="admin-modal-card source-edit-modal-card"
-              onClick={(e) => e.stopPropagation()}
-              style={{ maxWidth: '640px' }}
-            >
-              <div className="admin-modal-header">
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <Radio size={16} style={{ color: 'var(--accent-blue)' }} />
-                  <h3>{editingSourceId ? 'ویرایش سورس قیمت' : 'افزودن سورس قیمت جدید'}</h3>
-                </div>
-                <button
-                  type="button"
-                  className="modal-close-btn"
-                  onClick={() => setSourceModalOpen(false)}
-                >
-                  <X size={16} />
-                </button>
-              </div>
-
-              <form onSubmit={handleSaveModalSource} className="admin-modal-body">
+        <Modal
+          isOpen={sourceModalOpen}
+          onClose={() => setSourceModalOpen(false)}
+          title={editingSourceId ? 'ویرایش سورس قیمت' : 'افزودن سورس قیمت جدید'}
+          icon={<Radio size={16} style={{ color: 'var(--accent-blue)' }} />}
+          maxWidth="640px"
+          className="source-edit-modal-card"
+          onSubmit={handleSaveModalSource}
+          footer={
+            <div className="modal-actions-right">
+              <button
+                type="button"
+                className="btn-cancel"
+                onClick={() => setSourceModalOpen(false)}
+                disabled={modalSaving}
+              >
+                انصراف
+              </button>
+              <button
+                type="submit"
+                disabled={modalSaving}
+                className="btn-primary"
+              >
+                <Save size={14} className={modalSaving ? 'spin-anim' : ''} />
+                <span>{modalSaving ? 'در حال ذخیره‌سازی...' : 'ذخیره سورس قیمت'}</span>
+              </button>
+            </div>
+          }
+        >
                 <div className="form-group">
                   <label>نام سورس:</label>
                   <input
@@ -1244,25 +1252,7 @@ export default function PriceSourcesPage() {
                   )}
                 </div>
 
-                {/* Modal Footer */}
-                <div className="admin-modal-actions">
-                  <button type="button" className="btn-sm site-link" onClick={() => setSourceModalOpen(false)}>
-                    انصراف
-                  </button>
-                  <button
-                    type="submit"
-                    disabled={modalSaving}
-                    className="btn-sm btn-primary-action"
-                    style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
-                  >
-                    <Save size={14} className={modalSaving ? 'spin-anim' : ''} />
-                    <span>{modalSaving ? 'در حال ذخیره‌سازی...' : 'ذخیره سورس قیمت'}</span>
-                  </button>
-                </div>
-              </form>
-            </div>
-          </div>
-        )}
+        </Modal>
       </main>
 
       <Footer />

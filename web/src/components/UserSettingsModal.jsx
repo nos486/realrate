@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import {
   Settings,
-  X,
   Check,
   CheckCircle2,
   AlertTriangle,
@@ -10,6 +9,7 @@ import {
   Copy,
   Trash2,
 } from 'lucide-react';
+import Modal from './ui/Modal.jsx';
 import { apiUpdatePortfolio } from '../api/client.js';
 import {
   generateE2eeSalt,
@@ -181,31 +181,60 @@ export default function UserSettingsModal({ isOpen, portfolio, onClose, onSaved,
   };
 
   return (
-    <div className="modal-backdrop" onClick={onClose}>
-      <div className="modal-content settings-modal-box" onClick={(e) => e.stopPropagation()}>
-        <div className="modal-drag-handle" />
-        {/* Modal Header */}
-        <div className="modal-header">
-          <div className="modal-title-wrap">
-            <span className="modal-icon"><Settings size={18} /></span>
-            <div>
-              <h3>تنظیمات «{portfolioName || 'پورتفو'}»</h3>
+    <Modal
+      isOpen={isOpen}
+      onClose={onClose}
+      title={`تنظیمات «${portfolioName || 'پورتفو'}»`}
+      icon={<Settings size={18} />}
+      maxWidth="540px"
+      onSubmit={!loading ? handleSave : null}
+      footer={
+        !loading ? (
+          <div className="modal-actions-split">
+            {canDelete ? (
+              <button
+                type="button"
+                className="btn-danger"
+                onClick={onDelete}
+                disabled={saving}
+                title={`حذف «${portfolio?.name || ''}»`}
+              >
+                <Trash2 size={14} />
+                <span>حذف</span>
+              </button>
+            ) : (
+              <div />
+            )}
+
+            <div className="modal-actions-right">
+              <button
+                type="button"
+                className="btn-cancel"
+                onClick={onClose}
+                disabled={saving}
+              >
+                انصراف
+              </button>
+              <button
+                type="submit"
+                className="btn-primary"
+                disabled={saving}
+              >
+                {saving ? 'در حال ذخیره...' : 'ذخیره'}
+              </button>
             </div>
           </div>
-          <button className="modal-close-btn" onClick={onClose} aria-label="بستن">
-            <X size={18} />
-          </button>
+        ) : null
+      }
+    >
+      {loading ? (
+        <div className="settings-loading">
+          <div className="spinner-glow"></div>
+          <span>در حال بارگذاری تنظیمات...</span>
         </div>
-
-        {loading ? (
-          <div className="settings-loading">
-            <div className="spinner-glow"></div>
-            <span>در حال بارگذاری تنظیمات...</span>
-          </div>
-        ) : (
-          <form onSubmit={handleSave} className="modal-form-layout">
-            <div className="modal-scroll-body">
-              {msg.text && (
+      ) : (
+        <>
+          {msg.text && (
               <div className={`settings-alert-banner ${msg.type}`}>
                 {msg.type === 'success' ? (
                   <CheckCircle2 size={15} style={{ display: 'inline', verticalAlign: 'middle', marginLeft: '4px' }} />
@@ -385,40 +414,9 @@ export default function UserSettingsModal({ isOpen, portfolio, onClose, onSaved,
                   </div>
                 </div>
               )}
-              </div>
             </div>
-
-            {/* Pinned Modal Actions */}
-            <div className="modal-actions-pinned">
-              <div className="modal-actions-split">
-                {canDelete ? (
-                  <button
-                    type="button"
-                    className="btn-modal-delete"
-                    onClick={onDelete}
-                    disabled={saving}
-                    title={`حذف «${portfolio?.name || ''}»`}
-                  >
-                    <Trash2 size={14} />
-                    <span>حذف</span>
-                  </button>
-                ) : (
-                  <div />
-                )}
-
-                <div className="modal-actions-right">
-                  <button type="button" className="btn-modal-cancel" onClick={onClose} disabled={saving}>
-                    انصراف
-                  </button>
-                  <button type="submit" className="btn-modal-submit" disabled={saving}>
-                    {saving ? 'در حال ذخیره...' : 'ذخیره'}
-                  </button>
-                </div>
-              </div>
-            </div>
-          </form>
+          </>
         )}
-      </div>
-    </div>
+    </Modal>
   );
 }

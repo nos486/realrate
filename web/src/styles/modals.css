@@ -1,12 +1,239 @@
+/* ── Unified Modals (Base Standard) ───────────────────────────────────────── */
+.modal-backdrop,
+.admin-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: var(--bg-modal-backdrop, rgba(0, 0, 0, 0.76));
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px 16px;
+  overflow: hidden;
+  touch-action: none;
+  animation: modalBackdropFade 0.2s ease;
+}
+
+@keyframes modalBackdropFade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.modal-content,
+.admin-modal-card,
+.settings-modal-box,
+.asset-modal-box,
+.new-portfolio-modal-box,
+.account-modal-box {
+  width: 100%;
+  max-width: 520px;
+  max-height: min(90dvh, 820px);
+  max-height: min(90vh, 820px);
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-surface-elevated, #0f172a);
+  backdrop-filter: blur(28px);
+  -webkit-backdrop-filter: blur(28px);
+  border: 1px solid var(--border-modal, rgba(255, 255, 255, 0.08));
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-modal, 0 24px 60px rgba(0, 0, 0, 0.75));
+  padding: 0;
+  margin: auto;
+  overflow: hidden;
+  position: relative;
+  animation: modalPopIn 0.24s cubic-bezier(0.16, 1, 0.3, 1);
+  color: var(--text-primary);
+}
+
+@keyframes modalPopIn {
+  from {
+    opacity: 0;
+    transform: scale(0.96) translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+/* Drag handle on desktop is hidden */
+.modal-drag-handle {
+  display: none;
+}
+
+/* Modal Header */
+.modal-header,
+.admin-modal-header {
+  flex-shrink: 0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 18px 24px 16px;
+  border-bottom: 1px solid var(--border-medium, rgba(255, 255, 255, 0.06));
+  background: var(--bg-surface, rgba(14, 18, 28, 0.95));
+}
+
+.modal-title-wrap {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.modal-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-sm);
+  background: var(--gold-soft-bg, rgba(245, 158, 11, 0.1));
+  color: var(--gold-light, #fbbf24);
+}
+
+.modal-header h3,
+.admin-modal-header h3 {
+  font-size: 16px;
+  font-weight: 800;
+  color: var(--text-heading, #ffffff);
+  margin: 0;
+  letter-spacing: -0.2px;
+}
+
+.modal-subtitle {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+/* Close Button */
+.modal-close-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-sm);
+  transition: var(--transition-fast);
+}
+
+.modal-close-btn:hover:not(:disabled) {
+  background: var(--bg-control-hover, rgba(255, 255, 255, 0.08));
+  color: var(--text-heading, #ffffff);
+}
+
+/* Structured Form Layout */
+.modal-form-layout {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
+}
+
+/* Scrollable Form Body */
+.modal-scroll-body,
+.admin-modal-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-y;
+  overscroll-behavior: contain;
+  padding: 20px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.2) transparent;
+}
+
+.modal-scroll-body::-webkit-scrollbar,
+.admin-modal-body::-webkit-scrollbar {
+  width: 6px;
+}
+.modal-scroll-body::-webkit-scrollbar-track,
+.admin-modal-body::-webkit-scrollbar-track {
+  background: transparent;
+}
+.modal-scroll-body::-webkit-scrollbar-thumb,
+.admin-modal-body::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 999px;
+}
+
+/* Pinned Modal Footer Actions */
+.modal-actions-pinned,
+.admin-modal-actions {
+  flex-shrink: 0;
+  border-top: 1px solid var(--border-medium, rgba(255, 255, 255, 0.06));
+  background: var(--bg-surface, rgba(14, 18, 28, 0.95));
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  padding: 14px 24px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.modal-actions,
+.modal-actions-split {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  gap: 10px;
+}
+
+.modal-actions-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-right: auto;
+}
+
+/* Light Theme Overrides */
+[data-theme="light"] .modal-content,
+[data-theme="light"] .admin-modal-card {
+  background: #ffffff;
+  border-color: #e2e8f0;
+  box-shadow: 0 24px 60px rgba(15, 23, 42, 0.16);
+}
+
+[data-theme="light"] .modal-header,
+[data-theme="light"] .admin-modal-header {
+  background: #f8fafc;
+  border-bottom-color: #e2e8f0;
+}
+
+[data-theme="light"] .modal-actions-pinned,
+[data-theme="light"] .admin-modal-actions {
+  background: #f8fafc;
+  border-top-color: #e2e8f0;
+}
+
+[data-theme="light"] .modal-scroll-body,
+[data-theme="light"] .admin-modal-body {
+  background: #ffffff;
+}
+
 /* ── Mobile Modal & Bottom Sheet (max-width: 640px) ──────────────────────── */
 @media (max-width: 640px) {
-  .modal-backdrop {
+  .modal-backdrop,
+  .admin-modal-backdrop {
     align-items: flex-end;
     padding: 0;
     overflow: hidden;
   }
 
   .modal-content,
+  .admin-modal-card,
   .settings-modal-box,
   .asset-modal-box,
   .new-portfolio-modal-box,

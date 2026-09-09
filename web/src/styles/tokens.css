@@ -77,3 +77,56 @@
   --transition-smooth: 0.25s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
+/* ── Light Mode Design Tokens ─────────────────────────────────────────────── */
+[data-theme="light"] {
+  --bg-app: #f8fafc;
+  --bg-surface: #ffffff;
+  --bg-surface-elevated: #ffffff;
+  --bg-card: rgba(255, 255, 255, 0.95);
+  --bg-card-hover: rgba(255, 255, 255, 1);
+  --bg-card-elevated: #ffffff;
+  --bg-header: rgba(255, 255, 255, 0.94);
+  --bg-header-ticker: rgba(0, 0, 0, 0.03);
+
+  /* Inputs & Form Controls */
+  --bg-input: #ffffff;
+  --bg-input-focus: #ffffff;
+  --border-input: #cbd5e1;
+  --border-input-focus: #f59e0b;
+  --shadow-input-focus: 0 0 0 3px rgba(245, 158, 11, 0.18);
+  --text-input: #0f172a;
+  --placeholder-color: #94a3b8;
+
+  /* Modals & Popups */
+  --bg-modal: #ffffff;
+  --bg-modal-backdrop: rgba(15, 23, 42, 0.6);
+  --border-modal: #e2e8f0;
+  --shadow-modal: 0 24px 60px rgba(15, 23, 42, 0.2);
+
+  /* Dropdowns */
+  --bg-dropdown: #ffffff;
+  --border-dropdown: #e2e8f0;
+  --shadow-dropdown: 0 16px 36px rgba(15, 23, 42, 0.12);
+
+  /* Borders */
+  --border-subtle: #f1f5f9;
+  --border-medium: #e2e8f0;
+  --border-strong: #cbd5e1;
+
+  /* Typography */
+  --text-primary: #0f172a;
+  --text-heading: #020617;
+  --text-secondary: #475569;
+  --text-muted: #64748b;
+
+  /* Controls & Badges */
+  --bg-control: #f1f5f9;
+  --bg-control-hover: #e2e8f0;
+  --border-control: #cbd5e1;
+
+  /* Shadows */
+  --shadow-sm: 0 4px 16px rgba(0, 0, 0, 0.06);
+  --shadow-md: 0 8px 30px rgba(0, 0, 0, 0.08);
+  --shadow-lg: 0 16px 48px rgba(0, 0, 0, 0.12);
+}
+
