@@ -1031,75 +1031,23 @@ input.search-bar-input:focus-visible {
   .main-nav-tabs-bar {
     display: flex;
     align-items: center;
-    justify-content: space-between;
+    justify-content: flex-start;
     gap: 8px;
     margin-bottom: 8px;
     width: 100%;
     overflow-x: visible;
   }
 
-  /* Exact same height for both ticker and segmented nav tabs */
-  .main-live-ticker,
+  /* Completely remove live rates ticker on mobile */
+  .main-live-ticker {
+    display: none !important;
+  }
+
   .main-nav-tabs-bar .ui-filter-pills.variant-segmented {
     height: 38px !important;
     min-height: 38px !important;
     max-height: 38px !important;
     box-sizing: border-box !important;
-  }
-
-  .main-live-ticker {
-    padding: 0 10px;
-    gap: 7px;
-    border-radius: var(--radius-full);
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-  }
-
-  /* In mobile, show ONLY numbers (digits) for gold & USD rates */
-  .main-live-ticker .desktop-text,
-  .main-live-ticker .mobile-text,
-  .main-live-ticker .ticker-unit {
-    display: none !important;
-  }
-
-  .main-live-ticker .ticker-item {
-    gap: 5px;
-    display: inline-flex;
-    align-items: center;
-    line-height: 1;
-  }
-
-  .main-live-ticker .ticker-pulse {
-    width: 6px;
-    height: 6px;
-    flex-shrink: 0;
-  }
-
-  .main-live-ticker .ticker-item.gold .ticker-amount {
-    color: #fbbf24;
-    font-size: 12px;
-    font-weight: 800;
-    line-height: 1;
-    letter-spacing: -0.2px;
-  }
-
-  .main-live-ticker .ticker-item.usd .ticker-amount {
-    color: #10b981;
-    font-size: 12px;
-    font-weight: 800;
-    line-height: 1;
-    letter-spacing: -0.2px;
-  }
-
-  .main-live-ticker .ticker-separator {
-    height: 14px;
-    width: 1px;
-    margin: 0 1px;
-    background: rgba(255, 255, 255, 0.14);
-  }
-
-  .main-nav-tabs-bar .ui-filter-pills.variant-segmented {
     width: auto;
     padding: 3px;
     gap: 3px;
@@ -1136,33 +1084,14 @@ input.search-bar-input:focus-visible {
 }
 
 @media (max-width: 400px) {
-  .main-live-ticker,
+  .main-live-ticker {
+    display: none !important;
+  }
+
   .main-nav-tabs-bar .ui-filter-pills.variant-segmented {
     height: 34px !important;
     min-height: 34px !important;
     max-height: 34px !important;
-  }
-
-  .main-live-ticker {
-    padding: 0 7px;
-    gap: 5px;
-  }
-
-  .main-live-ticker .ticker-item {
-    gap: 4px;
-  }
-
-  .main-live-ticker .ticker-pulse {
-    width: 5px;
-    height: 5px;
-  }
-
-  .main-live-ticker .ticker-item.gold .ticker-amount,
-  .main-live-ticker .ticker-item.usd .ticker-amount {
-    font-size: 11px;
-  }
-
-  .main-nav-tabs-bar .ui-filter-pills.variant-segmented {
     padding: 2px;
     gap: 2px;
   }
