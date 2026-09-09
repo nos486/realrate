@@ -91,6 +91,25 @@ export async function ensureD1Tables(env) {
     `CREATE INDEX IF NOT EXISTS idx_portfolio_holdings_user ON portfolio_holdings(user_id)`,
     `CREATE INDEX IF NOT EXISTS idx_portfolio_holdings_portfolio ON portfolio_holdings(portfolio_id)`,
     `CREATE INDEX IF NOT EXISTS idx_portfolio_holdings_created ON portfolio_holdings(created_at DESC)`,
+    `CREATE TABLE IF NOT EXISTS price_sources (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      price_type TEXT NOT NULL,
+      source_type TEXT NOT NULL DEFAULT 'telegram',
+      endpoint TEXT NOT NULL,
+      regex TEXT DEFAULT '',
+      json_path TEXT DEFAULT '',
+      fetch_interval_sec INTEGER DEFAULT 60,
+      is_active INTEGER DEFAULT 1,
+      is_primary INTEGER DEFAULT 0,
+      last_price REAL DEFAULT 0,
+      last_fetched TEXT DEFAULT '',
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    )`,
+    `CREATE INDEX IF NOT EXISTS idx_price_sources_type ON price_sources(price_type)`,
+    `CREATE INDEX IF NOT EXISTS idx_price_sources_primary ON price_sources(is_primary)`,
+    `CREATE INDEX IF NOT EXISTS idx_price_sources_active ON price_sources(is_active)`,
   ];
 
   try {
@@ -152,6 +171,44 @@ export async function ensureD1Tables(env) {
     try {
       await env.DB.prepare("ALTER TABLE settings ADD COLUMN usd_api_json_path TEXT DEFAULT ''").run();
     } catch (ignore) {}
+
+    // Seed default price sources if table is empty
+    try {
+      const existingSources = await env.DB.prepare("SELECT COUNT(*) AS total FROM price_sources").first();
+      if (!existingSources || existingSources.total === 0) {
+        let usdType = 'telegram';
+        let usdEndpoint = 'tahran_sabza';
+        let usdJsonPath = '';
+        try {
+          const settingsRow = await env.DB.prepare("SELECT usd_source_type, usd_telegram_channel, usd_api_url, usd_api_json_path FROM settings WHERE id = 1").first();
+          if (settingsRow) {
+            if (settingsRow.usd_source_type === 'api_url' && settingsRow.usd_api_url) {
+              usdType = 'api_url';
+              usdEndpoint = settingsRow.usd_api_url;
+              usdJsonPath = settingsRow.usd_api_json_path || '';
+            } else if (settingsRow.usd_telegram_channel) {
+              usdEndpoint = settingsRow.usd_telegram_channel;
+            }
+          }
+        } catch (ignore) {}
+
+        const now = new Date().toISOString();
+        const seedInserts = [
+          { sql: `INSERT OR IGNORE INTO price_sources (id, name, price_type, source_type, endpoint, regex, json_path, fetch_interval_sec, is_active, is_primary, last_price, last_fetched, created_at, updated_at) VALUES ('src_def_usd', 'دلار تهران سبزه میدان', 'usd', ?, ?, '', ?, 60, 1, 1, 0, '', ?, ?)`, binds: [usdType, usdEndpoint, usdJsonPath, now, now] },
+          { sql: `INSERT OR IGNORE INTO price_sources (id, name, price_type, source_type, endpoint, regex, json_path, fetch_interval_sec, is_active, is_primary, last_price, last_fetched, created_at, updated_at) VALUES ('src_def_gold_18k', 'طلا ۱۸ عیار (زرما)', 'gold_18k', 'telegram', 'zarmagoldd', '', '', 60, 1, 1, 0, '', ?, ?)`, binds: [now, now] },
+          { sql: `INSERT OR IGNORE INTO price_sources (id, name, price_type, source_type, endpoint, regex, json_path, fetch_interval_sec, is_active, is_primary, last_price, last_fetched, created_at, updated_at) VALUES ('src_def_full_coin', 'سکه تمام بهار آزادی (زرما)', 'full_coin', 'telegram', 'zarmagoldd', '', '', 60, 1, 1, 0, '', ?, ?)`, binds: [now, now] },
+          { sql: `INSERT OR IGNORE INTO price_sources (id, name, price_type, source_type, endpoint, regex, json_path, fetch_interval_sec, is_active, is_primary, last_price, last_fetched, created_at, updated_at) VALUES ('src_def_half_coin', 'نیم سکه بهار آزادی (زرما)', 'half_coin', 'telegram', 'zarmagoldd', '', '', 60, 1, 1, 0, '', ?, ?)`, binds: [now, now] },
+          { sql: `INSERT OR IGNORE INTO price_sources (id, name, price_type, source_type, endpoint, regex, json_path, fetch_interval_sec, is_active, is_primary, last_price, last_fetched, created_at, updated_at) VALUES ('src_def_quarter_coin', 'ربع سکه بهار آزادی (زرما)', 'quarter_coin', 'telegram', 'zarmagoldd', '', '', 60, 1, 1, 0, '', ?, ?)`, binds: [now, now] },
+          { sql: `INSERT OR IGNORE INTO price_sources (id, name, price_type, source_type, endpoint, regex, json_path, fetch_interval_sec, is_active, is_primary, last_price, last_fetched, created_at, updated_at) VALUES ('src_def_mesghal', 'مثقال طلا ۱۷ عیار (زرما)', 'mesghal', 'telegram', 'zarmagoldd', '', '', 60, 1, 1, 0, '', ?, ?)`, binds: [now, now] },
+        ];
+
+        for (const item of seedInserts) {
+          await env.DB.prepare(item.sql).bind(...item.binds).run();
+        }
+      }
+    } catch (e) {
+      console.error("Price sources seed error:", e);
+    }
 
     d1Initialized = true;
   } catch (e) {
@@ -1104,4 +1161,301 @@ export async function dbDeletePortfolioHolding(env, id, userId) {
 
   return true;
 }
+
+/**
+ * ─────────────────────────────────────────────────────────────────────────────
+ * Price Sources CRUD & Management (D1 + KV)
+ * ─────────────────────────────────────────────────────────────────────────────
+ */
+
+/**
+ * Get all price sources from D1 (or KV fallback)
+ * @param {object} env
+ * @returns {Promise<Array>}
+ */
+export async function dbGetPriceSources(env) {
+  if (env && env.DB) {
+    await ensureD1Tables(env);
+    try {
+      const { results } = await env.DB.prepare(`
+        SELECT id, name, price_type AS priceType, source_type AS sourceType,
+               endpoint, regex, json_path AS jsonPath,
+               fetch_interval_sec AS fetchIntervalSec,
+               is_active AS isActive, is_primary AS isPrimary,
+               last_price AS lastPrice, last_fetched AS lastFetched,
+               created_at AS createdAt, updated_at AS updatedAt
+        FROM price_sources
+        ORDER BY price_type ASC, is_primary DESC, created_at ASC
+      `).all();
+
+      if (Array.isArray(results) && results.length > 0) {
+        if (env.REALRATE_KV) {
+          try {
+            await env.REALRATE_KV.put("price_sources_list", JSON.stringify(results));
+          } catch (ignore) {}
+        }
+        return results;
+      }
+    } catch (e) {
+      console.error("D1 dbGetPriceSources error:", e);
+    }
+  }
+
+  // Fallback to KV
+  if (env && env.REALRATE_KV) {
+    try {
+      const cached = await env.REALRATE_KV.get("price_sources_list");
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        if (Array.isArray(parsed)) return parsed;
+      }
+    } catch (ignore) {}
+  }
+
+  return [];
+}
+
+/**
+ * Get single price source by ID
+ * @param {object} env
+ * @param {string} id
+ * @returns {Promise<object|null>}
+ */
+export async function dbGetPriceSourceById(env, id) {
+  if (!id) return null;
+  if (env && env.DB) {
+    await ensureD1Tables(env);
+    try {
+      const row = await env.DB.prepare(`
+        SELECT id, name, price_type AS priceType, source_type AS sourceType,
+               endpoint, regex, json_path AS jsonPath,
+               fetch_interval_sec AS fetchIntervalSec,
+               is_active AS isActive, is_primary AS isPrimary,
+               last_price AS lastPrice, last_fetched AS lastFetched,
+               created_at AS createdAt, updated_at AS updatedAt
+        FROM price_sources
+        WHERE id = ?
+      `).bind(id).first();
+      return row || null;
+    } catch (e) {
+      console.error("D1 dbGetPriceSourceById error:", e);
+    }
+  }
+  return null;
+}
+
+/**
+ * Save (create or update) a price source
+ * @param {object} env
+ * @param {object} data
+ * @returns {Promise<object>}
+ */
+export async function dbSavePriceSource(env, data) {
+  if (!data.name || !data.priceType || !data.endpoint) {
+    throw new Error("نام، نوع قیمت و آدرس سورس (endpoint) الزامی هستند.");
+  }
+
+  const now = new Date().toISOString();
+  const id = data.id || `src_${Date.now()}_${crypto.randomUUID().slice(0, 8)}`;
+  const name = String(data.name).trim();
+  const priceType = String(data.priceType).trim();
+  const sourceType = data.sourceType === "api_url" ? "api_url" : "telegram";
+  const endpoint = String(data.endpoint).trim();
+  const regex = String(data.regex || "").trim();
+  const jsonPath = String(data.jsonPath || "").trim();
+  const fetchIntervalSec = parseInt(data.fetchIntervalSec, 10) > 0 ? parseInt(data.fetchIntervalSec, 10) : 60;
+  const isActive = data.isActive !== undefined ? (data.isActive ? 1 : 0) : 1;
+  let isPrimary = data.isPrimary !== undefined ? (data.isPrimary ? 1 : 0) : 0;
+
+  if (env && env.DB) {
+    await ensureD1Tables(env);
+
+    // If this source is marked as primary, demote other sources of same priceType
+    if (isPrimary === 1) {
+      await env.DB.prepare(`
+        UPDATE price_sources
+        SET is_primary = 0, updated_at = ?
+        WHERE price_type = ? AND id != ?
+      `).bind(now, priceType, id).run();
+    } else {
+      // If there is no existing primary source for this priceType, make this one primary
+      const existingPrimary = await env.DB.prepare(`
+        SELECT id FROM price_sources WHERE price_type = ? AND is_primary = 1 AND id != ?
+      `).bind(priceType, id).first();
+      if (!existingPrimary && isActive === 1) {
+        isPrimary = 1;
+      }
+    }
+
+    await env.DB.prepare(`
+      INSERT INTO price_sources (
+        id, name, price_type, source_type, endpoint, regex, json_path,
+        fetch_interval_sec, is_active, is_primary, last_price, last_fetched,
+        created_at, updated_at
+      )
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ON CONFLICT(id) DO UPDATE SET
+        name = excluded.name,
+        price_type = excluded.price_type,
+        source_type = excluded.source_type,
+        endpoint = excluded.endpoint,
+        regex = excluded.regex,
+        json_path = excluded.json_path,
+        fetch_interval_sec = excluded.fetch_interval_sec,
+        is_active = excluded.is_active,
+        is_primary = excluded.is_primary,
+        updated_at = excluded.updated_at
+    `).bind(
+      id,
+      name,
+      priceType,
+      sourceType,
+      endpoint,
+      regex,
+      jsonPath,
+      fetchIntervalSec,
+      isActive,
+      isPrimary,
+      data.lastPrice !== undefined ? Number(data.lastPrice) : 0,
+      data.lastFetched || '',
+      data.createdAt || now,
+      now
+    ).run();
+
+    const saved = await dbGetPriceSourceById(env, id);
+
+    // Update KV
+    try {
+      const all = await dbGetPriceSources(env);
+      if (env.REALRATE_KV) {
+        await env.REALRATE_KV.put("price_sources_list", JSON.stringify(all));
+      }
+    } catch (ignore) {}
+
+    return saved;
+  }
+
+  return null;
+}
+
+/**
+ * Delete a price source by ID
+ * @param {object} env
+ * @param {string} id
+ * @returns {Promise<boolean>}
+ */
+export async function dbDeletePriceSource(env, id) {
+  if (!id) return false;
+
+  if (env && env.DB) {
+    await ensureD1Tables(env);
+
+    const target = await dbGetPriceSourceById(env, id);
+    if (!target) return false;
+
+    await env.DB.prepare("DELETE FROM price_sources WHERE id = ?").bind(id).run();
+
+    // If was primary, promote the next active source of this price_type
+    if (target.isPrimary) {
+      const nextCandidate = await env.DB.prepare(`
+        SELECT id FROM price_sources
+        WHERE price_type = ? AND is_active = 1
+        ORDER BY created_at ASC
+        LIMIT 1
+      `).bind(target.priceType).first();
+
+      if (nextCandidate) {
+        await env.DB.prepare(`
+          UPDATE price_sources
+          SET is_primary = 1, updated_at = ?
+          WHERE id = ?
+        `).bind(new Date().toISOString(), nextCandidate.id).run();
+      }
+    }
+
+    // Update KV
+    try {
+      const all = await dbGetPriceSources(env);
+      if (env.REALRATE_KV) {
+        await env.REALRATE_KV.put("price_sources_list", JSON.stringify(all));
+      }
+    } catch (ignore) {}
+
+    return true;
+  }
+
+  return false;
+}
+
+/**
+ * Set a specific price source as primary for its price type
+ * @param {object} env
+ * @param {string} id
+ * @param {string} [priceType]
+ * @returns {Promise<object|null>}
+ */
+export async function dbSetPrimaryPriceSource(env, id, priceType = null) {
+  if (!id) throw new Error("شناسه سورس الزامی است.");
+
+  if (env && env.DB) {
+    await ensureD1Tables(env);
+    const now = new Date().toISOString();
+
+    let targetType = priceType;
+    if (!targetType) {
+      const source = await dbGetPriceSourceById(env, id);
+      if (!source) throw new Error("سورس مورد نظر یافت نشد.");
+      targetType = source.priceType;
+    }
+
+    // Demote others of this price type
+    await env.DB.prepare(`
+      UPDATE price_sources
+      SET is_primary = 0, updated_at = ?
+      WHERE price_type = ?
+    `).bind(now, targetType).run();
+
+    // Promote target
+    await env.DB.prepare(`
+      UPDATE price_sources
+      SET is_primary = 1, is_active = 1, updated_at = ?
+      WHERE id = ?
+    `).bind(now, id).run();
+
+    const updated = await dbGetPriceSourceById(env, id);
+
+    // Update KV
+    try {
+      const all = await dbGetPriceSources(env);
+      if (env.REALRATE_KV) {
+        await env.REALRATE_KV.put("price_sources_list", JSON.stringify(all));
+      }
+    } catch (ignore) {}
+
+    return updated;
+  }
+
+  return null;
+}
+
+/**
+ * Update last price and fetched timestamp of a source
+ * @param {object} env
+ * @param {string} id
+ * @param {number} lastPrice
+ * @param {string} [lastFetched]
+ */
+export async function dbUpdateSourceLastPrice(env, id, lastPrice, lastFetched = null) {
+  if (!id || !env || !env.DB) return;
+  try {
+    await env.DB.prepare(`
+      UPDATE price_sources
+      SET last_price = ?, last_fetched = ?, updated_at = ?
+      WHERE id = ?
+    `).bind(Number(lastPrice) || 0, lastFetched || new Date().toISOString(), new Date().toISOString(), id).run();
+  } catch (e) {
+    console.error("D1 dbUpdateSourceLastPrice error:", e);
+  }
+}
+
 

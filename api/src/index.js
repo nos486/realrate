@@ -27,6 +27,11 @@ import {
   handleAdminSaveSettings,
   handleAdminGetUserPortfolio,
   handleAdminTestUsdSource,
+  handleAdminGetPriceSources,
+  handleAdminSavePriceSource,
+  handleAdminDeletePriceSource,
+  handleAdminSetPrimarySource,
+  handleAdminTestPriceSource,
 } from "./handlers/adminRoutes.js";
 import { handleCalculate, handleFetchRates } from "./handlers/apiRoutes.js";
 import {
@@ -86,6 +91,18 @@ export default {
     if (url.pathname === "/api/admin/users")                                   return handleAdminUsersRoute(request, env);
     if (url.pathname === "/api/admin/settings" && request.method === "POST")   return handleAdminSaveSettings(request, env);
     if (url.pathname === "/api/admin/test-usd-source" && request.method === "POST") return handleAdminTestUsdSource(request, env);
+
+    if (url.pathname === "/api/admin/price-sources") {
+      if (request.method === "GET") return handleAdminGetPriceSources(request, env);
+      if (request.method === "POST" || request.method === "PUT") return handleAdminSavePriceSource(request, env);
+      if (request.method === "DELETE") return handleAdminDeletePriceSource(request, env);
+    }
+    if (url.pathname === "/api/admin/price-sources/set-primary" && request.method === "POST") {
+      return handleAdminSetPrimarySource(request, env);
+    }
+    if (url.pathname === "/api/admin/price-sources/test" && request.method === "POST") {
+      return handleAdminTestPriceSource(request, env);
+    }
 
     // ── Portfolio API Routes ────────────────────────────────────────────────
     if (url.pathname === "/api/portfolio/shared")                              return handleGetSharedPortfolio(request, env);

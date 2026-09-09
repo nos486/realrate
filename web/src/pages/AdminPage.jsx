@@ -21,6 +21,15 @@ import {
   AlertCircle,
   PlayCircle,
   Send,
+  Plus,
+  Trash2,
+  Edit3,
+  Star,
+  Clock,
+  Layers,
+  Sparkles,
+  Code,
+  Check,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext.jsx';
 import {
@@ -28,8 +37,22 @@ import {
   apiAdminUsers,
   apiAdminSaveSettings,
   apiAdminTestUsdSource,
+  apiGetPriceSources,
+  apiSavePriceSource,
+  apiDeletePriceSource,
+  apiSetPrimarySource,
+  apiTestPriceSource,
   apiGetRates,
 } from '../api/client.js';
+
+const PRICE_TYPE_INFO = {
+  usd: { label: 'دلار (USD)', badgeColor: 'blue' },
+  gold_18k: { label: 'طلا ۱۸ عیار', badgeColor: 'gold' },
+  full_coin: { label: 'سکه تمام بهار', badgeColor: 'amber' },
+  half_coin: { label: 'نیم سکه بهار', badgeColor: 'orange' },
+  quarter_coin: { label: 'ربع سکه بهار', badgeColor: 'rose' },
+  mesghal: { label: 'مثقال طلا ۱۷ عیار', badgeColor: 'purple' },
+};
 
 function formatNum(num) {
   if (num === null || num === undefined || isNaN(num)) return '۰';
@@ -130,11 +153,194 @@ export default function AdminPage() {
     }
   };
 
+  // ─── Price Sources State & Handlers ─────────────────────────────────────────
+  const [sources, setSources] = useState([]);
+  const [loadingSources, setLoadingSources] = useState(false);
+  const [sourceFilter, setSourceFilter] = useState('all');
+
+  const [showSourceModal, setShowSourceModal] = useState(false);
+  const [editingSourceId, setEditingSourceId] = useState(null);
+  const [sourceForm, setSourceForm] = useState({
+    id: '',
+    name: '',
+    priceType: 'usd',
+    sourceType: 'telegram',
+    endpoint: '',
+    regex: '',
+    jsonPath: '',
+    fetchIntervalSec: 60,
+    isActive: true,
+    isPrimary: false,
+  });
+
+  const [savingSource, setSavingSource] = useState(false);
+  const [modalTesting, setModalTesting] = useState(false);
+  const [modalTestResult, setModalTestResult] = useState(null);
+  const [rowTestingId, setRowTestingId] = useState(null);
+  const [rowTestResults, setRowTestResults] = useState({});
+
+  const loadSources = async () => {
+    setLoadingSources(true);
+    try {
+      const data = await apiGetPriceSources();
+      if (data.success && Array.isArray(data.sources)) {
+        setSources(data.sources);
+      }
+    } catch (e) {
+      console.error('Failed to load price sources:', e);
+    } finally {
+      setLoadingSources(false);
+    }
+  };
+
+  const handleOpenAddSource = (defaultPriceType = 'usd') => {
+    setEditingSourceId(null);
+    setSourceForm({
+      id: '',
+      name: '',
+      priceType: defaultPriceType,
+      sourceType: 'telegram',
+      endpoint: '',
+      regex: '',
+      jsonPath: '',
+      fetchIntervalSec: 60,
+      isActive: true,
+      isPrimary: false,
+    });
+    setModalTestResult(null);
+    setShowSourceModal(true);
+  };
+
+  const handleOpenEditSource = (src) => {
+    setEditingSourceId(src.id);
+    setSourceForm({
+      id: src.id,
+      name: src.name || '',
+      priceType: src.priceType || 'usd',
+      sourceType: src.sourceType || 'telegram',
+      endpoint: src.endpoint || '',
+      regex: src.regex || '',
+      jsonPath: src.jsonPath || '',
+      fetchIntervalSec: src.fetchIntervalSec || 60,
+      isActive: Boolean(src.isActive),
+      isPrimary: Boolean(src.isPrimary),
+    });
+    setModalTestResult(null);
+    setShowSourceModal(true);
+  };
+
+  const handleSaveSourceForm = async (e) => {
+    if (e) e.preventDefault();
+    if (!sourceForm.name.trim() || !sourceForm.endpoint.trim()) {
+      showMsg('نام سورس و آدرس endpoint الزامی هستند.', 'error');
+      return;
+    }
+
+    setSavingSource(true);
+    try {
+      const res = await apiSavePriceSource(sourceForm);
+      if (res.success) {
+        showMsg(res.message || 'سورس قیمت با موفقیت ذخیره شد.', 'success');
+        setShowSourceModal(false);
+        loadSources();
+      } else {
+        showMsg(res.message || 'خطا در ذخیره سورس قیمت', 'error');
+      }
+    } catch (err) {
+      showMsg('خطا در ارتباط با سرور: ' + err.message, 'error');
+    } finally {
+      setSavingSource(false);
+    }
+  };
+
+  const handleDeleteSource = async (src) => {
+    const ok = window.confirm(`آیا از حذف سورس قیمت «${src.name}» اطمینان دارید؟`);
+    if (!ok) return;
+
+    try {
+      const res = await apiDeletePriceSource(src.id);
+      if (res.success) {
+        showMsg('سورس با موفقیت حذف شد.', 'success');
+        loadSources();
+      } else {
+        showMsg(res.message || 'خطا در حذف سورس', 'error');
+      }
+    } catch (err) {
+      showMsg('خطا در ارتباط با سرور: ' + err.message, 'error');
+    }
+  };
+
+  const handleSetPrimary = async (src) => {
+    try {
+      const res = await apiSetPrimarySource(src.id, src.priceType);
+      if (res.success) {
+        showMsg(`سورس «${src.name}» به عنوان مرجع اصلی ${PRICE_TYPE_INFO[src.priceType]?.label || src.priceType} تعیین شد.`, 'success');
+        loadSources();
+      } else {
+        showMsg(res.message || 'خطا در تعیین سورس مرجع', 'error');
+      }
+    } catch (err) {
+      showMsg('خطا در ارتباط با سرور: ' + err.message, 'error');
+    }
+  };
+
+  const handleToggleActive = async (src) => {
+    try {
+      const res = await apiSavePriceSource({
+        ...src,
+        isActive: !src.isActive,
+      });
+      if (res.success) {
+        showMsg(`وضعیت سورس «${src.name}» بروز شد.`, 'success');
+        loadSources();
+      }
+    } catch (err) {
+      showMsg('خطا: ' + err.message, 'error');
+    }
+  };
+
+  const handleTestModalSource = async () => {
+    setModalTesting(true);
+    setModalTestResult(null);
+    try {
+      const res = await apiTestPriceSource(sourceForm);
+      setModalTestResult(res);
+    } catch (err) {
+      setModalTestResult({
+        success: false,
+        error: 'خطا در اتصال به سورس: ' + err.message,
+      });
+    } finally {
+      setModalTesting(false);
+    }
+  };
+
+  const handleTestRowSource = async (src) => {
+    setRowTestingId(src.id);
+    try {
+      const res = await apiTestPriceSource(src);
+      setRowTestResults((prev) => ({ ...prev, [src.id]: res }));
+    } catch (err) {
+      setRowTestResults((prev) => ({
+        ...prev,
+        [src.id]: { success: false, error: err.message },
+      }));
+    } finally {
+      setRowTestingId(null);
+    }
+  };
+
+  const filteredSources = useMemo(() => {
+    if (sourceFilter === 'all') return sources;
+    return sources.filter((s) => s.priceType === sourceFilter);
+  }, [sources, sourceFilter]);
+
   // Fetch initial data once admin user is confirmed
   useEffect(() => {
     if (user?.role === 'admin') {
       loadStats();
       loadUsers();
+      loadSources();
 
       apiGetRates()
         .then((data) => {
@@ -439,135 +645,484 @@ export default function AdminPage() {
         </table>
       </div>
 
-      {/* Settings Form */}
-      <form onSubmit={handleSave}>
-        {/* USD Dynamic Source Settings */}
-        <div className="section-title">
-          <span>
-            <Radio size={15} style={{ verticalAlign: 'middle', marginLeft: '6px', display: 'inline' }} />
-            تنظیمات سورس قیمت زنده دلار (دینامیک)
+      {/* ═════════════════════════════════════════════════════════════════════ */}
+      {/* ─── Unified Price Sources Management (Telegram & API Feeds) ───────── */}
+      {/* ═════════════════════════════════════════════════════════════════════ */}
+      <div className="section-title" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px', marginTop: '24px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <Radio size={16} style={{ color: 'var(--accent-blue)' }} />
+          <span>مدیریت یکپارچه سورس‌های قیمت بازار (تلگرام و وب‌سرویس API)</span>
+          <span className="source-counter-badge">
+            {sources.filter(s => s.isActive).length.toLocaleString('fa-IR')} از {sources.length.toLocaleString('fa-IR')} فعال
           </span>
         </div>
+        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+          <button
+            type="button"
+            onClick={loadSources}
+            className="btn-sm site-link"
+            style={{ padding: '4px 10px', fontSize: '11px' }}
+            title="تازه‌سازی لیست سورس‌ها"
+          >
+            <RefreshCw size={11} className={loadingSources ? 'spin-anim' : ''} style={{ verticalAlign: 'middle', marginLeft: '4px' }} />
+            <span>بروزرسانی</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => handleOpenAddSource(sourceFilter === 'all' ? 'usd' : sourceFilter)}
+            className="btn-sm btn-primary-action"
+            style={{ padding: '5px 12px', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '5px' }}
+          >
+            <Plus size={14} strokeWidth={2.5} />
+            <span>افزودن سورس جدید</span>
+          </button>
+        </div>
+      </div>
 
-        <div className="usd-source-card">
-          <div className="source-type-tabs">
+      {/* Price Type Filter Pills */}
+      <div className="sources-filter-bar">
+        <button
+          type="button"
+          className={`filter-pill ${sourceFilter === 'all' ? 'active' : ''}`}
+          onClick={() => setSourceFilter('all')}
+        >
+          <span>همه سورس‌ها</span>
+          <span className="filter-count">{sources.length.toLocaleString('fa-IR')}</span>
+        </button>
+        {Object.entries(PRICE_TYPE_INFO).map(([key, info]) => {
+          const count = sources.filter(s => s.priceType === key).length;
+          return (
             <button
+              key={key}
               type="button"
-              className={`source-type-tab ${usdSourceType === 'telegram' ? 'active' : ''}`}
-              onClick={() => { setUsdSourceType('telegram'); setUsdTestResult(null); }}
+              className={`filter-pill ${sourceFilter === key ? 'active' : ''}`}
+              onClick={() => setSourceFilter(key)}
             >
-              <Send size={14} />
-              <span>کانال تلگرام عمومی</span>
+              <span>{info.label}</span>
+              <span className="filter-count">{count.toLocaleString('fa-IR')}</span>
             </button>
-            <button
-              type="button"
-              className={`source-type-tab ${usdSourceType === 'api_url' ? 'active' : ''}`}
-              onClick={() => { setUsdSourceType('api_url'); setUsdTestResult(null); }}
-            >
-              <Globe size={14} />
-              <span>وب‌سرویس خارجی (API URL)</span>
-            </button>
-          </div>
+          );
+        })}
+      </div>
 
-          {usdSourceType === 'telegram' ? (
-            <div className="form-group">
-              <label htmlFor="usdTelegramChannel">شناسه، آدرس کانال یا لینک پست تلگرام</label>
-              <input
-                type="text"
-                id="usdTelegramChannel"
-                dir="ltr"
-                placeholder="DollarAfshar یا tahran_sabza یا https://t.me/DollarAfshar/72785"
-                value={usdTelegramChannel}
-                onChange={(e) => setUsdTelegramChannel(e.target.value)}
-              />
-              <span className="source-hint">
-                می‌توانید نام کانال تلگرام (مانند <code>DollarAfshar</code> یا <code>tahran_sabza</code>) یا لینک مستقیم یک پیام/پست کانال را وارد کنید. سیستم آخرین قیمت فروش دلار اعلام‌شده در کانال را استخراج می‌کند.
-              </span>
+      {/* Sources Table */}
+      <div className="users-table-wrap" style={{ marginBottom: '24px' }}>
+        <table className="users-table sources-table">
+          <thead>
+            <tr>
+              <th>نام سورس و آدرس</th>
+              <th>نوع قیمت</th>
+              <th>پروتکل</th>
+              <th>تنظیمات استخراج</th>
+              <th>آخرین قیمت</th>
+              <th>سورس مرجع</th>
+              <th>وضعیت</th>
+              <th style={{ textAlign: 'center' }}>عملیات</th>
+            </tr>
+          </thead>
+          <tbody>
+            {filteredSources.length === 0 ? (
+              <tr>
+                <td colSpan="8" style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '24px' }}>
+                  {loadingSources ? 'در حال دریافت لیست سورس‌ها...' : 'هیچ سورسی در این دسته‌بندی تعریف نشده است.'}
+                </td>
+              </tr>
+            ) : (
+              filteredSources.map((src) => {
+                const typeInfo = PRICE_TYPE_INFO[src.priceType] || { label: src.priceType, badgeColor: 'blue' };
+                const isRowTesting = rowTestingId === src.id;
+                const rowResult = rowTestResults[src.id];
+
+                return (
+                  <React.Fragment key={src.id}>
+                    <tr>
+                      <td>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
+                          <strong style={{ fontSize: '13px', color: 'var(--text-heading)' }}>{src.name}</strong>
+                          <span style={{ fontSize: '11px', color: 'var(--text-muted)', direction: 'ltr', textAlign: 'right', fontFamily: 'monospace' }}>
+                            {src.sourceType === 'api_url' ? (src.endpoint.length > 40 ? src.endpoint.slice(0, 40) + '...' : src.endpoint) : `@${src.endpoint.replace(/^@/, '')}`}
+                          </span>
+                        </div>
+                      </td>
+                      <td>
+                        <span className={`price-type-tag ${typeInfo.badgeColor}`}>
+                          {typeInfo.label}
+                        </span>
+                      </td>
+                      <td>
+                        <span className={`proto-tag ${src.sourceType === 'api_url' ? 'api' : 'telegram'}`}>
+                          {src.sourceType === 'api_url' ? (
+                            <>
+                              <Globe size={11} />
+                              <span>API وب</span>
+                            </>
+                          ) : (
+                            <>
+                              <Send size={11} />
+                              <span>تلگرام</span>
+                            </>
+                          )}
+                        </span>
+                      </td>
+                      <td>
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', alignItems: 'center' }}>
+                          <span className="cfg-badge" title="بازه فراخوانی">
+                            <Clock size={10} />
+                            <span>{src.fetchIntervalSec || 60} ثانیه</span>
+                          </span>
+                          {src.regex ? (
+                            <span className="cfg-badge regex" title={`Regex: ${src.regex}`}>
+                              <Code size={10} />
+                              <span>ریجکس سفارشی</span>
+                            </span>
+                          ) : null}
+                          {src.jsonPath ? (
+                            <span className="cfg-badge path" title={`JSON Path: ${src.jsonPath}`}>
+                              <span>{src.jsonPath}</span>
+                            </span>
+                          ) : null}
+                        </div>
+                      </td>
+                      <td>
+                        {src.lastPrice > 0 ? (
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                            <strong style={{ color: 'var(--accent-green, #10b981)', fontSize: '13px' }}>
+                              {formatNum(src.lastPrice)} <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>تومان</span>
+                            </strong>
+                            <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>
+                              {formatPersianDate(src.lastFetched)}
+                            </span>
+                          </div>
+                        ) : (
+                          <span style={{ color: 'var(--text-muted)', fontSize: '11px' }}>هنوز دریافت نشده</span>
+                        )}
+                      </td>
+                      <td>
+                        {src.isPrimary ? (
+                          <span className="primary-source-badge">
+                            <Star size={12} fill="#eab308" color="#eab308" />
+                            <span>مرجع اصلی</span>
+                          </span>
+                        ) : (
+                          <button
+                            type="button"
+                            className="btn-set-primary"
+                            onClick={() => handleSetPrimary(src)}
+                            title="تعیین به عنوان مرجع اصلی برای این نرخ"
+                          >
+                            <Star size={11} />
+                            <span>تعیین مرجع</span>
+                          </button>
+                        )}
+                      </td>
+                      <td>
+                        <button
+                          type="button"
+                          className={`status-toggle-btn ${src.isActive ? 'active' : 'inactive'}`}
+                          onClick={() => handleToggleActive(src)}
+                          title={src.isActive ? 'کلیک جهت غیرفعال‌سازی' : 'کلیک جهت فعال‌سازی'}
+                        >
+                          <span className="status-dot" />
+                          <span>{src.isActive ? 'فعال' : 'غیرفعال'}</span>
+                        </button>
+                      </td>
+                      <td>
+                        <div style={{ display: 'flex', gap: '4px', justifyContent: 'center' }}>
+                          <button
+                            type="button"
+                            className="btn-action-icon test"
+                            onClick={() => handleTestRowSource(src)}
+                            disabled={isRowTesting}
+                            title="تست اتصال زنده"
+                          >
+                            {isRowTesting ? <RefreshCw size={12} className="spin-anim" /> : <PlayCircle size={13} />}
+                          </button>
+                          <button
+                            type="button"
+                            className="btn-action-icon edit"
+                            onClick={() => handleOpenEditSource(src)}
+                            title="ویرایش تنظیمات"
+                          >
+                            <Edit3 size={13} />
+                          </button>
+                          <button
+                            type="button"
+                            className="btn-action-icon delete"
+                            onClick={() => handleDeleteSource(src)}
+                            title="حذف سورس"
+                          >
+                            <Trash2 size={13} />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+
+                    {/* Inline Test Result Row if tested */}
+                    {rowResult && (
+                      <tr className="test-result-subrow">
+                        <td colSpan="8" style={{ padding: '6px 12px' }}>
+                          <div className={`row-test-box ${rowResult.success ? 'success' : 'error'}`}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                              {rowResult.success ? <CheckCircle2 size={14} /> : <AlertCircle size={14} />}
+                              <span>{rowResult.message || rowResult.error}</span>
+                            </div>
+                            {rowResult.success && (
+                              <span style={{ fontSize: '11px', color: 'var(--text-heading)', fontWeight: 700 }}>
+                                قیمت: {formatNum(rowResult.price)} تومان
+                              </span>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    )}
+                  </React.Fragment>
+                );
+              })
+            )}
+          </tbody>
+        </table>
+      </div>
+
+      {/* ─── Add / Edit Source Modal Dialog ─────────────────────────────────── */}
+      {showSourceModal && (
+        <div className="admin-modal-backdrop" onClick={() => setShowSourceModal(false)}>
+          <div className="admin-modal-card" onClick={(e) => e.stopPropagation()}>
+            <div className="admin-modal-header">
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <Layers size={18} style={{ color: 'var(--accent-blue)' }} />
+                <h3>{editingSourceId ? 'ویرایش سورس قیمت' : 'تعریف سورس قیمت جدید'}</h3>
+              </div>
+              <button
+                type="button"
+                className="modal-close-btn"
+                onClick={() => setShowSourceModal(false)}
+              >
+                <X size={16} />
+              </button>
             </div>
-          ) : (
-            <>
-              <div className="form-group">
-                <label htmlFor="usdApiUrl">آدرس اینترنتی وب‌سرویس API (پاسخ JSON)</label>
+
+            <form onSubmit={handleSaveSourceForm} className="admin-modal-body">
+              <div className="grid-2">
+                <div className="form-group">
+                  <label htmlFor="modalSourceName">نام نمایشی سورس</label>
+                  <input
+                    type="text"
+                    id="modalSourceName"
+                    placeholder="مثال: دلار سبزه میدان یا API نوبیتکس"
+                    value={sourceForm.name}
+                    onChange={(e) => setSourceForm({ ...sourceForm, name: e.target.value })}
+                    required
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label htmlFor="modalPriceType">نوع قیمت (کالای مرجع)</label>
+                  <select
+                    id="modalPriceType"
+                    value={sourceForm.priceType}
+                    onChange={(e) => setSourceForm({ ...sourceForm, priceType: e.target.value })}
+                  >
+                    {Object.entries(PRICE_TYPE_INFO).map(([key, info]) => (
+                      <option key={key} value={key}>{info.label}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              {/* Source Type Selector Tabs */}
+              <div className="form-group" style={{ marginTop: '6px' }}>
+                <label>نوع پروتکل استخراج</label>
+                <div className="source-type-tabs">
+                  <button
+                    type="button"
+                    className={`source-type-tab ${sourceForm.sourceType === 'telegram' ? 'active' : ''}`}
+                    onClick={() => { setSourceForm({ ...sourceForm, sourceType: 'telegram' }); setModalTestResult(null); }}
+                  >
+                    <Send size={13} />
+                    <span>کانال تلگرام عمومی</span>
+                  </button>
+                  <button
+                    type="button"
+                    className={`source-type-tab ${sourceForm.sourceType === 'api_url' ? 'active' : ''}`}
+                    onClick={() => { setSourceForm({ ...sourceForm, sourceType: 'api_url' }); setModalTestResult(null); }}
+                  >
+                    <Globe size={13} />
+                    <span>وب‌سرویس خارجی (API URL)</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Endpoint */}
+              <div className="form-group" style={{ marginTop: '8px' }}>
+                <label htmlFor="modalEndpoint">
+                  {sourceForm.sourceType === 'api_url' ? 'آدرس وب‌سرویس API (URL با پاسخ JSON)' : 'نام کاربری یا لینک کانال/پست تلگرام'}
+                </label>
                 <input
-                  type="url"
-                  id="usdApiUrl"
+                  type={sourceForm.sourceType === 'api_url' ? 'url' : 'text'}
+                  id="modalEndpoint"
                   dir="ltr"
-                  placeholder="https://api.example.com/v1/rates"
-                  value={usdApiUrl}
-                  onChange={(e) => setUsdApiUrl(e.target.value)}
+                  placeholder={sourceForm.sourceType === 'api_url' ? 'https://api.nobitex.ir/market/stats' : 'tahran_sabza یا zarmagoldd یا https://t.me/channel/123'}
+                  value={sourceForm.endpoint}
+                  onChange={(e) => setSourceForm({ ...sourceForm, endpoint: e.target.value })}
+                  required
                 />
                 <span className="source-hint">
-                  آدرس باید با <code>https://</code> یا <code>http://</code> آغاز شده و پاسخی با فرمت JSON یا عدد بازگرداند.
+                  {sourceForm.sourceType === 'api_url'
+                    ? 'آدرس معتبر وب‌سرویس که پاسخی با فرمت JSON بازگرداند.'
+                    : 'نام کانال تلگرام (بدون @ یا با @) و یا لینک مستقیم پیام کانال.'}
                 </span>
               </div>
 
-              <div className="form-group" style={{ marginTop: '10px' }}>
-                <label htmlFor="usdApiJsonPath">مسیر کلید JSON برای قیمت دلار (اختیاری)</label>
-                <input
-                  type="text"
-                  id="usdApiJsonPath"
-                  dir="ltr"
-                  placeholder="data.usd یا price یا rates.USD"
-                  value={usdApiJsonPath}
-                  onChange={(e) => setUsdApiJsonPath(e.target.value)}
-                />
-                <span className="source-hint">
-                  برای مثال <code>data.price</code> یا <code>rates.USD</code>. در صورت خالی بودن، فیلدهای استاندارد مثل <code>price</code> یا <code>usd</code> به صورت خودکار شناسایی می‌شوند.
-                </span>
-              </div>
-            </>
-          )}
-
-          <div className="source-test-row">
-            <button
-              type="button"
-              className="btn-test-source"
-              onClick={handleTestUsdSource}
-              disabled={testingUsdSource}
-            >
-              {testingUsdSource ? (
-                <>
-                  <RefreshCw size={13} className="spin-anim" />
-                  <span>در حال بررسی و تست سورس...</span>
-                </>
-              ) : (
-                <>
-                  <PlayCircle size={14} />
-                  <span>تست برقراری ارتباط با سورس</span>
-                </>
-              )}
-            </button>
-            <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
-              تست بدون اعمال و ذخیره انجام می‌شود.
-            </span>
-          </div>
-
-          {usdTestResult && (
-            <div className={`test-result-box ${usdTestResult.success ? 'success' : 'error'}`}>
-              <div className="test-result-header">
-                {usdTestResult.success ? (
-                  <>
-                    <CheckCircle2 size={16} />
-                    <span>سورس با موفقیت پاسخ داد</span>
-                  </>
-                ) : (
-                  <>
-                    <AlertCircle size={16} />
-                    <span>خطا در بررسی سورس</span>
-                  </>
-                )}
-              </div>
-              <div>{usdTestResult.message || usdTestResult.error}</div>
-              {usdTestResult.success && (
-                <div className="test-result-details">
-                  <span><strong>قیمت شناسایی‌شده:</strong> {formatNum(usdTestResult.price)} تومان</span>
-                  {usdTestResult.label && <span><strong>عنوان:</strong> {usdTestResult.label}</span>}
-                  {usdTestResult.datetime && <span><strong>تاریخ ثبت:</strong> {formatPersianDate(usdTestResult.datetime)}</span>}
+              {/* JSON Path (if API) */}
+              {sourceForm.sourceType === 'api_url' && (
+                <div className="form-group" style={{ marginTop: '8px' }}>
+                  <label htmlFor="modalJsonPath">مسیر کلید JSON (اختیاری)</label>
+                  <input
+                    type="text"
+                    id="modalJsonPath"
+                    dir="ltr"
+                    placeholder="data.price یا rates.usd یا stats[0].latest"
+                    value={sourceForm.jsonPath}
+                    onChange={(e) => setSourceForm({ ...sourceForm, jsonPath: e.target.value })}
+                  />
+                  <span className="source-hint">
+                    برای نمونه: <code>rates.USD</code> یا <code>data.price</code>. در صورت خالی بودن، فیلدهای معمول به صورت خودکار شناسایی می‌شوند.
+                  </span>
                 </div>
               )}
-            </div>
-          )}
+
+              {/* Custom Regex */}
+              <div className="form-group" style={{ marginTop: '8px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <label htmlFor="modalRegex">الگوی Regex اختصاصی (اختیاری)</label>
+                  <span style={{ fontSize: '10px', color: 'var(--accent-blue)' }}>گروه ۱ پرانتز به عنوان قیمت خوانده می‌شود</span>
+                </div>
+                <input
+                  type="text"
+                  id="modalRegex"
+                  dir="ltr"
+                  placeholder={sourceForm.priceType === 'usd' ? '([\\d,]+)\\s*فروش   یا   دلار[:\\s]+([\\d,]+)' : 'فروش:\\s*([\\d,]+)'}
+                  value={sourceForm.regex}
+                  onChange={(e) => setSourceForm({ ...sourceForm, regex: e.target.value })}
+                />
+                <span className="source-hint">
+                  در صورت خالی گذاشتن، از سیستم پارسر هوشمند RealRate بر اساس نوع قیمت استفاده خواهد شد.
+                </span>
+              </div>
+
+              {/* Settings: Interval + Toggles */}
+              <div className="grid-2" style={{ marginTop: '8px', alignItems: 'center' }}>
+                <div className="form-group">
+                  <label htmlFor="modalInterval">بازه بروزرسانی (ثانیه)</label>
+                  <input
+                    type="number"
+                    id="modalInterval"
+                    min="10"
+                    max="86400"
+                    value={sourceForm.fetchIntervalSec}
+                    onChange={(e) => setSourceForm({ ...sourceForm, fetchIntervalSec: parseInt(e.target.value, 10) || 60 })}
+                  />
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', paddingTop: '16px' }}>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '12px', color: 'var(--text-heading)' }}>
+                    <input
+                      type="checkbox"
+                      checked={sourceForm.isActive}
+                      onChange={(e) => setSourceForm({ ...sourceForm, isActive: e.target.checked })}
+                    />
+                    <span>سورس فعال باشد</span>
+                  </label>
+
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '12px', color: 'var(--text-heading)' }}>
+                    <input
+                      type="checkbox"
+                      checked={sourceForm.isPrimary}
+                      onChange={(e) => setSourceForm({ ...sourceForm, isPrimary: e.target.checked })}
+                    />
+                    <span>تنظیم به عنوان مرجع اصلی برای {PRICE_TYPE_INFO[sourceForm.priceType]?.label || sourceForm.priceType}</span>
+                  </label>
+                </div>
+              </div>
+
+              {/* Modal Test Row */}
+              <div className="source-test-row" style={{ marginTop: '12px' }}>
+                <button
+                  type="button"
+                  className="btn-test-source"
+                  onClick={handleTestModalSource}
+                  disabled={modalTesting}
+                >
+                  {modalTesting ? (
+                    <>
+                      <RefreshCw size={13} className="spin-anim" />
+                      <span>در حال آزمودن اتصال و استخراج قیمت...</span>
+                    </>
+                  ) : (
+                    <>
+                      <PlayCircle size={14} />
+                      <span>تست زنده این تنظیمات</span>
+                    </>
+                  )}
+                </button>
+              </div>
+
+              {/* Modal Test Result */}
+              {modalTestResult && (
+                <div className={`test-result-box ${modalTestResult.success ? 'success' : 'error'}`} style={{ marginTop: '8px' }}>
+                  <div className="test-result-header">
+                    {modalTestResult.success ? (
+                      <>
+                        <CheckCircle2 size={15} />
+                        <span>استخراج با موفقیت انجام شد</span>
+                      </>
+                    ) : (
+                      <>
+                        <AlertCircle size={15} />
+                        <span>خطا در آزمودن سورس</span>
+                      </>
+                    )}
+                  </div>
+                  <div>{modalTestResult.message || modalTestResult.error}</div>
+                  {modalTestResult.success && (
+                    <div className="test-result-details">
+                      <span><strong>قیمت شناسایی‌شده:</strong> {formatNum(modalTestResult.price)} تومان</span>
+                      {modalTestResult.label && <span><strong>برچسب:</strong> {modalTestResult.label}</span>}
+                      {modalTestResult.datetime && <span><strong>زمان ثبت:</strong> {formatPersianDate(modalTestResult.datetime)}</span>}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Modal Actions */}
+              <div className="admin-modal-actions">
+                <button
+                  type="button"
+                  className="btn-sm site-link"
+                  onClick={() => setShowSourceModal(false)}
+                >
+                  انصراف
+                </button>
+                <button
+                  type="submit"
+                  className="btn-sm btn-primary-action"
+                  disabled={savingSource}
+                  style={{ padding: '8px 18px', fontSize: '13px' }}
+                >
+                  <Save size={14} />
+                  <span>{savingSource ? 'در حال ذخیره‌سازی...' : (editingSourceId ? 'بروزرسانی سورس' : 'ثبت سورس جدید')}</span>
+                </button>
+              </div>
+            </form>
+          </div>
         </div>
+      )}
+
+      {/* ═════════════════════════════════════════════════════════════════════ */}
+      {/* ─── Global Fallback Settings & Calculations ───────────────────────── */}
+      {/* ═════════════════════════════════════════════════════════════════════ */}
+      <form onSubmit={handleSave}>
+
 
         <div className="section-title">
           <span>

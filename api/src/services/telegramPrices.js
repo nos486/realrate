@@ -5,6 +5,7 @@
  */
 
 import { getGlobalSettings } from "../lib/settings.js";
+import { fetchAllPrices } from "./priceSources.js";
 
 // Module-level in-memory cache
 let tgCache = {};
@@ -322,6 +323,16 @@ export async function testUsdSource(config = {}) {
  * @returns {object} market prices object
  */
 export async function fetchTelegramPrices(env, forceRefresh = false, settings = null) {
+  // Delegate to unified priceSources service
+  try {
+    const unified = await fetchAllPrices(env, forceRefresh, settings);
+    if (unified && (unified.usd_toman || unified.gold_18k)) {
+      return unified;
+    }
+  } catch (err) {
+    console.error("Unified fetchAllPrices delegation error:", err);
+  }
+
   let stored = { ...tgCache };
   const nowMs = Date.now();
 

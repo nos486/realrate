@@ -4,10 +4,20 @@
  */
 
 import { getAuthenticatedUser } from "../lib/auth.js";
-import { dbGetUsers, dbGetUserById, dbGetPortfolioHoldings, dbGetUserPortfolios } from "../lib/db.js";
+import {
+  dbGetUsers,
+  dbGetUserById,
+  dbGetPortfolioHoldings,
+  dbGetUserPortfolios,
+  dbGetPriceSources,
+  dbSavePriceSource,
+  dbDeletePriceSource,
+  dbSetPrimaryPriceSource,
+} from "../lib/db.js";
 import { getAdminStats } from "../lib/analytics.js";
 import { saveGlobalSettings } from "../lib/settings.js";
 import { testUsdSource } from "../services/telegramPrices.js";
+import { testPriceSourceConfig } from "../services/priceSources.js";
 import { jsonResponse, errorResponse, forbiddenResponse } from "../lib/helpers.js";
 
 /**
@@ -124,3 +134,113 @@ export async function handleAdminTestUsdSource(request, env) {
     return errorResponse(e.message, 500, request);
   }
 }
+
+/**
+ * GET /api/admin/price-sources
+ * List all configured price sources — admin only
+ */
+export async function handleAdminGetPriceSources(request, env) {
+  const user = await getAuthenticatedUser(request, env);
+  if (!user || user.role !== "admin") return forbiddenResponse(request);
+
+  try {
+    const sources = await dbGetPriceSources(env);
+    return jsonResponse({ success: true, sources }, 200, request);
+  } catch (e) {
+    return errorResponse(e.message, 500, request);
+  }
+}
+
+/**
+ * POST /api/admin/price-sources
+ * Create or update a price source — admin only
+ */
+export async function handleAdminSavePriceSource(request, env) {
+  const user = await getAuthenticatedUser(request, env);
+  if (!user || user.role !== "admin") return forbiddenResponse(request);
+
+  try {
+    const body = await request.json();
+    const saved = await dbSavePriceSource(env, body);
+    return jsonResponse({
+      success: true,
+      message: "سورس قیمت با موفقیت ذخیره شد.",
+      source: saved,
+    }, 200, request);
+  } catch (e) {
+    return errorResponse(e.message, 400, request);
+  }
+}
+
+/**
+ * DELETE /api/admin/price-sources
+ * Delete a price source by ID (?id=...) — admin only
+ */
+export async function handleAdminDeletePriceSource(request, env) {
+  const user = await getAuthenticatedUser(request, env);
+  if (!user || user.role !== "admin") return forbiddenResponse(request);
+
+  try {
+    const url = new URL(request.url);
+    let id = url.searchParams.get("id");
+    if (!id) {
+      const body = await request.json().catch(() => ({}));
+      id = body.id;
+    }
+
+    if (!id) {
+      return errorResponse("شناسه سورس الزامی است.", 400, request);
+    }
+
+    const success = await dbDeletePriceSource(env, id);
+    if (!success) {
+      return errorResponse("سورس یافت نشد یا حذف ناموفق بود.", 404, request);
+    }
+
+    return jsonResponse({ success: true, message: "سورس قیمت با موفقیت حذف شد." }, 200, request);
+  } catch (e) {
+    return errorResponse(e.message, 500, request);
+  }
+}
+
+/**
+ * POST /api/admin/price-sources/set-primary
+ * Set a price source as primary for its price type — admin only
+ */
+export async function handleAdminSetPrimarySource(request, env) {
+  const user = await getAuthenticatedUser(request, env);
+  if (!user || user.role !== "admin") return forbiddenResponse(request);
+
+  try {
+    const body = await request.json();
+    const { id, priceType } = body;
+    if (!id) return errorResponse("شناسه سورس الزامی است.", 400, request);
+
+    const updated = await dbSetPrimaryPriceSource(env, id, priceType);
+    return jsonResponse({
+      success: true,
+      message: "سورس مرجع با موفقیت تعیین شد.",
+      source: updated,
+    }, 200, request);
+  } catch (e) {
+    return errorResponse(e.message, 400, request);
+  }
+}
+
+/**
+ * POST /api/admin/price-sources/test
+ * Test a price source config without saving — admin only
+ */
+export async function handleAdminTestPriceSource(request, env) {
+  const user = await getAuthenticatedUser(request, env);
+  if (!user || user.role !== "admin") return forbiddenResponse(request);
+
+  try {
+    const body = await request.json();
+    const testResult = await testPriceSourceConfig(body);
+    return jsonResponse(testResult, testResult.success ? 200 : 400, request);
+  } catch (e) {
+    return errorResponse(e.message, 500, request);
+  }
+}
+

@@ -170,6 +170,45 @@ export async function apiAdminTestUsdSource(config) {
   return res.json();
 }
 
+// ─── Unified Price Sources (Admin) ──────────────────────────────────────────
+
+export async function apiGetPriceSources() {
+  const res = await apiFetch('/api/admin/price-sources');
+  return res.json();
+}
+
+export async function apiSavePriceSource(sourceData) {
+  const res = await apiFetch('/api/admin/price-sources', {
+    method: 'POST',
+    body: JSON.stringify(sourceData),
+  });
+  return res.json();
+}
+
+export async function apiDeletePriceSource(id) {
+  const res = await apiFetch(`/api/admin/price-sources?id=${encodeURIComponent(id)}`, {
+    method: 'DELETE',
+  });
+  return res.json();
+}
+
+export async function apiSetPrimarySource(id, priceType = null) {
+  const res = await apiFetch('/api/admin/price-sources/set-primary', {
+    method: 'POST',
+    body: JSON.stringify({ id, priceType }),
+  });
+  return res.json();
+}
+
+export async function apiTestPriceSource(config) {
+  const res = await apiFetch('/api/admin/price-sources/test', {
+    method: 'POST',
+    body: JSON.stringify(config),
+  });
+  return res.json();
+}
+
+
 // ─── Portfolios (Multi-portfolio Management) ───────────────────────────────
 
 export async function apiGetPortfolios() {
