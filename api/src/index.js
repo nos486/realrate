@@ -34,7 +34,7 @@ import {
   handleAdminFetchAllSources,
   handleAdminGetPriceHistory,
 } from "./handlers/adminRoutes.js";
-import { handleGetPrices } from "./handlers/apiRoutes.js";
+import { handleGetPrices, handleGetSparklines } from "./handlers/apiRoutes.js";
 import {
   handleGetPortfolios,
   handleCreatePortfolio,
@@ -121,6 +121,9 @@ export default {
 
     // ── Public API Routes ───────────────────────────────────────────────────
     if (url.pathname === "/api/prices") return handleGetPrices(env, request);
+    if (url.pathname === "/api/sparklines" || url.pathname === "/api/prices/sparklines") {
+      return handleGetSparklines(env, request);
+    }
 
     if (url.pathname === "/api/telegram") {
       const forceRefresh = url.searchParams.get("force") === "true";

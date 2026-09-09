@@ -398,6 +398,94 @@
   color: var(--text-muted);
 }
 
+/* Mini Sparkline in Analysis Cards */
+.mini-sparkline-wrap {
+  position: relative;
+  width: 100%;
+  margin-top: 6px;
+  margin-bottom: 4px;
+  overflow: visible;
+  cursor: crosshair;
+  display: flex;
+  align-items: center;
+}
+
+.mini-sparkline-svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+  overflow: visible;
+}
+
+.sparkline-latest-dot {
+  filter: drop-shadow(0 0 4px currentColor);
+  animation: pulse-dot 2s infinite ease-in-out;
+}
+
+@keyframes pulse-dot {
+  0%, 100% {
+    r: 2.8px;
+    opacity: 0.9;
+  }
+  50% {
+    r: 3.6px;
+    opacity: 1;
+  }
+}
+
+.mini-sparkline-empty-label {
+  position: absolute;
+  width: 100%;
+  text-align: center;
+  font-size: 9.5px;
+  color: var(--text-muted);
+  opacity: 0.65;
+  pointer-events: none;
+}
+
+.mini-sparkline-tooltip {
+  position: absolute;
+  bottom: calc(100% + 4px);
+  transform: translateX(-50%);
+  background: rgba(15, 23, 42, 0.94);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: var(--radius-sm, 6px);
+  padding: 3px 7px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+  pointer-events: none;
+  z-index: 20;
+  white-space: nowrap;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35);
+  animation: tooltip-fade 0.12s ease-out;
+}
+
+.mini-sparkline-tooltip .tooltip-price {
+  font-size: 10.5px;
+  font-weight: 800;
+  color: var(--text-heading);
+}
+
+.mini-sparkline-tooltip .tooltip-time {
+  font-size: 9px;
+  color: var(--text-muted);
+}
+
+@keyframes tooltip-fade {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(3px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+}
+
 /* Card Metrics Table */
 .card-metrics-table {
   display: flex;

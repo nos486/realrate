@@ -7,10 +7,11 @@ export default defineConfig({
   server: {
     port: 5173,
     proxy: {
-      // All /api/* requests proxied to the Worker in dev — no CORS needed locally
+      // Proxy /api requests to live backend (or local worker if set)
       '/api': {
-        target: 'http://localhost:8787',
+        target: process.env.VITE_PROXY_TARGET || 'https://realrate-api.geekio.org',
         changeOrigin: true,
+        secure: false,
       },
     },
   },

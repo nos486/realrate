@@ -136,6 +136,11 @@ export async function apiGetPrices() {
   return res.json();
 }
 
+export async function apiGetSparklines() {
+  const res = await apiFetch('/api/sparklines');
+  return res.json();
+}
+
 // Backward compatibility alias
 export const apiGetRates = apiGetPrices;
 

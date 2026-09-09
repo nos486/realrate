@@ -7,6 +7,7 @@ import { getLatestMarketRates } from "../services/priceSources.js";
 import { fetchForexRates } from "../services/forexRates.js";
 import { getGlobalSettings } from "../lib/settings.js";
 import { jsonResponse } from "../lib/helpers.js";
+import { dbGet24hSparklines } from "../lib/db.js";
 
 /**
  * GET /api/prices
@@ -40,6 +41,39 @@ export async function handleGetPrices(env, request = null) {
       globalSettings,
     }, 200, request);
   } catch (err) {
+    return jsonResponse({ success: false, error: err.message }, 500, request);
+  }
+}
+
+/**
+ * GET /api/sparklines
+ * Return downsampled 24h price history for gold & coins to render lightweight card sparklines.
+ * Cached in Cloudflare KV for 3 minutes for blazing-fast edge performance.
+ */
+export async function handleGetSparklines(env, request = null) {
+  try {
+    const cacheKey = "sparklines_24h";
+
+    if (env?.REALRATE_KV) {
+      try {
+        const cached = await env.REALRATE_KV.get(cacheKey, "json");
+        if (cached && typeof cached === "object") {
+          return jsonResponse({ success: true, sparklines: cached, cached: true }, 200, request);
+        }
+      } catch (cacheErr) {
+        console.warn("[Sparklines] KV read error:", cacheErr.message);
+      }
+    }
+
+    const sparklines = await dbGet24hSparklines(env);
+
+    if (env?.REALRATE_KV && sparklines) {
+      env.REALRATE_KV.put(cacheKey, JSON.stringify(sparklines), { expirationTtl: 180 }).catch(() => {});
+    }
+
+    return jsonResponse({ success: true, sparklines, cached: false }, 200, request);
+  } catch (err) {
+    console.error("[Sparklines] Error:", err);
     return jsonResponse({ success: false, error: err.message }, 500, request);
   }
 }

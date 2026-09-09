@@ -3,7 +3,7 @@
  * Calculations performed 100% on the client with zero latency
  */
 import { useState, useEffect, useRef } from 'react';
-import { apiGetPrices } from '../api/client.js';
+import { apiGetPrices, apiGetSparklines } from '../api/client.js';
 import { calculateMarketData } from '../utils/calculator.js';
 import { formatThousands } from '../utils/formatters.js';
 
@@ -19,6 +19,7 @@ function parseNum(val) {
 
 export function useMarketData() {
   const [rates, setRates] = useState(null);
+  const [sparklines, setSparklines] = useState({});
   const [calcData, setCalcData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [usdToman, setUsdToman] = useState('');
@@ -27,16 +28,20 @@ export function useMarketData() {
   // Track if usd was manually edited
   const userEditedUsd = useRef(false);
 
-  // Load initial raw prices from /api/prices
+  // Load initial raw prices & 24h sparklines concurrently
   useEffect(() => {
-    apiGetPrices()
-      .then(data => {
-        if (data.success) {
+    Promise.allSettled([apiGetPrices(), apiGetSparklines()])
+      .then(([pricesRes, sparklinesRes]) => {
+        if (pricesRes.status === 'fulfilled' && pricesRes.value?.success) {
+          const data = pricesRes.value;
           setRates(data);
           const usd = data.live_usd_toman || data.globalSettings?.default_usd_toman || '';
           const gold = data.gold_usd || data.globalSettings?.default_gold_usd || 2890;
           setUsdToman(usd ? formatThousands(Math.round(usd), false) : '');
           setGoldUsd(gold ? formatThousands(gold, true) : '');
+        }
+        if (sparklinesRes.status === 'fulfilled' && sparklinesRes.value?.success && sparklinesRes.value?.sparklines) {
+          setSparklines(sparklinesRes.value.sparklines);
         }
       })
       .catch(console.error)
@@ -65,6 +70,7 @@ export function useMarketData() {
 
   return {
     rates,
+    sparklines,
     calcData,
     loading,
     usdToman,

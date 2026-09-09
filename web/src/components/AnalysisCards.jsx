@@ -1,11 +1,12 @@
 import React from 'react';
+import MiniSparkline from './ui/MiniSparkline.jsx';
 
 function formatNum(num) {
   if (num === null || num === undefined || isNaN(num)) return '-';
   return Math.round(num).toLocaleString('fa-IR');
 }
 
-export default function AnalysisCards({ analysis, recommendation }) {
+export default function AnalysisCards({ analysis, recommendation, sparklines = {} }) {
   if (!analysis || analysis.length === 0) return null;
 
   return (
@@ -60,6 +61,15 @@ export default function AnalysisCards({ analysis, recommendation }) {
                     <span className="price-unavailable">ناموجود</span>
                   )}
                 </div>
+
+                {/* 24h Price History Mini Sparkline */}
+                {hasMarket && (
+                  <MiniSparkline
+                    data={sparklines?.[item.id]}
+                    currentPrice={item.market}
+                    height={38}
+                  />
+                )}
               </div>
 
               {/* Data Breakdown Table */}

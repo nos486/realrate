@@ -1458,5 +1458,76 @@ export async function dbGetPriceHistory(env, { sourceId = null, priceType = null
   }
 }
 
+/**
+ * Retrieve downsampled 24h price history sparklines for main gold & coin types
+ * @param {object} env
+ * @returns {Promise<Record<string, Array<{price: number, timestamp: string}>>>}
+ */
+export async function dbGet24hSparklines(env) {
+  if (!env || !env.DB) return {};
+  await ensureD1Tables(env);
 
+  const targets = ['gold_18k', 'mesghal', 'full_coin', 'half_coin', 'quarter_coin'];
+  const result = {
+    gold_18k: [],
+    mesghal: [],
+    full_coin: [],
+    half_coin: [],
+    quarter_coin: [],
+  };
 
+  try {
+    const sinceIso = new Date(Date.now() - 24 * 3600 * 1000).toISOString();
+
+    // Select from price_history for past 24h, filtering to primary sources where defined to avoid multi-source jitter
+    const query = `
+      SELECT ph.price_type AS priceType, ph.price, ph.timestamp
+      FROM price_history ph
+      WHERE ph.timestamp >= ?
+        AND ph.price_type IN ('gold_18k', 'mesghal', 'full_coin', 'half_coin', 'quarter_coin')
+        AND (
+          ph.source_id IN (SELECT id FROM price_sources WHERE is_primary = 1)
+          OR NOT EXISTS (SELECT 1 FROM price_sources ps WHERE ps.price_type = ph.price_type AND ps.is_primary = 1)
+        )
+      ORDER BY ph.timestamp ASC
+    `;
+
+    const { results } = await env.DB.prepare(query).bind(sinceIso).all();
+    const rows = Array.isArray(results) ? results : [];
+
+    // Group raw rows
+    const grouped = {};
+    for (const t of targets) grouped[t] = [];
+    for (const row of rows) {
+      if (grouped[row.priceType]) {
+        grouped[row.priceType].push({
+          price: Number(row.price),
+          timestamp: row.timestamp,
+        });
+      }
+    }
+
+    // Downsample each target to max 45 points evenly spaced
+    const maxPoints = 45;
+    for (const key of targets) {
+      const arr = grouped[key];
+      if (arr.length <= maxPoints) {
+        result[key] = arr;
+      } else {
+        const sampled = [];
+        const step = (arr.length - 1) / (maxPoints - 1);
+        for (let i = 0; i < maxPoints; i++) {
+          const idx = Math.min(Math.round(i * step), arr.length - 1);
+          sampled.push(arr[idx]);
+        }
+        sampled.push(arr[arr.length - 1]);
+        result[key] = sampled;
+      }
+    }
+
+    return result;
+  } catch (e) {
+    console.error("D1 dbGet24hSparklines error:", e);
+    return result;
+  }
+}

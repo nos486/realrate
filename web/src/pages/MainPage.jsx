@@ -106,6 +106,7 @@ export default function MainPage() {
 
   const {
     rates,
+    sparklines,
     calcData,
     loading,
     usdToman,
@@ -187,7 +188,11 @@ export default function MainPage() {
               />
             )}
 
-            <AnalysisCards analysis={analysis} recommendation={recommendation} />
+            <AnalysisCards
+              analysis={analysis}
+              recommendation={recommendation}
+              sparklines={sparklines}
+            />
             <CurrenciesList currencies={currencies} />
           </div>
         )}
