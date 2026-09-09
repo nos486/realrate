@@ -1,5 +1,4 @@
 import React from 'react';
-import Card from './Card.jsx';
 
 /**
  * Standard FilterPills / SegmentedTabs component
@@ -45,15 +44,13 @@ export default function FilterPills({
 
   if (variant === 'segmented') {
     return (
-      <Card
-        as="div"
+      <div
         role="tablist"
-        padding="none"
         className={`ui-filter-pills variant-segmented size-${size} ${className}`}
         style={style}
       >
         {pillsContent}
-      </Card>
+      </div>
     );
   }
 

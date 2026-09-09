@@ -4,7 +4,6 @@ import { apiGetSharedPortfolio, apiGetPrices } from '../api/client.js';
 import { calculateMarketData } from '../utils/calculator.js';
 import Header from '../components/Header.jsx';
 import AlertBanner from '../components/ui/AlertBanner.jsx';
-import Card from '../components/ui/Card.jsx';
 import {
   CategoryIcon,
   CATEGORY_DEFINITIONS,
@@ -483,7 +482,7 @@ export default function SharedPortfolioPage() {
             <div className="portfolio-layout-split">
               {/* Right Column: Categorized Holdings List */}
               <div className="portfolio-content-column">
-                <Card className="portfolio-table-card" padding="none">
+                <div className="portfolio-table-card">
                   <div className="portfolio-table-header">
                     <div className="table-title">
                       <div className="table-title-main">
@@ -734,7 +733,7 @@ export default function SharedPortfolioPage() {
                       ))}
                     </div>
                   )}
-                </Card>
+                </div>
               </div>
 
               {/* Left Column: Overview Summary Cards */}
