@@ -57,15 +57,10 @@ export default function MiniSparkline({
           .map(d => ({ price: Number(d.price), timestamp: d.timestamp }))
       : [];
 
-    // If currentPrice is valid
+    // If currentPrice is valid and either no points or different from latest point
     if (typeof currentPrice === 'number' && currentPrice > 0) {
       if (list.length === 0) {
-        const now = Date.now();
-        list.push({ price: currentPrice, timestamp: new Date(now - 24 * 3600 * 1000).toISOString() });
-        list.push({ price: currentPrice, timestamp: new Date(now).toISOString() });
-      } else if (list.length === 1) {
-        const now = Date.now();
-        list.unshift({ price: list[0].price, timestamp: new Date(now - 24 * 3600 * 1000).toISOString() });
+        list.push({ price: currentPrice, timestamp: new Date().toISOString() });
       } else {
         const last = list[list.length - 1];
         const lastTime = last.timestamp ? new Date(last.timestamp).getTime() : 0;
@@ -80,8 +75,8 @@ export default function MiniSparkline({
 
   // Width virtual viewBox
   const viewBoxWidth = 220;
-  const topPadding = 6;
-  const bottomPadding = 6;
+  const topPadding = 5;
+  const bottomPadding = 5;
   const drawHeight = height - topPadding - bottomPadding;
 
   const { coords, minPrice, maxPrice, delta, isUp, strokeColor, areaPath, linePath } = useMemo(() => {
@@ -106,13 +101,12 @@ export default function MiniSparkline({
     }
 
     const range = max - min;
-    const isFlat = range === 0;
-    const effectiveRange = isFlat ? (max * 0.05 || 1) : range;
+    const effectiveRange = range === 0 ? max * 0.01 || 1 : range;
 
     const count = pointsData.length;
     const computedCoords = pointsData.map((p, idx) => {
       const x = (idx / (count - 1)) * viewBoxWidth;
-      const normalizedY = isFlat ? 0.5 : (p.price - min) / effectiveRange;
+      const normalizedY = (p.price - min) / effectiveRange;
       const y = topPadding + drawHeight * (1 - normalizedY);
       return { x, y, price: p.price, timestamp: p.timestamp };
     });
@@ -152,8 +146,28 @@ export default function MiniSparkline({
     setHoverIndex(null);
   };
 
+  // If we have fewer than 2 points, render an elegant flat baseline placeholder
   if (pointsData.length < 2) {
-    return null;
+    return (
+      <div className={`mini-sparkline-wrap ${className}`} style={{ height: `${height}px` }}>
+        <svg
+          viewBox={`0 0 ${viewBoxWidth} ${height}`}
+          preserveAspectRatio="none"
+          className="mini-sparkline-svg"
+        >
+          <line
+            x1="0"
+            y1={height / 2}
+            x2={viewBoxWidth}
+            y2={height / 2}
+            stroke="rgba(255, 255, 255, 0.08)"
+            strokeDasharray="3 3"
+            strokeWidth="1.2"
+          />
+        </svg>
+        <span className="mini-sparkline-empty-label">۲۴ ساعت بدون نوسان</span>
+      </div>
+    );
   }
 
   const activeCoord = hoverIndex !== null && coords[hoverIndex] ? coords[hoverIndex] : null;
@@ -226,7 +240,7 @@ export default function MiniSparkline({
         <div
           className="mini-sparkline-tooltip"
           style={{
-            left: `${Math.max(16, Math.min(84, (activeCoord.x / viewBoxWidth) * 100))}%`,
+            left: `${(activeCoord.x / viewBoxWidth) * 100}%`,
           }}
         >
           <span className="tooltip-price">{formatToman(activeCoord.price)} تومان</span>

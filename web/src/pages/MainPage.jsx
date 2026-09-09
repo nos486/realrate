@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { Megaphone, TrendingUp, Briefcase, ShieldCheck, Radio, Settings } from 'lucide-react';
 import AppLayout from '../components/ui/AppLayout.jsx';
@@ -12,6 +12,7 @@ import AdminPage from './AdminPage.jsx';
 import PriceSourcesPage from './PriceSourcesPage.jsx';
 import AccountSettingsView from '../components/AccountSettingsView.jsx';
 import LiveRatesTicker from '../components/LiveRatesTicker.jsx';
+import AssetDetailModal from '../components/AssetDetailModal.jsx';
 import { useMarketData } from '../hooks/useMarketData.js';
 import { useAuth } from '../context/AuthContext.jsx';
 
@@ -131,6 +132,7 @@ export default function MainPage() {
   const gold18kPrice = gold18kItem?.market || gold18kItem?.intrinsic || computed18k;
 
   const hasUsd = usdNum > 0;
+  const [selectedAssetModal, setSelectedAssetModal] = useState(null);
 
   return (
     <AppLayout
@@ -160,8 +162,16 @@ export default function MainPage() {
         />
 
         <LiveRatesTicker
-          goldPrice={gold18kPrice}
           usdPrice={usdToman}
+          onUsdClick={() =>
+            setSelectedAssetModal({
+              id: 'usd',
+              name: 'دلار نقدی آزاد',
+              market: usdNum,
+              price: usdNum,
+              updated_at: liveUsdDatetime,
+            })
+          }
         />
       </div>
 
@@ -192,6 +202,7 @@ export default function MainPage() {
               analysis={analysis}
               recommendation={recommendation}
               sparklines={sparklines}
+              onCardClick={(item) => setSelectedAssetModal(item)}
             />
             <CurrenciesList currencies={currencies} />
           </div>
@@ -223,6 +234,16 @@ export default function MainPage() {
           />
         )}
       </section>
+
+      {/* Comprehensive Asset Detail & Chart Modal */}
+      <AssetDetailModal
+        isOpen={!!selectedAssetModal}
+        onClose={() => setSelectedAssetModal(null)}
+        asset={selectedAssetModal}
+        sparklineData={selectedAssetModal ? (sparklines?.[selectedAssetModal.id] || []) : []}
+        rates={rates}
+        forex={rates?.forex || {}}
+      />
     </AppLayout>
   );
 }

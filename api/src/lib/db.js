@@ -1467,8 +1467,9 @@ export async function dbGet24hSparklines(env) {
   if (!env || !env.DB) return {};
   await ensureD1Tables(env);
 
-  const targets = ['gold_18k', 'mesghal', 'full_coin', 'half_coin', 'quarter_coin'];
+  const targets = ['usd', 'gold_18k', 'mesghal', 'full_coin', 'half_coin', 'quarter_coin'];
   const result = {
+    usd: [],
     gold_18k: [],
     mesghal: [],
     full_coin: [],
@@ -1484,7 +1485,7 @@ export async function dbGet24hSparklines(env) {
       SELECT ph.price_type AS priceType, ph.price, ph.timestamp
       FROM price_history ph
       WHERE ph.timestamp >= ?
-        AND ph.price_type IN ('gold_18k', 'mesghal', 'full_coin', 'half_coin', 'quarter_coin')
+        AND ph.price_type IN ('usd', 'gold_18k', 'mesghal', 'full_coin', 'half_coin', 'quarter_coin')
         AND (
           ph.source_id IN (SELECT id FROM price_sources WHERE is_primary = 1)
           OR NOT EXISTS (SELECT 1 FROM price_sources ps WHERE ps.price_type = ph.price_type AND ps.is_primary = 1)

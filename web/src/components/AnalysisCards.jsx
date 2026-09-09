@@ -6,14 +6,17 @@ function formatNum(num) {
   return Math.round(num).toLocaleString('fa-IR');
 }
 
-export default function AnalysisCards({ analysis, recommendation, sparklines = {} }) {
+export default function AnalysisCards({ analysis, recommendation, sparklines = {}, onCardClick }) {
   if (!analysis || analysis.length === 0) return null;
+
+  // Filter out half_coin as requested by user
+  const visibleCards = analysis.filter((item) => item.id !== 'half_coin');
 
   return (
     <div className="analysis-wrapper">
       {/* Cards Grid */}
       <div className="cards-modern-grid">
-        {analysis.map((item) => {
+        {visibleCards.map((item) => {
           const isBest = recommendation && recommendation.best_id === item.id;
           const hasMarket = item.market !== null && item.market !== undefined;
 
@@ -41,7 +44,20 @@ export default function AnalysisCards({ analysis, recommendation, sparklines = {
           }
 
           return (
-            <div key={item.id} className={`fintech-card ${isBest ? 'best-choice' : ''}`}>
+            <div
+              key={item.id}
+              className={`fintech-card ${isBest ? 'best-choice' : ''} ${onCardClick ? 'clickable' : ''}`}
+              onClick={() => onCardClick?.(item)}
+              role={onCardClick ? 'button' : undefined}
+              tabIndex={onCardClick ? 0 : undefined}
+              onKeyDown={(e) => {
+                if (onCardClick && (e.key === 'Enter' || e.key === ' ')) {
+                  e.preventDefault();
+                  onCardClick(item);
+                }
+              }}
+              title="کلیک برای مشاهده مشخصات کامل و نمودار ۲۴ ساعته"
+            >
               <div className="card-top-row">
                 <div className="card-identity">
                   <h3 className="card-name">{item.name}</h3>
@@ -63,13 +79,11 @@ export default function AnalysisCards({ analysis, recommendation, sparklines = {
                 </div>
 
                 {/* 24h Price History Mini Sparkline */}
-                {hasMarket && (
-                  <MiniSparkline
-                    data={sparklines?.[item.id]}
-                    currentPrice={item.market}
-                    height={38}
-                  />
-                )}
+                <MiniSparkline
+                  data={sparklines?.[item.id]}
+                  currentPrice={item.market}
+                  height={38}
+                />
               </div>
 
               {/* Data Breakdown Table */}

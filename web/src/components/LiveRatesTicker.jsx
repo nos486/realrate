@@ -9,26 +9,25 @@ function formatRate(num) {
 
 /**
  * LiveRatesTicker:
- * Displays real-time live prices for Gold 18k and Free USD.
- * Desktop: Full informative labels with Toman unit.
- * Mobile: Ultra-concise ("طلا" and "دلار" with amount, compact micro-pulses).
+ * Displays real-time live price for Free USD with interactive click to view chart & details.
  */
-export default function LiveRatesTicker({ goldPrice, usdPrice, className = '' }) {
+export default function LiveRatesTicker({ usdPrice, onUsdClick, className = '' }) {
   return (
-    <div className={`main-live-ticker ${className}`} aria-label="نرخ‌های زنده طلا و دلار">
-      {/* Gold 18k */}
-      <div className="ticker-item gold" title="نرخ روز هر گرم طلای ۱۸ عیار">
-        <span className="ticker-pulse gold" />
-        <span className="ticker-tag desktop-text">طلای ۱۸:</span>
-        <span className="ticker-tag mobile-text">طلا:</span>
-        <strong className="ticker-amount">{formatRate(goldPrice)}</strong>
-        <span className="ticker-unit desktop-text">تومان</span>
-      </div>
-
-      <div className="ticker-separator" />
-
+    <div className={`main-live-ticker ${className}`} aria-label="نرخ زنده دلار آزاد">
       {/* Free USD */}
-      <div className="ticker-item usd" title="نرخ روز دلار نقدی آزاد">
+      <div
+        className={`ticker-item usd ${onUsdClick ? 'clickable' : ''}`}
+        onClick={onUsdClick}
+        role={onUsdClick ? 'button' : undefined}
+        tabIndex={onUsdClick ? 0 : undefined}
+        onKeyDown={(e) => {
+          if (onUsdClick && (e.key === 'Enter' || e.key === ' ')) {
+            e.preventDefault();
+            onUsdClick();
+          }
+        }}
+        title="کلیک برای مشاهده جزئیات و نمودار ۲۴ ساعته دلار"
+      >
         <span className="ticker-pulse green" />
         <span className="ticker-tag desktop-text">دلار آزاد:</span>
         <span className="ticker-tag mobile-text">دلار:</span>
