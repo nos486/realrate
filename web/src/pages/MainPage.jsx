@@ -15,6 +15,7 @@ import LiveRatesTicker from '../components/LiveRatesTicker.jsx';
 import AssetDetailModal from '../components/AssetDetailModal.jsx';
 import { useMarketData } from '../hooks/useMarketData.js';
 import { useAuth } from '../context/AuthContext.jsx';
+import { toEnglishDigits } from '../utils/formatters.js';
 
 export default function MainPage() {
   const location = useLocation();
@@ -123,8 +124,8 @@ export default function MainPage() {
   const recommendation = calcData?.recommendation;
   const currencies = calcData?.currencies || rates?.currencies;
 
-  const usdNum = parseFloat(String(usdToman).replace(/,/g, '')) || 0;
-  const goldUsdNum = parseFloat(String(goldUsd).replace(/,/g, '')) || 0;
+  const usdNum = parseFloat(toEnglishDigits(String(usdToman)).replace(/,/g, '')) || 0;
+  const goldUsdNum = parseFloat(toEnglishDigits(String(goldUsd)).replace(/,/g, '')) || 0;
   const gold18kItem = calcData?.analysis?.find((i) => i.id === 'gold_18k');
   const computed18k = (goldUsdNum > 0 && usdNum > 0)
     ? Math.round(((goldUsdNum / 31.1034768) * usdNum) * 0.75)
@@ -166,10 +167,11 @@ export default function MainPage() {
           onUsdClick={() =>
             setSelectedAssetModal({
               id: 'usd',
+              type: 'usd',
               name: 'دلار نقدی آزاد',
-              market: usdNum,
-              price: usdNum,
-              updated_at: liveUsdDatetime,
+              market: usdNum || rates?.live_usd_toman || 62000,
+              price: usdNum || rates?.live_usd_toman || 62000,
+              updated_at: liveUsdDatetime || rates?.live_usd_item?.datetime || new Date().toISOString(),
             })
           }
         />
@@ -201,7 +203,6 @@ export default function MainPage() {
             <AnalysisCards
               analysis={analysis}
               recommendation={recommendation}
-              sparklines={sparklines}
               onCardClick={(item) => setSelectedAssetModal(item)}
             />
             <CurrenciesList currencies={currencies} />

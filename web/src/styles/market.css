@@ -837,16 +837,18 @@
   background: rgba(255, 255, 255, 0.02);
   border: 1px solid rgba(255, 255, 255, 0.05);
   border-radius: var(--radius-md, 12px);
-  padding: 14px 14px 10px;
+  padding: 12px 14px 10px;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 8px;
+  direction: ltr; /* Keep chart coordinate flow LTR */
 }
 
 .chart-card-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  direction: rtl; /* Persian titles are RTL */
 }
 
 .chart-title-wrap {
@@ -877,8 +879,9 @@
 .asset-modal-svg-wrap {
   position: relative;
   width: 100%;
-  height: 160px;
+  height: 140px;
   cursor: crosshair;
+  direction: ltr;
 }
 
 .asset-modal-svg {
@@ -886,6 +889,29 @@
   height: 100%;
   display: block;
   overflow: visible;
+}
+
+.chart-crosshair-line {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background: rgba(255, 255, 255, 0.25);
+  border-left: 1px dashed rgba(255, 255, 255, 0.4);
+  pointer-events: none;
+  transform: translateX(-50%);
+}
+
+.chart-active-dot {
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  border: 2px solid #0f172a;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  box-shadow: 0 0 8px currentColor;
+  z-index: 5;
 }
 
 .chart-empty-state {
@@ -899,7 +925,7 @@
 
 .asset-modal-chart-tooltip {
   position: absolute;
-  top: 10px;
+  top: 6px;
   transform: translateX(-50%);
   background: rgba(15, 23, 42, 0.95);
   backdrop-filter: blur(10px);
@@ -911,6 +937,7 @@
   z-index: 30;
   box-shadow: 0 4px 14px rgba(0, 0, 0, 0.45);
   white-space: nowrap;
+  direction: rtl;
 }
 
 .tooltip-inner {
@@ -938,7 +965,13 @@
   font-size: 10px;
   color: var(--text-muted);
   border-top: 1px solid rgba(255, 255, 255, 0.04);
-  padding-top: 6px;
+  padding-top: 5px;
+  direction: ltr;
+}
+
+.axis-label-start,
+.axis-label-end {
+  direction: rtl;
 }
 
 /* Technical Details Grid */

@@ -1,12 +1,11 @@
 import React from 'react';
-import MiniSparkline from './ui/MiniSparkline.jsx';
 
 function formatNum(num) {
   if (num === null || num === undefined || isNaN(num)) return '-';
   return Math.round(num).toLocaleString('fa-IR');
 }
 
-export default function AnalysisCards({ analysis, recommendation, sparklines = {}, onCardClick }) {
+export default function AnalysisCards({ analysis, recommendation, onCardClick }) {
   if (!analysis || analysis.length === 0) return null;
 
   // Filter out half_coin as requested by user
@@ -77,13 +76,6 @@ export default function AnalysisCards({ analysis, recommendation, sparklines = {
                     <span className="price-unavailable">ناموجود</span>
                   )}
                 </div>
-
-                {/* 24h Price History Mini Sparkline */}
-                <MiniSparkline
-                  data={sparklines?.[item.id]}
-                  currentPrice={item.market}
-                  height={38}
-                />
               </div>
 
               {/* Data Breakdown Table */}
