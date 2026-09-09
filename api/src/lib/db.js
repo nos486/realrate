@@ -212,11 +212,30 @@ export async function ensureD1Tables(env) {
           { sql: `INSERT OR IGNORE INTO price_sources (id, name, price_type, source_type, endpoint, regex, json_path, fetch_interval_sec, is_active, is_primary, last_price, last_fetched, created_at, updated_at) VALUES ('src_def_half_coin', 'نیم سکه بهار آزادی (زرما)', 'half_coin', 'telegram', 'zarmagoldd', '', '', 60, 1, 1, 0, '', ?, ?)`, binds: [now, now] },
           { sql: `INSERT OR IGNORE INTO price_sources (id, name, price_type, source_type, endpoint, regex, json_path, fetch_interval_sec, is_active, is_primary, last_price, last_fetched, created_at, updated_at) VALUES ('src_def_quarter_coin', 'ربع سکه بهار آزادی (زرما)', 'quarter_coin', 'telegram', 'zarmagoldd', '', '', 60, 1, 1, 0, '', ?, ?)`, binds: [now, now] },
           { sql: `INSERT OR IGNORE INTO price_sources (id, name, price_type, source_type, endpoint, regex, json_path, fetch_interval_sec, is_active, is_primary, last_price, last_fetched, created_at, updated_at) VALUES ('src_def_mesghal', 'مثقال طلا ۱۷ عیار (زرما)', 'mesghal', 'telegram', 'zarmagoldd', '', '', 60, 1, 1, 0, '', ?, ?)`, binds: [now, now] },
+          { sql: `INSERT OR IGNORE INTO price_sources (id, name, price_type, source_type, endpoint, regex, json_path, fetch_interval_sec, is_active, is_primary, last_price, last_fetched, created_at, updated_at) VALUES ('src_def_ons_gold', 'انس طلا جهانی (XAU)', 'ons_gold', 'api_url', 'https://api.gold-api.com/price/XAU', '', 'price', 60, 1, 1, 0, '', ?, ?)`, binds: [now, now] },
+          { sql: `INSERT OR IGNORE INTO price_sources (id, name, price_type, source_type, endpoint, regex, json_path, fetch_interval_sec, is_active, is_primary, last_price, last_fetched, created_at, updated_at) VALUES ('src_def_ons_silver', 'انس نقره جهانی (XAG)', 'ons_silver', 'api_url', 'https://api.gold-api.com/price/XAG', '', 'price', 60, 1, 1, 0, '', ?, ?)`, binds: [now, now] },
         ];
 
         for (const item of seedInserts) {
           await env.DB.prepare(item.sql).bind(...item.binds).run();
         }
+      } else {
+        // Ensure global gold & silver sources are seeded even if other sources exist
+        const nowIso = new Date().toISOString();
+        await env.DB.prepare(`
+          INSERT OR IGNORE INTO price_sources (id, name, price_type, source_type, endpoint, regex, json_path, fetch_interval_sec, is_active, is_primary, last_price, last_fetched, created_at, updated_at)
+          VALUES ('src_def_ons_gold', 'انس طلا جهانی (XAU)', 'ons_gold', 'api_url', 'https://api.gold-api.com/price/XAU', '', 'price', 60, 1, 1, 0, '', ?, ?)
+        `).bind(nowIso, nowIso).run().catch(() => {});
+
+        await env.DB.prepare(`
+          INSERT OR IGNORE INTO price_sources (id, name, price_type, source_type, endpoint, regex, json_path, fetch_interval_sec, is_active, is_primary, last_price, last_fetched, created_at, updated_at)
+          VALUES ('src_def_ons_silver', 'انس نقره جهانی (XAG)', 'ons_silver', 'api_url', 'https://api.gold-api.com/price/XAG', '', 'price', 60, 1, 1, 0, '', ?, ?)
+        `).bind(nowIso, nowIso).run().catch(() => {});
+      }
+
+      // Cleanup bloated legacy KV cache key if present
+      if (env.REALRATE_KV) {
+        env.REALRATE_KV.delete("price_sources_list").catch(() => {});
       }
     } catch (e) {
       console.error("Price sources seed error:", e);
@@ -1209,11 +1228,6 @@ export async function dbGetPriceSources(env) {
           fetchIntervalMinutes: Math.round((row.fetchIntervalSec || 300) / 60),
         }));
 
-        if (env.REALRATE_KV) {
-          try {
-            await env.REALRATE_KV.put("price_sources_list", JSON.stringify(mapped));
-          } catch (ignore) {}
-        }
         return mapped;
       }
     } catch (e) {
@@ -1364,14 +1378,6 @@ export async function dbSavePriceSource(env, data) {
       });
     }
 
-    // Update KV
-    try {
-      const all = await dbGetPriceSources(env);
-      if (env.REALRATE_KV) {
-        await env.REALRATE_KV.put("price_sources_list", JSON.stringify(all));
-      }
-    } catch (ignore) {}
-
     return saved;
   }
 
@@ -1414,13 +1420,12 @@ export async function dbDeletePriceSource(env, id) {
       }
     }
 
-    // Update KV
-    try {
-      const all = await dbGetPriceSources(env);
-      if (env.REALRATE_KV) {
-        await env.REALRATE_KV.put("price_sources_list", JSON.stringify(all));
-      }
-    } catch (ignore) {}
+    // Remove from KV
+    if (env.REALRATE_KV) {
+      try {
+        await env.REALRATE_KV.delete(`source_price:${id}`);
+      } catch (ignore) {}
+    }
 
     return true;
   }
@@ -1465,14 +1470,6 @@ export async function dbSetPrimaryPriceSource(env, id, priceType = null) {
 
     const updated = await dbGetPriceSourceById(env, id);
 
-    // Update KV
-    try {
-      const all = await dbGetPriceSources(env);
-      if (env.REALRATE_KV) {
-        await env.REALRATE_KV.put("price_sources_list", JSON.stringify(all));
-      }
-    } catch (ignore) {}
-
     return updated;
   }
 
@@ -1503,21 +1500,13 @@ export async function dbUpdateSourceLastPrice(env, id, lastPrice, lastFetched = 
     }
   }
 
-  // Also sync with KV so dbGetPriceSources returns fresh values
+  // Save latest price to individual clean KV key for instant lookups
   if (env.REALRATE_KV) {
     try {
-      const cached = await env.REALRATE_KV.get("price_sources_list");
-      if (cached) {
-        let list = JSON.parse(cached);
-        if (Array.isArray(list)) {
-          const idx = list.findIndex(s => s.id === id);
-          if (idx >= 0) {
-            list[idx].lastPrice = priceNum;
-            list[idx].lastFetched = isoTime;
-            await env.REALRATE_KV.put("price_sources_list", JSON.stringify(list));
-          }
-        }
-      }
+      await env.REALRATE_KV.put(`source_price:${id}`, JSON.stringify({
+        price: priceNum,
+        lastFetched: isoTime,
+      }));
     } catch (ignore) {}
   }
 }

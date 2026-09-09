@@ -19,3 +19,6 @@ binding = "DB"
 database_name = "realrate-db"
 database_id = "19efe9ed-fc88-4e87-aaee-43ba6c6b3797"
 
+[triggers]
+crons = ["* * * * *"]
+

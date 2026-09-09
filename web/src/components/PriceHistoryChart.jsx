@@ -11,9 +11,17 @@ import {
   Activity,
 } from 'lucide-react';
 
-function formatNum(num) {
+function formatNum(num, priceType = 'usd') {
   if (num === null || num === undefined || isNaN(num)) return '۰';
+  const isUsdAsset = priceType === 'ons_gold' || priceType === 'ons_silver';
+  if (isUsdAsset) {
+    return Number(num).toLocaleString('fa-IR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  }
   return Math.round(num).toLocaleString('fa-IR');
+}
+
+function getPriceUnit(priceType) {
+  return (priceType === 'ons_gold' || priceType === 'ons_silver') ? 'دلار ($)' : 'تومان';
 }
 
 function formatPersianDate(isoStr) {
@@ -167,7 +175,8 @@ export default function PriceHistoryChart({
     if (sortedData.length === 0) return [];
     const minPrice = metrics.min;
     const maxPrice = metrics.max;
-    const span = maxPrice - minPrice === 0 ? 1000 : maxPrice - minPrice;
+    const isUsd = selectedPriceType === 'ons_gold' || selectedPriceType === 'ons_silver';
+    const span = maxPrice - minPrice === 0 ? (isUsd ? 10 : 1000) : maxPrice - minPrice;
     const yMin = Math.max(0, minPrice - span * 0.08);
     const yMax = maxPrice + span * 0.08;
 
@@ -176,10 +185,10 @@ export default function PriceHistoryChart({
     for (let i = 0; i <= count; i++) {
       const val = yMin + (i / count) * (yMax - yMin);
       const y = padding.top + chartH - (i / count) * chartH;
-      ticks.push({ val: Math.round(val), y });
+      ticks.push({ val: isUsd ? Number(val.toFixed(2)) : Math.round(val), y });
     }
     return ticks;
-  }, [sortedData, metrics, chartH, padding.top]);
+  }, [sortedData, metrics, chartH, padding.top, selectedPriceType]);
 
   // Handle pointer tracking on SVG
   const handleMouseMove = (e) => {
@@ -206,6 +215,8 @@ export default function PriceHistoryChart({
   };
 
   const activeHoverPoint = hoverIndex !== null && chartPoints[hoverIndex] ? chartPoints[hoverIndex] : null;
+  const isUsdAsset = selectedPriceType === 'ons_gold' || selectedPriceType === 'ons_silver';
+  const priceUnit = getPriceUnit(selectedPriceType);
 
   return (
     <div className="price-history-chart-card">
@@ -221,7 +232,7 @@ export default function PriceHistoryChart({
             {metrics.latest > 0 && (
               <div className="metric-chip current-price">
                 <span className="metric-chip-label">آخرین قیمت:</span>
-                <span className="metric-chip-val">{formatNum(metrics.latest)} تومان</span>
+                <span className="metric-chip-val">{formatNum(metrics.latest, selectedPriceType)} {priceUnit}</span>
               </div>
             )}
             {sortedData.length > 1 && (
@@ -229,7 +240,7 @@ export default function PriceHistoryChart({
                 {metrics.isUp ? <TrendingUp size={13} /> : <TrendingDown size={13} />}
                 <span>
                   {metrics.isUp ? '+' : ''}
-                  {formatNum(metrics.change)} تومان ({metrics.isUp ? '+' : ''}
+                  {formatNum(metrics.change, selectedPriceType)} {priceUnit} ({metrics.isUp ? '+' : ''}
                   {metrics.changePct.toFixed(2).replace('.', '/')}٪)
                 </span>
               </div>
@@ -309,15 +320,15 @@ export default function PriceHistoryChart({
         <div className="chart-stats-summary-bar">
           <div className="stat-item">
             <span className="stat-lbl">کمترین:</span>
-            <span className="stat-val">{formatNum(metrics.min)} تومان</span>
+            <span className="stat-val">{formatNum(metrics.min, selectedPriceType)} {priceUnit}</span>
           </div>
           <div className="stat-item">
             <span className="stat-lbl">بیشترین:</span>
-            <span className="stat-val">{formatNum(metrics.max)} تومان</span>
+            <span className="stat-val">{formatNum(metrics.max, selectedPriceType)} {priceUnit}</span>
           </div>
           <div className="stat-item">
             <span className="stat-lbl">میانگین:</span>
-            <span className="stat-val">{formatNum(metrics.avg)} تومان</span>
+            <span className="stat-val">{formatNum(metrics.avg, selectedPriceType)} {priceUnit}</span>
           </div>
           <div className="stat-item">
             <span className="stat-lbl">نقاط ثبت‌شده:</span>
@@ -383,7 +394,7 @@ export default function PriceHistoryChart({
                   fontSize="10"
                   fontFamily="inherit"
                 >
-                  {formatNum(tick.val)}
+                  {formatNum(tick.val, selectedPriceType)}
                 </text>
               </g>
             ))}
@@ -498,7 +509,7 @@ export default function PriceHistoryChart({
                         fontWeight="bold"
                         fontFamily="inherit"
                       >
-                        {formatNum(activeHoverPoint.data.price)} تومان
+                        {formatNum(activeHoverPoint.data.price, selectedPriceType)} {priceUnit}
                       </text>
                       <text
                         x={tipW / 2}

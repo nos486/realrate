@@ -48,12 +48,14 @@ import {
 import PriceHistoryChart from '../components/PriceHistoryChart.jsx';
 
 const PRICE_TYPE_INFO = {
-  usd: { label: 'دلار (USD)', badgeColor: 'blue' },
-  gold_18k: { label: 'طلا ۱۸ عیار', badgeColor: 'gold' },
-  full_coin: { label: 'سکه تمام بهار', badgeColor: 'amber' },
-  half_coin: { label: 'نیم سکه بهار', badgeColor: 'orange' },
-  quarter_coin: { label: 'ربع سکه بهار', badgeColor: 'rose' },
-  mesghal: { label: 'مثقال طلا ۱۷ عیار', badgeColor: 'purple' },
+  usd: { label: 'دلار (USD)', badgeColor: 'blue', unit: 'تومان' },
+  gold_18k: { label: 'طلا ۱۸ عیار', badgeColor: 'gold', unit: 'تومان' },
+  full_coin: { label: 'سکه تمام بهار', badgeColor: 'amber', unit: 'تومان' },
+  half_coin: { label: 'نیم سکه بهار', badgeColor: 'orange', unit: 'تومان' },
+  quarter_coin: { label: 'ربع سکه بهار', badgeColor: 'rose', unit: 'تومان' },
+  mesghal: { label: 'مثقال طلا ۱۷ عیار', badgeColor: 'purple', unit: 'تومان' },
+  ons_gold: { label: 'انس طلا جهانی (XAU)', badgeColor: 'gold', unit: '$' },
+  ons_silver: { label: 'انس نقره جهانی (XAG)', badgeColor: 'blue', unit: '$' },
 };
 
 const PRESET_REGEX_PATTERNS = {
@@ -84,6 +86,12 @@ const PRESET_REGEX_PATTERNS = {
     { label: 'مثقال/آبشده تا فروش : عدد (کانال زرما و آبشده)', pattern: '(?:مثقال|آبشده).*?فروش[:\\s]+([\\d,]+)' },
     { label: 'مثقال یا آبشده : عدد (فرمت ساده)', pattern: '(?:مثقال|آبشده)[^:\\d]*[:\\s\\-–]+([\\d,]+)' },
   ],
+  ons_gold: [
+    { label: 'Gold-API (وب‌سرویس استاندارد XAU/USD)', pattern: '', apiUrl: 'https://api.gold-api.com/price/XAU', jsonPath: 'price' },
+  ],
+  ons_silver: [
+    { label: 'Gold-API (وب‌سرویس استاندارد XAG/USD)', pattern: '', apiUrl: 'https://api.gold-api.com/price/XAG', jsonPath: 'price' },
+  ],
 };
 
 const DEFAULT_SOURCE_FORM = {
@@ -101,9 +109,17 @@ const DEFAULT_SOURCE_FORM = {
   isPrimary: false,
 };
 
-function formatNum(num) {
+function formatNum(num, priceType = 'usd') {
   if (num === null || num === undefined || isNaN(num)) return '۰';
+  const isUsdAsset = priceType === 'ons_gold' || priceType === 'ons_silver';
+  if (isUsdAsset) {
+    return Number(num).toLocaleString('fa-IR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  }
   return Math.round(num).toLocaleString('fa-IR');
+}
+
+function getPriceUnit(priceType) {
+  return (priceType === 'ons_gold' || priceType === 'ons_silver') ? 'دلار ($)' : 'تومان';
 }
 
 function formatPersianDate(isoStr) {
@@ -409,7 +425,7 @@ export default function PriceSourcesPage() {
           )
         );
 
-        showMsg(`قیمت سورس «${src.name}» با موفقیت استخراج و ذخیره شد: ${formatNum(res.price)} تومان`, 'success');
+        showMsg(`قیمت سورس «${src.name}» با موفقیت استخراج و ذخیره شد: ${formatNum(res.price, src.priceType)} ${getPriceUnit(src.priceType)}`, 'success');
 
         if (selectedSourceId === src.id) {
           loadPriceHistory(src.id, chartRange);
@@ -583,7 +599,7 @@ export default function PriceSourcesPage() {
                     <span className={`pill-dot ${typeInfo.badgeColor}`} />
                     <span className="pill-name">{src.name}</span>
                     {src.lastPrice > 0 && (
-                      <span className="pill-price">{formatNum(src.lastPrice)}</span>
+                      <span className="pill-price">{formatNum(src.lastPrice, src.priceType)}</span>
                     )}
                     {src.isPrimary && <Star size={11} fill="#eab308" color="#eab308" />}
                   </button>
@@ -673,8 +689,8 @@ export default function PriceSourcesPage() {
                     <div className="source-card-price-row">
                       {src.lastPrice > 0 ? (
                         <>
-                          <span className="card-price-value">{formatNum(src.lastPrice)}</span>
-                          <span className="card-price-unit">تومان</span>
+                          <span className="card-price-value">{formatNum(src.lastPrice, src.priceType)}</span>
+                          <span className="card-price-unit">{getPriceUnit(src.priceType)}</span>
                         </>
                       ) : (
                         <span className="card-no-price">هنوز دریافت نشده</span>
@@ -846,7 +862,7 @@ export default function PriceSourcesPage() {
                                     fontWeight: '700',
                                   }}
                                 >
-                                  {formatNum(src.lastPrice)} تومان
+                                  {formatNum(src.lastPrice, src.priceType)} {getPriceUnit(src.priceType)}
                                 </strong>
                                 <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>
                                   {formatPersianDate(src.lastFetched)}
@@ -953,7 +969,7 @@ export default function PriceSourcesPage() {
                                   <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--accent-green, #10b981)' }}>
                                     <CheckCircle2 size={14} />
                                     <span>
-                                      قیمت با موفقیت استخراج و در تاریخچه اختصاصی ثبت شد: <strong>{formatNum(rowResult.price)} تومان</strong>
+                                      قیمت با موفقیت استخراج و در تاریخچه اختصاصی ثبت شد: <strong>{formatNum(rowResult.price, src.priceType)} {getPriceUnit(src.priceType)}</strong>
                                     </span>
                                   </div>
                                 ) : (
@@ -1029,11 +1045,15 @@ export default function PriceSourcesPage() {
                       value={sourceForm.priceType}
                       onChange={(e) => {
                         const newType = e.target.value;
-                        const defaultPattern = PRESET_REGEX_PATTERNS[newType]?.[0]?.pattern || '';
+                        const isGlobal = newType === 'ons_gold' || newType === 'ons_silver';
+                        const defaultPreset = PRESET_REGEX_PATTERNS[newType]?.[0];
                         setSourceForm({
                           ...sourceForm,
                           priceType: newType,
-                          regexPattern: defaultPattern || sourceForm.regexPattern,
+                          sourceType: isGlobal ? 'api_url' : sourceForm.sourceType,
+                          apiUrl: isGlobal && defaultPreset?.apiUrl ? defaultPreset.apiUrl : sourceForm.apiUrl,
+                          jsonPath: isGlobal && defaultPreset?.jsonPath ? defaultPreset.jsonPath : sourceForm.jsonPath,
+                          regexPattern: defaultPreset?.pattern || sourceForm.regexPattern,
                         });
                       }}
                     >
@@ -1206,7 +1226,7 @@ export default function PriceSourcesPage() {
                         <>
                           <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                             <CheckCircle2 size={16} style={{ color: 'var(--accent-green)' }} />
-                            <strong>قیمت استخراج شده: {formatNum(modalTestResult.price)} تومان</strong>
+                            <strong>قیمت استخراج شده: {formatNum(modalTestResult.price, sourceForm.priceType)} {getPriceUnit(sourceForm.priceType)}</strong>
                           </div>
                           {modalTestResult.post_text && (
                             <div className="sample-snippet-box">

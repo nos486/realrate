@@ -5,28 +5,26 @@
  * /api/telegram — Raw Telegram market prices
  */
 
-import { fetchGlobalSpotGold, fetchGlobalSpotSilver } from "../services/goldPrice.js";
+import { getLatestMarketRates } from "../services/priceSources.js";
 import { fetchForexRates } from "../services/forexRates.js";
-import { fetchTelegramPrices } from "../services/telegramPrices.js";
 import { jsonResponse, errorResponse, getCorsHeaders } from "../lib/helpers.js";
 
 /**
  * GET /api/rates
  * Return live gold & silver spot price, USD/Toman, and forex rates
+ * Reads directly from KV / unified sources cache (sub-5ms response)
  */
 export async function handleFetchRates(env, analytics, globalSettings, request = null) {
   try {
-    const [liveSpotGold, liveSpotSilver, tgPrices, forex] = await Promise.all([
-      fetchGlobalSpotGold(env),
-      fetchGlobalSpotSilver(env),
-      fetchTelegramPrices(env, false, globalSettings),
+    const [rates, forex] = await Promise.all([
+      getLatestMarketRates(env),
       fetchForexRates(env),
     ]);
 
-    const gold_usd = liveSpotGold || globalSettings.default_gold_usd || 2450;
-    const silver_usd = liveSpotSilver || 33.5;
+    const gold_usd = rates.ons_gold?.price || globalSettings.default_gold_usd || 2890;
+    const silver_usd = rates.ons_silver?.price || 33.5;
 
-    const live_usd_item = tgPrices.usd_toman || null;
+    const live_usd_item = rates.usd_toman || null;
     const live_usd_toman = live_usd_item
       ? live_usd_item.price
       : (globalSettings.default_usd_toman || 62000);
@@ -48,7 +46,7 @@ export async function handleFetchRates(env, analytics, globalSettings, request =
       live_usd_toman,
       live_usd_item,
       forex,
-      market_prices: tgPrices,
+      market_prices: rates,
       analytics,
       globalSettings,
     }, 200, request);
@@ -62,22 +60,20 @@ export async function handleFetchRates(env, analytics, globalSettings, request =
  * Full gold & silver bubble analysis, coin arbitrage, and all currency conversions
  */
 export async function handleCalculate(url, env, analytics, globalSettings, request = null) {
-  const [liveSpotGold, liveSpotSilver, tgPrices, forex] = await Promise.all([
-    fetchGlobalSpotGold(env),
-    fetchGlobalSpotSilver(env),
-    fetchTelegramPrices(env, false, globalSettings),
+  const [rates, forex] = await Promise.all([
+    getLatestMarketRates(env),
     fetchForexRates(env),
   ]);
 
   const usd_toman_raw = url.searchParams.get("usd_toman");
   let usd_toman = usd_toman_raw
     ? parseFloat(usd_toman_raw)
-    : (tgPrices.usd_toman ? tgPrices.usd_toman.price : (globalSettings.default_usd_toman || null));
+    : (rates.usd_toman ? rates.usd_toman.price : (globalSettings.default_usd_toman || null));
 
   const userGoldUsd = url.searchParams.get("gold_usd");
   const gold_usd = userGoldUsd
     ? parseFloat(userGoldUsd)
-    : (liveSpotGold || globalSettings.default_gold_usd || 2450);
+    : (rates.ons_gold?.price || globalSettings.default_gold_usd || 2890);
 
   if (!usd_toman || isNaN(usd_toman) || usd_toman <= 0) {
     return jsonResponse({ success: false, requires_usd: true, message: "لطفاً ابتدا قیمت دلار (تومان) را وارد کنید." }, 400, request);
@@ -116,11 +112,11 @@ export async function handleCalculate(url, env, analytics, globalSettings, reque
   }
 
   const itemsAnalysis = [
-    analyzeItem("gold_18k",     "طلا ۱۸ عیار",            gold_18k_gram,    0,                                         tgPrices.gold_18k),
-    analyzeItem("mesghal",      "مثقال طلا (مظنه)",       mesghal_17k,      0,                                         tgPrices.mesghal),
-    analyzeItem("full_coin",    "سکه تمام ۸۶",             full_intrinsic,   globalSettings.bubble_pct_full    ?? 15,   tgPrices.full_coin),
-    analyzeItem("half_coin",    "نیم سکه بهار آزادی",      half_intrinsic,   globalSettings.bubble_pct_half    ?? 20,   tgPrices.half_coin),
-    analyzeItem("quarter_coin", "ربع سکه بهار آزادی",      quarter_intrinsic,globalSettings.bubble_pct_quarter ?? 25,   tgPrices.quarter_coin),
+    analyzeItem("gold_18k",     "طلا ۱۸ عیار",            gold_18k_gram,    0,                                         rates.gold_18k),
+    analyzeItem("mesghal",      "مثقال طلا (مظنه)",       mesghal_17k,      0,                                         rates.mesghal),
+    analyzeItem("full_coin",    "سکه تمام ۸۶",             full_intrinsic,   globalSettings.bubble_pct_full    ?? 15,   rates.full_coin),
+    analyzeItem("half_coin",    "نیم سکه بهار آزادی",      half_intrinsic,   globalSettings.bubble_pct_half    ?? 20,   rates.half_coin),
+    analyzeItem("quarter_coin", "ربع سکه بهار آزادی",      quarter_intrinsic,globalSettings.bubble_pct_quarter ?? 25,   rates.quarter_coin),
   ];
 
   const availableItems = itemsAnalysis.filter(i => i.market !== null && i.bubble_pct !== null);
@@ -163,7 +159,7 @@ export async function handleCalculate(url, env, analytics, globalSettings, reque
 
 
   // Silver calculations
-  const silver_usd = liveSpotSilver || 33.5;
+  const silver_usd = rates.ons_silver?.price || 33.5;
   const silver_999_gram = (silver_usd / 31.1034768) * usd_toman;
   const silver_925_gram = silver_999_gram * 0.925;
   const silver_ounce = silver_usd * usd_toman;
@@ -181,7 +177,7 @@ export async function handleCalculate(url, env, analytics, globalSettings, reque
     },
     quick_currencies,
     currencies,
-    market_data: tgPrices,
+    market_data: rates,
     analysis: itemsAnalysis,
     recommendation,
     analytics,

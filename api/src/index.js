@@ -49,6 +49,7 @@ import {
   handleGetSharedPortfolio,
 } from "./handlers/portfolioRoutes.js";
 import { fetchTelegramPrices } from "./services/telegramPrices.js";
+import { handleScheduledPriceExtraction, fetchAllPrices } from "./services/priceSources.js";
 
 export default {
   async fetch(request, env, ctx) {
@@ -132,7 +133,7 @@ export default {
 
     if (url.pathname === "/api/telegram") {
       const forceRefresh = url.searchParams.get("force") === "true";
-      const tgData = await fetchTelegramPrices(env, forceRefresh, globalSettings);
+      const tgData = await fetchAllPrices(env, forceRefresh, globalSettings);
       return new Response(JSON.stringify(tgData, null, 2), {
         headers: { "Content-Type": "application/json; charset=utf-8", ...corsHeaders },
       });
@@ -142,6 +143,18 @@ export default {
     return new Response(
       JSON.stringify({ success: false, message: "API endpoint not found" }),
       { status: 404, headers: { "Content-Type": "application/json", ...corsHeaders } }
+    );
+  },
+
+  /**
+   * Cloudflare Workers Scheduled Cron Trigger Handler
+   * Runs automatically every minute to extract due price sources based on fetchIntervalSec
+   */
+  async scheduled(event, env, ctx) {
+    ctx.waitUntil(
+      handleScheduledPriceExtraction(env).catch(err => {
+        console.error("[Scheduled] Price extraction error:", err);
+      })
     );
   },
 };

@@ -142,8 +142,13 @@ export function parseSourceContent(source, rawContent) {
       );
     }
 
+    const isUsdAsset = source.priceType === "ons_gold" || source.priceType === "ons_silver";
+    const finalPrice = isUsdAsset
+      ? Math.round(Number(extractedVal) * 100) / 100
+      : Math.round(Number(extractedVal));
+
     return {
-      price: Math.round(extractedVal),
+      price: finalPrice,
       datetime: nowIso,
       label: source.name || "سورس خارجی API",
     };
@@ -169,8 +174,9 @@ export function parseSourceContent(source, rawContent) {
       const parsedNum = extractPriceWithRegex(rawText, source.regex.trim());
 
       if (parsedNum && parsedNum > 0) {
+        const isUsdAsset = source.priceType === "ons_gold" || source.priceType === "ons_silver";
         return {
-          price: Math.round(parsedNum),
+          price: isUsdAsset ? Math.round(parsedNum * 100) / 100 : Math.round(parsedNum),
           datetime,
           label: source.name || target.channel,
         };
@@ -252,155 +258,252 @@ export async function testPriceSourceConfig(config = {}) {
 }
 
 /**
- * Fetch all active price sources, parallelized and grouped by endpoint
+ * Compile unified market rates from active sources (picking primary or latest for each priceType)
+ * @param {Array<object>} sources
+ * @returns {object}
+ */
+export function compileLatestMarketRates(sources) {
+  const supportedTypes = [
+    "usd",
+    "gold_18k",
+    "full_coin",
+    "half_coin",
+    "quarter_coin",
+    "mesghal",
+    "ons_gold",
+    "ons_silver",
+  ];
+
+  const result = {
+    last_updated: new Date().toISOString(),
+  };
+
+  if (!Array.isArray(sources)) return result;
+
+  for (const pType of supportedTypes) {
+    const candidates = sources.filter(s => s.priceType === pType && s.isActive && Number(s.lastPrice) > 0);
+    const chosen = candidates.find(s => s.isPrimary) || candidates[0];
+
+    if (chosen) {
+      const itemKey = pType === "usd" ? "usd_toman" : pType;
+      result[itemKey] = {
+        price: chosen.lastPrice,
+        datetime: chosen.lastFetched || new Date().toISOString(),
+        label: chosen.name,
+        sourceId: chosen.id,
+        isPrimary: !!chosen.isPrimary,
+      };
+
+      if (pType === "usd") {
+        result.usd = result.usd_toman;
+      }
+    }
+  }
+
+  return result;
+}
+
+/**
+ * Handle scheduled automatic price extraction runner:
+ * Checks each active source against its configured interval (fetch_interval_sec).
+ * If (now - lastFetched) >= interval (or forceAll is true), fetches and extracts price.
+ * Updates D1 last_price, records D1 history, and saves latest prices into KV.
+ *
+ * @param {object} env
+ * @param {boolean} [forceAll=false]
+ * @returns {Promise<{ extractedCount: number, rates: object }>}
+ */
+export async function handleScheduledPriceExtraction(env, forceAll = false) {
+  if (!env) return { extractedCount: 0, rates: {} };
+
+  let sources = [];
+  try {
+    sources = await dbGetPriceSources(env);
+  } catch (e) {
+    console.error("Error fetching price sources for scheduled extraction:", e);
+    return { extractedCount: 0, rates: {} };
+  }
+
+  if (!Array.isArray(sources) || sources.length === 0) {
+    return { extractedCount: 0, rates: {} };
+  }
+
+  const activeSources = sources.filter(s => s.isActive);
+  if (activeSources.length === 0) {
+    return { extractedCount: 0, rates: {} };
+  }
+
+  const nowMs = Date.now();
+  const dueSources = forceAll
+    ? activeSources
+    : activeSources.filter(s => {
+        const intervalMs = Math.max(15, (s.fetchIntervalSec || 60)) * 1000;
+        const lastFetchedMs = s.lastFetched ? new Date(s.lastFetched).getTime() : 0;
+        return (nowMs - lastFetchedMs) >= intervalMs;
+      });
+
+  let extractedCount = 0;
+
+  if (dueSources.length > 0) {
+    // 1. Deduplicate network requests by (sourceType + "::" + endpoint)
+    const endpointRequests = new Map();
+    for (const src of dueSources) {
+      const key = `${src.sourceType}::${src.endpoint}`;
+      if (!endpointRequests.has(key)) {
+        endpointRequests.set(
+          key,
+          fetchRawEndpointContent(src.sourceType, src.endpoint).catch(err => {
+            console.warn(`[PriceSources] Fetch failed for ${key}:`, err.message);
+            return null;
+          })
+        );
+      }
+    }
+
+    const endpointKeys = Array.from(endpointRequests.keys());
+    const rawResults = await Promise.all(endpointRequests.values());
+    const endpointContentMap = new Map();
+    for (let i = 0; i < endpointKeys.length; i++) {
+      endpointContentMap.set(endpointKeys[i], rawResults[i]);
+    }
+
+    // 2. Parse and record each due source
+    const updates = [];
+    for (const src of dueSources) {
+      const key = `${src.sourceType}::${src.endpoint}`;
+      const raw = endpointContentMap.get(key);
+      if (!raw) continue;
+
+      try {
+        const parsed = parseSourceContent(src, raw);
+        if (parsed && parsed.price > 0) {
+          extractedCount++;
+          src.lastPrice = parsed.price;
+          src.lastFetched = parsed.datetime;
+
+          // Update D1 last price
+          updates.push(dbUpdateSourceLastPrice(env, src.id, parsed.price, parsed.datetime));
+
+          // Record history in D1
+          updates.push(
+            dbRecordPriceHistory(env, {
+              sourceId: src.id,
+              priceType: src.priceType,
+              sourceName: src.name,
+              price: parsed.price,
+              timestamp: parsed.datetime,
+            })
+          );
+
+          // Save individual source price into KV for instant single-source lookups
+          if (env.REALRATE_KV) {
+            updates.push(
+              env.REALRATE_KV.put(
+                `source_price:${src.id}`,
+                JSON.stringify({
+                  price: parsed.price,
+                  lastFetched: parsed.datetime,
+                  priceType: src.priceType,
+                  name: src.name,
+                })
+              ).catch(() => {})
+            );
+          }
+        }
+      } catch (parseErr) {
+        console.warn(`[PriceSources] Parse failed for ${src.name} (${src.id}):`, parseErr.message);
+      }
+    }
+
+    if (updates.length > 0) {
+      await Promise.allSettled(updates);
+    }
+  }
+
+  // 3. Compile clean latest_rates for all active sources
+  const latestRates = compileLatestMarketRates(activeSources);
+
+  // 4. Save latest_rates to KV
+  if (env.REALRATE_KV) {
+    try {
+      await env.REALRATE_KV.put("latest_rates", JSON.stringify(latestRates));
+
+      // Compatibility mirrors for legacy code
+      await env.REALRATE_KV.put("tg_prices", JSON.stringify(latestRates));
+      if (latestRates.ons_gold?.price) {
+        await env.REALRATE_KV.put(
+          "spot_gold_usd",
+          JSON.stringify({
+            price: latestRates.ons_gold.price,
+            last_updated: latestRates.ons_gold.datetime,
+          })
+        );
+      }
+      if (latestRates.ons_silver?.price) {
+        await env.REALRATE_KV.put(
+          "spot_silver_usd",
+          JSON.stringify({
+            price: latestRates.ons_silver.price,
+            last_updated: latestRates.ons_silver.datetime,
+          })
+        );
+      }
+    } catch (e) {
+      console.error("KV write error for latest_rates:", e);
+    }
+  }
+
+  memoryPricesCache = { ...latestRates };
+  lastFetchTime = Date.now();
+
+  return { extractedCount, rates: latestRates };
+}
+
+/**
+ * Get latest market rates instantly from KV (with fallback to scheduled extraction if empty)
+ * @param {object} env
+ * @returns {Promise<object>}
+ */
+export async function getLatestMarketRates(env) {
+  // 1. In-memory cache
+  if (
+    memoryPricesCache &&
+    Object.keys(memoryPricesCache).length > 2 &&
+    Date.now() - lastFetchTime < 60000
+  ) {
+    return memoryPricesCache;
+  }
+
+  // 2. Read directly from KV (fastest access, sub-5ms)
+  if (env && env.REALRATE_KV) {
+    try {
+      const kvVal = await env.REALRATE_KV.get("latest_rates", "json");
+      if (kvVal && Object.keys(kvVal).length > 2) {
+        memoryPricesCache = kvVal;
+        lastFetchTime = Date.now();
+        return kvVal;
+      }
+    } catch (e) {
+      console.error("KV read error in getLatestMarketRates:", e);
+    }
+  }
+
+  // 3. Fallback: If KV is cold/empty, trigger extraction immediately
+  const { rates } = await handleScheduledPriceExtraction(env, true);
+  return rates;
+}
+
+/**
+ * Fetch all prices (compatible wrapper)
  * @param {object} env
  * @param {boolean} [forceRefresh=false]
  * @param {object} [settings=null]
  * @returns {Promise<object>}
  */
 export async function fetchAllPrices(env, forceRefresh = false, settings = null) {
-  const nowMs = Date.now();
-  let stored = { ...memoryPricesCache };
-
-  // Read existing cached prices from KV
-  if (env && env.REALRATE_KV) {
-    try {
-      const kvVal = await env.REALRATE_KV.get("tg_prices", "json");
-      if (kvVal) stored = { ...stored, ...kvVal };
-    } catch (e) {
-      console.error("KV Read Error in fetchAllPrices:", e);
-    }
+  if (forceRefresh) {
+    const { rates } = await handleScheduledPriceExtraction(env, true);
+    return rates;
   }
-
-  const lastCheckMs = stored.last_channel_check_time
-    ? new Date(stored.last_channel_check_time).getTime()
-    : lastFetchTime;
-  const isFresh = (nowMs - lastCheckMs) < 60000;
-
-  if (isFresh && !forceRefresh && Object.keys(stored).length > 2) {
-    return stored;
-  }
-
-  // Fetch sources list from DB or KV
-  let sources = [];
-  try {
-    sources = await dbGetPriceSources(env);
-  } catch (e) {
-    console.error("Error fetching price sources list:", e);
-  }
-
-  // If no sources defined yet, return fallback
-  if (!Array.isArray(sources) || sources.length === 0) {
-    return stored;
-  }
-
-  const activeSources = sources.filter(s => s.isActive);
-  if (activeSources.length === 0) {
-    return stored;
-  }
-
-  // Deduplicate network requests by (sourceType + "::" + endpoint)
-  const endpointRequests = new Map();
-  for (const src of activeSources) {
-    const key = `${src.sourceType}::${src.endpoint}`;
-    if (!endpointRequests.has(key)) {
-      endpointRequests.set(key, fetchRawEndpointContent(src.sourceType, src.endpoint).catch(err => {
-        console.warn(`Failed to fetch endpoint ${key}:`, err.message);
-        return null;
-      }));
-    }
-  }
-
-  // Wait for all unique endpoint fetches
-  const endpointKeys = Array.from(endpointRequests.keys());
-  const rawResults = await Promise.all(endpointRequests.values());
-  const endpointContentMap = new Map();
-  for (let i = 0; i < endpointKeys.length; i++) {
-    endpointContentMap.set(endpointKeys[i], rawResults[i]);
-  }
-
-  // Parse each active source
-  const sourceResults = [];
-  for (const src of activeSources) {
-    const key = `${src.sourceType}::${src.endpoint}`;
-    const raw = endpointContentMap.get(key);
-    if (!raw) continue;
-
-    try {
-      const parsed = parseSourceContent(src, raw);
-      if (parsed && parsed.price) {
-        sourceResults.push({
-          source: src,
-          price: parsed.price,
-          datetime: parsed.datetime,
-          label: parsed.label,
-        });
-
-        // Update DB last price & record history in background
-        if (env) {
-          dbUpdateSourceLastPrice(env, src.id, parsed.price, parsed.datetime).catch(() => {});
-          dbRecordPriceHistory(env, {
-            sourceId: src.id,
-            priceType: src.priceType,
-            sourceName: src.name,
-            price: parsed.price,
-            timestamp: parsed.datetime,
-          }).catch(() => {});
-        }
-      }
-    } catch (parseErr) {
-      console.warn(`Failed to parse source ${src.name} (${src.id}):`, parseErr.message);
-    }
-  }
-
-  // Group by priceType and pick the primary source
-  // Standard price types: usd, gold_18k, full_coin, half_coin, quarter_coin, mesghal
-  const priceTypes = ["usd", "gold_18k", "full_coin", "half_coin", "quarter_coin", "mesghal"];
-
-  for (const pType of priceTypes) {
-    const candidates = sourceResults.filter(r => r.source.priceType === pType);
-    let chosen = candidates.find(r => r.source.isPrimary) || candidates[0];
-
-    // If no candidate fetched in this cycle, retain existing cached value or use lastPrice from DB
-    if (!chosen) {
-      const dbFallback = activeSources.find(s => s.priceType === pType && s.lastPrice > 0);
-      if (dbFallback) {
-        chosen = {
-          source: dbFallback,
-          price: dbFallback.lastPrice,
-          datetime: dbFallback.lastFetched || new Date().toISOString(),
-          label: dbFallback.name,
-        };
-      }
-    }
-
-    if (chosen) {
-      const itemKey = pType === "usd" ? "usd_toman" : pType;
-      const existing = stored[itemKey];
-
-      stored[itemKey] = (existing && existing.price === chosen.price)
-        ? { price: existing.price, datetime: existing.datetime || chosen.datetime, label: chosen.label }
-        : { price: chosen.price, datetime: chosen.datetime, label: chosen.label };
-
-      // Also set 'usd' key alongside 'usd_toman' for convenience
-      if (pType === "usd") {
-        stored.usd = stored.usd_toman;
-      }
-    }
-  }
-
-  stored.last_channel_check_time = new Date().toISOString();
-  memoryPricesCache = { ...stored };
-  lastFetchTime = nowMs;
-
-  // Persist combined prices to KV
-  if (env && env.REALRATE_KV) {
-    try {
-      await env.REALRATE_KV.put("tg_prices", JSON.stringify(stored));
-    } catch (e) {
-      console.error("KV Write Error in fetchAllPrices:", e);
-    }
-  }
-
-  return stored;
+  return await getLatestMarketRates(env);
 }
