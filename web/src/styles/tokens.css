@@ -1,4 +1,20 @@
 /* ── Global Theme & Design Tokens ─────────────────────────────────────────── */
+@theme {
+  --color-app: var(--bg-app);
+  --color-surface: var(--bg-surface);
+  --color-surface-elevated: var(--bg-surface-elevated);
+  --color-card: var(--bg-card);
+  --color-gold: var(--gold-primary);
+  --color-gold-light: var(--gold-light);
+  --color-emerald: var(--green-emerald);
+  --color-rose: var(--rose-red);
+  --color-sky: var(--blue-sky);
+  --font-vazir: 'Vazirmatn', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+@variant light (&:where([data-theme="light"], [data-theme="light"] *));
+@variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
+
 :root {
   --bg-app: #06080d;
   --bg-surface: #0c0f17;

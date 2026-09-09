@@ -17,6 +17,8 @@
  *   sources.css         — Price sources page, charts, fullscreen layout
  */
 
+@import "tailwindcss";
+
 @import './tokens.css';
 @import './base.css';
 @import './header.css';
