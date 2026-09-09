@@ -54,6 +54,36 @@ const PRICE_TYPE_INFO = {
   mesghal: { label: 'مثقال طلا ۱۷ عیار', badgeColor: 'purple' },
 };
 
+const PRESET_REGEX_PATTERNS = {
+  usd: [
+    { label: 'عدد قبل از «فروش» (رایج در اکثر کانال‌های دلار)', pattern: '([\\d,]+)\\s*فروش' },
+    { label: 'فروش : عدد (کانال‌های سبزه میدان و صرافی)', pattern: 'فروش\\s*:\\s*([\\d,]+)' },
+    { label: 'دلار : عدد (کانال‌های تجمیعی نرخ ارز)', pattern: '(?:دلار|USD)[^:\\d]*[:\\s\\-–]+([\\d,]+)' },
+  ],
+  gold_18k: [
+    { label: '۱۸ عیار تا فروش : عدد (کانال زرما و طلا)', pattern: '(?:18|۱۸)\\s*عیار.*?فروش[:\\s]+([\\d,]+)' },
+    { label: 'طلا ۱۸ عیار : عدد (فرمت ساده)', pattern: '(?:طلا|18\\s*عیار|۱۸\\s*عیار)[^:\\d]*[:\\s\\-–]+([\\d,]+)' },
+    { label: 'فروش : عدد (کانال‌های تک‌نرخی طلا)', pattern: 'فروش\\s*:\\s*([\\d,]+)' },
+  ],
+  full_coin: [
+    { label: 'سکه تمام تا فروش : عدد (کانال زرما و بازار سکه)', pattern: '(?:سکه\\s*تمام|سکه\\s*امامی|تمام\\s*سکه).*?فروش[:\\s]+([\\d,]+)' },
+    { label: 'سکه تمام : عدد (فرمت ساده صرافی)', pattern: '(?:سکه\\s*تمام|سکه\\s*امامی|تمام\\s*سکه)[^:\\d]*[:\\s\\-–]+([\\d,]+)' },
+  ],
+  half_coin: [
+    { label: 'نیم سکه تا فروش : عدد (کانال زرما و صرافی)', pattern: 'نیم\\s*سکه.*?فروش[:\\s]+([\\d,]+)' },
+    { label: 'نیم سکه : عدد (فرمت ساده)', pattern: 'نیم\\s*سکه[^:\\d]*[:\\s\\-–]+([\\d,]+)' },
+  ],
+  quarter_coin: [
+    { label: 'ربع سکه تا فروش : عدد (کانال زرما و صرافی)', pattern: 'ربع\\s*سکه.*?فروش[:\\s]+([\\d,]+)' },
+    { label: 'ربع سکه : عدد (فرمت ساده)', pattern: 'ربع\\s*سکه[^:\\d]*[:\\s\\-–]+([\\d,]+)' },
+  ],
+  mesghal: [
+    { label: 'مثقال/آبشده تا فروش : عدد (کانال زرما و آبشده)', pattern: '(?:مثقال|آبشده).*?فروش[:\\s]+([\\d,]+)' },
+    { label: 'مثقال یا آبشده : عدد (فرمت ساده)', pattern: '(?:مثقال|آبشده)[^:\\d]*[:\\s\\-–]+([\\d,]+)' },
+  ],
+};
+
+
 function formatNum(num) {
   if (num === null || num === undefined || isNaN(num)) return '۰';
   return Math.round(num).toLocaleString('fa-IR');
@@ -995,7 +1025,15 @@ export default function AdminPage() {
               <div className="form-group" style={{ marginTop: '8px' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <label htmlFor="modalRegex">الگوی Regex اختصاصی (اختیاری)</label>
-                  <span style={{ fontSize: '10px', color: 'var(--accent-blue)' }}>گروه ۱ پرانتز به عنوان قیمت خوانده می‌شود</span>
+                  {sourceForm.regex && (
+                    <button
+                      type="button"
+                      onClick={() => { setSourceForm({ ...sourceForm, regex: '' }); setModalTestResult(null); }}
+                      style={{ background: 'none', border: 'none', color: '#f87171', fontSize: '11px', cursor: 'pointer' }}
+                    >
+                      پاک کردن و استفاده از پارسر خودکار
+                    </button>
+                  )}
                 </div>
                 <input
                   type="text"
@@ -1005,10 +1043,39 @@ export default function AdminPage() {
                   value={sourceForm.regex}
                   onChange={(e) => setSourceForm({ ...sourceForm, regex: e.target.value })}
                 />
-                <span className="source-hint">
-                  در صورت خالی گذاشتن، از سیستم پارسر هوشمند RealRate بر اساس نوع قیمت استفاده خواهد شد.
-                </span>
+                
+                {/* Presets List for this priceType */}
+                {PRESET_REGEX_PATTERNS[sourceForm.priceType] && (
+                  <div className="regex-presets-box">
+                    <div className="regex-presets-title">
+                      <Sparkles size={13} />
+                      <span>الگوهای آماده و پیشنهادی برای {PRICE_TYPE_INFO[sourceForm.priceType]?.label} (کلیک جهت درج خودکار):</span>
+                    </div>
+                    <div className="regex-presets-list">
+                      {PRESET_REGEX_PATTERNS[sourceForm.priceType].map((preset, pIdx) => (
+                        <button
+                          key={pIdx}
+                          type="button"
+                          className="regex-preset-item"
+                          onClick={() => {
+                            setSourceForm({ ...sourceForm, regex: preset.pattern });
+                            setModalTestResult(null);
+                          }}
+                          title="کلیک برای انتخاب این الگو"
+                        >
+                          <span className="regex-preset-label">{preset.label}</span>
+                          <span className="regex-preset-code">{preset.pattern}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                <div className="regex-guide-info">
+                  <strong>راهنمای استخراج:</strong> پرانتز اول <code>(...)</code> در الگو به عنوان عدد قیمت استخراج شده و ارقام فارسی/عربی و کاماها به طور خودکار پاکسازی می‌شوند. در صورت خالی بودن، پارسر هوشمند و چندالگویی پیش‌فرض RealRate استفاده می‌شود.
+                </div>
               </div>
+
 
               {/* Settings: Interval + Toggles */}
               <div className="grid-2" style={{ marginTop: '8px', alignItems: 'center' }}>

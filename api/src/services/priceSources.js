@@ -34,7 +34,7 @@ export function extractPriceWithRegex(text, regexPattern) {
 
   try {
     const normalized = normalizeDigits(text);
-    const regex = new RegExp(regexPattern, "im");
+    const regex = new RegExp(regexPattern, "ims");
     const match = normalized.match(regex);
     if (!match) return null;
 
