@@ -1,0 +1,639 @@
+/* ── Announcement & Warning Notice (Frameless) ────────────────────────────── */
+.announcement-strip {
+  background: rgba(56, 189, 248, 0.08);
+  border: none;
+  border-radius: var(--radius-md);
+  padding: 10px 16px;
+  margin-bottom: 16px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #7dd3fc;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.warning-notice-bar {
+  background: rgba(245, 158, 11, 0.08);
+  border: none;
+  border-radius: var(--radius-md);
+  padding: 10px 16px;
+  margin-bottom: 16px;
+  color: var(--gold-light);
+  font-size: 12.5px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* ── Ticker Strip (Frameless Quick Currencies) ────────────────────────────── */
+.ticker-strip {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+  margin-bottom: 18px;
+}
+
+@media (max-width: 640px) {
+  .ticker-strip { grid-template-columns: repeat(2, 1fr); gap: 8px; }
+}
+
+.ticker-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: rgba(255, 255, 255, 0.02);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: none;
+  border-radius: var(--radius-lg);
+  padding: 12px 16px;
+  transition: var(--transition-fast);
+}
+
+.ticker-item:hover {
+  background: rgba(255, 255, 255, 0.04);
+  transform: translateY(-1px);
+}
+
+.ticker-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.ticker-flag { font-size: 20px; line-height: 1; }
+.ticker-title { font-size: 12.5px; font-weight: 700; color: var(--text-secondary); }
+
+.ticker-right {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+}
+
+.ticker-price {
+  font-size: 14.5px;
+  font-weight: 800;
+  color: var(--gold-light);
+}
+
+.ticker-currency {
+  font-size: 10px;
+  color: var(--text-muted);
+}
+
+/* ── Market Top Controls (Inputs Toolbar & Smart Recommendation Side-by-Side) ─ */
+.market-top-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+@media (min-width: 1024px) {
+  .market-top-controls.has-rec {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    align-items: stretch;
+  }
+}
+
+/* ── Inputs Toolbar (Frameless, Clean, Floating) ──────────────────────────── */
+.inputs-toolbar {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+  margin-bottom: 0;
+  background: rgba(255, 255, 255, 0.02);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: none;
+  border-radius: var(--radius-xl);
+  padding: 14px 18px;
+  height: 100%;
+  box-sizing: border-box;
+}
+
+@media (max-width: 768px) {
+  .inputs-toolbar {
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    padding: 10px 12px;
+    margin-bottom: 14px;
+    border-radius: var(--radius-lg);
+  }
+  .toolbar-label-row label {
+    font-size: 11px;
+  }
+  .source-tag {
+    display: none !important;
+  }
+  .toolbar-input-wrapper input {
+    padding: 8px 10px;
+    padding-left: 45px;
+    font-size: 13.5px;
+  }
+  .input-affix {
+    left: 8px;
+    font-size: 10px;
+  }
+  .toolbar-sub-hint {
+    display: none !important;
+  }
+  .ticker-strip {
+    display: none !important;
+  }
+  .segmented-tab-bar {
+    display: none !important;
+  }
+}
+
+.toolbar-input-item {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.toolbar-label-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.toolbar-label-row label {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-secondary);
+}
+
+.source-tag {
+  font-size: 10.5px;
+  font-weight: 700;
+  padding: 1px 7px;
+  border-radius: var(--radius-full);
+}
+
+.source-tag.live { color: var(--green-emerald); background: var(--green-soft); }
+.source-tag.manual { color: var(--gold-light); background: var(--gold-soft-bg); }
+
+.toolbar-input-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.toolbar-input-wrapper input {
+  width: 100%;
+  background: var(--bg-input);
+  border: 1px solid var(--border-input);
+  border-radius: var(--radius-md);
+  padding: 11px 14px;
+  padding-left: 60px;
+  color: var(--text-input);
+  font-size: 15px;
+  font-weight: 800;
+  outline: none;
+  transition: var(--transition-fast);
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+.toolbar-input-wrapper input:focus {
+  background: var(--bg-input-focus);
+  border-color: var(--border-input-focus);
+  box-shadow: var(--shadow-input-focus);
+}
+
+.input-affix {
+  position: absolute;
+  left: 14px;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-muted);
+  pointer-events: none;
+}
+
+.toolbar-sub-hint {
+  font-size: 10px;
+  color: var(--text-muted);
+  padding-right: 2px;
+}
+
+/* ── Segmented Tab Bar (Borderless, Minimal Floating Switch) ──────────────── */
+.segmented-tab-bar {
+  display: flex;
+  background: rgba(255, 255, 255, 0.025);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: none;
+  border-radius: var(--radius-full);
+  padding: 4px;
+  gap: 4px;
+  margin-bottom: 24px;
+  align-self: flex-start;
+}
+
+.tab-segment-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 9px 20px;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 13px;
+  font-weight: 700;
+  border-radius: var(--radius-full);
+  transition: var(--transition-fast);
+  white-space: nowrap;
+}
+
+.tab-segment-btn:hover {
+  color: var(--text-primary);
+  background: rgba(255, 255, 255, 0.035);
+}
+
+.tab-segment-btn.active {
+  background: rgba(255, 255, 255, 0.09);
+  color: var(--text-heading);
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.25);
+}
+
+.new-tag {
+  font-size: 9.5px;
+  padding: 1px 7px;
+  border-radius: var(--radius-full);
+  background: var(--green-emerald);
+  color: #ffffff;
+  font-weight: 900;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+}
+
+/* ── Recommendation Banner (Frameless Glass) ─────────────────────────────── */
+.smart-rec-banner {
+  background: rgba(16, 185, 129, 0.08);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: none;
+  border-radius: var(--radius-xl);
+  padding: 14px 20px;
+  margin-bottom: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  height: 100%;
+  box-sizing: border-box;
+}
+
+@media (max-width: 640px) {
+  .smart-rec-banner {
+    flex-wrap: wrap;
+    gap: 10px;
+    padding: 12px 14px;
+  }
+}
+
+.rec-badge-icon {
+  width: 38px;
+  height: 38px;
+  border-radius: var(--radius-sm);
+  background: var(--green-soft);
+  color: var(--green-emerald);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.rec-text-group {
+  flex: 1;
+}
+
+.rec-title {
+  font-size: 14px;
+  color: var(--text-heading);
+  font-weight: 600;
+}
+
+.rec-title strong {
+  color: #a7f3d0;
+}
+
+.rec-desc {
+  font-size: 11.5px;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+.rec-chip {
+  padding: 6px 14px;
+  border-radius: var(--radius-full);
+  font-size: 11.5px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.rec-chip.negative { background: var(--green-emerald); color: #ffffff; }
+.rec-chip.positive { background: rgba(16, 185, 129, 0.2); color: #a7f3d0; }
+
+/* ── Fintech Cards Grid (Wide 4-Column Full-Screen Layout) ─────────────────── */
+.cards-modern-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+@media (max-width: 1200px) {
+  .cards-modern-grid { grid-template-columns: repeat(2, 1fr); }
+}
+
+@media (max-width: 640px) {
+  .cards-modern-grid { grid-template-columns: 1fr; }
+}
+
+.fintech-card {
+  background: rgba(255, 255, 255, 0.02);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: none;
+  border-radius: var(--radius-lg);
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 10px;
+  transition: var(--transition-fast);
+}
+
+.fintech-card:hover {
+  background: rgba(255, 255, 255, 0.04);
+  transform: translateY(-2px);
+  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.3);
+}
+
+.fintech-card.best-choice {
+  background: rgba(16, 185, 129, 0.035);
+  box-shadow: 0 0 30px rgba(16, 185, 129, 0.08);
+}
+
+.card-top-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.card-name {
+  font-size: 14.5px;
+  font-weight: 800;
+  color: var(--text-heading);
+}
+
+.target-badge {
+  display: block;
+  font-size: 10px;
+  color: var(--text-muted);
+  margin-top: 1px;
+}
+
+.bubble-pill {
+  padding: 2.5px 8px;
+  border-radius: var(--radius-full);
+  font-size: 10.5px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.bubble-pill.badge-good { background: var(--green-soft); color: var(--green-emerald); }
+.bubble-pill.badge-blue { background: var(--blue-soft); color: var(--blue-sky); }
+.bubble-pill.badge-orange { background: var(--gold-soft-bg); color: var(--gold-light); }
+.bubble-pill.badge-danger { background: var(--rose-soft); color: var(--rose-red); }
+.bubble-pill.disabled { background: rgba(255,255,255,0.03); color: var(--text-muted); }
+
+.main-price-block {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.price-title {
+  font-size: 10.5px;
+  color: var(--text-muted);
+}
+
+.price-big-row {
+  display: flex;
+  align-items: baseline;
+  gap: 5px;
+}
+
+.price-big-number {
+  font-size: 19px;
+  font-weight: 900;
+  color: var(--text-heading);
+  letter-spacing: -0.5px;
+}
+
+.price-big-unit {
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+
+.price-unavailable {
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+/* Card Metrics Table */
+.card-metrics-table {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding: 8px 10px;
+  background: rgba(255, 255, 255, 0.02);
+  border-radius: var(--radius-sm);
+  border: none;
+}
+
+.metric-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 11px;
+}
+
+.metric-key { color: var(--text-muted); }
+.metric-val { font-weight: 700; color: var(--text-heading); }
+.metric-val.gold-val { color: var(--gold-light); }
+.metric-val.blue-val { color: var(--blue-sky); }
+.metric-val.good-val { color: var(--green-emerald); }
+.metric-val.warn-val { color: var(--rose-red); }
+
+.card-timestamp-footer {
+  display: flex;
+  justify-content: space-between;
+  font-size: 10px;
+  color: var(--text-muted);
+  padding-top: 2px;
+}
+
+/* ── Currencies Tab (Frameless Fluid Grid) ────────────────────────────────── */
+.currencies-container {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.currencies-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.search-box {
+  flex: 1;
+  min-width: 260px;
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.search-box svg {
+  position: absolute;
+  right: 14px;
+  color: var(--text-muted);
+  pointer-events: none;
+}
+
+.search-box input {
+  width: 100%;
+  background: var(--bg-input);
+  border: 1px solid var(--border-input);
+  border-radius: var(--radius-full);
+  padding: 10px 16px;
+  padding-right: 40px;
+  padding-left: 36px;
+  color: var(--text-input);
+  font-size: 13.5px;
+  outline: none;
+  transition: var(--transition-fast);
+}
+
+.search-box input:focus {
+  background: var(--bg-input-focus);
+  border-color: var(--border-input-focus);
+  box-shadow: var(--shadow-input-focus);
+}
+
+.clear-search-btn {
+  position: absolute;
+  left: 12px;
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.currencies-count-badge {
+  font-size: 11px;
+  color: var(--text-muted);
+  background: rgba(255, 255, 255, 0.03);
+  border: none;
+  padding: 6px 14px;
+  border-radius: var(--radius-full);
+}
+
+.currency-cards-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 12px;
+}
+
+.currency-item-card {
+  background: rgba(255, 255, 255, 0.02);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: none;
+  border-radius: var(--radius-lg);
+  padding: 14px 18px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  transition: var(--transition-fast);
+}
+
+.currency-item-card:hover {
+  background: rgba(255, 255, 255, 0.04);
+  transform: translateY(-2px);
+}
+
+.curr-lead {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.curr-flag-emoji { font-size: 26px; line-height: 1; }
+
+.curr-names {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.curr-title-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.curr-persian-name {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text-heading);
+}
+
+.curr-code-pill {
+  font-size: 10px;
+  font-weight: 800;
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--text-secondary);
+}
+
+.curr-desc {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.curr-price-block {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+}
+
+.curr-price-val {
+  font-size: 15.5px;
+  font-weight: 900;
+  color: var(--gold-light);
+}
+
+.curr-unit {
+  font-size: 10px;
+  color: var(--text-muted);
+  margin-right: 3px;
+}
+
+.curr-ratio-tag {
+  font-size: 9.5px;
+  color: var(--text-muted);
+}
+

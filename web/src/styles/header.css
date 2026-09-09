@@ -1,0 +1,392 @@
+/* ── Edge-to-Edge Sticky Transparent Header ──────────────────────────────── */
+.site-header {
+  position: sticky;
+  top: 0;
+  left: 0;
+  right: 0;
+  width: 100%;
+  z-index: 100;
+  display: flex;
+  flex-direction: column;
+  padding: 10px clamp(14px, 3vw, 64px);
+  margin-bottom: 0;
+  background: rgba(6, 8, 13, 0.88);
+  backdrop-filter: blur(28px);
+  -webkit-backdrop-filter: blur(28px);
+  border: none;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.4);
+  gap: 8px;
+}
+
+.header-main-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+  gap: 10px;
+}
+
+.header-brand {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.brand-link {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.brand-texts {
+  display: flex;
+  flex-direction: column;
+}
+
+.brand-name {
+  font-size: 17.5px;
+  font-weight: 900;
+  letter-spacing: -0.4px;
+  background: linear-gradient(135deg, #ffffff 0%, #fde68a 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.brand-tagline {
+  font-size: 10px;
+  color: var(--text-muted);
+  margin-top: -1px;
+}
+
+@media (max-width: 768px) {
+  .brand-tagline {
+    display: none !important;
+  }
+}
+
+/* ── Header Tab Switcher (Visible & Icon-only on Mobile) ──────────────────── */
+.header-tabs-switcher {
+  display: flex;
+  align-items: center;
+  background: rgba(255, 255, 255, 0.04);
+  border-radius: var(--radius-full);
+  padding: 3px;
+  gap: 3px;
+}
+
+@media (min-width: 769px) {
+  .header-tabs-switcher {
+    display: none; /* Desktop uses the body tab bar */
+  }
+}
+
+.header-tab-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: var(--radius-full);
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: var(--transition-fast);
+}
+
+.header-tab-btn:hover {
+  color: var(--text-primary);
+}
+
+.header-tab-btn.active {
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+@media (max-width: 768px) {
+  .header-tab-btn {
+    padding: 6px 10px;
+  }
+  .header-tab-btn .tab-btn-title {
+    display: none; /* Strictly icon-only on mobile per user request */
+  }
+}
+
+/* ── Permanent Live USD & Gold 18k Ticker (Desktop) ────────────────────────── */
+.header-live-ticker {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  background: rgba(255, 255, 255, 0.03);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  padding: 6px 16px;
+  border-radius: var(--radius-full);
+}
+
+.header-ticker-item {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.ticker-pulse {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.ticker-pulse.gold {
+  background-color: #fbbf24;
+  box-shadow: 0 0 8px #fbbf24;
+  animation: pulseGold 2s infinite;
+}
+
+.ticker-pulse.green {
+  background-color: #10b981;
+  box-shadow: 0 0 8px #10b981;
+  animation: pulseGreen 2s infinite;
+}
+
+@keyframes pulseGold {
+  0%, 100% { transform: scale(0.9); opacity: 0.8; }
+  50% { transform: scale(1.2); opacity: 1; box-shadow: 0 0 12px #fbbf24; }
+}
+
+@keyframes pulseGreen {
+  0%, 100% { transform: scale(0.9); opacity: 0.8; }
+  50% { transform: scale(1.2); opacity: 1; box-shadow: 0 0 12px #10b981; }
+}
+
+.ticker-tag {
+  color: var(--text-secondary);
+  font-weight: 600;
+  font-size: 12px;
+}
+
+.header-ticker-item.gold .ticker-amount {
+  color: #fbbf24;
+  font-weight: 800;
+  font-size: 14.5px;
+  letter-spacing: -0.3px;
+}
+
+.header-ticker-item.usd .ticker-amount {
+  color: #10b981;
+  font-weight: 800;
+  font-size: 14.5px;
+  letter-spacing: -0.3px;
+}
+
+.ticker-unit {
+  color: var(--text-muted);
+  font-size: 11px;
+}
+
+.ticker-separator {
+  width: 1px;
+  height: 14px;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+/* ── Mobile Live Sub-Ticker Strip (Clean, 1-Line, Zero Overflow) ─────────── */
+.header-mobile-ticker {
+  display: none;
+}
+
+@media (max-width: 768px) {
+  .header-mobile-ticker {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    width: 100%;
+    padding-top: 5px;
+    border-top: 1px solid rgba(255, 255, 255, 0.04);
+    font-size: 11.5px;
+  }
+
+  .mobile-ticker-chip {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    white-space: nowrap;
+  }
+
+  .mobile-ticker-chip .chip-label {
+    color: var(--text-muted);
+    font-size: 11px;
+    font-weight: 600;
+  }
+
+  .mobile-ticker-chip.gold strong {
+    color: #fbbf24;
+    font-weight: 800;
+    font-size: 13px;
+  }
+
+  .mobile-ticker-chip.usd strong {
+    color: #10b981;
+    font-weight: 800;
+    font-size: 13px;
+  }
+
+  .mobile-ticker-chip .chip-unit {
+    color: var(--text-muted);
+    font-size: 10px;
+  }
+
+  .ticker-dot-sep {
+    color: rgba(255, 255, 255, 0.2);
+    font-size: 10px;
+  }
+}
+
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+/* User Auth Widget */
+.auth-widget {
+  position: relative;
+}
+
+.btn-google-login {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 6px 14px;
+  background: rgba(255, 255, 255, 0.06);
+  border: none;
+  border-radius: var(--radius-full);
+  color: var(--text-primary);
+  font-size: 12px;
+  font-weight: 600;
+  transition: var(--transition-fast);
+}
+
+.btn-google-login:hover {
+  background: rgba(255, 255, 255, 0.12);
+  transform: translateY(-1px);
+}
+
+.user-trigger-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 4px 10px 4px 6px;
+  background: rgba(255, 255, 255, 0.04);
+  border: none;
+  border-radius: var(--radius-full);
+  color: var(--text-primary);
+  font-size: 12px;
+  font-weight: 600;
+  transition: var(--transition-fast);
+}
+
+.user-trigger-btn:hover, .user-trigger-btn.active {
+  background: rgba(255, 255, 255, 0.09);
+}
+
+.user-avatar {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.admin-badge {
+  font-size: 9.5px;
+  padding: 1px 6px;
+  border-radius: 6px;
+  background: var(--gold-gradient);
+  color: #ffffff;
+  font-weight: 800;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.22);
+}
+
+.chevron-icon {
+  color: var(--text-muted);
+  transition: transform var(--transition-fast);
+}
+
+.user-trigger-btn.active .chevron-icon {
+  transform: rotate(180deg);
+}
+
+.dropdown-panel {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  min-width: 220px;
+  background: rgba(14, 18, 28, 0.95);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border: none;
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  padding: 8px;
+  z-index: 200;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.dropdown-user-info {
+  padding: 8px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.dropdown-user-info strong {
+  font-size: 12.5px;
+  color: var(--text-heading);
+}
+
+.dropdown-user-info span {
+  font-size: 11px;
+  color: var(--text-muted);
+  direction: ltr;
+  text-align: right;
+}
+
+.dropdown-sep {
+  height: 1px;
+  background: rgba(255, 255, 255, 0.06);
+  margin: 4px 0;
+}
+
+.dropdown-link {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border-radius: var(--radius-xs);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  width: 100%;
+  text-align: right;
+  transition: var(--transition-fast);
+}
+
+.dropdown-link:hover {
+  background: var(--bg-control-hover);
+  color: var(--text-heading);
+}
+
+.dropdown-link.admin { color: var(--gold-light); }
+.dropdown-link.logout { color: var(--rose-red); }
+
