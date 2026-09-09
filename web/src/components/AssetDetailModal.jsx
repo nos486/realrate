@@ -111,12 +111,9 @@ export default function AssetDetailModal({
   const chartContainerRef = useRef(null);
   const gradId = useId();
 
-  if (!asset) return null;
-
-  const isUsd = asset.id === 'usd' || asset.type === 'usd';
-  const assetSpecs = ASSET_SPECS[asset.id] || null;
-
-  const currentPrice = Number(asset.market || asset.price || 0);
+  const isUsd = asset ? (asset.id === 'usd' || asset.type === 'usd') : false;
+  const assetSpecs = asset ? (ASSET_SPECS[asset.id] || null) : null;
+  const currentPrice = asset ? Number(asset.market || asset.price || 0) : 0;
 
   // Prepare price history data points with synthetic 24h baseline fallback if data < 2
   const points = useMemo(() => {
@@ -230,6 +227,8 @@ export default function AssetDetailModal({
   const handleMouseLeave = () => setHoverIndex(null);
 
   const activeCoord = hoverIndex !== null && coords[hoverIndex] ? coords[hoverIndex] : null;
+
+  if (!isOpen || !asset) return null;
 
   return (
     <Modal

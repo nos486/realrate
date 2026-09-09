@@ -237,14 +237,16 @@ export default function MainPage() {
       </section>
 
       {/* Comprehensive Asset Detail & Chart Modal */}
-      <AssetDetailModal
-        isOpen={!!selectedAssetModal}
-        onClose={() => setSelectedAssetModal(null)}
-        asset={selectedAssetModal}
-        sparklineData={selectedAssetModal ? (sparklines?.[selectedAssetModal.id] || []) : []}
-        rates={rates}
-        forex={rates?.forex || {}}
-      />
+      {selectedAssetModal && (
+        <AssetDetailModal
+          isOpen={!!selectedAssetModal}
+          onClose={() => setSelectedAssetModal(null)}
+          asset={selectedAssetModal}
+          sparklineData={sparklines?.[selectedAssetModal.id] || []}
+          rates={rates}
+          forex={rates?.forex || {}}
+        />
+      )}
     </AppLayout>
   );
 }
