@@ -828,24 +828,28 @@ input:focus, select:focus, textarea:focus {
 }
 
 /* ==========================================================================
-   UI Components: SearchBar
+   UI Components: SearchBar (Clean Minimalist Frameless)
    ========================================================================== */
 .ui-search-bar {
   display: flex;
   align-items: center;
   position: relative;
   background: var(--bg-input);
-  border: 1px solid var(--border-control, rgba(255, 255, 255, 0.08));
+  border: none !important;
   border-radius: var(--radius-full);
   padding: 0 16px;
   height: 40px;
-  transition: box-shadow var(--transition-fast), background var(--transition-fast), border-color var(--transition-fast);
+  outline: none !important;
+  box-shadow: none !important;
+  transition: background var(--transition-fast);
 }
 
 .ui-search-bar:focus-within {
   background: var(--bg-input-focus);
-  border-color: var(--border-input-focus, #0284c7);
-  box-shadow: var(--shadow-input-focus);
+  border: none !important;
+  border-color: transparent !important;
+  outline: none !important;
+  box-shadow: none !important;
 }
 
 .search-bar-icon {
@@ -854,14 +858,23 @@ input:focus, select:focus, textarea:focus {
   margin-left: 8px;
 }
 
-.search-bar-input {
+.search-bar-input,
+.search-bar-input:focus,
+.search-bar-input:active,
+.search-bar-input:focus-visible,
+input.search-bar-input,
+input.search-bar-input:focus,
+input.search-bar-input:active,
+input.search-bar-input:focus-visible {
   flex: 1;
-  background: transparent;
-  border: none;
-  color: var(--text-primary);
+  background: transparent !important;
+  border: none !important;
+  border-color: transparent !important;
+  color: var(--text-primary) !important;
   font-family: inherit;
   font-size: 13px;
-  outline: none;
+  outline: none !important;
+  box-shadow: none !important;
   min-width: 0;
 }
 

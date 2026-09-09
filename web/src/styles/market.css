@@ -464,21 +464,24 @@
 .search-box input {
   width: 100%;
   background: var(--bg-input);
-  border: 1px solid var(--border-input);
+  border: none !important;
   border-radius: var(--radius-full);
   padding: 10px 16px;
   padding-right: 40px;
   padding-left: 36px;
   color: var(--text-input);
   font-size: 13.5px;
-  outline: none;
+  outline: none !important;
+  box-shadow: none !important;
   transition: var(--transition-fast);
 }
 
 .search-box input:focus {
   background: var(--bg-input-focus);
-  border-color: var(--border-input-focus);
-  box-shadow: var(--shadow-input-focus);
+  border: none !important;
+  border-color: transparent !important;
+  outline: none !important;
+  box-shadow: none !important;
 }
 
 .clear-search-btn {
