@@ -205,29 +205,33 @@ input:focus, select:focus, textarea:focus {
   box-shadow: none !important;
 }
 
-/* Primary Action (Gold Gradient) */
+/* Primary Action (Unified Brand Theme) */
 .btn-primary,
 .btn-modal-submit,
 .btn-save-primary,
-.admin-btn-primary {
-  background: var(--gold-gradient);
-  color: #000000;
-  border: 1px solid rgba(251, 191, 36, 0.4);
-  box-shadow: 0 4px 14px rgba(245, 158, 11, 0.25);
+.admin-btn-primary,
+.btn {
+  background: var(--primary-gradient);
+  color: var(--primary-text, #ffffff);
+  border: 1px solid var(--primary-border, rgba(255, 255, 255, 0.25));
+  box-shadow: var(--primary-glow);
 }
 
 .btn-primary:hover:not(:disabled),
 .btn-modal-submit:hover:not(:disabled),
 .btn-save-primary:hover:not(:disabled),
-.admin-btn-primary:hover:not(:disabled) {
+.admin-btn-primary:hover:not(:disabled),
+.btn:hover:not(:disabled) {
   filter: brightness(1.08);
   transform: translateY(-1px);
-  box-shadow: 0 6px 20px rgba(245, 158, 11, 0.35);
+  box-shadow: var(--primary-glow-lg);
 }
 
 .btn-primary:active:not(:disabled),
 .btn-modal-submit:active:not(:disabled),
-.btn-save-primary:active:not(:disabled) {
+.btn-save-primary:active:not(:disabled),
+.admin-btn-primary:active:not(:disabled),
+.btn:active:not(:disabled) {
   transform: translateY(0);
 }
 
@@ -815,16 +819,16 @@ input:focus, select:focus, textarea:focus {
 }
 
 .filter-pill-btn.active {
-  background: linear-gradient(135deg, #0284c7 0%, #2563eb 100%);
-  border-color: rgba(56, 189, 248, 0.5);
-  color: #ffffff;
+  background: var(--primary-gradient);
+  border-color: var(--primary-border, rgba(56, 189, 248, 0.5));
+  color: var(--primary-text, #ffffff);
   font-weight: 700;
-  box-shadow: 0 4px 14px rgba(2, 132, 199, 0.35);
+  box-shadow: var(--primary-glow);
 }
 
 .filter-pill-btn.active .pill-icon {
   opacity: 1;
-  color: #ffffff;
+  color: var(--primary-text, #ffffff);
 }
 
 .filter-pill-btn .pill-badge {
@@ -889,6 +893,8 @@ input:focus, select:focus, textarea:focus {
   background: transparent;
   color: rgba(255, 255, 255, 0.65);
   font-weight: 500;
+  white-space: nowrap !important;
+  flex-shrink: 0;
   transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
@@ -899,15 +905,15 @@ input:focus, select:focus, textarea:focus {
 }
 
 .ui-filter-pills.variant-segmented .filter-pill-btn.active {
-  background: linear-gradient(135deg, #0284c7 0%, #2563eb 100%);
-  color: #ffffff;
+  background: var(--primary-gradient);
+  color: var(--primary-text, #ffffff);
   font-weight: 700;
-  border: 1px solid rgba(255, 255, 255, 0.25);
-  box-shadow: 0 4px 16px rgba(2, 132, 199, 0.42), inset 0 1px 0 rgba(255, 255, 255, 0.3);
+  border: 1px solid var(--primary-border, rgba(255, 255, 255, 0.25));
+  box-shadow: var(--primary-glow), inset 0 1px 0 rgba(255, 255, 255, 0.3);
 }
 
 .ui-filter-pills.variant-segmented .filter-pill-btn.active .pill-icon {
-  color: #ffffff;
+  color: var(--primary-text, #ffffff);
 }
 
 /* Light Mode Overrides */
@@ -921,10 +927,10 @@ input:focus, select:focus, textarea:focus {
   color: #0f172a;
 }
 [data-theme="light"] .filter-pill-btn.active {
-  background: #0284c7;
+  background: var(--primary-color, #0284c7);
   color: #ffffff;
-  border-color: #0284c7;
-  box-shadow: 0 4px 12px rgba(2, 132, 199, 0.25);
+  border-color: var(--primary-color, #0284c7);
+  box-shadow: var(--primary-glow, 0 4px 12px rgba(2, 132, 199, 0.25));
 }
 [data-theme="light"] .ui-filter-pills.variant-segmented {
   background: #f1f5f9;
@@ -943,12 +949,12 @@ input:focus, select:focus, textarea:focus {
 }
 [data-theme="light"] .ui-filter-pills.variant-segmented .filter-pill-btn.active {
   background: #ffffff;
-  color: #0284c7;
+  color: var(--primary-color, #0284c7);
   border-color: rgba(0, 0, 0, 0.08);
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.8);
 }
 [data-theme="light"] .ui-filter-pills.variant-segmented .filter-pill-btn.active .pill-icon {
-  color: #0284c7;
+  color: var(--primary-color, #0284c7);
 }
 
 /* ==========================================================================

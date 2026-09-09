@@ -49,6 +49,9 @@ CREATE TABLE IF NOT EXISTS settings (
   usd_telegram_channel TEXT DEFAULT 'tahran_sabza',
   usd_api_url TEXT DEFAULT '',
   usd_api_json_path TEXT DEFAULT '',
+  primary_color TEXT DEFAULT '#0284c7',
+  accent_color TEXT DEFAULT '#38bdf8',
+  color_preset TEXT DEFAULT 'ocean',
   updated_at TEXT
 );
 

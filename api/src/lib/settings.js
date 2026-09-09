@@ -15,6 +15,9 @@ const DEFAULT_SETTINGS = {
   usd_telegram_channel: "tahran_sabza",
   usd_api_url: "",
   usd_api_json_path: "",
+  primary_color: "#0284c7",
+  accent_color: "#38bdf8",
+  color_preset: "ocean",
 };
 
 let memorySettings = null;
@@ -51,6 +54,9 @@ export async function getGlobalSettings(env, forceFresh = false) {
           usd_telegram_channel: row.usd_telegram_channel || DEFAULT_SETTINGS.usd_telegram_channel,
           usd_api_url:       row.usd_api_url || "",
           usd_api_json_path: row.usd_api_json_path || "",
+          primary_color:     row.primary_color || DEFAULT_SETTINGS.primary_color,
+          accent_color:      row.accent_color || DEFAULT_SETTINGS.accent_color,
+          color_preset:      row.color_preset || DEFAULT_SETTINGS.color_preset,
         };
       }
     } catch (e) {
@@ -94,9 +100,10 @@ export async function saveGlobalSettings(env, newSettings) {
       await env.DB.prepare(`
         INSERT INTO settings (
           id, default_usd_toman, default_gold_usd, bubble_pct_full, bubble_pct_half, bubble_pct_quarter, announcement,
-          usd_source_type, usd_telegram_channel, usd_api_url, usd_api_json_path, updated_at
+          usd_source_type, usd_telegram_channel, usd_api_url, usd_api_json_path,
+          primary_color, accent_color, color_preset, updated_at
         )
-        VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
+        VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
         ON CONFLICT(id) DO UPDATE SET
           default_usd_toman    = excluded.default_usd_toman,
           default_gold_usd     = excluded.default_gold_usd,
@@ -108,6 +115,9 @@ export async function saveGlobalSettings(env, newSettings) {
           usd_telegram_channel = excluded.usd_telegram_channel,
           usd_api_url          = excluded.usd_api_url,
           usd_api_json_path    = excluded.usd_api_json_path,
+          primary_color        = excluded.primary_color,
+          accent_color         = excluded.accent_color,
+          color_preset         = excluded.color_preset,
           updated_at           = excluded.updated_at
       `).bind(
         mergedSettings.default_usd_toman,
@@ -119,7 +129,10 @@ export async function saveGlobalSettings(env, newSettings) {
         mergedSettings.usd_source_type,
         mergedSettings.usd_telegram_channel,
         mergedSettings.usd_api_url,
-        mergedSettings.usd_api_json_path
+        mergedSettings.usd_api_json_path,
+        mergedSettings.primary_color,
+        mergedSettings.accent_color,
+        mergedSettings.color_preset
       ).run();
     } catch (e) {
       console.error("Error saving settings to D1:", e);

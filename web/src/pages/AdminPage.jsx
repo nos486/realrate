@@ -30,8 +30,10 @@ import {
   Sparkles,
   Code,
   Check,
+  Palette,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext.jsx';
+import { useTheme, COLOR_PRESETS } from '../context/ThemeContext.jsx';
 import {
   apiAdminStats,
   apiAdminUsers,
@@ -109,6 +111,31 @@ export default function AdminPage({ embedded = false }) {
   const [usdApiUrl, setUsdApiUrl] = useState('');
   const [usdApiJsonPath, setUsdApiJsonPath] = useState('');
 
+  // Brand color theme standards state
+  const { primaryColor: currentPrimary, accentColor: currentAccent, colorPreset: currentPreset, applyThemeColor } = useTheme();
+  const [selectedPrimary, setSelectedPrimary] = useState(currentPrimary || '#0284c7');
+  const [selectedAccent, setSelectedAccent] = useState(currentAccent || '#38bdf8');
+  const [selectedPreset, setSelectedPreset] = useState(currentPreset || 'ocean');
+
+  const handleSelectPreset = (preset) => {
+    setSelectedPreset(preset.id);
+    setSelectedPrimary(preset.primary);
+    setSelectedAccent(preset.accent);
+    applyThemeColor(preset.primary, preset.accent, preset.id);
+  };
+
+  const handleCustomPrimaryChange = (color) => {
+    setSelectedPreset('custom');
+    setSelectedPrimary(color);
+    applyThemeColor(color, selectedAccent, 'custom');
+  };
+
+  const handleCustomAccentChange = (color) => {
+    setSelectedPreset('custom');
+    setSelectedAccent(color);
+    applyThemeColor(selectedPrimary, color, 'custom');
+  };
+
   // Test source state
   const [testingUsdSource, setTestingUsdSource] = useState(false);
   const [usdTestResult, setUsdTestResult] = useState(null);
@@ -172,6 +199,9 @@ export default function AdminPage({ embedded = false }) {
             if (s.usd_telegram_channel) setUsdTelegramChannel(s.usd_telegram_channel);
             if (s.usd_api_url !== undefined) setUsdApiUrl(s.usd_api_url || '');
             if (s.usd_api_json_path !== undefined) setUsdApiJsonPath(s.usd_api_json_path || '');
+            if (s.primary_color) setSelectedPrimary(s.primary_color);
+            if (s.accent_color) setSelectedAccent(s.accent_color);
+            if (s.color_preset) setSelectedPreset(s.color_preset);
           }
         })
         .catch(console.error);
@@ -214,9 +244,13 @@ export default function AdminPage({ embedded = false }) {
         usd_telegram_channel: usdTelegramChannel,
         usd_api_url: usdApiUrl,
         usd_api_json_path: usdApiJsonPath,
+        primary_color: selectedPrimary,
+        accent_color: selectedAccent,
+        color_preset: selectedPreset,
       });
 
       if (res.success) {
+        applyThemeColor(selectedPrimary, selectedAccent, selectedPreset);
         showMsg(res.message || 'تنظیمات با موفقیت ذخیره شد.', 'success');
       } else {
         showMsg(res.message || 'خطا در ذخیره‌سازی تنظیمات', 'error');
@@ -434,6 +468,174 @@ export default function AdminPage({ embedded = false }) {
       {/* ─── Global Fallback Settings & Calculations ───────────────────────── */}
       {/* ═════════════════════════════════════════════════════════════════════ */}
       <form onSubmit={handleSave}>
+
+        {/* ═════════════════════════════════════════════════════════════════════ */}
+        {/* ─── Brand Identity & Color Standards (هویت بصری و استانداردهای رنگی) */}
+        {/* ═════════════════════════════════════════════════════════════════════ */}
+        <div className="section-title">
+          <span>
+            <Palette size={16} style={{ verticalAlign: 'middle', marginLeft: '6px', display: 'inline', color: selectedPrimary }} />
+            هویت بصری و استانداردهای رنگی سامانه (Color Standards & Branding)
+          </span>
+        </div>
+
+        <div className="admin-theme-config-panel" style={{
+          background: 'rgba(255, 255, 255, 0.025)',
+          border: '1px solid var(--border-medium)',
+          borderRadius: 'var(--radius-lg, 16px)',
+          padding: '22px',
+          marginBottom: '32px',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '22px'
+        }}>
+          {/* Preset Color Swatches */}
+          <div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px', flexWrap: 'wrap', gap: '8px' }}>
+              <label style={{ fontWeight: 700, fontSize: '13.5px', color: 'var(--text-heading)' }}>
+                پالت‌های استاندارد سازمانی (Color Presets)
+              </label>
+              <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
+                کلیک روی هر پالت، تم را به صورت پیش‌نمایش زنده در برنامه فعال می‌کند
+              </span>
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(155px, 1fr))', gap: '12px' }}>
+              {COLOR_PRESETS.map((preset) => {
+                const isSelected = selectedPreset === preset.id;
+                return (
+                  <button
+                    key={preset.id}
+                    type="button"
+                    onClick={() => handleSelectPreset(preset)}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '10px',
+                      padding: '11px 13px',
+                      background: isSelected ? 'rgba(255, 255, 255, 0.08)' : 'rgba(255, 255, 255, 0.03)',
+                      border: isSelected ? `2px solid ${preset.primary}` : '1px solid var(--border-control)',
+                      borderRadius: '12px',
+                      cursor: 'pointer',
+                      transition: 'all 0.2s ease',
+                      boxShadow: isSelected ? `0 0 16px ${preset.primary}44` : 'none',
+                      textAlign: 'right'
+                    }}
+                  >
+                    <span style={{
+                      width: '26px',
+                      height: '26px',
+                      borderRadius: '50%',
+                      background: `linear-gradient(135deg, ${preset.primary}, ${preset.accent})`,
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      color: '#fff',
+                      flexShrink: 0,
+                      boxShadow: '0 2px 8px rgba(0,0,0,0.3)'
+                    }}>
+                      {isSelected && <Check size={14} strokeWidth={3} />}
+                    </span>
+                    <div style={{ display: 'flex', flexDirection: 'column' }}>
+                      <span style={{ fontSize: '13px', fontWeight: isSelected ? 800 : 600, color: 'var(--text-primary)' }}>
+                        {preset.name}
+                      </span>
+                      <span style={{ fontSize: '11px', color: 'var(--text-muted)', direction: 'ltr' }}>
+                        {preset.primary}
+                      </span>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Custom Color Controls */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '16px', paddingTop: '16px', borderTop: '1px solid var(--border-medium)' }}>
+            <div className="form-group" style={{ margin: 0 }}>
+              <label style={{ fontSize: '12.5px', fontWeight: 600, marginBottom: '6px', display: 'block' }}>
+                رنگ اصلی برنامه (Primary Brand Color)
+              </label>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <input
+                  type="color"
+                  value={selectedPrimary}
+                  onChange={(e) => handleCustomPrimaryChange(e.target.value)}
+                  style={{ width: '44px', height: '42px', padding: '2px', borderRadius: '10px', cursor: 'pointer', border: '1px solid var(--border-control)' }}
+                />
+                <input
+                  type="text"
+                  value={selectedPrimary}
+                  onChange={(e) => handleCustomPrimaryChange(e.target.value)}
+                  placeholder="#0284c7"
+                  style={{ direction: 'ltr', fontFamily: 'monospace', fontWeight: 700 }}
+                />
+              </div>
+            </div>
+
+            <div className="form-group" style={{ margin: 0 }}>
+              <label style={{ fontSize: '12.5px', fontWeight: 600, marginBottom: '6px', display: 'block' }}>
+                رنگ ثانویه / اکسنت (Accent / Highlight Color)
+              </label>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <input
+                  type="color"
+                  value={selectedAccent}
+                  onChange={(e) => handleCustomAccentChange(e.target.value)}
+                  style={{ width: '44px', height: '42px', padding: '2px', borderRadius: '10px', cursor: 'pointer', border: '1px solid var(--border-control)' }}
+                />
+                <input
+                  type="text"
+                  value={selectedAccent}
+                  onChange={(e) => handleCustomAccentChange(e.target.value)}
+                  placeholder="#38bdf8"
+                  style={{ direction: 'ltr', fontFamily: 'monospace', fontWeight: 700 }}
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Live Component Preview */}
+          <div style={{
+            background: 'rgba(0, 0, 0, 0.25)',
+            border: '1px solid var(--border-subtle)',
+            borderRadius: '12px',
+            padding: '16px 18px',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '12px'
+          }}>
+            <span style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <Sparkles size={14} style={{ color: selectedPrimary }} />
+              پیش‌نمایش زنده المان‌های سامانه با این تم رنگی (Live Preview):
+            </span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '14px', flexWrap: 'wrap' }}>
+              <button type="button" className="btn btn-primary" style={{ padding: '8px 18px', fontSize: '13px', pointerEvents: 'none' }}>
+                دکمه اکشن اصلی (Primary Button)
+              </button>
+              <div className="ui-filter-pills variant-segmented size-md" style={{ pointerEvents: 'none' }}>
+                <button type="button" className="filter-pill-btn active" style={{ pointerEvents: 'none' }}>
+                  تب فعال سیستم
+                </button>
+                <button type="button" className="filter-pill-btn" style={{ pointerEvents: 'none' }}>
+                  تب عادی
+                </button>
+              </div>
+              <span style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                padding: '4px 12px',
+                borderRadius: '999px',
+                fontSize: '11px',
+                fontWeight: 700,
+                background: `var(--primary-soft-bg, ${selectedPrimary}22)`,
+                color: selectedPrimary,
+                border: `1px solid ${selectedPrimary}55`
+              }}>
+                بج هایلایت فعال
+              </span>
+            </div>
+          </div>
+        </div>
 
 
         <div className="section-title">
