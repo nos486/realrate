@@ -1,8 +1,10 @@
 import React from 'react';
+import { toEnglishDigits } from '../utils/formatters.js';
 
 function formatRate(num) {
-  if (num === null || num === undefined || isNaN(num) || num === 0) return '...';
-  const clean = typeof num === 'string' ? parseFloat(num.replace(/,/g, '')) : num;
+  if (num === null || num === undefined || num === '') return '...';
+  const str = toEnglishDigits(String(num)).replace(/[,،٬\s]/g, '').trim();
+  const clean = parseFloat(str);
   if (isNaN(clean) || clean === 0) return '...';
   return Math.round(clean).toLocaleString('fa-IR');
 }

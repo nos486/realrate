@@ -136,8 +136,9 @@ export async function apiGetPrices() {
   return res.json();
 }
 
-export async function apiGetSparklines() {
-  const res = await apiFetch('/api/sparklines');
+export async function apiGetSparklines(assetId = null) {
+  const query = assetId ? `?asset=${encodeURIComponent(assetId)}` : '';
+  const res = await apiFetch(`/api/sparklines${query}`);
   return res.json();
 }
 

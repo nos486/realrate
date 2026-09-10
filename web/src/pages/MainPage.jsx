@@ -108,7 +108,6 @@ export default function MainPage() {
 
   const {
     rates,
-    sparklines,
     calcData,
     loading,
     usdToman,
@@ -242,7 +241,6 @@ export default function MainPage() {
           isOpen={!!selectedAssetModal}
           onClose={() => setSelectedAssetModal(null)}
           asset={selectedAssetModal}
-          sparklineData={sparklines?.[selectedAssetModal.id] || []}
           rates={rates}
           forex={rates?.forex || {}}
         />

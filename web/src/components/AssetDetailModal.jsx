@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useRef, useId } from 'react';
+import React, { useState, useEffect, useMemo, useRef, useId } from 'react';
 import {
   Coins,
   DollarSign,
@@ -11,6 +11,7 @@ import {
   ArrowDownRight,
 } from 'lucide-react';
 import Modal from './ui/Modal.jsx';
+import { apiGetSparklines } from '../api/client.js';
 
 function formatNum(num) {
   if (num === null || num === undefined || isNaN(num) || num === 0) return '-';
@@ -103,11 +104,12 @@ export default function AssetDetailModal({
   isOpen,
   onClose,
   asset,
-  sparklineData = [],
   rates = {},
   forex = {},
 }) {
   const [hoverIndex, setHoverIndex] = useState(null);
+  const [historyData, setHistoryData] = useState([]);
+  const [loadingHistory, setLoadingHistory] = useState(false);
   const chartContainerRef = useRef(null);
   const gradId = useId();
 
@@ -115,10 +117,38 @@ export default function AssetDetailModal({
   const assetSpecs = asset ? (ASSET_SPECS[asset.id] || null) : null;
   const currentPrice = asset ? Number(asset.market || asset.price || 0) : 0;
 
+  // On-demand lazy fetch of 24h history for this asset only when modal opens
+  useEffect(() => {
+    if (!isOpen || !asset?.id) {
+      setHistoryData([]);
+      return;
+    }
+
+    let active = true;
+    setLoadingHistory(true);
+    apiGetSparklines(asset.id)
+      .then((res) => {
+        if (active && res && res.success && res.sparklines) {
+          const list = res.sparklines[asset.id] || [];
+          setHistoryData(list);
+        }
+      })
+      .catch((err) => {
+        console.warn('Failed to load asset history:', err);
+      })
+      .finally(() => {
+        if (active) setLoadingHistory(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [isOpen, asset?.id]);
+
   // Prepare price history data points with synthetic 24h baseline fallback if data < 2
   const points = useMemo(() => {
-    let list = Array.isArray(sparklineData)
-      ? sparklineData
+    let list = Array.isArray(historyData)
+      ? historyData
           .filter((d) => d && typeof d.price === 'number' && d.price > 0)
           .map((d) => ({ price: Number(d.price), timestamp: d.timestamp }))
       : [];
@@ -144,7 +174,7 @@ export default function AssetDetailModal({
       }
     }
     return list;
-  }, [sparklineData, currentPrice]);
+  }, [historyData, currentPrice]);
 
   // Chart coordinate calculations
   const chartWidth = 560;
@@ -286,7 +316,9 @@ export default function AssetDetailModal({
               <Activity size={15} className="chart-icon" />
               <span className="chart-title">نمودار نوسان ۲۴ ساعت گذشته</span>
             </div>
-            <span className="chart-timeframe-tag">۲۴ ساعته</span>
+            <span className="chart-timeframe-tag">
+              {loadingHistory ? 'در حال دریافت...' : '۲۴ ساعته'}
+            </span>
           </div>
 
           <div

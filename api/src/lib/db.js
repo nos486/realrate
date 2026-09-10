@@ -1459,33 +1459,30 @@ export async function dbGetPriceHistory(env, { sourceId = null, priceType = null
 }
 
 /**
- * Retrieve downsampled 24h price history sparklines for main gold & coin types
+ * Retrieve downsampled 24h price history sparklines for main gold, coin, or usd types
  * @param {object} env
+ * @param {string|null} [targetAsset=null] - Optional specific asset id (e.g. 'usd', 'gold_18k')
  * @returns {Promise<Record<string, Array<{price: number, timestamp: string}>>>}
  */
-export async function dbGet24hSparklines(env) {
-  if (!env || !env.DB) return {};
+export async function dbGet24hSparklines(env, targetAsset = null) {
+  if (!env || !env.DB) return targetAsset ? { [targetAsset]: [] } : {};
   await ensureD1Tables(env);
 
-  const targets = ['usd', 'gold_18k', 'mesghal', 'full_coin', 'half_coin', 'quarter_coin'];
-  const result = {
-    usd: [],
-    gold_18k: [],
-    mesghal: [],
-    full_coin: [],
-    half_coin: [],
-    quarter_coin: [],
-  };
+  const allTargets = ['usd', 'gold_18k', 'mesghal', 'full_coin', 'quarter_coin'];
+  const targets = (targetAsset && allTargets.includes(targetAsset)) ? [targetAsset] : allTargets;
+  const result = {};
+  for (const t of targets) result[t] = [];
 
   try {
     const sinceIso = new Date(Date.now() - 24 * 3600 * 1000).toISOString();
+    const placeholders = targets.map(() => '?').join(',');
 
     // Select from price_history for past 24h, filtering to primary sources where defined to avoid multi-source jitter
     const query = `
       SELECT ph.price_type AS priceType, ph.price, ph.timestamp
       FROM price_history ph
       WHERE ph.timestamp >= ?
-        AND ph.price_type IN ('usd', 'gold_18k', 'mesghal', 'full_coin', 'half_coin', 'quarter_coin')
+        AND ph.price_type IN (${placeholders})
         AND (
           ph.source_id IN (SELECT id FROM price_sources WHERE is_primary = 1)
           OR NOT EXISTS (SELECT 1 FROM price_sources ps WHERE ps.price_type = ph.price_type AND ps.is_primary = 1)
@@ -1493,7 +1490,8 @@ export async function dbGet24hSparklines(env) {
       ORDER BY ph.timestamp ASC
     `;
 
-    const { results } = await env.DB.prepare(query).bind(sinceIso).all();
+    const binds = [sinceIso, ...targets];
+    const { results } = await env.DB.prepare(query).bind(...binds).all();
     const rows = Array.isArray(results) ? results : [];
 
     // Group raw rows
@@ -1511,7 +1509,7 @@ export async function dbGet24hSparklines(env) {
     // Downsample each target to max 45 points evenly spaced
     const maxPoints = 45;
     for (const key of targets) {
-      const arr = grouped[key];
+      const arr = grouped[key] || [];
       if (arr.length <= maxPoints) {
         result[key] = arr;
       } else {

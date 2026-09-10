@@ -47,12 +47,21 @@ export async function handleGetPrices(env, request = null) {
 
 /**
  * GET /api/sparklines
- * Return downsampled 24h price history for gold & coins to render lightweight card sparklines.
+ * Return downsampled 24h price history for gold, coins, or USD to render lightweight charts.
+ * Supports ?asset=gold_18k to only query the requested asset on-demand (zero wasted DB queries).
  * Cached in Cloudflare KV for 3 minutes for blazing-fast edge performance.
  */
 export async function handleGetSparklines(env, request = null) {
   try {
-    const cacheKey = "sparklines_24h";
+    let targetAsset = null;
+    if (request && request.url) {
+      try {
+        const url = new URL(request.url);
+        targetAsset = url.searchParams.get("asset") || url.searchParams.get("priceType") || null;
+      } catch (ignore) {}
+    }
+
+    const cacheKey = targetAsset ? `sparklines_24h_${targetAsset}` : "sparklines_24h";
 
     if (env?.REALRATE_KV) {
       try {
@@ -65,7 +74,7 @@ export async function handleGetSparklines(env, request = null) {
       }
     }
 
-    const sparklines = await dbGet24hSparklines(env);
+    const sparklines = await dbGet24hSparklines(env, targetAsset);
 
     if (env?.REALRATE_KV && sparklines) {
       env.REALRATE_KV.put(cacheKey, JSON.stringify(sparklines), { expirationTtl: 180 }).catch(() => {});
