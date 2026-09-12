@@ -484,9 +484,6 @@ export default function PriceSourcesPage({ embedded = false, usdToman: propUsdTo
       isPrimary: Boolean(src.isPrimary),
     });
     setModalTestResult(null);
-    setNewCurCode('');
-    setNewCurLabel('');
-    setNewExcludedEntry('');
     setSourceModalOpen(true);
   };
 
