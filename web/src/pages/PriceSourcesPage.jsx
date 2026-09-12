@@ -56,6 +56,7 @@ import {
   apiDeleteSourceType,
 } from '../api/client.js';
 import PriceHistoryChart from '../components/PriceHistoryChart.jsx';
+import UniversalAssetSearch from '../components/UniversalAssetSearch.jsx';
 
 // PRICE_TYPE_INFO is now computed dynamically inside the component from DB-loaded sourceTypes
 // See: const PRICE_TYPE_INFO = useMemo(...) inside PriceSourcesPage()
@@ -1218,43 +1219,7 @@ export default function PriceSourcesPage({ embedded = false, usdToman: propUsdTo
 
       {activeTabSection === 'single' ? (
         <>
-          {/* ── SECTION 1: Individual Source Dedicated Chart ───────── */}
-          <section ref={chartSectionRef} className="sources-chart-section">
-
-          {/* Interactive Chart for the active source */}
-          {activeSelectedSource ? (
-            <PriceHistoryChart
-              history={historyData}
-              loading={loadingHistory}
-              title={`نمودار تحلیلی اختصاصی: ${activeSelectedSource.name}`}
-              subtitle={`${PRICE_TYPE_INFO[activeSelectedSource.priceType]?.label || ''} — پروتکل: ${
-                activeSelectedSource.sourceType === 'telegram'
-                  ? `@${activeSelectedSource.channelUsername || activeSelectedSource.endpoint}`
-                  : 'وب‌سرویس API'
-              } ${activeSelectedSource.isPrimary ? '(سورس مرجع)' : ''}`}
-              range={chartRange}
-              onRangeChange={setChartRange}
-              onRefresh={() => loadPriceHistory(activeSelectedSource.id, chartRange)}
-              sources={sources}
-              selectedSourceId={selectedSourceId}
-              onSelectSource={setSelectedSourceId}
-              selectedPriceType={activeSelectedSource.priceType}
-              onSelectPriceType={(t) => {
-                const firstOfType = sources.find((s) => s.priceType === t);
-                if (firstOfType) setSelectedSourceId(firstOfType.id);
-              }}
-              priceTypeInfo={PRICE_TYPE_INFO}
-            />
-          ) : (
-            <div className="chart-empty-state" style={{ background: 'var(--card-bg)', borderRadius: '16px', padding: '40px' }}>
-              <Activity size={32} style={{ color: 'var(--text-muted)', marginBottom: '8px' }} />
-              <p>هیچ سورسی برای نمایش نمودار یافت نشد.</p>
-              <span>برای مشاهده نمودار اختصاصی، یک سورس از جدول زیر تعریف یا انتخاب کنید.</span>
-            </div>
-          )}
-        </section>
-
-        {/* ── SECTION 2: Unified Management Table ─────────────────────────── */}
+        {/* ── SECTION 1: Unified Management Table ─────────────────────────── */}
         <section className="sources-table-section">
           <div className="table-header-toolbar">
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -1560,6 +1525,73 @@ export default function PriceSourcesPage({ embedded = false, usdToman: propUsdTo
               </tbody>
             </table>
           </div>
+        </section>
+
+        {/* ── SECTION 2: Universal Data Explorer & Dedicated Analytical Chart (Moved to bottom) ───────── */}
+        <section ref={chartSectionRef} className="sources-chart-section" style={{ marginTop: '28px' }}>
+          <div className="chart-explorer-card" style={{ background: 'var(--card-bg)', border: '1px solid var(--border-color)', borderRadius: '16px', padding: '18px 20px' }}>
+            <UniversalAssetSearch
+              mode="explorer"
+              sources={sources}
+              selectedAsset={activeSelectedSource}
+              selectedAssetId={selectedSourceId}
+              title="کاوشگر و تحلیل اختصاصی تمامی دارایی‌ها و سورس‌ها"
+              subtitle="امکان جستجو، کاوش و رسم نمودار برای هر سورس، نماد بورس یا دارایی"
+              onSelect={(item) => {
+                if (item.type === 'source' || item.sourceId) {
+                  setSelectedSourceId(item.sourceId || item.id);
+                  loadPriceHistory(item.sourceId || item.id, chartRange);
+                } else if (item.type === 'bourse') {
+                  const matchedBourse = sources.find((s) => s.priceType === 'bourse' || s.priceType === 'bourse_fund');
+                  if (matchedBourse) {
+                    setSelectedSourceId(matchedBourse.id);
+                    loadPriceHistory(matchedBourse.id, chartRange);
+                  }
+                } else {
+                  const matched = sources.find((s) => s.priceType === item.id);
+                  if (matched) {
+                    setSelectedSourceId(matched.id);
+                    loadPriceHistory(matched.id, chartRange);
+                  }
+                }
+                if (chartSectionRef.current) {
+                  chartSectionRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }
+              }}
+            />
+          </div>
+
+          {/* Interactive Chart for the active source */}
+          {activeSelectedSource ? (
+            <PriceHistoryChart
+              history={historyData}
+              loading={loadingHistory}
+              title={`نمودار تحلیلی اختصاصی: ${activeSelectedSource.name}`}
+              subtitle={`${PRICE_TYPE_INFO[activeSelectedSource.priceType]?.label || ''} — پروتکل: ${
+                activeSelectedSource.sourceType === 'telegram'
+                  ? `@${activeSelectedSource.channelUsername || activeSelectedSource.endpoint}`
+                  : 'وب‌سرویس API'
+              } ${activeSelectedSource.isPrimary ? '(سورس مرجع)' : ''}`}
+              range={chartRange}
+              onRangeChange={setChartRange}
+              onRefresh={() => loadPriceHistory(activeSelectedSource.id, chartRange)}
+              sources={sources}
+              selectedSourceId={selectedSourceId}
+              onSelectSource={setSelectedSourceId}
+              selectedPriceType={activeSelectedSource.priceType}
+              onSelectPriceType={(t) => {
+                const firstOfType = sources.find((s) => s.priceType === t);
+                if (firstOfType) setSelectedSourceId(firstOfType.id);
+              }}
+              priceTypeInfo={PRICE_TYPE_INFO}
+            />
+          ) : (
+            <div className="chart-empty-state" style={{ background: 'var(--card-bg)', borderRadius: '16px', padding: '40px' }}>
+              <Activity size={32} style={{ color: 'var(--text-muted)', marginBottom: '8px' }} />
+              <p>هیچ سورسی برای نمایش نمودار انتخاب نشده است.</p>
+              <span>برای مشاهده نمودار اختصاصی، یک سورس را از جدول بالا یا نوار جستجوی فوق انتخاب کنید.</span>
+            </div>
+          )}
         </section>
         </>
       ) : (
