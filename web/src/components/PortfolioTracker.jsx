@@ -749,25 +749,8 @@ export default function PortfolioTracker({ calcData, rates, usdToman, goldUsd, i
       const histGold = bData.ons_gold?.price || (goldUsdVal * defGoldRatio);
       const histSilver = bData.ons_silver?.price || (silverUsdVal || 33.5);
 
+      // Compute pure intrinsic historical prices for all gold, coin, and currency types consistently
       const map = computePriceMap(histUsd, histGold, histSilver);
-
-      // Apply historical coin/gold overrides if explicitly recorded in benchmarks
-      if (bData.gold_18k?.price) {
-        map['gold_18k'] = Math.round(bData.gold_18k.price);
-        map['gold_melted'] = Math.round(bData.gold_18k.price);
-        const gold_24k_hist = bData.gold_18k.price / 0.75;
-        map['gold_24k'] = Math.round(gold_24k_hist);
-        const bankGramHist = Math.round(gold_24k_hist * 1.01 * (22 / 24));
-        map['bank_gram'] = bankGramHist;
-        map['gram'] = bankGramHist;
-      }
-      if (bData.full_coin?.price) {
-        map['full_new'] = Math.round(bData.full_coin.price);
-        map['full_old'] = Math.round(bData.full_coin.price);
-      }
-      if (bData.quarter_coin?.price) {
-        map['quarter'] = Math.round(bData.quarter_coin.price);
-      }
 
       // Apply historical foreign currency cross-rates if recorded in benchmarks
       FOREX_CODES.forEach((code) => {
@@ -993,37 +976,52 @@ export default function PortfolioTracker({ calcData, rates, usdToman, goldUsd, i
     };
 
     const calcPeriodMetrics = (periodKey) => {
-      const histMap = historicalPriceMaps[periodKey] || {};
-      let pastTotalVal = 0;
+      if (!hasAnyCost || costedItems.length === 0) {
+        return {
+          pastTotalVal: 0,
+          currentCostedVal: 0,
+          diff: 0,
+          diffPct: 0,
+          isProfit: true,
+          hasData: false,
+        };
+      }
 
-      items.forEach((it) => {
+      const histMap = historicalPriceMaps[periodKey] || {};
+      let pastCostedVal = 0;
+      let currentCostedVal = 0;
+
+      costedItems.forEach((it) => {
         const qty = Number(it.amount) || 0;
         if (qty <= 0) return;
 
         let pastUnit = histMap[it.assetId];
         if (it.isCustomItem || !pastUnit) {
-          pastUnit = it.hasBuyPrice ? Number(it.buyPrice) : it.unitRealPrice;
+          pastUnit = it.unitRealPrice;
         }
 
         // If bought after period started, base is purchase cost
-        if (it.hasBuyPrice && it.buyDate) {
+        if (it.buyDate) {
           const buyMs = parseDateToMs(it.buyDate);
           if (buyMs && buyMs > cutoffs[periodKey]) {
             pastUnit = Number(it.buyPrice);
           }
         }
 
-        pastTotalVal += (qty * pastUnit);
+        pastCostedVal += (qty * pastUnit);
+        currentCostedVal += (qty * it.unitRealPrice);
       });
 
-      const diff = totalRealValue - pastTotalVal;
-      const diffPct = pastTotalVal > 0 ? parseFloat(((diff / pastTotalVal) * 100).toFixed(1)) : 0;
+      const diff = currentCostedVal - pastCostedVal;
+      const diffPct = pastCostedVal > 0 ? parseFloat(((diff / pastCostedVal) * 100).toFixed(1)) : 0;
 
       return {
-        pastTotalVal,
+        pastTotalVal: pastCostedVal,
+        currentCostedVal,
         diff,
         diffPct,
         isProfit: diff >= 0,
+        hasData: true,
       };
     };
 
@@ -1630,7 +1628,7 @@ export default function PortfolioTracker({ calcData, rates, usdToman, goldUsd, i
                     diff: portfolioMetrics.perf24h.diff,
                     diffPct: portfolioMetrics.perf24h.diffPct,
                     isProfit: portfolioMetrics.perf24h.isProfit,
-                    hasData: true,
+                    hasData: portfolioMetrics.perf24h.hasData,
                     label: 'تغییرات ۲۴ ساعت گذشته',
                   }
                 : selectedPeriod === '7d'
@@ -1638,14 +1636,14 @@ export default function PortfolioTracker({ calcData, rates, usdToman, goldUsd, i
                     diff: portfolioMetrics.perf7d.diff,
                     diffPct: portfolioMetrics.perf7d.diffPct,
                     isProfit: portfolioMetrics.perf7d.isProfit,
-                    hasData: true,
+                    hasData: portfolioMetrics.perf7d.hasData,
                     label: 'تغییرات ۷ روز گذشته',
                   }
                 : {
                     diff: portfolioMetrics.perf30d.diff,
                     diffPct: portfolioMetrics.perf30d.diffPct,
                     isProfit: portfolioMetrics.perf30d.isProfit,
-                    hasData: true,
+                    hasData: portfolioMetrics.perf30d.hasData,
                     label: 'تغییرات ۳۰ روز گذشته',
                   };
 

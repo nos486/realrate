@@ -313,22 +313,8 @@ export default function SharedPortfolioPage() {
       const histGold = b.ons_gold?.price || currentGoldUsd;
       const histSilver = b.ons_silver?.price || currentSilverUsd;
 
+      // Compute pure intrinsic historical prices for all gold, coin, and currency types consistently
       const map = computePriceMap(histUsd, histGold, histSilver);
-
-      if (b.gold_18k?.price) {
-        map['gold_18k'] = Math.round(b.gold_18k.price);
-        map['gold_melted'] = Math.round(b.gold_18k.price);
-        const gold_24k_hist = b.gold_18k.price / 0.75;
-        map['gold_24k'] = Math.round(gold_24k_hist);
-        const bankGramHist = Math.round(gold_24k_hist * 1.01 * (22 / 24));
-        map['bank_gram'] = bankGramHist;
-        map['gram'] = bankGramHist;
-      }
-      if (b.full_coin?.price) {
-        map['full_new'] = Math.round(b.full_coin.price);
-        map['full_old'] = Math.round(b.full_coin.price);
-      }
-      if (b.quarter_coin?.price) map['quarter'] = Math.round(b.quarter_coin.price);
 
       // Apply historical foreign currency cross-rates if recorded in benchmarks
       const FOREX_CODES = ['eur', 'try', 'aed', 'gbp', 'chf', 'cad', 'aud', 'cny'];
@@ -406,13 +392,24 @@ export default function SharedPortfolioPage() {
     };
 
     const calcPeriodicPerf = (periodKey) => {
+      if (!hasAnyCost || costedItems.length === 0) {
+        return {
+          diff: 0,
+          diffPct: 0,
+          isProfit: true,
+          pastTotalVal: 0,
+          currentSubVal: 0,
+          hasData: false,
+        };
+      }
+
       const histMap = historicalPriceMaps?.[periodKey];
       const cutoffMs = periodCutoffs[periodKey];
 
       let pastTotalVal = 0;
       let currentSubVal = 0;
 
-      for (const it of items) {
+      for (const it of costedItems) {
         const amt = Number(it.amount) || 0;
         if (amt <= 0) continue;
 
@@ -424,7 +421,7 @@ export default function SharedPortfolioPage() {
         if (buyDateMs && buyDateMs > cutoffMs) {
           pastPrice = buyPrice > 0 ? buyPrice : currentPrice;
         } else if (it.isCustomItem) {
-          pastPrice = buyPrice > 0 ? buyPrice : currentPrice;
+          pastPrice = currentPrice;
         } else if (histMap && histMap[it.assetId] > 0) {
           pastPrice = histMap[it.assetId];
         }
@@ -441,6 +438,7 @@ export default function SharedPortfolioPage() {
         isProfit: diff >= 0,
         pastTotalVal,
         currentSubVal,
+        hasData: true,
       };
     };
 
@@ -961,7 +959,7 @@ export default function SharedPortfolioPage() {
                           diffPct: portfolioMetrics.perf24h.diffPct,
                           isProfit: portfolioMetrics.perf24h.isProfit,
                           label: 'تغییرات نسبت به ۲۴ ساعت گذشته',
-                          hasData: true,
+                          hasData: portfolioMetrics.perf24h.hasData,
                         };
                       }
                       if (selectedPeriod === '7d') {
@@ -970,7 +968,7 @@ export default function SharedPortfolioPage() {
                           diffPct: portfolioMetrics.perf7d.diffPct,
                           isProfit: portfolioMetrics.perf7d.isProfit,
                           label: 'تغییرات نسبت به ۷ روز گذشته',
-                          hasData: true,
+                          hasData: portfolioMetrics.perf7d.hasData,
                         };
                       }
                       if (selectedPeriod === '30d') {
@@ -979,7 +977,7 @@ export default function SharedPortfolioPage() {
                           diffPct: portfolioMetrics.perf30d.diffPct,
                           isProfit: portfolioMetrics.perf30d.isProfit,
                           label: 'تغییرات نسبت به ۳۰ روز گذشته',
-                          hasData: true,
+                          hasData: portfolioMetrics.perf30d.hasData,
                         };
                       }
                       return {
