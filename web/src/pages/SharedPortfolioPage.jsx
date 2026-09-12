@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { apiGetSharedPortfolio, apiGetPrices, apiGetHistoricalBenchmarks } from '../api/client.js';
 import { calculateMarketData } from '../utils/calculator.js';
+import { computeAllDerivedPrices } from '../utils/formulaEvaluator.js';
 import Header from '../components/Header.jsx';
 import AlertBanner from '../components/ui/AlertBanner.jsx';
 import {
@@ -267,6 +268,15 @@ export default function SharedPortfolioPage() {
             map[code] = Math.round((1 / Number(rate)) * usdVal);
           }
         });
+      }
+    }
+
+    // D. Compute all derived asset prices dynamically via database formulas
+    const derivedList = marketRates?.derivedAssets || marketRates?.derived_assets || [];
+    if (Array.isArray(derivedList) && derivedList.length > 0) {
+      const derived = computeAllDerivedPrices(derivedList, map);
+      for (const [k, v] of Object.entries(derived)) {
+        if (v > 0) map[k] = Math.round(v);
       }
     }
 

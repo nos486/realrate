@@ -50,7 +50,7 @@ import {
   apiSearchBourseSymbols,
 } from '../api/client.js';
 import UserSettingsModal from './UserSettingsModal.jsx';
-import UniversalAssetSearch from './UniversalAssetSearch.jsx';
+import UniversalAssetSearch, { DYNAMIC_DERIVED_REGISTRY } from './UniversalAssetSearch.jsx';
 import { computeAllDerivedPrices } from '../utils/formulaEvaluator.js';
 import {
   deriveE2eeKey,
@@ -122,18 +122,37 @@ export const ASSET_TYPES = [
   { id: 'custom', name: 'دارایی شخصی / سفارشی', unit: 'واحد', category: 'custom' },
 ];
 
-export function normalizeHolding(h) {
+export function normalizeHolding(h, customDerivedList = null) {
   if (!h) return h;
   let assetId = String(h.assetId || '').trim();
   let assetName = String(h.assetName || '').trim();
   let assetType = String(h.assetType || '').trim().toLowerCase();
   let unit = String(h.unit || '').trim();
 
-  const cleanId = assetId.replace(/^src_def_/, '').toLowerCase();
-  const cleanName = assetName.replace(/^src_def_/, '');
+  const cleanId = assetId.replace(/^src_def_/, '').replace(/^derived_/, '').toLowerCase();
+  const cleanName = assetName.replace(/^src_def_/, '').replace(/^derived_/, '').trim();
+
+  // 0. Check dynamic derived assets first from database registry (Highest priority)
+  const lookupList = Array.isArray(customDerivedList) && customDerivedList.length > 0
+    ? customDerivedList
+    : Object.values(DYNAMIC_DERIVED_REGISTRY);
+
+  const matchedDerived = lookupList.find((d) => {
+    const dId = String(d.id || '').toLowerCase().trim();
+    return dId === cleanId || (d.name && String(d.name).trim() === cleanName);
+  });
+
+  if (matchedDerived) {
+    return {
+      ...h,
+      assetId: matchedDerived.id,
+      assetName: matchedDerived.name,
+      assetType: matchedDerived.category || 'gold',
+      unit: matchedDerived.unit || 'گرم',
+    };
+  }
 
   // 1. Bourse Stocks & Funds Checks (MUST PRECEDE GOLD/COIN/CURRENCY)
-  // Any bourse item (whether gold ETF like 'عیار'/'طلا' or equity ETF or stock) belongs strictly to Bourse!
   const isBourse = (
     assetId.startsWith('bourse_') ||
     cleanId.startsWith('bourse_') ||
@@ -151,7 +170,6 @@ export function normalizeHolding(h) {
       cleanId.includes('fund')
     );
     assetType = isFund ? 'bourse_fund' : 'bourse';
-    // Ensure unit is 'واحد' for funds, 'برگ سهم' for stocks (never 'گرم', 'عدد', etc.)
     if (!unit || unit === 'واحد' || unit === 'گرم' || unit === 'عدد' || unit === 'تومان') {
       unit = isFund ? 'واحد' : 'برگ سهم';
     }
@@ -165,7 +183,7 @@ export function normalizeHolding(h) {
     };
   }
 
-  // 2. Coin checks (Before gold so 'سکه بهار آزادی' doesn't get caught by anything else)
+  // 2. Coin checks
   if (
     ['full_coin', 'full_new', 'full_old', 'half_coin', 'half', 'quarter_coin', 'quarter', 'gerami_coin', 'bank_gram', 'gram'].includes(cleanId) ||
     cleanId.includes('coin') ||
@@ -180,53 +198,37 @@ export function normalizeHolding(h) {
       assetId = cleanId;
     }
   }
-  // 3. Silver checks
+  // 3. Silver checks (Base spot)
   else if (
-    ['silver_999', 'silver_925', 'silver_gram', 'ons_silver', 'silver_ounce'].includes(cleanId) ||
-    cleanId.includes('silver') ||
-    cleanName.includes('نقره')
+    ['ons_silver', 'silver_ounce'].includes(cleanId) ||
+    cleanId.includes('ons_silver') ||
+    cleanName.includes('انس نقره')
   ) {
     assetType = 'silver';
-    if (!unit || unit === 'واحد') {
-      unit = cleanId.includes('ons') || cleanId.includes('ounce') ? 'اونس' : 'گرم';
-    }
-    if (!assetName || assetName.startsWith('src_def_')) {
-      assetName = cleanId.includes('925') ? 'نقره استرلینگ ۹۲۵' : (cleanId.includes('ons') || cleanId.includes('ounce') ? 'انس جهانی نقره' : 'نقره خام (گرمی ۹۹۹)');
-    }
-    if (assetId.startsWith('src_def_')) {
-      assetId = cleanId;
-    }
+    if (!unit || unit === 'واحد') unit = 'اونس';
+    if (!assetName || assetName.startsWith('src_def_')) assetName = 'انس جهانی نقره';
+    if (assetId.startsWith('src_def_')) assetId = cleanId;
   }
-  // 4. Physical Gold checks
+  // 4. Physical Gold checks (Base spot & 18K)
   else if (
-    ['gold_18k', 'gold_22k', 'gold_24k', 'gold_melted', 'mesghal', 'ons_gold', 'gold_ounce'].includes(cleanId) ||
-    cleanId.includes('gold') ||
-    cleanName.includes('طلا') ||
-    cleanName.includes('مظنه') ||
-    cleanName.includes('مثقال') ||
-    cleanName.includes('آبشده')
+    ['gold_18k', 'ons_gold', 'gold_ounce'].includes(cleanId) ||
+    cleanName.includes('طلا ۱۸') ||
+    cleanName.includes('طلای ۱۸') ||
+    cleanName.includes('انس طلا')
   ) {
     assetType = 'gold';
-    if (!unit || unit === 'واحد') {
-      unit = cleanId.includes('mesghal') || cleanName.includes('مثقال') ? 'مثقال' : (cleanId.includes('ons') ? 'اونس' : 'گرم');
-    }
+    if (!unit || unit === 'واحد') unit = cleanId.includes('ons') ? 'اونس' : 'گرم';
     if (!assetName || assetName.startsWith('src_def_')) {
-      assetName = cleanId.includes('22') ? 'طلای ۲۲ عیار' : (cleanId.includes('24') ? 'طلای ۲۴ عیار' : (cleanId.includes('melted') ? 'طلای آبشده' : (cleanId.includes('mesghal') ? 'مثقال طلا (مظنه)' : (cleanId.includes('ons') ? 'انس جهانی طلا' : 'طلای ۱۸ عیار'))));
+      assetName = cleanId.includes('ons') ? 'انس جهانی طلا' : 'طلای ۱۸ عیار';
     }
-    if (assetId.startsWith('src_def_')) {
-      assetId = cleanId;
-    }
+    if (assetId.startsWith('src_def_')) assetId = cleanId;
   }
   // 5. Currency checks
   else if (['usd', 'usd_toman', 'usdt'].includes(cleanId) || cleanName.includes('دلار')) {
     assetType = 'currency';
     if (!unit || unit === 'واحد') unit = 'دلار';
-    if (!assetName || assetName.startsWith('src_def_')) {
-      assetName = 'دلار آمریکا';
-    }
-    if (assetId.startsWith('src_def_')) {
-      assetId = 'USD';
-    }
+    if (!assetName || assetName.startsWith('src_def_')) assetName = 'دلار آمریکا';
+    if (assetId.startsWith('src_def_')) assetId = 'USD';
   }
 
   return {
@@ -427,6 +429,30 @@ export default function PortfolioTracker({ calcData, rates, usdToman, goldUsd, d
   const allDerivedAssets = useMemo(() => {
     return propDerivedAssets || rates?.derivedAssets || rates?.derived_assets || [];
   }, [propDerivedAssets, rates]);
+
+  // Dynamic Effective Asset Types (Combining standard base assets with DB-backed derived assets)
+  const effectiveAssetTypes = useMemo(() => {
+    const base = [...ASSET_TYPES];
+    if (Array.isArray(allDerivedAssets) && allDerivedAssets.length > 0) {
+      allDerivedAssets.forEach((d) => {
+        const cleanId = (d.id || '').toLowerCase().trim();
+        const idx = base.findIndex((a) => a.id.toLowerCase() === cleanId);
+        const item = {
+          id: d.id,
+          name: d.name,
+          unit: d.unit || 'گرم',
+          category: d.category || 'gold',
+          isDerived: true,
+        };
+        if (idx >= 0) {
+          base[idx] = item;
+        } else {
+          base.push(item);
+        }
+      });
+    }
+    return base;
+  }, [allDerivedAssets]);
 
   // Multi-portfolio State
   const [portfolios, setPortfolios] = useState([]);
@@ -927,32 +953,18 @@ export default function PortfolioTracker({ calcData, rates, usdToman, goldUsd, d
     const map = {};
     if (!usd || usd <= 0) return map;
 
-    // A. Gold calculations (Pure intrinsic gold value)
+    // A. Base Gold calculations (Spot & standard coins intrinsic gold value)
     if (goldUsd && goldUsd > 0) {
       const gold_24k_gram = (goldUsd / 31.1034768) * usd;
-      const gold_22k_gram = gold_24k_gram * (22 / 24);
       const gold_18k_gram = gold_24k_gram * 0.75;
-      const mesghal_val = gold_24k_gram * 4.608 * 0.705;
       const full_coin_val = Math.round(gold_24k_gram * 7.3197);
       const half_coin_val = Math.round(gold_24k_gram * 3.6594);
       const quarter_coin_val = Math.round(gold_24k_gram * 1.8297);
       const bank_gram_val = Math.round(gold_24k_gram * 1.01 * (22 / 24));
       const ons_gold_val = Math.round(goldUsd * usd);
 
-      map['gold_24k'] = Math.round(gold_24k_gram);
-      map['src_def_gold_24k'] = map['gold_24k'];
-
-      map['gold_22k'] = Math.round(gold_22k_gram);
-      map['src_def_gold_22k'] = map['gold_22k'];
-
       map['gold_18k'] = Math.round(gold_18k_gram);
       map['src_def_gold_18k'] = map['gold_18k'];
-
-      map['gold_melted'] = Math.round(gold_18k_gram);
-      map['src_def_gold_melted'] = map['gold_melted'];
-
-      map['mesghal'] = Math.round(mesghal_val);
-      map['src_def_mesghal'] = map['mesghal'];
 
       map['ons_gold'] = ons_gold_val;
       map['gold_ounce'] = ons_gold_val;
@@ -978,19 +990,9 @@ export default function PortfolioTracker({ calcData, rates, usdToman, goldUsd, d
       map['src_def_gerami_coin'] = bank_gram_val;
     }
 
-    // B. Silver calculations (Pure intrinsic silver value)
+    // B. Base Silver calculations (Spot / Intrinsic)
     if (silverUsd && silverUsd > 0) {
-      const silver_999_gram = (silverUsd / 31.1034768) * usd;
       const silver_ounce_val = Math.round(silverUsd * usd);
-
-      map['silver_999'] = Math.round(silver_999_gram);
-      map['silver_gram'] = map['silver_999'];
-      map['src_def_silver_gram'] = map['silver_999'];
-      map['src_def_silver_999'] = map['silver_999'];
-
-      map['silver_925'] = Math.round(silver_999_gram * 0.925);
-      map['src_def_silver_925'] = map['silver_925'];
-
       map['silver_ounce'] = silver_ounce_val;
       map['ons_silver'] = silver_ounce_val;
       map['src_def_ons_silver'] = silver_ounce_val;
@@ -1008,9 +1010,24 @@ export default function PortfolioTracker({ calcData, rates, usdToman, goldUsd, d
     map['TRY'] = Math.round((1 / 33.5) * usd);
     map['GBP'] = Math.round((1 / 0.782) * usd);
     map['CAD'] = Math.round((1 / 1.37) * usd);
+    map['AUD'] = Math.round((1 / 1.52) * usd);
+    map['CNY'] = Math.round((1 / 7.23) * usd);
+
+    // D. Compute all derived asset prices dynamically via database formulas
+    if (Array.isArray(allDerivedAssets) && allDerivedAssets.length > 0) {
+      const derivedPrices = computeAllDerivedPrices(allDerivedAssets, map);
+      for (const [k, v] of Object.entries(derivedPrices)) {
+        if (v > 0) {
+          const rounded = Math.round(v);
+          map[k] = rounded;
+          map[`src_def_${k}`] = rounded;
+          map[`derived_${k}`] = rounded;
+        }
+      }
+    }
 
     return map;
-  }, []);
+  }, [allDerivedAssets]);
 
   const realPriceMap = useMemo(() => {
     const map = computePriceMap(usdVal, goldUsdVal, silverUsdVal);
@@ -1162,15 +1179,15 @@ export default function PortfolioTracker({ calcData, rates, usdToman, goldUsd, d
 
   // 4. Open Modal for Editing
   const handleOpenEdit = (item) => {
-    const normalized = normalizeHolding(item);
+    const normalized = normalizeHolding(item, allDerivedAssets);
     setEditingHolding(normalized);
     setAssetSearchQuery('');
     setBourseSearchResults([]);
 
-    const cleanId = (normalized.assetId || '').replace(/^src_def_/, '');
+    const cleanId = (normalized.assetId || '').replace(/^src_def_/, '').replace(/^derived_/, '');
     const isFund = normalized.assetType === 'bourse_fund' || normalized.isFund;
     const isBourse = normalized.assetType === 'bourse' || normalized.assetType === 'bourse_fund' || normalized.assetId?.startsWith('bourse_');
-    const isKnown = ASSET_TYPES.some((a) => (a.id === normalized.assetId || a.id === cleanId) && a.id !== 'custom' && a.id !== 'bourse' && a.id !== 'bourse_fund');
+    const isKnown = effectiveAssetTypes.some((a) => (a.id === normalized.assetId || a.id === cleanId) && a.id !== 'custom' && a.id !== 'bourse' && a.id !== 'bourse_fund');
 
     if (isBourse) {
       const symCode = normalized.assetId?.startsWith('bourse_') ? normalized.assetId.replace('bourse_', '') : (normalized.assetName?.replace(/^(سهام\s*)/, '') || normalized.assetId);
@@ -1185,7 +1202,7 @@ export default function PortfolioTracker({ calcData, rates, usdToman, goldUsd, d
       setCustomUnit(normalized.unit || (isFund ? 'واحد' : 'برگ سهم'));
       setCustomCurrentPrice(normalized.currentPrice ? String(normalized.currentPrice) : '');
     } else if (isKnown) {
-      const matched = ASSET_TYPES.find((a) => a.id === cleanId || a.id === normalized.assetId);
+      const matched = effectiveAssetTypes.find((a) => a.id === cleanId || a.id === normalized.assetId);
       setSelectedAssetId(matched?.id || cleanId);
       setSelectedBourseSymbol(null);
       setCustomName('');
@@ -1223,11 +1240,11 @@ export default function PortfolioTracker({ calcData, rates, usdToman, goldUsd, d
       return;
     }
 
-    const cleanAssetId = (selectedAssetId || '').replace(/^src_def_/, '');
+    const cleanAssetId = (selectedAssetId || '').replace(/^src_def_/, '').replace(/^derived_/, '');
     const isFund = Boolean(selectedBourseSymbol?.isFund || cleanAssetId === 'bourse_fund' || (cleanAssetId.startsWith('bourse_') && selectedBourseSymbol?.isFund) || editingHolding?.assetType === 'bourse_fund');
     const isBourse = cleanAssetId.startsWith('bourse_') || selectedBourseSymbol !== null || cleanAssetId === 'bourse' || cleanAssetId === 'bourse_fund';
     const isCustom = cleanAssetId === 'custom';
-    const assetMeta = ASSET_TYPES.find((a) => a.id === cleanAssetId) || ASSET_TYPES.find((a) => a.id === selectedAssetId);
+    const assetMeta = effectiveAssetTypes.find((a) => a.id === cleanAssetId) || effectiveAssetTypes.find((a) => a.id === selectedAssetId);
 
     const finalName = isBourse
       ? (selectedBourseSymbol
@@ -1523,8 +1540,8 @@ export default function PortfolioTracker({ calcData, rates, usdToman, goldUsd, d
 
   const handleSelectStandardAsset = (asset) => {
     const rawId = asset.id || asset.priceType || '';
-    const cleanId = rawId.replace(/^src_def_/, '');
-    const matchedMeta = ASSET_TYPES.find((a) => a.id === cleanId || a.id === rawId);
+    const cleanId = rawId.replace(/^src_def_/, '').replace(/^derived_/, '');
+    const matchedMeta = effectiveAssetTypes.find((a) => a.id === cleanId || a.id === rawId);
     setSelectedAssetId(matchedMeta?.id || cleanId);
     setSelectedBourseSymbol(null);
     setCustomName('');
@@ -1559,13 +1576,13 @@ export default function PortfolioTracker({ calcData, rates, usdToman, goldUsd, d
   const matchingStandardAssets = useMemo(() => {
     const q = assetSearchQuery.trim().toLowerCase();
     if (q.length < 3) return [];
-    return ASSET_TYPES.filter(
+    return effectiveAssetTypes.filter(
       (a) =>
         a.id !== 'bourse' &&
         a.id !== 'bourse_fund' &&
         (a.name.toLowerCase().includes(q) || a.id.toLowerCase().includes(q))
     );
-  }, [assetSearchQuery]);
+  }, [assetSearchQuery, effectiveAssetTypes]);
 
   const cleanSelectedId = (selectedAssetId || '').replace(/^src_def_/, '').replace(/^derived_/, '');
   const isModalBourse = selectedAssetId.startsWith('bourse_') || selectedBourseSymbol !== null || selectedAssetId === 'bourse' || selectedAssetId === 'bourse_fund';
@@ -1574,7 +1591,7 @@ export default function PortfolioTracker({ calcData, rates, usdToman, goldUsd, d
   const matchedDerived = allDerivedAssets.find((d) => d.id === cleanSelectedId || d.id === selectedAssetId);
   const selectedAssetMeta = matchedDerived
     ? { id: matchedDerived.id, name: matchedDerived.name, unit: matchedDerived.unit, category: matchedDerived.category }
-    : ASSET_TYPES.find((a) => a.id === cleanSelectedId || a.id === selectedAssetId);
+    : effectiveAssetTypes.find((a) => a.id === cleanSelectedId || a.id === selectedAssetId);
   const currentModalRealPrice = isModalBourse
     ? (selectedBourseSymbol?.priceToman || parseInputNumber(customCurrentPrice) || 0)
     : (realPriceMap[cleanSelectedId] || realPriceMap[selectedAssetId] || 0);
@@ -2376,7 +2393,7 @@ export default function PortfolioTracker({ calcData, rates, usdToman, goldUsd, d
                     const cleanId = (item.id || item.priceType || '').replace(/^src_def_/, '').replace(/^derived_/, '');
                     const isBourse = item.type === 'bourse' || cleanId.startsWith('bourse_') || item.badgeClass === 'bourse' || item.raw?.isFund !== undefined || item.name?.includes('صندوق');
                     const isDerived = item.type === 'derived' || item.raw?.isDerived;
-                    const isKnownAsset = ASSET_TYPES.some((a) => a.id === cleanId && a.id !== 'custom' && a.id !== 'bourse' && a.id !== 'bourse_fund');
+                    const isKnownAsset = effectiveAssetTypes.some((a) => a.id === cleanId && a.id !== 'custom' && a.id !== 'bourse' && a.id !== 'bourse_fund');
 
                     if (isBourse) {
                       handleSelectBourseSymbol(item.raw || item);

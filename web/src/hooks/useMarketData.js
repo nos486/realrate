@@ -56,6 +56,7 @@ export function useMarketData() {
       marketPrices: rates?.prices || rates?.market_prices || {},
       forex: rates?.forex || {},
       globalSettings: rates?.globalSettings || {},
+      derivedAssets: rates?.derivedAssets || rates?.derived_assets || [],
     });
 
     if (data.success) {

@@ -16,6 +16,8 @@ import { apiGetPriceSources, apiSearchBourseSymbols, apiGetDerivedAssets } from 
 import { computeAllDerivedPrices, calculateDerivedPrice } from '../utils/formulaEvaluator.js';
 
 export const DYNAMIC_DERIVED_LABELS = {};
+export const DYNAMIC_DERIVED_REGISTRY = {};
+
 export function registerDerivedAssetLabels(derivedList = []) {
   if (Array.isArray(derivedList)) {
     for (const d of derivedList) {
@@ -23,6 +25,8 @@ export function registerDerivedAssetLabels(derivedList = []) {
         DYNAMIC_DERIVED_LABELS[d.id] = d.name;
         DYNAMIC_DERIVED_LABELS[d.id.toLowerCase()] = d.name;
         DYNAMIC_DERIVED_LABELS[d.id.toUpperCase()] = d.name;
+        DYNAMIC_DERIVED_REGISTRY[d.id] = d;
+        DYNAMIC_DERIVED_REGISTRY[d.id.toLowerCase()] = d;
       }
     }
   }
@@ -515,6 +519,14 @@ export default function UniversalAssetSearch({
   const allItems = useMemo(() => {
     const items = [];
     const seenKeys = new Set();
+    const seenNames = new Set();
+
+    // 0. Identify active derived assets first (canonical authority for derived/calculated assets)
+    const activeDerived = (internalDerivedAssets || []).filter(
+      (d) => d.isActive === 1 || d.isActive === true || d.is_active === 1 || d.is_active === true
+    );
+    const derivedKeys = new Set(activeDerived.map((d) => (d.id || '').toLowerCase().trim()));
+    const derivedNames = new Set(activeDerived.map((d) => normalizeSearchText(d.name)));
 
     // ── نوع ۱: سورس‌های نرخ پایه و اقلام استاندارد طلا، سکه و نقره ─────────────
     // فقط نوع نرخ را بنویس، فقط در صورت فعال بودن و مرجع بودن
@@ -528,8 +540,18 @@ export default function UniversalAssetSearch({
       const isPrimary = src.isPrimary === 1 || src.isPrimary === true || src.is_primary === 1 || src.is_primary === true;
       if (!isPrimary) return;
 
-      const canonicalId = (src.priceType || src.id || '').replace(/^src_def_/, '');
+      const canonicalId = (src.priceType || src.id || '').replace(/^src_def_/, '').toLowerCase().trim();
       const typeLabel = getPriceTypeLabel(src.priceType, priceTypeInfo) || src.name;
+      const normName = normalizeSearchText(typeLabel);
+
+      // CRITICAL DEDUPLICATION: If this asset is registered as an active derived asset in database
+      // (e.g. mesghal, gold_24k, gold_22k, etc.), SKIP raw base source so it NEVER appears twice!
+      if (derivedKeys.has(canonicalId) || derivedNames.has(normName)) {
+        return;
+      }
+
+      if (seenKeys.has(canonicalId) || seenNames.has(normName)) return;
+
       const meta = getCategoryMetadata(src.priceType);
 
       items.push({
@@ -555,7 +577,8 @@ export default function UniversalAssetSearch({
         },
       });
       seenKeys.add(canonicalId);
-      seenKeys.add(src.id);
+      seenKeys.add((src.id || '').toLowerCase());
+      seenNames.add(normName);
     });
 
     // Find active primary USD rate for Forex and Silver calculations
@@ -569,7 +592,6 @@ export default function UniversalAssetSearch({
       activeSources.find(s => (s.id === 'src_def_usd' || (s.name && s.name.includes('دلار'))));
     const usdToman = Number(usdSource?.lastPrice || usdSource?.last_price || 0);
 
-    // اشتقاق و افزودن طلا ۱۸ عیار، ۲۲ عیار، ۲۴ عیار و نقره گرمی
     const onsGoldItem = items.find(i => i.id === 'ons_gold' || i.id === 'gold_ounce');
     const onsGoldPrice = Number(onsGoldItem?.price || 2900);
 
@@ -596,6 +618,7 @@ export default function UniversalAssetSearch({
         raw: { id: 'gold_18k', priceType: 'gold_18k', name: 'طلای ۱۸ عیار', category: 'gold', unit: 'گرم', price: p18 },
       });
       seenKeys.add('gold_18k');
+      seenNames.add(normalizeSearchText('طلای ۱۸ عیار'));
     }
 
     // ── نوع ۲: اقلام محاسباتی و مشتق‌شده پویا بر مبنای دیتابیس (Derived Assets) ──
@@ -620,9 +643,10 @@ export default function UniversalAssetSearch({
 
     const derivedPrices = computeAllDerivedPrices(internalDerivedAssets, baseMap);
 
-    internalDerivedAssets.forEach((d) => {
-      const isActive = d.isActive === 1 || d.isActive === true || d.is_active === 1 || d.is_active === true;
-      if (!isActive) return;
+    activeDerived.forEach((d) => {
+      const cleanId = (d.id || '').toLowerCase().trim();
+      const normName = normalizeSearchText(d.name);
+      if (seenKeys.has(cleanId) || seenNames.has(normName)) return;
 
       const calcPrice = Math.round(derivedPrices[d.id] || calculateDerivedPrice(d, { ...baseMap, ...derivedPrices }));
       const meta = getCategoryMetadata(d.category || d.id);
@@ -655,7 +679,8 @@ export default function UniversalAssetSearch({
           formulaExpression: d.formulaExpression || d.formula_expression,
         },
       });
-      seenKeys.add(d.id);
+      seenKeys.add(cleanId);
+      seenNames.add(normName);
     });
 
     // ── نوع ۲: هاب سورس‌های چند خروجی و فیدها (تمام دسته‌بندی‌ها) ───────────────
@@ -697,13 +722,17 @@ export default function UniversalAssetSearch({
         if (!symCode && !itemName) return;
 
         const itemKey = isBourse ? `bourse_${symCode || itemName}` : `${src.id}::${symUpper || symCode || itemName}`;
-        if (seenKeys.has(itemKey)) return;
-        seenKeys.add(itemKey);
+        if (seenKeys.has(itemKey.toLowerCase())) return;
+        seenKeys.add(itemKey.toLowerCase());
 
         const isFund = Boolean(sub.isFund || (isBourse && (sub.category?.includes('صندوق') || itemName.includes('صندوق'))));
         const itemBadge = isForexItem ? 'ارز' : (sub.category || (isBourse ? (isFund ? 'صندوق' : 'بورس') : feedCategoryLabel));
 
-        const displayName = itemName;
+        // For Bourse mutual funds (like صندوق طلای آگاه with symbol مثقال), format clearly
+        const displayName = isBourse && isFund && symCode
+          ? (itemName.includes(symCode) ? itemName : `${itemName} (نماد: ${symCode})`)
+          : itemName;
+
         const cross = isForexItem
           ? Number(sub.usdCrossRate || calculateUsdCrossRate(symUpper, sub.rawRate || sub.price || sub.p || 0))
           : Number(sub.price || 0);
@@ -732,8 +761,8 @@ export default function UniversalAssetSearch({
           name: displayName,
           subText: subDetails,
           badge: itemBadge,
-          badgeClass: isForexItem ? 'currency' : (isBourse ? 'bourse' : 'multi-item'),
-          category: isForexItem ? 'currency' : (sub.category || src.priceType),
+          badgeClass: isForexItem ? 'currency' : (isBourse ? (isFund ? 'bourse_fund' : 'bourse') : 'multi-item'),
+          category: isForexItem ? 'currency' : (isFund ? 'bourse_fund' : (sub.category || src.priceType)),
           price: calculatedPriceToman,
           unit,
           type: isForexItem ? 'forex' : (isBourse ? 'bourse' : 'source'),
@@ -748,7 +777,7 @@ export default function UniversalAssetSearch({
             priceToman: calculatedPriceToman,
             priceRial: calculatedPriceToman * 10,
             isFund,
-            category: isForexItem ? 'currency' : (sub.category || src.priceType),
+            category: isForexItem ? 'currency' : (isFund ? 'bourse_fund' : (sub.category || src.priceType)),
             sourceId: src.id,
             sourceName: src.name,
             unit,
@@ -761,20 +790,63 @@ export default function UniversalAssetSearch({
     return items;
   }, [internalSources, internalDerivedAssets, bourseSymbols, priceTypeInfo]);
 
-  // 4. Pure Client-Side Instant Search Filter
+  // 4. Pure Client-Side Instant Search Filter with Tokenized Matching and Strict Deduplication
   const filteredItems = useMemo(() => {
     const q = normalizeSearchText(query);
     if (!q) return allItems;
 
-    return allItems.filter((item) => {
+    const qTokens = q.split(/\s+/).filter(Boolean);
+
+    const matches = allItems.filter((item) => {
       const nameNorm = normalizeSearchText(item.name);
       const symNorm = normalizeSearchText(item.symbol);
       const subNorm = normalizeSearchText(item.subText);
       const badgeNorm = normalizeSearchText(item.badge);
       const faNameNorm = normalizeSearchText(item.raw?.faName || '');
+      const idNorm = normalizeSearchText(item.id || '');
 
-      return nameNorm.includes(q) || symNorm.includes(q) || subNorm.includes(q) || badgeNorm.includes(q) || faNameNorm.includes(q);
+      const combined = `${nameNorm} ${symNorm} ${subNorm} ${badgeNorm} ${faNameNorm} ${idNorm}`;
+
+      // 1. Direct full match
+      if (combined.includes(q)) return true;
+
+      // 2. Tokenized multi-word match (e.g. "طلا ۲۴" matches "طلای ۲۴ عیار")
+      if (qTokens.length > 1) {
+        const words = combined.split(/\s+/).filter(Boolean);
+        const allTokensMatch = qTokens.every((tok) => {
+          return words.some((w) => w.startsWith(tok) || tok.startsWith(w) || w.includes(tok));
+        });
+        if (allTokensMatch) return true;
+      }
+
+      return false;
     });
+
+    // Final Strict Deduplication Pass
+    const unique = [];
+    const seenResultKeys = new Set();
+    const seenResultNames = new Set();
+
+    for (const item of matches) {
+      const canonicalKey = (item.id || '').toLowerCase().trim();
+      const normName = normalizeSearchText(item.name);
+      const compositeKey = `${canonicalKey}::${item.type || ''}`;
+
+      if (seenResultKeys.has(canonicalKey) || seenResultKeys.has(compositeKey)) continue;
+
+      if ((item.type === 'standard' || item.type === 'derived') && seenResultNames.has(normName)) {
+        continue;
+      }
+
+      seenResultKeys.add(canonicalKey);
+      seenResultKeys.add(compositeKey);
+      if (item.type === 'standard' || item.type === 'derived') {
+        seenResultNames.add(normName);
+      }
+      unique.push(item);
+    }
+
+    return unique;
   }, [allItems, query]);
 
   const isItemActive = (item) => {
