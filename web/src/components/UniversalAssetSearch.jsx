@@ -10,62 +10,30 @@ import {
   TrendingUp,
   Layers,
   Sparkles,
-  Radio,
-  Globe,
   Check,
-  Building2,
-  SlidersHorizontal,
 } from 'lucide-react';
 import { apiGetPriceSources, apiSearchBourseSymbols } from '../api/client.js';
 
-const CORE_ASSETS = [
-  { id: 'gold_18k', name: 'طلای ۱۸ عیار', category: 'gold', unit: 'گرم', type: 'standard' },
-  { id: 'gold_melted', name: 'طلای آبشده (گرم ۱۸)', category: 'gold', unit: 'گرم', type: 'standard' },
-  { id: 'full_new', name: 'سکه امامی', category: 'coin', unit: 'عدد', type: 'standard' },
-  { id: 'full_old', name: 'سکه بهار آزادی', category: 'coin', unit: 'عدد', type: 'standard' },
-  { id: 'half', name: 'نیم سکه بهار آزادی', category: 'coin', unit: 'عدد', type: 'standard' },
-  { id: 'quarter', name: 'ربع سکه بهار آزادی', category: 'coin', unit: 'عدد', type: 'standard' },
-  { id: 'silver_999', name: 'نقره خام ۹۹۹', category: 'silver', unit: 'گرم', type: 'standard' },
-  { id: 'USD', name: 'دلار آمریکا', category: 'currency', unit: 'دلار', type: 'standard' },
-  { id: 'USDT', name: 'تتر (USDT)', category: 'crypto', unit: 'تتر', type: 'standard' },
-  { id: 'EUR', name: 'یورو اروپا', category: 'currency', unit: 'یورو', type: 'standard' },
-  { id: 'AED', name: 'درهم امارات', category: 'currency', unit: 'درهم', type: 'standard' },
-  { id: 'TRY', name: 'لیر ترکیه', category: 'currency', unit: 'لیر', type: 'standard' },
-  { id: 'BTC', name: 'بیت‌کوین (BTC)', category: 'crypto', unit: 'عدد', type: 'standard' },
-];
-
-const CORE_TYPE_MAP = {
-  USD: ['usd', 'usd_toman'],
-  EUR: ['eur'],
-  TRY: ['try'],
-  AED: ['aed'],
-  USDT: ['usdt', 'tether'],
-  BTC: ['btc', 'bitcoin'],
-  ETH: ['eth', 'ethereum'],
-  gold_18k: ['gold_18k'],
-  gold_melted: ['mesghal', 'gold_melted'],
-  full_new: ['full_coin', 'full_new'],
-  full_old: ['full_coin_old', 'full_old'],
-  half: ['half_coin', 'half'],
-  quarter: ['quarter_coin', 'quarter'],
-  silver_999: ['ons_silver', 'silver_999', 'silver'],
-};
-
 export const STANDARD_PRICE_TYPE_LABELS = {
   usd: 'دلار آمریکا',
-  usd_toman: 'دلار نقدی آزاد',
+  usd_toman: 'دلار آمریکا',
   gold_18k: 'طلای ۱۸ عیار',
+  gold_24k: 'طلای ۲۴ عیار',
   gold_melted: 'طلای آبشده',
   mesghal: 'مثقال طلا (مظنه)',
-  full_coin: 'سکه تمام بهار آزادی',
+  full_coin: 'سکه امامی',
   full_new: 'سکه امامی',
-  full_old: 'سکه بهار آزادی',
+  full_old: 'سکه بهار آزادی (طرح قدیم)',
   half_coin: 'نیم سکه بهار آزادی',
-  half: 'نیم سکه',
+  half: 'نیم سکه بهار آزادی',
   quarter_coin: 'ربع سکه بهار آزادی',
-  quarter: 'ربع سکه',
-  ons_gold: 'انس طلای جهانی',
-  ons_silver: 'انس نقره جهانی',
+  quarter: 'ربع سکه بهار آزادی',
+  gerami_coin: 'سکه گرمی',
+  gerami: 'سکه گرمی',
+  ons_gold: 'انس جهانی طلا',
+  gold_ounce: 'انس جهانی طلا',
+  ons_silver: 'انس جهانی نقره',
+  silver_ounce: 'انس جهانی نقره',
   silver_999: 'نقره خام ۹۹۹',
   eur: 'یورو اروپا',
   try: 'لیر ترکیه',
@@ -79,8 +47,8 @@ export const STANDARD_PRICE_TYPE_LABELS = {
   sar: 'ریال عربستان',
   qar: 'ریال قطر',
   bourse: 'بورس اوراق بهادار',
-  bourse_fund: 'صندوق سرمایه‌گذاری',
-  forex: 'ارزهای فارکس',
+  bourse_fund: 'صندوق سرمایه‌گذاری بورس',
+  forex: 'ارزهای جهانی (فارکس)',
   crypto: 'رمزارز',
   usdt: 'تتر (USDT)',
   btc: 'بیت‌کوین (BTC)',
@@ -97,14 +65,28 @@ export function getPriceTypeLabel(priceType, priceTypeInfo = null) {
   return priceType;
 }
 
-const CATEGORY_TABS = [
-  { id: 'all', label: 'همه اقلام' },
-  { id: 'sources', label: 'سورس‌های تعریف‌شده' },
-  { id: 'multi_output', label: 'اقلام چند خروجی' },
-  { id: 'bourse', label: 'بورس و صندوق‌ها' },
-  { id: 'gold_coins', label: 'طلا و مسکوکات' },
-  { id: 'currency_crypto', label: 'ارز و رمزارز' },
-];
+export function getCategoryMetadata(priceType) {
+  const pt = String(priceType || '').toLowerCase();
+  if (pt === 'gold_18k' || pt === 'gold_24k' || pt === 'gold_melted' || pt === 'mesghal' || pt.includes('gold')) {
+    return { category: 'gold', badge: 'طلا', tab: 'gold_coins' };
+  }
+  if (pt.includes('coin') || pt === 'full_new' || pt === 'full_old' || pt === 'half' || pt === 'quarter' || pt === 'gerami') {
+    return { category: 'coin', badge: 'سکه', tab: 'gold_coins' };
+  }
+  if (pt.includes('silver')) {
+    return { category: 'silver', badge: 'نقره', tab: 'gold_coins' };
+  }
+  if (pt === 'crypto' || pt === 'btc' || pt === 'eth' || pt === 'usdt') {
+    return { category: 'crypto', badge: 'رمزارز', tab: 'currency_crypto' };
+  }
+  if (pt === 'bourse') {
+    return { category: 'bourse', badge: 'بورس', tab: 'bourse' };
+  }
+  if (pt === 'bourse_fund') {
+    return { category: 'bourse_fund', badge: 'صندوق', tab: 'bourse' };
+  }
+  return { category: 'currency', badge: 'ارز', tab: 'currency_crypto' };
+}
 
 export function normalizeSearchText(str) {
   if (!str) return '';
@@ -239,375 +221,289 @@ export function extractMultiItems(src) {
 function getCategoryIcon(cat) {
   switch (cat) {
     case 'gold':
-    case 'gold_18k':
       return <Award size={15} />;
     case 'coin':
-    case 'full_coin':
-    case 'half_coin':
-    case 'quarter_coin':
       return <Coins size={15} />;
     case 'silver':
       return <Disc size={15} />;
     case 'currency':
-    case 'usd':
-    case 'eur':
-    case 'aed':
-    case 'try':
       return <Banknote size={15} />;
     case 'crypto':
       return <Zap size={15} />;
     case 'bourse':
+      return <TrendingUp size={15} />;
     case 'bourse_fund':
-      return <Building2 size={15} />;
-    case 'multi_output':
       return <Layers size={15} />;
     default:
       return <Sparkles size={15} />;
   }
 }
 
+const CATEGORY_TABS = [
+  { id: 'all', label: 'همه اقلام' },
+  { id: 'gold_coins', label: 'طلا و مسکوکات' },
+  { id: 'currency_crypto', label: 'ارز و رمزارز' },
+  { id: 'bourse', label: 'بورس و صندوق‌ها' },
+];
+
 export default function UniversalAssetSearch({
-  mode = 'explorer', // 'explorer' | 'picker'
-  onSelect = () => {},
+  mode = 'picker',
+  sources = null,
+  priceTypeInfo = null,
   selectedAsset = null,
   selectedAssetId = null,
-  sources: propSources = null,
-  priceTypeInfo = null,
+  onSelect = () => {},
+  showCategories = true,
+  placeholder = 'جستجو در تمامی سورس‌ها، طلا، سکه، ارز، بورس...',
   title = '',
   subtitle = '',
-  placeholder = 'جستجو در تمامی سورس‌ها، طلا، سکه، ارز، بورس، خودرو و فیدها...',
-  showCategories = true,
   autoFocus = false,
-  className = '',
 }) {
   const [query, setQuery] = useState('');
   const [activeCategory, setActiveCategory] = useState('all');
-  const [internalSources, setInternalSources] = useState([]);
-  const [bourseResults, setBourseResults] = useState([]);
-  const [isSearchingBourse, setIsSearchingBourse] = useState(false);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-  const searchContainerRef = useRef(null);
+  const [internalSources, setInternalSources] = useState(sources || []);
+  const [bourseSymbols, setBourseSymbols] = useState([]);
+  const containerRef = useRef(null);
 
-  // Load sources if not provided via props
+  // 1. Fetch Sources if not supplied via props
   useEffect(() => {
-    if (propSources && Array.isArray(propSources)) {
-      setInternalSources(propSources);
-    } else {
-      let isMounted = true;
-      apiGetPriceSources()
-        .then((res) => {
-          if (isMounted && res?.success && Array.isArray(res.sources)) {
-            setInternalSources(res.sources);
-          }
-        })
-        .catch((err) => console.error('Error fetching sources for search:', err));
-      return () => {
-        isMounted = false;
-      };
+    if (sources && sources.length > 0) {
+      setInternalSources(sources);
+      return;
     }
-  }, [propSources]);
+    let isMounted = true;
+    apiGetPriceSources()
+      .then((res) => {
+        if (isMounted && res?.success && Array.isArray(res.sources)) {
+          setInternalSources(res.sources);
+        }
+      })
+      .catch((err) => console.error('Error loading sources:', err));
+    return () => { isMounted = false; };
+  }, [sources]);
 
-  // Handle click outside to close picker dropdown
+  // 2. Fetch Bourse symbols once upfront for instant client-side search
   useEffect(() => {
-    if (mode !== 'picker') return;
-    const handleClickOutside = (e) => {
-      if (searchContainerRef.current && !searchContainerRef.current.contains(e.target)) {
+    let isMounted = true;
+    apiSearchBourseSymbols('', 2000)
+      .then((res) => {
+        if (isMounted && res?.success && Array.isArray(res.symbols)) {
+          setBourseSymbols(res.symbols);
+        }
+      })
+      .catch((err) => console.error('Error preloading bourse symbols:', err));
+    return () => { isMounted = false; };
+  }, []);
+
+  // Close dropdown on outside click
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (containerRef.current && !containerRef.current.contains(event.target)) {
         setIsDropdownOpen(false);
       }
-    };
+    }
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [mode]);
+  }, []);
 
-  // Debounced Bourse Symbol Search
-  useEffect(() => {
-    const q = query.trim();
-    if (!q || q.length < 2) {
-      setBourseResults([]);
-      setIsSearchingBourse(false);
-      return;
-    }
+  // 3. Build the COMPLETE Unified Items List Upfront (Only 2 types, 100% clean)
+  const allItems = useMemo(() => {
+    const items = [];
+    const seenKeys = new Set();
 
-    if (activeCategory !== 'all' && activeCategory !== 'bourse') {
-      setBourseResults([]);
-      return;
-    }
-
-    setIsSearchingBourse(true);
-    const timer = setTimeout(async () => {
-      try {
-        const res = await apiSearchBourseSymbols(q, 10);
-        if (res?.success && Array.isArray(res.symbols)) {
-          setBourseResults(res.symbols);
-        } else {
-          setBourseResults([]);
-        }
-      } catch (e) {
-        console.error('Error searching bourse:', e);
-        setBourseResults([]);
-      } finally {
-        setIsSearchingBourse(false);
-      }
-    }, 280);
-
-    return () => clearTimeout(timer);
-  }, [query, activeCategory]);
-
-  // Build Unified Searchable Items
-  const filteredItems = useMemo(() => {
-    const qNorm = normalizeSearchText(query);
-    const results = [];
-
-    // 1. Configured Price Sources & Multi-Output Sub-Items
+    // ── نوع اول: سورس‌های نرخ پایه ──────────────────────────────────────────
+    // فقط نوع نرخ را بنویس، فقط در صورت فعال بودن و مرجع بودن
     internalSources.forEach((src) => {
+      const isActive = src.isActive === 1 || src.isActive === true || src.is_active === 1 || src.is_active === true;
+      if (!isActive) return;
+
       const isMulti = isSourceMultiOutput(src);
+      if (isMulti) return;
 
-      if (isMulti) {
+      const isPrimary = src.isPrimary === 1 || src.isPrimary === true || src.is_primary === 1 || src.is_primary === true;
+      if (!isPrimary) return; // سورس پایه فقط در صورت مرجع بودن
+
+      const typeLabel = getPriceTypeLabel(src.priceType, priceTypeInfo) || src.name;
+      const meta = getCategoryMetadata(src.priceType);
+
+      items.push({
+        id: src.id,
+        sourceId: src.id,
+        name: typeLabel, // فقط نوع نرخ
+        symbol: '',
+        subText: 'نرخ پایه بازار (سورس مرجع)',
+        badge: meta.badge,
+        badgeClass: meta.category,
+        category: meta.category,
+        tab: meta.tab,
+        price: Number(src.lastPrice || 0),
+        unit: src.unit || 'تومان',
+        type: 'source',
+        changePercent: src.diff !== undefined ? src.diff : src.changePercent,
+        raw: src,
+      });
+      seenKeys.add(src.id);
+    });
+
+    // ── نوع دوم: هاب سورس‌های چند خروجی و فیدها ─────────────────────────────
+    // بر اساس دسته‌بندی هر اقلامی که زیرش هست رو بیار، در صورت فعال بودن
+    internalSources.forEach((src) => {
+      const isActive = src.isActive === 1 || src.isActive === true || src.is_active === 1 || src.is_active === true;
+      if (!isActive) return;
+
+      const isMulti = isSourceMultiOutput(src);
+      if (!isMulti) return;
+
+      const isBourseFeed = src.priceType === 'bourse' || src.priceType === 'bourse_fund';
+      const isForexFeed = src.priceType === 'forex';
+
+      if (isBourseFeed) {
+        // اقلام زیرمجموعه فید بورس
+        const extracted = extractMultiItems(src);
+        const listToUse = bourseSymbols.length > 0 ? bourseSymbols : extracted;
+
+        listToUse.forEach((sym) => {
+          const symCode = (sym.symbol || sym.s || '').trim();
+          const symName = (sym.name || sym.n || symCode).trim();
+          if (!symCode && !symName) return;
+
+          const itemKey = `bourse_${symCode || symName}`;
+          if (seenKeys.has(itemKey)) return;
+          seenKeys.add(itemKey);
+
+          const isFund = Boolean(sym.isFund || sym.f === 1 || src.priceType === 'bourse_fund' || sym.category?.includes('صندوق') || symName.includes('صندوق'));
+          const priceToman = sym.priceToman !== undefined
+            ? Number(sym.priceToman)
+            : Math.round(Number(sym.priceRial || sym.p || sym.price || 0) / 10);
+          const cp = Number(sym.changePercent !== undefined ? sym.changePercent : (sym.cp !== undefined ? sym.cp : (sym.plp || 0)));
+
+          items.push({
+            id: itemKey,
+            sourceId: src.id,
+            symbol: symCode,
+            name: symCode && !symName.includes(symCode) ? `${symName} (${symCode})` : symName,
+            subText: sym.category ? `${sym.category}${symCode ? ` • نماد: ${symCode}` : ''}` : (isFund ? `صندوق سرمایه‌گذاری${symCode ? ` • نماد: ${symCode}` : ''}` : `سهام بورس اوراق بهادار${symCode ? ` • نماد: ${symCode}` : ''}`),
+            badge: isFund ? 'صندوق' : 'بورس',
+            badgeClass: 'bourse',
+            category: isFund ? 'bourse_fund' : 'bourse',
+            tab: 'bourse',
+            price: priceToman,
+            unit: isFund ? 'واحد' : 'برگ سهم',
+            type: 'bourse',
+            changePercent: cp,
+            raw: {
+              symbol: symCode,
+              name: symName,
+              priceToman,
+              priceRial: priceToman * 10,
+              isFund,
+              category: sym.category,
+              sourceId: src.id,
+            },
+          });
+        });
+      } else if (isForexFeed) {
+        // اقلام زیرمجموعه فید فارکس
         const subItems = extractMultiItems(src);
-        const isBourseFeed = src.priceType === 'bourse' || src.priceType === 'bourse_fund';
-        const isForexFeed = src.priceType === 'forex' || src.priceType === 'currency';
+        subItems.forEach((sub) => {
+          const symCode = (sub.symbol || sub.s || '').trim();
+          const curKey = `${src.id}::${symCode || sub.name}`;
+          if (seenKeys.has(curKey)) return;
+          seenKeys.add(curKey);
 
-        // Search individual Sub-Items of this multi-output source
-        subItems.forEach((subItem) => {
-          const isFund = Boolean(subItem.isFund || src.priceType === 'bourse_fund');
-          const isBourseItem = isBourseFeed || isFund ||
-            subItem.category?.includes('بورس') || subItem.category?.includes('صندوق');
-          const isForexItem = isForexFeed ||
-            subItem.category?.includes('ارز') || subItem.category?.includes('فارکس');
-          const isGoldCoinItem = src.priceType?.includes('gold') || src.priceType?.includes('coin') ||
-            subItem.category?.includes('طلا') || subItem.category?.includes('سکه');
-          const isCryptoItem = src.priceType?.includes('crypto') || subItem.category?.includes('رمزارز');
+          const curLabel = STANDARD_PRICE_TYPE_LABELS[symCode.toLowerCase()] || sub.name || symCode;
 
-          let allowSubItemInTab = false;
-          if (activeCategory === 'all' || activeCategory === 'sources' || activeCategory === 'multi_output') {
-            allowSubItemInTab = true;
-          } else if (activeCategory === 'bourse') {
-            allowSubItemInTab = isBourseItem;
-          } else if (activeCategory === 'gold_coins') {
-            allowSubItemInTab = isGoldCoinItem;
-          } else if (activeCategory === 'currency_crypto') {
-            allowSubItemInTab = isForexItem || isCryptoItem;
-          }
-
-          if (!allowSubItemInTab) return;
-
-          let matchesQuery = false;
-          const subNameNorm = normalizeSearchText(subItem.name);
-          const subSymNorm = normalizeSearchText(subItem.symbol);
-          const subCatNorm = normalizeSearchText(subItem.category);
-          const subExtraNorm = normalizeSearchText(subItem.extra);
-
-          if (!qNorm) {
-            matchesQuery = activeCategory === 'multi_output' || activeCategory === 'bourse' || results.filter((r) => r.sourceId === src.id && r.isMultiItem).length < 20;
-          } else {
-            matchesQuery = subNameNorm.includes(qNorm) ||
-              subSymNorm.includes(qNorm) ||
-              subCatNorm.includes(qNorm) ||
-              subExtraNorm.includes(qNorm);
-
-            if (isBourseItem && (qNorm === 'بورس' || qNorm === 'سهام' || qNorm === 'صندوق')) {
-              matchesQuery = true;
-            }
-            if (isForexItem && (qNorm === 'ارز' || qNorm === 'فارکس')) {
-              matchesQuery = true;
-            }
-          }
-
-          if (matchesQuery) {
-            if (isBourseItem) {
-              const displayName = subItem.symbol && !subItem.name.includes(subItem.symbol)
-                ? `${subItem.name} (${subItem.symbol})`
-                : subItem.name;
-              const subDescription = subItem.category
-                ? `${subItem.category}${subItem.symbol ? ` • نماد: ${subItem.symbol}` : ''}`
-                : (isFund ? `صندوق سرمایه‌گذاری${subItem.symbol ? ` • نماد: ${subItem.symbol}` : ''}` : `سهام بورس اوراق بهادار${subItem.symbol ? ` • نماد: ${subItem.symbol}` : ''}`);
-
-              results.push({
-                id: `bourse_${subItem.symbol || subItem.name}`,
-                sourceId: src.id,
-                subItemId: subItem.symbol || subItem.name,
-                symbol: subItem.symbol,
-                name: displayName,
-                priceTypeLabel: null,
-                subText: subDescription,
-                badge: isFund ? 'صندوق' : 'بورس',
-                badgeClass: 'bourse',
-                price: Number(subItem.price || 0),
-                unit: isFund ? 'واحد' : 'برگ سهم',
-                category: isFund ? 'bourse_fund' : 'bourse',
-                type: 'bourse',
-                isMultiItem: true,
-                raw: {
-                  ...subItem,
-                  symbol: subItem.symbol,
-                  name: subItem.name,
-                  priceToman: Number(subItem.price || 0),
-                  priceRial: Number(subItem.price || 0) * 10,
-                  isFund,
-                  category: subItem.category,
-                  sourceId: src.id,
-                },
-              });
-            } else if (isForexItem) {
-              results.push({
-                id: `${src.id}::${subItem.symbol || subItem.name}`,
-                sourceId: src.id,
-                subItemId: subItem.symbol || subItem.name,
-                symbol: subItem.symbol,
-                name: subItem.name,
-                priceTypeLabel: subItem.symbol,
-                subText: `ارز جهانی • نرخ برابری ${subItem.symbol || ''}`,
-                badge: 'ارز',
-                badgeClass: 'currency',
-                price: Number(subItem.price || 0),
-                unit: 'تومان',
-                category: 'currency',
-                type: 'source',
-                isMultiItem: true,
-                raw: {
-                  ...subItem,
-                  sourceId: src.id,
-                  sourceName: src.name,
-                  unit: 'تومان',
-                },
-              });
-            } else {
-              const typeLabel = getPriceTypeLabel(src.priceType, priceTypeInfo);
-              results.push({
-                id: `${src.id}::${subItem.symbol || subItem.name}`,
-                sourceId: src.id,
-                subItemId: subItem.symbol || subItem.name,
-                symbol: subItem.symbol,
-                name: subItem.name,
-                priceTypeLabel: subItem.category || typeLabel,
-                subText: `${subItem.category || typeLabel || 'سورس'}${subItem.symbol ? ` • کد: ${subItem.symbol}` : ''}${subItem.extra ? ` • ${subItem.extra}` : ''}`,
-                badge: subItem.category || typeLabel || 'آیتم',
-                badgeClass: src.priceType || 'multi_output',
-                price: Number(subItem.price || 0),
-                unit: src.unit || 'تومان',
-                category: src.priceType || 'multi_output',
-                type: 'source',
-                isMultiItem: true,
-                raw: {
-                  ...subItem,
-                  sourceId: src.id,
-                  sourceName: src.name,
-                  unit: src.unit || 'تومان',
-                },
-              });
-            }
-          }
+          items.push({
+            id: curKey,
+            sourceId: src.id,
+            symbol: symCode,
+            name: curLabel,
+            subText: `ارز جهانی • نرخ برابری ${symCode}`,
+            badge: 'ارز',
+            badgeClass: 'currency',
+            category: 'currency',
+            tab: 'currency_crypto',
+            price: Number(sub.price || 0),
+            unit: 'تومان',
+            type: 'source',
+            changePercent: Number(sub.changePercent || 0),
+            raw: {
+              ...sub,
+              sourceId: src.id,
+              sourceName: src.name,
+              unit: 'تومان',
+            },
+          });
         });
       } else {
-        // Standard Single-Rate Source
-        if (activeCategory === 'all' || activeCategory === 'sources') {
-          const typeLabel = getPriceTypeLabel(src.priceType, priceTypeInfo);
-          const typeLabelNorm = normalizeSearchText(typeLabel);
-          const nameMatch = !qNorm || normalizeSearchText(src.name).includes(qNorm);
-          const typeMatch = !qNorm || normalizeSearchText(src.priceType).includes(qNorm) || typeLabelNorm.includes(qNorm);
-          const channelMatch = !qNorm || normalizeSearchText(src.channelUsername).includes(qNorm);
-          const endpointMatch = !qNorm || normalizeSearchText(src.endpoint).includes(qNorm);
+        // سایر فیدهای چند خروجی (رمزارز، کالا و ...)
+        const subItems = extractMultiItems(src);
+        const meta = getCategoryMetadata(src.priceType);
 
-          if (nameMatch || typeMatch || channelMatch || endpointMatch) {
-            results.push({
-              id: src.id,
+        subItems.forEach((sub) => {
+          const symCode = (sub.symbol || sub.s || '').trim();
+          const itemKey = `${src.id}::${symCode || sub.name}`;
+          if (seenKeys.has(itemKey)) return;
+          seenKeys.add(itemKey);
+
+          items.push({
+            id: itemKey,
+            sourceId: src.id,
+            symbol: symCode,
+            name: sub.name,
+            subText: sub.category || sub.extra || '',
+            badge: meta.badge || 'آیتم',
+            badgeClass: meta.category,
+            category: meta.category,
+            tab: meta.tab,
+            price: Number(sub.price || 0),
+            unit: src.unit || 'تومان',
+            type: 'source',
+            changePercent: Number(sub.changePercent || 0),
+            raw: {
+              ...sub,
               sourceId: src.id,
-              name: src.name || 'سورس بدون نام',
-              priceTypeLabel: typeLabel,
-              subText: `${typeLabel ? `نوع: ${typeLabel} • ` : ''}${src.sourceType === 'telegram'
-                ? `@${src.channelUsername || src.endpoint || ''}`
-                : (src.endpoint ? 'وب‌سرویس API' : 'سورس اختصاصی')}`,
-              badge: typeLabel || (src.sourceType === 'telegram' ? 'تلگرام' : 'API'),
-              badgeClass: 'single-type',
-              price: Number(src.lastPrice || 0),
+              sourceName: src.name,
               unit: src.unit || 'تومان',
-              category: 'source',
-              type: 'source',
-              priceType: src.priceType,
-              changePercent: src.diff !== undefined ? src.diff : src.changePercent,
-              raw: src,
-            });
-          }
-        }
+            },
+          });
+        });
       }
     });
 
-    // 2. Bourse Symbols
-    if (activeCategory === 'all' || activeCategory === 'bourse') {
-      bourseResults.forEach((sym) => {
-        results.push({
-          id: `bourse_${sym.symbol}`,
-          symbol: sym.symbol,
-          name: sym.isFund ? (sym.name || sym.symbol) : `سهام ${sym.symbol} (${sym.name})`,
-          subText: sym.isFund ? 'صندوق سرمایه‌گذاری' : 'بورس اوراق بهادار تهران',
-          badge: sym.isFund ? 'صندوق' : 'بورس',
-          badgeClass: 'bourse',
-          price: sym.priceToman || Math.round((sym.priceRial || 0) / 10),
-          unit: sym.isFund ? 'واحد' : 'برگ سهم',
-          category: sym.isFund ? 'bourse_fund' : 'bourse',
-          type: 'bourse',
-          raw: sym,
-        });
-      });
-    }
+    return items;
+  }, [internalSources, bourseSymbols, priceTypeInfo]);
 
-    // 3. Core & Standard Assets (Only in 'picker' mode as fallback for unconfigured assets)
-    if (mode === 'picker') {
-      const allowGoldCoins = activeCategory === 'all' || activeCategory === 'gold_coins';
-      const allowCurrencies = activeCategory === 'all' || activeCategory === 'currency_crypto';
+  // 4. Pure Client-Side Instant Search Filtering
+  const filteredItems = useMemo(() => {
+    const q = normalizeSearchText(query);
 
-      // Set of price types and aliases that are already covered by user's defined sources
-      const existingTypes = new Set(
-        internalSources.map((s) => (s.priceType || '').toLowerCase()).filter(Boolean)
-      );
+    return allItems.filter((item) => {
+      // فیلتر تب دسته‌بندی
+      if (activeCategory !== 'all') {
+        if (activeCategory === 'gold_coins' && item.tab !== 'gold_coins') return false;
+        if (activeCategory === 'currency_crypto' && item.tab !== 'currency_crypto') return false;
+        if (activeCategory === 'bourse' && item.tab !== 'bourse') return false;
+      }
 
-      CORE_ASSETS.forEach((core) => {
-        // Skip this core asset if user already has an active configured source for it
-        const mappedTypes = CORE_TYPE_MAP[core.id] || [core.id.toLowerCase()];
-        const alreadyHasSource = mappedTypes.some((t) => existingTypes.has(t));
-        if (alreadyHasSource) return;
+      // فیلتر عبارت جستجو
+      if (!q) return true;
 
-        const isGoldCoin = core.category === 'gold' || core.category === 'coin' || core.category === 'silver';
-        const isCurrCrypto = core.category === 'currency' || core.category === 'crypto';
+      const nameNorm = normalizeSearchText(item.name);
+      const symNorm = normalizeSearchText(item.symbol);
+      const subNorm = normalizeSearchText(item.subText);
+      const badgeNorm = normalizeSearchText(item.badge);
 
-        if ((allowGoldCoins && isGoldCoin) || (allowCurrencies && isCurrCrypto)) {
-          const nameMatch = !qNorm ||
-            normalizeSearchText(core.name).includes(qNorm) ||
-            normalizeSearchText(core.id).includes(qNorm);
-          if (nameMatch) {
-            results.push({
-              id: core.id,
-              name: core.name,
-              subText: core.category === 'gold' ? 'طلای خام و آب‌شده'
-                : core.category === 'coin' ? 'مسکوکات رسمی بانکی'
-                : core.category === 'currency' ? 'ارز بازار آزاد'
-                : core.category === 'crypto' ? 'رمزارز پایه' : 'دارایی پایه',
-              badge: core.unit,
-              badgeClass: core.category,
-              price: 0,
-              unit: core.unit,
-              category: core.category,
-              type: 'standard',
-              raw: core,
-            });
-          }
-        }
-      });
-    }
+      return nameNorm.includes(q) || symNorm.includes(q) || subNorm.includes(q) || badgeNorm.includes(q);
+    });
+  }, [allItems, query, activeCategory]);
 
-    return results;
-  }, [query, activeCategory, internalSources, bourseResults]);
-
-  // Check if item matches current selection
   const isItemActive = (item) => {
     const targetId = selectedAssetId || (selectedAsset?.id ? selectedAsset.id : null);
     if (!targetId) return false;
     if (item.id === targetId) return true;
     if (item.symbol && targetId === `bourse_${item.symbol}`) return true;
-    if (item.isMultiItem) {
-      if (item.subItemId && (targetId === item.subItemId || targetId === item.id || targetId === `${item.sourceId}::${item.subItemId}`)) return true;
-      return false;
-    }
     if (item.sourceId && item.sourceId === targetId) return true;
     return false;
   };
@@ -619,56 +515,45 @@ export default function UniversalAssetSearch({
     }
   };
 
-  const activeAssetName = useMemo(() => {
-    if (selectedAsset?.name) return selectedAsset.name;
-    if (selectedAssetId) {
-      const foundSource = internalSources.find((s) => s.id === selectedAssetId);
-      if (foundSource) return foundSource.name;
-      const foundCore = CORE_ASSETS.find((c) => c.id === selectedAssetId);
-      if (foundCore) return foundCore.name;
-      if (selectedAssetId.startsWith('bourse_')) return selectedAssetId.replace('bourse_', 'نماد ');
-
-      // Check multi-output sub-items
-      for (const src of internalSources) {
-        if (isSourceMultiOutput(src)) {
-          const subItems = extractMultiItems(src);
-          const foundSub = subItems.find(
-            (it) => it.symbol === selectedAssetId || `${src.id}::${it.symbol || it.name}` === selectedAssetId
-          );
-          if (foundSub) return `${foundSub.name} (${src.name})`;
-        }
-      }
-    }
-    return '';
-  }, [selectedAsset, selectedAssetId, internalSources]);
-
   return (
     <div
-      ref={searchContainerRef}
-      className={`universal-asset-search-wrap ${mode === 'picker' ? 'picker-mode' : 'explorer-mode'} ${className}`}
+      ref={containerRef}
+      className={`universal-search-container mode-${mode}`}
+      style={{ position: 'relative', width: '100%' }}
     >
-      {/* Explorer Top Toolbar (Header + Title) */}
-      {mode === 'explorer' && (
-        <div className="universal-search-topbar">
-          <div className="universal-search-title-box">
-            <SlidersHorizontal size={18} style={{ color: 'var(--accent-blue, #3b82f6)' }} />
-            <div>
-              <h4>{title || 'مرکز جستجو و کاوشگر داده‌ها و سورس‌ها'}</h4>
-              <span>{subtitle || 'جستجوی آنی در تمامی سورس‌ها، وب‌سرویس‌ها، بورس تهران، طلا، سکه و ارز'}</span>
+      {/* Header & Category Filter Strip */}
+      {showCategories && (
+        <div className="universal-search-header-area">
+          {title && (
+            <div className="universal-header-titles">
+              <h4 className="universal-search-title">{title}</h4>
+              {subtitle && <p className="universal-search-subtitle">{subtitle}</p>}
             </div>
+          )}
+
+          <div className="universal-categories-strip">
+            {CATEGORY_TABS.map((tab) => (
+              <button
+                key={tab.id}
+                type="button"
+                className={`universal-cat-pill ${activeCategory === tab.id ? 'active' : ''}`}
+                onClick={() => setActiveCategory(tab.id)}
+              >
+                {tab.label}
+              </button>
+            ))}
           </div>
 
-          {activeAssetName && (
+          {/* Active Asset Banner in Explorer Mode */}
+          {mode === 'explorer' && selectedAsset && (
             <div className="universal-active-asset-banner">
-              <div className="universal-active-asset-info">
-                <span className="universal-active-label">آیتم فعال:</span>
+              <div className="universal-active-badge">دارایی فعال</div>
+              <div className="universal-active-details">
+                <div className="universal-active-icon">
+                  {getCategoryIcon(selectedAsset?.category || selectedAsset?.priceType || 'all')}
+                </div>
                 <strong className="universal-active-name">
-                  {activeAssetName}
-                  {selectedAsset?.priceType && (
-                    <span className="universal-type-tag">
-                      ({getPriceTypeLabel(selectedAsset.priceType, priceTypeInfo)})
-                    </span>
-                  )}
+                  {getPriceTypeLabel(selectedAsset?.priceType, priceTypeInfo) || selectedAsset?.name || 'انتخاب نشده'}
                 </strong>
               </div>
             </div>
@@ -676,7 +561,7 @@ export default function UniversalAssetSearch({
         </div>
       )}
 
-      {/* Search Bar Input */}
+      {/* Search Input Bar */}
       <div className="universal-search-bar">
         <Search size={16} className="universal-search-icon" />
         <input
@@ -693,35 +578,29 @@ export default function UniversalAssetSearch({
           className="universal-search-input"
           autoFocus={autoFocus}
         />
-        <div className="universal-search-trailing">
-          {isSearchingBourse && <span className="universal-search-spinner" title="در حال جستجوی بورس..." />}
-          {query && (
-            <button
-              type="button"
-              className="universal-search-clear"
-              onClick={() => {
-                setQuery('');
-                setBourseResults([]);
-              }}
-              title="پاک کردن"
-            >
-              <X size={14} />
-            </button>
-          )}
-        </div>
+        {query && (
+          <button
+            type="button"
+            className="universal-search-clear"
+            onClick={() => setQuery('')}
+            title="پاک کردن"
+          >
+            <X size={14} />
+          </button>
+        )}
       </div>
 
       {/* Results Rendering: Mode Dependent */}
       {mode === 'picker' ? (
-        /* Picker Dropdown Popover */
+        /* Picker Mode: Dropdown Popover */
         isDropdownOpen && (
           <div className="universal-results-picker-dropdown">
             {filteredItems.length === 0 ? (
               <div className="universal-empty-results">
-                {isSearchingBourse ? 'در حال جستجو در پایگاه داده...' : 'هیچ دارایی یا سورسی مطابق با عبارت جستجو یافت نشد.'}
+                هیچ دارایی یا سورسی مطابق با عبارت جستجو یافت نشد.
               </div>
             ) : (
-              filteredItems.slice(0, 30).map((item) => {
+              filteredItems.slice(0, 40).map((item) => {
                 const active = isItemActive(item);
                 return (
                   <div
@@ -730,29 +609,22 @@ export default function UniversalAssetSearch({
                     onClick={() => handleSelectItem(item)}
                   >
                     <div className="universal-result-info">
-                      <div className={`universal-result-icon ${item.category}`}>
+                      <div className={`universal-result-icon ${item.badgeClass || item.category}`}>
                         {getCategoryIcon(item.category)}
                       </div>
                       <div className="universal-result-text">
-                        <span className="universal-result-name">
-                          {item.name}
-                          {item.priceTypeLabel && item.priceTypeLabel !== item.name && (
-                            <span className="universal-type-tag">({item.priceTypeLabel})</span>
-                          )}
-                        </span>
+                        <span className="universal-result-name">{item.name}</span>
                         <div className="universal-result-sub">
-                          <span className={`universal-result-badge ${item.badgeClass || ''}`}>{item.badge}</span>
-                          <span>{item.subText}</span>
+                          <span className={`universal-result-badge ${item.badgeClass || item.category}`}>
+                            {item.badge}
+                          </span>
+                          {item.subText && <span>{item.subText}</span>}
                         </div>
                       </div>
                     </div>
 
                     <div className="universal-result-pricing">
-                      {item.isMultiFeed ? (
-                        <span className="universal-multi-count-tag">
-                          {item.itemCount !== undefined ? `${item.itemCount.toLocaleString('fa-IR')} قلم` : 'فید چند خروجی'}
-                        </span>
-                      ) : item.price > 0 ? (
+                      {item.price > 0 ? (
                         <>
                           <span className="universal-result-price">
                             {item.price % 1 !== 0
@@ -766,8 +638,7 @@ export default function UniversalAssetSearch({
                           {active ? <Check size={12} /> : 'انتخاب'}
                         </span>
                       )}
-                      {/* Trend is strictly only for single-output items with real price */}
-                      {!item.isMultiItem && !item.isMultiFeed && item.category !== 'multi_output' && item.type !== 'bourse' && item.category !== 'bourse' && item.category !== 'bourse_fund' && item.price > 0 && item.changePercent !== undefined && Number(item.changePercent) !== 0 && (
+                      {item.changePercent !== undefined && Number(item.changePercent) !== 0 && (
                         <span className={`universal-result-change ${Number(item.changePercent) > 0 ? 'positive' : 'negative'}`}>
                           {Number(item.changePercent) > 0 ? '+' : ''}{Number(item.changePercent).toFixed(2)}%
                         </span>
@@ -780,15 +651,15 @@ export default function UniversalAssetSearch({
           </div>
         )
       ) : (
-        /* Explorer Mode Grid (when searching or active) */
+        /* Explorer Mode: Grid View */
         query.trim().length > 0 && (
           <div className="universal-results-explorer">
             {filteredItems.length === 0 ? (
               <div className="universal-empty-results" style={{ gridColumn: '1 / -1' }}>
-                {isSearchingBourse ? 'در حال جستجو...' : 'موردی با این مشخصات یافت نشد.'}
+                موردی با این مشخصات یافت نشد.
               </div>
             ) : (
-              filteredItems.slice(0, 30).map((item) => {
+              filteredItems.slice(0, 40).map((item) => {
                 const active = isItemActive(item);
                 return (
                   <div
@@ -797,29 +668,22 @@ export default function UniversalAssetSearch({
                     onClick={() => handleSelectItem(item)}
                   >
                     <div className="universal-result-info">
-                      <div className={`universal-result-icon ${item.category}`}>
+                      <div className={`universal-result-icon ${item.badgeClass || item.category}`}>
                         {getCategoryIcon(item.category)}
                       </div>
                       <div className="universal-result-text">
-                        <span className="universal-result-name">
-                          {item.name}
-                          {item.priceTypeLabel && item.priceTypeLabel !== item.name && (
-                            <span className="universal-type-tag">({item.priceTypeLabel})</span>
-                          )}
-                        </span>
+                        <span className="universal-result-name">{item.name}</span>
                         <div className="universal-result-sub">
-                          <span className={`universal-result-badge ${item.badgeClass || ''}`}>{item.badge}</span>
-                          <span>{item.subText}</span>
+                          <span className={`universal-result-badge ${item.badgeClass || item.category}`}>
+                            {item.badge}
+                          </span>
+                          {item.subText && <span>{item.subText}</span>}
                         </div>
                       </div>
                     </div>
 
                     <div className="universal-result-pricing">
-                      {item.isMultiFeed ? (
-                        <span className="universal-multi-count-tag">
-                          {item.itemCount !== undefined ? `${item.itemCount.toLocaleString('fa-IR')} قلم` : 'فید چند خروجی'}
-                        </span>
-                      ) : item.price > 0 ? (
+                      {item.price > 0 ? (
                         <>
                           <span className="universal-result-price">
                             {item.price % 1 !== 0
@@ -833,8 +697,7 @@ export default function UniversalAssetSearch({
                           {active ? <Check size={12} /> : 'انتخاب'}
                         </span>
                       )}
-                      {/* Trend is strictly only for single-output items with real price */}
-                      {!item.isMultiItem && !item.isMultiFeed && item.category !== 'multi_output' && item.type !== 'bourse' && item.category !== 'bourse' && item.category !== 'bourse_fund' && item.price > 0 && item.changePercent !== undefined && Number(item.changePercent) !== 0 && (
+                      {item.changePercent !== undefined && Number(item.changePercent) !== 0 && (
                         <span className={`universal-result-change ${Number(item.changePercent) > 0 ? 'positive' : 'negative'}`}>
                           {Number(item.changePercent) > 0 ? '+' : ''}{Number(item.changePercent).toFixed(2)}%
                         </span>
