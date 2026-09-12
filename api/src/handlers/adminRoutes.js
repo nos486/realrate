@@ -245,14 +245,29 @@ export async function handleAdminTestPriceSource(request, env) {
 
     if (testResult.success && body.id && testResult.price) {
       const nowIso = testResult.datetime || new Date().toISOString();
-      await dbUpdateSourceLastPrice(env, body.id, testResult.price, nowIso);
-      await dbRecordPriceHistory(env, {
-        sourceId: body.id,
-        priceType: body.price_type || body.priceType || 'usd_toman',
-        sourceName: body.name || '',
-        price: testResult.price,
-        timestamp: nowIso,
-      });
+      await dbUpdateSourceLastPrice(env, body.id, testResult.price, nowIso, testResult.multiData || null);
+
+      if (testResult.priceType === 'forex' && testResult.multiData) {
+        for (const [k, val] of Object.entries(testResult.multiData)) {
+          if (Number(val) > 0) {
+            await dbRecordPriceHistory(env, {
+              sourceId: body.id,
+              priceType: k.toLowerCase(),
+              sourceName: `${body.name || 'فارکس'} (${k.toUpperCase()})`,
+              price: val,
+              timestamp: nowIso,
+            });
+          }
+        }
+      } else {
+        await dbRecordPriceHistory(env, {
+          sourceId: body.id,
+          priceType: body.price_type || body.priceType || 'usd_toman',
+          sourceName: body.name || '',
+          price: testResult.price,
+          timestamp: nowIso,
+        });
+      }
       testResult.saved = true;
     }
 

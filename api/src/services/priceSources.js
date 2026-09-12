@@ -145,12 +145,21 @@ export function parseSourceContent(source, rawContent) {
       throw new Error("پاسخ وب‌سرویس JSON معتبر نیست.");
     }
 
-    // Multi-output handler: Unified Forex feed
+    let fieldMapping = null;
+    if (source.fieldMapping) {
+      try {
+        fieldMapping = typeof source.fieldMapping === "string" ? JSON.parse(source.fieldMapping) : source.fieldMapping;
+      } catch {}
+    } else if (source.field_mapping) {
+      try {
+        fieldMapping = typeof source.field_mapping === "string" ? JSON.parse(source.field_mapping) : source.field_mapping;
+      } catch {}
+    }
+
+    // Multi-output handler: Unified Forex feed (Dynamic Currencies)
     if (source.priceType === "forex") {
-      let ratesObj = null;
-      if (source.jsonPath) {
-        ratesObj = extractValueByPath(data, source.jsonPath);
-      }
+      const ratesPath = (fieldMapping && fieldMapping.ratesPath) || source.jsonPath || "rates";
+      let ratesObj = extractValueByPath(data, ratesPath);
       if (!ratesObj && data && typeof data.rates === "object") {
         ratesObj = data.rates;
       }
@@ -158,60 +167,130 @@ export function parseSourceContent(source, rawContent) {
         ratesObj = data;
       }
       if (!ratesObj || typeof ratesObj !== "object") {
-        throw new Error("بخش نرخ‌ها (rates) در پاسخ وب‌سرویس JSON یافت نشد.");
+        throw new Error(`بخش نرخ‌ها (مسیر «${ratesPath}») در پاسخ وب‌سرویس JSON یافت نشد.`);
       }
 
-      const forexKeys = ['eur', 'try', 'aed', 'gbp', 'chf', 'cad', 'aud', 'cny'];
+      // Read configured currencies from fieldMapping, or fallback to default 8 world currencies
+      const currencyConfigs = Array.isArray(fieldMapping?.currencies) && fieldMapping.currencies.length > 0
+        ? fieldMapping.currencies
+        : [
+            { key: 'eur', path: 'EUR', mode: 'invert', label: 'یورو اروپا' },
+            { key: 'try', path: 'TRY', mode: 'invert', label: 'لیر ترکیه' },
+            { key: 'aed', path: 'AED', mode: 'invert', label: 'درهم امارات' },
+            { key: 'gbp', path: 'GBP', mode: 'invert', label: 'پوند انگلیس' },
+            { key: 'chf', path: 'CHF', mode: 'invert', label: 'فرانک سوئیس' },
+            { key: 'cad', path: 'CAD', mode: 'invert', label: 'دلار کانادا' },
+            { key: 'aud', path: 'AUD', mode: 'invert', label: 'دلار استرالیا' },
+            { key: 'cny', path: 'CNY', mode: 'invert', label: 'یوان چین' },
+          ];
+
       const multiData = {};
-      for (const k of forexKeys) {
-        const uppercaseK = k.toUpperCase();
-        const rawRate = ratesObj[uppercaseK] !== undefined ? ratesObj[uppercaseK] : ratesObj[k];
-        if (rawRate !== undefined && Number(rawRate) > 0) {
-          multiData[k] = normalizeForexToUsdCrossRate(k, rawRate);
+      const currencyList = [];
+      for (const cfg of currencyConfigs) {
+        const key = String(cfg.key || cfg.code || '').trim().toLowerCase();
+        if (!key) continue;
+        const pathKey = cfg.path || key.toUpperCase();
+        const rawRate = extractValueByPath(ratesObj, pathKey) !== null
+          ? extractValueByPath(ratesObj, pathKey)
+          : (ratesObj[pathKey] !== undefined ? ratesObj[pathKey] : ratesObj[key]);
+
+        if (rawRate !== undefined && rawRate !== null && Number(rawRate) > 0) {
+          const numVal = Number(rawRate);
+          let usdRate;
+          if (cfg.mode === 'direct') {
+            usdRate = numVal;
+          } else if (cfg.mode === 'multiply' && Number(cfg.multiplier) > 0) {
+            usdRate = numVal * Number(cfg.multiplier);
+          } else if (cfg.mode === 'invert') {
+            usdRate = 1 / numVal;
+          } else {
+            usdRate = normalizeForexToUsdCrossRate(key, numVal);
+          }
+
+          const finalRate = parseFloat(usdRate.toFixed(5));
+          multiData[key] = finalRate;
+          currencyList.push({
+            key,
+            code: key.toUpperCase(),
+            label: cfg.label || key.toUpperCase(),
+            rawRate: numVal,
+            usdCrossRate: finalRate,
+          });
         }
       }
 
       const count = Object.keys(multiData).length;
       if (count === 0) {
-        throw new Error("هیچ‌کدام از ارزهای پشتیبانی‌شده فارکس (EUR, TRY, AED, ...) در پاسخ وب‌سرویس یافت نشد.");
+        throw new Error("هیچ‌کدام از ارزهای تعریف‌شده فارکس در پاسخ وب‌سرویس یافت نشد.");
       }
 
       return {
         price: count,
         multiData,
+        currencyList,
         datetime: nowIso,
         label: source.name || "نرخ‌های جهانی فارکس",
       };
     }
 
-    // Multi-output handler: Tehran Stock Exchange (BRS API)
+    // Multi-output handler: Tehran Stock Exchange (Dynamic Schema Mapping)
     if (source.priceType === "bourse") {
-      let rawArray = data;
+      const bMap = fieldMapping || {};
+      const arrayPath = bMap.arrayPath || "";
+      let rawArray = arrayPath ? extractValueByPath(data, arrayPath) : data;
       if (!Array.isArray(rawArray) && data && Array.isArray(data.symbols)) {
         rawArray = data.symbols;
+      } else if (!Array.isArray(rawArray) && data && Array.isArray(data.data)) {
+        rawArray = data.data;
+      } else if (!Array.isArray(rawArray) && data && Array.isArray(data.result)) {
+        rawArray = data.result;
       }
+
       if (!Array.isArray(rawArray) || rawArray.length === 0) {
-        throw new Error("داده‌های نمادهای بورس در پاسخ وب‌سرویس یافت نشد.");
+        throw new Error(`آرایه نمادهای بورس در مسیر «${arrayPath || 'ریشه'}» پاسخ وب‌سرویس یافت نشد.`);
       }
+
+      const symKey = bMap.symbolField || "l18";
+      const nameKey = bMap.nameField || "l30";
+      const priceKey = bMap.priceField || "pl";
+      const altPriceKey = bMap.altPriceField || "pc";
+      const changeKey = bMap.changeField || "plc";
+      const changePctKey = bMap.changePercentField || "plp";
+      const volumeKey = bMap.volumeField || "tno";
+      const isRial = bMap.priceUnit !== "toman"; // default is rial
 
       const compactList = [];
       for (const item of rawArray) {
-        const sym = (item.l18 || item.l18_formatted || "").trim();
+        if (!item || typeof item !== "object") continue;
+        const sym = (item[symKey] || item.l18 || item.symbol || item.ticker || item.l18_formatted || "").trim();
         if (!sym) continue;
-        const price = Number(item.pl) || Number(item.pc) || 0;
-        if (price <= 0) continue;
+
+        let rawPrice = Number(item[priceKey]);
+        if (!rawPrice || isNaN(rawPrice) || rawPrice <= 0) {
+          rawPrice = Number(item[altPriceKey]) || Number(item.pl) || Number(item.pc) || Number(item.lastPrice) || Number(item.price) || 0;
+        }
+        if (rawPrice <= 0) continue;
+
+        const priceInRials = isRial ? Math.round(rawPrice) : Math.round(rawPrice * 10);
+        const priceInTomans = Math.round(priceInRials / 10);
+
+        const c = Number(item[changeKey] !== undefined ? item[changeKey] : (item.plc !== undefined ? item.plc : 0)) || 0;
+        const cp = Number(item[changePctKey] !== undefined ? item[changePctKey] : (item.plp !== undefined ? item.plp : 0)) || 0;
+        const t = Number(item[volumeKey] !== undefined ? item[volumeKey] : (item.tno !== undefined ? item.tno : 0)) || 0;
+
         compactList.push({
           s: sym,
-          n: (item.l30 || item.title || sym).trim(),
-          p: price,
-          c: Number(item.plc) || 0,
-          cp: Number(item.plp) || 0,
-          t: Number(item.tno) || 0,
+          n: (item[nameKey] || item.l30 || item.name || item.title || item.company || sym).trim(),
+          p: priceInRials,
+          priceTomans: priceInTomans,
+          c,
+          cp,
+          t,
         });
       }
 
       if (compactList.length === 0) {
-        throw new Error("هیچ نماد معتبری در پاسخ بورس یافت نشد.");
+        throw new Error(`هیچ نماد معتبری با کلیدهای نماد (${symKey}) و قیمت (${priceKey}) در پاسخ یافت نشد.`);
       }
 
       compactList.sort((a, b) => b.t - a.t);
@@ -223,6 +302,7 @@ export function parseSourceContent(source, rawContent) {
           topSymbols: compactList.slice(0, 10).map(x => x.s),
         },
         compactList,
+        sampleSymbols: compactList.slice(0, 5),
         datetime: nowIso,
         label: source.name || "بورس اوراق بهادار تهران",
       };
@@ -245,6 +325,11 @@ export function parseSourceContent(source, rawContent) {
           ? `مقدار معتبری در مسیر «${source.jsonPath}» پاسخ JSON یافت نشد.`
           : "قیمت معتبری در پاسخ وب‌سرویس JSON یافت نشد."
       );
+    }
+
+    // Optional multiplier support (e.g. 0.1 for Rial to Toman conversion)
+    if (fieldMapping && Number(fieldMapping.multiplier) > 0) {
+      extractedVal = Number(extractedVal) * Number(fieldMapping.multiplier);
     }
 
     const isUsdAsset = source.priceType === "ons_gold" || source.priceType === "ons_silver";
@@ -337,6 +422,8 @@ export async function testPriceSourceConfig(config = {}) {
   const jsonPath = config.jsonPath || config.json_path || config.usd_api_json_path || "";
   const name = config.name || "سورس تست";
 
+  const fieldMapping = config.fieldMapping || config.field_mapping || null;
+
   if (!endpoint || !endpoint.trim()) {
     return {
       success: false,
@@ -347,7 +434,7 @@ export async function testPriceSourceConfig(config = {}) {
   try {
     const raw = await fetchRawEndpointContent(sourceType, endpoint.trim());
     const parsed = parseSourceContent(
-      { sourceType, priceType, endpoint: endpoint.trim(), regex, jsonPath, name },
+      { sourceType, priceType, endpoint: endpoint.trim(), regex, jsonPath, fieldMapping, name },
       raw
     );
 
@@ -355,9 +442,9 @@ export async function testPriceSourceConfig(config = {}) {
     let displayMsg = '';
     if (priceType === 'forex') {
       const keys = parsed.multiData ? Object.keys(parsed.multiData).map(k => k.toUpperCase()).join('، ') : '';
-      displayMsg = `سورس تجمیعی فارکس با موفقیت تست شد (${parsed.price} ارز با یک درخواست: ${keys})`;
+      displayMsg = `سورس تجمیعی فارکس با موفقیت تست شد (${parsed.price} ارز استخراج شد: ${keys})`;
     } else if (priceType === 'bourse') {
-      displayMsg = `اطلاعات نمادهای بورس با موفقیت تست شد (${parsed.price.toLocaleString("fa-IR")} نماد)`;
+      displayMsg = `اطلاعات نمادهای بورس با موفقیت تست شد (${parsed.price.toLocaleString("fa-IR")} نماد استخراج شد)`;
     } else if (isForex) {
       displayMsg = `نرخ برابری استخراج شد: ۱ واحد = ${parsed.price} دلار آمریکا`;
     } else if (priceType === 'ons_gold' || priceType === 'ons_silver') {
@@ -372,6 +459,8 @@ export async function testPriceSourceConfig(config = {}) {
       priceType,
       price: parsed.price,
       multiData: parsed.multiData || null,
+      sampleSymbols: parsed.sampleSymbols || null,
+      currencyList: parsed.currencyList || null,
       datetime: parsed.datetime,
       label: parsed.label,
       message: displayMsg,

@@ -27,14 +27,46 @@ export function normalizePersian(str) {
 
 /**
  * Fetch all symbols from BRS API, compact the payload, and store in KV.
- * Raw payload is ~1MB with 1,140+ objects.
- * Compact format reduces size to ~130KB.
+/**
+ * Get active Bourse source configuration from D1 (URL, field mappings, interval)
+ * @param {object} env
+ * @returns {Promise<object|null>}
+ */
+export async function getActiveBourseSource(env) {
+  if (!env || !env.DB) return null;
+  try {
+    const row = await env.DB.prepare(`
+      SELECT id, endpoint, field_mapping AS fieldMapping, fetch_interval_sec AS fetchIntervalSec
+      FROM price_sources
+      WHERE price_type = 'bourse' AND is_active = 1
+      ORDER BY is_primary DESC, updated_at DESC
+      LIMIT 1
+    `).first();
+    return row || null;
+  } catch (e) {
+    console.error("getActiveBourseSource error:", e);
+    return null;
+  }
+}
+
+/**
+ * Fetch all symbols from configured API URL, compact the payload with dynamic mapping, and store in KV.
  * @param {object} env
  * @returns {Promise<{ success: boolean, count: number, error?: string }>}
  */
 export async function fetchAndStoreBourseSymbols(env) {
   try {
-    const res = await fetch(BOURSE_API_URL, {
+    const bourseSrc = await getActiveBourseSource(env);
+    const targetUrl = bourseSrc?.endpoint || BOURSE_API_URL;
+
+    let fieldMapping = null;
+    if (bourseSrc?.fieldMapping) {
+      try {
+        fieldMapping = typeof bourseSrc.fieldMapping === "string" ? JSON.parse(bourseSrc.fieldMapping) : bourseSrc.fieldMapping;
+      } catch {}
+    }
+
+    const res = await fetch(targetUrl, {
       headers: {
         "User-Agent": "RealRateWorker/1.0",
         "Accept": "application/json",
@@ -42,40 +74,67 @@ export async function fetchAndStoreBourseSymbols(env) {
     });
 
     if (!res.ok) {
-      throw new Error(`BRS API returned status ${res.status}`);
+      throw new Error(`Bourse API returned status ${res.status} from ${targetUrl}`);
     }
 
-    const rawData = await res.json();
-    if (!Array.isArray(rawData) || rawData.length === 0) {
-      throw new Error("Invalid or empty response from BRS API");
+    const data = await res.json();
+    const arrayPath = fieldMapping?.arrayPath || "";
+    let rawArray = arrayPath ? (data?.[arrayPath] || null) : data;
+    if (!Array.isArray(rawArray) && data && Array.isArray(data.symbols)) {
+      rawArray = data.symbols;
+    } else if (!Array.isArray(rawArray) && data && Array.isArray(data.data)) {
+      rawArray = data.data;
+    } else if (!Array.isArray(rawArray) && data && Array.isArray(data.result)) {
+      rawArray = data.result;
     }
+
+    if (!Array.isArray(rawArray) || rawArray.length === 0) {
+      throw new Error("Invalid or empty response from Bourse API");
+    }
+
+    const symKey = fieldMapping?.symbolField || "l18";
+    const nameKey = fieldMapping?.nameField || "l30";
+    const priceKey = fieldMapping?.priceField || "pl";
+    const altPriceKey = fieldMapping?.altPriceField || "pc";
+    const changeKey = fieldMapping?.changeField || "plc";
+    const changePctKey = fieldMapping?.changePercentField || "plp";
+    const volumeKey = fieldMapping?.volumeField || "tno";
+    const isRial = fieldMapping?.priceUnit !== "toman";
 
     // Transform into compact structure
-    // s: Symbol name (l18), n: Company name (l30), p: Last price in Rials (pl/pc),
-    // c: Change (plc), cp: Change percent (plp), t: Trade volume/count
     const compactList = [];
-    for (const item of rawData) {
-      const sym = (item.l18 || item.l18_formatted || "").trim();
+    for (const item of rawArray) {
+      if (!item || typeof item !== "object") continue;
+      const sym = (item[symKey] || item.l18 || item.symbol || item.ticker || item.l18_formatted || "").trim();
       if (!sym) continue;
 
-      const price = Number(item.pl) || Number(item.pc) || 0;
-      if (price <= 0) continue;
+      let rawPrice = Number(item[priceKey]);
+      if (!rawPrice || isNaN(rawPrice) || rawPrice <= 0) {
+        rawPrice = Number(item[altPriceKey]) || Number(item.pl) || Number(item.pc) || Number(item.lastPrice) || Number(item.price) || 0;
+      }
+      if (rawPrice <= 0) continue;
+
+      const priceInRials = isRial ? Math.round(rawPrice) : Math.round(rawPrice * 10);
+
+      const c = Number(item[changeKey] !== undefined ? item[changeKey] : (item.plc !== undefined ? item.plc : 0)) || 0;
+      const cp = Number(item[changePctKey] !== undefined ? item[changePctKey] : (item.plp !== undefined ? item.plp : 0)) || 0;
+      const t = Number(item[volumeKey] !== undefined ? item[volumeKey] : (item.tno !== undefined ? item.tno : 0)) || 0;
 
       compactList.push({
         s: sym,
-        n: (item.l30 || item.title || sym).trim(),
-        p: price, // Price in Rials
-        c: Number(item.plc) || 0,
-        cp: Number(item.plp) || 0,
-        t: Number(item.tno) || 0,
+        n: (item[nameKey] || item.l30 || item.name || item.title || item.company || sym).trim(),
+        p: priceInRials, // Price in Rials for standard calculations
+        c,
+        cp,
+        t,
       });
     }
 
     if (compactList.length === 0) {
-      throw new Error("No valid symbols found after filtering");
+      throw new Error(`No valid symbols found after filtering with keys (symbol: ${symKey}, price: ${priceKey})`);
     }
 
-    // Sort by trade activity or alphabetically
+    // Sort by trade activity or volume
     compactList.sort((a, b) => b.t - a.t);
 
     const compactJson = JSON.stringify(compactList);
@@ -88,10 +147,11 @@ export async function fetchAndStoreBourseSymbols(env) {
     }
 
     const now = new Date().toISOString();
-    // Update D1 price source record for 'src_def_bourse'
+    const sourceId = bourseSrc?.id || 'src_def_bourse';
+    // Update D1 price source record
     await dbUpdateSourceLastPrice(
       env,
-      'src_def_bourse',
+      sourceId,
       compactList.length,
       now,
       {
@@ -226,21 +286,24 @@ export const BOURSE_LAST_SYNC_KEY = "bourse_symbols_last_sync";
 export async function handleScheduledBourseSync(env) {
   if (!env.REALRATE_KV) return false;
   try {
+    const bourseSrc = await getActiveBourseSource(env);
+    const intervalSec = (bourseSrc && bourseSrc.fetchIntervalSec > 0) ? bourseSrc.fetchIntervalSec : 86400;
+    const intervalMs = intervalSec * 1000;
+
     const lastSyncStr = await env.REALRATE_KV.get(BOURSE_LAST_SYNC_KEY);
     const lastSync = lastSyncStr ? parseInt(lastSyncStr, 10) : 0;
     const now = Date.now();
-    // 24 hours in ms
-    if (now - lastSync < 24 * 60 * 60 * 1000) {
+    if (now - lastSync < intervalMs) {
       return false;
     }
 
-    console.log("[Bourse] Daily sync triggered...");
+    console.log("[Bourse] Scheduled sync triggered...");
     const res = await fetchAndStoreBourseSymbols(env);
     if (res.success) {
       await env.REALRATE_KV.put(BOURSE_LAST_SYNC_KEY, String(now), {
-        expirationTtl: 86400 * 3,
+        expirationTtl: Math.max(intervalSec * 3, 86400 * 2),
       });
-      console.log(`[Bourse] Daily sync completed successfully (${res.count} symbols).`);
+      console.log(`[Bourse] Scheduled sync completed successfully (${res.count} symbols).`);
       return true;
     }
   } catch (err) {

@@ -138,6 +138,32 @@ const PRESET_REGEX_PATTERNS = {
   ],
 };
 
+const DEFAULT_BOURSE_MAPPING = {
+  arrayPath: '',
+  symbolField: 'l18',
+  nameField: 'l30',
+  priceField: 'pl',
+  altPriceField: 'pc',
+  changeField: 'plc',
+  changePercentField: 'plp',
+  volumeField: 'tno',
+  priceUnit: 'rial',
+};
+
+const DEFAULT_FOREX_MAPPING = {
+  ratesPath: 'rates',
+  currencies: [
+    { key: 'eur', path: 'EUR', mode: 'invert', label: 'یورو اروپا' },
+    { key: 'try', path: 'TRY', mode: 'invert', label: 'لیر ترکیه' },
+    { key: 'aed', path: 'AED', mode: 'invert', label: 'درهم امارات' },
+    { key: 'gbp', path: 'GBP', mode: 'invert', label: 'پوند انگلیس' },
+    { key: 'chf', path: 'CHF', mode: 'invert', label: 'فرانک سوئیس' },
+    { key: 'cad', path: 'CAD', mode: 'invert', label: 'دلار کانادا' },
+    { key: 'aud', path: 'AUD', mode: 'invert', label: 'دلار استرالیا' },
+    { key: 'cny', path: 'CNY', mode: 'invert', label: 'یوان چین' },
+  ],
+};
+
 const DEFAULT_SOURCE_FORM = {
   id: null,
   name: '',
@@ -146,6 +172,7 @@ const DEFAULT_SOURCE_FORM = {
   channelUsername: '',
   apiUrl: '',
   jsonPath: '',
+  fieldMapping: null,
   regexPattern: '',
   regexGroupIndex: 1,
   fetchIntervalMinutes: 5,
@@ -236,6 +263,11 @@ export default function PriceSourcesPage({ embedded = false, usdToman: propUsdTo
   const [modalTesting, setModalTesting] = useState(false);
   const [modalTestResult, setModalTestResult] = useState(null);
 
+  // Dynamic currency additions in modal for Forex
+  const [newCurCode, setNewCurCode] = useState('');
+  const [newCurLabel, setNewCurLabel] = useState('');
+  const [newCurMode, setNewCurMode] = useState('invert');
+
   // Row Testing State
   const [rowTestingId, setRowTestingId] = useState(null);
   const [rowTestResults, setRowTestResults] = useState({});
@@ -279,7 +311,7 @@ export default function PriceSourcesPage({ embedded = false, usdToman: propUsdTo
       const res = await apiGetPriceHistory({
         sourceId: targetSourceId,
         range,
-        limit: 300,
+        limit: range === '1m' ? 1000 : 300,
       });
       if (res.success && Array.isArray(res.history)) {
         setHistoryData(res.history);
@@ -287,26 +319,22 @@ export default function PriceSourcesPage({ embedded = false, usdToman: propUsdTo
         setHistoryData([]);
       }
     } catch (e) {
-      console.error('Error loading price history:', e);
+      console.error('Error loading price history for source:', e);
       setHistoryData([]);
     } finally {
       setLoadingHistory(false);
     }
   };
 
-  // Initial fetch
   useEffect(() => {
-    if (user?.role === 'admin') {
-      loadSources();
-    }
-  }, [user]);
+    loadSources();
+  }, []);
 
-  // Load history whenever selectedSourceId or chartRange changes
   useEffect(() => {
-    if (user?.role === 'admin' && selectedSourceId) {
+    if (selectedSourceId) {
       loadPriceHistory(selectedSourceId, chartRange);
     }
-  }, [user, selectedSourceId, chartRange]);
+  }, [selectedSourceId, chartRange]);
 
   // Active Selected Source Object
   const activeSelectedSource = useMemo(() => {
@@ -328,17 +356,13 @@ export default function PriceSourcesPage({ embedded = false, usdToman: propUsdTo
     try {
       const res = await apiFetchAllSourcesNow();
       if (res.success) {
-        showMsg(res.message || 'تمامی سورس‌ها با موفقیت فراخوانی و در دیتابیس ثبت شدند.', 'success');
-        if (Array.isArray(res.sources)) {
-          setSources(res.sources);
-        } else {
-          loadSources();
-        }
+        showMsg(`استخراج آنی انجام شد: ${res.extractedCount} سورس به‌روزرسانی شد.`, 'success');
+        await loadSources();
         if (selectedSourceId) {
-          loadPriceHistory(selectedSourceId, chartRange);
+          await loadPriceHistory(selectedSourceId, chartRange);
         }
       } else {
-        showMsg(res.message || 'خطا در فراخوانی سورس‌ها', 'error');
+        showMsg('خطا در استخراج سورس‌ها: ' + (res.message || 'نامشخص'), 'error');
       }
     } catch (err) {
       showMsg('خطا در ارتباط با سرور: ' + err.message, 'error');
@@ -350,18 +374,30 @@ export default function PriceSourcesPage({ embedded = false, usdToman: propUsdTo
   // Open Add Modal
   const handleOpenAddSource = (defaultType = 'usd') => {
     setEditingSourceId(null);
+    let initialMapping = null;
+    if (defaultType === 'bourse') initialMapping = DEFAULT_BOURSE_MAPPING;
+    if (defaultType === 'forex') initialMapping = DEFAULT_FOREX_MAPPING;
+
     setSourceForm({
       ...DEFAULT_SOURCE_FORM,
       priceType: defaultType,
-      regexPattern: PRESET_REGEX_PATTERNS[defaultType]?.[0]?.pattern || '([\\d,]+)\\s*فروش',
+      fieldMapping: initialMapping,
+      regexPattern: PRESET_REGEX_PATTERNS[defaultType]?.[0]?.pattern || (defaultType === 'forex' || defaultType === 'bourse' ? '' : '([\\d,]+)\\s*فروش'),
     });
     setModalTestResult(null);
+    setNewCurCode('');
+    setNewCurLabel('');
     setSourceModalOpen(true);
   };
 
   // Open Edit Modal
   const handleOpenEditSource = (src) => {
     setEditingSourceId(src.id);
+    let mapping = src.fieldMapping || null;
+    if (!mapping) {
+      if (src.priceType === 'bourse') mapping = DEFAULT_BOURSE_MAPPING;
+      if (src.priceType === 'forex') mapping = DEFAULT_FOREX_MAPPING;
+    }
     setSourceForm({
       id: src.id,
       name: src.name || '',
@@ -370,6 +406,7 @@ export default function PriceSourcesPage({ embedded = false, usdToman: propUsdTo
       channelUsername: src.channelUsername || (src.sourceType === 'telegram' ? src.endpoint : ''),
       apiUrl: src.apiUrl || (src.sourceType === 'api_url' ? src.endpoint : ''),
       jsonPath: src.jsonPath || '',
+      fieldMapping: mapping,
       regexPattern: src.regexPattern || src.regex || '',
       regexGroupIndex: src.regexGroupIndex || 1,
       fetchIntervalMinutes: src.fetchIntervalMinutes || Math.round((src.fetchIntervalSec || 300) / 60),
@@ -377,6 +414,8 @@ export default function PriceSourcesPage({ embedded = false, usdToman: propUsdTo
       isPrimary: Boolean(src.isPrimary),
     });
     setModalTestResult(null);
+    setNewCurCode('');
+    setNewCurLabel('');
     setSourceModalOpen(true);
   };
 
@@ -1045,7 +1084,292 @@ export default function PriceSourcesPage({ embedded = false, usdToman: propUsdTo
                   </div>
                 </div>
 
-                {sourceForm.sourceType === 'telegram' ? (
+                {sourceForm.priceType === 'bourse' ? (
+                  <>
+                    <div className="form-group">
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+                        <label style={{ margin: 0 }}>آدرس وب‌سرویس نمادهای بورس (API URL):</label>
+                        <button
+                          type="button"
+                          className="btn-text-action"
+                          style={{ fontSize: '11px', color: 'var(--accent-blue)', cursor: 'pointer', background: 'none', border: 'none' }}
+                          onClick={() => setSourceForm({ ...sourceForm, apiUrl: PRESET_REGEX_PATTERNS.bourse?.[0]?.apiUrl || '' })}
+                        >
+                          استفاده از وب‌سرویس پیش‌فرض BRS API
+                        </button>
+                      </div>
+                      <input
+                        type="url"
+                        required
+                        placeholder="https://api.example.com/Tsetmc/AllSymbols"
+                        value={sourceForm.apiUrl}
+                        onChange={(e) => setSourceForm({ ...sourceForm, apiUrl: e.target.value.trim() })}
+                        style={{ direction: 'ltr', textAlign: 'left' }}
+                      />
+                    </div>
+
+                    {/* Dynamic Bourse Schema Mapping */}
+                    <div className="dynamic-schema-card">
+                      <div className="dynamic-schema-header">
+                        <div className="dynamic-schema-title">
+                          <Sliders size={15} style={{ color: 'var(--accent-green)' }} />
+                          <span>نگاشت هوشمند فیلدهای بورس (Dynamic Schema Mapping)</span>
+                        </div>
+                        <span className="dynamic-schema-hint">
+                          در صورت تغییر ساختار پاسخ وب‌سرویس یا استفاده از لینک اختصاصی، نام فیلدها را در اینجا تطبیق دهید:
+                        </span>
+                      </div>
+
+                      <div className="form-group" style={{ marginBottom: '8px' }}>
+                        <label>مسیر آرایه نمادها در JSON (اختیاری):</label>
+                        <input
+                          type="text"
+                          placeholder="مثال: data.symbols یا خالی برای ریشه آرایه []"
+                          value={sourceForm.fieldMapping?.arrayPath || ''}
+                          onChange={(e) => setSourceForm({
+                            ...sourceForm,
+                            fieldMapping: { ...(sourceForm.fieldMapping || DEFAULT_BOURSE_MAPPING), arrayPath: e.target.value.trim() },
+                          })}
+                          style={{ direction: 'ltr', textAlign: 'left' }}
+                        />
+                      </div>
+
+                      <div className="dynamic-schema-grid">
+                        <div className="form-group">
+                          <label>فیلد شناسه / نماد سهم (Symbol Key):</label>
+                          <input
+                            type="text"
+                            required
+                            placeholder="l18 یا symbol"
+                            value={sourceForm.fieldMapping?.symbolField || 'l18'}
+                            onChange={(e) => setSourceForm({
+                              ...sourceForm,
+                              fieldMapping: { ...(sourceForm.fieldMapping || DEFAULT_BOURSE_MAPPING), symbolField: e.target.value.trim() },
+                            })}
+                            style={{ direction: 'ltr', textAlign: 'left', fontFamily: 'monospace' }}
+                          />
+                        </div>
+
+                        <div className="form-group">
+                          <label>فیلد نام کامل شرکت (Name Key):</label>
+                          <input
+                            type="text"
+                            placeholder="l30 یا title یا name"
+                            value={sourceForm.fieldMapping?.nameField || 'l30'}
+                            onChange={(e) => setSourceForm({
+                              ...sourceForm,
+                              fieldMapping: { ...(sourceForm.fieldMapping || DEFAULT_BOURSE_MAPPING), nameField: e.target.value.trim() },
+                            })}
+                            style={{ direction: 'ltr', textAlign: 'left', fontFamily: 'monospace' }}
+                          />
+                        </div>
+
+                        <div className="form-group">
+                          <label>فیلد قیمت آخرین معامله (Price Key):</label>
+                          <input
+                            type="text"
+                            required
+                            placeholder="pl یا lastPrice"
+                            value={sourceForm.fieldMapping?.priceField || 'pl'}
+                            onChange={(e) => setSourceForm({
+                              ...sourceForm,
+                              fieldMapping: { ...(sourceForm.fieldMapping || DEFAULT_BOURSE_MAPPING), priceField: e.target.value.trim() },
+                            })}
+                            style={{ direction: 'ltr', textAlign: 'left', fontFamily: 'monospace' }}
+                          />
+                        </div>
+
+                        <div className="form-group">
+                          <label>فیلد قیمت پایانی / جایگزین (Alt Price):</label>
+                          <input
+                            type="text"
+                            placeholder="pc یا closePrice"
+                            value={sourceForm.fieldMapping?.altPriceField || 'pc'}
+                            onChange={(e) => setSourceForm({
+                              ...sourceForm,
+                              fieldMapping: { ...(sourceForm.fieldMapping || DEFAULT_BOURSE_MAPPING), altPriceField: e.target.value.trim() },
+                            })}
+                            style={{ direction: 'ltr', textAlign: 'left', fontFamily: 'monospace' }}
+                          />
+                        </div>
+
+                        <div className="form-group">
+                          <label>فیلد درصد تغییرات (Change % Key):</label>
+                          <input
+                            type="text"
+                            placeholder="plp یا percent"
+                            value={sourceForm.fieldMapping?.changePercentField || 'plp'}
+                            onChange={(e) => setSourceForm({
+                              ...sourceForm,
+                              fieldMapping: { ...(sourceForm.fieldMapping || DEFAULT_BOURSE_MAPPING), changePercentField: e.target.value.trim() },
+                            })}
+                            style={{ direction: 'ltr', textAlign: 'left', fontFamily: 'monospace' }}
+                          />
+                        </div>
+
+                        <div className="form-group">
+                          <label>فیلد تعداد / حجم معاملات (Volume Key):</label>
+                          <input
+                            type="text"
+                            placeholder="tno یا volume"
+                            value={sourceForm.fieldMapping?.volumeField || 'tno'}
+                            onChange={(e) => setSourceForm({
+                              ...sourceForm,
+                              fieldMapping: { ...(sourceForm.fieldMapping || DEFAULT_BOURSE_MAPPING), volumeField: e.target.value.trim() },
+                            })}
+                            style={{ direction: 'ltr', textAlign: 'left', fontFamily: 'monospace' }}
+                          />
+                        </div>
+                      </div>
+
+                      <div className="form-group" style={{ marginTop: '8px' }}>
+                        <label>واحد عددی قیمت در وب‌سرویس:</label>
+                        <select
+                          value={sourceForm.fieldMapping?.priceUnit || 'rial'}
+                          onChange={(e) => setSourceForm({
+                            ...sourceForm,
+                            fieldMapping: { ...(sourceForm.fieldMapping || DEFAULT_BOURSE_MAPPING), priceUnit: e.target.value },
+                          })}
+                        >
+                          <option value="rial">ریال ایران (محاسبه و تبدیل خودکار به تومان با تقسیم بر ۱۰)</option>
+                          <option value="toman">تومان (مستقیم، بدون تقسیم بر ۱۰)</option>
+                        </select>
+                      </div>
+                    </div>
+                  </>
+                ) : sourceForm.priceType === 'forex' ? (
+                  <>
+                    <div className="form-group">
+                      <label>آدرس URL وب‌سرویس نرخ‌های فارکس (API URL):</label>
+                      <input
+                        type="url"
+                        required
+                        placeholder="https://open.er-api.com/v6/latest/USD"
+                        value={sourceForm.apiUrl}
+                        onChange={(e) => setSourceForm({ ...sourceForm, apiUrl: e.target.value.trim() })}
+                        style={{ direction: 'ltr', textAlign: 'left' }}
+                      />
+                    </div>
+
+                    {/* Dynamic Forex Currencies Manager */}
+                    <div className="dynamic-schema-card">
+                      <div className="dynamic-schema-header">
+                        <div className="dynamic-schema-title">
+                          <Globe size={15} style={{ color: 'var(--accent-blue)' }} />
+                          <span>مدیریت ارزهای تجمیعی فارکس (Dynamic Currencies)</span>
+                        </div>
+                        <span className="dynamic-schema-hint">
+                          می‌توانید هر ارز دلخواهی (JPY، KWD، RUB و ...) را به لیست اضافه کرده تا به‌طور خودکار استخراج شود:
+                        </span>
+                      </div>
+
+                      <div className="form-group" style={{ marginBottom: '10px' }}>
+                        <label>مسیر شیء نرخ‌ها در پاسخ JSON (Rates Path):</label>
+                        <input
+                          type="text"
+                          placeholder="rates"
+                          value={sourceForm.fieldMapping?.ratesPath || sourceForm.jsonPath || 'rates'}
+                          onChange={(e) => {
+                            const val = e.target.value.trim();
+                            setSourceForm({
+                              ...sourceForm,
+                              jsonPath: val,
+                              fieldMapping: { ...(sourceForm.fieldMapping || DEFAULT_FOREX_MAPPING), ratesPath: val },
+                            });
+                          }}
+                          style={{ direction: 'ltr', textAlign: 'left', fontFamily: 'monospace' }}
+                        />
+                      </div>
+
+                      <div className="forex-currencies-list">
+                        {(sourceForm.fieldMapping?.currencies || DEFAULT_FOREX_MAPPING.currencies).map((cur) => (
+                          <div key={cur.key} className="forex-cur-chip">
+                            <span className="cur-code">{cur.key.toUpperCase()}</span>
+                            <span className="cur-label">{cur.label || cur.key.toUpperCase()}</span>
+                            <span className="cur-mode-tag">
+                              {cur.mode === 'direct' ? 'مستقیم' : (cur.mode === 'multiply' ? `×${cur.multiplier}` : 'معکوس ۱/x')}
+                            </span>
+                            <button
+                              type="button"
+                              className="cur-remove-btn"
+                              title="حذف این ارز"
+                              onClick={() => {
+                                const list = (sourceForm.fieldMapping?.currencies || DEFAULT_FOREX_MAPPING.currencies)
+                                  .filter((c) => c.key.toLowerCase() !== cur.key.toLowerCase());
+                                setSourceForm({
+                                  ...sourceForm,
+                                  fieldMapping: { ...(sourceForm.fieldMapping || DEFAULT_FOREX_MAPPING), currencies: list },
+                                });
+                              }}
+                            >
+                              <X size={12} />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+
+                      <div className="forex-add-currency-box">
+                        <span className="add-box-title">افزودن ارز جدید به سورس فارکس:</span>
+                        <div className="forex-add-currency-row">
+                          <input
+                            type="text"
+                            placeholder="کد ارز (مثلاً JPY یا KWD)"
+                            value={newCurCode}
+                            onChange={(e) => setNewCurCode(e.target.value.toUpperCase().trim())}
+                            style={{ direction: 'ltr', textAlign: 'center', width: '120px', fontFamily: 'monospace' }}
+                          />
+                          <input
+                            type="text"
+                            placeholder="عنوان فارسی (مثلاً ین ژاپن)"
+                            value={newCurLabel}
+                            onChange={(e) => setNewCurLabel(e.target.value)}
+                            style={{ flex: 1 }}
+                          />
+                          <select
+                            value={newCurMode}
+                            onChange={(e) => setNewCurMode(e.target.value)}
+                            style={{ width: '165px' }}
+                          >
+                            <option value="invert">معکوس (۱ / نرخ در API)</option>
+                            <option value="direct">مستقیم (نرخ در API)</option>
+                          </select>
+                          <button
+                            type="button"
+                            className="btn-add-cur"
+                            disabled={!newCurCode.trim()}
+                            onClick={() => {
+                              const code = newCurCode.trim().toLowerCase();
+                              if (!code) return;
+                              const currentList = sourceForm.fieldMapping?.currencies || DEFAULT_FOREX_MAPPING.currencies;
+                              if (currentList.some((c) => c.key.toLowerCase() === code)) {
+                                alert('این ارز قبلاً در لیست وجود دارد.');
+                                return;
+                              }
+                              const updated = [
+                                ...currentList,
+                                {
+                                  key: code,
+                                  path: code.toUpperCase(),
+                                  mode: newCurMode,
+                                  label: newCurLabel.trim() || code.toUpperCase(),
+                                },
+                              ];
+                              setSourceForm({
+                                ...sourceForm,
+                                fieldMapping: { ...(sourceForm.fieldMapping || DEFAULT_FOREX_MAPPING), currencies: updated },
+                              });
+                              setNewCurCode('');
+                              setNewCurLabel('');
+                            }}
+                          >
+                            <Plus size={14} />
+                            <span>افزودن</span>
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </>
+                ) : sourceForm.sourceType === 'telegram' ? (
                   <div className="form-group">
                     <label>نام کاربری یا آیدی کانال تلگرام:</label>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '4px', direction: 'ltr' }}>
@@ -1092,56 +1416,77 @@ export default function PriceSourcesPage({ embedded = false, usdToman: propUsdTo
                   </>
                 )}
 
-                {/* Regex Configuration */}
-                <div className="form-group">
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
-                    <label style={{ margin: 0 }}>الگوی رجکس (Regex Pattern):</label>
-                    <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>فلگ چندخطی <code>ims</code></span>
-                  </div>
-                  <input
-                    type="text"
-                    placeholder="مثال: ([\d,]+)\s*فروش"
-                    value={sourceForm.regexPattern}
-                    onChange={(e) => setSourceForm({ ...sourceForm, regexPattern: e.target.value })}
-                    style={{ direction: 'ltr', textAlign: 'left', fontFamily: 'monospace' }}
-                  />
+                {/* Regex & Multiplier Configuration (For non-bourse/forex sources) */}
+                {sourceForm.priceType !== 'bourse' && sourceForm.priceType !== 'forex' && (
+                  <>
+                    <div className="form-group">
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+                        <label style={{ margin: 0 }}>الگوی رجکس (Regex Pattern):</label>
+                        <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>فلگ چندخطی <code>ims</code></span>
+                      </div>
+                      <input
+                        type="text"
+                        placeholder="مثال: ([\d,]+)\s*فروش"
+                        value={sourceForm.regexPattern}
+                        onChange={(e) => setSourceForm({ ...sourceForm, regexPattern: e.target.value })}
+                        style={{ direction: 'ltr', textAlign: 'left', fontFamily: 'monospace' }}
+                      />
 
-                  {PRESET_REGEX_PATTERNS[sourceForm.priceType] && (
-                    <div className="regex-presets-box">
-                      <span className="regex-preset-title">
-                        <Sparkles size={11} style={{ color: 'var(--accent-amber)' }} />
-                        الگوهای آماده برای {PRICE_TYPE_INFO[sourceForm.priceType]?.label}:
-                      </span>
-                      <div className="regex-chips-list">
-                        {PRESET_REGEX_PATTERNS[sourceForm.priceType].map((preset, idx) => (
-                          <button
-                            key={idx}
-                            type="button"
-                            className="regex-preset-chip"
-                            onClick={() => setSourceForm({ ...sourceForm, regexPattern: preset.pattern })}
-                          >
-                            <span>{preset.label}</span>
-                            <code>{preset.pattern}</code>
-                          </button>
-                        ))}
+                      {PRESET_REGEX_PATTERNS[sourceForm.priceType] && (
+                        <div className="regex-presets-box">
+                          <span className="regex-preset-title">
+                            <Sparkles size={11} style={{ color: 'var(--accent-amber)' }} />
+                            الگوهای آماده برای {PRICE_TYPE_INFO[sourceForm.priceType]?.label}:
+                          </span>
+                          <div className="regex-chips-list">
+                            {PRESET_REGEX_PATTERNS[sourceForm.priceType].map((preset, idx) => (
+                              <button
+                                key={idx}
+                                type="button"
+                                className="regex-preset-chip"
+                                onClick={() => setSourceForm({ ...sourceForm, regexPattern: preset.pattern })}
+                              >
+                                <span>{preset.label}</span>
+                                <code>{preset.pattern}</code>
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="form-row-2">
+                      <div className="form-group">
+                        <label>گروه استخراج رجکس:</label>
+                        <input
+                          type="number"
+                          min="1"
+                          max="9"
+                          value={sourceForm.regexGroupIndex}
+                          onChange={(e) => setSourceForm({ ...sourceForm, regexGroupIndex: e.target.value })}
+                          style={{ direction: 'ltr', textAlign: 'center' }}
+                        />
+                      </div>
+
+                      <div className="form-group">
+                        <label>ضریب تبدیل ریاضی (اختیاری):</label>
+                        <input
+                          type="number"
+                          step="any"
+                          placeholder="مثلاً ۰.۱ برای ریال به تومان"
+                          value={sourceForm.fieldMapping?.multiplier !== undefined ? sourceForm.fieldMapping.multiplier : ''}
+                          onChange={(e) => setSourceForm({
+                            ...sourceForm,
+                            fieldMapping: { ...(sourceForm.fieldMapping || {}), multiplier: e.target.value ? Number(e.target.value) : '' },
+                          })}
+                          style={{ direction: 'ltr', textAlign: 'center' }}
+                        />
                       </div>
                     </div>
-                  )}
-                </div>
+                  </>
+                )}
 
                 <div className="form-row-2">
-                  <div className="form-group">
-                    <label>گروه استخراج رجکس:</label>
-                    <input
-                      type="number"
-                      min="1"
-                      max="9"
-                      value={sourceForm.regexGroupIndex}
-                      onChange={(e) => setSourceForm({ ...sourceForm, regexGroupIndex: e.target.value })}
-                      style={{ direction: 'ltr', textAlign: 'center' }}
-                    />
-                  </div>
-
                   <div className="form-group">
                     <label>بازه استخراج خودکار (دقیقه):</label>
                     <input
@@ -1153,26 +1498,28 @@ export default function PriceSourcesPage({ embedded = false, usdToman: propUsdTo
                       style={{ direction: 'ltr', textAlign: 'center' }}
                     />
                   </div>
-                </div>
 
-                <div className="form-row-2" style={{ margin: '8px 0' }}>
-                  <label className="admin-checkbox-label">
-                    <input
-                      type="checkbox"
-                      checked={sourceForm.isActive}
-                      onChange={(e) => setSourceForm({ ...sourceForm, isActive: e.target.checked })}
-                    />
-                    <span>سورس فعال باشد</span>
-                  </label>
+                  <div className="form-group" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                      <label className="admin-checkbox-label">
+                        <input
+                          type="checkbox"
+                          checked={sourceForm.isActive}
+                          onChange={(e) => setSourceForm({ ...sourceForm, isActive: e.target.checked })}
+                        />
+                        <span>سورس فعال باشد</span>
+                      </label>
 
-                  <label className="admin-checkbox-label">
-                    <input
-                      type="checkbox"
-                      checked={sourceForm.isPrimary}
-                      onChange={(e) => setSourceForm({ ...sourceForm, isPrimary: e.target.checked })}
-                    />
-                    <span>به عنوان سورس مرجع این نرخ تنظیم شود</span>
-                  </label>
+                      <label className="admin-checkbox-label">
+                        <input
+                          type="checkbox"
+                          checked={sourceForm.isPrimary}
+                          onChange={(e) => setSourceForm({ ...sourceForm, isPrimary: e.target.checked })}
+                        />
+                        <span>به عنوان سورس مرجع این نرخ تنظیم شود</span>
+                      </label>
+                    </div>
+                  </div>
                 </div>
 
                 {/* Modal Test Area */}
@@ -1182,10 +1529,10 @@ export default function PriceSourcesPage({ embedded = false, usdToman: propUsdTo
                     onClick={handleTestModalSource}
                     disabled={modalTesting}
                     className="btn-sm site-link"
-                    style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '6px 14px' }}
+                    style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '7px 16px' }}
                   >
                     <PlayCircle size={14} className={modalTesting ? 'spin-anim' : ''} />
-                    <span>{modalTesting ? 'در حال برقراری ارتباط...' : 'تست اتصال و استخراج قبل از ذخیره'}</span>
+                    <span>{modalTesting ? 'در حال برقراری ارتباط و پردازش الگو...' : 'تست اتصال و استخراج قبل از ذخیره'}</span>
                   </button>
 
                   {modalTestResult && (
@@ -1198,6 +1545,62 @@ export default function PriceSourcesPage({ embedded = false, usdToman: propUsdTo
                               {modalTestResult.message || `قیمت استخراج شده: ${formatNum(modalTestResult.price, sourceForm.priceType)} ${getPriceUnit(sourceForm.priceType)}`}
                             </strong>
                           </div>
+
+                          {/* Bourse sample symbols live preview */}
+                          {modalTestResult.sampleSymbols && modalTestResult.sampleSymbols.length > 0 && (
+                            <div className="test-sample-bourse-box">
+                              <div className="test-sample-title">
+                                <Sparkles size={13} style={{ color: 'var(--accent-green)' }} />
+                                <span>نمونه ۵ نماد استخراج‌شده با نگاشت فیلدهای فوق:</span>
+                              </div>
+                              <div className="test-sample-table-wrapper">
+                                <table className="test-sample-table">
+                                  <thead>
+                                    <tr>
+                                      <th>نماد</th>
+                                      <th>نام شرکت</th>
+                                      <th>قیمت (تومان)</th>
+                                      <th>تغییر</th>
+                                    </tr>
+                                  </thead>
+                                  <tbody>
+                                    {modalTestResult.sampleSymbols.map((item, idx) => (
+                                      <tr key={idx}>
+                                        <td><strong>{item.s}</strong></td>
+                                        <td>{item.n}</td>
+                                        <td style={{ color: 'var(--accent-green)' }}>
+                                          {Number(item.priceTomans || Math.round(item.p / 10)).toLocaleString('fa-IR')}
+                                        </td>
+                                        <td style={{ color: item.cp > 0 ? 'var(--accent-green)' : (item.cp < 0 ? 'var(--accent-rose)' : 'var(--text-muted)') }}>
+                                          {item.cp > 0 ? '+' : ''}{Number(item.cp).toFixed(2)}%
+                                        </td>
+                                      </tr>
+                                    ))}
+                                  </tbody>
+                                </table>
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Forex currencies live preview */}
+                          {modalTestResult.currencyList && modalTestResult.currencyList.length > 0 && (
+                            <div className="test-sample-forex-box">
+                              <div className="test-sample-title">
+                                <Sparkles size={13} style={{ color: 'var(--accent-blue)' }} />
+                                <span>ارزهای استخراج‌شده با نرخ برابری دلار:</span>
+                              </div>
+                              <div className="test-currency-chips-grid">
+                                {modalTestResult.currencyList.map((c, idx) => (
+                                  <div key={idx} className="test-currency-badge">
+                                    <span className="code">{c.code}</span>
+                                    <span className="label">{c.label}</span>
+                                    <span className="rate">${c.usdCrossRate}</span>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+
                           {modalTestResult.post_text && (
                             <div className="sample-snippet-box">
                               <pre>{modalTestResult.post_text.substring(0, 180)}...</pre>

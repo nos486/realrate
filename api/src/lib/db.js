@@ -99,10 +99,12 @@ export async function ensureD1Tables(env) {
       endpoint TEXT NOT NULL,
       regex TEXT DEFAULT '',
       json_path TEXT DEFAULT '',
+      field_mapping TEXT DEFAULT '',
       fetch_interval_sec INTEGER DEFAULT 60,
       is_active INTEGER DEFAULT 1,
       is_primary INTEGER DEFAULT 0,
       last_price REAL DEFAULT 0,
+      last_multi_data TEXT DEFAULT '',
       last_fetched TEXT DEFAULT '',
       created_at TEXT NOT NULL,
       updated_at TEXT NOT NULL
@@ -190,6 +192,11 @@ export async function ensureD1Tables(env) {
       await env.DB.prepare("ALTER TABLE price_sources ADD COLUMN last_multi_data TEXT DEFAULT ''").run();
     } catch (ignore) {}
 
+    // Backward-compat: ensure field_mapping column exists on price_sources for dynamic schemas
+    try {
+      await env.DB.prepare("ALTER TABLE price_sources ADD COLUMN field_mapping TEXT DEFAULT ''").run();
+    } catch (ignore) {}
+
     // Seed default price sources if table is empty or ensure core sources exist
     try {
       const nowIso = new Date().toISOString();
@@ -210,17 +217,55 @@ export async function ensureD1Tables(env) {
         cny: 0.1393,
       });
 
+      const defaultForexFieldMapping = JSON.stringify({
+        ratesPath: 'rates',
+        currencies: [
+          { key: 'eur', path: 'EUR', mode: 'invert', label: 'یورو اروپا' },
+          { key: 'try', path: 'TRY', mode: 'invert', label: 'لیر ترکیه' },
+          { key: 'aed', path: 'AED', mode: 'invert', label: 'درهم امارات' },
+          { key: 'gbp', path: 'GBP', mode: 'invert', label: 'پوند انگلیس' },
+          { key: 'chf', path: 'CHF', mode: 'invert', label: 'فرانک سوئیس' },
+          { key: 'cad', path: 'CAD', mode: 'invert', label: 'دلار کانادا' },
+          { key: 'aud', path: 'AUD', mode: 'invert', label: 'دلار استرالیا' },
+          { key: 'cny', path: 'CNY', mode: 'invert', label: 'یوان چین' },
+        ],
+      });
+
+      const defaultBourseFieldMapping = JSON.stringify({
+        arrayPath: '',
+        symbolField: 'l18',
+        nameField: 'l30',
+        priceField: 'pl',
+        altPriceField: 'pc',
+        changeField: 'plc',
+        changePercentField: 'plp',
+        volumeField: 'tno',
+        priceUnit: 'rial',
+      });
+
       // Ensure unified Forex source exists
       await env.DB.prepare(`
-        INSERT OR IGNORE INTO price_sources (id, name, price_type, source_type, endpoint, regex, json_path, fetch_interval_sec, is_active, is_primary, last_price, last_multi_data, last_fetched, created_at, updated_at)
-        VALUES ('src_def_forex', 'نرخ‌های جهانی فارکس (Open ER-API)', 'forex', 'api_url', 'https://open.er-api.com/v6/latest/USD', '', 'rates', 300, 1, 1, 8, ?, '', ?, ?)
-      `).bind(defaultForexJson, nowIso, nowIso).run().catch(() => {});
+        INSERT OR IGNORE INTO price_sources (id, name, price_type, source_type, endpoint, regex, json_path, field_mapping, fetch_interval_sec, is_active, is_primary, last_price, last_multi_data, last_fetched, created_at, updated_at)
+        VALUES ('src_def_forex', 'نرخ‌های جهانی فارکس (Open ER-API)', 'forex', 'api_url', 'https://open.er-api.com/v6/latest/USD', '', 'rates', ?, 300, 1, 1, 8, ?, '', ?, ?)
+      `).bind(defaultForexFieldMapping, defaultForexJson, nowIso, nowIso).run().catch(() => {});
+
+      await env.DB.prepare(`
+        UPDATE price_sources
+        SET field_mapping = ?
+        WHERE id = 'src_def_forex' AND (field_mapping IS NULL OR field_mapping = '')
+      `).bind(defaultForexFieldMapping).run().catch(() => {});
 
       // Ensure Tehran Stock Exchange (Bourse) source exists (Daily interval = 86400s)
       await env.DB.prepare(`
-        INSERT OR IGNORE INTO price_sources (id, name, price_type, source_type, endpoint, regex, json_path, fetch_interval_sec, is_active, is_primary, last_price, last_multi_data, last_fetched, created_at, updated_at)
-        VALUES ('src_def_bourse', 'بورس اوراق بهادار تهران (TSETMC / BRS API)', 'bourse', 'api_url', 'https://api.brsapi.ir/Tsetmc/AllSymbols.php?key=BDqzgcZZ5rGg4Z6uSEs9bMyx2E2vXrkd&type=1', '', '', 86400, 1, 1, 1140, '', '', ?, ?)
-      `).bind(nowIso, nowIso).run().catch(() => {});
+        INSERT OR IGNORE INTO price_sources (id, name, price_type, source_type, endpoint, regex, json_path, field_mapping, fetch_interval_sec, is_active, is_primary, last_price, last_multi_data, last_fetched, created_at, updated_at)
+        VALUES ('src_def_bourse', 'بورس اوراق بهادار تهران (TSETMC / BRS API)', 'bourse', 'api_url', 'https://api.brsapi.ir/Tsetmc/AllSymbols.php?key=BDqzgcZZ5rGg4Z6uSEs9bMyx2E2vXrkd&type=1', '', '', ?, 86400, 1, 1, 1140, '', '', ?, ?)
+      `).bind(defaultBourseFieldMapping, nowIso, nowIso).run().catch(() => {});
+
+      await env.DB.prepare(`
+        UPDATE price_sources
+        SET field_mapping = ?
+        WHERE id = 'src_def_bourse' AND (field_mapping IS NULL OR field_mapping = '')
+      `).bind(defaultBourseFieldMapping).run().catch(() => {});
 
       const existingSources = await env.DB.prepare("SELECT COUNT(*) AS total FROM price_sources").first();
       if (!existingSources || existingSources.total <= 2) {
@@ -1095,7 +1140,7 @@ export async function dbGetPriceSources(env) {
     try {
       const { results } = await env.DB.prepare(`
         SELECT id, name, price_type AS priceType, source_type AS sourceType,
-               endpoint, regex, json_path AS jsonPath,
+               endpoint, regex, json_path AS jsonPath, field_mapping AS fieldMapping,
                fetch_interval_sec AS fetchIntervalSec,
                is_active AS isActive, is_primary AS isPrimary,
                last_price AS lastPrice, last_multi_data AS lastMultiData,
@@ -1106,13 +1151,22 @@ export async function dbGetPriceSources(env) {
       `).all();
 
       if (Array.isArray(results) && results.length > 0) {
-        const mapped = results.map(row => ({
-          ...row,
-          channelUsername: row.sourceType === "telegram" ? row.endpoint : "",
-          apiUrl: row.sourceType === "api_url" ? row.endpoint : "",
-          regexPattern: row.regex || "",
-          fetchIntervalMinutes: Math.round((row.fetchIntervalSec || 300) / 60),
-        }));
+        const mapped = results.map(row => {
+          let parsedFieldMapping = null;
+          if (row.fieldMapping) {
+            try {
+              parsedFieldMapping = typeof row.fieldMapping === 'string' ? JSON.parse(row.fieldMapping) : row.fieldMapping;
+            } catch {}
+          }
+          return {
+            ...row,
+            fieldMapping: parsedFieldMapping || row.fieldMapping || null,
+            channelUsername: row.sourceType === "telegram" ? row.endpoint : "",
+            apiUrl: row.sourceType === "api_url" ? row.endpoint : "",
+            regexPattern: row.regex || "",
+            fetchIntervalMinutes: Math.round((row.fetchIntervalSec || 300) / 60),
+          };
+        });
 
         return mapped;
       }
@@ -1137,7 +1191,7 @@ export async function dbGetPriceSourceById(env, id) {
     try {
       const row = await env.DB.prepare(`
         SELECT id, name, price_type AS priceType, source_type AS sourceType,
-               endpoint, regex, json_path AS jsonPath,
+               endpoint, regex, json_path AS jsonPath, field_mapping AS fieldMapping,
                fetch_interval_sec AS fetchIntervalSec,
                is_active AS isActive, is_primary AS isPrimary,
                last_price AS lastPrice, last_multi_data AS lastMultiData,
@@ -1147,8 +1201,15 @@ export async function dbGetPriceSourceById(env, id) {
         WHERE id = ?
       `).bind(id).first();
       if (!row) return null;
+      let parsedFieldMapping = null;
+      if (row.fieldMapping) {
+        try {
+          parsedFieldMapping = typeof row.fieldMapping === 'string' ? JSON.parse(row.fieldMapping) : row.fieldMapping;
+        } catch {}
+      }
       return {
         ...row,
+        fieldMapping: parsedFieldMapping || row.fieldMapping || null,
         channelUsername: row.sourceType === "telegram" ? row.endpoint : "",
         apiUrl: row.sourceType === "api_url" ? row.endpoint : "",
         regexPattern: row.regex || "",
@@ -1181,6 +1242,9 @@ export async function dbSavePriceSource(env, data) {
   const sourceType = data.sourceType === "api_url" ? "api_url" : "telegram";
   const regex = String(data.regex || data.regexPattern || "").trim();
   const jsonPath = String(data.jsonPath || data.json_path || "").trim();
+  const fieldMapping = data.fieldMapping !== undefined
+    ? (typeof data.fieldMapping === 'object' ? JSON.stringify(data.fieldMapping) : String(data.fieldMapping))
+    : (data.field_mapping !== undefined ? (typeof data.field_mapping === 'object' ? JSON.stringify(data.field_mapping) : String(data.field_mapping)) : '');
   const fetchIntervalSec = parseInt(data.fetchIntervalSec, 10) > 0
     ? parseInt(data.fetchIntervalSec, 10)
     : (parseInt(data.fetchIntervalMinutes, 10) > 0 ? parseInt(data.fetchIntervalMinutes, 10) * 60 : 300);
@@ -1212,11 +1276,11 @@ export async function dbSavePriceSource(env, data) {
 
     await env.DB.prepare(`
       INSERT INTO price_sources (
-        id, name, price_type, source_type, endpoint, regex, json_path,
+        id, name, price_type, source_type, endpoint, regex, json_path, field_mapping,
         fetch_interval_sec, is_active, is_primary, last_price, last_multi_data, last_fetched,
         created_at, updated_at
       )
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       ON CONFLICT(id) DO UPDATE SET
         name = excluded.name,
         price_type = excluded.price_type,
@@ -1224,6 +1288,7 @@ export async function dbSavePriceSource(env, data) {
         endpoint = excluded.endpoint,
         regex = excluded.regex,
         json_path = excluded.json_path,
+        field_mapping = excluded.field_mapping,
         fetch_interval_sec = excluded.fetch_interval_sec,
         is_active = excluded.is_active,
         is_primary = excluded.is_primary,
@@ -1237,6 +1302,7 @@ export async function dbSavePriceSource(env, data) {
       endpoint,
       regex,
       jsonPath,
+      fieldMapping,
       fetchIntervalSec,
       isActive,
       isPrimary,

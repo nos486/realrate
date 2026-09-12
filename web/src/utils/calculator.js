@@ -3,6 +3,42 @@
  * Zero latency, 100% synchronous in-memory calculation
  */
 
+// Rich metadata dictionary for world currencies
+export const CURRENCY_METADATA_MAP = {
+  USD: { name: 'دلار آمریکا', flag: '🇺🇸', symbol: '$' },
+  EUR: { name: 'یورو اروپا', flag: '🇪🇺', symbol: '€' },
+  TRY: { name: 'لیر ترکیه', flag: '🇹🇷', symbol: '₺' },
+  AED: { name: 'درهم امارات', flag: '🇦🇪', symbol: 'د.إ' },
+  GBP: { name: 'پوند انگلیس', flag: '🇬🇧', symbol: '£' },
+  CHF: { name: 'فرانک سوئیس', flag: '🇨🇭', symbol: 'CHF' },
+  CAD: { name: 'دلار کانادا', flag: '🇨🇦', symbol: 'C$' },
+  AUD: { name: 'دلار استرالیا', flag: '🇦🇺', symbol: 'A$' },
+  CNY: { name: 'یوان چین', flag: '🇨🇳', symbol: '¥' },
+  JPY: { name: 'ین ژاپن', flag: '🇯🇵', symbol: '¥' },
+  KWD: { name: 'دینار کویت', flag: '🇰🇼', symbol: 'د.ك' },
+  SAR: { name: 'ریال عربستان', flag: '🇸🇦', symbol: 'ر.س' },
+  QAR: { name: 'ریال قطر', flag: '🇶🇦', symbol: 'ر.ق' },
+  OMR: { name: 'ریال عمان', flag: '🇴🇲', symbol: 'ر.ع' },
+  BHD: { name: 'دینار بحرین', flag: '🇧🇭', symbol: 'د.ب' },
+  RUB: { name: 'روبل روسیه', flag: '🇷🇺', symbol: '₽' },
+  INR: { name: 'روپیه هند', flag: '🇮🇳', symbol: '₹' },
+  PKR: { name: 'روپیه پاکستان', flag: '🇵🇰', symbol: '₨' },
+  IQD: { name: 'دینار عراق', flag: '🇮🇶', symbol: 'د.ع' },
+  AFN: { name: 'افغانی افغانستان', flag: '🇦🇫', symbol: '؋' },
+  SEK: { name: 'کرون سوئد', flag: '🇸🇪', symbol: 'kr' },
+  NOK: { name: 'کرون نروژ', flag: '🇳🇴', symbol: 'kr' },
+  DKK: { name: 'کرون دانمارک', flag: '🇩🇰', symbol: 'kr' },
+  SGD: { name: 'دلار سنگاپور', flag: '🇸🇬', symbol: 'S$' },
+  HKD: { name: 'دلار هنگ کنگ', flag: '🇭🇰', symbol: 'HK$' },
+  KRW: { name: 'وون کره جنوبی', flag: '🇰🇷', symbol: '₩' },
+  THB: { name: 'بات تایلند', flag: '🇹🇭', symbol: '฿' },
+  MYR: { name: 'رینگیت مالزی', flag: '🇲🇾', symbol: 'RM' },
+  NZD: { name: 'دلار نیوزیلند', flag: '🇳🇿', symbol: 'NZ$' },
+  BRL: { name: 'رئال برزیل', flag: '🇧🇷', symbol: 'R$' },
+  ZAR: { name: 'رند آفریقای جنوبی', flag: '🇿🇦', symbol: 'R' },
+  USDT: { name: 'تتر (USDT)', flag: '🪙', symbol: '₮' },
+};
+
 /**
  * Perform all financial, gold, coin bubble, and currency conversions on the client
  * @param {object} params
@@ -98,21 +134,12 @@ export function calculateMarketData({
     };
   }
 
-  // 2. Currencies sourced ONLY from active sources in marketPrices / forex
-  const KNOWN_CURRENCY_SOURCES = [
-    { code: 'EUR', priceType: 'eur', name: 'یورو اروپا', flag: '🇪🇺', symbol: '€' },
-    { code: 'TRY', priceType: 'try', name: 'لیر ترکیه', flag: '🇹🇷', symbol: '₺' },
-    { code: 'AED', priceType: 'aed', name: 'درهم امارات', flag: '🇦🇪', symbol: 'د.إ' },
-    { code: 'GBP', priceType: 'gbp', name: 'پوند انگلیس', flag: '🇬🇧', symbol: '£' },
-    { code: 'CHF', priceType: 'chf', name: 'فرانک سوئیس', flag: '🇨🇭', symbol: 'CHF' },
-    { code: 'CAD', priceType: 'cad', name: 'دلار کانادا', flag: '🇨🇦', symbol: 'C$' },
-    { code: 'AUD', priceType: 'aud', name: 'دلار استرالیا', flag: '🇦🇺', symbol: 'A$' },
-    { code: 'CNY', priceType: 'cny', name: 'یوان چین', flag: '🇨🇳', symbol: '¥' },
-  ];
-
+  // 2. Currencies sourced dynamically from active sources in marketPrices / forex
+  const seenCodes = new Set(['USD']);
   const currencies = [
     {
       code: 'USD',
+      priceType: 'usd',
       name: 'دلار آمریکا',
       flag: '🇺🇸',
       symbol: '$',
@@ -122,25 +149,63 @@ export function calculateMarketData({
     },
   ];
 
-  KNOWN_CURRENCY_SOURCES.forEach((cfg) => {
-    // Only include if present in sources (marketPrices) or forex compiled from sources
-    const srcData = marketPrices?.[cfg.priceType];
-    const rawCross = srcData?.price || forex?.[cfg.code] || null;
+  // Collect candidate currency keys dynamically from marketPrices and forex
+  const candidateKeys = new Set();
+  if (forex && typeof forex === 'object') {
+    Object.keys(forex).forEach(k => candidateKeys.add(k.toUpperCase()));
+  }
+  if (marketPrices && typeof marketPrices === 'object') {
+    const nonCurrencyKeys = new Set([
+      'usd', 'gold_18k', 'full_coin', 'half_coin', 'quarter_coin',
+      'mesghal', 'ons_gold', 'ons_silver', 'bourse', 'forex'
+    ]);
+    Object.keys(marketPrices).forEach(k => {
+      if (!nonCurrencyKeys.has(k.toLowerCase())) {
+        candidateKeys.add(k.toUpperCase());
+      }
+    });
+  }
+
+  // Standard priority order for common currencies display
+  const PRIORITY_ORDER = ['EUR', 'TRY', 'AED', 'GBP', 'CHF', 'CAD', 'AUD', 'CNY', 'JPY', 'KWD', 'SAR', 'QAR'];
+  const sortedCandidateKeys = Array.from(candidateKeys).sort((a, b) => {
+    const idxA = PRIORITY_ORDER.indexOf(a);
+    const idxB = PRIORITY_ORDER.indexOf(b);
+    if (idxA !== -1 && idxB !== -1) return idxA - idxB;
+    if (idxA !== -1) return -1;
+    if (idxB !== -1) return 1;
+    return a.localeCompare(b);
+  });
+
+  sortedCandidateKeys.forEach((code) => {
+    if (code === 'USD' || seenCodes.has(code)) return;
+    const lowerKey = code.toLowerCase();
+    const srcData = marketPrices?.[lowerKey] || marketPrices?.[code];
+    const rawCross = srcData?.price || forex?.[code] || forex?.[lowerKey] || null;
 
     if (rawCross && Number(rawCross) > 0) {
+      seenCodes.add(code);
       const crossRate = Number(rawCross);
       const tomanPrice = Math.round(crossRate * usd_toman);
+      const meta = CURRENCY_METADATA_MAP[code] || {
+        name: srcData?.label ? srcData.label.replace(/\(.*\)/, '').trim() : `${code}`,
+        flag: '🌐',
+        symbol: code,
+      };
+
+      const note = crossRate > 1
+        ? `۱ ${meta.name.split(' ')[0]} = ${crossRate.toFixed(4)} دلار`
+        : `۱ دلار = ${(1 / crossRate).toFixed(2)} ${meta.name.split(' ')[0]}`;
+
       currencies.push({
-        code: cfg.code,
-        priceType: cfg.priceType,
-        name: cfg.name,
-        flag: cfg.flag,
-        symbol: cfg.symbol,
+        code,
+        priceType: lowerKey,
+        name: meta.name,
+        flag: meta.flag,
+        symbol: meta.symbol,
         usd_cross_rate: parseFloat(crossRate.toFixed(4)),
         toman_price: tomanPrice,
-        note: (cfg.code === 'EUR' || cfg.code === 'GBP' || cfg.code === 'CHF')
-          ? `۱ ${cfg.name.split(' ')[0]} = ${crossRate.toFixed(4)} دلار`
-          : `۱ دلار = ${(1 / crossRate).toFixed(2)} ${cfg.name.split(' ')[0]}`,
+        note,
         sourceLabel: srcData?.label,
         sourceId: srcData?.sourceId,
       });

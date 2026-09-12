@@ -131,10 +131,12 @@ CREATE TABLE IF NOT EXISTS price_sources (
   endpoint TEXT NOT NULL,
   regex TEXT DEFAULT '',
   json_path TEXT DEFAULT '',
+  field_mapping TEXT DEFAULT '',
   fetch_interval_sec INTEGER DEFAULT 60,
   is_active INTEGER DEFAULT 1,
   is_primary INTEGER DEFAULT 0,
   last_price REAL DEFAULT 0,
+  last_multi_data TEXT DEFAULT '',
   last_fetched TEXT DEFAULT '',
   created_at TEXT NOT NULL,
   updated_at TEXT NOT NULL
