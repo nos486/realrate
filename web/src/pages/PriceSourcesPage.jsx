@@ -14,7 +14,6 @@ import {
   Code,
   X,
   Sliders,
-  LineChart,
   Activity,
   Layers,
   Send,
@@ -51,12 +50,10 @@ import {
   apiTestPriceSource,
   apiInspectApiSource,
   apiFetchAllSourcesNow,
-  apiGetPriceHistory,
   apiGetSourceTypes,
   apiSaveSourceType,
   apiDeleteSourceType,
 } from '../api/client.js';
-import PriceHistoryChart from '../components/PriceHistoryChart.jsx';
 import UniversalAssetSearch, { extractMultiItems, getPriceTypeLabel, calculateUsdCrossRate } from '../components/UniversalAssetSearch.jsx';
 import DerivedAssetsPage from './DerivedAssetsPage.jsx';
 
@@ -181,7 +178,6 @@ export default function PriceSourcesPage({ embedded = false, usdToman: propUsdTo
   const usdToman = propUsdToman !== undefined ? propUsdToman : marketData.usdToman;
   const gold18kPrice = propGold18kPrice !== undefined ? propGold18kPrice : marketData.gold18kPrice;
   const navigate = useNavigate();
-  const chartSectionRef = useRef(null);
 
   const renderLayout = (content) => {
     if (embedded) return <div className="embedded-sources-view" style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '24px' }}>{content}</div>;
@@ -259,12 +255,6 @@ export default function PriceSourcesPage({ embedded = false, usdToman: propUsdTo
   const [explorerLoading, setExplorerLoading] = useState(false);
   const [explorerItems, setExplorerItems] = useState([]);
 
-  // Dedicated Source Selection for History Chart (Separate per source)
-  const [selectedSourceId, setSelectedSourceId] = useState('');
-  const [chartRange, setChartRange] = useState('24h');
-  const [historyData, setHistoryData] = useState([]);
-  const [loadingHistory, setLoadingHistory] = useState(false);
-
   // Modal State
   const [sourceModalOpen, setSourceModalOpen] = useState(false);
   const [editingSourceId, setEditingSourceId] = useState(null);
@@ -308,15 +298,6 @@ export default function PriceSourcesPage({ embedded = false, usdToman: propUsdTo
       const res = await apiGetPriceSources();
       if (res.success && Array.isArray(res.sources)) {
         setSources(res.sources);
-        // If no source is selected yet, select the first single-output source
-        if (!selectedSourceId && res.sources.length > 0) {
-          const firstSingle = res.sources.find((s) => !isSourceMultiOutput(s, PRICE_TYPE_INFO));
-          if (firstSingle) {
-            setSelectedSourceId(firstSingle.id);
-          } else {
-            setSelectedSourceId(res.sources[0].id);
-          }
-        }
       }
     } catch (e) {
       console.error('Error loading price sources:', e);
@@ -326,47 +307,10 @@ export default function PriceSourcesPage({ embedded = false, usdToman: propUsdTo
     }
   };
 
-  // Load History for the selected source strictly (only single-output sources)
-  const loadPriceHistory = async (targetSourceId = selectedSourceId, range = chartRange) => {
-    if (!targetSourceId) {
-      setHistoryData([]);
-      return;
-    }
-    const targetSource = sources.find((s) => s.id === targetSourceId);
-    if (targetSource && isSourceMultiOutput(targetSource, PRICE_TYPE_INFO)) {
-      setHistoryData([]);
-      return;
-    }
-    setLoadingHistory(true);
-    try {
-      const res = await apiGetPriceHistory({
-        sourceId: targetSourceId,
-        range,
-        limit: range === '1m' ? 1000 : 300,
-      });
-      if (res.success && Array.isArray(res.history)) {
-        setHistoryData(res.history);
-      } else {
-        setHistoryData([]);
-      }
-    } catch (e) {
-      console.error('Error loading price history for source:', e);
-      setHistoryData([]);
-    } finally {
-      setLoadingHistory(false);
-    }
-  };
-
   useEffect(() => {
     loadSourceTypes();
     loadSources();
   }, []);
-
-  useEffect(() => {
-    if (selectedSourceId) {
-      loadPriceHistory(selectedSourceId, chartRange);
-    }
-  }, [selectedSourceId, chartRange]);
 
   // Partition sources into Single-Rate Base Sources vs Multi-Output Feeds
   const singleSources = useMemo(() => {
@@ -377,21 +321,6 @@ export default function PriceSourcesPage({ embedded = false, usdToman: propUsdTo
     return sources.filter((s) => isSourceMultiOutput(s, PRICE_TYPE_INFO));
   }, [sources, PRICE_TYPE_INFO]);
 
-  // Active Selected Source Object (strictly single-output source for chart/metrics)
-  const activeSelectedSource = useMemo(() => {
-    return singleSources.find((s) => s.id === selectedSourceId) || singleSources[0] || null;
-  }, [singleSources, selectedSourceId]);
-
-  // Price type info filtered strictly for single-output sources
-  const singlePriceTypeInfo = useMemo(() => {
-    const map = {};
-    for (const [key, info] of Object.entries(PRICE_TYPE_INFO)) {
-      if (info?.category !== 'multi_output' && key !== 'bourse' && key !== 'bourse_fund' && key !== 'forex') {
-        map[key] = info;
-      }
-    }
-    return map;
-  }, [PRICE_TYPE_INFO]);
 
   // Dynamic filter options for Base Rates Table
   const dynamicFilterOptions = useMemo(() => {
@@ -441,9 +370,6 @@ export default function PriceSourcesPage({ embedded = false, usdToman: propUsdTo
       if (res.success) {
         showMsg(`استخراج آنی انجام شد: ${res.extractedCount} سورس به‌روزرسانی شد.`, 'success');
         await loadSources();
-        if (selectedSourceId) {
-          await loadPriceHistory(selectedSourceId, chartRange);
-        }
       } else {
         showMsg('خطا در استخراج سورس‌ها: ' + (res.message || 'نامشخص'), 'error');
       }
@@ -957,9 +883,6 @@ export default function PriceSourcesPage({ embedded = false, usdToman: propUsdTo
         showMsg(res.message || 'سورس با موفقیت ذخیره شد.', 'success');
         setSourceModalOpen(false);
         await loadSources();
-        if (res.source?.id) {
-          setSelectedSourceId(res.source.id);
-        }
         // Auto-register custom type if not yet in source_types
         if (sourceForm.priceType && !sourceTypes.some(st => st.id === sourceForm.priceType)) {
           apiSaveSourceType({
@@ -1073,10 +996,6 @@ export default function PriceSourcesPage({ embedded = false, usdToman: propUsdTo
         );
 
         showMsg(`قیمت سورس «${src.name}» با موفقیت استخراج و ذخیره شد: ${formatNum(res.price, src.priceType)} ${getPriceUnit(src.priceType)}`, 'success');
-
-        if (selectedSourceId === src.id) {
-          loadPriceHistory(src.id, chartRange);
-        }
       } else if (!res.success) {
         showMsg(`خطا در استخراج قیمت سورس «${src.name}»: ${res.error || 'قیمت استخراج نشد'}`, 'error');
       }
@@ -1088,19 +1007,6 @@ export default function PriceSourcesPage({ embedded = false, usdToman: propUsdTo
       showMsg('خطا در تست سورس: ' + err.message, 'error');
     } finally {
       setRowTestingId(null);
-    }
-  };
-
-  // Select Source for Dedicated Chart (strictly single-output)
-  const handleSelectSourceForChart = (src) => {
-    if (isSourceMultiOutput(src, PRICE_TYPE_INFO)) {
-      handleOpenExplorer(src);
-      showMsg(`نمودار و تاریخچه قیمت فقط برای سورس‌های تک‌خروجی فعال است. کاوشگر داده‌های ${src.name} باز شد.`, 'info');
-      return;
-    }
-    setSelectedSourceId(src.id);
-    if (chartSectionRef.current) {
-      chartSectionRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
   };
 
@@ -1400,11 +1306,10 @@ export default function PriceSourcesPage({ embedded = false, usdToman: propUsdTo
                     const typeInfo = PRICE_TYPE_INFO[src.priceType] || { label: src.priceType, badgeColor: 'blue' };
                     const isRowTesting = rowTestingId === src.id;
                     const rowResult = rowTestResults[src.id];
-                    const isSelectedInChart = src.id === selectedSourceId;
 
                     return (
                       <React.Fragment key={src.id}>
-                        <tr className={isSelectedInChart ? 'active-chart-row' : ''}>
+                        <tr>
                           <td>
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
                               <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
@@ -1584,14 +1489,6 @@ export default function PriceSourcesPage({ embedded = false, usdToman: propUsdTo
                               </button>
                               <button
                                 type="button"
-                                onClick={() => handleSelectSourceForChart(src)}
-                                className="action-icon-btn chart-btn"
-                                title="مشاهده نمودار اختصاصی این سورس"
-                              >
-                                <LineChart size={15} />
-                              </button>
-                              <button
-                                type="button"
                                 onClick={() => handleOpenEditSource(src)}
                                 className="action-icon-btn edit-btn"
                                 title="ویرایش تنظیمات سورس"
@@ -1628,7 +1525,7 @@ export default function PriceSourcesPage({ embedded = false, usdToman: propUsdTo
                                     <CheckCircle2 size={14} />
                                     <span>
                                       {rowResult.message || (
-                                        <>قیمت با موفقیت استخراج و در تاریخچه اختصاصی ثبت شد: <strong>{formatNum(rowResult.price, src.priceType)} {getPriceUnit(src.priceType)}</strong></>
+                                        <>قیمت با موفقیت استخراج و ذخیره شد: <strong>{formatNum(rowResult.price, src.priceType)} {getPriceUnit(src.priceType)}</strong></>
                                       )}
                                     </span>
                                   </div>
@@ -1664,86 +1561,6 @@ export default function PriceSourcesPage({ embedded = false, usdToman: propUsdTo
           </div>
         </section>
 
-        {/* ── SECTION 2: Universal Data Explorer & Dedicated Analytical Chart (Moved to bottom) ───────── */}
-        <section ref={chartSectionRef} className="sources-chart-section" style={{ marginTop: '28px' }}>
-          <div className="chart-explorer-card" style={{ background: 'var(--card-bg)', border: '1px solid var(--border-color)', borderRadius: '16px', padding: '18px 20px' }}>
-            <UniversalAssetSearch
-              mode="explorer"
-              sources={sources}
-              priceTypeInfo={PRICE_TYPE_INFO}
-              selectedAsset={activeSelectedSource}
-              selectedAssetId={selectedSourceId}
-              title="کاوشگر و تحلیل اختصاصی تمامی دارایی‌ها و سورس‌ها"
-              subtitle="امکان جستجو و کاوش در تمامی سورس‌ها و رسم نمودار تحلیلی برای سورس‌های تک‌خروجی"
-              onSelect={(item) => {
-                const isMulti = item.isMultiItem || item.isMultiFeed || item.category === 'multi_output' || item.type === 'bourse' || item.category === 'bourse' || item.category === 'bourse_fund';
-                if (isMulti) {
-                  const parentFeed = multiSources.find((s) => s.id === item.sourceId || s.priceType === 'bourse' || s.priceType === 'bourse_fund' || isSourceMultiOutput(s, PRICE_TYPE_INFO));
-                  if (parentFeed) {
-                    handleOpenExplorer(parentFeed);
-                    showMsg(`نمودار و تاریخچه قیمت فقط برای سورس‌های تک‌خروجی فعال است. کاوشگر داده‌های ${parentFeed.name} باز شد.`, 'info');
-                  } else {
-                    showMsg('نمودار و تاریخچه قیمت فقط برای سورس‌های تک‌خروجی در دسترس است.', 'info');
-                  }
-                  return;
-                }
-
-                if (item.type === 'source' || item.sourceId) {
-                  const targetId = item.sourceId || item.id;
-                  const targetSrc = sources.find((s) => s.id === targetId);
-                  if (targetSrc && !isSourceMultiOutput(targetSrc, PRICE_TYPE_INFO)) {
-                    setSelectedSourceId(targetId);
-                    loadPriceHistory(targetId, chartRange);
-                  }
-                } else {
-                  const matched = singleSources.find((s) => s.priceType === item.id || s.id === item.id);
-                  if (matched) {
-                    setSelectedSourceId(matched.id);
-                    loadPriceHistory(matched.id, chartRange);
-                  }
-                }
-                if (chartSectionRef.current) {
-                  chartSectionRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                }
-              }}
-            />
-          </div>
-
-          {/* Interactive Chart for the active source (strictly single-output) */}
-          {activeSelectedSource && !isSourceMultiOutput(activeSelectedSource, PRICE_TYPE_INFO) ? (
-            <PriceHistoryChart
-              history={historyData}
-              loading={loadingHistory}
-              title={`نمودار تحلیلی اختصاصی: ${activeSelectedSource.name}`}
-              subtitle={`${PRICE_TYPE_INFO[activeSelectedSource.priceType]?.label || ''} — پروتکل: ${
-                activeSelectedSource.sourceType === 'telegram'
-                  ? `@${activeSelectedSource.channelUsername || activeSelectedSource.endpoint}`
-                  : 'وب‌سرویس API'
-              } ${activeSelectedSource.isPrimary ? '(سورس مرجع)' : ''}`}
-              range={chartRange}
-              onRangeChange={setChartRange}
-              onRefresh={() => loadPriceHistory(activeSelectedSource.id, chartRange)}
-              sources={singleSources}
-              selectedSourceId={selectedSourceId}
-              onSelectSource={(id) => {
-                const target = singleSources.find((s) => s.id === id);
-                if (target) setSelectedSourceId(id);
-              }}
-              selectedPriceType={activeSelectedSource.priceType}
-              onSelectPriceType={(t) => {
-                const firstOfType = singleSources.find((s) => s.priceType === t);
-                if (firstOfType) setSelectedSourceId(firstOfType.id);
-              }}
-              priceTypeInfo={singlePriceTypeInfo}
-            />
-          ) : (
-            <div className="chart-empty-state" style={{ background: 'var(--card-bg)', borderRadius: '16px', padding: '40px' }}>
-              <Activity size={32} style={{ color: 'var(--text-muted)', marginBottom: '8px' }} />
-              <p>نمودار و تاریخچه قیمت فقط برای سورس‌های تک‌خروجی در دسترس است.</p>
-              <span>برای مشاهده نمودار اختصاصی، یک سورس تک‌نرخی را از جدول بالا انتخاب کنید.</span>
-            </div>
-          )}
-        </section>
         </>
       ) : activeTabSection === 'derived' ? (
         <DerivedAssetsPage embedded />

@@ -6,7 +6,7 @@
 import { getLatestMarketRates } from "../services/priceSources.js";
 import { getGlobalSettings } from "../lib/settings.js";
 import { jsonResponse } from "../lib/helpers.js";
-import { dbGet24hSparklines, dbGetHistoricalBenchmarks, dbGetDerivedAssets } from "../lib/db.js";
+import { dbGetHistoricalBenchmarks, dbGetDerivedAssets } from "../lib/db.js";
 
 /**
  * GET /api/prices
@@ -81,39 +81,7 @@ export async function handleGetDerivedAssets(env, request = null) {
  * Cached in Cloudflare KV for 3 minutes for blazing-fast edge performance.
  */
 export async function handleGetSparklines(env, request = null) {
-  try {
-    let targetAsset = null;
-    if (request && request.url) {
-      try {
-        const url = new URL(request.url);
-        targetAsset = url.searchParams.get("asset") || url.searchParams.get("priceType") || null;
-      } catch (ignore) {}
-    }
-
-    const cacheKey = targetAsset ? `sparklines_24h_${targetAsset}` : "sparklines_24h";
-
-    if (env?.REALRATE_KV) {
-      try {
-        const cached = await env.REALRATE_KV.get(cacheKey, "json");
-        if (cached && typeof cached === "object") {
-          return jsonResponse({ success: true, sparklines: cached, cached: true }, 200, request);
-        }
-      } catch (cacheErr) {
-        console.warn("[Sparklines] KV read error:", cacheErr.message);
-      }
-    }
-
-    const sparklines = await dbGet24hSparklines(env, targetAsset);
-
-    if (env?.REALRATE_KV && sparklines) {
-      env.REALRATE_KV.put(cacheKey, JSON.stringify(sparklines), { expirationTtl: 180 }).catch(() => {});
-    }
-
-    return jsonResponse({ success: true, sparklines, cached: false }, 200, request);
-  } catch (err) {
-    console.error("[Sparklines] Error:", err);
-    return jsonResponse({ success: false, error: err.message }, 500, request);
-  }
+  return jsonResponse({ success: true, sparklines: {} }, 200, request);
 }
 
 /**

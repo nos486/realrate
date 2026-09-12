@@ -7,7 +7,6 @@
 import {
   dbGetPriceSources,
   dbUpdateSourceLastPrice,
-  dbRecordPriceHistory,
 } from "../lib/db.js";
 import { getGlobalSettings } from "../lib/settings.js";
 import {
@@ -1028,36 +1027,10 @@ export async function handleScheduledPriceExtraction(env, forceAll = false) {
             dbUpdateSourceLastPrice(env, src.id, parsed.price, parsed.datetime, parsed.multiData || null)
           );
 
-          // If multi forex data, record individual currency histories
-          if (src.priceType === "forex" && parsed.multiData) {
-            for (const [k, val] of Object.entries(parsed.multiData)) {
-              if (Number(val) > 0) {
-                updates.push(
-                  dbRecordPriceHistory(env, {
-                    sourceId: src.id,
-                    priceType: k.toLowerCase(),
-                    sourceName: `${src.name} (${k.toUpperCase()})`,
-                    price: val,
-                    timestamp: parsed.datetime,
-                  })
-                );
-              }
-            }
-          } else if ((src.priceType === "bourse" || src.priceType === "bourse_fund") && env.REALRATE_KV) {
-            // Synchronize unified bourse symbols & funds in KV
+          // Synchronize unified bourse symbols & funds in KV if needed
+          if ((src.priceType === "bourse" || src.priceType === "bourse_fund") && env.REALRATE_KV) {
             updates.push(
               fetchAndStoreBourseSymbols(env).catch(() => { })
-            );
-          } else {
-            // Standard single asset history
-            updates.push(
-              dbRecordPriceHistory(env, {
-                sourceId: src.id,
-                priceType: src.priceType,
-                sourceName: src.name,
-                price: parsed.price,
-                timestamp: parsed.datetime,
-              })
             );
           }
 

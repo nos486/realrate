@@ -56,7 +56,7 @@ export default function AnalysisCards({ analysis, recommendation, onCardClick })
                   onCardClick(item);
                 }
               }}
-              title="کلیک برای مشاهده مشخصات کامل و نمودار ۲۴ ساعته"
+              title={onCardClick ? "کلیک برای مشاهده مشخصات" : undefined}
             >
               <div className="card-top-row">
                 <div className="card-identity">

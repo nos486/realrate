@@ -1684,269 +1684,27 @@ export async function dbUpdateSourceLastPrice(env, id, lastPrice, lastFetched = 
 
 /**
  * Record a price snapshot to price_history table
- * Deduplication: only insert if price changed from last recorded price for this source,
- * or if more than 30 minutes have elapsed since last entry.
- * @param {object} env
- * @param {object} entry - { sourceId, priceType, sourceName, price, timestamp }
+ * Disabled: Price and graph history tracking removed to optimize performance and eliminate DB queries.
  */
-export async function dbRecordPriceHistory(env, { sourceId, priceType, sourceName, price, timestamp }) {
-  if (!env || !env.DB || !sourceId || !price || Number(price) <= 0) return;
-  await ensureD1Tables(env);
-
-  const timeIso = timestamp || new Date().toISOString();
-  const now = new Date().toISOString();
-  const numPrice = Number(price);
-
-  try {
-    // Check the latest recorded price for this source
-    const lastRecord = await env.DB.prepare(`
-      SELECT price, timestamp FROM price_history
-      WHERE source_id = ?
-      ORDER BY timestamp DESC
-      LIMIT 1
-    `).bind(sourceId).first();
-
-    let shouldInsert = false;
-    if (!lastRecord) {
-      shouldInsert = true;
-    } else if (Math.round(lastRecord.price) !== Math.round(numPrice)) {
-      shouldInsert = true;
-    } else {
-      // Check if more than 30 minutes passed
-      const diffMs = new Date(timeIso).getTime() - new Date(lastRecord.timestamp).getTime();
-      if (diffMs > 30 * 60 * 1000) {
-        shouldInsert = true;
-      }
-    }
-
-    if (shouldInsert) {
-      await env.DB.prepare(`
-        INSERT INTO price_history (source_id, price_type, source_name, price, timestamp, created_at)
-        VALUES (?, ?, ?, ?, ?, ?)
-      `).bind(sourceId, priceType, sourceName || '', numPrice, timeIso, now).run();
-    }
-  } catch (e) {
-    console.error("D1 dbRecordPriceHistory error:", e);
-  }
+export async function dbRecordPriceHistory(env, entry = {}) {
+  // Graph history tracking removed to keep application lightweight and reduce queries
+  return;
 }
 
 /**
  * Get historical price records for graphing and analytics
- * @param {object} env
- * @param {object} options - { sourceId, priceType, range = '24h', limit = 200 }
- * @returns {Promise<Array>}
+ * Disabled: Graph history tracking removed.
  */
-export async function dbGetPriceHistory(env, { sourceId = null, priceType = null, range = '24h', limit = 200 } = {}) {
-  if (!env || !env.DB) return [];
-  await ensureD1Tables(env);
-
-  try {
-    let whereClauses = [];
-    let bindings = [];
-
-    if (sourceId) {
-      whereClauses.push("source_id = ?");
-      bindings.push(sourceId);
-    }
-
-    if (priceType) {
-      whereClauses.push("price_type = ?");
-      bindings.push(priceType);
-    }
-
-    // Time range filter
-    if (range && range !== 'all') {
-      const nowMs = Date.now();
-      let sinceMs = nowMs - 24 * 3600 * 1000; // default 24h
-      if (range === '7d') sinceMs = nowMs - 7 * 24 * 3600 * 1000;
-      else if (range === '30d') sinceMs = nowMs - 30 * 24 * 3600 * 1000;
-      else if (range === '1y') sinceMs = nowMs - 365 * 24 * 3600 * 1000;
-
-      const sinceIso = new Date(sinceMs).toISOString();
-      whereClauses.push("timestamp >= ?");
-      bindings.push(sinceIso);
-    }
-
-    const whereStr = whereClauses.length > 0 ? `WHERE ${whereClauses.join(" AND ")}` : "";
-    const parsedLimit = Math.min(Math.max(parseInt(limit, 10) || 100, 10), 500);
-
-    const query = `
-      SELECT id, source_id AS sourceId, price_type AS priceType,
-             source_name AS sourceName, price, timestamp, created_at AS createdAt
-      FROM price_history
-      ${whereStr}
-      ORDER BY timestamp ASC
-      LIMIT ?
-    `;
-    bindings.push(parsedLimit);
-
-    const { results } = await env.DB.prepare(query).bind(...bindings).all();
-    return Array.isArray(results) ? results : [];
-  } catch (e) {
-    console.error("D1 dbGetPriceHistory error:", e);
-    return [];
-  }
+export async function dbGetPriceHistory(env, options = {}) {
+  return [];
 }
 
 /**
- * Retrieve downsampled 24h price history sparklines for main gold, coin, or usd types
- * @param {object} env
- * @param {string|null} [targetAsset=null] - Optional specific asset id (e.g. 'usd', 'gold_18k')
- * @returns {Promise<Record<string, Array<{price: number, timestamp: string}>>>}
+ * Retrieve downsampled 24h price history sparklines
+ * Disabled: Sparkline tracking removed.
  */
 export async function dbGet24hSparklines(env, targetAsset = null) {
-  if (!env || !env.DB) return targetAsset ? { [targetAsset]: [] } : {};
-  await ensureD1Tables(env);
-
-  const allTargets = [
-    'usd', 'gold_18k', 'mesghal', 'full_coin', 'quarter_coin',
-    'eur', 'try', 'aed', 'gbp', 'chf', 'cad', 'aud', 'cny'
-  ];
-  const forexTargets = ['eur', 'try', 'aed', 'gbp', 'chf', 'cad', 'aud', 'cny'];
-
-  // If requesting a specific forex asset, we also query 'usd' to multiply by USD price at each timestamp point
-  let queryTargets = allTargets;
-  if (targetAsset && allTargets.includes(targetAsset)) {
-    queryTargets = forexTargets.includes(targetAsset) ? [targetAsset, 'usd'] : [targetAsset];
-  }
-
-  const result = {};
-  if (targetAsset) {
-    result[targetAsset] = [];
-  } else {
-    for (const t of allTargets) result[t] = [];
-  }
-
-  try {
-    const sinceIso = new Date(Date.now() - 24 * 3600 * 1000).toISOString();
-    const placeholders = queryTargets.map(() => '?').join(',');
-
-    // Select from price_history for past 24h, filtering to primary sources where defined to avoid multi-source jitter
-    const query = `
-      SELECT ph.price_type AS priceType, ph.price, ph.timestamp
-      FROM price_history ph
-      WHERE ph.timestamp >= ?
-        AND ph.price_type IN (${placeholders})
-        AND (
-          ph.source_id IN (SELECT id FROM price_sources WHERE is_primary = 1)
-          OR NOT EXISTS (SELECT 1 FROM price_sources ps WHERE ps.price_type = ph.price_type AND ps.is_primary = 1)
-        )
-      ORDER BY ph.timestamp ASC
-    `;
-
-    const binds = [sinceIso, ...queryTargets];
-    const { results } = await env.DB.prepare(query).bind(...binds).all();
-    const rows = Array.isArray(results) ? results : [];
-
-    // Group raw rows
-    const grouped = {};
-    for (const t of queryTargets) grouped[t] = [];
-    for (const row of rows) {
-      if (grouped[row.priceType]) {
-        grouped[row.priceType].push({
-          price: Number(row.price),
-          timestamp: row.timestamp,
-        });
-      }
-    }
-
-    // Get fallback latest USD price in case no 24h USD history records exist yet
-    let latestUsd = 95000;
-    try {
-      const usdRow = await env.DB.prepare("SELECT last_price FROM price_sources WHERE price_type = 'usd' AND is_primary = 1").first();
-      if (usdRow && Number(usdRow.last_price) > 0) latestUsd = Number(usdRow.last_price);
-    } catch (ignore) {}
-
-    const usdPoints = grouped['usd'] || [];
-
-    // Helper: Find closest USD price at or near a given timestamp
-    const getClosestUsdPrice = (targetIso) => {
-      if (!usdPoints || usdPoints.length === 0) return latestUsd;
-      const targetMs = new Date(targetIso).getTime();
-      let closest = usdPoints[0];
-      let minDiff = Math.abs(new Date(closest.timestamp).getTime() - targetMs);
-
-      for (let i = 1; i < usdPoints.length; i++) {
-        const diff = Math.abs(new Date(usdPoints[i].timestamp).getTime() - targetMs);
-        if (diff < minDiff) {
-          minDiff = diff;
-          closest = usdPoints[i];
-        } else if (diff > minDiff) {
-          break;
-        }
-      }
-      return Number(closest.price) || latestUsd;
-    };
-
-    // Default fallback cross rates for forex currencies
-    const defaultForexCross = {
-      eur: 1.0929,
-      try: 0.02057,
-      aed: 0.2723,
-      gbp: 1.2788,
-      chf: 1.1561,
-      cad: 0.7299,
-      aud: 0.6579,
-      cny: 0.1393,
-    };
-
-    // For any forex targets in queryTargets, construct full 24h series from USD points multiplied by forex cross rate at each point
-    for (const fx of forexTargets) {
-      if (queryTargets.includes(fx) && usdPoints.length > 0) {
-        const fxHistory = grouped[fx] || [];
-        const defaultCross = defaultForexCross[fx] || 0.02;
-
-        const getCrossRateAtTime = (targetIso) => {
-          if (!fxHistory || fxHistory.length === 0) return defaultCross;
-          const targetMs = new Date(targetIso).getTime();
-          let closest = fxHistory[0];
-          let minDiff = Math.abs(new Date(closest.timestamp).getTime() - targetMs);
-          for (let i = 1; i < fxHistory.length; i++) {
-            const diff = Math.abs(new Date(fxHistory[i].timestamp).getTime() - targetMs);
-            if (diff < minDiff) {
-              minDiff = diff;
-              closest = fxHistory[i];
-            }
-          }
-          const val = Number(closest.price);
-          return val > 0 ? (val < 500 ? val : (latestUsd > 0 ? val / latestUsd : defaultCross)) : defaultCross;
-        };
-
-        grouped[fx] = usdPoints.map((u) => {
-          const cross = getCrossRateAtTime(u.timestamp);
-          return {
-            price: Math.round(u.price * cross),
-            timestamp: u.timestamp,
-            usd_cross_rate: cross,
-            usd_price: u.price,
-          };
-        });
-      }
-    }
-
-    // Downsample each target to max 45 points evenly spaced
-    const returnKeys = targetAsset ? [targetAsset] : allTargets;
-    const maxPoints = 45;
-    for (const key of returnKeys) {
-      const arr = grouped[key] || [];
-      if (arr.length <= maxPoints) {
-        result[key] = arr;
-      } else {
-        const sampled = [];
-        const step = (arr.length - 1) / (maxPoints - 1);
-        for (let i = 0; i < maxPoints; i++) {
-          const idx = Math.min(Math.round(i * step), arr.length - 1);
-          sampled.push(arr[idx]);
-        }
-        result[key] = sampled;
-      }
-    }
-
-    return result;
-  } catch (e) {
-    console.error("D1 dbGet24hSparklines error:", e);
-    return result;
-  }
+  return targetAsset ? { [targetAsset]: [] } : {};
 }
 
 /**

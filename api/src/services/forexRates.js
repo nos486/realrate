@@ -112,12 +112,6 @@ export async function recordForexHistoryInD1(env, fetchedRates) {
         const priceType = code.toLowerCase();
         const crossRate = normalizeForexToUsdCrossRate(priceType, raw);
         if (!crossRate || crossRate <= 0) continue;
-        statements.push(
-          env.DB.prepare(`
-            INSERT INTO price_history (source_id, price_type, source_name, price, timestamp, created_at)
-            VALUES (?, ?, ?, ?, ?, ?)
-          `).bind(`src_def_${priceType}`, priceType, `Open Forex API (${code}/USD)`, crossRate, nowIso, nowIso)
-        );
 
         statements.push(
           env.DB.prepare(`

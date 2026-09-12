@@ -12,7 +12,6 @@ import AdminPage from './AdminPage.jsx';
 import PriceSourcesPage from './PriceSourcesPage.jsx';
 import AccountSettingsView from '../components/AccountSettingsView.jsx';
 import LiveRatesTicker from '../components/LiveRatesTicker.jsx';
-import AssetDetailModal from '../components/AssetDetailModal.jsx';
 import { useMarketData } from '../hooks/useMarketData.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import { toEnglishDigits } from '../utils/formatters.js';
@@ -102,7 +101,7 @@ export default function MainPage() {
     if (user?.role === 'admin') {
       options.push(
         { value: 'admin', label: 'پنل مدیریت و کاربران', icon: <ShieldCheck size={16} strokeWidth={2} /> },
-        { value: 'sources', label: 'سورس‌های قیمت و نمودارها', icon: <Radio size={16} strokeWidth={2} /> }
+        { value: 'sources', label: 'سورس‌های قیمت', icon: <Radio size={16} strokeWidth={2} /> }
       );
     }
     return options;
@@ -136,7 +135,6 @@ export default function MainPage() {
   const gold18kPrice = gold18kItem?.market || gold18kItem?.intrinsic || computed18k;
 
   const hasUsd = usdNum > 0;
-  const [selectedAssetModal, setSelectedAssetModal] = useState(null);
 
   const usdSource = rates?.prices?.usd_toman || rates?.prices?.usd || rates?.market_prices?.usd_toman || rates?.market_prices?.usd;
   const showUsdOnHome = usdSource?.showOnHomePage !== undefined ? Boolean(usdSource.showOnHomePage) : true;
@@ -171,16 +169,6 @@ export default function MainPage() {
         {showUsdOnHome && (
           <LiveRatesTicker
             usdPrice={usdToman}
-            onUsdClick={() =>
-              setSelectedAssetModal({
-                id: 'usd',
-                type: 'usd',
-                name: 'دلار نقدی آزاد',
-                market: usdNum || rates?.live_usd_toman || 62000,
-                price: usdNum || rates?.live_usd_toman || 62000,
-                updated_at: liveUsdDatetime || rates?.live_usd_item?.datetime || new Date().toISOString(),
-              })
-            }
           />
         )}
       </div>
@@ -211,19 +199,9 @@ export default function MainPage() {
             <AnalysisCards
               analysis={analysis}
               recommendation={recommendation}
-              onCardClick={(item) => setSelectedAssetModal(item)}
             />
             <CurrenciesList
               currencies={currencies}
-              onCurrencyClick={(curr) =>
-                setSelectedAssetModal({
-                  id: curr.code.toLowerCase(),
-                  name: curr.name,
-                  market: curr.toman_price,
-                  unit: 'تومان',
-                  usd_cross_rate: curr.usd_cross_rate,
-                })
-              }
             />
           </div>
         )}
@@ -255,17 +233,6 @@ export default function MainPage() {
           />
         )}
       </section>
-
-      {/* Comprehensive Asset Detail & Chart Modal */}
-      {selectedAssetModal && (
-        <AssetDetailModal
-          isOpen={!!selectedAssetModal}
-          onClose={() => setSelectedAssetModal(null)}
-          asset={selectedAssetModal}
-          rates={rates}
-          forex={rates?.forex || {}}
-        />
-      )}
     </AppLayout>
   );
 }

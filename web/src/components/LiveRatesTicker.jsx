@@ -28,7 +28,7 @@ export default function LiveRatesTicker({ usdPrice, onUsdClick, className = '' }
             onUsdClick();
           }
         }}
-        title="کلیک برای مشاهده جزئیات و نمودار ۲۴ ساعته دلار"
+        title={onUsdClick ? "کلیک برای مشاهده جزئیات دلار" : "نرخ زنده دلار آزاد"}
       >
         <span className="ticker-pulse green" />
         <span className="ticker-tag desktop-text">دلار آزاد:</span>

@@ -14,8 +14,6 @@ import {
   dbDeletePriceSource,
   dbSetPrimaryPriceSource,
   dbUpdateSourceLastPrice,
-  dbRecordPriceHistory,
-  dbGetPriceHistory,
   dbGetSourceTypes,
   dbSaveSourceType,
   dbDeleteSourceType,
@@ -256,28 +254,6 @@ export async function handleAdminTestPriceSource(request, env) {
     if (testResult.success && body.id && testResult.price) {
       const nowIso = testResult.datetime || new Date().toISOString();
       await dbUpdateSourceLastPrice(env, body.id, testResult.price, nowIso, testResult.multiData || null);
-
-      if (testResult.priceType === 'forex' && testResult.multiData) {
-        for (const [k, val] of Object.entries(testResult.multiData)) {
-          if (Number(val) > 0) {
-            await dbRecordPriceHistory(env, {
-              sourceId: body.id,
-              priceType: k.toLowerCase(),
-              sourceName: `${body.name || 'فارکس'} (${k.toUpperCase()})`,
-              price: val,
-              timestamp: nowIso,
-            });
-          }
-        }
-      } else {
-        await dbRecordPriceHistory(env, {
-          sourceId: body.id,
-          priceType: body.price_type || body.priceType || 'usd_toman',
-          sourceName: body.name || '',
-          price: testResult.price,
-          timestamp: nowIso,
-        });
-      }
       testResult.saved = true;
     }
 
@@ -318,18 +294,7 @@ export async function handleAdminGetPriceHistory(request, env) {
   const user = await getAuthenticatedUser(request, env);
   if (!user || user.role !== "admin") return forbiddenResponse(request);
 
-  try {
-    const url = new URL(request.url);
-    const sourceId = url.searchParams.get("sourceId") || null;
-    const priceType = url.searchParams.get("priceType") || null;
-    const range = url.searchParams.get("range") || "24h";
-    const limit = url.searchParams.get("limit") || 200;
-
-    const history = await dbGetPriceHistory(env, { sourceId, priceType, range, limit });
-    return jsonResponse({ success: true, history }, 200, request);
-  } catch (e) {
-    return errorResponse(e.message, 500, request);
-  }
+  return jsonResponse({ success: true, history: [] }, 200, request);
 }
 
 /**
