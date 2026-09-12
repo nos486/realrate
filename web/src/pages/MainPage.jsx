@@ -204,7 +204,18 @@ export default function MainPage() {
               recommendation={recommendation}
               onCardClick={(item) => setSelectedAssetModal(item)}
             />
-            <CurrenciesList currencies={currencies} />
+            <CurrenciesList
+              currencies={currencies}
+              onCurrencyClick={(curr) =>
+                setSelectedAssetModal({
+                  id: curr.code.toLowerCase(),
+                  name: curr.name,
+                  market: curr.toman_price,
+                  unit: 'تومان',
+                  usd_cross_rate: curr.usd_cross_rate,
+                })
+              }
+            />
           </div>
         )}
 

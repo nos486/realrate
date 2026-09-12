@@ -720,6 +720,15 @@ export default function PortfolioTracker({ calcData, rates, usdToman, goldUsd, i
           map[c.code] = c.toman_price ? Math.round(c.toman_price) : Math.round(cross * usdVal);
         }
       });
+    } else if (rates?.forex) {
+      const ratesObj = rates.forex.rates || rates.forex;
+      if (typeof ratesObj === 'object') {
+        Object.entries(ratesObj).forEach(([code, rate]) => {
+          if (rate && Number(rate) > 0) {
+            map[code] = Math.round((1 / Number(rate)) * usdVal);
+          }
+        });
+      }
     }
     return map;
   }, [usdVal, goldUsdVal, silverUsdVal, calcData, rates, computePriceMap]);
@@ -735,6 +744,8 @@ export default function PortfolioTracker({ calcData, rates, usdToman, goldUsd, i
       { key: '30d', defUsdRatio: 0.965, defGoldRatio: 0.980 },
     ];
 
+    const FOREX_CODES = ['eur', 'try', 'aed', 'gbp', 'chf', 'cad', 'aud', 'cny'];
+
     periods.forEach(({ key, defUsdRatio, defGoldRatio }) => {
       const bData = benchmarks?.[key] || {};
       const histUsd = bData.usd?.price || (usdVal * defUsdRatio);
@@ -747,6 +758,11 @@ export default function PortfolioTracker({ calcData, rates, usdToman, goldUsd, i
       if (bData.gold_18k?.price) {
         map['gold_18k'] = Math.round(bData.gold_18k.price);
         map['gold_melted'] = Math.round(bData.gold_18k.price);
+        const gold_24k_hist = bData.gold_18k.price / 0.75;
+        map['gold_24k'] = Math.round(gold_24k_hist);
+        const bankGramHist = Math.round(gold_24k_hist * 1.01 * (22 / 24));
+        map['bank_gram'] = bankGramHist;
+        map['gram'] = bankGramHist;
       }
       if (bData.full_coin?.price) {
         map['full_new'] = Math.round(bData.full_coin.price);
@@ -755,6 +771,13 @@ export default function PortfolioTracker({ calcData, rates, usdToman, goldUsd, i
       if (bData.quarter_coin?.price) {
         map['quarter'] = Math.round(bData.quarter_coin.price);
       }
+
+      // Apply historical foreign currency cross-rates if recorded in benchmarks
+      FOREX_CODES.forEach((code) => {
+        if (bData[code]?.price && Number(bData[code].price) > 0) {
+          map[code.toUpperCase()] = Math.round(Number(bData[code].price) * histUsd);
+        }
+      });
 
       result[key] = map;
     });

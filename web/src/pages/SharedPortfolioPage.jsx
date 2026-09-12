@@ -318,12 +318,28 @@ export default function SharedPortfolioPage() {
 
       const map = computePriceMap(histUsd, histGold, histSilver);
 
-      if (b.gold_18k?.price) map['gold_18k'] = Math.round(b.gold_18k.price);
+      if (b.gold_18k?.price) {
+        map['gold_18k'] = Math.round(b.gold_18k.price);
+        map['gold_melted'] = Math.round(b.gold_18k.price);
+        const gold_24k_hist = b.gold_18k.price / 0.75;
+        map['gold_24k'] = Math.round(gold_24k_hist);
+        const bankGramHist = Math.round(gold_24k_hist * 1.01 * (22 / 24));
+        map['bank_gram'] = bankGramHist;
+        map['gram'] = bankGramHist;
+      }
       if (b.full_coin?.price) {
         map['full_new'] = Math.round(b.full_coin.price);
         map['full_old'] = Math.round(b.full_coin.price);
       }
       if (b.quarter_coin?.price) map['quarter'] = Math.round(b.quarter_coin.price);
+
+      // Apply historical foreign currency cross-rates if recorded in benchmarks
+      const FOREX_CODES = ['eur', 'try', 'aed', 'gbp', 'chf', 'cad', 'aud', 'cny'];
+      FOREX_CODES.forEach((code) => {
+        if (b[code]?.price && Number(b[code].price) > 0) {
+          map[code.toUpperCase()] = Math.round(Number(b[code].price) * histUsd);
+        }
+      });
 
       return map;
     };

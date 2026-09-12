@@ -7,7 +7,7 @@ function formatNum(num) {
   return Math.round(num).toLocaleString('fa-IR');
 }
 
-export default function CurrenciesList({ currencies }) {
+export default function CurrenciesList({ currencies, onCurrencyClick }) {
   const [search, setSearch] = useState('');
 
   if (!currencies || currencies.length === 0) {
@@ -61,7 +61,20 @@ export default function CurrenciesList({ currencies }) {
       ) : (
         <div className="currency-cards-grid">
           {filtered.map((c) => (
-            <div key={c.code} className="currency-item-card">
+            <div
+              key={c.code}
+              className={`currency-item-card ${onCurrencyClick ? 'clickable' : ''}`}
+              onClick={() => onCurrencyClick?.(c)}
+              role={onCurrencyClick ? 'button' : undefined}
+              tabIndex={onCurrencyClick ? 0 : undefined}
+              onKeyDown={(e) => {
+                if (onCurrencyClick && (e.key === 'Enter' || e.key === ' ')) {
+                  e.preventDefault();
+                  onCurrencyClick(c);
+                }
+              }}
+              title={onCurrencyClick ? 'مشاهده مشخصات و روند ۲۴ ساعته' : undefined}
+            >
               <div className="curr-lead">
                 <span className="curr-flag-emoji">{c.flag}</span>
                 <div className="curr-names">

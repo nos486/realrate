@@ -3,6 +3,8 @@
  * Throttled to 10 minutes. Cached in KV + in-memory.
  */
 
+import { normalizeForexToUsdCrossRate } from "./priceSources.js";
+
 // Module-level in-memory cache
 let forexCache = null;
 
@@ -67,6 +69,10 @@ export async function fetchForexRates(env, forceRefresh = false) {
             await env.REALRATE_KV.put(cacheKey, JSON.stringify(record));
           } catch (e) {}
         }
+
+        // Record history in D1 for periodic sparklines and benchmarks
+        recordForexHistoryInD1(env, fetchedRates).catch(() => {});
+
         return fetchedRates;
       }
     }
@@ -75,4 +81,65 @@ export async function fetchForexRates(env, forceRefresh = false) {
   }
 
   return (stored && stored.rates) ? { ...FOREX_FALLBACK, ...stored.rates } : { ...FOREX_FALLBACK };
+}
+
+/**
+ * Record historical cross rates (relative to USD) in D1 price_history table
+ * Throttled to at most once per 15 minutes to prevent redundant DB writes.
+ * @param {object} env
+ * @param {object} fetchedRates
+ */
+export async function recordForexHistoryInD1(env, fetchedRates) {
+  if (!env?.DB || !fetchedRates) return;
+  try {
+    const cacheKey = "last_forex_d1_record";
+    const nowMs = Date.now();
+    let lastRecordMs = 0;
+    if (env.REALRATE_KV) {
+      try {
+        const val = await env.REALRATE_KV.get(cacheKey);
+        if (val) lastRecordMs = parseInt(val, 10) || 0;
+      } catch (ignore) {}
+    }
+
+    // Record at most once every 15 minutes
+    if (nowMs - lastRecordMs < 900000) return;
+
+    const nowIso = new Date(nowMs).toISOString();
+    const currenciesToRecord = ['EUR', 'TRY', 'AED', 'GBP', 'CHF', 'CAD', 'AUD', 'CNY'];
+    const statements = [];
+
+    for (const code of currenciesToRecord) {
+      const raw = fetchedRates[code];
+      if (raw && Number(raw) > 0) {
+        const priceType = code.toLowerCase();
+        const crossRate = normalizeForexToUsdCrossRate(priceType, raw);
+        if (!crossRate || crossRate <= 0) continue;
+        statements.push(
+          env.DB.prepare(`
+            INSERT INTO price_history (source_id, price_type, source_name, price, timestamp, created_at)
+            VALUES (?, ?, ?, ?, ?, ?)
+          `).bind(`src_def_${priceType}`, priceType, `Open Forex API (${code}/USD)`, crossRate, nowIso, nowIso)
+        );
+
+        statements.push(
+          env.DB.prepare(`
+            UPDATE price_sources
+            SET last_price = ?, last_fetched = ?, updated_at = ?
+            WHERE price_type = ? AND is_primary = 1
+          `).bind(crossRate, nowIso, nowIso, priceType)
+        );
+      }
+    }
+
+    if (statements.length > 0) {
+      await env.DB.batch(statements);
+    }
+
+    if (env.REALRATE_KV) {
+      await env.REALRATE_KV.put(cacheKey, String(nowMs), { expirationTtl: 3600 }).catch(() => {});
+    }
+  } catch (err) {
+    console.warn("[Forex] Error recording history in D1:", err.message);
+  }
 }

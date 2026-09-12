@@ -25,6 +25,28 @@ let memoryPricesCache = {};
 let lastFetchTime = 0;
 
 /**
+ * Normalize raw forex quote to USD cross rate (value of 1 unit of foreign currency in USD)
+ * @param {string} priceType - e.g. 'eur', 'try', 'aed', 'gbp', 'chf', 'cad', 'aud', 'cny'
+ * @param {number|string} rawVal
+ * @returns {number}
+ */
+export function normalizeForexToUsdCrossRate(priceType, rawVal) {
+  const num = Number(rawVal);
+  if (!num || num <= 0) return 0;
+
+  const p = (priceType || '').toLowerCase();
+  // Currencies typically stronger than USD (EUR, GBP, CHF)
+  if (p === 'eur' || p === 'gbp' || p === 'chf') {
+    return num < 1 ? parseFloat((1 / num).toFixed(5)) : parseFloat(num.toFixed(5));
+  }
+  // All other currencies (TRY, AED, CAD, AUD, CNY, etc.)
+  if (num > 1) {
+    return parseFloat((1 / num).toFixed(5));
+  }
+  return parseFloat(num.toFixed(5));
+}
+
+/**
  * Extract number from text using custom regular expression
  * @param {string} text
  * @param {string} regexPattern
@@ -143,9 +165,15 @@ export function parseSourceContent(source, rawContent) {
     }
 
     const isUsdAsset = source.priceType === "ons_gold" || source.priceType === "ons_silver";
-    const finalPrice = isUsdAsset
-      ? Math.round(Number(extractedVal) * 100) / 100
-      : Math.round(Number(extractedVal));
+    const isForex = ['eur', 'try', 'aed', 'gbp', 'chf', 'cad', 'aud', 'cny'].includes((source.priceType || '').toLowerCase());
+    let finalPrice;
+    if (isForex) {
+      finalPrice = normalizeForexToUsdCrossRate(source.priceType, extractedVal);
+    } else if (isUsdAsset) {
+      finalPrice = Math.round(Number(extractedVal) * 100) / 100;
+    } else {
+      finalPrice = Math.round(Number(extractedVal));
+    }
 
     return {
       price: finalPrice,
@@ -240,6 +268,16 @@ export async function testPriceSourceConfig(config = {}) {
       raw
     );
 
+    const isForex = ['eur', 'try', 'aed', 'gbp', 'chf', 'cad', 'aud', 'cny'].includes((priceType || '').toLowerCase());
+    let displayMsg = '';
+    if (isForex) {
+      displayMsg = `نرخ برابری استخراج شد: ۱ واحد = ${parsed.price} دلار آمریکا`;
+    } else if (priceType === 'ons_gold' || priceType === 'ons_silver') {
+      displayMsg = `قیمت جهانی با موفقیت استخراج شد: ${parsed.price} دلار`;
+    } else {
+      displayMsg = `قیمت با موفقیت استخراج شد: ${parsed.price.toLocaleString("fa-IR")} تومان`;
+    }
+
     return {
       success: true,
       sourceType,
@@ -247,7 +285,7 @@ export async function testPriceSourceConfig(config = {}) {
       price: parsed.price,
       datetime: parsed.datetime,
       label: parsed.label,
-      message: `قیمت با موفقیت استخراج شد: ${parsed.price.toLocaleString("fa-IR")} تومان`,
+      message: displayMsg,
     };
   } catch (err) {
     return {
@@ -272,6 +310,14 @@ export function compileLatestMarketRates(sources) {
     "mesghal",
     "ons_gold",
     "ons_silver",
+    "eur",
+    "try",
+    "aed",
+    "gbp",
+    "chf",
+    "cad",
+    "aud",
+    "cny",
   ];
 
   const result = {

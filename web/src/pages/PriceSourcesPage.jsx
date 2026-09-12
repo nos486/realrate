@@ -61,6 +61,14 @@ const PRICE_TYPE_INFO = {
   mesghal: { label: 'مثقال طلا ۱۷ عیار', badgeColor: 'purple', unit: 'تومان' },
   ons_gold: { label: 'انس طلا جهانی (XAU)', badgeColor: 'gold', unit: '$' },
   ons_silver: { label: 'انس نقره جهانی (XAG)', badgeColor: 'blue', unit: '$' },
+  eur: { label: 'یورو (EUR/USD)', badgeColor: 'blue', unit: '$' },
+  try: { label: 'لیر ترکیه (USD/TRY)', badgeColor: 'rose', unit: '$' },
+  aed: { label: 'درهم امارات (USD/AED)', badgeColor: 'emerald', unit: '$' },
+  gbp: { label: 'پوند انگلیس (GBP/USD)', badgeColor: 'purple', unit: '$' },
+  chf: { label: 'فرانک سوئیس (USD/CHF)', badgeColor: 'slate', unit: '$' },
+  cad: { label: 'دلار کانادا (USD/CAD)', badgeColor: 'orange', unit: '$' },
+  aud: { label: 'دلار استرالیا (AUD/USD)', badgeColor: 'cyan', unit: '$' },
+  cny: { label: 'یوان چین (USD/CNY)', badgeColor: 'amber', unit: '$' },
 };
 
 const PRESET_REGEX_PATTERNS = {
@@ -97,6 +105,30 @@ const PRESET_REGEX_PATTERNS = {
   ons_silver: [
     { label: 'Gold-API (وب‌سرویس استاندارد XAG/USD)', pattern: '', apiUrl: 'https://api.gold-api.com/price/XAG', jsonPath: 'price' },
   ],
+  eur: [
+    { label: 'Open ER-API (نرخ برابری EUR)', pattern: '', apiUrl: 'https://open.er-api.com/v6/latest/USD', jsonPath: 'rates.EUR' },
+  ],
+  try: [
+    { label: 'Open ER-API (نرخ برابری TRY)', pattern: '', apiUrl: 'https://open.er-api.com/v6/latest/USD', jsonPath: 'rates.TRY' },
+  ],
+  aed: [
+    { label: 'Open ER-API (نرخ برابری AED)', pattern: '', apiUrl: 'https://open.er-api.com/v6/latest/USD', jsonPath: 'rates.AED' },
+  ],
+  gbp: [
+    { label: 'Open ER-API (نرخ برابری GBP)', pattern: '', apiUrl: 'https://open.er-api.com/v6/latest/USD', jsonPath: 'rates.GBP' },
+  ],
+  chf: [
+    { label: 'Open ER-API (نرخ برابری CHF)', pattern: '', apiUrl: 'https://open.er-api.com/v6/latest/USD', jsonPath: 'rates.CHF' },
+  ],
+  cad: [
+    { label: 'Open ER-API (نرخ برابری CAD)', pattern: '', apiUrl: 'https://open.er-api.com/v6/latest/USD', jsonPath: 'rates.CAD' },
+  ],
+  aud: [
+    { label: 'Open ER-API (نرخ برابری AUD)', pattern: '', apiUrl: 'https://open.er-api.com/v6/latest/USD', jsonPath: 'rates.AUD' },
+  ],
+  cny: [
+    { label: 'Open ER-API (نرخ برابری CNY)', pattern: '', apiUrl: 'https://open.er-api.com/v6/latest/USD', jsonPath: 'rates.CNY' },
+  ],
 };
 
 const DEFAULT_SOURCE_FORM = {
@@ -116,6 +148,10 @@ const DEFAULT_SOURCE_FORM = {
 
 function formatNum(num, priceType = 'usd') {
   if (num === null || num === undefined || isNaN(num)) return '۰';
+  const isForex = ['eur', 'try', 'aed', 'gbp', 'chf', 'cad', 'aud', 'cny'].includes(priceType);
+  if (isForex) {
+    return Number(num).toLocaleString('fa-IR', { minimumFractionDigits: 4, maximumFractionDigits: 5 });
+  }
   const isUsdAsset = priceType === 'ons_gold' || priceType === 'ons_silver';
   if (isUsdAsset) {
     return Number(num).toLocaleString('fa-IR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -124,6 +160,8 @@ function formatNum(num, priceType = 'usd') {
 }
 
 function getPriceUnit(priceType) {
+  const isForex = ['eur', 'try', 'aed', 'gbp', 'chf', 'cad', 'aud', 'cny'].includes(priceType);
+  if (isForex) return '$ برابری';
   return (priceType === 'ons_gold' || priceType === 'ons_silver') ? 'دلار ($)' : 'تومان';
 }
 
@@ -265,6 +303,9 @@ export default function PriceSourcesPage({ embedded = false, usdToman: propUsdTo
   // Filtered Sources for Table
   const filteredSources = useMemo(() => {
     if (sourceFilter === 'all') return sources;
+    if (sourceFilter === 'forex') {
+      return sources.filter((s) => ['eur', 'try', 'aed', 'gbp', 'chf', 'cad', 'aud', 'cny'].includes(s.priceType));
+    }
     return sources.filter((s) => s.priceType === sourceFilter);
   }, [sources, sourceFilter]);
 
@@ -687,6 +728,11 @@ export default function PriceSourcesPage({ embedded = false, usdToman: propUsdTo
             <FilterPills
               options={[
                 { value: 'all', label: 'همه', badge: sources.length.toLocaleString('fa-IR') },
+                {
+                  value: 'forex',
+                  label: 'ارزها و فارکس',
+                  badge: sources.filter((s) => ['eur', 'try', 'aed', 'gbp', 'chf', 'cad', 'aud', 'cny'].includes(s.priceType)).length.toLocaleString('fa-IR'),
+                },
                 ...Object.entries(PRICE_TYPE_INFO).map(([key, info]) => ({
                   value: key,
                   label: info.label,

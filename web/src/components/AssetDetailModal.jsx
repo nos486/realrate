@@ -9,6 +9,7 @@ import {
   Activity,
   ArrowUpRight,
   ArrowDownRight,
+  Globe,
 } from 'lucide-react';
 import Modal from './ui/Modal.jsx';
 import { apiGetSparklines } from '../api/client.js';
@@ -110,6 +111,42 @@ const ASSET_SPECS = {
     weight: '۱ دلار آمریکا',
     standardDesc: 'اسکناس دلار نقدی بازار آزاد تهران (سبزه میدان / افشار)، مبنای نرخ‌گذاری تمام فلزات گرانبها.',
   },
+  eur: {
+    karat: 'ارز اتحادیه اروپا (EUR)',
+    purity: 'نرخ برابری بین‌المللی',
+    weight: '۱ یورو',
+    standardDesc: 'نرخ یورو بر پایه برابری EUR/USD در بازار جهانی ارز و نرخ لحظه‌ای دلار نقدی آزاد.',
+  },
+  try: {
+    karat: 'لیر ترکیه (TRY)',
+    purity: 'نرخ برابری بین‌المللی',
+    weight: '۱ لیر ترکیه',
+    standardDesc: 'نرخ لیر ترکیه بر پایه برابری USD/TRY در بازار بین‌المللی و تبدیل به تومان بر مبنای دلار آزاد.',
+  },
+  aed: {
+    karat: 'درهم امارات (AED)',
+    purity: 'برابری رسمی ۳.۶۷۲۵',
+    weight: '۱ درهم امارات',
+    standardDesc: 'نرخ حواله و اسکناس درهم امارات، مبنای اصلی قیمت‌گذاری دلار در بازار دوبی و سبزه میدان.',
+  },
+  gbp: {
+    karat: 'پوند استرلینگ بریتانیا (GBP)',
+    purity: 'نرخ برابری بین‌المللی',
+    weight: '۱ پوند انگلیس',
+    standardDesc: 'نرخ پوند استرلینگ بر پایه برابری GBP/USD در بازار بین‌المللی ارز و دلار آزاد.',
+  },
+  chf: {
+    karat: 'فرانک سوئیس (CHF)',
+    purity: 'نرخ برابری بین‌المللی',
+    weight: '۱ فرانک سوئیس',
+    standardDesc: 'نرخ فرانک سوئیس بر پایه برابری USD/CHF به عنوان یکی از امن‌ترین ارزهای جهان.',
+  },
+  cad: {
+    karat: 'دلار کانادا (CAD)',
+    purity: 'نرخ برابری بین‌المللی',
+    weight: '۱ دلار کانادا',
+    standardDesc: 'نرخ دلار کانادا بر پایه برابری USD/CAD در بازار جهانی ارز.',
+  },
 };
 
 export default function AssetDetailModal({
@@ -125,9 +162,12 @@ export default function AssetDetailModal({
   const chartContainerRef = useRef(null);
   const gradId = useId();
 
-  const isUsd = asset ? (asset.id === 'usd' || asset.type === 'usd') : false;
-  const assetSpecs = asset ? (ASSET_SPECS[asset.id] || null) : null;
+  const isUsd = asset ? (asset.id === 'usd' || asset.type === 'usd' || asset.id === 'USD') : false;
+  const normalizedAssetId = asset?.id ? String(asset.id).toLowerCase() : '';
+  const isForex = ['eur', 'try', 'aed', 'gbp', 'chf', 'cad', 'aud', 'cny'].includes(normalizedAssetId) || asset?.category === 'forex';
+  const assetSpecs = asset ? (ASSET_SPECS[asset.id] || ASSET_SPECS[normalizedAssetId] || null) : null;
   const currentPrice = asset ? Number(asset.market || asset.price || 0) : 0;
+  const liveUsd = Number(rates?.live_usd_toman || rates?.usd_toman || 95000);
 
   // On-demand lazy fetch of 24h history for this asset only when modal opens
   useEffect(() => {
@@ -141,7 +181,7 @@ export default function AssetDetailModal({
     apiGetSparklines(asset.id)
       .then((res) => {
         if (active && res && res.success && res.sparklines) {
-          const list = res.sparklines[asset.id] || [];
+          const list = res.sparklines[asset.id] || res.sparklines[normalizedAssetId] || [];
           setHistoryData(list);
         }
       })
@@ -155,14 +195,25 @@ export default function AssetDetailModal({
     return () => {
       active = false;
     };
-  }, [isOpen, asset?.id]);
+  }, [isOpen, asset?.id, normalizedAssetId]);
 
   // Prepare price history data points with synthetic 24h baseline fallback if data < 2
   const points = useMemo(() => {
     let list = Array.isArray(historyData)
       ? historyData
           .filter((d) => d && typeof d.price === 'number' && d.price > 0)
-          .map((d) => ({ price: Number(d.price), timestamp: d.timestamp }))
+          .map((d) => {
+            const raw = Number(d.price);
+            // If asset is a foreign currency and recorded as cross-rate (< 500), convert to Toman
+            const p = isForex && raw < 500
+              ? Math.round(raw * liveUsd)
+              : Math.round(raw);
+            return {
+              price: p,
+              rawCrossRate: isForex ? (raw < 500 ? raw : (liveUsd > 0 ? Number((raw / liveUsd).toFixed(4)) : 1)) : null,
+              timestamp: d.timestamp,
+            };
+          })
       : [];
 
     // Fallback synthetic 24h curve if < 2 points so graph is ALWAYS rendered beautifully
@@ -176,17 +227,25 @@ export default function AssetDetailModal({
         // Subtle natural micro-variance around current price (within 0.3%)
         const factor = 1 + (Math.sin(i * 0.8) * 0.002);
         const p = i === syntheticCount - 1 ? currentPrice : Math.round(currentPrice * factor);
-        list.push({ price: p, timestamp: t });
+        list.push({
+          price: p,
+          rawCrossRate: isForex && liveUsd > 0 ? Number((p / liveUsd).toFixed(4)) : null,
+          timestamp: t,
+        });
       }
     } else if (currentPrice > 0 && list.length > 0) {
       const last = list[list.length - 1];
       const lastTime = last.timestamp ? new Date(last.timestamp).getTime() : 0;
       if (Date.now() - lastTime > 180000 || Math.abs(last.price - currentPrice) > 10) {
-        list.push({ price: currentPrice, timestamp: new Date().toISOString() });
+        list.push({
+          price: currentPrice,
+          rawCrossRate: isForex && liveUsd > 0 ? Number((currentPrice / liveUsd).toFixed(4)) : null,
+          timestamp: new Date().toISOString(),
+        });
       }
     }
     return list;
-  }, [historyData, currentPrice]);
+  }, [historyData, currentPrice, isForex, liveUsd]);
 
   // Chart coordinate calculations
   const chartWidth = 560;
@@ -234,7 +293,7 @@ export default function AssetDetailModal({
         const x = padding.left + (idx / Math.max(1, points.length - 1)) * drawW;
         const normalizedY = (p.price - min) / effectiveRange;
         const y = padding.top + drawH * (1 - normalizedY);
-        return { x, y, price: p.price, timestamp: p.timestamp };
+        return { x, y, price: p.price, rawCrossRate: p.rawCrossRate, timestamp: p.timestamp };
       });
 
       const lPath = createBezierPath(computed);
@@ -280,11 +339,13 @@ export default function AssetDetailModal({
       icon={
         isUsd ? (
           <DollarSign size={20} className="modal-icon-usd" />
+        ) : isForex ? (
+          <Globe size={20} className="modal-icon-usd" />
         ) : (
           <Coins size={20} className="modal-icon-gold" />
         )
       }
-      subtitle={isUsd ? 'اسکناس نقدی بازار آزاد تهران' : 'تحلیل جامع ارزش ذاتی، حباب و روند قیمت'}
+      subtitle={isUsd ? 'اسکناس نقدی بازار آزاد تهران' : isForex ? 'نرخ برابری زنده بازار جهانی فارکس و معادل تومانی' : 'تحلیل جامع ارزش ذاتی، حباب و روند قیمت'}
       maxWidth="580px"
       className="asset-detail-modal"
     >
@@ -419,6 +480,11 @@ export default function AssetDetailModal({
                 >
                   <div className="tooltip-inner">
                     <strong className="tooltip-price-text">{formatNum(activeCoord.price)} تومان</strong>
+                    {isForex && activeCoord.rawCrossRate && (
+                      <span className="tooltip-sub-text" style={{ fontSize: '11px', color: 'rgba(255,255,255,0.75)', display: 'block', marginTop: '2px' }}>
+                        برابری: {activeCoord.rawCrossRate} $
+                      </span>
+                    )}
                     {activeCoord.timestamp && (
                       <span className="tooltip-time-text">{formatTooltipTime(activeCoord.timestamp)}</span>
                     )}
@@ -435,7 +501,80 @@ export default function AssetDetailModal({
         </div>
 
         {/* Detailed Breakdown Grid */}
-        {!isUsd ? (
+        {isUsd ? (
+          /* USD-specific live conversions & rates */
+          <div className="asset-details-grid usd-grid">
+            <div className="detail-stat-card">
+              <span className="detail-stat-label">برابری با یورو (EUR):</span>
+              <strong className="detail-stat-value blue-text">
+                {formatNum((1 / (forex?.EUR || 0.915)) * currentPrice)} تومان
+              </strong>
+              <span className="detail-stat-sub">نرخ تبدیل زنده بین‌بانکی فارکس</span>
+            </div>
+
+            <div className="detail-stat-card">
+              <span className="detail-stat-label">برابری با درهم امارات (AED):</span>
+              <strong className="detail-stat-value blue-text">
+                {formatNum((1 / (forex?.AED || 3.6725)) * currentPrice)} تومان
+              </strong>
+              <span className="detail-stat-sub">حواله درهم دبی مبنای واردات</span>
+            </div>
+
+            <div className="detail-stat-card">
+              <span className="detail-stat-label">انس جهانی طلا (XAU):</span>
+              <strong className="detail-stat-value gold-text">
+                {rates?.ons_gold?.price ? Math.round(rates.ons_gold.price).toLocaleString('fa-IR') : '۲,۸۹۰'} دلار
+              </strong>
+              <span className="detail-stat-sub">قیمت هر اونس تروی در بازار نیویورک</span>
+            </div>
+
+            <div className="detail-stat-card">
+              <span className="detail-stat-label">برابری با لیر ترکیه (TRY):</span>
+              <strong className="detail-stat-value blue-text">
+                {formatNum((1 / (forex?.TRY || 33.5)) * currentPrice)} تومان
+              </strong>
+              <span className="detail-stat-sub">نرخ اسکناس بر اساس بازار فارکس</span>
+            </div>
+          </div>
+        ) : isForex ? (
+          /* Foreign Currency Specific Stats */
+          <div className="asset-details-grid forex-grid">
+            <div className="detail-stat-card">
+              <span className="detail-stat-label">نرخ برابری با دلار آمریکا:</span>
+              <strong className="detail-stat-value blue-text">
+                {liveUsd > 0 ? (currentPrice / liveUsd).toFixed(4) : (asset.usd_cross_rate || '-')} دلار
+              </strong>
+              <span className="detail-stat-sub">
+                ۱ {assetSpecs?.unit || 'واحد'} معادل دلار جهانی بر اساس نرخ بین‌بانکی
+              </span>
+            </div>
+
+            <div className="detail-stat-card">
+              <span className="detail-stat-label">مبنای دلار بازار آزاد:</span>
+              <strong className="detail-stat-value gold-text">
+                {formatNum(liveUsd)} تومان
+              </strong>
+              <span className="detail-stat-sub">نرخ مرجع اسکناس دلار در بازار تهران</span>
+            </div>
+
+            <div className="detail-stat-card">
+              <span className="detail-stat-label">تغییر ۲۴ ساعته:</span>
+              <strong className={`detail-stat-value ${isUp ? 'good-text' : 'danger-text'}`}>
+                {isUp ? '+' : ''}{formatNum(change)} تومان ({Math.abs(changePct).toLocaleString('fa-IR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}٪)
+              </strong>
+              <span className="detail-stat-sub">نوسان نرخ تومانی بر مبنای جفت‌ارز و دلار</span>
+            </div>
+
+            <div className="detail-stat-card">
+              <span className="detail-stat-label">مکانیزم قیمت‌گذاری:</span>
+              <strong className="detail-stat-value text-muted">
+                فارکس جهانی × دلار آزاد
+              </strong>
+              <span className="detail-stat-sub">فرمول استاندارد محاسبه نرخ واقعی در ایران</span>
+            </div>
+          </div>
+        ) : (
+          /* Gold / Coin Breakdown Grid */
           <div className="asset-details-grid">
             {/* Intrinsic Gold Value */}
             <div className="detail-stat-card">
@@ -497,41 +636,6 @@ export default function AssetDetailModal({
               </div>
             )}
           </div>
-        ) : (
-          /* USD-specific live conversions & rates */
-          <div className="asset-details-grid usd-grid">
-            <div className="detail-stat-card">
-              <span className="detail-stat-label">برابری با یورو (EUR):</span>
-              <strong className="detail-stat-value blue-text">
-                {formatNum((1 / (forex?.EUR || 0.915)) * currentPrice)} تومان
-              </strong>
-              <span className="detail-stat-sub">نرخ تبدیل زنده بین‌بانکی فارکس</span>
-            </div>
-
-            <div className="detail-stat-card">
-              <span className="detail-stat-label">برابری با درهم امارات (AED):</span>
-              <strong className="detail-stat-value blue-text">
-                {formatNum((1 / (forex?.AED || 3.6725)) * currentPrice)} تومان
-              </strong>
-              <span className="detail-stat-sub">حواله درهم دبی مبنای واردات</span>
-            </div>
-
-            <div className="detail-stat-card">
-              <span className="detail-stat-label">انس جهانی طلا (XAU):</span>
-              <strong className="detail-stat-value gold-text">
-                {rates?.ons_gold?.price ? Math.round(rates.ons_gold.price).toLocaleString('fa-IR') : '۲,۸۹۰'} دلار
-              </strong>
-              <span className="detail-stat-sub">قیمت هر اونس تروی در بازار نیویورک</span>
-            </div>
-
-            <div className="detail-stat-card">
-              <span className="detail-stat-label">برابری با لیر ترکیه (TRY):</span>
-              <strong className="detail-stat-value blue-text">
-                {formatNum((1 / (forex?.TRY || 33.5)) * currentPrice)} تومان
-              </strong>
-              <span className="detail-stat-sub">نرخ اسکناس بر اساس بازار فارکس</span>
-            </div>
-          </div>
         )}
 
         {/* Physical Asset Specifications Note */}
@@ -539,23 +643,42 @@ export default function AssetDetailModal({
           <div className="asset-spec-box">
             <div className="spec-box-header">
               <Scale size={14} className="spec-icon" />
-              <strong className="spec-title">مشخصات استاندارد ضرب و عیار</strong>
+              <strong className="spec-title">
+                {assetSpecs.category === 'forex' ? 'مشخصات استاندارد ارز بین‌المللی' : 'مشخصات استاندارد ضرب و عیار'}
+              </strong>
             </div>
-            <div className="spec-items-row">
-              <div className="spec-pill">
-                <span className="spec-pill-label">عیار:</span>
-                <span className="spec-pill-val">{assetSpecs.karat}</span>
+            {assetSpecs.category === 'forex' ? (
+              <div className="spec-items-row">
+                <div className="spec-pill">
+                  <span className="spec-pill-label">واحد:</span>
+                  <span className="spec-pill-val">{assetSpecs.unit}</span>
+                </div>
+                <div className="spec-pill">
+                  <span className="spec-pill-label">نام لاتین:</span>
+                  <span className="spec-pill-val">{assetSpecs.enName}</span>
+                </div>
+                <div className="spec-pill">
+                  <span className="spec-pill-label">جفت ارز:</span>
+                  <span className="spec-pill-val">{assetSpecs.crossType}</span>
+                </div>
               </div>
-              <div className="spec-pill">
-                <span className="spec-pill-label">خلوص:</span>
-                <span className="spec-pill-val">{assetSpecs.purity}</span>
+            ) : (
+              <div className="spec-items-row">
+                <div className="spec-pill">
+                  <span className="spec-pill-label">عیار:</span>
+                  <span className="spec-pill-val">{assetSpecs.karat}</span>
+                </div>
+                <div className="spec-pill">
+                  <span className="spec-pill-label">خلوص:</span>
+                  <span className="spec-pill-val">{assetSpecs.purity}</span>
+                </div>
+                <div className="spec-pill">
+                  <span className="spec-pill-label">وزن:</span>
+                  <span className="spec-pill-val">{assetSpecs.weight}</span>
+                </div>
               </div>
-              <div className="spec-pill">
-                <span className="spec-pill-label">وزن:</span>
-                <span className="spec-pill-val">{assetSpecs.weight}</span>
-              </div>
-            </div>
-            <p className="spec-desc">{assetSpecs.standardDesc}</p>
+            )}
+            <p className="spec-desc">{assetSpecs.standardDesc || assetSpecs.desc}</p>
           </div>
         )}
 

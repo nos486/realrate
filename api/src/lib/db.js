@@ -215,13 +215,21 @@ export async function ensureD1Tables(env) {
           { sql: `INSERT OR IGNORE INTO price_sources (id, name, price_type, source_type, endpoint, regex, json_path, fetch_interval_sec, is_active, is_primary, last_price, last_fetched, created_at, updated_at) VALUES ('src_def_mesghal', 'مثقال طلا ۱۷ عیار (زرما)', 'mesghal', 'telegram', 'zarmagoldd', '', '', 60, 1, 1, 0, '', ?, ?)`, binds: [now, now] },
           { sql: `INSERT OR IGNORE INTO price_sources (id, name, price_type, source_type, endpoint, regex, json_path, fetch_interval_sec, is_active, is_primary, last_price, last_fetched, created_at, updated_at) VALUES ('src_def_ons_gold', 'انس طلا جهانی (XAU)', 'ons_gold', 'api_url', 'https://api.gold-api.com/price/XAU', '', 'price', 60, 1, 1, 0, '', ?, ?)`, binds: [now, now] },
           { sql: `INSERT OR IGNORE INTO price_sources (id, name, price_type, source_type, endpoint, regex, json_path, fetch_interval_sec, is_active, is_primary, last_price, last_fetched, created_at, updated_at) VALUES ('src_def_ons_silver', 'انس نقره جهانی (XAG)', 'ons_silver', 'api_url', 'https://api.gold-api.com/price/XAG', '', 'price', 60, 1, 1, 0, '', ?, ?)`, binds: [now, now] },
+          { sql: `INSERT OR IGNORE INTO price_sources (id, name, price_type, source_type, endpoint, regex, json_path, fetch_interval_sec, is_active, is_primary, last_price, last_fetched, created_at, updated_at) VALUES ('src_def_eur', 'یورو اروپا (EUR/USD)', 'eur', 'api_url', 'https://open.er-api.com/v6/latest/USD', '', 'rates.EUR', 300, 1, 1, 1.0929, '', ?, ?)`, binds: [now, now] },
+          { sql: `INSERT OR IGNORE INTO price_sources (id, name, price_type, source_type, endpoint, regex, json_path, fetch_interval_sec, is_active, is_primary, last_price, last_fetched, created_at, updated_at) VALUES ('src_def_try', 'لیر ترکیه (USD/TRY)', 'try', 'api_url', 'https://open.er-api.com/v6/latest/USD', '', 'rates.TRY', 300, 1, 1, 0.02985, '', ?, ?)`, binds: [now, now] },
+          { sql: `INSERT OR IGNORE INTO price_sources (id, name, price_type, source_type, endpoint, regex, json_path, fetch_interval_sec, is_active, is_primary, last_price, last_fetched, created_at, updated_at) VALUES ('src_def_aed', 'درهم امارات (USD/AED)', 'aed', 'api_url', 'https://open.er-api.com/v6/latest/USD', '', 'rates.AED', 300, 1, 1, 0.2723, '', ?, ?)`, binds: [now, now] },
+          { sql: `INSERT OR IGNORE INTO price_sources (id, name, price_type, source_type, endpoint, regex, json_path, fetch_interval_sec, is_active, is_primary, last_price, last_fetched, created_at, updated_at) VALUES ('src_def_gbp', 'پوند انگلیس (GBP/USD)', 'gbp', 'api_url', 'https://open.er-api.com/v6/latest/USD', '', 'rates.GBP', 300, 1, 1, 1.2788, '', ?, ?)`, binds: [now, now] },
+          { sql: `INSERT OR IGNORE INTO price_sources (id, name, price_type, source_type, endpoint, regex, json_path, fetch_interval_sec, is_active, is_primary, last_price, last_fetched, created_at, updated_at) VALUES ('src_def_chf', 'فرانک سوئیس (USD/CHF)', 'chf', 'api_url', 'https://open.er-api.com/v6/latest/USD', '', 'rates.CHF', 300, 1, 1, 1.1561, '', ?, ?)`, binds: [now, now] },
+          { sql: `INSERT OR IGNORE INTO price_sources (id, name, price_type, source_type, endpoint, regex, json_path, fetch_interval_sec, is_active, is_primary, last_price, last_fetched, created_at, updated_at) VALUES ('src_def_cad', 'دلار کانادا (USD/CAD)', 'cad', 'api_url', 'https://open.er-api.com/v6/latest/USD', '', 'rates.CAD', 300, 1, 1, 0.7299, '', ?, ?)`, binds: [now, now] },
+          { sql: `INSERT OR IGNORE INTO price_sources (id, name, price_type, source_type, endpoint, regex, json_path, fetch_interval_sec, is_active, is_primary, last_price, last_fetched, created_at, updated_at) VALUES ('src_def_aud', 'دلار استرالیا (AUD/USD)', 'aud', 'api_url', 'https://open.er-api.com/v6/latest/USD', '', 'rates.AUD', 300, 1, 1, 0.6579, '', ?, ?)`, binds: [now, now] },
+          { sql: `INSERT OR IGNORE INTO price_sources (id, name, price_type, source_type, endpoint, regex, json_path, fetch_interval_sec, is_active, is_primary, last_price, last_fetched, created_at, updated_at) VALUES ('src_def_cny', 'یوان چین (USD/CNY)', 'cny', 'api_url', 'https://open.er-api.com/v6/latest/USD', '', 'rates.CNY', 300, 1, 1, 0.1393, '', ?, ?)`, binds: [now, now] },
         ];
 
         for (const item of seedInserts) {
           await env.DB.prepare(item.sql).bind(...item.binds).run();
         }
       } else {
-        // Ensure global gold & silver sources are seeded even if other sources exist
+        // Ensure global gold, silver & forex sources are seeded even if other sources exist
         const nowIso = new Date().toISOString();
         await env.DB.prepare(`
           INSERT OR IGNORE INTO price_sources (id, name, price_type, source_type, endpoint, regex, json_path, fetch_interval_sec, is_active, is_primary, last_price, last_fetched, created_at, updated_at)
@@ -232,6 +240,23 @@ export async function ensureD1Tables(env) {
           INSERT OR IGNORE INTO price_sources (id, name, price_type, source_type, endpoint, regex, json_path, fetch_interval_sec, is_active, is_primary, last_price, last_fetched, created_at, updated_at)
           VALUES ('src_def_ons_silver', 'انس نقره جهانی (XAG)', 'ons_silver', 'api_url', 'https://api.gold-api.com/price/XAG', '', 'price', 60, 1, 1, 0, '', ?, ?)
         `).bind(nowIso, nowIso).run().catch(() => {});
+
+        const forexDefaultSeeds = [
+          { id: 'src_def_eur', name: 'یورو اروپا (EUR/USD)', type: 'eur', path: 'rates.EUR', lastPrice: 1.0929 },
+          { id: 'src_def_try', name: 'لیر ترکیه (USD/TRY)', type: 'try', path: 'rates.TRY', lastPrice: 0.02985 },
+          { id: 'src_def_aed', name: 'درهم امارات (USD/AED)', type: 'aed', path: 'rates.AED', lastPrice: 0.2723 },
+          { id: 'src_def_gbp', name: 'پوند انگلیس (GBP/USD)', type: 'gbp', path: 'rates.GBP', lastPrice: 1.2788 },
+          { id: 'src_def_chf', name: 'فرانک سوئیس (USD/CHF)', type: 'chf', path: 'rates.CHF', lastPrice: 1.1561 },
+          { id: 'src_def_cad', name: 'دلار کانادا (USD/CAD)', type: 'cad', path: 'rates.CAD', lastPrice: 0.7299 },
+          { id: 'src_def_aud', name: 'دلار استرالیا (AUD/USD)', type: 'aud', path: 'rates.AUD', lastPrice: 0.6579 },
+          { id: 'src_def_cny', name: 'یوان چین (USD/CNY)', type: 'cny', path: 'rates.CNY', lastPrice: 0.1393 },
+        ];
+        for (const fx of forexDefaultSeeds) {
+          await env.DB.prepare(`
+            INSERT OR IGNORE INTO price_sources (id, name, price_type, source_type, endpoint, regex, json_path, fetch_interval_sec, is_active, is_primary, last_price, last_fetched, created_at, updated_at)
+            VALUES (?, ?, ?, 'api_url', 'https://open.er-api.com/v6/latest/USD', '', ?, 300, 1, 1, ?, '', ?, ?)
+          `).bind(fx.id, fx.name, fx.type, fx.path, fx.lastPrice, nowIso, nowIso).run().catch(() => {});
+        }
       }
     } catch (e) {
       console.error("Price sources seed error:", e);
@@ -1468,7 +1493,10 @@ export async function dbGet24hSparklines(env, targetAsset = null) {
   if (!env || !env.DB) return targetAsset ? { [targetAsset]: [] } : {};
   await ensureD1Tables(env);
 
-  const allTargets = ['usd', 'gold_18k', 'mesghal', 'full_coin', 'quarter_coin'];
+  const allTargets = [
+    'usd', 'gold_18k', 'mesghal', 'full_coin', 'quarter_coin',
+    'eur', 'try', 'aed', 'gbp', 'chf', 'cad', 'aud', 'cny'
+  ];
   const targets = (targetAsset && allTargets.includes(targetAsset)) ? [targetAsset] : allTargets;
   const result = {};
   for (const t of targets) result[t] = [];
@@ -1550,13 +1578,27 @@ export async function dbGetHistoricalBenchmarks(env) {
   if (!env || !env.DB) return result;
   await ensureD1Tables(env);
 
-  const targets = ['usd', 'ons_gold', 'ons_silver', 'gold_18k', 'mesghal', 'full_coin', 'quarter_coin'];
+  const targets = [
+    'usd', 'ons_gold', 'ons_silver', 'gold_18k', 'mesghal', 'full_coin', 'quarter_coin',
+    'eur', 'try', 'aed', 'gbp', 'chf', 'cad', 'aud', 'cny'
+  ];
   const nowMs = Date.now();
   const periods = [
     { key: '24h', targetIso: new Date(nowMs - 24 * 3600 * 1000).toISOString() },
     { key: '7d',  targetIso: new Date(nowMs - 7 * 24 * 3600 * 1000).toISOString() },
     { key: '30d', targetIso: new Date(nowMs - 30 * 24 * 3600 * 1000).toISOString() },
   ];
+
+  const fxFallbacks = {
+    eur: 1.0929,
+    try: 0.02985,
+    aed: 0.2723,
+    gbp: 1.2788,
+    chf: 1.1561,
+    cad: 0.7299,
+    aud: 0.6579,
+    cny: 0.1393,
+  };
 
   try {
     for (const period of periods) {
@@ -1590,6 +1632,12 @@ export async function dbGetHistoricalBenchmarks(env) {
             result[period.key][asset] = {
               price: Number(earliest.price),
               timestamp: earliest.timestamp,
+              isExact: false,
+            };
+          } else if (fxFallbacks[asset]) {
+            result[period.key][asset] = {
+              price: fxFallbacks[asset],
+              timestamp: period.targetIso,
               isExact: false,
             };
           }
