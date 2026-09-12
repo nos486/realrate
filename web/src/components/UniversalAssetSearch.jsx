@@ -14,110 +14,20 @@ import {
 } from 'lucide-react';
 import { apiGetPriceSources, apiSearchBourseSymbols } from '../api/client.js';
 
-export const STANDARD_PRICE_TYPE_LABELS = {
-  usd: 'دلار آمریکا',
-  usd_toman: 'دلار آمریکا',
-  gold_18k: 'طلای ۱۸ عیار',
-  gold_24k: 'طلای ۲۴ عیار',
-  gold_melted: 'طلای آبشده',
-  mesghal: 'مثقال طلا (مظنه)',
-  full_coin: 'سکه امامی',
-  full_new: 'سکه امامی',
-  full_old: 'سکه بهار آزادی (طرح قدیم)',
-  half_coin: 'نیم سکه بهار آزادی',
-  half: 'نیم سکه بهار آزادی',
-  quarter_coin: 'ربع سکه بهار آزادی',
-  quarter: 'ربع سکه بهار آزادی',
-  gerami_coin: 'سکه گرمی',
-  gerami: 'سکه گرمی',
-  ons_gold: 'انس جهانی طلا',
-  gold_ounce: 'انس جهانی طلا',
-  ons_silver: 'انس جهانی نقره',
-  silver_ounce: 'انس جهانی نقره',
-  silver_999: 'نقره خام ۹۹۹',
-  eur: 'یورو اروپا',
-  try: 'لیر ترکیه',
-  aed: 'درهم امارات',
-  gbp: 'پوند انگلیس',
-  chf: 'فرانک سوئیس',
-  cad: 'دلار کانادا',
-  aud: 'دلار استرالیا',
-  cny: 'یوان چین',
-  kwd: 'دینار کویت',
-  sar: 'ریال عربستان',
-  qar: 'ریال قطر',
-  bourse: 'بورس اوراق بهادار',
-  bourse_fund: 'صندوق سرمایه‌گذاری بورس',
-  forex: 'ارزهای جهانی (فارکس)',
-  crypto: 'رمزارز',
-  usdt: 'تتر (USDT)',
-  btc: 'بیت‌کوین (BTC)',
-  eth: 'اتریوم (ETH)',
-};
-
-export function getPriceTypeLabel(priceType, priceTypeInfo = null) {
-  if (!priceType) return '';
-  const clean = String(priceType).trim().toLowerCase();
-  if (priceTypeInfo && priceTypeInfo[priceType]?.label) return priceTypeInfo[priceType].label;
-  if (priceTypeInfo && priceTypeInfo[clean]?.label) return priceTypeInfo[clean].label;
-  if (STANDARD_PRICE_TYPE_LABELS[clean]) return STANDARD_PRICE_TYPE_LABELS[clean];
-  if (STANDARD_PRICE_TYPE_LABELS[priceType]) return STANDARD_PRICE_TYPE_LABELS[priceType];
-  return priceType;
-}
-
-export function getCategoryMetadata(priceType) {
-  const pt = String(priceType || '').toLowerCase();
-  if (pt === 'gold_18k' || pt === 'gold_24k' || pt === 'gold_melted' || pt === 'mesghal' || pt.includes('gold')) {
-    return { category: 'gold', badge: 'طلا', tab: 'gold_coins' };
-  }
-  if (pt.includes('coin') || pt === 'full_new' || pt === 'full_old' || pt === 'half' || pt === 'quarter' || pt === 'gerami') {
-    return { category: 'coin', badge: 'سکه', tab: 'gold_coins' };
-  }
-  if (pt.includes('silver')) {
-    return { category: 'silver', badge: 'نقره', tab: 'gold_coins' };
-  }
-  if (pt === 'crypto' || pt === 'btc' || pt === 'eth' || pt === 'usdt') {
-    return { category: 'crypto', badge: 'رمزارز', tab: 'currency_crypto' };
-  }
-  if (pt === 'bourse') {
-    return { category: 'bourse', badge: 'بورس', tab: 'bourse' };
-  }
-  if (pt === 'bourse_fund') {
-    return { category: 'bourse_fund', badge: 'صندوق', tab: 'bourse' };
-  }
-  return { category: 'currency', badge: 'ارز', tab: 'currency_crypto' };
-}
-
-export function normalizeSearchText(str) {
-  if (!str) return '';
-  return String(str)
-    .toLowerCase()
-    .replace(/\u200C/g, ' ')
-    .replace(/[\u200B\u200D\uFEFF]/g, '')
-    .replace(/[ي]/g, 'ی')
-    .replace(/[ك]/g, 'ک')
-    .replace(/[آأإ]/g, 'ا')
-    .replace(/[ة]/g, 'ه')
-    .replace(/[۰٠]/g, '0')
-    .replace(/[۱١]/g, '1')
-    .replace(/[۲٢]/g, '2')
-    .replace(/[۳٣]/g, '3')
-    .replace(/[۴٤]/g, '4')
-    .replace(/[۵٥]/g, '5')
-    .replace(/[۶٦]/g, '6')
-    .replace(/[۷٧]/g, '7')
-    .replace(/[۸٨]/g, '8')
-    .replace(/[۹٩]/g, '9')
-    .replace(/\s+/g, ' ')
-    .trim();
-}
-
-export function isSourceMultiOutput(s) {
+export function isSourceMultiOutput(s, priceTypeInfo = {}) {
   if (!s) return false;
   const t = (s.priceType || '').toLowerCase();
-  if (t === 'bourse' || t === 'bourse_fund' || t === 'forex') return true;
+  const info = priceTypeInfo ? (priceTypeInfo[t] || priceTypeInfo[s.priceType]) : null;
+  if (info?.category === 'multi_output') return true;
   if (s.category === 'multi_output' || s.isMultiOutput) return true;
-  if (s.fieldMapping && (s.fieldMapping.isMultiOutput || s.fieldMapping.idField || s.fieldMapping.symbolField)) return true;
+  if (t === 'bourse' || t === 'bourse_fund' || t === 'forex') return true;
+  if (s.fieldMapping) {
+    let fm = s.fieldMapping;
+    if (typeof fm === 'string') {
+      try { fm = JSON.parse(fm); } catch {}
+    }
+    if (fm && (fm.isMultiOutput || fm.idField || fm.symbolField || fm.currencies || fm.arrayPath)) return true;
+  }
   if (s.lastMultiData) return true;
   if (Array.isArray(s.sampleItems) && s.sampleItems.length > 0) return true;
   if (Array.isArray(s.compactList) && s.compactList.length > 0) return true;
@@ -127,16 +37,12 @@ export function isSourceMultiOutput(s) {
 
 export function extractMultiItems(src) {
   if (!src) return [];
-  let multi = null;
-  if (src.lastMultiData) {
-    if (typeof src.lastMultiData === 'string') {
-      try {
-        multi = JSON.parse(src.lastMultiData);
-      } catch (e) {
-        console.warn('Failed to parse lastMultiData for', src.name, e);
-      }
-    } else if (typeof src.lastMultiData === 'object') {
-      multi = src.lastMultiData;
+  let multi = src.lastMultiData;
+  if (typeof multi === 'string') {
+    try {
+      multi = JSON.parse(multi);
+    } catch (e) {
+      console.warn('Failed to parse lastMultiData for', src.name, e);
     }
   }
 
@@ -148,18 +54,29 @@ export function extractMultiItems(src) {
     else if (Array.isArray(multi.symbols)) rawList = multi.symbols;
     else if (Array.isArray(multi.data)) rawList = multi.data;
     else if (Array.isArray(multi.results)) rawList = multi.results;
+    else if (Array.isArray(multi.result)) rawList = multi.result;
     else if (Array.isArray(multi.list)) rawList = multi.list;
     else if (Array.isArray(multi)) rawList = multi;
     else if (typeof multi === 'object') {
       rawList = Object.entries(multi)
-        .filter(([k]) => !['updatedAt', 'totalCount', 'totalSymbols', 'labels', 'topSymbols', 'error', 'datetime'].includes(k))
+        .filter(([k]) => !['updatedAt', 'totalCount', 'totalSymbols', 'totalFunds', 'fundsCount', 'labels', 'topSymbols', 'error', 'datetime', 'lastUpdated'].includes(k))
         .map(([k, v]) => {
-          const val = typeof v === 'object' ? (v?.price || v?.p || v?.val || 0) : v;
+          if (v && typeof v === 'object') {
+            return {
+              s: v.symbol || v.s || v.code || k,
+              n: v.name || v.n || v.title || v.label || k,
+              p: v.price || v.p || v.priceTomans || v.lastPrice || v.val || 0,
+              priceTomans: v.priceTomans || v.price || v.p || 0,
+              cp: v.changePercent || v.cp || v.plp || 0,
+              cat: v.category || v.cat || v.group || '',
+              extra: v.extra || '',
+            };
+          }
           return {
-            s: k.toUpperCase(),
-            n: k.toUpperCase(),
-            p: Number(val) || 0,
-            priceTomans: Number(val) || 0,
+            s: k,
+            n: k,
+            p: Number(v) || 0,
+            priceTomans: Number(v) || 0,
           };
         });
     }
@@ -218,33 +135,42 @@ export function extractMultiItems(src) {
     });
 }
 
-function getCategoryIcon(cat) {
-  switch (cat) {
-    case 'gold':
-      return <Award size={15} />;
-    case 'coin':
-      return <Coins size={15} />;
-    case 'silver':
-      return <Disc size={15} />;
-    case 'currency':
-      return <Banknote size={15} />;
-    case 'crypto':
-      return <Zap size={15} />;
-    case 'bourse':
-      return <TrendingUp size={15} />;
-    case 'bourse_fund':
-      return <Layers size={15} />;
-    default:
-      return <Sparkles size={15} />;
-  }
+function getAssetIcon(item) {
+  if (!item) return <Sparkles size={15} />;
+  if (item.type === 'bourse') return <TrendingUp size={15} />;
+  const badge = String(item.badge || item.category || item.name || '').toLowerCase();
+  if (badge.includes('طلا') || badge.includes('gold')) return <Award size={15} />;
+  if (badge.includes('سکه') || badge.includes('coin')) return <Coins size={15} />;
+  if (badge.includes('نقره') || badge.includes('silver')) return <Disc size={15} />;
+  if (badge.includes('ارز') || badge.includes('currency') || badge.includes('دلار')) return <Banknote size={15} />;
+  if (badge.includes('رمز') || badge.includes('crypto')) return <Zap size={15} />;
+  if (badge.includes('صندوق') || badge.includes('fund')) return <Layers size={15} />;
+  return <Sparkles size={15} />;
 }
 
-const CATEGORY_TABS = [
-  { id: 'all', label: 'همه اقلام' },
-  { id: 'gold_coins', label: 'طلا و مسکوکات' },
-  { id: 'currency_crypto', label: 'ارز و رمزارز' },
-  { id: 'bourse', label: 'بورس و صندوق‌ها' },
-];
+export function normalizeSearchText(str) {
+  if (!str) return '';
+  return String(str)
+    .toLowerCase()
+    .replace(/\u200C/g, ' ')
+    .replace(/[\u200B\u200D\uFEFF]/g, '')
+    .replace(/[ي]/g, 'ی')
+    .replace(/[ك]/g, 'ک')
+    .replace(/[آأإ]/g, 'ا')
+    .replace(/[ة]/g, 'ه')
+    .replace(/[۰٠]/g, '0')
+    .replace(/[۱١]/g, '1')
+    .replace(/[۲٢]/g, '2')
+    .replace(/[۳٣]/g, '3')
+    .replace(/[۴٤]/g, '4')
+    .replace(/[۵٥]/g, '5')
+    .replace(/[۶٦]/g, '6')
+    .replace(/[۷٧]/g, '7')
+    .replace(/[۸٨]/g, '8')
+    .replace(/[۹٩]/g, '9')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
 
 export default function UniversalAssetSearch({
   mode = 'picker',
@@ -253,20 +179,18 @@ export default function UniversalAssetSearch({
   selectedAsset = null,
   selectedAssetId = null,
   onSelect = () => {},
-  showCategories = true,
-  placeholder = 'جستجو در تمامی سورس‌ها، طلا، سکه، ارز، بورس...',
+  placeholder = 'جستجو در تمامی دارایی‌ها و سورس‌ها...',
   title = '',
   subtitle = '',
   autoFocus = false,
 }) {
   const [query, setQuery] = useState('');
-  const [activeCategory, setActiveCategory] = useState('all');
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [internalSources, setInternalSources] = useState(sources || []);
   const [bourseSymbols, setBourseSymbols] = useState([]);
   const containerRef = useRef(null);
 
-  // 1. Fetch Sources if not supplied via props
+  // 1. Fetch Sources if not passed in props
   useEffect(() => {
     if (sources && sources.length > 0) {
       setInternalSources(sources);
@@ -307,36 +231,33 @@ export default function UniversalAssetSearch({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  // 3. Build the COMPLETE Unified Items List Upfront (Only 2 types, 100% clean)
+  // 3. Build Unified Items List (100% Client-Side, Exact 2 Types)
   const allItems = useMemo(() => {
     const items = [];
     const seenKeys = new Set();
 
-    // ── نوع اول: سورس‌های نرخ پایه ──────────────────────────────────────────
+    // ── نوع ۱: سورس‌های نرخ پایه ──────────────────────────────────────────
     // فقط نوع نرخ را بنویس، فقط در صورت فعال بودن و مرجع بودن
     internalSources.forEach((src) => {
       const isActive = src.isActive === 1 || src.isActive === true || src.is_active === 1 || src.is_active === true;
       if (!isActive) return;
 
-      const isMulti = isSourceMultiOutput(src);
+      const isMulti = isSourceMultiOutput(src, priceTypeInfo);
       if (isMulti) return;
 
       const isPrimary = src.isPrimary === 1 || src.isPrimary === true || src.is_primary === 1 || src.is_primary === true;
-      if (!isPrimary) return; // سورس پایه فقط در صورت مرجع بودن
+      if (!isPrimary) return;
 
-      const typeLabel = getPriceTypeLabel(src.priceType, priceTypeInfo) || src.name;
-      const meta = getCategoryMetadata(src.priceType);
+      const typeLabel = (priceTypeInfo && priceTypeInfo[src.priceType]?.label) || src.priceType || src.name;
 
       items.push({
         id: src.id,
         sourceId: src.id,
-        name: typeLabel, // فقط نوع نرخ
+        name: typeLabel, // فقط عنوان نوع نرخ
         symbol: '',
         subText: 'نرخ پایه بازار (سورس مرجع)',
-        badge: meta.badge,
-        badgeClass: meta.category,
-        category: meta.category,
-        tab: meta.tab,
+        badge: typeLabel,
+        badgeClass: 'single-rate',
         price: Number(src.lastPrice || 0),
         unit: src.unit || 'تومان',
         type: 'source',
@@ -346,24 +267,21 @@ export default function UniversalAssetSearch({
       seenKeys.add(src.id);
     });
 
-    // ── نوع دوم: هاب سورس‌های چند خروجی و فیدها ─────────────────────────────
-    // بر اساس دسته‌بندی هر اقلامی که زیرش هست رو بیار، در صورت فعال بودن
+    // ── نوع ۲: هاب سورس‌های چند خروجی و فیدها (تمام دسته‌بندی‌ها) ───────────────
+    // هر اقلامی که زیرش هست رو بیار، در صورت فعال بودن
     internalSources.forEach((src) => {
       const isActive = src.isActive === 1 || src.isActive === true || src.is_active === 1 || src.is_active === true;
       if (!isActive) return;
 
-      const isMulti = isSourceMultiOutput(src);
+      const isMulti = isSourceMultiOutput(src, priceTypeInfo);
       if (!isMulti) return;
 
-      const isBourseFeed = src.priceType === 'bourse' || src.priceType === 'bourse_fund';
-      const isForexFeed = src.priceType === 'forex';
+      const feedCategoryLabel = (priceTypeInfo && priceTypeInfo[src.priceType]?.label) || src.priceType || src.name;
+      const isBourse = src.priceType === 'bourse' || src.priceType === 'bourse_fund';
 
-      if (isBourseFeed) {
-        // اقلام زیرمجموعه فید بورس
-        const extracted = extractMultiItems(src);
-        const listToUse = bourseSymbols.length > 0 ? bourseSymbols : extracted;
-
-        listToUse.forEach((sym) => {
+      // ۱. اگر فید بورس است و دیتای نمادها از قبل لود شده
+      if (isBourse && bourseSymbols.length > 0) {
+        bourseSymbols.forEach((sym) => {
           const symCode = (sym.symbol || sym.s || '').trim();
           const symName = (sym.name || sym.n || symCode).trim();
           if (!symCode && !symName) return;
@@ -383,11 +301,9 @@ export default function UniversalAssetSearch({
             sourceId: src.id,
             symbol: symCode,
             name: symCode && !symName.includes(symCode) ? `${symName} (${symCode})` : symName,
-            subText: sym.category ? `${sym.category}${symCode ? ` • نماد: ${symCode}` : ''}` : (isFund ? `صندوق سرمایه‌گذاری${symCode ? ` • نماد: ${symCode}` : ''}` : `سهام بورس اوراق بهادار${symCode ? ` • نماد: ${symCode}` : ''}`),
+            subText: sym.category ? `${sym.category}${symCode ? ` • نماد: ${symCode}` : ''}` : (isFund ? `صندوق سرمایه‌گذاری${symCode ? ` • نماد: ${symCode}` : ''}` : `سهام بورس${symCode ? ` • نماد: ${symCode}` : ''}`),
             badge: isFund ? 'صندوق' : 'بورس',
             badgeClass: 'bourse',
-            category: isFund ? 'bourse_fund' : 'bourse',
-            tab: 'bourse',
             price: priceToman,
             unit: isFund ? 'واحد' : 'برگ سهم',
             type: 'bourse',
@@ -403,93 +319,61 @@ export default function UniversalAssetSearch({
             },
           });
         });
-      } else if (isForexFeed) {
-        // اقلام زیرمجموعه فید فارکس
-        const subItems = extractMultiItems(src);
-        subItems.forEach((sub) => {
-          const symCode = (sub.symbol || sub.s || '').trim();
-          const curKey = `${src.id}::${symCode || sub.name}`;
-          if (seenKeys.has(curKey)) return;
-          seenKeys.add(curKey);
-
-          const curLabel = STANDARD_PRICE_TYPE_LABELS[symCode.toLowerCase()] || sub.name || symCode;
-
-          items.push({
-            id: curKey,
-            sourceId: src.id,
-            symbol: symCode,
-            name: curLabel,
-            subText: `ارز جهانی • نرخ برابری ${symCode}`,
-            badge: 'ارز',
-            badgeClass: 'currency',
-            category: 'currency',
-            tab: 'currency_crypto',
-            price: Number(sub.price || 0),
-            unit: 'تومان',
-            type: 'source',
-            changePercent: Number(sub.changePercent || 0),
-            raw: {
-              ...sub,
-              sourceId: src.id,
-              sourceName: src.name,
-              unit: 'تومان',
-            },
-          });
-        });
-      } else {
-        // سایر فیدهای چند خروجی (رمزارز، کالا و ...)
-        const subItems = extractMultiItems(src);
-        const meta = getCategoryMetadata(src.priceType);
-
-        subItems.forEach((sub) => {
-          const symCode = (sub.symbol || sub.s || '').trim();
-          const itemKey = `${src.id}::${symCode || sub.name}`;
-          if (seenKeys.has(itemKey)) return;
-          seenKeys.add(itemKey);
-
-          items.push({
-            id: itemKey,
-            sourceId: src.id,
-            symbol: symCode,
-            name: sub.name,
-            subText: sub.category || sub.extra || '',
-            badge: meta.badge || 'آیتم',
-            badgeClass: meta.category,
-            category: meta.category,
-            tab: meta.tab,
-            price: Number(sub.price || 0),
-            unit: src.unit || 'تومان',
-            type: 'source',
-            changePercent: Number(sub.changePercent || 0),
-            raw: {
-              ...sub,
-              sourceId: src.id,
-              sourceName: src.name,
-              unit: src.unit || 'تومان',
-            },
-          });
-        });
       }
+
+      // ۲. استخراج تمامی اقلام زیرمجموعه این فید (فارکس، خودرو، رمزارز، کالا، مسکن و تمامی دسته‌بندی‌ها)
+      const subItems = extractMultiItems(src);
+      subItems.forEach((sub) => {
+        const symCode = (sub.symbol || sub.s || '').trim();
+        const itemName = (sub.name || sub.n || symCode).trim();
+        if (!symCode && !itemName) return;
+
+        const itemKey = `${src.id}::${symCode || itemName}`;
+        if (seenKeys.has(itemKey)) return;
+        seenKeys.add(itemKey);
+
+        const isFund = Boolean(sub.isFund || (isBourse && (sub.category?.includes('صندوق') || itemName.includes('صندوق'))));
+        const itemBadge = sub.category || (isBourse ? (isFund ? 'صندوق' : 'بورس') : feedCategoryLabel);
+
+        const displayName = symCode && !itemName.includes(symCode) ? `${itemName} (${symCode})` : itemName;
+        const subDetails = [sub.category, symCode ? `کد: ${symCode}` : '', sub.extra].filter(Boolean).join(' • ') || feedCategoryLabel;
+
+        items.push({
+          id: itemKey,
+          sourceId: src.id,
+          symbol: symCode,
+          name: displayName,
+          subText: subDetails,
+          badge: itemBadge,
+          badgeClass: isBourse ? 'bourse' : 'multi-item',
+          price: Number(sub.price || sub.priceTomans || 0),
+          unit: isBourse ? (isFund ? 'واحد' : 'برگ سهم') : (src.unit || 'تومان'),
+          type: isBourse ? 'bourse' : 'source',
+          changePercent: Number(sub.changePercent || 0),
+          raw: {
+            ...sub,
+            symbol: symCode,
+            name: itemName,
+            priceToman: Number(sub.price || sub.priceTomans || 0),
+            priceRial: Number(sub.price || sub.priceTomans || 0) * 10,
+            isFund,
+            sourceId: src.id,
+            sourceName: src.name,
+            unit: isBourse ? (isFund ? 'واحد' : 'برگ سهم') : (src.unit || 'تومان'),
+          },
+        });
+      });
     });
 
     return items;
   }, [internalSources, bourseSymbols, priceTypeInfo]);
 
-  // 4. Pure Client-Side Instant Search Filtering
+  // 4. Pure Client-Side Instant Search Filter
   const filteredItems = useMemo(() => {
     const q = normalizeSearchText(query);
+    if (!q) return allItems;
 
     return allItems.filter((item) => {
-      // فیلتر تب دسته‌بندی
-      if (activeCategory !== 'all') {
-        if (activeCategory === 'gold_coins' && item.tab !== 'gold_coins') return false;
-        if (activeCategory === 'currency_crypto' && item.tab !== 'currency_crypto') return false;
-        if (activeCategory === 'bourse' && item.tab !== 'bourse') return false;
-      }
-
-      // فیلتر عبارت جستجو
-      if (!q) return true;
-
       const nameNorm = normalizeSearchText(item.name);
       const symNorm = normalizeSearchText(item.symbol);
       const subNorm = normalizeSearchText(item.subText);
@@ -497,7 +381,7 @@ export default function UniversalAssetSearch({
 
       return nameNorm.includes(q) || symNorm.includes(q) || subNorm.includes(q) || badgeNorm.includes(q);
     });
-  }, [allItems, query, activeCategory]);
+  }, [allItems, query]);
 
   const isItemActive = (item) => {
     const targetId = selectedAssetId || (selectedAsset?.id ? selectedAsset.id : null);
@@ -521,9 +405,9 @@ export default function UniversalAssetSearch({
       className={`universal-search-container mode-${mode}`}
       style={{ position: 'relative', width: '100%' }}
     >
-      {/* Header & Category Filter Strip */}
-      {showCategories && (
-        <div className="universal-search-header-area">
+      {/* Header Area (No tabs) */}
+      {(title || subtitle || (mode === 'explorer' && selectedAsset)) && (
+        <div className="universal-search-header-area" style={{ marginBottom: '10px' }}>
           {title && (
             <div className="universal-header-titles">
               <h4 className="universal-search-title">{title}</h4>
@@ -531,29 +415,16 @@ export default function UniversalAssetSearch({
             </div>
           )}
 
-          <div className="universal-categories-strip">
-            {CATEGORY_TABS.map((tab) => (
-              <button
-                key={tab.id}
-                type="button"
-                className={`universal-cat-pill ${activeCategory === tab.id ? 'active' : ''}`}
-                onClick={() => setActiveCategory(tab.id)}
-              >
-                {tab.label}
-              </button>
-            ))}
-          </div>
-
           {/* Active Asset Banner in Explorer Mode */}
           {mode === 'explorer' && selectedAsset && (
             <div className="universal-active-asset-banner">
               <div className="universal-active-badge">دارایی فعال</div>
               <div className="universal-active-details">
                 <div className="universal-active-icon">
-                  {getCategoryIcon(selectedAsset?.category || selectedAsset?.priceType || 'all')}
+                  {getAssetIcon(selectedAsset)}
                 </div>
                 <strong className="universal-active-name">
-                  {getPriceTypeLabel(selectedAsset?.priceType, priceTypeInfo) || selectedAsset?.name || 'انتخاب نشده'}
+                  {(priceTypeInfo && priceTypeInfo[selectedAsset?.priceType]?.label) || selectedAsset?.name || 'انتخاب نشده'}
                 </strong>
               </div>
             </div>
@@ -590,17 +461,17 @@ export default function UniversalAssetSearch({
         )}
       </div>
 
-      {/* Results Rendering: Mode Dependent */}
+      {/* Results Rendering */}
       {mode === 'picker' ? (
         /* Picker Mode: Dropdown Popover */
         isDropdownOpen && (
           <div className="universal-results-picker-dropdown">
             {filteredItems.length === 0 ? (
               <div className="universal-empty-results">
-                هیچ دارایی یا سورسی مطابق با عبارت جستجو یافت نشد.
+                هیچ دارایی یا سورسی یافت نشد.
               </div>
             ) : (
-              filteredItems.slice(0, 40).map((item) => {
+              filteredItems.slice(0, 50).map((item) => {
                 const active = isItemActive(item);
                 return (
                   <div
@@ -609,13 +480,13 @@ export default function UniversalAssetSearch({
                     onClick={() => handleSelectItem(item)}
                   >
                     <div className="universal-result-info">
-                      <div className={`universal-result-icon ${item.badgeClass || item.category}`}>
-                        {getCategoryIcon(item.category)}
+                      <div className="universal-result-icon">
+                        {getAssetIcon(item)}
                       </div>
                       <div className="universal-result-text">
                         <span className="universal-result-name">{item.name}</span>
                         <div className="universal-result-sub">
-                          <span className={`universal-result-badge ${item.badgeClass || item.category}`}>
+                          <span className="universal-result-badge">
                             {item.badge}
                           </span>
                           {item.subText && <span>{item.subText}</span>}
@@ -659,7 +530,7 @@ export default function UniversalAssetSearch({
                 موردی با این مشخصات یافت نشد.
               </div>
             ) : (
-              filteredItems.slice(0, 40).map((item) => {
+              filteredItems.slice(0, 50).map((item) => {
                 const active = isItemActive(item);
                 return (
                   <div
@@ -668,13 +539,13 @@ export default function UniversalAssetSearch({
                     onClick={() => handleSelectItem(item)}
                   >
                     <div className="universal-result-info">
-                      <div className={`universal-result-icon ${item.badgeClass || item.category}`}>
-                        {getCategoryIcon(item.category)}
+                      <div className="universal-result-icon">
+                        {getAssetIcon(item)}
                       </div>
                       <div className="universal-result-text">
                         <span className="universal-result-name">{item.name}</span>
                         <div className="universal-result-sub">
-                          <span className={`universal-result-badge ${item.badgeClass || item.category}`}>
+                          <span className="universal-result-badge">
                             {item.badge}
                           </span>
                           {item.subText && <span>{item.subText}</span>}
