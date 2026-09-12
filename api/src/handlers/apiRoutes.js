@@ -7,7 +7,7 @@ import { getLatestMarketRates } from "../services/priceSources.js";
 import { fetchForexRates } from "../services/forexRates.js";
 import { getGlobalSettings } from "../lib/settings.js";
 import { jsonResponse } from "../lib/helpers.js";
-import { dbGet24hSparklines } from "../lib/db.js";
+import { dbGet24hSparklines, dbGetHistoricalBenchmarks } from "../lib/db.js";
 
 /**
  * GET /api/prices
@@ -86,3 +86,37 @@ export async function handleGetSparklines(env, request = null) {
     return jsonResponse({ success: false, error: err.message }, 500, request);
   }
 }
+
+/**
+ * Return historical price benchmarks for 24h, 7d, and 30d
+ * Used to calculate portfolio profit percentage changes over these periods.
+ * Cached in Cloudflare KV for 10 minutes (600s TTL).
+ */
+export async function handleGetHistoricalBenchmarks(env, request = null) {
+  try {
+    const cacheKey = "portfolio_benchmarks_24h_7d_30d";
+
+    if (env?.REALRATE_KV) {
+      try {
+        const cached = await env.REALRATE_KV.get(cacheKey, "json");
+        if (cached && typeof cached === "object") {
+          return jsonResponse({ success: true, benchmarks: cached, cached: true }, 200, request);
+        }
+      } catch (cacheErr) {
+        console.warn("[Benchmarks] KV read error:", cacheErr.message);
+      }
+    }
+
+    const benchmarks = await dbGetHistoricalBenchmarks(env);
+
+    if (env?.REALRATE_KV && benchmarks) {
+      env.REALRATE_KV.put(cacheKey, JSON.stringify(benchmarks), { expirationTtl: 600 }).catch(() => {});
+    }
+
+    return jsonResponse({ success: true, benchmarks, cached: false }, 200, request);
+  } catch (err) {
+    console.error("[Benchmarks] Error:", err);
+    return jsonResponse({ success: false, error: err.message }, 500, request);
+  }
+}
+

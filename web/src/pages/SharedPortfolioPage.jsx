@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { apiGetSharedPortfolio, apiGetPrices } from '../api/client.js';
+import { apiGetSharedPortfolio, apiGetPrices, apiGetHistoricalBenchmarks } from '../api/client.js';
 import { calculateMarketData } from '../utils/calculator.js';
 import Header from '../components/Header.jsx';
 import AlertBanner from '../components/ui/AlertBanner.jsx';
@@ -21,6 +21,9 @@ import {
   MessageSquare,
   TrendingUp,
   TrendingDown,
+  ArrowUpRight,
+  ArrowDownRight,
+  Clock,
   Download,
 } from 'lucide-react';
 import {
@@ -32,6 +35,28 @@ import {
 function formatNum(num) {
   if (num === null || num === undefined || isNaN(num)) return '۰';
   return Math.round(num).toLocaleString('fa-IR');
+}
+
+/**
+ * Helper to parse Shamsi or ISO date to millisecond timestamp for comparison
+ */
+function parseDateToMs(dateStr) {
+  if (!dateStr || typeof dateStr !== 'string') return null;
+  const trimmed = dateStr.trim();
+  if (/^\d{4}-\d{2}-\d{2}/.test(trimmed)) {
+    const t = new Date(trimmed).getTime();
+    return isNaN(t) ? null : t;
+  }
+  const parts = trimmed.split(/[\/\-\.]/).map((p) => parseInt(p, 10));
+  if (parts.length === 3 && parts[0] > 1300 && parts[0] < 1500) {
+    const [jy, jm, jd] = parts;
+    const approxGy = jy + 621;
+    const approxGm = jm <= 6 ? jm + 2 : jm + 2;
+    const approxGd = jd;
+    const t = new Date(approxGy, approxGm - 1, approxGd).getTime();
+    return isNaN(t) ? null : t;
+  }
+  return null;
 }
 
 export default function SharedPortfolioPage() {
@@ -50,6 +75,10 @@ export default function SharedPortfolioPage() {
   const [showVaultPass, setShowVaultPass] = useState(false);
   const [vaultError, setVaultError] = useState('');
   const [decryptingVault, setDecryptingVault] = useState(false);
+
+  // Historical benchmarks for 24h, 7d, 30d performance
+  const [benchmarks, setBenchmarks] = useState(null);
+  const [selectedPeriod, setSelectedPeriod] = useState('all'); // 'all', '24h', '7d', '30d'
 
   // Privacy Mode State (Mask values as ****)
   const [hideValues, setHideValues] = useState(() => {
@@ -98,6 +127,19 @@ export default function SharedPortfolioPage() {
         }
       })
       .catch(console.error);
+  }, []);
+
+  // 2. Fetch historical price benchmarks (24h, 7d, 30d)
+  useEffect(() => {
+    apiGetHistoricalBenchmarks()
+      .then((data) => {
+        if (data && data.success && data.benchmarks) {
+          setBenchmarks(data.benchmarks);
+        }
+      })
+      .catch((err) => {
+        console.warn('Failed to load historical benchmarks:', err);
+      });
   }, []);
 
   // 2. Fetch shared portfolio
@@ -179,29 +221,8 @@ export default function SharedPortfolioPage() {
     }
   };
 
-  // 3. Accurate Real Values & Metrics calculation
-  const realPriceMap = useMemo(() => {
-    const usdVal = Number(
-      marketRates?.live_usd_toman ||
-      calcData?.inputs?.usd_toman ||
-      marketRates?.globalSettings?.default_usd_toman ||
-      0
-    );
-
-    const goldUsdVal = Number(
-      marketRates?.gold_usd ||
-      calcData?.inputs?.gold_usd ||
-      marketRates?.globalSettings?.default_gold_usd ||
-      2700
-    );
-
-    const silverUsdVal = Number(
-      calcData?.silver?.silver_usd ||
-      marketRates?.silver?.silver_usd ||
-      marketRates?.silver_usd ||
-      33.5
-    );
-
+  // Pure pricing calculation helper
+  const computePriceMap = (usdVal, goldUsdVal, silverUsdVal) => {
     const map = {};
     if (!usdVal) return map;
 
@@ -253,10 +274,81 @@ export default function SharedPortfolioPage() {
     }
 
     return map;
+  };
+
+  // 3. Accurate Real Values & Metrics calculation
+  const realPriceMap = useMemo(() => {
+    const usdVal = Number(
+      marketRates?.live_usd_toman ||
+      calcData?.inputs?.usd_toman ||
+      marketRates?.globalSettings?.default_usd_toman ||
+      0
+    );
+
+    const goldUsdVal = Number(
+      marketRates?.gold_usd ||
+      calcData?.inputs?.gold_usd ||
+      marketRates?.globalSettings?.default_gold_usd ||
+      2700
+    );
+
+    const silverUsdVal = Number(
+      calcData?.silver?.silver_usd ||
+      marketRates?.silver?.silver_usd ||
+      marketRates?.silver_usd ||
+      33.5
+    );
+
+    return computePriceMap(usdVal, goldUsdVal, silverUsdVal);
   }, [marketRates, calcData]);
 
+  // Historical price maps for 24h, 7d, 30d periods
+  const historicalPriceMaps = useMemo(() => {
+    if (!benchmarks) return null;
+
+    const currentUsd = Number(marketRates?.live_usd_toman || calcData?.inputs?.usd_toman || 95000);
+    const currentGoldUsd = Number(marketRates?.gold_usd || calcData?.inputs?.gold_usd || 2890);
+    const currentSilverUsd = Number(marketRates?.silver_usd || calcData?.silver?.silver_usd || 33.5);
+
+    const buildHistoricalMap = (periodKey) => {
+      const b = benchmarks[periodKey] || {};
+      const histUsd = b.usd?.price || currentUsd;
+      const histGold = b.ons_gold?.price || currentGoldUsd;
+      const histSilver = b.ons_silver?.price || currentSilverUsd;
+
+      const map = computePriceMap(histUsd, histGold, histSilver);
+
+      if (b.gold_18k?.price) map['gold_18k'] = Math.round(b.gold_18k.price);
+      if (b.full_coin?.price) {
+        map['full_new'] = Math.round(b.full_coin.price);
+        map['full_old'] = Math.round(b.full_coin.price);
+      }
+      if (b.quarter_coin?.price) map['quarter'] = Math.round(b.quarter_coin.price);
+
+      return map;
+    };
+
+    return {
+      '24h': buildHistoricalMap('24h'),
+      '7d': buildHistoricalMap('7d'),
+      '30d': buildHistoricalMap('30d'),
+    };
+  }, [benchmarks, marketRates, calcData]);
+
   const portfolioMetrics = useMemo(() => {
-    if (!portfolioData?.holdings) return { items: [], totalCost: 0, totalRealValue: 0, totalPnl: 0, totalPnlPct: 0, hasAnyCost: false };
+    if (!portfolioData?.holdings) {
+      return {
+        items: [],
+        totalCost: 0,
+        totalRealValue: 0,
+        totalPnl: 0,
+        totalPnlPct: 0,
+        hasAnyCost: false,
+        perf24h: { diff: 0, diffPct: 0, isProfit: true },
+        perf7d: { diff: 0, diffPct: 0, isProfit: true },
+        perf30d: { diff: 0, diffPct: 0, isProfit: true },
+      };
+    }
 
     const items = portfolioData.holdings.map((h) => {
       const amountNum = Number(h.amount) || 0;
@@ -292,8 +384,59 @@ export default function SharedPortfolioPage() {
     const totalPnl = costedItems.reduce((acc, it) => acc + (it.itemPnl || 0), 0);
     const totalPnlPct = hasAnyCost ? parseFloat(((totalPnl / totalCost) * 100).toFixed(1)) : 0;
 
-    return { items, totalCost, totalRealValue, totalPnl, totalPnlPct, hasAnyCost };
-  }, [portfolioData, realPriceMap]);
+    // Periodic returns (24h, 7d, 30d)
+    const nowMs = Date.now();
+    const periodCutoffs = {
+      '24h': nowMs - 24 * 3600 * 1000,
+      '7d':  nowMs - 7 * 24 * 3600 * 1000,
+      '30d': nowMs - 30 * 24 * 3600 * 1000,
+    };
+
+    const calcPeriodicPerf = (periodKey) => {
+      const histMap = historicalPriceMaps?.[periodKey];
+      const cutoffMs = periodCutoffs[periodKey];
+
+      let pastTotalVal = 0;
+      let currentSubVal = 0;
+
+      for (const it of items) {
+        const amt = Number(it.amount) || 0;
+        if (amt <= 0) continue;
+
+        const currentPrice = it.unitRealPrice || 0;
+        const buyPrice = Number(it.buyPrice) || 0;
+        const buyDateMs = parseDateToMs(it.buyDate);
+
+        let pastPrice = currentPrice;
+        if (buyDateMs && buyDateMs > cutoffMs) {
+          pastPrice = buyPrice > 0 ? buyPrice : currentPrice;
+        } else if (it.isCustomItem) {
+          pastPrice = buyPrice > 0 ? buyPrice : currentPrice;
+        } else if (histMap && histMap[it.assetId] > 0) {
+          pastPrice = histMap[it.assetId];
+        }
+
+        pastTotalVal += amt * pastPrice;
+        currentSubVal += amt * currentPrice;
+      }
+
+      const diff = currentSubVal - pastTotalVal;
+      const diffPct = pastTotalVal > 0 ? parseFloat(((diff / pastTotalVal) * 100).toFixed(2)) : 0;
+      return {
+        diff,
+        diffPct,
+        isProfit: diff >= 0,
+        pastTotalVal,
+        currentSubVal,
+      };
+    };
+
+    const perf24h = calcPeriodicPerf('24h');
+    const perf7d = calcPeriodicPerf('7d');
+    const perf30d = calcPeriodicPerf('30d');
+
+    return { items, totalCost, totalRealValue, totalPnl, totalPnlPct, hasAnyCost, perf24h, perf7d, perf30d };
+  }, [portfolioData, realPriceMap, historicalPriceMaps]);
 
   const categoryGroups = useMemo(() => {
     return CATEGORY_DEFINITIONS.map((cat) => {
@@ -796,56 +939,198 @@ export default function SharedPortfolioPage() {
                     </div>
                   </div>
 
-                  {/* Card 3: Total Real PnL */}
-                  <div className={`portfolio-stat-card pnl-card ${isVaultLocked ? 'neutral' : portfolioMetrics.hasAnyCost ? (portfolioMetrics.totalPnl >= 0 ? 'profit' : 'loss') : 'neutral'}`}>
-                    <div className="stat-header">
-                      <span className="stat-label">سود / زیان</span>
-                      {isVaultLocked ? (
-                        <span className="pnl-badge neutral">
-                          <Lock size={11} style={{ verticalAlign: 'middle', marginLeft: '3px' }} />
-                          قفل
+                  {/* Card 3: Total Real PnL & Periodic Performance */}
+                  {(() => {
+                    const currentPnl = (() => {
+                      if (selectedPeriod === '24h') {
+                        return {
+                          diff: portfolioMetrics.perf24h.diff,
+                          diffPct: portfolioMetrics.perf24h.diffPct,
+                          isProfit: portfolioMetrics.perf24h.isProfit,
+                          label: 'تغییرات نسبت به ۲۴ ساعت گذشته',
+                          hasData: true,
+                        };
+                      }
+                      if (selectedPeriod === '7d') {
+                        return {
+                          diff: portfolioMetrics.perf7d.diff,
+                          diffPct: portfolioMetrics.perf7d.diffPct,
+                          isProfit: portfolioMetrics.perf7d.isProfit,
+                          label: 'تغییرات نسبت به ۷ روز گذشته',
+                          hasData: true,
+                        };
+                      }
+                      if (selectedPeriod === '30d') {
+                        return {
+                          diff: portfolioMetrics.perf30d.diff,
+                          diffPct: portfolioMetrics.perf30d.diffPct,
+                          isProfit: portfolioMetrics.perf30d.isProfit,
+                          label: 'تغییرات نسبت به ۳۰ روز گذشته',
+                          hasData: true,
+                        };
+                      }
+                      return {
+                        diff: portfolioMetrics.totalPnl,
+                        diffPct: portfolioMetrics.totalPnlPct,
+                        isProfit: portfolioMetrics.totalPnl >= 0,
+                        label: portfolioMetrics.hasAnyCost
+                          ? (portfolioMetrics.totalPnl >= 0 ? 'سودده (از زمان خرید)' : 'زیان‌ده (از زمان خرید)')
+                          : 'محاسبه به نرخ روز',
+                        hasData: portfolioMetrics.hasAnyCost,
+                      };
+                    })();
+
+                    return (
+                      <div className={`portfolio-stat-card pnl-card ${isVaultLocked ? 'neutral' : currentPnl.hasData ? (currentPnl.isProfit ? 'profit' : 'loss') : 'neutral'}`}>
+                        <div className="stat-header">
+                          <span className="stat-label">سود / زیان</span>
+
+                          {/* Period Selector Pills */}
+                          {!isVaultLocked && (
+                            <div className="period-tabs-segmented">
+                              <button
+                                type="button"
+                                className={`period-pill-btn ${selectedPeriod === 'all' ? 'active' : ''}`}
+                                onClick={() => setSelectedPeriod('all')}
+                                title="محاسبه نسبت به قیمت خرید (کل)"
+                              >
+                                کل
+                              </button>
+                              <button
+                                type="button"
+                                className={`period-pill-btn ${selectedPeriod === '24h' ? 'active' : ''}`}
+                                onClick={() => setSelectedPeriod('24h')}
+                                title="تغییرات ۲۴ ساعت گذشته"
+                              >
+                                ۲۴س
+                              </button>
+                              <button
+                                type="button"
+                                className={`period-pill-btn ${selectedPeriod === '7d' ? 'active' : ''}`}
+                                onClick={() => setSelectedPeriod('7d')}
+                                title="تغییرات ۷ روز گذشته"
+                              >
+                                ۷ر
+                              </button>
+                              <button
+                                type="button"
+                                className={`period-pill-btn ${selectedPeriod === '30d' ? 'active' : ''}`}
+                                onClick={() => setSelectedPeriod('30d')}
+                                title="تغییرات ۳۰ روز گذشته"
+                              >
+                                ۳۰ر
+                              </button>
+                            </div>
+                          )}
+                        </div>
+
+                        <div className="stat-pnl-row">
+                          <div className={`stat-number ${hideValues ? 'is-masked' : ''}`}>
+                            {isVaultLocked ? (
+                              <span className="stat-sub" style={{ fontSize: '15px' }}>
+                                <Lock size={13} style={{ verticalAlign: 'middle', marginLeft: '4px' }} />
+                                قفل است
+                              </span>
+                            ) : currentPnl.hasData ? (
+                              <>
+                                {hideValues ? '****' : `${currentPnl.isProfit ? '+' : ''}${formatNum(currentPnl.diff)}`}
+                                <span className="stat-unit">تومان</span>
+                              </>
+                            ) : (
+                              <span className="stat-sub" style={{ fontSize: '15px' }}>بدون قیمت خرید</span>
+                            )}
+                          </div>
+
+                          {!isVaultLocked && currentPnl.hasData && (
+                            <span className={`pnl-badge ${currentPnl.isProfit ? 'profit' : 'loss'}`}>
+                              {currentPnl.isProfit ? <ArrowUpRight size={13} style={{ verticalAlign: 'middle' }} /> : <ArrowDownRight size={13} style={{ verticalAlign: 'middle' }} />}
+                              {hideValues ? '****' : `${currentPnl.isProfit ? '+' : ''}${Math.abs(currentPnl.diffPct).toFixed(1)}٪`}
+                            </span>
+                          )}
+                        </div>
+
+                        <div className="stat-sub">
+                          {isVaultLocked ? 'گاوصندوق قفل است' : currentPnl.label}
+                        </div>
+                      </div>
+                    );
+                  })()}
+
+                  {/* Dedicated 3-Period Performance Widget Card */}
+                  {!isVaultLocked && portfolioMetrics.items.length > 0 && (
+                    <div className="portfolio-stat-card periodic-perf-card">
+                      <div className="stat-header">
+                        <div className="periodic-title-wrap">
+                          <TrendingUp size={14} className="perf-header-icon" />
+                          <span className="stat-label">تغییرات و بازدهی دوره‌ای</span>
+                        </div>
+                        <span className="perf-time-badge">
+                          <Clock size={11} style={{ verticalAlign: 'middle', marginLeft: '3px' }} />
+                          زنده
                         </span>
-                      ) : portfolioMetrics.hasAnyCost ? (
-                        <span className={`pnl-badge ${portfolioMetrics.totalPnl >= 0 ? 'profit' : 'loss'}`}>
-                          {hideValues ? '****' : `${portfolioMetrics.totalPnl >= 0 ? '+' : ''}${Math.abs(portfolioMetrics.totalPnlPct).toFixed(1)}٪`}
-                        </span>
-                      ) : (
-                        <span className="pnl-badge neutral">—</span>
-                      )}
-                    </div>
-                    <div className={`stat-number ${hideValues ? 'is-masked' : ''}`}>
-                      {isVaultLocked ? (
-                        <span className="stat-sub" style={{ fontSize: '15px' }}>
-                          <Lock size={13} style={{ verticalAlign: 'middle', marginLeft: '4px' }} />
-                          قفل است
-                        </span>
-                      ) : portfolioMetrics.hasAnyCost ? (
-                        <>
-                          {hideValues ? '****' : `${portfolioMetrics.totalPnl >= 0 ? '+' : ''}${formatNum(portfolioMetrics.totalPnl)}`}
-                          <span className="stat-unit">تومان</span>
-                        </>
-                      ) : (
-                        <span className="stat-sub" style={{ fontSize: '15px' }}>بدون قیمت خرید</span>
-                      )}
-                    </div>
-                    <div className="stat-sub">
-                      {isVaultLocked ? (
-                        'جهت محاسبه سود و زیان، گاوصندوق را باز کنید'
-                      ) : portfolioMetrics.hasAnyCost ? (
-                        portfolioMetrics.totalPnl >= 0 ? (
-                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-                            <TrendingUp size={13} color="#059669" /> پورتفوی در سود است
+                      </div>
+
+                      <div className="periodic-columns-grid">
+                        {/* 24 Hours */}
+                        <div
+                          className={`period-stat-col ${portfolioMetrics.perf24h.isProfit ? 'profit' : 'loss'} ${selectedPeriod === '24h' ? 'selected' : ''}`}
+                          onClick={() => setSelectedPeriod('24h')}
+                          role="button"
+                          tabIndex={0}
+                          title="کلیک برای تنظیم کارت اصلی روی ۲۴ ساعت"
+                        >
+                          <span className="period-col-title">۲۴ ساعت</span>
+                          <div className="period-col-pct">
+                            {portfolioMetrics.perf24h.isProfit ? <ArrowUpRight size={13} /> : <ArrowDownRight size={13} />}
+                            <span>{portfolioMetrics.perf24h.isProfit ? '+' : ''}{portfolioMetrics.perf24h.diffPct.toLocaleString('fa-IR')}%</span>
+                          </div>
+                          <span className={`period-col-diff ${hideValues ? 'is-masked' : ''}`}>
+                            {hideValues ? '****' : `${portfolioMetrics.perf24h.isProfit ? '+' : ''}${formatNum(portfolioMetrics.perf24h.diff)} ت`}
                           </span>
-                        ) : (
-                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-                            <TrendingDown size={13} color="#e11d48" /> پورتفوی در زیان است
+                        </div>
+
+                        <div className="period-divider" />
+
+                        {/* 7 Days */}
+                        <div
+                          className={`period-stat-col ${portfolioMetrics.perf7d.isProfit ? 'profit' : 'loss'} ${selectedPeriod === '7d' ? 'selected' : ''}`}
+                          onClick={() => setSelectedPeriod('7d')}
+                          role="button"
+                          tabIndex={0}
+                          title="کلیک برای تنظیم کارت اصلی روی ۷ روز"
+                        >
+                          <span className="period-col-title">۷ روز</span>
+                          <div className="period-col-pct">
+                            {portfolioMetrics.perf7d.isProfit ? <ArrowUpRight size={13} /> : <ArrowDownRight size={13} />}
+                            <span>{portfolioMetrics.perf7d.isProfit ? '+' : ''}{portfolioMetrics.perf7d.diffPct.toLocaleString('fa-IR')}%</span>
+                          </div>
+                          <span className={`period-col-diff ${hideValues ? 'is-masked' : ''}`}>
+                            {hideValues ? '****' : `${portfolioMetrics.perf7d.isProfit ? '+' : ''}${formatNum(portfolioMetrics.perf7d.diff)} ت`}
                           </span>
-                        )
-                      ) : (
-                        'ارزش اقلام صرفاً به نرخ روز محاسبه می‌شود'
-                      )}
+                        </div>
+
+                        <div className="period-divider" />
+
+                        {/* 30 Days */}
+                        <div
+                          className={`period-stat-col ${portfolioMetrics.perf30d.isProfit ? 'profit' : 'loss'} ${selectedPeriod === '30d' ? 'selected' : ''}`}
+                          onClick={() => setSelectedPeriod('30d')}
+                          role="button"
+                          tabIndex={0}
+                          title="کلیک برای تنظیم کارت اصلی روی ۳۰ روز"
+                        >
+                          <span className="period-col-title">۳۰ روز</span>
+                          <div className="period-col-pct">
+                            {portfolioMetrics.perf30d.isProfit ? <ArrowUpRight size={13} /> : <ArrowDownRight size={13} />}
+                            <span>{portfolioMetrics.perf30d.isProfit ? '+' : ''}{portfolioMetrics.perf30d.diffPct.toLocaleString('fa-IR')}%</span>
+                          </div>
+                          <span className={`period-col-diff ${hideValues ? 'is-masked' : ''}`}>
+                            {hideValues ? '****' : `${portfolioMetrics.perf30d.isProfit ? '+' : ''}${formatNum(portfolioMetrics.perf30d.diff)} ت`}
+                          </span>
+                        </div>
+                      </div>
                     </div>
-                  </div>
+                  )}
                 </div>
               </div>
             </div>

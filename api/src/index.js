@@ -34,7 +34,7 @@ import {
   handleAdminFetchAllSources,
   handleAdminGetPriceHistory,
 } from "./handlers/adminRoutes.js";
-import { handleGetPrices, handleGetSparklines } from "./handlers/apiRoutes.js";
+import { handleGetPrices, handleGetSparklines, handleGetHistoricalBenchmarks } from "./handlers/apiRoutes.js";
 import {
   handleGetPortfolios,
   handleCreatePortfolio,
@@ -123,6 +123,9 @@ export default {
     if (url.pathname === "/api/prices") return handleGetPrices(env, request);
     if (url.pathname === "/api/sparklines" || url.pathname === "/api/prices/sparklines") {
       return handleGetSparklines(env, request);
+    }
+    if (url.pathname === "/api/prices/historical-benchmarks" || url.pathname === "/api/portfolio/benchmarks") {
+      return handleGetHistoricalBenchmarks(env, request);
     }
 
     if (url.pathname === "/api/telegram") {

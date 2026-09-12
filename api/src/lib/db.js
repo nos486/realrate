@@ -1530,3 +1530,77 @@ export async function dbGet24hSparklines(env, targetAsset = null) {
     return result;
   }
 }
+
+/**
+ * Retrieve historical price benchmarks at 24h, 7d, and 30d ago
+ * Used for computing periodic portfolio performance (returns over 24h, 7d, 30d).
+ * @param {object} env
+ * @returns {Promise<{
+ *   '24h': Record<string, { price: number, timestamp: string, isExact: boolean }>,
+ *   '7d': Record<string, { price: number, timestamp: string, isExact: boolean }>,
+ *   '30d': Record<string, { price: number, timestamp: string, isExact: boolean }>
+ * }>}
+ */
+export async function dbGetHistoricalBenchmarks(env) {
+  const result = {
+    '24h': {},
+    '7d': {},
+    '30d': {},
+  };
+  if (!env || !env.DB) return result;
+  await ensureD1Tables(env);
+
+  const targets = ['usd', 'ons_gold', 'ons_silver', 'gold_18k', 'mesghal', 'full_coin', 'quarter_coin'];
+  const nowMs = Date.now();
+  const periods = [
+    { key: '24h', targetIso: new Date(nowMs - 24 * 3600 * 1000).toISOString() },
+    { key: '7d',  targetIso: new Date(nowMs - 7 * 24 * 3600 * 1000).toISOString() },
+    { key: '30d', targetIso: new Date(nowMs - 30 * 24 * 3600 * 1000).toISOString() },
+  ];
+
+  try {
+    for (const period of periods) {
+      for (const asset of targets) {
+        // Query the latest recorded price before or at targetIso
+        const row = await env.DB.prepare(`
+          SELECT price, timestamp
+          FROM price_history
+          WHERE price_type = ? AND timestamp <= ?
+          ORDER BY timestamp DESC
+          LIMIT 1
+        `).bind(asset, period.targetIso).first();
+
+        if (row && row.price > 0) {
+          result[period.key][asset] = {
+            price: Number(row.price),
+            timestamp: row.timestamp,
+            isExact: true,
+          };
+        } else {
+          // Fallback to earliest recorded price if period is older than database inception
+          const earliest = await env.DB.prepare(`
+            SELECT price, timestamp
+            FROM price_history
+            WHERE price_type = ?
+            ORDER BY timestamp ASC
+            LIMIT 1
+          `).bind(asset).first();
+
+          if (earliest && earliest.price > 0) {
+            result[period.key][asset] = {
+              price: Number(earliest.price),
+              timestamp: earliest.timestamp,
+              isExact: false,
+            };
+          }
+        }
+      }
+    }
+
+    return result;
+  } catch (e) {
+    console.error("D1 dbGetHistoricalBenchmarks error:", e);
+    return result;
+  }
+}
+
