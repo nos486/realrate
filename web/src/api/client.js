@@ -216,6 +216,14 @@ export async function apiTestPriceSource(config) {
   return res.json();
 }
 
+export async function apiInspectApiSource(apiUrl, headers = {}) {
+  const res = await apiFetch('/api/admin/price-sources/inspect-api', {
+    method: 'POST',
+    body: JSON.stringify({ apiUrl, headers }),
+  });
+  return res.json();
+}
+
 export async function apiFetchAllSourcesNow() {
   const res = await apiFetch('/api/admin/price-sources/fetch-all', {
     method: 'POST',

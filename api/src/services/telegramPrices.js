@@ -68,15 +68,22 @@ export function getTelegramFetchTarget(input) {
 
 /**
  * Extract nested values from a JSON object using dot/bracket notation (e.g. data.rates.USD or items[0].price)
+ * @param {any} obj
+ * @param {string} path
+ * @param {boolean} [raw=false]
  */
-export function extractValueByPath(obj, path) {
+export function extractValueByPath(obj, path, raw = false) {
+  if (obj === null || obj === undefined) return null;
+
   if (!path || !path.trim()) {
+    if (raw) return obj;
     if (typeof obj === "number") return obj;
     if (typeof obj === "string") {
       const n = parseFloat(normalizeDigits(obj).replace(/,/g, ""));
       return isNaN(n) ? null : n;
     }
     if (typeof obj === "object" && obj !== null) {
+      if (Array.isArray(obj)) return obj;
       for (const key of ["usd", "price", "rate", "usd_toman", "USD", "dollar", "value"]) {
         if (typeof obj[key] === "number") return obj[key];
         if (typeof obj[key] === "string") {
@@ -84,6 +91,7 @@ export function extractValueByPath(obj, path) {
           if (!isNaN(n)) return n;
         }
       }
+      return obj;
     }
     return null;
   }
@@ -108,12 +116,19 @@ export function extractValueByPath(obj, path) {
     }
   }
 
+  if (curr === undefined) return null;
+  if (raw) return curr;
+
+  if (Array.isArray(curr) || (typeof curr === "object" && curr !== null)) {
+    return curr;
+  }
+
   if (typeof curr === "number") return curr;
   if (typeof curr === "string") {
     const parsed = parseFloat(normalizeDigits(curr).replace(/,/g, ""));
     return isNaN(parsed) ? null : parsed;
   }
-  return null;
+  return curr;
 }
 
 /**

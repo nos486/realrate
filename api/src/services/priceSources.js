@@ -241,8 +241,14 @@ export function parseSourceContent(source, rawContent) {
       };
     }
 
-    // Multi-output handler: Tehran Stock Exchange (Equities & Investment Funds)
-    if (source.priceType === "bourse" || source.priceType === "bourse_fund") {
+    // Generic Multi-Output Handler (Bourse, Cars, Crypto, Commodities, Housing, or custom multi-item feeds)
+    const isMultiOutput = source.category === "multi_output" ||
+      fieldMapping?.isMultiOutput ||
+      source.priceType === "bourse" ||
+      source.priceType === "bourse_fund" ||
+      (fieldMapping && (fieldMapping.symbolField || fieldMapping.idField || fieldMapping.priceField));
+
+    if (isMultiOutput && source.priceType !== "forex") {
       const isFundSource = source.priceType === "bourse_fund" || (source.endpoint && source.endpoint.includes("Fund.php"));
       const bMap = fieldMapping || (isFundSource ? {
         arrayPath: "data",
@@ -254,33 +260,48 @@ export function parseSourceContent(source, rawContent) {
         changePercentField: "plp",
         volumeField: "tno",
         priceUnit: "rial",
-      } : {});
+      } : (source.priceType === "bourse" ? {
+        arrayPath: "",
+        symbolField: "l18",
+        nameField: "l30",
+        priceField: "pl",
+        altPriceField: "pc",
+        changeField: "plc",
+        changePercentField: "plp",
+        volumeField: "tno",
+        priceUnit: "rial",
+      } : {}));
 
       const arrayPath = bMap.arrayPath !== undefined ? bMap.arrayPath : (isFundSource ? "data" : "");
-      let rawArray = arrayPath ? extractValueByPath(data, arrayPath) : data;
-      if (!Array.isArray(rawArray) && data && Array.isArray(data.data)) {
-        rawArray = data.data;
-      } else if (!Array.isArray(rawArray) && data && Array.isArray(data.symbols)) {
-        rawArray = data.symbols;
-      } else if (!Array.isArray(rawArray) && data && Array.isArray(data.result)) {
-        rawArray = data.result;
+      let rawArray = arrayPath ? extractValueByPath(data, arrayPath, true) : data;
+      if (!Array.isArray(rawArray) && data) {
+        if (Array.isArray(data.data)) rawArray = data.data;
+        else if (Array.isArray(data.items)) rawArray = data.items;
+        else if (Array.isArray(data.symbols)) rawArray = data.symbols;
+        else if (Array.isArray(data.results)) rawArray = data.results;
+        else if (Array.isArray(data.result)) rawArray = data.result;
+        else if (Array.isArray(data.list)) rawArray = data.list;
       }
 
       if (!Array.isArray(rawArray) || rawArray.length === 0) {
-        throw new Error(`آرایه نمادهای بورس در مسیر «${arrayPath || 'ریشه'}» پاسخ وب‌سرویس یافت نشد.`);
+        throw new Error(`آرایه اقلام در مسیر «${arrayPath || 'ریشه'}» پاسخ وب‌سرویس یافت نشد.`);
       }
 
-      const symKey = bMap.symbolField || "l18";
-      const nameKey = bMap.nameField || "l30";
-      const priceKey = bMap.priceField || "pl";
-      const altPriceKey = bMap.altPriceField || "pc";
-      const changeKey = bMap.changeField || "plc";
-      const changePctKey = bMap.changePercentField || "plp";
-      const volumeKey = bMap.volumeField || "tno";
-      const isRial = bMap.priceUnit !== "toman"; // default is rial
+      const symKey = bMap.idField || bMap.symbolField || (source.priceType === 'bourse' || source.priceType === 'bourse_fund' ? 'l18' : 'id');
+      const nameKey = bMap.titleField || bMap.nameField || (source.priceType === 'bourse' || source.priceType === 'bourse_fund' ? 'l30' : 'name');
+      const priceKey = bMap.priceField || (source.priceType === 'bourse' || source.priceType === 'bourse_fund' ? 'pl' : 'price');
+      const altPriceKey = bMap.altPriceField || (source.priceType === 'bourse' || source.priceType === 'bourse_fund' ? 'pc' : 'altPrice');
+      const changeKey = bMap.changeField || 'plc';
+      const changePctKey = bMap.changePercentField || 'plp';
+      const volumeKey = bMap.extraField || bMap.volumeField || 'tno';
+      const categoryKey = bMap.categoryField || 'category';
 
-      // Parse excluded symbols for bourse (symbol names to exclude from list)
-      const excludedBourseSymbols = new Set(
+      const isRial = bMap.priceUnit === "rial";
+      const multiplier = Number(bMap.multiplier) > 0 ? Number(bMap.multiplier) : (isRial ? 0.1 : 1);
+      const labels = bMap.labels || {};
+
+      // Parse excluded outputs (symbol/code/title to omit)
+      const excludedSet = new Set(
         Array.isArray(source.excludedOutputs)
           ? source.excludedOutputs.map(s => String(s).trim().toLowerCase())
           : []
@@ -289,10 +310,17 @@ export function parseSourceContent(source, rawContent) {
       const compactList = [];
       for (const item of rawArray) {
         if (!item || typeof item !== "object") continue;
-        const sym = (item[symKey] || item.l18 || item.symbol || item.ticker || item.l18_formatted || "").trim();
-        if (!sym) continue;
-        // Skip excluded symbols
-        if (excludedBourseSymbols.size > 0 && excludedBourseSymbols.has(sym.toLowerCase())) continue;
+        const sym = String(item[symKey] || item.symbol || item.id || item.code || item.l18 || item.slug || "").trim();
+        const name = String(item[nameKey] || item.name || item.title || item.l30 || item.car_name || item.model || sym).trim();
+        if (!sym && !name) continue;
+
+        // Skip excluded items (check against code, symbol, or name)
+        if (excludedSet.size > 0 && (
+          (sym && excludedSet.has(sym.toLowerCase())) ||
+          (name && excludedSet.has(name.toLowerCase()))
+        )) {
+          continue;
+        }
 
         let rawPrice = Number(item[priceKey]);
         if (!rawPrice || isNaN(rawPrice) || rawPrice <= 0) {
@@ -300,41 +328,56 @@ export function parseSourceContent(source, rawContent) {
         }
         if (rawPrice <= 0) continue;
 
-        const priceInRials = isRial ? Math.round(rawPrice) : Math.round(rawPrice * 10);
-        const priceInTomans = Math.round(priceInRials / 10);
+        const finalPrice = Math.round(rawPrice * multiplier);
+        let altFinalPrice = 0;
+        if (item[altPriceKey] !== undefined && Number(item[altPriceKey]) > 0) {
+          altFinalPrice = Math.round(Number(item[altPriceKey]) * multiplier);
+        }
 
         const c = Number(item[changeKey] !== undefined ? item[changeKey] : (item.plc !== undefined ? item.plc : 0)) || 0;
-        const cp = Number(item[changePctKey] !== undefined ? item[changePctKey] : (item.plp !== undefined ? item.plp : 0)) || 0;
-        const t = Number(item[volumeKey] !== undefined ? item[volumeKey] : (item.tno !== undefined ? item.tno : 0)) || 0;
+        const cp = Number(item[changePctKey] !== undefined ? item[changePctKey] : (item.plp !== undefined ? item.plp : (item.percent || 0))) || 0;
+        const extraVal = item[volumeKey] !== undefined ? item[volumeKey] : (item.tno !== undefined ? item.tno : "");
+        const catVal = item[categoryKey] !== undefined ? item[categoryKey] : (item.brand || item.group || "");
 
         compactList.push({
-          s: sym,
-          n: (item[nameKey] || item.l30 || item.name || item.title || item.company || sym).trim(),
-          p: priceInRials,
-          priceTomans: priceInTomans,
+          s: sym || name,
+          n: name,
+          p: isRial ? Math.round(rawPrice) : finalPrice,
+          priceTomans: finalPrice,
+          priceFinal: finalPrice,
+          altPrice: altFinalPrice,
           c,
           cp,
-          t,
+          t: typeof extraVal === "number" ? extraVal : 0,
+          extra: extraVal,
+          cat: catVal,
           ...(isFundSource ? { f: 1 } : {}),
         });
       }
 
       if (compactList.length === 0) {
-        throw new Error(`هیچ نماد معتبری با کلیدهای نماد (${symKey}) و قیمت (${priceKey}) در پاسخ یافت نشد.`);
+        throw new Error(`هیچ آیتم معتبری با کلیدهای شناسه (${symKey}) و قیمت (${priceKey}) در پاسخ یافت نشد.`);
       }
 
-      compactList.sort((a, b) => b.t - a.t);
+      if (compactList.some(x => x.t > 0)) {
+        compactList.sort((a, b) => b.t - a.t);
+      }
 
       return {
         price: compactList.length,
         multiData: {
+          totalCount: compactList.length,
           totalSymbols: compactList.length,
           topSymbols: compactList.slice(0, 10).map(x => x.s),
+          sampleItems: compactList.slice(0, 100),
+          labels,
+          updatedAt: nowIso,
         },
         compactList,
-        sampleSymbols: compactList.slice(0, 5),
+        sampleSymbols: compactList.slice(0, 10),
+        labels,
         datetime: nowIso,
-        label: source.name || (source.priceType === "bourse_fund" ? "بورس اوراق بهادار تهران (صندوق)" : "بورس اوراق بهادار تهران (سهام)"),
+        label: source.name || (source.priceType === "bourse_fund" ? "بورس اوراق بهادار تهران (صندوق)" : "فید چند خروجی"),
       };
     }
 
@@ -477,6 +520,8 @@ export async function testPriceSourceConfig(config = {}) {
       displayMsg = `اطلاعات صندوق‌های بورس با موفقیت تست شد (${parsed.price.toLocaleString("fa-IR")} صندوق استخراج شد)`;
     } else if (priceType === 'bourse') {
       displayMsg = `اطلاعات نمادهای بورس با موفقیت تست شد (${parsed.price.toLocaleString("fa-IR")} نماد استخراج شد)`;
+    } else if (parsed.compactList && parsed.compactList.length > 0) {
+      displayMsg = `فید چند خروجی با موفقیت تست شد (${parsed.price.toLocaleString("fa-IR")} آیتم استخراج شد)`;
     } else if (isForex) {
       displayMsg = `نرخ برابری استخراج شد: ۱ واحد = ${parsed.price} دلار آمریکا`;
     } else if (priceType === 'ons_gold' || priceType === 'ons_silver') {
@@ -492,6 +537,8 @@ export async function testPriceSourceConfig(config = {}) {
       price: parsed.price,
       multiData: parsed.multiData || null,
       sampleSymbols: parsed.sampleSymbols || null,
+      sampleItems: parsed.compactList ? parsed.compactList.slice(0, 10) : null,
+      labels: parsed.labels || null,
       currencyList: parsed.currencyList || null,
       datetime: parsed.datetime,
       label: parsed.label,
@@ -503,6 +550,102 @@ export async function testPriceSourceConfig(config = {}) {
       error: err.message || "خطا در بررسی سورس",
     };
   }
+}
+
+/**
+ * Inspect an API endpoint structure to discover arrays and JSON keys
+ * @param {string} endpointUrl
+ * @param {object} [customHeaders]
+ * @returns {Promise<object>}
+ */
+export async function inspectApiEndpointStructure(endpointUrl, customHeaders = {}) {
+  if (!endpointUrl || !endpointUrl.startsWith("http")) {
+    throw new Error("آدرس وب‌سرویس معتبر نیست. لطفاً یک URL کامل با http یا https وارد کنید.");
+  }
+
+  const headers = {
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) RealRateWorker/1.0",
+    "Accept": "application/json, text/plain, */*",
+    ...customHeaders,
+  };
+
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 12000);
+
+  let res;
+  try {
+    res = await fetch(endpointUrl, { headers, signal: controller.signal });
+  } catch (err) {
+    clearTimeout(timeoutId);
+    if (err.name === 'AbortError') {
+      throw new Error("مهلت زمان اتصال به وب‌سرویس به پایان رسید (Timeout 12s).");
+    }
+    throw new Error(`خطا در اتصال به وب‌سرویس: ${err.message}`);
+  }
+  clearTimeout(timeoutId);
+
+  if (!res.ok) {
+    throw new Error(`پاسخ وب‌سرویس با خطا مواجه شد (کد وضعیت HTTP: ${res.status})`);
+  }
+
+  const rawText = await res.text();
+  let json;
+  try {
+    json = JSON.parse(rawText);
+  } catch (e) {
+    throw new Error("پاسخ وب‌سرویس در قالب معتبر JSON نیست.");
+  }
+
+  // Recursive search for candidate arrays
+  const candidateArrays = [];
+
+  function traverse(node, currentPath, depth) {
+    if (depth > 4) return;
+    if (Array.isArray(node)) {
+      if (node.length > 0) {
+        const keysSet = new Set();
+        const sampleItems = node.slice(0, 5);
+        for (const item of sampleItems) {
+          if (item && typeof item === "object") {
+            for (const k of Object.keys(item)) {
+              keysSet.add(k);
+            }
+          }
+        }
+        candidateArrays.push({
+          path: currentPath,
+          length: node.length,
+          sampleItem: node[0] && typeof node[0] === 'object' ? node[0] : null,
+          sampleItems: sampleItems.filter(x => x && typeof x === 'object'),
+          keys: Array.from(keysSet),
+        });
+      }
+      return;
+    }
+
+    if (node && typeof node === "object") {
+      for (const [key, val] of Object.entries(node)) {
+        const nextPath = currentPath ? `${currentPath}.${key}` : key;
+        traverse(val, nextPath, depth + 1);
+      }
+    }
+  }
+
+  traverse(json, "", 0);
+
+  candidateArrays.sort((a, b) => {
+    const aPriority = a.path === 'data' || a.path === '' || a.path === 'items' || a.path === 'result' ? 10 : 0;
+    const bPriority = b.path === 'data' || b.path === '' || b.path === 'items' || b.path === 'result' ? 10 : 0;
+    if (aPriority !== bPriority) return bPriority - aPriority;
+    return b.length - a.length;
+  });
+
+  return {
+    success: true,
+    totalArraysFound: candidateArrays.length,
+    candidateArrays,
+    rawPreview: rawText.substring(0, 500),
+  };
 }
 
 /**

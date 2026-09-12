@@ -23,7 +23,7 @@ import {
 import { getAdminStats } from "../lib/analytics.js";
 import { saveGlobalSettings } from "../lib/settings.js";
 import { testUsdSource } from "../services/telegramPrices.js";
-import { testPriceSourceConfig, fetchAllPrices } from "../services/priceSources.js";
+import { testPriceSourceConfig, fetchAllPrices, inspectApiEndpointStructure } from "../services/priceSources.js";
 import { jsonResponse, errorResponse, forbiddenResponse } from "../lib/helpers.js";
 
 /**
@@ -369,6 +369,27 @@ export async function handleAdminDeleteSourceType(request, env) {
     if (!id) return errorResponse("شناسه نوع سورس الزامی است.", 400, request);
     await dbDeleteSourceType(env, id);
     return jsonResponse({ success: true, message: "نوع سورس با موفقیت حذف شد." }, 200, request);
+  } catch (e) {
+    return errorResponse(e.message, 400, request);
+  }
+}
+
+/**
+ * POST /api/admin/price-sources/inspect-api
+ * Analyze any API endpoint structure and return candidate arrays and keys — admin only
+ */
+export async function handleAdminInspectApiRoute(request, env) {
+  const user = await getAuthenticatedUser(request, env);
+  if (!user || user.role !== "admin") return forbiddenResponse(request);
+
+  try {
+    const body = await request.json();
+    const apiUrl = body.apiUrl || body.url || body.endpoint;
+    if (!apiUrl) {
+      return errorResponse("آدرس وب‌سرویس الزامی است.", 400, request);
+    }
+    const result = await inspectApiEndpointStructure(apiUrl, body.headers || {});
+    return jsonResponse(result, 200, request);
   } catch (e) {
     return errorResponse(e.message, 400, request);
   }
