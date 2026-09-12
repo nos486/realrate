@@ -482,14 +482,44 @@ export default function PriceSourcesPage({ embedded = false, usdToman: propUsdTo
     return sources.find((s) => s.id === selectedSourceId) || sources[0] || null;
   }, [sources, selectedSourceId]);
 
-  // Filtered Sources for Table
-  const filteredSources = useMemo(() => {
-    if (sourceFilter === 'all') return sources;
+  // Partition sources into Single-Rate Base Sources vs Multi-Output Feeds
+  const singleSources = useMemo(() => {
+    return sources.filter((s) => {
+      const typeInfo = PRICE_TYPE_INFO[s.priceType];
+      const isMulti = s.isMultiOutput || typeInfo?.category === 'multi_output' || s.priceType === 'bourse' || s.priceType === 'bourse_fund';
+      return !isMulti;
+    });
+  }, [sources, PRICE_TYPE_INFO]);
+
+  const multiSources = useMemo(() => {
+    return sources.filter((s) => {
+      const typeInfo = PRICE_TYPE_INFO[s.priceType];
+      const isMulti = s.isMultiOutput || typeInfo?.category === 'multi_output' || s.priceType === 'bourse' || s.priceType === 'bourse_fund';
+      return isMulti;
+    });
+  }, [sources, PRICE_TYPE_INFO]);
+
+  // Filtered Sources for Base Rates Table
+  const filteredSingleSources = useMemo(() => {
+    if (sourceFilter === 'all') return singleSources;
     if (sourceFilter === 'forex') {
-      return sources.filter((s) => ['eur', 'try', 'aed', 'gbp', 'chf', 'cad', 'aud', 'cny'].includes(s.priceType));
+      return singleSources.filter((s) => ['eur', 'try', 'aed', 'gbp', 'chf', 'cad', 'aud', 'cny'].includes(s.priceType));
     }
-    return sources.filter((s) => s.priceType === sourceFilter);
-  }, [sources, sourceFilter]);
+    return singleSources.filter((s) => s.priceType === sourceFilter);
+  }, [singleSources, sourceFilter]);
+
+  // Filtered Multi Sources for Multi-Feeds Hub Table
+  const filteredMultiSources = useMemo(() => {
+    if (!multiSearch.trim()) return multiSources;
+    const q = multiSearch.trim().toLowerCase();
+    return multiSources.filter((s) => {
+      return (
+        (s.name && s.name.toLowerCase().includes(q)) ||
+        (s.priceType && s.priceType.toLowerCase().includes(q)) ||
+        (s.endpoint && s.endpoint.toLowerCase().includes(q))
+      );
+    });
+  }, [multiSources, multiSearch]);
 
   // Force Refresh All Active Sources Now
   const handleFetchAllNow = async () => {
