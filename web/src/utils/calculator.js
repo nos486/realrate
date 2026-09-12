@@ -190,17 +190,29 @@ export function calculateMarketData({
 
   // Collect candidate currency keys dynamically from marketPrices and forex
   const candidateKeys = new Set();
+  const nonCurrencyKeys = new Set([
+    'usd', 'usd_toman', 'gold_18k', 'gold_24k', 'gold_melted', 'mesghal',
+    'full_coin', 'half_coin', 'quarter_coin', 'gerami_coin',
+    'ons_gold', 'ons_silver', 'bourse', 'bourse_fund', 'forex', 'custom_feed',
+    'multi_output', 'last_updated', 'price', 'rates', 'datetime', 'label',
+    'sourceid', 'isprimary', 'showonhomepage'
+  ]);
+
   if (forex && typeof forex === 'object') {
-    Object.keys(forex).forEach(k => candidateKeys.add(k.toUpperCase()));
+    Object.keys(forex).forEach((k) => {
+      const lower = k.toLowerCase();
+      const upper = k.toUpperCase();
+      if (!nonCurrencyKeys.has(lower) && upper.length >= 3 && upper.length <= 4) {
+        candidateKeys.add(upper);
+      }
+    });
   }
   if (marketPrices && typeof marketPrices === 'object') {
-    const nonCurrencyKeys = new Set([
-      'usd', 'gold_18k', 'full_coin', 'half_coin', 'quarter_coin',
-      'mesghal', 'ons_gold', 'ons_silver', 'bourse', 'bourse_fund', 'forex'
-    ]);
-    Object.keys(marketPrices).forEach(k => {
-      if (!nonCurrencyKeys.has(k.toLowerCase())) {
-        candidateKeys.add(k.toUpperCase());
+    Object.keys(marketPrices).forEach((k) => {
+      const lower = k.toLowerCase();
+      const upper = k.toUpperCase();
+      if (!nonCurrencyKeys.has(lower) && upper.length >= 3 && upper.length <= 4) {
+        candidateKeys.add(upper);
       }
     });
   }
@@ -217,7 +229,7 @@ export function calculateMarketData({
   });
 
   sortedCandidateKeys.forEach((code) => {
-    if (code === 'USD' || seenCodes.has(code)) return;
+    if (code === 'USD' || nonCurrencyKeys.has(code.toLowerCase()) || seenCodes.has(code)) return;
     const lowerKey = code.toLowerCase();
     const srcData = marketPrices?.[lowerKey] || marketPrices?.[code];
     const rawCross = srcData?.price || forex?.[code] || forex?.[lowerKey] || null;

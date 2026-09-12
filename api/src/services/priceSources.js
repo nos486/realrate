@@ -852,9 +852,11 @@ export function compileLatestMarketRates(sources) {
   }
 
   // Also include any other active custom single sources that aren't in supportedTypes
+  const multiOutputTypes = new Set(['forex', 'bourse', 'bourse_fund', 'custom_feed', 'multi_output']);
   for (const src of sources) {
     if (!src.isActive || Number(src.lastPrice) <= 0 || !src.priceType) continue;
     const lowerType = src.priceType.toLowerCase();
+    if (multiOutputTypes.has(lowerType) || src.category === 'multi_output') continue;
     if (result[src.priceType] || result[lowerType]) continue;
     let showOnHome = true;
     if (src.displayConfig) {
