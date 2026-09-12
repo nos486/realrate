@@ -59,8 +59,8 @@ export async function getActiveBourseFundsSource(env) {
     const row = await env.DB.prepare(`
       SELECT id, endpoint, field_mapping AS fieldMapping, fetch_interval_sec AS fetchIntervalSec
       FROM price_sources
-      WHERE (id = 'src_def_bourse_funds' OR endpoint LIKE '%Fund.php%') AND is_active = 1
-      ORDER BY updated_at DESC
+      WHERE (price_type = 'bourse_fund' OR id = 'src_def_bourse_funds' OR endpoint LIKE '%Fund.php%') AND is_active = 1
+      ORDER BY is_primary DESC, updated_at DESC
       LIMIT 1
     `).first();
     return row || null;

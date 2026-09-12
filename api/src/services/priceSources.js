@@ -17,6 +17,7 @@ import {
   parseUsdTelegramHtml,
   parseGoldTelegramHtml,
 } from "./telegramPrices.js";
+import { fetchAndStoreBourseSymbols } from "./bourseSymbols.js";
 
 const UA = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
 
@@ -233,15 +234,27 @@ export function parseSourceContent(source, rawContent) {
       };
     }
 
-    // Multi-output handler: Tehran Stock Exchange (Dynamic Schema Mapping)
-    if (source.priceType === "bourse") {
-      const bMap = fieldMapping || {};
-      const arrayPath = bMap.arrayPath || "";
+    // Multi-output handler: Tehran Stock Exchange (Equities & Investment Funds)
+    if (source.priceType === "bourse" || source.priceType === "bourse_fund") {
+      const isFundSource = source.priceType === "bourse_fund" || (source.endpoint && source.endpoint.includes("Fund.php"));
+      const bMap = fieldMapping || (isFundSource ? {
+        arrayPath: "data",
+        symbolField: "l18",
+        nameField: "l30",
+        priceField: "pl",
+        altPriceField: "pc",
+        changeField: "plc",
+        changePercentField: "plp",
+        volumeField: "tno",
+        priceUnit: "rial",
+      } : {});
+
+      const arrayPath = bMap.arrayPath !== undefined ? bMap.arrayPath : (isFundSource ? "data" : "");
       let rawArray = arrayPath ? extractValueByPath(data, arrayPath) : data;
-      if (!Array.isArray(rawArray) && data && Array.isArray(data.symbols)) {
-        rawArray = data.symbols;
-      } else if (!Array.isArray(rawArray) && data && Array.isArray(data.data)) {
+      if (!Array.isArray(rawArray) && data && Array.isArray(data.data)) {
         rawArray = data.data;
+      } else if (!Array.isArray(rawArray) && data && Array.isArray(data.symbols)) {
+        rawArray = data.symbols;
       } else if (!Array.isArray(rawArray) && data && Array.isArray(data.result)) {
         rawArray = data.result;
       }
@@ -286,6 +299,7 @@ export function parseSourceContent(source, rawContent) {
           c,
           cp,
           t,
+          ...(isFundSource ? { f: 1 } : {}),
         });
       }
 
@@ -304,7 +318,7 @@ export function parseSourceContent(source, rawContent) {
         compactList,
         sampleSymbols: compactList.slice(0, 5),
         datetime: nowIso,
-        label: source.name || "بورس اوراق بهادار تهران",
+        label: source.name || (source.priceType === "bourse_fund" ? "بورس اوراق بهادار تهران (صندوق)" : "بورس اوراق بهادار تهران (سهام)"),
       };
     }
 
@@ -443,6 +457,8 @@ export async function testPriceSourceConfig(config = {}) {
     if (priceType === 'forex') {
       const keys = parsed.multiData ? Object.keys(parsed.multiData).map(k => k.toUpperCase()).join('، ') : '';
       displayMsg = `سورس تجمیعی فارکس با موفقیت تست شد (${parsed.price} ارز استخراج شد: ${keys})`;
+    } else if (priceType === 'bourse_fund') {
+      displayMsg = `اطلاعات صندوق‌های بورس با موفقیت تست شد (${parsed.price.toLocaleString("fa-IR")} صندوق استخراج شد)`;
     } else if (priceType === 'bourse') {
       displayMsg = `اطلاعات نمادهای بورس با موفقیت تست شد (${parsed.price.toLocaleString("fa-IR")} نماد استخراج شد)`;
     } else if (isForex) {
@@ -530,7 +546,7 @@ export function compileLatestMarketRates(sources) {
     }
   }
 
-  // Tehran Stock Exchange (Bourse):
+  // Tehran Stock Exchange (Bourse Equities):
   const bourseSource = sources.find(s => s.priceType === "bourse" && s.isActive);
   if (bourseSource) {
     result.bourse = {
@@ -538,6 +554,18 @@ export function compileLatestMarketRates(sources) {
       datetime: bourseSource.lastFetched || new Date().toISOString(),
       label: bourseSource.name,
       sourceId: bourseSource.id,
+      isPrimary: true,
+    };
+  }
+
+  // Tehran Stock Exchange (Bourse Investment Funds):
+  const bourseFundSource = sources.find(s => s.priceType === "bourse_fund" && s.isActive);
+  if (bourseFundSource) {
+    result.bourse_fund = {
+      price: Number(bourseFundSource.lastPrice) || 0,
+      datetime: bourseFundSource.lastFetched || new Date().toISOString(),
+      label: bourseFundSource.name,
+      sourceId: bourseFundSource.id,
       isPrimary: true,
     };
   }
@@ -667,12 +695,10 @@ export async function handleScheduledPriceExtraction(env, forceAll = false) {
                 );
               }
             }
-          } else if (src.priceType === "bourse" && parsed.compactList && env.REALRATE_KV) {
-            // Cache bourse compact symbols in KV
+          } else if ((src.priceType === "bourse" || src.priceType === "bourse_fund") && env.REALRATE_KV) {
+            // Synchronize unified bourse symbols & funds in KV
             updates.push(
-              env.REALRATE_KV.put("bourse_symbols_compact", JSON.stringify(parsed.compactList), {
-                expirationTtl: 86400 * 2,
-              }).catch(() => {})
+              fetchAndStoreBourseSymbols(env).catch(() => {})
             );
           } else {
             // Standard single asset history

@@ -62,6 +62,7 @@ const PRICE_TYPE_INFO = {
   ons_silver: { label: 'انس نقره جهانی (XAG)', badgeColor: 'blue', unit: '$' },
   forex: { label: 'نرخ‌های جهانی فارکس (چند ارزی)', badgeColor: 'indigo', unit: 'ارز' },
   bourse: { label: 'بورس اوراق بهادار تهران (سهام)', badgeColor: 'emerald', unit: 'نماد' },
+  bourse_fund: { label: 'بورس اوراق بهادار تهران (صندوق)', badgeColor: 'purple', unit: 'صندوق' },
   eur: { label: 'یورو (EUR/USD)', badgeColor: 'blue', unit: '$' },
   try: { label: 'لیر ترکیه (USD/TRY)', badgeColor: 'rose', unit: '$' },
   aed: { label: 'درهم امارات (USD/AED)', badgeColor: 'emerald', unit: '$' },
@@ -112,6 +113,9 @@ const PRESET_REGEX_PATTERNS = {
   bourse: [
     { label: 'BRS API بورس تهران (تمام نمادهای فعال)', pattern: '', apiUrl: 'https://api.brsapi.ir/Tsetmc/AllSymbols.php?key=BDqzgcZZ5rGg4Z6uSEs9bMyx2E2vXrkd&type=1', jsonPath: '' },
   ],
+  bourse_fund: [
+    { label: 'BRS API صندوق‌های سرمایه‌گذاری و طلا (IME Fund)', pattern: '', apiUrl: 'https://Api.BrsApi.ir/IME/Fund.php?key=BDqzgcZZ5rGg4Z6uSEs9bMyx2E2vXrkd', jsonPath: '' },
+  ],
   eur: [
     { label: 'Open ER-API (نرخ برابری EUR)', pattern: '', apiUrl: 'https://open.er-api.com/v6/latest/USD', jsonPath: 'rates.EUR' },
   ],
@@ -140,6 +144,18 @@ const PRESET_REGEX_PATTERNS = {
 
 const DEFAULT_BOURSE_MAPPING = {
   arrayPath: '',
+  symbolField: 'l18',
+  nameField: 'l30',
+  priceField: 'pl',
+  altPriceField: 'pc',
+  changeField: 'plc',
+  changePercentField: 'plp',
+  volumeField: 'tno',
+  priceUnit: 'rial',
+};
+
+const DEFAULT_BOURSE_FUND_MAPPING = {
+  arrayPath: 'data',
   symbolField: 'l18',
   nameField: 'l30',
   priceField: 'pl',
@@ -185,6 +201,9 @@ function formatNum(num, priceType = 'usd') {
   if (priceType === 'forex') {
     return `${Number(num).toLocaleString('fa-IR')} ارز`;
   }
+  if (priceType === 'bourse_fund') {
+    return `${Number(num).toLocaleString('fa-IR')} صندوق`;
+  }
   if (priceType === 'bourse') {
     return `${Number(num).toLocaleString('fa-IR')} نماد`;
   }
@@ -200,6 +219,8 @@ function formatNum(num, priceType = 'usd') {
 }
 
 function getPriceUnit(priceType) {
+  if (priceType === 'bourse_fund') return 'صندوق';
+  if (priceType === 'bourse') return 'نماد';
   const isForex = ['eur', 'try', 'aed', 'gbp', 'chf', 'cad', 'aud', 'cny'].includes(priceType);
   if (isForex) return '$ برابری';
   return (priceType === 'ons_gold' || priceType === 'ons_silver') ? 'دلار ($)' : 'تومان';
@@ -376,13 +397,14 @@ export default function PriceSourcesPage({ embedded = false, usdToman: propUsdTo
     setEditingSourceId(null);
     let initialMapping = null;
     if (defaultType === 'bourse') initialMapping = DEFAULT_BOURSE_MAPPING;
+    if (defaultType === 'bourse_fund') initialMapping = DEFAULT_BOURSE_FUND_MAPPING;
     if (defaultType === 'forex') initialMapping = DEFAULT_FOREX_MAPPING;
 
     setSourceForm({
       ...DEFAULT_SOURCE_FORM,
       priceType: defaultType,
       fieldMapping: initialMapping,
-      regexPattern: PRESET_REGEX_PATTERNS[defaultType]?.[0]?.pattern || (defaultType === 'forex' || defaultType === 'bourse' ? '' : '([\\d,]+)\\s*فروش'),
+      regexPattern: PRESET_REGEX_PATTERNS[defaultType]?.[0]?.pattern || (defaultType === 'forex' || defaultType === 'bourse' || defaultType === 'bourse_fund' ? '' : '([\\d,]+)\\s*فروش'),
     });
     setModalTestResult(null);
     setNewCurCode('');
@@ -396,6 +418,7 @@ export default function PriceSourcesPage({ embedded = false, usdToman: propUsdTo
     let mapping = src.fieldMapping || null;
     if (!mapping) {
       if (src.priceType === 'bourse') mapping = DEFAULT_BOURSE_MAPPING;
+      if (src.priceType === 'bourse_fund') mapping = DEFAULT_BOURSE_FUND_MAPPING;
       if (src.priceType === 'forex') mapping = DEFAULT_FOREX_MAPPING;
     }
     setSourceForm({
@@ -846,6 +869,10 @@ export default function PriceSourcesPage({ embedded = false, usdToman: propUsdTo
                                   <strong style={{ fontSize: '13px', color: 'var(--accent-blue)', fontWeight: '700' }}>
                                     {Number(src.lastPrice).toLocaleString('fa-IR')} ارز جهانی (EUR, TRY, ...)
                                   </strong>
+                                ) : src.priceType === 'bourse_fund' ? (
+                                  <strong style={{ fontSize: '13px', color: '#c084fc', fontWeight: '700' }}>
+                                    {Number(src.lastPrice).toLocaleString('fa-IR')} صندوق فعال بورس
+                                  </strong>
                                 ) : src.priceType === 'bourse' ? (
                                   <strong style={{ fontSize: '13px', color: 'var(--accent-green, #10b981)', fontWeight: '700' }}>
                                     {Number(src.lastPrice).toLocaleString('fa-IR')} نماد فعال بورس
@@ -1051,8 +1078,14 @@ export default function PriceSourcesPage({ embedded = false, usdToman: propUsdTo
                       value={sourceForm.priceType}
                       onChange={(e) => {
                         const newType = e.target.value;
-                        const isGlobal = newType === 'ons_gold' || newType === 'ons_silver' || newType === 'forex' || newType === 'bourse' || ['eur', 'try', 'aed', 'gbp', 'chf', 'cad', 'aud', 'cny'].includes(newType);
+                        const isBourseLike = newType === 'bourse' || newType === 'bourse_fund';
+                        const isGlobal = newType === 'ons_gold' || newType === 'ons_silver' || newType === 'forex' || isBourseLike || ['eur', 'try', 'aed', 'gbp', 'chf', 'cad', 'aud', 'cny'].includes(newType);
                         const defaultPreset = PRESET_REGEX_PATTERNS[newType]?.[0];
+                        let defaultMapping = sourceForm.fieldMapping;
+                        if (newType === 'bourse') defaultMapping = DEFAULT_BOURSE_MAPPING;
+                        if (newType === 'bourse_fund') defaultMapping = DEFAULT_BOURSE_FUND_MAPPING;
+                        if (newType === 'forex') defaultMapping = DEFAULT_FOREX_MAPPING;
+
                         setSourceForm({
                           ...sourceForm,
                           priceType: newType,
@@ -1060,7 +1093,8 @@ export default function PriceSourcesPage({ embedded = false, usdToman: propUsdTo
                           apiUrl: isGlobal && defaultPreset?.apiUrl ? defaultPreset.apiUrl : sourceForm.apiUrl,
                           jsonPath: isGlobal && defaultPreset?.jsonPath !== undefined ? defaultPreset.jsonPath : sourceForm.jsonPath,
                           regexPattern: defaultPreset?.pattern || sourceForm.regexPattern,
-                          fetchIntervalMinutes: newType === 'bourse' ? 1440 : sourceForm.fetchIntervalMinutes,
+                          fieldMapping: defaultMapping,
+                          fetchIntervalMinutes: isBourseLike ? 1440 : sourceForm.fetchIntervalMinutes,
                         });
                       }}
                     >
@@ -1084,24 +1118,30 @@ export default function PriceSourcesPage({ embedded = false, usdToman: propUsdTo
                   </div>
                 </div>
 
-                {sourceForm.priceType === 'bourse' ? (
+                {(sourceForm.priceType === 'bourse' || sourceForm.priceType === 'bourse_fund') ? (
                   <>
                     <div className="form-group">
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
-                        <label style={{ margin: 0 }}>آدرس وب‌سرویس نمادهای بورس (API URL):</label>
+                        <label style={{ margin: 0 }}>
+                          {sourceForm.priceType === 'bourse_fund'
+                            ? 'آدرس وب‌سرویس صندوق‌های بورس (API URL):'
+                            : 'آدرس وب‌سرویس نمادهای بورس (API URL):'}
+                        </label>
                         <button
                           type="button"
                           className="btn-text-action"
                           style={{ fontSize: '11px', color: 'var(--accent-blue)', cursor: 'pointer', background: 'none', border: 'none' }}
-                          onClick={() => setSourceForm({ ...sourceForm, apiUrl: PRESET_REGEX_PATTERNS.bourse?.[0]?.apiUrl || '' })}
+                          onClick={() => setSourceForm({ ...sourceForm, apiUrl: PRESET_REGEX_PATTERNS[sourceForm.priceType]?.[0]?.apiUrl || '' })}
                         >
-                          استفاده از وب‌سرویس پیش‌فرض BRS API
+                          {sourceForm.priceType === 'bourse_fund'
+                            ? 'استفاده از وب‌سرویس پیش‌فرض IME Fund API'
+                            : 'استفاده از وب‌سرویس پیش‌فرض BRS API'}
                         </button>
                       </div>
                       <input
                         type="url"
                         required
-                        placeholder="https://api.example.com/Tsetmc/AllSymbols"
+                        placeholder={sourceForm.priceType === 'bourse_fund' ? 'https://Api.BrsApi.ir/IME/Fund.php?key=...' : 'https://api.example.com/Tsetmc/AllSymbols'}
                         value={sourceForm.apiUrl}
                         onChange={(e) => setSourceForm({ ...sourceForm, apiUrl: e.target.value.trim() })}
                         style={{ direction: 'ltr', textAlign: 'left' }}
@@ -1113,10 +1153,16 @@ export default function PriceSourcesPage({ embedded = false, usdToman: propUsdTo
                       <div className="dynamic-schema-header">
                         <div className="dynamic-schema-title">
                           <Sliders size={15} style={{ color: 'var(--accent-green)' }} />
-                          <span>نگاشت هوشمند فیلدهای بورس (Dynamic Schema Mapping)</span>
+                          <span>
+                            {sourceForm.priceType === 'bourse_fund'
+                              ? 'نگاشت هوشمند فیلدهای صندوق‌های بورس (Dynamic Schema Mapping)'
+                              : 'نگاشت هوشمند فیلدهای بورس (Dynamic Schema Mapping)'}
+                          </span>
                         </div>
                         <span className="dynamic-schema-hint">
-                          در صورت تغییر ساختار پاسخ وب‌سرویس یا استفاده از لینک اختصاصی، نام فیلدها را در اینجا تطبیق دهید:
+                          {sourceForm.priceType === 'bourse_fund'
+                            ? 'در صورت تغییر ساختار پاسخ وب‌سرویس صندوق‌ها یا استفاده از لینک اختصاصی، نام فیلدها را در اینجا تطبیق دهید:'
+                            : 'در صورت تغییر ساختار پاسخ وب‌سرویس یا استفاده از لینک اختصاصی، نام فیلدها را در اینجا تطبیق دهید:'}
                         </span>
                       </div>
 
@@ -1124,11 +1170,11 @@ export default function PriceSourcesPage({ embedded = false, usdToman: propUsdTo
                         <label>مسیر آرایه نمادها در JSON (اختیاری):</label>
                         <input
                           type="text"
-                          placeholder="مثال: data.symbols یا خالی برای ریشه آرایه []"
-                          value={sourceForm.fieldMapping?.arrayPath || ''}
+                          placeholder={sourceForm.priceType === 'bourse_fund' ? 'مثال: data' : 'مثال: data.symbols یا خالی برای ریشه آرایه []'}
+                          value={sourceForm.fieldMapping?.arrayPath !== undefined ? sourceForm.fieldMapping.arrayPath : (sourceForm.priceType === 'bourse_fund' ? 'data' : '')}
                           onChange={(e) => setSourceForm({
                             ...sourceForm,
-                            fieldMapping: { ...(sourceForm.fieldMapping || DEFAULT_BOURSE_MAPPING), arrayPath: e.target.value.trim() },
+                            fieldMapping: { ...(sourceForm.fieldMapping || (sourceForm.priceType === 'bourse_fund' ? DEFAULT_BOURSE_FUND_MAPPING : DEFAULT_BOURSE_MAPPING)), arrayPath: e.target.value.trim() },
                           })}
                           style={{ direction: 'ltr', textAlign: 'left' }}
                         />
@@ -1144,7 +1190,7 @@ export default function PriceSourcesPage({ embedded = false, usdToman: propUsdTo
                             value={sourceForm.fieldMapping?.symbolField || 'l18'}
                             onChange={(e) => setSourceForm({
                               ...sourceForm,
-                              fieldMapping: { ...(sourceForm.fieldMapping || DEFAULT_BOURSE_MAPPING), symbolField: e.target.value.trim() },
+                              fieldMapping: { ...(sourceForm.fieldMapping || (sourceForm.priceType === 'bourse_fund' ? DEFAULT_BOURSE_FUND_MAPPING : DEFAULT_BOURSE_MAPPING)), symbolField: e.target.value.trim() },
                             })}
                             style={{ direction: 'ltr', textAlign: 'left', fontFamily: 'monospace' }}
                           />
@@ -1158,7 +1204,7 @@ export default function PriceSourcesPage({ embedded = false, usdToman: propUsdTo
                             value={sourceForm.fieldMapping?.nameField || 'l30'}
                             onChange={(e) => setSourceForm({
                               ...sourceForm,
-                              fieldMapping: { ...(sourceForm.fieldMapping || DEFAULT_BOURSE_MAPPING), nameField: e.target.value.trim() },
+                              fieldMapping: { ...(sourceForm.fieldMapping || (sourceForm.priceType === 'bourse_fund' ? DEFAULT_BOURSE_FUND_MAPPING : DEFAULT_BOURSE_MAPPING)), nameField: e.target.value.trim() },
                             })}
                             style={{ direction: 'ltr', textAlign: 'left', fontFamily: 'monospace' }}
                           />
@@ -1173,7 +1219,7 @@ export default function PriceSourcesPage({ embedded = false, usdToman: propUsdTo
                             value={sourceForm.fieldMapping?.priceField || 'pl'}
                             onChange={(e) => setSourceForm({
                               ...sourceForm,
-                              fieldMapping: { ...(sourceForm.fieldMapping || DEFAULT_BOURSE_MAPPING), priceField: e.target.value.trim() },
+                              fieldMapping: { ...(sourceForm.fieldMapping || (sourceForm.priceType === 'bourse_fund' ? DEFAULT_BOURSE_FUND_MAPPING : DEFAULT_BOURSE_MAPPING)), priceField: e.target.value.trim() },
                             })}
                             style={{ direction: 'ltr', textAlign: 'left', fontFamily: 'monospace' }}
                           />
@@ -1187,7 +1233,7 @@ export default function PriceSourcesPage({ embedded = false, usdToman: propUsdTo
                             value={sourceForm.fieldMapping?.altPriceField || 'pc'}
                             onChange={(e) => setSourceForm({
                               ...sourceForm,
-                              fieldMapping: { ...(sourceForm.fieldMapping || DEFAULT_BOURSE_MAPPING), altPriceField: e.target.value.trim() },
+                              fieldMapping: { ...(sourceForm.fieldMapping || (sourceForm.priceType === 'bourse_fund' ? DEFAULT_BOURSE_FUND_MAPPING : DEFAULT_BOURSE_MAPPING)), altPriceField: e.target.value.trim() },
                             })}
                             style={{ direction: 'ltr', textAlign: 'left', fontFamily: 'monospace' }}
                           />
@@ -1201,7 +1247,7 @@ export default function PriceSourcesPage({ embedded = false, usdToman: propUsdTo
                             value={sourceForm.fieldMapping?.changePercentField || 'plp'}
                             onChange={(e) => setSourceForm({
                               ...sourceForm,
-                              fieldMapping: { ...(sourceForm.fieldMapping || DEFAULT_BOURSE_MAPPING), changePercentField: e.target.value.trim() },
+                              fieldMapping: { ...(sourceForm.fieldMapping || (sourceForm.priceType === 'bourse_fund' ? DEFAULT_BOURSE_FUND_MAPPING : DEFAULT_BOURSE_MAPPING)), changePercentField: e.target.value.trim() },
                             })}
                             style={{ direction: 'ltr', textAlign: 'left', fontFamily: 'monospace' }}
                           />
@@ -1215,7 +1261,7 @@ export default function PriceSourcesPage({ embedded = false, usdToman: propUsdTo
                             value={sourceForm.fieldMapping?.volumeField || 'tno'}
                             onChange={(e) => setSourceForm({
                               ...sourceForm,
-                              fieldMapping: { ...(sourceForm.fieldMapping || DEFAULT_BOURSE_MAPPING), volumeField: e.target.value.trim() },
+                              fieldMapping: { ...(sourceForm.fieldMapping || (sourceForm.priceType === 'bourse_fund' ? DEFAULT_BOURSE_FUND_MAPPING : DEFAULT_BOURSE_MAPPING)), volumeField: e.target.value.trim() },
                             })}
                             style={{ direction: 'ltr', textAlign: 'left', fontFamily: 'monospace' }}
                           />
@@ -1228,7 +1274,7 @@ export default function PriceSourcesPage({ embedded = false, usdToman: propUsdTo
                           value={sourceForm.fieldMapping?.priceUnit || 'rial'}
                           onChange={(e) => setSourceForm({
                             ...sourceForm,
-                            fieldMapping: { ...(sourceForm.fieldMapping || DEFAULT_BOURSE_MAPPING), priceUnit: e.target.value },
+                            fieldMapping: { ...(sourceForm.fieldMapping || (sourceForm.priceType === 'bourse_fund' ? DEFAULT_BOURSE_FUND_MAPPING : DEFAULT_BOURSE_MAPPING)), priceUnit: e.target.value },
                           })}
                         >
                           <option value="rial">ریال ایران (محاسبه و تبدیل خودکار به تومان با تقسیم بر ۱۰)</option>
@@ -1417,7 +1463,7 @@ export default function PriceSourcesPage({ embedded = false, usdToman: propUsdTo
                 )}
 
                 {/* Regex & Multiplier Configuration (For non-bourse/forex sources) */}
-                {sourceForm.priceType !== 'bourse' && sourceForm.priceType !== 'forex' && (
+                {sourceForm.priceType !== 'bourse' && sourceForm.priceType !== 'bourse_fund' && sourceForm.priceType !== 'forex' && (
                   <>
                     <div className="form-group">
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>

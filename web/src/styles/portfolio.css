@@ -1083,6 +1083,12 @@
   border: 1px solid rgba(56, 189, 248, 0.25);
 }
 
+.item-category-pill.cat-bourse_fund {
+  color: #c084fc;
+  background: rgba(168, 85, 247, 0.15);
+  border: 1px solid rgba(168, 85, 247, 0.28);
+}
+
 .item-category-pill.cat-custom {
   color: #f472b6;
   background: rgba(244, 114, 182, 0.15);

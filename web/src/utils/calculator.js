@@ -157,7 +157,7 @@ export function calculateMarketData({
   if (marketPrices && typeof marketPrices === 'object') {
     const nonCurrencyKeys = new Set([
       'usd', 'gold_18k', 'full_coin', 'half_coin', 'quarter_coin',
-      'mesghal', 'ons_gold', 'ons_silver', 'bourse', 'forex'
+      'mesghal', 'ons_gold', 'ons_silver', 'bourse', 'bourse_fund', 'forex'
     ]);
     Object.keys(marketPrices).forEach(k => {
       if (!nonCurrencyKeys.has(k.toLowerCase())) {

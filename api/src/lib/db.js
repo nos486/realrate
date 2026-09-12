@@ -282,13 +282,13 @@ export async function ensureD1Tables(env) {
 
       await env.DB.prepare(`
         INSERT OR IGNORE INTO price_sources (id, name, price_type, source_type, endpoint, regex, json_path, field_mapping, fetch_interval_sec, is_active, is_primary, last_price, last_multi_data, last_fetched, created_at, updated_at)
-        VALUES ('src_def_bourse_funds', 'صندوق‌های سرمایه‌گذاری و طلای بورس (IME Fund API)', 'bourse', 'api_url', 'https://Api.BrsApi.ir/IME/Fund.php?key=BDqzgcZZ5rGg4Z6uSEs9bMyx2E2vXrkd', '', '', ?, 86400, 1, 0, 60, '', '', ?, ?)
+        VALUES ('src_def_bourse_funds', 'بورس اوراق بهادار تهران (صندوق)', 'bourse_fund', 'api_url', 'https://Api.BrsApi.ir/IME/Fund.php?key=BDqzgcZZ5rGg4Z6uSEs9bMyx2E2vXrkd', '', '', ?, 86400, 1, 1, 60, '', '', ?, ?)
       `).bind(defaultFundsFieldMapping, nowIso, nowIso).run().catch(() => {});
 
       await env.DB.prepare(`
         UPDATE price_sources
-        SET field_mapping = ?
-        WHERE id = 'src_def_bourse_funds' AND (field_mapping IS NULL OR field_mapping = '')
+        SET price_type = 'bourse_fund', name = 'بورس اوراق بهادار تهران (صندوق)', field_mapping = COALESCE(NULLIF(field_mapping, ''), ?)
+        WHERE id = 'src_def_bourse_funds' OR endpoint LIKE '%Fund.php%'
       `).bind(defaultFundsFieldMapping).run().catch(() => {});
 
       const existingSources = await env.DB.prepare("SELECT COUNT(*) AS total FROM price_sources").first();
