@@ -4,7 +4,6 @@
  */
 
 import { getLatestMarketRates } from "../services/priceSources.js";
-import { fetchForexRates } from "../services/forexRates.js";
 import { getGlobalSettings } from "../lib/settings.js";
 import { jsonResponse } from "../lib/helpers.js";
 import { dbGet24hSparklines, dbGetHistoricalBenchmarks } from "../lib/db.js";
@@ -16,9 +15,8 @@ import { dbGet24hSparklines, dbGetHistoricalBenchmarks } from "../lib/db.js";
  */
 export async function handleGetPrices(env, request = null) {
   try {
-    const [prices, forex, globalSettings] = await Promise.all([
+    const [prices, globalSettings] = await Promise.all([
       getLatestMarketRates(env),
-      fetchForexRates(env),
       getGlobalSettings(env),
     ]);
 
@@ -28,6 +26,15 @@ export async function handleGetPrices(env, request = null) {
     const live_usd_toman = live_usd_item
       ? live_usd_item.price
       : (globalSettings?.default_usd_toman || 62000);
+
+    // Derive forex cross-rates directly from prices (compiled from sources)
+    const forex = {};
+    const forexTypes = ['eur', 'try', 'aed', 'gbp', 'chf', 'cad', 'aud', 'cny'];
+    for (const t of forexTypes) {
+      if (prices[t]?.price) {
+        forex[t.toUpperCase()] = prices[t].price;
+      }
+    }
 
     return jsonResponse({
       success: true,

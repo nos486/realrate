@@ -19,11 +19,8 @@ import {
   FileText,
   Calendar,
   MessageSquare,
-  TrendingUp,
-  TrendingDown,
   ArrowUpRight,
   ArrowDownRight,
-  Clock,
   Download,
 } from 'lucide-react';
 import {
@@ -1071,82 +1068,6 @@ export default function SharedPortfolioPage() {
                       </div>
                     );
                   })()}
-
-                  {/* Dedicated 3-Period Performance Widget Card */}
-                  {!isVaultLocked && portfolioMetrics.items.length > 0 && (
-                    <div className="portfolio-stat-card periodic-perf-card">
-                      <div className="stat-header">
-                        <div className="periodic-title-wrap">
-                          <TrendingUp size={14} className="perf-header-icon" />
-                          <span className="stat-label">تغییرات و بازدهی دوره‌ای</span>
-                        </div>
-                        <span className="perf-time-badge">
-                          <Clock size={11} style={{ verticalAlign: 'middle', marginLeft: '3px' }} />
-                          زنده
-                        </span>
-                      </div>
-
-                      <div className="periodic-columns-grid">
-                        {/* 24 Hours */}
-                        <div
-                          className={`period-stat-col ${portfolioMetrics.perf24h.isProfit ? 'profit' : 'loss'} ${selectedPeriod === '24h' ? 'selected' : ''}`}
-                          onClick={() => setSelectedPeriod('24h')}
-                          role="button"
-                          tabIndex={0}
-                          title="کلیک برای تنظیم کارت اصلی روی ۲۴ ساعت"
-                        >
-                          <span className="period-col-title">۲۴ ساعت</span>
-                          <div className="period-col-pct">
-                            {portfolioMetrics.perf24h.isProfit ? <ArrowUpRight size={13} /> : <ArrowDownRight size={13} />}
-                            <span>{portfolioMetrics.perf24h.isProfit ? '+' : ''}{portfolioMetrics.perf24h.diffPct.toLocaleString('fa-IR')}%</span>
-                          </div>
-                          <span className={`period-col-diff ${hideValues ? 'is-masked' : ''}`}>
-                            {hideValues ? '****' : `${portfolioMetrics.perf24h.isProfit ? '+' : ''}${formatNum(portfolioMetrics.perf24h.diff)} ت`}
-                          </span>
-                        </div>
-
-                        <div className="period-divider" />
-
-                        {/* 7 Days */}
-                        <div
-                          className={`period-stat-col ${portfolioMetrics.perf7d.isProfit ? 'profit' : 'loss'} ${selectedPeriod === '7d' ? 'selected' : ''}`}
-                          onClick={() => setSelectedPeriod('7d')}
-                          role="button"
-                          tabIndex={0}
-                          title="کلیک برای تنظیم کارت اصلی روی ۷ روز"
-                        >
-                          <span className="period-col-title">۷ روز</span>
-                          <div className="period-col-pct">
-                            {portfolioMetrics.perf7d.isProfit ? <ArrowUpRight size={13} /> : <ArrowDownRight size={13} />}
-                            <span>{portfolioMetrics.perf7d.isProfit ? '+' : ''}{portfolioMetrics.perf7d.diffPct.toLocaleString('fa-IR')}%</span>
-                          </div>
-                          <span className={`period-col-diff ${hideValues ? 'is-masked' : ''}`}>
-                            {hideValues ? '****' : `${portfolioMetrics.perf7d.isProfit ? '+' : ''}${formatNum(portfolioMetrics.perf7d.diff)} ت`}
-                          </span>
-                        </div>
-
-                        <div className="period-divider" />
-
-                        {/* 30 Days */}
-                        <div
-                          className={`period-stat-col ${portfolioMetrics.perf30d.isProfit ? 'profit' : 'loss'} ${selectedPeriod === '30d' ? 'selected' : ''}`}
-                          onClick={() => setSelectedPeriod('30d')}
-                          role="button"
-                          tabIndex={0}
-                          title="کلیک برای تنظیم کارت اصلی روی ۳۰ روز"
-                        >
-                          <span className="period-col-title">۳۰ روز</span>
-                          <div className="period-col-pct">
-                            {portfolioMetrics.perf30d.isProfit ? <ArrowUpRight size={13} /> : <ArrowDownRight size={13} />}
-                            <span>{portfolioMetrics.perf30d.isProfit ? '+' : ''}{portfolioMetrics.perf30d.diffPct.toLocaleString('fa-IR')}%</span>
-                          </div>
-                          <span className={`period-col-diff ${hideValues ? 'is-masked' : ''}`}>
-                            {hideValues ? '****' : `${portfolioMetrics.perf30d.isProfit ? '+' : ''}${formatNum(portfolioMetrics.perf30d.diff)} ت`}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                  )}
                 </div>
               </div>
             </div>

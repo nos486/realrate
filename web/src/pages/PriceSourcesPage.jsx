@@ -34,7 +34,6 @@ import {
 } from 'lucide-react';
 import AppLayout from '../components/ui/AppLayout.jsx';
 import AlertBanner from '../components/ui/AlertBanner.jsx';
-import MiniCard from '../components/ui/MiniCard.jsx';
 import FilterPills from '../components/ui/FilterPills.jsx';
 import EmptyState from '../components/ui/EmptyState.jsx';
 import Card from '../components/ui/Card.jsx';
@@ -647,74 +646,7 @@ export default function PriceSourcesPage({ embedded = false, usdToman: propUsdTo
           )}
         </section>
 
-        {/* ── SECTION 2: Sources Overview Cards Grid ──────────────────────── */}
-        <section className="sources-cards-grid-section">
-          <div className="section-subtitle-bar">
-            <span>
-              <Activity size={15} style={{ verticalAlign: 'middle', marginLeft: '6px' }} />
-              نمای کلی سورس‌های فعال بازار ({sources.length.toLocaleString('fa-IR')} سورس)
-            </span>
-          </div>
-
-          <div className="sources-overview-grid">
-            {sources.map((src) => {
-              const typeInfo = PRICE_TYPE_INFO[src.priceType] || { label: src.priceType, badgeColor: 'blue' };
-              const isSelected = src.id === selectedSourceId;
-
-              return (
-                <MiniCard
-                  key={src.id}
-                  selected={isSelected}
-                  onClick={() => handleSelectSourceForChart(src)}
-                  className="source-overview-card"
-                  badge={
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                      <span>{typeInfo.label}</span>
-                      {src.isPrimary && (
-                        <span className="primary-tag" title="سورس مرجع" style={{ display: 'inline-flex', alignItems: 'center', gap: '2px', marginRight: '4px' }}>
-                          <Star size={10} fill="#eab308" color="#eab308" />
-                          <span>مرجع</span>
-                        </span>
-                      )}
-                    </div>
-                  }
-                  badgeColor={typeInfo.badgeColor}
-                  status={src.isActive ? 'active' : 'inactive'}
-                  statusLabel={src.isActive ? 'فعال' : 'غیرفعال'}
-                  title={<h4 className="source-card-title" style={{ margin: 0 }}>{src.name}</h4>}
-                  subtitle={
-                    src.sourceType === 'telegram'
-                      ? `@${src.channelUsername || src.endpoint}`
-                      : (src.apiUrl || src.endpoint || 'API URL')
-                  }
-                  value={src.lastPrice > 0 ? formatNum(src.lastPrice, src.priceType) : 'هنوز دریافت نشده'}
-                  unit={src.lastPrice > 0 ? getPriceUnit(src.priceType) : null}
-                  color={src.lastPrice > 0 ? (typeInfo.badgeColor === 'green' ? 'green' : typeInfo.badgeColor === 'gold' ? 'gold' : 'blue') : 'default'}
-                  footer={
-                    <>
-                      <span className="last-fetched-hint">
-                        {src.lastFetched ? formatPersianDate(src.lastFetched) : 'بدون ثبت تاریخچه'}
-                      </span>
-                      <button
-                        type="button"
-                        className="btn-card-chart-focus"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleSelectSourceForChart(src);
-                        }}
-                      >
-                        <LineChart size={13} />
-                        <span>نمودار</span>
-                      </button>
-                    </>
-                  }
-                />
-              );
-            })}
-          </div>
-        </section>
-
-        {/* ── SECTION 3: Unified Management Table ─────────────────────────── */}
+        {/* ── SECTION 2: Unified Management Table ─────────────────────────── */}
         <section className="sources-table-section">
           <div className="table-header-toolbar">
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>

@@ -98,35 +98,59 @@ export function calculateMarketData({
     };
   }
 
-  // 2. Forex calculations
-  const fx = (code, fallback) =>
-    forex && typeof forex[code] === 'number' && forex[code] > 0 ? forex[code] : fallback;
-
-  const quick_currencies = {
-    USD: Math.round(usd_toman),
-    EUR: Math.round((1 / fx('EUR', 0.915)) * usd_toman),
-    AED: Math.round((1 / fx('AED', 3.6725)) * usd_toman),
-    TRY: Math.round((1 / fx('TRY', 33.50)) * usd_toman),
-  };
+  // 2. Currencies sourced ONLY from active sources in marketPrices / forex
+  const KNOWN_CURRENCY_SOURCES = [
+    { code: 'EUR', priceType: 'eur', name: 'یورو اروپا', flag: '🇪🇺', symbol: '€' },
+    { code: 'TRY', priceType: 'try', name: 'لیر ترکیه', flag: '🇹🇷', symbol: '₺' },
+    { code: 'AED', priceType: 'aed', name: 'درهم امارات', flag: '🇦🇪', symbol: 'د.إ' },
+    { code: 'GBP', priceType: 'gbp', name: 'پوند انگلیس', flag: '🇬🇧', symbol: '£' },
+    { code: 'CHF', priceType: 'chf', name: 'فرانک سوئیس', flag: '🇨🇭', symbol: 'CHF' },
+    { code: 'CAD', priceType: 'cad', name: 'دلار کانادا', flag: '🇨🇦', symbol: 'C$' },
+    { code: 'AUD', priceType: 'aud', name: 'دلار استرالیا', flag: '🇦🇺', symbol: 'A$' },
+    { code: 'CNY', priceType: 'cny', name: 'یوان چین', flag: '🇨🇳', symbol: '¥' },
+  ];
 
   const currencies = [
-    { code: 'USD', name: 'دلار آمریکا', flag: '🇺🇸', symbol: '$', usd_cross_rate: 1.0, toman_price: Math.round(usd_toman), note: 'نرخ دلار نقدی بازار آزاد' },
-    { code: 'EUR', name: 'یورو', flag: '🇪🇺', symbol: '€', usd_cross_rate: parseFloat((1 / fx('EUR', 0.915)).toFixed(4)), toman_price: Math.round((1 / fx('EUR', 0.915)) * usd_toman), note: `۱ یورو = ${(1 / fx('EUR', 0.915)).toFixed(4)} دلار` },
-    { code: 'AED', name: 'درهم امارات', flag: '🇦🇪', symbol: 'د.إ', usd_cross_rate: parseFloat((1 / fx('AED', 3.6725)).toFixed(4)), toman_price: Math.round((1 / fx('AED', 3.6725)) * usd_toman), note: `۱ دلار = ${fx('AED', 3.6725).toFixed(4)} درهم` },
-    { code: 'TRY', name: 'لیر ترکیه', flag: '🇹🇷', symbol: '₺', usd_cross_rate: parseFloat((1 / fx('TRY', 33.50)).toFixed(4)), toman_price: Math.round((1 / fx('TRY', 33.50)) * usd_toman), note: `۱ دلار = ${fx('TRY', 33.50).toFixed(2)} لیر` },
-    { code: 'GBP', name: 'پوند انگلیس', flag: '🇬🇧', symbol: '£', usd_cross_rate: parseFloat((1 / fx('GBP', 0.782)).toFixed(4)), toman_price: Math.round((1 / fx('GBP', 0.782)) * usd_toman), note: `۱ پوند = ${(1 / fx('GBP', 0.782)).toFixed(4)} دلار` },
-    { code: 'CAD', name: 'دلار کانادا', flag: '🇨🇦', symbol: 'C$', usd_cross_rate: parseFloat((1 / fx('CAD', 1.370)).toFixed(4)), toman_price: Math.round((1 / fx('CAD', 1.370)) * usd_toman), note: `۱ دلار کانادا = ${(1 / fx('CAD', 1.370)).toFixed(4)} دلار` },
-    { code: 'AUD', name: 'دلار استرالیا', flag: '🇦🇺', symbol: 'A$', usd_cross_rate: parseFloat((1 / fx('AUD', 1.520)).toFixed(4)), toman_price: Math.round((1 / fx('AUD', 1.520)) * usd_toman), note: `۱ دلار استرالیا = ${(1 / fx('AUD', 1.520)).toFixed(4)} دلار` },
-    { code: 'CHF', name: 'فرانک سوئیس', flag: '🇨🇭', symbol: 'CHF', usd_cross_rate: parseFloat((1 / fx('CHF', 0.865)).toFixed(4)), toman_price: Math.round((1 / fx('CHF', 0.865)) * usd_toman), note: `۱ فرانک = ${(1 / fx('CHF', 0.865)).toFixed(4)} دلار` },
-    { code: 'CNY', name: 'یوان چین', flag: '🇨🇳', symbol: '¥', usd_cross_rate: parseFloat((1 / fx('CNY', 7.18)).toFixed(4)), toman_price: Math.round((1 / fx('CNY', 7.18)) * usd_toman), note: `۱ دلار = ${fx('CNY', 7.18).toFixed(2)} یوان` },
-    { code: 'SAR', name: 'ریال عربستان', flag: '🇸🇦', symbol: 'ر.س', usd_cross_rate: parseFloat((1 / fx('SAR', 3.75)).toFixed(4)), toman_price: Math.round((1 / fx('SAR', 3.75)) * usd_toman), note: `۱ دلار = ${fx('SAR', 3.75).toFixed(2)} ریال` },
-    { code: 'QAR', name: 'ریال قطر', flag: '🇶🇦', symbol: 'ر.ق', usd_cross_rate: parseFloat((1 / fx('QAR', 3.64)).toFixed(4)), toman_price: Math.round((1 / fx('QAR', 3.64)) * usd_toman), note: `۱ دلار = ${fx('QAR', 3.64).toFixed(2)} ریال` },
-    { code: 'KWD', name: 'دینار کویت', flag: '🇰🇼', symbol: 'د.ك', usd_cross_rate: parseFloat((1 / fx('KWD', 0.306)).toFixed(4)), toman_price: Math.round((1 / fx('KWD', 0.306)) * usd_toman), note: `۱ دینار کویت = ${(1 / fx('KWD', 0.306)).toFixed(4)} دلار` },
-    { code: 'JPY', name: '۱۰۰ ین ژاپن', flag: '🇯🇵', symbol: '¥', usd_cross_rate: parseFloat((100 / fx('JPY', 147.50)).toFixed(4)), toman_price: Math.round((100 / fx('JPY', 147.50)) * usd_toman), note: `۱۰۰ ین = ${(100 / fx('JPY', 147.50)).toFixed(4)} دلار` },
-    { code: 'RUB', name: 'روبل روسیه', flag: '🇷🇺', symbol: '₽', usd_cross_rate: parseFloat((1 / fx('RUB', 88.50)).toFixed(4)), toman_price: Math.round((1 / fx('RUB', 88.50)) * usd_toman), note: `۱ دلار = ${fx('RUB', 88.50).toFixed(1)} روبل` },
-    { code: 'IQD', name: '۱,۰۰۰ دینار عراق', flag: '🇮🇶', symbol: 'د.ع', usd_cross_rate: parseFloat((1000 / fx('IQD', 1310.0)).toFixed(4)), toman_price: Math.round((1000 / fx('IQD', 1310.0)) * usd_toman), note: `۱,۰۰۰ دینار = ${(1000 / fx('IQD', 1310.0)).toFixed(4)} دلار` },
-    { code: 'AFN', name: 'افغانی افغانستان', flag: '🇦🇫', symbol: '؋', usd_cross_rate: parseFloat((1 / fx('AFN', 70.50)).toFixed(4)), toman_price: Math.round((1 / fx('AFN', 70.50)) * usd_toman), note: `۱ دلار = ${fx('AFN', 70.50).toFixed(1)} افغانی` },
+    {
+      code: 'USD',
+      name: 'دلار آمریکا',
+      flag: '🇺🇸',
+      symbol: '$',
+      usd_cross_rate: 1.0,
+      toman_price: Math.round(usd_toman),
+      note: 'نرخ دلار نقدی بازار آزاد',
+    },
   ];
+
+  KNOWN_CURRENCY_SOURCES.forEach((cfg) => {
+    // Only include if present in sources (marketPrices) or forex compiled from sources
+    const srcData = marketPrices?.[cfg.priceType];
+    const rawCross = srcData?.price || forex?.[cfg.code] || null;
+
+    if (rawCross && Number(rawCross) > 0) {
+      const crossRate = Number(rawCross);
+      const tomanPrice = Math.round(crossRate * usd_toman);
+      currencies.push({
+        code: cfg.code,
+        priceType: cfg.priceType,
+        name: cfg.name,
+        flag: cfg.flag,
+        symbol: cfg.symbol,
+        usd_cross_rate: parseFloat(crossRate.toFixed(4)),
+        toman_price: tomanPrice,
+        note: (cfg.code === 'EUR' || cfg.code === 'GBP' || cfg.code === 'CHF')
+          ? `۱ ${cfg.name.split(' ')[0]} = ${crossRate.toFixed(4)} دلار`
+          : `۱ دلار = ${(1 / crossRate).toFixed(2)} ${cfg.name.split(' ')[0]}`,
+        sourceLabel: srcData?.label,
+        sourceId: srcData?.sourceId,
+      });
+    }
+  });
+
+  const quick_currencies = {};
+  currencies.forEach((c) => {
+    quick_currencies[c.code] = c.toman_price;
+  });
 
   // 3. Silver calculations
   const silver_999_gram = (silver_usd / 31.1034768) * usd_toman;
