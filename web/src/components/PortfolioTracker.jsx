@@ -32,6 +32,7 @@ import {
   TrendingUp,
   Search,
   Building2,
+  Clock,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext.jsx';
 import Modal from './ui/Modal.jsx';
@@ -387,23 +388,35 @@ export default function PortfolioTracker({ calcData, rates, usdToman, goldUsd, i
   const [assetSearchQuery, setAssetSearchQuery] = useState('');
   const [bourseSearchResults, setBourseSearchResults] = useState([]);
   const [isSearchingBourse, setIsSearchingBourse] = useState(false);
+  const [searchTimerCount, setSearchTimerCount] = useState(null);
   const [selectedBourseSymbol, setSelectedBourseSymbol] = useState(null);
   const [boursePricesMap, setBoursePricesMap] = useState({});
 
   // Debounced search for Iranian stock market (Bourse) symbols
+  // Requirement: Minimum 3 characters, and 2-second debounce if input is idle
   useEffect(() => {
     const query = assetSearchQuery.trim();
-    if (!query) {
-      const timer = setTimeout(() => {
-        setBourseSearchResults([]);
-        setIsSearchingBourse(false);
-      }, 0);
-      return () => clearTimeout(timer);
+
+    // Less than 3 characters -> Do not search
+    if (query.length < 3) {
+      setBourseSearchResults([]);
+      setIsSearchingBourse(false);
+      setSearchTimerCount(null);
+      return;
     }
 
-    setIsSearchingBourse(true);
-    const timer = setTimeout(() => {
-      apiSearchBourseSymbols(assetSearchQuery.trim(), 25)
+    // 3 or more characters -> Start 2-second debounce countdown
+    setSearchTimerCount(2);
+
+    const countTimer = setTimeout(() => {
+      setSearchTimerCount(1);
+    }, 1000);
+
+    const fireTimer = setTimeout(() => {
+      setSearchTimerCount(null);
+      setIsSearchingBourse(true);
+
+      apiSearchBourseSymbols(query, 30)
         .then((res) => {
           if (res.success && Array.isArray(res.symbols)) {
             setBourseSearchResults(res.symbols);
@@ -418,9 +431,12 @@ export default function PortfolioTracker({ calcData, rates, usdToman, goldUsd, i
         .finally(() => {
           setIsSearchingBourse(false);
         });
-    }, 250);
+    }, 2000);
 
-    return () => clearTimeout(timer);
+    return () => {
+      clearTimeout(countTimer);
+      clearTimeout(fireTimer);
+    };
   }, [assetSearchQuery]);
 
   // Synchronize bourse prices for active bourse holdings
@@ -881,6 +897,7 @@ export default function PortfolioTracker({ calcData, rates, usdToman, goldUsd, i
     setShowDatePicker(false);
     setAssetSearchQuery('');
     setBourseSearchResults([]);
+    setSearchTimerCount(null);
     setSelectedBourseSymbol(null);
     setModalOpen(true);
   };
@@ -890,6 +907,7 @@ export default function PortfolioTracker({ calcData, rates, usdToman, goldUsd, i
     setEditingHolding(item);
     setAssetSearchQuery('');
     setBourseSearchResults([]);
+    setSearchTimerCount(null);
 
     const isBourse = item.assetType === 'bourse' || item.assetId?.startsWith('bourse_');
     const isKnown = ASSET_TYPES.some((a) => a.id === item.assetId && a.id !== 'custom' && a.id !== 'bourse');
@@ -1225,6 +1243,7 @@ export default function PortfolioTracker({ calcData, rates, usdToman, goldUsd, i
     setCustomCurrentPrice('');
     setAssetSearchQuery('');
     setBourseSearchResults([]);
+    setSearchTimerCount(null);
   };
 
   const handleSelectStandardAsset = (asset) => {
@@ -1235,6 +1254,7 @@ export default function PortfolioTracker({ calcData, rates, usdToman, goldUsd, i
     setCustomCurrentPrice('');
     setAssetSearchQuery('');
     setBourseSearchResults([]);
+    setSearchTimerCount(null);
   };
 
   const handleSelectBourseSymbol = (sym) => {
@@ -1245,11 +1265,12 @@ export default function PortfolioTracker({ calcData, rates, usdToman, goldUsd, i
     setCustomCurrentPrice(String(sym.priceToman || Math.round(sym.priceRial / 10)));
     setAssetSearchQuery('');
     setBourseSearchResults([]);
+    setSearchTimerCount(null);
   };
 
   const matchingStandardAssets = useMemo(() => {
-    if (!assetSearchQuery.trim()) return [];
     const q = assetSearchQuery.trim().toLowerCase();
+    if (q.length < 3) return [];
     return ASSET_TYPES.filter(
       (a) =>
         a.id !== 'custom' &&
@@ -2033,114 +2054,219 @@ export default function PortfolioTracker({ calcData, rates, usdToman, goldUsd, i
           </div>
         }
       >
-              {/* Quick Select Frequent Assets */}
-              <div className="frequent-assets-container">
-                <div className="frequent-assets-header">
-                  <span className="frequent-title">دارایی‌های پرکاربرد:</span>
+              {/* Unified Asset Selector Component (Combined Search + Frequent Chips + Direct Select) */}
+              <div className="unified-asset-picker-card">
+                <div className="unified-picker-header">
+                  <span className="unified-picker-title">انتخاب دارایی یا نماد بورس:</span>
+                  <div className="active-asset-summary-pill">
+                    <span className="summary-label">انتخاب‌شده:</span>
+                    <strong className="summary-val">
+                      {isModalBourse
+                        ? (selectedBourseSymbol?.symbol ? `${selectedBourseSymbol.symbol} (${selectedBourseSymbol.name})` : customName || 'سهام بورس')
+                        : (selectedAssetMeta?.name || customName || 'انتخاب نشده')}
+                    </strong>
+                    {currentModalRealPrice > 0 && (
+                      <span className="summary-price">({formatNum(currentModalRealPrice)} تومان)</span>
+                    )}
+                  </div>
                 </div>
-                <div className="frequent-chips-grid">
-                  {FREQUENT_ASSETS.map((asset) => {
-                    const isSelected = selectedAssetId === asset.id;
-                    return (
-                      <button
-                        key={asset.id}
-                        type="button"
-                        className={`frequent-asset-chip ${isSelected ? 'active' : ''}`}
-                        onClick={() => handleSelectFrequentAsset(asset)}
-                      >
-                        <span className="chip-icon">{asset.icon}</span>
-                        <span className="chip-label">{asset.name}</span>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
 
-              {/* Universal Asset & Bourse Search */}
-              <div className="asset-search-section">
-                <label className="field-label">جستجوی دارایی یا نماد بورس ایران</label>
-                <div className="asset-search-input-box">
-                  <Search size={15} className="asset-search-icon" />
-                  <input
-                    type="text"
-                    placeholder="جستجوی نماد بورس (فملی، خودرو، فولاد...)، طلا، سکه یا ارز..."
-                    value={assetSearchQuery}
-                    onChange={(e) => setAssetSearchQuery(e.target.value)}
-                    className="form-input asset-search-input-field"
-                  />
-                  {assetSearchQuery && (
-                    <button
-                      type="button"
-                      className="asset-search-clear-btn"
-                      onClick={() => {
-                        setAssetSearchQuery('');
-                        setBourseSearchResults([]);
-                      }}
-                      title="پاک کردن جستجو"
-                    >
-                      <X size={14} />
-                    </button>
+                {/* 1. Universal Search Input with 2s Debounce & 3 Chars Min */}
+                <div className="asset-search-section">
+                  <div className="asset-search-input-box">
+                    <Search size={15} className="asset-search-icon" />
+                    <input
+                      type="text"
+                      placeholder="جستجوی نماد بورس (فملی، خودرو...)، طلا، سکه یا ارز... (حداقل ۳ حرف)"
+                      value={assetSearchQuery}
+                      onChange={(e) => setAssetSearchQuery(e.target.value)}
+                      className="form-input asset-search-input-field"
+                    />
+                    <div className="search-input-trailing-actions">
+                      {searchTimerCount !== null && (
+                        <span className="search-countdown-badge" title="در حال انتظار برای اتمام تایپ">
+                          <Clock size={11} className="timer-pulse-icon" /> {searchTimerCount} ثانیه تا جستجو
+                        </span>
+                      )}
+                      {isSearchingBourse && (
+                        <span className="search-searching-badge">
+                          <span className="spinner-mini" /> در حال جستجو...
+                        </span>
+                      )}
+                      {assetSearchQuery.trim().length > 0 && assetSearchQuery.trim().length < 3 && (
+                        <span className="search-min-chars-hint">
+                          حداقل ۳ حرف
+                        </span>
+                      )}
+                      {assetSearchQuery && (
+                        <button
+                          type="button"
+                          className="asset-search-clear-btn"
+                          onClick={() => {
+                            setAssetSearchQuery('');
+                            setBourseSearchResults([]);
+                            setSearchTimerCount(null);
+                          }}
+                          title="پاک کردن جستجو"
+                        >
+                          <X size={14} />
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Dropdown Suggestions */}
+                  {(matchingStandardAssets.length > 0 || bourseSearchResults.length > 0 || isSearchingBourse || (assetSearchQuery.trim().length >= 3 && searchTimerCount === null && !isSearchingBourse)) && (
+                    <div className="asset-search-results-dropdown">
+                      {searchTimerCount !== null && (
+                        <div className="search-loading-status">
+                          <Clock size={13} className="timer-pulse-icon" />
+                          <span>در حال انتظار برای اتمام تایپ ({searchTimerCount} ثانیه تا جستجو در بورس)...</span>
+                        </div>
+                      )}
+
+                      {isSearchingBourse && (
+                        <div className="search-loading-status">
+                          <div className="spinner-mini" />
+                          <span>در حال جستجو در نمادهای بازار سرمایه (TSETMC)...</span>
+                        </div>
+                      )}
+
+                      {matchingStandardAssets.length > 0 && (
+                        <div className="search-results-group">
+                          <div className="search-group-header">طلا، سکه و ارزها</div>
+                          {matchingStandardAssets.map((item) => (
+                            <button
+                              key={item.id}
+                              type="button"
+                              className="search-result-row"
+                              onClick={() => handleSelectStandardAsset(item)}
+                            >
+                              <div className="search-row-lead">
+                                <CategoryIcon category={item.category} size={15} />
+                                <span className="search-row-name">{item.name}</span>
+                              </div>
+                              <span className="search-row-unit">{item.unit}</span>
+                            </button>
+                          ))}
+                        </div>
+                      )}
+
+                      {bourseSearchResults.length > 0 && (
+                        <div className="search-results-group">
+                          <div className="search-group-header">نمادهای سهام بورس و فرابورس ({bourseSearchResults.length} نماد)</div>
+                          {bourseSearchResults.map((sym) => (
+                            <button
+                              key={sym.symbol}
+                              type="button"
+                              className="search-result-row bourse-row"
+                              onClick={() => handleSelectBourseSymbol(sym)}
+                            >
+                              <div className="search-row-lead">
+                                <span className="bourse-tag">{sym.symbol}</span>
+                                <span className="search-row-name bourse-company">{sym.name}</span>
+                              </div>
+                              <div className="bourse-row-pricing">
+                                <span className="bourse-toman-val">{formatNum(sym.priceToman)} تومان</span>
+                                {sym.changePercent !== undefined && sym.changePercent !== null && (
+                                  <span className={`bourse-pct-val ${sym.changePercent >= 0 ? 'profit' : 'loss'}`}>
+                                    {sym.changePercent >= 0 ? '+' : ''}{sym.changePercent.toFixed(1)}٪
+                                  </span>
+                                )}
+                              </div>
+                            </button>
+                          ))}
+                        </div>
+                      )}
+
+                      {!isSearchingBourse && searchTimerCount === null && matchingStandardAssets.length === 0 && bourseSearchResults.length === 0 && assetSearchQuery.trim().length >= 3 && (
+                        <div className="search-no-results">
+                          <span>هیچ نماد یا دارایی با عبارت «{assetSearchQuery.trim()}» یافت نشد.</span>
+                        </div>
+                      )}
+                    </div>
                   )}
                 </div>
 
-                {/* Dropdown Suggestions */}
-                {(matchingStandardAssets.length > 0 || bourseSearchResults.length > 0 || isSearchingBourse) && (
-                  <div className="asset-search-results-dropdown">
-                    {isSearchingBourse && (
-                      <div className="search-loading-status">
-                        <div className="spinner-mini" />
-                        <span>در حال جستجو در نمادهای بازار سرمایه (TSETMC)...</span>
-                      </div>
-                    )}
-
-                    {matchingStandardAssets.length > 0 && (
-                      <div className="search-results-group">
-                        <div className="search-group-header">طلا، سکه و ارزها</div>
-                        {matchingStandardAssets.map((item) => (
-                          <button
-                            key={item.id}
-                            type="button"
-                            className="search-result-row"
-                            onClick={() => handleSelectStandardAsset(item)}
-                          >
-                            <div className="search-row-lead">
-                              <CategoryIcon category={item.category} size={15} />
-                              <span className="search-row-name">{item.name}</span>
-                            </div>
-                            <span className="search-row-unit">{item.unit}</span>
-                          </button>
-                        ))}
-                      </div>
-                    )}
-
-                    {bourseSearchResults.length > 0 && (
-                      <div className="search-results-group">
-                        <div className="search-group-header">نمادهای سهام بورس و فرابورس</div>
-                        {bourseSearchResults.map((sym) => (
-                          <button
-                            key={sym.symbol}
-                            type="button"
-                            className="search-result-row bourse-row"
-                            onClick={() => handleSelectBourseSymbol(sym)}
-                          >
-                            <div className="search-row-lead">
-                              <span className="bourse-tag">{sym.symbol}</span>
-                              <span className="search-row-name bourse-company">{sym.name}</span>
-                            </div>
-                            <div className="bourse-row-pricing">
-                              <span className="bourse-toman-val">{formatNum(sym.priceToman)} تومان</span>
-                              {sym.changePercent !== undefined && sym.changePercent !== null && (
-                                <span className={`bourse-pct-val ${sym.changePercent >= 0 ? 'profit' : 'loss'}`}>
-                                  {sym.changePercent >= 0 ? '+' : ''}{sym.changePercent.toFixed(1)}٪
-                                </span>
-                              )}
-                            </div>
-                          </button>
-                        ))}
-                      </div>
-                    )}
+                {/* 2. Quick Select Frequent Assets Chips */}
+                <div className="unified-frequent-row">
+                  <span className="unified-frequent-lead">پرکاربرد:</span>
+                  <div className="unified-frequent-chips">
+                    {FREQUENT_ASSETS.map((asset) => {
+                      const isSelected = selectedAssetId === asset.id;
+                      return (
+                        <button
+                          key={asset.id}
+                          type="button"
+                          className={`frequent-asset-chip ${isSelected ? 'active' : ''}`}
+                          onClick={() => handleSelectFrequentAsset(asset)}
+                        >
+                          <span className="chip-icon">{asset.icon}</span>
+                          <span className="chip-label">{asset.name}</span>
+                        </button>
+                      );
+                    })}
                   </div>
-                )}
+                </div>
+
+                {/* 3. Direct Select from List */}
+                <div className="unified-select-row">
+                  <div className="unified-select-wrapper">
+                    <span className="unified-select-prefix">انتخاب مستقیم از لیست:</span>
+                    <select
+                      value={isModalBourse ? '' : selectedAssetId}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        if (!val) return;
+                        setSelectedAssetId(val);
+                        setSelectedBourseSymbol(null);
+                        setAssetSearchQuery('');
+                        setBourseSearchResults([]);
+                        setSearchTimerCount(null);
+                      }}
+                      className="form-select unified-form-select"
+                    >
+                      {isModalBourse && (
+                        <option value="" disabled>
+                          {selectedBourseSymbol?.symbol ? `[سهام بورس: ${selectedBourseSymbol.symbol}]` : '[نماد بورس انتخاب‌شده]'}
+                        </option>
+                      )}
+                      <optgroup label="طلا و مسکوکات">
+                        <option value="gold_18k">طلای ۱۸ عیار</option>
+                        <option value="gold_melted">طلای آبشده (گرم ۱۸)</option>
+                        <option value="gold_24k">طلای ۲۴ عیار</option>
+                        <option value="full_new">سکه امامی</option>
+                        <option value="full_old">سکه بهار آزادی</option>
+                        <option value="half">نیم سکه بهار آزادی</option>
+                        <option value="quarter">ربع سکه بهار آزادی</option>
+                        <option value="bank_gram">سکه گرمی بانکی</option>
+                      </optgroup>
+
+                      <optgroup label="نقره (Silver)">
+                        <option value="silver_999">نقره خام و ساچمه ۹۹۹</option>
+                        <option value="silver_925">نقره استرلینگ ۹۲۵</option>
+                        <option value="silver_ounce">انس جهانی نقره</option>
+                      </optgroup>
+
+                      <optgroup label="ارزهای خارجی و کریپتو">
+                        <option value="USD">دلار آمریکا</option>
+                        <option value="USDT">تتر</option>
+                        <option value="EUR">یورو اروپا</option>
+                        <option value="CHF">فرانک سوئیس</option>
+                        <option value="AED">درهم امارات</option>
+                        <option value="TRY">لیر ترکیه</option>
+                        <option value="GBP">پوند انگلیس</option>
+                        <option value="CAD">دلار کانادا</option>
+                        <option value="BTC">بیت‌کوین</option>
+                        <option value="ETH">اتریوم</option>
+                      </optgroup>
+
+                      <optgroup label="دارایی‌های دلخواه">
+                        <option value="custom">سایر دارایی‌ها (سفارشی)</option>
+                      </optgroup>
+                    </select>
+                  </div>
+                </div>
               </div>
 
               {/* Selected Bourse Stock Highlight Card */}
@@ -2171,56 +2297,6 @@ export default function PortfolioTracker({ calcData, rates, usdToman, goldUsd, i
                     <strong className="preview-price-num">{formatNum(currentModalRealPrice)} تومان</strong>
                     <span className="preview-price-rial">({Number(currentModalRealPrice * 10).toLocaleString('fa-IR')} ریال)</span>
                   </div>
-                </div>
-              )}
-
-              {/* Standard Dropdown fallback for quick manual category selection */}
-              {!isModalBourse && (
-                <div className="form-item">
-                  <label>یا انتخاب مستقیم از لیست</label>
-                  <select
-                    value={selectedAssetId}
-                    onChange={(e) => {
-                      const val = e.target.value;
-                      setSelectedAssetId(val);
-                      setSelectedBourseSymbol(null);
-                    }}
-                    className="form-select"
-                  >
-                    <optgroup label="طلا و مسکوکات">
-                      <option value="gold_18k">طلای ۱۸ عیار</option>
-                      <option value="gold_melted">طلای آبشده (گرم ۱۸)</option>
-                      <option value="gold_24k">طلای ۲۴ عیار</option>
-                      <option value="full_new">سکه امامی</option>
-                      <option value="full_old">سکه بهار آزادی</option>
-                      <option value="half">نیم سکه بهار آزادی</option>
-                      <option value="quarter">ربع سکه بهار آزادی</option>
-                      <option value="bank_gram">سکه گرمی بانکی</option>
-                    </optgroup>
-
-                    <optgroup label="نقره (Silver)">
-                      <option value="silver_999">نقره خام و ساچمه ۹۹۹</option>
-                      <option value="silver_925">نقره استرلینگ ۹۲۵</option>
-                      <option value="silver_ounce">انس جهانی نقره</option>
-                    </optgroup>
-
-                    <optgroup label="ارزهای خارجی و کریپتو">
-                      <option value="USD">دلار آمریکا</option>
-                      <option value="USDT">تتر</option>
-                      <option value="EUR">یورو اروپا</option>
-                      <option value="CHF">فرانک سوئیس</option>
-                      <option value="AED">درهم امارات</option>
-                      <option value="TRY">لیر ترکیه</option>
-                      <option value="GBP">پوند انگلیس</option>
-                      <option value="CAD">دلار کانادا</option>
-                      <option value="BTC">بیت‌کوین</option>
-                      <option value="ETH">اتریوم</option>
-                    </optgroup>
-
-                    <optgroup label="دارایی‌های دلخواه">
-                      <option value="custom">سایر دارایی‌ها</option>
-                    </optgroup>
-                  </select>
                 </div>
               )}
 
