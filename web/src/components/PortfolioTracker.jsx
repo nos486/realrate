@@ -131,27 +131,41 @@ export function normalizeHolding(h) {
   const cleanId = assetId.replace(/^src_def_/, '').toLowerCase();
   const cleanName = assetName.replace(/^src_def_/, '');
 
-  // Gold checks
-  if (
-    ['gold_18k', 'gold_22k', 'gold_24k', 'gold_melted', 'mesghal', 'ons_gold', 'gold_ounce'].includes(cleanId) ||
-    cleanId.includes('gold') ||
-    cleanName.includes('طلا') ||
-    cleanName.includes('مظنه') ||
-    cleanName.includes('مثقال')
-  ) {
-    assetType = 'gold';
-    if (!unit || unit === 'واحد') {
-      unit = cleanId.includes('mesghal') || cleanName.includes('مثقال') ? 'مثقال' : (cleanId.includes('ons') ? 'اونس' : 'گرم');
+  // 1. Bourse Stocks & Funds Checks (MUST PRECEDE GOLD/COIN/CURRENCY)
+  // Any bourse item (whether gold ETF like 'عیار'/'طلا' or equity ETF or stock) belongs strictly to Bourse!
+  const isBourse = (
+    assetId.startsWith('bourse_') ||
+    cleanId.startsWith('bourse_') ||
+    assetType === 'bourse' ||
+    assetType === 'bourse_fund' ||
+    cleanName.includes('صندوق') ||
+    h.isFund !== undefined
+  );
+
+  if (isBourse) {
+    const isFund = Boolean(
+      h.isFund ||
+      assetType === 'bourse_fund' ||
+      cleanName.includes('صندوق') ||
+      cleanId.includes('fund')
+    );
+    assetType = isFund ? 'bourse_fund' : 'bourse';
+    // Ensure unit is 'واحد' for funds, 'برگ سهم' for stocks (never 'گرم', 'عدد', etc.)
+    if (!unit || unit === 'واحد' || unit === 'گرم' || unit === 'عدد' || unit === 'تومان') {
+      unit = isFund ? 'واحد' : 'برگ سهم';
     }
-    if (!assetName || assetName.startsWith('src_def_')) {
-      assetName = cleanId.includes('22') ? 'طلای ۲۲ عیار' : (cleanId.includes('24') ? 'طلای ۲۴ عیار' : (cleanId.includes('melted') ? 'طلای آبشده' : (cleanId.includes('mesghal') ? 'مثقال طلا (مظنه)' : (cleanId.includes('ons') ? 'انس جهانی طلا' : 'طلای ۱۸ عیار'))));
-    }
-    if (assetId.startsWith('src_def_')) {
-      assetId = cleanId;
-    }
+    return {
+      ...h,
+      assetId,
+      assetName,
+      assetType,
+      unit,
+      isFund,
+    };
   }
-  // Coin checks
-  else if (
+
+  // 2. Coin checks (Before gold so 'سکه بهار آزادی' doesn't get caught by anything else)
+  if (
     ['full_coin', 'full_new', 'full_old', 'half_coin', 'half', 'quarter_coin', 'quarter', 'gerami_coin', 'bank_gram', 'gram'].includes(cleanId) ||
     cleanId.includes('coin') ||
     cleanName.includes('سکه')
@@ -165,7 +179,7 @@ export function normalizeHolding(h) {
       assetId = cleanId;
     }
   }
-  // Silver checks
+  // 3. Silver checks
   else if (
     ['silver_999', 'silver_925', 'silver_gram', 'ons_silver', 'silver_ounce'].includes(cleanId) ||
     cleanId.includes('silver') ||
@@ -182,7 +196,27 @@ export function normalizeHolding(h) {
       assetId = cleanId;
     }
   }
-  // Currency checks
+  // 4. Physical Gold checks
+  else if (
+    ['gold_18k', 'gold_22k', 'gold_24k', 'gold_melted', 'mesghal', 'ons_gold', 'gold_ounce'].includes(cleanId) ||
+    cleanId.includes('gold') ||
+    cleanName.includes('طلا') ||
+    cleanName.includes('مظنه') ||
+    cleanName.includes('مثقال') ||
+    cleanName.includes('آبشده')
+  ) {
+    assetType = 'gold';
+    if (!unit || unit === 'واحد') {
+      unit = cleanId.includes('mesghal') || cleanName.includes('مثقال') ? 'مثقال' : (cleanId.includes('ons') ? 'اونس' : 'گرم');
+    }
+    if (!assetName || assetName.startsWith('src_def_')) {
+      assetName = cleanId.includes('22') ? 'طلای ۲۲ عیار' : (cleanId.includes('24') ? 'طلای ۲۴ عیار' : (cleanId.includes('melted') ? 'طلای آبشده' : (cleanId.includes('mesghal') ? 'مثقال طلا (مظنه)' : (cleanId.includes('ons') ? 'انس جهانی طلا' : 'طلای ۱۸ عیار'))));
+    }
+    if (assetId.startsWith('src_def_')) {
+      assetId = cleanId;
+    }
+  }
+  // 5. Currency checks
   else if (['usd', 'usd_toman', 'usdt'].includes(cleanId) || cleanName.includes('دلار')) {
     assetType = 'currency';
     if (!unit || unit === 'واحد') unit = 'دلار';
@@ -231,7 +265,7 @@ export function formatAssetName(item) {
   if (assetId?.startsWith('bourse_')) {
     const raw = typeof item === 'string' ? item : (item.assetName || item.name || '');
     if (raw) return raw;
-    const isFund = item.isFund || item.assetType === 'bourse_fund';
+    const isFund = item.isFund || item.assetType === 'bourse_fund' || item.assetName?.includes('صندوق');
     return isFund ? `صندوق ${assetId.replace('bourse_', '')}` : `سهام ${assetId.replace('bourse_', '')}`;
   }
   const cleanId = assetId ? assetId.replace(/^src_def_/, '') : null;
@@ -252,32 +286,32 @@ export const CATEGORY_DEFINITIONS = [
   {
     key: 'gold',
     name: 'طلا و آب‌شده',
-    match: (item) => item.assetType === 'gold',
+    match: (item) => item.assetType === 'gold' && !item.assetId?.startsWith('bourse_') && !item.assetName?.includes('صندوق'),
   },
   {
     key: 'coin',
     name: 'سکه‌های بهار آزادی',
-    match: (item) => item.assetType === 'coin',
+    match: (item) => item.assetType === 'coin' && !item.assetId?.startsWith('bourse_') && !item.assetName?.includes('صندوق'),
   },
   {
     key: 'silver',
     name: 'نقره و مسکوکات',
-    match: (item) => item.assetType === 'silver',
+    match: (item) => item.assetType === 'silver' && !item.assetId?.startsWith('bourse_') && !item.assetName?.includes('صندوق'),
   },
   {
     key: 'currency',
     name: 'ارزهای خارجی و رمزارزها',
-    match: (item) => item.assetType === 'currency' || item.assetType === 'crypto',
+    match: (item) => (item.assetType === 'currency' || item.assetType === 'crypto') && !item.assetId?.startsWith('bourse_'),
   },
   {
     key: 'bourse',
     name: 'بورس اوراق بهادار تهران (سهام)',
-    match: (item) => (item.assetType === 'bourse' || (item.assetId?.startsWith('bourse_') && !item.isFund)) && item.assetType !== 'bourse_fund',
+    match: (item) => (item.assetType === 'bourse' || (item.assetId?.startsWith('bourse_') && item.assetType !== 'bourse_fund')) && !item.isFund && !item.assetName?.includes('صندوق'),
   },
   {
     key: 'bourse_fund',
     name: 'بورس اوراق بهادار تهران (صندوق)',
-    match: (item) => item.assetType === 'bourse_fund' || (item.assetId?.startsWith('bourse_') && item.isFund),
+    match: (item) => item.assetType === 'bourse_fund' || (item.assetId?.startsWith('bourse_') && (item.isFund || item.assetName?.includes('صندوق'))),
   },
   {
     key: 'custom',
@@ -1469,11 +1503,23 @@ export default function PortfolioTracker({ calcData, rates, usdToman, goldUsd, i
   };
 
   const handleSelectBourseSymbol = (sym) => {
-    setSelectedAssetId(`bourse_${sym.symbol}`);
-    setSelectedBourseSymbol(sym);
-    setCustomName(sym.isFund ? (sym.name || sym.symbol) : `سهام ${sym.symbol} (${sym.name})`);
-    setCustomUnit(sym.isFund ? 'واحد' : 'برگ سهم');
-    setCustomCurrentPrice(String(sym.priceToman || Math.round(sym.priceRial / 10)));
+    const symCode = sym.symbol || sym.s || '';
+    const isFund = Boolean(
+      sym.isFund ||
+      sym.f === 1 ||
+      sym.category?.includes('صندوق') ||
+      sym.name?.includes('صندوق') ||
+      sym.title?.includes('صندوق')
+    );
+    setSelectedAssetId(`bourse_${symCode}`);
+    setSelectedBourseSymbol({
+      ...sym,
+      symbol: symCode,
+      isFund: isFund,
+    });
+    setCustomName(sym.name || (isFund ? `صندوق ${symCode}` : `سهام ${symCode}`));
+    setCustomUnit(isFund ? 'واحد' : 'برگ سهم');
+    setCustomCurrentPrice(String(sym.priceToman || (sym.priceRial ? Math.round(sym.priceRial / 10) : sym.price || '')));
     setAssetSearchQuery('');
     setBourseSearchResults([]);
   };
@@ -2292,10 +2338,11 @@ export default function PortfolioTracker({ calcData, rates, usdToman, goldUsd, i
                   onSelect={(item) => {
                     const cat = item.category || item.badgeClass;
                     const cleanId = (item.id || item.priceType || '').replace(/^src_def_/, '');
-                    const isKnownAsset = ASSET_TYPES.some((a) => a.id === cleanId && a.id !== 'custom');
+                    const isBourse = item.type === 'bourse' || cleanId.startsWith('bourse_') || item.badgeClass === 'bourse' || item.raw?.isFund !== undefined || item.name?.includes('صندوق');
+                    const isKnownAsset = ASSET_TYPES.some((a) => a.id === cleanId && a.id !== 'custom' && a.id !== 'bourse' && a.id !== 'bourse_fund');
 
-                    if (item.type === 'bourse') {
-                      handleSelectBourseSymbol(item.raw);
+                    if (isBourse) {
+                      handleSelectBourseSymbol(item.raw || item);
                     } else if (isKnownAsset || ['gold', 'coin', 'silver'].includes(cat) || item.type === 'standard') {
                       handleSelectStandardAsset({
                         ...item,
