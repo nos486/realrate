@@ -1625,3 +1625,86 @@
   border-radius: 10px;
   border: 1px solid rgba(255, 255, 255, 0.08);
 }
+
+/* ─── Live Text / JSON Interactive Extraction Box ────────────────────────── */
+.live-text-viewer-card {
+  background: rgba(15, 23, 42, 0.65);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  padding: 14px 16px;
+  margin-top: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.live-text-viewer-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 11.5px;
+  font-weight: 700;
+  color: var(--text-heading);
+}
+
+.live-text-viewer-pre {
+  background: rgba(0, 0, 0, 0.35);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 8px;
+  padding: 10px 12px;
+  font-family: monospace;
+  font-size: 11.5px;
+  color: #e2e8f0;
+  line-height: 1.6;
+  max-height: 160px;
+  overflow-y: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+  direction: ltr;
+  text-align: left;
+}
+
+.quick-regex-chips-wrap {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-top: 6px;
+}
+
+.quick-regex-chip {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 6px;
+  padding: 4px 10px;
+  font-size: 11px;
+  font-family: monospace;
+  color: var(--accent-blue, #38bdf8);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  direction: ltr;
+}
+
+.quick-regex-chip:hover {
+  background: rgba(56, 189, 248, 0.15);
+  border-color: rgba(56, 189, 248, 0.35);
+}
+
+.live-extracted-price-callout {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: rgba(16, 185, 129, 0.1);
+  border: 1px solid rgba(16, 185, 129, 0.25);
+  border-radius: 8px;
+  padding: 10px 14px;
+  font-size: 12.5px;
+}
+
+.live-extracted-price-val {
+  font-size: 15px;
+  font-weight: 800;
+  color: #10b981;
+  font-family: monospace;
+}
+

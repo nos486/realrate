@@ -504,8 +504,19 @@ export async function testPriceSourceConfig(config = {}) {
     };
   }
 
+  let raw = "";
   try {
-    const raw = await fetchRawEndpointContent(sourceType, endpoint.trim());
+    raw = await fetchRawEndpointContent(sourceType, endpoint.trim());
+  } catch (fetchErr) {
+    return {
+      success: false,
+      error: fetchErr.message || "خطا در برقراری ارتباط با منبع",
+    };
+  }
+
+  const rawSnippet = raw && raw.length > 2500 ? raw.slice(0, 2500) + "\n... (ادامه متن کوتاه شد)" : raw;
+
+  try {
     const parsed = parseSourceContent(
       { sourceType, priceType, endpoint: endpoint.trim(), regex, jsonPath, fieldMapping, name },
       raw
@@ -527,7 +538,7 @@ export async function testPriceSourceConfig(config = {}) {
     } else if (priceType === 'ons_gold' || priceType === 'ons_silver') {
       displayMsg = `قیمت جهانی با موفقیت استخراج شد: ${parsed.price} دلار`;
     } else {
-      displayMsg = `قیمت با موفقیت استخراج شد: ${parsed.price.toLocaleString("fa-IR")} تومان`;
+      displayMsg = `قیمت با موفقیت استخراج شد: ${parsed.price.toLocaleString("fa-IR")}`;
     }
 
     return {
@@ -535,6 +546,7 @@ export async function testPriceSourceConfig(config = {}) {
       sourceType,
       priceType,
       price: parsed.price,
+      rawSnippet,
       multiData: parsed.multiData || null,
       sampleSymbols: parsed.sampleSymbols || null,
       sampleItems: parsed.compactList ? parsed.compactList.slice(0, 10) : null,
@@ -547,7 +559,8 @@ export async function testPriceSourceConfig(config = {}) {
   } catch (err) {
     return {
       success: false,
-      error: err.message || "خطا در بررسی سورس",
+      error: err.message || "خطا در پردازش داده‌های منبع",
+      rawSnippet,
     };
   }
 }

@@ -363,40 +363,7 @@ export async function ensureD1Tables(env) {
       console.error("Price sources seed error:", e);
     }
 
-    // Seed default source_types (price type definitions — replaces hardcoded PRICE_TYPE_INFO)
-    try {
-      const nowIso = new Date().toISOString();
-      const defaultSourceTypes = [
-        { id: 'usd',         label: 'دلار (USD)',                          category: 'single',       unit: 'تومان',   badge_color: 'blue',    sort_order: 1,  is_system: 1 },
-        { id: 'gold_18k',    label: 'طلا ۱۸ عیار',                        category: 'single',       unit: 'تومان',   badge_color: 'gold',    sort_order: 2,  is_system: 1 },
-        { id: 'full_coin',   label: 'سکه تمام بهار',                      category: 'single',       unit: 'تومان',   badge_color: 'amber',   sort_order: 3,  is_system: 1 },
-        { id: 'half_coin',   label: 'نیم سکه بهار',                       category: 'single',       unit: 'تومان',   badge_color: 'orange',  sort_order: 4,  is_system: 1 },
-        { id: 'quarter_coin',label: 'ربع سکه بهار',                       category: 'single',       unit: 'تومان',   badge_color: 'rose',    sort_order: 5,  is_system: 1 },
-        { id: 'mesghal',     label: 'مثقال طلا ۱۷ عیار',                  category: 'single',       unit: 'تومان',   badge_color: 'purple',  sort_order: 6,  is_system: 1 },
-        { id: 'ons_gold',    label: 'انس طلا جهانی (XAU)',                category: 'single',       unit: '$',       badge_color: 'gold',    sort_order: 7,  is_system: 1 },
-        { id: 'ons_silver',  label: 'انس نقره جهانی (XAG)',               category: 'single',       unit: '$',       badge_color: 'blue',    sort_order: 8,  is_system: 1 },
-        { id: 'forex',       label: 'نرخ‌های جهانی فارکس (چند ارزی)',     category: 'multi_output', unit: 'ارز',     badge_color: 'indigo',  sort_order: 9,  is_system: 1 },
-        { id: 'bourse',      label: 'بورس اوراق بهادار تهران (سهام)',      category: 'multi_output', unit: 'نماد',    badge_color: 'emerald', sort_order: 10, is_system: 1 },
-        { id: 'bourse_fund', label: 'بورس اوراق بهادار تهران (صندوق)',     category: 'multi_output', unit: 'صندوق',   badge_color: 'purple',  sort_order: 11, is_system: 1 },
-        { id: 'eur',         label: 'یورو (EUR/USD)',                      category: 'single',       unit: '$',       badge_color: 'blue',    sort_order: 20, is_system: 1 },
-        { id: 'try',         label: 'لیر ترکیه (USD/TRY)',                category: 'single',       unit: '$',       badge_color: 'rose',    sort_order: 21, is_system: 1 },
-        { id: 'aed',         label: 'درهم امارات (USD/AED)',               category: 'single',       unit: '$',       badge_color: 'emerald', sort_order: 22, is_system: 1 },
-        { id: 'gbp',         label: 'پوند انگلیس (GBP/USD)',              category: 'single',       unit: '$',       badge_color: 'purple',  sort_order: 23, is_system: 1 },
-        { id: 'chf',         label: 'فرانک سوئیس (USD/CHF)',              category: 'single',       unit: '$',       badge_color: 'slate',   sort_order: 24, is_system: 1 },
-        { id: 'cad',         label: 'دلار کانادا (USD/CAD)',               category: 'single',       unit: '$',       badge_color: 'orange',  sort_order: 25, is_system: 1 },
-        { id: 'aud',         label: 'دلار استرالیا (AUD/USD)',             category: 'single',       unit: '$',       badge_color: 'cyan',    sort_order: 26, is_system: 1 },
-        { id: 'cny',         label: 'یوان چین (USD/CNY)',                  category: 'single',       unit: '$',       badge_color: 'amber',   sort_order: 27, is_system: 1 },
-      ];
-      for (const st of defaultSourceTypes) {
-        await env.DB.prepare(`
-          INSERT OR IGNORE INTO source_types (id, label, category, unit, badge_color, output_config, is_system, sort_order, created_at)
-          VALUES (?, ?, ?, ?, ?, '', ?, ?, ?)
-        `).bind(st.id, st.label, st.category, st.unit, st.badge_color, st.is_system, st.sort_order, nowIso).run().catch(() => {});
-      }
-    } catch (e) {
-      console.error("Source types seed error:", e);
-    }
-
+    // Source types table initialized without forcing hardcoded categories
     d1Initialized = true;
   } catch (e) {
     console.error("D1 schema bootstrap error:", e);
@@ -1295,9 +1262,6 @@ export async function dbDeleteSourceType(env, id) {
   if (!id) return false;
   if (env && env.DB) {
     await ensureD1Tables(env);
-    const row = await env.DB.prepare("SELECT is_system FROM source_types WHERE id = ?").bind(id).first();
-    if (!row) return false;
-    if (row.is_system) throw new Error("انواع سورس سیستمی قابل حذف نیستند.");
     await env.DB.prepare("DELETE FROM source_types WHERE id = ?").bind(id).run();
     return true;
   }
