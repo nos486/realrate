@@ -100,6 +100,8 @@ export async function ensureD1Tables(env) {
       regex TEXT DEFAULT '',
       json_path TEXT DEFAULT '',
       field_mapping TEXT DEFAULT '',
+      excluded_outputs TEXT DEFAULT '',
+      display_config TEXT DEFAULT '',
       fetch_interval_sec INTEGER DEFAULT 60,
       is_active INTEGER DEFAULT 1,
       is_primary INTEGER DEFAULT 0,
@@ -124,6 +126,18 @@ export async function ensureD1Tables(env) {
     `CREATE INDEX IF NOT EXISTS idx_price_history_source ON price_history(source_id, timestamp DESC)`,
     `CREATE INDEX IF NOT EXISTS idx_price_history_type ON price_history(price_type, timestamp DESC)`,
     `CREATE INDEX IF NOT EXISTS idx_price_history_timestamp ON price_history(timestamp DESC)`,
+    `CREATE TABLE IF NOT EXISTS source_types (
+      id TEXT PRIMARY KEY,
+      label TEXT NOT NULL,
+      category TEXT DEFAULT 'single',
+      unit TEXT DEFAULT 'تومان',
+      badge_color TEXT DEFAULT 'blue',
+      output_config TEXT DEFAULT '',
+      is_system INTEGER DEFAULT 1,
+      sort_order INTEGER DEFAULT 99,
+      created_at TEXT NOT NULL
+    )`,
+    `CREATE INDEX IF NOT EXISTS idx_source_types_sort ON source_types(sort_order ASC)`,
   ];
 
   try {
@@ -195,6 +209,16 @@ export async function ensureD1Tables(env) {
     // Backward-compat: ensure field_mapping column exists on price_sources for dynamic schemas
     try {
       await env.DB.prepare("ALTER TABLE price_sources ADD COLUMN field_mapping TEXT DEFAULT ''").run();
+    } catch (ignore) {}
+
+    // Backward-compat: excluded_outputs — list of outputs to filter out (JSON array of strings)
+    try {
+      await env.DB.prepare("ALTER TABLE price_sources ADD COLUMN excluded_outputs TEXT DEFAULT ''").run();
+    } catch (ignore) {}
+
+    // Backward-compat: display_config — extra UI metadata (JSON: description, tags, color, icon)
+    try {
+      await env.DB.prepare("ALTER TABLE price_sources ADD COLUMN display_config TEXT DEFAULT ''").run();
     } catch (ignore) {}
 
     // Seed default price sources if table is empty or ensure core sources exist
@@ -337,6 +361,40 @@ export async function ensureD1Tables(env) {
       }
     } catch (e) {
       console.error("Price sources seed error:", e);
+    }
+
+    // Seed default source_types (price type definitions — replaces hardcoded PRICE_TYPE_INFO)
+    try {
+      const nowIso = new Date().toISOString();
+      const defaultSourceTypes = [
+        { id: 'usd',         label: 'دلار (USD)',                          category: 'single',       unit: 'تومان',   badge_color: 'blue',    sort_order: 1,  is_system: 1 },
+        { id: 'gold_18k',    label: 'طلا ۱۸ عیار',                        category: 'single',       unit: 'تومان',   badge_color: 'gold',    sort_order: 2,  is_system: 1 },
+        { id: 'full_coin',   label: 'سکه تمام بهار',                      category: 'single',       unit: 'تومان',   badge_color: 'amber',   sort_order: 3,  is_system: 1 },
+        { id: 'half_coin',   label: 'نیم سکه بهار',                       category: 'single',       unit: 'تومان',   badge_color: 'orange',  sort_order: 4,  is_system: 1 },
+        { id: 'quarter_coin',label: 'ربع سکه بهار',                       category: 'single',       unit: 'تومان',   badge_color: 'rose',    sort_order: 5,  is_system: 1 },
+        { id: 'mesghal',     label: 'مثقال طلا ۱۷ عیار',                  category: 'single',       unit: 'تومان',   badge_color: 'purple',  sort_order: 6,  is_system: 1 },
+        { id: 'ons_gold',    label: 'انس طلا جهانی (XAU)',                category: 'single',       unit: '$',       badge_color: 'gold',    sort_order: 7,  is_system: 1 },
+        { id: 'ons_silver',  label: 'انس نقره جهانی (XAG)',               category: 'single',       unit: '$',       badge_color: 'blue',    sort_order: 8,  is_system: 1 },
+        { id: 'forex',       label: 'نرخ‌های جهانی فارکس (چند ارزی)',     category: 'multi_output', unit: 'ارز',     badge_color: 'indigo',  sort_order: 9,  is_system: 1 },
+        { id: 'bourse',      label: 'بورس اوراق بهادار تهران (سهام)',      category: 'multi_output', unit: 'نماد',    badge_color: 'emerald', sort_order: 10, is_system: 1 },
+        { id: 'bourse_fund', label: 'بورس اوراق بهادار تهران (صندوق)',     category: 'multi_output', unit: 'صندوق',   badge_color: 'purple',  sort_order: 11, is_system: 1 },
+        { id: 'eur',         label: 'یورو (EUR/USD)',                      category: 'single',       unit: '$',       badge_color: 'blue',    sort_order: 20, is_system: 1 },
+        { id: 'try',         label: 'لیر ترکیه (USD/TRY)',                category: 'single',       unit: '$',       badge_color: 'rose',    sort_order: 21, is_system: 1 },
+        { id: 'aed',         label: 'درهم امارات (USD/AED)',               category: 'single',       unit: '$',       badge_color: 'emerald', sort_order: 22, is_system: 1 },
+        { id: 'gbp',         label: 'پوند انگلیس (GBP/USD)',              category: 'single',       unit: '$',       badge_color: 'purple',  sort_order: 23, is_system: 1 },
+        { id: 'chf',         label: 'فرانک سوئیس (USD/CHF)',              category: 'single',       unit: '$',       badge_color: 'slate',   sort_order: 24, is_system: 1 },
+        { id: 'cad',         label: 'دلار کانادا (USD/CAD)',               category: 'single',       unit: '$',       badge_color: 'orange',  sort_order: 25, is_system: 1 },
+        { id: 'aud',         label: 'دلار استرالیا (AUD/USD)',             category: 'single',       unit: '$',       badge_color: 'cyan',    sort_order: 26, is_system: 1 },
+        { id: 'cny',         label: 'یوان چین (USD/CNY)',                  category: 'single',       unit: '$',       badge_color: 'amber',   sort_order: 27, is_system: 1 },
+      ];
+      for (const st of defaultSourceTypes) {
+        await env.DB.prepare(`
+          INSERT OR IGNORE INTO source_types (id, label, category, unit, badge_color, output_config, is_system, sort_order, created_at)
+          VALUES (?, ?, ?, ?, ?, '', ?, ?, ?)
+        `).bind(st.id, st.label, st.category, st.unit, st.badge_color, st.is_system, st.sort_order, nowIso).run().catch(() => {});
+      }
+    } catch (e) {
+      console.error("Source types seed error:", e);
     }
 
     d1Initialized = true;
@@ -1149,6 +1207,105 @@ export async function dbDeletePortfolioHolding(env, id, userId) {
 
 /**
  * ─────────────────────────────────────────────────────────────────────────────
+ * Source Types CRUD (Dynamic price-type definitions — replaces hardcoded PRICE_TYPE_INFO)
+ * ─────────────────────────────────────────────────────────────────────────────
+ */
+
+/**
+ * Get all source types (price type definitions) from D1
+ * @param {object} env
+ * @returns {Promise<Array>}
+ */
+export async function dbGetSourceTypes(env) {
+  if (env && env.DB) {
+    await ensureD1Tables(env);
+    try {
+      const { results } = await env.DB.prepare(`
+        SELECT id, label, category, unit, badge_color AS badgeColor,
+               output_config AS outputConfig, is_system AS isSystem, sort_order AS sortOrder,
+               created_at AS createdAt
+        FROM source_types
+        ORDER BY sort_order ASC, id ASC
+      `).all();
+      if (Array.isArray(results)) {
+        return results.map(r => ({
+          ...r,
+          isSystem: !!r.isSystem,
+          outputConfig: r.outputConfig ? (() => { try { return JSON.parse(r.outputConfig); } catch { return null; } })() : null,
+        }));
+      }
+    } catch (e) {
+      console.error("D1 dbGetSourceTypes error:", e);
+    }
+  }
+  return [];
+}
+
+/**
+ * Save (create or update) a source type definition
+ * @param {object} env
+ * @param {object} data - { id, label, category, unit, badgeColor, outputConfig, sortOrder }
+ * @returns {Promise<object|null>}
+ */
+export async function dbSaveSourceType(env, data) {
+  const id = String(data.id || '').trim().toLowerCase().replace(/[^a-z0-9_]/g, '_');
+  const label = String(data.label || '').trim();
+  if (!id || !label) throw new Error("شناسه و عنوان نوع سورس الزامی هستند.");
+
+  const category = ['multi_output'].includes(data.category) ? data.category : 'single';
+  const unit = String(data.unit || 'تومان').trim();
+  const badgeColor = String(data.badgeColor || data.badge_color || 'blue').trim();
+  const outputConfig = data.outputConfig ? (typeof data.outputConfig === 'object' ? JSON.stringify(data.outputConfig) : String(data.outputConfig)) : '';
+  const isSystem = data.isSystem ? 1 : 0;
+  const sortOrder = parseInt(data.sortOrder || data.sort_order || 99, 10);
+  const now = new Date().toISOString();
+
+  if (env && env.DB) {
+    await ensureD1Tables(env);
+    await env.DB.prepare(`
+      INSERT INTO source_types (id, label, category, unit, badge_color, output_config, is_system, sort_order, created_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ON CONFLICT(id) DO UPDATE SET
+        label = excluded.label,
+        category = excluded.category,
+        unit = excluded.unit,
+        badge_color = excluded.badge_color,
+        output_config = excluded.output_config,
+        sort_order = excluded.sort_order
+    `).bind(id, label, category, unit, badgeColor, outputConfig, isSystem, sortOrder, now).run();
+
+    const saved = await env.DB.prepare(`
+      SELECT id, label, category, unit, badge_color AS badgeColor,
+             output_config AS outputConfig, is_system AS isSystem, sort_order AS sortOrder,
+             created_at AS createdAt
+      FROM source_types WHERE id = ?
+    `).bind(id).first();
+    return saved ? { ...saved, isSystem: !!saved.isSystem } : null;
+  }
+  return null;
+}
+
+/**
+ * Delete a source type by ID (only non-system types can be deleted)
+ * @param {object} env
+ * @param {string} id
+ * @returns {Promise<boolean>}
+ */
+export async function dbDeleteSourceType(env, id) {
+  if (!id) return false;
+  if (env && env.DB) {
+    await ensureD1Tables(env);
+    const row = await env.DB.prepare("SELECT is_system FROM source_types WHERE id = ?").bind(id).first();
+    if (!row) return false;
+    if (row.is_system) throw new Error("انواع سورس سیستمی قابل حذف نیستند.");
+    await env.DB.prepare("DELETE FROM source_types WHERE id = ?").bind(id).run();
+    return true;
+  }
+  return false;
+}
+
+/**
+ * ─────────────────────────────────────────────────────────────────────────────
  * Price Sources CRUD & Management (D1 + KV)
  * ─────────────────────────────────────────────────────────────────────────────
  */
@@ -1165,6 +1322,7 @@ export async function dbGetPriceSources(env) {
       const { results } = await env.DB.prepare(`
         SELECT id, name, price_type AS priceType, source_type AS sourceType,
                endpoint, regex, json_path AS jsonPath, field_mapping AS fieldMapping,
+               excluded_outputs AS excludedOutputs, display_config AS displayConfig,
                fetch_interval_sec AS fetchIntervalSec,
                is_active AS isActive, is_primary AS isPrimary,
                last_price AS lastPrice, last_multi_data AS lastMultiData,
@@ -1178,20 +1336,27 @@ export async function dbGetPriceSources(env) {
         const mapped = results.map(row => {
           let parsedFieldMapping = null;
           if (row.fieldMapping) {
-            try {
-              parsedFieldMapping = typeof row.fieldMapping === 'string' ? JSON.parse(row.fieldMapping) : row.fieldMapping;
-            } catch {}
+            try { parsedFieldMapping = typeof row.fieldMapping === 'string' ? JSON.parse(row.fieldMapping) : row.fieldMapping; } catch {}
+          }
+          let parsedExcludedOutputs = [];
+          if (row.excludedOutputs) {
+            try { parsedExcludedOutputs = typeof row.excludedOutputs === 'string' ? JSON.parse(row.excludedOutputs) : row.excludedOutputs; } catch {}
+          }
+          let parsedDisplayConfig = null;
+          if (row.displayConfig) {
+            try { parsedDisplayConfig = typeof row.displayConfig === 'string' ? JSON.parse(row.displayConfig) : row.displayConfig; } catch {}
           }
           return {
             ...row,
             fieldMapping: parsedFieldMapping || row.fieldMapping || null,
+            excludedOutputs: Array.isArray(parsedExcludedOutputs) ? parsedExcludedOutputs : [],
+            displayConfig: parsedDisplayConfig || null,
             channelUsername: row.sourceType === "telegram" ? row.endpoint : "",
             apiUrl: row.sourceType === "api_url" ? row.endpoint : "",
             regexPattern: row.regex || "",
             fetchIntervalMinutes: Math.round((row.fetchIntervalSec || 300) / 60),
           };
         });
-
         return mapped;
       }
     } catch (e) {
@@ -1216,6 +1381,7 @@ export async function dbGetPriceSourceById(env, id) {
       const row = await env.DB.prepare(`
         SELECT id, name, price_type AS priceType, source_type AS sourceType,
                endpoint, regex, json_path AS jsonPath, field_mapping AS fieldMapping,
+               excluded_outputs AS excludedOutputs, display_config AS displayConfig,
                fetch_interval_sec AS fetchIntervalSec,
                is_active AS isActive, is_primary AS isPrimary,
                last_price AS lastPrice, last_multi_data AS lastMultiData,
@@ -1227,13 +1393,21 @@ export async function dbGetPriceSourceById(env, id) {
       if (!row) return null;
       let parsedFieldMapping = null;
       if (row.fieldMapping) {
-        try {
-          parsedFieldMapping = typeof row.fieldMapping === 'string' ? JSON.parse(row.fieldMapping) : row.fieldMapping;
-        } catch {}
+        try { parsedFieldMapping = typeof row.fieldMapping === 'string' ? JSON.parse(row.fieldMapping) : row.fieldMapping; } catch {}
+      }
+      let parsedExcludedOutputs = [];
+      if (row.excludedOutputs) {
+        try { parsedExcludedOutputs = typeof row.excludedOutputs === 'string' ? JSON.parse(row.excludedOutputs) : row.excludedOutputs; } catch {}
+      }
+      let parsedDisplayConfig = null;
+      if (row.displayConfig) {
+        try { parsedDisplayConfig = typeof row.displayConfig === 'string' ? JSON.parse(row.displayConfig) : row.displayConfig; } catch {}
       }
       return {
         ...row,
         fieldMapping: parsedFieldMapping || row.fieldMapping || null,
+        excludedOutputs: Array.isArray(parsedExcludedOutputs) ? parsedExcludedOutputs : [],
+        displayConfig: parsedDisplayConfig || null,
         channelUsername: row.sourceType === "telegram" ? row.endpoint : "",
         apiUrl: row.sourceType === "api_url" ? row.endpoint : "",
         regexPattern: row.regex || "",
@@ -1278,6 +1452,16 @@ export async function dbSavePriceSource(env, data) {
     ? (typeof data.lastMultiData === 'string' ? data.lastMultiData : JSON.stringify(data.lastMultiData))
     : '';
 
+  // excluded_outputs: JSON array of strings (currency codes or symbol names to exclude)
+  const excludedOutputsRaw = data.excludedOutputs !== undefined ? data.excludedOutputs : (data.excluded_outputs !== undefined ? data.excluded_outputs : []);
+  const excludedOutputs = Array.isArray(excludedOutputsRaw) ? JSON.stringify(excludedOutputsRaw) : (String(excludedOutputsRaw || ''));
+
+  // display_config: optional UI metadata JSON
+  const displayConfigRaw = data.displayConfig !== undefined ? data.displayConfig : (data.display_config !== undefined ? data.display_config : null);
+  const displayConfig = displayConfigRaw
+    ? (typeof displayConfigRaw === 'object' ? JSON.stringify(displayConfigRaw) : String(displayConfigRaw))
+    : '';
+
   if (env && env.DB) {
     await ensureD1Tables(env);
 
@@ -1301,10 +1485,11 @@ export async function dbSavePriceSource(env, data) {
     await env.DB.prepare(`
       INSERT INTO price_sources (
         id, name, price_type, source_type, endpoint, regex, json_path, field_mapping,
+        excluded_outputs, display_config,
         fetch_interval_sec, is_active, is_primary, last_price, last_multi_data, last_fetched,
         created_at, updated_at
       )
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       ON CONFLICT(id) DO UPDATE SET
         name = excluded.name,
         price_type = excluded.price_type,
@@ -1313,6 +1498,8 @@ export async function dbSavePriceSource(env, data) {
         regex = excluded.regex,
         json_path = excluded.json_path,
         field_mapping = excluded.field_mapping,
+        excluded_outputs = excluded.excluded_outputs,
+        display_config = excluded.display_config,
         fetch_interval_sec = excluded.fetch_interval_sec,
         is_active = excluded.is_active,
         is_primary = excluded.is_primary,
@@ -1327,6 +1514,8 @@ export async function dbSavePriceSource(env, data) {
       regex,
       jsonPath,
       fieldMapping,
+      excludedOutputs,
+      displayConfig,
       fetchIntervalSec,
       isActive,
       isPrimary,

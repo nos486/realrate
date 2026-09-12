@@ -33,6 +33,9 @@ import {
   handleAdminTestPriceSource,
   handleAdminFetchAllSources,
   handleAdminGetPriceHistory,
+  handleAdminGetSourceTypes,
+  handleAdminSaveSourceType,
+  handleAdminDeleteSourceType,
 } from "./handlers/adminRoutes.js";
 import { handleGetPrices, handleGetSparklines, handleGetHistoricalBenchmarks } from "./handlers/apiRoutes.js";
 import {
@@ -104,6 +107,12 @@ export default {
     }
     if (url.pathname === "/api/admin/price-history" && request.method === "GET") {
       return handleAdminGetPriceHistory(request, env);
+    }
+
+    if (url.pathname === "/api/admin/source-types") {
+      if (request.method === "GET") return handleAdminGetSourceTypes(request, env);
+      if (request.method === "POST" || request.method === "PUT") return handleAdminSaveSourceType(request, env);
+      if (request.method === "DELETE") return handleAdminDeleteSourceType(request, env);
     }
 
     // ── Portfolio API Routes ────────────────────────────────────────────────

@@ -48,30 +48,14 @@ import {
   apiTestPriceSource,
   apiFetchAllSourcesNow,
   apiGetPriceHistory,
+  apiGetSourceTypes,
+  apiSaveSourceType,
+  apiDeleteSourceType,
 } from '../api/client.js';
 import PriceHistoryChart from '../components/PriceHistoryChart.jsx';
 
-const PRICE_TYPE_INFO = {
-  usd: { label: 'دلار (USD)', badgeColor: 'blue', unit: 'تومان' },
-  gold_18k: { label: 'طلا ۱۸ عیار', badgeColor: 'gold', unit: 'تومان' },
-  full_coin: { label: 'سکه تمام بهار', badgeColor: 'amber', unit: 'تومان' },
-  half_coin: { label: 'نیم سکه بهار', badgeColor: 'orange', unit: 'تومان' },
-  quarter_coin: { label: 'ربع سکه بهار', badgeColor: 'rose', unit: 'تومان' },
-  mesghal: { label: 'مثقال طلا ۱۷ عیار', badgeColor: 'purple', unit: 'تومان' },
-  ons_gold: { label: 'انس طلا جهانی (XAU)', badgeColor: 'gold', unit: '$' },
-  ons_silver: { label: 'انس نقره جهانی (XAG)', badgeColor: 'blue', unit: '$' },
-  forex: { label: 'نرخ‌های جهانی فارکس (چند ارزی)', badgeColor: 'indigo', unit: 'ارز' },
-  bourse: { label: 'بورس اوراق بهادار تهران (سهام)', badgeColor: 'emerald', unit: 'نماد' },
-  bourse_fund: { label: 'بورس اوراق بهادار تهران (صندوق)', badgeColor: 'purple', unit: 'صندوق' },
-  eur: { label: 'یورو (EUR/USD)', badgeColor: 'blue', unit: '$' },
-  try: { label: 'لیر ترکیه (USD/TRY)', badgeColor: 'rose', unit: '$' },
-  aed: { label: 'درهم امارات (USD/AED)', badgeColor: 'emerald', unit: '$' },
-  gbp: { label: 'پوند انگلیس (GBP/USD)', badgeColor: 'purple', unit: '$' },
-  chf: { label: 'فرانک سوئیس (USD/CHF)', badgeColor: 'slate', unit: '$' },
-  cad: { label: 'دلار کانادا (USD/CAD)', badgeColor: 'orange', unit: '$' },
-  aud: { label: 'دلار استرالیا (AUD/USD)', badgeColor: 'cyan', unit: '$' },
-  cny: { label: 'یوان چین (USD/CNY)', badgeColor: 'amber', unit: '$' },
-};
+// PRICE_TYPE_INFO is now computed dynamically inside the component from DB-loaded sourceTypes
+// See: const PRICE_TYPE_INFO = useMemo(...) inside PriceSourcesPage()
 
 const PRESET_REGEX_PATTERNS = {
   usd: [
@@ -180,6 +164,29 @@ const DEFAULT_FOREX_MAPPING = {
   ],
 };
 
+// Static fallback for PRICE_TYPE_INFO — overridden by API-loaded sourceTypes
+const PRICE_TYPE_INFO_FALLBACK = {
+  usd: { label: 'دلار (USD)', badgeColor: 'blue', unit: 'تومان', category: 'single' },
+  gold_18k: { label: 'طلا ۱۸ عیار', badgeColor: 'gold', unit: 'تومان', category: 'single' },
+  full_coin: { label: 'سکه تمام بهار', badgeColor: 'amber', unit: 'تومان', category: 'single' },
+  half_coin: { label: 'نیم سکه بهار', badgeColor: 'orange', unit: 'تومان', category: 'single' },
+  quarter_coin: { label: 'ربع سکه بهار', badgeColor: 'rose', unit: 'تومان', category: 'single' },
+  mesghal: { label: 'مثقال طلا ۱۷ عیار', badgeColor: 'purple', unit: 'تومان', category: 'single' },
+  ons_gold: { label: 'انس طلا جهانی (XAU)', badgeColor: 'gold', unit: '$', category: 'single' },
+  ons_silver: { label: 'انس نقره جهانی (XAG)', badgeColor: 'blue', unit: '$', category: 'single' },
+  forex: { label: 'نرخ‌های جهانی فارکس (چند ارزی)', badgeColor: 'indigo', unit: 'ارز', category: 'multi_output' },
+  bourse: { label: 'بورس اوراق بهادار تهران (سهام)', badgeColor: 'emerald', unit: 'نماد', category: 'multi_output' },
+  bourse_fund: { label: 'بورس اوراق بهادار تهران (صندوق)', badgeColor: 'purple', unit: 'صندوق', category: 'multi_output' },
+  eur: { label: 'یورو (EUR/USD)', badgeColor: 'blue', unit: '$', category: 'single' },
+  try: { label: 'لیر ترکیه (USD/TRY)', badgeColor: 'rose', unit: '$', category: 'single' },
+  aed: { label: 'درهم امارات (USD/AED)', badgeColor: 'emerald', unit: '$', category: 'single' },
+  gbp: { label: 'پوند انگلیس (GBP/USD)', badgeColor: 'purple', unit: '$', category: 'single' },
+  chf: { label: 'فرانک سوئیس (USD/CHF)', badgeColor: 'slate', unit: '$', category: 'single' },
+  cad: { label: 'دلار کانادا (USD/CAD)', badgeColor: 'orange', unit: '$', category: 'single' },
+  aud: { label: 'دلار استرالیا (AUD/USD)', badgeColor: 'cyan', unit: '$', category: 'single' },
+  cny: { label: 'یوان چین (USD/CNY)', badgeColor: 'amber', unit: '$', category: 'single' },
+};
+
 const DEFAULT_SOURCE_FORM = {
   id: null,
   name: '',
@@ -189,6 +196,8 @@ const DEFAULT_SOURCE_FORM = {
   apiUrl: '',
   jsonPath: '',
   fieldMapping: null,
+  excludedOutputs: [],
+  displayConfig: null,
   regexPattern: '',
   regexGroupIndex: 1,
   fetchIntervalMinutes: 5,
@@ -270,6 +279,24 @@ export default function PriceSourcesPage({ embedded = false, usdToman: propUsdTo
   const [sourceFilter, setSourceFilter] = useState('all');
   const [fetchingAll, setFetchingAll] = useState(false);
 
+  // Source Types State (dynamic, from DB — replaces hardcoded PRICE_TYPE_INFO)
+  const [sourceTypes, setSourceTypes] = useState([]);
+  const [loadingSourceTypes, setLoadingSourceTypes] = useState(false);
+  // Source Type Management Panel
+  const [showSourceTypePanel, setShowSourceTypePanel] = useState(false);
+  const [sourceTypeForm, setSourceTypeForm] = useState({ id: '', label: '', category: 'single', unit: 'تومان', badgeColor: 'blue', sortOrder: 99 });
+  const [savingSourceType, setSavingSourceType] = useState(false);
+
+  // Compute PRICE_TYPE_INFO dynamically from DB sourceTypes (with hardcoded fallback)
+  const PRICE_TYPE_INFO = useMemo(() => {
+    if (sourceTypes.length === 0) return PRICE_TYPE_INFO_FALLBACK;
+    const map = {};
+    for (const st of sourceTypes) {
+      map[st.id] = { label: st.label, badgeColor: st.badgeColor || 'blue', unit: st.unit || 'تومان', category: st.category || 'single' };
+    }
+    return map;
+  }, [sourceTypes]);
+
   // Dedicated Source Selection for History Chart (Separate per source)
   const [selectedSourceId, setSelectedSourceId] = useState('');
   const [chartRange, setChartRange] = useState('24h');
@@ -283,6 +310,9 @@ export default function PriceSourcesPage({ embedded = false, usdToman: propUsdTo
   const [modalSaving, setModalSaving] = useState(false);
   const [modalTesting, setModalTesting] = useState(false);
   const [modalTestResult, setModalTestResult] = useState(null);
+
+  // excluded_outputs entry state for modal
+  const [newExcludedEntry, setNewExcludedEntry] = useState('');
 
   // Dynamic currency additions in modal for Forex
   const [newCurCode, setNewCurCode] = useState('');
@@ -299,6 +329,21 @@ export default function PriceSourcesPage({ embedded = false, usdToman: propUsdTo
   const showMsg = (text, type = 'info') => {
     setMessage({ text, type });
     setTimeout(() => setMessage(null), 5000);
+  };
+
+  // Load Source Types from API
+  const loadSourceTypes = async () => {
+    setLoadingSourceTypes(true);
+    try {
+      const res = await apiGetSourceTypes();
+      if (res.success && Array.isArray(res.sourceTypes)) {
+        setSourceTypes(res.sourceTypes);
+      }
+    } catch (e) {
+      console.error('Error loading source types:', e);
+    } finally {
+      setLoadingSourceTypes(false);
+    }
   };
 
   // Load Price Sources from API
@@ -348,6 +393,7 @@ export default function PriceSourcesPage({ embedded = false, usdToman: propUsdTo
   };
 
   useEffect(() => {
+    loadSourceTypes();
     loadSources();
   }, []);
 
@@ -430,6 +476,8 @@ export default function PriceSourcesPage({ embedded = false, usdToman: propUsdTo
       apiUrl: src.apiUrl || (src.sourceType === 'api_url' ? src.endpoint : ''),
       jsonPath: src.jsonPath || '',
       fieldMapping: mapping,
+      excludedOutputs: Array.isArray(src.excludedOutputs) ? src.excludedOutputs : [],
+      displayConfig: src.displayConfig || null,
       regexPattern: src.regexPattern || src.regex || '',
       regexGroupIndex: src.regexGroupIndex || 1,
       fetchIntervalMinutes: src.fetchIntervalMinutes || Math.round((src.fetchIntervalSec || 300) / 60),
@@ -439,7 +487,45 @@ export default function PriceSourcesPage({ embedded = false, usdToman: propUsdTo
     setModalTestResult(null);
     setNewCurCode('');
     setNewCurLabel('');
+    setNewExcludedEntry('');
     setSourceModalOpen(true);
+  };
+
+  // Save Source Type from management panel
+  const handleSaveSourceType = async (e) => {
+    e.preventDefault();
+    setSavingSourceType(true);
+    try {
+      const res = await apiSaveSourceType(sourceTypeForm);
+      if (res.success) {
+        showMsg('نوع سورس با موفقیت ذخیره شد.', 'success');
+        setSourceTypeForm({ id: '', label: '', category: 'single', unit: 'تومان', badgeColor: 'blue', sortOrder: 99 });
+        await loadSourceTypes();
+      } else {
+        showMsg(res.message || 'خطا در ذخیره‌سازی.', 'error');
+      }
+    } catch (err) {
+      showMsg('خطا: ' + err.message, 'error');
+    } finally {
+      setSavingSourceType(false);
+    }
+  };
+
+  // Delete Source Type
+  const handleDeleteSourceType = async (st) => {
+    if (st.isSystem) { showMsg('انواع سورس سیستمی قابل حذف نیستند.', 'error'); return; }
+    if (!window.confirm(`حذف نوع سورس «${st.label}»؟`)) return;
+    try {
+      const res = await apiDeleteSourceType(st.id);
+      if (res.success) {
+        showMsg('نوع سورس حذف شد.', 'success');
+        await loadSourceTypes();
+      } else {
+        showMsg(res.message || 'خطا در حذف.', 'error');
+      }
+    } catch (err) {
+      showMsg('خطا: ' + err.message, 'error');
+    }
   };
 
   // Save Modal Source
@@ -672,6 +758,16 @@ export default function PriceSourcesPage({ embedded = false, usdToman: propUsdTo
               <Plus size={15} strokeWidth={2.5} />
               <span>افزودن سورس جدید</span>
             </button>
+            <button
+              type="button"
+              onClick={() => setShowSourceTypePanel(p => !p)}
+              className="btn-hero-action"
+              style={{ background: 'rgba(99,102,241,0.12)', color: 'var(--accent-indigo, #6366f1)', border: '1px solid rgba(99,102,241,0.25)' }}
+              title="مدیریت انواع سورس قیمت (دایناتیک)"
+            >
+              <Sliders size={14} />
+              <span>مدیریت انواع سورس</span>
+            </button>
           </div>
         </div>
       </Card>
@@ -684,6 +780,89 @@ export default function PriceSourcesPage({ embedded = false, usdToman: propUsdTo
           onClose={() => setMessage(null)}
           style={{ margin: '0 0 16px' }}
         />
+      )}
+
+      {/* ── Source Types Management Panel ──────────────────────────────────── */}
+      {showSourceTypePanel && (
+        <Card padding="lg" style={{ border: '1px solid rgba(99,102,241,0.2)', background: 'var(--card-bg)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <Sliders size={16} style={{ color: 'var(--accent-indigo, #6366f1)' }} />
+              <h3 style={{ fontSize: '14px', fontWeight: '800', margin: 0, color: 'var(--text-heading)' }}>
+                مدیریت انواع سورس قیمت (پویا)
+              </h3>
+              <span style={{ fontSize: '11px', color: 'var(--text-muted)', background: 'var(--surface-2, rgba(0,0,0,0.06))', padding: '2px 8px', borderRadius: '99px' }}>
+                {sourceTypes.length} نوع
+              </span>
+            </div>
+            <button type="button" onClick={() => setShowSourceTypePanel(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)' }}>
+              <X size={16} />
+            </button>
+          </div>
+
+          {/* Existing source types list */}
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginBottom: '20px' }}>
+            {sourceTypes.map(st => (
+              <div key={st.id} style={{
+                display: 'flex', alignItems: 'center', gap: '6px',
+                padding: '5px 10px', borderRadius: '8px',
+                background: 'var(--surface-2, rgba(0,0,0,0.05))',
+                border: '1px solid var(--border, rgba(0,0,0,0.08))',
+                fontSize: '12px',
+              }}>
+                <span style={{ fontWeight: '700', color: 'var(--text-heading)' }}>{st.id}</span>
+                <span style={{ color: 'var(--text-muted)' }}>{st.label}</span>
+                <span style={{ fontSize: '10px', padding: '1px 6px', borderRadius: '4px', background: 'rgba(99,102,241,0.1)', color: '#6366f1' }}>
+                  {st.category === 'multi_output' ? 'چند خروجی' : 'تک خروجی'}
+                </span>
+                <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>{st.unit}</span>
+                {!st.isSystem && (
+                  <button type="button" onClick={() => handleDeleteSourceType(st)}
+                    style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--accent-rose, #f43f5e)', padding: '0', display: 'flex' }}>
+                    <Trash2 size={12} />
+                  </button>
+                )}
+                {st.isSystem && <span style={{ fontSize: '9px', color: 'var(--text-muted)', opacity: 0.6 }}>سیستمی</span>}
+              </div>
+            ))}
+          </div>
+
+          {/* Add new source type form */}
+          <form onSubmit={handleSaveSourceType} style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', alignItems: 'flex-end', paddingTop: '12px', borderTop: '1px solid var(--border, rgba(0,0,0,0.08))' }}>
+            <div className="form-group" style={{ margin: 0, flex: '0 0 120px' }}>
+              <label style={{ fontSize: '11px' }}>شناسه (ID)</label>
+              <input type="text" required placeholder="مثال: crypto" value={sourceTypeForm.id}
+                onChange={e => setSourceTypeForm(p => ({ ...p, id: e.target.value.toLowerCase().trim() }))}
+                style={{ direction: 'ltr', textAlign: 'left', fontFamily: 'monospace', fontSize: '12px' }} />
+            </div>
+            <div className="form-group" style={{ margin: 0, flex: '1 1 160px' }}>
+              <label style={{ fontSize: '11px' }}>عنوان فارسی</label>
+              <input type="text" required placeholder="مثال: رمزارز" value={sourceTypeForm.label}
+                onChange={e => setSourceTypeForm(p => ({ ...p, label: e.target.value }))} style={{ fontSize: '12px' }} />
+            </div>
+            <div className="form-group" style={{ margin: 0, flex: '0 0 120px' }}>
+              <label style={{ fontSize: '11px' }}>نوع خروجی</label>
+              <select value={sourceTypeForm.category} onChange={e => setSourceTypeForm(p => ({ ...p, category: e.target.value }))} style={{ fontSize: '12px' }}>
+                <option value="single">تک خروجی</option>
+                <option value="multi_output">چند خروجی</option>
+              </select>
+            </div>
+            <div className="form-group" style={{ margin: 0, flex: '0 0 90px' }}>
+              <label style={{ fontSize: '11px' }}>واحد</label>
+              <input type="text" placeholder="تومان" value={sourceTypeForm.unit}
+                onChange={e => setSourceTypeForm(p => ({ ...p, unit: e.target.value }))} style={{ fontSize: '12px' }} />
+            </div>
+            <div className="form-group" style={{ margin: 0, flex: '0 0 100px' }}>
+              <label style={{ fontSize: '11px' }}>رنگ badge</label>
+              <input type="text" placeholder="blue" value={sourceTypeForm.badgeColor}
+                onChange={e => setSourceTypeForm(p => ({ ...p, badgeColor: e.target.value }))} style={{ fontSize: '12px', direction: 'ltr' }} />
+            </div>
+            <button type="submit" disabled={savingSourceType} className="btn-primary" style={{ fontSize: '12px', padding: '7px 14px', display: 'flex', alignItems: 'center', gap: '5px' }}>
+              <Plus size={13} />
+              <span>{savingSourceType ? 'در حال ذخیره...' : 'افزودن/بروزرسانی'}</span>
+            </button>
+          </form>
+        </Card>
       )}
 
       {/* ── SECTION 1: Individual Source Dedicated Chart ───────── */}
@@ -820,9 +999,21 @@ export default function PriceSourcesPage({ embedded = false, usdToman: propUsdTo
                             </div>
                           </td>
                           <td>
-                            <span className={`source-type-pill pill-${typeInfo.badgeColor}`}>
-                              {typeInfo.label}
-                            </span>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                              <span className={`source-type-pill pill-${typeInfo.badgeColor}`}>
+                                {typeInfo.label}
+                              </span>
+                              {typeInfo.category === 'multi_output' && (
+                                <span style={{ fontSize: '10px', padding: '1px 6px', borderRadius: '4px', background: 'rgba(99,102,241,0.1)', color: '#6366f1', width: 'fit-content' }}>
+                                  چند خروجی
+                                </span>
+                              )}
+                              {Array.isArray(src.excludedOutputs) && src.excludedOutputs.length > 0 && (
+                                <span style={{ fontSize: '10px', padding: '1px 6px', borderRadius: '4px', background: 'rgba(244,63,94,0.1)', color: '#f43f5e', width: 'fit-content' }}>
+                                  {src.excludedOutputs.length} مورد حذف‌شده
+                                </span>
+                              )}
+                            </div>
                           </td>
                           <td>
                             <span
@@ -1567,6 +1758,84 @@ export default function PriceSourcesPage({ embedded = false, usdToman: propUsdTo
                     </div>
                   </div>
                 </div>
+
+                {/* ── Excluded Outputs Panel (multi_output sources only) ── */}
+                {PRICE_TYPE_INFO[sourceForm.priceType]?.category === 'multi_output' && (
+                  <div style={{
+                    marginTop: '4px',
+                    padding: '14px',
+                    borderRadius: '10px',
+                    border: '1px solid rgba(244,63,94,0.2)',
+                    background: 'rgba(244,63,94,0.04)',
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '10px' }}>
+                      <Trash2 size={13} style={{ color: '#f43f5e' }} />
+                      <strong style={{ fontSize: '12px', color: 'var(--text-heading)' }}>
+                        {sourceForm.priceType === 'forex'
+                          ? 'ارزهای حذف‌شده از خروجی (Excluded Currencies)'
+                          : 'نمادهای حذف‌شده از لیست (Excluded Symbols)'}
+                      </strong>
+                      <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
+                        — این آیتم‌ها از لیست خروجی حذف می‌شوند
+                      </span>
+                    </div>
+
+                    {/* Current excluded list */}
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginBottom: '10px', minHeight: '28px' }}>
+                      {(sourceForm.excludedOutputs || []).length === 0 && (
+                        <span style={{ fontSize: '11px', color: 'var(--text-muted)', fontStyle: 'italic' }}>هیچ موردی حذف نشده</span>
+                      )}
+                      {(sourceForm.excludedOutputs || []).map((item) => (
+                        <span key={item} style={{
+                          display: 'inline-flex', alignItems: 'center', gap: '4px',
+                          padding: '3px 8px', borderRadius: '6px',
+                          background: 'rgba(244,63,94,0.1)', border: '1px solid rgba(244,63,94,0.2)',
+                          fontSize: '12px', fontWeight: '700', color: '#f43f5e',
+                          direction: 'ltr',
+                        }}>
+                          {item}
+                          <button type="button" onClick={() => setSourceForm(prev => ({
+                            ...prev,
+                            excludedOutputs: (prev.excludedOutputs || []).filter(x => x !== item),
+                          }))} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#f43f5e', display: 'flex', padding: 0 }}>
+                            <X size={11} />
+                          </button>
+                        </span>
+                      ))}
+                    </div>
+
+                    {/* Add new entry */}
+                    <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                      <input
+                        type="text"
+                        placeholder={sourceForm.priceType === 'forex' ? 'کد ارز مثلاً: try' : 'نماد مثلاً: ذوب'}
+                        value={newExcludedEntry}
+                        onChange={e => setNewExcludedEntry(e.target.value.trim())}
+                        onKeyDown={e => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault();
+                            const val = newExcludedEntry.trim().toLowerCase();
+                            if (val && !(sourceForm.excludedOutputs || []).includes(val)) {
+                              setSourceForm(prev => ({ ...prev, excludedOutputs: [...(prev.excludedOutputs || []), val] }));
+                              setNewExcludedEntry('');
+                            }
+                          }
+                        }}
+                        style={{ flex: 1, direction: 'ltr', textAlign: 'left', fontFamily: 'monospace', fontSize: '12px' }}
+                      />
+                      <button type="button" className="btn-sm" style={{ whiteSpace: 'nowrap', fontSize: '11px' }}
+                        onClick={() => {
+                          const val = newExcludedEntry.trim().toLowerCase();
+                          if (val && !(sourceForm.excludedOutputs || []).includes(val)) {
+                            setSourceForm(prev => ({ ...prev, excludedOutputs: [...(prev.excludedOutputs || []), val] }));
+                            setNewExcludedEntry('');
+                          }
+                        }}>
+                        + افزودن
+                      </button>
+                    </div>
+                  </div>
+                )}
 
                 {/* Modal Test Area */}
                 <div className="modal-test-area">

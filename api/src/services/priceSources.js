@@ -187,9 +187,16 @@ export function parseSourceContent(source, rawContent) {
 
       const multiData = {};
       const currencyList = [];
+      // Parse excluded outputs (currency codes to skip)
+      const excludedSet = new Set(
+        Array.isArray(source.excludedOutputs)
+          ? source.excludedOutputs.map(k => String(k).toLowerCase())
+          : []
+      );
       for (const cfg of currencyConfigs) {
         const key = String(cfg.key || cfg.code || '').trim().toLowerCase();
         if (!key) continue;
+        if (excludedSet.has(key)) continue; // skip excluded currencies
         const pathKey = cfg.path || key.toUpperCase();
         const rawRate = extractValueByPath(ratesObj, pathKey) !== null
           ? extractValueByPath(ratesObj, pathKey)
@@ -272,11 +279,20 @@ export function parseSourceContent(source, rawContent) {
       const volumeKey = bMap.volumeField || "tno";
       const isRial = bMap.priceUnit !== "toman"; // default is rial
 
+      // Parse excluded symbols for bourse (symbol names to exclude from list)
+      const excludedBourseSymbols = new Set(
+        Array.isArray(source.excludedOutputs)
+          ? source.excludedOutputs.map(s => String(s).trim().toLowerCase())
+          : []
+      );
+
       const compactList = [];
       for (const item of rawArray) {
         if (!item || typeof item !== "object") continue;
         const sym = (item[symKey] || item.l18 || item.symbol || item.ticker || item.l18_formatted || "").trim();
         if (!sym) continue;
+        // Skip excluded symbols
+        if (excludedBourseSymbols.size > 0 && excludedBourseSymbols.has(sym.toLowerCase())) continue;
 
         let rawPrice = Number(item[priceKey]);
         if (!rawPrice || isNaN(rawPrice) || rawPrice <= 0) {
