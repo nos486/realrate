@@ -6,6 +6,7 @@
 import { dbUpdateSourceLastPrice } from '../lib/db.js';
 
 export const BOURSE_API_URL = "https://api.brsapi.ir/Tsetmc/AllSymbols.php?key=BDqzgcZZ5rGg4Z6uSEs9bMyx2E2vXrkd&type=1";
+export const BOURSE_FUNDS_API_URL = "https://Api.BrsApi.ir/IME/Fund.php?key=BDqzgcZZ5rGg4Z6uSEs9bMyx2E2vXrkd";
 export const BOURSE_KV_KEY = "bourse_symbols_compact";
 
 /**
@@ -26,8 +27,6 @@ export function normalizePersian(str) {
 }
 
 /**
- * Fetch all symbols from BRS API, compact the payload, and store in KV.
-/**
  * Get active Bourse source configuration from D1 (URL, field mappings, interval)
  * @param {object} env
  * @returns {Promise<object|null>}
@@ -38,7 +37,7 @@ export async function getActiveBourseSource(env) {
     const row = await env.DB.prepare(`
       SELECT id, endpoint, field_mapping AS fieldMapping, fetch_interval_sec AS fetchIntervalSec
       FROM price_sources
-      WHERE price_type = 'bourse' AND is_active = 1
+      WHERE price_type = 'bourse' AND (id = 'src_def_bourse' OR endpoint NOT LIKE '%Fund.php%') AND is_active = 1
       ORDER BY is_primary DESC, updated_at DESC
       LIMIT 1
     `).first();
@@ -50,14 +49,41 @@ export async function getActiveBourseSource(env) {
 }
 
 /**
- * Fetch all symbols from configured API URL, compact the payload with dynamic mapping, and store in KV.
+ * Get active Bourse Funds source configuration from D1
  * @param {object} env
- * @returns {Promise<{ success: boolean, count: number, error?: string }>}
+ * @returns {Promise<object|null>}
+ */
+export async function getActiveBourseFundsSource(env) {
+  if (!env || !env.DB) return null;
+  try {
+    const row = await env.DB.prepare(`
+      SELECT id, endpoint, field_mapping AS fieldMapping, fetch_interval_sec AS fetchIntervalSec
+      FROM price_sources
+      WHERE (id = 'src_def_bourse_funds' OR endpoint LIKE '%Fund.php%') AND is_active = 1
+      ORDER BY updated_at DESC
+      LIMIT 1
+    `).first();
+    return row || null;
+  } catch (e) {
+    console.error("getActiveBourseFundsSource error:", e);
+    return null;
+  }
+}
+
+/**
+ * Fetch all symbols from configured API URLs (equities + funds), compact the payload with dynamic mapping, and store in KV.
+ * @param {object} env
+ * @returns {Promise<{ success: boolean, count: number, fundsCount?: number, error?: string }>}
  */
 export async function fetchAndStoreBourseSymbols(env) {
   try {
-    const bourseSrc = await getActiveBourseSource(env);
+    const [bourseSrc, fundsSrc] = await Promise.all([
+      getActiveBourseSource(env),
+      getActiveBourseFundsSource(env),
+    ]);
+
     const targetUrl = bourseSrc?.endpoint || BOURSE_API_URL;
+    const fundsUrl = fundsSrc?.endpoint || BOURSE_FUNDS_API_URL;
 
     let fieldMapping = null;
     if (bourseSrc?.fieldMapping) {
@@ -66,74 +92,135 @@ export async function fetchAndStoreBourseSymbols(env) {
       } catch {}
     }
 
-    const res = await fetch(targetUrl, {
-      headers: {
-        "User-Agent": "RealRateWorker/1.0",
-        "Accept": "application/json",
-      },
-    });
-
-    if (!res.ok) {
-      throw new Error(`Bourse API returned status ${res.status} from ${targetUrl}`);
+    let fundsFieldMapping = null;
+    if (fundsSrc?.fieldMapping) {
+      try {
+        fundsFieldMapping = typeof fundsSrc.fieldMapping === "string" ? JSON.parse(fundsSrc.fieldMapping) : fundsSrc.fieldMapping;
+      } catch {}
     }
 
-    const data = await res.json();
-    const arrayPath = fieldMapping?.arrayPath || "";
-    let rawArray = arrayPath ? (data?.[arrayPath] || null) : data;
-    if (!Array.isArray(rawArray) && data && Array.isArray(data.symbols)) {
-      rawArray = data.symbols;
-    } else if (!Array.isArray(rawArray) && data && Array.isArray(data.data)) {
-      rawArray = data.data;
-    } else if (!Array.isArray(rawArray) && data && Array.isArray(data.result)) {
-      rawArray = data.result;
-    }
+    // Fetch both General Equities and IME Funds concurrently
+    const [stocksResult, fundsResult] = await Promise.allSettled([
+      fetch(targetUrl, {
+        headers: { "User-Agent": "RealRateWorker/1.0", "Accept": "application/json" },
+      }).then(r => r.ok ? r.json() : Promise.reject(`Status ${r.status}`)),
+      fetch(fundsUrl, {
+        headers: { "User-Agent": "RealRateWorker/1.0", "Accept": "application/json" },
+      }).then(r => r.ok ? r.json() : Promise.reject(`Status ${r.status}`)),
+    ]);
 
-    if (!Array.isArray(rawArray) || rawArray.length === 0) {
-      throw new Error("Invalid or empty response from Bourse API");
-    }
+    const symbolMap = new Map();
 
-    const symKey = fieldMapping?.symbolField || "l18";
-    const nameKey = fieldMapping?.nameField || "l30";
-    const priceKey = fieldMapping?.priceField || "pl";
-    const altPriceKey = fieldMapping?.altPriceField || "pc";
-    const changeKey = fieldMapping?.changeField || "plc";
-    const changePctKey = fieldMapping?.changePercentField || "plp";
-    const volumeKey = fieldMapping?.volumeField || "tno";
-    const isRial = fieldMapping?.priceUnit !== "toman";
-
-    // Transform into compact structure
-    const compactList = [];
-    for (const item of rawArray) {
-      if (!item || typeof item !== "object") continue;
-      const sym = (item[symKey] || item.l18 || item.symbol || item.ticker || item.l18_formatted || "").trim();
-      if (!sym) continue;
-
-      let rawPrice = Number(item[priceKey]);
-      if (!rawPrice || isNaN(rawPrice) || rawPrice <= 0) {
-        rawPrice = Number(item[altPriceKey]) || Number(item.pl) || Number(item.pc) || Number(item.lastPrice) || Number(item.price) || 0;
+    // 1. Process General Equities
+    if (stocksResult.status === "fulfilled" && stocksResult.value) {
+      const data = stocksResult.value;
+      const arrayPath = fieldMapping?.arrayPath || "";
+      let rawArray = arrayPath ? (data?.[arrayPath] || null) : data;
+      if (!Array.isArray(rawArray) && data && Array.isArray(data.symbols)) {
+        rawArray = data.symbols;
+      } else if (!Array.isArray(rawArray) && data && Array.isArray(data.data)) {
+        rawArray = data.data;
+      } else if (!Array.isArray(rawArray) && data && Array.isArray(data.result)) {
+        rawArray = data.result;
       }
-      if (rawPrice <= 0) continue;
 
-      const priceInRials = isRial ? Math.round(rawPrice) : Math.round(rawPrice * 10);
+      if (Array.isArray(rawArray)) {
+        const symKey = fieldMapping?.symbolField || "l18";
+        const nameKey = fieldMapping?.nameField || "l30";
+        const priceKey = fieldMapping?.priceField || "pl";
+        const altPriceKey = fieldMapping?.altPriceField || "pc";
+        const changeKey = fieldMapping?.changeField || "plc";
+        const changePctKey = fieldMapping?.changePercentField || "plp";
+        const volumeKey = fieldMapping?.volumeField || "tno";
+        const isRial = fieldMapping?.priceUnit !== "toman";
 
-      const c = Number(item[changeKey] !== undefined ? item[changeKey] : (item.plc !== undefined ? item.plc : 0)) || 0;
-      const cp = Number(item[changePctKey] !== undefined ? item[changePctKey] : (item.plp !== undefined ? item.plp : 0)) || 0;
-      const t = Number(item[volumeKey] !== undefined ? item[volumeKey] : (item.tno !== undefined ? item.tno : 0)) || 0;
+        for (const item of rawArray) {
+          if (!item || typeof item !== "object") continue;
+          const sym = (item[symKey] || item.l18 || item.symbol || item.ticker || item.l18_formatted || "").trim();
+          if (!sym) continue;
 
-      compactList.push({
-        s: sym,
-        n: (item[nameKey] || item.l30 || item.name || item.title || item.company || sym).trim(),
-        p: priceInRials, // Price in Rials for standard calculations
-        c,
-        cp,
-        t,
-      });
+          let rawPrice = Number(item[priceKey]);
+          if (!rawPrice || isNaN(rawPrice) || rawPrice <= 0) {
+            rawPrice = Number(item[altPriceKey]) || Number(item.pl) || Number(item.pc) || Number(item.lastPrice) || Number(item.price) || 0;
+          }
+          if (rawPrice <= 0) continue;
+
+          const priceInRials = isRial ? Math.round(rawPrice) : Math.round(rawPrice * 10);
+          const c = Number(item[changeKey] !== undefined ? item[changeKey] : (item.plc !== undefined ? item.plc : 0)) || 0;
+          const cp = Number(item[changePctKey] !== undefined ? item[changePctKey] : (item.plp !== undefined ? item.plp : 0)) || 0;
+          const t = Number(item[volumeKey] !== undefined ? item[volumeKey] : (item.tno !== undefined ? item.tno : 0)) || 0;
+
+          symbolMap.set(sym, {
+            s: sym,
+            n: (item[nameKey] || item.l30 || item.name || item.title || item.company || sym).trim(),
+            p: priceInRials,
+            c,
+            cp,
+            t,
+            f: 0,
+          });
+        }
+      }
     }
 
-    if (compactList.length === 0) {
-      throw new Error(`No valid symbols found after filtering with keys (symbol: ${symKey}, price: ${priceKey})`);
+    // 2. Process IME Investment Funds (Commodity, Gold, Silver Funds)
+    let fundsCount = 0;
+    if (fundsResult.status === "fulfilled" && fundsResult.value) {
+      const data = fundsResult.value;
+      const arrayPath = fundsFieldMapping?.arrayPath || "data";
+      let rawArray = arrayPath ? (data?.[arrayPath] || null) : data;
+      if (!Array.isArray(rawArray) && data && Array.isArray(data.data)) {
+        rawArray = data.data;
+      } else if (!Array.isArray(rawArray) && data && Array.isArray(data.symbols)) {
+        rawArray = data.symbols;
+      }
+
+      if (Array.isArray(rawArray)) {
+        const symKey = fundsFieldMapping?.symbolField || "l18";
+        const nameKey = fundsFieldMapping?.nameField || "l30";
+        const priceKey = fundsFieldMapping?.priceField || "pl";
+        const altPriceKey = fundsFieldMapping?.altPriceField || "pc";
+        const changeKey = fundsFieldMapping?.changeField || "plc";
+        const changePctKey = fundsFieldMapping?.changePercentField || "plp";
+        const volumeKey = fundsFieldMapping?.volumeField || "tno";
+        const isRial = fundsFieldMapping?.priceUnit !== "toman";
+
+        for (const item of rawArray) {
+          if (!item || typeof item !== "object") continue;
+          const sym = (item[symKey] || item.l18 || item.symbol || "").trim();
+          if (!sym) continue;
+
+          let rawPrice = Number(item[priceKey]);
+          if (!rawPrice || isNaN(rawPrice) || rawPrice <= 0) {
+            rawPrice = Number(item[altPriceKey]) || Number(item.pl) || Number(item.pc) || 0;
+          }
+          if (rawPrice <= 0) continue;
+
+          const priceInRials = isRial ? Math.round(rawPrice) : Math.round(rawPrice * 10);
+          const c = Number(item[changeKey] !== undefined ? item[changeKey] : (item.plc !== undefined ? item.plc : 0)) || 0;
+          const cp = Number(item[changePctKey] !== undefined ? item[changePctKey] : (item.plp !== undefined ? item.plp : (item.pcp || 0))) || 0;
+          const t = Number(item[volumeKey] !== undefined ? item[volumeKey] : (item.tno !== undefined ? item.tno : 0)) || 0;
+
+          // Dedicated Fund data overrides or enriches general equity data
+          symbolMap.set(sym, {
+            s: sym,
+            n: (item[nameKey] || item.l30 || item.name || sym).trim(),
+            p: priceInRials,
+            c,
+            cp,
+            t,
+            f: 1, // Fund flag
+          });
+          fundsCount++;
+        }
+      }
     }
 
+    if (symbolMap.size === 0) {
+      throw new Error("No valid symbols found from Bourse or Funds APIs");
+    }
+
+    const compactList = Array.from(symbolMap.values());
     // Sort by trade activity or volume
     compactList.sort((a, b) => b.t - a.t);
 
@@ -148,7 +235,7 @@ export async function fetchAndStoreBourseSymbols(env) {
 
     const now = new Date().toISOString();
     const sourceId = bourseSrc?.id || 'src_def_bourse';
-    // Update D1 price source record
+    // Update D1 price source record for Bourse
     await dbUpdateSourceLastPrice(
       env,
       sourceId,
@@ -156,12 +243,27 @@ export async function fetchAndStoreBourseSymbols(env) {
       now,
       {
         totalSymbols: compactList.length,
+        fundsCount,
         updatedAt: now,
         topSymbols: compactList.slice(0, 10).map(x => x.s),
       }
     );
 
-    return { success: true, count: compactList.length };
+    // Update D1 price source record for Funds if present
+    if (fundsSrc?.id) {
+      await dbUpdateSourceLastPrice(
+        env,
+        fundsSrc.id,
+        fundsCount,
+        now,
+        {
+          totalFunds: fundsCount,
+          updatedAt: now,
+        }
+      );
+    }
+
+    return { success: true, count: compactList.length, fundsCount };
   } catch (err) {
     console.error("fetchAndStoreBourseSymbols error:", err);
     return { success: false, count: 0, error: err.message };
@@ -173,7 +275,7 @@ export async function fetchAndStoreBourseSymbols(env) {
  * @param {object} env
  * @param {string} [query] - Search term for symbol or name
  * @param {number} [limit=50] - Maximum items to return
- * @returns {Promise<Array<{ symbol: string, name: string, priceRial: number, priceToman: number, changePercent: number }>>}
+ * @returns {Promise<Array<{ symbol: string, name: string, priceRial: number, priceToman: number, changePercent: number, isFund: boolean }>>}
  */
 export async function getBourseSymbols(env, query = "", limit = 50) {
   let list = [];
@@ -242,6 +344,7 @@ export async function getBourseSymbols(env, query = "", limit = 50) {
     changePercent: item.cp,
     changeRial: item.c,
     trades: item.t,
+    isFund: Boolean(item.f),
   }));
 }
 
@@ -268,6 +371,7 @@ export async function getBourseSymbolDetail(env, symbol) {
       priceToman: Math.round(found.p / 10),
       changePercent: found.cp,
       trades: found.t,
+      isFund: Boolean(found.f),
     };
   } catch (e) {
     console.error("getBourseSymbolDetail error:", e);

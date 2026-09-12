@@ -267,6 +267,30 @@ export async function ensureD1Tables(env) {
         WHERE id = 'src_def_bourse' AND (field_mapping IS NULL OR field_mapping = '')
       `).bind(defaultBourseFieldMapping).run().catch(() => {});
 
+      // Ensure IME Investment & Gold Funds source exists
+      const defaultFundsFieldMapping = JSON.stringify({
+        arrayPath: "data",
+        symbolField: "l18",
+        nameField: "l30",
+        priceField: "pl",
+        altPriceField: "pc",
+        changeField: "plc",
+        changePercentField: "plp",
+        volumeField: "tno",
+        priceUnit: "rial",
+      });
+
+      await env.DB.prepare(`
+        INSERT OR IGNORE INTO price_sources (id, name, price_type, source_type, endpoint, regex, json_path, field_mapping, fetch_interval_sec, is_active, is_primary, last_price, last_multi_data, last_fetched, created_at, updated_at)
+        VALUES ('src_def_bourse_funds', 'صندوق‌های سرمایه‌گذاری و طلای بورس (IME Fund API)', 'bourse', 'api_url', 'https://Api.BrsApi.ir/IME/Fund.php?key=BDqzgcZZ5rGg4Z6uSEs9bMyx2E2vXrkd', '', '', ?, 86400, 1, 0, 60, '', '', ?, ?)
+      `).bind(defaultFundsFieldMapping, nowIso, nowIso).run().catch(() => {});
+
+      await env.DB.prepare(`
+        UPDATE price_sources
+        SET field_mapping = ?
+        WHERE id = 'src_def_bourse_funds' AND (field_mapping IS NULL OR field_mapping = '')
+      `).bind(defaultFundsFieldMapping).run().catch(() => {});
+
       const existingSources = await env.DB.prepare("SELECT COUNT(*) AS total FROM price_sources").first();
       if (!existingSources || existingSources.total <= 2) {
         let usdType = 'telegram';

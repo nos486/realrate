@@ -385,16 +385,15 @@ export default function PortfolioTracker({ calcData, rates, usdToman, goldUsd, i
   // Search filter for holdings in portfolio table
   const [holdingsFilterQuery, setHoldingsFilterQuery] = useState('');
 
-  // Asset search & Bourse stocks search in modal
+  // Asset search & Bourse stocks/funds search in modal
   const [assetSearchQuery, setAssetSearchQuery] = useState('');
   const [bourseSearchResults, setBourseSearchResults] = useState([]);
   const [isSearchingBourse, setIsSearchingBourse] = useState(false);
-  const [searchTimerCount, setSearchTimerCount] = useState(null);
   const [selectedBourseSymbol, setSelectedBourseSymbol] = useState(null);
   const [boursePricesMap, setBoursePricesMap] = useState({});
 
-  // Debounced search for Iranian stock market (Bourse) symbols
-  // Requirement: Minimum 3 characters, and 2-second debounce if input is idle
+  // Debounced search for Iranian stock market (Bourse) and funds
+  // Requirement: Minimum 3 characters, 1-second debounce (no countdown in UI)
   useEffect(() => {
     const query = assetSearchQuery.trim();
 
@@ -402,19 +401,10 @@ export default function PortfolioTracker({ calcData, rates, usdToman, goldUsd, i
     if (query.length < 3) {
       setBourseSearchResults([]);
       setIsSearchingBourse(false);
-      setSearchTimerCount(null);
       return;
     }
 
-    // 3 or more characters -> Start 2-second debounce countdown
-    setSearchTimerCount(2);
-
-    const countTimer = setTimeout(() => {
-      setSearchTimerCount(1);
-    }, 1000);
-
     const fireTimer = setTimeout(() => {
-      setSearchTimerCount(null);
       setIsSearchingBourse(true);
 
       apiSearchBourseSymbols(query, 30)
@@ -432,10 +422,9 @@ export default function PortfolioTracker({ calcData, rates, usdToman, goldUsd, i
         .finally(() => {
           setIsSearchingBourse(false);
         });
-    }, 2000);
+    }, 1000);
 
     return () => {
-      clearTimeout(countTimer);
       clearTimeout(fireTimer);
     };
   }, [assetSearchQuery]);
@@ -898,7 +887,6 @@ export default function PortfolioTracker({ calcData, rates, usdToman, goldUsd, i
     setShowDatePicker(false);
     setAssetSearchQuery('');
     setBourseSearchResults([]);
-    setSearchTimerCount(null);
     setSelectedBourseSymbol(null);
     setModalOpen(true);
   };
@@ -908,7 +896,6 @@ export default function PortfolioTracker({ calcData, rates, usdToman, goldUsd, i
     setEditingHolding(item);
     setAssetSearchQuery('');
     setBourseSearchResults([]);
-    setSearchTimerCount(null);
 
     const isBourse = item.assetType === 'bourse' || item.assetId?.startsWith('bourse_');
     const isKnown = ASSET_TYPES.some((a) => a.id === item.assetId && a.id !== 'custom' && a.id !== 'bourse');
@@ -1244,7 +1231,6 @@ export default function PortfolioTracker({ calcData, rates, usdToman, goldUsd, i
     setCustomCurrentPrice('');
     setAssetSearchQuery('');
     setBourseSearchResults([]);
-    setSearchTimerCount(null);
   };
 
   const handleSelectStandardAsset = (asset) => {
@@ -1255,18 +1241,16 @@ export default function PortfolioTracker({ calcData, rates, usdToman, goldUsd, i
     setCustomCurrentPrice('');
     setAssetSearchQuery('');
     setBourseSearchResults([]);
-    setSearchTimerCount(null);
   };
 
   const handleSelectBourseSymbol = (sym) => {
     setSelectedAssetId(`bourse_${sym.symbol}`);
     setSelectedBourseSymbol(sym);
-    setCustomName(`سهام ${sym.symbol} (${sym.name})`);
-    setCustomUnit('برگ سهم');
+    setCustomName(sym.isFund ? (sym.name || sym.symbol) : `سهام ${sym.symbol} (${sym.name})`);
+    setCustomUnit(sym.isFund ? 'واحد' : 'برگ سهم');
     setCustomCurrentPrice(String(sym.priceToman || Math.round(sym.priceRial / 10)));
     setAssetSearchQuery('');
     setBourseSearchResults([]);
-    setSearchTimerCount(null);
   };
 
   const matchingStandardAssets = useMemo(() => {
@@ -2083,11 +2067,6 @@ export default function PortfolioTracker({ calcData, rates, usdToman, goldUsd, i
                       className="form-input asset-search-input-field"
                     />
                     <div className="search-input-trailing-actions">
-                      {searchTimerCount !== null && (
-                        <span className="search-countdown-badge" title="در حال انتظار برای اتمام تایپ">
-                          <Clock size={11} className="timer-pulse-icon" /> {searchTimerCount} ثانیه تا جستجو
-                        </span>
-                      )}
                       {isSearchingBourse && (
                         <span className="search-searching-badge">
                           <span className="spinner-mini" /> در حال جستجو...
@@ -2105,7 +2084,6 @@ export default function PortfolioTracker({ calcData, rates, usdToman, goldUsd, i
                           onClick={() => {
                             setAssetSearchQuery('');
                             setBourseSearchResults([]);
-                            setSearchTimerCount(null);
                           }}
                           title="پاک کردن جستجو"
                         >
@@ -2116,19 +2094,12 @@ export default function PortfolioTracker({ calcData, rates, usdToman, goldUsd, i
                   </div>
 
                   {/* Dropdown Suggestions */}
-                  {(matchingStandardAssets.length > 0 || bourseSearchResults.length > 0 || isSearchingBourse || (assetSearchQuery.trim().length >= 3 && searchTimerCount === null && !isSearchingBourse)) && (
+                  {(matchingStandardAssets.length > 0 || bourseSearchResults.length > 0 || isSearchingBourse) && (
                     <div className="asset-search-results-dropdown">
-                      {searchTimerCount !== null && (
-                        <div className="search-loading-status">
-                          <Clock size={13} className="timer-pulse-icon" />
-                          <span>در حال انتظار برای اتمام تایپ ({searchTimerCount} ثانیه تا جستجو در بورس)...</span>
-                        </div>
-                      )}
-
                       {isSearchingBourse && (
                         <div className="search-loading-status">
                           <div className="spinner-mini" />
-                          <span>در حال جستجو در نمادهای بازار سرمایه (TSETMC)...</span>
+                          <span>در حال جستجو در نمادهای بازار سرمایه و صندوق‌ها...</span>
                         </div>
                       )}
 
@@ -2154,7 +2125,7 @@ export default function PortfolioTracker({ calcData, rates, usdToman, goldUsd, i
 
                       {bourseSearchResults.length > 0 && (
                         <div className="search-results-group">
-                          <div className="search-group-header">نمادهای سهام بورس و فرابورس ({bourseSearchResults.length} نماد)</div>
+                          <div className="search-group-header">نمادهای بورس و صندوق‌های سرمایه‌گذاری ({bourseSearchResults.length} نماد)</div>
                           {bourseSearchResults.map((sym) => (
                             <button
                               key={sym.symbol}
@@ -2163,7 +2134,8 @@ export default function PortfolioTracker({ calcData, rates, usdToman, goldUsd, i
                               onClick={() => handleSelectBourseSymbol(sym)}
                             >
                               <div className="search-row-lead">
-                                <span className="bourse-tag">{sym.symbol}</span>
+                                <span className={`bourse-tag ${sym.isFund ? 'fund-tag' : ''}`}>{sym.symbol}</span>
+                                {sym.isFund && <span className="fund-badge-pill">صندوق</span>}
                                 <span className="search-row-name bourse-company">{sym.name}</span>
                               </div>
                               <div className="bourse-row-pricing">
@@ -2179,7 +2151,7 @@ export default function PortfolioTracker({ calcData, rates, usdToman, goldUsd, i
                         </div>
                       )}
 
-                      {!isSearchingBourse && searchTimerCount === null && matchingStandardAssets.length === 0 && bourseSearchResults.length === 0 && assetSearchQuery.trim().length >= 3 && (
+                      {!isSearchingBourse && matchingStandardAssets.length === 0 && bourseSearchResults.length === 0 && assetSearchQuery.trim().length >= 3 && (
                         <div className="search-no-results">
                           <span>هیچ نماد یا دارایی با عبارت «{assetSearchQuery.trim()}» یافت نشد.</span>
                         </div>
@@ -2215,7 +2187,9 @@ export default function PortfolioTracker({ calcData, rates, usdToman, goldUsd, i
                 <div className="selected-bourse-preview-card">
                   <div className="preview-card-header">
                     <div className="preview-symbol-info">
-                      <span className="bourse-active-badge">نماد بورس</span>
+                      <span className={`bourse-active-badge ${selectedBourseSymbol?.isFund ? 'fund-active-badge' : ''}`}>
+                        {selectedBourseSymbol?.isFund ? 'صندوق بورسی' : 'نماد بورس'}
+                      </span>
                       <strong className="preview-symbol-code">{selectedBourseSymbol?.symbol || selectedAssetId.replace('bourse_', '')}</strong>
                       <span className="preview-company-name">{selectedBourseSymbol?.name || customName}</span>
                     </div>
