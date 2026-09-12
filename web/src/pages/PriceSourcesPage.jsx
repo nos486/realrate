@@ -1599,6 +1599,7 @@ export default function PriceSourcesPage({ embedded = false, usdToman: propUsdTo
             <UniversalAssetSearch
               mode="explorer"
               sources={sources}
+              priceTypeInfo={PRICE_TYPE_INFO}
               selectedAsset={activeSelectedSource}
               selectedAssetId={selectedSourceId}
               title="کاوشگر و تحلیل اختصاصی تمامی دارایی‌ها و سورس‌ها"

@@ -51,6 +51,52 @@ const CORE_TYPE_MAP = {
   silver_999: ['ons_silver', 'silver_999', 'silver'],
 };
 
+export const STANDARD_PRICE_TYPE_LABELS = {
+  usd: 'دلار آمریکا',
+  usd_toman: 'دلار نقدی آزاد',
+  gold_18k: 'طلای ۱۸ عیار',
+  gold_melted: 'طلای آبشده',
+  mesghal: 'مثقال طلا (مظنه)',
+  full_coin: 'سکه تمام بهار آزادی',
+  full_new: 'سکه امامی',
+  full_old: 'سکه بهار آزادی',
+  half_coin: 'نیم سکه بهار آزادی',
+  half: 'نیم سکه',
+  quarter_coin: 'ربع سکه بهار آزادی',
+  quarter: 'ربع سکه',
+  ons_gold: 'انس طلای جهانی',
+  ons_silver: 'انس نقره جهانی',
+  silver_999: 'نقره خام ۹۹۹',
+  eur: 'یورو اروپا',
+  try: 'لیر ترکیه',
+  aed: 'درهم امارات',
+  gbp: 'پوند انگلیس',
+  chf: 'فرانک سوئیس',
+  cad: 'دلار کانادا',
+  aud: 'دلار استرالیا',
+  cny: 'یوان چین',
+  kwd: 'دینار کویت',
+  sar: 'ریال عربستان',
+  qar: 'ریال قطر',
+  bourse: 'بورس اوراق بهادار',
+  bourse_fund: 'صندوق سرمایه‌گذاری',
+  forex: 'ارزهای فارکس',
+  crypto: 'رمزارز',
+  usdt: 'تتر (USDT)',
+  btc: 'بیت‌کوین (BTC)',
+  eth: 'اتریوم (ETH)',
+};
+
+export function getPriceTypeLabel(priceType, priceTypeInfo = null) {
+  if (!priceType) return '';
+  const clean = String(priceType).trim().toLowerCase();
+  if (priceTypeInfo && priceTypeInfo[priceType]?.label) return priceTypeInfo[priceType].label;
+  if (priceTypeInfo && priceTypeInfo[clean]?.label) return priceTypeInfo[clean].label;
+  if (STANDARD_PRICE_TYPE_LABELS[clean]) return STANDARD_PRICE_TYPE_LABELS[clean];
+  if (STANDARD_PRICE_TYPE_LABELS[priceType]) return STANDARD_PRICE_TYPE_LABELS[priceType];
+  return priceType;
+}
+
 const CATEGORY_TABS = [
   { id: 'all', label: 'همه اقلام' },
   { id: 'sources', label: 'سورس‌های تعریف‌شده' },
@@ -223,6 +269,7 @@ export default function UniversalAssetSearch({
   selectedAsset = null,
   selectedAssetId = null,
   sources: propSources = null,
+  priceTypeInfo = null,
   title = '',
   subtitle = '',
   placeholder = 'جستجو در تمامی سورس‌ها، طلا، سکه، ارز، بورس، خودرو و فیدها...',
@@ -319,19 +366,23 @@ export default function UniversalAssetSearch({
         const srcPriceTypeNorm = normalizeSearchText(src.priceType);
 
         // 1A. Parent Multi-Output Feed container
+        const typeLabel = getPriceTypeLabel(src.priceType, priceTypeInfo);
+        const typeLabelNorm = normalizeSearchText(typeLabel);
         const allowFeedInTab = activeCategory === 'all' || activeCategory === 'sources' || activeCategory === 'multi_output';
-        const parentMatch = !qNorm || srcNameNorm.includes(qNorm) || srcPriceTypeNorm.includes(qNorm) || srcEndpointNorm.includes(qNorm);
+        const parentMatch = !qNorm || srcNameNorm.includes(qNorm) || srcPriceTypeNorm.includes(qNorm) || typeLabelNorm.includes(qNorm) || srcEndpointNorm.includes(qNorm);
 
         if (allowFeedInTab && parentMatch) {
           results.push({
             id: src.id,
             sourceId: src.id,
             name: src.name || 'فید چند خروجی بدون نام',
-            subText: `فید چند خروجی • ${subItems.length > 0 ? `${subItems.length.toLocaleString('fa-IR')} قلم خروجی` : 'فاقد اقلام فعال'} • ${src.endpoint ? 'وب‌سرویس API' : 'سورس اختصاصی'}`,
-            badge: `${subItems.length > 0 ? `${subItems.length.toLocaleString('fa-IR')} قلم` : 'چند خروجی'}`,
+            priceTypeLabel: typeLabel,
+            subText: `فید چند خروجی (${typeLabel || 'اقلام چندگانه'}) • ${subItems.length > 0 ? `${subItems.length.toLocaleString('fa-IR')} قلم خروجی` : 'فاقد اقلام فعال'} • ${src.endpoint ? 'وب‌سرویس API' : 'سورس اختصاصی'}`,
+            badge: typeLabel || 'چند خروجی',
             badgeClass: 'multi_output',
-            price: Number(src.lastPrice || 0),
-            unit: src.unit || 'مورد',
+            price: 0,
+            itemCount: subItems.length,
+            unit: '',
             category: 'multi_output',
             type: 'source',
             priceType: src.priceType,
@@ -359,6 +410,10 @@ export default function UniversalAssetSearch({
           if (!allowSubItemInTab) return;
 
           let matchesQuery = false;
+          const parentTypeLabel = getPriceTypeLabel(src.priceType, priceTypeInfo);
+          const itemTypeLabel = subItem.category || parentTypeLabel;
+          const itemTypeNorm = normalizeSearchText(itemTypeLabel);
+
           if (!qNorm) {
             matchesQuery = activeCategory === 'multi_output' || results.filter((r) => r.sourceId === src.id && r.isMultiItem).length < 4;
           } else {
@@ -371,6 +426,7 @@ export default function UniversalAssetSearch({
               subSymNorm.includes(qNorm) ||
               subCatNorm.includes(qNorm) ||
               subExtraNorm.includes(qNorm) ||
+              itemTypeNorm.includes(qNorm) ||
               srcNameNorm.includes(qNorm);
           }
 
@@ -381,10 +437,11 @@ export default function UniversalAssetSearch({
               subItemId: subItem.symbol || subItem.name,
               symbol: subItem.symbol,
               name: subItem.name,
-              subText: `${src.name}${subItem.category ? ` • ${subItem.category}` : ''}${subItem.extra ? ` • ${subItem.extra}` : ''}`,
-              badge: subItem.category || src.name,
+              priceTypeLabel: itemTypeLabel,
+              subText: `${src.name}${itemTypeLabel ? ` • نوع: ${itemTypeLabel}` : ''}${subItem.extra ? ` • ${subItem.extra}` : ''}`,
+              badge: itemTypeLabel || src.name,
               badgeClass: 'multi_output',
-              price: subItem.price,
+              price: Number(subItem.price || 0),
               unit: src.unit || 'تومان',
               category: 'multi_output',
               type: 'source',
@@ -401,8 +458,10 @@ export default function UniversalAssetSearch({
       } else {
         // Standard Single-Rate Source
         if (activeCategory === 'all' || activeCategory === 'sources') {
+          const typeLabel = getPriceTypeLabel(src.priceType, priceTypeInfo);
+          const typeLabelNorm = normalizeSearchText(typeLabel);
           const nameMatch = !qNorm || normalizeSearchText(src.name).includes(qNorm);
-          const typeMatch = !qNorm || normalizeSearchText(src.priceType).includes(qNorm);
+          const typeMatch = !qNorm || normalizeSearchText(src.priceType).includes(qNorm) || typeLabelNorm.includes(qNorm);
           const channelMatch = !qNorm || normalizeSearchText(src.channelUsername).includes(qNorm);
           const endpointMatch = !qNorm || normalizeSearchText(src.endpoint).includes(qNorm);
 
@@ -411,11 +470,12 @@ export default function UniversalAssetSearch({
               id: src.id,
               sourceId: src.id,
               name: src.name || 'سورس بدون نام',
-              subText: src.sourceType === 'telegram'
+              priceTypeLabel: typeLabel,
+              subText: `${typeLabel ? `نوع: ${typeLabel} • ` : ''}${src.sourceType === 'telegram'
                 ? `@${src.channelUsername || src.endpoint || ''}`
-                : (src.endpoint ? 'وب‌سرویس API' : 'سورس اختصاصی'),
-              badge: src.sourceType === 'telegram' ? 'تلگرام' : 'API',
-              badgeClass: src.sourceType === 'telegram' ? 'telegram' : 'api',
+                : (src.endpoint ? 'وب‌سرویس API' : 'سورس اختصاصی')}`,
+              badge: typeLabel || (src.sourceType === 'telegram' ? 'تلگرام' : 'API'),
+              badgeClass: 'single-type',
               price: Number(src.lastPrice || 0),
               unit: src.unit || 'تومان',
               category: 'source',
@@ -559,12 +619,14 @@ export default function UniversalAssetSearch({
             <div className="universal-active-asset-banner">
               <div className="universal-active-asset-info">
                 <span className="universal-active-label">آیتم فعال:</span>
-                <strong className="universal-active-name">{activeAssetName}</strong>
-                {selectedAsset?.lastPrice > 0 && (
-                  <span className="universal-active-price">
-                    {Math.round(selectedAsset.lastPrice).toLocaleString('fa-IR')} {selectedAsset.unit || 'تومان'}
-                  </span>
-                )}
+                <strong className="universal-active-name">
+                  {activeAssetName}
+                  {selectedAsset?.priceType && (
+                    <span className="universal-type-tag">
+                      ({getPriceTypeLabel(selectedAsset.priceType, priceTypeInfo)})
+                    </span>
+                  )}
+                </strong>
               </div>
             </div>
           )}
@@ -629,7 +691,12 @@ export default function UniversalAssetSearch({
                         {getCategoryIcon(item.category)}
                       </div>
                       <div className="universal-result-text">
-                        <span className="universal-result-name">{item.name}</span>
+                        <span className="universal-result-name">
+                          {item.name}
+                          {item.priceTypeLabel && item.priceTypeLabel !== item.name && (
+                            <span className="universal-type-tag">({item.priceTypeLabel})</span>
+                          )}
+                        </span>
                         <div className="universal-result-sub">
                           <span className={`universal-result-badge ${item.badgeClass || ''}`}>{item.badge}</span>
                           <span>{item.subText}</span>
@@ -638,20 +705,30 @@ export default function UniversalAssetSearch({
                     </div>
 
                     <div className="universal-result-pricing">
-                      {item.price > 0 && (
-                        <span className="universal-result-price">
-                          {item.price < 100
-                            ? Number(item.price).toLocaleString('fa-IR', { minimumFractionDigits: 2, maximumFractionDigits: 4 })
-                            : Math.round(item.price).toLocaleString('fa-IR')}
+                      {item.isMultiFeed ? (
+                        <span className="universal-multi-count-tag">
+                          {item.itemCount !== undefined ? `${item.itemCount.toLocaleString('fa-IR')} قلم` : 'فید چند خروجی'}
+                        </span>
+                      ) : item.price > 0 ? (
+                        <>
+                          <span className="universal-result-price">
+                            {item.price < 100
+                              ? Number(item.price).toLocaleString('fa-IR', { minimumFractionDigits: 2, maximumFractionDigits: 4 })
+                              : Math.round(item.price).toLocaleString('fa-IR')}
+                          </span>
+                          <span className="universal-result-unit">{item.unit || 'تومان'}</span>
+                        </>
+                      ) : (
+                        <span className="universal-result-badge" style={{ color: '#60a5fa' }}>
+                          {active ? <Check size={12} /> : 'انتخاب'}
                         </span>
                       )}
-                      {/* Trend is strictly only for single-output items */}
-                      {!item.isMultiItem && !item.isMultiFeed && item.category !== 'multi_output' && item.type !== 'bourse' && item.category !== 'bourse' && item.category !== 'bourse_fund' && item.changePercent !== undefined && Number(item.changePercent) !== 0 && (
+                      {/* Trend is strictly only for single-output items with real price */}
+                      {!item.isMultiItem && !item.isMultiFeed && item.category !== 'multi_output' && item.type !== 'bourse' && item.category !== 'bourse' && item.category !== 'bourse_fund' && item.price > 0 && item.changePercent !== undefined && Number(item.changePercent) !== 0 && (
                         <span className={`universal-result-change ${Number(item.changePercent) > 0 ? 'positive' : 'negative'}`}>
                           {Number(item.changePercent) > 0 ? '+' : ''}{Number(item.changePercent).toFixed(2)}%
                         </span>
                       )}
-                      <span className="universal-result-unit">{item.unit}</span>
                     </div>
                   </div>
                 );
@@ -681,7 +758,12 @@ export default function UniversalAssetSearch({
                         {getCategoryIcon(item.category)}
                       </div>
                       <div className="universal-result-text">
-                        <span className="universal-result-name">{item.name}</span>
+                        <span className="universal-result-name">
+                          {item.name}
+                          {item.priceTypeLabel && item.priceTypeLabel !== item.name && (
+                            <span className="universal-type-tag">({item.priceTypeLabel})</span>
+                          )}
+                        </span>
                         <div className="universal-result-sub">
                           <span className={`universal-result-badge ${item.badgeClass || ''}`}>{item.badge}</span>
                           <span>{item.subText}</span>
@@ -690,24 +772,30 @@ export default function UniversalAssetSearch({
                     </div>
 
                     <div className="universal-result-pricing">
-                      {item.price > 0 ? (
-                        <span className="universal-result-price">
-                          {item.price < 100
-                            ? Number(item.price).toLocaleString('fa-IR', { minimumFractionDigits: 2, maximumFractionDigits: 4 })
-                            : Math.round(item.price).toLocaleString('fa-IR')}
+                      {item.isMultiFeed ? (
+                        <span className="universal-multi-count-tag">
+                          {item.itemCount !== undefined ? `${item.itemCount.toLocaleString('fa-IR')} قلم` : 'فید چند خروجی'}
                         </span>
+                      ) : item.price > 0 ? (
+                        <>
+                          <span className="universal-result-price">
+                            {item.price < 100
+                              ? Number(item.price).toLocaleString('fa-IR', { minimumFractionDigits: 2, maximumFractionDigits: 4 })
+                              : Math.round(item.price).toLocaleString('fa-IR')}
+                          </span>
+                          <span className="universal-result-unit">{item.unit || 'تومان'}</span>
+                        </>
                       ) : (
                         <span className="universal-result-badge" style={{ color: '#60a5fa' }}>
                           {active ? <Check size={12} /> : 'انتخاب'}
                         </span>
                       )}
-                      {/* Trend is strictly only for single-output items */}
-                      {!item.isMultiItem && !item.isMultiFeed && item.category !== 'multi_output' && item.type !== 'bourse' && item.category !== 'bourse' && item.category !== 'bourse_fund' && item.changePercent !== undefined && Number(item.changePercent) !== 0 && (
+                      {/* Trend is strictly only for single-output items with real price */}
+                      {!item.isMultiItem && !item.isMultiFeed && item.category !== 'multi_output' && item.type !== 'bourse' && item.category !== 'bourse' && item.category !== 'bourse_fund' && item.price > 0 && item.changePercent !== undefined && Number(item.changePercent) !== 0 && (
                         <span className={`universal-result-change ${Number(item.changePercent) > 0 ? 'positive' : 'negative'}`}>
                           {Number(item.changePercent) > 0 ? '+' : ''}{Number(item.changePercent).toFixed(2)}%
                         </span>
                       )}
-                      <span className="universal-result-unit">{item.unit}</span>
                     </div>
                   </div>
                 );

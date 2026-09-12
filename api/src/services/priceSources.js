@@ -150,11 +150,11 @@ export function parseSourceContent(source, rawContent) {
     if (source.fieldMapping) {
       try {
         fieldMapping = typeof source.fieldMapping === "string" ? JSON.parse(source.fieldMapping) : source.fieldMapping;
-      } catch {}
+      } catch { }
     } else if (source.field_mapping) {
       try {
         fieldMapping = typeof source.field_mapping === "string" ? JSON.parse(source.field_mapping) : source.field_mapping;
-      } catch {}
+      } catch { }
     }
 
     // Multi-output handler: Unified Forex feed (Dynamic Currencies)
@@ -175,15 +175,15 @@ export function parseSourceContent(source, rawContent) {
       const currencyConfigs = Array.isArray(fieldMapping?.currencies) && fieldMapping.currencies.length > 0
         ? fieldMapping.currencies
         : [
-            { key: 'eur', path: 'EUR', mode: 'invert', label: 'یورو اروپا' },
-            { key: 'try', path: 'TRY', mode: 'invert', label: 'لیر ترکیه' },
-            { key: 'aed', path: 'AED', mode: 'invert', label: 'درهم امارات' },
-            { key: 'gbp', path: 'GBP', mode: 'invert', label: 'پوند انگلیس' },
-            { key: 'chf', path: 'CHF', mode: 'invert', label: 'فرانک سوئیس' },
-            { key: 'cad', path: 'CAD', mode: 'invert', label: 'دلار کانادا' },
-            { key: 'aud', path: 'AUD', mode: 'invert', label: 'دلار استرالیا' },
-            { key: 'cny', path: 'CNY', mode: 'invert', label: 'یوان چین' },
-          ];
+          { key: 'eur', path: 'EUR', mode: 'invert', label: 'یورو اروپا' },
+          { key: 'try', path: 'TRY', mode: 'invert', label: 'لیر ترکیه' },
+          { key: 'aed', path: 'AED', mode: 'invert', label: 'درهم امارات' },
+          { key: 'gbp', path: 'GBP', mode: 'invert', label: 'پوند انگلیس' },
+          { key: 'chf', path: 'CHF', mode: 'invert', label: 'فرانک سوئیس' },
+          { key: 'cad', path: 'CAD', mode: 'invert', label: 'دلار کانادا' },
+          { key: 'aud', path: 'AUD', mode: 'invert', label: 'دلار استرالیا' },
+          { key: 'cny', path: 'CNY', mode: 'invert', label: 'یوان چین' },
+        ];
 
       const multiData = {};
       const currencyList = [];
@@ -704,7 +704,7 @@ export function compileLatestMarketRates(sources) {
         try {
           const dc = typeof forexSource.displayConfig === 'string' ? JSON.parse(forexSource.displayConfig) : forexSource.displayConfig;
           if (dc && dc.showOnHomePage !== undefined) forexShowOnHome = Boolean(dc.showOnHomePage);
-        } catch {}
+        } catch { }
       }
       let excluded = [];
       if (forexSource.excludedOutputs) {
@@ -712,7 +712,7 @@ export function compileLatestMarketRates(sources) {
           excluded = Array.isArray(forexSource.excludedOutputs)
             ? forexSource.excludedOutputs
             : JSON.parse(forexSource.excludedOutputs);
-        } catch {}
+        } catch { }
       }
       const excludedSet = new Set(excluded.map(x => String(x).toUpperCase()));
 
@@ -746,7 +746,7 @@ export function compileLatestMarketRates(sources) {
       try {
         const dc = typeof bourseSource.displayConfig === 'string' ? JSON.parse(bourseSource.displayConfig) : bourseSource.displayConfig;
         if (dc && dc.showOnHomePage !== undefined) bourseShowOnHome = Boolean(dc.showOnHomePage);
-      } catch {}
+      } catch { }
     }
     result.bourse = {
       price: Number(bourseSource.lastPrice) || 0,
@@ -766,7 +766,7 @@ export function compileLatestMarketRates(sources) {
       try {
         const dc = typeof bourseFundSource.displayConfig === 'string' ? JSON.parse(bourseFundSource.displayConfig) : bourseFundSource.displayConfig;
         if (dc && dc.showOnHomePage !== undefined) fundShowOnHome = Boolean(dc.showOnHomePage);
-      } catch {}
+      } catch { }
     }
     result.bourse_fund = {
       price: Number(bourseFundSource.lastPrice) || 0,
@@ -792,7 +792,7 @@ export function compileLatestMarketRates(sources) {
           if (dc && dc.showOnHomePage !== undefined) {
             showOnHome = Boolean(dc.showOnHomePage);
           }
-        } catch {}
+        } catch { }
       }
 
       result[itemKey] = {
@@ -822,7 +822,7 @@ export function compileLatestMarketRates(sources) {
         if (dc && dc.showOnHomePage !== undefined) {
           showOnHome = Boolean(dc.showOnHomePage);
         }
-      } catch {}
+      } catch { }
     }
     result[lowerType] = {
       price: src.lastPrice,
@@ -871,10 +871,10 @@ export async function handleScheduledPriceExtraction(env, forceAll = false) {
   const dueSources = forceAll
     ? activeSources
     : activeSources.filter(s => {
-        const intervalMs = Math.max(15, (s.fetchIntervalSec || 60)) * 1000;
-        const lastFetchedMs = s.lastFetched ? new Date(s.lastFetched).getTime() : 0;
-        return (nowMs - lastFetchedMs) >= intervalMs;
-      });
+      const intervalMs = Math.max(15, (s.fetchIntervalSec || 60)) * 1000;
+      const lastFetchedMs = s.lastFetched ? new Date(s.lastFetched).getTime() : 0;
+      return (nowMs - lastFetchedMs) >= intervalMs;
+    });
 
   let extractedCount = 0;
 
@@ -941,7 +941,7 @@ export async function handleScheduledPriceExtraction(env, forceAll = false) {
           } else if ((src.priceType === "bourse" || src.priceType === "bourse_fund") && env.REALRATE_KV) {
             // Synchronize unified bourse symbols & funds in KV
             updates.push(
-              fetchAndStoreBourseSymbols(env).catch(() => {})
+              fetchAndStoreBourseSymbols(env).catch(() => { })
             );
           } else {
             // Standard single asset history
@@ -968,7 +968,7 @@ export async function handleScheduledPriceExtraction(env, forceAll = false) {
                   name: src.name,
                   lastMultiData: parsed.multiData || undefined,
                 })
-              ).catch(() => {})
+              ).catch(() => { })
             );
           }
         }
