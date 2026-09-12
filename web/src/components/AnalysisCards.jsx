@@ -10,6 +10,7 @@ export default function AnalysisCards({ analysis, recommendation, onCardClick })
 
   // Filter out half_coin as requested by user, and hide cards disabled in symbol settings
   const visibleCards = analysis.filter((item) => item.id !== 'half_coin' && item.showOnHomePage !== false);
+  if (visibleCards.length === 0) return null;
 
   return (
     <div className="analysis-wrapper">

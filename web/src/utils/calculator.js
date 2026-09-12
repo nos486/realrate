@@ -122,8 +122,8 @@ export function calculateMarketData({
     analyzeItem('quarter_coin', 'ربع سکه بهار آزادی', quarter_intrinsic, globalSettings?.bubble_pct_quarter ?? 25, marketPrices?.quarter_coin),
   ];
 
-  // Recommendation: lowest bubble percentage
-  const availableItems = itemsAnalysis.filter(i => i.market !== null && i.bubble_pct !== null);
+  // Recommendation: lowest bubble percentage (only considering visible items)
+  const availableItems = itemsAnalysis.filter(i => i.market !== null && i.bubble_pct !== null && i.showOnHomePage !== false);
   let recommendation = null;
   if (availableItems.length > 0) {
     const best = [...availableItems].sort((a, b) => a.bubble_pct - b.bubble_pct)[0];
@@ -137,6 +137,8 @@ export function calculateMarketData({
 
   // 2. Currencies sourced dynamically from active sources in marketPrices / forex
   const seenCodes = new Set(['USD']);
+  const usdSource = marketPrices?.usd_toman || marketPrices?.usd;
+  const showUsdOnHome = usdSource?.showOnHomePage !== undefined ? Boolean(usdSource.showOnHomePage) : true;
   const currencies = [
     {
       code: 'USD',
@@ -147,6 +149,7 @@ export function calculateMarketData({
       usd_cross_rate: 1.0,
       toman_price: Math.round(usd_toman),
       note: 'نرخ دلار نقدی بازار آزاد',
+      showOnHomePage: showUsdOnHome,
     },
   ];
 

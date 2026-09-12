@@ -134,6 +134,9 @@ export default function MainPage() {
   const hasUsd = usdNum > 0;
   const [selectedAssetModal, setSelectedAssetModal] = useState(null);
 
+  const usdSource = rates?.prices?.usd_toman || rates?.prices?.usd || rates?.market_prices?.usd_toman || rates?.market_prices?.usd;
+  const showUsdOnHome = usdSource?.showOnHomePage !== undefined ? Boolean(usdSource.showOnHomePage) : true;
+
   return (
     <AppLayout
       usdToman={usdToman}
@@ -161,19 +164,21 @@ export default function MainPage() {
           onChange={handleTabChange}
         />
 
-        <LiveRatesTicker
-          usdPrice={usdToman}
-          onUsdClick={() =>
-            setSelectedAssetModal({
-              id: 'usd',
-              type: 'usd',
-              name: 'دلار نقدی آزاد',
-              market: usdNum || rates?.live_usd_toman || 62000,
-              price: usdNum || rates?.live_usd_toman || 62000,
-              updated_at: liveUsdDatetime || rates?.live_usd_item?.datetime || new Date().toISOString(),
-            })
-          }
-        />
+        {showUsdOnHome && (
+          <LiveRatesTicker
+            usdPrice={usdToman}
+            onUsdClick={() =>
+              setSelectedAssetModal({
+                id: 'usd',
+                type: 'usd',
+                name: 'دلار نقدی آزاد',
+                market: usdNum || rates?.live_usd_toman || 62000,
+                price: usdNum || rates?.live_usd_toman || 62000,
+                updated_at: liveUsdDatetime || rates?.live_usd_item?.datetime || new Date().toISOString(),
+              })
+            }
+          />
+        )}
       </div>
 
       {/* Tab Views */}

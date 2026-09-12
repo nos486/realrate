@@ -23,7 +23,7 @@ import {
 import { getAdminStats } from "../lib/analytics.js";
 import { saveGlobalSettings } from "../lib/settings.js";
 import { testUsdSource } from "../services/telegramPrices.js";
-import { testPriceSourceConfig, fetchAllPrices, inspectApiEndpointStructure } from "../services/priceSources.js";
+import { testPriceSourceConfig, fetchAllPrices, inspectApiEndpointStructure, refreshMarketRatesCache } from "../services/priceSources.js";
 import { jsonResponse, errorResponse, forbiddenResponse } from "../lib/helpers.js";
 
 /**
@@ -168,6 +168,7 @@ export async function handleAdminSavePriceSource(request, env) {
   try {
     const body = await request.json();
     const saved = await dbSavePriceSource(env, body);
+    await refreshMarketRatesCache(env).catch(() => {});
     return jsonResponse({
       success: true,
       message: "سورس قیمت با موفقیت ذخیره شد.",
@@ -203,6 +204,8 @@ export async function handleAdminDeletePriceSource(request, env) {
       return errorResponse("سورس یافت نشد یا حذف ناموفق بود.", 404, request);
     }
 
+    await refreshMarketRatesCache(env).catch(() => {});
+
     return jsonResponse({ success: true, message: "سورس قیمت با موفقیت حذف شد." }, 200, request);
   } catch (e) {
     return errorResponse(e.message, 500, request);
@@ -223,6 +226,7 @@ export async function handleAdminSetPrimarySource(request, env) {
     if (!id) return errorResponse("شناسه سورس الزامی است.", 400, request);
 
     const updated = await dbSetPrimaryPriceSource(env, id, priceType);
+    await refreshMarketRatesCache(env).catch(() => {});
     return jsonResponse({
       success: true,
       message: "سورس مرجع با موفقیت تعیین شد.",

@@ -699,18 +699,36 @@ export function compileLatestMarketRates(sources) {
   const forexSource = sources.find(s => s.priceType === "forex" && s.isActive);
   if (forexSource && forexSource.lastMultiData) {
     try {
+      let forexShowOnHome = true;
+      if (forexSource.displayConfig) {
+        try {
+          const dc = typeof forexSource.displayConfig === 'string' ? JSON.parse(forexSource.displayConfig) : forexSource.displayConfig;
+          if (dc && dc.showOnHomePage !== undefined) forexShowOnHome = Boolean(dc.showOnHomePage);
+        } catch {}
+      }
+      let excluded = [];
+      if (forexSource.excludedOutputs) {
+        try {
+          excluded = Array.isArray(forexSource.excludedOutputs)
+            ? forexSource.excludedOutputs
+            : JSON.parse(forexSource.excludedOutputs);
+        } catch {}
+      }
+      const excludedSet = new Set(excluded.map(x => String(x).toUpperCase()));
+
       const multi = typeof forexSource.lastMultiData === 'string'
         ? JSON.parse(forexSource.lastMultiData)
         : forexSource.lastMultiData;
       if (multi && typeof multi === 'object') {
         for (const [k, val] of Object.entries(multi)) {
-          if (Number(val) > 0) {
+          if (Number(val) > 0 && !excludedSet.has(k.toUpperCase())) {
             result[k.toLowerCase()] = {
               price: Number(val),
               datetime: forexSource.lastFetched || new Date().toISOString(),
               label: `${forexSource.name} (${k.toUpperCase()})`,
               sourceId: forexSource.id,
               isPrimary: true,
+              showOnHomePage: forexShowOnHome,
             };
           }
         }
@@ -723,30 +741,46 @@ export function compileLatestMarketRates(sources) {
   // Tehran Stock Exchange (Bourse Equities):
   const bourseSource = sources.find(s => s.priceType === "bourse" && s.isActive);
   if (bourseSource) {
+    let bourseShowOnHome = true;
+    if (bourseSource.displayConfig) {
+      try {
+        const dc = typeof bourseSource.displayConfig === 'string' ? JSON.parse(bourseSource.displayConfig) : bourseSource.displayConfig;
+        if (dc && dc.showOnHomePage !== undefined) bourseShowOnHome = Boolean(dc.showOnHomePage);
+      } catch {}
+    }
     result.bourse = {
       price: Number(bourseSource.lastPrice) || 0,
       datetime: bourseSource.lastFetched || new Date().toISOString(),
       label: bourseSource.name,
       sourceId: bourseSource.id,
       isPrimary: true,
+      showOnHomePage: bourseShowOnHome,
     };
   }
 
   // Tehran Stock Exchange (Bourse Investment Funds):
   const bourseFundSource = sources.find(s => s.priceType === "bourse_fund" && s.isActive);
   if (bourseFundSource) {
+    let fundShowOnHome = true;
+    if (bourseFundSource.displayConfig) {
+      try {
+        const dc = typeof bourseFundSource.displayConfig === 'string' ? JSON.parse(bourseFundSource.displayConfig) : bourseFundSource.displayConfig;
+        if (dc && dc.showOnHomePage !== undefined) fundShowOnHome = Boolean(dc.showOnHomePage);
+      } catch {}
+    }
     result.bourse_fund = {
       price: Number(bourseFundSource.lastPrice) || 0,
       datetime: bourseFundSource.lastFetched || new Date().toISOString(),
       label: bourseFundSource.name,
       sourceId: bourseFundSource.id,
       isPrimary: true,
+      showOnHomePage: fundShowOnHome,
     };
   }
 
   // 2. Process single output price sources
   for (const pType of supportedTypes) {
-    const candidates = sources.filter(s => s.priceType === pType && s.isActive && Number(s.lastPrice) > 0);
+    const candidates = sources.filter(s => s.priceType === pType && s.isActive);
     const chosen = candidates.find(s => s.isPrimary) || candidates[0];
 
     if (chosen) {
@@ -964,6 +998,36 @@ export async function handleScheduledPriceExtraction(env, forceAll = false) {
   lastFetchTime = Date.now();
 
   return { extractedCount, rates: latestRates };
+}
+
+/**
+ * Instantly recompile latest rates from DB active sources and update KV + memory cache.
+ * Called immediately after any price source is created, updated, or deleted.
+ * @param {object} env
+ * @returns {Promise<object|null>}
+ */
+export async function refreshMarketRatesCache(env) {
+  if (!env) return null;
+  try {
+    const sources = await dbGetPriceSources(env);
+    if (Array.isArray(sources)) {
+      const activeSources = sources.filter(s => s.isActive);
+      const latestRates = compileLatestMarketRates(activeSources);
+      if (env.REALRATE_KV) {
+        try {
+          await env.REALRATE_KV.put("latest_rates", JSON.stringify(latestRates));
+        } catch (e) {
+          console.warn("KV put error in refreshMarketRatesCache:", e.message);
+        }
+      }
+      memoryPricesCache = { ...latestRates };
+      lastFetchTime = Date.now();
+      return latestRates;
+    }
+  } catch (e) {
+    console.warn("refreshMarketRatesCache error:", e.message);
+  }
+  return null;
 }
 
 /**

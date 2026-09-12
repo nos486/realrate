@@ -19,6 +19,11 @@ export default function CurrenciesList({ currencies, onCurrencyClick }) {
     );
   }
 
+  const allVisible = currencies.filter((c) => c.showOnHomePage !== false);
+  if (allVisible.length === 0) {
+    return null;
+  }
+
   const filtered = currencies.filter((c) => {
     if (c.showOnHomePage === false) return false;
     if (!search.trim()) return true;
