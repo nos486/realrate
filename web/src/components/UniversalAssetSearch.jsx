@@ -32,8 +32,24 @@ const CORE_ASSETS = [
   { id: 'AED', name: 'درهم امارات', category: 'currency', unit: 'درهم', type: 'standard' },
   { id: 'TRY', name: 'لیر ترکیه', category: 'currency', unit: 'لیر', type: 'standard' },
   { id: 'BTC', name: 'بیت‌کوین (BTC)', category: 'crypto', unit: 'عدد', type: 'standard' },
-  { id: 'ETH', name: 'اتریوم (ETH)', category: 'crypto', unit: 'عدد', type: 'standard' },
 ];
+
+const CORE_TYPE_MAP = {
+  USD: ['usd', 'usd_toman'],
+  EUR: ['eur'],
+  TRY: ['try'],
+  AED: ['aed'],
+  USDT: ['usdt', 'tether'],
+  BTC: ['btc', 'bitcoin'],
+  ETH: ['eth', 'ethereum'],
+  gold_18k: ['gold_18k'],
+  gold_melted: ['mesghal', 'gold_melted'],
+  full_new: ['full_coin', 'full_new'],
+  full_old: ['full_coin_old', 'full_old'],
+  half: ['half_coin', 'half'],
+  quarter: ['quarter_coin', 'quarter'],
+  silver_999: ['ons_silver', 'silver_999', 'silver'],
+};
 
 const CATEGORY_TABS = [
   { id: 'all', label: 'همه اقلام' },
@@ -432,37 +448,49 @@ export default function UniversalAssetSearch({
       });
     }
 
-    // 3. Core & Standard Assets (Gold, Coins, Currencies, Crypto)
-    const allowGoldCoins = activeCategory === 'all' || activeCategory === 'gold_coins';
-    const allowCurrencies = activeCategory === 'all' || activeCategory === 'currency_crypto';
+    // 3. Core & Standard Assets (Only in 'picker' mode as fallback for unconfigured assets)
+    if (mode === 'picker') {
+      const allowGoldCoins = activeCategory === 'all' || activeCategory === 'gold_coins';
+      const allowCurrencies = activeCategory === 'all' || activeCategory === 'currency_crypto';
 
-    CORE_ASSETS.forEach((core) => {
-      const isGoldCoin = core.category === 'gold' || core.category === 'coin' || core.category === 'silver';
-      const isCurrCrypto = core.category === 'currency' || core.category === 'crypto';
+      // Set of price types and aliases that are already covered by user's defined sources
+      const existingTypes = new Set(
+        internalSources.map((s) => (s.priceType || '').toLowerCase()).filter(Boolean)
+      );
 
-      if ((allowGoldCoins && isGoldCoin) || (allowCurrencies && isCurrCrypto)) {
-        const nameMatch = !qNorm ||
-          normalizeSearchText(core.name).includes(qNorm) ||
-          normalizeSearchText(core.id).includes(qNorm);
-        if (nameMatch) {
-          results.push({
-            id: core.id,
-            name: core.name,
-            subText: core.category === 'gold' ? 'طلای خام و آب‌شده'
-              : core.category === 'coin' ? 'مسکوکات رسمی بانکی'
-              : core.category === 'currency' ? 'ارز بازار آزاد'
-              : core.category === 'crypto' ? 'رمزارز پایه' : 'دارایی پایه',
-            badge: core.unit,
-            badgeClass: core.category,
-            price: 0,
-            unit: core.unit,
-            category: core.category,
-            type: 'standard',
-            raw: core,
-          });
+      CORE_ASSETS.forEach((core) => {
+        // Skip this core asset if user already has an active configured source for it
+        const mappedTypes = CORE_TYPE_MAP[core.id] || [core.id.toLowerCase()];
+        const alreadyHasSource = mappedTypes.some((t) => existingTypes.has(t));
+        if (alreadyHasSource) return;
+
+        const isGoldCoin = core.category === 'gold' || core.category === 'coin' || core.category === 'silver';
+        const isCurrCrypto = core.category === 'currency' || core.category === 'crypto';
+
+        if ((allowGoldCoins && isGoldCoin) || (allowCurrencies && isCurrCrypto)) {
+          const nameMatch = !qNorm ||
+            normalizeSearchText(core.name).includes(qNorm) ||
+            normalizeSearchText(core.id).includes(qNorm);
+          if (nameMatch) {
+            results.push({
+              id: core.id,
+              name: core.name,
+              subText: core.category === 'gold' ? 'طلای خام و آب‌شده'
+                : core.category === 'coin' ? 'مسکوکات رسمی بانکی'
+                : core.category === 'currency' ? 'ارز بازار آزاد'
+                : core.category === 'crypto' ? 'رمزارز پایه' : 'دارایی پایه',
+              badge: core.unit,
+              badgeClass: core.category,
+              price: 0,
+              unit: core.unit,
+              category: core.category,
+              type: 'standard',
+              raw: core,
+            });
+          }
         }
-      }
-    });
+      });
+    }
 
     return results;
   }, [query, activeCategory, internalSources, bourseResults]);
