@@ -543,22 +543,6 @@ export default function UniversalAssetSearch({
         </div>
       )}
 
-      {/* Category Filter Pills (Explorer or Picker when enabled) */}
-      {showCategories && (
-        <div className="universal-categories-strip">
-          {CATEGORY_TABS.map((tab) => (
-            <button
-              key={tab.id}
-              type="button"
-              className={`universal-category-pill ${activeCategory === tab.id ? 'active' : ''}`}
-              onClick={() => setActiveCategory(tab.id)}
-            >
-              {tab.label}
-            </button>
-          ))}
-        </div>
-      )}
-
       {/* Search Bar Input */}
       <div className="universal-search-bar">
         <Search size={16} className="universal-search-icon" />
