@@ -712,42 +712,7 @@
   border-top: 1px solid rgba(255, 255, 255, 0.04);
 }
 
-/* ── Portfolio Periodic Performance & Tabs ────────────────────────────────── */
-.period-tabs-segmented {
-  display: inline-flex;
-  align-items: center;
-  background: rgba(255, 255, 255, 0.05);
-  padding: 2px;
-  border-radius: var(--radius-full, 999px);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  gap: 2px;
-}
-
-.period-pill-btn {
-  background: transparent;
-  border: none;
-  border-radius: var(--radius-full, 999px);
-  padding: 2px 7px;
-  font-size: 10px;
-  font-weight: 700;
-  color: var(--text-muted, #94a3b8);
-  cursor: pointer;
-  transition: all 0.18s ease;
-  line-height: 1.4;
-  user-select: none;
-}
-
-.period-pill-btn:hover {
-  color: var(--text-heading, #ffffff);
-  background: rgba(255, 255, 255, 0.08);
-}
-
-.period-pill-btn.active {
-  background: rgba(245, 158, 11, 0.22);
-  color: #fbbf24;
-  font-weight: 800;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.25);
-}
+/* ── Portfolio Stat Layout ─────────────────────────────────────────────── */
 
 .stat-pnl-row {
   display: flex;

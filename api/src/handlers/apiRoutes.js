@@ -6,7 +6,7 @@
 import { getLatestMarketRates } from "../services/priceSources.js";
 import { getGlobalSettings } from "../lib/settings.js";
 import { jsonResponse } from "../lib/helpers.js";
-import { dbGetHistoricalBenchmarks, dbGetDerivedAssets } from "../lib/db.js";
+import { dbGetDerivedAssets } from "../lib/db.js";
 
 /**
  * GET /api/prices
@@ -73,7 +73,7 @@ export async function handleGetPrices(env, request = null) {
 export async function handleGetDerivedAssets(env, request = null) {
   try {
     const assets = await dbGetDerivedAssets(env, true);
-    return jsonResponse({ success: true, derivedAssets: assets }, 200, request);
+    return jsonResponse({ success: true, derived_assets: assets, derivedAssets: assets }, 200, request);
   } catch (err) {
     return jsonResponse({ success: false, error: err.message }, 500, request);
   }
@@ -81,44 +81,10 @@ export async function handleGetDerivedAssets(env, request = null) {
 
 /**
  * GET /api/sparklines
- * Return downsampled 24h price history for gold, coins, or USD to render lightweight charts.
+ * Return 24-hour lightweight price sparklines for charts.
  * Supports ?asset=gold_18k to only query the requested asset on-demand (zero wasted DB queries).
  * Cached in Cloudflare KV for 3 minutes for blazing-fast edge performance.
  */
 export async function handleGetSparklines(env, request = null) {
   return jsonResponse({ success: true, sparklines: {} }, 200, request);
 }
-
-/**
- * Return historical price benchmarks for 24h, 7d, and 30d
- * Used to calculate portfolio profit percentage changes over these periods.
- * Cached in Cloudflare KV for 10 minutes (600s TTL).
- */
-export async function handleGetHistoricalBenchmarks(env, request = null) {
-  try {
-    const cacheKey = "portfolio_benchmarks_24h_7d_30d";
-
-    if (env?.REALRATE_KV) {
-      try {
-        const cached = await env.REALRATE_KV.get(cacheKey, "json");
-        if (cached && typeof cached === "object") {
-          return jsonResponse({ success: true, benchmarks: cached, cached: true }, 200, request);
-        }
-      } catch (cacheErr) {
-        console.warn("[Benchmarks] KV read error:", cacheErr.message);
-      }
-    }
-
-    const benchmarks = await dbGetHistoricalBenchmarks(env);
-
-    if (env?.REALRATE_KV && benchmarks) {
-      env.REALRATE_KV.put(cacheKey, JSON.stringify(benchmarks), { expirationTtl: 600 }).catch(() => {});
-    }
-
-    return jsonResponse({ success: true, benchmarks, cached: false }, 200, request);
-  } catch (err) {
-    console.error("[Benchmarks] Error:", err);
-    return jsonResponse({ success: false, error: err.message }, 500, request);
-  }
-}
-

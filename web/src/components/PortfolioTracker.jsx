@@ -46,7 +46,6 @@ import {
   apiAddPortfolioHolding,
   apiUpdatePortfolioHolding,
   apiDeletePortfolioHolding,
-  apiGetHistoricalBenchmarks,
   apiSearchBourseSymbols,
 } from '../api/client.js';
 import UserSettingsModal from './UserSettingsModal.jsx';
@@ -402,23 +401,6 @@ function parseShamsiDate(str) {
   };
 }
 
-function parseDateToMs(dateStr) {
-  if (!dateStr) return null;
-  const s = String(dateStr).trim();
-  const parts = s.split('/');
-  if (parts.length === 3 && parts[0].length === 4) {
-    const jy = parseInt(parts[0], 10);
-    const jm = parseInt(parts[1], 10);
-    const jd = parseInt(parts[2], 10);
-    if (jy > 1300 && jy < 1500) {
-      const gy = jy + 621;
-      return new Date(gy, Math.max(0, jm - 1), jd).getTime();
-    }
-  }
-  const d = new Date(s);
-  return isNaN(d.getTime()) ? null : d.getTime();
-}
-
 export default function PortfolioTracker({ calcData, rates, usdToman, goldUsd, derivedAssets: propDerivedAssets = null, initialPortfolioId = null }) {
   const { user, loading: authLoading, triggerLogin } = useAuth();
   const navigate = useNavigate();
@@ -526,26 +508,6 @@ export default function PortfolioTracker({ calcData, rates, usdToman, goldUsd, d
 
   // Settings Modal State
   const [settingsModalOpen, setSettingsModalOpen] = useState(false);
-
-  // Historical Benchmarks for 24h, 7d, 30d Portfolio Performance
-  const [benchmarks, setBenchmarks] = useState(null);
-  const [selectedPeriod, setSelectedPeriod] = useState('all'); // 'all', '24h', '7d', '30d'
-
-  useEffect(() => {
-    let isMounted = true;
-    apiGetHistoricalBenchmarks()
-      .then((res) => {
-        if (isMounted && res?.success && res?.benchmarks) {
-          setBenchmarks(res.benchmarks);
-        }
-      })
-      .catch((err) => {
-        console.warn('Failed to load historical benchmarks:', err);
-      });
-    return () => {
-      isMounted = false;
-    };
-  }, []);
 
   // Modal Form State
   const [modalOpen, setModalOpen] = useState(false);
@@ -1111,54 +1073,6 @@ export default function PortfolioTracker({ calcData, rates, usdToman, goldUsd, d
     return map;
   }, [usdVal, goldUsdVal, silverUsdVal, calcData, rates, computePriceMap, boursePricesMap, allDerivedAssets]);
 
-  // Historical price maps for 24h, 7d, and 30d performance tracking
-  const historicalPriceMaps = useMemo(() => {
-    const result = { '24h': {}, '7d': {}, '30d': {} };
-    if (!usdVal || usdVal <= 0) return result;
-
-    const periods = [
-      { key: '24h', defUsdRatio: 0.995, defGoldRatio: 0.998 },
-      { key: '7d',  defUsdRatio: 0.985, defGoldRatio: 0.992 },
-      { key: '30d', defUsdRatio: 0.965, defGoldRatio: 0.980 },
-    ];
-
-    const FOREX_CODES = ['eur', 'try', 'aed', 'gbp', 'chf', 'cad', 'aud', 'cny'];
-
-    periods.forEach(({ key, defUsdRatio, defGoldRatio }) => {
-      const bData = benchmarks?.[key] || {};
-      const histUsd = bData.usd?.price || (usdVal * defUsdRatio);
-      const histGold = bData.ons_gold?.price || (goldUsdVal * defGoldRatio);
-      const histSilver = bData.ons_silver?.price || (silverUsdVal || 33.5);
-
-      // Compute pure intrinsic historical prices for all gold, coin, and currency types consistently
-      const map = computePriceMap(histUsd, histGold, histSilver);
-
-      // Apply historical foreign currency cross-rates if recorded in benchmarks
-      FOREX_CODES.forEach((code) => {
-        if (bData[code]?.price && Number(bData[code].price) > 0) {
-          map[code.toUpperCase()] = Math.round(Number(bData[code].price) * histUsd);
-        }
-      });
-
-      // Incorporate derived assets into historical map
-      if (Array.isArray(allDerivedAssets) && allDerivedAssets.length > 0) {
-        const derivedHist = computeAllDerivedPrices(allDerivedAssets, map);
-        for (const [k, v] of Object.entries(derivedHist)) {
-          if (v > 0) {
-            const rounded = Math.round(v);
-            map[k] = rounded;
-            map[`src_def_${k}`] = rounded;
-            map[`derived_${k}`] = rounded;
-          }
-        }
-      }
-
-      result[key] = map;
-    });
-
-    return result;
-  }, [benchmarks, usdVal, goldUsdVal, silverUsdVal, computePriceMap, allDerivedAssets]);
-
   // 3. Open Modal for Adding
   const handleOpenAdd = () => {
     setEditingHolding(null);
@@ -1413,68 +1327,6 @@ export default function PortfolioTracker({ calcData, rates, usdToman, goldUsd, d
     const totalPnl = costedItems.reduce((sum, it) => sum + (it.itemPnl || 0), 0);
     const totalPnlPct = hasAnyCost ? parseFloat(((totalPnl / totalCost) * 100).toFixed(1)) : 0;
 
-    // Periodic Performance Calculation (24h, 7d, 30d)
-    const nowMs = Date.now();
-    const cutoffs = {
-      '24h': nowMs - 24 * 3600 * 1000,
-      '7d': nowMs - 7 * 24 * 3600 * 1000,
-      '30d': nowMs - 30 * 24 * 3600 * 1000,
-    };
-
-    const calcPeriodMetrics = (periodKey) => {
-      if (!hasAnyCost || costedItems.length === 0) {
-        return {
-          pastTotalVal: 0,
-          currentCostedVal: 0,
-          diff: 0,
-          diffPct: 0,
-          isProfit: true,
-          hasData: false,
-        };
-      }
-
-      const histMap = historicalPriceMaps[periodKey] || {};
-      let pastCostedVal = 0;
-      let currentCostedVal = 0;
-
-      costedItems.forEach((it) => {
-        const qty = Number(it.amount) || 0;
-        if (qty <= 0) return;
-
-        let pastUnit = histMap[it.assetId];
-        if (it.isCustomItem || it.isBourseItem || !pastUnit) {
-          pastUnit = it.unitRealPrice;
-        }
-
-        // If bought after period started, base is purchase cost
-        if (it.buyDate) {
-          const buyMs = parseDateToMs(it.buyDate);
-          if (buyMs && buyMs > cutoffs[periodKey]) {
-            pastUnit = Number(it.buyPrice);
-          }
-        }
-
-        pastCostedVal += (qty * pastUnit);
-        currentCostedVal += (qty * it.unitRealPrice);
-      });
-
-      const diff = currentCostedVal - pastCostedVal;
-      const diffPct = pastCostedVal > 0 ? parseFloat(((diff / pastCostedVal) * 100).toFixed(1)) : 0;
-
-      return {
-        pastTotalVal: pastCostedVal,
-        currentCostedVal,
-        diff,
-        diffPct,
-        isProfit: diff >= 0,
-        hasData: true,
-      };
-    };
-
-    const perf24h = calcPeriodMetrics('24h');
-    const perf7d = calcPeriodMetrics('7d');
-    const perf30d = calcPeriodMetrics('30d');
-
     return {
       items,
       totalCost,
@@ -1482,11 +1334,8 @@ export default function PortfolioTracker({ calcData, rates, usdToman, goldUsd, d
       totalPnl,
       totalPnlPct,
       hasAnyCost,
-      perf24h,
-      perf7d,
-      perf30d,
     };
-  }, [holdings, realPriceMap, historicalPriceMaps, boursePricesMap]);
+  }, [holdings, realPriceMap, boursePricesMap]);
 
   // 8. Grouped Categories with Sub-Totals (Real Value and PnL)
   const categoryGroups = useMemo(() => {
@@ -2169,95 +2018,29 @@ export default function PortfolioTracker({ calcData, rates, usdToman, goldUsd, d
               </div>
             </div>
 
-            {/* Card 2: Total PnL & Period Switcher */}
+            {/* Card 2: Total PnL */}
             {(() => {
-              const currentPnl = selectedPeriod === 'all'
-                ? {
-                    diff: portfolioMetrics.totalPnl,
-                    diffPct: portfolioMetrics.totalPnlPct,
-                    isProfit: portfolioMetrics.totalPnl >= 0,
-                    hasData: portfolioMetrics.hasAnyCost,
-                    label: 'از زمان خرید اولیه',
-                  }
-                : selectedPeriod === '24h'
-                ? {
-                    diff: portfolioMetrics.perf24h.diff,
-                    diffPct: portfolioMetrics.perf24h.diffPct,
-                    isProfit: portfolioMetrics.perf24h.isProfit,
-                    hasData: portfolioMetrics.perf24h.hasData,
-                    label: 'تغییرات ۲۴ ساعت گذشته',
-                  }
-                : selectedPeriod === '7d'
-                ? {
-                    diff: portfolioMetrics.perf7d.diff,
-                    diffPct: portfolioMetrics.perf7d.diffPct,
-                    isProfit: portfolioMetrics.perf7d.isProfit,
-                    hasData: portfolioMetrics.perf7d.hasData,
-                    label: 'تغییرات ۷ روز گذشته',
-                  }
-                : {
-                    diff: portfolioMetrics.perf30d.diff,
-                    diffPct: portfolioMetrics.perf30d.diffPct,
-                    isProfit: portfolioMetrics.perf30d.isProfit,
-                    hasData: portfolioMetrics.perf30d.hasData,
-                    label: 'تغییرات ۳۰ روز گذشته',
-                  };
-
+              const hasData = portfolioMetrics.hasAnyCost;
+              const isProfit = portfolioMetrics.totalPnl >= 0;
               const cardStatusClass = isVaultLocked
                 ? 'neutral'
-                : currentPnl.hasData
-                ? (currentPnl.isProfit ? 'profit' : 'loss')
+                : hasData
+                ? (isProfit ? 'profit' : 'loss')
                 : 'neutral';
 
               return (
                 <div className={`portfolio-stat-card pnl-card ${cardStatusClass}`}>
                   <div className="stat-header">
-                    <span className="stat-label">سود / زیان</span>
-                    {!isVaultLocked && (
-                      <div className="period-tabs-segmented">
-                        <button
-                          type="button"
-                          className={`period-pill-btn ${selectedPeriod === 'all' ? 'active' : ''}`}
-                          onClick={() => setSelectedPeriod('all')}
-                          title="کل سود و زیان از زمان خرید"
-                        >
-                          کل
-                        </button>
-                        <button
-                          type="button"
-                          className={`period-pill-btn ${selectedPeriod === '24h' ? 'active' : ''}`}
-                          onClick={() => setSelectedPeriod('24h')}
-                          title="تغییرات ۲۴ ساعت گذشته"
-                        >
-                          ۲۴س
-                        </button>
-                        <button
-                          type="button"
-                          className={`period-pill-btn ${selectedPeriod === '7d' ? 'active' : ''}`}
-                          onClick={() => setSelectedPeriod('7d')}
-                          title="تغییرات ۷ روز گذشته"
-                        >
-                          ۷ر
-                        </button>
-                        <button
-                          type="button"
-                          className={`period-pill-btn ${selectedPeriod === '30d' ? 'active' : ''}`}
-                          onClick={() => setSelectedPeriod('30d')}
-                          title="تغییرات ۳۰ روز گذشته"
-                        >
-                          ۳۰ر
-                        </button>
-                      </div>
-                    )}
+                    <span className="stat-label">سود / زیان کل</span>
                   </div>
 
                   <div className="stat-pnl-row">
                     <div className={`stat-number ${hideValues ? 'is-masked' : ''}`}>
                       {isVaultLocked ? (
                         <span className="stat-sub" style={{ fontSize: '15px' }}><Lock size={14} style={{ verticalAlign: 'middle', marginLeft: '4px' }} /> قفل است</span>
-                      ) : currentPnl.hasData ? (
+                      ) : hasData ? (
                         <>
-                          {hideValues ? '****' : `${currentPnl.isProfit ? '+' : ''}${formatNum(currentPnl.diff)}`}
+                          {hideValues ? '****' : `${isProfit ? '+' : ''}${formatNum(portfolioMetrics.totalPnl)}`}
                           <span className="stat-unit">تومان</span>
                         </>
                       ) : (
@@ -2265,10 +2048,10 @@ export default function PortfolioTracker({ calcData, rates, usdToman, goldUsd, d
                       )}
                     </div>
 
-                    {!isVaultLocked && currentPnl.hasData && (
-                      <span className={`pnl-badge ${currentPnl.isProfit ? 'profit' : 'loss'}`}>
-                        {currentPnl.isProfit ? <ArrowUpRight size={13} style={{ verticalAlign: 'middle' }} /> : <ArrowDownRight size={13} style={{ verticalAlign: 'middle' }} />}
-                        {hideValues ? '****' : `${currentPnl.isProfit ? '+' : ''}${Math.abs(currentPnl.diffPct).toFixed(1)}٪`}
+                    {!isVaultLocked && hasData && (
+                      <span className={`pnl-badge ${isProfit ? 'profit' : 'loss'}`}>
+                        {isProfit ? <ArrowUpRight size={13} style={{ verticalAlign: 'middle' }} /> : <ArrowDownRight size={13} style={{ verticalAlign: 'middle' }} />}
+                        {hideValues ? '****' : `${isProfit ? '+' : ''}${Math.abs(portfolioMetrics.totalPnlPct).toFixed(1)}٪`}
                       </span>
                     )}
                   </div>
@@ -2276,7 +2059,9 @@ export default function PortfolioTracker({ calcData, rates, usdToman, goldUsd, d
                   <div className="stat-sub">
                     {isVaultLocked
                       ? 'گاوصندوق قفل است'
-                      : currentPnl.label}
+                      : hasData
+                      ? 'از زمان خرید اولیه'
+                      : 'محاسبه به نرخ روز'}
                   </div>
                 </div>
               );

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { apiGetSharedPortfolio, apiGetPrices, apiGetHistoricalBenchmarks } from '../api/client.js';
+import { apiGetSharedPortfolio, apiGetPrices } from '../api/client.js';
 import { calculateMarketData } from '../utils/calculator.js';
 import { computeAllDerivedPrices } from '../utils/formulaEvaluator.js';
 import Header from '../components/Header.jsx';
@@ -35,28 +35,6 @@ function formatNum(num) {
   return Math.round(num).toLocaleString('fa-IR');
 }
 
-/**
- * Helper to parse Shamsi or ISO date to millisecond timestamp for comparison
- */
-function parseDateToMs(dateStr) {
-  if (!dateStr || typeof dateStr !== 'string') return null;
-  const trimmed = dateStr.trim();
-  if (/^\d{4}-\d{2}-\d{2}/.test(trimmed)) {
-    const t = new Date(trimmed).getTime();
-    return isNaN(t) ? null : t;
-  }
-  const parts = trimmed.split(/[\/\-\.]/).map((p) => parseInt(p, 10));
-  if (parts.length === 3 && parts[0] > 1300 && parts[0] < 1500) {
-    const [jy, jm, jd] = parts;
-    const approxGy = jy + 621;
-    const approxGm = jm <= 6 ? jm + 2 : jm + 2;
-    const approxGd = jd;
-    const t = new Date(approxGy, approxGm - 1, approxGd).getTime();
-    return isNaN(t) ? null : t;
-  }
-  return null;
-}
-
 export default function SharedPortfolioPage() {
   const { slug } = useParams();
 
@@ -73,10 +51,6 @@ export default function SharedPortfolioPage() {
   const [showVaultPass, setShowVaultPass] = useState(false);
   const [vaultError, setVaultError] = useState('');
   const [decryptingVault, setDecryptingVault] = useState(false);
-
-  // Historical benchmarks for 24h, 7d, 30d performance
-  const [benchmarks, setBenchmarks] = useState(null);
-  const [selectedPeriod, setSelectedPeriod] = useState('all'); // 'all', '24h', '7d', '30d'
 
   // Privacy Mode State (Mask values as ****)
   const [hideValues, setHideValues] = useState(() => {
@@ -125,19 +99,6 @@ export default function SharedPortfolioPage() {
         }
       })
       .catch(console.error);
-  }, []);
-
-  // 2. Fetch historical price benchmarks (24h, 7d, 30d)
-  useEffect(() => {
-    apiGetHistoricalBenchmarks()
-      .then((data) => {
-        if (data && data.success && data.benchmarks) {
-          setBenchmarks(data.benchmarks);
-        }
-      })
-      .catch((err) => {
-        console.warn('Failed to load historical benchmarks:', err);
-      });
   }, []);
 
   // 2. Fetch shared portfolio
@@ -309,41 +270,6 @@ export default function SharedPortfolioPage() {
     return computePriceMap(usdVal, goldUsdVal, silverUsdVal);
   }, [marketRates, calcData]);
 
-  // Historical price maps for 24h, 7d, 30d periods
-  const historicalPriceMaps = useMemo(() => {
-    if (!benchmarks) return null;
-
-    const currentUsd = Number(marketRates?.live_usd_toman || calcData?.inputs?.usd_toman || 95000);
-    const currentGoldUsd = Number(marketRates?.gold_usd || calcData?.inputs?.gold_usd || 2890);
-    const currentSilverUsd = Number(marketRates?.silver_usd || calcData?.silver?.silver_usd || 33.5);
-
-    const buildHistoricalMap = (periodKey) => {
-      const b = benchmarks[periodKey] || {};
-      const histUsd = b.usd?.price || currentUsd;
-      const histGold = b.ons_gold?.price || currentGoldUsd;
-      const histSilver = b.ons_silver?.price || currentSilverUsd;
-
-      // Compute pure intrinsic historical prices for all gold, coin, and currency types consistently
-      const map = computePriceMap(histUsd, histGold, histSilver);
-
-      // Apply historical foreign currency cross-rates if recorded in benchmarks
-      const FOREX_CODES = ['eur', 'try', 'aed', 'gbp', 'chf', 'cad', 'aud', 'cny'];
-      FOREX_CODES.forEach((code) => {
-        if (b[code]?.price && Number(b[code].price) > 0) {
-          map[code.toUpperCase()] = Math.round(Number(b[code].price) * histUsd);
-        }
-      });
-
-      return map;
-    };
-
-    return {
-      '24h': buildHistoricalMap('24h'),
-      '7d': buildHistoricalMap('7d'),
-      '30d': buildHistoricalMap('30d'),
-    };
-  }, [benchmarks, marketRates, calcData]);
-
   const portfolioMetrics = useMemo(() => {
     if (!portfolioData?.holdings) {
       return {
@@ -353,9 +279,6 @@ export default function SharedPortfolioPage() {
         totalPnl: 0,
         totalPnlPct: 0,
         hasAnyCost: false,
-        perf24h: { diff: 0, diffPct: 0, isProfit: true },
-        perf7d: { diff: 0, diffPct: 0, isProfit: true },
-        perf30d: { diff: 0, diffPct: 0, isProfit: true },
       };
     }
 
@@ -393,71 +316,8 @@ export default function SharedPortfolioPage() {
     const totalPnl = costedItems.reduce((acc, it) => acc + (it.itemPnl || 0), 0);
     const totalPnlPct = hasAnyCost ? parseFloat(((totalPnl / totalCost) * 100).toFixed(1)) : 0;
 
-    // Periodic returns (24h, 7d, 30d)
-    const nowMs = Date.now();
-    const periodCutoffs = {
-      '24h': nowMs - 24 * 3600 * 1000,
-      '7d':  nowMs - 7 * 24 * 3600 * 1000,
-      '30d': nowMs - 30 * 24 * 3600 * 1000,
-    };
-
-    const calcPeriodicPerf = (periodKey) => {
-      if (!hasAnyCost || costedItems.length === 0) {
-        return {
-          diff: 0,
-          diffPct: 0,
-          isProfit: true,
-          pastTotalVal: 0,
-          currentSubVal: 0,
-          hasData: false,
-        };
-      }
-
-      const histMap = historicalPriceMaps?.[periodKey];
-      const cutoffMs = periodCutoffs[periodKey];
-
-      let pastTotalVal = 0;
-      let currentSubVal = 0;
-
-      for (const it of costedItems) {
-        const amt = Number(it.amount) || 0;
-        if (amt <= 0) continue;
-
-        const currentPrice = it.unitRealPrice || 0;
-        const buyPrice = Number(it.buyPrice) || 0;
-        const buyDateMs = parseDateToMs(it.buyDate);
-
-        let pastPrice = currentPrice;
-        if (buyDateMs && buyDateMs > cutoffMs) {
-          pastPrice = buyPrice > 0 ? buyPrice : currentPrice;
-        } else if (it.isCustomItem) {
-          pastPrice = currentPrice;
-        } else if (histMap && histMap[it.assetId] > 0) {
-          pastPrice = histMap[it.assetId];
-        }
-
-        pastTotalVal += amt * pastPrice;
-        currentSubVal += amt * currentPrice;
-      }
-
-      const diff = currentSubVal - pastTotalVal;
-      const diffPct = pastTotalVal > 0 ? parseFloat(((diff / pastTotalVal) * 100).toFixed(2)) : 0;
-      return {
-        diff,
-        diffPct,
-        isProfit: diff >= 0,
-        pastTotalVal,
-        currentSubVal,
-        hasData: true,
-      };
-    };
-
-    const perf24h = calcPeriodicPerf('24h');
-    const perf7d = calcPeriodicPerf('7d');
-    const perf30d = calcPeriodicPerf('30d');
-
-    return { items, totalCost, totalRealValue, totalPnl, totalPnlPct, hasAnyCost, perf24h, perf7d, perf30d };
-  }, [portfolioData, realPriceMap, historicalPriceMaps]);
+    return { items, totalCost, totalRealValue, totalPnl, totalPnlPct, hasAnyCost };
+  }, [portfolioData, realPriceMap]);
 
   const categoryGroups = useMemo(() => {
     return CATEGORY_DEFINITIONS.map((cat) => {
@@ -960,89 +820,14 @@ export default function SharedPortfolioPage() {
                     </div>
                   </div>
 
-                  {/* Card 3: Total Real PnL & Periodic Performance */}
+                  {/* Card 3: Total Real PnL */}
                   {(() => {
-                    const currentPnl = (() => {
-                      if (selectedPeriod === '24h') {
-                        return {
-                          diff: portfolioMetrics.perf24h.diff,
-                          diffPct: portfolioMetrics.perf24h.diffPct,
-                          isProfit: portfolioMetrics.perf24h.isProfit,
-                          label: 'تغییرات نسبت به ۲۴ ساعت گذشته',
-                          hasData: portfolioMetrics.perf24h.hasData,
-                        };
-                      }
-                      if (selectedPeriod === '7d') {
-                        return {
-                          diff: portfolioMetrics.perf7d.diff,
-                          diffPct: portfolioMetrics.perf7d.diffPct,
-                          isProfit: portfolioMetrics.perf7d.isProfit,
-                          label: 'تغییرات نسبت به ۷ روز گذشته',
-                          hasData: portfolioMetrics.perf7d.hasData,
-                        };
-                      }
-                      if (selectedPeriod === '30d') {
-                        return {
-                          diff: portfolioMetrics.perf30d.diff,
-                          diffPct: portfolioMetrics.perf30d.diffPct,
-                          isProfit: portfolioMetrics.perf30d.isProfit,
-                          label: 'تغییرات نسبت به ۳۰ روز گذشته',
-                          hasData: portfolioMetrics.perf30d.hasData,
-                        };
-                      }
-                      return {
-                        diff: portfolioMetrics.totalPnl,
-                        diffPct: portfolioMetrics.totalPnlPct,
-                        isProfit: portfolioMetrics.totalPnl >= 0,
-                        label: portfolioMetrics.hasAnyCost
-                          ? (portfolioMetrics.totalPnl >= 0 ? 'سودده (از زمان خرید)' : 'زیان‌ده (از زمان خرید)')
-                          : 'محاسبه به نرخ روز',
-                        hasData: portfolioMetrics.hasAnyCost,
-                      };
-                    })();
-
+                    const hasData = portfolioMetrics.hasAnyCost;
+                    const isProfit = portfolioMetrics.totalPnl >= 0;
                     return (
-                      <div className={`portfolio-stat-card pnl-card ${isVaultLocked ? 'neutral' : currentPnl.hasData ? (currentPnl.isProfit ? 'profit' : 'loss') : 'neutral'}`}>
+                      <div className={`portfolio-stat-card pnl-card ${isVaultLocked ? 'neutral' : hasData ? (isProfit ? 'profit' : 'loss') : 'neutral'}`}>
                         <div className="stat-header">
-                          <span className="stat-label">سود / زیان</span>
-
-                          {/* Period Selector Pills */}
-                          {!isVaultLocked && (
-                            <div className="period-tabs-segmented">
-                              <button
-                                type="button"
-                                className={`period-pill-btn ${selectedPeriod === 'all' ? 'active' : ''}`}
-                                onClick={() => setSelectedPeriod('all')}
-                                title="محاسبه نسبت به قیمت خرید (کل)"
-                              >
-                                کل
-                              </button>
-                              <button
-                                type="button"
-                                className={`period-pill-btn ${selectedPeriod === '24h' ? 'active' : ''}`}
-                                onClick={() => setSelectedPeriod('24h')}
-                                title="تغییرات ۲۴ ساعت گذشته"
-                              >
-                                ۲۴س
-                              </button>
-                              <button
-                                type="button"
-                                className={`period-pill-btn ${selectedPeriod === '7d' ? 'active' : ''}`}
-                                onClick={() => setSelectedPeriod('7d')}
-                                title="تغییرات ۷ روز گذشته"
-                              >
-                                ۷ر
-                              </button>
-                              <button
-                                type="button"
-                                className={`period-pill-btn ${selectedPeriod === '30d' ? 'active' : ''}`}
-                                onClick={() => setSelectedPeriod('30d')}
-                                title="تغییرات ۳۰ روز گذشته"
-                              >
-                                ۳۰ر
-                              </button>
-                            </div>
-                          )}
+                          <span className="stat-label">سود / زیان کل</span>
                         </div>
 
                         <div className="stat-pnl-row">
@@ -1052,9 +837,9 @@ export default function SharedPortfolioPage() {
                                 <Lock size={13} style={{ verticalAlign: 'middle', marginLeft: '4px' }} />
                                 قفل است
                               </span>
-                            ) : currentPnl.hasData ? (
+                            ) : hasData ? (
                               <>
-                                {hideValues ? '****' : `${currentPnl.isProfit ? '+' : ''}${formatNum(currentPnl.diff)}`}
+                                {hideValues ? '****' : `${isProfit ? '+' : ''}${formatNum(portfolioMetrics.totalPnl)}`}
                                 <span className="stat-unit">تومان</span>
                               </>
                             ) : (
@@ -1062,16 +847,20 @@ export default function SharedPortfolioPage() {
                             )}
                           </div>
 
-                          {!isVaultLocked && currentPnl.hasData && (
-                            <span className={`pnl-badge ${currentPnl.isProfit ? 'profit' : 'loss'}`}>
-                              {currentPnl.isProfit ? <ArrowUpRight size={13} style={{ verticalAlign: 'middle' }} /> : <ArrowDownRight size={13} style={{ verticalAlign: 'middle' }} />}
-                              {hideValues ? '****' : `${currentPnl.isProfit ? '+' : ''}${Math.abs(currentPnl.diffPct).toFixed(1)}٪`}
+                          {!isVaultLocked && hasData && (
+                            <span className={`pnl-badge ${isProfit ? 'profit' : 'loss'}`}>
+                              {isProfit ? <ArrowUpRight size={13} style={{ verticalAlign: 'middle' }} /> : <ArrowDownRight size={13} style={{ verticalAlign: 'middle' }} />}
+                              {hideValues ? '****' : `${isProfit ? '+' : ''}${Math.abs(portfolioMetrics.totalPnlPct).toFixed(1)}٪`}
                             </span>
                           )}
                         </div>
 
                         <div className="stat-sub">
-                          {isVaultLocked ? 'گاوصندوق قفل است' : currentPnl.label}
+                          {isVaultLocked
+                            ? 'گاوصندوق قفل است'
+                            : hasData
+                            ? (isProfit ? 'سودده (از زمان خرید)' : 'زیان‌ده (از زمان خرید)')
+                            : 'محاسبه به نرخ روز'}
                         </div>
                       </div>
                     );

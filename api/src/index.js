@@ -41,7 +41,7 @@ import {
   handleAdminSaveDerivedAsset,
   handleAdminDeleteDerivedAsset,
 } from "./handlers/adminRoutes.js";
-import { handleGetPrices, handleGetSparklines, handleGetHistoricalBenchmarks, handleGetDerivedAssets } from "./handlers/apiRoutes.js";
+import { handleGetPrices, handleGetSparklines, handleGetDerivedAssets } from "./handlers/apiRoutes.js";
 import {
   handleGetPortfolios,
   handleCreatePortfolio,
@@ -147,9 +147,6 @@ export default {
     if (url.pathname === "/api/derived-assets") return handleGetDerivedAssets(env, request);
     if (url.pathname === "/api/sparklines" || url.pathname === "/api/prices/sparklines") {
       return handleGetSparklines(env, request);
-    }
-    if (url.pathname === "/api/prices/historical-benchmarks" || url.pathname === "/api/portfolio/benchmarks") {
-      return handleGetHistoricalBenchmarks(env, request);
     }
 
     // ── Bourse (Tehran Stock Exchange) Routes ──────────────────────────────

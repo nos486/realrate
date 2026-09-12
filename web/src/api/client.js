@@ -142,11 +142,6 @@ export async function apiGetSparklines(assetId = null) {
   return res.json();
 }
 
-export async function apiGetHistoricalBenchmarks() {
-  const res = await apiFetch('/api/prices/historical-benchmarks');
-  return res.json();
-}
-
 // Backward compatibility alias
 export const apiGetRates = apiGetPrices;
 
