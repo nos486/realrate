@@ -292,50 +292,31 @@ export async function ensureD1Tables(env) {
       // Ensure unified Forex source exists
       await env.DB.prepare(`
         INSERT OR IGNORE INTO price_sources (id, name, price_type, source_type, endpoint, regex, json_path, field_mapping, fetch_interval_sec, is_active, is_primary, last_price, last_multi_data, last_fetched, created_at, updated_at)
-        VALUES ('src_def_forex', 'نرخ‌های جهانی فارکس (Open ER-API)', 'forex', 'api_url', 'https://open.er-api.com/v6/latest/USD', '', 'rates', ?, 300, 1, 1, 8, ?, '', ?, ?)
-      `).bind(defaultForexFieldMapping, defaultForexJson, nowIso, nowIso).run().catch(() => {});
+        VALUES ('src_def_forex', 'نرخ‌های جهانی فارکس (Open ER-API)', 'forex', 'api_url', 'https://open.er-api.com/v6/latest/USD', '', 'rates', '', 300, 1, 1, 24, ?, '', ?, ?)
+      `).bind(defaultForexJson, nowIso, nowIso).run().catch(() => {});
 
       await env.DB.prepare(`
         UPDATE price_sources
-        SET field_mapping = ?
-        WHERE id = 'src_def_forex' AND (field_mapping IS NULL OR field_mapping = '' OR field_mapping NOT LIKE '%whitelist%')
-      `).bind(defaultForexFieldMapping).run().catch(() => {});
+        SET endpoint = 'https://open.er-api.com/v6/latest/USD', name = 'نرخ‌های جهانی فارکس (Open ER-API)'
+        WHERE id = 'src_def_forex'
+      `).run().catch(() => {});
 
       // Ensure Tehran Stock Exchange (Bourse) source exists (Daily interval = 86400s)
       await env.DB.prepare(`
         INSERT OR IGNORE INTO price_sources (id, name, price_type, source_type, endpoint, regex, json_path, field_mapping, fetch_interval_sec, is_active, is_primary, last_price, last_multi_data, last_fetched, created_at, updated_at)
-        VALUES ('src_def_bourse', 'بورس اوراق بهادار تهران (TSETMC / BRS API)', 'bourse', 'api_url', 'https://api.brsapi.ir/Tsetmc/AllSymbols.php?key=BDqzgcZZ5rGg4Z6uSEs9bMyx2E2vXrkd&type=1', '', '', ?, 86400, 1, 1, 1140, '', '', ?, ?)
-      `).bind(defaultBourseFieldMapping, nowIso, nowIso).run().catch(() => {});
+        VALUES ('src_def_bourse', 'بورس اوراق بهادار تهران (TSETMC / BRS API)', 'bourse', 'api_url', 'https://api.brsapi.ir/Tsetmc/AllSymbols.php?key=BDqzgcZZ5rGg4Z6uSEs9bMyx2E2vXrkd&type=1', '', '', '', 86400, 1, 1, 1567, '', '', ?, ?)
+      `).bind(nowIso, nowIso).run().catch(() => {});
 
       await env.DB.prepare(`
         UPDATE price_sources
-        SET field_mapping = ?
-        WHERE id = 'src_def_bourse' AND (field_mapping IS NULL OR field_mapping = '')
-      `).bind(defaultBourseFieldMapping).run().catch(() => {});
+        SET endpoint = 'https://api.brsapi.ir/Tsetmc/AllSymbols.php?key=BDqzgcZZ5rGg4Z6uSEs9bMyx2E2vXrkd&type=1', name = 'بورس اوراق بهادار تهران (TSETMC / BRS API)'
+        WHERE id = 'src_def_bourse'
+      `).run().catch(() => {});
 
-      // Ensure IME Investment & Gold Funds source exists
-      const defaultFundsFieldMapping = JSON.stringify({
-        arrayPath: "data",
-        symbolField: "l18",
-        nameField: "l30",
-        priceField: "pl",
-        altPriceField: "pc",
-        changeField: "plc",
-        changePercentField: "plp",
-        volumeField: "tno",
-        priceUnit: "rial",
-      });
-
+      // Clean up legacy separate funds feed if present
       await env.DB.prepare(`
-        INSERT OR IGNORE INTO price_sources (id, name, price_type, source_type, endpoint, regex, json_path, field_mapping, fetch_interval_sec, is_active, is_primary, last_price, last_multi_data, last_fetched, created_at, updated_at)
-        VALUES ('src_def_bourse_funds', 'بورس اوراق بهادار تهران (صندوق)', 'bourse_fund', 'api_url', 'https://Api.BrsApi.ir/IME/Fund.php?key=BDqzgcZZ5rGg4Z6uSEs9bMyx2E2vXrkd', '', '', ?, 86400, 1, 1, 60, '', '', ?, ?)
-      `).bind(defaultFundsFieldMapping, nowIso, nowIso).run().catch(() => {});
-
-      await env.DB.prepare(`
-        UPDATE price_sources
-        SET price_type = 'bourse_fund', name = 'بورس اوراق بهادار تهران (صندوق)', field_mapping = COALESCE(NULLIF(field_mapping, ''), ?)
-        WHERE id = 'src_def_bourse_funds' OR endpoint LIKE '%Fund.php%'
-      `).bind(defaultFundsFieldMapping).run().catch(() => {});
+        DELETE FROM price_sources WHERE id = 'src_def_bourse_funds' OR endpoint LIKE '%Fund.php%'
+      `).run().catch(() => {});
 
       const existingSources = await env.DB.prepare("SELECT COUNT(*) AS total FROM price_sources").first();
       if (!existingSources || existingSources.total <= 2) {

@@ -24,6 +24,33 @@ const UA = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (
 let memoryPricesCache = {};
 let lastFetchTime = 0;
 
+export const PROMINENT_FOREX_CURRENCIES = [
+  { code: 'EUR', name: 'یورو اروپا' },
+  { code: 'GBP', name: 'پوند انگلیس' },
+  { code: 'AED', name: 'درهم امارات' },
+  { code: 'TRY', name: 'لیر ترکیه' },
+  { code: 'CHF', name: 'فرانک سوئیس' },
+  { code: 'CAD', name: 'دلار کانادا' },
+  { code: 'AUD', name: 'دلار استرالیا' },
+  { code: 'CNY', name: 'یوان چین' },
+  { code: 'JPY', name: 'ین ژاپن' },
+  { code: 'SAR', name: 'ریال عربستان' },
+  { code: 'QAR', name: 'ریال قطر' },
+  { code: 'KWD', name: 'دینار کویت' },
+  { code: 'OMR', name: 'ریال عمان' },
+  { code: 'BHD', name: 'دینار بحرین' },
+  { code: 'IQD', name: 'دینار عراق' },
+  { code: 'RUB', name: 'روبل روسیه' },
+  { code: 'AFN', name: 'افغانی افغانستان' },
+  { code: 'AZN', name: 'منات آذربایجان' },
+  { code: 'INR', name: 'روپیه هند' },
+  { code: 'SEK', name: 'کرون سوئد' },
+  { code: 'NOK', name: 'کرون نروژ' },
+  { code: 'SGD', name: 'دلار سنگاپور' },
+  { code: 'KRW', name: 'وون کره جنوبی' },
+  { code: 'BRL', name: 'رئال برزیل' },
+];
+
 export const WORLD_FOREX_NAMES = {
   USD: 'دلار آمریکا',
   EUR: 'یورو اروپا',
@@ -223,281 +250,143 @@ export function parseSourceContent(source, rawContent) {
       } catch { }
     }
 
-    // Multi-output detection: explicit category, explicit feedType, forex, bourse, or fieldMapping presence
-    const isForex = source.priceType === "forex";
-    const explicitFeedType = fieldMapping?.feedType; // 'key_value' | 'array'
-    const isMultiOutput = isForex ||
-      explicitFeedType !== undefined ||
-      source.category === "multi_output" ||
-      fieldMapping?.isMultiOutput ||
-      source.priceType === "bourse" ||
-      source.priceType === "bourse_fund" ||
-      (fieldMapping && (fieldMapping.symbolField || fieldMapping.idField || fieldMapping.priceField || fieldMapping.ratesPath || fieldMapping.currencies || fieldMapping.rootPath));
+    // Multi-output detection: explicit forex, bourse, category multi_output, or fieldMapping
+    const isForex = source.priceType === "forex" || (source.endpoint && source.endpoint.includes("open.er-api.com"));
+    const isBourse = source.priceType === "bourse" || source.priceType === "bourse_fund" || (source.endpoint && source.endpoint.includes("AllSymbols.php"));
 
-    if (isMultiOutput) {
-      const rootPath = (fieldMapping && (fieldMapping.rootPath || fieldMapping.ratesPath || fieldMapping.arrayPath)) || source.jsonPath || (isForex ? "rates" : "");
-      let targetNode = rootPath ? extractValueByPath(data, rootPath, true) : null;
-      if (!targetNode && data && typeof data === "object") {
-        if (data.rates && typeof data.rates === "object") targetNode = data.rates;
-        else if (Array.isArray(data.data)) targetNode = data.data;
-        else if (Array.isArray(data.items)) targetNode = data.items;
-        else if (Array.isArray(data.symbols)) targetNode = data.symbols;
-        else if (Array.isArray(data.results)) targetNode = data.results;
-        else if (Array.isArray(data.result)) targetNode = data.result;
-        else if (Array.isArray(data.list)) targetNode = data.list;
-        else targetNode = data;
+    // 1. Forex Direct Processing (Prominent Currencies relative to USD from open.er-api.com)
+    if (isForex) {
+      const rates = (data && data.rates && typeof data.rates === "object") ? data.rates : data;
+      if (!rates || typeof rates !== "object") {
+        throw new Error("بخش نرخ‌های ارز (rates) در پاسخ وب‌سرویس یافت نشد.");
       }
 
-      // Detect if node is a Key-Value Dictionary (Forex, Crypto rates, Currency map)
-      const isKVData = explicitFeedType === "key_value" || isForex || (
-        targetNode && typeof targetNode === "object" && !Array.isArray(targetNode) &&
-        Object.keys(targetNode).length >= 2 &&
-        Object.values(targetNode).some(v => typeof v === "number" || (typeof v === "string" && !isNaN(Number(v))))
-      );
-
-      if (isKVData) {
-        if (!targetNode || typeof targetNode !== "object" || Array.isArray(targetNode)) {
-          throw new Error(`بخش داده‌های کلید-مقدار (مسیر «${rootPath || 'ریشه'}») در پاسخ وب‌سرویس یافت نشد.`);
-        }
-
-        const selectionMode = fieldMapping?.selectionMode || (
-          (Array.isArray(fieldMapping?.includedKeys) && fieldMapping.includedKeys.length > 0) ||
-          (Array.isArray(fieldMapping?.currencies) && fieldMapping.currencies.length > 0)
-            ? "whitelist"
-            : "all"
-        );
-
-        const includedSet = new Set(
-          [
-            ...(Array.isArray(fieldMapping?.includedKeys) ? fieldMapping.includedKeys : []),
-            ...(Array.isArray(fieldMapping?.currencies) ? fieldMapping.currencies.map(c => c.key || c.code || c.path) : []),
-            ...(Array.isArray(source.includedOutputs) ? source.includedOutputs : []),
-          ].map(k => String(k).trim().toUpperCase()).filter(Boolean)
-        );
-
-        const excludedSet = new Set(
-          [
-            ...(Array.isArray(source.excludedOutputs) ? source.excludedOutputs : []),
-            ...(Array.isArray(fieldMapping?.excludedKeys) ? fieldMapping.excludedKeys : []),
-          ].map(k => String(k).trim().toUpperCase()).filter(Boolean)
-        );
-
-        const defaultMode = fieldMapping?.defaultMode || (isForex ? "invert" : "direct");
-        const globalMultiplier = Number(fieldMapping?.multiplier) > 0 ? Number(fieldMapping.multiplier) : 1;
-        const itemsConfig = fieldMapping?.itemsConfig || {};
-        const currenciesList = Array.isArray(fieldMapping?.currencies) ? fieldMapping.currencies : [];
-
-        const multiData = {};
-        const currencyList = [];
-
-        for (const [key, rawVal] of Object.entries(targetNode)) {
-          if (["base", "result", "time", "date", "provider", "documentation", "terms_of_use", "time_eol_unix", "time_last_update_utc", "time_next_update_utc", "time_last_update_unix", "time_next_update_unix"].includes(key.toLowerCase())) continue;
-
-          const upperKey = key.toUpperCase();
-
-          // Whitelist vs Blacklist filtering
-          if (selectionMode === "whitelist") {
-            if (includedSet.size > 0 && !includedSet.has(upperKey)) continue;
-          } else {
-            if (excludedSet.has(upperKey)) continue;
-          }
-
-          if (rawVal === undefined || rawVal === null || isNaN(Number(rawVal)) || Number(rawVal) <= 0) continue;
-          const numVal = Number(rawVal);
-
-          const itemCfg = itemsConfig[upperKey] || itemsConfig[key.toLowerCase()] || currenciesList.find(c => String(c.key || c.code || c.path).toUpperCase() === upperKey) || {};
-          const mode = itemCfg.mode || defaultMode;
-          const mult = Number(itemCfg.multiplier) > 0 ? Number(itemCfg.multiplier) : globalMultiplier;
-
-          let finalRate;
-          if (mode === "direct") {
-            finalRate = numVal * mult;
-          } else if (mode === "multiply") {
-            finalRate = numVal * mult;
-          } else if (mode === "invert") {
-            finalRate = (1 / numVal) * mult;
-          } else {
-            finalRate = normalizeForexToUsdCrossRate(key.toLowerCase(), numVal) * mult;
-          }
-
-          const formattedRate = finalRate >= 100 ? Math.round(finalRate) : parseFloat(finalRate.toFixed(5));
-          const faLabel = itemCfg.label || WORLD_FOREX_NAMES[upperKey] || upperKey;
-
-          multiData[key.toLowerCase()] = formattedRate;
-          currencyList.push({
-            key: key.toLowerCase(),
-            code: upperKey,
-            label: faLabel,
-            rawRate: numVal,
-            usdCrossRate: formattedRate,
-            mode,
-          });
-        }
-
-        const count = Object.keys(multiData).length;
-        if (count === 0) {
-          throw new Error("هیچ آیتم معتبری با تنظیمات فیلتر فعلی در پاسخ وب‌سرویس یافت نشد.");
-        }
-
-        const compactList = currencyList.map(c => ({
-          s: c.code,
-          n: c.label && !c.label.includes(c.code) ? `${c.label} (${c.code})` : (c.label || c.code),
-          p: c.usdCrossRate,
-          rawRate: c.rawRate,
-          usdCrossRate: c.usdCrossRate,
-          cat: isForex ? "ارزهای جهانی (فارکس)" : (fieldMapping?.categoryLabel || source.priceType || "نرخ‌ها"),
-        }));
-
-        return {
-          price: count,
-          multiData,
-          currencyList,
-          compactList,
-          sampleItems: compactList.slice(0, 30),
-          rates: targetNode,
-          datetime: nowIso,
-          label: source.name || "فید کلید-مقدار",
-        };
-      }
-
-      // Generic Array of Objects Handler (Bourse, Cars, Crypto, Commodities, Housing, or custom multi-item feeds)
-      const isFundSource = source.priceType === "bourse_fund" || (source.endpoint && source.endpoint.includes("Fund.php"));
-      const bMap = fieldMapping || (isFundSource ? {
-        arrayPath: "data",
-        symbolField: "l18",
-        nameField: "l30",
-        priceField: "pl",
-        altPriceField: "pc",
-        changeField: "plc",
-        changePercentField: "plp",
-        volumeField: "tno",
-        priceUnit: "rial",
-      } : (source.priceType === "bourse" ? {
-        arrayPath: "",
-        symbolField: "l18",
-        nameField: "l30",
-        priceField: "pl",
-        altPriceField: "pc",
-        changeField: "plc",
-        changePercentField: "plp",
-        volumeField: "tno",
-        priceUnit: "rial",
-      } : {}));
-
-      let rawArray = targetNode;
-      if (!Array.isArray(rawArray) && data) {
-        if (Array.isArray(data.data)) rawArray = data.data;
-        else if (Array.isArray(data.items)) rawArray = data.items;
-        else if (Array.isArray(data.symbols)) rawArray = data.symbols;
-        else if (Array.isArray(data.results)) rawArray = data.results;
-        else if (Array.isArray(data.result)) rawArray = data.result;
-        else if (Array.isArray(data.list)) rawArray = data.list;
-      }
-
-      if (!Array.isArray(rawArray) || rawArray.length === 0) {
-        throw new Error(`آرایه اقلام در مسیر «${bMap.arrayPath || bMap.rootPath || 'ریشه'}» پاسخ وب‌سرویس یافت نشد.`);
-      }
-
-      const symKey = bMap.idField || bMap.symbolField || (source.priceType === 'bourse' || source.priceType === 'bourse_fund' ? 'l18' : 'id');
-      const nameKey = bMap.titleField || bMap.nameField || (source.priceType === 'bourse' || source.priceType === 'bourse_fund' ? 'l30' : 'name');
-      const priceKey = bMap.priceField || (source.priceType === 'bourse' || source.priceType === 'bourse_fund' ? 'pl' : 'price');
-      const altPriceKey = bMap.altPriceField || (source.priceType === 'bourse' || source.priceType === 'bourse_fund' ? 'pc' : 'altPrice');
-      const changeKey = bMap.changeField || 'plc';
-      const changePctKey = bMap.changePercentField || 'plp';
-      const volumeKey = bMap.extraField || bMap.volumeField || 'tno';
-      const categoryKey = bMap.categoryField || 'category';
-
-      const isRial = bMap.priceUnit === "rial";
-      const multiplier = Number(bMap.multiplier) > 0 ? Number(bMap.multiplier) : (isRial ? 0.1 : 1);
-
-      // Filtering (Whitelist vs Blacklist)
-      const arraySelectionMode = bMap.selectionMode || (Array.isArray(bMap.includedKeys) && bMap.includedKeys.length > 0 ? "whitelist" : "all");
-      const arrayIncludedSet = new Set(
-        (Array.isArray(bMap.includedKeys) ? bMap.includedKeys : []).map(s => String(s).trim().toLowerCase())
-      );
-      const arrayExcludedSet = new Set(
-        [
-          ...(Array.isArray(source.excludedOutputs) ? source.excludedOutputs : []),
-          ...(Array.isArray(bMap.excludedKeys) ? bMap.excludedKeys : []),
-        ].map(s => String(s).trim().toLowerCase())
-      );
-
+      const multiData = {};
       const compactList = [];
-      for (const item of rawArray) {
-        if (!item || typeof item !== "object") continue;
-        const sym = String(item[symKey] || item.symbol || item.id || item.code || item.l18 || item.slug || "").trim();
-        const name = String(item[nameKey] || item.name || item.title || item.l30 || item.car_name || item.model || sym).trim();
-        if (!sym && !name) continue;
+      const currencyList = [];
 
-        // Whitelist or Blacklist check
-        if (arraySelectionMode === "whitelist" && arrayIncludedSet.size > 0) {
-          const isIncluded = (sym && arrayIncludedSet.has(sym.toLowerCase())) || (name && arrayIncludedSet.has(name.toLowerCase()));
-          if (!isIncluded) continue;
-        } else if (arrayExcludedSet.size > 0) {
-          if ((sym && arrayExcludedSet.has(sym.toLowerCase())) || (name && arrayExcludedSet.has(name.toLowerCase()))) {
-            continue;
-          }
-        }
+      for (const cur of PROMINENT_FOREX_CURRENCIES) {
+        const rawRate = Number(rates[cur.code]);
+        if (!rawRate || isNaN(rawRate) || rawRate <= 0) continue;
 
-        let rawPrice = Number(item[priceKey]);
-        if (!rawPrice || isNaN(rawPrice) || rawPrice <= 0) {
-          rawPrice = Number(item[altPriceKey]) || Number(item.pl) || Number(item.pc) || Number(item.lastPrice) || Number(item.price) || 0;
-        }
-        if (rawPrice <= 0) continue;
-
-        const finalPrice = Math.round(rawPrice * multiplier);
-        let altFinalPrice = 0;
-        if (item[altPriceKey] !== undefined && Number(item[altPriceKey]) > 0) {
-          altFinalPrice = Math.round(Number(item[altPriceKey]) * multiplier);
-        }
-
-        const c = Number(item[changeKey] !== undefined ? item[changeKey] : (item.plc !== undefined ? item.plc : 0)) || 0;
-        const cp = Number(item[changePctKey] !== undefined ? item[changePctKey] : (item.plp !== undefined ? item.plp : (item.percent || 0))) || 0;
-        const extraVal = item[volumeKey] !== undefined ? item[volumeKey] : (item.tno !== undefined ? item.tno : "");
-        const catVal = item[categoryKey] !== undefined ? item[categoryKey] : (item.brand || item.group || "");
+        // Relative to USD: 1 / rate
+        const usdCross = parseFloat((1 / rawRate).toFixed(5));
+        multiData[cur.code.toLowerCase()] = usdCross;
 
         compactList.push({
-          s: sym || name,
-          n: name,
-          p: isRial ? Math.round(rawPrice) : finalPrice,
-          priceTomans: finalPrice,
-          priceFinal: finalPrice,
-          altPrice: altFinalPrice,
-          c,
-          cp,
-          t: typeof extraVal === "number" ? extraVal : 0,
-          extra: extraVal,
-          cat: catVal,
-          ...(isFundSource ? { f: 1 } : {}),
+          s: cur.code,
+          n: `${cur.name} (${cur.code})`,
+          p: usdCross,
+        });
+
+        currencyList.push({
+          key: cur.code.toLowerCase(),
+          code: cur.code,
+          label: cur.name,
+          rawRate,
+          usdCrossRate: usdCross,
+          price: usdCross,
         });
       }
 
       if (compactList.length === 0) {
-        throw new Error(`هیچ آیتم معتبری با کلیدهای شناسه (${symKey}) و قیمت (${priceKey}) در پاسخ یافت نشد.`);
+        throw new Error("هیچ یک از ارزهای مطرح در پاسخ وب‌سرویس یافت نشد.");
       }
 
-      if (compactList.some(x => x.t > 0)) {
-        compactList.sort((a, b) => b.t - a.t);
+      return {
+        price: compactList.length,
+        multiData,
+        currencyList,
+        compactList,
+        sampleItems: compactList.slice(0, 30),
+        datetime: nowIso,
+        label: source.name || "ارزهای جهانی (فارکس)",
+      };
+    }
+
+    // 2. Bourse Direct Processing (Strictly Symbol l18, Name l30, Price pl / 10 in Tomans)
+    if (isBourse) {
+      let rawArray = Array.isArray(data) ? data : (data.symbols || data.data || []);
+      if (!Array.isArray(rawArray) || rawArray.length === 0) {
+        throw new Error("آرایه نمادهای بورس در پاسخ وب‌سرویس یافت نشد.");
+      }
+
+      const compactList = [];
+      for (const item of rawArray) {
+        if (!item || typeof item !== "object") continue;
+        const sym = (item.l18 || item.symbol || "").trim();
+        const name = (item.l30 || item.name || sym).trim();
+        if (!sym || !name) continue;
+
+        let rawPrice = Number(item.pl);
+        if (!rawPrice || isNaN(rawPrice) || rawPrice <= 0) {
+          rawPrice = Number(item.pc) || 0;
+        }
+        if (rawPrice <= 0) continue;
+
+        // Price in Tomans (pl / 10)
+        const priceToman = Math.round(rawPrice / 10);
+
+        compactList.push({
+          s: sym,
+          n: name,
+          p: priceToman,
+        });
+      }
+
+      if (compactList.length === 0) {
+        throw new Error("هیچ نماد معتبری با قیمت در پاسخ بورس یافت نشد.");
       }
 
       return {
         price: compactList.length,
         multiData: {
-          totalCount: compactList.length,
           totalSymbols: compactList.length,
-          topSymbols: compactList.slice(0, 20).map(x => x.s),
-          sampleItems: compactList.slice(0, 500),
-          items: compactList.slice(0, 500),
-          compactList: compactList.slice(0, 500),
-          labels,
           updatedAt: nowIso,
         },
         compactList,
-        sampleSymbols: compactList.slice(0, 10),
-        labels,
+        sampleItems: compactList.slice(0, 30),
+        sampleSymbols: compactList.slice(0, 10).map(x => x.s),
         datetime: nowIso,
-        label: source.name || (source.priceType === "bourse_fund" ? "بورس اوراق بهادار تهران (صندوق)" : "فید چند خروجی"),
+        label: source.name || "بورس اوراق بهادار تهران",
       };
+    }
+
+    // 3. Fallback for other Multi-Output Array feeds
+    if (source.category === "multi_output" || (fieldMapping && (fieldMapping.isMultiOutput || fieldMapping.symbolField))) {
+      let rawArray = Array.isArray(data) ? data : (data.data || data.items || data.symbols || []);
+      if (Array.isArray(rawArray) && rawArray.length > 0) {
+        const symKey = fieldMapping?.symbolField || "symbol";
+        const nameKey = fieldMapping?.nameField || "name";
+        const priceKey = fieldMapping?.priceField || "price";
+        const multiplier = Number(fieldMapping?.multiplier) > 0 ? Number(fieldMapping.multiplier) : 1;
+
+        const compactList = [];
+        for (const item of rawArray) {
+          if (!item || typeof item !== "object") continue;
+          const sym = String(item[symKey] || "").trim();
+          const name = String(item[nameKey] || sym).trim();
+          const price = Number(item[priceKey]) || 0;
+          if ((!sym && !name) || price <= 0) continue;
+
+          compactList.push({
+            s: sym || name,
+            n: name,
+            p: Math.round(price * multiplier),
+          });
+        }
+
+        if (compactList.length > 0) {
+          return {
+            price: compactList.length,
+            multiData: { total: compactList.length },
+            compactList,
+            sampleItems: compactList.slice(0, 30),
+            datetime: nowIso,
+            label: source.name || "فید چند خروجی",
+          };
+        }
+      }
     }
 
     // Standard Single-Output JSON parsing

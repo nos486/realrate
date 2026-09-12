@@ -127,42 +127,11 @@ const DEFAULT_SOURCE_FORM = {
 const DEFAULT_MULTI_FEED_FORM = {
   id: null,
   name: '',
-  priceType: '',
-  unit: 'تومان',
-  sourceType: 'api_url',
+  priceType: 'bourse',
   apiUrl: '',
   fetchIntervalMinutes: 60,
   isActive: true,
   showOnHomePage: true,
-  displayConfig: null,
-  excludedOutputs: [],
-  // Feed Architecture: 'key_value' | 'array'
-  feedType: 'array',
-  rootPath: '',
-  // Selection mode: 'whitelist' | 'all'
-  selectionMode: 'all',
-  includedKeys: [],
-  // Conversion Settings
-  defaultMode: 'invert', // 'invert' | 'direct' | 'multiply'
-  multiplier: 1,
-  priceUnit: 'toman',
-  itemsConfig: {},
-  // Array of Objects fields
-  arrayPath: '',
-  idField: '',
-  idLabel: 'شناسه / کد',
-  titleField: '',
-  titleLabel: 'عنوان / نام',
-  priceField: '',
-  priceLabel: 'قیمت اصلی',
-  altPriceField: '',
-  altPriceLabel: 'قیمت دوم / مبنا',
-  changePercentField: '',
-  changePercentLabel: 'درصد تغییرات',
-  categoryField: '',
-  categoryLabel: 'دسته‌بندی / سازنده',
-  extraField: '',
-  extraLabel: 'اطلاعات تکمیلی',
 };
 
 function isSourceMultiOutput(s, priceTypeInfo = {}) {
@@ -288,18 +257,12 @@ export default function PriceSourcesPage({ embedded = false, usdToman: propUsdTo
   }, [searchParams]);
   const [multiSearch, setMultiSearch] = useState('');
 
-  // Multi-Output Wizard States
+  // Multi-Output Modal States
   const [multiWizardOpen, setMultiWizardOpen] = useState(false);
   const [multiForm, setMultiForm] = useState(DEFAULT_MULTI_FEED_FORM);
-  const [wizardTab, setWizardTab] = useState('source'); // 'source' | 'schema' | 'items'
-  const [inspectLoading, setInspectLoading] = useState(false);
-  const [inspectResult, setInspectResult] = useState(null);
   const [multiTesting, setMultiTesting] = useState(false);
   const [multiTestResult, setMultiTestResult] = useState(null);
   const [savingMultiSource, setSavingMultiSource] = useState(false);
-  const [newMultiExcludedEntry, setNewMultiExcludedEntry] = useState('');
-  const [itemFilterSearch, setItemFilterSearch] = useState('');
-  const [customKeyInput, setCustomKeyInput] = useState('');
 
   // Data Explorer Modal States
   const [explorerModalOpen, setExplorerModalOpen] = useState(false);
@@ -487,432 +450,34 @@ export default function PriceSourcesPage({ embedded = false, usdToman: propUsdTo
   const handleOpenAddMultiFeed = () => {
     setMultiForm({
       ...DEFAULT_MULTI_FEED_FORM,
-      priceType: sourceTypes.find(st => st.category === 'multi_output')?.id || 'bourse',
+      name: '',
+      priceType: 'bourse',
+      apiUrl: 'https://api.brsapi.ir/Tsetmc/AllSymbols.php?key=BDqzgcZZ5rGg4Z6uSEs9bMyx2E2vXrkd&type=1',
+      fetchIntervalMinutes: 60,
+      isActive: true,
       showOnHomePage: true,
-      feedType: 'array',
-      selectionMode: 'all',
-      includedKeys: [],
-      itemsConfig: {},
     });
-    setWizardTab('source');
-    setInspectResult(null);
     setMultiTestResult(null);
-    setNewMultiExcludedEntry('');
-    setItemFilterSearch('');
-    setCustomKeyInput('');
     setMultiWizardOpen(true);
   };
 
   const handleOpenEditMultiFeed = (src) => {
-    let mapping = {};
-    if (src.fieldMapping) {
-      mapping = typeof src.fieldMapping === 'string' ? JSON.parse(src.fieldMapping) : src.fieldMapping;
-    }
-    const labels = mapping.labels || {};
-    let excluded = [];
-    if (src.excludedOutputs) {
-      excluded = Array.isArray(src.excludedOutputs)
-        ? src.excludedOutputs
-        : (typeof src.excludedOutputs === 'string' ? JSON.parse(src.excludedOutputs || '[]') : []);
-    }
     const displayCfg = typeof src.displayConfig === 'string'
       ? (() => { try { return JSON.parse(src.displayConfig); } catch { return {}; } })()
       : (src.displayConfig || {});
     const showOnHomePage = displayCfg.showOnHomePage !== undefined ? Boolean(displayCfg.showOnHomePage) : true;
 
-    const isKeyValue = mapping.feedType === 'key_value' || src.priceType === 'forex' || Array.isArray(mapping.currencies);
-    const feedType = isKeyValue ? 'key_value' : (mapping.feedType || 'array');
-
-    let includedKeys = [];
-    if (Array.isArray(mapping.includedKeys) && mapping.includedKeys.length > 0) {
-      includedKeys = mapping.includedKeys.map(x => String(x).toUpperCase());
-    } else if (Array.isArray(mapping.currencies) && mapping.currencies.length > 0) {
-      includedKeys = mapping.currencies.map(c => String(c.code || c.key || c.path).toUpperCase());
-    }
-    const selectionMode = mapping.selectionMode || (includedKeys.length > 0 ? 'whitelist' : 'all');
-
     setMultiForm({
       id: src.id,
       name: src.name || '',
-      priceType: src.priceType || (isKeyValue ? 'forex' : 'bourse'),
-      unit: src.unit || 'تومان',
-      sourceType: 'api_url',
+      priceType: src.priceType || 'bourse',
       apiUrl: src.apiUrl || src.endpoint || '',
       fetchIntervalMinutes: src.fetchIntervalMinutes || Math.round((src.fetchIntervalSec || 3600) / 60),
       isActive: src.isActive !== undefined ? Boolean(src.isActive) : true,
       showOnHomePage,
-      displayConfig: src.displayConfig || null,
-      excludedOutputs: excluded,
-
-      feedType,
-      selectionMode,
-      includedKeys,
-      defaultMode: mapping.defaultMode || (isKeyValue ? 'invert' : 'direct'),
-      itemsConfig: mapping.itemsConfig || {},
-
-      rootPath: mapping.rootPath || mapping.arrayPath || (isKeyValue ? 'rates' : ''),
-      arrayPath: mapping.arrayPath || mapping.rootPath || '',
-      idField: mapping.idField || mapping.symbolField || (isKeyValue ? 'symbol' : ''),
-      idLabel: labels.id || 'شناسه / کد',
-      titleField: mapping.titleField || mapping.nameField || (isKeyValue ? 'name' : ''),
-      titleLabel: labels.title || 'عنوان / نام',
-      priceField: mapping.priceField || (isKeyValue ? 'rate' : ''),
-      priceLabel: labels.price || 'قیمت اصلی',
-      altPriceField: mapping.altPriceField || '',
-      altPriceLabel: labels.altPrice || 'قیمت مقایسه‌ای',
-      changePercentField: mapping.changePercentField || '',
-      changePercentLabel: labels.changePercent || 'درصد تغییرات',
-      categoryField: mapping.categoryField || '',
-      categoryLabel: labels.category || 'دسته‌بندی / برند',
-      extraField: mapping.extraField || mapping.volumeField || '',
-      extraLabel: labels.extra || 'مشخصات / حجم',
-      priceUnit: mapping.priceUnit || 'toman',
-      multiplier: mapping.multiplier !== undefined ? mapping.multiplier : (mapping.priceUnit === 'rial' ? 0.1 : 1),
     });
-    setWizardTab('source');
-    setInspectResult(null);
     setMultiTestResult(null);
-    setNewMultiExcludedEntry('');
-    setItemFilterSearch('');
-    setCustomKeyInput('');
     setMultiWizardOpen(true);
-  };
-
-  const handleInspectApi = async () => {
-    if (!multiForm.apiUrl || !multiForm.apiUrl.startsWith('http')) {
-      alert('لطفاً یک آدرس وب‌سرویس معتبر با http یا https وارد کنید.');
-      return;
-    }
-    setInspectLoading(true);
-    try {
-      const res = await apiInspectApiSource(multiForm.apiUrl);
-      if (res.success && res.candidateArrays && res.candidateArrays.length > 0) {
-        setInspectResult(res);
-        handleSelectCandidate(res.candidateArrays[0]);
-        showMsg(`ساختار وب‌سرویس تحلیل شد: ${res.candidateArrays.length} ساختار داده کشف شد.`, 'success');
-      } else {
-        alert('هیچ ساختار داده معتبری در پاسخ وب‌سرویس یافت نشد.');
-      }
-    } catch (e) {
-      alert('خطا در تحلیل ساختار وب‌سرویس: ' + e.message);
-    } finally {
-      setInspectLoading(false);
-    }
-  };
-
-  const handleSelectCandidate = (cand) => {
-    if (!cand) return;
-    if (cand.isKeyValDictionary) {
-      setMultiForm(prev => ({
-        ...prev,
-        feedType: 'key_value',
-        rootPath: cand.path || 'rates',
-        arrayPath: cand.path || 'rates',
-        priceType: prev.priceType === 'bourse' ? 'forex' : prev.priceType,
-        idField: 'symbol',
-        titleField: 'name',
-        priceField: 'rate',
-        selectionMode: prev.includedKeys && prev.includedKeys.length > 0 ? prev.selectionMode : 'whitelist',
-        includedKeys: prev.includedKeys && prev.includedKeys.length > 0
-          ? prev.includedKeys
-          : ['EUR', 'TRY', 'AED', 'GBP', 'CHF', 'CAD', 'AUD', 'CNY'],
-        defaultMode: prev.defaultMode || 'invert',
-      }));
-    } else {
-      const keys = cand.keys || [];
-      const findKey = (candidates) => keys.find(k => candidates.includes(k.toLowerCase())) || '';
-
-      const autoId = findKey(['id', 'symbol', 'code', 'slug', 'l18', 'key', 'ticker']);
-      const autoTitle = findKey(['name', 'title', 'car_name', 'model', 'l30', 'fa_name', 'label', 'persian_name']);
-      const autoPrice = findKey(['price', 'lastprice', 'pl', 'market_price', 'close', 'last_price', 'current_price']);
-      const autoAltPrice = findKey(['alt_price', 'pc', 'factory_price', 'closeprice', 'open', 'prev_price']);
-      const autoChangePct = findKey(['percent', 'change_percent', 'plp', 'change_pct', 'pct', 'diff_percent', 'plc']);
-      const autoCategory = findKey(['brand', 'category', 'group', 'company', 'industry', 'market', 'type']);
-      const autoExtra = findKey(['volume', 'tno', 'year', 'volume24h', 'count', 'specs']);
-
-      setMultiForm(prev => ({
-        ...prev,
-        feedType: 'array',
-        rootPath: cand.path,
-        arrayPath: cand.path,
-        idField: prev.idField && keys.includes(prev.idField) ? prev.idField : (autoId || keys[0] || ''),
-        titleField: prev.titleField && keys.includes(prev.titleField) ? prev.titleField : (autoTitle || keys[1] || keys[0] || ''),
-        priceField: prev.priceField && keys.includes(prev.priceField) ? prev.priceField : (autoPrice || ''),
-        altPriceField: prev.altPriceField && keys.includes(prev.altPriceField) ? prev.altPriceField : (autoAltPrice || ''),
-        changePercentField: prev.changePercentField && keys.includes(prev.changePercentField) ? prev.changePercentField : (autoChangePct || ''),
-        categoryField: prev.categoryField && keys.includes(prev.categoryField) ? prev.categoryField : (autoCategory || ''),
-        extraField: prev.extraField && keys.includes(prev.extraField) ? prev.extraField : (autoExtra || ''),
-      }));
-    }
-  };
-
-  const handleToggleIncludeItem = (code) => {
-    const upper = String(code).trim().toUpperCase();
-    setMultiForm(prev => {
-      const current = (prev.includedKeys || []).map(x => String(x).trim().toUpperCase());
-      if (current.includes(upper)) {
-        return { ...prev, includedKeys: current.filter(x => x !== upper) };
-      } else {
-        return { ...prev, includedKeys: [...current, upper] };
-      }
-    });
-  };
-
-  const handleApplyPreset = (keys) => {
-    setMultiForm(prev => ({
-      ...prev,
-      selectionMode: 'whitelist',
-      includedKeys: Array.from(new Set(keys.map(k => k.toUpperCase()))),
-    }));
-  };
-
-  const handleSelectAllItems = (allKeys) => {
-    setMultiForm(prev => ({
-      ...prev,
-      selectionMode: 'whitelist',
-      includedKeys: Array.from(new Set(allKeys.map(k => k.toUpperCase()))),
-    }));
-  };
-
-  const handleDeselectAllItems = () => {
-    setMultiForm(prev => ({
-      ...prev,
-      includedKeys: [],
-    }));
-  };
-
-  const handleAddCustomKey = () => {
-    const val = customKeyInput.trim().toUpperCase();
-    if (!val) return;
-    setMultiForm(prev => {
-      const cur = (prev.includedKeys || []).map(x => String(x).toUpperCase());
-      if (!cur.includes(val)) {
-        return {
-          ...prev,
-          selectionMode: 'whitelist',
-          includedKeys: [...cur, val],
-        };
-      }
-      return prev;
-    });
-    setCustomKeyInput('');
-  };
-
-  const handleUpdateItemConfig = (code, field, value) => {
-    const upper = String(code).trim().toUpperCase();
-    setMultiForm(prev => ({
-      ...prev,
-      itemsConfig: {
-        ...prev.itemsConfig,
-        [upper]: {
-          ...(prev.itemsConfig?.[upper] || {}),
-          [field]: value,
-        },
-      },
-    }));
-  };
-
-  const selectableItemsList = useMemo(() => {
-    const list = [];
-    const seen = new Set();
-
-    if (inspectResult && Array.isArray(inspectResult.candidateArrays)) {
-      const activeCand = inspectResult.candidateArrays.find(c => c.path === multiForm.rootPath || c.path === multiForm.arrayPath) || inspectResult.candidateArrays[0];
-      if (activeCand) {
-        if (activeCand.allItems && activeCand.allItems.length > 0) {
-          for (const item of activeCand.allItems) {
-            const sym = (item.code || item.key || '').toUpperCase();
-            if (sym && !seen.has(sym)) {
-              seen.add(sym);
-              list.push({
-                code: sym,
-                rawKey: item.key || sym,
-                label: item.name || WORLD_CURRENCY_NAMES[sym] || sym,
-                rawRate: item.rate !== undefined ? item.rate : item.price,
-              });
-            }
-          }
-        } else if (activeCand.sampleItems && activeCand.sampleItems.length > 0) {
-          for (const item of activeCand.sampleItems) {
-            const sym = String(item[multiForm.idField] || item.symbol || item.id || item.code || item.s || '').toUpperCase();
-            const title = String(item[multiForm.titleField] || item.name || item.title || item.n || sym);
-            const rawRate = Number(item[multiForm.priceField] || item.price || item.rate || item.p || 0);
-            if (sym && !seen.has(sym)) {
-              seen.add(sym);
-              list.push({
-                code: sym,
-                rawKey: sym,
-                label: title,
-                rawRate,
-              });
-            }
-          }
-        }
-      }
-    }
-
-    if (multiTestResult) {
-      if (Array.isArray(multiTestResult.currencyList)) {
-        for (const c of multiTestResult.currencyList) {
-          const sym = (c.code || c.key || '').toUpperCase();
-          if (sym && !seen.has(sym)) {
-            seen.add(sym);
-            list.push({
-              code: sym,
-              rawKey: c.key || sym,
-              label: c.label || WORLD_CURRENCY_NAMES[sym] || sym,
-              rawRate: c.rawRate,
-            });
-          }
-        }
-      }
-      if (Array.isArray(multiTestResult.compactList)) {
-        for (const c of multiTestResult.compactList) {
-          const sym = String(c.s || c.symbol || '').toUpperCase();
-          if (sym && !seen.has(sym)) {
-            seen.add(sym);
-            list.push({
-              code: sym,
-              rawKey: sym,
-              label: c.n || c.name || sym,
-              rawRate: c.rawRate || c.p || 0,
-            });
-          }
-        }
-      }
-    }
-
-    if (Array.isArray(multiForm.includedKeys)) {
-      for (const k of multiForm.includedKeys) {
-        const sym = String(k).toUpperCase();
-        if (sym && !seen.has(sym)) {
-          seen.add(sym);
-          list.push({
-            code: sym,
-            rawKey: sym,
-            label: WORLD_CURRENCY_NAMES[sym] || sym,
-            rawRate: null,
-          });
-        }
-      }
-    }
-
-    if ((multiForm.priceType === 'forex' || multiForm.feedType === 'key_value') && list.length < 10) {
-      for (const [sym, name] of Object.entries(WORLD_CURRENCY_NAMES)) {
-        if (!seen.has(sym)) {
-          seen.add(sym);
-          list.push({
-            code: sym,
-            rawKey: sym,
-            label: name,
-            rawRate: null,
-          });
-        }
-      }
-    }
-
-    return list;
-  }, [inspectResult, multiTestResult, multiForm.rootPath, multiForm.arrayPath, multiForm.idField, multiForm.titleField, multiForm.priceField, multiForm.includedKeys, multiForm.priceType, multiForm.feedType]);
-
-  const filteredSelectableItems = useMemo(() => {
-    if (!itemFilterSearch.trim()) return selectableItemsList;
-    const q = itemFilterSearch.trim().toLowerCase();
-    return selectableItemsList.filter(it =>
-      it.code.toLowerCase().includes(q) ||
-      (it.label && it.label.toLowerCase().includes(q))
-    );
-  }, [selectableItemsList, itemFilterSearch]);
-
-  const getItemCalculatedPreview = (item) => {
-    const rawRate = Number(item.rawRate);
-    if (!rawRate || isNaN(rawRate) || rawRate <= 0) return '-';
-    const cfg = multiForm.itemsConfig?.[item.code] || {};
-    const mode = cfg.mode || multiForm.defaultMode || 'invert';
-    const mult = Number(cfg.multiplier) > 0 ? Number(cfg.multiplier) : (Number(multiForm.multiplier) || 1);
-
-    let finalRate;
-    if (mode === 'invert') {
-      finalRate = (1 / rawRate) * mult;
-    } else if (mode === 'direct' || mode === 'multiply') {
-      finalRate = rawRate * mult;
-    } else {
-      finalRate = rawRate * mult;
-    }
-
-    if (multiForm.priceType === 'forex' || multiForm.feedType === 'key_value') {
-      return `${finalRate >= 100 ? Math.round(finalRate).toLocaleString('fa-IR') : finalRate.toFixed(4)} $`;
-    }
-    return `${Math.round(finalRate).toLocaleString('fa-IR')} ${multiForm.priceUnit === 'rial' ? 'تومان' : ''}`;
-  };
-
-  const previewMappedItems = useMemo(() => {
-    if (!inspectResult || !inspectResult.candidateArrays) return [];
-    const cand = inspectResult.candidateArrays.find(c => c.path === multiForm.arrayPath) || inspectResult.candidateArrays[0];
-    if (!cand || !Array.isArray(cand.sampleItems)) return [];
-
-    const isRial = multiForm.priceUnit === 'rial';
-    const mult = Number(multiForm.multiplier) > 0 ? Number(multiForm.multiplier) : (isRial ? 0.1 : 1);
-    const excludedSet = new Set((multiForm.excludedOutputs || []).map(x => String(x).toLowerCase().trim()));
-
-    const isForex = multiForm.priceType === 'forex';
-    const activeUsdSource = sources.find(s =>
-      (s.priceType === 'usd' || s.priceType === 'usd_toman') &&
-      (s.isActive === 1 || s.isActive === true || s.is_active === 1 || s.is_active === true) &&
-      (s.isPrimary === 1 || s.isPrimary === true || s.is_primary === 1 || s.is_primary === true) &&
-      Number(s.lastPrice || s.last_price || 0) > 0
-    ) || sources.find(s =>
-      (s.priceType === 'usd' || s.priceType === 'usd_toman') &&
-      Number(s.lastPrice || s.last_price || 0) > 0
-    );
-    const usdToman = propUsdToman || Number(activeUsdSource?.lastPrice || activeUsdSource?.last_price || 0);
-
-    return cand.sampleItems.map((raw, idx) => {
-      const idVal = String(raw[multiForm.idField] || raw.id || raw.symbol || raw.code || idx + 1);
-      const upperSym = idVal.toUpperCase();
-      const resolvedFa = isForex ? getPriceTypeLabel(upperSym) : null;
-      let titleVal = String(raw[multiForm.titleField] || raw.name || raw.title || idVal);
-      if (isForex && resolvedFa && resolvedFa !== upperSym) {
-        titleVal = titleVal.includes(resolvedFa) ? titleVal : `${resolvedFa} (${upperSym})`;
-      }
-
-      const rawPrice = Number(raw[multiForm.priceField]) || 0;
-      let finalPrice = Math.round(rawPrice * mult);
-      if (isForex) {
-        const usdCross = calculateUsdCrossRate(upperSym, rawPrice);
-        finalPrice = usdToman > 0 && usdCross > 0 ? Math.round(usdCross * usdToman) : Math.round(usdCross);
-      }
-      const rawAlt = Number(raw[multiForm.altPriceField]) || 0;
-      const finalAlt = rawAlt > 0 ? Math.round(rawAlt * mult) : 0;
-      const changePct = Number(raw[multiForm.changePercentField]) || 0;
-      const catVal = isForex ? 'ارزهای جهانی (فارکس)' : String(raw[multiForm.categoryField] || '');
-      const extraVal = isForex && rawPrice > 0 ? `نرخ دلاری: ${calculateUsdCrossRate(upperSym, rawPrice).toFixed(4)} $` : String(raw[multiForm.extraField] || '');
-
-      const isExcluded = excludedSet.has(idVal.toLowerCase()) || excludedSet.has(titleVal.toLowerCase());
-
-      return {
-        id: idVal,
-        title: titleVal,
-        price: finalPrice,
-        altPrice: finalAlt,
-        changePct,
-        category: catVal,
-        extra: extraVal,
-        isExcluded,
-      };
-    });
-  }, [inspectResult, multiForm.arrayPath, multiForm.idField, multiForm.titleField, multiForm.priceField, multiForm.altPriceField, multiForm.changePercentField, multiForm.categoryField, multiForm.extraField, multiForm.priceUnit, multiForm.multiplier, multiForm.excludedOutputs, multiForm.priceType, sources, propUsdToman]);
-
-  const handleToggleExcludeInPreview = (item) => {
-    const key = (item.id || item.title || '').trim().toLowerCase();
-    if (!key) return;
-    setMultiForm(prev => {
-      const current = prev.excludedOutputs || [];
-      if (current.includes(key)) {
-        return { ...prev, excludedOutputs: current.filter(x => x !== key) };
-      } else {
-        return { ...prev, excludedOutputs: [...current, key] };
-      }
-    });
   };
 
   const handleTestMultiSource = async () => {
@@ -923,54 +488,15 @@ export default function PriceSourcesPage({ embedded = false, usdToman: propUsdTo
     setMultiTesting(true);
     setMultiTestResult(null);
     try {
-      const isKeyValue = multiForm.feedType === 'key_value';
-      const fieldMapping = {
-        isMultiOutput: true,
-        feedType: multiForm.feedType,
-        rootPath: multiForm.rootPath || multiForm.arrayPath || '',
-        arrayPath: multiForm.rootPath || multiForm.arrayPath || '',
-        selectionMode: multiForm.selectionMode || 'all',
-        includedKeys: multiForm.includedKeys || [],
-        defaultMode: multiForm.defaultMode || 'invert',
-        itemsConfig: multiForm.itemsConfig || {},
-        multiplier: Number(multiForm.multiplier) || 1,
-        priceUnit: multiForm.priceUnit || 'toman',
-        ...(isKeyValue ? {
-          idField: 'symbol',
-          titleField: 'name',
-          priceField: 'rate',
-        } : {
-          idField: multiForm.idField,
-          titleField: multiForm.titleField || multiForm.idField,
-          priceField: multiForm.priceField,
-          altPriceField: multiForm.altPriceField || '',
-          changePercentField: multiForm.changePercentField || '',
-          categoryField: multiForm.categoryField || '',
-          extraField: multiForm.extraField || '',
-          labels: {
-            id: multiForm.idLabel || 'شناسه / کد',
-            title: multiForm.titleLabel || 'عنوان / نام',
-            price: multiForm.priceLabel || 'قیمت اصلی',
-            altPrice: multiForm.altPriceLabel || 'قیمت مقایسه‌ای',
-            changePercent: multiForm.changePercentLabel || 'درصد تغییرات',
-            category: multiForm.categoryLabel || 'دسته‌بندی / برند',
-            extra: multiForm.extraLabel || 'مشخصات / حجم',
-          },
-        }),
-      };
-
       const res = await apiTestPriceSource({
         sourceType: 'api_url',
         priceType: multiForm.priceType,
         endpoint: multiForm.apiUrl,
         name: multiForm.name || 'تست فید',
-        fieldMapping,
-        excludedOutputs: multiForm.excludedOutputs || [],
-        includedOutputs: multiForm.includedKeys || [],
       });
       setMultiTestResult(res);
       if (res.success) {
-        showMsg(res.message || 'تست اتصال و پردازش با موفقیت انجام شد.', 'success');
+        showMsg(res.message || 'تست با موفقیت انجام شد.', 'success');
       }
     } catch (err) {
       setMultiTestResult({ success: false, error: err.message });
@@ -982,75 +508,28 @@ export default function PriceSourcesPage({ embedded = false, usdToman: propUsdTo
   const handleSaveMultiSource = async (e) => {
     if (e) e.preventDefault();
     if (!multiForm.name.trim()) {
-      alert('لطفاً نام سورس را وارد کنید.');
+      alert('لطفاً نام فید را وارد کنید.');
       return;
     }
     if (!multiForm.apiUrl.trim()) {
-      alert('لطفاً آدرس API وب‌سرویس را وارد کنید.');
-      return;
-    }
-    const isKeyValue = multiForm.feedType === 'key_value';
-    if (!isKeyValue && (!multiForm.idField || !multiForm.priceField)) {
-      alert('لطفاً حداقل فیلد شناسه و فیلد قیمت اصلی را انتخاب کنید.');
+      alert('لطفاً آدرس وب‌سرویس API را وارد کنید.');
       return;
     }
 
     setSavingMultiSource(true);
     try {
-      const fieldMapping = {
-        isMultiOutput: true,
-        feedType: multiForm.feedType,
-        rootPath: multiForm.rootPath || multiForm.arrayPath || '',
-        arrayPath: multiForm.rootPath || multiForm.arrayPath || '',
-        selectionMode: multiForm.selectionMode || 'all',
-        includedKeys: multiForm.includedKeys || [],
-        defaultMode: multiForm.defaultMode || 'invert',
-        itemsConfig: multiForm.itemsConfig || {},
-        multiplier: Number(multiForm.multiplier) || 1,
-        priceUnit: multiForm.priceUnit || 'toman',
-        ...(isKeyValue ? {
-          idField: 'symbol',
-          titleField: 'name',
-          priceField: 'rate',
-        } : {
-          idField: multiForm.idField,
-          titleField: multiForm.titleField || multiForm.idField,
-          priceField: multiForm.priceField,
-          altPriceField: multiForm.altPriceField || '',
-          changePercentField: multiForm.changePercentField || '',
-          categoryField: multiForm.categoryField || '',
-          extraField: multiForm.extraField || '',
-          labels: {
-            id: multiForm.idLabel || 'شناسه / کد',
-            title: multiForm.titleLabel || 'عنوان / نام',
-            price: multiForm.priceLabel || 'قیمت اصلی',
-            altPrice: multiForm.altPriceLabel || 'قیمت مقایسه‌ای',
-            changePercent: multiForm.changePercentLabel || 'درصد تغییرات',
-            category: multiForm.categoryLabel || 'دسته‌بندی / برند',
-            extra: multiForm.extraLabel || 'مشخصات / حجم',
-          },
-        }),
-      };
-
-      const prevDisplay = typeof multiForm.displayConfig === 'string'
-        ? (() => { try { return JSON.parse(multiForm.displayConfig); } catch { return {}; } })()
-        : (multiForm.displayConfig || {});
       const displayConfig = {
-        ...prevDisplay,
         showOnHomePage: multiForm.showOnHomePage !== false,
       };
 
       const payload = {
         id: multiForm.id,
         name: multiForm.name.trim(),
-        priceType: multiForm.priceType || 'custom_feed',
+        priceType: multiForm.priceType || 'bourse',
         sourceType: 'api_url',
         endpoint: multiForm.apiUrl.trim(),
         fetchIntervalMinutes: Number(multiForm.fetchIntervalMinutes) || 60,
         isActive: multiForm.isActive,
-        isPrimary: false,
-        fieldMapping,
-        excludedOutputs: multiForm.excludedOutputs || [],
         displayConfig,
       };
 
@@ -1059,15 +538,6 @@ export default function PriceSourcesPage({ embedded = false, usdToman: propUsdTo
         showMsg(`سورس چند خروجی «${multiForm.name}» با موفقیت ذخیره شد.`, 'success');
         setMultiWizardOpen(false);
         await loadSources();
-        if (multiForm.priceType && !sourceTypes.some(st => st.id === multiForm.priceType)) {
-          apiSaveSourceType({
-            id: multiForm.priceType,
-            label: multiForm.priceType,
-            category: 'multi_output',
-            unit: multiForm.priceUnit === 'rial' ? 'ریال' : 'تومان',
-            badgeColor: 'indigo',
-          }).then(() => loadSourceTypes()).catch(() => {});
-        }
       } else {
         alert('خطا در ذخیره‌سازی: ' + (res.error || 'ناشناخته'));
       }
@@ -2513,62 +1983,29 @@ export default function PriceSourcesPage({ embedded = false, usdToman: propUsdTo
 
         </Modal>
 
-        {/* ── Multi-Output Feed Smart Wizard Modal ─────────────────────────── */}
+        {/* ── Multi-Output Feed Modal (Clean & Simple) ─────────────────────────── */}
         <Modal
           isOpen={multiWizardOpen}
           onClose={() => setMultiWizardOpen(false)}
-          title={multiForm.id ? `پیکربندی و مدیریت فید چند خروجی: ${multiForm.name}` : 'ایجاد و نگاشت هوشمند فید چند خروجی (Multi-Output Feed Studio)'}
-          icon={<Layers size={18} style={{ color: 'var(--accent-indigo, #818cf8)' }} />}
-          maxWidth="920px"
+          title={multiForm.id ? `ویرایش فید چند خروجی: ${multiForm.name}` : "افزودن فید داده چند خروجی (فارکس / بورس)"}
+          icon={<Layers size={18} style={{ color: "var(--accent-indigo, #818cf8)" }} />}
+          maxWidth="720px"
           className="source-edit-modal-card"
           onSubmit={handleSaveMultiSource}
           footer={
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', flexWrap: 'wrap', gap: '10px' }}>
-              {/* Quick test on the left */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <button
-                  type="button"
-                  onClick={handleTestMultiSource}
-                  disabled={multiTesting || !multiForm.apiUrl}
-                  className="btn-secondary"
-                  style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', padding: '7px 14px' }}
-                >
-                  <PlayCircle size={14} className={multiTesting ? 'spin-anim' : ''} />
-                  <span>{multiTesting ? 'در حال تست...' : 'تست کامل اتصال و پردازش'}</span>
-                </button>
-                {multiTestResult && (
-                  <span style={{ fontSize: '11.5px', fontWeight: '700', color: multiTestResult.success ? 'var(--accent-green, #10b981)' : 'var(--accent-rose, #f43f5e)' }}>
-                    {multiTestResult.success ? (multiTestResult.message || 'پاسخ معتبر دریافت شد') : `خطا: ${multiTestResult.error}`}
-                  </span>
-                )}
-              </div>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%", flexWrap: "wrap", gap: "10px" }}>
+              <button
+                type="button"
+                onClick={handleTestMultiSource}
+                disabled={multiTesting || !multiForm.apiUrl}
+                className="btn-secondary"
+                style={{ display: "flex", alignItems: "center", gap: "6px", fontSize: "12px", padding: "7px 14px" }}
+              >
+                <PlayCircle size={14} className={multiTesting ? "spin-anim" : ""} />
+                <span>{multiTesting ? "در حال تست..." : "تست اتصال و پیش‌نمایش"}</span>
+              </button>
 
-              {/* Navigation and Save on the right */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                {wizardTab !== 'source' && (
-                  <button
-                    type="button"
-                    className="btn-secondary"
-                    style={{ fontSize: '12px' }}
-                    onClick={() => setWizardTab(wizardTab === 'items' ? 'schema' : 'source')}
-                  >
-                    <ArrowRight size={13} />
-                    <span>مرحله قبل</span>
-                  </button>
-                )}
-
-                {wizardTab !== 'items' && (
-                  <button
-                    type="button"
-                    className="btn-secondary"
-                    style={{ fontSize: '12px' }}
-                    onClick={() => setWizardTab(wizardTab === 'source' ? 'schema' : 'items')}
-                  >
-                    <span>مرحله بعد</span>
-                    <ArrowLeft size={13} />
-                  </button>
-                )}
-
+              <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
                 <button
                   type="button"
                   className="btn-cancel"
@@ -2577,959 +2014,162 @@ export default function PriceSourcesPage({ embedded = false, usdToman: propUsdTo
                 >
                   انصراف
                 </button>
-
                 <button
                   type="submit"
                   disabled={savingMultiSource || !multiForm.name || !multiForm.apiUrl}
                   className="btn-primary"
-                  style={{ minWidth: '150px' }}
+                  style={{ minWidth: "130px" }}
                 >
-                  <Save size={14} className={savingMultiSource ? 'spin-anim' : ''} />
-                  <span>{savingMultiSource ? 'در حال ذخیره‌سازی...' : 'ذخیره و فعال‌سازی فید'}</span>
+                  <Save size={14} className={savingMultiSource ? "spin-anim" : ""} />
+                  <span>{savingMultiSource ? "در حال ذخیره..." : "ذخیره فید"}</span>
                 </button>
               </div>
             </div>
           }
         >
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-            {/* ── Top Step Navigation Tabs ── */}
-            <div className="multi-wizard-nav-tabs">
-              <button
-                type="button"
-                className={`multi-wizard-tab-btn ${wizardTab === 'source' ? 'active' : ''}`}
-                onClick={() => setWizardTab('source')}
-              >
-                <span className="tab-step-num">۱</span>
-                <span>مشخصات و کشف API</span>
-              </button>
-              <button
-                type="button"
-                className={`multi-wizard-tab-btn ${wizardTab === 'schema' ? 'active' : ''}`}
-                onClick={() => setWizardTab('schema')}
-              >
-                <span className="tab-step-num">۲</span>
-                <span>نگاشت ساختار و فرمول تبدیل</span>
-                {multiForm.feedType === 'key_value' ? (
-                  <span className="tab-badge-pill" style={{ background: 'rgba(56, 189, 248, 0.15)', color: '#38bdf8', borderColor: 'rgba(56, 189, 248, 0.3)' }}>
-                    کلید-مقدار (Forex)
-                  </span>
-                ) : (
-                  <span className="tab-badge-pill" style={{ background: 'rgba(168, 85, 247, 0.15)', color: '#c084fc', borderColor: 'rgba(168, 85, 247, 0.3)' }}>
-                    آرایه اشیاء
-                  </span>
-                )}
-              </button>
-              <button
-                type="button"
-                className={`multi-wizard-tab-btn ${wizardTab === 'items' ? 'active' : ''}`}
-                onClick={() => setWizardTab('items')}
-              >
-                <span className="tab-step-num">۳</span>
-                <span>فیلتر و انتخاب اقلام</span>
-                {multiForm.selectionMode === 'whitelist' ? (
-                  <span className="tab-badge-pill">
-                    {(multiForm.includedKeys || []).length} انتخاب شده
-                  </span>
-                ) : (
-                  <span className="tab-badge-pill" style={{ background: 'rgba(255, 255, 255, 0.08)', color: 'var(--text-muted)', borderColor: 'rgba(255, 255, 255, 0.15)' }}>
-                    دریافت همه
-                  </span>
-                )}
-              </button>
+          <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+            <div className="form-group">
+              <label className="form-label">عنوان فید / سورس</label>
+              <input
+                type="text"
+                placeholder="مثال: نرخ‌های فارکس یا بورس تهران"
+                value={multiForm.name}
+                onChange={(e) => setMultiForm(prev => ({ ...prev, name: e.target.value }))}
+                className="form-input"
+                required
+              />
             </div>
 
-            {/* ── TAB 1: Source & API Discovery ── */}
-            {wizardTab === 'source' && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                <div className="form-row-2">
-                  <div className="form-group">
-                    <label>نام و عنوان فید:</label>
-                    <input
-                      type="text"
-                      required
-                      placeholder="مثال: نرخ‌های مرجع فارکس (ER-API) یا بورس اوراق بهادار"
-                      value={multiForm.name}
-                      onChange={(e) => setMultiForm({ ...multiForm, name: e.target.value })}
-                    />
-                  </div>
-
-                  <div className="form-group">
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
-                      <label style={{ margin: 0 }}>دسته‌بندی یا موضوع فید:</label>
-                      <span style={{ fontSize: '10.5px', color: 'var(--text-muted)' }}>تایپ آزاد یا انتخاب از لیست</span>
-                    </div>
-                    <input
-                      type="text"
-                      list="dynamic-multi-types-datalist"
-                      required
-                      placeholder="مثال: forex، bourse، car، crypto..."
-                      value={multiForm.priceType}
-                      onChange={(e) => setMultiForm({ ...multiForm, priceType: e.target.value.trim() })}
-                    />
-                    <datalist id="dynamic-multi-types-datalist">
-                      <option value="forex">ارزهای جهانی و فارکس (EUR, TRY, AED, ...)</option>
-                      <option value="bourse">بورس اوراق بهادار (سهام و نمادها)</option>
-                      <option value="bourse_fund">صندوق‌های سرمایه‌گذاری طلا و سهام</option>
-                      <option value="car">قیمت روز خودرو بازار آزاد و کارخانه</option>
-                      <option value="crypto">رمزارزها و کریپتوکارنسی</option>
-                      <option value="commodity">کالاهای اساسی و فلزات</option>
-                      {Object.entries(PRICE_TYPE_INFO).map(([key, info]) => (
-                        <option key={key} value={key}>{info.label || key}</option>
-                      ))}
-                    </datalist>
-                  </div>
-                </div>
-
-                {/* API URL + Smart Inspect Button */}
-                <div className="api-inspect-box">
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-                    <label style={{ margin: 0, fontWeight: '700', color: 'var(--text-heading)', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                      <Wand2 size={15} style={{ color: '#818cf8' }} />
-                      <span>آدرس وب‌سرویس JSON (REST API Endpoint):</span>
-                    </label>
-                    <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
-                      پشتیبانی از هر وب‌سرویس داخلی و بین‌المللی با پاسخ JSON
-                    </span>
-                  </div>
-
-                  <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                    <input
-                      type="url"
-                      required
-                      placeholder="https://open.er-api.com/v6/latest/USD یا وب‌سرویس بورس/خودرو"
-                      value={multiForm.apiUrl}
-                      onChange={(e) => setMultiForm({ ...multiForm, apiUrl: e.target.value.trim() })}
-                      style={{ flex: 1, direction: 'ltr', textAlign: 'left', fontFamily: 'monospace', fontSize: '12px' }}
-                    />
-                    <button
-                      type="button"
-                      onClick={handleInspectApi}
-                      disabled={inspectLoading || !multiForm.apiUrl}
-                      className="btn-primary"
-                      style={{ whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: '6px', padding: '8px 16px' }}
-                    >
-                      <Wand2 size={14} className={inspectLoading ? 'spin-anim' : ''} />
-                      <span>{inspectLoading ? 'در حال تحلیل API...' : 'تحلیل هوشمند ساختار API'}</span>
-                    </button>
-                  </div>
-
-                  {/* Detected Candidate Arrays or Dictionaries */}
-                  {inspectResult && inspectResult.candidateArrays && inspectResult.candidateArrays.length > 0 && (
-                    <div style={{ marginTop: '14px', paddingTop: '12px', borderTop: '1px solid rgba(255,255,255,0.08)' }}>
-                      <span style={{ fontSize: '11.5px', fontWeight: '700', color: 'var(--text-muted)', display: 'block', marginBottom: '8px' }}>
-                        ساختارهای داده کشف‌شده در پاسخ API (یکی را برای اتصال انتخاب کنید):
-                      </span>
-                      <div className="candidate-arrays-picker">
-                        {inspectResult.candidateArrays.map((cand, idx) => {
-                          const isSelected = (multiForm.rootPath || multiForm.arrayPath || '') === (cand.path || '');
-                          return (
-                            <button
-                              key={idx}
-                              type="button"
-                              className={`candidate-array-chip ${isSelected ? 'selected' : ''}`}
-                              onClick={() => handleSelectCandidate(cand)}
-                            >
-                              {cand.isKeyValDictionary ? <Globe size={13} style={{ color: '#38bdf8' }} /> : <Table size={13} />}
-                              <span>
-                                {cand.isKeyValDictionary
-                                  ? `دیکشنری نرخ‌ها (${cand.path || 'ریشه'})`
-                                  : (cand.path ? `مسیر: ${cand.path}` : 'ریشه اصلی آرایه []')}
-                              </span>
-                              <span style={{ fontSize: '10px', opacity: 0.8 }}>
-                                ({cand.length.toLocaleString('fa-IR')} {cand.isKeyValDictionary ? 'ارز/قلم' : 'رکورد'})
-                              </span>
-                            </button>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  )}
-                </div>
-
-                {/* Execution & Display options */}
-                <div className="form-row-2">
-                  <div className="form-group">
-                    <label style={{ fontSize: '11px' }}>دوره بروزرسانی فید (دقیقه):</label>
-                    <input
-                      type="number"
-                      min="1"
-                      value={multiForm.fetchIntervalMinutes}
-                      onChange={(e) => setMultiForm({ ...multiForm, fetchIntervalMinutes: e.target.value })}
-                      style={{ fontSize: '12px' }}
-                    />
-                  </div>
-
-                  <div style={{ display: 'flex', gap: '20px', alignItems: 'center', paddingTop: '22px', flexWrap: 'wrap' }}>
-                    <label className="admin-checkbox-label">
-                      <input
-                        type="checkbox"
-                        checked={multiForm.isActive}
-                        onChange={(e) => setMultiForm({ ...multiForm, isActive: e.target.checked })}
-                      />
-                      <span>فید فعال باشد</span>
-                    </label>
-
-                    <label className="admin-checkbox-label" title="آیا این فید در صفحه اول نمایش داده شود؟">
-                      <input
-                        type="checkbox"
-                        checked={multiForm.showOnHomePage !== false}
-                        onChange={(e) => setMultiForm({ ...multiForm, showOnHomePage: e.target.checked })}
-                      />
-                      <span style={{ fontWeight: '600', color: multiForm.showOnHomePage !== false ? 'var(--accent-green, #10b981)' : 'var(--text-muted)' }}>
-                        نمایش در صفحه اول
-                      </span>
-                    </label>
-                  </div>
-                </div>
-
-                <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '10px' }}>
-                  <button
-                    type="button"
-                    className="btn-primary"
-                    onClick={() => setWizardTab('schema')}
-                    style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
-                  >
-                    <span>ادامه به نگاشت ساختار و فرمول</span>
-                    <ArrowLeft size={14} />
-                  </button>
-                </div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "14px" }}>
+              <div className="form-group">
+                <label className="form-label">نوع فید</label>
+                <select
+                  value={multiForm.priceType}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    let defaultUrl = multiForm.apiUrl;
+                    if (val === "forex" && (!defaultUrl || defaultUrl.includes("brsapi"))) {
+                      defaultUrl = "https://open.er-api.com/v6/latest/USD";
+                    } else if (val === "bourse" && (!defaultUrl || defaultUrl.includes("open.er-api.com"))) {
+                      defaultUrl = "https://api.brsapi.ir/Tsetmc/AllSymbols.php?key=BDqzgcZZ5rGg4Z6uSEs9bMyx2E2vXrkd&type=1";
+                    }
+                    setMultiForm(prev => ({
+                      ...prev,
+                      priceType: val,
+                      apiUrl: defaultUrl,
+                    }));
+                  }}
+                  className="form-input"
+                >
+                  <option value="forex">ارزهای جهانی فارکس (Open ER-API)</option>
+                  <option value="bourse">بورس اوراق بهادار تهران (TSETMC)</option>
+                  <option value="custom">سایر فیدهای چند خروجی</option>
+                </select>
               </div>
-            )}
 
-            {/* ── TAB 2: Schema & Conversion Settings ── */}
-            {wizardTab === 'schema' && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                {/* Architecture Selector Cards */}
-                <div>
-                  <label style={{ fontSize: '12px', fontWeight: '800', color: 'var(--text-heading)', display: 'block', marginBottom: '8px' }}>
-                    نوع و معماری ساختار داده در وب‌سرویس:
-                  </label>
-                  <div className="feed-type-selector-cards">
-                    <div
-                      className={`feed-type-card ${multiForm.feedType === 'key_value' ? 'selected' : ''}`}
-                      onClick={() => setMultiForm(prev => ({
-                        ...prev,
-                        feedType: 'key_value',
-                        idField: 'symbol',
-                        titleField: 'name',
-                        priceField: 'rate',
-                        defaultMode: prev.defaultMode || 'invert',
-                        selectionMode: prev.selectionMode || 'whitelist',
-                        priceType: prev.priceType === 'bourse' ? 'forex' : prev.priceType,
-                      }))}
-                    >
-                      <div className="feed-type-card-header">
-                        <span className="feed-type-card-title">
-                          <Globe size={16} style={{ color: '#38bdf8' }} />
-                          <span>دیکشنری کلید-مقدار (Key-Value Dictionary)</span>
-                        </span>
-                        {multiForm.feedType === 'key_value' && <Check size={16} style={{ color: '#6366f1' }} />}
-                      </div>
-                      <span className="feed-type-card-desc">
-                        مناسب نرخ‌های فارکس، جفت‌ارزهای جهانی، صرافی‌ها یا رمزارزها که پاسخ به صورت یک شیء شامل کد و نرخ ارز است (مانند <code>{`{ USD: 1, EUR: 0.92, AED: 3.67 }`}</code>).
-                      </span>
-                    </div>
-
-                    <div
-                      className={`feed-type-card ${multiForm.feedType === 'array' ? 'selected' : ''}`}
-                      onClick={() => setMultiForm(prev => ({ ...prev, feedType: 'array' }))}
-                    >
-                      <div className="feed-type-card-header">
-                        <span className="feed-type-card-title">
-                          <Table size={16} style={{ color: '#a855f7' }} />
-                          <span>آرایه‌ای از اشیاء (Array of Objects)</span>
-                        </span>
-                        {multiForm.feedType === 'array' && <Check size={16} style={{ color: '#6366f1' }} />}
-                      </div>
-                      <span className="feed-type-card-desc">
-                        مناسب بورس تهران، قیمت روز خودرو، صندوق‌های طلا و کالاهای اساسی که پاسخ به صورت یک لیست/آرایه از محصولات است (مانند <code>{`[{ symbol: 'فولاد', price: 5000 }, ... ]`}</code>).
-                      </span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Root Path Input */}
-                <div className="form-group" style={{ margin: 0 }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
-                    <label style={{ margin: 0 }}>
-                      مسیر نود داده در پاسخ JSON (Root Path):
-                    </label>
-                    <span style={{ fontSize: '10.5px', color: 'var(--text-muted)' }}>
-                      اگر داده‌ها در ریشه قرار دارند خالی بگذارید یا مثلاً <code>rates</code>، <code>data</code> یا <code>items</code>
-                    </span>
-                  </div>
-                  <input
-                    type="text"
-                    list="detected-paths-datalist"
-                    placeholder="مثال: rates (برای فارکس) یا data (برای بورس) یا خالی"
-                    value={multiForm.rootPath || multiForm.arrayPath || ''}
-                    onChange={(e) => setMultiForm({ ...multiForm, rootPath: e.target.value.trim(), arrayPath: e.target.value.trim() })}
-                    style={{ direction: 'ltr', fontFamily: 'monospace', fontSize: '12px' }}
-                  />
-                  {inspectResult && (
-                    <datalist id="detected-paths-datalist">
-                      {(inspectResult.candidateArrays || []).map((cand, idx) => (
-                        <option key={idx} value={cand.path}>{cand.path || 'ریشه اصلی'}</option>
-                      ))}
-                    </datalist>
-                  )}
-                </div>
-
-                {/* Specific Settings based on feedType */}
-                {multiForm.feedType === 'key_value' ? (
-                  <div style={{ background: 'rgba(0, 0, 0, 0.25)', border: '1px solid rgba(56, 189, 248, 0.2)', borderRadius: '12px', padding: '16px' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
-                      <Settings2 size={16} style={{ color: '#38bdf8' }} />
-                      <h4 style={{ margin: 0, fontSize: '13.5px', fontWeight: '800', color: 'var(--text-heading)' }}>
-                        تنظیمات فرمول تبدیل نرخ‌های کلید-مقدار (Forex Conversion Formula)
-                      </h4>
-                    </div>
-
-                    <div className="form-row-2">
-                      <div className="form-group">
-                        <label style={{ fontSize: '11px' }}>فرمول پیش‌فرض تبدیل به نرخ واقعی دلاری:</label>
-                        <select
-                          value={multiForm.defaultMode || 'invert'}
-                          onChange={(e) => setMultiForm({ ...multiForm, defaultMode: e.target.value })}
-                          style={{ fontSize: '12px' }}
-                        >
-                          <option value="invert">معکوس (1 ÷ نرخ وب‌سرویس) - استاندارد USD Cross Rates (پیشنهادی)</option>
-                          <option value="direct">مستقیم (نرخ اعلامی وب‌سرویس بدون معکوس‌سازی)</option>
-                          <option value="multiply">ضرب در ضریب (نرخ × ضریب تبدیل)</option>
-                        </select>
-                      </div>
-
-                      <div className="form-group">
-                        <label style={{ fontSize: '11px' }}>ضریب سراسری (Multiplier):</label>
-                        <input
-                          type="number"
-                          step="any"
-                          value={multiForm.multiplier}
-                          onChange={(e) => setMultiForm({ ...multiForm, multiplier: e.target.value })}
-                          style={{ direction: 'ltr', fontFamily: 'monospace', fontSize: '12px' }}
-                        />
-                      </div>
-                    </div>
-
-                    <div style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', background: 'rgba(56, 189, 248, 0.08)', padding: '10px 14px', borderRadius: '8px', border: '1px solid rgba(56, 189, 248, 0.15)' }}>
-                      <Info size={16} style={{ color: '#38bdf8', flexShrink: 0, marginTop: '2px' }} />
-                      <p style={{ margin: 0, fontSize: '11.5px', color: 'var(--text-muted)', lineHeight: '1.6' }}>
-                        <strong>نکته فرمول معکوس:</strong> وب‌سرویس‌هایی مانند Open Exchange Rates نرخ‌ها را بر پایه ۱ دلار به صورت معکوس اعلام می‌کنند (مثلاً <code>{`1 USD = 0.92 EUR`}</code>). فرمول معکوس به طور خودکار نرخ جهانی EUR/USD را محاسبه می‌کند (<code>{`1 ÷ 0.92 = 1.087 دلار`}</code>) و سپس بر اساس قیمت دلار در سامانه ارزش تومانی دقیق آن را استخراج می‌نماید.
-                      </p>
-                    </div>
-                  </div>
-                ) : (
-                  /* Array of Objects Schema Mapper */
-                  <>
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                        <SlidersHorizontal size={16} style={{ color: 'var(--accent-green, #10b981)' }} />
-                        <h4 style={{ margin: 0, fontSize: '13.5px', fontWeight: '800', color: 'var(--text-heading)' }}>
-                          نگاشت تعاملی فیلدها و کلیدهای JSON
-                        </h4>
-                      </div>
-                      <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
-                        کلیدهای شیء در آرایه را انتخاب کنید
-                      </span>
-                    </div>
-
-                    <div className="schema-mapper-grid">
-                      <div className="schema-field-card">
-                        <div className="schema-field-header">
-                          <span className="schema-field-title">
-                            <Hash size={13} style={{ color: '#818cf8' }} />
-                            شناسه یا کد یکتا (ID / Symbol)
-                          </span>
-                          <span className="schema-field-req">الزامی</span>
-                        </div>
-                        <div className="schema-field-inputs-row">
-                          <div>
-                            <label style={{ fontSize: '10.5px', color: 'var(--text-muted)' }}>کلید در JSON:</label>
-                            <input
-                              type="text"
-                              list="api-keys-list"
-                              placeholder="id یا symbol"
-                              value={multiForm.idField}
-                              onChange={(e) => setMultiForm({ ...multiForm, idField: e.target.value.trim() })}
-                              style={{ direction: 'ltr', fontFamily: 'monospace', fontSize: '12px' }}
-                            />
-                          </div>
-                          <div>
-                            <label style={{ fontSize: '10.5px', color: 'var(--text-muted)' }}>عنوان نمایشی ستون:</label>
-                            <input
-                              type="text"
-                              placeholder="شناسه / کد"
-                              value={multiForm.idLabel}
-                              onChange={(e) => setMultiForm({ ...multiForm, idLabel: e.target.value })}
-                              style={{ fontSize: '12px' }}
-                            />
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="schema-field-card">
-                        <div className="schema-field-header">
-                          <span className="schema-field-title">
-                            <Tag size={13} style={{ color: '#38bdf8' }} />
-                            عنوان یا نام اصلی (Title / Name)
-                          </span>
-                          <span className="schema-field-req">الزامی</span>
-                        </div>
-                        <div className="schema-field-inputs-row">
-                          <div>
-                            <label style={{ fontSize: '10.5px', color: 'var(--text-muted)' }}>کلید در JSON:</label>
-                            <input
-                              type="text"
-                              list="api-keys-list"
-                              placeholder="name یا title"
-                              value={multiForm.titleField}
-                              onChange={(e) => setMultiForm({ ...multiForm, titleField: e.target.value.trim() })}
-                              style={{ direction: 'ltr', fontFamily: 'monospace', fontSize: '12px' }}
-                            />
-                          </div>
-                          <div>
-                            <label style={{ fontSize: '10.5px', color: 'var(--text-muted)' }}>عنوان نمایشی ستون:</label>
-                            <input
-                              type="text"
-                              placeholder="عنوان / نام"
-                              value={multiForm.titleLabel}
-                              onChange={(e) => setMultiForm({ ...multiForm, titleLabel: e.target.value })}
-                              style={{ fontSize: '12px' }}
-                            />
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="schema-field-card">
-                        <div className="schema-field-header">
-                          <span className="schema-field-title">
-                            <DollarSign size={13} style={{ color: '#10b981' }} />
-                            قیمت اصلی (Primary Price)
-                          </span>
-                          <span className="schema-field-req">الزامی</span>
-                        </div>
-                        <div className="schema-field-inputs-row">
-                          <div>
-                            <label style={{ fontSize: '10.5px', color: 'var(--text-muted)' }}>کلید در JSON:</label>
-                            <input
-                              type="text"
-                              list="api-keys-list"
-                              placeholder="price یا last_price"
-                              value={multiForm.priceField}
-                              onChange={(e) => setMultiForm({ ...multiForm, priceField: e.target.value.trim() })}
-                              style={{ direction: 'ltr', fontFamily: 'monospace', fontSize: '12px' }}
-                            />
-                          </div>
-                          <div>
-                            <label style={{ fontSize: '10.5px', color: 'var(--text-muted)' }}>عنوان نمایشی ستون:</label>
-                            <input
-                              type="text"
-                              placeholder="قیمت اصلی / بازار"
-                              value={multiForm.priceLabel}
-                              onChange={(e) => setMultiForm({ ...multiForm, priceLabel: e.target.value })}
-                              style={{ fontSize: '12px' }}
-                            />
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="schema-field-card">
-                        <div className="schema-field-header">
-                          <span className="schema-field-title">
-                            <RotateCcw size={13} style={{ color: '#f59e0b' }} />
-                            قیمت مقایسه‌ای / دوم (Alt Price)
-                          </span>
-                          <span className="schema-field-opt">اختیاری</span>
-                        </div>
-                        <div className="schema-field-inputs-row">
-                          <div>
-                            <label style={{ fontSize: '10.5px', color: 'var(--text-muted)' }}>کلید در JSON:</label>
-                            <input
-                              type="text"
-                              list="api-keys-list"
-                              placeholder="factory_price یا pc"
-                              value={multiForm.altPriceField}
-                              onChange={(e) => setMultiForm({ ...multiForm, altPriceField: e.target.value.trim() })}
-                              style={{ direction: 'ltr', fontFamily: 'monospace', fontSize: '12px' }}
-                            />
-                          </div>
-                          <div>
-                            <label style={{ fontSize: '10.5px', color: 'var(--text-muted)' }}>عنوان نمایشی ستون:</label>
-                            <input
-                              type="text"
-                              placeholder="قیمت کارخانه / مرجع"
-                              value={multiForm.altPriceLabel}
-                              onChange={(e) => setMultiForm({ ...multiForm, altPriceLabel: e.target.value })}
-                              style={{ fontSize: '12px' }}
-                            />
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="schema-field-card">
-                        <div className="schema-field-header">
-                          <span className="schema-field-title">
-                            <Percent size={13} style={{ color: '#ec4899' }} />
-                            درصد تغییرات (Change %)
-                          </span>
-                          <span className="schema-field-opt">اختیاری</span>
-                        </div>
-                        <div className="schema-field-inputs-row">
-                          <div>
-                            <label style={{ fontSize: '10.5px', color: 'var(--text-muted)' }}>کلید در JSON:</label>
-                            <input
-                              type="text"
-                              list="api-keys-list"
-                              placeholder="percent یا plp"
-                              value={multiForm.changePercentField}
-                              onChange={(e) => setMultiForm({ ...multiForm, changePercentField: e.target.value.trim() })}
-                              style={{ direction: 'ltr', fontFamily: 'monospace', fontSize: '12px' }}
-                            />
-                          </div>
-                          <div>
-                            <label style={{ fontSize: '10.5px', color: 'var(--text-muted)' }}>عنوان نمایشی ستون:</label>
-                            <input
-                              type="text"
-                              placeholder="درصد تغییر"
-                              value={multiForm.changePercentLabel}
-                              onChange={(e) => setMultiForm({ ...multiForm, changePercentLabel: e.target.value })}
-                              style={{ fontSize: '12px' }}
-                            />
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="schema-field-card">
-                        <div className="schema-field-header">
-                          <span className="schema-field-title">
-                            <Folder size={13} style={{ color: '#a855f7' }} />
-                            دسته‌بندی یا برند (Category)
-                          </span>
-                          <span className="schema-field-opt">اختیاری</span>
-                        </div>
-                        <div className="schema-field-inputs-row">
-                          <div>
-                            <label style={{ fontSize: '10.5px', color: 'var(--text-muted)' }}>کلید در JSON:</label>
-                            <input
-                              type="text"
-                              list="api-keys-list"
-                              placeholder="brand یا group"
-                              value={multiForm.categoryField}
-                              onChange={(e) => setMultiForm({ ...multiForm, categoryField: e.target.value.trim() })}
-                              style={{ direction: 'ltr', fontFamily: 'monospace', fontSize: '12px' }}
-                            />
-                          </div>
-                          <div>
-                            <label style={{ fontSize: '10.5px', color: 'var(--text-muted)' }}>عنوان نمایشی ستون:</label>
-                            <input
-                              type="text"
-                              placeholder="شرکت / گروه"
-                              value={multiForm.categoryLabel}
-                              onChange={(e) => setMultiForm({ ...multiForm, categoryLabel: e.target.value })}
-                              style={{ fontSize: '12px' }}
-                            />
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-
-                    {inspectResult && (
-                      <datalist id="api-keys-list">
-                        {(inspectResult.candidateArrays?.find(c => c.path === multiForm.arrayPath)?.keys || []).map(k => (
-                          <option key={k} value={k} />
-                        ))}
-                      </datalist>
-                    )}
-
-                    <div className="form-row-2" style={{ background: 'rgba(0,0,0,0.2)', padding: '12px 14px', borderRadius: '10px' }}>
-                      <div className="form-group" style={{ margin: 0 }}>
-                        <label style={{ fontSize: '11px' }}>واحد عددی قیمت در وب‌سرویس:</label>
-                        <select
-                          value={multiForm.priceUnit}
-                          onChange={(e) => setMultiForm({
-                            ...multiForm,
-                            priceUnit: e.target.value,
-                            multiplier: e.target.value === 'rial' ? 0.1 : 1,
-                          })}
-                          style={{ fontSize: '12px' }}
-                        >
-                          <option value="toman">تومان (مستقیم، ضریب ۱)</option>
-                          <option value="rial">ریال ایران (تبدیل به تومان با تقسیم بر ۱۰)</option>
-                          <option value="dollar">دلار آمریکا ($)</option>
-                          <option value="euro">یورو (€)</option>
-                          <option value="custom">واحد دلخواه متنی</option>
-                        </select>
-                      </div>
-
-                      <div className="form-group" style={{ margin: 0 }}>
-                        <label style={{ fontSize: '11px' }}>ضریب تبدیل قیمت (Multiplier):</label>
-                        <input
-                          type="number"
-                          step="any"
-                          value={multiForm.multiplier}
-                          onChange={(e) => setMultiForm({ ...multiForm, multiplier: e.target.value })}
-                          style={{ direction: 'ltr', fontFamily: 'monospace', fontSize: '12px' }}
-                        />
-                      </div>
-                    </div>
-                  </>
-                )}
-
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '10px' }}>
-                  <button
-                    type="button"
-                    className="btn-secondary"
-                    onClick={() => setWizardTab('source')}
-                    style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
-                  >
-                    <ArrowRight size={14} />
-                    <span>مرحله قبل</span>
-                  </button>
-                  <button
-                    type="button"
-                    className="btn-primary"
-                    onClick={() => setWizardTab('items')}
-                    style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
-                  >
-                    <span>ادامه به مدیریت فیلتر و انتخاب اقلام</span>
-                    <ArrowLeft size={14} />
-                  </button>
-                </div>
+              <div className="form-group">
+                <label className="form-label">دوره به‌روزرسانی (دقیقه)</label>
+                <input
+                  type="number"
+                  min="1"
+                  max="1440"
+                  value={multiForm.fetchIntervalMinutes}
+                  onChange={(e) => setMultiForm(prev => ({ ...prev, fetchIntervalMinutes: parseInt(e.target.value, 10) || 60 }))}
+                  className="form-input"
+                />
               </div>
-            )}
+            </div>
 
-            {/* ── TAB 3: Item Selection & Whitelist Manager ── */}
-            {wizardTab === 'items' && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                {/* Strategy Switcher: Whitelist vs Blacklist */}
-                <div>
-                  <label style={{ fontSize: '12px', fontWeight: '800', color: 'var(--text-heading)', display: 'block', marginBottom: '8px' }}>
-                    استراتژی فیلترسازی و استخراج اقلام از فید:
-                  </label>
-                  <div className="selection-mode-toggle-group">
-                    <button
-                      type="button"
-                      className={`selection-mode-pill ${multiForm.selectionMode === 'whitelist' ? 'active' : ''}`}
-                      onClick={() => setMultiForm(prev => ({
-                        ...prev,
-                        selectionMode: 'whitelist',
-                        includedKeys: prev.includedKeys?.length > 0 ? prev.includedKeys : ['EUR', 'TRY', 'AED', 'GBP', 'CHF', 'CAD', 'AUD', 'CNY'],
-                      }))}
-                    >
-                      <CheckSquare size={15} style={{ color: '#10b981' }} />
-                      <span>فیلتر گزینشی / لیست سفید (Whitelist) - فقط موارد انتخابی</span>
-                    </button>
+            <div className="form-group">
+              <label className="form-label">آدرس API Endpoint</label>
+              <input
+                type="text"
+                dir="ltr"
+                placeholder="https://..."
+                value={multiForm.apiUrl}
+                onChange={(e) => setMultiForm(prev => ({ ...prev, apiUrl: e.target.value }))}
+                className="form-input"
+                required
+              />
+              <div style={{ display: "flex", gap: "8px", marginTop: "6px", flexWrap: "wrap" }}>
+                <button
+                  type="button"
+                  className="btn-sm"
+                  style={{ fontSize: "11px" }}
+                  onClick={() => setMultiForm(prev => ({
+                    ...prev,
+                    name: prev.name || "نرخ‌های جهانی فارکس (Open ER-API)",
+                    priceType: "forex",
+                    apiUrl: "https://open.er-api.com/v6/latest/USD",
+                  }))}
+                >
+                  تنظیم آدرس فارکس
+                </button>
+                <button
+                  type="button"
+                  className="btn-sm"
+                  style={{ fontSize: "11px" }}
+                  onClick={() => setMultiForm(prev => ({
+                    ...prev,
+                    name: prev.name || "بورس اوراق بهادار تهران (TSETMC)",
+                    priceType: "bourse",
+                    apiUrl: "https://api.brsapi.ir/Tsetmc/AllSymbols.php?key=BDqzgcZZ5rGg4Z6uSEs9bMyx2E2vXrkd&type=1",
+                  }))}
+                >
+                  تنظیم آدرس بورس
+                </button>
+              </div>
+            </div>
 
-                    <button
-                      type="button"
-                      className={`selection-mode-pill ${multiForm.selectionMode !== 'whitelist' ? 'active' : ''}`}
-                      onClick={() => setMultiForm(prev => ({ ...prev, selectionMode: 'all' }))}
-                    >
-                      <Filter size={15} style={{ color: '#a855f7' }} />
-                      <span>دریافت همه اقلام به جز موارد مستثنی (Blacklist)</span>
-                    </button>
-                  </div>
+            <div style={{ display: "flex", alignItems: "center", gap: "8px", marginTop: "4px" }}>
+              <input
+                type="checkbox"
+                id="multi_active"
+                checked={multiForm.isActive}
+                onChange={(e) => setMultiForm(prev => ({ ...prev, isActive: e.target.checked }))}
+              />
+              <label htmlFor="multi_active" style={{ fontSize: "12px", cursor: "pointer" }}>
+                فید فعال باشد و در فواصل زمانی مشخص داده‌ها به‌روزرسانی شوند
+              </label>
+            </div>
+
+            {/* Test Results Display */}
+            {multiTestResult && (
+              <div style={{ marginTop: "10px", padding: "12px", borderRadius: "8px", background: multiTestResult.success ? "rgba(16, 185, 129, 0.08)" : "rgba(244, 63, 94, 0.08)", border: `1px solid ${multiTestResult.success ? "rgba(16, 185, 129, 0.3)" : "rgba(244, 63, 94, 0.3)"}` }}>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "8px" }}>
+                  <span style={{ fontSize: "12.5px", fontWeight: "700", color: multiTestResult.success ? "#10b981" : "#f43f5e" }}>
+                    {multiTestResult.success ? `✓ ${multiTestResult.message}` : `✗ خطا: ${multiTestResult.error}`}
+                  </span>
                 </div>
 
-                {/* If Whitelist: Show Presets & Selectable Table */}
-                {multiForm.selectionMode === 'whitelist' ? (
-                  <>
-                    {/* Presets Toolbar */}
-                    <div className="preset-chips-toolbar">
-                      <span style={{ fontSize: '11.5px', fontWeight: '800', color: 'var(--text-muted)' }}>
-                        فیلترهای آماده (Presets):
-                      </span>
-                      {FOREX_PRESETS.map((p) => (
-                        <button
-                          key={p.id}
-                          type="button"
-                          className="preset-chip-btn"
-                          onClick={() => handleApplyPreset(p.keys)}
-                        >
-                          <span>{p.icon}</span>
-                          <span>{p.title}</span>
-                        </button>
-                      ))}
-                      <button
-                        type="button"
-                        className="preset-chip-btn"
-                        onClick={() => handleSelectAllItems(selectableItemsList.map(x => x.code))}
-                      >
-                        <Check size={13} />
-                        <span>انتخاب همه ({selectableItemsList.length.toLocaleString('fa-IR')})</span>
-                      </button>
-                      <button
-                        type="button"
-                        className="preset-chip-btn danger-action"
-                        onClick={handleDeselectAllItems}
-                      >
-                        <X size={13} />
-                        <span>لغو همه</span>
-                      </button>
-                    </div>
-
-                    {/* Search and Custom Key Adder Row */}
-                    <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
-                      <div style={{ flex: 1, minWidth: '220px', position: 'relative' }}>
-                        <Search size={14} style={{ position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
-                        <input
-                          type="text"
-                          placeholder="جستجو در نام یا کد ارز / قلم..."
-                          value={itemFilterSearch}
-                          onChange={(e) => setItemFilterSearch(e.target.value)}
-                          style={{ width: '100%', paddingRight: '32px', fontSize: '12px' }}
-                        />
-                      </div>
-
-                      <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
-                        <input
-                          type="text"
-                          placeholder="کد دلخواه (مثال: CAD)"
-                          value={customKeyInput}
-                          onChange={(e) => setCustomKeyInput(e.target.value)}
-                          onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleAddCustomKey(); } }}
-                          style={{ width: '140px', direction: 'ltr', textTransform: 'uppercase', fontFamily: 'monospace', fontSize: '12px' }}
-                        />
-                        <button
-                          type="button"
-                          className="btn-sm"
-                          onClick={handleAddCustomKey}
-                          style={{ padding: '7px 12px' }}
-                        >
-                          + افزودن کد
-                        </button>
-                      </div>
-
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                        <span className="badge badge-indigo" style={{ fontSize: '11px', padding: '4px 10px' }}>
-                          {(multiForm.includedKeys || []).length.toLocaleString('fa-IR')} از {selectableItemsList.length.toLocaleString('fa-IR')} قلم انتخاب‌شده
-                        </span>
-                      </div>
-                    </div>
-
-                    {/* Items Selection Table */}
-                    <div className="feed-item-select-table-wrap">
-                      <table className="feed-item-select-table">
-                        <thead>
-                          <tr>
-                            <th style={{ width: '40px', textAlign: 'center' }}>انتخاب</th>
-                            <th style={{ width: '100px' }}>کد / نماد</th>
-                            <th>نام نمایشی فارسی (قابل ویرایش)</th>
-                            <th style={{ width: '130px' }}>نرخ خام وب‌سرویس</th>
-                            <th style={{ width: '140px' }}>فرمول اختصاصی</th>
-                            <th style={{ width: '130px' }}>پیش‌نمایش نرخ</th>
+                {multiTestResult.success && Array.isArray(multiTestResult.sampleItems) && (
+                  <div style={{ maxHeight: "200px", overflowY: "auto" }}>
+                    <table className="users-table" style={{ width: "100%", fontSize: "11.5px" }}>
+                      <thead>
+                        <tr>
+                          <th>نماد</th>
+                          <th>اسم</th>
+                          <th>قیمت</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {multiTestResult.sampleItems.slice(0, 15).map((item, idx) => (
+                          <tr key={idx}>
+                            <td><strong>{item.s || item.symbol}</strong></td>
+                            <td>{item.n || item.name}</td>
+                            <td style={{ color: "#10b981", fontWeight: "700" }}>
+                              {Number(item.p || item.price).toLocaleString("fa-IR")}
+                            </td>
                           </tr>
-                        </thead>
-                        <tbody>
-                          {filteredSelectableItems.length === 0 ? (
-                            <tr>
-                              <td colSpan="6" style={{ textAlign: 'center', padding: '24px', color: 'var(--text-muted)' }}>
-                                موردی با این مشخصات یافت نشد. می‌توانید با دکمه «+ افزودن کد» آن را اضافه کنید.
-                              </td>
-                            </tr>
-                          ) : (
-                            filteredSelectableItems.map((item) => {
-                              const isSelected = (multiForm.includedKeys || []).map(x => String(x).toUpperCase()).includes(item.code);
-                              const cfg = multiForm.itemsConfig?.[item.code] || {};
-                              const currentLabel = cfg.label !== undefined ? cfg.label : item.label;
-                              const currentMode = cfg.mode || '';
-
-                              return (
-                                <tr key={item.code} className={isSelected ? 'selected-row' : ''}>
-                                <td style={{ textAlign: 'center' }}>
-                                  <input
-                                    type="checkbox"
-                                    checked={isSelected}
-                                    onChange={() => handleToggleIncludeItem(item.code)}
-                                    style={{ cursor: 'pointer' }}
-                                  />
-                                </td>
-                                <td>
-                                  <span className="item-code-badge">{item.code}</span>
-                                </td>
-                                <td>
-                                  <input
-                                    type="text"
-                                    className="item-title-input"
-                                    value={currentLabel}
-                                    placeholder={item.label || item.code}
-                                    onChange={(e) => handleUpdateItemConfig(item.code, 'label', e.target.value)}
-                                  />
-                                </td>
-                                <td style={{ fontFamily: 'monospace', color: 'var(--text-muted)' }}>
-                                  {item.rawRate !== null && item.rawRate !== undefined ? Number(item.rawRate).toLocaleString('fa-IR', { maximumFractionDigits: 5 }) : '—'}
-                                </td>
-                                <td>
-                                  <select
-                                    className="item-mode-select"
-                                    value={currentMode}
-                                    onChange={(e) => handleUpdateItemConfig(item.code, 'mode', e.target.value)}
-                                  >
-                                    <option value="">ارث‌بری ({multiForm.defaultMode === 'invert' ? 'معکوس' : 'مستقیم'})</option>
-                                    <option value="invert">معکوس (1/rate)</option>
-                                    <option value="direct">مستقیم</option>
-                                    <option value="multiply">ضرب</option>
-                                  </select>
-                                </td>
-                                <td>
-                                  <span className="item-price-preview">
-                                    {getItemCalculatedPreview(item)}
-                                  </span>
-                                </td>
-                              </tr>
-                            );
-                          })
-                        )}
+                        ))}
                       </tbody>
                     </table>
                   </div>
-                </>
-              ) : (
-                /* Blacklist Excluded Outputs Mode */
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-                  {previewMappedItems.length > 0 && (
-                    <div className="live-preview-box" style={{ margin: 0 }}>
-                      <div className="live-preview-header">
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                          <Sparkles size={15} style={{ color: 'var(--accent-green, #10b981)' }} />
-                          <strong style={{ fontSize: '13px', color: 'var(--text-heading)' }}>
-                            پیش‌نمایش زنده اقلام ({previewMappedItems.length} نمونه کشف‌شده)
-                          </strong>
-                        </div>
-                        <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
-                          می‌توانید هر سطری را مستقیماً با دکمه «مستثنی کردن» حذف کنید
-                        </span>
-                      </div>
-
-                      <div className="live-preview-table-wrap">
-                        <table className="live-preview-table">
-                          <thead>
-                            <tr>
-                              <th>شناسه / کد</th>
-                              <th>عنوان / نام</th>
-                              <th>قیمت اصلی</th>
-                              {multiForm.altPriceField && <th>قیمت دوم</th>}
-                              {multiForm.changePercentField && <th>درصد تغییر</th>}
-                              {multiForm.categoryField && <th>دسته‌بندی</th>}
-                              <th style={{ textAlign: 'center' }}>عملیات استثنا</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {previewMappedItems.map((item, idx) => (
-                              <tr key={idx} className={item.isExcluded ? 'is-excluded' : ''}>
-                                <td><strong>{item.id}</strong></td>
-                                <td>{item.title}</td>
-                                <td style={{ color: 'var(--accent-green, #10b981)', fontWeight: '700' }}>
-                                  {item.price.toLocaleString('fa-IR')} {multiForm.priceUnit === 'rial' ? 'تومان' : ''}
-                                </td>
-                                {multiForm.altPriceField && (
-                                  <td>{item.altPrice > 0 ? item.altPrice.toLocaleString('fa-IR') : '-'}</td>
-                                )}
-                                {multiForm.changePercentField && (
-                                  <td style={{ color: item.changePct > 0 ? 'var(--accent-green)' : (item.changePct < 0 ? 'var(--accent-rose)' : 'var(--text-muted)') }}>
-                                    {item.changePct > 0 ? '+' : ''}{Number(item.changePct).toFixed(2)}%
-                                  </td>
-                                )}
-                                {multiForm.categoryField && <td>{item.category || '-'}</td>}
-                                <td style={{ textAlign: 'center' }}>
-                                  <button
-                                    type="button"
-                                    className={`btn-exclude-row ${item.isExcluded ? 'active' : ''}`}
-                                    onClick={() => handleToggleExcludeInPreview(item)}
-                                  >
-                                    {item.isExcluded ? 'بازگردانی' : 'مستثنی کن (Exclude)'}
-                                  </button>
-                                </td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Excluded Outputs Section */}
-                  <div style={{ background: 'rgba(0,0,0,0.2)', padding: '14px', borderRadius: '10px' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-                      <span style={{ fontSize: '12px', fontWeight: '700', color: 'var(--text-heading)' }}>
-                        اقلام مستثنی‌شده از خروجی نهایی (Excluded Outputs):
-                      </span>
-                      <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
-                        {(multiForm.excludedOutputs || []).length} مورد
-                      </span>
-                    </div>
-
-                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginBottom: '8px', minHeight: '32px' }}>
-                      {(multiForm.excludedOutputs || []).length === 0 ? (
-                        <span style={{ fontSize: '11px', color: 'var(--text-muted)', fontStyle: 'italic' }}>
-                          هیچ موردی مستثنی نشده است (همه اقلام استخراج می‌شوند)
-                        </span>
-                      ) : (
-                        (multiForm.excludedOutputs || []).map((code) => (
-                          <span
-                            key={code}
-                            style={{
-                              display: 'inline-flex', alignItems: 'center', gap: '4px',
-                              padding: '3px 8px', borderRadius: '6px',
-                              background: 'rgba(244, 63, 94, 0.12)', border: '1px solid rgba(244, 63, 94, 0.25)',
-                              fontSize: '11.5px', fontWeight: '700', color: '#f43f5e',
-                            }}
-                          >
-                            {code}
-                            <button
-                              type="button"
-                              onClick={() => setMultiForm(prev => ({
-                                ...prev,
-                                excludedOutputs: (prev.excludedOutputs || []).filter(x => x !== code),
-                              }))}
-                              style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#f43f5e', padding: 0 }}
-                            >
-                              <X size={12} />
-                            </button>
-                          </span>
-                        ))
-                      )}
-                    </div>
-
-                    <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                      <input
-                        type="text"
-                        placeholder="افزودن دستی کد یا عنوان برای حذف (مثال: پژو ۲۰۶ یا ذوب)"
-                        value={newMultiExcludedEntry}
-                        onChange={(e) => setNewMultiExcludedEntry(e.target.value)}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter') {
-                            e.preventDefault();
-                            const val = newMultiExcludedEntry.trim().toLowerCase();
-                            if (val && !(multiForm.excludedOutputs || []).includes(val)) {
-                              setMultiForm(prev => ({ ...prev, excludedOutputs: [...(prev.excludedOutputs || []), val] }));
-                              setNewMultiExcludedEntry('');
-                            }
-                          }
-                        }}
-                        style={{ flex: 1, fontSize: '12px' }}
-                      />
-                      <button
-                        type="button"
-                        className="btn-sm"
-                        onClick={() => {
-                          const val = newMultiExcludedEntry.trim().toLowerCase();
-                          if (val && !(multiForm.excludedOutputs || []).includes(val)) {
-                            setMultiForm(prev => ({ ...prev, excludedOutputs: [...(prev.excludedOutputs || []), val] }));
-                            setNewMultiExcludedEntry('');
-                          }
-                        }}
-                      >
-                        + افزودن
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-      </Modal>
+                )}
+              </div>
+            )}
+          </div>
+        </Modal>
 
         {/* ── Feed Data Explorer Modal ────────────────────────────────────── */}
         <Modal
@@ -3598,12 +2238,9 @@ export default function PriceSourcesPage({ embedded = false, usdToman: propUsdTo
                   <table className="users-table" style={{ width: '100%', fontSize: '12px' }}>
                     <thead>
                       <tr>
-                        <th>شناسه / کد</th>
-                        <th>عنوان / نام</th>
-                        <th>قیمت (تومان)</th>
-                        <th>تغییرات</th>
-                        <th>دسته / جزئیات</th>
-                        <th style={{ textAlign: 'center' }}>وضعیت استثنا</th>
+                        <th>نماد</th>
+                        <th>نام دارایی</th>
+                        <th>آخرین قیمت (تومان)</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -3613,45 +2250,19 @@ export default function PriceSourcesPage({ embedded = false, usdToman: propUsdTo
                           const q = explorerSearch.toLowerCase();
                           return (
                             (item.s && String(item.s).toLowerCase().includes(q)) ||
-                            (item.n && String(item.n).toLowerCase().includes(q)) ||
-                            (item.cat && String(item.cat).toLowerCase().includes(q))
+                            (item.n && String(item.n).toLowerCase().includes(q))
                           );
                         })
                         .slice(0, 100)
-                        .map((item, idx) => {
-                          const currentExcluded = Array.isArray(explorerFeed.excludedOutputs)
-                            ? explorerFeed.excludedOutputs
-                            : (typeof explorerFeed.excludedOutputs === 'string' ? JSON.parse(explorerFeed.excludedOutputs || '[]') : []);
-                          const isExcluded = currentExcluded.includes(String(item.s || '').toLowerCase()) ||
-                            currentExcluded.includes(String(item.n || '').toLowerCase());
-
-                          return (
-                            <tr key={idx} style={{ opacity: isExcluded ? 0.4 : 1, textDecoration: isExcluded ? 'line-through' : 'none' }}>
-                              <td><strong>{item.s}</strong></td>
-                              <td>{item.n}</td>
-                              <td style={{ color: 'var(--accent-green, #10b981)', fontWeight: '700' }}>
-                                {Number(item.priceTomans || item.priceFinal || Math.round(item.p / 10)).toLocaleString('fa-IR')}
-                              </td>
-                              <td style={{ color: item.cp > 0 ? 'var(--accent-green)' : (item.cp < 0 ? 'var(--accent-rose)' : 'var(--text-muted)') }}>
-                                {item.cp > 0 ? '+' : ''}{Number(item.cp || 0).toFixed(2)}%
-                              </td>
-                              <td>
-                                <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
-                                  {item.cat || item.extra || (item.f ? 'صندوق' : '-')}
-                                </span>
-                              </td>
-                              <td style={{ textAlign: 'center' }}>
-                                <button
-                                  type="button"
-                                  className={`btn-exclude-row ${isExcluded ? 'active' : ''}`}
-                                  onClick={() => handleExplorerToggleExclude(item.s || item.n)}
-                                >
-                                  {isExcluded ? 'بازگردانی' : 'مستثنی کن (Exclude)'}
-                                </button>
-                              </td>
-                            </tr>
-                          );
-                        })}
+                        .map((item, idx) => (
+                          <tr key={idx}>
+                            <td><strong>{item.s}</strong></td>
+                            <td>{item.n}</td>
+                            <td style={{ color: 'var(--accent-green, #10b981)', fontWeight: '700' }}>
+                              {Number(item.priceTomans || item.p || 0).toLocaleString('fa-IR')}
+                            </td>
+                          </tr>
+                        ))}
                     </tbody>
                   </table>
                 )}

@@ -989,11 +989,6 @@ export default function UniversalAssetSearch({
                           {active ? <Check size={12} /> : 'انتخاب'}
                         </span>
                       )}
-                      {item.changePercent !== undefined && Number(item.changePercent) !== 0 && (
-                        <span className={`universal-result-change ${Number(item.changePercent) > 0 ? 'positive' : 'negative'}`}>
-                          {Number(item.changePercent) > 0 ? '+' : ''}{Number(item.changePercent).toFixed(2)}%
-                        </span>
-                      )}
                     </div>
                   </div>
                 );
@@ -1046,11 +1041,6 @@ export default function UniversalAssetSearch({
                       ) : (
                         <span className="universal-result-badge" style={{ color: '#60a5fa' }}>
                           {active ? <Check size={12} /> : 'انتخاب'}
-                        </span>
-                      )}
-                      {item.changePercent !== undefined && Number(item.changePercent) !== 0 && (
-                        <span className={`universal-result-change ${Number(item.changePercent) > 0 ? 'positive' : 'negative'}`}>
-                          {Number(item.changePercent) > 0 ? '+' : ''}{Number(item.changePercent).toFixed(2)}%
                         </span>
                       )}
                     </div>
