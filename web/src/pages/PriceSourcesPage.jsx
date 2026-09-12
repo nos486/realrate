@@ -60,6 +60,8 @@ const PRICE_TYPE_INFO = {
   mesghal: { label: 'مثقال طلا ۱۷ عیار', badgeColor: 'purple', unit: 'تومان' },
   ons_gold: { label: 'انس طلا جهانی (XAU)', badgeColor: 'gold', unit: '$' },
   ons_silver: { label: 'انس نقره جهانی (XAG)', badgeColor: 'blue', unit: '$' },
+  forex: { label: 'نرخ‌های جهانی فارکس (چند ارزی)', badgeColor: 'indigo', unit: 'ارز' },
+  bourse: { label: 'بورس اوراق بهادار تهران (سهام)', badgeColor: 'emerald', unit: 'نماد' },
   eur: { label: 'یورو (EUR/USD)', badgeColor: 'blue', unit: '$' },
   try: { label: 'لیر ترکیه (USD/TRY)', badgeColor: 'rose', unit: '$' },
   aed: { label: 'درهم امارات (USD/AED)', badgeColor: 'emerald', unit: '$' },
@@ -104,6 +106,12 @@ const PRESET_REGEX_PATTERNS = {
   ons_silver: [
     { label: 'Gold-API (وب‌سرویس استاندارد XAG/USD)', pattern: '', apiUrl: 'https://api.gold-api.com/price/XAG', jsonPath: 'price' },
   ],
+  forex: [
+    { label: 'Open ER-API (تمام ۸ ارز با ۱ رکوست)', pattern: '', apiUrl: 'https://open.er-api.com/v6/latest/USD', jsonPath: 'rates' },
+  ],
+  bourse: [
+    { label: 'BRS API بورس تهران (تمام نمادهای فعال)', pattern: '', apiUrl: 'https://api.brsapi.ir/Tsetmc/AllSymbols.php?key=BDqzgcZZ5rGg4Z6uSEs9bMyx2E2vXrkd&type=1', jsonPath: '' },
+  ],
   eur: [
     { label: 'Open ER-API (نرخ برابری EUR)', pattern: '', apiUrl: 'https://open.er-api.com/v6/latest/USD', jsonPath: 'rates.EUR' },
   ],
@@ -146,7 +154,13 @@ const DEFAULT_SOURCE_FORM = {
 };
 
 function formatNum(num, priceType = 'usd') {
-  if (num === null || num === undefined || isNaN(num)) return '۰';
+  if (num === null || num === undefined || isNaN(num)) return '-';
+  if (priceType === 'forex') {
+    return `${Number(num).toLocaleString('fa-IR')} ارز`;
+  }
+  if (priceType === 'bourse') {
+    return `${Number(num).toLocaleString('fa-IR')} نماد`;
+  }
   const isForex = ['eur', 'try', 'aed', 'gbp', 'chf', 'cad', 'aud', 'cny'].includes(priceType);
   if (isForex) {
     return Number(num).toLocaleString('fa-IR', { minimumFractionDigits: 4, maximumFractionDigits: 5 });
@@ -789,15 +803,25 @@ export default function PriceSourcesPage({ embedded = false, usdToman: propUsdTo
                           <td>
                             {src.lastPrice && Number(src.lastPrice) > 0 ? (
                               <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                                <strong
-                                  style={{
-                                    fontSize: '13.5px',
-                                    color: 'var(--accent-green, #10b981)',
-                                    fontWeight: '700',
-                                  }}
-                                >
-                                  {formatNum(src.lastPrice, src.priceType)} {getPriceUnit(src.priceType)}
-                                </strong>
+                                {src.priceType === 'forex' ? (
+                                  <strong style={{ fontSize: '13px', color: 'var(--accent-blue)', fontWeight: '700' }}>
+                                    {Number(src.lastPrice).toLocaleString('fa-IR')} ارز جهانی (EUR, TRY, ...)
+                                  </strong>
+                                ) : src.priceType === 'bourse' ? (
+                                  <strong style={{ fontSize: '13px', color: 'var(--accent-green, #10b981)', fontWeight: '700' }}>
+                                    {Number(src.lastPrice).toLocaleString('fa-IR')} نماد فعال بورس
+                                  </strong>
+                                ) : (
+                                  <strong
+                                    style={{
+                                      fontSize: '13.5px',
+                                      color: 'var(--accent-green, #10b981)',
+                                      fontWeight: '700',
+                                    }}
+                                  >
+                                    {formatNum(src.lastPrice, src.priceType)} {getPriceUnit(src.priceType)}
+                                  </strong>
+                                )}
                                 <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>
                                   {formatPersianDate(src.lastFetched)}
                                 </span>
@@ -903,7 +927,9 @@ export default function PriceSourcesPage({ embedded = false, usdToman: propUsdTo
                                   <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--accent-green, #10b981)' }}>
                                     <CheckCircle2 size={14} />
                                     <span>
-                                      قیمت با موفقیت استخراج و در تاریخچه اختصاصی ثبت شد: <strong>{formatNum(rowResult.price, src.priceType)} {getPriceUnit(src.priceType)}</strong>
+                                      {rowResult.message || (
+                                        <>قیمت با موفقیت استخراج و در تاریخچه اختصاصی ثبت شد: <strong>{formatNum(rowResult.price, src.priceType)} {getPriceUnit(src.priceType)}</strong></>
+                                      )}
                                     </span>
                                   </div>
                                 ) : (
@@ -986,15 +1012,16 @@ export default function PriceSourcesPage({ embedded = false, usdToman: propUsdTo
                       value={sourceForm.priceType}
                       onChange={(e) => {
                         const newType = e.target.value;
-                        const isGlobal = newType === 'ons_gold' || newType === 'ons_silver';
+                        const isGlobal = newType === 'ons_gold' || newType === 'ons_silver' || newType === 'forex' || newType === 'bourse' || ['eur', 'try', 'aed', 'gbp', 'chf', 'cad', 'aud', 'cny'].includes(newType);
                         const defaultPreset = PRESET_REGEX_PATTERNS[newType]?.[0];
                         setSourceForm({
                           ...sourceForm,
                           priceType: newType,
                           sourceType: isGlobal ? 'api_url' : sourceForm.sourceType,
                           apiUrl: isGlobal && defaultPreset?.apiUrl ? defaultPreset.apiUrl : sourceForm.apiUrl,
-                          jsonPath: isGlobal && defaultPreset?.jsonPath ? defaultPreset.jsonPath : sourceForm.jsonPath,
+                          jsonPath: isGlobal && defaultPreset?.jsonPath !== undefined ? defaultPreset.jsonPath : sourceForm.jsonPath,
                           regexPattern: defaultPreset?.pattern || sourceForm.regexPattern,
+                          fetchIntervalMinutes: newType === 'bourse' ? 1440 : sourceForm.fetchIntervalMinutes,
                         });
                       }}
                     >
@@ -1167,7 +1194,9 @@ export default function PriceSourcesPage({ embedded = false, usdToman: propUsdTo
                         <>
                           <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                             <CheckCircle2 size={16} style={{ color: 'var(--accent-green)' }} />
-                            <strong>قیمت استخراج شده: {formatNum(modalTestResult.price, sourceForm.priceType)} {getPriceUnit(sourceForm.priceType)}</strong>
+                            <strong>
+                              {modalTestResult.message || `قیمت استخراج شده: ${formatNum(modalTestResult.price, sourceForm.priceType)} ${getPriceUnit(sourceForm.priceType)}`}
+                            </strong>
                           </div>
                           {modalTestResult.post_text && (
                             <div className="sample-snippet-box">

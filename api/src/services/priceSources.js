@@ -145,7 +145,90 @@ export function parseSourceContent(source, rawContent) {
       throw new Error("پاسخ وب‌سرویس JSON معتبر نیست.");
     }
 
-    // If jsonPath is given or regex is not given
+    // Multi-output handler: Unified Forex feed
+    if (source.priceType === "forex") {
+      let ratesObj = null;
+      if (source.jsonPath) {
+        ratesObj = extractValueByPath(data, source.jsonPath);
+      }
+      if (!ratesObj && data && typeof data.rates === "object") {
+        ratesObj = data.rates;
+      }
+      if (!ratesObj && typeof data === "object") {
+        ratesObj = data;
+      }
+      if (!ratesObj || typeof ratesObj !== "object") {
+        throw new Error("بخش نرخ‌ها (rates) در پاسخ وب‌سرویس JSON یافت نشد.");
+      }
+
+      const forexKeys = ['eur', 'try', 'aed', 'gbp', 'chf', 'cad', 'aud', 'cny'];
+      const multiData = {};
+      for (const k of forexKeys) {
+        const uppercaseK = k.toUpperCase();
+        const rawRate = ratesObj[uppercaseK] !== undefined ? ratesObj[uppercaseK] : ratesObj[k];
+        if (rawRate !== undefined && Number(rawRate) > 0) {
+          multiData[k] = normalizeForexToUsdCrossRate(k, rawRate);
+        }
+      }
+
+      const count = Object.keys(multiData).length;
+      if (count === 0) {
+        throw new Error("هیچ‌کدام از ارزهای پشتیبانی‌شده فارکس (EUR, TRY, AED, ...) در پاسخ وب‌سرویس یافت نشد.");
+      }
+
+      return {
+        price: count,
+        multiData,
+        datetime: nowIso,
+        label: source.name || "نرخ‌های جهانی فارکس",
+      };
+    }
+
+    // Multi-output handler: Tehran Stock Exchange (BRS API)
+    if (source.priceType === "bourse") {
+      let rawArray = data;
+      if (!Array.isArray(rawArray) && data && Array.isArray(data.symbols)) {
+        rawArray = data.symbols;
+      }
+      if (!Array.isArray(rawArray) || rawArray.length === 0) {
+        throw new Error("داده‌های نمادهای بورس در پاسخ وب‌سرویس یافت نشد.");
+      }
+
+      const compactList = [];
+      for (const item of rawArray) {
+        const sym = (item.l18 || item.l18_formatted || "").trim();
+        if (!sym) continue;
+        const price = Number(item.pl) || Number(item.pc) || 0;
+        if (price <= 0) continue;
+        compactList.push({
+          s: sym,
+          n: (item.l30 || item.title || sym).trim(),
+          p: price,
+          c: Number(item.plc) || 0,
+          cp: Number(item.plp) || 0,
+          t: Number(item.tno) || 0,
+        });
+      }
+
+      if (compactList.length === 0) {
+        throw new Error("هیچ نماد معتبری در پاسخ بورس یافت نشد.");
+      }
+
+      compactList.sort((a, b) => b.t - a.t);
+
+      return {
+        price: compactList.length,
+        multiData: {
+          totalSymbols: compactList.length,
+          topSymbols: compactList.slice(0, 10).map(x => x.s),
+        },
+        compactList,
+        datetime: nowIso,
+        label: source.name || "بورس اوراق بهادار تهران",
+      };
+    }
+
+    // Standard Single-Output JSON parsing
     let extractedVal = extractValueByPath(data, source.jsonPath || "");
     if (source.regex && (typeof extractedVal === "string" || typeof extractedVal === "number")) {
       const regexNum = extractPriceWithRegex(String(extractedVal), source.regex);
@@ -270,7 +353,12 @@ export async function testPriceSourceConfig(config = {}) {
 
     const isForex = ['eur', 'try', 'aed', 'gbp', 'chf', 'cad', 'aud', 'cny'].includes((priceType || '').toLowerCase());
     let displayMsg = '';
-    if (isForex) {
+    if (priceType === 'forex') {
+      const keys = parsed.multiData ? Object.keys(parsed.multiData).map(k => k.toUpperCase()).join('، ') : '';
+      displayMsg = `سورس تجمیعی فارکس با موفقیت تست شد (${parsed.price} ارز با یک درخواست: ${keys})`;
+    } else if (priceType === 'bourse') {
+      displayMsg = `اطلاعات نمادهای بورس با موفقیت تست شد (${parsed.price.toLocaleString("fa-IR")} نماد)`;
+    } else if (isForex) {
       displayMsg = `نرخ برابری استخراج شد: ۱ واحد = ${parsed.price} دلار آمریکا`;
     } else if (priceType === 'ons_gold' || priceType === 'ons_silver') {
       displayMsg = `قیمت جهانی با موفقیت استخراج شد: ${parsed.price} دلار`;
@@ -283,6 +371,7 @@ export async function testPriceSourceConfig(config = {}) {
       sourceType,
       priceType,
       price: parsed.price,
+      multiData: parsed.multiData || null,
       datetime: parsed.datetime,
       label: parsed.label,
       message: displayMsg,
@@ -326,6 +415,45 @@ export function compileLatestMarketRates(sources) {
 
   if (!Array.isArray(sources)) return result;
 
+  // 1. Process multi-output sources first
+  // Unified Forex feed: inject individual currencies
+  const forexSource = sources.find(s => s.priceType === "forex" && s.isActive);
+  if (forexSource && forexSource.lastMultiData) {
+    try {
+      const multi = typeof forexSource.lastMultiData === 'string'
+        ? JSON.parse(forexSource.lastMultiData)
+        : forexSource.lastMultiData;
+      if (multi && typeof multi === 'object') {
+        for (const [k, val] of Object.entries(multi)) {
+          if (Number(val) > 0) {
+            result[k.toLowerCase()] = {
+              price: Number(val),
+              datetime: forexSource.lastFetched || new Date().toISOString(),
+              label: `${forexSource.name} (${k.toUpperCase()})`,
+              sourceId: forexSource.id,
+              isPrimary: true,
+            };
+          }
+        }
+      }
+    } catch (e) {
+      console.warn("Error parsing forex lastMultiData in compileLatestMarketRates:", e);
+    }
+  }
+
+  // Tehran Stock Exchange (Bourse):
+  const bourseSource = sources.find(s => s.priceType === "bourse" && s.isActive);
+  if (bourseSource) {
+    result.bourse = {
+      price: Number(bourseSource.lastPrice) || 0,
+      datetime: bourseSource.lastFetched || new Date().toISOString(),
+      label: bourseSource.name,
+      sourceId: bourseSource.id,
+      isPrimary: true,
+    };
+  }
+
+  // 2. Process single output price sources
   for (const pType of supportedTypes) {
     const candidates = sources.filter(s => s.priceType === pType && s.isActive && Number(s.lastPrice) > 0);
     const chosen = candidates.find(s => s.isPrimary) || candidates[0];
@@ -422,24 +550,53 @@ export async function handleScheduledPriceExtraction(env, forceAll = false) {
 
       try {
         const parsed = parseSourceContent(src, raw);
-        if (parsed && parsed.price > 0) {
+        if (parsed && (parsed.price > 0 || (parsed.multiData && Object.keys(parsed.multiData).length > 0))) {
           extractedCount++;
           src.lastPrice = parsed.price;
           src.lastFetched = parsed.datetime;
+          if (parsed.multiData) {
+            src.lastMultiData = parsed.multiData;
+          }
 
-          // Update D1 last price
-          updates.push(dbUpdateSourceLastPrice(env, src.id, parsed.price, parsed.datetime));
-
-          // Record history in D1
+          // Update D1 last price and last_multi_data
           updates.push(
-            dbRecordPriceHistory(env, {
-              sourceId: src.id,
-              priceType: src.priceType,
-              sourceName: src.name,
-              price: parsed.price,
-              timestamp: parsed.datetime,
-            })
+            dbUpdateSourceLastPrice(env, src.id, parsed.price, parsed.datetime, parsed.multiData || null)
           );
+
+          // If multi forex data, record individual currency histories
+          if (src.priceType === "forex" && parsed.multiData) {
+            for (const [k, val] of Object.entries(parsed.multiData)) {
+              if (Number(val) > 0) {
+                updates.push(
+                  dbRecordPriceHistory(env, {
+                    sourceId: src.id,
+                    priceType: k.toLowerCase(),
+                    sourceName: `${src.name} (${k.toUpperCase()})`,
+                    price: val,
+                    timestamp: parsed.datetime,
+                  })
+                );
+              }
+            }
+          } else if (src.priceType === "bourse" && parsed.compactList && env.REALRATE_KV) {
+            // Cache bourse compact symbols in KV
+            updates.push(
+              env.REALRATE_KV.put("bourse_symbols_compact", JSON.stringify(parsed.compactList), {
+                expirationTtl: 86400 * 2,
+              }).catch(() => {})
+            );
+          } else {
+            // Standard single asset history
+            updates.push(
+              dbRecordPriceHistory(env, {
+                sourceId: src.id,
+                priceType: src.priceType,
+                sourceName: src.name,
+                price: parsed.price,
+                timestamp: parsed.datetime,
+              })
+            );
+          }
 
           // Save individual source price into KV for instant single-source lookups
           if (env.REALRATE_KV) {
@@ -451,6 +608,7 @@ export async function handleScheduledPriceExtraction(env, forceAll = false) {
                   lastFetched: parsed.datetime,
                   priceType: src.priceType,
                   name: src.name,
+                  lastMultiData: parsed.multiData || undefined,
                 })
               ).catch(() => {})
             );

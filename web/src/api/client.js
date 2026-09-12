@@ -333,4 +333,23 @@ export async function apiAdminGetUserPortfolio(userId, portfolioId = null) {
   return res.json();
 }
 
+/**
+ * Search Bourse (TSETMC) stock market symbols
+ * @param {string} q
+ * @param {number} limit
+ */
+export async function apiSearchBourseSymbols(q = '', limit = 50) {
+  const url = `/api/bourse/symbols?q=${encodeURIComponent(q)}&limit=${limit}`;
+  const res = await apiFetch(url);
+  return res.json();
+}
+
+/**
+ * Sync Bourse symbols from external provider
+ */
+export async function apiSyncBourseSymbols() {
+  const res = await apiFetch('/api/bourse/sync', { method: 'POST' });
+  return res.json();
+}
+
 

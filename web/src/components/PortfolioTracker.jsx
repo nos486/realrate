@@ -29,6 +29,9 @@ import {
   X,
   ArrowUpRight,
   ArrowDownRight,
+  TrendingUp,
+  Search,
+  Building2,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext.jsx';
 import Modal from './ui/Modal.jsx';
@@ -42,6 +45,7 @@ import {
   apiUpdatePortfolioHolding,
   apiDeletePortfolioHolding,
   apiGetHistoricalBenchmarks,
+  apiSearchBourseSymbols,
 } from '../api/client.js';
 import UserSettingsModal from './UserSettingsModal.jsx';
 import {
@@ -53,6 +57,17 @@ import {
   getVaultPassphraseFromSession,
   clearVaultPassphraseFromSession,
 } from '../lib/e2ee.js';
+
+export const FREQUENT_ASSETS = [
+  { id: 'USD', name: 'دلار آمریکا', icon: '💵', category: 'currency', unit: 'دلار' },
+  { id: 'gold_18k', name: 'طلای ۱۸ عیار', icon: '🟡', category: 'gold', unit: 'گرم' },
+  { id: 'gold_melted', name: 'طلای آبشده', icon: '✨', category: 'gold', unit: 'گرم' },
+  { id: 'full_new', name: 'سکه امامی', icon: '🪙', category: 'coin', unit: 'عدد' },
+  { id: 'quarter', name: 'ربع سکه', icon: '🔶', category: 'coin', unit: 'عدد' },
+  { id: 'half', name: 'نیم سکه', icon: '🔸', category: 'coin', unit: 'عدد' },
+  { id: 'USDT', name: 'تتر', icon: '💎', category: 'crypto', unit: 'تتر' },
+  { id: 'EUR', name: 'یورو', icon: '💶', category: 'currency', unit: 'یورو' },
+];
 
 export const ASSET_TYPES = [
   // طلا و مسکوکات
@@ -83,6 +98,9 @@ export const ASSET_TYPES = [
   { id: 'BTC', name: 'بیت‌کوین', unit: 'عدد', category: 'crypto' },
   { id: 'ETH', name: 'اتریوم', unit: 'عدد', category: 'crypto' },
 
+  // سهام بورس ایران (انتخاب کلی)
+  { id: 'bourse', name: 'سهام بورس ایران (جستجوی نماد)', unit: 'برگ سهم', category: 'bourse' },
+
   // دارایی شخصی و سفارشی (Custom Asset)
   { id: 'custom', name: 'دارایی شخصی / سفارشی', unit: 'واحد', category: 'custom' },
 ];
@@ -99,6 +117,8 @@ export function CategoryIcon({ category, size = 18, className = '', style = {} }
       return <Banknote size={size} className={className} style={style} />;
     case 'crypto':
       return <Zap size={size} className={className} style={style} />;
+    case 'bourse':
+      return <TrendingUp size={size} className={className} style={style} />;
     case 'custom':
     default:
       return <Sparkles size={size} className={className} style={style} />;
@@ -108,6 +128,10 @@ export function CategoryIcon({ category, size = 18, className = '', style = {} }
 export function formatAssetName(item) {
   if (!item) return '';
   const assetId = item.assetId || (typeof item === 'string' ? item : null);
+  if (assetId?.startsWith('bourse_')) {
+    const raw = typeof item === 'string' ? item : (item.assetName || item.name || '');
+    return raw || `سهام ${assetId.replace('bourse_', '')}`;
+  }
   const matched = ASSET_TYPES.find((a) => a.id === assetId && a.id !== 'custom');
   if (matched) return matched.name;
   const raw = typeof item === 'string' ? item : (item.assetName || item.name || '');
@@ -136,9 +160,14 @@ export const CATEGORY_DEFINITIONS = [
     match: (item) => item.assetType === 'currency' || item.assetType === 'crypto',
   },
   {
+    key: 'bourse',
+    name: 'سهام و بورس ایران',
+    match: (item) => item.assetType === 'bourse' || item.assetId?.startsWith('bourse_'),
+  },
+  {
     key: 'custom',
     name: 'دارایی‌های شخصی و سفارشی',
-    match: (item) => item.assetType === 'custom' || (!['gold', 'coin', 'silver', 'currency', 'crypto'].includes(item.assetType)),
+    match: (item) => item.assetType === 'custom' || (!['gold', 'coin', 'silver', 'currency', 'crypto', 'bourse'].includes(item.assetType) && !item.assetId?.startsWith('bourse_')),
   },
 ];
 
@@ -350,6 +379,75 @@ export default function PortfolioTracker({ calcData, rates, usdToman, goldUsd, i
   const [notes, setNotes] = useState('');
   const [showDatePicker, setShowDatePicker] = useState(false);
   const nativeDateRef = useRef(null);
+
+  // Search filter for holdings in portfolio table
+  const [holdingsFilterQuery, setHoldingsFilterQuery] = useState('');
+
+  // Asset search & Bourse stocks search in modal
+  const [assetSearchQuery, setAssetSearchQuery] = useState('');
+  const [bourseSearchResults, setBourseSearchResults] = useState([]);
+  const [isSearchingBourse, setIsSearchingBourse] = useState(false);
+  const [selectedBourseSymbol, setSelectedBourseSymbol] = useState(null);
+  const [boursePricesMap, setBoursePricesMap] = useState({});
+
+  // Debounced search for Iranian stock market (Bourse) symbols
+  useEffect(() => {
+    const query = assetSearchQuery.trim();
+    if (!query) {
+      const timer = setTimeout(() => {
+        setBourseSearchResults([]);
+        setIsSearchingBourse(false);
+      }, 0);
+      return () => clearTimeout(timer);
+    }
+
+    setIsSearchingBourse(true);
+    const timer = setTimeout(() => {
+      apiSearchBourseSymbols(assetSearchQuery.trim(), 25)
+        .then((res) => {
+          if (res.success && Array.isArray(res.symbols)) {
+            setBourseSearchResults(res.symbols);
+          } else {
+            setBourseSearchResults([]);
+          }
+        })
+        .catch((e) => {
+          console.error('Bourse search failed:', e);
+          setBourseSearchResults([]);
+        })
+        .finally(() => {
+          setIsSearchingBourse(false);
+        });
+    }, 250);
+
+    return () => clearTimeout(timer);
+  }, [assetSearchQuery]);
+
+  // Synchronize bourse prices for active bourse holdings
+  useEffect(() => {
+    let isMounted = true;
+    const bourseHoldings = holdings.filter(
+      (h) => h.assetType === 'bourse' || h.assetId?.startsWith('bourse_')
+    );
+    if (bourseHoldings.length === 0) return;
+
+    apiSearchBourseSymbols('', 100)
+      .then((res) => {
+        if (!isMounted || !res.success || !Array.isArray(res.symbols)) return;
+        const newMap = {};
+        res.symbols.forEach((s) => {
+          newMap[s.symbol] = s.priceToman;
+        });
+        setBoursePricesMap((prev) => ({ ...prev, ...newMap }));
+      })
+      .catch((err) => {
+        console.warn('Failed to fetch bourse symbols for portfolio holdings:', err);
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [holdings]);
 
   const handleSetToday = () => {
     setBuyDate(getTodayShamsi());
@@ -727,8 +825,12 @@ export default function PortfolioTracker({ calcData, rates, usdToman, goldUsd, i
         });
       }
     }
+    // Incorporate loaded bourse stock prices
+    Object.entries(boursePricesMap).forEach(([sym, pt]) => {
+      map[`bourse_${sym}`] = pt;
+    });
     return map;
-  }, [usdVal, goldUsdVal, silverUsdVal, calcData, rates, computePriceMap]);
+  }, [usdVal, goldUsdVal, silverUsdVal, calcData, rates, computePriceMap, boursePricesMap]);
 
   // Historical price maps for 24h, 7d, and 30d performance tracking
   const historicalPriceMaps = useMemo(() => {
@@ -777,20 +879,41 @@ export default function PortfolioTracker({ calcData, rates, usdToman, goldUsd, i
     setBuyDate('');
     setNotes('');
     setShowDatePicker(false);
+    setAssetSearchQuery('');
+    setBourseSearchResults([]);
+    setSelectedBourseSymbol(null);
     setModalOpen(true);
   };
 
   // 4. Open Modal for Editing
   const handleOpenEdit = (item) => {
     setEditingHolding(item);
-    const isKnown = ASSET_TYPES.some((a) => a.id === item.assetId && a.id !== 'custom');
-    if (isKnown) {
+    setAssetSearchQuery('');
+    setBourseSearchResults([]);
+
+    const isBourse = item.assetType === 'bourse' || item.assetId?.startsWith('bourse_');
+    const isKnown = ASSET_TYPES.some((a) => a.id === item.assetId && a.id !== 'custom' && a.id !== 'bourse');
+
+    if (isBourse) {
+      const symCode = item.assetId?.startsWith('bourse_') ? item.assetId.replace('bourse_', '') : (item.assetName?.replace(/^(سهام\s*)/, '') || item.assetId);
+      setSelectedAssetId(item.assetId || `bourse_${symCode}`);
+      setSelectedBourseSymbol({
+        symbol: symCode,
+        name: item.assetName || symCode,
+        priceToman: item.currentPrice || 0,
+      });
+      setCustomName(item.assetName || '');
+      setCustomUnit(item.unit || 'برگ سهم');
+      setCustomCurrentPrice(item.currentPrice ? String(item.currentPrice) : '');
+    } else if (isKnown) {
       setSelectedAssetId(item.assetId === 'gram' ? 'bank_gram' : item.assetId);
+      setSelectedBourseSymbol(null);
       setCustomName('');
       setCustomUnit(item.unit || 'واحد');
       setCustomCurrentPrice(item.currentPrice ? String(item.currentPrice) : '');
     } else {
       setSelectedAssetId('custom');
+      setSelectedBourseSymbol(null);
       setCustomName(item.assetName || '');
       setCustomUnit(item.unit || 'واحد');
       setCustomCurrentPrice(item.currentPrice ? String(item.currentPrice) : '');
@@ -820,22 +943,31 @@ export default function PortfolioTracker({ calcData, rates, usdToman, goldUsd, i
       return;
     }
 
+    const isBourse = selectedAssetId.startsWith('bourse_') || selectedBourseSymbol !== null;
     const isCustom = selectedAssetId === 'custom';
     const assetMeta = ASSET_TYPES.find((a) => a.id === selectedAssetId);
 
-    const finalName = isCustom
+    const finalName = isBourse
+      ? (selectedBourseSymbol ? `سهام ${selectedBourseSymbol.symbol} (${selectedBourseSymbol.name})` : customName || `سهام ${selectedAssetId.replace('bourse_', '')}`)
+      : isCustom
       ? (customName.trim() || 'دارایی شخصی')
       : (assetMeta?.name || selectedAssetId);
 
-    const finalUnit = isCustom
+    const finalUnit = isBourse
+      ? 'برگ سهم'
+      : isCustom
       ? (customUnit.trim() || 'واحد')
       : (assetMeta?.unit || 'واحد');
 
-    const finalCategory = isCustom
+    const finalCategory = isBourse
+      ? 'bourse'
+      : isCustom
       ? 'custom'
       : (assetMeta?.category || 'custom');
 
-    const finalCurrentPrice = isCustom
+    const finalCurrentPrice = isBourse
+      ? (selectedBourseSymbol?.priceToman || parseInputNumber(customCurrentPrice) || price || 0)
+      : isCustom
       ? (parseInputNumber(customCurrentPrice) || price || 0)
       : (realPriceMap[selectedAssetId] || price || 0);
 
@@ -845,7 +977,11 @@ export default function PortfolioTracker({ calcData, rates, usdToman, goldUsd, i
       let payload = {
         id: editingHolding ? editingHolding.id : undefined,
         portfolioId: activePortfolio?.id || null,
-        assetId: isCustom ? (editingHolding?.assetId?.startsWith('custom_') ? editingHolding.assetId : `custom_${Date.now()}`) : selectedAssetId,
+        assetId: isBourse
+          ? (selectedAssetId.startsWith('bourse_') ? selectedAssetId : `bourse_${selectedBourseSymbol?.symbol || 'stock'}`)
+          : isCustom
+          ? (editingHolding?.assetId?.startsWith('custom_') ? editingHolding.assetId : `custom_${Date.now()}`)
+          : selectedAssetId,
         assetName: finalName,
         assetType: finalCategory,
         unit: finalUnit,
@@ -937,9 +1073,13 @@ export default function PortfolioTracker({ calcData, rates, usdToman, goldUsd, i
       const buyPriceNum = Number(h.buyPrice) || 0;
       const hasBuyPrice = buyPriceNum > 0;
       const isCustomItem = h.assetType === 'custom' || h.assetId?.startsWith('custom_');
+      const isBourseItem = h.assetType === 'bourse' || h.assetId?.startsWith('bourse_');
+      const symCode = isBourseItem ? (h.assetId?.startsWith('bourse_') ? h.assetId.replace('bourse_', '') : '') : null;
 
-      // Unit real price: strictly based on spot gold/silver & USD, or custom price
-      const unitRealPrice = isCustomItem
+      // Unit real price: strictly based on spot gold/silver & USD, bourse live price, or custom price
+      const unitRealPrice = isBourseItem
+        ? ((symCode && boursePricesMap[symCode]) || Number(h.currentPrice) || (hasBuyPrice ? buyPriceNum : 0))
+        : isCustomItem
         ? (Number(h.currentPrice) || (hasBuyPrice ? buyPriceNum : 0))
         : (realPriceMap[h.assetId] || (hasBuyPrice ? buyPriceNum : 0));
 
@@ -952,6 +1092,7 @@ export default function PortfolioTracker({ calcData, rates, usdToman, goldUsd, i
         ...h,
         hasBuyPrice,
         isCustomItem,
+        isBourseItem,
         unitRealPrice,
         itemCost,
         itemRealVal,
@@ -996,7 +1137,7 @@ export default function PortfolioTracker({ calcData, rates, usdToman, goldUsd, i
         if (qty <= 0) return;
 
         let pastUnit = histMap[it.assetId];
-        if (it.isCustomItem || !pastUnit) {
+        if (it.isCustomItem || it.isBourseItem || !pastUnit) {
           pastUnit = it.unitRealPrice;
         }
 
@@ -1040,12 +1181,23 @@ export default function PortfolioTracker({ calcData, rates, usdToman, goldUsd, i
       perf7d,
       perf30d,
     };
-  }, [holdings, realPriceMap, historicalPriceMaps]);
+  }, [holdings, realPriceMap, historicalPriceMaps, boursePricesMap]);
 
   // 8. Grouped Categories with Sub-Totals (Real Value and PnL)
   const categoryGroups = useMemo(() => {
+    let itemsToGroup = portfolioMetrics.items;
+    if (holdingsFilterQuery.trim()) {
+      const q = holdingsFilterQuery.trim().toLowerCase();
+      itemsToGroup = itemsToGroup.filter((it) => {
+        const name = (it.assetName || '').toLowerCase();
+        const id = (it.assetId || '').toLowerCase();
+        const notes = (it.notes || '').toLowerCase();
+        return name.includes(q) || id.includes(q) || notes.includes(q);
+      });
+    }
+
     return CATEGORY_DEFINITIONS.map((cat) => {
-      const groupItems = portfolioMetrics.items.filter(cat.match);
+      const groupItems = itemsToGroup.filter(cat.match);
       const costedGroupItems = groupItems.filter((it) => it.hasBuyPrice);
       const hasCostedItems = costedGroupItems.length > 0;
       const groupCost = costedGroupItems.reduce((acc, it) => acc + it.itemCost, 0);
@@ -1062,11 +1214,56 @@ export default function PortfolioTracker({ calcData, rates, usdToman, goldUsd, i
         hasCostedItems,
       };
     }).filter((group) => group.items.length > 0);
-  }, [portfolioMetrics.items]);
+  }, [portfolioMetrics.items, holdingsFilterQuery]);
 
+  // Asset selection helpers for modal
+  const handleSelectFrequentAsset = (asset) => {
+    setSelectedAssetId(asset.id);
+    setSelectedBourseSymbol(null);
+    setCustomName('');
+    setCustomUnit(asset.unit);
+    setCustomCurrentPrice('');
+    setAssetSearchQuery('');
+    setBourseSearchResults([]);
+  };
+
+  const handleSelectStandardAsset = (asset) => {
+    setSelectedAssetId(asset.id);
+    setSelectedBourseSymbol(null);
+    setCustomName('');
+    setCustomUnit(asset.unit);
+    setCustomCurrentPrice('');
+    setAssetSearchQuery('');
+    setBourseSearchResults([]);
+  };
+
+  const handleSelectBourseSymbol = (sym) => {
+    setSelectedAssetId(`bourse_${sym.symbol}`);
+    setSelectedBourseSymbol(sym);
+    setCustomName(`سهام ${sym.symbol} (${sym.name})`);
+    setCustomUnit('برگ سهم');
+    setCustomCurrentPrice(String(sym.priceToman || Math.round(sym.priceRial / 10)));
+    setAssetSearchQuery('');
+    setBourseSearchResults([]);
+  };
+
+  const matchingStandardAssets = useMemo(() => {
+    if (!assetSearchQuery.trim()) return [];
+    const q = assetSearchQuery.trim().toLowerCase();
+    return ASSET_TYPES.filter(
+      (a) =>
+        a.id !== 'custom' &&
+        a.id !== 'bourse' &&
+        (a.name.toLowerCase().includes(q) || a.id.toLowerCase().includes(q))
+    );
+  }, [assetSearchQuery]);
+
+  const isModalBourse = selectedAssetId.startsWith('bourse_') || selectedBourseSymbol !== null;
   const isModalCustom = selectedAssetId === 'custom';
   const selectedAssetMeta = ASSET_TYPES.find((a) => a.id === selectedAssetId);
-  const currentModalRealPrice = realPriceMap[selectedAssetId] || 0;
+  const currentModalRealPrice = isModalBourse
+    ? (selectedBourseSymbol?.priceToman || parseInputNumber(customCurrentPrice) || 0)
+    : (realPriceMap[selectedAssetId] || 0);
 
   // 9. Export Portfolio to CSV with UTF-8 BOM
   const handleExportCSV = useCallback(() => {
@@ -1292,6 +1489,28 @@ export default function PortfolioTracker({ calcData, rates, usdToman, goldUsd, i
                   )}
                 </div>
               </div>
+              {!isVaultLocked && holdings.length > 0 && (
+                <div className="portfolio-search-box">
+                  <Search size={14} className="portfolio-search-icon" />
+                  <input
+                    type="text"
+                    placeholder="جستجو در اقلام پورتفو..."
+                    value={holdingsFilterQuery}
+                    onChange={(e) => setHoldingsFilterQuery(e.target.value)}
+                    className="portfolio-search-input"
+                  />
+                  {holdingsFilterQuery && (
+                    <button
+                      type="button"
+                      className="portfolio-search-clear"
+                      onClick={() => setHoldingsFilterQuery('')}
+                      title="پاک کردن جستجو"
+                    >
+                      <X size={12} />
+                    </button>
+                  )}
+                </div>
+              )}
               <div className="portfolio-header-actions">
                 {activePortfolio?.isE2ee && !isVaultLocked && (
                   <button
@@ -1471,6 +1690,7 @@ export default function PortfolioTracker({ calcData, rates, usdToman, goldUsd, i
                                       {item.assetType === 'silver' ? 'نقره' :
                                        item.assetType === 'gold' ? 'طلا' :
                                        item.assetType === 'coin' ? 'سکه' :
+                                       item.assetType === 'bourse' ? 'بورس' :
                                        item.assetType === 'currency' ? 'ارز' :
                                        item.assetType === 'crypto' ? 'کریپتو' : 'سفارشی'}
                                     </span>
@@ -1813,48 +2033,196 @@ export default function PortfolioTracker({ calcData, rates, usdToman, goldUsd, i
           </div>
         }
       >
-                <div className="form-item">
-                <label>نوع دارایی</label>
-                <select
-                  value={selectedAssetId}
-                  onChange={(e) => setSelectedAssetId(e.target.value)}
-                  className="form-select"
-                >
-                  <optgroup label="طلا و مسکوکات">
-                    <option value="gold_18k">طلای ۱۸ عیار</option>
-                    <option value="gold_melted">طلای آبشده (گرم ۱۸)</option>
-                    <option value="gold_24k">طلای ۲۴ عیار</option>
-                    <option value="full_new">سکه امامی</option>
-                    <option value="full_old">سکه بهار آزادی</option>
-                    <option value="half">نیم سکه بهار آزادی</option>
-                    <option value="quarter">ربع سکه بهار آزادی</option>
-                    <option value="bank_gram">سکه گرمی بانکی</option>
-                  </optgroup>
-
-                  <optgroup label="نقره (Silver)">
-                    <option value="silver_999">نقره خام و ساچمه ۹۹۹</option>
-                    <option value="silver_925">نقره استرلینگ ۹۲۵</option>
-                    <option value="silver_ounce">انس جهانی نقره</option>
-                  </optgroup>
-
-                  <optgroup label="ارزهای خارجی و کریپتو">
-                    <option value="USD">دلار آمریکا</option>
-                    <option value="USDT">تتر</option>
-                    <option value="EUR">یورو اروپا</option>
-                    <option value="CHF">فرانک سوئیس</option>
-                    <option value="AED">درهم امارات</option>
-                    <option value="TRY">لیر ترکیه</option>
-                    <option value="GBP">پوند انگلیس</option>
-                    <option value="CAD">دلار کانادا</option>
-                    <option value="BTC">بیت‌کوین</option>
-                    <option value="ETH">اتریوم</option>
-                  </optgroup>
-
-                  <optgroup label="دارایی‌های دلخواه">
-                    <option value="custom">سایر دارایی‌ها</option>
-                  </optgroup>
-                </select>
+              {/* Quick Select Frequent Assets */}
+              <div className="frequent-assets-container">
+                <div className="frequent-assets-header">
+                  <span className="frequent-title">دارایی‌های پرکاربرد:</span>
+                </div>
+                <div className="frequent-chips-grid">
+                  {FREQUENT_ASSETS.map((asset) => {
+                    const isSelected = selectedAssetId === asset.id;
+                    return (
+                      <button
+                        key={asset.id}
+                        type="button"
+                        className={`frequent-asset-chip ${isSelected ? 'active' : ''}`}
+                        onClick={() => handleSelectFrequentAsset(asset)}
+                      >
+                        <span className="chip-icon">{asset.icon}</span>
+                        <span className="chip-label">{asset.name}</span>
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
+
+              {/* Universal Asset & Bourse Search */}
+              <div className="asset-search-section">
+                <label className="field-label">جستجوی دارایی یا نماد بورس ایران</label>
+                <div className="asset-search-input-box">
+                  <Search size={15} className="asset-search-icon" />
+                  <input
+                    type="text"
+                    placeholder="جستجوی نماد بورس (فملی، خودرو، فولاد...)، طلا، سکه یا ارز..."
+                    value={assetSearchQuery}
+                    onChange={(e) => setAssetSearchQuery(e.target.value)}
+                    className="form-input asset-search-input-field"
+                  />
+                  {assetSearchQuery && (
+                    <button
+                      type="button"
+                      className="asset-search-clear-btn"
+                      onClick={() => {
+                        setAssetSearchQuery('');
+                        setBourseSearchResults([]);
+                      }}
+                      title="پاک کردن جستجو"
+                    >
+                      <X size={14} />
+                    </button>
+                  )}
+                </div>
+
+                {/* Dropdown Suggestions */}
+                {(matchingStandardAssets.length > 0 || bourseSearchResults.length > 0 || isSearchingBourse) && (
+                  <div className="asset-search-results-dropdown">
+                    {isSearchingBourse && (
+                      <div className="search-loading-status">
+                        <div className="spinner-mini" />
+                        <span>در حال جستجو در نمادهای بازار سرمایه (TSETMC)...</span>
+                      </div>
+                    )}
+
+                    {matchingStandardAssets.length > 0 && (
+                      <div className="search-results-group">
+                        <div className="search-group-header">طلا، سکه و ارزها</div>
+                        {matchingStandardAssets.map((item) => (
+                          <button
+                            key={item.id}
+                            type="button"
+                            className="search-result-row"
+                            onClick={() => handleSelectStandardAsset(item)}
+                          >
+                            <div className="search-row-lead">
+                              <CategoryIcon category={item.category} size={15} />
+                              <span className="search-row-name">{item.name}</span>
+                            </div>
+                            <span className="search-row-unit">{item.unit}</span>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+
+                    {bourseSearchResults.length > 0 && (
+                      <div className="search-results-group">
+                        <div className="search-group-header">نمادهای سهام بورس و فرابورس</div>
+                        {bourseSearchResults.map((sym) => (
+                          <button
+                            key={sym.symbol}
+                            type="button"
+                            className="search-result-row bourse-row"
+                            onClick={() => handleSelectBourseSymbol(sym)}
+                          >
+                            <div className="search-row-lead">
+                              <span className="bourse-tag">{sym.symbol}</span>
+                              <span className="search-row-name bourse-company">{sym.name}</span>
+                            </div>
+                            <div className="bourse-row-pricing">
+                              <span className="bourse-toman-val">{formatNum(sym.priceToman)} تومان</span>
+                              {sym.changePercent !== undefined && sym.changePercent !== null && (
+                                <span className={`bourse-pct-val ${sym.changePercent >= 0 ? 'profit' : 'loss'}`}>
+                                  {sym.changePercent >= 0 ? '+' : ''}{sym.changePercent.toFixed(1)}٪
+                                </span>
+                              )}
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {/* Selected Bourse Stock Highlight Card */}
+              {isModalBourse && (
+                <div className="selected-bourse-preview-card">
+                  <div className="preview-card-header">
+                    <div className="preview-symbol-info">
+                      <span className="bourse-active-badge">نماد بورس</span>
+                      <strong className="preview-symbol-code">{selectedBourseSymbol?.symbol || selectedAssetId.replace('bourse_', '')}</strong>
+                      <span className="preview-company-name">{selectedBourseSymbol?.name || customName}</span>
+                    </div>
+                    <button
+                      type="button"
+                      className="btn-change-selected-stock"
+                      onClick={() => {
+                        setSelectedAssetId('gold_18k');
+                        setSelectedBourseSymbol(null);
+                        setCustomName('');
+                        setCustomUnit('گرم');
+                        setCustomCurrentPrice('');
+                      }}
+                    >
+                      تغییر دارایی
+                    </button>
+                  </div>
+                  <div className="preview-card-footer">
+                    <span className="preview-price-label">آخرین قیمت معامله:</span>
+                    <strong className="preview-price-num">{formatNum(currentModalRealPrice)} تومان</strong>
+                    <span className="preview-price-rial">({Number(currentModalRealPrice * 10).toLocaleString('fa-IR')} ریال)</span>
+                  </div>
+                </div>
+              )}
+
+              {/* Standard Dropdown fallback for quick manual category selection */}
+              {!isModalBourse && (
+                <div className="form-item">
+                  <label>یا انتخاب مستقیم از لیست</label>
+                  <select
+                    value={selectedAssetId}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setSelectedAssetId(val);
+                      setSelectedBourseSymbol(null);
+                    }}
+                    className="form-select"
+                  >
+                    <optgroup label="طلا و مسکوکات">
+                      <option value="gold_18k">طلای ۱۸ عیار</option>
+                      <option value="gold_melted">طلای آبشده (گرم ۱۸)</option>
+                      <option value="gold_24k">طلای ۲۴ عیار</option>
+                      <option value="full_new">سکه امامی</option>
+                      <option value="full_old">سکه بهار آزادی</option>
+                      <option value="half">نیم سکه بهار آزادی</option>
+                      <option value="quarter">ربع سکه بهار آزادی</option>
+                      <option value="bank_gram">سکه گرمی بانکی</option>
+                    </optgroup>
+
+                    <optgroup label="نقره (Silver)">
+                      <option value="silver_999">نقره خام و ساچمه ۹۹۹</option>
+                      <option value="silver_925">نقره استرلینگ ۹۲۵</option>
+                      <option value="silver_ounce">انس جهانی نقره</option>
+                    </optgroup>
+
+                    <optgroup label="ارزهای خارجی و کریپتو">
+                      <option value="USD">دلار آمریکا</option>
+                      <option value="USDT">تتر</option>
+                      <option value="EUR">یورو اروپا</option>
+                      <option value="CHF">فرانک سوئیس</option>
+                      <option value="AED">درهم امارات</option>
+                      <option value="TRY">لیر ترکیه</option>
+                      <option value="GBP">پوند انگلیس</option>
+                      <option value="CAD">دلار کانادا</option>
+                      <option value="BTC">بیت‌کوین</option>
+                      <option value="ETH">اتریوم</option>
+                    </optgroup>
+
+                    <optgroup label="دارایی‌های دلخواه">
+                      <option value="custom">سایر دارایی‌ها</option>
+                    </optgroup>
+                  </select>
+                </div>
+              )}
 
               {/* Custom Asset Specific Fields */}
               {isModalCustom && (
@@ -1887,11 +2255,11 @@ export default function PortfolioTracker({ calcData, rates, usdToman, goldUsd, i
 
               <div className="form-item">
                 <label>
-                  مقدار ({isModalCustom ? (customUnit || 'واحد') : selectedAssetMeta?.unit})
+                  مقدار ({isModalBourse ? 'برگ سهم' : isModalCustom ? (customUnit || 'واحد') : selectedAssetMeta?.unit})
                 </label>
                 <input
                   type="text"
-                  placeholder={`مثلاً ${selectedAssetMeta?.unit === 'گرم' ? '۱۵.۵' : '۲'}`}
+                  placeholder={`مثلاً ${isModalBourse ? '۱۰۰۰' : selectedAssetMeta?.unit === 'گرم' ? '۱۵.۵' : '۲'}`}
                   value={amount}
                   onChange={(e) => setAmount(e.target.value)}
                   className="form-input"
@@ -1901,21 +2269,21 @@ export default function PortfolioTracker({ calcData, rates, usdToman, goldUsd, i
 
               <div className="form-item">
                 <label>
-                  قیمت خرید واحد (تومان)
+                  قیمت خرید هر {isModalBourse ? 'برگ سهم' : isModalCustom ? (customUnit || 'واحد') : selectedAssetMeta?.unit} (تومان)
                 </label>
                 <NumericInput
-                  placeholder="مثلاً ۵۴,۲۰۰,۰۰۰ (اختیاری)"
+                  placeholder={isModalBourse ? `مثلاً ${formatNum(currentModalRealPrice || 2500)} (اختیاری)` : 'مثلاً ۵۴,۲۰۰,۰۰۰ (اختیاری)'}
                   value={buyPrice}
                   onValueChange={setBuyPrice}
                   onChange={(e) => setBuyPrice(e.target.value)}
                   className="form-input"
                   allowDecimals={false}
                 />
-                <span className="field-sub-note">اختیاری؛ برای محاسبه سود و زیان.</span>
+                <span className="field-sub-note">اختیاری؛ برای محاسبه سود و زیان دقیق در پورتفو.</span>
               </div>
 
-              {/* Custom Asset: Current Market Price field */}
-              {isModalCustom && (
+              {/* Custom or Bourse Asset: Current Market Price field */}
+              {(isModalCustom || isModalBourse) && (
                 <div className="form-item">
                   <label>قیمت روز واحد (تومان)</label>
                   <NumericInput
@@ -1926,7 +2294,11 @@ export default function PortfolioTracker({ calcData, rates, usdToman, goldUsd, i
                     className="form-input"
                     allowDecimals={false}
                   />
-                  <span className="field-sub-note">اختیاری؛ پیش‌فرض برابر با قیمت خرید است.</span>
+                  <span className="field-sub-note">
+                    {isModalBourse
+                      ? 'به صورت خودکار با آخرین قیمت معاملات بازار بورس هماهنگ می‌شود.'
+                      : 'اختیاری؛ پیش‌فرض برابر با قیمت خرید است.'}
+                  </span>
                 </div>
               )}
 

@@ -48,6 +48,7 @@ import {
   handleGetSharedPortfolio,
 } from "./handlers/portfolioRoutes.js";
 import { handleScheduledPriceExtraction, fetchAllPrices } from "./services/priceSources.js";
+import { getBourseSymbols, fetchAndStoreBourseSymbols, handleScheduledBourseSync } from "./services/bourseSymbols.js";
 
 export default {
   async fetch(request, env, ctx) {
@@ -128,6 +129,22 @@ export default {
       return handleGetHistoricalBenchmarks(env, request);
     }
 
+    // ── Bourse (Tehran Stock Exchange) Routes ──────────────────────────────
+    if (url.pathname === "/api/bourse/symbols" || url.pathname === "/api/bourse/search") {
+      const q = url.searchParams.get("q") || "";
+      const limit = parseInt(url.searchParams.get("limit") || "50", 10);
+      const symbols = await getBourseSymbols(env, q, limit);
+      return new Response(JSON.stringify({ success: true, count: symbols.length, symbols }), {
+        headers: { "Content-Type": "application/json; charset=utf-8", ...corsHeaders },
+      });
+    }
+    if (url.pathname === "/api/bourse/sync" && request.method === "POST") {
+      const syncRes = await fetchAndStoreBourseSymbols(env);
+      return new Response(JSON.stringify(syncRes), {
+        headers: { "Content-Type": "application/json; charset=utf-8", ...corsHeaders },
+      });
+    }
+
     if (url.pathname === "/api/telegram") {
       const forceRefresh = url.searchParams.get("force") === "true";
       const globalSettings = await getGlobalSettings(env);
@@ -150,9 +167,14 @@ export default {
    */
   async scheduled(event, env, ctx) {
     ctx.waitUntil(
-      handleScheduledPriceExtraction(env).catch(err => {
-        console.error("[Scheduled] Price extraction error:", err);
-      })
+      Promise.all([
+        handleScheduledPriceExtraction(env).catch(err => {
+          console.error("[Scheduled] Price extraction error:", err);
+        }),
+        handleScheduledBourseSync(env).catch(err => {
+          console.error("[Scheduled] Bourse sync error:", err);
+        }),
+      ])
     );
   },
 };
