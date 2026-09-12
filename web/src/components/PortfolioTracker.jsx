@@ -78,18 +78,27 @@ export const FREQUENT_ASSETS = [
 export const ASSET_TYPES = [
   // طلا و مسکوکات
   { id: 'gold_18k', name: 'طلای ۱۸ عیار', unit: 'گرم', category: 'gold' },
-  { id: 'gold_melted', name: 'طلای آبشده (گرم ۱۸)', unit: 'گرم', category: 'gold' },
+  { id: 'gold_22k', name: 'طلای ۲۲ عیار', unit: 'گرم', category: 'gold' },
   { id: 'gold_24k', name: 'طلای ۲۴ عیار', unit: 'گرم', category: 'gold' },
+  { id: 'gold_melted', name: 'طلای آبشده', unit: 'گرم', category: 'gold' },
+  { id: 'mesghal', name: 'مثقال طلا (مظنه)', unit: 'مثقال', category: 'gold' },
+  { id: 'ons_gold', name: 'انس جهانی طلا', unit: 'اونس', category: 'gold' },
+  { id: 'full_coin', name: 'سکه امامی', unit: 'عدد', category: 'coin' },
   { id: 'full_new', name: 'سکه امامی', unit: 'عدد', category: 'coin' },
-  { id: 'full_old', name: 'سکه بهار آزادی', unit: 'عدد', category: 'coin' },
+  { id: 'full_old', name: 'سکه بهار آزادی (طرح قدیم)', unit: 'عدد', category: 'coin' },
+  { id: 'half_coin', name: 'نیم سکه بهار آزادی', unit: 'عدد', category: 'coin' },
   { id: 'half', name: 'نیم سکه بهار آزادی', unit: 'عدد', category: 'coin' },
+  { id: 'quarter_coin', name: 'ربع سکه بهار آزادی', unit: 'عدد', category: 'coin' },
   { id: 'quarter', name: 'ربع سکه بهار آزادی', unit: 'عدد', category: 'coin' },
+  { id: 'gerami_coin', name: 'سکه گرمی', unit: 'عدد', category: 'coin' },
   { id: 'bank_gram', name: 'سکه گرمی بانکی', unit: 'عدد', category: 'coin' },
   { id: 'gram', name: 'سکه گرمی بانکی', unit: 'عدد', category: 'coin' },
 
   // نقره (Silver)
-  { id: 'silver_999', name: 'نقره خام و ساچمه ۹۹۹', unit: 'گرم', category: 'silver' },
+  { id: 'silver_gram', name: 'نقره خام (گرمی ۹۹۹)', unit: 'گرم', category: 'silver' },
+  { id: 'silver_999', name: 'نقره خام (گرمی ۹۹۹)', unit: 'گرم', category: 'silver' },
   { id: 'silver_925', name: 'نقره استرلینگ ۹۲۵', unit: 'گرم', category: 'silver' },
+  { id: 'ons_silver', name: 'انس جهانی نقره', unit: 'اونس', category: 'silver' },
   { id: 'silver_ounce', name: 'انس جهانی نقره', unit: 'اونس', category: 'silver' },
 
   // ارزهای خارجی و رمزارزها
@@ -111,6 +120,88 @@ export const ASSET_TYPES = [
   // دارایی شخصی و سفارشی (Custom Asset)
   { id: 'custom', name: 'دارایی شخصی / سفارشی', unit: 'واحد', category: 'custom' },
 ];
+
+export function normalizeHolding(h) {
+  if (!h) return h;
+  let assetId = String(h.assetId || '').trim();
+  let assetName = String(h.assetName || '').trim();
+  let assetType = String(h.assetType || '').trim().toLowerCase();
+  let unit = String(h.unit || '').trim();
+
+  const cleanId = assetId.replace(/^src_def_/, '').toLowerCase();
+  const cleanName = assetName.replace(/^src_def_/, '');
+
+  // Gold checks
+  if (
+    ['gold_18k', 'gold_22k', 'gold_24k', 'gold_melted', 'mesghal', 'ons_gold', 'gold_ounce'].includes(cleanId) ||
+    cleanId.includes('gold') ||
+    cleanName.includes('طلا') ||
+    cleanName.includes('مظنه') ||
+    cleanName.includes('مثقال')
+  ) {
+    assetType = 'gold';
+    if (!unit || unit === 'واحد') {
+      unit = cleanId.includes('mesghal') || cleanName.includes('مثقال') ? 'مثقال' : (cleanId.includes('ons') ? 'اونس' : 'گرم');
+    }
+    if (!assetName || assetName.startsWith('src_def_')) {
+      assetName = cleanId.includes('22') ? 'طلای ۲۲ عیار' : (cleanId.includes('24') ? 'طلای ۲۴ عیار' : (cleanId.includes('melted') ? 'طلای آبشده' : (cleanId.includes('mesghal') ? 'مثقال طلا (مظنه)' : (cleanId.includes('ons') ? 'انس جهانی طلا' : 'طلای ۱۸ عیار'))));
+    }
+    if (assetId.startsWith('src_def_')) {
+      assetId = cleanId;
+    }
+  }
+  // Coin checks
+  else if (
+    ['full_coin', 'full_new', 'full_old', 'half_coin', 'half', 'quarter_coin', 'quarter', 'gerami_coin', 'bank_gram', 'gram'].includes(cleanId) ||
+    cleanId.includes('coin') ||
+    cleanName.includes('سکه')
+  ) {
+    assetType = 'coin';
+    if (!unit || unit === 'واحد') unit = 'عدد';
+    if (!assetName || assetName.startsWith('src_def_')) {
+      assetName = cleanId.includes('half') ? 'نیم سکه بهار آزادی' : (cleanId.includes('quarter') ? 'ربع سکه بهار آزادی' : (cleanId.includes('gerami') || cleanId.includes('gram') ? 'سکه گرمی' : (cleanId.includes('old') ? 'سکه بهار آزادی (طرح قدیم)' : 'سکه امامی')));
+    }
+    if (assetId.startsWith('src_def_')) {
+      assetId = cleanId;
+    }
+  }
+  // Silver checks
+  else if (
+    ['silver_999', 'silver_925', 'silver_gram', 'ons_silver', 'silver_ounce'].includes(cleanId) ||
+    cleanId.includes('silver') ||
+    cleanName.includes('نقره')
+  ) {
+    assetType = 'silver';
+    if (!unit || unit === 'واحد') {
+      unit = cleanId.includes('ons') || cleanId.includes('ounce') ? 'اونس' : 'گرم';
+    }
+    if (!assetName || assetName.startsWith('src_def_')) {
+      assetName = cleanId.includes('925') ? 'نقره استرلینگ ۹۲۵' : (cleanId.includes('ons') || cleanId.includes('ounce') ? 'انس جهانی نقره' : 'نقره خام (گرمی ۹۹۹)');
+    }
+    if (assetId.startsWith('src_def_')) {
+      assetId = cleanId;
+    }
+  }
+  // Currency checks
+  else if (['usd', 'usd_toman', 'usdt'].includes(cleanId) || cleanName.includes('دلار')) {
+    assetType = 'currency';
+    if (!unit || unit === 'واحد') unit = 'دلار';
+    if (!assetName || assetName.startsWith('src_def_')) {
+      assetName = 'دلار آمریکا';
+    }
+    if (assetId.startsWith('src_def_')) {
+      assetId = 'USD';
+    }
+  }
+
+  return {
+    ...h,
+    assetId,
+    assetName,
+    assetType,
+    unit,
+  };
+}
 
 export function CategoryIcon({ category, size = 18, className = '', style = {} }) {
   switch (category) {
@@ -143,10 +234,18 @@ export function formatAssetName(item) {
     const isFund = item.isFund || item.assetType === 'bourse_fund';
     return isFund ? `صندوق ${assetId.replace('bourse_', '')}` : `سهام ${assetId.replace('bourse_', '')}`;
   }
-  const matched = ASSET_TYPES.find((a) => a.id === assetId && a.id !== 'custom');
+  const cleanId = assetId ? assetId.replace(/^src_def_/, '') : null;
+  const matched = ASSET_TYPES.find((a) => (a.id === assetId || a.id === cleanId) && a.id !== 'custom');
   if (matched) return matched.name;
   const raw = typeof item === 'string' ? item : (item.assetName || item.name || '');
-  return raw.replace(/\s*\([^)]*\)/g, '').trim() || raw;
+  if (raw && !raw.startsWith('src_def_')) {
+    return raw.replace(/\s*\([^)]*\)/g, '').trim() || raw;
+  }
+  if (cleanId) {
+    const fallback = ASSET_TYPES.find((a) => a.id.includes(cleanId) || cleanId.includes(a.id));
+    if (fallback) return fallback.name;
+  }
+  return raw || 'دارایی';
 }
 
 export const CATEGORY_DEFINITIONS = [
@@ -563,12 +662,12 @@ export default function PortfolioTracker({ calcData, rates, usdToman, goldUsd, i
 
             if (key) {
               const decrypted = await Promise.all(rawItems.map((h) => decryptHoldingFromApi(key, h)));
-              setHoldings(decrypted);
+              setHoldings(decrypted.map(normalizeHolding));
             } else {
-              setHoldings(rawItems);
+              setHoldings(rawItems.map(normalizeHolding));
             }
           } else {
-            setHoldings(rawItems);
+            setHoldings(rawItems.map(normalizeHolding));
           }
         }
       }
@@ -638,12 +737,12 @@ export default function PortfolioTracker({ calcData, rates, usdToman, goldUsd, i
 
           if (key) {
             const decrypted = await Promise.all(rawItems.map((h) => decryptHoldingFromApi(key, h)));
-            setHoldings(decrypted);
+            setHoldings(decrypted.map(normalizeHolding));
           } else {
-            setHoldings(rawItems);
+            setHoldings(rawItems.map(normalizeHolding));
           }
         } else {
-          setHoldings(rawItems);
+          setHoldings(rawItems.map(normalizeHolding));
         }
       }
     } catch (err) {
@@ -738,7 +837,7 @@ export default function PortfolioTracker({ calcData, rates, usdToman, goldUsd, i
 
       // Decrypt holdings currently loaded in state
       const decrypted = await Promise.all(holdings.map((h) => decryptHoldingFromApi(key, h)));
-      setHoldings(decrypted);
+      setHoldings(decrypted.map(normalizeHolding));
       setVaultUnlockPassInput('');
     } catch (err) {
       console.error('Unlock vault error:', err);
@@ -761,7 +860,7 @@ export default function PortfolioTracker({ calcData, rates, usdToman, goldUsd, i
       setLoadingHoldings(true);
       const res = await apiGetPortfolio(activePortfolio.id);
       if (res.success && Array.isArray(res.holdings)) {
-        setHoldings(res.holdings);
+        setHoldings(res.holdings.map(normalizeHolding));
       }
     } catch (err) {
       console.error('Error locking vault:', err);
@@ -791,30 +890,78 @@ export default function PortfolioTracker({ calcData, rates, usdToman, goldUsd, i
     // A. Gold calculations (Pure intrinsic gold value)
     if (goldUsd && goldUsd > 0) {
       const gold_24k_gram = (goldUsd / 31.1034768) * usd;
+      const gold_22k_gram = gold_24k_gram * (22 / 24);
+      const gold_18k_gram = gold_24k_gram * 0.75;
+      const mesghal_val = gold_24k_gram * 4.608 * 0.705;
+      const full_coin_val = Math.round(gold_24k_gram * 7.3197);
+      const half_coin_val = Math.round(gold_24k_gram * 3.6594);
+      const quarter_coin_val = Math.round(gold_24k_gram * 1.8297);
+      const bank_gram_val = Math.round(gold_24k_gram * 1.01 * (22 / 24));
+      const ons_gold_val = Math.round(goldUsd * usd);
+
       map['gold_24k'] = Math.round(gold_24k_gram);
-      map['gold_18k'] = Math.round(gold_24k_gram * 0.75);
-      map['gold_melted'] = Math.round(gold_24k_gram * 0.75);
-      map['full_new'] = Math.round(gold_24k_gram * 7.3197);
-      map['full_old'] = Math.round(gold_24k_gram * 7.3197);
-      map['half'] = Math.round(gold_24k_gram * 3.6594);
-      map['quarter'] = Math.round(gold_24k_gram * 1.8297);
-      // سکه گرمی بانکی: وزن ۱.۰۱ گرم با عیار ۲۲ (۲۲/۲۴ = ۹۱۶.۶۶ در ۱۰۰۰)
-      const bankGramVal = Math.round(gold_24k_gram * 1.01 * (22 / 24));
-      map['bank_gram'] = bankGramVal;
-      map['gram'] = bankGramVal;
+      map['src_def_gold_24k'] = map['gold_24k'];
+
+      map['gold_22k'] = Math.round(gold_22k_gram);
+      map['src_def_gold_22k'] = map['gold_22k'];
+
+      map['gold_18k'] = Math.round(gold_18k_gram);
+      map['src_def_gold_18k'] = map['gold_18k'];
+
+      map['gold_melted'] = Math.round(gold_18k_gram);
+      map['src_def_gold_melted'] = map['gold_melted'];
+
+      map['mesghal'] = Math.round(mesghal_val);
+      map['src_def_mesghal'] = map['mesghal'];
+
+      map['ons_gold'] = ons_gold_val;
+      map['gold_ounce'] = ons_gold_val;
+      map['src_def_ons_gold'] = ons_gold_val;
+
+      map['full_new'] = full_coin_val;
+      map['full_coin'] = full_coin_val;
+      map['src_def_full_coin'] = full_coin_val;
+      map['full_old'] = full_coin_val;
+      map['src_def_full_old'] = full_coin_val;
+
+      map['half'] = half_coin_val;
+      map['half_coin'] = half_coin_val;
+      map['src_def_half_coin'] = half_coin_val;
+
+      map['quarter'] = quarter_coin_val;
+      map['quarter_coin'] = quarter_coin_val;
+      map['src_def_quarter_coin'] = quarter_coin_val;
+
+      map['bank_gram'] = bank_gram_val;
+      map['gerami_coin'] = bank_gram_val;
+      map['gram'] = bank_gram_val;
+      map['src_def_gerami_coin'] = bank_gram_val;
     }
 
     // B. Silver calculations (Pure intrinsic silver value)
     if (silverUsd && silverUsd > 0) {
       const silver_999_gram = (silverUsd / 31.1034768) * usd;
+      const silver_ounce_val = Math.round(silverUsd * usd);
+
       map['silver_999'] = Math.round(silver_999_gram);
+      map['silver_gram'] = map['silver_999'];
+      map['src_def_silver_gram'] = map['silver_999'];
+      map['src_def_silver_999'] = map['silver_999'];
+
       map['silver_925'] = Math.round(silver_999_gram * 0.925);
-      map['silver_ounce'] = Math.round(silverUsd * usd);
+      map['src_def_silver_925'] = map['silver_925'];
+
+      map['silver_ounce'] = silver_ounce_val;
+      map['ons_silver'] = silver_ounce_val;
+      map['src_def_ons_silver'] = silver_ounce_val;
     }
 
     // C. Currencies (Cross rate * usd)
     map['USD'] = Math.round(usd);
+    map['usd'] = Math.round(usd);
+    map['src_def_usd'] = Math.round(usd);
     map['USDT'] = Math.round(usd);
+    map['usdt'] = Math.round(usd);
     map['EUR'] = Math.round((1 / 0.915) * usd);
     map['CHF'] = Math.round((1 / 0.865) * usd);
     map['AED'] = Math.round((1 / 3.6725) * usd);
@@ -827,12 +974,52 @@ export default function PortfolioTracker({ calcData, rates, usdToman, goldUsd, i
 
   const realPriceMap = useMemo(() => {
     const map = computePriceMap(usdVal, goldUsdVal, silverUsdVal);
+
+    // Incorporate live market prices from calcData / rates if present
+    if (calcData?.analysis && Array.isArray(calcData.analysis)) {
+      calcData.analysis.forEach((item) => {
+        if (item.market && item.market > 0) {
+          const mPrice = Math.round(item.market);
+          map[item.id] = mPrice;
+          map[`src_def_${item.id}`] = mPrice;
+          if (item.id === 'full_coin') {
+            map['full_new'] = mPrice;
+            map['src_def_full_new'] = mPrice;
+          }
+          if (item.id === 'half_coin') {
+            map['half'] = mPrice;
+            map['src_def_half'] = mPrice;
+          }
+          if (item.id === 'quarter_coin') {
+            map['quarter'] = mPrice;
+            map['src_def_quarter'] = mPrice;
+          }
+        }
+      });
+    }
+
+    const rawPrices = rates?.prices || rates?.market_prices;
+    if (rawPrices && typeof rawPrices === 'object') {
+      Object.entries(rawPrices).forEach(([k, v]) => {
+        const p = Number(v?.price || v);
+        if (p > 0) {
+          const rounded = Math.round(p);
+          const cleanK = k.replace(/^src_def_/, '');
+          map[k] = rounded;
+          map[cleanK] = rounded;
+          map[`src_def_${cleanK}`] = rounded;
+        }
+      });
+    }
+
     const currList = calcData?.currencies || rates?.currencies;
     if (currList && Array.isArray(currList)) {
       currList.forEach((c) => {
         if (c.code) {
           const cross = c.usd_cross_rate || 1;
-          map[c.code] = c.toman_price ? Math.round(c.toman_price) : Math.round(cross * usdVal);
+          const p = c.toman_price ? Math.round(c.toman_price) : Math.round(cross * usdVal);
+          map[c.code] = p;
+          map[c.code.toLowerCase()] = p;
         }
       });
     } else if (rates?.forex) {
@@ -840,7 +1027,9 @@ export default function PortfolioTracker({ calcData, rates, usdToman, goldUsd, i
       if (typeof ratesObj === 'object') {
         Object.entries(ratesObj).forEach(([code, rate]) => {
           if (rate && Number(rate) > 0) {
-            map[code] = Math.round((1 / Number(rate)) * usdVal);
+            const p = Math.round((1 / Number(rate)) * usdVal);
+            map[code] = p;
+            map[code.toLowerCase()] = p;
           }
         });
       }
@@ -907,43 +1096,46 @@ export default function PortfolioTracker({ calcData, rates, usdToman, goldUsd, i
 
   // 4. Open Modal for Editing
   const handleOpenEdit = (item) => {
-    setEditingHolding(item);
+    const normalized = normalizeHolding(item);
+    setEditingHolding(normalized);
     setAssetSearchQuery('');
     setBourseSearchResults([]);
 
-    const isFund = item.assetType === 'bourse_fund' || item.isFund;
-    const isBourse = item.assetType === 'bourse' || item.assetType === 'bourse_fund' || item.assetId?.startsWith('bourse_');
-    const isKnown = ASSET_TYPES.some((a) => a.id === item.assetId && a.id !== 'custom' && a.id !== 'bourse' && a.id !== 'bourse_fund');
+    const cleanId = (normalized.assetId || '').replace(/^src_def_/, '');
+    const isFund = normalized.assetType === 'bourse_fund' || normalized.isFund;
+    const isBourse = normalized.assetType === 'bourse' || normalized.assetType === 'bourse_fund' || normalized.assetId?.startsWith('bourse_');
+    const isKnown = ASSET_TYPES.some((a) => (a.id === normalized.assetId || a.id === cleanId) && a.id !== 'custom' && a.id !== 'bourse' && a.id !== 'bourse_fund');
 
     if (isBourse) {
-      const symCode = item.assetId?.startsWith('bourse_') ? item.assetId.replace('bourse_', '') : (item.assetName?.replace(/^(سهام\s*)/, '') || item.assetId);
-      setSelectedAssetId(item.assetId || `bourse_${symCode}`);
+      const symCode = normalized.assetId?.startsWith('bourse_') ? normalized.assetId.replace('bourse_', '') : (normalized.assetName?.replace(/^(سهام\s*)/, '') || normalized.assetId);
+      setSelectedAssetId(normalized.assetId || `bourse_${symCode}`);
       setSelectedBourseSymbol({
         symbol: symCode,
-        name: item.assetName || symCode,
-        priceToman: item.currentPrice || 0,
+        name: normalized.assetName || symCode,
+        priceToman: normalized.currentPrice || 0,
         isFund: isFund,
       });
-      setCustomName(item.assetName || '');
-      setCustomUnit(item.unit || (isFund ? 'واحد' : 'برگ سهم'));
-      setCustomCurrentPrice(item.currentPrice ? String(item.currentPrice) : '');
+      setCustomName(normalized.assetName || '');
+      setCustomUnit(normalized.unit || (isFund ? 'واحد' : 'برگ سهم'));
+      setCustomCurrentPrice(normalized.currentPrice ? String(normalized.currentPrice) : '');
     } else if (isKnown) {
-      setSelectedAssetId(item.assetId === 'gram' ? 'bank_gram' : item.assetId);
+      const matched = ASSET_TYPES.find((a) => a.id === cleanId || a.id === normalized.assetId);
+      setSelectedAssetId(matched?.id || cleanId);
       setSelectedBourseSymbol(null);
       setCustomName('');
-      setCustomUnit(item.unit || 'واحد');
-      setCustomCurrentPrice(item.currentPrice ? String(item.currentPrice) : '');
+      setCustomUnit(matched?.unit || normalized.unit || 'واحد');
+      setCustomCurrentPrice(normalized.currentPrice ? String(normalized.currentPrice) : '');
     } else {
       setSelectedAssetId('custom');
       setSelectedBourseSymbol(null);
-      setCustomName(item.assetName || '');
-      setCustomUnit(item.unit || 'واحد');
-      setCustomCurrentPrice(item.currentPrice ? String(item.currentPrice) : '');
+      setCustomName(normalized.assetName || '');
+      setCustomUnit(normalized.unit || 'واحد');
+      setCustomCurrentPrice(normalized.currentPrice ? String(normalized.currentPrice) : '');
     }
-    setAmount(String(item.amount));
-    setBuyPrice(item.buyPrice && Number(item.buyPrice) > 0 ? String(item.buyPrice) : '');
-    setBuyDate(item.buyDate || '');
-    setNotes(item.notes || '');
+    setAmount(String(normalized.amount));
+    setBuyPrice(normalized.buyPrice && Number(normalized.buyPrice) > 0 ? String(normalized.buyPrice) : '');
+    setBuyDate(normalized.buyDate || '');
+    setNotes(normalized.notes || '');
     setShowDatePicker(false);
     setModalOpen(true);
   };
@@ -965,18 +1157,19 @@ export default function PortfolioTracker({ calcData, rates, usdToman, goldUsd, i
       return;
     }
 
-    const isFund = Boolean(selectedBourseSymbol?.isFund || selectedAssetId === 'bourse_fund' || (selectedAssetId.startsWith('bourse_') && selectedBourseSymbol?.isFund) || editingHolding?.assetType === 'bourse_fund');
-    const isBourse = selectedAssetId.startsWith('bourse_') || selectedBourseSymbol !== null || selectedAssetId === 'bourse' || selectedAssetId === 'bourse_fund';
-    const isCustom = selectedAssetId === 'custom';
-    const assetMeta = ASSET_TYPES.find((a) => a.id === selectedAssetId);
+    const cleanAssetId = (selectedAssetId || '').replace(/^src_def_/, '');
+    const isFund = Boolean(selectedBourseSymbol?.isFund || cleanAssetId === 'bourse_fund' || (cleanAssetId.startsWith('bourse_') && selectedBourseSymbol?.isFund) || editingHolding?.assetType === 'bourse_fund');
+    const isBourse = cleanAssetId.startsWith('bourse_') || selectedBourseSymbol !== null || cleanAssetId === 'bourse' || cleanAssetId === 'bourse_fund';
+    const isCustom = cleanAssetId === 'custom';
+    const assetMeta = ASSET_TYPES.find((a) => a.id === cleanAssetId) || ASSET_TYPES.find((a) => a.id === selectedAssetId);
 
     const finalName = isBourse
       ? (selectedBourseSymbol
           ? (isFund ? `${selectedBourseSymbol.symbol} (${selectedBourseSymbol.name})` : `سهام ${selectedBourseSymbol.symbol} (${selectedBourseSymbol.name})`)
-          : (customName.trim() || (isFund ? (selectedAssetId === 'bourse_fund' ? 'بورس اوراق بهادار تهران (صندوق)' : `صندوق ${selectedAssetId.replace('bourse_', '')}`) : (selectedAssetId === 'bourse' ? 'بورس اوراق بهادار تهران (سهام)' : `سهام ${selectedAssetId.replace('bourse_', '')}`))))
+          : (customName.trim() || (isFund ? (cleanAssetId === 'bourse_fund' ? 'بورس اوراق بهادار تهران (صندوق)' : `صندوق ${cleanAssetId.replace('bourse_', '')}`) : (cleanAssetId === 'bourse' ? 'بورس اوراق بهادار تهران (سهام)' : `سهام ${cleanAssetId.replace('bourse_', '')}`))))
       : isCustom
       ? (customName.trim() || 'دارایی شخصی')
-      : (assetMeta?.name || selectedAssetId);
+      : (assetMeta?.name || formatAssetName(cleanAssetId) || cleanAssetId);
 
     const finalUnit = isBourse
       ? (isFund ? 'واحد' : 'برگ سهم')
@@ -994,7 +1187,7 @@ export default function PortfolioTracker({ calcData, rates, usdToman, goldUsd, i
       ? (selectedBourseSymbol?.priceToman || parseInputNumber(customCurrentPrice) || price || 0)
       : isCustom
       ? (parseInputNumber(customCurrentPrice) || price || 0)
-      : (realPriceMap[selectedAssetId] || price || 0);
+      : (realPriceMap[cleanAssetId] || realPriceMap[selectedAssetId] || parseInputNumber(customCurrentPrice) || price || 0);
 
     setSubmitting(true);
 
@@ -1003,10 +1196,10 @@ export default function PortfolioTracker({ calcData, rates, usdToman, goldUsd, i
         id: editingHolding ? editingHolding.id : undefined,
         portfolioId: activePortfolio?.id || null,
         assetId: isBourse
-          ? (selectedAssetId.startsWith('bourse_') ? selectedAssetId : `bourse_${selectedBourseSymbol?.symbol || 'stock'}`)
+          ? (cleanAssetId.startsWith('bourse_') ? cleanAssetId : `bourse_${selectedBourseSymbol?.symbol || 'stock'}`)
           : isCustom
           ? (editingHolding?.assetId?.startsWith('custom_') ? editingHolding.assetId : `custom_${Date.now()}`)
-          : selectedAssetId,
+          : cleanAssetId,
         assetName: finalName,
         assetType: finalCategory,
         unit: finalUnit,
@@ -1028,7 +1221,8 @@ export default function PortfolioTracker({ calcData, rates, usdToman, goldUsd, i
           if (activePortfolio?.isE2ee && activeVaultKey) {
             savedItem = await decryptHoldingFromApi(activeVaultKey, savedItem);
           }
-          setHoldings((prev) => prev.map((h) => (h.id === editingHolding.id ? savedItem : h)));
+          const normalized = normalizeHolding(savedItem);
+          setHoldings((prev) => prev.map((h) => (h.id === editingHolding.id ? normalized : h)));
           setModalOpen(false);
           setEditingHolding(null);
         } else {
@@ -1041,7 +1235,8 @@ export default function PortfolioTracker({ calcData, rates, usdToman, goldUsd, i
           if (activePortfolio?.isE2ee && activeVaultKey) {
             savedItem = await decryptHoldingFromApi(activeVaultKey, savedItem);
           }
-          setHoldings((prev) => [savedItem, ...prev]);
+          const normalized = normalizeHolding(savedItem);
+          setHoldings((prev) => [normalized, ...prev]);
           if (activePortfolio?.id) {
             setPortfolios((prev) =>
               prev.map((p) =>
@@ -1051,12 +1246,12 @@ export default function PortfolioTracker({ calcData, rates, usdToman, goldUsd, i
           }
           setModalOpen(false);
         } else {
-          alert(res.message || 'خطا در ثبت دارایی');
+          alert(res.message || 'خطا در ثبت دارایی جدید');
         }
       }
     } catch (err) {
-      console.error('Error saving holding:', err);
-      alert('خطا در برقراری ارتباط با سرور.');
+      console.error('Submit holding error:', err);
+      alert('خطا در ارتباط با سرور: ' + (err.message || 'نامشخص'));
     } finally {
       setSubmitting(false);
     }
@@ -1093,11 +1288,13 @@ export default function PortfolioTracker({ calcData, rates, usdToman, goldUsd, i
 
   // 7. Portfolio Metrics & Calculations (Based on Real / Intrinsic Value)
   const portfolioMetrics = useMemo(() => {
-    const items = holdings.map((h) => {
+    const items = holdings.map((rawH) => {
+      const h = normalizeHolding(rawH);
       const amountNum = Number(h.amount) || 0;
       const buyPriceNum = Number(h.buyPrice) || 0;
       const hasBuyPrice = buyPriceNum > 0;
-      const isCustomItem = h.assetType === 'custom' || h.assetId?.startsWith('custom_');
+      const cleanAssetId = (h.assetId || '').replace(/^src_def_/, '');
+      const isCustomItem = h.assetType === 'custom' || h.assetId?.startsWith('custom_') || cleanAssetId.startsWith('custom_');
       const isBourseItem = h.assetType === 'bourse' || h.assetType === 'bourse_fund' || h.assetId?.startsWith('bourse_');
       const symCode = isBourseItem ? (h.assetId?.startsWith('bourse_') ? h.assetId.replace('bourse_', '') : '') : null;
 
@@ -1106,7 +1303,7 @@ export default function PortfolioTracker({ calcData, rates, usdToman, goldUsd, i
         ? ((symCode && boursePricesMap[symCode]) || Number(h.currentPrice) || (hasBuyPrice ? buyPriceNum : 0))
         : isCustomItem
         ? (Number(h.currentPrice) || (hasBuyPrice ? buyPriceNum : 0))
-        : (realPriceMap[h.assetId] || (hasBuyPrice ? buyPriceNum : 0));
+        : (realPriceMap[cleanAssetId] || realPriceMap[h.assetId] || Number(h.currentPrice) || (hasBuyPrice ? buyPriceNum : 0));
 
       const itemCost = hasBuyPrice ? amountNum * buyPriceNum : 0;
       const itemRealVal = amountNum * unitRealPrice;
@@ -1259,10 +1456,13 @@ export default function PortfolioTracker({ calcData, rates, usdToman, goldUsd, i
   };
 
   const handleSelectStandardAsset = (asset) => {
-    setSelectedAssetId(asset.id);
+    const rawId = asset.id || asset.priceType || '';
+    const cleanId = rawId.replace(/^src_def_/, '');
+    const matchedMeta = ASSET_TYPES.find((a) => a.id === cleanId || a.id === rawId);
+    setSelectedAssetId(matchedMeta?.id || cleanId);
     setSelectedBourseSymbol(null);
     setCustomName('');
-    setCustomUnit(asset.unit);
+    setCustomUnit(matchedMeta?.unit || asset.unit || 'واحد');
     setCustomCurrentPrice('');
     setAssetSearchQuery('');
     setBourseSearchResults([]);
@@ -1289,13 +1489,14 @@ export default function PortfolioTracker({ calcData, rates, usdToman, goldUsd, i
     );
   }, [assetSearchQuery]);
 
+  const cleanSelectedId = (selectedAssetId || '').replace(/^src_def_/, '');
   const isModalBourse = selectedAssetId.startsWith('bourse_') || selectedBourseSymbol !== null || selectedAssetId === 'bourse' || selectedAssetId === 'bourse_fund';
   const isModalFund = Boolean(selectedBourseSymbol?.isFund || selectedAssetId === 'bourse_fund' || (selectedAssetId.startsWith('bourse_') && selectedBourseSymbol?.isFund));
-  const isModalCustom = selectedAssetId === 'custom';
-  const selectedAssetMeta = ASSET_TYPES.find((a) => a.id === selectedAssetId);
+  const isModalCustom = cleanSelectedId === 'custom';
+  const selectedAssetMeta = ASSET_TYPES.find((a) => a.id === cleanSelectedId || a.id === selectedAssetId);
   const currentModalRealPrice = isModalBourse
     ? (selectedBourseSymbol?.priceToman || parseInputNumber(customCurrentPrice) || 0)
-    : (realPriceMap[selectedAssetId] || 0);
+    : (realPriceMap[cleanSelectedId] || realPriceMap[selectedAssetId] || 0);
 
   // 9. Export Portfolio to CSV with UTF-8 BOM
   const handleExportCSV = useCallback(() => {
@@ -2089,8 +2290,19 @@ export default function PortfolioTracker({ calcData, rates, usdToman, goldUsd, i
                   selectedAssetId={selectedAssetId}
                   showCategories={true}
                   onSelect={(item) => {
+                    const cat = item.category || item.badgeClass;
+                    const cleanId = (item.id || item.priceType || '').replace(/^src_def_/, '');
+                    const isKnownAsset = ASSET_TYPES.some((a) => a.id === cleanId && a.id !== 'custom');
+
                     if (item.type === 'bourse') {
                       handleSelectBourseSymbol(item.raw);
+                    } else if (isKnownAsset || ['gold', 'coin', 'silver'].includes(cat) || item.type === 'standard') {
+                      handleSelectStandardAsset({
+                        ...item,
+                        id: cleanId,
+                        unit: item.unit,
+                        name: item.name,
+                      });
                     } else if (item.type === 'source' || item.type === 'forex' || item.type === 'multi_output' || item.isMultiItem) {
                       setSelectedAssetId(item.id);
                       setSelectedBourseSymbol(null);

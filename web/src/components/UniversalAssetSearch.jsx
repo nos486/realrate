@@ -85,6 +85,7 @@ const baseLabels = {
   usd: 'دلار آمریکا',
   usd_toman: 'دلار آمریکا',
   gold_18k: 'طلای ۱۸ عیار',
+  gold_22k: 'طلای ۲۲ عیار',
   gold_24k: 'طلای ۲۴ عیار',
   gold_melted: 'طلای آبشده',
   mesghal: 'مثقال طلا (مظنه)',
@@ -101,7 +102,9 @@ const baseLabels = {
   gold_ounce: 'انس جهانی طلا',
   ons_silver: 'انس جهانی نقره',
   silver_ounce: 'انس جهانی نقره',
-  silver_999: 'نقره خام ۹۹۹',
+  silver_gram: 'نقره خام (گرمی ۹۹۹)',
+  silver_999: 'نقره خام (گرمی ۹۹۹)',
+  silver_925: 'نقره استرلینگ ۹۲۵',
   bourse: 'بورس اوراق بهادار',
   bourse_fund: 'صندوق سرمایه‌گذاری بورس',
   forex: 'ارزهای جهانی (فارکس)',
@@ -153,26 +156,26 @@ export function getPriceTypeLabel(priceType, priceTypeInfo = null) {
 }
 
 export function getCategoryMetadata(priceType) {
-  const pt = String(priceType || '').toLowerCase();
-  if (pt === 'gold_18k' || pt === 'gold_24k' || pt === 'gold_melted' || pt === 'mesghal' || pt.includes('gold')) {
-    return { category: 'gold', badge: 'طلا' };
+  const pt = String(priceType || '').toLowerCase().replace(/^src_def_/, '');
+  if (pt === 'silver_gram' || pt === 'silver_999' || pt === 'silver_925' || pt === 'ons_silver' || pt === 'silver_ounce' || pt.includes('silver')) {
+    return { category: 'silver', badge: 'نقره', unit: pt.includes('ons') || pt.includes('ounce') ? 'اونس' : 'گرم' };
   }
-  if (pt.includes('coin') || pt === 'full_new' || pt === 'full_old' || pt === 'half' || pt === 'quarter' || pt === 'gerami') {
-    return { category: 'coin', badge: 'سکه' };
+  if (pt === 'gold_18k' || pt === 'gold_22k' || pt === 'gold_24k' || pt === 'gold_melted' || pt === 'mesghal' || pt === 'ons_gold' || pt.includes('gold')) {
+    return { category: 'gold', badge: 'طلا', unit: pt.includes('mesghal') ? 'مثقال' : (pt.includes('ons') ? 'اونس' : 'گرم') };
   }
-  if (pt.includes('silver')) {
-    return { category: 'silver', badge: 'نقره' };
+  if (pt.includes('coin') || pt === 'full_new' || pt === 'full_old' || pt === 'half' || pt === 'quarter' || pt === 'gerami' || pt === 'bank_gram' || pt === 'gram') {
+    return { category: 'coin', badge: 'سکه', unit: 'عدد' };
   }
   if (pt === 'crypto' || pt === 'btc' || pt === 'eth' || pt === 'usdt') {
-    return { category: 'crypto', badge: 'رمزارز' };
+    return { category: 'crypto', badge: 'رمزارز', unit: 'واحد' };
   }
   if (pt === 'bourse') {
-    return { category: 'bourse', badge: 'بورس' };
+    return { category: 'bourse', badge: 'بورس', unit: 'برگ سهم' };
   }
   if (pt === 'bourse_fund') {
-    return { category: 'bourse_fund', badge: 'صندوق' };
+    return { category: 'bourse_fund', badge: 'صندوق', unit: 'واحد' };
   }
-  return { category: 'currency', badge: 'ارز' };
+  return { category: 'currency', badge: 'ارز', unit: 'تومان' };
 }
 
 export function calculateUsdCrossRate(code, rawVal) {
@@ -473,7 +476,7 @@ export default function UniversalAssetSearch({
     const items = [];
     const seenKeys = new Set();
 
-    // ── نوع ۱: سورس‌های نرخ پایه ──────────────────────────────────────────
+    // ── نوع ۱: سورس‌های نرخ پایه و اقلام استاندارد طلا، سکه و نقره ─────────────
     // فقط نوع نرخ را بنویس، فقط در صورت فعال بودن و مرجع بودن
     internalSources.forEach((src) => {
       const isActive = src.isActive === 1 || src.isActive === true || src.is_active === 1 || src.is_active === true;
@@ -485,28 +488,37 @@ export default function UniversalAssetSearch({
       const isPrimary = src.isPrimary === 1 || src.isPrimary === true || src.is_primary === 1 || src.is_primary === true;
       if (!isPrimary) return;
 
+      const canonicalId = (src.priceType || src.id || '').replace(/^src_def_/, '');
       const typeLabel = getPriceTypeLabel(src.priceType, priceTypeInfo) || src.name;
       const meta = getCategoryMetadata(src.priceType);
 
       items.push({
-        id: src.id,
+        id: canonicalId,
         sourceId: src.id,
-        name: typeLabel, // فقط عنوان نوع نرخ
+        priceType: src.priceType,
+        name: typeLabel,
         symbol: '',
         subText: 'نرخ پایه بازار (سورس مرجع)',
         badge: meta.badge || 'پایه',
         badgeClass: meta.category,
         category: meta.category,
         price: Number(src.lastPrice || 0),
-        unit: src.unit || 'تومان',
-        type: 'source',
+        unit: meta.unit || src.unit || 'تومان',
+        type: 'standard',
         changePercent: src.diff !== undefined ? src.diff : src.changePercent,
-        raw: src,
+        raw: {
+          ...src,
+          id: canonicalId,
+          priceType: src.priceType,
+          category: meta.category,
+          unit: meta.unit || src.unit || 'تومان',
+        },
       });
+      seenKeys.add(canonicalId);
       seenKeys.add(src.id);
     });
 
-    // Find active primary USD rate for Forex Toman price calculation
+    // Find active primary USD rate for Forex and Silver calculations
     const activeSources = internalSources.filter(s =>
       s.isActive === 1 || s.isActive === true || s.is_active === 1 || s.is_active === true
     );
@@ -516,6 +528,102 @@ export default function UniversalAssetSearch({
       activeSources.find(s => (s.priceType === 'usd' || s.priceType === 'usd_toman')) ||
       activeSources.find(s => (s.id === 'src_def_usd' || (s.name && s.name.includes('دلار'))));
     const usdToman = Number(usdSource?.lastPrice || usdSource?.last_price || 0);
+
+    // اشتقاق و افزودن طلا ۱۸ عیار، ۲۲ عیار، ۲۴ عیار و نقره گرمی
+    const onsGoldItem = items.find(i => i.id === 'ons_gold' || i.id === 'gold_ounce');
+    const onsGoldPrice = Number(onsGoldItem?.price || 2900);
+
+    let p18 = Number(items.find(i => i.id === 'gold_18k')?.price || 0);
+    if (p18 <= 0 && usdToman > 0) {
+      p18 = Math.round(((onsGoldPrice > 100 ? onsGoldPrice : 2900) / 31.1034768) * usdToman * 0.75);
+    }
+
+    // تضمین حضور طلای ۱۸ عیار
+    if (!seenKeys.has('gold_18k') && !items.some(i => i.id === 'gold_18k')) {
+      items.push({
+        id: 'gold_18k',
+        sourceId: 'src_def_gold_18k',
+        priceType: 'gold_18k',
+        name: 'طلای ۱۸ عیار',
+        symbol: '',
+        subText: 'نرخ پایه بازار (هر گرم طلا ۱۸ عیار)',
+        badge: 'طلا',
+        badgeClass: 'gold',
+        category: 'gold',
+        price: p18,
+        unit: 'گرم',
+        type: 'standard',
+        raw: { id: 'gold_18k', priceType: 'gold_18k', name: 'طلای ۱۸ عیار', category: 'gold', unit: 'گرم', price: p18 },
+      });
+      seenKeys.add('gold_18k');
+    }
+
+    // تضمین حضور طلای ۲۲ عیار
+    if (!seenKeys.has('gold_22k')) {
+      const p22 = p18 > 0 ? Math.round(p18 * (22 / 18)) : 0;
+      items.push({
+        id: 'gold_22k',
+        sourceId: 'derived_gold_22k',
+        priceType: 'gold_22k',
+        name: 'طلای ۲۲ عیار',
+        symbol: '',
+        subText: 'محاسبه شده بر مبنای طلای ۱۸ عیار',
+        badge: 'طلا',
+        badgeClass: 'gold',
+        category: 'gold',
+        price: p22,
+        unit: 'گرم',
+        type: 'standard',
+        raw: { id: 'gold_22k', priceType: 'gold_22k', name: 'طلای ۲۲ عیار', category: 'gold', unit: 'گرم', price: p22 },
+      });
+      seenKeys.add('gold_22k');
+    }
+
+    // تضمین حضور طلای ۲۴ عیار
+    if (!seenKeys.has('gold_24k')) {
+      const p24 = p18 > 0 ? Math.round(p18 * (24 / 18)) : 0;
+      items.push({
+        id: 'gold_24k',
+        sourceId: 'derived_gold_24k',
+        priceType: 'gold_24k',
+        name: 'طلای ۲۴ عیار',
+        symbol: '',
+        subText: 'طلای خالص شمش (۹۹۹)',
+        badge: 'طلا',
+        badgeClass: 'gold',
+        category: 'gold',
+        price: p24,
+        unit: 'گرم',
+        type: 'standard',
+        raw: { id: 'gold_24k', priceType: 'gold_24k', name: 'طلای ۲۴ عیار', category: 'gold', unit: 'گرم', price: p24 },
+      });
+      seenKeys.add('gold_24k');
+    }
+
+    // تضمین حضور نقره خام (گرمی ۹۹۹)
+    if (!seenKeys.has('silver_999') && !seenKeys.has('silver_gram')) {
+      const onsSilverItem = items.find(i => i.id === 'ons_silver' || i.id === 'silver_ounce');
+      const rawOns = Number(onsSilverItem?.price || 0);
+      const onsToman = rawOns > 1000 ? rawOns : (usdToman > 0 ? (rawOns > 0 ? rawOns * usdToman : 33.5 * usdToman) : (rawOns > 0 ? rawOns * 90000 : 33.5 * 90000));
+      const silverGramPrice = Math.round(onsToman / 31.1034768);
+      items.push({
+        id: 'silver_gram',
+        sourceId: 'derived_silver_gram',
+        priceType: 'silver_gram',
+        name: 'نقره خام (گرمی ۹۹۹)',
+        symbol: '',
+        subText: 'نقره خام و ساچمه بر مبنای انس جهانی',
+        badge: 'نقره',
+        badgeClass: 'silver',
+        category: 'silver',
+        price: silverGramPrice,
+        unit: 'گرم',
+        type: 'standard',
+        raw: { id: 'silver_gram', priceType: 'silver_gram', name: 'نقره خام (گرمی ۹۹۹)', category: 'silver', unit: 'گرم', price: silverGramPrice },
+      });
+      seenKeys.add('silver_gram');
+      seenKeys.add('silver_999');
+    }
 
     // ── نوع ۲: هاب سورس‌های چند خروجی و فیدها (تمام دسته‌بندی‌ها) ───────────────
     // هر اقلامی که زیرش هست رو بیار، در صورت فعال بودن
