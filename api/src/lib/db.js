@@ -1497,13 +1497,24 @@ export async function dbGet24hSparklines(env, targetAsset = null) {
     'usd', 'gold_18k', 'mesghal', 'full_coin', 'quarter_coin',
     'eur', 'try', 'aed', 'gbp', 'chf', 'cad', 'aud', 'cny'
   ];
-  const targets = (targetAsset && allTargets.includes(targetAsset)) ? [targetAsset] : allTargets;
+  const forexTargets = ['eur', 'try', 'aed', 'gbp', 'chf', 'cad', 'aud', 'cny'];
+
+  // If requesting a specific forex asset, we also query 'usd' to multiply by USD price at each timestamp point
+  let queryTargets = allTargets;
+  if (targetAsset && allTargets.includes(targetAsset)) {
+    queryTargets = forexTargets.includes(targetAsset) ? [targetAsset, 'usd'] : [targetAsset];
+  }
+
   const result = {};
-  for (const t of targets) result[t] = [];
+  if (targetAsset) {
+    result[targetAsset] = [];
+  } else {
+    for (const t of allTargets) result[t] = [];
+  }
 
   try {
     const sinceIso = new Date(Date.now() - 24 * 3600 * 1000).toISOString();
-    const placeholders = targets.map(() => '?').join(',');
+    const placeholders = queryTargets.map(() => '?').join(',');
 
     // Select from price_history for past 24h, filtering to primary sources where defined to avoid multi-source jitter
     const query = `
@@ -1518,13 +1529,13 @@ export async function dbGet24hSparklines(env, targetAsset = null) {
       ORDER BY ph.timestamp ASC
     `;
 
-    const binds = [sinceIso, ...targets];
+    const binds = [sinceIso, ...queryTargets];
     const { results } = await env.DB.prepare(query).bind(...binds).all();
     const rows = Array.isArray(results) ? results : [];
 
     // Group raw rows
     const grouped = {};
-    for (const t of targets) grouped[t] = [];
+    for (const t of queryTargets) grouped[t] = [];
     for (const row of rows) {
       if (grouped[row.priceType]) {
         grouped[row.priceType].push({
@@ -1534,9 +1545,57 @@ export async function dbGet24hSparklines(env, targetAsset = null) {
       }
     }
 
+    // Get fallback latest USD price in case no 24h USD history records exist yet
+    let latestUsd = 95000;
+    try {
+      const usdRow = await env.DB.prepare("SELECT last_price FROM price_sources WHERE price_type = 'usd' AND is_primary = 1").first();
+      if (usdRow && Number(usdRow.last_price) > 0) latestUsd = Number(usdRow.last_price);
+    } catch (ignore) {}
+
+    const usdPoints = grouped['usd'] || [];
+
+    // Helper: Find closest USD price at or near a given timestamp
+    const getClosestUsdPrice = (targetIso) => {
+      if (!usdPoints || usdPoints.length === 0) return latestUsd;
+      const targetMs = new Date(targetIso).getTime();
+      let closest = usdPoints[0];
+      let minDiff = Math.abs(new Date(closest.timestamp).getTime() - targetMs);
+
+      for (let i = 1; i < usdPoints.length; i++) {
+        const diff = Math.abs(new Date(usdPoints[i].timestamp).getTime() - targetMs);
+        if (diff < minDiff) {
+          minDiff = diff;
+          closest = usdPoints[i];
+        } else if (diff > minDiff) {
+          break;
+        }
+      }
+      return Number(closest.price) || latestUsd;
+    };
+
+    // For any forex targets in queryTargets, convert cross-rate into Toman price at that specific point
+    for (const fx of forexTargets) {
+      if (grouped[fx] && grouped[fx].length > 0) {
+        for (const pt of grouped[fx]) {
+          const rawCross = Number(pt.price);
+          const usdAtPoint = getClosestUsdPrice(pt.timestamp);
+          // If stored as cross-rate (< 500), multiply by the USD price at that point in time
+          if (rawCross < 500) {
+            pt.price = Math.round(rawCross * usdAtPoint);
+            pt.usd_cross_rate = rawCross;
+            pt.usd_price = usdAtPoint;
+          } else {
+            pt.usd_cross_rate = usdAtPoint > 0 ? Number((rawCross / usdAtPoint).toFixed(4)) : null;
+            pt.usd_price = usdAtPoint;
+          }
+        }
+      }
+    }
+
     // Downsample each target to max 45 points evenly spaced
+    const returnKeys = targetAsset ? [targetAsset] : allTargets;
     const maxPoints = 45;
-    for (const key of targets) {
+    for (const key of returnKeys) {
       const arr = grouped[key] || [];
       if (arr.length <= maxPoints) {
         result[key] = arr;
@@ -1547,7 +1606,6 @@ export async function dbGet24hSparklines(env, targetAsset = null) {
           const idx = Math.min(Math.round(i * step), arr.length - 1);
           sampled.push(arr[idx]);
         }
-        sampled.push(arr[arr.length - 1]);
         result[key] = sampled;
       }
     }

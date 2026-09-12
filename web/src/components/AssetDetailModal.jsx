@@ -208,9 +208,16 @@ export default function AssetDetailModal({
             const p = isForex && raw < 500
               ? Math.round(raw * liveUsd)
               : Math.round(raw);
+            const crossRate = d.usd_cross_rate != null
+              ? Number(d.usd_cross_rate)
+              : (isForex ? (raw < 500 ? raw : (liveUsd > 0 ? Number((raw / liveUsd).toFixed(4)) : 1)) : null);
+            const usdPrice = d.usd_price != null
+              ? Number(d.usd_price)
+              : (isForex ? liveUsd : null);
             return {
               price: p,
-              rawCrossRate: isForex ? (raw < 500 ? raw : (liveUsd > 0 ? Number((raw / liveUsd).toFixed(4)) : 1)) : null,
+              rawCrossRate: crossRate,
+              usdPrice: usdPrice,
               timestamp: d.timestamp,
             };
           })
@@ -230,6 +237,7 @@ export default function AssetDetailModal({
         list.push({
           price: p,
           rawCrossRate: isForex && liveUsd > 0 ? Number((p / liveUsd).toFixed(4)) : null,
+          usdPrice: isForex ? liveUsd : null,
           timestamp: t,
         });
       }
@@ -240,6 +248,7 @@ export default function AssetDetailModal({
         list.push({
           price: currentPrice,
           rawCrossRate: isForex && liveUsd > 0 ? Number((currentPrice / liveUsd).toFixed(4)) : null,
+          usdPrice: isForex ? liveUsd : null,
           timestamp: new Date().toISOString(),
         });
       }
@@ -293,7 +302,14 @@ export default function AssetDetailModal({
         const x = padding.left + (idx / Math.max(1, points.length - 1)) * drawW;
         const normalizedY = (p.price - min) / effectiveRange;
         const y = padding.top + drawH * (1 - normalizedY);
-        return { x, y, price: p.price, rawCrossRate: p.rawCrossRate, timestamp: p.timestamp };
+        return {
+          x,
+          y,
+          price: p.price,
+          rawCrossRate: p.rawCrossRate,
+          usdPrice: p.usdPrice,
+          timestamp: p.timestamp,
+        };
       });
 
       const lPath = createBezierPath(computed);
@@ -482,7 +498,8 @@ export default function AssetDetailModal({
                     <strong className="tooltip-price-text">{formatNum(activeCoord.price)} تومان</strong>
                     {isForex && activeCoord.rawCrossRate && (
                       <span className="tooltip-sub-text" style={{ fontSize: '11px', color: 'rgba(255,255,255,0.75)', display: 'block', marginTop: '2px' }}>
-                        برابری: {activeCoord.rawCrossRate} $
+                        برابری: {Number(activeCoord.rawCrossRate).toLocaleString('en-US', { maximumFractionDigits: 4 })} $
+                        {activeCoord.usdPrice ? ` (دلار: ${formatNum(activeCoord.usdPrice)} ت)` : ''}
                       </span>
                     )}
                     {activeCoord.timestamp && (
