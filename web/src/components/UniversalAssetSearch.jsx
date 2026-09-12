@@ -373,7 +373,6 @@ export default function UniversalAssetSearch({
               category: 'multi_output',
               type: 'source',
               isMultiItem: true,
-              changePercent: subItem.changePercent,
               raw: {
                 ...subItem,
                 sourceId: src.id,
@@ -406,6 +405,7 @@ export default function UniversalAssetSearch({
               category: 'source',
               type: 'source',
               priceType: src.priceType,
+              changePercent: src.diff !== undefined ? src.diff : src.changePercent,
               raw: src,
             });
           }
@@ -427,7 +427,6 @@ export default function UniversalAssetSearch({
           unit: sym.isFund ? 'واحد' : 'برگ سهم',
           category: sym.isFund ? 'bourse_fund' : 'bourse',
           type: 'bourse',
-          changePercent: sym.changePercent,
           raw: sym,
         });
       });
@@ -634,7 +633,8 @@ export default function UniversalAssetSearch({
                             : Math.round(item.price).toLocaleString('fa-IR')}
                         </span>
                       )}
-                      {item.changePercent !== undefined && Number(item.changePercent) !== 0 && (
+                      {/* Trend is strictly only for single-output items */}
+                      {!item.isMultiItem && !item.isMultiFeed && item.category !== 'multi_output' && item.type !== 'bourse' && item.category !== 'bourse' && item.category !== 'bourse_fund' && item.changePercent !== undefined && Number(item.changePercent) !== 0 && (
                         <span className={`universal-result-change ${Number(item.changePercent) > 0 ? 'positive' : 'negative'}`}>
                           {Number(item.changePercent) > 0 ? '+' : ''}{Number(item.changePercent).toFixed(2)}%
                         </span>
@@ -689,7 +689,8 @@ export default function UniversalAssetSearch({
                           {active ? <Check size={12} /> : 'انتخاب'}
                         </span>
                       )}
-                      {item.changePercent !== undefined && Number(item.changePercent) !== 0 && (
+                      {/* Trend is strictly only for single-output items */}
+                      {!item.isMultiItem && !item.isMultiFeed && item.category !== 'multi_output' && item.type !== 'bourse' && item.category !== 'bourse' && item.category !== 'bourse_fund' && item.changePercent !== undefined && Number(item.changePercent) !== 0 && (
                         <span className={`universal-result-change ${Number(item.changePercent) > 0 ? 'positive' : 'negative'}`}>
                           {Number(item.changePercent) > 0 ? '+' : ''}{Number(item.changePercent).toFixed(2)}%
                         </span>

@@ -288,9 +288,14 @@ export default function PriceSourcesPage({ embedded = false, usdToman: propUsdTo
       const res = await apiGetPriceSources();
       if (res.success && Array.isArray(res.sources)) {
         setSources(res.sources);
-        // If no source is selected yet, select the first one
+        // If no source is selected yet, select the first single-output source
         if (!selectedSourceId && res.sources.length > 0) {
-          setSelectedSourceId(res.sources[0].id);
+          const firstSingle = res.sources.find((s) => !isSourceMultiOutput(s, PRICE_TYPE_INFO));
+          if (firstSingle) {
+            setSelectedSourceId(firstSingle.id);
+          } else {
+            setSelectedSourceId(res.sources[0].id);
+          }
         }
       }
     } catch (e) {
@@ -301,9 +306,14 @@ export default function PriceSourcesPage({ embedded = false, usdToman: propUsdTo
     }
   };
 
-  // Load History for the selected source strictly
+  // Load History for the selected source strictly (only single-output sources)
   const loadPriceHistory = async (targetSourceId = selectedSourceId, range = chartRange) => {
     if (!targetSourceId) {
+      setHistoryData([]);
+      return;
+    }
+    const targetSource = sources.find((s) => s.id === targetSourceId);
+    if (targetSource && isSourceMultiOutput(targetSource, PRICE_TYPE_INFO)) {
       setHistoryData([]);
       return;
     }
@@ -338,27 +348,30 @@ export default function PriceSourcesPage({ embedded = false, usdToman: propUsdTo
     }
   }, [selectedSourceId, chartRange]);
 
-  // Active Selected Source Object
-  const activeSelectedSource = useMemo(() => {
-    return sources.find((s) => s.id === selectedSourceId) || sources[0] || null;
-  }, [sources, selectedSourceId]);
-
   // Partition sources into Single-Rate Base Sources vs Multi-Output Feeds
   const singleSources = useMemo(() => {
-    return sources.filter((s) => {
-      const typeInfo = PRICE_TYPE_INFO[s.priceType];
-      const isMulti = s.isMultiOutput || typeInfo?.category === 'multi_output' || s.priceType === 'bourse' || s.priceType === 'bourse_fund';
-      return !isMulti;
-    });
+    return sources.filter((s) => !isSourceMultiOutput(s, PRICE_TYPE_INFO));
   }, [sources, PRICE_TYPE_INFO]);
 
   const multiSources = useMemo(() => {
-    return sources.filter((s) => {
-      const typeInfo = PRICE_TYPE_INFO[s.priceType];
-      const isMulti = s.isMultiOutput || typeInfo?.category === 'multi_output' || s.priceType === 'bourse' || s.priceType === 'bourse_fund';
-      return isMulti;
-    });
+    return sources.filter((s) => isSourceMultiOutput(s, PRICE_TYPE_INFO));
   }, [sources, PRICE_TYPE_INFO]);
+
+  // Active Selected Source Object (strictly single-output source for chart/metrics)
+  const activeSelectedSource = useMemo(() => {
+    return singleSources.find((s) => s.id === selectedSourceId) || singleSources[0] || null;
+  }, [singleSources, selectedSourceId]);
+
+  // Price type info filtered strictly for single-output sources
+  const singlePriceTypeInfo = useMemo(() => {
+    const map = {};
+    for (const [key, info] of Object.entries(PRICE_TYPE_INFO)) {
+      if (info?.category !== 'multi_output' && key !== 'bourse' && key !== 'bourse_fund' && key !== 'forex') {
+        map[key] = info;
+      }
+    }
+    return map;
+  }, [PRICE_TYPE_INFO]);
 
   // Dynamic filter options for Base Rates Table
   const dynamicFilterOptions = useMemo(() => {
@@ -987,8 +1000,13 @@ export default function PriceSourcesPage({ embedded = false, usdToman: propUsdTo
     }
   };
 
-  // Select Source for Dedicated Chart
+  // Select Source for Dedicated Chart (strictly single-output)
   const handleSelectSourceForChart = (src) => {
+    if (isSourceMultiOutput(src, PRICE_TYPE_INFO)) {
+      handleOpenExplorer(src);
+      showMsg(`نمودار و تاریخچه قیمت فقط برای سورس‌های تک‌خروجی فعال است. کاوشگر داده‌های ${src.name} باز شد.`, 'info');
+      return;
+    }
     setSelectedSourceId(src.id);
     if (chartSectionRef.current) {
       chartSectionRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -1536,19 +1554,29 @@ export default function PriceSourcesPage({ embedded = false, usdToman: propUsdTo
               selectedAsset={activeSelectedSource}
               selectedAssetId={selectedSourceId}
               title="کاوشگر و تحلیل اختصاصی تمامی دارایی‌ها و سورس‌ها"
-              subtitle="امکان جستجو، کاوش و رسم نمودار برای هر سورس، نماد بورس یا دارایی"
+              subtitle="امکان جستجو و کاوش در تمامی سورس‌ها و رسم نمودار تحلیلی برای سورس‌های تک‌خروجی"
               onSelect={(item) => {
+                const isMulti = item.isMultiItem || item.isMultiFeed || item.category === 'multi_output' || item.type === 'bourse' || item.category === 'bourse' || item.category === 'bourse_fund';
+                if (isMulti) {
+                  const parentFeed = multiSources.find((s) => s.id === item.sourceId || s.priceType === 'bourse' || s.priceType === 'bourse_fund' || isSourceMultiOutput(s, PRICE_TYPE_INFO));
+                  if (parentFeed) {
+                    handleOpenExplorer(parentFeed);
+                    showMsg(`نمودار و تاریخچه قیمت فقط برای سورس‌های تک‌خروجی فعال است. کاوشگر داده‌های ${parentFeed.name} باز شد.`, 'info');
+                  } else {
+                    showMsg('نمودار و تاریخچه قیمت فقط برای سورس‌های تک‌خروجی در دسترس است.', 'info');
+                  }
+                  return;
+                }
+
                 if (item.type === 'source' || item.sourceId) {
-                  setSelectedSourceId(item.sourceId || item.id);
-                  loadPriceHistory(item.sourceId || item.id, chartRange);
-                } else if (item.type === 'bourse') {
-                  const matchedBourse = sources.find((s) => s.priceType === 'bourse' || s.priceType === 'bourse_fund');
-                  if (matchedBourse) {
-                    setSelectedSourceId(matchedBourse.id);
-                    loadPriceHistory(matchedBourse.id, chartRange);
+                  const targetId = item.sourceId || item.id;
+                  const targetSrc = sources.find((s) => s.id === targetId);
+                  if (targetSrc && !isSourceMultiOutput(targetSrc, PRICE_TYPE_INFO)) {
+                    setSelectedSourceId(targetId);
+                    loadPriceHistory(targetId, chartRange);
                   }
                 } else {
-                  const matched = sources.find((s) => s.priceType === item.id);
+                  const matched = singleSources.find((s) => s.priceType === item.id || s.id === item.id);
                   if (matched) {
                     setSelectedSourceId(matched.id);
                     loadPriceHistory(matched.id, chartRange);
@@ -1561,8 +1589,8 @@ export default function PriceSourcesPage({ embedded = false, usdToman: propUsdTo
             />
           </div>
 
-          {/* Interactive Chart for the active source */}
-          {activeSelectedSource ? (
+          {/* Interactive Chart for the active source (strictly single-output) */}
+          {activeSelectedSource && !isSourceMultiOutput(activeSelectedSource, PRICE_TYPE_INFO) ? (
             <PriceHistoryChart
               history={historyData}
               loading={loadingHistory}
@@ -1575,21 +1603,24 @@ export default function PriceSourcesPage({ embedded = false, usdToman: propUsdTo
               range={chartRange}
               onRangeChange={setChartRange}
               onRefresh={() => loadPriceHistory(activeSelectedSource.id, chartRange)}
-              sources={sources}
+              sources={singleSources}
               selectedSourceId={selectedSourceId}
-              onSelectSource={setSelectedSourceId}
+              onSelectSource={(id) => {
+                const target = singleSources.find((s) => s.id === id);
+                if (target) setSelectedSourceId(id);
+              }}
               selectedPriceType={activeSelectedSource.priceType}
               onSelectPriceType={(t) => {
-                const firstOfType = sources.find((s) => s.priceType === t);
+                const firstOfType = singleSources.find((s) => s.priceType === t);
                 if (firstOfType) setSelectedSourceId(firstOfType.id);
               }}
-              priceTypeInfo={PRICE_TYPE_INFO}
+              priceTypeInfo={singlePriceTypeInfo}
             />
           ) : (
             <div className="chart-empty-state" style={{ background: 'var(--card-bg)', borderRadius: '16px', padding: '40px' }}>
               <Activity size={32} style={{ color: 'var(--text-muted)', marginBottom: '8px' }} />
-              <p>هیچ سورسی برای نمایش نمودار انتخاب نشده است.</p>
-              <span>برای مشاهده نمودار اختصاصی، یک سورس را از جدول بالا یا نوار جستجوی فوق انتخاب کنید.</span>
+              <p>نمودار و تاریخچه قیمت فقط برای سورس‌های تک‌خروجی در دسترس است.</p>
+              <span>برای مشاهده نمودار اختصاصی، یک سورس تک‌نرخی را از جدول بالا انتخاب کنید.</span>
             </div>
           )}
         </section>
