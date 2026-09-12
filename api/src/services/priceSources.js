@@ -223,113 +223,144 @@ export function parseSourceContent(source, rawContent) {
       } catch { }
     }
 
-    // Multi-output handler: Unified Forex feed (Dynamic Currencies)
-    if (source.priceType === "forex") {
-      const ratesPath = (fieldMapping && fieldMapping.ratesPath) || source.jsonPath || "rates";
-      let ratesObj = extractValueByPath(data, ratesPath);
-      if (!ratesObj && data && typeof data.rates === "object") {
-        ratesObj = data.rates;
-      }
-      if (!ratesObj && typeof data === "object") {
-        ratesObj = data;
-      }
-      if (!ratesObj || typeof ratesObj !== "object") {
-        throw new Error(`بخش نرخ‌ها (مسیر «${ratesPath}») در پاسخ وب‌سرویس JSON یافت نشد.`);
-      }
-
-      // Read configured currencies from fieldMapping, or dynamically extract ALL currencies from ratesObj
-      const currencyConfigs = Array.isArray(fieldMapping?.currencies) && fieldMapping.currencies.length > 0
-        ? fieldMapping.currencies
-        : Object.keys(ratesObj)
-            .filter(code => code.length >= 3 && code.length <= 5 && !['base', 'result', 'time', 'date'].includes(code.toLowerCase()))
-            .map(code => {
-              const upper = code.toUpperCase();
-              return {
-                key: code.toLowerCase(),
-                path: code,
-                mode: 'cross',
-                label: WORLD_FOREX_NAMES[upper] || upper,
-              };
-            });
-
-      const multiData = {};
-      const currencyList = [];
-      // Parse excluded outputs (currency codes to skip)
-      const excludedSet = new Set(
-        Array.isArray(source.excludedOutputs)
-          ? source.excludedOutputs.map(k => String(k).toLowerCase())
-          : []
-      );
-      for (const cfg of currencyConfigs) {
-        const key = String(cfg.key || cfg.code || '').trim().toLowerCase();
-        if (!key) continue;
-        if (excludedSet.has(key)) continue; // skip excluded currencies
-        const pathKey = cfg.path || key.toUpperCase();
-        const rawRate = extractValueByPath(ratesObj, pathKey) !== null
-          ? extractValueByPath(ratesObj, pathKey)
-          : (ratesObj[pathKey] !== undefined ? ratesObj[pathKey] : ratesObj[key]);
-
-        if (rawRate !== undefined && rawRate !== null && Number(rawRate) > 0) {
-          const numVal = Number(rawRate);
-          let usdRate;
-          if (cfg.mode === 'direct') {
-            usdRate = numVal;
-          } else if (cfg.mode === 'multiply' && Number(cfg.multiplier) > 0) {
-            usdRate = numVal * Number(cfg.multiplier);
-          } else if (cfg.mode === 'invert') {
-            usdRate = 1 / numVal;
-          } else {
-            usdRate = normalizeForexToUsdCrossRate(key, numVal);
-          }
-
-          const finalRate = parseFloat(usdRate.toFixed(5));
-          const upperCode = key.toUpperCase();
-          const faLabel = cfg.label || WORLD_FOREX_NAMES[upperCode] || upperCode;
-          multiData[key] = finalRate;
-          currencyList.push({
-            key,
-            code: upperCode,
-            label: faLabel,
-            rawRate: numVal,
-            usdCrossRate: finalRate,
-          });
-        }
-      }
-
-      const count = Object.keys(multiData).length;
-      if (count === 0) {
-        throw new Error("هیچ‌کدام از ارزهای تعریف‌شده فارکس در پاسخ وب‌سرویس یافت نشد.");
-      }
-
-      const compactList = currencyList.map(c => ({
-        s: c.code,
-        n: c.label && !c.label.includes(c.code) ? `${c.label} (${c.code})` : (c.label || c.code),
-        p: c.usdCrossRate,
-        rawRate: c.rawRate,
-        usdCrossRate: c.usdCrossRate,
-        cat: 'ارزهای جهانی (فارکس)',
-      }));
-
-      return {
-        price: count,
-        multiData,
-        currencyList,
-        compactList,
-        sampleItems: compactList.slice(0, 20),
-        rates: ratesObj,
-        datetime: nowIso,
-        label: source.name || "نرخ‌های جهانی فارکس",
-      };
-    }
-
-    // Generic Multi-Output Handler (Bourse, Cars, Crypto, Commodities, Housing, or custom multi-item feeds)
-    const isMultiOutput = source.category === "multi_output" ||
+    // Multi-output detection: explicit category, explicit feedType, forex, bourse, or fieldMapping presence
+    const isForex = source.priceType === "forex";
+    const explicitFeedType = fieldMapping?.feedType; // 'key_value' | 'array'
+    const isMultiOutput = isForex ||
+      explicitFeedType !== undefined ||
+      source.category === "multi_output" ||
       fieldMapping?.isMultiOutput ||
       source.priceType === "bourse" ||
       source.priceType === "bourse_fund" ||
-      (fieldMapping && (fieldMapping.symbolField || fieldMapping.idField || fieldMapping.priceField));
+      (fieldMapping && (fieldMapping.symbolField || fieldMapping.idField || fieldMapping.priceField || fieldMapping.ratesPath || fieldMapping.currencies || fieldMapping.rootPath));
 
-    if (isMultiOutput && source.priceType !== "forex") {
+    if (isMultiOutput) {
+      const rootPath = (fieldMapping && (fieldMapping.rootPath || fieldMapping.ratesPath || fieldMapping.arrayPath)) || source.jsonPath || (isForex ? "rates" : "");
+      let targetNode = rootPath ? extractValueByPath(data, rootPath, true) : null;
+      if (!targetNode && data && typeof data === "object") {
+        if (data.rates && typeof data.rates === "object") targetNode = data.rates;
+        else if (Array.isArray(data.data)) targetNode = data.data;
+        else if (Array.isArray(data.items)) targetNode = data.items;
+        else if (Array.isArray(data.symbols)) targetNode = data.symbols;
+        else if (Array.isArray(data.results)) targetNode = data.results;
+        else if (Array.isArray(data.result)) targetNode = data.result;
+        else if (Array.isArray(data.list)) targetNode = data.list;
+        else targetNode = data;
+      }
+
+      // Detect if node is a Key-Value Dictionary (Forex, Crypto rates, Currency map)
+      const isKVData = explicitFeedType === "key_value" || isForex || (
+        targetNode && typeof targetNode === "object" && !Array.isArray(targetNode) &&
+        Object.keys(targetNode).length >= 2 &&
+        Object.values(targetNode).some(v => typeof v === "number" || (typeof v === "string" && !isNaN(Number(v))))
+      );
+
+      if (isKVData) {
+        if (!targetNode || typeof targetNode !== "object" || Array.isArray(targetNode)) {
+          throw new Error(`بخش داده‌های کلید-مقدار (مسیر «${rootPath || 'ریشه'}») در پاسخ وب‌سرویس یافت نشد.`);
+        }
+
+        const selectionMode = fieldMapping?.selectionMode || (
+          (Array.isArray(fieldMapping?.includedKeys) && fieldMapping.includedKeys.length > 0) ||
+          (Array.isArray(fieldMapping?.currencies) && fieldMapping.currencies.length > 0)
+            ? "whitelist"
+            : "all"
+        );
+
+        const includedSet = new Set(
+          [
+            ...(Array.isArray(fieldMapping?.includedKeys) ? fieldMapping.includedKeys : []),
+            ...(Array.isArray(fieldMapping?.currencies) ? fieldMapping.currencies.map(c => c.key || c.code || c.path) : []),
+            ...(Array.isArray(source.includedOutputs) ? source.includedOutputs : []),
+          ].map(k => String(k).trim().toUpperCase()).filter(Boolean)
+        );
+
+        const excludedSet = new Set(
+          [
+            ...(Array.isArray(source.excludedOutputs) ? source.excludedOutputs : []),
+            ...(Array.isArray(fieldMapping?.excludedKeys) ? fieldMapping.excludedKeys : []),
+          ].map(k => String(k).trim().toUpperCase()).filter(Boolean)
+        );
+
+        const defaultMode = fieldMapping?.defaultMode || (isForex ? "invert" : "direct");
+        const globalMultiplier = Number(fieldMapping?.multiplier) > 0 ? Number(fieldMapping.multiplier) : 1;
+        const itemsConfig = fieldMapping?.itemsConfig || {};
+        const currenciesList = Array.isArray(fieldMapping?.currencies) ? fieldMapping.currencies : [];
+
+        const multiData = {};
+        const currencyList = [];
+
+        for (const [key, rawVal] of Object.entries(targetNode)) {
+          if (["base", "result", "time", "date", "provider", "documentation", "terms_of_use", "time_eol_unix", "time_last_update_utc", "time_next_update_utc", "time_last_update_unix", "time_next_update_unix"].includes(key.toLowerCase())) continue;
+
+          const upperKey = key.toUpperCase();
+
+          // Whitelist vs Blacklist filtering
+          if (selectionMode === "whitelist") {
+            if (includedSet.size > 0 && !includedSet.has(upperKey)) continue;
+          } else {
+            if (excludedSet.has(upperKey)) continue;
+          }
+
+          if (rawVal === undefined || rawVal === null || isNaN(Number(rawVal)) || Number(rawVal) <= 0) continue;
+          const numVal = Number(rawVal);
+
+          const itemCfg = itemsConfig[upperKey] || itemsConfig[key.toLowerCase()] || currenciesList.find(c => String(c.key || c.code || c.path).toUpperCase() === upperKey) || {};
+          const mode = itemCfg.mode || defaultMode;
+          const mult = Number(itemCfg.multiplier) > 0 ? Number(itemCfg.multiplier) : globalMultiplier;
+
+          let finalRate;
+          if (mode === "direct") {
+            finalRate = numVal * mult;
+          } else if (mode === "multiply") {
+            finalRate = numVal * mult;
+          } else if (mode === "invert") {
+            finalRate = (1 / numVal) * mult;
+          } else {
+            finalRate = normalizeForexToUsdCrossRate(key.toLowerCase(), numVal) * mult;
+          }
+
+          const formattedRate = finalRate >= 100 ? Math.round(finalRate) : parseFloat(finalRate.toFixed(5));
+          const faLabel = itemCfg.label || WORLD_FOREX_NAMES[upperKey] || upperKey;
+
+          multiData[key.toLowerCase()] = formattedRate;
+          currencyList.push({
+            key: key.toLowerCase(),
+            code: upperKey,
+            label: faLabel,
+            rawRate: numVal,
+            usdCrossRate: formattedRate,
+            mode,
+          });
+        }
+
+        const count = Object.keys(multiData).length;
+        if (count === 0) {
+          throw new Error("هیچ آیتم معتبری با تنظیمات فیلتر فعلی در پاسخ وب‌سرویس یافت نشد.");
+        }
+
+        const compactList = currencyList.map(c => ({
+          s: c.code,
+          n: c.label && !c.label.includes(c.code) ? `${c.label} (${c.code})` : (c.label || c.code),
+          p: c.usdCrossRate,
+          rawRate: c.rawRate,
+          usdCrossRate: c.usdCrossRate,
+          cat: isForex ? "ارزهای جهانی (فارکس)" : (fieldMapping?.categoryLabel || source.priceType || "نرخ‌ها"),
+        }));
+
+        return {
+          price: count,
+          multiData,
+          currencyList,
+          compactList,
+          sampleItems: compactList.slice(0, 30),
+          rates: targetNode,
+          datetime: nowIso,
+          label: source.name || "فید کلید-مقدار",
+        };
+      }
+
+      // Generic Array of Objects Handler (Bourse, Cars, Crypto, Commodities, Housing, or custom multi-item feeds)
       const isFundSource = source.priceType === "bourse_fund" || (source.endpoint && source.endpoint.includes("Fund.php"));
       const bMap = fieldMapping || (isFundSource ? {
         arrayPath: "data",
@@ -353,8 +384,7 @@ export function parseSourceContent(source, rawContent) {
         priceUnit: "rial",
       } : {}));
 
-      const arrayPath = bMap.arrayPath !== undefined ? bMap.arrayPath : (isFundSource ? "data" : "");
-      let rawArray = arrayPath ? extractValueByPath(data, arrayPath, true) : data;
+      let rawArray = targetNode;
       if (!Array.isArray(rawArray) && data) {
         if (Array.isArray(data.data)) rawArray = data.data;
         else if (Array.isArray(data.items)) rawArray = data.items;
@@ -365,7 +395,7 @@ export function parseSourceContent(source, rawContent) {
       }
 
       if (!Array.isArray(rawArray) || rawArray.length === 0) {
-        throw new Error(`آرایه اقلام در مسیر «${arrayPath || 'ریشه'}» پاسخ وب‌سرویس یافت نشد.`);
+        throw new Error(`آرایه اقلام در مسیر «${bMap.arrayPath || bMap.rootPath || 'ریشه'}» پاسخ وب‌سرویس یافت نشد.`);
       }
 
       const symKey = bMap.idField || bMap.symbolField || (source.priceType === 'bourse' || source.priceType === 'bourse_fund' ? 'l18' : 'id');
@@ -379,13 +409,17 @@ export function parseSourceContent(source, rawContent) {
 
       const isRial = bMap.priceUnit === "rial";
       const multiplier = Number(bMap.multiplier) > 0 ? Number(bMap.multiplier) : (isRial ? 0.1 : 1);
-      const labels = bMap.labels || {};
 
-      // Parse excluded outputs (symbol/code/title to omit)
-      const excludedSet = new Set(
-        Array.isArray(source.excludedOutputs)
-          ? source.excludedOutputs.map(s => String(s).trim().toLowerCase())
-          : []
+      // Filtering (Whitelist vs Blacklist)
+      const arraySelectionMode = bMap.selectionMode || (Array.isArray(bMap.includedKeys) && bMap.includedKeys.length > 0 ? "whitelist" : "all");
+      const arrayIncludedSet = new Set(
+        (Array.isArray(bMap.includedKeys) ? bMap.includedKeys : []).map(s => String(s).trim().toLowerCase())
+      );
+      const arrayExcludedSet = new Set(
+        [
+          ...(Array.isArray(source.excludedOutputs) ? source.excludedOutputs : []),
+          ...(Array.isArray(bMap.excludedKeys) ? bMap.excludedKeys : []),
+        ].map(s => String(s).trim().toLowerCase())
       );
 
       const compactList = [];
@@ -395,12 +429,14 @@ export function parseSourceContent(source, rawContent) {
         const name = String(item[nameKey] || item.name || item.title || item.l30 || item.car_name || item.model || sym).trim();
         if (!sym && !name) continue;
 
-        // Skip excluded items (check against code, symbol, or name)
-        if (excludedSet.size > 0 && (
-          (sym && excludedSet.has(sym.toLowerCase())) ||
-          (name && excludedSet.has(name.toLowerCase()))
-        )) {
-          continue;
+        // Whitelist or Blacklist check
+        if (arraySelectionMode === "whitelist" && arrayIncludedSet.size > 0) {
+          const isIncluded = (sym && arrayIncludedSet.has(sym.toLowerCase())) || (name && arrayIncludedSet.has(name.toLowerCase()));
+          if (!isIncluded) continue;
+        } else if (arrayExcludedSet.size > 0) {
+          if ((sym && arrayExcludedSet.has(sym.toLowerCase())) || (name && arrayExcludedSet.has(name.toLowerCase()))) {
+            continue;
+          }
         }
 
         let rawPrice = Number(item[priceKey]);
@@ -489,9 +525,9 @@ export function parseSourceContent(source, rawContent) {
     }
 
     const isUsdAsset = source.priceType === "ons_gold" || source.priceType === "ons_silver";
-    const isForex = ['eur', 'try', 'aed', 'gbp', 'chf', 'cad', 'aud', 'cny'].includes((source.priceType || '').toLowerCase());
+    const isForexSingle = ['eur', 'try', 'aed', 'gbp', 'chf', 'cad', 'aud', 'cny'].includes((source.priceType || '').toLowerCase());
     let finalPrice;
-    if (isForex) {
+    if (isForexSingle) {
       finalPrice = normalizeForexToUsdCrossRate(source.priceType, extractedVal);
     } else if (isUsdAsset) {
       finalPrice = Math.round(Number(extractedVal) * 100) / 100;
@@ -601,15 +637,25 @@ export async function testPriceSourceConfig(config = {}) {
 
   try {
     const parsed = parseSourceContent(
-      { sourceType, priceType, endpoint: endpoint.trim(), regex, jsonPath, fieldMapping, name },
+      {
+        sourceType,
+        priceType,
+        endpoint: endpoint.trim(),
+        regex,
+        jsonPath,
+        fieldMapping,
+        name,
+        excludedOutputs: config.excludedOutputs || config.excluded_outputs || [],
+        includedOutputs: config.includedOutputs || config.included_outputs || [],
+      },
       raw
     );
 
     const isForex = ['eur', 'try', 'aed', 'gbp', 'chf', 'cad', 'aud', 'cny'].includes((priceType || '').toLowerCase());
     let displayMsg = '';
-    if (priceType === 'forex') {
+    if (priceType === 'forex' || parsed.currencyList) {
       const keys = parsed.multiData ? Object.keys(parsed.multiData).map(k => k.toUpperCase()).join('، ') : '';
-      displayMsg = `سورس تجمیعی فارکس با موفقیت تست شد (${parsed.price} ارز استخراج شد: ${keys})`;
+      displayMsg = `فید چند خروجی با موفقیت تست شد (${parsed.price} آیتم استخراج شد: ${keys.slice(0, 80)}${keys.length > 80 ? '...' : ''})`;
     } else if (priceType === 'bourse_fund') {
       displayMsg = `اطلاعات صندوق‌های بورس با موفقیت تست شد (${parsed.price.toLocaleString("fa-IR")} صندوق استخراج شد)`;
     } else if (priceType === 'bourse') {
@@ -632,9 +678,10 @@ export async function testPriceSourceConfig(config = {}) {
       rawSnippet,
       multiData: parsed.multiData || null,
       sampleSymbols: parsed.sampleSymbols || null,
-      sampleItems: parsed.compactList ? parsed.compactList.slice(0, 10) : null,
-      labels: parsed.labels || null,
+      sampleItems: parsed.compactList ? parsed.compactList.slice(0, 30) : null,
+      compactList: parsed.compactList || null,
       currencyList: parsed.currencyList || null,
+      labels: parsed.labels || null,
       datetime: parsed.datetime,
       label: parsed.label,
       message: displayMsg,
@@ -723,10 +770,10 @@ export async function inspectApiEndpointStructure(endpointUrl, customHeaders = {
       const entries = Object.entries(node);
       const isRateDict = entries.length >= 3 && entries.every(([k, v]) => typeof v === 'number' || (typeof v === 'string' && !isNaN(Number(v))));
       if (isRateDict) {
-        const sampleItems = entries.slice(0, 5).map(([k, v]) => {
+        const allItems = entries.slice(0, 500).map(([k, v]) => {
           const sym = k.toUpperCase();
           return {
-            symbol: sym,
+            key: k,
             code: sym,
             name: WORLD_FOREX_NAMES[sym] || sym,
             rate: Number(v),
@@ -736,8 +783,9 @@ export async function inspectApiEndpointStructure(endpointUrl, customHeaders = {
         candidateArrays.push({
           path: currentPath,
           length: entries.length,
-          sampleItem: sampleItems[0],
-          sampleItems,
+          sampleItem: allItems[0] || null,
+          sampleItems: allItems.slice(0, 20),
+          allItems,
           keys: ['symbol', 'code', 'name', 'rate', 'price'],
           isKeyValDictionary: true,
         });

@@ -259,7 +259,12 @@ export async function ensureD1Tables(env) {
       });
 
       const defaultForexFieldMapping = JSON.stringify({
-        ratesPath: 'rates',
+        feedType: 'key_value',
+        rootPath: 'rates',
+        selectionMode: 'whitelist',
+        defaultMode: 'invert',
+        multiplier: 1,
+        includedKeys: ['EUR', 'TRY', 'AED', 'GBP', 'CHF', 'CAD', 'AUD', 'CNY'],
         currencies: [
           { key: 'eur', path: 'EUR', mode: 'invert', label: 'یورو اروپا' },
           { key: 'try', path: 'TRY', mode: 'invert', label: 'لیر ترکیه' },
@@ -293,7 +298,7 @@ export async function ensureD1Tables(env) {
       await env.DB.prepare(`
         UPDATE price_sources
         SET field_mapping = ?
-        WHERE id = 'src_def_forex' AND (field_mapping IS NULL OR field_mapping = '')
+        WHERE id = 'src_def_forex' AND (field_mapping IS NULL OR field_mapping = '' OR field_mapping NOT LIKE '%whitelist%')
       `).bind(defaultForexFieldMapping).run().catch(() => {});
 
       // Ensure Tehran Stock Exchange (Bourse) source exists (Daily interval = 86400s)

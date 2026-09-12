@@ -370,6 +370,14 @@ export function extractMultiItems(src) {
     excludedSet = new Set(excludedArr.map((x) => String(x).trim().toLowerCase()));
   }
 
+  const selectionMode = fm?.selectionMode || (Array.isArray(fm?.includedKeys) && fm.includedKeys.length > 0 ? 'whitelist' : 'all');
+  let includedSet = null;
+  if (selectionMode === 'whitelist' && Array.isArray(fm?.includedKeys) && fm.includedKeys.length > 0) {
+    includedSet = new Set(fm.includedKeys.map((x) => String(x).trim().toLowerCase()));
+  } else if (selectionMode === 'whitelist' && Array.isArray(fm?.currencies) && fm.currencies.length > 0) {
+    includedSet = new Set(fm.currencies.map((c) => String(c.key || c.code || c.path).trim().toLowerCase()));
+  }
+
   const isBourse = src.priceType === 'bourse' || src.priceType === 'bourse_fund';
   const isForex = src.priceType === 'forex';
   const isRial = src.unit === 'rial' || (typeof fm === 'object' && fm?.priceUnit === 'rial') || isBourse;
@@ -386,8 +394,14 @@ export function extractMultiItems(src) {
       if (!item || typeof item !== 'object') return false;
       const sym = String((symField && item[symField]) || item.s || item.symbol || item.id || item.code || item.slug || item.l18 || item.ticker || '').trim().toLowerCase();
       const name = String((nameField && item[nameField]) || item.n || item.name || item.title || item.car_name || item.model || item.l30 || '').trim().toLowerCase();
-      if (sym && excludedSet.has(sym)) return false;
-      if (name && excludedSet.has(name)) return false;
+
+      if (includedSet && includedSet.size > 0) {
+        const isIncluded = (sym && includedSet.has(sym)) || (name && includedSet.has(name));
+        if (!isIncluded) return false;
+      } else {
+        if (sym && excludedSet.has(sym)) return false;
+        if (name && excludedSet.has(name)) return false;
+      }
       return true;
     })
     .map((item) => {
