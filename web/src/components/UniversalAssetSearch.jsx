@@ -81,7 +81,7 @@ export const WORLD_CURRENCY_NAMES = {
   USDT: 'تتر (USDT)',
 };
 
-export const STANDARD_PRICE_TYPE_LABELS = {
+const baseLabels = {
   usd: 'دلار آمریکا',
   usd_toman: 'دلار آمریکا',
   gold_18k: 'طلای ۱۸ عیار',
@@ -102,17 +102,6 @@ export const STANDARD_PRICE_TYPE_LABELS = {
   ons_silver: 'انس جهانی نقره',
   silver_ounce: 'انس جهانی نقره',
   silver_999: 'نقره خام ۹۹۹',
-  eur: 'یورو اروپا',
-  try: 'لیر ترکیه',
-  aed: 'درهم امارات',
-  gbp: 'پوند انگلیس',
-  chf: 'فرانک سوئیس',
-  cad: 'دلار کانادا',
-  aud: 'دلار استرالیا',
-  cny: 'یوان چین',
-  kwd: 'دینار کویت',
-  sar: 'ریال عربستان',
-  qar: 'ریال قطر',
   bourse: 'بورس اوراق بهادار',
   bourse_fund: 'صندوق سرمایه‌گذاری بورس',
   forex: 'ارزهای جهانی (فارکس)',
@@ -120,15 +109,46 @@ export const STANDARD_PRICE_TYPE_LABELS = {
   usdt: 'تتر (USDT)',
   btc: 'بیت‌کوین (BTC)',
   eth: 'اتریوم (ETH)',
+  ...Object.entries(WORLD_CURRENCY_NAMES).reduce((acc, [code, name]) => {
+    acc[code.toLowerCase()] = name;
+    acc[code.toUpperCase()] = name;
+    acc[code] = name;
+    return acc;
+  }, {}),
 };
+
+export const STANDARD_PRICE_TYPE_LABELS = new Proxy(baseLabels, {
+  get(target, prop) {
+    if (typeof prop !== 'string') return target[prop];
+    if (target[prop]) return target[prop];
+    const upper = prop.toUpperCase().trim();
+    if (WORLD_CURRENCY_NAMES[upper]) return WORLD_CURRENCY_NAMES[upper];
+    const lower = prop.toLowerCase().trim();
+    if (target[lower]) return target[lower];
+    const stripped = upper.replace(/^(FOREX_|CUR_|FX_|SRC_DEF_)/, '');
+    if (WORLD_CURRENCY_NAMES[stripped]) return WORLD_CURRENCY_NAMES[stripped];
+    return target[prop];
+  },
+  has(target, prop) {
+    if (typeof prop !== 'string') return prop in target;
+    const upper = prop.toUpperCase().trim();
+    return (prop in target) || (upper in WORLD_CURRENCY_NAMES) || (prop.toLowerCase() in target);
+  },
+});
 
 export function getPriceTypeLabel(priceType, priceTypeInfo = null) {
   if (!priceType) return '';
-  const clean = String(priceType).trim().toLowerCase();
+  const rawStr = String(priceType).trim();
+  const clean = rawStr.toLowerCase();
+  const upper = rawStr.toUpperCase();
   if (priceTypeInfo && priceTypeInfo[priceType]?.label) return priceTypeInfo[priceType].label;
   if (priceTypeInfo && priceTypeInfo[clean]?.label) return priceTypeInfo[clean].label;
+  if (WORLD_CURRENCY_NAMES[upper]) return WORLD_CURRENCY_NAMES[upper];
   if (STANDARD_PRICE_TYPE_LABELS[clean]) return STANDARD_PRICE_TYPE_LABELS[clean];
+  if (STANDARD_PRICE_TYPE_LABELS[upper]) return STANDARD_PRICE_TYPE_LABELS[upper];
   if (STANDARD_PRICE_TYPE_LABELS[priceType]) return STANDARD_PRICE_TYPE_LABELS[priceType];
+  const stripped = upper.replace(/^(FOREX_|CUR_|FX_|SRC_DEF_)/, '');
+  if (WORLD_CURRENCY_NAMES[stripped]) return WORLD_CURRENCY_NAMES[stripped];
   return priceType;
 }
 
@@ -153,6 +173,25 @@ export function getCategoryMetadata(priceType) {
     return { category: 'bourse_fund', badge: 'صندوق' };
   }
   return { category: 'currency', badge: 'ارز' };
+}
+
+export function calculateUsdCrossRate(code, rawVal) {
+  const num = Number(rawVal);
+  if (!num || num <= 0) return 0;
+  const c = String(code || '').toUpperCase();
+  if (c === 'USD') return 1.0;
+
+  // Currencies typically stronger than 1 USD
+  if (['EUR', 'GBP', 'CHF', 'KWD', 'BHD', 'OMR', 'JOD', 'KYD', 'GIP'].includes(c)) {
+    return num < 1 ? parseFloat((1 / num).toFixed(5)) : parseFloat(num.toFixed(5));
+  }
+
+  // All other world currencies (1 unit is typically < 1 USD)
+  // If num > 1 (e.g. 3.67 for AED, 33.2 for TRY, 1.38 for CAD), it is raw rate quoted as 1 USD = num Currency
+  if (num > 1) {
+    return parseFloat((1 / num).toFixed(5));
+  }
+  return parseFloat(num.toFixed(5));
 }
 
 export function normalizeSearchText(str) {
@@ -225,7 +264,28 @@ export function extractMultiItems(src) {
 
   let rawList = [];
   if (multi) {
-    if (Array.isArray(multi.sampleItems)) rawList = multi.sampleItems;
+    // 1. Direct Open ER-API / Exchange Rates Object (e.g. multi.rates = { USD: 1, EUR: 0.93, AED: 3.67, ... })
+    if (multi.rates && typeof multi.rates === 'object') {
+      rawList = Object.entries(multi.rates).map(([k, v]) => {
+        const sym = k.toUpperCase();
+        return {
+          s: sym,
+          n: WORLD_CURRENCY_NAMES[sym] || sym,
+          p: Number(v) || 0,
+          rawRate: Number(v) || 0,
+        };
+      });
+    } else if (multi.data && multi.data.rates && typeof multi.data.rates === 'object') {
+      rawList = Object.entries(multi.data.rates).map(([k, v]) => {
+        const sym = k.toUpperCase();
+        return {
+          s: sym,
+          n: WORLD_CURRENCY_NAMES[sym] || sym,
+          p: Number(v) || 0,
+          rawRate: Number(v) || 0,
+        };
+      });
+    } else if (Array.isArray(multi.sampleItems)) rawList = multi.sampleItems;
     else if (Array.isArray(multi.compactList)) rawList = multi.compactList;
     else if (Array.isArray(multi.items)) rawList = multi.items;
     else if (Array.isArray(multi.symbols)) rawList = multi.symbols;
@@ -236,37 +296,30 @@ export function extractMultiItems(src) {
     else if (Array.isArray(multi.currencies)) rawList = multi.currencies;
     else if (Array.isArray(multi)) rawList = multi;
     else if (typeof multi === 'object') {
-      const isForex = src.priceType === 'forex';
       rawList = Object.entries(multi)
-        .filter(([k]) => !['updatedAt', 'totalCount', 'totalSymbols', 'labels', 'topSymbols', 'error', 'datetime', 'totalFunds', 'fundsCount'].includes(k))
+        .filter(([k]) => !['updatedAt', 'totalCount', 'totalSymbols', 'labels', 'topSymbols', 'error', 'datetime', 'totalFunds', 'fundsCount', 'result', 'base_code', 'time_last_update_utc', 'time_next_update_utc', 'time_last_update_unix', 'time_next_update_unix', 'provider', 'documentation', 'terms_of_use', 'time_eol_unix'].includes(k))
         .map(([k, v]) => {
           if (v && typeof v === 'object') {
             const sym = (v.symbol || v.s || v.code || v.id || k).toUpperCase();
-            const faName = WORLD_CURRENCY_NAMES[sym] || v.name || v.n || v.title || sym;
-            const cross = Number(v.usdCrossRate || v.usdRate || v.price || v.p || v.val || 0);
+            const fa = WORLD_CURRENCY_NAMES[sym] || v.name || v.n || v.title || v.car_name || v.label || sym;
             return {
               s: sym,
-              n: faName && !faName.includes(sym) ? `${faName} (${sym})` : faName,
-              faName,
-              p: v.price || v.p || v.priceTomans || cross,
-              usdCrossRate: cross,
-              cat: isForex ? 'ارزهای جهانی (فارکس)' : (v.category || v.cat || v.brand || v.group || ''),
-              extra: v.extra || (cross > 0 ? `۱ واحد = ${cross.toFixed(4)} $` : ''),
+              n: fa,
+              p: v.price || v.p || v.priceTomans || v.lastPrice || v.val || v.usdCrossRate || v.rawRate || 0,
+              rawRate: Number(v.rawRate || v.price || v.p || v.val || 0),
+              usdCrossRate: Number(v.usdCrossRate || 0),
+              cat: v.category || v.cat || v.brand || v.group || '',
+              extra: v.extra || v.model || '',
               cp: v.changePercent || v.cp || v.plp || 0,
               isFund: Boolean(v.isFund || v.f === 1),
             };
           }
-          const sym = k.toUpperCase();
-          const faName = WORLD_CURRENCY_NAMES[sym] || sym;
-          const cross = Number(v) || 0;
+          const sym = String(k).toUpperCase();
           return {
             s: sym,
-            n: faName && !faName.includes(sym) ? `${faName} (${sym})` : faName,
-            faName,
-            p: cross,
-            usdCrossRate: cross,
-            cat: isForex ? 'ارزهای جهانی (فارکس)' : '',
-            extra: cross > 0 ? `۱ واحد = ${cross.toFixed(4)} $` : '',
+            n: WORLD_CURRENCY_NAMES[sym] || sym,
+            p: Number(v) || 0,
+            rawRate: Number(v) || 0,
           };
         });
     }
@@ -314,14 +367,15 @@ export function extractMultiItems(src) {
     .map((item) => {
       const sym = String((symField && item[symField]) || item.s || item.symbol || item.id || item.code || item.slug || item.l18 || item.ticker || '').trim();
       const symUpper = sym.toUpperCase();
-      const resolvedFaName = isForex ? (WORLD_CURRENCY_NAMES[symUpper] || item.faName || item.label || symUpper) : null;
+      const resolvedFaName = isForex ? (WORLD_CURRENCY_NAMES[symUpper] || item.n || item.name || symUpper) : null;
       let name = String((nameField && item[nameField]) || item.n || item.name || item.title || item.car_name || item.model || item.l30 || sym).trim();
       if (isForex && resolvedFaName) {
         name = resolvedFaName.includes(symUpper) ? resolvedFaName : `${resolvedFaName} (${symUpper})`;
       }
-      const rawPrice = Number((priceField && item[priceField]) || item.priceTomans || item.priceFinal || item.price || item.lastPrice || item.p || item.pl || (altPriceField && item[altPriceField]) || item.pc || 0);
-      const usdCross = isForex ? Number(item.usdCrossRate || rawPrice) : 0;
-      const finalPrice = isRial && rawPrice > 0 ? Math.round(rawPrice / 10) : (rawPrice >= 100 ? Math.round(rawPrice) : rawPrice);
+
+      const rawVal = Number((priceField && item[priceField]) || item.rawRate || item.priceTomans || item.priceFinal || item.price || item.lastPrice || item.p || item.pl || (altPriceField && item[altPriceField]) || item.pc || 0);
+      const usdCross = isForex ? (item.usdCrossRate || calculateUsdCrossRate(symUpper, rawVal)) : 0;
+      const finalPrice = isRial && rawVal > 0 ? Math.round(rawVal / 10) : (rawVal >= 100 ? Math.round(rawVal) : rawVal);
       const cp = Number((changeField && item[changeField]) || item.cp !== undefined ? item.cp : (item.changePercent !== undefined ? item.changePercent : (item.plp || 0)));
       const rawCategory = isForex ? 'ارزهای جهانی (فارکس)' : String((catField && item[catField]) || item.cat || item.category || item.brand || item.group || '').trim();
       const isFund = Boolean(item.f === 1 || item.isFund || src.priceType === 'bourse_fund' || rawCategory.includes('صندوق') || name.includes('صندوق'));
@@ -331,8 +385,9 @@ export function extractMultiItems(src) {
         symbol: isForex ? symUpper : sym,
         name,
         faName: isForex ? resolvedFaName : undefined,
+        rawRate: rawVal,
         usdCrossRate: isForex ? usdCross : undefined,
-        price: finalPrice,
+        price: isForex ? usdCross : finalPrice,
         changePercent: cp,
         category: rawCategory,
         extra: String(item.extra || item.model || item.volume || '').trim(),
@@ -452,15 +507,15 @@ export default function UniversalAssetSearch({
     });
 
     // Find active primary USD rate for Forex Toman price calculation
-    const usdSource = internalSources.find(s =>
-      (s.priceType === 'usd' || s.priceType === 'usd_toman') &&
-      (s.isActive === 1 || s.isActive === true || s.is_active === 1 || s.is_active === true) &&
-      (s.isPrimary === 1 || s.isPrimary === true || s.is_primary === 1 || s.is_primary === true)
-    ) || internalSources.find(s =>
-      (s.priceType === 'usd' || s.priceType === 'usd_toman') &&
-      (s.isActive === 1 || s.isActive === true || s.is_active === 1 || s.is_active === true)
+    const activeSources = internalSources.filter(s =>
+      s.isActive === 1 || s.isActive === true || s.is_active === 1 || s.is_active === true
     );
-    const usdToman = Number(usdSource?.lastPrice || 0);
+    const usdSource =
+      activeSources.find(s => (s.priceType === 'usd' || s.priceType === 'usd_toman') && (s.isPrimary === 1 || s.isPrimary === true || s.is_primary === 1 || s.is_primary === true) && Number(s.lastPrice || s.last_price || 0) > 0) ||
+      activeSources.find(s => (s.priceType === 'usd' || s.priceType === 'usd_toman') && Number(s.lastPrice || s.last_price || 0) > 0) ||
+      activeSources.find(s => (s.priceType === 'usd' || s.priceType === 'usd_toman')) ||
+      activeSources.find(s => (s.id === 'src_def_usd' || (s.name && s.name.includes('دلار'))));
+    const usdToman = Number(usdSource?.lastPrice || usdSource?.last_price || 0);
 
     // ── نوع ۲: هاب سورس‌های چند خروجی و فیدها (تمام دسته‌بندی‌ها) ───────────────
     // هر اقلامی که زیرش هست رو بیار، در صورت فعال بودن
@@ -508,7 +563,10 @@ export default function UniversalAssetSearch({
         const itemBadge = isForexItem ? 'ارز' : (sub.category || (isBourse ? (isFund ? 'صندوق' : 'بورس') : feedCategoryLabel));
 
         const displayName = itemName;
-        const cross = Number(sub.usdCrossRate || sub.price || sub.p || 0);
+        const cross = isForexItem
+          ? Number(sub.usdCrossRate || calculateUsdCrossRate(symUpper, sub.rawRate || sub.price || sub.p || 0))
+          : Number(sub.price || 0);
+
         const calculatedPriceToman = isForexItem
           ? (usdToman > 0 && cross > 0 ? Math.round(cross * usdToman) : Math.round(cross))
           : (sub.price !== undefined
@@ -516,12 +574,14 @@ export default function UniversalAssetSearch({
               : (sub.priceToman !== undefined ? Number(sub.priceToman) : Math.round(Number(sub.priceRial || sub.p || 0) / 10)));
 
         const subDetails = isForexItem
-          ? (cross > 0 ? `بر مبنای دلار (${cross.toFixed(4)} $) • نرخ جهانی فارکس` : 'نرخ جهانی فارکس')
+          ? (cross > 0
+              ? `بر مبنای دلار (${cross < 1 ? cross.toFixed(4) : cross.toFixed(2)} $)` + (usdToman > 0 ? ` • دلار: ${usdToman.toLocaleString('fa-IR')} ت` : '')
+              : 'نرخ جهانی فارکس')
           : (isBourse
               ? (sub.category ? `${sub.category}${symCode ? ` • نماد: ${symCode}` : ''}` : (isFund ? `صندوق سرمایه‌گذاری${symCode ? ` • نماد: ${symCode}` : ''}` : `سهام بورس اوراق بهادار${symCode ? ` • نماد: ${symCode}` : ''}`))
               : ([sub.category, symCode ? `کد: ${symCode}` : '', sub.extra].filter(Boolean).join(' • ') || feedCategoryLabel));
 
-        const unit = isForexItem ? 'تومان' : (isBourse ? (isFund ? 'واحد' : 'برگ سهم') : (src.unit || 'تومان'));
+        const unit = isForexItem ? (usdToman > 0 ? 'تومان' : 'دلار') : (isBourse ? (isFund ? 'واحد' : 'برگ سهم') : (src.unit || 'تومان'));
         const cp = Number(sub.changePercent !== undefined ? sub.changePercent : (sub.cp !== undefined ? sub.cp : (sub.plp || 0)));
 
         items.push({
@@ -536,6 +596,7 @@ export default function UniversalAssetSearch({
           price: calculatedPriceToman,
           unit,
           type: isForexItem ? 'forex' : (isBourse ? 'bourse' : 'source'),
+          isMultiItem: true,
           changePercent: cp,
           raw: {
             ...sub,
@@ -550,6 +611,7 @@ export default function UniversalAssetSearch({
             sourceId: src.id,
             sourceName: src.name,
             unit,
+            isMultiItem: true,
           },
         });
       });
@@ -615,7 +677,7 @@ export default function UniversalAssetSearch({
                   {getAssetIcon(selectedAsset)}
                 </div>
                 <strong className="universal-active-name">
-                  {getPriceTypeLabel(selectedAsset?.priceType, priceTypeInfo) || selectedAsset?.name || 'انتخاب نشده'}
+                  {(priceTypeInfo && priceTypeInfo[selectedAsset?.priceType]?.label) || selectedAsset?.name || 'انتخاب نشده'}
                 </strong>
               </div>
             </div>

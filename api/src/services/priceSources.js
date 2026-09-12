@@ -25,74 +25,71 @@ const UA = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (
 let memoryPricesCache = {};
 let lastFetchTime = 0;
 
-/**
- * Comprehensive Persian Dictionary for World Currencies
- */
-export const WORLD_CURRENCY_MAP = {
-  USD: { name: 'دلار آمریکا', symbol: '$', flag: '🇺🇸' },
-  EUR: { name: 'یورو اروپا', symbol: '€', flag: '🇪🇺' },
-  GBP: { name: 'پوند انگلیس', symbol: '£', flag: '🇬🇧' },
-  AED: { name: 'درهم امارات', symbol: 'د.إ', flag: '🇦🇪' },
-  TRY: { name: 'لیر ترکیه', symbol: '₺', flag: '🇹🇷' },
-  CHF: { name: 'فرانک سوئیس', symbol: 'CHF', flag: '🇨🇭' },
-  CAD: { name: 'دلار کانادا', symbol: 'C$', flag: '🇨🇦' },
-  AUD: { name: 'دلار استرالیا', symbol: 'A$', flag: '🇦🇺' },
-  CNY: { name: 'یوان چین', symbol: '¥', flag: '🇨🇳' },
-  JPY: { name: 'ین ژاپن', symbol: '¥', flag: '🇯🇵' },
-  KWD: { name: 'دینار کویت', symbol: 'د.ك', flag: '🇰🇼' },
-  SAR: { name: 'ریال عربستان', symbol: 'ر.س', flag: '🇸🇦' },
-  QAR: { name: 'ریال قطر', symbol: 'ر.ق', flag: '🇶🇦' },
-  OMR: { name: 'ریال عمان', symbol: 'ر.ع', flag: '🇴🇲' },
-  BHD: { name: 'دینار بحرین', symbol: 'د.ب', flag: '🇧🇭' },
-  IQD: { name: 'دینار عراق', symbol: 'د.ع', flag: '🇮🇶' },
-  RUB: { name: 'روبل روسیه', symbol: '₽', flag: '🇷🇺' },
-  INR: { name: 'روپیه هند', symbol: '₹', flag: '🇮🇳' },
-  PKR: { name: 'روپیه پاکستان', symbol: '₨', flag: '🇵🇰' },
-  AFN: { name: 'افغانی افغانستان', symbol: '؋', flag: '🇦🇫' },
-  SEK: { name: 'کرون سوئد', symbol: 'kr', flag: '🇸🇪' },
-  NOK: { name: 'کرون نروژ', symbol: 'kr', flag: '🇳🇴' },
-  DKK: { name: 'کرون دانمارک', symbol: 'kr', flag: '🇩🇰' },
-  SGD: { name: 'دلار سنگاپور', symbol: 'S$', flag: '🇸🇬' },
-  HKD: { name: 'دلار هنگ‌کنگ', symbol: 'HK$', flag: '🇭🇰' },
-  KRW: { name: 'وون کره جنوبی', symbol: '₩', flag: '🇰🇷' },
-  THB: { name: 'بات تایلند', symbol: '฿', flag: '🇹🇭' },
-  MYR: { name: 'رینگیت مالزی', symbol: 'RM', flag: '🇲🇾' },
-  NZD: { name: 'دلار نیوزیلند', symbol: 'NZ$', flag: '🇳🇿' },
-  BRL: { name: 'رئال برزیل', symbol: 'R$', flag: '🇧🇷' },
-  ZAR: { name: 'رند آفریقای جنوبی', symbol: 'R', flag: '🇿🇦' },
-  AZN: { name: 'منات آذربایجان', symbol: '₼', flag: '🇦🇿' },
-  GEL: { name: 'لاری گرجستان', symbol: '₾', flag: '🇬🇪' },
-  AMD: { name: 'درام ارمنستان', symbol: '֏', flag: '🇦🇲' },
-  TMT: { name: 'منات ترکمنستان', symbol: 'T', flag: '🇹🇲' },
-  TJS: { name: 'سامانی تاجیکستان', symbol: 'SM', flag: '🇹🇯' },
-  KZT: { name: 'تنگه قزاقستان', symbol: '₸', flag: '🇰🇿' },
-  UZS: { name: 'سوم ازبکستان', symbol: 'so\'m', flag: '🇺🇿' },
-  EGP: { name: 'پوند مصر', symbol: 'E£', flag: '🇪🇬' },
-  SYP: { name: 'لیر سوریه', symbol: 'LS', flag: '🇸🇾' },
-  LBP: { name: 'لیر لبنان', symbol: 'L£', flag: '🇱🇧' },
-  JOD: { name: 'دینار اردن', symbol: 'JD', flag: '🇯🇴' },
-  IDR: { name: 'روپیه اندونزی', symbol: 'Rp', flag: '🇮🇩' },
-  PHP: { name: 'پزو فیلیپین', symbol: '₱', flag: '🇵🇭' },
-  VND: { name: 'دانگ ویتنام', symbol: '₫', flag: '🇻🇳' },
-  MXN: { name: 'پزو مکزیک', symbol: '$', flag: '🇲🇽' },
-  PLN: { name: 'زلوتی لهستان', symbol: 'zł', flag: '🇵🇱' },
-  CZK: { name: 'کرونا چک', symbol: 'Kč', flag: '🇨🇿' },
-  HUF: { name: 'فورینت مجارستان', symbol: 'Ft', flag: '🇭🇺' },
-  ILS: { name: 'شکل اسرائیل', symbol: '₪', flag: '🇮🇱' },
-  CLP: { name: 'پزو شیلی', symbol: '$', flag: '🇨🇱' },
-  COP: { name: 'پزو کلمبیا', symbol: '$', flag: '🇨🇴' },
-  PEN: { name: 'سول پرو', symbol: 'S/.', flag: '🇵🇪' },
-  ARS: { name: 'پزو آرژانتین', symbol: '$', flag: '🇦🇷' },
-  BGN: { name: 'لو بلغارستان', symbol: 'лв', flag: '🇧🇬' },
-  RON: { name: 'لئو رومانی', symbol: 'lei', flag: '🇷🇴' },
-  ISK: { name: 'کرون ایسلند', symbol: 'kr', flag: '🇮🇸' },
-  HRK: { name: 'کونا کرواسی', symbol: 'kn', flag: '🇭🇷' },
-  RSD: { name: 'دینار صربستان', symbol: 'din', flag: '🇷🇸' },
-  LYD: { name: 'دینار لیبی', symbol: 'LD', flag: '🇱🇾' },
-  TND: { name: 'دینار تونس', symbol: 'DT', flag: '🇹🇳' },
-  MAD: { name: 'درهم مراکش', symbol: 'MAD', flag: '🇲🇦' },
-  DZD: { name: 'دینار الجزایر', symbol: 'DA', flag: '🇩🇿' },
-  USDT: { name: 'تتر (USDT)', symbol: '₮', flag: '🪙' },
+export const WORLD_FOREX_NAMES = {
+  USD: 'دلار آمریکا',
+  EUR: 'یورو اروپا',
+  GBP: 'پوند انگلیس',
+  AED: 'درهم امارات',
+  TRY: 'لیر ترکیه',
+  CHF: 'فرانک سوئیس',
+  CAD: 'دلار کانادا',
+  AUD: 'دلار استرالیا',
+  CNY: 'یوان چین',
+  JPY: 'ین ژاپن',
+  KWD: 'دینار کویت',
+  SAR: 'ریال عربستان',
+  QAR: 'ریال قطر',
+  OMR: 'ریال عمان',
+  BHD: 'دینار بحرین',
+  IQD: 'دینار عراق',
+  RUB: 'روبل روسیه',
+  INR: 'روپیه هند',
+  PKR: 'روپیه پاکستان',
+  AFN: 'افغانی افغانستان',
+  SEK: 'کرون سوئد',
+  NOK: 'کرون نروژ',
+  DKK: 'کرون دانمارک',
+  SGD: 'دلار سنگاپور',
+  HKD: 'دلار هنگ‌کنگ',
+  KRW: 'وون کره جنوبی',
+  THB: 'بات تایلند',
+  MYR: 'رینگیت مالزی',
+  NZD: 'دلار نیوزیلند',
+  BRL: 'رئال برزیل',
+  ZAR: 'رند آفریقای جنوبی',
+  AZN: 'منات آذربایجان',
+  GEL: 'لاری گرجستان',
+  AMD: 'درام ارمنستان',
+  TMT: 'منات ترکمنستان',
+  TJS: 'سامانی تاجیکستان',
+  KZT: 'تنگه قزاقستان',
+  UZS: 'سوم ازبکستان',
+  EGP: 'پوند مصر',
+  SYP: 'لیر سوریه',
+  LBP: 'لیر لبنان',
+  JOD: 'دینار اردن',
+  IDR: 'روپیه اندونزی',
+  PHP: 'پزو فیلیپین',
+  VND: 'دانگ ویتنام',
+  MXN: 'پزو مکزیک',
+  PLN: 'زلوتی لهستان',
+  CZK: 'کرونا چک',
+  HUF: 'فورینت مجارستان',
+  ILS: 'شکل اسرائیل',
+  CLP: 'پزو شیلی',
+  COP: 'پزو کلمبیا',
+  PEN: 'سول پرو',
+  ARS: 'پزو آرژانتین',
+  BGN: 'لو بلغارستان',
+  RON: 'لئو رومانی',
+  ISK: 'کرون ایسلند',
+  HRK: 'کونا کرواسی',
+  RSD: 'دینار صربستان',
+  LYD: 'دینار لیبی',
+  TND: 'دینار تونس',
+  MAD: 'درهم مراکش',
+  DZD: 'دینار الجزایر',
+  USDT: 'تتر (USDT)',
 };
 
 /**
@@ -106,8 +103,8 @@ export function normalizeForexToUsdCrossRate(priceType, rawVal) {
   if (!num || num <= 0) return 0;
 
   const p = (priceType || '').toLowerCase();
-  // Currencies typically stronger than USD (EUR, GBP, CHF)
-  if (p === 'eur' || p === 'gbp' || p === 'chf') {
+  // Currencies typically stronger than USD (EUR, GBP, CHF, KWD, BHD, OMR, JOD)
+  if (['eur', 'gbp', 'chf', 'kwd', 'bhd', 'omr', 'jod', 'kyd', 'gip'].includes(p)) {
     return num < 1 ? parseFloat((1 / num).toFixed(5)) : parseFloat(num.toFixed(5));
   }
   // All other currencies (TRY, AED, CAD, AUD, CNY, etc.)
@@ -241,41 +238,29 @@ export function parseSourceContent(source, rawContent) {
         throw new Error(`بخش نرخ‌ها (مسیر «${ratesPath}») در پاسخ وب‌سرویس JSON یافت نشد.`);
       }
 
-      // Read configured currencies from fieldMapping, or automatically discover all currencies in ratesObj
-      let currencyConfigs = Array.isArray(fieldMapping?.currencies) && fieldMapping.currencies.length > 0
+      // Read configured currencies from fieldMapping, or dynamically extract ALL currencies from ratesObj
+      const currencyConfigs = Array.isArray(fieldMapping?.currencies) && fieldMapping.currencies.length > 0
         ? fieldMapping.currencies
-        : null;
-
-      if (!currencyConfigs) {
-        // Automatically extract from ratesObj, prioritizing known world currencies
-        const knownKeys = Object.keys(WORLD_CURRENCY_MAP).map(k => k.toLowerCase());
-        const objKeys = Object.keys(ratesObj).map(k => k.toLowerCase());
-        
-        // Put recognized currencies first, then any additional currencies from the API
-        const priorityKeys = knownKeys.filter(k => objKeys.includes(k) && k !== 'usd');
-        const otherKeys = objKeys.filter(k => !knownKeys.includes(k) && k !== 'usd');
-        const sortedKeys = [...priorityKeys, ...otherKeys];
-
-        currencyConfigs = sortedKeys.map(key => {
-          const upper = key.toUpperCase();
-          const meta = WORLD_CURRENCY_MAP[upper];
-          return {
-            key,
-            path: upper,
-            label: meta ? meta.name : upper,
-          };
-        });
-      }
+        : Object.keys(ratesObj)
+            .filter(code => code.length >= 3 && code.length <= 5 && !['base', 'result', 'time', 'date'].includes(code.toLowerCase()))
+            .map(code => {
+              const upper = code.toUpperCase();
+              return {
+                key: code.toLowerCase(),
+                path: code,
+                mode: 'cross',
+                label: WORLD_FOREX_NAMES[upper] || upper,
+              };
+            });
 
       const multiData = {};
       const currencyList = [];
       // Parse excluded outputs (currency codes to skip)
       const excludedSet = new Set(
         Array.isArray(source.excludedOutputs)
-          ? source.excludedOutputs.map(k => String(k).toLowerCase().trim())
+          ? source.excludedOutputs.map(k => String(k).toLowerCase())
           : []
       );
-
       for (const cfg of currencyConfigs) {
         const key = String(cfg.key || cfg.code || '').trim().toLowerCase();
         if (!key) continue;
@@ -299,15 +284,12 @@ export function parseSourceContent(source, rawContent) {
           }
 
           const finalRate = parseFloat(usdRate.toFixed(5));
+          const upperCode = key.toUpperCase();
+          const faLabel = cfg.label || WORLD_FOREX_NAMES[upperCode] || upperCode;
           multiData[key] = finalRate;
-          
-          const codeUpper = key.toUpperCase();
-          const meta = WORLD_CURRENCY_MAP[codeUpper];
-          const faLabel = cfg.label || meta?.name || codeUpper;
-
           currencyList.push({
             key,
-            code: codeUpper,
+            code: upperCode,
             label: faLabel,
             rawRate: numVal,
             usdCrossRate: finalRate,
@@ -322,13 +304,11 @@ export function parseSourceContent(source, rawContent) {
 
       const compactList = currencyList.map(c => ({
         s: c.code,
-        n: c.label && !c.label.includes(c.code) ? `${c.label} (${c.code})` : c.label,
-        faName: c.label,
+        n: c.label && !c.label.includes(c.code) ? `${c.label} (${c.code})` : (c.label || c.code),
         p: c.usdCrossRate,
-        usdCrossRate: c.usdCrossRate,
         rawRate: c.rawRate,
+        usdCrossRate: c.usdCrossRate,
         cat: 'ارزهای جهانی (فارکس)',
-        extra: `۱ واحد = ${c.usdCrossRate.toFixed(4)} $`,
       }));
 
       return {
@@ -336,7 +316,8 @@ export function parseSourceContent(source, rawContent) {
         multiData,
         currencyList,
         compactList,
-        sampleItems: compactList.slice(0, 50),
+        sampleItems: compactList.slice(0, 20),
+        rates: ratesObj,
         datetime: nowIso,
         label: source.name || "نرخ‌های جهانی فارکس",
       };
@@ -740,23 +721,17 @@ export async function inspectApiEndpointStructure(endpointUrl, customHeaders = {
     }
 
     if (node && typeof node === "object") {
-      // Check if this object is a key-value dictionary of numeric values (like rates: { EUR: 0.915, USD: 1, ... })
       const entries = Object.entries(node);
-      const isDictOfNumbers = entries.length >= 3 && entries.slice(0, 10).every(([k, v]) => typeof v === 'number' || (typeof v === 'string' && !isNaN(Number(v)) && Number(v) > 0));
-      if (isDictOfNumbers) {
-        const sampleItems = entries.slice(0, 30).map(([code, val]) => {
-          const upper = code.toUpperCase();
-          const meta = WORLD_CURRENCY_MAP[upper];
-          const faName = meta ? meta.name : upper;
-          const cross = normalizeForexToUsdCrossRate(code, Number(val));
+      const isRateDict = entries.length >= 3 && entries.every(([k, v]) => typeof v === 'number' || (typeof v === 'string' && !isNaN(Number(v))));
+      if (isRateDict) {
+        const sampleItems = entries.slice(0, 5).map(([k, v]) => {
+          const sym = k.toUpperCase();
           return {
-            symbol: upper,
-            code: upper,
-            name: faName && !faName.includes(upper) ? `${faName} (${upper})` : faName,
-            fa_name: faName,
-            rate: Number(val),
-            price: cross,
-            usdCrossRate: cross,
+            symbol: sym,
+            code: sym,
+            name: WORLD_FOREX_NAMES[sym] || sym,
+            rate: Number(v),
+            price: Number(v),
           };
         });
         candidateArrays.push({
@@ -764,8 +739,8 @@ export async function inspectApiEndpointStructure(endpointUrl, customHeaders = {
           length: entries.length,
           sampleItem: sampleItems[0],
           sampleItems,
-          keys: ['code', 'name', 'price', 'rate'],
-          isForexDict: true,
+          keys: ['symbol', 'code', 'name', 'rate', 'price'],
+          isKeyValDictionary: true,
         });
       }
 
@@ -779,8 +754,8 @@ export async function inspectApiEndpointStructure(endpointUrl, customHeaders = {
   traverse(json, "", 0);
 
   candidateArrays.sort((a, b) => {
-    const aPriority = a.path === 'rates' || a.path === 'data' || a.path === '' || a.path === 'items' || a.path === 'result' ? 10 : 0;
-    const bPriority = b.path === 'rates' || b.path === 'data' || b.path === '' || b.path === 'items' || b.path === 'result' ? 10 : 0;
+    const aPriority = a.path === 'data' || a.path === '' || a.path === 'items' || a.path === 'result' ? 10 : 0;
+    const bPriority = b.path === 'data' || b.path === '' || b.path === 'items' || b.path === 'result' ? 10 : 0;
     if (aPriority !== bPriority) return bPriority - aPriority;
     return b.length - a.length;
   });
@@ -852,14 +827,10 @@ export function compileLatestMarketRates(sources) {
       if (multi && typeof multi === 'object') {
         for (const [k, val] of Object.entries(multi)) {
           if (Number(val) > 0 && !excludedSet.has(k.toUpperCase())) {
-            const upper = k.toUpperCase();
-            const meta = WORLD_CURRENCY_MAP[upper];
-            const faName = meta ? meta.name : `${upper}`;
             result[k.toLowerCase()] = {
               price: Number(val),
-              usdCrossRate: Number(val),
               datetime: forexSource.lastFetched || new Date().toISOString(),
-              label: `${faName} (${upper})`,
+              label: `${forexSource.name} (${k.toUpperCase()})`,
               sourceId: forexSource.id,
               isPrimary: true,
               showOnHomePage: forexShowOnHome,

@@ -2091,7 +2091,7 @@ export default function PortfolioTracker({ calcData, rates, usdToman, goldUsd, i
                   onSelect={(item) => {
                     if (item.type === 'bourse') {
                       handleSelectBourseSymbol(item.raw);
-                    } else if (item.type === 'source' || item.type === 'multi_output' || item.isMultiItem) {
+                    } else if (item.type === 'source' || item.type === 'forex' || item.type === 'multi_output' || item.isMultiItem) {
                       setSelectedAssetId(item.id);
                       setSelectedBourseSymbol(null);
                       setCustomName(item.name);

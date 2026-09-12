@@ -56,10 +56,7 @@ export async function fetchForexRates(env, forceRefresh = false) {
     if (res.ok) {
       const data = await res.json();
       if (data && data.rates) {
-        const fetchedRates = {};
-        for (const code of Object.keys(FOREX_FALLBACK)) {
-          fetchedRates[code] = data.rates[code] || FOREX_FALLBACK[code];
-        }
+        const fetchedRates = { ...FOREX_FALLBACK, ...data.rates };
 
         const record = { rates: fetchedRates, last_updated: new Date().toISOString() };
         forexCache = record;
