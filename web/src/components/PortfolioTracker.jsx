@@ -68,6 +68,7 @@ export const FREQUENT_ASSETS = [
   { id: 'half', name: 'نیم سکه', icon: '🔸', category: 'coin', unit: 'عدد' },
   { id: 'USDT', name: 'تتر', icon: '💎', category: 'crypto', unit: 'تتر' },
   { id: 'EUR', name: 'یورو', icon: '💶', category: 'currency', unit: 'یورو' },
+  { id: 'custom', name: 'سایر دارایی‌ها', icon: '✏️', category: 'custom', unit: 'واحد' },
 ];
 
 export const ASSET_TYPES = [
@@ -1273,7 +1274,6 @@ export default function PortfolioTracker({ calcData, rates, usdToman, goldUsd, i
     if (q.length < 3) return [];
     return ASSET_TYPES.filter(
       (a) =>
-        a.id !== 'custom' &&
         a.id !== 'bourse' &&
         (a.name.toLowerCase().includes(q) || a.id.toLowerCase().includes(q))
     );
@@ -2206,65 +2206,6 @@ export default function PortfolioTracker({ calcData, rates, usdToman, goldUsd, i
                         </button>
                       );
                     })}
-                  </div>
-                </div>
-
-                {/* 3. Direct Select from List */}
-                <div className="unified-select-row">
-                  <div className="unified-select-wrapper">
-                    <span className="unified-select-prefix">انتخاب مستقیم از لیست:</span>
-                    <select
-                      value={isModalBourse ? '' : selectedAssetId}
-                      onChange={(e) => {
-                        const val = e.target.value;
-                        if (!val) return;
-                        setSelectedAssetId(val);
-                        setSelectedBourseSymbol(null);
-                        setAssetSearchQuery('');
-                        setBourseSearchResults([]);
-                        setSearchTimerCount(null);
-                      }}
-                      className="form-select unified-form-select"
-                    >
-                      {isModalBourse && (
-                        <option value="" disabled>
-                          {selectedBourseSymbol?.symbol ? `[سهام بورس: ${selectedBourseSymbol.symbol}]` : '[نماد بورس انتخاب‌شده]'}
-                        </option>
-                      )}
-                      <optgroup label="طلا و مسکوکات">
-                        <option value="gold_18k">طلای ۱۸ عیار</option>
-                        <option value="gold_melted">طلای آبشده (گرم ۱۸)</option>
-                        <option value="gold_24k">طلای ۲۴ عیار</option>
-                        <option value="full_new">سکه امامی</option>
-                        <option value="full_old">سکه بهار آزادی</option>
-                        <option value="half">نیم سکه بهار آزادی</option>
-                        <option value="quarter">ربع سکه بهار آزادی</option>
-                        <option value="bank_gram">سکه گرمی بانکی</option>
-                      </optgroup>
-
-                      <optgroup label="نقره (Silver)">
-                        <option value="silver_999">نقره خام و ساچمه ۹۹۹</option>
-                        <option value="silver_925">نقره استرلینگ ۹۲۵</option>
-                        <option value="silver_ounce">انس جهانی نقره</option>
-                      </optgroup>
-
-                      <optgroup label="ارزهای خارجی و کریپتو">
-                        <option value="USD">دلار آمریکا</option>
-                        <option value="USDT">تتر</option>
-                        <option value="EUR">یورو اروپا</option>
-                        <option value="CHF">فرانک سوئیس</option>
-                        <option value="AED">درهم امارات</option>
-                        <option value="TRY">لیر ترکیه</option>
-                        <option value="GBP">پوند انگلیس</option>
-                        <option value="CAD">دلار کانادا</option>
-                        <option value="BTC">بیت‌کوین</option>
-                        <option value="ETH">اتریوم</option>
-                      </optgroup>
-
-                      <optgroup label="دارایی‌های دلخواه">
-                        <option value="custom">سایر دارایی‌ها (سفارشی)</option>
-                      </optgroup>
-                    </select>
                   </div>
                 </div>
               </div>

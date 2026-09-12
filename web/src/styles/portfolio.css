@@ -1618,44 +1618,6 @@
   flex: 1;
 }
 
-/* Unified Direct Select Row inside the Card */
-.unified-select-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding-top: 4px;
-  border-top: 1px solid rgba(255, 255, 255, 0.04);
-}
-
-.unified-select-wrapper {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  width: 100%;
-}
-
-.unified-select-prefix {
-  font-size: 11px;
-  font-weight: 700;
-  color: var(--text-tertiary);
-  white-space: nowrap;
-}
-
-.unified-form-select {
-  flex: 1;
-  font-size: 11.5px;
-  padding: 7px 10px;
-  background: rgba(0, 0, 0, 0.3) !important;
-  border: 1px solid rgba(255, 255, 255, 0.09) !important;
-  border-radius: var(--radius-sm);
-  color: var(--text-primary);
-  transition: all 0.2s ease;
-}
-
-.unified-form-select:focus {
-  border-color: rgba(212, 163, 89, 0.4) !important;
-  background: rgba(0, 0, 0, 0.45) !important;
-}
 
 .search-no-results {
   padding: 12px;
