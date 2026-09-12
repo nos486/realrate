@@ -14,36 +14,146 @@ import {
 } from 'lucide-react';
 import { apiGetPriceSources, apiSearchBourseSymbols } from '../api/client.js';
 
+export const STANDARD_PRICE_TYPE_LABELS = {
+  usd: 'دلار آمریکا',
+  usd_toman: 'دلار آمریکا',
+  gold_18k: 'طلای ۱۸ عیار',
+  gold_24k: 'طلای ۲۴ عیار',
+  gold_melted: 'طلای آبشده',
+  mesghal: 'مثقال طلا (مظنه)',
+  full_coin: 'سکه امامی',
+  full_new: 'سکه امامی',
+  full_old: 'سکه بهار آزادی (طرح قدیم)',
+  half_coin: 'نیم سکه بهار آزادی',
+  half: 'نیم سکه بهار آزادی',
+  quarter_coin: 'ربع سکه بهار آزادی',
+  quarter: 'ربع سکه بهار آزادی',
+  gerami_coin: 'سکه گرمی',
+  gerami: 'سکه گرمی',
+  ons_gold: 'انس جهانی طلا',
+  gold_ounce: 'انس جهانی طلا',
+  ons_silver: 'انس جهانی نقره',
+  silver_ounce: 'انس جهانی نقره',
+  silver_999: 'نقره خام ۹۹۹',
+  eur: 'یورو اروپا',
+  try: 'لیر ترکیه',
+  aed: 'درهم امارات',
+  gbp: 'پوند انگلیس',
+  chf: 'فرانک سوئیس',
+  cad: 'دلار کانادا',
+  aud: 'دلار استرالیا',
+  cny: 'یوان چین',
+  kwd: 'دینار کویت',
+  sar: 'ریال عربستان',
+  qar: 'ریال قطر',
+  bourse: 'بورس اوراق بهادار',
+  bourse_fund: 'صندوق سرمایه‌گذاری بورس',
+  forex: 'ارزهای جهانی (فارکس)',
+  crypto: 'رمزارز',
+  usdt: 'تتر (USDT)',
+  btc: 'بیت‌کوین (BTC)',
+  eth: 'اتریوم (ETH)',
+};
+
+export function getPriceTypeLabel(priceType, priceTypeInfo = null) {
+  if (!priceType) return '';
+  const clean = String(priceType).trim().toLowerCase();
+  if (priceTypeInfo && priceTypeInfo[priceType]?.label) return priceTypeInfo[priceType].label;
+  if (priceTypeInfo && priceTypeInfo[clean]?.label) return priceTypeInfo[clean].label;
+  if (STANDARD_PRICE_TYPE_LABELS[clean]) return STANDARD_PRICE_TYPE_LABELS[clean];
+  if (STANDARD_PRICE_TYPE_LABELS[priceType]) return STANDARD_PRICE_TYPE_LABELS[priceType];
+  return priceType;
+}
+
+export function getCategoryMetadata(priceType) {
+  const pt = String(priceType || '').toLowerCase();
+  if (pt === 'gold_18k' || pt === 'gold_24k' || pt === 'gold_melted' || pt === 'mesghal' || pt.includes('gold')) {
+    return { category: 'gold', badge: 'طلا' };
+  }
+  if (pt.includes('coin') || pt === 'full_new' || pt === 'full_old' || pt === 'half' || pt === 'quarter' || pt === 'gerami') {
+    return { category: 'coin', badge: 'سکه' };
+  }
+  if (pt.includes('silver')) {
+    return { category: 'silver', badge: 'نقره' };
+  }
+  if (pt === 'crypto' || pt === 'btc' || pt === 'eth' || pt === 'usdt') {
+    return { category: 'crypto', badge: 'رمزارز' };
+  }
+  if (pt === 'bourse') {
+    return { category: 'bourse', badge: 'بورس' };
+  }
+  if (pt === 'bourse_fund') {
+    return { category: 'bourse_fund', badge: 'صندوق' };
+  }
+  return { category: 'currency', badge: 'ارز' };
+}
+
+export function normalizeSearchText(str) {
+  if (!str) return '';
+  return String(str)
+    .toLowerCase()
+    .replace(/\u200C/g, ' ')
+    .replace(/[\u200B\u200D\uFEFF]/g, '')
+    .replace(/[ي]/g, 'ی')
+    .replace(/[ك]/g, 'ک')
+    .replace(/[آأإ]/g, 'ا')
+    .replace(/[ة]/g, 'ه')
+    .replace(/[۰٠]/g, '0')
+    .replace(/[۱١]/g, '1')
+    .replace(/[۲٢]/g, '2')
+    .replace(/[۳٣]/g, '3')
+    .replace(/[۴٤]/g, '4')
+    .replace(/[۵٥]/g, '5')
+    .replace(/[۶٦]/g, '6')
+    .replace(/[۷٧]/g, '7')
+    .replace(/[۸٨]/g, '8')
+    .replace(/[۹٩]/g, '9')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
 export function isSourceMultiOutput(s, priceTypeInfo = {}) {
   if (!s) return false;
   const t = (s.priceType || '').toLowerCase();
-  const info = priceTypeInfo ? (priceTypeInfo[t] || priceTypeInfo[s.priceType]) : null;
-  if (info?.category === 'multi_output') return true;
-  if (s.category === 'multi_output' || s.isMultiOutput) return true;
   if (t === 'bourse' || t === 'bourse_fund' || t === 'forex') return true;
-  if (s.fieldMapping) {
-    let fm = s.fieldMapping;
-    if (typeof fm === 'string') {
-      try { fm = JSON.parse(fm); } catch {}
-    }
-    if (fm && (fm.isMultiOutput || fm.idField || fm.symbolField || fm.currencies || fm.arrayPath)) return true;
-  }
+  if (s.category === 'multi_output' || s.isMultiOutput) return true;
+  if (priceTypeInfo && priceTypeInfo[t]?.category === 'multi_output') return true;
+  if (priceTypeInfo && priceTypeInfo[s.priceType]?.category === 'multi_output') return true;
   if (s.lastMultiData) return true;
   if (Array.isArray(s.sampleItems) && s.sampleItems.length > 0) return true;
   if (Array.isArray(s.compactList) && s.compactList.length > 0) return true;
   if (Array.isArray(s.items) && s.items.length > 0) return true;
+
+  let fm = s.fieldMapping || s.field_mapping;
+  if (typeof fm === 'string') {
+    try { fm = JSON.parse(fm); } catch {}
+  }
+  if (fm && typeof fm === 'object') {
+    if (fm.isMultiOutput || fm.idField || fm.symbolField || fm.nameField || fm.priceField || fm.currencies || fm.arrayPath) {
+      return true;
+    }
+  }
   return false;
 }
 
 export function extractMultiItems(src) {
   if (!src) return [];
-  let multi = src.lastMultiData;
-  if (typeof multi === 'string') {
-    try {
-      multi = JSON.parse(multi);
-    } catch (e) {
-      console.warn('Failed to parse lastMultiData for', src.name, e);
+  let multi = null;
+  if (src.lastMultiData) {
+    if (typeof src.lastMultiData === 'string') {
+      try {
+        multi = JSON.parse(src.lastMultiData);
+      } catch (e) {
+        console.warn('Failed to parse lastMultiData for', src.name, e);
+      }
+    } else if (typeof src.lastMultiData === 'object') {
+      multi = src.lastMultiData;
     }
+  }
+
+  let fm = src.fieldMapping || src.field_mapping;
+  if (typeof fm === 'string') {
+    try { fm = JSON.parse(fm); } catch {}
   }
 
   let rawList = [];
@@ -56,20 +166,21 @@ export function extractMultiItems(src) {
     else if (Array.isArray(multi.results)) rawList = multi.results;
     else if (Array.isArray(multi.result)) rawList = multi.result;
     else if (Array.isArray(multi.list)) rawList = multi.list;
+    else if (Array.isArray(multi.currencies)) rawList = multi.currencies;
     else if (Array.isArray(multi)) rawList = multi;
     else if (typeof multi === 'object') {
       rawList = Object.entries(multi)
-        .filter(([k]) => !['updatedAt', 'totalCount', 'totalSymbols', 'totalFunds', 'fundsCount', 'labels', 'topSymbols', 'error', 'datetime', 'lastUpdated'].includes(k))
+        .filter(([k]) => !['updatedAt', 'totalCount', 'totalSymbols', 'labels', 'topSymbols', 'error', 'datetime', 'totalFunds', 'fundsCount'].includes(k))
         .map(([k, v]) => {
           if (v && typeof v === 'object') {
             return {
-              s: v.symbol || v.s || v.code || k,
-              n: v.name || v.n || v.title || v.label || k,
+              s: v.symbol || v.s || v.code || v.id || k,
+              n: v.name || v.n || v.title || v.car_name || v.label || k,
               p: v.price || v.p || v.priceTomans || v.lastPrice || v.val || 0,
-              priceTomans: v.priceTomans || v.price || v.p || 0,
+              cat: v.category || v.cat || v.brand || v.group || '',
+              extra: v.extra || v.model || '',
               cp: v.changePercent || v.cp || v.plp || 0,
-              cat: v.category || v.cat || v.group || '',
-              extra: v.extra || '',
+              isFund: Boolean(v.isFund || v.f === 1),
             };
           }
           return {
@@ -102,24 +213,31 @@ export function extractMultiItems(src) {
   }
 
   const isBourse = src.priceType === 'bourse' || src.priceType === 'bourse_fund';
-  const isRial = src.unit === 'rial' || (typeof src.fieldMapping === 'object' && src.fieldMapping?.priceUnit === 'rial') || isBourse;
+  const isRial = src.unit === 'rial' || (typeof fm === 'object' && fm?.priceUnit === 'rial') || isBourse;
+
+  const symField = fm?.symbolField || fm?.idField;
+  const nameField = fm?.nameField || fm?.titleField;
+  const priceField = fm?.priceField;
+  const altPriceField = fm?.altPriceField;
+  const changeField = fm?.changePercentField || fm?.changeField;
+  const catField = fm?.categoryField || fm?.brandField;
 
   return rawList
     .filter((item) => {
       if (!item || typeof item !== 'object') return false;
-      const sym = String(item.s || item.symbol || item.id || item.code || item.slug || item.l18 || item.ticker || '').trim().toLowerCase();
-      const name = String(item.n || item.name || item.title || item.car_name || item.model || item.l30 || '').trim().toLowerCase();
+      const sym = String((symField && item[symField]) || item.s || item.symbol || item.id || item.code || item.slug || item.l18 || item.ticker || '').trim().toLowerCase();
+      const name = String((nameField && item[nameField]) || item.n || item.name || item.title || item.car_name || item.model || item.l30 || '').trim().toLowerCase();
       if (sym && excludedSet.has(sym)) return false;
       if (name && excludedSet.has(name)) return false;
       return true;
     })
     .map((item) => {
-      const sym = String(item.s || item.symbol || item.id || item.code || item.slug || item.l18 || item.ticker || '').trim();
-      const name = String(item.n || item.name || item.title || item.car_name || item.model || item.l30 || sym).trim();
-      const rawPrice = Number(item.priceTomans || item.priceFinal || item.price || item.lastPrice || item.p || item.pl || item.pc || 0);
+      const sym = String((symField && item[symField]) || item.s || item.symbol || item.id || item.code || item.slug || item.l18 || item.ticker || '').trim();
+      const name = String((nameField && item[nameField]) || item.n || item.name || item.title || item.car_name || item.model || item.l30 || sym).trim();
+      const rawPrice = Number((priceField && item[priceField]) || item.priceTomans || item.priceFinal || item.price || item.lastPrice || item.p || item.pl || (altPriceField && item[altPriceField]) || item.pc || 0);
       const finalPrice = isRial && rawPrice > 0 ? Math.round(rawPrice / 10) : (rawPrice >= 100 ? Math.round(rawPrice) : rawPrice);
-      const cp = Number(item.cp !== undefined ? item.cp : (item.changePercent !== undefined ? item.changePercent : (item.plp || 0)));
-      const rawCategory = String(item.cat || item.category || item.brand || item.group || '').trim();
+      const cp = Number((changeField && item[changeField]) || item.cp !== undefined ? item.cp : (item.changePercent !== undefined ? item.changePercent : (item.plp || 0)));
+      const rawCategory = String((catField && item[catField]) || item.cat || item.category || item.brand || item.group || '').trim();
       const isFund = Boolean(item.f === 1 || item.isFund || src.priceType === 'bourse_fund' || rawCategory.includes('صندوق') || name.includes('صندوق'));
 
       return {
@@ -146,30 +264,6 @@ function getAssetIcon(item) {
   if (badge.includes('رمز') || badge.includes('crypto')) return <Zap size={15} />;
   if (badge.includes('صندوق') || badge.includes('fund')) return <Layers size={15} />;
   return <Sparkles size={15} />;
-}
-
-export function normalizeSearchText(str) {
-  if (!str) return '';
-  return String(str)
-    .toLowerCase()
-    .replace(/\u200C/g, ' ')
-    .replace(/[\u200B\u200D\uFEFF]/g, '')
-    .replace(/[ي]/g, 'ی')
-    .replace(/[ك]/g, 'ک')
-    .replace(/[آأإ]/g, 'ا')
-    .replace(/[ة]/g, 'ه')
-    .replace(/[۰٠]/g, '0')
-    .replace(/[۱١]/g, '1')
-    .replace(/[۲٢]/g, '2')
-    .replace(/[۳٣]/g, '3')
-    .replace(/[۴٤]/g, '4')
-    .replace(/[۵٥]/g, '5')
-    .replace(/[۶٦]/g, '6')
-    .replace(/[۷٧]/g, '7')
-    .replace(/[۸٨]/g, '8')
-    .replace(/[۹٩]/g, '9')
-    .replace(/\s+/g, ' ')
-    .trim();
 }
 
 export default function UniversalAssetSearch({
@@ -207,7 +301,7 @@ export default function UniversalAssetSearch({
     return () => { isMounted = false; };
   }, [sources]);
 
-  // 2. Fetch Bourse symbols once upfront for instant client-side search
+  // 2. Preload Bourse symbols once upfront for instant search
   useEffect(() => {
     let isMounted = true;
     apiSearchBourseSymbols('', 2000)
@@ -231,7 +325,7 @@ export default function UniversalAssetSearch({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  // 3. Build Unified Items List (100% Client-Side, Exact 2 Types)
+  // 3. Build Unified Items List (100% Client-Side, Exact 2 Types, All Multi-Output Categories)
   const allItems = useMemo(() => {
     const items = [];
     const seenKeys = new Set();
@@ -248,7 +342,8 @@ export default function UniversalAssetSearch({
       const isPrimary = src.isPrimary === 1 || src.isPrimary === true || src.is_primary === 1 || src.is_primary === true;
       if (!isPrimary) return;
 
-      const typeLabel = (priceTypeInfo && priceTypeInfo[src.priceType]?.label) || src.priceType || src.name;
+      const typeLabel = getPriceTypeLabel(src.priceType, priceTypeInfo) || src.name;
+      const meta = getCategoryMetadata(src.priceType);
 
       items.push({
         id: src.id,
@@ -256,8 +351,9 @@ export default function UniversalAssetSearch({
         name: typeLabel, // فقط عنوان نوع نرخ
         symbol: '',
         subText: 'نرخ پایه بازار (سورس مرجع)',
-        badge: typeLabel,
-        badgeClass: 'single-rate',
+        badge: meta.badge || 'پایه',
+        badgeClass: meta.category,
+        category: meta.category,
         price: Number(src.lastPrice || 0),
         unit: src.unit || 'تومان',
         type: 'source',
@@ -276,59 +372,30 @@ export default function UniversalAssetSearch({
       const isMulti = isSourceMultiOutput(src, priceTypeInfo);
       if (!isMulti) return;
 
-      const feedCategoryLabel = (priceTypeInfo && priceTypeInfo[src.priceType]?.label) || src.priceType || src.name;
+      const feedCategoryLabel = getPriceTypeLabel(src.priceType, priceTypeInfo) || src.name;
       const isBourse = src.priceType === 'bourse' || src.priceType === 'bourse_fund';
 
-      // ۱. اگر فید بورس است و دیتای نمادها از قبل لود شده
+      // استخراج تمامی اقلام زیرمجموعه این فید
+      const subItems = extractMultiItems(src);
+
+      // اگر فید بورس است و دیتای نمادها از قبل لود شده، ادغام کن
+      let listToIterate = subItems;
       if (isBourse && bourseSymbols.length > 0) {
-        bourseSymbols.forEach((sym) => {
-          const symCode = (sym.symbol || sym.s || '').trim();
-          const symName = (sym.name || sym.n || symCode).trim();
-          if (!symCode && !symName) return;
-
-          const itemKey = `bourse_${symCode || symName}`;
-          if (seenKeys.has(itemKey)) return;
-          seenKeys.add(itemKey);
-
-          const isFund = Boolean(sym.isFund || sym.f === 1 || src.priceType === 'bourse_fund' || sym.category?.includes('صندوق') || symName.includes('صندوق'));
-          const priceToman = sym.priceToman !== undefined
-            ? Number(sym.priceToman)
-            : Math.round(Number(sym.priceRial || sym.p || sym.price || 0) / 10);
-          const cp = Number(sym.changePercent !== undefined ? sym.changePercent : (sym.cp !== undefined ? sym.cp : (sym.plp || 0)));
-
-          items.push({
-            id: itemKey,
-            sourceId: src.id,
-            symbol: symCode,
-            name: symCode && !symName.includes(symCode) ? `${symName} (${symCode})` : symName,
-            subText: sym.category ? `${sym.category}${symCode ? ` • نماد: ${symCode}` : ''}` : (isFund ? `صندوق سرمایه‌گذاری${symCode ? ` • نماد: ${symCode}` : ''}` : `سهام بورس${symCode ? ` • نماد: ${symCode}` : ''}`),
-            badge: isFund ? 'صندوق' : 'بورس',
-            badgeClass: 'bourse',
-            price: priceToman,
-            unit: isFund ? 'واحد' : 'برگ سهم',
-            type: 'bourse',
-            changePercent: cp,
-            raw: {
-              symbol: symCode,
-              name: symName,
-              priceToman,
-              priceRial: priceToman * 10,
-              isFund,
-              category: sym.category,
-              sourceId: src.id,
-            },
-          });
-        });
+        if (subItems.length === 0) {
+          listToIterate = bourseSymbols;
+        } else {
+          const subSymSet = new Set(subItems.map(x => (x.symbol || x.s || '').toUpperCase()).filter(Boolean));
+          const additionalBourse = bourseSymbols.filter(bs => !subSymSet.has((bs.symbol || bs.s || '').toUpperCase()));
+          listToIterate = [...subItems, ...additionalBourse];
+        }
       }
 
-      // ۲. استخراج تمامی اقلام زیرمجموعه این فید (فارکس، خودرو، رمزارز، کالا، مسکن و تمامی دسته‌بندی‌ها)
-      const subItems = extractMultiItems(src);
-      subItems.forEach((sub) => {
+      listToIterate.forEach((sub) => {
         const symCode = (sub.symbol || sub.s || '').trim();
         const itemName = (sub.name || sub.n || symCode).trim();
         if (!symCode && !itemName) return;
 
-        const itemKey = `${src.id}::${symCode || itemName}`;
+        const itemKey = isBourse ? `bourse_${symCode || itemName}` : `${src.id}::${symCode || itemName}`;
         if (seenKeys.has(itemKey)) return;
         seenKeys.add(itemKey);
 
@@ -336,7 +403,16 @@ export default function UniversalAssetSearch({
         const itemBadge = sub.category || (isBourse ? (isFund ? 'صندوق' : 'بورس') : feedCategoryLabel);
 
         const displayName = symCode && !itemName.includes(symCode) ? `${itemName} (${symCode})` : itemName;
-        const subDetails = [sub.category, symCode ? `کد: ${symCode}` : '', sub.extra].filter(Boolean).join(' • ') || feedCategoryLabel;
+        const subDetails = isBourse
+          ? (sub.category ? `${sub.category}${symCode ? ` • نماد: ${symCode}` : ''}` : (isFund ? `صندوق سرمایه‌گذاری${symCode ? ` • نماد: ${symCode}` : ''}` : `سهام بورس اوراق بهادار${symCode ? ` • نماد: ${symCode}` : ''}`))
+          : ([sub.category, symCode ? `کد: ${symCode}` : '', sub.extra].filter(Boolean).join(' • ') || feedCategoryLabel);
+
+        const priceToman = sub.price !== undefined
+          ? Number(sub.price)
+          : (sub.priceToman !== undefined ? Number(sub.priceToman) : Math.round(Number(sub.priceRial || sub.p || 0) / 10));
+
+        const unit = isBourse ? (isFund ? 'واحد' : 'برگ سهم') : (src.unit || 'تومان');
+        const cp = Number(sub.changePercent !== undefined ? sub.changePercent : (sub.cp !== undefined ? sub.cp : (sub.plp || 0)));
 
         items.push({
           id: itemKey,
@@ -346,20 +422,22 @@ export default function UniversalAssetSearch({
           subText: subDetails,
           badge: itemBadge,
           badgeClass: isBourse ? 'bourse' : 'multi-item',
-          price: Number(sub.price || sub.priceTomans || 0),
-          unit: isBourse ? (isFund ? 'واحد' : 'برگ سهم') : (src.unit || 'تومان'),
+          category: sub.category || src.priceType,
+          price: priceToman,
+          unit,
           type: isBourse ? 'bourse' : 'source',
-          changePercent: Number(sub.changePercent || 0),
+          changePercent: cp,
           raw: {
             ...sub,
             symbol: symCode,
             name: itemName,
-            priceToman: Number(sub.price || sub.priceTomans || 0),
-            priceRial: Number(sub.price || sub.priceTomans || 0) * 10,
+            priceToman,
+            priceRial: priceToman * 10,
             isFund,
+            category: sub.category || src.priceType,
             sourceId: src.id,
             sourceName: src.name,
-            unit: isBourse ? (isFund ? 'واحد' : 'برگ سهم') : (src.unit || 'تومان'),
+            unit,
           },
         });
       });
@@ -424,7 +502,7 @@ export default function UniversalAssetSearch({
                   {getAssetIcon(selectedAsset)}
                 </div>
                 <strong className="universal-active-name">
-                  {(priceTypeInfo && priceTypeInfo[selectedAsset?.priceType]?.label) || selectedAsset?.name || 'انتخاب نشده'}
+                  {getPriceTypeLabel(selectedAsset?.priceType, priceTypeInfo) || selectedAsset?.name || 'انتخاب نشده'}
                 </strong>
               </div>
             </div>
