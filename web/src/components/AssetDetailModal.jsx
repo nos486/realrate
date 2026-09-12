@@ -178,24 +178,50 @@ export default function AssetDetailModal({
 
     let active = true;
     setLoadingHistory(true);
-    apiGetSparklines(asset.id)
-      .then((res) => {
-        if (active && res && res.success && res.sparklines) {
-          const list = res.sparklines[asset.id] || res.sparklines[normalizedAssetId] || [];
-          setHistoryData(list);
+
+    const fetchAssetHistory = async () => {
+      try {
+        const res = await apiGetSparklines(asset.id);
+        if (!active) return;
+        let list = res?.sparklines?.[asset.id] || res?.sparklines?.[normalizedAssetId] || [];
+
+        // If this is a forex currency and history points are fewer than 2 (e.g. backend sync or cold start),
+        // fetch USD sparklines and multiply each point by the currency's cross rate!
+        if (isForex && (!Array.isArray(list) || list.length < 2)) {
+          try {
+            const usdRes = await apiGetSparklines('usd');
+            if (!active) return;
+            const usdList = usdRes?.sparklines?.usd || [];
+            if (Array.isArray(usdList) && usdList.length >= 2) {
+              const cross = asset.usd_cross_rate
+                ? Number(asset.usd_cross_rate)
+                : (liveUsd > 0 && currentPrice > 0 ? (currentPrice / liveUsd) : 0.02057);
+              list = usdList.map((u) => ({
+                price: Math.round(Number(u.price) * cross),
+                usd_cross_rate: cross,
+                usd_price: Number(u.price),
+                timestamp: u.timestamp,
+              }));
+            }
+          } catch (usdErr) {
+            console.warn('Failed to load USD fallback history for forex:', usdErr);
+          }
         }
-      })
-      .catch((err) => {
+
+        if (active) setHistoryData(list || []);
+      } catch (err) {
         console.warn('Failed to load asset history:', err);
-      })
-      .finally(() => {
+      } finally {
         if (active) setLoadingHistory(false);
-      });
+      }
+    };
+
+    fetchAssetHistory();
 
     return () => {
       active = false;
     };
-  }, [isOpen, asset?.id, normalizedAssetId]);
+  }, [isOpen, asset?.id, normalizedAssetId, isForex, asset?.usd_cross_rate, currentPrice, liveUsd]);
 
   // Prepare price history data points with synthetic 24h baseline fallback if data < 2
   const points = useMemo(() => {
@@ -223,7 +249,7 @@ export default function AssetDetailModal({
           })
       : [];
 
-    // Fallback synthetic 24h curve if < 2 points so graph is ALWAYS rendered beautifully
+    // Fallback baseline 24h curve if < 2 points (straight baseline, NO artificial sine wave)
     if (list.length < 2 && currentPrice > 0) {
       const now = Date.now();
       const syntheticCount = 14;
@@ -231,12 +257,9 @@ export default function AssetDetailModal({
       for (let i = 0; i < syntheticCount; i++) {
         const timeOffset = (syntheticCount - 1 - i) * (24 * 3600 * 1000) / (syntheticCount - 1);
         const t = new Date(now - timeOffset).toISOString();
-        // Subtle natural micro-variance around current price (within 0.3%)
-        const factor = 1 + (Math.sin(i * 0.8) * 0.002);
-        const p = i === syntheticCount - 1 ? currentPrice : Math.round(currentPrice * factor);
         list.push({
-          price: p,
-          rawCrossRate: isForex && liveUsd > 0 ? Number((p / liveUsd).toFixed(4)) : null,
+          price: currentPrice,
+          rawCrossRate: isForex && liveUsd > 0 ? Number((currentPrice / liveUsd).toFixed(4)) : null,
           usdPrice: isForex ? liveUsd : null,
           timestamp: t,
         });

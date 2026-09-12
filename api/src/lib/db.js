@@ -1573,22 +1573,49 @@ export async function dbGet24hSparklines(env, targetAsset = null) {
       return Number(closest.price) || latestUsd;
     };
 
-    // For any forex targets in queryTargets, convert cross-rate into Toman price at that specific point
+    // Default fallback cross rates for forex currencies
+    const defaultForexCross = {
+      eur: 1.0929,
+      try: 0.02057,
+      aed: 0.2723,
+      gbp: 1.2788,
+      chf: 1.1561,
+      cad: 0.7299,
+      aud: 0.6579,
+      cny: 0.1393,
+    };
+
+    // For any forex targets in queryTargets, construct full 24h series from USD points multiplied by forex cross rate at each point
     for (const fx of forexTargets) {
-      if (grouped[fx] && grouped[fx].length > 0) {
-        for (const pt of grouped[fx]) {
-          const rawCross = Number(pt.price);
-          const usdAtPoint = getClosestUsdPrice(pt.timestamp);
-          // If stored as cross-rate (< 500), multiply by the USD price at that point in time
-          if (rawCross < 500) {
-            pt.price = Math.round(rawCross * usdAtPoint);
-            pt.usd_cross_rate = rawCross;
-            pt.usd_price = usdAtPoint;
-          } else {
-            pt.usd_cross_rate = usdAtPoint > 0 ? Number((rawCross / usdAtPoint).toFixed(4)) : null;
-            pt.usd_price = usdAtPoint;
+      if (queryTargets.includes(fx) && usdPoints.length > 0) {
+        const fxHistory = grouped[fx] || [];
+        const defaultCross = defaultForexCross[fx] || 0.02;
+
+        const getCrossRateAtTime = (targetIso) => {
+          if (!fxHistory || fxHistory.length === 0) return defaultCross;
+          const targetMs = new Date(targetIso).getTime();
+          let closest = fxHistory[0];
+          let minDiff = Math.abs(new Date(closest.timestamp).getTime() - targetMs);
+          for (let i = 1; i < fxHistory.length; i++) {
+            const diff = Math.abs(new Date(fxHistory[i].timestamp).getTime() - targetMs);
+            if (diff < minDiff) {
+              minDiff = diff;
+              closest = fxHistory[i];
+            }
           }
-        }
+          const val = Number(closest.price);
+          return val > 0 ? (val < 500 ? val : (latestUsd > 0 ? val / latestUsd : defaultCross)) : defaultCross;
+        };
+
+        grouped[fx] = usdPoints.map((u) => {
+          const cross = getCrossRateAtTime(u.timestamp);
+          return {
+            price: Math.round(u.price * cross),
+            timestamp: u.timestamp,
+            usd_cross_rate: cross,
+            usd_price: u.price,
+          };
+        });
       }
     }
 
