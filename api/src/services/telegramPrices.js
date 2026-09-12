@@ -355,6 +355,7 @@ export function parseGoldTelegramHtml(html) {
     tryParse("mesghal",      "مثقال طلا (۱۷ عیار)",       l => l.includes("آبشده نقد") || l.includes("آبشده") || l.includes("مثقال"));
     tryParse("half_coin",    "نیم سکه بهار آزادی",        l => l.includes("نیم سکه"));
     tryParse("quarter_coin", "ربع سکه بهار آزادی",        l => l.includes("ربع سکه"));
+    tryParse("bank_gram",    "سکه گرمی بانکی",             l => l.includes("سکه گرمی") || l.includes("سکه یک گرمی") || l.includes("گرمی بانکی"));
   }
 
   return result;

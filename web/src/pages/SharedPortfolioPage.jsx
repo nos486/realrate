@@ -209,11 +209,15 @@ export default function SharedPortfolioPage() {
     const gold24kGram = (goldUsdVal / 31.1034768) * usdVal;
     map['gold_24k'] = Math.round(gold24kGram);
     map['gold_18k'] = Math.round(gold24kGram * 0.75);
+    map['gold_melted'] = Math.round(gold24kGram * 0.75);
     map['full_new'] = Math.round(gold24kGram * 7.3197);
     map['full_old'] = Math.round(gold24kGram * 7.3197);
     map['half'] = Math.round(gold24kGram * 3.6594);
     map['quarter'] = Math.round(gold24kGram * 1.8297);
-    map['gram'] = Math.round(gold24kGram * 0.909);
+    // سکه یک گرمی بانکی: ۱.۰۱ گرم طلای ۲۲ عیار (۲۲/۲۴ = ۹۱۶.۶۶ در ۱۰۰۰)
+    const bankGramVal = Math.round(gold24kGram * 1.01 * (22 / 24));
+    map['bank_gram'] = bankGramVal;
+    map['gram'] = bankGramVal;
 
     // B. Silver calculations (Pure intrinsic silver value)
     const silver999Gram = (silverUsdVal / 31.1034768) * usdVal;

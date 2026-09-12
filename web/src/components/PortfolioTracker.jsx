@@ -60,7 +60,8 @@ export const ASSET_TYPES = [
   { id: 'full_old', name: 'سکه بهار آزادی', unit: 'عدد', category: 'coin' },
   { id: 'half', name: 'نیم سکه بهار آزادی', unit: 'عدد', category: 'coin' },
   { id: 'quarter', name: 'ربع سکه بهار آزادی', unit: 'عدد', category: 'coin' },
-  { id: 'gram', name: 'سکه گرمی', unit: 'عدد', category: 'coin' },
+  { id: 'bank_gram', name: 'سکه گرمی بانکی', unit: 'عدد', category: 'coin' },
+  { id: 'gram', name: 'سکه گرمی بانکی', unit: 'عدد', category: 'coin' },
 
   // نقره (Silver)
   { id: 'silver_999', name: 'نقره خام و ساچمه ۹۹۹', unit: 'گرم', category: 'silver' },
@@ -634,11 +635,16 @@ export default function PortfolioTracker({ calcData, rates, usdToman, goldUsd, i
       const gold_24k_gram = (goldUsdVal / 31.1034768) * usdVal;
       map['gold_24k'] = Math.round(gold_24k_gram);
       map['gold_18k'] = Math.round(gold_24k_gram * 0.75);
+      map['gold_melted'] = Math.round(gold_24k_gram * 0.75);
       map['full_new'] = Math.round(gold_24k_gram * 7.3197);
       map['full_old'] = Math.round(gold_24k_gram * 7.3197);
       map['half'] = Math.round(gold_24k_gram * 3.6594);
       map['quarter'] = Math.round(gold_24k_gram * 1.8297);
-      map['gram'] = Math.round(gold_24k_gram * 0.909);
+      // سکه گرمی بانکی: وزن ۱.۰۱ گرم با عیار ۲۲ (۲۲/۲۴ = ۹۱۶.۶۶ در ۱۰۰۰)
+      // وزن طلای خالص ۲۴ عیار: ۱.۰۱ * (۲۲ / ۲۴) = ۰.۹۲۵۸۳۳ گرم
+      const bankGramVal = Math.round(gold_24k_gram * 1.01 * (22 / 24));
+      map['bank_gram'] = bankGramVal;
+      map['gram'] = bankGramVal;
     }
 
     // B. Silver calculations (Pure intrinsic silver value)
@@ -692,7 +698,7 @@ export default function PortfolioTracker({ calcData, rates, usdToman, goldUsd, i
     setEditingHolding(item);
     const isKnown = ASSET_TYPES.some((a) => a.id === item.assetId && a.id !== 'custom');
     if (isKnown) {
-      setSelectedAssetId(item.assetId);
+      setSelectedAssetId(item.assetId === 'gram' ? 'bank_gram' : item.assetId);
       setCustomName('');
       setCustomUnit(item.unit || 'واحد');
       setCustomCurrentPrice(item.currentPrice ? String(item.currentPrice) : '');
@@ -1588,12 +1594,13 @@ export default function PortfolioTracker({ calcData, rates, usdToman, goldUsd, i
                 >
                   <optgroup label="طلا و مسکوکات">
                     <option value="gold_18k">طلای ۱۸ عیار</option>
+                    <option value="gold_melted">طلای آبشده (گرم ۱۸)</option>
                     <option value="gold_24k">طلای ۲۴ عیار</option>
                     <option value="full_new">سکه امامی</option>
                     <option value="full_old">سکه بهار آزادی</option>
                     <option value="half">نیم سکه بهار آزادی</option>
                     <option value="quarter">ربع سکه بهار آزادی</option>
-                    <option value="gram">سکه گرمی</option>
+                    <option value="bank_gram">سکه گرمی بانکی</option>
                   </optgroup>
 
                   <optgroup label="نقره (Silver)">
@@ -1844,9 +1851,14 @@ export default function PortfolioTracker({ calcData, rates, usdToman, goldUsd, i
               {!isModalCustom && currentModalRealPrice > 0 && (
                 <div className="live-hint-box-detailed">
                   <div className="hint-row">
-                    <span className="hint-label">نرخ روز طلا و دلار:</span>
+                    <span className="hint-label">ارزش ذاتی بر مبنای طلا/دلار:</span>
                     <strong className="hint-val-sky">{formatNum(currentModalRealPrice)} تومان</strong>
                   </div>
+                  {(selectedAssetId === 'bank_gram' || selectedAssetId === 'gram') && (
+                    <div style={{ fontSize: '11px', color: '#94a3b8', marginTop: '4px', textAlign: 'right' }}>
+                      ⚡ استاندارد بانک مرکزی: وزن ۱.۰۱ گرم طلای ۲۲ عیار (معادل ۰.۹۲۶ گرم طلای ۲۴ عیار خالص)
+                    </div>
+                  )}
                 </div>
               )}
       </Modal>

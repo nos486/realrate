@@ -141,6 +141,7 @@ export function calculateMarketData({
       gold_24k_gram: Math.round(gold_24k_gram),
       gold_18k_gram: Math.round(gold_18k_gram),
       mesghal_17k: Math.round(mesghal_17k),
+      bank_gram_intrinsic: Math.round(gold_24k_gram * 1.01 * (22 / 24)),
     },
     silver: {
       silver_usd,
