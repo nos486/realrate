@@ -751,18 +751,53 @@ export function compileLatestMarketRates(sources) {
 
     if (chosen) {
       const itemKey = pType === "usd" ? "usd_toman" : pType;
+      let showOnHome = true;
+      if (chosen.displayConfig) {
+        try {
+          const dc = typeof chosen.displayConfig === 'string' ? JSON.parse(chosen.displayConfig) : chosen.displayConfig;
+          if (dc && dc.showOnHomePage !== undefined) {
+            showOnHome = Boolean(dc.showOnHomePage);
+          }
+        } catch {}
+      }
+
       result[itemKey] = {
         price: chosen.lastPrice,
         datetime: chosen.lastFetched || new Date().toISOString(),
         label: chosen.name,
         sourceId: chosen.id,
         isPrimary: !!chosen.isPrimary,
+        showOnHomePage: showOnHome,
       };
 
       if (pType === "usd") {
         result.usd = result.usd_toman;
       }
     }
+  }
+
+  // Also include any other active custom single sources that aren't in supportedTypes
+  for (const src of sources) {
+    if (!src.isActive || Number(src.lastPrice) <= 0 || !src.priceType) continue;
+    const lowerType = src.priceType.toLowerCase();
+    if (result[src.priceType] || result[lowerType]) continue;
+    let showOnHome = true;
+    if (src.displayConfig) {
+      try {
+        const dc = typeof src.displayConfig === 'string' ? JSON.parse(src.displayConfig) : src.displayConfig;
+        if (dc && dc.showOnHomePage !== undefined) {
+          showOnHome = Boolean(dc.showOnHomePage);
+        }
+      } catch {}
+    }
+    result[lowerType] = {
+      price: src.lastPrice,
+      datetime: src.lastFetched || new Date().toISOString(),
+      label: src.name,
+      sourceId: src.id,
+      isPrimary: !!src.isPrimary,
+      showOnHomePage: showOnHome,
+    };
   }
 
   return result;

@@ -20,6 +20,7 @@ export default function CurrenciesList({ currencies, onCurrencyClick }) {
   }
 
   const filtered = currencies.filter((c) => {
+    if (c.showOnHomePage === false) return false;
     if (!search.trim()) return true;
     const q = search.trim().toLowerCase();
     return (

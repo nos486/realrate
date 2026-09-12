@@ -77,6 +77,7 @@ const DEFAULT_SOURCE_FORM = {
   fieldMapping: null,
   excludedOutputs: [],
   displayConfig: null,
+  showOnHomePage: true,
   regexPattern: '([\\d,]+)\\s*فروش',
   regexGroupIndex: 1,
   fetchIntervalMinutes: 5,
@@ -93,6 +94,8 @@ const DEFAULT_MULTI_FEED_FORM = {
   apiUrl: '',
   fetchIntervalMinutes: 60,
   isActive: true,
+  showOnHomePage: true,
+  displayConfig: null,
   excludedOutputs: [],
   arrayPath: '',
   idField: '',
@@ -442,6 +445,7 @@ export default function PriceSourcesPage({ embedded = false, usdToman: propUsdTo
       ...DEFAULT_SOURCE_FORM,
       priceType: typeToUse,
       unit: 'تومان',
+      showOnHomePage: true,
       regexPattern: '([\\d,]+)\\s*فروش',
     });
     setModalTestResult(null);
@@ -454,6 +458,11 @@ export default function PriceSourcesPage({ embedded = false, usdToman: propUsdTo
       handleOpenEditMultiFeed(src);
       return;
     }
+    const displayCfg = typeof src.displayConfig === 'string'
+      ? (() => { try { return JSON.parse(src.displayConfig); } catch { return {}; } })()
+      : (src.displayConfig || {});
+    const showOnHomePage = displayCfg.showOnHomePage !== undefined ? Boolean(displayCfg.showOnHomePage) : true;
+
     setEditingSourceId(src.id);
     setSourceForm({
       id: src.id,
@@ -464,9 +473,10 @@ export default function PriceSourcesPage({ embedded = false, usdToman: propUsdTo
       channelUsername: src.channelUsername || (src.sourceType === 'telegram' ? src.endpoint : ''),
       apiUrl: src.apiUrl || (src.sourceType === 'api_url' ? src.endpoint : ''),
       jsonPath: src.jsonPath || '',
-      fieldMapping: mapping,
+      fieldMapping: src.fieldMapping || null,
       excludedOutputs: Array.isArray(src.excludedOutputs) ? src.excludedOutputs : [],
       displayConfig: src.displayConfig || null,
+      showOnHomePage,
       regexPattern: src.regexPattern || src.regex || '',
       regexGroupIndex: src.regexGroupIndex || 1,
       fetchIntervalMinutes: src.fetchIntervalMinutes || Math.round((src.fetchIntervalSec || 300) / 60),
@@ -485,6 +495,7 @@ export default function PriceSourcesPage({ embedded = false, usdToman: propUsdTo
     setMultiForm({
       ...DEFAULT_MULTI_FEED_FORM,
       priceType: sourceTypes.find(st => st.category === 'multi_output')?.id || 'bourse',
+      showOnHomePage: true,
     });
     setInspectResult(null);
     setMultiTestResult(null);
@@ -504,6 +515,10 @@ export default function PriceSourcesPage({ embedded = false, usdToman: propUsdTo
         ? src.excludedOutputs
         : (typeof src.excludedOutputs === 'string' ? JSON.parse(src.excludedOutputs || '[]') : []);
     }
+    const displayCfg = typeof src.displayConfig === 'string'
+      ? (() => { try { return JSON.parse(src.displayConfig); } catch { return {}; } })()
+      : (src.displayConfig || {});
+    const showOnHomePage = displayCfg.showOnHomePage !== undefined ? Boolean(displayCfg.showOnHomePage) : true;
 
     setMultiForm({
       id: src.id,
@@ -513,6 +528,8 @@ export default function PriceSourcesPage({ embedded = false, usdToman: propUsdTo
       apiUrl: src.apiUrl || src.endpoint || '',
       fetchIntervalMinutes: src.fetchIntervalMinutes || Math.round((src.fetchIntervalSec || 3600) / 60),
       isActive: src.isActive !== undefined ? Boolean(src.isActive) : true,
+      showOnHomePage,
+      displayConfig: src.displayConfig || null,
       excludedOutputs: excluded,
       arrayPath: mapping.arrayPath !== undefined ? mapping.arrayPath : '',
       idField: mapping.idField || mapping.symbolField || '',
@@ -721,6 +738,14 @@ export default function PriceSourcesPage({ embedded = false, usdToman: propUsdTo
         },
       };
 
+      const prevDisplay = typeof multiForm.displayConfig === 'string'
+        ? (() => { try { return JSON.parse(multiForm.displayConfig); } catch { return {}; } })()
+        : (multiForm.displayConfig || {});
+      const displayConfig = {
+        ...prevDisplay,
+        showOnHomePage: multiForm.showOnHomePage !== false,
+      };
+
       const payload = {
         id: multiForm.id,
         name: multiForm.name.trim(),
@@ -732,6 +757,7 @@ export default function PriceSourcesPage({ embedded = false, usdToman: propUsdTo
         isPrimary: false,
         fieldMapping,
         excludedOutputs: multiForm.excludedOutputs || [],
+        displayConfig,
       };
 
       const res = await apiSavePriceSource(payload);
@@ -854,8 +880,17 @@ export default function PriceSourcesPage({ embedded = false, usdToman: propUsdTo
     e.preventDefault();
     setModalSaving(true);
     try {
+      const prevDisplay = typeof sourceForm.displayConfig === 'string'
+        ? (() => { try { return JSON.parse(sourceForm.displayConfig); } catch { return {}; } })()
+        : (sourceForm.displayConfig || {});
+      const displayConfig = {
+        ...prevDisplay,
+        showOnHomePage: sourceForm.showOnHomePage !== false,
+      };
+
       const payload = {
         ...sourceForm,
+        displayConfig,
         endpoint: sourceForm.sourceType === 'telegram' ? sourceForm.channelUsername : sourceForm.apiUrl,
         regexGroupIndex: parseInt(sourceForm.regexGroupIndex, 10) || 1,
         fetchIntervalMinutes: parseInt(sourceForm.fetchIntervalMinutes, 10) || 5,
@@ -1304,9 +1339,25 @@ export default function PriceSourcesPage({ embedded = false, usdToman: propUsdTo
                         <tr className={isSelectedInChart ? 'active-chart-row' : ''}>
                           <td>
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
-                              <strong style={{ fontSize: '13.5px', color: 'var(--text-heading)' }}>
-                                {src.name}
-                              </strong>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                                <strong style={{ fontSize: '13.5px', color: 'var(--text-heading)' }}>
+                                  {src.name}
+                                </strong>
+                                {(() => {
+                                  const dc = typeof src.displayConfig === 'string'
+                                    ? (() => { try { return JSON.parse(src.displayConfig); } catch { return {}; } })()
+                                    : (src.displayConfig || {});
+                                  return dc.showOnHomePage === false ? (
+                                    <span style={{ fontSize: '10px', color: '#f43f5e', background: 'rgba(244,63,94,0.12)', padding: '1px 6px', borderRadius: '4px', width: 'fit-content' }}>
+                                      مخفی از صفحه اول
+                                    </span>
+                                  ) : (
+                                    <span style={{ fontSize: '10px', color: '#10b981', background: 'rgba(16,185,129,0.12)', padding: '1px 6px', borderRadius: '4px', width: 'fit-content' }}>
+                                      صفحه اول
+                                    </span>
+                                  );
+                                })()}
+                              </div>
                               <span
                                 style={{
                                   fontSize: '11px',
@@ -1830,8 +1881,26 @@ export default function PriceSourcesPage({ embedded = false, usdToman: propUsdTo
                         </td>
 
                         <td>
-                          <span className={`status-dot ${src.isActive ? 'active' : 'inactive'}`} />
-                          <span style={{ fontSize: '11px', marginRight: '4px' }}>{src.isActive ? 'فعال' : 'غیرفعال'}</span>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
+                            <div style={{ display: 'flex', alignItems: 'center' }}>
+                              <span className={`status-dot ${src.isActive ? 'active' : 'inactive'}`} />
+                              <span style={{ fontSize: '11px', marginRight: '4px' }}>{src.isActive ? 'فعال' : 'غیرفعال'}</span>
+                            </div>
+                            {(() => {
+                              const dc = typeof src.displayConfig === 'string'
+                                ? (() => { try { return JSON.parse(src.displayConfig); } catch { return {}; } })()
+                                : (src.displayConfig || {});
+                              return dc.showOnHomePage === false ? (
+                                <span style={{ fontSize: '9.5px', color: '#f43f5e', background: 'rgba(244,63,94,0.12)', padding: '1px 5px', borderRadius: '4px', width: 'fit-content' }}>
+                                  مخفی در خانه
+                                </span>
+                              ) : (
+                                <span style={{ fontSize: '9.5px', color: '#10b981', background: 'rgba(16,185,129,0.12)', padding: '1px 5px', borderRadius: '4px', width: 'fit-content' }}>
+                                  نمایش در خانه
+                                </span>
+                              );
+                            })()}
+                          </div>
                         </td>
 
                         <td>
@@ -2147,6 +2216,17 @@ export default function PriceSourcesPage({ embedded = false, usdToman: propUsdTo
                       onChange={(e) => setSourceForm({ ...sourceForm, isPrimary: e.target.checked })}
                     />
                     <span>سورس مرجع این نرخ</span>
+                  </label>
+
+                  <label className="admin-checkbox-label" title="آیا این نماد در صفحه اول (نرخ و حباب) نمایش داده شود؟">
+                    <input
+                      type="checkbox"
+                      checked={sourceForm.showOnHomePage !== false}
+                      onChange={(e) => setSourceForm({ ...sourceForm, showOnHomePage: e.target.checked })}
+                    />
+                    <span style={{ fontWeight: '600', color: sourceForm.showOnHomePage !== false ? 'var(--accent-green, #10b981)' : 'var(--text-muted)' }}>
+                      نمایش نماد در صفحه اول
+                    </span>
                   </label>
                 </div>
 
@@ -2719,6 +2799,29 @@ export default function PriceSourcesPage({ embedded = false, usdToman: propUsdTo
                   + افزودن
                 </button>
               </div>
+            </div>
+
+            {/* Active and Show on Home Page options */}
+            <div style={{ display: 'flex', gap: '20px', alignItems: 'center', padding: '6px 0', flexWrap: 'wrap' }}>
+              <label className="admin-checkbox-label">
+                <input
+                  type="checkbox"
+                  checked={multiForm.isActive}
+                  onChange={(e) => setMultiForm({ ...multiForm, isActive: e.target.checked })}
+                />
+                <span>فید فعال باشد</span>
+              </label>
+
+              <label className="admin-checkbox-label" title="آیا این فید در صفحه اول نمایش داده شود؟">
+                <input
+                  type="checkbox"
+                  checked={multiForm.showOnHomePage !== false}
+                  onChange={(e) => setMultiForm({ ...multiForm, showOnHomePage: e.target.checked })}
+                />
+                <span style={{ fontWeight: '600', color: multiForm.showOnHomePage !== false ? 'var(--accent-green, #10b981)' : 'var(--text-muted)' }}>
+                  نمایش در صفحه اول
+                </span>
+              </label>
             </div>
 
             {/* Test Area */}

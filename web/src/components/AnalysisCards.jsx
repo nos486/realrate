@@ -8,8 +8,8 @@ function formatNum(num) {
 export default function AnalysisCards({ analysis, recommendation, onCardClick }) {
   if (!analysis || analysis.length === 0) return null;
 
-  // Filter out half_coin as requested by user
-  const visibleCards = analysis.filter((item) => item.id !== 'half_coin');
+  // Filter out half_coin as requested by user, and hide cards disabled in symbol settings
+  const visibleCards = analysis.filter((item) => item.id !== 'half_coin' && item.showOnHomePage !== false);
 
   return (
     <div className="analysis-wrapper">

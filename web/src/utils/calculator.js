@@ -110,6 +110,7 @@ export function calculateMarketData({
       diff_from_expected: diff_from_expected !== null ? Math.round(diff_from_expected) : null,
       diff_from_expected_pct,
       updated_at: marketItem ? marketItem.datetime : null,
+      showOnHomePage: marketItem?.showOnHomePage !== undefined ? Boolean(marketItem.showOnHomePage) : true,
     };
   }
 
@@ -208,6 +209,7 @@ export function calculateMarketData({
         note,
         sourceLabel: srcData?.label,
         sourceId: srcData?.sourceId,
+        showOnHomePage: srcData?.showOnHomePage !== undefined ? Boolean(srcData.showOnHomePage) : true,
       });
     }
   });
