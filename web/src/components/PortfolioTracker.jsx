@@ -2081,9 +2081,6 @@ export default function PortfolioTracker({ calcData, rates, usdToman, goldUsd, i
                         ? (selectedBourseSymbol?.symbol ? `${selectedBourseSymbol.symbol} (${selectedBourseSymbol.name})` : customName || 'سهام بورس')
                         : (selectedAssetMeta?.name || customName || selectedAssetId || 'انتخاب نشده')}
                     </strong>
-                    {currentModalRealPrice > 0 && (
-                      <span className="summary-price" style={{ color: '#34d399' }}>({formatNum(currentModalRealPrice)} تومان)</span>
-                    )}
                   </div>
                 </div>
 

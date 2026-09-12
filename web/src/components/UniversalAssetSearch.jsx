@@ -202,23 +202,26 @@ export function extractMultiItems(src) {
     excludedSet = new Set(excludedArr.map((x) => String(x).trim().toLowerCase()));
   }
 
-  const isRial = src.unit === 'rial' || (typeof src.fieldMapping === 'object' && src.fieldMapping?.priceUnit === 'rial');
+  const isBourse = src.priceType === 'bourse' || src.priceType === 'bourse_fund';
+  const isRial = src.unit === 'rial' || (typeof src.fieldMapping === 'object' && src.fieldMapping?.priceUnit === 'rial') || isBourse;
 
   return rawList
     .filter((item) => {
       if (!item || typeof item !== 'object') return false;
-      const sym = String(item.s || item.symbol || item.id || item.code || item.slug || '').trim().toLowerCase();
-      const name = String(item.n || item.name || item.title || item.car_name || item.model || '').trim().toLowerCase();
+      const sym = String(item.s || item.symbol || item.id || item.code || item.slug || item.l18 || item.ticker || '').trim().toLowerCase();
+      const name = String(item.n || item.name || item.title || item.car_name || item.model || item.l30 || '').trim().toLowerCase();
       if (sym && excludedSet.has(sym)) return false;
       if (name && excludedSet.has(name)) return false;
       return true;
     })
     .map((item) => {
-      const sym = String(item.s || item.symbol || item.id || item.code || item.slug || '').trim();
-      const name = String(item.n || item.name || item.title || item.car_name || item.model || sym).trim();
-      const rawPrice = Number(item.priceTomans || item.priceFinal || item.price || item.lastPrice || item.p || 0);
+      const sym = String(item.s || item.symbol || item.id || item.code || item.slug || item.l18 || item.ticker || '').trim();
+      const name = String(item.n || item.name || item.title || item.car_name || item.model || item.l30 || sym).trim();
+      const rawPrice = Number(item.priceTomans || item.priceFinal || item.price || item.lastPrice || item.p || item.pl || item.pc || 0);
       const finalPrice = isRial && rawPrice > 0 ? Math.round(rawPrice / 10) : (rawPrice >= 100 ? Math.round(rawPrice) : rawPrice);
       const cp = Number(item.cp !== undefined ? item.cp : (item.changePercent !== undefined ? item.changePercent : (item.plp || 0)));
+      const rawCategory = String(item.cat || item.category || item.brand || item.group || '').trim();
+      const isFund = Boolean(item.f === 1 || item.isFund || src.priceType === 'bourse_fund' || rawCategory.includes('صندوق') || name.includes('صندوق'));
 
       return {
         ...item,
@@ -226,9 +229,9 @@ export function extractMultiItems(src) {
         name,
         price: finalPrice,
         changePercent: cp,
-        category: String(item.cat || item.category || item.brand || item.group || '').trim(),
+        category: rawCategory,
         extra: String(item.extra || item.model || item.volume || '').trim(),
-        isFund: Boolean(item.f === 1 || item.isFund),
+        isFund,
       };
     });
 }
@@ -361,98 +364,138 @@ export default function UniversalAssetSearch({
 
       if (isMulti) {
         const subItems = extractMultiItems(src);
-        const srcNameNorm = normalizeSearchText(src.name);
-        const srcEndpointNorm = normalizeSearchText(src.endpoint);
-        const srcPriceTypeNorm = normalizeSearchText(src.priceType);
+        const isBourseFeed = src.priceType === 'bourse' || src.priceType === 'bourse_fund';
+        const isForexFeed = src.priceType === 'forex' || src.priceType === 'currency';
 
-        // 1A. Parent Multi-Output Feed container
-        const typeLabel = getPriceTypeLabel(src.priceType, priceTypeInfo);
-        const typeLabelNorm = normalizeSearchText(typeLabel);
-        const allowFeedInTab = activeCategory === 'all' || activeCategory === 'sources' || activeCategory === 'multi_output';
-        const parentMatch = !qNorm || srcNameNorm.includes(qNorm) || srcPriceTypeNorm.includes(qNorm) || typeLabelNorm.includes(qNorm) || srcEndpointNorm.includes(qNorm);
-
-        if (allowFeedInTab && parentMatch) {
-          results.push({
-            id: src.id,
-            sourceId: src.id,
-            name: src.name || 'فید چند خروجی بدون نام',
-            priceTypeLabel: typeLabel,
-            subText: `فید چند خروجی (${typeLabel || 'اقلام چندگانه'}) • ${subItems.length > 0 ? `${subItems.length.toLocaleString('fa-IR')} قلم خروجی` : 'فاقد اقلام فعال'} • ${src.endpoint ? 'وب‌سرویس API' : 'سورس اختصاصی'}`,
-            badge: typeLabel || 'چند خروجی',
-            badgeClass: 'multi_output',
-            price: 0,
-            itemCount: subItems.length,
-            unit: '',
-            category: 'multi_output',
-            type: 'source',
-            priceType: src.priceType,
-            isMultiFeed: true,
-            raw: src,
-          });
-        }
-
-        // 1B. Search individual Sub-Items of this multi-output source
+        // Search individual Sub-Items of this multi-output source
         subItems.forEach((subItem) => {
+          const isFund = Boolean(subItem.isFund || src.priceType === 'bourse_fund');
+          const isBourseItem = isBourseFeed || isFund ||
+            subItem.category?.includes('بورس') || subItem.category?.includes('صندوق');
+          const isForexItem = isForexFeed ||
+            subItem.category?.includes('ارز') || subItem.category?.includes('فارکس');
+          const isGoldCoinItem = src.priceType?.includes('gold') || src.priceType?.includes('coin') ||
+            subItem.category?.includes('طلا') || subItem.category?.includes('سکه');
+          const isCryptoItem = src.priceType?.includes('crypto') || subItem.category?.includes('رمزارز');
+
           let allowSubItemInTab = false;
           if (activeCategory === 'all' || activeCategory === 'sources' || activeCategory === 'multi_output') {
             allowSubItemInTab = true;
           } else if (activeCategory === 'bourse') {
-            allowSubItemInTab = src.priceType === 'bourse' || src.priceType === 'bourse_fund' || subItem.isFund ||
-              subItem.category.includes('بورس') || subItem.category.includes('صندوق');
+            allowSubItemInTab = isBourseItem;
           } else if (activeCategory === 'gold_coins') {
-            allowSubItemInTab = src.priceType?.includes('gold') || src.priceType?.includes('coin') ||
-              subItem.category.includes('طلا') || subItem.category.includes('سکه');
+            allowSubItemInTab = isGoldCoinItem;
           } else if (activeCategory === 'currency_crypto') {
-            allowSubItemInTab = src.priceType?.includes('currency') || src.priceType?.includes('crypto') || src.priceType === 'forex' ||
-              subItem.category.includes('ارز') || subItem.category.includes('رمزارز');
+            allowSubItemInTab = isForexItem || isCryptoItem;
           }
 
           if (!allowSubItemInTab) return;
 
           let matchesQuery = false;
-          const parentTypeLabel = getPriceTypeLabel(src.priceType, priceTypeInfo);
-          const itemTypeLabel = subItem.category || parentTypeLabel;
-          const itemTypeNorm = normalizeSearchText(itemTypeLabel);
+          const subNameNorm = normalizeSearchText(subItem.name);
+          const subSymNorm = normalizeSearchText(subItem.symbol);
+          const subCatNorm = normalizeSearchText(subItem.category);
+          const subExtraNorm = normalizeSearchText(subItem.extra);
 
           if (!qNorm) {
-            matchesQuery = activeCategory === 'multi_output' || results.filter((r) => r.sourceId === src.id && r.isMultiItem).length < 4;
+            matchesQuery = activeCategory === 'multi_output' || activeCategory === 'bourse' || results.filter((r) => r.sourceId === src.id && r.isMultiItem).length < 20;
           } else {
-            const subNameNorm = normalizeSearchText(subItem.name);
-            const subSymNorm = normalizeSearchText(subItem.symbol);
-            const subCatNorm = normalizeSearchText(subItem.category);
-            const subExtraNorm = normalizeSearchText(subItem.extra);
-
             matchesQuery = subNameNorm.includes(qNorm) ||
               subSymNorm.includes(qNorm) ||
               subCatNorm.includes(qNorm) ||
-              subExtraNorm.includes(qNorm) ||
-              itemTypeNorm.includes(qNorm) ||
-              srcNameNorm.includes(qNorm);
+              subExtraNorm.includes(qNorm);
+
+            if (isBourseItem && (qNorm === 'بورس' || qNorm === 'سهام' || qNorm === 'صندوق')) {
+              matchesQuery = true;
+            }
+            if (isForexItem && (qNorm === 'ارز' || qNorm === 'فارکس')) {
+              matchesQuery = true;
+            }
           }
 
           if (matchesQuery) {
-            results.push({
-              id: `${src.id}::${subItem.symbol || subItem.name}`,
-              sourceId: src.id,
-              subItemId: subItem.symbol || subItem.name,
-              symbol: subItem.symbol,
-              name: subItem.name,
-              priceTypeLabel: itemTypeLabel,
-              subText: `${src.name}${itemTypeLabel ? ` • نوع: ${itemTypeLabel}` : ''}${subItem.extra ? ` • ${subItem.extra}` : ''}`,
-              badge: itemTypeLabel || src.name,
-              badgeClass: 'multi_output',
-              price: Number(subItem.price || 0),
-              unit: src.unit || 'تومان',
-              category: 'multi_output',
-              type: 'source',
-              isMultiItem: true,
-              raw: {
-                ...subItem,
+            if (isBourseItem) {
+              const displayName = subItem.symbol && !subItem.name.includes(subItem.symbol)
+                ? `${subItem.name} (${subItem.symbol})`
+                : subItem.name;
+              const subDescription = subItem.category
+                ? `${subItem.category}${subItem.symbol ? ` • نماد: ${subItem.symbol}` : ''}`
+                : (isFund ? `صندوق سرمایه‌گذاری${subItem.symbol ? ` • نماد: ${subItem.symbol}` : ''}` : `سهام بورس اوراق بهادار${subItem.symbol ? ` • نماد: ${subItem.symbol}` : ''}`);
+
+              results.push({
+                id: `bourse_${subItem.symbol || subItem.name}`,
                 sourceId: src.id,
-                sourceName: src.name,
+                subItemId: subItem.symbol || subItem.name,
+                symbol: subItem.symbol,
+                name: displayName,
+                priceTypeLabel: null,
+                subText: subDescription,
+                badge: isFund ? 'صندوق' : 'بورس',
+                badgeClass: 'bourse',
+                price: Number(subItem.price || 0),
+                unit: isFund ? 'واحد' : 'برگ سهم',
+                category: isFund ? 'bourse_fund' : 'bourse',
+                type: 'bourse',
+                isMultiItem: true,
+                raw: {
+                  ...subItem,
+                  symbol: subItem.symbol,
+                  name: subItem.name,
+                  priceToman: Number(subItem.price || 0),
+                  priceRial: Number(subItem.price || 0) * 10,
+                  isFund,
+                  category: subItem.category,
+                  sourceId: src.id,
+                },
+              });
+            } else if (isForexItem) {
+              results.push({
+                id: `${src.id}::${subItem.symbol || subItem.name}`,
+                sourceId: src.id,
+                subItemId: subItem.symbol || subItem.name,
+                symbol: subItem.symbol,
+                name: subItem.name,
+                priceTypeLabel: subItem.symbol,
+                subText: `ارز جهانی • نرخ برابری ${subItem.symbol || ''}`,
+                badge: 'ارز',
+                badgeClass: 'currency',
+                price: Number(subItem.price || 0),
+                unit: 'تومان',
+                category: 'currency',
+                type: 'source',
+                isMultiItem: true,
+                raw: {
+                  ...subItem,
+                  sourceId: src.id,
+                  sourceName: src.name,
+                  unit: 'تومان',
+                },
+              });
+            } else {
+              const typeLabel = getPriceTypeLabel(src.priceType, priceTypeInfo);
+              results.push({
+                id: `${src.id}::${subItem.symbol || subItem.name}`,
+                sourceId: src.id,
+                subItemId: subItem.symbol || subItem.name,
+                symbol: subItem.symbol,
+                name: subItem.name,
+                priceTypeLabel: subItem.category || typeLabel,
+                subText: `${subItem.category || typeLabel || 'سورس'}${subItem.symbol ? ` • کد: ${subItem.symbol}` : ''}${subItem.extra ? ` • ${subItem.extra}` : ''}`,
+                badge: subItem.category || typeLabel || 'آیتم',
+                badgeClass: src.priceType || 'multi_output',
+                price: Number(subItem.price || 0),
                 unit: src.unit || 'تومان',
-              },
-            });
+                category: src.priceType || 'multi_output',
+                type: 'source',
+                isMultiItem: true,
+                raw: {
+                  ...subItem,
+                  sourceId: src.id,
+                  sourceName: src.name,
+                  unit: src.unit || 'تومان',
+                },
+              });
+            }
           }
         });
       } else {
@@ -712,7 +755,7 @@ export default function UniversalAssetSearch({
                       ) : item.price > 0 ? (
                         <>
                           <span className="universal-result-price">
-                            {item.price < 100
+                            {item.price % 1 !== 0
                               ? Number(item.price).toLocaleString('fa-IR', { minimumFractionDigits: 2, maximumFractionDigits: 4 })
                               : Math.round(item.price).toLocaleString('fa-IR')}
                           </span>
@@ -779,7 +822,7 @@ export default function UniversalAssetSearch({
                       ) : item.price > 0 ? (
                         <>
                           <span className="universal-result-price">
-                            {item.price < 100
+                            {item.price % 1 !== 0
                               ? Number(item.price).toLocaleString('fa-IR', { minimumFractionDigits: 2, maximumFractionDigits: 4 })
                               : Math.round(item.price).toLocaleString('fa-IR')}
                           </span>
