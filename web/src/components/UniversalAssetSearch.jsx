@@ -12,7 +12,21 @@ import {
   Sparkles,
   Check,
 } from 'lucide-react';
-import { apiGetPriceSources, apiSearchBourseSymbols } from '../api/client.js';
+import { apiGetPriceSources, apiSearchBourseSymbols, apiGetDerivedAssets } from '../api/client.js';
+import { computeAllDerivedPrices, calculateDerivedPrice } from '../utils/formulaEvaluator.js';
+
+export const DYNAMIC_DERIVED_LABELS = {};
+export function registerDerivedAssetLabels(derivedList = []) {
+  if (Array.isArray(derivedList)) {
+    for (const d of derivedList) {
+      if (d.id && d.name) {
+        DYNAMIC_DERIVED_LABELS[d.id] = d.name;
+        DYNAMIC_DERIVED_LABELS[d.id.toLowerCase()] = d.name;
+        DYNAMIC_DERIVED_LABELS[d.id.toUpperCase()] = d.name;
+      }
+    }
+  }
+}
 
 export const WORLD_CURRENCY_NAMES = {
   USD: 'دلار آمریکا',
@@ -123,19 +137,24 @@ const baseLabels = {
 export const STANDARD_PRICE_TYPE_LABELS = new Proxy(baseLabels, {
   get(target, prop) {
     if (typeof prop !== 'string') return target[prop];
+    if (DYNAMIC_DERIVED_LABELS[prop]) return DYNAMIC_DERIVED_LABELS[prop];
+    const lower = prop.toLowerCase().trim();
+    if (DYNAMIC_DERIVED_LABELS[lower]) return DYNAMIC_DERIVED_LABELS[lower];
     if (target[prop]) return target[prop];
     const upper = prop.toUpperCase().trim();
     if (WORLD_CURRENCY_NAMES[upper]) return WORLD_CURRENCY_NAMES[upper];
-    const lower = prop.toLowerCase().trim();
     if (target[lower]) return target[lower];
-    const stripped = upper.replace(/^(FOREX_|CUR_|FX_|SRC_DEF_)/, '');
+    const stripped = upper.replace(/^(FOREX_|CUR_|FX_|SRC_DEF_|DERIVED_)/, '');
+    if (DYNAMIC_DERIVED_LABELS[stripped.toLowerCase()]) return DYNAMIC_DERIVED_LABELS[stripped.toLowerCase()];
     if (WORLD_CURRENCY_NAMES[stripped]) return WORLD_CURRENCY_NAMES[stripped];
     return target[prop];
   },
   has(target, prop) {
     if (typeof prop !== 'string') return prop in target;
+    const lower = prop.toLowerCase().trim();
+    if (DYNAMIC_DERIVED_LABELS[lower]) return true;
     const upper = prop.toUpperCase().trim();
-    return (prop in target) || (upper in WORLD_CURRENCY_NAMES) || (prop.toLowerCase() in target);
+    return (prop in target) || (upper in WORLD_CURRENCY_NAMES) || (lower in target);
   },
 });
 
@@ -415,6 +434,7 @@ function getAssetIcon(item) {
 export default function UniversalAssetSearch({
   mode = 'picker',
   sources = null,
+  derivedAssets = null,
   priceTypeInfo = null,
   selectedAsset = null,
   selectedAssetId = null,
@@ -427,6 +447,7 @@ export default function UniversalAssetSearch({
   const [query, setQuery] = useState('');
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [internalSources, setInternalSources] = useState(sources || []);
+  const [internalDerivedAssets, setInternalDerivedAssets] = useState(derivedAssets || []);
   const [bourseSymbols, setBourseSymbols] = useState([]);
   const containerRef = useRef(null);
 
@@ -446,6 +467,25 @@ export default function UniversalAssetSearch({
       .catch((err) => console.error('Error loading sources:', err));
     return () => { isMounted = false; };
   }, [sources]);
+
+  // 1.5. Fetch Derived Assets if not passed in props
+  useEffect(() => {
+    if (derivedAssets && derivedAssets.length > 0) {
+      setInternalDerivedAssets(derivedAssets);
+      registerDerivedAssetLabels(derivedAssets);
+      return;
+    }
+    let isMounted = true;
+    apiGetDerivedAssets()
+      .then((res) => {
+        if (isMounted && res?.success && Array.isArray(res.derivedAssets)) {
+          setInternalDerivedAssets(res.derivedAssets);
+          registerDerivedAssetLabels(res.derivedAssets);
+        }
+      })
+      .catch((err) => console.error('Error loading derived assets:', err));
+    return () => { isMounted = false; };
+  }, [derivedAssets]);
 
   // 2. Preload Bourse symbols once upfront for instant search
   useEffect(() => {
@@ -558,72 +598,65 @@ export default function UniversalAssetSearch({
       seenKeys.add('gold_18k');
     }
 
-    // تضمین حضور طلای ۲۲ عیار
-    if (!seenKeys.has('gold_22k')) {
-      const p22 = p18 > 0 ? Math.round(p18 * (22 / 18)) : 0;
-      items.push({
-        id: 'gold_22k',
-        sourceId: 'derived_gold_22k',
-        priceType: 'gold_22k',
-        name: 'طلای ۲۲ عیار',
-        symbol: '',
-        subText: 'محاسبه شده بر مبنای طلای ۱۸ عیار',
-        badge: 'طلا',
-        badgeClass: 'gold',
-        category: 'gold',
-        price: p22,
-        unit: 'گرم',
-        type: 'standard',
-        raw: { id: 'gold_22k', priceType: 'gold_22k', name: 'طلای ۲۲ عیار', category: 'gold', unit: 'گرم', price: p22 },
-      });
-      seenKeys.add('gold_22k');
+    // ── نوع ۲: اقلام محاسباتی و مشتق‌شده پویا بر مبنای دیتابیس (Derived Assets) ──
+    const baseMap = {};
+    items.forEach(it => {
+      if (it.price > 0) {
+        baseMap[it.id] = it.price;
+        if (it.priceType) baseMap[it.priceType] = it.price;
+      }
+    });
+    if (usdToman > 0) {
+      baseMap.usd = usdToman;
+      baseMap.usd_toman = usdToman;
+    }
+    if (p18 > 0) {
+      baseMap.gold_18k = p18;
+    }
+    if (onsGoldPrice > 0) {
+      baseMap.ons_gold = onsGoldPrice;
+      baseMap.gold_usd = onsGoldPrice;
     }
 
-    // تضمین حضور طلای ۲۴ عیار
-    if (!seenKeys.has('gold_24k')) {
-      const p24 = p18 > 0 ? Math.round(p18 * (24 / 18)) : 0;
-      items.push({
-        id: 'gold_24k',
-        sourceId: 'derived_gold_24k',
-        priceType: 'gold_24k',
-        name: 'طلای ۲۴ عیار',
-        symbol: '',
-        subText: 'طلای خالص شمش (۹۹۹)',
-        badge: 'طلا',
-        badgeClass: 'gold',
-        category: 'gold',
-        price: p24,
-        unit: 'گرم',
-        type: 'standard',
-        raw: { id: 'gold_24k', priceType: 'gold_24k', name: 'طلای ۲۴ عیار', category: 'gold', unit: 'گرم', price: p24 },
-      });
-      seenKeys.add('gold_24k');
-    }
+    const derivedPrices = computeAllDerivedPrices(internalDerivedAssets, baseMap);
 
-    // تضمین حضور نقره خام (گرمی ۹۹۹)
-    if (!seenKeys.has('silver_999') && !seenKeys.has('silver_gram')) {
-      const onsSilverItem = items.find(i => i.id === 'ons_silver' || i.id === 'silver_ounce');
-      const rawOns = Number(onsSilverItem?.price || 0);
-      const onsToman = rawOns > 1000 ? rawOns : (usdToman > 0 ? (rawOns > 0 ? rawOns * usdToman : 33.5 * usdToman) : (rawOns > 0 ? rawOns * 90000 : 33.5 * 90000));
-      const silverGramPrice = Math.round(onsToman / 31.1034768);
+    internalDerivedAssets.forEach((d) => {
+      const isActive = d.isActive === 1 || d.isActive === true || d.is_active === 1 || d.is_active === true;
+      if (!isActive) return;
+
+      const calcPrice = Math.round(derivedPrices[d.id] || calculateDerivedPrice(d, { ...baseMap, ...derivedPrices }));
+      const meta = getCategoryMetadata(d.category || d.id);
+
       items.push({
-        id: 'silver_gram',
-        sourceId: 'derived_silver_gram',
-        priceType: 'silver_gram',
-        name: 'نقره خام (گرمی ۹۹۹)',
+        id: d.id,
+        sourceId: `derived_${d.id}`,
+        priceType: d.id,
+        name: d.name,
+        nameEn: d.nameEn || d.name_en || '',
         symbol: '',
-        subText: 'نقره خام و ساچمه بر مبنای انس جهانی',
-        badge: 'نقره',
-        badgeClass: 'silver',
-        category: 'silver',
-        price: silverGramPrice,
-        unit: 'گرم',
-        type: 'standard',
-        raw: { id: 'silver_gram', priceType: 'silver_gram', name: 'نقره خام (گرمی ۹۹۹)', category: 'silver', unit: 'گرم', price: silverGramPrice },
+        subText: d.description || (d.formulaType === 'multiplier' ? `ضریب ${d.multiplier} بر مبنای ${d.baseAssetId || d.base_asset_id}` : `فرمول: ${d.formulaExpression || d.formula_expression}`),
+        badge: meta.badge || (d.category === 'silver' ? 'نقره' : (d.category === 'gold' ? 'طلا' : 'محاسباتی')),
+        badgeClass: d.category || meta.category,
+        category: d.category || meta.category,
+        price: calcPrice,
+        unit: d.unit || 'گرم',
+        type: 'derived',
+        raw: {
+          id: d.id,
+          name: d.name,
+          priceType: d.id,
+          category: d.category || meta.category,
+          unit: d.unit || 'گرم',
+          price: calcPrice,
+          isDerived: true,
+          baseAssetId: d.baseAssetId || d.base_asset_id,
+          formulaType: d.formulaType || d.formula_type,
+          multiplier: d.multiplier,
+          formulaExpression: d.formulaExpression || d.formula_expression,
+        },
       });
-      seenKeys.add('silver_gram');
-      seenKeys.add('silver_999');
-    }
+      seenKeys.add(d.id);
+    });
 
     // ── نوع ۲: هاب سورس‌های چند خروجی و فیدها (تمام دسته‌بندی‌ها) ───────────────
     // هر اقلامی که زیرش هست رو بیار، در صورت فعال بودن
@@ -726,7 +759,7 @@ export default function UniversalAssetSearch({
     });
 
     return items;
-  }, [internalSources, bourseSymbols, priceTypeInfo]);
+  }, [internalSources, internalDerivedAssets, bourseSymbols, priceTypeInfo]);
 
   // 4. Pure Client-Side Instant Search Filter
   const filteredItems = useMemo(() => {

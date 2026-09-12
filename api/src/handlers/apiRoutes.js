@@ -6,18 +6,19 @@
 import { getLatestMarketRates } from "../services/priceSources.js";
 import { getGlobalSettings } from "../lib/settings.js";
 import { jsonResponse } from "../lib/helpers.js";
-import { dbGet24hSparklines, dbGetHistoricalBenchmarks } from "../lib/db.js";
+import { dbGet24hSparklines, dbGetHistoricalBenchmarks, dbGetDerivedAssets } from "../lib/db.js";
 
 /**
  * GET /api/prices
- * Return live raw market prices, spot gold/silver, USD, forex rates, and global settings.
+ * Return live raw market prices, spot gold/silver, USD, forex rates, derived assets, and global settings.
  * Reads directly from KV / memory cache (sub-2ms response, zero calculation overhead).
  */
 export async function handleGetPrices(env, request = null) {
   try {
-    const [prices, globalSettings] = await Promise.all([
+    const [prices, globalSettings, derivedAssets] = await Promise.all([
       getLatestMarketRates(env),
       getGlobalSettings(env),
+      dbGetDerivedAssets(env, true),
     ]);
 
     const gold_usd = prices.ons_gold?.price || globalSettings?.default_gold_usd || 2890;
@@ -51,8 +52,23 @@ export async function handleGetPrices(env, request = null) {
       live_usd_toman,
       live_usd_item,
       forex,
+      derived_assets: derivedAssets,
+      derivedAssets,
       globalSettings,
     }, 200, request);
+  } catch (err) {
+    return jsonResponse({ success: false, error: err.message }, 500, request);
+  }
+}
+
+/**
+ * GET /api/derived-assets
+ * Public endpoint to fetch active derived assets
+ */
+export async function handleGetDerivedAssets(env, request = null) {
+  try {
+    const assets = await dbGetDerivedAssets(env, true);
+    return jsonResponse({ success: true, derivedAssets: assets }, 200, request);
   } catch (err) {
     return jsonResponse({ success: false, error: err.message }, 500, request);
   }

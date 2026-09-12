@@ -32,8 +32,11 @@ export default function MainPage() {
   const isSources =
     !isSettings && (
       location.pathname.startsWith('/admin/sources') ||
+      location.pathname.startsWith('/admin/derived') ||
+      location.pathname.startsWith('/derived-assets') ||
       location.pathname.startsWith('/sources') ||
-      searchParams.get('tab') === 'sources'
+      searchParams.get('tab') === 'sources' ||
+      searchParams.get('tab') === 'derived'
     );
 
   const isAdmin =
@@ -116,6 +119,7 @@ export default function MainPage() {
     setGoldUsd,
     liveUsdSource,
     liveUsdDatetime,
+    derivedAssets,
   } = useMarketData();
 
   const announcement = calcData?.globalSettings?.announcement || rates?.globalSettings?.announcement;
@@ -230,6 +234,7 @@ export default function MainPage() {
             rates={rates}
             usdToman={usdToman}
             goldUsd={goldUsd}
+            derivedAssets={derivedAssets}
             initialPortfolioId={params.portfolioId || searchParams.get('p') || searchParams.get('id') || null}
           />
         )}

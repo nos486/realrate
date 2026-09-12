@@ -37,8 +37,11 @@ import {
   handleAdminSaveSourceType,
   handleAdminDeleteSourceType,
   handleAdminInspectApiRoute,
+  handleAdminGetDerivedAssets,
+  handleAdminSaveDerivedAsset,
+  handleAdminDeleteDerivedAsset,
 } from "./handlers/adminRoutes.js";
-import { handleGetPrices, handleGetSparklines, handleGetHistoricalBenchmarks } from "./handlers/apiRoutes.js";
+import { handleGetPrices, handleGetSparklines, handleGetHistoricalBenchmarks, handleGetDerivedAssets } from "./handlers/apiRoutes.js";
 import {
   handleGetPortfolios,
   handleCreatePortfolio,
@@ -119,6 +122,12 @@ export default {
       if (request.method === "DELETE") return handleAdminDeleteSourceType(request, env);
     }
 
+    if (url.pathname === "/api/admin/derived-assets") {
+      if (request.method === "GET") return handleAdminGetDerivedAssets(request, env);
+      if (request.method === "POST" || request.method === "PUT") return handleAdminSaveDerivedAsset(request, env);
+      if (request.method === "DELETE") return handleAdminDeleteDerivedAsset(request, env);
+    }
+
     // ── Portfolio API Routes ────────────────────────────────────────────────
     if (url.pathname === "/api/portfolio/shared")                              return handleGetSharedPortfolio(request, env);
     if (url.pathname === "/api/portfolios") {
@@ -135,6 +144,7 @@ export default {
 
     // ── Public API Routes ───────────────────────────────────────────────────
     if (url.pathname === "/api/prices") return handleGetPrices(env, request);
+    if (url.pathname === "/api/derived-assets") return handleGetDerivedAssets(env, request);
     if (url.pathname === "/api/sparklines" || url.pathname === "/api/prices/sparklines") {
       return handleGetSparklines(env, request);
     }

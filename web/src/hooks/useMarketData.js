@@ -73,5 +73,6 @@ export function useMarketData() {
     setGoldUsd,
     liveUsdSource: rates?.live_usd_toman ? 'live' : 'manual',
     liveUsdDatetime: rates?.live_usd_item?.datetime || null,
+    derivedAssets: rates?.derivedAssets || rates?.derived_assets || [],
   };
 }

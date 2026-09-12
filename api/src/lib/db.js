@@ -138,6 +138,23 @@ export async function ensureD1Tables(env) {
       created_at TEXT NOT NULL
     )`,
     `CREATE INDEX IF NOT EXISTS idx_source_types_sort ON source_types(sort_order ASC)`,
+    `CREATE TABLE IF NOT EXISTS derived_assets (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      category TEXT NOT NULL DEFAULT 'gold',
+      unit TEXT NOT NULL DEFAULT 'گرم',
+      base_asset_id TEXT NOT NULL,
+      formula_type TEXT NOT NULL DEFAULT 'multiplier',
+      multiplier REAL DEFAULT 1.0,
+      formula_expression TEXT DEFAULT '',
+      description TEXT DEFAULT '',
+      is_active INTEGER DEFAULT 1,
+      sort_order INTEGER DEFAULT 10,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    )`,
+    `CREATE INDEX IF NOT EXISTS idx_derived_assets_active ON derived_assets(is_active)`,
+    `CREATE INDEX IF NOT EXISTS idx_derived_assets_sort ON derived_assets(sort_order ASC)`,
   ];
 
   try {
@@ -361,6 +378,13 @@ export async function ensureD1Tables(env) {
       }
     } catch (e) {
       console.error("Price sources seed error:", e);
+    }
+
+    // Seed default derived assets
+    try {
+      await ensureDerivedAssetsSeed(env);
+    } catch (e) {
+      console.error("Derived assets seed error:", e);
     }
 
     // Source types table initialized without forcing hardcoded categories
@@ -2016,5 +2040,366 @@ export async function dbGetHistoricalBenchmarks(env) {
     console.error("D1 dbGetHistoricalBenchmarks error:", e);
     return result;
   }
+}
+
+// ---------------------------------------------------------------------------
+// DERIVED ASSETS (فرمول‌ها و اقلام محاسباتی و مشتق‌شده)
+// ---------------------------------------------------------------------------
+
+export const DEFAULT_DERIVED_ASSETS = [
+  {
+    id: 'gold_24k',
+    name: 'طلای ۲۴ عیار',
+    name_en: 'Gold 24K',
+    category: 'gold',
+    unit: 'گرم',
+    base_asset_id: 'gold_18k',
+    base_source_id: '',
+    formula_type: 'multiplier',
+    multiplier: 1.33333333,
+    formula_expression: 'BASE * (24 / 18)',
+    description: 'طلای ۲۴ عیار خالص بر مبنای ضریب ۲۴/۱۸ طلای ۱۸ عیار',
+    is_active: 1,
+    sort_order: 1,
+  },
+  {
+    id: 'gold_22k',
+    name: 'طلای ۲۲ عیار',
+    name_en: 'Gold 22K',
+    category: 'gold',
+    unit: 'گرم',
+    base_asset_id: 'gold_18k',
+    base_source_id: '',
+    formula_type: 'multiplier',
+    multiplier: 1.22222222,
+    formula_expression: 'BASE * (22 / 18)',
+    description: 'طلای ۲۲ عیار با ضریب ۲۲/۱۸ طلای ۱۸ عیار',
+    is_active: 1,
+    sort_order: 2,
+  },
+  {
+    id: 'gold_melted',
+    name: 'طلای آبشده',
+    name_en: 'Melted Gold',
+    category: 'gold',
+    unit: 'گرم',
+    base_asset_id: 'gold_18k',
+    base_source_id: '',
+    formula_type: 'multiplier',
+    multiplier: 1.0,
+    formula_expression: 'BASE',
+    description: 'طلای آبشده بر مبنای هر گرم طلای ۱۸ عیار',
+    is_active: 1,
+    sort_order: 3,
+  },
+  {
+    id: 'mesghal',
+    name: 'مثقال طلا (مظنه)',
+    name_en: 'Gold Mesghal',
+    category: 'gold',
+    unit: 'مثقال',
+    base_asset_id: 'gold_18k',
+    base_source_id: '',
+    formula_type: 'multiplier',
+    multiplier: 4.3318,
+    formula_expression: 'BASE * 4.3318',
+    description: 'یک مثقال طلا معادل ۴.۳۳۱۸ گرم طلا ۱۸ عیار',
+    is_active: 1,
+    sort_order: 4,
+  },
+  {
+    id: 'silver_gram',
+    name: 'نقره خام (ساچمه ۹۹۹)',
+    name_en: 'Silver Granule 999 (Gram)',
+    category: 'silver',
+    unit: 'گرم',
+    base_asset_id: 'ons_silver',
+    base_source_id: '',
+    formula_type: 'expression',
+    multiplier: 1.0,
+    formula_expression: '(BASE * USD) / 31.1034768',
+    description: 'هر گرم نقره خام ۹۹۹ بر اساس انس جهانی نقره ضرب در دلار تقسیم بر ۳۱.۱۰۳۵',
+    is_active: 1,
+    sort_order: 5,
+  },
+  {
+    id: 'silver_925',
+    name: 'نقره استرلینگ ۹۲۵',
+    name_en: 'Sterling Silver 925 (Gram)',
+    category: 'silver',
+    unit: 'گرم',
+    base_asset_id: 'silver_gram',
+    base_source_id: '',
+    formula_type: 'multiplier',
+    multiplier: 0.925,
+    formula_expression: 'BASE * 0.925',
+    description: 'نقره ۹۲۵ عیار با ضریب ۰.۹۲۵ نقره خام ۹۹۹',
+    is_active: 1,
+    sort_order: 6,
+  },
+];
+
+/**
+ * Seed default derived assets into database if they don't already exist
+ */
+export async function ensureDerivedAssetsSeed(env) {
+  if (!env || !env.DB) return;
+  try {
+    const nowIso = new Date().toISOString();
+    for (const item of DEFAULT_DERIVED_ASSETS) {
+      await env.DB.prepare(`
+        INSERT OR IGNORE INTO derived_assets (
+          id, name, name_en, category, unit, base_asset_id, base_source_id,
+          formula_type, multiplier, formula_expression, description,
+          is_active, sort_order, created_at, updated_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `).bind(
+        item.id,
+        item.name,
+        item.name_en || '',
+        item.category || 'gold',
+        item.unit || 'گرم',
+        item.base_asset_id,
+        item.base_source_id || '',
+        item.formula_type || 'multiplier',
+        item.multiplier !== undefined ? Number(item.multiplier) : 1.0,
+        item.formula_expression || '',
+        item.description || '',
+        item.is_active !== undefined ? Number(item.is_active) : 1,
+        item.sort_order !== undefined ? Number(item.sort_order) : 10,
+        nowIso,
+        nowIso
+      ).run().catch(() => {});
+    }
+  } catch (e) {
+    console.error("Derived assets seed error:", e);
+  }
+}
+
+/**
+ * Get all derived assets from D1
+ * @param {object} env
+ * @param {boolean} activeOnly
+ * @returns {Promise<Array>}
+ */
+export async function dbGetDerivedAssets(env, activeOnly = false) {
+  if (env && env.DB) {
+    await ensureD1Tables(env);
+    try {
+      let query = `
+        SELECT id, name, name_en AS nameEn, category, unit,
+               base_asset_id AS baseAssetId, base_source_id AS baseSourceId,
+               formula_type AS formulaType, multiplier, formula_expression AS formulaExpression,
+               description, is_active AS isActive, sort_order AS sortOrder,
+               created_at AS createdAt, updated_at AS updatedAt
+        FROM derived_assets
+      `;
+      if (activeOnly) {
+        query += ` WHERE is_active = 1`;
+      }
+      query += ` ORDER BY sort_order ASC, created_at ASC`;
+
+      const { results } = await env.DB.prepare(query).all();
+      if (Array.isArray(results) && results.length > 0) {
+        return results.map(row => ({
+          ...row,
+          isActive: Boolean(row.isActive),
+          multiplier: Number(row.multiplier) || 1.0,
+          sortOrder: Number(row.sortOrder) || 10,
+        }));
+      }
+    } catch (e) {
+      console.error("D1 dbGetDerivedAssets error:", e);
+    }
+  }
+
+  // Fallback to default in-memory list
+  const filtered = activeOnly ? DEFAULT_DERIVED_ASSETS.filter(d => d.is_active) : DEFAULT_DERIVED_ASSETS;
+  return filtered.map(d => ({
+    id: d.id,
+    name: d.name,
+    nameEn: d.name_en,
+    category: d.category,
+    unit: d.unit,
+    baseAssetId: d.base_asset_id,
+    baseSourceId: d.base_source_id || '',
+    formulaType: d.formula_type,
+    multiplier: d.multiplier,
+    formulaExpression: d.formula_expression,
+    description: d.description,
+    isActive: Boolean(d.is_active),
+    sortOrder: d.sort_order,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  }));
+}
+
+/**
+ * Get single derived asset by ID
+ * @param {object} env
+ * @param {string} id
+ * @returns {Promise<object|null>}
+ */
+export async function dbGetDerivedAssetById(env, id) {
+  if (!id) return null;
+  if (env && env.DB) {
+    await ensureD1Tables(env);
+    try {
+      const row = await env.DB.prepare(`
+        SELECT id, name, name_en AS nameEn, category, unit,
+               base_asset_id AS baseAssetId, base_source_id AS baseSourceId,
+               formula_type AS formulaType, multiplier, formula_expression AS formulaExpression,
+               description, is_active AS isActive, sort_order AS sortOrder,
+               created_at AS createdAt, updated_at AS updatedAt
+        FROM derived_assets
+        WHERE id = ?
+      `).bind(id).first();
+
+      if (row) {
+        return {
+          ...row,
+          isActive: Boolean(row.isActive),
+          multiplier: Number(row.multiplier) || 1.0,
+          sortOrder: Number(row.sortOrder) || 10,
+        };
+      }
+    } catch (e) {
+      console.error("D1 dbGetDerivedAssetById error:", e);
+    }
+  }
+
+  const found = DEFAULT_DERIVED_ASSETS.find(d => d.id === id);
+  if (found) {
+    return {
+      id: found.id,
+      name: found.name,
+      nameEn: found.name_en,
+      category: found.category,
+      unit: found.unit,
+      baseAssetId: found.base_asset_id,
+      baseSourceId: found.base_source_id || '',
+      formulaType: found.formula_type,
+      multiplier: found.multiplier,
+      formulaExpression: found.formula_expression,
+      description: found.description,
+      isActive: Boolean(found.is_active),
+      sortOrder: found.sort_order,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+  }
+  return null;
+}
+
+/**
+ * Save (create or update) a derived asset
+ * @param {object} env
+ * @param {object} data
+ * @returns {Promise<object>}
+ */
+export async function dbSaveDerivedAsset(env, data) {
+  const name = String(data.name || "").trim();
+  const baseAssetId = String(data.baseAssetId || data.base_asset_id || "").trim();
+  const category = String(data.category || "gold").trim();
+  const unit = String(data.unit || "گرم").trim();
+
+  if (!name || !baseAssetId) {
+    throw new Error("نام قلم و دارایی پایه الزامی هستند.");
+  }
+
+  let id = String(data.id || "").trim();
+  if (!id) {
+    id = `derived_${Date.now()}_${crypto.randomUUID().slice(0, 6)}`;
+  } else {
+    id = id.toLowerCase().replace(/[^a-z0-9_]/g, '_');
+  }
+
+  const nameEn = String(data.nameEn || data.name_en || "").trim();
+  const baseSourceId = String(data.baseSourceId || data.base_source_id || "").trim();
+  const formulaType = (data.formulaType || data.formula_type) === 'expression' ? 'expression' : 'multiplier';
+  const multiplier = data.multiplier !== undefined && data.multiplier !== '' ? Number(data.multiplier) : 1.0;
+  const formulaExpression = String(data.formulaExpression || data.formula_expression || "").trim();
+  const description = String(data.description || "").trim();
+  const isActive = data.isActive !== undefined ? (data.isActive ? 1 : 0) : 1;
+  const sortOrder = data.sortOrder !== undefined && data.sortOrder !== '' ? Number(data.sortOrder) : 10;
+  const now = new Date().toISOString();
+
+  if (env && env.DB) {
+    await ensureD1Tables(env);
+
+    await env.DB.prepare(`
+      INSERT INTO derived_assets (
+        id, name, name_en, category, unit, base_asset_id, base_source_id,
+        formula_type, multiplier, formula_expression, description,
+        is_active, sort_order, created_at, updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ON CONFLICT(id) DO UPDATE SET
+        name = excluded.name,
+        name_en = excluded.name_en,
+        category = excluded.category,
+        unit = excluded.unit,
+        base_asset_id = excluded.base_asset_id,
+        base_source_id = excluded.base_source_id,
+        formula_type = excluded.formula_type,
+        multiplier = excluded.multiplier,
+        formula_expression = excluded.formula_expression,
+        description = excluded.description,
+        is_active = excluded.is_active,
+        sort_order = excluded.sort_order,
+        updated_at = excluded.updated_at
+    `).bind(
+      id,
+      name,
+      nameEn,
+      category,
+      unit,
+      baseAssetId,
+      baseSourceId,
+      formulaType,
+      multiplier,
+      formulaExpression,
+      description,
+      isActive,
+      sortOrder,
+      now,
+      now
+    ).run();
+
+    return await dbGetDerivedAssetById(env, id);
+  }
+
+  return {
+    id,
+    name,
+    nameEn,
+    category,
+    unit,
+    baseAssetId,
+    baseSourceId,
+    formulaType,
+    multiplier,
+    formulaExpression,
+    description,
+    isActive: Boolean(isActive),
+    sortOrder,
+    createdAt: now,
+    updatedAt: now,
+  };
+}
+
+/**
+ * Delete a derived asset
+ * @param {object} env
+ * @param {string} id
+ * @returns {Promise<boolean>}
+ */
+export async function dbDeleteDerivedAsset(env, id) {
+  if (!id) throw new Error("شناسه قلم مشتق‌شده الزامی است.");
+  if (env && env.DB) {
+    await ensureD1Tables(env);
+    await env.DB.prepare("DELETE FROM derived_assets WHERE id = ?").bind(id).run();
+    return true;
+  }
+  return false;
 }
 
