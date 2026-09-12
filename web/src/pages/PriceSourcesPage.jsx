@@ -56,7 +56,7 @@ import {
   apiDeleteSourceType,
 } from '../api/client.js';
 import PriceHistoryChart from '../components/PriceHistoryChart.jsx';
-import UniversalAssetSearch from '../components/UniversalAssetSearch.jsx';
+import UniversalAssetSearch, { WORLD_CURRENCY_NAMES } from '../components/UniversalAssetSearch.jsx';
 
 // PRICE_TYPE_INFO is now computed dynamically inside the component from DB-loaded sourceTypes
 // See: const PRICE_TYPE_INFO = useMemo(...) inside PriceSourcesPage()
@@ -606,19 +606,35 @@ export default function PriceSourcesPage({ embedded = false, usdToman: propUsdTo
     if (!cand || !Array.isArray(cand.sampleItems)) return [];
 
     const isRial = multiForm.priceUnit === 'rial';
+    const isForex = multiForm.priceType === 'forex' || cand.isForexDict;
+    const usdSource = sources.find(s =>
+      (s.priceType === 'usd' || s.priceType === 'usd_toman') &&
+      (s.isActive || s.is_active) && (s.isPrimary || s.is_primary)
+    ) || sources.find(s => (s.priceType === 'usd' || s.priceType === 'usd_toman') && (s.isActive || s.is_active));
+    const usdToman = Number(usdSource?.lastPrice || 0);
+
     const mult = Number(multiForm.multiplier) > 0 ? Number(multiForm.multiplier) : (isRial ? 0.1 : 1);
     const excludedSet = new Set((multiForm.excludedOutputs || []).map(x => String(x).toLowerCase().trim()));
 
     return cand.sampleItems.map((raw, idx) => {
       const idVal = String(raw[multiForm.idField] || raw.id || raw.symbol || raw.code || idx + 1);
-      const titleVal = String(raw[multiForm.titleField] || raw.name || raw.title || idVal);
-      const rawPrice = Number(raw[multiForm.priceField]) || 0;
-      const finalPrice = Math.round(rawPrice * mult);
+      const symUpper = idVal.toUpperCase();
+      const resolvedFaName = isForex ? (WORLD_CURRENCY_NAMES[symUpper] || raw.fa_name || raw.name || symUpper) : null;
+      let titleVal = String(raw[multiForm.titleField] || raw.name || raw.title || idVal);
+      if (isForex && resolvedFaName) {
+        titleVal = resolvedFaName.includes(symUpper) ? resolvedFaName : `${resolvedFaName} (${symUpper})`;
+      }
+
+      const rawPrice = Number(raw[multiForm.priceField]) || Number(raw.price) || Number(raw.usdCrossRate) || 0;
+      let finalPrice = isForex
+        ? (usdToman > 0 && rawPrice > 0 ? Math.round(rawPrice * usdToman) : Math.round(rawPrice))
+        : Math.round(rawPrice * mult);
+
       const rawAlt = Number(raw[multiForm.altPriceField]) || 0;
       const finalAlt = rawAlt > 0 ? Math.round(rawAlt * mult) : 0;
       const changePct = Number(raw[multiForm.changePercentField]) || 0;
-      const catVal = String(raw[multiForm.categoryField] || '');
-      const extraVal = String(raw[multiForm.extraField] || '');
+      const catVal = isForex ? 'ارزهای جهانی (فارکس)' : String(raw[multiForm.categoryField] || '');
+      const extraVal = isForex && rawPrice > 0 ? `بر مبنای دلار (${rawPrice.toFixed(4)} $)` : String(raw[multiForm.extraField] || '');
 
       const isExcluded = excludedSet.has(idVal.toLowerCase()) || excludedSet.has(titleVal.toLowerCase());
 
@@ -633,7 +649,7 @@ export default function PriceSourcesPage({ embedded = false, usdToman: propUsdTo
         isExcluded,
       };
     });
-  }, [inspectResult, multiForm.arrayPath, multiForm.idField, multiForm.titleField, multiForm.priceField, multiForm.altPriceField, multiForm.changePercentField, multiForm.categoryField, multiForm.extraField, multiForm.priceUnit, multiForm.multiplier, multiForm.excludedOutputs]);
+  }, [inspectResult, multiForm.arrayPath, multiForm.idField, multiForm.titleField, multiForm.priceField, multiForm.altPriceField, multiForm.changePercentField, multiForm.categoryField, multiForm.extraField, multiForm.priceUnit, multiForm.multiplier, multiForm.excludedOutputs, multiForm.priceType, sources]);
 
   const handleToggleExcludeInPreview = (item) => {
     const key = (item.id || item.title || '').trim().toLowerCase();
@@ -786,10 +802,45 @@ export default function PriceSourcesPage({ embedded = false, usdToman: propUsdTo
     setExplorerSearch('');
     setExplorerModalOpen(true);
 
+    const isForex = src.priceType === 'forex';
+    const usdSource = sources.find(s =>
+      (s.priceType === 'usd' || s.priceType === 'usd_toman') &&
+      (s.isActive || s.is_active) && (s.isPrimary || s.is_primary)
+    ) || sources.find(s => (s.priceType === 'usd' || s.priceType === 'usd_toman') && (s.isActive || s.is_active));
+    const usdToman = Number(usdSource?.lastPrice || 0);
+
     let items = [];
     if (src.lastMultiData) {
       const multi = typeof src.lastMultiData === 'string' ? JSON.parse(src.lastMultiData) : src.lastMultiData;
-      items = multi.sampleItems || multi.items || multi.compactList || [];
+      if (isForex) {
+        const dict = (multi && typeof multi === 'object' && !Array.isArray(multi))
+          ? (multi.rates || multi)
+          : {};
+        const entries = Object.entries(dict).filter(([k]) => !['updatedAt', 'totalCount', 'datetime', 'error', 'sampleItems', 'compactList', 'items'].includes(k));
+        if (entries.length > 0) {
+          items = entries.map(([k, v]) => {
+            const code = k.toUpperCase();
+            const faName = WORLD_CURRENCY_NAMES[code] || (typeof v === 'object' ? v.name : code);
+            const cross = typeof v === 'object' ? Number(v.usdCrossRate || v.price || v.p || v.val || 0) : Number(v || 0);
+            const tomanPrice = usdToman > 0 && cross > 0 ? Math.round(cross * usdToman) : Math.round(cross);
+            return {
+              s: code,
+              n: faName && !faName.includes(code) ? `${faName} (${code})` : faName,
+              faName,
+              p: tomanPrice,
+              priceTomans: tomanPrice,
+              priceFinal: tomanPrice,
+              usdCrossRate: cross,
+              cat: 'ارزهای جهانی (فارکس)',
+              extra: cross > 0 ? `نرخ دلاری: ${cross.toFixed(4)} $` : '',
+              cp: typeof v === 'object' ? (v.changePercent || v.cp || 0) : 0,
+            };
+          });
+        }
+      }
+      if (items.length === 0) {
+        items = multi.sampleItems || multi.items || multi.compactList || [];
+      }
     }
 
     if (items.length > 0) {
@@ -800,8 +851,31 @@ export default function PriceSourcesPage({ embedded = false, usdToman: propUsdTo
     setExplorerLoading(true);
     try {
       const testRes = await apiTestPriceSource(src);
-      if (testRes.success && (testRes.sampleItems || testRes.compactList)) {
-        setExplorerItems(testRes.sampleItems || testRes.compactList || []);
+      if (testRes.success) {
+        if (isForex && (testRes.currencyList || testRes.multiData)) {
+          const list = testRes.currencyList || Object.entries(testRes.multiData || {}).map(([k, v]) => ({ code: k.toUpperCase(), usdCrossRate: Number(v) }));
+          items = list.map((c) => {
+            const code = (c.code || c.key || '').toUpperCase();
+            const faName = WORLD_CURRENCY_NAMES[code] || c.label || code;
+            const cross = Number(c.usdCrossRate || c.rawRate || c.p || 0);
+            const tomanPrice = usdToman > 0 && cross > 0 ? Math.round(cross * usdToman) : Math.round(cross);
+            return {
+              s: code,
+              n: faName && !faName.includes(code) ? `${faName} (${code})` : faName,
+              faName,
+              p: tomanPrice,
+              priceTomans: tomanPrice,
+              priceFinal: tomanPrice,
+              usdCrossRate: cross,
+              cat: 'ارزهای جهانی (فارکس)',
+              extra: cross > 0 ? `نرخ دلاری: ${cross.toFixed(4)} $` : '',
+              cp: 0,
+            };
+          });
+        } else {
+          items = testRes.sampleItems || testRes.compactList || [];
+        }
+        setExplorerItems(items);
       }
     } catch (e) {
       console.error('Error fetching explorer items:', e);

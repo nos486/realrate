@@ -29,9 +29,15 @@ export async function handleGetPrices(env, request = null) {
 
     // Derive forex cross-rates directly from prices (compiled from sources)
     const forex = {};
-    const forexTypes = ['eur', 'try', 'aed', 'gbp', 'chf', 'cad', 'aud', 'cny'];
-    for (const t of forexTypes) {
-      if (prices[t]?.price) {
+    const standardNonForex = new Set(['usd', 'usd_toman', 'gold_18k', 'gold_24k', 'gold_melted', 'mesghal', 'full_coin', 'full_new', 'full_old', 'half_coin', 'half', 'quarter_coin', 'quarter', 'gerami_coin', 'gerami', 'ons_gold', 'ons_silver', 'silver_999', 'silver_ounce', 'bourse', 'bourse_fund', 'last_updated']);
+    for (const [t, item] of Object.entries(prices)) {
+      if (item && item.price > 0 && !standardNonForex.has(t) && (item.usdCrossRate !== undefined || Number(item.price) < 500)) {
+        forex[t.toUpperCase()] = item.price;
+      }
+    }
+    const fallbackForexTypes = ['eur', 'try', 'aed', 'gbp', 'chf', 'cad', 'aud', 'cny'];
+    for (const t of fallbackForexTypes) {
+      if (prices[t]?.price && !forex[t.toUpperCase()]) {
         forex[t.toUpperCase()] = prices[t].price;
       }
     }
