@@ -368,8 +368,10 @@ export function parseSourceContent(source, rawContent) {
         multiData: {
           totalCount: compactList.length,
           totalSymbols: compactList.length,
-          topSymbols: compactList.slice(0, 10).map(x => x.s),
-          sampleItems: compactList.slice(0, 100),
+          topSymbols: compactList.slice(0, 20).map(x => x.s),
+          sampleItems: compactList.slice(0, 500),
+          items: compactList.slice(0, 500),
+          compactList: compactList.slice(0, 500),
           labels,
           updatedAt: nowIso,
         },

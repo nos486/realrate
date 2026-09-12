@@ -1310,11 +1310,16 @@ export async function dbGetPriceSources(env) {
           if (row.displayConfig) {
             try { parsedDisplayConfig = typeof row.displayConfig === 'string' ? JSON.parse(row.displayConfig) : row.displayConfig; } catch {}
           }
+          let parsedLastMultiData = null;
+          if (row.lastMultiData) {
+            try { parsedLastMultiData = typeof row.lastMultiData === 'string' ? JSON.parse(row.lastMultiData) : row.lastMultiData; } catch {}
+          }
           return {
             ...row,
             fieldMapping: parsedFieldMapping || row.fieldMapping || null,
             excludedOutputs: Array.isArray(parsedExcludedOutputs) ? parsedExcludedOutputs : [],
             displayConfig: parsedDisplayConfig || null,
+            lastMultiData: parsedLastMultiData !== null ? parsedLastMultiData : (row.lastMultiData || null),
             channelUsername: row.sourceType === "telegram" ? row.endpoint : "",
             apiUrl: row.sourceType === "api_url" ? row.endpoint : "",
             regexPattern: row.regex || "",
@@ -1367,11 +1372,16 @@ export async function dbGetPriceSourceById(env, id) {
       if (row.displayConfig) {
         try { parsedDisplayConfig = typeof row.displayConfig === 'string' ? JSON.parse(row.displayConfig) : row.displayConfig; } catch {}
       }
+      let parsedLastMultiData = null;
+      if (row.lastMultiData) {
+        try { parsedLastMultiData = typeof row.lastMultiData === 'string' ? JSON.parse(row.lastMultiData) : row.lastMultiData; } catch {}
+      }
       return {
         ...row,
         fieldMapping: parsedFieldMapping || row.fieldMapping || null,
         excludedOutputs: Array.isArray(parsedExcludedOutputs) ? parsedExcludedOutputs : [],
         displayConfig: parsedDisplayConfig || null,
+        lastMultiData: parsedLastMultiData !== null ? parsedLastMultiData : (row.lastMultiData || null),
         channelUsername: row.sourceType === "telegram" ? row.endpoint : "",
         apiUrl: row.sourceType === "api_url" ? row.endpoint : "",
         regexPattern: row.regex || "",

@@ -2091,11 +2091,10 @@ export default function PortfolioTracker({ calcData, rates, usdToman, goldUsd, i
                   mode="picker"
                   selectedAssetId={selectedAssetId}
                   showCategories={true}
-                  showFrequentChips={true}
                   onSelect={(item) => {
                     if (item.type === 'bourse') {
                       handleSelectBourseSymbol(item.raw);
-                    } else if (item.type === 'source') {
+                    } else if (item.type === 'source' || item.type === 'multi_output' || item.isMultiItem) {
                       setSelectedAssetId(item.id);
                       setSelectedBourseSymbol(null);
                       setCustomName(item.name);

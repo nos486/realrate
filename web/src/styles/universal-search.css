@@ -278,6 +278,7 @@
 .universal-result-icon.crypto { background: rgba(139, 92, 246, 0.15); color: #a78bfa; }
 .universal-result-icon.bourse { background: rgba(14, 165, 233, 0.15); color: #38bdf8; }
 .universal-result-icon.source { background: rgba(236, 72, 153, 0.15); color: #f472b6; }
+.universal-result-icon.multi_output { background: rgba(99, 102, 241, 0.15); color: #818cf8; }
 
 .universal-result-text {
   display: flex;
@@ -311,10 +312,16 @@
   background: rgba(255, 255, 255, 0.08);
 }
 
+.universal-result-badge.multi_output {
+  background: rgba(99, 102, 241, 0.16);
+  color: #a5b4fc;
+  border: 1px solid rgba(99, 102, 241, 0.3);
+}
+
 .universal-result-pricing {
   display: flex;
   flex-direction: column;
-  align-items: flex-start;
+  align-items: flex-end;
   gap: 2px;
   flex-shrink: 0;
 }
@@ -323,6 +330,21 @@
   font-size: 13px;
   font-weight: 800;
   color: var(--accent-green, #10b981);
+}
+
+.universal-result-change {
+  font-size: 10.5px;
+  font-weight: 700;
+  direction: ltr;
+  display: inline-block;
+}
+
+.universal-result-change.positive {
+  color: var(--accent-green, #10b981);
+}
+
+.universal-result-change.negative {
+  color: var(--accent-rose, #f43f5e);
 }
 
 .universal-result-unit {
