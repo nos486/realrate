@@ -35,8 +35,8 @@ export function useMarketData() {
       .then((data) => {
         if (data && data.success) {
           setRates(data);
-          const usd = data.live_usd_toman || data.globalSettings?.default_usd_toman || '';
-          const gold = data.gold_usd || data.globalSettings?.default_gold_usd || 2890;
+          const usd = data.live_usd_toman || data.prices?.usd_toman?.price || data.prices?.usd?.price || data.globalSettings?.default_usd_toman || '';
+          const gold = data.gold_usd || data.prices?.ons_gold?.price || data.globalSettings?.default_gold_usd || 2890;
           setUsdToman(usd ? formatThousands(Math.round(usd), false) : '');
           setGoldUsd(gold ? formatThousands(gold, true) : '');
           if (pricing?.setUsdToman && usd) pricing.setUsdToman(Math.round(usd));

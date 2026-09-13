@@ -144,7 +144,9 @@ export function compileLatestMarketRates(sources) {
     if (chosen) {
       const itemKey = pType === "usd" ? "usd_toman" : pType;
       let showOnHome = true;
-      if (chosen.displayConfig) {
+      if (pType === "usd") {
+        showOnHome = true;
+      } else if (chosen.displayConfig) {
         try {
           const dc = typeof chosen.displayConfig === 'string' ? JSON.parse(chosen.displayConfig) : chosen.displayConfig;
           if (dc && dc.showOnHomePage !== undefined) {

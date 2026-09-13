@@ -129,8 +129,7 @@ export default function MainPage() {
 
   const hasUsd = usdNum > 0;
 
-  const usdSource = rates?.prices?.usd_toman || rates?.prices?.usd || rates?.market_prices?.usd_toman || rates?.market_prices?.usd;
-  const showUsdOnHome = usdSource?.showOnHomePage !== undefined ? Boolean(usdSource.showOnHomePage) : true;
+  const showUsdOnHome = true;
 
   return (
     <AppLayout
@@ -159,11 +158,9 @@ export default function MainPage() {
           onChange={handleTabChange}
         />
 
-        {showUsdOnHome && (
-          <LiveRatesTicker
-            usdPrice={usdToman}
-          />
-        )}
+        <LiveRatesTicker
+          usdPrice={usdToman || rates?.live_usd_toman || rates?.prices?.usd_toman?.price}
+        />
       </div>
 
       {/* Tab Views */}

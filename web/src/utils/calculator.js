@@ -126,7 +126,7 @@ export function calculateMarketData({
   // 2. Currencies sourced dynamically from active sources in marketPrices / forex
   const seenCodes = new Set(['USD']);
   const usdSource = marketPrices?.usd_toman || marketPrices?.usd;
-  const showUsdOnHome = usdSource?.showOnHomePage !== undefined ? Boolean(usdSource.showOnHomePage) : true;
+  const showUsdOnHome = true;
   const usdSpec = getCanonicalAssetSpec('USD') || {};
   const currencies = [
     {
