@@ -186,7 +186,7 @@ export const SILVER_SPECS = {
 
 // ── 4. Prominent World Currencies (Forex) ────────────────────────────────────
 export const FOREX_SPECS = [
-  { code: 'USD', name: 'دلار آمریکا', flag: '🇺🇸', symbol: '$', defaultCross: 1.0 },
+  { code: 'USD', name: 'دلار', flag: '🇺🇸', symbol: '$', defaultCross: 1.0 },
   { code: 'EUR', name: 'یورو اروپا', flag: '🇪🇺', symbol: '€', defaultCross: 1.082 },
   { code: 'GBP', name: 'پوند انگلیس', flag: '🇬🇧', symbol: '£', defaultCross: 1.294 },
   { code: 'AED', name: 'درهم امارات', flag: '🇦🇪', symbol: 'د.إ', defaultCross: 0.2723 },
