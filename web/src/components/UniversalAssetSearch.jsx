@@ -14,133 +14,27 @@ import {
 } from 'lucide-react';
 import { apiGetPriceSources, apiSearchBourseSymbols } from '../api/client.js';
 import { usePricing } from '../context/PricingContext.jsx';
-import { FOREX_SPECS, TROY_OUNCE_GRAMS } from '../utils/financialSpecs.js';
+import {
+  FOREX_SPECS,
+  TROY_OUNCE_GRAMS,
+  getCanonicalAssetSpec,
+  getCanonicalAssetName,
+  getCanonicalAssetUnit,
+  getCanonicalAssetCategory,
+  getCanonicalAssetBadge,
+} from '../utils/financialSpecs.js';
 
 export const PROMINENT_FOREX_CURRENCIES = FOREX_SPECS;
 
-export const WORLD_CURRENCY_NAMES = {
-  USD: 'دلار آمریکا',
-  EUR: 'یورو اروپا',
-  GBP: 'پوند انگلیس',
-  AED: 'درهم امارات',
-  TRY: 'لیر ترکیه',
-  CHF: 'فرانک سوئیس',
-  CAD: 'دلار کانادا',
-  AUD: 'دلار استرالیا',
-  CNY: 'یوان چین',
-  JPY: 'ین ژاپن',
-  KWD: 'دینار کویت',
-  SAR: 'ریال عربستان',
-  QAR: 'ریال قطر',
-  OMR: 'ریال عمان',
-  BHD: 'دینار بحرین',
-  IQD: 'دینار عراق',
-  RUB: 'روبل روسیه',
-  INR: 'روپیه هند',
-  PKR: 'روپیه پاکستان',
-  AFN: 'افغانی افغانستان',
-  SEK: 'کرون سوئد',
-  NOK: 'کرون نروژ',
-  DKK: 'کرون دانمارک',
-  SGD: 'دلار سنگاپور',
-  HKD: 'دلار هنگ‌کنگ',
-  KRW: 'وون کره جنوبی',
-  THB: 'بات تایلند',
-  MYR: 'رینگیت مالزی',
-  NZD: 'دلار نیوزیلند',
-  BRL: 'رئال برزیل',
-  ZAR: 'رند آفریقای جنوبی',
-  AZN: 'منات آذربایجان',
-  GEL: 'لاری گرجستان',
-  AMD: 'درام ارمنستان',
-  TMT: 'منات ترکمنستان',
-  TJS: 'سامانی تاجیکستان',
-  KZT: 'تنگه قزاقستان',
-  UZS: 'سوم ازبکستان',
-  EGP: 'پوند مصر',
-  SYP: 'لیر سوریه',
-  LBP: 'لیر لبنان',
-  JOD: 'دینار اردن',
-  IDR: 'روپیه اندونزی',
-  PHP: 'پزو فیلیپین',
-  VND: 'دانگ ویتنام',
-  MXN: 'پزو مکزیک',
-  PLN: 'زلوتی لهستان',
-  CZK: 'کرونا چک',
-  HUF: 'فورینت مجارستان',
-  ILS: 'شکل اسرائیل',
-  CLP: 'پزو شیلی',
-  COP: 'پزو کلمبیا',
-  PEN: 'سول پرو',
-  ARS: 'پزو آرژانتین',
-  BGN: 'لو بلغارستان',
-  RON: 'لئو رومانی',
-  ISK: 'کرون ایسلند',
-  HRK: 'کونا کرواسی',
-  RSD: 'دینار صربستان',
-  LYD: 'دینار لیبی',
-  TND: 'دینار تونس',
-  MAD: 'درهم مراکش',
-  DZD: 'دینار الجزایر',
-  USDT: 'تتر (USDT)',
-};
-
-const baseLabels = {
-  usd: 'دلار آمریکا',
-  usd_toman: 'دلار آمریکا',
-  gold_18k: 'طلای ۱۸ عیار',
-  gold_22k: 'طلای ۲۲ عیار',
-  gold_24k: 'طلای ۲۴ عیار',
-  gold_melted: 'طلای آبشده',
-  mesghal: 'مثقال طلا (مظنه)',
-  full_coin: 'سکه امامی',
-  full_new: 'سکه امامی',
-  full_old: 'سکه بهار آزادی (طرح قدیم)',
-  half_coin: 'نیم سکه بهار آزادی',
-  half: 'نیم سکه بهار آزادی',
-  quarter_coin: 'ربع سکه بهار آزادی',
-  quarter: 'ربع سکه بهار آزادی',
-  gerami_coin: 'سکه گرمی',
-  gerami: 'سکه گرمی',
-  ons_gold: 'انس جهانی طلا',
-  gold_ounce: 'انس جهانی طلا',
-  ons_silver: 'انس جهانی نقره',
-  silver_ounce: 'انس جهانی نقره',
-  silver_gram: 'نقره خام (گرمی ۹۹۹)',
-  silver_999: 'نقره خام (گرمی ۹۹۹)',
-  silver_925: 'نقره استرلینگ ۹۲۵',
-  bourse: 'بورس اوراق بهادار',
-  bourse_fund: 'صندوق سرمایه‌گذاری بورس',
-  forex: 'ارزهای جهانی (فارکس)',
-  crypto: 'رمزارز',
-  usdt: 'تتر (USDT)',
-  btc: 'بیت‌کوین (BTC)',
-  eth: 'اتریوم (ETH)',
-  ...Object.entries(WORLD_CURRENCY_NAMES).reduce((acc, [code, name]) => {
-    acc[code.toLowerCase()] = name;
-    acc[code.toUpperCase()] = name;
-    acc[code] = name;
-    return acc;
-  }, {}),
-};
-
-export const STANDARD_PRICE_TYPE_LABELS = new Proxy(baseLabels, {
+export const WORLD_CURRENCY_NAMES = new Proxy({}, {
   get(target, prop) {
     if (typeof prop !== 'string') return target[prop];
-    if (target[prop]) return target[prop];
-    const lower = prop.toLowerCase().trim();
-    if (target[lower]) return target[lower];
-    const upper = prop.toUpperCase().trim();
-    if (WORLD_CURRENCY_NAMES[upper]) return WORLD_CURRENCY_NAMES[upper];
-    const stripped = upper.replace(/^(FOREX_|CUR_|FX_|SRC_DEF_|DERIVED_)/, '');
-    if (WORLD_CURRENCY_NAMES[stripped]) return WORLD_CURRENCY_NAMES[stripped];
-    return target[prop];
+    return getCanonicalAssetName(prop, prop);
   },
   has(target, prop) {
-    if (typeof prop !== 'string') return prop in target;
-    const lower = prop.toLowerCase().trim();
-    const upper = prop.toUpperCase().trim();
-    return (prop in target) || (upper in WORLD_CURRENCY_NAMES) || (lower in target);
+    if (typeof prop !== 'string') return false;
+    const spec = getCanonicalAssetSpec(prop);
+    return Boolean(spec && spec.name);
   },
 });
 
@@ -151,14 +45,34 @@ export function getPriceTypeLabel(priceType, priceTypeInfo = null) {
   const upper = rawStr.toUpperCase();
   if (priceTypeInfo && priceTypeInfo[priceType]?.label) return priceTypeInfo[priceType].label;
   if (priceTypeInfo && priceTypeInfo[clean]?.label) return priceTypeInfo[clean].label;
-  if (WORLD_CURRENCY_NAMES[upper]) return WORLD_CURRENCY_NAMES[upper];
-  if (STANDARD_PRICE_TYPE_LABELS[clean]) return STANDARD_PRICE_TYPE_LABELS[clean];
-  if (STANDARD_PRICE_TYPE_LABELS[upper]) return STANDARD_PRICE_TYPE_LABELS[upper];
-  if (STANDARD_PRICE_TYPE_LABELS[priceType]) return STANDARD_PRICE_TYPE_LABELS[priceType];
+
+  const canonicalName = getCanonicalAssetName(rawStr);
+  if (canonicalName && canonicalName !== rawStr && canonicalName !== clean && canonicalName !== upper) {
+    return canonicalName;
+  }
+
   const stripped = upper.replace(/^(FOREX_|CUR_|FX_|SRC_DEF_)/, '');
-  if (WORLD_CURRENCY_NAMES[stripped]) return WORLD_CURRENCY_NAMES[stripped];
+  const strippedName = getCanonicalAssetName(stripped);
+  if (strippedName && strippedName !== stripped) return strippedName;
+
+  if (clean === 'bourse') return 'بورس اوراق بهادار';
+  if (clean === 'bourse_fund') return 'صندوق سرمایه‌گذاری بورس';
+  if (clean === 'forex') return 'ارزهای جهانی (فارکس)';
+  if (clean === 'crypto') return 'رمزارز';
+
   return priceType;
 }
+
+export const STANDARD_PRICE_TYPE_LABELS = new Proxy({}, {
+  get(target, prop) {
+    if (typeof prop !== 'string') return target[prop];
+    return getPriceTypeLabel(prop);
+  },
+  has(target, prop) {
+    if (typeof prop !== 'string') return prop in target;
+    return Boolean(getPriceTypeLabel(prop));
+  },
+});
 
 export function getCategoryMetadata(priceType) {
   const pt = String(priceType || '').toLowerCase().replace(/^src_def_/, '');

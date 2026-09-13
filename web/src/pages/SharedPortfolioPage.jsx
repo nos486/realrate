@@ -9,6 +9,7 @@ import {
   CategoryIcon,
   CATEGORY_DEFINITIONS,
   formatAssetName,
+  normalizeHolding,
 } from '../components/PortfolioTracker.jsx';
 import {
   Lock,
@@ -204,7 +205,8 @@ export default function SharedPortfolioPage() {
       };
     }
 
-    const items = portfolioData.holdings.map((h) => {
+    const items = portfolioData.holdings.map((rawH) => {
+      const h = normalizeHolding(rawH);
       const amountNum = Number(h.amount) || 0;
       const buyPriceNum = Number(h.buyPrice) || 0;
       const hasBuyPrice = buyPriceNum > 0;

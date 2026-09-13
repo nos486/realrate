@@ -52,6 +52,13 @@ import UserSettingsModal from './UserSettingsModal.jsx';
 import UniversalAssetSearch from './UniversalAssetSearch.jsx';
 import { usePricing } from '../context/PricingContext.jsx';
 import {
+  CANONICAL_ASSET_REGISTRY,
+  getCanonicalAssetSpec,
+  getCanonicalAssetName,
+  getCanonicalAssetUnit,
+  getCanonicalAssetCategory,
+} from '../utils/financialSpecs.js';
+import {
   deriveE2eeKey,
   verifyE2eeKey,
   encryptHoldingForApi,
@@ -62,80 +69,30 @@ import {
 } from '../lib/e2ee.js';
 
 export const FREQUENT_ASSETS = [
-  { id: 'USD', name: 'دلار آمریکا', icon: '💵', category: 'currency', unit: 'دلار' },
-  { id: 'gold_18k', name: 'طلای ۱۸ عیار', icon: '🟡', category: 'gold', unit: 'گرم' },
-  { id: 'gold_melted', name: 'طلای آبشده', icon: '✨', category: 'gold', unit: 'گرم' },
-  { id: 'full_new', name: 'سکه امامی', icon: '🪙', category: 'coin', unit: 'عدد' },
-  { id: 'quarter', name: 'ربع سکه', icon: '🔶', category: 'coin', unit: 'عدد' },
-  { id: 'half', name: 'نیم سکه', icon: '🔸', category: 'coin', unit: 'عدد' },
-  { id: 'USDT', name: 'تتر', icon: '💎', category: 'crypto', unit: 'تتر' },
-  { id: 'EUR', name: 'یورو', icon: '💶', category: 'currency', unit: 'یورو' },
+  { id: 'USD', name: getCanonicalAssetName('USD', 'دلار آمریکا'), icon: '💵', category: 'currency', unit: 'دلار' },
+  { id: 'gold_18k', name: getCanonicalAssetName('gold_18k', 'طلای ۱۸ عیار'), icon: '🟡', category: 'gold', unit: 'گرم' },
+  { id: 'melted_gold', name: getCanonicalAssetName('melted_gold', 'طلای آبشده'), icon: '✨', category: 'gold', unit: 'گرم' },
+  { id: 'full_coin', name: getCanonicalAssetName('full_coin', 'سکه امامی'), icon: '🪙', category: 'coin', unit: 'عدد' },
+  { id: 'quarter_coin', name: getCanonicalAssetName('quarter_coin', 'ربع سکه'), icon: '🔶', category: 'coin', unit: 'عدد' },
+  { id: 'half_coin', name: getCanonicalAssetName('half_coin', 'نیم سکه'), icon: '🔸', category: 'coin', unit: 'عدد' },
+  { id: 'USDT', name: getCanonicalAssetName('USDT', 'تتر'), icon: '💎', category: 'crypto', unit: 'تتر' },
+  { id: 'EUR', name: getCanonicalAssetName('EUR', 'یورو'), icon: '💶', category: 'currency', unit: 'یورو' },
   { id: 'bourse', name: 'سهام بورس', icon: '📈', category: 'bourse', unit: 'برگ سهم' },
   { id: 'bourse_fund', name: 'صندوق بورس', icon: '📑', category: 'bourse_fund', unit: 'واحد' },
   { id: 'custom', name: 'سایر دارایی‌ها', icon: '✏️', category: 'custom', unit: 'واحد' },
 ];
 
 export const ASSET_TYPES = [
-  // طلا و مسکوکات
-  { id: 'gold_18k', name: 'طلای ۱۸ عیار', unit: 'گرم', category: 'gold' },
-  { id: 'gold_22k', name: 'طلای ۲۲ عیار', unit: 'گرم', category: 'gold' },
-  { id: 'gold_24k', name: 'طلای ۲۴ عیار', unit: 'گرم', category: 'gold' },
-  { id: 'gold_melted', name: 'طلای آبشده', unit: 'گرم', category: 'gold' },
-  { id: 'mesghal', name: 'مثقال طلا (مظنه)', unit: 'مثقال', category: 'gold' },
-  { id: 'ons_gold', name: 'انس جهانی طلا', unit: 'اونس', category: 'gold' },
-  { id: 'full_coin', name: 'سکه امامی', unit: 'عدد', category: 'coin' },
-  { id: 'full_new', name: 'سکه امامی', unit: 'عدد', category: 'coin' },
-  { id: 'full_old', name: 'سکه بهار آزادی (طرح قدیم)', unit: 'عدد', category: 'coin' },
-  { id: 'half_coin', name: 'نیم سکه بهار آزادی', unit: 'عدد', category: 'coin' },
-  { id: 'half', name: 'نیم سکه بهار آزادی', unit: 'عدد', category: 'coin' },
-  { id: 'quarter_coin', name: 'ربع سکه بهار آزادی', unit: 'عدد', category: 'coin' },
-  { id: 'quarter', name: 'ربع سکه بهار آزادی', unit: 'عدد', category: 'coin' },
-  { id: 'gerami_coin', name: 'سکه گرمی', unit: 'عدد', category: 'coin' },
-  { id: 'bank_gram', name: 'سکه گرمی بانکی', unit: 'عدد', category: 'coin' },
-  { id: 'gram', name: 'سکه گرمی بانکی', unit: 'عدد', category: 'coin' },
-
-  // نقره (Silver)
-  { id: 'silver_gram', name: 'نقره خام (گرمی ۹۹۹)', unit: 'گرم', category: 'silver' },
-  { id: 'silver_999', name: 'نقره خام (گرمی ۹۹۹)', unit: 'گرم', category: 'silver' },
-  { id: 'silver_925', name: 'نقره استرلینگ ۹۲۵', unit: 'گرم', category: 'silver' },
-  { id: 'ons_silver', name: 'انس جهانی نقره', unit: 'اونس', category: 'silver' },
-  { id: 'silver_ounce', name: 'انس جهانی نقره', unit: 'اونس', category: 'silver' },
-
-  // ارزهای خارجی و رمزارزها
-  { id: 'USD', name: 'دلار آمریکا', unit: 'دلار', category: 'currency' },
-  { id: 'USDT', name: 'تتر', unit: 'تتر', category: 'crypto' },
-  { id: 'EUR', name: 'یورو اروپا', unit: 'یورو', category: 'currency' },
-  { id: 'GBP', name: 'پوند انگلیس', unit: 'پوند', category: 'currency' },
-  { id: 'AED', name: 'درهم امارات', unit: 'درهم', category: 'currency' },
-  { id: 'TRY', name: 'لیر ترکیه', unit: 'لیر', category: 'currency' },
-  { id: 'CHF', name: 'فرانک سوئیس', unit: 'فرانک', category: 'currency' },
-  { id: 'CAD', name: 'دلار کانادا', unit: 'دلار', category: 'currency' },
-  { id: 'AUD', name: 'دلار استرالیا', unit: 'دلار', category: 'currency' },
-  { id: 'CNY', name: 'یوان چین', unit: 'یوان', category: 'currency' },
-  { id: 'JPY', name: 'ین ژاپن', unit: 'ین', category: 'currency' },
-  { id: 'SAR', name: 'ریال عربستان', unit: 'ریال', category: 'currency' },
-  { id: 'QAR', name: 'ریال قطر', unit: 'ریال', category: 'currency' },
-  { id: 'KWD', name: 'دینار کویت', unit: 'دینار', category: 'currency' },
-  { id: 'OMR', name: 'ریال عمان', unit: 'ریال', category: 'currency' },
-  { id: 'BHD', name: 'دینار بحرین', unit: 'دینار', category: 'currency' },
-  { id: 'IQD', name: 'دینار عراق', unit: 'دینار', category: 'currency' },
-  { id: 'RUB', name: 'روبل روسیه', unit: 'روبل', category: 'currency' },
-  { id: 'AFN', name: 'افغانی افغانستان', unit: 'افغانی', category: 'currency' },
-  { id: 'AZN', name: 'منات آذربایجان', unit: 'منات', category: 'currency' },
-  { id: 'INR', name: 'روپیه هند', unit: 'روپیه', category: 'currency' },
-  { id: 'SEK', name: 'کرون سوئد', unit: 'کرون', category: 'currency' },
-  { id: 'NOK', name: 'کرون نروژ', unit: 'کرون', category: 'currency' },
-  { id: 'SGD', name: 'دلار سنگاپور', unit: 'دلار', category: 'currency' },
-  { id: 'KRW', name: 'وون کره جنوبی', unit: 'وون', category: 'currency' },
-  { id: 'BRL', name: 'رئال برزیل', unit: 'رئال', category: 'currency' },
-  { id: 'BTC', name: 'بیت‌کوین', unit: 'عدد', category: 'crypto' },
-  { id: 'ETH', name: 'اتریوم', unit: 'عدد', category: 'crypto' },
-
-  // بورس اوراق بهادار تهران (سهام و صندوق‌ها)
+  ...Object.values(CANONICAL_ASSET_REGISTRY)
+    .filter((spec, idx, self) => self.findIndex((s) => s.id === spec.id) === idx)
+    .map((spec) => ({
+      id: spec.id,
+      name: spec.name,
+      unit: spec.unit || 'واحد',
+      category: spec.category || 'gold',
+    })),
   { id: 'bourse', name: 'بورس اوراق بهادار تهران (سهام)', unit: 'برگ سهم', category: 'bourse' },
   { id: 'bourse_fund', name: 'بورس اوراق بهادار تهران (صندوق)', unit: 'واحد', category: 'bourse_fund' },
-
-  // دارایی شخصی و سفارشی (Custom Asset)
   { id: 'custom', name: 'دارایی شخصی / سفارشی', unit: 'واحد', category: 'custom' },
 ];
 
@@ -146,7 +103,7 @@ export function normalizeHolding(h) {
   let assetType = String(h.assetType || '').trim().toLowerCase();
   let unit = String(h.unit || '').trim();
 
-  const cleanId = assetId.replace(/^src_def_/, '').replace(/^derived_/, '').toLowerCase();
+  const cleanId = assetId.replace(/^src_def_/, '').replace(/^derived_/, '');
   const cleanName = assetName.replace(/^src_def_/, '').replace(/^derived_/, '').trim();
 
   // 1. Bourse Stocks & Funds Checks (MUST PRECEDE GOLD/COIN/CURRENCY)
@@ -180,52 +137,28 @@ export function normalizeHolding(h) {
     };
   }
 
-  // 2. Coin checks
-  if (
-    ['full_coin', 'full_new', 'full_old', 'half_coin', 'half', 'quarter_coin', 'quarter', 'gerami_coin', 'bank_gram', 'gram'].includes(cleanId) ||
-    cleanId.includes('coin') ||
-    cleanName.includes('سکه')
-  ) {
-    assetType = 'coin';
-    if (!unit || unit === 'واحد') unit = 'عدد';
-    if (!assetName || assetName.startsWith('src_def_')) {
-      assetName = cleanId.includes('half') ? 'نیم سکه بهار آزادی' : (cleanId.includes('quarter') ? 'ربع سکه بهار آزادی' : (cleanId.includes('gerami') || cleanId.includes('gram') ? 'سکه گرمی' : (cleanId.includes('old') ? 'سکه بهار آزادی (طرح قدیم)' : 'سکه امامی')));
-    }
-    if (assetId.startsWith('src_def_')) {
-      assetId = cleanId;
-    }
+  // 2. Custom personal asset checks
+  const isCustom = assetType === 'custom' || assetId.startsWith('custom_') || cleanId === 'custom';
+  if (isCustom) {
+    return {
+      ...h,
+      assetId: assetId.startsWith('custom_') ? assetId : (cleanId === 'custom' ? `custom_${Date.now()}` : assetId),
+      assetName: cleanName || 'دارایی شخصی',
+      assetType: 'custom',
+      unit: unit || 'واحد',
+    };
   }
-  // 3. Silver checks (Base spot)
-  else if (
-    ['ons_silver', 'silver_ounce'].includes(cleanId) ||
-    cleanId.includes('ons_silver') ||
-    cleanName.includes('انس نقره')
-  ) {
-    assetType = 'silver';
-    if (!unit || unit === 'واحد') unit = 'اونس';
-    if (!assetName || assetName.startsWith('src_def_')) assetName = 'انس جهانی نقره';
-    if (assetId.startsWith('src_def_')) assetId = cleanId;
-  }
-  // 4. Physical Gold checks (Base spot & 18K)
-  else if (
-    ['gold_18k', 'ons_gold', 'gold_ounce'].includes(cleanId) ||
-    cleanName.includes('طلا ۱۸') ||
-    cleanName.includes('طلای ۱۸') ||
-    cleanName.includes('انس طلا')
-  ) {
-    assetType = 'gold';
-    if (!unit || unit === 'واحد') unit = cleanId.includes('ons') ? 'اونس' : 'گرم';
-    if (!assetName || assetName.startsWith('src_def_')) {
-      assetName = cleanId.includes('ons') ? 'انس جهانی طلا' : 'طلای ۱۸ عیار';
-    }
-    if (assetId.startsWith('src_def_')) assetId = cleanId;
-  }
-  // 5. Currency checks
-  else if (['usd', 'usd_toman', 'usdt'].includes(cleanId) || cleanName.includes('دلار')) {
-    assetType = 'currency';
-    if (!unit || unit === 'واحد') unit = 'دلار';
-    if (!assetName || assetName.startsWith('src_def_')) assetName = 'دلار آمریکا';
-    if (assetId.startsWith('src_def_')) assetId = 'USD';
+
+  // 3. Canonical standard assets (Gold, Coins, Silver, Forex, Crypto)
+  const canonicalSpec = getCanonicalAssetSpec(cleanId || assetId);
+  if (canonicalSpec) {
+    return {
+      ...h,
+      assetId: canonicalSpec.id,
+      assetName: canonicalSpec.name,
+      assetType: canonicalSpec.category || 'gold',
+      unit: canonicalSpec.unit || unit || 'واحد',
+    };
   }
 
   return {
@@ -264,20 +197,18 @@ export function formatAssetName(item) {
   const assetId = item.assetId || (typeof item === 'string' ? item : null);
   if (assetId?.startsWith('bourse_')) {
     const raw = typeof item === 'string' ? item : (item.assetName || item.name || '');
-    if (raw) return raw;
+    if (raw && !raw.startsWith('bourse_')) return raw;
     const isFund = item.isFund || item.assetType === 'bourse_fund' || item.assetName?.includes('صندوق');
     return isFund ? `صندوق ${assetId.replace('bourse_', '')}` : `سهام ${assetId.replace('bourse_', '')}`;
   }
-  const cleanId = assetId ? assetId.replace(/^src_def_/, '') : null;
-  const matched = ASSET_TYPES.find((a) => (a.id === assetId || a.id === cleanId) && a.id !== 'custom');
-  if (matched) return matched.name;
+  const cleanId = assetId ? assetId.replace(/^src_def_/, '').replace(/^derived_/, '') : null;
+  const canonicalName = getCanonicalAssetName(cleanId || assetId);
+  if (canonicalName && canonicalName !== cleanId && canonicalName !== assetId) {
+    return canonicalName;
+  }
   const raw = typeof item === 'string' ? item : (item.assetName || item.name || '');
   if (raw && !raw.startsWith('src_def_')) {
     return raw.replace(/\s*\([^)]*\)/g, '').trim() || raw;
-  }
-  if (cleanId) {
-    const fallback = ASSET_TYPES.find((a) => a.id.includes(cleanId) || cleanId.includes(a.id));
-    if (fallback) return fallback.name;
   }
   return raw || 'دارایی';
 }

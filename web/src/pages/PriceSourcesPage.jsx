@@ -67,7 +67,6 @@ import UniversalAssetSearch, {
   extractMultiItems,
   getPriceTypeLabel,
   calculateUsdCrossRate,
-  WORLD_CURRENCY_NAMES,
 } from '../components/UniversalAssetSearch.jsx';
 
 // PRICE_TYPE_INFO is now computed dynamically inside the component from DB-loaded sourceTypes

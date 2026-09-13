@@ -28,6 +28,30 @@ import {
   dbUpdateUserSettings,
 } from "../lib/db.js";
 import { jsonResponse, errorResponse } from "../lib/helpers.js";
+import {
+  getCanonicalAssetName,
+  getCanonicalAssetUnit,
+  getCanonicalAssetCategory,
+} from "../lib/financialSpecs.js";
+
+function resolveHoldingMetadata(holding) {
+  if (!holding) return holding;
+  const isCustom = holding.assetType === 'custom' || holding.assetId?.startsWith('custom_');
+  const isBourse = holding.assetType === 'bourse' || holding.assetType === 'bourse_fund' || holding.assetId?.startsWith('bourse_');
+  const isEncrypted = typeof holding.notes === 'string' && holding.notes.startsWith('enc:e2ee:v1:');
+  if (!isCustom && !isBourse && !isEncrypted) {
+    const canonicalName = getCanonicalAssetName(holding.assetId);
+    if (canonicalName && canonicalName !== holding.assetId) {
+      return {
+        ...holding,
+        assetName: canonicalName,
+        unit: getCanonicalAssetUnit(holding.assetId, holding.unit),
+        assetType: getCanonicalAssetCategory(holding.assetId, holding.assetType),
+      };
+    }
+  }
+  return holding;
+}
 
 /**
  * GET /api/portfolios
@@ -238,7 +262,7 @@ export async function handleGetPortfolio(request, env) {
       success: true,
       user: { id: userId, email: user.email, name: user.name },
       portfolioId,
-      holdings,
+      holdings: holdings.map(resolveHoldingMetadata),
     }, 200, request);
   } catch (err) {
     console.error("Error in handleGetPortfolio:", err);
@@ -279,9 +303,9 @@ export async function handleAddPortfolio(request, env) {
       userId,
       portfolioId: body.portfolioId || body.portfolio_id || null,
       assetId: String(body.assetId || "gold_18k"),
-      assetName: String(body.assetName || "طلا ۱۸ عیار"),
-      assetType: String(body.assetType || "gold"),
-      unit: String(body.unit || "واحد"),
+      assetName: isE2eeHolding ? String(body.assetName || "") : (getCanonicalAssetName(body.assetId, body.assetName) || String(body.assetName || "")),
+      assetType: isE2eeHolding ? String(body.assetType || "") : (getCanonicalAssetCategory(body.assetId, body.assetType) || String(body.assetType || "gold")),
+      unit: isE2eeHolding ? String(body.unit || "") : (getCanonicalAssetUnit(body.assetId, body.unit) || String(body.unit || "واحد")),
       amount: isNaN(amount) ? 0 : amount,
       buyPrice: isNaN(buyPrice) ? 0 : buyPrice,
       currentPrice: parseFloat(body.currentPrice) || 0,
@@ -295,7 +319,7 @@ export async function handleAddPortfolio(request, env) {
     return jsonResponse({
       success: true,
       message: "دارایی با موفقیت در پورتفوی شما ثبت شد.",
-      item: saved,
+      item: resolveHoldingMetadata(saved),
     }, 201, request);
   } catch (err) {
     console.error("Error in handleAddPortfolio:", err);
@@ -479,7 +503,7 @@ export async function handleGetSharedPortfolio(request, env) {
         name: ownerName,
         slug: targetPortfolio.shareSlug,
       },
-      holdings,
+      holdings: holdings.map(resolveHoldingMetadata),
     }, 200, request);
   } catch (err) {
     console.error("Error in handleGetSharedPortfolio:", err);

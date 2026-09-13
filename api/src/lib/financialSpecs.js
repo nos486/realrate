@@ -7,6 +7,7 @@
  * - Gold Carat Standards: 24k = 1000/1000, 22k = 916/1000, 21.6k = 900/1000, 18k = 750/1000, 17k = 705/1000
  * - Coin Specifications: Emami (8.133g, 900), Half (4.066g, 900), Quarter (2.033g, 900), Gerami (1.01g, 916)
  * - Forex Specifications: 24 Prominent Currencies + USD
+ * - Canonical Asset Registry & Dynamic Name/Metadata Resolution
  */
 
 export const TROY_OUNCE_GRAMS = 31.1034768;
@@ -24,6 +25,18 @@ export const GOLD_SPECS = {
     gold24kWeight: 0.75, // 18 / 24
     targetBubblePct: 0,
     formulaText: '(انس طلا ÷ ۳۱.۱۰۳۵) × دلار × ۰.۷۵',
+  },
+  gold_22k: {
+    id: 'gold_22k',
+    name: 'طلای ۲۲ عیار',
+    category: 'gold',
+    badge: 'طلا',
+    unit: 'گرم',
+    carat: 22,
+    weight: 1.0,
+    gold24kWeight: 22 / 24,
+    targetBubblePct: 0,
+    formulaText: '(انس طلا ÷ ۳۱.۱۰۳۵) × دلار × (۲۲ ÷ ۲۴)',
   },
   mesghal: {
     id: 'mesghal',
@@ -88,6 +101,18 @@ export const COIN_SPECS = {
     gold24kWeight: 7.3197, // 8.133 * (21.6 / 24)
     targetBubblePct: 15,
     formulaText: 'وزن ۸.۱۳۳ گرم، عیار ۹۰۰ (معادل ۷.۳۱۹۷ گرم طلای خالص ۲۴ عیار)',
+  },
+  full_old: {
+    id: 'full_old',
+    name: 'سکه بهار آزادی (طرح قدیم)',
+    category: 'coin',
+    badge: 'سکه',
+    unit: 'عدد',
+    carat: 21.6,
+    weight: 8.133,
+    gold24kWeight: 7.3197,
+    targetBubblePct: 10,
+    formulaText: 'وزن ۸.۱۳۳ گرم، عیار ۹۰۰ (سکه تمام طرح قدیم)',
   },
   half_coin: {
     id: 'half_coin',
@@ -190,7 +215,178 @@ export const FOREX_SPECS = [
 
 export const FOREX_DICT = Object.fromEntries(FOREX_SPECS.map(c => [c.code, c]));
 
-// ── 5. Standard Mathematical Calculation Helpers ─────────────────────────────
+// ── 5. Crypto Specifications ────────────────────────────────────────────────
+export const CRYPTO_SPECS = {
+  USDT: {
+    id: 'USDT',
+    code: 'USDT',
+    name: 'تتر',
+    symbol: 'USDT',
+    unit: 'تتر',
+    category: 'crypto',
+    badge: 'رمزارز',
+    formulaText: 'استیبل‌کوین معادل ۱ دلار آمریکا',
+  },
+  BTC: {
+    id: 'BTC',
+    code: 'BTC',
+    name: 'بیت‌کوین',
+    symbol: 'BTC',
+    unit: 'عدد',
+    category: 'crypto',
+    badge: 'رمزارز',
+    formulaText: 'پادشاه رمزارزها',
+  },
+  ETH: {
+    id: 'ETH',
+    code: 'ETH',
+    name: 'اتریوم',
+    symbol: 'ETH',
+    unit: 'عدد',
+    category: 'crypto',
+    badge: 'رمزارز',
+    formulaText: 'رمزارز شبکه اتریوم',
+  },
+};
+
+// ── 6. Master Canonical Asset Registry ──────────────────────────────────────
+export const CANONICAL_ASSET_REGISTRY = {};
+
+// Register Gold
+Object.values(GOLD_SPECS).forEach(item => {
+  CANONICAL_ASSET_REGISTRY[item.id] = item;
+  CANONICAL_ASSET_REGISTRY[item.id.toLowerCase()] = item;
+});
+
+// Register Coins
+Object.values(COIN_SPECS).forEach(item => {
+  CANONICAL_ASSET_REGISTRY[item.id] = item;
+  CANONICAL_ASSET_REGISTRY[item.id.toLowerCase()] = item;
+});
+
+// Register Silver
+Object.values(SILVER_SPECS).forEach(item => {
+  CANONICAL_ASSET_REGISTRY[item.id] = item;
+  CANONICAL_ASSET_REGISTRY[item.id.toLowerCase()] = item;
+});
+
+// Register Forex
+FOREX_SPECS.forEach(item => {
+  const spec = {
+    id: item.code,
+    code: item.code,
+    name: item.name,
+    flag: item.flag,
+    symbol: item.symbol,
+    unit: 'تومان',
+    category: 'currency',
+    badge: 'ارز',
+    defaultCross: item.defaultCross,
+  };
+  CANONICAL_ASSET_REGISTRY[item.code] = spec;
+  CANONICAL_ASSET_REGISTRY[item.code.toLowerCase()] = spec;
+});
+
+// Register Crypto
+Object.values(CRYPTO_SPECS).forEach(item => {
+  CANONICAL_ASSET_REGISTRY[item.id] = item;
+  CANONICAL_ASSET_REGISTRY[item.id.toLowerCase()] = item;
+});
+
+// Standard Aliases for historical / alternate identifiers
+const ALIAS_MAP = {
+  // Gold Aliases
+  gold_melted: 'melted_gold',
+  gold_ounce: 'ons_gold',
+  // Coin Aliases
+  full_new: 'full_coin',
+  half: 'half_coin',
+  quarter: 'quarter_coin',
+  bank_gram: 'gerami_coin',
+  gram: 'gerami_coin',
+  // Silver Aliases
+  silver_ounce: 'ons_silver',
+  silver_999: 'silver_gram',
+  // Currency / Forex Aliases
+  usd: 'USD',
+  usd_toman: 'USD',
+};
+
+for (const [alias, canonicalId] of Object.entries(ALIAS_MAP)) {
+  const target = CANONICAL_ASSET_REGISTRY[canonicalId];
+  if (target) {
+    CANONICAL_ASSET_REGISTRY[alias] = target;
+    CANONICAL_ASSET_REGISTRY[alias.toLowerCase()] = target;
+  }
+}
+
+// ── 7. Canonical Name & Metadata Resolution Helpers ─────────────────────────
+
+/**
+ * Retrieve the full canonical asset specification object
+ * @param {string} assetId
+ * @returns {object|null}
+ */
+export function getCanonicalAssetSpec(assetId) {
+  if (!assetId) return null;
+  const clean = String(assetId).replace(/^src_def_/, '').replace(/^derived_/, '').trim();
+  return (
+    CANONICAL_ASSET_REGISTRY[clean] ||
+    CANONICAL_ASSET_REGISTRY[clean.toLowerCase()] ||
+    CANONICAL_ASSET_REGISTRY[clean.toUpperCase()] ||
+    null
+  );
+}
+
+/**
+ * Retrieve the canonical Persian display name of an asset by ID
+ * @param {string} assetId
+ * @param {string} fallbackName
+ * @returns {string}
+ */
+export function getCanonicalAssetName(assetId, fallbackName = '') {
+  const spec = getCanonicalAssetSpec(assetId);
+  if (spec && spec.name) return spec.name;
+  return fallbackName || assetId || '';
+}
+
+/**
+ * Retrieve the canonical unit of an asset by ID
+ * @param {string} assetId
+ * @param {string} fallbackUnit
+ * @returns {string}
+ */
+export function getCanonicalAssetUnit(assetId, fallbackUnit = 'واحد') {
+  const spec = getCanonicalAssetSpec(assetId);
+  if (spec && spec.unit) return spec.unit;
+  return fallbackUnit;
+}
+
+/**
+ * Retrieve the canonical category of an asset by ID
+ * @param {string} assetId
+ * @param {string} fallbackCategory
+ * @returns {string}
+ */
+export function getCanonicalAssetCategory(assetId, fallbackCategory = 'custom') {
+  const spec = getCanonicalAssetSpec(assetId);
+  if (spec && spec.category) return spec.category;
+  return fallbackCategory;
+}
+
+/**
+ * Retrieve the canonical badge text of an asset by ID
+ * @param {string} assetId
+ * @param {string} fallbackBadge
+ * @returns {string}
+ */
+export function getCanonicalAssetBadge(assetId, fallbackBadge = '') {
+  const spec = getCanonicalAssetSpec(assetId);
+  if (spec && spec.badge) return spec.badge;
+  return fallbackBadge;
+}
+
+// ── 8. Standard Mathematical Calculation Helpers ─────────────────────────────
 
 /**
  * Calculate pure 24k gold gram value in Tomans
