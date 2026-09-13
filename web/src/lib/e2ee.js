@@ -167,7 +167,18 @@ export async function verifyE2eeKey(key, verifierStr) {
  * @param {object} holding
  * @returns {Promise<object>}
  */
-export async function encryptHoldingForApi(key, holding) {
+export async function encryptHoldingForApi(arg1, arg2) {
+  const isKey1 = (typeof CryptoKey !== 'undefined' && arg1 instanceof CryptoKey) || (arg1 && typeof arg1 === 'object' && arg1.type && arg1.algorithm);
+  const key = isKey1 ? arg1 : arg2;
+  const holding = isKey1 ? arg2 : arg1;
+
+  if (!key) {
+    throw new Error("کلید رمزنگاری معتبر نیست یا گاوصندوق باز نشده است.");
+  }
+  if (!holding || typeof holding !== 'object') {
+    return holding;
+  }
+
   const sensitiveBundle = {
     amount: Number(holding.amount) || 0,
     buyPrice: Number(holding.buyPrice) || 0,
@@ -192,11 +203,19 @@ export async function encryptHoldingForApi(key, holding) {
 
 /**
  * Decrypt holding sensitive attributes after receiving from the server API
- * @param {CryptoKey} key
- * @param {object} holding
+ * @param {CryptoKey|object} arg1
+ * @param {object|CryptoKey} arg2
  * @returns {Promise<object>}
  */
-export async function decryptHoldingFromApi(key, holding) {
+export async function decryptHoldingFromApi(arg1, arg2) {
+  const isKey1 = (typeof CryptoKey !== 'undefined' && arg1 instanceof CryptoKey) || (arg1 && typeof arg1 === 'object' && arg1.type && arg1.algorithm);
+  const key = isKey1 ? arg1 : arg2;
+  const holding = isKey1 ? arg2 : arg1;
+
+  if (!key || !holding || typeof holding !== 'object') {
+    return holding;
+  }
+
   if (holding.notes && typeof holding.notes === "string" && holding.notes.startsWith(E2EE_PREFIX)) {
     const decrypted = await e2eeDecrypt(key, holding.notes);
     if (decrypted && typeof decrypted === "object") {

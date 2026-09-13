@@ -92,7 +92,7 @@ export function useHoldings(activePortfolio) {
           const key = vaultKeys[activePortfolio.id];
           if (key) {
             const decrypted = await Promise.all(
-              rawHoldings.map((h) => decryptHoldingFromApi(h, key))
+              rawHoldings.map((h) => decryptHoldingFromApi(key, h))
             );
             setHoldings(decrypted.map(normalizeHolding));
           } else {
@@ -105,7 +105,7 @@ export function useHoldings(activePortfolio) {
                 if (isValid) {
                   setVaultKeys((prev) => ({ ...prev, [activePortfolio.id]: derivedKey }));
                   const decrypted = await Promise.all(
-                    rawHoldings.map((h) => decryptHoldingFromApi(h, derivedKey))
+                    rawHoldings.map((h) => decryptHoldingFromApi(derivedKey, h))
                   );
                   setHoldings(decrypted.map(normalizeHolding));
                 } else {
@@ -209,7 +209,7 @@ export function useHoldings(activePortfolio) {
     try {
       let payload = { ...holdingData, portfolioId: activePortfolio.id };
       if (activePortfolio.isE2ee && activeVaultKey) {
-        payload = await encryptHoldingForApi(payload, activeVaultKey);
+        payload = await encryptHoldingForApi(activeVaultKey, payload);
       }
       const res = await addPortfolioHolding(payload);
       if (res && res.success) {
@@ -229,7 +229,7 @@ export function useHoldings(activePortfolio) {
     try {
       let payload = { ...holdingData, portfolioId: activePortfolio.id };
       if (activePortfolio.isE2ee && activeVaultKey) {
-        payload = await encryptHoldingForApi(payload, activeVaultKey);
+        payload = await encryptHoldingForApi(activeVaultKey, payload);
       }
       const res = await updatePortfolioHolding(payload);
       if (res && res.success) {
