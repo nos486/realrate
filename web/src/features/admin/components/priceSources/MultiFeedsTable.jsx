@@ -1,0 +1,350 @@
+import React from 'react';
+import {
+  Sparkles,
+  Plus,
+  Layers,
+  Table,
+  X,
+  Sliders,
+  Search,
+  Eye,
+  PlayCircle,
+  Edit3,
+  Trash2,
+} from 'lucide-react';
+import EmptyState from '../../../../components/ui/EmptyState.jsx';
+import { formatPersianDate } from './priceSourceConstants.js';
+
+export default function MultiFeedsTable({
+  multiSources = [],
+  multiSearch = '',
+  setMultiSearch,
+  handleOpenAddMultiFeed,
+  handleOpenExplorer,
+  handleTestRowSource,
+  handleOpenEditMultiFeed,
+  handleDeleteSource,
+  rowTestingId = null,
+  PRICE_TYPE_INFO = {},
+}) {
+  const filteredMultiSources = multiSources.filter((s) => {
+    if (!multiSearch.trim()) return true;
+    const q = multiSearch.toLowerCase();
+    return (
+      (s.name && s.name.toLowerCase().includes(q)) ||
+      (s.endpoint && s.endpoint.toLowerCase().includes(q)) ||
+      (s.priceType && s.priceType.toLowerCase().includes(q))
+    );
+  });
+
+  return (
+    <section className="multi-feeds-hub-wrap">
+      {/* Header Card with Stats */}
+      <div className="multi-feeds-header-card">
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '16px' }}>
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
+              <Sparkles size={18} style={{ color: '#818cf8' }} />
+              <h2 style={{ fontSize: '18px', fontWeight: '900', margin: 0, color: 'var(--text-heading)' }}>
+                هاب مدیریت سورس‌های چند خروجی و فیدهای تجمیعی
+              </h2>
+            </div>
+            <p style={{ fontSize: '13px', color: 'var(--text-muted)', margin: 0, lineHeight: '1.6' }}>
+              پشتیبانی از هر نوع خروجی چند آیتمی: بورس اوراق بهادار، قیمت روز خودرو، رمزارزها، کالاهای اساسی و APIهای سفارشی با نگاشت هوشمند
+            </p>
+          </div>
+
+          <button
+            type="button"
+            onClick={handleOpenAddMultiFeed}
+            className="btn-hero-action primary-glow"
+            style={{ padding: '10px 20px', fontSize: '13px' }}
+          >
+            <Plus size={16} strokeWidth={2.5} />
+            <span>+ ایجاد فید چند خروجی هوشمند</span>
+          </button>
+        </div>
+
+        {/* Quick Stats Grid */}
+        <div className="multi-feeds-stats-grid">
+          <div className="multi-stat-card">
+            <div className="multi-stat-icon" style={{ background: 'rgba(99, 102, 241, 0.15)', color: '#818cf8' }}>
+              <Layers size={20} />
+            </div>
+            <div className="multi-stat-info">
+              <span className="multi-stat-val">{multiSources.length.toLocaleString('fa-IR')}</span>
+              <span className="multi-stat-lbl">فیدهای فعال و پیکربندی‌شده</span>
+            </div>
+          </div>
+
+          <div className="multi-stat-card">
+            <div className="multi-stat-icon" style={{ background: 'rgba(16, 185, 129, 0.15)', color: '#34d399' }}>
+              <Table size={20} />
+            </div>
+            <div className="multi-stat-info">
+              <span className="multi-stat-val">
+                {multiSources.reduce((acc, s) => acc + (Number(s.lastPrice) || 0), 0).toLocaleString('fa-IR')}
+              </span>
+              <span className="multi-stat-lbl">مجموع اقلام و محصولات رصدشده</span>
+            </div>
+          </div>
+
+          <div className="multi-stat-card">
+            <div className="multi-stat-icon" style={{ background: 'rgba(244, 63, 94, 0.15)', color: '#fb7185' }}>
+              <X size={20} />
+            </div>
+            <div className="multi-stat-info">
+              <span className="multi-stat-val">
+                {multiSources.reduce((acc, s) => {
+                  const excl = Array.isArray(s.excludedOutputs)
+                    ? s.excludedOutputs
+                    : (typeof s.excludedOutputs === 'string' ? JSON.parse(s.excludedOutputs || '[]') : []);
+                  return acc + excl.length;
+                }, 0).toLocaleString('fa-IR')}
+              </span>
+              <span className="multi-stat-lbl">کل موارد مستثنی‌شده (Excluded)</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Search Toolbar */}
+      <div className="table-header-toolbar">
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <Sliders size={17} style={{ color: 'var(--accent-indigo, #6366f1)' }} />
+          <h3 style={{ fontSize: '15px', fontWeight: '800', margin: 0, color: 'var(--text-heading)' }}>
+            فهرست فیدهای چند خروجی
+          </h3>
+        </div>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: '260px' }}>
+          <div style={{ position: 'relative', width: '100%' }}>
+            <Search size={14} style={{ position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
+            <input
+              type="text"
+              placeholder="جستجو در فیدها (نام، آدرس، نوع)..."
+              value={multiSearch}
+              onChange={(e) => setMultiSearch(e.target.value)}
+              style={{ width: '100%', paddingRight: '32px', fontSize: '12px', padding: '6px 32px 6px 12px' }}
+            />
+          </div>
+        </div>
+      </div>
+
+      {/* Multi-Output Feeds Table */}
+      <div className="users-table-wrap sources-fullscreen-table-wrap">
+        <table className="users-table sources-table">
+          <thead>
+            <tr>
+              <th>نام فید و آدرس</th>
+              <th>دسته‌بندی</th>
+              <th>تعداد اقلام رصدشده</th>
+              <th>نگاشت ساختار ستون‌ها</th>
+              <th>موارد مستثنی‌شده</th>
+              <th>وضعیت</th>
+              <th style={{ textAlign: 'center' }}>عملیات</th>
+            </tr>
+          </thead>
+          <tbody>
+            {filteredMultiSources.length === 0 ? (
+              <tr>
+                <td colSpan="7" style={{ textAlign: 'center', padding: '36px' }}>
+                  <EmptyState
+                    title="هیچ فید چند خروجی یافت نشد."
+                    description="برای اتصال به API خودرو، بورس، کریپتو یا وب‌سرویس دلخواه، یک فید جدید ایجاد کنید."
+                    action={
+                      <button
+                        type="button"
+                        className="btn-primary"
+                        style={{ fontSize: '12px', padding: '8px 16px' }}
+                        onClick={handleOpenAddMultiFeed}
+                      >
+                        + ایجاد اولین فید هوشمند
+                      </button>
+                    }
+                  />
+                </td>
+              </tr>
+            ) : (
+              filteredMultiSources.map((src) => {
+                const typeInfo = PRICE_TYPE_INFO[src.priceType] || { label: src.priceType, badgeColor: 'indigo' };
+                const mapping = typeof src.fieldMapping === 'string' ? JSON.parse(src.fieldMapping || '{}') : (src.fieldMapping || {});
+                const labels = mapping.labels || {};
+                const excluded = Array.isArray(src.excludedOutputs)
+                  ? src.excludedOutputs
+                  : (typeof src.excludedOutputs === 'string' ? JSON.parse(src.excludedOutputs || '[]') : []);
+
+                return (
+                  <tr key={src.id}>
+                    <td>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
+                        <strong style={{ fontSize: '13.5px', color: 'var(--text-heading)' }}>{src.name}</strong>
+                        <span style={{ fontSize: '11px', color: 'var(--text-muted)', fontFamily: 'monospace', direction: 'ltr', textAlign: 'right' }}>
+                          {src.endpoint || src.apiUrl || '-'}
+                        </span>
+                      </div>
+                    </td>
+
+                    <td>
+                      <span className={`badge badge-${typeInfo.badgeColor || 'indigo'}`} style={{ fontSize: '11px' }}>
+                        {typeInfo.label || src.priceType}
+                      </span>
+                    </td>
+
+                    <td>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <span style={{ fontSize: '13px', fontWeight: '800', color: 'var(--accent-green, #10b981)' }}>
+                          {Number(src.lastPrice || 0).toLocaleString('fa-IR')}
+                        </span>
+                        <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{typeInfo.unit || 'مورد'}</span>
+                      </div>
+                      {src.lastFetched && (
+                        <span style={{ fontSize: '10px', color: 'var(--text-muted)', display: 'block' }}>
+                          {formatPersianDate(src.lastFetched)}
+                        </span>
+                      )}
+                    </td>
+
+                    <td>
+                      {mapping.feedType === 'key_value' || src.priceType === 'forex' ? (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
+                          <span style={{ fontSize: '10px', padding: '2px 7px', borderRadius: '4px', background: 'rgba(56, 189, 248, 0.12)', color: '#38bdf8', width: 'fit-content', fontWeight: '700' }}>
+                            کلید-مقدار (Key-Value)
+                          </span>
+                          <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>
+                            ریشه: <code style={{ color: 'var(--text-heading)' }}>{mapping.rootPath || mapping.arrayPath || 'rates'}</code>
+                          </span>
+                          <span style={{ fontSize: '10px', color: 'var(--accent-green, #10b981)' }}>
+                            فرمول: <strong>{mapping.defaultMode === 'invert' ? 'معکوس (1/rate)' : (mapping.defaultMode === 'direct' ? 'مستقیم' : 'ضرب')}</strong>
+                          </span>
+                        </div>
+                      ) : (
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', maxWidth: '280px' }}>
+                          <span style={{ fontSize: '10px', padding: '2px 6px', borderRadius: '4px', background: 'rgba(255,255,255,0.05)', color: 'var(--text-muted)' }}>
+                            شناسه: <code style={{ color: 'var(--text-heading)' }}>{mapping.idField || mapping.symbolField || 'l18'}</code>
+                            {labels.id ? ` (${labels.id})` : ''}
+                          </span>
+                          <span style={{ fontSize: '10px', padding: '2px 6px', borderRadius: '4px', background: 'rgba(255,255,255,0.05)', color: 'var(--text-muted)' }}>
+                            عنوان: <code style={{ color: 'var(--text-heading)' }}>{mapping.titleField || mapping.nameField || 'l30'}</code>
+                            {labels.title ? ` (${labels.title})` : ''}
+                          </span>
+                          <span style={{ fontSize: '10px', padding: '2px 6px', borderRadius: '4px', background: 'rgba(255,255,255,0.05)', color: 'var(--accent-green, #10b981)' }}>
+                            قیمت: <code style={{ color: 'var(--accent-green, #10b981)' }}>{mapping.priceField || 'pl'}</code>
+                            {labels.price ? ` (${labels.price})` : ''}
+                          </span>
+                          {mapping.altPriceField && (
+                            <span style={{ fontSize: '10px', padding: '2px 6px', borderRadius: '4px', background: 'rgba(255,255,255,0.05)', color: 'var(--text-muted)' }}>
+                              دوم: <code>{mapping.altPriceField}</code>
+                            </span>
+                          )}
+                        </div>
+                      )}
+                    </td>
+
+                    <td>
+                      {mapping.selectionMode === 'whitelist' ? (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                          <span style={{
+                            display: 'inline-flex', alignItems: 'center', gap: '4px',
+                            padding: '2px 8px', borderRadius: '6px',
+                            background: 'rgba(16, 185, 129, 0.12)', color: '#10b981',
+                            fontSize: '11px', fontWeight: '700', width: 'fit-content',
+                          }}>
+                            فیلتر گزینشی (لیست سفید)
+                          </span>
+                          <span style={{ fontSize: '10.5px', color: 'var(--text-muted)' }}>
+                            {(mapping.includedKeys || mapping.currencies || []).length.toLocaleString('fa-IR')} قلم انتخابی
+                          </span>
+                        </div>
+                      ) : excluded.length > 0 ? (
+                        <span style={{
+                          display: 'inline-flex', alignItems: 'center', gap: '4px',
+                          padding: '2px 8px', borderRadius: '6px',
+                          background: 'rgba(244,63,94,0.12)', color: '#f43f5e',
+                          fontSize: '11px', fontWeight: '700',
+                        }}>
+                          {excluded.length.toLocaleString('fa-IR')} مورد مستثنی
+                        </span>
+                      ) : (
+                        <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>کامل (بدون فیلتر)</span>
+                      )}
+                    </td>
+
+                    <td>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center' }}>
+                          <span className={`status-dot ${src.isActive ? 'active' : 'inactive'}`} />
+                          <span style={{ fontSize: '11px', marginRight: '4px' }}>{src.isActive ? 'فعال' : 'غیرفعال'}</span>
+                        </div>
+                        {(() => {
+                          const dc = typeof src.displayConfig === 'string'
+                            ? (() => { try { return JSON.parse(src.displayConfig); } catch { return {}; } })()
+                            : (src.displayConfig || {});
+                          return dc.showOnHomePage === false ? (
+                            <span style={{ fontSize: '9.5px', color: '#f43f5e', background: 'rgba(244,63,94,0.12)', padding: '1px 5px', borderRadius: '4px', width: 'fit-content' }}>
+                              مخفی در خانه
+                            </span>
+                          ) : (
+                            <span style={{ fontSize: '9.5px', color: '#10b981', background: 'rgba(16,185,129,0.12)', padding: '1px 5px', borderRadius: '4px', width: 'fit-content' }}>
+                              نمایش در خانه
+                            </span>
+                          );
+                        })()}
+                      </div>
+                    </td>
+
+                    <td>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
+                        {/* Data Explorer button */}
+                        <button
+                          type="button"
+                          className="btn-action-icon"
+                          title="کاوشگر زنده داده‌ها (مشاهده و جستجو در اقلام)"
+                          onClick={() => handleOpenExplorer(src)}
+                          style={{ color: '#818cf8', background: 'rgba(99,102,241,0.12)' }}
+                        >
+                          <Eye size={15} />
+                        </button>
+
+                        {/* Live test button */}
+                        <button
+                          type="button"
+                          className="btn-action-icon"
+                          title="تست اتصال و استخراج آنی"
+                          onClick={() => handleTestRowSource(src)}
+                          disabled={rowTestingId === src.id}
+                        >
+                          <PlayCircle size={15} className={rowTestingId === src.id ? 'spin-anim' : ''} />
+                        </button>
+
+                        {/* Edit schema button */}
+                        <button
+                          type="button"
+                          className="btn-action-icon"
+                          title="ویرایش نگاشت و تنظیمات فید"
+                          onClick={() => handleOpenEditMultiFeed(src)}
+                        >
+                          <Edit3 size={15} />
+                        </button>
+
+                        {/* Delete button */}
+                        <button
+                          type="button"
+                          className="btn-action-icon danger"
+                          title="حذف این فید"
+                          onClick={() => handleDeleteSource(src)}
+                        >
+                          <Trash2 size={15} />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })
+            )}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  );
+}
