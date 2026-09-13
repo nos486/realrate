@@ -1,18 +1,15 @@
 import React, { useState, useMemo } from 'react';
 import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { Megaphone, TrendingUp, Briefcase, ShieldCheck, Radio, Settings } from 'lucide-react';
-import AppLayout from '../components/ui/AppLayout.jsx';
-import FilterPills from '../components/ui/FilterPills.jsx';
-import AlertBanner from '../components/ui/AlertBanner.jsx';
+import { AppLayout, FilterPills, AlertBanner } from '../shared/ui/index.js';
 import MarketInputsToolbar from '../components/MarketInputsToolbar.jsx';
-import AnalysisCards from '../components/AnalysisCards.jsx';
-import CurrenciesList from '../components/CurrenciesList.jsx';
+import { AnalysisCards, CurrenciesList } from '../features/market/components/index.js';
 import PortfolioTracker from '../components/PortfolioTracker.jsx';
 import AdminPage from './AdminPage.jsx';
 import PriceSourcesPage from './PriceSourcesPage.jsx';
 import AccountSettingsView from '../components/AccountSettingsView.jsx';
 import LiveRatesTicker from '../components/LiveRatesTicker.jsx';
-import { useMarketData } from '../hooks/useMarketData.js';
+import { useMarketData } from '../features/market/hooks/useMarketData.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import { toEnglishDigits } from '../utils/formatters.js';
 

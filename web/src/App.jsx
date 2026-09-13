@@ -1,7 +1,7 @@
 import { Routes, Route, Navigate } from 'react-router-dom';
 import MainPage from './pages/MainPage.jsx';
 import SharedPortfolioPage from './pages/SharedPortfolioPage.jsx';
-import FullscreenLoader from './components/FullscreenLoader.jsx';
+import FullscreenLoader from './shared/ui/FullscreenLoader.jsx';
 import { PricingProvider } from './context/PricingContext.jsx';
 
 export default function App() {

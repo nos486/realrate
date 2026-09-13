@@ -1,16 +1,29 @@
 /**
- * api/client.js — Centralized API fetch wrapper
- *
- * - In development: requests go to /api/* (proxied by Vite to localhost:8787)
- * - In production: requests go to VITE_API_URL env var (e.g. https://realrate-api.workers.dev)
- *
- * Auth: token stored in localStorage, sent as Authorization: Bearer <token>
+ * api/client.js — Backward-Compatible API wrapper delegating to shared/api/httpClient.js
  */
 
-export const API_BASE = (
-  (typeof import.meta !== 'undefined' && import.meta.env?.VITE_API_URL) ||
-  (typeof import.meta !== 'undefined' && import.meta.env?.PROD ? 'https://realrate-api.geekio.org' : (typeof window !== 'undefined' ? '' : 'http://localhost:8787'))
-).replace(/\/$/, '');
+import {
+  API_BASE,
+  getToken,
+  setToken,
+  subscribeLoading,
+  startGlobalLoading,
+  stopGlobalLoading,
+  httpRequest,
+  httpClient,
+  HttpError,
+} from '../shared/api/httpClient.js';
+
+export {
+  API_BASE,
+  getToken,
+  setToken,
+  subscribeLoading,
+  startGlobalLoading,
+  stopGlobalLoading,
+  httpClient,
+  HttpError,
+};
 
 export function getGoogleLoginUrl(returnTo = '') {
   const target = returnTo || (typeof window !== 'undefined' ? window.location.href : '/');
@@ -18,113 +31,33 @@ export function getGoogleLoginUrl(returnTo = '') {
 }
 
 /**
- * Get the stored auth token from localStorage
+ * Core fetch wrapper delegating to shared httpClient
+ * Preserves the { json: async () => data } interface for legacy calls
  */
-export function getToken() {
+export async function apiFetch(path, options = {}) {
   try {
-    return localStorage.getItem('realrate_token') || null;
-  } catch {
-    return null;
-  }
-}
-
-/**
- * Store auth token in localStorage
- */
-export function setToken(token) {
-  try {
-    if (token) {
-      localStorage.setItem('realrate_token', token);
-    } else {
-      localStorage.removeItem('realrate_token');
-    }
-  } catch {}
-}
-
-let activeLoadingCount = 0;
-const loadingListeners = new Set();
-
-function emitLoadingChange() {
-  const isLoading = activeLoadingCount > 0;
-  loadingListeners.forEach((fn) => {
-    try {
-      fn(isLoading);
-    } catch (err) {
-      console.error('Loading listener error:', err);
-    }
-  });
-}
-
-/**
- * Subscribe to global active network loading state
- */
-export function subscribeLoading(listener) {
-  loadingListeners.add(listener);
-  listener(activeLoadingCount > 0);
-  return () => {
-    loadingListeners.delete(listener);
-  };
-}
-
-export function startGlobalLoading() {
-  activeLoadingCount++;
-  emitLoadingChange();
-}
-
-export function stopGlobalLoading() {
-  activeLoadingCount = Math.max(0, activeLoadingCount - 1);
-  emitLoadingChange();
-}
-
-/**
- * Core fetch wrapper — adds Authorization header if token exists
- * Tracks active loading requests unless options.silent is true
- */
-async function apiFetch(path, options = {}) {
-  const isSilent = Boolean(options.silent);
-  if (!isSilent) {
-    startGlobalLoading();
-  }
-
-  try {
-    const token = getToken();
-    const headers = {
-      'Content-Type': 'application/json',
-      ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
-      ...(options.headers || {}),
+    const data = await httpRequest(path, options);
+    return {
+      ok: true,
+      status: 200,
+      json: async () => data,
+      data,
     };
-
-    const res = await fetch(`${API_BASE}${path}`, {
-      ...options,
-      headers,
-      credentials: 'include',  // also send cookies if present
-    });
-
-    const originalJson = res.json.bind(res);
-    res.json = async () => {
-      const data = await originalJson();
-      if (data && typeof data === 'object') {
-        if (data.error && typeof data.error === 'object') {
-          const errObj = data.error;
-          data.errorDetails = errObj;
-          data.errorCode = errObj.code || 'UNKNOWN_ERROR';
-          if (!data.message) {
-            data.message = errObj.message || errObj.code || 'خطای سرور';
-          }
-          data.error = errObj.message || errObj.code || 'خطای سرور';
-          if (data.success === undefined) {
-            data.success = false;
-          }
-        }
-      }
-      return data;
-    };
-
-    return res;
-  } finally {
-    if (!isSilent) {
-      stopGlobalLoading();
+  } catch (err) {
+    if (err instanceof HttpError) {
+      return {
+        ok: false,
+        status: err.status,
+        json: async () => err.data || { success: false, message: err.message, error: err.message },
+        data: err.data,
+      };
     }
+    return {
+      ok: false,
+      status: 0,
+      json: async () => ({ success: false, message: err?.message || 'خطای شبکه', error: err?.message || 'خطای شبکه' }),
+      data: null,
+    };
   }
 }
 
