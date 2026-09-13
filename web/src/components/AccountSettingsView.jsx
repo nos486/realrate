@@ -4,7 +4,7 @@ import Card from './ui/Card.jsx';
 import AlertBanner from './ui/AlertBanner.jsx';
 import Button from './ui/Button.jsx';
 import Input from './ui/Input.jsx';
-import { useAuth } from '../context/AuthContext.jsx';
+import { useAuth } from '../features/auth/index.js';
 import { apiGetUserSettings, apiUpdateUserSettings } from '../api/client.js';
 
 /**

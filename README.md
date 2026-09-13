@@ -39,10 +39,15 @@
 - **🔐 Google OAuth (GIS)**: Seamless authentication with Google Identity Services, 30-day secure session management, and role-based access control.
 - **📊 Admin Panel & Analytics**: Real-time traffic monitoring, active users within the last 5 minutes, registered user management, and dynamic system-wide configuration without redeploying.
 
-#### 🏗️ Architecture
-RealRate is structured as an **npm workspaces monorepo**:
-- **`api/`**: Pure JSON REST API running on Cloudflare Workers, integrated with Cloudflare D1 (SQLite) and Cloudflare KV.
-- **`web/`**: Modern Single Page Application (SPA) built with React 19, Vite, and custom dark glassmorphism CSS, hosted on Cloudflare Pages.
+#### 🏗️ Architecture & Documentation
+RealRate is structured as an **npm workspaces monorepo** with clean, decoupled layers:
+- **`api/`**: REST API built with Hono on Cloudflare Workers, using Repository pattern for Cloudflare D1 (SQLite) & Cloudflare KV, Adapter pattern for external price sources, and centralized Domain Specs.
+- **`web/`**: Modern React 19 SPA built with Vite, utilizing a modular **Feature-Based Architecture** (`features/market`, `features/portfolio`, `features/auth`, `features/admin`), Web Crypto Zero-Knowledge E2EE, and dark glassmorphism design tokens.
+- **📚 Detailed Guides**:
+  - [System Architecture & Data Flows](docs/ARCHITECTURE.md)
+  - [API Specification](docs/API.md)
+  - [Guide: Adding a New Asset](docs/ADDING_NEW_ASSET.md)
+  - [Guide: Adding a New Price Source Adapter](docs/ADDING_NEW_PRICE_SOURCE.md)
 
 ---
 

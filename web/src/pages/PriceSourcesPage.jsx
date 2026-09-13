@@ -49,7 +49,7 @@ import FilterPills from '../components/ui/FilterPills.jsx';
 import EmptyState from '../components/ui/EmptyState.jsx';
 import Card from '../components/ui/Card.jsx';
 import Modal from '../components/ui/Modal.jsx';
-import { useAuth } from '../context/AuthContext.jsx';
+import { useAuth } from '../features/auth/index.js';
 import { useMarketData } from '../hooks/useMarketData.js';
 import {
   apiGetPriceSources,

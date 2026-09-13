@@ -19,43 +19,39 @@
 
 ---
 
-## ۲. ساختار دایرکتوری و فایل‌ها (`web/`)
+## ۲. ساختار دایرکتوری فیچرمحور (`web/src/`)
+
+معماری فرانت‌اند طبق الگوی **Feature-Based Architecture** بازطراحی شده است:
 
 ```text
-web/
-├── public/                        # دارایی‌های ایستا، فونت‌های Vazirmatn و تصاویر
-├── index.html                     # نقطه ورود HTML به همراه متاتگ‌های سئو
-├── vite.config.js                 # کانفیگ بیلد Vite و پروکسی روت‌های /api به سرور لوکال
-├── package.json                   # وابستگی‌ها و اسکریپت‌های اجرایی
-└── src/
-    ├── App.jsx                    # کامپوننت ریشه، نوبار، مدیریت تب‌ها و هدر
-    ├── main.jsx                   # نقطه اتصال React DOM
-    ├── api/
-    │   └── client.js              # کلاینت ارتباط با REST API بک‌اند (Fetch Wrapper)
-    ├── context/
-    │   ├── AuthContext.jsx        # کانتکست احراز هویت، مدیریت توکن نشست و نقش‌ها
-    │   └── PricingContext.jsx     # کانتکست مرکزی قیمت‌ها، سورس‌ها و تنظیمات سراسری
-    ├── hooks/
-    │   ├── useMarketData.js       # هوک محاسبات داده‌های بازار و تحلیل حباب اقلام
-    │   └── usePortfolioData.js    # هوک مدیریت سبد دارایی‌ها و همگام‌سازی ابری
-    ├── utils/
-    │   ├── financialSpecs.js      # پیوند نمادین (Symlink) به سورس مرجع واحد بک‌اند
-    │   ├── pricingEngine.js       # موتور تبدیل نرخ‌ها به کاتالوگ یکپارچه دارایی‌ها
-    │   ├── calculator.js          # توابع خالص ریاضی و تحلیل حباب دارایی‌ها
-    │   └── exportUtils.js         # ساخت فایل‌های خروجی استاندارد CSV و اکسل
-    ├── components/
-    │   ├── PortfolioTracker.jsx   # کامپوننت جامع مدیریت پورتفوهای چندگانه
-    │   ├── UniversalAssetSearch.jsx # کامپوننت جستجوی هوشمند با پشتیبانی از نام مستعار
-    │   ├── QuickCurrencies.jsx    # تیکر سریع ارزهای پرطرفدار بر اساس مشخصات واحد
-    │   ├── MarketOverview.jsx     # نمای کلی تابلوهای طلا، سکه و ارز
-    │   ├── AnalysisCard.jsx       # کارت نمایش حباب و ارزش ذاتی اقلام طلا و سکه
-    │   └── ui/                    # کامپوننت‌های رابط کاربری اشتراکی (Card, Button, Modal)
-    └── styles/
-        ├── vars.css               # متغیرهای طراحی (رنگ‌ها، گرادیان‌ها، سایه‌ها، فواصل)
-        ├── base.css               # استایل‌های پایه و عمومی صفحات
-        ├── market.css             # استایل کارت‌های بازار و گرید تحلیل حباب
-        ├── portfolio-extras.css   # استایل‌های پیشرفته جدول پورتفولیو و پاپ‌آپ‌ها
-        └── sources.css            # استایل‌های پنل مدیریت سورس‌های قیمت ادمین
+web/src/
+├── features/                          # ماژول‌های مستقل بر اساس فیچر
+│   ├── market/                        # فیچر نرخ‌های بازار و تحلیل حباب
+│   │   ├── api/marketApi.js           # کلاینت اختصاصی API بازار
+│   │   ├── components/                # AnalysisCards, CurrenciesList, QuickCurrencies
+│   │   └── index.js                   # اکسپورت عمومی فیچر
+│   ├── portfolio/                     # فیچر مدیریت سبد دارایی و رمزنگاری
+│   │   ├── api/portfolioApi.js        # کلاینت پورتفو، دارایی‌ها و اشتراک‌گذاری
+│   │   ├── components/                # HoldingsTable, AddHoldingForm, ShamsiDatePicker,
+│   │   │                              # PortfolioSwitcher, PrivacyToggle, CsvExportButton...
+│   │   ├── hooks/                     # usePortfolio, useHoldings (با مایگریشن خودکار)
+│   │   ├── utils/holdingHelpers.js    # نرمال‌سازی دارایی، آیکون‌ها، دسته‌بندی‌ها
+│   │   └── index.js
+│   ├── auth/                          # فیچر ورود و احراز هویت
+│   │   ├── api/authApi.js             # سشن، گوگل OAuth، خروج
+│   │   ├── context/AuthContext.jsx    # کانتکست و هوک useAuth
+│   │   └── index.js
+│   └── admin/                         # فیچر پنل ادمین
+│       ├── api/adminApi.js            # آمار، مدیریت کاربران، منابع قیمت
+│       ├── components/AdminPanel.jsx
+│       └── index.js
+├── shared/                            # مؤلفه‌های مشترک و با قابلیت استفاده مجدد
+│   ├── api/httpClient.js              # Fetch Wrapper، مدیریت توکن Bearer و خطاها
+│   ├── components/                    # Header, Navigation, Footer
+│   └── ui/                            # Modal, NumericInput, AlertBanner, FilterPills, AppLayout
+├── context/                           # PricingContext سراسری
+├── utils/                             # financialSpecs, pricingEngine, calculator
+└── pages/                             # صفحات اصلی (MainPage, SharedPortfolioPage, AdminPage)
 ```
 
 ---

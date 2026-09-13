@@ -4,13 +4,13 @@ import { Megaphone, TrendingUp, Briefcase, ShieldCheck, Radio, Settings } from '
 import { AppLayout, FilterPills, AlertBanner } from '../shared/ui/index.js';
 import MarketInputsToolbar from '../components/MarketInputsToolbar.jsx';
 import { AnalysisCards, CurrenciesList } from '../features/market/components/index.js';
-import PortfolioTracker from '../components/PortfolioTracker.jsx';
+import { PortfolioTracker } from '../features/portfolio/index.js';
 import AdminPage from './AdminPage.jsx';
 import PriceSourcesPage from './PriceSourcesPage.jsx';
 import AccountSettingsView from '../components/AccountSettingsView.jsx';
 import LiveRatesTicker from '../components/LiveRatesTicker.jsx';
 import { useMarketData } from '../features/market/hooks/useMarketData.js';
-import { useAuth } from '../context/AuthContext.jsx';
+import { useAuth } from '../features/auth/index.js';
 import { toEnglishDigits } from '../utils/formatters.js';
 
 export default function MainPage() {
