@@ -32,7 +32,6 @@ import {
   handleAdminSetPrimarySource,
   handleAdminTestPriceSource,
   handleAdminFetchAllSources,
-  handleAdminGetPriceHistory,
   handleAdminGetSourceTypes,
   handleAdminSaveSourceType,
   handleAdminDeleteSourceType,
@@ -109,9 +108,6 @@ export default {
     }
     if (url.pathname === "/api/admin/price-sources/fetch-all" && request.method === "POST") {
       return handleAdminFetchAllSources(request, env);
-    }
-    if (url.pathname === "/api/admin/price-history" && request.method === "GET") {
-      return handleAdminGetPriceHistory(request, env);
     }
 
     if (url.pathname === "/api/admin/source-types") {

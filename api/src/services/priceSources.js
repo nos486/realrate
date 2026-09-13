@@ -791,7 +791,7 @@ export function compileLatestMarketRates(sources) {
  * Handle scheduled automatic price extraction runner:
  * Checks each active source against its configured interval (fetch_interval_sec).
  * If (now - lastFetched) >= interval (or forceAll is true), fetches and extracts price.
- * Updates D1 last_price, records D1 history, and saves latest prices into KV.
+ * Updates D1 last_price and saves latest prices into KV.
  *
  * @param {object} env
  * @param {boolean} [forceAll=false]

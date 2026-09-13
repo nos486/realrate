@@ -67,8 +67,8 @@ export async function fetchForexRates(env, forceRefresh = false) {
           } catch (e) {}
         }
 
-        // Record history in D1 for periodic sparklines and benchmarks
-        recordForexHistoryInD1(env, fetchedRates).catch(() => {});
+        // Sync forex rates into D1 price_sources table
+        syncForexRatesToPriceSources(env, fetchedRates).catch(() => {});
 
         return fetchedRates;
       }
@@ -81,12 +81,12 @@ export async function fetchForexRates(env, forceRefresh = false) {
 }
 
 /**
- * Record historical cross rates (relative to USD) in D1 price_history table
+ * Synchronize forex cross rates (relative to USD) into D1 price_sources table
  * Throttled to at most once per 15 minutes to prevent redundant DB writes.
  * @param {object} env
  * @param {object} fetchedRates
  */
-export async function recordForexHistoryInD1(env, fetchedRates) {
+export async function syncForexRatesToPriceSources(env, fetchedRates) {
   if (!env?.DB || !fetchedRates) return;
   try {
     const cacheKey = "last_forex_d1_record";

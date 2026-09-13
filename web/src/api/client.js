@@ -226,15 +226,6 @@ export async function apiFetchAllSourcesNow() {
   return res.json();
 }
 
-export async function apiGetPriceHistory({ sourceId = null, priceType = null, range = '24h', limit = 200 } = {}) {
-  const params = new URLSearchParams();
-  if (sourceId) params.append('sourceId', sourceId);
-  if (priceType) params.append('priceType', priceType);
-  if (range) params.append('range', range);
-  if (limit) params.append('limit', limit);
-  const res = await apiFetch(`/api/admin/price-history?${params.toString()}`);
-  return res.json();
-}
 
 // ─── Source Types (Dynamic Price Type Registry) ───────────────────────────────
 

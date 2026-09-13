@@ -114,18 +114,7 @@ export async function ensureD1Tables(env) {
     `CREATE INDEX IF NOT EXISTS idx_price_sources_type ON price_sources(price_type)`,
     `CREATE INDEX IF NOT EXISTS idx_price_sources_primary ON price_sources(is_primary)`,
     `CREATE INDEX IF NOT EXISTS idx_price_sources_active ON price_sources(is_active)`,
-    `CREATE TABLE IF NOT EXISTS price_history (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      source_id TEXT NOT NULL,
-      price_type TEXT NOT NULL,
-      source_name TEXT NOT NULL,
-      price REAL NOT NULL,
-      timestamp TEXT NOT NULL,
-      created_at TEXT NOT NULL
-    )`,
-    `CREATE INDEX IF NOT EXISTS idx_price_history_source ON price_history(source_id, timestamp DESC)`,
-    `CREATE INDEX IF NOT EXISTS idx_price_history_type ON price_history(price_type, timestamp DESC)`,
-    `CREATE INDEX IF NOT EXISTS idx_price_history_timestamp ON price_history(timestamp DESC)`,
+    `DROP TABLE IF EXISTS price_history`,
     `CREATE TABLE IF NOT EXISTS source_types (
       id TEXT PRIMARY KEY,
       label TEXT NOT NULL,
@@ -1486,15 +1475,6 @@ export async function dbSavePriceSource(env, data) {
 
     const saved = await dbGetPriceSourceById(env, id);
 
-    if (data.lastPrice && Number(data.lastPrice) > 0) {
-      await dbRecordPriceHistory(env, {
-        sourceId: id,
-        priceType,
-        sourceName: name,
-        price: Number(data.lastPrice),
-        timestamp: data.lastFetched || now,
-      });
-    }
 
     return saved;
   }
@@ -1515,8 +1495,7 @@ export async function dbDeletePriceSource(env, id) {
     await ensureD1Tables(env);
 
     const target = await dbGetPriceSourceById(env, id);
-    // Delete all historical price points for this source
-    await env.DB.prepare("DELETE FROM price_history WHERE source_id = ?").bind(id).run();
+
     // Delete the source configuration
     await env.DB.prepare("DELETE FROM price_sources WHERE id = ?").bind(id).run();
 
@@ -1640,31 +1619,6 @@ export async function dbUpdateSourceLastPrice(env, id, lastPrice, lastFetched = 
       }));
     } catch (ignore) {}
   }
-}
-
-/**
- * Record a price snapshot to price_history table
- * Disabled: Price and graph history tracking removed to optimize performance and eliminate DB queries.
- */
-export async function dbRecordPriceHistory(env, entry = {}) {
-  // Graph history tracking removed to keep application lightweight and reduce queries
-  return;
-}
-
-/**
- * Get historical price records for graphing and analytics
- * Disabled: Graph history tracking removed.
- */
-export async function dbGetPriceHistory(env, options = {}) {
-  return [];
-}
-
-/**
- * Retrieve downsampled 24h price history sparklines
- * Disabled: Sparkline tracking removed.
- */
-export async function dbGet24hSparklines(env, targetAsset = null) {
-  return targetAsset ? { [targetAsset]: [] } : {};
 }
 
 

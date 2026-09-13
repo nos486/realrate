@@ -282,17 +282,7 @@ export async function handleAdminFetchAllSources(request, env) {
   }
 }
 
-/**
- * GET /api/admin/price-history
- * Query historical prices for graphing — admin only
- * Params: sourceId, priceType, range ('24h', '7d', '30d', '1y', 'all'), limit
- */
-export async function handleAdminGetPriceHistory(request, env) {
-  const user = await getAuthenticatedUser(request, env);
-  if (!user || user.role !== "admin") return forbiddenResponse(request);
 
-  return jsonResponse({ success: true, history: [] }, 200, request);
-}
 
 /**
  * GET /api/admin/source-types

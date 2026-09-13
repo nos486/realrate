@@ -6,7 +6,6 @@ import React from 'react';
  * Single source of truth for:
  * - sources-page-hero-banner
  * - source-tabs-header
- * - price-history-chart-card
  * - admin-container
  * - admin-profile-bar
  * - all general .ui-card containers
