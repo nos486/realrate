@@ -586,6 +586,7 @@ export default function PortfolioTracker({ rates, calcData, usdToman, goldUsd })
         editingHolding={editingHolding}
         submitting={submitting}
         rates={rates}
+        realPriceMap={realPriceMap}
       />
 
       {/* New Portfolio Modal */}

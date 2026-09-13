@@ -65,12 +65,14 @@ export function parseShamsiDate(str) {
   };
 }
 
-export default function ShamsiDatePicker({ value = '', onChange, label = 'تاریخ خرید', className = '' }) {
+export default function ShamsiDatePicker({ value = '', onChange, onTodayClick, label = 'تاریخ خرید', className = '' }) {
   const [showPicker, setShowPicker] = useState(false);
   const nativeDateRef = useRef(null);
 
   const handleSetToday = () => {
-    onChange?.(getTodayShamsi());
+    const today = getTodayShamsi();
+    onChange?.(today);
+    onTodayClick?.(today);
   };
 
   const handleDatePartChange = (part, val) => {

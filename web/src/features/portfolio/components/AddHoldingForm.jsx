@@ -11,6 +11,7 @@ import {
   getCanonicalAssetUnit,
   resolveItemCategory,
 } from '../../../utils/financialSpecs.js';
+import { usePricing } from '../../market/index.js';
 
 const formatNum = (v) => Number(v || 0).toLocaleString('fa-IR');
 
@@ -21,7 +22,9 @@ export default function AddHoldingForm({
   editingHolding = null,
   submitting = false,
   rates = null,
+  realPriceMap = null,
 }) {
+  const pricing = usePricing();
   const [selectedAssetId, setSelectedAssetId] = useState('gold_18k');
   const [customName, setCustomName] = useState('');
   const [customUnit, setCustomUnit] = useState('واحد');
@@ -130,6 +133,51 @@ export default function AddHoldingForm({
       if (rawItem.price > 0) {
         setCustomCurrentPrice(String(Math.round(rawItem.price)));
       }
+    }
+  };
+
+  const handleTodayClick = () => {
+    let currentPrice = null;
+
+    // 1. If bourse asset
+    if (selectedBourseSymbol?.priceToman > 0) {
+      currentPrice = Math.round(selectedBourseSymbol.priceToman);
+    }
+    // 2. If custom current price was entered
+    else if (customCurrentPrice) {
+      const parsed = parseInputNumber(customCurrentPrice);
+      if (parsed && parsed > 0) currentPrice = Math.round(parsed);
+    }
+
+    const cleanId = (selectedAssetId || '').replace(/^src_def_/, '').replace(/^derived_/, '').trim();
+
+    // 3. realPriceMap if passed
+    if (!currentPrice && realPriceMap) {
+      const p = realPriceMap[selectedAssetId] || realPriceMap[cleanId] || realPriceMap[cleanId.toLowerCase()];
+      if (p && Number(p) > 0) currentPrice = Math.round(Number(p));
+    }
+
+    // 4. pricing context
+    if (!currentPrice && pricing) {
+      if (typeof pricing.getAssetPrice === 'function') {
+        const p = pricing.getAssetPrice(cleanId) || pricing.getAssetPrice(selectedAssetId);
+        if (p && Number(p) > 0) currentPrice = Math.round(Number(p));
+      }
+      if (!currentPrice && pricing.priceMap) {
+        const p = pricing.priceMap[cleanId] || pricing.priceMap[cleanId.toLowerCase()] || pricing.priceMap[selectedAssetId];
+        if (p && Number(p) > 0) currentPrice = Math.round(Number(p));
+      }
+    }
+
+    // 5. rates prop fallback
+    if (!currentPrice && rates) {
+      const r = rates[cleanId] || rates[cleanId.toLowerCase()] || rates[selectedAssetId];
+      const p = r?.price || r?.market || r?.expected_price || r;
+      if (p && Number(p) > 0) currentPrice = Math.round(Number(p));
+    }
+
+    if (currentPrice && currentPrice > 0) {
+      setBuyPrice(String(currentPrice));
     }
   };
 
@@ -419,6 +467,7 @@ export default function AddHoldingForm({
       <ShamsiDatePicker
         value={buyDate}
         onChange={setBuyDate}
+        onTodayClick={handleTodayClick}
         label="تاریخ خرید (شمسی)"
       />
 
