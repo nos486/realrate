@@ -1,10 +1,9 @@
 /**
  * pricingEngine.js — Single Source of Truth client-side pricing engine
- * Calculates live prices for Gold, Coins, Forex, Bourse, and Derived Assets
+ * Calculates live prices for Gold, Coins, Forex, and Bourse from Canonical Specs
  * Ensures 100% price consistency across Search, Portfolio, and Main Page.
  */
 
-import { computeAllDerivedPrices } from './formulaEvaluator.js';
 import {
   TROY_OUNCE_GRAMS,
   GOLD_SPECS,
@@ -37,14 +36,12 @@ export function normalizePersianText(str) {
  *    - If marketPrice exists from active source -> use marketPrice (قیمت بازار)
  *    - If no marketPrice exists -> use intrinsicPrice (ارزش واقعی بر اساس انس، دلار و وزن/عیار)
  * 3. Bourse: price = priceToman (divided by 10 from BRS API)
- * 4. Derived Assets: calculated dynamically from formula evaluator
  *
  * @param {object} params
  * @param {object} params.marketItems - Payload from /api/market/items
  * @param {number} params.usdToman - Client's active USD rate in Tomans
  * @param {number} params.goldUsd - Gold ounce spot rate in USD
  * @param {number} params.silverUsd - Silver ounce spot rate in USD
- * @param {Array} [params.customDerivedList] - Custom derived assets if any
  * @returns {{ resolvedAssets: Array, priceMap: object, summary: object }}
  */
 export function computeUnifiedPrices({
@@ -52,7 +49,6 @@ export function computeUnifiedPrices({
   usdToman = 0,
   goldUsd = 0,
   silverUsd = 0,
-  customDerivedList = null,
 }) {
   const usdVal = Number(usdToman) || Number(marketItems?.meta?.live_usd_toman) || Number(marketItems?.meta?.default_usd_toman) || 0;
   const goldVal = Number(goldUsd) || Number(marketItems?.meta?.gold_usd) || 2890;
@@ -239,39 +235,6 @@ export function computeUnifiedPrices({
       priceMap[b.symbol] = p;
       priceMap[normalizePersianText(b.symbol)] = p;
     }
-  });
-
-  // ── 4. Dynamic Derived Assets ───────────────────────────────────────────────
-  const baseMap = {
-    usd: usdVal,
-    usd_toman: usdVal,
-    ons_gold: goldVal,
-    gold_usd: goldVal,
-    ons_silver: silverVal,
-    silver_usd: silverVal,
-    gold_18k: priceMap.gold_18k || Math.round(gold24kGramToman * 0.75),
-    mesghal: priceMap.mesghal || Math.round(gold24kGramToman * 4.608 * 0.705),
-  };
-
-  const derivedList = customDerivedList || marketItems?.derivedAssets || [];
-  const derivedPrices = Array.isArray(derivedList) && derivedList.length > 0
-    ? computeAllDerivedPrices(derivedList, baseMap)
-    : {};
-
-  derivedList.forEach((d) => {
-    const computedPrice = Number(derivedPrices[d.id] || 0);
-    const resolved = {
-      ...d,
-      price: computedPrice,
-      priceType: 'derived',
-      priceTypeLabel: 'فرمول محاسباتی',
-      subText: d.formulaDisplay ? `فرمول: ${d.formulaDisplay}` : 'محاسبه خودکار بر مبنای قیمت‌های پایه',
-      unit: d.unit || 'گرم',
-    };
-
-    resolvedAssets.push(resolved);
-    priceMap[d.id] = computedPrice;
-    priceMap[d.id.toLowerCase()] = computedPrice;
   });
 
   return {

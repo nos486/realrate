@@ -375,44 +375,6 @@ export async function apiSyncBourseSymbols() {
   return res.json();
 }
 
-// ─── Derived Assets (فرمول‌ها و اقلام محاسباتی) ──────────────────────────────
-
-/**
- * Fetch active derived assets (public)
- */
-export async function apiGetDerivedAssets() {
-  const res = await apiFetch('/api/derived-assets');
-  return res.json();
-}
-
-/**
- * Fetch all derived assets (admin)
- */
-export async function apiAdminGetDerivedAssets() {
-  const res = await apiFetch('/api/admin/derived-assets');
-  return res.json();
-}
-
-/**
- * Create or update a derived asset (admin)
- */
-export async function apiAdminSaveDerivedAsset(data) {
-  const res = await apiFetch('/api/admin/derived-assets', {
-    method: 'POST',
-    body: JSON.stringify(data),
-  });
-  return res.json();
-}
-
-/**
- * Delete a derived asset (admin)
- */
-export async function apiAdminDeleteDerivedAsset(id) {
-  const res = await apiFetch(`/api/admin/derived-assets?id=${encodeURIComponent(id)}`, {
-    method: 'DELETE',
-  });
-  return res.json();
-}
 
 /**
  * Fetch unified market assets and catalog

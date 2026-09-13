@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { apiGetSharedPortfolio, apiGetPrices } from '../api/client.js';
 import { calculateMarketData } from '../utils/calculator.js';
-import { computeAllDerivedPrices } from '../utils/formulaEvaluator.js';
+import { computeUnifiedPrices } from '../utils/pricingEngine.js';
 import Header from '../components/Header.jsx';
 import AlertBanner from '../components/ui/AlertBanner.jsx';
 import {
@@ -180,94 +180,16 @@ export default function SharedPortfolioPage() {
     }
   };
 
-  // Pure pricing calculation helper
-  const computePriceMap = (usdVal, goldUsdVal, silverUsdVal) => {
-    const map = {};
-    if (!usdVal) return map;
-
-    // A. Gold calculations (Pure intrinsic gold value)
-    const gold24kGram = (goldUsdVal / 31.1034768) * usdVal;
-    map['gold_24k'] = Math.round(gold24kGram);
-    map['gold_18k'] = Math.round(gold24kGram * 0.75);
-    map['gold_melted'] = Math.round(gold24kGram * 0.75);
-    map['full_new'] = Math.round(gold24kGram * 7.3197);
-    map['full_old'] = Math.round(gold24kGram * 7.3197);
-    map['half'] = Math.round(gold24kGram * 3.6594);
-    map['quarter'] = Math.round(gold24kGram * 1.8297);
-    // سکه یک گرمی بانکی: ۱.۰۱ گرم طلای ۲۲ عیار (۲۲/۲۴ = ۹۱۶.۶۶ در ۱۰۰۰)
-    const bankGramVal = Math.round(gold24kGram * 1.01 * (22 / 24));
-    map['bank_gram'] = bankGramVal;
-    map['gram'] = bankGramVal;
-
-    // B. Silver calculations (Pure intrinsic silver value)
-    const silver999Gram = (silverUsdVal / 31.1034768) * usdVal;
-    map['silver_999'] = Math.round(silver999Gram);
-    map['silver_925'] = Math.round(silver999Gram * 0.925);
-    map['silver_ounce'] = Math.round(silverUsdVal * usdVal);
-
-    // C. Currencies & Crypto
-    map['USD'] = Math.round(usdVal);
-    map['USDT'] = Math.round(usdVal);
-    map['EUR'] = Math.round((1 / 0.915) * usdVal);
-    map['CHF'] = Math.round((1 / 0.865) * usdVal);
-    map['AED'] = Math.round((1 / 3.6725) * usdVal);
-    map['TRY'] = Math.round((1 / 33.5) * usdVal);
-    map['GBP'] = Math.round((1 / 0.782) * usdVal);
-    map['CAD'] = Math.round((1 / 1.37) * usdVal);
-
-    if (calcData?.currencies && Array.isArray(calcData.currencies)) {
-      calcData.currencies.forEach((c) => {
-        if (c.code) {
-          map[c.code] = c.toman_price ? Math.round(c.toman_price) : Math.round((c.usd_cross_rate || 1) * usdVal);
-        }
-      });
-    } else if (marketRates?.forex) {
-      const ratesObj = marketRates.forex.rates || marketRates.forex;
-      if (typeof ratesObj === 'object') {
-        Object.entries(ratesObj).forEach(([code, rate]) => {
-          if (rate && Number(rate) > 0) {
-            map[code] = Math.round((1 / Number(rate)) * usdVal);
-          }
-        });
-      }
-    }
-
-    // D. Compute all derived asset prices dynamically via database formulas
-    const derivedList = marketRates?.derivedAssets || marketRates?.derived_assets || [];
-    if (Array.isArray(derivedList) && derivedList.length > 0) {
-      const derived = computeAllDerivedPrices(derivedList, map);
-      for (const [k, v] of Object.entries(derived)) {
-        if (v > 0) map[k] = Math.round(v);
-      }
-    }
-
-    return map;
-  };
-
-  // 3. Accurate Real Values & Metrics calculation
+  // Accurate Real Values & Metrics calculation via Canonical Pricing Engine
   const realPriceMap = useMemo(() => {
-    const usdVal = Number(
-      marketRates?.live_usd_toman ||
-      calcData?.inputs?.usd_toman ||
-      marketRates?.globalSettings?.default_usd_toman ||
-      0
-    );
-
-    const goldUsdVal = Number(
-      marketRates?.gold_usd ||
-      calcData?.inputs?.gold_usd ||
-      marketRates?.globalSettings?.default_gold_usd ||
-      2700
-    );
-
-    const silverUsdVal = Number(
-      calcData?.silver?.silver_usd ||
-      marketRates?.silver?.silver_usd ||
-      marketRates?.silver_usd ||
-      33.5
-    );
-
-    return computePriceMap(usdVal, goldUsdVal, silverUsdVal);
+    if (!marketRates && !calcData) return {};
+    const { priceMap } = computeUnifiedPrices({
+      marketItems: calcData || marketRates,
+      usdToman: marketRates?.live_usd_toman || calcData?.inputs?.usd_toman,
+      goldUsd: marketRates?.gold_usd || calcData?.inputs?.gold_usd,
+      silverUsd: marketRates?.silver_usd || calcData?.silver?.silver_usd,
+    });
+    return priceMap || {};
   }, [marketRates, calcData]);
 
   const portfolioMetrics = useMemo(() => {

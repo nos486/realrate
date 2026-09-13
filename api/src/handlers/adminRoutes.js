@@ -17,9 +17,6 @@ import {
   dbGetSourceTypes,
   dbSaveSourceType,
   dbDeleteSourceType,
-  dbGetDerivedAssets,
-  dbSaveDerivedAsset,
-  dbDeleteDerivedAsset,
 } from "../lib/db.js";
 import { getAdminStats } from "../lib/analytics.js";
 import { saveGlobalSettings } from "../lib/settings.js";
@@ -362,58 +359,6 @@ export async function handleAdminInspectApiRoute(request, env) {
     }
     const result = await inspectApiEndpointStructure(apiUrl, body.headers || {});
     return jsonResponse(result, 200, request);
-  } catch (e) {
-    return errorResponse(e.message, 400, request);
-  }
-}
-
-/**
- * GET /api/admin/derived-assets
- * Return all derived assets — admin only
- */
-export async function handleAdminGetDerivedAssets(request, env) {
-  const user = await getAuthenticatedUser(request, env);
-  if (!user || user.role !== "admin") return forbiddenResponse(request);
-
-  try {
-    const assets = await dbGetDerivedAssets(env, false);
-    return jsonResponse({ success: true, derivedAssets: assets }, 200, request);
-  } catch (e) {
-    return errorResponse(e.message, 500, request);
-  }
-}
-
-/**
- * POST /api/admin/derived-assets
- * Create or update a derived asset — admin only
- */
-export async function handleAdminSaveDerivedAsset(request, env) {
-  const user = await getAuthenticatedUser(request, env);
-  if (!user || user.role !== "admin") return forbiddenResponse(request);
-
-  try {
-    const body = await request.json();
-    const saved = await dbSaveDerivedAsset(env, body);
-    return jsonResponse({ success: true, message: "قلم مشتق‌شده با موفقیت ذخیره شد.", derivedAsset: saved }, 200, request);
-  } catch (e) {
-    return errorResponse(e.message, 400, request);
-  }
-}
-
-/**
- * DELETE /api/admin/derived-assets?id=...
- * Delete a derived asset — admin only
- */
-export async function handleAdminDeleteDerivedAsset(request, env) {
-  const user = await getAuthenticatedUser(request, env);
-  if (!user || user.role !== "admin") return forbiddenResponse(request);
-
-  try {
-    const url = new URL(request.url);
-    const id = url.searchParams.get("id");
-    if (!id) return errorResponse("شناسه قلم الزامی است.", 400, request);
-    await dbDeleteDerivedAsset(env, id);
-    return jsonResponse({ success: true, message: "قلم مشتق‌شده با موفقیت حذف شد." }, 200, request);
   } catch (e) {
     return errorResponse(e.message, 400, request);
   }

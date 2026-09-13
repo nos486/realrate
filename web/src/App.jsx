@@ -16,8 +16,8 @@ export default function App() {
         <Route path="/settings" element={<MainPage />} />
         <Route path="/admin" element={<MainPage />} />
         <Route path="/admin/sources" element={<MainPage />} />
-        <Route path="/admin/derived" element={<MainPage />} />
-        <Route path="/derived-assets" element={<MainPage />} />
+        <Route path="/admin/derived" element={<Navigate to="/admin/sources" replace />} />
+        <Route path="/derived-assets" element={<Navigate to="/admin/sources" replace />} />
         <Route path="/sources" element={<MainPage />} />
         <Route path="/p/:slug" element={<SharedPortfolioPage />} />
         <Route path="*" element={<Navigate to="/" replace />} />

@@ -1,12 +1,11 @@
 /**
  * unifiedItemsRoute.js — Single Source of Truth API for all market assets & prices
- * /api/market/items — Unified catalog of gold, coins, forex, bourse, and derived assets
+ * /api/market/items — Unified catalog of gold, coins, forex, and bourse
  */
 
 import { getLatestMarketRates } from "../services/priceSources.js";
 import { getGlobalSettings } from "../lib/settings.js";
 import { jsonResponse } from "../lib/helpers.js";
-import { dbGetDerivedAssets } from "../lib/db.js";
 import { getBourseSymbols } from "../services/bourseSymbols.js";
 import {
   GOLD_SPECS,
@@ -23,10 +22,9 @@ export async function handleGetUnifiedMarketItems(env, request) {
     const limit = parseInt(url.searchParams.get("limit") || "2000", 10);
 
     // Parallel fetch of base data
-    const [prices, globalSettings, derivedAssets, bourseSymbols] = await Promise.all([
+    const [prices, globalSettings, bourseSymbols] = await Promise.all([
       getLatestMarketRates(env),
       getGlobalSettings(env),
-      dbGetDerivedAssets(env, true),
       getBourseSymbols(env, q, limit),
     ]);
 
@@ -129,19 +127,6 @@ export async function handleGetUnifiedMarketItems(env, request) {
       sourceName: 'بورس اوراق بهادار تهران (TSETMC)',
     }));
 
-    // 4. Dynamic Derived Assets from DB
-    const derivedList = (derivedAssets || []).map(d => ({
-      id: d.id,
-      name: d.name,
-      category: d.category || 'derived',
-      badge: 'فرمول',
-      unit: d.unit || 'گرم',
-      formula: d.formula,
-      formulaDisplay: d.formulaDisplay,
-      isDerived: true,
-      description: d.description,
-    }));
-
     return jsonResponse({
       success: true,
       timestamp: new Date().toISOString(),
@@ -155,12 +140,10 @@ export async function handleGetUnifiedMarketItems(env, request) {
       goldAndCoins: standardGoldAndCoins,
       currencies: currenciesList,
       bourse: bourseList,
-      derivedAssets: derivedList,
       counts: {
         goldAndCoins: standardGoldAndCoins.length,
         currencies: currenciesList.length,
         bourse: bourseList.length,
-        derivedAssets: derivedList.length,
       }
     }, 200, request);
   } catch (err) {

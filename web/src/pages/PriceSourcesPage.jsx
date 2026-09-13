@@ -69,7 +69,6 @@ import UniversalAssetSearch, {
   calculateUsdCrossRate,
   WORLD_CURRENCY_NAMES,
 } from '../components/UniversalAssetSearch.jsx';
-import DerivedAssetsPage from './DerivedAssetsPage.jsx';
 
 // PRICE_TYPE_INFO is now computed dynamically inside the component from DB-loaded sourceTypes
 // See: const PRICE_TYPE_INFO = useMemo(...) inside PriceSourcesPage()
@@ -239,19 +238,14 @@ export default function PriceSourcesPage({ embedded = false, usdToman: propUsdTo
   }, [sourceTypes]);
 
   const [searchParams] = useSearchParams();
-  const location = useLocation();
-  const initialTabSection = searchParams.get('subtab') === 'derived' ||
-    searchParams.get('tab') === 'derived' ||
-    location.pathname.includes('derived')
-      ? 'derived'
-      : (searchParams.get('subtab') === 'multi' ? 'multi' : 'single');
+  const initialTabSection = searchParams.get('subtab') === 'multi' ? 'multi' : 'single';
 
-  // View Switcher: 'single' (Base Rates) vs 'multi' (Multi-Output Feeds Hub) vs 'derived' (Derived Assets)
+  // View Switcher: 'single' (Base Rates) vs 'multi' (Multi-Output Feeds Hub)
   const [activeTabSection, setActiveTabSection] = useState(initialTabSection);
 
   useEffect(() => {
     const tabParam = searchParams.get('subtab') || searchParams.get('tab');
-    if (tabParam && ['single', 'multi', 'derived'].includes(tabParam)) {
+    if (tabParam && ['single', 'multi'].includes(tabParam)) {
       setActiveTabSection(tabParam);
     }
   }, [searchParams]);
@@ -894,7 +888,7 @@ export default function PriceSourcesPage({ embedded = false, usdToman: propUsdTo
                 <Plus size={15} strokeWidth={2.5} />
                 <span>افزودن سورس جدید</span>
               </button>
-            ) : activeTabSection === 'derived' ? null : (
+            ) : (
               <button
                 type="button"
                 onClick={handleOpenAddMultiFeed}
@@ -1011,7 +1005,7 @@ export default function PriceSourcesPage({ embedded = false, usdToman: propUsdTo
         </Card>
       )}
 
-      {/* ── Top-Level View Switcher Bar (Base Rates vs Multi-Output Feeds Hub vs Derived Assets) ── */}
+      {/* ── Top-Level View Switcher Bar (Base Rates vs Multi-Output Feeds Hub) ── */}
       <div className="sources-view-switcher-bar">
         <button
           type="button"
@@ -1031,18 +1025,6 @@ export default function PriceSourcesPage({ embedded = false, usdToman: propUsdTo
           <Layers size={16} />
           <span>هاب سورس‌های چند خروجی و فیدها (Multi-Output Feeds)</span>
           <span className="sources-count-pill multi-glow">{multiSources.length.toLocaleString('fa-IR')} فید</span>
-        </button>
-
-        <button
-          type="button"
-          className={`sources-view-tab ${activeTabSection === 'derived' ? 'active' : ''}`}
-          onClick={() => setActiveTabSection('derived')}
-        >
-          <Calculator size={16} />
-          <span>اقلام محاسباتی و مشتق‌شده (فرمول‌ها و ضرایب)</span>
-          <span className="sources-count-pill" style={{ background: 'rgba(234, 179, 8, 0.15)', color: '#eab308' }}>
-            فرمول‌های محاسباتی
-          </span>
         </button>
       </div>
 
@@ -1364,8 +1346,6 @@ export default function PriceSourcesPage({ embedded = false, usdToman: propUsdTo
         </section>
 
         </>
-      ) : activeTabSection === 'derived' ? (
-        <DerivedAssetsPage embedded />
       ) : (
         /* ── SECTION 3: Multi-Output Feeds Hub Workspace ─────────────────── */
         <section className="multi-feeds-hub-wrap">

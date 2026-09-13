@@ -49,9 +49,8 @@ import {
   apiSearchBourseSymbols,
 } from '../api/client.js';
 import UserSettingsModal from './UserSettingsModal.jsx';
-import UniversalAssetSearch, { DYNAMIC_DERIVED_REGISTRY } from './UniversalAssetSearch.jsx';
+import UniversalAssetSearch from './UniversalAssetSearch.jsx';
 import { usePricing } from '../context/PricingContext.jsx';
-import { computeAllDerivedPrices } from '../utils/formulaEvaluator.js';
 import {
   deriveE2eeKey,
   verifyE2eeKey,
@@ -140,7 +139,7 @@ export const ASSET_TYPES = [
   { id: 'custom', name: 'دارایی شخصی / سفارشی', unit: 'واحد', category: 'custom' },
 ];
 
-export function normalizeHolding(h, customDerivedList = null) {
+export function normalizeHolding(h) {
   if (!h) return h;
   let assetId = String(h.assetId || '').trim();
   let assetName = String(h.assetName || '').trim();
@@ -149,26 +148,6 @@ export function normalizeHolding(h, customDerivedList = null) {
 
   const cleanId = assetId.replace(/^src_def_/, '').replace(/^derived_/, '').toLowerCase();
   const cleanName = assetName.replace(/^src_def_/, '').replace(/^derived_/, '').trim();
-
-  // 0. Check dynamic derived assets first from database registry (Highest priority)
-  const lookupList = Array.isArray(customDerivedList) && customDerivedList.length > 0
-    ? customDerivedList
-    : Object.values(DYNAMIC_DERIVED_REGISTRY);
-
-  const matchedDerived = lookupList.find((d) => {
-    const dId = String(d.id || '').toLowerCase().trim();
-    return dId === cleanId || (d.name && String(d.name).trim() === cleanName);
-  });
-
-  if (matchedDerived) {
-    return {
-      ...h,
-      assetId: matchedDerived.id,
-      assetName: matchedDerived.name,
-      assetType: matchedDerived.category || 'gold',
-      unit: matchedDerived.unit || 'گرم',
-    };
-  }
 
   // 1. Bourse Stocks & Funds Checks (MUST PRECEDE GOLD/COIN/CURRENCY)
   const isBourse = (
@@ -420,41 +399,15 @@ function parseShamsiDate(str) {
   };
 }
 
-export default function PortfolioTracker({ calcData, rates, usdToman, goldUsd, derivedAssets: propDerivedAssets = null, initialPortfolioId = null }) {
+export default function PortfolioTracker({ calcData, rates, usdToman, goldUsd, initialPortfolioId = null }) {
   const pricing = usePricing();
   const { user, loading: authLoading, triggerLogin } = useAuth();
   const navigate = useNavigate();
   const params = useParams();
   const [searchParams] = useSearchParams();
 
-  // Derived Assets (from props or rates)
-  const allDerivedAssets = useMemo(() => {
-    return propDerivedAssets || rates?.derivedAssets || rates?.derived_assets || [];
-  }, [propDerivedAssets, rates]);
-
-  // Dynamic Effective Asset Types (Combining standard base assets with DB-backed derived assets)
-  const effectiveAssetTypes = useMemo(() => {
-    const base = [...ASSET_TYPES];
-    if (Array.isArray(allDerivedAssets) && allDerivedAssets.length > 0) {
-      allDerivedAssets.forEach((d) => {
-        const cleanId = (d.id || '').toLowerCase().trim();
-        const idx = base.findIndex((a) => a.id.toLowerCase() === cleanId);
-        const item = {
-          id: d.id,
-          name: d.name,
-          unit: d.unit || 'گرم',
-          category: d.category || 'gold',
-          isDerived: true,
-        };
-        if (idx >= 0) {
-          base[idx] = item;
-        } else {
-          base.push(item);
-        }
-      });
-    }
-    return base;
-  }, [allDerivedAssets]);
+  // Standard Effective Asset Types from Canonical Specs
+  const effectiveAssetTypes = useMemo(() => ASSET_TYPES, []);
 
   // Multi-portfolio State
   const [portfolios, setPortfolios] = useState([]);
@@ -989,7 +942,7 @@ export default function PortfolioTracker({ calcData, rates, usdToman, goldUsd, d
 
   // 4. Open Modal for Editing
   const handleOpenEdit = (item) => {
-    const normalized = normalizeHolding(item, allDerivedAssets);
+    const normalized = normalizeHolding(item);
     setEditingHolding(normalized);
     setAssetSearchQuery('');
     setBourseSearchResults([]);
@@ -1340,10 +1293,7 @@ export default function PortfolioTracker({ calcData, rates, usdToman, goldUsd, d
   const isModalBourse = selectedAssetId.startsWith('bourse_') || selectedBourseSymbol !== null || selectedAssetId === 'bourse' || selectedAssetId === 'bourse_fund';
   const isModalFund = Boolean(selectedBourseSymbol?.isFund || selectedAssetId === 'bourse_fund' || (selectedAssetId.startsWith('bourse_') && selectedBourseSymbol?.isFund));
   const isModalCustom = cleanSelectedId === 'custom';
-  const matchedDerived = allDerivedAssets.find((d) => d.id === cleanSelectedId || d.id === selectedAssetId);
-  const selectedAssetMeta = matchedDerived
-    ? { id: matchedDerived.id, name: matchedDerived.name, unit: matchedDerived.unit, category: matchedDerived.category }
-    : effectiveAssetTypes.find((a) => a.id === cleanSelectedId || a.id === selectedAssetId);
+  const selectedAssetMeta = effectiveAssetTypes.find((a) => a.id === cleanSelectedId || a.id === selectedAssetId);
   const currentModalRealPrice = isModalBourse
     ? (selectedBourseSymbol?.priceToman || parseInputNumber(customCurrentPrice) || 0)
     : (realPriceMap[cleanSelectedId] || realPriceMap[selectedAssetId] || 0);
@@ -2074,7 +2024,6 @@ export default function PortfolioTracker({ calcData, rates, usdToman, goldUsd, d
                 <UniversalAssetSearch
                   mode="picker"
                   selectedAssetId={selectedAssetId}
-                  derivedAssets={allDerivedAssets}
                   showCategories={true}
                   usdToman={usdVal}
                   goldUsd={goldUsdVal}
@@ -2083,24 +2032,11 @@ export default function PortfolioTracker({ calcData, rates, usdToman, goldUsd, d
                     const cat = item.category || item.badgeClass;
                     const cleanId = (item.id || item.priceType || '').replace(/^src_def_/, '').replace(/^derived_/, '');
                     const isBourse = item.type === 'bourse' || cleanId.startsWith('bourse_') || item.badgeClass === 'bourse' || item.raw?.isFund !== undefined || item.name?.includes('صندوق');
-                    const isDerived = item.type === 'derived' || item.raw?.isDerived;
                     const isKnownAsset = effectiveAssetTypes.some((a) => a.id === cleanId && a.id !== 'custom' && a.id !== 'bourse' && a.id !== 'bourse_fund');
 
                     if (isBourse) {
                       handleSelectBourseSymbol(item.raw || item);
-                    } else if (isDerived) {
-                      setSelectedAssetId(cleanId);
-                      setSelectedBourseSymbol(null);
-                      setCustomName(item.name);
-                      setCustomUnit(item.unit || 'گرم');
-                      if (item.price > 0) {
-                        setCustomCurrentPrice(String(Math.round(item.price)));
-                      } else {
-                        setCustomCurrentPrice('');
-                      }
-                      setAssetSearchQuery('');
-                      setBourseSearchResults([]);
-                    } else if (isKnownAsset || ['gold', 'coin', 'silver', 'currency'].includes(cat) || item.type === 'standard' || item.type === 'forex') {
+                    } else if (isKnownAsset || ['gold', 'coin', 'silver', 'currency', 'crypto'].includes(cat) || item.type === 'standard' || item.type === 'forex') {
                       handleSelectStandardAsset({
                         ...item,
                         id: item.symbol || cleanId,

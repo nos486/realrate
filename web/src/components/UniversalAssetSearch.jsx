@@ -12,27 +12,9 @@ import {
   Sparkles,
   Check,
 } from 'lucide-react';
-import { apiGetPriceSources, apiSearchBourseSymbols, apiGetDerivedAssets } from '../api/client.js';
-import { computeAllDerivedPrices, calculateDerivedPrice } from '../utils/formulaEvaluator.js';
+import { apiGetPriceSources, apiSearchBourseSymbols } from '../api/client.js';
 import { usePricing } from '../context/PricingContext.jsx';
 import { FOREX_SPECS, TROY_OUNCE_GRAMS } from '../utils/financialSpecs.js';
-
-export const DYNAMIC_DERIVED_LABELS = {};
-export const DYNAMIC_DERIVED_REGISTRY = {};
-
-export function registerDerivedAssetLabels(derivedList = []) {
-  if (Array.isArray(derivedList)) {
-    for (const d of derivedList) {
-      if (d.id && d.name) {
-        DYNAMIC_DERIVED_LABELS[d.id] = d.name;
-        DYNAMIC_DERIVED_LABELS[d.id.toLowerCase()] = d.name;
-        DYNAMIC_DERIVED_LABELS[d.id.toUpperCase()] = d.name;
-        DYNAMIC_DERIVED_REGISTRY[d.id] = d;
-        DYNAMIC_DERIVED_REGISTRY[d.id.toLowerCase()] = d;
-      }
-    }
-  }
-}
 
 export const PROMINENT_FOREX_CURRENCIES = FOREX_SPECS;
 
@@ -145,22 +127,18 @@ const baseLabels = {
 export const STANDARD_PRICE_TYPE_LABELS = new Proxy(baseLabels, {
   get(target, prop) {
     if (typeof prop !== 'string') return target[prop];
-    if (DYNAMIC_DERIVED_LABELS[prop]) return DYNAMIC_DERIVED_LABELS[prop];
-    const lower = prop.toLowerCase().trim();
-    if (DYNAMIC_DERIVED_LABELS[lower]) return DYNAMIC_DERIVED_LABELS[lower];
     if (target[prop]) return target[prop];
+    const lower = prop.toLowerCase().trim();
+    if (target[lower]) return target[lower];
     const upper = prop.toUpperCase().trim();
     if (WORLD_CURRENCY_NAMES[upper]) return WORLD_CURRENCY_NAMES[upper];
-    if (target[lower]) return target[lower];
     const stripped = upper.replace(/^(FOREX_|CUR_|FX_|SRC_DEF_|DERIVED_)/, '');
-    if (DYNAMIC_DERIVED_LABELS[stripped.toLowerCase()]) return DYNAMIC_DERIVED_LABELS[stripped.toLowerCase()];
     if (WORLD_CURRENCY_NAMES[stripped]) return WORLD_CURRENCY_NAMES[stripped];
     return target[prop];
   },
   has(target, prop) {
     if (typeof prop !== 'string') return prop in target;
     const lower = prop.toLowerCase().trim();
-    if (DYNAMIC_DERIVED_LABELS[lower]) return true;
     const upper = prop.toUpperCase().trim();
     return (prop in target) || (upper in WORLD_CURRENCY_NAMES) || (lower in target);
   },
@@ -476,7 +454,6 @@ function getAssetIcon(item) {
 export default function UniversalAssetSearch({
   mode = 'picker',
   sources = null,
-  derivedAssets = null,
   priceTypeInfo = null,
   selectedAsset = null,
   selectedAssetId = null,
@@ -510,7 +487,6 @@ export default function UniversalAssetSearch({
   const [query, setQuery] = useState('');
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [internalSources, setInternalSources] = useState(sources || []);
-  const [internalDerivedAssets, setInternalDerivedAssets] = useState(derivedAssets || []);
   const [bourseSymbols, setBourseSymbols] = useState([]);
   const containerRef = useRef(null);
 
@@ -530,25 +506,6 @@ export default function UniversalAssetSearch({
       .catch((err) => console.error('Error loading sources:', err));
     return () => { isMounted = false; };
   }, [sources]);
-
-  // 1.5. Fetch Derived Assets if not passed in props
-  useEffect(() => {
-    if (derivedAssets && derivedAssets.length > 0) {
-      setInternalDerivedAssets(derivedAssets);
-      registerDerivedAssetLabels(derivedAssets);
-      return;
-    }
-    let isMounted = true;
-    apiGetDerivedAssets()
-      .then((res) => {
-        if (isMounted && res?.success && Array.isArray(res.derivedAssets)) {
-          setInternalDerivedAssets(res.derivedAssets);
-          registerDerivedAssetLabels(res.derivedAssets);
-        }
-      })
-      .catch((err) => console.error('Error loading derived assets:', err));
-    return () => { isMounted = false; };
-  }, [derivedAssets]);
 
   // 2. Preload Bourse symbols once upfront for instant search
   useEffect(() => {
@@ -585,7 +542,6 @@ export default function UniversalAssetSearch({
       pricingContext.resolvedAssets.forEach((asset) => {
         const isBourse = asset.priceType === 'bourse' || asset.category === 'bourse' || asset.category === 'bourse_fund';
         const isForex = asset.priceType === 'forex' || asset.category === 'currency';
-        const isDerived = asset.priceType === 'derived' || asset.isDerived;
         const sym = (asset.symbol || asset.code || '').trim();
         const normName = normalizeSearchText(asset.name);
         const canonicalId = (asset.id || '').toLowerCase().trim();
@@ -613,7 +569,7 @@ export default function UniversalAssetSearch({
           category: asset.category || (isForex ? 'currency' : isBourse ? 'bourse' : 'gold'),
           price: asset.price,
           unit: asset.unit || 'تومان',
-          type: isForex ? 'forex' : (isBourse ? 'bourse' : (isDerived ? 'derived' : 'standard')),
+          type: isForex ? 'forex' : (isBourse ? 'bourse' : 'standard'),
           changePercent: asset.changePercent,
           raw: {
             ...asset,
@@ -638,13 +594,6 @@ export default function UniversalAssetSearch({
     const seenKeys = new Set();
     const seenNames = new Set();
 
-    // 0. Identify active derived assets first (canonical authority for derived/calculated assets)
-    const activeDerived = (internalDerivedAssets || []).filter(
-      (d) => d.isActive === 1 || d.isActive === true || d.is_active === 1 || d.is_active === true
-    );
-    const derivedKeys = new Set(activeDerived.map((d) => (d.id || '').toLowerCase().trim()));
-    const derivedNames = new Set(activeDerived.map((d) => normalizeSearchText(d.name)));
-
     // ── نوع ۱: سورس‌های نرخ پایه و اقلام استاندارد طلا، سکه و نقره ─────────────
     // فقط نوع نرخ را بنویس، فقط در صورت فعال بودن و مرجع بودن
     internalSources.forEach((src) => {
@@ -660,12 +609,6 @@ export default function UniversalAssetSearch({
       const canonicalId = (src.priceType || src.id || '').replace(/^src_def_/, '').toLowerCase().trim();
       const typeLabel = getPriceTypeLabel(src.priceType, priceTypeInfo) || src.name;
       const normName = normalizeSearchText(typeLabel);
-
-      // CRITICAL DEDUPLICATION: If this asset is registered as an active derived asset in database
-      // (e.g. mesghal, gold_24k, gold_22k, etc.), SKIP raw base source so it NEVER appears twice!
-      if (derivedKeys.has(canonicalId) || derivedNames.has(normName)) {
-        return;
-      }
 
       if (seenKeys.has(canonicalId) || seenNames.has(normName)) return;
 
@@ -858,68 +801,6 @@ export default function UniversalAssetSearch({
       seenNames.add(normalizeSearchText('نقره خام (گرمی ۹۹۹)'));
     }
 
-    // ── نوع ۲: اقلام محاسباتی و مشتق‌شده پویا بر مبنای دیتابیس (Derived Assets) ──
-    const baseMap = {};
-    items.forEach(it => {
-      if (it.price > 0) {
-        baseMap[it.id] = it.price;
-        if (it.priceType) baseMap[it.priceType] = it.price;
-      }
-    });
-    if (usdToman > 0) {
-      baseMap.usd = usdToman;
-      baseMap.usd_toman = usdToman;
-    }
-    if (p18 > 0) {
-      baseMap.gold_18k = p18;
-    }
-    if (onsGoldPrice > 0) {
-      baseMap.ons_gold = onsGoldPrice;
-      baseMap.gold_usd = onsGoldPrice;
-    }
-
-    const derivedPrices = computeAllDerivedPrices(internalDerivedAssets, baseMap);
-
-    activeDerived.forEach((d) => {
-      const cleanId = (d.id || '').toLowerCase().trim();
-      const normName = normalizeSearchText(d.name);
-      if (seenKeys.has(cleanId) || seenNames.has(normName)) return;
-
-      const calcPrice = Math.round(derivedPrices[d.id] || calculateDerivedPrice(d, { ...baseMap, ...derivedPrices }));
-      const meta = getCategoryMetadata(d.category || d.id);
-
-      items.push({
-        id: d.id,
-        sourceId: `derived_${d.id}`,
-        priceType: d.id,
-        name: d.name,
-        nameEn: d.nameEn || d.name_en || '',
-        symbol: '',
-        subText: d.description || (d.formulaType === 'multiplier' ? `ضریب ${d.multiplier} بر مبنای ${d.baseAssetId || d.base_asset_id}` : `فرمول: ${d.formulaExpression || d.formula_expression}`),
-        badge: meta.badge || (d.category === 'silver' ? 'نقره' : (d.category === 'gold' ? 'طلا' : 'محاسباتی')),
-        badgeClass: d.category || meta.category,
-        category: d.category || meta.category,
-        price: calcPrice,
-        unit: d.unit || 'گرم',
-        type: 'derived',
-        raw: {
-          id: d.id,
-          name: d.name,
-          priceType: d.id,
-          category: d.category || meta.category,
-          unit: d.unit || 'گرم',
-          price: calcPrice,
-          isDerived: true,
-          baseAssetId: d.baseAssetId || d.base_asset_id,
-          formulaType: d.formulaType || d.formula_type,
-          multiplier: d.multiplier,
-          formulaExpression: d.formulaExpression || d.formula_expression,
-        },
-      });
-      seenKeys.add(cleanId);
-      seenNames.add(normName);
-    });
-
     // ── نوع ۲: هاب سورس‌های چند خروجی و فیدها (تمام دسته‌بندی‌ها) ───────────────
     // هر اقلامی که زیرش هست رو بیار، در صورت فعال بودن
     internalSources.forEach((src) => {
@@ -1109,7 +990,7 @@ export default function UniversalAssetSearch({
     });
 
     return items;
-  }, [pricingContext?.resolvedAssets, internalSources, internalDerivedAssets, bourseSymbols, priceTypeInfo, effectiveUsdToman, effectiveGoldUsd, effectiveSilverUsd]);
+  }, [pricingContext?.resolvedAssets, internalSources, bourseSymbols, priceTypeInfo, effectiveUsdToman, effectiveGoldUsd, effectiveSilverUsd]);
 
   // 4. Pure Client-Side Instant Search Filter with Tokenized Matching and Strict Deduplication
   const filteredItems = useMemo(() => {
@@ -1155,13 +1036,13 @@ export default function UniversalAssetSearch({
 
       if (seenResultKeys.has(canonicalKey) || seenResultKeys.has(compositeKey)) continue;
 
-      if ((item.type === 'standard' || item.type === 'derived') && seenResultNames.has(normName)) {
+      if (item.type === 'standard' && seenResultNames.has(normName)) {
         continue;
       }
 
       seenResultKeys.add(canonicalKey);
       seenResultKeys.add(compositeKey);
-      if (item.type === 'standard' || item.type === 'derived') {
+      if (item.type === 'standard') {
         seenResultNames.add(normName);
       }
       unique.push(item);

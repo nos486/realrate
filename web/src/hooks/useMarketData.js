@@ -67,7 +67,6 @@ export function useMarketData() {
       marketPrices: rates?.prices || rates?.market_prices || {},
       forex: rates?.forex || {},
       globalSettings: rates?.globalSettings || {},
-      derivedAssets: rates?.derivedAssets || rates?.derived_assets || [],
     });
 
     if (data.success) {
@@ -85,6 +84,5 @@ export function useMarketData() {
     setGoldUsd,
     liveUsdSource: rates?.live_usd_toman ? 'live' : 'manual',
     liveUsdDatetime: rates?.live_usd_item?.datetime || null,
-    derivedAssets: rates?.derivedAssets || rates?.derived_assets || [],
   };
 }

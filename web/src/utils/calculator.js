@@ -3,7 +3,6 @@
  * Zero latency, 100% synchronous in-memory calculation
  */
 
-import { computeAllDerivedPrices } from './formulaEvaluator.js';
 import {
   TROY_OUNCE_GRAMS,
   GOLD_SPECS,
@@ -100,7 +99,6 @@ export function calculateMarketData({
   marketPrices = {},
   forex = {},
   globalSettings = {},
-  derivedAssets = [],
 }) {
   const usd_toman = Number(usdToman) || 0;
   const gold_usd = Number(goldUsd) || Number(marketPrices?.ons_gold?.price) || Number(globalSettings?.default_gold_usd) || 2890;
@@ -278,42 +276,20 @@ export function calculateMarketData({
     quick_currencies[c.code] = c.toman_price;
   });
 
-  // 3. Dynamic Derived Asset Prices from Database formulas
-  const baseMap = {
-    usd: usd_toman,
-    usd_toman: usd_toman,
-    ons_gold: gold_usd,
-    gold_usd: gold_usd,
-    ons_silver: silver_usd,
-    silver_usd: silver_usd,
-    gold_18k: Math.round(gold_18k_gram),
-  };
-  Object.entries(marketPrices || {}).forEach(([k, v]) => {
-    const p = Number(v?.price || v);
-    if (p > 0) baseMap[k] = p;
-  });
-
-  const derivedPrices = Array.isArray(derivedAssets) && derivedAssets.length > 0
-    ? computeAllDerivedPrices(derivedAssets, baseMap)
-    : {};
-
-  // 4. Silver calculations
+  // 3. Silver calculations
   const raw_silver_999_gram = (silver_usd / TROY_OUNCE_GRAMS) * usd_toman;
-  const silver_999_gram = derivedPrices.silver_gram || raw_silver_999_gram;
-  const silver_925_gram = derivedPrices.silver_925 || (silver_999_gram * 0.925);
+  const silver_999_gram = raw_silver_999_gram;
+  const silver_925_gram = silver_999_gram * 0.925;
   const silver_ounce = silver_usd * usd_toman;
-
-  const final_gold_24k = derivedPrices.gold_24k || gold_24k_gram;
-  const final_mesghal = derivedPrices.mesghal || mesghal_17k;
 
   return {
     success: true,
     timestamp: new Date().toISOString(),
     inputs: { usd_toman, gold_usd, silver_usd },
     gold: {
-      gold_24k_gram: Math.round(final_gold_24k),
+      gold_24k_gram: Math.round(gold_24k_gram),
       gold_18k_gram: Math.round(gold_18k_gram),
-      mesghal_17k: Math.round(final_mesghal),
+      mesghal_17k: Math.round(mesghal_17k),
       bank_gram_intrinsic: calculateIntrinsicValue(COIN_SPECS.gerami_coin, gold_usd, usd_toman),
     },
     silver: {
@@ -322,8 +298,6 @@ export function calculateMarketData({
       silver_925_gram: Math.round(silver_925_gram),
       silver_ounce: Math.round(silver_ounce),
     },
-    derived_prices: derivedPrices,
-    derived_assets: derivedAssets,
     quick_currencies,
     currencies,
     market_data: marketPrices,
