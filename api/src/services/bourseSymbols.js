@@ -67,13 +67,15 @@ export async function fetchAndStoreBourseSymbols(env) {
       }
       if (rawPrice <= 0) continue;
 
-      // Price in Tomans (Rial / 10)
+      // Price in Tomans (BRS API / TSETMC is in Rials -> divide by 10)
       const priceToman = Math.round(rawPrice / 10);
 
       symbolMap.set(sym, {
         s: sym,
         n: name,
         p: priceToman,
+        priceToman: priceToman,
+        priceRial: rawPrice,
       });
     }
 
@@ -177,6 +179,7 @@ export async function getBourseSymbols(env, query = "", limit = 50) {
     name: item.n,
     price: item.p,
     priceToman: item.p,
+    priceRial: item.priceRial || item.p * 10,
   }));
 }
 
@@ -201,6 +204,7 @@ export async function getBourseSymbolDetail(env, symbol) {
       name: found.n,
       price: found.p,
       priceToman: found.p,
+      priceRial: found.priceRial || found.p * 10,
     };
   } catch (e) {
     console.error("getBourseSymbolDetail error:", e);

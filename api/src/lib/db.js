@@ -248,33 +248,30 @@ export async function ensureD1Tables(env) {
       `).run().catch(() => {});
 
       const defaultForexJson = JSON.stringify({
-        eur: 1.0929,
-        try: 0.02985,
-        aed: 0.2723,
-        gbp: 1.2788,
-        chf: 1.1561,
-        cad: 0.7299,
-        aud: 0.6579,
-        cny: 0.1393,
-      });
-
-      const defaultForexFieldMapping = JSON.stringify({
-        feedType: 'key_value',
-        rootPath: 'rates',
-        selectionMode: 'whitelist',
-        defaultMode: 'invert',
-        multiplier: 1,
-        includedKeys: ['EUR', 'TRY', 'AED', 'GBP', 'CHF', 'CAD', 'AUD', 'CNY'],
-        currencies: [
-          { key: 'eur', path: 'EUR', mode: 'invert', label: 'یورو اروپا' },
-          { key: 'try', path: 'TRY', mode: 'invert', label: 'لیر ترکیه' },
-          { key: 'aed', path: 'AED', mode: 'invert', label: 'درهم امارات' },
-          { key: 'gbp', path: 'GBP', mode: 'invert', label: 'پوند انگلیس' },
-          { key: 'chf', path: 'CHF', mode: 'invert', label: 'فرانک سوئیس' },
-          { key: 'cad', path: 'CAD', mode: 'invert', label: 'دلار کانادا' },
-          { key: 'aud', path: 'AUD', mode: 'invert', label: 'دلار استرالیا' },
-          { key: 'cny', path: 'CNY', mode: 'invert', label: 'یوان چین' },
-        ],
+        eur: 1.16,
+        gbp: 1.35,
+        aed: 0.272,
+        try: 0.030,
+        chf: 1.225,
+        cad: 0.722,
+        aud: 0.717,
+        cny: 0.149,
+        jpy: 0.0068,
+        sar: 0.266,
+        qar: 0.274,
+        kwd: 3.26,
+        omr: 2.60,
+        bhd: 2.65,
+        iqd: 0.00076,
+        rub: 0.011,
+        afn: 0.0155,
+        azn: 0.588,
+        inr: 0.0118,
+        sek: 0.103,
+        nok: 0.101,
+        sgd: 0.789,
+        krw: 0.00075,
+        brl: 0.196,
       });
 
       const defaultBourseFieldMapping = JSON.stringify({
@@ -289,7 +286,7 @@ export async function ensureD1Tables(env) {
         priceUnit: 'rial',
       });
 
-      // Ensure unified Forex source exists
+      // Ensure unified Forex source exists (all 24 prominent currencies)
       await env.DB.prepare(`
         INSERT OR IGNORE INTO price_sources (id, name, price_type, source_type, endpoint, regex, json_path, field_mapping, fetch_interval_sec, is_active, is_primary, last_price, last_multi_data, last_fetched, created_at, updated_at)
         VALUES ('src_def_forex', 'نرخ‌های جهانی فارکس (Open ER-API)', 'forex', 'api_url', 'https://open.er-api.com/v6/latest/USD', '', 'rates', '', 300, 1, 1, 24, ?, '', ?, ?)
@@ -297,7 +294,7 @@ export async function ensureD1Tables(env) {
 
       await env.DB.prepare(`
         UPDATE price_sources
-        SET endpoint = 'https://open.er-api.com/v6/latest/USD', name = 'نرخ‌های جهانی فارکس (Open ER-API)'
+        SET endpoint = 'https://open.er-api.com/v6/latest/USD', name = 'نرخ‌های جهانی فارکس (Open ER-API)', field_mapping = '', last_price = 24
         WHERE id = 'src_def_forex'
       `).run().catch(() => {});
 

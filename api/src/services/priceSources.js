@@ -251,8 +251,9 @@ export function parseSourceContent(source, rawContent) {
     }
 
     // Multi-output detection: explicit forex, bourse, category multi_output, or fieldMapping
-    const isForex = source.priceType === "forex" || (source.endpoint && source.endpoint.includes("open.er-api.com"));
-    const isBourse = source.priceType === "bourse" || source.priceType === "bourse_fund" || (source.endpoint && source.endpoint.includes("AllSymbols.php"));
+    const endpointStr = String(source.endpoint || source.apiUrl || "").toLowerCase();
+    const isForex = source.priceType === "forex" || endpointStr.includes("open.er-api.com");
+    const isBourse = source.priceType === "bourse" || source.priceType === "bourse_fund" || endpointStr.includes("allsymbols.php") || endpointStr.includes("brsapi") || endpointStr.includes("tsetmc");
 
     // 1. Forex Direct Processing (Prominent Currencies relative to USD from open.er-api.com)
     if (isForex) {
@@ -324,13 +325,15 @@ export function parseSourceContent(source, rawContent) {
         }
         if (rawPrice <= 0) continue;
 
-        // Price in Tomans (pl / 10)
+        // BRS API / TSETMC prices (pl, pc) are in Rials. Divide by 10 to convert to Tomans.
         const priceToman = Math.round(rawPrice / 10);
 
         compactList.push({
           s: sym,
           n: name,
           p: priceToman,
+          priceToman: priceToman,
+          priceRial: rawPrice,
         });
       }
 
@@ -359,20 +362,24 @@ export function parseSourceContent(source, rawContent) {
         const symKey = fieldMapping?.symbolField || "symbol";
         const nameKey = fieldMapping?.nameField || "name";
         const priceKey = fieldMapping?.priceField || "price";
-        const multiplier = Number(fieldMapping?.multiplier) > 0 ? Number(fieldMapping.multiplier) : 1;
+        const isRialFeed = (fieldMapping && fieldMapping.priceUnit === "rial") || endpointStr.includes("brsapi") || endpointStr.includes("tsetmc") || isBourse;
+        const multiplier = Number(fieldMapping?.multiplier) > 0 ? Number(fieldMapping.multiplier) : (isRialFeed ? 0.1 : 1);
 
         const compactList = [];
         for (const item of rawArray) {
           if (!item || typeof item !== "object") continue;
           const sym = String(item[symKey] || "").trim();
           const name = String(item[nameKey] || sym).trim();
-          const price = Number(item[priceKey]) || 0;
-          if ((!sym && !name) || price <= 0) continue;
+          const rawPrice = Number(item[priceKey] || item.pl || item.pc) || 0;
+          if ((!sym && !name) || rawPrice <= 0) continue;
 
+          const priceToman = Math.round(rawPrice * multiplier);
           compactList.push({
             s: sym || name,
             n: name,
-            p: Math.round(price * multiplier),
+            p: priceToman,
+            priceToman: priceToman,
+            priceRial: isRialFeed ? rawPrice : priceToman * 10,
           });
         }
 
@@ -409,8 +416,11 @@ export function parseSourceContent(source, rawContent) {
     }
 
     // Optional multiplier support (e.g. 0.1 for Rial to Toman conversion)
+    const isRialFeed = (fieldMapping && fieldMapping.priceUnit === "rial") || endpointStr.includes("brsapi") || endpointStr.includes("tsetmc") || source.priceType === "bourse" || source.priceType === "bourse_fund";
     if (fieldMapping && Number(fieldMapping.multiplier) > 0) {
       extractedVal = Number(extractedVal) * Number(fieldMapping.multiplier);
+    } else if (isRialFeed) {
+      extractedVal = Number(extractedVal) * 0.1;
     }
 
     const isUsdAsset = source.priceType === "ons_gold" || source.priceType === "ons_silver";

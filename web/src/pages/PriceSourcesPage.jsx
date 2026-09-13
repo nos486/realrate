@@ -2149,7 +2149,7 @@ export default function PriceSourcesPage({ embedded = false, usdToman: propUsdTo
                         <tr>
                           <th>نماد</th>
                           <th>اسم</th>
-                          <th>قیمت</th>
+                          <th>قیمت (تومان)</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -2158,7 +2158,7 @@ export default function PriceSourcesPage({ embedded = false, usdToman: propUsdTo
                             <td><strong>{item.s || item.symbol}</strong></td>
                             <td>{item.n || item.name}</td>
                             <td style={{ color: "#10b981", fontWeight: "700" }}>
-                              {Number(item.p || item.price).toLocaleString("fa-IR")}
+                              {Number(item.priceToman || item.p || item.price || 0).toLocaleString("fa-IR")}
                             </td>
                           </tr>
                         ))}
@@ -2259,7 +2259,7 @@ export default function PriceSourcesPage({ embedded = false, usdToman: propUsdTo
                             <td><strong>{item.s}</strong></td>
                             <td>{item.n}</td>
                             <td style={{ color: 'var(--accent-green, #10b981)', fontWeight: '700' }}>
-                              {Number(item.priceTomans || item.p || 0).toLocaleString('fa-IR')}
+                              {Number(item.priceToman || item.priceTomans || item.p || item.price || 0).toLocaleString('fa-IR')}
                             </td>
                           </tr>
                         ))}

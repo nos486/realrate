@@ -105,11 +105,29 @@ export const ASSET_TYPES = [
   { id: 'USD', name: 'دلار آمریکا', unit: 'دلار', category: 'currency' },
   { id: 'USDT', name: 'تتر', unit: 'تتر', category: 'crypto' },
   { id: 'EUR', name: 'یورو اروپا', unit: 'یورو', category: 'currency' },
-  { id: 'CHF', name: 'فرانک سوئیس', unit: 'فرانک', category: 'currency' },
+  { id: 'GBP', name: 'پوند انگلیس', unit: 'پوند', category: 'currency' },
   { id: 'AED', name: 'درهم امارات', unit: 'درهم', category: 'currency' },
   { id: 'TRY', name: 'لیر ترکیه', unit: 'لیر', category: 'currency' },
-  { id: 'GBP', name: 'پوند انگلیس', unit: 'پوند', category: 'currency' },
+  { id: 'CHF', name: 'فرانک سوئیس', unit: 'فرانک', category: 'currency' },
   { id: 'CAD', name: 'دلار کانادا', unit: 'دلار', category: 'currency' },
+  { id: 'AUD', name: 'دلار استرالیا', unit: 'دلار', category: 'currency' },
+  { id: 'CNY', name: 'یوان چین', unit: 'یوان', category: 'currency' },
+  { id: 'JPY', name: 'ین ژاپن', unit: 'ین', category: 'currency' },
+  { id: 'SAR', name: 'ریال عربستان', unit: 'ریال', category: 'currency' },
+  { id: 'QAR', name: 'ریال قطر', unit: 'ریال', category: 'currency' },
+  { id: 'KWD', name: 'دینار کویت', unit: 'دینار', category: 'currency' },
+  { id: 'OMR', name: 'ریال عمان', unit: 'ریال', category: 'currency' },
+  { id: 'BHD', name: 'دینار بحرین', unit: 'دینار', category: 'currency' },
+  { id: 'IQD', name: 'دینار عراق', unit: 'دینار', category: 'currency' },
+  { id: 'RUB', name: 'روبل روسیه', unit: 'روبل', category: 'currency' },
+  { id: 'AFN', name: 'افغانی افغانستان', unit: 'افغانی', category: 'currency' },
+  { id: 'AZN', name: 'منات آذربایجان', unit: 'منات', category: 'currency' },
+  { id: 'INR', name: 'روپیه هند', unit: 'روپیه', category: 'currency' },
+  { id: 'SEK', name: 'کرون سوئد', unit: 'کرون', category: 'currency' },
+  { id: 'NOK', name: 'کرون نروژ', unit: 'کرون', category: 'currency' },
+  { id: 'SGD', name: 'دلار سنگاپور', unit: 'دلار', category: 'currency' },
+  { id: 'KRW', name: 'وون کره جنوبی', unit: 'وون', category: 'currency' },
+  { id: 'BRL', name: 'رئال برزیل', unit: 'رئال', category: 'currency' },
   { id: 'BTC', name: 'بیت‌کوین', unit: 'عدد', category: 'crypto' },
   { id: 'ETH', name: 'اتریوم', unit: 'عدد', category: 'crypto' },
 
@@ -578,7 +596,7 @@ export default function PortfolioTracker({ calcData, rates, usdToman, goldUsd, d
     );
     if (bourseHoldings.length === 0) return;
 
-    apiSearchBourseSymbols('', 100)
+    apiSearchBourseSymbols('', 2000)
       .then((res) => {
         if (!isMounted || !res.success || !Array.isArray(res.symbols)) return;
         const newMap = {};
@@ -966,14 +984,20 @@ export default function PortfolioTracker({ calcData, rates, usdToman, goldUsd, d
     map['src_def_usd'] = Math.round(usd);
     map['USDT'] = Math.round(usd);
     map['usdt'] = Math.round(usd);
-    map['EUR'] = Math.round((1 / 0.915) * usd);
-    map['CHF'] = Math.round((1 / 0.865) * usd);
-    map['AED'] = Math.round((1 / 3.6725) * usd);
-    map['TRY'] = Math.round((1 / 33.5) * usd);
-    map['GBP'] = Math.round((1 / 0.782) * usd);
-    map['CAD'] = Math.round((1 / 1.37) * usd);
-    map['AUD'] = Math.round((1 / 1.52) * usd);
-    map['CNY'] = Math.round((1 / 7.23) * usd);
+
+    const FOREX_CROSS_DEFAULTS = {
+      EUR: 1.16, GBP: 1.35, AED: 0.272, TRY: 0.030, CHF: 1.225,
+      CAD: 0.722, AUD: 0.717, CNY: 0.149, JPY: 0.0068, SAR: 0.266,
+      QAR: 0.274, KWD: 3.26, OMR: 2.60, BHD: 2.65, IQD: 0.00076,
+      RUB: 0.011, AFN: 0.0155, AZN: 0.588, INR: 0.0118, SEK: 0.103,
+      NOK: 0.101, SGD: 0.789, KRW: 0.00075, BRL: 0.196,
+    };
+    for (const [code, cross] of Object.entries(FOREX_CROSS_DEFAULTS)) {
+      const p = Math.round(cross * usd);
+      map[code] = p;
+      map[code.toLowerCase()] = p;
+      map[`src_def_${code.toLowerCase()}`] = p;
+    }
 
     // D. Compute all derived asset prices dynamically via database formulas
     if (Array.isArray(allDerivedAssets) && allDerivedAssets.length > 0) {
@@ -1390,10 +1414,10 @@ export default function PortfolioTracker({ calcData, rates, usdToman, goldUsd, d
   const handleSelectStandardAsset = (asset) => {
     const rawId = asset.id || asset.priceType || '';
     const cleanId = rawId.replace(/^src_def_/, '').replace(/^derived_/, '');
-    const matchedMeta = effectiveAssetTypes.find((a) => a.id === cleanId || a.id === rawId);
+    const matchedMeta = effectiveAssetTypes.find((a) => a.id === cleanId || a.id === rawId || (asset.symbol && a.id === asset.symbol));
     setSelectedAssetId(matchedMeta?.id || cleanId);
     setSelectedBourseSymbol(null);
-    setCustomName('');
+    setCustomName(matchedMeta?.name || asset.name || '');
     setCustomUnit(matchedMeta?.unit || asset.unit || 'واحد');
     setCustomCurrentPrice('');
     setAssetSearchQuery('');
@@ -2190,14 +2214,14 @@ export default function PortfolioTracker({ calcData, rates, usdToman, goldUsd, d
                       setCustomCurrentPrice('');
                       setAssetSearchQuery('');
                       setBourseSearchResults([]);
-                    } else if (isKnownAsset || ['gold', 'coin', 'silver'].includes(cat) || item.type === 'standard') {
+                    } else if (isKnownAsset || ['gold', 'coin', 'silver', 'currency'].includes(cat) || item.type === 'standard' || item.type === 'forex') {
                       handleSelectStandardAsset({
                         ...item,
-                        id: cleanId,
+                        id: item.symbol || cleanId,
                         unit: item.unit,
                         name: item.name,
                       });
-                    } else if (item.type === 'source' || item.type === 'forex' || item.type === 'multi_output' || item.isMultiItem) {
+                    } else if (item.type === 'source' || item.type === 'multi_output' || item.isMultiItem) {
                       setSelectedAssetId(item.id);
                       setSelectedBourseSymbol(null);
                       setCustomName(item.name);

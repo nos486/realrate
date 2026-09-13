@@ -32,6 +32,33 @@ export function registerDerivedAssetLabels(derivedList = []) {
   }
 }
 
+export const PROMINENT_FOREX_CURRENCIES = [
+  { code: 'EUR', name: 'یورو اروپا', defaultCross: 1.16 },
+  { code: 'GBP', name: 'پوند انگلیس', defaultCross: 1.35 },
+  { code: 'AED', name: 'درهم امارات', defaultCross: 0.272 },
+  { code: 'TRY', name: 'لیر ترکیه', defaultCross: 0.030 },
+  { code: 'CHF', name: 'فرانک سوئیس', defaultCross: 1.225 },
+  { code: 'CAD', name: 'دلار کانادا', defaultCross: 0.722 },
+  { code: 'AUD', name: 'دلار استرالیا', defaultCross: 0.717 },
+  { code: 'CNY', name: 'یوان چین', defaultCross: 0.149 },
+  { code: 'JPY', name: 'ین ژاپن', defaultCross: 0.0068 },
+  { code: 'SAR', name: 'ریال عربستان', defaultCross: 0.266 },
+  { code: 'QAR', name: 'ریال قطر', defaultCross: 0.274 },
+  { code: 'KWD', name: 'دینار کویت', defaultCross: 3.26 },
+  { code: 'OMR', name: 'ریال عمان', defaultCross: 2.60 },
+  { code: 'BHD', name: 'دینار بحرین', defaultCross: 2.65 },
+  { code: 'IQD', name: 'دینار عراق', defaultCross: 0.00076 },
+  { code: 'RUB', name: 'روبل روسیه', defaultCross: 0.011 },
+  { code: 'AFN', name: 'افغانی افغانستان', defaultCross: 0.0155 },
+  { code: 'AZN', name: 'منات آذربایجان', defaultCross: 0.588 },
+  { code: 'INR', name: 'روپیه هند', defaultCross: 0.0118 },
+  { code: 'SEK', name: 'کرون سوئد', defaultCross: 0.103 },
+  { code: 'NOK', name: 'کرون نروژ', defaultCross: 0.101 },
+  { code: 'SGD', name: 'دلار سنگاپور', defaultCross: 0.789 },
+  { code: 'KRW', name: 'وون کره جنوبی', defaultCross: 0.00075 },
+  { code: 'BRL', name: 'رئال برزیل', defaultCross: 0.196 },
+];
+
 export const WORLD_CURRENCY_NAMES = {
   USD: 'دلار آمریکا',
   EUR: 'یورو اروپا',
@@ -370,17 +397,16 @@ export function extractMultiItems(src) {
     excludedSet = new Set(excludedArr.map((x) => String(x).trim().toLowerCase()));
   }
 
-  const selectionMode = fm?.selectionMode || (Array.isArray(fm?.includedKeys) && fm.includedKeys.length > 0 ? 'whitelist' : 'all');
+  const isBourse = src.priceType === 'bourse' || src.priceType === 'bourse_fund' || (src.endpoint && (src.endpoint.includes('brsapi') || src.endpoint.includes('tsetmc')));
+  const isForex = src.priceType === 'forex' || (src.endpoint && src.endpoint.includes('open.er-api.com'));
+
+  const selectionMode = isForex ? 'all' : (fm?.selectionMode || (Array.isArray(fm?.includedKeys) && fm.includedKeys.length > 0 ? 'whitelist' : 'all'));
   let includedSet = null;
-  if (selectionMode === 'whitelist' && Array.isArray(fm?.includedKeys) && fm.includedKeys.length > 0) {
+  if (!isForex && selectionMode === 'whitelist' && Array.isArray(fm?.includedKeys) && fm.includedKeys.length > 0) {
     includedSet = new Set(fm.includedKeys.map((x) => String(x).trim().toLowerCase()));
-  } else if (selectionMode === 'whitelist' && Array.isArray(fm?.currencies) && fm.currencies.length > 0) {
+  } else if (!isForex && selectionMode === 'whitelist' && Array.isArray(fm?.currencies) && fm.currencies.length > 0) {
     includedSet = new Set(fm.currencies.map((c) => String(c.key || c.code || c.path).trim().toLowerCase()));
   }
-
-  const isBourse = src.priceType === 'bourse' || src.priceType === 'bourse_fund';
-  const isForex = src.priceType === 'forex';
-  const isRial = src.unit === 'rial' || (typeof fm === 'object' && fm?.priceUnit === 'rial') || isBourse;
 
   const symField = fm?.symbolField || fm?.idField;
   const nameField = fm?.nameField || fm?.titleField;
@@ -415,7 +441,27 @@ export function extractMultiItems(src) {
 
       const rawVal = Number((priceField && item[priceField]) || item.rawRate || item.priceTomans || item.priceFinal || item.price || item.lastPrice || item.p || item.pl || (altPriceField && item[altPriceField]) || item.pc || 0);
       const usdCross = isForex ? (item.usdCrossRate || calculateUsdCrossRate(symUpper, rawVal)) : 0;
-      const finalPrice = isRial && rawVal > 0 ? Math.round(rawVal / 10) : (rawVal >= 100 ? Math.round(rawVal) : rawVal);
+
+      let finalPrice;
+      if (isBourse) {
+        // TSETMC / BRS API: pl & pc are in Rials -> divide by 10 to get Tomans.
+        if (item.priceToman !== undefined) {
+          finalPrice = Number(item.priceToman);
+        } else if (item.pl !== undefined || item.pc !== undefined) {
+          const rawRial = Number(item.pl || item.pc || 0);
+          finalPrice = Math.round(rawRial / 10);
+        } else if (item.priceRial !== undefined) {
+          finalPrice = Math.round(Number(item.priceRial) / 10);
+        } else {
+          finalPrice = Math.round(Number(item.price !== undefined ? item.price : (item.p || 0)));
+        }
+      } else if (isForex) {
+        finalPrice = usdCross;
+      } else {
+        const isRial = src.unit === 'rial' || (typeof fm === 'object' && fm?.priceUnit === 'rial');
+        finalPrice = isRial && rawVal > 0 ? Math.round(rawVal / 10) : (rawVal >= 100 ? Math.round(rawVal) : rawVal);
+      }
+
       const cp = Number((changeField && item[changeField]) || item.cp !== undefined ? item.cp : (item.changePercent !== undefined ? item.changePercent : (item.plp || 0)));
       const rawCategory = isForex ? 'ارزهای جهانی (فارکس)' : String((catField && item[catField]) || item.cat || item.category || item.brand || item.group || '').trim();
       const isFund = Boolean(item.f === 1 || item.isFund || src.priceType === 'bourse_fund' || rawCategory.includes('صندوق') || name.includes('صندوق'));
@@ -428,6 +474,7 @@ export function extractMultiItems(src) {
         rawRate: rawVal,
         usdCrossRate: isForex ? usdCross : undefined,
         price: isForex ? usdCross : finalPrice,
+        priceToman: isBourse ? finalPrice : undefined,
         changePercent: cp,
         category: rawCategory,
         extra: String(item.extra || item.model || item.volume || '').trim(),
@@ -635,6 +682,123 @@ export default function UniversalAssetSearch({
       seenNames.add(normalizeSearchText('طلای ۱۸ عیار'));
     }
 
+    // تضمین حضور سکه گرمی (Gerami Coin)
+    const geramiVal = p18 > 0 ? Math.round((p18 / 0.75) * 1.01 * (22 / 24)) : 0;
+    if (!seenKeys.has('gerami_coin') && !items.some(i => i.id === 'gerami_coin')) {
+      items.push({
+        id: 'gerami_coin',
+        sourceId: 'src_def_gerami_coin',
+        priceType: 'gerami_coin',
+        name: 'سکه گرمی',
+        symbol: 'GERAMI',
+        subText: 'سکه ۱ گرمی بانکی عیار ۲۲',
+        badge: 'سکه',
+        badgeClass: 'coin',
+        category: 'coin',
+        price: geramiVal,
+        unit: 'عدد',
+        type: 'standard',
+        raw: {
+          id: 'gerami_coin',
+          priceType: 'gerami_coin',
+          name: 'سکه گرمی',
+          category: 'coin',
+          unit: 'عدد',
+          price: geramiVal,
+          priceToman: geramiVal,
+        },
+      });
+      seenKeys.add('gerami_coin');
+      seenNames.add(normalizeSearchText('سکه گرمی'));
+    }
+
+    // تضمین حضور سکه امامی، نیم و ربع سکه
+    if (!seenKeys.has('full_coin') && !items.some(i => i.id === 'full_coin')) {
+      const fullVal = p18 > 0 ? Math.round((p18 / 0.75) * 7.3197) : 0;
+      items.push({
+        id: 'full_coin',
+        sourceId: 'src_def_full_coin',
+        priceType: 'full_coin',
+        name: 'سکه امامی',
+        symbol: 'FULL_COIN',
+        subText: 'سکه بهار آزادی (طرح جدید)',
+        badge: 'سکه',
+        badgeClass: 'coin',
+        category: 'coin',
+        price: fullVal,
+        unit: 'عدد',
+        type: 'standard',
+        raw: { id: 'full_coin', priceType: 'full_coin', name: 'سکه امامی', category: 'coin', unit: 'عدد', price: fullVal },
+      });
+      seenKeys.add('full_coin');
+      seenNames.add(normalizeSearchText('سکه امامی'));
+    }
+
+    if (!seenKeys.has('half_coin') && !items.some(i => i.id === 'half_coin')) {
+      const halfVal = p18 > 0 ? Math.round((p18 / 0.75) * 3.6594) : 0;
+      items.push({
+        id: 'half_coin',
+        sourceId: 'src_def_half_coin',
+        priceType: 'half_coin',
+        name: 'نیم سکه بهار آزادی',
+        symbol: 'HALF_COIN',
+        subText: 'نیم سکه بهار آزادی',
+        badge: 'سکه',
+        badgeClass: 'coin',
+        category: 'coin',
+        price: halfVal,
+        unit: 'عدد',
+        type: 'standard',
+        raw: { id: 'half_coin', priceType: 'half_coin', name: 'نیم سکه بهار آزادی', category: 'coin', unit: 'عدد', price: halfVal },
+      });
+      seenKeys.add('half_coin');
+      seenNames.add(normalizeSearchText('نیم سکه بهار آزادی'));
+    }
+
+    if (!seenKeys.has('quarter_coin') && !items.some(i => i.id === 'quarter_coin')) {
+      const quarterVal = p18 > 0 ? Math.round((p18 / 0.75) * 1.8297) : 0;
+      items.push({
+        id: 'quarter_coin',
+        sourceId: 'src_def_quarter_coin',
+        priceType: 'quarter_coin',
+        name: 'ربع سکه بهار آزادی',
+        symbol: 'QUARTER_COIN',
+        subText: 'ربع سکه بهار آزادی',
+        badge: 'سکه',
+        badgeClass: 'coin',
+        category: 'coin',
+        price: quarterVal,
+        unit: 'عدد',
+        type: 'standard',
+        raw: { id: 'quarter_coin', priceType: 'quarter_coin', name: 'ربع سکه بهار آزادی', category: 'coin', unit: 'عدد', price: quarterVal },
+      });
+      seenKeys.add('quarter_coin');
+      seenNames.add(normalizeSearchText('ربع سکه بهار آزادی'));
+    }
+
+    const onsSilverItem = items.find(i => i.id === 'ons_silver' || i.id === 'silver_ounce');
+    const onsSilverPrice = Number(onsSilverItem?.price || 33.5);
+    const silverGramVal = (onsSilverPrice > 0 && usdToman > 0) ? Math.round((onsSilverPrice / 31.1034768) * usdToman) : 0;
+    if (!seenKeys.has('silver_gram') && !items.some(i => i.id === 'silver_gram')) {
+      items.push({
+        id: 'silver_gram',
+        sourceId: 'src_def_silver_gram',
+        priceType: 'silver_gram',
+        name: 'نقره خام (گرمی ۹۹۹)',
+        symbol: 'SILVER_GRAM',
+        subText: 'هر گرم نقره خالص ۹۹۹',
+        badge: 'نقره',
+        badgeClass: 'silver',
+        category: 'silver',
+        price: silverGramVal,
+        unit: 'گرم',
+        type: 'standard',
+        raw: { id: 'silver_gram', priceType: 'silver_gram', name: 'نقره خام (گرمی ۹۹۹)', category: 'silver', unit: 'گرم', price: silverGramVal },
+      });
+      seenKeys.add('silver_gram');
+      seenNames.add(normalizeSearchText('نقره خام (گرمی ۹۹۹)'));
+    }
+
     // ── نوع ۲: اقلام محاسباتی و مشتق‌شده پویا بر مبنای دیتابیس (Derived Assets) ──
     const baseMap = {};
     items.forEach(it => {
@@ -751,11 +915,24 @@ export default function UniversalAssetSearch({
           ? Number(sub.usdCrossRate || calculateUsdCrossRate(symUpper, sub.rawRate || sub.price || sub.p || 0))
           : Number(sub.price || 0);
 
-        const calculatedPriceToman = isForexItem
-          ? (usdToman > 0 && cross > 0 ? Math.round(cross * usdToman) : Math.round(cross))
-          : (sub.price !== undefined
-              ? Number(sub.price)
-              : (sub.priceToman !== undefined ? Number(sub.priceToman) : Math.round(Number(sub.priceRial || sub.p || 0) / 10)));
+        let calculatedPriceToman;
+        if (isForexItem) {
+          calculatedPriceToman = usdToman > 0 && cross > 0 ? Math.round(cross * usdToman) : Math.round(cross);
+        } else if (isBourse) {
+          if (sub.priceToman !== undefined) {
+            calculatedPriceToman = Number(sub.priceToman);
+          } else if (sub.price !== undefined) {
+            calculatedPriceToman = Number(sub.price);
+          } else if (sub.pl !== undefined || sub.pc !== undefined) {
+            calculatedPriceToman = Math.round(Number(sub.pl || sub.pc) / 10);
+          } else if (sub.priceRial !== undefined) {
+            calculatedPriceToman = Math.round(Number(sub.priceRial) / 10);
+          } else {
+            calculatedPriceToman = Math.round(Number(sub.p || 0));
+          }
+        } else {
+          calculatedPriceToman = Number(sub.price !== undefined ? sub.price : (sub.p || 0));
+        }
 
         const subDetails = isForexItem
           ? (cross > 0
@@ -799,6 +976,77 @@ export default function UniversalAssetSearch({
           },
         });
       });
+    });
+
+    // ── تضمین حضور تمام ۲۴ ارز مطرح فارکس ──────────────────────────────
+    const forexSource = internalSources.find(s => s.priceType === 'forex' && (s.isActive === 1 || s.isActive === true || s.is_active === 1 || s.is_active === true));
+    let forexRatesMap = {};
+    if (forexSource?.lastMultiData) {
+      try {
+        const parsedMulti = typeof forexSource.lastMultiData === 'string' ? JSON.parse(forexSource.lastMultiData) : forexSource.lastMultiData;
+        if (parsedMulti && typeof parsedMulti === 'object') {
+          if (parsedMulti.rates) {
+            Object.entries(parsedMulti.rates).forEach(([k, v]) => {
+              const r = Number(v);
+              if (r > 0) forexRatesMap[k.toLowerCase()] = parseFloat((1 / r).toFixed(5));
+            });
+          } else {
+            Object.entries(parsedMulti).forEach(([k, v]) => {
+              if (typeof v === 'number') forexRatesMap[k.toLowerCase()] = v;
+              else if (v && typeof v === 'object' && (v.usdCrossRate || v.price)) {
+                forexRatesMap[k.toLowerCase()] = Number(v.usdCrossRate || v.price);
+              }
+            });
+          }
+        }
+      } catch {}
+    }
+
+    PROMINENT_FOREX_CURRENCIES.forEach(cur => {
+      const codeUpper = cur.code.toUpperCase();
+      const codeLower = cur.code.toLowerCase();
+      const itemKey = `forex_${codeLower}`;
+
+      if (!seenKeys.has(codeLower) && !seenKeys.has(codeUpper) && !seenKeys.has(`src_def_forex::${codeUpper}`) && !items.some(i => i.symbol === codeUpper)) {
+        const liveCross = Number(forexRatesMap[codeLower] || cur.defaultCross);
+        const calculatedPriceToman = usdToman > 0 ? Math.round(liveCross * usdToman) : Math.round(liveCross);
+        const displayName = `${cur.name} (${codeUpper})`;
+
+        items.push({
+          id: codeUpper,
+          sourceId: 'src_def_forex',
+          symbol: codeUpper,
+          name: displayName,
+          subText: `بر مبنای دلار (${liveCross < 1 ? liveCross.toFixed(4) : liveCross.toFixed(2)} $)` + (usdToman > 0 ? ` • دلار: ${usdToman.toLocaleString('fa-IR')} ت` : ''),
+          badge: 'ارز',
+          badgeClass: 'currency',
+          category: 'currency',
+          price: calculatedPriceToman,
+          unit: usdToman > 0 ? 'تومان' : 'دلار',
+          type: 'forex',
+          isMultiItem: true,
+          raw: {
+            id: codeUpper,
+            symbol: codeUpper,
+            name: displayName,
+            faName: cur.name,
+            code: codeUpper,
+            usdCrossRate: liveCross,
+            priceToman: calculatedPriceToman,
+            price: calculatedPriceToman,
+            category: 'currency',
+            unit: usdToman > 0 ? 'تومان' : 'دلار',
+            sourceId: 'src_def_forex',
+            sourceName: 'نرخ‌های جهانی فارکس',
+            isMultiItem: true,
+          },
+        });
+        seenKeys.add(codeLower);
+        seenKeys.add(codeUpper);
+        seenKeys.add(itemKey);
+        seenNames.add(normalizeSearchText(cur.name));
+        seenNames.add(normalizeSearchText(displayName));
+      }
     });
 
     return items;
