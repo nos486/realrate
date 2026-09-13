@@ -13,7 +13,7 @@ import {
   Check,
 } from 'lucide-react';
 import { apiGetPriceSources, apiSearchBourseSymbols } from '../api/client.js';
-import { usePricing } from '../context/PricingContext.jsx';
+import { usePricing } from '../features/market/index.js';
 import {
   FOREX_SPECS,
   TROY_OUNCE_GRAMS,

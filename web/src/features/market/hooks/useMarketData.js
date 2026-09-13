@@ -6,7 +6,7 @@ import { useState, useEffect, useRef } from 'react';
 import { getPrices } from '../api/marketApi.js';
 import { calculateMarketData } from '../../../utils/calculator.js';
 import { formatThousands } from '../../../utils/formatters.js';
-import { usePricing } from '../../../context/PricingContext.jsx';
+import { usePricing } from '../context/PricingContext.jsx';
 
 function parseNum(val) {
   if (!val) return 0;

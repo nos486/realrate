@@ -1,6 +1,31 @@
 /**
  * logger.js — Structured single-line JSON logger for Cloudflare Workers & console
+ * Includes automatic recursive redaction of sensitive credentials (passwords, tokens, E2EE keys).
  */
+
+const SENSITIVE_KEY_REGEX = /^(password|passphrase|token|auth_token|secret|verifier|private_key|e2ee_verifier)$/i;
+
+function sanitizeSensitive(val, seen = new WeakSet()) {
+  if (!val || typeof val !== "object") return val;
+  if (seen.has(val)) return "[CIRCULAR]";
+  seen.add(val);
+
+  if (Array.isArray(val)) {
+    return val.map((item) => sanitizeSensitive(item, seen));
+  }
+
+  const result = {};
+  for (const [k, v] of Object.entries(val)) {
+    if (SENSITIVE_KEY_REGEX.test(k)) {
+      result[k] = "[REDACTED]";
+    } else if (typeof v === "object" && v !== null) {
+      result[k] = sanitizeSensitive(v, seen);
+    } else {
+      result[k] = v;
+    }
+  }
+  return result;
+}
 
 function formatMeta(meta) {
   if (!meta) return undefined;
@@ -13,15 +38,15 @@ function formatMeta(meta) {
   }
   if (typeof meta === "object") {
     try {
-      const formatted = { ...meta };
-      if (formatted.error instanceof Error) {
-        formatted.error = {
-          message: formatted.error.message,
-          name: formatted.error.name,
-          stack: formatted.error.stack,
+      const sanitized = sanitizeSensitive(meta);
+      if (sanitized.error instanceof Error) {
+        sanitized.error = {
+          message: sanitized.error.message,
+          name: sanitized.error.name,
+          stack: sanitized.error.stack,
         };
       }
-      return formatted;
+      return sanitized;
     } catch {
       return String(meta);
     }

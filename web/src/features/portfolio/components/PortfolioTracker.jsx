@@ -17,7 +17,7 @@ import {
   FolderPlus,
 } from 'lucide-react';
 import { useAuth } from '../../auth/index.js';
-import { usePricing } from '../../../context/PricingContext.jsx';
+import { usePricing } from '../../market/index.js';
 import Modal from '../../../shared/ui/Modal.jsx';
 import UserSettingsModal from '../../../components/UserSettingsModal.jsx';
 

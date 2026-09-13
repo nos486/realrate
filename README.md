@@ -41,7 +41,7 @@
 
 #### 🏗️ Architecture & Documentation
 RealRate is structured as an **npm workspaces monorepo** with clean, decoupled layers:
-- **`api/`**: REST API built with Hono on Cloudflare Workers, using Repository pattern for Cloudflare D1 (SQLite) & Cloudflare KV, Adapter pattern for external price sources, and centralized Domain Specs.
+- **`api/`**: Edge-native REST API running on Cloudflare Workers, using Repository pattern for Cloudflare D1 (SQLite) & Cloudflare KV, Adapter pattern for external price sources, and centralized Domain Specs.
 - **`web/`**: Modern React 19 SPA built with Vite, utilizing a modular **Feature-Based Architecture** (`features/market`, `features/portfolio`, `features/auth`, `features/admin`), Web Crypto Zero-Knowledge E2EE, and dark glassmorphism design tokens.
 - **📚 Detailed Guides**:
   - [System Architecture & Data Flows](docs/ARCHITECTURE.md)
@@ -157,7 +157,7 @@ realrate/
 │   ├── ADDING_NEW_ASSET.md    # راهنمای گام‌به‌گام افزودن دارایی جدید
 │   └── ADDING_NEW_PRICE_SOURCE.md # راهنمای پیاده‌سازی آداپتور منبع قیمت
 │
-├── api/                       # سرویس بک‌اند (Cloudflare Workers + Hono REST API)
+├── api/                       # سرویس بک‌اند (Edge-Native Cloudflare Workers REST API)
 │   ├── wrangler.toml          # پیکربندی بایندینگ‌های D1، KV و متغیرها
 │   ├── schema.sql             # ساختار جداول دیتابیس D1 (SQLite)
 │   ├── vitest.config.js       # پیکربندی آزمون‌های واحد Vitest

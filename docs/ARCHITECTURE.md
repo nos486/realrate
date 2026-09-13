@@ -7,7 +7,7 @@ RealRate is a financial analysis and portfolio management platform designed to c
 ## High-Level Architecture Overview
 
 The system is built as an ultra-fast, serverless monorepo consisting of:
-- **Backend (`api/`)**: Built on Cloudflare Workers using the Hono framework, Cloudflare D1 (SQLite at the edge), and Cloudflare KV (distributed low-latency cache).
+- **Backend (`api/`)**: Built as an Edge-native Cloudflare Worker with zero framework overhead, Cloudflare D1 (SQLite at the edge), and Cloudflare KV (distributed low-latency cache).
 - **Frontend (`web/`)**: A modern React SPA built with Vite, utilizing a modular **feature-based architecture**, custom hooks, vanilla CSS design tokens, and Web Crypto API for client-side Zero-Knowledge End-to-End Encryption (E2EE).
 
 ```mermaid
@@ -22,7 +22,7 @@ graph TD
         Cron[Cron Trigger / Ingestion Service]
         Adapters[Price Source Adapters Layer]
         Repos[Repository Layer D1 / KV]
-        HonoApp[Hono API App & Middleware]
+        WorkerApp[Edge Router & Middleware]
         Domain[Domain Specs & Financial Formulas]
     end
 
@@ -40,12 +40,12 @@ graph TD
     TSETMC --> Adapters
     Cron --> Adapters
     Adapters --> Repos
-    Repos --> HonoApp
-    Domain --> HonoApp
-    HonoApp --> MarketFeat
-    HonoApp --> PortFeat
-    HonoApp --> AuthFeat
-    HonoApp --> AdminFeat
+    Repos --> WorkerApp
+    Domain --> WorkerApp
+    WorkerApp --> MarketFeat
+    WorkerApp --> PortFeat
+    WorkerApp --> AuthFeat
+    WorkerApp --> AdminFeat
     PortFeat --> CryptoE2EE
 ```
 
