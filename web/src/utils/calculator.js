@@ -4,6 +4,15 @@
  */
 
 import { computeAllDerivedPrices } from './formulaEvaluator.js';
+import {
+  TROY_OUNCE_GRAMS,
+  GOLD_SPECS,
+  COIN_SPECS,
+  SILVER_SPECS,
+  calculateGold24kGram,
+  calculateIntrinsicValue,
+  calculateForexTomanPrice,
+} from './financialSpecs.js';
 
 // Rich metadata dictionary for world currencies
 export const CURRENCY_METADATA_MAP = {
@@ -107,13 +116,13 @@ export function calculateMarketData({
     };
   }
 
-  // 1. Gold intrinsic calculations
-  const gold_24k_gram = (gold_usd / 31.1034768) * usd_toman;
-  const gold_18k_gram = gold_24k_gram * 0.75;
-  const mesghal_17k = gold_24k_gram * 4.608 * 0.705;
-  const full_intrinsic = gold_24k_gram * 7.3197;
-  const half_intrinsic = gold_24k_gram * 3.6594;
-  const quarter_intrinsic = gold_24k_gram * 1.8297;
+  // 1. Gold intrinsic calculations (canonical specifications)
+  const gold_24k_gram = calculateGold24kGram(gold_usd, usd_toman);
+  const gold_18k_gram = calculateIntrinsicValue(GOLD_SPECS.gold_18k, gold_usd, usd_toman);
+  const mesghal_17k = calculateIntrinsicValue(GOLD_SPECS.mesghal, gold_usd, usd_toman);
+  const full_intrinsic = calculateIntrinsicValue(COIN_SPECS.full_coin, gold_usd, usd_toman);
+  const half_intrinsic = calculateIntrinsicValue(COIN_SPECS.half_coin, gold_usd, usd_toman);
+  const quarter_intrinsic = calculateIntrinsicValue(COIN_SPECS.quarter_coin, gold_usd, usd_toman);
 
   function analyzeItem(id, name, intrinsic, targetBubblePct, marketItem) {
     const market = marketItem && typeof marketItem.price === 'number' && marketItem.price > 0
@@ -289,7 +298,7 @@ export function calculateMarketData({
     : {};
 
   // 4. Silver calculations
-  const raw_silver_999_gram = (silver_usd / 31.1034768) * usd_toman;
+  const raw_silver_999_gram = (silver_usd / TROY_OUNCE_GRAMS) * usd_toman;
   const silver_999_gram = derivedPrices.silver_gram || raw_silver_999_gram;
   const silver_925_gram = derivedPrices.silver_925 || (silver_999_gram * 0.925);
   const silver_ounce = silver_usd * usd_toman;
@@ -305,7 +314,7 @@ export function calculateMarketData({
       gold_24k_gram: Math.round(final_gold_24k),
       gold_18k_gram: Math.round(gold_18k_gram),
       mesghal_17k: Math.round(final_mesghal),
-      bank_gram_intrinsic: Math.round(gold_24k_gram * 1.01 * (22 / 24)),
+      bank_gram_intrinsic: calculateIntrinsicValue(COIN_SPECS.gerami_coin, gold_usd, usd_toman),
     },
     silver: {
       silver_usd,

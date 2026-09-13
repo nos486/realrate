@@ -15,6 +15,7 @@ import {
 import { apiGetPriceSources, apiSearchBourseSymbols, apiGetDerivedAssets } from '../api/client.js';
 import { computeAllDerivedPrices, calculateDerivedPrice } from '../utils/formulaEvaluator.js';
 import { usePricing } from '../context/PricingContext.jsx';
+import { FOREX_SPECS, TROY_OUNCE_GRAMS } from '../utils/financialSpecs.js';
 
 export const DYNAMIC_DERIVED_LABELS = {};
 export const DYNAMIC_DERIVED_REGISTRY = {};
@@ -33,32 +34,7 @@ export function registerDerivedAssetLabels(derivedList = []) {
   }
 }
 
-export const PROMINENT_FOREX_CURRENCIES = [
-  { code: 'EUR', name: 'یورو اروپا', defaultCross: 1.16 },
-  { code: 'GBP', name: 'پوند انگلیس', defaultCross: 1.35 },
-  { code: 'AED', name: 'درهم امارات', defaultCross: 0.272 },
-  { code: 'TRY', name: 'لیر ترکیه', defaultCross: 0.030 },
-  { code: 'CHF', name: 'فرانک سوئیس', defaultCross: 1.225 },
-  { code: 'CAD', name: 'دلار کانادا', defaultCross: 0.722 },
-  { code: 'AUD', name: 'دلار استرالیا', defaultCross: 0.717 },
-  { code: 'CNY', name: 'یوان چین', defaultCross: 0.149 },
-  { code: 'JPY', name: 'ین ژاپن', defaultCross: 0.0068 },
-  { code: 'SAR', name: 'ریال عربستان', defaultCross: 0.266 },
-  { code: 'QAR', name: 'ریال قطر', defaultCross: 0.274 },
-  { code: 'KWD', name: 'دینار کویت', defaultCross: 3.26 },
-  { code: 'OMR', name: 'ریال عمان', defaultCross: 2.60 },
-  { code: 'BHD', name: 'دینار بحرین', defaultCross: 2.65 },
-  { code: 'IQD', name: 'دینار عراق', defaultCross: 0.00076 },
-  { code: 'RUB', name: 'روبل روسیه', defaultCross: 0.011 },
-  { code: 'AFN', name: 'افغانی افغانستان', defaultCross: 0.0155 },
-  { code: 'AZN', name: 'منات آذربایجان', defaultCross: 0.588 },
-  { code: 'INR', name: 'روپیه هند', defaultCross: 0.0118 },
-  { code: 'SEK', name: 'کرون سوئد', defaultCross: 0.103 },
-  { code: 'NOK', name: 'کرون نروژ', defaultCross: 0.101 },
-  { code: 'SGD', name: 'دلار سنگاپور', defaultCross: 0.789 },
-  { code: 'KRW', name: 'وون کره جنوبی', defaultCross: 0.00075 },
-  { code: 'BRL', name: 'رئال برزیل', defaultCross: 0.196 },
-];
+export const PROMINENT_FOREX_CURRENCIES = FOREX_SPECS;
 
 export const WORLD_CURRENCY_NAMES = {
   USD: 'دلار آمریکا',
@@ -598,8 +574,66 @@ export default function UniversalAssetSearch({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  // 3. Build Unified Items List (100% Client-Side, Exact 2 Types, All Multi-Output Categories)
+  // 3. Build Unified Items List (100% Client-Side, Single Source of Truth via PricingContext)
   const allItems = useMemo(() => {
+    // ── اولویت ۱: کاتالوگ یکپارچه محاسباتی PricingContext (تضمین تطابق ۱۰۰٪ قیمت‌ها با پورتفو و صفحه اصلی) ──
+    if (pricingContext?.resolvedAssets && pricingContext.resolvedAssets.length > 0) {
+      const items = [];
+      const seenKeys = new Set();
+      const seenNames = new Set();
+
+      pricingContext.resolvedAssets.forEach((asset) => {
+        const isBourse = asset.priceType === 'bourse' || asset.category === 'bourse' || asset.category === 'bourse_fund';
+        const isForex = asset.priceType === 'forex' || asset.category === 'currency';
+        const isDerived = asset.priceType === 'derived' || asset.isDerived;
+        const sym = (asset.symbol || asset.code || '').trim();
+        const normName = normalizeSearchText(asset.name);
+        const canonicalId = (asset.id || '').toLowerCase().trim();
+
+        if (seenKeys.has(canonicalId)) return;
+        seenKeys.add(canonicalId);
+        if (sym) seenKeys.add(sym.toLowerCase());
+        seenNames.add(normName);
+
+        const badgeClass = asset.badgeClass || (
+          isForex ? 'currency' :
+          isBourse ? (asset.name?.includes('صندوق') ? 'bourse_fund' : 'bourse') :
+          asset.category || 'gold'
+        );
+
+        items.push({
+          id: asset.id,
+          sourceId: asset.sourceId || asset.id,
+          priceType: asset.priceType || asset.id,
+          name: asset.name,
+          symbol: sym,
+          subText: asset.subText || '',
+          badge: asset.badge || (isForex ? 'ارز' : isBourse ? 'بورس' : 'پایه'),
+          badgeClass,
+          category: asset.category || (isForex ? 'currency' : isBourse ? 'bourse' : 'gold'),
+          price: asset.price,
+          unit: asset.unit || 'تومان',
+          type: isForex ? 'forex' : (isBourse ? 'bourse' : (isDerived ? 'derived' : 'standard')),
+          changePercent: asset.changePercent,
+          raw: {
+            ...asset,
+            id: asset.id,
+            symbol: sym,
+            name: asset.name,
+            faName: asset.name,
+            usdCrossRate: asset.usdCrossRate,
+            priceToman: asset.price,
+            price: asset.price,
+            category: asset.category,
+            unit: asset.unit,
+            isMultiItem: isForex || isBourse,
+          },
+        });
+      });
+
+      return items;
+    }
+
     const items = [];
     const seenKeys = new Set();
     const seenNames = new Set();
@@ -1075,7 +1109,7 @@ export default function UniversalAssetSearch({
     });
 
     return items;
-  }, [internalSources, internalDerivedAssets, bourseSymbols, priceTypeInfo, effectiveUsdToman, effectiveGoldUsd, effectiveSilverUsd]);
+  }, [pricingContext?.resolvedAssets, internalSources, internalDerivedAssets, bourseSymbols, priceTypeInfo, effectiveUsdToman, effectiveGoldUsd, effectiveSilverUsd]);
 
   // 4. Pure Client-Side Instant Search Filter with Tokenized Matching and Strict Deduplication
   const filteredItems = useMemo(() => {

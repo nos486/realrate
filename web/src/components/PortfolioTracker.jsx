@@ -935,185 +935,39 @@ export default function PortfolioTracker({ calcData, rates, usdToman, goldUsd, d
     return (pricing?.silverUsd ? Number(pricing.silverUsd) : 0) || calcData?.silver?.silver_usd || rates?.silver_usd || rates?.silver?.silver_usd || 33.5;
   }, [pricing?.silverUsd, calcData, rates]);
 
-  // 2. Real / Intrinsic Price Calculation Helper (Pure, Zero Latency)
-  const computePriceMap = useCallback((usd, goldUsd, silverUsd) => {
-    const map = {};
-    if (!usd || usd <= 0) return map;
-
-    // A. Base Gold calculations (Spot & standard coins intrinsic gold value)
-    if (goldUsd && goldUsd > 0) {
-      const gold_24k_gram = (goldUsd / 31.1034768) * usd;
-      const gold_18k_gram = gold_24k_gram * 0.75;
-      const full_coin_val = Math.round(gold_24k_gram * 7.3197);
-      const half_coin_val = Math.round(gold_24k_gram * 3.6594);
-      const quarter_coin_val = Math.round(gold_24k_gram * 1.8297);
-      const bank_gram_val = Math.round(gold_24k_gram * 1.01 * (22 / 24));
-      const ons_gold_val = Math.round(goldUsd * usd);
-
-      map['gold_18k'] = Math.round(gold_18k_gram);
-      map['src_def_gold_18k'] = map['gold_18k'];
-
-      map['ons_gold'] = ons_gold_val;
-      map['gold_ounce'] = ons_gold_val;
-      map['src_def_ons_gold'] = ons_gold_val;
-
-      map['full_new'] = full_coin_val;
-      map['full_coin'] = full_coin_val;
-      map['src_def_full_coin'] = full_coin_val;
-      map['full_old'] = full_coin_val;
-      map['src_def_full_old'] = full_coin_val;
-
-      map['half'] = half_coin_val;
-      map['half_coin'] = half_coin_val;
-      map['src_def_half_coin'] = half_coin_val;
-
-      map['quarter'] = quarter_coin_val;
-      map['quarter_coin'] = quarter_coin_val;
-      map['src_def_quarter_coin'] = quarter_coin_val;
-
-      map['bank_gram'] = bank_gram_val;
-      map['gerami_coin'] = bank_gram_val;
-      map['gram'] = bank_gram_val;
-      map['src_def_gerami_coin'] = bank_gram_val;
-    }
-
-    // B. Base Silver calculations (Spot / Intrinsic)
-    if (silverUsd && silverUsd > 0) {
-      const silver_ounce_val = Math.round(silverUsd * usd);
-      map['silver_ounce'] = silver_ounce_val;
-      map['ons_silver'] = silver_ounce_val;
-      map['src_def_ons_silver'] = silver_ounce_val;
-    }
-
-    // C. Currencies (Cross rate * usd)
-    map['USD'] = Math.round(usd);
-    map['usd'] = Math.round(usd);
-    map['src_def_usd'] = Math.round(usd);
-    map['USDT'] = Math.round(usd);
-    map['usdt'] = Math.round(usd);
-
-    const FOREX_CROSS_DEFAULTS = {
-      EUR: 1.16, GBP: 1.35, AED: 0.272, TRY: 0.030, CHF: 1.225,
-      CAD: 0.722, AUD: 0.717, CNY: 0.149, JPY: 0.0068, SAR: 0.266,
-      QAR: 0.274, KWD: 3.26, OMR: 2.60, BHD: 2.65, IQD: 0.00076,
-      RUB: 0.011, AFN: 0.0155, AZN: 0.588, INR: 0.0118, SEK: 0.103,
-      NOK: 0.101, SGD: 0.789, KRW: 0.00075, BRL: 0.196,
-    };
-    for (const [code, cross] of Object.entries(FOREX_CROSS_DEFAULTS)) {
-      const p = Math.round(cross * usd);
-      map[code] = p;
-      map[code.toLowerCase()] = p;
-      map[`src_def_${code.toLowerCase()}`] = p;
-    }
-
-    // D. Compute all derived asset prices dynamically via database formulas
-    if (Array.isArray(allDerivedAssets) && allDerivedAssets.length > 0) {
-      const derivedPrices = computeAllDerivedPrices(allDerivedAssets, map);
-      for (const [k, v] of Object.entries(derivedPrices)) {
-        if (v > 0) {
-          const rounded = Math.round(v);
-          map[k] = rounded;
-          map[`src_def_${k}`] = rounded;
-          map[`derived_${k}`] = rounded;
-        }
-      }
-    }
-
-    return map;
-  }, [allDerivedAssets]);
-
+  // 2. Single Source of Truth Price Map (Unified Pricing Engine)
   const realPriceMap = useMemo(() => {
-    const map = computePriceMap(usdVal, goldUsdVal, silverUsdVal);
+    const map = {};
 
-    // Merge unified pricing engine prices if present (single-source-of-truth)
+    // 1. Primary unified price map from PricingContext (100% consistent with Search & Main Page)
     if (pricing?.priceMap) {
-      Object.entries(pricing.priceMap).forEach(([k, v]) => {
-        if (v > 0) {
-          map[k] = Math.round(v);
-          map[k.toLowerCase()] = Math.round(v);
-          map[`src_def_${k.toLowerCase()}`] = Math.round(v);
+      Object.assign(map, pricing.priceMap);
+    }
+
+    // 2. Incorporate any live bourse stock prices loaded by the user
+    if (boursePricesMap) {
+      Object.entries(boursePricesMap).forEach(([sym, pt]) => {
+        if (pt > 0) {
+          map[`bourse_${sym}`] = pt;
+          map[sym] = pt;
         }
       });
     }
 
-    // Incorporate live market prices from calcData / rates if present
+    // 3. Fallback: If pricing engine is initializing, fill gaps from calcData
     if (calcData?.analysis && Array.isArray(calcData.analysis)) {
       calcData.analysis.forEach((item) => {
-        if (item.market && item.market > 0) {
-          const mPrice = Math.round(item.market);
-          map[item.id] = mPrice;
-          map[`src_def_${item.id}`] = mPrice;
-          if (item.id === 'full_coin') {
-            map['full_new'] = mPrice;
-            map['src_def_full_new'] = mPrice;
-          }
-          if (item.id === 'half_coin') {
-            map['half'] = mPrice;
-            map['src_def_half'] = mPrice;
-          }
-          if (item.id === 'quarter_coin') {
-            map['quarter'] = mPrice;
-            map['src_def_quarter'] = mPrice;
-          }
+        const val = item.market || item.expected_price || item.intrinsic;
+        if (val > 0 && !map[item.id]) {
+          const rounded = Math.round(val);
+          map[item.id] = rounded;
+          map[`src_def_${item.id}`] = rounded;
         }
       });
     }
 
-    const rawPrices = rates?.prices || rates?.market_prices;
-    if (rawPrices && typeof rawPrices === 'object') {
-      Object.entries(rawPrices).forEach(([k, v]) => {
-        const p = Number(v?.price || v);
-        if (p > 0) {
-          const rounded = Math.round(p);
-          const cleanK = k.replace(/^src_def_/, '');
-          map[k] = rounded;
-          map[cleanK] = rounded;
-          map[`src_def_${cleanK}`] = rounded;
-        }
-      });
-    }
-
-    const currList = calcData?.currencies || rates?.currencies;
-    if (currList && Array.isArray(currList)) {
-      currList.forEach((c) => {
-        if (c.code) {
-          const cross = c.usd_cross_rate || 1;
-          const p = c.toman_price ? Math.round(c.toman_price) : Math.round(cross * usdVal);
-          map[c.code] = p;
-          map[c.code.toLowerCase()] = p;
-        }
-      });
-    } else if (rates?.forex) {
-      const ratesObj = rates.forex.rates || rates.forex;
-      if (typeof ratesObj === 'object') {
-        Object.entries(ratesObj).forEach(([code, rate]) => {
-          if (rate && Number(rate) > 0) {
-            const p = Math.round((1 / Number(rate)) * usdVal);
-            map[code] = p;
-            map[code.toLowerCase()] = p;
-          }
-        });
-      }
-    }
-    // Incorporate dynamic derived assets from database
-    if (Array.isArray(allDerivedAssets) && allDerivedAssets.length > 0) {
-      const derivedPrices = computeAllDerivedPrices(allDerivedAssets, map);
-      for (const [k, v] of Object.entries(derivedPrices)) {
-        if (v > 0) {
-          const rounded = Math.round(v);
-          map[k] = rounded;
-          map[`src_def_${k}`] = rounded;
-          map[`derived_${k}`] = rounded;
-        }
-      }
-    }
-
-    // Incorporate loaded bourse stock prices
-    Object.entries(boursePricesMap).forEach(([sym, pt]) => {
-      map[`bourse_${sym}`] = pt;
-    });
     return map;
-  }, [usdVal, goldUsdVal, silverUsdVal, calcData, rates, computePriceMap, boursePricesMap, allDerivedAssets]);
+  }, [pricing?.priceMap, boursePricesMap, calcData]);
 
   // 3. Open Modal for Adding
   const handleOpenAdd = () => {

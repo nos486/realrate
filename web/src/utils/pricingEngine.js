@@ -5,6 +5,16 @@
  */
 
 import { computeAllDerivedPrices } from './formulaEvaluator.js';
+import {
+  TROY_OUNCE_GRAMS,
+  GOLD_SPECS,
+  COIN_SPECS,
+  SILVER_SPECS,
+  FOREX_SPECS,
+  calculateGold24kGram,
+  calculateIntrinsicValue,
+  calculateForexTomanPrice,
+} from './financialSpecs.js';
 
 export function normalizePersianText(str) {
   if (!str) return '';
@@ -48,14 +58,21 @@ export function computeUnifiedPrices({
   const goldVal = Number(goldUsd) || Number(marketItems?.meta?.gold_usd) || 2890;
   const silverVal = Number(silverUsd) || Number(marketItems?.meta?.silver_usd) || 33.5;
 
-  const gold24kGramToman = usdVal > 0 ? (goldVal / 31.1034768) * usdVal : 0;
-  const silverGramToman = usdVal > 0 ? (silverVal / 31.1034768) * usdVal : 0;
+  const gold24kGramToman = calculateGold24kGram(goldVal, usdVal);
+  const silverGramToman = usdVal > 0 ? (silverVal / TROY_OUNCE_GRAMS) * usdVal : 0;
 
   const resolvedAssets = [];
   const priceMap = {};
 
   // ── 1. Gold & Coins ──────────────────────────────────────────────────────────
-  const goldAndCoins = marketItems?.goldAndCoins || [];
+  const goldAndCoins = (marketItems?.goldAndCoins && marketItems.goldAndCoins.length > 0)
+    ? marketItems.goldAndCoins
+    : [
+        ...Object.values(GOLD_SPECS),
+        ...Object.values(COIN_SPECS),
+        ...Object.values(SILVER_SPECS),
+      ];
+
   goldAndCoins.forEach((item) => {
     const isSpecialGoldOunce = item.id === 'ons_gold';
     const isSpecialSilverOunce = item.id === 'ons_silver';
@@ -98,13 +115,13 @@ export function computeUnifiedPrices({
         }
         subDetails = `${item.sourceName || 'سورس زنده'} • ارزش ذاتی: ${intrinsicPrice.toLocaleString('fa-IR')} ت (حباب: ${bubblePct}٪)`;
       } else {
-        // No source: Use calculated real intrinsic / target value
-        effectivePrice = targetExpected > 0 ? targetExpected : intrinsicPrice;
+        // No source: Use calculated real intrinsic value (ارزش واقعی طلا/سکه)
+        effectivePrice = intrinsicPrice;
         priceType = 'intrinsic';
         priceTypeLabel = 'ارزش واقعی (محاسباتی)';
         bubble = 0;
         bubblePct = 0;
-        subDetails = `محاسبه بر اساس انس (${goldVal}$) و دلار (${usdVal > 0 ? usdVal.toLocaleString('fa-IR') : '۰'} ت)`;
+        subDetails = `محاسبه بر اساس ارزش ذاتی (انس ${goldVal}$ و دلار ${usdVal > 0 ? usdVal.toLocaleString('fa-IR') : '۰'} ت)`;
       }
     }
 
@@ -122,15 +139,55 @@ export function computeUnifiedPrices({
     };
 
     resolvedAssets.push(resolved);
+
+    // Populate primary ID and aliases into priceMap for portfolio compatibility
+    const idLower = item.id.toLowerCase();
     priceMap[item.id] = effectivePrice;
-    priceMap[item.id.toLowerCase()] = effectivePrice;
+    priceMap[idLower] = effectivePrice;
+    priceMap[`src_def_${idLower}`] = effectivePrice;
+
+    if (item.id === 'full_coin') {
+      priceMap['full_new'] = effectivePrice;
+      priceMap['full_old'] = effectivePrice;
+      priceMap['src_def_full_new'] = effectivePrice;
+      priceMap['src_def_full_old'] = effectivePrice;
+    } else if (item.id === 'half_coin') {
+      priceMap['half'] = effectivePrice;
+      priceMap['src_def_half'] = effectivePrice;
+    } else if (item.id === 'quarter_coin') {
+      priceMap['quarter'] = effectivePrice;
+      priceMap['src_def_quarter'] = effectivePrice;
+    } else if (item.id === 'gerami_coin') {
+      priceMap['bank_gram'] = effectivePrice;
+      priceMap['gram'] = effectivePrice;
+      priceMap['src_def_bank_gram'] = effectivePrice;
+    } else if (item.id === 'ons_gold') {
+      priceMap['gold_ounce'] = effectivePrice;
+      priceMap['src_def_gold_ounce'] = effectivePrice;
+    } else if (item.id === 'ons_silver') {
+      priceMap['silver_ounce'] = effectivePrice;
+      priceMap['src_def_silver_ounce'] = effectivePrice;
+    }
   });
 
   // ── 2. Forex Currencies ─────────────────────────────────────────────────────
-  const currencies = marketItems?.currencies || [];
+  const currencies = (marketItems?.currencies && marketItems.currencies.length > 0)
+    ? marketItems.currencies
+    : FOREX_SPECS.map(c => ({
+        id: c.code,
+        code: c.code,
+        name: c.name,
+        category: 'currency',
+        badge: 'ارز',
+        unit: 'تومان',
+        flag: c.flag,
+        symbol: c.symbol,
+        usdCrossRate: c.defaultCross,
+      }));
+
   currencies.forEach((cur) => {
     const cross = Number(cur.usdCrossRate || 1.0);
-    const calculatedToman = usdVal > 0 ? Math.round(cross * usdVal) : Math.round(cross);
+    const calculatedToman = calculateForexTomanPrice(cross, usdVal);
     const crossDisplay = cross < 1 ? cross.toFixed(4) : cross.toFixed(2);
 
     const subDetails = cur.code === 'USD'
@@ -147,9 +204,19 @@ export function computeUnifiedPrices({
     };
 
     resolvedAssets.push(resolved);
+    const codeLower = cur.code.toLowerCase();
     priceMap[cur.code] = calculatedToman;
-    priceMap[cur.code.toLowerCase()] = calculatedToman;
-    priceMap[`forex_${cur.code.toLowerCase()}`] = calculatedToman;
+    priceMap[codeLower] = calculatedToman;
+    priceMap[`src_def_${codeLower}`] = calculatedToman;
+    priceMap[`forex_${codeLower}`] = calculatedToman;
+
+    if (cur.code === 'USD') {
+      priceMap['usd'] = calculatedToman;
+      priceMap['usd_toman'] = calculatedToman;
+      priceMap['USDT'] = calculatedToman;
+      priceMap['usdt'] = calculatedToman;
+      priceMap['src_def_usd'] = calculatedToman;
+    }
   });
 
   // ── 3. Tehran Stock Exchange (Bourse) ───────────────────────────────────────
