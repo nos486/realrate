@@ -415,25 +415,23 @@ export default function AddHoldingForm({
         </div>
       )}
 
-      {/* Date and Notes in Dual Row */}
-      <div className="form-row-dual">
-        <ShamsiDatePicker
-          className="flex-1"
-          value={buyDate}
-          onChange={setBuyDate}
-          label="تاریخ خرید (شمسی)"
-        />
+      {/* Date */}
+      <ShamsiDatePicker
+        value={buyDate}
+        onChange={setBuyDate}
+        label="تاریخ خرید (شمسی)"
+      />
 
-        <div className="form-item flex-1">
-          <label>یادداشت یا توضیحات</label>
-          <input
-            type="text"
-            placeholder="مثلاً خرید از بورس یا بازار تهران..."
-            value={notes}
-            onChange={(e) => setNotes(e.target.value)}
-            className="form-input"
-          />
-        </div>
+      {/* Notes */}
+      <div className="form-item">
+        <label>یادداشت یا توضیحات</label>
+        <input
+          type="text"
+          placeholder="مثلاً خرید از بورس یا بازار تهران..."
+          value={notes}
+          onChange={(e) => setNotes(e.target.value)}
+          className="form-input"
+        />
       </div>
     </Modal>
   );
