@@ -10,7 +10,7 @@
  * The frontend (React + Vite) is hosted separately on Cloudflare Pages.
  */
 
-import { getGlobalSettings } from "./lib/settings.js";
+import { getGlobalSettings } from "./repositories/settings.repository.js";
 import { getCorsHeaders } from "./lib/helpers.js";
 import { validateEnv } from "./config/env.js";
 import { withErrorHandler } from "./middlewares/errorHandler.js";

@@ -17,9 +17,9 @@ import {
   dbGetSourceTypes,
   dbSaveSourceType,
   dbDeleteSourceType,
-} from "../lib/db.js";
+  saveGlobalSettings,
+} from "../repositories/index.js";
 import { getAdminStats } from "../lib/analytics.js";
-import { saveGlobalSettings } from "../lib/settings.js";
 import { testUsdSource } from "../services/telegramPrices.js";
 import { testPriceSourceConfig, fetchAllPrices, inspectApiEndpointStructure, refreshMarketRatesCache } from "../services/priceSources.js";
 import { jsonResponse, errorResponse, forbiddenResponse } from "../lib/helpers.js";

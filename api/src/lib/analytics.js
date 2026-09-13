@@ -2,7 +2,7 @@
  * analytics.js — IP-based page view tracking, unique visitor counts, online users
  */
 
-import { dbGetUsers } from "./db.js";
+import { dbGetUsers } from "../repositories/user.repository.js";
 
 /**
  * Get admin-facing stats: registered users

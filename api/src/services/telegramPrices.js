@@ -4,7 +4,7 @@
  * Throttled to 1 minute. Cached in KV + in-memory.
  */
 
-import { getGlobalSettings } from "../lib/settings.js";
+import { getGlobalSettings } from "../repositories/settings.repository.js";
 import { fetchAllPrices } from "./priceSources.js";
 import { getCanonicalAssetName } from "../lib/financialSpecs.js";
 

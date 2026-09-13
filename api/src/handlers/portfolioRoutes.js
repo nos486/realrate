@@ -26,7 +26,7 @@ import {
   dbDeletePortfolioHolding,
   dbGetUserById,
   dbUpdateUserSettings,
-} from "../lib/db.js";
+} from "../repositories/index.js";
 import { jsonResponse } from "../lib/helpers.js";
 import { AppError } from "../lib/AppError.js";
 import { logger } from "../lib/logger.js";

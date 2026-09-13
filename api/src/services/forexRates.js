@@ -4,6 +4,13 @@
  */
 
 import { normalizeForexToUsdCrossRate } from "./priceSources.js";
+import {
+  getForexRatesCache,
+  setForexRatesCache,
+  getLastForexD1RecordTime,
+  setLastForexD1RecordTime,
+} from "../repositories/kvCache.repository.js";
+import { dbBatchUpdateForexPrices } from "../repositories/priceSource.repository.js";
 import { logger } from "../lib/logger.js";
 import {
   FOREX_CACHE_THROTTLE_MS,
@@ -38,16 +45,11 @@ export const FOREX_FALLBACK = {
  * @returns {object} rates keyed by currency code
  */
 export async function fetchForexRates(env, forceRefresh = false) {
-  const cacheKey = "forex_rates";
   let stored = forexCache;
   const nowMs = Date.now();
 
-  if (env && env.REALRATE_KV) {
-    try {
-      const kvVal = await env.REALRATE_KV.get(cacheKey, "json");
-      if (kvVal) stored = kvVal;
-    } catch (e) {}
-  }
+  const kvVal = await getForexRatesCache(env);
+  if (kvVal) stored = kvVal;
 
   const lastCheckMs = (stored && stored.last_updated) ? new Date(stored.last_updated).getTime() : 0;
   const isFresh = (nowMs - lastCheckMs) < FOREX_CACHE_THROTTLE_MS; // 10-minute throttle
@@ -66,11 +68,7 @@ export async function fetchForexRates(env, forceRefresh = false) {
         const record = { rates: fetchedRates, last_updated: new Date().toISOString() };
         forexCache = record;
 
-        if (env && env.REALRATE_KV) {
-          try {
-            await env.REALRATE_KV.put(cacheKey, JSON.stringify(record));
-          } catch (e) {}
-        }
+        await setForexRatesCache(env, record);
 
         // Sync forex rates into D1 price_sources table
         syncForexRatesToPriceSources(env, fetchedRates).catch(() => {});
@@ -94,22 +92,17 @@ export async function fetchForexRates(env, forceRefresh = false) {
 export async function syncForexRatesToPriceSources(env, fetchedRates) {
   if (!env?.DB || !fetchedRates) return;
   try {
-    const cacheKey = "last_forex_d1_record";
     const nowMs = Date.now();
     let lastRecordMs = 0;
-    if (env.REALRATE_KV) {
-      try {
-        const val = await env.REALRATE_KV.get(cacheKey);
-        if (val) lastRecordMs = parseInt(val, 10) || 0;
-      } catch (ignore) {}
-    }
+    const val = await getLastForexD1RecordTime(env);
+    if (val) lastRecordMs = parseInt(val, 10) || 0;
 
     // Record at most once every 15 minutes
     if (nowMs - lastRecordMs < 900000) return;
 
     const nowIso = new Date(nowMs).toISOString();
     const currenciesToRecord = ['EUR', 'TRY', 'AED', 'GBP', 'CHF', 'CAD', 'AUD', 'CNY'];
-    const statements = [];
+    const updates = [];
 
     for (const code of currenciesToRecord) {
       const raw = fetchedRates[code];
@@ -118,23 +111,15 @@ export async function syncForexRatesToPriceSources(env, fetchedRates) {
         const crossRate = normalizeForexToUsdCrossRate(priceType, raw);
         if (!crossRate || crossRate <= 0) continue;
 
-        statements.push(
-          env.DB.prepare(`
-            UPDATE price_sources
-            SET last_price = ?, last_fetched = ?, updated_at = ?
-            WHERE price_type = ? AND is_primary = 1
-          `).bind(crossRate, nowIso, nowIso, priceType)
-        );
+        updates.push({ priceType, crossRate });
       }
     }
 
-    if (statements.length > 0) {
-      await env.DB.batch(statements);
+    if (updates.length > 0) {
+      await dbBatchUpdateForexPrices(env, updates, nowIso);
     }
 
-    if (env.REALRATE_KV) {
-      await env.REALRATE_KV.put(cacheKey, String(nowMs), { expirationTtl: FOREX_HISTORY_EXPIRATION_TTL }).catch(() => {});
-    }
+    await setLastForexD1RecordTime(env, nowMs, FOREX_HISTORY_EXPIRATION_TTL);
   } catch (err) {
     logger.warn("[Forex] Error recording history in D1:", { error: err.message });
   }

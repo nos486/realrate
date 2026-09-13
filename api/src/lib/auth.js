@@ -2,7 +2,7 @@
  * auth.js — Google OAuth verification, session management, and admin role checking
  */
 
-import { dbGetSession } from "./db.js";
+import { dbGetSession } from "../repositories/session.repository.js";
 import { logger } from "./logger.js";
 
 /**

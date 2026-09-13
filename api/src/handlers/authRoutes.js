@@ -9,7 +9,7 @@
  */
 
 import { isUserAdmin, getAuthenticatedUser } from "../lib/auth.js";
-import { dbUpsertUser, dbSaveSession, dbDeleteSession, dbGetUserById } from "../lib/db.js";
+import { dbUpsertUser, dbSaveSession, dbDeleteSession, dbGetUserById } from "../repositories/index.js";
 import { jsonResponse, errorResponse, getCorsHeaders } from "../lib/helpers.js";
 import { logger } from "../lib/logger.js";
 import {

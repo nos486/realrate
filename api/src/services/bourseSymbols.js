@@ -5,7 +5,16 @@
  * No change/percent/volume or extra fields.
  */
 
-import { dbUpdateSourceLastPrice } from '../lib/db.js';
+import { dbUpdateSourceLastPrice } from '../repositories/priceSource.repository.js';
+import {
+  getBourseSymbolsCache,
+  setBourseSymbolsCache,
+  getBourseLastSync,
+  setBourseLastSync,
+  BOURSE_KV_KEY,
+  BOURSE_BACKUP_KV_KEY,
+  BOURSE_LAST_SYNC_KEY,
+} from '../repositories/kvCache.repository.js';
 import { logger } from '../lib/logger.js';
 import {
   BOURSE_SYNC_INTERVAL_MS,
@@ -13,10 +22,8 @@ import {
   DEFAULT_BOURSE_SEARCH_LIMIT,
 } from '../config/constants.js';
 
+export { BOURSE_KV_KEY, BOURSE_BACKUP_KV_KEY, BOURSE_LAST_SYNC_KEY };
 export const BOURSE_API_URL = "https://api.brsapi.ir/Tsetmc/AllSymbols.php?key=BDqzgcZZ5rGg4Z6uSEs9bMyx2E2vXrkd&type=1";
-export const BOURSE_KV_KEY = "bourse_symbols_toman_v3";
-export const BOURSE_BACKUP_KV_KEY = "bourse_symbols_backup_v1";
-export const BOURSE_LAST_SYNC_KEY = "bourse_symbols_last_sync_v3";
 
 let inMemoryBourseList = null;
 
@@ -207,16 +214,13 @@ export async function fetchAndStoreBourseSymbols(env) {
 
     // Load previous symbols from memory or KV or Backup
     let previousList = inMemoryBourseList || [];
-    if (previousList.length === 0 && env?.REALRATE_KV) {
+    if (previousList.length === 0) {
       try {
-        const cached = await env.REALRATE_KV.get(BOURSE_KV_KEY);
+        const { cached, backup } = await getBourseSymbolsCache(env);
         if (cached) {
           previousList = JSON.parse(cached);
-        } else {
-          const backup = await env.REALRATE_KV.get(BOURSE_BACKUP_KV_KEY);
-          if (backup) {
-            previousList = JSON.parse(backup);
-          }
+        } else if (backup) {
+          previousList = JSON.parse(backup);
         }
       } catch (e) {
         logger.error("Error loading previous bourse symbols for merge:", { error: e.message });
@@ -233,13 +237,7 @@ export async function fetchAndStoreBourseSymbols(env) {
     const compactJson = JSON.stringify(mergedList);
 
     // Persist in Cloudflare KV permanently (no 48h expiration TTL to prevent wipeouts)
-    if (env?.REALRATE_KV) {
-      await env.REALRATE_KV.put(BOURSE_KV_KEY, compactJson);
-      // Update backup when symbol list is substantial
-      if (mergedList.length >= 100) {
-        await env.REALRATE_KV.put(BOURSE_BACKUP_KV_KEY, compactJson).catch(() => {});
-      }
-    }
+    await setBourseSymbolsCache(env, compactJson, mergedList.length >= 100);
 
     inMemoryBourseList = mergedList;
 
@@ -284,18 +282,15 @@ export async function fetchAndStoreBourseSymbols(env) {
 export async function getBourseSymbols(env, query = "", limit = DEFAULT_BOURSE_SEARCH_LIMIT) {
   let list = inMemoryBourseList || [];
 
-  if ((!list || list.length === 0) && env?.REALRATE_KV) {
+  if (!list || list.length === 0) {
     try {
-      const cached = await env.REALRATE_KV.get(BOURSE_KV_KEY);
+      const { cached, backup } = await getBourseSymbolsCache(env);
       if (cached) {
         list = JSON.parse(cached);
         inMemoryBourseList = list;
-      } else {
-        const backup = await env.REALRATE_KV.get(BOURSE_BACKUP_KV_KEY);
-        if (backup) {
-          list = JSON.parse(backup);
-          inMemoryBourseList = list;
-        }
+      } else if (backup) {
+        list = JSON.parse(backup);
+        inMemoryBourseList = list;
       }
     } catch (e) {
       logger.error("Error reading bourse KV:", { error: e.message });
@@ -307,10 +302,10 @@ export async function getBourseSymbols(env, query = "", limit = DEFAULT_BOURSE_S
     const fetchRes = await fetchAndStoreBourseSymbols(env);
     if (fetchRes.success && fetchRes.symbols) {
       list = fetchRes.symbols;
-    } else if (fetchRes.success && env?.REALRATE_KV) {
+    } else if (fetchRes.success) {
       try {
-        const fresh = await env.REALRATE_KV.get(BOURSE_KV_KEY);
-        if (fresh) list = JSON.parse(fresh);
+        const { cached } = await getBourseSymbolsCache(env);
+        if (cached) list = JSON.parse(cached);
       } catch (ignore) {}
     }
   }
@@ -392,13 +387,12 @@ export async function getBourseSymbolDetail(env, symbol) {
   if (!symbol) return null;
   try {
     let list = inMemoryBourseList || [];
-    if ((!list || list.length === 0) && env?.REALRATE_KV) {
-      const cached = await env.REALRATE_KV.get(BOURSE_KV_KEY);
+    if (!list || list.length === 0) {
+      const { cached, backup } = await getBourseSymbolsCache(env);
       if (cached) {
         list = JSON.parse(cached);
-      } else {
-        const backup = await env.REALRATE_KV.get(BOURSE_BACKUP_KV_KEY);
-        if (backup) list = JSON.parse(backup);
+      } else if (backup) {
+        list = JSON.parse(backup);
       }
     }
     if (!list || list.length === 0) return null;
@@ -453,9 +447,8 @@ export async function getBourseSymbolDetail(env, symbol) {
  * @returns {Promise<boolean>}
  */
 export async function handleScheduledBourseSync(env) {
-  if (!env.REALRATE_KV) return false;
   try {
-    const lastSyncStr = await env.REALRATE_KV.get(BOURSE_LAST_SYNC_KEY);
+    const lastSyncStr = await getBourseLastSync(env);
     const lastSync = lastSyncStr ? parseInt(lastSyncStr, 10) : 0;
     const now = Date.now();
     // 24 hours
@@ -465,9 +458,7 @@ export async function handleScheduledBourseSync(env) {
 
     const res = await fetchAndStoreBourseSymbols(env);
     if (res.success) {
-      await env.REALRATE_KV.put(BOURSE_LAST_SYNC_KEY, String(now), {
-        expirationTtl: BOURSE_SYNC_EXPIRATION_TTL,
-      });
+      await setBourseLastSync(env, now, BOURSE_SYNC_EXPIRATION_TTL);
       return true;
     }
   } catch (err) {

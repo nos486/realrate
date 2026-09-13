@@ -4,7 +4,7 @@
  */
 
 import { getLatestMarketRates } from "../services/priceSources.js";
-import { getGlobalSettings } from "../lib/settings.js";
+import { getGlobalSettings } from "../repositories/settings.repository.js";
 import { jsonResponse } from "../lib/helpers.js";
 import { getBourseSymbols } from "../services/bourseSymbols.js";
 import {

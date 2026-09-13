@@ -7,8 +7,13 @@
 import {
   dbGetPriceSources,
   dbUpdateSourceLastPrice,
-} from "../lib/db.js";
-import { getGlobalSettings } from "../lib/settings.js";
+} from "../repositories/priceSource.repository.js";
+import {
+  getLatestRatesCache,
+  setLatestRatesCache,
+  setSourcePriceCache,
+} from "../repositories/kvCache.repository.js";
+import { getGlobalSettings } from "../repositories/settings.repository.js";
 import {
   normalizeDigits,
   getTelegramFetchTarget,
@@ -877,27 +882,22 @@ export async function handleScheduledPriceExtraction(env, forceAll = false) {
           );
 
           // Synchronize unified bourse symbols & funds in KV if needed
-          if ((src.priceType === "bourse" || src.priceType === "bourse_fund") && env.REALRATE_KV) {
+          if (src.priceType === "bourse" || src.priceType === "bourse_fund") {
             updates.push(
               fetchAndStoreBourseSymbols(env).catch(() => { })
             );
           }
 
           // Save individual source price into KV for instant single-source lookups
-          if (env.REALRATE_KV) {
-            updates.push(
-              env.REALRATE_KV.put(
-                `source_price:${src.id}`,
-                JSON.stringify({
-                  price: parsed.price,
-                  lastFetched: parsed.datetime,
-                  priceType: src.priceType,
-                  name: src.name,
-                  lastMultiData: parsed.multiData || undefined,
-                })
-              ).catch(() => { })
-            );
-          }
+          updates.push(
+            setSourcePriceCache(env, src.id, {
+              price: parsed.price,
+              lastFetched: parsed.datetime,
+              priceType: src.priceType,
+              name: src.name,
+              lastMultiData: parsed.multiData || undefined,
+            }).catch(() => { })
+          );
         }
       } catch (parseErr) {
         logger.warn(`[PriceSources] Parse failed for ${src.name} (${src.id}):`, { error: parseErr.message });
@@ -913,13 +913,7 @@ export async function handleScheduledPriceExtraction(env, forceAll = false) {
   const latestRates = compileLatestMarketRates(activeSources);
 
   // 4. Save latest_rates to KV
-  if (env.REALRATE_KV) {
-    try {
-      await env.REALRATE_KV.put("latest_rates", JSON.stringify(latestRates));
-    } catch (e) {
-      logger.error("KV write error for latest_rates:", { error: e.message });
-    }
-  }
+  await setLatestRatesCache(env, latestRates);
 
   memoryPricesCache = { ...latestRates };
   lastFetchTime = Date.now();
@@ -940,13 +934,7 @@ export async function refreshMarketRatesCache(env) {
     if (Array.isArray(sources)) {
       const activeSources = sources.filter(s => s.isActive);
       const latestRates = compileLatestMarketRates(activeSources);
-      if (env.REALRATE_KV) {
-        try {
-          await env.REALRATE_KV.put("latest_rates", JSON.stringify(latestRates));
-        } catch (e) {
-          logger.warn("KV put error in refreshMarketRatesCache:", { error: e.message });
-        }
-      }
+      await setLatestRatesCache(env, latestRates);
       memoryPricesCache = { ...latestRates };
       lastFetchTime = Date.now();
       return latestRates;
@@ -973,17 +961,11 @@ export async function getLatestMarketRates(env) {
   }
 
   // 2. Read directly from KV (fastest access, sub-5ms)
-  if (env && env.REALRATE_KV) {
-    try {
-      const kvVal = await env.REALRATE_KV.get("latest_rates", "json");
-      if (kvVal && Object.keys(kvVal).length > 2) {
-        memoryPricesCache = kvVal;
-        lastFetchTime = Date.now();
-        return kvVal;
-      }
-    } catch (e) {
-      logger.error("KV read error in getLatestMarketRates:", { error: e.message });
-    }
+  const kvVal = await getLatestRatesCache(env);
+  if (kvVal && Object.keys(kvVal).length > 2) {
+    memoryPricesCache = kvVal;
+    lastFetchTime = Date.now();
+    return kvVal;
   }
 
   // 3. Fallback: If KV is cold/empty, trigger extraction immediately
