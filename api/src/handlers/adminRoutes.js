@@ -23,6 +23,8 @@ import { saveGlobalSettings } from "../lib/settings.js";
 import { testUsdSource } from "../services/telegramPrices.js";
 import { testPriceSourceConfig, fetchAllPrices, inspectApiEndpointStructure, refreshMarketRatesCache } from "../services/priceSources.js";
 import { jsonResponse, errorResponse, forbiddenResponse } from "../lib/helpers.js";
+import { AppError } from "../lib/AppError.js";
+import { logger } from "../lib/logger.js";
 
 /**
  * GET /api/admin/stats
@@ -30,7 +32,7 @@ import { jsonResponse, errorResponse, forbiddenResponse } from "../lib/helpers.j
  */
 export async function handleAdminStatsRoute(request, env) {
   const user = await getAuthenticatedUser(request, env);
-  if (!user || user.role !== "admin") return forbiddenResponse(request);
+  if (!user || user.role !== "admin") throw AppError.forbidden("دسترسی غیرمجاز. فقط مدیر سیستم مجاز است.");
 
   const stats = await getAdminStats(env);
   return jsonResponse(stats, 200, request);
@@ -42,7 +44,7 @@ export async function handleAdminStatsRoute(request, env) {
  */
 export async function handleAdminUsersRoute(request, env) {
   const user = await getAuthenticatedUser(request, env);
-  if (!user || user.role !== "admin") return forbiddenResponse(request);
+  if (!user || user.role !== "admin") throw AppError.forbidden("دسترسی غیرمجاز. فقط مدیر سیستم مجاز است.");
 
   const users = await dbGetUsers(env);
   return jsonResponse({ success: true, users }, 200, request);
@@ -54,19 +56,19 @@ export async function handleAdminUsersRoute(request, env) {
  */
 export async function handleAdminGetUserPortfolio(request, env) {
   const user = await getAuthenticatedUser(request, env);
-  if (!user || user.role !== "admin") return forbiddenResponse(request);
+  if (!user || user.role !== "admin") throw AppError.forbidden("دسترسی غیرمجاز. فقط مدیر سیستم مجاز است.");
 
   const url = new URL(request.url);
   const targetUserId = url.searchParams.get("userId");
   const portfolioId = url.searchParams.get("portfolioId") || null;
 
   if (!targetUserId) {
-    return errorResponse("شناسه کاربر الزامی است.", 400, request);
+    throw AppError.badRequest("شناسه کاربر الزامی است.");
   }
 
   const targetUser = await dbGetUserById(env, targetUserId);
   if (!targetUser) {
-    return errorResponse("کاربر مورد نظر یافت نشد.", 404, request);
+    throw AppError.notFound("کاربر مورد نظر یافت نشد.");
   }
 
   const portfolios = await dbGetUserPortfolios(env, targetUser.id);

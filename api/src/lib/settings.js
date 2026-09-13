@@ -3,6 +3,8 @@
  */
 
 import { ensureD1Tables } from "./db.js";
+import { logger } from "./logger.js";
+import { SETTINGS_MEMORY_CACHE_TTL_MS } from "../config/constants.js";
 
 const DEFAULT_SETTINGS = {
   default_usd_toman: 62000,
@@ -28,7 +30,7 @@ let memorySettingsTime = 0;
  */
 export async function getGlobalSettings(env, forceFresh = false) {
   const now = Date.now();
-  if (!forceFresh && memorySettings && (now - memorySettingsTime < 60000)) {
+  if (!forceFresh && memorySettings && (now - memorySettingsTime < SETTINGS_MEMORY_CACHE_TTL_MS)) {
     return memorySettings;
   }
 
@@ -54,7 +56,7 @@ export async function getGlobalSettings(env, forceFresh = false) {
         };
       }
     } catch (e) {
-      console.error("Error reading settings from D1:", e);
+      logger.error("Error reading settings from D1:", { error: e.message });
     }
   }
 
@@ -67,7 +69,7 @@ export async function getGlobalSettings(env, forceFresh = false) {
         loaded = { ...DEFAULT_SETTINGS, ...parsed };
       }
     } catch (e) {
-      console.error("Error reading global_settings from KV:", e);
+      logger.error("Error reading global_settings from KV:", { error: e.message });
     }
   }
 
@@ -122,7 +124,7 @@ export async function saveGlobalSettings(env, newSettings) {
         mergedSettings.usd_api_json_path
       ).run();
     } catch (e) {
-      console.error("Error saving settings to D1:", e);
+      logger.error("Error saving settings to D1:", { error: e.message });
     }
   }
 

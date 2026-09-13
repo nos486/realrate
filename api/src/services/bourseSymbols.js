@@ -6,6 +6,12 @@
  */
 
 import { dbUpdateSourceLastPrice } from '../lib/db.js';
+import { logger } from '../lib/logger.js';
+import {
+  BOURSE_SYNC_INTERVAL_MS,
+  BOURSE_SYNC_EXPIRATION_TTL,
+  DEFAULT_BOURSE_SEARCH_LIMIT,
+} from '../config/constants.js';
 
 export const BOURSE_API_URL = "https://api.brsapi.ir/Tsetmc/AllSymbols.php?key=BDqzgcZZ5rGg4Z6uSEs9bMyx2E2vXrkd&type=1";
 export const BOURSE_KV_KEY = "bourse_symbols_toman_v3";
@@ -213,7 +219,7 @@ export async function fetchAndStoreBourseSymbols(env) {
           }
         }
       } catch (e) {
-        console.error("Error loading previous bourse symbols for merge:", e);
+        logger.error("Error loading previous bourse symbols for merge:", { error: e.message });
       }
     }
 
@@ -262,7 +268,7 @@ export async function fetchAndStoreBourseSymbols(env) {
       stats,
     };
   } catch (err) {
-    console.error("fetchAndStoreBourseSymbols error:", err);
+    logger.error("fetchAndStoreBourseSymbols error:", { error: err.message, stack: err.stack });
     return { success: false, count: inMemoryBourseList?.length || 0, error: err.message };
   }
 }
@@ -275,7 +281,7 @@ export async function fetchAndStoreBourseSymbols(env) {
  * @param {number} [limit=50]
  * @returns {Promise<Array<{ symbol: string, name: string, price: number, priceToman: number, priceRial: number, updatedAt: string, isFund: boolean }>>}
  */
-export async function getBourseSymbols(env, query = "", limit = 50) {
+export async function getBourseSymbols(env, query = "", limit = DEFAULT_BOURSE_SEARCH_LIMIT) {
   let list = inMemoryBourseList || [];
 
   if ((!list || list.length === 0) && env?.REALRATE_KV) {
@@ -292,7 +298,7 @@ export async function getBourseSymbols(env, query = "", limit = 50) {
         }
       }
     } catch (e) {
-      console.error("Error reading bourse KV:", e);
+      logger.error("Error reading bourse KV:", { error: e.message });
     }
   }
 
@@ -436,7 +442,7 @@ export async function getBourseSymbolDetail(env, symbol) {
       isFund: Boolean(found.isFund || (found.n && found.n.includes('صندوق'))),
     };
   } catch (e) {
-    console.error("getBourseSymbolDetail error:", e);
+    logger.error("getBourseSymbolDetail error:", { error: e.message });
     return null;
   }
 }
@@ -453,19 +459,19 @@ export async function handleScheduledBourseSync(env) {
     const lastSync = lastSyncStr ? parseInt(lastSyncStr, 10) : 0;
     const now = Date.now();
     // 24 hours
-    if (now - lastSync < 86400 * 1000) {
+    if (now - lastSync < BOURSE_SYNC_INTERVAL_MS) {
       return false;
     }
 
     const res = await fetchAndStoreBourseSymbols(env);
     if (res.success) {
       await env.REALRATE_KV.put(BOURSE_LAST_SYNC_KEY, String(now), {
-        expirationTtl: 86400 * 3,
+        expirationTtl: BOURSE_SYNC_EXPIRATION_TTL,
       });
       return true;
     }
   } catch (err) {
-    console.error("[Bourse] Scheduled sync error:", err);
+    logger.error("[Bourse] Scheduled sync error:", { error: err.message, stack: err.stack });
   }
   return false;
 }

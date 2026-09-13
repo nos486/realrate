@@ -17,6 +17,8 @@ import {
   parseGoldTelegramHtml,
 } from "./telegramPrices.js";
 import { fetchAndStoreBourseSymbols } from "./bourseSymbols.js";
+import { logger } from "../lib/logger.js";
+import { SETTINGS_MEMORY_CACHE_TTL_MS } from "../config/constants.js";
 
 const UA = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
 
@@ -59,7 +61,7 @@ export function extractPriceWithRegex(text, regexPattern) {
 
     return (!isNaN(num) && num > 0) ? num : null;
   } catch (e) {
-    console.error("extractPriceWithRegex error:", e);
+    logger.error("extractPriceWithRegex error:", { error: e.message });
     return null;
   }
 }
@@ -683,7 +685,7 @@ export function compileLatestMarketRates(sources) {
         }
       }
     } catch (e) {
-      console.warn("Error parsing forex lastMultiData in compileLatestMarketRates:", e);
+      logger.warn("Error parsing forex lastMultiData in compileLatestMarketRates:", { error: e.message });
     }
   }
 
@@ -805,7 +807,7 @@ export async function handleScheduledPriceExtraction(env, forceAll = false) {
   try {
     sources = await dbGetPriceSources(env);
   } catch (e) {
-    console.error("Error fetching price sources for scheduled extraction:", e);
+    logger.error("Error fetching price sources for scheduled extraction:", { error: e.message, stack: e.stack });
     return { extractedCount: 0, rates: {} };
   }
 
@@ -838,7 +840,7 @@ export async function handleScheduledPriceExtraction(env, forceAll = false) {
         endpointRequests.set(
           key,
           fetchRawEndpointContent(src.sourceType, src.endpoint).catch(err => {
-            console.warn(`[PriceSources] Fetch failed for ${key}:`, err.message);
+            logger.warn(`[PriceSources] Fetch failed for ${key}:`, { error: err.message });
             return null;
           })
         );
@@ -898,7 +900,7 @@ export async function handleScheduledPriceExtraction(env, forceAll = false) {
           }
         }
       } catch (parseErr) {
-        console.warn(`[PriceSources] Parse failed for ${src.name} (${src.id}):`, parseErr.message);
+        logger.warn(`[PriceSources] Parse failed for ${src.name} (${src.id}):`, { error: parseErr.message });
       }
     }
 
@@ -915,7 +917,7 @@ export async function handleScheduledPriceExtraction(env, forceAll = false) {
     try {
       await env.REALRATE_KV.put("latest_rates", JSON.stringify(latestRates));
     } catch (e) {
-      console.error("KV write error for latest_rates:", e);
+      logger.error("KV write error for latest_rates:", { error: e.message });
     }
   }
 
@@ -942,7 +944,7 @@ export async function refreshMarketRatesCache(env) {
         try {
           await env.REALRATE_KV.put("latest_rates", JSON.stringify(latestRates));
         } catch (e) {
-          console.warn("KV put error in refreshMarketRatesCache:", e.message);
+          logger.warn("KV put error in refreshMarketRatesCache:", { error: e.message });
         }
       }
       memoryPricesCache = { ...latestRates };
@@ -950,7 +952,7 @@ export async function refreshMarketRatesCache(env) {
       return latestRates;
     }
   } catch (e) {
-    console.warn("refreshMarketRatesCache error:", e.message);
+    logger.warn("refreshMarketRatesCache error:", { error: e.message });
   }
   return null;
 }
@@ -965,7 +967,7 @@ export async function getLatestMarketRates(env) {
   if (
     memoryPricesCache &&
     Object.keys(memoryPricesCache).length > 2 &&
-    Date.now() - lastFetchTime < 60000
+    Date.now() - lastFetchTime < SETTINGS_MEMORY_CACHE_TTL_MS
   ) {
     return memoryPricesCache;
   }
@@ -980,7 +982,7 @@ export async function getLatestMarketRates(env) {
         return kvVal;
       }
     } catch (e) {
-      console.error("KV read error in getLatestMarketRates:", e);
+      logger.error("KV read error in getLatestMarketRates:", { error: e.message });
     }
   }
 

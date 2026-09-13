@@ -2,6 +2,12 @@
  * db.js — Cloudflare D1 SQL + KV data access layer
  * All database interactions are isolated here for easy extension
  */
+import { logger } from "./logger.js";
+import {
+  SESSION_TTL_SECONDS,
+  DEFAULT_FETCH_INTERVAL_SEC,
+} from "../config/constants.js";
+
 // In-memory flag to avoid re-running CREATE TABLE IF NOT EXISTS on every request
 let d1Initialized = false;
 
@@ -550,7 +556,7 @@ export async function dbUpdateUserSettings(env, userId, { customName, shareSlug,
  * @param {object} sessionData - { token, userId, email, name, picture, role, createdAt }
  * @param {number} [ttlSeconds=2592000] - 30 days default
  */
-export async function dbSaveSession(env, sessionData, ttlSeconds = 30 * 24 * 3600) {
+export async function dbSaveSession(env, sessionData, ttlSeconds = SESSION_TTL_SECONDS) {
   const expiresAt = Date.now() + ttlSeconds * 1000;
 
   if (env && env.DB) {
@@ -570,7 +576,7 @@ export async function dbSaveSession(env, sessionData, ttlSeconds = 30 * 24 * 360
         expiresAt
       ).run();
     } catch (e) {
-      console.error("D1 dbSaveSession error:", e);
+      logger.error("D1 dbSaveSession error:", { error: e.message });
     }
   }
 
@@ -603,7 +609,7 @@ export async function dbGetSession(env, token) {
 
       if (row) return row;
     } catch (e) {
-      console.error("D1 dbGetSession error:", e);
+      logger.error("D1 dbGetSession error:", { error: e.message });
     }
   }
 
@@ -1392,7 +1398,7 @@ export async function dbSavePriceSource(env, data) {
     : (data.field_mapping !== undefined ? (typeof data.field_mapping === 'object' ? JSON.stringify(data.field_mapping) : String(data.field_mapping)) : '');
   const fetchIntervalSec = parseInt(data.fetchIntervalSec, 10) > 0
     ? parseInt(data.fetchIntervalSec, 10)
-    : (parseInt(data.fetchIntervalMinutes, 10) > 0 ? parseInt(data.fetchIntervalMinutes, 10) * 60 : 300);
+    : (parseInt(data.fetchIntervalMinutes, 10) > 0 ? parseInt(data.fetchIntervalMinutes, 10) * 60 : DEFAULT_FETCH_INTERVAL_SEC);
   const isActive = data.isActive !== undefined ? (data.isActive ? 1 : 0) : 1;
   let isPrimary = data.isPrimary !== undefined ? (data.isPrimary ? 1 : 0) : 0;
   const lastMultiData = data.lastMultiData !== undefined

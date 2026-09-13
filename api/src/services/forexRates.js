@@ -4,6 +4,11 @@
  */
 
 import { normalizeForexToUsdCrossRate } from "./priceSources.js";
+import { logger } from "../lib/logger.js";
+import {
+  FOREX_CACHE_THROTTLE_MS,
+  FOREX_HISTORY_EXPIRATION_TTL,
+} from "../config/constants.js";
 
 // Module-level in-memory cache
 let forexCache = null;
@@ -45,7 +50,7 @@ export async function fetchForexRates(env, forceRefresh = false) {
   }
 
   const lastCheckMs = (stored && stored.last_updated) ? new Date(stored.last_updated).getTime() : 0;
-  const isFresh = (nowMs - lastCheckMs) < 600000; // 10-minute throttle
+  const isFresh = (nowMs - lastCheckMs) < FOREX_CACHE_THROTTLE_MS; // 10-minute throttle
 
   if (isFresh && !forceRefresh && stored && stored.rates && stored.rates.AUD) {
     return { ...FOREX_FALLBACK, ...stored.rates };
@@ -74,7 +79,7 @@ export async function fetchForexRates(env, forceRefresh = false) {
       }
     }
   } catch (e) {
-    console.error("Forex fetch error:", e);
+    logger.error("Forex fetch error:", { error: e.message, stack: e.stack });
   }
 
   return (stored && stored.rates) ? { ...FOREX_FALLBACK, ...stored.rates } : { ...FOREX_FALLBACK };
@@ -128,9 +133,9 @@ export async function syncForexRatesToPriceSources(env, fetchedRates) {
     }
 
     if (env.REALRATE_KV) {
-      await env.REALRATE_KV.put(cacheKey, String(nowMs), { expirationTtl: 3600 }).catch(() => {});
+      await env.REALRATE_KV.put(cacheKey, String(nowMs), { expirationTtl: FOREX_HISTORY_EXPIRATION_TTL }).catch(() => {});
     }
   } catch (err) {
-    console.warn("[Forex] Error recording history in D1:", err.message);
+    logger.warn("[Forex] Error recording history in D1:", { error: err.message });
   }
 }

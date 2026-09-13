@@ -8,8 +8,8 @@
  */
 
 export const API_BASE = (
-  import.meta.env.VITE_API_URL ||
-  (import.meta.env.PROD ? 'https://realrate-api.geekio.org' : '')
+  (typeof import.meta !== 'undefined' && import.meta.env?.VITE_API_URL) ||
+  (typeof import.meta !== 'undefined' && import.meta.env?.PROD ? 'https://realrate-api.geekio.org' : (typeof window !== 'undefined' ? '' : 'http://localhost:8787'))
 ).replace(/\/$/, '');
 
 export function getGoogleLoginUrl(returnTo = '') {
@@ -99,6 +99,26 @@ async function apiFetch(path, options = {}) {
       headers,
       credentials: 'include',  // also send cookies if present
     });
+
+    const originalJson = res.json.bind(res);
+    res.json = async () => {
+      const data = await originalJson();
+      if (data && typeof data === 'object') {
+        if (data.error && typeof data.error === 'object') {
+          const errObj = data.error;
+          data.errorDetails = errObj;
+          data.errorCode = errObj.code || 'UNKNOWN_ERROR';
+          if (!data.message) {
+            data.message = errObj.message || errObj.code || 'خطای سرور';
+          }
+          data.error = errObj.message || errObj.code || 'خطای سرور';
+          if (data.success === undefined) {
+            data.success = false;
+          }
+        }
+      }
+      return data;
+    };
 
     return res;
   } finally {

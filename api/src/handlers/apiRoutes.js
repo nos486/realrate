@@ -6,6 +6,7 @@
 import { getLatestMarketRates } from "../services/priceSources.js";
 import { getGlobalSettings } from "../lib/settings.js";
 import { jsonResponse } from "../lib/helpers.js";
+import { logger } from "../lib/logger.js";
 
 /**
  * GET /api/prices
@@ -58,7 +59,15 @@ export async function handleGetPrices(env, request = null) {
       globalSettings,
     }, 200, request);
   } catch (err) {
-    return jsonResponse({ success: false, error: err.message }, 500, request);
+    logger.error("handleGetPrices error:", { error: err.message, stack: err.stack });
+    return jsonResponse({
+      success: false,
+      message: err.message,
+      error: {
+        code: "INTERNAL_SERVER_ERROR",
+        message: err.message,
+      },
+    }, 500, request);
   }
 }
 

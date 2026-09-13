@@ -71,10 +71,25 @@ export function jsonResponse(data, status = 200, request = null) {
  * @param {string} message
  * @param {number} [status=400]
  * @param {Request|null} [request=null]
+ * @param {string|null} [code=null]
  * @returns {Response}
  */
-export function errorResponse(message, status = 400, request = null) {
-  return jsonResponse({ success: false, message }, status, request);
+export function errorResponse(message, status = 400, request = null, code = null) {
+  const defaultCode = (
+    status === 401 ? "UNAUTHORIZED" :
+    status === 403 ? "FORBIDDEN" :
+    status === 404 ? "NOT_FOUND" :
+    status === 500 ? "INTERNAL_SERVER_ERROR" :
+    "BAD_REQUEST"
+  );
+  return jsonResponse({
+    success: false,
+    message,
+    error: {
+      code: code || defaultCode,
+      message,
+    },
+  }, status, request);
 }
 
 /**
@@ -83,7 +98,7 @@ export function errorResponse(message, status = 400, request = null) {
  * @returns {Response}
  */
 export function forbiddenResponse(request = null) {
-  return errorResponse("دسترسی غیرمجاز. فقط مدیر سیستم مجاز است.", 403, request);
+  return errorResponse("دسترسی غیرمجاز. فقط مدیر سیستم مجاز است.", 403, request, "FORBIDDEN");
 }
 
 /**

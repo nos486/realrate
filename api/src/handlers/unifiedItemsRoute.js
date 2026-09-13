@@ -13,13 +13,15 @@ import {
   SILVER_SPECS,
   FOREX_SPECS,
 } from "../lib/financialSpecs.js";
+import { logger } from "../lib/logger.js";
+import { MAX_MARKET_ITEMS_LIMIT } from "../config/constants.js";
 
 export async function handleGetUnifiedMarketItems(env, request) {
   try {
     const url = new URL(request.url);
     const q = (url.searchParams.get("q") || "").trim().toLowerCase();
     const categoryFilter = url.searchParams.get("category") || "";
-    const limit = parseInt(url.searchParams.get("limit") || "2000", 10);
+    const limit = parseInt(url.searchParams.get("limit") || String(MAX_MARKET_ITEMS_LIMIT), 10);
 
     // Parallel fetch of base data
     const [prices, globalSettings, bourseSymbols] = await Promise.all([
@@ -147,7 +149,14 @@ export async function handleGetUnifiedMarketItems(env, request) {
       }
     }, 200, request);
   } catch (err) {
-    console.error("handleGetUnifiedMarketItems error:", err);
-    return jsonResponse({ success: false, error: err.message }, 500, request);
+    logger.error("handleGetUnifiedMarketItems error:", { error: err.message, stack: err.stack });
+    return jsonResponse({
+      success: false,
+      error: {
+        code: "INTERNAL_SERVER_ERROR",
+        message: err.message,
+      },
+      message: err.message,
+    }, 500, request);
   }
 }

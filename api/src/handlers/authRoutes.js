@@ -11,6 +11,12 @@
 import { isUserAdmin, getAuthenticatedUser } from "../lib/auth.js";
 import { dbUpsertUser, dbSaveSession, dbDeleteSession, dbGetUserById } from "../lib/db.js";
 import { jsonResponse, errorResponse, getCorsHeaders } from "../lib/helpers.js";
+import { logger } from "../lib/logger.js";
+import {
+  SESSION_TTL_SECONDS,
+  SESSION_COOKIE_MAX_AGE,
+  OAUTH_VERIFIER_COOKIE_MAX_AGE,
+} from "../config/constants.js";
 
 function base64UrlEncode(buffer) {
   const bytes = buffer instanceof Uint8Array ? buffer : new Uint8Array(buffer);
@@ -142,7 +148,7 @@ export async function handleGoogleLogin(request, env) {
   googleAuthUrl.searchParams.set("code_challenge_method", "S256");
 
   // Temporary verifier cookie (valid 10 mins)
-  const verifierCookie = `rr_oauth_verifier=${encodeURIComponent(`${codeVerifier}:${nonce}`)}; Path=/api/auth/google; HttpOnly; Secure; SameSite=Lax; Max-Age=600`;
+  const verifierCookie = `rr_oauth_verifier=${encodeURIComponent(`${codeVerifier}:${nonce}`)}; Path=/api/auth/google; HttpOnly; Secure; SameSite=Lax; Max-Age=${OAUTH_VERIFIER_COOKIE_MAX_AGE}`;
 
   return new Response(null, {
     status: 302,
@@ -169,7 +175,7 @@ export async function handleGoogleCallback(request, env) {
       const decoded = base64UrlDecode(stateRaw);
       stateData = JSON.parse(decoded);
     } catch (e) {
-      console.warn("Could not decode state in callback:", e);
+      logger.warn("Could not decode state in callback:", { error: e.message });
     }
   }
 
@@ -291,9 +297,9 @@ export async function handleGoogleCallback(request, env) {
       role: userData.role,
       createdAt: now,
     };
-    await dbSaveSession(env, sessionData, 30 * 24 * 3600);
+    await dbSaveSession(env, sessionData, SESSION_TTL_SECONDS);
 
-    const sessionCookie = `realrate_session=${sessionToken}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=2592000`;
+    const sessionCookie = `realrate_session=${sessionToken}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=${SESSION_COOKIE_MAX_AGE}`;
     const clearVerifierCookie = `rr_oauth_verifier=; Path=/api/auth/google; HttpOnly; Secure; SameSite=Lax; Max-Age=0`;
 
     // 3. Redirect user to frontend with auth_token in URL query param
@@ -311,7 +317,7 @@ export async function handleGoogleCallback(request, env) {
       headers,
     });
   } catch (e) {
-    console.error("Error in handleGoogleCallback:", e);
+    logger.error("Error in handleGoogleCallback:", { error: e.message, stack: e.stack });
     const errorTarget = buildFrontendRedirect(frontendOrigin, returnTo, {
       auth_error: "خطای سرور در تکمیل فرآیند ورود: " + e.message,
     });
@@ -383,10 +389,10 @@ export async function handleGoogleAuth(request, env) {
       role: userData.role,
       createdAt: now,
     };
-    await dbSaveSession(env, sessionData, 30 * 24 * 3600);
+    await dbSaveSession(env, sessionData, SESSION_TTL_SECONDS);
 
     // SameSite=None; Secure needed for cross-origin (SPA on different domain)
-    const cookieValue = `realrate_session=${sessionToken}; Path=/; HttpOnly; Secure; SameSite=None; Max-Age=2592000`;
+    const cookieValue = `realrate_session=${sessionToken}; Path=/; HttpOnly; Secure; SameSite=None; Max-Age=${SESSION_COOKIE_MAX_AGE}`;
 
     const corsHeaders = getCorsHeaders(request);
 
@@ -403,7 +409,7 @@ export async function handleGoogleAuth(request, env) {
       },
     });
   } catch (e) {
-    console.error("Error in handleGoogleAuth:", e);
+    logger.error("Error in handleGoogleAuth:", { error: e.message, stack: e.stack });
     return errorResponse("خطای سرور در احراز هویت با گوگل: " + e.message, 500, request);
   }
 }

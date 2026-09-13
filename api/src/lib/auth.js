@@ -3,6 +3,7 @@
  */
 
 import { dbGetSession } from "./db.js";
+import { logger } from "./logger.js";
 
 /**
  * Check if an email belongs to an admin (supports comma-separated ADMIN_EMAIL env var)
@@ -55,7 +56,7 @@ export async function getAuthenticatedUser(request, env) {
 
     return { ...session, role, isAdmin };
   } catch (e) {
-    console.error("Error retrieving user session:", e);
+    logger.error("Error retrieving user session:", { error: e.message });
     return null;
   }
 }
