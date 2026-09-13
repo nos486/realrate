@@ -201,7 +201,7 @@ export const SILVER_SPECS = {
 // ── 4. Prominent World Currencies (Forex) ────────────────────────────────────
 export const FOREX_SPECS = [
   { code: 'USD', name: 'دلار', flag: '🇺🇸', symbol: '$', defaultCross: 1.0, category: 'currency', badge: 'ارز', unit: 'تومان', aliases: ['دلار', 'دلار امریکا', 'دلار آمریکا', 'دلار نقدی', 'دلار سبزه', 'دلار صرافی', 'USD', 'dollar'] },
-  { code: 'EUR', name: 'یورو اروپا', flag: '🇪🇺', symbol: '€', defaultCross: 1.082, category: 'currency', badge: 'ارز', unit: 'تومان', aliases: ['یورو', 'یورو اروپا', 'EUR', 'euro'] },
+  { code: 'EUR', name: 'یورو', flag: '🇪🇺', symbol: '€', defaultCross: 1.082, category: 'currency', badge: 'ارز', unit: 'تومان', aliases: ['یورو', 'یورو اروپا', 'EUR', 'euro'] },
   { code: 'GBP', name: 'پوند انگلیس', flag: '🇬🇧', symbol: '£', defaultCross: 1.294, category: 'currency', badge: 'ارز', unit: 'تومان', aliases: ['پوند', 'پوند انگلیس', 'پوند بریتانیا', 'GBP', 'pound'] },
   { code: 'AED', name: 'درهم امارات', flag: '🇦🇪', symbol: 'د.إ', defaultCross: 0.2723, category: 'currency', badge: 'ارز', unit: 'تومان', aliases: ['درهم', 'درهم امارات', 'درهم دبی', 'AED', 'dirham'] },
   { code: 'TRY', name: 'لیر ترکیه', flag: '🇹🇷', symbol: '₺', defaultCross: 0.0206, category: 'currency', badge: 'ارز', unit: 'تومان', aliases: ['لیر', 'لیر ترکیه', 'TRY', 'lira'] },
