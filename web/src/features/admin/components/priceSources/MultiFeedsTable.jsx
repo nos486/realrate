@@ -13,20 +13,39 @@ import {
   Trash2,
 } from 'lucide-react';
 import EmptyState from '../../../../components/ui/EmptyState.jsx';
-import { formatPersianDate } from './priceSourceConstants.js';
+import { formatPersianDate, CANONICAL_PRICE_TYPE_INFO } from './priceSourceConstants.js';
 
 export default function MultiFeedsTable({
   multiSources = [],
   multiSearch = '',
   setMultiSearch,
+  loadingSources = false,
   handleOpenAddMultiFeed,
+  onOpenAddMultiFeed,
   handleOpenExplorer,
+  onOpenExplorer,
   handleTestRowSource,
+  onTestMultiSource,
   handleOpenEditMultiFeed,
+  onOpenEditMultiFeed,
   handleDeleteSource,
+  onDeleteMultiFeed,
+  handleToggleActive,
+  onToggleActive,
   rowTestingId = null,
-  PRICE_TYPE_INFO = {},
+  testingFeedId = null,
+  PRICE_TYPE_INFO,
+  priceTypeInfo,
 }) {
+  const addFeed = onOpenAddMultiFeed || handleOpenAddMultiFeed;
+  const openExplorer = onOpenExplorer || handleOpenExplorer;
+  const testFeed = onTestMultiSource || handleTestRowSource;
+  const editFeed = onOpenEditMultiFeed || handleOpenEditMultiFeed;
+  const deleteFeed = onDeleteMultiFeed || handleDeleteSource;
+  const toggleActive = onToggleActive || handleToggleActive;
+  const activeTestingId = testingFeedId || rowTestingId;
+  const typeInfoMap = priceTypeInfo || PRICE_TYPE_INFO || CANONICAL_PRICE_TYPE_INFO;
+
   const filteredMultiSources = multiSources.filter((s) => {
     if (!multiSearch.trim()) return true;
     const q = multiSearch.toLowerCase();
@@ -56,7 +75,7 @@ export default function MultiFeedsTable({
 
           <button
             type="button"
-            onClick={handleOpenAddMultiFeed}
+            onClick={addFeed}
             className="btn-hero-action primary-glow"
             style={{ padding: '10px 20px', fontSize: '13px' }}
           >
@@ -150,14 +169,14 @@ export default function MultiFeedsTable({
               <tr>
                 <td colSpan="7" style={{ textAlign: 'center', padding: '36px' }}>
                   <EmptyState
-                    title="هیچ فید چند خروجی یافت نشد."
+                    title={loadingSources ? 'در حال دریافت فیدها...' : 'هیچ فید چند خروجی یافت نشد.'}
                     description="برای اتصال به API خودرو، بورس، کریپتو یا وب‌سرویس دلخواه، یک فید جدید ایجاد کنید."
                     action={
                       <button
                         type="button"
                         className="btn-primary"
                         style={{ fontSize: '12px', padding: '8px 16px' }}
-                        onClick={handleOpenAddMultiFeed}
+                        onClick={addFeed}
                       >
                         + ایجاد اولین فید هوشمند
                       </button>
@@ -167,7 +186,7 @@ export default function MultiFeedsTable({
               </tr>
             ) : (
               filteredMultiSources.map((src) => {
-                const typeInfo = PRICE_TYPE_INFO[src.priceType] || { label: src.priceType, badgeColor: 'indigo' };
+                const typeInfo = typeInfoMap[src.priceType] || { label: src.priceType, badgeColor: 'indigo' };
                 const mapping = typeof src.fieldMapping === 'string' ? JSON.parse(src.fieldMapping || '{}') : (src.fieldMapping || {});
                 const labels = mapping.labels || {};
                 const excluded = Array.isArray(src.excludedOutputs)
@@ -300,7 +319,7 @@ export default function MultiFeedsTable({
                           type="button"
                           className="btn-action-icon"
                           title="کاوشگر زنده داده‌ها (مشاهده و جستجو در اقلام)"
-                          onClick={() => handleOpenExplorer(src)}
+                          onClick={() => openExplorer && openExplorer(src)}
                           style={{ color: '#818cf8', background: 'rgba(99,102,241,0.12)' }}
                         >
                           <Eye size={15} />
@@ -311,10 +330,10 @@ export default function MultiFeedsTable({
                           type="button"
                           className="btn-action-icon"
                           title="تست اتصال و استخراج آنی"
-                          onClick={() => handleTestRowSource(src)}
-                          disabled={rowTestingId === src.id}
+                          onClick={() => testFeed && testFeed(src)}
+                          disabled={activeTestingId === src.id}
                         >
-                          <PlayCircle size={15} className={rowTestingId === src.id ? 'spin-anim' : ''} />
+                          <PlayCircle size={15} className={activeTestingId === src.id ? 'spin-anim' : ''} />
                         </button>
 
                         {/* Edit schema button */}
@@ -322,7 +341,7 @@ export default function MultiFeedsTable({
                           type="button"
                           className="btn-action-icon"
                           title="ویرایش نگاشت و تنظیمات فید"
-                          onClick={() => handleOpenEditMultiFeed(src)}
+                          onClick={() => editFeed && editFeed(src)}
                         >
                           <Edit3 size={15} />
                         </button>
@@ -332,7 +351,7 @@ export default function MultiFeedsTable({
                           type="button"
                           className="btn-action-icon danger"
                           title="حذف این فید"
-                          onClick={() => handleDeleteSource(src)}
+                          onClick={() => deleteFeed && deleteFeed(src)}
                         >
                           <Trash2 size={15} />
                         </button>

@@ -11,27 +11,53 @@ import {
 } from 'lucide-react';
 import FilterPills from '../../../../components/ui/FilterPills.jsx';
 import EmptyState from '../../../../components/ui/EmptyState.jsx';
-import { formatNum, getPriceUnit, formatPersianDate } from './priceSourceConstants.js';
+import { formatNum, getPriceUnit, formatPersianDate, CANONICAL_PRICE_TYPE_INFO } from './priceSourceConstants.js';
 
 export default function SingleSourcesTable({
   sources = [],
+  singleSources,
+  filteredSingleSources: propFiltered,
   loadingSources = false,
   sourceFilter = 'all',
   setSourceFilter,
   dynamicFilterOptions = [],
-  PRICE_TYPE_INFO = {},
+  PRICE_TYPE_INFO,
+  priceTypeInfo,
   rowTestingId = null,
   rowTestResults = {},
   setRowTestResults,
+  onClearRowTestResult,
   handleSetPrimary,
+  onSetPrimary,
   handleToggleActive,
+  onToggleActive,
   handleTestRowSource,
+  onTestRowSource,
   handleOpenEditSource,
+  onOpenEditSource,
   handleDeleteSource,
+  onDeleteSource,
 }) {
-  const filteredSingleSources = sourceFilter === 'all'
-    ? sources
-    : sources.filter((s) => s.priceType === sourceFilter);
+  const allSources = singleSources !== undefined ? singleSources : sources;
+  const filteredSingleSources = propFiltered !== undefined
+    ? propFiltered
+    : (sourceFilter === 'all' ? allSources : allSources.filter((s) => s.priceType === sourceFilter));
+
+  const typeInfoMap = priceTypeInfo || PRICE_TYPE_INFO || CANONICAL_PRICE_TYPE_INFO;
+  const setPrimary = onSetPrimary || handleSetPrimary;
+  const toggleActive = onToggleActive || handleToggleActive;
+  const testRow = onTestRowSource || handleTestRowSource;
+  const editSource = onOpenEditSource || handleOpenEditSource;
+  const deleteSource = onDeleteSource || handleDeleteSource;
+  const clearResult = onClearRowTestResult || ((srcId) => {
+    if (setRowTestResults) {
+      setRowTestResults((prev) => {
+        const next = { ...prev };
+        delete next[srcId];
+        return next;
+      });
+    }
+  });
 
   return (
     <section className="sources-table-section">
@@ -72,7 +98,7 @@ export default function SingleSourcesTable({
                 <td colSpan="8" style={{ textAlign: 'center', padding: '24px' }}>
                   <EmptyState
                     title={loadingSources ? 'در حال دریافت لیست سورس‌ها...' : 'هیچ سورسی در این دسته‌بندی یافت نشد.'}
-                    description={sourceFilter !== 'all' ? `برای مشاهده سایر سورس‌ها، فیلتر "${PRICE_TYPE_INFO[sourceFilter]?.label || sourceFilter}" را تغییر دهید.` : null}
+                    description={sourceFilter !== 'all' ? `برای مشاهده سایر سورس‌ها، فیلتر "${typeInfoMap[sourceFilter]?.label || sourceFilter}" را تغییر دهید.` : null}
                     action={
                       sourceFilter !== 'all' ? (
                         <button
@@ -90,7 +116,7 @@ export default function SingleSourcesTable({
               </tr>
             ) : (
               filteredSingleSources.map((src) => {
-                const typeInfo = PRICE_TYPE_INFO[src.priceType] || { label: src.priceType, badgeColor: 'blue' };
+                const typeInfo = typeInfoMap[src.priceType] || { label: src.priceType, badgeColor: 'blue' };
                 const isRowTesting = rowTestingId === src.id;
                 const rowResult = rowTestResults[src.id];
 
@@ -233,7 +259,7 @@ export default function SingleSourcesTable({
                         ) : (
                           <button
                             type="button"
-                            onClick={() => handleSetPrimary(src)}
+                            onClick={() => setPrimary && setPrimary(src)}
                             className="btn-set-primary"
                             title="تبدیل به سورس مرجع برای محاسبات سایت"
                           >
@@ -245,7 +271,7 @@ export default function SingleSourcesTable({
                       <td>
                         <button
                           type="button"
-                          onClick={() => handleToggleActive(src)}
+                          onClick={() => toggleActive && toggleActive(src)}
                           className={`source-toggle-btn ${src.isActive ? 'active' : 'inactive'}`}
                           title={src.isActive ? 'کلیک برای غیرفعال‌سازی' : 'کلیک برای فعال‌سازی'}
                         >
@@ -264,7 +290,7 @@ export default function SingleSourcesTable({
                         >
                           <button
                             type="button"
-                            onClick={() => handleTestRowSource(src)}
+                            onClick={() => testRow && testRow(src)}
                             disabled={isRowTesting}
                             className="action-icon-btn test-btn"
                             title="تست استخراج قیمت و ذخیره در تاریخچه اختصاصی این سورس"
@@ -276,7 +302,7 @@ export default function SingleSourcesTable({
                           </button>
                           <button
                             type="button"
-                            onClick={() => handleOpenEditSource(src)}
+                            onClick={() => editSource && editSource(src)}
                             className="action-icon-btn edit-btn"
                             title="ویرایش تنظیمات سورس"
                           >
@@ -284,7 +310,7 @@ export default function SingleSourcesTable({
                           </button>
                           <button
                             type="button"
-                            onClick={() => handleDeleteSource(src)}
+                            onClick={() => deleteSource && deleteSource(src)}
                             className="action-icon-btn delete-btn"
                             title="حذف سورس و تمامی رکوردهای تاریخچه‌اش"
                           >
@@ -324,13 +350,7 @@ export default function SingleSourcesTable({
                             )}
                             <button
                               type="button"
-                              onClick={() =>
-                                setRowTestResults((prev) => {
-                                  const next = { ...prev };
-                                  delete next[src.id];
-                                  return next;
-                                })
-                              }
+                              onClick={() => clearResult && clearResult(src.id)}
                               style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)' }}
                             >
                               <X size={13} />
