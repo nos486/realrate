@@ -14,6 +14,8 @@ import {
   calculateGold24kGram,
   calculateIntrinsicValue,
   calculateForexTomanPrice,
+  calculateSilverGram,
+  calculateBubble,
 } from './financialSpecs.js';
 
 export function normalizePersianText(str) {
@@ -56,7 +58,7 @@ export function computeUnifiedPrices({
   const silverVal = Number(silverUsd) || Number(marketItems?.meta?.silver_usd) || 33.5;
 
   const gold24kGramToman = calculateGold24kGram(goldVal, usdVal);
-  const silverGramToman = usdVal > 0 ? (silverVal / TROY_OUNCE_GRAMS) * usdVal : 0;
+  const silverGramToman = calculateSilverGram(silverVal, usdVal);
 
   const resolvedAssets = [];
   const priceMap = {};
@@ -107,9 +109,11 @@ export function computeUnifiedPrices({
         priceType = 'market';
         priceTypeLabel = 'قیمت بازار (سورس)';
         if (intrinsicPrice > 0) {
-          bubble = effectivePrice - intrinsicPrice;
-          bubblePct = parseFloat(((bubble / intrinsicPrice) * 100).toFixed(1));
+          const bubbleData = calculateBubble(effectivePrice, intrinsicPrice);
+          bubble = bubbleData.bubble || 0;
+          bubblePct = bubbleData.bubblePct || 0;
         }
+
         subDetails = `${item.sourceName || 'سورس زنده'} • ارزش ذاتی: ${intrinsicPrice.toLocaleString('fa-IR')} ت (حباب: ${bubblePct}٪)`;
       } else {
         // No source: Use calculated real intrinsic value (ارزش واقعی طلا/سکه)

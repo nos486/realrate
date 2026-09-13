@@ -6,6 +6,7 @@
 
 import { getGlobalSettings } from "../lib/settings.js";
 import { fetchAllPrices } from "./priceSources.js";
+import { getCanonicalAssetName } from "../lib/financialSpecs.js";
 
 // Module-level in-memory cache
 let tgCache = {};
@@ -365,12 +366,16 @@ export function parseGoldTelegramHtml(html) {
       }
     };
 
-    tryParse("gold_18k",     "طلا ۱۸ عیار",              l => l.includes("گرم 18 عیار") || l.includes("18 عیار") || l.includes("۱۸ عیار"));
-    tryParse("full_coin",    "سکه تمام ۸۶",               l => l.includes("سکه تمام 86") || l.includes("سکه تمام") || l.includes("تمام سکه") || l.includes("سکه امامی"));
-    tryParse("mesghal",      "مثقال طلا (۱۷ عیار)",       l => l.includes("آبشده نقد") || l.includes("آبشده") || l.includes("مثقال"));
-    tryParse("half_coin",    "نیم سکه بهار آزادی",        l => l.includes("نیم سکه"));
-    tryParse("quarter_coin", "ربع سکه بهار آزادی",        l => l.includes("ربع سکه"));
-    tryParse("bank_gram",    "سکه گرمی بانکی",             l => l.includes("سکه گرمی") || l.includes("سکه یک گرمی") || l.includes("گرمی بانکی"));
+    tryParse("gold_18k",     getCanonicalAssetName("gold_18k", "طلا ۱۸ عیار"),              l => l.includes("گرم 18 عیار") || l.includes("18 عیار") || l.includes("۱۸ عیار"));
+    tryParse("full_coin",    getCanonicalAssetName("full_coin", "سکه تمام ۸۶"),               l => l.includes("سکه تمام 86") || l.includes("سکه تمام") || l.includes("تمام سکه") || l.includes("سکه امامی"));
+    tryParse("mesghal",      getCanonicalAssetName("mesghal", "مثقال طلا (مظنه)"),       l => l.includes("آبشده نقد") || l.includes("آبشده") || l.includes("مثقال"));
+    tryParse("half_coin",    getCanonicalAssetName("half_coin", "نیم سکه بهار آزادی"),        l => l.includes("نیم سکه"));
+    tryParse("quarter_coin", getCanonicalAssetName("quarter_coin", "ربع سکه بهار آزادی"),        l => l.includes("ربع سکه"));
+    tryParse("gerami_coin",  getCanonicalAssetName("gerami_coin", "سکه گرمی بانک مرکزی"),     l => l.includes("سکه گرمی") || l.includes("سکه یک گرمی") || l.includes("گرمی بانکی"));
+    if (result["gerami_coin"] && !result["bank_gram"]) {
+      result["bank_gram"] = result["gerami_coin"];
+    }
+
   }
 
   return result;

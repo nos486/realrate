@@ -18,6 +18,7 @@ import {
   calculateSilverGram,
   calculateSilver925,
   calculateSilverOunce,
+  calculateBubble,
 } from './financialSpecs.js';
 
 // Re-export dynamic currency metadata map (backed by financialSpecs.js single source of truth)
@@ -77,11 +78,13 @@ export function calculateMarketData({
     let diff_from_expected_pct = null;
 
     if (market !== null) {
-      bubble = market - intrinsic;
-      bubble_pct = parseFloat(((bubble / intrinsic) * 100).toFixed(1));
+      const bData = calculateBubble(market, intrinsic);
+      bubble = bData.bubble;
+      bubble_pct = bData.bubblePct;
       diff_from_expected = market - expected_price;
       diff_from_expected_pct = parseFloat(((diff_from_expected / expected_price) * 100).toFixed(1));
     }
+
 
     return {
       id,
