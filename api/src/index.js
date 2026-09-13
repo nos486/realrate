@@ -42,6 +42,7 @@ import {
   handleAdminDeleteDerivedAsset,
 } from "./handlers/adminRoutes.js";
 import { handleGetPrices, handleGetSparklines, handleGetDerivedAssets } from "./handlers/apiRoutes.js";
+import { handleGetUnifiedMarketItems } from "./handlers/unifiedItemsRoute.js";
 import {
   handleGetPortfolios,
   handleCreatePortfolio,
@@ -143,6 +144,9 @@ export default {
     }
 
     // ── Public API Routes ───────────────────────────────────────────────────
+    if (url.pathname === "/api/market/items" || url.pathname === "/api/market/unified" || url.pathname === "/api/items") {
+      return handleGetUnifiedMarketItems(env, request);
+    }
     if (url.pathname === "/api/prices") return handleGetPrices(env, request);
     if (url.pathname === "/api/derived-assets") return handleGetDerivedAssets(env, request);
     if (url.pathname === "/api/sparklines" || url.pathname === "/api/prices/sparklines") {

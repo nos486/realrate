@@ -50,6 +50,7 @@ import {
 } from '../api/client.js';
 import UserSettingsModal from './UserSettingsModal.jsx';
 import UniversalAssetSearch, { DYNAMIC_DERIVED_REGISTRY } from './UniversalAssetSearch.jsx';
+import { usePricing } from '../context/PricingContext.jsx';
 import { computeAllDerivedPrices } from '../utils/formulaEvaluator.js';
 import {
   deriveE2eeKey,
@@ -420,6 +421,7 @@ function parseShamsiDate(str) {
 }
 
 export default function PortfolioTracker({ calcData, rates, usdToman, goldUsd, derivedAssets: propDerivedAssets = null, initialPortfolioId = null }) {
+  const pricing = usePricing();
   const { user, loading: authLoading, triggerLogin } = useAuth();
   const navigate = useNavigate();
   const params = useParams();
@@ -922,16 +924,16 @@ export default function PortfolioTracker({ calcData, rates, usdToman, goldUsd, d
 
   // Active USD & Spot Gold & Silver resolution
   const usdVal = useMemo(() => {
-    return parseInputNumber(usdToman) || rates?.live_usd_toman || calcData?.inputs?.usd_toman || 0;
-  }, [usdToman, rates, calcData]);
+    return parseInputNumber(usdToman) || (pricing?.usdToman ? Number(pricing.usdToman) : 0) || rates?.live_usd_toman || calcData?.inputs?.usd_toman || 0;
+  }, [usdToman, pricing?.usdToman, rates, calcData]);
 
   const goldUsdVal = useMemo(() => {
-    return parseInputNumber(goldUsd) || rates?.gold_usd || calcData?.inputs?.gold_usd || 2450;
-  }, [goldUsd, rates, calcData]);
+    return parseInputNumber(goldUsd) || (pricing?.goldUsd ? Number(pricing.goldUsd) : 0) || rates?.gold_usd || calcData?.inputs?.gold_usd || 2890;
+  }, [goldUsd, pricing?.goldUsd, rates, calcData]);
 
   const silverUsdVal = useMemo(() => {
-    return calcData?.silver?.silver_usd || rates?.silver_usd || rates?.silver?.silver_usd || 33.5;
-  }, [calcData, rates]);
+    return (pricing?.silverUsd ? Number(pricing.silverUsd) : 0) || calcData?.silver?.silver_usd || rates?.silver_usd || rates?.silver?.silver_usd || 33.5;
+  }, [pricing?.silverUsd, calcData, rates]);
 
   // 2. Real / Intrinsic Price Calculation Helper (Pure, Zero Latency)
   const computePriceMap = useCallback((usd, goldUsd, silverUsd) => {
@@ -1022,6 +1024,17 @@ export default function PortfolioTracker({ calcData, rates, usdToman, goldUsd, d
 
   const realPriceMap = useMemo(() => {
     const map = computePriceMap(usdVal, goldUsdVal, silverUsdVal);
+
+    // Merge unified pricing engine prices if present (single-source-of-truth)
+    if (pricing?.priceMap) {
+      Object.entries(pricing.priceMap).forEach(([k, v]) => {
+        if (v > 0) {
+          map[k] = Math.round(v);
+          map[k.toLowerCase()] = Math.round(v);
+          map[`src_def_${k.toLowerCase()}`] = Math.round(v);
+        }
+      });
+    }
 
     // Incorporate live market prices from calcData / rates if present
     if (calcData?.analysis && Array.isArray(calcData.analysis)) {
@@ -1430,7 +1443,8 @@ export default function PortfolioTracker({ calcData, rates, usdToman, goldUsd, d
     setSelectedBourseSymbol(null);
     setCustomName(matchedMeta?.name || asset.name || '');
     setCustomUnit(matchedMeta?.unit || asset.unit || 'واحد');
-    setCustomCurrentPrice('');
+    const resolvedP = Number(asset.price || realPriceMap[cleanId] || realPriceMap[rawId] || 0);
+    setCustomCurrentPrice(resolvedP > 0 ? String(Math.round(resolvedP)) : '');
     setAssetSearchQuery('');
     setBourseSearchResults([]);
   };
@@ -2208,6 +2222,9 @@ export default function PortfolioTracker({ calcData, rates, usdToman, goldUsd, d
                   selectedAssetId={selectedAssetId}
                   derivedAssets={allDerivedAssets}
                   showCategories={true}
+                  usdToman={usdVal}
+                  goldUsd={goldUsdVal}
+                  silverUsd={silverUsdVal}
                   onSelect={(item) => {
                     const cat = item.category || item.badgeClass;
                     const cleanId = (item.id || item.priceType || '').replace(/^src_def_/, '').replace(/^derived_/, '');
@@ -2222,7 +2239,11 @@ export default function PortfolioTracker({ calcData, rates, usdToman, goldUsd, d
                       setSelectedBourseSymbol(null);
                       setCustomName(item.name);
                       setCustomUnit(item.unit || 'گرم');
-                      setCustomCurrentPrice('');
+                      if (item.price > 0) {
+                        setCustomCurrentPrice(String(Math.round(item.price)));
+                      } else {
+                        setCustomCurrentPrice('');
+                      }
                       setAssetSearchQuery('');
                       setBourseSearchResults([]);
                     } else if (isKnownAsset || ['gold', 'coin', 'silver', 'currency'].includes(cat) || item.type === 'standard' || item.type === 'forex') {
@@ -2231,6 +2252,7 @@ export default function PortfolioTracker({ calcData, rates, usdToman, goldUsd, d
                         id: item.symbol || cleanId,
                         unit: item.unit,
                         name: item.name,
+                        price: item.price,
                       });
                     } else if (item.type === 'source' || item.type === 'multi_output' || item.isMultiItem) {
                       setSelectedAssetId(item.id);

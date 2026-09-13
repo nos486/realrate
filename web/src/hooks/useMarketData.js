@@ -6,6 +6,7 @@ import { useState, useEffect, useRef } from 'react';
 import { apiGetPrices } from '../api/client.js';
 import { calculateMarketData } from '../utils/calculator.js';
 import { formatThousands } from '../utils/formatters.js';
+import { usePricing } from '../context/PricingContext.jsx';
 
 function parseNum(val) {
   if (!val) return 0;
@@ -18,6 +19,7 @@ function parseNum(val) {
 }
 
 export function useMarketData() {
+  const pricing = usePricing();
   const [rates, setRates] = useState(null);
   const [calcData, setCalcData] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -37,6 +39,8 @@ export function useMarketData() {
           const gold = data.gold_usd || data.globalSettings?.default_gold_usd || 2890;
           setUsdToman(usd ? formatThousands(Math.round(usd), false) : '');
           setGoldUsd(gold ? formatThousands(gold, true) : '');
+          if (pricing?.setUsdToman && usd) pricing.setUsdToman(Math.round(usd));
+          if (pricing?.setGoldUsd && gold) pricing.setGoldUsd(gold);
         }
       })
       .catch(console.error)
@@ -48,6 +52,13 @@ export function useMarketData() {
     const usdNum = parseNum(usdToman);
     const goldNum = parseNum(goldUsd);
     if (!usdNum || usdNum <= 0) return;
+
+    if (pricing?.setUsdToman) {
+      pricing.setUsdToman(usdNum);
+    }
+    if (pricing?.setGoldUsd && goldNum > 0) {
+      pricing.setGoldUsd(goldNum);
+    }
 
     const data = calculateMarketData({
       usdToman: usdNum,

@@ -414,4 +414,18 @@ export async function apiAdminDeleteDerivedAsset(id) {
   return res.json();
 }
 
+/**
+ * Fetch unified market assets and catalog
+ * @param {string} [q] - Search query
+ * @param {string} [category] - Category filter
+ */
+export async function apiGetMarketItems(q = '', category = '') {
+  const params = new URLSearchParams();
+  if (q) params.set('q', q);
+  if (category) params.set('category', category);
+  const qs = params.toString();
+  const res = await apiFetch(`/api/market/items${qs ? `?${qs}` : ''}`);
+  return res.json();
+}
+
 

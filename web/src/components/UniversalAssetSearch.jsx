@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { apiGetPriceSources, apiSearchBourseSymbols, apiGetDerivedAssets } from '../api/client.js';
 import { computeAllDerivedPrices, calculateDerivedPrice } from '../utils/formulaEvaluator.js';
+import { usePricing } from '../context/PricingContext.jsx';
 
 export const DYNAMIC_DERIVED_LABELS = {};
 export const DYNAMIC_DERIVED_REGISTRY = {};
@@ -508,7 +509,28 @@ export default function UniversalAssetSearch({
   title = '',
   subtitle = '',
   autoFocus = false,
+  usdToman: propUsdToman = null,
+  goldUsd: propGoldUsd = null,
+  silverUsd: propSilverUsd = null,
+  showCategories = false,
 }) {
+  const pricingContext = usePricing();
+  const effectiveUsdToman = Number(
+    propUsdToman ||
+    pricingContext?.usdToman ||
+    0
+  );
+  const effectiveGoldUsd = Number(
+    propGoldUsd ||
+    pricingContext?.goldUsd ||
+    0
+  );
+  const effectiveSilverUsd = Number(
+    propSilverUsd ||
+    pricingContext?.silverUsd ||
+    0
+  );
+
   const [query, setQuery] = useState('');
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [internalSources, setInternalSources] = useState(sources || []);
@@ -651,14 +673,17 @@ export default function UniversalAssetSearch({
       activeSources.find(s => (s.priceType === 'usd' || s.priceType === 'usd_toman') && Number(s.lastPrice || s.last_price || 0) > 0) ||
       activeSources.find(s => (s.priceType === 'usd' || s.priceType === 'usd_toman')) ||
       activeSources.find(s => (s.id === 'src_def_usd' || (s.name && s.name.includes('دلار'))));
-    const usdToman = Number(usdSource?.lastPrice || usdSource?.last_price || 0);
+
+    const rawUsdSourcePrice = Number(usdSource?.lastPrice || usdSource?.last_price || 0);
+    const validDbUsd = rawUsdSourcePrice > 10000 && rawUsdSourcePrice < 200000 ? rawUsdSourcePrice : 0;
+    const usdToman = effectiveUsdToman > 0 ? effectiveUsdToman : (validDbUsd || 93000);
 
     const onsGoldItem = items.find(i => i.id === 'ons_gold' || i.id === 'gold_ounce');
-    const onsGoldPrice = Number(onsGoldItem?.price || 2900);
+    const onsGoldPrice = effectiveGoldUsd > 0 ? effectiveGoldUsd : Number(onsGoldItem?.price || 2890);
 
     let p18 = Number(items.find(i => i.id === 'gold_18k')?.price || 0);
     if (p18 <= 0 && usdToman > 0) {
-      p18 = Math.round(((onsGoldPrice > 100 ? onsGoldPrice : 2900) / 31.1034768) * usdToman * 0.75);
+      p18 = Math.round(((onsGoldPrice > 100 ? onsGoldPrice : 2890) / 31.1034768) * usdToman * 0.75);
     }
 
     // تضمین حضور طلای ۱۸ عیار
@@ -1050,7 +1075,7 @@ export default function UniversalAssetSearch({
     });
 
     return items;
-  }, [internalSources, internalDerivedAssets, bourseSymbols, priceTypeInfo]);
+  }, [internalSources, internalDerivedAssets, bourseSymbols, priceTypeInfo, effectiveUsdToman, effectiveGoldUsd, effectiveSilverUsd]);
 
   // 4. Pure Client-Side Instant Search Filter with Tokenized Matching and Strict Deduplication
   const filteredItems = useMemo(() => {

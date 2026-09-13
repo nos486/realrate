@@ -2,10 +2,11 @@ import { Routes, Route, Navigate } from 'react-router-dom';
 import MainPage from './pages/MainPage.jsx';
 import SharedPortfolioPage from './pages/SharedPortfolioPage.jsx';
 import FullscreenLoader from './components/FullscreenLoader.jsx';
+import { PricingProvider } from './context/PricingContext.jsx';
 
 export default function App() {
   return (
-    <>
+    <PricingProvider>
       <Routes>
         <Route path="/" element={<MainPage />} />
         <Route path="/rates" element={<MainPage />} />
@@ -22,7 +23,7 @@ export default function App() {
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
       <FullscreenLoader />
-    </>
+    </PricingProvider>
   );
 }
 
