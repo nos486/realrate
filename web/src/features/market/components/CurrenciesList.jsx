@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { SearchBar, EmptyState } from '../../../shared/ui/index.js';
 
 function formatNum(num) {
@@ -6,8 +6,41 @@ function formatNum(num) {
   return Math.round(num).toLocaleString('fa-IR');
 }
 
+/**
+ * ۱۰ ارز برتر و پرکاربرد بازار برای نمایش در صفحه اصلی
+ */
+export const TOP_10_CURRENCIES = [
+  'USD', // دلار آمریکا
+  'EUR', // یورو
+  'AED', // درهم امارات
+  'TRY', // لیر ترکیه
+  'GBP', // پوند انگلیس
+  'CHF', // فرانک سوئیس
+  'CAD', // دلار کانادا
+  'AUD', // دلار استرالیا
+  'CNY', // یوان چین
+  'JPY', // ین ژاپن
+];
+
 export default function CurrenciesList({ currencies, onCurrencyClick }) {
   const [search, setSearch] = useState('');
+
+  // فیلتر فقط ۱۰ ارز برتر و مرتب‌سازی دقیق مطابق اولویت
+  const topCurrencies = useMemo(() => {
+    if (!currencies || !Array.isArray(currencies)) return [];
+
+    const allowed = currencies.filter((c) => {
+      if (!c.code) return false;
+      const upper = c.code.toUpperCase();
+      return TOP_10_CURRENCIES.includes(upper) && c.showOnHomePage !== false;
+    });
+
+    return allowed.sort((a, b) => {
+      const idxA = TOP_10_CURRENCIES.indexOf(a.code.toUpperCase());
+      const idxB = TOP_10_CURRENCIES.indexOf(b.code.toUpperCase());
+      return (idxA === -1 ? 999 : idxA) - (idxB === -1 ? 999 : idxB);
+    });
+  }, [currencies]);
 
   if (!currencies || currencies.length === 0) {
     return (
@@ -18,13 +51,11 @@ export default function CurrenciesList({ currencies, onCurrencyClick }) {
     );
   }
 
-  const allVisible = currencies.filter((c) => c.showOnHomePage !== false);
-  if (allVisible.length === 0) {
+  if (topCurrencies.length === 0) {
     return null;
   }
 
-  const filtered = currencies.filter((c) => {
-    if (c.showOnHomePage === false) return false;
+  const filtered = topCurrencies.filter((c) => {
     if (!search.trim()) return true;
     const q = search.trim().toLowerCase();
     return (
@@ -42,8 +73,8 @@ export default function CurrenciesList({ currencies, onCurrencyClick }) {
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           onClear={() => setSearch('')}
-          placeholder="جستجوی نام یا نماد ارز..."
-          badge={`${filtered.length.toLocaleString('fa-IR')} ارز`}
+          placeholder="جستجوی در بین ۱۰ ارز برتر..."
+          badge={`${filtered.length.toLocaleString('fa-IR')} ارز برتر`}
         />
       </div>
 
@@ -51,7 +82,7 @@ export default function CurrenciesList({ currencies, onCurrencyClick }) {
       {filtered.length === 0 ? (
         <EmptyState
           title="ارزی یافت نشد"
-          description={`ارزی با عنوان یا نماد "${search}" پیدا نشد.`}
+          description={`ارزی با عنوان یا نماد "${search}" در بین ۱۰ ارز برتر پیدا نشد.`}
           action={
             <button
               type="button"

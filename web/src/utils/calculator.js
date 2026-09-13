@@ -171,16 +171,9 @@ export function calculateMarketData({
     });
   }
 
-  // Standard priority order for common currencies display
-  const PRIORITY_ORDER = ['EUR', 'TRY', 'AED', 'GBP', 'CHF', 'CAD', 'AUD', 'CNY', 'JPY', 'KWD', 'SAR', 'QAR'];
-  const sortedCandidateKeys = Array.from(candidateKeys).sort((a, b) => {
-    const idxA = PRIORITY_ORDER.indexOf(a);
-    const idxB = PRIORITY_ORDER.indexOf(b);
-    if (idxA !== -1 && idxB !== -1) return idxA - idxB;
-    if (idxA !== -1) return -1;
-    if (idxB !== -1) return 1;
-    return a.localeCompare(b);
-  });
+  // Top 10 prominent currencies hardcoded for home page display (USD is index 0 + 9 forex)
+  const TOP_FOREX_CURRENCY_CODES = ['EUR', 'AED', 'TRY', 'GBP', 'CHF', 'CAD', 'AUD', 'CNY', 'JPY'];
+  const sortedCandidateKeys = TOP_FOREX_CURRENCY_CODES.filter((code) => candidateKeys.has(code));
 
   sortedCandidateKeys.forEach((code) => {
     if (code === 'USD' || nonCurrencyKeys.has(code.toLowerCase()) || seenCodes.has(code)) return;
