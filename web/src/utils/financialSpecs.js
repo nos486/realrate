@@ -25,6 +25,7 @@ export const GOLD_SPECS = {
     gold24kWeight: 0.75, // 18 / 24
     targetBubblePct: 0,
     formulaText: '(انس طلا ÷ ۳۱.۱۰۳۵) × دلار × ۰.۷۵',
+    aliases: ['طلا', 'طلا ۱۸', 'طلا 18', 'طلای ۱۸ عیار', 'طلای 18 عیار', 'طلای ۱۸', 'طلای 18', 'گرم طلا', 'gold 18k'],
   },
   gold_22k: {
     id: 'gold_22k',
@@ -37,6 +38,7 @@ export const GOLD_SPECS = {
     gold24kWeight: 22 / 24,
     targetBubblePct: 0,
     formulaText: '(انس طلا ÷ ۳۱.۱۰۳۵) × دلار × (۲۲ ÷ ۲۴)',
+    aliases: ['طلا ۲۲', 'طلا 22', 'طلای ۲۲ عیار', 'طلای 22 عیار', 'طلای ۲۲'],
   },
   mesghal: {
     id: 'mesghal',
@@ -49,6 +51,7 @@ export const GOLD_SPECS = {
     gold24kWeight: 4.608 * (17 / 24), // ~3.24864
     targetBubblePct: 0,
     formulaText: '(انس طلا ÷ ۳۱.۱۰۳۵) × دلار × ۴.۶۰۸ × ۰.۷۰۵',
+    aliases: ['مثقال', 'مثقال طلا', 'مظنه', 'مظنه ۱۷', 'مظنه 17', 'مظنه طلا', 'مظنه ۱۷ عیار'],
   },
   gold_24k: {
     id: 'gold_24k',
@@ -61,6 +64,7 @@ export const GOLD_SPECS = {
     gold24kWeight: 1.0,
     targetBubblePct: 0,
     formulaText: '(انس طلا ÷ ۳۱.۱۰۳۵) × دلار',
+    aliases: ['طلا ۲۴', 'طلا 24', 'طلای ۲۴ عیار', 'طلای 24 عیار', 'طلای خالص'],
   },
   melted_gold: {
     id: 'melted_gold',
@@ -73,6 +77,7 @@ export const GOLD_SPECS = {
     gold24kWeight: 0.75,
     targetBubblePct: 0,
     formulaText: 'هر گرم طلا با عیار ۷۵۰ آبشده',
+    aliases: ['آبشده', 'ابشده', 'طلای آبشده', 'آب شده', 'اب شده', 'طلای ابشده', 'اب شده نقدی'],
   },
   ons_gold: {
     id: 'ons_gold',
@@ -85,6 +90,7 @@ export const GOLD_SPECS = {
     gold24kWeight: TROY_OUNCE_GRAMS,
     targetBubblePct: 0,
     formulaText: 'نرخ لحظه‌ای هر تروا انس طلا در بازارهای بین‌المللی',
+    aliases: ['انس', 'اونس', 'انس طلا', 'اونس طلا', 'طلای جهانی', 'انس جهانی', 'XAU', 'xau'],
   },
 };
 
@@ -101,6 +107,7 @@ export const COIN_SPECS = {
     gold24kWeight: 7.3197, // 8.133 * (21.6 / 24)
     targetBubblePct: 15,
     formulaText: 'وزن ۸.۱۳۳ گرم، عیار ۹۰۰ (معادل ۷.۳۱۹۷ گرم طلای خالص ۲۴ عیار)',
+    aliases: ['سکه', 'سکه تمام', 'تمام بهار', 'سکه امامی', 'سکه تمام بهار', 'طرح جدید', 'سکه تمام طرح جدید', 'امامی', 'full coin'],
   },
   full_old: {
     id: 'full_old',
@@ -113,6 +120,7 @@ export const COIN_SPECS = {
     gold24kWeight: 7.3197,
     targetBubblePct: 10,
     formulaText: 'وزن ۸.۱۳۳ گرم، عیار ۹۰۰ (سکه تمام طرح قدیم)',
+    aliases: ['سکه قدیم', 'طرح قدیم', 'سکه طرح قدیم', 'سکه بهار آزادی', 'تمام قدیم'],
   },
   half_coin: {
     id: 'half_coin',
@@ -125,6 +133,7 @@ export const COIN_SPECS = {
     gold24kWeight: 3.6594, // 4.066 * (21.6 / 24)
     targetBubblePct: 20,
     formulaText: 'وزن ۴.۰۶۶ گرم، عیار ۹۰۰ (معادل ۳.۶۵۹۴ گرم طلای خالص ۲۴ عیار)',
+    aliases: ['نیم', 'نیم سکه', 'نیم سکه بهار آزادی', 'نیم بهار', 'half coin'],
   },
   quarter_coin: {
     id: 'quarter_coin',
@@ -137,6 +146,7 @@ export const COIN_SPECS = {
     gold24kWeight: 1.8297, // 2.033 * (21.6 / 24)
     targetBubblePct: 25,
     formulaText: 'وزن ۲.۰۳۳ گرم، عیار ۹۰۰ (معادل ۱.۸۲۹۷ گرم طلای خالص ۲۴ عیار)',
+    aliases: ['ربع', 'ربع سکه', 'ربع سکه بهار آزادی', 'ربع بهار', 'quarter coin'],
   },
   gerami_coin: {
     id: 'gerami_coin',
@@ -149,6 +159,7 @@ export const COIN_SPECS = {
     gold24kWeight: 1.01 * (22 / 24), // ~0.925833
     targetBubblePct: 30,
     formulaText: 'وزن ۱.۰۱ گرم، عیار ۹۱۶ (معادل ۰.۹۲۵۸ گرم طلای خالص ۲۴ عیار)',
+    aliases: ['گرمی', 'سکه گرمی', 'سکه یک گرمی', 'گرمی بانک مرکزی', 'سکه ۱ گرمی'],
   },
 };
 
@@ -162,6 +173,7 @@ export const SILVER_SPECS = {
     unit: 'دلار',
     weight: TROY_OUNCE_GRAMS,
     formulaText: 'نرخ لحظه‌ای هر تروا انس نقره در بازارهای بین‌المللی',
+    aliases: ['انس نقره', 'اونس نقره', 'نقره جهانی', 'XAG', 'xag'],
   },
   silver_gram: {
     id: 'silver_gram',
@@ -171,6 +183,7 @@ export const SILVER_SPECS = {
     unit: 'گرم',
     weight: 1.0,
     formulaText: '(انس نقره ÷ ۳۱.۱۰۳۵) × دلار',
+    aliases: ['نقره', 'نقره خام', 'نقره ۹۹۹', 'نقره 999', 'گرم نقره', 'نقره ساچمه'],
   },
   silver_925: {
     id: 'silver_925',
@@ -181,36 +194,37 @@ export const SILVER_SPECS = {
     weight: 1.0,
     silverRatio: 0.925,
     formulaText: 'هر گرم نقره عیار ۹۲۵',
+    aliases: ['نقره ۹۲۵', 'نقره 925', 'نقره استرلینگ', 'استرلینگ', 'زیورآلات نقره'],
   },
 };
 
 // ── 4. Prominent World Currencies (Forex) ────────────────────────────────────
 export const FOREX_SPECS = [
-  { code: 'USD', name: 'دلار', flag: '🇺🇸', symbol: '$', defaultCross: 1.0, category: 'currency', badge: 'ارز', unit: 'تومان' },
-  { code: 'EUR', name: 'یورو اروپا', flag: '🇪🇺', symbol: '€', defaultCross: 1.082, category: 'currency', badge: 'ارز', unit: 'تومان' },
-  { code: 'GBP', name: 'پوند انگلیس', flag: '🇬🇧', symbol: '£', defaultCross: 1.294, category: 'currency', badge: 'ارز', unit: 'تومان' },
-  { code: 'AED', name: 'درهم امارات', flag: '🇦🇪', symbol: 'د.إ', defaultCross: 0.2723, category: 'currency', badge: 'ارز', unit: 'تومان' },
-  { code: 'TRY', name: 'لیر ترکیه', flag: '🇹🇷', symbol: '₺', defaultCross: 0.0206, category: 'currency', badge: 'ارز', unit: 'تومان' },
-  { code: 'CHF', name: 'فرانک سوئیس', flag: '🇨🇭', symbol: 'CHF', defaultCross: 1.135, category: 'currency', badge: 'ارز', unit: 'تومان' },
-  { code: 'CAD', name: 'دلار کانادا', flag: '🇨🇦', symbol: 'CA$', defaultCross: 0.724, category: 'currency', badge: 'ارز', unit: 'تومان' },
-  { code: 'AUD', name: 'دلار استرالیا', flag: '🇦🇺', symbol: 'AU$', defaultCross: 0.655, category: 'currency', badge: 'ارز', unit: 'تومان' },
-  { code: 'CNY', name: 'یوان چین', flag: '🇨🇳', symbol: '¥', defaultCross: 0.138, category: 'currency', badge: 'ارز', unit: 'تومان' },
-  { code: 'JPY', name: 'ین ژاپن', flag: '🇯🇵', symbol: '¥', defaultCross: 0.0066, category: 'currency', badge: 'ارز', unit: 'تومان' },
-  { code: 'SAR', name: 'ریال عربستان', flag: '🇸🇦', symbol: '﷼', defaultCross: 0.266, category: 'currency', badge: 'ارز', unit: 'تومان' },
-  { code: 'QAR', name: 'ریال قطر', flag: '🇶🇦', symbol: '﷼', defaultCross: 0.274, category: 'currency', badge: 'ارز', unit: 'تومان' },
-  { code: 'KWD', name: 'دینار کویت', flag: '🇰🇼', symbol: 'د.ك', defaultCross: 3.25, category: 'currency', badge: 'ارز', unit: 'تومان' },
-  { code: 'OMR', name: 'ریال عمان', flag: '🇴🇲', symbol: '﷼', defaultCross: 2.60, category: 'currency', badge: 'ارز', unit: 'تومان' },
-  { code: 'BHD', name: 'دینار بحرین', flag: '🇧🇭', symbol: '.د.ب', defaultCross: 2.65, category: 'currency', badge: 'ارز', unit: 'تومان' },
-  { code: 'IQD', name: 'دینار عراق', flag: '🇮🇶', symbol: 'ع.د', defaultCross: 0.00076, category: 'currency', badge: 'ارز', unit: 'تومان' },
-  { code: 'RUB', name: 'روبل روسیه', flag: '🇷🇺', symbol: '₽', defaultCross: 0.0108, category: 'currency', badge: 'ارز', unit: 'تومان' },
-  { code: 'AFN', name: 'افغانی افغانستان', flag: '🇦🇫', symbol: '؋', defaultCross: 0.0145, category: 'currency', badge: 'ارز', unit: 'تومان' },
-  { code: 'AZN', name: 'منات آذربایجان', flag: '🇦🇿', symbol: '₼', defaultCross: 0.588, category: 'currency', badge: 'ارز', unit: 'تومان' },
-  { code: 'INR', name: 'روپیه هند', flag: '🇮🇳', symbol: '₹', defaultCross: 0.0118, category: 'currency', badge: 'ارز', unit: 'تومان' },
-  { code: 'SEK', name: 'کرون سوئد', flag: '🇸🇪', symbol: 'kr', defaultCross: 0.093, category: 'currency', badge: 'ارز', unit: 'تومان' },
-  { code: 'NOK', name: 'کرون نروژ', flag: '🇳🇴', symbol: 'kr', defaultCross: 0.091, category: 'currency', badge: 'ارز', unit: 'تومان' },
-  { code: 'SGD', name: 'دلار سنگاپور', flag: '🇸🇬', symbol: 'S$', defaultCross: 0.75, category: 'currency', badge: 'ارز', unit: 'تومان' },
-  { code: 'KRW', name: 'وون کره جنوبی', flag: '🇰🇷', symbol: '₩', defaultCross: 0.00072, category: 'currency', badge: 'ارز', unit: 'تومان' },
-  { code: 'BRL', name: 'رئال برزیل', flag: '🇧🇷', symbol: 'R$', defaultCross: 0.178, category: 'currency', badge: 'ارز', unit: 'تومان' },
+  { code: 'USD', name: 'دلار', flag: '🇺🇸', symbol: '$', defaultCross: 1.0, category: 'currency', badge: 'ارز', unit: 'تومان', aliases: ['دلار', 'دلار امریکا', 'دلار آمریکا', 'دلار نقدی', 'دلار سبزه', 'دلار صرافی', 'USD', 'dollar'] },
+  { code: 'EUR', name: 'یورو اروپا', flag: '🇪🇺', symbol: '€', defaultCross: 1.082, category: 'currency', badge: 'ارز', unit: 'تومان', aliases: ['یورو', 'یورو اروپا', 'EUR', 'euro'] },
+  { code: 'GBP', name: 'پوند انگلیس', flag: '🇬🇧', symbol: '£', defaultCross: 1.294, category: 'currency', badge: 'ارز', unit: 'تومان', aliases: ['پوند', 'پوند انگلیس', 'پوند بریتانیا', 'GBP', 'pound'] },
+  { code: 'AED', name: 'درهم امارات', flag: '🇦🇪', symbol: 'د.إ', defaultCross: 0.2723, category: 'currency', badge: 'ارز', unit: 'تومان', aliases: ['درهم', 'درهم امارات', 'درهم دبی', 'AED', 'dirham'] },
+  { code: 'TRY', name: 'لیر ترکیه', flag: '🇹🇷', symbol: '₺', defaultCross: 0.0206, category: 'currency', badge: 'ارز', unit: 'تومان', aliases: ['لیر', 'لیر ترکیه', 'TRY', 'lira'] },
+  { code: 'CHF', name: 'فرانک سوئیس', flag: '🇨🇭', symbol: 'CHF', defaultCross: 1.135, category: 'currency', badge: 'ارز', unit: 'تومان', aliases: ['فرانک', 'فرانک سوئیس', 'CHF', 'franc'] },
+  { code: 'CAD', name: 'دلار کانادا', flag: '🇨🇦', symbol: 'CA$', defaultCross: 0.724, category: 'currency', badge: 'ارز', unit: 'تومان', aliases: ['دلار کانادا', 'CAD', 'cad'] },
+  { code: 'AUD', name: 'دلار استرالیا', flag: '🇦🇺', symbol: 'AU$', defaultCross: 0.655, category: 'currency', badge: 'ارز', unit: 'تومان', aliases: ['دلار استرالیا', 'AUD', 'aud'] },
+  { code: 'CNY', name: 'یوان چین', flag: '🇨🇳', symbol: '¥', defaultCross: 0.138, category: 'currency', badge: 'ارز', unit: 'تومان', aliases: ['یوان', 'یوان چین', 'CNY', 'yuan'] },
+  { code: 'JPY', name: 'ین ژاپن', flag: '🇯🇵', symbol: '¥', defaultCross: 0.0066, category: 'currency', badge: 'ارز', unit: 'تومان', aliases: ['ین', 'ین ژاپن', 'JPY', 'yen'] },
+  { code: 'SAR', name: 'ریال عربستان', flag: '🇸🇦', symbol: '﷼', defaultCross: 0.266, category: 'currency', badge: 'ارز', unit: 'تومان', aliases: ['ریال عربستان', 'SAR', 'sar'] },
+  { code: 'QAR', name: 'ریال قطر', flag: '🇶🇦', symbol: '﷼', defaultCross: 0.274, category: 'currency', badge: 'ارز', unit: 'تومان', aliases: ['ریال قطر', 'QAR', 'qar'] },
+  { code: 'KWD', name: 'دینار کویت', flag: '🇰🇼', symbol: 'د.ك', defaultCross: 3.25, category: 'currency', badge: 'ارز', unit: 'تومان', aliases: ['دینار کویت', 'KWD', 'kwd'] },
+  { code: 'OMR', name: 'ریال عمان', flag: '🇴🇲', symbol: '﷼', defaultCross: 2.60, category: 'currency', badge: 'ارز', unit: 'تومان', aliases: ['ریال عمان', 'OMR', 'omr'] },
+  { code: 'BHD', name: 'دینار بحرین', flag: '🇧🇭', symbol: '.د.ب', defaultCross: 2.65, category: 'currency', badge: 'ارز', unit: 'تومان', aliases: ['دینار بحرین', 'BHD', 'bhd'] },
+  { code: 'IQD', name: 'دینار عراق', flag: '🇮🇶', symbol: 'ع.د', defaultCross: 0.00076, category: 'currency', badge: 'ارز', unit: 'تومان', aliases: ['دینار عراق', 'دینار', 'IQD', 'iqd'] },
+  { code: 'RUB', name: 'روبل روسیه', flag: '🇷🇺', symbol: '₽', defaultCross: 0.0108, category: 'currency', badge: 'ارز', unit: 'تومان', aliases: ['روبل', 'روبل روسیه', 'RUB', 'ruble'] },
+  { code: 'AFN', name: 'افغانی افغانستان', flag: '🇦🇫', symbol: '؋', defaultCross: 0.0145, category: 'currency', badge: 'ارز', unit: 'تومان', aliases: ['افغانی', 'افغانی افغانستان', 'AFN', 'afn'] },
+  { code: 'AZN', name: 'منات آذربایجان', flag: '🇦🇿', symbol: '₼', defaultCross: 0.588, category: 'currency', badge: 'ارز', unit: 'تومان', aliases: ['منات', 'منات آذربایجان', 'AZN', 'azn'] },
+  { code: 'INR', name: 'روپیه هند', flag: '🇮🇳', symbol: '₹', defaultCross: 0.0118, category: 'currency', badge: 'ارز', unit: 'تومان', aliases: ['روپیه', 'روپیه هند', 'INR', 'rupee'] },
+  { code: 'SEK', name: 'کرون سوئد', flag: '🇸🇪', symbol: 'kr', defaultCross: 0.093, category: 'currency', badge: 'ارز', unit: 'تومان', aliases: ['کرون سوئد', 'SEK', 'sek'] },
+  { code: 'NOK', name: 'کرون نروژ', flag: '🇳🇴', symbol: 'kr', defaultCross: 0.091, category: 'currency', badge: 'ارز', unit: 'تومان', aliases: ['کرون نروژ', 'NOK', 'nok'] },
+  { code: 'SGD', name: 'دلار سنگاپور', flag: '🇸🇬', symbol: 'S$', defaultCross: 0.75, category: 'currency', badge: 'ارز', unit: 'تومان', aliases: ['دلار سنگاپور', 'SGD', 'sgd'] },
+  { code: 'KRW', name: 'وون کره جنوبی', flag: '🇰🇷', symbol: '₩', defaultCross: 0.00072, category: 'currency', badge: 'ارز', unit: 'تومان', aliases: ['وون', 'وون کره جنوبی', 'KRW', 'krw'] },
+  { code: 'BRL', name: 'رئال برزیل', flag: '🇧🇷', symbol: 'R$', defaultCross: 0.178, category: 'currency', badge: 'ارز', unit: 'تومان', aliases: ['رئال برزیل', 'BRL', 'brl'] },
 ];
 
 export const FOREX_DICT = Object.fromEntries(FOREX_SPECS.map(c => [c.code, c]));
@@ -226,6 +240,7 @@ export const CRYPTO_SPECS = {
     category: 'crypto',
     badge: 'رمزارز',
     formulaText: 'استیبل‌کوین معادل ۱ دلار آمریکا',
+    aliases: ['تتر', 'دلار دیجیتال', 'تتر دلار', 'USDT', 'tether', 'usdt'],
   },
   BTC: {
     id: 'BTC',
@@ -236,6 +251,7 @@ export const CRYPTO_SPECS = {
     category: 'crypto',
     badge: 'رمزارز',
     formulaText: 'پادشاه رمزارزها',
+    aliases: ['بیت کوین', 'بیتکوین', 'بیت‌کوین', 'BTC', 'bitcoin', 'btc'],
   },
   ETH: {
     id: 'ETH',
@@ -246,6 +262,7 @@ export const CRYPTO_SPECS = {
     category: 'crypto',
     badge: 'رمزارز',
     formulaText: 'رمزارز شبکه اتریوم',
+    aliases: ['اتریوم', 'اتر', 'ETH', 'ethereum', 'eth'],
   },
 };
 
@@ -282,6 +299,7 @@ FOREX_SPECS.forEach(item => {
     category: 'currency',
     badge: 'ارز',
     defaultCross: item.defaultCross,
+    aliases: item.aliases || [],
   };
   CANONICAL_ASSET_REGISTRY[item.code] = spec;
   CANONICAL_ASSET_REGISTRY[item.code.toLowerCase()] = spec;
@@ -395,10 +413,10 @@ export function resolveItemCategory(item) {
   if (!item) return 'custom';
   if (typeof item === 'string') {
     const clean = item.replace(/^src_def_/, '').replace(/^derived_/, '').trim();
-    if (clean.startsWith('bourse_')) return 'bourse';
-    if (clean.startsWith('custom_') || clean === 'custom') return 'custom';
     const spec = getCanonicalAssetSpec(clean);
     if (spec && spec.category) return spec.category;
+    if (clean.startsWith('bourse_')) return 'bourse';
+    if (clean.startsWith('custom_') || clean === 'custom') return 'custom';
     return 'custom';
   }
 
@@ -407,27 +425,33 @@ export function resolveItemCategory(item) {
   const assetType = String(item.assetType || item.category || '').trim().toLowerCase();
   const assetName = String(item.assetName || item.name || '').trim();
 
-  // 1. Bourse Stocks & Funds
-  const isBourse = (
-    cleanId.startsWith('bourse_') ||
-    assetType === 'bourse' ||
-    assetType === 'bourse_fund' ||
-    item.isFund !== undefined ||
-    assetName.includes('صندوق')
-  );
-  if (isBourse) {
-    const isFund = Boolean(item.isFund || assetType === 'bourse_fund' || assetName.includes('صندوق') || cleanId.includes('fund'));
-    return isFund ? 'bourse_fund' : 'bourse';
-  }
+  // 1. Canonical standard assets (Gold, Coins, Silver, Forex, Crypto) - Always check first!
+  const spec = getCanonicalAssetSpec(cleanId);
+  if (spec && spec.category) return spec.category;
 
   // 2. Custom personal asset
   if (assetType === 'custom' || cleanId.startsWith('custom_') || cleanId === 'custom') {
     return 'custom';
   }
 
-  // 3. Canonical standard assets (Gold, Coins, Silver, Forex, Crypto)
-  const spec = getCanonicalAssetSpec(cleanId);
-  if (spec && spec.category) return spec.category;
+  // 3. Explicit Bourse Stocks & Funds
+  const isFund = Boolean(
+    item.isFund ||
+    item.raw?.isFund ||
+    assetType === 'bourse_fund' ||
+    (assetName.includes('صندوق') && (cleanId.startsWith('bourse_') || assetType === 'bourse' || !assetType))
+  );
+  const isBourse = (
+    cleanId.startsWith('bourse_') ||
+    assetType === 'bourse' ||
+    assetType === 'bourse_fund' ||
+    Boolean(item.isFund) ||
+    Boolean(item.raw?.isFund) ||
+    (assetName.includes('صندوق') && !cleanId.startsWith('custom_'))
+  );
+  if (isBourse) {
+    return isFund ? 'bourse_fund' : 'bourse';
+  }
 
   if (['gold', 'coin', 'silver', 'currency', 'crypto', 'bourse', 'bourse_fund'].includes(assetType)) {
     return assetType;

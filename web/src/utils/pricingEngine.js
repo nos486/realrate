@@ -10,6 +10,7 @@ import {
   COIN_SPECS,
   SILVER_SPECS,
   FOREX_SPECS,
+  CRYPTO_SPECS,
   calculateGold24kGram,
   calculateIntrinsicValue,
   calculateForexTomanPrice,
@@ -234,6 +235,47 @@ export function computeUnifiedPrices({
     if (b.symbol) {
       priceMap[b.symbol] = p;
       priceMap[normalizePersianText(b.symbol)] = p;
+    }
+  });
+
+  // ── 4. Cryptocurrencies (USDT, BTC, ETH) ───────────────────────────────────
+  const cryptos = (marketItems?.crypto && marketItems.crypto.length > 0)
+    ? marketItems.crypto
+    : Object.values(CRYPTO_SPECS);
+
+  cryptos.forEach((cr) => {
+    let p = 0;
+    const code = (cr.code || cr.id || cr.symbol || '').toUpperCase();
+    if (code === 'USDT') {
+      p = usdVal;
+    } else if (cr.priceToman || cr.price) {
+      p = Math.round(Number(cr.priceToman || cr.price));
+    } else if (cr.usdPrice && usdVal > 0) {
+      p = Math.round(Number(cr.usdPrice) * usdVal);
+    }
+
+    const resolved = {
+      ...cr,
+      id: cr.id || code,
+      code,
+      symbol: cr.symbol || code,
+      name: cr.name,
+      category: 'crypto',
+      badge: 'رمزارز',
+      price: p,
+      priceType: 'crypto',
+      priceTypeLabel: 'رمزارز',
+      subText: cr.formulaText || cr.subText || (p > 0 ? `قیمت: ${p.toLocaleString('fa-IR')} ت` : 'بازار بین‌المللی رمزارزها'),
+      unit: cr.unit || 'واحد',
+      aliases: cr.aliases || [],
+    };
+
+    resolvedAssets.push(resolved);
+    const codeLower = code.toLowerCase();
+    if (code) {
+      priceMap[code] = p;
+      priceMap[codeLower] = p;
+      priceMap[`crypto_${codeLower}`] = p;
     }
   });
 

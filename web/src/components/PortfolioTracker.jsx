@@ -833,8 +833,9 @@ export default function PortfolioTracker({ calcData, rates, usdToman, goldUsd, i
     const cleanAssetId = (selectedAssetId || '').replace(/^src_def_/, '').replace(/^derived_/, '');
     const isFund = Boolean(selectedBourseSymbol?.isFund || cleanAssetId === 'bourse_fund' || (cleanAssetId.startsWith('bourse_') && selectedBourseSymbol?.isFund) || editingHolding?.assetType === 'bourse_fund');
     const isBourse = cleanAssetId.startsWith('bourse_') || selectedBourseSymbol !== null || cleanAssetId === 'bourse' || cleanAssetId === 'bourse_fund';
-    const isCustom = cleanAssetId === 'custom';
-    const assetMeta = effectiveAssetTypes.find((a) => a.id === cleanAssetId) || effectiveAssetTypes.find((a) => a.id === selectedAssetId);
+    const isCustom = cleanAssetId === 'custom' || cleanAssetId.startsWith('custom_');
+
+    const canonicalSpec = getCanonicalAssetSpec(cleanAssetId);
 
     const finalName = isBourse
       ? (selectedBourseSymbol
@@ -842,19 +843,20 @@ export default function PortfolioTracker({ calcData, rates, usdToman, goldUsd, i
           : (customName.trim() || (isFund ? (cleanAssetId === 'bourse_fund' ? 'بورس اوراق بهادار تهران (صندوق)' : `صندوق ${cleanAssetId.replace('bourse_', '')}`) : (cleanAssetId === 'bourse' ? 'بورس اوراق بهادار تهران (سهام)' : `سهام ${cleanAssetId.replace('bourse_', '')}`))))
       : isCustom
       ? (customName.trim() || 'دارایی شخصی')
-      : (assetMeta?.name || formatAssetName(cleanAssetId) || cleanAssetId);
+      : (canonicalSpec?.name || customName.trim() || formatAssetName(cleanAssetId) || cleanAssetId);
 
     const finalUnit = isBourse
       ? (isFund ? 'واحد' : 'برگ سهم')
       : isCustom
       ? (customUnit.trim() || 'واحد')
-      : (assetMeta?.unit || 'واحد');
+      : (canonicalSpec?.unit || customUnit.trim() || 'واحد');
 
-    const finalCategory = isBourse
-      ? (isFund ? 'bourse_fund' : 'bourse')
-      : isCustom
-      ? 'custom'
-      : (assetMeta?.category || 'custom');
+    const finalCategory = resolveItemCategory({
+      assetId: cleanAssetId,
+      assetName: finalName,
+      isFund,
+      assetType: isCustom ? 'custom' : (isBourse ? (isFund ? 'bourse_fund' : 'bourse') : (canonicalSpec?.category || 'custom')),
+    });
 
     const finalCurrentPrice = isBourse
       ? (selectedBourseSymbol?.priceToman || parseInputNumber(customCurrentPrice) || price || 0)
@@ -1056,20 +1058,22 @@ export default function PortfolioTracker({ calcData, rates, usdToman, goldUsd, i
   const handleSelectStandardAsset = (asset) => {
     const rawId = asset.id || asset.priceType || '';
     const cleanId = rawId.replace(/^src_def_/, '').replace(/^derived_/, '');
-    const matchedMeta = effectiveAssetTypes.find((a) => a.id === cleanId || a.id === rawId || (asset.symbol && a.id === asset.symbol));
-    setSelectedAssetId(matchedMeta?.id || cleanId);
+    const canonicalSpec = getCanonicalAssetSpec(cleanId || rawId || asset.symbol);
+    const resolvedId = canonicalSpec?.id || cleanId || rawId;
+    setSelectedAssetId(resolvedId);
     setSelectedBourseSymbol(null);
-    setCustomName(matchedMeta?.name || asset.name || '');
-    setCustomUnit(matchedMeta?.unit || asset.unit || 'واحد');
-    const resolvedP = Number(asset.price || realPriceMap[cleanId] || realPriceMap[rawId] || 0);
+    setCustomName(canonicalSpec?.name || asset.name || '');
+    setCustomUnit(canonicalSpec?.unit || asset.unit || 'واحد');
+    const resolvedP = Number(asset.price || realPriceMap[resolvedId] || realPriceMap[cleanId] || realPriceMap[rawId] || 0);
     setCustomCurrentPrice(resolvedP > 0 ? String(Math.round(resolvedP)) : '');
   };
 
   const handleSelectBourseSymbol = (sym) => {
-    const symCode = sym.symbol || sym.s || '';
+    const symCode = (sym.symbol || sym.s || '').trim();
     const isFund = Boolean(
       sym.isFund ||
       sym.f === 1 ||
+      sym.category === 'bourse_fund' ||
       sym.category?.includes('صندوق') ||
       sym.name?.includes('صندوق') ||
       sym.title?.includes('صندوق')
@@ -1805,31 +1809,24 @@ export default function PortfolioTracker({ calcData, rates, usdToman, goldUsd, i
                   goldUsd={goldUsdVal}
                   silverUsd={silverUsdVal}
                   onSelect={(item) => {
-                    const cat = item.category || item.badgeClass;
-                    const cleanId = (item.id || item.priceType || '').replace(/^src_def_/, '').replace(/^derived_/, '');
-                    const isBourse = item.type === 'bourse' || cleanId.startsWith('bourse_') || item.badgeClass === 'bourse' || item.raw?.isFund !== undefined || item.name?.includes('صندوق');
-                    const isKnownAsset = effectiveAssetTypes.some((a) => a.id === cleanId && a.id !== 'custom' && a.id !== 'bourse' && a.id !== 'bourse_fund');
+                    const rawItem = item.raw || item;
+                    const resolvedCat = resolveItemCategory(rawItem);
+                    const isBourse = resolvedCat === 'bourse' || resolvedCat === 'bourse_fund';
+                    const isCustom = resolvedCat === 'custom';
 
                     if (isBourse) {
-                      handleSelectBourseSymbol(item.raw || item);
-                    } else if (isKnownAsset || ['gold', 'coin', 'silver', 'currency', 'crypto'].includes(cat) || item.type === 'standard' || item.type === 'forex') {
-                      handleSelectStandardAsset({
-                        ...item,
-                        id: item.symbol || cleanId,
-                        unit: item.unit,
-                        name: item.name,
-                        price: item.price,
-                      });
-                    } else if (item.type === 'source' || item.type === 'multi_output' || item.isMultiItem) {
-                      setSelectedAssetId(item.id);
+                      handleSelectBourseSymbol(rawItem);
+                    } else if (isCustom) {
+                      setSelectedAssetId('custom');
                       setSelectedBourseSymbol(null);
-                      setCustomName(item.name);
-                      setCustomUnit(item.unit || 'تومان');
+                      setCustomName(item.name || '');
+                      setCustomUnit(item.unit || 'واحد');
                       if (item.price > 0) {
-                        setCustomCurrentPrice(String(item.price));
+                        setCustomCurrentPrice(String(Math.round(item.price)));
                       }
                     } else {
-                      handleSelectStandardAsset(item.raw || item);
+                      // Standard canonical asset (gold, coin, silver, currency, crypto)
+                      handleSelectStandardAsset(rawItem);
                     }
                   }}
                 />

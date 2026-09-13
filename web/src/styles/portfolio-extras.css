@@ -36,6 +36,12 @@
 .allocation-segment.cat-crypto {
   background: linear-gradient(90deg, #7c3aed, #a855f7);
 }
+.allocation-segment.cat-bourse {
+  background: linear-gradient(90deg, #2563eb, #60a5fa);
+}
+.allocation-segment.cat-bourse_fund {
+  background: linear-gradient(90deg, #0d9488, #2dd4bf);
+}
 .allocation-segment.cat-custom {
   background: linear-gradient(90deg, #db2777, #f472b6);
 }
@@ -65,6 +71,8 @@
 .chip-dot.cat-silver { background: #ef4444; box-shadow: 0 0 6px rgba(239, 68, 68, 0.5); }
 .chip-dot.cat-currency { background: #10b981; box-shadow: 0 0 6px rgba(16, 185, 129, 0.5); }
 .chip-dot.cat-crypto { background: #a855f7; box-shadow: 0 0 6px rgba(168, 85, 247, 0.5); }
+.chip-dot.cat-bourse { background: #3b82f6; box-shadow: 0 0 6px rgba(59, 130, 246, 0.5); }
+.chip-dot.cat-bourse_fund { background: #14b8a6; box-shadow: 0 0 6px rgba(20, 184, 166, 0.5); }
 .chip-dot.cat-custom { background: #f472b6; box-shadow: 0 0 6px rgba(244, 114, 182, 0.5); }
 
 .chip-name {

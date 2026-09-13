@@ -17,11 +17,16 @@ import { usePricing } from '../context/PricingContext.jsx';
 import {
   FOREX_SPECS,
   TROY_OUNCE_GRAMS,
+  PORTFOLIO_CATEGORIES,
+  CANONICAL_ASSET_REGISTRY,
   getCanonicalAssetSpec,
   getCanonicalAssetName,
   getCanonicalAssetUnit,
   getCanonicalAssetCategory,
   getCanonicalAssetBadge,
+  resolveItemCategory,
+  getCategoryBadge,
+  getCategoryLabel,
 } from '../utils/financialSpecs.js';
 
 export const PROMINENT_FOREX_CURRENCIES = FOREX_SPECS;
@@ -399,6 +404,7 @@ export default function UniversalAssetSearch({
   );
 
   const [query, setQuery] = useState('');
+  const [activeCategory, setActiveCategory] = useState('all');
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [internalSources, setInternalSources] = useState(sources || []);
   const [bourseSymbols, setBourseSymbols] = useState([]);
@@ -447,29 +453,26 @@ export default function UniversalAssetSearch({
 
   // 3. Build Unified Items List (100% Client-Side, Single Source of Truth via PricingContext)
   const allItems = useMemo(() => {
-    // ── اولویت ۱: کاتالوگ یکپارچه محاسباتی PricingContext (تضمین تطابق ۱۰۰٪ قیمت‌ها با پورتفو و صفحه اصلی) ──
-    if (pricingContext?.resolvedAssets && pricingContext.resolvedAssets.length > 0) {
-      const items = [];
-      const seenKeys = new Set();
-      const seenNames = new Set();
+    const items = [];
+    const seenKeys = new Set();
+    const seenNames = new Set();
 
+    // ── بخش ۱: دارایی‌های کاتالوگ محاسباتی PricingContext ──────────────────────
+    if (pricingContext?.resolvedAssets && pricingContext.resolvedAssets.length > 0) {
       pricingContext.resolvedAssets.forEach((asset) => {
-        const isBourse = asset.priceType === 'bourse' || asset.category === 'bourse' || asset.category === 'bourse_fund';
-        const isForex = asset.priceType === 'forex' || asset.category === 'currency';
         const sym = (asset.symbol || asset.code || '').trim();
-        const normName = normalizeSearchText(asset.name);
         const canonicalId = (asset.id || '').toLowerCase().trim();
+        const normName = normalizeSearchText(asset.name);
 
         if (seenKeys.has(canonicalId)) return;
         seenKeys.add(canonicalId);
         if (sym) seenKeys.add(sym.toLowerCase());
         seenNames.add(normName);
 
-        const badgeClass = asset.badgeClass || (
-          isForex ? 'currency' :
-          isBourse ? (asset.name?.includes('صندوق') ? 'bourse_fund' : 'bourse') :
-          asset.category || 'gold'
-        );
+        const category = resolveItemCategory(asset);
+        const badge = getCategoryBadge(category, asset.badge || 'دارایی');
+        const spec = getCanonicalAssetSpec(asset.id || sym);
+        const aliases = spec?.aliases || asset.aliases || [];
 
         items.push({
           id: asset.id,
@@ -478,12 +481,13 @@ export default function UniversalAssetSearch({
           name: asset.name,
           symbol: sym,
           subText: asset.subText || '',
-          badge: asset.badge || (isForex ? 'ارز' : isBourse ? 'بورس' : 'پایه'),
-          badgeClass,
-          category: asset.category || (isForex ? 'currency' : isBourse ? 'bourse' : 'gold'),
+          badge,
+          badgeClass: category,
+          category,
+          aliases,
           price: asset.price,
-          unit: asset.unit || 'تومان',
-          type: isForex ? 'forex' : (isBourse ? 'bourse' : 'standard'),
+          unit: asset.unit || getCanonicalAssetUnit(asset.id, 'واحد'),
+          type: asset.priceType === 'forex' ? 'forex' : (category.startsWith('bourse') ? 'bourse' : 'standard'),
           changePercent: asset.changePercent,
           raw: {
             ...asset,
@@ -491,479 +495,283 @@ export default function UniversalAssetSearch({
             symbol: sym,
             name: asset.name,
             faName: asset.name,
+            aliases,
             usdCrossRate: asset.usdCrossRate,
             priceToman: asset.price,
             price: asset.price,
-            category: asset.category,
-            unit: asset.unit,
-            isMultiItem: isForex || isBourse,
+            category,
+            unit: asset.unit || getCanonicalAssetUnit(asset.id, 'واحد'),
+            isFund: category === 'bourse_fund',
+            isMultiItem: category === 'currency' || category.startsWith('bourse'),
           },
         });
       });
-
-      return items;
     }
 
-    const items = [];
-    const seenKeys = new Set();
-    const seenNames = new Set();
+    // ── بخش ۲: دارایی‌های پایه استاندارد (Fallback برای تضمین حضور طلا، سکه، نقره، فارکس و کریپتو) ──
+    Object.values(CANONICAL_ASSET_REGISTRY).forEach((spec) => {
+      const canonicalId = spec.id.toLowerCase().trim();
+      if (seenKeys.has(canonicalId)) return;
+      seenKeys.add(canonicalId);
+      if (spec.symbol) seenKeys.add(spec.symbol.toLowerCase());
+      if (spec.code) seenKeys.add(spec.code.toLowerCase());
 
-    // ── نوع ۱: سورس‌های نرخ پایه و اقلام استاندارد طلا، سکه و نقره ─────────────
-    // فقط نوع نرخ را بنویس، فقط در صورت فعال بودن و مرجع بودن
-    internalSources.forEach((src) => {
-      const isActive = src.isActive === 1 || src.isActive === true || src.is_active === 1 || src.is_active === true;
-      if (!isActive) return;
-
-      const isMulti = isSourceMultiOutput(src, priceTypeInfo);
-      if (isMulti) return;
-
-      const isPrimary = src.isPrimary === 1 || src.isPrimary === true || src.is_primary === 1 || src.is_primary === true;
-      if (!isPrimary) return;
-
-      const canonicalId = (src.priceType || src.id || '').replace(/^src_def_/, '').toLowerCase().trim();
-      const typeLabel = getPriceTypeLabel(src.priceType, priceTypeInfo) || src.name;
-      const normName = normalizeSearchText(typeLabel);
-
-      if (seenKeys.has(canonicalId) || seenNames.has(normName)) return;
-
-      const meta = getCategoryMetadata(src.priceType);
+      const cat = spec.category || 'gold';
+      const livePrice = pricingContext?.priceMap?.[spec.id] || pricingContext?.priceMap?.[canonicalId] || 0;
 
       items.push({
-        id: canonicalId,
-        sourceId: src.id,
-        priceType: src.priceType,
-        name: typeLabel,
-        symbol: '',
-        subText: 'نرخ پایه بازار (سورس مرجع)',
-        badge: meta.badge || 'پایه',
-        badgeClass: meta.category,
-        category: meta.category,
-        price: Number(src.lastPrice || 0),
-        unit: meta.unit || src.unit || 'تومان',
-        type: 'standard',
-        changePercent: src.diff !== undefined ? src.diff : src.changePercent,
+        id: spec.id,
+        sourceId: `src_def_${spec.id}`,
+        priceType: spec.id,
+        name: spec.name,
+        symbol: spec.symbol || spec.code || '',
+        subText: spec.formulaText || '',
+        badge: getCategoryBadge(cat, spec.badge || 'پایه'),
+        badgeClass: cat,
+        category: cat,
+        aliases: spec.aliases || [],
+        price: livePrice,
+        unit: spec.unit || 'واحد',
+        type: cat === 'currency' ? 'forex' : 'standard',
         raw: {
-          ...src,
-          id: canonicalId,
-          priceType: src.priceType,
-          category: meta.category,
-          unit: meta.unit || src.unit || 'تومان',
+          ...spec,
+          id: spec.id,
+          name: spec.name,
+          category: cat,
+          aliases: spec.aliases || [],
+          unit: spec.unit || 'واحد',
+          price: livePrice,
+          priceToman: livePrice,
         },
       });
-      seenKeys.add(canonicalId);
-      seenKeys.add((src.id || '').toLowerCase());
-      seenNames.add(normName);
     });
 
-    // Find active primary USD rate for Forex and Silver calculations
-    const activeSources = internalSources.filter(s =>
-      s.isActive === 1 || s.isActive === true || s.is_active === 1 || s.is_active === true
-    );
-    const usdSource =
-      activeSources.find(s => (s.priceType === 'usd' || s.priceType === 'usd_toman') && (s.isPrimary === 1 || s.isPrimary === true || s.is_primary === 1 || s.is_primary === true) && Number(s.lastPrice || s.last_price || 0) > 0) ||
-      activeSources.find(s => (s.priceType === 'usd' || s.priceType === 'usd_toman') && Number(s.lastPrice || s.last_price || 0) > 0) ||
-      activeSources.find(s => (s.priceType === 'usd' || s.priceType === 'usd_toman')) ||
-      activeSources.find(s => (s.id === 'src_def_usd' || (s.name && s.name.includes('دلار'))));
+    // ── بخش ۳: نمادهای سهام و صندوق‌های بورس اوراق بهادار تهران (۲۰۰۰+ نماد) ──────
+    if (bourseSymbols && bourseSymbols.length > 0) {
+      bourseSymbols.forEach((sub) => {
+        const symCode = (sub.symbol || sub.s || '').trim();
+        const itemName = (sub.name || sub.title || sub.n || symCode).trim();
+        if (!symCode && !itemName) return;
 
-    const rawUsdSourcePrice = Number(usdSource?.lastPrice || usdSource?.last_price || 0);
-    const validDbUsd = rawUsdSourcePrice > 10000 && rawUsdSourcePrice < 200000 ? rawUsdSourcePrice : 0;
-    const usdToman = effectiveUsdToman > 0 ? effectiveUsdToman : (validDbUsd || 93000);
+        const canonicalId = `bourse_${symCode}`.toLowerCase();
+        if (seenKeys.has(canonicalId) || (symCode && seenKeys.has(symCode.toLowerCase()))) return;
+        seenKeys.add(canonicalId);
+        if (symCode) seenKeys.add(symCode.toLowerCase());
 
-    const onsGoldItem = items.find(i => i.id === 'ons_gold' || i.id === 'gold_ounce');
-    const onsGoldPrice = effectiveGoldUsd > 0 ? effectiveGoldUsd : Number(onsGoldItem?.price || 2890);
+        const isFund = Boolean(
+          sub.isFund ||
+          sub.f === 1 ||
+          sub.category === 'bourse_fund' ||
+          sub.category?.includes('صندوق') ||
+          itemName.includes('صندوق') ||
+          sub.title?.includes('صندوق')
+        );
+        const category = isFund ? 'bourse_fund' : 'bourse';
+        const badge = isFund ? 'صندوق' : 'بورس';
+        const badgeClass = isFund ? 'bourse_fund' : 'bourse';
 
-    let p18 = Number(items.find(i => i.id === 'gold_18k')?.price || 0);
-    if (p18 <= 0 && usdToman > 0) {
-      p18 = Math.round(((onsGoldPrice > 100 ? onsGoldPrice : 2890) / 31.1034768) * usdToman * 0.75);
-    }
+        let priceToman = 0;
+        if (pricingContext?.priceMap) {
+          priceToman = pricingContext.priceMap[symCode] || pricingContext.priceMap[canonicalId] || 0;
+        }
+        if (!priceToman) {
+          if (sub.priceToman !== undefined) priceToman = Number(sub.priceToman);
+          else if (sub.priceRial !== undefined) priceToman = Math.round(Number(sub.priceRial) / 10);
+          else if (sub.price !== undefined) priceToman = Number(sub.price);
+          else if (sub.pl !== undefined || sub.pc !== undefined) priceToman = Math.round(Number(sub.pl || sub.pc) / 10);
+          else priceToman = Number(sub.p || 0);
+        }
 
-    // تضمین حضور طلای ۱۸ عیار
-    if (!seenKeys.has('gold_18k') && !items.some(i => i.id === 'gold_18k')) {
-      items.push({
-        id: 'gold_18k',
-        sourceId: 'src_def_gold_18k',
-        priceType: 'gold_18k',
-        name: 'طلای ۱۸ عیار',
-        symbol: '',
-        subText: 'نرخ پایه بازار (هر گرم طلا ۱۸ عیار)',
-        badge: 'طلا',
-        badgeClass: 'gold',
-        category: 'gold',
-        price: p18,
-        unit: 'گرم',
-        type: 'standard',
-        raw: { id: 'gold_18k', priceType: 'gold_18k', name: 'طلای ۱۸ عیار', category: 'gold', unit: 'گرم', price: p18 },
+        const unit = isFund ? 'واحد' : 'برگ سهم';
+        const subDetails = isFund
+          ? (sub.category ? `${sub.category} • نماد: ${symCode}` : `صندوق سرمایه‌گذاری • نماد: ${symCode}`)
+          : (sub.category ? `${sub.category} • نماد: ${symCode}` : `سهام بورس تهران • نماد: ${symCode}`);
+
+        const displayName = isFund && !itemName.includes(symCode)
+          ? `${itemName} (${symCode})`
+          : itemName;
+
+        items.push({
+          id: `bourse_${symCode}`,
+          sourceId: 'bourse_feed',
+          symbol: symCode,
+          name: displayName,
+          subText: subDetails,
+          badge,
+          badgeClass,
+          category,
+          aliases: [symCode, itemName, isFund ? `صندوق ${symCode}` : `سهام ${symCode}`],
+          price: priceToman,
+          unit,
+          type: 'bourse',
+          changePercent: Number(sub.changePercent ?? sub.cp ?? sub.plp ?? 0),
+          raw: {
+            ...sub,
+            id: `bourse_${symCode}`,
+            symbol: symCode,
+            name: displayName,
+            priceToman,
+            price: priceToman,
+            isFund,
+            category,
+            unit,
+          },
+        });
       });
-      seenKeys.add('gold_18k');
-      seenNames.add(normalizeSearchText('طلای ۱۸ عیار'));
     }
 
-    // تضمین حضور سکه گرمی (Gerami Coin)
-    const geramiVal = p18 > 0 ? Math.round((p18 / 0.75) * 1.01 * (22 / 24)) : 0;
-    if (!seenKeys.has('gerami_coin') && !items.some(i => i.id === 'gerami_coin')) {
-      items.push({
-        id: 'gerami_coin',
-        sourceId: 'src_def_gerami_coin',
-        priceType: 'gerami_coin',
-        name: 'سکه گرمی',
-        symbol: 'GERAMI',
-        subText: 'سکه ۱ گرمی بانکی عیار ۲۲',
-        badge: 'سکه',
-        badgeClass: 'coin',
-        category: 'coin',
-        price: geramiVal,
-        unit: 'عدد',
-        type: 'standard',
-        raw: {
-          id: 'gerami_coin',
-          priceType: 'gerami_coin',
-          name: 'سکه گرمی',
-          category: 'coin',
-          unit: 'عدد',
-          price: geramiVal,
-          priceToman: geramiVal,
-        },
-      });
-      seenKeys.add('gerami_coin');
-      seenNames.add(normalizeSearchText('سکه گرمی'));
-    }
-
-    // تضمین حضور سکه امامی، نیم و ربع سکه
-    if (!seenKeys.has('full_coin') && !items.some(i => i.id === 'full_coin')) {
-      const fullVal = p18 > 0 ? Math.round((p18 / 0.75) * 7.3197) : 0;
-      items.push({
-        id: 'full_coin',
-        sourceId: 'src_def_full_coin',
-        priceType: 'full_coin',
-        name: 'سکه امامی',
-        symbol: 'FULL_COIN',
-        subText: 'سکه بهار آزادی (طرح جدید)',
-        badge: 'سکه',
-        badgeClass: 'coin',
-        category: 'coin',
-        price: fullVal,
-        unit: 'عدد',
-        type: 'standard',
-        raw: { id: 'full_coin', priceType: 'full_coin', name: 'سکه امامی', category: 'coin', unit: 'عدد', price: fullVal },
-      });
-      seenKeys.add('full_coin');
-      seenNames.add(normalizeSearchText('سکه امامی'));
-    }
-
-    if (!seenKeys.has('half_coin') && !items.some(i => i.id === 'half_coin')) {
-      const halfVal = p18 > 0 ? Math.round((p18 / 0.75) * 3.6594) : 0;
-      items.push({
-        id: 'half_coin',
-        sourceId: 'src_def_half_coin',
-        priceType: 'half_coin',
-        name: 'نیم سکه بهار آزادی',
-        symbol: 'HALF_COIN',
-        subText: 'نیم سکه بهار آزادی',
-        badge: 'سکه',
-        badgeClass: 'coin',
-        category: 'coin',
-        price: halfVal,
-        unit: 'عدد',
-        type: 'standard',
-        raw: { id: 'half_coin', priceType: 'half_coin', name: 'نیم سکه بهار آزادی', category: 'coin', unit: 'عدد', price: halfVal },
-      });
-      seenKeys.add('half_coin');
-      seenNames.add(normalizeSearchText('نیم سکه بهار آزادی'));
-    }
-
-    if (!seenKeys.has('quarter_coin') && !items.some(i => i.id === 'quarter_coin')) {
-      const quarterVal = p18 > 0 ? Math.round((p18 / 0.75) * 1.8297) : 0;
-      items.push({
-        id: 'quarter_coin',
-        sourceId: 'src_def_quarter_coin',
-        priceType: 'quarter_coin',
-        name: 'ربع سکه بهار آزادی',
-        symbol: 'QUARTER_COIN',
-        subText: 'ربع سکه بهار آزادی',
-        badge: 'سکه',
-        badgeClass: 'coin',
-        category: 'coin',
-        price: quarterVal,
-        unit: 'عدد',
-        type: 'standard',
-        raw: { id: 'quarter_coin', priceType: 'quarter_coin', name: 'ربع سکه بهار آزادی', category: 'coin', unit: 'عدد', price: quarterVal },
-      });
-      seenKeys.add('quarter_coin');
-      seenNames.add(normalizeSearchText('ربع سکه بهار آزادی'));
-    }
-
-    const onsSilverItem = items.find(i => i.id === 'ons_silver' || i.id === 'silver_ounce');
-    const onsSilverPrice = Number(onsSilverItem?.price || 33.5);
-    const silverGramVal = (onsSilverPrice > 0 && usdToman > 0) ? Math.round((onsSilverPrice / 31.1034768) * usdToman) : 0;
-    if (!seenKeys.has('silver_gram') && !items.some(i => i.id === 'silver_gram')) {
-      items.push({
-        id: 'silver_gram',
-        sourceId: 'src_def_silver_gram',
-        priceType: 'silver_gram',
-        name: 'نقره خام (گرمی ۹۹۹)',
-        symbol: 'SILVER_GRAM',
-        subText: 'هر گرم نقره خالص ۹۹۹',
-        badge: 'نقره',
-        badgeClass: 'silver',
-        category: 'silver',
-        price: silverGramVal,
-        unit: 'گرم',
-        type: 'standard',
-        raw: { id: 'silver_gram', priceType: 'silver_gram', name: 'نقره خام (گرمی ۹۹۹)', category: 'silver', unit: 'گرم', price: silverGramVal },
-      });
-      seenKeys.add('silver_gram');
-      seenNames.add(normalizeSearchText('نقره خام (گرمی ۹۹۹)'));
-    }
-
-    // ── نوع ۲: هاب سورس‌های چند خروجی و فیدها (تمام دسته‌بندی‌ها) ───────────────
-    // هر اقلامی که زیرش هست رو بیار، در صورت فعال بودن
+    // ── بخش ۴: سورس‌های چند خروجی و فیدهای فعال ──────────────────────────────
     internalSources.forEach((src) => {
       const isActive = src.isActive === 1 || src.isActive === true || src.is_active === 1 || src.is_active === true;
       if (!isActive) return;
-
       const isMulti = isSourceMultiOutput(src, priceTypeInfo);
       if (!isMulti) return;
 
-      const feedCategoryLabel = getPriceTypeLabel(src.priceType, priceTypeInfo) || src.name;
-      const isBourse = src.priceType === 'bourse' || src.priceType === 'bourse_fund';
-      const isForex = src.priceType === 'forex';
-
-      // استخراج تمامی اقلام زیرمجموعه این فید
       const subItems = extractMultiItems(src);
-
-      // اگر فید بورس است و دیتای نمادها از قبل لود شده، ادغام کن
-      let listToIterate = subItems;
-      if (isBourse && bourseSymbols.length > 0) {
-        if (subItems.length === 0) {
-          listToIterate = bourseSymbols;
-        } else {
-          const subSymSet = new Set(subItems.map(x => (x.symbol || x.s || '').toUpperCase()).filter(Boolean));
-          const additionalBourse = bourseSymbols.filter(bs => !subSymSet.has((bs.symbol || bs.s || '').toUpperCase()));
-          listToIterate = [...subItems, ...additionalBourse];
-        }
-      }
-
-      listToIterate.forEach((sub) => {
+      subItems.forEach((sub) => {
         const symCode = (sub.symbol || sub.s || '').trim();
-        const symUpper = symCode.toUpperCase();
-        const isForexItem = isForex;
-        const faName = isForexItem ? (WORLD_CURRENCY_NAMES[symUpper] || sub.faName || symUpper) : null;
-        const itemName = isForexItem
-          ? (faName ? (faName.includes(symUpper) ? faName : `${faName} (${symUpper})`) : symUpper)
-          : (sub.name || sub.n || symCode).trim();
+        const itemName = (sub.name || sub.n || symCode).trim();
         if (!symCode && !itemName) return;
 
-        const itemKey = isBourse ? `bourse_${symCode || itemName}` : `${src.id}::${symUpper || symCode || itemName}`;
-        if (seenKeys.has(itemKey.toLowerCase())) return;
-        seenKeys.add(itemKey.toLowerCase());
+        const isBourse = src.priceType === 'bourse' || src.priceType === 'bourse_fund' || Boolean(sub.isFund) || itemName.includes('صندوق');
+        const isForex = src.priceType === 'forex';
+        const itemKey = isBourse ? `bourse_${symCode}`.toLowerCase() : `${src.id}::${symCode || itemName}`.toLowerCase();
+
+        if (seenKeys.has(itemKey) || (symCode && seenKeys.has(symCode.toLowerCase()))) return;
+        seenKeys.add(itemKey);
+        if (symCode) seenKeys.add(symCode.toLowerCase());
 
         const isFund = Boolean(sub.isFund || (isBourse && (sub.category?.includes('صندوق') || itemName.includes('صندوق'))));
-        const itemBadge = isForexItem ? 'ارز' : (sub.category || (isBourse ? (isFund ? 'صندوق' : 'بورس') : feedCategoryLabel));
+        const category = isForex ? 'currency' : (isBourse ? (isFund ? 'bourse_fund' : 'bourse') : (src.priceType || 'custom'));
+        const badge = isForex ? 'ارز' : (isBourse ? (isFund ? 'صندوق' : 'بورس') : (src.name || 'سورس'));
 
-        // For Bourse mutual funds (like صندوق طلای آگاه with symbol مثقال), format clearly
-        const displayName = isBourse && isFund && symCode
-          ? (itemName.includes(symCode) ? itemName : `${itemName} (نماد: ${symCode})`)
-          : itemName;
-
-        const cross = isForexItem
-          ? Number(sub.usdCrossRate || calculateUsdCrossRate(symUpper, sub.rawRate || sub.price || sub.p || 0))
-          : Number(sub.price || 0);
-
-        let calculatedPriceToman;
-        if (isForexItem) {
-          calculatedPriceToman = usdToman > 0 && cross > 0 ? Math.round(cross * usdToman) : Math.round(cross);
-        } else if (isBourse) {
-          if (sub.priceToman !== undefined) {
-            calculatedPriceToman = Number(sub.priceToman);
-          } else if (sub.price !== undefined) {
-            calculatedPriceToman = Number(sub.price);
-          } else if (sub.pl !== undefined || sub.pc !== undefined) {
-            calculatedPriceToman = Math.round(Number(sub.pl || sub.pc) / 10);
-          } else if (sub.priceRial !== undefined) {
-            calculatedPriceToman = Math.round(Number(sub.priceRial) / 10);
-          } else {
-            calculatedPriceToman = Math.round(Number(sub.p || 0));
-          }
-        } else {
-          calculatedPriceToman = Number(sub.price !== undefined ? sub.price : (sub.p || 0));
-        }
-
-        const subDetails = isForexItem
-          ? (cross > 0
-              ? `بر مبنای دلار (${cross < 1 ? cross.toFixed(4) : cross.toFixed(2)} $)` + (usdToman > 0 ? ` • دلار: ${usdToman.toLocaleString('fa-IR')} ت` : '')
-              : 'نرخ جهانی فارکس')
-          : (isBourse
-              ? (sub.category ? `${sub.category}${symCode ? ` • نماد: ${symCode}` : ''}` : (isFund ? `صندوق سرمایه‌گذاری${symCode ? ` • نماد: ${symCode}` : ''}` : `سهام بورس اوراق بهادار${symCode ? ` • نماد: ${symCode}` : ''}`))
-              : ([sub.category, symCode ? `کد: ${symCode}` : '', sub.extra].filter(Boolean).join(' • ') || feedCategoryLabel));
-
-        const unit = isForexItem ? (usdToman > 0 ? 'تومان' : 'دلار') : (isBourse ? (isFund ? 'واحد' : 'برگ سهم') : (src.unit || 'تومان'));
-        const cp = Number(sub.changePercent !== undefined ? sub.changePercent : (sub.cp !== undefined ? sub.cp : (sub.plp || 0)));
+        let priceToman = Number(sub.priceToman || sub.price || sub.p || 0);
+        if (isBourse && sub.priceRial) priceToman = Math.round(Number(sub.priceRial) / 10);
+        const unit = isBourse ? (isFund ? 'واحد' : 'برگ سهم') : (src.unit || 'تومان');
 
         items.push({
           id: itemKey,
           sourceId: src.id,
-          symbol: isForexItem ? symUpper : symCode,
-          name: displayName,
-          subText: subDetails,
-          badge: itemBadge,
-          badgeClass: isForexItem ? 'currency' : (isBourse ? (isFund ? 'bourse_fund' : 'bourse') : 'multi-item'),
-          category: isForexItem ? 'currency' : (isFund ? 'bourse_fund' : (sub.category || src.priceType)),
-          price: calculatedPriceToman,
+          symbol: symCode,
+          name: itemName,
+          subText: `${src.name || ''} • ${symCode || ''}`,
+          badge,
+          badgeClass: category,
+          category,
+          aliases: [symCode, itemName],
+          price: priceToman,
           unit,
-          type: isForexItem ? 'forex' : (isBourse ? 'bourse' : 'source'),
-          isMultiItem: true,
-          changePercent: cp,
+          type: isBourse ? 'bourse' : (isForex ? 'forex' : 'source'),
+          changePercent: Number(sub.changePercent ?? sub.cp ?? 0),
           raw: {
             ...sub,
-            symbol: isForexItem ? symUpper : symCode,
-            name: displayName,
-            faName,
-            usdCrossRate: isForexItem ? cross : undefined,
-            priceToman: calculatedPriceToman,
-            priceRial: calculatedPriceToman * 10,
-            isFund,
-            category: isForexItem ? 'currency' : (isFund ? 'bourse_fund' : (sub.category || src.priceType)),
-            sourceId: src.id,
-            sourceName: src.name,
+            symbol: symCode,
+            name: itemName,
+            category,
             unit,
-            isMultiItem: true,
+            price: priceToman,
+            priceToman,
+            isFund,
           },
         });
       });
     });
 
-    // ── تضمین حضور تمام ۲۴ ارز مطرح فارکس ──────────────────────────────
-    const forexSource = internalSources.find(s => s.priceType === 'forex' && (s.isActive === 1 || s.isActive === true || s.is_active === 1 || s.is_active === true));
-    let forexRatesMap = {};
-    if (forexSource?.lastMultiData) {
-      try {
-        const parsedMulti = typeof forexSource.lastMultiData === 'string' ? JSON.parse(forexSource.lastMultiData) : forexSource.lastMultiData;
-        if (parsedMulti && typeof parsedMulti === 'object') {
-          if (parsedMulti.rates) {
-            Object.entries(parsedMulti.rates).forEach(([k, v]) => {
-              const r = Number(v);
-              if (r > 0) forexRatesMap[k.toLowerCase()] = parseFloat((1 / r).toFixed(5));
-            });
-          } else {
-            Object.entries(parsedMulti).forEach(([k, v]) => {
-              if (typeof v === 'number') forexRatesMap[k.toLowerCase()] = v;
-              else if (v && typeof v === 'object' && (v.usdCrossRate || v.price)) {
-                forexRatesMap[k.toLowerCase()] = Number(v.usdCrossRate || v.price);
-              }
-            });
-          }
+    return items;
+  }, [pricingContext?.resolvedAssets, pricingContext?.priceMap, bourseSymbols, internalSources, priceTypeInfo]);
+
+  // 4. Pure Client-Side Instant Search Filter with Scoring, Category Filter, and Tokenized Matching
+  const filteredItems = useMemo(() => {
+    let list = allItems;
+
+    // Filter by category pill if selected
+    if (activeCategory && activeCategory !== 'all') {
+      list = list.filter((item) => {
+        if (activeCategory === 'bourse') {
+          return item.category === 'bourse';
         }
-      } catch {}
+        if (activeCategory === 'bourse_fund') {
+          return item.category === 'bourse_fund';
+        }
+        return item.category === activeCategory;
+      });
     }
 
-    PROMINENT_FOREX_CURRENCIES.forEach(cur => {
-      const codeUpper = cur.code.toUpperCase();
-      const codeLower = cur.code.toLowerCase();
-      const itemKey = `forex_${codeLower}`;
-
-      if (!seenKeys.has(codeLower) && !seenKeys.has(codeUpper) && !seenKeys.has(`src_def_forex::${codeUpper}`) && !items.some(i => i.symbol === codeUpper)) {
-        const liveCross = Number(forexRatesMap[codeLower] || cur.defaultCross);
-        const calculatedPriceToman = usdToman > 0 ? Math.round(liveCross * usdToman) : Math.round(liveCross);
-        const displayName = `${cur.name} (${codeUpper})`;
-
-        items.push({
-          id: codeUpper,
-          sourceId: 'src_def_forex',
-          symbol: codeUpper,
-          name: displayName,
-          subText: `بر مبنای دلار (${liveCross < 1 ? liveCross.toFixed(4) : liveCross.toFixed(2)} $)` + (usdToman > 0 ? ` • دلار: ${usdToman.toLocaleString('fa-IR')} ت` : ''),
-          badge: 'ارز',
-          badgeClass: 'currency',
-          category: 'currency',
-          price: calculatedPriceToman,
-          unit: usdToman > 0 ? 'تومان' : 'دلار',
-          type: 'forex',
-          isMultiItem: true,
-          raw: {
-            id: codeUpper,
-            symbol: codeUpper,
-            name: displayName,
-            faName: cur.name,
-            code: codeUpper,
-            usdCrossRate: liveCross,
-            priceToman: calculatedPriceToman,
-            price: calculatedPriceToman,
-            category: 'currency',
-            unit: usdToman > 0 ? 'تومان' : 'دلار',
-            sourceId: 'src_def_forex',
-            sourceName: 'نرخ‌های جهانی فارکس',
-            isMultiItem: true,
-          },
-        });
-        seenKeys.add(codeLower);
-        seenKeys.add(codeUpper);
-        seenKeys.add(itemKey);
-        seenNames.add(normalizeSearchText(cur.name));
-        seenNames.add(normalizeSearchText(displayName));
-      }
-    });
-
-    return items;
-  }, [pricingContext?.resolvedAssets, internalSources, bourseSymbols, priceTypeInfo, effectiveUsdToman, effectiveGoldUsd, effectiveSilverUsd]);
-
-  // 4. Pure Client-Side Instant Search Filter with Tokenized Matching and Strict Deduplication
-  const filteredItems = useMemo(() => {
     const q = normalizeSearchText(query);
-    if (!q) return allItems;
+    if (!q) return list;
 
     const qTokens = q.split(/\s+/).filter(Boolean);
 
-    const matches = allItems.filter((item) => {
+    const scored = [];
+    for (const item of list) {
       const nameNorm = normalizeSearchText(item.name);
       const symNorm = normalizeSearchText(item.symbol);
+      const idNorm = normalizeSearchText(item.id);
       const subNorm = normalizeSearchText(item.subText);
-      const badgeNorm = normalizeSearchText(item.badge);
-      const faNameNorm = normalizeSearchText(item.raw?.faName || '');
-      const idNorm = normalizeSearchText(item.id || '');
+      const aliases = Array.isArray(item.aliases) ? item.aliases : [];
+      const aliasesNorm = aliases.map(normalizeSearchText).filter(Boolean);
 
-      const combined = `${nameNorm} ${symNorm} ${subNorm} ${badgeNorm} ${faNameNorm} ${idNorm}`;
+      let score = 0;
 
-      // 1. Direct full match
-      if (combined.includes(q)) return true;
-
-      // 2. Tokenized multi-word match (e.g. "طلا ۲۴" matches "طلای ۲۴ عیار")
-      if (qTokens.length > 1) {
-        const words = combined.split(/\s+/).filter(Boolean);
-        const allTokensMatch = qTokens.every((tok) => {
-          return words.some((w) => w.startsWith(tok) || tok.startsWith(w) || w.includes(tok));
-        });
-        if (allTokensMatch) return true;
+      // 1. Exact matches
+      if (symNorm && symNorm === q) {
+        score += 1200;
+      } else if (nameNorm === q) {
+        score += 1000;
+      } else if (aliasesNorm.includes(q)) {
+        score += 950;
+      } else if (idNorm === q) {
+        score += 900;
+      }
+      // 2. Starts with query
+      else if (symNorm && symNorm.startsWith(q)) {
+        score += 600;
+      } else if (nameNorm.startsWith(q)) {
+        score += 500;
+      } else if (aliasesNorm.some((a) => a.startsWith(q))) {
+        score += 450;
+      }
+      // 3. Contains query as substring
+      else if (symNorm && symNorm.includes(q)) {
+        score += 300;
+      } else if (nameNorm.includes(q)) {
+        score += 250;
+      } else if (aliasesNorm.some((a) => a.includes(q))) {
+        score += 200;
+      } else if (subNorm.includes(q)) {
+        score += 100;
+      } else if (idNorm.includes(q)) {
+        score += 80;
+      }
+      // 4. Multi-token match
+      else if (qTokens.length > 1) {
+        const combined = `${nameNorm} ${symNorm} ${aliasesNorm.join(' ')} ${subNorm} ${idNorm}`;
+        const allTokensMatch = qTokens.every((tok) => combined.includes(tok));
+        if (allTokensMatch) {
+          score += 150;
+        }
       }
 
-      return false;
-    });
+      if (score > 0) {
+        if (item.type === 'standard' || item.type === 'forex') score += 20;
+        scored.push({ item, score });
+      }
+    }
 
-    // Final Strict Deduplication Pass
+    scored.sort((a, b) => b.score - a.score);
+
+    // Deduplicate
     const unique = [];
     const seenResultKeys = new Set();
-    const seenResultNames = new Set();
-
-    for (const item of matches) {
-      const canonicalKey = (item.id || '').toLowerCase().trim();
-      const normName = normalizeSearchText(item.name);
-      const compositeKey = `${canonicalKey}::${item.type || ''}`;
-
-      if (seenResultKeys.has(canonicalKey) || seenResultKeys.has(compositeKey)) continue;
-
-      if (item.type === 'standard' && seenResultNames.has(normName)) {
-        continue;
-      }
-
+    for (const entry of scored) {
+      const canonicalKey = (entry.item.id || '').toLowerCase().trim();
+      if (seenResultKeys.has(canonicalKey)) continue;
       seenResultKeys.add(canonicalKey);
-      seenResultKeys.add(compositeKey);
-      if (item.type === 'standard') {
-        seenResultNames.add(normName);
-      }
-      unique.push(item);
+      unique.push(entry.item);
     }
 
     return unique;
-  }, [allItems, query]);
+  }, [allItems, query, activeCategory]);
 
   const isItemActive = (item) => {
     const targetId = selectedAssetId || (selectedAsset?.id ? selectedAsset.id : null);
@@ -1042,6 +850,35 @@ export default function UniversalAssetSearch({
           </button>
         )}
       </div>
+
+      {/* Category Filter Pills Strip */}
+      {showCategories && (
+        <div className="universal-categories-strip" style={{ marginTop: '8px', marginBottom: '4px' }}>
+          <button
+            type="button"
+            className={`universal-category-pill ${activeCategory === 'all' ? 'active' : ''}`}
+            onClick={() => {
+              setActiveCategory('all');
+              if (mode === 'picker') setIsDropdownOpen(true);
+            }}
+          >
+            <span>همه</span>
+          </button>
+          {PORTFOLIO_CATEGORIES.map((cat) => (
+            <button
+              key={cat.key}
+              type="button"
+              className={`universal-category-pill ${activeCategory === cat.key ? 'active' : ''}`}
+              onClick={() => {
+                setActiveCategory(cat.key);
+                if (mode === 'picker') setIsDropdownOpen(true);
+              }}
+            >
+              <span>{cat.badge || cat.name}</span>
+            </button>
+          ))}
+        </div>
+      )}
 
       {/* Results Rendering */}
       {mode === 'picker' ? (
