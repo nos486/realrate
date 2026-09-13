@@ -24,121 +24,18 @@ const UA = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (
 let memoryPricesCache = {};
 let lastFetchTime = 0;
 
-export const PROMINENT_FOREX_CURRENCIES = [
-  { code: 'EUR', name: 'یورو اروپا' },
-  { code: 'GBP', name: 'پوند انگلیس' },
-  { code: 'AED', name: 'درهم امارات' },
-  { code: 'TRY', name: 'لیر ترکیه' },
-  { code: 'CHF', name: 'فرانک سوئیس' },
-  { code: 'CAD', name: 'دلار کانادا' },
-  { code: 'AUD', name: 'دلار استرالیا' },
-  { code: 'CNY', name: 'یوان چین' },
-  { code: 'JPY', name: 'ین ژاپن' },
-  { code: 'SAR', name: 'ریال عربستان' },
-  { code: 'QAR', name: 'ریال قطر' },
-  { code: 'KWD', name: 'دینار کویت' },
-  { code: 'OMR', name: 'ریال عمان' },
-  { code: 'BHD', name: 'دینار بحرین' },
-  { code: 'IQD', name: 'دینار عراق' },
-  { code: 'RUB', name: 'روبل روسیه' },
-  { code: 'AFN', name: 'افغانی افغانستان' },
-  { code: 'AZN', name: 'منات آذربایجان' },
-  { code: 'INR', name: 'روپیه هند' },
-  { code: 'SEK', name: 'کرون سوئد' },
-  { code: 'NOK', name: 'کرون نروژ' },
-  { code: 'SGD', name: 'دلار سنگاپور' },
-  { code: 'KRW', name: 'وون کره جنوبی' },
-  { code: 'BRL', name: 'رئال برزیل' },
-];
+import {
+  FOREX_SPECS,
+  WORLD_FOREX_NAMES,
+  normalizeForexToUsdCrossRate,
+  getCanonicalAssetName,
+  getCanonicalAssetSpec,
+} from "../lib/financialSpecs.js";
 
-export const WORLD_FOREX_NAMES = {
-  USD: 'دلار آمریکا',
-  EUR: 'یورو اروپا',
-  GBP: 'پوند انگلیس',
-  AED: 'درهم امارات',
-  TRY: 'لیر ترکیه',
-  CHF: 'فرانک سوئیس',
-  CAD: 'دلار کانادا',
-  AUD: 'دلار استرالیا',
-  CNY: 'یوان چین',
-  JPY: 'ین ژاپن',
-  KWD: 'دینار کویت',
-  SAR: 'ریال عربستان',
-  QAR: 'ریال قطر',
-  OMR: 'ریال عمان',
-  BHD: 'دینار بحرین',
-  IQD: 'دینار عراق',
-  RUB: 'روبل روسیه',
-  INR: 'روپیه هند',
-  PKR: 'روپیه پاکستان',
-  AFN: 'افغانی افغانستان',
-  SEK: 'کرون سوئد',
-  NOK: 'کرون نروژ',
-  DKK: 'کرون دانمارک',
-  SGD: 'دلار سنگاپور',
-  HKD: 'دلار هنگ‌کنگ',
-  KRW: 'وون کره جنوبی',
-  THB: 'بات تایلند',
-  MYR: 'رینگیت مالزی',
-  NZD: 'دلار نیوزیلند',
-  BRL: 'رئال برزیل',
-  ZAR: 'رند آفریقای جنوبی',
-  AZN: 'منات آذربایجان',
-  GEL: 'لاری گرجستان',
-  AMD: 'درام ارمنستان',
-  TMT: 'منات ترکمنستان',
-  TJS: 'سامانی تاجیکستان',
-  KZT: 'تنگه قزاقستان',
-  UZS: 'سوم ازبکستان',
-  EGP: 'پوند مصر',
-  SYP: 'لیر سوریه',
-  LBP: 'لیر لبنان',
-  JOD: 'دینار اردن',
-  IDR: 'روپیه اندونزی',
-  PHP: 'پزو فیلیپین',
-  VND: 'دانگ ویتنام',
-  MXN: 'پزو مکزیک',
-  PLN: 'زلوتی لهستان',
-  CZK: 'کرونا چک',
-  HUF: 'فورینت مجارستان',
-  ILS: 'شکل اسرائیل',
-  CLP: 'پزو شیلی',
-  COP: 'پزو کلمبیا',
-  PEN: 'سول پرو',
-  ARS: 'پزو آرژانتین',
-  BGN: 'لو بلغارستان',
-  RON: 'لئو رومانی',
-  ISK: 'کرون ایسلند',
-  HRK: 'کونا کرواسی',
-  RSD: 'دینار صربستان',
-  LYD: 'دینار لیبی',
-  TND: 'دینار تونس',
-  MAD: 'درهم مراکش',
-  DZD: 'دینار الجزایر',
-  USDT: 'تتر (USDT)',
-};
+// Re-export single source of truth specifications for price sources
+export const PROMINENT_FOREX_CURRENCIES = FOREX_SPECS;
+export { WORLD_FOREX_NAMES, normalizeForexToUsdCrossRate };
 
-/**
- * Normalize raw forex quote to USD cross rate (value of 1 unit of foreign currency in USD)
- * @param {string} priceType - e.g. 'eur', 'try', 'aed', 'gbp', 'chf', 'cad', 'aud', 'cny'
- * @param {number|string} rawVal
- * @returns {number}
- */
-export function normalizeForexToUsdCrossRate(priceType, rawVal) {
-  const num = Number(rawVal);
-  if (!num || num <= 0) return 0;
-
-  const p = (priceType || '').toLowerCase();
-  // Currencies typically stronger than USD (EUR, GBP, CHF, KWD, BHD, OMR, JOD)
-  if (['eur', 'gbp', 'chf', 'kwd', 'bhd', 'omr', 'jod', 'kyd', 'gip'].includes(p)) {
-    return num < 1 ? parseFloat((1 / num).toFixed(5)) : parseFloat(num.toFixed(5));
-  }
-  // All other currencies (TRY, AED, CAD, AUD, CNY, etc.)
-  if (num > 1) {
-    return parseFloat((1 / num).toFixed(5));
-  }
-  return parseFloat(num.toFixed(5));
-}
 
 /**
  * Extract number from text using custom regular expression
@@ -562,7 +459,7 @@ export async function testPriceSourceConfig(config = {}) {
     } else if (parsed.compactList && parsed.compactList.length > 0) {
       displayMsg = `فید چند خروجی با موفقیت تست شد (${parsed.price.toLocaleString("fa-IR")} آیتم استخراج شد)`;
     } else if (isForex) {
-      displayMsg = `نرخ برابری استخراج شد: ۱ واحد = ${parsed.price} دلار آمریکا`;
+      displayMsg = `نرخ برابری استخراج شد: ۱ واحد = ${parsed.price} ${getCanonicalAssetName('USD', 'دلار')}`;
     } else if (priceType === 'ons_gold' || priceType === 'ons_silver') {
       displayMsg = `قیمت جهانی با موفقیت استخراج شد: ${parsed.price} دلار`;
     } else {

@@ -220,11 +220,49 @@ export const FOREX_SPECS = [
   { code: 'AFN', name: 'افغانی افغانستان', flag: '🇦🇫', symbol: '؋', defaultCross: 0.0145, category: 'currency', badge: 'ارز', unit: 'تومان', aliases: ['افغانی', 'افغانی افغانستان', 'AFN', 'afn'] },
   { code: 'AZN', name: 'منات آذربایجان', flag: '🇦🇿', symbol: '₼', defaultCross: 0.588, category: 'currency', badge: 'ارز', unit: 'تومان', aliases: ['منات', 'منات آذربایجان', 'AZN', 'azn'] },
   { code: 'INR', name: 'روپیه هند', flag: '🇮🇳', symbol: '₹', defaultCross: 0.0118, category: 'currency', badge: 'ارز', unit: 'تومان', aliases: ['روپیه', 'روپیه هند', 'INR', 'rupee'] },
+  { code: 'PKR', name: 'روپیه پاکستان', flag: '🇵🇰', symbol: '₨', defaultCross: 0.0036, category: 'currency', badge: 'ارز', unit: 'تومان', aliases: ['روپیه پاکستان', 'PKR'] },
   { code: 'SEK', name: 'کرون سوئد', flag: '🇸🇪', symbol: 'kr', defaultCross: 0.093, category: 'currency', badge: 'ارز', unit: 'تومان', aliases: ['کرون سوئد', 'SEK', 'sek'] },
   { code: 'NOK', name: 'کرون نروژ', flag: '🇳🇴', symbol: 'kr', defaultCross: 0.091, category: 'currency', badge: 'ارز', unit: 'تومان', aliases: ['کرون نروژ', 'NOK', 'nok'] },
+  { code: 'DKK', name: 'کرون دانمارک', flag: '🇩🇰', symbol: 'kr', defaultCross: 0.145, category: 'currency', badge: 'ارز', unit: 'تومان', aliases: ['کرون دانمارک', 'DKK'] },
   { code: 'SGD', name: 'دلار سنگاپور', flag: '🇸🇬', symbol: 'S$', defaultCross: 0.75, category: 'currency', badge: 'ارز', unit: 'تومان', aliases: ['دلار سنگاپور', 'SGD', 'sgd'] },
+  { code: 'HKD', name: 'دلار هنگ‌کنگ', flag: '🇭🇰', symbol: 'HK$', defaultCross: 0.128, category: 'currency', badge: 'ارز', unit: 'تومان', aliases: ['دلار هنگ‌کنگ', 'دلار هنگ کنگ', 'HKD'] },
   { code: 'KRW', name: 'وون کره جنوبی', flag: '🇰🇷', symbol: '₩', defaultCross: 0.00072, category: 'currency', badge: 'ارز', unit: 'تومان', aliases: ['وون', 'وون کره جنوبی', 'KRW', 'krw'] },
+  { code: 'THB', name: 'بات تایلند', flag: '🇹🇭', symbol: '฿', defaultCross: 0.029, category: 'currency', badge: 'ارز', unit: 'تومان', aliases: ['بات تایلند', 'بات', 'THB'] },
+  { code: 'MYR', name: 'رینگیت مالزی', flag: '🇲🇾', symbol: 'RM', defaultCross: 0.224, category: 'currency', badge: 'ارز', unit: 'تومان', aliases: ['رینگیت مالزی', 'رینگیت', 'MYR'] },
+  { code: 'NZD', name: 'دلار نیوزیلند', flag: '🇳🇿', symbol: 'NZ$', defaultCross: 0.59, category: 'currency', badge: 'ارز', unit: 'تومان', aliases: ['دلار نیوزیلند', 'NZD'] },
   { code: 'BRL', name: 'رئال برزیل', flag: '🇧🇷', symbol: 'R$', defaultCross: 0.178, category: 'currency', badge: 'ارز', unit: 'تومان', aliases: ['رئال برزیل', 'BRL', 'brl'] },
+  { code: 'ZAR', name: 'رند آفریقای جنوبی', flag: '🇿🇦', symbol: 'R', defaultCross: 0.055, category: 'currency', badge: 'ارز', unit: 'تومان', aliases: ['رند آفریقای جنوبی', 'رند', 'ZAR'] },
+  { code: 'GEL', name: 'لاری گرجستان', flag: '🇬🇪', symbol: '₾', defaultCross: 0.368, category: 'currency', badge: 'ارز', unit: 'تومان', aliases: ['لاری گرجستان', 'لاری', 'GEL'] },
+  { code: 'AMD', name: 'درام ارمنستان', flag: '🇦🇲', symbol: '֏', defaultCross: 0.0025, category: 'currency', badge: 'ارز', unit: 'تومان', aliases: ['درام ارمنستان', 'درام', 'AMD'] },
+  { code: 'TMT', name: 'منات ترکمنستان', flag: '🇹🇲', symbol: 'T', defaultCross: 0.285, category: 'currency', badge: 'ارز', unit: 'تومان', aliases: ['منات ترکمنستان', 'TMT'] },
+  { code: 'TJS', name: 'سامانی تاجیکستان', flag: '🇹🇯', symbol: 'SM', defaultCross: 0.092, category: 'currency', badge: 'ارز', unit: 'تومان', aliases: ['سامانی تاجیکستان', 'سامانی', 'TJS'] },
+  { code: 'KZT', name: 'تنگه قزاقستان', flag: '🇰🇿', symbol: '₸', defaultCross: 0.0021, category: 'currency', badge: 'ارز', unit: 'تومان', aliases: ['تنگه قزاقستان', 'تنگه', 'KZT'] },
+  { code: 'UZS', name: 'سوم ازبکستان', flag: '🇺🇿', symbol: "so'm", defaultCross: 0.000078, category: 'currency', badge: 'ارز', unit: 'تومان', aliases: ['سوم ازبکستان', 'سوم', 'UZS'] },
+  { code: 'EGP', name: 'پوند مصر', flag: '🇪🇬', symbol: 'E£', defaultCross: 0.02, category: 'currency', badge: 'ارز', unit: 'تومان', aliases: ['پوند مصر', 'EGP'] },
+  { code: 'SYP', name: 'لیر سوریه', flag: '🇸🇾', symbol: 'LS', defaultCross: 0.000077, category: 'currency', badge: 'ارز', unit: 'تومان', aliases: ['لیر سوریه', 'SYP'] },
+  { code: 'LBP', name: 'لیر لبنان', flag: '🇱🇧', symbol: 'L£', defaultCross: 0.000011, category: 'currency', badge: 'ارز', unit: 'تومان', aliases: ['لیر لبنان', 'LBP'] },
+  { code: 'JOD', name: 'دینار اردن', flag: '🇯🇴', symbol: 'JD', defaultCross: 1.41, category: 'currency', badge: 'ارز', unit: 'تومان', aliases: ['دینار اردن', 'JOD'] },
+  { code: 'IDR', name: 'روپیه اندونزی', flag: '🇮🇩', symbol: 'Rp', defaultCross: 0.000062, category: 'currency', badge: 'ارز', unit: 'تومان', aliases: ['روپیه اندونزی', 'IDR'] },
+  { code: 'PHP', name: 'پزو فیلیپین', flag: '🇵🇭', symbol: '₱', defaultCross: 0.017, category: 'currency', badge: 'ارز', unit: 'تومان', aliases: ['پزو فیلیپین', 'PHP'] },
+  { code: 'VND', name: 'دانگ ویتنام', flag: '🇻🇳', symbol: '₫', defaultCross: 0.000039, category: 'currency', badge: 'ارز', unit: 'تومان', aliases: ['دانگ ویتنام', 'دانگ', 'VND'] },
+  { code: 'MXN', name: 'پزو مکزیک', flag: '🇲🇽', symbol: '$', defaultCross: 0.051, category: 'currency', badge: 'ارز', unit: 'تومان', aliases: ['پزو مکزیک', 'MXN'] },
+  { code: 'PLN', name: 'زلوتی لهستان', flag: '🇵🇱', symbol: 'zł', defaultCross: 0.255, category: 'currency', badge: 'ارز', unit: 'تومان', aliases: ['زلوتی لهستان', 'زلوتی', 'PLN'] },
+  { code: 'CZK', name: 'کرونا چک', flag: '🇨🇿', symbol: 'Kč', defaultCross: 0.043, category: 'currency', badge: 'ارز', unit: 'تومان', aliases: ['کرونا چک', 'CZK'] },
+  { code: 'HUF', name: 'فورینت مجارستان', flag: '🇭🇺', symbol: 'Ft', defaultCross: 0.0027, category: 'currency', badge: 'ارز', unit: 'تومان', aliases: ['فورینت مجارستان', 'فورینت', 'HUF'] },
+  { code: 'ILS', name: 'شکل اسرائیل', flag: '🇮🇱', symbol: '₪', defaultCross: 0.27, category: 'currency', badge: 'ارز', unit: 'تومان', aliases: ['شکل اسرائیل', 'ILS'] },
+  { code: 'CLP', name: 'پزو شیلی', flag: '🇨🇱', symbol: '$', defaultCross: 0.00105, category: 'currency', badge: 'ارز', unit: 'تومان', aliases: ['پزو شیلی', 'CLP'] },
+  { code: 'COP', name: 'پزو کلمبیا', flag: '🇨🇴', symbol: '$', defaultCross: 0.00024, category: 'currency', badge: 'ارز', unit: 'تومان', aliases: ['پزو کلمبیا', 'COP'] },
+  { code: 'PEN', name: 'سول پرو', flag: '🇵🇪', symbol: 'S/.', defaultCross: 0.266, category: 'currency', badge: 'ارز', unit: 'تومان', aliases: ['سول پرو', 'PEN'] },
+  { code: 'ARS', name: 'پزو آرژانتین', flag: '🇦🇷', symbol: '$', defaultCross: 0.00102, category: 'currency', badge: 'ارز', unit: 'تومان', aliases: ['پزو آرژانتین', 'ARS'] },
+  { code: 'BGN', name: 'لو بلغارستان', flag: '🇧🇬', symbol: 'лв', defaultCross: 0.55, category: 'currency', badge: 'ارز', unit: 'تومان', aliases: ['لو بلغارستان', 'BGN'] },
+  { code: 'RON', name: 'لئو رومانی', flag: '🇷🇴', symbol: 'lei', defaultCross: 0.218, category: 'currency', badge: 'ارز', unit: 'تومان', aliases: ['لئو رومانی', 'RON'] },
+  { code: 'ISK', name: 'کرون ایسلند', flag: '🇮🇸', symbol: 'kr', defaultCross: 0.0073, category: 'currency', badge: 'ارز', unit: 'تومان', aliases: ['کرون ایسلند', 'ISK'] },
+  { code: 'HRK', name: 'کونا کرواسی', flag: '🇭🇷', symbol: 'kn', defaultCross: 0.143, category: 'currency', badge: 'ارز', unit: 'تومان', aliases: ['کونا کرواسی', 'HRK'] },
+  { code: 'RSD', name: 'دینار صربستان', flag: '🇷🇸', symbol: 'din', defaultCross: 0.0092, category: 'currency', badge: 'ارز', unit: 'تومان', aliases: ['دینار صربستان', 'RSD'] },
+  { code: 'LYD', name: 'دینار لیبی', flag: '🇱🇾', symbol: 'LD', defaultCross: 0.207, category: 'currency', badge: 'ارز', unit: 'تومان', aliases: ['دینار لیبی', 'LYD'] },
+  { code: 'TND', name: 'دینار تونس', flag: '🇹🇳', symbol: 'DT', defaultCross: 0.323, category: 'currency', badge: 'ارز', unit: 'تومان', aliases: ['دینار تونس', 'TND'] },
+  { code: 'MAD', name: 'درهم مراکش', flag: '🇲🇦', symbol: 'MAD', defaultCross: 0.101, category: 'currency', badge: 'ارز', unit: 'تومان', aliases: ['درهم مراکش', 'MAD'] },
+  { code: 'DZD', name: 'دینار الجزایر', flag: '🇩🇿', symbol: 'DA', defaultCross: 0.0074, category: 'currency', badge: 'ارز', unit: 'تومان', aliases: ['دینار الجزایر', 'DZD'] },
 ];
 
 export const FOREX_DICT = Object.fromEntries(FOREX_SPECS.map(c => [c.code, c]));
@@ -581,3 +619,115 @@ export function calculateForexTomanPrice(usdCrossRate, usdToman) {
   if (cross <= 0 || usd <= 0) return 0;
   return Math.round(cross * usd);
 }
+
+/**
+ * Normalize raw forex quote to USD cross rate (value of 1 unit of foreign currency in USD)
+ * @param {string} priceType - e.g. 'eur', 'try', 'aed', 'gbp', 'chf', 'cad', 'aud', 'cny'
+ * @param {number|string} rawVal
+ * @returns {number}
+ */
+export function normalizeForexToUsdCrossRate(priceType, rawVal) {
+  const num = Number(rawVal);
+  if (!num || num <= 0) return 0;
+
+  const p = (priceType || '').toLowerCase();
+  // Currencies typically stronger than USD (EUR, GBP, CHF, KWD, BHD, OMR, JOD)
+  if (['eur', 'gbp', 'chf', 'kwd', 'bhd', 'omr', 'jod', 'kyd', 'gip'].includes(p)) {
+    return num < 1 ? parseFloat((1 / num).toFixed(5)) : parseFloat(num.toFixed(5));
+  }
+  // All other currencies (TRY, AED, CAD, AUD, CNY, etc.)
+  if (num > 1) {
+    return parseFloat((1 / num).toFixed(5));
+  }
+  return parseFloat(num.toFixed(5));
+}
+
+/**
+ * Calculate pure 999 silver gram value in Tomans
+ * @param {number} silverUsd - Spot price of 1 troy ounce of silver in USD
+ * @param {number} usdToman - USD price in Tomans
+ * @returns {number}
+ */
+export function calculateSilverGram(silverUsd, usdToman) {
+  if (!silverUsd || !usdToman || silverUsd <= 0 || usdToman <= 0) return 0;
+  return (silverUsd / TROY_OUNCE_GRAMS) * usdToman;
+}
+
+/**
+ * Calculate sterling silver 925 gram value in Tomans
+ * @param {number} silverUsd
+ * @param {number} usdToman
+ * @returns {number}
+ */
+export function calculateSilver925(silverUsd, usdToman) {
+  return calculateSilverGram(silverUsd, usdToman) * 0.925;
+}
+
+/**
+ * Calculate silver ounce value in Tomans
+ * @param {number} silverUsd
+ * @param {number} usdToman
+ * @returns {number}
+ */
+export function calculateSilverOunce(silverUsd, usdToman) {
+  if (!silverUsd || !usdToman || silverUsd <= 0 || usdToman <= 0) return 0;
+  return silverUsd * usdToman;
+}
+
+/**
+ * Calculate bubble amount and percentage for any market price vs intrinsic value
+ * @param {number} marketPrice
+ * @param {number} intrinsicPrice
+ * @returns {{ bubble: number|null, bubblePct: number|null }}
+ */
+export function calculateBubble(marketPrice, intrinsicPrice) {
+  const market = Number(marketPrice) || 0;
+  const intrinsic = Number(intrinsicPrice) || 0;
+  if (!market || !intrinsic || intrinsic <= 0) {
+    return { bubble: null, bubblePct: null };
+  }
+  const bubble = market - intrinsic;
+  const bubblePct = parseFloat(((bubble / intrinsic) * 100).toFixed(1));
+  return { bubble: Math.round(bubble), bubblePct };
+}
+
+// ── 9. Dynamic Proxies for Single Source of Truth Forex & Currency Metadata ──
+
+/**
+ * Dynamic Proxy providing localized Persian names for world forex currencies
+ * eliminating hardcoded dictionaries anywhere in the app.
+ */
+export const WORLD_FOREX_NAMES = new Proxy({}, {
+  get(target, prop) {
+    if (typeof prop !== 'string') return target[prop];
+    return getCanonicalAssetName(prop, prop);
+  },
+  has(target, prop) {
+    if (typeof prop !== 'string') return false;
+    return Boolean(getCanonicalAssetSpec(prop));
+  },
+});
+
+/**
+ * Dynamic Proxy providing complete currency metadata (name, flag, symbol)
+ * for all world currencies directly resolved from canonical specifications.
+ */
+export const CURRENCY_METADATA_MAP = new Proxy({}, {
+  get(target, prop) {
+    if (typeof prop !== 'string') return target[prop];
+    const spec = getCanonicalAssetSpec(prop);
+    if (spec) {
+      return {
+        name: spec.name,
+        flag: spec.flag || '🌐',
+        symbol: spec.symbol || prop,
+      };
+    }
+    return { name: prop, flag: '🌐', symbol: prop };
+  },
+  has(target, prop) {
+    if (typeof prop !== 'string') return false;
+    return Boolean(getCanonicalAssetSpec(prop));
+  },
+});
+

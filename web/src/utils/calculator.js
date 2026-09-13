@@ -8,78 +8,21 @@ import {
   GOLD_SPECS,
   COIN_SPECS,
   SILVER_SPECS,
+  FOREX_SPECS,
+  CURRENCY_METADATA_MAP,
+  getCanonicalAssetSpec,
+  getCanonicalAssetName,
   calculateGold24kGram,
   calculateIntrinsicValue,
   calculateForexTomanPrice,
+  calculateSilverGram,
+  calculateSilver925,
+  calculateSilverOunce,
 } from './financialSpecs.js';
 
-// Rich metadata dictionary for world currencies
-export const CURRENCY_METADATA_MAP = {
-  USD: { name: 'دلار آمریکا', flag: '🇺🇸', symbol: '$' },
-  EUR: { name: 'یورو اروپا', flag: '🇪🇺', symbol: '€' },
-  TRY: { name: 'لیر ترکیه', flag: '🇹🇷', symbol: '₺' },
-  AED: { name: 'درهم امارات', flag: '🇦🇪', symbol: 'د.إ' },
-  GBP: { name: 'پوند انگلیس', flag: '🇬🇧', symbol: '£' },
-  CHF: { name: 'فرانک سوئیس', flag: '🇨🇭', symbol: 'CHF' },
-  CAD: { name: 'دلار کانادا', flag: '🇨🇦', symbol: 'C$' },
-  AUD: { name: 'دلار استرالیا', flag: '🇦🇺', symbol: 'A$' },
-  CNY: { name: 'یوان چین', flag: '🇨🇳', symbol: '¥' },
-  JPY: { name: 'ین ژاپن', flag: '🇯🇵', symbol: '¥' },
-  KWD: { name: 'دینار کویت', flag: '🇰🇼', symbol: 'د.ك' },
-  SAR: { name: 'ریال عربستان', flag: '🇸🇦', symbol: 'ر.س' },
-  QAR: { name: 'ریال قطر', flag: '🇶🇦', symbol: 'ر.ق' },
-  OMR: { name: 'ریال عمان', flag: '🇴🇲', symbol: 'ر.ع' },
-  BHD: { name: 'دینار بحرین', flag: '🇧🇭', symbol: 'د.ب' },
-  RUB: { name: 'روبل روسیه', flag: '🇷🇺', symbol: '₽' },
-  INR: { name: 'روپیه هند', flag: '🇮🇳', symbol: '₹' },
-  PKR: { name: 'روپیه پاکستان', flag: '🇵🇰', symbol: '₨' },
-  IQD: { name: 'دینار عراق', flag: '🇮🇶', symbol: 'د.ع' },
-  AFN: { name: 'افغانی افغانستان', flag: '🇦🇫', symbol: '؋' },
-  SEK: { name: 'کرون سوئد', flag: '🇸🇪', symbol: 'kr' },
-  NOK: { name: 'کرون نروژ', flag: '🇳🇴', symbol: 'kr' },
-  DKK: { name: 'کرون دانمارک', flag: '🇩🇰', symbol: 'kr' },
-  SGD: { name: 'دلار سنگاپور', flag: '🇸🇬', symbol: 'S$' },
-  HKD: { name: 'دلار هنگ کنگ', flag: '🇭🇰', symbol: 'HK$' },
-  KRW: { name: 'وون کره جنوبی', flag: '🇰🇷', symbol: '₩' },
-  THB: { name: 'بات تایلند', flag: '🇹🇭', symbol: '฿' },
-  MYR: { name: 'رینگیت مالزی', flag: '🇲🇾', symbol: 'RM' },
-  NZD: { name: 'دلار نیوزیلند', flag: '🇳🇿', symbol: 'NZ$' },
-  BRL: { name: 'رئال برزیل', flag: '🇧🇷', symbol: 'R$' },
-  ZAR: { name: 'رند آفریقای جنوبی', flag: '🇿🇦', symbol: 'R' },
-  AZN: { name: 'منات آذربایجان', flag: '🇦🇿', symbol: '₼' },
-  GEL: { name: 'لاری گرجستان', flag: '🇬🇪', symbol: '₾' },
-  AMD: { name: 'درام ارمنستان', flag: '🇦🇲', symbol: '֏' },
-  TMT: { name: 'منات ترکمنستان', flag: '🇹🇲', symbol: 'T' },
-  TJS: { name: 'سامانی تاجیکستان', flag: '🇹🇯', symbol: 'SM' },
-  KZT: { name: 'تنگه قزاقستان', flag: '🇰🇿', symbol: '₸' },
-  UZS: { name: 'سوم ازبکستان', flag: '🇺🇿', symbol: 'so\'m' },
-  EGP: { name: 'پوند مصر', flag: '🇪🇬', symbol: 'E£' },
-  SYP: { name: 'لیر سوریه', flag: '🇸🇾', symbol: 'LS' },
-  LBP: { name: 'لیر لبنان', flag: '🇱🇧', symbol: 'L£' },
-  JOD: { name: 'دینار اردن', flag: '🇯🇴', symbol: 'JD' },
-  IDR: { name: 'روپیه اندونزی', flag: '🇮🇩', symbol: 'Rp' },
-  PHP: { name: 'پزو فیلیپین', flag: '🇵🇭', symbol: '₱' },
-  VND: { name: 'دانگ ویتنام', flag: '🇻🇳', symbol: '₫' },
-  MXN: { name: 'پزو مکزیک', flag: '🇲🇽', symbol: '$' },
-  PLN: { name: 'زلوتی لهستان', flag: '🇵🇱', symbol: 'zł' },
-  CZK: { name: 'کرونا چک', flag: '🇨🇿', symbol: 'Kč' },
-  HUF: { name: 'فورینت مجارستان', flag: '🇭🇺', symbol: 'Ft' },
-  ILS: { name: 'شکل اسرائیل', flag: '🇮🇱', symbol: '₪' },
-  CLP: { name: 'پزو شیلی', flag: '🇨🇱', symbol: '$' },
-  COP: { name: 'پزو کلمبیا', flag: '🇨🇴', symbol: '$' },
-  PEN: { name: 'سول پرو', flag: '🇵🇪', symbol: 'S/.' },
-  ARS: { name: 'پزو آرژانتین', flag: '🇦🇷', symbol: '$' },
-  BGN: { name: 'لو بلغارستان', flag: '🇧🇬', symbol: 'лв' },
-  RON: { name: 'لئو رومانی', flag: '🇷🇴', symbol: 'lei' },
-  ISK: { name: 'کرون ایسلند', flag: '🇮🇸', symbol: 'kr' },
-  HRK: { name: 'کونا کرواسی', flag: '🇭🇷', symbol: 'kn' },
-  RSD: { name: 'دینار صربستان', flag: '🇷🇸', symbol: 'din' },
-  LYD: { name: 'دینار لیبی', flag: '🇱🇾', symbol: 'LD' },
-  TND: { name: 'دینار تونس', flag: '🇹🇳', symbol: 'DT' },
-  MAD: { name: 'درهم مراکش', flag: '🇲🇦', symbol: 'MAD' },
-  DZD: { name: 'دینار الجزایر', flag: '🇩🇿', symbol: 'DA' },
-  USDT: { name: 'تتر (USDT)', flag: '🪙', symbol: '₮' },
-};
+// Re-export dynamic currency metadata map (backed by financialSpecs.js single source of truth)
+export { CURRENCY_METADATA_MAP };
+
 
 /**
  * Perform all financial, gold, coin bubble, and currency conversions on the client
@@ -157,11 +100,11 @@ export function calculateMarketData({
   }
 
   const itemsAnalysis = [
-    analyzeItem('gold_18k', 'طلا ۱۸ عیار', gold_18k_gram, 0, marketPrices?.gold_18k),
-    analyzeItem('mesghal', 'مثقال طلا (مظنه)', mesghal_17k, 0, marketPrices?.mesghal),
-    analyzeItem('full_coin', 'سکه تمام ۸۶', full_intrinsic, globalSettings?.bubble_pct_full ?? 15, marketPrices?.full_coin),
-    analyzeItem('half_coin', 'نیم سکه بهار آزادی', half_intrinsic, globalSettings?.bubble_pct_half ?? 20, marketPrices?.half_coin),
-    analyzeItem('quarter_coin', 'ربع سکه بهار آزادی', quarter_intrinsic, globalSettings?.bubble_pct_quarter ?? 25, marketPrices?.quarter_coin),
+    analyzeItem('gold_18k', getCanonicalAssetName('gold_18k', 'طلا ۱۸ عیار'), gold_18k_gram, 0, marketPrices?.gold_18k),
+    analyzeItem('mesghal', getCanonicalAssetName('mesghal', 'مثقال طلا (مظنه)'), mesghal_17k, 0, marketPrices?.mesghal),
+    analyzeItem('full_coin', getCanonicalAssetName('full_coin', 'سکه تمام بهار آزادی'), full_intrinsic, globalSettings?.bubble_pct_full ?? 15, marketPrices?.full_coin),
+    analyzeItem('half_coin', getCanonicalAssetName('half_coin', 'نیم سکه بهار آزادی'), half_intrinsic, globalSettings?.bubble_pct_half ?? 20, marketPrices?.half_coin),
+    analyzeItem('quarter_coin', getCanonicalAssetName('quarter_coin', 'ربع سکه بهار آزادی'), quarter_intrinsic, globalSettings?.bubble_pct_quarter ?? 25, marketPrices?.quarter_coin),
   ];
 
   // Recommendation: lowest bubble percentage (only considering visible items)
@@ -181,13 +124,14 @@ export function calculateMarketData({
   const seenCodes = new Set(['USD']);
   const usdSource = marketPrices?.usd_toman || marketPrices?.usd;
   const showUsdOnHome = usdSource?.showOnHomePage !== undefined ? Boolean(usdSource.showOnHomePage) : true;
+  const usdSpec = getCanonicalAssetSpec('USD') || {};
   const currencies = [
     {
       code: 'USD',
       priceType: 'usd',
-      name: 'دلار آمریکا',
-      flag: '🇺🇸',
-      symbol: '$',
+      name: usdSpec.name || 'دلار',
+      flag: usdSpec.flag || '🇺🇸',
+      symbol: usdSpec.symbol || '$',
       usd_cross_rate: 1.0,
       toman_price: Math.round(usd_toman),
       note: 'نرخ دلار نقدی بازار آزاد',
@@ -276,11 +220,10 @@ export function calculateMarketData({
     quick_currencies[c.code] = c.toman_price;
   });
 
-  // 3. Silver calculations
-  const raw_silver_999_gram = (silver_usd / TROY_OUNCE_GRAMS) * usd_toman;
-  const silver_999_gram = raw_silver_999_gram;
-  const silver_925_gram = silver_999_gram * 0.925;
-  const silver_ounce = silver_usd * usd_toman;
+  // 3. Silver calculations (canonical formulas from financialSpecs.js)
+  const silver_999_gram = calculateSilverGram(silver_usd, usd_toman);
+  const silver_925_gram = calculateSilver925(silver_usd, usd_toman);
+  const silver_ounce = calculateSilverOunce(silver_usd, usd_toman);
 
   return {
     success: true,

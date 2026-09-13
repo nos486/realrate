@@ -1,19 +1,26 @@
 import React from 'react';
+import { getCanonicalAssetSpec } from '../utils/financialSpecs.js';
 
 function formatNum(num) {
   if (num === null || num === undefined || isNaN(num)) return '...';
   return Math.round(num).toLocaleString('fa-IR');
 }
 
+const QUICK_CODES = ['USD', 'EUR', 'AED', 'TRY'];
+
 export default function QuickCurrencies({ quickCurrencies }) {
   const qc = quickCurrencies || {};
 
-  const items = [
-    { code: 'USD', name: 'دلار', flag: '🇺🇸', val: qc.USD },
-    { code: 'EUR', name: 'یورو', flag: '🇪🇺', val: qc.EUR },
-    { code: 'AED', name: 'درهم', flag: '🇦🇪', val: qc.AED },
-    { code: 'TRY', name: 'لیر', flag: '🇹🇷', val: qc.TRY },
-  ];
+  const items = QUICK_CODES.map((code) => {
+    const spec = getCanonicalAssetSpec(code) || {};
+    return {
+      code,
+      name: spec.name || code,
+      flag: spec.flag || '🌐',
+      val: qc[code],
+    };
+  });
+
 
   return (
     <div className="ticker-strip">
