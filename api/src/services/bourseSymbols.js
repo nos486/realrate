@@ -63,14 +63,27 @@ export function mergeBourseSymbols(existingList = [], rawApiArray = [], nowIso =
       const key = String(item.s).trim();
       if (!key) continue;
 
-      let toman = item.priceToman;
-      let rial = item.priceRial;
-      if (toman === undefined) {
-        const raw = Number(item.p || 0);
-        toman = Math.round(raw / 10);
-        rial = raw;
+      let toman = 0;
+      let rial = 0;
+
+      if (item.priceToman !== undefined && Number(item.priceToman) > 0) {
+        toman = Number(item.priceToman);
+      } else if (item.p !== undefined && Number(item.p) > 0) {
+        toman = Number(item.p);
+      } else if (item.price !== undefined && Number(item.price) > 0) {
+        toman = Number(item.price);
       }
-      if (!rial && toman) {
+
+      if (item.priceRial !== undefined && Number(item.priceRial) > 0) {
+        rial = Number(item.priceRial);
+      } else if (item.pl !== undefined && Number(item.pl) > 0) {
+        rial = Number(item.pl);
+      }
+
+      if (!toman && rial > 0) {
+        toman = Math.round(rial / 10);
+      }
+      if (!rial && toman > 0) {
         rial = toman * 10;
       }
 
@@ -78,8 +91,10 @@ export function mergeBourseSymbols(existingList = [], rawApiArray = [], nowIso =
         s: key,
         n: item.n || item.name || key,
         p: toman,
+        price: toman,
         priceToman: toman,
         priceRial: rial,
+        pl: rial,
         updatedAt: item.updatedAt || nowIso,
         isFund: Boolean(item.isFund || (item.n && item.n.includes('صندوق'))),
       });
@@ -100,48 +115,38 @@ export function mergeBourseSymbols(existingList = [], rawApiArray = [], nowIso =
 
       seenKeysInApi.add(sym);
 
-      // Strictly extract Last Traded Price (pl)
-      let rawPrice = Number(item.pl);
-      if (isNaN(rawPrice) || rawPrice <= 0) {
-        rawPrice = 0;
-      }
+      // Raw price from API: 'pl' is in RIALS (TSETMC standard)
+      const rawPl = item.pl !== undefined && item.pl !== null ? item.pl : 0;
+      const rawPriceRial = Number(String(rawPl).replace(/,/g, '').trim()) || 0;
 
       const existing = symbolMap.get(sym);
 
-      if (rawPrice > 0) {
-        const priceToman = Math.round(rawPrice / 10);
+      if (rawPriceRial > 0) {
+        // Convert Rials to Tomans
+        const priceToman = Math.round(rawPriceRial / 10);
         const isFund = Boolean(name.includes('صندوق') || existing?.isFund);
 
+        const priceChanged = existing ? (existing.priceRial !== rawPriceRial) : true;
+
+        symbolMap.set(sym, {
+          s: sym,
+          n: name || existing?.n || sym,
+          p: priceToman,
+          price: priceToman,
+          priceToman: priceToman,
+          priceRial: rawPriceRial,
+          pl: rawPriceRial,
+          updatedAt: (existing && !priceChanged) ? existing.updatedAt : nowIso,
+          isFund,
+        });
+
         if (existing) {
-          // Update existing symbol with new price
-          const priceChanged = existing.priceToman !== priceToman;
-          symbolMap.set(sym, {
-            s: sym,
-            n: name || existing.n,
-            p: priceToman,
-            priceToman: priceToman,
-            priceRial: rawPrice,
-            updatedAt: priceChanged ? nowIso : existing.updatedAt,
-            isFund,
-          });
-          if (priceChanged) {
-            updatedCount++;
-          }
+          if (priceChanged) updatedCount++;
         } else {
-          // Brand new symbol added
-          symbolMap.set(sym, {
-            s: sym,
-            n: name,
-            p: priceToman,
-            priceToman: priceToman,
-            priceRial: rawPrice,
-            updatedAt: nowIso,
-            isFund,
-          });
           addedCount++;
         }
       } else if (existing) {
-        // Price in API is zero/invalid, but symbol previously had a price -> RETAIN PREVIOUS PRICE!
+        // Price in API is zero/invalid -> RETAIN PREVIOUS VALID PRICE!
         if (name && name !== existing.n) {
           existing.n = name;
         }
@@ -334,24 +339,37 @@ export async function getBourseSymbols(env, query = "", limit = 50) {
   const sliced = filtered.slice(0, maxResults);
 
   return sliced.map(item => {
-    let toman = item.priceToman;
-    let rial = item.priceRial;
-    if (toman === undefined) {
-      const raw = Number(item.p || 0);
-      toman = Math.round(raw / 10);
-      rial = raw;
-    } else if (rial && toman === rial) {
+    let toman = 0;
+    let rial = 0;
+
+    if (item.priceToman !== undefined && Number(item.priceToman) > 0) {
+      toman = Number(item.priceToman);
+    } else if (item.p !== undefined && Number(item.p) > 0) {
+      toman = Number(item.p);
+    } else if (item.price !== undefined && Number(item.price) > 0) {
+      toman = Number(item.price);
+    }
+
+    if (item.priceRial !== undefined && Number(item.priceRial) > 0) {
+      rial = Number(item.priceRial);
+    } else if (item.pl !== undefined && Number(item.pl) > 0) {
+      rial = Number(item.pl);
+    }
+
+    if (!toman && rial > 0) {
       toman = Math.round(rial / 10);
     }
-    if (!rial) {
+    if (!rial && toman > 0) {
       rial = toman * 10;
     }
+
     return {
       symbol: item.s,
       name: item.n,
       price: toman,
       priceToman: toman,
       priceRial: rial,
+      pl: rial,
       updatedAt: item.updatedAt || null,
       isFund: Boolean(item.isFund || (item.n && item.n.includes('صندوق'))),
     };
@@ -383,16 +401,27 @@ export async function getBourseSymbolDetail(env, symbol) {
     const found = list.find(item => normalizePersian(item.s) === targetNorm);
     if (!found) return null;
 
-    let toman = found.priceToman;
-    let rial = found.priceRial;
-    if (toman === undefined) {
-      const raw = Number(found.p || 0);
-      toman = Math.round(raw / 10);
-      rial = raw;
-    } else if (rial && toman === rial) {
+    let toman = 0;
+    let rial = 0;
+
+    if (found.priceToman !== undefined && Number(found.priceToman) > 0) {
+      toman = Number(found.priceToman);
+    } else if (found.p !== undefined && Number(found.p) > 0) {
+      toman = Number(found.p);
+    } else if (found.price !== undefined && Number(found.price) > 0) {
+      toman = Number(found.price);
+    }
+
+    if (found.priceRial !== undefined && Number(found.priceRial) > 0) {
+      rial = Number(found.priceRial);
+    } else if (found.pl !== undefined && Number(found.pl) > 0) {
+      rial = Number(found.pl);
+    }
+
+    if (!toman && rial > 0) {
       toman = Math.round(rial / 10);
     }
-    if (!rial) {
+    if (!rial && toman > 0) {
       rial = toman * 10;
     }
 
@@ -402,6 +431,7 @@ export async function getBourseSymbolDetail(env, symbol) {
       price: toman,
       priceToman: toman,
       priceRial: rial,
+      pl: rial,
       updatedAt: found.updatedAt || null,
       isFund: Boolean(found.isFund || (found.n && found.n.includes('صندوق'))),
     };

@@ -217,21 +217,21 @@ export function parseSourceContent(source, rawContent) {
         if (!sym || !name) continue;
 
         // Strictly extract Last Traded Price (pl)
-        let rawPrice = Number(item.pl);
-        if (isNaN(rawPrice) || rawPrice <= 0) {
-          rawPrice = 0;
-        }
+        const rawPl = item.pl !== undefined && item.pl !== null ? item.pl : 0;
+        const rawPrice = Number(String(rawPl).replace(/,/g, '').trim()) || 0;
         if (rawPrice <= 0) continue;
 
-        // BRS API / TSETMC prices (pl, pc) are in Rials. Divide by 10 to convert to Tomans.
+        // BRS API / TSETMC prices (pl) are in Rials. Divide by 10 to convert to Tomans.
         const priceToman = Math.round(rawPrice / 10);
 
         compactList.push({
           s: sym,
           n: name,
           p: priceToman,
+          price: priceToman,
           priceToman: priceToman,
           priceRial: rawPrice,
+          pl: rawPrice,
         });
       }
 
