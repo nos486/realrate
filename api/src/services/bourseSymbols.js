@@ -1,468 +1,149 @@
 /**
- * Bourse (Tehran Stock Exchange - TSETMC) Service
- * Fetches, compacts, caches in KV, and searches Iranian stock market symbols from BRS API.
- * Strictly extracts: Symbol (l18), Name (l30), Price (pl in Tomans).
- * No change/percent/volume or extra fields.
+ * bourseSymbols.js — Backward-compatible wrapper for Tehran Stock Exchange (TSETMC) Service
+ * Logic has been migrated to api/src/services/market/sources/bourseSymbols.source.adapter.js
  */
 
-import { dbUpdateSourceLastPrice } from '../repositories/priceSource.repository.js';
 import {
-  getBourseSymbolsCache,
-  setBourseSymbolsCache,
-  getBourseLastSync,
-  setBourseLastSync,
+  bourseSymbolsSourceAdapter,
+  normalizePersian,
+  mergeBourseSymbols,
+  BOURSE_API_URL,
+} from "./market/sources/bourseSymbols.source.adapter.js";
+import {
   BOURSE_KV_KEY,
   BOURSE_BACKUP_KV_KEY,
   BOURSE_LAST_SYNC_KEY,
-} from '../repositories/kvCache.repository.js';
-import { logger } from '../lib/logger.js';
-import {
-  BOURSE_SYNC_INTERVAL_MS,
-  BOURSE_SYNC_EXPIRATION_TTL,
-  DEFAULT_BOURSE_SEARCH_LIMIT,
-} from '../config/constants.js';
+} from "../repositories/kvCache.repository.js";
+import { dbUpdateSourceLastPrice } from "../repositories/priceSource.repository.js";
+import { DEFAULT_BOURSE_SEARCH_LIMIT } from "../config/constants.js";
+import { logger } from "../lib/logger.js";
 
-export { BOURSE_KV_KEY, BOURSE_BACKUP_KV_KEY, BOURSE_LAST_SYNC_KEY };
-export const BOURSE_API_URL = "https://api.brsapi.ir/Tsetmc/AllSymbols.php?key=BDqzgcZZ5rGg4Z6uSEs9bMyx2E2vXrkd&type=1";
-
-let inMemoryBourseList = null;
-
-/**
- * Normalize Persian text for search matching (handles Arabic kaf/yeh and half-spaces)
- * @param {string} str
- * @returns {string}
- */
-export function normalizePersian(str) {
-  if (!str) return "";
-  return String(str)
-    .replace(/ي/g, "ی")
-    .replace(/ك/g, "ک")
-    .replace(/[\u200B-\u200D\uFEFF]/g, "")
-    .replace(/‌/g, " ")
-    .replace(/\s+/g, " ")
-    .trim()
-    .toLowerCase();
-}
+export {
+  BOURSE_API_URL,
+  BOURSE_KV_KEY,
+  BOURSE_BACKUP_KV_KEY,
+  BOURSE_LAST_SYNC_KEY,
+  normalizePersian,
+  mergeBourseSymbols,
+};
 
 /**
- * Smart incremental merge of incoming raw BRS API symbols with existing symbols.
- * Guarantees that:
- * 1. Previously known symbols are NEVER deleted, even if absent in the new API response.
- * 2. If a symbol in the new response has an invalid or zero price, its previous valid price is retained.
- * 3. New symbols are added.
- * 4. Active symbols with valid new prices are updated with a fresh timestamp.
- *
- * @param {Array} existingList - Current list of stored symbols
- * @param {Array} rawApiArray - New array from BRS API
- * @param {string} [nowIso] - Current ISO timestamp
- * @returns {{
- *   mergedList: Array,
- *   stats: {
- *     totalSymbols: number,
- *     updatedCount: number,
- *     addedCount: number,
- *     retainedCount: number,
- *     apiSymbolCount: number,
- *   }
- * }}
- */
-export function mergeBourseSymbols(existingList = [], rawApiArray = [], nowIso = new Date().toISOString()) {
-  const symbolMap = new Map();
-
-  // 1. Initialize map with existing symbols
-  if (Array.isArray(existingList)) {
-    for (const item of existingList) {
-      if (!item || !item.s) continue;
-      const key = String(item.s).trim();
-      if (!key) continue;
-
-      let toman = 0;
-      let rial = 0;
-
-      if (item.priceToman !== undefined && Number(item.priceToman) > 0) {
-        toman = Number(item.priceToman);
-      } else if (item.p !== undefined && Number(item.p) > 0) {
-        toman = Number(item.p);
-      } else if (item.price !== undefined && Number(item.price) > 0) {
-        toman = Number(item.price);
-      }
-
-      if (item.priceRial !== undefined && Number(item.priceRial) > 0) {
-        rial = Number(item.priceRial);
-      } else if (item.pl !== undefined && Number(item.pl) > 0) {
-        rial = Number(item.pl);
-      }
-
-      if (!toman && rial > 0) {
-        toman = Math.round(rial / 10);
-      }
-      if (!rial && toman > 0) {
-        rial = toman * 10;
-      }
-
-      symbolMap.set(key, {
-        s: key,
-        n: item.n || item.name || key,
-        p: toman,
-        price: toman,
-        priceToman: toman,
-        priceRial: rial,
-        pl: rial,
-        updatedAt: item.updatedAt || nowIso,
-        isFund: Boolean(item.isFund || (item.n && item.n.includes('صندوق'))),
-      });
-    }
-  }
-
-  let updatedCount = 0;
-  let addedCount = 0;
-  const seenKeysInApi = new Set();
-
-  // 2. Incremental upsert from rawApiArray
-  if (Array.isArray(rawApiArray)) {
-    for (const item of rawApiArray) {
-      if (!item || typeof item !== "object") continue;
-      const sym = (item.l18 || item.symbol || "").trim();
-      const name = (item.l30 || item.name || sym).trim();
-      if (!sym) continue;
-
-      seenKeysInApi.add(sym);
-
-      // Raw price from API: 'pl' is in RIALS (TSETMC standard)
-      const rawPl = item.pl !== undefined && item.pl !== null ? item.pl : 0;
-      const rawPriceRial = Number(String(rawPl).replace(/,/g, '').trim()) || 0;
-
-      const existing = symbolMap.get(sym);
-
-      if (rawPriceRial > 0) {
-        // Convert Rials to Tomans
-        const priceToman = Math.round(rawPriceRial / 10);
-        const isFund = Boolean(name.includes('صندوق') || existing?.isFund);
-
-        const priceChanged = existing ? (existing.priceRial !== rawPriceRial) : true;
-
-        symbolMap.set(sym, {
-          s: sym,
-          n: name || existing?.n || sym,
-          p: priceToman,
-          price: priceToman,
-          priceToman: priceToman,
-          priceRial: rawPriceRial,
-          pl: rawPriceRial,
-          updatedAt: (existing && !priceChanged) ? existing.updatedAt : nowIso,
-          isFund,
-        });
-
-        if (existing) {
-          if (priceChanged) updatedCount++;
-        } else {
-          addedCount++;
-        }
-      } else if (existing) {
-        // Price in API is zero/invalid -> RETAIN PREVIOUS VALID PRICE!
-        if (name && name !== existing.n) {
-          existing.n = name;
-        }
-      }
-    }
-  }
-
-  // Count retained symbols that were not in the latest API response
-  let retainedCount = 0;
-  for (const sym of symbolMap.keys()) {
-    if (!seenKeysInApi.has(sym)) {
-      retainedCount++;
-    }
-  }
-
-  const mergedList = Array.from(symbolMap.values());
-
-  return {
-    mergedList,
-    stats: {
-      totalSymbols: mergedList.length,
-      updatedCount,
-      addedCount,
-      retainedCount,
-      apiSymbolCount: seenKeysInApi.size,
-    },
-  };
-}
-
-/**
- * Fetch all symbols from BRS API, incrementally merge with existing data, and persist.
- * Guaranteed zero data loss when symbols are omitted from newer API responses.
+ * Fetch fresh symbols from BRS API, merge with existing, and update KV & D1
  * @param {object} env
- * @returns {Promise<{ success: boolean, count: number, symbols?: Array, stats?: object, error?: string }>}
+ * @returns {Promise<{ success: boolean, count?: number, symbols?: Array, error?: string }>}
  */
 export async function fetchAndStoreBourseSymbols(env) {
   try {
-    const res = await fetch(BOURSE_API_URL, {
-      headers: { "User-Agent": "RealRateWorker/1.0", "Accept": "application/json" },
-    });
+    const raw = await bourseSymbolsSourceAdapter.fetchRaw({});
+    const parsed = await bourseSymbolsSourceAdapter.parse(raw, { name: "بورس اوراق بهادار تهران (TSETMC / BRS API)" }, env);
 
-    if (!res.ok) {
-      throw new Error(`BRS API HTTP error: ${res.status}`);
-    }
-
-    const rawData = await res.json();
-    let rawArray = Array.isArray(rawData) ? rawData : (rawData?.symbols || rawData?.data || []);
-
-    if (!Array.isArray(rawArray) || rawArray.length === 0) {
-      throw new Error("No symbols returned from Bourse API");
-    }
-
-    // Load previous symbols from memory or KV or Backup
-    let previousList = inMemoryBourseList || [];
-    if (previousList.length === 0) {
-      try {
-        const { cached, backup } = await getBourseSymbolsCache(env);
-        if (cached) {
-          previousList = JSON.parse(cached);
-        } else if (backup) {
-          previousList = JSON.parse(backup);
-        }
-      } catch (e) {
-        logger.error("Error loading previous bourse symbols for merge:", { error: e.message });
-      }
-    }
-
-    const nowIso = new Date().toISOString();
-    const { mergedList, stats } = mergeBourseSymbols(previousList, rawArray, nowIso);
-
-    if (mergedList.length === 0) {
-      throw new Error("No valid symbols extracted or retained from Bourse API");
-    }
-
-    const compactJson = JSON.stringify(mergedList);
-
-    // Persist in Cloudflare KV permanently (no 48h expiration TTL to prevent wipeouts)
-    await setBourseSymbolsCache(env, compactJson, mergedList.length >= 100);
-
-    inMemoryBourseList = mergedList;
-
-    // Update D1 price_sources table with detailed audit metrics
     if (env?.DB) {
       await dbUpdateSourceLastPrice(
         env,
         'src_def_bourse',
-        mergedList.length,
-        nowIso,
-        {
-          totalSymbols: stats.totalSymbols,
-          updatedCount: stats.updatedCount,
-          addedCount: stats.addedCount,
-          retainedCount: stats.retainedCount,
-          apiCount: stats.apiSymbolCount,
-          updatedAt: nowIso,
-        }
-      ).catch(() => {});
+        parsed.price,
+        parsed.datetime,
+        parsed.multiData
+      );
     }
 
-    return {
-      success: true,
-      count: mergedList.length,
-      symbols: mergedList,
-      stats,
-    };
+    return { success: true, count: parsed.price, symbols: parsed.compactList };
   } catch (err) {
-    logger.error("fetchAndStoreBourseSymbols error:", { error: err.message, stack: err.stack });
-    return { success: false, count: inMemoryBourseList?.length || 0, error: err.message };
+    logger.error("fetchAndStoreBourseSymbols error:", { error: err.message });
+    return { success: false, error: err.message };
   }
 }
 
 /**
- * Get cached stock symbols with search filtering.
- * Strictly returns: symbol, name, price, priceToman, priceRial, updatedAt, isFund.
+ * Get symbols list with optional search query
  * @param {object} env
- * @param {string} [query]
- * @param {number} [limit=50]
- * @returns {Promise<Array<{ symbol: string, name: string, price: number, priceToman: number, priceRial: number, updatedAt: string, isFund: boolean }>>}
+ * @param {string} [query=""]
+ * @param {number} [limit=DEFAULT_BOURSE_SEARCH_LIMIT]
+ * @returns {Promise<Array>}
  */
 export async function getBourseSymbols(env, query = "", limit = DEFAULT_BOURSE_SEARCH_LIMIT) {
-  let list = inMemoryBourseList || [];
+  let list = await bourseSymbolsSourceAdapter.getSymbols(env);
 
   if (!list || list.length === 0) {
-    try {
-      const { cached, backup } = await getBourseSymbolsCache(env);
-      if (cached) {
-        list = JSON.parse(cached);
-        inMemoryBourseList = list;
-      } else if (backup) {
-        list = JSON.parse(backup);
-        inMemoryBourseList = list;
-      }
-    } catch (e) {
-      logger.error("Error reading bourse KV:", { error: e.message });
-    }
-  }
-
-  // If KV is empty, fetch immediately
-  if (!list || list.length === 0) {
-    const fetchRes = await fetchAndStoreBourseSymbols(env);
-    if (fetchRes.success && fetchRes.symbols) {
-      list = fetchRes.symbols;
-    } else if (fetchRes.success) {
-      try {
-        const { cached } = await getBourseSymbolsCache(env);
-        if (cached) list = JSON.parse(cached);
-      } catch (ignore) {}
+    const res = await fetchAndStoreBourseSymbols(env);
+    if (res.success && res.symbols) {
+      list = res.symbols;
     }
   }
 
   const cleanQuery = normalizePersian(query);
-
-  let filtered = list;
-  if (cleanQuery) {
-    filtered = list.filter(item => {
-      const symNorm = normalizePersian(item.s);
-      const nameNorm = normalizePersian(item.n);
-      return symNorm.includes(cleanQuery) || nameNorm.includes(cleanQuery);
-    });
-
-    filtered.sort((a, b) => {
-      const aSym = normalizePersian(a.s);
-      const bSym = normalizePersian(b.s);
-
-      const aExact = aSym === cleanQuery ? 1 : 0;
-      const bExact = bSym === cleanQuery ? 1 : 0;
-      if (bExact !== aExact) return bExact - aExact;
-
-      const aPrefix = aSym.startsWith(cleanQuery) ? 1 : 0;
-      const bPrefix = bSym.startsWith(cleanQuery) ? 1 : 0;
-      if (bPrefix !== aPrefix) return bPrefix - aPrefix;
-
-      return 0;
-    });
-  }
-
-  const maxResults = Math.min(Number(limit) || 50, 2000);
-  const sliced = filtered.slice(0, maxResults);
-
-  return sliced.map(item => {
-    let toman = 0;
-    let rial = 0;
-
-    if (item.priceToman !== undefined && Number(item.priceToman) > 0) {
-      toman = Number(item.priceToman);
-    } else if (item.p !== undefined && Number(item.p) > 0) {
-      toman = Number(item.p);
-    } else if (item.price !== undefined && Number(item.price) > 0) {
-      toman = Number(item.price);
-    }
-
-    if (item.priceRial !== undefined && Number(item.priceRial) > 0) {
-      rial = Number(item.priceRial);
-    } else if (item.pl !== undefined && Number(item.pl) > 0) {
-      rial = Number(item.pl);
-    }
-
-    if (!toman && rial > 0) {
-      toman = Math.round(rial / 10);
-    }
-    if (!rial && toman > 0) {
-      rial = toman * 10;
-    }
-
-    return {
+  if (!cleanQuery) {
+    return (list || []).slice(0, limit).map(item => ({
       symbol: item.s,
       name: item.n,
-      price: toman,
-      priceToman: toman,
-      priceRial: rial,
-      pl: rial,
+      price: item.p,
+      priceToman: item.priceToman || item.p,
+      priceRial: item.priceRial || item.pl || (item.p * 10),
       updatedAt: item.updatedAt || null,
       isFund: Boolean(item.isFund || (item.n && item.n.includes('صندوق'))),
-    };
+    }));
+  }
+
+  const filtered = (list || []).filter(item => {
+    const symNorm = normalizePersian(item.s);
+    const nameNorm = normalizePersian(item.n);
+    return symNorm.includes(cleanQuery) || nameNorm.includes(cleanQuery);
   });
+
+  filtered.sort((a, b) => {
+    const aSym = normalizePersian(a.s);
+    const bSym = normalizePersian(b.s);
+    if (aSym === cleanQuery) return -1;
+    if (bSym === cleanQuery) return 1;
+    if (aSym.startsWith(cleanQuery) && !bSym.startsWith(cleanQuery)) return -1;
+    if (!aSym.startsWith(cleanQuery) && bSym.startsWith(cleanQuery)) return 1;
+    return (b.p || 0) - (a.p || 0);
+  });
+
+  return filtered.slice(0, limit).map(item => ({
+    symbol: item.s,
+    name: item.n,
+    price: item.p,
+    priceToman: item.priceToman || item.p,
+    priceRial: item.priceRial || item.pl || (item.p * 10),
+    updatedAt: item.updatedAt || null,
+    isFund: Boolean(item.isFund || (item.n && item.n.includes('صندوق'))),
+  }));
 }
 
 /**
- * Look up a single stock symbol by its ticker code
+ * Look up a single stock symbol by ticker code
  * @param {object} env
  * @param {string} symbol
  * @returns {Promise<object|null>}
  */
 export async function getBourseSymbolDetail(env, symbol) {
   if (!symbol) return null;
-  try {
-    let list = inMemoryBourseList || [];
-    if (!list || list.length === 0) {
-      const { cached, backup } = await getBourseSymbolsCache(env);
-      if (cached) {
-        list = JSON.parse(cached);
-      } else if (backup) {
-        list = JSON.parse(backup);
-      }
-    }
-    if (!list || list.length === 0) return null;
+  const list = await bourseSymbolsSourceAdapter.getSymbols(env);
+  if (!list || list.length === 0) return null;
 
-    const targetNorm = normalizePersian(symbol);
-    const found = list.find(item => normalizePersian(item.s) === targetNorm);
-    if (!found) return null;
+  const targetNorm = normalizePersian(symbol);
+  const found = list.find(item => normalizePersian(item.s) === targetNorm);
+  if (!found) return null;
 
-    let toman = 0;
-    let rial = 0;
+  const toman = found.priceToman || found.p || Math.round((found.priceRial || found.pl || 0) / 10);
+  const rial = found.priceRial || found.pl || (toman * 10);
 
-    if (found.priceToman !== undefined && Number(found.priceToman) > 0) {
-      toman = Number(found.priceToman);
-    } else if (found.p !== undefined && Number(found.p) > 0) {
-      toman = Number(found.p);
-    } else if (found.price !== undefined && Number(found.price) > 0) {
-      toman = Number(found.price);
-    }
-
-    if (found.priceRial !== undefined && Number(found.priceRial) > 0) {
-      rial = Number(found.priceRial);
-    } else if (found.pl !== undefined && Number(found.pl) > 0) {
-      rial = Number(found.pl);
-    }
-
-    if (!toman && rial > 0) {
-      toman = Math.round(rial / 10);
-    }
-    if (!rial && toman > 0) {
-      rial = toman * 10;
-    }
-
-    return {
-      symbol: found.s,
-      name: found.n,
-      price: toman,
-      priceToman: toman,
-      priceRial: rial,
-      pl: rial,
-      updatedAt: found.updatedAt || null,
-      isFund: Boolean(found.isFund || (found.n && found.n.includes('صندوق'))),
-    };
-  } catch (e) {
-    logger.error("getBourseSymbolDetail error:", { error: e.message });
-    return null;
-  }
+  return {
+    symbol: found.s,
+    name: found.n,
+    price: toman,
+    priceToman: toman,
+    priceRial: rial,
+    pl: rial,
+    updatedAt: found.updatedAt || null,
+    isFund: Boolean(found.isFund || (found.n && found.n.includes('صندوق'))),
+  };
 }
 
 /**
- * Scheduled handler to sync bourse symbols once per day (24 hours).
- * @param {object} env
- * @returns {Promise<boolean>}
+ * Scheduled handler for daily Bourse sync
  */
 export async function handleScheduledBourseSync(env) {
-  try {
-    const lastSyncStr = await getBourseLastSync(env);
-    const lastSync = lastSyncStr ? parseInt(lastSyncStr, 10) : 0;
-    const now = Date.now();
-    // 24 hours
-    if (now - lastSync < BOURSE_SYNC_INTERVAL_MS) {
-      return false;
-    }
-
-    const res = await fetchAndStoreBourseSymbols(env);
-    if (res.success) {
-      await setBourseLastSync(env, now, BOURSE_SYNC_EXPIRATION_TTL);
-      return true;
-    }
-  } catch (err) {
-    logger.error("[Bourse] Scheduled sync error:", { error: err.message, stack: err.stack });
-  }
-  return false;
+  return await bourseSymbolsSourceAdapter.handleScheduledSync(env);
 }

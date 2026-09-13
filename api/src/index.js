@@ -56,7 +56,8 @@ import {
   handleGetSharedPortfolio,
 } from "./handlers/portfolioRoutes.js";
 import { handleScheduledPriceExtraction, fetchAllPrices } from "./services/priceSources.js";
-import { getBourseSymbols, fetchAndStoreBourseSymbols, handleScheduledBourseSync } from "./services/bourseSymbols.js";
+import { getBourseSymbols, fetchAndStoreBourseSymbols } from "./services/bourseSymbols.js";
+import { runCronPolling } from "./jobs/cronPolling.job.js";
 
 export default {
   async fetch(request, env, ctx) {
@@ -206,15 +207,6 @@ export default {
    * Runs automatically every minute to extract due price sources based on fetchIntervalSec
    */
   async scheduled(event, env, ctx) {
-    ctx.waitUntil(
-      Promise.all([
-        handleScheduledPriceExtraction(env).catch(err => {
-          logger.error("[Scheduled] Price extraction error:", { error: err.message, stack: err.stack });
-        }),
-        handleScheduledBourseSync(env).catch(err => {
-          logger.error("[Scheduled] Bourse sync error:", { error: err.message, stack: err.stack });
-        }),
-      ])
-    );
+    await runCronPolling(event, env, ctx);
   },
 };

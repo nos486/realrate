@@ -21,7 +21,7 @@ import {
 } from "../repositories/index.js";
 import { getAdminStats } from "../lib/analytics.js";
 import { testUsdSource } from "../services/telegramPrices.js";
-import { testPriceSourceConfig, fetchAllPrices, inspectApiEndpointStructure, refreshMarketRatesCache } from "../services/priceSources.js";
+import { testPriceSourceConfig, fetchAllPrices, inspectApiEndpointStructure, refreshMarketRatesCache } from "../services/market/priceAggregator.service.js";
 import { jsonResponse, errorResponse, forbiddenResponse } from "../lib/helpers.js";
 import { AppError } from "../lib/AppError.js";
 import { logger } from "../lib/logger.js";
