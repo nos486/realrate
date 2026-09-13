@@ -9,6 +9,7 @@ import { dbUpdateSourceLastPrice } from '../lib/db.js';
 
 export const BOURSE_API_URL = "https://api.brsapi.ir/Tsetmc/AllSymbols.php?key=BDqzgcZZ5rGg4Z6uSEs9bMyx2E2vXrkd&type=1";
 export const BOURSE_KV_KEY = "bourse_symbols_toman_v3";
+export const BOURSE_BACKUP_KV_KEY = "bourse_symbols_backup_v1";
 export const BOURSE_LAST_SYNC_KEY = "bourse_symbols_last_sync_v3";
 
 let inMemoryBourseList = null;
@@ -31,12 +32,149 @@ export function normalizePersian(str) {
 }
 
 /**
- * Fetch all symbols from BRS API, compact payload to strictly { s, n, p }, and store in KV.
- * s: Symbol (l18)
- * n: Name (l30)
- * p: Last price in Tomans (pl / 10)
+ * Smart incremental merge of incoming raw BRS API symbols with existing symbols.
+ * Guarantees that:
+ * 1. Previously known symbols are NEVER deleted, even if absent in the new API response.
+ * 2. If a symbol in the new response has an invalid or zero price, its previous valid price is retained.
+ * 3. New symbols are added.
+ * 4. Active symbols with valid new prices are updated with a fresh timestamp.
+ *
+ * @param {Array} existingList - Current list of stored symbols
+ * @param {Array} rawApiArray - New array from BRS API
+ * @param {string} [nowIso] - Current ISO timestamp
+ * @returns {{
+ *   mergedList: Array,
+ *   stats: {
+ *     totalSymbols: number,
+ *     updatedCount: number,
+ *     addedCount: number,
+ *     retainedCount: number,
+ *     apiSymbolCount: number,
+ *   }
+ * }}
+ */
+export function mergeBourseSymbols(existingList = [], rawApiArray = [], nowIso = new Date().toISOString()) {
+  const symbolMap = new Map();
+
+  // 1. Initialize map with existing symbols
+  if (Array.isArray(existingList)) {
+    for (const item of existingList) {
+      if (!item || !item.s) continue;
+      const key = String(item.s).trim();
+      if (!key) continue;
+
+      let toman = item.priceToman;
+      let rial = item.priceRial;
+      if (toman === undefined) {
+        const raw = Number(item.p || 0);
+        toman = Math.round(raw / 10);
+        rial = raw;
+      }
+      if (!rial && toman) {
+        rial = toman * 10;
+      }
+
+      symbolMap.set(key, {
+        s: key,
+        n: item.n || item.name || key,
+        p: toman,
+        priceToman: toman,
+        priceRial: rial,
+        updatedAt: item.updatedAt || nowIso,
+        isFund: Boolean(item.isFund || (item.n && item.n.includes('صندوق'))),
+      });
+    }
+  }
+
+  let updatedCount = 0;
+  let addedCount = 0;
+  const seenKeysInApi = new Set();
+
+  // 2. Incremental upsert from rawApiArray
+  if (Array.isArray(rawApiArray)) {
+    for (const item of rawApiArray) {
+      if (!item || typeof item !== "object") continue;
+      const sym = (item.l18 || item.symbol || "").trim();
+      const name = (item.l30 || item.name || sym).trim();
+      if (!sym) continue;
+
+      seenKeysInApi.add(sym);
+
+      let rawPrice = Number(item.pl);
+      if (!rawPrice || isNaN(rawPrice) || rawPrice <= 0) {
+        rawPrice = Number(item.pc) || 0;
+      }
+
+      const existing = symbolMap.get(sym);
+
+      if (rawPrice > 0) {
+        const priceToman = Math.round(rawPrice / 10);
+        const isFund = Boolean(name.includes('صندوق') || existing?.isFund);
+
+        if (existing) {
+          // Update existing symbol with new price
+          const priceChanged = existing.priceToman !== priceToman;
+          symbolMap.set(sym, {
+            s: sym,
+            n: name || existing.n,
+            p: priceToman,
+            priceToman: priceToman,
+            priceRial: rawPrice,
+            updatedAt: priceChanged ? nowIso : existing.updatedAt,
+            isFund,
+          });
+          if (priceChanged) {
+            updatedCount++;
+          }
+        } else {
+          // Brand new symbol added
+          symbolMap.set(sym, {
+            s: sym,
+            n: name,
+            p: priceToman,
+            priceToman: priceToman,
+            priceRial: rawPrice,
+            updatedAt: nowIso,
+            isFund,
+          });
+          addedCount++;
+        }
+      } else if (existing) {
+        // Price in API is zero/invalid, but symbol previously had a price -> RETAIN PREVIOUS PRICE!
+        if (name && name !== existing.n) {
+          existing.n = name;
+        }
+      }
+    }
+  }
+
+  // Count retained symbols that were not in the latest API response
+  let retainedCount = 0;
+  for (const sym of symbolMap.keys()) {
+    if (!seenKeysInApi.has(sym)) {
+      retainedCount++;
+    }
+  }
+
+  const mergedList = Array.from(symbolMap.values());
+
+  return {
+    mergedList,
+    stats: {
+      totalSymbols: mergedList.length,
+      updatedCount,
+      addedCount,
+      retainedCount,
+      apiSymbolCount: seenKeysInApi.size,
+    },
+  };
+}
+
+/**
+ * Fetch all symbols from BRS API, incrementally merge with existing data, and persist.
+ * Guaranteed zero data loss when symbols are omitted from newer API responses.
  * @param {object} env
- * @returns {Promise<{ success: boolean, count: number, error?: string }>}
+ * @returns {Promise<{ success: boolean, count: number, symbols?: Array, stats?: object, error?: string }>}
  */
 export async function fetchAndStoreBourseSymbols(env) {
   try {
@@ -55,84 +193,97 @@ export async function fetchAndStoreBourseSymbols(env) {
       throw new Error("No symbols returned from Bourse API");
     }
 
-    const symbolMap = new Map();
-
-    for (const item of rawArray) {
-      if (!item || typeof item !== "object") continue;
-      const sym = (item.l18 || item.symbol || "").trim();
-      const name = (item.l30 || item.name || sym).trim();
-      if (!sym || !name) continue;
-
-      let rawPrice = Number(item.pl);
-      if (!rawPrice || isNaN(rawPrice) || rawPrice <= 0) {
-        rawPrice = Number(item.pc) || 0;
+    // Load previous symbols from memory or KV or Backup
+    let previousList = inMemoryBourseList || [];
+    if (previousList.length === 0 && env?.REALRATE_KV) {
+      try {
+        const cached = await env.REALRATE_KV.get(BOURSE_KV_KEY);
+        if (cached) {
+          previousList = JSON.parse(cached);
+        } else {
+          const backup = await env.REALRATE_KV.get(BOURSE_BACKUP_KV_KEY);
+          if (backup) {
+            previousList = JSON.parse(backup);
+          }
+        }
+      } catch (e) {
+        console.error("Error loading previous bourse symbols for merge:", e);
       }
-      if (rawPrice <= 0) continue;
-
-      // Price in Tomans (BRS API / TSETMC is in Rials -> divide by 10)
-      const priceToman = Math.round(rawPrice / 10);
-
-      symbolMap.set(sym, {
-        s: sym,
-        n: name,
-        p: priceToman,
-        priceToman: priceToman,
-        priceRial: rawPrice,
-      });
     }
 
-    if (symbolMap.size === 0) {
-      throw new Error("No valid symbols extracted from Bourse API");
+    const nowIso = new Date().toISOString();
+    const { mergedList, stats } = mergeBourseSymbols(previousList, rawArray, nowIso);
+
+    if (mergedList.length === 0) {
+      throw new Error("No valid symbols extracted or retained from Bourse API");
     }
 
-    const compactList = Array.from(symbolMap.values());
-    const compactJson = JSON.stringify(compactList);
+    const compactJson = JSON.stringify(mergedList);
 
-    // Cache in Cloudflare KV for 48 hours
-    if (env.REALRATE_KV) {
-      await env.REALRATE_KV.put(BOURSE_KV_KEY, compactJson, {
-        expirationTtl: 86400 * 2,
-      });
-    }
-
-    const now = new Date().toISOString();
-    await dbUpdateSourceLastPrice(
-      env,
-      'src_def_bourse',
-      compactList.length,
-      now,
-      {
-        totalSymbols: compactList.length,
-        updatedAt: now,
+    // Persist in Cloudflare KV permanently (no 48h expiration TTL to prevent wipeouts)
+    if (env?.REALRATE_KV) {
+      await env.REALRATE_KV.put(BOURSE_KV_KEY, compactJson);
+      // Update backup when symbol list is substantial
+      if (mergedList.length >= 100) {
+        await env.REALRATE_KV.put(BOURSE_BACKUP_KV_KEY, compactJson).catch(() => {});
       }
-    );
+    }
 
-    inMemoryBourseList = compactList;
+    inMemoryBourseList = mergedList;
 
-    return { success: true, count: compactList.length, symbols: compactList };
+    // Update D1 price_sources table with detailed audit metrics
+    if (env?.DB) {
+      await dbUpdateSourceLastPrice(
+        env,
+        'src_def_bourse',
+        mergedList.length,
+        nowIso,
+        {
+          totalSymbols: stats.totalSymbols,
+          updatedCount: stats.updatedCount,
+          addedCount: stats.addedCount,
+          retainedCount: stats.retainedCount,
+          apiCount: stats.apiSymbolCount,
+          updatedAt: nowIso,
+        }
+      ).catch(() => {});
+    }
+
+    return {
+      success: true,
+      count: mergedList.length,
+      symbols: mergedList,
+      stats,
+    };
   } catch (err) {
     console.error("fetchAndStoreBourseSymbols error:", err);
-    return { success: false, count: 0, error: err.message };
+    return { success: false, count: inMemoryBourseList?.length || 0, error: err.message };
   }
 }
 
 /**
  * Get cached stock symbols with search filtering.
- * Strictly returns: symbol, name, price, priceToman.
+ * Strictly returns: symbol, name, price, priceToman, priceRial, updatedAt, isFund.
  * @param {object} env
  * @param {string} [query]
  * @param {number} [limit=50]
- * @returns {Promise<Array<{ symbol: string, name: string, price: number, priceToman: number }>>}
+ * @returns {Promise<Array<{ symbol: string, name: string, price: number, priceToman: number, priceRial: number, updatedAt: string, isFund: boolean }>>}
  */
 export async function getBourseSymbols(env, query = "", limit = 50) {
   let list = inMemoryBourseList || [];
 
-  if ((!list || list.length === 0) && env.REALRATE_KV) {
+  if ((!list || list.length === 0) && env?.REALRATE_KV) {
     try {
       const cached = await env.REALRATE_KV.get(BOURSE_KV_KEY);
       if (cached) {
         list = JSON.parse(cached);
         inMemoryBourseList = list;
+      } else {
+        const backup = await env.REALRATE_KV.get(BOURSE_BACKUP_KV_KEY);
+        if (backup) {
+          list = JSON.parse(backup);
+          inMemoryBourseList = list;
+        }
       }
     } catch (e) {
       console.error("Error reading bourse KV:", e);
@@ -144,7 +295,7 @@ export async function getBourseSymbols(env, query = "", limit = 50) {
     const fetchRes = await fetchAndStoreBourseSymbols(env);
     if (fetchRes.success && fetchRes.symbols) {
       list = fetchRes.symbols;
-    } else if (fetchRes.success && env.REALRATE_KV) {
+    } else if (fetchRes.success && env?.REALRATE_KV) {
       try {
         const fresh = await env.REALRATE_KV.get(BOURSE_KV_KEY);
         if (fresh) list = JSON.parse(fresh);
@@ -200,6 +351,8 @@ export async function getBourseSymbols(env, query = "", limit = 50) {
       price: toman,
       priceToman: toman,
       priceRial: rial,
+      updatedAt: item.updatedAt || null,
+      isFund: Boolean(item.isFund || (item.n && item.n.includes('صندوق'))),
     };
   });
 }
@@ -214,9 +367,14 @@ export async function getBourseSymbolDetail(env, symbol) {
   if (!symbol) return null;
   try {
     let list = inMemoryBourseList || [];
-    if ((!list || list.length === 0) && env.REALRATE_KV) {
+    if ((!list || list.length === 0) && env?.REALRATE_KV) {
       const cached = await env.REALRATE_KV.get(BOURSE_KV_KEY);
-      if (cached) list = JSON.parse(cached);
+      if (cached) {
+        list = JSON.parse(cached);
+      } else {
+        const backup = await env.REALRATE_KV.get(BOURSE_BACKUP_KV_KEY);
+        if (backup) list = JSON.parse(backup);
+      }
     }
     if (!list || list.length === 0) return null;
 
@@ -243,6 +401,8 @@ export async function getBourseSymbolDetail(env, symbol) {
       price: toman,
       priceToman: toman,
       priceRial: rial,
+      updatedAt: found.updatedAt || null,
+      isFund: Boolean(found.isFund || (found.n && found.n.includes('صندوق'))),
     };
   } catch (e) {
     console.error("getBourseSymbolDetail error:", e);
