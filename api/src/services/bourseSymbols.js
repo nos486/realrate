@@ -8,8 +8,10 @@
 import { dbUpdateSourceLastPrice } from '../lib/db.js';
 
 export const BOURSE_API_URL = "https://api.brsapi.ir/Tsetmc/AllSymbols.php?key=BDqzgcZZ5rGg4Z6uSEs9bMyx2E2vXrkd&type=1";
-export const BOURSE_KV_KEY = "bourse_symbols_compact";
-export const BOURSE_LAST_SYNC_KEY = "bourse_symbols_last_sync";
+export const BOURSE_KV_KEY = "bourse_symbols_toman_v3";
+export const BOURSE_LAST_SYNC_KEY = "bourse_symbols_last_sync_v3";
+
+let inMemoryBourseList = null;
 
 /**
  * Normalize Persian text for search matching (handles Arabic kaf/yeh and half-spaces)
@@ -105,7 +107,9 @@ export async function fetchAndStoreBourseSymbols(env) {
       }
     );
 
-    return { success: true, count: compactList.length };
+    inMemoryBourseList = compactList;
+
+    return { success: true, count: compactList.length, symbols: compactList };
   } catch (err) {
     console.error("fetchAndStoreBourseSymbols error:", err);
     return { success: false, count: 0, error: err.message };
@@ -121,13 +125,14 @@ export async function fetchAndStoreBourseSymbols(env) {
  * @returns {Promise<Array<{ symbol: string, name: string, price: number, priceToman: number }>>}
  */
 export async function getBourseSymbols(env, query = "", limit = 50) {
-  let list = [];
+  let list = inMemoryBourseList || [];
 
-  if (env.REALRATE_KV) {
+  if ((!list || list.length === 0) && env.REALRATE_KV) {
     try {
       const cached = await env.REALRATE_KV.get(BOURSE_KV_KEY);
       if (cached) {
         list = JSON.parse(cached);
+        inMemoryBourseList = list;
       }
     } catch (e) {
       console.error("Error reading bourse KV:", e);
@@ -137,7 +142,9 @@ export async function getBourseSymbols(env, query = "", limit = 50) {
   // If KV is empty, fetch immediately
   if (!list || list.length === 0) {
     const fetchRes = await fetchAndStoreBourseSymbols(env);
-    if (fetchRes.success && env.REALRATE_KV) {
+    if (fetchRes.success && fetchRes.symbols) {
+      list = fetchRes.symbols;
+    } else if (fetchRes.success && env.REALRATE_KV) {
       try {
         const fresh = await env.REALRATE_KV.get(BOURSE_KV_KEY);
         if (fresh) list = JSON.parse(fresh);
@@ -174,13 +181,27 @@ export async function getBourseSymbols(env, query = "", limit = 50) {
   const maxResults = Math.min(Number(limit) || 50, 2000);
   const sliced = filtered.slice(0, maxResults);
 
-  return sliced.map(item => ({
-    symbol: item.s,
-    name: item.n,
-    price: item.p,
-    priceToman: item.p,
-    priceRial: item.priceRial || item.p * 10,
-  }));
+  return sliced.map(item => {
+    let toman = item.priceToman;
+    let rial = item.priceRial;
+    if (toman === undefined) {
+      const raw = Number(item.p || 0);
+      toman = Math.round(raw / 10);
+      rial = raw;
+    } else if (rial && toman === rial) {
+      toman = Math.round(rial / 10);
+    }
+    if (!rial) {
+      rial = toman * 10;
+    }
+    return {
+      symbol: item.s,
+      name: item.n,
+      price: toman,
+      priceToman: toman,
+      priceRial: rial,
+    };
+  });
 }
 
 /**
@@ -190,21 +211,38 @@ export async function getBourseSymbols(env, query = "", limit = 50) {
  * @returns {Promise<object|null>}
  */
 export async function getBourseSymbolDetail(env, symbol) {
-  if (!symbol || !env.REALRATE_KV) return null;
+  if (!symbol) return null;
   try {
-    const cached = await env.REALRATE_KV.get(BOURSE_KV_KEY);
-    if (!cached) return null;
-    const list = JSON.parse(cached);
+    let list = inMemoryBourseList || [];
+    if ((!list || list.length === 0) && env.REALRATE_KV) {
+      const cached = await env.REALRATE_KV.get(BOURSE_KV_KEY);
+      if (cached) list = JSON.parse(cached);
+    }
+    if (!list || list.length === 0) return null;
+
     const targetNorm = normalizePersian(symbol);
     const found = list.find(item => normalizePersian(item.s) === targetNorm);
     if (!found) return null;
 
+    let toman = found.priceToman;
+    let rial = found.priceRial;
+    if (toman === undefined) {
+      const raw = Number(found.p || 0);
+      toman = Math.round(raw / 10);
+      rial = raw;
+    } else if (rial && toman === rial) {
+      toman = Math.round(rial / 10);
+    }
+    if (!rial) {
+      rial = toman * 10;
+    }
+
     return {
       symbol: found.s,
       name: found.n,
-      price: found.p,
-      priceToman: found.p,
-      priceRial: found.priceRial || found.p * 10,
+      price: toman,
+      priceToman: toman,
+      priceRial: rial,
     };
   } catch (e) {
     console.error("getBourseSymbolDetail error:", e);

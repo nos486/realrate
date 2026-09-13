@@ -153,6 +153,10 @@ export default {
     if (url.pathname === "/api/bourse/symbols" || url.pathname === "/api/bourse/search") {
       const q = url.searchParams.get("q") || "";
       const limit = parseInt(url.searchParams.get("limit") || "50", 10);
+      const force = url.searchParams.get("force") === "true";
+      if (force) {
+        await fetchAndStoreBourseSymbols(env);
+      }
       const symbols = await getBourseSymbols(env, q, limit);
       return new Response(JSON.stringify({ success: true, count: symbols.length, symbols }), {
         headers: { "Content-Type": "application/json; charset=utf-8", ...corsHeaders },

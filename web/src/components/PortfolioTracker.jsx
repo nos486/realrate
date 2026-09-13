@@ -601,7 +601,12 @@ export default function PortfolioTracker({ calcData, rates, usdToman, goldUsd, d
         if (!isMounted || !res.success || !Array.isArray(res.symbols)) return;
         const newMap = {};
         res.symbols.forEach((s) => {
-          newMap[s.symbol] = s.priceToman;
+          const p = Number(s.priceToman !== undefined ? s.priceToman : (s.price || 0));
+          if (s.symbol) {
+            newMap[s.symbol] = p;
+            const norm = s.symbol.replace(/ي/g, 'ی').replace(/ك/g, 'ک').trim();
+            newMap[norm] = p;
+          }
         });
         setBoursePricesMap((prev) => ({ ...prev, ...newMap }));
       })
@@ -1317,11 +1322,17 @@ export default function PortfolioTracker({ calcData, rates, usdToman, goldUsd, d
       const cleanAssetId = (h.assetId || '').replace(/^src_def_/, '');
       const isCustomItem = h.assetType === 'custom' || h.assetId?.startsWith('custom_') || cleanAssetId.startsWith('custom_');
       const isBourseItem = h.assetType === 'bourse' || h.assetType === 'bourse_fund' || h.assetId?.startsWith('bourse_');
-      const symCode = isBourseItem ? (h.assetId?.startsWith('bourse_') ? h.assetId.replace('bourse_', '') : '') : null;
+      let symCode = isBourseItem ? (h.assetId?.startsWith('bourse_') ? h.assetId.replace('bourse_', '') : '') : null;
+      if (isBourseItem && !symCode && h.assetName) {
+        const match = h.assetName.match(/(?:سهام|صندوق)?\s*([^\s()]+)/);
+        if (match && match[1]) symCode = match[1];
+      }
+      const normSym = symCode ? symCode.replace(/ي/g, 'ی').replace(/ك/g, 'ک').trim() : '';
+      const liveBoursePrice = isBourseItem && symCode ? (boursePricesMap[symCode] || (normSym && boursePricesMap[normSym])) : null;
 
       // Unit real price: strictly based on spot gold/silver & USD, bourse live price, or custom price
       const unitRealPrice = isBourseItem
-        ? ((symCode && boursePricesMap[symCode]) || Number(h.currentPrice) || (hasBuyPrice ? buyPriceNum : 0))
+        ? (liveBoursePrice || Number(h.currentPrice) || (hasBuyPrice ? buyPriceNum : 0))
         : isCustomItem
         ? (Number(h.currentPrice) || (hasBuyPrice ? buyPriceNum : 0))
         : (realPriceMap[cleanAssetId] || realPriceMap[h.assetId] || Number(h.currentPrice) || (hasBuyPrice ? buyPriceNum : 0));
