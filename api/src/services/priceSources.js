@@ -216,9 +216,10 @@ export function parseSourceContent(source, rawContent) {
         const name = (item.l30 || item.name || sym).trim();
         if (!sym || !name) continue;
 
+        // Strictly extract Last Traded Price (pl)
         let rawPrice = Number(item.pl);
-        if (!rawPrice || isNaN(rawPrice) || rawPrice <= 0) {
-          rawPrice = Number(item.pc) || 0;
+        if (isNaN(rawPrice) || rawPrice <= 0) {
+          rawPrice = 0;
         }
         if (rawPrice <= 0) continue;
 

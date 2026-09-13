@@ -100,9 +100,10 @@ export function mergeBourseSymbols(existingList = [], rawApiArray = [], nowIso =
 
       seenKeysInApi.add(sym);
 
+      // Strictly extract Last Traded Price (pl)
       let rawPrice = Number(item.pl);
-      if (!rawPrice || isNaN(rawPrice) || rawPrice <= 0) {
-        rawPrice = Number(item.pc) || 0;
+      if (isNaN(rawPrice) || rawPrice <= 0) {
+        rawPrice = 0;
       }
 
       const existing = symbolMap.get(sym);
