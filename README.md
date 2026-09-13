@@ -84,6 +84,9 @@ RealRate is structured as an **npm workspaces monorepo** with clean, decoupled l
 - **محاسبه آنلاین و زنده سود و زیان (PnL)**:
   - محاسبه آنی ارزش روز دارایی‌ها بر اساس آخرین قیمت‌های بازار و انس جهانی.
   - نمایش سود/زیان تومانی و درصدی برای هر سطر و برای کل پورتفو.
+- **گاوصندوق رمزنگاری سرتاسری (Zero-Knowledge E2EE Vault)**:
+  - امکان فعال‌سازی رمز عبور اختصاصی و رمزنگاری داده‌های حساس پورتفو با الگوریتم متقارن AES-GCM در مرورگر کاربر.
+  - استخراج کلید امن با PBKDF2 و سالت رمزنگاری؛ رمز عبور کاربر هرگز به سرور ارسال نشده و سرور تنها متن رمزگذاری‌شده را ذخیره می‌کند.
 - **ذخیره‌سازی ابری در دیتابیس Cloudflare D1 (SQLite)**:
   - امنیت کامل داده‌ها، دسترسی دائمی از همه دستگاه‌ها بدون خطر از دست رفتن داده‌های لوکال.
   - سیستم مایگریشن خودکار (Auto-Migration) جهت انتقال دارایی‌های پیشین به سرور ابری در اولین ورود.
@@ -148,49 +151,40 @@ realrate/
 ├── realrate_1.png             # تصویر رابط کاربری: نرخ و حباب طلا و ارز
 ├── realrate_2.png             # تصویر رابط کاربری: مدیریت پورتفوی ابری
 │
-├── api/                       # سرویس بک‌اند (Cloudflare Worker REST API)
-│   ├── wrangler.toml          # پیکربندی کلاودفلر (Bindings: D1, KV, Vars)
-│   ├── schema.sql             # ساختار جداول دیتابیس (users, portfolios, holdings, etc.)
-│   ├── package.json
-│   └── src/
-│       ├── index.js           # روتر اصلی و ورودی ورکر
-│       ├── handlers/          # کنترلرهای مسیرها (api, auth, admin, portfolio)
-│       │   ├── apiRoutes.js
-│       │   ├── authRoutes.js
-│       │   ├── adminRoutes.js
-│       │   └── portfolioRoutes.js
-│       ├── lib/               # ابزارهای پایگاه داده، احراز هویت و تنظیمات
-│       │   ├── db.js          # ارتباط با D1 و KV به همراه Auto-Migration
-│       │   ├── auth.js        # احراز هویت سشن و بررسی ادمین
-│       │   ├── settings.js
-│       │   ├── analytics.js
-│       │   └── helpers.js     # پاسخ‌های JSON و هدرهای داینامیک CORS
-│       └── services/          # دریافت داده‌های خارجی (انس طلا، ارزها، تلگرام)
+├── docs/                      # مستندات و راهنماهای توسعه فنی
+│   ├── ARCHITECTURE.md        # معماری جامع سیستم، لایه‌ها و دیاگرام‌ها
+│   ├── API.md                 # مشخصات فنی و اندپوینت‌های REST API
+│   ├── ADDING_NEW_ASSET.md    # راهنمای گام‌به‌گام افزودن دارایی جدید
+│   └── ADDING_NEW_PRICE_SOURCE.md # راهنمای پیاده‌سازی آداپتور منبع قیمت
 │
-└── web/                       # سرویس فرانت‌اند (React 19 + Vite SPA)
+├── api/                       # سرویس بک‌اند (Cloudflare Workers + Hono REST API)
+│   ├── wrangler.toml          # پیکربندی بایندینگ‌های D1، KV و متغیرها
+│   ├── schema.sql             # ساختار جداول دیتابیس D1 (SQLite)
+│   ├── vitest.config.js       # پیکربندی آزمون‌های واحد Vitest
+│   ├── tests/unit/            # تست‌های خودکار فرمول‌ها و تجمیع بورس
+│   └── src/
+│       ├── index.js           # ورودی اصلی ورکر، میدلورها و Cron Trigger
+│       ├── infrastructure/    # مدیریت استاندارد خطا، لاگر ساختاریافته و کانفیگ
+│       ├── domain/            # هسته تجاری: مشخصات کانونی و فرمول‌های مالی
+│       ├── repositories/      # لایه انتزاع داده (User, Portfolio, Holding, Price, Audit)
+│       ├── adapters/          # الگوی آداپتور منابع خارجی (تلگرام، فارکس، بورس)
+│       ├── services/          # ارکستراتور دریافت و پردازش نرخ‌ها
+│       └── handlers/          # کنترلرهای مسیرهای API (بازار، پورتفو، ادمین، سشن)
+│
+└── web/                       # سرویس فرانت‌اند (React 19 + Vite Feature-Based SPA)
     ├── vite.config.js         # کانفیگ بیلد و پروکسی توسعه
     ├── package.json
-    ├── .env.production        # آدرس API پروداکشن (VITE_API_URL)
     └── src/
-        ├── App.jsx            # روتینگ برنامه با React Router
-        ├── main.jsx
-        ├── api/client.js      # کلاینت متمرکز فراخوانی APIها با توکن احراز هویت
-        ├── context/           # کانتکست احراز هویت (AuthContext)
-        ├── hooks/             # هوک‌های داده بازار و محاسبات
-        ├── components/        # کامپوننت‌های رابط کاربری
-        │   ├── Header.jsx
-        │   ├── AnalysisCards.jsx
-        │   ├── CurrenciesList.jsx
-        │   ├── PortfolioTracker.jsx # ردیاب پورتفو با گیت احراز هویت و چند پورتفویی
-        │   ├── FullscreenLoader.jsx # لودر سراسری محافظ
-        │   ├── AdminPanel.jsx
-        │   └── Footer.jsx
-        ├── pages/
-        │   ├── MainPage.jsx   # صفحه اصلی با تب‌بندی مدرن
-        │   ├── AdminPage.jsx  # صفحه پنل مدیریت
-        │   └── SharedPortfolioPage.jsx # صفحه عمومی مشاهده پورتفو اشتراکی
-        └── styles/
-            └── index.css      # سیستم طراحی دارک و گلس‌مورفیسم فین‌تک
+        ├── features/          # ماژول‌های مستقل بر اساس فیچر (Feature-Based)
+        │   ├── market/        # نرخ‌های بازار، کارت‌های تحلیل حباب و ارزها
+        │   ├── portfolio/     # مدیریت پورتفو، جداول فشرده، تقویم شمسی و E2EE
+        │   ├── auth/          # کانتکست و سرویس‌های لاگین گوگل و احراز هویت
+        │   └── admin/         # پنل مدیریت، آمار کاربران و مدیریت سورس‌ها
+        ├── shared/            # مؤلفه‌های مشترک، کامپوننت‌های UI و کلاینت HTTP
+        ├── context/           # کانتکست سراسری قیمت‌ها (PricingContext)
+        ├── utils/             # فرمول‌ها، محاسبات حباب و انجین قیمت
+        ├── pages/             # صفحات اصلی برنامه (Main, Admin, SharedPortfolio)
+        └── styles/            # سیستم استایل دارک و گلس‌مورفیسم فین‌تک
 ```
 
 ---
@@ -222,6 +216,12 @@ npm run dev
 ```bash
 npm run api:dev   # اجرای فقط بک‌اند ورکر
 npm run web:dev   # اجرای فقط فرانت‌اند ری‌اکت
+```
+
+### ۳. اجرای آزمون‌های واحد خودکار (Vitest)
+جهت اعتبارسنجی تمام فرمول‌های ریاضی و منطق ادغام تجمعی بورس:
+```bash
+npm test
 ```
 
 ---
