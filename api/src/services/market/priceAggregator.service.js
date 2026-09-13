@@ -15,6 +15,7 @@ import {
 import { getAdapterForSource } from "./sources/index.js";
 import { logger } from "../../lib/logger.js";
 import { SETTINGS_MEMORY_CACHE_TTL_MS } from "../../config/constants.js";
+import { WORLD_FOREX_NAMES } from "../../domain/specs/index.js";
 
 // In-memory price cache for sub-millisecond lookups
 let memoryPricesCache = {};
@@ -434,8 +435,6 @@ export async function parseSourceContent(sourceConfig, rawContent, env = null) {
   const adapter = getAdapterForSource(sourceConfig);
   return await adapter.parse(rawContent, sourceConfig, env);
 }
-
-import { WORLD_FOREX_NAMES } from "../../lib/financialSpecs.js";
 
 /**
  * Inspect an API endpoint structure to discover candidate arrays and JSON keys

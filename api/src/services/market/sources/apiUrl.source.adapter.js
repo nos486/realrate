@@ -8,7 +8,7 @@ import {
   extractPriceWithRegex,
   extractValueByPath,
 } from "./parsingUtils.js";
-import { normalizeForexToUsdCrossRate } from "../../../lib/financialSpecs.js";
+import { normalizeForexToUsdCrossRate } from "../../../domain/formulas.js";
 
 /**
  * Generic API URL Source Adapter Implementation

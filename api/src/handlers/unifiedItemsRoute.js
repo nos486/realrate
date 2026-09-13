@@ -12,7 +12,7 @@ import {
   COIN_SPECS,
   SILVER_SPECS,
   FOREX_SPECS,
-} from "../lib/financialSpecs.js";
+} from "../domain/specs/index.js";
 import { logger } from "../lib/logger.js";
 import { MAX_MARKET_ITEMS_LIMIT } from "../config/constants.js";
 

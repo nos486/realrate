@@ -9,7 +9,7 @@ import {
   FOREX_SPECS,
   WORLD_FOREX_NAMES,
   normalizeForexToUsdCrossRate,
-} from "../lib/financialSpecs.js";
+} from "../domain/specs/index.js";
 
 export const PROMINENT_FOREX_CURRENCIES = FOREX_SPECS;
 export { WORLD_FOREX_NAMES, normalizeForexToUsdCrossRate };

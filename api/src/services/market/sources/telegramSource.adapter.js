@@ -9,7 +9,7 @@ import {
   getTelegramFetchTarget,
   extractPriceWithRegex,
 } from "./parsingUtils.js";
-import { getCanonicalAssetName } from "../../../lib/financialSpecs.js";
+import { getCanonicalAssetName } from "../../../domain/specs/index.js";
 
 /**
  * Parse USD/Toman price from Telegram channel HTML

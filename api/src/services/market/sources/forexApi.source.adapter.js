@@ -7,7 +7,7 @@ import { USER_AGENT } from "./parsingUtils.js";
 import {
   FOREX_SPECS as PROMINENT_FOREX_CURRENCIES,
   normalizeForexToUsdCrossRate,
-} from "../../../lib/financialSpecs.js";
+} from "../../../domain/specs/index.js";
 import { dbBatchUpdateForexPrices } from "../../../repositories/priceSource.repository.js";
 import {
   getLastForexD1RecordTime,

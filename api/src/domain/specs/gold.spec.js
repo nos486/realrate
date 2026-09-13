@@ -1,0 +1,86 @@
+/**
+ * gold.spec.js — Gold Domain Specifications & Constants
+ */
+
+export const TROY_OUNCE_GRAMS = 31.1034768;
+
+export const GOLD_SPECS = {
+  gold_18k: {
+    id: 'gold_18k',
+    name: 'طلا ۱۸ عیار',
+    category: 'gold',
+    badge: 'طلا',
+    unit: 'گرم',
+    carat: 18,
+    weight: 1.0,
+    gold24kWeight: 0.75, // 18 / 24
+    targetBubblePct: 0,
+    formulaText: '(انس طلا ÷ ۳۱.۱۰۳۵) × دلار × ۰.۷۵',
+    aliases: ['طلا', 'طلا ۱۸', 'طلا 18', 'طلای ۱۸ عیار', 'طلای 18 عیار', 'طلای ۱۸', 'طلای 18', 'گرم طلا', 'gold 18k'],
+  },
+  gold_22k: {
+    id: 'gold_22k',
+    name: 'طلای ۲۲ عیار',
+    category: 'gold',
+    badge: 'طلا',
+    unit: 'گرم',
+    carat: 22,
+    weight: 1.0,
+    gold24kWeight: 22 / 24,
+    targetBubblePct: 0,
+    formulaText: '(انس طلا ÷ ۳۱.۱۰۳۵) × دلار × (۲۲ ÷ ۲۴)',
+    aliases: ['طلا ۲۲', 'طلا 22', 'طلای ۲۲ عیار', 'طلای 22 عیار', 'طلای ۲۲'],
+  },
+  mesghal: {
+    id: 'mesghal',
+    name: 'مثقال طلا (مظنه ۱۷ عیار)',
+    category: 'gold',
+    badge: 'طلا',
+    unit: 'مثقال',
+    carat: 17,
+    weight: 4.608,
+    gold24kWeight: 4.608 * (17 / 24), // ~3.24864
+    targetBubblePct: 0,
+    formulaText: '(انس طلا ÷ ۳۱.۱۰۳۵) × دلار × ۴.۶۰۸ × ۰.۷۰۵',
+    aliases: ['مثقال', 'مثقال طلا', 'مظنه', 'مظنه ۱۷', 'مظنه 17', 'مظنه طلا', 'مظنه ۱۷ عیار'],
+  },
+  gold_24k: {
+    id: 'gold_24k',
+    name: 'طلای ۲۴ عیار',
+    category: 'gold',
+    badge: 'طلا',
+    unit: 'گرم',
+    carat: 24,
+    weight: 1.0,
+    gold24kWeight: 1.0,
+    targetBubblePct: 0,
+    formulaText: '(انس طلا ÷ ۳۱.۱۰۳۵) × دلار',
+    aliases: ['طلا ۲۴', 'طلا 24', 'طلای ۲۴ عیار', 'طلای 24 عیار', 'طلای خالص'],
+  },
+  melted_gold: {
+    id: 'melted_gold',
+    name: 'طلای آبشده',
+    category: 'gold',
+    badge: 'طلا',
+    unit: 'گرم',
+    carat: 18,
+    weight: 1.0,
+    gold24kWeight: 0.75,
+    targetBubblePct: 0,
+    formulaText: 'هر گرم طلا با عیار ۷۵۰ آبشده',
+    aliases: ['آبشده', 'ابشده', 'طلای آبشده', 'آب شده', 'اب شده', 'طلای ابشده', 'اب شده نقدی'],
+  },
+  ons_gold: {
+    id: 'ons_gold',
+    name: 'انس طلای جهانی (XAU)',
+    category: 'gold',
+    badge: 'انس',
+    unit: 'دلار',
+    weight: TROY_OUNCE_GRAMS,
+    carat: 24,
+    gold24kWeight: TROY_OUNCE_GRAMS,
+    targetBubblePct: 0,
+    formulaText: 'نرخ لحظه‌ای هر تروا انس طلا در بازارهای بین‌المللی',
+    aliases: ['انس', 'اونس', 'انس طلا', 'اونس طلا', 'طلای جهانی', 'انس جهانی', 'XAU', 'xau'],
+  },
+};

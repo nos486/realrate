@@ -86,75 +86,80 @@ export default {
       );
     }
 
+    // ── Route Normalization (Supports /api/... and /api/v1/...) ─────────────
+    const normalizedPath = url.pathname.startsWith("/api/v1/")
+      ? url.pathname.replace("/api/v1/", "/api/")
+      : (url.pathname === "/api/v1" ? "/api" : url.pathname);
+
     // ── Auth API Routes ─────────────────────────────────────────────────────
-    if (url.pathname === "/api/auth/google/login" && request.method === "GET")    return wrap(handleGoogleLogin)(request, env);
-    if (url.pathname === "/api/auth/google/callback" && request.method === "GET") return wrap(handleGoogleCallback)(request, env);
-    if (url.pathname === "/api/auth/google" && request.method === "POST")         return wrap(handleGoogleAuth)(request, env);
-    if (url.pathname === "/api/auth/me"     && request.method === "GET")          return wrap(handleGetMe)(request, env);
-    if (url.pathname === "/api/auth/logout" && request.method === "POST")         return wrap(handleLogout)(request, env);
+    if (normalizedPath === "/api/auth/google/login" && request.method === "GET")    return wrap(handleGoogleLogin)(request, env);
+    if (normalizedPath === "/api/auth/google/callback" && request.method === "GET") return wrap(handleGoogleCallback)(request, env);
+    if (normalizedPath === "/api/auth/google" && request.method === "POST")         return wrap(handleGoogleAuth)(request, env);
+    if (normalizedPath === "/api/auth/me"     && request.method === "GET")          return wrap(handleGetMe)(request, env);
+    if (normalizedPath === "/api/auth/logout" && request.method === "POST")         return wrap(handleLogout)(request, env);
 
     // ── User Settings API Routes (Requires Login) ────────────────────────────
-    if (url.pathname === "/api/user/settings") {
+    if (normalizedPath === "/api/user/settings") {
       if (request.method === "GET") return wrap(handleGetUserSettings)(request, env);
       if (request.method === "POST" || request.method === "PUT") return wrap(handleUpdateUserSettings)(request, env);
     }
 
     // ── Admin API Routes ────────────────────────────────────────────────────
-    if (url.pathname === "/api/admin/stats")                                   return wrap(handleAdminStatsRoute)(request, env);
-    if (url.pathname === "/api/admin/users/portfolio")                         return wrap(handleAdminGetUserPortfolio)(request, env);
-    if (url.pathname === "/api/admin/users")                                   return wrap(handleAdminUsersRoute)(request, env);
-    if (url.pathname === "/api/admin/settings" && request.method === "POST")   return wrap(handleAdminSaveSettings)(request, env);
-    if (url.pathname === "/api/admin/test-usd-source" && request.method === "POST") return wrap(handleAdminTestUsdSource)(request, env);
+    if (normalizedPath === "/api/admin/stats")                                   return wrap(handleAdminStatsRoute)(request, env);
+    if (normalizedPath === "/api/admin/users/portfolio")                         return wrap(handleAdminGetUserPortfolio)(request, env);
+    if (normalizedPath === "/api/admin/users")                                   return wrap(handleAdminUsersRoute)(request, env);
+    if (normalizedPath === "/api/admin/settings" && request.method === "POST")   return wrap(handleAdminSaveSettings)(request, env);
+    if (normalizedPath === "/api/admin/test-usd-source" && request.method === "POST") return wrap(handleAdminTestUsdSource)(request, env);
 
-    if (url.pathname === "/api/admin/price-sources") {
+    if (normalizedPath === "/api/admin/price-sources") {
       if (request.method === "GET") return wrap(handleAdminGetPriceSources)(request, env);
       if (request.method === "POST" || request.method === "PUT") return wrap(handleAdminSavePriceSource)(request, env);
       if (request.method === "DELETE") return wrap(handleAdminDeletePriceSource)(request, env);
     }
-    if (url.pathname === "/api/admin/price-sources/set-primary" && request.method === "POST") {
+    if (normalizedPath === "/api/admin/price-sources/set-primary" && request.method === "POST") {
       return wrap(handleAdminSetPrimarySource)(request, env);
     }
-    if (url.pathname === "/api/admin/price-sources/test" && request.method === "POST") {
+    if (normalizedPath === "/api/admin/price-sources/test" && request.method === "POST") {
       return wrap(handleAdminTestPriceSource)(request, env);
     }
-    if (url.pathname === "/api/admin/price-sources/inspect-api" && request.method === "POST") {
+    if (normalizedPath === "/api/admin/price-sources/inspect-api" && request.method === "POST") {
       return wrap(handleAdminInspectApiRoute)(request, env);
     }
-    if (url.pathname === "/api/admin/price-sources/fetch-all" && request.method === "POST") {
+    if (normalizedPath === "/api/admin/price-sources/fetch-all" && request.method === "POST") {
       return wrap(handleAdminFetchAllSources)(request, env);
     }
 
-    if (url.pathname === "/api/admin/source-types") {
+    if (normalizedPath === "/api/admin/source-types") {
       if (request.method === "GET") return wrap(handleAdminGetSourceTypes)(request, env);
       if (request.method === "POST" || request.method === "PUT") return wrap(handleAdminSaveSourceType)(request, env);
       if (request.method === "DELETE") return wrap(handleAdminDeleteSourceType)(request, env);
     }
 
     // ── Portfolio API Routes ────────────────────────────────────────────────
-    if (url.pathname === "/api/portfolio/shared")                              return wrap(handleGetSharedPortfolio)(request, env);
-    if (url.pathname === "/api/portfolios") {
+    if (normalizedPath === "/api/portfolio/shared")                              return wrap(handleGetSharedPortfolio)(request, env);
+    if (normalizedPath === "/api/portfolios") {
       if (request.method === "GET") return wrap(handleGetPortfolios)(request, env);
       if (request.method === "POST") return wrap(handleCreatePortfolio)(request, env);
       if (request.method === "PUT") return wrap(handleUpdatePortfolio)(request, env);
       if (request.method === "DELETE") return wrap(handleDeletePortfolioGroup)(request, env);
     }
-    if (url.pathname === "/api/portfolio") {
+    if (normalizedPath === "/api/portfolio") {
       if (request.method === "GET") return wrap(handleGetPortfolio)(request, env);
       if (request.method === "POST" || request.method === "PUT") return wrap(handleAddPortfolio)(request, env);
       if (request.method === "DELETE") return wrap(handleDeletePortfolio)(request, env);
     }
 
     // ── Public API Routes ───────────────────────────────────────────────────
-    if (url.pathname === "/api/market/items" || url.pathname === "/api/market/unified" || url.pathname === "/api/items") {
+    if (normalizedPath === "/api/market/items" || normalizedPath === "/api/market/unified" || normalizedPath === "/api/items") {
       return wrap(handleGetUnifiedMarketItems)(env, request);
     }
-    if (url.pathname === "/api/prices") return wrap(handleGetPrices)(env, request);
-    if (url.pathname === "/api/sparklines" || url.pathname === "/api/prices/sparklines") {
+    if (normalizedPath === "/api/prices") return wrap(handleGetPrices)(env, request);
+    if (normalizedPath === "/api/sparklines" || normalizedPath === "/api/prices/sparklines") {
       return wrap(handleGetSparklines)(env, request);
     }
 
     // ── Bourse (Tehran Stock Exchange) Routes ──────────────────────────────
-    if (url.pathname === "/api/bourse/symbols" || url.pathname === "/api/bourse/search") {
+    if (normalizedPath === "/api/bourse/symbols" || normalizedPath === "/api/bourse/search") {
       return wrap(async () => {
         const q = url.searchParams.get("q") || "";
         const limit = parseInt(url.searchParams.get("limit") || String(DEFAULT_BOURSE_SEARCH_LIMIT), 10);
@@ -168,7 +173,7 @@ export default {
         });
       })(request, env);
     }
-    if (url.pathname === "/api/bourse/sync" && request.method === "POST") {
+    if (normalizedPath === "/api/bourse/sync" && request.method === "POST") {
       return wrap(async () => {
         const syncRes = await fetchAndStoreBourseSymbols(env);
         return new Response(JSON.stringify(syncRes), {
@@ -177,7 +182,7 @@ export default {
       })(request, env);
     }
 
-    if (url.pathname === "/api/telegram") {
+    if (normalizedPath === "/api/telegram") {
       return wrap(async () => {
         const forceRefresh = url.searchParams.get("force") === "true";
         const globalSettings = await getGlobalSettings(env);

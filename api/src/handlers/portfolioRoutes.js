@@ -35,7 +35,7 @@ import {
   getCanonicalAssetUnit,
   getCanonicalAssetCategory,
   resolveItemCategory,
-} from "../lib/financialSpecs.js";
+} from "../domain/specs/index.js";
 
 function resolveHoldingMetadata(holding) {
   if (!holding) return holding;
