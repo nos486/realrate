@@ -12,6 +12,10 @@ import {
   normalizeHolding,
 } from '../components/PortfolioTracker.jsx';
 import {
+  getCategoryBadge,
+  getCategoryLabel,
+} from '../utils/financialSpecs.js';
+import {
   Lock,
   Unlock,
   AlertTriangle,
@@ -297,18 +301,8 @@ export default function SharedPortfolioPage() {
     };
 
     const rows = portfolioMetrics.items.map((item) => {
-      const assetTypeLabel =
-        item.assetType === 'silver' ? 'نقره' :
-        item.assetType === 'gold' ? 'طلا' :
-        item.assetType === 'coin' ? 'سکه' :
-        item.assetType === 'currency' ? 'ارز' :
-        item.assetType === 'crypto' ? 'کریپتو' : 'سفارشی';
-
-      const catLabel =
-        item.assetType === 'gold' ? 'طلا و آب‌شده' :
-        item.assetType === 'coin' ? 'سکه بهار آزادی' :
-        item.assetType === 'silver' ? 'نقره ساچمه و شمش' :
-        item.assetType === 'currency' || item.assetType === 'crypto' ? 'ارزهای خارجی و رمزارزها' : 'سایر دارایی‌ها';
+      const assetTypeLabel = getCategoryBadge(item.category || item.assetType, 'سفارشی');
+      const catLabel = getCategoryLabel(item.category || item.assetType, 'سایر دارایی‌ها');
 
       return [
         escapeCSV(formatAssetName(item)),
@@ -595,15 +589,9 @@ export default function SharedPortfolioPage() {
                                       <td className="td-asset">
                                         <div className="asset-cell-compact">
                                           <span className="asset-name-text">{formatAssetName(item)}</span>
-                                          <span className={`item-category-pill cat-${item.assetType || 'custom'}`}>
-                                            <CategoryIcon category={item.assetType} size={12} style={{ marginLeft: '4px', verticalAlign: 'middle' }} />
-                                            <span>
-                                              {item.assetType === 'silver' ? 'نقره' :
-                                               item.assetType === 'gold' ? 'طلا' :
-                                               item.assetType === 'coin' ? 'سکه' :
-                                               item.assetType === 'currency' ? 'ارز' :
-                                               item.assetType === 'crypto' ? 'کریپتو' : 'سفارشی'}
-                                            </span>
+                                          <span className={`item-category-pill cat-${item.category || item.assetType || 'custom'}`}>
+                                            <CategoryIcon category={item.category || item.assetType} size={12} style={{ marginLeft: '4px', verticalAlign: 'middle' }} />
+                                            <span>{getCategoryBadge(item.category || item.assetType, 'سفارشی')}</span>
                                           </span>
                                         </div>
                                       </td>

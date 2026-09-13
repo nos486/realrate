@@ -53,11 +53,25 @@ import UniversalAssetSearch from './UniversalAssetSearch.jsx';
 import { usePricing } from '../context/PricingContext.jsx';
 import {
   CANONICAL_ASSET_REGISTRY,
+  PORTFOLIO_CATEGORIES,
+  CATEGORY_DEFINITIONS,
   getCanonicalAssetSpec,
   getCanonicalAssetName,
   getCanonicalAssetUnit,
   getCanonicalAssetCategory,
+  getCanonicalAssetBadge,
+  resolveItemCategory,
+  getCategoryLabel,
+  getCategoryBadge,
 } from '../utils/financialSpecs.js';
+
+export {
+  PORTFOLIO_CATEGORIES,
+  CATEGORY_DEFINITIONS,
+  getCategoryLabel,
+  getCategoryBadge,
+  resolveItemCategory,
+};
 import {
   deriveE2eeKey,
   verifyE2eeKey,
@@ -67,20 +81,6 @@ import {
   getVaultPassphraseFromSession,
   clearVaultPassphraseFromSession,
 } from '../lib/e2ee.js';
-
-export const FREQUENT_ASSETS = [
-  { id: 'USD', name: getCanonicalAssetName('USD', 'دلار آمریکا'), icon: '💵', category: 'currency', unit: 'دلار' },
-  { id: 'gold_18k', name: getCanonicalAssetName('gold_18k', 'طلای ۱۸ عیار'), icon: '🟡', category: 'gold', unit: 'گرم' },
-  { id: 'melted_gold', name: getCanonicalAssetName('melted_gold', 'طلای آبشده'), icon: '✨', category: 'gold', unit: 'گرم' },
-  { id: 'full_coin', name: getCanonicalAssetName('full_coin', 'سکه امامی'), icon: '🪙', category: 'coin', unit: 'عدد' },
-  { id: 'quarter_coin', name: getCanonicalAssetName('quarter_coin', 'ربع سکه'), icon: '🔶', category: 'coin', unit: 'عدد' },
-  { id: 'half_coin', name: getCanonicalAssetName('half_coin', 'نیم سکه'), icon: '🔸', category: 'coin', unit: 'عدد' },
-  { id: 'USDT', name: getCanonicalAssetName('USDT', 'تتر'), icon: '💎', category: 'crypto', unit: 'تتر' },
-  { id: 'EUR', name: getCanonicalAssetName('EUR', 'یورو'), icon: '💶', category: 'currency', unit: 'یورو' },
-  { id: 'bourse', name: 'سهام بورس', icon: '📈', category: 'bourse', unit: 'برگ سهم' },
-  { id: 'bourse_fund', name: 'صندوق بورس', icon: '📑', category: 'bourse_fund', unit: 'واحد' },
-  { id: 'custom', name: 'سایر دارایی‌ها', icon: '✏️', category: 'custom', unit: 'واحد' },
-];
 
 export const ASSET_TYPES = [
   ...Object.values(CANONICAL_ASSET_REGISTRY)
@@ -100,30 +100,16 @@ export function normalizeHolding(h) {
   if (!h) return h;
   let assetId = String(h.assetId || '').trim();
   let assetName = String(h.assetName || '').trim();
-  let assetType = String(h.assetType || '').trim().toLowerCase();
   let unit = String(h.unit || '').trim();
 
   const cleanId = assetId.replace(/^src_def_/, '').replace(/^derived_/, '');
   const cleanName = assetName.replace(/^src_def_/, '').replace(/^derived_/, '').trim();
 
-  // 1. Bourse Stocks & Funds Checks (MUST PRECEDE GOLD/COIN/CURRENCY)
-  const isBourse = (
-    assetId.startsWith('bourse_') ||
-    cleanId.startsWith('bourse_') ||
-    assetType === 'bourse' ||
-    assetType === 'bourse_fund' ||
-    cleanName.includes('صندوق') ||
-    h.isFund !== undefined
-  );
+  const resolvedCategory = resolveItemCategory(h);
 
-  if (isBourse) {
-    const isFund = Boolean(
-      h.isFund ||
-      assetType === 'bourse_fund' ||
-      cleanName.includes('صندوق') ||
-      cleanId.includes('fund')
-    );
-    assetType = isFund ? 'bourse_fund' : 'bourse';
+  // 1. Bourse Stocks & Funds Checks
+  if (resolvedCategory === 'bourse' || resolvedCategory === 'bourse_fund') {
+    const isFund = resolvedCategory === 'bourse_fund';
     if (!unit || unit === 'واحد' || unit === 'گرم' || unit === 'عدد' || unit === 'تومان') {
       unit = isFund ? 'واحد' : 'برگ سهم';
     }
@@ -131,42 +117,34 @@ export function normalizeHolding(h) {
       ...h,
       assetId,
       assetName,
-      assetType,
+      assetType: resolvedCategory,
+      category: resolvedCategory,
       unit,
       isFund,
     };
   }
 
   // 2. Custom personal asset checks
-  const isCustom = assetType === 'custom' || assetId.startsWith('custom_') || cleanId === 'custom';
-  if (isCustom) {
+  if (resolvedCategory === 'custom') {
     return {
       ...h,
       assetId: assetId.startsWith('custom_') ? assetId : (cleanId === 'custom' ? `custom_${Date.now()}` : assetId),
       assetName: cleanName || 'دارایی شخصی',
       assetType: 'custom',
+      category: 'custom',
       unit: unit || 'واحد',
     };
   }
 
   // 3. Canonical standard assets (Gold, Coins, Silver, Forex, Crypto)
   const canonicalSpec = getCanonicalAssetSpec(cleanId || assetId);
-  if (canonicalSpec) {
-    return {
-      ...h,
-      assetId: canonicalSpec.id,
-      assetName: canonicalSpec.name,
-      assetType: canonicalSpec.category || 'gold',
-      unit: canonicalSpec.unit || unit || 'واحد',
-    };
-  }
-
   return {
     ...h,
-    assetId,
-    assetName,
-    assetType,
-    unit,
+    assetId: canonicalSpec?.id || cleanId || assetId,
+    assetName: canonicalSpec?.name || cleanName,
+    assetType: resolvedCategory,
+    category: resolvedCategory,
+    unit: canonicalSpec?.unit || unit || 'واحد',
   };
 }
 
@@ -212,44 +190,6 @@ export function formatAssetName(item) {
   }
   return raw || 'دارایی';
 }
-
-export const CATEGORY_DEFINITIONS = [
-  {
-    key: 'gold',
-    name: 'طلا و آب‌شده',
-    match: (item) => item.assetType === 'gold' && !item.assetId?.startsWith('bourse_') && !item.assetName?.includes('صندوق'),
-  },
-  {
-    key: 'coin',
-    name: 'سکه‌های بهار آزادی',
-    match: (item) => item.assetType === 'coin' && !item.assetId?.startsWith('bourse_') && !item.assetName?.includes('صندوق'),
-  },
-  {
-    key: 'silver',
-    name: 'نقره و مسکوکات',
-    match: (item) => item.assetType === 'silver' && !item.assetId?.startsWith('bourse_') && !item.assetName?.includes('صندوق'),
-  },
-  {
-    key: 'currency',
-    name: 'ارزهای خارجی و رمزارزها',
-    match: (item) => (item.assetType === 'currency' || item.assetType === 'crypto') && !item.assetId?.startsWith('bourse_'),
-  },
-  {
-    key: 'bourse',
-    name: 'بورس اوراق بهادار تهران (سهام)',
-    match: (item) => (item.assetType === 'bourse' || (item.assetId?.startsWith('bourse_') && item.assetType !== 'bourse_fund')) && !item.isFund && !item.assetName?.includes('صندوق'),
-  },
-  {
-    key: 'bourse_fund',
-    name: 'بورس اوراق بهادار تهران (صندوق)',
-    match: (item) => item.assetType === 'bourse_fund' || (item.assetId?.startsWith('bourse_') && (item.isFund || item.assetName?.includes('صندوق'))),
-  },
-  {
-    key: 'custom',
-    name: 'دارایی‌های شخصی و سفارشی',
-    match: (item) => item.assetType === 'custom' || (!['gold', 'coin', 'silver', 'currency', 'crypto', 'bourse', 'bourse_fund'].includes(item.assetType) && !item.assetId?.startsWith('bourse_')),
-  },
-];
 
 function formatNum(num) {
   if (num === null || num === undefined || isNaN(num)) return '۰';
@@ -430,49 +370,9 @@ export default function PortfolioTracker({ calcData, rates, usdToman, goldUsd, i
   // Search filter for holdings in portfolio table
   const [holdingsFilterQuery, setHoldingsFilterQuery] = useState('');
 
-  // Asset search & Bourse stocks/funds search in modal
-  const [assetSearchQuery, setAssetSearchQuery] = useState('');
-  const [bourseSearchResults, setBourseSearchResults] = useState([]);
-  const [isSearchingBourse, setIsSearchingBourse] = useState(false);
+  // Modal Bourse symbol selection and market prices
   const [selectedBourseSymbol, setSelectedBourseSymbol] = useState(null);
   const [boursePricesMap, setBoursePricesMap] = useState({});
-
-  // Debounced search for Iranian stock market (Bourse) and funds
-  // Requirement: Minimum 3 characters, 1-second debounce (no countdown in UI)
-  useEffect(() => {
-    const query = assetSearchQuery.trim();
-
-    // Less than 3 characters -> Do not search
-    if (query.length < 3) {
-      setBourseSearchResults([]);
-      setIsSearchingBourse(false);
-      return;
-    }
-
-    const fireTimer = setTimeout(() => {
-      setIsSearchingBourse(true);
-
-      apiSearchBourseSymbols(query, 30)
-        .then((res) => {
-          if (res.success && Array.isArray(res.symbols)) {
-            setBourseSearchResults(res.symbols);
-          } else {
-            setBourseSearchResults([]);
-          }
-        })
-        .catch((e) => {
-          console.error('Bourse search failed:', e);
-          setBourseSearchResults([]);
-        })
-        .finally(() => {
-          setIsSearchingBourse(false);
-        });
-    }, 1000);
-
-    return () => {
-      clearTimeout(fireTimer);
-    };
-  }, [assetSearchQuery]);
 
   // Synchronize bourse prices for active bourse holdings
   useEffect(() => {
@@ -865,8 +765,6 @@ export default function PortfolioTracker({ calcData, rates, usdToman, goldUsd, i
     setBuyDate('');
     setNotes('');
     setShowDatePicker(false);
-    setAssetSearchQuery('');
-    setBourseSearchResults([]);
     setSelectedBourseSymbol(null);
     setModalOpen(true);
   };
@@ -875,8 +773,6 @@ export default function PortfolioTracker({ calcData, rates, usdToman, goldUsd, i
   const handleOpenEdit = (item) => {
     const normalized = normalizeHolding(item);
     setEditingHolding(normalized);
-    setAssetSearchQuery('');
-    setBourseSearchResults([]);
 
     const cleanId = (normalized.assetId || '').replace(/^src_def_/, '').replace(/^derived_/, '');
     const isFund = normalized.assetType === 'bourse_fund' || normalized.isFund;
@@ -1157,22 +1053,6 @@ export default function PortfolioTracker({ calcData, rates, usdToman, goldUsd, i
   }, [portfolioMetrics.items, holdingsFilterQuery]);
 
   // Asset selection helpers for modal
-  const handleSelectFrequentAsset = (asset) => {
-    setSelectedAssetId(asset.id);
-    setSelectedBourseSymbol(null);
-    setCustomName(
-      asset.id === 'bourse_fund'
-        ? 'بورس اوراق بهادار تهران (صندوق)'
-        : asset.id === 'bourse'
-        ? 'بورس اوراق بهادار تهران (سهام)'
-        : ''
-    );
-    setCustomUnit(asset.unit);
-    setCustomCurrentPrice('');
-    setAssetSearchQuery('');
-    setBourseSearchResults([]);
-  };
-
   const handleSelectStandardAsset = (asset) => {
     const rawId = asset.id || asset.priceType || '';
     const cleanId = rawId.replace(/^src_def_/, '').replace(/^derived_/, '');
@@ -1183,8 +1063,6 @@ export default function PortfolioTracker({ calcData, rates, usdToman, goldUsd, i
     setCustomUnit(matchedMeta?.unit || asset.unit || 'واحد');
     const resolvedP = Number(asset.price || realPriceMap[cleanId] || realPriceMap[rawId] || 0);
     setCustomCurrentPrice(resolvedP > 0 ? String(Math.round(resolvedP)) : '');
-    setAssetSearchQuery('');
-    setBourseSearchResults([]);
   };
 
   const handleSelectBourseSymbol = (sym) => {
@@ -1205,20 +1083,7 @@ export default function PortfolioTracker({ calcData, rates, usdToman, goldUsd, i
     setCustomName(sym.name || (isFund ? `صندوق ${symCode}` : `سهام ${symCode}`));
     setCustomUnit(isFund ? 'واحد' : 'برگ سهم');
     setCustomCurrentPrice(String(sym.priceToman || (sym.priceRial ? Math.round(sym.priceRial / 10) : sym.price || '')));
-    setAssetSearchQuery('');
-    setBourseSearchResults([]);
   };
-
-  const matchingStandardAssets = useMemo(() => {
-    const q = assetSearchQuery.trim().toLowerCase();
-    if (q.length < 3) return [];
-    return effectiveAssetTypes.filter(
-      (a) =>
-        a.id !== 'bourse' &&
-        a.id !== 'bourse_fund' &&
-        (a.name.toLowerCase().includes(q) || a.id.toLowerCase().includes(q))
-    );
-  }, [assetSearchQuery, effectiveAssetTypes]);
 
   const cleanSelectedId = (selectedAssetId || '').replace(/^src_def_/, '').replace(/^derived_/, '');
   const isModalBourse = selectedAssetId.startsWith('bourse_') || selectedBourseSymbol !== null || selectedAssetId === 'bourse' || selectedAssetId === 'bourse_fund';
@@ -1259,22 +1124,8 @@ export default function PortfolioTracker({ calcData, rates, usdToman, goldUsd, i
     };
 
     const rows = portfolioMetrics.items.map((item) => {
-      const assetTypeLabel =
-        item.assetType === 'silver' ? 'نقره' :
-        item.assetType === 'gold' ? 'طلا' :
-        item.assetType === 'coin' ? 'سکه' :
-        item.assetType === 'bourse_fund' ? 'صندوق بورسی' :
-        item.assetType === 'bourse' ? 'سهام بورس' :
-        item.assetType === 'currency' ? 'ارز' :
-        item.assetType === 'crypto' ? 'کریپتو' : 'سفارشی';
-
-      const catLabel =
-        item.assetType === 'gold' ? 'طلا و آب‌شده' :
-        item.assetType === 'coin' ? 'سکه بهار آزادی' :
-        item.assetType === 'silver' ? 'نقره ساچمه و شمش' :
-        item.assetType === 'bourse' ? 'بورس اوراق بهادار تهران (سهام)' :
-        item.assetType === 'bourse_fund' ? 'بورس اوراق بهادار تهران (صندوق)' :
-        item.assetType === 'currency' || item.assetType === 'crypto' ? 'ارزهای خارجی و رمزارزها' : 'سایر دارایی‌ها';
+      const assetTypeLabel = getCategoryBadge(item.category || item.assetType, 'سفارشی');
+      const catLabel = getCategoryLabel(item.category || item.assetType, 'سایر دارایی‌ها');
 
       return [
         escapeCSV(formatAssetName(item)),
@@ -1653,15 +1504,9 @@ export default function PortfolioTracker({ calcData, rates, usdToman, goldUsd, i
                                 <td className="td-asset">
                                   <div className="asset-cell-compact">
                                     <span className="asset-name-text">{formatAssetName(item)}</span>
-                                    <span className={`item-category-pill cat-${item.assetType || 'custom'}`}>
-                                      <CategoryIcon category={item.assetType} size={11} style={{ verticalAlign: 'middle', marginLeft: '4px' }} />
-                                      {item.assetType === 'silver' ? 'نقره' :
-                                       item.assetType === 'gold' ? 'طلا' :
-                                       item.assetType === 'coin' ? 'سکه' :
-                                       item.assetType === 'bourse_fund' ? 'صندوق' :
-                                       item.assetType === 'bourse' ? 'بورس' :
-                                       item.assetType === 'currency' ? 'ارز' :
-                                       item.assetType === 'crypto' ? 'کریپتو' : 'سفارشی'}
+                                    <span className={`item-category-pill cat-${item.category || item.assetType || 'custom'}`}>
+                                      <CategoryIcon category={item.category || item.assetType} size={11} style={{ verticalAlign: 'middle', marginLeft: '4px' }} />
+                                      {getCategoryBadge(item.category || item.assetType, 'سفارشی')}
                                     </span>
                                   </div>
                                 </td>
@@ -1983,8 +1828,6 @@ export default function PortfolioTracker({ calcData, rates, usdToman, goldUsd, i
                       if (item.price > 0) {
                         setCustomCurrentPrice(String(item.price));
                       }
-                      setAssetSearchQuery('');
-                      setBourseSearchResults([]);
                     } else {
                       handleSelectStandardAsset(item.raw || item);
                     }

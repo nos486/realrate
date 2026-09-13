@@ -186,31 +186,31 @@ export const SILVER_SPECS = {
 
 // ── 4. Prominent World Currencies (Forex) ────────────────────────────────────
 export const FOREX_SPECS = [
-  { code: 'USD', name: 'دلار', flag: '🇺🇸', symbol: '$', defaultCross: 1.0 },
-  { code: 'EUR', name: 'یورو اروپا', flag: '🇪🇺', symbol: '€', defaultCross: 1.082 },
-  { code: 'GBP', name: 'پوند انگلیس', flag: '🇬🇧', symbol: '£', defaultCross: 1.294 },
-  { code: 'AED', name: 'درهم امارات', flag: '🇦🇪', symbol: 'د.إ', defaultCross: 0.2723 },
-  { code: 'TRY', name: 'لیر ترکیه', flag: '🇹🇷', symbol: '₺', defaultCross: 0.0206 },
-  { code: 'CHF', name: 'فرانک سوئیس', flag: '🇨🇭', symbol: 'CHF', defaultCross: 1.135 },
-  { code: 'CAD', name: 'دلار کانادا', flag: '🇨🇦', symbol: 'CA$', defaultCross: 0.724 },
-  { code: 'AUD', name: 'دلار استرالیا', flag: '🇦🇺', symbol: 'AU$', defaultCross: 0.655 },
-  { code: 'CNY', name: 'یوان چین', flag: '🇨🇳', symbol: '¥', defaultCross: 0.138 },
-  { code: 'JPY', name: 'ین ژاپن', flag: '🇯🇵', symbol: '¥', defaultCross: 0.0066 },
-  { code: 'SAR', name: 'ریال عربستان', flag: '🇸🇦', symbol: '﷼', defaultCross: 0.266 },
-  { code: 'QAR', name: 'ریال قطر', flag: '🇶🇦', symbol: '﷼', defaultCross: 0.274 },
-  { code: 'KWD', name: 'دینار کویت', flag: '🇰🇼', symbol: 'د.ك', defaultCross: 3.25 },
-  { code: 'OMR', name: 'ریال عمان', flag: '🇴🇲', symbol: '﷼', defaultCross: 2.60 },
-  { code: 'BHD', name: 'دینار بحرین', flag: '🇧🇭', symbol: '.د.ب', defaultCross: 2.65 },
-  { code: 'IQD', name: 'دینار عراق', flag: '🇮🇶', symbol: 'ع.د', defaultCross: 0.00076 },
-  { code: 'RUB', name: 'روبل روسیه', flag: '🇷🇺', symbol: '₽', defaultCross: 0.0108 },
-  { code: 'AFN', name: 'افغانی افغانستان', flag: '🇦🇫', symbol: '؋', defaultCross: 0.0145 },
-  { code: 'AZN', name: 'منات آذربایجان', flag: '🇦🇿', symbol: '₼', defaultCross: 0.588 },
-  { code: 'INR', name: 'روپیه هند', flag: '🇮🇳', symbol: '₹', defaultCross: 0.0118 },
-  { code: 'SEK', name: 'کرون سوئد', flag: '🇸🇪', symbol: 'kr', defaultCross: 0.093 },
-  { code: 'NOK', name: 'کرون نروژ', flag: '🇳🇴', symbol: 'kr', defaultCross: 0.091 },
-  { code: 'SGD', name: 'دلار سنگاپور', flag: '🇸🇬', symbol: 'S$', defaultCross: 0.75 },
-  { code: 'KRW', name: 'وون کره جنوبی', flag: '🇰🇷', symbol: '₩', defaultCross: 0.00072 },
-  { code: 'BRL', name: 'رئال برزیل', flag: '🇧🇷', symbol: 'R$', defaultCross: 0.178 },
+  { code: 'USD', name: 'دلار', flag: '🇺🇸', symbol: '$', defaultCross: 1.0, category: 'currency', badge: 'ارز', unit: 'تومان' },
+  { code: 'EUR', name: 'یورو اروپا', flag: '🇪🇺', symbol: '€', defaultCross: 1.082, category: 'currency', badge: 'ارز', unit: 'تومان' },
+  { code: 'GBP', name: 'پوند انگلیس', flag: '🇬🇧', symbol: '£', defaultCross: 1.294, category: 'currency', badge: 'ارز', unit: 'تومان' },
+  { code: 'AED', name: 'درهم امارات', flag: '🇦🇪', symbol: 'د.إ', defaultCross: 0.2723, category: 'currency', badge: 'ارز', unit: 'تومان' },
+  { code: 'TRY', name: 'لیر ترکیه', flag: '🇹🇷', symbol: '₺', defaultCross: 0.0206, category: 'currency', badge: 'ارز', unit: 'تومان' },
+  { code: 'CHF', name: 'فرانک سوئیس', flag: '🇨🇭', symbol: 'CHF', defaultCross: 1.135, category: 'currency', badge: 'ارز', unit: 'تومان' },
+  { code: 'CAD', name: 'دلار کانادا', flag: '🇨🇦', symbol: 'CA$', defaultCross: 0.724, category: 'currency', badge: 'ارز', unit: 'تومان' },
+  { code: 'AUD', name: 'دلار استرالیا', flag: '🇦🇺', symbol: 'AU$', defaultCross: 0.655, category: 'currency', badge: 'ارز', unit: 'تومان' },
+  { code: 'CNY', name: 'یوان چین', flag: '🇨🇳', symbol: '¥', defaultCross: 0.138, category: 'currency', badge: 'ارز', unit: 'تومان' },
+  { code: 'JPY', name: 'ین ژاپن', flag: '🇯🇵', symbol: '¥', defaultCross: 0.0066, category: 'currency', badge: 'ارز', unit: 'تومان' },
+  { code: 'SAR', name: 'ریال عربستان', flag: '🇸🇦', symbol: '﷼', defaultCross: 0.266, category: 'currency', badge: 'ارز', unit: 'تومان' },
+  { code: 'QAR', name: 'ریال قطر', flag: '🇶🇦', symbol: '﷼', defaultCross: 0.274, category: 'currency', badge: 'ارز', unit: 'تومان' },
+  { code: 'KWD', name: 'دینار کویت', flag: '🇰🇼', symbol: 'د.ك', defaultCross: 3.25, category: 'currency', badge: 'ارز', unit: 'تومان' },
+  { code: 'OMR', name: 'ریال عمان', flag: '🇴🇲', symbol: '﷼', defaultCross: 2.60, category: 'currency', badge: 'ارز', unit: 'تومان' },
+  { code: 'BHD', name: 'دینار بحرین', flag: '🇧🇭', symbol: '.د.ب', defaultCross: 2.65, category: 'currency', badge: 'ارز', unit: 'تومان' },
+  { code: 'IQD', name: 'دینار عراق', flag: '🇮🇶', symbol: 'ع.د', defaultCross: 0.00076, category: 'currency', badge: 'ارز', unit: 'تومان' },
+  { code: 'RUB', name: 'روبل روسیه', flag: '🇷🇺', symbol: '₽', defaultCross: 0.0108, category: 'currency', badge: 'ارز', unit: 'تومان' },
+  { code: 'AFN', name: 'افغانی افغانستان', flag: '🇦🇫', symbol: '؋', defaultCross: 0.0145, category: 'currency', badge: 'ارز', unit: 'تومان' },
+  { code: 'AZN', name: 'منات آذربایجان', flag: '🇦🇿', symbol: '₼', defaultCross: 0.588, category: 'currency', badge: 'ارز', unit: 'تومان' },
+  { code: 'INR', name: 'روپیه هند', flag: '🇮🇳', symbol: '₹', defaultCross: 0.0118, category: 'currency', badge: 'ارز', unit: 'تومان' },
+  { code: 'SEK', name: 'کرون سوئد', flag: '🇸🇪', symbol: 'kr', defaultCross: 0.093, category: 'currency', badge: 'ارز', unit: 'تومان' },
+  { code: 'NOK', name: 'کرون نروژ', flag: '🇳🇴', symbol: 'kr', defaultCross: 0.091, category: 'currency', badge: 'ارز', unit: 'تومان' },
+  { code: 'SGD', name: 'دلار سنگاپور', flag: '🇸🇬', symbol: 'S$', defaultCross: 0.75, category: 'currency', badge: 'ارز', unit: 'تومان' },
+  { code: 'KRW', name: 'وون کره جنوبی', flag: '🇰🇷', symbol: '₩', defaultCross: 0.00072, category: 'currency', badge: 'ارز', unit: 'تومان' },
+  { code: 'BRL', name: 'رئال برزیل', flag: '🇧🇷', symbol: 'R$', defaultCross: 0.178, category: 'currency', badge: 'ارز', unit: 'تومان' },
 ];
 
 export const FOREX_DICT = Object.fromEntries(FOREX_SPECS.map(c => [c.code, c]));
@@ -384,6 +384,138 @@ export function getCanonicalAssetBadge(assetId, fallbackBadge = '') {
   const spec = getCanonicalAssetSpec(assetId);
   if (spec && spec.badge) return spec.badge;
   return fallbackBadge;
+}
+
+/**
+ * Resolve the standard category key for any holding/asset
+ * @param {object|string} item - holding object or assetId
+ * @returns {string} - 'gold' | 'coin' | 'silver' | 'currency' | 'crypto' | 'bourse' | 'bourse_fund' | 'custom'
+ */
+export function resolveItemCategory(item) {
+  if (!item) return 'custom';
+  if (typeof item === 'string') {
+    const clean = item.replace(/^src_def_/, '').replace(/^derived_/, '').trim();
+    if (clean.startsWith('bourse_')) return 'bourse';
+    if (clean.startsWith('custom_') || clean === 'custom') return 'custom';
+    const spec = getCanonicalAssetSpec(clean);
+    if (spec && spec.category) return spec.category;
+    return 'custom';
+  }
+
+  const assetId = String(item.assetId || item.id || '').trim();
+  const cleanId = assetId.replace(/^src_def_/, '').replace(/^derived_/, '').trim();
+  const assetType = String(item.assetType || item.category || '').trim().toLowerCase();
+  const assetName = String(item.assetName || item.name || '').trim();
+
+  // 1. Bourse Stocks & Funds
+  const isBourse = (
+    cleanId.startsWith('bourse_') ||
+    assetType === 'bourse' ||
+    assetType === 'bourse_fund' ||
+    item.isFund !== undefined ||
+    assetName.includes('صندوق')
+  );
+  if (isBourse) {
+    const isFund = Boolean(item.isFund || assetType === 'bourse_fund' || assetName.includes('صندوق') || cleanId.includes('fund'));
+    return isFund ? 'bourse_fund' : 'bourse';
+  }
+
+  // 2. Custom personal asset
+  if (assetType === 'custom' || cleanId.startsWith('custom_') || cleanId === 'custom') {
+    return 'custom';
+  }
+
+  // 3. Canonical standard assets (Gold, Coins, Silver, Forex, Crypto)
+  const spec = getCanonicalAssetSpec(cleanId);
+  if (spec && spec.category) return spec.category;
+
+  if (['gold', 'coin', 'silver', 'currency', 'crypto', 'bourse', 'bourse_fund'].includes(assetType)) {
+    return assetType;
+  }
+
+  return 'custom';
+}
+
+// ── Master Portfolio Category Definitions ───────────────────────────────────
+export const PORTFOLIO_CATEGORIES = [
+  {
+    key: 'gold',
+    name: 'طلا و آب‌شده',
+    badge: 'طلا',
+    iconName: 'Award',
+    order: 1,
+    match: (item) => resolveItemCategory(item) === 'gold',
+  },
+  {
+    key: 'coin',
+    name: 'سکه‌های بهار آزادی',
+    badge: 'سکه',
+    iconName: 'Coins',
+    order: 2,
+    match: (item) => resolveItemCategory(item) === 'coin',
+  },
+  {
+    key: 'silver',
+    name: 'نقره و مسکوکات',
+    badge: 'نقره',
+    iconName: 'Disc',
+    order: 3,
+    match: (item) => resolveItemCategory(item) === 'silver',
+  },
+  {
+    key: 'currency',
+    name: 'ارزهای خارجی',
+    badge: 'ارز',
+    iconName: 'Banknote',
+    order: 4,
+    match: (item) => resolveItemCategory(item) === 'currency',
+  },
+  {
+    key: 'crypto',
+    name: 'رمزارزها',
+    badge: 'رمزارز',
+    iconName: 'Zap',
+    order: 5,
+    match: (item) => resolveItemCategory(item) === 'crypto',
+  },
+  {
+    key: 'bourse',
+    name: 'بورس اوراق بهادار تهران (سهام)',
+    badge: 'سهام بورس',
+    iconName: 'TrendingUp',
+    order: 6,
+    match: (item) => resolveItemCategory(item) === 'bourse',
+  },
+  {
+    key: 'bourse_fund',
+    name: 'بورس اوراق بهادار تهران (صندوق)',
+    badge: 'صندوق بورس',
+    iconName: 'Layers',
+    order: 7,
+    match: (item) => resolveItemCategory(item) === 'bourse_fund',
+  },
+  {
+    key: 'custom',
+    name: 'دارایی‌های شخصی و سفارشی',
+    badge: 'سفارشی',
+    iconName: 'Sparkles',
+    order: 8,
+    match: (item) => resolveItemCategory(item) === 'custom',
+  },
+];
+
+export const CATEGORY_DEFINITIONS = PORTFOLIO_CATEGORIES;
+
+export const PORTFOLIO_CATEGORY_DICT = Object.fromEntries(
+  PORTFOLIO_CATEGORIES.map((c) => [c.key, c])
+);
+
+export function getCategoryLabel(categoryKey, fallback = '') {
+  return PORTFOLIO_CATEGORY_DICT[categoryKey]?.name || fallback || categoryKey || '';
+}
+
+export function getCategoryBadge(categoryKey, fallback = '') {
+  return PORTFOLIO_CATEGORY_DICT[categoryKey]?.badge || fallback || categoryKey || '';
 }
 
 // ── 8. Standard Mathematical Calculation Helpers ─────────────────────────────

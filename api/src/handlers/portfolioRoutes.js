@@ -32,25 +32,34 @@ import {
   getCanonicalAssetName,
   getCanonicalAssetUnit,
   getCanonicalAssetCategory,
+  resolveItemCategory,
 } from "../lib/financialSpecs.js";
 
 function resolveHoldingMetadata(holding) {
   if (!holding) return holding;
-  const isCustom = holding.assetType === 'custom' || holding.assetId?.startsWith('custom_');
-  const isBourse = holding.assetType === 'bourse' || holding.assetType === 'bourse_fund' || holding.assetId?.startsWith('bourse_');
   const isEncrypted = typeof holding.notes === 'string' && holding.notes.startsWith('enc:e2ee:v1:');
-  if (!isCustom && !isBourse && !isEncrypted) {
+  if (isEncrypted) return holding;
+
+  const category = resolveItemCategory(holding);
+  const isCustom = category === 'custom';
+  const isBourse = category === 'bourse' || category === 'bourse_fund';
+
+  if (!isCustom && !isBourse) {
     const canonicalName = getCanonicalAssetName(holding.assetId);
-    if (canonicalName && canonicalName !== holding.assetId) {
-      return {
-        ...holding,
-        assetName: canonicalName,
-        unit: getCanonicalAssetUnit(holding.assetId, holding.unit),
-        assetType: getCanonicalAssetCategory(holding.assetId, holding.assetType),
-      };
-    }
+    return {
+      ...holding,
+      assetName: canonicalName || holding.assetName,
+      unit: getCanonicalAssetUnit(holding.assetId, holding.unit),
+      assetType: category,
+      category,
+    };
   }
-  return holding;
+
+  return {
+    ...holding,
+    assetType: category,
+    category,
+  };
 }
 
 /**
