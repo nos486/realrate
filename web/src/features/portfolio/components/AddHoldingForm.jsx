@@ -224,8 +224,8 @@ export default function AddHoldingForm({
             {submitting
               ? 'در حال ذخیره...'
               : editingHolding
-              ? 'ذخیره تغییرات'
-              : 'افزودن دارایی'}
+                ? 'ذخیره تغییرات'
+                : 'افزودن دارایی'}
           </button>
         </div>
       }
@@ -300,8 +300,8 @@ export default function AddHoldingForm({
                   (selectedAssetId === 'bourse_fund'
                     ? 'صندوق'
                     : selectedAssetId === 'bourse'
-                    ? 'سهام'
-                    : selectedAssetId.replace('bourse_', ''))}
+                      ? 'سهام'
+                      : selectedAssetId.replace('bourse_', ''))}
               </strong>
               <span className="preview-company-name">
                 {selectedBourseSymbol?.name ||
@@ -393,7 +393,6 @@ export default function AddHoldingForm({
           className="form-input"
           allowDecimals={false}
         />
-        <span className="field-sub-note">اختیاری؛ برای محاسبه سود و زیان دقیق در پورتفو.</span>
       </div>
 
       {/* Custom or Bourse Asset: Current Market Price field */}
