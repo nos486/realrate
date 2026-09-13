@@ -1,105 +1,11 @@
 /**
- * priceSource.repository.js — Cloudflare D1 & KV Price Sources and Source Types Data Access Layer
+ * priceSource.repository.js — Cloudflare D1 & KV Price Sources Data Access Layer
  */
 
 import { ensureD1Tables } from "./migration.repository.js";
 import { setSourcePriceCache, deleteSourcePriceCache } from "./kvCache.repository.js";
 import { logger } from "../lib/logger.js";
 import { DEFAULT_FETCH_INTERVAL_SEC } from "../config/constants.js";
-
-/* ─────────────────────────────────────────────────────────────
- * Source Types CRUD (Dynamic price-type definitions)
- * ───────────────────────────────────────────────────────────── */
-
-/**
- * Get all source types from D1
- * @param {object} env
- * @returns {Promise<Array>}
- */
-export async function dbGetSourceTypes(env) {
-  if (env && env.DB) {
-    await ensureD1Tables(env);
-    try {
-      const { results } = await env.DB.prepare(`
-        SELECT id, label, category, unit, badge_color AS badgeColor,
-               output_config AS outputConfig, is_system AS isSystem, sort_order AS sortOrder,
-               created_at AS createdAt
-        FROM source_types
-        ORDER BY sort_order ASC, id ASC
-      `).all();
-      if (Array.isArray(results)) {
-        return results.map(r => ({
-          ...r,
-          isSystem: !!r.isSystem,
-          outputConfig: r.outputConfig ? (() => { try { return JSON.parse(r.outputConfig); } catch { return null; } })() : null,
-        }));
-      }
-    } catch (e) {
-      logger.error("D1 dbGetSourceTypes error:", { error: e.message });
-    }
-  }
-  return [];
-}
-
-/**
- * Save (create or update) a source type definition
- * @param {object} env
- * @param {object} data - { id, label, category, unit, badgeColor, outputConfig, sortOrder }
- * @returns {Promise<object|null>}
- */
-export async function dbSaveSourceType(env, data) {
-  const id = String(data.id || '').trim().toLowerCase().replace(/[^a-z0-9_]/g, '_');
-  const label = String(data.label || '').trim();
-  if (!id || !label) throw new Error("شناسه و عنوان نوع سورس الزامی هستند.");
-
-  const category = ['multi_output'].includes(data.category) ? data.category : 'single';
-  const unit = String(data.unit || 'تومان').trim();
-  const badgeColor = String(data.badgeColor || data.badge_color || 'blue').trim();
-  const outputConfig = data.outputConfig ? (typeof data.outputConfig === 'object' ? JSON.stringify(data.outputConfig) : String(data.outputConfig)) : '';
-  const isSystem = data.isSystem ? 1 : 0;
-  const sortOrder = parseInt(data.sortOrder || data.sort_order || 99, 10);
-  const now = new Date().toISOString();
-
-  if (env && env.DB) {
-    await ensureD1Tables(env);
-    await env.DB.prepare(`
-      INSERT INTO source_types (id, label, category, unit, badge_color, output_config, is_system, sort_order, created_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-      ON CONFLICT(id) DO UPDATE SET
-        label = excluded.label,
-        category = excluded.category,
-        unit = excluded.unit,
-        badge_color = excluded.badge_color,
-        output_config = excluded.output_config,
-        sort_order = excluded.sort_order
-    `).bind(id, label, category, unit, badgeColor, outputConfig, isSystem, sortOrder, now).run();
-
-    const saved = await env.DB.prepare(`
-      SELECT id, label, category, unit, badge_color AS badgeColor,
-             output_config AS outputConfig, is_system AS isSystem, sort_order AS sortOrder,
-             created_at AS createdAt
-      FROM source_types WHERE id = ?
-    `).bind(id).first();
-    return saved ? { ...saved, isSystem: !!saved.isSystem } : null;
-  }
-  return null;
-}
-
-/**
- * Delete a source type by ID (only non-system types can be deleted)
- * @param {object} env
- * @param {string} id
- * @returns {Promise<boolean>}
- */
-export async function dbDeleteSourceType(env, id) {
-  if (!id) return false;
-  if (env && env.DB) {
-    await ensureD1Tables(env);
-    await env.DB.prepare("DELETE FROM source_types WHERE id = ?").bind(id).run();
-    return true;
-  }
-  return false;
-}
 
 /* ─────────────────────────────────────────────────────────────
  * Price Sources CRUD & Management (D1 + KV)

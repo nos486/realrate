@@ -117,18 +117,7 @@ export async function ensureD1Tables(env) {
     `CREATE INDEX IF NOT EXISTS idx_price_sources_primary ON price_sources(is_primary)`,
     `CREATE INDEX IF NOT EXISTS idx_price_sources_active ON price_sources(is_active)`,
     `DROP TABLE IF EXISTS price_history`,
-    `CREATE TABLE IF NOT EXISTS source_types (
-      id TEXT PRIMARY KEY,
-      label TEXT NOT NULL,
-      category TEXT DEFAULT 'single',
-      unit TEXT DEFAULT 'تومان',
-      badge_color TEXT DEFAULT 'blue',
-      output_config TEXT DEFAULT '',
-      is_system INTEGER DEFAULT 1,
-      sort_order INTEGER DEFAULT 99,
-      created_at TEXT NOT NULL
-    )`,
-    `CREATE INDEX IF NOT EXISTS idx_source_types_sort ON source_types(sort_order ASC)`,
+    `DROP TABLE IF EXISTS source_types`,
     `DROP TABLE IF EXISTS derived_assets`,
   ];
 

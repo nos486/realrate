@@ -59,21 +59,40 @@ import {
   apiTestPriceSource,
   apiInspectApiSource,
   apiFetchAllSourcesNow,
-  apiGetSourceTypes,
-  apiSaveSourceType,
-  apiDeleteSourceType,
 } from '../api/client.js';
 import UniversalAssetSearch, {
   extractMultiItems,
   getPriceTypeLabel,
   calculateUsdCrossRate,
 } from '../components/UniversalAssetSearch.jsx';
+import { CANONICAL_ASSET_REGISTRY } from '../utils/financialSpecs.js';
 
-// PRICE_TYPE_INFO is now computed dynamically inside the component from DB-loaded sourceTypes
-// See: const PRICE_TYPE_INFO = useMemo(...) inside PriceSourcesPage()
-
-// Generic empty fallback — types are 100% dynamic from DB or user input
-const PRICE_TYPE_INFO_FALLBACK = {};
+// Canonical price type info derived from domain specs
+const CANONICAL_PRICE_TYPE_INFO = {
+  ...Object.fromEntries(
+    Object.values(CANONICAL_ASSET_REGISTRY).map((spec) => [
+      spec.id,
+      {
+        label: spec.name || spec.id,
+        category: spec.category || 'single',
+        unit: spec.unit || 'تومان',
+        badgeColor:
+          spec.category === 'gold'
+            ? 'amber'
+            : spec.category === 'coin'
+            ? 'emerald'
+            : spec.category === 'silver'
+            ? 'slate'
+            : spec.category === 'crypto'
+            ? 'purple'
+            : 'blue',
+      },
+    ])
+  ),
+  forex: { label: 'نرخ ارزهای جهانی (فارکس)', category: 'multi_output', unit: 'ارز', badgeColor: 'indigo' },
+  bourse: { label: 'سهام بورس اوراق بهادار', category: 'multi_output', unit: 'نماد', badgeColor: 'sky' },
+  bourse_fund: { label: 'صندوق‌های سرمایه‌گذاری بورس', category: 'multi_output', unit: 'صندوق', badgeColor: 'cyan' },
+};
 
 export const FOREX_PRESETS = [
   {
@@ -218,23 +237,7 @@ export default function PriceSourcesPage({ embedded = false, usdToman: propUsdTo
   const [sourceFilter, setSourceFilter] = useState('all');
   const [fetchingAll, setFetchingAll] = useState(false);
 
-  // Source Types State (dynamic, from DB — replaces hardcoded PRICE_TYPE_INFO)
-  const [sourceTypes, setSourceTypes] = useState([]);
-  const [_loadingSourceTypes, setLoadingSourceTypes] = useState(false);
-  // Source Type Management Panel
-  const [showSourceTypePanel, setShowSourceTypePanel] = useState(false);
-  const [sourceTypeForm, setSourceTypeForm] = useState({ id: '', label: '', category: 'single', unit: 'تومان', badgeColor: 'blue', sortOrder: 99 });
-  const [savingSourceType, setSavingSourceType] = useState(false);
-
-  // Compute PRICE_TYPE_INFO dynamically from DB sourceTypes (with hardcoded fallback)
-  const PRICE_TYPE_INFO = useMemo(() => {
-    if (sourceTypes.length === 0) return PRICE_TYPE_INFO_FALLBACK;
-    const map = {};
-    for (const st of sourceTypes) {
-      map[st.id] = { label: st.label, badgeColor: st.badgeColor || 'blue', unit: st.unit || 'تومان', category: st.category || 'single' };
-    }
-    return map;
-  }, [sourceTypes]);
+  const PRICE_TYPE_INFO = CANONICAL_PRICE_TYPE_INFO;
 
   const [searchParams] = useSearchParams();
   const initialTabSection = searchParams.get('subtab') === 'multi' ? 'multi' : 'single';
@@ -285,21 +288,6 @@ export default function PriceSourcesPage({ embedded = false, usdToman: propUsdTo
     setTimeout(() => setMessage(null), 5000);
   };
 
-  // Load Source Types from API
-  const loadSourceTypes = async () => {
-    setLoadingSourceTypes(true);
-    try {
-      const res = await apiGetSourceTypes();
-      if (res.success && Array.isArray(res.sourceTypes)) {
-        setSourceTypes(res.sourceTypes);
-      }
-    } catch (e) {
-      console.error('Error loading source types:', e);
-    } finally {
-      setLoadingSourceTypes(false);
-    }
-  };
-
   // Load Price Sources from API
   const loadSources = async () => {
     setLoadingSources(true);
@@ -317,7 +305,6 @@ export default function PriceSourcesPage({ embedded = false, usdToman: propUsdTo
   };
 
   useEffect(() => {
-    loadSourceTypes();
     loadSources();
   }, []);
 
@@ -392,7 +379,7 @@ export default function PriceSourcesPage({ embedded = false, usdToman: propUsdTo
   // Open Add Modal
   const handleOpenAddSource = (initialType = '') => {
     setEditingSourceId(null);
-    const typeToUse = initialType || (sourceTypes[0]?.id || '');
+    const typeToUse = initialType || 'usd';
     setSourceForm({
       ...DEFAULT_SOURCE_FORM,
       priceType: typeToUse,
@@ -616,42 +603,6 @@ export default function PriceSourcesPage({ embedded = false, usdToman: propUsdTo
     }
   };
 
-  // Save Source Type from management panel
-  const handleSaveSourceType = async (e) => {
-    e.preventDefault();
-    setSavingSourceType(true);
-    try {
-      const res = await apiSaveSourceType(sourceTypeForm);
-      if (res.success) {
-        showMsg('نوع سورس با موفقیت ذخیره شد.', 'success');
-        setSourceTypeForm({ id: '', label: '', category: 'single', unit: 'تومان', badgeColor: 'blue', sortOrder: 99 });
-        await loadSourceTypes();
-      } else {
-        showMsg(res.message || 'خطا در ذخیره‌سازی.', 'error');
-      }
-    } catch (err) {
-      showMsg('خطا: ' + err.message, 'error');
-    } finally {
-      setSavingSourceType(false);
-    }
-  };
-
-  // Delete Source Type
-  const handleDeleteSourceType = async (st) => {
-    if (!window.confirm(`حذف نوع سورس «${st.label || st.id}»؟`)) return;
-    try {
-      const res = await apiDeleteSourceType(st.id);
-      if (res.success) {
-        showMsg('نوع سورس حذف شد.', 'success');
-        await loadSourceTypes();
-      } else {
-        showMsg(res.message || 'خطا در حذف.', 'error');
-      }
-    } catch (err) {
-      showMsg('خطا: ' + err.message, 'error');
-    }
-  };
-
   // Save Modal Source
   const handleSaveModalSource = async (e) => {
     e.preventDefault();
@@ -678,16 +629,6 @@ export default function PriceSourcesPage({ embedded = false, usdToman: propUsdTo
         showMsg(res.message || 'سورس با موفقیت ذخیره شد.', 'success');
         setSourceModalOpen(false);
         await loadSources();
-        // Auto-register custom type if not yet in source_types
-        if (sourceForm.priceType && !sourceTypes.some(st => st.id === sourceForm.priceType)) {
-          apiSaveSourceType({
-            id: sourceForm.priceType,
-            label: sourceForm.priceType,
-            category: 'single',
-            unit: sourceForm.unit || 'تومان',
-            badgeColor: 'blue',
-          }).then(() => loadSourceTypes()).catch(() => {});
-        }
       } else {
         showMsg(res.message || 'خطا در ذخیره‌سازی سورس.', 'error');
       }
@@ -897,16 +838,6 @@ export default function PriceSourcesPage({ embedded = false, usdToman: propUsdTo
                 <span>+ ایجاد فید چند خروجی هوشمند</span>
               </button>
             )}
-            <button
-              type="button"
-              onClick={() => setShowSourceTypePanel(p => !p)}
-              className="btn-hero-action"
-              style={{ background: 'rgba(99,102,241,0.12)', color: 'var(--accent-indigo, #6366f1)', border: '1px solid rgba(99,102,241,0.25)' }}
-              title="مدیریت انواع سورس قیمت (دایناتیک)"
-            >
-              <Sliders size={14} />
-              <span>مدیریت انواع سورس</span>
-            </button>
           </div>
         </div>
       </Card>
@@ -919,89 +850,6 @@ export default function PriceSourcesPage({ embedded = false, usdToman: propUsdTo
           onClose={() => setMessage(null)}
           style={{ margin: '0 0 16px' }}
         />
-      )}
-
-      {/* ── Source Types Management Panel ──────────────────────────────────── */}
-      {showSourceTypePanel && (
-        <Card padding="lg" style={{ border: '1px solid rgba(99,102,241,0.2)', background: 'var(--card-bg)' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <Sliders size={16} style={{ color: 'var(--accent-indigo, #6366f1)' }} />
-              <h3 style={{ fontSize: '14px', fontWeight: '800', margin: 0, color: 'var(--text-heading)' }}>
-                مدیریت انواع سورس قیمت (پویا)
-              </h3>
-              <span style={{ fontSize: '11px', color: 'var(--text-muted)', background: 'var(--surface-2, rgba(0,0,0,0.06))', padding: '2px 8px', borderRadius: '99px' }}>
-                {sourceTypes.length} نوع
-              </span>
-            </div>
-            <button type="button" onClick={() => setShowSourceTypePanel(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)' }}>
-              <X size={16} />
-            </button>
-          </div>
-
-          {/* Existing source types list */}
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginBottom: '20px' }}>
-            {sourceTypes.map(st => (
-              <div key={st.id} style={{
-                display: 'flex', alignItems: 'center', gap: '6px',
-                padding: '5px 10px', borderRadius: '8px',
-                background: 'var(--surface-2, rgba(0,0,0,0.05))',
-                border: '1px solid var(--border, rgba(0,0,0,0.08))',
-                fontSize: '12px',
-              }}>
-                <span style={{ fontWeight: '700', color: 'var(--text-heading)' }}>{st.id}</span>
-                <span style={{ color: 'var(--text-muted)' }}>{st.label}</span>
-                <span style={{ fontSize: '10px', padding: '1px 6px', borderRadius: '4px', background: 'rgba(99,102,241,0.1)', color: '#6366f1' }}>
-                  {st.category === 'multi_output' ? 'چند خروجی' : 'تک خروجی'}
-                </span>
-                <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>{st.unit}</span>
-                {!st.isSystem && (
-                  <button type="button" onClick={() => handleDeleteSourceType(st)}
-                    style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--accent-rose, #f43f5e)', padding: '0', display: 'flex' }}>
-                    <Trash2 size={12} />
-                  </button>
-                )}
-                {st.isSystem && <span style={{ fontSize: '9px', color: 'var(--text-muted)', opacity: 0.6 }}>سیستمی</span>}
-              </div>
-            ))}
-          </div>
-
-          {/* Add new source type form */}
-          <form onSubmit={handleSaveSourceType} style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', alignItems: 'flex-end', paddingTop: '12px', borderTop: '1px solid var(--border, rgba(0,0,0,0.08))' }}>
-            <div className="form-group" style={{ margin: 0, flex: '0 0 120px' }}>
-              <label style={{ fontSize: '11px' }}>شناسه (ID)</label>
-              <input type="text" required placeholder="مثال: crypto" value={sourceTypeForm.id}
-                onChange={e => setSourceTypeForm(p => ({ ...p, id: e.target.value.toLowerCase().trim() }))}
-                style={{ direction: 'ltr', textAlign: 'left', fontFamily: 'monospace', fontSize: '12px' }} />
-            </div>
-            <div className="form-group" style={{ margin: 0, flex: '1 1 160px' }}>
-              <label style={{ fontSize: '11px' }}>عنوان فارسی</label>
-              <input type="text" required placeholder="مثال: رمزارز" value={sourceTypeForm.label}
-                onChange={e => setSourceTypeForm(p => ({ ...p, label: e.target.value }))} style={{ fontSize: '12px' }} />
-            </div>
-            <div className="form-group" style={{ margin: 0, flex: '0 0 120px' }}>
-              <label style={{ fontSize: '11px' }}>نوع خروجی</label>
-              <select value={sourceTypeForm.category} onChange={e => setSourceTypeForm(p => ({ ...p, category: e.target.value }))} style={{ fontSize: '12px' }}>
-                <option value="single">تک خروجی</option>
-                <option value="multi_output">چند خروجی</option>
-              </select>
-            </div>
-            <div className="form-group" style={{ margin: 0, flex: '0 0 90px' }}>
-              <label style={{ fontSize: '11px' }}>واحد</label>
-              <input type="text" placeholder="تومان" value={sourceTypeForm.unit}
-                onChange={e => setSourceTypeForm(p => ({ ...p, unit: e.target.value }))} style={{ fontSize: '12px' }} />
-            </div>
-            <div className="form-group" style={{ margin: 0, flex: '0 0 100px' }}>
-              <label style={{ fontSize: '11px' }}>رنگ badge</label>
-              <input type="text" placeholder="blue" value={sourceTypeForm.badgeColor}
-                onChange={e => setSourceTypeForm(p => ({ ...p, badgeColor: e.target.value }))} style={{ fontSize: '12px', direction: 'ltr' }} />
-            </div>
-            <button type="submit" disabled={savingSourceType} className="btn-primary" style={{ fontSize: '12px', padding: '7px 14px', display: 'flex', alignItems: 'center', gap: '5px' }}>
-              <Plus size={13} />
-              <span>{savingSourceType ? 'در حال ذخیره...' : 'افزودن/بروزرسانی'}</span>
-            </button>
-          </form>
-        </Card>
       )}
 
       {/* ── Top-Level View Switcher Bar (Base Rates vs Multi-Output Feeds Hub) ── */}

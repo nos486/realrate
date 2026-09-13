@@ -14,9 +14,6 @@ import {
   dbDeletePriceSource,
   dbSetPrimaryPriceSource,
   dbUpdateSourceLastPrice,
-  dbGetSourceTypes,
-  dbSaveSourceType,
-  dbDeleteSourceType,
   saveGlobalSettings,
 } from "../repositories/index.js";
 import { getAdminStats } from "../lib/analytics.js";
@@ -281,57 +278,6 @@ export async function handleAdminFetchAllSources(request, env) {
     }, 200, request);
   } catch (e) {
     return errorResponse(e.message, 500, request);
-  }
-}
-
-
-
-/**
- * GET /api/admin/source-types
- * List all source type definitions (dynamic price-type registry) — admin only
- */
-export async function handleAdminGetSourceTypes(request, env) {
-  const user = await getAuthenticatedUser(request, env);
-  if (!user || user.role !== "admin") return forbiddenResponse(request);
-  try {
-    const sourceTypes = await dbGetSourceTypes(env);
-    return jsonResponse({ success: true, sourceTypes }, 200, request);
-  } catch (e) {
-    return errorResponse(e.message, 500, request);
-  }
-}
-
-/**
- * POST /api/admin/source-types
- * Create or update a source type definition — admin only
- */
-export async function handleAdminSaveSourceType(request, env) {
-  const user = await getAuthenticatedUser(request, env);
-  if (!user || user.role !== "admin") return forbiddenResponse(request);
-  try {
-    const body = await request.json();
-    const saved = await dbSaveSourceType(env, body);
-    return jsonResponse({ success: true, message: "نوع سورس با موفقیت ذخیره شد.", sourceType: saved }, 200, request);
-  } catch (e) {
-    return errorResponse(e.message, 400, request);
-  }
-}
-
-/**
- * DELETE /api/admin/source-types?id=...
- * Delete a non-system source type — admin only
- */
-export async function handleAdminDeleteSourceType(request, env) {
-  const user = await getAuthenticatedUser(request, env);
-  if (!user || user.role !== "admin") return forbiddenResponse(request);
-  try {
-    const url = new URL(request.url);
-    const id = url.searchParams.get("id");
-    if (!id) return errorResponse("شناسه نوع سورس الزامی است.", 400, request);
-    await dbDeleteSourceType(env, id);
-    return jsonResponse({ success: true, message: "نوع سورس با موفقیت حذف شد." }, 200, request);
-  } catch (e) {
-    return errorResponse(e.message, 400, request);
   }
 }
 

@@ -49,17 +49,7 @@ export async function fetchAllSourcesNow() {
   return httpClient.post('/api/admin/price-sources/fetch-all', {});
 }
 
-export async function getSourceTypes() {
-  return httpClient.get('/api/admin/source-types');
-}
 
-export async function saveSourceType(data) {
-  return httpClient.post('/api/admin/source-types', data);
-}
-
-export async function deleteSourceType(id) {
-  return httpClient.delete(`/api/admin/source-types?id=${encodeURIComponent(id)}`);
-}
 
 export async function getAdminUserPortfolio(userId, portfolioId = null) {
   const url = portfolioId

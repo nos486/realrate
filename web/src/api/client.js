@@ -180,27 +180,7 @@ export async function apiFetchAllSourcesNow() {
 }
 
 
-// ─── Source Types (Dynamic Price Type Registry) ───────────────────────────────
 
-export async function apiGetSourceTypes() {
-  const res = await apiFetch('/api/admin/source-types');
-  return res.json();
-}
-
-export async function apiSaveSourceType(data) {
-  const res = await apiFetch('/api/admin/source-types', {
-    method: 'POST',
-    body: JSON.stringify(data),
-  });
-  return res.json();
-}
-
-export async function apiDeleteSourceType(id) {
-  const res = await apiFetch(`/api/admin/source-types?id=${encodeURIComponent(id)}`, {
-    method: 'DELETE',
-  });
-  return res.json();
-}
 // ─── Portfolios (Multi-portfolio Management) ───────────────────────────────
 
 export async function apiGetPortfolios() {

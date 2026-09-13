@@ -36,9 +36,6 @@ import {
   handleAdminSetPrimarySource,
   handleAdminTestPriceSource,
   handleAdminFetchAllSources,
-  handleAdminGetSourceTypes,
-  handleAdminSaveSourceType,
-  handleAdminDeleteSourceType,
   handleAdminInspectApiRoute,
 } from "./handlers/adminRoutes.js";
 import { handleGetPrices, handleGetSparklines } from "./handlers/apiRoutes.js";
@@ -129,11 +126,6 @@ export default {
       return wrap(handleAdminFetchAllSources)(request, env);
     }
 
-    if (normalizedPath === "/api/admin/source-types") {
-      if (request.method === "GET") return wrap(handleAdminGetSourceTypes)(request, env);
-      if (request.method === "POST" || request.method === "PUT") return wrap(handleAdminSaveSourceType)(request, env);
-      if (request.method === "DELETE") return wrap(handleAdminDeleteSourceType)(request, env);
-    }
 
     // ── Portfolio API Routes ────────────────────────────────────────────────
     if (normalizedPath === "/api/portfolio/shared")                              return wrap(handleGetSharedPortfolio)(request, env);
