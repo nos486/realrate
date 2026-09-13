@@ -55,12 +55,22 @@ function resolveRedirectUri(request, env) {
   return `${url.origin}/api/auth/google/callback`;
 }
 
+function isTrustedFrontendHostname(hostname) {
+  if (!hostname) return false;
+  return (
+    hostname === "localhost" ||
+    hostname.endsWith("geekio.org") ||
+    hostname.endsWith("pages.dev") ||
+    hostname.endsWith("realrate.ir")
+  );
+}
+
 function buildFrontendRedirect(frontendOrigin, returnTo, params = {}) {
   let baseOrigin = "https://realrate.geekio.org";
   if (frontendOrigin) {
     try {
       const u = new URL(frontendOrigin);
-      if (u.hostname === "localhost" || u.hostname.endsWith("geekio.org") || u.hostname.endsWith("pages.dev")) {
+      if (isTrustedFrontendHostname(u.hostname)) {
         baseOrigin = u.origin;
       }
     } catch {}
@@ -70,7 +80,7 @@ function buildFrontendRedirect(frontendOrigin, returnTo, params = {}) {
   try {
     if (returnTo && (returnTo.startsWith("http://") || returnTo.startsWith("https://"))) {
       const u = new URL(returnTo);
-      if (u.hostname === "localhost" || u.hostname.endsWith("geekio.org") || u.hostname.endsWith("pages.dev")) {
+      if (isTrustedFrontendHostname(u.hostname)) {
         finalUrl = u;
       } else {
         finalUrl = new URL("/", baseOrigin);
@@ -111,7 +121,7 @@ export async function handleGoogleLogin(request, env) {
   if (referer) {
     try {
       const refUrl = new URL(referer);
-      if (refUrl.hostname === "localhost" || refUrl.hostname.endsWith("geekio.org") || refUrl.hostname.endsWith("pages.dev")) {
+      if (isTrustedFrontendHostname(refUrl.hostname)) {
         frontendOrigin = refUrl.origin;
       }
     } catch {}
@@ -119,7 +129,7 @@ export async function handleGoogleLogin(request, env) {
 
   try {
     const parsed = new URL(returnTo);
-    if (parsed.hostname === "localhost" || parsed.hostname.endsWith("geekio.org") || parsed.hostname.endsWith("pages.dev")) {
+    if (isTrustedFrontendHostname(parsed.hostname)) {
       frontendOrigin = parsed.origin;
     }
   } catch {}

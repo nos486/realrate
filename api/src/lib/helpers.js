@@ -12,12 +12,18 @@ const ALLOWED_ORIGINS = [
   "https://realrate.pages.dev", // Cloudflare Pages (production)
   "https://realrate.geekio.org",
   "https://geekio.org",
+  "https://realrate.ir",
+  "https://www.realrate.ir",
 ];
 
 function isOriginAllowed(origin) {
   if (!origin) return false;
   if (ALLOWED_ORIGINS.includes(origin)) return true;
-  if (origin.endsWith(".pages.dev") || origin.endsWith(".geekio.org")) return true;
+  if (
+    origin.endsWith(".pages.dev") ||
+    origin.endsWith(".geekio.org") ||
+    origin.endsWith("realrate.ir")
+  ) return true;
   return false;
 }
 
