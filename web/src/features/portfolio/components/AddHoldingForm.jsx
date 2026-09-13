@@ -1,10 +1,18 @@
 import React, { useState, useEffect } from 'react';
+import { Coins } from 'lucide-react';
 import Modal from '../../../shared/ui/Modal.jsx';
 import NumericInput from '../../../shared/ui/NumericInput.jsx';
 import UniversalAssetSearch from '../../../components/UniversalAssetSearch.jsx';
 import ShamsiDatePicker from './ShamsiDatePicker.jsx';
 import { parseInputNumber } from '../utils/holdingHelpers.js';
-import { resolveItemCategory } from '../../../utils/financialSpecs.js';
+import {
+  getCanonicalAssetSpec,
+  getCanonicalAssetName,
+  getCanonicalAssetUnit,
+  resolveItemCategory,
+} from '../../../utils/financialSpecs.js';
+
+const formatNum = (v) => Number(v || 0).toLocaleString('fa-IR');
 
 export default function AddHoldingForm({
   isOpen,
@@ -45,11 +53,16 @@ export default function AddHoldingForm({
         setCustomCurrentPrice('');
       }
 
-      if (editingHolding.assetType === 'bourse' || editingHolding.assetType === 'bourse_fund' || editingHolding.assetId?.startsWith('bourse_')) {
+      if (
+        editingHolding.assetType === 'bourse' ||
+        editingHolding.assetType === 'bourse_fund' ||
+        editingHolding.assetId?.startsWith('bourse_')
+      ) {
         setSelectedBourseSymbol({
           symbol: editingHolding.assetId.replace('bourse_', ''),
           name: editingHolding.assetName,
           isFund: editingHolding.assetType === 'bourse_fund',
+          priceToman: editingHolding.customPrice || 0,
         });
       } else {
         setSelectedBourseSymbol(null);
@@ -69,24 +82,59 @@ export default function AddHoldingForm({
 
   const handleAssetSelect = (asset) => {
     if (!asset) return;
-    setSelectedAssetId(asset.id);
-    if (asset.category === 'custom') {
-      setCustomName(asset.name || '');
-      setCustomUnit(asset.unit || 'واحد');
-    }
-    if (asset.category === 'bourse' || asset.category === 'bourse_fund') {
+    const rawItem = asset.raw || asset;
+    const rawId = rawItem.id || rawItem.priceType || rawItem.symbol || '';
+    const cleanId = String(rawId).replace(/^src_def_/, '').replace(/^derived_/, '');
+    const canonicalSpec = getCanonicalAssetSpec(cleanId || rawId || rawItem.symbol);
+    const resolvedId = canonicalSpec?.id || cleanId || rawId;
+
+    const resolvedCat = resolveItemCategory(rawItem);
+    const isBourse = resolvedCat === 'bourse' || resolvedCat === 'bourse_fund' || resolvedId.startsWith('bourse_');
+    const isCustom = resolvedCat === 'custom' || resolvedId === 'custom' || resolvedId.startsWith('custom_');
+
+    if (isBourse) {
+      const symCode = (rawItem.symbol || rawItem.s || resolvedId.replace('bourse_', '')).trim();
+      const isFund = Boolean(
+        rawItem.isFund ||
+        rawItem.f === 1 ||
+        resolvedCat === 'bourse_fund' ||
+        rawItem.category === 'bourse_fund' ||
+        rawItem.category?.includes('صندوق') ||
+        rawItem.name?.includes('صندوق') ||
+        rawItem.title?.includes('صندوق')
+      );
+      setSelectedAssetId(`bourse_${symCode}`);
       setSelectedBourseSymbol({
-        symbol: asset.id.replace('bourse_', ''),
-        name: asset.name,
-        isFund: asset.category === 'bourse_fund',
+        ...rawItem,
+        symbol: symCode,
+        isFund,
+        priceToman: rawItem.priceToman || (rawItem.priceRial ? Math.round(rawItem.priceRial / 10) : rawItem.price || 0),
       });
-    } else {
+      setCustomName(rawItem.name || (isFund ? `صندوق ${symCode}` : `سهام ${symCode}`));
+      setCustomUnit(isFund ? 'واحد' : 'برگ سهم');
+      const p = rawItem.priceToman || (rawItem.priceRial ? Math.round(rawItem.priceRial / 10) : rawItem.price || '');
+      setCustomCurrentPrice(p ? String(p) : '');
+    } else if (isCustom) {
+      setSelectedAssetId('custom');
       setSelectedBourseSymbol(null);
+      setCustomName(rawItem.name || '');
+      setCustomUnit(rawItem.unit || 'واحد');
+      if (rawItem.price > 0) {
+        setCustomCurrentPrice(String(Math.round(rawItem.price)));
+      }
+    } else {
+      setSelectedAssetId(resolvedId);
+      setSelectedBourseSymbol(null);
+      setCustomName(canonicalSpec?.name || rawItem.name || '');
+      setCustomUnit(canonicalSpec?.unit || rawItem.unit || 'واحد');
+      if (rawItem.price > 0) {
+        setCustomCurrentPrice(String(Math.round(rawItem.price)));
+      }
     }
   };
 
   const handleSubmit = (e) => {
-    e.preventDefault();
+    e?.preventDefault();
     const parsedAmount = parseInputNumber(amount);
     if (!parsedAmount || parsedAmount <= 0) {
       alert('لطفاً مقدار دارایی را به درستی وارد کنید.');
@@ -113,6 +161,8 @@ export default function AddHoldingForm({
       finalUnit = selectedBourseSymbol?.isFund ? 'واحد' : 'برگ سهم';
     } else {
       finalAssetType = resolveItemCategory(selectedAssetId);
+      finalAssetName = getCanonicalAssetName(selectedAssetId) || customName;
+      finalUnit = getCanonicalAssetUnit(selectedAssetId) || 'واحد';
     }
 
     onSubmit?.({
@@ -130,106 +180,262 @@ export default function AddHoldingForm({
     });
   };
 
+  const cleanSelectedId = (selectedAssetId || '').replace(/^src_def_/, '').replace(/^derived_/, '');
+  const isModalBourse =
+    selectedAssetId?.startsWith('bourse_') ||
+    selectedBourseSymbol !== null ||
+    selectedAssetId === 'bourse' ||
+    selectedAssetId === 'bourse_fund';
+  const isModalFund = Boolean(
+    selectedBourseSymbol?.isFund ||
+    selectedAssetId === 'bourse_fund' ||
+    (selectedAssetId?.startsWith('bourse_') && selectedBourseSymbol?.isFund)
+  );
+  const isModalCustom = cleanSelectedId === 'custom' || selectedAssetId?.startsWith('custom_');
+
+  const selectedAssetTitle = isModalBourse
+    ? (selectedBourseSymbol?.symbol ? `${selectedBourseSymbol.symbol} (${selectedBourseSymbol.name || 'سهام بورس'})` : customName || 'سهام بورس')
+    : (isModalCustom ? (customName || 'دارایی شخصی') : (getCanonicalAssetName(cleanSelectedId) || customName || selectedAssetId || 'انتخاب نشده'));
+
+  const unitLabel = isModalBourse
+    ? (isModalFund ? 'واحد' : 'برگ سهم')
+    : (isModalCustom ? (customUnit || 'واحد') : (getCanonicalAssetUnit(cleanSelectedId) || 'واحد'));
+
   return (
     <Modal
       isOpen={isOpen}
-      onClose={onClose}
+      onClose={!submitting ? onClose : undefined}
       title={editingHolding ? 'ویرایش دارایی' : 'افزودن دارایی جدید به پورتفو'}
-    >
-      <form onSubmit={handleSubmit} className="holding-modal-form">
-        {/* Universal Asset Picker */}
-        <div className="form-item">
-          <label>نوع و مشخصات دارایی</label>
-          <UniversalAssetSearch
-            value={selectedAssetId}
-            onSelect={handleAssetSelect}
-            rates={rates}
-          />
-        </div>
-
-        {/* Custom Asset Specific Fields */}
-        {(selectedAssetId === 'custom' || selectedAssetId.startsWith('custom_')) && (
-          <div className="custom-fields-grid">
-            <div className="form-item">
-              <label>نام دارایی شخصی</label>
-              <input
-                type="text"
-                className="form-input"
-                placeholder="مثلاً زمین دماوند، خودرو، نقاشی..."
-                value={customName}
-                onChange={(e) => setCustomName(e.target.value)}
-                required
-              />
-            </div>
-            <div className="form-item">
-              <label>واحد اندازه‌گیری</label>
-              <input
-                type="text"
-                className="form-input"
-                placeholder="متر، عدد، تن..."
-                value={customUnit}
-                onChange={(e) => setCustomUnit(e.target.value)}
-              />
-            </div>
-          </div>
-        )}
-
-        <div className="form-grid-2">
-          {/* Amount Input */}
-          <div className="form-item">
-            <label>مقدار / تعداد دارایی</label>
-            <NumericInput
-              value={amount}
-              onChange={setAmount}
-              placeholder="مثلاً ۱.۵ یا ۱۰"
-              allowDecimals={true}
-              required
-            />
-          </div>
-
-          {/* Buy Price Input */}
-          <div className="form-item">
-            <label>قیمت خرید واحد (اختیاری)</label>
-            <NumericInput
-              value={buyPrice}
-              onChange={setBuyPrice}
-              placeholder="مبلغ هر واحد به تومان..."
-              allowDecimals={false}
-              affix="تومان"
-            />
-          </div>
-        </div>
-
-        <div className="form-grid-2">
-          {/* Shamsi Date Picker */}
-          <ShamsiDatePicker
-            value={buyDate}
-            onChange={setBuyDate}
-            label="تاریخ خرید (شمسی)"
-          />
-
-          {/* Notes Input */}
-          <div className="form-item">
-            <label>یادداشت یا توضیحات</label>
-            <input
-              type="text"
-              className="form-input"
-              placeholder="مثلاً خرید از بورس یا بازار تهران..."
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-            />
-          </div>
-        </div>
-
-        <div className="modal-actions-row">
-          <button type="button" className="btn-secondary" onClick={onClose} disabled={submitting}>
+      icon={<Coins size={18} />}
+      maxWidth="500px"
+      className="asset-modal-box"
+      onSubmit={handleSubmit}
+      footer={
+        <div className="modal-actions">
+          <button
+            type="button"
+            className="btn-cancel"
+            disabled={submitting}
+            onClick={onClose}
+          >
             انصراف
           </button>
           <button type="submit" className="btn-primary" disabled={submitting}>
-            {submitting ? 'در حال ثبت...' : (editingHolding ? 'ذخیره تغییرات' : 'افزودن دارایی')}
+            {submitting
+              ? 'در حال ذخیره...'
+              : editingHolding
+              ? 'ذخیره تغییرات'
+              : 'افزودن دارایی'}
           </button>
         </div>
-      </form>
+      }
+    >
+      {/* Unified Asset Selector Component */}
+      <div
+        className="unified-asset-picker-card"
+        style={{
+          padding: '14px',
+          background: 'rgba(255,255,255,0.03)',
+          borderRadius: '12px',
+          border: '1px solid var(--border-color)',
+          marginBottom: '16px',
+        }}
+      >
+        <div
+          className="unified-picker-header"
+          style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            marginBottom: '10px',
+          }}
+        >
+          <span
+            className="unified-picker-title"
+            style={{ fontSize: '13px', fontWeight: '700', color: 'var(--text-heading)' }}
+          >
+            نوع و مشخصات دارایی:
+          </span>
+          <div
+            className="active-asset-summary-pill"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              fontSize: '12px',
+              background: 'rgba(59,130,246,0.1)',
+              border: '1px solid rgba(59,130,246,0.25)',
+              padding: '3px 10px',
+              borderRadius: '16px',
+            }}
+          >
+            <span className="summary-label" style={{ color: 'var(--text-muted)' }}>
+              انتخاب‌شده:
+            </span>
+            <strong className="summary-val" style={{ color: '#93c5fd' }}>
+              {selectedAssetTitle}
+            </strong>
+          </div>
+        </div>
+
+        <UniversalAssetSearch
+          mode="picker"
+          selectedAssetId={selectedAssetId}
+          showCategories={true}
+          onSelect={handleAssetSelect}
+          rates={rates}
+        />
+      </div>
+
+      {/* Selected Bourse Stock Highlight Card */}
+      {isModalBourse && (
+        <div className="selected-bourse-preview-card">
+          <div className="preview-card-header">
+            <div className="preview-symbol-info">
+              <span className={`bourse-active-badge ${isModalFund ? 'fund-active-badge' : ''}`}>
+                {isModalFund ? 'بورس اوراق بهادار تهران (صندوق)' : 'بورس اوراق بهادار تهران (سهام)'}
+              </span>
+              <strong className="preview-symbol-code">
+                {selectedBourseSymbol?.symbol ||
+                  (selectedAssetId === 'bourse_fund'
+                    ? 'صندوق'
+                    : selectedAssetId === 'bourse'
+                    ? 'سهام'
+                    : selectedAssetId.replace('bourse_', ''))}
+              </strong>
+              <span className="preview-company-name">
+                {selectedBourseSymbol?.name ||
+                  customName ||
+                  (isModalFund ? 'صندوق‌های سرمایه‌گذاری بورس' : 'سهام بورس ایران')}
+              </span>
+            </div>
+            <button
+              type="button"
+              className="btn-change-selected-stock"
+              onClick={() => {
+                setSelectedAssetId('gold_18k');
+                setSelectedBourseSymbol(null);
+                setCustomName('');
+                setCustomUnit('گرم');
+                setCustomCurrentPrice('');
+              }}
+            >
+              تغییر دارایی
+            </button>
+          </div>
+          {selectedBourseSymbol?.priceToman > 0 && (
+            <div className="preview-card-footer">
+              <span className="preview-price-label">آخرین قیمت معامله:</span>
+              <strong className="preview-price-num">
+                {formatNum(selectedBourseSymbol.priceToman)} تومان
+              </strong>
+              <span className="preview-price-rial">
+                ({Number(selectedBourseSymbol.priceToman * 10).toLocaleString('fa-IR')} ریال)
+              </span>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Custom Asset Specific Fields */}
+      {isModalCustom && (
+        <div className="form-row-dual">
+          <div className="form-item flex-1">
+            <label>نام دارایی شخصی</label>
+            <input
+              type="text"
+              placeholder="مثلاً زمین دماوند، خودرو، نقاشی..."
+              value={customName}
+              onChange={(e) => setCustomName(e.target.value)}
+              className="form-input"
+              required
+            />
+          </div>
+          <div className="form-item flex-1">
+            <label>واحد شمارش</label>
+            <input
+              type="text"
+              placeholder="مثلاً متر، عدد، تن، سهم..."
+              value={customUnit}
+              onChange={(e) => setCustomUnit(e.target.value)}
+              className="form-input"
+              required
+            />
+          </div>
+        </div>
+      )}
+
+      {/* Amount Input */}
+      <div className="form-item">
+        <label>مقدار ({unitLabel})</label>
+        <input
+          type="text"
+          className="form-input"
+          placeholder={`مثلاً ${isModalBourse ? (isModalFund ? '۵۰۰' : '۱۰۰۰') : unitLabel === 'گرم' ? '۱۵.۵' : '۲'}`}
+          value={amount}
+          onChange={(e) => setAmount(e.target.value)}
+          required
+        />
+      </div>
+
+      {/* Buy Price Input */}
+      <div className="form-item">
+        <label>قیمت خرید هر {unitLabel} (تومان)</label>
+        <NumericInput
+          placeholder={
+            isModalBourse
+              ? 'قیمت خرید هر سهم به تومان (اختیاری)...'
+              : 'مبلغ هر واحد به تومان (اختیاری)...'
+          }
+          value={buyPrice}
+          onValueChange={setBuyPrice}
+          onChange={(e) => setBuyPrice(e.target.value)}
+          className="form-input"
+          allowDecimals={false}
+        />
+        <span className="field-sub-note">اختیاری؛ برای محاسبه سود و زیان دقیق در پورتفو.</span>
+      </div>
+
+      {/* Custom or Bourse Asset: Current Market Price field */}
+      {(isModalCustom || isModalBourse) && (
+        <div className="form-item">
+          <label>قیمت روز واحد (تومان)</label>
+          <NumericInput
+            placeholder="جهت محاسبه زنده ارزش و سود/زیان"
+            value={customCurrentPrice}
+            onValueChange={setCustomCurrentPrice}
+            onChange={(e) => setCustomCurrentPrice(e.target.value)}
+            className="form-input"
+            allowDecimals={false}
+          />
+          <span className="field-sub-note">
+            {isModalBourse
+              ? 'به صورت خودکار با آخرین قیمت معاملات بازار بورس هماهنگ می‌شود.'
+              : 'اختیاری؛ در صورت خالی بودن، برابر با قیمت خرید در نظر گرفته می‌شود.'}
+          </span>
+        </div>
+      )}
+
+      {/* Date and Notes in Dual Row */}
+      <div className="form-row-dual">
+        <ShamsiDatePicker
+          className="flex-1"
+          value={buyDate}
+          onChange={setBuyDate}
+          label="تاریخ خرید (شمسی)"
+        />
+
+        <div className="form-item flex-1">
+          <label>یادداشت یا توضیحات</label>
+          <input
+            type="text"
+            placeholder="مثلاً خرید از بورس یا بازار تهران..."
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+            className="form-input"
+          />
+        </div>
+      </div>
     </Modal>
   );
 }

@@ -65,7 +65,7 @@ export function parseShamsiDate(str) {
   };
 }
 
-export default function ShamsiDatePicker({ value = '', onChange, label = 'تاریخ خرید' }) {
+export default function ShamsiDatePicker({ value = '', onChange, label = 'تاریخ خرید', className = '' }) {
   const [showPicker, setShowPicker] = useState(false);
   const nativeDateRef = useRef(null);
 
@@ -80,8 +80,8 @@ export default function ShamsiDatePicker({ value = '', onChange, label = 'تار
   };
 
   return (
-    <div className="form-item date-picker-field">
-      <div className="label-with-hint">
+    <div className={`form-item date-picker-field ${className}`.trim()}>
+      <div className="label-with-action">
         <label>{label}</label>
         <button
           type="button"

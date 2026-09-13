@@ -569,6 +569,8 @@ export default function PortfolioTracker({ rates, calcData, usdToman, goldUsd })
         <div className="portfolio-sidebar-column">
           <PortfolioOverviewCards
             portfolioMetrics={portfolioMetrics}
+            categoryGroups={categoryGroups}
+            holdingsCount={holdings.length}
             hideValues={hideValues}
             onOpenAdd={handleOpenAdd}
             isVaultLocked={isVaultLocked}

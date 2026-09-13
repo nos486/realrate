@@ -1,31 +1,48 @@
 import React from 'react';
-import { Plus, ArrowUpRight, ArrowDownRight } from 'lucide-react';
+import { Plus, ArrowUpRight, ArrowDownRight, Lock } from 'lucide-react';
 import { formatNum } from '../utils/holdingHelpers.js';
 
 export default function PortfolioOverviewCards({
   portfolioMetrics = {},
+  categoryGroups = [],
+  holdingsCount = 0,
   hideValues = false,
   onOpenAdd,
   isVaultLocked = false,
 }) {
+  const hasData = portfolioMetrics.hasAnyCost;
   const isProfit = (portfolioMetrics.totalPnl || 0) >= 0;
+  const cardStatusClass = isVaultLocked
+    ? 'neutral'
+    : hasData
+    ? (isProfit ? 'profit' : 'loss')
+    : 'neutral';
 
   return (
-    <div className="portfolio-overview-cards-container">
-      {/* Total Current Real Value */}
-      <div className="portfolio-stat-card total-value-card">
-        <div className="stat-card-top">
-          <span className="stat-label">ارزش روز پورتفو</span>
+    <div className="portfolio-overview-grid">
+      {/* Card 1: Total Real Value */}
+      <div className="portfolio-stat-card main-val">
+        <div className="stat-header">
+          <span className="stat-label">ارزش کل</span>
+          <span className="real-pill">ارزش روز</span>
         </div>
         <div className={`stat-number gold-gradient-text ${hideValues ? 'is-masked' : ''}`}>
-          {isVaultLocked ? 'قفل' : hideValues ? '****' : formatNum(portfolioMetrics.totalRealValue)}
+          {isVaultLocked ? (
+            <span className="locked-stat">
+              <Lock size={16} style={{ verticalAlign: 'middle', marginLeft: '4px' }} /> قفل
+            </span>
+          ) : hideValues ? (
+            '****'
+          ) : (
+            formatNum(portfolioMetrics.totalRealValue)
+          )}
           {!isVaultLocked && <span className="stat-unit">تومان</span>}
         </div>
         <div className="stat-sub">
           {isVaultLocked
             ? 'گاوصندوق قفل است'
             : `سرمایه اولیه: ${
-                portfolioMetrics.hasAnyCost
+                hasData
                   ? hideValues
                     ? '**** تومان'
                     : `${formatNum(portfolioMetrics.totalCost)} تومان`
@@ -34,52 +51,118 @@ export default function PortfolioOverviewCards({
         </div>
       </div>
 
-      {/* Total Profit / Loss */}
-      <div className={`portfolio-stat-card pnl-card ${isProfit ? 'profit' : 'loss'}`}>
-        <div className="stat-card-top">
+      {/* Card 2: Total PnL */}
+      <div className={`portfolio-stat-card pnl-card ${cardStatusClass}`}>
+        <div className="stat-header">
           <span className="stat-label">سود / زیان کل</span>
-          {isProfit ? (
-            <ArrowUpRight size={16} className="pnl-icon-profit" />
-          ) : (
-            <ArrowDownRight size={16} className="pnl-icon-loss" />
-          )}
         </div>
-        <div className={`stat-number ${hideValues ? 'is-masked' : ''}`}>
-          {isVaultLocked ? (
-            'قفل'
-          ) : !portfolioMetrics.hasAnyCost ? (
-            '—'
-          ) : hideValues ? (
-            '****'
-          ) : (
-            `${isProfit ? '+' : ''}${formatNum(portfolioMetrics.totalPnl)}`
-          )}
-          {!isVaultLocked && portfolioMetrics.hasAnyCost && <span className="stat-unit">تومان</span>}
-        </div>
-        <div className="stat-sub">
-          {isVaultLocked ? (
-            'رمز عبور لازم است'
-          ) : !portfolioMetrics.hasAnyCost ? (
-            'قیمت خریدی ثبت نشده است'
-          ) : (
-            <span className="pnl-pct-highlight">
-              بازدهی کل:{' '}
-              {hideValues
-                ? '****'
-                : `${isProfit ? '+' : ''}${Math.abs(portfolioMetrics.totalPnlPct || 0).toFixed(1)}٪`}
+
+        <div className="stat-pnl-row">
+          <div className={`stat-number ${hideValues ? 'is-masked' : ''}`}>
+            {isVaultLocked ? (
+              <span className="stat-sub" style={{ fontSize: '15px' }}>
+                <Lock size={14} style={{ verticalAlign: 'middle', marginLeft: '4px' }} /> قفل است
+              </span>
+            ) : hasData ? (
+              <>
+                {hideValues ? '****' : `${isProfit ? '+' : ''}${formatNum(portfolioMetrics.totalPnl)}`}
+                <span className="stat-unit">تومان</span>
+              </>
+            ) : (
+              <span className="stat-sub" style={{ fontSize: '15px' }}>بدون قیمت خرید</span>
+            )}
+          </div>
+
+          {!isVaultLocked && hasData && (
+            <span className={`pnl-badge ${isProfit ? 'profit' : 'loss'}`}>
+              {isProfit ? (
+                <ArrowUpRight size={13} style={{ verticalAlign: 'middle' }} />
+              ) : (
+                <ArrowDownRight size={13} style={{ verticalAlign: 'middle' }} />
+              )}
+              {hideValues ? '****' : `${isProfit ? '+' : ''}${Math.abs(portfolioMetrics.totalPnlPct || 0).toFixed(1)}٪`}
             </span>
           )}
         </div>
+
+        <div className="stat-sub">
+          {isVaultLocked
+            ? 'گاوصندوق قفل است'
+            : hasData
+            ? 'از زمان خرید اولیه'
+            : 'محاسبه به نرخ روز'}
+        </div>
       </div>
 
-      {/* Quick Add Asset Action Card */}
-      <div className="portfolio-stat-card add-action-card" onClick={onOpenAdd} role="button" tabIndex={0}>
-        <div className="add-action-icon-wrap">
-          <Plus size={24} />
+      {/* Card 3: Actions & Count */}
+      <div className="portfolio-stat-card action-card">
+        <div className="stat-header">
+          <span className="stat-label">تعداد اقلام</span>
+          <span className="count-pill">
+            {isVaultLocked ? (
+              <>
+                <Lock size={11} style={{ verticalAlign: 'middle', marginLeft: '3px' }} /> قفل
+              </>
+            ) : (
+              `${holdingsCount.toLocaleString('fa-IR')} قلم`
+            )}
+          </span>
         </div>
-        <span className="add-action-title">ثبت دارایی جدید</span>
-        <span className="add-action-sub">طلا، سکه، نقره، ارز، بورس...</span>
+        <button
+          type="button"
+          className="btn-add-asset"
+          onClick={onOpenAdd}
+          disabled={isVaultLocked}
+          title={isVaultLocked ? 'ابتدا گاوصندوق را باز کنید' : 'افزودن دارایی'}
+        >
+          <Plus size={16} strokeWidth={2.5} />
+          <span>{isVaultLocked ? 'قفل است' : 'ثبت دارایی'}</span>
+        </button>
       </div>
+
+      {/* Card 4: Asset Allocation Distribution Breakdown */}
+      {categoryGroups.length > 0 && (portfolioMetrics.totalRealValue || 0) > 0 && !isVaultLocked && (
+        <div className="portfolio-stat-card allocation-card">
+          <div className="stat-header">
+            <span className="stat-label">ترکیب دارایی‌ها</span>
+            <span className="count-pill">{categoryGroups.length.toLocaleString('fa-IR')} دسته</span>
+          </div>
+          <div className="allocation-bar" aria-label="نمودار تفکیک دارایی‌ها">
+            {categoryGroups.map((cat) => {
+              const pct = (cat.totalRealValue / portfolioMetrics.totalRealValue) * 100;
+              if (pct < 0.5) return null;
+              return (
+                <div
+                  key={cat.key}
+                  className={`allocation-segment cat-${cat.key}`}
+                  style={{ width: `${pct}%` }}
+                  title={`${cat.name}: ${Number(pct).toLocaleString('fa-IR', {
+                    minimumFractionDigits: 1,
+                    maximumFractionDigits: 1,
+                  })}٪`}
+                />
+              );
+            })}
+          </div>
+          <div className="allocation-chips">
+            {categoryGroups.map((cat) => {
+              const pct = (cat.totalRealValue / portfolioMetrics.totalRealValue) * 100;
+              return (
+                <div key={cat.key} className="allocation-chip">
+                  <span className={`chip-dot cat-${cat.key}`} />
+                  <span className="chip-name">{cat.name}:</span>
+                  <strong className="chip-pct">
+                    {Number(pct).toLocaleString('fa-IR', {
+                      minimumFractionDigits: 1,
+                      maximumFractionDigits: 1,
+                    })}٪
+                  </strong>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
