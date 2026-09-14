@@ -83,5 +83,30 @@ describe("parsingUtils — extractValueByPath with predicate filtering", () => {
     const url4 = resolveApiUrl("https://open.er-api.com/v6/latest/USD", mockEnv);
     expect(url4).toBe("https://open.er-api.com/v6/latest/USD");
   });
+
+  it("correctly routes BRS currency/USDT sources to apiUrlSourceAdapter instead of bourse adapter", async () => {
+    const { getAdapterForSource } = await import("../../src/services/market/sources/index.js");
+    const usdtSource = {
+      id: "src_brs_usdt_custom",
+      name: "دلار تتر",
+      priceType: "USDT",
+      sourceType: "api_url",
+      endpoint: "https://api.brsapi.ir/Market/Gold_Currency.php",
+    };
+
+    const adapter = getAdapterForSource(usdtSource);
+    expect(adapter.id).toBe("api_url");
+
+    const bourseSource = {
+      id: "src_def_bourse",
+      name: "بورس",
+      priceType: "bourse",
+      sourceType: "api_url",
+      endpoint: "https://api.brsapi.ir/Tsetmc/AllSymbols.php?type=1",
+    };
+    const bourseAdapter = getAdapterForSource(bourseSource);
+    expect(bourseAdapter.id).toBe("bourse_symbols");
+  });
 });
+
 

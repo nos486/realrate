@@ -78,7 +78,7 @@ export default function MultiFeedModal({
               onChange={(e) => {
                 const val = e.target.value;
                 let defaultUrl = multiForm.apiUrl;
-                if (val === 'forex' && (!defaultUrl || defaultUrl.includes('brsapi'))) {
+                if (val === 'forex' && (!defaultUrl || defaultUrl.includes('allsymbols') || defaultUrl.includes('tsetmc'))) {
                   defaultUrl = 'https://open.er-api.com/v6/latest/USD';
                 } else if (val === 'bourse' && (!defaultUrl || defaultUrl.includes('open.er-api.com'))) {
                   defaultUrl = 'https://api.brsapi.ir/Tsetmc/AllSymbols.php?type=1';
