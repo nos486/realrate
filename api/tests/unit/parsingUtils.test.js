@@ -63,49 +63,75 @@ describe("parsingUtils — extractValueByPath with predicate filtering", () => {
     expect(parsed.label).toBe("تتر تومانی با فانکشن اختصاصی");
   });
 
-  it("injects BRS API key securely from env into apiUrl without hardcoding", async () => {
-    const { resolveApiUrl } = await import("../../src/services/market/sources/apiUrl.source.adapter.js");
-    const mockEnv = { BRS_API_KEY: "secret123" };
+  it("universally interpolates any environment variables and secrets into endpoints without vendor coupling", async () => {
+    const { resolveApiUrl, interpolateEnvVariables } = await import("../../src/services/market/sources/apiUrl.source.adapter.js");
+    const mockEnv = {
+      API_SECRET_TOKEN: "xyz_token_999",
+      CUSTOM_CLIENT_ID: "client_456",
+    };
 
-    // Should append ?key=secret123 when missing
-    const url1 = resolveApiUrl("https://api.brsapi.ir/Market/Gold_Currency.php", mockEnv);
-    expect(url1).toBe("https://api.brsapi.ir/Market/Gold_Currency.php?key=secret123");
+    // 1. Template variable interpolation ${VAR}
+    const url1 = resolveApiUrl("https://example.com/v1/feed?secret=${API_SECRET_TOKEN}&client=${CUSTOM_CLIENT_ID}", mockEnv);
+    expect(url1).toBe("https://example.com/v1/feed?secret=xyz_token_999&client=client_456");
 
-    // Should append &key=secret123 when query string already exists
-    const url2 = resolveApiUrl("https://api.brsapi.ir/Tsetmc/AllSymbols.php?type=1", mockEnv);
-    expect(url2).toBe("https://api.brsapi.ir/Tsetmc/AllSymbols.php?type=1&key=secret123");
+    // 2. Mustache variable interpolation {{VAR}}
+    const url2 = resolveApiUrl("https://example.org/api/rates?auth={{API_SECRET_TOKEN}}", mockEnv);
+    expect(url2).toBe("https://example.org/api/rates?auth=xyz_token_999");
 
-    // Should replace {BRS_API_KEY} placeholder
-    const url3 = resolveApiUrl("https://api.brsapi.ir/Market/Gold.php?token={BRS_API_KEY}", mockEnv);
-    expect(url3).toBe("https://api.brsapi.ir/Market/Gold.php?token=secret123");
+    // 3. Declarative apiKeyEnv config on source object
+    const url3 = resolveApiUrl({
+      endpoint: "https://api.external-feed.com/live",
+      apiKeyEnv: "API_SECRET_TOKEN",
+      apiKeyParam: "token",
+    }, mockEnv);
+    expect(url3).toBe("https://api.external-feed.com/live?token=xyz_token_999");
 
-    // Should not modify non-BRS URLs
-    const url4 = resolveApiUrl("https://open.er-api.com/v6/latest/USD", mockEnv);
-    expect(url4).toBe("https://open.er-api.com/v6/latest/USD");
+    // 4. String interpolation utility directly
+    const authHeader = interpolateEnvVariables("Bearer ${API_SECRET_TOKEN}", mockEnv);
+    expect(authHeader).toBe("Bearer xyz_token_999");
   });
 
-  it("correctly routes BRS currency/USDT sources to apiUrlSourceAdapter instead of bourse adapter", async () => {
+  it("dispatches to adapters purely by configuration contracts without URL sniffing", async () => {
     const { getAdapterForSource } = await import("../../src/services/market/sources/index.js");
-    const usdtSource = {
-      id: "src_brs_usdt_custom",
-      name: "دلار تتر",
-      priceType: "USDT",
+
+    // Any source explicitly declared as api_url goes to apiUrlSourceAdapter, regardless of endpoint
+    const customApiSource = {
+      id: "any_custom_source",
       sourceType: "api_url",
-      endpoint: "https://api.brsapi.ir/Market/Gold_Currency.php",
+      endpoint: "https://arbitrary-service.com/arbitrary/endpoint",
     };
+    expect(getAdapterForSource(customApiSource).id).toBe("api_url");
 
-    const adapter = getAdapterForSource(usdtSource);
-    expect(adapter.id).toBe("api_url");
-
+    // Explicit bourse_symbols
     const bourseSource = {
-      id: "src_def_bourse",
-      name: "بورس",
-      priceType: "bourse",
-      sourceType: "api_url",
-      endpoint: "https://api.brsapi.ir/Tsetmc/AllSymbols.php?type=1",
+      id: "custom_stocks",
+      sourceType: "bourse_symbols",
+      endpoint: "https://custom-broker.net/symbols",
     };
-    const bourseAdapter = getAdapterForSource(bourseSource);
-    expect(bourseAdapter.id).toBe("bourse_symbols");
+    expect(getAdapterForSource(bourseSource).id).toBe("bourse_symbols");
+
+    // Explicit forex_api
+    const forexSource = {
+      id: "custom_forex",
+      sourceType: "forex_api",
+      endpoint: "https://any-forex-provider.org/latest",
+    };
+    expect(getAdapterForSource(forexSource).id).toBe("forex_api");
+
+    // Explicit telegram
+    const telegramSource = {
+      id: "custom_channel",
+      sourceType: "telegram",
+      channelUsername: "my_rate_channel",
+    };
+    expect(getAdapterForSource(telegramSource).id).toBe("telegram");
+
+    // Fallback: legacy source without sourceType defaults to api_url if endpoint is given
+    const untypedHttpSource = {
+      id: "legacy_http",
+      endpoint: "https://unknown-service.io/data.json",
+    };
+    expect(getAdapterForSource(untypedHttpSource).id).toBe("api_url");
   });
 });
 

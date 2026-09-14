@@ -14,6 +14,7 @@ import {
   BOURSE_SYNC_EXPIRATION_TTL,
 } from "../../../config/constants.js";
 import { logger } from "../../../lib/logger.js";
+import { resolveApiUrl } from "./apiUrl.source.adapter.js";
 
 export const BOURSE_API_BASE_URL = "https://api.brsapi.ir/Tsetmc/AllSymbols.php?type=1";
 
@@ -210,23 +211,16 @@ export const bourseSymbolsSourceAdapter = {
   supports(sourceConfig) {
     const sType = (sourceConfig.sourceType || sourceConfig.source_type || "").toLowerCase();
     if (sType === "bourse_symbols") return true;
+    if (sType === "api_url") return false;
 
     const pType = (sourceConfig.priceType || sourceConfig.price_type || "").toLowerCase();
-    if (pType === "bourse" || pType === "bourse_fund") return true;
-
-    const endpoint = String(sourceConfig.endpoint || sourceConfig.apiUrl || "").toLowerCase();
-    return endpoint.includes("allsymbols.php") || endpoint.includes("tsetmc");
+    return pType === "bourse" || pType === "bourse_fund";
   },
 
   async fetchRaw(sourceConfig = {}, env = null) {
-    let url = (sourceConfig.endpoint || sourceConfig.apiUrl || BOURSE_API_BASE_URL).trim();
-    if (url.includes("api.brsapi.ir") && !url.includes("key=")) {
-      const key = resolveBrsApiKey(env);
-      if (key) {
-        const sep = url.includes("?") ? "&" : "?";
-        url = `${url}${sep}key=${key}`;
-      }
-    }
+    const fallbackUrl = getBourseApiUrl(env);
+    const target = sourceConfig.endpoint || sourceConfig.apiUrl || fallbackUrl;
+    const url = resolveApiUrl(target, env);
 
     const res = await fetch(url, {
       headers: { "User-Agent": "RealRateWorker/1.0", "Accept": "application/json" },

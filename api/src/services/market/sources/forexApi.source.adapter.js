@@ -48,9 +48,11 @@ export const forexApiSourceAdapter = {
   name: "نرخ‌های جهانی فارکس (Open ER-API)",
 
   supports(sourceConfig) {
+    const sType = (sourceConfig.sourceType || sourceConfig.source_type || "").toLowerCase();
+    if (sType === "forex_api") return true;
+    if (sType === "api_url") return false;
     const pType = (sourceConfig.priceType || sourceConfig.price_type || "").toLowerCase();
-    const endpoint = String(sourceConfig.endpoint || sourceConfig.apiUrl || "").toLowerCase();
-    return pType === "forex" || endpoint.includes("open.er-api.com");
+    return pType === "forex";
   },
 
   async fetchRaw(sourceConfig) {

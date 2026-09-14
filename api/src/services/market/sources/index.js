@@ -34,14 +34,23 @@ export const sourceAdapters = [
 export function getAdapterForSource(sourceConfig) {
   if (!sourceConfig) return telegramSourceAdapter;
 
+  const type = String(sourceConfig.sourceType || sourceConfig.source_type || "").toLowerCase().trim();
+
+  // 1. Direct explicit type match (highest precedence contract)
+  if (type) {
+    const directMatch = sourceAdapters.find((a) => a.id === type);
+    if (directMatch) return directMatch;
+  }
+
+  // 2. Adapter-specific supports evaluation
   for (const adapter of sourceAdapters) {
     if (typeof adapter.supports === "function" && adapter.supports(sourceConfig)) {
       return adapter;
     }
   }
 
-  // Fallback based on sourceType
-  if (sourceConfig.sourceType === "api_url" || sourceConfig.apiUrl) {
+  // 3. Fallback: generic HTTP API endpoint vs telegram channel
+  if (sourceConfig.endpoint || sourceConfig.apiUrl || sourceConfig.usd_api_url) {
     return apiUrlSourceAdapter;
   }
 

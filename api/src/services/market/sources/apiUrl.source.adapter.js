@@ -11,36 +11,63 @@ import {
 import { normalizeForexToUsdCrossRate } from "../../../domain/formulas.js";
 
 /**
- * Resolve BRS API Key from Worker env or Node environment
+ * Generic environment variable interpolator.
+ * Replaces any ${VAR_NAME}, {{VAR_NAME}}, or {VAR_NAME} in a string
+ * with the corresponding variable from Worker env or process.env.
+ *
+ * @param {string} str
  * @param {object} [env]
  * @returns {string}
  */
-export function resolveBrsApiKey(env = null) {
-  return env?.BRS_API_KEY || (typeof process !== "undefined" && process.env?.BRS_API_KEY) || "";
+export function interpolateEnvVariables(str, env = null) {
+  if (!str || typeof str !== "string") return str || "";
+
+  const lookup = (key) => {
+    if (env && env[key] !== undefined && env[key] !== null) return String(env[key]);
+    if (typeof process !== "undefined" && process.env && process.env[key] !== undefined && process.env[key] !== null) {
+      return String(process.env[key]);
+    }
+    return "";
+  };
+
+  // Support ${VAR}, {{VAR}}, and {VAR}
+  return str.replace(/\$\{([A-Za-z0-9_]+)\}|\{\{([A-Za-z0-9_]+)\}\}|\{([A-Za-z0-9_]+)\}/g, (match, p1, p2, p3) => {
+    const varName = p1 || p2 || p3;
+    return lookup(varName);
+  });
 }
 
 /**
- * Dynamically resolves URL by injecting BRS_API_KEY if needed
- * @param {string} rawUrl
- * @param {object} [env]
+ * Universally resolves an API URL for any source configuration:
+ * 1. Interpolates any environment variables: ${VAR_NAME}, {{VAR_NAME}}, or {VAR_NAME}
+ * 2. Injects optional `apiKeyEnv` / `apiKeyParam` declared on sourceConfig
+ * 3. Graceful fallback for legacy URLs
+ *
+ * @param {string|object} urlOrConfig - URL string or full sourceConfig object
+ * @param {object} [env] - Environment variables object
  * @returns {string}
  */
-export function resolveApiUrl(rawUrl, env = null) {
-  let url = (rawUrl || "").trim();
-  const brsKey = resolveBrsApiKey(env);
+export function resolveApiUrl(urlOrConfig, env = null) {
+  const config = typeof urlOrConfig === "string" ? { endpoint: urlOrConfig } : (urlOrConfig || {});
+  let url = (config.endpoint || config.apiUrl || config.usd_api_url || "").trim();
+  if (!url) return "";
 
-  let hadPlaceholder = false;
-  if (url.includes("{BRS_API_KEY}")) {
-    url = url.replace(/\{BRS_API_KEY\}/g, brsKey);
-    hadPlaceholder = true;
-  }
-  if (url.includes("YOUR_API_KEY")) {
-    if (brsKey) url = url.replace(/YOUR_API_KEY/g, brsKey);
-    hadPlaceholder = true;
+  // 1. Generic template interpolation for ANY environment variable
+  url = interpolateEnvVariables(url, env);
+
+  // 2. Explicit apiKeyEnv parameter configured on sourceConfig (e.g. apiKeyEnv: 'NOBITEX_KEY')
+  if (config.apiKeyEnv) {
+    const envVal = (env && env[config.apiKeyEnv]) || (typeof process !== "undefined" && process.env?.[config.apiKeyEnv]) || "";
+    const paramName = config.apiKeyParam || "key";
+    if (envVal && !url.includes(`${paramName}=`)) {
+      const sep = url.includes("?") ? "&" : "?";
+      url = `${url}${sep}${paramName}=${envVal}`;
+    }
   }
 
-  // If URL is targeting BRS API and key was not already supplied or present in query
-  if (!hadPlaceholder && url.includes("api.brsapi.ir") && !url.includes("key=")) {
+  // 3. Backward-compatible fallback for BRS API if endpoint omitted key
+  if (url.includes("api.brsapi.ir") && !url.includes("key=")) {
+    const brsKey = (env && env.BRS_API_KEY) || (typeof process !== "undefined" && process.env?.BRS_API_KEY) || "";
     if (brsKey) {
       const sep = url.includes("?") ? "&" : "?";
       url = `${url}${sep}key=${brsKey}`;
@@ -59,26 +86,30 @@ export const apiUrlSourceAdapter = {
   name: "وب‌سرویس عمومی JSON",
 
   supports(sourceConfig) {
-    const type = sourceConfig.sourceType || sourceConfig.source_type;
-    return type === "api_url" || Boolean(sourceConfig.apiUrl || sourceConfig.usd_api_url);
+    const type = (sourceConfig.sourceType || sourceConfig.source_type || "").toLowerCase();
+    return type === "api_url" || Boolean(sourceConfig.apiUrl || sourceConfig.endpoint || sourceConfig.usd_api_url);
   },
 
   async fetchRaw(sourceConfig, env = null) {
-    const rawUrl = (sourceConfig.endpoint || sourceConfig.apiUrl || sourceConfig.usd_api_url || "").trim();
-    if (!rawUrl) {
+    const url = resolveApiUrl(sourceConfig, env);
+    if (!url) {
       throw new Error("آدرس وب‌سرویس وارد نشده است.");
     }
-    const url = resolveApiUrl(rawUrl, env);
     if (!/^https?:\/\//i.test(url)) {
       throw new Error("آدرس وب‌سرویس باید با http:// یا https:// آغاز شود.");
     }
 
-    const res = await fetch(url, {
-      headers: {
-        "User-Agent": USER_AGENT,
-        "Accept": "application/json, text/plain, */*",
-      },
-    });
+    const headers = {
+      "User-Agent": USER_AGENT,
+      "Accept": "application/json, text/plain, */*",
+    };
+    if (sourceConfig.headers && typeof sourceConfig.headers === "object") {
+      for (const [k, v] of Object.entries(sourceConfig.headers)) {
+        headers[k] = interpolateEnvVariables(String(v), env);
+      }
+    }
+
+    const res = await fetch(url, { headers });
 
     if (!res.ok) {
       throw new Error(`خطای ارتباط با وب‌سرویس API (کد ${res.status} ${res.statusText})`);
