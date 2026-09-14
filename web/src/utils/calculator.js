@@ -221,6 +221,23 @@ export function calculateMarketData({
           : `۱ دلار = ${(1 / crossRate).toFixed(2)} ${meta.name.split(' ')[0]}`;
       }
 
+      let isHome = true;
+      if (srcData?.showOnHomePage !== undefined) {
+        isHome = Boolean(srcData.showOnHomePage);
+      } else {
+        const parentMulti = marketPrices?.forex || marketPrices?.src_def_forex;
+        const parentDc = parentMulti?.displayConfig;
+        if (parentDc) {
+          const dc = typeof parentDc === 'string' ? (() => { try { return JSON.parse(parentDc); } catch { return {}; } })() : parentDc;
+          const allowed = dc.homePageOutputs || dc.homeOutputs || (Array.isArray(dc.showOnHomePage) ? dc.showOnHomePage : null);
+          if (Array.isArray(allowed)) {
+            isHome = allowed.map((x) => String(x).toUpperCase()).includes(code.toUpperCase());
+          } else if (dc.showOnHomePage === false) {
+            isHome = false;
+          }
+        }
+      }
+
       currencies.push({
         code,
         priceType: lowerKey,
@@ -232,7 +249,7 @@ export function calculateMarketData({
         note,
         sourceLabel: srcData?.label,
         sourceId: srcData?.sourceId,
-        showOnHomePage: srcData?.showOnHomePage !== undefined ? Boolean(srcData.showOnHomePage) : true,
+        showOnHomePage: isHome,
       });
     }
   });

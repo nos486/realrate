@@ -81,6 +81,30 @@
 }
 ```
 
+### مثال ۳: سورس چندمقداری (Multi-Output) با مشخص کردن اقلام صفحه اصلی
+برای سورس‌هایی که خروجی چند آیتمی دارند (مانند فارکس، رمزارزها، بورس و...)، می‌توانید اقلام مشخصی را برای نمایش در صفحه اصلی تعیین کنید:
+
+```javascript
+{
+  id: "src_def_forex",
+  name: "نرخ‌های جهانی فارکس (Open ER-API)",
+  priceType: "forex",
+  sourceType: "forex_api",
+  endpoint: "https://open.er-api.com/v6/latest/USD",
+  jsonPath: "rates",
+  displayConfig: {
+    showOnHomePage: true,
+    // لیست دقیق نمادهایی که می‌خواهید در صفحه اصلی (لیست ارزها) نمایش داده شوند:
+    homePageOutputs: ["EUR", "AED", "TRY", "GBP", "CHF", "CAD", "AUD", "CNY", "JPY"],
+  },
+  fetchIntervalSec: 300,
+  isActive: true,
+  isPrimary: true,
+}
+```
+> [!TIP]
+> اگر `homePageOutputs` تعیین نشود و `showOnHomePage: true` باشد، کلیه اقلام فید مجاز خواهند بود. در صورت تعیین آرایه، تنها نمادهای موجود در این آرایه در صفحه اول قرار می‌گیرند و سایر اقلام برای تبدیل ارز و پورتفوی فعال باقی می‌مانند.
+
 ---
 
 ## ۴. راستی‌آزمایی و تست سورس

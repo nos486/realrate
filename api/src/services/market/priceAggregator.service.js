@@ -23,6 +23,61 @@ let memoryPricesCache = {};
 let lastFetchTime = 0;
 
 /**
+ * Generic helper to check if a specific key from a multi-value source should be shown on the home page.
+ * Supports:
+ * - displayConfig.showOnHomePage: boolean (true/false) OR array of strings (e.g. ['EUR', 'AED', 'TRY'])
+ * - displayConfig.homePageOutputs: array of strings (e.g. ['EUR', 'AED', 'TRY'])
+ * - displayConfig.excludedHomePageOutputs: array of strings to hide from home page
+ *
+ * @param {string} outputKey - The item key (e.g. "EUR", "AED", "BTC")
+ * @param {object|string|null} displayConfig - Source displayConfig
+ * @returns {boolean}
+ */
+export function isMultiOutputOnHomePage(outputKey, displayConfig) {
+  if (!outputKey) return false;
+  if (!displayConfig) return true;
+
+  let dc = displayConfig;
+  if (typeof dc === 'string') {
+    try {
+      dc = JSON.parse(dc);
+    } catch {
+      return true;
+    }
+  }
+  if (!dc || typeof dc !== 'object') return true;
+
+  const keyUpper = String(outputKey).trim().toUpperCase();
+
+  // 1. If overall showOnHomePage is explicitly false, hide all
+  if (dc.showOnHomePage === false) {
+    return false;
+  }
+
+  // 2. If homePageOutputs (or homeOutputs / displayOutputs or showOnHomePage as array) is specified:
+  const allowedOutputs = Array.isArray(dc.homePageOutputs)
+    ? dc.homePageOutputs
+    : (Array.isArray(dc.homeOutputs)
+      ? dc.homeOutputs
+      : (Array.isArray(dc.displayOutputs)
+        ? dc.displayOutputs
+        : (Array.isArray(dc.showOnHomePage) ? dc.showOnHomePage : null)));
+
+  if (allowedOutputs && Array.isArray(allowedOutputs)) {
+    const allowedSet = new Set(allowedOutputs.map((x) => String(x).trim().toUpperCase()));
+    return allowedSet.has(keyUpper);
+  }
+
+  // 3. If excludedHomePageOutputs is specified:
+  if (Array.isArray(dc.excludedHomePageOutputs)) {
+    const excludedSet = new Set(dc.excludedHomePageOutputs.map((x) => String(x).trim().toUpperCase()));
+    if (excludedSet.has(keyUpper)) return false;
+  }
+
+  return dc.showOnHomePage !== false;
+}
+
+/**
  * Compile unified market rates dictionary from active sources
  * @param {Array<object>} sources
  * @returns {object}
@@ -53,47 +108,46 @@ export function compileLatestMarketRates(sources) {
 
   if (!Array.isArray(sources)) return result;
 
-  // 1. Process multi-output sources first
-  // Unified Forex feed: inject individual currencies
-  const forexSource = sources.find(s => s.priceType === "forex" && s.isActive);
-  if (forexSource && forexSource.lastMultiData) {
+  // 1. Process all multi-output sources with lastMultiData (Forex, Crypto, Commodities, etc.)
+  const multiSources = sources.filter((s) => s.isActive && s.lastMultiData);
+  for (const mSrc of multiSources) {
     try {
-      let forexShowOnHome = true;
-      if (forexSource.displayConfig) {
-        try {
-          const dc = typeof forexSource.displayConfig === 'string' ? JSON.parse(forexSource.displayConfig) : forexSource.displayConfig;
-          if (dc && dc.showOnHomePage !== undefined) forexShowOnHome = Boolean(dc.showOnHomePage);
-        } catch { }
-      }
       let excluded = [];
-      if (forexSource.excludedOutputs) {
+      if (mSrc.excludedOutputs) {
         try {
-          excluded = Array.isArray(forexSource.excludedOutputs)
-            ? forexSource.excludedOutputs
-            : JSON.parse(forexSource.excludedOutputs);
+          excluded = Array.isArray(mSrc.excludedOutputs)
+            ? mSrc.excludedOutputs
+            : JSON.parse(mSrc.excludedOutputs);
         } catch { }
       }
-      const excludedSet = new Set(excluded.map(x => String(x).toUpperCase()));
+      const excludedSet = new Set(excluded.map((x) => String(x).toUpperCase()));
 
-      const multi = typeof forexSource.lastMultiData === 'string'
-        ? JSON.parse(forexSource.lastMultiData)
-        : forexSource.lastMultiData;
+      const multi = typeof mSrc.lastMultiData === 'string'
+        ? JSON.parse(mSrc.lastMultiData)
+        : mSrc.lastMultiData;
+
       if (multi && typeof multi === 'object') {
         for (const [k, val] of Object.entries(multi)) {
-          if (Number(val) > 0 && !excludedSet.has(k.toUpperCase())) {
-            result[k.toLowerCase()] = {
-              price: Number(val),
-              datetime: forexSource.lastFetched || new Date().toISOString(),
-              label: `${forexSource.name} (${k.toUpperCase()})`,
-              sourceId: forexSource.id,
-              isPrimary: true,
-              showOnHomePage: forexShowOnHome,
-            };
+          const numPrice = typeof val === 'object' && val !== null ? Number(val.price) : Number(val);
+          if (numPrice > 0 && !excludedSet.has(k.toUpperCase())) {
+            const isHome = isMultiOutputOnHomePage(k, mSrc.displayConfig);
+            const lowerK = k.toLowerCase();
+            // Single primary sources take precedence over multi-sources unless multi-source is primary
+            if (!result[lowerK] || mSrc.isPrimary) {
+              result[lowerK] = {
+                price: numPrice,
+                datetime: mSrc.lastFetched || new Date().toISOString(),
+                label: `${mSrc.name} (${k.toUpperCase()})`,
+                sourceId: mSrc.id,
+                isPrimary: !!mSrc.isPrimary,
+                showOnHomePage: isHome,
+              };
+            }
           }
         }
       }
     } catch (e) {
-      logger.warn("Error parsing forex lastMultiData in compileLatestMarketRates:", { error: e.message });
+      logger.warn(`Error parsing multi-data for ${mSrc.name} in compileLatestMarketRates:`, { error: e.message });
     }
   }
 

@@ -265,6 +265,7 @@ export default function PriceSourcesPage({ embedded = false, usdToman: propUsdTo
       fetchIntervalMinutes: 60,
       isActive: true,
       showOnHomePage: true,
+      homePageOutputsText: '',
     });
     setMultiTestResult(null);
     setMultiWizardOpen(true);
@@ -275,6 +276,9 @@ export default function PriceSourcesPage({ embedded = false, usdToman: propUsdTo
       ? (() => { try { return JSON.parse(src.displayConfig); } catch { return {}; } })()
       : (src.displayConfig || {});
     const showOnHomePage = displayCfg.showOnHomePage !== undefined ? Boolean(displayCfg.showOnHomePage) : true;
+    const homeList = Array.isArray(displayCfg.homePageOutputs)
+      ? displayCfg.homePageOutputs
+      : (Array.isArray(displayCfg.showOnHomePage) ? displayCfg.showOnHomePage : []);
 
     setMultiForm({
       id: src.id,
@@ -284,6 +288,7 @@ export default function PriceSourcesPage({ embedded = false, usdToman: propUsdTo
       fetchIntervalMinutes: src.fetchIntervalMinutes || Math.round((src.fetchIntervalSec || 3600) / 60),
       isActive: src.isActive !== undefined ? Boolean(src.isActive) : true,
       showOnHomePage,
+      homePageOutputsText: homeList.join(', '),
     });
     setMultiTestResult(null);
     setMultiWizardOpen(true);
@@ -343,8 +348,13 @@ export default function PriceSourcesPage({ embedded = false, usdToman: propUsdTo
 
     setSavingMultiSource(true);
     try {
+      const homePageOutputsArr = multiForm.homePageOutputsText
+        ? multiForm.homePageOutputsText.split(/[,،\s]+/).map((s) => s.trim().toUpperCase()).filter(Boolean)
+        : null;
+
       const displayConfig = {
         showOnHomePage: multiForm.showOnHomePage !== false,
+        ...(homePageOutputsArr && homePageOutputsArr.length > 0 ? { homePageOutputs: homePageOutputsArr } : {}),
       };
 
       const payload = {

@@ -86,6 +86,7 @@ export const DEFAULT_MULTI_FEED_FORM = {
   fetchIntervalMinutes: 60,
   isActive: true,
   showOnHomePage: true,
+  homePageOutputsText: '',
 };
 
 export function isSourceMultiOutput(s, priceTypeInfo = {}) {

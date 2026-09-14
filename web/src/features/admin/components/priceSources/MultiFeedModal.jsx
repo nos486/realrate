@@ -150,17 +150,51 @@ export default function MultiFeedModal({
           </div>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '4px' }}>
-          <input
-            type="checkbox"
-            id="multi_active"
-            checked={Boolean(multiForm.isActive)}
-            onChange={(e) => setMultiForm((prev) => ({ ...prev, isActive: e.target.checked }))}
-          />
-          <label htmlFor="multi_active" style={{ fontSize: '12px', cursor: 'pointer' }}>
-            فید فعال باشد و در فواصل زمانی مشخص داده‌ها به‌روزرسانی شوند
-          </label>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '4px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <input
+              type="checkbox"
+              id="multi_active"
+              checked={Boolean(multiForm.isActive)}
+              onChange={(e) => setMultiForm((prev) => ({ ...prev, isActive: e.target.checked }))}
+            />
+            <label htmlFor="multi_active" style={{ fontSize: '12px', cursor: 'pointer' }}>
+              فید فعال باشد و در فواصل زمانی مشخص داده‌ها به‌روزرسانی شوند
+            </label>
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <input
+              type="checkbox"
+              id="multi_show_home"
+              checked={multiForm.showOnHomePage !== false}
+              onChange={(e) => setMultiForm((prev) => ({ ...prev, showOnHomePage: e.target.checked }))}
+            />
+            <label htmlFor="multi_show_home" style={{ fontSize: '12px', cursor: 'pointer' }}>
+              نمایش اقلام مجاز این فید در صفحه اصلی
+            </label>
+          </div>
         </div>
+
+        {multiForm.showOnHomePage !== false && (
+          <div className="form-group" style={{ marginTop: '2px' }}>
+            <label className="form-label" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <span>اقلام مجاز برای نمایش در صفحه اصلی (اختیاری)</span>
+              <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>تفکیک با کاما</span>
+            </label>
+            <input
+              type="text"
+              dir="ltr"
+              placeholder="مثال: EUR, AED, TRY, GBP, CHF, CAD, AUD, CNY, JPY"
+              value={multiForm.homePageOutputsText || ''}
+              onChange={(e) => setMultiForm((prev) => ({ ...prev, homePageOutputsText: e.target.value }))}
+              className="form-input"
+            />
+            <span style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '4px', display: 'block', lineHeight: '1.5' }}>
+              در صورت خالی بودن، کلیه اقلام این فید در صفحه اصلی مجاز خواهند بود. برای محدودسازی، فقط نمادهای مدنظرتان را وارد کنید.
+            </span>
+          </div>
+        )}
 
         {/* Test Results Display */}
         {multiTestResult && (

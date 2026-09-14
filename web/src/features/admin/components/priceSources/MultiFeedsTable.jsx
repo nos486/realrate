@@ -286,13 +286,27 @@ export default function MultiFeedsTable({
                           const dc = typeof src.displayConfig === 'string'
                             ? (() => { try { return JSON.parse(src.displayConfig); } catch { return {}; } })()
                             : (src.displayConfig || {});
-                          return dc.showOnHomePage === false ? (
-                            <span style={{ fontSize: '9.5px', color: '#f43f5e', background: 'rgba(244,63,94,0.12)', padding: '1px 5px', borderRadius: '4px', width: 'fit-content' }}>
-                              مخفی در خانه
-                            </span>
-                          ) : (
+                          const homeList = Array.isArray(dc.homePageOutputs)
+                            ? dc.homePageOutputs
+                            : (Array.isArray(dc.showOnHomePage) ? dc.showOnHomePage : null);
+
+                          if (dc.showOnHomePage === false) {
+                            return (
+                              <span style={{ fontSize: '9.5px', color: '#f43f5e', background: 'rgba(244,63,94,0.12)', padding: '1px 5px', borderRadius: '4px', width: 'fit-content' }}>
+                                مخفی در خانه
+                              </span>
+                            );
+                          }
+                          if (homeList && homeList.length > 0) {
+                            return (
+                              <span style={{ fontSize: '9.5px', color: '#818cf8', background: 'rgba(99,102,241,0.12)', padding: '1px 5px', borderRadius: '4px', width: 'fit-content' }} title={`اقلام مجاز: ${homeList.join(', ')}`}>
+                                {homeList.length.toLocaleString('fa-IR')} آیتم در خانه
+                              </span>
+                            );
+                          }
+                          return (
                             <span style={{ fontSize: '9.5px', color: '#10b981', background: 'rgba(16,185,129,0.12)', padding: '1px 5px', borderRadius: '4px', width: 'fit-content' }}>
-                              نمایش در خانه
+                              همه در خانه
                             </span>
                           );
                         })()}

@@ -47,4 +47,66 @@ describe('compileLatestMarketRates dynamic source support', () => {
     expect(result.hidden_coin).toBeDefined();
     expect(result.hidden_coin.showOnHomePage).toBe(false);
   });
+
+  it('should support fine-grained homePageOutputs for multi-value sources like forex', () => {
+    const mockSources = [
+      {
+        id: 'src_def_forex',
+        name: 'نرخ‌های جهانی فارکس',
+        priceType: 'forex',
+        isActive: true,
+        isPrimary: true,
+        lastMultiData: {
+          EUR: 1.085,
+          AED: 0.272,
+          TRY: 0.029,
+          INR: 0.011,
+          ZAR: 0.055,
+        },
+        displayConfig: {
+          showOnHomePage: true,
+          homePageOutputs: ['EUR', 'AED', 'TRY'],
+        },
+      },
+      {
+        id: 'src_crypto_multi',
+        name: 'رمزارزهای برتر',
+        priceType: 'crypto_multi',
+        isActive: true,
+        isPrimary: true,
+        lastMultiData: {
+          BTC: 98000,
+          ETH: 3600,
+          DOGE: 0.25,
+        },
+        displayConfig: {
+          showOnHomePage: ['BTC', 'ETH'], // array directly in showOnHomePage
+        },
+      },
+    ];
+
+    const result = compileLatestMarketRates(mockSources);
+
+    // Forex items
+    expect(result.eur).toBeDefined();
+    expect(result.eur.showOnHomePage).toBe(true);
+    expect(result.aed).toBeDefined();
+    expect(result.aed.showOnHomePage).toBe(true);
+    expect(result.try).toBeDefined();
+    expect(result.try.showOnHomePage).toBe(true);
+
+    // Forex items not in homePageOutputs should still be present in result, but have showOnHomePage: false
+    expect(result.inr).toBeDefined();
+    expect(result.inr.showOnHomePage).toBe(false);
+    expect(result.zar).toBeDefined();
+    expect(result.zar.showOnHomePage).toBe(false);
+
+    // Crypto items
+    expect(result.btc).toBeDefined();
+    expect(result.btc.showOnHomePage).toBe(true);
+    expect(result.eth).toBeDefined();
+    expect(result.eth.showOnHomePage).toBe(true);
+    expect(result.doge).toBeDefined();
+    expect(result.doge.showOnHomePage).toBe(false);
+  });
 });
