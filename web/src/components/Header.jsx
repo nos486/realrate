@@ -1,8 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import {
-  Eye,
-  EyeOff,
   LogOut,
 } from 'lucide-react';
 import { useAuth } from '../features/auth/index.js';
@@ -25,39 +23,6 @@ const LogoMark = () => (
 export default function Header({ activeTab, setActiveTab }) {
   const { user, triggerLogin, logout } = useAuth();
 
-  const [hideValues, setHideValues] = useState(() => {
-    try {
-      return localStorage.getItem('realrate_hide_values') === 'true';
-    } catch {
-      return false;
-    }
-  });
-
-  useEffect(() => {
-    const onPrivacyChange = () => {
-      try {
-        setHideValues(localStorage.getItem('realrate_hide_values') === 'true');
-      } catch {}
-    };
-    window.addEventListener('realrate_privacy_change', onPrivacyChange);
-    window.addEventListener('storage', onPrivacyChange);
-    return () => {
-      window.removeEventListener('realrate_privacy_change', onPrivacyChange);
-      window.removeEventListener('storage', onPrivacyChange);
-    };
-  }, []);
-
-  const togglePrivacy = () => {
-    setHideValues((prev) => {
-      const next = !prev;
-      try {
-        localStorage.setItem('realrate_hide_values', String(next));
-      } catch {}
-      window.dispatchEvent(new Event('realrate_privacy_change'));
-      return next;
-    });
-  };
-
   return (
     <header className="site-header">
       <div className="header-main-row">
@@ -74,18 +39,6 @@ export default function Header({ activeTab, setActiveTab }) {
 
         {/* Header Right: User Profile & Auth */}
         <div className="header-right">
-          {activeTab === 'portfolio' && (
-            <button
-              type="button"
-              className={`btn-privacy-toggle icon-only ${hideValues ? 'active' : ''}`}
-              onClick={togglePrivacy}
-              title={hideValues ? 'نمایش مجدد مقادیر مالی' : 'مخفی‌سازی مبالغ دارایی (حالت محرمانگی)'}
-              aria-label={hideValues ? 'نمایش مجدد مقادیر مالی' : 'مخفی‌سازی مبالغ دارایی (حالت محرمانگی)'}
-            >
-              {hideValues ? <Eye size={15} strokeWidth={2.2} /> : <EyeOff size={15} strokeWidth={2.2} />}
-            </button>
-          )}
-
           {/* User Auth / Profile */}
           <div className="auth-widget">
             {user ? (

@@ -81,11 +81,32 @@ export default function PortfolioTracker({ rates, calcData, usdToman, goldUsd })
 
   useEffect(() => {
     const handlePrivacyChange = (e) => {
-      setHideValues(Boolean(e.detail?.hideValues));
+      if (e?.detail && typeof e.detail.hideValues === 'boolean') {
+        setHideValues(e.detail.hideValues);
+      } else {
+        try {
+          setHideValues(localStorage.getItem('realrate_hide_values') === 'true');
+        } catch {}
+      }
     };
     window.addEventListener('realrate_privacy_change', handlePrivacyChange);
-    return () => window.removeEventListener('realrate_privacy_change', handlePrivacyChange);
+    window.addEventListener('storage', handlePrivacyChange);
+    return () => {
+      window.removeEventListener('realrate_privacy_change', handlePrivacyChange);
+      window.removeEventListener('storage', handlePrivacyChange);
+    };
   }, []);
+
+  const togglePrivacy = () => {
+    setHideValues((prev) => {
+      const next = !prev;
+      try {
+        localStorage.setItem('realrate_hide_values', String(next));
+      } catch {}
+      window.dispatchEvent(new CustomEvent('realrate_privacy_change', { detail: { hideValues: next } }));
+      return next;
+    });
+  };
 
   const [holdingsFilterQuery, setHoldingsFilterQuery] = useState('');
   const [modalOpen, setModalOpen] = useState(false);
@@ -451,6 +472,16 @@ export default function PortfolioTracker({ rates, calcData, usdToman, goldUsd })
                     <span>قفل</span>
                   </button>
                 )}
+
+                <button
+                  type="button"
+                  className={`btn-privacy-toggle icon-only ${hideValues ? 'active' : ''}`}
+                  onClick={togglePrivacy}
+                  title={hideValues ? 'نمایش مجدد مقادیر مالی' : 'مخفی‌سازی مبالغ دارایی (حالت محرمانگی)'}
+                  aria-label={hideValues ? 'نمایش مجدد مقادیر مالی' : 'مخفی‌سازی مبالغ دارایی (حالت محرمانگی)'}
+                >
+                  {hideValues ? <Eye size={15} strokeWidth={2.2} /> : <EyeOff size={15} strokeWidth={2.2} />}
+                </button>
 
                 <CsvExportButton
                   items={portfolioMetrics.items}
