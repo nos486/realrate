@@ -4,6 +4,7 @@ import {
   Radio,
   RefreshCw,
   Layers,
+  Sliders,
   ShieldCheck,
   Zap,
 } from 'lucide-react';
@@ -28,6 +29,7 @@ import {
   isSourceMultiOutput,
   getPriceUnit,
   formatNum,
+  PriceSourcesTableSection,
   SingleSourcesTable,
   MultiFeedsTable,
   FeedDataExplorerModal,
@@ -664,41 +666,47 @@ export default function PriceSourcesPage({ embedded = false, usdToman: propUsdTo
       )}
 
       {/* 1. سورس‌های نرخ پایه (طلا، ارز، سکه) */}
-      <SingleSourcesTable
-        singleSources={singleSources}
-        filteredSingleSources={filteredSingleSources}
-        sourceFilter={sourceFilter}
-        setSourceFilter={setSourceFilter}
-        dynamicFilterOptions={dynamicFilterOptions}
-        loadingSources={loadingSources}
-        rowTestingId={rowTestingId}
-        rowTestResults={rowTestResults}
-        onOpenAddSource={handleOpenAddSource}
-        onOpenEditSource={handleOpenEditSource}
-        onTestRowSource={handleTestRowSource}
-        onSetPrimary={handleSetPrimary}
+      <PriceSourcesTableSection
+        title="سورس‌های نرخ پایه (طلا، ارز، سکه)"
+        icon={Sliders}
+        iconColor="var(--accent-blue)"
+        items={singleSources}
+        isMulti={false}
+        loading={loadingSources}
+        typeInfoMap={PRICE_TYPE_INFO}
+        testingId={rowTestingId}
+        testResults={rowTestResults}
+        onClearTestResult={handleClearRowTestResult}
+        onAdd={handleOpenAddSource}
+        addLabel="+ افزودن سورس نرخ پایه"
+        onEdit={handleOpenEditSource}
+        onDelete={handleDeleteSource}
         onToggleActive={handleToggleActive}
-        onDeleteSource={handleDeleteSource}
-        onClearRowTestResult={handleClearRowTestResult}
-        priceTypeInfo={PRICE_TYPE_INFO}
+        onTest={handleTestRowSource}
+        onSetPrimary={handleSetPrimary}
       />
 
       <div style={{ height: '36px' }} />
 
       {/* 2. هاب سورس‌های چند خروجی و فیدها (Multi-Output Feeds) */}
-      <MultiFeedsTable
-        multiSources={multiSources}
-        filteredMultiSources={filteredMultiSources}
-        multiSearch={multiSearch}
-        setMultiSearch={setMultiSearch}
-        loadingSources={loadingSources}
-        onOpenAddMultiFeed={handleOpenAddMultiFeed}
-        onOpenEditMultiFeed={handleOpenEditMultiFeed}
-        onOpenExplorer={handleOpenExplorer}
+      <PriceSourcesTableSection
+        title="هاب سورس‌های چند خروجی و فیدها (Multi-Output Feeds)"
+        icon={Layers}
+        iconColor="var(--accent-indigo, #6366f1)"
+        items={multiSources}
+        isMulti={true}
+        loading={loadingSources}
+        typeInfoMap={PRICE_TYPE_INFO}
+        testingId={multiRowTestingId}
+        testResults={rowTestResults}
+        onClearTestResult={handleClearRowTestResult}
+        onAdd={handleOpenAddMultiFeed}
+        addLabel="+ افزودن فید جدید"
+        onEdit={handleOpenEditMultiFeed}
+        onDelete={handleDeleteSource}
         onToggleActive={handleToggleActive}
-        onDeleteMultiFeed={handleDeleteSource}
-        onTestMultiSource={handleTestMultiRowSource}
-        testingFeedId={multiRowTestingId}
+        onTest={handleTestMultiRowSource}
+        onOpenExplorer={handleOpenExplorer}
       />
 
       {/* Feed Data Explorer Modal */}
