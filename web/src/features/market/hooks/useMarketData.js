@@ -2,7 +2,7 @@
  * useMarketData.js — Custom hook for fetching gold/currency market data
  * Calculations performed 100% on the client with zero latency
  */
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { getPrices } from '../api/marketApi.js';
 import { calculateMarketData } from '../../../utils/calculator.js';
 import { formatThousands } from '../../../utils/formatters.js';
