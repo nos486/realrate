@@ -7,32 +7,33 @@ function formatNum(num) {
 }
 
 /**
- * ۱۰ ارز برتر و پرکاربرد بازار برای نمایش در صفحه اصلی
+ * ارزهای برتر و پرکاربرد بازار برای نمایش در صفحه اصلی
  */
 export const TOP_10_CURRENCIES = [
-  'USD', // دلار آمریکا
-  'EUR', // یورو
-  'AED', // درهم امارات
-  'TRY', // لیر ترکیه
-  'GBP', // پوند انگلیس
-  'CHF', // فرانک سوئیس
-  'CAD', // دلار کانادا
-  'AUD', // دلار استرالیا
-  'CNY', // یوان چین
-  'JPY', // ین ژاپن
+  'USD',  // دلار آمریکا
+  'USDT', // دلار تتر
+  'EUR',  // یورو
+  'AED',  // درهم امارات
+  'TRY',  // لیر ترکیه
+  'GBP',  // پوند انگلیس
+  'CHF',  // فرانک سوئیس
+  'CAD',  // دلار کانادا
+  'AUD',  // دلار استرالیا
+  'CNY',  // یوان چین
+  'JPY',  // ین ژاپن
 ];
 
 export default function CurrenciesList({ currencies, onCurrencyClick }) {
   const [search, setSearch] = useState('');
 
-  // فیلتر فقط ۱۰ ارز برتر و مرتب‌سازی دقیق مطابق اولویت
+  // فیلتر ارزهای برتر و سورس‌های فعال صفحه اصلی
   const topCurrencies = useMemo(() => {
     if (!currencies || !Array.isArray(currencies)) return [];
 
     const allowed = currencies.filter((c) => {
       if (!c.code) return false;
       const upper = c.code.toUpperCase();
-      return TOP_10_CURRENCIES.includes(upper) && c.showOnHomePage !== false;
+      return (TOP_10_CURRENCIES.includes(upper) || c.showOnHomePage === true) && c.showOnHomePage !== false;
     });
 
     return allowed.sort((a, b) => {
@@ -73,7 +74,7 @@ export default function CurrenciesList({ currencies, onCurrencyClick }) {
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           onClear={() => setSearch('')}
-          placeholder="جستجوی در بین ۱۰ ارز برتر..."
+          placeholder="جستجوی در بین ارزهای برتر..."
           badge={`${filtered.length.toLocaleString('fa-IR')} ارز برتر`}
         />
       </div>

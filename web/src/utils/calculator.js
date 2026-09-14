@@ -142,6 +142,33 @@ export function calculateMarketData({
     },
   ];
 
+  // Dynamic USDT (Tether) from active sources (src_brs_usdt)
+  const usdtSource = marketPrices?.usdt || marketPrices?.USDT || marketPrices?.src_brs_usdt || marketPrices?.crypto_tether;
+  if (usdtSource && Number(usdtSource.price) > 0) {
+    seenCodes.add('USDT');
+    const usdtPrice = Number(usdtSource.price);
+    const usdtCross = usd_toman > 0 ? parseFloat((usdtPrice / usd_toman).toFixed(4)) : 1.0;
+    const diff = Math.round(usdtPrice - usd_toman);
+    const diffSign = diff > 0 ? '+' : '';
+    const diffText = usd_toman > 0
+      ? `اختلاف با دلار: ${diffSign}${diff.toLocaleString('fa-IR')} ت`
+      : 'استیبل‌کوین دلاری (USDT)';
+
+    currencies.push({
+      code: 'USDT',
+      priceType: 'usdt',
+      name: 'دلار تتر',
+      flag: '🟢',
+      symbol: '₮',
+      usd_cross_rate: usdtCross,
+      toman_price: Math.round(usdtPrice),
+      note: diffText,
+      sourceLabel: usdtSource.label || 'دلار تتر',
+      sourceId: usdtSource.sourceId || 'src_brs_usdt',
+      showOnHomePage: usdtSource.showOnHomePage !== undefined ? Boolean(usdtSource.showOnHomePage) : true,
+    });
+  }
+
   // Collect candidate currency keys dynamically from marketPrices and forex
   const candidateKeys = new Set();
   const nonCurrencyKeys = new Set([

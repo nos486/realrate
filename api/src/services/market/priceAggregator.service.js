@@ -30,6 +30,7 @@ let lastFetchTime = 0;
 export function compileLatestMarketRates(sources) {
   const supportedTypes = [
     "usd",
+    "usdt",
     "gold_18k",
     "full_coin",
     "half_coin",
