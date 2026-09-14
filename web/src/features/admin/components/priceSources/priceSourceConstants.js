@@ -29,6 +29,7 @@ export const CANONICAL_PRICE_TYPE_INFO = {
   forex: { label: 'نرخ ارزهای جهانی (فارکس)', category: 'multi_output', unit: 'ارز', badgeColor: 'indigo' },
   bourse: { label: 'سهام بورس اوراق بهادار', category: 'multi_output', unit: 'نماد', badgeColor: 'sky' },
   bourse_fund: { label: 'صندوق‌های سرمایه‌گذاری بورس', category: 'multi_output', unit: 'صندوق', badgeColor: 'cyan' },
+  custom_feed: { label: 'فید چند خروجی / کاتالوگ سفارشی', category: 'multi_output', unit: 'آیتم', badgeColor: 'blue' },
 };
 
 export const FOREX_PRESETS = [
@@ -81,7 +82,7 @@ export const DEFAULT_SOURCE_FORM = {
 export const DEFAULT_MULTI_FEED_FORM = {
   id: null,
   name: '',
-  priceType: 'bourse',
+  priceType: 'custom_feed',
   apiUrl: '',
   fetchIntervalMinutes: 60,
   isActive: true,
@@ -91,11 +92,11 @@ export const DEFAULT_MULTI_FEED_FORM = {
 
 export function isSourceMultiOutput(s, priceTypeInfo = {}) {
   if (!s) return false;
+  if (s.isCatalog || s.category === 'multi_output' || s.isMultiOutput) return true;
   const t = (s.priceType || '').toLowerCase();
   const info = priceTypeInfo[t];
   if (info?.category === 'multi_output') return true;
-  if (t === 'bourse' || t === 'bourse_fund' || t === 'forex') return true;
-  if (s.fieldMapping && (s.fieldMapping.isMultiOutput || s.fieldMapping.idField || s.fieldMapping.symbolField)) return true;
+  if (s.fieldMapping && (s.fieldMapping.isMultiOutput || s.fieldMapping.idField || s.fieldMapping.symbolField || s.fieldMapping.arrayPath)) return true;
   return false;
 }
 

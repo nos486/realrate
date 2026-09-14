@@ -215,17 +215,9 @@ export default function SingleSourcesTable({
                       <td>
                         {src.lastPrice && Number(src.lastPrice) > 0 ? (
                           <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                            {src.priceType === 'forex' ? (
+                            {src.isCatalog || typeInfo.category === 'multi_output' ? (
                               <strong style={{ fontSize: '13px', color: 'var(--accent-blue)', fontWeight: '700' }}>
-                                {Number(src.lastPrice).toLocaleString('fa-IR')} ارز جهانی (EUR, TRY, ...)
-                              </strong>
-                            ) : src.priceType === 'bourse_fund' ? (
-                              <strong style={{ fontSize: '13px', color: '#c084fc', fontWeight: '700' }}>
-                                {Number(src.lastPrice).toLocaleString('fa-IR')} صندوق فعال بورس
-                              </strong>
-                            ) : src.priceType === 'bourse' ? (
-                              <strong style={{ fontSize: '13px', color: 'var(--accent-green, #10b981)', fontWeight: '700' }}>
-                                {Number(src.lastPrice).toLocaleString('fa-IR')} نماد فعال بورس
+                                {Number(src.lastPrice).toLocaleString('fa-IR')} {typeInfo.unit || 'مورد رصدشده'}
                               </strong>
                             ) : (
                               <strong

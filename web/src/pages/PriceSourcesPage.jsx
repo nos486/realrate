@@ -19,7 +19,6 @@ import {
   apiSetPrimarySource,
   apiTestPriceSource,
   apiFetchAllSourcesNow,
-  apiSearchBourseSymbols,
 } from '../api/client.js';
 import { extractMultiItems } from '../components/UniversalAssetSearch.jsx';
 import {
@@ -261,8 +260,8 @@ export default function PriceSourcesPage({ embedded = false, usdToman: propUsdTo
     setMultiForm({
       ...DEFAULT_MULTI_FEED_FORM,
       name: '',
-      priceType: 'bourse',
-      apiUrl: 'https://api.brsapi.ir/Tsetmc/AllSymbols.php?type=1',
+      priceType: 'custom_feed',
+      apiUrl: '',
       fetchIntervalMinutes: 60,
       isActive: true,
       showOnHomePage: true,
@@ -284,7 +283,7 @@ export default function PriceSourcesPage({ embedded = false, usdToman: propUsdTo
     setMultiForm({
       id: src.id,
       name: src.name || '',
-      priceType: src.priceType || 'bourse',
+      priceType: src.priceType || 'custom_feed',
       apiUrl: src.apiUrl || src.endpoint || '',
       fetchIntervalMinutes: src.fetchIntervalMinutes || Math.round((src.fetchIntervalSec || 3600) / 60),
       isActive: src.isActive !== undefined ? Boolean(src.isActive) : true,
@@ -361,7 +360,7 @@ export default function PriceSourcesPage({ embedded = false, usdToman: propUsdTo
       const payload = {
         id: multiForm.id,
         name: multiForm.name.trim(),
-        priceType: multiForm.priceType || 'bourse',
+        priceType: multiForm.priceType || 'custom_feed',
         sourceType: 'api_url',
         endpoint: multiForm.apiUrl.trim(),
         fetchIntervalMinutes: Number(multiForm.fetchIntervalMinutes) || 60,
@@ -434,14 +433,6 @@ export default function PriceSourcesPage({ embedded = false, usdToman: propUsdTo
         if (testItems.length > 0) {
           setExplorerItems(testItems.map(mapToExplorerItem));
           return;
-        }
-      }
-
-      // 3. Fallback for catalog feeds with stored symbol index
-      if (src?.isCatalog || src?.priceType === 'bourse') {
-        const catalogRes = await apiSearchBourseSymbols('', 3000);
-        if (catalogRes?.success && Array.isArray(catalogRes.symbols) && catalogRes.symbols.length > 0) {
-          setExplorerItems(catalogRes.symbols.map(mapToExplorerItem));
         }
       }
     } catch (e) {
