@@ -1,11 +1,10 @@
 import React, { useState, useMemo } from 'react';
 import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { Megaphone, TrendingUp, Briefcase, ShieldCheck, Radio, Settings, Calculator } from 'lucide-react';
+import { Megaphone, TrendingUp, Briefcase, ShieldCheck, Radio, Settings } from 'lucide-react';
 import { AppLayout, FilterPills, AlertBanner } from '../shared/ui/index.js';
 import MarketInputsToolbar from '../components/MarketInputsToolbar.jsx';
 import { AnalysisCards, CurrenciesList } from '../features/market/components/index.js';
 import { PortfolioTracker } from '../features/portfolio/index.js';
-import { CalculatorPage } from '../features/calculator/index.js';
 import AdminPage from './AdminPage.jsx';
 import PriceSourcesPage from './PriceSourcesPage.jsx';
 import AccountSettingsView from '../components/AccountSettingsView.jsx';
@@ -45,23 +44,15 @@ export default function MainPage() {
       searchParams.get('tab') === 'portfolio'
     );
 
-  const isCalculator =
-    !isSettings && !isSources && !isAdmin && !isPortfolio && (
-      location.pathname.startsWith('/calculator') ||
-      searchParams.get('tab') === 'calculator'
-    );
-
   const activeTab = isSettings
     ? 'settings'
     : isSources
-    ? 'sources'
-    : isAdmin
-    ? 'admin'
-    : isPortfolio
-    ? 'portfolio'
-    : isCalculator
-    ? 'calculator'
-    : 'market';
+      ? 'sources'
+      : isAdmin
+        ? 'admin'
+        : isPortfolio
+          ? 'portfolio'
+          : 'market';
 
   const handleTabChange = (nextTab) => {
     if (nextTab === 'portfolio') {
@@ -69,12 +60,8 @@ export default function MainPage() {
         let lastId = null;
         try {
           lastId = localStorage.getItem('realrate_last_portfolio_id');
-        } catch {}
+        } catch { }
         navigate(lastId ? `/portfolio/${lastId}` : '/portfolio');
-      }
-    } else if (nextTab === 'calculator') {
-      if (location.pathname !== '/calculator') {
-        navigate('/calculator');
       }
     } else if (nextTab === 'settings') {
       if (location.pathname !== '/settings') {
@@ -98,7 +85,6 @@ export default function MainPage() {
   const tabOptions = useMemo(() => {
     const options = [
       { value: 'market', label: 'نرخ و حباب', icon: <TrendingUp size={16} strokeWidth={2} /> },
-      { value: 'calculator', label: 'ماشین‌حساب', icon: <Calculator size={16} strokeWidth={2} /> },
       { value: 'portfolio', label: 'پورتفو', icon: <Briefcase size={16} strokeWidth={2} /> },
     ];
     if (user) {
@@ -219,10 +205,6 @@ export default function MainPage() {
               currencies={currencies}
             />
           </div>
-        )}
-
-        {activeTab === 'calculator' && (
-          <CalculatorPage />
         )}
 
         {activeTab === 'portfolio' && (
