@@ -145,7 +145,7 @@ export const PRICE_SOURCES_CONFIG = [
     fieldMapping: null,
     excludedOutputs: [],
     displayConfig: { showOnHomePage: true },
-    fetchIntervalSec: 60,
+    fetchIntervalSec: 5,
     isActive: true,
     isPrimary: true,
     isReferenceRate: true,
