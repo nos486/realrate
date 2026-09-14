@@ -128,8 +128,18 @@ export function extractValueByPath(obj, path, raw = false) {
   let curr = obj;
   for (const part of parts) {
     if (curr === null || curr === undefined) return null;
+    const filterMatch = part.match(/^([a-zA-Z0-9_-]+)\[([a-zA-Z0-9_-]+)=([^\]]+)\]$/);
     const arrayMatch = part.match(/^([a-zA-Z0-9_-]+)\[(\d+)\]$/);
-    if (arrayMatch) {
+    if (filterMatch) {
+      const arr = curr[filterMatch[1]];
+      if (Array.isArray(arr)) {
+        const filterKey = filterMatch[2];
+        const filterVal = filterMatch[3].trim().toLowerCase();
+        curr = arr.find(item => item && String(item[filterKey] || "").trim().toLowerCase() === filterVal);
+      } else {
+        return null;
+      }
+    } else if (arrayMatch) {
       curr = curr[arrayMatch[1]];
       if (Array.isArray(curr)) {
         curr = curr[parseInt(arrayMatch[2], 10)];
