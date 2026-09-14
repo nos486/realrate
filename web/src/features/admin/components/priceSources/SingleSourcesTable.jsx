@@ -7,7 +7,6 @@ import {
   AlertCircle,
   X,
 } from 'lucide-react';
-import FilterPills from '../../../../components/ui/FilterPills.jsx';
 import EmptyState from '../../../../components/ui/EmptyState.jsx';
 import { formatNum, getPriceUnit, formatPersianDate, CANONICAL_PRICE_TYPE_INFO } from './priceSourceConstants.js';
 
@@ -63,16 +62,9 @@ export default function SingleSourcesTable({
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           <Sliders size={17} style={{ color: 'var(--accent-blue)' }} />
           <h3 style={{ fontSize: '15px', fontWeight: '800', margin: 0, color: 'var(--text-heading)' }}>
-            جدول مدیریت و پیکربندی سورس‌های نرخ پایه
+            سورس‌های نرخ پایه (طلا، ارز، سکه)
           </h3>
         </div>
-
-        {/* Dynamic Filter Pills based on actual sources */}
-        <FilterPills
-          options={dynamicFilterOptions}
-          activeValue={sourceFilter}
-          onChange={setSourceFilter}
-        />
       </div>
 
       {/* Table Container */}
@@ -95,20 +87,7 @@ export default function SingleSourcesTable({
               <tr>
                 <td colSpan="8" style={{ textAlign: 'center', padding: '24px' }}>
                   <EmptyState
-                    title={loadingSources ? 'در حال دریافت لیست سورس‌ها...' : 'هیچ سورسی در این دسته‌بندی یافت نشد.'}
-                    description={sourceFilter !== 'all' ? `برای مشاهده سایر سورس‌ها، فیلتر "${typeInfoMap[sourceFilter]?.label || sourceFilter}" را تغییر دهید.` : null}
-                    action={
-                      sourceFilter !== 'all' ? (
-                        <button
-                          type="button"
-                          className="btn-secondary"
-                          style={{ fontSize: '12px', padding: '6px 14px' }}
-                          onClick={() => setSourceFilter('all')}
-                        >
-                          مشاهده همه سورس‌ها
-                        </button>
-                      ) : null
-                    }
+                    title={loadingSources ? 'در حال دریافت لیست سورس‌ها...' : 'هیچ سورسی یافت نشد.'}
                   />
                 </td>
               </tr>

@@ -1,11 +1,7 @@
 import React from 'react';
 import {
-  Sparkles,
   Layers,
-  Table,
   X,
-  Sliders,
-  Search,
   Eye,
   PlayCircle,
 } from 'lucide-react';
@@ -55,85 +51,13 @@ export default function MultiFeedsTable({
 
   return (
     <section className="multi-feeds-hub-wrap">
-      {/* Header Card with Stats */}
-      <div className="multi-feeds-header-card">
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '16px' }}>
-          <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
-              <Sparkles size={18} style={{ color: '#818cf8' }} />
-              <h2 style={{ fontSize: '18px', fontWeight: '900', margin: 0, color: 'var(--text-heading)' }}>
-                هاب مدیریت سورس‌های چند خروجی و فیدهای تجمیعی
-              </h2>
-            </div>
-            <p style={{ fontSize: '13px', color: 'var(--text-muted)', margin: 0, lineHeight: '1.6' }}>
-              پشتیبانی از هر نوع خروجی چند آیتمی: بورس اوراق بهادار، قیمت روز خودرو، رمزارزها، کالاهای اساسی و APIهای سفارشی با نگاشت هوشمند
-            </p>
-          </div>
-        </div>
-
-        {/* Quick Stats Grid */}
-        <div className="multi-feeds-stats-grid">
-          <div className="multi-stat-card">
-            <div className="multi-stat-icon" style={{ background: 'rgba(99, 102, 241, 0.15)', color: '#818cf8' }}>
-              <Layers size={20} />
-            </div>
-            <div className="multi-stat-info">
-              <span className="multi-stat-val">{multiSources.length.toLocaleString('fa-IR')}</span>
-              <span className="multi-stat-lbl">فیدهای فعال و پیکربندی‌شده</span>
-            </div>
-          </div>
-
-          <div className="multi-stat-card">
-            <div className="multi-stat-icon" style={{ background: 'rgba(16, 185, 129, 0.15)', color: '#34d399' }}>
-              <Table size={20} />
-            </div>
-            <div className="multi-stat-info">
-              <span className="multi-stat-val">
-                {multiSources.reduce((acc, s) => acc + (Number(s.lastPrice) || 0), 0).toLocaleString('fa-IR')}
-              </span>
-              <span className="multi-stat-lbl">مجموع اقلام و محصولات رصدشده</span>
-            </div>
-          </div>
-
-          <div className="multi-stat-card">
-            <div className="multi-stat-icon" style={{ background: 'rgba(244, 63, 94, 0.15)', color: '#fb7185' }}>
-              <X size={20} />
-            </div>
-            <div className="multi-stat-info">
-              <span className="multi-stat-val">
-                {multiSources.reduce((acc, s) => {
-                  const excl = Array.isArray(s.excludedOutputs)
-                    ? s.excludedOutputs
-                    : (typeof s.excludedOutputs === 'string' ? JSON.parse(s.excludedOutputs || '[]') : []);
-                  return acc + excl.length;
-                }, 0).toLocaleString('fa-IR')}
-              </span>
-              <span className="multi-stat-lbl">کل موارد مستثنی‌شده (Excluded)</span>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Search Toolbar */}
+      {/* Table Toolbar */}
       <div className="table-header-toolbar">
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <Sliders size={17} style={{ color: 'var(--accent-indigo, #6366f1)' }} />
+          <Layers size={17} style={{ color: 'var(--accent-indigo, #6366f1)' }} />
           <h3 style={{ fontSize: '15px', fontWeight: '800', margin: 0, color: 'var(--text-heading)' }}>
-            فهرست فیدهای چند خروجی
+            هاب سورس‌های چند خروجی و فیدها (Multi-Output Feeds)
           </h3>
-        </div>
-
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: '260px' }}>
-          <div style={{ position: 'relative', width: '100%' }}>
-            <Search size={14} style={{ position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
-            <input
-              type="text"
-              placeholder="جستجو در فیدها (نام، آدرس، نوع)..."
-              value={multiSearch}
-              onChange={(e) => setMultiSearch(e.target.value)}
-              style={{ width: '100%', paddingRight: '32px', fontSize: '12px', padding: '6px 32px 6px 12px' }}
-            />
-          </div>
         </div>
       </div>
 
