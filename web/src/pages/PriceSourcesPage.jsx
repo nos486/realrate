@@ -23,6 +23,7 @@ import {
 import { extractMultiItems } from '../components/UniversalAssetSearch.jsx';
 import {
   CANONICAL_PRICE_TYPE_INFO,
+  isSourceMultiOutput,
   getPriceUnit,
   formatNum,
   PriceSourcesTableSection,
@@ -61,7 +62,6 @@ export default function PriceSourcesPage({ embedded = false, usdToman: propUsdTo
   // Sources State
   const [sources, setSources] = useState([]);
   const [loadingSources, setLoadingSources] = useState(false);
-  const [sourceFilter, setSourceFilter] = useState('all');
   const [fetchingAll, setFetchingAll] = useState(false);
 
   const PRICE_TYPE_INFO = CANONICAL_PRICE_TYPE_INFO;
@@ -114,46 +114,6 @@ export default function PriceSourcesPage({ embedded = false, usdToman: propUsdTo
   const multiSources = useMemo(() => {
     return sources.filter((s) => isSourceMultiOutput(s, PRICE_TYPE_INFO));
   }, [sources, PRICE_TYPE_INFO]);
-
-  // Dynamic filter options for Base Rates Table
-  const dynamicFilterOptions = useMemo(() => {
-    const counts = {};
-    for (const s of singleSources) {
-      const k = s.priceType || 'general';
-      counts[k] = (counts[k] || 0) + 1;
-    }
-    const options = [
-      { value: 'all', label: 'همه نرخ‌ها و سورس‌ها', badge: singleSources.length.toLocaleString('fa-IR') },
-    ];
-    for (const [key, count] of Object.entries(counts)) {
-      const info = PRICE_TYPE_INFO[key];
-      options.push({
-        value: key,
-        label: info?.label || key,
-        badge: count.toLocaleString('fa-IR'),
-      });
-    }
-    return options;
-  }, [singleSources, PRICE_TYPE_INFO]);
-
-  // Filtered Sources for Base Rates Table
-  const filteredSingleSources = useMemo(() => {
-    if (sourceFilter === 'all') return singleSources;
-    return singleSources.filter((s) => s.priceType === sourceFilter);
-  }, [singleSources, sourceFilter]);
-
-  // Filtered Multi Sources for Multi-Feeds Hub Table
-  const filteredMultiSources = useMemo(() => {
-    if (!multiSearch.trim()) return multiSources;
-    const q = multiSearch.trim().toLowerCase();
-    return multiSources.filter((s) => {
-      return (
-        (s.name && s.name.toLowerCase().includes(q)) ||
-        (s.priceType && s.priceType.toLowerCase().includes(q)) ||
-        (s.endpoint && s.endpoint.toLowerCase().includes(q))
-      );
-    });
-  }, [multiSources, multiSearch]);
 
   // Force Refresh All Active Sources Now
   const handleFetchAllNow = async () => {
