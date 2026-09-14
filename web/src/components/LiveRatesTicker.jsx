@@ -39,7 +39,9 @@ export default function LiveRatesTicker({
 
   const labelDesktop = activeReferenceRate?.label || 'دلار آزاد';
   const labelMobile = activeReferenceRate?.shortLabel || 'دلار';
-  const displayPrice = activeReferenceRate?.price || usdPrice;
+  const displayPrice = (usdPrice !== undefined && usdPrice !== null && usdPrice !== '')
+    ? usdPrice
+    : (activeReferenceRate?.price || 0);
 
   return (
     <div className={`main-live-ticker ${className}`} aria-label={`نرخ زنده ${labelDesktop}`}>

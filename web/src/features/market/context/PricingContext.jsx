@@ -5,7 +5,7 @@
  */
 
 import React, { createContext, useContext, useState, useEffect, useMemo, useCallback } from 'react';
-import { getMarketItems } from '../api/marketApi.js';
+import { getMarketItems, getPrices } from '../api/marketApi.js';
 import { computeUnifiedPrices, searchUnifiedAssets } from '../../../utils/pricingEngine.js';
 
 const PricingContext = createContext(null);
@@ -29,13 +29,19 @@ export function PricingProvider({ children, initialUsdToman = null, initialGoldU
     }
   });
 
+  const [customReferenceRates, setCustomReferenceRates] = useState([]);
+
   // Dynamic list of available reference rates discovered from backend meta or catalog
   const referenceRates = useMemo(() => {
+    if (customReferenceRates && customReferenceRates.length > 0) {
+      return customReferenceRates;
+    }
     if (marketItems?.meta?.reference_rates && Array.isArray(marketItems.meta.reference_rates) && marketItems.meta.reference_rates.length > 0) {
       return marketItems.meta.reference_rates;
     }
 
     // Dynamic discovery fallback
+    const defaultUsdPrice = Number(marketItems?.meta?.live_usd_toman || marketItems?.meta?.default_usd_toman || 231500);
     const list = [
       {
         key: 'usd',
@@ -43,25 +49,24 @@ export function PricingProvider({ children, initialUsdToman = null, initialGoldU
         label: 'دلار آزاد',
         shortLabel: 'دلار',
         symbol: '$',
-        price: Number(marketItems?.meta?.live_usd_toman || marketItems?.meta?.default_usd_toman || 62000),
+        price: defaultUsdPrice,
       },
     ];
 
     const usdtCandidate = marketItems?.currencies?.find((c) => String(c.code).toUpperCase() === 'USDT')
       || marketItems?.goldAndCoins?.find((c) => String(c.symbol).toUpperCase() === 'USDT');
-    if (usdtCandidate && Number(usdtCandidate.priceToman || usdtCandidate.price || usdtCandidate.marketPrice) > 0) {
-      list.push({
-        key: 'usdt',
-        priceType: 'usdt',
-        label: 'دلار تتر',
-        shortLabel: 'تتر',
-        symbol: '₮',
-        price: Number(usdtCandidate.priceToman || usdtCandidate.price || usdtCandidate.marketPrice),
-      });
-    }
+    const defaultUsdtPrice = Number(usdtCandidate?.priceToman || usdtCandidate?.price || usdtCandidate?.marketPrice || 233205);
+    list.push({
+      key: 'usdt',
+      priceType: 'usdt',
+      label: 'دلار تتر',
+      shortLabel: 'تتر',
+      symbol: '₮',
+      price: defaultUsdtPrice,
+    });
 
     return list;
-  }, [marketItems]);
+  }, [customReferenceRates, marketItems]);
 
   const activeReferenceRate = useMemo(() => {
     return referenceRates.find((r) => r.key === activeReferenceKey) || referenceRates[0] || null;
@@ -90,58 +95,69 @@ export function PricingProvider({ children, initialUsdToman = null, initialGoldU
   }, [referenceRates, activeReferenceKey]);
 
   const setReferenceRateKey = useCallback((key) => {
+    setActiveReferenceKey(key);
+    try {
+      localStorage.setItem('realrate_active_reference_rate', key);
+    } catch { }
     const targetRate = referenceRates.find((r) => r.key === key);
-    if (targetRate) {
-      setActiveReferenceKey(key);
-      try {
-        localStorage.setItem('realrate_active_reference_rate', key);
-      } catch { }
-      if (Number(targetRate.price) > 0) {
-        setUsdToman(targetRate.price);
-      }
-      window.dispatchEvent(new CustomEvent('realrate_reference_rate_changed', { detail: targetRate }));
+    if (targetRate && Number(targetRate.price) > 0) {
+      setUsdToman(targetRate.price);
     }
+    window.dispatchEvent(new CustomEvent('realrate_reference_rate_changed', { detail: targetRate || { key } }));
   }, [referenceRates]);
+
+  const updateReferenceRates = useCallback((newRates) => {
+    if (Array.isArray(newRates) && newRates.length > 0) {
+      setCustomReferenceRates(newRates);
+    }
+  }, []);
 
   const fetchItems = useCallback(async () => {
     try {
       setLoading(true);
-      const res = await getMarketItems();
-      if (res && res.success) {
+      const [itemsRes, pricesRes] = await Promise.allSettled([
+        getMarketItems(),
+        getPrices(),
+      ]);
+
+      const res = itemsRes.status === 'fulfilled' && itemsRes.value?.success ? itemsRes.value : null;
+      const pricesData = pricesRes.status === 'fulfilled' && pricesRes.value?.success ? pricesRes.value : null;
+
+      if (res) {
         setMarketItems(res);
-
-        const storedKey = (() => {
-          try {
-            return localStorage.getItem('realrate_active_reference_rate') || 'usd';
-          } catch {
-            return 'usd';
-          }
-        })();
-
-        const availableRefs = res.meta?.reference_rates || [];
-        const matchedRef = availableRefs.find((r) => r.key === storedKey) || availableRefs[0];
-
-        if (!usdToman) {
-          const liveUsd = matchedRef?.price || res.meta?.live_usd_toman || res.meta?.default_usd_toman || 62000;
-          setUsdToman(liveUsd);
-          if (matchedRef?.key) setActiveReferenceKey(matchedRef.key);
-        }
-        if (!goldUsd) {
-          const liveGold = res.meta?.gold_usd || 2890;
-          setGoldUsd(liveGold);
-        }
-        if (!silverUsd) {
-          const liveSilver = res.meta?.silver_usd || 33.5;
-          setSilverUsd(liveSilver);
-        }
       }
+
+      const availableRefs = pricesData?.reference_rates || res?.meta?.reference_rates || [];
+      if (availableRefs.length > 0) {
+        setCustomReferenceRates(availableRefs);
+      }
+
+      const storedKey = (() => {
+        try {
+          return localStorage.getItem('realrate_active_reference_rate') || 'usd';
+        } catch {
+          return 'usd';
+        }
+      })();
+
+      const matchedRef = availableRefs.find((r) => r.key === storedKey) || availableRefs[0];
+
+      const liveUsd = matchedRef?.price || pricesData?.live_usd_toman || pricesData?.prices?.usd_toman?.price || res?.meta?.live_usd_toman;
+      if (liveUsd) {
+        setUsdToman(liveUsd);
+        if (matchedRef?.key) setActiveReferenceKey(matchedRef.key);
+      }
+      const liveGold = pricesData?.gold_usd || res?.meta?.gold_usd;
+      if (liveGold) setGoldUsd(liveGold);
+      const liveSilver = pricesData?.silver_usd || res?.meta?.silver_usd;
+      if (liveSilver) setSilverUsd(liveSilver);
     } catch (e) {
       console.error('Error fetching unified market items:', e);
       setError(e.message);
     } finally {
       setLoading(false);
     }
-  }, [usdToman, goldUsd, silverUsd]);
+  }, []);
 
   useEffect(() => {
     fetchItems();
@@ -203,6 +219,7 @@ export function PricingProvider({ children, initialUsdToman = null, initialGoldU
     referenceRates,
     cycleReferenceRate,
     setReferenceRateKey,
+    updateReferenceRates,
   };
 
   return (

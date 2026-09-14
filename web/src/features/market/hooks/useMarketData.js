@@ -36,6 +36,7 @@ export function useMarketData() {
         ? parseNum(pricing.usdToman)
         : Number(pricing.usdToman);
       if (priceNum > 0) {
+        userEditedUsd.current = false;
         setUsdToman(formatThousands(Math.round(priceNum), false));
       }
     }
@@ -47,6 +48,10 @@ export function useMarketData() {
       .then((data) => {
         if (data && data.success) {
           setRates(data);
+
+          if (data.reference_rates && pricing?.updateReferenceRates) {
+            pricing.updateReferenceRates(data.reference_rates);
+          }
 
           const storedKey = (() => {
             try {
@@ -77,10 +82,10 @@ export function useMarketData() {
     const goldNum = parseNum(goldUsd);
     if (!usdNum || usdNum <= 0) return;
 
-    if (pricing?.setUsdToman && !userEditedUsd.current) {
+    if (pricing?.setUsdToman && pricing.usdToman !== usdNum) {
       pricing.setUsdToman(usdNum);
     }
-    if (pricing?.setGoldUsd && goldNum > 0) {
+    if (pricing?.setGoldUsd && goldNum > 0 && pricing.goldUsd !== goldNum) {
       pricing.setGoldUsd(goldNum);
     }
 
@@ -98,6 +103,71 @@ export function useMarketData() {
     }
   }, [usdToman, goldUsd, rates]);
 
+  // Active reference rate key with resilient local state
+  const [internalRefKey, setInternalRefKey] = useState(() => {
+    try {
+      return localStorage.getItem('realrate_active_reference_rate') || 'usd';
+    } catch {
+      return 'usd';
+    }
+  });
+
+  // Sync internalRefKey if pricing.activeReferenceKey changes
+  useEffect(() => {
+    if (pricing?.activeReferenceKey && pricing.activeReferenceKey !== internalRefKey) {
+      setInternalRefKey(pricing.activeReferenceKey);
+    }
+  }, [pricing?.activeReferenceKey]);
+
+  const currentRefKey = internalRefKey || pricing?.activeReferenceKey || 'usd';
+
+  const availableReferenceRates = useMemo(() => {
+    if (rates?.reference_rates && Array.isArray(rates.reference_rates) && rates.reference_rates.length > 0) {
+      return rates.reference_rates;
+    }
+    if (pricing?.referenceRates && Array.isArray(pricing.referenceRates) && pricing.referenceRates.length > 0) {
+      return pricing.referenceRates;
+    }
+    const defaultUsdPrice = Number(rates?.live_usd_toman || rates?.prices?.usd_toman?.price || 231500);
+    const defaultUsdtPrice = Number(rates?.prices?.usdt?.price || 233205);
+    return [
+      { key: 'usd', priceType: 'usd', label: 'دلار آزاد', shortLabel: 'دلار', symbol: '$', price: defaultUsdPrice },
+      { key: 'usdt', priceType: 'USDT', label: 'دلار تتر', shortLabel: 'تتر', symbol: '₮', price: defaultUsdtPrice },
+    ];
+  }, [rates?.reference_rates, rates?.live_usd_toman, rates?.prices, pricing?.referenceRates]);
+
+  const activeReferenceRate = useMemo(() => {
+    return availableReferenceRates.find((r) => r.key === currentRefKey) || availableReferenceRates[0] || null;
+  }, [availableReferenceRates, currentRefKey]);
+
+  const cycleReferenceRate = useCallback(() => {
+    if (!availableReferenceRates || availableReferenceRates.length === 0) return null;
+    const currentIdx = availableReferenceRates.findIndex((r) => r.key === currentRefKey);
+    const nextIdx = (currentIdx + 1) % availableReferenceRates.length;
+    const nextRate = availableReferenceRates[nextIdx];
+
+    if (nextRate) {
+      userEditedUsd.current = false;
+      setInternalRefKey(nextRate.key);
+      try {
+        localStorage.setItem('realrate_active_reference_rate', nextRate.key);
+      } catch { }
+
+      if (pricing?.setReferenceRateKey) {
+        pricing.setReferenceRateKey(nextRate.key);
+      }
+      if (Number(nextRate.price) > 0) {
+        const roundedPrice = Math.round(Number(nextRate.price));
+        setUsdToman(formatThousands(roundedPrice, false));
+        if (pricing?.setUsdToman) {
+          pricing.setUsdToman(roundedPrice);
+        }
+      }
+      return nextRate;
+    }
+    return null;
+  }, [availableReferenceRates, currentRefKey, pricing]);
+
   return {
     rates,
     calcData,
@@ -108,9 +178,9 @@ export function useMarketData() {
     setGoldUsd,
     liveUsdSource: rates?.live_usd_toman ? 'live' : 'manual',
     liveUsdDatetime: rates?.live_usd_item?.datetime || null,
-    referenceRates: pricing?.referenceRates || rates?.reference_rates || [],
-    activeReferenceKey: pricing?.activeReferenceKey || 'usd',
-    activeReferenceRate: pricing?.activeReferenceRate || null,
-    cycleReferenceRate: pricing?.cycleReferenceRate,
+    referenceRates: availableReferenceRates,
+    activeReferenceKey: currentRefKey,
+    activeReferenceRate,
+    cycleReferenceRate,
   };
 }

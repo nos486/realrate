@@ -128,6 +128,7 @@ export function calculateMarketData({
   const usdSource = marketPrices?.usd_toman || marketPrices?.usd;
   const showUsdOnHome = true;
   const usdSpec = getCanonicalAssetSpec('USD') || {};
+  const cashUsdPrice = Number(usdSource?.price) > 0 ? Math.round(Number(usdSource.price)) : Math.round(usd_toman);
   const currencies = [
     {
       code: 'USD',
@@ -136,7 +137,7 @@ export function calculateMarketData({
       flag: usdSpec.flag || '🇺🇸',
       symbol: usdSpec.symbol || '$',
       usd_cross_rate: 1.0,
-      toman_price: Math.round(usd_toman),
+      toman_price: cashUsdPrice,
       note: 'نرخ دلار نقدی بازار آزاد',
       showOnHomePage: showUsdOnHome,
     },

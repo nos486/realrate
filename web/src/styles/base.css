@@ -956,6 +956,19 @@ input.search-bar-input:focus-visible {
   line-height: 1;
 }
 
+.main-live-ticker .ticker-item.clickable {
+  cursor: pointer;
+  transition: opacity var(--transition-fast), transform var(--transition-fast);
+}
+
+.main-live-ticker .ticker-item.clickable:hover {
+  opacity: 0.85;
+}
+
+.main-live-ticker .ticker-item.clickable:active {
+  transform: scale(0.96);
+}
+
 .main-live-ticker .ticker-pulse {
   width: 7px;
   height: 7px;
