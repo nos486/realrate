@@ -9,7 +9,8 @@
 ## ۱. بررسی ساختار خروجی API نمونه
 
 آدرس وب‌سرویس:
-`https://api.brsapi.ir/Market/Gold_Currency.php?key=BDqzgcZZ5rGg4Z6uSEs9bMyx2E2vXrkd`
+`https://api.brsapi.ir/Market/Gold_Currency.php`
+*(نکته امنیتی: کلید دسترسی `key` به صورت خودکار از متغیر محیطی `env.BRS_API_KEY` یا `.dev.vars` تزریق می‌شود و نیازی به هاردکد کردن آن در آدرس نیست)*
 
 پاسخ JSON این وب‌سرویس شامل ۳ آرایه اصلی است:
 ```json
@@ -47,7 +48,7 @@
     name: "دلار تتر (BRS API)",
     priceType: "USDT",
     sourceType: "api_url",
-    endpoint: "https://api.brsapi.ir/Market/Gold_Currency.php?key=BDqzgcZZ5rGg4Z6uSEs9bMyx2E2vXrkd",
+    endpoint: "https://api.brsapi.ir/Market/Gold_Currency.php",
     jsonPath: "currency[symbol=USDT_IRT].price", // فیلتر خودکار بر اساس نماد
     fetchIntervalSec: 60,
     isActive: true,
@@ -71,7 +72,7 @@
     name: "دلار تتر (پارسر اختصاصی)",
     priceType: "USDT",
     sourceType: "api_url",
-    endpoint: "https://api.brsapi.ir/Market/Gold_Currency.php?key=BDqzgcZZ5rGg4Z6uSEs9bMyx2E2vXrkd",
+    endpoint: "https://api.brsapi.ir/Market/Gold_Currency.php",
     fetchIntervalSec: 60,
     isActive: true,
     isPrimary: true,
@@ -174,7 +175,7 @@ export const sourceAdapters = [
   name: "تتر تومانی",
   priceType: "USDT",
   sourceType: "brs_tether", // همان شناسه supports آداپتور
-  endpoint: "https://api.brsapi.ir/Market/Gold_Currency.php?key=BDqzgcZZ5rGg4Z6uSEs9bMyx2E2vXrkd",
+  endpoint: "https://api.brsapi.ir/Market/Gold_Currency.php",
   fetchIntervalSec: 60,
   isActive: true,
   isPrimary: true,

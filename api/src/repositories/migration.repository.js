@@ -252,13 +252,24 @@ export async function ensureD1Tables(env) {
       // Ensure Tehran Stock Exchange (Bourse) source exists (Daily interval = 86400s)
       await env.DB.prepare(`
         INSERT OR IGNORE INTO price_sources (id, name, price_type, source_type, endpoint, regex, json_path, field_mapping, fetch_interval_sec, is_active, is_primary, last_price, last_multi_data, last_fetched, created_at, updated_at)
-        VALUES ('src_def_bourse', 'بورس اوراق بهادار تهران (TSETMC / BRS API)', 'bourse', 'api_url', 'https://api.brsapi.ir/Tsetmc/AllSymbols.php?key=BDqzgcZZ5rGg4Z6uSEs9bMyx2E2vXrkd&type=1', '', '', '', 86400, 1, 1, 1567, '', '', ?, ?)
+        VALUES ('src_def_bourse', 'بورس اوراق بهادار تهران (TSETMC / BRS API)', 'bourse', 'api_url', 'https://api.brsapi.ir/Tsetmc/AllSymbols.php?type=1', '', '', '', 86400, 1, 1, 1567, '', '', ?, ?)
       `).bind(nowIso, nowIso).run().catch(() => {});
 
       await env.DB.prepare(`
         UPDATE price_sources
-        SET endpoint = 'https://api.brsapi.ir/Tsetmc/AllSymbols.php?key=BDqzgcZZ5rGg4Z6uSEs9bMyx2E2vXrkd&type=1', name = 'بورس اوراق بهادار تهران (TSETMC / BRS API)'
+        SET endpoint = 'https://api.brsapi.ir/Tsetmc/AllSymbols.php?type=1', name = 'بورس اوراق بهادار تهران (TSETMC / BRS API)'
         WHERE id = 'src_def_bourse'
+      `).run().catch(() => {});
+
+      // Sanitize any existing BRS endpoints in DB to strip sensitive query parameters
+      await env.DB.prepare(`
+        UPDATE price_sources
+        SET endpoint = CASE
+          WHEN endpoint LIKE 'https://api.brsapi.ir/Tsetmc/AllSymbols.php%' THEN 'https://api.brsapi.ir/Tsetmc/AllSymbols.php?type=1'
+          WHEN endpoint LIKE 'https://api.brsapi.ir/Market/Gold_Currency.php%' THEN 'https://api.brsapi.ir/Market/Gold_Currency.php'
+          ELSE endpoint
+        END
+        WHERE endpoint LIKE '%api.brsapi.ir%'
       `).run().catch(() => {});
 
       // Clean up legacy separate funds feed if present

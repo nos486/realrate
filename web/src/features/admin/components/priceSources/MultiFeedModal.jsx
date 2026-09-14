@@ -81,7 +81,7 @@ export default function MultiFeedModal({
                 if (val === 'forex' && (!defaultUrl || defaultUrl.includes('brsapi'))) {
                   defaultUrl = 'https://open.er-api.com/v6/latest/USD';
                 } else if (val === 'bourse' && (!defaultUrl || defaultUrl.includes('open.er-api.com'))) {
-                  defaultUrl = 'https://api.brsapi.ir/Tsetmc/AllSymbols.php?key=BDqzgcZZ5rGg4Z6uSEs9bMyx2E2vXrkd&type=1';
+                  defaultUrl = 'https://api.brsapi.ir/Tsetmc/AllSymbols.php?type=1';
                 }
                 setMultiForm((prev) => ({
                   ...prev,
@@ -143,7 +143,7 @@ export default function MultiFeedModal({
                 ...prev,
                 name: prev.name || 'بورس اوراق بهادار تهران (TSETMC)',
                 priceType: 'bourse',
-                apiUrl: 'https://api.brsapi.ir/Tsetmc/AllSymbols.php?key=BDqzgcZZ5rGg4Z6uSEs9bMyx2E2vXrkd&type=1',
+                apiUrl: 'https://api.brsapi.ir/Tsetmc/AllSymbols.php?type=1',
               }))}
             >
               تنظیم آدرس بورس

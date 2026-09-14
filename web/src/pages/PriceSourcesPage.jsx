@@ -261,7 +261,7 @@ export default function PriceSourcesPage({ embedded = false, usdToman: propUsdTo
       ...DEFAULT_MULTI_FEED_FORM,
       name: '',
       priceType: 'bourse',
-      apiUrl: 'https://api.brsapi.ir/Tsetmc/AllSymbols.php?key=BDqzgcZZ5rGg4Z6uSEs9bMyx2E2vXrkd&type=1',
+      apiUrl: 'https://api.brsapi.ir/Tsetmc/AllSymbols.php?type=1',
       fetchIntervalMinutes: 60,
       isActive: true,
       showOnHomePage: true,

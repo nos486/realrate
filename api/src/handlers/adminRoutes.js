@@ -245,7 +245,7 @@ export async function handleAdminTestPriceSource(request, env) {
 
   try {
     const body = await request.json();
-    const testResult = await testPriceSourceConfig(body);
+    const testResult = await testPriceSourceConfig(body, env);
 
     if (testResult.success && body.id && testResult.price) {
       const nowIso = testResult.datetime || new Date().toISOString();
@@ -295,7 +295,7 @@ export async function handleAdminInspectApiRoute(request, env) {
     if (!apiUrl) {
       return errorResponse("آدرس وب‌سرویس الزامی است.", 400, request);
     }
-    const result = await inspectApiEndpointStructure(apiUrl, body.headers || {});
+    const result = await inspectApiEndpointStructure(apiUrl, body.headers || {}, env);
     return jsonResponse(result, 200, request);
   } catch (e) {
     return errorResponse(e.message, 400, request);

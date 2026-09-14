@@ -15,7 +15,28 @@ import {
 } from "../../../config/constants.js";
 import { logger } from "../../../lib/logger.js";
 
-export const BOURSE_API_URL = "https://api.brsapi.ir/Tsetmc/AllSymbols.php?key=BDqzgcZZ5rGg4Z6uSEs9bMyx2E2vXrkd&type=1";
+export const BOURSE_API_BASE_URL = "https://api.brsapi.ir/Tsetmc/AllSymbols.php?type=1";
+
+/**
+ * Resolve BRS API Key from Worker env or Node environment
+ * @param {object} [env]
+ * @returns {string}
+ */
+export function resolveBrsApiKey(env = null) {
+  return env?.BRS_API_KEY || (typeof process !== "undefined" && process.env?.BRS_API_KEY) || "";
+}
+
+/**
+ * Get dynamic Bourse API URL with key query parameter
+ * @param {object} [env]
+ * @returns {string}
+ */
+export function getBourseApiUrl(env = null) {
+  const key = resolveBrsApiKey(env);
+  return key ? `${BOURSE_API_BASE_URL}&key=${key}` : BOURSE_API_BASE_URL;
+}
+
+export const BOURSE_API_URL = BOURSE_API_BASE_URL;
 
 let inMemoryBourseList = null;
 
@@ -192,8 +213,16 @@ export const bourseSymbolsSourceAdapter = {
     return pType === "bourse" || pType === "bourse_fund" || endpoint.includes("allsymbols.php") || endpoint.includes("brsapi") || endpoint.includes("tsetmc");
   },
 
-  async fetchRaw(sourceConfig) {
-    const url = (sourceConfig.endpoint || sourceConfig.apiUrl || BOURSE_API_URL).trim();
+  async fetchRaw(sourceConfig = {}, env = null) {
+    let url = (sourceConfig.endpoint || sourceConfig.apiUrl || BOURSE_API_BASE_URL).trim();
+    if (url.includes("api.brsapi.ir") && !url.includes("key=")) {
+      const key = resolveBrsApiKey(env);
+      if (key) {
+        const sep = url.includes("?") ? "&" : "?";
+        url = `${url}${sep}key=${key}`;
+      }
+    }
+
     const res = await fetch(url, {
       headers: { "User-Agent": "RealRateWorker/1.0", "Accept": "application/json" },
     });
@@ -257,9 +286,9 @@ export const bourseSymbolsSourceAdapter = {
     };
   },
 
-  async test(sourceConfig) {
+  async test(sourceConfig, env = null) {
     try {
-      const raw = await this.fetchRaw(sourceConfig);
+      const raw = await this.fetchRaw(sourceConfig, env);
       const parsed = await this.parse(raw, sourceConfig, null);
       return {
         success: true,
@@ -311,7 +340,8 @@ export const bourseSymbolsSourceAdapter = {
         return false;
       }
 
-      const raw = await this.fetchRaw({ apiUrl: BOURSE_API_URL });
+      const url = getBourseApiUrl(env);
+      const raw = await this.fetchRaw({ apiUrl: url }, env);
       const parsed = await this.parse(raw, { name: "بورس اوراق بهادار تهران (TSETMC / BRS API)" }, env);
       if (parsed && parsed.price > 0) {
         await setBourseLastSync(env, now, BOURSE_SYNC_EXPIRATION_TTL);

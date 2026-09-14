@@ -34,7 +34,7 @@ export {
  */
 export async function fetchAndStoreBourseSymbols(env) {
   try {
-    const raw = await bourseSymbolsSourceAdapter.fetchRaw({});
+    const raw = await bourseSymbolsSourceAdapter.fetchRaw({}, env);
     const parsed = await bourseSymbolsSourceAdapter.parse(raw, { name: "بورس اوراق بهادار تهران (TSETMC / BRS API)" }, env);
 
     if (env?.DB) {

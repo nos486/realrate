@@ -11,6 +11,46 @@ import {
 import { normalizeForexToUsdCrossRate } from "../../../domain/formulas.js";
 
 /**
+ * Resolve BRS API Key from Worker env or Node environment
+ * @param {object} [env]
+ * @returns {string}
+ */
+export function resolveBrsApiKey(env = null) {
+  return env?.BRS_API_KEY || (typeof process !== "undefined" && process.env?.BRS_API_KEY) || "";
+}
+
+/**
+ * Dynamically resolves URL by injecting BRS_API_KEY if needed
+ * @param {string} rawUrl
+ * @param {object} [env]
+ * @returns {string}
+ */
+export function resolveApiUrl(rawUrl, env = null) {
+  let url = (rawUrl || "").trim();
+  const brsKey = resolveBrsApiKey(env);
+
+  let hadPlaceholder = false;
+  if (url.includes("{BRS_API_KEY}")) {
+    url = url.replace(/\{BRS_API_KEY\}/g, brsKey);
+    hadPlaceholder = true;
+  }
+  if (url.includes("YOUR_API_KEY")) {
+    if (brsKey) url = url.replace(/YOUR_API_KEY/g, brsKey);
+    hadPlaceholder = true;
+  }
+
+  // If URL is targeting BRS API and key was not already supplied or present in query
+  if (!hadPlaceholder && url.includes("api.brsapi.ir") && !url.includes("key=")) {
+    if (brsKey) {
+      const sep = url.includes("?") ? "&" : "?";
+      url = `${url}${sep}key=${brsKey}`;
+    }
+  }
+
+  return url;
+}
+
+/**
  * Generic API URL Source Adapter Implementation
  * @type {import("./ISourceAdapter.js").SourceAdapter}
  */
@@ -23,11 +63,12 @@ export const apiUrlSourceAdapter = {
     return type === "api_url" || Boolean(sourceConfig.apiUrl || sourceConfig.usd_api_url);
   },
 
-  async fetchRaw(sourceConfig) {
-    const url = (sourceConfig.endpoint || sourceConfig.apiUrl || sourceConfig.usd_api_url || "").trim();
-    if (!url) {
+  async fetchRaw(sourceConfig, env = null) {
+    const rawUrl = (sourceConfig.endpoint || sourceConfig.apiUrl || sourceConfig.usd_api_url || "").trim();
+    if (!rawUrl) {
       throw new Error("آدرس وب‌سرویس وارد نشده است.");
     }
+    const url = resolveApiUrl(rawUrl, env);
     if (!/^https?:\/\//i.test(url)) {
       throw new Error("آدرس وب‌سرویس باید با http:// یا https:// آغاز شود.");
     }
@@ -190,14 +231,14 @@ export const apiUrlSourceAdapter = {
     };
   },
 
-  async test(sourceConfig) {
+  async test(sourceConfig, env = null) {
     const url = (sourceConfig.endpoint || sourceConfig.apiUrl || sourceConfig.usd_api_url || "").trim();
     if (!url) {
       return { success: false, error: "لطفاً آدرس API URL را وارد کنید." };
     }
 
     try {
-      const raw = await this.fetchRaw(sourceConfig);
+      const raw = await this.fetchRaw(sourceConfig, env);
       const parsed = this.parse(raw, sourceConfig);
       const rawSnippet = raw && raw.length > 2500 ? raw.slice(0, 2500) + "\n... (ادامه متن کوتاه شد)" : raw;
 

@@ -13,6 +13,7 @@ import {
   setSourcePriceCache,
 } from "../../repositories/kvCache.repository.js";
 import { getAdapterForSource } from "./sources/index.js";
+import { resolveApiUrl } from "./sources/apiUrl.source.adapter.js";
 import { logger } from "../../lib/logger.js";
 import { SETTINGS_MEMORY_CACHE_TTL_MS } from "../../config/constants.js";
 import { WORLD_FOREX_NAMES } from "../../domain/specs/index.js";
@@ -392,15 +393,15 @@ export async function fetchAllPrices(env, forceRefresh = false, settings = null)
  * @param {object} config - { sourceType, priceType, endpoint, regex, jsonPath, name }
  * @returns {Promise<object>}
  */
-export async function testPriceSourceConfig(config = {}) {
+export async function testPriceSourceConfig(config = {}, env = null) {
   const adapter = getAdapterForSource(config);
   if (typeof adapter.test === "function") {
-    return await adapter.test(config);
+    return await adapter.test(config, env);
   }
 
   try {
-    const raw = await adapter.fetchRaw(config);
-    const parsed = await adapter.parse(raw, config);
+    const raw = await adapter.fetchRaw(config, env);
+    const parsed = await adapter.parse(raw, config, env);
     const rawSnippet = typeof raw === "string" && raw.length > 2500 ? raw.slice(0, 2500) + "\n... (ادامه متن کوتاه شد)" : raw;
 
     return {
@@ -425,9 +426,9 @@ export async function testPriceSourceConfig(config = {}) {
 /**
  * Fetch raw endpoint content using appropriate adapter
  */
-export async function fetchRawEndpointContent(sourceType, endpoint) {
+export async function fetchRawEndpointContent(sourceType, endpoint, env = null) {
   const adapter = getAdapterForSource({ sourceType, endpoint });
-  return await adapter.fetchRaw({ sourceType, endpoint });
+  return await adapter.fetchRaw({ sourceType, endpoint }, env);
 }
 
 /**
@@ -442,10 +443,12 @@ export async function parseSourceContent(sourceConfig, rawContent, env = null) {
  * Inspect an API endpoint structure to discover candidate arrays and JSON keys
  * @param {string} endpointUrl
  * @param {object} [customHeaders]
+ * @param {object} [env]
  * @returns {Promise<object>}
  */
-export async function inspectApiEndpointStructure(endpointUrl, customHeaders = {}) {
-  if (!endpointUrl || !endpointUrl.startsWith("http")) {
+export async function inspectApiEndpointStructure(endpointUrl, customHeaders = {}, env = null) {
+  const resolvedUrl = resolveApiUrl(endpointUrl, env);
+  if (!resolvedUrl || !resolvedUrl.startsWith("http")) {
     throw new Error("آدرس وب‌سرویس معتبر نیست. لطفاً یک URL کامل با http یا https وارد کنید.");
   }
 
@@ -460,7 +463,7 @@ export async function inspectApiEndpointStructure(endpointUrl, customHeaders = {
 
   let res;
   try {
-    res = await fetch(endpointUrl, { headers, signal: controller.signal });
+    res = await fetch(resolvedUrl, { headers, signal: controller.signal });
   } catch (err) {
     clearTimeout(timeoutId);
     if (err.name === 'AbortError') {

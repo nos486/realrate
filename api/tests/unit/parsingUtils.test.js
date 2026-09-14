@@ -62,4 +62,26 @@ describe("parsingUtils — extractValueByPath with predicate filtering", () => {
     expect(parsed.price).toBe(233408);
     expect(parsed.label).toBe("تتر تومانی با فانکشن اختصاصی");
   });
+
+  it("injects BRS API key securely from env into apiUrl without hardcoding", async () => {
+    const { resolveApiUrl } = await import("../../src/services/market/sources/apiUrl.source.adapter.js");
+    const mockEnv = { BRS_API_KEY: "secret123" };
+
+    // Should append ?key=secret123 when missing
+    const url1 = resolveApiUrl("https://api.brsapi.ir/Market/Gold_Currency.php", mockEnv);
+    expect(url1).toBe("https://api.brsapi.ir/Market/Gold_Currency.php?key=secret123");
+
+    // Should append &key=secret123 when query string already exists
+    const url2 = resolveApiUrl("https://api.brsapi.ir/Tsetmc/AllSymbols.php?type=1", mockEnv);
+    expect(url2).toBe("https://api.brsapi.ir/Tsetmc/AllSymbols.php?type=1&key=secret123");
+
+    // Should replace {BRS_API_KEY} placeholder
+    const url3 = resolveApiUrl("https://api.brsapi.ir/Market/Gold.php?token={BRS_API_KEY}", mockEnv);
+    expect(url3).toBe("https://api.brsapi.ir/Market/Gold.php?token=secret123");
+
+    // Should not modify non-BRS URLs
+    const url4 = resolveApiUrl("https://open.er-api.com/v6/latest/USD", mockEnv);
+    expect(url4).toBe("https://open.er-api.com/v6/latest/USD");
+  });
 });
+
