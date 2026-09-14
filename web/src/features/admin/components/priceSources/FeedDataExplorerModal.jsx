@@ -1,6 +1,20 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { Eye, Search, RefreshCw } from 'lucide-react';
 import Modal from '../../../../shared/ui/Modal.jsx';
+
+function normalizeSearch(str) {
+  if (!str) return '';
+  return String(str)
+    .toLowerCase()
+    .replace(/[ي]/g, 'ی')
+    .replace(/[ك]/g, 'ک')
+    .replace(/[آأإ]/g, 'ا')
+    .replace(/[ة]/g, 'ه')
+    .replace(/[\u200B-\u200D\uFEFF]/g, '')
+    .replace(/‌/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
 
 export default function FeedDataExplorerModal({
   isOpen,
@@ -12,16 +26,29 @@ export default function FeedDataExplorerModal({
   explorerItems = [],
   handleOpenExplorer,
 }) {
-  const filteredItems = explorerItems
-    .filter((item) => {
-      if (!explorerSearch.trim()) return true;
-      const q = explorerSearch.toLowerCase();
-      return (
-        (item.s && String(item.s).toLowerCase().includes(q)) ||
-        (item.n && String(item.n).toLowerCase().includes(q))
-      );
-    })
-    .slice(0, 100);
+  const filteredItems = useMemo(() => {
+    const q = normalizeSearch(explorerSearch);
+    if (!q) return explorerItems.slice(0, 150);
+    return explorerItems
+      .filter((item) => {
+        const sym = normalizeSearch(item.s || item.symbol || '');
+        const name = normalizeSearch(item.n || item.name || '');
+        const cat = normalizeSearch(item.cat || item.category || '');
+        return sym.includes(q) || name.includes(q) || cat.includes(q);
+      })
+      .slice(0, 150);
+  }, [explorerItems, explorerSearch]);
+
+  const totalFilteredCount = useMemo(() => {
+    const q = normalizeSearch(explorerSearch);
+    if (!q) return explorerItems.length;
+    return explorerItems.filter((item) => {
+      const sym = normalizeSearch(item.s || item.symbol || '');
+      const name = normalizeSearch(item.n || item.name || '');
+      const cat = normalizeSearch(item.cat || item.category || '');
+      return sym.includes(q) || name.includes(q) || cat.includes(q);
+    }).length;
+  }, [explorerItems, explorerSearch]);
 
   return (
     <Modal
@@ -60,7 +87,7 @@ export default function FeedDataExplorerModal({
               />
               <input
                 type="text"
-                placeholder="جستجو در بین اقلام (کد، نام، دسته)..."
+                placeholder="جستجو در بین اقلام (نماد، نام، دسته)..."
                 value={explorerSearch}
                 onChange={(e) => setExplorerSearch(e.target.value)}
                 style={{ width: '100%', paddingRight: '32px', fontSize: '12px' }}
@@ -69,7 +96,9 @@ export default function FeedDataExplorerModal({
 
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
               <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
-                مجموع: {explorerItems.length.toLocaleString('fa-IR')} رکورد
+                {explorerSearch.trim()
+                  ? `${totalFilteredCount.toLocaleString('fa-IR')} از ${explorerItems.length.toLocaleString('fa-IR')} رکورد`
+                  : `مجموع: ${explorerItems.length.toLocaleString('fa-IR')} رکورد`}
               </span>
               <button
                 type="button"
@@ -95,25 +124,43 @@ export default function FeedDataExplorerModal({
               <div style={{ padding: '30px', textAlign: 'center', color: 'var(--text-muted)' }}>
                 هیچ رکوردی برای نمایش یافت نشد.
               </div>
+            ) : filteredItems.length === 0 ? (
+              <div style={{ padding: '30px', textAlign: 'center', color: 'var(--text-muted)' }}>
+                هیچ موردی مطابق با جستجوی شما یافت نشد.
+              </div>
             ) : (
               <table className="users-table" style={{ width: '100%', fontSize: '12px' }}>
                 <thead>
                   <tr>
-                    <th>نماد</th>
+                    <th style={{ width: '120px' }}>نماد</th>
                     <th>نام دارایی</th>
-                    <th>آخرین قیمت (تومان)</th>
+                    <th style={{ width: '140px' }}>نوع / دسته</th>
+                    <th style={{ width: '150px', textAlign: 'left' }}>آخرین قیمت</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredItems.map((item, idx) => (
-                    <tr key={idx}>
-                      <td><strong>{item.s}</strong></td>
-                      <td>{item.n}</td>
-                      <td style={{ color: 'var(--accent-green, #10b981)', fontWeight: '700' }}>
-                        {Number(item.priceToman || item.priceTomans || item.p || item.price || 0).toLocaleString('fa-IR')}
-                      </td>
-                    </tr>
-                  ))}
+                  {filteredItems.map((item, idx) => {
+                    const sym = item.s || item.symbol || '—';
+                    const name = item.n || item.name || sym;
+                    const price = Number(item.priceToman || item.priceTomans || item.p || item.price || 0);
+                    const cat = item.cat || item.category || (item.isFund ? 'صندوق سرمایه‌گذاری' : 'سهام بورس');
+                    return (
+                      <tr key={idx}>
+                        <td>
+                          <strong style={{ fontFamily: 'monospace', fontSize: '13px' }}>{sym}</strong>
+                        </td>
+                        <td>{name}</td>
+                        <td>
+                          <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
+                            {cat}
+                          </span>
+                        </td>
+                        <td style={{ color: 'var(--accent-green, #10b981)', fontWeight: '700', textAlign: 'left' }}>
+                          {price > 0 ? `${price.toLocaleString('fa-IR')} تومان` : '—'}
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             )}

@@ -113,6 +113,13 @@ export function compileLatestMarketRates(sources) {
   const multiSources = sources.filter((s) => s.isActive && s.lastMultiData);
   for (const mSrc of multiSources) {
     try {
+      const sType = (mSrc.sourceType || '').toLowerCase();
+      const pType = (mSrc.priceType || '').toLowerCase();
+      // Bourse feeds are catalogs of 1,700+ symbols, not generic key-value currency prices
+      if (sType === 'bourse_symbols' || pType === 'bourse' || pType === 'bourse_fund') {
+        continue;
+      }
+
       let excluded = [];
       if (mSrc.excludedOutputs) {
         try {
@@ -152,43 +159,31 @@ export function compileLatestMarketRates(sources) {
     }
   }
 
-  // Tehran Stock Exchange (Bourse Equities):
-  const bourseSource = sources.find(s => s.priceType === "bourse" && s.isActive);
+  // Tehran Stock Exchange (Bourse Equities Catalog Metadata — not a single asset price)
+  const bourseSource = sources.find(s => (s.priceType === "bourse" || s.sourceType === "bourse_symbols") && s.isActive);
   if (bourseSource) {
-    let bourseShowOnHome = true;
-    if (bourseSource.displayConfig) {
-      try {
-        const dc = typeof bourseSource.displayConfig === 'string' ? JSON.parse(bourseSource.displayConfig) : bourseSource.displayConfig;
-        if (dc && dc.showOnHomePage !== undefined) bourseShowOnHome = Boolean(dc.showOnHomePage);
-      } catch { }
-    }
     result.bourse = {
-      price: Number(bourseSource.lastPrice) || 0,
+      totalSymbols: Number(bourseSource.lastPrice) || 0,
       datetime: bourseSource.lastFetched || new Date().toISOString(),
       label: bourseSource.name,
       sourceId: bourseSource.id,
       isPrimary: true,
-      showOnHomePage: bourseShowOnHome,
+      isCatalog: true,
+      showOnHomePage: false,
     };
   }
 
-  // Tehran Stock Exchange (Bourse Investment Funds):
+  // Tehran Stock Exchange (Bourse Investment Funds Catalog Metadata)
   const bourseFundSource = sources.find(s => s.priceType === "bourse_fund" && s.isActive);
   if (bourseFundSource) {
-    let fundShowOnHome = true;
-    if (bourseFundSource.displayConfig) {
-      try {
-        const dc = typeof bourseFundSource.displayConfig === 'string' ? JSON.parse(bourseFundSource.displayConfig) : bourseFundSource.displayConfig;
-        if (dc && dc.showOnHomePage !== undefined) fundShowOnHome = Boolean(dc.showOnHomePage);
-      } catch { }
-    }
     result.bourse_fund = {
-      price: Number(bourseFundSource.lastPrice) || 0,
+      totalFunds: Number(bourseFundSource.lastPrice) || 0,
       datetime: bourseFundSource.lastFetched || new Date().toISOString(),
       label: bourseFundSource.name,
       sourceId: bourseFundSource.id,
       isPrimary: true,
-      showOnHomePage: fundShowOnHome,
+      isCatalog: true,
+      showOnHomePage: false,
     };
   }
 

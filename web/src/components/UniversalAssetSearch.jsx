@@ -223,32 +223,35 @@ export function extractMultiItems(src) {
     else if (Array.isArray(multi.currencies)) rawList = multi.currencies;
     else if (Array.isArray(multi)) rawList = multi;
     else if (typeof multi === 'object') {
-      rawList = Object.entries(multi)
-        .filter(([k]) => !['updatedAt', 'totalCount', 'totalSymbols', 'labels', 'topSymbols', 'error', 'datetime', 'totalFunds', 'fundsCount', 'result', 'base_code', 'time_last_update_utc', 'time_next_update_utc', 'time_last_update_unix', 'time_next_update_unix', 'provider', 'documentation', 'terms_of_use', 'time_eol_unix'].includes(k))
-        .map(([k, v]) => {
-          if (v && typeof v === 'object') {
-            const sym = (v.symbol || v.s || v.code || v.id || k).toUpperCase();
-            const fa = WORLD_CURRENCY_NAMES[sym] || v.name || v.n || v.title || v.car_name || v.label || sym;
+      const isBourseCatalog = src.priceType === 'bourse' || src.priceType === 'bourse_fund' || src.sourceType === 'bourse_symbols';
+      if (!isBourseCatalog || Array.isArray(multi.symbols) || Array.isArray(multi.compactList) || Array.isArray(multi.sampleItems) || Array.isArray(multi.items)) {
+        rawList = Object.entries(multi)
+          .filter(([k]) => !['updatedAt', 'totalCount', 'totalSymbols', 'labels', 'topSymbols', 'error', 'datetime', 'totalFunds', 'fundsCount', 'result', 'base_code', 'time_last_update_utc', 'time_next_update_utc', 'time_last_update_unix', 'time_next_update_unix', 'provider', 'documentation', 'terms_of_use', 'time_eol_unix', 'stats'].includes(k))
+          .map(([k, v]) => {
+            if (v && typeof v === 'object') {
+              const sym = (v.symbol || v.s || v.code || v.id || k).toUpperCase();
+              const fa = WORLD_CURRENCY_NAMES[sym] || v.name || v.n || v.title || v.car_name || v.label || sym;
+              return {
+                s: sym,
+                n: fa,
+                p: v.price || v.p || v.priceTomans || v.lastPrice || v.val || v.usdCrossRate || v.rawRate || 0,
+                rawRate: Number(v.rawRate || v.price || v.p || v.val || 0),
+                usdCrossRate: Number(v.usdCrossRate || 0),
+                cat: v.category || v.cat || v.brand || v.group || '',
+                extra: v.extra || v.model || '',
+                cp: v.changePercent || v.cp || v.plp || 0,
+                isFund: Boolean(v.isFund || v.f === 1),
+              };
+            }
+            const sym = String(k).toUpperCase();
             return {
               s: sym,
-              n: fa,
-              p: v.price || v.p || v.priceTomans || v.lastPrice || v.val || v.usdCrossRate || v.rawRate || 0,
-              rawRate: Number(v.rawRate || v.price || v.p || v.val || 0),
-              usdCrossRate: Number(v.usdCrossRate || 0),
-              cat: v.category || v.cat || v.brand || v.group || '',
-              extra: v.extra || v.model || '',
-              cp: v.changePercent || v.cp || v.plp || 0,
-              isFund: Boolean(v.isFund || v.f === 1),
+              n: WORLD_CURRENCY_NAMES[sym] || sym,
+              p: Number(v) || 0,
+              rawRate: Number(v) || 0,
             };
-          }
-          const sym = String(k).toUpperCase();
-          return {
-            s: sym,
-            n: WORLD_CURRENCY_NAMES[sym] || sym,
-            p: Number(v) || 0,
-            rawRate: Number(v) || 0,
-          };
-        });
+          });
+      }
     }
   }
 

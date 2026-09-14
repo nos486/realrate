@@ -118,4 +118,39 @@ describe('compileLatestMarketRates dynamic source support', () => {
     expect(result.doge).toBeDefined();
     expect(result.doge.showOnHomePage).toBe(false);
   });
+
+  it('should treat bourse sources as catalog metadata and never pollute market prices with totalSymbols or fake prices', () => {
+    const mockSources = [
+      {
+        id: 'src_def_bourse',
+        name: 'بورس اوراق بهادار تهران (TSETMC / BRS API)',
+        priceType: 'bourse',
+        sourceType: 'bourse_symbols',
+        lastPrice: 1773,
+        isActive: true,
+        isPrimary: true,
+        lastMultiData: {
+          totalSymbols: 1773,
+          updatedAt: '2026-09-14T09:17:57.647Z',
+          stats: {
+            totalSymbols: 1773,
+            totalFunds: 124,
+          },
+        },
+      },
+    ];
+
+    const result = compileLatestMarketRates(mockSources);
+
+    // Should NOT emit totalsymbols or stats as price items
+    expect(result.totalsymbols).toBeUndefined();
+    expect(result.stats).toBeUndefined();
+
+    // Bourse should be catalog metadata, not a single price item of 1773 Tomans
+    expect(result.bourse).toBeDefined();
+    expect(result.bourse.isCatalog).toBe(true);
+    expect(result.bourse.totalSymbols).toBe(1773);
+    expect(result.bourse.price).toBeUndefined();
+    expect(result.bourse.showOnHomePage).toBe(false);
+  });
 });

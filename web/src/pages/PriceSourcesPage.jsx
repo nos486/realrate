@@ -19,6 +19,7 @@ import {
   apiSetPrimarySource,
   apiTestPriceSource,
   apiFetchAllSourcesNow,
+  apiSearchBourseSymbols,
 } from '../api/client.js';
 import { extractMultiItems } from '../components/UniversalAssetSearch.jsx';
 import {
@@ -388,6 +389,31 @@ export default function PriceSourcesPage({ embedded = false, usdToman: propUsdTo
     setExplorerSearch('');
     setExplorerModalOpen(true);
 
+    const isBourse = src?.priceType === 'bourse' || src?.priceType === 'bourse_fund' || src?.sourceType === 'bourse_symbols';
+
+    if (isBourse) {
+      setExplorerLoading(true);
+      try {
+        const bourseRes = await apiSearchBourseSymbols('', 3000);
+        if (bourseRes?.success && Array.isArray(bourseRes.symbols) && bourseRes.symbols.length > 0) {
+          setExplorerItems(bourseRes.symbols.map(it => ({
+            s: it.symbol || it.s,
+            n: it.name || it.n,
+            p: it.priceToman || it.price || it.p,
+            priceToman: it.priceToman || it.price || it.p,
+            priceRial: it.priceRial,
+            isFund: it.isFund,
+            cat: it.isFund ? 'صندوق سرمایه‌گذاری' : 'سهام بورس',
+          })));
+          return;
+        }
+      } catch (err) {
+        console.warn('Could not fetch bourse symbols directly, falling back to test:', err);
+      } finally {
+        setExplorerLoading(false);
+      }
+    }
+
     let items = extractMultiItems(src);
     if (items.length > 0) {
       setExplorerItems(items.map(it => ({
@@ -408,6 +434,18 @@ export default function PriceSourcesPage({ embedded = false, usdToman: propUsdTo
     try {
       const testRes = await apiTestPriceSource(src);
       if (testRes.success) {
+        if (Array.isArray(testRes.compactList) && testRes.compactList.length > 0) {
+          setExplorerItems(testRes.compactList.map(it => ({
+            s: it.symbol || it.s,
+            n: it.name || it.n,
+            p: it.priceToman || it.price || it.p,
+            priceToman: it.priceToman || it.price || it.p,
+            priceRial: it.priceRial,
+            isFund: it.isFund,
+            cat: it.isFund ? 'صندوق سرمایه‌گذاری' : (it.category || 'سهام بورس'),
+          })));
+          return;
+        }
         const testItems = extractMultiItems({ ...src, lastMultiData: testRes.multiData || testRes });
         if (testItems.length > 0) {
           setExplorerItems(testItems.map(it => ({
@@ -422,7 +460,16 @@ export default function PriceSourcesPage({ embedded = false, usdToman: propUsdTo
             priceTomans: it.price,
           })));
         } else if (testRes.sampleItems || testRes.compactList) {
-          setExplorerItems(testRes.sampleItems || testRes.compactList || []);
+          const list = testRes.compactList || testRes.sampleItems || [];
+          setExplorerItems(list.map(it => ({
+            s: it.symbol || it.s,
+            n: it.name || it.n,
+            p: it.priceToman || it.price || it.p,
+            priceToman: it.priceToman || it.price || it.p,
+            priceRial: it.priceRial,
+            isFund: it.isFund,
+            cat: it.isFund ? 'صندوق سرمایه‌گذاری' : (it.cat || 'اقلام فید'),
+          })));
         }
       }
     } catch (e) {
