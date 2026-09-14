@@ -48,3 +48,14 @@ export function formatThousands(val, allowDecimals = false) {
     return parseInt(intPart, 10).toLocaleString('en-US');
   }
 }
+
+/**
+ * Format number with Persian thousand separators
+ * @param {number|string} num
+ * @returns {string}
+ */
+export function formatNum(num) {
+  if (num === null || num === undefined || isNaN(Number(num))) return '—';
+  return Math.round(Number(num)).toLocaleString('fa-IR');
+}
+
