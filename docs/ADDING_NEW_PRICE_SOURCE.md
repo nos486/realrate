@@ -1,133 +1,95 @@
-# راهنمای افزودن سورس قیمت جدید (Adding a New Price Source)
+# راهنمای افزودن سورس قیمت جدید (معماری کد-محور / Code-First)
 
-سامانه RealRate از الگوی **Adapter Pattern** برای سورس‌های نرخ بازار، طلا، ارز و بورس استفاده می‌کند. تمام سورس‌های داده باید اینترفیس استاندارد `ISourceAdapter` را پیاده‌سازی کنند.
+سامانه RealRate از معماری **کد-محور (Code-First)** برای تعریف و مدیریت تمامی سورس‌های قیمت استفاده می‌کند. تمامی فیدها به صورت اعلانی در کد تعریف شده و با گیت نسخه می‌شوند. قیمت‌های استخراج‌شده در حافظه سریع Cloudflare KV کش می‌شوند.
 
 ---
 
-## اینترفیس استاندارد سورس داده (`ISourceAdapter`)
+## ۱. فایل مرجع سورس‌ها (`api/src/config/sources.config.js`)
 
-قرارداد آداپتور در فایل `api/src/adapters/base.js` به صورت زیر تعریف شده است:
+تمامی سورس‌ها (طلا، سکه، ارز، بورس و فارکس) در آرایه `PRICE_SOURCES_CONFIG` درون فایل [`api/src/config/sources.config.js`](file:///Users/sina/Projects/realrate/api/src/config/sources.config.js) تعریف می‌شوند.
+
+### ساختار استاندارد یک سورس قیمت
 
 ```javascript
-export class ISourceAdapter {
-  constructor(sourceId, name) {
-    this.sourceId = sourceId;
-    this.name = name;
-  }
-
-  /**
-   * دریافت و نرمال‌سازی قیمت‌ها از منبع بالادستی
-   * @param {Object} env - متغیرهای محیطی Cloudflare Worker
-   * @param {Object} [options] - تنظیمات اختیاری مانند timeout یا forced
-   * @returns {Promise<Object>} { success: boolean, prices: Object, timestamp: number, metadata?: Object }
-   */
-  async fetchPrices(env, options = {}) {
-    throw new Error('fetchPrices() must be implemented');
-  }
-
-  /**
-   * بررسی سلامت و در دسترس بودن منبع
-   * @param {Object} env
-   * @returns {Promise<{ healthy: boolean, latencyMs: number, error?: string }>}
-   */
-  async healthCheck(env) {
-    throw new Error('healthCheck() must be implemented');
-  }
+{
+  id: "src_def_ons_gold",           // شناسه یکتا
+  name: "انس طلا جهانی (XAU)",       // نام نمایشی فارسی
+  priceType: "ons_gold",           // کلید متناظر در CANONICAL_ASSET_REGISTRY
+  sourceType: "api_url",           // نوع آداپتور: 'telegram' | 'api_url' | 'forex' | 'bourse'
+  endpoint: "https://api.gold-api.com/price/XAU", // آدرس وب‌سرویس یا یوزرنیم کانال تلگرام
+  regex: "",                       // الگوی استخراج (برای تلگرام یا خروجی متنی)
+  jsonPath: "price",               // کلید در خروجی JSON (برای api_url)
+  fieldMapping: null,              // نگاشت فیلدهای چندگانه (اختیاری)
+  excludedOutputs: [],             // کدهای مستثنی شده (اختیاری)
+  displayConfig: { showOnHomePage: true }, // تنظیمات نمایش
+  fetchIntervalSec: 60,            // بازه فراخوانی به ثانیه
+  isActive: true,                  // وضعیت فعال/غیرفعال بودن
+  isPrimary: true,                 // آیا سورس مرجع پیش‌فرض برای این دارایی است؟
 }
 ```
 
 ---
 
-## مراحل ایجاد سورس جدید (مثال: صرافی ارز دیجیتال Nobitex)
+## ۲. انواع آداپتورهای استاندارد موجود
 
-### مرحله ۱: ایجاد کلاس آداپتور جدید
-یک فایل در مسیر `api/src/adapters/crypto/nobitexAdapter.js` ایجاد کنید:
+آداپتورهای پیش‌فرض در مسیر `api/src/services/market/sources/` پیاده‌سازی شده‌اند:
+
+1. **`telegram`** ([`telegramSource.adapter.js`](file:///Users/sina/Projects/realrate/api/src/services/market/sources/telegramSource.adapter.js)):
+   - دریافت نرخ از کانال‌های تلگرامی معتبر بازار بدون نیاز به ربات.
+   - پارامتر `endpoint`: آیدی کانال بدون `@` (مثال: `zarmagoldd` یا `tahran_sabza`).
+2. **`api_url`** ([`apiUrl.source.adapter.js`](file:///Users/sina/Projects/realrate/api/src/services/market/sources/apiUrl.source.adapter.js)):
+   - دریافت نرخ از هرگونه وب‌سرویس REST و JSON عمومی یا سفارشی.
+   - پارامتر `jsonPath`: کلید استخراج نرخ (مثال: `price` یا `rates.USD`).
+3. **`forex`** ([`forexApi.source.adapter.js`](file:///Users/sina/Projects/realrate/api/src/services/market/sources/forexApi.source.adapter.js)):
+   - فید چندمقداری ارزهای معتبر بین‌المللی با نرخ برابری جهانی (Open ER-API).
+4. **`bourse`** ([`bourseSymbols.source.adapter.js`](file:///Users/sina/Projects/realrate/api/src/services/market/sources/bourseSymbols.source.adapter.js)):
+   - فید تجمیعی نمادها و صندوق‌های بورس اوراق بهادار تهران (TSETMC / BRS API).
+
+---
+
+## ۳. افزودن سورس جدید به سیستم
+
+### مثال ۱: افزودن سورس جدید از طریق API عمومی
+اگر می‌خواهید قیمت بیت‌کوین یا نقره را از یک وب‌سرویس جدید دریافت کنید، کافی است به انتهای آرایه `PRICE_SOURCES_CONFIG` در `sources.config.js` اضافه کنید:
 
 ```javascript
-import { ISourceAdapter } from '../base.js';
+{
+  id: "src_my_silver_api",
+  name: "نقره جهانی (سورس پشتیبان)",
+  priceType: "ons_silver",
+  sourceType: "api_url",
+  endpoint: "https://api.example.com/silver",
+  jsonPath: "data.rate",
+  fetchIntervalSec: 120,
+  isActive: true,
+  isPrimary: false,
+}
+```
 
-export class NobitexAdapter extends ISourceAdapter {
-  constructor() {
-    super('nobitex', 'نوبیتکس (نرخ رمزارزها)');
-  }
-
-  async fetchPrices(env, options = {}) {
-    const startTime = Date.now();
-    try {
-      const response = await fetch('https://api.nobitex.ir/market/stats', {
-        headers: { 'User-Agent': 'RealRate-PriceIngester/1.0' },
-        signal: AbortSignal.timeout(8000),
-      });
-
-      if (!response.ok) {
-        throw new Error(`Nobitex API returned HTTP ${response.status}`);
-      }
-
-      const data = await response.json();
-      const stats = data.stats || {};
-
-      // نرمال‌سازی به کلیدهای استاندارد ریال‌ریت
-      const prices = {};
-      if (stats['usdt-rls']?.latest) {
-        prices['usdt_toman'] = Math.round(Number(stats['usdt-rls'].latest) / 10);
-      }
-      if (stats['btc-rls']?.latest) {
-        prices['btc_toman'] = Math.round(Number(stats['btc-rls'].latest) / 10);
-      }
-
-      return {
-        success: true,
-        source: this.sourceId,
-        prices,
-        timestamp: Date.now(),
-        latencyMs: Date.now() - startTime,
-      };
-    } catch (err) {
-      return {
-        success: false,
-        source: this.sourceId,
-        error: err.message,
-        timestamp: Date.now(),
-      };
-    }
-  }
-
-  async healthCheck(env) {
-    const start = Date.now();
-    try {
-      const res = await fetch('https://api.nobitex.ir/market/stats', { method: 'HEAD' });
-      return { healthy: res.ok, latencyMs: Date.now() - start };
-    } catch (err) {
-      return { healthy: false, latencyMs: Date.now() - start, error: err.message };
-    }
-  }
+### مثال ۲: افزودن کانال تلگرامی جدید
+```javascript
+{
+  id: "src_tg_tala_channel",
+  name: "طلای ۱۸ عیار (کانال پشتیبان)",
+  priceType: "gold_18k",
+  sourceType: "telegram",
+  endpoint: "my_gold_channel",
+  regex: "طلای ۱۸ عیار[\\s\\S]*?([\\d,]+)",
+  fetchIntervalSec: 60,
+  isActive: true,
+  isPrimary: false,
 }
 ```
 
 ---
 
-## مرحله ۲: رجیستر کردن آداپتور در ایندکس آداپتورها
+## ۴. راستی‌آزمایی و تست سورس
 
-فایل `api/src/adapters/index.js` را باز کرده و آداپتور جدید را ثبت کنید:
-
-```javascript
-import { NobitexAdapter } from './crypto/nobitexAdapter.js';
-
-export const sourceAdapters = {
-  telegram: new TelegramAdapter(),
-  forex: new ForexAdapter(),
-  bourse: new BourseAdapter(),
-  nobitex: new NobitexAdapter(),
-};
-```
-
----
-
-## مرحله ۳: اتصال به سرویس Ingestion و Cron Trigger
-
-سرویس دریافت قیمت‌ها (`api/src/services/priceIngestionService.js`) از روی لیست آداپتورها به طور خودکار سورس‌های فعال را فراخوانی کرده و نتایج را در `priceRepository` ادغام می‌کند.
-
-تست واحد جدیدی در `api/tests/unit/` برای بررسی صحت دریافت و فرمت خروجی آداپتور بنویسید:
-```bash
-npm test
-```
+1. **اجرای تست‌های واحد:**
+   ```bash
+   npm test
+   ```
+2. **تست و مشاهده در پنل مدیریت (`/admin`):**
+   - به تب **«سورس‌های قیمت»** بروید.
+   - سورس تعریف‌شده در کد به‌صورت خودکار در جدول ظاهر می‌شود.
+   - با کلیک روی دکمه **«بروزرسانی نرخ»**، صحت اتصال و نرخ استخراج‌شده را به‌صورت زنده مشاهده کنید.

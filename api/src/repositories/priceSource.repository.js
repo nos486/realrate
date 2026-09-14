@@ -3,16 +3,24 @@
  */
 
 import { ensureD1Tables } from "./migration.repository.js";
-import { setSourcePriceCache, deleteSourcePriceCache } from "./kvCache.repository.js";
+import {
+  getSourcePriceCache,
+  setSourcePriceCache,
+  deleteSourcePriceCache,
+} from "./kvCache.repository.js";
+import {
+  getMasterPriceSourcesConfig,
+  getMasterPriceSourceById,
+} from "../config/sources.config.js";
 import { logger } from "../lib/logger.js";
 import { DEFAULT_FETCH_INTERVAL_SEC } from "../config/constants.js";
 
 /* ─────────────────────────────────────────────────────────────
- * Price Sources CRUD & Management (D1 + KV)
+ * Price Sources CRUD & Management (Code-First + KV/D1 Runtime Cache)
  * ───────────────────────────────────────────────────────────── */
 
 /**
- * Helper to normalize row schema from D1
+ * Helper to normalize row schema
  */
 function normalizePriceSourceRow(row) {
   let parsedFieldMapping = null;
@@ -45,68 +53,109 @@ function normalizePriceSourceRow(row) {
 }
 
 /**
- * Get all price sources from D1
+ * Get all price sources from Code-First registry, enriched with runtime KV/D1 cached prices
  * @param {object} env
  * @returns {Promise<Array>}
  */
 export async function dbGetPriceSources(env) {
-  if (env && env.DB) {
-    await ensureD1Tables(env);
-    try {
-      const { results } = await env.DB.prepare(`
-        SELECT id, name, price_type AS priceType, source_type AS sourceType,
-               endpoint, regex, json_path AS jsonPath, field_mapping AS fieldMapping,
-               excluded_outputs AS excludedOutputs, display_config AS displayConfig,
-               fetch_interval_sec AS fetchIntervalSec,
-               is_active AS isActive, is_primary AS isPrimary,
-               last_price AS lastPrice, last_multi_data AS lastMultiData,
-               last_fetched AS lastFetched,
-               created_at AS createdAt, updated_at AS updatedAt
-        FROM price_sources
-        ORDER BY price_type ASC, is_primary DESC, created_at ASC
-      `).all();
+  const masterSources = getMasterPriceSourcesConfig();
 
-      if (Array.isArray(results) && results.length > 0) {
-        return results.map(normalizePriceSourceRow);
+  // Load latest cached runtime prices from KV (or fallback D1)
+  const enriched = await Promise.all(
+    masterSources.map(async (src) => {
+      let lastPrice = src.lastPrice || 0;
+      let lastFetched = src.lastFetched || "";
+      let lastMultiData = src.lastMultiData || null;
+
+      // 1. Check KV cache first (sub-millisecond)
+      if (env) {
+        const kvData = await getSourcePriceCache(env, src.id).catch(() => null);
+        if (kvData) {
+          lastPrice = Number(kvData.price) || lastPrice;
+          lastFetched = kvData.lastFetched || lastFetched;
+          lastMultiData = kvData.lastMultiData || lastMultiData;
+        }
+
+        // 2. Fallback to D1 if KV was empty
+        if (!lastPrice && env.DB) {
+          try {
+            const row = await env.DB.prepare(
+              "SELECT last_price, last_fetched, last_multi_data FROM price_sources WHERE id = ?"
+            ).bind(src.id).first();
+            if (row) {
+              lastPrice = Number(row.last_price) || 0;
+              lastFetched = row.last_fetched || "";
+              if (row.last_multi_data) {
+                try {
+                  lastMultiData = typeof row.last_multi_data === 'string'
+                    ? JSON.parse(row.last_multi_data)
+                    : row.last_multi_data;
+                } catch {}
+              }
+            }
+          } catch {}
+        }
       }
-    } catch (e) {
-      logger.error("D1 dbGetPriceSources error:", { error: e.message });
-    }
-  }
 
-  return [];
+      return normalizePriceSourceRow({
+        ...src,
+        lastPrice,
+        lastFetched,
+        lastMultiData,
+      });
+    })
+  );
+
+  return enriched;
 }
 
 /**
- * Get single price source by ID
+ * Get single price source by ID from Code-First registry
  * @param {object} env
  * @param {string} id
  * @returns {Promise<object|null>}
  */
 export async function dbGetPriceSourceById(env, id) {
   if (!id) return null;
-  if (env && env.DB) {
-    await ensureD1Tables(env);
-    try {
-      const row = await env.DB.prepare(`
-        SELECT id, name, price_type AS priceType, source_type AS sourceType,
-               endpoint, regex, json_path AS jsonPath, field_mapping AS fieldMapping,
-               excluded_outputs AS excludedOutputs, display_config AS displayConfig,
-               fetch_interval_sec AS fetchIntervalSec,
-               is_active AS isActive, is_primary AS isPrimary,
-               last_price AS lastPrice, last_multi_data AS lastMultiData,
-               last_fetched AS lastFetched,
-               created_at AS createdAt, updated_at AS updatedAt
-        FROM price_sources
-        WHERE id = ?
-      `).bind(id).first();
-      if (!row) return null;
-      return normalizePriceSourceRow(row);
-    } catch (e) {
-      logger.error("D1 dbGetPriceSourceById error:", { error: e.message });
+  const master = getMasterPriceSourceById(id);
+  if (!master) return null;
+
+  let lastPrice = master.lastPrice || 0;
+  let lastFetched = master.lastFetched || "";
+  let lastMultiData = master.lastMultiData || null;
+
+  if (env) {
+    const kvData = await getSourcePriceCache(env, id).catch(() => null);
+    if (kvData) {
+      lastPrice = Number(kvData.price) || lastPrice;
+      lastFetched = kvData.lastFetched || lastFetched;
+      lastMultiData = kvData.lastMultiData || lastMultiData;
+    } else if (env.DB) {
+      try {
+        const row = await env.DB.prepare(
+          "SELECT last_price, last_fetched, last_multi_data FROM price_sources WHERE id = ?"
+        ).bind(id).first();
+        if (row) {
+          lastPrice = Number(row.last_price) || 0;
+          lastFetched = row.last_fetched || "";
+          if (row.last_multi_data) {
+            try {
+              lastMultiData = typeof row.last_multi_data === 'string'
+                ? JSON.parse(row.last_multi_data)
+                : row.last_multi_data;
+            } catch {}
+          }
+        }
+      } catch {}
     }
   }
-  return null;
+
+  return normalizePriceSourceRow({
+    ...master,
+    lastPrice,
+    lastFetched,
+    lastMultiData,
+  });
 }
 
 /**

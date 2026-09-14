@@ -2,7 +2,6 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import {
   Radio,
-  Plus,
   RefreshCw,
   Layers,
   ShieldCheck,
@@ -31,8 +30,6 @@ import {
   formatNum,
   SingleSourcesTable,
   MultiFeedsTable,
-  SingleSourceModal,
-  MultiFeedModal,
   FeedDataExplorerModal,
 } from '../features/admin/components/priceSources/index.js';
 
@@ -639,31 +636,11 @@ export default function PriceSourcesPage({ embedded = false, usdToman: propUsdTo
               onClick={handleFetchAllNow}
               disabled={fetchingAll}
               className="btn-hero-action primary-glow"
-              title="فراخوانی همزمان تمام سورس‌های فعال و ثبت در تاریخچه دیتابیس"
+              title="فراخوانی همزمان تمام سورس‌های فعال و بروزرسانی قیمت‌ها"
             >
               <Zap size={14} className={fetchingAll ? 'spin-anim' : ''} />
-              <span>{fetchingAll ? 'در حال دریافت نرخ‌ها...' : 'دریافت آنی قیمت همه سورس‌ها'}</span>
+              <span>{fetchingAll ? 'در حال دریافت نرخ‌ها...' : 'بروزرسانی همگانی سورس‌ها'}</span>
             </button>
-
-            {activeTabSection === 'single' ? (
-              <button
-                type="button"
-                onClick={() => handleOpenAddSource(sourceFilter === 'all' ? 'usd' : sourceFilter)}
-                className="btn-hero-action accent"
-              >
-                <Plus size={15} strokeWidth={2.5} />
-                <span>افزودن سورس جدید</span>
-              </button>
-            ) : (
-              <button
-                type="button"
-                onClick={handleOpenAddMultiFeed}
-                className="btn-hero-action primary-glow"
-              >
-                <Plus size={15} strokeWidth={2.5} />
-                <span>+ ایجاد فید چند خروجی هوشمند</span>
-              </button>
-            )}
           </div>
         </div>
       </Card>
@@ -737,34 +714,6 @@ export default function PriceSourcesPage({ embedded = false, usdToman: propUsdTo
           testingFeedId={multiRowTestingId}
         />
       )}
-
-      {/* Add / Edit Single Source Modal */}
-      <SingleSourceModal
-        isOpen={sourceModalOpen}
-        onClose={() => setSourceModalOpen(false)}
-        sourceForm={sourceForm}
-        setSourceForm={setSourceForm}
-        editingSourceId={editingSourceId}
-        modalSaving={modalSaving}
-        modalTesting={modalTesting}
-        modalTestResult={modalTestResult}
-        handleSaveModalSource={handleSaveModalSource}
-        handleTestModalSource={handleTestModalSource}
-        priceTypeInfo={PRICE_TYPE_INFO}
-      />
-
-      {/* Multi-Output Feed Modal */}
-      <MultiFeedModal
-        isOpen={multiWizardOpen}
-        onClose={() => setMultiWizardOpen(false)}
-        multiForm={multiForm}
-        setMultiForm={setMultiForm}
-        savingMultiSource={savingMultiSource}
-        multiTesting={multiTesting}
-        multiTestResult={multiTestResult}
-        handleSaveMultiSource={handleSaveMultiSource}
-        handleTestMultiSource={handleTestMultiSource}
-      />
 
       {/* Feed Data Explorer Modal */}
       <FeedDataExplorerModal

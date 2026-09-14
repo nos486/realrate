@@ -1,7 +1,6 @@
 import React from 'react';
 import {
   Sparkles,
-  Plus,
   Layers,
   Table,
   X,
@@ -9,8 +8,6 @@ import {
   Search,
   Eye,
   PlayCircle,
-  Edit3,
-  Trash2,
 } from 'lucide-react';
 import EmptyState from '../../../../components/ui/EmptyState.jsx';
 import { formatPersianDate, CANONICAL_PRICE_TYPE_INFO } from './priceSourceConstants.js';
@@ -72,16 +69,6 @@ export default function MultiFeedsTable({
               پشتیبانی از هر نوع خروجی چند آیتمی: بورس اوراق بهادار، قیمت روز خودرو، رمزارزها، کالاهای اساسی و APIهای سفارشی با نگاشت هوشمند
             </p>
           </div>
-
-          <button
-            type="button"
-            onClick={addFeed}
-            className="btn-hero-action primary-glow"
-            style={{ padding: '10px 20px', fontSize: '13px' }}
-          >
-            <Plus size={16} strokeWidth={2.5} />
-            <span>+ ایجاد فید چند خروجی هوشمند</span>
-          </button>
         </div>
 
         {/* Quick Stats Grid */}
@@ -325,35 +312,15 @@ export default function MultiFeedsTable({
                           <Eye size={15} />
                         </button>
 
-                        {/* Live test button */}
+                        {/* Live test / refresh button */}
                         <button
                           type="button"
                           className="btn-action-icon"
-                          title="تست اتصال و استخراج آنی"
+                          title="تست اتصال و بروزرسانی آنی نرخ‌ها"
                           onClick={() => testFeed && testFeed(src)}
                           disabled={activeTestingId === src.id}
                         >
                           <PlayCircle size={15} className={activeTestingId === src.id ? 'spin-anim' : ''} />
-                        </button>
-
-                        {/* Edit schema button */}
-                        <button
-                          type="button"
-                          className="btn-action-icon"
-                          title="ویرایش نگاشت و تنظیمات فید"
-                          onClick={() => editFeed && editFeed(src)}
-                        >
-                          <Edit3 size={15} />
-                        </button>
-
-                        {/* Delete button */}
-                        <button
-                          type="button"
-                          className="btn-action-icon danger"
-                          title="حذف این فید"
-                          onClick={() => deleteFeed && deleteFeed(src)}
-                        >
-                          <Trash2 size={15} />
                         </button>
                       </div>
                     </td>

@@ -3,8 +3,6 @@ import {
   Sliders,
   Star,
   PlayCircle,
-  Edit3,
-  Trash2,
   CheckCircle2,
   AlertCircle,
   X,
@@ -285,36 +283,21 @@ export default function SingleSourcesTable({
                             display: 'flex',
                             alignItems: 'center',
                             justifyContent: 'center',
-                            gap: '6px',
                           }}
                         >
                           <button
                             type="button"
                             onClick={() => testRow && testRow(src)}
                             disabled={isRowTesting}
-                            className="action-icon-btn test-btn"
-                            title="تست استخراج قیمت و ذخیره در تاریخچه اختصاصی این سورس"
+                            className="btn-sm btn-primary-action"
+                            style={{ padding: '5px 12px', fontSize: '11.5px', display: 'inline-flex', alignItems: 'center', gap: '5px' }}
+                            title="دریافت زنده قیمت و ذخیره در کش"
                           >
                             <PlayCircle
-                              size={15}
+                              size={13}
                               className={isRowTesting ? 'spin-anim' : ''}
                             />
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => editSource && editSource(src)}
-                            className="action-icon-btn edit-btn"
-                            title="ویرایش تنظیمات سورس"
-                          >
-                            <Edit3 size={15} />
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => deleteSource && deleteSource(src)}
-                            className="action-icon-btn delete-btn"
-                            title="حذف سورس و تمامی رکوردهای تاریخچه‌اش"
-                          >
-                            <Trash2 size={15} />
+                            <span>{isRowTesting ? 'در حال دریافت...' : 'بروزرسانی نرخ'}</span>
                           </button>
                         </div>
                       </td>
