@@ -16,7 +16,6 @@ import { useMarketData } from '../hooks/useMarketData.js';
 import {
   apiGetPriceSources,
   apiSavePriceSource,
-  apiDeletePriceSource,
   apiSetPrimarySource,
   apiTestPriceSource,
   apiFetchAllSourcesNow,
@@ -24,14 +23,9 @@ import {
 import { extractMultiItems } from '../components/UniversalAssetSearch.jsx';
 import {
   CANONICAL_PRICE_TYPE_INFO,
-  DEFAULT_SOURCE_FORM,
-  DEFAULT_MULTI_FEED_FORM,
-  isSourceMultiOutput,
   getPriceUnit,
   formatNum,
   PriceSourcesTableSection,
-  SingleSourcesTable,
-  MultiFeedsTable,
   FeedDataExplorerModal,
 } from '../features/admin/components/priceSources/index.js';
 
@@ -59,7 +53,7 @@ export default function PriceSourcesPage({ embedded = false, usdToman: propUsdTo
         layoutClassName="price-sources-fullscreen-app"
         className="sources-page-main full-width-sources-page"
       >
-        {content}
+        <div className="price-sources-page sources-fullscreen-page">{content}</div>
       </AppLayout>
     );
   };
@@ -71,14 +65,6 @@ export default function PriceSourcesPage({ embedded = false, usdToman: propUsdTo
   const [fetchingAll, setFetchingAll] = useState(false);
 
   const PRICE_TYPE_INFO = CANONICAL_PRICE_TYPE_INFO;
-  const [multiSearch, setMultiSearch] = useState('');
-
-  // Multi-Output Modal States
-  const [multiWizardOpen, setMultiWizardOpen] = useState(false);
-  const [multiForm, setMultiForm] = useState(DEFAULT_MULTI_FEED_FORM);
-  const [multiTesting, setMultiTesting] = useState(false);
-  const [multiTestResult, setMultiTestResult] = useState(null);
-  const [savingMultiSource, setSavingMultiSource] = useState(false);
   const [multiRowTestingId, setMultiRowTestingId] = useState(null);
 
   // Data Explorer Modal States
@@ -87,14 +73,6 @@ export default function PriceSourcesPage({ embedded = false, usdToman: propUsdTo
   const [explorerSearch, setExplorerSearch] = useState('');
   const [explorerLoading, setExplorerLoading] = useState(false);
   const [explorerItems, setExplorerItems] = useState([]);
-
-  // Single Source Modal State
-  const [sourceModalOpen, setSourceModalOpen] = useState(false);
-  const [editingSourceId, setEditingSourceId] = useState(null);
-  const [sourceForm, setSourceForm] = useState(DEFAULT_SOURCE_FORM);
-  const [modalSaving, setModalSaving] = useState(false);
-  const [modalTesting, setModalTesting] = useState(false);
-  const [modalTestResult, setModalTestResult] = useState(null);
 
   // Row Testing State for Base Sources
   const [rowTestingId, setRowTestingId] = useState(null);
@@ -195,120 +173,6 @@ export default function PriceSourcesPage({ embedded = false, usdToman: propUsdTo
     }
   };
 
-  // Open Add Modal
-  const handleOpenAddSource = (initialType = '') => {
-    setEditingSourceId(null);
-    const typeToUse = initialType || 'usd';
-    setSourceForm({
-      ...DEFAULT_SOURCE_FORM,
-      priceType: typeToUse,
-      unit: 'تومان',
-      showOnHomePage: true,
-      regexPattern: '([\\d,]+)\\s*فروش',
-    });
-    setModalTestResult(null);
-    setSourceModalOpen(true);
-  };
-
-  // Open Edit Modal
-  const handleOpenEditSource = (src) => {
-    if (isSourceMultiOutput(src, PRICE_TYPE_INFO)) {
-      handleOpenEditMultiFeed(src);
-      return;
-    }
-    const displayCfg = typeof src.displayConfig === 'string'
-      ? (() => { try { return JSON.parse(src.displayConfig); } catch { return {}; } })()
-      : (src.displayConfig || {});
-    const showOnHomePage = displayCfg.showOnHomePage !== undefined ? Boolean(displayCfg.showOnHomePage) : true;
-
-    setEditingSourceId(src.id);
-    setSourceForm({
-      id: src.id,
-      name: src.name || '',
-      priceType: src.priceType || '',
-      unit: src.unit || getPriceUnit(src.priceType),
-      sourceType: src.sourceType || 'telegram',
-      channelUsername: src.channelUsername || (src.sourceType === 'telegram' ? src.endpoint : ''),
-      apiUrl: src.apiUrl || (src.sourceType === 'api_url' ? src.endpoint : ''),
-      jsonPath: src.jsonPath || '',
-      fieldMapping: src.fieldMapping || null,
-      excludedOutputs: Array.isArray(src.excludedOutputs) ? src.excludedOutputs : [],
-      displayConfig: src.displayConfig || null,
-      showOnHomePage,
-      regexPattern: src.regexPattern || src.regex || '',
-      regexGroupIndex: src.regexGroupIndex || 1,
-      fetchIntervalMinutes: src.fetchIntervalMinutes || Math.round((src.fetchIntervalSec || 300) / 60),
-      isActive: src.isActive !== undefined ? Boolean(src.isActive) : true,
-      isPrimary: Boolean(src.isPrimary),
-    });
-    setModalTestResult(null);
-    setSourceModalOpen(true);
-  };
-
-  // Multi-Feed Handlers
-  const handleOpenAddMultiFeed = () => {
-    setMultiForm({
-      ...DEFAULT_MULTI_FEED_FORM,
-      name: '',
-      priceType: 'custom_feed',
-      apiUrl: '',
-      fetchIntervalMinutes: 60,
-      isActive: true,
-      showOnHomePage: true,
-      homePageOutputsText: '',
-    });
-    setMultiTestResult(null);
-    setMultiWizardOpen(true);
-  };
-
-  const handleOpenEditMultiFeed = (src) => {
-    const displayCfg = typeof src.displayConfig === 'string'
-      ? (() => { try { return JSON.parse(src.displayConfig); } catch { return {}; } })()
-      : (src.displayConfig || {});
-    const showOnHomePage = displayCfg.showOnHomePage !== undefined ? Boolean(displayCfg.showOnHomePage) : true;
-    const homeList = Array.isArray(displayCfg.homePageOutputs)
-      ? displayCfg.homePageOutputs
-      : (Array.isArray(displayCfg.showOnHomePage) ? displayCfg.showOnHomePage : []);
-
-    setMultiForm({
-      id: src.id,
-      name: src.name || '',
-      priceType: src.priceType || 'custom_feed',
-      apiUrl: src.apiUrl || src.endpoint || '',
-      fetchIntervalMinutes: src.fetchIntervalMinutes || Math.round((src.fetchIntervalSec || 3600) / 60),
-      isActive: src.isActive !== undefined ? Boolean(src.isActive) : true,
-      showOnHomePage,
-      homePageOutputsText: homeList.join(', '),
-    });
-    setMultiTestResult(null);
-    setMultiWizardOpen(true);
-  };
-
-  const handleTestMultiSource = async () => {
-    if (!multiForm.apiUrl) {
-      alert('لطفاً آدرس وب‌سرویس را وارد کنید.');
-      return;
-    }
-    setMultiTesting(true);
-    setMultiTestResult(null);
-    try {
-      const res = await apiTestPriceSource({
-        sourceType: 'api_url',
-        priceType: multiForm.priceType,
-        endpoint: multiForm.apiUrl,
-        name: multiForm.name || 'تست فید',
-      });
-      setMultiTestResult(res);
-      if (res.success) {
-        showMsg(res.message || 'تست با موفقیت انجام شد.', 'success');
-      }
-    } catch (err) {
-      setMultiTestResult({ success: false, error: err.message });
-    } finally {
-      setMultiTesting(false);
-    }
-  };
-
   const handleTestMultiRowSource = async (src) => {
     setMultiRowTestingId(src.id);
     try {
@@ -322,54 +186,6 @@ export default function PriceSourcesPage({ embedded = false, usdToman: propUsdTo
       showMsg('خطا در تست فید: ' + err.message, 'error');
     } finally {
       setMultiRowTestingId(null);
-    }
-  };
-
-  const handleSaveMultiSource = async (e) => {
-    if (e) e.preventDefault();
-    if (!multiForm.name.trim()) {
-      alert('لطفاً نام فید را وارد کنید.');
-      return;
-    }
-    if (!multiForm.apiUrl.trim()) {
-      alert('لطفاً آدرس وب‌سرویس API را وارد کنید.');
-      return;
-    }
-
-    setSavingMultiSource(true);
-    try {
-      const homePageOutputsArr = multiForm.homePageOutputsText
-        ? multiForm.homePageOutputsText.split(/[,،\s]+/).map((s) => s.trim().toUpperCase()).filter(Boolean)
-        : null;
-
-      const displayConfig = {
-        showOnHomePage: multiForm.showOnHomePage !== false,
-        ...(homePageOutputsArr && homePageOutputsArr.length > 0 ? { homePageOutputs: homePageOutputsArr } : {}),
-      };
-
-      const payload = {
-        id: multiForm.id,
-        name: multiForm.name.trim(),
-        priceType: multiForm.priceType || 'custom_feed',
-        sourceType: 'api_url',
-        endpoint: multiForm.apiUrl.trim(),
-        fetchIntervalMinutes: Number(multiForm.fetchIntervalMinutes) || 60,
-        isActive: multiForm.isActive,
-        displayConfig,
-      };
-
-      const res = await apiSavePriceSource(payload);
-      if (res.success) {
-        showMsg(`سورس چند خروجی «${multiForm.name}» با موفقیت ذخیره شد.`, 'success');
-        setMultiWizardOpen(false);
-        await loadSources();
-      } else {
-        alert('خطا در ذخیره‌سازی: ' + (res.error || 'ناشناخته'));
-      }
-    } catch (err) {
-      alert('خطا در ذخیره‌سازی سورس: ' + err.message);
-    } finally {
-      setSavingMultiSource(false);
     }
   };
 
@@ -432,58 +248,6 @@ export default function PriceSourcesPage({ embedded = false, usdToman: propUsdTo
     }
   };
 
-  // Save Modal Source
-  const handleSaveModalSource = async (e) => {
-    e.preventDefault();
-    setModalSaving(true);
-    try {
-      const prevDisplay = typeof sourceForm.displayConfig === 'string'
-        ? (() => { try { return JSON.parse(sourceForm.displayConfig); } catch { return {}; } })()
-        : (sourceForm.displayConfig || {});
-      const displayConfig = {
-        ...prevDisplay,
-        showOnHomePage: sourceForm.showOnHomePage !== false,
-      };
-
-      const payload = {
-        ...sourceForm,
-        displayConfig,
-        endpoint: sourceForm.sourceType === 'telegram' ? sourceForm.channelUsername : sourceForm.apiUrl,
-        regexGroupIndex: parseInt(sourceForm.regexGroupIndex, 10) || 1,
-        fetchIntervalMinutes: parseInt(sourceForm.fetchIntervalMinutes, 10) || 5,
-        fetchIntervalSec: (parseInt(sourceForm.fetchIntervalMinutes, 10) || 5) * 60,
-      };
-      const res = await apiSavePriceSource(payload);
-      if (res.success) {
-        showMsg(res.message || 'سورس با موفقیت ذخیره شد.', 'success');
-        setSourceModalOpen(false);
-        await loadSources();
-      } else {
-        showMsg(res.message || 'خطا در ذخیره‌سازی سورس.', 'error');
-      }
-    } catch (err) {
-      showMsg('خطا: ' + err.message, 'error');
-    } finally {
-      setModalSaving(false);
-    }
-  };
-
-  // Delete Source
-  const handleDeleteSource = async (src) => {
-    if (!window.confirm(`آیا از حذف کامل سورس «${src.name}» و تمامی رکوردهای تاریخچه آن اطمینان دارید؟`)) return;
-    try {
-      const res = await apiDeletePriceSource(src.id);
-      if (res.success) {
-        showMsg(res.message || 'سورس و تمام تاریخچه قیمت آن با موفقیت حذف شد.', 'success');
-        setSources((prev) => prev.filter((s) => s.id !== src.id));
-      } else {
-        showMsg(res.message || 'خطا در حذف سورس.', 'error');
-      }
-    } catch (err) {
-      showMsg('خطا: ' + err.message, 'error');
-    }
-  };
-
   // Set Primary Source
   const handleSetPrimary = async (src) => {
     try {
@@ -512,27 +276,6 @@ export default function PriceSourcesPage({ embedded = false, usdToman: propUsdTo
       }
     } catch (err) {
       showMsg('خطا: ' + err.message, 'error');
-    }
-  };
-
-  // Test inside Modal
-  const handleTestModalSource = async () => {
-    setModalTesting(true);
-    setModalTestResult(null);
-    try {
-      const endpoint = sourceForm.sourceType === 'telegram' ? sourceForm.channelUsername : sourceForm.apiUrl;
-      const res = await apiTestPriceSource({
-        ...sourceForm,
-        endpoint,
-      });
-      setModalTestResult(res);
-    } catch (err) {
-      setModalTestResult({
-        success: false,
-        error: 'خطا در اتصال به سورس: ' + err.message,
-      });
-    } finally {
-      setModalTesting(false);
     }
   };
 
@@ -677,10 +420,6 @@ export default function PriceSourcesPage({ embedded = false, usdToman: propUsdTo
         testingId={rowTestingId}
         testResults={rowTestResults}
         onClearTestResult={handleClearRowTestResult}
-        onAdd={handleOpenAddSource}
-        addLabel="+ افزودن سورس نرخ پایه"
-        onEdit={handleOpenEditSource}
-        onDelete={handleDeleteSource}
         onToggleActive={handleToggleActive}
         onTest={handleTestRowSource}
         onSetPrimary={handleSetPrimary}
@@ -700,10 +439,6 @@ export default function PriceSourcesPage({ embedded = false, usdToman: propUsdTo
         testingId={multiRowTestingId}
         testResults={rowTestResults}
         onClearTestResult={handleClearRowTestResult}
-        onAdd={handleOpenAddMultiFeed}
-        addLabel="+ افزودن فید جدید"
-        onEdit={handleOpenEditMultiFeed}
-        onDelete={handleDeleteSource}
         onToggleActive={handleToggleActive}
         onTest={handleTestMultiRowSource}
         onOpenExplorer={handleOpenExplorer}

@@ -3,9 +3,6 @@ import {
   Star,
   PlayCircle,
   Eye,
-  Edit3,
-  Trash2,
-  Plus,
   CheckCircle2,
   AlertCircle,
   X,
@@ -29,10 +26,6 @@ export default function PriceSourcesTableSection({
   testingId = null,
   testResults = {},
   onClearTestResult = null,
-  onAdd = null,
-  addLabel = '+ افزودن',
-  onEdit = null,
-  onDelete = null,
   onToggleActive = null,
   onTest = null,
   onSetPrimary = null,
@@ -78,26 +71,6 @@ export default function PriceSourcesTableSection({
             {items.length.toLocaleString('fa-IR')} {isMulti ? 'فید' : 'سورس'}
           </span>
         </div>
-
-        {onAdd && (
-          <button
-            type="button"
-            className="btn-primary"
-            onClick={onAdd}
-            style={{
-              fontSize: '12px',
-              padding: '6px 14px',
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '6px',
-              fontWeight: '700',
-              borderRadius: '8px',
-            }}
-          >
-            <Plus size={14} />
-            <span>{addLabel}</span>
-          </button>
-        )}
       </div>
 
       {/* ── Unified Table Container ── */}
@@ -120,19 +93,7 @@ export default function PriceSourcesTableSection({
                 <td colSpan="7" style={{ textAlign: 'center', padding: '36px' }}>
                   <EmptyState
                     title={loading ? 'در حال دریافت اطلاعات...' : (isMulti ? 'هیچ فید چند خروجی ثبت نشده است.' : 'هیچ سورسی یافت نشد.')}
-                    description={isMulti ? 'برای اتصال به API، وب‌سرویس یا کاتالوگ، یک فید جدید ایجاد کنید.' : 'برای دریافت نرخ‌های طلا، ارز یا سکه، یک سورس جدید ثبت کنید.'}
-                    action={
-                      onAdd ? (
-                        <button
-                          type="button"
-                          className="btn-primary"
-                          style={{ fontSize: '12px', padding: '8px 16px' }}
-                          onClick={onAdd}
-                        >
-                          {addLabel}
-                        </button>
-                      ) : null
-                    }
+                    description={isMulti ? 'فیدهای چند خروجی در sources.config.js تعریف می‌شوند.' : 'سورس‌های نرخ پایه در sources.config.js تعریف می‌شوند.'}
                   />
                 </td>
               </tr>
@@ -303,10 +264,9 @@ export default function PriceSourcesTableSection({
                         </button>
                       </td>
 
-                      {/* 7. Actions (Test, Edit, Delete) */}
+                      {/* 7. Action (Live Test / Refresh) */}
                       <td>
-                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '5px' }}>
-                          {/* Test / Refresh button */}
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                           <button
                             type="button"
                             className="btn-action-icon"
@@ -317,53 +277,19 @@ export default function PriceSourcesTableSection({
                               color: '#34d399',
                               background: 'rgba(16,185,129,0.12)',
                               border: '1px solid rgba(16,185,129,0.2)',
-                              padding: '5px 8px',
+                              padding: '5px 12px',
                               borderRadius: '6px',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '5px',
                               cursor: 'pointer',
+                              fontSize: '11.5px',
+                              fontWeight: '600',
                             }}
                           >
                             <PlayCircle size={14} className={isRowTesting ? 'spin-anim' : ''} />
+                            <span>{isRowTesting ? 'در حال دریافت...' : 'تست زنده'}</span>
                           </button>
-
-                          {/* Edit button */}
-                          {onEdit && (
-                            <button
-                              type="button"
-                              className="btn-action-icon"
-                              title="ویرایش سورس"
-                              onClick={() => onEdit(src)}
-                              style={{
-                                color: '#38bdf8',
-                                background: 'rgba(56,189,248,0.12)',
-                                border: '1px solid rgba(56,189,248,0.2)',
-                                padding: '5px 8px',
-                                borderRadius: '6px',
-                                cursor: 'pointer',
-                              }}
-                            >
-                              <Edit3 size={14} />
-                            </button>
-                          )}
-
-                          {/* Delete button */}
-                          {onDelete && (
-                            <button
-                              type="button"
-                              className="btn-action-icon"
-                              title="حذف سورس"
-                              onClick={() => onDelete(src.id)}
-                              style={{
-                                color: '#fb7185',
-                                background: 'rgba(244,63,94,0.12)',
-                                border: '1px solid rgba(244,63,94,0.2)',
-                                padding: '5px 8px',
-                                borderRadius: '6px',
-                                cursor: 'pointer',
-                              }}
-                            >
-                              <Trash2 size={14} />
-                            </button>
-                          )}
                         </div>
                       </td>
                     </tr>
