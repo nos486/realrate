@@ -7,11 +7,11 @@ function formatNum(num) {
 }
 
 /**
- * ارزهای برتر و پرکاربرد بازار برای نمایش در صفحه اصلی
+ * اولویت پیش‌فرض چینش ارزها و دارایی‌ها در صفحه اصلی
  */
-export const TOP_10_CURRENCIES = [
+export const DEFAULT_PRIORITY_CURRENCIES = [
   'USD',  // دلار آمریکا
-  'USDT', // دلار تتر
+  'USDT', // تتر (دلار دیجیتال)
   'EUR',  // یورو
   'AED',  // درهم امارات
   'TRY',  // لیر ترکیه
@@ -23,23 +23,28 @@ export const TOP_10_CURRENCIES = [
   'JPY',  // ین ژاپن
 ];
 
+// سازگاری با کدهایی که از TOP_10_CURRENCIES استفاده می‌کردند
+export const TOP_10_CURRENCIES = DEFAULT_PRIORITY_CURRENCIES;
+
 export default function CurrenciesList({ currencies, onCurrencyClick }) {
   const [search, setSearch] = useState('');
 
-  // فیلتر ارزهای برتر و سورس‌های فعال صفحه اصلی
+  // نمایش استاندارد و پویای کلیه ارزها و دارایی‌های منتخب صفحه اول بدون وابستگی یا هاردکد
   const topCurrencies = useMemo(() => {
     if (!currencies || !Array.isArray(currencies)) return [];
 
     const allowed = currencies.filter((c) => {
       if (!c.code) return false;
-      const upper = c.code.toUpperCase();
-      return (TOP_10_CURRENCIES.includes(upper) || c.showOnHomePage === true) && c.showOnHomePage !== false;
+      return c.showOnHomePage !== false;
     });
 
     return allowed.sort((a, b) => {
-      const idxA = TOP_10_CURRENCIES.indexOf(a.code.toUpperCase());
-      const idxB = TOP_10_CURRENCIES.indexOf(b.code.toUpperCase());
-      return (idxA === -1 ? 999 : idxA) - (idxB === -1 ? 999 : idxB);
+      const idxA = DEFAULT_PRIORITY_CURRENCIES.indexOf(a.code?.toUpperCase());
+      const idxB = DEFAULT_PRIORITY_CURRENCIES.indexOf(b.code?.toUpperCase());
+      const prioA = idxA === -1 ? 999 : idxA;
+      const prioB = idxB === -1 ? 999 : idxB;
+      if (prioA !== prioB) return prioA - prioB;
+      return (a.code || '').localeCompare(b.code || '');
     });
   }, [currencies]);
 
@@ -47,7 +52,7 @@ export default function CurrenciesList({ currencies, onCurrencyClick }) {
     return (
       <div className="empty-loading-block">
         <div className="loading-spinner"></div>
-        <span>در حال دریافت نرخ برابری ارزهای جهانی...</span>
+        <span>در حال دریافت نرخ ارزها و دارایی‌ها...</span>
       </div>
     );
   }
@@ -74,8 +79,8 @@ export default function CurrenciesList({ currencies, onCurrencyClick }) {
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           onClear={() => setSearch('')}
-          placeholder="جستجوی در بین ارزهای برتر..."
-          badge={`${filtered.length.toLocaleString('fa-IR')} ارز برتر`}
+          placeholder="جستجو در بین ارزها و دارایی‌ها..."
+          badge={`${filtered.length.toLocaleString('fa-IR')} ارز و دارایی`}
         />
       </div>
 
@@ -83,7 +88,7 @@ export default function CurrenciesList({ currencies, onCurrencyClick }) {
       {filtered.length === 0 ? (
         <EmptyState
           title="ارزی یافت نشد"
-          description={`ارزی با عنوان یا نماد "${search}" در بین ۱۰ ارز برتر پیدا نشد.`}
+          description={`ارزی با عنوان یا نماد "${search}" پیدا نشد.`}
           action={
             <button
               type="button"

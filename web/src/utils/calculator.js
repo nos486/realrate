@@ -142,33 +142,6 @@ export function calculateMarketData({
     },
   ];
 
-  // Dynamic USDT (Tether) from active sources (src_brs_usdt)
-  const usdtSource = marketPrices?.usdt || marketPrices?.USDT || marketPrices?.src_brs_usdt || marketPrices?.crypto_tether;
-  if (usdtSource && Number(usdtSource.price) > 0) {
-    seenCodes.add('USDT');
-    const usdtPrice = Number(usdtSource.price);
-    const usdtCross = usd_toman > 0 ? parseFloat((usdtPrice / usd_toman).toFixed(4)) : 1.0;
-    const diff = Math.round(usdtPrice - usd_toman);
-    const diffSign = diff > 0 ? '+' : '';
-    const diffText = usd_toman > 0
-      ? `اختلاف با دلار: ${diffSign}${diff.toLocaleString('fa-IR')} ت`
-      : 'استیبل‌کوین دلاری (USDT)';
-
-    currencies.push({
-      code: 'USDT',
-      priceType: 'usdt',
-      name: 'دلار تتر',
-      flag: '🟢',
-      symbol: '₮',
-      usd_cross_rate: usdtCross,
-      toman_price: Math.round(usdtPrice),
-      note: diffText,
-      sourceLabel: usdtSource.label || 'دلار تتر',
-      sourceId: usdtSource.sourceId || 'src_brs_usdt',
-      showOnHomePage: usdtSource.showOnHomePage !== undefined ? Boolean(usdtSource.showOnHomePage) : true,
-    });
-  }
-
   // Collect candidate currency keys dynamically from marketPrices and forex
   const candidateKeys = new Set();
   const nonCurrencyKeys = new Set([
@@ -183,7 +156,7 @@ export function calculateMarketData({
     Object.keys(forex).forEach((k) => {
       const lower = k.toLowerCase();
       const upper = k.toUpperCase();
-      if (!nonCurrencyKeys.has(lower) && upper.length >= 3 && upper.length <= 4) {
+      if (!nonCurrencyKeys.has(lower) && upper.length >= 2 && upper.length <= 6) {
         candidateKeys.add(upper);
       }
     });
@@ -192,40 +165,66 @@ export function calculateMarketData({
     Object.keys(marketPrices).forEach((k) => {
       const lower = k.toLowerCase();
       const upper = k.toUpperCase();
-      if (!nonCurrencyKeys.has(lower) && upper.length >= 3 && upper.length <= 4) {
+      if (!nonCurrencyKeys.has(lower) && upper.length >= 2 && upper.length <= 6) {
         candidateKeys.add(upper);
       }
     });
   }
 
-  // Top 10 prominent currencies hardcoded for home page display (USD is index 0 + 9 forex)
-  const TOP_FOREX_CURRENCY_CODES = ['EUR', 'AED', 'TRY', 'GBP', 'CHF', 'CAD', 'AUD', 'CNY', 'JPY'];
-  const sortedCandidateKeys = TOP_FOREX_CURRENCY_CODES.filter((code) => candidateKeys.has(code));
+  // Priority order for display (prominent currencies and digital currencies first)
+  const DEFAULT_PRIORITY_ORDER = ['USD', 'USDT', 'EUR', 'AED', 'TRY', 'GBP', 'CHF', 'CAD', 'AUD', 'CNY', 'JPY'];
+  const sortedCandidateKeys = Array.from(candidateKeys).sort((a, b) => {
+    const idxA = DEFAULT_PRIORITY_ORDER.indexOf(a);
+    const idxB = DEFAULT_PRIORITY_ORDER.indexOf(b);
+    if (idxA !== -1 && idxB !== -1) return idxA - idxB;
+    if (idxA !== -1) return -1;
+    if (idxB !== -1) return 1;
+    return a.localeCompare(b);
+  });
 
   sortedCandidateKeys.forEach((code) => {
     if (code === 'USD' || nonCurrencyKeys.has(code.toLowerCase()) || seenCodes.has(code)) return;
     const lowerKey = code.toLowerCase();
     const srcData = marketPrices?.[lowerKey] || marketPrices?.[code];
-    const rawCross = srcData?.price || forex?.[code] || forex?.[lowerKey] || null;
+    const rawVal = Number(srcData?.price !== undefined ? srcData.price : (forex?.[code] !== undefined ? forex[code] : (forex?.[lowerKey] !== undefined ? forex[lowerKey] : null)));
 
-    if (rawCross && Number(rawCross) > 0) {
+    if (rawVal && rawVal > 0) {
       seenCodes.add(code);
-      const crossRate = Number(rawCross);
-      const tomanPrice = Math.round(crossRate * usd_toman);
       const meta = CURRENCY_METADATA_MAP[code] || {
         name: srcData?.label ? srcData.label.replace(/\(.*\)/, '').trim() : `${code}`,
         flag: '🌐',
         symbol: code,
       };
 
-      const note = crossRate > 1
-        ? `۱ ${meta.name.split(' ')[0]} = ${crossRate.toFixed(4)} دلار`
-        : `۱ دلار = ${(1 / crossRate).toFixed(2)} ${meta.name.split(' ')[0]}`;
+      let crossRate = 1.0;
+      let tomanPrice = 0;
+      let note = '';
+
+      if (rawVal >= 1000) {
+        // Direct Toman price feed (e.g. USDT, local crypto/forex feeds)
+        tomanPrice = Math.round(rawVal);
+        crossRate = usd_toman > 0 ? parseFloat((tomanPrice / usd_toman).toFixed(4)) : 1.0;
+        const diffFromUsd = usd_toman > 0 ? ((tomanPrice - usd_toman) / usd_toman) * 100 : 0;
+        if (Math.abs(diffFromUsd) < 10) {
+          note = diffFromUsd >= 0
+            ? `${Math.abs(diffFromUsd).toFixed(1)}٪+ نسبت به اسکناس دلار`
+            : `${Math.abs(diffFromUsd).toFixed(1)}٪- نسبت به اسکناس دلار`;
+        } else {
+          note = 'نرخ لحظه‌ای بازار';
+        }
+      } else {
+        // Forex cross-rate quoted against USD (e.g. 1.08 for EUR, 0.272 for AED)
+        crossRate = rawVal;
+        tomanPrice = Math.round(crossRate * usd_toman);
+        note = crossRate > 1
+          ? `۱ ${meta.name.split(' ')[0]} = ${crossRate.toFixed(4)} دلار`
+          : `۱ دلار = ${(1 / crossRate).toFixed(2)} ${meta.name.split(' ')[0]}`;
+      }
 
       currencies.push({
         code,
         priceType: lowerKey,
-        name: meta.name,
+        name: meta.name || srcData?.label || code,
         flag: meta.flag,
         symbol: meta.symbol,
         usd_cross_rate: parseFloat(crossRate.toFixed(4)),
