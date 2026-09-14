@@ -1,4 +1,5 @@
-import React from 'react';
+import React, { useState, useRef, useEffect } from 'react';
+import { ChevronDown, Check } from 'lucide-react';
 import { toEnglishDigits } from '../utils/formatters.js';
 import { getReferenceRatesSpecs } from '../config/sources.config.js';
 
@@ -12,8 +13,8 @@ function formatRate(num) {
 
 /**
  * LiveRatesTicker:
- * Displays real-time live reference price dynamically configured from sources
- * with interactive click to cycle through reference rates seamlessly.
+ * Interactive dropdown selector for live reference rates (USD, USDT, etc.)
+ * Allows user to select base calculation rate from a sleek dropdown menu.
  */
 export default function LiveRatesTicker({
   usdPrice,
@@ -21,22 +22,40 @@ export default function LiveRatesTicker({
   activeReferenceRate = null,
   referenceRates = [],
   onCycleReferenceRate = null,
+  onSelectReferenceRate = null,
   className = '',
 }) {
-  const defaultRefSpec = getReferenceRatesSpecs()[0];
-  const clickHandler = onCycleReferenceRate || onUsdClick;
-  const canCycle = referenceRates && referenceRates.length > 1;
+  const [isOpen, setIsOpen] = useState(false);
+  const containerRef = useRef(null);
 
-  // Title / Tooltip
-  let titleText = 'نرخ زنده';
-  if (canCycle) {
-    const currentIdx = referenceRates.findIndex((r) => r.key === activeReferenceRate?.key);
-    const nextIdx = (currentIdx + 1) % referenceRates.length;
-    const nextRate = referenceRates[nextIdx];
-    titleText = `کلیک برای تغییر مبنای محاسبات به «${nextRate?.label || 'نرخ بعدی'}»`;
-  } else if (onUsdClick) {
-    titleText = 'کلیک برای مشاهده جزئیات';
-  }
+  const defaultRefSpec = getReferenceRatesSpecs()[0];
+  const canSelect = referenceRates && referenceRates.length > 1;
+
+  // Close dropdown on outside click
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (containerRef.current && !containerRef.current.contains(event.target)) {
+        setIsOpen(false);
+      }
+    }
+    if (isOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => document.removeEventListener('mousedown', handleClickOutside);
+    }
+  }, [isOpen]);
+
+  // Close on Escape key
+  useEffect(() => {
+    function handleKeyDown(event) {
+      if (event.key === 'Escape') {
+        setIsOpen(false);
+      }
+    }
+    if (isOpen) {
+      document.addEventListener('keydown', handleKeyDown);
+      return () => document.removeEventListener('keydown', handleKeyDown);
+    }
+  }, [isOpen]);
 
   const labelDesktop = activeReferenceRate?.label || defaultRefSpec?.label || '';
   const labelMobile = activeReferenceRate?.shortLabel || defaultRefSpec?.shortLabel || '';
@@ -46,20 +65,38 @@ export default function LiveRatesTicker({
     ? usdPrice
     : (activeReferenceRate?.price || 0);
 
+  const handleTriggerClick = () => {
+    if (canSelect) {
+      setIsOpen((prev) => !prev);
+    } else if (onCycleReferenceRate) {
+      onCycleReferenceRate();
+    } else if (onUsdClick) {
+      onUsdClick();
+    }
+  };
+
+  const handleSelectOption = (rateKey) => {
+    if (onSelectReferenceRate) {
+      onSelectReferenceRate(rateKey);
+    } else if (onCycleReferenceRate) {
+      onCycleReferenceRate();
+    }
+    setIsOpen(false);
+  };
+
   return (
-    <div className={`main-live-ticker ${className}`} aria-label={`نرخ زنده ${labelDesktop}`}>
-      <div
-        className={`ticker-item ${itemKey} ${clickHandler ? 'clickable' : ''}`}
-        onClick={clickHandler}
-        role={clickHandler ? 'button' : undefined}
-        tabIndex={clickHandler ? 0 : undefined}
-        onKeyDown={(e) => {
-          if (clickHandler && (e.key === 'Enter' || e.key === ' ')) {
-            e.preventDefault();
-            clickHandler();
-          }
-        }}
-        title={titleText}
+    <div
+      ref={containerRef}
+      className={`main-live-ticker-wrap ${className}`}
+      style={{ position: 'relative' }}
+    >
+      <button
+        type="button"
+        className={`main-live-ticker ${isOpen ? 'open' : ''}`}
+        onClick={handleTriggerClick}
+        aria-haspopup="listbox"
+        aria-expanded={isOpen}
+        title={canSelect ? 'انتخاب نرخ مرجع محاسبات (دلار، تتر، ...)' : `نرخ زنده ${labelDesktop}`}
       >
         <span className={`ticker-pulse ${pulseColor}`} />
         <span className="ticker-tag desktop-text">{labelDesktop}:</span>
@@ -67,16 +104,73 @@ export default function LiveRatesTicker({
         <strong className="ticker-amount">{formatRate(displayPrice)}</strong>
         <span className="ticker-unit desktop-text">تومان</span>
 
-        {canCycle && (
+        {canSelect && (
           <span
-            className="ticker-cycle-badge"
-            title={titleText}
-            aria-hidden="true"
+            className="main-live-ticker-chevron"
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              transform: isOpen ? 'rotate(180deg)' : 'rotate(0deg)',
+              transition: 'transform 0.2s ease',
+              color: 'var(--text-muted)',
+              marginRight: '2px',
+            }}
           >
-            ⇄
+            <ChevronDown size={14} />
           </span>
         )}
-      </div>
+      </button>
+
+      {/* Floating Dropdown Selector Menu */}
+      {isOpen && canSelect && (
+        <div
+          className="main-live-ticker-menu"
+          role="listbox"
+          aria-label="انتخاب نرخ مرجع"
+        >
+          <div className="main-live-ticker-menu-header">
+            <span>انتخاب نرخ مبنای محاسبات</span>
+          </div>
+
+          {referenceRates.map((rate) => {
+            const isSelected = rate.key === itemKey;
+            const ratePulse = rate.pulseColor || (rate.key === 'usdt' ? 'cyan' : 'green');
+            const rateFormattedPrice = formatRate(rate.price);
+
+            return (
+              <button
+                key={rate.key}
+                type="button"
+                role="option"
+                aria-selected={isSelected}
+                className={`main-live-ticker-option ${isSelected ? 'active' : ''}`}
+                onClick={() => handleSelectOption(rate.key)}
+              >
+                <div className="ticker-option-left">
+                  <span className={`ticker-pulse ${ratePulse}`} />
+                  <span className="ticker-option-name">
+                    {rate.label || rate.name}
+                  </span>
+                  {rate.symbol && (
+                    <span className="ticker-option-sym">
+                      ({rate.symbol})
+                    </span>
+                  )}
+                </div>
+
+                <div className="ticker-option-right">
+                  <strong className="ticker-option-price">
+                    {rateFormattedPrice} <span className="ticker-option-unit">تومان</span>
+                  </strong>
+                  {isSelected && (
+                    <Check size={14} className="ticker-option-check" />
+                  )}
+                </div>
+              </button>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }

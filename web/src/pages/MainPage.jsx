@@ -115,6 +115,7 @@ export default function MainPage() {
     referenceRates,
     activeReferenceRate,
     cycleReferenceRate,
+    setReferenceRateKey,
   } = useMarketData();
 
   const announcement = calcData?.globalSettings?.announcement || rates?.globalSettings?.announcement;
@@ -165,6 +166,7 @@ export default function MainPage() {
           usdPrice={usdToman || rates?.live_usd_toman || rates?.prices?.usd_toman?.price}
           activeReferenceRate={activeReferenceRate}
           referenceRates={referenceRates}
+          onSelectReferenceRate={setReferenceRateKey}
           onCycleReferenceRate={cycleReferenceRate}
         />
       </div>

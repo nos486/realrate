@@ -169,6 +169,32 @@ export function useMarketData() {
     return null;
   }, [availableReferenceRates, currentRefKey, pricing]);
 
+  const selectReferenceRate = useCallback((targetKey) => {
+    if (!availableReferenceRates || availableReferenceRates.length === 0) return null;
+    const targetRate = availableReferenceRates.find((r) => r.key === targetKey);
+
+    if (targetRate) {
+      userEditedUsd.current = false;
+      setInternalRefKey(targetRate.key);
+      try {
+        localStorage.setItem('realrate_active_reference_rate', targetRate.key);
+      } catch { }
+
+      if (pricing?.setReferenceRateKey) {
+        pricing.setReferenceRateKey(targetRate.key);
+      }
+      if (Number(targetRate.price) > 0) {
+        const roundedPrice = Math.round(Number(targetRate.price));
+        setUsdToman(formatThousands(roundedPrice, false));
+        if (pricing?.setUsdToman) {
+          pricing.setUsdToman(roundedPrice);
+        }
+      }
+      return targetRate;
+    }
+    return null;
+  }, [availableReferenceRates, pricing]);
+
   return {
     rates,
     calcData,
@@ -183,5 +209,7 @@ export function useMarketData() {
     activeReferenceKey: currentRefKey,
     activeReferenceRate,
     cycleReferenceRate,
+    selectReferenceRate,
+    setReferenceRateKey: selectReferenceRate,
   };
 }
