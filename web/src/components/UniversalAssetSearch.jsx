@@ -271,8 +271,8 @@ export function extractMultiItems(src) {
     excludedSet = new Set(excludedArr.map((x) => String(x).trim().toLowerCase()));
   }
 
-  const isBourse = src.priceType === 'bourse' || src.priceType === 'bourse_fund' || (src.endpoint && (src.endpoint.includes('allsymbols') || src.endpoint.includes('tsetmc')));
-  const isForex = src.priceType === 'forex' || (src.endpoint && src.endpoint.includes('open.er-api.com'));
+  const isBourse = src.priceType === 'bourse' || src.priceType === 'bourse_fund' || src.sourceType === 'bourse_symbols';
+  const isForex = src.priceType === 'forex' || src.sourceType === 'forex_api';
 
   const selectionMode = isForex ? 'all' : (fm?.selectionMode || (Array.isArray(fm?.includedKeys) && fm.includedKeys.length > 0 ? 'whitelist' : 'all'));
   let includedSet = null;

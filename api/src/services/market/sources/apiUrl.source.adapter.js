@@ -134,14 +134,14 @@ export const apiUrlSourceAdapter = {
         const parsed = sourceConfig.customParser(data, sourceConfig);
         if (typeof parsed === "number" && !isNaN(parsed)) {
           return {
-            price: Math.round(parsed),
+            price: parsed,
             datetime: nowIso,
             label: sourceConfig.name || "سورس سفارشی",
           };
         }
         if (parsed && typeof parsed === "object") {
           return {
-            price: Math.round(Number(parsed.price) || 0),
+            price: Number(parsed.price) || 0,
             datetime: parsed.datetime || nowIso,
             label: parsed.label || sourceConfig.name || "سورس سفارشی",
             multiData: parsed.multiData || undefined,
@@ -242,6 +242,10 @@ export const apiUrlSourceAdapter = {
       finalPrice = normalizeForexToUsdCrossRate(priceType, extractedVal);
     } else if (isUsdAsset) {
       finalPrice = Math.round(Number(extractedVal) * 100) / 100;
+    } else if (sourceConfig.decimals !== undefined && sourceConfig.decimals !== null) {
+      finalPrice = Number(Number(extractedVal).toFixed(Number(sourceConfig.decimals)));
+    } else if (Number(extractedVal) < 100 && !Number.isInteger(Number(extractedVal))) {
+      finalPrice = Number(Number(extractedVal).toFixed(4));
     } else {
       finalPrice = Math.round(Number(extractedVal));
     }
