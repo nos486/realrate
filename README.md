@@ -1,286 +1,271 @@
-# 🪙 RealRate — Real-Time Gold, Coin, Forex & Cloud Portfolio Platform
+# 🪙 RealRate — پلتفرم جامع تحلیل بازار، حباب طلا و سکه، نرخ‌های ارزی و مدیریت پورتفوی ابری
 
 <div align="center">
 
 [![Cloudflare Workers](https://img.shields.io/badge/Cloudflare-Workers-F38020?style=for-the-badge&logo=cloudflare&logoColor=white)](https://workers.cloudflare.com/)
 [![React 19](https://img.shields.io/badge/React-19-61DAFB?style=for-the-badge&logo=react&logoColor=black)](https://react.dev/)
 [![Vite](https://img.shields.io/badge/Vite-8-646CFF?style=for-the-badge&logo=vite&logoColor=white)](https://vitejs.dev/)
-[![Cloudflare D1](https://img.shields.io/badge/Database-Cloudflare_D1_(SQLite)-blue?style=for-the-badge&logo=sqlite&logoColor=white)](https://developers.cloudflare.com/d1/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-green?style=for-the-badge)](LICENSE)
+[![Cloudflare D1](https://img.shields.io/badge/Database-Cloudflare_D1_(SQLite)-0A84FF?style=for-the-badge&logo=sqlite&logoColor=white)](https://developers.cloudflare.com/d1/)
+[![Cloudflare KV](https://img.shields.io/badge/Cache-Cloudflare_KV-30D158?style=for-the-badge&logo=cloudflare&logoColor=white)](https://developers.cloudflare.com/kv/)
+[![Vitest](https://img.shields.io/badge/Testing-Vitest-FCC72B?style=for-the-badge&logo=vitest&logoColor=black)](https://vitest.dev/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-34D399?style=for-the-badge)](LICENSE)
 
 <br />
 
-### 📊 تحلیل زنده نرخ و حباب طلا، سکه و ارز | Market Rates & Bubble Analysis
+### 📊 تحلیل زنده نرخ‌ها، ارزش ذاتی و حباب بازار طلا، سکه و ارز
 ![RealRate Market Rates & Bubble Analysis](./realrate_1.png)
 
 <br />
 
-### 💼 پورتفوی ابری هوشمند چندگانه | Multi-Portfolio Cloud Tracker
+### 💼 پورتفوی ابری هوشمند چندگانه با رمزنگاری سرتاسری (Zero-Knowledge E2EE)
 ![RealRate Cloud Portfolio Management](./realrate_2.png)
 
 </div>
 
 ---
 
-### 🌐 Overview (English)
+## 🌐 نمای کلی (Project Overview)
 
-**RealRate** is a modern, high-performance financial analytics suite and cloud multi-portfolio tracker tailored for the Iranian gold, coin, and foreign exchange markets. It calculates intrinsic mathematical values and market bubbles using real-time global spot gold prices and open-market USD rates, provides live currency conversions across 16+ world currencies, and empowers investors to manage unlimited personalized cloud portfolios stored securely in a serverless relational database (Cloudflare D1 SQLite) with real-time profit and loss (PnL) analytics, public shareable links, and CSV reporting.
+**RealRate** یک سامانه مدرن، امن و با عملکرد فوق‌العاده سریع (Edge-Native) برای تحلیل تحولات بازارهای مالی ایران و جهان است. این پلتفرم با تجمیع هوشمند داده‌ها از منابع معتبر بین‌المللی و داخلی، امکان استخراج بلادرنگ نرخ‌های خام، محاسبه ارزش ذاتی ریاضی طلا و انواع سکه، تفکیک دقیق حباب بازار، رصد برابری بیش از ۱۶ ارز معتبر فیات و کریپتو، پایش نمادهای بورس اوراق بهادار تهران و مدیریت پورتفوهای ابری شخصی را برای سرمایه‌گذاران و تریدرها فراهم می‌آورد.
 
-#### 🚀 Key Features
-- **🪙 Gold & Coin Bubble Analysis**: Calculates pure gold intrinsic value for 18K and 24K gold (bars, grains, raw), Emami coins, Bahar Azadi, Half, Quarter, and Gerami coins based on international spot ounce prices and free-market USD exchange rates. Includes comparative bubble metrics and smart buy recommendations.
-- **💼 Multi-Portfolio Management (NEW)**: Create, rename, customize, and manage multiple isolated investment portfolios with separate holdings, purchase histories, and performance analytics.
-- **📋 Compact Table View**: Dense, informative tabular asset presentation organizing holdings by asset class (Gold/Melted, Coins, Currencies/Crypto) with purchase price, live market value, profit/loss, purchase date, notes, and instant actions.
-- **🔗 Shareable Portfolio Links**: Generate public, read-only vanity links (`/p/:slug`) with customizable privacy switches to showcase your portfolio without granting edit access.
-- **🔒 Privacy Mode (`****`)**: One-click incognito masking toggle to hide portfolio amounts and asset values when viewing in public spaces.
-- **📥 CSV Export**: Instant one-click CSV export formatted for Microsoft Excel and Google Sheets with detailed breakdowns of holdings, purchase prices, and returns.
-- **📅 Shamsi Date Picker & Quick "Today" Action**: Interactive Jalali date selector (Year, Month, Day dropdowns) plus a single-click `⚡ امروز` (Today) button, backed by native calendar fallback.
-- **💱 Global Forex Rates**: Instant conversion of major currencies (USD, EUR, AED, TRY, GBP, CAD, CHF, KWD, SAR, etc.) into Tomans using live cross-rates with quick search.
-- **🛡️ Fullscreen Loading Guard**: Interactive fullscreen modal overlay with animated glowing indicator preventing race conditions and unintentional actions during async server operations.
-- **🔐 Google OAuth (GIS)**: Seamless authentication with Google Identity Services, 30-day secure session management, and role-based access control.
-- **📊 Admin Panel & Analytics**: Real-time traffic monitoring, active users within the last 5 minutes, registered user management, and dynamic system-wide configuration without redeploying.
-
-#### 🏗️ Architecture & Documentation
-RealRate is structured as an **npm workspaces monorepo** with clean, decoupled layers:
-- **`api/`**: Edge-native REST API running on Cloudflare Workers, using Repository pattern for Cloudflare D1 (SQLite) & Cloudflare KV, Adapter pattern for external price sources, and centralized Domain Specs.
-- **`web/`**: Modern React 19 SPA built with Vite, utilizing a modular **Feature-Based Architecture** (`features/market`, `features/portfolio`, `features/auth`, `features/admin`), Web Crypto Zero-Knowledge E2EE, and dark glassmorphism design tokens.
-- **📚 Detailed Guides**:
-  - [System Architecture & Data Flows](docs/ARCHITECTURE.md)
-  - [API Specification](docs/API.md)
-  - [Guide: Adding a New Asset](docs/ADDING_NEW_ASSET.md)
-  - [Guide: Adding a New Price Source Adapter](docs/ADDING_NEW_PRICE_SOURCE.md)
+سامانه بر پایه‌ی معماری **Code-First** بنا شده است؛ بدین معنی که کلیه تعاریف سورس‌ها، فرمول‌ها و قواعد استخراج داده‌ها به عنوان کد‌های ساختاریافته در مخزن تعریف شده و در هر دو لایه کلاینت و سرور به اشتراک گذاشته می‌شوند.
 
 ---
 
-# 🪙 راهنمای جامع فارسی سامانه RealRate
+## ✨ امکانات و قابلیت‌های کلیدی
 
-سامانه هوشمند و پیشرفته **RealRate**، پلتفرم تحلیل بازار طلا، سکه، ارزهای مطرح جهان و **مدیریت پورتفوی ابری سرمایه‌گذاری چندگانه** با تمرکز بر شفافیت قیمت‌ها، محاسبات دقیق ریاضی و رابط کاربری مدرن (Fintech Dark Glassmorphism) است.
+### 🪙 ۱. تحلیل زنده ارزش ذاتی و حباب طلا و سکه (Gold & Bubble Engine)
+- **محاسبه ارزش ریاضی خام**: محاسبه ارزش هر گرم طلای ۱۸ و ۲۴ عیار بر اساس نرخ لحظه‌ای انس جهانی ($) و دلار آزاد (تومان) با لحاظ دقیق وزن قانونی و عیار استاندارد (۷۵۰ و ۹۹۹.۹).
+- **تفکیک دوگانه حباب**:
+  - سنجش حباب ریالی و درصدی نسبت به **ارزش طلای خام فیزیکی**.
+  - سنجش انحراف نرخ معامله‌شده نسبت به **قیمت انتظاری بازار با احتساب حباب مصوب اتحادیه**.
+- **پشتیبانی از کلیه مسکوکات رسمی**:
+  - سکه امامی (طرح جدید)
+  - سکه بهار آزادی (طرح قدیم)
+  - نیم‌سکه بهار آزادی
+  - ربع‌سکه بهار آزادی
+  - سکه گرمی
+- **پیشنهاد هوشمند سرمایه‌گذاری (Smart Buy Recommendation)**: الگوریتم خودکار شناسایی و برجسته‌سازی کم‌حباب‌ترین و ارزشمندترین نوع دارایی جهت ورود به معامله با کمترین ریسک.
+- **شناسایی حباب منفی و مدیریت عدم موجودی**: تفکیک هوشمند حباب منفی از اقلام فاقد کشف نرخ، بدون شبیه‌سازی یا قیمت‌سازی کاذب.
 
----
+### 💱 ۲. هاب نرخ ارزهای جهانی و رمزارزها (Forex & Crypto Hub)
+- **برابری بلادرنگ ارزهای فیات**: دریافت خودکار نرخ‌های کراس بر پایه دلار از مراجع بین‌المللی و تبدیل خودکار به تومان با احتساب آخرین مظنه بازار:
+  - 🇺🇸 دلار آمریکا (USD) | 🇪🇺 یورو اروپا (EUR) | 🇦🇪 درهم امارات (AED) | 🇹🇷 لیر ترکیه (TRY)
+  - 🇬🇧 پوند انگلستان (GBP) | 🇨🇦 دلار کانادا (CAD) | 🇦🇺 دلار استرالیا (AUD) | 🇨🇭 فرانک سوئیس (CHF)
+  - 🇰🇼 دینار کویت (KWD) | 🇶🇦 ریال قطر (QAR) | 🇸🇦 ریال عربستان (SAR) | 🇨🇳 یوان چین (CNY)
+  - 🇷🇺 روبل روسیه (RUB) | 🇯🇵 ۱۰۰ ین ژاپن (JPY) | 🇮🇶 ۱,۰۰۰ دینار عراق (IQD) | 🇦🇫 افغانی افغانستان (AFN)
+- **نرخ تتر و کریپتو (USDT)**: دریافت زنده قیمت تتر با امکان تنظیم سورس مبنا و محاسبه اتوماتیک اسپرد تتر/دلار.
+- **انتخاب‌گر داینامیک تیکر بالا**: سلکتور هوشمند برای سوئیچ آنی میان نرخ‌های طلای ۱۸ عیار، دلار و تتر با نمایش درصد تغییرات روزانه.
 
-## ✨ امکانات و قابلیت‌های اصلی
+### 📈 ۳. کاوشگر زنده بورس و صندوق‌ها (TSETMC / BRS API Engine)
+- **استخراج عمومی و انعطاف‌پذیر اقلام**: خط پردازش اختصاصی و داینامیک داده‌های تابلوی معاملات بورس تهران بدون هاردکد کردن نمادها.
+- **ادغام تجمعی (Cumulative Merge)**: حفظ آخرین مظنه‌های دریافت شده و جلوگیری از حذف نمادهای غیرفعال یا کم‌گردش در زمان دریافت تیک‌های جدید.
+- **کاوشگر زنده داده‌ها (Feed Data Explorer)**: مودال اختصاصی در پنل مدیریت برای جستجو، مشاهده متاداده‌ها، قیمت، درصد تغییرات و دسته‌بندی نمادهای بورسی و صندوق‌های سرمایه‌گذاری (ETF).
 
-### 💼 ۱. مدیریت هوشمند پورتفوی ابری چندگانه (Multi-Portfolio Cloud Tracker)
-- **ساخت چند پورتفوی مجزا با نام‌های دلخواه**:
-  - امکان ایجاد چندین پورتفوی تفکیک‌شده برای اهداف مختلف (مثلاً «پورتفوی شخصی»، «سرمایه‌گذاری خانواده»، «صندوق پس‌انداز طلا»).
-  - جابجایی فوق‌العاده سریع و آنی میان پورتفوها بدون تداخل داده‌ها.
-  - امکان تغییر نام، حذف و سفارشی‌سازی تنظیمات هر پورتفو به طور جداگانه.
-- **نمایش جدولی فشرده و استاندارد (Compact Table Layout)**:
-  - ساختار بهینه‌سازی شده در قالب سطرهای منظم جدولی به همراه عنوان ستون‌ها: **دارایی**، **مقدار / وزن**، **قیمت خرید واحد**، **قیمت واقعی روز**، **ارزش کل روز**، **سود / زیان**، **تاریخ خرید**، **یادداشت / توضیحات** و **عملیات (ویرایش/حذف)**.
-  - گروه‌بندی خودکار اقلام بر اساس دسته‌بندی‌های:
-    - 🥇 **طلا و آب‌شده**: پشتیبانی کامل از **طلای ۲۴ عیار** و **طلای ۱۸ عیار**.
-    - 🌕 **سکه‌های بهار آزادی**: سکه امامی، سکه بهار آزادی، نیم‌سکه، ربع‌سکه و سکه گرمی.
-    - 💵 **ارزهای خارجی و رمزارزها**: دلار آمریکا، یورو، درهم، لیر، تتر، بیت‌کوین و اتریوم.
-- **انتخاب‌گر تاریخ شمسی و دکمه سریع «⚡ امروز»**:
-  - دکمه میانبر «⚡ امروز» جهت درج خودکار و یک‌کلیکه تاریخ روز جاری شمسی.
-  - پنل انتخاب‌گر تاریخ شمسی (Date Selector) با امکان تعیین مجزای **سال**، **ماه** و **روز**.
-  - پشتیبانی همزمان از تقویم پیش‌فرض سیستم با تبدیل خودکار میلادی به شمسی.
-- **اشتراک‌گذاری پورتفو با پیوند عمومی (Public Portfolio Sharing)**:
-  - قابلیت ایجاد لینک اختصاصی خواندنی (`/p/slug`) جهت اشتراک‌گذاری سبد دارایی با دیگران بدون امکان ویرایش.
-  - امکان فعال/غیرفعال‌سازی لحظه‌ای اشتراک‌گذاری با یک کلیک.
-- **حالت حریم خصوصی و مخفی‌سازی ارقام (`****`)**:
-  - دکمه اختصاصی ماسک کردن مقادیر برای استفاده امن در اماکن عمومی و عدم افشای مبالغ سرمایه‌گذاری.
-- **خروجی اکسل و CSV از هر پورتفو**:
-  - دریافت مستقیم فایل خروجی استاندارد با فرمت UTF-8 سازگار با Excel و Google Sheets شامل تمام جزئیات پورتفو و سود/زیان.
-- **محاسبه آنلاین و زنده سود و زیان (PnL)**:
-  - محاسبه آنی ارزش روز دارایی‌ها بر اساس آخرین قیمت‌های بازار و انس جهانی.
-  - نمایش سود/زیان تومانی و درصدی برای هر سطر و برای کل پورتفو.
-- **گاوصندوق رمزنگاری سرتاسری (Zero-Knowledge E2EE Vault)**:
-  - امکان فعال‌سازی رمز عبور اختصاصی و رمزنگاری داده‌های حساس پورتفو با الگوریتم متقارن AES-GCM در مرورگر کاربر.
-  - استخراج کلید امن با PBKDF2 و سالت رمزنگاری؛ رمز عبور کاربر هرگز به سرور ارسال نشده و سرور تنها متن رمزگذاری‌شده را ذخیره می‌کند.
-- **ذخیره‌سازی ابری در دیتابیس Cloudflare D1 (SQLite)**:
-  - امنیت کامل داده‌ها، دسترسی دائمی از همه دستگاه‌ها بدون خطر از دست رفتن داده‌های لوکال.
-  - سیستم مایگریشن خودکار (Auto-Migration) جهت انتقال دارایی‌های پیشین به سرور ابری در اولین ورود.
+### 💼 ۴. مدیریت پورتفوی ابری چندگانه (Multi-Portfolio Cloud Tracker)
+- **ایجاد و سفارشی‌سازی نامحدود پورتفو**: ایجاد سبدهای جداگانه برای اهداف گوناگون (مانند «صندوق بازنشستگی»، «طلا و پس‌انداز»، «ارز و تتر»، «سبد سهام»).
+- **نمایش جدولی فشرده و استاندارد (Compact Tabular View)**:
+  - جدول تفکیک‌شده شامل: نوع دارایی، تعداد/وزن، قیمت واحد خرید، قیمت زنده روز، ارزش کل جاری، سود/زیان تومانی و درصدی، تاریخ خرید، یادداشت و اقدامات سریع.
+  - گروه‌بندی دارایی‌ها در دسته‌های: طلای آب‌شده و خام، مسکوکات بانکی، ارزها و دارایی‌های دیجیتال.
+- **تاریخ شمسی تعاملی و دکمه «⚡ امروز»**: انتخاب‌گر سال، ماه و روز جلالی به همراه درج یک‌کلیکه تاریخ امروز.
+- **محاسبه آنلاین سود و زیان (Live PnL)**: به‌روزرسانی ارزش دلاری و تومانی سبد سرمایه‌گذاری همگام با نوسانات بازار.
+- **اشتراک‌گذاری عمومی خواندنی (`/p/:slug`)**: تولید لینک‌های یکتا برای اشتراک عمومی وضعیت پورتفو بدون دسترسی ویرایش، با امکان لغو اشتراک در هر لحظه.
+- **حالت حریم خصوصی (`****`)**: ماسک کردن ارقام و مبالغ برای نمایش امن در فضاهای عمومی.
+- **خروجی استاندارد Excel و CSV**: دانلود گزارش ساختاریافته UTF-8 با سازگاری کامل با نرم‌افزارهای صفحه گسترده.
 
----
+### 🔒 ۵. گاوصندوق رمزنگاری سرتاسری (Zero-Knowledge E2EE)
+- **رمزنگاری در سمت کلاینت**: رمزنگاری دارایی‌ها، اوزان و مبالغ با الگوریتم متقارن **AES-256-GCM** پیش از ارسال به سرور.
+- **استخراج کلید با PBKDF2**: سالت و پسورد کاربر هرگز روی سرور ذخیره نمی‌شود؛ سرور تنها نگهدارنده چانک‌های رمزنگاری شده است و حتی مدیران سیستم نیز دسترسی به محتوای سبد ندارند.
 
-### 📊 ۲. تحلیل حباب طلا و انواع سکه
-- **محاسبه ارزش ذاتی و واقعی خام طلا**: محاسبه ارزش ریاضی طلای خالص بر پایه انس جهانی ($) و نرخ دلار آزاد (تومان).
-- **تحلیل دوگانه حباب**:
-  - سنجش حباب نسبت به **ارزش طلای خام**.
-  - سنجش انحراف نسبت به **قیمت انتظاری با حباب مصوب**.
-- **پیشنهاد هوشمند اقتصادی (Smart Recommendation)**: شناسایی خودکار کم‌حباب‌ترین و باارزش‌ترین قلم طلا/سکه جهت خرید با برچسب بصری برجسته.
-- **شناسایی حباب منفی و وضعیت اقلام**: تفکیک بصری وضعیت حباب مثبت/منفی و مدیریت اقلام ناموجود در بازار بدون قیمت‌سازی کاذب.
+### 🛠️ ۶. مدیریت سورس‌ها با معماری Code-First
+- **تعریف متمرکز و یکپارچه**: مشخصات کلیه سورس‌های نرخ پایه (طلا، ارز، سکه) و فیدهای چند خروجی در یک فایل واحد (`sources.config.js`) تعریف شده و نگهداری می‌شوند.
+- **رابط کاربری متحد و مینیمال**: استفاده از کامپوننت مشترک برای هر دو بخش سورس‌های نرخ پایه و فیدهای چندگانه.
+- **عملیات ایمن و بدون ریسک خرابکاری**: عدم وجود دکمه‌های ادیت و حذف در UI برای انطباق ۱۰۰٪ با رویکرد Code-First، همراه با دکمه اختصاصی **«تست زنده» (Live Test)**، سوئیچ‌های تغییر وضعیت سورس و انتخاب سورس مرجع (Primary).
 
----
-
-### 💱 ۳. نرخ لحظه‌ای ارزهای جهان
-- دریافت زنده نرخ‌های برابری از مراجع بین‌المللی و تبدیل خودکار به تومان برای بیش از ۱۶ ارز معتبر:
-  - 🇺🇸 **دلار آمریکا (USD)**
-  - 🇪🇺 **یورو اروپا (EUR)**
-  - 🇦🇪 **درهم امارات (AED)**
-  - 🇹🇷 **لیر ترکیه (TRY)**
-  - 🇬🇧 **پوند انگلیس (GBP)**
-  - 🇨🇦 **دلار کانادا (CAD)**
-  - 🇦🇺 **دلار استرالیا (AUD)**
-  - 🇨🇭 **فرانک سوئیس (CHF)**
-  - 🇰🇼 **دینار کویت (KWD)**
-  - 🇶🇦 **ریال قطر (QAR)**
-  - 🇸🇦 **ریال عربستان (SAR)**
-  - 🇨🇳 **یوان چین (CNY)**
-  - 🇷🇺 **روبل روسیه (RUB)**
-  - 🇯🇵 **۱۰۰ ین ژاپن (JPY)**
-  - 🇮🇶 **۱,۰۰۰ دینار عراق (IQD)**
-  - 🇦🇫 **افغانی افغانستان (AFN)**
-- فیلتر و جستجوی لحظه‌ای بر اساس نام فارسی، انگلیسی و کد ۳ حرفی ارز.
+### 🛡️ ۷. امنیت، تلمتری و پنل ادمین
+- **ورود با گوگل (Google GIS)**: احراز هویت سریع، امن و مدرن با توکن‌های رمزنگاری‌شده و نشست‌های ۳۰ روزه.
+- **پایش زنده ترافیک و کاربران آنلاین**: مشاهده لحظه‌ای تعداد افراد حاضر در سایت بر اساس فعالیت ۵ دقیقه اخیر (IP-based Telemetry).
+- **فراخوانی همگانی سورس‌ها (Force Fetch All)**: فراخوانی همزمان و بدون وقفه کلیه سورس‌های فعال با گزارش تعداد نرخ‌های تازه استخراج‌شده.
 
 ---
 
-### 🛡️ ۴. لودر تمام‌صفحه محافظ (Fullscreen Loader Guard)
-- نمایش نشانگر لودینگ مدرن نئونی در هنگام بارگذاری داده‌ها از سرور.
-- قفل کردن صفحه در زمان همگام‌سازی اطلاعات جهت جلوگیری از کلیک‌های ناخواسته، ایجاد Race Condition یا درخواست‌های تکراری توسط کاربر.
+## 🏗️ ساختار پروژه (Monorepo Architecture)
 
----
-
-### 🔐 ۵. سیستم احراز هویت و پنل مدیریت
-- **ورود سریع با حساب گوگل (Google GIS)**: بدون نیاز به رمز عبور، با توکن‌های امن و نشست ۳۰ روزه.
-- **مدیریت سطح دسترسی (RBAC)**: شناسایی مدیر سیستم بر اساس ایمیل تعیین‌شده در `ADMIN_EMAIL`.
-- **پنل مدیریت پیشرفته (`/admin`)**:
-  - آمار زنده تعداد کاربران آنلاین طی ۵ دقیقه گذشته بر پایه IP.
-  - تعداد کل بازدیدها و شمارش کاربران ثبت‌نام شده.
-  - لیست کاربران به همراه تصویر پروفایل، تاریخ اولین و آخرین ورود و تعداد دفعات لاگین.
-  - تغییر پویای درصد حباب مصوب و ارسال پیام/اطلاعیه همگانی در بالای سایت.
-
----
-
-## 🏗️ ساختار مخزن (Monorepo Architecture)
+پروژه به صورت یک **npm workspaces monorepo** با ساختاری کاملاً ماژولار و تفکیک‌شده طراحی شده است:
 
 ```text
 realrate/
-├── package.json               # تنظیمات اصلی Workspaces و اسکریپت‌های مشترک
-├── README.md                  # راهنمای جامع پروژه
-├── realrate_1.png             # تصویر رابط کاربری: نرخ و حباب طلا و ارز
-├── realrate_2.png             # تصویر رابط کاربری: مدیریت پورتفوی ابری
+├── package.json                         # پیکربندی ریشه ورک‌اسپیس‌ها و اسکریپت‌های مشترک
+├── README.md                            # مستندات و راهنمای جامع پروژه
+├── realrate_1.png                       # اسکرین‌شات تحلیلی بازار و حباب
+├── realrate_2.png                       # اسکرین‌شات پورتفوی ابری و دارایی‌ها
 │
-├── docs/                      # مستندات و راهنماهای توسعه فنی
-│   ├── ARCHITECTURE.md        # معماری جامع سیستم، لایه‌ها و دیاگرام‌ها
-│   ├── API.md                 # مشخصات فنی و اندپوینت‌های REST API
-│   ├── ADDING_NEW_ASSET.md    # راهنمای گام‌به‌گام افزودن دارایی جدید
-│   └── ADDING_NEW_PRICE_SOURCE.md # راهنمای پیاده‌سازی آداپتور منبع قیمت
+├── docs/                                # اسناد معماری و راهنماهای فنی
+│   ├── ARCHITECTURE.md                  # معماری جامع سیستم، الگوها و جریان داده
+│   ├── API.md                           # مرجع کامل اندپوینت‌های REST API
+│   ├── ADDING_NEW_ASSET.md              # راهنمای گام‌به‌گام تعریف دارایی جدید
+│   └── ADDING_NEW_PRICE_SOURCE.md       # راهنمای پیاده‌سازی سورس و فید جدید
 │
-├── api/                       # سرویس بک‌اند (Edge-Native Cloudflare Workers REST API)
-│   ├── wrangler.toml          # پیکربندی بایندینگ‌های D1، KV و متغیرها
-│   ├── schema.sql             # ساختار جداول دیتابیس D1 (SQLite)
-│   ├── vitest.config.js       # پیکربندی آزمون‌های واحد Vitest
-│   ├── tests/unit/            # تست‌های خودکار فرمول‌ها و تجمیع بورس
+├── api/                                 # سرویس بک‌اند (Cloudflare Workers REST API)
+│   ├── wrangler.toml                    # کانفیگ بایندینگ‌های D1، KV، متغیرها و Cron
+│   ├── schema.sql                       # اسکیمای دیتابیس Cloudflare D1 (SQLite)
+│   ├── vitest.config.js                 # تنظیمات آزمون‌های خودکار Vitest
+│   ├── tests/unit/                      # تست‌های واحد فرمول‌ها، بورس و پارسرها
+│   │   ├── formulas.test.js             # تست فرمول‌های ریاضی طلا، انس و حباب
+│   │   ├── bourseMerge.test.js          # تست ادغام تجمعی داده‌های بورس
+│   │   └── parsingUtils.test.js         # تست توابع عمومی پارس و استخراج
 │   └── src/
-│       ├── index.js           # ورودی اصلی ورکر، میدلورها و Cron Trigger
-│       ├── infrastructure/    # مدیریت استاندارد خطا، لاگر ساختاریافته و کانفیگ
-│       ├── domain/            # هسته تجاری: مشخصات کانونی و فرمول‌های مالی
-│       ├── repositories/      # لایه انتزاع داده (User, Portfolio, Holding, Price, Audit)
-│       ├── adapters/          # الگوی آداپتور منابع خارجی (تلگرام، فارکس، بورس)
-│       ├── services/          # ارکستراتور دریافت و پردازش نرخ‌ها
-│       └── handlers/          # کنترلرهای مسیرهای API (بازار، پورتفو، ادمین، سشن)
+│       ├── index.js                     # مدخل ورودی Worker، میدلورها و روتینگ
+│       ├── config/
+│       │   └── sources.config.js        # رجیستری مرکزی و کانون تعاریف سورس‌ها (Code-First)
+│       ├── domain/                      # هسته محاسباتی و قواعد تجاری
+│       │   ├── specs/                   # تعاریف کانونی وزن و عیار مسکوکات
+│       │   └── formulas/                # فرمول‌های خالص ریاضی طلا و حباب
+│       ├── repositories/                # لایه انتزاع پایگاه داده (Repository Pattern)
+│       │   ├── userRepository.js        # کاربران، نقش‌ها و تنظیمات نشست
+│       │   ├── portfolioRepository.js   # پورتفوها، کلیدهای اشتراک و E2EE
+│       │   ├── holdingRepository.js     # رکوردهای دارایی و تاریخچه خرید
+│       │   ├── priceSource.repository.js# همگام‌سازی وضعیت سورس‌ها و قیمت‌ها
+│       │   └── migration.repository.js  # سیستم Auto-Bootstrap و مایگریشن جداول
+│       ├── services/
+│       │   ├── market/
+│       │   │   ├── priceAggregator.service.js # ارکستراتور تجمیع و دریافت نرخ‌ها
+│       │   │   └── sources/             # آداپتورهای دریافت نرخ (Adapter Pattern)
+│       │   │       ├── ISourceAdapter.js
+│       │   │       ├── telegramSource.adapter.js # پارسر تلگرام
+│       │   │       ├── apiUrl.source.adapter.js  # آداپتور عمومی وب‌سرویس‌ها
+│       │   │       ├── bourseSymbols.source.adapter.js # آداپتور بورس و صندوق‌ها
+│       │   │       ├── forexApi.source.adapter.js      # آداپتور نرخ‌های کراس فارکس
+│       │   │       └── parsingUtils.js                 # توابع کمکی پارس عمومی
+│       │   └── bourseSymbols.js         # پردازش و نگهداری تجمعی نمادها
+│       ├── handlers/                    # کنترلرهای پاسخ‌دهی به درخواست‌های HTTP
+│       │   ├── apiRoutes.js             # دریافت نرخ‌ها، قیمت‌های زنده و تست
+│       │   ├── authRoutes.js            # احراز هویت گوگل و مدیریت سشن
+│       │   ├── portfolioRoutes.js       # اندپوینت‌های CRUD پورتفوی ابری
+│       │   └── adminRoutes.js           # پایش سرور، تلمتری و تنظیمات عمومی
+│       └── lib/                         # کتابخانه‌های کمکی و ابزارهای لاگ
 │
-└── web/                       # سرویس فرانت‌اند (React 19 + Vite Feature-Based SPA)
-    ├── vite.config.js         # کانفیگ بیلد و پروکسی توسعه
+└── web/                                 # سرویس فرانت‌اند (React 19 + Vite SPA)
+    ├── vite.config.js                   # پیکربندی بیلد Vite، سرور و پروکسی
     ├── package.json
     └── src/
-        ├── features/          # ماژول‌های مستقل بر اساس فیچر (Feature-Based)
-        │   ├── market/        # نرخ‌های بازار، کارت‌های تحلیل حباب و ارزها
-        │   ├── portfolio/     # مدیریت پورتفو، جداول فشرده، تقویم شمسی و E2EE
-        │   ├── auth/          # کانتکست و سرویس‌های لاگین گوگل و احراز هویت
-        │   └── admin/         # پنل مدیریت، آمار کاربران و مدیریت سورس‌ها
-        ├── shared/            # مؤلفه‌های مشترک، کامپوننت‌های UI و کلاینت HTTP
-        ├── context/           # کانتکست سراسری قیمت‌ها (PricingContext)
-        ├── utils/             # فرمول‌ها، محاسبات حباب و انجین قیمت
-        ├── pages/             # صفحات اصلی برنامه (Main, Admin, SharedPortfolio)
-        └── styles/            # سیستم استایل دارک و گلس‌مورفیسم فین‌تک
+        ├── App.jsx                      # کامپوننت ریشه و پیکربندی روت‌ها
+        ├── main.jsx                     # مونت برنامه و کانتکست‌های سراسری
+        ├── config/
+        │   └── sources.config.js        # سیم‌لینک سورس‌های کانونی به api
+        ├── features/                    # ساختار ماژولار مبتنی بر قابلیت (Feature-Driven)
+        │   ├── market/                  # ماژول بازار، کارت‌های حباب و جدول فارکس
+        │   │   ├── components/          # کامپوننت‌های رندرینگ نرخ‌ها و کارت‌ها
+        │   │   ├── context/             # PricingContext برای اشتراک زنده مظنه‌ها
+        │   │   └── hooks/               # هوک‌های واکشی و مدیریت قیمت‌ها
+        │   ├── portfolio/               # ماژول پورتفوی هوشمند، فرم‌ها و گاوصندوق E2EE
+        │   ├── auth/                    # مدیریت احراز هویت گوگل، سشن و هوک useAuth
+        │   └── admin/                   # کامپوننت‌های پنل مدیریت و جداول سورس‌ها
+        │       └── components/priceSources/ # جداول متحد، مودال کاوشگر و استایل‌ها
+        ├── components/                  # کامپوننت‌های مشترک رابط کاربری
+        │   ├── MarketInputsToolbar.jsx  # نوار بالای صفحه، تیکر داینامیک و تنظیمات
+        │   └── UniversalAssetSearch.jsx # جستجوگر جامع و آنی تمام اقلام بازار
+        ├── pages/                       # صفحات اصلی
+        │   ├── MainPage.jsx             # صفحه اصلی تحلیل بازار و پورتفو
+        │   ├── PriceSourcesPage.jsx     # هاب نظارت بر سورس‌های نرخ پایه و فیدها
+        │   └── SharedPortfolioPage.jsx  # صفحه عمومی اشتراک‌گذاری پورتفو
+        ├── utils/                       # انجین محاسبات ریاضی و مبدل تاریخ جلالی
+        └── styles/                      # استایل‌های دارک گلس‌مورفیسم و توکن‌های CSS
 ```
 
 ---
 
-## 🚀 راهنمای نصب و اجرای محلی (Local Development)
+## 🚀 راهنمای نصب و راه‌اندازی محلی (Local Quickstart)
 
 ### پیش‌نیازها
-- Node.js نسخه 20 یا بالاتر
-- npm نسخه 9 یا بالاتر
+- **Node.js**: نسخه `v20.0.0` یا بالاتر
+- **npm**: نسخه `v9.0.0` یا بالاتر
 
-### ۱. دریافت پروژه و نصب پکیج‌ها
+### ۱. کلون کردن مخزن و نصب وابستگی‌ها
 ```bash
 git clone https://github.com/nos486/realrate.git
 cd realrate
 npm install
 ```
 
-### ۲. اجرای همزمان بک‌اند و فرانت‌اند
-با اجرای یک دستور، سرور ورکر (پورت `8787`) و فرانت‌اند Vite (پورت `5173`) اجرا می‌شوند:
+### ۲. اجرای همزمان محیط توسعه (Fullstack Dev Server)
+با اجرای یک دستور ساده در ریشه مخزن، هر دو سرویس ورکر بک‌اند و وب‌کلاینت فرانت‌اند به شکل موازی اجرا می‌شوند:
 ```bash
 npm run dev
 ```
 
-آدرس‌های محلی:
-- فرانت‌اند: `http://localhost:5173`
-- بک‌اند API: `http://localhost:8787`
+- **فرانت‌اند وب (Vite)**: `http://localhost:5173`
+- **بک‌اند سرور (Cloudflare Workers)**: `http://localhost:8787`
 
-همچنین می‌توانید هر کدام را به صورت مجزا اجرا کنید:
+همچنین می‌توانید هر بخش را مستقلاً اجرا نمایید:
 ```bash
-npm run api:dev   # اجرای فقط بک‌اند ورکر
-npm run web:dev   # اجرای فقط فرانت‌اند ری‌اکت
+npm run web:dev   # اجرای مجزای فرانت‌اند وب
+npm run api:dev   # اجرای مجزای ورکر بک‌اند
 ```
 
 ### ۳. اجرای آزمون‌های واحد خودکار (Vitest)
-جهت اعتبارسنجی تمام فرمول‌های ریاضی و منطق ادغام تجمعی بورس:
+جهت اطمینان از صحت کلیه فرمول‌های ریاضی، حباب طلا و مکانیزم‌های پارسینگ بورس:
 ```bash
 npm test
 ```
 
 ---
 
-## 🗄️ راه‌اندازی پایگاه‌داده Cloudflare D1 و KV
+## 🗄️ پیکربندی پایگاه‌داده و حافظه ابری (Cloudflare D1 & KV)
 
-پروژه از دیتابیس **Cloudflare D1 (SQLite)** برای ذخیره کاربران، نشست‌ها، پورتفوها، دارایی‌ها و تنظیمات استفاده می‌کند.
+RealRate از قابلیت‌های لبه‌ای (Edge) شرکت کلاودفلر برای حداکثر پایداری و حداقل تاخیر بهره می‌برد:
 
-### ۱. ساخت دیتابیس D1 در کلاودفلر
+### ۱. ساخت پایگاه داده D1 (SQLite توزیع‌شده)
 ```bash
 npx wrangler d1 create realrate-db
 ```
-شناسه برگشتی (`database_id`) را در فایل `api/wrangler.toml` قرار دهید:
+شناسه تولیدشده (`database_id`) را در فایل `api/wrangler.toml` قرار دهید:
 ```toml
 [[d1_databases]]
 binding = "DB"
 database_name = "realrate-db"
-database_id = "<شناسه_دیتابیس_شما>"
+database_id = "YOUR_DATABASE_ID_HERE"
 ```
 
-### ۲. ساخت فضای KV
+### ۲. ساخت فضای حافظه توزیع‌شده Cloudflare KV
 ```bash
 npx wrangler kv:namespace create REALRATE_KV
 ```
-شناسه برگشتی را در `api/wrangler.toml` بخش `kv_namespaces` وارد کنید.
+شناسه برگشتی را در `api/wrangler.toml` زیر `[[kv_namespaces]]` تنظیم فرمایید.
 
-### ۳. اعمال مایگریشن جداول
-جداول پایگاه داده به صورت خودکار با قابلیت **Auto-Bootstrap** در اولین درخواست ورکر ساخته و به‌روزرسانی می‌شوند، اما می‌توانید فایل `schema.sql` را دستی نیز اعمال کنید:
+### ۳. راه‌اندازی ساختار جداول (Auto-Bootstrap)
+جداول پایگاه‌داده به واسطه ماژول `migration.repository.js` به محض ارسال اولین درخواست به ورکر به صورت خودکار پیکربندی و به‌روزرسانی می‌شوند. در صورت تمایل به اعمال دستی:
 ```bash
-# محیط آنلاین
 npx wrangler d1 execute realrate-db --remote --file=./api/schema.sql
 ```
 
 ---
 
-## 🔑 تنظیم ورود با گوگل (Google OAuth Setup)
+## 🔑 تنظیم احراز هویت با گوگل (Google Identity Services)
 
-1. وارد [Google Cloud Console](https://console.cloud.google.com/) شوید و یک پروژه بسازید.
-2. از مسیر **APIs & Services > Credentials** یک **OAuth 2.0 Client ID** از نوع **Web application** بسازید.
-3. در بخش **Authorized JavaScript origins** آدرس‌های مجاز را اضافه کنید:
+1. به [Google Cloud Console](https://console.cloud.google.com/) مراجعه کرده و یک پروژه جدید ایجاد کنید.
+2. از مسیر **APIs & Services > Credentials** یک شناسه جدید از نوع **OAuth 2.0 Client ID (Web Application)** بسازید.
+3. در قسمت **Authorized JavaScript origins** آدرس‌های مورد نظر را اضافه نمایید:
    - `http://localhost:5173`
    - `http://localhost:8787`
-   - `https://realrate.pages.dev` (یا دامنه اختصاصی فرانت‌اند شما)
-4. شناسه کلاینت دریافت شده (`Client ID`) را در تنظیمات وارد کنید:
-   - در `api/wrangler.toml` زیر `[vars]`:
+   - دامنه عمومی فرانت‌اند شما (مثلاً `https://realrate.pages.dev`)
+4. شناسه کلاینت (`Client ID`) را در فایل‌های پیکربندی ثبت فرمایید:
+   - در `api/wrangler.toml`:
      ```toml
+     [vars]
      GOOGLE_CLIENT_ID = "YOUR_CLIENT_ID.apps.googleusercontent.com"
-     ADMIN_EMAIL = "your-email@gmail.com"
+     ADMIN_EMAIL = "your_admin_email@gmail.com"
      ```
-   - در فرانت‌اند برای بیلد محلی در فایل `web/.env.local`:
+   - در `web/.env.local`:
      ```env
      VITE_GOOGLE_CLIENT_ID=YOUR_CLIENT_ID.apps.googleusercontent.com
      ```
 
 ---
 
-## 🌐 راهنمای استقرار در سرور ابری (Deployment)
+## 🌐 راهنمای استقرار در سرور ابری (Production Deployment)
 
-### استقرار بک‌اند (Cloudflare Worker)
+### ۱. استقرار بک‌اند (Cloudflare Workers)
 ```bash
 npm run api:deploy
 ```
@@ -290,18 +275,28 @@ cd api
 npx wrangler deploy
 ```
 
-### استقرار فرانت‌اند (Cloudflare Pages)
-در پنل Cloudflare Dashboard به بخش **Workers & Pages > Create application > Pages > Connect to Git** بروید:
+### ۲. استقرار فرانت‌اند (Cloudflare Pages)
+در پنل مدیریت Cloudflare به بخش **Workers & Pages > Create Application > Pages > Connect to Git** بروید:
 - **Project name**: `realrate`
 - **Framework preset**: `Vite`
 - **Root directory**: `web`
 - **Build command**: `npm run build`
 - **Build output directory**: `dist`
 - **Environment variables**:
-  - `VITE_API_URL`: آدرس ورکر بک‌اند شما (مثلاً `https://realrate-api.geekio.org`)
+  - `VITE_API_URL`: آدرس ورکر بک‌اند مستقر شده شما (مثال: `https://realrate-api.geekio.org`)
   - `VITE_GOOGLE_CLIENT_ID`: شناسه کلاینت گوگل
 
 ---
 
+## 📚 مستندات تکمیلی توسعه‌دهندگان
+
+برای آشنایی عمیق‌تر با جزئیات فنی و قواعد توسعه سیستم، مستندات اختصاصی زیر در پوشه `docs/` در دسترس است:
+- 📖 [معماری سیستم و جریان داده‌ها](docs/ARCHITECTURE.md)
+- 🔌 [مشخصات کامل و راهنمای REST API](docs/API.md)
+- ➕ [راهنمای تعریف دارایی جدید در پورتفو و بازار](docs/ADDING_NEW_ASSET.md)
+- 📡 [راهنمای پیاده‌سازی آداپتور سورس جدید بر پایه Code-First](docs/ADDING_NEW_PRICE_SOURCE.md)
+
+---
+
 ## 📜 لایسنس
-این پروژه تحت مجوز [MIT License](LICENSE) منتشر شده است و استفاده از آن آزاد می‌باشد.
+این پروژه تحت مجوز **[MIT License](LICENSE)** به صورت متن‌باز منتشر شده است و هرگونه استفاده تجاری و غیرتجاری از آن با ذکر منبع آزاد می‌باشد.
