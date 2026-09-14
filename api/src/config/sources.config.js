@@ -127,6 +127,22 @@ export const PRICE_SOURCES_CONFIG = [
     isActive: true,
     isPrimary: true,
   },
+  // ── سورس تتر تومانی با پارسر هوشمند ──
+  {
+    id: "src_brs_usdt_toman",
+    name: "دلار تتر (BRS API)",
+    priceType: "USDT",
+    sourceType: "api_url",
+    endpoint: "https://api.brsapi.ir/Market/Gold_Currency.php?key=BDqzgcZZ5rGg4Z6uSEs9bMyx2E2vXrkd",
+    regex: "",
+    jsonPath: "currency[symbol=USDT_IRT].price",
+    fieldMapping: null,
+    excludedOutputs: [],
+    displayConfig: { showOnHomePage: true },
+    fetchIntervalSec: 60,
+    isActive: true,
+    isPrimary: true,
+  },
 
   // ── Multi-Output Feeds (Forex Currencies & Bourse Symbols) ─────────
   {
