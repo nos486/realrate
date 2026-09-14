@@ -46,4 +46,20 @@ describe("parsingUtils — extractValueByPath with predicate filtering", () => {
     expect(parsed.price).toBe(233408);
     expect(parsed.label).toBe("تتر تومانی");
   });
+
+  it("parses correctly using customParser function", () => {
+    const parsed = apiUrlSourceAdapter.parse(JSON.stringify(sampleData), {
+      id: "test_custom_usdt",
+      name: "تتر تومانی با فانکشن اختصاصی",
+      priceType: "usdt",
+      sourceType: "api_url",
+      customParser: (data) => {
+        const item = data.currency?.find((c) => c.symbol === "USDT_IRT");
+        return item ? item.price : 0;
+      },
+    });
+
+    expect(parsed.price).toBe(233408);
+    expect(parsed.label).toBe("تتر تومانی با فانکشن اختصاصی");
+  });
 });

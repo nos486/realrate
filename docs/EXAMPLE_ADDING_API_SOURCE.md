@@ -1,10 +1,12 @@
-# راهنمای عملی: اتصال یک وب‌سرویس جدید و استخراج قیمت تتر
+# راهنمای جامع: اتصال یک وب‌سرویس جدید و استخراج نرخ (با JsonPath یا فانکشن پارسر اختصاصی)
 
-این راهنما گام‌به‌گام نحوه فراخوانی یک وب‌سرویس جدید (مانند BRS API) و استخراج نرخ دلخواه (مثلاً قیمت تومانی یا دلاری تتر) را شرح می‌دهد.
+این راهنما گام‌به‌گام نحوه فراخوانی یک وب‌سرویس جدید (مانند BRS API) و استخراج نرخ دلخواه (مثلاً قیمت تومانی یا دلاری تتر) را با دو رویکرد شرح می‌دهد:
+1. **روش اول (بدون کدنویسی):** استفاده از پارسر مسیردهی JsonPath.
+2. **روش دوم (کدنویسی اختصاصی):** نوشتن فانکشن پارسر دلخواه (`customParser`) یا ساخت آداپتور مجزا.
 
 ---
 
-## بررسی ساختار خروجی API نمونه
+## ۱. بررسی ساختار خروجی API نمونه
 
 آدرس وب‌سرویس:
 `https://api.brsapi.ir/Market/Gold_Currency.php?key=BDqzgcZZ5rGg4Z6uSEs9bMyx2E2vXrkd`
@@ -34,80 +36,158 @@
 
 ---
 
-## کدام فایل‌ها باید ویرایش شوند؟
+## ۲. روش اول: استفاده از پارسر هوشمند JsonPath (ساده و بدون کد جدید)
 
-در معماری **کد-محور (Code-First)** سیستم ریال‌ریت:
-
-### سناریوی ۱: دارایی از قبل در سیستم تعریف شده است (مانند تتر USDT)
-اگر دارایی در `CANONICAL_ASSET_REGISTRY` وجود داشته باشد (تتر با کد `USDT` از قبل در `crypto.spec.js` تعریف شده است):
-
-👉 **فقط ۱ فایل ادیت می‌شود:**
-- **مسیر:** [`api/src/config/sources.config.js`](file:///Users/sina/Projects/realrate/api/src/config/sources.config.js)
-
-کافی است این بلوک را به انتهای بخش سورس‌های تک‌مقداری اضافه کنید:
+اگر نخواهید هیچ کد یا تابعی بنویسید، کافی است در فایل [`api/src/config/sources.config.js`](file:///Users/sina/Projects/realrate/api/src/config/sources.config.js) سورس زیر را اضافه کنید:
 
 ```javascript
-  // ── سورس جدید: تتر تومانی از BRS API ──
+  // ── سورس تتر تومانی با پارسر هوشمند ──
   {
     id: "src_brs_usdt_toman",
     name: "دلار تتر (BRS API)",
     priceType: "USDT",
     sourceType: "api_url",
     endpoint: "https://api.brsapi.ir/Market/Gold_Currency.php?key=BDqzgcZZ5rGg4Z6uSEs9bMyx2E2vXrkd",
-    jsonPath: "currency[symbol=USDT_IRT].price", // فیلتر خودکار در آرایه
-    regex: "",
-    fieldMapping: null,
-    excludedOutputs: [],
-    displayConfig: { showOnHomePage: true },
+    jsonPath: "currency[symbol=USDT_IRT].price", // فیلتر خودکار بر اساس نماد
     fetchIntervalSec: 60,
     isActive: true,
     isPrimary: true,
   },
 ```
 
-> **نکته هوشمند در JsonPath:**  
-> سیستم از فرمت `currency[symbol=USDT_IRT].price` پشتیبانی می‌کند؛ یعنی حتی اگر ترتیب آیتم‌ها در آرایه عوض شود، بر اساس کلید `symbol` آیتم تتر را پیدا کرده و فیلد `price` را برمی‌دارد.
-> 
-> اگر قیمت دلاری تتر مدنظرتان باشد، کافی است بنویسید:  
-> `jsonPath: "cryptocurrency[symbol=USDT].price"`
-
 ---
 
-### سناریوی ۲: دارایی کاملاً جدید است و قبلاً در سامانه نبوده
-اگر بخواهید دارایی جدیدی که تاکنون در سیستم نبوده (مثلاً یک رمزارز یا فلز جدید مثل پلاتین) اضافه کنید:
+## ۳. روش دوم: نوشتن فانکشن پارسر اختصاصی (`customParser`)
 
-👉 **۲ فایل ادیت می‌شود:**
+اگر ساختار API پیچیده است، نیاز به محاسبات ریاضی یا تبدیل واحد دارید، یا مایل نیستید از فرمت‌های متنی JsonPath استفاده کنید، می‌توانید **مستقیماً یک تابع جاوااسکریپت اختصاصی (`customParser`)** درون همان آبجکت سورس بنویسید:
 
-1. **ثبت هویت دارایی (نام، نماد، پرچم، دسته):**
-   - **فایل:** [`api/src/domain/specs/crypto.spec.js`](file:///Users/sina/Projects/realrate/api/src/domain/specs/crypto.spec.js) (یا `gold.spec.js`)
-   ```javascript
-   NEW_COIN: {
-     id: 'NEW_COIN',
-     code: 'NEW_COIN',
-     name: 'کوین جدید',
-     symbol: 'NC',
-     unit: 'عدد',
-     category: 'crypto',
-     badge: 'رمزارز',
-   },
-   ```
+### فایل مورد ویرایش:
+👉 **فقط:** [`api/src/config/sources.config.js`](file:///Users/sina/Projects/realrate/api/src/config/sources.config.js)
 
-2. **ثبت سورس استخراج قیمت:**
-   - **فایل:** [`api/src/config/sources.config.js`](file:///Users/sina/Projects/realrate/api/src/config/sources.config.js)
-   (همانند سناریوی ۱).
+```javascript
+  // ── سورس تتر با فانکشن پارسر اختصاصی ──
+  {
+    id: "src_brs_usdt_custom",
+    name: "دلار تتر (پارسر اختصاصی)",
+    priceType: "USDT",
+    sourceType: "api_url",
+    endpoint: "https://api.brsapi.ir/Market/Gold_Currency.php?key=BDqzgcZZ5rGg4Z6uSEs9bMyx2E2vXrkd",
+    fetchIntervalSec: 60,
+    isActive: true,
+    isPrimary: true,
 
----
+    /**
+     * فانکشن پارسر اختصاصی شما:
+     * @param {object} data - کل شیء JSON دریافت شده از وب‌سرویس
+     * @param {object} sourceConfig - کانفیگ همین سورس
+     * @returns {number|object} - عدد قیمت نهایی، یا آبجکت استاندارد { price, datetime, label }
+     */
+    customParser: (data, sourceConfig) => {
+      // ۱. جستجو در آرایه ارزها بر اساس کلید دلخواه
+      const tetherItem = data?.currency?.find(item => item.symbol === "USDT_IRT");
 
-## نحوه تست و راستی‌آزمایی سورس جدید
+      if (!tetherItem || !tetherItem.price) {
+        throw new Error("آیتم تتر در پاسخ وب‌سرویس یافت نشد.");
+      }
 
-### ۱. تست با دستور خودکار
-یک فایل تست سریع با vitest وجود دارد:
-```bash
-npm test
+      // ۲. برگرداندن مستقیم عدد قیمت (تومان)
+      return Number(tetherItem.price);
+    },
+  },
 ```
 
-### ۲. مشاهده زنده در پنل مدیریت (`/admin`)
-پس از اضافه کردن سورس در `sources.config.js`:
-1. وارد پنل ادمین شوید: `http://localhost:5173/admin`
-2. سورس جدید در جدول فیدها نمایش داده می‌شود.
-3. با زدن دکمه **«بروزرسانی نرخ»**، قیمت زنده دریافت شده و وضعیت سبز می‌شود.
+### قرارداد خروجی تابع `customParser`:
+تابع شما می‌تواند یکی از دو خروجی زیر را بازگرداند:
+1. **یک عدد ساده:** مثلاً `return 233325;` (سیستم خودکار تاریخ و برچسب را تکمیل می‌کند).
+2. **یک آبجکت کامل:**
+   ```javascript
+   return {
+     price: 233325,
+     datetime: new Date().toISOString(),
+     label: "دلار تتر آزاد",
+   };
+   ```
+
+---
+
+## ۴. روش سوم: ساخت آداپتور ماژولار مستقل (`ISourceAdapter`)
+
+اگر می‌خواهید منطق اتصال و اعتبارسنجی را به طور کامل در یک فایل مجزا کپسوله کنید:
+
+### گام ۱: ساخت فایل آداپتور جدید
+در مسیر `api/src/services/market/sources/brsTether.source.adapter.js`:
+
+```javascript
+import { USER_AGENT } from "./parsingUtils.js";
+
+export const brsTetherAdapter = {
+  id: "brs_tether",
+  name: "آداپتور اختصاصی تتر BRS",
+
+  // بررسی می‌کند که آیا سورس باید توسط این آداپتور پردازش شود یا خیر
+  supports(sourceConfig) {
+    return sourceConfig.sourceType === "brs_tether";
+  },
+
+  // دریافت داده خام از سرور
+  async fetchRaw(sourceConfig) {
+    const res = await fetch(sourceConfig.endpoint, {
+      headers: { "User-Agent": USER_AGENT },
+    });
+    if (!res.ok) throw new Error(`HTTP Error ${res.status}`);
+    return await res.json();
+  },
+
+  // پارس و استخراج قیمت
+  parse(rawJson, sourceConfig) {
+    const item = rawJson.currency?.find(c => c.symbol === "USDT_IRT");
+    const price = item ? Number(item.price) : 0;
+
+    return {
+      price,
+      datetime: new Date().toISOString(),
+      label: sourceConfig.name || "تتر BRS",
+    };
+  },
+};
+```
+
+### گام ۲: رجیستر کردن در ایندکس آداپتورها
+در فایل [`api/src/services/market/sources/index.js`](file:///Users/sina/Projects/realrate/api/src/services/market/sources/index.js):
+
+```javascript
+import { brsTetherAdapter } from "./brsTether.source.adapter.js";
+
+export const sourceAdapters = [
+  brsTetherAdapter, // اضافه شدن به لیست آداپتورها
+  forexApiSourceAdapter,
+  bourseSymbolsSourceAdapter,
+  telegramSourceAdapter,
+  apiUrlSourceAdapter,
+];
+```
+
+### گام ۳: استفاده در `sources.config.js`
+```javascript
+{
+  id: "src_brs_tether",
+  name: "تتر تومانی",
+  priceType: "USDT",
+  sourceType: "brs_tether", // همان شناسه supports آداپتور
+  endpoint: "https://api.brsapi.ir/Market/Gold_Currency.php?key=BDqzgcZZ5rGg4Z6uSEs9bMyx2E2vXrkd",
+  fetchIntervalSec: 60,
+  isActive: true,
+  isPrimary: true,
+}
+```
+
+---
+
+## ۵. نحوه راستی‌آزمایی و تست
+
+1. **تست با دستور اتوماتیک:**
+   ```bash
+   npm test
+   ```
+2. **مشاهده در پنل ادمین (`/admin`):**
+   سورس بلافاصله در جدول فیدها ظاهر شده و با دکمه **«بروزرسانی نرخ»** تست آنلاین انجام می‌شود.

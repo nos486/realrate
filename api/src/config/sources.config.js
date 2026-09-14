@@ -168,6 +168,7 @@ export const PRICE_SOURCES_CONFIG = [
 export function getMasterPriceSourcesConfig() {
   return PRICE_SOURCES_CONFIG.map((src) => ({
     ...src,
+    customParser: src.customParser || null,
     displayConfig: src.displayConfig ? { ...src.displayConfig } : null,
     excludedOutputs: Array.isArray(src.excludedOutputs) ? [...src.excludedOutputs] : [],
     fieldMapping: src.fieldMapping ? { ...src.fieldMapping } : null,

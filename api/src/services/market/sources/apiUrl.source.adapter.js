@@ -65,6 +65,31 @@ export const apiUrlSourceAdapter = {
       throw new Error("پاسخ وب‌سرویس JSON معتبر نیست.");
     }
 
+    // 0. Custom parser function support directly on sourceConfig
+    if (typeof sourceConfig.customParser === "function") {
+      try {
+        const parsed = sourceConfig.customParser(data, sourceConfig);
+        if (typeof parsed === "number" && !isNaN(parsed)) {
+          return {
+            price: Math.round(parsed),
+            datetime: nowIso,
+            label: sourceConfig.name || "سورس سفارشی",
+          };
+        }
+        if (parsed && typeof parsed === "object") {
+          return {
+            price: Math.round(Number(parsed.price) || 0),
+            datetime: parsed.datetime || nowIso,
+            label: parsed.label || sourceConfig.name || "سورس سفارشی",
+            multiData: parsed.multiData || undefined,
+            compactList: parsed.compactList || undefined,
+          };
+        }
+      } catch (err) {
+        throw new Error(`خطا در اجرای customParser سورس: ${err.message}`);
+      }
+    }
+
     let fieldMapping = null;
     if (sourceConfig.fieldMapping) {
       try {
