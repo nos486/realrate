@@ -127,21 +127,39 @@ export const PRICE_SOURCES_CONFIG = [
     isActive: true,
     isPrimary: true,
   },
-  // ── سورس تتر تومانی با پارسر هوشمند ──
+  // ── سورس تتر با فانکشن پارسر اختصاصی ──
   {
-    id: "src_brs_usdt_toman",
-    name: "دلار تتر (BRS API)",
+    id: "src_brs_usdt_custom",
+    name: "دلار تتر (پارسر اختصاصی)",
     priceType: "USDT",
     sourceType: "api_url",
     endpoint: "https://api.brsapi.ir/Market/Gold_Currency.php",
     regex: "",
-    jsonPath: "currency[symbol=USDT_IRT].price",
+    jsonPath: "",
     fieldMapping: null,
     excludedOutputs: [],
     displayConfig: { showOnHomePage: true },
     fetchIntervalSec: 60,
     isActive: true,
     isPrimary: true,
+
+    /**
+     * فانکشن پارسر اختصاصی:
+     * @param {object} data - کل شیء JSON دریافت شده از وب‌سرویس
+     * @param {object} sourceConfig - کانفیگ همین سورس
+     * @returns {number|object} - عدد قیمت نهایی، یا آبجکت استاندارد { price, datetime, label }
+     */
+    customParser: (data, sourceConfig) => {
+      // ۱. جستجو در آرایه ارزها بر اساس کلید دلخواه
+      const tetherItem = data?.currency?.find((item) => item.symbol === "USDT_IRT");
+
+      if (!tetherItem || !tetherItem.price) {
+        throw new Error("آیتم تتر در پاسخ وب‌سرویس یافت نشد.");
+      }
+
+      // ۲. برگرداندن مستقیم عدد قیمت (تومان)
+      return Number(tetherItem.price);
+    },
   },
 
   // ── Multi-Output Feeds (Forex Currencies & Bourse Symbols) ─────────
