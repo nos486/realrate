@@ -133,6 +133,30 @@ describe("parsingUtils — extractValueByPath with predicate filtering", () => {
     };
     expect(getAdapterForSource(untypedHttpSource).id).toBe("api_url");
   });
+
+  it("executes customParser for bourse and returns structured catalog items", async () => {
+    const { getMasterPriceSourceById } = await import("../../src/config/sources.config.js");
+    const bourseSrc = getMasterPriceSourceById("src_def_bourse");
+    expect(bourseSrc).toBeDefined();
+    expect(typeof bourseSrc.customParser).toBe("function");
+
+    const sampleBourseApiData = [
+      { l18: "فملی", l30: "ملی صنایع مس ایران", pl: 263900, pc: 264000 },
+      { l18: "عیار", l30: "صندوق طلای عیار مفید", pl: 145000, pc: 144500 },
+      { l18: "شپنا", l30: "پالایش نفت اصفهان", pl: 48000, pc: 48200 },
+    ];
+
+    const parsed = apiUrlSourceAdapter.parse(JSON.stringify(sampleBourseApiData), bourseSrc);
+    expect(parsed.isCatalog).toBe(true);
+    expect(parsed.price).toBe(3);
+    expect(parsed.compactList).toHaveLength(3);
+    expect(parsed.compactList[0].s).toBe("فملی");
+    expect(parsed.compactList[0].priceToman).toBe(26390); // 263900 / 10
+    expect(parsed.compactList[0].isFund).toBe(false);
+    expect(parsed.compactList[1].s).toBe("عیار");
+    expect(parsed.compactList[1].priceToman).toBe(14500); // 145000 / 10
+    expect(parsed.compactList[1].isFund).toBe(true);
+  });
 });
 
 

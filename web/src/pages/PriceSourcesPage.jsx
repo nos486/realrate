@@ -384,92 +384,64 @@ export default function PriceSourcesPage({ embedded = false, usdToman: propUsdTo
     }
   };
 
+  const mapToExplorerItem = (it) => {
+    const sym = it.symbol || it.s || it.code || it.id || '—';
+    const name = it.name || it.n || it.title || it.label || sym;
+    const p = Number(it.priceToman || it.priceTomans || it.price || it.p || 0);
+    const cat = it.category || it.cat || (it.isFund ? 'صندوق سرمایه‌گذاری' : '');
+    return {
+      s: sym,
+      symbol: sym,
+      n: name,
+      name,
+      p,
+      price: p,
+      priceToman: p,
+      priceRial: it.priceRial,
+      isFund: Boolean(it.isFund),
+      cat,
+      category: cat,
+      extra: it.extra,
+      rawRate: it.rawRate,
+      usdCrossRate: it.usdCrossRate,
+      cp: it.changePercent !== undefined ? it.changePercent : it.cp,
+    };
+  };
+
   const handleOpenExplorer = async (src) => {
     setExplorerFeed(src);
     setExplorerSearch('');
     setExplorerModalOpen(true);
 
-    const isBourse = src?.priceType === 'bourse' || src?.priceType === 'bourse_fund' || src?.sourceType === 'bourse_symbols';
-
-    if (isBourse) {
-      setExplorerLoading(true);
-      try {
-        const bourseRes = await apiSearchBourseSymbols('', 3000);
-        if (bourseRes?.success && Array.isArray(bourseRes.symbols) && bourseRes.symbols.length > 0) {
-          setExplorerItems(bourseRes.symbols.map(it => ({
-            s: it.symbol || it.s,
-            n: it.name || it.n,
-            p: it.priceToman || it.price || it.p,
-            priceToman: it.priceToman || it.price || it.p,
-            priceRial: it.priceRial,
-            isFund: it.isFund,
-            cat: it.isFund ? 'صندوق سرمایه‌گذاری' : 'سهام بورس',
-          })));
-          return;
-        }
-      } catch (err) {
-        console.warn('Could not fetch bourse symbols directly, falling back to test:', err);
-      } finally {
-        setExplorerLoading(false);
-      }
-    }
-
+    // 1. Direct extracted items check
     let items = extractMultiItems(src);
     if (items.length > 0) {
-      setExplorerItems(items.map(it => ({
-        s: it.symbol || it.s,
-        n: it.name || it.n,
-        p: it.price || it.p,
-        cp: it.changePercent !== undefined ? it.changePercent : it.cp,
-        cat: it.category || it.cat,
-        extra: it.extra,
-        rawRate: it.rawRate,
-        usdCrossRate: it.usdCrossRate,
-        priceTomans: it.price,
-      })));
+      setExplorerItems(items.map(mapToExplorerItem));
       return;
     }
 
+    // 2. Fetch live data via universal test/preview endpoint
     setExplorerLoading(true);
     try {
       const testRes = await apiTestPriceSource(src);
       if (testRes.success) {
-        if (Array.isArray(testRes.compactList) && testRes.compactList.length > 0) {
-          setExplorerItems(testRes.compactList.map(it => ({
-            s: it.symbol || it.s,
-            n: it.name || it.n,
-            p: it.priceToman || it.price || it.p,
-            priceToman: it.priceToman || it.price || it.p,
-            priceRial: it.priceRial,
-            isFund: it.isFund,
-            cat: it.isFund ? 'صندوق سرمایه‌گذاری' : (it.category || 'سهام بورس'),
-          })));
+        const rawList = testRes.compactList || testRes.items || testRes.sampleItems;
+        if (Array.isArray(rawList) && rawList.length > 0) {
+          setExplorerItems(rawList.map(mapToExplorerItem));
           return;
         }
         const testItems = extractMultiItems({ ...src, lastMultiData: testRes.multiData || testRes });
         if (testItems.length > 0) {
-          setExplorerItems(testItems.map(it => ({
-            s: it.symbol || it.s,
-            n: it.name || it.n,
-            p: it.price || it.p,
-            cp: it.changePercent !== undefined ? it.changePercent : it.cp,
-            cat: it.category || it.cat,
-            extra: it.extra,
-            rawRate: it.rawRate,
-            usdCrossRate: it.usdCrossRate,
-            priceTomans: it.price,
-          })));
-        } else if (testRes.sampleItems || testRes.compactList) {
-          const list = testRes.compactList || testRes.sampleItems || [];
-          setExplorerItems(list.map(it => ({
-            s: it.symbol || it.s,
-            n: it.name || it.n,
-            p: it.priceToman || it.price || it.p,
-            priceToman: it.priceToman || it.price || it.p,
-            priceRial: it.priceRial,
-            isFund: it.isFund,
-            cat: it.isFund ? 'صندوق سرمایه‌گذاری' : (it.cat || 'اقلام فید'),
-          })));
+          setExplorerItems(testItems.map(mapToExplorerItem));
+          return;
+        }
+      }
+
+      // 3. Fallback for catalog feeds with stored symbol index
+      if (src?.isCatalog || src?.priceType === 'bourse') {
+        const catalogRes = await apiSearchBourseSymbols('', 3000);
+        if (catalogRes?.success && Array.isArray(catalogRes.symbols) && catalogRes.symbols.length > 0) {
+          setExplorerItems(catalogRes.symbols.map(mapToExplorerItem));
         }
       }
     } catch (e) {

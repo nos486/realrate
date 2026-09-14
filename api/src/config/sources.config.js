@@ -207,16 +207,67 @@ export const PRICE_SOURCES_CONFIG = [
     id: "src_def_bourse",
     name: "بورس اوراق بهادار تهران (TSETMC / BRS API)",
     priceType: "bourse",
-    sourceType: "bourse_symbols",
+    sourceType: "api_url",
+    isCatalog: true,
     endpoint: "https://api.brsapi.ir/Tsetmc/AllSymbols.php?type=1&key=${BRS_API_KEY}",
     regex: "",
     jsonPath: "",
     fieldMapping: null,
     excludedOutputs: [],
-    displayConfig: { showOnHomePage: true },
+    displayConfig: { showOnHomePage: false },
     fetchIntervalSec: 86400,
     isActive: true,
     isPrimary: true,
+
+    /**
+     * فانکشن پارسر اختصاصی بورس اوراق بهادار تهران:
+     * دریافت مستقیم داده‌های TSETMC / BRS API و استانداردسازی به کاتالوگ نمادها
+     * @param {Array|object} data - داده خام دریافتی از وب‌سرویس
+     * @param {object} sourceConfig - کانفیگ سورس
+     * @returns {object} - ساختار استاندارد کاتالوگ با اقلام تبدیل‌شده (ریال به تومان)
+     */
+    customParser: (data, sourceConfig) => {
+      const rawList = Array.isArray(data) ? data : (data?.symbols || data?.data || []);
+      if (!Array.isArray(rawList) || rawList.length === 0) {
+        throw new Error("آرایه نمادهای بورس در پاسخ وب‌سرویس یافت نشد.");
+      }
+
+      const items = rawList.map((item) => {
+        const symbol = String(item.l18 || item.symbol || item.s || "").trim();
+        const name = String(item.l30 || item.name || item.n || symbol).trim();
+        const rial = Number(item.pl !== undefined && item.pl !== null ? item.pl : (item.pc || item.priceRial || 0));
+        const toman = rial > 0 ? Math.round(rial / 10) : (Number(item.price || item.p || 0));
+        const isFund = Boolean(
+          item.isFund ||
+          name.includes("صندوق") ||
+          name.includes("ETF") ||
+          symbol.includes("دارا") ||
+          symbol.includes("پالایش")
+        );
+
+        return {
+          s: symbol,
+          symbol,
+          n: name,
+          name,
+          p: toman,
+          price: toman,
+          priceToman: toman,
+          priceRial: rial || (toman * 10),
+          isFund,
+          category: isFund ? "صندوق سرمایه‌گذاری" : "سهام بورس",
+        };
+      }).filter((it) => it.symbol);
+
+      return {
+        isCatalog: true,
+        totalCount: items.length,
+        items,
+        compactList: items,
+        sampleItems: items.slice(0, 50),
+        datetime: new Date().toISOString(),
+      };
+    },
   },
 ];
 

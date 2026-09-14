@@ -16,8 +16,7 @@ import { getAdapterForSource } from "./sources/index.js";
 import { resolveApiUrl } from "./sources/apiUrl.source.adapter.js";
 import { logger } from "../../lib/logger.js";
 import { SETTINGS_MEMORY_CACHE_TTL_MS } from "../../config/constants.js";
-import { WORLD_FOREX_NAMES } from "../../domain/specs/index.js";
-import { getReferenceRatesSpecs } from "../../config/sources.config.js";
+import { getReferenceRatesSpecs, getMasterPriceSourceById } from "../../config/sources.config.js";
 
 // In-memory price cache for sub-millisecond lookups
 let memoryPricesCache = {};
@@ -113,10 +112,8 @@ export function compileLatestMarketRates(sources) {
   const multiSources = sources.filter((s) => s.isActive && s.lastMultiData);
   for (const mSrc of multiSources) {
     try {
-      const sType = (mSrc.sourceType || '').toLowerCase();
-      const pType = (mSrc.priceType || '').toLowerCase();
-      // Bourse feeds are catalogs of 1,700+ symbols, not generic key-value currency prices
-      if (sType === 'bourse_symbols' || pType === 'bourse' || pType === 'bourse_fund') {
+      // Generic check: Catalog sources (isCatalog: true) represent full asset catalogs, not individual currency rates
+      if (mSrc.isCatalog || (mSrc.lastMultiData && typeof mSrc.lastMultiData === 'object' && mSrc.lastMultiData.isCatalog)) {
         continue;
       }
 
@@ -134,8 +131,11 @@ export function compileLatestMarketRates(sources) {
         ? JSON.parse(mSrc.lastMultiData)
         : mSrc.lastMultiData;
 
+      const METADATA_KEYS = new Set(['updatedat', 'totalsymbols', 'totalcount', 'totalfunds', 'stats', 'datetime', 'error', 'status', 'iscatalog', 'labels', 'result', 'message']);
+
       if (multi && typeof multi === 'object') {
         for (const [k, val] of Object.entries(multi)) {
+          if (METADATA_KEYS.has(k.toLowerCase())) continue;
           const numPrice = typeof val === 'object' && val !== null ? Number(val.price) : Number(val);
           if (numPrice > 0 && !excludedSet.has(k.toUpperCase())) {
             const isHome = isMultiOutputOnHomePage(k, mSrc.displayConfig);
@@ -159,29 +159,17 @@ export function compileLatestMarketRates(sources) {
     }
   }
 
-  // Tehran Stock Exchange (Bourse Equities Catalog Metadata — not a single asset price)
-  const bourseSource = sources.find(s => (s.priceType === "bourse" || s.sourceType === "bourse_symbols") && s.isActive);
-  if (bourseSource) {
-    result.bourse = {
-      totalSymbols: Number(bourseSource.lastPrice) || 0,
-      datetime: bourseSource.lastFetched || new Date().toISOString(),
-      label: bourseSource.name,
-      sourceId: bourseSource.id,
-      isPrimary: true,
-      isCatalog: true,
-      showOnHomePage: false,
-    };
-  }
-
-  // Tehran Stock Exchange (Bourse Investment Funds Catalog Metadata)
-  const bourseFundSource = sources.find(s => s.priceType === "bourse_fund" && s.isActive);
-  if (bourseFundSource) {
-    result.bourse_fund = {
-      totalFunds: Number(bourseFundSource.lastPrice) || 0,
-      datetime: bourseFundSource.lastFetched || new Date().toISOString(),
-      label: bourseFundSource.name,
-      sourceId: bourseFundSource.id,
-      isPrimary: true,
+  // Multi-item Catalog Sources Metadata (e.g. Stock Exchange, Car catalogs, Products)
+  const catalogSources = sources.filter(s => s.isActive && (s.isCatalog || s.category === 'catalog' || s.priceType === 'bourse' || (s.lastMultiData && typeof s.lastMultiData === 'object' && s.lastMultiData.isCatalog)));
+  for (const catSrc of catalogSources) {
+    const key = String(catSrc.priceType || catSrc.id || '').toLowerCase();
+    result[key] = {
+      totalCount: Number(catSrc.lastPrice) || 0,
+      totalSymbols: Number(catSrc.lastPrice) || 0,
+      datetime: catSrc.lastFetched || new Date().toISOString(),
+      label: catSrc.name,
+      sourceId: catSrc.id,
+      isPrimary: !!catSrc.isPrimary,
       isCatalog: true,
       showOnHomePage: false,
     };
@@ -494,14 +482,26 @@ export async function fetchAllPrices(env, forceRefresh = false, settings = null)
  * @returns {Promise<object>}
  */
 export async function testPriceSourceConfig(config = {}, env = null) {
-  const adapter = getAdapterForSource(config);
+  let effectiveConfig = { ...config };
+  if (config.id) {
+    const master = getMasterPriceSourceById(config.id);
+    if (master) {
+      effectiveConfig = {
+        ...master,
+        ...config,
+        customParser: config.customParser || master.customParser,
+      };
+    }
+  }
+
+  const adapter = getAdapterForSource(effectiveConfig);
   if (typeof adapter.test === "function") {
-    return await adapter.test(config, env);
+    return await adapter.test(effectiveConfig, env);
   }
 
   try {
-    const raw = await adapter.fetchRaw(config, env);
-    const parsed = await adapter.parse(raw, config, env);
+    const raw = await adapter.fetchRaw(effectiveConfig, env);
+    const parsed = await adapter.parse(raw, effectiveConfig, env);
     const rawSnippet = typeof raw === "string" && raw.length > 2500 ? raw.slice(0, 2500) + "\n... (ادامه متن کوتاه شد)" : raw;
 
     return {

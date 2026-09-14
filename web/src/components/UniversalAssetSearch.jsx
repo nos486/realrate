@@ -189,6 +189,21 @@ export function extractMultiItems(src) {
     try { fm = JSON.parse(fm); } catch {}
   }
 
+  // 0. If customParser is present, execute it to parse raw data into items
+  if (typeof src.customParser === 'function' && multi) {
+    try {
+      const parsed = src.customParser(multi, src);
+      if (parsed && typeof parsed === 'object') {
+        const customItems = Array.isArray(parsed.items)
+          ? parsed.items
+          : (Array.isArray(parsed.compactList) ? parsed.compactList : (Array.isArray(parsed.sampleItems) ? parsed.sampleItems : null));
+        if (customItems && customItems.length > 0) {
+          return customItems;
+        }
+      }
+    } catch {}
+  }
+
   let rawList = [];
   if (multi) {
     // 1. Direct Open ER-API / Exchange Rates Object (e.g. multi.rates = { USD: 1, EUR: 0.93, AED: 3.67, ... })
@@ -223,10 +238,10 @@ export function extractMultiItems(src) {
     else if (Array.isArray(multi.currencies)) rawList = multi.currencies;
     else if (Array.isArray(multi)) rawList = multi;
     else if (typeof multi === 'object') {
-      const isBourseCatalog = src.priceType === 'bourse' || src.priceType === 'bourse_fund' || src.sourceType === 'bourse_symbols';
-      if (!isBourseCatalog || Array.isArray(multi.symbols) || Array.isArray(multi.compactList) || Array.isArray(multi.sampleItems) || Array.isArray(multi.items)) {
+      const isCatalog = Boolean(src.isCatalog || multi.isCatalog);
+      if (!isCatalog || Array.isArray(multi.symbols) || Array.isArray(multi.compactList) || Array.isArray(multi.sampleItems) || Array.isArray(multi.items)) {
         rawList = Object.entries(multi)
-          .filter(([k]) => !['updatedAt', 'totalCount', 'totalSymbols', 'labels', 'topSymbols', 'error', 'datetime', 'totalFunds', 'fundsCount', 'result', 'base_code', 'time_last_update_utc', 'time_next_update_utc', 'time_last_update_unix', 'time_next_update_unix', 'provider', 'documentation', 'terms_of_use', 'time_eol_unix', 'stats'].includes(k))
+          .filter(([k]) => !['updatedAt', 'totalCount', 'totalSymbols', 'labels', 'topSymbols', 'error', 'datetime', 'totalFunds', 'fundsCount', 'result', 'base_code', 'time_last_update_utc', 'time_next_update_utc', 'time_last_update_unix', 'time_next_update_unix', 'provider', 'documentation', 'terms_of_use', 'time_eol_unix', 'stats', 'isCatalog'].includes(k))
           .map(([k, v]) => {
             if (v && typeof v === 'object') {
               const sym = (v.symbol || v.s || v.code || v.id || k).toUpperCase();

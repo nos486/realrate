@@ -140,12 +140,20 @@ export const apiUrlSourceAdapter = {
           };
         }
         if (parsed && typeof parsed === "object") {
+          const itemsList = Array.isArray(parsed.items)
+            ? parsed.items
+            : (Array.isArray(parsed.compactList) ? parsed.compactList : null);
+
+          const isCat = Boolean(parsed.isCatalog || sourceConfig.isCatalog || (itemsList && itemsList.length > 50));
+
           return {
-            price: Number(parsed.price) || 0,
+            price: isCat ? (parsed.totalCount || itemsList?.length || 0) : (Number(parsed.price) || 0),
             datetime: parsed.datetime || nowIso,
             label: parsed.label || sourceConfig.name || "سورس سفارشی",
-            multiData: parsed.multiData || undefined,
-            compactList: parsed.compactList || undefined,
+            isCatalog: isCat,
+            multiData: parsed.multiData || (isCat ? { isCatalog: true, totalCount: itemsList?.length || parsed.totalCount, updatedAt: nowIso } : undefined),
+            compactList: itemsList || parsed.compactList || undefined,
+            sampleItems: parsed.sampleItems || (itemsList ? itemsList.slice(0, 50) : undefined),
           };
         }
       } catch (err) {
