@@ -1,5 +1,6 @@
 import React from 'react';
 import { toEnglishDigits } from '../utils/formatters.js';
+import { getReferenceRatesSpecs } from '../config/sources.config.js';
 
 function formatRate(num) {
   if (num === null || num === undefined || num === '') return '...';
@@ -11,7 +12,7 @@ function formatRate(num) {
 
 /**
  * LiveRatesTicker:
- * Displays real-time live reference price (Free USD, Tether USDT, etc.)
+ * Displays real-time live reference price dynamically configured from sources
  * with interactive click to cycle through reference rates seamlessly.
  */
 export default function LiveRatesTicker({
@@ -22,7 +23,7 @@ export default function LiveRatesTicker({
   onCycleReferenceRate = null,
   className = '',
 }) {
-  const isTether = activeReferenceRate?.key === 'usdt';
+  const defaultRefSpec = getReferenceRatesSpecs()[0];
   const clickHandler = onCycleReferenceRate || onUsdClick;
   const canCycle = referenceRates && referenceRates.length > 1;
 
@@ -37,8 +38,10 @@ export default function LiveRatesTicker({
     titleText = 'کلیک برای مشاهده جزئیات';
   }
 
-  const labelDesktop = activeReferenceRate?.label || 'دلار آزاد';
-  const labelMobile = activeReferenceRate?.shortLabel || 'دلار';
+  const labelDesktop = activeReferenceRate?.label || defaultRefSpec?.label || '';
+  const labelMobile = activeReferenceRate?.shortLabel || defaultRefSpec?.shortLabel || '';
+  const itemKey = activeReferenceRate?.key || defaultRefSpec?.key || 'usd';
+  const pulseColor = activeReferenceRate?.pulseColor || defaultRefSpec?.pulseColor || (itemKey === 'usdt' ? 'cyan' : 'green');
   const displayPrice = (usdPrice !== undefined && usdPrice !== null && usdPrice !== '')
     ? usdPrice
     : (activeReferenceRate?.price || 0);
@@ -46,7 +49,7 @@ export default function LiveRatesTicker({
   return (
     <div className={`main-live-ticker ${className}`} aria-label={`نرخ زنده ${labelDesktop}`}>
       <div
-        className={`ticker-item ${isTether ? 'usdt' : 'usd'} ${clickHandler ? 'clickable' : ''}`}
+        className={`ticker-item ${itemKey} ${clickHandler ? 'clickable' : ''}`}
         onClick={clickHandler}
         role={clickHandler ? 'button' : undefined}
         tabIndex={clickHandler ? 0 : undefined}
@@ -58,7 +61,7 @@ export default function LiveRatesTicker({
         }}
         title={titleText}
       >
-        <span className={`ticker-pulse ${isTether ? 'cyan' : 'green'}`} />
+        <span className={`ticker-pulse ${pulseColor}`} />
         <span className="ticker-tag desktop-text">{labelDesktop}:</span>
         <span className="ticker-tag mobile-text">{labelMobile}:</span>
         <strong className="ticker-amount">{formatRate(displayPrice)}</strong>

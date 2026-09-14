@@ -17,6 +17,7 @@ import { resolveApiUrl } from "./sources/apiUrl.source.adapter.js";
 import { logger } from "../../lib/logger.js";
 import { SETTINGS_MEMORY_CACHE_TTL_MS } from "../../config/constants.js";
 import { WORLD_FOREX_NAMES } from "../../domain/specs/index.js";
+import { getReferenceRatesSpecs } from "../../config/sources.config.js";
 
 // In-memory price cache for sub-millisecond lookups
 let memoryPricesCache = {};
@@ -266,15 +267,17 @@ export function compileLatestMarketRates(sources) {
 
     const priceEntry = result[key] || result[rawKey] || (key === 'usd' ? result.usd_toman : null);
     const priceVal = priceEntry?.price || s.lastPrice;
+    const defaultSpec = getReferenceRatesSpecs().find((r) => r.key === key);
     if (Number(priceVal) > 0) {
       seenRefKeys.add(key);
       refRates.push({
         key,
         priceType: s.priceType,
         sourceId: s.id,
-        label: s.referenceLabel || (key === 'usdt' ? 'دلار تتر' : (key === 'usd' ? 'دلار آزاد' : s.name)),
-        shortLabel: s.referenceShortLabel || (key === 'usdt' ? 'تتر' : (key === 'usd' ? 'دلار' : s.name)),
-        symbol: s.referenceSymbol || (key === 'usdt' ? '₮' : '$'),
+        label: s.referenceLabel || defaultSpec?.label || s.name,
+        shortLabel: s.referenceShortLabel || defaultSpec?.shortLabel || s.name,
+        symbol: s.referenceSymbol || defaultSpec?.symbol || '$',
+        pulseColor: s.referencePulseColor || defaultSpec?.pulseColor || 'green',
         price: Number(priceVal),
         datetime: priceEntry?.datetime || s.lastFetched || new Date().toISOString(),
       });
@@ -283,13 +286,15 @@ export function compileLatestMarketRates(sources) {
 
   // Ensure default USD is present if not already added
   if (!seenRefKeys.has('usd') && Number(result.usd_toman?.price || result.usd?.price) > 0) {
+    const defaultUsdSpec = getReferenceRatesSpecs().find((r) => r.key === 'usd');
     refRates.unshift({
       key: 'usd',
       priceType: 'usd',
       sourceId: result.usd_toman?.sourceId || 'default_usd',
-      label: 'دلار آزاد',
-      shortLabel: 'دلار',
-      symbol: '$',
+      label: defaultUsdSpec?.label || result.usd_toman?.label || 'USD',
+      shortLabel: defaultUsdSpec?.shortLabel || 'USD',
+      symbol: defaultUsdSpec?.symbol || '$',
+      pulseColor: defaultUsdSpec?.pulseColor || 'green',
       price: Number(result.usd_toman?.price || result.usd?.price),
       datetime: result.usd_toman?.datetime || new Date().toISOString(),
     });

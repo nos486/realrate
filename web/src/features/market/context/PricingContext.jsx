@@ -7,6 +7,7 @@
 import React, { createContext, useContext, useState, useEffect, useMemo, useCallback } from 'react';
 import { getMarketItems, getPrices } from '../api/marketApi.js';
 import { computeUnifiedPrices, searchUnifiedAssets } from '../../../utils/pricingEngine.js';
+import { getReferenceRatesSpecs } from '../../../config/sources.config.js';
 
 const PricingContext = createContext(null);
 
@@ -40,32 +41,21 @@ export function PricingProvider({ children, initialUsdToman = null, initialGoldU
       return marketItems.meta.reference_rates;
     }
 
-    // Dynamic discovery fallback
-    const defaultUsdPrice = Number(marketItems?.meta?.live_usd_toman || marketItems?.meta?.default_usd_toman || 231500);
-    const list = [
-      {
-        key: 'usd',
-        priceType: 'usd',
-        label: 'دلار آزاد',
-        shortLabel: 'دلار',
-        symbol: '$',
-        price: defaultUsdPrice,
-      },
-    ];
-
-    const usdtCandidate = marketItems?.currencies?.find((c) => String(c.code).toUpperCase() === 'USDT')
-      || marketItems?.goldAndCoins?.find((c) => String(c.symbol).toUpperCase() === 'USDT');
-    const defaultUsdtPrice = Number(usdtCandidate?.priceToman || usdtCandidate?.price || usdtCandidate?.marketPrice || 233205);
-    list.push({
-      key: 'usdt',
-      priceType: 'usdt',
-      label: 'دلار تتر',
-      shortLabel: 'تتر',
-      symbol: '₮',
-      price: defaultUsdtPrice,
+    // Dynamic discovery fallback derived directly from sources.config.js
+    return getReferenceRatesSpecs().map((spec) => {
+      let price = 0;
+      if (spec.key === 'usd') {
+        price = Number(marketItems?.meta?.live_usd_toman || marketItems?.meta?.default_usd_toman || 231500);
+      } else {
+        const candidate = marketItems?.currencies?.find((c) => String(c.code).toUpperCase() === spec.key.toUpperCase())
+          || marketItems?.goldAndCoins?.find((c) => String(c.symbol).toUpperCase() === spec.key.toUpperCase());
+        price = Number(candidate?.priceToman || candidate?.price || candidate?.marketPrice || 233205);
+      }
+      return {
+        ...spec,
+        price,
+      };
     });
-
-    return list;
   }, [customReferenceRates, marketItems]);
 
   const activeReferenceRate = useMemo(() => {

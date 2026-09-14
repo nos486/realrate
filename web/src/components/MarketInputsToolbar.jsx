@@ -1,6 +1,7 @@
 import React from 'react';
 import TimeAgoBadge, { formatRelativeTime } from './ui/TimeAgoBadge.jsx';
 import NumericInput from './ui/NumericInput.jsx';
+import { getReferenceRatesSpecs } from '../config/sources.config.js';
 
 /**
  * Reusable MarketInputsToolbar component
@@ -32,7 +33,7 @@ export default function MarketInputsToolbar({
               style={{ cursor: onCycleReferenceRate ? 'pointer' : 'default' }}
               onClick={onCycleReferenceRate}
             >
-              {activeReferenceRate?.label || 'دلار آزاد'}
+              {activeReferenceRate?.label || getReferenceRatesSpecs()[0]?.label || ''}
             </label>
             {referenceRates && referenceRates.length > 1 && (
               <button

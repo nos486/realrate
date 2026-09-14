@@ -25,6 +25,7 @@ export const PRICE_SOURCES_CONFIG = [
     referenceLabel: "دلار آزاد",
     referenceShortLabel: "دلار",
     referenceSymbol: "$",
+    referencePulseColor: "green",
     referenceOrder: 1,
   },
   {
@@ -151,6 +152,7 @@ export const PRICE_SOURCES_CONFIG = [
     referenceLabel: "دلار تتر",
     referenceShortLabel: "تتر",
     referenceSymbol: "₮",
+    referencePulseColor: "cyan",
     referenceOrder: 2,
 
     /**
@@ -240,4 +242,30 @@ export function getMasterPriceSourcesConfig() {
 export function getMasterPriceSourceById(id) {
   const item = PRICE_SOURCES_CONFIG.find((s) => s.id === id);
   return item ? { ...item } : null;
+}
+
+/**
+ * Extract all reference rate specifications configured across all sources.
+ * Single source of truth for reference rates (USD, USDT, and any future reference rates).
+ * Reads directly from PRICE_SOURCES_CONFIG without any hardcoded labels or symbols elsewhere.
+ * @returns {Array<{ key: string, priceType: string, sourceId: string, label: string, shortLabel: string, symbol: string, pulseColor: string, order: number }>}
+ */
+export function getReferenceRatesSpecs() {
+  return PRICE_SOURCES_CONFIG
+    .filter((s) => s.isReferenceRate || s.priceType === 'usd' || String(s.priceType).toLowerCase() === 'usdt')
+    .sort((a, b) => (Number(a.referenceOrder) || 99) - (Number(b.referenceOrder) || 99))
+    .map((s) => {
+      const rawKey = String(s.priceType || '').toLowerCase();
+      const key = rawKey === 'usd_toman' ? 'usd' : rawKey;
+      return {
+        key,
+        priceType: s.priceType,
+        sourceId: s.id,
+        label: s.referenceLabel || s.name,
+        shortLabel: s.referenceShortLabel || s.name,
+        symbol: s.referenceSymbol || (key === 'usdt' ? '₮' : '$'),
+        pulseColor: s.referencePulseColor || (key === 'usdt' ? 'cyan' : 'green'),
+        order: Number(s.referenceOrder) || 99,
+      };
+    });
 }

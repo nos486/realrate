@@ -7,6 +7,7 @@ import { getPrices } from '../api/marketApi.js';
 import { calculateMarketData } from '../../../utils/calculator.js';
 import { formatThousands } from '../../../utils/formatters.js';
 import { usePricing } from '../context/PricingContext.jsx';
+import { getReferenceRatesSpecs } from '../../../config/sources.config.js';
 
 function parseNum(val) {
   if (!val) return 0;
@@ -128,12 +129,12 @@ export function useMarketData() {
     if (pricing?.referenceRates && Array.isArray(pricing.referenceRates) && pricing.referenceRates.length > 0) {
       return pricing.referenceRates;
     }
-    const defaultUsdPrice = Number(rates?.live_usd_toman || rates?.prices?.usd_toman?.price || 231500);
-    const defaultUsdtPrice = Number(rates?.prices?.usdt?.price || 233205);
-    return [
-      { key: 'usd', priceType: 'usd', label: 'دلار آزاد', shortLabel: 'دلار', symbol: '$', price: defaultUsdPrice },
-      { key: 'usdt', priceType: 'USDT', label: 'دلار تتر', shortLabel: 'تتر', symbol: '₮', price: defaultUsdtPrice },
-    ];
+    return getReferenceRatesSpecs().map((spec) => ({
+      ...spec,
+      price: spec.key === 'usd'
+        ? Number(rates?.live_usd_toman || rates?.prices?.usd_toman?.price || 231500)
+        : Number(rates?.prices?.[spec.key]?.price || rates?.prices?.[spec.priceType?.toLowerCase()]?.price || 233205),
+    }));
   }, [rates?.reference_rates, rates?.live_usd_toman, rates?.prices, pricing?.referenceRates]);
 
   const activeReferenceRate = useMemo(() => {
