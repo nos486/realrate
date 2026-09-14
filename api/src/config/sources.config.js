@@ -21,6 +21,11 @@ export const PRICE_SOURCES_CONFIG = [
     fetchIntervalSec: 60,
     isActive: true,
     isPrimary: true,
+    isReferenceRate: true,
+    referenceLabel: "دلار آزاد",
+    referenceShortLabel: "دلار",
+    referenceSymbol: "$",
+    referenceOrder: 1,
   },
   {
     id: "src_def_gold_18k",
@@ -142,6 +147,11 @@ export const PRICE_SOURCES_CONFIG = [
     fetchIntervalSec: 60,
     isActive: true,
     isPrimary: true,
+    isReferenceRate: true,
+    referenceLabel: "دلار تتر",
+    referenceShortLabel: "تتر",
+    referenceSymbol: "₮",
+    referenceOrder: 2,
 
     /**
      * فانکشن پارسر اختصاصی:

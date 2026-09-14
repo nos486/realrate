@@ -20,15 +20,111 @@ export function PricingProvider({ children, initialUsdToman = null, initialGoldU
   const [goldUsd, setGoldUsd] = useState(initialGoldUsd || '');
   const [silverUsd, setSilverUsd] = useState('');
 
+  // Active base reference rate key (e.g. 'usd' or 'usdt' or any future reference rate)
+  const [activeReferenceKey, setActiveReferenceKey] = useState(() => {
+    try {
+      return localStorage.getItem('realrate_active_reference_rate') || 'usd';
+    } catch {
+      return 'usd';
+    }
+  });
+
+  // Dynamic list of available reference rates discovered from backend meta or catalog
+  const referenceRates = useMemo(() => {
+    if (marketItems?.meta?.reference_rates && Array.isArray(marketItems.meta.reference_rates) && marketItems.meta.reference_rates.length > 0) {
+      return marketItems.meta.reference_rates;
+    }
+
+    // Dynamic discovery fallback
+    const list = [
+      {
+        key: 'usd',
+        priceType: 'usd',
+        label: 'دلار آزاد',
+        shortLabel: 'دلار',
+        symbol: '$',
+        price: Number(marketItems?.meta?.live_usd_toman || marketItems?.meta?.default_usd_toman || 62000),
+      },
+    ];
+
+    const usdtCandidate = marketItems?.currencies?.find((c) => String(c.code).toUpperCase() === 'USDT')
+      || marketItems?.goldAndCoins?.find((c) => String(c.symbol).toUpperCase() === 'USDT');
+    if (usdtCandidate && Number(usdtCandidate.priceToman || usdtCandidate.price || usdtCandidate.marketPrice) > 0) {
+      list.push({
+        key: 'usdt',
+        priceType: 'usdt',
+        label: 'دلار تتر',
+        shortLabel: 'تتر',
+        symbol: '₮',
+        price: Number(usdtCandidate.priceToman || usdtCandidate.price || usdtCandidate.marketPrice),
+      });
+    }
+
+    return list;
+  }, [marketItems]);
+
+  const activeReferenceRate = useMemo(() => {
+    return referenceRates.find((r) => r.key === activeReferenceKey) || referenceRates[0] || null;
+  }, [referenceRates, activeReferenceKey]);
+
+  // Cycle to next reference rate in rotation (e.g. USD -> USDT -> etc.)
+  const cycleReferenceRate = useCallback(() => {
+    if (!referenceRates || referenceRates.length === 0) return null;
+    const currentIdx = referenceRates.findIndex((r) => r.key === activeReferenceKey);
+    const nextIdx = currentIdx === -1 ? 0 : (currentIdx + 1) % referenceRates.length;
+    const nextRate = referenceRates[nextIdx];
+
+    if (nextRate) {
+      setActiveReferenceKey(nextRate.key);
+      try {
+        localStorage.setItem('realrate_active_reference_rate', nextRate.key);
+      } catch { }
+
+      if (Number(nextRate.price) > 0) {
+        setUsdToman(nextRate.price);
+      }
+      window.dispatchEvent(new CustomEvent('realrate_reference_rate_changed', { detail: nextRate }));
+      return nextRate;
+    }
+    return null;
+  }, [referenceRates, activeReferenceKey]);
+
+  const setReferenceRateKey = useCallback((key) => {
+    const targetRate = referenceRates.find((r) => r.key === key);
+    if (targetRate) {
+      setActiveReferenceKey(key);
+      try {
+        localStorage.setItem('realrate_active_reference_rate', key);
+      } catch { }
+      if (Number(targetRate.price) > 0) {
+        setUsdToman(targetRate.price);
+      }
+      window.dispatchEvent(new CustomEvent('realrate_reference_rate_changed', { detail: targetRate }));
+    }
+  }, [referenceRates]);
+
   const fetchItems = useCallback(async () => {
     try {
       setLoading(true);
       const res = await getMarketItems();
       if (res && res.success) {
         setMarketItems(res);
+
+        const storedKey = (() => {
+          try {
+            return localStorage.getItem('realrate_active_reference_rate') || 'usd';
+          } catch {
+            return 'usd';
+          }
+        })();
+
+        const availableRefs = res.meta?.reference_rates || [];
+        const matchedRef = availableRefs.find((r) => r.key === storedKey) || availableRefs[0];
+
         if (!usdToman) {
-          const liveUsd = res.meta?.live_usd_toman || res.meta?.default_usd_toman || 62000;
+          const liveUsd = matchedRef?.price || res.meta?.live_usd_toman || res.meta?.default_usd_toman || 62000;
           setUsdToman(liveUsd);
+          if (matchedRef?.key) setActiveReferenceKey(matchedRef.key);
         }
         if (!goldUsd) {
           const liveGold = res.meta?.gold_usd || 2890;
@@ -102,6 +198,11 @@ export function PricingProvider({ children, initialUsdToman = null, initialGoldU
     getAsset,
     searchAssets,
     refresh: fetchItems,
+    activeReferenceKey,
+    activeReferenceRate,
+    referenceRates,
+    cycleReferenceRate,
+    setReferenceRateKey,
   };
 
   return (

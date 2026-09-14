@@ -57,6 +57,7 @@ export async function handleGetPrices(env, request = null) {
       live_usd_item,
       forex,
       globalSettings,
+      reference_rates: prices.reference_rates || [],
     }, 200, request);
   } catch (err) {
     logger.error("handleGetPrices error:", { error: err.message, stack: err.stack });

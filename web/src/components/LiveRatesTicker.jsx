@@ -11,30 +11,66 @@ function formatRate(num) {
 
 /**
  * LiveRatesTicker:
- * Displays real-time live price for Free USD with interactive click to view chart & details.
+ * Displays real-time live reference price (Free USD, Tether USDT, etc.)
+ * with interactive click to cycle through reference rates seamlessly.
  */
-export default function LiveRatesTicker({ usdPrice, onUsdClick, className = '' }) {
+export default function LiveRatesTicker({
+  usdPrice,
+  onUsdClick,
+  activeReferenceRate = null,
+  referenceRates = [],
+  onCycleReferenceRate = null,
+  className = '',
+}) {
+  const isTether = activeReferenceRate?.key === 'usdt';
+  const clickHandler = onCycleReferenceRate || onUsdClick;
+  const canCycle = referenceRates && referenceRates.length > 1;
+
+  // Title / Tooltip
+  let titleText = 'نرخ زنده';
+  if (canCycle) {
+    const currentIdx = referenceRates.findIndex((r) => r.key === activeReferenceRate?.key);
+    const nextIdx = (currentIdx + 1) % referenceRates.length;
+    const nextRate = referenceRates[nextIdx];
+    titleText = `کلیک برای تغییر مبنای محاسبات به «${nextRate?.label || 'نرخ بعدی'}»`;
+  } else if (onUsdClick) {
+    titleText = 'کلیک برای مشاهده جزئیات';
+  }
+
+  const labelDesktop = activeReferenceRate?.label || 'دلار آزاد';
+  const labelMobile = activeReferenceRate?.shortLabel || 'دلار';
+  const displayPrice = activeReferenceRate?.price || usdPrice;
+
   return (
-    <div className={`main-live-ticker ${className}`} aria-label="نرخ زنده دلار آزاد">
-      {/* Free USD */}
+    <div className={`main-live-ticker ${className}`} aria-label={`نرخ زنده ${labelDesktop}`}>
       <div
-        className={`ticker-item usd ${onUsdClick ? 'clickable' : ''}`}
-        onClick={onUsdClick}
-        role={onUsdClick ? 'button' : undefined}
-        tabIndex={onUsdClick ? 0 : undefined}
+        className={`ticker-item ${isTether ? 'usdt' : 'usd'} ${clickHandler ? 'clickable' : ''}`}
+        onClick={clickHandler}
+        role={clickHandler ? 'button' : undefined}
+        tabIndex={clickHandler ? 0 : undefined}
         onKeyDown={(e) => {
-          if (onUsdClick && (e.key === 'Enter' || e.key === ' ')) {
+          if (clickHandler && (e.key === 'Enter' || e.key === ' ')) {
             e.preventDefault();
-            onUsdClick();
+            clickHandler();
           }
         }}
-        title={onUsdClick ? "کلیک برای مشاهده جزئیات دلار" : "نرخ زنده دلار آزاد"}
+        title={titleText}
       >
-        <span className="ticker-pulse green" />
-        <span className="ticker-tag desktop-text">دلار آزاد:</span>
-        <span className="ticker-tag mobile-text">دلار:</span>
-        <strong className="ticker-amount">{formatRate(usdPrice)}</strong>
+        <span className={`ticker-pulse ${isTether ? 'cyan' : 'green'}`} />
+        <span className="ticker-tag desktop-text">{labelDesktop}:</span>
+        <span className="ticker-tag mobile-text">{labelMobile}:</span>
+        <strong className="ticker-amount">{formatRate(displayPrice)}</strong>
         <span className="ticker-unit desktop-text">تومان</span>
+
+        {canCycle && (
+          <span
+            className="ticker-cycle-badge"
+            title={titleText}
+            aria-hidden="true"
+          >
+            ⇄
+          </span>
+        )}
       </div>
     </div>
   );

@@ -137,6 +137,7 @@ export async function handleGetUnifiedMarketItems(env, request) {
         silver_usd,
         live_usd_toman,
         default_usd_toman: globalSettings?.default_usd_toman || 62000,
+        reference_rates: latestRates.reference_rates || [],
         globalSettings,
       },
       goldAndCoins: standardGoldAndCoins,

@@ -29,13 +29,37 @@ export function useMarketData() {
   // Track if usd was manually edited
   const userEditedUsd = useRef(false);
 
+  // Sync when pricing.usdToman or activeReferenceKey changes externally (e.g. via cycleReferenceRate)
+  useEffect(() => {
+    if (pricing?.usdToman) {
+      const priceNum = typeof pricing.usdToman === 'string'
+        ? parseNum(pricing.usdToman)
+        : Number(pricing.usdToman);
+      if (priceNum > 0) {
+        setUsdToman(formatThousands(Math.round(priceNum), false));
+      }
+    }
+  }, [pricing?.usdToman, pricing?.activeReferenceKey]);
+
   // Load initial raw prices from market API
   useEffect(() => {
     getPrices()
       .then((data) => {
         if (data && data.success) {
           setRates(data);
-          const usd = data.live_usd_toman || data.prices?.usd_toman?.price || data.prices?.usd?.price || data.globalSettings?.default_usd_toman || '';
+
+          const storedKey = (() => {
+            try {
+              return localStorage.getItem('realrate_active_reference_rate') || 'usd';
+            } catch {
+              return 'usd';
+            }
+          })();
+
+          const availableRefs = data.reference_rates || data.prices?.reference_rates || [];
+          const matchedRef = availableRefs.find((r) => r.key === storedKey) || availableRefs[0];
+
+          const usd = matchedRef?.price || data.live_usd_toman || data.prices?.usd_toman?.price || data.prices?.usd?.price || data.globalSettings?.default_usd_toman || '';
           const gold = data.gold_usd || data.prices?.ons_gold?.price || data.globalSettings?.default_gold_usd || 2890;
           setUsdToman(usd ? formatThousands(Math.round(usd), false) : '');
           setGoldUsd(gold ? formatThousands(gold, true) : '');
@@ -53,7 +77,7 @@ export function useMarketData() {
     const goldNum = parseNum(goldUsd);
     if (!usdNum || usdNum <= 0) return;
 
-    if (pricing?.setUsdToman) {
+    if (pricing?.setUsdToman && !userEditedUsd.current) {
       pricing.setUsdToman(usdNum);
     }
     if (pricing?.setGoldUsd && goldNum > 0) {
@@ -84,5 +108,9 @@ export function useMarketData() {
     setGoldUsd,
     liveUsdSource: rates?.live_usd_toman ? 'live' : 'manual',
     liveUsdDatetime: rates?.live_usd_item?.datetime || null,
+    referenceRates: pricing?.referenceRates || rates?.reference_rates || [],
+    activeReferenceKey: pricing?.activeReferenceKey || 'usd',
+    activeReferenceRate: pricing?.activeReferenceRate || null,
+    cycleReferenceRate: pricing?.cycleReferenceRate,
   };
 }

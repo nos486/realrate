@@ -16,14 +16,49 @@ export default function MarketInputsToolbar({
   setGoldUsd,
   liveUsdSource = 'live',
   liveUsdDatetime = null,
+  activeReferenceRate = null,
+  referenceRates = [],
+  onCycleReferenceRate = null,
   className = '',
 }) {
   return (
     <div className={`inputs-toolbar ${className}`}>
-      {/* Free USD Input */}
+      {/* Free USD / Reference Rate Input */}
       <div className="toolbar-input-item">
         <div className="toolbar-label-row">
-          <label htmlFor="usdToman">دلار آزاد</label>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <label
+              htmlFor="usdToman"
+              style={{ cursor: onCycleReferenceRate ? 'pointer' : 'default' }}
+              onClick={onCycleReferenceRate}
+            >
+              {activeReferenceRate?.label || 'دلار آزاد'}
+            </label>
+            {referenceRates && referenceRates.length > 1 && (
+              <button
+                type="button"
+                className="btn-text-action"
+                onClick={onCycleReferenceRate}
+                title="تغییر نرخ مبنای محاسبات"
+                style={{
+                  fontSize: '10px',
+                  padding: '1px 6px',
+                  borderRadius: '4px',
+                  background: 'rgba(255, 255, 255, 0.08)',
+                  color: 'var(--text-muted)',
+                  border: 'none',
+                  cursor: 'pointer',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '3px',
+                  lineHeight: '1.4',
+                }}
+              >
+                <span>تغییر مبنا</span>
+                <span>⇄</span>
+              </button>
+            )}
+          </div>
           <TimeAgoBadge
             isLive={liveUsdSource === 'live'}
             showPulse={liveUsdSource === 'live'}

@@ -46,6 +46,15 @@ describe('compileLatestMarketRates dynamic source support', () => {
     // Hidden item
     expect(result.hidden_coin).toBeDefined();
     expect(result.hidden_coin.showOnHomePage).toBe(false);
+
+    // Reference rates rotation list
+    expect(result.reference_rates).toBeDefined();
+    expect(result.reference_rates.length).toBe(2);
+    expect(result.reference_rates[0].key).toBe('usd');
+    expect(result.reference_rates[0].price).toBe(95000);
+    expect(result.reference_rates[1].key).toBe('usdt');
+    expect(result.reference_rates[1].price).toBe(95200);
+    expect(result.reference_rates[1].symbol).toBe('₮');
   });
 
   it('should support fine-grained homePageOutputs for multi-value sources like forex', () => {

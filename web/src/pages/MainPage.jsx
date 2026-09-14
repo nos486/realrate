@@ -112,6 +112,9 @@ export default function MainPage() {
     setGoldUsd,
     liveUsdSource,
     liveUsdDatetime,
+    referenceRates,
+    activeReferenceRate,
+    cycleReferenceRate,
   } = useMarketData();
 
   const announcement = calcData?.globalSettings?.announcement || rates?.globalSettings?.announcement;
@@ -160,6 +163,9 @@ export default function MainPage() {
 
         <LiveRatesTicker
           usdPrice={usdToman || rates?.live_usd_toman || rates?.prices?.usd_toman?.price}
+          activeReferenceRate={activeReferenceRate}
+          referenceRates={referenceRates}
+          onCycleReferenceRate={cycleReferenceRate}
         />
       </div>
 
@@ -175,6 +181,9 @@ export default function MainPage() {
               setGoldUsd={setGoldUsd}
               liveUsdSource={liveUsdSource}
               liveUsdDatetime={liveUsdDatetime}
+              activeReferenceRate={activeReferenceRate}
+              referenceRates={referenceRates}
+              onCycleReferenceRate={cycleReferenceRate}
             />
 
             {/* Alert Banner if USD is null or 0 */}

@@ -251,6 +251,52 @@ export function compileLatestMarketRates(sources) {
     };
   }
 
+  // 4. Compile dynamic reference rate options (for base currency rotation: USD, USDT, etc.)
+  const refSources = sources.filter((s) => s.isActive && (s.isReferenceRate || s.priceType === 'usd' || String(s.priceType).toLowerCase() === 'usdt'));
+  const seenRefKeys = new Set();
+  const refRates = [];
+
+  // Sort by referenceOrder if present
+  refSources.sort((a, b) => (Number(a.referenceOrder) || 99) - (Number(b.referenceOrder) || 99));
+
+  for (const s of refSources) {
+    const rawKey = String(s.priceType || '').toLowerCase();
+    const key = rawKey === 'usd_toman' ? 'usd' : rawKey;
+    if (seenRefKeys.has(key)) continue;
+
+    const priceEntry = result[key] || result[rawKey] || (key === 'usd' ? result.usd_toman : null);
+    const priceVal = priceEntry?.price || s.lastPrice;
+    if (Number(priceVal) > 0) {
+      seenRefKeys.add(key);
+      refRates.push({
+        key,
+        priceType: s.priceType,
+        sourceId: s.id,
+        label: s.referenceLabel || (key === 'usdt' ? 'دلار تتر' : (key === 'usd' ? 'دلار آزاد' : s.name)),
+        shortLabel: s.referenceShortLabel || (key === 'usdt' ? 'تتر' : (key === 'usd' ? 'دلار' : s.name)),
+        symbol: s.referenceSymbol || (key === 'usdt' ? '₮' : '$'),
+        price: Number(priceVal),
+        datetime: priceEntry?.datetime || s.lastFetched || new Date().toISOString(),
+      });
+    }
+  }
+
+  // Ensure default USD is present if not already added
+  if (!seenRefKeys.has('usd') && Number(result.usd_toman?.price || result.usd?.price) > 0) {
+    refRates.unshift({
+      key: 'usd',
+      priceType: 'usd',
+      sourceId: result.usd_toman?.sourceId || 'default_usd',
+      label: 'دلار آزاد',
+      shortLabel: 'دلار',
+      symbol: '$',
+      price: Number(result.usd_toman?.price || result.usd?.price),
+      datetime: result.usd_toman?.datetime || new Date().toISOString(),
+    });
+  }
+
+  result.reference_rates = refRates;
+
   return result;
 }
 
