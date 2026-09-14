@@ -65,15 +65,6 @@ export function resolveApiUrl(urlOrConfig, env = null) {
     }
   }
 
-  // 3. Backward-compatible fallback for BRS API if endpoint omitted key
-  if (url.includes("api.brsapi.ir") && !url.includes("key=")) {
-    const brsKey = (env && env.BRS_API_KEY) || (typeof process !== "undefined" && process.env?.BRS_API_KEY) || "";
-    if (brsKey) {
-      const sep = url.includes("?") ? "&" : "?";
-      url = `${url}${sep}key=${brsKey}`;
-    }
-  }
-
   return url;
 }
 
