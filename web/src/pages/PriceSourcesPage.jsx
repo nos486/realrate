@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import {
   Radio,
   RefreshCw,
@@ -69,18 +69,6 @@ export default function PriceSourcesPage({ embedded = false, usdToman: propUsdTo
   const [fetchingAll, setFetchingAll] = useState(false);
 
   const PRICE_TYPE_INFO = CANONICAL_PRICE_TYPE_INFO;
-
-  const [searchParams] = useSearchParams();
-  const initialTabSection = searchParams.get('subtab') === 'multi' ? 'multi' : 'single';
-  const [activeTabSection, setActiveTabSection] = useState(initialTabSection);
-
-  useEffect(() => {
-    const tabParam = searchParams.get('subtab') || searchParams.get('tab');
-    if (tabParam && ['single', 'multi'].includes(tabParam)) {
-      setActiveTabSection(tabParam);
-    }
-  }, [searchParams]);
-
   const [multiSearch, setMultiSearch] = useState('');
 
   // Multi-Output Modal States
@@ -675,65 +663,43 @@ export default function PriceSourcesPage({ embedded = false, usdToman: propUsdTo
         />
       )}
 
-      {/* Top-Level View Switcher Bar (Base Rates vs Multi-Output Feeds Hub) */}
-      <div className="sources-view-switcher-bar">
-        <button
-          type="button"
-          className={`sources-view-tab ${activeTabSection === 'single' ? 'active' : ''}`}
-          onClick={() => setActiveTabSection('single')}
-        >
-          <Radio size={16} />
-          <span>سورس‌های نرخ پایه (طلا، ارز، سکه)</span>
-          <span className="sources-count-pill">{singleSources.length.toLocaleString('fa-IR')} سورس</span>
-        </button>
+      {/* 1. سورس‌های نرخ پایه (طلا، ارز، سکه) */}
+      <SingleSourcesTable
+        singleSources={singleSources}
+        filteredSingleSources={filteredSingleSources}
+        sourceFilter={sourceFilter}
+        setSourceFilter={setSourceFilter}
+        dynamicFilterOptions={dynamicFilterOptions}
+        loadingSources={loadingSources}
+        rowTestingId={rowTestingId}
+        rowTestResults={rowTestResults}
+        onOpenAddSource={handleOpenAddSource}
+        onOpenEditSource={handleOpenEditSource}
+        onTestRowSource={handleTestRowSource}
+        onSetPrimary={handleSetPrimary}
+        onToggleActive={handleToggleActive}
+        onDeleteSource={handleDeleteSource}
+        onClearRowTestResult={handleClearRowTestResult}
+        priceTypeInfo={PRICE_TYPE_INFO}
+      />
 
-        <button
-          type="button"
-          className={`sources-view-tab ${activeTabSection === 'multi' ? 'active' : ''}`}
-          onClick={() => setActiveTabSection('multi')}
-        >
-          <Layers size={16} />
-          <span>هاب سورس‌های چند خروجی و فیدها (Multi-Output Feeds)</span>
-          <span className="sources-count-pill multi-glow">{multiSources.length.toLocaleString('fa-IR')} فید</span>
-        </button>
-      </div>
+      <div style={{ height: '36px' }} />
 
-      {/* Section Content */}
-      {activeTabSection === 'single' ? (
-        <SingleSourcesTable
-          singleSources={singleSources}
-          filteredSingleSources={filteredSingleSources}
-          sourceFilter={sourceFilter}
-          setSourceFilter={setSourceFilter}
-          dynamicFilterOptions={dynamicFilterOptions}
-          loadingSources={loadingSources}
-          rowTestingId={rowTestingId}
-          rowTestResults={rowTestResults}
-          onOpenAddSource={handleOpenAddSource}
-          onOpenEditSource={handleOpenEditSource}
-          onTestRowSource={handleTestRowSource}
-          onSetPrimary={handleSetPrimary}
-          onToggleActive={handleToggleActive}
-          onDeleteSource={handleDeleteSource}
-          onClearRowTestResult={handleClearRowTestResult}
-          priceTypeInfo={PRICE_TYPE_INFO}
-        />
-      ) : (
-        <MultiFeedsTable
-          multiSources={multiSources}
-          filteredMultiSources={filteredMultiSources}
-          multiSearch={multiSearch}
-          setMultiSearch={setMultiSearch}
-          loadingSources={loadingSources}
-          onOpenAddMultiFeed={handleOpenAddMultiFeed}
-          onOpenEditMultiFeed={handleOpenEditMultiFeed}
-          onOpenExplorer={handleOpenExplorer}
-          onToggleActive={handleToggleActive}
-          onDeleteMultiFeed={handleDeleteSource}
-          onTestMultiSource={handleTestMultiRowSource}
-          testingFeedId={multiRowTestingId}
-        />
-      )}
+      {/* 2. هاب سورس‌های چند خروجی و فیدها (Multi-Output Feeds) */}
+      <MultiFeedsTable
+        multiSources={multiSources}
+        filteredMultiSources={filteredMultiSources}
+        multiSearch={multiSearch}
+        setMultiSearch={setMultiSearch}
+        loadingSources={loadingSources}
+        onOpenAddMultiFeed={handleOpenAddMultiFeed}
+        onOpenEditMultiFeed={handleOpenEditMultiFeed}
+        onOpenExplorer={handleOpenExplorer}
+        onToggleActive={handleToggleActive}
+        onDeleteMultiFeed={handleDeleteSource}
+        onTestMultiSource={handleTestMultiRowSource}
+        testingFeedId={multiRowTestingId}
+      />
 
       {/* Feed Data Explorer Modal */}
       <FeedDataExplorerModal
