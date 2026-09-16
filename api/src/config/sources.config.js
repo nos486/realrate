@@ -133,6 +133,22 @@ export const PRICE_SOURCES_CONFIG = [
     isActive: true,
     isPrimary: true,
   },
+  // ── صندوق سرمایه‌گذاری آتیه مفید ──
+  {
+    id: "src_def_fund_atieh",
+    name: "صندوق آتیه مفید",
+    priceType: "fund_atieh",
+    sourceType: "emofid_fund",
+    endpoint: "https://www.emofid.com/funds/atieh/",
+    regex: "",
+    jsonPath: "",
+    fieldMapping: null,
+    excludedOutputs: [],
+    displayConfig: { showOnHomePage: true },
+    fetchIntervalSec: 900,
+    isActive: true,
+    isPrimary: true,
+  },
   // ── سورس تتر با فانکشن پارسر اختصاصی ──
   {
     id: "src_brs_usdt",

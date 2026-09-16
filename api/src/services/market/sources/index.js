@@ -6,12 +6,14 @@ import { telegramSourceAdapter } from "./telegramSource.adapter.js";
 import { forexApiSourceAdapter } from "./forexApi.source.adapter.js";
 import { bourseSymbolsSourceAdapter } from "./bourseSymbols.source.adapter.js";
 import { apiUrlSourceAdapter } from "./apiUrl.source.adapter.js";
+import { emofidFundSourceAdapter } from "./emofidFund.source.adapter.js";
 
 export {
   telegramSourceAdapter,
   forexApiSourceAdapter,
   bourseSymbolsSourceAdapter,
   apiUrlSourceAdapter,
+  emofidFundSourceAdapter,
 };
 
 export * from "./parsingUtils.js";
@@ -22,6 +24,7 @@ export * from "./parsingUtils.js";
 export const sourceAdapters = [
   forexApiSourceAdapter,
   bourseSymbolsSourceAdapter,
+  emofidFundSourceAdapter,
   telegramSourceAdapter,
   apiUrlSourceAdapter,
 ];
