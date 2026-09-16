@@ -25,7 +25,7 @@
   justify-content: space-between;
   align-items: center;
   width: 100%;
-  max-width: var(--layout-max-width, 1560px);
+  max-width: var(--layout-max-width, 1660px);
   margin: 0 auto;
   padding: 0 clamp(14px, 2.5vw, 32px);
   gap: 10px;
@@ -68,9 +68,11 @@
   .site-header {
     padding: 10px 0;
   }
+
   .header-main-row {
     padding: 0 10px;
   }
+
   .brand-tagline {
     display: none !important;
   }
@@ -117,13 +119,33 @@
 }
 
 @keyframes pulseGold {
-  0%, 100% { transform: scale(0.9); opacity: 0.8; }
-  50% { transform: scale(1.2); opacity: 1; box-shadow: 0 0 12px #fbbf24; }
+
+  0%,
+  100% {
+    transform: scale(0.9);
+    opacity: 0.8;
+  }
+
+  50% {
+    transform: scale(1.2);
+    opacity: 1;
+    box-shadow: 0 0 12px #fbbf24;
+  }
 }
 
 @keyframes pulseGreen {
-  0%, 100% { transform: scale(0.9); opacity: 0.8; }
-  50% { transform: scale(1.2); opacity: 1; box-shadow: 0 0 12px #10b981; }
+
+  0%,
+  100% {
+    transform: scale(0.9);
+    opacity: 0.8;
+  }
+
+  50% {
+    transform: scale(1.2);
+    opacity: 1;
+    box-shadow: 0 0 12px #10b981;
+  }
 }
 
 .ticker-tag {
@@ -255,7 +277,8 @@
   transition: var(--transition-fast);
 }
 
-.user-trigger-btn:hover, .user-trigger-btn.active {
+.user-trigger-btn:hover,
+.user-trigger-btn.active {
   background: rgba(255, 255, 255, 0.09);
 }
 
@@ -395,6 +418,10 @@
   color: var(--text-heading);
 }
 
-.dropdown-link.admin { color: var(--gold-light); }
-.dropdown-link.logout { color: var(--rose-red); }
+.dropdown-link.admin {
+  color: var(--gold-light);
+}
 
+.dropdown-link.logout {
+  color: var(--rose-red);
+}
