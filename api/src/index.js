@@ -51,7 +51,8 @@ import {
   handleGetUserSettings,
   handleUpdateUserSettings,
   handleGetSharedPortfolio,
-import { handleScheduledPriceExtraction, fetchAllPrices } from "./services/priceSources.js";
+} from "./handlers/portfolioRoutes.js";
+import { fetchAllPrices } from "./services/market/priceAggregator.service.js";
 import {
   searchCatalogItems,
   syncCatalogSource,
