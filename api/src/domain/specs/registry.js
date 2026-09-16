@@ -85,21 +85,21 @@ for (const [alias, canonicalId] of Object.entries(ALIAS_MAP)) {
 }
 
 // Dynamically register all aliases and codes declared in asset specs
-[
-  ...Object.values(GOLD_SPECS),
-  ...Object.values(COIN_SPECS),
-  ...Object.values(SILVER_SPECS),
-  ...FOREX_SPECS,
-  ...Object.values(CRYPTO_SPECS),
-].forEach((item) => {
+Object.values(CANONICAL_ASSET_REGISTRY).forEach((item) => {
+  if (!item || typeof item !== "object") return;
+  if (!item.id && item.code) {
+    item.id = item.code;
+  }
   if (item.code) {
     if (!CANONICAL_ASSET_REGISTRY[item.code]) CANONICAL_ASSET_REGISTRY[item.code] = item;
     if (!CANONICAL_ASSET_REGISTRY[item.code.toLowerCase()]) CANONICAL_ASSET_REGISTRY[item.code.toLowerCase()] = item;
   }
   if (item.aliases && Array.isArray(item.aliases)) {
     item.aliases.forEach((alias) => {
-      if (!CANONICAL_ASSET_REGISTRY[alias]) CANONICAL_ASSET_REGISTRY[alias] = item;
-      if (!CANONICAL_ASSET_REGISTRY[alias.toLowerCase()]) CANONICAL_ASSET_REGISTRY[alias.toLowerCase()] = item;
+      if (!alias) return;
+      const strAlias = String(alias);
+      if (!CANONICAL_ASSET_REGISTRY[strAlias]) CANONICAL_ASSET_REGISTRY[strAlias] = item;
+      if (!CANONICAL_ASSET_REGISTRY[strAlias.toLowerCase()]) CANONICAL_ASSET_REGISTRY[strAlias.toLowerCase()] = item;
     });
   }
 });

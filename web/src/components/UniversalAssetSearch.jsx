@@ -517,19 +517,22 @@ export default function UniversalAssetSearch({
 
     // ── بخش ۲: دارایی‌های پایه استاندارد (Fallback برای تضمین حضور طلا، سکه، نقره، فارکس و کریپتو) ──
     Object.values(CANONICAL_ASSET_REGISTRY).forEach((spec) => {
-      const canonicalId = spec.id.toLowerCase().trim();
+      if (!spec || typeof spec !== 'object') return;
+      const rawId = spec.id || spec.code || spec.symbol;
+      if (!rawId) return;
+      const canonicalId = String(rawId).toLowerCase().trim();
       if (seenKeys.has(canonicalId)) return;
       seenKeys.add(canonicalId);
-      if (spec.symbol) seenKeys.add(spec.symbol.toLowerCase());
-      if (spec.code) seenKeys.add(spec.code.toLowerCase());
+      if (spec.symbol) seenKeys.add(String(spec.symbol).toLowerCase());
+      if (spec.code) seenKeys.add(String(spec.code).toLowerCase());
 
       const cat = spec.category || 'gold';
       const livePrice = pricingContext?.priceMap?.[spec.id] || pricingContext?.priceMap?.[canonicalId] || 0;
 
       items.push({
-        id: spec.id,
-        sourceId: `src_def_${spec.id}`,
-        priceType: spec.id,
+        id: spec.id || canonicalId,
+        sourceId: `src_def_${spec.id || canonicalId}`,
+        priceType: spec.id || canonicalId,
         name: spec.name,
         symbol: spec.symbol || spec.code || '',
         subText: spec.formulaText || '',

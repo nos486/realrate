@@ -66,10 +66,10 @@ export default function CurrenciesList({ currencies, onCurrencyClick }) {
     if (!search.trim()) return true;
     const q = search.trim().toLowerCase();
     return (
-      c.name?.toLowerCase().includes(q) ||
-      c.code?.toLowerCase().includes(q) ||
-      c.note?.toLowerCase().includes(q) ||
-      (c.aliases && c.aliases.some((a) => a.toLowerCase().includes(q)))
+      (c.name && String(c.name).toLowerCase().includes(q)) ||
+      (c.code && String(c.code).toLowerCase().includes(q)) ||
+      (c.note && String(c.note).toLowerCase().includes(q)) ||
+      (Array.isArray(c.aliases) && c.aliases.some((a) => a && String(a).toLowerCase().includes(q)))
     );
   });
 
