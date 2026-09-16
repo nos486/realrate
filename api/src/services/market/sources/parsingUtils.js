@@ -14,12 +14,28 @@ export const USER_AGENT = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) Apple
 export function normalizeDigits(str) {
   if (!str) return "";
   const persianDigits = ['۰', '۱', '۲', '۳', '۴', '۵', '۶', '۷', '۸', '۹'];
-  const arabicDigits = ['٠', '١', '٢', '٣', '٤', '٥', '٦', '٧', '٨', '٩'];
+  const arabicDigits = ['٠', '١', '٢', '٣', '٤', '٥', '٦', '٧', '۸', '۹'];
   let res = String(str);
   for (let i = 0; i < 10; i++) {
     res = res.replaceAll(persianDigits[i], String(i)).replaceAll(arabicDigits[i], String(i));
   }
   return res;
+}
+
+/**
+ * Normalize Persian text for search matching (handles Arabic kaf/yeh and half-spaces)
+ * @param {string} str
+ * @returns {string}
+ */
+export function normalizePersian(str) {
+  if (!str) return "";
+  return String(str)
+    .replace(/ي/g, "ی")
+    .replace(/ك/g, "ک")
+    .replace(/[\u200B-\u200D\uFEFF]/g, "")
+    .replace(/‌/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
 }
 
 /**

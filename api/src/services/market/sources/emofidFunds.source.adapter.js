@@ -321,6 +321,10 @@ export const emofidFundsSourceAdapter = {
     return inMemoryEmofidList || [];
   },
 
+  async getItems(env = null) {
+    return await this.getFunds(env);
+  },
+
   /**
    * Periodic sync for Emofid funds (every 30 mins)
    */

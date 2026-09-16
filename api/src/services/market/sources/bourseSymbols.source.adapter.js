@@ -215,9 +215,9 @@ export const bourseSymbolsSourceAdapter = {
   name: "بورس اوراق بهادار تهران (TSETMC / BRS API)",
 
   supports(sourceConfig) {
+    if (sourceConfig.id === "src_def_bourse") return true;
     const sType = (sourceConfig.sourceType || sourceConfig.source_type || "").toLowerCase();
-    if (sType === "bourse_symbols") return true;
-    if (sType === "api_url") return false;
+    if (sType === "bourse_symbols" || sType === "bourse") return true;
 
     const pType = (sourceConfig.priceType || sourceConfig.price_type || "").toLowerCase();
     return pType === "bourse" || pType === "bourse_fund";
@@ -331,6 +331,10 @@ export const bourseSymbolsSourceAdapter = {
       }
     }
     return [];
+  },
+
+  async getItems(env = null) {
+    return await this.getSymbols(env);
   },
 
   /**

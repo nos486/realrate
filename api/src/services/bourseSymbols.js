@@ -1,14 +1,14 @@
 /**
- * bourseSymbols.js — Backward-compatible wrapper for Tehran Stock Exchange (TSETMC) Service
- * Logic has been migrated to api/src/services/market/sources/bourseSymbols.source.adapter.js
+ * bourseSymbols.js — Backward-Compatible Facade for Bourse Service
+ * Delegates to Unified Catalog Feeds Engine (catalogFeeds.service.js)
  */
 
 import {
   bourseSymbolsSourceAdapter,
-  normalizePersian,
   mergeBourseSymbols,
   BOURSE_API_URL,
 } from "./market/sources/bourseSymbols.source.adapter.js";
+import { normalizePersian } from "./market/sources/parsingUtils.js";
 import {
   BOURSE_KV_KEY,
   BOURSE_BACKUP_KV_KEY,
@@ -16,7 +16,10 @@ import {
 } from "../repositories/kvCache.repository.js";
 import { dbUpdateSourceLastPrice } from "../repositories/priceSource.repository.js";
 import { DEFAULT_BOURSE_SEARCH_LIMIT } from "../config/constants.js";
-import { getSourceDisplayName } from "../config/sources.config.js";
+import {
+  searchCatalogItems,
+  getCatalogItemDetail,
+} from "./market/catalogFeeds.service.js";
 import { logger } from "../lib/logger.js";
 
 export {
@@ -56,96 +59,34 @@ export async function fetchAndStoreBourseSymbols(env) {
 }
 
 /**
- * Get symbols list with optional search query
+ * Get symbols list with optional search query (Delegates to Catalog Feeds Engine)
  * @param {object} env
  * @param {string} [query=""]
  * @param {number} [limit=DEFAULT_BOURSE_SEARCH_LIMIT]
  * @returns {Promise<Array>}
  */
 export async function getBourseSymbols(env, query = "", limit = DEFAULT_BOURSE_SEARCH_LIMIT) {
-  let list = await bourseSymbolsSourceAdapter.getSymbols(env);
-
+  // Ensure KV/memory is primed if completely empty
+  const list = await bourseSymbolsSourceAdapter.getSymbols(env);
   if (!list || list.length === 0) {
-    const res = await fetchAndStoreBourseSymbols(env);
-    if (res.success && res.symbols) {
-      list = res.symbols;
-    }
+    await fetchAndStoreBourseSymbols(env);
   }
 
-  const cleanQuery = normalizePersian(query);
-  const defaultBourseName = getSourceDisplayName("src_def_bourse") || "بورس اوراق بهادار تهران (TSETMC / BRS API)";
-
-  if (!cleanQuery) {
-    return (list || []).slice(0, limit).map(item => ({
-      symbol: item.s,
-      name: item.n,
-      price: item.p,
-      priceToman: item.priceToman || item.p,
-      priceRial: item.priceRial || item.pl || (item.p * 10),
-      updatedAt: item.updatedAt || null,
-      isFund: Boolean(item.isFund || (item.n && item.n.includes('صندوق'))),
-      sourceName: getSourceDisplayName(item) || item.sourceName || defaultBourseName,
-      sourceId: item.sourceId || "src_def_bourse",
-    }));
-  }
-
-  const filtered = (list || []).filter(item => {
-    const symNorm = normalizePersian(item.s);
-    const nameNorm = normalizePersian(item.n);
-    return symNorm.includes(cleanQuery) || nameNorm.includes(cleanQuery);
+  return await searchCatalogItems(env, {
+    q: query,
+    sourceId: "src_def_bourse",
+    limit,
   });
-
-  filtered.sort((a, b) => {
-    const aSym = normalizePersian(a.s);
-    const bSym = normalizePersian(b.s);
-    if (aSym === cleanQuery) return -1;
-    if (bSym === cleanQuery) return 1;
-    if (aSym.startsWith(cleanQuery) && !bSym.startsWith(cleanQuery)) return -1;
-    if (!aSym.startsWith(cleanQuery) && bSym.startsWith(cleanQuery)) return 1;
-    return (b.p || 0) - (a.p || 0);
-  });
-
-  return filtered.slice(0, limit).map(item => ({
-    symbol: item.s,
-    name: item.n,
-    price: item.p,
-    priceToman: item.priceToman || item.p,
-    priceRial: item.priceRial || item.pl || (item.p * 10),
-    updatedAt: item.updatedAt || null,
-    isFund: Boolean(item.isFund || (item.n && item.n.includes('صندوق'))),
-    sourceName: getSourceDisplayName(item) || item.sourceName || defaultBourseName,
-    sourceId: item.sourceId || "src_def_bourse",
-  }));
 }
 
 /**
- * Look up a single stock symbol by ticker code
+ * Look up a single stock symbol by ticker code (Delegates to Catalog Feeds Engine)
  * @param {object} env
  * @param {string} symbol
  * @returns {Promise<object|null>}
  */
 export async function getBourseSymbolDetail(env, symbol) {
-  if (!symbol) return null;
-  const list = await bourseSymbolsSourceAdapter.getSymbols(env);
-  if (!list || list.length === 0) return null;
-
-  const targetNorm = normalizePersian(symbol);
-  const found = list.find(item => normalizePersian(item.s) === targetNorm);
-  if (!found) return null;
-
-  const toman = found.priceToman || found.p || Math.round((found.priceRial || found.pl || 0) / 10);
-  const rial = found.priceRial || found.pl || (toman * 10);
-
-  return {
-    symbol: found.s,
-    name: found.n,
-    price: toman,
-    priceToman: toman,
-    priceRial: rial,
-    pl: rial,
-    updatedAt: found.updatedAt || null,
-    isFund: Boolean(found.isFund || (found.n && found.n.includes('صندوق'))),
-  };
+  return await getCatalogItemDetail(env, symbol, "src_def_bourse");
 }
 
 /**

@@ -7,36 +7,28 @@ vi.mock('../../src/services/priceSources.js', () => ({
   })),
 }));
 
-vi.mock('../../src/services/bourseSymbols.js', () => ({
-  getBourseSymbols: vi.fn(async () => [
-    { symbol: 'فولاد', name: 'فولاد مبارکه', p: 500, priceToman: 500, isFund: false },
-  ]),
+vi.mock('../../src/services/market/catalogFeeds.service.js', () => ({
+  getAllCatalogItems: vi.fn(async () => ({
+    allItems: [
+      { symbol: 'فولاد', name: 'فولاد مبارکه', category: 'bourse', priceToman: 500, isFund: false },
+      { symbol: 'اهرم', name: 'صندوق اهرمی کاریزما', category: 'bourse_fund', priceToman: 7523, isFund: true, sourceName: 'صندوق‌های سرمایه‌گذاری کاریزما (Charisma)', sourceId: 'src_def_charisma' },
+      { symbol: 'pishtaz', name: 'صندوق پیشتاز', category: 'bourse_fund', priceToman: 20417, isFund: true, sourceName: 'صندوق‌های سرمایه‌گذاری کارگزاری مفید (Emofid)', sourceId: 'src_def_emofid' },
+    ],
+    bourse: [
+      { symbol: 'فولاد', name: 'فولاد مبارکه', category: 'bourse', priceToman: 500, isFund: false },
+    ],
+    funds: [
+      { symbol: 'اهرم', name: 'صندوق اهرمی کاریزما', category: 'bourse_fund', priceToman: 7523, isFund: true, sourceName: 'صندوق‌های سرمایه‌گذاری کاریزما (Charisma)', sourceId: 'src_def_charisma' },
+      { symbol: 'pishtaz', name: 'صندوق پیشتاز', category: 'bourse_fund', priceToman: 20417, isFund: true, sourceName: 'صندوق‌های سرمایه‌گذاری کارگزاری مفید (Emofid)', sourceId: 'src_def_emofid' },
+    ],
+  })),
 }));
 
 import { handleGetUnifiedMarketItems } from '../../src/handlers/unifiedItemsRoute.js';
 
 describe('Unified Market Items Route Handler', () => {
   it('returns unified catalog including gold, currencies, bourse, and funds', async () => {
-    const mockEnv = {
-      KV_PRICES: {
-        get: vi.fn(async (key) => {
-          if (key === 'cache:funds:charisma') {
-            return JSON.stringify([
-              { symbol: 'اهرم', name: 'صندوق اهرمی کاریزما', priceToman: 7523, priceRial: 75228, isFund: true },
-              { symbol: 'کهربا', name: 'صندوق طلا کهربا', priceToman: 21765, priceRial: 217650, isFund: true },
-            ]);
-          }
-          if (key === 'cache:funds:emofid') {
-            return JSON.stringify([
-              { symbol: 'پیشتاز', name: 'صندوق پیشتاز', priceToman: 20417, priceRial: 204170, isFund: true },
-            ]);
-          }
-          return null;
-        }),
-        put: vi.fn(async () => {}),
-      },
-    };
-
+    const mockEnv = {};
     const mockRequest = new Request('https://realrate.ir/api/market/items');
     const response = await handleGetUnifiedMarketItems(mockEnv, mockRequest);
 
@@ -51,13 +43,13 @@ describe('Unified Market Items Route Handler', () => {
 
     // Verify Charisma funds are included
     const charismaFunds = data.funds.filter(f => f.sourceId === 'src_def_charisma');
-    expect(charismaFunds.length).toBeGreaterThanOrEqual(2);
+    expect(charismaFunds.length).toBeGreaterThanOrEqual(1);
 
     // Verify known Charisma fund like اهرم has live price and correct sourceName
     const ahrom = data.funds.find(f => f.symbol === 'اهرم');
     expect(ahrom).toBeDefined();
     expect(ahrom.isFund).toBe(true);
-    expect(ahrom.priceToman).toBeGreaterThan(0);
+    expect(ahrom.priceToman).toBe(7523);
     expect(ahrom.sourceName).toBe('صندوق‌های سرمایه‌گذاری کاریزما (Charisma)');
 
     // Verify Emofid fund like پیشتاز

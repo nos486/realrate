@@ -207,7 +207,7 @@ export const PRICE_SOURCES_CONFIG = [
     id: "src_def_bourse",
     name: "بورس اوراق بهادار تهران (TSETMC / BRS API)",
     priceType: "bourse",
-    sourceType: "api_url",
+    sourceType: "bourse_symbols",
     isCatalog: true,
     endpoint: "https://api.brsapi.ir/Tsetmc/AllSymbols.php?type=1&key=${BRS_API_KEY}",
     regex: "",

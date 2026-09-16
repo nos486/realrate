@@ -384,6 +384,10 @@ export const charismaFundsSourceAdapter = {
     return inMemoryCharismaList || [];
   },
 
+  async getItems(env = null) {
+    return await this.getLatestFunds(env);
+  },
+
   async handleScheduledSync(env) {
     if (!env) return;
 

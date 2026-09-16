@@ -1,12 +1,12 @@
 /**
  * unifiedItemsRoute.js — Single Source of Truth API for all market assets & prices
- * /api/market/items — Unified catalog of gold, coins, forex, and bourse
+ * /api/market/items — Unified catalog of gold, coins, forex, bourse, and investment funds
  */
 
 import { getLatestMarketRates } from "../services/priceSources.js";
 import { getGlobalSettings } from "../repositories/settings.repository.js";
 import { jsonResponse } from "../lib/helpers.js";
-import { getBourseSymbols } from "../services/bourseSymbols.js";
+import { getAllCatalogItems } from "../services/market/catalogFeeds.service.js";
 import {
   GOLD_SPECS,
   COIN_SPECS,
@@ -15,9 +15,6 @@ import {
 } from "../domain/specs/index.js";
 import { logger } from "../lib/logger.js";
 import { MAX_MARKET_ITEMS_LIMIT } from "../config/constants.js";
-import { getSourceDisplayName } from "../config/sources.config.js";
-import { charismaFundsSourceAdapter } from "../services/market/sources/charismaFunds.source.adapter.js";
-import { emofidFundsSourceAdapter } from "../services/market/sources/emofidFunds.source.adapter.js";
 
 export async function handleGetUnifiedMarketItems(env, request) {
   try {
@@ -26,13 +23,11 @@ export async function handleGetUnifiedMarketItems(env, request) {
     const categoryFilter = url.searchParams.get("category") || "";
     const limit = parseInt(url.searchParams.get("limit") || String(MAX_MARKET_ITEMS_LIMIT), 10);
 
-    // Parallel fetch of base data
-    const [prices, globalSettings, bourseSymbols, charismaFunds, emofidFunds] = await Promise.all([
+    // Parallel fetch of base market data and all catalog sources
+    const [prices, globalSettings, catalogData] = await Promise.all([
       getLatestMarketRates(env),
       getGlobalSettings(env),
-      getBourseSymbols(env, q, limit),
-      charismaFundsSourceAdapter.getLatestFunds(env).catch(() => []),
-      emofidFundsSourceAdapter.getFunds(env).catch(() => []),
+      getAllCatalogItems(env, { q, limit }),
     ]);
 
     const gold_usd = prices.ons_gold?.price || globalSettings?.default_gold_usd || 2890;
@@ -120,62 +115,9 @@ export async function handleGetUnifiedMarketItems(env, request) {
       };
     });
 
-    // 3. Tehran Stock Exchange (Bourse) symbols
-    const bourseDefaultName = getSourceDisplayName("src_def_bourse") || "بورس اوراق بهادار تهران (TSETMC / BRS API)";
-    const bourseList = (bourseSymbols || []).map(b => ({
-      id: `bourse_${b.symbol}`,
-      symbol: b.symbol,
-      name: b.name,
-      category: b.isFund ? 'bourse_fund' : 'bourse',
-      badge: b.isFund ? 'صندوق' : 'بورس',
-      unit: b.isFund ? 'واحد' : 'برگ سهم',
-      priceToman: b.priceToman || b.price,
-      priceRial: b.priceRial || (b.priceToman ? b.priceToman * 10 : 0),
-      marketPrice: b.priceToman || b.price,
-      isFund: b.isFund,
-      sourceName: getSourceDisplayName(b) || b.sourceName || bourseDefaultName,
-      sourceId: b.sourceId || 'src_def_bourse',
-    }));
-
-    // 4. Investment Funds (Charisma & Emofid)
-    const rawFunds = [
-      ...(charismaFunds || []).map((f) => ({
-        id: `fund_charisma_${f.symbol || f.s}`,
-        symbol: f.symbol || f.s,
-        name: f.name || f.n,
-        category: 'bourse_fund',
-        badge: 'صندوق',
-        unit: 'واحد',
-        priceToman: f.priceToman || f.p,
-        priceRial: f.priceRial || (f.priceToman ? f.priceToman * 10 : 0),
-        marketPrice: f.priceToman || f.p,
-        price: f.priceToman || f.p,
-        isFund: true,
-        sourceName: getSourceDisplayName(f) || f.sourceName || charismaFundsSourceAdapter.name,
-        sourceId: f.sourceId || 'src_def_charisma',
-        updatedAt: f.updatedAt || null,
-      })),
-      ...(emofidFunds || []).map((f) => ({
-        id: `fund_emofid_${f.symbol || f.s}`,
-        symbol: f.symbol || f.s,
-        name: f.name || f.n,
-        category: 'bourse_fund',
-        badge: 'صندوق',
-        unit: 'واحد',
-        priceToman: f.priceToman || f.p,
-        priceRial: f.priceRial || (f.priceToman ? f.priceToman * 10 : 0),
-        marketPrice: f.priceToman || f.p,
-        price: f.priceToman || f.p,
-        isFund: true,
-        sourceName: getSourceDisplayName(f) || f.sourceName || emofidFundsSourceAdapter.name,
-        sourceId: f.sourceId || 'src_def_emofid',
-        updatedAt: f.updatedAt || null,
-      })),
-    ];
-
-    const fundsList = q
-      ? rawFunds.filter(f => (f.symbol && f.symbol.toLowerCase().includes(q)) || (f.name && f.name.toLowerCase().includes(q)))
-      : rawFunds;
+    // 3. Catalog Feeds: Bourse stocks & Mutual/ETF Funds (dynamically provided by Catalog Engine)
+    const bourseList = catalogData?.bourse || [];
+    const fundsList = catalogData?.funds || [];
 
     return jsonResponse({
       success: true,
