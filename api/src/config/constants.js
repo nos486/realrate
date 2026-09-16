@@ -51,3 +51,11 @@ export const EMOFID_SYNC_INTERVAL_MS = 30 * 60 * 1000;
 /** Emofid last sync record expiration TTL in KV: 1 day in seconds */
 export const EMOFID_SYNC_EXPIRATION_TTL = 86400;
 
+// ─── Charisma Investment Funds ─────────────────────────────────────────────
+/** Charisma funds sync interval: 30 minutes in ms */
+export const CHARISMA_SYNC_INTERVAL_MS = 30 * 60 * 1000;
+
+/** Charisma last sync record expiration TTL in KV: 1 day in seconds */
+export const CHARISMA_SYNC_EXPIRATION_TTL = 86400;
+
+

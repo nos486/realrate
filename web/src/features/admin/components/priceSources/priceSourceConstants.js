@@ -30,6 +30,7 @@ export const CANONICAL_PRICE_TYPE_INFO = {
   bourse: { label: 'سهام بورس اوراق بهادار', category: 'multi_output', unit: 'نماد', badgeColor: 'sky' },
   bourse_fund: { label: 'صندوق‌های سرمایه‌گذاری بورس', category: 'multi_output', unit: 'صندوق', badgeColor: 'cyan' },
   emofid_funds: { label: 'صندوق‌های سرمایه‌گذاری مفید (Emofid)', category: 'multi_output', unit: 'صندوق', badgeColor: 'cyan' },
+  charisma_funds: { label: 'صندوق‌های سرمایه‌گذاری کاریزما (Charisma)', category: 'multi_output', unit: 'صندوق', badgeColor: 'purple' },
   custom_feed: { label: 'فید چند خروجی / کاتالوگ سفارشی', category: 'multi_output', unit: 'آیتم', badgeColor: 'blue' },
 };
 

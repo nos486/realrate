@@ -338,6 +338,91 @@ export const PRICE_SOURCES_CONFIG = [
       };
     },
   },
+  {
+    id: "src_def_charisma",
+    name: "صندوق‌های سرمایه‌گذاری کاریزما (Charisma)",
+    priceType: "charisma_funds",
+    sourceType: "charisma_funds",
+    isCatalog: true,
+    endpoint: "https://charisma.ir/funds",
+    regex: "",
+    jsonPath: "data",
+    fieldMapping: null,
+    excludedOutputs: [],
+    displayConfig: { showOnHomePage: false },
+    fetchIntervalSec: 1800,
+    isActive: true,
+    isPrimary: true,
+
+    /**
+     * فانکشن پارسر اختصاصی صندوق‌های سرمایه‌گذاری کاریزما:
+     * استخراج نماد، نام و قیمت پایانی (sellOrClosedPriceInfo)
+     */
+    customParser: (data, sourceConfig) => {
+      const rawList = Array.isArray(data)
+        ? data
+        : (Array.isArray(data?.funds)
+          ? data.funds
+          : (Array.isArray(data?.data) ? data.data : []));
+
+      if (!Array.isArray(rawList) || rawList.length === 0) {
+        throw new Error("آرایه صندوق‌های سرمایه‌گذاری کاریزما در پاسخ یافت نشد.");
+      }
+
+      const items = rawList
+        .filter((item) => item && typeof item === "object")
+        .map((item) => {
+          const rawSymbol = item.shortSymbol || item.symbol || item.englishTitle || item.enSymbol || item.title || item.id;
+          const symbol = String(rawSymbol).trim();
+          const name = String(item.subtitle || item.title || item.name || symbol).trim();
+
+          let rawClosingPrice = 0;
+          if (Array.isArray(item.fields)) {
+            const closedField = item.fields.find((f) => f.key === "sellOrClosedPriceInfo");
+            if (closedField && closedField.value !== undefined && closedField.value !== null) {
+              rawClosingPrice = Number(closedField.value);
+            }
+            if (!rawClosingPrice) {
+              const lastField = item.fields.find((f) => f.key === "buyOrLastPriceInfo");
+              if (lastField && lastField.value !== undefined && lastField.value !== null) {
+                rawClosingPrice = Number(lastField.value);
+              }
+            }
+          } else if (item.priceRial || item.closedPriceRials) {
+            rawClosingPrice = Number(item.priceRial || item.closedPriceRials);
+          }
+
+          const rial = Math.round(rawClosingPrice);
+          const toman = Math.round(rial / 10);
+
+          return {
+            s: symbol,
+            symbol,
+            n: name,
+            name,
+            p: toman,
+            price: toman,
+            priceToman: toman,
+            priceRial: rial,
+            unit: "IRR",
+            isFund: true,
+            category: "صندوق سرمایه‌گذاری",
+            type: "صندوق",
+            manager: "کاریزما (Charisma)",
+          };
+        })
+        .filter((it) => it.symbol);
+
+      return {
+        isCatalog: true,
+        totalCount: items.length,
+        items,
+        compactList: items,
+        sampleItems: items.slice(0, 50),
+        datetime: new Date().toISOString(),
+      };
+    },
+  },
 ];
 
 /**

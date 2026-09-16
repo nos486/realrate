@@ -200,26 +200,32 @@ export function resolveItemCategory(item) {
     return 'custom';
   }
 
-  // 3. Explicit Bourse Stocks & Investment Funds (including Emofid)
+  // 3. Explicit Bourse Stocks & Investment Funds (including Emofid & Charisma)
   const isFund = Boolean(
     item.isFund ||
     item.raw?.isFund ||
     assetType === 'bourse_fund' ||
     assetType === 'emofid_fund' ||
     assetType === 'emofid_funds' ||
+    assetType === 'charisma_fund' ||
+    assetType === 'charisma_funds' ||
     assetType === 'fund' ||
     cleanId.startsWith('fund_') ||
     cleanId.startsWith('emofid_') ||
+    cleanId.startsWith('charisma_') ||
     (assetName.includes('صندوق') && !cleanId.startsWith('custom_'))
   );
   const isBourse = (
     cleanId.startsWith('bourse_') ||
     cleanId.startsWith('fund_') ||
     cleanId.startsWith('emofid_') ||
+    cleanId.startsWith('charisma_') ||
     assetType === 'bourse' ||
     assetType === 'bourse_fund' ||
     assetType === 'emofid_fund' ||
     assetType === 'emofid_funds' ||
+    assetType === 'charisma_fund' ||
+    assetType === 'charisma_funds' ||
     assetType === 'fund' ||
     Boolean(item.isFund) ||
     Boolean(item.raw?.isFund) ||

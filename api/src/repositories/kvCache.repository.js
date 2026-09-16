@@ -305,3 +305,63 @@ export async function setEmofidLastSync(env, timestamp, ttlSeconds = 86400) {
     logger.error("Error saving emofid last sync to KV:", { error: e.message });
   }
 }
+
+/* ─────────────────────────────────────────────────────────────
+ * Charisma Investment Funds KV
+ * ───────────────────────────────────────────────────────────── */
+
+export const CHARISMA_FUNDS_KV_KEY = "charisma_funds_v1";
+export const CHARISMA_FUNDS_BACKUP_KV_KEY = "charisma_funds_backup_v1";
+export const CHARISMA_LAST_SYNC_KEY = "charisma_funds_last_sync_v1";
+
+export async function getCharismaFundsCache(env) {
+  const kv = getKv(env);
+  if (!kv) return { cached: null, backup: null };
+  try {
+    const cached = await kv.get(CHARISMA_FUNDS_KV_KEY);
+    let backup = null;
+    if (!cached) {
+      backup = await kv.get(CHARISMA_FUNDS_BACKUP_KV_KEY);
+    }
+    return { cached, backup };
+  } catch (e) {
+    logger.error("Error reading charisma funds KV:", { error: e.message });
+    return { cached: null, backup: null };
+  }
+}
+
+export async function setCharismaFundsCache(env, compactJson, alsoBackup = true) {
+  const kv = getKv(env);
+  if (!kv) return;
+  try {
+    await kv.put(CHARISMA_FUNDS_KV_KEY, compactJson);
+    if (alsoBackup) {
+      await kv.put(CHARISMA_FUNDS_BACKUP_KV_KEY, compactJson).catch(() => {});
+    }
+  } catch (e) {
+    logger.error("Error saving charisma funds in KV:", { error: e.message });
+  }
+}
+
+export async function getCharismaLastSync(env) {
+  const kv = getKv(env);
+  if (!kv) return null;
+  try {
+    return await kv.get(CHARISMA_LAST_SYNC_KEY);
+  } catch {
+    return null;
+  }
+}
+
+export async function setCharismaLastSync(env, timestamp, ttlSeconds = 86400) {
+  const kv = getKv(env);
+  if (!kv) return;
+  try {
+    await kv.put(CHARISMA_LAST_SYNC_KEY, String(timestamp), {
+      expirationTtl: ttlSeconds,
+    });
+  } catch (e) {
+    logger.error("Error saving charisma last sync to KV:", { error: e.message });
+  }
+}
+
