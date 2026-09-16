@@ -91,9 +91,9 @@ export function PricingProvider({ children, initialUsdToman = null, initialGoldU
     } catch { }
     const targetRate = referenceRates.find((r) => r.key === key);
     if (targetRate && Number(targetRate.price) > 0) {
-      setUsdToman(targetRate.price);
+      const priceVal = Math.round(Number(targetRate.price));
+      setUsdToman((prev) => (Number(prev) === priceVal ? prev : priceVal));
     }
-    window.dispatchEvent(new CustomEvent('realrate_reference_rate_changed', { detail: targetRate || { key } }));
   }, [referenceRates]);
 
   const updateReferenceRates = useCallback((newRates) => {

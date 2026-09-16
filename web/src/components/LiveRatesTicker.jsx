@@ -76,12 +76,12 @@ export default function LiveRatesTicker({
   };
 
   const handleSelectOption = (rateKey) => {
+    setIsOpen(false);
     if (onSelectReferenceRate) {
       onSelectReferenceRate(rateKey);
     } else if (onCycleReferenceRate) {
       onCycleReferenceRate();
     }
-    setIsOpen(false);
   };
 
   return (

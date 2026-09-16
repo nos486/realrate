@@ -38,7 +38,8 @@ export function useMarketData() {
         : Number(pricing.usdToman);
       if (priceNum > 0) {
         userEditedUsd.current = false;
-        setUsdToman(formatThousands(Math.round(priceNum), false));
+        const formatted = formatThousands(Math.round(priceNum), false);
+        setUsdToman((prev) => (prev === formatted ? prev : formatted));
       }
     }
   }, [pricing?.usdToman, pricing?.activeReferenceKey]);
@@ -180,15 +181,14 @@ export function useMarketData() {
         localStorage.setItem('realrate_active_reference_rate', targetRate.key);
       } catch { }
 
+      const roundedPrice = Math.round(Number(targetRate.price));
+      if (roundedPrice > 0) {
+        const formatted = formatThousands(roundedPrice, false);
+        setUsdToman((prev) => (prev === formatted ? prev : formatted));
+      }
+
       if (pricing?.setReferenceRateKey) {
         pricing.setReferenceRateKey(targetRate.key);
-      }
-      if (Number(targetRate.price) > 0) {
-        const roundedPrice = Math.round(Number(targetRate.price));
-        setUsdToman(formatThousands(roundedPrice, false));
-        if (pricing?.setUsdToman) {
-          pricing.setUsdToman(roundedPrice);
-        }
       }
       return targetRate;
     }

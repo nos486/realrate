@@ -31,6 +31,93 @@ export function normalizePersianText(str) {
     .toLowerCase();
 }
 
+// Cached static assets (Funds & Bourse) that only depend on marketItems, not on usdVal or goldVal
+let cachedMarketItemsRef = null;
+let cachedStaticAssets = null;
+let cachedStaticPriceMap = null;
+
+export function getStaticCatalogAssets(marketItems) {
+  if (marketItems && marketItems === cachedMarketItemsRef && cachedStaticAssets && cachedStaticPriceMap) {
+    return { staticAssets: cachedStaticAssets, staticPriceMap: cachedStaticPriceMap };
+  }
+
+  const staticAssets = [];
+  const staticPriceMap = {};
+
+  // ── 3. Investment Funds (Charisma, Emofid, etc.) ───────────────────────────
+  const funds = marketItems?.funds || [];
+  const fundSymbolsSet = new Set();
+
+  funds.forEach((f) => {
+    const p = Math.round(Number(f.priceToman || f.marketPrice || f.price || 0));
+    const sourceLabel = getSourceDisplayName(f) || f.sourceName || 'صندوق‌های سرمایه‌گذاری';
+    const subText = f.symbol ? `نماد: ${f.symbol} • ${sourceLabel}` : sourceLabel;
+    const resolved = {
+      ...f,
+      price: p,
+      priceToman: p,
+      priceType: 'bourse_fund',
+      priceTypeLabel: 'صندوق',
+      sourceName: sourceLabel,
+      subText,
+      unit: f.unit || 'واحد',
+      isFund: true,
+      category: 'bourse_fund',
+    };
+
+    staticAssets.push(resolved);
+    staticPriceMap[f.id] = p;
+    if (f.symbol) {
+      staticPriceMap[f.symbol] = p;
+      const norm = normalizePersianText(f.symbol);
+      if (norm) {
+        staticPriceMap[norm] = p;
+        fundSymbolsSet.add(norm);
+      }
+    }
+  });
+
+  // ── 4. Tehran Stock Exchange (Bourse) ───────────────────────────────────────
+  const bourse = marketItems?.bourse || [];
+  bourse.forEach((b) => {
+    const normSymbol = b.symbol ? normalizePersianText(b.symbol) : '';
+    // Avoid duplicating fund items in O(1) lookup
+    if (normSymbol && fundSymbolsSet.has(normSymbol)) {
+      return;
+    }
+
+    const p = Math.round(Number(b.priceToman || b.price || 0));
+    const isFund = Boolean(b.isFund || b.category === 'bourse_fund' || b.name?.includes('صندوق'));
+    const sourceLabel = getSourceDisplayName(b) || b.sourceName || b.sourceTitle || 'بورس اوراق بهادار تهران (TSETMC / BRS API)';
+    const subText = b.symbol ? `نماد: ${b.symbol} • ${sourceLabel}` : sourceLabel;
+    const resolved = {
+      ...b,
+      price: p,
+      priceToman: p,
+      priceType: 'bourse',
+      priceTypeLabel: isFund ? 'صندوق' : 'سهام بورس',
+      sourceName: sourceLabel,
+      subText,
+      unit: b.unit || (isFund ? 'واحد' : 'برگ سهم'),
+    };
+
+    staticAssets.push(resolved);
+    staticPriceMap[b.id] = p;
+    if (b.symbol) {
+      staticPriceMap[b.symbol] = p;
+      if (normSymbol) {
+        staticPriceMap[normSymbol] = p;
+      }
+    }
+  });
+
+  cachedMarketItemsRef = marketItems;
+  cachedStaticAssets = staticAssets;
+  cachedStaticPriceMap = staticPriceMap;
+
+  return { staticAssets, staticPriceMap };
+}
+
 /**
  * Compute real-time prices for all catalog items based on live client USD and Gold spot
  *
@@ -225,68 +312,7 @@ export function computeUnifiedPrices({
     }
   });
 
-  // ── 3. Investment Funds (Charisma, Emofid, etc.) ───────────────────────────
-  const funds = marketItems?.funds || [];
-  funds.forEach((f) => {
-    const p = Math.round(Number(f.priceToman || f.marketPrice || f.price || 0));
-    const sourceLabel = getSourceDisplayName(f) || f.sourceName || 'صندوق‌های سرمایه‌گذاری';
-    const subText = f.symbol ? `نماد: ${f.symbol} • ${sourceLabel}` : sourceLabel;
-    const resolved = {
-      ...f,
-      price: p,
-      priceToman: p,
-      priceType: 'bourse_fund',
-      priceTypeLabel: 'صندوق',
-      sourceName: sourceLabel,
-      subText,
-      unit: f.unit || 'واحد',
-      isFund: true,
-      category: 'bourse_fund',
-    };
-
-    resolvedAssets.push(resolved);
-    priceMap[f.id] = p;
-    if (f.symbol) {
-      priceMap[f.symbol] = p;
-      priceMap[normalizePersianText(f.symbol)] = p;
-    }
-  });
-
-  // ── 4. Tehran Stock Exchange (Bourse) ───────────────────────────────────────
-  const bourse = marketItems?.bourse || [];
-  bourse.forEach((b) => {
-    // Avoid duplicating fund items that are already precisely provided by the fund provider
-    const existingFund = funds.find(
-      (f) => f.symbol && b.symbol && normalizePersianText(f.symbol) === normalizePersianText(b.symbol)
-    );
-    if (existingFund) {
-      return;
-    }
-
-    const p = Math.round(Number(b.priceToman || b.price || 0));
-    const isFund = Boolean(b.isFund || b.category === 'bourse_fund' || b.name?.includes('صندوق'));
-    const sourceLabel = getSourceDisplayName(b) || b.sourceName || b.sourceTitle || 'بورس اوراق بهادار تهران (TSETMC / BRS API)';
-    const subText = b.symbol ? `نماد: ${b.symbol} • ${sourceLabel}` : sourceLabel;
-    const resolved = {
-      ...b,
-      price: p,
-      priceToman: p,
-      priceType: 'bourse',
-      priceTypeLabel: isFund ? 'صندوق' : 'سهام بورس',
-      sourceName: sourceLabel,
-      subText,
-      unit: b.unit || (isFund ? 'واحد' : 'برگ سهم'),
-    };
-
-    resolvedAssets.push(resolved);
-    priceMap[b.id] = p;
-    if (b.symbol) {
-      priceMap[b.symbol] = p;
-      priceMap[normalizePersianText(b.symbol)] = p;
-    }
-  });
-
-  // ── 4. Cryptocurrencies (USDT, BTC, ETH) ───────────────────────────────────
+  // ── 3. Cryptocurrencies (USDT, BTC, ETH) ───────────────────────────────────
   const cryptos = (marketItems?.crypto && marketItems.crypto.length > 0)
     ? marketItems.crypto
     : Object.values(CRYPTO_SPECS);
@@ -327,14 +353,20 @@ export function computeUnifiedPrices({
     }
   });
 
+  // ── 4. Static Catalogs (Funds & Bourse: independent of USD/Gold spot) ──────
+  const { staticAssets, staticPriceMap } = getStaticCatalogAssets(marketItems);
+  Object.assign(priceMap, staticPriceMap);
+
+  const allResolvedAssets = resolvedAssets.concat(staticAssets);
+
   return {
-    resolvedAssets,
+    resolvedAssets: allResolvedAssets,
     priceMap,
     summary: {
       usdToman: usdVal,
       goldUsd: goldVal,
       silverUsd: silverVal,
-      totalAssetsCount: resolvedAssets.length,
+      totalAssetsCount: allResolvedAssets.length,
     },
   };
 }
