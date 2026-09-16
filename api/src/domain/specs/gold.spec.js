@@ -74,7 +74,7 @@ export const GOLD_SPECS = {
     id: 'ons_gold',
     code: 'XAU',
     symbol: 'XAU',
-    flag: '🪙',
+    flag: '💰',
     name: 'انس طلای جهانی',
     category: 'gold',
     badge: 'انس',

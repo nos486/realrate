@@ -153,22 +153,26 @@ export default function MainPage() {
       )}
 
       {/* Modern Segmented Navigation Tabs & Live Rates Ticker */}
-      <div className="main-nav-tabs-bar">
-        <FilterPills
-          variant="segmented"
-          size="lg"
-          options={tabOptions}
-          activeValue={activeTab}
-          onChange={handleTabChange}
-        />
+      <div className="main-nav-container">
+        <div className="main-nav-tabs-bar">
+          <FilterPills
+            variant="segmented"
+            size="lg"
+            options={tabOptions}
+            activeValue={activeTab}
+            onChange={handleTabChange}
+          />
+        </div>
 
-        <LiveRatesTicker
-          usdPrice={usdToman || rates?.live_usd_toman || rates?.prices?.usd_toman?.price}
-          activeReferenceRate={activeReferenceRate}
-          referenceRates={referenceRates}
-          onSelectReferenceRate={setReferenceRateKey}
-          onCycleReferenceRate={cycleReferenceRate}
-        />
+        <div className="main-live-ticker-row">
+          <LiveRatesTicker
+            usdPrice={usdToman || rates?.live_usd_toman || rates?.prices?.usd_toman?.price}
+            activeReferenceRate={activeReferenceRate}
+            referenceRates={referenceRates}
+            onSelectReferenceRate={setReferenceRateKey}
+            onCycleReferenceRate={cycleReferenceRate}
+          />
+        </div>
       </div>
 
       {/* Tab Views */}

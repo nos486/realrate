@@ -98,27 +98,32 @@ export default function LiveRatesTicker({
         aria-expanded={isOpen}
         title={canSelect ? 'انتخاب نرخ مرجع محاسبات (دلار، تتر، ...)' : `نرخ زنده ${labelDesktop}`}
       >
-        <span className={`ticker-pulse ${pulseColor}`} />
-        <span className="ticker-tag desktop-text">{labelDesktop}:</span>
-        <span className="ticker-tag mobile-text">{labelMobile}:</span>
-        <strong className="ticker-amount">{formatRate(displayPrice)}</strong>
-        <span className="ticker-unit desktop-text">تومان</span>
+        <span className="ticker-lead">
+          <span className={`ticker-pulse ${pulseColor}`} />
+          <span className="ticker-tag desktop-text">{labelDesktop}:</span>
+          <span className="ticker-tag mobile-text">{labelDesktop || labelMobile}:</span>
+        </span>
 
-        {canSelect && (
-          <span
-            className="main-live-ticker-chevron"
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              transform: isOpen ? 'rotate(180deg)' : 'rotate(0deg)',
-              transition: 'transform 0.2s ease',
-              color: 'var(--text-muted)',
-              marginRight: '2px',
-            }}
-          >
-            <ChevronDown size={14} />
-          </span>
-        )}
+        <span className="ticker-value-group">
+          <strong className="ticker-amount">{formatRate(displayPrice)}</strong>
+          <span className="ticker-unit">تومان</span>
+
+          {canSelect && (
+            <span
+              className="main-live-ticker-chevron"
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                transform: isOpen ? 'rotate(180deg)' : 'rotate(0deg)',
+                transition: 'transform 0.2s ease',
+                color: 'var(--text-muted)',
+                marginRight: '2px',
+              }}
+            >
+              <ChevronDown size={14} />
+            </span>
+          )}
+        </span>
       </button>
 
       {/* Floating Dropdown Selector Menu */}
