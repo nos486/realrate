@@ -71,8 +71,8 @@ export const KNOWN_CHARISMA_SYMBOLS = {
  * }}
  */
 export function mergeCharismaFunds(existingList = [], rawApiArray = [], nowIso = new Date().toISOString(), sourceConfig = null) {
-  const defaultSourceName = sourceConfig?.name || "";
-  const defaultSourceId = sourceConfig?.id || "";
+  const defaultSourceName = sourceConfig?.name || charismaFundsSourceAdapter?.name || "صندوق‌های سرمایه‌گذاری کاریزما (Charisma)";
+  const defaultSourceId = sourceConfig?.id || charismaFundsSourceAdapter?.id || "src_def_charisma";
   const fundsMap = new Map();
 
   // 1. Initialize map with existing funds
@@ -366,14 +366,22 @@ export const charismaFundsSourceAdapter = {
         const dataStr = cached || backup;
         if (dataStr) {
           const list = JSON.parse(dataStr);
-          inMemoryCharismaList = list;
-          return list;
+          if (Array.isArray(list) && list.length > 0) {
+            inMemoryCharismaList = list;
+            return list;
+          }
         }
       } catch (e) {
         logger.error("Error retrieving charisma funds from KV:", { error: e.message });
       }
     }
-    return [];
+
+    // Auto on-demand fetch if empty
+    const syncRes = await fetchAndStoreCharismaFunds(env);
+    if (syncRes.success && Array.isArray(syncRes.funds) && syncRes.funds.length > 0) {
+      return syncRes.funds;
+    }
+    return inMemoryCharismaList || [];
   },
 
   async handleScheduledSync(env) {
@@ -402,3 +410,25 @@ export const charismaFundsSourceAdapter = {
     }
   },
 };
+
+/**
+ * Direct helper to fetch, parse, and persist Charisma funds to memory and KV
+ * @param {object} [env=null]
+ * @returns {Promise<{ success: boolean, count?: number, funds: Array, error?: string }>}
+ */
+export async function fetchAndStoreCharismaFunds(env = null) {
+  try {
+    const raw = await charismaFundsSourceAdapter.fetchRaw({}, env);
+    const parsed = await charismaFundsSourceAdapter.parse(
+      raw,
+      { id: "src_def_charisma", name: charismaFundsSourceAdapter.name },
+      env
+    );
+    const list = parsed.multiOutput || inMemoryCharismaList || [];
+    return { success: true, count: list.length, funds: list };
+  } catch (err) {
+    logger.error("[CharismaAdapter] fetchAndStoreCharismaFunds error:", { error: err.message });
+    return { success: false, error: err.message, funds: inMemoryCharismaList || [] };
+  }
+}
+

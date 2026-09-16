@@ -43,8 +43,8 @@ let inMemoryEmofidList = null;
  * }}
  */
 export function mergeEmofidFunds(existingList = [], rawApiArray = [], nowIso = new Date().toISOString(), sourceConfig = null) {
-  const defaultSourceName = sourceConfig?.name || "";
-  const defaultSourceId = sourceConfig?.id || "";
+  const defaultSourceName = sourceConfig?.name || emofidFundsSourceAdapter?.name || "صندوق‌های سرمایه‌گذاری کارگزاری مفید (Emofid)";
+  const defaultSourceId = sourceConfig?.id || emofidFundsSourceAdapter?.id || "src_def_emofid";
   const fundsMap = new Map();
 
   // 1. Initialize map with existing funds
@@ -313,7 +313,12 @@ export const emofidFundsSourceAdapter = {
         } catch {}
       }
     }
-    return [];
+    // Auto on-demand fetch if empty
+    const syncRes = await fetchAndStoreEmofidFunds(env);
+    if (syncRes.success && Array.isArray(syncRes.funds) && syncRes.funds.length > 0) {
+      return syncRes.funds;
+    }
+    return inMemoryEmofidList || [];
   },
 
   /**
@@ -331,7 +336,7 @@ export const emofidFundsSourceAdapter = {
       }
 
       const raw = await this.fetchRaw({}, env);
-      const parsed = await this.parse(raw, { name: "صندوق‌های سرمایه‌گذاری کارگزاری مفید (Emofid)" }, env);
+      const parsed = await this.parse(raw, { id: "src_def_emofid", name: this.name }, env);
       if (parsed && parsed.price > 0) {
         await setEmofidLastSync(env, now, EMOFID_SYNC_EXPIRATION_TTL);
         return true;
@@ -342,3 +347,25 @@ export const emofidFundsSourceAdapter = {
     return false;
   },
 };
+
+/**
+ * Direct helper to fetch, parse, and persist Emofid funds to memory and KV
+ * @param {object} [env=null]
+ * @returns {Promise<{ success: boolean, count?: number, funds: Array, error?: string }>}
+ */
+export async function fetchAndStoreEmofidFunds(env = null) {
+  try {
+    const raw = await emofidFundsSourceAdapter.fetchRaw({}, env);
+    const parsed = await emofidFundsSourceAdapter.parse(
+      raw,
+      { id: "src_def_emofid", name: emofidFundsSourceAdapter.name },
+      env
+    );
+    const list = parsed.multiData?.items || parsed.compactList || inMemoryEmofidList || [];
+    return { success: true, count: list.length, funds: list };
+  } catch (err) {
+    logger.error("[EmofidAdapter] fetchAndStoreEmofidFunds error:", { error: err.message });
+    return { success: false, error: err.message, funds: inMemoryEmofidList || [] };
+  }
+}
+

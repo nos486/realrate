@@ -225,9 +225,44 @@ export function computeUnifiedPrices({
     }
   });
 
-  // ── 3. Tehran Stock Exchange (Bourse) ───────────────────────────────────────
+  // ── 3. Investment Funds (Charisma, Emofid, etc.) ───────────────────────────
+  const funds = marketItems?.funds || [];
+  funds.forEach((f) => {
+    const p = Math.round(Number(f.priceToman || f.marketPrice || f.price || 0));
+    const sourceLabel = getSourceDisplayName(f) || f.sourceName || 'صندوق‌های سرمایه‌گذاری';
+    const subText = f.symbol ? `نماد: ${f.symbol} • ${sourceLabel}` : sourceLabel;
+    const resolved = {
+      ...f,
+      price: p,
+      priceToman: p,
+      priceType: 'bourse_fund',
+      priceTypeLabel: 'صندوق',
+      sourceName: sourceLabel,
+      subText,
+      unit: f.unit || 'واحد',
+      isFund: true,
+      category: 'bourse_fund',
+    };
+
+    resolvedAssets.push(resolved);
+    priceMap[f.id] = p;
+    if (f.symbol) {
+      priceMap[f.symbol] = p;
+      priceMap[normalizePersianText(f.symbol)] = p;
+    }
+  });
+
+  // ── 4. Tehran Stock Exchange (Bourse) ───────────────────────────────────────
   const bourse = marketItems?.bourse || [];
   bourse.forEach((b) => {
+    // Avoid duplicating fund items that are already precisely provided by the fund provider
+    const existingFund = funds.find(
+      (f) => f.symbol && b.symbol && normalizePersianText(f.symbol) === normalizePersianText(b.symbol)
+    );
+    if (existingFund) {
+      return;
+    }
+
     const p = Math.round(Number(b.priceToman || b.price || 0));
     const isFund = Boolean(b.isFund || b.category === 'bourse_fund' || b.name?.includes('صندوق'));
     const sourceLabel = getSourceDisplayName(b) || b.sourceName || b.sourceTitle || 'بورس اوراق بهادار تهران (TSETMC / BRS API)';

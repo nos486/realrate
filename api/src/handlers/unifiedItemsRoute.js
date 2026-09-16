@@ -16,6 +16,8 @@ import {
 import { logger } from "../lib/logger.js";
 import { MAX_MARKET_ITEMS_LIMIT } from "../config/constants.js";
 import { getSourceDisplayName } from "../config/sources.config.js";
+import { charismaFundsSourceAdapter } from "../services/market/sources/charismaFunds.source.adapter.js";
+import { emofidFundsSourceAdapter } from "../services/market/sources/emofidFunds.source.adapter.js";
 
 export async function handleGetUnifiedMarketItems(env, request) {
   try {
@@ -25,10 +27,12 @@ export async function handleGetUnifiedMarketItems(env, request) {
     const limit = parseInt(url.searchParams.get("limit") || String(MAX_MARKET_ITEMS_LIMIT), 10);
 
     // Parallel fetch of base data
-    const [prices, globalSettings, bourseSymbols] = await Promise.all([
+    const [prices, globalSettings, bourseSymbols, charismaFunds, emofidFunds] = await Promise.all([
       getLatestMarketRates(env),
       getGlobalSettings(env),
       getBourseSymbols(env, q, limit),
+      charismaFundsSourceAdapter.getLatestFunds(env).catch(() => []),
+      emofidFundsSourceAdapter.getFunds(env).catch(() => []),
     ]);
 
     const gold_usd = prices.ons_gold?.price || globalSettings?.default_gold_usd || 2890;
@@ -133,6 +137,46 @@ export async function handleGetUnifiedMarketItems(env, request) {
       sourceId: b.sourceId || 'src_def_bourse',
     }));
 
+    // 4. Investment Funds (Charisma & Emofid)
+    const rawFunds = [
+      ...(charismaFunds || []).map((f) => ({
+        id: `fund_charisma_${f.symbol || f.s}`,
+        symbol: f.symbol || f.s,
+        name: f.name || f.n,
+        category: 'bourse_fund',
+        badge: 'صندوق',
+        unit: 'واحد',
+        priceToman: f.priceToman || f.p,
+        priceRial: f.priceRial || (f.priceToman ? f.priceToman * 10 : 0),
+        marketPrice: f.priceToman || f.p,
+        price: f.priceToman || f.p,
+        isFund: true,
+        sourceName: getSourceDisplayName(f) || f.sourceName || charismaFundsSourceAdapter.name,
+        sourceId: f.sourceId || 'src_def_charisma',
+        updatedAt: f.updatedAt || null,
+      })),
+      ...(emofidFunds || []).map((f) => ({
+        id: `fund_emofid_${f.symbol || f.s}`,
+        symbol: f.symbol || f.s,
+        name: f.name || f.n,
+        category: 'bourse_fund',
+        badge: 'صندوق',
+        unit: 'واحد',
+        priceToman: f.priceToman || f.p,
+        priceRial: f.priceRial || (f.priceToman ? f.priceToman * 10 : 0),
+        marketPrice: f.priceToman || f.p,
+        price: f.priceToman || f.p,
+        isFund: true,
+        sourceName: getSourceDisplayName(f) || f.sourceName || emofidFundsSourceAdapter.name,
+        sourceId: f.sourceId || 'src_def_emofid',
+        updatedAt: f.updatedAt || null,
+      })),
+    ];
+
+    const fundsList = q
+      ? rawFunds.filter(f => (f.symbol && f.symbol.toLowerCase().includes(q)) || (f.name && f.name.toLowerCase().includes(q)))
+      : rawFunds;
+
     return jsonResponse({
       success: true,
       timestamp: new Date().toISOString(),
@@ -147,10 +191,12 @@ export async function handleGetUnifiedMarketItems(env, request) {
       goldAndCoins: standardGoldAndCoins,
       currencies: currenciesList,
       bourse: bourseList,
+      funds: fundsList,
       counts: {
         goldAndCoins: standardGoldAndCoins.length,
         currencies: currenciesList.length,
         bourse: bourseList.length,
+        funds: fundsList.length,
       }
     }, 200, request);
   } catch (err) {

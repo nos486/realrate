@@ -477,7 +477,7 @@ export default function UniversalAssetSearch({
         const canonicalId = (asset.id || '').toLowerCase().trim();
         const normName = normalizeSearchText(asset.name);
 
-        if (seenKeys.has(canonicalId)) return;
+        if (seenKeys.has(canonicalId) || (sym && seenKeys.has(sym.toLowerCase()))) return;
         seenKeys.add(canonicalId);
         if (sym) seenKeys.add(sym.toLowerCase());
         seenNames.add(normName);
@@ -485,8 +485,14 @@ export default function UniversalAssetSearch({
         const category = resolveItemCategory(asset);
         const badge = getCategoryBadge(category, asset.badge || 'دارایی');
         const spec = getCanonicalAssetSpec(asset.id || sym);
-        const aliases = spec?.aliases || asset.aliases || [];
-        const isMulti = asset.isMultiItem || asset.priceType === 'bourse' || asset.priceType === 'forex' || Boolean(asset.sourceName);
+        const isFund = category === 'bourse_fund' || Boolean(asset.isFund);
+        const aliases = Array.from(new Set([
+          ...(spec?.aliases || asset.aliases || []),
+          sym,
+          asset.name,
+          ...(isFund && sym ? [`صندوق ${sym}`] : []),
+        ])).filter(Boolean);
+        const isMulti = asset.isMultiItem || asset.priceType === 'bourse' || asset.priceType === 'bourse_fund' || asset.priceType === 'forex' || Boolean(asset.sourceName);
         const sourceName = getSourceDisplayName(asset, internalSources) || asset.sourceName;
         const subText = isMulti && sourceName
           ? (sym ? `نماد: ${sym} • ${sourceName}` : sourceName)

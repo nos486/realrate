@@ -54,6 +54,8 @@ import {
 } from "./handlers/portfolioRoutes.js";
 import { handleScheduledPriceExtraction, fetchAllPrices } from "./services/priceSources.js";
 import { getBourseSymbols, fetchAndStoreBourseSymbols } from "./services/bourseSymbols.js";
+import { charismaFundsSourceAdapter, fetchAndStoreCharismaFunds } from "./services/market/sources/charismaFunds.source.adapter.js";
+import { emofidFundsSourceAdapter, fetchAndStoreEmofidFunds } from "./services/market/sources/emofidFunds.source.adapter.js";
 import { runCronPolling } from "./jobs/cronPolling.job.js";
 
 export default {
@@ -169,6 +171,39 @@ export default {
       return wrap(async () => {
         const syncRes = await fetchAndStoreBourseSymbols(env);
         return new Response(JSON.stringify(syncRes), {
+          headers: { "Content-Type": "application/json; charset=utf-8", ...corsHeaders },
+        });
+      })(request, env);
+    }
+
+    // ── Investment Funds (Charisma, Emofid) Routes ──────────────────────────
+    if (normalizedPath === "/api/funds" || normalizedPath === "/api/funds/search") {
+      return wrap(async () => {
+        const q = (url.searchParams.get("q") || "").trim().toLowerCase();
+        const [charisma, emofid] = await Promise.all([
+          charismaFundsSourceAdapter.getLatestFunds(env),
+          emofidFundsSourceAdapter.getFunds(env),
+        ]);
+        let allFunds = [...(charisma || []), ...(emofid || [])];
+        if (q) {
+          allFunds = allFunds.filter(f => {
+            const sym = String(f.symbol || f.s || "").toLowerCase();
+            const name = String(f.name || f.n || "").toLowerCase();
+            return sym.includes(q) || name.includes(q);
+          });
+        }
+        return new Response(JSON.stringify({ success: true, count: allFunds.length, funds: allFunds }), {
+          headers: { "Content-Type": "application/json; charset=utf-8", ...corsHeaders },
+        });
+      })(request, env);
+    }
+    if (normalizedPath === "/api/funds/sync" && request.method === "POST") {
+      return wrap(async () => {
+        const [resCharisma, resEmofid] = await Promise.all([
+          fetchAndStoreCharismaFunds(env),
+          fetchAndStoreEmofidFunds(env),
+        ]);
+        return new Response(JSON.stringify({ success: true, charisma: resCharisma, emofid: resEmofid }), {
           headers: { "Content-Type": "application/json; charset=utf-8", ...corsHeaders },
         });
       })(request, env);
