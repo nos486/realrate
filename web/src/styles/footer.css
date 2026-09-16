@@ -1,11 +1,53 @@
 /* ── Footer ──────────────────────────────────────────────────────────────── */
-
-footer {
-  margin-top: 32px;
-  border-top: 1px solid var(--border-subtle);
-  padding-top: 16px;
-  font-size: 11px;
+.site-footer {
+  margin-top: auto;
+  width: 100%;
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
+  background: transparent;
   color: var(--text-muted);
+  font-size: 12px;
+  padding: 0;
+}
+
+.footer-inner {
+  max-width: var(--layout-max-width, 1400px);
+  margin: 0 auto;
+  width: 100%;
+  padding: 24px clamp(14px, 2.5vw, 32px);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  box-sizing: border-box;
+}
+
+@media (max-width: 768px) {
+  .footer-inner {
+    padding: 18px 10px;
+  }
+}
+
+.footer-links {
+  display: flex;
+  gap: 14px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.footer-icon-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  color: var(--gold-light);
+  transition: opacity var(--transition-fast);
+}
+
+.footer-icon-btn:hover {
+  opacity: 0.8;
 }
 
 /* ── Portfolio Header Actions & Share Button ─────────────────────────────── */

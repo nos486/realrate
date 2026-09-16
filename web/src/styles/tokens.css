@@ -5,6 +5,9 @@
   --bg-surface: #0c101a;
   --bg-surface-elevated: #111726;
 
+  /* Layout & Container Constraints */
+  --layout-max-width: 1400px;
+
   /* Unified Card & Elevated Glass Surface Tokens */
   --card-bg: rgba(16, 22, 34, 0.72);
   --bg-card: var(--card-bg);

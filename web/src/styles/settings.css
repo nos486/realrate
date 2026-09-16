@@ -40,3 +40,9 @@
   overflow: hidden;
   text-overflow: ellipsis;
 }
+
+.account-settings-fullscreen-card {
+  max-width: 760px !important;
+  margin: 0 auto 32px auto !important;
+  width: 100%;
+}

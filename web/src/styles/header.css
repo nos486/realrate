@@ -8,7 +8,7 @@
   z-index: 100;
   display: flex;
   flex-direction: column;
-  padding: 12px clamp(14px, 3vw, 64px);
+  padding: 12px 0;
   margin-bottom: 0;
   background: rgba(7, 9, 14, 0.88);
   backdrop-filter: blur(24px);
@@ -17,6 +17,7 @@
   border-bottom: 1px solid rgba(255, 255, 255, 0.065);
   box-shadow: 0 4px 24px rgba(0, 0, 0, 0.5);
   gap: 8px;
+  box-sizing: border-box;
 }
 
 .header-main-row {
@@ -24,7 +25,11 @@
   justify-content: space-between;
   align-items: center;
   width: 100%;
+  max-width: var(--layout-max-width, 1400px);
+  margin: 0 auto;
+  padding: 0 clamp(14px, 2.5vw, 32px);
   gap: 10px;
+  box-sizing: border-box;
 }
 
 .header-brand {
@@ -60,6 +65,12 @@
 }
 
 @media (max-width: 768px) {
+  .site-header {
+    padding: 10px 0;
+  }
+  .header-main-row {
+    padding: 0 10px;
+  }
   .brand-tagline {
     display: none !important;
   }
