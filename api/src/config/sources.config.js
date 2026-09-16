@@ -133,22 +133,6 @@ export const PRICE_SOURCES_CONFIG = [
     isActive: true,
     isPrimary: true,
   },
-  // ── صندوق سرمایه‌گذاری آتیه مفید ──
-  {
-    id: "src_def_fund_atieh",
-    name: "صندوق آتیه مفید",
-    priceType: "fund_atieh",
-    sourceType: "emofid_fund",
-    endpoint: "https://www.emofid.com/funds/atieh/",
-    regex: "",
-    jsonPath: "",
-    fieldMapping: null,
-    excludedOutputs: [],
-    displayConfig: { showOnHomePage: true },
-    fetchIntervalSec: 900,
-    isActive: true,
-    isPrimary: true,
-  },
   // ── سورس تتر با فانکشن پارسر اختصاصی ──
   {
     id: "src_brs_usdt",
@@ -220,23 +204,6 @@ export const PRICE_SOURCES_CONFIG = [
     isPrimary: true,
   },
   {
-    id: "src_def_emofid_funds",
-    name: "صندوق‌های سرمایه‌گذاری مفید (۱۹ صندوق)",
-    priceType: "emofid_funds",
-    sourceType: "emofid_fund",
-    category: "multi_output",
-    isCatalog: true,
-    endpoint: "https://www.emofid.com/api/funds/",
-    regex: "",
-    jsonPath: "",
-    fieldMapping: null,
-    excludedOutputs: [],
-    displayConfig: { showOnHomePage: false },
-    fetchIntervalSec: 900,
-    isActive: true,
-    isPrimary: true,
-  },
-  {
     id: "src_def_bourse",
     name: "بورس اوراق بهادار تهران (TSETMC / BRS API)",
     priceType: "bourse",
@@ -291,6 +258,75 @@ export const PRICE_SOURCES_CONFIG = [
           category: isFund ? "صندوق سرمایه‌گذاری" : "سهام بورس",
         };
       }).filter((it) => it.symbol);
+
+      return {
+        isCatalog: true,
+        totalCount: items.length,
+        items,
+        compactList: items,
+        sampleItems: items.slice(0, 50),
+        datetime: new Date().toISOString(),
+      };
+    },
+  },
+  {
+    id: "src_def_emofid",
+    name: "صندوق‌های سرمایه‌گذاری مفید (Emofid)",
+    priceType: "emofid_funds",
+    sourceType: "emofid_funds",
+    isCatalog: true,
+    endpoint: "https://www.emofid.com/api/funds/",
+    regex: "",
+    jsonPath: "value",
+    fieldMapping: null,
+    excludedOutputs: [],
+    displayConfig: { showOnHomePage: false },
+    fetchIntervalSec: 1800,
+    isActive: true,
+    isPrimary: true,
+
+    /**
+     * فانکشن پارسر اختصاصی صندوق‌های سرمایه‌گذاری مفید:
+     * استخراج تنها دو فیلد نام و قیمت صدور (subscriptionNav)
+     */
+    customParser: (data, sourceConfig) => {
+      const rawList = Array.isArray(data)
+        ? data
+        : (Array.isArray(data?.value)
+          ? data.value
+          : (Array.isArray(data?.data) ? data.data : []));
+
+      if (!Array.isArray(rawList) || rawList.length === 0) {
+        throw new Error("آرایه صندوق‌های سرمایه‌گذاری مفید در پاسخ وب‌سرویس یافت نشد.");
+      }
+
+      const items = rawList
+        .filter((item) => item && typeof item === "object")
+        .map((item) => {
+          const symbol = String(item.enTitle || item.key || item.code || item.id || "").trim();
+          const name = String(item.fullTitle || item.title || item.name || symbol).trim();
+          const rawNav = item.subscriptionNav !== undefined && item.subscriptionNav !== null
+            ? Number(String(item.subscriptionNav).replace(/,/g, "").trim())
+            : 0;
+          const rial = Math.round(rawNav);
+          const toman = Math.round(rial / 10);
+
+          return {
+            s: symbol,
+            symbol,
+            n: name,
+            name,
+            p: toman,
+            price: toman,
+            priceToman: toman,
+            priceRial: rial,
+            unit: "IRR",
+            isFund: true,
+            category: "صندوق سرمایه‌گذاری",
+            type: item.type || "صندوق",
+          };
+        })
+        .filter((it) => it.symbol);
 
       return {
         isCatalog: true,

@@ -5,6 +5,7 @@
 
 import { handleScheduledPriceExtraction } from "../services/market/priceAggregator.service.js";
 import { bourseSymbolsSourceAdapter } from "../services/market/sources/bourseSymbols.source.adapter.js";
+import { emofidFundsSourceAdapter } from "../services/market/sources/emofidFunds.source.adapter.js";
 import { logger } from "../lib/logger.js";
 
 /**
@@ -21,6 +22,9 @@ export async function runCronPolling(event, env, ctx) {
       }),
       bourseSymbolsSourceAdapter.handleScheduledSync(env).catch(err => {
         logger.error("[CronPolling] Bourse sync error:", { error: err.message, stack: err.stack });
+      }),
+      emofidFundsSourceAdapter.handleScheduledSync(env).catch(err => {
+        logger.error("[CronPolling] Emofid funds sync error:", { error: err.message, stack: err.stack });
       }),
     ])
   );

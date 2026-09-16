@@ -176,17 +176,27 @@ export function resolveItemCategory(item) {
     return 'custom';
   }
 
-  // 3. Explicit Bourse Stocks & Funds
+  // 3. Explicit Bourse Stocks & Investment Funds (including Emofid)
   const isFund = Boolean(
     item.isFund ||
     item.raw?.isFund ||
     assetType === 'bourse_fund' ||
-    (assetName.includes('صندوق') && (cleanId.startsWith('bourse_') || assetType === 'bourse' || !assetType))
+    assetType === 'emofid_fund' ||
+    assetType === 'emofid_funds' ||
+    assetType === 'fund' ||
+    cleanId.startsWith('fund_') ||
+    cleanId.startsWith('emofid_') ||
+    (assetName.includes('صندوق') && !cleanId.startsWith('custom_'))
   );
   const isBourse = (
     cleanId.startsWith('bourse_') ||
+    cleanId.startsWith('fund_') ||
+    cleanId.startsWith('emofid_') ||
     assetType === 'bourse' ||
     assetType === 'bourse_fund' ||
+    assetType === 'emofid_fund' ||
+    assetType === 'emofid_funds' ||
+    assetType === 'fund' ||
     Boolean(item.isFund) ||
     Boolean(item.raw?.isFund) ||
     (assetName.includes('صندوق') && !cleanId.startsWith('custom_'))
@@ -254,8 +264,8 @@ export const PORTFOLIO_CATEGORIES = [
   },
   {
     key: 'bourse_fund',
-    name: 'بورس اوراق بهادار تهران (صندوق)',
-    badge: 'صندوق بورس',
+    name: 'صندوق‌های سرمایه‌گذاری',
+    badge: 'صندوق',
     iconName: 'Layers',
     order: 7,
     match: (item) => resolveItemCategory(item) === 'bourse_fund',

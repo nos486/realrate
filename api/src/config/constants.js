@@ -43,3 +43,11 @@ export const DEFAULT_BOURSE_SEARCH_LIMIT = 50;
 
 /** Maximum limit for market item queries */
 export const MAX_MARKET_ITEMS_LIMIT = 2000;
+
+// ─── Emofid Mutual Funds ───────────────────────────────────────────────────
+/** Emofid funds sync interval: 30 minutes in ms */
+export const EMOFID_SYNC_INTERVAL_MS = 30 * 60 * 1000;
+
+/** Emofid last sync record expiration TTL in KV: 1 day in seconds */
+export const EMOFID_SYNC_EXPIRATION_TTL = 86400;
+
