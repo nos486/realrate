@@ -51,9 +51,7 @@ import {
   handleGetUserSettings,
   handleUpdateUserSettings,
   handleGetSharedPortfolio,
-} from "./handlers/portfolioRoutes.js";
 import { handleScheduledPriceExtraction, fetchAllPrices } from "./services/priceSources.js";
-import { getBourseSymbols, fetchAndStoreBourseSymbols } from "./services/bourseSymbols.js";
 import {
   searchCatalogItems,
   syncCatalogSource,

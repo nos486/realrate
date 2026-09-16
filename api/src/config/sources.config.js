@@ -5,6 +5,10 @@
  * Version-controlled via Git; runtime prices are cached in Cloudflare KV / memory.
  */
 
+import { mergeBourseSymbols } from "../services/market/sources/bourseSymbols.source.adapter.js";
+import { mergeEmofidFunds } from "../services/market/sources/emofidFunds.source.adapter.js";
+import { mergeCharismaFunds } from "../services/market/sources/charismaFunds.source.adapter.js";
+
 export const PRICE_SOURCES_CONFIG = [
   // ── Single Output Feeds (Currencies, Gold, Coins, Ounces) ───────────
   {
@@ -218,53 +222,15 @@ export const PRICE_SOURCES_CONFIG = [
     fetchIntervalSec: 86400,
     isActive: true,
     isPrimary: true,
-
-    /**
-     * فانکشن پارسر اختصاصی بورس اوراق بهادار تهران:
-     * دریافت مستقیم داده‌های TSETMC / BRS API و استانداردسازی به کاتالوگ نمادها
-     * @param {Array|object} data - داده خام دریافتی از وب‌سرویس
-     * @param {object} sourceConfig - کانفیگ سورس
-     * @returns {object} - ساختار استاندارد کاتالوگ با اقلام تبدیل‌شده (ریال به تومان)
-     */
     customParser: (data, sourceConfig) => {
       const rawList = Array.isArray(data) ? data : (data?.symbols || data?.data || []);
-      if (!Array.isArray(rawList) || rawList.length === 0) {
-        throw new Error("آرایه نمادهای بورس در پاسخ وب‌سرویس یافت نشد.");
-      }
-
-      const items = rawList.map((item) => {
-        const symbol = String(item.l18 || item.symbol || item.s || "").trim();
-        const name = String(item.l30 || item.name || item.n || symbol).trim();
-        const rial = Number(item.pl !== undefined && item.pl !== null ? item.pl : (item.pc || item.priceRial || 0));
-        const toman = rial > 0 ? Math.round(rial / 10) : (Number(item.price || item.p || 0));
-        const isFund = Boolean(
-          item.isFund ||
-          name.includes("صندوق") ||
-          name.includes("ETF") ||
-          symbol.includes("دارا") ||
-          symbol.includes("پالایش")
-        );
-
-        return {
-          s: symbol,
-          symbol,
-          n: name,
-          name,
-          p: toman,
-          price: toman,
-          priceToman: toman,
-          priceRial: rial || (toman * 10),
-          isFund,
-          category: isFund ? "صندوق سرمایه‌گذاری" : "سهام بورس",
-        };
-      }).filter((it) => it.symbol);
-
+      const { mergedList } = mergeBourseSymbols([], rawList, new Date().toISOString(), sourceConfig);
       return {
         isCatalog: true,
-        totalCount: items.length,
-        items,
-        compactList: items,
-        sampleItems: items.slice(0, 50),
+        totalCount: mergedList.length,
+        items: mergedList,
+        compactList: mergedList,
+        sampleItems: mergedList.slice(0, 50),
         datetime: new Date().toISOString(),
       };
     },
@@ -287,56 +253,15 @@ export const PRICE_SOURCES_CONFIG = [
     fetchIntervalSec: 1800,
     isActive: true,
     isPrimary: true,
-
-    /**
-     * فانکشن پارسر اختصاصی صندوق‌های سرمایه‌گذاری مفید:
-     * استخراج تنها دو فیلد نام و قیمت صدور (subscriptionNav)
-     */
     customParser: (data, sourceConfig) => {
-      const rawList = Array.isArray(data)
-        ? data
-        : (Array.isArray(data?.value)
-          ? data.value
-          : (Array.isArray(data?.data) ? data.data : []));
-
-      if (!Array.isArray(rawList) || rawList.length === 0) {
-        throw new Error("آرایه صندوق‌های سرمایه‌گذاری مفید در پاسخ وب‌سرویس یافت نشد.");
-      }
-
-      const items = rawList
-        .filter((item) => item && typeof item === "object")
-        .map((item) => {
-          const symbol = String(item.enTitle || item.key || item.code || item.id || "").trim();
-          const name = String(item.fullTitle || item.title || item.name || symbol).trim();
-          const rawNav = item.subscriptionNav !== undefined && item.subscriptionNav !== null
-            ? Number(String(item.subscriptionNav).replace(/,/g, "").trim())
-            : 0;
-          const rial = Math.round(rawNav);
-          const toman = Math.round(rial / 10);
-
-          return {
-            s: symbol,
-            symbol,
-            n: name,
-            name,
-            p: toman,
-            price: toman,
-            priceToman: toman,
-            priceRial: rial,
-            unit: "IRR",
-            isFund: true,
-            category: "صندوق سرمایه‌گذاری",
-            type: item.type || "صندوق",
-          };
-        })
-        .filter((it) => it.symbol);
-
+      const rawList = Array.isArray(data) ? data : (data?.value || data?.data || []);
+      const { mergedList } = mergeEmofidFunds([], rawList, new Date().toISOString(), sourceConfig);
       return {
         isCatalog: true,
-        totalCount: items.length,
-        items,
-        compactList: items,
-        sampleItems: items.slice(0, 50),
+        totalCount: mergedList.length,
+        items: mergedList,
+        compactList: mergedList,
+        sampleItems: mergedList.slice(0, 50),
         datetime: new Date().toISOString(),
       };
     },
@@ -359,72 +284,15 @@ export const PRICE_SOURCES_CONFIG = [
     fetchIntervalSec: 1800,
     isActive: true,
     isPrimary: true,
-
-    /**
-     * فانکشن پارسر اختصاصی صندوق‌های سرمایه‌گذاری کاریزما:
-     * استخراج نماد، نام و قیمت پایانی (sellOrClosedPriceInfo)
-     */
     customParser: (data, sourceConfig) => {
-      const rawList = Array.isArray(data)
-        ? data
-        : (Array.isArray(data?.funds)
-          ? data.funds
-          : (Array.isArray(data?.data) ? data.data : []));
-
-      if (!Array.isArray(rawList) || rawList.length === 0) {
-        throw new Error("آرایه صندوق‌های سرمایه‌گذاری کاریزما در پاسخ یافت نشد.");
-      }
-
-      const items = rawList
-        .filter((item) => item && typeof item === "object")
-        .map((item) => {
-          const rawSymbol = item.shortSymbol || item.symbol || item.englishTitle || item.enSymbol || item.title || item.id;
-          const symbol = String(rawSymbol).trim();
-          const name = String(item.subtitle || item.title || item.name || symbol).trim();
-
-          let rawClosingPrice = 0;
-          if (Array.isArray(item.fields)) {
-            const closedField = item.fields.find((f) => f.key === "sellOrClosedPriceInfo");
-            if (closedField && closedField.value !== undefined && closedField.value !== null) {
-              rawClosingPrice = Number(closedField.value);
-            }
-            if (!rawClosingPrice) {
-              const lastField = item.fields.find((f) => f.key === "buyOrLastPriceInfo");
-              if (lastField && lastField.value !== undefined && lastField.value !== null) {
-                rawClosingPrice = Number(lastField.value);
-              }
-            }
-          } else if (item.priceRial || item.closedPriceRials) {
-            rawClosingPrice = Number(item.priceRial || item.closedPriceRials);
-          }
-
-          const rial = Math.round(rawClosingPrice);
-          const toman = Math.round(rial / 10);
-
-          return {
-            s: symbol,
-            symbol,
-            n: name,
-            name,
-            p: toman,
-            price: toman,
-            priceToman: toman,
-            priceRial: rial,
-            unit: "IRR",
-            isFund: true,
-            category: "صندوق سرمایه‌گذاری",
-            type: "صندوق",
-            manager: "کاریزما (Charisma)",
-          };
-        })
-        .filter((it) => it.symbol);
-
+      const rawList = Array.isArray(data) ? data : (data?.funds || data?.data || []);
+      const { mergedList } = mergeCharismaFunds([], rawList, new Date().toISOString(), sourceConfig);
       return {
         isCatalog: true,
-        totalCount: items.length,
-        items,
-        compactList: items,
-        sampleItems: items.slice(0, 50),
+        totalCount: mergedList.length,
+        items: mergedList,
+        compactList: mergedList,
+        sampleItems: mergedList.slice(0, 50),
         datetime: new Date().toISOString(),
       };
     },

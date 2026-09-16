@@ -115,6 +115,7 @@ export function mergeCharismaFunds(existingList = [], rawApiArray = [], nowIso =
         price: toman,
         priceToman: toman,
         priceRial: rial,
+        pl: rial,
         unit: "IRR",
         isFund: true,
         category: "صندوق سرمایه‌گذاری",
@@ -177,6 +178,7 @@ export function mergeCharismaFunds(existingList = [], rawApiArray = [], nowIso =
           price: priceToman,
           priceToman,
           priceRial: rawPriceRial,
+          pl: rawPriceRial,
           unit: "IRR",
           isFund: true,
           category: "صندوق سرمایه‌گذاری",
@@ -193,7 +195,7 @@ export function mergeCharismaFunds(existingList = [], rawApiArray = [], nowIso =
           addedCount++;
         }
       } else if (existing) {
-        // Price in API is 0 or missing -> RETAIN PREVIOUS VALID PRICE!
+        // Price in API is zero/invalid -> RETAIN PREVIOUS VALID PRICE!
         if (name && name !== existing.name) {
           existing.name = name;
           existing.n = name;
@@ -348,12 +350,44 @@ export const charismaFundsSourceAdapter = {
     logger.info(`[CharismaAdapter] Processed ${stats.totalFunds} funds. Added: ${stats.addedCount}, Updated: ${stats.updatedCount}, Retained: ${stats.retainedCount}`);
 
     return {
-      price: 0,
+      price: mergedList.length,
       priceType: "charisma_funds",
       datetime: nowIso,
+      label: sourceConfig.name || "صندوق‌های سرمایه‌گذاری کاریزما (Charisma)",
+      multiData: {
+        isCatalog: true,
+        totalCount: mergedList.length,
+        items: mergedList,
+        compactList: mergedList,
+        sampleItems: mergedList.slice(0, 50),
+        datetime: nowIso,
+        stats,
+      },
+      compactList: mergedList,
+      sampleItems: mergedList.slice(0, 50),
       multiOutput: mergedList,
       sourceId: sourceConfig?.id || "src_def_charisma",
     };
+  },
+
+  async test(sourceConfig = {}, env = null) {
+    try {
+      const raw = await this.fetchRaw(sourceConfig, env);
+      const parsed = await this.parse(raw, sourceConfig, null);
+      return {
+        success: true,
+        source_type: "api_url",
+        price: parsed.price,
+        multiData: parsed.multiData,
+        sampleItems: parsed.compactList || parsed.sampleItems,
+        compactList: parsed.compactList,
+        datetime: parsed.datetime,
+        label: parsed.label,
+        message: `تعداد ${parsed.price} صندوق سرمایه‌گذاری کاریزما با موفقیت دریافت و پردازش شد.`,
+      };
+    } catch (e) {
+      return { success: false, error: e.message || "خطا در تست وب‌سرویس کاریزما" };
+    }
   },
 
   async getLatestFunds(env = null) {

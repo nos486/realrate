@@ -17,7 +17,6 @@ import {
   saveGlobalSettings,
 } from "../repositories/index.js";
 import { getAdminStats } from "../lib/analytics.js";
-import { testUsdSource } from "../services/telegramPrices.js";
 import { testPriceSourceConfig, fetchAllPrices, inspectApiEndpointStructure, refreshMarketRatesCache } from "../services/market/priceAggregator.service.js";
 import { jsonResponse, errorResponse, forbiddenResponse } from "../lib/helpers.js";
 import { AppError } from "../lib/AppError.js";
@@ -131,7 +130,13 @@ export async function handleAdminTestUsdSource(request, env) {
 
   try {
     const body = await request.json();
-    const testResult = await testUsdSource(body);
+    const config = {
+      priceType: "usd",
+      sourceType: body.usd_source_type === "api_url" ? "api_url" : "telegram",
+      endpoint: body.usd_source_type === "api_url" ? (body.usd_api_url || "").trim() : (body.usd_telegram_channel || "tahran_sabza").trim(),
+      jsonPath: (body.usd_api_json_path || "").trim(),
+    };
+    const testResult = await testPriceSourceConfig(config, env);
     return jsonResponse(testResult, testResult.success ? 200 : 400, request);
   } catch (e) {
     return errorResponse(e.message, 500, request);

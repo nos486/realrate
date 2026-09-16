@@ -113,16 +113,22 @@ export function mergeBourseSymbols(existingList = [], rawApiArray = [], nowIso =
         rial = toman * 10;
       }
 
+        const isFund = Boolean(item.isFund || (item.n && item.n.includes('صندوق')));
         symbolMap.set(key, {
           s: key,
+          symbol: key,
           n: item.n || item.name || key,
+          name: item.n || item.name || key,
           p: toman,
           price: toman,
           priceToman: toman,
           priceRial: rial,
           pl: rial,
+          unit: "IRR",
           updatedAt: item.updatedAt || nowIso,
-          isFund: Boolean(item.isFund || (item.n && item.n.includes('صندوق'))),
+          isFund,
+          category: isFund ? "صندوق سرمایه‌گذاری" : "سهام بورس",
+          type: isFund ? "صندوق" : "سهام",
           sourceName: item.sourceName || defaultSourceName,
           sourceId: item.sourceId || defaultSourceId,
         });
@@ -153,19 +159,25 @@ export function mergeBourseSymbols(existingList = [], rawApiArray = [], nowIso =
         // Convert Rials to Tomans
         const priceToman = Math.round(rawPriceRial / 10);
         const isFund = Boolean(name.includes('صندوق') || existing?.isFund);
+        const category = isFund ? "صندوق سرمایه‌گذاری" : "سهام بورس";
 
         const priceChanged = existing ? (existing.priceRial !== rawPriceRial) : true;
 
         symbolMap.set(sym, {
           s: sym,
+          symbol: sym,
           n: name || existing?.n || sym,
+          name: name || existing?.name || sym,
           p: priceToman,
           price: priceToman,
           priceToman: priceToman,
           priceRial: rawPriceRial,
           pl: rawPriceRial,
+          unit: "IRR",
           updatedAt: (existing && !priceChanged) ? existing.updatedAt : nowIso,
           isFund,
+          category,
+          type: isFund ? "صندوق" : "سهام",
           sourceName: existing?.sourceName || defaultSourceName,
           sourceId: existing?.sourceId || defaultSourceId,
         });
@@ -179,6 +191,7 @@ export function mergeBourseSymbols(existingList = [], rawApiArray = [], nowIso =
         // Price in API is zero/invalid -> RETAIN PREVIOUS VALID PRICE!
         if (name && name !== existing.n) {
           existing.n = name;
+          existing.name = name;
         }
       }
     }
@@ -239,7 +252,7 @@ export const bourseSymbolsSourceAdapter = {
     return await res.json();
   },
 
-  async parse(raw, sourceConfig, env = null) {
+  async parse(raw, sourceConfig = {}, env = null) {
     const rawData = typeof raw === "string" ? JSON.parse(raw) : raw;
     let rawArray = Array.isArray(rawData) ? rawData : (rawData?.symbols || rawData?.data || []);
 
@@ -278,16 +291,20 @@ export const bourseSymbolsSourceAdapter = {
 
     return {
       price: mergedList.length,
+      datetime: nowIso,
+      label: sourceConfig.name || "بورس اوراق بهادار تهران (TSETMC / BRS API)",
       multiData: {
-        totalSymbols: mergedList.length,
-        updatedAt: nowIso,
+        isCatalog: true,
+        totalCount: mergedList.length,
+        items: mergedList,
+        compactList: mergedList,
+        sampleItems: mergedList.slice(0, 50),
+        datetime: nowIso,
         stats,
       },
       compactList: mergedList,
-      sampleItems: mergedList.slice(0, 30),
+      sampleItems: mergedList.slice(0, 50),
       sampleSymbols: mergedList.slice(0, 10).map(x => x.s),
-      datetime: nowIso,
-      label: sourceConfig.name || "بورس اوراق بهادار تهران (TSETMC / BRS API)",
     };
   },
 

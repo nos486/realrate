@@ -87,6 +87,7 @@ export function mergeEmofidFunds(existingList = [], rawApiArray = [], nowIso = n
         price: toman,
         priceToman: toman,
         priceRial: rial,
+        pl: rial,
         unit: "IRR",
         isFund: true,
         category: "صندوق سرمایه‌گذاری",
@@ -134,6 +135,7 @@ export function mergeEmofidFunds(existingList = [], rawApiArray = [], nowIso = n
           price: priceToman,
           priceToman,
           priceRial: rawPriceRial,
+          pl: rawPriceRial,
           unit: "IRR",
           isFund: true,
           category: "صندوق سرمایه‌گذاری",
@@ -289,6 +291,26 @@ export const emofidFundsSourceAdapter = {
       compactList: mergedList,
       sampleItems: mergedList.slice(0, 50),
     };
+  },
+
+  async test(sourceConfig = {}, env = null) {
+    try {
+      const raw = await this.fetchRaw(sourceConfig, env);
+      const parsed = await this.parse(raw, sourceConfig, null);
+      return {
+        success: true,
+        source_type: "api_url",
+        price: parsed.price,
+        multiData: parsed.multiData,
+        sampleItems: parsed.compactList || parsed.sampleItems,
+        compactList: parsed.compactList,
+        datetime: parsed.datetime,
+        label: parsed.label,
+        message: `تعداد ${parsed.price} صندوق سرمایه‌گذاری مفید با موفقیت دریافت و پردازش شد.`,
+      };
+    } catch (e) {
+      return { success: false, error: e.message || "خطا در تست وب‌سرویس مفید" };
+    }
   },
 
   /**
