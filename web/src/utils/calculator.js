@@ -140,8 +140,32 @@ export function calculateMarketData({
       toman_price: cashUsdPrice,
       note: 'نرخ دلار نقدی بازار آزاد',
       showOnHomePage: showUsdOnHome,
+      aliases: usdSpec.aliases || ['دلار', 'USD'],
     },
   ];
+
+  // ── Global Benchmark Assets (World Gold Ounce - XAU) ─────────────────────────
+  if (gold_usd > 0) {
+    const onsSpec = getCanonicalAssetSpec('ons_gold') || {};
+    const onsToman = usd_toman > 0 ? Math.round(gold_usd * usd_toman) : 0;
+    currencies.push({
+      code: onsSpec.code || 'XAU',
+      id: 'ons_gold',
+      priceType: 'ons_gold',
+      name: onsSpec.name || 'انس طلای جهانی',
+      flag: onsSpec.flag || '🪙',
+      symbol: onsSpec.symbol || 'XAU',
+      unit: onsSpec.unit || 'دلار',
+      price: gold_usd,
+      usd_price: gold_usd,
+      toman_price: onsToman,
+      usd_cross_rate: gold_usd,
+      subPriceText: onsToman > 0 ? `${Math.round(onsToman).toLocaleString('fa-IR')} تومان` : null,
+      note: onsToman > 0 ? `معادل ${Math.round(onsToman).toLocaleString('fa-IR')} تومان` : 'نرخ لحظه‌ای بازارهای جهانی',
+      showOnHomePage: true,
+      aliases: onsSpec.aliases || ['انس', 'اونس', 'XAU', 'طلا'],
+    });
+  }
 
   // Collect candidate currency keys dynamically from marketPrices and forex
   const candidateKeys = new Set();
@@ -172,8 +196,8 @@ export function calculateMarketData({
     });
   }
 
-  // Priority order for display (prominent currencies and digital currencies first)
-  const DEFAULT_PRIORITY_ORDER = ['USD', 'USDT', 'EUR', 'AED', 'TRY', 'GBP', 'CHF', 'CAD', 'AUD', 'CNY', 'JPY'];
+  // Priority order for display (prominent currencies, gold ounce, and digital currencies first)
+  const DEFAULT_PRIORITY_ORDER = ['USD', 'USDT', 'XAU', 'EUR', 'AED', 'TRY', 'GBP', 'CHF', 'CAD', 'AUD', 'CNY', 'JPY'];
   const sortedCandidateKeys = Array.from(candidateKeys).sort((a, b) => {
     const idxA = DEFAULT_PRIORITY_ORDER.indexOf(a);
     const idxB = DEFAULT_PRIORITY_ORDER.indexOf(b);

@@ -12,6 +12,7 @@ function formatNum(num) {
 export const DEFAULT_PRIORITY_CURRENCIES = [
   'USD',  // دلار آمریکا
   'USDT', // تتر (دلار دیجیتال)
+  'XAU',  // انس جهانی طلا
   'EUR',  // یورو
   'AED',  // درهم امارات
   'TRY',  // لیر ترکیه
@@ -67,7 +68,8 @@ export default function CurrenciesList({ currencies, onCurrencyClick }) {
     return (
       c.name?.toLowerCase().includes(q) ||
       c.code?.toLowerCase().includes(q) ||
-      c.note?.toLowerCase().includes(q)
+      c.note?.toLowerCase().includes(q) ||
+      (c.aliases && c.aliases.some((a) => a.toLowerCase().includes(q)))
     );
   });
 
@@ -130,9 +132,12 @@ export default function CurrenciesList({ currencies, onCurrencyClick }) {
 
               <div className="curr-price-block">
                 <div className="curr-price-val">
-                  {formatNum(c.toman_price)}
-                  <span className="curr-unit">تومان</span>
+                  {formatNum(c.unit === 'دلار' ? (c.usd_price || c.price) : (c.toman_price || c.price))}
+                  <span className="curr-unit">{c.unit || 'تومان'}</span>
                 </div>
+                {c.subPriceText && (
+                  <span className="curr-ratio-tag">{c.subPriceText}</span>
+                )}
               </div>
             </div>
           ))}

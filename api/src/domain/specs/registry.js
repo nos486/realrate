@@ -58,6 +58,8 @@ const ALIAS_MAP = {
   // Gold Aliases
   gold_melted: 'melted_gold',
   gold_ounce: 'ons_gold',
+  xau: 'ons_gold',
+  XAU: 'ons_gold',
   // Coin Aliases
   full_new: 'full_coin',
   half: 'half_coin',
@@ -67,6 +69,8 @@ const ALIAS_MAP = {
   // Silver Aliases
   silver_ounce: 'ons_silver',
   silver_999: 'silver_gram',
+  xag: 'ons_silver',
+  XAG: 'ons_silver',
   // Currency / Forex Aliases
   usd: 'USD',
   usd_toman: 'USD',
@@ -79,6 +83,26 @@ for (const [alias, canonicalId] of Object.entries(ALIAS_MAP)) {
     CANONICAL_ASSET_REGISTRY[alias.toLowerCase()] = target;
   }
 }
+
+// Dynamically register all aliases and codes declared in asset specs
+[
+  ...Object.values(GOLD_SPECS),
+  ...Object.values(COIN_SPECS),
+  ...Object.values(SILVER_SPECS),
+  ...FOREX_SPECS,
+  ...Object.values(CRYPTO_SPECS),
+].forEach((item) => {
+  if (item.code) {
+    if (!CANONICAL_ASSET_REGISTRY[item.code]) CANONICAL_ASSET_REGISTRY[item.code] = item;
+    if (!CANONICAL_ASSET_REGISTRY[item.code.toLowerCase()]) CANONICAL_ASSET_REGISTRY[item.code.toLowerCase()] = item;
+  }
+  if (item.aliases && Array.isArray(item.aliases)) {
+    item.aliases.forEach((alias) => {
+      if (!CANONICAL_ASSET_REGISTRY[alias]) CANONICAL_ASSET_REGISTRY[alias] = item;
+      if (!CANONICAL_ASSET_REGISTRY[alias.toLowerCase()]) CANONICAL_ASSET_REGISTRY[alias.toLowerCase()] = item;
+    });
+  }
+});
 
 // ── Canonical Name & Metadata Resolution Helpers ─────────────────────────────
 

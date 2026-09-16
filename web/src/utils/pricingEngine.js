@@ -165,9 +165,13 @@ export function computeUnifiedPrices({
     } else if (item.id === 'ons_gold') {
       priceMap['gold_ounce'] = effectivePrice;
       priceMap['src_def_gold_ounce'] = effectivePrice;
+      priceMap['XAU'] = effectivePrice;
+      priceMap['xau'] = effectivePrice;
     } else if (item.id === 'ons_silver') {
       priceMap['silver_ounce'] = effectivePrice;
       priceMap['src_def_silver_ounce'] = effectivePrice;
+      priceMap['XAG'] = effectivePrice;
+      priceMap['xag'] = effectivePrice;
     }
   });
 
