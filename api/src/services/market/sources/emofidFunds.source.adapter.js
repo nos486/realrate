@@ -43,8 +43,8 @@ let inMemoryEmofidList = null;
  * }}
  */
 export function mergeEmofidFunds(existingList = [], rawApiArray = [], nowIso = new Date().toISOString(), sourceConfig = null) {
-  const defaultSourceName = sourceConfig?.name || "صندوق‌های سرمایه‌گذاری کارگزاری مفید (Emofid)";
-  const defaultSourceId = sourceConfig?.id || "src_def_emofid";
+  const defaultSourceName = sourceConfig?.name || "";
+  const defaultSourceId = sourceConfig?.id || "";
   const fundsMap = new Map();
 
   // 1. Initialize map with existing funds

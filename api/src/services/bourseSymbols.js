@@ -84,7 +84,7 @@ export async function getBourseSymbols(env, query = "", limit = DEFAULT_BOURSE_S
       priceRial: item.priceRial || item.pl || (item.p * 10),
       updatedAt: item.updatedAt || null,
       isFund: Boolean(item.isFund || (item.n && item.n.includes('صندوق'))),
-      sourceName: item.sourceName || defaultBourseName,
+      sourceName: getSourceDisplayName(item) || item.sourceName || defaultBourseName,
       sourceId: item.sourceId || "src_def_bourse",
     }));
   }
@@ -113,7 +113,7 @@ export async function getBourseSymbols(env, query = "", limit = DEFAULT_BOURSE_S
     priceRial: item.priceRial || item.pl || (item.p * 10),
     updatedAt: item.updatedAt || null,
     isFund: Boolean(item.isFund || (item.n && item.n.includes('صندوق'))),
-    sourceName: item.sourceName || defaultBourseName,
+    sourceName: getSourceDisplayName(item) || item.sourceName || defaultBourseName,
     sourceId: item.sourceId || "src_def_bourse",
   }));
 }

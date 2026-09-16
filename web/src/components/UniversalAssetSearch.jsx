@@ -487,7 +487,7 @@ export default function UniversalAssetSearch({
         const spec = getCanonicalAssetSpec(asset.id || sym);
         const aliases = spec?.aliases || asset.aliases || [];
         const isMulti = asset.isMultiItem || asset.priceType === 'bourse' || asset.priceType === 'forex' || Boolean(asset.sourceName);
-        const sourceName = asset.sourceName || getSourceDisplayName(asset.sourceId || asset.priceType, internalSources);
+        const sourceName = getSourceDisplayName(asset, internalSources) || asset.sourceName;
         const subText = isMulti && sourceName
           ? (sym ? `نماد: ${sym} • ${sourceName}` : sourceName)
           : (asset.subText || '');
@@ -597,7 +597,7 @@ export default function UniversalAssetSearch({
         if (priceToman === 0 && sub.priceRial) priceToman = Math.round(Number(sub.priceRial) / 10);
         const unit = sub.unit || (isFund ? 'واحد' : (src.unit || 'تومان'));
 
-        const sourceName = sub.sourceName || src.name || getSourceDisplayName(sub.sourceId || src.id || src.priceType, internalSources);
+        const sourceName = getSourceDisplayName(sub, internalSources) || sub.sourceName || src.name;
         const subDetails = symCode
           ? (sourceName ? `نماد: ${symCode} • ${sourceName}` : `نماد: ${symCode}`)
           : (sourceName || '');
@@ -668,7 +668,7 @@ export default function UniversalAssetSearch({
         }
 
         const unit = isFund ? 'واحد' : 'برگ سهم';
-        const sourceName = sub.sourceName || getSourceDisplayName(sub.sourceId || 'bourse', internalSources) || 'بورس اوراق بهادار تهران (TSETMC / BRS API)';
+        const sourceName = getSourceDisplayName(sub, internalSources) || sub.sourceName || 'بورس اوراق بهادار تهران (TSETMC / BRS API)';
         const subDetails = symCode
           ? (sourceName ? `نماد: ${symCode} • ${sourceName}` : `نماد: ${symCode}`)
           : sourceName;

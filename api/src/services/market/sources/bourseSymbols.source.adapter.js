@@ -78,8 +78,8 @@ export function normalizePersian(str) {
  * }}
  */
 export function mergeBourseSymbols(existingList = [], rawApiArray = [], nowIso = new Date().toISOString(), sourceConfig = null) {
-  const defaultSourceName = sourceConfig?.name || "بورس اوراق بهادار تهران (TSETMC / BRS API)";
-  const defaultSourceId = sourceConfig?.id || "src_def_bourse";
+  const defaultSourceName = sourceConfig?.name || "";
+  const defaultSourceId = sourceConfig?.id || "";
   const symbolMap = new Map();
 
   // 1. Initialize map with existing symbols

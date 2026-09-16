@@ -256,8 +256,6 @@ export const PRICE_SOURCES_CONFIG = [
           priceRial: rial || (toman * 10),
           isFund,
           category: isFund ? "صندوق سرمایه‌گذاری" : "سهام بورس",
-          sourceName: sourceConfig?.name || "بورس اوراق بهادار تهران (TSETMC / BRS API)",
-          sourceId: sourceConfig?.id || "src_def_bourse",
         };
       }).filter((it) => it.symbol);
 
@@ -283,6 +281,9 @@ export const PRICE_SOURCES_CONFIG = [
     fieldMapping: null,
     excludedOutputs: [],
     displayConfig: { showOnHomePage: false },
+    knownSymbols: [
+      "عیار", "پیشتاز", "پیشرو", "امید", "پیشواز", "آتیه", "حامی", "نامی"
+    ],
     fetchIntervalSec: 1800,
     isActive: true,
     isPrimary: true,
@@ -326,8 +327,6 @@ export const PRICE_SOURCES_CONFIG = [
             isFund: true,
             category: "صندوق سرمایه‌گذاری",
             type: item.type || "صندوق",
-            sourceName: sourceConfig?.name || "صندوق‌های سرمایه‌گذاری مفید (Emofid)",
-            sourceId: sourceConfig?.id || "src_def_emofid",
           };
         })
         .filter((it) => it.symbol);
@@ -354,6 +353,9 @@ export const PRICE_SOURCES_CONFIG = [
     fieldMapping: null,
     excludedOutputs: [],
     displayConfig: { showOnHomePage: false },
+    knownSymbols: [
+      "اهرم", "کهربا", "نقران", "کارا", "متال", "کمند", "کاخ", "کاریس", "مزه", "سیمانا", "ضمان", "صنم", "تضمین", "کمان"
+    ],
     fetchIntervalSec: 1800,
     isActive: true,
     isPrimary: true,
@@ -413,8 +415,6 @@ export const PRICE_SOURCES_CONFIG = [
             category: "صندوق سرمایه‌گذاری",
             type: "صندوق",
             manager: "کاریزما (Charisma)",
-            sourceName: sourceConfig?.name || "صندوق‌های سرمایه‌گذاری کاریزما (Charisma)",
-            sourceId: sourceConfig?.id || "src_def_charisma",
           };
         })
         .filter((it) => it.symbol);
@@ -481,30 +481,105 @@ export function getReferenceRatesSpecs() {
     });
 }
 
+const GENERIC_SOURCE_STOPWORDS = new Set([
+  'صندوق', 'صندوق‌های', 'صندوقهای', 'سرمایه', 'سرمایه‌گذاری', 'سرمایهگذاری',
+  'نرخ', 'نرخ‌های', 'نرخهای', 'جهانی', 'بازار', 'اوراق', 'بهادار', 'قیمت',
+  'api', 'feed', 'source', 'سورس', 'فید'
+]);
+
+function extractSourceBrandTokens(nameOrId) {
+  if (!nameOrId || typeof nameOrId !== 'string') return [];
+  return nameOrId
+    .toLowerCase()
+    .replace(/[()\/\\_—–-]/g, ' ')
+    .split(/\s+/)
+    .map((t) => t.trim())
+    .filter((t) => t.length > 2 && !GENERIC_SOURCE_STOPWORDS.has(t));
+}
+
 /**
- * Resolves source display name dynamically from PRICE_SOURCES_CONFIG
- * @param {string|object} sourceOrKey
- * @returns {string}
+ * Resolves source display name dynamically from PRICE_SOURCES_CONFIG or customSources.
+ * Zero hardcoded names — derives distinctive brand tokens directly from source definitions.
+ *
+ * @param {string|object} sourceOrItem - Source ID, priceType, source object, or item object
+ * @param {Array<object>} [customSources=[]] - Optional active sources list
+ * @returns {string} - Master source name (e.g. "صندوق‌های سرمایه‌گذاری کاریزما (Charisma)")
  */
-export function getSourceDisplayName(sourceOrKey, customSources = []) {
-  if (!sourceOrKey) return "";
-  if (typeof sourceOrKey === "object") {
-    if (sourceOrKey.sourceName) return sourceOrKey.sourceName;
-    if (sourceOrKey.name) return sourceOrKey.name;
-    sourceOrKey = sourceOrKey.sourceId || sourceOrKey.priceType || sourceOrKey.id;
-  }
-  const key = String(sourceOrKey).trim().toLowerCase();
-  if (!key) return "";
+export function getSourceDisplayName(sourceOrItem, customSources = []) {
+  if (!sourceOrItem) return "";
 
-  if (Array.isArray(customSources) && customSources.length > 0) {
-    const foundCustom = customSources.find(
-      (s) => s && (s.id?.toLowerCase() === key || s.priceType?.toLowerCase() === key)
-    );
-    if (foundCustom?.name) return foundCustom.name;
+  const allSources = Array.isArray(customSources) && customSources.length > 0
+    ? [...customSources, ...PRICE_SOURCES_CONFIG]
+    : PRICE_SOURCES_CONFIG;
+
+  // 1. If passed an object (item, asset, or source)
+  if (typeof sourceOrItem === "object") {
+    // If it already has a specific sourceName (other than the generic bourse fallback), use it
+    if (sourceOrItem.sourceName && !sourceOrItem.sourceName.includes('بورس اوراق بهادار') && !sourceOrItem.sourceName.includes('TSETMC')) {
+      return sourceOrItem.sourceName;
+    }
+
+    // Direct match by sourceId or priceType if explicitly provided
+    const explicitKey = String(sourceOrItem.sourceId || sourceOrItem.source || sourceOrItem.priceType || sourceOrItem.id || '').trim().toLowerCase();
+    if (explicitKey && explicitKey !== 'bourse' && explicitKey !== 'bourse_feed' && explicitKey !== 'src_def_bourse') {
+      const direct = allSources.find(
+        (s) => s && (s.id?.toLowerCase() === explicitKey || s.priceType?.toLowerCase() === explicitKey)
+      );
+      if (direct?.name) return direct.name;
+    }
+
+    // Dynamic brand matching from source definitions (e.g. fund matching)
+    const itemName = String(sourceOrItem.name || sourceOrItem.n || sourceOrItem.title || '').trim().toLowerCase();
+    const itemSym = String(sourceOrItem.symbol || sourceOrItem.s || '').trim().toLowerCase();
+
+    if (itemName || itemSym) {
+      // Prioritize specific catalog sources (excluding generic bourse)
+      const catalogSources = allSources.filter(
+        (s) => s && s.id !== 'src_def_bourse' && s.priceType !== 'bourse' && (s.isCatalog || s.category === 'catalog' || s.priceType?.includes('fund'))
+      );
+
+      for (const src of catalogSources) {
+        // 1. Check knownSymbols declared directly on the source
+        if (Array.isArray(src.knownSymbols) && itemSym) {
+          if (src.knownSymbols.some((s) => String(s).trim().toLowerCase() === itemSym)) {
+            return src.name;
+          }
+        }
+
+        // 2. Check distinctive brand tokens from source name
+        const tokens = extractSourceBrandTokens(src.name);
+        if (tokens.some((tok) => (itemName && itemName.includes(tok)) || itemSym === tok)) {
+          return src.name;
+        }
+      }
+    }
+
+    // Fallback for general bourse assets
+    if (sourceOrItem.priceType === 'bourse' || sourceOrItem.type === 'bourse' || sourceOrItem.category?.startsWith('bourse')) {
+      const bourseSrc = allSources.find((s) => s.id === 'src_def_bourse' || s.priceType === 'bourse');
+      if (bourseSrc?.name) return bourseSrc.name;
+    }
+
+    if (sourceOrItem.name && sourceOrItem.endpoint) return sourceOrItem.name;
   }
 
-  const found = PRICE_SOURCES_CONFIG.find(
+  // 2. If passed a string key (sourceId or priceType)
+  const key = String(sourceOrItem).trim().toLowerCase();
+  const direct = allSources.find(
     (s) => s && (s.id?.toLowerCase() === key || s.priceType?.toLowerCase() === key)
   );
-  return found?.name || "";
+  if (direct?.name) return direct.name;
+
+  // 3. String matching against source brand tokens
+  const catalogSources = allSources.filter(
+    (s) => s && s.id !== 'src_def_bourse' && s.priceType !== 'bourse'
+  );
+  for (const src of catalogSources) {
+    const tokens = extractSourceBrandTokens(src.name);
+    if (tokens.some((tok) => key.includes(tok))) {
+      return src.name;
+    }
+  }
+
+  return "";
 }

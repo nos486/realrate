@@ -71,8 +71,8 @@ export const KNOWN_CHARISMA_SYMBOLS = {
  * }}
  */
 export function mergeCharismaFunds(existingList = [], rawApiArray = [], nowIso = new Date().toISOString(), sourceConfig = null) {
-  const defaultSourceName = sourceConfig?.name || "صندوق‌های سرمایه‌گذاری کاریزما (Charisma)";
-  const defaultSourceId = sourceConfig?.id || "src_def_charisma";
+  const defaultSourceName = sourceConfig?.name || "";
+  const defaultSourceId = sourceConfig?.id || "";
   const fundsMap = new Map();
 
   // 1. Initialize map with existing funds

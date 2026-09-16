@@ -57,8 +57,6 @@ describe("Charisma Investment Funds Adapter & Incremental Merge Tests", () => {
     expect(noghran.priceToman).toBe(1223); // 12232 / 10
     expect(noghran.price).toBe(1223);
     expect(noghran.isFund).toBe(true);
-    expect(noghran.sourceName).toBe('صندوق‌های سرمایه‌گذاری کاریزما (Charisma)');
-    expect(noghran.sourceId).toBe('src_def_charisma');
 
     const kahroba = mergedList.find((f) => f.symbol === "کهربا");
     expect(kahroba).toBeDefined();

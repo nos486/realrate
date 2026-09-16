@@ -129,7 +129,7 @@ export async function handleGetUnifiedMarketItems(env, request) {
       priceRial: b.priceRial || (b.priceToman ? b.priceToman * 10 : 0),
       marketPrice: b.priceToman || b.price,
       isFund: b.isFund,
-      sourceName: b.sourceName || bourseDefaultName,
+      sourceName: getSourceDisplayName(b) || b.sourceName || bourseDefaultName,
       sourceId: b.sourceId || 'src_def_bourse',
     }));
 

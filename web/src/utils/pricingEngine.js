@@ -230,7 +230,7 @@ export function computeUnifiedPrices({
   bourse.forEach((b) => {
     const p = Math.round(Number(b.priceToman || b.price || 0));
     const isFund = Boolean(b.isFund || b.category === 'bourse_fund' || b.name?.includes('صندوق'));
-    const sourceLabel = b.sourceName || b.sourceTitle || getSourceDisplayName(b.sourceId || 'bourse') || 'بورس اوراق بهادار تهران (TSETMC / BRS API)';
+    const sourceLabel = getSourceDisplayName(b) || b.sourceName || b.sourceTitle || 'بورس اوراق بهادار تهران (TSETMC / BRS API)';
     const subText = b.symbol ? `نماد: ${b.symbol} • ${sourceLabel}` : sourceLabel;
     const resolved = {
       ...b,
