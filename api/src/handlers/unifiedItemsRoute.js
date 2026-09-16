@@ -12,10 +12,10 @@ import {
   COIN_SPECS,
   SILVER_SPECS,
   FOREX_SPECS,
-  extractFundName,
 } from "../domain/specs/index.js";
 import { logger } from "../lib/logger.js";
 import { MAX_MARKET_ITEMS_LIMIT } from "../config/constants.js";
+import { getSourceDisplayName } from "../config/sources.config.js";
 
 export async function handleGetUnifiedMarketItems(env, request) {
   try {
@@ -31,71 +31,83 @@ export async function handleGetUnifiedMarketItems(env, request) {
       getBourseSymbols(env, q, limit),
     ]);
 
-    const live_usd_toman = Number(prices.usd?.price || prices.usd_toman?.price || globalSettings?.default_usd_toman || 62000);
-    const gold_usd = Number(prices.ons_gold?.price || 2890);
-    const silver_usd = Number(prices.ons_silver?.price || 33.5);
+    const gold_usd = prices.ons_gold?.price || globalSettings?.default_gold_usd || 2890;
+    const silver_usd = prices.ons_silver?.price || 33.5;
+    const live_usd_item = prices.usd_toman || prices.usd || null;
+    const live_usd_toman = live_usd_item ? live_usd_item.price : (globalSettings?.default_usd_toman || 62000);
 
-    // 1. Standard Gold, Coins & Silver (100% computed via mathematical formulas)
-    const allSpecs = [
+    // Helper to resolve bubble percentage setting
+    const getBubblePct = (id, fallback) => {
+      if (id === 'full_coin') return globalSettings?.bubble_pct_full ?? fallback;
+      if (id === 'half_coin') return globalSettings?.bubble_pct_half ?? fallback;
+      if (id === 'quarter_coin') return globalSettings?.bubble_pct_quarter ?? fallback;
+      if (id === 'gerami_coin') return globalSettings?.bubble_pct_gerami ?? fallback;
+      return fallback;
+    };
+
+    // 1. Gold, Coin, and Silver definitions with physical specs and live source market prices
+    const allPhysicalSpecs = [
       ...Object.values(GOLD_SPECS),
       ...Object.values(COIN_SPECS),
       ...Object.values(SILVER_SPECS),
     ];
 
-    const standardGoldAndCoins = allSpecs.map((spec) => {
-      let marketPrice = 0;
-      if (spec.calculate) {
-        marketPrice = spec.calculate({
-          live_usd_toman,
-          gold_usd,
-          silver_usd,
-          globalSettings,
-          prices,
-        });
-      } else if (prices[spec.id]?.price) {
-        marketPrice = Number(prices[spec.id].price);
+    const standardGoldAndCoins = allPhysicalSpecs.map((spec) => {
+      const p = prices[spec.id] || null;
+      let marketPrice = p?.price || null;
+      let sourceName = p?.label || null;
+      let sourceId = p?.sourceId || null;
+      let updatedAt = p?.datetime || null;
+
+      if (spec.id === 'ons_gold') {
+        marketPrice = gold_usd;
+        sourceName = sourceName || 'بازار جهانی طلا (XAU)';
+      } else if (spec.id === 'ons_silver') {
+        marketPrice = silver_usd;
+        sourceName = sourceName || 'بازار جهانی نقره (XAG)';
       }
 
-      const pToman = Math.round(marketPrice || 0);
-
       return {
-        id: spec.id,
-        symbol: spec.symbol || spec.id,
-        name: spec.name,
-        category: spec.category,
-        badge: spec.badge,
-        unit: spec.unit,
-        priceToman: pToman,
-        priceRial: pToman * 10,
-        marketPrice: pToman,
-        formulaText: spec.formulaText || null,
-        changePercent: prices[spec.id]?.changePercent || 0,
-        sourceName: prices[spec.id]?.label || 'محاسباتی سامانه RealRate',
-        updatedAt: prices[spec.id]?.datetime || null,
+        ...spec,
+        targetBubblePct: getBubblePct(spec.id, spec.targetBubblePct || 0),
+        marketPrice,
+        sourceName,
+        sourceId,
+        updatedAt,
       };
     });
 
-    // 2. Forex Currencies
-    const forexList = Object.values(FOREX_SPECS);
-    const currenciesList = forexList.map((cur) => {
+    // 2. Forex Currencies with USD Cross Rates
+    const currenciesList = FOREX_SPECS.map((cur) => {
       const lower = cur.code.toLowerCase();
-      let usdCrossRate = 0;
+      const rawPrice = Number(prices[lower]?.price || prices[cur.code]?.price || 0);
+      const usdCrossRate = rawPrice > 0 ? rawPrice : cur.defaultCross;
 
       if (cur.code === 'USD') {
-        usdCrossRate = 1.0;
-      } else if (prices[lower]?.usdCrossRate) {
-        usdCrossRate = Number(prices[lower].usdCrossRate);
-      } else if (prices[lower]?.price) {
-        usdCrossRate = Number(prices[lower].price);
+        return {
+          id: 'USD',
+          code: 'USD',
+          name: cur.name,
+          category: 'currency',
+          badge: 'ارز',
+          unit: 'تومان',
+          flag: cur.flag,
+          symbol: cur.symbol,
+          usdCrossRate: 1.0,
+          marketPrice: live_usd_toman,
+          sourceName: live_usd_item?.label || 'دلار آزاد',
+          updatedAt: live_usd_item?.datetime || null,
+        };
       }
 
       return {
-        id: `forex_${lower}`,
+        id: cur.code,
         code: cur.code,
         name: cur.name,
         category: 'currency',
         badge: 'ارز',
-        unit: cur.unit || 'تومان',
+        unit: 'تومان',
+        flag: cur.flag,
         symbol: cur.symbol,
         usdCrossRate,
         marketPrice: null, // Always dynamically calculated from client USD
@@ -105,24 +117,21 @@ export async function handleGetUnifiedMarketItems(env, request) {
     });
 
     // 3. Tehran Stock Exchange (Bourse) symbols
-    const bourseList = (bourseSymbols || []).map(b => {
-      const isFund = Boolean(b.isFund);
-      const fundName = isFund ? extractFundName(b) : null;
-      return {
-        id: `bourse_${b.symbol}`,
-        symbol: b.symbol,
-        name: b.name,
-        category: isFund ? 'bourse_fund' : 'bourse',
-        badge: isFund ? 'صندوق' : 'بورس',
-        unit: isFund ? 'واحد' : 'برگ سهم',
-        isFund,
-        fundName,
-        priceToman: b.priceToman || b.price,
-        priceRial: b.priceRial || (b.priceToman ? b.priceToman * 10 : 0),
-        marketPrice: b.priceToman || b.price,
-        sourceName: isFund ? (fundName || 'صندوق‌های سرمایه‌گذاری بورس') : 'بورس اوراق بهادار تهران (TSETMC)',
-      };
-    });
+    const bourseDefaultName = getSourceDisplayName("src_def_bourse") || "بورس اوراق بهادار تهران (TSETMC / BRS API)";
+    const bourseList = (bourseSymbols || []).map(b => ({
+      id: `bourse_${b.symbol}`,
+      symbol: b.symbol,
+      name: b.name,
+      category: b.isFund ? 'bourse_fund' : 'bourse',
+      badge: b.isFund ? 'صندوق' : 'بورس',
+      unit: b.isFund ? 'واحد' : 'برگ سهم',
+      priceToman: b.priceToman || b.price,
+      priceRial: b.priceRial || (b.priceToman ? b.priceToman * 10 : 0),
+      marketPrice: b.priceToman || b.price,
+      isFund: b.isFund,
+      sourceName: b.sourceName || bourseDefaultName,
+      sourceId: b.sourceId || 'src_def_bourse',
+    }));
 
     return jsonResponse({
       success: true,

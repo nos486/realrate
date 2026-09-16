@@ -213,7 +213,7 @@ export function resolveItemCategory(item) {
     cleanId.startsWith('fund_') ||
     cleanId.startsWith('emofid_') ||
     cleanId.startsWith('charisma_') ||
-    ((assetName.includes('صندوق') || assetName.includes('ص.س.') || assetName.includes('ص. س.') || assetName.startsWith('ص.س')) && !cleanId.startsWith('custom_'))
+    (assetName.includes('صندوق') && !cleanId.startsWith('custom_'))
   );
   const isBourse = (
     cleanId.startsWith('bourse_') ||
@@ -229,7 +229,7 @@ export function resolveItemCategory(item) {
     assetType === 'fund' ||
     Boolean(item.isFund) ||
     Boolean(item.raw?.isFund) ||
-    ((assetName.includes('صندوق') || assetName.includes('ص.س.') || assetName.includes('ص. س.') || assetName.startsWith('ص.س')) && !cleanId.startsWith('custom_'))
+    (assetName.includes('صندوق') && !cleanId.startsWith('custom_'))
   );
   if (isBourse) {
     return isFund ? 'bourse_fund' : 'bourse';
@@ -240,98 +240,6 @@ export function resolveItemCategory(item) {
   }
 
   return 'custom';
-}
-
-/**
- * Generic, data-driven extractor for fund provider or name from any item or source.
- * Zero hardcoded lists of funds. Uses metadata fields (manager, sourceName, category, type)
- * and source definitions, falling back to dynamic Persian grammatical decomposition of fund titles.
- *
- * @param {object|string} item - Asset item, bourse symbol, holding, or name string
- * @param {Array<object>} [sourcesConfig] - Optional sources list from sources.config.js
- * @returns {string} - Clean fund name (e.g., "کاریزما", "مفید", "نارنج", "موج فیروزه") or fallback
- */
-export function extractFundName(item, sourcesConfig = null) {
-  if (!item) return 'صندوق سرمایه‌گذاری';
-  const obj = typeof item === 'string' ? { name: item } : (item || {});
-
-  // 1. Direct explicit metadata fields on the item
-  if (obj.manager && typeof obj.manager === 'string') {
-    const clean = obj.manager.replace(/\s*\([^)]*\)/g, '').trim();
-    if (clean) return clean;
-  }
-  if (obj.fundName && typeof obj.fundName === 'string') {
-    return obj.fundName.trim();
-  }
-  if (obj.publisher && typeof obj.publisher === 'string') {
-    return obj.publisher.trim();
-  }
-
-  // 2. Cross-reference with sourcesConfig if available
-  const sourceId = String(obj.sourceId || obj.source || obj.priceType || '').toLowerCase();
-  if (Array.isArray(sourcesConfig) && sourceId) {
-    const matchedSource = sourcesConfig.find((src) => {
-      if (!src) return false;
-      if (src.id && src.id.toLowerCase() === sourceId) return true;
-      if (src.priceType && src.priceType.toLowerCase() === sourceId) return true;
-      return false;
-    });
-    if (matchedSource) {
-      if (matchedSource.manager) {
-        return String(matchedSource.manager).replace(/\s*\([^)]*\)/g, '').trim();
-      }
-      if (matchedSource.name && (matchedSource.name.includes('صندوق') || matchedSource.priceType?.includes('fund'))) {
-        const clean = matchedSource.name
-          .replace(/\s*\([^)]*\)/g, '')
-          .replace(/صندوق‌های\s+سرمایه‌گذاری\s*/g, '')
-          .replace(/صندوق\s+سرمایه‌گذاری\s*/g, '')
-          .replace(/صندوق\s*/g, '')
-          .trim();
-        if (clean) return clean;
-      }
-    }
-  }
-
-  // 3. Dynamic Persian name parser for TSETMC / Bourse Fund titles
-  // Standard format: [پیشوند صندوق] [نوع یا استراتژی] [نام یا برند صندوق] [پسوند]
-  const rawName = String(obj.name || obj.n || obj.title || obj.l30 || '').trim();
-  if (rawName) {
-    let clean = rawName;
-
-    // Remove prefix patterns:
-    clean = clean.replace(
-      /^(صندوق\s+سرمایه‌گذاری|صندوق\s+س\.?|ص\s*\.?\s*س\s*\.?|صندوق)\s*(اختصاصی\s+بازارگردانی|بازارگردانی|با\s*درآمد\s*ثابت|درآمد\s*ثابت|سهامی|مختلط|اهرمی|جسورانه|کالایی|پشتوانه\s*طلای?|طلا|پروژه|زمین\s*و\s*ساختمان|شاخصی|بخشی|مشترک|قابل\s*معامله)?\s*/i,
-      ''
-    );
-
-    // Remove common suffixes:
-    clean = clean.replace(
-      /\s*[-–—]\s*(س|ع|م|اهرمی|سهامی|سهام|پذیره‌نویسی|ممتاز|عادی|واحدهای\s*سرمایه‌گذاری|ETF|\(ETF\)).*$/i,
-      ''
-    );
-    clean = clean.replace(/\s*\((ETF|سهامی|عادی|ممتاز)\)/i, '');
-    clean = clean.replace(/\s*[-–—]\s*(س|ع|م)$/i, '');
-    clean = clean.trim();
-
-    if (clean && clean !== rawName) {
-      return clean;
-    }
-  }
-
-  // 4. Fallback from category / type / sourceName
-  if (obj.sourceName && !obj.sourceName.includes('بورس اوراق بهادار') && !obj.sourceName.includes('TSETMC')) {
-    const clean = obj.sourceName
-      .replace(/صندوق‌های\s+سرمایه‌گذاری\s*/g, '')
-      .replace(/صندوق\s+سرمایه‌گذاری\s*/g, '')
-      .replace(/صندوق\s*/g, '')
-      .trim();
-    if (clean) return clean;
-  }
-  if (obj.category && obj.category !== 'bourse_fund' && obj.category !== 'bourse') {
-    return obj.category;
-  }
-
-  return 'صندوق سرمایه‌گذاری';
 }
 
 // ── Master Portfolio Category Definitions ───────────────────────────────────

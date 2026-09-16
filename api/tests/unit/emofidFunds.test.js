@@ -67,6 +67,8 @@ describe('Emofid Mutual Funds Adapter & Incremental Merge Tests', () => {
     expect(atieh.price).toBe(4532);
     expect(atieh.unit).toBe('IRR');
     expect(atieh.isFund).toBe(true);
+    expect(atieh.sourceName).toBe('صندوق‌های سرمایه‌گذاری کارگزاری مفید (Emofid)');
+    expect(atieh.sourceId).toBe('src_def_emofid');
 
     // Strictly ensure other fields like cancelNav, aum, investorsNumber are NOT present
     expect(atieh.cancelNav).toBeUndefined();

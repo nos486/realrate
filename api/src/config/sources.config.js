@@ -240,8 +240,6 @@ export const PRICE_SOURCES_CONFIG = [
         const isFund = Boolean(
           item.isFund ||
           name.includes("صندوق") ||
-          name.includes("ص.س.") ||
-          name.includes("ص. س.") ||
           name.includes("ETF") ||
           symbol.includes("دارا") ||
           symbol.includes("پالایش")
@@ -258,6 +256,8 @@ export const PRICE_SOURCES_CONFIG = [
           priceRial: rial || (toman * 10),
           isFund,
           category: isFund ? "صندوق سرمایه‌گذاری" : "سهام بورس",
+          sourceName: sourceConfig?.name || "بورس اوراق بهادار تهران (TSETMC / BRS API)",
+          sourceId: sourceConfig?.id || "src_def_bourse",
         };
       }).filter((it) => it.symbol);
 
@@ -277,7 +277,6 @@ export const PRICE_SOURCES_CONFIG = [
     priceType: "emofid_funds",
     sourceType: "emofid_funds",
     isCatalog: true,
-    manager: "مفید (Emofid)",
     endpoint: "https://www.emofid.com/api/funds/",
     regex: "",
     jsonPath: "value",
@@ -327,7 +326,8 @@ export const PRICE_SOURCES_CONFIG = [
             isFund: true,
             category: "صندوق سرمایه‌گذاری",
             type: item.type || "صندوق",
-            manager: "مفید (Emofid)",
+            sourceName: sourceConfig?.name || "صندوق‌های سرمایه‌گذاری مفید (Emofid)",
+            sourceId: sourceConfig?.id || "src_def_emofid",
           };
         })
         .filter((it) => it.symbol);
@@ -348,7 +348,6 @@ export const PRICE_SOURCES_CONFIG = [
     priceType: "charisma_funds",
     sourceType: "charisma_funds",
     isCatalog: true,
-    manager: "کاریزما (Charisma)",
     endpoint: "https://charisma.ir/funds",
     regex: "",
     jsonPath: "data",
@@ -414,6 +413,8 @@ export const PRICE_SOURCES_CONFIG = [
             category: "صندوق سرمایه‌گذاری",
             type: "صندوق",
             manager: "کاریزما (Charisma)",
+            sourceName: sourceConfig?.name || "صندوق‌های سرمایه‌گذاری کاریزما (Charisma)",
+            sourceId: sourceConfig?.id || "src_def_charisma",
           };
         })
         .filter((it) => it.symbol);
@@ -478,4 +479,32 @@ export function getReferenceRatesSpecs() {
         order: Number(s.referenceOrder) || 99,
       };
     });
+}
+
+/**
+ * Resolves source display name dynamically from PRICE_SOURCES_CONFIG
+ * @param {string|object} sourceOrKey
+ * @returns {string}
+ */
+export function getSourceDisplayName(sourceOrKey, customSources = []) {
+  if (!sourceOrKey) return "";
+  if (typeof sourceOrKey === "object") {
+    if (sourceOrKey.sourceName) return sourceOrKey.sourceName;
+    if (sourceOrKey.name) return sourceOrKey.name;
+    sourceOrKey = sourceOrKey.sourceId || sourceOrKey.priceType || sourceOrKey.id;
+  }
+  const key = String(sourceOrKey).trim().toLowerCase();
+  if (!key) return "";
+
+  if (Array.isArray(customSources) && customSources.length > 0) {
+    const foundCustom = customSources.find(
+      (s) => s && (s.id?.toLowerCase() === key || s.priceType?.toLowerCase() === key)
+    );
+    if (foundCustom?.name) return foundCustom.name;
+  }
+
+  const found = PRICE_SOURCES_CONFIG.find(
+    (s) => s && (s.id?.toLowerCase() === key || s.priceType?.toLowerCase() === key)
+  );
+  return found?.name || "";
 }

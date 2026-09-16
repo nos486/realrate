@@ -17,6 +17,7 @@ import {
   calculateSilverGram,
   calculateBubble,
 } from './financialSpecs.js';
+import { getSourceDisplayName } from '../config/sources.config.js';
 
 export function normalizePersianText(str) {
   if (!str) return '';
@@ -191,29 +192,21 @@ export function computeUnifiedPrices({
       }));
 
   currencies.forEach((cur) => {
-    let usdCrossRate = 1.0;
-    if (cur.code === 'USD') {
-      usdCrossRate = 1.0;
-    } else if (cur.usdCrossRate !== undefined && cur.usdCrossRate !== null) {
-      usdCrossRate = Number(cur.usdCrossRate);
-    } else {
-      const def = FOREX_SPECS.find(s => s.code === cur.code);
-      if (def?.defaultCross) {
-        usdCrossRate = def.defaultCross;
-      }
-    }
+    const cross = Number(cur.usdCrossRate || 1.0);
+    const calculatedToman = calculateForexTomanPrice(cross, usdVal);
+    const crossDisplay = cross < 1 ? cross.toFixed(4) : cross.toFixed(2);
 
-    const calculatedToman = calculateForexTomanPrice(usdCrossRate, usdVal);
+    const subDetails = cur.code === 'USD'
+      ? (cur.sourceName || 'دلار آزاد بازار')
+      : `بر مبنای دلار (${crossDisplay} $) • دلار: ${usdVal > 0 ? usdVal.toLocaleString('fa-IR') : '۰'} ت`;
 
     const resolved = {
       ...cur,
       price: calculatedToman,
-      priceToman: calculatedToman,
       priceType: 'forex',
-      priceTypeLabel: 'ارز',
-      usdCrossRate,
-      unit: cur.unit || 'تومان',
-      subText: cur.code === 'USD' ? 'دلار آزاد آمریکا' : `برابری با دلار: ${usdCrossRate}`,
+      priceTypeLabel: 'نرخ برابری ارز',
+      subText: subDetails,
+      unit: usdVal > 0 ? 'تومان' : 'دلار',
     };
 
     resolvedAssets.push(resolved);
@@ -232,35 +225,22 @@ export function computeUnifiedPrices({
     }
   });
 
-  // ── 4. Tehran Stock Exchange (Bourse & Funds) ──────────────────────────────
+  // ── 3. Tehran Stock Exchange (Bourse) ───────────────────────────────────────
   const bourse = marketItems?.bourse || [];
   bourse.forEach((b) => {
-    const isFund = Boolean(
-      b.isFund ||
-      b.category === 'bourse_fund' ||
-      b.category?.includes('صندوق') ||
-      b.name?.includes('صندوق') ||
-      b.name?.includes('ص.س.') ||
-      b.name?.includes('ص. س.') ||
-      b.name?.startsWith('ص.')
-    );
     const p = Math.round(Number(b.priceToman || b.price || 0));
-    const fundName = isFund ? extractFundName(b, PRICE_SOURCES_CONFIG) : null;
-    const subText = isFund
-      ? (b.symbol ? `نماد: ${b.symbol} • ${fundName}` : fundName)
-      : (b.symbol ? `نماد: ${b.symbol} • بورس تهران` : 'سهام بورس تهران');
-
+    const isFund = Boolean(b.isFund || b.category === 'bourse_fund' || b.name?.includes('صندوق'));
+    const sourceLabel = b.sourceName || b.sourceTitle || getSourceDisplayName(b.sourceId || 'bourse') || 'بورس اوراق بهادار تهران (TSETMC / BRS API)';
+    const subText = b.symbol ? `نماد: ${b.symbol} • ${sourceLabel}` : sourceLabel;
     const resolved = {
       ...b,
       price: p,
       priceToman: p,
-      isFund,
-      category: isFund ? 'bourse_fund' : 'bourse',
-      priceType: isFund ? 'bourse_fund' : 'bourse',
+      priceType: 'bourse',
       priceTypeLabel: isFund ? 'صندوق' : 'سهام بورس',
-      badge: isFund ? 'صندوق' : 'بورس',
+      sourceName: sourceLabel,
       subText,
-      unit: isFund ? 'واحد' : (b.unit || 'برگ سهم'),
+      unit: b.unit || (isFund ? 'واحد' : 'برگ سهم'),
     };
 
     resolvedAssets.push(resolved);

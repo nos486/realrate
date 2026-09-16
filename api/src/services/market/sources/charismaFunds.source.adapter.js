@@ -70,7 +70,9 @@ export const KNOWN_CHARISMA_SYMBOLS = {
  *   }
  * }}
  */
-export function mergeCharismaFunds(existingList = [], rawApiArray = [], nowIso = new Date().toISOString()) {
+export function mergeCharismaFunds(existingList = [], rawApiArray = [], nowIso = new Date().toISOString(), sourceConfig = null) {
+  const defaultSourceName = sourceConfig?.name || "صندوق‌های سرمایه‌گذاری کاریزما (Charisma)";
+  const defaultSourceId = sourceConfig?.id || "src_def_charisma";
   const fundsMap = new Map();
 
   // 1. Initialize map with existing funds
@@ -118,6 +120,8 @@ export function mergeCharismaFunds(existingList = [], rawApiArray = [], nowIso =
         category: "صندوق سرمایه‌گذاری",
         type: item.type || "صندوق",
         manager: "کاریزما (Charisma)",
+        sourceName: item.sourceName || defaultSourceName,
+        sourceId: item.sourceId || defaultSourceId,
         updatedAt: item.updatedAt || nowIso,
       });
     }
@@ -178,6 +182,8 @@ export function mergeCharismaFunds(existingList = [], rawApiArray = [], nowIso =
           category: "صندوق سرمایه‌گذاری",
           type: "صندوق",
           manager: "کاریزما (Charisma)",
+          sourceName: existing?.sourceName || defaultSourceName,
+          sourceId: existing?.sourceId || defaultSourceId,
           updatedAt: (existing && !priceChanged) ? existing.updatedAt : nowIso,
         });
 
@@ -324,7 +330,7 @@ export const charismaFundsSourceAdapter = {
       }
     }
 
-    const { mergedList, stats } = mergeCharismaFunds(existingList || [], rawArray, nowIso);
+    const { mergedList, stats } = mergeCharismaFunds(existingList || [], rawArray, nowIso, sourceConfig);
 
     // Cache updated list in memory
     inMemoryCharismaList = mergedList;

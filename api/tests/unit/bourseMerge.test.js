@@ -64,5 +64,16 @@ describe('Bourse Symbols Incremental Merge Tests', () => {
     expect(ahrom.p).toBe(2150); // 21500 / 10
     expect(ahrom.priceRial).toBe(21500);
     expect(ahrom.isFund).toBe(true);
+    expect(ahrom.sourceName).toBe('بورس اوراق بهادار تهران (TSETMC / BRS API)');
+    expect(ahrom.sourceId).toBe('src_def_bourse');
+  });
+
+  it('preserves custom sourceName when provided via sourceConfig', () => {
+    const rawApi = [{ l18: 'فولاد', l30: 'فولاد مبارکه', pl: 50000 }];
+    const customConfig = { id: 'src_custom_bourse', name: 'بورس تستی سفارشی' };
+    const { mergedList } = mergeBourseSymbols([], rawApi, '2026-09-02T12:00:00.000Z', customConfig);
+
+    expect(mergedList[0].sourceName).toBe('بورس تستی سفارشی');
+    expect(mergedList[0].sourceId).toBe('src_custom_bourse');
   });
 });

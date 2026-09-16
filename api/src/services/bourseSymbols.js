@@ -16,6 +16,7 @@ import {
 } from "../repositories/kvCache.repository.js";
 import { dbUpdateSourceLastPrice } from "../repositories/priceSource.repository.js";
 import { DEFAULT_BOURSE_SEARCH_LIMIT } from "../config/constants.js";
+import { getSourceDisplayName } from "../config/sources.config.js";
 import { logger } from "../lib/logger.js";
 
 export {
@@ -72,6 +73,8 @@ export async function getBourseSymbols(env, query = "", limit = DEFAULT_BOURSE_S
   }
 
   const cleanQuery = normalizePersian(query);
+  const defaultBourseName = getSourceDisplayName("src_def_bourse") || "بورس اوراق بهادار تهران (TSETMC / BRS API)";
+
   if (!cleanQuery) {
     return (list || []).slice(0, limit).map(item => ({
       symbol: item.s,
@@ -80,7 +83,9 @@ export async function getBourseSymbols(env, query = "", limit = DEFAULT_BOURSE_S
       priceToman: item.priceToman || item.p,
       priceRial: item.priceRial || item.pl || (item.p * 10),
       updatedAt: item.updatedAt || null,
-      isFund: Boolean(item.isFund || (item.n && (item.n.includes('صندوق') || item.n.includes('ص.س.') || item.n.includes('ص. س.')))),
+      isFund: Boolean(item.isFund || (item.n && item.n.includes('صندوق'))),
+      sourceName: item.sourceName || defaultBourseName,
+      sourceId: item.sourceId || "src_def_bourse",
     }));
   }
 
@@ -107,7 +112,9 @@ export async function getBourseSymbols(env, query = "", limit = DEFAULT_BOURSE_S
     priceToman: item.priceToman || item.p,
     priceRial: item.priceRial || item.pl || (item.p * 10),
     updatedAt: item.updatedAt || null,
-    isFund: Boolean(item.isFund || (item.n && (item.n.includes('صندوق') || item.n.includes('ص.س.') || item.n.includes('ص. س.')))),
+    isFund: Boolean(item.isFund || (item.n && item.n.includes('صندوق'))),
+    sourceName: item.sourceName || defaultBourseName,
+    sourceId: item.sourceId || "src_def_bourse",
   }));
 }
 

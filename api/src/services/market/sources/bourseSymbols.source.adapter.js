@@ -77,7 +77,9 @@ export function normalizePersian(str) {
  *   }
  * }}
  */
-export function mergeBourseSymbols(existingList = [], rawApiArray = [], nowIso = new Date().toISOString()) {
+export function mergeBourseSymbols(existingList = [], rawApiArray = [], nowIso = new Date().toISOString(), sourceConfig = null) {
+  const defaultSourceName = sourceConfig?.name || "بورس اوراق بهادار تهران (TSETMC / BRS API)";
+  const defaultSourceId = sourceConfig?.id || "src_def_bourse";
   const symbolMap = new Map();
 
   // 1. Initialize map with existing symbols
@@ -111,19 +113,21 @@ export function mergeBourseSymbols(existingList = [], rawApiArray = [], nowIso =
         rial = toman * 10;
       }
 
-      symbolMap.set(key, {
-        s: key,
-        n: item.n || item.name || key,
-        p: toman,
-        price: toman,
-        priceToman: toman,
-        priceRial: rial,
-        pl: rial,
-        updatedAt: item.updatedAt || nowIso,
-        isFund: Boolean(item.isFund || (item.n && (item.n.includes('صندوق') || item.n.includes('ص.س.') || item.n.includes('ص. س.')))),
-      });
+        symbolMap.set(key, {
+          s: key,
+          n: item.n || item.name || key,
+          p: toman,
+          price: toman,
+          priceToman: toman,
+          priceRial: rial,
+          pl: rial,
+          updatedAt: item.updatedAt || nowIso,
+          isFund: Boolean(item.isFund || (item.n && item.n.includes('صندوق'))),
+          sourceName: item.sourceName || defaultSourceName,
+          sourceId: item.sourceId || defaultSourceId,
+        });
+      }
     }
-  }
 
   let updatedCount = 0;
   let addedCount = 0;
@@ -148,7 +152,7 @@ export function mergeBourseSymbols(existingList = [], rawApiArray = [], nowIso =
       if (rawPriceRial > 0) {
         // Convert Rials to Tomans
         const priceToman = Math.round(rawPriceRial / 10);
-        const isFund = Boolean(name.includes('صندوق') || name.includes('ص.س.') || name.includes('ص. س.') || existing?.isFund);
+        const isFund = Boolean(name.includes('صندوق') || existing?.isFund);
 
         const priceChanged = existing ? (existing.priceRial !== rawPriceRial) : true;
 
@@ -162,6 +166,8 @@ export function mergeBourseSymbols(existingList = [], rawApiArray = [], nowIso =
           pl: rawPriceRial,
           updatedAt: (existing && !priceChanged) ? existing.updatedAt : nowIso,
           isFund,
+          sourceName: existing?.sourceName || defaultSourceName,
+          sourceId: existing?.sourceId || defaultSourceId,
         });
 
         if (existing) {
@@ -256,7 +262,7 @@ export const bourseSymbolsSourceAdapter = {
     }
 
     const nowIso = new Date().toISOString();
-    const { mergedList, stats } = mergeBourseSymbols(previousList, rawArray, nowIso);
+    const { mergedList, stats } = mergeBourseSymbols(previousList, rawArray, nowIso, sourceConfig);
 
     if (mergedList.length === 0) {
       throw new Error("هیچ نماد معتبری از پاسخ بورس استخراج یا ابقا نشد.");

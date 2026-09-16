@@ -42,7 +42,9 @@ let inMemoryEmofidList = null;
  *   }
  * }}
  */
-export function mergeEmofidFunds(existingList = [], rawApiArray = [], nowIso = new Date().toISOString()) {
+export function mergeEmofidFunds(existingList = [], rawApiArray = [], nowIso = new Date().toISOString(), sourceConfig = null) {
+  const defaultSourceName = sourceConfig?.name || "صندوق‌های سرمایه‌گذاری کارگزاری مفید (Emofid)";
+  const defaultSourceId = sourceConfig?.id || "src_def_emofid";
   const fundsMap = new Map();
 
   // 1. Initialize map with existing funds
@@ -89,6 +91,8 @@ export function mergeEmofidFunds(existingList = [], rawApiArray = [], nowIso = n
         isFund: true,
         category: "صندوق سرمایه‌گذاری",
         type: item.type || "صندوق",
+        sourceName: item.sourceName || defaultSourceName,
+        sourceId: item.sourceId || defaultSourceId,
         updatedAt: item.updatedAt || nowIso,
       });
     }
@@ -134,6 +138,8 @@ export function mergeEmofidFunds(existingList = [], rawApiArray = [], nowIso = n
           isFund: true,
           category: "صندوق سرمایه‌گذاری",
           type: item.type || existing?.type || "صندوق",
+          sourceName: existing?.sourceName || defaultSourceName,
+          sourceId: existing?.sourceId || defaultSourceId,
           updatedAt: (existing && !priceChanged) ? existing.updatedAt : nowIso,
         });
 
@@ -253,7 +259,7 @@ export const emofidFundsSourceAdapter = {
     }
 
     const nowIso = new Date().toISOString();
-    const { mergedList, stats } = mergeEmofidFunds(previousList, rawArray, nowIso);
+    const { mergedList, stats } = mergeEmofidFunds(previousList, rawArray, nowIso, sourceConfig);
 
     inMemoryEmofidList = mergedList;
 
