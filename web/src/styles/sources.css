@@ -314,7 +314,7 @@
 }
 
 .sources-page-main.full-width-sources-page {
-  max-width: var(--layout-max-width, 1400px);
+  max-width: var(--layout-max-width, 1560px);
   margin: 0 auto;
   padding: 20px clamp(14px, 2.5vw, 32px) 60px;
   display: flex;

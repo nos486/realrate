@@ -25,7 +25,7 @@
   justify-content: space-between;
   align-items: center;
   width: 100%;
-  max-width: var(--layout-max-width, 1400px);
+  max-width: var(--layout-max-width, 1560px);
   margin: 0 auto;
   padding: 0 clamp(14px, 2.5vw, 32px);
   gap: 10px;
