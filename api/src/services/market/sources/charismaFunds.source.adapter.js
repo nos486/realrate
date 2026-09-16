@@ -15,6 +15,7 @@ import {
   setCharismaFundsCache,
   getCharismaLastSync,
   setCharismaLastSync,
+  setSourcePriceCache,
 } from "../../../repositories/kvCache.repository.js";
 
 export const CHARISMA_PAGE_URL = "https://charisma.ir/funds";
@@ -250,6 +251,7 @@ export const charismaFundsSourceAdapter = {
 
     // 1. Fetch main funds page HTML (contains __NEXT_DATA__ with all tabs and price fields)
     const res = await fetch(targetUrl, {
+      signal: AbortSignal.timeout(10000),
       headers: {
         "User-Agent": USER_AGENT,
         "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
@@ -288,6 +290,7 @@ export const charismaFundsSourceAdapter = {
     // 2. Optionally fetch webapi.charisma.ir/api/fund for enhanced shortSymbol mapping
     try {
       const apiRes = await fetch(CHARISMA_API_URL, {
+        signal: AbortSignal.timeout(5000),
         headers: { "User-Agent": USER_AGENT },
       });
       if (apiRes.ok) {
@@ -337,11 +340,28 @@ export const charismaFundsSourceAdapter = {
     // Cache updated list in memory
     inMemoryCharismaList = mergedList;
 
+    const multiDataObj = {
+      isCatalog: true,
+      totalCount: mergedList.length,
+      items: mergedList,
+      compactList: mergedList,
+      sampleItems: mergedList.slice(0, 50),
+      datetime: nowIso,
+      stats,
+    };
+
     // Cache updated list in KV
     if (env && mergedList.length > 0) {
       try {
         const compactJson = JSON.stringify(mergedList);
         await setCharismaFundsCache(env, compactJson);
+        await setSourcePriceCache(env, sourceConfig?.id || "src_def_charisma", {
+          price: mergedList.length,
+          lastFetched: nowIso,
+          priceType: "charisma_funds",
+          name: sourceConfig?.name || "صندوق‌های سرمایه‌گذاری کاریزما (Charisma)",
+          lastMultiData: multiDataObj,
+        }).catch(() => {});
       } catch (err) {
         logger.warn("Error caching charisma funds in KV:", { error: err.message });
       }
@@ -354,15 +374,7 @@ export const charismaFundsSourceAdapter = {
       priceType: "charisma_funds",
       datetime: nowIso,
       label: sourceConfig.name || "صندوق‌های سرمایه‌گذاری کاریزما (Charisma)",
-      multiData: {
-        isCatalog: true,
-        totalCount: mergedList.length,
-        items: mergedList,
-        compactList: mergedList,
-        sampleItems: mergedList.slice(0, 50),
-        datetime: nowIso,
-        stats,
-      },
+      multiData: multiDataObj,
       compactList: mergedList,
       sampleItems: mergedList.slice(0, 50),
       multiOutput: mergedList,
@@ -373,7 +385,7 @@ export const charismaFundsSourceAdapter = {
   async test(sourceConfig = {}, env = null) {
     try {
       const raw = await this.fetchRaw(sourceConfig, env);
-      const parsed = await this.parse(raw, sourceConfig, null);
+      const parsed = await this.parse(raw, sourceConfig, env);
       return {
         success: true,
         source_type: "api_url",
@@ -386,6 +398,31 @@ export const charismaFundsSourceAdapter = {
         message: `تعداد ${parsed.price} صندوق سرمایه‌گذاری کاریزما با موفقیت دریافت و پردازش شد.`,
       };
     } catch (e) {
+      // Graceful fallback to existing cached funds in KV/memory
+      try {
+        const cached = await this.getLatestFunds(env);
+        if (Array.isArray(cached) && cached.length > 0) {
+          const multiDataObj = {
+            isCatalog: true,
+            totalCount: cached.length,
+            items: cached,
+            compactList: cached,
+            sampleItems: cached.slice(0, 50),
+            datetime: cached[0]?.updatedAt || new Date().toISOString(),
+          };
+          return {
+            success: true,
+            source_type: "api_url",
+            price: cached.length,
+            multiData: multiDataObj,
+            sampleItems: cached.slice(0, 50),
+            compactList: cached,
+            datetime: cached[0]?.updatedAt || new Date().toISOString(),
+            label: sourceConfig.name || "صندوق‌های سرمایه‌گذاری کاریزما (Charisma)",
+            message: `تعداد ${cached.length} صندوق کاریزما از کش فعال سامانه بازخوانی شد.`,
+          };
+        }
+      } catch {}
       return { success: false, error: e.message || "خطا در تست وب‌سرویس کاریزما" };
     }
   },

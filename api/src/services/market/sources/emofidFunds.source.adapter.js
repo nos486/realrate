@@ -15,6 +15,7 @@ import {
   setEmofidFundsCache,
   getEmofidLastSync,
   setEmofidLastSync,
+  setSourcePriceCache,
 } from "../../../repositories/kvCache.repository.js";
 
 export const EMOFID_API_URL = "https://www.emofid.com/api/funds/";
@@ -205,6 +206,7 @@ export const emofidFundsSourceAdapter = {
     const targetUrl = sourceConfig.endpoint || sourceConfig.apiUrl || EMOFID_API_URL;
 
     const res = await fetch(targetUrl, {
+      signal: AbortSignal.timeout(10000),
       headers: {
         "User-Agent": USER_AGENT,
         "Accept": "application/json, text/plain, */*",
@@ -265,10 +267,26 @@ export const emofidFundsSourceAdapter = {
 
     inMemoryEmofidList = mergedList;
 
+    const multiDataObj = {
+      isCatalog: true,
+      totalCount: mergedList.length,
+      items: mergedList,
+      compactList: mergedList,
+      sampleItems: mergedList.slice(0, 50),
+      datetime: nowIso,
+    };
+
     if (env && mergedList.length > 0) {
       try {
         const compactJson = JSON.stringify(mergedList);
         await setEmofidFundsCache(env, compactJson, true);
+        await setSourcePriceCache(env, sourceConfig?.id || "src_def_emofid", {
+          price: mergedList.length,
+          lastFetched: nowIso,
+          priceType: "emofid_funds",
+          name: sourceConfig?.name || "صندوق‌های سرمایه‌گذاری کارگزاری مفید (Emofid)",
+          lastMultiData: multiDataObj,
+        }).catch(() => {});
       } catch (err) {
         logger.warn("Error caching emofid funds in KV:", { error: err.message });
       }
@@ -279,24 +297,19 @@ export const emofidFundsSourceAdapter = {
     return {
       price: mergedList.length,
       datetime: nowIso,
-      label: "صندوق‌های سرمایه‌گذاری کارگزاری مفید (Emofid)",
-      multiData: {
-        isCatalog: true,
-        totalCount: mergedList.length,
-        items: mergedList,
-        compactList: mergedList,
-        sampleItems: mergedList.slice(0, 50),
-        datetime: nowIso,
-      },
+      label: sourceConfig?.name || "صندوق‌های سرمایه‌گذاری کارگزاری مفید (Emofid)",
+      multiData: multiDataObj,
       compactList: mergedList,
       sampleItems: mergedList.slice(0, 50),
+      multiOutput: mergedList,
+      sourceId: sourceConfig?.id || "src_def_emofid",
     };
   },
 
   async test(sourceConfig = {}, env = null) {
     try {
       const raw = await this.fetchRaw(sourceConfig, env);
-      const parsed = await this.parse(raw, sourceConfig, null);
+      const parsed = await this.parse(raw, sourceConfig, env);
       return {
         success: true,
         source_type: "api_url",
@@ -309,6 +322,30 @@ export const emofidFundsSourceAdapter = {
         message: `تعداد ${parsed.price} صندوق سرمایه‌گذاری مفید با موفقیت دریافت و پردازش شد.`,
       };
     } catch (e) {
+      try {
+        const cached = await this.getFunds(env);
+        if (Array.isArray(cached) && cached.length > 0) {
+          const multiDataObj = {
+            isCatalog: true,
+            totalCount: cached.length,
+            items: cached,
+            compactList: cached,
+            sampleItems: cached.slice(0, 50),
+            datetime: cached[0]?.updatedAt || new Date().toISOString(),
+          };
+          return {
+            success: true,
+            source_type: "api_url",
+            price: cached.length,
+            multiData: multiDataObj,
+            sampleItems: cached.slice(0, 50),
+            compactList: cached,
+            datetime: cached[0]?.updatedAt || new Date().toISOString(),
+            label: sourceConfig.name || "صندوق‌های سرمایه‌گذاری کارگزاری مفید (Emofid)",
+            message: `تعداد ${cached.length} صندوق مفید از کش فعال سامانه بازخوانی شد.`,
+          };
+        }
+      } catch {}
       return { success: false, error: e.message || "خطا در تست وب‌سرویس مفید" };
     }
   },

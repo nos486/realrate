@@ -19,6 +19,7 @@ import {
   apiSetPrimarySource,
   apiTestPriceSource,
   apiFetchAllSourcesNow,
+  apiGetMarketItems,
 } from '../api/client.js';
 import { extractMultiItems } from '../components/UniversalAssetSearch.jsx';
 import {
@@ -177,8 +178,9 @@ export default function PriceSourcesPage({ embedded = false, usdToman: propUsdTo
     setExplorerFeed(src);
     setExplorerSearch('');
     setExplorerModalOpen(true);
+    setExplorerItems([]);
 
-    // 1. Direct extracted items check
+    // 1. Direct extracted items check from source's cached multi-data
     let items = extractMultiItems(src);
     if (items.length > 0) {
       setExplorerItems(items.map(mapToExplorerItem));
@@ -201,8 +203,37 @@ export default function PriceSourcesPage({ embedded = false, usdToman: propUsdTo
           return;
         }
       }
+
+      // 3. Fallback to unified catalog market items if test endpoint didn't supply items
+      try {
+        const marketRes = await apiGetMarketItems();
+        if (marketRes?.success) {
+          const candidates = [
+            ...(marketRes.funds || []),
+            ...(marketRes.bourse || []),
+            ...(marketRes.currencies || []),
+            ...(marketRes.goldAndCoins || []),
+          ];
+          const matched = candidates.filter((it) => {
+            if (it.sourceId && (it.sourceId === src.id || it.sourceId === src.sourceType)) return true;
+            if (src.id === 'src_def_charisma' && (it.sourceName?.includes('کاریزما') || it.manager?.includes('کاریزما') || it.category?.includes('کاریزما'))) return true;
+            if (src.id === 'src_def_emofid' && (it.sourceName?.includes('مفید') || it.manager?.includes('مفید') || it.category?.includes('مفید'))) return true;
+            if (src.id === 'src_def_bourse' && (it.category === 'bourse' || it.category === 'bourse_symbol')) return true;
+            return false;
+          });
+          if (matched.length > 0) {
+            setExplorerItems(matched.map(mapToExplorerItem));
+            return;
+          }
+        }
+      } catch {}
+
+      if (!testRes?.success && testRes?.error) {
+        showMsg(`عدم برقراری ارتباط زنده: ${testRes.error}`, 'warning');
+      }
     } catch (e) {
       console.error('Error fetching explorer items:', e);
+      showMsg('خطا در دریافت اقلام کاوشگر: ' + e.message, 'error');
     } finally {
       setExplorerLoading(false);
     }

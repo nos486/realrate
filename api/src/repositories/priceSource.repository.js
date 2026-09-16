@@ -7,6 +7,9 @@ import {
   getSourcePriceCache,
   setSourcePriceCache,
   deleteSourcePriceCache,
+  getCharismaFundsCache,
+  getEmofidFundsCache,
+  getBourseSymbolsCache,
 } from "./kvCache.repository.js";
 import {
   getMasterPriceSourcesConfig,
@@ -53,6 +56,79 @@ function normalizePriceSourceRow(row) {
 }
 
 /**
+ * Helper to hydrate catalog sources (Charisma, Emofid, Bourse) from their dedicated KV caches
+ * when lastMultiData is empty or lastPrice is 0.
+ */
+async function hydrateCatalogSourceFromKv(src, env, lastPrice, lastFetched, lastMultiData) {
+  if (!env || (lastMultiData && lastPrice > 0)) {
+    return { lastPrice, lastFetched, lastMultiData };
+  }
+  try {
+    if (src.id === "src_def_charisma" || src.priceType === "charisma_funds" || src.sourceType === "charisma_funds") {
+      const { cached, backup } = await getCharismaFundsCache(env);
+      const str = cached || backup;
+      if (str) {
+        const funds = JSON.parse(str);
+        if (Array.isArray(funds) && funds.length > 0) {
+          return {
+            lastPrice: funds.length,
+            lastFetched: lastFetched || funds[0]?.updatedAt || new Date().toISOString(),
+            lastMultiData: {
+              isCatalog: true,
+              totalCount: funds.length,
+              items: funds,
+              compactList: funds,
+              sampleItems: funds.slice(0, 50),
+            },
+          };
+        }
+      }
+    } else if (src.id === "src_def_emofid" || src.priceType === "emofid_funds" || src.sourceType === "emofid_funds") {
+      const { cached, backup } = await getEmofidFundsCache(env);
+      const str = cached || backup;
+      if (str) {
+        const funds = JSON.parse(str);
+        if (Array.isArray(funds) && funds.length > 0) {
+          return {
+            lastPrice: funds.length,
+            lastFetched: lastFetched || funds[0]?.updatedAt || new Date().toISOString(),
+            lastMultiData: {
+              isCatalog: true,
+              totalCount: funds.length,
+              items: funds,
+              compactList: funds,
+              sampleItems: funds.slice(0, 50),
+            },
+          };
+        }
+      }
+    } else if (src.id === "src_def_bourse" || src.priceType === "bourse" || src.sourceType === "bourse_symbols") {
+      const { cached, backup } = await getBourseSymbolsCache(env);
+      const str = cached || backup;
+      if (str) {
+        const symbols = JSON.parse(str);
+        if (Array.isArray(symbols) && symbols.length > 0) {
+          return {
+            lastPrice: symbols.length,
+            lastFetched: lastFetched || symbols[0]?.updatedAt || new Date().toISOString(),
+            lastMultiData: {
+              isCatalog: true,
+              totalCount: symbols.length,
+              items: symbols,
+              compactList: symbols,
+              sampleItems: symbols.slice(0, 50),
+            },
+          };
+        }
+      }
+    }
+  } catch (err) {
+    logger.warn("hydrateCatalogSourceFromKv error:", { id: src.id, error: err.message });
+  }
+  return { lastPrice, lastFetched, lastMultiData };
+}
+
+/**
  * Get all price sources from Code-First registry, enriched with runtime KV/D1 cached prices
  * @param {object} env
  * @returns {Promise<Array>}
@@ -96,6 +172,12 @@ export async function dbGetPriceSources(env) {
           } catch {}
         }
       }
+
+      // 3. Fallback to dedicated catalog KV caches if needed
+      const hydrated = await hydrateCatalogSourceFromKv(src, env, lastPrice, lastFetched, lastMultiData);
+      lastPrice = hydrated.lastPrice;
+      lastFetched = hydrated.lastFetched;
+      lastMultiData = hydrated.lastMultiData;
 
       return normalizePriceSourceRow({
         ...src,
@@ -148,6 +230,11 @@ export async function dbGetPriceSourceById(env, id) {
         }
       } catch {}
     }
+
+    const hydrated = await hydrateCatalogSourceFromKv(master, env, lastPrice, lastFetched, lastMultiData);
+    lastPrice = hydrated.lastPrice;
+    lastFetched = hydrated.lastFetched;
+    lastMultiData = hydrated.lastMultiData;
   }
 
   return normalizePriceSourceRow({

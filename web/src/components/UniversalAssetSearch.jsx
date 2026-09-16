@@ -172,15 +172,19 @@ export function isSourceMultiOutput(s, priceTypeInfo = {}) {
 export function extractMultiItems(src) {
   if (!src) return [];
   let multi = null;
-  if (src.lastMultiData) {
-    if (typeof src.lastMultiData === 'string') {
+  const targetMulti = src.lastMultiData !== undefined && src.lastMultiData !== null
+    ? src.lastMultiData
+    : (src.last_multi_data !== undefined && src.last_multi_data !== null ? src.last_multi_data : null);
+
+  if (targetMulti) {
+    if (typeof targetMulti === 'string') {
       try {
-        multi = JSON.parse(src.lastMultiData);
+        multi = JSON.parse(targetMulti);
       } catch (e) {
         console.warn('Failed to parse lastMultiData for', src.name, e);
       }
-    } else if (typeof src.lastMultiData === 'object') {
-      multi = src.lastMultiData;
+    } else if (typeof targetMulti === 'object') {
+      multi = targetMulti;
     }
   }
 
@@ -196,7 +200,7 @@ export function extractMultiItems(src) {
       if (parsed && typeof parsed === 'object') {
         const customItems = Array.isArray(parsed.items)
           ? parsed.items
-          : (Array.isArray(parsed.compactList) ? parsed.compactList : (Array.isArray(parsed.sampleItems) ? parsed.sampleItems : null));
+          : (Array.isArray(parsed.compactList) ? parsed.compactList : (Array.isArray(parsed.sampleItems) ? parsed.sampleItems : (Array.isArray(parsed.funds) ? parsed.funds : null)));
         if (customItems && customItems.length > 0) {
           return customItems;
         }
@@ -230,6 +234,7 @@ export function extractMultiItems(src) {
     } else if (Array.isArray(multi.sampleItems)) rawList = multi.sampleItems;
     else if (Array.isArray(multi.compactList)) rawList = multi.compactList;
     else if (Array.isArray(multi.items)) rawList = multi.items;
+    else if (Array.isArray(multi.funds)) rawList = multi.funds;
     else if (Array.isArray(multi.symbols)) rawList = multi.symbols;
     else if (Array.isArray(multi.data)) rawList = multi.data;
     else if (Array.isArray(multi.results)) rawList = multi.results;
@@ -239,7 +244,7 @@ export function extractMultiItems(src) {
     else if (Array.isArray(multi)) rawList = multi;
     else if (typeof multi === 'object') {
       const isCatalog = Boolean(src.isCatalog || multi.isCatalog);
-      if (!isCatalog || Array.isArray(multi.symbols) || Array.isArray(multi.compactList) || Array.isArray(multi.sampleItems) || Array.isArray(multi.items)) {
+      if (!isCatalog || Array.isArray(multi.symbols) || Array.isArray(multi.compactList) || Array.isArray(multi.sampleItems) || Array.isArray(multi.items) || Array.isArray(multi.funds)) {
         rawList = Object.entries(multi)
           .filter(([k]) => !['updatedAt', 'totalCount', 'totalSymbols', 'labels', 'topSymbols', 'error', 'datetime', 'totalFunds', 'fundsCount', 'result', 'base_code', 'time_last_update_utc', 'time_next_update_utc', 'time_last_update_unix', 'time_next_update_unix', 'provider', 'documentation', 'terms_of_use', 'time_eol_unix', 'stats', 'isCatalog'].includes(k))
           .map(([k, v]) => {
@@ -274,6 +279,7 @@ export function extractMultiItems(src) {
     if (Array.isArray(src.sampleItems)) rawList = src.sampleItems;
     else if (Array.isArray(src.compactList)) rawList = src.compactList;
     else if (Array.isArray(src.items)) rawList = src.items;
+    else if (Array.isArray(src.funds)) rawList = src.funds;
   }
 
   if (!rawList || rawList.length === 0) return [];
