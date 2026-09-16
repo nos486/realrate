@@ -30,6 +30,7 @@ export const CANONICAL_PRICE_TYPE_INFO = {
   bourse: { label: 'سهام بورس اوراق بهادار', category: 'multi_output', unit: 'نماد', badgeColor: 'sky' },
   bourse_fund: { label: 'صندوق‌های سرمایه‌گذاری بورس', category: 'multi_output', unit: 'صندوق', badgeColor: 'cyan' },
   fund_atieh: { label: 'صندوق آتیه مفید (NAV)', category: 'single', unit: 'تومان', badgeColor: 'cyan' },
+  emofid_funds: { label: 'صندوق‌های سرمایه‌گذاری مفید', category: 'multi_output', unit: 'صندوق', badgeColor: 'cyan' },
   custom_feed: { label: 'فید چند خروجی / کاتالوگ سفارشی', category: 'multi_output', unit: 'آیتم', badgeColor: 'blue' },
 };
 

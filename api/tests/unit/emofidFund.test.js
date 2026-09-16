@@ -104,4 +104,58 @@ describe('emofidFund.source.adapter', () => {
       'امکان استخراج قیمت ابطال (NAV) از صفحه صندوق آتیه مفید وجود ندارد'
     );
   });
+
+  it('should parse emofid /api/funds/ JSON in multi-output mode with all 19 funds', () => {
+    const mockJson = {
+      isSuccess: true,
+      value: [
+        { id: 1, key: '10600', enTitle: 'pishtaz', title: 'پیشتاز', cancelNav: 200129, subscriptionNav: 201649, type: 'صدور ابطالی' },
+        { id: 2, key: '10851', enTitle: 'pishro', title: 'پیشرو', cancelNav: 42963, subscriptionNav: 43337, type: 'صدور ابطالی' },
+        { id: 10, key: 'IRTKMOFD0001', enTitle: 'ayar', title: 'عیار', cancelNav: 629755, subscriptionNav: 629755, type: 'قابل معامله' },
+        { id: 14, key: '12217', enTitle: 'atieh', title: 'آتیه', cancelNav: 45022, subscriptionNav: 45324, type: 'صدور ابطالی' },
+      ],
+    };
+
+    const result = emofidFundSourceAdapter.parse(JSON.stringify(mockJson), {
+      category: 'multi_output',
+      name: 'صندوق‌های سرمایه‌گذاری مفید',
+    });
+
+    expect(result.isCatalog).toBe(true);
+    expect(result.price).toBe(4);
+    expect(result.compactList.length).toBe(4);
+    expect(result.multiData.pishtaz).toBe(20013);
+    expect(result.multiData.pishro).toBe(4296);
+    expect(result.multiData.ayar).toBe(62976);
+    expect(result.multiData.atieh).toBe(4502);
+
+    // Check item details
+    const atiehItem = result.compactList.find((it) => it.s === 'atieh');
+    expect(atiehItem).toBeDefined();
+    expect(atiehItem.priceToman).toBe(4502);
+    expect(atiehItem.priceRial).toBe(45022);
+    expect(atiehItem.subscriptionPriceToman).toBe(4532);
+    expect(atiehItem.subscriptionPriceRial).toBe(45324);
+  });
+
+  it('should extract a single fund from /api/funds/ JSON when fundKey or endpoint specifies it', () => {
+    const mockJson = {
+      isSuccess: true,
+      value: [
+        { id: 1, key: '10600', enTitle: 'pishtaz', title: 'پیشتاز', cancelNav: 200129, subscriptionNav: 201649 },
+        { id: 14, key: '12217', enTitle: 'atieh', title: 'آتیه', fullTitle: 'صندوق بازنشستگی تکمیلی آتیه', cancelNav: 45022, subscriptionNav: 45324 },
+      ],
+    };
+
+    const result = emofidFundSourceAdapter.parse(JSON.stringify(mockJson), {
+      fundKey: 'atieh',
+      name: 'صندوق آتیه مفید',
+    });
+
+    expect(result.price).toBe(4502);
+    expect(result.priceToman).toBe(4502);
+    expect(result.priceRial).toBe(45022);
+    expect(result.subscriptionPriceToman).toBe(4532);
+    expect(result.subscriptionPriceRial).toBe(45324);
+  });
 });
