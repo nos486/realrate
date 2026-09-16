@@ -191,21 +191,29 @@ export function computeUnifiedPrices({
       }));
 
   currencies.forEach((cur) => {
-    const cross = Number(cur.usdCrossRate || 1.0);
-    const calculatedToman = calculateForexTomanPrice(cross, usdVal);
-    const crossDisplay = cross < 1 ? cross.toFixed(4) : cross.toFixed(2);
+    let usdCrossRate = 1.0;
+    if (cur.code === 'USD') {
+      usdCrossRate = 1.0;
+    } else if (cur.usdCrossRate !== undefined && cur.usdCrossRate !== null) {
+      usdCrossRate = Number(cur.usdCrossRate);
+    } else {
+      const def = FOREX_SPECS.find(s => s.code === cur.code);
+      if (def?.defaultCross) {
+        usdCrossRate = def.defaultCross;
+      }
+    }
 
-    const subDetails = cur.code === 'USD'
-      ? (cur.sourceName || 'دلار آزاد بازار')
-      : `بر مبنای دلار (${crossDisplay} $) • دلار: ${usdVal > 0 ? usdVal.toLocaleString('fa-IR') : '۰'} ت`;
+    const calculatedToman = calculateForexTomanPrice(usdCrossRate, usdVal);
 
     const resolved = {
       ...cur,
       price: calculatedToman,
+      priceToman: calculatedToman,
       priceType: 'forex',
-      priceTypeLabel: 'نرخ برابری ارز',
-      subText: subDetails,
-      unit: usdVal > 0 ? 'تومان' : 'دلار',
+      priceTypeLabel: 'ارز',
+      usdCrossRate,
+      unit: cur.unit || 'تومان',
+      subText: cur.code === 'USD' ? 'دلار آزاد آمریکا' : `برابری با دلار: ${usdCrossRate}`,
     };
 
     resolvedAssets.push(resolved);
@@ -224,18 +232,35 @@ export function computeUnifiedPrices({
     }
   });
 
-  // ── 3. Tehran Stock Exchange (Bourse) ───────────────────────────────────────
+  // ── 4. Tehran Stock Exchange (Bourse & Funds) ──────────────────────────────
   const bourse = marketItems?.bourse || [];
   bourse.forEach((b) => {
+    const isFund = Boolean(
+      b.isFund ||
+      b.category === 'bourse_fund' ||
+      b.category?.includes('صندوق') ||
+      b.name?.includes('صندوق') ||
+      b.name?.includes('ص.س.') ||
+      b.name?.includes('ص. س.') ||
+      b.name?.startsWith('ص.')
+    );
     const p = Math.round(Number(b.priceToman || b.price || 0));
+    const fundName = isFund ? extractFundName(b, PRICE_SOURCES_CONFIG) : null;
+    const subText = isFund
+      ? (b.symbol ? `نماد: ${b.symbol} • ${fundName}` : fundName)
+      : (b.symbol ? `نماد: ${b.symbol} • بورس تهران` : 'سهام بورس تهران');
+
     const resolved = {
       ...b,
       price: p,
       priceToman: p,
-      priceType: 'bourse',
-      priceTypeLabel: 'سهام بورس',
-      subText: `نماد: ${b.symbol} • بورس تهران`,
-      unit: b.unit || 'برگ سهم',
+      isFund,
+      category: isFund ? 'bourse_fund' : 'bourse',
+      priceType: isFund ? 'bourse_fund' : 'bourse',
+      priceTypeLabel: isFund ? 'صندوق' : 'سهام بورس',
+      badge: isFund ? 'صندوق' : 'بورس',
+      subText,
+      unit: isFund ? 'واحد' : (b.unit || 'برگ سهم'),
     };
 
     resolvedAssets.push(resolved);

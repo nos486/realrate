@@ -27,7 +27,9 @@ import {
   resolveItemCategory,
   getCategoryBadge,
   getCategoryLabel,
+  extractFundName,
 } from '../utils/financialSpecs.js';
+import { PRICE_SOURCES_CONFIG } from '../config/sources.config.js';
 
 export const PROMINENT_FOREX_CURRENCIES = FOREX_SPECS;
 
@@ -480,6 +482,12 @@ export default function UniversalAssetSearch({
         const badge = getCategoryBadge(category, asset.badge || 'دارایی');
         const spec = getCanonicalAssetSpec(asset.id || sym);
         const aliases = spec?.aliases || asset.aliases || [];
+        const isFund = category === 'bourse_fund' || Boolean(asset.isFund);
+        const fundName = isFund ? extractFundName(asset, internalSources || PRICE_SOURCES_CONFIG) : null;
+        const subText = isFund
+          ? (sym ? `نماد: ${sym} • ${fundName}` : (fundName || asset.subText || ''))
+          : (asset.subText || '');
+        const unit = isFund ? 'واحد' : (asset.unit || getCanonicalAssetUnit(asset.id, 'واحد'));
 
         items.push({
           id: asset.id,
@@ -487,13 +495,13 @@ export default function UniversalAssetSearch({
           priceType: asset.priceType || asset.id,
           name: asset.name,
           symbol: sym,
-          subText: asset.subText || '',
+          subText,
           badge,
           badgeClass: category,
           category,
           aliases,
           price: asset.price,
-          unit: asset.unit || getCanonicalAssetUnit(asset.id, 'واحد'),
+          unit,
           type: asset.priceType === 'forex' ? 'forex' : (category.startsWith('bourse') ? 'bourse' : 'standard'),
           changePercent: asset.changePercent,
           raw: {
@@ -507,8 +515,8 @@ export default function UniversalAssetSearch({
             priceToman: asset.price,
             price: asset.price,
             category,
-            unit: asset.unit || getCanonicalAssetUnit(asset.id, 'واحد'),
-            isFund: category === 'bourse_fund',
+            unit,
+            isFund,
             isMultiItem: category === 'currency' || category.startsWith('bourse'),
           },
         });
@@ -574,6 +582,8 @@ export default function UniversalAssetSearch({
           sub.category === 'bourse_fund' ||
           sub.category?.includes('صندوق') ||
           itemName.includes('صندوق') ||
+          itemName.includes('ص.س.') ||
+          itemName.includes('ص. س.') ||
           sub.title?.includes('صندوق')
         );
         const category = isFund ? 'bourse_fund' : 'bourse';
@@ -592,9 +602,10 @@ export default function UniversalAssetSearch({
         }
 
         const unit = isFund ? 'واحد' : 'برگ سهم';
+        const fundName = isFund ? extractFundName(sub, internalSources || PRICE_SOURCES_CONFIG) : null;
         const subDetails = isFund
-          ? (sub.category ? `${sub.category} • نماد: ${symCode}` : `صندوق سرمایه‌گذاری • نماد: ${symCode}`)
-          : (sub.category ? `${sub.category} • نماد: ${symCode}` : `سهام بورس تهران • نماد: ${symCode}`);
+          ? (symCode ? `نماد: ${symCode} • ${fundName}` : fundName)
+          : (symCode ? `نماد: ${symCode} • بورس تهران` : (sub.category || 'سهام بورس تهران'));
 
         const displayName = isFund && !itemName.includes(symCode)
           ? `${itemName} (${symCode})`
@@ -650,7 +661,15 @@ export default function UniversalAssetSearch({
         seenKeys.add(itemKey);
         if (symCode) seenKeys.add(symCode.toLowerCase());
 
-        const isFund = Boolean(sub.isFund || sub.category?.includes('صندوق') || itemName.includes('صندوق'));
+        const isFund = Boolean(
+          sub.isFund ||
+          sub.category?.includes('صندوق') ||
+          itemName.includes('صندوق') ||
+          itemName.includes('ص.س.') ||
+          itemName.includes('ص. س.') ||
+          src.name?.includes('صندوق') ||
+          src.priceType?.includes('fund')
+        );
         const category = isForex ? 'currency' : (isFund ? 'bourse_fund' : (sub.category || src.priceType || 'custom'));
         const badge = isForex ? 'ارز' : (isFund ? 'صندوق' : (sub.badge || src.name || 'سورس'));
 
@@ -658,12 +677,19 @@ export default function UniversalAssetSearch({
         if (priceToman === 0 && sub.priceRial) priceToman = Math.round(Number(sub.priceRial) / 10);
         const unit = sub.unit || (isFund ? 'واحد' : (src.unit || 'تومان'));
 
+        const fundName = isFund
+          ? extractFundName({ ...sub, sourceId: src.id, sourceName: src.name, manager: src.manager || sub.manager }, internalSources || PRICE_SOURCES_CONFIG)
+          : null;
+        const subText = isFund
+          ? (symCode ? `نماد: ${symCode} • ${fundName}` : fundName)
+          : `${src.name || ''} • ${symCode || ''}`;
+
         items.push({
           id: itemKey,
           sourceId: src.id,
           symbol: symCode,
           name: itemName,
-          subText: `${src.name || ''} • ${symCode || ''}`,
+          subText,
           badge,
           badgeClass: category,
           category,

@@ -240,6 +240,8 @@ export const PRICE_SOURCES_CONFIG = [
         const isFund = Boolean(
           item.isFund ||
           name.includes("صندوق") ||
+          name.includes("ص.س.") ||
+          name.includes("ص. س.") ||
           name.includes("ETF") ||
           symbol.includes("دارا") ||
           symbol.includes("پالایش")
@@ -275,6 +277,7 @@ export const PRICE_SOURCES_CONFIG = [
     priceType: "emofid_funds",
     sourceType: "emofid_funds",
     isCatalog: true,
+    manager: "مفید (Emofid)",
     endpoint: "https://www.emofid.com/api/funds/",
     regex: "",
     jsonPath: "value",
@@ -324,6 +327,7 @@ export const PRICE_SOURCES_CONFIG = [
             isFund: true,
             category: "صندوق سرمایه‌گذاری",
             type: item.type || "صندوق",
+            manager: "مفید (Emofid)",
           };
         })
         .filter((it) => it.symbol);
@@ -344,6 +348,7 @@ export const PRICE_SOURCES_CONFIG = [
     priceType: "charisma_funds",
     sourceType: "charisma_funds",
     isCatalog: true,
+    manager: "کاریزما (Charisma)",
     endpoint: "https://charisma.ir/funds",
     regex: "",
     jsonPath: "data",

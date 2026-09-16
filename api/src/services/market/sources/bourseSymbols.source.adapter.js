@@ -120,7 +120,7 @@ export function mergeBourseSymbols(existingList = [], rawApiArray = [], nowIso =
         priceRial: rial,
         pl: rial,
         updatedAt: item.updatedAt || nowIso,
-        isFund: Boolean(item.isFund || (item.n && item.n.includes('صندوق'))),
+        isFund: Boolean(item.isFund || (item.n && (item.n.includes('صندوق') || item.n.includes('ص.س.') || item.n.includes('ص. س.')))),
       });
     }
   }
@@ -148,7 +148,7 @@ export function mergeBourseSymbols(existingList = [], rawApiArray = [], nowIso =
       if (rawPriceRial > 0) {
         // Convert Rials to Tomans
         const priceToman = Math.round(rawPriceRial / 10);
-        const isFund = Boolean(name.includes('صندوق') || existing?.isFund);
+        const isFund = Boolean(name.includes('صندوق') || name.includes('ص.س.') || name.includes('ص. س.') || existing?.isFund);
 
         const priceChanged = existing ? (existing.priceRial !== rawPriceRial) : true;
 
