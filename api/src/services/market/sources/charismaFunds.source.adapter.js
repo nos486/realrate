@@ -7,10 +7,6 @@
 import { USER_AGENT } from "./parsingUtils.js";
 import { logger } from "../../../lib/logger.js";
 import {
-  CHARISMA_SYNC_INTERVAL_MS,
-  CHARISMA_SYNC_EXPIRATION_TTL,
-} from "../../../config/constants.js";
-import {
   getCharismaFundsCache,
   setCharismaFundsCache,
   getCharismaLastSync,
@@ -468,7 +464,7 @@ export const charismaFundsSourceAdapter = {
 
       const intervalSec = Number(sourceConfig?.fetchIntervalSec) > 0
         ? Number(sourceConfig.fetchIntervalSec)
-        : Math.round(CHARISMA_SYNC_INTERVAL_MS / 1000);
+        : 1800;
       const intervalMs = intervalSec * 1000;
 
       if (lastSync) {

@@ -7,10 +7,6 @@
 import { USER_AGENT } from "./parsingUtils.js";
 import { logger } from "../../../lib/logger.js";
 import {
-  EMOFID_SYNC_INTERVAL_MS,
-  EMOFID_SYNC_EXPIRATION_TTL,
-} from "../../../config/constants.js";
-import {
   getEmofidFundsCache,
   setEmofidFundsCache,
   getEmofidLastSync,
@@ -396,7 +392,7 @@ export const emofidFundsSourceAdapter = {
 
       const intervalSec = Number(sourceConfig?.fetchIntervalSec) > 0
         ? Number(sourceConfig.fetchIntervalSec)
-        : Math.round(EMOFID_SYNC_INTERVAL_MS / 1000);
+        : 1800;
       const intervalMs = intervalSec * 1000;
 
       if (now - lastSync < intervalMs) {

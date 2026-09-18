@@ -9,10 +9,6 @@ import {
   getBourseLastSync,
   setBourseLastSync,
 } from "../../../repositories/kvCache.repository.js";
-import {
-  BOURSE_SYNC_INTERVAL_MS,
-  BOURSE_SYNC_EXPIRATION_TTL,
-} from "../../../config/constants.js";
 import { logger } from "../../../lib/logger.js";
 import { resolveApiUrl } from "./apiUrl.source.adapter.js";
 
@@ -365,7 +361,7 @@ export const bourseSymbolsSourceAdapter = {
 
       const intervalSec = Number(sourceConfig?.fetchIntervalSec) > 0
         ? Number(sourceConfig.fetchIntervalSec)
-        : Math.round(BOURSE_SYNC_INTERVAL_MS / 1000);
+        : 3600;
       const intervalMs = intervalSec * 1000;
 
       if (now - lastSync < intervalMs) {

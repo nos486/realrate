@@ -4,7 +4,7 @@
  */
 
 import { logger } from "../lib/logger.js";
-import { SESSION_TTL_SECONDS, BOURSE_SYNC_EXPIRATION_TTL } from "../config/constants.js";
+import { SESSION_TTL_SECONDS } from "../config/constants.js";
 
 /**
  * Resolve the KV binding from env
@@ -186,7 +186,7 @@ export async function getBourseLastSync(env) {
   }
 }
 
-export async function setBourseLastSync(env, timestamp, ttlSeconds = BOURSE_SYNC_EXPIRATION_TTL) {
+export async function setBourseLastSync(env, timestamp, ttlSeconds = 86400 * 3) {
   const kv = getKv(env);
   if (!kv) return;
   try {
