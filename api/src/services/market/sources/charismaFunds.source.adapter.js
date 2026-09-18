@@ -459,16 +459,21 @@ export const charismaFundsSourceAdapter = {
     return await this.getLatestFunds(env);
   },
 
-  async handleScheduledSync(env) {
+  async handleScheduledSync(env, sourceConfig = null) {
     if (!env) return;
 
     try {
       const lastSync = await getCharismaLastSync(env);
       const now = Date.now();
 
+      const intervalSec = Number(sourceConfig?.fetchIntervalSec) > 0
+        ? Number(sourceConfig.fetchIntervalSec)
+        : Math.round(CHARISMA_SYNC_INTERVAL_MS / 1000);
+      const intervalMs = intervalSec * 1000;
+
       if (lastSync) {
         const elapsed = now - Number(lastSync);
-        if (elapsed < CHARISMA_SYNC_INTERVAL_MS) {
+        if (elapsed < intervalMs) {
           return;
         }
       }
@@ -476,8 +481,9 @@ export const charismaFundsSourceAdapter = {
       logger.info("[CharismaAdapter] Starting scheduled Charisma funds sync...");
 
       const raw = await this.fetchRaw({}, env);
-      await this.parse(raw, { id: "src_def_charisma" }, env);
-      await setCharismaLastSync(env, now, CHARISMA_SYNC_EXPIRATION_TTL);
+      await this.parse(raw, { id: "src_def_charisma", name: sourceConfig?.name || this.name }, env);
+      const expirationTtl = Math.max(86400, intervalSec * 3);
+      await setCharismaLastSync(env, now, expirationTtl);
 
       logger.info("[CharismaAdapter] Scheduled Charisma funds sync completed successfully.");
     } catch (err) {

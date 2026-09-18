@@ -348,7 +348,7 @@ export async function syncAllCatalogSources(env) {
     sources.map(async (src) => {
       const adapter = getAdapterForSource(src);
       if (typeof adapter?.handleScheduledSync === "function") {
-        return await adapter.handleScheduledSync(env);
+        return await adapter.handleScheduledSync(env, src);
       }
       return await syncCatalogSource(env, src.id);
     })

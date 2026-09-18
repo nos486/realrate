@@ -32,8 +32,13 @@ export const FOREX_HISTORY_EXPIRATION_TTL = 3600;
 export const SETTINGS_MEMORY_CACHE_TTL_MS = 60000;
 
 // ─── Bourse (Tehran Stock Exchange) ────────────────────────────────────────
-/** Bourse symbols full sync interval: 24 hours in ms */
-export const BOURSE_SYNC_INTERVAL_MS = 86400 * 1000;
+/**
+ * NOTE: Sync intervals for all feeds are governed by `fetchIntervalSec`
+ * in `sources.config.js` (Single Source of Truth).
+ * The constants below serve as fallback defaults only.
+ */
+/** Bourse symbols sync interval fallback: 1 hour in ms */
+export const BOURSE_SYNC_INTERVAL_MS = 3600 * 1000;
 
 /** Bourse last sync record expiration TTL in KV: 3 days in seconds */
 export const BOURSE_SYNC_EXPIRATION_TTL = 86400 * 3;
@@ -45,14 +50,14 @@ export const DEFAULT_BOURSE_SEARCH_LIMIT = 50;
 export const MAX_MARKET_ITEMS_LIMIT = 2000;
 
 // ─── Emofid Mutual Funds ───────────────────────────────────────────────────
-/** Emofid funds sync interval: 30 minutes in ms */
+/** Emofid funds sync interval fallback: 30 minutes in ms */
 export const EMOFID_SYNC_INTERVAL_MS = 30 * 60 * 1000;
 
 /** Emofid last sync record expiration TTL in KV: 1 day in seconds */
 export const EMOFID_SYNC_EXPIRATION_TTL = 86400;
 
 // ─── Charisma Investment Funds ─────────────────────────────────────────────
-/** Charisma funds sync interval: 30 minutes in ms */
+/** Charisma funds sync interval fallback: 30 minutes in ms */
 export const CHARISMA_SYNC_INTERVAL_MS = 30 * 60 * 1000;
 
 /** Charisma last sync record expiration TTL in KV: 1 day in seconds */

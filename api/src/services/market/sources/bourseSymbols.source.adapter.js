@@ -355,23 +355,29 @@ export const bourseSymbolsSourceAdapter = {
   },
 
   /**
-   * Daily scheduled sync for Bourse symbols
+   * Scheduled sync for Bourse symbols governed by sources.config.js (fetchIntervalSec)
    */
-  async handleScheduledSync(env) {
+  async handleScheduledSync(env, sourceConfig = null) {
     try {
       const lastSyncStr = await getBourseLastSync(env);
       const lastSync = lastSyncStr ? parseInt(lastSyncStr, 10) : 0;
       const now = Date.now();
 
-      if (now - lastSync < BOURSE_SYNC_INTERVAL_MS) {
+      const intervalSec = Number(sourceConfig?.fetchIntervalSec) > 0
+        ? Number(sourceConfig.fetchIntervalSec)
+        : Math.round(BOURSE_SYNC_INTERVAL_MS / 1000);
+      const intervalMs = intervalSec * 1000;
+
+      if (now - lastSync < intervalMs) {
         return false;
       }
 
       const url = getBourseApiUrl(env);
       const raw = await this.fetchRaw({ apiUrl: url }, env);
-      const parsed = await this.parse(raw, { name: "بورس اوراق بهادار تهران (TSETMC / BRS API)" }, env);
+      const parsed = await this.parse(raw, { name: sourceConfig?.name || "بورس اوراق بهادار تهران (TSETMC / BRS API)" }, env);
       if (parsed && parsed.price > 0) {
-        await setBourseLastSync(env, now, BOURSE_SYNC_EXPIRATION_TTL);
+        const expirationTtl = Math.max(86400, intervalSec * 3);
+        await setBourseLastSync(env, now, expirationTtl);
         return true;
       }
     } catch (err) {

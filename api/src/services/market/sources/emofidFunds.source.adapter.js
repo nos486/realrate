@@ -385,23 +385,29 @@ export const emofidFundsSourceAdapter = {
   },
 
   /**
-   * Periodic sync for Emofid funds (every 30 mins)
+   * Periodic sync for Emofid funds governed by sources.config.js (fetchIntervalSec)
    */
-  async handleScheduledSync(env) {
+  async handleScheduledSync(env, sourceConfig = null) {
     if (!env) return false;
     try {
       const lastSyncStr = await getEmofidLastSync(env);
       const lastSync = lastSyncStr ? parseInt(lastSyncStr, 10) : 0;
       const now = Date.now();
 
-      if (now - lastSync < EMOFID_SYNC_INTERVAL_MS) {
+      const intervalSec = Number(sourceConfig?.fetchIntervalSec) > 0
+        ? Number(sourceConfig.fetchIntervalSec)
+        : Math.round(EMOFID_SYNC_INTERVAL_MS / 1000);
+      const intervalMs = intervalSec * 1000;
+
+      if (now - lastSync < intervalMs) {
         return false;
       }
 
       const raw = await this.fetchRaw({}, env);
-      const parsed = await this.parse(raw, { id: "src_def_emofid", name: this.name }, env);
+      const parsed = await this.parse(raw, { id: "src_def_emofid", name: sourceConfig?.name || this.name }, env);
       if (parsed && parsed.price > 0) {
-        await setEmofidLastSync(env, now, EMOFID_SYNC_EXPIRATION_TTL);
+        const expirationTtl = Math.max(86400, intervalSec * 3);
+        await setEmofidLastSync(env, now, expirationTtl);
         return true;
       }
     } catch (err) {

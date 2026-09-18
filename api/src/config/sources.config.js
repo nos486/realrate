@@ -219,7 +219,7 @@ export const PRICE_SOURCES_CONFIG = [
     fieldMapping: null,
     excludedOutputs: [],
     displayConfig: { showOnHomePage: false },
-    fetchIntervalSec: 86400,
+    fetchIntervalSec: 3600,
     isActive: true,
     isPrimary: true,
     customParser: (data, sourceConfig) => {
