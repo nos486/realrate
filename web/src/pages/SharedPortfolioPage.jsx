@@ -11,6 +11,7 @@ import {
   CATEGORY_DEFINITIONS,
   formatAssetName,
   normalizeHolding,
+  VaultLockCard,
 } from '../features/portfolio/index.js';
 import {
   getCategoryBadge,
@@ -53,8 +54,6 @@ export default function SharedPortfolioPage() {
 
   // E2EE Vault State for Shared Portfolio
   const [vaultKey, setVaultKey] = useState(null);
-  const [vaultPassInput, setVaultPassInput] = useState('');
-  const [showVaultPass, setShowVaultPass] = useState(false);
   const [vaultError, setVaultError] = useState('');
   const [decryptingVault, setDecryptingVault] = useState(false);
 
@@ -152,13 +151,12 @@ export default function SharedPortfolioPage() {
   const isE2ee = Boolean(portfolioData?.portfolio?.isE2ee);
   const isVaultLocked = Boolean(isE2ee && !vaultKey);
 
-  const handleUnlockVault = async (e) => {
-    if (e) e.preventDefault();
-    if (!portfolioData?.portfolio?.isE2ee) return;
-    const pass = vaultPassInput.trim();
+  const handleUnlockVault = async (passphrase) => {
+    if (!portfolioData?.portfolio?.isE2ee) return false;
+    const pass = (passphrase || '').trim();
     if (!pass) {
       setVaultError('لطفاً رمز عبور شخصی گاوصندوق را وارد فرمایید.');
-      return;
+      return false;
     }
     setDecryptingVault(true);
     setVaultError('');
@@ -167,8 +165,7 @@ export default function SharedPortfolioPage() {
       const valid = await verifyE2eeKey(key, portfolioData.portfolio.e2eeVerifier);
       if (!valid) {
         setVaultError('رمز عبور وارد شده نادرست است.');
-        setDecryptingVault(false);
-        return;
+        return false;
       }
       setVaultKey(key);
       if (Array.isArray(portfolioData.holdings)) {
@@ -177,10 +174,11 @@ export default function SharedPortfolioPage() {
         );
         setPortfolioData((prev) => ({ ...prev, holdings: decrypted }));
       }
-      setVaultPassInput('');
+      return true;
     } catch (err) {
       console.error('Shared vault unlock error:', err);
       setVaultError('خطا در رمزگشایی گاوصندوق: ' + (err.message || 'نامعتبر'));
+      return false;
     } finally {
       setDecryptingVault(false);
     }
@@ -469,59 +467,12 @@ export default function SharedPortfolioPage() {
                   </div>
 
                   {isVaultLocked ? (
-                    <div className="vault-lock-container">
-                      <div className="vault-lock-card">
-                        <div className="vault-lock-badge">گاوصندوق E2EE</div>
-                        <h4 className="vault-lock-title">پورتفو قفل است</h4>
-                        <p className="vault-lock-desc">
-                          برای مشاهده و رمزگشایی دارایی‌ها، رمز عبور پورتفو را وارد کنید.
-                        </p>
-
-                        <form className="vault-unlock-form" onSubmit={handleUnlockVault}>
-                          <div className="vault-pass-input-wrapper">
-                            <input
-                              type={showVaultPass ? 'text' : 'password'}
-                              className="vault-unlock-input"
-                              placeholder="رمز عبور..."
-                              value={vaultPassInput}
-                              onChange={(e) => setVaultPassInput(e.target.value)}
-                              autoFocus
-                              dir="ltr"
-                            />
-                            <button
-                              type="button"
-                              className="btn-toggle-vault-eye"
-                              onClick={() => setShowVaultPass((prev) => !prev)}
-                              tabIndex={-1}
-                              title={showVaultPass ? 'مخفی کردن' : 'نمایش رمز'}
-                            >
-                              {showVaultPass ? <EyeOff size={15} /> : <Eye size={15} />}
-                            </button>
-                          </div>
-
-                          {vaultError && (
-                            <div className="vault-unlock-error">
-                              <AlertTriangle size={14} style={{ verticalAlign: 'middle', marginLeft: '4px' }} />
-                              <span>{vaultError}</span>
-                            </div>
-                          )}
-
-                          <div className="vault-unlock-actions">
-                            <button
-                              type="submit"
-                              className="btn-vault-unlock"
-                              disabled={decryptingVault || !vaultPassInput}
-                            >
-                              {decryptingVault ? 'در حال بررسی...' : 'بازگشایی'}
-                            </button>
-                          </div>
-                        </form>
-
-                        <div className="vault-lock-footer-note">
-                          رمزگشایی در مرورگر شما انجام می‌شود و رمز در سرور ذخیره نمی‌گردد.
-                        </div>
-                      </div>
-                    </div>
+                    <VaultLockCard
+                      portfolioName={portfolioData?.portfolio?.name}
+                      onUnlock={handleUnlockVault}
+                      error={vaultError}
+                      loading={decryptingVault}
+                    />
                   ) : categoryGroups.length === 0 ? (
                     <div className="portfolio-empty-state">
                       <div className="empty-icon">

@@ -7,6 +7,7 @@ export { default as CsvExportButton } from './components/CsvExportButton.jsx';
 export { default as PortfolioSwitcher } from './components/PortfolioSwitcher.jsx';
 export { default as ShareLinkToggle } from './components/ShareLinkToggle.jsx';
 export { default as PortfolioOverviewCards } from './components/PortfolioOverviewCards.jsx';
+export { default as VaultLockCard } from './components/VaultLockCard.jsx';
 
 export { usePortfolio } from './hooks/usePortfolio.js';
 export { useHoldings } from './hooks/useHoldings.js';

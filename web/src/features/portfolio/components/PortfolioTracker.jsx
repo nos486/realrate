@@ -28,6 +28,7 @@ import HoldingsTable from './HoldingsTable.jsx';
 import PortfolioOverviewCards from './PortfolioOverviewCards.jsx';
 import AddHoldingForm from './AddHoldingForm.jsx';
 import CsvExportButton from './CsvExportButton.jsx';
+import VaultLockCard from './VaultLockCard.jsx';
 
 import { usePortfolio } from '../hooks/usePortfolio.js';
 import { useHoldings } from '../hooks/useHoldings.js';
@@ -111,9 +112,6 @@ export default function PortfolioTracker({ rates, calcData, usdToman, goldUsd })
   const [creatingPortfolio, setCreatingPortfolio] = useState(false);
 
   const [settingsModalOpen, setSettingsModalOpen] = useState(false);
-
-  const [vaultUnlockPassInput, setVaultUnlockPassInput] = useState('');
-  const [showVaultUnlockPass, setShowVaultUnlockPass] = useState(false);
 
   // 4. Pricing Map & Asset Real Price Calculation
   const realPriceMap = useMemo(() => {
@@ -326,14 +324,6 @@ export default function PortfolioTracker({ rates, calcData, usdToman, goldUsd })
     if (ok) setSettingsModalOpen(false);
   };
 
-  const handleUnlockVault = async (e) => {
-    if (e) e.preventDefault();
-    const ok = await unlockVault(vaultUnlockPassInput);
-    if (ok) {
-      setVaultUnlockPassInput('');
-    }
-  };
-
   // ─── AUTH GATE (Required Login Screen) ──────────────────────────────────
   if (authLoading) {
     return (
@@ -518,65 +508,12 @@ export default function PortfolioTracker({ rates, calcData, usdToman, goldUsd })
                 <p>در حال دریافت اطلاعات پورتفوی شما از دیتابیس...</p>
               </div>
             ) : isVaultLocked ? (
-              <div className="vault-lock-container">
-                <div className="vault-lock-card">
-                  <div className="vault-lock-badge">
-                    <Lock size={13} style={{ verticalAlign: 'middle', marginLeft: '4px' }} />
-                    گاوصندوق E2EE
-                  </div>
-                  <h4 className="vault-lock-title">پورتفو قفل است</h4>
-                  <p className="vault-lock-desc">
-                    برای دسترسی به اطلاعات، رمز عبور پورتفوی «{activePortfolio?.name}» را وارد کنید.
-                  </p>
-
-                  <form className="vault-unlock-form" onSubmit={handleUnlockVault}>
-                    <div className="vault-pass-input-wrapper">
-                      <input
-                        type={showVaultUnlockPass ? 'text' : 'password'}
-                        className="vault-unlock-input"
-                        placeholder="رمز عبور..."
-                        value={vaultUnlockPassInput}
-                        onChange={(e) => setVaultUnlockPassInput(e.target.value)}
-                        autoFocus
-                        dir="ltr"
-                      />
-                      <button
-                        type="button"
-                        className="btn-toggle-vault-eye"
-                        onClick={() => setShowVaultUnlockPass((prev) => !prev)}
-                        tabIndex={-1}
-                        title={showVaultUnlockPass ? 'مخفی کردن' : 'نمایش رمز'}
-                      >
-                        {showVaultUnlockPass ? <EyeOff size={15} /> : <Eye size={15} />}
-                      </button>
-                    </div>
-
-                    {vaultUnlockError && (
-                      <div className="vault-unlock-error">
-                        <AlertTriangle
-                          size={14}
-                          style={{ verticalAlign: 'middle', marginLeft: '4px', display: 'inline' }}
-                        />
-                        {vaultUnlockError}
-                      </div>
-                    )}
-
-                    <div className="vault-unlock-actions">
-                      <button
-                        type="submit"
-                        className="btn-vault-unlock"
-                        disabled={unlockingVault || !vaultUnlockPassInput}
-                      >
-                        {unlockingVault ? 'در حال بررسی...' : 'بازگشایی'}
-                      </button>
-                    </div>
-                  </form>
-
-                  <div className="vault-lock-footer-note">
-                    رمزگشایی در مرورگر انجام می‌شود و رمز در سرور ذخیره نمی‌گردد.
-                  </div>
-                </div>
-              </div>
+              <VaultLockCard
+                portfolioName={activePortfolio?.name}
+                onUnlock={unlockVault}
+                error={vaultUnlockError}
+                loading={unlockingVault}
+              />
             ) : portfolioMetrics.items.length === 0 ? (
               <div className="portfolio-empty-state">
                 {transactionWarnings.length > 0 && (

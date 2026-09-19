@@ -29,6 +29,7 @@ import { useTransactions } from '../hooks/useTransactions.js';
 import { useComputedHoldings } from '../hooks/useComputedHoldings.js';
 import TransactionForm from './TransactionForm.jsx';
 import PortfolioSwitcher from '../../portfolio/components/PortfolioSwitcher.jsx';
+import VaultLockCard from '../../portfolio/components/VaultLockCard.jsx';
 import { CategoryIcon, formatAssetName, formatNum } from '../../portfolio/utils/holdingHelpers.js';
 import {
   deriveE2eeKey,
@@ -55,8 +56,6 @@ export default function TransactionsPage({
 
   // E2EE Vault Keys State
   const [vaultKey, setVaultKey] = useState(null);
-  const [vaultUnlockPassInput, setVaultUnlockPassInput] = useState('');
-  const [showVaultUnlockPass, setShowVaultUnlockPass] = useState(false);
   const [vaultUnlockError, setVaultUnlockError] = useState('');
   const [unlockingVault, setUnlockingVault] = useState(false);
 
@@ -133,24 +132,25 @@ export default function TransactionsPage({
   const [creatingPortfolio, setCreatingPortfolio] = useState(false);
 
   // Handle Vault Unlock
-  const handleUnlockVault = async (e) => {
-    if (e && e.preventDefault) e.preventDefault();
-    if (!vaultUnlockPassInput || !activePortfolio?.e2eeSalt) return;
+  const handleUnlockVault = async (passphrase) => {
+    if (!passphrase || !activePortfolio?.e2eeSalt) return false;
 
     setUnlockingVault(true);
     setVaultUnlockError('');
     try {
-      const derivedKey = await deriveE2eeKey(vaultUnlockPassInput, activePortfolio.e2eeSalt);
+      const derivedKey = await deriveE2eeKey(passphrase, activePortfolio.e2eeSalt);
       const isValid = await verifyE2eeKey(derivedKey, activePortfolio.e2eeVerifier);
       if (isValid) {
         setVaultKey(derivedKey);
-        saveVaultPassphraseToSession(activePortfolio.id, vaultUnlockPassInput);
-        setVaultUnlockPassInput('');
+        saveVaultPassphraseToSession(activePortfolio.id, passphrase);
+        return true;
       } else {
         setVaultUnlockError('رمز عبور وارد شده صحیح نیست.');
+        return false;
       }
     } catch (err) {
       setVaultUnlockError('خطا در رمزگشایی گاوصندوق.');
+      return false;
     } finally {
       setUnlockingVault(false);
     }
@@ -265,60 +265,12 @@ export default function TransactionsPage({
 
       {/* 2. Vault Locked View */}
       {isVaultLocked ? (
-        <div className="vault-locked-fullscreen-banner">
-          <div className="vault-locked-card">
-            <div className="vault-locked-shield-icon">
-              <Lock size={44} strokeWidth={1.8} />
-            </div>
-            <h3>گاوصندوق رمزنگاری‌شده E2EE قفل است</h3>
-            <p>
-              تراکنش‌های این پورتفو با کلید اختصاصی شما در سمت کلاینت محافظت می‌شوند.
-              جهت مشاهده، افزودن یا ویرایش تراکنش‌ها، ابتدا رمز عبور گاوصندوق را وارد فرمایید.
-            </p>
-
-            <form onSubmit={handleUnlockVault} className="vault-unlock-form">
-              <div className="vault-pass-input-wrapper">
-                <input
-                  type={showVaultUnlockPass ? 'text' : 'password'}
-                  placeholder="رمز عبور گاوصندوق..."
-                  value={vaultUnlockPassInput}
-                  onChange={(e) => setVaultUnlockPassInput(e.target.value)}
-                  className="form-input vault-pass-field"
-                  autoFocus
-                  dir="ltr"
-                />
-                <button
-                  type="button"
-                  className="btn-toggle-vault-eye"
-                  onClick={() => setShowVaultUnlockPass((p) => !p)}
-                  title={showVaultUnlockPass ? 'مخفی کردن' : 'نمایش رمز'}
-                >
-                  {showVaultUnlockPass ? <EyeOff size={15} /> : <Eye size={15} />}
-                </button>
-              </div>
-
-              {vaultUnlockError && (
-                <div className="vault-unlock-error">
-                  <AlertTriangle size={14} style={{ verticalAlign: 'middle', marginLeft: '4px', display: 'inline' }} />
-                  {vaultUnlockError}
-                </div>
-              )}
-
-              <div className="vault-unlock-actions">
-                <button
-                  type="submit"
-                  className="btn-vault-unlock"
-                  disabled={unlockingVault || !vaultUnlockPassInput}
-                >
-                  {unlockingVault ? 'در حال بررسی...' : 'بازگشایی گاوصندوق'}
-                </button>
-              </div>
-            </form>
-            <div className="vault-lock-footer-note">
-              معماری Zero-Knowledge: رمز عبور هرگز به سرور ارسال نمی‌شود.
-            </div>
-          </div>
-        </div>
+        <VaultLockCard
+          portfolioName={activePortfolio?.name}
+          onUnlock={handleUnlockVault}
+          error={vaultUnlockError}
+          loading={unlockingVault}
+        />
       ) : (
         <>
           {/* 3. Stats Overview Cards */}
