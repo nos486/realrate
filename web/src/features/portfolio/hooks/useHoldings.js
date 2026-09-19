@@ -109,13 +109,13 @@ export function useHoldings(activePortfolio) {
                   );
                   setHoldings(decrypted.map(normalizeHolding));
                 } else {
-                  setHoldings(rawHoldings.map(normalizeHolding));
+                  setHoldings([]);
                 }
               } catch {
-                setHoldings(rawHoldings.map(normalizeHolding));
+                setHoldings([]);
               }
             } else {
-              setHoldings(rawHoldings.map(normalizeHolding));
+              setHoldings([]);
             }
           }
         } else {

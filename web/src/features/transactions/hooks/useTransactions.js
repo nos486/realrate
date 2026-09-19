@@ -113,7 +113,11 @@ export function useTransactions(activePortfolio, externalVaultKey = null) {
           })
         );
 
-        setTransactions(decryptedList);
+        if (activePortfolio?.isE2ee && !activeVaultKey) {
+          setTransactions([]);
+        } else {
+          setTransactions(decryptedList);
+        }
       } else {
         setTransactions([]);
       }

@@ -679,12 +679,13 @@ export default function PortfolioTracker({ rates, calcData, usdToman, goldUsd })
         portfolio={activePortfolio}
         canDelete={portfolios.length > 1}
         onDelete={handleDeleteActivePortfolio}
-        onSaved={(data) => {
+        onSaved={async (data) => {
           const targetId =
             data && typeof data === 'object' && data.portfolioId
               ? data.portfolioId
               : activePortfolio?.id;
-          fetchPortfolios(targetId);
+          await fetchPortfolios(targetId);
+          fetchHoldings();
         }}
       />
     </div>
