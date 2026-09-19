@@ -613,12 +613,7 @@ export default function PortfolioTracker({ rates, calcData, usdToman, goldUsd })
                 {manualCategoryGroups.length > 0 && (
                   <div className="portfolio-table-group-section manual-section">
                     <div className="portfolio-section-title-row">
-                      <div className="portfolio-section-title-with-pill">
-                        <span className="section-title-icon manual">
-                          <Layers size={16} />
-                        </span>
-                        <h3 className="portfolio-section-title">دارایی‌های ثبت‌شده دستی</h3>
-                      </div>
+                      <h3 className="portfolio-section-title">دارایی‌های ثبت‌شده دستی</h3>
                       <span className="portfolio-section-count-badge">
                         {portfolioMetrics.manualItems.length.toLocaleString('fa-IR')} قلم دارایی
                       </span>
@@ -639,9 +634,6 @@ export default function PortfolioTracker({ rates, calcData, usdToman, goldUsd })
                   <div className="portfolio-table-group-section computed-section">
                     <div className="portfolio-section-title-row">
                       <div className="portfolio-section-title-with-pill">
-                        <span className="section-title-icon computed">
-                          <Receipt size={16} />
-                        </span>
                         <h3 className="portfolio-section-title">دارایی‌های حاصل از تراکنش‌ها</h3>
                         <span className="tx-auto-section-pill">محاسبه خودکار</span>
                       </div>
