@@ -78,9 +78,9 @@ export default function PortfolioTracker({ rates, calcData, usdToman, goldUsd })
   // 3. UI State
   const [hideValues, setHideValues] = useState(() => {
     try {
-      return localStorage.getItem('realrate_hide_values') === 'true';
+      return localStorage.getItem('realrate_hide_values') === 'false';
     } catch {
-      return false;
+      return true;
     }
   });
 
@@ -92,7 +92,7 @@ export default function PortfolioTracker({ rates, calcData, usdToman, goldUsd })
         } else {
           setHideValues(localStorage.getItem('realrate_hide_values') === 'true');
         }
-      } catch {}
+      } catch { }
     };
     window.addEventListener('realrate_privacy_change', handlePrivacyChange);
     window.addEventListener('storage', handlePrivacyChange);
