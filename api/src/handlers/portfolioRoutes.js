@@ -1,0 +1,461 @@
+/**
+ * portfolioRoutes.js — Handlers for user portfolio asset management
+ *
+ * Endpoints:
+ *   GET    /api/portfolios        — Fetch list of all portfolios for user
+ *   POST   /api/portfolios        — Create a new portfolio
+ *   PUT    /api/portfolios        — Update portfolio name & share settings
+ *   DELETE /api/portfolios?id=... — Delete a portfolio and its holdings
+ *
+ *   GET    /api/portfolio         — Fetch user's holdings (optionally for a specific portfolio)
+ *   POST   /api/portfolio         — Add or update a holding
+ *   DELETE /api/portfolio?id=...  — Remove a holding
+ *   GET/POST /api/portfolio/shared — Public endpoint for shared portfolios
+ */
+
+import { getAuthenticatedUser } from "../lib/auth.js";
+import {
+  dbGetUserPortfolios,
+  dbGetPortfolioById,
+  dbCreatePortfolio,
+  dbUpdatePortfolio,
+  dbDeletePortfolio,
+  dbGetPortfolioByShareSlug,
+  dbGetPortfolioHoldings,
+  dbAddPortfolioHolding,
+  dbDeletePortfolioHolding,
+  dbGetUserById,
+  dbUpdateUserSettings,
+} from "../repositories/index.js";
+import { jsonResponse } from "../lib/helpers.js";
+import { AppError } from "../lib/AppError.js";
+import { logger } from "../lib/logger.js";
+import {
+  getCanonicalAssetName,
+  getCanonicalAssetUnit,
+  getCanonicalAssetCategory,
+  resolveItemCategory,
+} from "../domain/specs/index.js";
+
+function resolveHoldingMetadata(holding) {
+  if (!holding) return holding;
+  const isEncrypted = typeof holding.notes === 'string' && holding.notes.startsWith('enc:e2ee:v1:');
+  return {
+    ...holding,
+    canonicalName: isEncrypted ? (holding.assetName || holding.assetId) : (getCanonicalAssetName(holding.assetId, holding.assetName) || holding.assetName),
+    canonicalUnit: isEncrypted ? (holding.unit || 'واحد') : (getCanonicalAssetUnit(holding.assetId, holding.unit) || holding.unit),
+    canonicalCategory: isEncrypted ? (holding.assetType || 'custom') : (getCanonicalAssetCategory(holding.assetId, holding.assetType) || holding.assetType),
+    resolvedCategory: resolveItemCategory(holding.assetId, holding.assetType),
+  };
+}
+
+/**
+ * GET /api/portfolios
+ * Fetch all portfolios of current authenticated user
+ */
+export async function handleGetPortfolios(request, env) {
+  const user = await getAuthenticatedUser(request, env);
+  if (!user) {
+    throw AppError.unauthorized("جهت دسترسی به پورتفوها، ابتدا وارد حساب کاربری خود شوید.");
+  }
+
+  const userId = user.userId || user.id || user.email;
+  const portfolios = await dbGetUserPortfolios(env, userId);
+
+  return jsonResponse({
+    success: true,
+    portfolios: portfolios.map((p) => ({
+      id: p.id,
+      userId: p.userId,
+      name: p.name,
+      isDefault: !!p.isDefault,
+      shareSlug: p.shareSlug || "",
+      shareEnabled: !!p.shareEnabled,
+      isE2ee: !!p.isE2ee,
+      e2eeSalt: p.e2eeSalt || "",
+      e2eeVerifier: p.e2eeVerifier || "",
+      hasPassword: !!(p.sharePassword && p.sharePassword.trim()),
+      sharePassword: p.sharePassword || "",
+      itemCount: Number(p.itemCount) || 0,
+      transactionCount: Number(p.transactionCount) || 0,
+      createdAt: p.createdAt,
+      updatedAt: p.updatedAt,
+    })),
+  }, 200, request);
+}
+
+/**
+ * POST /api/portfolios
+ * Create a new portfolio for current user
+ */
+export async function handleCreatePortfolio(request, env) {
+  const user = await getAuthenticatedUser(request, env);
+  if (!user) {
+    throw AppError.unauthorized("جهت ساخت پورتفو، ابتدا وارد حساب کاربری خود شوید.");
+  }
+
+  const body = await request.json().catch(() => ({}));
+  const name = String(body.name || "").trim();
+
+  if (!name) {
+    throw AppError.badRequest("نام پورتفو نمی‌تواند خالی باشد.");
+  }
+
+  const userId = user.userId || user.id || user.email;
+  const created = await dbCreatePortfolio(env, userId, { name });
+
+  return jsonResponse({
+    success: true,
+    message: `پورتفوی «${created.name}» با موفقیت ساخته شد.`,
+    portfolio: {
+      id: created.id,
+      userId: created.userId,
+      name: created.name,
+      isDefault: !!created.isDefault,
+      shareSlug: created.shareSlug || "",
+      shareEnabled: !!created.shareEnabled,
+      isE2ee: false,
+      e2eeSalt: "",
+      e2eeVerifier: "",
+      hasPassword: false,
+      sharePassword: "",
+      itemCount: 0,
+      transactionCount: 0,
+      createdAt: created.createdAt,
+      updatedAt: created.updatedAt,
+    },
+  }, 201, request);
+}
+
+/**
+ * PUT /api/portfolios
+ * Update portfolio name or share settings
+ */
+export async function handleUpdatePortfolio(request, env) {
+  const user = await getAuthenticatedUser(request, env);
+  if (!user) {
+    throw AppError.unauthorized("جهت ویرایش پورتفو، ابتدا وارد حساب کاربری خود شوید.");
+  }
+
+  const body = await request.json().catch(() => ({}));
+  const portfolioId = body.id || body.portfolioId;
+
+  if (!portfolioId) {
+    throw AppError.badRequest("شناسه پورتفو جهت ویرایش الزامی است.");
+  }
+
+  const userId = user.userId || user.id || user.email;
+  const updated = await dbUpdatePortfolio(env, portfolioId, userId, {
+    name: body.name,
+    shareSlug: body.shareSlug,
+    sharePassword: body.sharePassword,
+    shareEnabled: body.shareEnabled,
+    isDefault: body.isDefault !== undefined ? !!body.isDefault : undefined,
+    isE2ee: body.isE2ee !== undefined ? !!body.isE2ee : undefined,
+    e2eeSalt: body.e2eeSalt,
+    e2eeVerifier: body.e2eeVerifier,
+  });
+
+  if (!updated) {
+    throw AppError.notFound("پورتفوی مورد نظر یافت نشد.");
+  }
+
+  return jsonResponse({
+    success: true,
+    message: "تنظیمات پورتفو با موفقیت به‌روزرسانی شد.",
+    portfolio: {
+      id: updated.id,
+      userId: updated.userId,
+      name: updated.name,
+      isDefault: !!updated.isDefault,
+      shareSlug: updated.shareSlug || "",
+      shareEnabled: !!updated.shareEnabled,
+      isE2ee: !!updated.isE2ee,
+      e2eeSalt: updated.e2eeSalt || "",
+      e2eeVerifier: updated.e2eeVerifier || "",
+      hasPassword: !!(updated.sharePassword && updated.sharePassword.trim()),
+      sharePassword: updated.sharePassword || "",
+      itemCount: Number(updated.itemCount) || 0,
+      transactionCount: Number(updated.transactionCount) || 0,
+      createdAt: updated.createdAt,
+      updatedAt: updated.updatedAt,
+    },
+  }, 200, request);
+}
+
+/**
+ * DELETE /api/portfolios
+ * Delete a portfolio
+ */
+export async function handleDeletePortfolioGroup(request, env) {
+  const user = await getAuthenticatedUser(request, env);
+  if (!user) {
+    throw AppError.unauthorized("جهت حذف پورتفو، ابتدا وارد حساب کاربری خود شوید.");
+  }
+
+  const url = new URL(request.url);
+  let portfolioId = url.searchParams.get("id") || url.searchParams.get("portfolioId");
+
+  if (!portfolioId) {
+    const body = await request.json().catch(() => ({}));
+    portfolioId = body.id || body.portfolioId;
+  }
+
+  if (!portfolioId) {
+    throw AppError.badRequest("شناسه پورتفو جهت حذف ارسال نشده است.");
+  }
+
+  const userId = user.userId || user.id || user.email;
+  await dbDeletePortfolio(env, portfolioId, userId);
+
+  return jsonResponse({
+    success: true,
+    message: "پورتفو و دارایی‌های آن با موفقیت حذف شد.",
+    deletedId: portfolioId,
+  }, 200, request);
+}
+
+/**
+ * GET /api/portfolio
+ * Fetch all assets registered in current user's portfolio (optionally specific portfolioId)
+ */
+export async function handleGetPortfolio(request, env) {
+  const user = await getAuthenticatedUser(request, env);
+  if (!user) {
+    throw AppError.unauthorized("جهت دسترسی به پورتفوی دارایی، ابتدا وارد حساب کاربری خود شوید.");
+  }
+
+  const url = new URL(request.url);
+  let portfolioId = url.searchParams.get("portfolioId");
+  if (!portfolioId || portfolioId === "null" || portfolioId === "undefined" || portfolioId === "[object Object]" || !portfolioId.trim()) {
+    portfolioId = null;
+  } else {
+    portfolioId = portfolioId.trim();
+  }
+  const userId = user.userId || user.id || user.email;
+
+  const holdings = await dbGetPortfolioHoldings(env, userId, portfolioId);
+
+  return jsonResponse({
+    success: true,
+    user: { id: userId, email: user.email, name: user.name },
+    portfolioId,
+    holdings: holdings.map(resolveHoldingMetadata),
+  }, 200, request);
+}
+
+/**
+ * POST /api/portfolio
+ * Add a new asset or update an existing holding in a portfolio
+ */
+export async function handleAddPortfolio(request, env) {
+  const user = await getAuthenticatedUser(request, env);
+  if (!user) {
+    throw AppError.unauthorized("جهت ثبت دارایی در پورتفو، ابتدا وارد حساب کاربری خود شوید.");
+  }
+
+  const body = await request.json().catch(() => ({}));
+  const isE2eeHolding = typeof body.notes === 'string' && body.notes.startsWith('enc:e2ee:v1:');
+  const amount = parseFloat(body.amount);
+  const rawBuyPrice = body.buyPrice;
+  const buyPrice = (rawBuyPrice !== undefined && rawBuyPrice !== null && rawBuyPrice !== '')
+    ? parseFloat(rawBuyPrice)
+    : 0;
+
+  if (!isE2eeHolding && (isNaN(amount) || amount <= 0)) {
+    throw AppError.badRequest("مقدار یا وزن دارایی باید یک عدد معتبر و بزرگتر از صفر باشد.");
+  }
+
+  if (!isE2eeHolding && (isNaN(buyPrice) || buyPrice < 0)) {
+    throw AppError.badRequest("قیمت خرید واحد در صورت وارد شدن باید یک عدد معتبر و نامنفی باشد.");
+  }
+
+  const userId = user.userId || user.id || user.email;
+  const holdingData = {
+    id: body.id || `h_${Date.now()}_${crypto.randomUUID().slice(0, 8)}`,
+    userId,
+    portfolioId: body.portfolioId || body.portfolio_id || null,
+    assetId: String(body.assetId || "gold_18k"),
+    assetName: isE2eeHolding ? String(body.assetName || "") : (getCanonicalAssetName(body.assetId, body.assetName) || String(body.assetName || "")),
+    assetType: isE2eeHolding ? String(body.assetType || "") : (getCanonicalAssetCategory(body.assetId, body.assetType) || String(body.assetType || "gold")),
+    unit: isE2eeHolding ? String(body.unit || "") : (getCanonicalAssetUnit(body.assetId, body.unit) || String(body.unit || "واحد")),
+    amount: isNaN(amount) ? 0 : amount,
+    buyPrice: isNaN(buyPrice) ? 0 : buyPrice,
+    currentPrice: parseFloat(body.currentPrice) || 0,
+    buyDate: String(body.buyDate || "").trim(),
+    notes: String(body.notes || "").trim(),
+    createdAt: body.createdAt || new Date().toISOString(),
+  };
+
+  const saved = await dbAddPortfolioHolding(env, holdingData);
+
+  return jsonResponse({
+    success: true,
+    message: "دارایی با موفقیت در پورتفوی شما ثبت شد.",
+    item: resolveHoldingMetadata(saved),
+  }, 201, request);
+}
+
+/**
+ * DELETE /api/portfolio
+ * Delete an asset from user's portfolio
+ */
+export async function handleDeletePortfolio(request, env) {
+  const user = await getAuthenticatedUser(request, env);
+  if (!user) {
+    throw AppError.unauthorized("جهت حذف دارایی، ابتدا وارد حساب کاربری خود شوید.");
+  }
+
+  const url = new URL(request.url);
+  let id = url.searchParams.get("id");
+
+  if (!id) {
+    const body = await request.json().catch(() => ({}));
+    id = body.id;
+  }
+
+  if (!id) {
+    throw AppError.badRequest("شناسه دارایی جهت حذف ارسال نشده است.");
+  }
+
+  const userId = user.userId || user.id || user.email;
+  await dbDeletePortfolioHolding(env, id, userId);
+
+  return jsonResponse({
+    success: true,
+    message: "دارایی با موفقیت از پورتفوی شما حذف شد.",
+    deletedId: id,
+  }, 200, request);
+}
+
+/**
+ * GET /api/user/settings
+ * Fetch current user settings (custom name, share slug, share enabled, password status)
+ */
+export async function handleGetUserSettings(request, env) {
+  const user = await getAuthenticatedUser(request, env);
+  if (!user) {
+    throw AppError.unauthorized("جهت دسترسی به تنظیمات، ابتدا وارد حساب کاربری خود شوید.");
+  }
+
+  const userId = user.userId || user.id || user.email;
+  const userData = await dbGetUserById(env, userId);
+
+  if (!userData) {
+    throw AppError.notFound("اطلاعات کاربر یافت نشد.");
+  }
+
+  return jsonResponse({
+    success: true,
+    settings: {
+      name: userData.name,
+      customName: userData.customName || "",
+      shareSlug: userData.shareSlug || "",
+      shareEnabled: !!userData.shareEnabled,
+      hasPassword: !!(userData.sharePassword && userData.sharePassword.trim()),
+      sharePassword: userData.sharePassword || "",
+    },
+  }, 200, request);
+}
+
+/**
+ * POST /api/user/settings
+ * Update current user settings
+ */
+export async function handleUpdateUserSettings(request, env) {
+  const user = await getAuthenticatedUser(request, env);
+  if (!user) {
+    throw AppError.unauthorized("جهت تغییر تنظیمات، ابتدا وارد حساب کاربری خود شوید.");
+  }
+
+  const body = await request.json().catch(() => ({}));
+  const userId = user.userId || user.id || user.email;
+
+  const updatedUser = await dbUpdateUserSettings(env, userId, {
+    customName: body.customName,
+    shareSlug: body.shareSlug,
+    sharePassword: body.sharePassword,
+    shareEnabled: body.shareEnabled,
+  });
+
+  return jsonResponse({
+    success: true,
+    message: "تنظیمات کاربری و اشتراک‌گذاری با موفقیت ذخیره شد.",
+    settings: {
+      name: updatedUser.name,
+      customName: updatedUser.customName || "",
+      shareSlug: updatedUser.shareSlug || "",
+      shareEnabled: !!updatedUser.shareEnabled,
+      hasPassword: !!(updatedUser.sharePassword && updatedUser.sharePassword.trim()),
+      sharePassword: updatedUser.sharePassword || "",
+    },
+  }, 200, request);
+}
+
+/**
+ * GET or POST /api/portfolio/shared
+ * Public endpoint to view a shared portfolio by slug (protected with password if set)
+ */
+export async function handleGetSharedPortfolio(request, env) {
+  const url = new URL(request.url);
+  let slug = url.searchParams.get("slug");
+  let password = url.searchParams.get("password") || request.headers.get("X-Portfolio-Password");
+
+  if (request.method === "POST") {
+    const body = await request.json().catch(() => ({}));
+    if (body.slug) slug = body.slug;
+    if (body.password !== undefined) password = body.password;
+  }
+
+  if (!slug) {
+    throw AppError.badRequest("شناسه پورتفوی اشتراک‌گذاری‌شده ارسال نشده است.");
+  }
+
+  const targetPortfolio = await dbGetPortfolioByShareSlug(env, slug);
+  if (!targetPortfolio || !targetPortfolio.shareEnabled) {
+    throw AppError.notFound("پورتفوی مورد نظر یافت نشد یا اشتراک‌گذاری عمومی آن غیرفعال است.");
+  }
+
+  const ownerName = targetPortfolio.userCustomName || targetPortfolio.userName || "کاربر";
+  const portfolioName = targetPortfolio.name || "پورتفوی سرمایه‌گذاری";
+
+  // Check password protection
+  if (targetPortfolio.sharePassword && targetPortfolio.sharePassword.trim().length > 0) {
+    if (!password || String(password).trim() !== targetPortfolio.sharePassword.trim()) {
+      return jsonResponse({
+        success: false,
+        requirePassword: true,
+        portfolio: {
+          id: targetPortfolio.id,
+          name: portfolioName,
+          slug: targetPortfolio.shareSlug,
+        },
+        user: {
+          name: ownerName,
+          slug: targetPortfolio.shareSlug,
+        },
+        message: password ? "رمز عبور وارد شده نادرست است." : "جهت مشاهده این پورتفو، لطفاً رمز عبور را وارد نمایید.",
+      }, 200, request);
+    }
+  }
+
+  // Password passed or not required: return holdings for this portfolio
+  const holdings = await dbGetPortfolioHoldings(env, targetPortfolio.userId, targetPortfolio.id);
+
+  return jsonResponse({
+    success: true,
+    portfolio: {
+      id: targetPortfolio.id,
+      name: portfolioName,
+      slug: targetPortfolio.shareSlug,
+      isE2ee: !!targetPortfolio.isE2ee,
+      e2eeSalt: targetPortfolio.e2eeSalt || "",
+      e2eeVerifier: targetPortfolio.e2eeVerifier || "",
+    },
+    user: {
+      name: ownerName,
+      slug: targetPortfolio.shareSlug,
+    },
+    holdings: holdings.map(resolveHoldingMetadata),
+  }, 200, request);
+}

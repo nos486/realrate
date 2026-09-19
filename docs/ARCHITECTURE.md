@@ -65,6 +65,7 @@ Decouples database and KV storage queries from business logic. Direct SQL and KV
 - `userRepository.js`: User accounts, roles, settings, Google OAuth mappings.
 - `portfolioRepository.js`: Portfolios, multi-portfolio management, sharing slugs, salts, and verifiers.
 - `holdingRepository.js`: Encrypted or plaintext holding items, quantities, purchase prices, dates, and notes.
+- `transactionRepository.js`: Persistent storage for client-side encrypted buy/sell transactions with Zero-Knowledge payloads.
 - `priceRepository.js`: Ingested market rates, gold ounce prices, forex rates, bourse symbol cache.
 - `auditRepository.js`: Security and administrative audit log events.
 
@@ -101,9 +102,15 @@ web/src/
 │   │   └── index.js
 │   ├── portfolio/       # Portfolio manager, holdings table, date picker, E2EE
 │   │   ├── api/
-│   │   ├── components/
-│   │   ├── hooks/
-│   │   ├── utils/
+│   │   ├── components/  # HoldingsTable, PortfolioSwitcher, AddHoldingForm, PrivacyToggle...
+│   │   ├── hooks/       # usePortfolio, useHoldings
+│   │   ├── utils/       # holdingHelpers.js
+│   │   └── index.js
+│   ├── transactions/    # Buy/Sell Transactions & Automated Holdings Engine
+│   │   ├── api/         # transactionApi.js (CRUD for /api/portfolios/:id/transactions)
+│   │   ├── components/  # TransactionsPage, TransactionForm
+│   │   ├── hooks/       # useTransactions, useComputedHoldings
+│   │   ├── utils/       # calculationEngine.js (Weighted Average Cost calculation)
 │   │   └── index.js
 │   ├── auth/            # AuthContext, Google OAuth, session management
 │   │   ├── api/
@@ -124,18 +131,25 @@ web/src/
 ### Key Frontend Features
 
 1. **Feature-Colocated State & Hooks**:
-   - `usePortfolio`: Handles portfolio switching, creation, and deletion.
-   - `useHoldings`: Handles holdings retrieval, auto-migration from legacy `realrate_portfolio_v1` local storage, E2EE decryption, live bourse price synchronization.
-2. **Zero-Knowledge E2EE Vaults**:
+   - `usePortfolio`: Handles portfolio switching, creation, deletion, and synchronizing mode-aware badges (transaction count vs holdings count).
+   - `useHoldings`: Handles manual holdings retrieval, auto-migration from legacy local storage, E2EE decryption, live bourse price synchronization.
+   - `useTransactions`: Handles transaction CRUD with client-side Zero-Knowledge E2EE encryption and decryption.
+   - `useComputedHoldings`: Automatically derives current holdings and Weighted Average Cost (WAC) from transaction history.
+2. **Automated Holdings & Calculation Engine (`calculationEngine.js`)**:
+   - Computes holdings from buy/sell transactions sorted chronologically.
+   - **Weighted Average Cost (WAC)**: On Buy, $WAC_{new} = \frac{(Qty_{prev} \times WAC_{prev}) + (Qty_{buy} \times Price_{buy})}{Qty_{prev} + Qty_{buy}}$.
+   - On Sell, reduces holding quantity while maintaining unit purchase cost, and validates against overselling (with non-blocking user warnings).
+   - Results in a dual-section portfolio view: "دارایی‌های ثبت‌شده دستی" (Manual) and "دارایی‌های حاصل از تراکنش‌ها" (Computed).
+3. **Zero-Knowledge E2EE Vaults**:
    - Passphrase derivation using PBKDF2 with unique cryptographic salts.
-   - Holding payload encryption with AES-GCM (256-bit) directly in the browser.
+   - Holding and transaction payload encryption with AES-GCM (256-bit) directly in the browser.
    - The server only stores ciphertext; passphrases never leave the client.
-3. **Persian / Shamsi Localization**:
+4. **Persian / Shamsi Localization**:
    - Native Jalali calendar calculations (`ShamsiDatePicker.jsx`).
    - "⚡ امروز" (Today) quick button.
    - Eastern Arabic / Persian number parsing and formatting.
-4. **Privacy Mode**:
-   - Mask numbers across all tables and cards with `****`.
-   - Global event propagation via `realrate_privacy_change`.
-5. **CSV Export with UTF-8 BOM**:
+5. **Privacy Mode (`btn-privacy-toggle`)**:
+   - Mask numbers across all tables and cards in Portfolio and Transactions with `****`.
+   - Global event propagation via `CustomEvent('realrate_privacy_change')` and local storage synchronization.
+6. **CSV Export with UTF-8 BOM**:
    - Generates CSV exports with `\uFEFF` prefix ensuring non-ASCII Persian characters render flawlessly in Microsoft Excel and Google Sheets.

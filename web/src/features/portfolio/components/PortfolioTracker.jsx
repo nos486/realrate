@@ -78,9 +78,9 @@ export default function PortfolioTracker({ rates, calcData, usdToman, goldUsd })
   // 3. UI State
   const [hideValues, setHideValues] = useState(() => {
     try {
-      return localStorage.getItem('realrate_hide_values') === 'false';
+      return localStorage.getItem('realrate_hide_values') === 'true';
     } catch {
-      return true;
+      return false;
     }
   });
 

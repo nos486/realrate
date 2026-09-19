@@ -45,6 +45,7 @@ api/
     │   ├── userRepository.js          # کوئری‌های کاربران، نقش‌ها و تنظیمات حساب
     │   ├── portfolioRepository.js     # مدیریت پورتفوها، اسلاگ‌های اشتراک و E2EE
     │   ├── holdingRepository.js       # افزودن، ویرایش، حذف و واکشی اقلام دارایی
+    │   ├── transactionRepository.js   # ذخیره، ویرایش، حذف و واکشی تراکنش‌های خرید/فروش (E2EE)
     │   ├── priceRepository.js         # کش و ذخیره‌سازی آخرین نرخ‌های بازار در D1/KV
     │   └── auditRepository.js         # لاگ‌های امنیتی و حسابرسی سیستم
     ├── adapters/                      # الگوی Adapter برای منابع داده بالادستی
@@ -59,7 +60,8 @@ api/
     │   ├── apiRoutes.js               # اندپوینت‌های عمومی دریافت نرخ‌ها
     │   ├── unifiedItemsRoute.js       # کاتالوگ جامع /api/market/items
     │   ├── authRoutes.js              # سشن و لاگین گوگل
-    │   ├── portfolioRoutes.js         # مدیریت پورتفو و دارایی‌های کاربر
+    │   ├── portfolioRoutes.js         # مدیریت پورتفو و دارایی‌های کاربر (دارای itemCount و transactionCount)
+    │   ├── transactionRoutes.js       # مدیریت تراکنش‌های خرید/فروش با پی‌لود Zero-Knowledge
     │   └── adminRoutes.js             # پنل مدیریت، فیدها و آمار کاربران
     └── lib/                           # کتابخانه‌های کمکی و پل سازگاری
 ```
@@ -98,13 +100,14 @@ api/
 ## ۴. لایه پایگاه‌داده و ذخیره‌سازی (`D1` و `KV`)
 
 ### پایگاه‌داده Cloudflare D1 (SQLite)
-جداول اصلی در [schema.sql](file:///Users/sina/Projects/realrate/api/schema.sql) تعریف شده‌اند:
+جداول اصلی در schema.sql تعریف شده‌اند:
 1. **`users`**: حساب کاربران، نام، ایمیل، تصویر پروفایل و نقش دسترسی (`admin`/`user`).
 2. **`sessions`**: نشست‌های فعال احراز هویت با طول عمر ۳۰ روز.
 3. **`settings`**: تنظیمات تک‌ردیفی سراسری نرخ‌های پایه و درصدهای حباب.
 4. **`portfolios`**: پورتفوهای چندگانه کاربر، لینک‌های اشتراک عمومی و سالت‌های رمزنگاری E2EE.
 5. **`portfolio_holdings`**: اقلام دارایی پورتفو (مقدار، قیمت خرید، تاریخ شمسی، یادداشت و داده‌های رمزگذاری‌شده).
-6. **`price_sources`**: فیدهای فعال، زمان‌بندی و نگاشت فیلدها.
+6. **`transactions`**: تراکنش‌های خرید و فروش با پی‌لود رمزنگاری‌شده E2EE، کلید خارجی `portfolio_id` و تاریخ ثبت.
+7. **`price_sources`**: فیدهای فعال، زمان‌بندی و نگاشت فیلدها.
 
 ### حافظه توزیع‌شده Cloudflare KV
 - **`latest_rates`**: کش نرخ‌های تجمیعی بازار جهت بارگذاری لحظه‌ای.
@@ -119,15 +122,19 @@ api/
 - `GET /api/prices`: آبجکت آخرین نرخ‌های استخراج‌شده بازار.
 - `GET /api/portfolio/shared?slug=...`: دریافت اطلاعات پورتفوی اشتراک‌گذاری‌شده (فقط خواندنی).
 
-### ۲. روت‌های پورتفولیو (نیاز به توکن لاگین):
-- `GET /api/portfolios`: لیست تمام پورتفوهای کاربر.
+### ۲. روت‌های پورتفولیو و تراکنش‌ها (نیاز به توکن لاگین):
+- `GET /api/portfolios`: لیست تمام پورتفوهای کاربر همراه با فیلدهای تفکیک‌شده `itemCount` (تعداد دارایی‌ها) و `transactionCount` (تعداد تراکنش‌ها).
 - `POST /api/portfolios`: ایجاد پورتفوی جدید.
 - `PUT /api/portfolios`: ویرایش مشخصات یا تنظیمات اشتراک‌گذاری.
-- `DELETE /api/portfolios`: حذف پورتفو و تمام اقلام آن.
-- `GET /api/portfolio/holdings?portfolioId=...`: دریافت اقلام پورتفو.
-- `POST /api/portfolio/holdings`: ثبت دارایی جدید در پورتفو.
-- `PUT /api/portfolio/holdings`: ویرایش دارایی ثبت‌شده.
-- `DELETE /api/portfolio/holdings`: حذف دارایی از پورتفو.
+- `DELETE /api/portfolios`: حذف پورتفو و تمام اقلام دارایی و تراکنش‌های آن (Cascade Deletion).
+- `GET /api/portfolio/holdings?portfolioId=...`: دریافت اقلام دستی پورتفو.
+- `POST /api/portfolio/holdings`: ثبت دارایی جدید دستی در پورتفو.
+- `PUT /api/portfolio/holdings`: ویرایش دارایی ثبت‌شده دستی.
+- `DELETE /api/portfolio/holdings`: حذف دارایی دستی از پورتفو.
+- `GET /api/portfolios/:id/transactions`: دریافت کل تراکنش‌های خرید/فروش پورتفو (مرتب‌شده زمانی).
+- `POST /api/portfolios/:id/transactions`: ثبت تراکنش جدید خرید یا فروش (با پی‌لود رمزنگاری‌شده E2EE یا متنی).
+- `PUT /api/portfolios/:id/transactions`: ویرایش تراکنش موجود.
+- `DELETE /api/portfolios/:id/transactions`: حذف تراکنش.
 
 ### ۳. روت‌های احراز هویت:
 - `GET /api/auth/me`: بررسی سشن و نقش کاربر جاری.

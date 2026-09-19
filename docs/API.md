@@ -43,17 +43,34 @@ RealRate Cloudflare Worker API supports versioned routing starting with **v1**.
 | :--- | :--- | :--- |
 | `GET` | `/api/v1/user/settings` | Retrieve user preferences and settings |
 | `POST` / `PUT` | `/api/v1/user/settings` | Save user preferences |
-| `GET` | `/api/v1/portfolios` | List all portfolio groups for user |
+| `GET` | `/api/v1/portfolios` | List all portfolio groups for user (returns `itemCount` and `transactionCount`) |
 | `POST` | `/api/v1/portfolios` | Create a new portfolio group |
 | `PUT` | `/api/v1/portfolios` | Update portfolio group details |
-| `DELETE` | `/api/v1/portfolios` | Delete portfolio group |
+| `DELETE` | `/api/v1/portfolios` | Delete portfolio group (cascades holdings and transactions) |
 | `GET` | `/api/v1/portfolio` | Get items in a portfolio group |
 | `POST` / `PUT` | `/api/v1/portfolio` | Add/update item in portfolio |
 | `DELETE` | `/api/v1/portfolio` | Delete item from portfolio |
-| `GET` | `/api/v1/portfolios/:id/transactions` | List all transactions for a portfolio |
-| `POST` | `/api/v1/portfolios/:id/transactions` | Add a new buy/sell transaction (E2EE payload) |
-| `PUT` | `/api/v1/portfolios/:id/transactions` | Update an existing transaction |
+| `GET` | `/api/v1/portfolios/:id/transactions` | List all transactions for a portfolio (ordered by transactionDate DESC, createdAt DESC) |
+| `POST` | `/api/v1/portfolios/:id/transactions` | Add a new buy/sell transaction (encrypted or plaintext payload) |
+| `PUT` | `/api/v1/portfolios/:id/transactions` | Update an existing transaction (`{ id, ... }` in body) |
 | `DELETE` | `/api/v1/portfolios/:id/transactions` | Delete a transaction (`?id=...` or route param) |
+
+#### Transaction Payload Format
+```json
+{
+  "encryptedPayload": "enc:e2ee:v1:BASE64...", // For Zero-Knowledge E2EE portfolios
+  // Or plaintext properties for standard portfolios:
+  "assetId": "gold_18k",
+  "assetName": "طلای ۱۸ عیار",
+  "category": "gold",
+  "unit": "گرم",
+  "transactionType": "buy", // "buy" | "sell"
+  "quantity": 10.5,
+  "unitPrice": 4850000,
+  "transactionDate": "1403/06/25",
+  "notes": "خرید پله‌ای"
+}
+```
 
 ### Admin Endpoints (Admin Role Only)
 

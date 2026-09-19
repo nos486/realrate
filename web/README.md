@@ -37,6 +37,12 @@ web/src/
 │   │   ├── hooks/                     # usePortfolio, useHoldings (با مایگریشن خودکار)
 │   │   ├── utils/holdingHelpers.js    # نرمال‌سازی دارایی، آیکون‌ها، دسته‌بندی‌ها
 │   │   └── index.js
+│   ├── transactions/                  # فیچر ثبت تراکنش‌ها و موتور محاسبه خودکار دارایی‌ها
+│   │   ├── api/transactionApi.js      # کلاینت CRUD تراکنش‌های پورتفو
+│   │   ├── components/                # TransactionsPage, TransactionForm
+│   │   ├── hooks/                     # useTransactions (E2EE), useComputedHoldings
+│   │   ├── utils/calculationEngine.js # موتور میانگین موزون قیمت خرید (WAC)
+│   │   └── index.js
 │   ├── auth/                          # فیچر ورود و احراز هویت
 │   │   ├── api/authApi.js             # سشن، گوگل OAuth، خروج
 │   │   ├── context/AuthContext.jsx    # کانتکست و هوک useAuth
@@ -109,19 +115,29 @@ web/src/
 
 ## ۶. کامپوننت‌های کلیدی (Key Components)
 
-### ۱. مدیریت پورتفولیو چندگانه ([PortfolioTracker.jsx](file:///Users/sina/Projects/realrate/web/src/components/PortfolioTracker.jsx))
-- **طراحی جدولی فشرده (Compact Table)**: نمایش مرتب دارایی‌ها با گروه‌بندی طلا و آبشده، سکه‌ها، ارزها و بورس.
+### ۱. مدیریت پورتفولیو چندگانه ([PortfolioTracker.jsx](file:///Users/sina/Projects/realrate/web/src/features/portfolio/components/PortfolioTracker.jsx))
+- **نمایش دوگانه مجزا**: تفکیک پورتفو به دو بخش تمیز بدون بوردر با مارجین متناسب: «دارایی‌های ثبت‌شده دستی» و «دارایی‌های حاصل از تراکنش‌ها (محاسبه خودکار)».
+- **سوئیچر هوشمند پورتفوها ([PortfolioSwitcher.jsx](file:///Users/sina/Projects/realrate/web/src/features/portfolio/components/PortfolioSwitcher.jsx))**: نمایش بج‌های تفکیک‌شده بر اساس تب فعال (`mode="portfolio"` برای نمایش تعداد دارایی‌ها و `mode="transactions"` برای نمایش تعداد تراکنش‌ها).
 - **انتخاب‌گر تاریخ شمسی (Jalali Date Picker)**: شامل منوهای کشویی سال، ماه و روز به همراه دکمه سریع **«⚡ امروز»**.
-- **حالت حریم خصوصی (Privacy Mode)**: امکان مخفی‌کردن مبالغ و ارزش سرمایه‌گذاری با یک کلیک (`****`).
+- **حالت حریم خصوصی (Privacy Mode)**: امکان مخفی‌کردن مبالغ و ارزش سرمایه‌گذاری با کلید سراسری هدر (`****`) در هر دو بخش پورتفو و تراکنش‌ها با رویداد سفارشی `realrate_privacy_change`.
 - **خروجی اکسل/CSV**: دانلود مستقیم گزارش استاندارد سازگار با نرم‌افزارهای آفیس.
 - **اشتراک‌گذاری پورتفو**: ایجاد لینک اختصاصی عمومی (`/p/:slug`) برای نمایش سبد به دیگران بدون امکان ویرایش.
 
-### ۲. جستجوی سراسری دارایی‌ها ([UniversalAssetSearch.jsx](file:///Users/sina/Projects/realrate/web/src/components/UniversalAssetSearch.jsx))
+### ۲. سیستم ثبت تراکنش‌ها و موتور محاسبه خودکار ([TransactionsPage.jsx](file:///Users/sina/Projects/realrate/web/src/features/transactions/components/TransactionsPage.jsx))
+- **ثبت معاملات خرید و فروش**: ثبت آسان هر تراکنش با مقدار، قیمت واحد، تاریخ شمسی، نوع معامله و یادداشت.
+- **موتور میانگین موزون قیمت خرید ([calculationEngine.js](file:///Users/sina/Projects/realrate/web/src/features/transactions/utils/calculationEngine.js))**:
+  - مرتب‌سازی کرونولوژیکال تراکنش‌ها و اعمال فرمول WAC (Weighted Average Cost) روی خریدها.
+  - کسر دارایی و محاسبه سود/زیان محقق‌شده در هنگام فروش و هشدار خودکار در صورت بیش‌فروش (Overselling).
+  - انتقال و ادغام خودکار نتایج حاصل به پورتفوی کاربر بدون نیاز به ورود دستی دارایی.
+- **کارت‌های آماری بلادرنگ**: نمایش کارت‌های مجموع خرید، مجموع فروش و گردش مالی کل.
+- **رمزنگاری سرتاسری Zero-Knowledge**: رمزگذاری کلاینت‌محور تراکنش‌ها در پورتفوهای E2EE با الگوریتم AES-256-GCM.
+
+### ۳. جستجوی سراسری دارایی‌ها ([UniversalAssetSearch.jsx](file:///Users/sina/Projects/realrate/web/src/components/UniversalAssetSearch.jsx))
 - جستجوی سریع و بدون لگ در میان تمام دارایی‌های طلا، سکه، ارزها و ۷۰۰ نماد بورس.
 - **پشتیبانی از نام‌های مستعار غنی**: جستجوی «امامی» برای سکه طرح جدید، «طرح قدیم» برای بهار آزادی، «آبشده» برای مثقال و نام‌های اختصاری سهام.
 - فیلتر سریع بر اساس دسته‌بندی‌ها (طلا، سکه، ارز، بورس، صندوق‌ها).
 
-### ۳. تیکر سریع ارزها ([QuickCurrencies.jsx](file:///Users/sina/Projects/realrate/web/src/components/QuickCurrencies.jsx))
+### ۴. تیکر سریع ارزها ([QuickCurrencies.jsx](file:///Users/sina/Projects/realrate/web/src/components/QuickCurrencies.jsx))
 - نمایش کارت‌های ارزهای کلیدی با پرچم رسمی، نام فارسی، قیمت تومانی و نرخ برابری جهانی به صورت کاملاً داینامیک.
 
 ---
