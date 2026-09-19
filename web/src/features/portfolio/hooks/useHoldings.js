@@ -273,5 +273,6 @@ export function useHoldings(activePortfolio) {
     lockVault,
     vaultUnlockError,
     unlockingVault,
+    activeVaultKey,
   };
 }

@@ -29,6 +29,8 @@ import CsvExportButton from './CsvExportButton.jsx';
 
 import { usePortfolio } from '../hooks/usePortfolio.js';
 import { useHoldings } from '../hooks/useHoldings.js';
+import { useTransactions, useComputedHoldings } from '../../transactions/index.js';
+import { AlertBanner } from '../../../shared/ui/index.js';
 import {
   normalizeHolding,
   formatAssetName,
@@ -68,7 +70,12 @@ export default function PortfolioTracker({ rates, calcData, usdToman, goldUsd })
     lockVault,
     vaultUnlockError,
     unlockingVault,
+    activeVaultKey,
   } = useHoldings(activePortfolio);
+
+  // 2b. Transactions & Computed Holdings Hook for active portfolio
+  const { transactions } = useTransactions(activePortfolio, activeVaultKey);
+  const { computedHoldings, warnings: transactionWarnings } = useComputedHoldings(transactions, realPriceMap);
 
   // 3. UI State
   const [hideValues, setHideValues] = useState(() => {
@@ -127,10 +134,10 @@ export default function PortfolioTracker({ rates, calcData, usdToman, goldUsd })
     return map;
   }, [pricing?.priceMap, boursePricesMap, calcData]);
 
-  // 5. Portfolio Metrics
+  // 5. Portfolio Metrics (combining manual holdings + computed holdings from transactions)
   const portfolioMetrics = useMemo(() => {
-    const items = holdings.map((rawH) => {
-      const h = normalizeHolding(rawH);
+    const processHolding = (rawH, sourceTag = 'manual') => {
+      const h = normalizeHolding({ ...rawH, source: sourceTag });
       const amountNum = Number(h.amount) || 0;
       const buyPriceNum = Number(h.buyPrice) || 0;
       const hasBuyPrice = buyPriceNum > 0;
@@ -178,6 +185,7 @@ export default function PortfolioTracker({ rates, calcData, usdToman, goldUsd })
 
       return {
         ...h,
+        source: sourceTag,
         hasBuyPrice,
         isCustomItem,
         isBourseItem,
@@ -187,30 +195,36 @@ export default function PortfolioTracker({ rates, calcData, usdToman, goldUsd })
         itemPnl,
         itemPnlPct,
       };
-    });
+    };
 
-    const costedItems = items.filter((it) => it.hasBuyPrice);
+    const manualItems = holdings.map((h) => processHolding(h, 'manual'));
+    const computedItems = computedHoldings.map((h) => processHolding(h, 'transactions'));
+    const allItems = [...manualItems, ...computedItems];
+
+    const costedItems = allItems.filter((it) => it.hasBuyPrice);
     const totalCost = costedItems.reduce((acc, it) => acc + it.itemCost, 0);
-    const totalRealValue = items.reduce((acc, it) => acc + it.itemRealVal, 0);
+    const totalRealValue = allItems.reduce((acc, it) => acc + it.itemRealVal, 0);
     const hasAnyCost = costedItems.length > 0 && totalCost > 0;
     const totalPnl = costedItems.reduce((sum, it) => sum + (it.itemPnl || 0), 0);
     const totalPnlPct = hasAnyCost ? parseFloat(((totalPnl / totalCost) * 100).toFixed(1)) : 0;
 
     return {
-      items,
+      items: allItems,
+      manualItems,
+      computedItems,
       totalCost,
       totalRealValue,
       totalPnl,
       totalPnlPct,
       hasAnyCost,
     };
-  }, [holdings, realPriceMap, boursePricesMap]);
+  }, [holdings, computedHoldings, realPriceMap, boursePricesMap]);
 
-  // 6. Category Groups
-  const categoryGroups = useMemo(() => {
-    let itemsToGroup = portfolioMetrics.items;
-    if (holdingsFilterQuery.trim()) {
-      const q = holdingsFilterQuery.trim().toLowerCase();
+  // 6. Category Groups helper
+  const buildCategoryGroups = useCallback((itemsList, filterQuery) => {
+    let itemsToGroup = itemsList || [];
+    if (filterQuery && filterQuery.trim()) {
+      const q = filterQuery.trim().toLowerCase();
       itemsToGroup = itemsToGroup.filter((it) => {
         const name = (it.assetName || '').toLowerCase();
         const id = (it.assetId || '').toLowerCase();
@@ -237,7 +251,19 @@ export default function PortfolioTracker({ rates, calcData, usdToman, goldUsd })
         hasCostedItems,
       };
     }).filter((group) => group.items.length > 0);
-  }, [portfolioMetrics.items, holdingsFilterQuery]);
+  }, []);
+
+  const manualCategoryGroups = useMemo(() => {
+    return buildCategoryGroups(portfolioMetrics.manualItems, holdingsFilterQuery);
+  }, [buildCategoryGroups, portfolioMetrics.manualItems, holdingsFilterQuery]);
+
+  const computedCategoryGroups = useMemo(() => {
+    return buildCategoryGroups(portfolioMetrics.computedItems, holdingsFilterQuery);
+  }, [buildCategoryGroups, portfolioMetrics.computedItems, holdingsFilterQuery]);
+
+  const categoryGroups = useMemo(() => {
+    return buildCategoryGroups(portfolioMetrics.items, holdingsFilterQuery);
+  }, [buildCategoryGroups, portfolioMetrics.items, holdingsFilterQuery]);
 
   // 7. Actions & Handlers
   const handleOpenAdd = () => {
@@ -539,28 +565,91 @@ export default function PortfolioTracker({ rates, calcData, usdToman, goldUsd })
               </div>
             ) : portfolioMetrics.items.length === 0 ? (
               <div className="portfolio-empty-state">
+                {transactionWarnings.length > 0 && (
+                  <div className="portfolio-tx-warnings-box" style={{ marginBottom: '16px', width: '100%' }}>
+                    {transactionWarnings.map((w) => (
+                      <AlertBanner
+                        key={w.assetId}
+                        type="warning"
+                        message={w.message}
+                        icon={<AlertTriangle size={16} />}
+                        style={{ marginBottom: '8px' }}
+                      />
+                    ))}
+                  </div>
+                )}
                 <div className="empty-icon">
                   <Briefcase size={44} strokeWidth={1.5} color="var(--text-muted)" />
                 </div>
                 <h4>پورتفو خالی است</h4>
                 <p>
-                  دارایی‌های خود اعم از طلا، سکه، نقره یا ارز را ثبت کنید تا ارزش روز و سود/زیان
-                  آن‌ها محاسبه شود.
+                  دارایی‌های خود اعم از طلا، سکه، نقره یا ارز را ثبت کنید یا از تب تراکنش‌ها معامله جدید وارد نمایید.
                 </p>
                 <button className="btn-add-asset-center" onClick={handleOpenAdd}>
                   <Plus size={15} style={{ verticalAlign: 'middle', marginLeft: '4px' }} />
-                  ثبت دارایی
+                  ثبت دارایی دستی
                 </button>
               </div>
             ) : (
-              <HoldingsTable
-                categoryGroups={categoryGroups}
-                hideValues={hideValues}
-                readOnly={false}
-                deletingId={deletingId}
-                onEdit={handleOpenEdit}
-                onDelete={handleDeleteHolding}
-              />
+              <div className="portfolio-dual-tables-container">
+                {/* Warnings from oversold transactions */}
+                {transactionWarnings.length > 0 && (
+                  <div className="portfolio-tx-warnings-box" style={{ marginBottom: '16px' }}>
+                    {transactionWarnings.map((w) => (
+                      <AlertBanner
+                        key={w.assetId}
+                        type="warning"
+                        message={w.message}
+                        icon={<AlertTriangle size={16} />}
+                        style={{ marginBottom: '8px' }}
+                      />
+                    ))}
+                  </div>
+                )}
+
+                {/* Section A: Manual Holdings */}
+                {manualCategoryGroups.length > 0 && (
+                  <div className="portfolio-table-group-section">
+                    <div className="portfolio-section-title-row">
+                      <h3 className="portfolio-section-title">دارایی‌های ثبت‌شده دستی</h3>
+                      <span className="portfolio-section-count">
+                        {portfolioMetrics.manualItems.length.toLocaleString('fa-IR')} قلم دارایی
+                      </span>
+                    </div>
+                    <HoldingsTable
+                      categoryGroups={manualCategoryGroups}
+                      hideValues={hideValues}
+                      readOnly={false}
+                      deletingId={deletingId}
+                      onEdit={handleOpenEdit}
+                      onDelete={handleDeleteHolding}
+                    />
+                  </div>
+                )}
+
+                {/* Section B: Computed Holdings from Transactions */}
+                {computedCategoryGroups.length > 0 && (
+                  <div
+                    className="portfolio-table-group-section computed-section"
+                    style={{ marginTop: manualCategoryGroups.length > 0 ? '32px' : '0' }}
+                  >
+                    <div className="portfolio-section-title-row">
+                      <div className="portfolio-section-title-with-pill">
+                        <h3 className="portfolio-section-title">دارایی‌های حاصل از تراکنش‌ها</h3>
+                        <span className="tx-auto-section-pill">محاسبه خودکار</span>
+                      </div>
+                      <span className="portfolio-section-count">
+                        {portfolioMetrics.computedItems.length.toLocaleString('fa-IR')} دارایی از روی تراکنش‌ها
+                      </span>
+                    </div>
+                    <HoldingsTable
+                      categoryGroups={computedCategoryGroups}
+                      hideValues={hideValues}
+                      readOnly={false}
+                    />
+                  </div>
+                )}
+              </div>
             )}
           </div>
         </div>

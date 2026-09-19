@@ -50,6 +50,10 @@ RealRate Cloudflare Worker API supports versioned routing starting with **v1**.
 | `GET` | `/api/v1/portfolio` | Get items in a portfolio group |
 | `POST` / `PUT` | `/api/v1/portfolio` | Add/update item in portfolio |
 | `DELETE` | `/api/v1/portfolio` | Delete item from portfolio |
+| `GET` | `/api/v1/portfolios/:id/transactions` | List all transactions for a portfolio |
+| `POST` | `/api/v1/portfolios/:id/transactions` | Add a new buy/sell transaction (E2EE payload) |
+| `PUT` | `/api/v1/portfolios/:id/transactions` | Update an existing transaction |
+| `DELETE` | `/api/v1/portfolios/:id/transactions` | Delete a transaction (`?id=...` or route param) |
 
 ### Admin Endpoints (Admin Role Only)
 

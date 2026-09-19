@@ -116,6 +116,17 @@ export async function ensureD1Tables(env) {
     `CREATE INDEX IF NOT EXISTS idx_price_sources_type ON price_sources(price_type)`,
     `CREATE INDEX IF NOT EXISTS idx_price_sources_primary ON price_sources(is_primary)`,
     `CREATE INDEX IF NOT EXISTS idx_price_sources_active ON price_sources(is_active)`,
+    `CREATE TABLE IF NOT EXISTS transactions (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL,
+      portfolio_id TEXT NOT NULL,
+      encrypted_payload TEXT NOT NULL,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    )`,
+    `CREATE INDEX IF NOT EXISTS idx_transactions_user ON transactions(user_id)`,
+    `CREATE INDEX IF NOT EXISTS idx_transactions_portfolio ON transactions(portfolio_id)`,
+    `CREATE INDEX IF NOT EXISTS idx_transactions_created ON transactions(created_at DESC)`,
     `DROP TABLE IF EXISTS price_history`,
     `DROP TABLE IF EXISTS source_types`,
     `DROP TABLE IF EXISTS derived_assets`,

@@ -1,10 +1,11 @@
 import React, { useState, useMemo } from 'react';
 import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { Megaphone, TrendingUp, Briefcase, ShieldCheck, Radio, Settings } from 'lucide-react';
+import { Megaphone, TrendingUp, Briefcase, ShieldCheck, Radio, Settings, Receipt } from 'lucide-react';
 import { AppLayout, FilterPills, AlertBanner } from '../shared/ui/index.js';
 import MarketInputsToolbar from '../components/MarketInputsToolbar.jsx';
 import { AnalysisCards, CurrenciesList } from '../features/market/components/index.js';
 import { PortfolioTracker } from '../features/portfolio/index.js';
+import { TransactionsPage } from '../features/transactions/index.js';
 import AdminPage from './AdminPage.jsx';
 import PriceSourcesPage from './PriceSourcesPage.jsx';
 import AccountSettingsView from '../components/AccountSettingsView.jsx';
@@ -44,6 +45,12 @@ export default function MainPage() {
       searchParams.get('tab') === 'portfolio'
     );
 
+  const isTransactions =
+    !isSettings && !isSources && !isAdmin && !isPortfolio && (
+      location.pathname.startsWith('/transactions') ||
+      searchParams.get('tab') === 'transactions'
+    );
+
   const activeTab = isSettings
     ? 'settings'
     : isSources
@@ -52,10 +59,20 @@ export default function MainPage() {
         ? 'admin'
         : isPortfolio
           ? 'portfolio'
-          : 'market';
+          : isTransactions
+            ? 'transactions'
+            : 'market';
 
   const handleTabChange = (nextTab) => {
-    if (nextTab === 'portfolio') {
+    if (nextTab === 'transactions') {
+      if (!location.pathname.startsWith('/transactions')) {
+        let lastId = null;
+        try {
+          lastId = localStorage.getItem('realrate_last_portfolio_id');
+        } catch { }
+        navigate(lastId ? `/transactions/${lastId}` : '/transactions');
+      }
+    } else if (nextTab === 'portfolio') {
       if (!location.pathname.startsWith('/portfolio')) {
         let lastId = null;
         try {
@@ -86,6 +103,7 @@ export default function MainPage() {
     const options = [
       { value: 'market', label: 'نرخ و حباب', icon: <TrendingUp size={16} strokeWidth={2} /> },
       { value: 'portfolio', label: 'پورتفو', icon: <Briefcase size={16} strokeWidth={2} /> },
+      { value: 'transactions', label: 'تراکنش‌ها', icon: <Receipt size={16} strokeWidth={2} /> },
     ];
     if (user) {
       options.push(
@@ -213,6 +231,16 @@ export default function MainPage() {
 
         {activeTab === 'portfolio' && (
           <PortfolioTracker
+            calcData={calcData}
+            rates={rates}
+            usdToman={usdToman}
+            goldUsd={goldUsd}
+            initialPortfolioId={params.portfolioId || searchParams.get('p') || searchParams.get('id') || null}
+          />
+        )}
+
+        {activeTab === 'transactions' && (
+          <TransactionsPage
             calcData={calcData}
             rates={rates}
             usdToman={usdToman}

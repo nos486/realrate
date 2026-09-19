@@ -160,25 +160,34 @@ export default function HoldingsTable({
 
                       {!readOnly && (
                         <td className="td-actions">
-                          <div className="row-actions-group">
-                            <button
-                              type="button"
-                              className="btn-table-action edit"
-                              title="ویرایش دارایی"
-                              onClick={() => onEdit?.(item)}
+                          {item.source === 'transactions' ? (
+                            <span
+                              className="tx-auto-badge-pill"
+                              title="محاسبه‌شده از روی تراکنش‌ها. جهت تغییر یا حذف، تراکنش مربوطه را در تب «تراکنش‌ها» ویرایش فرمایید."
                             >
-                              <Pencil size={13} strokeWidth={2} />
-                            </button>
-                            <button
-                              type="button"
-                              className={`btn-table-action delete ${isDeleting ? 'loading' : ''}`}
-                              title="حذف دارایی"
-                              onClick={() => onDelete?.(item.id)}
-                              disabled={isDeleting}
-                            >
-                              <Trash2 size={13} strokeWidth={2} />
-                            </button>
-                          </div>
+                              خودکار
+                            </span>
+                          ) : (
+                            <div className="row-actions-group">
+                              <button
+                                type="button"
+                                className="btn-table-action edit"
+                                title="ویرایش دارایی"
+                                onClick={() => onEdit?.(item)}
+                              >
+                                <Pencil size={13} strokeWidth={2} />
+                              </button>
+                              <button
+                                type="button"
+                                className={`btn-table-action delete ${isDeleting ? 'loading' : ''}`}
+                                title="حذف دارایی"
+                                onClick={() => onDelete?.(item.id)}
+                                disabled={isDeleting}
+                              >
+                                <Trash2 size={13} strokeWidth={2} />
+                              </button>
+                            </div>
+                          )}
                         </td>
                       )}
                     </tr>

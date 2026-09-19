@@ -52,6 +52,12 @@ import {
   handleUpdateUserSettings,
   handleGetSharedPortfolio,
 } from "./handlers/portfolioRoutes.js";
+import {
+  handleGetTransactions,
+  handleCreateTransaction,
+  handleUpdateTransaction,
+  handleDeleteTransaction,
+} from "./handlers/transactionRoutes.js";
 import { fetchAllPrices } from "./services/market/priceAggregator.service.js";
 import {
   searchCatalogItems,
@@ -143,6 +149,17 @@ export default {
       if (request.method === "GET") return wrap(handleGetPortfolio)(request, env);
       if (request.method === "POST" || request.method === "PUT") return wrap(handleAddPortfolio)(request, env);
       if (request.method === "DELETE") return wrap(handleDeletePortfolio)(request, env);
+    }
+
+    // ── Portfolio Transactions API Routes ───────────────────────────────────
+    const portfolioTransactionsMatch = normalizedPath.match(/^\/api\/portfolios?\/([^/]+)\/transactions(?:\/([^/]+))?$/);
+    if (portfolioTransactionsMatch) {
+      const portfolioId = portfolioTransactionsMatch[1];
+      const txId = portfolioTransactionsMatch[2];
+      if (request.method === "GET")    return wrap((req, env) => handleGetTransactions(req, env, { portfolioId }))(request, env);
+      if (request.method === "POST")   return wrap((req, env) => handleCreateTransaction(req, env, { portfolioId }))(request, env);
+      if (request.method === "PUT")    return wrap((req, env) => handleUpdateTransaction(req, env, { portfolioId, txId }))(request, env);
+      if (request.method === "DELETE") return wrap((req, env) => handleDeleteTransaction(req, env, { portfolioId, txId }))(request, env);
     }
 
     // ── Public API Routes ───────────────────────────────────────────────────
