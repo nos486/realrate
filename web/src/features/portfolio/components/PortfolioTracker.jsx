@@ -15,6 +15,8 @@ import {
   Eye,
   EyeOff,
   FolderPlus,
+  Layers,
+  Receipt,
 } from 'lucide-react';
 import { useAuth } from '../../auth/index.js';
 import { usePricing } from '../../market/index.js';
@@ -609,10 +611,15 @@ export default function PortfolioTracker({ rates, calcData, usdToman, goldUsd })
 
                 {/* Section A: Manual Holdings */}
                 {manualCategoryGroups.length > 0 && (
-                  <div className="portfolio-table-group-section">
+                  <div className="portfolio-table-group-section manual-section">
                     <div className="portfolio-section-title-row">
-                      <h3 className="portfolio-section-title">دارایی‌های ثبت‌شده دستی</h3>
-                      <span className="portfolio-section-count">
+                      <div className="portfolio-section-title-with-pill">
+                        <span className="section-title-icon manual">
+                          <Layers size={16} />
+                        </span>
+                        <h3 className="portfolio-section-title">دارایی‌های ثبت‌شده دستی</h3>
+                      </div>
+                      <span className="portfolio-section-count-badge">
                         {portfolioMetrics.manualItems.length.toLocaleString('fa-IR')} قلم دارایی
                       </span>
                     </div>
@@ -629,16 +636,16 @@ export default function PortfolioTracker({ rates, calcData, usdToman, goldUsd })
 
                 {/* Section B: Computed Holdings from Transactions */}
                 {computedCategoryGroups.length > 0 && (
-                  <div
-                    className="portfolio-table-group-section computed-section"
-                    style={{ marginTop: manualCategoryGroups.length > 0 ? '32px' : '0' }}
-                  >
+                  <div className="portfolio-table-group-section computed-section">
                     <div className="portfolio-section-title-row">
                       <div className="portfolio-section-title-with-pill">
+                        <span className="section-title-icon computed">
+                          <Receipt size={16} />
+                        </span>
                         <h3 className="portfolio-section-title">دارایی‌های حاصل از تراکنش‌ها</h3>
                         <span className="tx-auto-section-pill">محاسبه خودکار</span>
                       </div>
-                      <span className="portfolio-section-count">
+                      <span className="portfolio-section-count-badge">
                         {portfolioMetrics.computedItems.length.toLocaleString('fa-IR')} دارایی از روی تراکنش‌ها
                       </span>
                     </div>

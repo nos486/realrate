@@ -390,21 +390,63 @@
 .portfolio-dual-tables-container {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 36px;
   width: 100%;
+  margin-top: 20px;
 }
 
 .portfolio-table-group-section {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 14px;
 }
 
 .portfolio-section-title-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 4px;
+  padding: 12px 18px;
+  background: rgba(16, 22, 34, 0.65);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 14px;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
+  margin-bottom: 4px;
+}
+
+.portfolio-table-group-section.computed-section .portfolio-section-title-row {
+  background: linear-gradient(90deg, rgba(2, 132, 199, 0.1) 0%, rgba(16, 22, 34, 0.7) 100%);
+  border-color: rgba(56, 189, 248, 0.24);
+  box-shadow: 0 4px 20px rgba(2, 132, 199, 0.1);
+}
+
+.portfolio-section-title-with-pill {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.section-title-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 9px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.section-title-icon.manual {
+  background: rgba(255, 255, 255, 0.06);
+  color: #cbd5e1;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.section-title-icon.computed {
+  background: rgba(56, 189, 248, 0.14);
+  color: #38bdf8;
+  border: 1px solid rgba(56, 189, 248, 0.28);
 }
 
 .portfolio-section-title {
@@ -412,22 +454,28 @@
   font-weight: 700;
   color: #f8fafc;
   margin: 0;
+  letter-spacing: -0.01em;
 }
 
-.portfolio-section-title-with-pill {
-  display: flex;
-  align-items: center;
-  gap: 8px;
+.portfolio-section-count-badge {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: #94a3b8;
+  background: rgba(255, 255, 255, 0.045);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  padding: 5px 14px;
+  border-radius: 20px;
 }
 
 .tx-auto-section-pill {
-  background: linear-gradient(135deg, rgba(2, 132, 199, 0.18), rgba(99, 102, 241, 0.18));
+  background: linear-gradient(135deg, rgba(2, 132, 199, 0.22), rgba(99, 102, 241, 0.22));
   color: #38bdf8;
-  border: 1px solid rgba(56, 189, 248, 0.3);
+  border: 1px solid rgba(56, 189, 248, 0.35);
   font-size: 0.72rem;
   font-weight: 700;
-  padding: 2px 8px;
+  padding: 3px 10px;
   border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(56, 189, 248, 0.15);
 }
 
 .tx-auto-badge-pill {
@@ -440,9 +488,4 @@
   border-radius: 8px;
   display: inline-block;
   cursor: help;
-}
-
-.portfolio-section-count {
-  font-size: 0.82rem;
-  color: var(--text-muted);
 }
