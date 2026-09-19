@@ -50,6 +50,7 @@ export default function TransactionsPage({
     loadingPortfolios,
     switchPortfolio,
     createPortfolio,
+    fetchPortfolios,
   } = usePortfolio(initialPortfolioId);
 
   // E2EE Vault Keys State
@@ -216,12 +217,23 @@ export default function TransactionsPage({
   };
 
   const handleSubmitForm = async (formData) => {
+    let res = null;
     if (formData.id) {
-      const res = await updateTransaction(formData.id, formData);
+      res = await updateTransaction(formData.id, formData);
       if (res) setFormOpen(false);
     } else {
-      const res = await addTransaction(formData);
+      res = await addTransaction(formData);
       if (res) setFormOpen(false);
+    }
+    if (res) {
+      fetchPortfolios();
+    }
+  };
+
+  const handleDeleteTx = async (id) => {
+    const ok = await deleteTransaction(id);
+    if (ok) {
+      fetchPortfolios();
     }
   };
 
@@ -247,6 +259,8 @@ export default function TransactionsPage({
         onSelect={switchPortfolio}
         onNewPortfolio={() => setNewPortfolioModalOpen(true)}
         holdingsCount={transactions.length}
+        activeCount={transactions.length}
+        mode="transactions"
       />
 
       {/* 2. Vault Locked View */}
@@ -537,7 +551,7 @@ export default function TransactionsPage({
                               type="button"
                               className={`btn-table-action delete ${isDeleting ? 'loading' : ''}`}
                               title="حذف تراکنش"
-                              onClick={() => deleteTransaction(tx.id)}
+                              onClick={() => handleDeleteTx(tx.id)}
                               disabled={isDeleting}
                             >
                               <Trash2 size={13} strokeWidth={2} />

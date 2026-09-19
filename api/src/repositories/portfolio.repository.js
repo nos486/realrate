@@ -24,9 +24,11 @@ export async function dbGetUserPortfolios(env, userId) {
                p.share_enabled AS shareEnabled, p.is_e2ee AS isE2ee,
                p.e2ee_salt AS e2eeSalt, p.e2ee_verifier AS e2eeVerifier,
                p.created_at AS createdAt, p.updated_at AS updatedAt,
-               COUNT(h.id) AS itemCount
+               COUNT(DISTINCT h.id) AS itemCount,
+               COUNT(DISTINCT t.id) AS transactionCount
         FROM portfolios p
         LEFT JOIN portfolio_holdings h ON p.id = h.portfolio_id
+        LEFT JOIN transactions t ON p.id = t.portfolio_id
         WHERE p.user_id = ?
         GROUP BY p.id
         ORDER BY p.is_default DESC, p.created_at ASC
@@ -68,9 +70,11 @@ export async function dbGetUserPortfolios(env, userId) {
                  p.share_enabled AS shareEnabled, p.is_e2ee AS isE2ee,
                  p.e2ee_salt AS e2eeSalt, p.e2ee_verifier AS e2eeVerifier,
                  p.created_at AS createdAt, p.updated_at AS updatedAt,
-                 COUNT(h.id) AS itemCount
+                 COUNT(DISTINCT h.id) AS itemCount,
+                 COUNT(DISTINCT t.id) AS transactionCount
           FROM portfolios p
           LEFT JOIN portfolio_holdings h ON p.id = h.portfolio_id
+          LEFT JOIN transactions t ON p.id = t.portfolio_id
           WHERE p.user_id = ?
           GROUP BY p.id
           ORDER BY p.is_default DESC, p.created_at ASC
@@ -151,6 +155,7 @@ export async function dbCreatePortfolio(env, userId, { name, isE2ee = false, e2e
     e2eeSalt: e2eeSalt || '',
     e2eeVerifier: e2eeVerifier || '',
     itemCount: 0,
+    transactionCount: 0,
     createdAt: now,
     updatedAt: now,
   };
@@ -240,9 +245,11 @@ export async function dbUpdatePortfolio(env, portfolioId, userId, { name, shareS
              p.share_enabled AS shareEnabled, p.is_e2ee AS isE2ee,
              p.e2ee_salt AS e2eeSalt, p.e2ee_verifier AS e2eeVerifier,
              p.created_at AS createdAt, p.updated_at AS updatedAt,
-             COUNT(h.id) AS itemCount
+             COUNT(DISTINCT h.id) AS itemCount,
+             COUNT(DISTINCT t.id) AS transactionCount
       FROM portfolios p
       LEFT JOIN portfolio_holdings h ON p.id = h.portfolio_id
+      LEFT JOIN transactions t ON p.id = t.portfolio_id
       WHERE p.id = ? AND p.user_id = ?
       GROUP BY p.id
     `).bind(portfolioId, userId).first();
@@ -276,6 +283,11 @@ export async function dbDeletePortfolio(env, portfolioId, userId) {
     // Delete holdings
     await env.DB.prepare(`
       DELETE FROM portfolio_holdings WHERE portfolio_id = ? AND user_id = ?
+    `).bind(portfolioId, userId).run();
+
+    // Delete transactions
+    await env.DB.prepare(`
+      DELETE FROM transactions WHERE portfolio_id = ? AND user_id = ?
     `).bind(portfolioId, userId).run();
 
     // Delete portfolio

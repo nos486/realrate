@@ -7,6 +7,8 @@ export default function PortfolioSwitcher({
   onSelect,
   onNewPortfolio,
   holdingsCount = 0,
+  activeCount = null,
+  mode = 'portfolio', // 'portfolio' | 'transactions'
 }) {
   return (
     <div className="portfolio-nav-bar">
@@ -14,7 +16,16 @@ export default function PortfolioSwitcher({
         <span className="portfolio-nav-label">پورتفوها:</span>
         {portfolios.map((p) => {
           const isActive = p.id === activePortfolioId;
-          const count = isActive ? holdingsCount : (p.itemCount ?? 0);
+          let count = 0;
+          if (mode === 'transactions') {
+            count = isActive
+              ? (activeCount !== null ? activeCount : (p.transactionCount ?? 0))
+              : (p.transactionCount ?? 0);
+          } else {
+            count = isActive
+              ? (activeCount !== null ? activeCount : holdingsCount)
+              : (p.itemCount ?? 0);
+          }
           return (
             <button
               key={p.id}

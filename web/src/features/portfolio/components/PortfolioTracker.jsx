@@ -421,7 +421,9 @@ export default function PortfolioTracker({ rates, calcData, usdToman, goldUsd })
         activePortfolioId={activePortfolio?.id}
         onSelect={switchPortfolio}
         onNewPortfolio={() => setNewPortfolioModalOpen(true)}
-        holdingsCount={holdings.length}
+        holdingsCount={portfolioMetrics.items.length}
+        activeCount={portfolioMetrics.items.length}
+        mode="portfolio"
       />
 
       {/* Two Column Split: Right (Content & Holdings Tables), Left (Overview Summary Cards) */}
