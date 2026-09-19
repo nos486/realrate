@@ -73,10 +73,6 @@ export default function PortfolioTracker({ rates, calcData, usdToman, goldUsd })
     activeVaultKey,
   } = useHoldings(activePortfolio);
 
-  // 2b. Transactions & Computed Holdings Hook for active portfolio
-  const { transactions } = useTransactions(activePortfolio, activeVaultKey);
-  const { computedHoldings, warnings: transactionWarnings } = useComputedHoldings(transactions, realPriceMap);
-
   // 3. UI State
   const [hideValues, setHideValues] = useState(() => {
     try {
@@ -133,6 +129,10 @@ export default function PortfolioTracker({ rates, calcData, usdToman, goldUsd })
     }
     return map;
   }, [pricing?.priceMap, boursePricesMap, calcData]);
+
+  // 4b. Transactions & Computed Holdings Hook for active portfolio
+  const { transactions } = useTransactions(activePortfolio, activeVaultKey);
+  const { computedHoldings, warnings: transactionWarnings } = useComputedHoldings(transactions, realPriceMap);
 
   // 5. Portfolio Metrics (combining manual holdings + computed holdings from transactions)
   const portfolioMetrics = useMemo(() => {
