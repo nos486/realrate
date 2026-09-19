@@ -5,7 +5,7 @@
  * Persian date support, asset search, and real-time turnover statistics.
  */
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   Receipt,
   Plus,
@@ -97,6 +97,32 @@ export default function TransactionsPage({
   }, [computedHoldings]);
 
   // UI state
+  const [hideValues, setHideValues] = useState(() => {
+    try {
+      return localStorage.getItem('realrate_hide_values') === 'true';
+    } catch {
+      return false;
+    }
+  });
+
+  useEffect(() => {
+    const handlePrivacyChange = (e) => {
+      try {
+        if (e && e.detail && typeof e.detail.hideValues === 'boolean') {
+          setHideValues(e.detail.hideValues);
+        } else {
+          setHideValues(localStorage.getItem('realrate_hide_values') === 'true');
+        }
+      } catch {}
+    };
+    window.addEventListener('realrate_privacy_change', handlePrivacyChange);
+    window.addEventListener('storage', handlePrivacyChange);
+    return () => {
+      window.removeEventListener('realrate_privacy_change', handlePrivacyChange);
+      window.removeEventListener('storage', handlePrivacyChange);
+    };
+  }, []);
+
   const [searchQuery, setSearchQuery] = useState('');
   const [typeFilter, setTypeFilter] = useState('all'); // 'all' | 'buy' | 'sell'
   const [formOpen, setFormOpen] = useState(false);
@@ -289,8 +315,8 @@ export default function TransactionsPage({
               </span>
               <div className="tx-stat-info">
                 <span className="tx-stat-label">مجموع خرید ({stats.totalBuys.toLocaleString('fa-IR')} معامله)</span>
-                <strong className="tx-stat-val text-profit">
-                  {formatNum(stats.totalBuyCost)} <span className="tx-stat-unit">تومان</span>
+                <strong className={`tx-stat-val text-profit ${hideValues ? 'is-masked' : ''}`}>
+                  {hideValues ? '****' : formatNum(stats.totalBuyCost)} <span className="tx-stat-unit">تومان</span>
                 </strong>
               </div>
             </div>
@@ -301,8 +327,8 @@ export default function TransactionsPage({
               </span>
               <div className="tx-stat-info">
                 <span className="tx-stat-label">مجموع فروش ({stats.totalSells.toLocaleString('fa-IR')} معامله)</span>
-                <strong className="tx-stat-val text-loss">
-                  {formatNum(stats.totalSellProceeds)} <span className="tx-stat-unit">تومان</span>
+                <strong className={`tx-stat-val text-loss ${hideValues ? 'is-masked' : ''}`}>
+                  {hideValues ? '****' : formatNum(stats.totalSellProceeds)} <span className="tx-stat-unit">تومان</span>
                 </strong>
               </div>
             </div>
@@ -313,8 +339,8 @@ export default function TransactionsPage({
               </span>
               <div className="tx-stat-info">
                 <span className="tx-stat-label">گردش مالی کل ({stats.totalCount.toLocaleString('fa-IR')} تراکنش)</span>
-                <strong className="tx-stat-val gold-text">
-                  {formatNum(stats.totalTurnover)} <span className="tx-stat-unit">تومان</span>
+                <strong className={`tx-stat-val gold-text ${hideValues ? 'is-masked' : ''}`}>
+                  {hideValues ? '****' : formatNum(stats.totalTurnover)} <span className="tx-stat-unit">تومان</span>
                 </strong>
               </div>
             </div>
@@ -447,15 +473,17 @@ export default function TransactionsPage({
 
                         {/* Quantity */}
                         <td className="td-qty">
-                          <span className="table-qty-badge">
-                            {qty.toLocaleString('fa-IR')} {tx.unit || 'واحد'}
+                          <span className={`table-qty-badge ${hideValues ? 'is-masked' : ''}`}>
+                            {hideValues ? '****' : `${qty.toLocaleString('fa-IR')} ${tx.unit || 'واحد'}`}
                           </span>
                         </td>
 
                         {/* Unit Price */}
                         <td className="td-unit-price">
                           <div className="cell-currency-wrap">
-                            <span className="cell-val">{formatNum(price)}</span>
+                            <span className={`cell-val ${hideValues ? 'is-masked' : ''}`}>
+                              {hideValues ? '****' : formatNum(price)}
+                            </span>
                             <span className="cell-unit">تومان</span>
                           </div>
                         </td>
@@ -463,8 +491,8 @@ export default function TransactionsPage({
                         {/* Total Price */}
                         <td className="td-total-price">
                           <div className="cell-currency-wrap">
-                            <strong className={`cell-val-bold ${isBuy ? 'text-profit' : 'text-loss'}`}>
-                              {formatNum(totalVal)}
+                            <strong className={`cell-val-bold ${isBuy ? 'text-profit' : 'text-loss'} ${hideValues ? 'is-masked' : ''}`}>
+                              {hideValues ? '****' : formatNum(totalVal)}
                             </strong>
                             <span className="cell-unit">تومان</span>
                           </div>

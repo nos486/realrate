@@ -34,9 +34,13 @@ export default function Header({ activeTab, setActiveTab }) {
   });
 
   useEffect(() => {
-    const onPrivacyChange = () => {
+    const onPrivacyChange = (e) => {
       try {
-        setHideValues(localStorage.getItem('realrate_hide_values') === 'true');
+        if (e && e.detail && typeof e.detail.hideValues === 'boolean') {
+          setHideValues(e.detail.hideValues);
+        } else {
+          setHideValues(localStorage.getItem('realrate_hide_values') === 'true');
+        }
       } catch { }
     };
     window.addEventListener('realrate_privacy_change', onPrivacyChange);
@@ -53,7 +57,7 @@ export default function Header({ activeTab, setActiveTab }) {
       try {
         localStorage.setItem('realrate_hide_values', String(next));
       } catch { }
-      window.dispatchEvent(new Event('realrate_privacy_change'));
+      window.dispatchEvent(new CustomEvent('realrate_privacy_change', { detail: { hideValues: next } }));
       return next;
     });
   };
@@ -74,7 +78,7 @@ export default function Header({ activeTab, setActiveTab }) {
 
         {/* Header Right: User Profile & Auth */}
         <div className="header-right">
-          {activeTab === 'portfolio' && (
+          {(activeTab === 'portfolio' || activeTab === 'transactions') && (
             <button
               type="button"
               className={`btn-privacy-toggle icon-only ${hideValues ? 'active' : ''}`}

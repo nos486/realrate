@@ -86,10 +86,20 @@ export default function PortfolioTracker({ rates, calcData, usdToman, goldUsd })
 
   useEffect(() => {
     const handlePrivacyChange = (e) => {
-      setHideValues(Boolean(e.detail?.hideValues));
+      try {
+        if (e && e.detail && typeof e.detail.hideValues === 'boolean') {
+          setHideValues(e.detail.hideValues);
+        } else {
+          setHideValues(localStorage.getItem('realrate_hide_values') === 'true');
+        }
+      } catch {}
     };
     window.addEventListener('realrate_privacy_change', handlePrivacyChange);
-    return () => window.removeEventListener('realrate_privacy_change', handlePrivacyChange);
+    window.addEventListener('storage', handlePrivacyChange);
+    return () => {
+      window.removeEventListener('realrate_privacy_change', handlePrivacyChange);
+      window.removeEventListener('storage', handlePrivacyChange);
+    };
   }, []);
 
   const [holdingsFilterQuery, setHoldingsFilterQuery] = useState('');
