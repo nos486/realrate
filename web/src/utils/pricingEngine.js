@@ -52,17 +52,19 @@ export function getStaticCatalogAssets(marketItems) {
     const p = Math.round(Number(f.priceToman || f.marketPrice || f.price || 0));
     const sourceLabel = getSourceDisplayName(f) || f.sourceName || 'صندوق‌های سرمایه‌گذاری';
     const subText = f.symbol ? `نماد: ${f.symbol} • ${sourceLabel}` : sourceLabel;
+    const isPlan = Boolean(f.badge === 'طرح' || f.category === 'charisma_plans' || f.priceType === 'charisma_plans');
+    const isFund = f.isFund !== undefined ? Boolean(f.isFund) : !isPlan;
     const resolved = {
       ...f,
       price: p,
       priceToman: p,
-      priceType: 'bourse_fund',
-      priceTypeLabel: 'صندوق',
+      priceType: isPlan ? 'charisma_plans' : (f.priceType || 'bourse_fund'),
+      priceTypeLabel: isPlan ? 'طرح' : 'صندوق',
       sourceName: sourceLabel,
       subText,
       unit: f.unit || 'واحد',
-      isFund: true,
-      category: 'bourse_fund',
+      isFund,
+      category: isPlan ? 'charisma_plans' : (f.category || 'bourse_fund'),
     };
 
     staticAssets.push(resolved);

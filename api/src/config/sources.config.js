@@ -8,6 +8,7 @@
 import { mergeBourseSymbols } from "../services/market/sources/bourseSymbols.source.adapter.js";
 import { mergeEmofidFunds } from "../services/market/sources/emofidFunds.source.adapter.js";
 import { mergeCharismaFunds } from "../services/market/sources/charismaFunds.source.adapter.js";
+import { mergeCharismaPlans } from "../services/market/sources/charismaPlans.source.adapter.js";
 
 export const PRICE_SOURCES_CONFIG = [
   // ── Single Output Feeds (Currencies, Gold, Coins, Ounces) ───────────
@@ -287,6 +288,38 @@ export const PRICE_SOURCES_CONFIG = [
     customParser: (data, sourceConfig) => {
       const rawList = Array.isArray(data) ? data : (data?.funds || data?.data || []);
       const { mergedList } = mergeCharismaFunds([], rawList, new Date().toISOString(), sourceConfig);
+      return {
+        isCatalog: true,
+        totalCount: mergedList.length,
+        items: mergedList,
+        compactList: mergedList,
+        sampleItems: mergedList.slice(0, 50),
+        datetime: new Date().toISOString(),
+      };
+    },
+  },
+  {
+    id: "src_def_charisma_plans",
+    name: "طرح‌های سرمایه‌گذاری کاریزما (Charisma Plans)",
+    priceType: "charisma_plans",
+    sourceType: "charisma_plans",
+    isCatalog: true,
+    endpoint: "https://n8n.geekio.ir/webhook/38899601-0906-4aa4-aedb-8f7de5493894",
+    regex: "",
+    jsonPath: "",
+    fieldMapping: null,
+    excludedOutputs: [],
+    displayConfig: { showOnHomePage: false },
+    knownSymbols: [
+      "GOLD", "SILVER", "COPPER", "STOCKS_INDEX", "REAL_ESTATE",
+      "طلا", "نقره", "مس", "استاکس", "ملک"
+    ],
+    fetchIntervalSec: 1800,
+    isActive: true,
+    isPrimary: true,
+    customParser: (data, sourceConfig) => {
+      const rawList = Array.isArray(data) ? data : (data?.plans || data?.items || data?.data || []);
+      const { mergedList } = mergeCharismaPlans([], rawList, new Date().toISOString(), sourceConfig);
       return {
         isCatalog: true,
         totalCount: mergedList.length,

@@ -216,6 +216,7 @@ export default function PriceSourcesPage({ embedded = false, usdToman: propUsdTo
           ];
           const matched = candidates.filter((it) => {
             if (it.sourceId && (it.sourceId === src.id || it.sourceId === src.sourceType)) return true;
+            if (src.id === 'src_def_charisma_plans' && (it.sourceId === 'src_def_charisma_plans' || it.category === 'charisma_plans' || it.badge === 'طرح')) return true;
             if (src.id === 'src_def_charisma' && (it.sourceName?.includes('کاریزما') || it.manager?.includes('کاریزما') || it.category?.includes('کاریزما'))) return true;
             if (src.id === 'src_def_emofid' && (it.sourceName?.includes('مفید') || it.manager?.includes('مفید') || it.category?.includes('مفید'))) return true;
             if (src.id === 'src_def_bourse' && (it.category === 'bourse' || it.category === 'bourse_symbol')) return true;

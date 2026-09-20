@@ -75,9 +75,16 @@ export function standardizeCatalogItem(item, sourceConfig = {}) {
     String(item.category || "").includes("صندوق")
   );
 
-  const category = isFund ? "bourse_fund" : (sourceConfig.priceType === "bourse" ? "bourse" : "custom");
-  const badge = isFund ? "صندوق" : (category === "bourse" ? "بورس" : "دارایی");
-  const unit = item.unit || (isFund ? "واحد" : (sourceConfig.unit || (category === "bourse" ? "برگ سهم" : "تومان")));
+  const isPlan = Boolean(
+    item.badge === "طرح" ||
+    String(sourceConfig.priceType || "").includes("plan") ||
+    name.includes("طرح سرمایه‌گذاری") ||
+    name.includes("طرح سرمایه گذاری")
+  );
+
+  const category = isPlan ? "charisma_plans" : (isFund ? "bourse_fund" : (sourceConfig.priceType === "bourse" ? "bourse" : "custom"));
+  const badge = isPlan ? "طرح" : (isFund ? "صندوق" : (category === "bourse" ? "بورس" : "دارایی"));
+  const unit = item.unit || (isPlan ? "واحد" : (isFund ? "واحد" : (sourceConfig.unit || (category === "bourse" ? "برگ سهم" : "تومان"))));
 
   const sourceName = getSourceDisplayName(item) || item.sourceName || sourceConfig.name || "";
   const sourceId = item.sourceId || sourceConfig.id || "";

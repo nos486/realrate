@@ -63,6 +63,7 @@ export function getPriceTypeLabel(priceType, priceTypeInfo = null) {
 
   if (clean === 'bourse') return 'بورس اوراق بهادار';
   if (clean === 'bourse_fund') return 'صندوق سرمایه‌گذاری بورس';
+  if (clean === 'charisma_plans') return 'طرح‌های سرمایه‌گذاری کاریزما';
   if (clean === 'forex') return 'ارزهای جهانی (فارکس)';
   if (clean === 'crypto') return 'رمزارز';
 
@@ -99,6 +100,9 @@ export function getCategoryMetadata(priceType) {
   }
   if (pt === 'bourse_fund') {
     return { category: 'bourse_fund', badge: 'صندوق', unit: 'واحد' };
+  }
+  if (pt === 'charisma_plans' || pt === 'plan') {
+    return { category: 'charisma_plans', badge: 'طرح', unit: 'واحد' };
   }
   return { category: 'currency', badge: 'ارز', unit: 'تومان' };
 }

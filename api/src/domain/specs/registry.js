@@ -200,6 +200,11 @@ export function resolveItemCategory(item) {
     return 'custom';
   }
 
+  // 2.5 Charisma Investment Plans
+  if (assetType === 'charisma_plans' || item.category === 'charisma_plans' || cleanId.startsWith('charisma_plans')) {
+    return 'charisma_plans';
+  }
+
   // 3. Explicit Bourse Stocks & Investment Funds (including Emofid & Charisma)
   const isFund = Boolean(
     item.isFund ||

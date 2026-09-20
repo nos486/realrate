@@ -8,6 +8,7 @@ import {
   setSourcePriceCache,
   deleteSourcePriceCache,
   getCharismaFundsCache,
+  getCharismaPlansCache,
   getEmofidFundsCache,
   getBourseSymbolsCache,
 } from "./kvCache.repository.js";
@@ -79,6 +80,25 @@ async function hydrateCatalogSourceFromKv(src, env, lastPrice, lastFetched, last
               items: funds,
               compactList: funds,
               sampleItems: funds.slice(0, 50),
+            },
+          };
+        }
+      }
+    } else if (src.id === "src_def_charisma_plans" || src.priceType === "charisma_plans" || src.sourceType === "charisma_plans") {
+      const { cached, backup } = await getCharismaPlansCache(env);
+      const str = cached || backup;
+      if (str) {
+        const plans = JSON.parse(str);
+        if (Array.isArray(plans) && plans.length > 0) {
+          return {
+            lastPrice: plans.length,
+            lastFetched: lastFetched || plans[0]?.updatedAt || new Date().toISOString(),
+            lastMultiData: {
+              isCatalog: true,
+              totalCount: plans.length,
+              items: plans,
+              compactList: plans,
+              sampleItems: plans.slice(0, 50),
             },
           };
         }
