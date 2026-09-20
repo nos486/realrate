@@ -146,23 +146,25 @@ export function formatAssetName(item) {
     raw === cleanId ||
     raw.startsWith('src_def_') ||
     raw.startsWith('derived_') ||
+    raw.startsWith('bourse_') ||
     raw.includes('__');
 
-  if (assetId?.startsWith('bourse_')) {
-    if (!isTechnicalId && !raw.startsWith('bourse_')) return raw;
-    const isFund = item.isFund || item.assetType === 'bourse_fund' || item.assetName?.includes('صندوق');
-    return isFund ? `صندوق ${assetId.replace('bourse_', '')}` : `سهام ${assetId.replace('bourse_', '')}`;
-  }
-
-  const canonicalName = getCanonicalAssetName(cleanId || assetId);
-
-  // If user provided a genuine custom name that is not a technical ID and not identical to cleanId, respect it!
+  // 1. If user provided a genuine custom name that is not a technical ID and not identical to cleanId, respect it!
   if (!isTechnicalId && raw && raw !== cleanId && raw !== assetId) {
     return raw.replace(/\s*\([^)]*\)/g, '').trim() || raw;
   }
 
+  // 2. Canonical / Source configured official name
+  const canonicalName = getCanonicalAssetName(cleanId || assetId);
   if (canonicalName && canonicalName !== cleanId && canonicalName !== assetId) {
     return canonicalName;
+  }
+
+  // 3. Fallback for Bourse symbols
+  if (assetId?.startsWith('bourse_')) {
+    const sym = assetId.replace('bourse_', '');
+    const isFund = item.isFund || item.assetType === 'bourse_fund' || item.assetName?.includes('صندوق');
+    return isFund ? `صندوق ${sym}` : `سهام ${sym}`;
   }
 
   if (raw && !raw.startsWith('src_def_') && !raw.includes('__')) {

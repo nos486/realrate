@@ -138,6 +138,9 @@ export function getCanonicalAssetName(assetId, fallbackName = '') {
   const sourceItemName = getSourceItemDisplayName(assetId);
   if (sourceItemName) return sourceItemName;
 
+  const srcConfig = getSourceCategoryConfig(assetId);
+  if (srcConfig && srcConfig.assetName) return srcConfig.assetName;
+
   return fallbackName || assetId || '';
 }
 
@@ -150,6 +153,10 @@ export function getCanonicalAssetName(assetId, fallbackName = '') {
 export function getCanonicalAssetUnit(assetId, fallbackUnit = 'واحد') {
   const spec = getCanonicalAssetSpec(assetId);
   if (spec && spec.unit) return spec.unit;
+
+  const srcConfig = getSourceCategoryConfig(assetId);
+  if (srcConfig && srcConfig.unit) return srcConfig.unit;
+
   return fallbackUnit;
 }
 
@@ -162,6 +169,11 @@ export function getCanonicalAssetUnit(assetId, fallbackUnit = 'واحد') {
 export function getCanonicalAssetCategory(assetId, fallbackCategory = 'custom') {
   const spec = getCanonicalAssetSpec(assetId);
   if (spec && spec.category) return spec.category;
+
+  const srcConfig = getSourceCategoryConfig(assetId);
+  if (srcConfig && srcConfig.category) return srcConfig.category;
+  if (srcConfig && srcConfig.isFund) return 'bourse_fund';
+
   return fallbackCategory;
 }
 
@@ -174,6 +186,10 @@ export function getCanonicalAssetCategory(assetId, fallbackCategory = 'custom') 
 export function getCanonicalAssetBadge(assetId, fallbackBadge = '') {
   const spec = getCanonicalAssetSpec(assetId);
   if (spec && spec.badge) return spec.badge;
+
+  const srcConfig = getSourceCategoryConfig(assetId);
+  if (srcConfig && srcConfig.badge) return srcConfig.badge;
+
   return fallbackBadge;
 }
 
@@ -188,7 +204,6 @@ export function resolveItemCategory(item, fallbackType = null) {
     const clean = item.replace(/^src_def_/, '').replace(/^derived_/, '').trim();
     const spec = getCanonicalAssetSpec(clean);
     if (spec && spec.category) return spec.category;
-    if (clean.startsWith('bourse_')) return 'bourse';
 
     // Dynamic data-driven lookup from sources.config.js (Single Source of Truth)
     const srcConfig = getSourceCategoryConfig(clean);
@@ -196,6 +211,8 @@ export function resolveItemCategory(item, fallbackType = null) {
       if (srcConfig.category) return srcConfig.category;
       if (srcConfig.isFund) return 'bourse_fund';
     }
+
+    if (clean.startsWith('bourse_')) return 'bourse';
 
     if (clean.startsWith('custom_') || clean === 'custom') return 'custom';
     if (fallbackType && ['gold', 'coin', 'silver', 'currency', 'crypto', 'bourse', 'bourse_fund'].includes(fallbackType)) {
