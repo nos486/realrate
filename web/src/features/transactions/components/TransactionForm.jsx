@@ -108,7 +108,7 @@ export default function TransactionForm({
       setUnit(rawItem.unit || 'واحد');
     } else {
       setAssetId(canonicalSpec?.id || cleanId || rawId);
-      setAssetName(canonicalSpec?.name || rawItem.name || getCanonicalAssetName(resolvedId));
+      setAssetName(canonicalSpec?.name || getCanonicalAssetName(resolvedId) || rawItem.name || 'دارایی');
       setAssetType(resolvedCat);
       setUnit(canonicalSpec?.unit || getCanonicalAssetUnit(resolvedId) || 'واحد');
 

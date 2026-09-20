@@ -7,7 +7,7 @@ import { COIN_SPECS } from './coin.spec.js';
 import { SILVER_SPECS } from './silver.spec.js';
 import { FOREX_SPECS } from './forex.spec.js';
 import { CRYPTO_SPECS } from './crypto.spec.js';
-import { getSourceCategoryConfig } from '../../config/sources.config.js';
+import { getSourceCategoryConfig, getSourceItemDisplayName } from '../../config/sources.config.js';
 
 // ── Master Canonical Asset Registry ──────────────────────────────────────────
 export const CANONICAL_ASSET_REGISTRY = {};
@@ -130,8 +130,14 @@ export function getCanonicalAssetSpec(assetId) {
  * @returns {string}
  */
 export function getCanonicalAssetName(assetId, fallbackName = '') {
+  if (!assetId) return fallbackName || '';
   const spec = getCanonicalAssetSpec(assetId);
   if (spec && spec.name) return spec.name;
+
+  // Dynamic data-driven lookup from sources.config.js (Single Source of Truth)
+  const sourceItemName = getSourceItemDisplayName(assetId);
+  if (sourceItemName) return sourceItemName;
+
   return fallbackName || assetId || '';
 }
 

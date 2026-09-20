@@ -46,15 +46,10 @@ export default function AddHoldingForm({
       setBuyDate(editingHolding.buyDate || '');
       setNotes(editingHolding.notes || '');
 
-      if (editingHolding.category === 'custom' || editingHolding.assetType === 'custom') {
-        setCustomName(editingHolding.assetName || editingHolding.name || '');
-        setCustomUnit(editingHolding.unit || 'واحد');
-        setCustomCurrentPrice(editingHolding.customPrice ? String(editingHolding.customPrice) : '');
-      } else {
-        setCustomName('');
-        setCustomUnit('واحد');
-        setCustomCurrentPrice('');
-      }
+      const rawAssetName = editingHolding.assetName || editingHolding.name || '';
+      setCustomName(rawAssetName);
+      setCustomUnit(editingHolding.unit || 'واحد');
+      setCustomCurrentPrice(editingHolding.customPrice ? String(editingHolding.customPrice) : '');
 
       if (
         editingHolding.assetType === 'bourse' ||
@@ -129,8 +124,8 @@ export default function AddHoldingForm({
     } else {
       setSelectedAssetId(resolvedId);
       setSelectedBourseSymbol(null);
-      setCustomName(canonicalSpec?.name || rawItem.name || '');
-      setCustomUnit(canonicalSpec?.unit || rawItem.unit || 'واحد');
+      setCustomName(canonicalSpec?.name || getCanonicalAssetName(resolvedId) || rawItem.name || '');
+      setCustomUnit(canonicalSpec?.unit || getCanonicalAssetUnit(resolvedId) || rawItem.unit || 'واحد');
       const p = rawItem.priceToman || (rawItem.priceRial ? Math.round(rawItem.priceRial / 10) : rawItem.price || '');
       if (p > 0) {
         setCustomCurrentPrice(String(Math.round(p)));
@@ -206,12 +201,12 @@ export default function AddHoldingForm({
     } else if (selectedBourseSymbol || selectedAssetId.startsWith('bourse_')) {
       const sym = selectedBourseSymbol?.symbol || selectedAssetId.replace('bourse_', '');
       finalAssetId = `bourse_${sym}`;
-      finalAssetName = selectedBourseSymbol?.name || sym;
+      finalAssetName = customName.trim() || selectedBourseSymbol?.name || sym;
       finalAssetType = selectedBourseSymbol?.isFund ? 'bourse_fund' : 'bourse';
       finalUnit = selectedBourseSymbol?.isFund ? 'واحد' : 'برگ سهم';
     } else {
       finalAssetType = resolveItemCategory(selectedAssetId);
-      finalAssetName = getCanonicalAssetName(selectedAssetId) || customName;
+      finalAssetName = customName.trim() || getCanonicalAssetName(selectedAssetId) || selectedAssetId;
       finalUnit = getCanonicalAssetUnit(selectedAssetId) || customUnit || 'واحد';
     }
 
@@ -387,8 +382,8 @@ export default function AddHoldingForm({
         </div>
       )}
 
-      {/* Custom Asset Specific Fields */}
-      {isModalCustom && (
+      {/* Custom Asset Specific Fields or Custom Display Title */}
+      {isModalCustom ? (
         <div className="form-row-dual">
           <div className="form-item flex-1">
             <label>نام دارایی شخصی</label>
@@ -412,6 +407,22 @@ export default function AddHoldingForm({
               required
             />
           </div>
+        </div>
+      ) : (
+        <div className="form-item">
+          <label>
+            عنوان نمایشی در پورتفو
+            <span style={{ fontSize: '0.82em', opacity: 0.7, marginRight: '6px' }}>
+              (اختیاری — پیش‌فرض: {getCanonicalAssetName(cleanSelectedId) || selectedAssetTitle})
+            </span>
+          </label>
+          <input
+            type="text"
+            placeholder={getCanonicalAssetName(cleanSelectedId) || selectedAssetTitle}
+            value={customName}
+            onChange={(e) => setCustomName(e.target.value)}
+            className="form-input"
+          />
         </div>
       )}
 

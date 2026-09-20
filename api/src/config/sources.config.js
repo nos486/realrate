@@ -330,6 +330,15 @@ export const PRICE_SOURCES_CONFIG = [
       "GOLD", "SILVER", "COPPER", "STOCKS_INDEX", "REAL_ESTATE",
       "طلا", "نقره", "مس", "استاکس", "ملک"
     ],
+    knownItemNames: {
+      gold: "طرح سرمایه‌گذاری طلا کاریزما",
+      silver: "طرح سرمایه‌گذاری نقره کاریزما",
+      copper: "طرح سرمایه‌گذاری مس کاریزما",
+      "stocks-index": "طرح سرمایه‌گذاری شاخص سهام کاریزما",
+      stocks_index: "طرح سرمایه‌گذاری شاخص سهام کاریزما",
+      "real-estate": "طرح سرمایه‌گذاری مسکن کاریزما",
+      real_estate: "طرح سرمایه‌گذاری مسکن کاریزما",
+    },
     fetchIntervalSec: 1800,
     isActive: true,
     isPrimary: true,
@@ -522,16 +531,64 @@ export function getSourceCategoryConfig(sourceIdOrAssetId) {
   if (direct) return direct;
 
   // 2. Prefixed match (e.g. "charisma_plans__gold" or "emofid__ayyar" or "charisma_funds__...")
+  // Exact double-underscore prefix match takes precedence over single underscore
   for (const s of PRICE_SOURCES_CONFIG) {
     if (!s) continue;
     const sCleanId = String(s.id || '').replace(/^src_def_/, '').toLowerCase().trim();
     const sPType = String(s.priceType || '').toLowerCase().trim();
-    if (clean.startsWith(`${sCleanId}__`) || clean.startsWith(`${sCleanId}_`)) {
+    if (clean.startsWith(`${sCleanId}__`) || (sPType && clean.startsWith(`${sPType}__`))) {
       return s;
     }
-    if (sPType && (clean.startsWith(`${sPType}__`) || clean.startsWith(`${sPType}_`))) {
-      return s;
+  }
+
+  // Fallback to single underscore match only when no double underscore exists
+  if (!clean.includes('__')) {
+    for (const s of PRICE_SOURCES_CONFIG) {
+      if (!s) continue;
+      const sCleanId = String(s.id || '').replace(/^src_def_/, '').toLowerCase().trim();
+      const sPType = String(s.priceType || '').toLowerCase().trim();
+      if (clean.startsWith(`${sCleanId}_`) || (sPType && clean.startsWith(`${sPType}_`))) {
+        return s;
+      }
     }
+  }
+
+  return null;
+}
+
+/**
+ * Resolves a human-friendly Persian display name for a catalog or partitioned asset ID (e.g. "charisma_plans__gold" -> "طرح سرمایه‌گذاری طلا کاریزما").
+ * Reads metadata dynamically from sources.config.js without any hardcoded mappings.
+ *
+ * @param {string} sourceIdOrAssetId
+ * @returns {string|null}
+ */
+export function getSourceItemDisplayName(sourceIdOrAssetId) {
+  if (!sourceIdOrAssetId || typeof sourceIdOrAssetId !== 'string') return null;
+  const srcConfig = getSourceCategoryConfig(sourceIdOrAssetId);
+  if (!srcConfig) return null;
+
+  const clean = sourceIdOrAssetId.replace(/^src_def_/, '').replace(/^derived_/, '');
+  const parts = clean.split('__');
+  const subKey = parts.length > 1 ? parts.slice(1).join('__').trim() : clean.trim();
+  const subKeyLower = subKey.toLowerCase();
+
+  // 1. Direct match in knownItemNames
+  if (srcConfig.knownItemNames) {
+    if (srcConfig.knownItemNames[subKey]) return srcConfig.knownItemNames[subKey];
+    if (srcConfig.knownItemNames[subKeyLower]) return srcConfig.knownItemNames[subKeyLower];
+    const subKeyUnder = subKeyLower.replace(/-/g, '_');
+    if (srcConfig.knownItemNames[subKeyUnder]) return srcConfig.knownItemNames[subKeyUnder];
+    const subKeyHyphen = subKeyLower.replace(/_/g, '-');
+    if (srcConfig.knownItemNames[subKeyHyphen]) return srcConfig.knownItemNames[subKeyHyphen];
+  }
+
+  // 2. If subKey is already Persian
+  if (/[آ-ی]/.test(subKey)) {
+    if (srcConfig.isFund && !subKey.includes('صندوق') && !subKey.includes('طرح')) {
+      return `صندوق ${subKey}`;
+    }
+    return subKey;
   }
 
   return null;

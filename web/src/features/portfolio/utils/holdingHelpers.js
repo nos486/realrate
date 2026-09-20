@@ -138,20 +138,36 @@ export function CategoryIcon({ category, size = 18, className = '', style = {} }
 export function formatAssetName(item) {
   if (!item) return '';
   const assetId = item.assetId || (typeof item === 'string' ? item : null);
+  const raw = typeof item === 'string' ? item : (item.assetName || item.name || '');
+
+  const cleanId = assetId ? assetId.replace(/^src_def_/, '').replace(/^derived_/, '') : null;
+  const isTechnicalId = !raw ||
+    raw === assetId ||
+    raw === cleanId ||
+    raw.startsWith('src_def_') ||
+    raw.startsWith('derived_') ||
+    raw.includes('__');
+
   if (assetId?.startsWith('bourse_')) {
-    const raw = typeof item === 'string' ? item : (item.assetName || item.name || '');
-    if (raw && !raw.startsWith('bourse_')) return raw;
+    if (!isTechnicalId && !raw.startsWith('bourse_')) return raw;
     const isFund = item.isFund || item.assetType === 'bourse_fund' || item.assetName?.includes('صندوق');
     return isFund ? `صندوق ${assetId.replace('bourse_', '')}` : `سهام ${assetId.replace('bourse_', '')}`;
   }
-  const cleanId = assetId ? assetId.replace(/^src_def_/, '').replace(/^derived_/, '') : null;
+
   const canonicalName = getCanonicalAssetName(cleanId || assetId);
+
+  // If user provided a genuine custom name that is not a technical ID and not identical to cleanId, respect it!
+  if (!isTechnicalId && raw && raw !== cleanId && raw !== assetId) {
+    return raw.replace(/\s*\([^)]*\)/g, '').trim() || raw;
+  }
+
   if (canonicalName && canonicalName !== cleanId && canonicalName !== assetId) {
     return canonicalName;
   }
-  const raw = typeof item === 'string' ? item : (item.assetName || item.name || '');
-  if (raw && !raw.startsWith('src_def_')) {
+
+  if (raw && !raw.startsWith('src_def_') && !raw.includes('__')) {
     return raw.replace(/\s*\([^)]*\)/g, '').trim() || raw;
   }
-  return raw || 'دارایی';
+  return canonicalName || raw || 'دارایی';
 }
+

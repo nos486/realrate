@@ -28,6 +28,7 @@
 | `regex` | `string` | الگوی RegEx استخراج برای تلگرام یا خروجی‌های متنی |
 | `jsonPath` | `string` | مسیر کلید در خروجی JSON (برای `api_url`) |
 | `knownSymbols` | `Array` | لیست نمادهای شاخص این سورس جهت تفکیک و جستجوی هوشمند (اختیاری) |
+| `knownItemNames` | `Object` | نگاشت شناسه‌های انگلیسی به عناوین رسمی فارسی جهت نمایش بدون نیاز به دستکاری کد (مثال: `{ gold: "طرح سرمایه‌گذاری طلا کاریزما" }`) (اختیاری) |
 | `customParser` | `function` | تابع پارسر اختصاصی در صورت پیچیده بودن ساختار داده ورودی (اختیاری) |
 | `displayConfig`| `object` | تنظیمات نمایش (`showOnHomePage`, `homePageOutputs`) |
 | `fetchIntervalSec` | `number` | بازه فراخوانی خودکار به ثانیه |
