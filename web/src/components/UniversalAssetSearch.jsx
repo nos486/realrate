@@ -14,7 +14,11 @@ import {
 } from 'lucide-react';
 import { apiGetPriceSources, apiSearchBourseSymbols } from '../api/client.js';
 import { usePricing } from '../features/market/index.js';
-import { getMasterPriceSourcesConfig, getSourceDisplayName } from '../config/sources.config.js';
+import {
+  getMasterPriceSourcesConfig,
+  getSourceDisplayName,
+  getSourceCategoryConfig,
+} from '../config/sources.config.js';
 import {
   FOREX_SPECS,
   TROY_OUNCE_GRAMS,
@@ -61,9 +65,11 @@ export function getPriceTypeLabel(priceType, priceTypeInfo = null) {
   const strippedName = getCanonicalAssetName(stripped);
   if (strippedName && strippedName !== stripped) return strippedName;
 
+  const srcConfig = getSourceCategoryConfig(clean);
+  if (srcConfig?.name) return srcConfig.name;
+
   if (clean === 'bourse') return 'بورس اوراق بهادار';
   if (clean === 'bourse_fund') return 'صندوق سرمایه‌گذاری بورس';
-  if (clean === 'charisma_plans') return 'طرح‌های سرمایه‌گذاری کاریزما';
   if (clean === 'forex') return 'ارزهای جهانی (فارکس)';
   if (clean === 'crypto') return 'رمزارز';
 
@@ -83,6 +89,15 @@ export const STANDARD_PRICE_TYPE_LABELS = new Proxy({}, {
 
 export function getCategoryMetadata(priceType) {
   const pt = String(priceType || '').toLowerCase().replace(/^src_def_/, '');
+  const srcConfig = getSourceCategoryConfig(pt);
+  if (srcConfig) {
+    return {
+      category: srcConfig.category || (srcConfig.isFund ? 'bourse_fund' : 'bourse'),
+      badge: srcConfig.badge || (srcConfig.isFund ? 'صندوق' : 'دارایی'),
+      unit: srcConfig.unit || 'واحد',
+    };
+  }
+
   if (pt === 'silver_gram' || pt === 'silver_999' || pt === 'silver_925' || pt === 'ons_silver' || pt === 'silver_ounce' || pt.includes('silver')) {
     return { category: 'silver', badge: 'نقره', unit: pt.includes('ons') || pt.includes('ounce') ? 'اونس' : 'گرم' };
   }
@@ -100,9 +115,6 @@ export function getCategoryMetadata(priceType) {
   }
   if (pt === 'bourse_fund') {
     return { category: 'bourse_fund', badge: 'صندوق', unit: 'واحد' };
-  }
-  if (pt === 'charisma_plans' || pt === 'plan') {
-    return { category: 'charisma_plans', badge: 'طرح', unit: 'واحد' };
   }
   return { category: 'currency', badge: 'ارز', unit: 'تومان' };
 }

@@ -79,7 +79,8 @@ export default function TransactionForm({
     const resolvedId = canonicalSpec?.id || cleanId || rawId;
     const resolvedCat = resolveItemCategory(rawItem);
 
-    const isBourse = resolvedCat === 'bourse' || resolvedCat === 'bourse_fund' || resolvedId.startsWith('bourse_');
+    const isPlan = resolvedId.startsWith('charisma_plans') || rawItem.category === 'charisma_plans' || rawItem.badge === 'طرح';
+    const isBourse = !isPlan && (resolvedCat === 'bourse' || resolvedCat === 'bourse_fund' || resolvedId.startsWith('bourse_'));
     const isCustom = resolvedCat === 'custom' || resolvedId === 'custom' || resolvedId.startsWith('custom_');
 
     if (isBourse) {

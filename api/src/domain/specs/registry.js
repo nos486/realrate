@@ -7,6 +7,7 @@ import { COIN_SPECS } from './coin.spec.js';
 import { SILVER_SPECS } from './silver.spec.js';
 import { FOREX_SPECS } from './forex.spec.js';
 import { CRYPTO_SPECS } from './crypto.spec.js';
+import { getSourceCategoryConfig } from '../../config/sources.config.js';
 
 // ── Master Canonical Asset Registry ──────────────────────────────────────────
 export const CANONICAL_ASSET_REGISTRY = {};
@@ -175,14 +176,25 @@ export function getCanonicalAssetBadge(assetId, fallbackBadge = '') {
  * @param {object|string} item - holding object or assetId
  * @returns {string} - 'gold' | 'coin' | 'silver' | 'currency' | 'crypto' | 'bourse' | 'bourse_fund' | 'custom'
  */
-export function resolveItemCategory(item) {
+export function resolveItemCategory(item, fallbackType = null) {
   if (!item) return 'custom';
   if (typeof item === 'string') {
     const clean = item.replace(/^src_def_/, '').replace(/^derived_/, '').trim();
     const spec = getCanonicalAssetSpec(clean);
     if (spec && spec.category) return spec.category;
     if (clean.startsWith('bourse_')) return 'bourse';
+
+    // Dynamic data-driven lookup from sources.config.js (Single Source of Truth)
+    const srcConfig = getSourceCategoryConfig(clean);
+    if (srcConfig) {
+      if (srcConfig.category) return srcConfig.category;
+      if (srcConfig.isFund) return 'bourse_fund';
+    }
+
     if (clean.startsWith('custom_') || clean === 'custom') return 'custom';
+    if (fallbackType && ['gold', 'coin', 'silver', 'currency', 'crypto', 'bourse', 'bourse_fund'].includes(fallbackType)) {
+      return fallbackType;
+    }
     return 'custom';
   }
 
@@ -200,41 +212,26 @@ export function resolveItemCategory(item) {
     return 'custom';
   }
 
-  // 2.5 Charisma Investment Plans
-  if (assetType === 'charisma_plans' || item.category === 'charisma_plans' || cleanId.startsWith('charisma_plans')) {
-    return 'charisma_plans';
+  // 3. Dynamic data-driven lookup from sources.config.js (Single Source of Truth)
+  const srcConfig = getSourceCategoryConfig(cleanId) || getSourceCategoryConfig(assetType);
+  if (srcConfig) {
+    if (srcConfig.category) return srcConfig.category;
+    if (srcConfig.isFund) return 'bourse_fund';
   }
 
-  // 3. Explicit Bourse Stocks & Investment Funds (including Emofid & Charisma)
+  // 4. Generic explicit Bourse Stocks & Investment Funds checks
   const isFund = Boolean(
     item.isFund ||
     item.raw?.isFund ||
     assetType === 'bourse_fund' ||
-    assetType === 'emofid_fund' ||
-    assetType === 'emofid_funds' ||
-    assetType === 'charisma_fund' ||
-    assetType === 'charisma_funds' ||
     assetType === 'fund' ||
     cleanId.startsWith('fund_') ||
-    cleanId.startsWith('emofid_') ||
-    cleanId.startsWith('charisma_') ||
     (assetName.includes('صندوق') && !cleanId.startsWith('custom_'))
   );
-  const isBourse = (
+  const isBourse = Boolean(
+    isFund ||
     cleanId.startsWith('bourse_') ||
-    cleanId.startsWith('fund_') ||
-    cleanId.startsWith('emofid_') ||
-    cleanId.startsWith('charisma_') ||
-    assetType === 'bourse' ||
-    assetType === 'bourse_fund' ||
-    assetType === 'emofid_fund' ||
-    assetType === 'emofid_funds' ||
-    assetType === 'charisma_fund' ||
-    assetType === 'charisma_funds' ||
-    assetType === 'fund' ||
-    Boolean(item.isFund) ||
-    Boolean(item.raw?.isFund) ||
-    (assetName.includes('صندوق') && !cleanId.startsWith('custom_'))
+    assetType === 'bourse'
   );
   if (isBourse) {
     return isFund ? 'bourse_fund' : 'bourse';

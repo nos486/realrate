@@ -92,7 +92,8 @@ export default function AddHoldingForm({
     const resolvedId = canonicalSpec?.id || cleanId || rawId;
 
     const resolvedCat = resolveItemCategory(rawItem);
-    const isBourse = resolvedCat === 'bourse' || resolvedCat === 'bourse_fund' || resolvedId.startsWith('bourse_');
+    const isPlan = resolvedId.startsWith('charisma_plans') || rawItem.category === 'charisma_plans' || rawItem.badge === 'طرح';
+    const isBourse = !isPlan && (resolvedCat === 'bourse' || resolvedCat === 'bourse_fund' || resolvedId.startsWith('bourse_'));
     const isCustom = resolvedCat === 'custom' || resolvedId === 'custom' || resolvedId.startsWith('custom_');
 
     if (isBourse) {
@@ -130,8 +131,9 @@ export default function AddHoldingForm({
       setSelectedBourseSymbol(null);
       setCustomName(canonicalSpec?.name || rawItem.name || '');
       setCustomUnit(canonicalSpec?.unit || rawItem.unit || 'واحد');
-      if (rawItem.price > 0) {
-        setCustomCurrentPrice(String(Math.round(rawItem.price)));
+      const p = rawItem.priceToman || (rawItem.priceRial ? Math.round(rawItem.priceRial / 10) : rawItem.price || '');
+      if (p > 0) {
+        setCustomCurrentPrice(String(Math.round(p)));
       }
     }
   };
@@ -210,7 +212,7 @@ export default function AddHoldingForm({
     } else {
       finalAssetType = resolveItemCategory(selectedAssetId);
       finalAssetName = getCanonicalAssetName(selectedAssetId) || customName;
-      finalUnit = getCanonicalAssetUnit(selectedAssetId) || 'واحد';
+      finalUnit = getCanonicalAssetUnit(selectedAssetId) || customUnit || 'واحد';
     }
 
     onSubmit?.({

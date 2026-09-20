@@ -103,6 +103,7 @@ export function CategoryIcon({ category, size = 18, className = '', style = {} }
     case 'bourse':
       return React.createElement(TrendingUp, iconProps);
     case 'bourse_fund':
+    case 'charisma_plans':
       return React.createElement(Layers, iconProps);
     case 'custom':
     default:

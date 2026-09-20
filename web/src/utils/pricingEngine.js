@@ -63,14 +63,22 @@ export function getStaticCatalogAssets(marketItems) {
       sourceName: sourceLabel,
       subText,
       unit: f.unit || 'واحد',
-      isFund,
-      category: isPlan ? 'charisma_plans' : (f.category || 'bourse_fund'),
+      isFund: true,
+      category: 'bourse_fund',
     };
 
     staticAssets.push(resolved);
     staticPriceMap[f.id] = p;
+    const cleanId = String(f.id || '').replace(/^src_def_/, '').replace(/^derived_/, '');
+    if (cleanId) {
+      staticPriceMap[cleanId] = p;
+      staticPriceMap[cleanId.toLowerCase()] = p;
+      staticPriceMap[cleanId.toUpperCase()] = p;
+    }
     if (f.symbol) {
       staticPriceMap[f.symbol] = p;
+      staticPriceMap[f.symbol.toLowerCase()] = p;
+      staticPriceMap[f.symbol.toUpperCase()] = p;
       const norm = normalizePersianText(f.symbol);
       if (norm) {
         staticPriceMap[norm] = p;

@@ -57,8 +57,8 @@ describe("Charisma Investment Plans Adapter & Incremental Merge Tests", () => {
     expect(gold.priceToman).toBe(32316516);
     expect(gold.priceRial).toBe(323165160);
     expect(gold.unit).toBe("واحد");
-    expect(gold.isFund).toBe(false);
-    expect(gold.category).toBe("charisma_plans");
+    expect(gold.isFund).toBe(true);
+    expect(gold.category).toBe("bourse_fund");
     expect(gold.badge).toBe("طرح");
 
     const silver = mergedList.find((p) => p.symbol === "SILVER");
@@ -149,5 +149,24 @@ describe("Charisma Investment Plans Adapter & Incremental Merge Tests", () => {
     expect(parsed.multiData.isCatalog).toBe(true);
     expect(parsed.multiData.totalCount).toBe(5);
     expect(parsed.compactList.length).toBe(5);
+  });
+
+  it("resolves charisma_plans category under bourse_fund in specs registry and matches portfolio category", async () => {
+    const { resolveItemCategory, PORTFOLIO_CATEGORIES } = await import("../../src/domain/specs/registry.js");
+
+    expect(resolveItemCategory("charisma_plans__gold")).toBe("bourse_fund");
+    expect(resolveItemCategory("src_def_charisma_plans__gold")).toBe("bourse_fund");
+    expect(resolveItemCategory({ assetId: "charisma_plans__gold" })).toBe("bourse_fund");
+    expect(resolveItemCategory({ assetType: "charisma_plans", assetId: "charisma_plans__gold" })).toBe("bourse_fund");
+
+    const fundCategory = PORTFOLIO_CATEGORIES.find((c) => c.key === "bourse_fund");
+    expect(fundCategory).toBeDefined();
+    expect(fundCategory.name).toBe("صندوق‌های سرمایه‌گذاری");
+    expect(fundCategory.badge).toBe("صندوق");
+    expect(fundCategory.match({ assetId: "charisma_plans__gold" })).toBe(true);
+    expect(fundCategory.match("charisma_plans__gold")).toBe(true);
+
+    const planCategory = PORTFOLIO_CATEGORIES.find((c) => c.key === "charisma_plans");
+    expect(planCategory).toBeUndefined();
   });
 });

@@ -67,24 +67,11 @@ export function standardizeCatalogItem(item, sourceConfig = {}) {
     priceRial = priceToman * 10;
   }
 
-  const isFund = Boolean(
-    item.isFund ||
-    item.f === 1 ||
-    String(sourceConfig.priceType || "").includes("fund") ||
-    name.includes("صندوق") ||
-    String(item.category || "").includes("صندوق")
-  );
-
-  const isPlan = Boolean(
-    item.badge === "طرح" ||
-    String(sourceConfig.priceType || "").includes("plan") ||
-    name.includes("طرح سرمایه‌گذاری") ||
-    name.includes("طرح سرمایه گذاری")
-  );
-
-  const category = isPlan ? "charisma_plans" : (isFund ? "bourse_fund" : (sourceConfig.priceType === "bourse" ? "bourse" : "custom"));
-  const badge = isPlan ? "طرح" : (isFund ? "صندوق" : (category === "bourse" ? "بورس" : "دارایی"));
-  const unit = item.unit || (isPlan ? "واحد" : (isFund ? "واحد" : (sourceConfig.unit || (category === "bourse" ? "برگ سهم" : "تومان"))));
+  // Data-driven category, badge, unit, and isFund derived directly from sourceConfig (Single Source of Truth)
+  const category = item.category || sourceConfig.category || (sourceConfig.isFund || item.isFund ? "bourse_fund" : (sourceConfig.priceType === "bourse" ? "bourse" : "custom"));
+  const badge = item.badge || sourceConfig.badge || (category === "bourse_fund" ? "صندوق" : (category === "bourse" ? "بورس" : "دارایی"));
+  const unit = item.unit || sourceConfig.unit || (category === "bourse" ? "برگ سهم" : "واحد");
+  const isFund = Boolean(item.isFund || sourceConfig.isFund || category === "bourse_fund" || name.includes("صندوق"));
 
   const sourceName = getSourceDisplayName(item) || item.sourceName || sourceConfig.name || "";
   const sourceId = item.sourceId || sourceConfig.id || "";

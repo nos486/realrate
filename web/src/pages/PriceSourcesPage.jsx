@@ -22,6 +22,7 @@ import {
   apiGetMarketItems,
 } from '../api/client.js';
 import { extractMultiItems } from '../components/UniversalAssetSearch.jsx';
+import { getSourceDisplayName } from '../config/sources.config.js';
 import {
   CANONICAL_PRICE_TYPE_INFO,
   isSourceMultiOutput,
@@ -215,11 +216,9 @@ export default function PriceSourcesPage({ embedded = false, usdToman: propUsdTo
             ...(marketRes.goldAndCoins || []),
           ];
           const matched = candidates.filter((it) => {
-            if (it.sourceId && (it.sourceId === src.id || it.sourceId === src.sourceType)) return true;
-            if (src.id === 'src_def_charisma_plans' && (it.sourceId === 'src_def_charisma_plans' || it.category === 'charisma_plans' || it.badge === 'طرح')) return true;
-            if (src.id === 'src_def_charisma' && (it.sourceName?.includes('کاریزما') || it.manager?.includes('کاریزما') || it.category?.includes('کاریزما'))) return true;
-            if (src.id === 'src_def_emofid' && (it.sourceName?.includes('مفید') || it.manager?.includes('مفید') || it.category?.includes('مفید'))) return true;
-            if (src.id === 'src_def_bourse' && (it.category === 'bourse' || it.category === 'bourse_symbol')) return true;
+            if (it.sourceId && (it.sourceId === src.id || it.sourceId === src.sourceType || it.sourceId === src.priceType)) return true;
+            const itemSrcName = it.sourceName || getSourceDisplayName(it);
+            if (itemSrcName && itemSrcName === src.name) return true;
             return false;
           });
           if (matched.length > 0) {

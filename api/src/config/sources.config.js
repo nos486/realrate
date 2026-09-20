@@ -213,6 +213,10 @@ export const PRICE_SOURCES_CONFIG = [
     name: "بورس اوراق بهادار تهران (TSETMC / BRS API)",
     priceType: "bourse",
     sourceType: "bourse_symbols",
+    category: "bourse",
+    badge: "سهام بورس",
+    unit: "برگ سهم",
+    isFund: false,
     isCatalog: true,
     endpoint: "https://api.brsapi.ir/Tsetmc/AllSymbols.php?type=1&key=${BRS_API_KEY}",
     regex: "",
@@ -241,6 +245,10 @@ export const PRICE_SOURCES_CONFIG = [
     name: "صندوق‌های سرمایه‌گذاری مفید (Emofid)",
     priceType: "emofid_funds",
     sourceType: "emofid_funds",
+    category: "bourse_fund",
+    badge: "صندوق",
+    unit: "واحد",
+    isFund: true,
     isCatalog: true,
     endpoint: "https://www.emofid.com/api/funds/",
     regex: "",
@@ -272,6 +280,10 @@ export const PRICE_SOURCES_CONFIG = [
     name: "صندوق‌های سرمایه‌گذاری کاریزما (Charisma)",
     priceType: "charisma_funds",
     sourceType: "charisma_funds",
+    category: "bourse_fund",
+    badge: "صندوق",
+    unit: "واحد",
+    isFund: true,
     isCatalog: true,
     endpoint: "https://charisma.ir/funds",
     regex: "",
@@ -303,6 +315,10 @@ export const PRICE_SOURCES_CONFIG = [
     name: "طرح‌های سرمایه‌گذاری کاریزما (Charisma Plans)",
     priceType: "charisma_plans",
     sourceType: "charisma_plans",
+    category: "bourse_fund",
+    badge: "طرح",
+    unit: "واحد",
+    isFund: true,
     isCatalog: true,
     endpoint: "https://n8n.geekio.ir/webhook/38899601-0906-4aa4-aedb-8f7de5493894",
     regex: "",
@@ -483,4 +499,40 @@ export function getSourceDisplayName(sourceOrItem, customSources = []) {
   }
 
   return "";
+}
+
+/**
+ * Resolves source configuration by source ID, priceType, or prefixed assetId (e.g. "charisma_plans__gold", "emofid__ayyar", "bourse_فولاد").
+ * Enables fully data-driven category and metadata resolution across the system without any hardcoded checks in registry or catalog feeds.
+ *
+ * @param {string} sourceIdOrAssetId
+ * @returns {object|null}
+ */
+export function getSourceCategoryConfig(sourceIdOrAssetId) {
+  if (!sourceIdOrAssetId || typeof sourceIdOrAssetId !== 'string') return null;
+  const clean = sourceIdOrAssetId.replace(/^src_def_/, '').replace(/^derived_/, '').toLowerCase().trim();
+
+  // 1. Direct match by source ID or priceType
+  const direct = PRICE_SOURCES_CONFIG.find((s) => {
+    if (!s) return false;
+    const sCleanId = String(s.id || '').replace(/^src_def_/, '').toLowerCase().trim();
+    const sPType = String(s.priceType || '').toLowerCase().trim();
+    return sCleanId === clean || sPType === clean;
+  });
+  if (direct) return direct;
+
+  // 2. Prefixed match (e.g. "charisma_plans__gold" or "emofid__ayyar" or "charisma_funds__...")
+  for (const s of PRICE_SOURCES_CONFIG) {
+    if (!s) continue;
+    const sCleanId = String(s.id || '').replace(/^src_def_/, '').toLowerCase().trim();
+    const sPType = String(s.priceType || '').toLowerCase().trim();
+    if (clean.startsWith(`${sCleanId}__`) || clean.startsWith(`${sCleanId}_`)) {
+      return s;
+    }
+    if (sPType && (clean.startsWith(`${sPType}__`) || clean.startsWith(`${sPType}_`))) {
+      return s;
+    }
+  }
+
+  return null;
 }

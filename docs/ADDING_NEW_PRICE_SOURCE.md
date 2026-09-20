@@ -1,63 +1,53 @@
 # راهنمای افزودن سورس قیمت جدید (معماری کد-محور / Code-First)
 
-سامانه RealRate از معماری **کد-محور (Code-First)** برای تعریف و مدیریت تمامی سورس‌های قیمت استفاده می‌کند. تمامی فیدها به صورت اعلانی در کد تعریف شده و با گیت نسخه می‌شوند. قیمت‌های استخراج‌شده در حافظه سریع Cloudflare KV کش می‌شوند.
+سامانه RealRate از معماری **کد-محور (Code-First)** و اصل **تنها مرجع حقیقت (Single Source of Truth)** برای تعریف و مدیریت تمامی سورس‌های قیمت استفاده می‌کند. 
+
+> [!IMPORTANT]
+> تمامی تعاریف، نوع‌ها، دسته‌بندی‌ها، واحدها و نشان‌های سورس‌ها منحصراً در فایل مرجع [`api/src/config/sources.config.js`](file:///Users/sina/Projects/realrate/api/src/config/sources.config.js) قرار دارند. برای افزودن یک سورس جدید (تک‌نرخی یا کاتالوگ چندنرخی)، **هیچ نیازی به ویرایش سایر فایل‌های سیستم (مانند `registry.js` یا `catalogFeeds.service.js`) نیست**. تمامی بخش‌های سامانه (جستجوی سراسری، پورتفو، رصد لحظه‌ای و پنل ادمین) مشخصات را به صورت خودکار و داده‌محور از همین فایل می‌خوانند.
 
 ---
 
 ## ۱. فایل مرجع سورس‌ها (`api/src/config/sources.config.js`)
 
-تمامی سورس‌ها (طلا، سکه، ارز، بورس و فارکس) در آرایه `PRICE_SOURCES_CONFIG` درون فایل [`api/src/config/sources.config.js`](file:///Users/sina/Projects/realrate/api/src/config/sources.config.js) تعریف می‌شوند.
+تمامی سورس‌ها در آرایه `PRICE_SOURCES_CONFIG` تعریف می‌شوند.
 
-### ساختار استاندارد یک سورس قیمت
+### فیلدهای استاندارد هر سورس:
 
-```javascript
-{
-  id: "src_def_ons_gold",           // شناسه یکتا
-  name: "انس طلا جهانی (XAU)",       // نام نمایشی فارسی
-  priceType: "ons_gold",           // کلید متناظر در CANONICAL_ASSET_REGISTRY
-  sourceType: "api_url",           // نوع آداپتور: 'telegram' | 'api_url' | 'forex' | 'bourse'
-  endpoint: "https://api.gold-api.com/price/XAU", // آدرس وب‌سرویس یا یوزرنیم کانال تلگرام
-  regex: "",                       // الگوی استخراج (برای تلگرام یا خروجی متنی)
-  jsonPath: "price",               // کلید در خروجی JSON (برای api_url)
-  fieldMapping: null,              // نگاشت فیلدهای چندگانه (اختیاری)
-  excludedOutputs: [],             // کدهای مستثنی شده (اختیاری)
-  displayConfig: { showOnHomePage: true }, // تنظیمات نمایش
-  fetchIntervalSec: 60,            // بازه فراخوانی به ثانیه
-  isActive: true,                  // وضعیت فعال/غیرفعال بودن
-  isPrimary: true,                 // آیا سورس مرجع پیش‌فرض برای این دارایی است؟
-}
-```
-
----
-
-## ۲. انواع آداپتورهای استاندارد موجود
-
-آداپتورهای پیش‌فرض در مسیر `api/src/services/market/sources/` پیاده‌سازی شده‌اند:
-
-1. **`telegram`** ([`telegramSource.adapter.js`](file:///Users/sina/Projects/realrate/api/src/services/market/sources/telegramSource.adapter.js)):
-   - دریافت نرخ از کانال‌های تلگرامی معتبر بازار بدون نیاز به ربات.
-   - پارامتر `endpoint`: آیدی کانال بدون `@` (مثال: `zarmagoldd` یا `tahran_sabza`).
-2. **`api_url`** ([`apiUrl.source.adapter.js`](file:///Users/sina/Projects/realrate/api/src/services/market/sources/apiUrl.source.adapter.js)):
-   - دریافت نرخ از هرگونه وب‌سرویس REST و JSON عمومی یا سفارشی.
-   - پارامتر `jsonPath`: کلید استخراج نرخ (مثال: `price` یا `rates.USD`).
-3. **`forex`** ([`forexApi.source.adapter.js`](file:///Users/sina/Projects/realrate/api/src/services/market/sources/forexApi.source.adapter.js)):
-   - فید چندمقداری ارزهای معتبر بین‌المللی با نرخ برابری جهانی (Open ER-API).
-4. **`bourse`** ([`bourseSymbols.source.adapter.js`](file:///Users/sina/Projects/realrate/api/src/services/market/sources/bourseSymbols.source.adapter.js)):
-   - فید تجمیعی نمادها و صندوق‌های بورس اوراق بهادار تهران (TSETMC / BRS API).
+| فیلد | نوع | توضیحات |
+| :--- | :--- | :--- |
+| `id` | `string` | شناسه یکتای سورس با پیشوند `src_def_` (مثال: `src_def_ons_gold`) |
+| `name` | `string` | نام نمایشی کامل و رسمی سورس به فارسی |
+| `priceType` | `string` | کلید متناظر در دارایی‌ها یا نام اختصاصی فید (مثال: `gold_18k`, `bourse`, `charisma_plans`) |
+| `sourceType` | `string` | نوع آداپتور مصرفی: `api_url` \| `telegram` \| `forex_api` \| `bourse_symbols` \| `charisma_plans` \| ... |
+| `category` | `string` | دسته‌بندی پورتفو: `bourse_fund` \| `bourse` \| `gold` \| `coin` \| `silver` \| `currency` \| `crypto` |
+| `badge` | `string` | برچسب نمایشی در نتایج جستجو و جداول (مثال: `صندوق`، `طرح`، `بورس`، `طلا`، `ارز`) |
+| `unit` | `string` | واحد اندازه‌گیری و ثبت در پورتفو (مثال: `واحد`، `برگ سهم`، `گرم`، `تومان`) |
+| `isFund` | `boolean` | آیا ماهیت صندوق یا طرح سرمایه‌گذاری دارد؟ (`true` / `false`) |
+| `isCatalog` | `boolean` | آیا سورس حاوی چند نماد یا کاتالوگ نمادها است؟ (`true` / `false`) |
+| `endpoint` | `string` | آدرس وب‌سرویس REST/Webhook یا آیدی کانال تلگرام بدون `@` |
+| `regex` | `string` | الگوی RegEx استخراج برای تلگرام یا خروجی‌های متنی |
+| `jsonPath` | `string` | مسیر کلید در خروجی JSON (برای `api_url`) |
+| `knownSymbols` | `Array` | لیست نمادهای شاخص این سورس جهت تفکیک و جستجوی هوشمند (اختیاری) |
+| `customParser` | `function` | تابع پارسر اختصاصی در صورت پیچیده بودن ساختار داده ورودی (اختیاری) |
+| `displayConfig`| `object` | تنظیمات نمایش (`showOnHomePage`, `homePageOutputs`) |
+| `fetchIntervalSec` | `number` | بازه فراخوانی خودکار به ثانیه |
+| `isActive` | `boolean` | وضعیت فعال/غیرفعال بودن در سیستم |
+| `isPrimary` | `boolean` | آیا سورس مرجع پیش‌فرض برای این دارایی است؟ |
 
 ---
 
-## ۳. افزودن سورس جدید به سیستم
+## ۲. مثال‌های کاربردی افزودن سورس
 
-### مثال ۱: افزودن سورس جدید از طریق API عمومی
-اگر می‌خواهید قیمت بیت‌کوین یا نقره را از یک وب‌سرویس جدید دریافت کنید، کافی است به انتهای آرایه `PRICE_SOURCES_CONFIG` در `sources.config.js` اضافه کنید:
-
+### مثال ۱: افزودن سورس تک‌نرخی از طریق API عمومی
 ```javascript
 {
   id: "src_my_silver_api",
-  name: "نقره جهانی (سورس پشتیبان)",
+  name: "نقره جهانی (سورس کمکی)",
   priceType: "ons_silver",
   sourceType: "api_url",
+  category: "silver",
+  badge: "نقره",
+  unit: "اونس",
   endpoint: "https://api.example.com/silver",
   jsonPath: "data.rate",
   fetchIntervalSec: 120,
@@ -66,13 +56,16 @@
 }
 ```
 
-### مثال ۲: افزودن کانال تلگرامی جدید
+### مثال ۲: افزودن کانال تلگرامی جدید برای طلا یا ارز
 ```javascript
 {
   id: "src_tg_tala_channel",
-  name: "طلای ۱۸ عیار (کانال پشتیبان)",
+  name: "طلای ۱۸ عیار (کانال تستی)",
   priceType: "gold_18k",
   sourceType: "telegram",
+  category: "gold",
+  badge: "طلا",
+  unit: "گرم",
   endpoint: "my_gold_channel",
   regex: "طلای ۱۸ عیار[\\s\\S]*?([\\d,]+)",
   fetchIntervalSec: 60,
@@ -81,39 +74,72 @@
 }
 ```
 
-### مثال ۳: سورس چندمقداری (Multi-Output) با مشخص کردن اقلام صفحه اصلی
-برای سورس‌هایی که خروجی چند آیتمی دارند (مانند فارکس، رمزارزها، بورس و...)، می‌توانید اقلام مشخصی را برای نمایش در صفحه اصلی تعیین کنید:
-
+### مثال ۳: افزودن فید کاتالوگی صندوق‌های سرمایه‌گذاری یا طرح‌ها (Multi-Item Catalog)
+برای افزودن یک فید تجمیعی جدید (مانند صندوق‌های کارگزاری فارابی یا طرح‌های سرمایه‌گذاری جدید):
 ```javascript
 {
-  id: "src_def_forex",
-  name: "نرخ‌های جهانی فارکس (Open ER-API)",
-  priceType: "forex",
-  sourceType: "forex_api",
-  endpoint: "https://open.er-api.com/v6/latest/USD",
-  jsonPath: "rates",
-  displayConfig: {
-    showOnHomePage: true,
-    // لیست دقیق نمادهایی که می‌خواهید در صفحه اصلی (لیست ارزها) نمایش داده شوند:
-    homePageOutputs: ["EUR", "AED", "TRY", "GBP", "CHF", "CAD", "AUD", "CNY", "JPY"],
-  },
-  fetchIntervalSec: 300,
+  id: "src_def_farabi_funds",
+  name: "صندوق‌های سرمایه‌گذاری فارابی (Farabi)",
+  priceType: "farabi_funds",
+  sourceType: "api_url",
+  category: "bourse_fund",       // به صورت خودکار زیر «صندوق‌های سرمایه‌گذاری» در پورتفو قرار می‌گیرد
+  badge: "صندوق",
+  unit: "واحد",
+  isFund: true,
+  isCatalog: true,
+  endpoint: "https://api.irfarabi.com/v1/funds",
+  jsonPath: "data",
+  fetchIntervalSec: 1800,
   isActive: true,
   isPrimary: true,
+  customParser: (data, sourceConfig) => {
+    const rawList = Array.isArray(data) ? data : (data?.data || []);
+    return {
+      isCatalog: true,
+      totalCount: rawList.length,
+      items: rawList.map(item => ({
+        symbol: item.symbol,
+        name: item.title || item.name,
+        priceToman: Number(item.nav),
+        priceRial: Number(item.nav) * 10,
+        unit: "واحد",
+        isFund: true,
+        category: "bourse_fund",
+        badge: "صندوق",
+      })),
+      compactList: rawList,
+      sampleItems: rawList.slice(0, 50),
+      datetime: new Date().toISOString(),
+    };
+  },
 }
 ```
-> [!TIP]
-> اگر `homePageOutputs` تعیین نشود و `showOnHomePage: true` باشد، کلیه اقلام فید مجاز خواهند بود. در صورت تعیین آرایه، تنها نمادهای موجود در این آرایه در صفحه اول قرار می‌گیرند و سایر اقلام برای تبدیل ارز و پورتفوی فعال باقی می‌مانند.
 
 ---
 
-## ۴. راستی‌آزمایی و تست سورس
+## ۳. چرخه حیات داده و نحوه مصرف خودکار در سیستم
 
-1. **اجرای تست‌های واحد:**
+وقتی یک سورس در `sources.config.js` تعریف می‌شود:
+1. **سرویس کاتالوگ ([catalogFeeds.service.js](file:///Users/sina/Projects/realrate/api/src/services/market/catalogFeeds.service.js)):**
+   مقادیر `category`، `badge` و `unit` را مستقیماً از فیلدهای همان آبجکت استخراج کرده و به دارایی‌ها نسبت می‌دهد.
+2. **ثبت و تشخیص در پورتفو ([registry.js](file:///Users/sina/Projects/realrate/api/src/domain/specs/registry.js)):**
+   تابع `getSourceCategoryConfig` به صورت خودکار پیشوند شناسه دارایی (مثلاً `farabi_funds__...`) را با شناسه سورس مطابقت داده و دسته‌بندی تعریف‌شده در کانفیگ (مثلاً `bourse_fund`) را بدون هیچ شروط هاردکد شده اعمال می‌کند.
+3. **جستجوی سراسری ([UniversalAssetSearch.jsx](file:///Users/sina/Projects/realrate/web/src/components/UniversalAssetSearch.jsx)):**
+   فیلترهای دسته‌بندی و بج‌های رنگی را مستقیماً بر اساس متادیتای سورس نمایش می‌دهد.
+4. **پنل مدیریت سورس‌ها (`/admin`):**
+   سورس بلافاصله در جدول فیدها قرار گرفته و امکان تست نرخ زنده یا فعال/غیرفعال کردن آن در دسترس است.
+
+---
+
+## ۴. راستی‌آزمایی سورس جدید
+
+1. **اجرای تست‌های پروژه:**
    ```bash
    npm test
    ```
-2. **تست و مشاهده در پنل مدیریت (`/admin`):**
-   - به تب **«سورس‌های قیمت»** بروید.
-   - سورس تعریف‌شده در کد به‌صورت خودکار در جدول ظاهر می‌شود.
-   - با کلیک روی دکمه **«بروزرسانی نرخ»**، صحت اتصال و نرخ استخراج‌شده را به‌صورت زنده مشاهده کنید.
+2. **بررسی بیلد فرانت‌اند:**
+   ```bash
+   cd web && npm run build
+   ```
+3. **بررسی در پنل مدیریت:**
+   در مسیر `/admin` به تب «سورس‌های قیمت» مراجعه کرده و با کلیک روی «بروزرسانی نرخ»، دریافت درست داده‌ها را بررسی کنید.
