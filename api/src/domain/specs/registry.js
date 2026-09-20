@@ -209,6 +209,8 @@ export function resolveItemCategory(item) {
     assetType === 'emofid_funds' ||
     assetType === 'charisma_fund' ||
     assetType === 'charisma_funds' ||
+    assetType === 'charisma_plan' ||
+    assetType === 'charisma_plans' ||
     assetType === 'fund' ||
     cleanId.startsWith('fund_') ||
     cleanId.startsWith('emofid_') ||
@@ -226,6 +228,8 @@ export function resolveItemCategory(item) {
     assetType === 'emofid_funds' ||
     assetType === 'charisma_fund' ||
     assetType === 'charisma_funds' ||
+    assetType === 'charisma_plan' ||
+    assetType === 'charisma_plans' ||
     assetType === 'fund' ||
     Boolean(item.isFund) ||
     Boolean(item.raw?.isFund) ||

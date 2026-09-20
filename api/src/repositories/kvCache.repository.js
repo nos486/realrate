@@ -365,3 +365,63 @@ export async function setCharismaLastSync(env, timestamp, ttlSeconds = 86400) {
   }
 }
 
+/* ─────────────────────────────────────────────────────────────
+ * Charisma Investment Plans KV
+ * ───────────────────────────────────────────────────────────── */
+
+export const CHARISMA_PLANS_KV_KEY = "charisma_plans_v1";
+export const CHARISMA_PLANS_BACKUP_KV_KEY = "charisma_plans_backup_v1";
+export const CHARISMA_PLANS_LAST_SYNC_KEY = "charisma_plans_last_sync_v1";
+
+export async function getCharismaPlansCache(env) {
+  const kv = getKv(env);
+  if (!kv) return { cached: null, backup: null };
+  try {
+    const cached = await kv.get(CHARISMA_PLANS_KV_KEY);
+    let backup = null;
+    if (!cached) {
+      backup = await kv.get(CHARISMA_PLANS_BACKUP_KV_KEY);
+    }
+    return { cached, backup };
+  } catch (e) {
+    logger.error("Error reading charisma plans KV:", { error: e.message });
+    return { cached: null, backup: null };
+  }
+}
+
+export async function setCharismaPlansCache(env, compactJson, alsoBackup = true) {
+  const kv = getKv(env);
+  if (!kv) return;
+  try {
+    await kv.put(CHARISMA_PLANS_KV_KEY, compactJson);
+    if (alsoBackup) {
+      await kv.put(CHARISMA_PLANS_BACKUP_KV_KEY, compactJson).catch(() => {});
+    }
+  } catch (e) {
+    logger.error("Error saving charisma plans in KV:", { error: e.message });
+  }
+}
+
+export async function getCharismaPlansLastSync(env) {
+  const kv = getKv(env);
+  if (!kv) return null;
+  try {
+    return await kv.get(CHARISMA_PLANS_LAST_SYNC_KEY);
+  } catch {
+    return null;
+  }
+}
+
+export async function setCharismaPlansLastSync(env, timestamp, ttlSeconds = 86400) {
+  const kv = getKv(env);
+  if (!kv) return;
+  try {
+    await kv.put(CHARISMA_PLANS_LAST_SYNC_KEY, String(timestamp), {
+      expirationTtl: ttlSeconds,
+    });
+  } catch (e) {
+    logger.error("Error saving charisma plans last sync to KV:", { error: e.message });
+  }
+}
+
+

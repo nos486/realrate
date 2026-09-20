@@ -31,6 +31,7 @@ export const CANONICAL_PRICE_TYPE_INFO = {
   bourse_fund: { label: 'صندوق‌های سرمایه‌گذاری بورس', category: 'multi_output', unit: 'صندوق', badgeColor: 'cyan' },
   emofid_funds: { label: 'صندوق‌های سرمایه‌گذاری مفید (Emofid)', category: 'multi_output', unit: 'صندوق', badgeColor: 'cyan' },
   charisma_funds: { label: 'صندوق‌های سرمایه‌گذاری کاریزما (Charisma)', category: 'multi_output', unit: 'صندوق', badgeColor: 'purple' },
+  charisma_plans: { label: 'طرح‌های سرمایه‌گذاری کاریزما (Charisma Plans)', category: 'multi_output', unit: 'طرح', badgeColor: 'amber' },
   custom_feed: { label: 'فید چند خروجی / کاتالوگ سفارشی', category: 'multi_output', unit: 'آیتم', badgeColor: 'blue' },
 };
 
@@ -110,6 +111,9 @@ export function formatNum(num, priceType = 'usd', unit = '') {
   if (priceType === 'bourse_fund') {
     return `${Number(num).toLocaleString('fa-IR')} صندوق`;
   }
+  if (priceType === 'charisma_plans') {
+    return `${Number(num).toLocaleString('fa-IR')} طرح`;
+  }
   if (priceType === 'bourse') {
     return `${Number(num).toLocaleString('fa-IR')} نماد`;
   }
@@ -132,6 +136,7 @@ export function getPriceUnit(priceType) {
   if (t.includes('ons')) return 'دلار';
   if (t === 'crypto') return 'تتر';
   if (t === 'bourse_fund') return 'صندوق';
+  if (t === 'charisma_plans') return 'طرح';
   if (t === 'bourse') return 'نماد';
   if (t === 'forex') return 'ارز';
   return 'تومان';

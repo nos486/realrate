@@ -7,6 +7,7 @@ import { forexApiSourceAdapter } from "./forexApi.source.adapter.js";
 import { bourseSymbolsSourceAdapter } from "./bourseSymbols.source.adapter.js";
 import { emofidFundsSourceAdapter } from "./emofidFunds.source.adapter.js";
 import { charismaFundsSourceAdapter } from "./charismaFunds.source.adapter.js";
+import { charismaPlansSourceAdapter } from "./charismaPlans.source.adapter.js";
 import { apiUrlSourceAdapter } from "./apiUrl.source.adapter.js";
 
 export {
@@ -15,6 +16,7 @@ export {
   bourseSymbolsSourceAdapter,
   emofidFundsSourceAdapter,
   charismaFundsSourceAdapter,
+  charismaPlansSourceAdapter,
   apiUrlSourceAdapter,
 };
 
@@ -28,6 +30,7 @@ export const sourceAdapters = [
   bourseSymbolsSourceAdapter,
   emofidFundsSourceAdapter,
   charismaFundsSourceAdapter,
+  charismaPlansSourceAdapter,
   telegramSourceAdapter,
   apiUrlSourceAdapter,
 ];
