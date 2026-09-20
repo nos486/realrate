@@ -8,7 +8,6 @@
 import { mergeBourseSymbols } from "../services/market/sources/bourseSymbols.source.adapter.js";
 import { mergeEmofidFunds } from "../services/market/sources/emofidFunds.source.adapter.js";
 import { mergeCharismaFunds } from "../services/market/sources/charismaFunds.source.adapter.js";
-import { mergeCharismaPlans } from "../services/market/sources/charismaPlans.source.adapter.js";
 
 export const PRICE_SOURCES_CONFIG = [
   // ── Single Output Feeds (Currencies, Gold, Coins, Ounces) ───────────
@@ -288,39 +287,6 @@ export const PRICE_SOURCES_CONFIG = [
     customParser: (data, sourceConfig) => {
       const rawList = Array.isArray(data) ? data : (data?.funds || data?.data || []);
       const { mergedList } = mergeCharismaFunds([], rawList, new Date().toISOString(), sourceConfig);
-      return {
-        isCatalog: true,
-        totalCount: mergedList.length,
-        items: mergedList,
-        compactList: mergedList,
-        sampleItems: mergedList.slice(0, 50),
-        datetime: new Date().toISOString(),
-      };
-    },
-  },
-  {
-    id: "src_def_charisma_plans",
-    name: "طرح‌های سرمایه‌گذاری کاریزما (Charisma Plans)",
-    priceType: "charisma_plans",
-    sourceType: "charisma_plans",
-    isCatalog: true,
-    endpoint: "https://webapi.charisma.ir/api/Plan/plans",
-    regex: "",
-    jsonPath: "",
-    fieldMapping: null,
-    excludedOutputs: [],
-    displayConfig: { showOnHomePage: false },
-    knownSymbols: [
-      "gold", "silver", "copper", "stocks-index", "real-estate", "fixed-income", "fixedincome-mega-sood",
-      "طرح طلا", "طرح نقره", "طرح مس", "طرح استاکس", "طرح ملک", "طرح درآمد ثابت", "طرح مگاسود",
-      "طلا", "نقره", "مس", "استاکس", "ملک", "درآمد ثابت", "مگاسود"
-    ],
-    fetchIntervalSec: 1800,
-    isActive: true,
-    isPrimary: true,
-    customParser: (data, sourceConfig) => {
-      const rawList = Array.isArray(data) ? data : (data?.plans || data?.data || []);
-      const { mergedList } = mergeCharismaPlans([], rawList, new Date().toISOString(), sourceConfig);
       return {
         isCatalog: true,
         totalCount: mergedList.length,

@@ -234,7 +234,6 @@ export function extractMultiItems(src) {
     } else if (Array.isArray(multi.sampleItems)) rawList = multi.sampleItems;
     else if (Array.isArray(multi.compactList)) rawList = multi.compactList;
     else if (Array.isArray(multi.items)) rawList = multi.items;
-    else if (Array.isArray(multi.plans)) rawList = multi.plans;
     else if (Array.isArray(multi.funds)) rawList = multi.funds;
     else if (Array.isArray(multi.symbols)) rawList = multi.symbols;
     else if (Array.isArray(multi.data)) rawList = multi.data;
