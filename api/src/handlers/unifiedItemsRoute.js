@@ -30,10 +30,10 @@ export async function handleGetUnifiedMarketItems(env, request) {
       getAllCatalogItems(env, { q, limit }),
     ]);
 
-    const gold_usd = prices.ons_gold?.price || globalSettings?.default_gold_usd || 2890;
-    const silver_usd = prices.ons_silver?.price || 33.5;
+    const gold_usd = prices.ons_gold?.price || globalSettings?.default_gold_usd || 0;
+    const silver_usd = prices.ons_silver?.price || 0;
     const live_usd_item = prices.usd_toman || prices.usd || null;
-    const live_usd_toman = live_usd_item ? live_usd_item.price : (globalSettings?.default_usd_toman || 62000);
+    const live_usd_toman = live_usd_item ? live_usd_item.price : (globalSettings?.default_usd_toman || 0);
 
     // Helper to resolve bubble percentage setting
     const getBubblePct = (id, fallback) => {

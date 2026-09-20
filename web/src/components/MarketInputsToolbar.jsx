@@ -67,7 +67,7 @@ export default function MarketInputsToolbar({
         </div>
         <NumericInput
           id="usdToman"
-          placeholder="مثلاً ۶۵,۰۰۰"
+          placeholder="—"
           value={usdToman}
           onValueChange={setUsdToman}
           onChange={(e) => setUsdToman(e.target.value)}
@@ -89,7 +89,7 @@ export default function MarketInputsToolbar({
         </div>
         <NumericInput
           id="goldUsd"
-          placeholder="2,890"
+          placeholder="—"
           value={goldUsd}
           onValueChange={setGoldUsd}
           onChange={(e) => setGoldUsd(e.target.value)}

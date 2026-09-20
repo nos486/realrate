@@ -45,11 +45,11 @@ export function PricingProvider({ children, initialUsdToman = null, initialGoldU
     return getReferenceRatesSpecs().map((spec) => {
       let price = 0;
       if (spec.key === 'usd') {
-        price = Number(marketItems?.meta?.live_usd_toman || marketItems?.meta?.default_usd_toman || 231500);
+        price = Number(marketItems?.meta?.live_usd_toman || marketItems?.meta?.default_usd_toman || 0);
       } else {
         const candidate = marketItems?.currencies?.find((c) => String(c.code).toUpperCase() === spec.key.toUpperCase())
           || marketItems?.goldAndCoins?.find((c) => String(c.symbol).toUpperCase() === spec.key.toUpperCase());
-        price = Number(candidate?.priceToman || candidate?.price || candidate?.marketPrice || 233205);
+        price = Number(candidate?.priceToman || candidate?.price || candidate?.marketPrice || 0);
       }
       return {
         ...spec,

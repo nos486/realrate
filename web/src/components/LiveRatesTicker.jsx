@@ -65,6 +65,9 @@ export default function LiveRatesTicker({
     ? usdPrice
     : (activeReferenceRate?.price || 0);
 
+  const numPrice = parseFloat(toEnglishDigits(String(displayPrice || '')).replace(/[,،٬\s]/g, ''));
+  const hasPrice = !isNaN(numPrice) && numPrice > 0;
+
   const handleTriggerClick = () => {
     if (canSelect) {
       setIsOpen((prev) => !prev);
@@ -105,8 +108,14 @@ export default function LiveRatesTicker({
         </span>
 
         <span className="ticker-value-group">
-          <strong className="ticker-amount">{formatRate(displayPrice)}</strong>
-          <span className="ticker-unit">تومان</span>
+          {hasPrice ? (
+            <>
+              <strong className="ticker-amount">{formatRate(displayPrice)}</strong>
+              <span className="ticker-unit">تومان</span>
+            </>
+          ) : (
+            <strong className="ticker-amount ticker-loading">...</strong>
+          )}
 
           {canSelect && (
             <span
@@ -165,7 +174,7 @@ export default function LiveRatesTicker({
 
                 <div className="ticker-option-right">
                   <strong className="ticker-option-price">
-                    {rateFormattedPrice} <span className="ticker-option-unit">تومان</span>
+                    {rateFormattedPrice} {Number(rate.price) > 0 && <span className="ticker-option-unit">تومان</span>}
                   </strong>
                   {isSelected && (
                     <Check size={14} className="ticker-option-check" />

@@ -67,7 +67,7 @@ export function useMarketData() {
           const matchedRef = availableRefs.find((r) => r.key === storedKey) || availableRefs[0];
 
           const usd = matchedRef?.price || data.live_usd_toman || data.prices?.usd_toman?.price || data.prices?.usd?.price || data.globalSettings?.default_usd_toman || '';
-          const gold = data.gold_usd || data.prices?.ons_gold?.price || data.globalSettings?.default_gold_usd || 2890;
+          const gold = data.gold_usd || data.prices?.ons_gold?.price || data.globalSettings?.default_gold_usd || '';
           setUsdToman(usd ? formatThousands(Math.round(usd), false) : '');
           setGoldUsd(gold ? formatThousands(gold, true) : '');
           if (pricing?.setUsdToman && usd) pricing.setUsdToman(Math.round(usd));
@@ -133,8 +133,8 @@ export function useMarketData() {
     return getReferenceRatesSpecs().map((spec) => ({
       ...spec,
       price: spec.key === 'usd'
-        ? Number(rates?.live_usd_toman || rates?.prices?.usd_toman?.price || 231500)
-        : Number(rates?.prices?.[spec.key]?.price || rates?.prices?.[spec.priceType?.toLowerCase()]?.price || 233205),
+        ? Number(rates?.live_usd_toman || rates?.prices?.usd_toman?.price || 0)
+        : Number(rates?.prices?.[spec.key]?.price || rates?.prices?.[spec.priceType?.toLowerCase()]?.price || 0),
     }));
   }, [rates?.reference_rates, rates?.live_usd_toman, rates?.prices, pricing?.referenceRates]);
 
