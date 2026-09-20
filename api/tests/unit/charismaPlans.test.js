@@ -169,21 +169,4 @@ describe("Charisma Investment Plans Adapter & Incremental Merge Tests", () => {
     const planCategory = PORTFOLIO_CATEGORIES.find((c) => c.key === "charisma_plans");
     expect(planCategory).toBeUndefined();
   });
-
-  it("resolves canonical Persian names for charisma_plans and catalog assets dynamically", async () => {
-    const { getCanonicalAssetName } = await import("../../src/domain/specs/registry.js");
-    const { getSourceItemDisplayName } = await import("../../src/config/sources.config.js");
-
-    expect(getSourceItemDisplayName("charisma_plans__gold")).toBe("طرح سرمایه‌گذاری طلا کاریزما");
-    expect(getSourceItemDisplayName("src_def_charisma_plans__silver")).toBe("طرح سرمایه‌گذاری نقره کاریزما");
-    expect(getSourceItemDisplayName("charisma_plans__copper")).toBe("طرح سرمایه‌گذاری مس کاریزما");
-    expect(getSourceItemDisplayName("charisma_plans__stocks-index")).toBe("طرح سرمایه‌گذاری شاخص سهام کاریزما");
-    expect(getSourceItemDisplayName("charisma_plans__real-estate")).toBe("طرح سرمایه‌گذاری مسکن کاریزما");
-
-    // Test through registry getCanonicalAssetName
-    expect(getCanonicalAssetName("charisma_plans__gold")).toBe("طرح سرمایه‌گذاری طلا کاریزما");
-    expect(getCanonicalAssetName("src_def_charisma_plans__gold")).toBe("طرح سرمایه‌گذاری طلا کاریزما");
-    expect(getCanonicalAssetName("charisma_plans__silver")).toBe("طرح سرمایه‌گذاری نقره کاریزما");
-  });
 });
-

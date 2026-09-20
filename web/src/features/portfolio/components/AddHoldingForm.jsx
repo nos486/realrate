@@ -7,9 +7,9 @@ import ShamsiDatePicker from './ShamsiDatePicker.jsx';
 import { parseInputNumber } from '../utils/holdingHelpers.js';
 import {
   getCanonicalAssetSpec,
-  getCanonicalAssetName,
-  getCanonicalAssetUnit,
   resolveItemCategory,
+  resolveAssetDisplayName,
+  resolveAssetUnit,
 } from '../../../utils/financialSpecs.js';
 import { usePricing } from '../../market/index.js';
 
@@ -46,10 +46,15 @@ export default function AddHoldingForm({
       setBuyDate(editingHolding.buyDate || '');
       setNotes(editingHolding.notes || '');
 
-      const rawAssetName = editingHolding.assetName || editingHolding.name || '';
-      setCustomName(rawAssetName);
-      setCustomUnit(editingHolding.unit || 'واحد');
-      setCustomCurrentPrice(editingHolding.customPrice ? String(editingHolding.customPrice) : '');
+      if (editingHolding.category === 'custom' || editingHolding.assetType === 'custom') {
+        setCustomName(editingHolding.assetName || editingHolding.name || '');
+        setCustomUnit(editingHolding.unit || 'واحد');
+        setCustomCurrentPrice(editingHolding.customPrice ? String(editingHolding.customPrice) : '');
+      } else {
+        setCustomName('');
+        setCustomUnit('واحد');
+        setCustomCurrentPrice('');
+      }
 
       if (
         editingHolding.assetType === 'bourse' ||
@@ -122,10 +127,11 @@ export default function AddHoldingForm({
         setCustomCurrentPrice(String(Math.round(rawItem.price)));
       }
     } else {
+      // Canonical assets (gold, coin, forex) AND catalog items (charisma_plans__gold, ...)
       setSelectedAssetId(resolvedId);
       setSelectedBourseSymbol(null);
-      setCustomName(canonicalSpec?.name || getCanonicalAssetName(resolvedId) || rawItem.name || '');
-      setCustomUnit(canonicalSpec?.unit || getCanonicalAssetUnit(resolvedId) || rawItem.unit || 'واحد');
+      setCustomName(resolveAssetDisplayName(resolvedId, rawItem));
+      setCustomUnit(resolveAssetUnit(resolvedId, rawItem));
       const p = rawItem.priceToman || (rawItem.priceRial ? Math.round(rawItem.priceRial / 10) : rawItem.price || '');
       if (p > 0) {
         setCustomCurrentPrice(String(Math.round(p)));
@@ -201,12 +207,12 @@ export default function AddHoldingForm({
     } else if (selectedBourseSymbol || selectedAssetId.startsWith('bourse_')) {
       const sym = selectedBourseSymbol?.symbol || selectedAssetId.replace('bourse_', '');
       finalAssetId = `bourse_${sym}`;
-      finalAssetName = customName.trim() || selectedBourseSymbol?.name || sym;
+      finalAssetName = selectedBourseSymbol?.name || sym;
       finalAssetType = selectedBourseSymbol?.isFund ? 'bourse_fund' : 'bourse';
       finalUnit = selectedBourseSymbol?.isFund ? 'واحد' : 'برگ سهم';
     } else {
       finalAssetType = resolveItemCategory(selectedAssetId);
-      finalAssetName = customName.trim() || getCanonicalAssetName(selectedAssetId) || selectedAssetId;
+      finalAssetName = getCanonicalAssetName(selectedAssetId) || customName;
       finalUnit = getCanonicalAssetUnit(selectedAssetId) || customUnit || 'واحد';
     }
 
@@ -240,11 +246,11 @@ export default function AddHoldingForm({
 
   const selectedAssetTitle = isModalBourse
     ? (selectedBourseSymbol?.symbol ? `${selectedBourseSymbol.symbol} (${selectedBourseSymbol.name || 'سهام بورس'})` : customName || 'سهام بورس')
-    : (isModalCustom ? (customName || 'دارایی شخصی') : (getCanonicalAssetName(cleanSelectedId) || customName || selectedAssetId || 'انتخاب نشده'));
+    : (isModalCustom ? (customName || 'دارایی شخصی') : (resolveAssetDisplayName(cleanSelectedId, null) || customName || selectedAssetId || 'انتخاب نشده'));
 
   const unitLabel = isModalBourse
-    ? (isModalFund ? 'واحد' : 'برگ سهم')
-    : (isModalCustom ? (customUnit || 'واحد') : (getCanonicalAssetUnit(cleanSelectedId) || 'واحد'));
+    ? (isModalFund ? 'واحد' : 'برگ سهام')
+    : (isModalCustom ? (customUnit || 'واحد') : (resolveAssetUnit(cleanSelectedId, null) || 'واحد'));
 
   return (
     <Modal
@@ -382,8 +388,8 @@ export default function AddHoldingForm({
         </div>
       )}
 
-      {/* Custom Asset Specific Fields or Custom Display Title */}
-      {isModalCustom ? (
+      {/* Custom Asset Specific Fields */}
+      {isModalCustom && (
         <div className="form-row-dual">
           <div className="form-item flex-1">
             <label>نام دارایی شخصی</label>
@@ -407,22 +413,6 @@ export default function AddHoldingForm({
               required
             />
           </div>
-        </div>
-      ) : (
-        <div className="form-item">
-          <label>
-            عنوان نمایشی در پورتفو
-            <span style={{ fontSize: '0.82em', opacity: 0.7, marginRight: '6px' }}>
-              (اختیاری — پیش‌فرض: {getCanonicalAssetName(cleanSelectedId) || selectedAssetTitle})
-            </span>
-          </label>
-          <input
-            type="text"
-            placeholder={getCanonicalAssetName(cleanSelectedId) || selectedAssetTitle}
-            value={customName}
-            onChange={(e) => setCustomName(e.target.value)}
-            className="form-input"
-          />
         </div>
       )}
 

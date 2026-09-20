@@ -15,11 +15,7 @@ export const PRICE_SOURCES_CONFIG = [
   {
     id: "src_def_usd",
     name: "دلار تهران سبزه میدان",
-    assetName: "دلار آمریکا",
     priceType: "usd",
-    category: "currency",
-    unit: "تومان",
-    badge: "ارز",
     sourceType: "telegram",
     endpoint: "tahran_sabza",
     regex: "",
@@ -40,11 +36,7 @@ export const PRICE_SOURCES_CONFIG = [
   {
     id: "src_def_gold_18k",
     name: "طلا ۱۸ عیار (زرما)",
-    assetName: "طلا ۱۸ عیار",
     priceType: "gold_18k",
-    category: "gold",
-    unit: "گرم",
-    badge: "طلا",
     sourceType: "telegram",
     endpoint: "zarmagoldd",
     regex: "",
@@ -59,11 +51,7 @@ export const PRICE_SOURCES_CONFIG = [
   {
     id: "src_def_full_coin",
     name: "سکه تمام بهار آزادی (زرما)",
-    assetName: "تمام سکه بهار آزادی (امامی)",
     priceType: "full_coin",
-    category: "coin",
-    unit: "تمام سکه",
-    badge: "سکه",
     sourceType: "telegram",
     endpoint: "zarmagoldd",
     regex: "",
@@ -78,11 +66,7 @@ export const PRICE_SOURCES_CONFIG = [
   {
     id: "src_def_half_coin",
     name: "نیم سکه بهار آزادی (زرما)",
-    assetName: "نیم سکه بهار آزادی",
     priceType: "half_coin",
-    category: "coin",
-    unit: "نیم سکه",
-    badge: "سکه",
     sourceType: "telegram",
     endpoint: "zarmagoldd",
     regex: "",
@@ -97,11 +81,7 @@ export const PRICE_SOURCES_CONFIG = [
   {
     id: "src_def_quarter_coin",
     name: "ربع سکه بهار آزادی (زرما)",
-    assetName: "ربع سکه بهار آزادی",
     priceType: "quarter_coin",
-    category: "coin",
-    unit: "ربع سکه",
-    badge: "سکه",
     sourceType: "telegram",
     endpoint: "zarmagoldd",
     regex: "",
@@ -116,11 +96,7 @@ export const PRICE_SOURCES_CONFIG = [
   {
     id: "src_def_mesghal",
     name: "مثقال طلا ۱۷ عیار (زرما)",
-    assetName: "مثقال طلا (مظنه)",
     priceType: "mesghal",
-    category: "gold",
-    unit: "مثقال",
-    badge: "طلا",
     sourceType: "telegram",
     endpoint: "zarmagoldd",
     regex: "",
@@ -135,11 +111,7 @@ export const PRICE_SOURCES_CONFIG = [
   {
     id: "src_def_ons_gold",
     name: "انس طلا جهانی (XAU)",
-    assetName: "انس طلای جهانی",
     priceType: "ons_gold",
-    category: "gold",
-    unit: "انس",
-    badge: "انس",
     sourceType: "api_url",
     endpoint: "https://api.gold-api.com/price/XAU",
     regex: "",
@@ -154,11 +126,7 @@ export const PRICE_SOURCES_CONFIG = [
   {
     id: "src_def_ons_silver",
     name: "انس نقره جهانی (XAG)",
-    assetName: "انس نقره جهانی",
     priceType: "ons_silver",
-    category: "silver",
-    unit: "انس",
-    badge: "نقره",
     sourceType: "api_url",
     endpoint: "https://api.gold-api.com/price/XAG",
     regex: "",
@@ -174,11 +142,7 @@ export const PRICE_SOURCES_CONFIG = [
   {
     id: "src_brs_usdt",
     name: "دلار تتر",
-    assetName: "دلار تتر",
     priceType: "USDT",
-    category: "crypto",
-    unit: "تتر",
-    badge: "تتر",
     sourceType: "api_url",
     endpoint: "https://api.brsapi.ir/Market/Gold_Currency.php?key=${BRS_API_KEY}",
     regex: "",
@@ -295,16 +259,6 @@ export const PRICE_SOURCES_CONFIG = [
     knownSymbols: [
       "عیار", "پیشتاز", "پیشرو", "امید", "پیشواز", "آتیه", "حامی", "نامی"
     ],
-    knownItemNames: {
-      "عیار": "صندوق طلای عیار مفید",
-      "پیشتاز": "صندوق پیشتاز مفید",
-      "پیشرو": "صندوق پیشرو مفید",
-      "امید": "صندوق امید توسعه مفید",
-      "پیشواز": "صندوق پیشواز مفید",
-      "آتیه": "صندوق آتیه درخشان مفید",
-      "حامی": "صندوق حامی مفید",
-      "نامی": "صندوق نامی مفید",
-    },
     fetchIntervalSec: 1800,
     isActive: true,
     isPrimary: true,
@@ -340,14 +294,6 @@ export const PRICE_SOURCES_CONFIG = [
     knownSymbols: [
       "اهرم", "کهربا", "نقران", "کارا", "متال", "کمند", "کاخ", "کاریس", "مزه", "سیمانا", "ضمان", "صنم", "هم‌تراز", "روشن", "ثابت", "تضمین", "دولتی", "نیکوکاری", "کاریز", "کمان", "مختلط"
     ],
-    knownItemNames: {
-      "اهرم": "صندوق اهرم کاریزما",
-      "کهربا": "صندوق طلای کهربا کاریزما",
-      "نقران": "صندوق نقره نقران کاریزما",
-      "کارا": "صندوق کارا کاریزما",
-      "متال": "صندوق متال کاریزما",
-      "کمند": "صندوق کمند کاریزما",
-    },
     fetchIntervalSec: 1800,
     isActive: true,
     isPrimary: true,
@@ -384,14 +330,12 @@ export const PRICE_SOURCES_CONFIG = [
       "GOLD", "SILVER", "COPPER", "STOCKS_INDEX", "REAL_ESTATE",
       "طلا", "نقره", "مس", "استاکس", "ملک"
     ],
-    knownItemNames: {
-      gold: "طرح سرمایه‌گذاری طلا کاریزما",
-      silver: "طرح سرمایه‌گذاری نقره کاریزما",
-      copper: "طرح سرمایه‌گذاری مس کاریزما",
-      "stocks-index": "طرح سرمایه‌گذاری شاخص سهام کاریزما",
-      stocks_index: "طرح سرمایه‌گذاری شاخص سهام کاریزما",
-      "real-estate": "طرح سرمایه‌گذاری مسکن کاریزما",
-      real_estate: "طرح سرمایه‌گذاری مسکن کاریزما",
+    knownItems: {
+      gold:            { name: 'طرح طلا',          unit: 'واحد', badge: 'طرح' },
+      silver:          { name: 'طرح نقره',         unit: 'واحد', badge: 'طرح' },
+      copper:          { name: 'طرح مس',           unit: 'واحد', badge: 'طرح' },
+      'stocks-index':  { name: 'طرح شاخص سهام',   unit: 'واحد', badge: 'طرح' },
+      'real-estate':   { name: 'طرح ملک',          unit: 'واحد', badge: 'طرح' },
     },
     fetchIntervalSec: 1800,
     isActive: true,
@@ -585,34 +529,15 @@ export function getSourceCategoryConfig(sourceIdOrAssetId) {
   if (direct) return direct;
 
   // 2. Prefixed match (e.g. "charisma_plans__gold" or "emofid__ayyar" or "charisma_funds__...")
-  // Exact double-underscore prefix match takes precedence over single underscore
   for (const s of PRICE_SOURCES_CONFIG) {
     if (!s) continue;
     const sCleanId = String(s.id || '').replace(/^src_def_/, '').toLowerCase().trim();
     const sPType = String(s.priceType || '').toLowerCase().trim();
-    if (clean.startsWith(`${sCleanId}__`) || (sPType && clean.startsWith(`${sPType}__`))) {
+    if (clean.startsWith(`${sCleanId}__`) || clean.startsWith(`${sCleanId}_`)) {
       return s;
     }
-  }
-
-  // 3. Match by knownSymbols (e.g. "bourse_عیار" or "عیار" or "bourse_اهرم")
-  const symCandidate = clean.startsWith('bourse_') ? clean.replace('bourse_', '').trim() : clean;
-  for (const s of PRICE_SOURCES_CONFIG) {
-    if (!s || !Array.isArray(s.knownSymbols)) continue;
-    if (s.knownSymbols.some((sym) => String(sym).trim().toLowerCase() === symCandidate)) {
+    if (sPType && (clean.startsWith(`${sPType}__`) || clean.startsWith(`${sPType}_`))) {
       return s;
-    }
-  }
-
-  // 4. Fallback to single underscore match only when no double underscore exists
-  if (!clean.includes('__')) {
-    for (const s of PRICE_SOURCES_CONFIG) {
-      if (!s) continue;
-      const sCleanId = String(s.id || '').replace(/^src_def_/, '').toLowerCase().trim();
-      const sPType = String(s.priceType || '').toLowerCase().trim();
-      if (clean.startsWith(`${sCleanId}_`) || (sPType && clean.startsWith(`${sPType}_`))) {
-        return s;
-      }
     }
   }
 
@@ -620,51 +545,40 @@ export function getSourceCategoryConfig(sourceIdOrAssetId) {
 }
 
 /**
- * Resolves a human-friendly Persian display name for a catalog or partitioned asset ID (e.g. "charisma_plans__gold" -> "طرح سرمایه‌گذاری طلا کاریزما").
- * Reads metadata dynamically from sources.config.js without any hardcoded mappings.
+ * Resolves the display metadata (name, unit, badge) for a catalog item
+ * using the knownItems map declared on each source in PRICE_SOURCES_CONFIG.
  *
- * @param {string} sourceIdOrAssetId
- * @returns {string|null}
+ * Example: 'charisma_plans__gold' → { name: 'طرح طلا', unit: 'واحد', badge: 'طرح' }
+ * Example: 'emofid__ayyar'        → (future) { name: 'صندوق عیار', unit: 'واحد', badge: 'صندوق' }
+ *
+ * @param {string} assetId  - e.g. 'charisma_plans__gold'
+ * @returns {{ name: string, unit: string, badge: string }|null}
  */
-export function getSourceItemDisplayName(sourceIdOrAssetId) {
-  if (!sourceIdOrAssetId || typeof sourceIdOrAssetId !== 'string') return null;
-  const srcConfig = getSourceCategoryConfig(sourceIdOrAssetId);
-  if (!srcConfig) return null;
+export function getSourceItemDisplayName(assetId) {
+  if (!assetId || typeof assetId !== 'string') return null;
 
-  const clean = sourceIdOrAssetId.replace(/^src_def_/, '').replace(/^derived_/, '');
-  const parts = clean.split('__');
-  let subKey = parts.length > 1 ? parts.slice(1).join('__').trim() : clean.trim();
-  if (subKey.startsWith('bourse_')) {
-    subKey = subKey.replace('bourse_', '').trim();
-  }
-  const subKeyLower = subKey.toLowerCase();
+  const cleanFull = assetId.replace(/^src_def_/, '').replace(/^derived_/, '').trim();
 
-  // 1. Direct match in knownItemNames
-  if (srcConfig.knownItemNames) {
-    if (srcConfig.knownItemNames[subKey]) return srcConfig.knownItemNames[subKey];
-    if (srcConfig.knownItemNames[subKeyLower]) return srcConfig.knownItemNames[subKeyLower];
-    const subKeyUnder = subKeyLower.replace(/-/g, '_');
-    if (srcConfig.knownItemNames[subKeyUnder]) return srcConfig.knownItemNames[subKeyUnder];
-    const subKeyHyphen = subKeyLower.replace(/_/g, '-');
-    if (srcConfig.knownItemNames[subKeyHyphen]) return srcConfig.knownItemNames[subKeyHyphen];
-  }
+  for (const src of PRICE_SOURCES_CONFIG) {
+    if (!src || !src.knownItems) continue;
 
-  // 2. Direct source definition assetName (e.g. gold_18k -> "طلای ۱۸ عیار", usd -> "دلار آمریکا")
-  if (srcConfig.assetName) {
-    const sCleanId = String(srcConfig.id || '').replace(/^src_def_/, '').toLowerCase().trim();
-    const sPType = String(srcConfig.priceType || '').toLowerCase().trim();
-    const cleanLower = clean.toLowerCase();
-    if (cleanLower === sCleanId || cleanLower === sPType) {
-      return srcConfig.assetName;
+    const sId = String(src.id || '').replace(/^src_def_/, '').toLowerCase().trim();
+    const sPType = String(src.priceType || '').toLowerCase().trim();
+    const cleanLower = cleanFull.toLowerCase();
+
+    // Match prefix: 'charisma_plans__gold' → prefix 'charisma_plans', suffix 'gold'
+    let suffix = null;
+    if (sId && cleanLower.startsWith(`${sId}__`)) {
+      suffix = cleanFull.slice(`${sId}__`.length);
+    } else if (sPType && cleanLower.startsWith(`${sPType}__`)) {
+      suffix = cleanFull.slice(`${sPType}__`.length);
     }
-  }
 
-  // 3. If subKey is already Persian
-  if (/[آ-ی]/.test(subKey)) {
-    if (srcConfig.isFund && !subKey.includes('صندوق') && !subKey.includes('طرح')) {
-      return `صندوق ${subKey}`;
-    }
-    return subKey;
+    if (!suffix) continue;
+
+    // Try exact match first, then lowercase
+    const item = src.knownItems[suffix] || src.knownItems[suffix.toLowerCase()];
+    if (item) return item;
   }
 
   return null;

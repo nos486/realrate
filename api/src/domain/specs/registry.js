@@ -130,18 +130,84 @@ export function getCanonicalAssetSpec(assetId) {
  * @returns {string}
  */
 export function getCanonicalAssetName(assetId, fallbackName = '') {
-  if (!assetId) return fallbackName || '';
   const spec = getCanonicalAssetSpec(assetId);
   if (spec && spec.name) return spec.name;
-
-  // Dynamic data-driven lookup from sources.config.js (Single Source of Truth)
-  const sourceItemName = getSourceItemDisplayName(assetId);
-  if (sourceItemName) return sourceItemName;
-
-  const srcConfig = getSourceCategoryConfig(assetId);
-  if (srcConfig && srcConfig.assetName) return srcConfig.assetName;
-
   return fallbackName || assetId || '';
+}
+
+/**
+ * Unified display name resolver — single pipeline for ALL asset types.
+ *
+ * Priority:
+ *  1. rawItem.assetName / rawItem.name — if set and not an ID-like string
+ *  2. CANONICAL_ASSET_REGISTRY        — gold, coin, silver, forex, crypto
+ *  3. Source knownItems (catalog)      — charisma_plans__gold, emofid__ayyar, ...
+ *  4. bourse_SYMBOL                   — use rawItem.name or construct from symbol
+ *  5. Raw ID                          — last resort
+ *
+ * @param {string} assetId
+ * @param {object|null} rawItem  - optional holding/asset object for extra context
+ * @returns {string}
+ */
+export function resolveAssetDisplayName(assetId, rawItem = null) {
+  if (!assetId) return '';
+
+  const clean = String(assetId).replace(/^src_def_/, '').replace(/^derived_/, '').trim();
+
+  // 1. If rawItem has a meaningful Persian name (not ID-like)
+  if (rawItem) {
+    const rawName = String(rawItem.assetName || rawItem.name || '').trim();
+    const isIdLike = !rawName ||
+      rawName.startsWith('src_def_') ||
+      rawName.startsWith('derived_') ||
+      rawName === assetId ||
+      rawName === clean ||
+      rawName.includes('__');
+    if (!isIdLike) return rawName;
+  }
+
+  // 2. CANONICAL_ASSET_REGISTRY (gold, coin, silver, forex, crypto)
+  const spec = getCanonicalAssetSpec(clean);
+  if (spec&&spec.name) return spec.name;
+
+  // 3. Source catalog knownItems (e.g. charisma_plans__gold → 'طرح طلا')
+  const srcItem = getSourceItemDisplayName(clean);
+  if (srcItem&&srcItem.name) return srcItem.name;
+
+  // 4. bourse_SYMBOL → use assetName from rawItem or construct label
+  if (clean.startsWith('bourse_')) {
+    const sym = clean.replace(/^bourse_/, '');
+    if (rawItem) {
+      const n = String(rawItem.assetName || rawItem.name || '').trim();
+      if (n && !n.startsWith('bourse_') && n !== assetId) return n;
+      const isFund = rawItem.isFund || rawItem.assetType === 'bourse_fund' || rawItem.category === 'bourse_fund';
+      return isFund ? `صندوق ${sym}` : `سهام ${sym}`;
+    }
+    return sym;
+  }
+
+  // 5. Fall back to clean ID
+  return clean || assetId;
+}
+
+/**
+ * Unified unit resolver — consistent with resolveAssetDisplayName priority.
+ * @param {string} assetId
+ * @param {object|null} rawItem
+ * @param {string} fallbackUnit
+ * @returns {string}
+ */
+export function resolveAssetUnit(assetId, rawItem = null, fallbackUnit = 'واحد') {
+  const clean = String(assetId || '').replace(/^src_def_/, '').replace(/^derived_/, '').trim();
+
+  const spec = getCanonicalAssetSpec(clean);
+  if (spec&&spec.unit) return spec.unit;
+
+  const srcItem = getSourceItemDisplayName(clean);
+  if (srcItem&&srcItem.unit) return srcItem.unit;
+
+  if (rawItem&&rawItem.unit) return rawItem.unit;
+  return fallbackUnit;
 }
 
 /**
@@ -153,10 +219,6 @@ export function getCanonicalAssetName(assetId, fallbackName = '') {
 export function getCanonicalAssetUnit(assetId, fallbackUnit = 'واحد') {
   const spec = getCanonicalAssetSpec(assetId);
   if (spec && spec.unit) return spec.unit;
-
-  const srcConfig = getSourceCategoryConfig(assetId);
-  if (srcConfig && srcConfig.unit) return srcConfig.unit;
-
   return fallbackUnit;
 }
 
@@ -169,11 +231,6 @@ export function getCanonicalAssetUnit(assetId, fallbackUnit = 'واحد') {
 export function getCanonicalAssetCategory(assetId, fallbackCategory = 'custom') {
   const spec = getCanonicalAssetSpec(assetId);
   if (spec && spec.category) return spec.category;
-
-  const srcConfig = getSourceCategoryConfig(assetId);
-  if (srcConfig && srcConfig.category) return srcConfig.category;
-  if (srcConfig && srcConfig.isFund) return 'bourse_fund';
-
   return fallbackCategory;
 }
 
@@ -186,10 +243,6 @@ export function getCanonicalAssetCategory(assetId, fallbackCategory = 'custom') 
 export function getCanonicalAssetBadge(assetId, fallbackBadge = '') {
   const spec = getCanonicalAssetSpec(assetId);
   if (spec && spec.badge) return spec.badge;
-
-  const srcConfig = getSourceCategoryConfig(assetId);
-  if (srcConfig && srcConfig.badge) return srcConfig.badge;
-
   return fallbackBadge;
 }
 
@@ -204,6 +257,7 @@ export function resolveItemCategory(item, fallbackType = null) {
     const clean = item.replace(/^src_def_/, '').replace(/^derived_/, '').trim();
     const spec = getCanonicalAssetSpec(clean);
     if (spec && spec.category) return spec.category;
+    if (clean.startsWith('bourse_')) return 'bourse';
 
     // Dynamic data-driven lookup from sources.config.js (Single Source of Truth)
     const srcConfig = getSourceCategoryConfig(clean);
@@ -211,8 +265,6 @@ export function resolveItemCategory(item, fallbackType = null) {
       if (srcConfig.category) return srcConfig.category;
       if (srcConfig.isFund) return 'bourse_fund';
     }
-
-    if (clean.startsWith('bourse_')) return 'bourse';
 
     if (clean.startsWith('custom_') || clean === 'custom') return 'custom';
     if (fallbackType && ['gold', 'coin', 'silver', 'currency', 'crypto', 'bourse', 'bourse_fund'].includes(fallbackType)) {

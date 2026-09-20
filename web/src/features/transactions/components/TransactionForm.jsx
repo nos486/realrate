@@ -17,9 +17,9 @@ import ShamsiDatePicker, { getTodayShamsi } from '../../portfolio/components/Sha
 import { parseInputNumber } from '../../portfolio/utils/holdingHelpers.js';
 import {
   getCanonicalAssetSpec,
-  getCanonicalAssetName,
-  getCanonicalAssetUnit,
   resolveItemCategory,
+  resolveAssetDisplayName,
+  resolveAssetUnit,
 } from '../../../utils/financialSpecs.js';
 
 export default function TransactionForm({
@@ -48,7 +48,7 @@ export default function TransactionForm({
 
     if (editingTransaction) {
       setAssetId(editingTransaction.assetId || 'gold_18k');
-      setAssetName(editingTransaction.assetName || getCanonicalAssetName(editingTransaction.assetId) || 'دارایی');
+      setAssetName(editingTransaction.assetName || resolveAssetDisplayName(editingTransaction.assetId) || 'دارایی');
       setAssetType(editingTransaction.assetType || 'custom');
       setUnit(editingTransaction.unit || 'واحد');
       setTransactionType(editingTransaction.transactionType || 'buy');
@@ -107,12 +107,14 @@ export default function TransactionForm({
       setAssetType('custom');
       setUnit(rawItem.unit || 'واحد');
     } else {
-      setAssetId(canonicalSpec?.id || cleanId || rawId);
-      setAssetName(canonicalSpec?.name || getCanonicalAssetName(resolvedId) || rawItem.name || 'دارایی');
+      // Canonical assets (gold, coin, forex) AND catalog items (charisma_plans__gold, ...)
+      const displayId = canonicalSpec?.id || cleanId || rawId;
+      setAssetId(displayId);
+      setAssetName(resolveAssetDisplayName(displayId, rawItem));
       setAssetType(resolvedCat);
-      setUnit(canonicalSpec?.unit || getCanonicalAssetUnit(resolvedId) || 'واحد');
+      setUnit(resolveAssetUnit(displayId, rawItem));
 
-      const liveP = realPriceMap?.[cleanAssetId(resolvedId)] || realPriceMap?.[resolvedId] || rawItem.priceToman || rawItem.price || 0;
+      const liveP = realPriceMap?.[cleanAssetId(displayId)] || realPriceMap?.[displayId] || rawItem.priceToman || rawItem.price || 0;
       if (!unitPrice && liveP > 0) {
         setUnitPrice(String(liveP));
       }

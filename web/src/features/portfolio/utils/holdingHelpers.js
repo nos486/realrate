@@ -16,9 +16,11 @@ import {
   PORTFOLIO_CATEGORIES,
   resolveHoldingUnitRealPrice,
   normalizePersianText,
+  resolveAssetDisplayName,
+  resolveAssetUnit,
 } from '../../../utils/financialSpecs.js';
 
-export { resolveHoldingUnitRealPrice, normalizePersianText };
+export { resolveHoldingUnitRealPrice, normalizePersianText, resolveAssetDisplayName, resolveAssetUnit };
 
 export const CATEGORY_DEFINITIONS = PORTFOLIO_CATEGORIES;
 
@@ -60,20 +62,20 @@ export function normalizeHolding(h) {
   );
 
   const cleanId = assetId.replace(/^src_def_/, '').replace(/^derived_/, '');
-  const cleanName = assetName.replace(/^src_def_/, '').replace(/^derived_/, '').trim();
 
   const resolvedCategory = resolveItemCategory(h);
 
-  // 1. Bourse Stocks & Funds Checks
+  // 1. Bourse Stocks & Funds
   if (resolvedCategory === 'bourse' || resolvedCategory === 'bourse_fund') {
     const isFund = resolvedCategory === 'bourse_fund';
+    const displayName = resolveAssetDisplayName(assetId, h);
     if (!unit || unit === 'واحد' || unit === 'گرم' || unit === 'عدد' || unit === 'تومان') {
-      unit = isFund ? 'واحد' : 'برگ سهم';
+      unit = isFund ? 'واحد' : 'برگ سهام';
     }
     return {
       ...h,
       assetId,
-      assetName,
+      assetName: displayName,
       assetType: resolvedCategory,
       category: resolvedCategory,
       unit,
@@ -83,12 +85,12 @@ export function normalizeHolding(h) {
     };
   }
 
-  // 2. Custom personal asset checks
+  // 2. Custom personal asset
   if (resolvedCategory === 'custom') {
     return {
       ...h,
       assetId: assetId.startsWith('custom_') ? assetId : (cleanId === 'custom' ? `custom_${Date.now()}` : assetId),
-      assetName: cleanName || 'دارایی شخصی',
+      assetName: assetName && !assetName.includes('__') ? assetName : ('دارایی شخصی'),
       assetType: 'custom',
       category: 'custom',
       unit: unit || 'واحد',
@@ -97,15 +99,16 @@ export function normalizeHolding(h) {
     };
   }
 
-  // 3. Canonical standard assets (Gold, Coins, Silver, Forex, Crypto)
-  const canonicalSpec = getCanonicalAssetSpec(cleanId || assetId);
+  // 3. Canonical standard assets (Gold, Coins, Silver, Forex, Crypto) + catalog items
+  const displayName = resolveAssetDisplayName(assetId, h);
+  const resolvedUnit = resolveAssetUnit(assetId, h, unit || 'واحد');
   return {
     ...h,
-    assetId: canonicalSpec?.id || cleanId || assetId,
-    assetName: canonicalSpec?.name || cleanName,
+    assetId: cleanId || assetId,
+    assetName: displayName,
     assetType: resolvedCategory,
     category: resolvedCategory,
-    unit: canonicalSpec?.unit || unit || 'واحد',
+    unit: resolvedUnit,
     currentPrice,
     customPrice,
   };
@@ -138,38 +141,9 @@ export function CategoryIcon({ category, size = 18, className = '', style = {} }
 export function formatAssetName(item) {
   if (!item) return '';
   const assetId = item.assetId || (typeof item === 'string' ? item : null);
-  const raw = typeof item === 'string' ? item : (item.assetName || item.name || '');
-
-  const cleanId = assetId ? assetId.replace(/^src_def_/, '').replace(/^derived_/, '') : null;
-  const isTechnicalId = !raw ||
-    raw === assetId ||
-    raw === cleanId ||
-    raw.startsWith('src_def_') ||
-    raw.startsWith('derived_') ||
-    raw.startsWith('bourse_') ||
-    raw.includes('__');
-
-  // 1. If user provided a genuine custom name that is not a technical ID and not identical to cleanId, respect it!
-  if (!isTechnicalId && raw && raw !== cleanId && raw !== assetId) {
-    return raw.replace(/\s*\([^)]*\)/g, '').trim() || raw;
+  if (!assetId) {
+    const raw = item.assetName || item.name || '';
+    return raw.replace(/\s*\([^)]*\)/g, '').trim() || raw || 'دارایی';
   }
-
-  // 2. Canonical / Source configured official name
-  const canonicalName = getCanonicalAssetName(cleanId || assetId);
-  if (canonicalName && canonicalName !== cleanId && canonicalName !== assetId) {
-    return canonicalName;
-  }
-
-  // 3. Fallback for Bourse symbols
-  if (assetId?.startsWith('bourse_')) {
-    const sym = assetId.replace('bourse_', '');
-    const isFund = item.isFund || item.assetType === 'bourse_fund' || item.assetName?.includes('صندوق');
-    return isFund ? `صندوق ${sym}` : `سهام ${sym}`;
-  }
-
-  if (raw && !raw.startsWith('src_def_') && !raw.includes('__')) {
-    return raw.replace(/\s*\([^)]*\)/g, '').trim() || raw;
-  }
-  return canonicalName || raw || 'دارایی';
+  return resolveAssetDisplayName(assetId, item) || 'دارایی';
 }
-
