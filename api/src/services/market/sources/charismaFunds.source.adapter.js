@@ -443,10 +443,9 @@ export const charismaFundsSourceAdapter = {
       }
     }
 
-    // Auto on-demand fetch if empty
-    const syncRes = await fetchAndStoreCharismaFunds(env);
-    if (syncRes.success && Array.isArray(syncRes.funds) && syncRes.funds.length > 0) {
-      return syncRes.funds;
+    // If empty, trigger background sync without blocking the current read request
+    if (env) {
+      fetchAndStoreCharismaFunds(env).catch(() => {});
     }
     return inMemoryCharismaList || [];
   },

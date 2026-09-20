@@ -368,10 +368,9 @@ export const emofidFundsSourceAdapter = {
         } catch {}
       }
     }
-    // Auto on-demand fetch if empty
-    const syncRes = await fetchAndStoreEmofidFunds(env);
-    if (syncRes.success && Array.isArray(syncRes.funds) && syncRes.funds.length > 0) {
-      return syncRes.funds;
+    // If empty, trigger background sync without blocking the current read request
+    if (env) {
+      fetchAndStoreEmofidFunds(env).catch(() => {});
     }
     return inMemoryEmofidList || [];
   },

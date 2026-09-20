@@ -704,12 +704,15 @@ export const charismaPlansSourceAdapter = {
       }
     }
 
-    // Auto on-demand fetch if empty
-    const syncRes = await fetchAndStoreCharismaPlans(env);
-    if (syncRes.success && Array.isArray(syncRes.plans) && syncRes.plans.length > 0) {
-      return syncRes.plans;
+    // Return default seed immediately so user request is never blocked by slow external network
+    inMemoryCharismaPlansList = DEFAULT_CHARISMA_PLANS_SEED;
+
+    // Trigger asynchronous background sync if env is present
+    if (env) {
+      fetchAndStoreCharismaPlans(env).catch(() => {});
     }
-    return inMemoryCharismaPlansList || DEFAULT_CHARISMA_PLANS_SEED;
+
+    return DEFAULT_CHARISMA_PLANS_SEED;
   },
 
   async getItems(env = null) {
