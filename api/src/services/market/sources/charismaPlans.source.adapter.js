@@ -19,11 +19,11 @@ export const CHARISMA_PLANS_WEBHOOK_URL = "https://n8n.geekio.ir/webhook/3889960
 let inMemoryCharismaPlansList = null;
 
 export const KNOWN_CHARISMA_PLAN_SYMBOLS = {
-  gold: "GOLD",
-  silver: "SILVER",
-  copper: "COPPER",
-  "stocks-index": "STOCKS_INDEX",
-  "real-estate": "REAL_ESTATE",
+  gold: "gold",
+  silver: "silver",
+  copper: "copper",
+  "stocks-index": "stocks-index",
+  "real-estate": "real-estate",
 };
 
 /**
@@ -305,7 +305,7 @@ export const charismaPlansSourceAdapter = {
           priceType: "charisma_plans",
           name: sourceConfig?.name || "طرح‌های سرمایه‌گذاری کاریزما (Charisma Plans)",
           lastMultiData: multiDataObj,
-        }).catch(() => {});
+        }).catch(() => { });
       } catch (err) {
         logger.warn("Error caching charisma plans in KV:", { error: err.message });
       }
@@ -366,7 +366,7 @@ export const charismaPlansSourceAdapter = {
             message: `تعداد ${cached.length} طرح کاریزما از کش فعال سامانه بازخوانی شد.`,
           };
         }
-      } catch {}
+      } catch { }
       return { success: false, error: e.message || "خطا در تست وب‌سرویس طرح‌های کاریزما" };
     }
   },

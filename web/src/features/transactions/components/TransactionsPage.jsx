@@ -30,6 +30,7 @@ import { useComputedHoldings } from '../hooks/useComputedHoldings.js';
 import TransactionForm from './TransactionForm.jsx';
 import PortfolioSwitcher from '../../portfolio/components/PortfolioSwitcher.jsx';
 import VaultLockCard from '../../portfolio/components/VaultLockCard.jsx';
+import { usePricing } from '../../market/index.js';
 import { CategoryIcon, formatAssetName, formatNum } from '../../portfolio/utils/holdingHelpers.js';
 import {
   deriveE2eeKey,
@@ -44,6 +45,7 @@ export default function TransactionsPage({
   goldUsd = null,
   initialPortfolioId = null,
 }) {
+  const pricing = usePricing();
   const {
     portfolios,
     activePortfolioId,
@@ -59,7 +61,7 @@ export default function TransactionsPage({
   const [vaultUnlockError, setVaultUnlockError] = useState('');
   const [unlockingVault, setUnlockingVault] = useState(false);
 
-  // Transactions Hook
+  // Transactions Hook for active portfolio
   const {
     transactions,
     loadingTransactions,
@@ -74,17 +76,20 @@ export default function TransactionsPage({
   // Price map
   const realPriceMap = useMemo(() => {
     const map = {};
+    if (pricing?.priceMap) {
+      Object.assign(map, pricing.priceMap);
+    }
     if (calcData?.analysis && Array.isArray(calcData.analysis)) {
       calcData.analysis.forEach((item) => {
         const val = item.market || item.expected_price || item.intrinsic;
-        if (val > 0) {
+        if (val > 0 && !map[item.id]) {
           map[item.id] = Math.round(val);
           map[`src_def_${item.id}`] = Math.round(val);
         }
       });
     }
     return map;
-  }, [calcData]);
+  }, [pricing?.priceMap, calcData]);
 
   // Computed Holdings (for checking balances on sell)
   const { computedHoldings } = useComputedHoldings(transactions, realPriceMap);

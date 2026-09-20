@@ -5,12 +5,14 @@ import { calculateMarketData } from '../utils/calculator.js';
 import { computeUnifiedPrices } from '../utils/pricingEngine.js';
 import Header from '../components/Header.jsx';
 import AlertBanner from '../components/ui/AlertBanner.jsx';
+import { usePricing } from '../features/market/index.js';
 import {
   HoldingsTable,
   CategoryIcon,
   CATEGORY_DEFINITIONS,
   formatAssetName,
   normalizeHolding,
+  resolveHoldingUnitRealPrice,
   VaultLockCard,
 } from '../features/portfolio/index.js';
 import {
@@ -44,6 +46,7 @@ function formatNum(num) {
 
 export default function SharedPortfolioPage() {
   const { slug } = useParams();
+  const pricing = usePricing();
 
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -186,15 +189,25 @@ export default function SharedPortfolioPage() {
 
   // Accurate Real Values & Metrics calculation via Canonical Pricing Engine
   const realPriceMap = useMemo(() => {
-    if (!marketRates && !calcData) return {};
-    const { priceMap } = computeUnifiedPrices({
-      marketItems: calcData || marketRates,
-      usdToman: marketRates?.live_usd_toman || calcData?.inputs?.usd_toman,
-      goldUsd: marketRates?.gold_usd || calcData?.inputs?.gold_usd,
-      silverUsd: marketRates?.silver_usd || calcData?.silver?.silver_usd,
-    });
-    return priceMap || {};
-  }, [marketRates, calcData]);
+    const map = {};
+    if (pricing?.priceMap) {
+      Object.assign(map, pricing.priceMap);
+    }
+    if (marketRates || calcData) {
+      const { priceMap } = computeUnifiedPrices({
+        marketItems: calcData || marketRates,
+        usdToman: marketRates?.live_usd_toman || calcData?.inputs?.usd_toman,
+        goldUsd: marketRates?.gold_usd || calcData?.inputs?.gold_usd,
+        silverUsd: marketRates?.silver_usd || calcData?.silver?.silver_usd,
+      });
+      if (priceMap) {
+        Object.entries(priceMap).forEach(([k, v]) => {
+          if (!map[k] && v > 0) map[k] = v;
+        });
+      }
+    }
+    return map;
+  }, [pricing?.priceMap, marketRates, calcData]);
 
   const portfolioMetrics = useMemo(() => {
     if (!portfolioData?.holdings) {
@@ -215,9 +228,11 @@ export default function SharedPortfolioPage() {
       const hasBuyPrice = buyPriceNum > 0;
       const isCustomItem = h.assetType === 'custom' || h.assetId?.startsWith('custom_');
 
-      const unitRealPrice = isCustomItem
-        ? (Number(h.currentPrice) || (hasBuyPrice ? buyPriceNum : 0))
-        : (realPriceMap[h.assetId] || (hasBuyPrice ? buyPriceNum : 0));
+      const unitRealPrice = resolveHoldingUnitRealPrice(h, realPriceMap, {}, {
+        usdToman: pricing?.usdToman || marketRates?.live_usd_toman || calcData?.inputs?.usd_toman,
+        goldUsd: pricing?.goldUsd || marketRates?.gold_usd || calcData?.inputs?.gold_usd,
+        silverUsd: pricing?.silverUsd || marketRates?.silver_usd || calcData?.silver?.silver_usd,
+      });
 
       const itemCost = hasBuyPrice ? amountNum * buyPriceNum : 0;
       const itemRealVal = amountNum * unitRealPrice;

@@ -8,6 +8,7 @@ import {
   calculateSilver925,
   calculateSilverOunce,
   calculateBubble,
+  resolveHoldingUnitRealPrice,
 } from '../../src/domain/formulas.js';
 import { GOLD_SPECS } from '../../src/domain/specs/gold.spec.js';
 import { COIN_SPECS } from '../../src/domain/specs/coin.spec.js';
@@ -144,4 +145,90 @@ describe('Financial Formulas Unit Tests', () => {
       expect(calculateBubble(null, null)).toEqual({ bubble: null, bubblePct: null });
     });
   });
+
+  describe('resolveHoldingUnitRealPrice', () => {
+    const priceMap = {
+      gold_18k: 4500000,
+      full_coin: 48000000,
+      usd: 65000,
+      ons_gold: 2700,
+      ons_gold_toman: 175500000,
+      src_def_charisma_plans__gold: 32242244,
+      charisma_plans__gold: 32242244,
+      src_def_emofid__ayyar: 24500,
+      emofid__ayyar: 24500,
+      bourse_فولاد: 520,
+      فولاد: 520,
+    };
+
+    it('correctly resolves Charisma Plan price (charisma_plans__gold)', () => {
+      const holding = {
+        assetId: 'charisma_plans__gold',
+        assetName: 'طرح سرمایه گذاری در طلا',
+        assetType: 'bourse_fund',
+        buyPrice: 30000000,
+      };
+      const price = resolveHoldingUnitRealPrice(holding, priceMap);
+      expect(price).toBe(32242244);
+    });
+
+    it('correctly resolves Charisma Plan price when assetId has src_def_ prefix', () => {
+      const holding = {
+        assetId: 'src_def_charisma_plans__gold',
+        assetName: 'طرح طلا',
+        assetType: 'bourse_fund',
+      };
+      const price = resolveHoldingUnitRealPrice(holding, priceMap);
+      expect(price).toBe(32242244);
+    });
+
+    it('correctly resolves Emofid fund price', () => {
+      const holding = {
+        assetId: 'emofid__ayyar',
+        assetName: 'صندوق طلای عیار مفید',
+        assetType: 'bourse_fund',
+      };
+      const price = resolveHoldingUnitRealPrice(holding, priceMap);
+      expect(price).toBe(24500);
+    });
+
+    it('correctly resolves Bourse stock price from priceMap or boursePricesMap', () => {
+      const holding = {
+        assetId: 'bourse_فولاد',
+        assetName: 'فولاد مبارکه',
+        assetType: 'bourse',
+      };
+      expect(resolveHoldingUnitRealPrice(holding, priceMap)).toBe(520);
+      expect(resolveHoldingUnitRealPrice(holding, {}, { فولاد: 530 })).toBe(530);
+    });
+
+    it('correctly converts gold ounce to Tomans', () => {
+      const holding = {
+        assetId: 'ons_gold',
+        assetName: 'انس جهانی طلا',
+        unit: 'اونس',
+      };
+      expect(resolveHoldingUnitRealPrice(holding, priceMap, {}, { usdToman: 65000, goldUsd: 2700 })).toBe(175500000);
+    });
+
+    it('uses customPrice / currentPrice for custom personal assets', () => {
+      const customHolding = {
+        assetId: 'custom_12345',
+        assetName: 'زمین دماوند',
+        assetType: 'custom',
+        customPrice: 500000000,
+        buyPrice: 400000000,
+      };
+      expect(resolveHoldingUnitRealPrice(customHolding, priceMap)).toBe(500000000);
+    });
+
+    it('falls back to buyPrice when market price is not in any map', () => {
+      const unknownHolding = {
+        assetId: 'unknown_asset',
+        buyPrice: 150000,
+      };
+      expect(resolveHoldingUnitRealPrice(unknownHolding, priceMap)).toBe(150000);
+    });
+  });
 });
+

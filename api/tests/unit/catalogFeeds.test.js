@@ -9,6 +9,7 @@ import {
 import {
   BOURSE_KV_KEY,
   CHARISMA_FUNDS_KV_KEY,
+  CHARISMA_PLANS_KV_KEY,
   EMOFID_FUNDS_KV_KEY,
 } from '../../src/repositories/kvCache.repository.js';
 
@@ -90,6 +91,11 @@ describe('Unified Catalog Feeds Service Tests', () => {
               { symbol: 'پیشتاز', name: 'صندوق پیشتاز مفید', priceToman: 20417, isFund: true },
             ]);
           }
+          if (key === CHARISMA_PLANS_KV_KEY) {
+            return JSON.stringify([
+              { symbol: 'gold', name: 'طرح سرمایه گذاری در طلا', priceToman: 32242244, isFund: true },
+            ]);
+          }
           if (key === BOURSE_KV_KEY) {
             return JSON.stringify([
               { s: 'فولاد', n: 'فولاد مبارکه', p: 520, isFund: false },
@@ -129,6 +135,11 @@ describe('Unified Catalog Feeds Service Tests', () => {
               { symbol: 'نقران', name: 'صندوق نقره کاریزما', priceToman: 1223, isFund: true },
             ]);
           }
+          if (key === CHARISMA_PLANS_KV_KEY) {
+            return JSON.stringify([
+              { symbol: 'gold', name: 'طرح سرمایه گذاری در طلا', priceToman: 32242244, isFund: true },
+            ]);
+          }
           if (key === BOURSE_KV_KEY) {
             return JSON.stringify([
               { s: 'فولاد', n: 'فولاد مبارکه', p: 520, isFund: false },
@@ -139,6 +150,7 @@ describe('Unified Catalog Feeds Service Tests', () => {
           }
           return null;
         }),
+        put: vi.fn(async () => {}),
       },
     };
 

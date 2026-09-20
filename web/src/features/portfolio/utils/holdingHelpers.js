@@ -14,7 +14,11 @@ import {
   getCanonicalAssetName,
   resolveItemCategory,
   PORTFOLIO_CATEGORIES,
+  resolveHoldingUnitRealPrice,
+  normalizePersianText,
 } from '../../../utils/financialSpecs.js';
+
+export { resolveHoldingUnitRealPrice, normalizePersianText };
 
 export const CATEGORY_DEFINITIONS = PORTFOLIO_CATEGORIES;
 
@@ -40,6 +44,20 @@ export function normalizeHolding(h) {
   let assetId = String(h.assetId || '').trim();
   let assetName = String(h.assetName || '').trim();
   let unit = String(h.unit || '').trim();
+  const currentPrice = Number(
+    h.currentPrice !== undefined && h.currentPrice !== null && h.currentPrice !== ''
+      ? h.currentPrice
+      : (h.customPrice !== undefined && h.customPrice !== null && h.customPrice !== ''
+        ? h.customPrice
+        : 0)
+  );
+  const customPrice = Number(
+    h.customPrice !== undefined && h.customPrice !== null && h.customPrice !== ''
+      ? h.customPrice
+      : (h.currentPrice !== undefined && h.currentPrice !== null && h.currentPrice !== ''
+        ? h.currentPrice
+        : 0)
+  );
 
   const cleanId = assetId.replace(/^src_def_/, '').replace(/^derived_/, '');
   const cleanName = assetName.replace(/^src_def_/, '').replace(/^derived_/, '').trim();
@@ -60,6 +78,8 @@ export function normalizeHolding(h) {
       category: resolvedCategory,
       unit,
       isFund,
+      currentPrice,
+      customPrice,
     };
   }
 
@@ -72,6 +92,8 @@ export function normalizeHolding(h) {
       assetType: 'custom',
       category: 'custom',
       unit: unit || 'واحد',
+      currentPrice,
+      customPrice,
     };
   }
 
@@ -84,6 +106,8 @@ export function normalizeHolding(h) {
     assetType: resolvedCategory,
     category: resolvedCategory,
     unit: canonicalSpec?.unit || unit || 'واحد',
+    currentPrice,
+    customPrice,
   };
 }
 

@@ -74,14 +74,29 @@ export function getStaticCatalogAssets(marketItems) {
       staticPriceMap[cleanId] = p;
       staticPriceMap[cleanId.toLowerCase()] = p;
       staticPriceMap[cleanId.toUpperCase()] = p;
+      staticPriceMap[`src_def_${cleanId}`] = p;
+      staticPriceMap[`src_def_${cleanId.toLowerCase()}`] = p;
+
+      if (cleanId.includes('__')) {
+        const parts = cleanId.split('__');
+        const suffix = parts[parts.length - 1];
+        if (suffix) {
+          staticPriceMap[suffix] = p;
+          staticPriceMap[suffix.toLowerCase()] = p;
+          staticPriceMap[suffix.toUpperCase()] = p;
+          staticPriceMap[`bourse_${suffix}`] = p;
+        }
+      }
     }
     if (f.symbol) {
       staticPriceMap[f.symbol] = p;
       staticPriceMap[f.symbol.toLowerCase()] = p;
       staticPriceMap[f.symbol.toUpperCase()] = p;
+      staticPriceMap[`bourse_${f.symbol}`] = p;
       const norm = normalizePersianText(f.symbol);
       if (norm) {
         staticPriceMap[norm] = p;
+        staticPriceMap[`bourse_${norm}`] = p;
         fundSymbolsSet.add(norm);
       }
     }
@@ -113,10 +128,17 @@ export function getStaticCatalogAssets(marketItems) {
 
     staticAssets.push(resolved);
     staticPriceMap[b.id] = p;
+    const cleanBId = String(b.id || '').replace(/^src_def_/, '').replace(/^derived_/, '');
+    if (cleanBId) {
+      staticPriceMap[cleanBId] = p;
+      staticPriceMap[`bourse_${cleanBId}`] = p;
+    }
     if (b.symbol) {
       staticPriceMap[b.symbol] = p;
+      staticPriceMap[`bourse_${b.symbol}`] = p;
       if (normSymbol) {
         staticPriceMap[normSymbol] = p;
+        staticPriceMap[`bourse_${normSymbol}`] = p;
       }
     }
   });
@@ -265,11 +287,19 @@ export function computeUnifiedPrices({
       priceMap['src_def_gold_ounce'] = effectivePrice;
       priceMap['XAU'] = effectivePrice;
       priceMap['xau'] = effectivePrice;
+      const tomanVal = usdVal > 0 ? Math.round(goldVal * usdVal) : 0;
+      priceMap['ons_gold_toman'] = tomanVal;
+      priceMap['gold_ounce_toman'] = tomanVal;
+      priceMap['xau_toman'] = tomanVal;
     } else if (item.id === 'ons_silver') {
       priceMap['silver_ounce'] = effectivePrice;
       priceMap['src_def_silver_ounce'] = effectivePrice;
       priceMap['XAG'] = effectivePrice;
       priceMap['xag'] = effectivePrice;
+      const tomanVal = usdVal > 0 ? Math.round(silverVal * usdVal) : 0;
+      priceMap['ons_silver_toman'] = tomanVal;
+      priceMap['silver_ounce_toman'] = tomanVal;
+      priceMap['xag_toman'] = tomanVal;
     }
   });
 

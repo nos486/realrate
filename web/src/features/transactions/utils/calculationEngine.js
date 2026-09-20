@@ -5,6 +5,8 @@
  * Implements Weighted Average Cost (WAC) and real-time PnL computation.
  */
 
+import { resolveHoldingUnitRealPrice, resolveItemCategory } from '../../../utils/financialSpecs.js';
+
 /**
  * Aggregate an array of decrypted transactions into net holdings with Weighted Average Cost.
  *
@@ -38,10 +40,11 @@ export function calculateComputedHoldings(transactions = [], livePriceMap = {}) 
     if (!assetId) continue;
 
     if (!groups.has(assetId)) {
+      const resolvedType = payload.assetType || payload.category || resolveItemCategory(payload);
       groups.set(assetId, {
         assetId,
         assetName: payload.assetName || payload.name || assetId,
-        assetType: payload.assetType || payload.category || 'custom',
+        assetType: resolvedType,
         unit: payload.unit || payload.currency || 'واحد',
         transactions: [],
       });
@@ -130,12 +133,17 @@ export function calculateComputedHoldings(transactions = [], livePriceMap = {}) 
     const weightedAveragePrice = totalBuyQty > 0 ? (totalBuyCost / totalBuyQty) : 0;
 
     // Resolve current market price
-    const cleanAssetId = assetId.replace(/^src_def_/, '').replace(/^derived_/, '');
-    const unitRealPrice =
-      Number(livePriceMap[cleanAssetId]) ||
-      Number(livePriceMap[assetId]) ||
-      Number(livePriceMap[`bourse_${cleanAssetId}`]) ||
-      (weightedAveragePrice > 0 ? weightedAveragePrice : 0);
+    const unitRealPrice = resolveHoldingUnitRealPrice(
+      {
+        assetId,
+        assetName: group.assetName,
+        assetType: group.assetType,
+        category: group.assetType,
+        unit: group.unit,
+        buyPrice: weightedAveragePrice,
+      },
+      livePriceMap
+    );
 
     const hasBuyPrice = weightedAveragePrice > 0;
     const itemCost = hasBuyPrice ? currentQty * weightedAveragePrice : 0;

@@ -39,6 +39,7 @@ import {
   formatAssetName,
   formatNum,
   parseInputNumber,
+  resolveHoldingUnitRealPrice,
   CATEGORY_DEFINITIONS,
 } from '../utils/holdingHelpers.js';
 
@@ -161,29 +162,10 @@ export default function PortfolioTracker({ rates, calcData, usdToman, goldUsd })
         h.assetType === 'bourse_fund' ||
         h.assetId?.startsWith('bourse_');
 
-      let symCode = isBourseItem
-        ? h.assetId?.startsWith('bourse_')
-          ? h.assetId.replace('bourse_', '')
-          : ''
-        : null;
-      if (isBourseItem && !symCode && h.assetName) {
-        const match = h.assetName.match(/(?:سهام|صندوق)?\s*([^\s()]+)/);
-        if (match && match[1]) symCode = match[1];
-      }
-      const normSym = symCode ? symCode.replace(/ي/g, 'ی').replace(/ك/g, 'ک').trim() : '';
-      const liveBoursePrice =
-        isBourseItem && symCode
-          ? boursePricesMap[symCode] || (normSym && boursePricesMap[normSym])
-          : null;
-
-      const unitRealPrice = isBourseItem
-        ? liveBoursePrice || Number(h.currentPrice) || (hasBuyPrice ? buyPriceNum : 0)
-        : isCustomItem
-          ? Number(h.currentPrice) || (hasBuyPrice ? buyPriceNum : 0)
-          : realPriceMap[cleanAssetId] ||
-          realPriceMap[h.assetId] ||
-          Number(h.currentPrice) ||
-          (hasBuyPrice ? buyPriceNum : 0);
+      const unitRealPrice = resolveHoldingUnitRealPrice(h, realPriceMap, boursePricesMap, {
+        usdToman: pricing?.usdToman || usdToman,
+        goldUsd: pricing?.goldUsd || goldUsd,
+      });
 
       const itemCost = hasBuyPrice ? amountNum * buyPriceNum : 0;
       const itemRealVal = amountNum * unitRealPrice;
