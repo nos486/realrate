@@ -272,6 +272,12 @@ export async function ensureD1Tables(env) {
         WHERE id = 'src_def_bourse'
       `).run().catch(() => {});
 
+      // Ensure Charisma Investment Plans source exists
+      await env.DB.prepare(`
+        INSERT OR IGNORE INTO price_sources (id, name, price_type, source_type, endpoint, regex, json_path, field_mapping, fetch_interval_sec, is_active, is_primary, last_price, last_multi_data, last_fetched, created_at, updated_at)
+        VALUES ('src_def_charisma_plans', 'طرح‌های سرمایه‌گذاری کاریزما (Charisma Plans)', 'charisma_plans', 'charisma_plans', 'https://webapi.charisma.ir/api/Plan/plans', '', '', '', 1800, 1, 1, 7, '', '', ?, ?)
+      `).bind(nowIso, nowIso).run().catch(() => {});
+
       // Sanitize any existing BRS endpoints in DB to strip sensitive query parameters
       await env.DB.prepare(`
         UPDATE price_sources

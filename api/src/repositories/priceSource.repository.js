@@ -8,9 +8,12 @@ import {
   setSourcePriceCache,
   deleteSourcePriceCache,
   getCharismaFundsCache,
+  getCharismaPlansCache,
+  setCharismaPlansCache,
   getEmofidFundsCache,
   getBourseSymbolsCache,
 } from "./kvCache.repository.js";
+import { DEFAULT_CHARISMA_PLANS_SEED } from "../services/market/sources/charismaPlans.source.adapter.js";
 import {
   getMasterPriceSourcesConfig,
   getMasterPriceSourceById,
@@ -101,6 +104,29 @@ async function hydrateCatalogSourceFromKv(src, env, lastPrice, lastFetched, last
             },
           };
         }
+      }
+    } else if (src.id === "src_def_charisma_plans" || src.priceType === "charisma_plans" || src.sourceType === "charisma_plans") {
+      const { cached, backup } = await getCharismaPlansCache(env);
+      const str = cached || backup;
+      let plans = null;
+      if (str) {
+        try { plans = JSON.parse(str); } catch {}
+      }
+      if (!Array.isArray(plans) || plans.length === 0) {
+        plans = DEFAULT_CHARISMA_PLANS_SEED;
+      }
+      if (Array.isArray(plans) && plans.length > 0) {
+        return {
+          lastPrice: plans.length,
+          lastFetched: lastFetched || plans[0]?.updatedAt || new Date().toISOString(),
+          lastMultiData: {
+            isCatalog: true,
+            totalCount: plans.length,
+            items: plans,
+            compactList: plans,
+            sampleItems: plans.slice(0, 50),
+          },
+        };
       }
     } else if (src.id === "src_def_bourse" || src.priceType === "bourse" || src.sourceType === "bourse_symbols") {
       const { cached, backup } = await getBourseSymbolsCache(env);
@@ -460,18 +486,40 @@ export async function dbUpdateSourceLastPrice(env, id, lastPrice, lastFetched = 
 
   if (env.DB) {
     try {
+      let updateResult;
       if (multiStr !== null) {
-        await env.DB.prepare(`
+        updateResult = await env.DB.prepare(`
           UPDATE price_sources
           SET last_price = ?, last_fetched = ?, last_multi_data = ?, updated_at = ?
           WHERE id = ?
         `).bind(priceNum, isoTime, multiStr, new Date().toISOString(), id).run();
       } else {
-        await env.DB.prepare(`
+        updateResult = await env.DB.prepare(`
           UPDATE price_sources
           SET last_price = ?, last_fetched = ?, updated_at = ?
           WHERE id = ?
         `).bind(priceNum, isoTime, new Date().toISOString(), id).run();
+      }
+
+      // If source row was not in D1 yet, insert it from master config
+      if (updateResult?.meta?.changes === 0) {
+        const master = getMasterPriceSourceById(id);
+        if (master) {
+          const fm = master.fieldMapping ? JSON.stringify(master.fieldMapping) : '';
+          const sType = master.sourceType === 'telegram' ? 'telegram' : 'api_url';
+          await env.DB.prepare(`
+            INSERT OR IGNORE INTO price_sources (
+              id, name, price_type, source_type, endpoint, regex, json_path, field_mapping,
+              fetch_interval_sec, is_active, is_primary, last_price, last_multi_data, last_fetched,
+              created_at, updated_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          `).bind(
+            id, master.name, master.priceType, sType, master.endpoint || '',
+            master.regex || '', master.jsonPath || '', fm,
+            master.fetchIntervalSec || 1800, master.isActive ? 1 : 0, master.isPrimary ? 1 : 0,
+            priceNum, multiStr || '', isoTime, isoTime, isoTime
+          ).run().catch(() => {});
+        }
       }
     } catch (e) {
       logger.error("D1 dbUpdateSourceLastPrice error:", { id, error: e.message });
@@ -484,6 +532,16 @@ export async function dbUpdateSourceLastPrice(env, id, lastPrice, lastFetched = 
     lastFetched: isoTime,
     lastMultiData: multiStr ? JSON.parse(multiStr) : undefined,
   });
+
+  if (id === "src_def_charisma_plans" && multiStr) {
+    try {
+      const parsedMulti = JSON.parse(multiStr);
+      const items = parsedMulti.items || parsedMulti.compactList || parsedMulti.plans;
+      if (Array.isArray(items) && items.length > 0) {
+        await setCharismaPlansCache(env, JSON.stringify(items));
+      }
+    } catch {}
+  }
 }
 
 /**

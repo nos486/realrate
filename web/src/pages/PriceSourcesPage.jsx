@@ -138,12 +138,30 @@ export default function PriceSourcesPage({ embedded = false, usdToman: propUsdTo
     setMultiRowTestingId(src.id);
     try {
       const res = await apiTestPriceSource(src);
+      setRowTestResults((prev) => ({ ...prev, [src.id]: res }));
       if (res.success) {
         showMsg(res.message || `تست فید «${src.name}» با موفقیت انجام شد.`, 'success');
+        setSources((prev) =>
+          prev.map((s) =>
+            s.id === src.id
+              ? {
+                  ...s,
+                  lastPrice: res.price,
+                  lastFetched: res.datetime || new Date().toISOString(),
+                  lastMultiData: res.multiData || s.lastMultiData,
+                }
+              : s
+          )
+        );
+        await loadSources();
       } else {
         showMsg(`خطا در تست فید «${src.name}»: ${res.error || 'ناشناخته'}`, 'error');
       }
     } catch (err) {
+      setRowTestResults((prev) => ({
+        ...prev,
+        [src.id]: { success: false, error: err.message },
+      }));
       showMsg('خطا در تست فید: ' + err.message, 'error');
     } finally {
       setMultiRowTestingId(null);
@@ -217,6 +235,7 @@ export default function PriceSourcesPage({ embedded = false, usdToman: propUsdTo
           const matched = candidates.filter((it) => {
             if (it.sourceId && (it.sourceId === src.id || it.sourceId === src.sourceType)) return true;
             if (src.id === 'src_def_charisma' && (it.sourceName?.includes('کاریزما') || it.manager?.includes('کاریزما') || it.category?.includes('کاریزما'))) return true;
+            if (src.id === 'src_def_charisma_plans' && (it.isPlan || it.sourceId === 'src_def_charisma_plans' || it.badge === 'طرح' || it.category?.includes('طرح'))) return true;
             if (src.id === 'src_def_emofid' && (it.sourceName?.includes('مفید') || it.manager?.includes('مفید') || it.category?.includes('مفید'))) return true;
             if (src.id === 'src_def_bourse' && (it.category === 'bourse' || it.category === 'bourse_symbol')) return true;
             return false;

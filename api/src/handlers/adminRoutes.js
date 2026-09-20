@@ -17,7 +17,7 @@ import {
   saveGlobalSettings,
 } from "../repositories/index.js";
 import { getAdminStats } from "../lib/analytics.js";
-import { testPriceSourceConfig, fetchAllPrices, inspectApiEndpointStructure, refreshMarketRatesCache } from "../services/market/priceAggregator.service.js";
+import { testPriceSourceConfig, fetchAllPrices, handleScheduledPriceExtraction, inspectApiEndpointStructure, refreshMarketRatesCache } from "../services/market/priceAggregator.service.js";
 import { jsonResponse, errorResponse, forbiddenResponse } from "../lib/helpers.js";
 import { AppError } from "../lib/AppError.js";
 import { logger } from "../lib/logger.js";
@@ -273,12 +273,13 @@ export async function handleAdminFetchAllSources(request, env) {
   if (!user || user.role !== "admin") return forbiddenResponse(request);
 
   try {
-    const prices = await fetchAllPrices(env, true);
+    const { extractedCount, rates } = await handleScheduledPriceExtraction(env, true);
     const updatedSources = await dbGetPriceSources(env);
     return jsonResponse({
       success: true,
       message: "تمامی سورس‌های فعال با موفقیت فراخوانی و بروز شدند.",
-      prices,
+      extractedCount,
+      prices: rates,
       sources: updatedSources,
     }, 200, request);
   } catch (e) {

@@ -154,7 +154,8 @@ VALUES
   ('src_def_full_coin', 'سکه تمام بهار آزادی (زرما)', 'full_coin', 'telegram', 'zarmagoldd', '', '', 60, 1, 1, 0, '', datetime('now'), datetime('now')),
   ('src_def_half_coin', 'نیم سکه بهار آزادی (زرما)', 'half_coin', 'telegram', 'zarmagoldd', '', '', 60, 1, 1, 0, '', datetime('now'), datetime('now')),
   ('src_def_quarter_coin', 'ربع سکه بهار آزادی (زرما)', 'quarter_coin', 'telegram', 'zarmagoldd', '', '', 60, 1, 1, 0, '', datetime('now'), datetime('now')),
-  ('src_def_mesghal', 'مثقال طلا ۱۷ عیار (زرما)', 'mesghal', 'telegram', 'zarmagoldd', '', '', 60, 1, 1, 0, '', datetime('now'), datetime('now'));
+  ('src_def_mesghal', 'مثقال طلا ۱۷ عیار (زرما)', 'mesghal', 'telegram', 'zarmagoldd', '', '', 60, 1, 1, 0, '', datetime('now'), datetime('now')),
+  ('src_def_charisma_plans', 'طرح‌های سرمایه‌گذاری کاریزما (Charisma Plans)', 'charisma_plans', 'charisma_plans', 'https://webapi.charisma.ir/api/Plan/plans', '', '', 1800, 1, 1, 7, '', datetime('now'), datetime('now'));
 -- 7. Transactions Table (Buy/Sell transaction tracking with E2EE payload)
 CREATE TABLE IF NOT EXISTS transactions (
   id TEXT PRIMARY KEY,

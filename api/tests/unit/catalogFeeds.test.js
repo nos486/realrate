@@ -9,6 +9,7 @@ import {
 import {
   BOURSE_KV_KEY,
   CHARISMA_FUNDS_KV_KEY,
+  CHARISMA_PLANS_KV_KEY,
   EMOFID_FUNDS_KV_KEY,
 } from '../../src/repositories/kvCache.repository.js';
 
@@ -21,6 +22,7 @@ describe('Unified Catalog Feeds Service Tests', () => {
     expect(sourceIds).toContain('src_def_bourse');
     expect(sourceIds).toContain('src_def_emofid');
     expect(sourceIds).toContain('src_def_charisma');
+    expect(sourceIds).toContain('src_def_charisma_plans');
   });
 
   it('standardizes a raw fund item into unified schema', () => {
@@ -85,6 +87,11 @@ describe('Unified Catalog Feeds Service Tests', () => {
               { symbol: 'نقران', name: 'صندوق نقره کاریزما', priceToman: 1223, isFund: true },
             ]);
           }
+          if (key === CHARISMA_PLANS_KV_KEY) {
+            return JSON.stringify([
+              { symbol: 'gold', name: 'طرح سرمایه‌گذاری در طلا', priceToman: 4500000, isPlan: true },
+            ]);
+          }
           if (key === EMOFID_FUNDS_KV_KEY) {
             return JSON.stringify([
               { symbol: 'پیشتاز', name: 'صندوق پیشتاز مفید', priceToman: 20417, isFund: true },
@@ -112,6 +119,11 @@ describe('Unified Catalog Feeds Service Tests', () => {
     expect(ahrom.priceToman).toBeGreaterThan(0);
     expect(ahrom.sourceName).toBe('صندوق‌های سرمایه‌گذاری کاریزما (Charisma)');
 
+    // Verify funds contains Charisma plans
+    const planGold = res.funds.find(f => f.symbol === 'gold');
+    expect(planGold).toBeDefined();
+    expect(planGold.badge).toBe('طرح');
+
     // Verify bourse contains stock
     const foulad = res.bourse.find(b => b.symbol === 'فولاد');
     expect(foulad).toBeDefined();
@@ -129,6 +141,11 @@ describe('Unified Catalog Feeds Service Tests', () => {
               { symbol: 'نقران', name: 'صندوق نقره کاریزما', priceToman: 1223, isFund: true },
             ]);
           }
+          if (key === CHARISMA_PLANS_KV_KEY) {
+            return JSON.stringify([
+              { symbol: 'gold', name: 'طرح سرمایه‌گذاری در طلا', priceToman: 4500000, isPlan: true },
+            ]);
+          }
           if (key === BOURSE_KV_KEY) {
             return JSON.stringify([
               { s: 'فولاد', n: 'فولاد مبارکه', p: 520, isFund: false },
@@ -139,6 +156,7 @@ describe('Unified Catalog Feeds Service Tests', () => {
           }
           return null;
         }),
+        put: vi.fn(async () => {}),
       },
     };
 

@@ -67,7 +67,15 @@ export function standardizeCatalogItem(item, sourceConfig = {}) {
     priceRial = priceToman * 10;
   }
 
-  const isFund = Boolean(
+  const isPlan = Boolean(
+    item.isPlan ||
+    sourceConfig.priceType === "charisma_plans" ||
+    sourceConfig.sourceType === "charisma_plans" ||
+    name.startsWith("طرح ") ||
+    String(item.category || "").includes("طرح")
+  );
+
+  const isFund = !isPlan && Boolean(
     item.isFund ||
     item.f === 1 ||
     String(sourceConfig.priceType || "").includes("fund") ||
@@ -75,9 +83,9 @@ export function standardizeCatalogItem(item, sourceConfig = {}) {
     String(item.category || "").includes("صندوق")
   );
 
-  const category = isFund ? "bourse_fund" : (sourceConfig.priceType === "bourse" ? "bourse" : "custom");
-  const badge = isFund ? "صندوق" : (category === "bourse" ? "بورس" : "دارایی");
-  const unit = item.unit || (isFund ? "واحد" : (sourceConfig.unit || (category === "bourse" ? "برگ سهم" : "تومان")));
+  const category = isPlan ? "bourse_fund" : (isFund ? "bourse_fund" : (sourceConfig.priceType === "bourse" ? "bourse" : "custom"));
+  const badge = isPlan ? "طرح" : (isFund ? "صندوق" : (category === "bourse" ? "بورس" : "دارایی"));
+  const unit = item.unit || (isPlan ? "واحد" : (isFund ? "واحد" : (sourceConfig.unit || (category === "bourse" ? "برگ سهم" : "تومان"))));
 
   const sourceName = getSourceDisplayName(item) || item.sourceName || sourceConfig.name || "";
   const sourceId = item.sourceId || sourceConfig.id || "";
@@ -93,7 +101,8 @@ export function standardizeCatalogItem(item, sourceConfig = {}) {
     priceToman,
     priceRial,
     marketPrice: priceToman,
-    isFund,
+    isFund: isFund || isPlan,
+    isPlan,
     sourceName,
     sourceId,
     changePercent: Number(item.changePercent ?? item.cp ?? item.plp ?? 0),

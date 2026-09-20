@@ -11,6 +11,7 @@ import {
   setCharismaPlansCache,
   getCharismaPlansLastSync,
   setCharismaPlansLastSync,
+  getLatestRatesCache,
   setSourcePriceCache,
 } from "../../../repositories/kvCache.repository.js";
 
@@ -31,6 +32,201 @@ export const KNOWN_CHARISMA_PLAN_SYMBOLS = {
   "fixed-income": "طرح درآمد ثابت",
   "fixedincome-mega-sood": "طرح مگاسود",
 };
+
+/**
+ * Built-in default seed of Charisma's 7 investable investment plans
+ */
+export const DEFAULT_CHARISMA_PLANS_SEED = [
+  {
+    s: "gold",
+    symbol: "gold",
+    n: "طرح سرمایه‌گذاری در طلا",
+    name: "طرح سرمایه‌گذاری در طلا",
+    faSymbol: "طلا",
+    p: 0,
+    price: 0,
+    priceToman: 0,
+    priceRial: 0,
+    pl: 0,
+    unit: "IRR",
+    isPlan: true,
+    isFund: false,
+    category: "طرح سرمایه‌گذاری",
+    type: "طرح",
+    manager: "کاریزما (Charisma)",
+    sourceName: "طرح‌های سرمایه‌گذاری کاریزما (Charisma Plans)",
+    sourceId: "src_def_charisma_plans",
+    order: 1,
+    changePercent: 0,
+    planData: {
+      calculatorTitle: { normal: "هر گرم شمش", strong: "طلا ۲۴ عیار" },
+      investmentUri: "https://inv.charisma.ir/plans/Gold/buy",
+      installmentInvestmentUri: "https://inv.charisma.ir/plans/Gold/buy",
+    },
+  },
+  {
+    s: "silver",
+    symbol: "silver",
+    n: "طرح سرمایه‌گذاری در نقره",
+    name: "طرح سرمایه‌گذاری در نقره",
+    faSymbol: "نقره",
+    p: 0,
+    price: 0,
+    priceToman: 0,
+    priceRial: 0,
+    pl: 0,
+    unit: "IRR",
+    isPlan: true,
+    isFund: false,
+    category: "طرح سرمایه‌گذاری",
+    type: "طرح",
+    manager: "کاریزما (Charisma)",
+    sourceName: "طرح‌های سرمایه‌گذاری کاریزما (Charisma Plans)",
+    sourceId: "src_def_charisma_plans",
+    order: 2,
+    changePercent: 0,
+    planData: {
+      calculatorTitle: { normal: "هر گرم شمش", strong: "نقره" },
+      investmentUri: "https://inv.charisma.ir/plans/Silver/buy",
+      installmentInvestmentUri: "https://inv.charisma.ir/plans/Silver/buy",
+    },
+  },
+  {
+    s: "real-estate",
+    symbol: "real-estate",
+    n: "طرح سرمایه‌گذاری مِلک",
+    name: "طرح سرمایه‌گذاری مِلک",
+    faSymbol: "ملک",
+    p: 0,
+    price: 0,
+    priceToman: 0,
+    priceRial: 0,
+    pl: 0,
+    unit: "IRR",
+    isPlan: true,
+    isFund: false,
+    category: "طرح سرمایه‌گذاری",
+    type: "طرح",
+    manager: "کاریزما (Charisma)",
+    sourceName: "طرح‌های سرمایه‌گذاری کاریزما (Charisma Plans)",
+    sourceId: "src_def_charisma_plans",
+    order: 3,
+    changePercent: 0,
+    planData: {
+      calculatorTitle: { normal: "قیمت هر متر مربع", strong: null },
+      investmentUri: "https://inv.charisma.ir/plans/RealEstateKakh/buy",
+      installmentInvestmentUri: "https://inv.charisma.ir/plans/RealEstateKakh/buy",
+    },
+  },
+  {
+    s: "fixedincome-mega-sood",
+    symbol: "fixedincome-mega-sood",
+    n: "طرح سرمایه‌گذاری مگاسود",
+    name: "طرح سرمایه‌گذاری مگاسود",
+    faSymbol: "مگاسود",
+    p: 0,
+    price: 0,
+    priceToman: 0,
+    priceRial: 0,
+    pl: 0,
+    unit: "IRR",
+    isPlan: true,
+    isFund: false,
+    category: "طرح سرمایه‌گذاری",
+    type: "طرح",
+    manager: "کاریزما (Charisma)",
+    sourceName: "طرح‌های سرمایه‌گذاری کاریزما (Charisma Plans)",
+    sourceId: "src_def_charisma_plans",
+    order: 4,
+    changePercent: 0,
+    planData: {
+      calculatorTitle: { normal: "محاسبه نرخ سود برداشت پول", strong: null },
+      investmentUri: "https://inv.charisma.ir/plans/FixedIncomePlus/buy",
+      installmentInvestmentUri: null,
+    },
+  },
+  {
+    s: "fixed-income",
+    symbol: "fixed-income",
+    n: "طرح سرمایه‌گذاری درآمد ثابت",
+    name: "طرح سرمایه‌گذاری درآمد ثابت",
+    faSymbol: "درآمد ثابت",
+    p: 0,
+    price: 0,
+    priceToman: 0,
+    priceRial: 0,
+    pl: 0,
+    unit: "IRR",
+    isPlan: true,
+    isFund: false,
+    category: "طرح سرمایه‌گذاری",
+    type: "طرح",
+    manager: "کاریزما (Charisma)",
+    sourceName: "طرح‌های سرمایه‌گذاری کاریزما (Charisma Plans)",
+    sourceId: "src_def_charisma_plans",
+    order: 5,
+    changePercent: 38.5,
+    planData: {
+      calculatorTitle: { normal: "نرخ سود سالانه", strong: "۳۸.۵٪+" },
+      investmentUri: "https://inv.charisma.ir/plans/FixedIncome/buy",
+      installmentInvestmentUri: null,
+    },
+  },
+  {
+    s: "stocks-index",
+    symbol: "stocks-index",
+    n: "طرح سرمایه‌گذاری استاکس",
+    name: "طرح سرمایه‌گذاری استاکس",
+    faSymbol: "استاکس",
+    p: 0,
+    price: 0,
+    priceToman: 0,
+    priceRial: 0,
+    pl: 0,
+    unit: "IRR",
+    isPlan: true,
+    isFund: false,
+    category: "طرح سرمایه‌گذاری",
+    type: "طرح",
+    manager: "کاریزما (Charisma)",
+    sourceName: "طرح‌های سرمایه‌گذاری کاریزما (Charisma Plans)",
+    sourceId: "src_def_charisma_plans",
+    order: 6,
+    changePercent: 0,
+    planData: {
+      calculatorTitle: { normal: "شاخص", strong: "استاکس" },
+      investmentUri: "https://inv.charisma.ir/plans/StockIndex/buy",
+      installmentInvestmentUri: "https://inv.charisma.ir/plans/StockIndex/buy",
+    },
+  },
+  {
+    s: "copper",
+    symbol: "copper",
+    n: "طرح سرمایه‌گذاری در مس",
+    name: "طرح سرمایه‌گذاری در مس",
+    faSymbol: "مس",
+    p: 0,
+    price: 0,
+    priceToman: 0,
+    priceRial: 0,
+    pl: 0,
+    unit: "IRR",
+    isPlan: true,
+    isFund: false,
+    category: "طرح سرمایه‌گذاری",
+    type: "طرح",
+    manager: "کاریزما (Charisma)",
+    sourceName: "طرح‌های سرمایه‌گذاری کاریزما (Charisma Plans)",
+    sourceId: "src_def_charisma_plans",
+    order: 7,
+    changePercent: 0,
+    planData: {
+      calculatorTitle: { normal: "هر گرم", strong: "کاتد مس" },
+      investmentUri: "https://inv.charisma.ir/plans/Copper/buy",
+      installmentInvestmentUri: "https://inv.charisma.ir/plans/Copper/buy",
+    },
+  },
+];
 
 /**
  * Merges raw Charisma plan records with an existing plans list:
@@ -261,6 +457,47 @@ export function mergeCharismaPlans(existingList = [], rawApiArray = [], nowIso =
 }
 
 /**
+ * Enriches plan items with current market rates if live price is 0 (e.g. 24k gold, silver)
+ * @param {Array<object>} plans
+ * @param {object} [env=null]
+ * @returns {Promise<Array<object>>}
+ */
+export async function enrichPlansWithMarketPrices(plans, env = null) {
+  if (!Array.isArray(plans)) return plans;
+  try {
+    let goldRate = 0;
+    let silverRate = 0;
+    if (env) {
+      const rates = await getLatestRatesCache(env).catch(() => null);
+      if (rates) {
+        goldRate = Number(rates.gold_18k || rates.geram18 || rates.gold || 0);
+        silverRate = Number(rates.silver || rates.silver_999 || 0);
+      }
+    }
+
+    for (const p of plans) {
+      if ((!p.price || p.price === 0) && (!p.priceToman || p.priceToman === 0)) {
+        if (p.symbol === "gold" && goldRate > 0) {
+          const p24k = Math.round(goldRate * (24 / 18));
+          p.p = p24k;
+          p.price = p24k;
+          p.priceToman = p24k;
+          p.priceRial = p24k * 10;
+          p.pl = p.priceRial;
+        } else if (p.symbol === "silver" && silverRate > 0) {
+          p.p = silverRate;
+          p.price = silverRate;
+          p.priceToman = silverRate;
+          p.priceRial = silverRate * 10;
+          p.pl = p.priceRial;
+        }
+      }
+    }
+  } catch {}
+  return plans;
+}
+
+/**
  * Charisma Investment Plans Source Adapter Implementation
  * @type {import("./ISourceAdapter.js").SourceAdapter}
  */
@@ -282,20 +519,33 @@ export const charismaPlansSourceAdapter = {
   async fetchRaw(sourceConfig = {}, env = null) {
     const targetUrl = sourceConfig.endpoint || sourceConfig.apiUrl || CHARISMA_PLANS_API_URL;
 
-    // 1. Fetch plans catalog from webapi.charisma.ir
-    const res = await fetch(targetUrl, {
-      signal: AbortSignal.timeout(10000),
-      headers: {
-        "User-Agent": USER_AGENT,
-        Accept: "application/json, text/plain, */*",
-      },
-    });
+    let rawPlans = null;
 
-    if (!res.ok) {
-      throw new Error(`خطای وب‌سرویس طرح‌های کاریزما (کد ${res.status}: ${res.statusText})`);
+    // 1. Fetch plans catalog from webapi.charisma.ir
+    try {
+      const res = await fetch(targetUrl, {
+        signal: AbortSignal.timeout(15000),
+        headers: {
+          "User-Agent": USER_AGENT,
+          Accept: "application/json, text/plain, */*",
+        },
+      });
+
+      if (!res.ok) {
+        throw new Error(`خطای وب‌سرویس طرح‌های کاریزما (کد ${res.status}: ${res.statusText})`);
+      }
+
+      rawPlans = await res.json();
+    } catch (fetchErr) {
+      logger.warn(`[CharismaPlansAdapter] Primary fetch failed: ${fetchErr.message}. Attempting fallback to cache/seed...`);
+      // Fallback to cached plans if available
+      const cachedPlans = await this.getPlans(env);
+      if (Array.isArray(cachedPlans) && cachedPlans.length > 0) {
+        return cachedPlans;
+      }
+      return DEFAULT_CHARISMA_PLANS_SEED;
     }
 
-    const rawPlans = await res.json();
     const plansArray = Array.isArray(rawPlans)
       ? rawPlans
       : Array.isArray(rawPlans?.data)
@@ -309,45 +559,9 @@ export const charismaPlansSourceAdapter = {
       (p) => p && (p.generalInformation?.enSymbol || p.enSymbol) !== "main"
     );
 
-    // 2. Parallel fetch real-time prices from individual plan pages if lastPrice is 0
-    await Promise.allSettled(
-      investablePlans.map(async (plan) => {
-        const enSymbol = plan.generalInformation?.enSymbol || plan.enSymbol;
-        if (!enSymbol) return;
-
-        // If price is already present and > 0, skip scraping
-        if (Number(plan.calculatorInformation?.lastPrice) > 0) return;
-
-        try {
-          const pageRes = await fetch(`${CHARISMA_PLAN_PAGE_BASE}${enSymbol}`, {
-            signal: AbortSignal.timeout(5000),
-            headers: {
-              "User-Agent": USER_AGENT,
-              Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-            },
-          });
-
-          if (pageRes.ok) {
-            const html = await pageRes.text();
-            const match = html.match(/<script id=\"__NEXT_DATA__\" type=\"application\/json\">([\s\S]*?)<\/script>/);
-            if (match && match[1]) {
-              const nextData = JSON.parse(match[1]);
-              const solData = nextData.props?.pageProps?.solutionData;
-              if (solData?.calculatorInformation) {
-                plan.calculatorInformation = {
-                  ...plan.calculatorInformation,
-                  ...solData.calculatorInformation,
-                };
-              }
-            }
-          }
-        } catch (err) {
-          logger.warn(`[CharismaPlansAdapter] Could not enrich live price for ${enSymbol}:`, {
-            error: err.message,
-          });
-        }
-      })
-    );
+    if (investablePlans.length === 0) {
+      return DEFAULT_CHARISMA_PLANS_SEED;
+    }
 
     return investablePlans;
   },
@@ -375,6 +589,9 @@ export const charismaPlansSourceAdapter = {
     }
 
     const { mergedList, stats } = mergeCharismaPlans(existingList || [], rawArray, nowIso, sourceConfig);
+
+    // Enrich plans with market prices (e.g. gold, silver) if available
+    await enrichPlansWithMarketPrices(mergedList, env);
 
     inMemoryCharismaPlansList = mergedList;
 
@@ -492,7 +709,7 @@ export const charismaPlansSourceAdapter = {
     if (syncRes.success && Array.isArray(syncRes.plans) && syncRes.plans.length > 0) {
       return syncRes.plans;
     }
-    return inMemoryCharismaPlansList || [];
+    return inMemoryCharismaPlansList || DEFAULT_CHARISMA_PLANS_SEED;
   },
 
   async getItems(env = null) {
