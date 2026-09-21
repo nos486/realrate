@@ -70,7 +70,14 @@ export function withErrorHandler(handler) {
   return async (...args) => {
     const request = args.find((a) => a && typeof a === "object" && typeof a.url === "string") || null;
     try {
-      return await handler(...args);
+      const res = await handler(...args);
+      if (res instanceof Response && request) {
+        const corsHeaders = getCorsHeaders(request);
+        for (const [key, value] of Object.entries(corsHeaders)) {
+          res.headers.set(key, value);
+        }
+      }
+      return res;
     } catch (err) {
       return handleRouteError(err, request);
     }

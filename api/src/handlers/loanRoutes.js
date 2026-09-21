@@ -47,7 +47,7 @@ export async function handleGetLoans(request, env) {
     success: true,
     count: loans.length,
     loans,
-  });
+  }, 200, request);
 }
 
 /**
@@ -73,7 +73,7 @@ export async function handleCreateLoan(request, env) {
   }
 
   const loan = await dbCreateLoan(env, userId, body);
-  return jsonResponse({ success: true, loan }, 201);
+  return jsonResponse({ success: true, loan }, 201, request);
 }
 
 /**
@@ -94,7 +94,7 @@ export async function handleGetLoan(request, env, params = {}) {
     throw AppError.notFound("وام مورد نظر یافت نشد.");
   }
 
-  return jsonResponse({ success: true, loan });
+  return jsonResponse({ success: true, loan }, 200, request);
 }
 
 /**
@@ -117,7 +117,7 @@ export async function handleUpdateLoan(request, env, params = {}) {
     throw AppError.notFound("وام مورد نظر یافت نشد یا امکان ویرایش آن وجود ندارد.");
   }
 
-  return jsonResponse({ success: true, loan: updatedLoan });
+  return jsonResponse({ success: true, loan: updatedLoan }, 200, request);
 }
 
 /**
@@ -138,7 +138,7 @@ export async function handleDeleteLoan(request, env, params = {}) {
     throw AppError.notFound("وام مورد نظر یافت نشد یا قبلاً حذف شده است.");
   }
 
-  return jsonResponse({ success: true, message: "وام و اقساط مربوطه با موفقیت حذف شدند." });
+  return jsonResponse({ success: true, message: "وام و اقساط مربوطه با موفقیت حذف شدند." }, 200, request);
 }
 
 /**
@@ -170,5 +170,5 @@ export async function handleUpdateInstallment(request, env, params = {}) {
     throw AppError.notFound("قسط مورد نظر یافت نشد.");
   }
 
-  return jsonResponse({ success: true, installment });
+  return jsonResponse({ success: true, installment }, 200, request);
 }
