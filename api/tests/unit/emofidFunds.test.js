@@ -140,11 +140,10 @@ describe('Emofid Mutual Funds Adapter & Incremental Merge Tests', () => {
     expect(emofidFundsSourceAdapter.supports({ endpoint: 'https://www.emofid.com/api/funds/' })).toBe(true);
 
     const parsed = await emofidFundsSourceAdapter.parse(sampleApiResponse, { id: 'src_def_emofid' });
-
-    expect(parsed.price).toBe(3);
-    expect(parsed.multiData.isCatalog).toBe(true);
-    expect(parsed.multiData.totalCount).toBe(3);
-    expect(parsed.multiData.items.length).toBe(3);
-    expect(parsed.sampleItems.length).toBe(3);
+    expect(parsed).toBeDefined();
+    expect(Array.isArray(parsed.items)).toBe(true);
+    expect(parsed.items.length).toBe(3);
+    expect(parsed.datetime).toBeDefined();
+    expect(Object.keys(parsed.items[0]).sort()).toEqual(["id", "name", "price"]);
   });
 });

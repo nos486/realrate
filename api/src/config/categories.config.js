@@ -13,6 +13,7 @@ export const CATEGORIES_CONFIG = [
     name: 'طلا و آب‌شده',
     badge: 'طلا',
     iconName: 'Award',
+    color: 'amber',
     order: 1,
   },
   {
@@ -20,6 +21,7 @@ export const CATEGORIES_CONFIG = [
     name: 'سکه‌های بهار آزادی',
     badge: 'سکه',
     iconName: 'Coins',
+    color: 'emerald',
     order: 2,
   },
   {
@@ -27,6 +29,7 @@ export const CATEGORIES_CONFIG = [
     name: 'نقره و مسکوکات',
     badge: 'نقره',
     iconName: 'Disc',
+    color: 'slate',
     order: 3,
   },
   {
@@ -34,6 +37,7 @@ export const CATEGORIES_CONFIG = [
     name: 'ارزهای خارجی',
     badge: 'ارز',
     iconName: 'Banknote',
+    color: 'indigo',
     order: 4,
   },
   {
@@ -41,6 +45,7 @@ export const CATEGORIES_CONFIG = [
     name: 'رمزارزها',
     badge: 'رمزارز',
     iconName: 'Zap',
+    color: 'purple',
     order: 5,
   },
   {
@@ -48,6 +53,7 @@ export const CATEGORIES_CONFIG = [
     name: 'بورس اوراق بهادار تهران (سهام)',
     badge: 'سهام بورس',
     iconName: 'TrendingUp',
+    color: 'sky',
     order: 6,
   },
   {
@@ -55,6 +61,7 @@ export const CATEGORIES_CONFIG = [
     name: 'صندوق‌های سرمایه‌گذاری',
     badge: 'صندوق',
     iconName: 'Layers',
+    color: 'cyan',
     order: 7,
   },
   {
@@ -62,6 +69,7 @@ export const CATEGORIES_CONFIG = [
     name: 'دارایی‌های شخصی و سفارشی',
     badge: 'سفارشی',
     iconName: 'Sparkles',
+    color: 'blue',
     order: 8,
   },
 ];
@@ -73,3 +81,14 @@ export const CATEGORY_MAP = Object.fromEntries(
 export function getCategoryConfig(key) {
   return CATEGORY_MAP[key] || null;
 }
+
+export function getCategoryColor(key) {
+  const category = getCategoryConfig(key);
+  return category?.color || 'blue';
+}
+
+export function getCategoryIconName(key) {
+  const category = getCategoryConfig(key);
+  return category?.iconName || 'Sparkles';
+}
+

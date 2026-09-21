@@ -12,6 +12,7 @@ import {
   setLatestRatesCache,
   setSourcePriceCache,
 } from "../../repositories/kvCache.repository.js";
+import { saveSourceItems } from "../../repositories/sourceItems.repository.js";
 import { getAdapterForSource } from "./sources/index.js";
 import { resolveApiUrl } from "./sources/apiUrl.source.adapter.js";
 import { logger } from "../../lib/logger.js";
@@ -310,113 +311,13 @@ export function compileLatestMarketRates(sources) {
  */
 export async function handleScheduledPriceExtraction(env, forceAll = false) {
   if (!env) return { extractedCount: 0, rates: {} };
-
-  let sources = [];
-  try {
-    sources = await dbGetPriceSources(env);
-  } catch (e) {
-    logger.error("Error fetching price sources for scheduled extraction:", { error: e.message, stack: e.stack });
-    return { extractedCount: 0, rates: {} };
+  const { syncAllSources } = await import("./sourceSync.service.js");
+  const result = await syncAllSources(env, { forceAll });
+  if (result.rates && Object.keys(result.rates).length > 0) {
+    memoryPricesCache = { ...result.rates };
+    lastFetchTime = Date.now();
   }
-
-  if (!Array.isArray(sources) || sources.length === 0) {
-    return { extractedCount: 0, rates: {} };
-  }
-
-  const activeSources = sources.filter(s => s.isActive);
-  if (activeSources.length === 0) {
-    return { extractedCount: 0, rates: {} };
-  }
-
-  const nowMs = Date.now();
-  const dueSources = forceAll
-    ? activeSources
-    : activeSources.filter(s => {
-      const intervalMs = Math.max(15, (s.fetchIntervalSec || 60)) * 1000;
-      const lastFetchedMs = s.lastFetched ? new Date(s.lastFetched).getTime() : 0;
-      return (nowMs - lastFetchedMs) >= intervalMs;
-    });
-
-  let extractedCount = 0;
-
-  if (dueSources.length > 0) {
-    // 1. Deduplicate network requests by (sourceType + "::" + endpoint)
-    const endpointRequests = new Map();
-    for (const src of dueSources) {
-      const key = `${src.sourceType}::${src.endpoint}`;
-      if (!endpointRequests.has(key)) {
-        const adapter = getAdapterForSource(src);
-        endpointRequests.set(
-          key,
-          adapter.fetchRaw(src, env).catch(err => {
-            logger.warn(`[PriceAggregator] Fetch failed for ${key}:`, { error: err.message });
-            return null;
-          })
-        );
-      }
-    }
-
-    const endpointKeys = Array.from(endpointRequests.keys());
-    const rawResults = await Promise.all(endpointRequests.values());
-    const endpointContentMap = new Map();
-    for (let i = 0; i < endpointKeys.length; i++) {
-      endpointContentMap.set(endpointKeys[i], rawResults[i]);
-    }
-
-    // 2. Parse and record each due source using its adapter
-    const updates = [];
-    for (const src of dueSources) {
-      const key = `${src.sourceType}::${src.endpoint}`;
-      const raw = endpointContentMap.get(key);
-      if (!raw) continue;
-
-      const adapter = getAdapterForSource(src);
-      try {
-        const parsed = await adapter.parse(raw, src, env);
-        if (parsed && (parsed.price > 0 || (parsed.multiData && Object.keys(parsed.multiData).length > 0))) {
-          extractedCount++;
-          src.lastPrice = parsed.price;
-          src.lastFetched = parsed.datetime;
-          if (parsed.multiData) {
-            src.lastMultiData = parsed.multiData;
-          }
-
-          // Update D1 last price and last_multi_data
-          updates.push(
-            dbUpdateSourceLastPrice(env, src.id, parsed.price, parsed.datetime, parsed.multiData || null)
-          );
-
-          // Save individual source price into KV for instant single-source lookups
-          updates.push(
-            setSourcePriceCache(env, src.id, {
-              price: parsed.price,
-              lastFetched: parsed.datetime,
-              priceType: src.priceType,
-              name: src.name,
-              lastMultiData: parsed.multiData || undefined,
-            }).catch(() => { })
-          );
-        }
-      } catch (parseErr) {
-        logger.warn(`[PriceAggregator] Parse failed for ${src.name} (${src.id}):`, { error: parseErr.message });
-      }
-    }
-
-    if (updates.length > 0) {
-      await Promise.allSettled(updates);
-    }
-  }
-
-  // 3. Compile clean latest_rates for all active sources
-  const latestRates = compileLatestMarketRates(activeSources);
-
-  // 4. Save latest_rates to KV
-  await setLatestRatesCache(env, latestRates);
-
-  memoryPricesCache = { ...latestRates };
-  lastFetchTime = Date.now();
-
-  return { extractedCount, rates: latestRates };
+  return { extractedCount: result.syncedCount, rates: result.rates || {} };
 }
 
 /**
@@ -512,21 +413,24 @@ export async function testPriceSourceConfig(config = {}, env = null) {
   try {
     const raw = await adapter.fetchRaw(effectiveConfig, env);
     const parsed = await adapter.parse(raw, effectiveConfig, env);
-    const rawSnippet = typeof raw === "string" && raw.length > 2500 ? raw.slice(0, 2500) + "\n... (ادامه متن کوتاه شد)" : raw;
+    const rawSnippet = typeof raw === "string" && raw.length > 2500 ? raw.slice(0, 2500) + "\n... (ادامه متن کوتاه شد)" : (typeof raw === "object" ? JSON.stringify(raw, null, 2).slice(0, 2500) : String(raw || ""));
+    const firstItem = parsed?.items?.[0];
+    const price = parsed?.price !== undefined ? parsed.price : (firstItem?.price || 0);
+    const items = parsed?.items || parsed?.compactList || [];
+    const count = items.length;
 
     return {
       success: true,
       source_type: config.sourceType || "api_url",
-      price: parsed.price,
-      multiData: parsed.multiData || undefined,
-      compactList: parsed.compactList || undefined,
-      sampleItems: parsed.sampleItems || undefined,
+      price,
+      items,
+      sampleItems: items.slice(0, 50),
       datetime: parsed.datetime,
-      label: parsed.label,
+      label: firstItem?.name || parsed.label || config.name || "سورس قیمت",
       rawSnippet,
-      message: parsed.multiData
-        ? `تعداد ${parsed.price} آیتم با موفقیت پردازش شد.`
-        : `قیمت با موفقیت دریافت شد: ${parsed.price.toLocaleString("fa-IR")}`,
+      message: count > 1
+        ? `تعداد ${count} آیتم با موفقیت پردازش شد.`
+        : `قیمت با موفقیت دریافت شد: ${price.toLocaleString("fa-IR")}`,
     };
   } catch (e) {
     return { success: false, error: e.message || "خطا در تست سورس قیمت" };

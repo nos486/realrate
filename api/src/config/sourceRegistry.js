@@ -64,7 +64,7 @@ function _init() {
       sourceType,
       endpoint,
       category: category || null,
-      badge: badge || null,
+      badge: (category && CATEGORY_MAP[category]?.badge) || badge || null,
       unit: unit || null,
       isFund: Boolean(isFund),
       isCatalog: Boolean(isCatalog),
@@ -165,15 +165,29 @@ function findCatalogItem(assetId) {
 
   return null;
 }
+import {
+  parseItemId,
+  getItemBaseName,
+  getItemDisplayName,
+  getItemUnit,
+  getItemCategory,
+  getItemBadge,
+  getCategoryIconName,
+  getSourceBrand,
+} from "../domain/displayEngine.js";
+
+export {
+  parseItemId,
+  getItemDisplayName,
+  getItemUnit,
+  getItemCategory,
+  getItemBadge,
+  getCategoryIconName,
+  getSourceBrand,
+};
 
 /**
- * Resolve the display name for an asset.
- * Pipeline (ordered):
- *   1️⃣ rawItem?.name (if non-ID-like and meaningful)
- *   2️⃣ canonical registry (gold, coin, forex, crypto, silver)
- *   3️⃣ knownItems (catalog specific, e.g. charisma_plans__gold -> 'طرح طلا')
- *   4️⃣ bourse prefix (`bourse_` -> symbol, with fund/stock distinction or source badge)
- *   5️⃣ fallback to clean ID.
+ * Resolve the display name for an asset. Delegated to displayEngine.
  *
  * @param {string} assetId – e.g. "charisma_plans__gold", "gold_18k", "bourse_fa"
  * @param {object|null} rawItem – optional raw data returned from adapter/holding
@@ -181,101 +195,19 @@ function findCatalogItem(assetId) {
  */
 export function resolveAssetDisplayName(assetId, rawItem = null) {
   if (!assetId && !rawItem) return "";
-
-  const effectiveId = String(assetId || rawItem?.assetId || rawItem?.id || "").trim();
-  const cleanId = effectiveId.replace(/^src_def_/, "").replace(/^derived_/, "").trim();
-
-  // 1️⃣ raw name (if meaningful and not merely an ID string)
-  if (rawItem) {
-    const rawName = String(rawItem.name || rawItem.assetName || rawItem.n || rawItem.title || "").trim();
-    if (rawName) {
-      const isIdLike =
-        rawName === effectiveId ||
-        rawName === cleanId ||
-        rawName.startsWith("src_def_") ||
-        rawName.startsWith("derived_") ||
-        rawName.includes("__") ||
-        (/^[a-z0-9_]+$/i.test(rawName) && !rawName.includes(" "));
-
-      if (!isIdLike) {
-        return rawName;
-      }
-    }
-  }
-
-  // 2️⃣ canonical (gold, coin, silver, forex, crypto)
-  const canonical = getCanonicalAssetSpec(cleanId);
-  if (canonical?.name) {
-    return canonical.name;
-  }
-
-  // 3️⃣ catalog knownItems
-  const catalogItem = findCatalogItem(cleanId);
-  if (catalogItem?.name) {
-    return catalogItem.name;
-  }
-
-  // 4️⃣ bourse handling (id starts with "bourse_")
-  if (cleanId.startsWith("bourse_")) {
-    const sym = cleanId.replace(/^bourse_/, "");
-    // Check if rawItem specifies a meaningful name
-    if (rawItem) {
-      const n = String(rawItem.name || rawItem.assetName || "").trim();
-      if (n && n !== cleanId && n !== effectiveId && !n.startsWith("bourse_")) {
-        return n;
-      }
-    }
-    const src = getSourceConfig(sym);
-    if (src?.badge) return `${src.badge} ${sym}`;
-    if (src?.isFund || rawItem?.isFund || rawItem?.assetType === "bourse_fund" || rawItem?.category === "bourse_fund") {
-      return `صندوق ${sym}`;
-    }
-    return `سهام ${sym}`;
-  }
-
-  // 5️⃣ source config (source ID or priceType, active or inactive)
-  const srcCfg = getSourceConfig(cleanId) || getSourceConfig(effectiveId);
-  if (srcCfg?.name) {
-    return srcCfg.name;
-  }
-
-  // 6️⃣ fallback
-  return cleanId || effectiveId;
+  const item = rawItem ? { ...rawItem, id: assetId || rawItem.id } : assetId;
+  return getItemBaseName(item);
 }
 
 /**
- * Extracts a clean, concise source brand/label for display (e.g. "کاریزما", "مفید", "بورس", "زرما", "سبزه میدان")
+ * Extracts a clean, concise source brand/label for display (e.g. "کاریزما", "مفید", "بورس", "زرما", "سبزه میدان").
+ * Purely data-driven via displayEngine.
+ *
  * @param {string|object} sourceOrKey
  * @returns {string}
  */
 export function getSourceShortBrand(sourceOrKey) {
-  if (!sourceOrKey) return "";
-  const key = typeof sourceOrKey === "string"
-    ? sourceOrKey.toLowerCase().replace(/^src_def_/, "").trim()
-    : String(sourceOrKey.sourceId || sourceOrKey.source || sourceOrKey.priceType || sourceOrKey.id || "").toLowerCase().replace(/^src_def_/, "").trim();
-
-  if (key.includes("bourse") || key === "tsetmc") return "بورس";
-  if (key.includes("emofid") || key.includes("mofid")) return "مفید";
-  if (key.includes("charisma")) return "کاریزما";
-  if (key.includes("zarma") || key.includes("zarmagoldd")) return "زرما";
-  if (key.includes("sabza") || key.includes("tahran")) return "سبزه میدان";
-  if (key.includes("forex") || key.includes("er-api")) return "فارکس";
-
-  const cfg = getSourceConfig(key);
-  if (cfg?.name) {
-    if (cfg.name.includes("کاریزما") || cfg.name.includes("Charisma")) return "کاریزما";
-    if (cfg.name.includes("مفید") || cfg.name.includes("Emofid")) return "مفید";
-    if (cfg.name.includes("بورس") || cfg.name.includes("TSETMC")) return "بورس";
-    if (cfg.name.includes("زرما")) return "زرما";
-    if (cfg.name.includes("سبزه میدان")) return "سبزه میدان";
-    const parenMatch = cfg.name.match(/\(([^)]+)\)/);
-    if (parenMatch && parenMatch[1]) {
-      const inside = parenMatch[1].trim();
-      if (!inside.toLowerCase().includes("http") && inside.length <= 15) return inside;
-    }
-    return cfg.badge || cfg.name;
-  }
-  return "";
+  return getSourceBrand(sourceOrKey);
 }
 
 /**
@@ -287,35 +219,12 @@ export function getSourceShortBrand(sourceOrKey) {
  * @returns {string}
  */
 export function resolveAssetDisplayWithSource(assetId, rawItem = null) {
-  const cleanName = resolveAssetDisplayName(assetId, rawItem);
-  if (!cleanName) return "";
-
-  const effectiveId = String(assetId || rawItem?.assetId || rawItem?.id || "").trim();
-  const cleanId = effectiveId.replace(/^src_def_/, "").replace(/^derived_/, "").trim().toLowerCase();
-
-  let srcKey = "";
-  if (rawItem?.sourceId) srcKey = rawItem.sourceId;
-  else if (rawItem?.source) srcKey = rawItem.source;
-  else if (rawItem?.sourceName) srcKey = rawItem.sourceName;
-  else if (cleanId.startsWith("bourse_")) srcKey = "bourse";
-  else if (cleanId.includes("__")) {
-    srcKey = cleanId.split("__")[0];
-  } else {
-    srcKey = cleanId;
-  }
-
-  const brand = getSourceShortBrand(srcKey);
-  if (!brand) return cleanName;
-
-  if (cleanName.includes(brand)) {
-    return cleanName;
-  }
-
-  return `${cleanName} (${brand})`;
+  const item = rawItem ? { ...rawItem, id: assetId || rawItem.id } : assetId;
+  return getItemDisplayName(item);
 }
 
 /**
- * Resolve unit for an asset (same pipeline as name, but uses `unit` field).
+ * Resolve unit for an asset. Delegated to displayEngine.
  *
  * @param {string} assetId
  * @param {object|null} rawItem
@@ -323,43 +232,8 @@ export function resolveAssetDisplayWithSource(assetId, rawItem = null) {
  * @returns {string}
  */
 export function resolveAssetUnit(assetId, rawItem = null, fallbackUnit = "واحد") {
-  const effectiveId = String(assetId || rawItem?.assetId || rawItem?.id || "").trim();
-  const cleanId = effectiveId.replace(/^src_def_/, "").replace(/^derived_/, "").trim();
-
-  // 1️⃣ raw unit
-  if (rawItem?.unit && typeof rawItem.unit === "string" && rawItem.unit.trim()) {
-    return rawItem.unit.trim();
-  }
-
-  // 2️⃣ source unit (declared on source in sources.config.js)
-  const src = getSourceConfig(cleanId);
-  if (src?.unit) {
-    return src.unit;
-  }
-
-  // 3️⃣ catalog knownItems
-  const catalogItem = findCatalogItem(cleanId);
-  if (catalogItem?.unit) {
-    return catalogItem.unit;
-  }
-
-  // 4️⃣ canonical asset spec
-  const canonical = getCanonicalAssetSpec(cleanId);
-  if (canonical?.unit) {
-    return canonical.unit;
-  }
-
-  // 5️⃣ bourse prefix
-  if (cleanId.startsWith("bourse_")) {
-    const sym = cleanId.replace(/^bourse_/, "");
-    const symSrc = getSourceConfig(sym);
-    if (symSrc?.unit) return symSrc.unit;
-    if (symSrc?.isFund || rawItem?.isFund) return "واحد";
-    return "برگ سهم";
-  }
-
-  // 6️⃣ fallback to generic unit
-  return fallbackUnit || "واحد";
+  const item = rawItem ? { ...rawItem, id: assetId || rawItem.id } : assetId;
+  return getItemUnit(item, null, fallbackUnit);
 }
 
 /**
@@ -374,58 +248,14 @@ export function getSourceParser(key) {
 
 /**
  * Resolve category (gold, coin, silver, currency, crypto, bourse, bourse_fund, custom)
- * Reads directly from source config, canonical specs, or categories.config.js.
- * Zero hardcoded if/else rules.
+ * Delegated to displayEngine.
  *
  * @param {string|object} assetOrItem
  * @param {string|null} [fallbackType=null]
  * @returns {string} category key
  */
 export function resolveCategory(assetOrItem, fallbackType = null) {
-  if (!assetOrItem) return fallbackType || "custom";
-
-  const assetId = typeof assetOrItem === "string"
-    ? assetOrItem
-    : String(assetOrItem.assetId || assetOrItem.id || assetOrItem.priceType || "");
-
-  const cleanId = assetId.replace(/^src_def_/, "").replace(/^derived_/, "").trim().toLowerCase();
-  const assetType = typeof assetOrItem === "object"
-    ? String(assetOrItem.assetType || assetOrItem.category || "").trim().toLowerCase()
-    : "";
-
-  // 1. Source definition (declared directly in sources.config.js)
-  const src = getSourceConfig(cleanId) || (assetType ? getSourceConfig(assetType) : null);
-  if (src?.category) return src.category;
-  if (src?.isFund) return "bourse_fund";
-
-  // 2. Catalog item declaration (e.g. knownItems in source)
-  const catalogItem = findCatalogItem(cleanId);
-  if (catalogItem?.category) return catalogItem.category;
-
-  // 3. Canonical standard assets (gold, coin, silver, forex, crypto specs)
-  const canonical = getCanonicalAssetSpec(cleanId);
-  if (canonical?.category) return canonical.category;
-
-  // 4. Bourse prefix handling
-  if (cleanId.startsWith("bourse_")) {
-    const sym = cleanId.replace(/^bourse_/, "");
-    const symSrc = getSourceConfig(sym);
-    return symSrc?.isFund ? "bourse_fund" : "bourse";
-  }
-
-  // 5. Raw item declared category
-  if (typeof assetOrItem === "object") {
-    if (assetOrItem.category && CATEGORY_MAP[assetOrItem.category]) return assetOrItem.category;
-    if (assetType && CATEGORY_MAP[assetType]) return assetType;
-    if (assetOrItem.isFund) return "bourse_fund";
-  }
-
-  // 6. Explicit valid fallback
-  if (fallbackType && CATEGORY_MAP[fallbackType]) {
-    return fallbackType;
-  }
-
-  return "custom";
+  return getItemCategory(assetOrItem, null, fallbackType);
 }
 
 /**
@@ -439,3 +269,4 @@ export const resolveItemCategory = resolveCategory;
 export function getAllRegisteredSourceKeys() {
   return Array.from(_registry.keys());
 }
+

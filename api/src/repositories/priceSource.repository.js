@@ -7,11 +7,8 @@ import {
   getSourcePriceCache,
   setSourcePriceCache,
   deleteSourcePriceCache,
-  getCharismaFundsCache,
-  getCharismaPlansCache,
-  getEmofidFundsCache,
-  getBourseSymbolsCache,
 } from "./kvCache.repository.js";
+import { getSourceItems, saveSourceItems } from "./sourceItems.repository.js";
 import {
   getMasterPriceSourcesConfig,
   getMasterPriceSourceById,
@@ -60,87 +57,24 @@ function normalizePriceSourceRow(row) {
  * Helper to hydrate catalog sources (Charisma, Emofid, Bourse) from their dedicated KV caches
  * when lastMultiData is empty or lastPrice is 0.
  */
-async function hydrateCatalogSourceFromKv(src, env, lastPrice, lastFetched, lastMultiData) {
+export async function hydrateCatalogSourceFromKv(src, env, lastPrice = 0, lastFetched = null, lastMultiData = null) {
   if (!env || (lastMultiData && lastPrice > 0)) {
     return { lastPrice, lastFetched, lastMultiData };
   }
   try {
-    if (src.id === "src_def_charisma" || src.priceType === "charisma_funds" || src.sourceType === "charisma_funds") {
-      const { cached, backup } = await getCharismaFundsCache(env);
-      const str = cached || backup;
-      if (str) {
-        const funds = JSON.parse(str);
-        if (Array.isArray(funds) && funds.length > 0) {
-          return {
-            lastPrice: funds.length,
-            lastFetched: lastFetched || funds[0]?.updatedAt || new Date().toISOString(),
-            lastMultiData: {
-              isCatalog: true,
-              totalCount: funds.length,
-              items: funds,
-              compactList: funds,
-              sampleItems: funds.slice(0, 50),
-            },
-          };
-        }
-      }
-    } else if (src.id === "src_def_charisma_plans" || src.priceType === "charisma_plans" || src.sourceType === "charisma_plans") {
-      const { cached, backup } = await getCharismaPlansCache(env);
-      const str = cached || backup;
-      if (str) {
-        const plans = JSON.parse(str);
-        if (Array.isArray(plans) && plans.length > 0) {
-          return {
-            lastPrice: plans.length,
-            lastFetched: lastFetched || plans[0]?.updatedAt || new Date().toISOString(),
-            lastMultiData: {
-              isCatalog: true,
-              totalCount: plans.length,
-              items: plans,
-              compactList: plans,
-              sampleItems: plans.slice(0, 50),
-            },
-          };
-        }
-      }
-    } else if (src.id === "src_def_emofid" || src.priceType === "emofid_funds" || src.sourceType === "emofid_funds") {
-      const { cached, backup } = await getEmofidFundsCache(env);
-      const str = cached || backup;
-      if (str) {
-        const funds = JSON.parse(str);
-        if (Array.isArray(funds) && funds.length > 0) {
-          return {
-            lastPrice: funds.length,
-            lastFetched: lastFetched || funds[0]?.updatedAt || new Date().toISOString(),
-            lastMultiData: {
-              isCatalog: true,
-              totalCount: funds.length,
-              items: funds,
-              compactList: funds,
-              sampleItems: funds.slice(0, 50),
-            },
-          };
-        }
-      }
-    } else if (src.id === "src_def_bourse" || src.priceType === "bourse" || src.sourceType === "bourse_symbols") {
-      const { cached, backup } = await getBourseSymbolsCache(env);
-      const str = cached || backup;
-      if (str) {
-        const symbols = JSON.parse(str);
-        if (Array.isArray(symbols) && symbols.length > 0) {
-          return {
-            lastPrice: symbols.length,
-            lastFetched: lastFetched || symbols[0]?.updatedAt || new Date().toISOString(),
-            lastMultiData: {
-              isCatalog: true,
-              totalCount: symbols.length,
-              items: symbols,
-              compactList: symbols,
-              sampleItems: symbols.slice(0, 50),
-            },
-          };
-        }
-      }
+    const items = await getSourceItems(env, src.id);
+    if (Array.isArray(items) && items.length > 0) {
+      return {
+        lastPrice: items.length,
+        lastFetched: lastFetched || items[0]?.updatedAt || new Date().toISOString(),
+        lastMultiData: {
+          isCatalog: true,
+          totalCount: items.length,
+          items,
+          compactList: items,
+          sampleItems: items.slice(0, 50),
+        },
+      };
     }
   } catch (err) {
     logger.warn("hydrateCatalogSourceFromKv error:", { id: src.id, error: err.message });
@@ -474,36 +408,19 @@ export async function dbUpdateSourceLastPrice(env, id, lastPrice, lastFetched = 
   if (!id || !env) return;
   const isoTime = lastFetched || new Date().toISOString();
   const priceNum = Number(lastPrice) || 0;
-  const multiStr = typeof lastMultiData === 'string'
-    ? lastMultiData
-    : (lastMultiData ? JSON.stringify(lastMultiData) : null);
-
-  if (env.DB) {
+  let items = [];
+  if (lastMultiData) {
     try {
-      if (multiStr !== null) {
-        await env.DB.prepare(`
-          UPDATE price_sources
-          SET last_price = ?, last_fetched = ?, last_multi_data = ?, updated_at = ?
-          WHERE id = ?
-        `).bind(priceNum, isoTime, multiStr, new Date().toISOString(), id).run();
-      } else {
-        await env.DB.prepare(`
-          UPDATE price_sources
-          SET last_price = ?, last_fetched = ?, updated_at = ?
-          WHERE id = ?
-        `).bind(priceNum, isoTime, new Date().toISOString(), id).run();
+      const parsedMulti = typeof lastMultiData === 'string' ? JSON.parse(lastMultiData) : lastMultiData;
+      if (Array.isArray(parsedMulti?.items)) {
+        items = parsedMulti.items;
       }
-    } catch (e) {
-      logger.error("D1 dbUpdateSourceLastPrice error:", { id, error: e.message });
-    }
+    } catch (_) {}
   }
-
-  // Save latest price to individual clean KV key for instant lookups
-  await setSourcePriceCache(env, id, {
-    price: priceNum,
-    lastFetched: isoTime,
-    lastMultiData: multiStr ? JSON.parse(multiStr) : undefined,
-  });
+  if (items.length === 0) {
+    items = [{ id, name: id, price: priceNum }];
+  }
+  await saveSourceItems(env, id, items, { datetime: isoTime });
 }
 
 /**

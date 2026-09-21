@@ -16,6 +16,13 @@ import {
 import { logger } from "../lib/logger.js";
 import { MAX_MARKET_ITEMS_LIMIT } from "../config/constants.js";
 
+import {
+  getSourceConfig,
+  getItemCategory,
+  getItemBadge,
+  getItemUnit,
+} from "../domain/displayEngine.js";
+
 export async function handleGetUnifiedMarketItems(env, request) {
   try {
     const url = new URL(request.url);
@@ -35,15 +42,6 @@ export async function handleGetUnifiedMarketItems(env, request) {
     const live_usd_item = prices.usd_toman || prices.usd || null;
     const live_usd_toman = live_usd_item ? live_usd_item.price : (globalSettings?.default_usd_toman || 0);
 
-    // Helper to resolve bubble percentage setting
-    const getBubblePct = (id, fallback) => {
-      if (id === 'full_coin') return globalSettings?.bubble_pct_full ?? fallback;
-      if (id === 'half_coin') return globalSettings?.bubble_pct_half ?? fallback;
-      if (id === 'quarter_coin') return globalSettings?.bubble_pct_quarter ?? fallback;
-      if (id === 'gerami_coin') return globalSettings?.bubble_pct_gerami ?? fallback;
-      return fallback;
-    };
-
     // 1. Gold, Coin, and Silver definitions with physical specs and live source market prices
     const allPhysicalSpecs = [
       ...Object.values(GOLD_SPECS),
@@ -54,47 +52,63 @@ export async function handleGetUnifiedMarketItems(env, request) {
     const standardGoldAndCoins = allPhysicalSpecs.map((spec) => {
       const p = prices[spec.id] || null;
       let marketPrice = p?.price || null;
-      let sourceName = p?.label || null;
       let sourceId = p?.sourceId || null;
       let updatedAt = p?.datetime || null;
 
+      const sourceConfig = getSourceConfig(sourceId || spec.id);
+
       if (spec.id === 'ons_gold') {
         marketPrice = gold_usd;
-        sourceName = sourceName || 'بازار جهانی طلا (XAU)';
       } else if (spec.id === 'ons_silver') {
         marketPrice = silver_usd;
-        sourceName = sourceName || 'بازار جهانی نقره (XAG)';
       }
+
+      const sourceName = p?.label || sourceConfig?.name || null;
+      const targetBubblePct = sourceConfig?.bubblePct ?? spec.targetBubblePct ?? 0;
+      const category = sourceConfig ? getItemCategory(spec, sourceConfig) : spec.category;
+      const badge = sourceConfig ? getItemBadge(spec, sourceConfig) : spec.badge;
+      const unit = sourceConfig ? getItemUnit(spec, sourceConfig) : spec.unit;
 
       return {
         ...spec,
-        targetBubblePct: getBubblePct(spec.id, spec.targetBubblePct || 0),
+        category,
+        badge,
+        unit,
+        targetBubblePct,
         marketPrice,
         sourceName,
-        sourceId,
+        sourceId: sourceId || sourceConfig?.id || null,
         updatedAt,
       };
     });
 
     // 2. Forex Currencies with USD Cross Rates
+    const forexSource = getSourceConfig("src_def_forex");
+    const usdSource = getSourceConfig("src_def_usd");
+
     const currenciesList = FOREX_SPECS.map((cur) => {
       const lower = cur.code.toLowerCase();
       const rawPrice = Number(prices[lower]?.price || prices[cur.code]?.price || 0);
       const usdCrossRate = rawPrice > 0 ? rawPrice : cur.defaultCross;
+      const targetSource = cur.code === 'USD' ? (usdSource || forexSource) : forexSource;
+
+      const category = getItemCategory(cur, targetSource);
+      const badge = getItemBadge(cur, targetSource);
+      const unit = getItemUnit(cur, targetSource);
 
       if (cur.code === 'USD') {
         return {
           id: 'USD',
           code: 'USD',
           name: cur.name,
-          category: 'currency',
-          badge: 'ارز',
-          unit: 'تومان',
+          category,
+          badge,
+          unit,
           flag: cur.flag,
           symbol: cur.symbol,
           usdCrossRate: 1.0,
           marketPrice: live_usd_toman,
-          sourceName: live_usd_item?.label || 'دلار آزاد',
+          sourceName: live_usd_item?.label || usdSource?.name || 'دلار آزاد',
           updatedAt: live_usd_item?.datetime || null,
         };
       }
@@ -103,14 +117,14 @@ export async function handleGetUnifiedMarketItems(env, request) {
         id: cur.code,
         code: cur.code,
         name: cur.name,
-        category: 'currency',
-        badge: 'ارز',
-        unit: 'تومان',
+        category,
+        badge,
+        unit,
         flag: cur.flag,
         symbol: cur.symbol,
         usdCrossRate,
         marketPrice: null, // Always dynamically calculated from client USD
-        sourceName: prices[lower]?.label || 'نرخ برابری جهانی (Open ER-API)',
+        sourceName: prices[lower]?.label || forexSource?.name || 'نرخ برابری جهانی (Open ER-API)',
         updatedAt: prices[lower]?.datetime || null,
       };
     });

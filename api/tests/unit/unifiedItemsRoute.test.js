@@ -2,7 +2,9 @@ import { describe, it, expect, vi } from 'vitest';
 
 vi.mock('../../src/services/priceSources.js', () => ({
   getLatestMarketRates: vi.fn(async () => ({
-    ons_gold: { price: 2900, label: 'بازار جهانی طلا (XAU)' },
+    // Note: ons_silver has no label in prices, testing fallback to sources.config.js name!
+    ons_gold: { price: 2900 },
+    ons_silver: { price: 34.5 },
     usd_toman: { price: 62000, label: 'دلار آزاد' },
   })),
 }));
@@ -56,5 +58,58 @@ describe('Unified Market Items Route Handler', () => {
     const pishtaz = data.funds.find(f => f.symbol === 'pishtaz' || f.name?.includes('پیشتاز'));
     expect(pishtaz).toBeDefined();
     expect(pishtaz.sourceName).toContain('Emofid');
+  });
+
+  it('Phase 5 verification: bubblePct is generically read from sources.config.js for coins', async () => {
+    const mockEnv = {};
+    const mockRequest = new Request('https://realrate.ir/api/market/items');
+    const response = await handleGetUnifiedMarketItems(mockEnv, mockRequest);
+    const data = await response.json();
+
+    const fullCoin = data.goldAndCoins.find(item => item.id === 'full_coin');
+    const halfCoin = data.goldAndCoins.find(item => item.id === 'half_coin');
+    const quarterCoin = data.goldAndCoins.find(item => item.id === 'quarter_coin');
+
+    expect(fullCoin).toBeDefined();
+    expect(fullCoin.targetBubblePct).toBe(15);
+
+    expect(halfCoin).toBeDefined();
+    expect(halfCoin.targetBubblePct).toBe(20);
+
+    expect(quarterCoin).toBeDefined();
+    expect(quarterCoin.targetBubblePct).toBe(25);
+  });
+
+  it('Phase 5 verification: ons_gold and ons_silver get source names directly from sources.config.js', async () => {
+    const mockEnv = {};
+    const mockRequest = new Request('https://realrate.ir/api/market/items');
+    const response = await handleGetUnifiedMarketItems(mockEnv, mockRequest);
+    const data = await response.json();
+
+    const onsGold = data.goldAndCoins.find(item => item.id === 'ons_gold');
+    const onsSilver = data.goldAndCoins.find(item => item.id === 'ons_silver');
+
+    expect(onsGold).toBeDefined();
+    expect(onsGold.sourceName).toBe('انس طلا جهانی (XAU)');
+
+    expect(onsSilver).toBeDefined();
+    expect(onsSilver.sourceName).toBe('انس نقره جهانی (XAG)');
+  });
+
+  it('Phase 5 verification: items use displayEngine for category, badge, and unit', async () => {
+    const mockEnv = {};
+    const mockRequest = new Request('https://realrate.ir/api/market/items');
+    const response = await handleGetUnifiedMarketItems(mockEnv, mockRequest);
+    const data = await response.json();
+
+    const fullCoin = data.goldAndCoins.find(item => item.id === 'full_coin');
+    expect(fullCoin.category).toBe('coin');
+    expect(fullCoin.badge).toBe('سکه');
+    expect(fullCoin.unit).toBe('عدد');
+
+    const usdCur = data.currencies.find(c => c.code === 'USD');
+    expect(usdCur.category).toBe('currency');
+    expect(usdCur.badge).toBe('ارز');
+    expect(usdCur.unit).toBe('دلار');
   });
 });

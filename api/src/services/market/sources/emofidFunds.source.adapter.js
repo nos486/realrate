@@ -7,12 +7,11 @@
 import { USER_AGENT } from "./parsingUtils.js";
 import { logger } from "../../../lib/logger.js";
 import {
-  getEmofidFundsCache,
-  setEmofidFundsCache,
-  getEmofidLastSync,
-  setEmofidLastSync,
-  setSourcePriceCache,
-} from "../../../repositories/kvCache.repository.js";
+  saveSourceItems,
+  getSourceItems,
+  getSourceLastSync,
+  setSourceLastSync,
+} from "../../../repositories/sourceItems.repository.js";
 
 export const EMOFID_API_URL = "https://www.emofid.com/api/funds/";
 
@@ -208,14 +207,11 @@ export const emofidFundsSourceAdapter = {
       }
     }
 
-    // Fallback 2: check KV cache
     if (previousList.length === 0 && env) {
       try {
-        const { cached, backup } = await getEmofidFundsCache(env);
-        if (cached) {
-          previousList = JSON.parse(cached);
-        } else if (backup) {
-          previousList = JSON.parse(backup);
+        const cached = await getSourceItems(env, sourceConfig?.id || "src_def_emofid");
+        if (Array.isArray(cached) && cached.length > 0) {
+          previousList = cached;
         }
       } catch (e) {
         logger.warn("Error loading previous emofid funds for merge:", { error: e.message });
@@ -227,42 +223,19 @@ export const emofidFundsSourceAdapter = {
 
     inMemoryEmofidList = mergedList;
 
-    const multiDataObj = {
-      isCatalog: true,
-      totalCount: mergedList.length,
-      items: mergedList,
-      compactList: mergedList,
-      sampleItems: mergedList.slice(0, 50),
-      datetime: nowIso,
-    };
-
     if (env && mergedList.length > 0) {
       try {
-        const compactJson = JSON.stringify(mergedList);
-        await setEmofidFundsCache(env, compactJson, true);
-        await setSourcePriceCache(env, sourceConfig?.id || "src_def_emofid", {
-          price: mergedList.length,
-          lastFetched: nowIso,
-          priceType: "emofid_funds",
-          name: sourceConfig?.name || "صندوق‌های سرمایه‌گذاری کارگزاری مفید (Emofid)",
-          lastMultiData: multiDataObj,
-        }).catch(() => {});
+        await saveSourceItems(env, sourceConfig?.id || "src_def_emofid", mergedList, { datetime: nowIso });
       } catch (err) {
-        logger.warn("Error caching emofid funds in KV:", { error: err.message });
+        logger.warn("Error caching emofid funds:", { error: err.message });
       }
     }
 
     logger.info(`[EmofidAdapter] Processed ${mergedList.length} funds. Added: ${stats.addedCount}, Updated: ${stats.updatedCount}, Retained: ${stats.retainedCount}`);
 
     return {
-      price: mergedList.length,
+      items: mergedList,
       datetime: nowIso,
-      label: sourceConfig?.name || "صندوق‌های سرمایه‌گذاری کارگزاری مفید (Emofid)",
-      multiData: multiDataObj,
-      compactList: mergedList,
-      sampleItems: mergedList.slice(0, 50),
-      multiOutput: mergedList,
-      sourceId: sourceConfig?.id || "src_def_emofid",
     };
   },
 
@@ -270,38 +243,29 @@ export const emofidFundsSourceAdapter = {
     try {
       const raw = await this.fetchRaw(sourceConfig, env);
       const parsed = await this.parse(raw, sourceConfig, env);
+      const count = parsed.items.length;
       return {
         success: true,
         source_type: "api_url",
-        price: parsed.price,
-        multiData: parsed.multiData,
-        sampleItems: parsed.compactList || parsed.sampleItems,
-        compactList: parsed.compactList,
+        price: count,
+        items: parsed.items,
+        sampleItems: parsed.items.slice(0, 50),
         datetime: parsed.datetime,
-        label: parsed.label,
-        message: `تعداد ${parsed.price} صندوق سرمایه‌گذاری مفید با موفقیت دریافت و پردازش شد.`,
+        label: sourceConfig?.name || this.name,
+        message: `تعداد ${count} صندوق سرمایه‌گذاری مفید با موفقیت دریافت و پردازش شد.`,
       };
     } catch (e) {
       try {
-        const cached = await this.getFunds(env);
+        const cached = await this.getItems(env);
         if (Array.isArray(cached) && cached.length > 0) {
-          const multiDataObj = {
-            isCatalog: true,
-            totalCount: cached.length,
-            items: cached,
-            compactList: cached,
-            sampleItems: cached.slice(0, 50),
-            datetime: cached[0]?.updatedAt || new Date().toISOString(),
-          };
           return {
             success: true,
             source_type: "api_url",
             price: cached.length,
-            multiData: multiDataObj,
+            items: cached,
             sampleItems: cached.slice(0, 50),
-            compactList: cached,
             datetime: cached[0]?.updatedAt || new Date().toISOString(),
-            label: sourceConfig.name || "صندوق‌های سرمایه‌گذاری کارگزاری مفید (Emofid)",
+            label: sourceConfig.name || this.name,
             message: `تعداد ${cached.length} صندوق مفید از کش فعال سامانه بازخوانی شد.`,
           };
         }
@@ -313,23 +277,15 @@ export const emofidFundsSourceAdapter = {
   /**
    * Helper to get funds list for search and lookup
    */
-  async getFunds(env = null) {
+  async getItems(env = null) {
     if (inMemoryEmofidList && inMemoryEmofidList.length > 0) {
       return inMemoryEmofidList;
     }
     if (env) {
-      const { cached, backup } = await getEmofidFundsCache(env);
-      if (cached) {
-        try {
-          inMemoryEmofidList = JSON.parse(cached);
-          return inMemoryEmofidList;
-        } catch {}
-      }
-      if (backup) {
-        try {
-          inMemoryEmofidList = JSON.parse(backup);
-          return inMemoryEmofidList;
-        } catch {}
+      const items = await getSourceItems(env, this.id);
+      if (items && items.length > 0) {
+        inMemoryEmofidList = items;
+        return inMemoryEmofidList;
       }
     }
     // Auto on-demand fetch if empty
@@ -340,18 +296,13 @@ export const emofidFundsSourceAdapter = {
     return inMemoryEmofidList || [];
   },
 
-  async getItems(env = null) {
-    return await this.getFunds(env);
-  },
-
   /**
    * Periodic sync for Emofid funds governed by sources.config.js (fetchIntervalSec)
    */
   async handleScheduledSync(env, sourceConfig = null) {
     if (!env) return false;
     try {
-      const lastSyncStr = await getEmofidLastSync(env);
-      const lastSync = lastSyncStr ? parseInt(lastSyncStr, 10) : 0;
+      const lastSync = await getSourceLastSync(env, this.id) || 0;
       const now = Date.now();
 
       const intervalSec = Number(sourceConfig?.fetchIntervalSec) > 0
@@ -365,9 +316,9 @@ export const emofidFundsSourceAdapter = {
 
       const raw = await this.fetchRaw({}, env);
       const parsed = await this.parse(raw, { id: "src_def_emofid", name: sourceConfig?.name || this.name }, env);
-      if (parsed && parsed.price > 0) {
+      if (parsed && parsed.items?.length > 0) {
         const expirationTtl = Math.max(86400, intervalSec * 3);
-        await setEmofidLastSync(env, now, expirationTtl);
+        await setSourceLastSync(env, this.id, now, expirationTtl);
         return true;
       }
     } catch (err) {
@@ -390,7 +341,7 @@ export async function fetchAndStoreEmofidFunds(env = null) {
       { id: "src_def_emofid", name: emofidFundsSourceAdapter.name },
       env
     );
-    const list = parsed.multiData?.items || parsed.compactList || inMemoryEmofidList || [];
+    const list = parsed.items || inMemoryEmofidList || [];
     return { success: true, count: list.length, funds: list };
   } catch (err) {
     logger.error("[EmofidAdapter] fetchAndStoreEmofidFunds error:", { error: err.message });

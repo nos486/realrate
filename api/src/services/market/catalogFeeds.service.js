@@ -12,10 +12,12 @@
  */
 
 import { PRICE_SOURCES_CONFIG, getSourceDisplayName } from "../../config/sources.config.js";
+import { getItemCategory, getItemUnit, getItemBadge } from "../../domain/displayEngine.js";
 import { getAdapterForSource } from "./sources/index.js";
 import { normalizePersian } from "./sources/parsingUtils.js";
 import { DEFAULT_BOURSE_SEARCH_LIMIT } from "../../config/constants.js";
 import { logger } from "../../lib/logger.js";
+import { syncAllSources } from "./sourceSync.service.js";
 
 /**
  * Returns all configured catalog sources from PRICE_SOURCES_CONFIG
@@ -60,22 +62,16 @@ export function standardizeCatalogItem(item, sourceConfig = {}) {
     ? Math.round(Number(item.priceRial))
     : (priceToman * 10);
 
-  // Data-driven category, badge, unit, and isFund derived directly from sourceConfig (Single Source of Truth)
-  const category = item.category || sourceConfig.category || (sourceConfig.isFund || item.isFund ? "bourse_fund" : (sourceConfig.priceType === "bourse" ? "bourse" : "custom"));
-  const badge = item.badge || sourceConfig.badge || (category === "bourse_fund" ? "صندوق" : (category === "bourse" ? "بورس" : "دارایی"));
-  const unit = item.unit || sourceConfig.unit || (category === "bourse" ? "برگ سهم" : "واحد");
-  const isFund = Boolean(item.isFund || sourceConfig.isFund || category === "bourse_fund" || name.includes("صندوق"));
-
-  const sourceName = getSourceDisplayName(sourceConfig) || sourceConfig.name || item.sourceName || "";
   const sourceId = sourceConfig.id || item.sourceId || "";
-
-  const idPrefix = (sourceConfig.priceType === "bourse" || sourceConfig.id === "src_def_bourse")
-    ? "bourse_"
-    : (sourceId ? `${sourceId}__` : "");
-
-  const fullId = symbol.startsWith("bourse_") || (sourceId && symbol.startsWith(`${sourceId}__`))
+  const fullId = (sourceId && symbol.startsWith(`${sourceId}__`))
     ? symbol
-    : `${idPrefix}${symbol}`;
+    : (sourceId ? `${sourceId}__${symbol}` : symbol);
+
+  const category = getItemCategory(item, sourceConfig);
+  const badge = getItemBadge(item, sourceConfig);
+  const unit = getItemUnit(item, sourceConfig);
+  const isFund = Boolean(sourceConfig.isFund || category === "bourse_fund");
+  const sourceName = getSourceDisplayName(sourceConfig) || sourceConfig.name || item.sourceName || "";
 
   return {
     id: fullId,
@@ -331,28 +327,20 @@ export async function syncCatalogSource(env, sourceId) {
 }
 
 /**
- * Scheduled sync for all active catalog sources (Used in Cron Jobs)
+ * Scheduled sync for all active catalog sources
  * @param {object} env - Cloudflare Worker env
- * @returns {Promise<Array<{ sourceId: string, success: boolean }>>}
+ * @returns {Promise<Array<{ sourceId: string, status: string, value: any, error: string|null }>>}
  */
 export async function syncAllCatalogSources(env) {
   const sources = getAllCatalogSources(true);
-  logger.info(`[CatalogEngine] Starting scheduled sync for ${sources.length} catalog feeds...`);
+  logger.info(`[CatalogEngine] Starting sync for ${sources.length} catalog feeds...`);
+  const sourceIds = sources.map(s => s.id);
 
-  const results = await Promise.allSettled(
-    sources.map(async (src) => {
-      const adapter = getAdapterForSource(src);
-      if (typeof adapter?.handleScheduledSync === "function") {
-        return await adapter.handleScheduledSync(env, src);
-      }
-      return await syncCatalogSource(env, src.id);
-    })
-  );
-
-  return results.map((res, idx) => ({
-    sourceId: sources[idx]?.id,
-    status: res.status,
-    value: res.status === "fulfilled" ? res.value : null,
-    error: res.status === "rejected" ? res.reason?.message : null,
+  const syncRes = await syncAllSources(env, { forceAll: true, sourceIds });
+  return (syncRes?.results || []).map(r => ({
+    sourceId: r.sourceId,
+    status: r.success ? "fulfilled" : "rejected",
+    value: r.success ? { success: true, count: r.itemsCount } : null,
+    error: r.error || null,
   }));
 }

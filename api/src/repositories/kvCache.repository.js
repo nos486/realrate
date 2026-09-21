@@ -112,6 +112,18 @@ export async function getSourcePriceCache(env, id) {
   const kv = getKv(env);
   if (!kv || !id) return null;
   try {
+    const raw = await kv.get(`source_items:${id}`);
+    if (raw) {
+      const items = JSON.parse(raw);
+      if (Array.isArray(items)) {
+        const price = items.length === 1 ? items[0].price : items.length;
+        return {
+          price,
+          items,
+          lastMultiData: items.length > 1 ? { items, totalCount: items.length } : undefined,
+        };
+      }
+    }
     const data = await kv.get(`source_price:${id}`);
     return data ? JSON.parse(data) : null;
   } catch (e) {
@@ -120,13 +132,13 @@ export async function getSourcePriceCache(env, id) {
 }
 
 export async function setSourcePriceCache(env, id, data) {
-  const kv = getKv(env);
-  if (!kv || !id) return;
-  try {
-    await kv.put(`source_price:${id}`, JSON.stringify(data));
-  } catch (e) {
-    logger.warn("KV write error for source_price:", { id, error: e.message });
-  }
+  if (!env || !id || !data) return;
+  const items = Array.isArray(data.items)
+    ? data.items
+    : (Array.isArray(data.lastMultiData?.items)
+      ? data.lastMultiData.items
+      : [{ id, name: data.name || id, price: Number(data.price) || 0 }]);
+  await saveSourceItems(env, id, items, { datetime: data.lastFetched || data.datetime });
 }
 
 export async function deleteSourcePriceCache(env, id) {
@@ -134,74 +146,46 @@ export async function deleteSourcePriceCache(env, id) {
   if (!kv || !id) return;
   try {
     await kv.delete(`source_price:${id}`);
+    await kv.delete(`source_items:${id}`);
+    await kv.delete(`source_items_backup:${id}`);
+    await kv.delete(`source_items_last_sync:${id}`);
   } catch (e) {
     logger.warn("KV delete error for source_price:", { id, error: e.message });
   }
 }
 
 /* ─────────────────────────────────────────────────────────────
- * Bourse Symbols KV
+ * Bourse, Emofid, and Charisma KV (Delegated to sourceItems)
  * ───────────────────────────────────────────────────────────── */
+
+import { getSourceItems, saveSourceItems } from "./sourceItems.repository.js";
 
 export const BOURSE_KV_KEY = "bourse_symbols_toman_v3";
 export const BOURSE_BACKUP_KV_KEY = "bourse_symbols_backup_v1";
 export const BOURSE_LAST_SYNC_KEY = "bourse_symbols_last_sync_v3";
 
 export async function getBourseSymbolsCache(env) {
-  const kv = getKv(env);
-  if (!kv) return { cached: null, backup: null };
-  try {
-    const cached = await kv.get(BOURSE_KV_KEY);
-    let backup = null;
-    if (!cached) {
-      backup = await kv.get(BOURSE_BACKUP_KV_KEY);
-    }
-    return { cached, backup };
-  } catch (e) {
-    logger.error("Error reading bourse KV:", { error: e.message });
-    return { cached: null, backup: null };
-  }
+  const items = await getSourceItems(env, "src_def_bourse");
+  return { cached: items.length > 0 ? JSON.stringify(items) : null, backup: null };
 }
 
-export async function setBourseSymbolsCache(env, compactJson, alsoBackup = true) {
-  const kv = getKv(env);
-  if (!kv) return;
-  try {
-    await kv.put(BOURSE_KV_KEY, compactJson);
-    if (alsoBackup) {
-      await kv.put(BOURSE_BACKUP_KV_KEY, compactJson).catch(() => {});
-    }
-  } catch (e) {
-    logger.error("Error saving bourse symbols in KV:", { error: e.message });
-  }
+export async function setBourseSymbolsCache(env, compactJson) {
+  const items = typeof compactJson === "string" ? JSON.parse(compactJson) : compactJson;
+  await saveSourceItems(env, "src_def_bourse", items);
 }
 
 export async function getBourseLastSync(env) {
   const kv = getKv(env);
-  if (!kv) return null;
-  try {
-    return await kv.get(BOURSE_LAST_SYNC_KEY);
-  } catch (e) {
-    return null;
-  }
+  return kv ? await kv.get(BOURSE_LAST_SYNC_KEY) : null;
 }
 
 export async function setBourseLastSync(env, timestamp, ttlSeconds = 86400 * 3) {
   const kv = getKv(env);
   if (!kv) return;
-  try {
-    await kv.put(BOURSE_LAST_SYNC_KEY, String(timestamp), {
-      expirationTtl: ttlSeconds,
-    });
-  } catch (e) {
-    logger.error("Error saving bourse last sync to KV:", { error: e.message });
-  }
+  await kv.put(BOURSE_LAST_SYNC_KEY, String(timestamp), { expirationTtl: ttlSeconds }).catch(() => {});
 }
 
-/* ─────────────────────────────────────────────────────────────
- * Forex Rates KV
- * ───────────────────────────────────────────────────────────── */
-
+/* ── Forex Rates KV ── */
 export const FOREX_KV_KEY = "forex_rates";
 export const FOREX_HISTORY_RECORDED_KEY = "last_forex_d1_record";
 
@@ -247,180 +231,82 @@ export async function setLastForexD1RecordTime(env, timestamp, ttlSeconds, cache
   }
 }
 
-/* ─────────────────────────────────────────────────────────────
- * Emofid Mutual Funds KV
- * ───────────────────────────────────────────────────────────── */
-
+/* ── Emofid Mutual Funds KV ── */
 export const EMOFID_FUNDS_KV_KEY = "emofid_funds_v1";
 export const EMOFID_FUNDS_BACKUP_KV_KEY = "emofid_funds_backup_v1";
 export const EMOFID_LAST_SYNC_KEY = "emofid_funds_last_sync_v1";
 
 export async function getEmofidFundsCache(env) {
-  const kv = getKv(env);
-  if (!kv) return { cached: null, backup: null };
-  try {
-    const cached = await kv.get(EMOFID_FUNDS_KV_KEY);
-    let backup = null;
-    if (!cached) {
-      backup = await kv.get(EMOFID_FUNDS_BACKUP_KV_KEY);
-    }
-    return { cached, backup };
-  } catch (e) {
-    logger.error("Error reading emofid funds KV:", { error: e.message });
-    return { cached: null, backup: null };
-  }
+  const items = await getSourceItems(env, "src_def_emofid");
+  return { cached: items.length > 0 ? JSON.stringify(items) : null, backup: null };
 }
 
-export async function setEmofidFundsCache(env, compactJson, alsoBackup = true) {
-  const kv = getKv(env);
-  if (!kv) return;
-  try {
-    await kv.put(EMOFID_FUNDS_KV_KEY, compactJson);
-    if (alsoBackup) {
-      await kv.put(EMOFID_FUNDS_BACKUP_KV_KEY, compactJson).catch(() => {});
-    }
-  } catch (e) {
-    logger.error("Error saving emofid funds in KV:", { error: e.message });
-  }
+export async function setEmofidFundsCache(env, compactJson) {
+  const items = typeof compactJson === "string" ? JSON.parse(compactJson) : compactJson;
+  await saveSourceItems(env, "src_def_emofid", items);
 }
 
 export async function getEmofidLastSync(env) {
   const kv = getKv(env);
-  if (!kv) return null;
-  try {
-    return await kv.get(EMOFID_LAST_SYNC_KEY);
-  } catch {
-    return null;
-  }
+  return kv ? await kv.get(EMOFID_LAST_SYNC_KEY) : null;
 }
 
 export async function setEmofidLastSync(env, timestamp, ttlSeconds = 86400) {
   const kv = getKv(env);
   if (!kv) return;
-  try {
-    await kv.put(EMOFID_LAST_SYNC_KEY, String(timestamp), {
-      expirationTtl: ttlSeconds,
-    });
-  } catch (e) {
-    logger.error("Error saving emofid last sync to KV:", { error: e.message });
-  }
+  await kv.put(EMOFID_LAST_SYNC_KEY, String(timestamp), { expirationTtl: ttlSeconds }).catch(() => {});
 }
 
-/* ─────────────────────────────────────────────────────────────
- * Charisma Investment Funds KV
- * ───────────────────────────────────────────────────────────── */
-
+/* ── Charisma Investment Funds KV ── */
 export const CHARISMA_FUNDS_KV_KEY = "charisma_funds_v1";
 export const CHARISMA_FUNDS_BACKUP_KV_KEY = "charisma_funds_backup_v1";
 export const CHARISMA_LAST_SYNC_KEY = "charisma_funds_last_sync_v1";
 
 export async function getCharismaFundsCache(env) {
-  const kv = getKv(env);
-  if (!kv) return { cached: null, backup: null };
-  try {
-    const cached = await kv.get(CHARISMA_FUNDS_KV_KEY);
-    let backup = null;
-    if (!cached) {
-      backup = await kv.get(CHARISMA_FUNDS_BACKUP_KV_KEY);
-    }
-    return { cached, backup };
-  } catch (e) {
-    logger.error("Error reading charisma funds KV:", { error: e.message });
-    return { cached: null, backup: null };
-  }
+  const items = await getSourceItems(env, "src_def_charisma");
+  return { cached: items.length > 0 ? JSON.stringify(items) : null, backup: null };
 }
 
-export async function setCharismaFundsCache(env, compactJson, alsoBackup = true) {
-  const kv = getKv(env);
-  if (!kv) return;
-  try {
-    await kv.put(CHARISMA_FUNDS_KV_KEY, compactJson);
-    if (alsoBackup) {
-      await kv.put(CHARISMA_FUNDS_BACKUP_KV_KEY, compactJson).catch(() => {});
-    }
-  } catch (e) {
-    logger.error("Error saving charisma funds in KV:", { error: e.message });
-  }
+export async function setCharismaFundsCache(env, compactJson) {
+  const items = typeof compactJson === "string" ? JSON.parse(compactJson) : compactJson;
+  await saveSourceItems(env, "src_def_charisma", items);
 }
 
 export async function getCharismaLastSync(env) {
   const kv = getKv(env);
-  if (!kv) return null;
-  try {
-    return await kv.get(CHARISMA_LAST_SYNC_KEY);
-  } catch {
-    return null;
-  }
+  return kv ? await kv.get(CHARISMA_LAST_SYNC_KEY) : null;
 }
 
 export async function setCharismaLastSync(env, timestamp, ttlSeconds = 86400) {
   const kv = getKv(env);
   if (!kv) return;
-  try {
-    await kv.put(CHARISMA_LAST_SYNC_KEY, String(timestamp), {
-      expirationTtl: ttlSeconds,
-    });
-  } catch (e) {
-    logger.error("Error saving charisma last sync to KV:", { error: e.message });
-  }
+  await kv.put(CHARISMA_LAST_SYNC_KEY, String(timestamp), { expirationTtl: ttlSeconds }).catch(() => {});
 }
 
-/* ─────────────────────────────────────────────────────────────
- * Charisma Investment Plans KV
- * ───────────────────────────────────────────────────────────── */
-
+/* ── Charisma Investment Plans KV ── */
 export const CHARISMA_PLANS_KV_KEY = "charisma_plans_v1";
 export const CHARISMA_PLANS_BACKUP_KV_KEY = "charisma_plans_backup_v1";
 export const CHARISMA_PLANS_LAST_SYNC_KEY = "charisma_plans_last_sync_v1";
 
 export async function getCharismaPlansCache(env) {
-  const kv = getKv(env);
-  if (!kv) return { cached: null, backup: null };
-  try {
-    const cached = await kv.get(CHARISMA_PLANS_KV_KEY);
-    let backup = null;
-    if (!cached) {
-      backup = await kv.get(CHARISMA_PLANS_BACKUP_KV_KEY);
-    }
-    return { cached, backup };
-  } catch (e) {
-    logger.error("Error reading charisma plans KV:", { error: e.message });
-    return { cached: null, backup: null };
-  }
+  const items = await getSourceItems(env, "src_def_charisma_plans");
+  return { cached: items.length > 0 ? JSON.stringify(items) : null, backup: null };
 }
 
-export async function setCharismaPlansCache(env, compactJson, alsoBackup = true) {
-  const kv = getKv(env);
-  if (!kv) return;
-  try {
-    await kv.put(CHARISMA_PLANS_KV_KEY, compactJson);
-    if (alsoBackup) {
-      await kv.put(CHARISMA_PLANS_BACKUP_KV_KEY, compactJson).catch(() => {});
-    }
-  } catch (e) {
-    logger.error("Error saving charisma plans in KV:", { error: e.message });
-  }
+export async function setCharismaPlansCache(env, compactJson) {
+  const items = typeof compactJson === "string" ? JSON.parse(compactJson) : compactJson;
+  await saveSourceItems(env, "src_def_charisma_plans", items);
 }
 
 export async function getCharismaPlansLastSync(env) {
   const kv = getKv(env);
-  if (!kv) return null;
-  try {
-    return await kv.get(CHARISMA_PLANS_LAST_SYNC_KEY);
-  } catch {
-    return null;
-  }
+  return kv ? await kv.get(CHARISMA_PLANS_LAST_SYNC_KEY) : null;
 }
 
 export async function setCharismaPlansLastSync(env, timestamp, ttlSeconds = 86400) {
   const kv = getKv(env);
   if (!kv) return;
-  try {
-    await kv.put(CHARISMA_PLANS_LAST_SYNC_KEY, String(timestamp), {
-      expirationTtl: ttlSeconds,
-    });
-  } catch (e) {
-    logger.error("Error saving charisma plans last sync to KV:", { error: e.message });
-  }
+  await kv.put(CHARISMA_PLANS_LAST_SYNC_KEY, String(timestamp), { expirationTtl: ttlSeconds }).catch(() => {});
 }
+
 

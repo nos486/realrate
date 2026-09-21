@@ -4,6 +4,7 @@
 
 import { CANONICAL_ASSET_REGISTRY } from '../../../../utils/financialSpecs.js';
 import { PRICE_SOURCES_CONFIG } from '../../../../config/sources.config.js';
+import { getCategoryColor } from '../../../../config/categories.config.js';
 
 // Canonical price type info derived dynamically from domain specs and sources.config.js
 export const CANONICAL_PRICE_TYPE_INFO = {
@@ -14,23 +15,14 @@ export const CANONICAL_PRICE_TYPE_INFO = {
         label: spec.name || spec.id,
         category: spec.category || 'single',
         unit: spec.unit || 'تومان',
-        badgeColor:
-          spec.category === 'gold'
-            ? 'amber'
-            : spec.category === 'coin'
-            ? 'emerald'
-            : spec.category === 'silver'
-            ? 'slate'
-            : spec.category === 'crypto'
-            ? 'purple'
-            : 'blue',
+        badgeColor: getCategoryColor(spec.category) || 'blue',
       },
     ])
   ),
-  forex: { label: 'نرخ ارزهای جهانی (فارکس)', category: 'multi_output', unit: 'ارز', badgeColor: 'indigo' },
-  bourse: { label: 'سهام بورس اوراق بهادار', category: 'multi_output', unit: 'نماد', badgeColor: 'sky' },
-  bourse_fund: { label: 'صندوق‌های سرمایه‌گذاری بورس', category: 'multi_output', unit: 'صندوق', badgeColor: 'cyan' },
-  custom_feed: { label: 'فید چند خروجی / کاتالوگ سفارشی', category: 'multi_output', unit: 'آیتم', badgeColor: 'blue' },
+  forex: { label: 'نرخ ارزهای جهانی (فارکس)', category: 'multi_output', unit: 'ارز', badgeColor: getCategoryColor('currency') },
+  bourse: { label: 'سهام بورس اوراق بهادار', category: 'multi_output', unit: 'نماد', badgeColor: getCategoryColor('bourse') },
+  bourse_fund: { label: 'صندوق‌های سرمایه‌گذاری بورس', category: 'multi_output', unit: 'صندوق', badgeColor: getCategoryColor('bourse_fund') },
+  custom_feed: { label: 'فید چند خروجی / کاتالوگ سفارشی', category: 'multi_output', unit: 'آیتم', badgeColor: getCategoryColor('custom') },
 };
 
 // Dynamically register all sources declared in PRICE_SOURCES_CONFIG (Single Source of Truth)
@@ -41,7 +33,7 @@ if (Array.isArray(PRICE_SOURCES_CONFIG)) {
         label: src.name || src.priceType,
         category: src.isCatalog ? 'multi_output' : (src.category || 'single'),
         unit: src.unit || (src.isFund ? 'صندوق' : (src.badge || 'واحد')),
-        badgeColor: src.badgeColor || (src.isFund ? 'purple' : 'blue'),
+        badgeColor: getCategoryColor(src.category) || 'blue',
       };
     }
   }
@@ -135,15 +127,6 @@ export function formatNum(num, priceType = 'usd', unit = '') {
   return Math.round(num).toLocaleString('fa-IR');
 }
 
-export function getPriceUnit(priceType) {
-  const t = (priceType || '').toLowerCase();
-  if (t.includes('ons')) return 'دلار';
-  if (t === 'crypto') return 'تتر';
-  if (t === 'bourse_fund') return 'صندوق';
-  if (t === 'bourse') return 'نماد';
-  if (t === 'forex') return 'ارز';
-  return 'تومان';
-}
 
 export function formatPersianDate(isoStr) {
   if (!isoStr) return '-';

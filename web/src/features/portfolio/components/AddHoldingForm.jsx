@@ -16,6 +16,10 @@ import {
   resolveAssetUnit,
   resolveCategory,
 } from '../../../utils/sourceRegistry.js';
+import {
+  getItemCategory,
+  getItemUnit,
+} from '../../../config/displayEngine.js';
 import { usePricing } from '../../market/index.js';
 
 const formatNum = (v) => Number(v || 0).toLocaleString('fa-IR');
@@ -61,15 +65,12 @@ export default function AddHoldingForm({
         setCustomCurrentPrice('');
       }
 
-      if (
-        editingHolding.assetType === 'bourse' ||
-        editingHolding.assetType === 'bourse_fund' ||
-        editingHolding.assetId?.startsWith('bourse_')
-      ) {
+      const editCat = getItemCategory(editingHolding);
+      if (editCat === 'bourse' || editCat === 'bourse_fund') {
         setSelectedBourseSymbol({
-          symbol: editingHolding.assetId.replace('bourse_', ''),
+          symbol: (editingHolding.assetId || '').replace(/^bourse_/, '').replace(/^src_def_bourse__/, ''),
           name: editingHolding.assetName,
-          isFund: editingHolding.assetType === 'bourse_fund',
+          isFund: editCat === 'bourse_fund',
           priceToman: editingHolding.customPrice || 0,
         });
       } else {
@@ -96,38 +97,28 @@ export default function AddHoldingForm({
     const canonicalSpec = getCanonicalAssetSpec(cleanId || rawId || rawItem.symbol);
     const resolvedId = canonicalSpec?.id || cleanId || rawId;
 
-    const resolvedCat = resolveItemCategory(rawItem);
-    const isPlan = resolvedId.startsWith('charisma_plans') || rawItem.category === 'charisma_plans' || rawItem.badge === 'طرح';
-    const isBourse = !isPlan && (resolvedCat === 'bourse' || resolvedCat === 'bourse_fund' || resolvedId.startsWith('bourse_'));
+    const resolvedCat = getItemCategory(rawItem);
+    const resolvedUnit = getItemUnit(rawItem);
     const isCustom = resolvedCat === 'custom' || resolvedId === 'custom' || resolvedId.startsWith('custom_');
+    const isBourse = (resolvedCat === 'bourse' || resolvedCat === 'bourse_fund') && !resolvedId.includes('charisma');
 
     if (isBourse) {
       const symCode = (rawItem.symbol || rawItem.s || resolvedId.replace('bourse_', '')).trim();
-      const isFund = Boolean(
-        rawItem.isFund ||
-        rawItem.f === 1 ||
-        resolvedCat === 'bourse_fund' ||
-        rawItem.category === 'bourse_fund' ||
-        rawItem.category?.includes('صندوق') ||
-        rawItem.name?.includes('صندوق') ||
-        rawItem.title?.includes('صندوق')
-      );
-      setSelectedAssetId(`bourse_${symCode}`);
+      setSelectedAssetId(resolvedId.includes('__') ? resolvedId : `bourse_${symCode}`);
       setSelectedBourseSymbol({
         ...rawItem,
         symbol: symCode,
-        isFund,
         priceToman: rawItem.priceToman || (rawItem.priceRial ? Math.round(rawItem.priceRial / 10) : rawItem.price || 0),
       });
-      setCustomName(rawItem.name || (isFund ? `صندوق ${symCode}` : `سهام ${symCode}`));
-      setCustomUnit(isFund ? 'واحد' : 'برگ سهم');
+      setCustomName(resolveAssetDisplayName(resolvedId, rawItem));
+      setCustomUnit(resolvedUnit);
       const p = rawItem.priceToman || (rawItem.priceRial ? Math.round(rawItem.priceRial / 10) : rawItem.price || '');
       setCustomCurrentPrice(p ? String(p) : '');
     } else if (isCustom) {
       setSelectedAssetId('custom');
       setSelectedBourseSymbol(null);
       setCustomName(rawItem.name || '');
-      setCustomUnit(rawItem.unit || 'واحد');
+      setCustomUnit(resolvedUnit);
       if (rawItem.price > 0) {
         setCustomCurrentPrice(String(Math.round(rawItem.price)));
       }
@@ -136,7 +127,7 @@ export default function AddHoldingForm({
       setSelectedAssetId(resolvedId);
       setSelectedBourseSymbol(null);
       setCustomName(resolveAssetDisplayName(resolvedId, rawItem));
-      setCustomUnit(resolveAssetUnit(resolvedId, rawItem));
+      setCustomUnit(resolvedUnit);
       const p = rawItem.priceToman || (rawItem.priceRial ? Math.round(rawItem.priceRial / 10) : rawItem.price || '');
       if (p > 0) {
         setCustomCurrentPrice(String(Math.round(p)));
@@ -203,8 +194,8 @@ export default function AddHoldingForm({
 
     if (selectedAssetId === 'custom' || selectedAssetId.startsWith('custom_')) {
       finalAssetId = editingHolding?.assetId || `custom_${Date.now()}`;
-    } else if (selectedBourseSymbol || selectedAssetId.startsWith('bourse_')) {
-      const sym = selectedBourseSymbol?.symbol || selectedAssetId.replace('bourse_', '');
+    } else if (selectedBourseSymbol || ['bourse', 'bourse_fund'].includes(getItemCategory(selectedAssetId))) {
+      const sym = selectedBourseSymbol?.symbol || selectedAssetId.replace(/^bourse_/, '').replace(/^src_def_bourse__/, '');
       finalAssetId = `bourse_${sym}`;
     }
 
@@ -219,26 +210,22 @@ export default function AddHoldingForm({
     });
   };
 
+  const selectedCategory = getItemCategory(selectedAssetId);
   const cleanSelectedId = (selectedAssetId || '').replace(/^src_def_/, '').replace(/^derived_/, '');
   const isModalBourse =
-    selectedAssetId?.startsWith('bourse_') ||
-    selectedBourseSymbol !== null ||
-    selectedAssetId === 'bourse' ||
-    selectedAssetId === 'bourse_fund';
+    ['bourse', 'bourse_fund'].includes(selectedCategory) ||
+    selectedBourseSymbol !== null;
   const isModalFund = Boolean(
-    selectedBourseSymbol?.isFund ||
-    selectedAssetId === 'bourse_fund' ||
-    (selectedAssetId?.startsWith('bourse_') && selectedBourseSymbol?.isFund)
+    selectedCategory === 'bourse_fund' ||
+    selectedBourseSymbol?.isFund
   );
-  const isModalCustom = cleanSelectedId === 'custom' || selectedAssetId?.startsWith('custom_');
+  const isModalCustom = selectedCategory === 'custom' || selectedAssetId?.startsWith('custom_');
 
   const selectedAssetTitle = isModalBourse
     ? (selectedBourseSymbol?.symbol ? `${selectedBourseSymbol.symbol} (${selectedBourseSymbol.name || 'سهام بورس'})` : customName || 'سهام بورس')
     : (isModalCustom ? (customName || 'دارایی شخصی') : (resolveAssetDisplayName(cleanSelectedId, null) || customName || selectedAssetId || 'انتخاب نشده'));
 
-  const unitLabel = isModalBourse
-    ? (isModalFund ? 'واحد' : 'برگ سهام')
-    : (isModalCustom ? (customUnit || 'واحد') : (resolveAssetUnit(cleanSelectedId, null) || 'واحد'));
+  const unitLabel = getItemUnit(selectedAssetId, null, isModalFund ? 'واحد' : (isModalBourse ? 'برگ سهام' : (customUnit || 'واحد')));
 
   return (
     <Modal

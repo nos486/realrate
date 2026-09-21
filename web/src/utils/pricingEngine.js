@@ -18,6 +18,11 @@ import {
   calculateBubble,
 } from './financialSpecs.js';
 import { getSourceDisplayName } from '../config/sources.config.js';
+import {
+  getItemCategory,
+  getItemBadge,
+  getItemUnit,
+} from '../config/displayEngine.js';
 
 export function normalizePersianText(str) {
   if (!str) return '';
@@ -52,19 +57,21 @@ export function getStaticCatalogAssets(marketItems) {
     const p = Math.round(Number(f.priceToman || f.marketPrice || f.price || 0));
     const sourceLabel = getSourceDisplayName(f) || f.sourceName || 'صندوق‌های سرمایه‌گذاری';
     const subText = f.symbol ? `نماد: ${f.symbol} • ${sourceLabel}` : sourceLabel;
-    const isPlan = Boolean(f.badge === 'طرح' || f.category === 'charisma_plans' || f.priceType === 'charisma_plans');
-    const isFund = f.isFund !== undefined ? Boolean(f.isFund) : !isPlan;
+    const category = getItemCategory(f);
+    const badge = getItemBadge(f);
+    const unit = getItemUnit(f);
+
     const resolved = {
       ...f,
       price: p,
       priceToman: p,
-      priceType: isPlan ? 'charisma_plans' : (f.priceType || 'bourse_fund'),
-      priceTypeLabel: isPlan ? 'طرح' : 'صندوق',
+      priceType: f.priceType || category,
+      priceTypeLabel: badge,
+      badge,
       sourceName: sourceLabel,
       subText,
-      unit: f.unit || 'واحد',
-      isFund: true,
-      category: 'bourse_fund',
+      unit,
+      category,
     };
 
     staticAssets.push(resolved);
@@ -112,18 +119,23 @@ export function getStaticCatalogAssets(marketItems) {
     }
 
     const p = Math.round(Number(b.priceToman || b.price || 0));
-    const isFund = Boolean(b.isFund || b.category === 'bourse_fund' || b.name?.includes('صندوق'));
     const sourceLabel = getSourceDisplayName(b) || b.sourceName || b.sourceTitle || 'بورس اوراق بهادار تهران (TSETMC / BRS API)';
     const subText = b.symbol ? `نماد: ${b.symbol} • ${sourceLabel}` : sourceLabel;
+    const category = getItemCategory(b);
+    const badge = getItemBadge(b);
+    const unit = getItemUnit(b);
+
     const resolved = {
       ...b,
       price: p,
       priceToman: p,
-      priceType: 'bourse',
-      priceTypeLabel: isFund ? 'صندوق' : 'سهام بورس',
+      priceType: b.priceType || category,
+      priceTypeLabel: badge,
+      badge,
       sourceName: sourceLabel,
       subText,
-      unit: b.unit || (isFund ? 'واحد' : 'برگ سهم'),
+      unit,
+      category,
     };
 
     staticAssets.push(resolved);

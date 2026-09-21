@@ -3,6 +3,7 @@
  */
 
 import { logger } from "../lib/logger.js";
+import { PRICE_SOURCES_CONFIG } from "../config/sources.config.js";
 
 // In-memory flag to avoid re-running CREATE TABLE IF NOT EXISTS on every request
 let d1Initialized = false;
@@ -218,7 +219,7 @@ export async function ensureD1Tables(env) {
       await env.DB.prepare("ALTER TABLE price_sources ADD COLUMN display_config TEXT DEFAULT ''").run();
     } catch (ignore) {}
 
-    // Seed default price sources if table is empty or ensure core sources exist
+    // Programmatic seed of master price sources from PRICE_SOURCES_CONFIG to prevent drift
     try {
       const nowIso = new Date().toISOString();
 
@@ -227,116 +228,40 @@ export async function ensureD1Tables(env) {
         DELETE FROM price_sources WHERE id IN ('src_def_eur', 'src_def_try', 'src_def_aed', 'src_def_gbp', 'src_def_chf', 'src_def_cad', 'src_def_aud', 'src_def_cny')
       `).run().catch(() => {});
 
-      const defaultForexJson = JSON.stringify({
-        eur: 1.16,
-        gbp: 1.35,
-        aed: 0.272,
-        try: 0.030,
-        chf: 1.225,
-        cad: 0.722,
-        aud: 0.717,
-        cny: 0.149,
-        jpy: 0.0068,
-        sar: 0.266,
-        qar: 0.274,
-        kwd: 3.26,
-        omr: 2.60,
-        bhd: 2.65,
-        iqd: 0.00076,
-        rub: 0.011,
-        afn: 0.0155,
-        azn: 0.588,
-        inr: 0.0118,
-        sek: 0.103,
-        nok: 0.101,
-        sgd: 0.789,
-        krw: 0.00075,
-        brl: 0.196,
-      });
-
-      // Ensure unified Forex source exists (all 24 prominent currencies)
-      await env.DB.prepare(`
-        INSERT OR IGNORE INTO price_sources (id, name, price_type, source_type, endpoint, regex, json_path, field_mapping, fetch_interval_sec, is_active, is_primary, last_price, last_multi_data, last_fetched, created_at, updated_at)
-        VALUES ('src_def_forex', 'نرخ‌های جهانی فارکس (Open ER-API)', 'forex', 'api_url', 'https://open.er-api.com/v6/latest/USD', '', 'rates', '', 300, 1, 1, 24, ?, '', ?, ?)
-      `).bind(defaultForexJson, nowIso, nowIso).run().catch(() => {});
-
-      await env.DB.prepare(`
-        UPDATE price_sources
-        SET endpoint = 'https://open.er-api.com/v6/latest/USD', name = 'نرخ‌های جهانی فارکس (Open ER-API)', field_mapping = '', last_price = 24
-        WHERE id = 'src_def_forex'
-      `).run().catch(() => {});
-
-      // Ensure Tehran Stock Exchange (Bourse) source exists (Daily interval = 86400s)
-      await env.DB.prepare(`
-        INSERT OR IGNORE INTO price_sources (id, name, price_type, source_type, endpoint, regex, json_path, field_mapping, fetch_interval_sec, is_active, is_primary, last_price, last_multi_data, last_fetched, created_at, updated_at)
-        VALUES ('src_def_bourse', 'بورس اوراق بهادار تهران (TSETMC / BRS API)', 'bourse', 'api_url', 'https://api.brsapi.ir/Tsetmc/AllSymbols.php?type=1', '', '', '', 86400, 1, 1, 1567, '', '', ?, ?)
-      `).bind(nowIso, nowIso).run().catch(() => {});
-
-      await env.DB.prepare(`
-        UPDATE price_sources
-        SET endpoint = 'https://api.brsapi.ir/Tsetmc/AllSymbols.php?type=1', name = 'بورس اوراق بهادار تهران (TSETMC / BRS API)'
-        WHERE id = 'src_def_bourse'
-      `).run().catch(() => {});
-
-      // Sanitize any existing BRS endpoints in DB to strip sensitive query parameters
-      await env.DB.prepare(`
-        UPDATE price_sources
-        SET endpoint = CASE
-          WHEN endpoint LIKE 'https://api.brsapi.ir/Tsetmc/AllSymbols.php%' THEN 'https://api.brsapi.ir/Tsetmc/AllSymbols.php?type=1'
-          WHEN endpoint LIKE 'https://api.brsapi.ir/Market/Gold_Currency.php%' THEN 'https://api.brsapi.ir/Market/Gold_Currency.php'
-          ELSE endpoint
-        END
-        WHERE endpoint LIKE '%api.brsapi.ir%'
-      `).run().catch(() => {});
-
       // Clean up legacy separate funds feed if present
       await env.DB.prepare(`
         DELETE FROM price_sources WHERE id = 'src_def_bourse_funds' OR endpoint LIKE '%Fund.php%'
       `).run().catch(() => {});
 
-      const existingSources = await env.DB.prepare("SELECT COUNT(*) AS total FROM price_sources").first();
-      if (!existingSources || existingSources.total <= 2) {
-        let usdType = 'telegram';
-        let usdEndpoint = 'tahran_sabza';
-        let usdJsonPath = '';
-        try {
-          const settingsRow = await env.DB.prepare("SELECT usd_source_type, usd_telegram_channel, usd_api_url, usd_api_json_path FROM settings WHERE id = 1").first();
-          if (settingsRow) {
-            if (settingsRow.usd_source_type === 'api_url' && settingsRow.usd_api_url) {
-              usdType = 'api_url';
-              usdEndpoint = settingsRow.usd_api_url;
-              usdJsonPath = settingsRow.usd_api_json_path || '';
-            } else if (settingsRow.usd_telegram_channel) {
-              usdEndpoint = settingsRow.usd_telegram_channel;
-            }
-          }
-        } catch (ignore) {}
-
-        const seedInserts = [
-          { sql: `INSERT OR IGNORE INTO price_sources (id, name, price_type, source_type, endpoint, regex, json_path, fetch_interval_sec, is_active, is_primary, last_price, last_fetched, created_at, updated_at) VALUES ('src_def_usd', 'دلار تهران سبزه میدان', 'usd', ?, ?, '', ?, 60, 1, 1, 0, '', ?, ?)`, binds: [usdType, usdEndpoint, usdJsonPath, nowIso, nowIso] },
-          { sql: `INSERT OR IGNORE INTO price_sources (id, name, price_type, source_type, endpoint, regex, json_path, fetch_interval_sec, is_active, is_primary, last_price, last_fetched, created_at, updated_at) VALUES ('src_def_gold_18k', 'طلا ۱۸ عیار (زرما)', 'gold_18k', 'telegram', 'zarmagoldd', '', '', 60, 1, 1, 0, '', ?, ?)`, binds: [nowIso, nowIso] },
-          { sql: `INSERT OR IGNORE INTO price_sources (id, name, price_type, source_type, endpoint, regex, json_path, fetch_interval_sec, is_active, is_primary, last_price, last_fetched, created_at, updated_at) VALUES ('src_def_full_coin', 'سکه تمام بهار آزادی (زرما)', 'full_coin', 'telegram', 'zarmagoldd', '', '', 60, 1, 1, 0, '', ?, ?)`, binds: [nowIso, nowIso] },
-          { sql: `INSERT OR IGNORE INTO price_sources (id, name, price_type, source_type, endpoint, regex, json_path, fetch_interval_sec, is_active, is_primary, last_price, last_fetched, created_at, updated_at) VALUES ('src_def_half_coin', 'نیم سکه بهار آزادی (زرما)', 'half_coin', 'telegram', 'zarmagoldd', '', '', 60, 1, 1, 0, '', ?, ?)`, binds: [nowIso, nowIso] },
-          { sql: `INSERT OR IGNORE INTO price_sources (id, name, price_type, source_type, endpoint, regex, json_path, fetch_interval_sec, is_active, is_primary, last_price, last_fetched, created_at, updated_at) VALUES ('src_def_quarter_coin', 'ربع سکه بهار آزادی (زرما)', 'quarter_coin', 'telegram', 'zarmagoldd', '', '', 60, 1, 1, 0, '', ?, ?)`, binds: [nowIso, nowIso] },
-          { sql: `INSERT OR IGNORE INTO price_sources (id, name, price_type, source_type, endpoint, regex, json_path, fetch_interval_sec, is_active, is_primary, last_price, last_fetched, created_at, updated_at) VALUES ('src_def_mesghal', 'مثقال طلا ۱۷ عیار (زرما)', 'mesghal', 'telegram', 'zarmagoldd', '', '', 60, 1, 1, 0, '', ?, ?)`, binds: [nowIso, nowIso] },
-          { sql: `INSERT OR IGNORE INTO price_sources (id, name, price_type, source_type, endpoint, regex, json_path, fetch_interval_sec, is_active, is_primary, last_price, last_fetched, created_at, updated_at) VALUES ('src_def_ons_gold', 'انس طلا جهانی (XAU)', 'ons_gold', 'api_url', 'https://api.gold-api.com/price/XAU', '', 'price', 60, 1, 1, 0, '', ?, ?)`, binds: [nowIso, nowIso] },
-          { sql: `INSERT OR IGNORE INTO price_sources (id, name, price_type, source_type, endpoint, regex, json_path, fetch_interval_sec, is_active, is_primary, last_price, last_fetched, created_at, updated_at) VALUES ('src_def_ons_silver', 'انس نقره جهانی (XAG)', 'ons_silver', 'api_url', 'https://api.gold-api.com/price/XAG', '', 'price', 60, 1, 1, 0, '', ?, ?)`, binds: [nowIso, nowIso] },
-        ];
-
-        for (const item of seedInserts) {
-          await env.DB.prepare(item.sql).bind(...item.binds).run().catch(() => {});
-        }
-      } else {
-        // Ensure global gold and silver sources are seeded even if other sources exist
-        await env.DB.prepare(`
-          INSERT OR IGNORE INTO price_sources (id, name, price_type, source_type, endpoint, regex, json_path, fetch_interval_sec, is_active, is_primary, last_price, last_fetched, created_at, updated_at)
-          VALUES ('src_def_ons_gold', 'انس طلا جهانی (XAU)', 'ons_gold', 'api_url', 'https://api.gold-api.com/price/XAU', '', 'price', 60, 1, 1, 0, '', ?, ?)
-        `).bind(nowIso, nowIso).run().catch(() => {});
+      // Programmatically seed or update each source defined in PRICE_SOURCES_CONFIG
+      for (const src of PRICE_SOURCES_CONFIG) {
+        if (!src || !src.id) continue;
 
         await env.DB.prepare(`
-          INSERT OR IGNORE INTO price_sources (id, name, price_type, source_type, endpoint, regex, json_path, fetch_interval_sec, is_active, is_primary, last_price, last_fetched, created_at, updated_at)
-          VALUES ('src_def_ons_silver', 'انس نقره جهانی (XAG)', 'ons_silver', 'api_url', 'https://api.gold-api.com/price/XAG', '', 'price', 60, 1, 1, 0, '', ?, ?)
-        `).bind(nowIso, nowIso).run().catch(() => {});
+          INSERT INTO price_sources (
+            id, name, price_type, source_type, endpoint, regex, json_path,
+            fetch_interval_sec, is_active, is_primary, last_price, last_multi_data,
+            last_fetched, created_at, updated_at
+          ) VALUES (?, ?, ?, ?, ?, '', ?, ?, ?, ?, 0, '', '', ?, ?)
+          ON CONFLICT(id) DO UPDATE SET
+            name = excluded.name,
+            price_type = excluded.price_type,
+            source_type = excluded.source_type,
+            fetch_interval_sec = excluded.fetch_interval_sec,
+            updated_at = excluded.updated_at
+        `).bind(
+          src.id,
+          src.name,
+          src.priceType || src.id,
+          src.sourceType || "api_url",
+          src.endpoint || "",
+          src.jsonPath || "",
+          src.fetchIntervalSec || 60,
+          src.isActive ? 1 : 0,
+          src.isPrimary ? 1 : 0,
+          nowIso,
+          nowIso
+        ).run().catch(() => {});
       }
     } catch (e) {
       logger.error("Price sources seed error:", { error: e.message });

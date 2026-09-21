@@ -4,11 +4,11 @@
  */
 
 import {
-  getBourseSymbolsCache,
-  setBourseSymbolsCache,
-  getBourseLastSync,
-  setBourseLastSync,
-} from "../../../repositories/kvCache.repository.js";
+  saveSourceItems,
+  getSourceItems,
+  getSourceLastSync,
+  setSourceLastSync,
+} from "../../../repositories/sourceItems.repository.js";
 import { logger } from "../../../lib/logger.js";
 import { resolveApiUrl } from "./apiUrl.source.adapter.js";
 
@@ -217,11 +217,9 @@ export const bourseSymbolsSourceAdapter = {
     let previousList = inMemoryBourseList || [];
     if (previousList.length === 0 && env) {
       try {
-        const { cached, backup } = await getBourseSymbolsCache(env);
-        if (cached) {
-          previousList = JSON.parse(cached);
-        } else if (backup) {
-          previousList = JSON.parse(backup);
+        const cached = await getSourceItems(env, sourceConfig?.id || "src_def_bourse");
+        if (Array.isArray(cached) && cached.length > 0) {
+          previousList = cached;
         }
       } catch (e) {
         logger.error("Error loading previous bourse symbols for merge:", { error: e.message });
@@ -235,30 +233,15 @@ export const bourseSymbolsSourceAdapter = {
       throw new Error("هیچ نماد معتبری از پاسخ بورس استخراج یا ابقا نشد.");
     }
 
-    const compactJson = JSON.stringify(mergedList);
-
     if (env) {
-      await setBourseSymbolsCache(env, compactJson, mergedList.length >= 100);
+      await saveSourceItems(env, sourceConfig?.id || "src_def_bourse", mergedList, { datetime: nowIso });
     }
 
     inMemoryBourseList = mergedList;
 
     return {
-      price: mergedList.length,
+      items: mergedList,
       datetime: nowIso,
-      label: sourceConfig.name || "بورس اوراق بهادار تهران (TSETMC / BRS API)",
-      multiData: {
-        isCatalog: true,
-        totalCount: mergedList.length,
-        items: mergedList,
-        compactList: mergedList,
-        sampleItems: mergedList.slice(0, 50),
-        datetime: nowIso,
-        stats,
-      },
-      compactList: mergedList,
-      sampleItems: mergedList.slice(0, 50),
-      sampleSymbols: mergedList.slice(0, 10).map(x => x.id || x.s),
     };
   },
 
@@ -266,17 +249,16 @@ export const bourseSymbolsSourceAdapter = {
     try {
       const raw = await this.fetchRaw(sourceConfig, env);
       const parsed = await this.parse(raw, sourceConfig, null);
+      const count = parsed.items.length;
       return {
         success: true,
         source_type: "api_url",
-        price: parsed.price,
-        multiData: parsed.multiData,
-        sampleItems: parsed.compactList || parsed.sampleItems,
-        compactList: parsed.compactList,
-        sampleSymbols: parsed.sampleSymbols,
+        price: count,
+        items: parsed.items,
+        sampleItems: parsed.items.slice(0, 50),
         datetime: parsed.datetime,
-        label: parsed.label,
-        message: `تعداد ${parsed.price} نماد بورس با موفقیت دریافت و پردازش شد.`,
+        label: sourceConfig.name || "بورس اوراق بهادار تهران (TSETMC / BRS API)",
+        message: `تعداد ${count} نماد بورس با موفقیت دریافت و پردازش شد.`,
       };
     } catch (e) {
       return { success: false, error: e.message || "خطا در تست وب‌سرویس بورس" };
@@ -286,26 +268,18 @@ export const bourseSymbolsSourceAdapter = {
   /**
    * Helper to get symbol list for search / lookup
    */
-  async getSymbols(env) {
+  async getItems(env = null) {
     if (inMemoryBourseList && inMemoryBourseList.length > 0) {
       return inMemoryBourseList;
     }
     if (env) {
-      const { cached, backup } = await getBourseSymbolsCache(env);
-      if (cached) {
-        inMemoryBourseList = JSON.parse(cached);
-        return inMemoryBourseList;
-      }
-      if (backup) {
-        inMemoryBourseList = JSON.parse(backup);
+      const items = await getSourceItems(env, this.id);
+      if (items && items.length > 0) {
+        inMemoryBourseList = items;
         return inMemoryBourseList;
       }
     }
     return [];
-  },
-
-  async getItems(env = null) {
-    return await this.getSymbols(env);
   },
 
   /**
@@ -313,8 +287,7 @@ export const bourseSymbolsSourceAdapter = {
    */
   async handleScheduledSync(env, sourceConfig = null) {
     try {
-      const lastSyncStr = await getBourseLastSync(env);
-      const lastSync = lastSyncStr ? parseInt(lastSyncStr, 10) : 0;
+      const lastSync = await getSourceLastSync(env, this.id) || 0;
       const now = Date.now();
 
       const intervalSec = Number(sourceConfig?.fetchIntervalSec) > 0
@@ -329,9 +302,9 @@ export const bourseSymbolsSourceAdapter = {
       const url = getBourseApiUrl(env);
       const raw = await this.fetchRaw({ apiUrl: url }, env);
       const parsed = await this.parse(raw, { name: sourceConfig?.name || "بورس اوراق بهادار تهران (TSETMC / BRS API)" }, env);
-      if (parsed && parsed.price > 0) {
+      if (parsed && parsed.items?.length > 0) {
         const expirationTtl = Math.max(86400, intervalSec * 3);
-        await setBourseLastSync(env, now, expirationTtl);
+        await setSourceLastSync(env, this.id, now, expirationTtl);
         return true;
       }
     } catch (err) {

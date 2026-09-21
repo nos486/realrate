@@ -3,8 +3,7 @@
  * Triggered automatically by Cloudflare Workers cron every minute.
  */
 
-import { handleScheduledPriceExtraction } from "../services/market/priceAggregator.service.js";
-import { syncAllCatalogSources } from "../services/market/catalogFeeds.service.js";
+import { syncAllSources } from "../services/market/sourceSync.service.js";
 import { logger } from "../lib/logger.js";
 
 /**
@@ -15,13 +14,8 @@ import { logger } from "../lib/logger.js";
  */
 export async function runCronPolling(event, env, ctx) {
   ctx.waitUntil(
-    Promise.all([
-      handleScheduledPriceExtraction(env).catch(err => {
-        logger.error("[CronPolling] Price extraction error:", { error: err.message, stack: err.stack });
-      }),
-      syncAllCatalogSources(env).catch(err => {
-        logger.error("[CronPolling] Catalog feeds sync error:", { error: err.message, stack: err.stack });
-      }),
-    ])
+    syncAllSources(env).catch(err => {
+      logger.error("[CronPolling] Source sync error:", { error: err.message, stack: err.stack });
+    })
   );
 }

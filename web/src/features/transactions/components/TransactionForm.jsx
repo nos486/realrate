@@ -23,6 +23,10 @@ import {
   resolveAssetDisplayName,
   resolveAssetUnit,
 } from '../../../utils/sourceRegistry.js';
+import {
+  getItemCategory,
+  getItemUnit,
+} from '../../../config/displayEngine.js';
 
 export default function TransactionForm({
   isOpen,
@@ -79,25 +83,18 @@ export default function TransactionForm({
     const cleanId = String(rawId).replace(/^src_def_/, '').replace(/^derived_/, '');
     const canonicalSpec = getCanonicalAssetSpec(cleanId || rawId || rawItem.symbol);
     const resolvedId = canonicalSpec?.id || cleanId || rawId;
-    const resolvedCat = resolveItemCategory(rawItem);
 
-    const isPlan = resolvedId.startsWith('charisma_plans') || rawItem.category === 'charisma_plans' || rawItem.badge === 'طرح';
-    const isBourse = !isPlan && (resolvedCat === 'bourse' || resolvedCat === 'bourse_fund' || resolvedId.startsWith('bourse_'));
+    const resolvedCat = getItemCategory(rawItem);
+    const resolvedUnit = getItemUnit(rawItem);
     const isCustom = resolvedCat === 'custom' || resolvedId === 'custom' || resolvedId.startsWith('custom_');
+    const isBourse = (resolvedCat === 'bourse' || resolvedCat === 'bourse_fund') && !resolvedId.includes('charisma');
 
     if (isBourse) {
       const symCode = (rawItem.symbol || rawItem.s || resolvedId.replace('bourse_', '')).trim();
-      const isFund = Boolean(
-        rawItem.isFund ||
-        rawItem.f === 1 ||
-        resolvedCat === 'bourse_fund' ||
-        rawItem.category === 'bourse_fund' ||
-        rawItem.name?.includes('صندوق')
-      );
-      setAssetId(`bourse_${symCode}`);
-      setAssetName(rawItem.name || (isFund ? `صندوق ${symCode}` : `سهام ${symCode}`));
-      setAssetType(isFund ? 'bourse_fund' : 'bourse');
-      setUnit(isFund ? 'واحد' : 'برگ سهم');
+      setAssetId(resolvedId.includes('__') ? resolvedId : `bourse_${symCode}`);
+      setAssetName(resolveAssetDisplayName(resolvedId, rawItem));
+      setAssetType(resolvedCat);
+      setUnit(resolvedUnit);
 
       const liveP = rawItem.priceToman || (rawItem.priceRial ? Math.round(rawItem.priceRial / 10) : rawItem.price || 0);
       if (!unitPrice && liveP > 0) {
@@ -107,14 +104,14 @@ export default function TransactionForm({
       setAssetId(resolvedId.startsWith('custom_') ? resolvedId : `custom_${Date.now()}`);
       setAssetName(rawItem.name || rawItem.title || 'دارایی شخصی');
       setAssetType('custom');
-      setUnit(rawItem.unit || 'واحد');
+      setUnit(resolvedUnit);
     } else {
       // Canonical assets (gold, coin, forex) AND catalog items (charisma_plans__gold, ...)
       const displayId = canonicalSpec?.id || cleanId || rawId;
       setAssetId(displayId);
       setAssetName(resolveAssetDisplayName(displayId, rawItem));
       setAssetType(resolvedCat);
-      setUnit(resolveAssetUnit(displayId, rawItem));
+      setUnit(resolvedUnit);
 
       const liveP = realPriceMap?.[cleanAssetId(displayId)] || realPriceMap?.[displayId] || rawItem.priceToman || rawItem.price || 0;
       if (!unitPrice && liveP > 0) {

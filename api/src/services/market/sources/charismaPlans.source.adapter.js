@@ -7,18 +7,11 @@
 import { USER_AGENT } from "./parsingUtils.js";
 import { logger } from "../../../lib/logger.js";
 import {
-  getCharismaPlansCache,
-  setCharismaPlansCache,
-  getCharismaPlansLastSync,
-  setCharismaPlansLastSync,
-  setSourcePriceCache,
-} from "../../../repositories/kvCache.repository.js";
-import {
-  getSourceConfig,
-  getSourceParser,
-  resolveAssetDisplayName,
-  resolveAssetUnit,
-} from "../../../config/sourceRegistry.js";
+  saveSourceItems,
+  getSourceItems,
+  getSourceLastSync,
+  setSourceLastSync,
+} from "../../../repositories/sourceItems.repository.js";
 
 export const CHARISMA_PLANS_WEBHOOK_URL = "https://n8n.geekio.ir/webhook/38899601-0906-4aa4-aedb-8f7de5493894";
 
@@ -96,7 +89,7 @@ export function mergeCharismaPlans(existingList = [], rawApiArray = [], nowIso =
     for (const item of rawApiArray) {
       if (!item || typeof item !== "object") continue;
 
-      const rawKey = String(item.id || item.symbol || KNOWN_CHARISMA_PLAN_SYMBOLS[item.id] || "").trim();
+      const rawKey = String(item.id || item.key || item.symbol || item.s || KNOWN_CHARISMA_PLAN_SYMBOLS[item.id] || "").trim();
       if (!rawKey) continue;
 
       apiPlansCount++;
@@ -210,10 +203,9 @@ export const charismaPlansSourceAdapter = {
     let existingList = inMemoryCharismaPlansList;
     if (!existingList && env) {
       try {
-        const { cached, backup } = await getCharismaPlansCache(env);
-        const dataStr = cached || backup;
-        if (dataStr) {
-          existingList = JSON.parse(dataStr);
+        const cached = await getSourceItems(env, sourceConfig?.id || "src_def_charisma_plans");
+        if (Array.isArray(cached) && cached.length > 0) {
+          existingList = cached;
           inMemoryCharismaPlansList = existingList;
         }
       } catch (e) {
@@ -226,45 +218,20 @@ export const charismaPlansSourceAdapter = {
     // Cache updated list in memory
     inMemoryCharismaPlansList = mergedList;
 
-    const multiDataObj = {
-      isCatalog: true,
-      totalCount: mergedList.length,
-      items: mergedList,
-      compactList: mergedList,
-      sampleItems: mergedList.slice(0, 50),
-      datetime: nowIso,
-      stats,
-    };
-
     // Cache updated list in KV
     if (env && mergedList.length > 0) {
       try {
-        const compactJson = JSON.stringify(mergedList);
-        await setCharismaPlansCache(env, compactJson);
-        await setSourcePriceCache(env, sourceConfig?.id || "src_def_charisma_plans", {
-          price: mergedList.length,
-          lastFetched: nowIso,
-          priceType: "charisma_plans",
-          name: sourceConfig?.name || "طرح‌های سرمایه‌گذاری کاریزما (Charisma Plans)",
-          lastMultiData: multiDataObj,
-        }).catch(() => { });
+        await saveSourceItems(env, sourceConfig?.id || "src_def_charisma_plans", mergedList, { datetime: nowIso });
       } catch (err) {
-        logger.warn("Error caching charisma plans in KV:", { error: err.message });
+        logger.warn("Error caching charisma plans:", { error: err.message });
       }
     }
 
     logger.info(`[CharismaPlansAdapter] Processed ${stats.totalPlans} plans. Added: ${stats.addedCount}, Updated: ${stats.updatedCount}, Retained: ${stats.retainedCount}`);
 
     return {
-      price: mergedList.length,
-      priceType: "charisma_plans",
+      items: mergedList,
       datetime: nowIso,
-      label: sourceConfig.name || "طرح‌های سرمایه‌گذاری کاریزما (Charisma Plans)",
-      multiData: multiDataObj,
-      compactList: mergedList,
-      sampleItems: mergedList.slice(0, 50),
-      multiOutput: mergedList,
-      sourceId: sourceConfig?.id || "src_def_charisma_plans",
     };
   },
 
@@ -272,39 +239,30 @@ export const charismaPlansSourceAdapter = {
     try {
       const raw = await this.fetchRaw(sourceConfig, env);
       const parsed = await this.parse(raw, sourceConfig, env);
+      const count = parsed.items.length;
       return {
         success: true,
         source_type: "api_url",
-        price: parsed.price,
-        multiData: parsed.multiData,
-        sampleItems: parsed.compactList || parsed.sampleItems,
-        compactList: parsed.compactList,
+        price: count,
+        items: parsed.items,
+        sampleItems: parsed.items.slice(0, 50),
         datetime: parsed.datetime,
-        label: parsed.label,
-        message: `تعداد ${parsed.price} طرح سرمایه‌گذاری کاریزما با موفقیت دریافت و پردازش شد.`,
+        label: sourceConfig.name || this.name,
+        message: `تعداد ${count} طرح سرمایه‌گذاری کاریزما با موفقیت دریافت و پردازش شد.`,
       };
     } catch (e) {
       // Graceful fallback to existing cached plans in KV/memory
       try {
-        const cached = await this.getLatestPlans(env);
+        const cached = await this.getItems(env);
         if (Array.isArray(cached) && cached.length > 0) {
-          const multiDataObj = {
-            isCatalog: true,
-            totalCount: cached.length,
-            items: cached,
-            compactList: cached,
-            sampleItems: cached.slice(0, 50),
-            datetime: cached[0]?.updatedAt || new Date().toISOString(),
-          };
           return {
             success: true,
             source_type: "api_url",
             price: cached.length,
-            multiData: multiDataObj,
+            items: cached,
             sampleItems: cached.slice(0, 50),
-            compactList: cached,
             datetime: cached[0]?.updatedAt || new Date().toISOString(),
-            label: sourceConfig.name || "طرح‌های سرمایه‌گذاری کاریزما (Charisma Plans)",
+            label: sourceConfig.name || this.name,
             message: `تعداد ${cached.length} طرح کاریزما از کش فعال سامانه بازخوانی شد.`,
           };
         }
@@ -313,20 +271,16 @@ export const charismaPlansSourceAdapter = {
     }
   },
 
-  async getLatestPlans(env = null) {
+  async getItems(env = null) {
     if (inMemoryCharismaPlansList && inMemoryCharismaPlansList.length > 0) {
       return inMemoryCharismaPlansList;
     }
     if (env) {
       try {
-        const { cached, backup } = await getCharismaPlansCache(env);
-        const dataStr = cached || backup;
-        if (dataStr) {
-          const list = JSON.parse(dataStr);
-          if (Array.isArray(list) && list.length > 0) {
-            inMemoryCharismaPlansList = list;
-            return list;
-          }
+        const list = await getSourceItems(env, this.id);
+        if (Array.isArray(list) && list.length > 0) {
+          inMemoryCharismaPlansList = list;
+          return list;
         }
       } catch (e) {
         logger.error("Error retrieving charisma plans from KV:", { error: e.message });
@@ -341,15 +295,11 @@ export const charismaPlansSourceAdapter = {
     return inMemoryCharismaPlansList || [];
   },
 
-  async getItems(env = null) {
-    return await this.getLatestPlans(env);
-  },
-
   async handleScheduledSync(env, sourceConfig = null) {
     if (!env) return;
 
     try {
-      const lastSync = await getCharismaPlansLastSync(env);
+      const lastSync = await getSourceLastSync(env, this.id);
       const now = Date.now();
 
       const intervalSec = Number(sourceConfig?.fetchIntervalSec) > 0
@@ -369,7 +319,7 @@ export const charismaPlansSourceAdapter = {
       const raw = await this.fetchRaw({}, env);
       await this.parse(raw, { id: "src_def_charisma_plans", name: sourceConfig?.name || this.name }, env);
       const expirationTtl = Math.max(86400, intervalSec * 3);
-      await setCharismaPlansLastSync(env, now, expirationTtl);
+      await setSourceLastSync(env, this.id, now, expirationTtl);
 
       logger.info("[CharismaPlansAdapter] Scheduled Charisma plans sync completed successfully.");
     } catch (err) {
@@ -391,7 +341,7 @@ export async function fetchAndStoreCharismaPlans(env = null) {
       { id: "src_def_charisma_plans", name: charismaPlansSourceAdapter.name },
       env
     );
-    const list = parsed.multiOutput || inMemoryCharismaPlansList || [];
+    const list = parsed.items || inMemoryCharismaPlansList || [];
     return { success: true, count: list.length, plans: list };
   } catch (err) {
     logger.error("[CharismaPlansAdapter] fetchAndStoreCharismaPlans error:", { error: err.message });

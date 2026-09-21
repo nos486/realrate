@@ -42,6 +42,7 @@ import {
   resolveHoldingUnitRealPrice,
   CATEGORY_DEFINITIONS,
 } from '../utils/holdingHelpers.js';
+import { getItemCategory } from '../../../config/displayEngine.js';
 
 export default function PortfolioTracker({ rates, calcData, usdToman, goldUsd }) {
   const { user, loading: authLoading, triggerLogin } = useAuth();
@@ -157,10 +158,9 @@ export default function PortfolioTracker({ rates, calcData, usdToman, goldUsd })
         h.assetType === 'custom' ||
         h.assetId?.startsWith('custom_') ||
         cleanAssetId.startsWith('custom_');
-      const isBourseItem =
-        h.assetType === 'bourse' ||
-        h.assetType === 'bourse_fund' ||
-        h.assetId?.startsWith('bourse_');
+      const isBourseItem = ['bourse', 'bourse_fund'].includes(
+        getItemCategory(h.assetId || h)
+      );
 
       const unitRealPrice = resolveHoldingUnitRealPrice(h, realPriceMap, boursePricesMap, {
         usdToman: pricing?.usdToman || usdToman,

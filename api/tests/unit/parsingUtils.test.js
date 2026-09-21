@@ -43,8 +43,9 @@ describe("parsingUtils — extractValueByPath with predicate filtering", () => {
       jsonPath: "currency[symbol=USDT_IRT].price",
     });
 
-    expect(parsed.price).toBe(233408);
-    expect(parsed.label).toBe("تتر تومانی");
+    expect(parsed.items).toHaveLength(1);
+    expect(parsed.items[0].price).toBe(233408);
+    expect(parsed.items[0].name).toBe("تتر تومانی");
   });
 
   it("parses correctly using customParser function", () => {
@@ -59,8 +60,9 @@ describe("parsingUtils — extractValueByPath with predicate filtering", () => {
       },
     });
 
-    expect(parsed.price).toBe(233408);
-    expect(parsed.label).toBe("تتر تومانی با فانکشن اختصاصی");
+    expect(parsed.items).toHaveLength(1);
+    expect(parsed.items[0].price).toBe(233408);
+    expect(parsed.items[0].name).toBe("تتر تومانی با فانکشن اختصاصی");
   });
 
   it("universally interpolates any environment variables and secrets into endpoints without vendor coupling", async () => {
@@ -147,18 +149,16 @@ describe("parsingUtils — extractValueByPath with predicate filtering", () => {
     ];
 
     const parsed = apiUrlSourceAdapter.parse(JSON.stringify(sampleBourseApiData), bourseSrc);
-    expect(parsed.isCatalog).toBe(true);
-    expect(parsed.price).toBe(3);
-    expect(parsed.compactList).toHaveLength(3);
-    expect(parsed.compactList[0].id).toBe("فملی");
-    expect(parsed.compactList[0].name).toBe("ملی صنایع مس ایران");
-    expect(parsed.compactList[0].price).toBe(26390); // 263900 / 10
-    expect(Object.keys(parsed.compactList[0]).sort()).toEqual(["id", "name", "price"]);
+    expect(parsed.items).toHaveLength(3);
+    expect(parsed.items[0].id).toBe("فملی");
+    expect(parsed.items[0].name).toBe("ملی صنایع مس ایران");
+    expect(parsed.items[0].price).toBe(26390); // 263900 / 10
+    expect(Object.keys(parsed.items[0]).sort()).toEqual(["id", "name", "price"]);
 
-    expect(parsed.compactList[1].id).toBe("عیار");
-    expect(parsed.compactList[1].name).toBe("صندوق طلای عیار مفید");
-    expect(parsed.compactList[1].price).toBe(14500); // 145000 / 10
-    expect(Object.keys(parsed.compactList[1]).sort()).toEqual(["id", "name", "price"]);
+    expect(parsed.items[1].id).toBe("عیار");
+    expect(parsed.items[1].name).toBe("صندوق طلای عیار مفید");
+    expect(parsed.items[1].price).toBe(14500); // 145000 / 10
+    expect(Object.keys(parsed.items[1]).sort()).toEqual(["id", "name", "price"]);
   });
 });
 

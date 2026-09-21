@@ -7,12 +7,11 @@
 import { USER_AGENT } from "./parsingUtils.js";
 import { logger } from "../../../lib/logger.js";
 import {
-  getCharismaFundsCache,
-  setCharismaFundsCache,
-  getCharismaLastSync,
-  setCharismaLastSync,
-  setSourcePriceCache,
-} from "../../../repositories/kvCache.repository.js";
+  saveSourceItems,
+  getSourceItems,
+  getSourceLastSync,
+  setSourceLastSync,
+} from "../../../repositories/sourceItems.repository.js";
 
 export const CHARISMA_PAGE_URL = "https://charisma.ir/funds";
 export const CHARISMA_API_URL = "https://webapi.charisma.ir/api/fund";
@@ -282,10 +281,9 @@ export const charismaFundsSourceAdapter = {
     let existingList = inMemoryCharismaList;
     if (!existingList && env) {
       try {
-        const { cached, backup } = await getCharismaFundsCache(env);
-        const dataStr = cached || backup;
-        if (dataStr) {
-          existingList = JSON.parse(dataStr);
+        const cached = await getSourceItems(env, sourceConfig?.id || "src_def_charisma");
+        if (Array.isArray(cached) && cached.length > 0) {
+          existingList = cached;
           inMemoryCharismaList = existingList;
         }
       } catch (e) {
@@ -298,45 +296,20 @@ export const charismaFundsSourceAdapter = {
     // Cache updated list in memory
     inMemoryCharismaList = mergedList;
 
-    const multiDataObj = {
-      isCatalog: true,
-      totalCount: mergedList.length,
-      items: mergedList,
-      compactList: mergedList,
-      sampleItems: mergedList.slice(0, 50),
-      datetime: nowIso,
-      stats,
-    };
-
     // Cache updated list in KV
     if (env && mergedList.length > 0) {
       try {
-        const compactJson = JSON.stringify(mergedList);
-        await setCharismaFundsCache(env, compactJson);
-        await setSourcePriceCache(env, sourceConfig?.id || "src_def_charisma", {
-          price: mergedList.length,
-          lastFetched: nowIso,
-          priceType: "charisma_funds",
-          name: sourceConfig?.name || "صندوق‌های سرمایه‌گذاری کاریزما (Charisma)",
-          lastMultiData: multiDataObj,
-        }).catch(() => {});
+        await saveSourceItems(env, sourceConfig?.id || "src_def_charisma", mergedList, { datetime: nowIso });
       } catch (err) {
-        logger.warn("Error caching charisma funds in KV:", { error: err.message });
+        logger.warn("Error caching charisma funds:", { error: err.message });
       }
     }
 
     logger.info(`[CharismaAdapter] Processed ${stats.totalFunds} funds. Added: ${stats.addedCount}, Updated: ${stats.updatedCount}, Retained: ${stats.retainedCount}`);
 
     return {
-      price: mergedList.length,
-      priceType: "charisma_funds",
+      items: mergedList,
       datetime: nowIso,
-      label: sourceConfig.name || "صندوق‌های سرمایه‌گذاری کاریزما (Charisma)",
-      multiData: multiDataObj,
-      compactList: mergedList,
-      sampleItems: mergedList.slice(0, 50),
-      multiOutput: mergedList,
-      sourceId: sourceConfig?.id || "src_def_charisma",
     };
   },
 
@@ -344,39 +317,30 @@ export const charismaFundsSourceAdapter = {
     try {
       const raw = await this.fetchRaw(sourceConfig, env);
       const parsed = await this.parse(raw, sourceConfig, env);
+      const count = parsed.items.length;
       return {
         success: true,
         source_type: "api_url",
-        price: parsed.price,
-        multiData: parsed.multiData,
-        sampleItems: parsed.compactList || parsed.sampleItems,
-        compactList: parsed.compactList,
+        price: count,
+        items: parsed.items,
+        sampleItems: parsed.items.slice(0, 50),
         datetime: parsed.datetime,
-        label: parsed.label,
-        message: `تعداد ${parsed.price} صندوق سرمایه‌گذاری کاریزما با موفقیت دریافت و پردازش شد.`,
+        label: sourceConfig.name || this.name,
+        message: `تعداد ${count} صندوق سرمایه‌گذاری کاریزما با موفقیت دریافت و پردازش شد.`,
       };
     } catch (e) {
       // Graceful fallback to existing cached funds in KV/memory
       try {
-        const cached = await this.getLatestFunds(env);
+        const cached = await this.getItems(env);
         if (Array.isArray(cached) && cached.length > 0) {
-          const multiDataObj = {
-            isCatalog: true,
-            totalCount: cached.length,
-            items: cached,
-            compactList: cached,
-            sampleItems: cached.slice(0, 50),
-            datetime: cached[0]?.updatedAt || new Date().toISOString(),
-          };
           return {
             success: true,
             source_type: "api_url",
             price: cached.length,
-            multiData: multiDataObj,
+            items: cached,
             sampleItems: cached.slice(0, 50),
-            compactList: cached,
             datetime: cached[0]?.updatedAt || new Date().toISOString(),
-            label: sourceConfig.name || "صندوق‌های سرمایه‌گذاری کاریزما (Charisma)",
+            label: sourceConfig.name || this.name,
             message: `تعداد ${cached.length} صندوق کاریزما از کش فعال سامانه بازخوانی شد.`,
           };
         }
@@ -385,20 +349,16 @@ export const charismaFundsSourceAdapter = {
     }
   },
 
-  async getLatestFunds(env = null) {
+  async getItems(env = null) {
     if (inMemoryCharismaList && inMemoryCharismaList.length > 0) {
       return inMemoryCharismaList;
     }
     if (env) {
       try {
-        const { cached, backup } = await getCharismaFundsCache(env);
-        const dataStr = cached || backup;
-        if (dataStr) {
-          const list = JSON.parse(dataStr);
-          if (Array.isArray(list) && list.length > 0) {
-            inMemoryCharismaList = list;
-            return list;
-          }
+        const list = await getSourceItems(env, this.id);
+        if (Array.isArray(list) && list.length > 0) {
+          inMemoryCharismaList = list;
+          return list;
         }
       } catch (e) {
         logger.error("Error retrieving charisma funds from KV:", { error: e.message });
@@ -413,15 +373,11 @@ export const charismaFundsSourceAdapter = {
     return inMemoryCharismaList || [];
   },
 
-  async getItems(env = null) {
-    return await this.getLatestFunds(env);
-  },
-
   async handleScheduledSync(env, sourceConfig = null) {
     if (!env) return;
 
     try {
-      const lastSync = await getCharismaLastSync(env);
+      const lastSync = await getSourceLastSync(env, this.id);
       const now = Date.now();
 
       const intervalSec = Number(sourceConfig?.fetchIntervalSec) > 0
@@ -441,7 +397,7 @@ export const charismaFundsSourceAdapter = {
       const raw = await this.fetchRaw({}, env);
       await this.parse(raw, { id: "src_def_charisma", name: sourceConfig?.name || this.name }, env);
       const expirationTtl = Math.max(86400, intervalSec * 3);
-      await setCharismaLastSync(env, now, expirationTtl);
+      await setSourceLastSync(env, this.id, now, expirationTtl);
 
       logger.info("[CharismaAdapter] Scheduled Charisma funds sync completed successfully.");
     } catch (err) {
@@ -463,7 +419,7 @@ export async function fetchAndStoreCharismaFunds(env = null) {
       { id: "src_def_charisma", name: charismaFundsSourceAdapter.name },
       env
     );
-    const list = parsed.multiOutput || inMemoryCharismaList || [];
+    const list = parsed.items || inMemoryCharismaList || [];
     return { success: true, count: list.length, funds: list };
   } catch (err) {
     logger.error("[CharismaAdapter] fetchAndStoreCharismaFunds error:", { error: err.message });

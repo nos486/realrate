@@ -15,6 +15,7 @@ export const PRICE_SOURCES_CONFIG = [
   {
     id: "src_def_usd",
     name: "دلار تهران سبزه میدان",
+    brand: "سبزه میدان",
     priceType: "usd",
     sourceType: "telegram",
     endpoint: "tahran_sabza",
@@ -34,6 +35,7 @@ export const PRICE_SOURCES_CONFIG = [
   {
     id: "src_def_gold_18k",
     name: "طلا ۱۸ عیار (زرما)",
+    brand: "زرما",
     priceType: "gold_18k",
     sourceType: "telegram",
     endpoint: "zarmagoldd",
@@ -47,11 +49,13 @@ export const PRICE_SOURCES_CONFIG = [
   {
     id: "src_def_full_coin",
     name: "سکه تمام بهار آزادی (زرما)",
+    brand: "زرما",
     priceType: "full_coin",
     sourceType: "telegram",
     endpoint: "zarmagoldd",
     category: "coin",
     unit: "عدد",
+    bubblePct: 15,
     fetchIntervalSec: 60,
     isActive: true,
     isPrimary: true,
@@ -60,11 +64,13 @@ export const PRICE_SOURCES_CONFIG = [
   {
     id: "src_def_half_coin",
     name: "نیم سکه بهار آزادی (زرما)",
+    brand: "زرما",
     priceType: "half_coin",
     sourceType: "telegram",
     endpoint: "zarmagoldd",
     category: "coin",
     unit: "عدد",
+    bubblePct: 20,
     fetchIntervalSec: 60,
     isActive: true,
     isPrimary: true,
@@ -73,11 +79,13 @@ export const PRICE_SOURCES_CONFIG = [
   {
     id: "src_def_quarter_coin",
     name: "ربع سکه بهار آزادی (زرما)",
+    brand: "زرما",
     priceType: "quarter_coin",
     sourceType: "telegram",
     endpoint: "zarmagoldd",
     category: "coin",
     unit: "عدد",
+    bubblePct: 25,
     fetchIntervalSec: 60,
     isActive: true,
     isPrimary: true,
@@ -86,6 +94,7 @@ export const PRICE_SOURCES_CONFIG = [
   {
     id: "src_def_mesghal",
     name: "مثقال طلا ۱۷ عیار (زرما)",
+    brand: "زرما",
     priceType: "mesghal",
     sourceType: "telegram",
     endpoint: "zarmagoldd",
@@ -99,6 +108,7 @@ export const PRICE_SOURCES_CONFIG = [
   {
     id: "src_def_ons_gold",
     name: "انس طلا جهانی (XAU)",
+    brand: "انس جهانی",
     priceType: "ons_gold",
     sourceType: "api_url",
     endpoint: "https://api.gold-api.com/price/XAU",
@@ -113,6 +123,7 @@ export const PRICE_SOURCES_CONFIG = [
   {
     id: "src_def_ons_silver",
     name: "انس نقره جهانی (XAG)",
+    brand: "انس جهانی",
     priceType: "ons_silver",
     sourceType: "api_url",
     endpoint: "https://api.gold-api.com/price/XAG",
@@ -128,6 +139,7 @@ export const PRICE_SOURCES_CONFIG = [
   {
     id: "src_brs_usdt",
     name: "دلار تتر",
+    brand: "تتر",
     priceType: "USDT",
     sourceType: "api_url",
     endpoint: "https://api.brsapi.ir/Market/Gold_Currency.php?key=${BRS_API_KEY}",
@@ -156,6 +168,7 @@ export const PRICE_SOURCES_CONFIG = [
   {
     id: "src_def_forex",
     name: "نرخ‌های جهانی فارکس (Open ER-API)",
+    brand: "فارکس",
     priceType: "forex",
     sourceType: "forex_api",
     endpoint: "https://open.er-api.com/v6/latest/USD",
@@ -173,13 +186,13 @@ export const PRICE_SOURCES_CONFIG = [
   {
     id: "src_def_bourse",
     name: "بورس اوراق بهادار تهران (TSETMC / BRS API)",
+    brand: "بورس",
     priceType: "bourse",
     sourceType: "bourse_symbols",
     endpoint: "https://api.brsapi.ir/Tsetmc/AllSymbols.php?type=1&key=${BRS_API_KEY}",
     category: "bourse",
-    badge: "سهام بورس",
     unit: "برگ سهم",
-    isCatalog: true,
+    isCatalog: true, // UI display/grouping only; not for pipeline selection (scheduled for removal in Phase 4)
     fetchIntervalSec: 3600,
     isActive: true,
     isPrimary: true,
@@ -187,11 +200,7 @@ export const PRICE_SOURCES_CONFIG = [
       const rawList = Array.isArray(data) ? data : (data?.symbols || data?.data || []);
       const { mergedList } = mergeBourseSymbols([], rawList, new Date().toISOString(), sourceConfig);
       return {
-        isCatalog: true,
-        totalCount: mergedList.length,
         items: mergedList,
-        compactList: mergedList,
-        sampleItems: mergedList.slice(0, 50),
         datetime: new Date().toISOString(),
       };
     },
@@ -199,15 +208,15 @@ export const PRICE_SOURCES_CONFIG = [
   {
     id: "src_def_emofid",
     name: "صندوق‌های سرمایه‌گذاری مفید (Emofid)",
+    brand: "مفید",
     priceType: "emofid_funds",
     sourceType: "emofid_funds",
     endpoint: "https://www.emofid.com/api/funds/",
     jsonPath: "value",
     category: "bourse_fund",
-    badge: "صندوق",
     unit: "واحد",
     isFund: true,
-    isCatalog: true,
+    isCatalog: true, // UI display/grouping only; not for pipeline selection (scheduled for removal in Phase 4)
     knownSymbols: ["عیار", "پیشتاز", "پیشرو", "امید", "پیشواز", "آتیه", "حامی", "نامی"],
     fetchIntervalSec: 1800,
     isActive: true,
@@ -216,11 +225,7 @@ export const PRICE_SOURCES_CONFIG = [
       const rawList = Array.isArray(data) ? data : (data?.value || data?.data || []);
       const { mergedList } = mergeEmofidFunds([], rawList, new Date().toISOString(), sourceConfig);
       return {
-        isCatalog: true,
-        totalCount: mergedList.length,
         items: mergedList,
-        compactList: mergedList,
-        sampleItems: mergedList.slice(0, 50),
         datetime: new Date().toISOString(),
       };
     },
@@ -228,15 +233,15 @@ export const PRICE_SOURCES_CONFIG = [
   {
     id: "src_def_charisma",
     name: "صندوق‌های سرمایه‌گذاری کاریزما (Charisma)",
+    brand: "کاریزما",
     priceType: "charisma_funds",
     sourceType: "charisma_funds",
     endpoint: "https://charisma.ir/funds",
     jsonPath: "data",
     category: "bourse_fund",
-    badge: "صندوق",
     unit: "واحد",
     isFund: true,
-    isCatalog: true,
+    isCatalog: true, // UI display/grouping only; not for pipeline selection (scheduled for removal in Phase 4)
     knownSymbols: [
       "اهرم", "کهربا", "نقران", "کارا", "متال", "کمند", "کاخ", "کاریس", "مزه", "سیمانا",
       "ضمان", "صنم", "هم‌تراز", "روشن", "ثابت", "تضمین", "دولتی", "نیکوکاری", "کاریز", "کمان", "مختلط"
@@ -248,11 +253,7 @@ export const PRICE_SOURCES_CONFIG = [
       const rawList = Array.isArray(data) ? data : (data?.funds || data?.data || []);
       const { mergedList } = mergeCharismaFunds([], rawList, new Date().toISOString(), sourceConfig);
       return {
-        isCatalog: true,
-        totalCount: mergedList.length,
         items: mergedList,
-        compactList: mergedList,
-        sampleItems: mergedList.slice(0, 50),
         datetime: new Date().toISOString(),
       };
     },
@@ -260,24 +261,24 @@ export const PRICE_SOURCES_CONFIG = [
   {
     id: "src_def_charisma_plans",
     name: "طرح‌های سرمایه‌گذاری کاریزما (Charisma Plans)",
+    brand: "کاریزما",
     priceType: "charisma_plans",
     sourceType: "charisma_plans",
     endpoint: "https://n8n.geekio.ir/webhook/38899601-0906-4aa4-aedb-8f7de5493894",
     category: "bourse_fund",
-    badge: "طرح",
     unit: "واحد",
     isFund: true,
-    isCatalog: true,
+    isCatalog: true, // UI display/grouping only; not for pipeline selection (scheduled for removal in Phase 4)
     knownSymbols: [
       "gold", "silver", "copper", "stocks-index", "real-estate",
       "طلا", "نقره", "مس", "استاکس", "ملک"
     ],
     knownItems: {
-      gold: { name: 'طرح طلا', unit: 'واحد', badge: 'طرح' },
-      silver: { name: 'طرح نقره', unit: 'واحد', badge: 'طرح' },
-      copper: { name: 'طرح مس', unit: 'واحد', badge: 'طرح' },
-      'stocks-index': { name: 'طرح شاخص سهام', unit: 'واحد', badge: 'طرح' },
-      'real-estate': { name: 'طرح ملک', unit: 'واحد', badge: 'طرح' },
+      gold: { name: 'طرح طلا', unit: 'واحد' },
+      silver: { name: 'طرح نقره', unit: 'واحد' },
+      copper: { name: 'طرح مس', unit: 'واحد' },
+      'stocks-index': { name: 'طرح شاخص سهام', unit: 'واحد' },
+      'real-estate': { name: 'طرح ملک', unit: 'واحد' },
     },
     fetchIntervalSec: 1800,
     isActive: true,
@@ -286,11 +287,7 @@ export const PRICE_SOURCES_CONFIG = [
       const rawList = Array.isArray(data) ? data : (data?.plans || data?.items || data?.data || []);
       const { mergedList } = mergeCharismaPlans([], rawList, new Date().toISOString(), sourceConfig);
       return {
-        isCatalog: true,
-        totalCount: mergedList.length,
         items: mergedList,
-        compactList: mergedList,
-        sampleItems: mergedList.slice(0, 50),
         datetime: new Date().toISOString(),
       };
     },
@@ -351,181 +348,9 @@ export function getReferenceRatesSpecs() {
     });
 }
 
-const GENERIC_SOURCE_STOPWORDS = new Set([
-  'صندوق', 'صندوق‌های', 'صندوقهای', 'سرمایه', 'سرمایه‌گذاری', 'سرمایهگذاری',
-  'نرخ', 'نرخ‌های', 'نرخهای', 'جهانی', 'بازار', 'اوراق', 'بهادار', 'قیمت',
-  'api', 'feed', 'source', 'سورس', 'فید'
-]);
+export {
+  getSourceDisplayName,
+  getSourceCategoryConfig,
+  getSourceItemDisplayName,
+} from "../domain/displayEngine.js";
 
-function extractSourceBrandTokens(nameOrId) {
-  if (!nameOrId || typeof nameOrId !== 'string') return [];
-  return nameOrId
-    .toLowerCase()
-    .replace(/[()\/\\_—–-]/g, ' ')
-    .split(/\s+/)
-    .map((t) => t.trim())
-    .filter((t) => t.length > 2 && !GENERIC_SOURCE_STOPWORDS.has(t));
-}
-
-/**
- * Resolves source display name dynamically from PRICE_SOURCES_CONFIG or customSources.
- * Zero hardcoded names — derives distinctive brand tokens directly from source definitions.
- *
- * @param {string|object} sourceOrItem - Source ID, priceType, source object, or item object
- * @param {Array<object>} [customSources=[]] - Optional active sources list
- * @returns {string} - Master source name (e.g. "صندوق‌های سرمایه‌گذاری کاریزما (Charisma)")
- */
-export function getSourceDisplayName(sourceOrItem, customSources = []) {
-  if (!sourceOrItem) return "";
-
-  const allSources = Array.isArray(customSources) && customSources.length > 0
-    ? [...customSources, ...PRICE_SOURCES_CONFIG]
-    : PRICE_SOURCES_CONFIG;
-
-  // 1. If passed an object (item, asset, or source)
-  if (typeof sourceOrItem === "object") {
-    // If it already has a specific sourceName (other than the generic bourse fallback), use it
-    if (sourceOrItem.sourceName && !sourceOrItem.sourceName.includes('بورس اوراق بهادار') && !sourceOrItem.sourceName.includes('TSETMC')) {
-      return sourceOrItem.sourceName;
-    }
-
-    // Direct match by sourceId or priceType if explicitly provided
-    const explicitKey = String(sourceOrItem.sourceId || sourceOrItem.source || sourceOrItem.priceType || sourceOrItem.id || '').trim().toLowerCase();
-    if (explicitKey && explicitKey !== 'bourse' && explicitKey !== 'bourse_feed' && explicitKey !== 'src_def_bourse') {
-      const direct = allSources.find(
-        (s) => s && (s.id?.toLowerCase() === explicitKey || s.priceType?.toLowerCase() === explicitKey)
-      );
-      if (direct?.name) return direct.name;
-    }
-
-    // Dynamic brand matching from source definitions (e.g. fund matching)
-    const itemName = String(sourceOrItem.name || sourceOrItem.n || sourceOrItem.title || '').trim().toLowerCase();
-    const itemSym = String(sourceOrItem.symbol || sourceOrItem.s || '').trim().toLowerCase();
-
-    if (itemName || itemSym) {
-      // Prioritize specific catalog sources (excluding generic bourse)
-      const catalogSources = allSources.filter(
-        (s) => s && s.id !== 'src_def_bourse' && s.priceType !== 'bourse' && (s.isCatalog || s.category === 'catalog' || s.priceType?.includes('fund'))
-      );
-
-      for (const src of catalogSources) {
-        // 1. Check knownSymbols declared directly on the source
-        if (Array.isArray(src.knownSymbols) && itemSym) {
-          if (src.knownSymbols.some((s) => String(s).trim().toLowerCase() === itemSym)) {
-            return src.name;
-          }
-        }
-
-        // 2. Check distinctive brand tokens from source name
-        const tokens = extractSourceBrandTokens(src.name);
-        if (tokens.some((tok) => (itemName && itemName.includes(tok)) || itemSym === tok)) {
-          return src.name;
-        }
-      }
-    }
-
-    // Fallback for general bourse assets
-    if (sourceOrItem.priceType === 'bourse' || sourceOrItem.type === 'bourse' || sourceOrItem.category?.startsWith('bourse')) {
-      const bourseSrc = allSources.find((s) => s.id === 'src_def_bourse' || s.priceType === 'bourse');
-      if (bourseSrc?.name) return bourseSrc.name;
-    }
-
-    if (sourceOrItem.name && sourceOrItem.endpoint) return sourceOrItem.name;
-  }
-
-  // 2. If passed a string key (sourceId or priceType)
-  const key = String(sourceOrItem).trim().toLowerCase();
-  const direct = allSources.find(
-    (s) => s && (s.id?.toLowerCase() === key || s.priceType?.toLowerCase() === key)
-  );
-  if (direct?.name) return direct.name;
-
-  // 3. String matching against source brand tokens
-  const catalogSources = allSources.filter(
-    (s) => s && s.id !== 'src_def_bourse' && s.priceType !== 'bourse'
-  );
-  for (const src of catalogSources) {
-    const tokens = extractSourceBrandTokens(src.name);
-    if (tokens.some((tok) => key.includes(tok))) {
-      return src.name;
-    }
-  }
-
-  return "";
-}
-
-/**
- * Resolves source configuration by source ID, priceType, or prefixed assetId (e.g. "charisma_plans__gold", "emofid__ayyar", "bourse_فولاد").
- * Enables fully data-driven category and metadata resolution across the system without any hardcoded checks in registry or catalog feeds.
- *
- * @param {string} sourceIdOrAssetId
- * @returns {object|null}
- */
-export function getSourceCategoryConfig(sourceIdOrAssetId) {
-  if (!sourceIdOrAssetId || typeof sourceIdOrAssetId !== 'string') return null;
-  const clean = sourceIdOrAssetId.replace(/^src_def_/, '').replace(/^derived_/, '').toLowerCase().trim();
-
-  // 1. Direct match by source ID or priceType
-  const direct = PRICE_SOURCES_CONFIG.find((s) => {
-    if (!s) return false;
-    const sCleanId = String(s.id || '').replace(/^src_def_/, '').toLowerCase().trim();
-    const sPType = String(s.priceType || '').toLowerCase().trim();
-    return sCleanId === clean || sPType === clean;
-  });
-  if (direct) return direct;
-
-  // 2. Prefixed match (e.g. "charisma_plans__gold" or "emofid__ayyar" or "charisma_funds__...")
-  for (const s of PRICE_SOURCES_CONFIG) {
-    if (!s) continue;
-    const sCleanId = String(s.id || '').replace(/^src_def_/, '').toLowerCase().trim();
-    const sPType = String(s.priceType || '').toLowerCase().trim();
-    if (clean.startsWith(`${sCleanId}__`) || clean.startsWith(`${sCleanId}_`)) {
-      return s;
-    }
-    if (sPType && (clean.startsWith(`${sPType}__`) || clean.startsWith(`${sPType}_`))) {
-      return s;
-    }
-  }
-
-  return null;
-}
-
-/**
- * Resolves the display metadata (name, unit, badge) for a catalog item
- * using the knownItems map declared on each source in PRICE_SOURCES_CONFIG.
- *
- * Example: 'charisma_plans__gold' → { name: 'طرح طلا', unit: 'واحد', badge: 'طرح' }
- * Example: 'emofid__ayyar'        → (future) { name: 'صندوق عیار', unit: 'واحد', badge: 'صندوق' }
- *
- * @param {string} assetId  - e.g. 'charisma_plans__gold'
- * @returns {{ name: string, unit: string, badge: string }|null}
- */
-export function getSourceItemDisplayName(assetId) {
-  if (!assetId || typeof assetId !== 'string') return null;
-
-  const cleanFull = assetId.replace(/^src_def_/, '').replace(/^derived_/, '').trim();
-
-  for (const src of PRICE_SOURCES_CONFIG) {
-    if (!src || !src.knownItems) continue;
-
-    const sId = String(src.id || '').replace(/^src_def_/, '').toLowerCase().trim();
-    const sPType = String(src.priceType || '').toLowerCase().trim();
-    const cleanLower = cleanFull.toLowerCase();
-
-    // Match prefix: 'charisma_plans__gold' → prefix 'charisma_plans', suffix 'gold'
-    let suffix = null;
-    if (sId && cleanLower.startsWith(`${sId}__`)) {
-      suffix = cleanFull.slice(`${sId}__`.length);
-    } else if (sPType && cleanLower.startsWith(`${sPType}__`)) {
-      suffix = cleanFull.slice(`${sPType}__`.length);
-    }
-
-    if (!suffix) continue;
-
-    // Try exact match first, then lowercase
-    const item = src.knownItems[suffix] || src.knownItems[suffix.toLowerCase()];
-    if (item) return item;
-  }
-
-  return null;
-}

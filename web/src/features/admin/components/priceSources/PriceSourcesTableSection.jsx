@@ -8,7 +8,8 @@ import {
   X,
 } from 'lucide-react';
 import EmptyState from '../../../../components/ui/EmptyState.jsx';
-import { formatNum, getPriceUnit, formatPersianDate, CANONICAL_PRICE_TYPE_INFO } from './priceSourceConstants.js';
+import { formatNum, formatPersianDate, CANONICAL_PRICE_TYPE_INFO } from './priceSourceConstants.js';
+import { getItemUnit } from '../../../../config/displayEngine.js';
 
 /**
  * PriceSourcesTableSection:
@@ -314,7 +315,7 @@ export default function PriceSourcesTableSection({
                                   {rowResult.message || (
                                     isMulti
                                       ? <>داده‌های فید با موفقیت دریافت شدند: <strong>{Number(rowResult.price || rowResult.count || 0).toLocaleString('fa-IR')} مورد</strong></>
-                                      : <>قیمت با موفقیت استخراج و ذخیره شد: <strong>{formatNum(rowResult.price, src.priceType)} {getPriceUnit(src.priceType)}</strong></>
+                                      : <>قیمت با موفقیت استخراج و ذخیره شد: <strong>{formatNum(rowResult.price, src.priceType)} {getItemUnit(src)}</strong></>
                                   )}
                                 </span>
                               </div>

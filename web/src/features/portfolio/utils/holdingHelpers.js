@@ -115,28 +115,23 @@ export function normalizeHolding(h) {
   };
 }
 
+import { getCategoryIconName } from '../../../config/displayEngine.js';
+
+const ICON_COMPONENT_MAP = {
+  Award,
+  Coins,
+  Disc,
+  Banknote,
+  Zap,
+  TrendingUp,
+  Layers,
+  Sparkles,
+};
+
 export function CategoryIcon({ category, size = 18, className = '', style = {} }) {
-  const iconProps = { size, className, style };
-  switch (category) {
-    case 'gold':
-      return React.createElement(Award, iconProps);
-    case 'coin':
-      return React.createElement(Coins, iconProps);
-    case 'silver':
-      return React.createElement(Disc, iconProps);
-    case 'currency':
-      return React.createElement(Banknote, iconProps);
-    case 'crypto':
-      return React.createElement(Zap, iconProps);
-    case 'bourse':
-      return React.createElement(TrendingUp, iconProps);
-    case 'bourse_fund':
-    case 'charisma_plans':
-      return React.createElement(Layers, iconProps);
-    case 'custom':
-    default:
-      return React.createElement(Sparkles, iconProps);
-  }
+  const iconName = getCategoryIconName(category);
+  const IconComponent = ICON_COMPONENT_MAP[iconName] || Sparkles;
+  return React.createElement(IconComponent, { size, className, style });
 }
 
 export function formatAssetName(item) {

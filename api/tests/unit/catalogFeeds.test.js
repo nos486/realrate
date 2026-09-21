@@ -69,7 +69,7 @@ describe('Unified Catalog Feeds Service Tests', () => {
     const std = standardizeCatalogItem(raw, sourceConfig);
     expect(std.symbol).toBe('فولاد');
     expect(std.category).toBe('bourse');
-    expect(std.badge).toBe('بورس');
+    expect(std.badge).toBe('سهام بورس');
     expect(std.unit).toBe('برگ سهم');
     expect(std.priceToman).toBe(520);
     expect(std.isFund).toBe(false);

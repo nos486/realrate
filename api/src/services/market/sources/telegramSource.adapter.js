@@ -176,6 +176,9 @@ export const telegramSourceAdapter = {
     const nowIso = new Date().toISOString();
     const html = String(rawContent || "");
 
+    const sourceId = String(sourceConfig.id || sourceConfig.priceType || sourceConfig.price_type || "usd").trim();
+    const sourceName = String(sourceConfig.name || target.channel || "قیمت لحظه‌ای").trim();
+
     // 1. If custom regex is specified, search telegram message blocks
     if (regex) {
       const messageBlocks = html.split(/<div class="tgme_widget_message\b/);
@@ -193,10 +196,14 @@ export const telegramSourceAdapter = {
 
         if (parsedNum && parsedNum > 0) {
           const isUsdAsset = priceType === "ons_gold" || priceType === "ons_silver";
+          const finalPrice = isUsdAsset ? Math.round(parsedNum * 100) / 100 : Math.round(parsedNum);
           return {
-            price: isUsdAsset ? Math.round(parsedNum * 100) / 100 : Math.round(parsedNum),
+            items: [{
+              id: sourceId,
+              name: sourceName,
+              price: finalPrice,
+            }],
             datetime,
-            label: sourceConfig.name || target.channel,
           };
         }
       }
@@ -209,9 +216,12 @@ export const telegramSourceAdapter = {
       const parsedUsd = parseUsdTelegramHtml(html, target.channel);
       if (parsedUsd && parsedUsd.price) {
         return {
-          price: parsedUsd.price,
+          items: [{
+            id: sourceId,
+            name: sourceName,
+            price: parsedUsd.price,
+          }],
           datetime: parsedUsd.datetime || nowIso,
-          label: sourceConfig.name || parsedUsd.label,
         };
       }
       throw new Error(`قیمت دلار در پیام‌های اخیر کانال «${target.channel}» یافت نشد.`);
@@ -222,13 +232,20 @@ export const telegramSourceAdapter = {
     const matchedItem = parsedGold[priceType];
     if (matchedItem && matchedItem.price) {
       return {
-        price: matchedItem.price,
+        items: [{
+          id: sourceId,
+          name: sourceName,
+          price: matchedItem.price,
+        }],
         datetime: matchedItem.datetime || nowIso,
-        label: sourceConfig.name || matchedItem.label,
       };
     }
 
     throw new Error(`قیمت ${priceType} در پیام‌های کانال «${target.channel}» یافت نشد.`);
+  },
+
+  async getItems(env = null) {
+    return [];
   },
 
   async test(sourceConfig) {
@@ -240,17 +257,19 @@ export const telegramSourceAdapter = {
     try {
       const raw = await this.fetchRaw(sourceConfig);
       const parsed = this.parse(raw, sourceConfig);
+      const firstItem = parsed.items?.[0];
+      const price = firstItem?.price || 0;
       const rawSnippet = raw && raw.length > 2500 ? raw.slice(0, 2500) + "\n... (ادامه متن کوتاه شد)" : raw;
 
       return {
         success: true,
         source_type: "telegram",
-        price: parsed.price,
+        price,
         datetime: parsed.datetime,
-        label: parsed.label,
+        label: firstItem?.name || endpoint,
         channel: endpoint,
         rawSnippet,
-        message: `قیمت با موفقیت از کانال تلگرام «${endpoint}» خوانده شد: ${parsed.price.toLocaleString("fa-IR")}`,
+        message: `قیمت با موفقیت از کانال تلگرام «${endpoint}» خوانده شد: ${price.toLocaleString("fa-IR")}`,
       };
     } catch (e) {
       return { success: false, error: e.message || "خطا در ارتباط با سرورهای تلگرام" };

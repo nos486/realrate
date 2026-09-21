@@ -23,10 +23,10 @@ import {
 } from '../api/client.js';
 import { extractMultiItems } from '../components/UniversalAssetSearch.jsx';
 import { getSourceDisplayName } from '../config/sources.config.js';
+import { getItemUnit } from '../config/displayEngine.js';
 import {
   CANONICAL_PRICE_TYPE_INFO,
   isSourceMultiOutput,
-  getPriceUnit,
   formatNum,
   PriceSourcesTableSection,
   FeedDataExplorerModal,
@@ -290,7 +290,7 @@ export default function PriceSourcesPage({ embedded = false, usdToman: propUsdTo
           )
         );
 
-        showMsg(`قیمت سورس «${src.name}» با موفقیت استخراج و ذخیره شد: ${formatNum(res.price, src.priceType)} ${getPriceUnit(src.priceType)}`, 'success');
+        showMsg(`قیمت سورس «${src.name}» با موفقیت استخراج و ذخیره شد: ${formatNum(res.price, src.priceType)} ${getItemUnit(src)}`, 'success');
       } else if (!res.success) {
         showMsg(`خطا در استخراج قیمت سورس «${src.name}»: ${res.error || 'قیمت استخراج نشد'}`, 'error');
       }

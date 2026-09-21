@@ -12,6 +12,7 @@ import { dbBatchUpdateForexPrices } from "../../../repositories/priceSource.repo
 import {
   getLastForexD1RecordTime,
   setLastForexD1RecordTime,
+  getForexRatesCache,
   setForexRatesCache,
 } from "../../../repositories/kvCache.repository.js";
 import { FOREX_HISTORY_EXPIRATION_TTL } from "../../../config/constants.js";
@@ -80,9 +81,7 @@ export const forexApiSourceAdapter = {
     }
 
     const nowIso = new Date().toISOString();
-    const multiData = {};
-    const compactList = [];
-    const currencyList = [];
+    const items = [];
 
     for (const cur of PROMINENT_FOREX_CURRENCIES) {
       const rawRate = Number(rates[cur.code]);
@@ -90,25 +89,15 @@ export const forexApiSourceAdapter = {
 
       // Relative to USD: 1 / rate
       const usdCross = parseFloat((1 / rawRate).toFixed(5));
-      multiData[cur.code.toLowerCase()] = usdCross;
 
-      compactList.push({
+      items.push({
         id: cur.code,
         name: `${cur.name} (${cur.code})`,
         price: usdCross,
       });
-
-      currencyList.push({
-        key: cur.code.toLowerCase(),
-        code: cur.code,
-        label: cur.name,
-        rawRate,
-        usdCrossRate: usdCross,
-        price: usdCross,
-      });
     }
 
-    if (compactList.length === 0) {
+    if (items.length === 0) {
       throw new Error("هیچ یک از ارزهای مطرح در پاسخ وب‌سرویس یافت نشد.");
     }
 
@@ -121,13 +110,8 @@ export const forexApiSourceAdapter = {
     }
 
     return {
-      price: compactList.length,
-      multiData,
-      currencyList,
-      compactList,
-      sampleItems: compactList.slice(0, 30),
+      items,
       datetime: nowIso,
-      label: sourceConfig.name || "نرخ‌های جهانی فارکس (Open ER-API)",
     };
   },
 
@@ -165,19 +149,35 @@ export const forexApiSourceAdapter = {
     }
   },
 
+  async getItems(env = null) {
+    if (env) {
+      try {
+        const cached = await getForexRatesCache(env);
+        if (cached?.rates) {
+          const parsed = await this.parse(cached, { name: this.name }, null);
+          return parsed.items || [];
+        }
+      } catch {}
+    }
+    const raw = await this.fetchRaw({ endpoint: FOREX_API_DEFAULT_URL }, env);
+    const parsed = await this.parse(raw, { name: this.name }, env);
+    return parsed.items || [];
+  },
+
   async test(sourceConfig) {
     try {
       const raw = await this.fetchRaw(sourceConfig);
       const parsed = await this.parse(raw, sourceConfig);
+      const count = parsed.items.length;
       return {
         success: true,
         source_type: "api_url",
-        price: parsed.price,
-        multiData: parsed.multiData,
-        sampleItems: parsed.sampleItems,
+        price: count,
+        items: parsed.items,
+        sampleItems: parsed.items.slice(0, 30),
         datetime: parsed.datetime,
-        label: parsed.label,
-        message: `تعداد ${parsed.price} نرخ جهانی فارکس با موفقیت دریافت و پردازش شد.`,
+        label: sourceConfig.name || "نرخ‌های جهانی فارکس (Open ER-API)",
+        message: `تعداد ${count} نرخ جهانی فارکس با موفقیت دریافت و پردازش شد.`,
       };
     } catch (e) {
       return { success: false, error: e.message || "خطا در تست وب‌سرویس فارکس" };

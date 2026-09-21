@@ -141,11 +141,11 @@ describe("Charisma Investment Plans Adapter & Incremental Merge Tests", () => {
     ).toBe(true);
 
     const parsed = await charismaPlansSourceAdapter.parse(samplePlansArray, { id: "src_def_charisma_plans" });
-    expect(parsed.price).toBe(5);
-    expect(parsed.priceType).toBe("charisma_plans");
-    expect(parsed.multiData.isCatalog).toBe(true);
-    expect(parsed.multiData.totalCount).toBe(5);
-    expect(parsed.compactList.length).toBe(5);
+    expect(parsed).toBeDefined();
+    expect(Array.isArray(parsed.items)).toBe(true);
+    expect(parsed.items.length).toBe(5);
+    expect(parsed.datetime).toBeDefined();
+    expect(Object.keys(parsed.items[0]).sort()).toEqual(["id", "name", "price"]);
   });
 
   it("resolves charisma_plans category under bourse_fund in specs registry and matches portfolio category", async () => {

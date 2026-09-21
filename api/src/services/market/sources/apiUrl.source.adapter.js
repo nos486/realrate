@@ -110,22 +110,29 @@ export const apiUrlSourceAdapter = {
   },
 
   parse(rawContent, sourceConfig) {
-    const rawStr = String(rawContent || "").trim();
     const nowIso = new Date().toISOString();
     let data;
 
-    try {
-      data = JSON.parse(rawStr);
-    } catch {
-      const directNum = extractPriceWithRegex(rawStr, sourceConfig.regex || "([\\d,]+)");
-      if (directNum && directNum > 0) {
-        return {
-          price: Math.round(directNum),
-          datetime: nowIso,
-          label: sourceConfig.name || "API URL",
-        };
+    if (rawContent && typeof rawContent === "object") {
+      data = rawContent;
+    } else {
+      const rawStr = String(rawContent || "").trim();
+      try {
+        data = JSON.parse(rawStr);
+      } catch {
+        const directNum = extractPriceWithRegex(rawStr, sourceConfig.regex || "([\\d,]+)");
+        if (directNum && directNum > 0) {
+          return {
+            items: [{
+              id: sourceConfig.id || sourceConfig.priceType || "api_source",
+              name: sourceConfig.name || "API URL",
+              price: Math.round(directNum),
+            }],
+            datetime: nowIso,
+          };
+        }
+        throw new Error("پاسخ وب‌سرویس JSON معتبر نیست.");
       }
-      throw new Error("پاسخ وب‌سرویس JSON معتبر نیست.");
     }
 
     // 0. Custom parser function support directly on sourceConfig
@@ -134,27 +141,40 @@ export const apiUrlSourceAdapter = {
         const parsed = sourceConfig.customParser(data, sourceConfig);
         if (typeof parsed === "number" && !isNaN(parsed)) {
           return {
-            price: parsed,
+            items: [{
+              id: sourceConfig.id || sourceConfig.priceType || "api_source",
+              name: sourceConfig.name || "سورس سفارشی",
+              price: parsed,
+            }],
             datetime: nowIso,
-            label: sourceConfig.name || "سورس سفارشی",
           };
         }
         if (parsed && typeof parsed === "object") {
-          const itemsList = Array.isArray(parsed.items)
+          const rawItems = Array.isArray(parsed.items)
             ? parsed.items
             : (Array.isArray(parsed.compactList) ? parsed.compactList : null);
 
-          const isCat = Boolean(parsed.isCatalog || sourceConfig.isCatalog || (itemsList && itemsList.length > 50));
-
-          return {
-            price: isCat ? (parsed.totalCount || itemsList?.length || 0) : (Number(parsed.price) || 0),
-            datetime: parsed.datetime || nowIso,
-            label: parsed.label || sourceConfig.name || "سورس سفارشی",
-            isCatalog: isCat,
-            multiData: parsed.multiData || (isCat ? { isCatalog: true, totalCount: itemsList?.length || parsed.totalCount, updatedAt: nowIso } : undefined),
-            compactList: itemsList || parsed.compactList || undefined,
-            sampleItems: parsed.sampleItems || (itemsList ? itemsList.slice(0, 50) : undefined),
-          };
+          if (Array.isArray(rawItems)) {
+            const items = rawItems.map((it) => ({
+              id: String(it.id || it.symbol || it.s || "").trim(),
+              name: String(it.name || it.n || it.title || "").trim(),
+              price: Number(it.price || it.priceToman || it.p || 0),
+            }));
+            return {
+              items,
+              datetime: parsed.datetime || nowIso,
+            };
+          }
+          if (parsed.price !== undefined) {
+            return {
+              items: [{
+                id: sourceConfig.id || sourceConfig.priceType || "api_source",
+                name: sourceConfig.name || parsed.label || "سورس سفارشی",
+                price: Number(parsed.price),
+              }],
+              datetime: parsed.datetime || nowIso,
+            };
+          }
         }
       } catch (err) {
         throw new Error(`خطا در اجرای customParser سورس: ${err.message}`);
@@ -182,7 +202,7 @@ export const apiUrlSourceAdapter = {
         const isRialFeed = (fieldMapping && fieldMapping.priceUnit === "rial");
         const multiplier = Number(fieldMapping?.multiplier) > 0 ? Number(fieldMapping.multiplier) : (isRialFeed ? 0.1 : 1);
 
-        const compactList = [];
+        const items = [];
         for (const item of rawArray) {
           if (!item || typeof item !== "object") continue;
           const sym = String(item[symKey] || "").trim();
@@ -191,23 +211,17 @@ export const apiUrlSourceAdapter = {
           if ((!sym && !name) || rawPrice <= 0) continue;
 
           const priceToman = Math.round(rawPrice * multiplier);
-          compactList.push({
-            s: sym || name,
-            n: name,
-            p: priceToman,
-            priceToman,
-            priceRial: isRialFeed ? rawPrice : priceToman * 10,
+          items.push({
+            id: sym || name,
+            name: name,
+            price: priceToman,
           });
         }
 
-        if (compactList.length > 0) {
+        if (items.length > 0) {
           return {
-            price: compactList.length,
-            multiData: { total: compactList.length },
-            compactList,
-            sampleItems: compactList.slice(0, 30),
+            items,
             datetime: nowIso,
-            label: sourceConfig.name || "فید چند خروجی",
           };
         }
       }
@@ -259,10 +273,17 @@ export const apiUrlSourceAdapter = {
     }
 
     return {
-      price: finalPrice,
+      items: [{
+        id: sourceConfig.id || sourceConfig.priceType || sourceConfig.price_type || "api_source",
+        name: sourceConfig.name || "سورس خارجی API",
+        price: finalPrice,
+      }],
       datetime: nowIso,
-      label: sourceConfig.name || "سورس خارجی API",
     };
+  },
+
+  async getItems(env = null) {
+    return [];
   },
 
   async test(sourceConfig, env = null) {
@@ -274,21 +295,21 @@ export const apiUrlSourceAdapter = {
     try {
       const raw = await this.fetchRaw(sourceConfig, env);
       const parsed = this.parse(raw, sourceConfig);
-      const rawSnippet = raw && raw.length > 2500 ? raw.slice(0, 2500) + "\n... (ادامه متن کوتاه شد)" : raw;
+      const count = parsed.items?.length || 0;
+      const firstPrice = parsed.items?.[0]?.price || 0;
+      const rawSnippet = raw && raw.length > 2500 ? raw.slice(0, 2500) + "\n... (ادامه متن کوتاه شد)" : (typeof raw === "object" ? JSON.stringify(raw, null, 2).slice(0, 2500) : String(raw || ""));
 
       return {
         success: true,
         source_type: "api_url",
-        price: parsed.price,
-        multiData: parsed.multiData || undefined,
-        compactList: parsed.compactList || undefined,
-        sampleItems: parsed.sampleItems || undefined,
+        price: firstPrice,
+        items: parsed.items,
         datetime: parsed.datetime,
-        label: parsed.label,
+        label: sourceConfig.name || "وب‌سرویس JSON",
         rawSnippet,
-        message: parsed.multiData
-          ? `تعداد ${parsed.price} آیتم با موفقیت پردازش شد.`
-          : `قیمت با موفقیت دریافت شد: ${parsed.price.toLocaleString("fa-IR")}`,
+        message: count > 1
+          ? `تعداد ${count} آیتم با موفقیت دریافت و پردازش شد.`
+          : `قیمت با موفقیت دریافت شد: ${firstPrice.toLocaleString("fa-IR")}`,
       };
     } catch (e) {
       return { success: false, error: e.message || "خطا در برقراری ارتباط با منبع API" };

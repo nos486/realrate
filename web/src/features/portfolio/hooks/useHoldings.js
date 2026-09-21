@@ -8,6 +8,7 @@ import {
 } from '../api/portfolioApi.js';
 import { useAuth } from '../../auth/index.js';
 import { normalizeHolding } from '../utils/holdingHelpers.js';
+import { getItemCategory } from '../../../config/displayEngine.js';
 import {
   deriveE2eeKey,
   verifyE2eeKey,
@@ -136,9 +137,10 @@ export function useHoldings(activePortfolio) {
   // Synchronize bourse prices for active bourse holdings
   useEffect(() => {
     let isMounted = true;
-    const bourseHoldings = holdings.filter(
-      (h) => h.assetType === 'bourse' || h.assetType === 'bourse_fund' || h.assetId?.startsWith('bourse_')
-    );
+    const bourseHoldings = holdings.filter((h) => {
+      const cat = getItemCategory(h.assetId || h);
+      return cat === 'bourse' || cat === 'bourse_fund';
+    });
     if (bourseHoldings.length === 0) return;
 
     searchBourseSymbols('', 2000)

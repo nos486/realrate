@@ -158,9 +158,9 @@ describe("Charisma Investment Funds Adapter & Incremental Merge Tests", () => {
 
     const parsed = await charismaFundsSourceAdapter.parse(sampleFundsArray, { id: "src_def_charisma" });
     expect(parsed).toBeDefined();
-    expect(parsed.priceType).toBe("charisma_funds");
-    expect(Array.isArray(parsed.multiOutput)).toBe(true);
-    expect(parsed.multiOutput.length).toBe(3);
+    expect(Array.isArray(parsed.items)).toBe(true);
+    expect(parsed.items.length).toBe(3);
+    expect(Object.keys(parsed.items[0]).sort()).toEqual(["id", "name", "price"]);
   });
 
   it("contains known Bourse symbol mappings for Charisma funds", () => {

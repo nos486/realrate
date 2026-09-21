@@ -8,7 +8,12 @@ import {
   X,
 } from 'lucide-react';
 import EmptyState from '../../../../components/ui/EmptyState.jsx';
-import { formatNum, getPriceUnit, formatPersianDate, CANONICAL_PRICE_TYPE_INFO } from './priceSourceConstants.js';
+import {
+  formatNum,
+  formatPersianDate,
+  CANONICAL_PRICE_TYPE_INFO,
+} from './priceSourceConstants.js';
+import { getItemUnit } from '../../../../config/displayEngine.js';
 
 export default function SingleSourcesTable({
   sources = [],
@@ -206,7 +211,7 @@ export default function SingleSourcesTable({
                                   fontWeight: '700',
                                 }}
                               >
-                                {formatNum(src.lastPrice, src.priceType)} {getPriceUnit(src.priceType)}
+                                {formatNum(src.lastPrice, src.priceType)} {getItemUnit(src)}
                               </strong>
                             )}
                             <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>
@@ -292,7 +297,7 @@ export default function SingleSourcesTable({
                                 <CheckCircle2 size={14} />
                                 <span>
                                   {rowResult.message || (
-                                    <>قیمت با موفقیت استخراج و ذخیره شد: <strong>{formatNum(rowResult.price, src.priceType)} {getPriceUnit(src.priceType)}</strong></>
+                                    <>قیمت با موفقیت استخراج و ذخیره شد: <strong>{formatNum(rowResult.price, src.priceType)} {getItemUnit(src)}</strong></>
                                   )}
                                 </span>
                               </div>
