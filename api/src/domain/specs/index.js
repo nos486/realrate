@@ -12,6 +12,8 @@ export * from '../formulas.js';
 export {
   getSourceConfig,
   resolveAssetDisplayName,
+  resolveAssetDisplayWithSource,
+  getSourceShortBrand,
   resolveAssetUnit,
   getSourceParser,
   resolveCategory,

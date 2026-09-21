@@ -32,6 +32,7 @@ import { AppError } from "../lib/AppError.js";
 import { logger } from "../lib/logger.js";
 import {
   resolveAssetDisplayName,
+  resolveAssetDisplayWithSource,
   resolveAssetUnit,
   resolveCategory,
 } from "../config/sourceRegistry.js";
@@ -39,7 +40,7 @@ import {
 function resolveHoldingMetadata(holding) {
   if (!holding) return holding;
   const isEncrypted = typeof holding.notes === 'string' && holding.notes.startsWith('enc:e2ee:v1:');
-  const assetName = isEncrypted ? (holding.assetName || holding.assetId) : (resolveAssetDisplayName(holding.assetId, holding) || holding.assetId);
+  const assetName = isEncrypted ? (holding.assetName || holding.assetId) : (resolveAssetDisplayWithSource(holding.assetId, holding) || holding.assetId);
   const unit = isEncrypted ? (holding.unit || 'واحد') : (resolveAssetUnit(holding.assetId, holding) || 'واحد');
   const category = isEncrypted ? (holding.assetType || 'custom') : resolveCategory(holding.assetId, holding.assetType);
   return {

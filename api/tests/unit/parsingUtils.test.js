@@ -150,12 +150,15 @@ describe("parsingUtils — extractValueByPath with predicate filtering", () => {
     expect(parsed.isCatalog).toBe(true);
     expect(parsed.price).toBe(3);
     expect(parsed.compactList).toHaveLength(3);
-    expect(parsed.compactList[0].s).toBe("فملی");
-    expect(parsed.compactList[0].priceToman).toBe(26390); // 263900 / 10
-    expect(parsed.compactList[0].isFund).toBe(false);
-    expect(parsed.compactList[1].s).toBe("عیار");
-    expect(parsed.compactList[1].priceToman).toBe(14500); // 145000 / 10
-    expect(parsed.compactList[1].isFund).toBe(true);
+    expect(parsed.compactList[0].id).toBe("فملی");
+    expect(parsed.compactList[0].name).toBe("ملی صنایع مس ایران");
+    expect(parsed.compactList[0].price).toBe(26390); // 263900 / 10
+    expect(Object.keys(parsed.compactList[0]).sort()).toEqual(["id", "name", "price"]);
+
+    expect(parsed.compactList[1].id).toBe("عیار");
+    expect(parsed.compactList[1].name).toBe("صندوق طلای عیار مفید");
+    expect(parsed.compactList[1].price).toBe(14500); // 145000 / 10
+    expect(Object.keys(parsed.compactList[1]).sort()).toEqual(["id", "name", "price"]);
   });
 });
 

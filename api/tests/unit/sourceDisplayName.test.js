@@ -2,6 +2,8 @@ import { describe, it, test, expect } from 'vitest';
 import { getSourceDisplayName } from '../../src/config/sources.config.js';
 import {
   resolveAssetDisplayName,
+  resolveAssetDisplayWithSource,
+  getSourceShortBrand,
   resolveAssetUnit,
   getSourceConfig,
 } from '../../src/config/sourceRegistry.js';
@@ -77,4 +79,37 @@ describe('Dynamic Source Display Name Resolution Tests', () => {
     expect(getSourceDisplayName('bourse'))
       .toBe('بورس اوراق بهادار تهران (TSETMC / BRS API)');
   });
+
+  describe('resolveAssetDisplayWithSource – [Item Name] ([Source Name]) Formatting', () => {
+    it('appends source brand in parentheses when not present in item name', () => {
+      expect(resolveAssetDisplayWithSource('bourse_foolad', { name: 'فولاد مبارکه', sourceId: 'src_def_bourse' }))
+        .toBe('فولاد مبارکه (بورس)');
+
+      expect(resolveAssetDisplayWithSource('ahrom', { name: 'اهرم', sourceId: 'src_def_charisma' }))
+        .toBe('اهرم (کاریزما)');
+
+      expect(resolveAssetDisplayWithSource('pishtaz', { name: 'پیشتاز', sourceId: 'src_def_emofid' }))
+        .toBe('پیشتاز (مفید)');
+
+      expect(resolveAssetDisplayWithSource('charisma_plans__silver', { name: 'طرح نقره', sourceId: 'src_def_charisma_plans' }))
+        .toBe('طرح نقره (کاریزما)');
+    });
+
+    it('avoids duplicating source brand if already present in item name', () => {
+      expect(resolveAssetDisplayWithSource('kahroba', { name: 'صندوق طلا کهربا کاریزما', sourceId: 'src_def_charisma' }))
+        .toBe('صندوق طلا کهربا کاریزما');
+
+      expect(resolveAssetDisplayWithSource('ayar', { name: 'صندوق طلا عیار مفید', sourceId: 'src_def_emofid' }))
+        .toBe('صندوق طلا عیار مفید');
+    });
+
+    it('returns brand correctly from getSourceShortBrand', () => {
+      expect(getSourceShortBrand('src_def_bourse')).toBe('بورس');
+      expect(getSourceShortBrand('src_def_emofid')).toBe('مفید');
+      expect(getSourceShortBrand('src_def_charisma')).toBe('کاریزما');
+      expect(getSourceShortBrand('src_def_charisma_plans')).toBe('کاریزما');
+      expect(getSourceShortBrand('src_def_forex')).toBe('فارکس');
+    });
+  });
 });
+

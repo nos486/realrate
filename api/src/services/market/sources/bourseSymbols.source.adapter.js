@@ -74,62 +74,37 @@ export function normalizePersian(str) {
  * }}
  */
 export function mergeBourseSymbols(existingList = [], rawApiArray = [], nowIso = new Date().toISOString(), sourceConfig = null) {
-  const defaultSourceName = sourceConfig?.name || "";
-  const defaultSourceId = sourceConfig?.id || "";
   const symbolMap = new Map();
 
-  // 1. Initialize map with existing symbols
+  // 1. Initialize map with existing symbols (supports both { id, name, price } and legacy formats)
   if (Array.isArray(existingList)) {
     for (const item of existingList) {
-      if (!item || !item.s) continue;
-      const key = String(item.s).trim();
+      if (!item) continue;
+      const key = String(item.id || item.symbol || item.s || "").trim();
       if (!key) continue;
 
-      let toman = 0;
-      let rial = 0;
-
-      if (item.priceToman !== undefined && Number(item.priceToman) > 0) {
-        toman = Number(item.priceToman);
+      let price = 0;
+      if (item.price !== undefined && Number(item.price) > 0) {
+        price = Number(item.price);
+      } else if (item.priceToman !== undefined && Number(item.priceToman) > 0) {
+        price = Number(item.priceToman);
       } else if (item.p !== undefined && Number(item.p) > 0) {
-        toman = Number(item.p);
-      } else if (item.price !== undefined && Number(item.price) > 0) {
-        toman = Number(item.price);
-      }
-
-      if (item.priceRial !== undefined && Number(item.priceRial) > 0) {
-        rial = Number(item.priceRial);
+        price = Number(item.p);
+      } else if (item.priceRial !== undefined && Number(item.priceRial) > 0) {
+        price = Math.round(Number(item.priceRial) / 10);
       } else if (item.pl !== undefined && Number(item.pl) > 0) {
-        rial = Number(item.pl);
+        price = Math.round(Number(item.pl) / 10);
       }
 
-      if (!toman && rial > 0) {
-        toman = Math.round(rial / 10);
-      }
-      if (!rial && toman > 0) {
-        rial = toman * 10;
-      }
+      const name = String(item.name || item.n || key).trim();
 
-        const isFund = Boolean(item.isFund || (item.n && item.n.includes('صندوق')));
-        symbolMap.set(key, {
-          s: key,
-          symbol: key,
-          n: item.n || item.name || key,
-          name: item.n || item.name || key,
-          p: toman,
-          price: toman,
-          priceToman: toman,
-          priceRial: rial,
-          pl: rial,
-          unit: "IRR",
-          updatedAt: item.updatedAt || nowIso,
-          isFund,
-          category: isFund ? "صندوق سرمایه‌گذاری" : "سهام بورس",
-          type: isFund ? "صندوق" : "سهام",
-          sourceName: item.sourceName || defaultSourceName,
-          sourceId: item.sourceId || defaultSourceId,
-        });
-      }
+      symbolMap.set(key, {
+        id: key,
+        name: name || key,
+        price,
+      });
     }
+  }
 
   let updatedCount = 0;
   let addedCount = 0;
@@ -139,14 +114,14 @@ export function mergeBourseSymbols(existingList = [], rawApiArray = [], nowIso =
   if (Array.isArray(rawApiArray)) {
     for (const item of rawApiArray) {
       if (!item || typeof item !== "object") continue;
-      const sym = (item.l18 || item.symbol || "").trim();
-      const name = (item.l30 || item.name || sym).trim();
+      const sym = String(item.l18 || item.id || item.symbol || item.s || "").trim();
+      const name = String(item.l30 || item.name || item.n || sym).trim();
       if (!sym) continue;
 
       seenKeysInApi.add(sym);
 
       // Raw price from API: 'pl' is in RIALS (TSETMC standard)
-      const rawPl = item.pl !== undefined && item.pl !== null ? item.pl : 0;
+      const rawPl = item.pl !== undefined && item.pl !== null ? item.pl : (item.priceRial || item.price || item.p || 0);
       const rawPriceRial = Number(String(rawPl).replace(/,/g, '').trim()) || 0;
 
       const existing = symbolMap.get(sym);
@@ -154,28 +129,12 @@ export function mergeBourseSymbols(existingList = [], rawApiArray = [], nowIso =
       if (rawPriceRial > 0) {
         // Convert Rials to Tomans
         const priceToman = Math.round(rawPriceRial / 10);
-        const isFund = Boolean(name.includes('صندوق') || existing?.isFund);
-        const category = isFund ? "صندوق سرمایه‌گذاری" : "سهام بورس";
-
-        const priceChanged = existing ? (existing.priceRial !== rawPriceRial) : true;
+        const priceChanged = existing ? (existing.price !== priceToman) : true;
 
         symbolMap.set(sym, {
-          s: sym,
-          symbol: sym,
-          n: name || existing?.n || sym,
+          id: sym,
           name: name || existing?.name || sym,
-          p: priceToman,
           price: priceToman,
-          priceToman: priceToman,
-          priceRial: rawPriceRial,
-          pl: rawPriceRial,
-          unit: "IRR",
-          updatedAt: (existing && !priceChanged) ? existing.updatedAt : nowIso,
-          isFund,
-          category,
-          type: isFund ? "صندوق" : "سهام",
-          sourceName: existing?.sourceName || defaultSourceName,
-          sourceId: existing?.sourceId || defaultSourceId,
         });
 
         if (existing) {
@@ -185,8 +144,7 @@ export function mergeBourseSymbols(existingList = [], rawApiArray = [], nowIso =
         }
       } else if (existing) {
         // Price in API is zero/invalid -> RETAIN PREVIOUS VALID PRICE!
-        if (name && name !== existing.n) {
-          existing.n = name;
+        if (name && name !== existing.name) {
           existing.name = name;
         }
       }
@@ -300,7 +258,7 @@ export const bourseSymbolsSourceAdapter = {
       },
       compactList: mergedList,
       sampleItems: mergedList.slice(0, 50),
-      sampleSymbols: mergedList.slice(0, 10).map(x => x.s),
+      sampleSymbols: mergedList.slice(0, 10).map(x => x.id || x.s),
     };
   },
 

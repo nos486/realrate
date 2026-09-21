@@ -4,8 +4,8 @@ import { mergeBourseSymbols } from '../../src/services/market/sources/bourseSymb
 describe('Bourse Symbols Incremental Merge Tests', () => {
   it('preserves missing symbols when API response does not include them', () => {
     const existingList = [
-      { s: 'فولاد', n: 'فولاد مبارکه', p: 4500, priceToman: 4500, priceRial: 45000, updatedAt: '2026-09-01T10:00:00.000Z' },
-      { s: 'خودرو', n: 'ایران خودرو', p: 2800, priceToman: 2800, priceRial: 28000, updatedAt: '2026-09-01T10:00:00.000Z' },
+      { id: 'فولاد', name: 'فولاد مبارکه', price: 4500 },
+      { id: 'خودرو', name: 'ایران خودرو', price: 2800 },
     ];
 
     // API only returned 'فولاد', 'خودرو' is missing
@@ -19,20 +19,20 @@ describe('Bourse Symbols Incremental Merge Tests', () => {
     expect(stats.updatedCount).toBe(1);
     expect(stats.retainedCount).toBe(1);
 
-    const khodro = mergedList.find(item => item.s === 'خودرو');
+    const khodro = mergedList.find(item => item.id === 'خودرو');
     expect(khodro).toBeDefined();
-    expect(khodro.p).toBe(2800);
-    expect(khodro.updatedAt).toBe('2026-09-01T10:00:00.000Z'); // Preserved original timestamp
+    expect(khodro.price).toBe(2800);
+    expect(khodro.name).toBe('ایران خودرو');
 
-    const foolad = mergedList.find(item => item.s === 'فولاد');
+    const foolad = mergedList.find(item => item.id === 'فولاد');
     expect(foolad).toBeDefined();
-    expect(foolad.p).toBe(4600); // 46000 / 10
-    expect(foolad.updatedAt).toBe('2026-09-02T12:00:00.000Z');
+    expect(foolad.price).toBe(4600); // 46000 / 10
+    expect(foolad.name).toBe('فولاد مبارکه اصفهان');
   });
 
   it('never overwrites an existing positive price with zero or null', () => {
     const existingList = [
-      { s: 'فملی', n: 'ملی مس', p: 7200, priceToman: 7200, priceRial: 72000, updatedAt: '2026-09-01T10:00:00.000Z' },
+      { id: 'فملی', name: 'ملی مس', price: 7200 },
     ];
 
     // API returned 0 / null for pl
@@ -42,13 +42,12 @@ describe('Bourse Symbols Incremental Merge Tests', () => {
 
     const { mergedList } = mergeBourseSymbols(existingList, rawApi, '2026-09-02T12:00:00.000Z');
 
-    const femelli = mergedList.find(item => item.s === 'فملی');
+    const femelli = mergedList.find(item => item.id === 'فملی');
     expect(femelli).toBeDefined();
-    expect(femelli.p).toBe(7200); // Maintained previous price, not 0!
-    expect(femelli.priceRial).toBe(72000);
+    expect(femelli.price).toBe(7200); // Maintained previous price, not 0!
   });
 
-  it('adds brand new symbols from API with proper Rial to Toman conversion', () => {
+  it('adds brand new symbols from API with proper Rial to Toman conversion in standard schema', () => {
     const existingList = [];
     const rawApi = [
       { l18: 'اهرم', l30: 'صندوق اهرم کاریزما', pl: 21500, isFund: true },
@@ -59,19 +58,24 @@ describe('Bourse Symbols Incremental Merge Tests', () => {
     expect(stats.totalSymbols).toBe(1);
     expect(stats.addedCount).toBe(1);
 
-    const ahrom = mergedList.find(item => item.s === 'اهرم');
+    const ahrom = mergedList.find(item => item.id === 'اهرم');
     expect(ahrom).toBeDefined();
-    expect(ahrom.p).toBe(2150); // 21500 / 10
-    expect(ahrom.priceRial).toBe(21500);
-    expect(ahrom.isFund).toBe(true);
+    expect(ahrom.id).toBe('اهرم');
+    expect(ahrom.name).toBe('صندوق اهرم کاریزما');
+    expect(ahrom.price).toBe(2150); // 21500 / 10
+    // Ensures strictly { id, name, price } standard
+    expect(Object.keys(ahrom).sort()).toEqual(['id', 'name', 'price']);
   });
 
-  it('preserves custom sourceName when provided via sourceConfig', () => {
-    const rawApi = [{ l18: 'فولاد', l30: 'فولاد مبارکه', pl: 50000 }];
-    const customConfig = { id: 'src_custom_bourse', name: 'بورس تستی سفارشی' };
-    const { mergedList } = mergeBourseSymbols([], rawApi, '2026-09-02T12:00:00.000Z', customConfig);
+  it('maintains backwards compatibility when existingList uses legacy keys { s, n, p }', () => {
+    const legacyExistingList = [
+      { s: 'فولاد', n: 'فولاد مبارکه', p: 5000, priceRial: 50000 },
+    ];
+    const { mergedList } = mergeBourseSymbols(legacyExistingList, []);
 
-    expect(mergedList[0].sourceName).toBe('بورس تستی سفارشی');
-    expect(mergedList[0].sourceId).toBe('src_custom_bourse');
+    expect(mergedList[0].id).toBe('فولاد');
+    expect(mergedList[0].name).toBe('فولاد مبارکه');
+    expect(mergedList[0].price).toBe(5000);
+    expect(Object.keys(mergedList[0]).sort()).toEqual(['id', 'name', 'price']);
   });
 });

@@ -187,21 +187,7 @@ export function resolveAssetDisplayName(assetId, rawItem = null) {
 
   // 1️⃣ raw name (if meaningful and not merely an ID string)
   if (rawItem) {
-    const isMofid =
-      rawItem.sourceId === "src_def_emofid" ||
-      rawItem.sourceId === "emofid_funds" ||
-      rawItem.sourceId === "emofid" ||
-      rawItem.priceType === "emofid_funds" ||
-      rawItem.priceType === "emofid" ||
-      String(rawItem.sourceName || "").includes("مفید") ||
-      cleanId.startsWith("emofid__") ||
-      cleanId.startsWith("emofid_");
-
-    const preferred = (isMofid && rawItem.n)
-      ? rawItem.n
-      : (rawItem.n || rawItem.name || rawItem.assetName || rawItem.title || "");
-
-    const rawName = String(preferred).trim();
+    const rawName = String(rawItem.name || rawItem.assetName || rawItem.n || rawItem.title || "").trim();
     if (rawName) {
       const isIdLike =
         rawName === effectiveId ||
@@ -234,13 +220,7 @@ export function resolveAssetDisplayName(assetId, rawItem = null) {
     const sym = cleanId.replace(/^bourse_/, "");
     // Check if rawItem specifies a meaningful name
     if (rawItem) {
-      const isMofid =
-        rawItem.sourceId === "src_def_emofid" ||
-        rawItem.sourceId === "emofid_funds" ||
-        String(rawItem.sourceName || "").includes("مفید");
-
-      const preferred = (isMofid && rawItem.n) ? rawItem.n : (rawItem.n || rawItem.name || rawItem.assetName || "");
-      const n = String(preferred).trim();
+      const n = String(rawItem.name || rawItem.assetName || "").trim();
       if (n && n !== cleanId && n !== effectiveId && !n.startsWith("bourse_")) {
         return n;
       }
@@ -261,6 +241,77 @@ export function resolveAssetDisplayName(assetId, rawItem = null) {
 
   // 6️⃣ fallback
   return cleanId || effectiveId;
+}
+
+/**
+ * Extracts a clean, concise source brand/label for display (e.g. "کاریزما", "مفید", "بورس", "زرما", "سبزه میدان")
+ * @param {string|object} sourceOrKey
+ * @returns {string}
+ */
+export function getSourceShortBrand(sourceOrKey) {
+  if (!sourceOrKey) return "";
+  const key = typeof sourceOrKey === "string"
+    ? sourceOrKey.toLowerCase().replace(/^src_def_/, "").trim()
+    : String(sourceOrKey.sourceId || sourceOrKey.source || sourceOrKey.priceType || sourceOrKey.id || "").toLowerCase().replace(/^src_def_/, "").trim();
+
+  if (key.includes("bourse") || key === "tsetmc") return "بورس";
+  if (key.includes("emofid") || key.includes("mofid")) return "مفید";
+  if (key.includes("charisma")) return "کاریزما";
+  if (key.includes("zarma") || key.includes("zarmagoldd")) return "زرما";
+  if (key.includes("sabza") || key.includes("tahran")) return "سبزه میدان";
+  if (key.includes("forex") || key.includes("er-api")) return "فارکس";
+
+  const cfg = getSourceConfig(key);
+  if (cfg?.name) {
+    if (cfg.name.includes("کاریزما") || cfg.name.includes("Charisma")) return "کاریزما";
+    if (cfg.name.includes("مفید") || cfg.name.includes("Emofid")) return "مفید";
+    if (cfg.name.includes("بورس") || cfg.name.includes("TSETMC")) return "بورس";
+    if (cfg.name.includes("زرما")) return "زرما";
+    if (cfg.name.includes("سبزه میدان")) return "سبزه میدان";
+    const parenMatch = cfg.name.match(/\(([^)]+)\)/);
+    if (parenMatch && parenMatch[1]) {
+      const inside = parenMatch[1].trim();
+      if (!inside.toLowerCase().includes("http") && inside.length <= 15) return inside;
+    }
+    return cfg.badge || cfg.name;
+  }
+  return "";
+}
+
+/**
+ * Resolves full asset display name combined with source name, e.g. "فولاد مبارکه (بورس)", "اهرم (کاریزما)"
+ * Avoids duplicate brand tokens if item name already includes the source name.
+ *
+ * @param {string} assetId
+ * @param {object|null} rawItem
+ * @returns {string}
+ */
+export function resolveAssetDisplayWithSource(assetId, rawItem = null) {
+  const cleanName = resolveAssetDisplayName(assetId, rawItem);
+  if (!cleanName) return "";
+
+  const effectiveId = String(assetId || rawItem?.assetId || rawItem?.id || "").trim();
+  const cleanId = effectiveId.replace(/^src_def_/, "").replace(/^derived_/, "").trim().toLowerCase();
+
+  let srcKey = "";
+  if (rawItem?.sourceId) srcKey = rawItem.sourceId;
+  else if (rawItem?.source) srcKey = rawItem.source;
+  else if (rawItem?.sourceName) srcKey = rawItem.sourceName;
+  else if (cleanId.startsWith("bourse_")) srcKey = "bourse";
+  else if (cleanId.includes("__")) {
+    srcKey = cleanId.split("__")[0];
+  } else {
+    srcKey = cleanId;
+  }
+
+  const brand = getSourceShortBrand(srcKey);
+  if (!brand) return cleanName;
+
+  if (cleanName.includes(brand)) {
+    return cleanName;
+  }
+
+  return `${cleanName} (${brand})`;
 }
 
 /**

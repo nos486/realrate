@@ -43,30 +43,27 @@ describe("Charisma Investment Funds Adapter & Incremental Merge Tests", () => {
     },
   ];
 
-  it("extracts closing price (sellOrClosedPriceInfo) and converts Rials to Tomans", () => {
+  it("extracts closing price (sellOrClosedPriceInfo) and converts Rials to Tomans in standard format", () => {
     const { mergedList, stats } = mergeCharismaFunds([], sampleFundsArray);
 
     expect(stats.totalFunds).toBe(3);
     expect(stats.addedCount).toBe(3);
     expect(stats.updatedCount).toBe(0);
 
-    const noghran = mergedList.find((f) => f.symbol === "نقران");
+    const noghran = mergedList.find((f) => f.id === "نقران");
     expect(noghran).toBeDefined();
+    expect(noghran.id).toBe("نقران");
     expect(noghran.name).toBe("صندوق سرمایه‌گذاری نقره کاریزما");
-    expect(noghran.priceRial).toBe(12232); // Closing price
-    expect(noghran.priceToman).toBe(1223); // 12232 / 10
-    expect(noghran.price).toBe(1223);
-    expect(noghran.isFund).toBe(true);
+    expect(noghran.price).toBe(1223); // 12232 / 10
+    expect(Object.keys(noghran).sort()).toEqual(["id", "name", "price"]);
 
-    const kahroba = mergedList.find((f) => f.symbol === "کهربا");
+    const kahroba = mergedList.find((f) => f.id === "کهربا");
     expect(kahroba).toBeDefined();
-    expect(kahroba.priceRial).toBe(217652);
-    expect(kahroba.priceToman).toBe(21765);
+    expect(kahroba.price).toBe(21765);
 
-    const ahrom = mergedList.find((f) => f.symbol === "اهرم");
+    const ahrom = mergedList.find((f) => f.id === "اهرم");
     expect(ahrom).toBeDefined();
-    expect(ahrom.priceRial).toBe(75592);
-    expect(ahrom.priceToman).toBe(7559);
+    expect(ahrom.price).toBe(7559);
   });
 
   it("falls back to buyOrLastPriceInfo if closing price is missing or 0", () => {
@@ -83,19 +80,17 @@ describe("Charisma Investment Funds Adapter & Incremental Merge Tests", () => {
     ];
 
     const { mergedList } = mergeCharismaFunds([], testList);
-    const item = mergedList.find((f) => f.symbol === "نقران");
+    const item = mergedList.find((f) => f.id === "نقران");
     expect(item).toBeDefined();
-    expect(item.priceRial).toBe(50000);
-    expect(item.priceToman).toBe(5000);
+    expect(item.price).toBe(5000);
+    expect(Object.keys(item).sort()).toEqual(["id", "name", "price"]);
   });
 
   it("retains previous valid price when missing or 0 in new response", () => {
     const existing = [
       {
-        symbol: "کهربا",
+        id: "کهربا",
         name: "صندوق سرمایه گذاری طلا کهربا",
-        priceRial: 200000,
-        priceToman: 20000,
         price: 20000,
       },
     ];
@@ -112,26 +107,22 @@ describe("Charisma Investment Funds Adapter & Incremental Merge Tests", () => {
     ];
 
     const { mergedList, stats } = mergeCharismaFunds(existing, rawWithZero);
-    const kahroba = mergedList.find((f) => f.symbol === "کهربا");
-    expect(kahroba.priceRial).toBe(200000);
-    expect(kahroba.priceToman).toBe(20000);
+    const kahroba = mergedList.find((f) => f.id === "کهربا");
+    expect(kahroba.price).toBe(20000);
     expect(stats.updatedCount).toBe(0);
+    expect(Object.keys(kahroba).sort()).toEqual(["id", "name", "price"]);
   });
 
   it("retains missing funds when not present in latest API response", () => {
     const existing = [
       {
-        symbol: "نقران",
+        id: "نقران",
         name: "صندوق سرمایه‌گذاری نقره کاریزما",
-        priceRial: 12000,
-        priceToman: 1200,
         price: 1200,
       },
       {
-        symbol: "کهربا",
+        id: "کهربا",
         name: "صندوق سرمایه گذاری طلا کهربا",
-        priceRial: 210000,
-        priceToman: 21000,
         price: 21000,
       },
     ];
@@ -152,12 +143,12 @@ describe("Charisma Investment Funds Adapter & Incremental Merge Tests", () => {
     expect(stats.retainedCount).toBe(1);
     expect(stats.updatedCount).toBe(1);
 
-    const noghran = mergedList.find((f) => f.symbol === "نقران");
+    const noghran = mergedList.find((f) => f.id === "نقران");
     expect(noghran).toBeDefined();
-    expect(noghran.priceToman).toBe(1200);
+    expect(noghran.price).toBe(1200);
 
-    const kahroba = mergedList.find((f) => f.symbol === "کهربا");
-    expect(kahroba.priceToman).toBe(22000);
+    const kahroba = mergedList.find((f) => f.id === "کهربا");
+    expect(kahroba.price).toBe(22000);
   });
 
   it("adapter supports charisma_funds and parses envelope response", async () => {

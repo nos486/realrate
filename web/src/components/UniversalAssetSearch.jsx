@@ -331,8 +331,8 @@ export function extractMultiItems(src) {
   return rawList
     .filter((item) => {
       if (!item || typeof item !== 'object') return false;
-      const sym = String((symField && item[symField]) || item.s || item.symbol || item.id || item.code || item.slug || item.ticker || '').trim().toLowerCase();
-      const name = String((nameField && item[nameField]) || item.n || item.name || item.title || item.car_name || item.model || '').trim().toLowerCase();
+      const sym = String((symField && item[symField]) || item.id || item.symbol || item.s || item.code || item.slug || item.ticker || '').trim().toLowerCase();
+      const name = String((nameField && item[nameField]) || item.name || item.n || item.title || item.car_name || item.model || '').trim().toLowerCase();
 
       if (includedSet && includedSet.size > 0) {
         const isIncluded = (sym && includedSet.has(sym)) || (name && includedSet.has(name));
@@ -344,22 +344,24 @@ export function extractMultiItems(src) {
       return true;
     })
     .map((item) => {
-      const sym = String((symField && item[symField]) || item.s || item.symbol || item.id || item.code || item.slug || item.ticker || '').trim();
+      const sym = String((symField && item[symField]) || item.id || item.symbol || item.s || item.code || item.slug || item.ticker || '').trim();
       const symUpper = sym.toUpperCase();
-      const resolvedFaName = isForex ? (WORLD_CURRENCY_NAMES[symUpper] || item.n || item.name || symUpper) : null;
-      let name = String((nameField && item[nameField]) || item.n || item.name || item.title || item.car_name || item.model || sym).trim();
+      const resolvedFaName = isForex ? (WORLD_CURRENCY_NAMES[symUpper] || item.name || item.n || symUpper) : null;
+      let name = String((nameField && item[nameField]) || item.name || item.n || item.title || item.car_name || item.model || sym).trim();
       if (isForex && resolvedFaName) {
         name = resolvedFaName.includes(symUpper) ? resolvedFaName : `${resolvedFaName} (${symUpper})`;
       }
 
-      const rawVal = Number((priceField && item[priceField]) || item.rawRate || item.priceTomans || item.priceFinal || item.price || item.lastPrice || item.p || (altPriceField && item[altPriceField]) || 0);
+      const rawVal = Number((priceField && item[priceField]) || item.price || item.rawRate || item.priceTomans || item.priceFinal || item.lastPrice || item.p || (altPriceField && item[altPriceField]) || 0);
       const usdCross = isForex ? (item.usdCrossRate || calculateUsdCrossRate(symUpper, rawVal)) : 0;
 
       let finalPrice;
-      if (item.priceToman !== undefined && item.priceToman !== null) {
-        finalPrice = Number(item.priceToman);
-      } else if (isForex) {
+      if (isForex) {
         finalPrice = usdCross;
+      } else if (item.price !== undefined && item.price !== null) {
+        finalPrice = Number(item.price);
+      } else if (item.priceToman !== undefined && item.priceToman !== null) {
+        finalPrice = Number(item.priceToman);
       } else {
         const isRial = src.unit === 'rial' || item.unit === 'rial' || item.priceRial !== undefined || (typeof fm === 'object' && fm?.priceUnit === 'rial');
         const rialVal = item.priceRial !== undefined ? Number(item.priceRial) : rawVal;
@@ -605,7 +607,7 @@ export default function UniversalAssetSearch({
 
       const subItems = extractMultiItems(src);
       subItems.forEach((sub) => {
-        const symCode = (sub.symbol || sub.s || '').trim();
+        const symCode = (sub.id || sub.symbol || sub.s || '').trim();
         const itemName = (sub.name || sub.n || symCode).trim();
         if (!symCode && !itemName) return;
 
@@ -621,7 +623,7 @@ export default function UniversalAssetSearch({
         const category = isForex ? 'currency' : (isFund ? 'bourse_fund' : (sub.category || src.priceType || 'custom'));
         const badge = isForex ? 'ارز' : (isFund ? 'صندوق' : (sub.badge || src.name || 'سورس'));
 
-        let priceToman = Number(sub.priceToman !== undefined ? sub.priceToman : (sub.price || sub.p || 0));
+        let priceToman = Number(sub.price !== undefined ? sub.price : (sub.priceToman !== undefined ? sub.priceToman : (sub.p || 0)));
         if (priceToman === 0 && sub.priceRial) priceToman = Math.round(Number(sub.priceRial) / 10);
         const unit = sub.unit || (isFund ? 'واحد' : (src.unit || 'تومان'));
 
@@ -663,7 +665,7 @@ export default function UniversalAssetSearch({
     // ── بخش ۴: نمادهای سهام و صندوق‌های بورس اوراق بهادار تهران (۲۰۰۰+ نماد) ──────
     if (bourseSymbols && bourseSymbols.length > 0) {
       bourseSymbols.forEach((sub) => {
-        const symCode = (sub.symbol || sub.s || '').trim();
+        const symCode = (sub.id || sub.symbol || sub.s || '').trim();
         const itemName = (sub.name || sub.title || sub.n || symCode).trim();
         if (!symCode && !itemName) return;
 
@@ -689,9 +691,9 @@ export default function UniversalAssetSearch({
           priceToman = pricingContext.priceMap[symCode] || pricingContext.priceMap[canonicalId] || 0;
         }
         if (!priceToman) {
-          if (sub.priceToman !== undefined) priceToman = Number(sub.priceToman);
+          if (sub.price !== undefined) priceToman = Number(sub.price);
+          else if (sub.priceToman !== undefined) priceToman = Number(sub.priceToman);
           else if (sub.priceRial !== undefined) priceToman = Math.round(Number(sub.priceRial) / 10);
-          else if (sub.price !== undefined) priceToman = Number(sub.price);
           else priceToman = Number(sub.p || 0);
         }
 

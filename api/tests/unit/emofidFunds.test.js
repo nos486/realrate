@@ -51,52 +51,34 @@ describe('Emofid Mutual Funds Adapter & Incremental Merge Tests', () => {
     ],
   };
 
-  it('parses real Emofid fixture and extracts ONLY symbol, name, and issue price (subscriptionNav)', () => {
+  it('parses real Emofid fixture and extracts ONLY id, name, and price in standard format', () => {
     const { mergedList, stats } = mergeEmofidFunds([], sampleApiResponse.value, '2026-09-16T10:00:00.000Z');
 
     expect(stats.totalFunds).toBe(3);
     expect(stats.addedCount).toBe(3);
 
-    const atieh = mergedList.find(f => f.symbol === 'atieh');
+    const atieh = mergedList.find(f => f.id === 'atieh');
     expect(atieh).toBeDefined();
+    expect(atieh.id).toBe('atieh');
     expect(atieh.name).toBe('صندوق بازنشستگی تکمیلی آتیه');
-    // Issue price (subscriptionNav) in Rials = 45324
-    expect(atieh.priceRial).toBe(45324);
-    // Converted to Tomans = 4532
-    expect(atieh.priceToman).toBe(4532);
+    // Issue price (subscriptionNav) in Tomans = 4532 (45324 / 10)
     expect(atieh.price).toBe(4532);
-    expect(atieh.unit).toBe('IRR');
-    expect(atieh.isFund).toBe(true);
 
-    // Strictly ensure other fields like cancelNav, aum, investorsNumber are NOT present
-    expect(atieh.cancelNav).toBeUndefined();
-    expect(atieh.aum).toBeUndefined();
-    expect(atieh.investorsNumber).toBeUndefined();
+    // Strictly ensure only standard keys { id, name, price } exist
+    expect(Object.keys(atieh).sort()).toEqual(['id', 'name', 'price']);
   });
 
   it('preserves existing funds when subsequent API response does not include them (Cumulative Merge)', () => {
     const existingList = [
       {
-        s: 'atieh',
-        symbol: 'atieh',
-        n: 'صندوق بازنشستگی تکمیلی آتیه',
+        id: 'atieh',
         name: 'صندوق بازنشستگی تکمیلی آتیه',
-        p: 4500,
         price: 4500,
-        priceToman: 4500,
-        priceRial: 45000,
-        updatedAt: '2026-09-10T10:00:00.000Z',
       },
       {
-        s: 'pishro',
-        symbol: 'pishro',
-        n: 'صندوق پیشرو',
+        id: 'pishro',
         name: 'صندوق پیشرو',
-        p: 4300,
         price: 4300,
-        priceToman: 4300,
-        priceRial: 43000,
-        updatedAt: '2026-09-10T10:00:00.000Z',
       },
     ];
 
@@ -116,30 +98,22 @@ describe('Emofid Mutual Funds Adapter & Incremental Merge Tests', () => {
     expect(stats.retainedCount).toBe(1);
 
     // atieh was updated
-    const atieh = mergedList.find(f => f.symbol === 'atieh');
-    expect(atieh.priceRial).toBe(45324);
-    expect(atieh.priceToman).toBe(4532);
-    expect(atieh.updatedAt).toBe('2026-09-16T12:00:00.000Z');
+    const atieh = mergedList.find(f => f.id === 'atieh');
+    expect(atieh.price).toBe(4532);
 
-    // pishro was retained with original timestamp and price!
-    const pishro = mergedList.find(f => f.symbol === 'pishro');
+    // pishro was retained with original price!
+    const pishro = mergedList.find(f => f.id === 'pishro');
     expect(pishro).toBeDefined();
-    expect(pishro.priceRial).toBe(43000);
-    expect(pishro.priceToman).toBe(4300);
-    expect(pishro.updatedAt).toBe('2026-09-10T10:00:00.000Z');
+    expect(pishro.price).toBe(4300);
+    expect(Object.keys(pishro).sort()).toEqual(['id', 'name', 'price']);
   });
 
   it('never overwrites a positive issue price with zero or null', () => {
     const existingList = [
       {
-        s: 'ayar',
-        symbol: 'ayar',
+        id: 'ayar',
         name: 'صندوق عیار',
-        p: 62000,
         price: 62000,
-        priceToman: 62000,
-        priceRial: 620000,
-        updatedAt: '2026-09-15T10:00:00.000Z',
       },
     ];
 
@@ -154,10 +128,10 @@ describe('Emofid Mutual Funds Adapter & Incremental Merge Tests', () => {
 
     const { mergedList } = mergeEmofidFunds(existingList, newApiList, '2026-09-16T12:00:00.000Z');
 
-    const ayar = mergedList.find(f => f.symbol === 'ayar');
+    const ayar = mergedList.find(f => f.id === 'ayar');
     expect(ayar).toBeDefined();
-    expect(ayar.priceRial).toBe(620000); // Retained previous valid price
-    expect(ayar.priceToman).toBe(62000);
+    expect(ayar.price).toBe(62000); // Retained previous valid price
+    expect(Object.keys(ayar).sort()).toEqual(['id', 'name', 'price']);
   });
 
   it('adapter supports emofid_funds and parses envelope response', async () => {

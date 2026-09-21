@@ -39,33 +39,26 @@ export function getAllCatalogSources(activeOnly = true) {
 export function standardizeCatalogItem(item, sourceConfig = {}) {
   if (!item || typeof item !== "object") return null;
 
-  const symbol = String(item.symbol || item.s || item.code || item.id || "").trim();
+  const symbol = String(item.id || item.symbol || item.s || item.code || "").trim();
   const name = String(item.name || item.n || item.title || symbol).trim();
   if (!symbol && !name) return null;
 
   let priceToman = 0;
-  let priceRial = 0;
-
-  if (item.priceToman !== undefined && Number(item.priceToman) > 0) {
+  if (item.price !== undefined && Number(item.price) > 0) {
+    priceToman = Math.round(Number(item.price));
+  } else if (item.priceToman !== undefined && Number(item.priceToman) > 0) {
     priceToman = Math.round(Number(item.priceToman));
   } else if (item.p !== undefined && Number(item.p) > 0) {
     priceToman = Math.round(Number(item.p));
-  } else if (item.price !== undefined && Number(item.price) > 0) {
-    priceToman = Math.round(Number(item.price));
-  }
-
-  if (item.priceRial !== undefined && Number(item.priceRial) > 0) {
-    priceRial = Math.round(Number(item.priceRial));
+  } else if (item.priceRial !== undefined && Number(item.priceRial) > 0) {
+    priceToman = Math.round(Number(item.priceRial) / 10);
   } else if (item.pl !== undefined && Number(item.pl) > 0) {
-    priceRial = Math.round(Number(item.pl));
+    priceToman = Math.round(Number(item.pl) / 10);
   }
 
-  if (!priceToman && priceRial > 0) {
-    priceToman = Math.round(priceRial / 10);
-  }
-  if (!priceRial && priceToman > 0) {
-    priceRial = priceToman * 10;
-  }
+  const priceRial = (item.priceRial !== undefined && Number(item.priceRial) > 0)
+    ? Math.round(Number(item.priceRial))
+    : (priceToman * 10);
 
   // Data-driven category, badge, unit, and isFund derived directly from sourceConfig (Single Source of Truth)
   const category = item.category || sourceConfig.category || (sourceConfig.isFund || item.isFund ? "bourse_fund" : (sourceConfig.priceType === "bourse" ? "bourse" : "custom"));
@@ -73,11 +66,19 @@ export function standardizeCatalogItem(item, sourceConfig = {}) {
   const unit = item.unit || sourceConfig.unit || (category === "bourse" ? "برگ سهم" : "واحد");
   const isFund = Boolean(item.isFund || sourceConfig.isFund || category === "bourse_fund" || name.includes("صندوق"));
 
-  const sourceName = getSourceDisplayName(item) || item.sourceName || sourceConfig.name || "";
-  const sourceId = item.sourceId || sourceConfig.id || "";
+  const sourceName = getSourceDisplayName(sourceConfig) || sourceConfig.name || item.sourceName || "";
+  const sourceId = sourceConfig.id || item.sourceId || "";
+
+  const idPrefix = (sourceConfig.priceType === "bourse" || sourceConfig.id === "src_def_bourse")
+    ? "bourse_"
+    : (sourceId ? `${sourceId}__` : "");
+
+  const fullId = symbol.startsWith("bourse_") || (sourceId && symbol.startsWith(`${sourceId}__`))
+    ? symbol
+    : `${idPrefix}${symbol}`;
 
   return {
-    id: `${sourceId}__${symbol}`,
+    id: fullId,
     symbol,
     name,
     category,

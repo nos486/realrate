@@ -54,66 +54,34 @@ export const KNOWN_CHARISMA_PLAN_SYMBOLS = {
  * }}
  */
 export function mergeCharismaPlans(existingList = [], rawApiArray = [], nowIso = new Date().toISOString(), sourceConfig = null) {
-  const srcCfg = sourceConfig || getSourceConfig("charisma_plans");
-  const defaultSourceName = srcCfg?.name || charismaPlansSourceAdapter?.name || "طرح‌های سرمایه‌گذاری کاریزما (Charisma Plans)";
-  const defaultSourceId = srcCfg?.id || charismaPlansSourceAdapter?.id || "src_def_charisma_plans";
-  const defaultUnit = srcCfg?.unit || "واحد";
-  const defaultCategory = srcCfg?.category || "bourse_fund";
-  const defaultBadge = srcCfg?.badge || "طرح";
-  const defaultIsFund = Boolean(srcCfg?.isFund !== undefined ? srcCfg.isFund : true);
   const plansMap = new Map();
 
-  // 1. Initialize map with existing plans
+  // 1. Initialize map with existing plans (supports both { id, name, price } and legacy formats)
   if (Array.isArray(existingList)) {
     for (const item of existingList) {
       if (!item) continue;
-      const key = String(item.symbol || item.s || item.code || item.id || "").trim();
+      const key = String(item.id || item.symbol || item.s || item.code || "").trim();
       if (!key) continue;
 
-      let toman = 0;
-      let rial = 0;
-
-      if (item.priceToman !== undefined && Number(item.priceToman) > 0) {
-        toman = Number(item.priceToman);
+      let price = 0;
+      if (item.price !== undefined && Number(item.price) > 0) {
+        price = Number(item.price);
+      } else if (item.priceToman !== undefined && Number(item.priceToman) > 0) {
+        price = Number(item.priceToman);
       } else if (item.p !== undefined && Number(item.p) > 0) {
-        toman = Number(item.p);
-      } else if (item.price !== undefined && Number(item.price) > 0) {
-        toman = Number(item.price);
-      }
-
-      if (item.priceRial !== undefined && Number(item.priceRial) > 0) {
-        rial = Number(item.priceRial);
+        price = Number(item.p);
+      } else if (item.priceRial !== undefined && Number(item.priceRial) > 0) {
+        price = Math.round(Number(item.priceRial) / 10);
       } else if (item.pl !== undefined && Number(item.pl) > 0) {
-        rial = Number(item.pl);
+        price = Math.round(Number(item.pl) / 10);
       }
 
-      if (!toman && rial > 0) {
-        toman = Math.round(rial / 10);
-      }
-      if (!rial && toman > 0) {
-        rial = toman * 10;
-      }
+      const name = String(item.name || item.n || item.title || item.planTitle || key).trim();
 
       plansMap.set(key, {
-        s: key,
-        symbol: key,
-        n: item.name || item.n || item.title || item.planTitle || key,
-        name: item.name || item.n || item.title || item.planTitle || key,
-        p: toman,
-        price: toman,
-        priceToman: toman,
-        priceRial: rial,
-        pl: rial,
-        unit: item.unit || "واحد",
-        isFund: true,
-        category: "bourse_fund",
-        badge: "طرح",
-        planCategory: item.planCategory || item.category || "COMMODITY",
-        type: item.type || "طرح سرمایه‌گذاری",
-        manager: "کاریزما (Charisma)",
-        sourceName: item.sourceName || defaultSourceName,
-        sourceId: item.sourceId || defaultSourceId,
-        updatedAt: item.updatedAt || nowIso,
+        id: key,
+        name: name || key,
+        price,
       });
     }
   }
@@ -128,80 +96,43 @@ export function mergeCharismaPlans(existingList = [], rawApiArray = [], nowIso =
     for (const item of rawApiArray) {
       if (!item || typeof item !== "object") continue;
 
-      const rawKey = String(item.symbol || KNOWN_CHARISMA_PLAN_SYMBOLS[item.id] || item.id || "").trim();
+      const rawKey = String(item.id || item.symbol || KNOWN_CHARISMA_PLAN_SYMBOLS[item.id] || "").trim();
       if (!rawKey) continue;
 
       apiPlansCount++;
       seenKeysInApi.add(rawKey);
 
       let validToman = 0;
-      let validRial = 0;
-
-      if (item.priceToman !== undefined && Number(item.priceToman) > 0) {
-        validToman = Math.round(Number(item.priceToman));
-      } else if (item.price !== undefined && Number(item.price) > 0) {
+      if (item.price !== undefined && Number(item.price) > 0) {
         validToman = Math.round(Number(item.price));
+      } else if (item.priceToman !== undefined && Number(item.priceToman) > 0) {
+        validToman = Math.round(Number(item.priceToman));
       } else if (item.p !== undefined && Number(item.p) > 0) {
         validToman = Math.round(Number(item.p));
-      }
-
-      if (item.priceRial !== undefined && Number(item.priceRial) > 0) {
-        validRial = Math.round(Number(item.priceRial));
+      } else if (item.priceRial !== undefined && Number(item.priceRial) > 0) {
+        validToman = Math.round(Number(item.priceRial) / 10);
       } else if (item.pl !== undefined && Number(item.pl) > 0) {
-        validRial = Math.round(Number(item.pl));
+        validToman = Math.round(Number(item.pl) / 10);
       }
 
-      if (!validToman && validRial > 0) {
-        validToman = Math.round(validRial / 10);
-      }
-      if (!validRial && validToman > 0) {
-        validRial = validToman * 10;
-      }
-
-      const planName = String(item.planTitle || item.name || item.title || rawKey).trim();
-      const planCategory = String(item.category || item.planCategory || "COMMODITY").trim();
+      const planName = String(item.name || item.planTitle || item.title || rawKey).trim();
 
       if (plansMap.has(rawKey)) {
         const existing = plansMap.get(rawKey);
-        const priceChanged = validToman > 0 && validToman !== existing.priceToman;
+        const priceChanged = validToman > 0 && validToman !== existing.price;
 
         plansMap.set(rawKey, {
-          ...existing,
-          n: planName || existing.n,
+          id: rawKey,
           name: planName || existing.name,
-          p: validToman > 0 ? validToman : existing.p,
           price: validToman > 0 ? validToman : existing.price,
-          priceToman: validToman > 0 ? validToman : existing.priceToman,
-          priceRial: validRial > 0 ? validRial : existing.priceRial,
-          pl: validRial > 0 ? validRial : existing.pl,
-          planCategory: planCategory || existing.planCategory,
-          sourceName: defaultSourceName,
-          sourceId: defaultSourceId,
-          updatedAt: priceChanged ? nowIso : existing.updatedAt,
         });
 
         if (priceChanged) updatedCount++;
       } else {
         plansMap.set(rawKey, {
-          s: rawKey,
-          symbol: rawKey,
-          n: planName,
+          id: rawKey,
           name: planName,
-          p: validToman,
           price: validToman,
-          priceToman: validToman,
-          priceRial: validRial,
-          pl: validRial,
-          unit: defaultUnit,
-          isFund: defaultIsFund,
-          category: defaultCategory,
-          badge: defaultBadge,
-          planCategory,
-          type: "طرح سرمایه‌گذاری",
-          manager: "کاریزما (Charisma)",
-          sourceName: defaultSourceName,
-          sourceId: defaultSourceId,
-          updatedAt: nowIso,
         });
         addedCount++;
       }

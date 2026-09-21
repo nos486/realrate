@@ -68,59 +68,34 @@ export const KNOWN_CHARISMA_SYMBOLS = {
  * }}
  */
 export function mergeCharismaFunds(existingList = [], rawApiArray = [], nowIso = new Date().toISOString(), sourceConfig = null) {
-  const defaultSourceName = sourceConfig?.name || charismaFundsSourceAdapter?.name || "صندوق‌های سرمایه‌گذاری کاریزما (Charisma)";
-  const defaultSourceId = sourceConfig?.id || charismaFundsSourceAdapter?.id || "src_def_charisma";
   const fundsMap = new Map();
 
-  // 1. Initialize map with existing funds
+  // 1. Initialize map with existing funds (supports both { id, name, price } and legacy formats)
   if (Array.isArray(existingList)) {
     for (const item of existingList) {
       if (!item) continue;
-      const key = String(item.symbol || item.s || item.code || item.id || '').trim();
+      const key = String(item.id || item.symbol || item.s || item.code || '').trim();
       if (!key) continue;
 
-      let toman = 0;
-      let rial = 0;
-
-      if (item.priceToman !== undefined && Number(item.priceToman) > 0) {
-        toman = Number(item.priceToman);
+      let price = 0;
+      if (item.price !== undefined && Number(item.price) > 0) {
+        price = Number(item.price);
+      } else if (item.priceToman !== undefined && Number(item.priceToman) > 0) {
+        price = Number(item.priceToman);
       } else if (item.p !== undefined && Number(item.p) > 0) {
-        toman = Number(item.p);
-      } else if (item.price !== undefined && Number(item.price) > 0) {
-        toman = Number(item.price);
-      }
-
-      if (item.priceRial !== undefined && Number(item.priceRial) > 0) {
-        rial = Number(item.priceRial);
+        price = Number(item.p);
+      } else if (item.priceRial !== undefined && Number(item.priceRial) > 0) {
+        price = Math.round(Number(item.priceRial) / 10);
       } else if (item.pl !== undefined && Number(item.pl) > 0) {
-        rial = Number(item.pl);
+        price = Math.round(Number(item.pl) / 10);
       }
 
-      if (!toman && rial > 0) {
-        toman = Math.round(rial / 10);
-      }
-      if (!rial && toman > 0) {
-        rial = toman * 10;
-      }
+      const name = String(item.name || item.n || item.title || key).trim();
 
       fundsMap.set(key, {
-        s: key,
-        symbol: key,
-        n: item.name || item.n || item.title || key,
-        name: item.name || item.n || item.title || key,
-        p: toman,
-        price: toman,
-        priceToman: toman,
-        priceRial: rial,
-        pl: rial,
-        unit: "IRR",
-        isFund: true,
-        category: "صندوق سرمایه‌گذاری",
-        type: item.type || "صندوق",
-        manager: "کاریزما (Charisma)",
-        sourceName: item.sourceName || defaultSourceName,
-        sourceId: item.sourceId || defaultSourceId,
-        updatedAt: item.updatedAt || nowIso,
+        id: key,
+        name: name || key,
+        price,
       });
     }
   }
@@ -134,7 +109,7 @@ export function mergeCharismaFunds(existingList = [], rawApiArray = [], nowIso =
     for (const item of rawApiArray) {
       if (!item || typeof item !== "object") continue;
 
-      const rawSymbol = item.shortSymbol || item.symbol || KNOWN_CHARISMA_SYMBOLS[item.englishTitle] || KNOWN_CHARISMA_SYMBOLS[item.enSymbol] || item.englishTitle || item.title || item.id;
+      const rawSymbol = item.shortSymbol || item.symbol || KNOWN_CHARISMA_SYMBOLS[item.englishTitle] || KNOWN_CHARISMA_SYMBOLS[item.enSymbol] || item.englishTitle || item.id || item.title;
       const symbol = String(rawSymbol).trim();
       const name = String(item.subtitle || item.title || item.name || symbol).trim();
       if (!symbol) continue;
@@ -157,6 +132,8 @@ export function mergeCharismaFunds(existingList = [], rawApiArray = [], nowIso =
         }
       } else if (item.priceRial || item.closedPriceRials) {
         rawClosingPrice = Number(item.priceRial || item.closedPriceRials);
+      } else if (item.price !== undefined || item.priceToman !== undefined || item.p !== undefined) {
+        rawClosingPrice = Number(item.price || item.priceToman || item.p) * 10;
       }
 
       const existing = fundsMap.get(symbol);
@@ -164,26 +141,12 @@ export function mergeCharismaFunds(existingList = [], rawApiArray = [], nowIso =
       if (rawClosingPrice > 0) {
         const rawPriceRial = Math.round(rawClosingPrice);
         const priceToman = Math.round(rawPriceRial / 10);
-        const priceChanged = existing ? (existing.priceRial !== rawPriceRial) : true;
+        const priceChanged = existing ? (existing.price !== priceToman) : true;
 
         fundsMap.set(symbol, {
-          s: symbol,
-          symbol,
-          n: name || existing?.n || symbol,
+          id: symbol,
           name: name || existing?.name || symbol,
-          p: priceToman,
           price: priceToman,
-          priceToman,
-          priceRial: rawPriceRial,
-          pl: rawPriceRial,
-          unit: "IRR",
-          isFund: true,
-          category: "صندوق سرمایه‌گذاری",
-          type: "صندوق",
-          manager: "کاریزما (Charisma)",
-          sourceName: existing?.sourceName || defaultSourceName,
-          sourceId: existing?.sourceId || defaultSourceId,
-          updatedAt: (existing && !priceChanged) ? existing.updatedAt : nowIso,
         });
 
         if (existing) {
@@ -195,7 +158,6 @@ export function mergeCharismaFunds(existingList = [], rawApiArray = [], nowIso =
         // Price in API is zero/invalid -> RETAIN PREVIOUS VALID PRICE!
         if (name && name !== existing.name) {
           existing.name = name;
-          existing.n = name;
         }
       }
     }

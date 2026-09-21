@@ -93,9 +93,9 @@ export const forexApiSourceAdapter = {
       multiData[cur.code.toLowerCase()] = usdCross;
 
       compactList.push({
-        s: cur.code,
-        n: `${cur.name} (${cur.code})`,
-        p: usdCross,
+        id: cur.code,
+        name: `${cur.name} (${cur.code})`,
+        price: usdCross,
       });
 
       currencyList.push({

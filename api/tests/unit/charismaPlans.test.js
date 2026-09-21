@@ -44,39 +44,36 @@ describe("Charisma Investment Plans Adapter & Incremental Merge Tests", () => {
     },
   ];
 
-  it("extracts plan prices and normalizes to standard catalog format", () => {
+  it("extracts plan prices and normalizes to standard catalog format { id, name, price }", () => {
     const { mergedList, stats } = mergeCharismaPlans([], samplePlansArray);
 
     expect(stats.totalPlans).toBe(5);
     expect(stats.addedCount).toBe(5);
     expect(stats.updatedCount).toBe(0);
 
-    const gold = mergedList.find((p) => p.symbol === "GOLD");
+    const gold = mergedList.find((p) => p.id === "gold");
     expect(gold).toBeDefined();
+    expect(gold.id).toBe("gold");
     expect(gold.name).toBe("طرح سرمایه گذاری در طلا");
-    expect(gold.priceToman).toBe(32316516);
-    expect(gold.priceRial).toBe(323165160);
-    expect(gold.unit).toBe("واحد");
-    expect(gold.isFund).toBe(true);
-    expect(gold.category).toBe("bourse_fund");
-    expect(gold.badge).toBe("طرح");
+    expect(gold.price).toBe(32316516);
+    expect(Object.keys(gold).sort()).toEqual(["id", "name", "price"]);
 
-    const silver = mergedList.find((p) => p.symbol === "SILVER");
+    const silver = mergedList.find((p) => p.id === "silver");
     expect(silver).toBeDefined();
-    expect(silver.priceToman).toBe(502396);
+    expect(silver.price).toBe(502396);
     expect(silver.name).toBe("طرح سرمایه گذاری در نقره");
 
-    const copper = mergedList.find((p) => p.symbol === "COPPER");
+    const copper = mergedList.find((p) => p.id === "copper");
     expect(copper).toBeDefined();
-    expect(copper.priceToman).toBe(2827);
+    expect(copper.price).toBe(2827);
 
-    const stocks = mergedList.find((p) => p.symbol === "STOCKS_INDEX");
+    const stocks = mergedList.find((p) => p.id === "stocks-index");
     expect(stocks).toBeDefined();
-    expect(stocks.priceToman).toBe(718972);
+    expect(stocks.price).toBe(718972);
 
-    const realEstate = mergedList.find((p) => p.symbol === "REAL_ESTATE");
+    const realEstate = mergedList.find((p) => p.id === "real-estate");
     expect(realEstate).toBeDefined();
-    expect(realEstate.priceToman).toBe(1261);
+    expect(realEstate.price).toBe(1261);
   });
 
   it("preserves missing plans cumulatively when network or payload is partial (zero loss)", () => {
@@ -107,12 +104,12 @@ describe("Charisma Investment Plans Adapter & Incremental Merge Tests", () => {
     expect(stats.updatedCount).toBe(1); // Only gold changed
     expect(stats.retainedCount).toBe(3); // silver, copper, real-estate retained
 
-    const gold = mergedList.find((p) => p.symbol === "GOLD");
-    expect(gold.priceToman).toBe(32500000);
+    const gold = mergedList.find((p) => p.id === "gold");
+    expect(gold.price).toBe(32500000);
 
-    const silver = mergedList.find((p) => p.symbol === "SILVER");
+    const silver = mergedList.find((p) => p.id === "silver");
     expect(silver).toBeDefined();
-    expect(silver.priceToman).toBe(502396);
+    expect(silver.price).toBe(502396);
   });
 
   it("never overwrites existing valid price with zero, null, or undefined", () => {
@@ -129,9 +126,9 @@ describe("Charisma Investment Plans Adapter & Incremental Merge Tests", () => {
     ];
 
     const { mergedList } = mergeCharismaPlans(initialList, zeroPayload);
-    const gold = mergedList.find((p) => p.symbol === "GOLD");
+    const gold = mergedList.find((p) => p.id === "gold");
 
-    expect(gold.priceToman).toBe(32316516); // Preserved previous valid price
+    expect(gold.price).toBe(32316516); // Preserved previous valid price
   });
 
   it("adapter supports charisma_plans and parses envelope response", async () => {
