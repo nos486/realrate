@@ -455,8 +455,19 @@ export function computeEffectiveSchedule({
       });
     }
 
+    // Remaining principal must be derived from the CURRENT loan.principalAmount (so it responds
+    // correctly to dbUpdateLoan changing the principal after installments were already paid),
+    // minus what was actually paid via installments, minus any extra (lump-sum) payments whose
+    // anchor already falls within the paid prefix (those already reduced the debt but are never
+    // reflected in any installment's own principalPortion, so they must be subtracted explicitly).
     const alreadyPaidPrincipal = paidSlice.reduce((sum, inst) => sum + inst.principalPortion, 0);
-    const remainingPrincipal = Math.max(0, principal - alreadyPaidPrincipal);
+    const absorbedExtraPayments = extraPayments
+      .filter((ep) => {
+        const anchor = parseInt(ep.anchorInstallmentNumber ?? ep.anchor_installment_number ?? 0, 10);
+        return anchor < contiguousPaidCount;
+      })
+      .reduce((sum, ep) => sum + (Number(ep.amount) || 0), 0);
+    const remainingPrincipal = Math.max(0, principal - alreadyPaidPrincipal - absorbedExtraPayments);
     const remainingCount = Math.max(0, installmentCount - contiguousPaidCount);
 
     if (remainingCount > 0 && remainingPrincipal > 0) {
@@ -585,8 +596,12 @@ export function computeEffectiveSchedule({
       }
     }
 
-    // Step B: Check for extra payments anchored at k
-    if (epByAnchor.has(k)) {
+    // Step B: Check for extra payments anchored at k.
+    // Guard against re-applying a "stale" extra payment whose anchor is now behind the
+    // contiguous paid prefix: its effect is already baked into the real stored values of
+    // whatever installments were paid after it. Re-applying it here would re-derive the tail
+    // from the wrong (earlier) balance, corrupting everything after the paid prefix.
+    if (epByAnchor.has(k) && k >= contiguousPaidCount) {
       for (const ep of epByAnchor.get(k)) {
         const balanceAtK = schedule[instIndex].remainingBalanceAfter;
         const epAmount = Number(ep.amount ?? 0);
