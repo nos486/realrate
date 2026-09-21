@@ -65,6 +65,9 @@ import {
   handleUpdateLoan,
   handleDeleteLoan,
   handleUpdateInstallment,
+  handleSetInstallmentAmount,
+  handleAddExtraPayment,
+  handleGetLoanExtraPayments,
 } from "./handlers/loanRoutes.js";
 import { fetchAllPrices } from "./services/market/priceAggregator.service.js";
 import {
@@ -171,6 +174,22 @@ export default {
     }
 
     // ── Loans & Installments API Routes ─────────────────────────────────────
+    const loanExtraPaymentsMatch = normalizedPath.match(/^\/api\/loans\/([^/]+)\/extra-payments$/);
+    if (loanExtraPaymentsMatch) {
+      const loanId = loanExtraPaymentsMatch[1];
+      if (request.method === "GET")  return wrap((req, e) => handleGetLoanExtraPayments(req, e, { loanId }))(request, env);
+      if (request.method === "POST") return wrap((req, e) => handleAddExtraPayment(req, e, { loanId }))(request, env);
+    }
+
+    const loanInstallmentAmountMatch = normalizedPath.match(/^\/api\/loans\/([^/]+)\/installments\/([^/]+)\/amount$/);
+    if (loanInstallmentAmountMatch) {
+      const loanId = loanInstallmentAmountMatch[1];
+      const installmentId = loanInstallmentAmountMatch[2];
+      if (request.method === "PUT") {
+        return wrap((req, e) => handleSetInstallmentAmount(req, e, { loanId, installmentId }))(request, env);
+      }
+    }
+
     const loanInstallmentMatch = normalizedPath.match(/^\/api\/loans\/([^/]+)\/installments\/([^/]+)$/);
     if (loanInstallmentMatch) {
       const loanId = loanInstallmentMatch[1];

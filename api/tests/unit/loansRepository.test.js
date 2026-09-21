@@ -7,11 +7,15 @@ import {
   dbDeleteLoan,
   dbMarkInstallmentPaid,
   dbUnmarkInstallmentPaid,
+  dbSetInstallmentAmount,
+  dbAddExtraPayment,
+  dbGetLoanExtraPayments,
 } from '../../src/repositories/loans.repository.js';
 
 function createMockD1() {
   const loansStore = new Map();
   const installmentsStore = new Map();
+  const extraPaymentsStore = new Map();
 
   function makeStatement(query) {
     const q = query.trim();
@@ -44,15 +48,40 @@ function createMockD1() {
             id, loan_id, user_id, installment_number, due_date,
             principal_portion, interest_portion, total_amount,
             remaining_balance_after, is_paid, paid_date, paid_amount,
-            created_at, updated_at
+            created_at, updated_at, is_manual_override
           ] = boundArgs;
           installmentsStore.set(id, {
             id, loan_id, user_id, installment_number, due_date,
             principal_portion, interest_portion, total_amount,
             remaining_balance_after, is_paid, paid_date, paid_amount,
-            created_at, updated_at
+            created_at, updated_at,
+            is_manual_override: is_manual_override || 0,
           });
           return { meta: { changes: 1 } };
+        }
+        if (q.startsWith('INSERT INTO loan_extra_payments')) {
+          const [
+            id, loan_id, user_id, amount, payment_date,
+            reduction_mode, notes, created_at
+          ] = boundArgs;
+          extraPaymentsStore.set(id, {
+            id, loan_id, user_id, amount, payment_date,
+            reduction_mode, notes, created_at
+          });
+          return { meta: { changes: 1 } };
+        }
+        if (q.includes('UPDATE loans SET installment_count = ?')) {
+          const [newCount, updatedAt, loanId, userId] = boundArgs;
+          const existing = loansStore.get(loanId);
+          if (existing && existing.user_id === userId) {
+            loansStore.set(loanId, {
+              ...existing,
+              installment_count: newCount,
+              updated_at: updatedAt,
+            });
+            return { meta: { changes: 1 } };
+          }
+          return { meta: { changes: 0 } };
         }
         if (q.startsWith('UPDATE loans')) {
           const [
@@ -78,6 +107,20 @@ function createMockD1() {
           }
           return { meta: { changes: 0 } };
         }
+        if (q.includes('DELETE FROM loan_installments') && q.includes('installment_number > ?')) {
+          const [loanId, userId, anchorNumber] = boundArgs;
+          for (const [id, inst] of installmentsStore.entries()) {
+            if (
+              inst.loan_id === loanId &&
+              inst.user_id === userId &&
+              inst.installment_number > anchorNumber &&
+              (inst.is_paid === 0 || !inst.is_paid)
+            ) {
+              installmentsStore.delete(id);
+            }
+          }
+          return { meta: { changes: 1 } };
+        }
         if (q.includes('DELETE FROM loan_installments') && q.includes('is_paid = 0')) {
           const [loanId, userId] = boundArgs;
           for (const [id, inst] of installmentsStore.entries()) {
@@ -101,6 +144,32 @@ function createMockD1() {
           const existing = loansStore.get(loanId);
           if (existing && existing.user_id === userId) {
             loansStore.delete(loanId);
+            return { meta: { changes: 1 } };
+          }
+          return { meta: { changes: 0 } };
+        }
+        if (q.startsWith('UPDATE loan_installments') && q.includes('is_manual_override = 1')) {
+          const [
+            principalPortion,
+            interestPortion,
+            totalAmount,
+            remainingBalanceAfter,
+            nowIso,
+            installmentId,
+            loanId,
+            userId,
+          ] = boundArgs;
+          const existing = installmentsStore.get(installmentId);
+          if (existing && existing.user_id === userId && existing.loan_id === loanId) {
+            installmentsStore.set(installmentId, {
+              ...existing,
+              principal_portion: principalPortion,
+              interest_portion: interestPortion,
+              total_amount: totalAmount,
+              remaining_balance_after: remainingBalanceAfter,
+              is_manual_override: 1,
+              updated_at: nowIso,
+            });
             return { meta: { changes: 1 } };
           }
           return { meta: { changes: 0 } };
@@ -201,6 +270,17 @@ function createMockD1() {
             }
           }
           results.sort((a, b) => a.installment_number - b.installment_number);
+          return { results };
+        }
+        if (q.includes('FROM loan_extra_payments') && q.includes('WHERE loan_id = ? AND user_id = ?')) {
+          const [loanId, userId] = boundArgs;
+          const results = [];
+          for (const ep of extraPaymentsStore.values()) {
+            if (ep.loan_id === loanId && ep.user_id === userId) {
+              results.push(ep);
+            }
+          }
+          results.sort((a, b) => (b.payment_date || '').localeCompare(a.payment_date || '') || (b.created_at || '').localeCompare(a.created_at || ''));
           return { results };
         }
         return { results: [] };
@@ -484,5 +564,141 @@ describe('Loans Repository D1 Operations', () => {
     const loansListAfterDelete = await dbGetUserLoans(mockEnv, 'user_1');
     expect(loansListAfterDelete).toHaveLength(0);
   });
+
+  describe('dbSetInstallmentAmount (ویرایش مبلغ یک قسط)', () => {
+    it('refuses to edit an already paid installment with meaningful error message', async () => {
+      const loan = await dbCreateLoan(mockEnv, 'user_1', {
+        title: 'وام خرید کالا',
+        principalAmount: 12000000,
+        annualInterestRate: 0,
+        installmentCount: 12,
+        startDate: '2026-01-01',
+      });
+
+      const firstInst = loan.installments[0];
+      await dbMarkInstallmentPaid(mockEnv, 'user_1', firstInst.id, { paidDate: '2026-01-15' });
+
+      // Attempt to edit paid installment
+      await expect(
+        dbSetInstallmentAmount(mockEnv, 'user_1', loan.id, firstInst.id, 2000000)
+      ).rejects.toThrow('امکان ویرایش قسط پرداخت‌شده وجود ندارد');
+    });
+
+    it('updates unpaid installment amount, sets isManualOverride=1, and recalculates subsequent installments', async () => {
+      const loan = await dbCreateLoan(mockEnv, 'user_1', {
+        title: 'وام قرض‌الحسنه',
+        principalAmount: 12000000,
+        annualInterestRate: 0,
+        installmentCount: 12,
+        startDate: '2026-01-01',
+      });
+
+      // Default installments: 1,000,000 each
+      expect(loan.installments[0].totalAmount).toBe(1000000);
+
+      // Increase installment 1 to 3,000,000
+      const result = await dbSetInstallmentAmount(mockEnv, 'user_1', loan.id, loan.installments[0].id, 3000000);
+      expect(result.actualTotalAmount).toBe(3000000);
+      expect(result.installment.isManualOverride).toBe(true);
+      expect(result.installment.totalAmount).toBe(3000000);
+      expect(result.installment.remainingBalanceAfter).toBe(9000000);
+
+      // Remaining 11 installments should amortize remaining 9,000,000 equally (~818,182 each)
+      const updatedLoan = result.loan;
+      expect(updatedLoan.installments).toHaveLength(12);
+      expect(updatedLoan.installments[1].isManualOverride).toBe(false);
+      expect(updatedLoan.installments[1].totalAmount).toBe(Math.round(9000000 / 11));
+
+      // Final remaining balance should be 0
+      expect(updatedLoan.installments[11].remainingBalanceAfter).toBe(0);
+      const totalPrincipal = updatedLoan.installments.reduce((sum, inst) => sum + inst.principalPortion, 0);
+      expect(totalPrincipal).toBe(12000000);
+    });
+  });
+
+  describe('dbAddExtraPayment (پرداخت مازاد/یکجا)', () => {
+    it('records extra payment and reduces installment amounts in reduce_amount mode', async () => {
+      const loan = await dbCreateLoan(mockEnv, 'user_1', {
+        title: 'وام با سود',
+        principalAmount: 60000000,
+        annualInterestRate: 18,
+        installmentCount: 12,
+        startDate: '2026-01-01',
+      });
+
+      const initialFirstInstAmount = loan.installments[0].totalAmount;
+
+      // Add extra payment of 20,000,000
+      const result = await dbAddExtraPayment(mockEnv, 'user_1', loan.id, {
+        amount: 20000000,
+        paymentDate: '2026-01-15',
+        reductionMode: 'reduce_amount',
+        notes: 'پاداش پایان سال',
+      });
+
+      expect(result.success).toBe(true);
+      expect(result.fullyPaidOff).toBe(false);
+      expect(result.extraPayment.amount).toBe(20000000);
+      expect(result.extraPayment.reductionMode).toBe('reduce_amount');
+
+      // Subsequent installment amounts should be lower than original
+      expect(result.loan.installments[0].totalAmount).toBeLessThan(initialFirstInstAmount);
+      expect(result.loan.installmentCount).toBe(12);
+      expect(result.loan.installments[11].remainingBalanceAfter).toBe(0);
+
+      // Verify listing of extra payments
+      const epList = await dbGetLoanExtraPayments(mockEnv, 'user_1', loan.id);
+      expect(epList).toHaveLength(1);
+      expect(epList[0].amount).toBe(20000000);
+      expect(epList[0].notes).toBe('پاداش پایان سال');
+    });
+
+    it('records extra payment and reduces loan term in reduce_term mode', async () => {
+      const loan = await dbCreateLoan(mockEnv, 'user_1', {
+        title: 'وام مسکن',
+        principalAmount: 120000000,
+        annualInterestRate: 18,
+        installmentCount: 24,
+        startDate: '2026-01-01',
+      });
+
+      // Add lump sum payment of 60,000,000 (half the loan)
+      const result = await dbAddExtraPayment(mockEnv, 'user_1', loan.id, {
+        amount: 60000000,
+        paymentDate: '2026-01-15',
+        reductionMode: 'reduce_term',
+      });
+
+      expect(result.success).toBe(true);
+      expect(result.fullyPaidOff).toBe(false);
+      // New installment count must be strictly less than original 24
+      expect(result.loan.installmentCount).toBeLessThan(24);
+      expect(result.loan.installments.length).toBeLessThan(24);
+      expect(result.loan.installments[result.loan.installments.length - 1].remainingBalanceAfter).toBe(0);
+    });
+
+    it('handles extra payment exceeding remaining balance and fully pays off the loan', async () => {
+      const loan = await dbCreateLoan(mockEnv, 'user_1', {
+        title: 'وام تسویه کامل',
+        principalAmount: 10000000,
+        annualInterestRate: 12,
+        installmentCount: 10,
+        startDate: '2026-01-01',
+      });
+
+      // Extra payment larger than total principal
+      const result = await dbAddExtraPayment(mockEnv, 'user_1', loan.id, {
+        amount: 15000000,
+        paymentDate: '2026-01-10',
+      });
+
+      expect(result.success).toBe(true);
+      expect(result.fullyPaidOff).toBe(true);
+      // All pending installments should be cleared
+      expect(result.loan.installments).toHaveLength(0);
+      expect(result.loan.installmentCount).toBe(0);
+    });
+  });
 });
+
 

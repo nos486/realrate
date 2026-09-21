@@ -13,9 +13,12 @@
 
 import { ensureD1Tables } from "./migration.repository.js";
 import { logger } from "../lib/logger.js";
+import { AppError } from "../lib/AppError.js";
 import {
   generateAmortizationSchedule,
   recalculateFromBalance,
+  calculateFixedInstallmentAmount,
+  calculatePayoffScheduleFixedAmount,
   parseDateParts,
   computeClampedDueDate,
 } from "../domain/loanCalculator.js";
@@ -677,3 +680,435 @@ export async function dbUnmarkInstallmentPaid(env, userId, installmentId) {
     return null;
   }
 }
+
+/**
+ * Manually set the installment amount for an unpaid installment.
+ * Recalculates interest/principal breakdown and adjusts subsequent unpaid installments.
+ *
+ * @param {object} env
+ * @param {string} userId
+ * @param {string} loanId
+ * @param {string} installmentId
+ * @param {number} newTotalAmount
+ * @returns {Promise<{ loan: object, installment: object, actualTotalAmount: number }>}
+ */
+export async function dbSetInstallmentAmount(env, userId, loanId, installmentId, newTotalAmount) {
+  if (!userId || !loanId || !installmentId || !env || !env.DB) {
+    throw AppError.badRequest("پارامترهای درخواست ناقص است.");
+  }
+
+  const targetAmount = Number(newTotalAmount);
+  if (isNaN(targetAmount) || targetAmount <= 0) {
+    throw AppError.badRequest("مبلغ قسط باید عددی بزرگتر از صفر باشد.");
+  }
+
+  await ensureD1Tables(env);
+
+  const loan = await dbGetLoanById(env, userId, loanId);
+  if (!loan) {
+    throw AppError.notFound("وام مورد نظر یافت نشد.");
+  }
+
+  const installments = [...loan.installments].sort((a, b) => a.installmentNumber - b.installmentNumber);
+  const targetIdx = installments.findIndex((inst) => inst.id === installmentId);
+
+  if (targetIdx === -1) {
+    throw AppError.notFound("قسط مورد نظر یافت نشد.");
+  }
+
+  const targetInst = installments[targetIdx];
+  if (targetInst.isPaid) {
+    throw AppError.badRequest("امکان ویرایش قسط پرداخت‌شده وجود ندارد.");
+  }
+
+  // Determine balance before this installment:
+  // If targetIdx === 0, balanceBefore = loan.principalAmount; otherwise, previous installment's remaining balance
+  const balanceBefore = targetIdx === 0
+    ? loan.principalAmount
+    : installments[targetIdx - 1].remainingBalanceAfter;
+
+  const interval = loan.intervalMonths || 1;
+  const rate = loan.annualInterestRate || 0;
+  const r = rate > 0 ? (rate / 100) * (interval / 12) : 0;
+
+  // New interest for this period based on balanceBefore
+  const newInterestPortion = r > 0 ? Math.round(balanceBefore * r) : 0;
+
+  // New principal portion clamped between 0 and balanceBefore
+  let newPrincipalPortion = targetAmount - newInterestPortion;
+  if (newPrincipalPortion < 0) newPrincipalPortion = 0;
+  if (newPrincipalPortion > balanceBefore) newPrincipalPortion = balanceBefore;
+
+  const actualTotalAmount = newPrincipalPortion + newInterestPortion;
+  const newRemainingBalanceAfter = balanceBefore - newPrincipalPortion;
+
+  const nowIso = new Date().toISOString();
+  const statements = [];
+
+  // 1. Update target installment with is_manual_override = 1
+  const updateInstSql = `
+    UPDATE loan_installments
+    SET principal_portion = ?, interest_portion = ?, total_amount = ?,
+        remaining_balance_after = ?, is_manual_override = 1, updated_at = ?
+    WHERE id = ? AND loan_id = ? AND user_id = ?
+  `;
+  statements.push(
+    env.DB.prepare(updateInstSql).bind(
+      newPrincipalPortion,
+      newInterestPortion,
+      actualTotalAmount,
+      newRemainingBalanceAfter,
+      nowIso,
+      targetInst.id,
+      loanId,
+      userId
+    )
+  );
+
+  // 2. Delete all subsequent unpaid installments
+  const deleteSubsequentSql = `
+    DELETE FROM loan_installments
+    WHERE loan_id = ? AND user_id = ? AND installment_number > ? AND is_paid = 0
+  `;
+  statements.push(
+    env.DB.prepare(deleteSubsequentSql).bind(
+      loanId,
+      userId,
+      targetInst.installmentNumber
+    )
+  );
+
+  // 3. Rebuild subsequent unpaid installments with recalculateFromBalance
+  const remainingCount = loan.installmentCount - targetInst.installmentNumber;
+
+  if (remainingCount > 0 && newRemainingBalanceAfter > 0) {
+    const subsequentSchedule = recalculateFromBalance({
+      anchorBalance: newRemainingBalanceAfter,
+      anchorInstallmentNumber: targetInst.installmentNumber,
+      remainingCount,
+      annualRatePct: rate,
+      intervalMonths: interval,
+      startDateIso: loan.startDate,
+    });
+
+    const insertSubsequentSql = `
+      INSERT INTO loan_installments (
+        id, loan_id, user_id, installment_number, due_date,
+        principal_portion, interest_portion, total_amount,
+        remaining_balance_after, is_paid, paid_date, paid_amount,
+        created_at, updated_at, is_manual_override
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `;
+
+    for (const item of subsequentSchedule) {
+      const instId = generateId("inst");
+      statements.push(
+        env.DB.prepare(insertSubsequentSql).bind(
+          instId,
+          loanId,
+          userId,
+          item.installmentNumber,
+          item.dueDateIso,
+          item.principalPortion,
+          item.interestPortion,
+          item.totalAmount,
+          item.remainingBalanceAfter,
+          0,
+          "",
+          0,
+          nowIso,
+          nowIso,
+          0
+        )
+      );
+    }
+  }
+
+  if (typeof env.DB.batch === "function") {
+    await env.DB.batch(statements);
+  } else {
+    for (const stmt of statements) {
+      await stmt.run();
+    }
+  }
+
+  const updatedLoan = await dbGetLoanById(env, userId, loanId);
+  const updatedInst = updatedLoan?.installments?.find((i) => i.id === installmentId) || null;
+
+  return {
+    loan: updatedLoan,
+    installment: updatedInst,
+    actualTotalAmount,
+  };
+}
+
+/**
+ * Add an extra (lump sum) payment to a loan.
+ * Either reduces installment amounts ('reduce_amount') or shortens the loan term ('reduce_term').
+ *
+ * @param {object} env
+ * @param {string} userId
+ * @param {string} loanId
+ * @param {object} options
+ * @param {number} options.amount
+ * @param {string} options.paymentDate
+ * @param {'reduce_amount'|'reduce_term'} [options.reductionMode='reduce_amount']
+ * @param {string} [options.notes='']
+ * @returns {Promise<{ success: boolean, fullyPaidOff: boolean, extraPayment: object, loan: object }>}
+ */
+export async function dbAddExtraPayment(env, userId, loanId, {
+  amount,
+  paymentDate,
+  reductionMode = "reduce_amount",
+  notes = "",
+}) {
+  if (!userId || !loanId || !env || !env.DB) {
+    throw AppError.badRequest("پارامترهای درخواست ناقص است.");
+  }
+
+  const payAmount = Number(amount);
+  if (isNaN(payAmount) || payAmount <= 0) {
+    throw AppError.badRequest("مبلغ پرداخت اضافه باید عددی بزرگتر از صفر باشد.");
+  }
+  if (!paymentDate) {
+    throw AppError.badRequest("تاریخ پرداخت اضافه الزامی است.");
+  }
+
+  const mode = reductionMode === "reduce_term" ? "reduce_term" : "reduce_amount";
+
+  await ensureD1Tables(env);
+
+  const loan = await dbGetLoanById(env, userId, loanId);
+  if (!loan) {
+    throw AppError.notFound("وام مورد نظر یافت نشد.");
+  }
+
+  const nowIso = new Date().toISOString();
+  const paymentId = generateId("epay");
+
+  // 1. Record extra payment
+  const insertPaymentSql = `
+    INSERT INTO loan_extra_payments (
+      id, loan_id, user_id, amount, payment_date, reduction_mode, notes, created_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+  `;
+  const statements = [
+    env.DB.prepare(insertPaymentSql).bind(
+      paymentId,
+      loanId,
+      userId,
+      payAmount,
+      String(paymentDate).trim(),
+      mode,
+      String(notes || "").trim(),
+      nowIso
+    ),
+  ];
+
+  // 2. Current balance of loan = remaining_balance_after of last paid installment, or principalAmount if none
+  const paidInstallments = loan.installments.filter((inst) => inst.isPaid);
+  const paidCount = paidInstallments.length;
+
+  let currentBalance = loan.principalAmount;
+  if (paidCount > 0) {
+    const lastPaid = paidInstallments[paidCount - 1];
+    currentBalance = Number(lastPaid.remainingBalanceAfter) || 0;
+  }
+
+  const newBalance = Math.max(0, currentBalance - payAmount);
+
+  // 3. Delete ALL unpaid installments (is_paid = 0)
+  const deletePendingSql = `
+    DELETE FROM loan_installments
+    WHERE loan_id = ? AND user_id = ? AND is_paid = 0
+  `;
+  statements.push(env.DB.prepare(deletePendingSql).bind(loanId, userId));
+
+  let fullyPaidOff = false;
+
+  if (newBalance === 0) {
+    fullyPaidOff = true;
+    // Loan is completely paid off! No new installments needed.
+    const updateLoanCountSql = `UPDATE loans SET installment_count = ?, updated_at = ? WHERE id = ? AND user_id = ?`;
+    statements.push(env.DB.prepare(updateLoanCountSql).bind(paidCount, nowIso, loanId, userId));
+  } else {
+    // There is still balance remaining to pay
+    const interval = loan.intervalMonths || 1;
+    const rate = loan.annualInterestRate || 0;
+
+    if (mode === "reduce_amount") {
+      // Keep original remaining installment count
+      const remainingCount = Math.max(1, loan.installmentCount - paidCount);
+
+      const newSchedule = recalculateFromBalance({
+        anchorBalance: newBalance,
+        anchorInstallmentNumber: paidCount,
+        remainingCount,
+        annualRatePct: rate,
+        intervalMonths: interval,
+        startDateIso: loan.startDate,
+      });
+
+      const insertPendingSql = `
+        INSERT INTO loan_installments (
+          id, loan_id, user_id, installment_number, due_date,
+          principal_portion, interest_portion, total_amount,
+          remaining_balance_after, is_paid, paid_date, paid_amount,
+          created_at, updated_at, is_manual_override
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `;
+
+      for (const item of newSchedule) {
+        const instId = generateId("inst");
+        statements.push(
+          env.DB.prepare(insertPendingSql).bind(
+            instId,
+            loanId,
+            userId,
+            item.installmentNumber,
+            item.dueDateIso,
+            item.principalPortion,
+            item.interestPortion,
+            item.totalAmount,
+            item.remainingBalanceAfter,
+            0,
+            "",
+            0,
+            nowIso,
+            nowIso,
+            0
+          )
+        );
+      }
+    } else {
+      // mode === 'reduce_term'
+      // Get fixed installment amount: from first pending installment, or standard PMT
+      const pendingInstallments = loan.installments.filter((inst) => !inst.isPaid);
+      let fixedAmount = 0;
+      if (pendingInstallments.length > 0 && pendingInstallments[0].totalAmount > 0) {
+        fixedAmount = pendingInstallments[0].totalAmount;
+      } else {
+        fixedAmount = calculateFixedInstallmentAmount({
+          principal: loan.principalAmount,
+          annualRatePct: rate,
+          installmentCount: loan.installmentCount,
+          intervalMonths: interval,
+        });
+      }
+
+      const newSchedule = calculatePayoffScheduleFixedAmount({
+        remainingBalance: newBalance,
+        fixedInstallmentAmount: fixedAmount,
+        annualRatePct: rate,
+        intervalMonths: interval,
+        startDateIso: loan.startDate,
+        anchorInstallmentNumber: paidCount,
+      });
+
+      const insertPendingSql = `
+        INSERT INTO loan_installments (
+          id, loan_id, user_id, installment_number, due_date,
+          principal_portion, interest_portion, total_amount,
+          remaining_balance_after, is_paid, paid_date, paid_amount,
+          created_at, updated_at, is_manual_override
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `;
+
+      for (const item of newSchedule) {
+        const instId = generateId("inst");
+        statements.push(
+          env.DB.prepare(insertPendingSql).bind(
+            instId,
+            loanId,
+            userId,
+            item.installmentNumber,
+            item.dueDateIso,
+            item.principalPortion,
+            item.interestPortion,
+            item.totalAmount,
+            item.remainingBalanceAfter,
+            0,
+            "",
+            0,
+            nowIso,
+            nowIso,
+            0
+          )
+        );
+      }
+
+      // Update total installmentCount on loan to paidCount + newSchedule.length
+      const newTotalCount = paidCount + newSchedule.length;
+      const updateCountSql = `UPDATE loans SET installment_count = ?, updated_at = ? WHERE id = ? AND user_id = ?`;
+      statements.push(env.DB.prepare(updateCountSql).bind(newTotalCount, nowIso, loanId, userId));
+    }
+  }
+
+  if (typeof env.DB.batch === "function") {
+    await env.DB.batch(statements);
+  } else {
+    for (const stmt of statements) {
+      await stmt.run();
+    }
+  }
+
+  const updatedLoan = await dbGetLoanById(env, userId, loanId);
+  const extraPayment = {
+    id: paymentId,
+    loanId,
+    userId,
+    amount: payAmount,
+    paymentDate: String(paymentDate).trim(),
+    reductionMode: mode,
+    notes: String(notes || "").trim(),
+    createdAt: nowIso,
+  };
+
+  return {
+    success: true,
+    fullyPaidOff,
+    extraPayment,
+    loan: updatedLoan,
+  };
+}
+
+/**
+ * Fetch all extra payments recorded for a specific loan.
+ *
+ * @param {object} env
+ * @param {string} userId
+ * @param {string} loanId
+ * @returns {Promise<Array<object>>}
+ */
+export async function dbGetLoanExtraPayments(env, userId, loanId) {
+  if (!userId || !loanId || !env || !env.DB) return [];
+
+  await ensureD1Tables(env);
+
+  const query = `
+    SELECT id, loan_id AS loanId, user_id AS userId, amount, payment_date AS paymentDate,
+           reduction_mode AS reductionMode, notes, created_at AS createdAt
+    FROM loan_extra_payments
+    WHERE loan_id = ? AND user_id = ?
+    ORDER BY payment_date DESC, created_at DESC
+  `;
+
+  try {
+    const { results } = await env.DB.prepare(query).bind(loanId, userId).all();
+    if (!Array.isArray(results)) return [];
+    return results.map((row) => ({
+      id: row.id,
+      loanId: row.loanId,
+      userId: row.userId,
+      amount: Number(row.amount || 0),
+      paymentDate: row.paymentDate || "",
+      reductionMode: row.reductionMode || "reduce_amount",
+      notes: row.notes || "",
+      createdAt: row.createdAt || "",
+    }));
+  } catch (e) {
+    logger.error("D1 dbGetLoanExtraPayments error:", { error: e.message, userId, loanId });
+    return [];
+  }
+}
+

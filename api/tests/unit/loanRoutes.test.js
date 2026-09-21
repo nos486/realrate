@@ -12,6 +12,9 @@ vi.mock('../../src/repositories/index.js', () => ({
   dbDeleteLoan: vi.fn(),
   dbMarkInstallmentPaid: vi.fn(),
   dbUnmarkInstallmentPaid: vi.fn(),
+  dbSetInstallmentAmount: vi.fn(),
+  dbAddExtraPayment: vi.fn(),
+  dbGetLoanExtraPayments: vi.fn(),
 }));
 
 import { getAuthenticatedUser } from '../../src/lib/auth.js';
@@ -23,6 +26,9 @@ import {
   dbDeleteLoan,
   dbMarkInstallmentPaid,
   dbUnmarkInstallmentPaid,
+  dbSetInstallmentAmount,
+  dbAddExtraPayment,
+  dbGetLoanExtraPayments,
 } from '../../src/repositories/index.js';
 import {
   handleGetLoans,
@@ -31,6 +37,9 @@ import {
   handleUpdateLoan,
   handleDeleteLoan,
   handleUpdateInstallment,
+  handleSetInstallmentAmount,
+  handleAddExtraPayment,
+  handleGetLoanExtraPayments,
 } from '../../src/handlers/loanRoutes.js';
 
 describe('Loan Routes Handlers (هندلرهای API وام‌ها)', () => {
@@ -191,6 +200,109 @@ describe('Loan Routes Handlers (هندلرهای API وام‌ها)', () => {
       const json = await res.json();
       expect(json.installment.isPaid).toBe(false);
       expect(dbUnmarkInstallmentPaid).toHaveBeenCalledWith(mockEnv, 'u_1', 'inst_1');
+    });
+  });
+
+  describe('PUT /api/loans/:id/installments/:installmentId/amount', () => {
+    it('sets custom installment amount and returns updated loan and actual amount', async () => {
+      getAuthenticatedUser.mockResolvedValue({ userId: 'u_1' });
+      dbSetInstallmentAmount.mockResolvedValue({
+        loan: { id: 'l_1' },
+        installment: { id: 'inst_1', isManualOverride: true, totalAmount: 2500000 },
+        actualTotalAmount: 2500000,
+      });
+
+      const req = new Request('https://realrate.ir/api/loans/l_1/installments/inst_1/amount', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ totalAmount: 2500000 }),
+      });
+
+      const res = await handleSetInstallmentAmount(req, mockEnv, { loanId: 'l_1', installmentId: 'inst_1' });
+      expect(res.status).toBe(200);
+      const json = await res.json();
+      expect(json.success).toBe(true);
+      expect(json.actualTotalAmount).toBe(2500000);
+      expect(json.installment.isManualOverride).toBe(true);
+      expect(dbSetInstallmentAmount).toHaveBeenCalledWith(mockEnv, 'u_1', 'l_1', 'inst_1', 2500000);
+    });
+
+    it('rejects invalid or non-positive amount', async () => {
+      getAuthenticatedUser.mockResolvedValue({ userId: 'u_1' });
+
+      const req = new Request('https://realrate.ir/api/loans/l_1/installments/inst_1/amount', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ totalAmount: -500 }),
+      });
+
+      await expect(
+        handleSetInstallmentAmount(req, mockEnv, { loanId: 'l_1', installmentId: 'inst_1' })
+      ).rejects.toThrow();
+    });
+  });
+
+  describe('POST /api/loans/:id/extra-payments', () => {
+    it('records extra payment and returns 201', async () => {
+      getAuthenticatedUser.mockResolvedValue({ userId: 'u_1' });
+      dbAddExtraPayment.mockResolvedValue({
+        success: true,
+        fullyPaidOff: false,
+        extraPayment: { id: 'ep_1', amount: 5000000, reductionMode: 'reduce_amount' },
+        loan: { id: 'l_1' },
+      });
+
+      const req = new Request('https://realrate.ir/api/loans/l_1/extra-payments', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          amount: 5000000,
+          paymentDate: '2026-03-01',
+          reductionMode: 'reduce_amount',
+          notes: 'تسویه بخشی از بدهی',
+        }),
+      });
+
+      const res = await handleAddExtraPayment(req, mockEnv, { loanId: 'l_1' });
+      expect(res.status).toBe(201);
+      const json = await res.json();
+      expect(json.success).toBe(true);
+      expect(json.extraPayment.amount).toBe(5000000);
+      expect(dbAddExtraPayment).toHaveBeenCalledWith(mockEnv, 'u_1', 'l_1', {
+        amount: 5000000,
+        paymentDate: '2026-03-01',
+        reductionMode: 'reduce_amount',
+        notes: 'تسویه بخشی از بدهی',
+      });
+    });
+
+    it('validates amount and paymentDate', async () => {
+      getAuthenticatedUser.mockResolvedValue({ userId: 'u_1' });
+
+      const req = new Request('https://realrate.ir/api/loans/l_1/extra-payments', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ amount: 0 }),
+      });
+
+      await expect(handleAddExtraPayment(req, mockEnv, { loanId: 'l_1' })).rejects.toThrow();
+    });
+  });
+
+  describe('GET /api/loans/:id/extra-payments', () => {
+    it('returns extra payments list for a loan', async () => {
+      getAuthenticatedUser.mockResolvedValue({ userId: 'u_1' });
+      dbGetLoanExtraPayments.mockResolvedValue([
+        { id: 'ep_1', amount: 5000000, paymentDate: '2026-03-01' },
+      ]);
+
+      const req = new Request('https://realrate.ir/api/loans/l_1/extra-payments');
+      const res = await handleGetLoanExtraPayments(req, mockEnv, { loanId: 'l_1' });
+      expect(res.status).toBe(200);
+      const json = await res.json();
+      expect(json.success).toBe(true);
+      expect(json.count).toBe(1);
+      expect(json.extraPayments[0].id).toBe('ep_1');
     });
   });
 });
