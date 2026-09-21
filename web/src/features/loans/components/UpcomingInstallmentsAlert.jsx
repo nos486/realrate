@@ -11,12 +11,12 @@ import { useNavigate } from 'react-router-dom';
 import { AlertCircle, AlertTriangle, ChevronLeft, Clock, Landmark } from 'lucide-react';
 import AlertBanner from '../../../shared/ui/AlertBanner.jsx';
 import { gregorianToShamsi } from '../../portfolio/components/ShamsiDatePicker.jsx';
-import { useLoans } from '../hooks/useLoans.js';
+import { useLoansContext } from '../context/LoansContext.jsx';
 
 const formatNum = (v) => Number(v || 0).toLocaleString('fa-IR');
 
 export default function UpcomingInstallmentsAlert({ onSelectLoan }) {
-  const { loans } = useLoans();
+  const { loans } = useLoansContext();
   const navigate = useNavigate();
   const [dismissedOverdue, setDismissedOverdue] = useState(false);
   const [dismissedUpcoming, setDismissedUpcoming] = useState(false);

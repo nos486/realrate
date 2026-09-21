@@ -15,6 +15,7 @@ export async function getLoans() {
 
 /**
  * Create a new loan with auto-generated schedule
+ * Supports optional `customFirstInstallmentAmount` in `loanData` for atomic first-installment customization
  * @param {object} loanData
  * @returns {Promise<{ success: boolean, loan: object }>}
  */
