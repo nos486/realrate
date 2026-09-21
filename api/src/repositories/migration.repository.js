@@ -276,6 +276,35 @@ export async function ensureD1Tables(env) {
       await env.DB.prepare("ALTER TABLE price_sources ADD COLUMN display_config TEXT DEFAULT ''").run();
     } catch (ignore) {}
 
+    // Backward-compat: ensure Virtual Schedule columns exist on loan_extra_payments
+    try {
+      await env.DB.prepare("ALTER TABLE loan_extra_payments ADD COLUMN anchor_installment_number INTEGER NOT NULL DEFAULT 0").run();
+    } catch (ignore) {}
+    try {
+      await env.DB.prepare("ALTER TABLE loan_extra_payments ADD COLUMN resulting_balance REAL NOT NULL DEFAULT 0").run();
+    } catch (ignore) {}
+    try {
+      await env.DB.prepare("ALTER TABLE loan_extra_payments ADD COLUMN resulting_installment_count INTEGER").run();
+    } catch (ignore) {}
+
+    // Backward-compat: migrate any existing paid or overridden rows from legacy loan_installments to loan_installment_states
+    try {
+      await env.DB.prepare(`
+        INSERT OR IGNORE INTO loan_installment_states (
+          id, loan_id, user_id, installment_number, due_date,
+          principal_portion, interest_portion, total_amount,
+          remaining_balance_after, is_paid, paid_date, paid_amount,
+          is_manual_override, created_at, updated_at
+        )
+        SELECT id, loan_id, user_id, installment_number, due_date,
+               principal_portion, interest_portion, total_amount,
+               remaining_balance_after, is_paid, paid_date, paid_amount,
+               is_manual_override, created_at, updated_at
+        FROM loan_installments
+        WHERE is_paid = 1 OR is_manual_override = 1
+      `).run();
+    } catch (ignore) {}
+
     // Programmatic seed of master price sources from PRICE_SOURCES_CONFIG to prevent drift
     try {
       const nowIso = new Date().toISOString();
