@@ -187,7 +187,21 @@ export function resolveAssetDisplayName(assetId, rawItem = null) {
 
   // 1️⃣ raw name (if meaningful and not merely an ID string)
   if (rawItem) {
-    const rawName = String(rawItem.name || rawItem.assetName || rawItem.n || rawItem.title || "").trim();
+    const isMofid =
+      rawItem.sourceId === "src_def_emofid" ||
+      rawItem.sourceId === "emofid_funds" ||
+      rawItem.sourceId === "emofid" ||
+      rawItem.priceType === "emofid_funds" ||
+      rawItem.priceType === "emofid" ||
+      String(rawItem.sourceName || "").includes("مفید") ||
+      cleanId.startsWith("emofid__") ||
+      cleanId.startsWith("emofid_");
+
+    const preferred = (isMofid && rawItem.n)
+      ? rawItem.n
+      : (rawItem.n || rawItem.name || rawItem.assetName || rawItem.title || "");
+
+    const rawName = String(preferred).trim();
     if (rawName) {
       const isIdLike =
         rawName === effectiveId ||
@@ -220,7 +234,13 @@ export function resolveAssetDisplayName(assetId, rawItem = null) {
     const sym = cleanId.replace(/^bourse_/, "");
     // Check if rawItem specifies a meaningful name
     if (rawItem) {
-      const n = String(rawItem.name || rawItem.assetName || "").trim();
+      const isMofid =
+        rawItem.sourceId === "src_def_emofid" ||
+        rawItem.sourceId === "emofid_funds" ||
+        String(rawItem.sourceName || "").includes("مفید");
+
+      const preferred = (isMofid && rawItem.n) ? rawItem.n : (rawItem.n || rawItem.name || rawItem.assetName || "");
+      const n = String(preferred).trim();
       if (n && n !== cleanId && n !== effectiveId && !n.startsWith("bourse_")) {
         return n;
       }

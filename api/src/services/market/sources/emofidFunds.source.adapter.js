@@ -106,6 +106,7 @@ export function mergeEmofidFunds(existingList = [], rawApiArray = [], nowIso = n
       if (!item || typeof item !== "object") continue;
 
       const symbol = String(item.enTitle || item.key || item.code || item.id || '').trim();
+      const n = String(item.title || item.n || item.name || symbol).trim();
       const name = String(item.fullTitle || item.title || item.name || symbol).trim();
       if (!symbol) continue;
 
@@ -126,7 +127,7 @@ export function mergeEmofidFunds(existingList = [], rawApiArray = [], nowIso = n
         fundsMap.set(symbol, {
           s: symbol,
           symbol,
-          n: name || existing?.n || symbol,
+          n: n || existing?.n || symbol,
           name: name || existing?.name || symbol,
           p: priceToman,
           price: priceToman,
@@ -151,7 +152,9 @@ export function mergeEmofidFunds(existingList = [], rawApiArray = [], nowIso = n
         // Issue price in API is 0 or invalid -> RETAIN PREVIOUS VALID PRICE!
         if (name && name !== existing.name) {
           existing.name = name;
-          existing.n = name;
+        }
+        if (n && n !== existing.n) {
+          existing.n = n;
         }
       }
     }

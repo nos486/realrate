@@ -121,9 +121,18 @@ export function CategoryIcon({ category, size = 18, className = '', style = {} }
 
 export function formatAssetName(item) {
   if (!item) return '';
+  const isMofid =
+    item.sourceId === 'src_def_emofid' ||
+    item.sourceId === 'emofid_funds' ||
+    String(item.sourceName || '').includes('مفید');
+
+  if (isMofid && item.n) {
+    return item.n;
+  }
+
   const assetId = item.assetId || (typeof item === 'string' ? item : null);
   if (!assetId) {
-    const raw = item.assetName || item.name || '';
+    const raw = item.n || item.assetName || item.name || '';
     return raw.replace(/\s*\([^)]*\)/g, '').trim() || raw || 'دارایی';
   }
   return resolveAssetDisplayName(assetId, item) || 'دارایی';
