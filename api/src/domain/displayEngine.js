@@ -324,6 +324,35 @@ export function getItemBadge(item, sourceConfig = null) {
 }
 
 /**
+ * Resolves the brand/source label of an item (e.g. "مفید", "کاریزما", "بورس", "زرما").
+ * Contract: Defined ONLY at the source level (sourceConfig.brand/name via getSourceBrand).
+ * Falls back to the category badge when no source can be resolved (e.g. custom holdings).
+ *
+ * @param {object|string} item
+ * @param {object|null} [sourceConfig=null]
+ * @returns {string}
+ */
+export function getItemBrand(item, sourceConfig = null) {
+  const isString = typeof item === "string";
+  const rawItem = isString ? { id: item } : item;
+  const rawId = String(rawItem?.id || rawItem?.assetId || rawItem?.symbol || "").trim();
+  const { sourceId } = parseItemId(rawId);
+
+  const masterCfg = getSourceConfig(sourceConfig?.id || sourceConfig?.priceType) ||
+    (rawItem?.sourceId ? getSourceConfig(rawItem.sourceId) : null) ||
+    getSourceConfig(sourceId) ||
+    getSourceCategoryConfig(rawId);
+
+  const cfg = masterCfg ? { ...masterCfg, ...(sourceConfig || {}) } : sourceConfig;
+
+  if (cfg && (cfg.id || cfg.brand || cfg.name)) {
+    return getSourceBrand(cfg);
+  }
+
+  return getItemBadge(item, sourceConfig);
+}
+
+/**
  * Dynamic resolution of source configuration for items or keys.
  *
  * @param {string} sourceIdOrAssetId
