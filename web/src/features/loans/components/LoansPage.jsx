@@ -17,6 +17,7 @@ import {
   Clock,
   AlertCircle,
   Calendar,
+  CalendarDays,
   RefreshCw,
   Wallet,
   Lock,
@@ -160,6 +161,7 @@ export default function LoansPage({ initialLoanId = null }) {
     let totalPaidCount = 0;
     let totalCount = 0;
     let nextUpcomingDue = null;
+    let totalMonthlyInstallment = 0;
 
     for (const l of loans) {
       const rem = Number(l.remainingBalance ?? 0);
@@ -176,6 +178,12 @@ export default function LoansPage({ initialLoanId = null }) {
           };
         }
       }
+
+      // Sum of the next unpaid installment's amount per loan, as a proxy for the recurring
+      // monthly burden — accurate for the common case (intervalMonths === 1).
+      if (l.nextDueInstallment && Number(l.intervalMonths ?? 1) === 1) {
+        totalMonthlyInstallment += Number(l.nextDueInstallment.totalAmount || 0);
+      }
     }
 
     const overallProgress = totalCount > 0 ? Math.round((totalPaidCount / totalCount) * 100) : 0;
@@ -187,6 +195,7 @@ export default function LoansPage({ initialLoanId = null }) {
       totalCount,
       overallProgress,
       nextUpcomingDue,
+      totalMonthlyInstallment,
     };
   }, [loans]);
 
@@ -346,7 +355,21 @@ export default function LoansPage({ initialLoanId = null }) {
           </div>
         </div>
 
-        {/* Card 2: Active Loans Count */}
+        {/* Card 2: Total Monthly Installment */}
+        <div className="loan-stat-card">
+          <div className="stat-icon-wrap monthly">
+            <CalendarDays size={22} />
+          </div>
+          <div className="stat-content">
+            <span className="stat-label">مجموع قسط ماهانه</span>
+            <strong className="stat-value">
+              {formatNum(summaryMetrics.totalMonthlyInstallment)}{' '}
+              <span className="stat-unit">تومان</span>
+            </strong>
+          </div>
+        </div>
+
+        {/* Card 3: Active Loans Count */}
         <div className="loan-stat-card">
           <div className="stat-icon-wrap count">
             <Landmark size={22} />
@@ -360,7 +383,7 @@ export default function LoansPage({ initialLoanId = null }) {
           </div>
         </div>
 
-        {/* Card 3: Paid Installments Ratio */}
+        {/* Card 4: Paid Installments Ratio */}
         <div className="loan-stat-card">
           <div className="stat-icon-wrap progress">
             <CheckCircle2 size={22} />
@@ -374,7 +397,7 @@ export default function LoansPage({ initialLoanId = null }) {
           </div>
         </div>
 
-        {/* Card 4: Next Upcoming Due */}
+        {/* Card 5: Next Upcoming Due */}
         <div className="loan-stat-card">
           <div className="stat-icon-wrap due">
             <Clock size={22} />
