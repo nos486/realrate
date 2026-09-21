@@ -20,12 +20,36 @@ RealRate Cloudflare Worker API supports versioned routing starting with **v1**.
 
 | Method | Endpoint | Description |
 | :--- | :--- | :--- |
-| `GET` | `/api/v1/market/items` | Unified market items (Gold, Coins, Silver, Forex, Crypto, Bourse) |
+| `GET` | `/api/v1/market/items` | Unified market items (Gold, Coins, Silver, Forex, Crypto, Bourse, Funds, Plans) |
 | `GET` | `/api/v1/prices` | Raw price snapshots across all active sources |
 | `GET` | `/api/v1/sparklines` | Sparkline price trends (24h) |
 | `GET` | `/api/v1/bourse/symbols` | Search and list Tehran Stock Exchange symbols (`?q=...&limit=...`) |
 | `POST` | `/api/v1/bourse/sync` | Force synchronize bourse symbols cache |
 | `GET` | `/api/v1/portfolio/shared` | Retrieve a publicly shared user portfolio (`?id=...`) |
+
+#### Unified Market Items Schema (`/api/v1/market/items`)
+Returns all active assets and market rates normalized through the centralized `displayEngine`:
+```json
+{
+  "success": true,
+  "count": 850,
+  "items": [
+    {
+      "id": "charisma_plans__silver",
+      "name": "طرح نقره کاریزما (کاریزما)",
+      "price": 105400,
+      "unit": "واحد",
+      "category": "silver",
+      "categoryName": "نقره و مسکوکات",
+      "badge": "نقره",
+      "sourceId": "charisma_plans",
+      "sourceName": "کاریزما",
+      "datetime": "2026-09-21T10:30:00Z"
+    }
+  ]
+}
+```
+*Note: Catalog item IDs strictly adhere to `${sourceId}__${itemKey}` format, whereas single-item sources use their canonical ID (e.g. `gold_18k`, `usd_bonbast`).*
 
 ### Authentication Endpoints
 

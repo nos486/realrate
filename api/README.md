@@ -11,10 +11,10 @@
 | مؤلفه | فناوری / بستر | کاربرد |
 | :--- | :--- | :--- |
 | **Edge Runtime** | Cloudflare Workers (V8 Isolate) | اجرای سرورلس Native REST API با تأخیر زیر ۱۰ میلی‌ثانیه |
-| **پایگاه‌داده رابطه‌ای** | Cloudflare D1 (SQLite) | نگهداری کاربران، نشست‌ها، تنظیمات، پورتفولیوها و اقلام دارایی |
-| **حافظه سریع توزیع‌شده** | Cloudflare KV | کش فوق‌سریع آخرین نرخ‌های زنده (`latest_rates`) و نمادهای بورس |
-| **زمان‌بندی خودکار** | Cloudflare Cron Triggers | پولینگ زمان‌بندی‌شده فیدهای تلگرام، وب‌سرویس‌های فارکس و بورس |
-| **تست خودکار** | Vitest | آزمون‌های واحد سریع برای فرمول‌های مالی و منطق ادغام داده‌ها |
+| **پایگاه‌داده رابطه‌ای** | Cloudflare D1 (SQLite) | نگهداری کاربران، نشست‌ها، تنظیمات، پورتفولیوها و جدول Mirror اقلام منابع |
+| **حافظه سریع توزیع‌شده** | Cloudflare KV | کش فوق‌سریع آخرین نرخ‌های زنده و کاتالوگ یکپارچه منابع (`source_items:{sourceId}`) |
+| **زمان‌بندی خودکار** | Cloudflare Cron Triggers | پولینگ منظم تک‌تیک بدون درخواست تکراری با `sourceSync.service.js` |
+| **تست خودکار** | Vitest | آزمون‌های واحد فوق‌سریع برای فرمول‌های مالی، قرارداد ادپتورها و موتور نمایش |
 
 ---
 
@@ -30,134 +30,104 @@ api/
 ├── vitest.config.js                   # کانفیگ تست‌های واحد Vitest
 ├── tests/                             # آزمون‌های خودکار
 │   └── unit/
+│       ├── adaptersContract.test.js   # تست تطابق قرارداد خروجی تمامی ادپتورها ({items, datetime})
+│       ├── displayEngine.test.js      # تست جامع موتور مرکزی نمایش برای تمام ۸ دسته‌بندی
+│       ├── sourceItems.test.js        # تست ذخیره‌سازی یکدست در KV و D1
+│       ├── sourceSync.test.js         # تست ارکستراسیون تک‌تیک و حذف درخواست‌های تکراری
+│       ├── sourcesValidation.test.js  # اعتبارسنجی یکپارچگی کانفیگ سورس‌ها
 │       ├── formulas.test.js           # تست فرمول‌های طلا، انس، عیار و حباب
+│       ├── unifiedItemsRoute.test.js  # تست روت کاتالوگ جامع بازار
 │       └── bourseMerge.test.js        # تست پایداری و ادغام تجمعی نمادهای بورس
 └── src/
     ├── index.js                       # ورودی اصلی Worker، میدلورهای لاگ/خطا و روتینگ
-    ├── infrastructure/                # زیرساخت مشترک
-    │   ├── errors.js                  # خطاهای سفارشی استاندارد (AppError, ValidationError...)
-    │   ├── logger.js                  # لاگر ساختاریافته JSON با سطوح DEBUG/INFO/WARN/ERROR
-    │   └── config.js                  # اعتبارسنجی و دسترسی تایپ‌سیف به متغیرهای محیطی
+    ├── config/                        # مراجع واحد پیکربندی (Single Sources of Truth)
+    │   ├── sources.config.js          # کانفیگ مرکزی تمامی سورس‌های قیمت
+    │   ├── categories.config.js       # تعریف دسته‌بندی‌ها، بج‌ها، رنگ‌ها و آیکون‌ها
+    │   └── sourceRegistry.js          # رجیستری و متدهای کمکی جستجو و نگاشت
     ├── domain/                        # لایه هسته تجاری (Domain Core)
-    │   ├── specs/registry.js          # رجیستری کانونی مشخصات فیزیکی طلا، سکه و ارزها
-    │   └── formulas/financialFormulas.js # فرمول‌های خالص ریاضی طلا، ارزش ذاتی و حباب
-    ├── repositories/                  # لایه انتزاع داده (Data Access Layer)
+    │   ├── displayEngine.js           # موتور مرکزی نمایش (نام، واحد، دسته‌بندی، بج، رنگ، آیکون)
+    │   ├── formulas.js                # فرمول‌های خالص ریاضی طلا، ارزش ذاتی و حباب
+    │   └── specs/                     # رجیستری مشخصات فیزیکی طلا، سکه، نقره، فارکس و کریپتو
+    ├── repositories/                  # لایه دسترسی به داده (Repository Layer)
+    │   ├── sourceItems.repository.js  # مسیر واحد ذخیره‌سازی اقلام منابع در KV و D1
     │   ├── userRepository.js          # کوئری‌های کاربران، نقش‌ها و تنظیمات حساب
-    │   ├── portfolioRepository.js     # مدیریت پورتفوها، اسلاگ‌های اشتراک و E2EE
-    │   ├── holdingRepository.js       # افزودن، ویرایش، حذف و واکشی اقلام دارایی
-    │   ├── transactionRepository.js   # ذخیره، ویرایش، حذف و واکشی تراکنش‌های خرید/فروش (E2EE)
-    │   ├── priceRepository.js         # کش و ذخیره‌سازی آخرین نرخ‌های بازار در D1/KV
+    │   ├── portfolioRepository.js     # مدیریت پورتفوها، اسلاگ‌های اشتراک و سالت‌های E2EE
+    │   ├── holdingRepository.js       # افزودن، ویرایش، حذف و واکشی اقلام دارایی پورتفو
+    │   ├── transactionRepository.js   # ذخیره، ویرایش و حذف تراکنش‌های خرید/فروش (E2EE)
+    │   ├── priceSource.repository.js  # مدیریت رکوردهای سورس‌های قیمت در دیتابیس
+    │   ├── migration.repository.js    # مایگریشن و سید پویا از روی sources.config.js
     │   └── auditRepository.js         # لاگ‌های امنیتی و حسابرسی سیستم
-    ├── adapters/                      # الگوی Adapter برای منابع داده بالادستی
-    │   ├── base.js                    # اینترفیس استاندارد ISourceAdapter
-    │   ├── index.js                   # رجیستری مرکزی آداپتورها
-    │   ├── telegram/telegramAdapter.js# استخراج و پارس کانال‌های خبری تلگرام
-    │   ├── forex/forexAdapter.js      # دریافت نرخ برابری ارزهای فیات از open.er-api
-    │   └── bourse/bourseAdapter.js    # دریافت و ادغام تجمعی نمادهای بورس تهران
-    ├── services/                      # سرویس‌های کاربردی (Application Services)
-    │   └── priceIngestionService.js   # ارکستریتور پولینگ و تجمیع نرخ‌های ورودی
+    ├── services/                      # سرویس‌های دامنه و اپلیکیشن
+    │   └── market/
+    │       ├── sourceSync.service.js  # ارکستریتور تک‌تیک پولینگ و همگام‌سازی منابع
+    │       ├── priceAggregator.service.js # تجمیع و محاسبه نرخ‌های بازار
+    │       └── sources/               # ادپتورهای منابع داده خارجی (ISourceAdapter)
+    │           ├── ISourceAdapter.js  # قرارداد اینترفیس نهایی ادپتورها
+    │           ├── index.js           # رجیستری و لیست ارزیابی ادپتورها
+    │           ├── telegramSource.adapter.js # استخراج و پارس کانال‌های تلگرام
+    │           ├── forexApi.source.adapter.js# دریافت برابری ارزهای جهانی از Open ER-API
+    │           ├── bourseSymbols.source.adapter.js # دریافت و ادغام تجمعی نمادهای بورس تهران
+    │           ├── emofidFunds.source.adapter.js  # صندوق‌های سرمایه‌گذاری کارگزاری مفید
+    │           ├── charismaFunds.source.adapter.js# صندوق‌های سرمایه‌گذاری کاریزما
+    │           ├── charismaPlans.source.adapter.js# طرح‌های سرمایه‌گذاری طلای کاریزما
+    │           └── apiUrl.source.adapter.js       # وب‌سرویس‌های عمومی JSON و پارسرهای سفارشی
     ├── handlers/                      # کنترلرهای ورودی HTTP (Route Handlers)
+    │   ├── unifiedItemsRoute.js       # کاتالوگ جامع /api/v1/market/items با displayEngine
     │   ├── apiRoutes.js               # اندپوینت‌های عمومی دریافت نرخ‌ها
-    │   ├── unifiedItemsRoute.js       # کاتالوگ جامع /api/market/items
     │   ├── authRoutes.js              # سشن و لاگین گوگل
-    │   ├── portfolioRoutes.js         # مدیریت پورتفو و دارایی‌های کاربر (دارای itemCount و transactionCount)
+    │   ├── portfolioRoutes.js         # مدیریت پورتفو و دارایی‌های کاربر
     │   ├── transactionRoutes.js       # مدیریت تراکنش‌های خرید/فروش با پی‌لود Zero-Knowledge
     │   └── adminRoutes.js             # پنل مدیریت، فیدها و آمار کاربران
-    └── lib/                           # کتابخانه‌های کمکی و پل سازگاری
+    ├── jobs/                          # جاب‌های زمان‌بندی‌شده
+    │   └── cronPolling.job.js         # اجرای تک‌تیک syncAllSources در هر دقیقه
+    └── lib/                           # کتابخانه‌های کمکی و لاگر
 ```
 
 ---
 
 ## ۳. لایه‌های معماری (Architectural Layers)
 
-### ۱. زیرساخت خطا و لاگ (`infrastructure/`)
-- **مدیریت خطای متمرکز**: تمام خطاهای برنامه از `AppError` مشتق شده و دارای `statusCode` و کد خطای معین هستند. میدلور سراسری `errorHandler` تمام پاسخ‌های خطای سرور را با فرمت یکنواخت `{ success: false, error: { message, code } }` ارسال می‌کند.
-- **لاگر ساختاریافته**: کلیه لاگ‌ها در قالب JSON با متادیتای شناسه درخواست، مسیر، مدت‌زمان پردازش و سطح اهمیت چاپ می‌شوند.
+### ۱. قرارداد یکپارچه ادپتورها (`ISourceAdapter`)
+تمامی تأمین‌کنندگان نرخ قرارداد استاندارد `ISourceAdapter` را بدون استثنا پیاده‌سازی می‌کنند:
+- خروجی متد `parse()` همواره دارای ساختار قطعی زیر است:
+  ```javascript
+  {
+    items: [{ id: string, name: string, price: number }],
+    datetime: string // ISO 8601
+  }
+  ```
+- شناسه اقلام همواره با ساختار کانونیکال `\${sourceId}__\${itemKey}` ساخته می‌شود.
+- سورس‌های تک‌مقداری (مانند دلار یا طلا) نیز آرایه‌ای تک‌عضوی بازمی‌گردانند.
+- کلیه متدهای قدیمی دسترسی داده با متد واحد `getItems(env)` جایگزین شده‌اند.
 
-### ۲. لایه Repository (`repositories/`)
-کوئری‌های مستقیم SQL (`env.DB.prepare`) و کدهای خواندن/نوشتن KV به طور کامل از هندلرها جدا شده و درون مخازن مربوطه قرار گرفته‌اند:
-- ایزوله‌سازی کامل پایگاه داده از منطق تجاری.
-- جلوگیری از خطاهای اسکریپت‌نویسی SQL یا دسترسی مستقیم نامعتبر.
+### ۲. موتور مرکزی نمایش (`displayEngine.js`)
+پل مشترک میان سرور و کلاینت:
+- فرمت یکنواخت نام اقلام: `"{item.name} ({sourceName})"`.
+- استخراج داده‌محور واحد، دسته‌بندی و بج از کانفیگ بدون هیچ شرط رشته‌ای هاردکد شده.
+- نگاشت خودکار رنگ‌ها و آیکون‌های Lucide بر اساس `categories.config.js`.
 
-### ۳. الگوی Adapter برای منابع نرخ (`adapters/`)
-تمام تأمین‌کنندگان قیمت قرارداد `ISourceAdapter` را پیاده‌سازی می‌کنند:
-- متد `fetchPrices(env, options)` برای دریافت و نرمال‌سازی داده‌ها.
-- متد `healthCheck(env)` برای اطمینان از سلامت منبع.
-- امکان افزودن هر سورس جدید (مانند صرافی‌های کریپتو یا وب‌سرویس‌های طلا) بدون دستکاری در هسته سیستم (طبق اصل Open/Closed).
+### ۳. لایه ذخیره‌سازی یکدست (`sourceItems.repository.js`)
+- مسیرهای موازی و دوگانه قبلی بازنشسته شدند.
+- کلیه آیتم‌ها با یک کلید استاندارد `source_items:{sourceId}` در Cloudflare KV و یک ردیف متناظر در دیتابیس Cloudflare D1 ذخیره می‌شوند.
 
-### ۴. لایه دامنه و فرمول‌های مالی (`domain/`)
-- **مشخصات کانونی (`specs/registry.js`)**: تعاریف بدون تغییر اوزان، عیار، دسته‌بندی و نشان‌ها برای انواع طلا، سکه‌ها و ارزها.
-- **فرمول‌های ریاضی (`formulas/financialFormulas.js`)**: توابع کاملاً خالص (`Pure Functions`) بدون وابستگی جانبی:
-  - محاسبه گرم طلای ۲۴ عیار:
-    $$\text{Gold}_{24k} = \frac{\text{Gold}_{\$} \times \text{USD}_{\text{Toman}}}{31.1034768}$$
-  - محاسبه ارزش ذاتی طلا و سکه:
-    $$\text{Intrinsic} = \text{Gold}_{24k} \times \text{Weight}_{\text{g}} \times \left(\frac{\text{Karat}}{24}\right)$$
-  - محاسبه درصد حباب:
-    $$\text{Bubble}_{\%} = \frac{\text{MarketPrice} - \text{IntrinsicValue}}{\text{MarketPrice}} \times 100$$
-
----
-
-## ۴. لایه پایگاه‌داده و ذخیره‌سازی (`D1` و `KV`)
-
-### پایگاه‌داده Cloudflare D1 (SQLite)
-جداول اصلی در schema.sql تعریف شده‌اند:
-1. **`users`**: حساب کاربران، نام، ایمیل، تصویر پروفایل و نقش دسترسی (`admin`/`user`).
-2. **`sessions`**: نشست‌های فعال احراز هویت با طول عمر ۳۰ روز.
-3. **`settings`**: تنظیمات تک‌ردیفی سراسری نرخ‌های پایه و درصدهای حباب.
-4. **`portfolios`**: پورتفوهای چندگانه کاربر، لینک‌های اشتراک عمومی و سالت‌های رمزنگاری E2EE.
-5. **`portfolio_holdings`**: اقلام دارایی پورتفو (مقدار، قیمت خرید، تاریخ شمسی، یادداشت و داده‌های رمزگذاری‌شده).
-6. **`transactions`**: تراکنش‌های خرید و فروش با پی‌لود رمزنگاری‌شده E2EE، کلید خارجی `portfolio_id` و تاریخ ثبت.
-7. **`price_sources`**: فیدهای فعال، زمان‌بندی و نگاشت فیلدها.
-
-### حافظه توزیع‌شده Cloudflare KV
-- **`latest_rates`**: کش نرخ‌های تجمیعی بازار جهت بارگذاری لحظه‌ای.
-- **`bourse_symbols_toman_v3`**: کش دائمی و ادغام‌شده کل نمادهای بورس تهران و صندوق‌ها.
+### ۴. ارکستراسیون تک‌تیک بدون درخواست تکراری (`sourceSync.service.js`)
+- در هر بار اجرای جاب کرون، متد `syncAllSources(env)` فراخوانی می‌شود.
+- در صورتی که چند سورس دارای اندپوینت مشترک باشند، درخواست شبکه فقط یک‌بار ارسال شده و نتیجه بین سورس‌ها به اشتراک گذاشته می‌شود.
 
 ---
 
-## ۵. روت‌های اصلی API (Endpoints Reference)
+## ۴. اجرای تست‌ها و استقرار (Testing & Deployment)
 
-### ۱. روت‌های عمومی بازار:
-- `GET /api/market/items`: کاتالوگ مرجع واحد کل اقلام طلا، سکه، نقره، ارزها و بورس به همراه قیمت‌های زنده و پارامترهای حباب.
-- `GET /api/prices`: آبجکت آخرین نرخ‌های استخراج‌شده بازار.
-- `GET /api/portfolio/shared?slug=...`: دریافت اطلاعات پورتفوی اشتراک‌گذاری‌شده (فقط خواندنی).
-
-### ۲. روت‌های پورتفولیو و تراکنش‌ها (نیاز به توکن لاگین):
-- `GET /api/portfolios`: لیست تمام پورتفوهای کاربر همراه با فیلدهای تفکیک‌شده `itemCount` (تعداد دارایی‌ها) و `transactionCount` (تعداد تراکنش‌ها).
-- `POST /api/portfolios`: ایجاد پورتفوی جدید.
-- `PUT /api/portfolios`: ویرایش مشخصات یا تنظیمات اشتراک‌گذاری.
-- `DELETE /api/portfolios`: حذف پورتفو و تمام اقلام دارایی و تراکنش‌های آن (Cascade Deletion).
-- `GET /api/portfolio/holdings?portfolioId=...`: دریافت اقلام دستی پورتفو.
-- `POST /api/portfolio/holdings`: ثبت دارایی جدید دستی در پورتفو.
-- `PUT /api/portfolio/holdings`: ویرایش دارایی ثبت‌شده دستی.
-- `DELETE /api/portfolio/holdings`: حذف دارایی دستی از پورتفو.
-- `GET /api/portfolios/:id/transactions`: دریافت کل تراکنش‌های خرید/فروش پورتفو (مرتب‌شده زمانی).
-- `POST /api/portfolios/:id/transactions`: ثبت تراکنش جدید خرید یا فروش (با پی‌لود رمزنگاری‌شده E2EE یا متنی).
-- `PUT /api/portfolios/:id/transactions`: ویرایش تراکنش موجود.
-- `DELETE /api/portfolios/:id/transactions`: حذف تراکنش.
-
-### ۳. روت‌های احراز هویت:
-- `GET /api/auth/me`: بررسی سشن و نقش کاربر جاری.
-- `POST /api/auth/google`: ورود با توکن گوگل (Google GIS).
-- `POST /api/auth/logout`: خروج و باطل‌سازی سشن.
-
-### ۴. روت‌های ادمین:
-- `GET /api/admin/stats`: آمار زنده سیستم و کاربران آنلاین.
-- `GET /api/admin/users`: لیست کاربران ثبت‌شده.
-- `PUT /api/admin/users/role`: تغییر نقش کاربر.
-- `GET /api/admin/price-sources`: لیست و وضعیت فیدهای قیمت.
-- `POST /api/admin/price-sources/fetch-all`: اجرای فوری پولینگ تمام سورس‌ها.
-
----
-
-## ۶. اجرای تست‌ها و استقرار (Testing & Deployment)
-
-### اجرای تست‌های واحد خودکار با Vitest:
+### اجرای آزمون‌های واحد خودکار با Vitest:
 ```bash
-# از ریشه پروژه یا پوشه api
 npm test
 ```
-این دستور کلیه فرمول‌های تبدیل طلا، سکه، حباب و رفتار ادغام تجمعی بورس را اعتبارسنجی می‌کند.
+تمامی **۱۷ فایل آزمون** و **۱۴۶ تست** شامل تست قرارداد ادپتورها، موتور نمایش، ذخیره‌سازی، فرمول‌ها و همگام‌سازی را ارزیابی می‌کند.
+
+### بیلد و تست کلاینت فرانت‌اند:
+```bash
+npm run build --workspace=web
+```
 
 ### اجرای سرور در محیط محلی (Local Development):
 ```bash
@@ -170,11 +140,3 @@ npx wrangler dev
 cd api
 npx wrangler deploy
 ```
-
----
-
-## ۷. مستندات تکمیلی
-- [معماری جامع سیستم](../../docs/ARCHITECTURE.md)
-- [راهنمای افزودن دارایی جدید](../../docs/ADDING_NEW_ASSET.md)
-- [راهنمای افزودن سورس قیمت جدید](../../docs/ADDING_NEW_PRICE_SOURCE.md)
-- [مشخصات کامل اندپوینت‌ها (API Spec)](../../docs/API.md)

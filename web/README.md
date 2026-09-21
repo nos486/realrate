@@ -25,6 +25,10 @@
 
 ```text
 web/src/
+├── config/                            # کانفیگ‌های اشتراکی مرجع واحد (Symlinked با بک‌اند)
+│   ├── displayEngine.js               # موتور مرکزی نمایش (نام، واحد، آیکون، رنگ، دسته‌بندی)
+│   ├── categories.config.js           # تعاریف کاتالوگ دسته‌ها، رنگ‌ها و آیکون‌های لوسید
+│   └── sources.config.js              # رجیستری کامل کدهای سورس‌های قیمت‌گذاری
 ├── features/                          # ماژول‌های مستقل بر اساس فیچر
 │   ├── market/                        # فیچر نرخ‌های بازار و تحلیل حباب
 │   │   ├── api/marketApi.js           # کلاینت اختصاصی API بازار
@@ -35,7 +39,7 @@ web/src/
 │   │   ├── components/                # HoldingsTable, AddHoldingForm, ShamsiDatePicker,
 │   │   │                              # PortfolioSwitcher, PrivacyToggle, CsvExportButton...
 │   │   ├── hooks/                     # usePortfolio, useHoldings (با مایگریشن خودکار)
-│   │   ├── utils/holdingHelpers.js    # نرمال‌سازی دارایی، آیکون‌ها، دسته‌بندی‌ها
+│   │   ├── utils/holdingHelpers.js    # نرمال‌سازی دارایی، اتصال به displayEngine
 │   │   └── index.js
 │   ├── transactions/                  # فیچر ثبت تراکنش‌ها و موتور محاسبه خودکار دارایی‌ها
 │   │   ├── api/transactionApi.js      # کلاینت CRUD تراکنش‌های پورتفو
@@ -62,31 +66,46 @@ web/src/
 
 ---
 
-## ۳. پیوند نمادین مرجع واحد (Single Source of Truth Symlink)
+## ۳. پیوند‌های نمادین مرجع واحد (Single Source of Truth Symlinks)
 
-یکی از مهم‌ترین تصمیمات معماری RealRate، جلوگیری از تکرار تعاریف و فرمول‌ها میان فرانت‌اند و بک‌اند است:
-- فایل `web/src/utils/financialSpecs.js` یک **Symlink مستقیم** (Git Mode `120000`) به فایل `api/src/lib/financialSpecs.js` است.
-- این یعنی هرگونه تغییر در مشخصات فیزیکی طلا، سکه‌ها، ارزهای بین‌المللی یا فرمول‌های ریاضی مستقیماً و به صورت خودکار در فرانت‌اند اعمال می‌شود.
+یکی از مهم‌ترین تصمیمات معماری RealRate، جلوگیری از تکرار تعاریف، کانفیگ‌ها و فرمول‌ها میان فرانت‌اند و بک‌اند است. تمامی منابع داده و قواعد نمایش از طریق **پیوندهای نمادین مستقیم (Symlink)** به اشتراک گذاشته شده‌اند:
+
+1. **`web/src/utils/financialSpecs.js`** $\rightarrow$ `api/src/lib/financialSpecs.js`  
+   مشخصات فیزیکی طلا، سکه‌ها، ارزهای بین‌المللی و فرمول‌های حباب و عیار.
+2. **`web/src/config/sources.config.js`** $\rightarrow$ `api/src/config/sources.config.js`  
+   رجیستری کدبیس سورس‌های قیمت با اولویت‌ها، بازه‌های اعتبارسنجی و نگاشت دسته‌بندی‌ها.
+3. **`web/src/config/categories.config.js`** $\rightarrow$ `api/src/config/categories.config.js`  
+   تعریف دسته‌بندی‌های کانونیکال دارایی‌ها (`gold`, `coin`, `silver`, `currency`, `crypto`, `bourse`, `funds`) به همراه بج، رنگ و شناسه آیکون Lucide.
+4. **`web/src/config/displayEngine.js`** $\rightarrow$ `api/src/domain/displayEngine.js`  
+   موتور مرکزی تولید عنوان، واحد، بج، برچسب منبع و آیکون دارایی در سراسر فرانت‌اند و بک‌اند بدون هیچ شرط سخت‌کدشده.
 
 ### دارایی‌های پشتیبانی‌شده:
 - **طلا و فلزات**: طلای ۱۸ عیار، طلای ۲۴ عیار، آبشده، مثقال، انس جهانی طلا ($XAU$)، نقره خام، نقره ۹۲۵ و انس جهانی نقره ($XAG$).
 - **سکه‌ها**: تمام بهار آزادی طرح جدید (امامی)، طرح قدیم، نیم‌سکه، ربع‌سکه، سکه گرمی.
 - **ارزهای بین‌المللی**: بیش از ۶۵ ارز معتبر جهان (USD, EUR, GBP, AED, TRY, CHF, CNY, CAD, AUD, JPY, ...) با پرچم و نام‌های فارسی استاندارد.
 - **بورس اوراق بهادار**: بیش از ۷۰۰ نماد سهام و کلیه صندوق‌های سرمایه‌گذاری (طلا، اهرمی، سهامی، درآمد ثابت).
+- **طرح‌های سرمایه‌گذاری نقره**: طرح‌های نقره کاریزما و سایر ابزارهای متمرکز.
 - **کریپتوکارنسی‌ها**: تتر (USDT)، بیت‌کوین (BTC)، اتریوم (ETH).
 
 ---
 
-## ۴. موتورهای محاسباتی فرانت‌اند (Engines & Math Layer)
+## ۴. موتورهای محاسباتی و نمایشی فرانت‌اند (Engines Layer)
 
-### ۱. موتور نرخ‌ها ([pricingEngine.js](file:///Users/sina/Projects/realrate/web/src/utils/pricingEngine.js))
+### ۱. موتور مرکزی نمایش ([displayEngine.js](file:///Users/sina/Projects/realrate/web/src/config/displayEngine.js))
+قلب تپنده لایه پرزنتیشن فرانت‌اند که تمامی منطق‌های هاردکدشده، سوییچ‌های پراکنده و نگاشت‌های دستی را منسوخ کرده است:
+- **نام‌گذاری استاندارد (`getItemDisplayName`)**: ساخت خودکار فرمت `"{نام دارایی} ({نام سورس})"` (برای نمونه: `طرح نقره کاریزما (کاریزما)`، `فولاد (بورس تهران)`، `سکه امامی (بن‌بست)`).
+- **استخراج واحد (`getItemUnit`)**: تشخیص دقیق واحد بر اساس سورس و متادیتا (`گرم`، `برگ سهم`، `تومان`، `واحد`، `دلار`).
+- **دسته‌بندی و بج (`getItemCategory`, `getItemBadge`)**: تخصیص دسته‌بندی و برچسب کانونیکال از روی `categories.config.js`.
+- **نگاشت آیکون‌های لوسید و پالت رنگی (`getCategoryIcon`, `getCategoryColor`)**: تطبیق داینامیک نام آیکون (مانند `TrendingUp`, `Coins`, `CircleDot`) با کامپوننت‌های بصری Lucide بدون هیچ شرط `switch/case`.
+
+### ۲. موتور نرخ‌ها ([pricingEngine.js](file:///Users/sina/Projects/realrate/web/src/utils/pricingEngine.js))
 وظیفه این ماژول تبدیل نرخ‌های خام بک‌اند به مدل غنی‌شده برای مصرف کامپوننت‌های فرانت‌اند است:
 - محاسبه نرخ مشتق‌شده طلای ۲۴ عیار از روی طلای ۱۸ عیار بر اساس فرمول مصوب اتحادیه طلا.
 - محاسبه گرم نقره و نقره ۹۲۵ بر پایه انس جهانی نقره و نرخ دلار.
 - تعیین ارزش ذاتی (Intrinsic Value) و حباب اسمی/درصدی تمام سکه‌ها.
-- غنی‌سازی دارایی‌های بورس با تشخیص نوع صندوق (`isFund`) و واحد «برگ سهم».
+- ادغام کاتالوگ نمادها و صندوق‌ها با بهره‌گیری از `displayEngine` جهت نمایش دقیق واحدها و عناوین.
 
-### ۲. ماشین حساب و پراکسی‌های متادیتا ([calculator.js](file:///Users/sina/Projects/realrate/web/src/utils/calculator.js))
+### ۳. ماشین حساب و پراکسی‌های متادیتا ([calculator.js](file:///Users/sina/Projects/realrate/web/src/utils/calculator.js))
 - حذف کامل آرایه‌ها و دیکشنری‌های هاردکدشده قدیمی.
 - استفاده از **پراکسی‌های دینامیک** `CURRENCY_METADATA_MAP` و `WORLD_FOREX_NAMES` که به صورت بلادرنگ از تعاریف سورس واحد تغذیه می‌کنند.
 - تابع `calculateMarketData` جهت تولید تحلیل جامع اقلام بازار و پیشنهاد خرید کم‌حباب‌ترین دارایی.
@@ -122,9 +141,10 @@ web/src/
 - **حالت حریم خصوصی (Privacy Mode)**: امکان مخفی‌کردن مبالغ و ارزش سرمایه‌گذاری با کلید سراسری هدر (`****`) در هر دو بخش پورتفو و تراکنش‌ها با رویداد سفارشی `realrate_privacy_change`.
 - **خروجی اکسل/CSV**: دانلود مستقیم گزارش استاندارد سازگار با نرم‌افزارهای آفیس.
 - **اشتراک‌گذاری پورتفو**: ایجاد لینک اختصاصی عمومی (`/p/:slug`) برای نمایش سبد به دیگران بدون امکان ویرایش.
+- **فرم ثبت دارایی ([AddHoldingForm.jsx](file:///Users/sina/Projects/realrate/web/src/features/portfolio/components/AddHoldingForm.jsx))**: تشخیص کاملاً خودکار واحد و دسته دارایی با `displayEngine.getItemUnit` و `getItemCategory` بدون هیچ شرط هاردکدشده.
 
 ### ۲. سیستم ثبت تراکنش‌ها و موتور محاسبه خودکار ([TransactionsPage.jsx](file:///Users/sina/Projects/realrate/web/src/features/transactions/components/TransactionsPage.jsx))
-- **ثبت معاملات خرید و فروش**: ثبت آسان هر تراکنش با مقدار، قیمت واحد، تاریخ شمسی، نوع معامله و یادداشت.
+- **ثبت معاملات خرید و فروش ([TransactionForm.jsx](file:///Users/sina/Projects/realrate/web/src/features/transactions/components/TransactionForm.jsx))**: ثبت آسان هر تراکنش با تشخیص خودکار نام و واحد دارایی از روی `displayEngine`.
 - **موتور میانگین موزون قیمت خرید ([calculationEngine.js](file:///Users/sina/Projects/realrate/web/src/features/transactions/utils/calculationEngine.js))**:
   - مرتب‌سازی کرونولوژیکال تراکنش‌ها و اعمال فرمول WAC (Weighted Average Cost) روی خریدها.
   - کسر دارایی و محاسبه سود/زیان محقق‌شده در هنگام فروش و هشدار خودکار در صورت بیش‌فروش (Overselling).
@@ -136,6 +156,7 @@ web/src/
 - جستجوی سریع و بدون لگ در میان تمام دارایی‌های طلا، سکه، ارزها و ۷۰۰ نماد بورس.
 - **پشتیبانی از نام‌های مستعار غنی**: جستجوی «امامی» برای سکه طرح جدید، «طرح قدیم» برای بهار آزادی، «آبشده» برای مثقال و نام‌های اختصاری سهام.
 - فیلتر سریع بر اساس دسته‌بندی‌ها (طلا، سکه، ارز، بورس، صندوق‌ها).
+- بهره‌گیری ۱۰۰٪ از `displayEngine` برای ساخت عناوین مرکب و استخراج رنگ‌ها و بج‌ها.
 
 ### ۴. تیکر سریع ارزها ([QuickCurrencies.jsx](file:///Users/sina/Projects/realrate/web/src/components/QuickCurrencies.jsx))
 - نمایش کارت‌های ارزهای کلیدی با پرچم رسمی، نام فارسی، قیمت تومانی و نرخ برابری جهانی به صورت کاملاً داینامیک.
