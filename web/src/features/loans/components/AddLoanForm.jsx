@@ -9,7 +9,7 @@
  */
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { Landmark, Calendar, Percent, AlertCircle, Calculator, Sparkles, CheckCircle2 } from 'lucide-react';
+import { Landmark, AlertCircle, Calculator, CheckCircle2 } from 'lucide-react';
 import Modal from '../../../shared/ui/Modal.jsx';
 import Input from '../../../shared/ui/Input.jsx';
 import NumericInput from '../../../shared/ui/NumericInput.jsx';

@@ -12,17 +12,14 @@ import React, { useState, useEffect, useMemo } from 'react';
 import {
   Landmark,
   Plus,
-  CreditCard,
   CheckCircle2,
   Clock,
   AlertCircle,
   Calendar,
-  Sparkles,
   RefreshCw,
   Wallet,
   Lock,
   Cloud,
-  ShieldCheck,
 } from 'lucide-react';
 import { useAuth } from '../../auth/index.js';
 import { useLoans } from '../hooks/useLoans.js';
@@ -92,6 +89,7 @@ function LoanDetailModal({ loanId, onClose, onRefreshLoans }) {
 }
 
 export default function LoansPage({ initialLoanId = null }) {
+  const { user, loading: authLoading, triggerLogin } = useAuth();
   const {
     loans,
     loadingLoans,
