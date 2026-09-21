@@ -369,21 +369,7 @@ export default function LoansPage({ initialLoanId = null }) {
           </div>
         </div>
 
-        {/* Card 3: Active Loans Count */}
-        <div className="loan-stat-card">
-          <div className="stat-icon-wrap count">
-            <Landmark size={22} />
-          </div>
-          <div className="stat-content">
-            <span className="stat-label">تعداد وام‌های فعال</span>
-            <strong className="stat-value">
-              {formatNum(summaryMetrics.activeLoans)}{' '}
-              <span className="stat-sub">از {formatNum(loans.length)} وام</span>
-            </strong>
-          </div>
-        </div>
-
-        {/* Card 4: Paid Installments Ratio */}
+        {/* Card 3: Paid Installments Ratio */}
         <div className="loan-stat-card">
           <div className="stat-icon-wrap progress">
             <CheckCircle2 size={22} />
@@ -397,7 +383,7 @@ export default function LoansPage({ initialLoanId = null }) {
           </div>
         </div>
 
-        {/* Card 5: Next Upcoming Due */}
+        {/* Card 4: Next Upcoming Due */}
         <div className="loan-stat-card">
           <div className="stat-icon-wrap due">
             <Clock size={22} />
