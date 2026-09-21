@@ -5,6 +5,11 @@
 import { ensureD1Tables } from "./migration.repository.js";
 import { dbGetUserPortfolios } from "./portfolio.repository.js";
 import { logger } from "../lib/logger.js";
+import {
+  resolveAssetDisplayName,
+  resolveAssetUnit,
+  resolveCategory,
+} from "../config/sourceRegistry.js";
 
 /**
  * Fetch all portfolio holdings for a user and optionally a specific portfolio
@@ -21,8 +26,7 @@ export async function dbGetPortfolioHoldings(env, userId, portfolioId = null) {
     try {
       let query = `
         SELECT id, user_id AS userId, portfolio_id AS portfolioId, asset_id AS assetId,
-               asset_name AS assetName, asset_type AS assetType, unit, amount,
-               buy_price AS buyPrice, current_price AS currentPrice, buy_date AS buyDate,
+               amount, buy_price AS buyPrice, current_price AS currentPrice, buy_date AS buyDate,
                notes, created_at AS createdAt, updated_at AS updatedAt
         FROM portfolio_holdings
         WHERE user_id = ?
@@ -38,7 +42,16 @@ export async function dbGetPortfolioHoldings(env, userId, portfolioId = null) {
 
       const { results } = await env.DB.prepare(query).bind(...bindings).all();
       if (Array.isArray(results)) {
-        return results;
+        return results.map((r) => {
+          const category = resolveCategory(r.assetId);
+          return {
+            ...r,
+            assetName: resolveAssetDisplayName(r.assetId),
+            assetType: category,
+            category,
+            unit: resolveAssetUnit(r.assetId),
+          };
+        });
       }
     } catch (e) {
       logger.error("D1 dbGetPortfolioHoldings error:", { error: e.message });
@@ -77,9 +90,6 @@ export async function dbAddPortfolioHolding(env, item) {
     userId: item.userId,
     portfolioId: portfolioId || '',
     assetId: item.assetId,
-    assetName: item.assetName || item.assetId,
-    assetType: item.assetType || 'custom',
-    unit: item.unit || 'واحد',
     amount: Number(item.amount) || 0,
     buyPrice: Number(item.buyPrice) || 0,
     currentPrice: Number(item.currentPrice) || 0,
@@ -94,16 +104,13 @@ export async function dbAddPortfolioHolding(env, item) {
     try {
       await env.DB.prepare(`
         INSERT INTO portfolio_holdings (
-          id, user_id, portfolio_id, asset_id, asset_name, asset_type, unit,
+          id, user_id, portfolio_id, asset_id,
           amount, buy_price, current_price, buy_date, notes, created_at, updated_at
         )
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ON CONFLICT(id) DO UPDATE SET
           portfolio_id = excluded.portfolio_id,
           asset_id = excluded.asset_id,
-          asset_name = excluded.asset_name,
-          asset_type = excluded.asset_type,
-          unit = excluded.unit,
           amount = excluded.amount,
           buy_price = excluded.buy_price,
           current_price = excluded.current_price,
@@ -115,9 +122,6 @@ export async function dbAddPortfolioHolding(env, item) {
         holding.userId,
         holding.portfolioId,
         holding.assetId,
-        holding.assetName,
-        holding.assetType,
-        holding.unit,
         holding.amount,
         holding.buyPrice,
         holding.currentPrice,
@@ -131,7 +135,14 @@ export async function dbAddPortfolioHolding(env, item) {
     }
   }
 
-  return holding;
+  const category = resolveCategory(holding.assetId, item?.assetType || item?.category);
+  return {
+    ...holding,
+    assetName: resolveAssetDisplayName(holding.assetId, item),
+    assetType: category,
+    category,
+    unit: resolveAssetUnit(holding.assetId, item),
+  };
 }
 
 /**

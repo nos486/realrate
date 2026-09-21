@@ -19,6 +19,11 @@ import {
   verifyE2eeKey,
   getVaultPassphraseFromSession,
 } from '../../../lib/e2ee.js';
+import {
+  resolveAssetDisplayName,
+  resolveAssetUnit,
+  resolveCategory,
+} from '../../../utils/sourceRegistry.js';
 import { useAuth } from '../../auth/index.js';
 
 export function useTransactions(activePortfolio, externalVaultKey = null) {
@@ -116,7 +121,19 @@ export function useTransactions(activePortfolio, externalVaultKey = null) {
         if (activePortfolio?.isE2ee && !activeVaultKey) {
           setTransactions([]);
         } else {
-          setTransactions(decryptedList);
+          setTransactions(
+            decryptedList.map((tx) => {
+              if (tx.isLocked) return tx;
+              const cat = resolveCategory(tx.assetId, tx.assetType);
+              return {
+                ...tx,
+                assetName: resolveAssetDisplayName(tx.assetId, tx),
+                assetType: cat,
+                category: cat,
+                unit: resolveAssetUnit(tx.assetId, tx),
+              };
+            })
+          );
         }
       } else {
         setTransactions([]);
@@ -140,9 +157,6 @@ export function useTransactions(activePortfolio, externalVaultKey = null) {
     try {
       const payloadData = {
         assetId: txData.assetId,
-        assetName: txData.assetName,
-        assetType: txData.assetType || 'custom',
-        unit: txData.unit || 'واحد',
         transactionType: txData.transactionType || 'buy',
         quantity: Number(txData.quantity) || 0,
         unitPrice: Number(txData.unitPrice) || 0,
@@ -179,9 +193,6 @@ export function useTransactions(activePortfolio, externalVaultKey = null) {
     try {
       const payloadData = {
         assetId: txData.assetId,
-        assetName: txData.assetName,
-        assetType: txData.assetType || 'custom',
-        unit: txData.unit || 'واحد',
         transactionType: txData.transactionType || 'buy',
         quantity: Number(txData.quantity) || 0,
         unitPrice: Number(txData.unitPrice) || 0,

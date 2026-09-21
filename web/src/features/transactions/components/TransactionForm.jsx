@@ -147,9 +147,6 @@ export default function TransactionForm({
     onSubmit({
       id: editingTransaction?.id,
       assetId,
-      assetName,
-      assetType,
-      unit,
       transactionType,
       quantity: quantityNum,
       unitPrice: unitPriceNum,

@@ -31,21 +31,27 @@ import { jsonResponse } from "../lib/helpers.js";
 import { AppError } from "../lib/AppError.js";
 import { logger } from "../lib/logger.js";
 import {
-  getCanonicalAssetName,
-  getCanonicalAssetUnit,
-  getCanonicalAssetCategory,
-  resolveItemCategory,
-} from "../domain/specs/index.js";
+  resolveAssetDisplayName,
+  resolveAssetUnit,
+  resolveCategory,
+} from "../config/sourceRegistry.js";
 
 function resolveHoldingMetadata(holding) {
   if (!holding) return holding;
   const isEncrypted = typeof holding.notes === 'string' && holding.notes.startsWith('enc:e2ee:v1:');
+  const assetName = isEncrypted ? (holding.assetName || holding.assetId) : (resolveAssetDisplayName(holding.assetId, holding) || holding.assetId);
+  const unit = isEncrypted ? (holding.unit || 'واحد') : (resolveAssetUnit(holding.assetId, holding) || 'واحد');
+  const category = isEncrypted ? (holding.assetType || 'custom') : resolveCategory(holding.assetId, holding.assetType);
   return {
     ...holding,
-    canonicalName: isEncrypted ? (holding.assetName || holding.assetId) : (getCanonicalAssetName(holding.assetId, holding.assetName) || holding.assetName),
-    canonicalUnit: isEncrypted ? (holding.unit || 'واحد') : (getCanonicalAssetUnit(holding.assetId, holding.unit) || holding.unit),
-    canonicalCategory: isEncrypted ? (holding.assetType || 'custom') : (getCanonicalAssetCategory(holding.assetId, holding.assetType) || holding.assetType),
-    resolvedCategory: resolveItemCategory(holding.assetId, holding.assetType),
+    assetName,
+    assetType: category,
+    category,
+    unit,
+    canonicalName: assetName,
+    canonicalUnit: unit,
+    canonicalCategory: category,
+    resolvedCategory: category,
   };
 }
 
@@ -276,9 +282,6 @@ export async function handleAddPortfolio(request, env) {
     userId,
     portfolioId: body.portfolioId || body.portfolio_id || null,
     assetId: String(body.assetId || "gold_18k"),
-    assetName: isE2eeHolding ? String(body.assetName || "") : (getCanonicalAssetName(body.assetId, body.assetName) || String(body.assetName || "")),
-    assetType: isE2eeHolding ? String(body.assetType || "") : (getCanonicalAssetCategory(body.assetId, body.assetType) || String(body.assetType || "gold")),
-    unit: isE2eeHolding ? String(body.unit || "") : (getCanonicalAssetUnit(body.assetId, body.unit) || String(body.unit || "واحد")),
     amount: isNaN(amount) ? 0 : amount,
     buyPrice: isNaN(buyPrice) ? 0 : buyPrice,
     currentPrice: parseFloat(body.currentPrice) || 0,

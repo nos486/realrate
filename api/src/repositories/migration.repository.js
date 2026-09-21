@@ -79,9 +79,6 @@ export async function ensureD1Tables(env) {
       user_id TEXT NOT NULL,
       portfolio_id TEXT,
       asset_id TEXT NOT NULL,
-      asset_name TEXT NOT NULL,
-      asset_type TEXT NOT NULL,
-      unit TEXT NOT NULL,
       amount REAL NOT NULL,
       buy_price REAL NOT NULL,
       current_price REAL DEFAULT 0,
@@ -156,6 +153,15 @@ export async function ensureD1Tables(env) {
     } catch (ignore) {}
     try {
       await env.DB.prepare("ALTER TABLE portfolio_holdings DROP COLUMN encrypted_data").run();
+    } catch (ignore) {}
+    try {
+      await env.DB.prepare("ALTER TABLE portfolio_holdings DROP COLUMN asset_name").run();
+    } catch (ignore) {}
+    try {
+      await env.DB.prepare("ALTER TABLE portfolio_holdings DROP COLUMN asset_type").run();
+    } catch (ignore) {}
+    try {
+      await env.DB.prepare("ALTER TABLE portfolio_holdings DROP COLUMN unit").run();
     } catch (ignore) {}
     try {
       await env.DB.prepare("CREATE INDEX IF NOT EXISTS idx_portfolio_holdings_portfolio ON portfolio_holdings(portfolio_id)").run();

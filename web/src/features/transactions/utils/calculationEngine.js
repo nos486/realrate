@@ -6,6 +6,11 @@
  */
 
 import { resolveHoldingUnitRealPrice, resolveItemCategory } from '../../../utils/financialSpecs.js';
+import {
+  resolveAssetDisplayName,
+  resolveAssetUnit,
+  resolveCategory,
+} from '../../../utils/sourceRegistry.js';
 
 /**
  * Aggregate an array of decrypted transactions into net holdings with Weighted Average Cost.
@@ -25,7 +30,7 @@ export function calculateComputedHoldings(transactions = [], livePriceMap = {}) 
         totalPnl: 0,
         totalPnlPct: 0,
         hasAnyCost: false,
-        count: 0,
+        totalTransactionsCount: 0,
       },
     };
   }
@@ -40,12 +45,15 @@ export function calculateComputedHoldings(transactions = [], livePriceMap = {}) 
     if (!assetId) continue;
 
     if (!groups.has(assetId)) {
-      const resolvedType = payload.assetType || payload.category || resolveItemCategory(payload);
+      const resolvedType = resolveCategory(assetId, payload.assetType || payload.category);
+      const resolvedName = resolveAssetDisplayName(assetId, payload);
+      const resolvedUnit = resolveAssetUnit(assetId, payload);
       groups.set(assetId, {
         assetId,
-        assetName: payload.assetName || payload.name || assetId,
+        assetName: resolvedName,
         assetType: resolvedType,
-        unit: payload.unit || payload.currency || 'واحد',
+        category: resolvedType,
+        unit: resolvedUnit,
         transactions: [],
       });
     }
@@ -53,7 +61,10 @@ export function calculateComputedHoldings(transactions = [], livePriceMap = {}) 
     const group = groups.get(assetId);
     if (payload.assetName && payload.assetName !== assetId) group.assetName = payload.assetName;
     if (payload.unit && payload.unit !== 'واحد') group.unit = payload.unit;
-    if (payload.assetType && payload.assetType !== 'custom') group.assetType = payload.assetType;
+    if (payload.assetType && payload.assetType !== 'custom') {
+      group.assetType = payload.assetType;
+      group.category = payload.assetType;
+    }
 
     group.transactions.push({
       ...payload,

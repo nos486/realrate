@@ -19,7 +19,7 @@ export const PRICE_SOURCES_CONFIG = [
     sourceType: "telegram",
     endpoint: "tahran_sabza",
     category: "currency",
-    unit: "تومان",
+    unit: "دلار",
     fetchIntervalSec: 60,
     isActive: true,
     isPrimary: true,

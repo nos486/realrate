@@ -158,4 +158,42 @@ describe('Computed Holdings Engine - Weighted Average Cost & Aggregation', () =>
     const res3 = calculateComputedHoldings([null, {}, { assetId: '' }]);
     expect(res3.computedHoldings).toHaveLength(0);
   });
+
+  it('dynamically resolves assetName, category, and unit when transactions only contain assetId', () => {
+    const transactions = [
+      {
+        assetId: 'usd',
+        transactionType: 'buy',
+        quantity: 100,
+        unitPrice: 60000,
+      },
+      {
+        assetId: 'gold_18k',
+        transactionType: 'buy',
+        quantity: 10,
+        unitPrice: 4000000,
+      },
+    ];
+
+    const { computedHoldings } = calculateComputedHoldings(transactions, {
+      usd: 62000,
+      gold_18k: 4200000,
+    });
+
+    expect(computedHoldings).toHaveLength(2);
+
+    const usdItem = computedHoldings.find((h) => h.assetId === 'usd');
+    expect(usdItem).toBeDefined();
+    expect(usdItem.assetName).toBe('دلار');
+    expect(usdItem.unit).toBe('دلار');
+    expect(usdItem.category).toBe('currency');
+    expect(usdItem.amount).toBe(100);
+
+    const goldItem = computedHoldings.find((h) => h.assetId === 'gold_18k');
+    expect(goldItem).toBeDefined();
+    expect(goldItem.assetName).toBe('طلای ۱۸ عیار');
+    expect(goldItem.unit).toBe('گرم');
+    expect(goldItem.category).toBe('gold');
+    expect(goldItem.amount).toBe(10);
+  });
 });
