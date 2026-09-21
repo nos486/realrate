@@ -37,7 +37,17 @@ const formatNum = (v) => Number(v || 0).toLocaleString('fa-IR');
  * Isolated Modal Wrapper for Single Loan Detail & Schedule
  */
 function LoanDetailModal({ loanId, onClose, onRefreshLoans }) {
-  const { loan, loading, submitting, error, markPaid, unmarkPaid, setInstallmentAmount } = useLoanDetail(loanId);
+  const {
+    loan,
+    extraPayments,
+    loading,
+    submitting,
+    error,
+    markPaid,
+    unmarkPaid,
+    setInstallmentAmount,
+    addExtraPayment,
+  } = useLoanDetail(loanId);
 
   const handleMarkPaid = async (installmentId, details) => {
     await markPaid(installmentId, details);
@@ -51,6 +61,12 @@ function LoanDetailModal({ loanId, onClose, onRefreshLoans }) {
 
   const handleSetInstallmentAmount = async (installmentId, newAmount) => {
     const res = await setInstallmentAmount(installmentId, newAmount);
+    onRefreshLoans?.();
+    return res;
+  };
+
+  const handleAddExtraPayment = async (paymentData) => {
+    const res = await addExtraPayment(paymentData);
     onRefreshLoans?.();
     return res;
   };
@@ -84,9 +100,11 @@ function LoanDetailModal({ loanId, onClose, onRefreshLoans }) {
           <LoanInstallmentsTable
             loan={loan}
             installments={loan.installments || []}
+            extraPayments={extraPayments || []}
             onMarkPaid={handleMarkPaid}
             onUnmarkPaid={handleUnmarkPaid}
             onSetInstallmentAmount={handleSetInstallmentAmount}
+            onAddExtraPayment={handleAddExtraPayment}
             submitting={submitting}
           />
         </div>

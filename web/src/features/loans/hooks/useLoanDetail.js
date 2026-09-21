@@ -8,13 +8,36 @@ import {
   markInstallmentPaid as apiMarkPaid,
   unmarkInstallmentPaid as apiUnmarkPaid,
   setInstallmentAmount as apiSetInstallmentAmount,
+  addLoanExtraPayment as apiAddLoanExtraPayment,
+  getLoanExtraPayments as apiGetLoanExtraPayments,
 } from '../api/loanApi.js';
 
 export function useLoanDetail(loanId) {
   const [loan, setLoan] = useState(null);
+  const [extraPayments, setExtraPayments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState(null);
+
+  /**
+   * Fetch extra payments list
+   */
+  const fetchExtraPayments = useCallback(async () => {
+    if (!loanId) {
+      setExtraPayments([]);
+      return;
+    }
+    try {
+      const res = await apiGetLoanExtraPayments(loanId);
+      if (res?.success && Array.isArray(res.extraPayments)) {
+        setExtraPayments(res.extraPayments);
+      } else {
+        setExtraPayments([]);
+      }
+    } catch {
+      setExtraPayments([]);
+    }
+  }, [loanId]);
 
   /**
    * Fetch loan details and all its installments
@@ -22,6 +45,7 @@ export function useLoanDetail(loanId) {
   const fetchLoan = useCallback(async () => {
     if (!loanId) {
       setLoan(null);
+      setExtraPayments([]);
       setLoading(false);
       return;
     }
@@ -29,9 +53,12 @@ export function useLoanDetail(loanId) {
     try {
       setLoading(true);
       setError(null);
-      const res = await getLoanDetail(loanId);
-      if (res?.success && res.loan) {
-        setLoan(res.loan);
+      const [loanRes] = await Promise.all([
+        getLoanDetail(loanId),
+        fetchExtraPayments(),
+      ]);
+      if (loanRes?.success && loanRes.loan) {
+        setLoan(loanRes.loan);
       } else {
         setLoan(null);
       }
@@ -41,7 +68,7 @@ export function useLoanDetail(loanId) {
     } finally {
       setLoading(false);
     }
-  }, [loanId]);
+  }, [loanId, fetchExtraPayments]);
 
   useEffect(() => {
     fetchLoan();
@@ -171,14 +198,43 @@ export function useLoanDetail(loanId) {
     [loanId, fetchLoan]
   );
 
+  /**
+   * Record extra payment
+   * @param {object} paymentData
+   * @returns {Promise<object>}
+   */
+  const addExtraPayment = useCallback(
+    async (paymentData) => {
+      if (!loanId) return;
+
+      setSubmitting(true);
+      setError(null);
+
+      try {
+        const res = await apiAddLoanExtraPayment(loanId, paymentData);
+        await fetchLoan();
+        return res;
+      } catch (err) {
+        setError(err.message || 'خطا در ثبت پرداخت اضافه');
+        throw err;
+      } finally {
+        setSubmitting(false);
+      }
+    },
+    [loanId, fetchLoan]
+  );
+
   return {
     loan,
+    extraPayments,
     loading,
     submitting,
     error,
     fetchLoan,
+    fetchExtraPayments,
     markPaid,
     unmarkPaid,
     setInstallmentAmount,
+    addExtraPayment,
   };
 }

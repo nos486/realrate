@@ -10,20 +10,28 @@ import {
   AlertCircle,
   Pencil,
   Sparkles,
+  DollarSign,
+  TrendingDown,
+  History,
 } from 'lucide-react';
 import { gregorianToShamsi, getTodayShamsi } from '../../portfolio/components/ShamsiDatePicker.jsx';
 import NumericInput from '../../../shared/ui/NumericInput.jsx';
+import ExtraPaymentModal from './ExtraPaymentModal.jsx';
 
 const formatNum = (v) => Number(v || 0).toLocaleString('fa-IR');
 
 export default function LoanInstallmentsTable({
   loan,
   installments = [],
+  extraPayments = [],
   onMarkPaid,
   onUnmarkPaid,
   onSetInstallmentAmount,
+  onAddExtraPayment,
   submitting = false,
 }) {
+  // Extra payment modal state
+  const [isExtraPayOpen, setIsExtraPayOpen] = useState(false);
   // Active paying installment dialog state
   const [payingInstId, setPayingInstId] = useState(null);
   const [payDate, setPayDate] = useState('');
@@ -142,12 +150,39 @@ export default function LoanInstallmentsTable({
           </button>
         </div>
 
-        {loan && (
-          <div className="loan-inst-summary-badge">
-            <span>مانده کل:</span>
-            <strong>{formatNum(loan.remainingBalance ?? 0)} تومان</strong>
-          </div>
-        )}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          {loan && (
+            <div className="loan-inst-summary-badge">
+              <span>مانده کل:</span>
+              <strong>{formatNum(loan.remainingBalance ?? 0)} تومان</strong>
+            </div>
+          )}
+
+          {loan && Number(loan.remainingBalance ?? 0) > 0 && onAddExtraPayment && (
+            <button
+              type="button"
+              className="btn-extra-payment-trigger"
+              onClick={() => setIsExtraPayOpen(true)}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px',
+                background: 'rgba(245, 158, 11, 0.15)',
+                border: '1px solid rgba(245, 158, 11, 0.35)',
+                color: '#f59e0b',
+                padding: '6px 14px',
+                borderRadius: '8px',
+                fontSize: '0.82rem',
+                fontWeight: 600,
+                cursor: 'pointer',
+                transition: 'all 0.15s ease',
+              }}
+            >
+              <DollarSign size={14} />
+              <span>پرداخت اضافه / یکجا</span>
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Desktop Table View */}
@@ -528,6 +563,82 @@ export default function LoanInstallmentsTable({
           );
         })}
       </div>
+
+      {/* Extra Payments History Section (فاز D) */}
+      {extraPayments && extraPayments.length > 0 && (
+        <div className="loan-extra-payments-history" style={{
+          marginTop: '20px',
+          padding: '16px',
+          background: 'rgba(255, 255, 255, 0.02)',
+          border: '1px solid rgba(255, 255, 255, 0.08)',
+          borderRadius: '12px',
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
+            <History size={16} className="text-amber-500" />
+            <h4 style={{ margin: 0, fontSize: '0.92rem', fontWeight: 700, color: '#f8fafc' }}>
+              تاریخچه پرداخت‌های اضافه / یکجا ({extraPayments.length})
+            </h4>
+          </div>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            {extraPayments.map((ep) => (
+              <div
+                key={ep.id}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  flexWrap: 'wrap',
+                  gap: '8px',
+                  padding: '10px 12px',
+                  background: 'rgba(255, 255, 255, 0.03)',
+                  border: '1px solid rgba(255, 255, 255, 0.05)',
+                  borderRadius: '8px',
+                  fontSize: '0.82rem',
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <span style={{ color: '#f59e0b', fontWeight: 700, fontSize: '0.92rem' }}>
+                    {formatNum(ep.amount)} تومان
+                  </span>
+                  <span style={{
+                    fontSize: '0.72rem',
+                    padding: '2px 8px',
+                    borderRadius: '6px',
+                    background: ep.reductionMode === 'reduce_term' ? 'rgba(192, 132, 252, 0.15)' : 'rgba(56, 189, 248, 0.15)',
+                    color: ep.reductionMode === 'reduce_term' ? '#c084fc' : '#38bdf8',
+                    border: `1px solid ${ep.reductionMode === 'reduce_term' ? 'rgba(192, 132, 252, 0.3)' : 'rgba(56, 189, 248, 0.3)'}`,
+                  }}>
+                    {ep.reductionMode === 'reduce_term' ? 'کاهش مدت وام' : 'کاهش مبلغ اقساط'}
+                  </span>
+                </div>
+
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', color: '#94a3b8' }}>
+                  {ep.notes && (
+                    <span style={{ fontSize: '0.78rem', color: '#cbd5e1' }}>
+                      «{ep.notes}»
+                    </span>
+                  )}
+                  <span>
+                    تاریخ: {ep.paymentDate ? gregorianToShamsi(ep.paymentDate) : '—'}
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Extra Payment Modal */}
+      {isExtraPayOpen && (
+        <ExtraPaymentModal
+          isOpen={isExtraPayOpen}
+          onClose={() => setIsExtraPayOpen(false)}
+          loan={loan}
+          onSubmit={onAddExtraPayment}
+          submitting={submitting}
+        />
+      )}
     </div>
   );
 }

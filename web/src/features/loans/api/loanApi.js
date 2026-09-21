@@ -102,3 +102,31 @@ export async function setInstallmentAmount(loanId, installmentId, totalAmount) {
     { totalAmount: Number(totalAmount) }
   );
 }
+
+/**
+ * Record an extra lump-sum payment for a loan
+ * @param {string} loanId
+ * @param {object} paymentData
+ * @param {number} paymentData.amount
+ * @param {string} paymentData.paymentDate
+ * @param {'reduce_amount'|'reduce_term'} [paymentData.reductionMode]
+ * @param {string} [paymentData.notes]
+ * @returns {Promise<{ success: boolean, fullyPaidOff: boolean, extraPayment: object, loan: object }>}
+ */
+export async function addLoanExtraPayment(loanId, paymentData) {
+  if (!loanId) throw new Error('شناسه وام الزامی است');
+  return httpClient.post(
+    `/api/loans/${encodeURIComponent(loanId)}/extra-payments`,
+    paymentData
+  );
+}
+
+/**
+ * Fetch all recorded extra payments for a loan
+ * @param {string} loanId
+ * @returns {Promise<{ success: boolean, count: number, extraPayments: Array }>}
+ */
+export async function getLoanExtraPayments(loanId) {
+  if (!loanId) throw new Error('شناسه وام الزامی است');
+  return httpClient.get(`/api/loans/${encodeURIComponent(loanId)}/extra-payments`);
+}
