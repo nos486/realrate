@@ -396,6 +396,7 @@ export default function LoanInstallmentsTable({
         {filteredInstallments.map((inst) => {
           const isActionLoading = actionLoadingId === inst.id || submitting;
           const isPaying = payingInstId === inst.id;
+          const isEditing = editingInstId === inst.id;
 
           return (
             <div
