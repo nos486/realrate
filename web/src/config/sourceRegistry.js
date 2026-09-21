@@ -1,0 +1,1 @@
+../../../api/src/config/sourceRegistry.js

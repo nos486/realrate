@@ -1,145 +1,116 @@
-# راهنمای افزودن سورس قیمت جدید (معماری کد-محور / Code-First)
+# راهنمای افزودن منبع قیمت جدید (Price Source) و معماری SourceRegistry
 
-سامانه RealRate از معماری **کد-محور (Code-First)** و اصل **تنها مرجع حقیقت (Single Source of Truth)** برای تعریف و مدیریت تمامی سورس‌های قیمت استفاده می‌کند. 
+در RealRate تمام متادیتا مربوط به منابع قیمت بر اساس اصل **تنها مرجع حقیقت (Single Source of Truth)** در یک فایل متمرکز تعریف می‌شوند:
 
-> [!IMPORTANT]
-> تمامی تعاریف، نوع‌ها، دسته‌بندی‌ها، واحدها و نشان‌های سورس‌ها منحصراً در فایل مرجع [`api/src/config/sources.config.js`](file:///Users/sina/Projects/realrate/api/src/config/sources.config.js) قرار دارند. برای افزودن یک سورس جدید (تک‌نرخی یا کاتالوگ چندنرخی)، **هیچ نیازی به ویرایش سایر فایل‌های سیستم (مانند `registry.js` یا `catalogFeeds.service.js`) نیست**. تمامی بخش‌های سامانه (جستجوی سراسری، پورتفو، رصد لحظه‌ای و پنل ادمین) مشخصات را به صورت خودکار و داده‌محور از همین فایل می‌خوانند.
+```js
+// api/src/config/sources.config.js
+export const PRICE_SOURCES_CONFIG = [
+  {
+    id: "src_def_my_new_source",
+    name: "نام فارسی منبع",
+    priceType: "my_new_source",
+    sourceType: "telegram",          // یا "api_url", "charisma_plans", "bourse_symbols" و غیره
+    endpoint: "my_endpoint",
+    category: "bourse_fund",         // یا "custom", "bourse", "gold", "silver" و غیره
+    badge: "طرح",                    // (اختیاری) برچسب نمایشی
+    unit: "واحد",                    // (اختیاری) واحد پیش‌فرض
+    isFund: false,                   // آیا ماهیت صندوق یا طرح دارد؟
+    isCatalog: true,                 // اگر خروجی کاتالوگی از آیتم‌هاست
+    knownSymbols: ["gold", "silver"],// (اختیاری) نمادهای شناخته‌شده
+    knownItems: {
+      gold:   { name: "طرح طلا",   unit: "واحد", badge: "طرح" },
+      silver: { name: "طرح نقره", unit: "واحد", badge: "طرح" },
+    },
+    customParser: (data, cfg) => {
+      // در صورت نیاز به پردازش خاص خروجی کاتالوگ
+      return { isCatalog: true, items: [...] };
+    },
+    fetchIntervalSec: 1800,
+    isActive: true,
+    isPrimary: false,
+    displayConfig: { showOnHomePage: true },
+  },
+];
+```
 
 ---
 
-## ۱. فایل مرجع سورس‌ها (`api/src/config/sources.config.js`)
+## جریان داده در سامانه (Architecture Data Flow)
 
-تمامی سورس‌ها در آرایه `PRICE_SOURCES_CONFIG` تعریف می‌شوند.
+```
+┌──────────────────────────────────────┐
+│     api/src/config/sources.config.js │ (تعریف پیکربندی و متادیتای سورس‌ها)
+└──────────────────┬───────────────────┘
+                   │
+                   ▼
+┌──────────────────────────────────────┐
+│     api/src/config/sourceRegistry.js │ (رجیستری مرکزی و متدهای Resolve)
+└──────┬────────────────────────┬──────┘
+       │                        │
+       ▼                        ▼
+┌──────────────┐         ┌──────────────┐
+│ Backend APIs │         │ Web Frontend │
+│ & Adapters   │         │ (UI/Holdings)│
+└──────────────┘         └──────────────┘
+```
 
-### فیلدهای استاندارد هر سورس:
+---
+
+## مراحل افزودن منبع قیمت جدید
+
+1. **افزودن شی منبع به `PRICE_SOURCES_CONFIG`**:
+   یک شی جدید مطابق ساختار بالا به آرایه `PRICE_SOURCES_CONFIG` در فایل [`sources.config.js`](file:///Users/sina/Projects/realrate/api/src/config/sources.config.js) اضافه کنید.
+2. **سفارشی‌سازی پارسر (اختیاری)**:
+   اگر منبع ساختار داده متفاوتی دارد، تابع `customParser` را در همان شی تعریف کنید؛ در غیر این صورت نیازی به آن نیست.
+3. **ثبت تغییرات (Git Commit)**:
+   تمام بخش‌های UI و Backend (پورتفو، فرم ثبت دارایی، فرم تراکنش، فیدها و پنل مدیریت سورس‌ها) به طور خودکار از این تنظیمات استفاده می‌کنند و **هیچ نیازی به دستکاری سایر فایل‌ها نیست**.
+
+---
+
+## نحوه استفاده از رجیستری در کدها
+
+تمامی بخش‌های سامانه به طور یکپارچه از متدهای کمکی [`sourceRegistry.js`](file:///Users/sina/Projects/realrate/api/src/config/sourceRegistry.js) (یا نسخه Re-export شده در وب [`web/src/utils/sourceRegistry.js`](file:///Users/sina/Projects/realrate/web/src/utils/sourceRegistry.js)) استفاده می‌کنند:
+
+```javascript
+import {
+  resolveAssetDisplayName,
+  resolveAssetUnit,
+  resolveCategory,
+  getSourceConfig,
+} from "./sourceRegistry.js";
+
+// استخراج نام فارسی دارایی
+const name = resolveAssetDisplayName("charisma_plans__gold"); // 'طرح طلا'
+
+// استخراج واحد شمارش دارایی
+const unit = resolveAssetUnit("charisma_plans__gold");        // 'واحد'
+
+// استخراج دسته‌بندی
+const category = resolveCategory("charisma_plans__gold");    // 'bourse_fund'
+
+// دریافت تنظیمات کامل سورس
+const config = getSourceConfig("charisma_plans");
+```
+
+---
+
+## فیلدهای متادیتای هر سورس
 
 | فیلد | نوع | توضیحات |
 | :--- | :--- | :--- |
-| `id` | `string` | شناسه یکتای سورس با پیشوند `src_def_` (مثال: `src_def_ons_gold`) |
+| `id` | `string` | شناسه یکتای سورس با پیشوند `src_def_` |
 | `name` | `string` | نام نمایشی کامل و رسمی سورس به فارسی |
-| `priceType` | `string` | کلید متناظر در دارایی‌ها یا نام اختصاصی فید (مثال: `gold_18k`, `bourse`, `charisma_plans`) |
-| `sourceType` | `string` | نوع آداپتور مصرفی: `api_url` \| `telegram` \| `forex_api` \| `bourse_symbols` \| `charisma_plans` \| ... |
-| `category` | `string` | دسته‌بندی پورتفو: `bourse_fund` \| `bourse` \| `gold` \| `coin` \| `silver` \| `currency` \| `crypto` |
-| `badge` | `string` | برچسب نمایشی در نتایج جستجو و جداول (مثال: `صندوق`، `طرح`، `بورس`، `طلا`، `ارز`) |
-| `unit` | `string` | واحد اندازه‌گیری و ثبت در پورتفو (مثال: `واحد`، `برگ سهم`، `گرم`، `تومان`) |
-| `isFund` | `boolean` | آیا ماهیت صندوق یا طرح سرمایه‌گذاری دارد؟ (`true` / `false`) |
-| `isCatalog` | `boolean` | آیا سورس حاوی چند نماد یا کاتالوگ نمادها است؟ (`true` / `false`) |
+| `priceType` | `string` | کلید متناظر در دارایی‌ها یا نام فید |
+| `sourceType` | `string` | نوع آداپتور: `api_url`, `telegram`, `forex_api`, `bourse_symbols`, `charisma_plans`, ... |
+| `category` | `string` | دسته‌بندی پورتفو: `bourse_fund`, `bourse`, `gold`, `coin`, `silver`, `currency`, `crypto` |
+| `badge` | `string` | برچسب نمایشی در نتایج و جداول (مثال: `صندوق`, `طرح`, `طلا`, `ارز`) |
+| `unit` | `string` | واحد اندازه‌گیری دارایی (مثال: `واحد`, `برگ سهم`, `گرم`, `تومان`) |
+| `isFund` | `boolean` | آیا ماهیت صندوق یا طرح سرمایه‌گذاری دارد؟ |
+| `isCatalog` | `boolean` | آیا سورس حاوی کاتالوگی از آیتم‌های مجزاست؟ |
 | `endpoint` | `string` | آدرس وب‌سرویس REST/Webhook یا آیدی کانال تلگرام بدون `@` |
-| `regex` | `string` | الگوی RegEx استخراج برای تلگرام یا خروجی‌های متنی |
-| `jsonPath` | `string` | مسیر کلید در خروجی JSON (برای `api_url`) |
-| `knownSymbols` | `Array` | لیست نمادهای شاخص این سورس جهت تفکیک و جستجوی هوشمند (اختیاری) |
-| `customParser` | `function` | تابع پارسر اختصاصی در صورت پیچیده بودن ساختار داده ورودی (اختیاری) |
-| `displayConfig`| `object` | تنظیمات نمایش (`showOnHomePage`, `homePageOutputs`) |
+| `knownSymbols` | `Array` | لیست نمادهای شاخص این سورس |
+| `knownItems` | `object` | نگاشت مشخصات نمادها به نام فارسی، واحد و برچسب |
+| `customParser` | `function` | تابع پارسر اختصاصی اختیاری |
 | `fetchIntervalSec` | `number` | بازه فراخوانی خودکار به ثانیه |
-| `isActive` | `boolean` | وضعیت فعال/غیرفعال بودن در سیستم |
-| `isPrimary` | `boolean` | آیا سورس مرجع پیش‌فرض برای این دارایی است؟ |
-
----
-
-## ۲. مثال‌های کاربردی افزودن سورس
-
-### مثال ۱: افزودن سورس تک‌نرخی از طریق API عمومی
-```javascript
-{
-  id: "src_my_silver_api",
-  name: "نقره جهانی (سورس کمکی)",
-  priceType: "ons_silver",
-  sourceType: "api_url",
-  category: "silver",
-  badge: "نقره",
-  unit: "اونس",
-  endpoint: "https://api.example.com/silver",
-  jsonPath: "data.rate",
-  fetchIntervalSec: 120,
-  isActive: true,
-  isPrimary: false,
-}
-```
-
-### مثال ۲: افزودن کانال تلگرامی جدید برای طلا یا ارز
-```javascript
-{
-  id: "src_tg_tala_channel",
-  name: "طلای ۱۸ عیار (کانال تستی)",
-  priceType: "gold_18k",
-  sourceType: "telegram",
-  category: "gold",
-  badge: "طلا",
-  unit: "گرم",
-  endpoint: "my_gold_channel",
-  regex: "طلای ۱۸ عیار[\\s\\S]*?([\\d,]+)",
-  fetchIntervalSec: 60,
-  isActive: true,
-  isPrimary: false,
-}
-```
-
-### مثال ۳: افزودن فید کاتالوگی صندوق‌های سرمایه‌گذاری یا طرح‌ها (Multi-Item Catalog)
-برای افزودن یک فید تجمیعی جدید (مانند صندوق‌های کارگزاری فارابی یا طرح‌های سرمایه‌گذاری جدید):
-```javascript
-{
-  id: "src_def_farabi_funds",
-  name: "صندوق‌های سرمایه‌گذاری فارابی (Farabi)",
-  priceType: "farabi_funds",
-  sourceType: "api_url",
-  category: "bourse_fund",       // به صورت خودکار زیر «صندوق‌های سرمایه‌گذاری» در پورتفو قرار می‌گیرد
-  badge: "صندوق",
-  unit: "واحد",
-  isFund: true,
-  isCatalog: true,
-  endpoint: "https://api.irfarabi.com/v1/funds",
-  jsonPath: "data",
-  fetchIntervalSec: 1800,
-  isActive: true,
-  isPrimary: true,
-  customParser: (data, sourceConfig) => {
-    const rawList = Array.isArray(data) ? data : (data?.data || []);
-    return {
-      isCatalog: true,
-      totalCount: rawList.length,
-      items: rawList.map(item => ({
-        symbol: item.symbol,
-        name: item.title || item.name,
-        priceToman: Number(item.nav),
-        priceRial: Number(item.nav) * 10,
-        unit: "واحد",
-        isFund: true,
-        category: "bourse_fund",
-        badge: "صندوق",
-      })),
-      compactList: rawList,
-      sampleItems: rawList.slice(0, 50),
-      datetime: new Date().toISOString(),
-    };
-  },
-}
-```
-
----
-
-## ۳. چرخه حیات داده و نحوه مصرف خودکار در سیستم
-
-وقتی یک سورس در `sources.config.js` تعریف می‌شود:
-1. **سرویس کاتالوگ ([catalogFeeds.service.js](file:///Users/sina/Projects/realrate/api/src/services/market/catalogFeeds.service.js)):**
-   مقادیر `category`، `badge` و `unit` را مستقیماً از فیلدهای همان آبجکت استخراج کرده و به دارایی‌ها نسبت می‌دهد.
-2. **ثبت و تشخیص در پورتفو ([registry.js](file:///Users/sina/Projects/realrate/api/src/domain/specs/registry.js)):**
-   تابع `getSourceCategoryConfig` به صورت خودکار پیشوند شناسه دارایی (مثلاً `farabi_funds__...`) را با شناسه سورس مطابقت داده و دسته‌بندی تعریف‌شده در کانفیگ (مثلاً `bourse_fund`) را بدون هیچ شروط هاردکد شده اعمال می‌کند.
-3. **جستجوی سراسری ([UniversalAssetSearch.jsx](file:///Users/sina/Projects/realrate/web/src/components/UniversalAssetSearch.jsx)):**
-   فیلترهای دسته‌بندی و بج‌های رنگی را مستقیماً بر اساس متادیتای سورس نمایش می‌دهد.
-4. **پنل مدیریت سورس‌ها (`/admin`):**
-   سورس بلافاصله در جدول فیدها قرار گرفته و امکان تست نرخ زنده یا فعال/غیرفعال کردن آن در دسترس است.
-
----
-
-## ۴. راستی‌آزمایی سورس جدید
-
-1. **اجرای تست‌های پروژه:**
-   ```bash
-   npm test
-   ```
-2. **بررسی بیلد فرانت‌اند:**
-   ```bash
-   cd web && npm run build
-   ```
-3. **بررسی در پنل مدیریت:**
-   در مسیر `/admin` به تب «سورس‌های قیمت» مراجعه کرده و با کلیک روی «بروزرسانی نرخ»، دریافت درست داده‌ها را بررسی کنید.
+| `isActive` | `boolean` | وضعیت فعال/غیرفعال بودن سورس |
+| `isPrimary` | `boolean` | آیا سورس مرجع پیش‌فرض برای این نوع دارایی است؟ |

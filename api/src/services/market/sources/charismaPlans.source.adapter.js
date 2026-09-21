@@ -13,6 +13,12 @@ import {
   setCharismaPlansLastSync,
   setSourcePriceCache,
 } from "../../../repositories/kvCache.repository.js";
+import {
+  getSourceConfig,
+  getSourceParser,
+  resolveAssetDisplayName,
+  resolveAssetUnit,
+} from "../../../config/sourceRegistry.js";
 
 export const CHARISMA_PLANS_WEBHOOK_URL = "https://n8n.geekio.ir/webhook/38899601-0906-4aa4-aedb-8f7de5493894";
 
@@ -48,8 +54,13 @@ export const KNOWN_CHARISMA_PLAN_SYMBOLS = {
  * }}
  */
 export function mergeCharismaPlans(existingList = [], rawApiArray = [], nowIso = new Date().toISOString(), sourceConfig = null) {
-  const defaultSourceName = sourceConfig?.name || charismaPlansSourceAdapter?.name || "طرح‌های سرمایه‌گذاری کاریزما (Charisma Plans)";
-  const defaultSourceId = sourceConfig?.id || charismaPlansSourceAdapter?.id || "src_def_charisma_plans";
+  const srcCfg = sourceConfig || getSourceConfig("charisma_plans");
+  const defaultSourceName = srcCfg?.name || charismaPlansSourceAdapter?.name || "طرح‌های سرمایه‌گذاری کاریزما (Charisma Plans)";
+  const defaultSourceId = srcCfg?.id || charismaPlansSourceAdapter?.id || "src_def_charisma_plans";
+  const defaultUnit = srcCfg?.unit || "واحد";
+  const defaultCategory = srcCfg?.category || "bourse_fund";
+  const defaultBadge = srcCfg?.badge || "طرح";
+  const defaultIsFund = Boolean(srcCfg?.isFund !== undefined ? srcCfg.isFund : true);
   const plansMap = new Map();
 
   // 1. Initialize map with existing plans
@@ -181,10 +192,10 @@ export function mergeCharismaPlans(existingList = [], rawApiArray = [], nowIso =
           priceToman: validToman,
           priceRial: validRial,
           pl: validRial,
-          unit: "واحد",
-          isFund: true,
-          category: "bourse_fund",
-          badge: "طرح",
+          unit: defaultUnit,
+          isFund: defaultIsFund,
+          category: defaultCategory,
+          badge: defaultBadge,
           planCategory,
           type: "طرح سرمایه‌گذاری",
           manager: "کاریزما (Charisma)",

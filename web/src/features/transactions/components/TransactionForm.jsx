@@ -18,9 +18,11 @@ import { parseInputNumber } from '../../portfolio/utils/holdingHelpers.js';
 import {
   getCanonicalAssetSpec,
   resolveItemCategory,
+} from '../../../utils/financialSpecs.js';
+import {
   resolveAssetDisplayName,
   resolveAssetUnit,
-} from '../../../utils/financialSpecs.js';
+} from '../../../utils/sourceRegistry.js';
 
 export default function TransactionForm({
   isOpen,

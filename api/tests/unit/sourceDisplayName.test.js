@@ -1,5 +1,39 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, test, expect } from 'vitest';
 import { getSourceDisplayName } from '../../src/config/sources.config.js';
+import {
+  resolveAssetDisplayName,
+  resolveAssetUnit,
+  getSourceConfig,
+} from '../../src/config/sourceRegistry.js';
+
+describe('SourceRegistry – display name & unit resolution', () => {
+  test('canonical gold returns Persian name', () => {
+    expect(resolveAssetDisplayName('gold_18k')).toBe('طلای ۱۸ عیار');
+  });
+
+  test('catalog item charisma_plans__gold uses knownItems', () => {
+    expect(resolveAssetDisplayName('charisma_plans__gold')).toBe('طرح طلا');
+    expect(resolveAssetUnit('charisma_plans__gold')).toBe('واحد');
+  });
+
+  test('bourse symbol fallback', () => {
+    expect(resolveAssetDisplayName('bourse_fa')).toBe('سهام fa');
+    expect(resolveAssetUnit('bourse_fa')).toBe('برگ سهم');
+  });
+
+  test('custom asset keeps raw name if provided', () => {
+    const raw = { name: 'سرمایهگذاری شخصی', unit: 'واحد' };
+    expect(resolveAssetDisplayName('custom_123', raw)).toBe('سرمایهگذاری شخصی');
+    expect(resolveAssetUnit('custom_123', raw)).toBe('واحد');
+  });
+
+  test('inactive source is still resolvable (display name) but not fetched', () => {
+    const cfg = getSourceConfig('src_def_some_inactive');
+    expect(cfg?.isActive).toBe(false);
+    // display name still works
+    expect(resolveAssetDisplayName('src_def_some_inactive')).toBeTruthy();
+  });
+});
 
 describe('Dynamic Source Display Name Resolution Tests', () => {
   it('correctly maps Charisma funds to Charisma source without hardcoded if/else', () => {

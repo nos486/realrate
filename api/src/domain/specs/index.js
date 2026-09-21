@@ -9,3 +9,10 @@ export * from './forex.spec.js';
 export * from './crypto.spec.js';
 export * from './registry.js';
 export * from '../formulas.js';
+export {
+  getSourceConfig,
+  resolveAssetDisplayName,
+  resolveAssetUnit,
+  getSourceParser,
+  resolveCategory,
+} from '../../config/sourceRegistry.js';

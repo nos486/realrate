@@ -7,7 +7,7 @@ export const TROY_OUNCE_GRAMS = 31.1034768;
 export const GOLD_SPECS = {
   gold_18k: {
     id: 'gold_18k',
-    name: 'طلا ۱۸ عیار',
+    name: 'طلای ۱۸ عیار',
     category: 'gold',
     badge: 'طلا',
     unit: 'گرم',

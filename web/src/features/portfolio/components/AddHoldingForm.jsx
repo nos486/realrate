@@ -8,9 +8,11 @@ import { parseInputNumber } from '../utils/holdingHelpers.js';
 import {
   getCanonicalAssetSpec,
   resolveItemCategory,
+} from '../../../utils/financialSpecs.js';
+import {
   resolveAssetDisplayName,
   resolveAssetUnit,
-} from '../../../utils/financialSpecs.js';
+} from '../../../utils/sourceRegistry.js';
 import { usePricing } from '../../market/index.js';
 
 const formatNum = (v) => Number(v || 0).toLocaleString('fa-IR');

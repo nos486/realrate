@@ -7,8 +7,6 @@ import { COIN_SPECS } from './coin.spec.js';
 import { SILVER_SPECS } from './silver.spec.js';
 import { FOREX_SPECS } from './forex.spec.js';
 import { CRYPTO_SPECS } from './crypto.spec.js';
-import { getSourceCategoryConfig, getSourceItemDisplayName } from '../../config/sources.config.js';
-
 // ── Master Canonical Asset Registry ──────────────────────────────────────────
 export const CANONICAL_ASSET_REGISTRY = {};
 
@@ -136,81 +134,6 @@ export function getCanonicalAssetName(assetId, fallbackName = '') {
 }
 
 /**
- * Unified display name resolver — single pipeline for ALL asset types.
- *
- * Priority:
- *  1. rawItem.assetName / rawItem.name — if set and not an ID-like string
- *  2. CANONICAL_ASSET_REGISTRY        — gold, coin, silver, forex, crypto
- *  3. Source knownItems (catalog)      — charisma_plans__gold, emofid__ayyar, ...
- *  4. bourse_SYMBOL                   — use rawItem.name or construct from symbol
- *  5. Raw ID                          — last resort
- *
- * @param {string} assetId
- * @param {object|null} rawItem  - optional holding/asset object for extra context
- * @returns {string}
- */
-export function resolveAssetDisplayName(assetId, rawItem = null) {
-  if (!assetId) return '';
-
-  const clean = String(assetId).replace(/^src_def_/, '').replace(/^derived_/, '').trim();
-
-  // 1. If rawItem has a meaningful Persian name (not ID-like)
-  if (rawItem) {
-    const rawName = String(rawItem.assetName || rawItem.name || '').trim();
-    const isIdLike = !rawName ||
-      rawName.startsWith('src_def_') ||
-      rawName.startsWith('derived_') ||
-      rawName === assetId ||
-      rawName === clean ||
-      rawName.includes('__');
-    if (!isIdLike) return rawName;
-  }
-
-  // 2. CANONICAL_ASSET_REGISTRY (gold, coin, silver, forex, crypto)
-  const spec = getCanonicalAssetSpec(clean);
-  if (spec&&spec.name) return spec.name;
-
-  // 3. Source catalog knownItems (e.g. charisma_plans__gold → 'طرح طلا')
-  const srcItem = getSourceItemDisplayName(clean);
-  if (srcItem&&srcItem.name) return srcItem.name;
-
-  // 4. bourse_SYMBOL → use assetName from rawItem or construct label
-  if (clean.startsWith('bourse_')) {
-    const sym = clean.replace(/^bourse_/, '');
-    if (rawItem) {
-      const n = String(rawItem.assetName || rawItem.name || '').trim();
-      if (n && !n.startsWith('bourse_') && n !== assetId) return n;
-      const isFund = rawItem.isFund || rawItem.assetType === 'bourse_fund' || rawItem.category === 'bourse_fund';
-      return isFund ? `صندوق ${sym}` : `سهام ${sym}`;
-    }
-    return sym;
-  }
-
-  // 5. Fall back to clean ID
-  return clean || assetId;
-}
-
-/**
- * Unified unit resolver — consistent with resolveAssetDisplayName priority.
- * @param {string} assetId
- * @param {object|null} rawItem
- * @param {string} fallbackUnit
- * @returns {string}
- */
-export function resolveAssetUnit(assetId, rawItem = null, fallbackUnit = 'واحد') {
-  const clean = String(assetId || '').replace(/^src_def_/, '').replace(/^derived_/, '').trim();
-
-  const spec = getCanonicalAssetSpec(clean);
-  if (spec&&spec.unit) return spec.unit;
-
-  const srcItem = getSourceItemDisplayName(clean);
-  if (srcItem&&srcItem.unit) return srcItem.unit;
-
-  if (rawItem&&rawItem.unit) return rawItem.unit;
-  return fallbackUnit;
-}
-
-/**
  * Retrieve the canonical unit of an asset by ID
  * @param {string} assetId
  * @param {string} fallbackUnit
@@ -246,159 +169,34 @@ export function getCanonicalAssetBadge(assetId, fallbackBadge = '') {
   return fallbackBadge;
 }
 
+import { CATEGORIES_CONFIG, CATEGORY_MAP } from '../../config/categories.config.js';
+import { resolveCategory } from '../../config/sourceRegistry.js';
+
 /**
  * Resolve the standard category key for any holding/asset
  * @param {object|string} item - holding object or assetId
  * @returns {string} - 'gold' | 'coin' | 'silver' | 'currency' | 'crypto' | 'bourse' | 'bourse_fund' | 'custom'
  */
 export function resolveItemCategory(item, fallbackType = null) {
-  if (!item) return 'custom';
-  if (typeof item === 'string') {
-    const clean = item.replace(/^src_def_/, '').replace(/^derived_/, '').trim();
-    const spec = getCanonicalAssetSpec(clean);
-    if (spec && spec.category) return spec.category;
-    if (clean.startsWith('bourse_')) return 'bourse';
-
-    // Dynamic data-driven lookup from sources.config.js (Single Source of Truth)
-    const srcConfig = getSourceCategoryConfig(clean);
-    if (srcConfig) {
-      if (srcConfig.category) return srcConfig.category;
-      if (srcConfig.isFund) return 'bourse_fund';
-    }
-
-    if (clean.startsWith('custom_') || clean === 'custom') return 'custom';
-    if (fallbackType && ['gold', 'coin', 'silver', 'currency', 'crypto', 'bourse', 'bourse_fund'].includes(fallbackType)) {
-      return fallbackType;
-    }
-    return 'custom';
-  }
-
-  const assetId = String(item.assetId || item.id || '').trim();
-  const cleanId = assetId.replace(/^src_def_/, '').replace(/^derived_/, '').trim();
-  const assetType = String(item.assetType || item.category || '').trim().toLowerCase();
-  const assetName = String(item.assetName || item.name || '').trim();
-
-  // 1. Canonical standard assets (Gold, Coins, Silver, Forex, Crypto) - Always check first!
-  const spec = getCanonicalAssetSpec(cleanId);
-  if (spec && spec.category) return spec.category;
-
-  // 2. Custom personal asset
-  if (assetType === 'custom' || cleanId.startsWith('custom_') || cleanId === 'custom') {
-    return 'custom';
-  }
-
-  // 3. Dynamic data-driven lookup from sources.config.js (Single Source of Truth)
-  const srcConfig = getSourceCategoryConfig(cleanId) || getSourceCategoryConfig(assetType);
-  if (srcConfig) {
-    if (srcConfig.category) return srcConfig.category;
-    if (srcConfig.isFund) return 'bourse_fund';
-  }
-
-  // 4. Generic explicit Bourse Stocks & Investment Funds checks
-  const isFund = Boolean(
-    item.isFund ||
-    item.raw?.isFund ||
-    assetType === 'bourse_fund' ||
-    assetType === 'fund' ||
-    cleanId.startsWith('fund_') ||
-    (assetName.includes('صندوق') && !cleanId.startsWith('custom_'))
-  );
-  const isBourse = Boolean(
-    isFund ||
-    cleanId.startsWith('bourse_') ||
-    assetType === 'bourse'
-  );
-  if (isBourse) {
-    return isFund ? 'bourse_fund' : 'bourse';
-  }
-
-  if (['gold', 'coin', 'silver', 'currency', 'crypto', 'bourse', 'bourse_fund'].includes(assetType)) {
-    return assetType;
-  }
-
-  return 'custom';
+  return resolveCategory(item, fallbackType);
 }
 
-// ── Master Portfolio Category Definitions ───────────────────────────────────
-export const PORTFOLIO_CATEGORIES = [
-  {
-    key: 'gold',
-    name: 'طلا و آب‌شده',
-    badge: 'طلا',
-    iconName: 'Award',
-    order: 1,
-    match: (item) => resolveItemCategory(item) === 'gold',
-  },
-  {
-    key: 'coin',
-    name: 'سکه‌های بهار آزادی',
-    badge: 'سکه',
-    iconName: 'Coins',
-    order: 2,
-    match: (item) => resolveItemCategory(item) === 'coin',
-  },
-  {
-    key: 'silver',
-    name: 'نقره و مسکوکات',
-    badge: 'نقره',
-    iconName: 'Disc',
-    order: 3,
-    match: (item) => resolveItemCategory(item) === 'silver',
-  },
-  {
-    key: 'currency',
-    name: 'ارزهای خارجی',
-    badge: 'ارز',
-    iconName: 'Banknote',
-    order: 4,
-    match: (item) => resolveItemCategory(item) === 'currency',
-  },
-  {
-    key: 'crypto',
-    name: 'رمزارزها',
-    badge: 'رمزارز',
-    iconName: 'Zap',
-    order: 5,
-    match: (item) => resolveItemCategory(item) === 'crypto',
-  },
-  {
-    key: 'bourse',
-    name: 'بورس اوراق بهادار تهران (سهام)',
-    badge: 'سهام بورس',
-    iconName: 'TrendingUp',
-    order: 6,
-    match: (item) => resolveItemCategory(item) === 'bourse',
-  },
-  {
-    key: 'bourse_fund',
-    name: 'صندوق‌های سرمایه‌گذاری',
-    badge: 'صندوق',
-    iconName: 'Layers',
-    order: 7,
-    match: (item) => resolveItemCategory(item) === 'bourse_fund',
-  },
-  {
-    key: 'custom',
-    name: 'دارایی‌های شخصی و سفارشی',
-    badge: 'سفارشی',
-    iconName: 'Sparkles',
-    order: 8,
-    match: (item) => resolveItemCategory(item) === 'custom',
-  },
-];
+// ── Master Portfolio Category Definitions (Derived from categories.config.js) ─
+export const PORTFOLIO_CATEGORIES = CATEGORIES_CONFIG.map((c) => ({
+  ...c,
+  match: (item) => resolveCategory(item) === c.key,
+}));
 
 export const CATEGORY_DEFINITIONS = PORTFOLIO_CATEGORIES;
 
-export const PORTFOLIO_CATEGORY_DICT = Object.fromEntries(
-  PORTFOLIO_CATEGORIES.map((c) => [c.key, c])
-);
+export const PORTFOLIO_CATEGORY_DICT = CATEGORY_MAP;
 
 export function getCategoryLabel(categoryKey, fallback = '') {
-  return PORTFOLIO_CATEGORY_DICT[categoryKey]?.name || fallback || categoryKey || '';
+  return CATEGORY_MAP[categoryKey]?.name || fallback || categoryKey || '';
 }
 
 export function getCategoryBadge(categoryKey, fallback = '') {
-  return PORTFOLIO_CATEGORY_DICT[categoryKey]?.badge || fallback || categoryKey || '';
+  return CATEGORY_MAP[categoryKey]?.badge || fallback || categoryKey || '';
 }
 
 // ── Dynamic Proxies for Single Source of Truth Forex & Currency Metadata ────

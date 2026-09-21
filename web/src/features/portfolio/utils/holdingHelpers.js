@@ -16,11 +16,20 @@ import {
   PORTFOLIO_CATEGORIES,
   resolveHoldingUnitRealPrice,
   normalizePersianText,
+} from '../../../utils/financialSpecs.js';
+import {
   resolveAssetDisplayName,
   resolveAssetUnit,
-} from '../../../utils/financialSpecs.js';
+  resolveCategory,
+} from '../../../utils/sourceRegistry.js';
 
-export { resolveHoldingUnitRealPrice, normalizePersianText, resolveAssetDisplayName, resolveAssetUnit };
+export {
+  resolveHoldingUnitRealPrice,
+  normalizePersianText,
+  resolveAssetDisplayName,
+  resolveAssetUnit,
+  resolveCategory,
+};
 
 export const CATEGORY_DEFINITIONS = PORTFOLIO_CATEGORIES;
 
@@ -63,52 +72,24 @@ export function normalizeHolding(h) {
 
   const cleanId = assetId.replace(/^src_def_/, '').replace(/^derived_/, '');
 
-  const resolvedCategory = resolveItemCategory(h);
-
-  // 1. Bourse Stocks & Funds
-  if (resolvedCategory === 'bourse' || resolvedCategory === 'bourse_fund') {
-    const isFund = resolvedCategory === 'bourse_fund';
-    const displayName = resolveAssetDisplayName(assetId, h);
-    if (!unit || unit === 'واحد' || unit === 'گرم' || unit === 'عدد' || unit === 'تومان') {
-      unit = isFund ? 'واحد' : 'برگ سهام';
-    }
-    return {
-      ...h,
-      assetId,
-      assetName: displayName,
-      assetType: resolvedCategory,
-      category: resolvedCategory,
-      unit,
-      isFund,
-      currentPrice,
-      customPrice,
-    };
-  }
-
-  // 2. Custom personal asset
-  if (resolvedCategory === 'custom') {
-    return {
-      ...h,
-      assetId: assetId.startsWith('custom_') ? assetId : (cleanId === 'custom' ? `custom_${Date.now()}` : assetId),
-      assetName: assetName && !assetName.includes('__') ? assetName : ('دارایی شخصی'),
-      assetType: 'custom',
-      category: 'custom',
-      unit: unit || 'واحد',
-      currentPrice,
-      customPrice,
-    };
-  }
-
-  // 3. Canonical standard assets (Gold, Coins, Silver, Forex, Crypto) + catalog items
+  const resolvedCategory = resolveCategory(h);
   const displayName = resolveAssetDisplayName(assetId, h);
-  const resolvedUnit = resolveAssetUnit(assetId, h, unit || 'واحد');
+  const resolvedUnit = resolveAssetUnit(assetId, h, unit);
+  const isFund = resolvedCategory === 'bourse_fund' || Boolean(h.isFund);
+
+  let finalAssetId = cleanId || assetId;
+  if (resolvedCategory === 'custom' && !finalAssetId.startsWith('custom_')) {
+    finalAssetId = finalAssetId === 'custom' ? `custom_${Date.now()}` : finalAssetId;
+  }
+
   return {
     ...h,
-    assetId: cleanId || assetId,
-    assetName: displayName,
+    assetId: finalAssetId,
+    assetName: displayName || (resolvedCategory === 'custom' ? 'دارایی شخصی' : finalAssetId),
     assetType: resolvedCategory,
     category: resolvedCategory,
     unit: resolvedUnit,
+    isFund,
     currentPrice,
     customPrice,
   };
