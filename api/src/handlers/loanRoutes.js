@@ -57,6 +57,7 @@ export async function handleGetLoans(request, env) {
 /**
  * POST /api/loans
  * Create a new loan and its installments
+ * Accepts loan metadata including optional customFirstInstallmentAmount in request body
  */
 export async function handleCreateLoan(request, env) {
   const { userId } = await requireUser(request, env);

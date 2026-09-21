@@ -9,6 +9,7 @@
  */
 
 import React, { useState, useEffect, useMemo } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import {
   Landmark,
   Plus,
@@ -22,7 +23,7 @@ import {
   Cloud,
 } from 'lucide-react';
 import { useAuth } from '../../auth/index.js';
-import { useLoans } from '../hooks/useLoans.js';
+import { useLoansContext } from '../context/LoansContext.jsx';
 import { useLoanDetail } from '../hooks/useLoanDetail.js';
 import LoansTable from './LoansTable.jsx';
 import AddLoanForm from './AddLoanForm.jsx';
@@ -126,17 +127,31 @@ export default function LoansPage({ initialLoanId = null }) {
     addLoan,
     updateLoan,
     deleteLoan,
-  } = useLoans();
+  } = useLoansContext();
+
+  const navigate = useNavigate();
+  const location = useLocation();
 
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [editingLoan, setEditingLoan] = useState(null);
   const [selectedLoanId, setSelectedLoanId] = useState(initialLoanId);
 
   useEffect(() => {
-    if (initialLoanId) {
-      setSelectedLoanId(initialLoanId);
-    }
+    setSelectedLoanId(initialLoanId || null);
   }, [initialLoanId]);
+
+  const handleSelectLoan = (loan) => {
+    if (!loan?.id) return;
+    setSelectedLoanId(loan.id);
+    navigate(`/loans/${loan.id}`);
+  };
+
+  const handleCloseDetailModal = () => {
+    setSelectedLoanId(null);
+    if (location.pathname !== '/loans' || location.search.includes('id=')) {
+      navigate('/loans');
+    }
+  };
 
   // 1. Overall Aggregated Metrics
   const summaryMetrics = useMemo(() => {
@@ -194,6 +209,9 @@ export default function LoansPage({ initialLoanId = null }) {
     }
     try {
       await deleteLoan(loanId);
+      if (selectedLoanId === loanId) {
+        handleCloseDetailModal();
+      }
     } catch (err) {
       alert(err.message || 'خطا در حذف وام');
     }
@@ -404,7 +422,7 @@ export default function LoansPage({ initialLoanId = null }) {
       ) : (
         <LoansTable
           loans={loans}
-          onSelectLoan={(l) => setSelectedLoanId(l.id)}
+          onSelectLoan={handleSelectLoan}
           onEditLoan={handleOpenEditModal}
           onDeleteLoan={handleDeleteLoan}
         />
@@ -426,7 +444,7 @@ export default function LoansPage({ initialLoanId = null }) {
       {selectedLoanId && (
         <LoanDetailModal
           loanId={selectedLoanId}
-          onClose={() => setSelectedLoanId(null)}
+          onClose={handleCloseDetailModal}
           onRefreshLoans={fetchLoans}
         />
       )}
