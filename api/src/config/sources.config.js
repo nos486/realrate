@@ -132,7 +132,7 @@ export const PRICE_SOURCES_CONFIG = [
     sourceType: "api_url",
     endpoint: "https://api.brsapi.ir/Market/Gold_Currency.php?key=${BRS_API_KEY}",
     category: "currency",
-    unit: "تومان",
+    unit: "تتر",
     fetchIntervalSec: 5,
     isActive: true,
     isPrimary: true,
@@ -294,18 +294,6 @@ export const PRICE_SOURCES_CONFIG = [
         datetime: new Date().toISOString(),
       };
     },
-  },
-  {
-    id: "src_def_some_inactive",
-    name: "منبع آزمایشی غیرفعال",
-    priceType: "some_inactive",
-    sourceType: "api_url",
-    endpoint: "https://example.com/inactive",
-    category: "custom",
-    unit: "واحد",
-    fetchIntervalSec: 3600,
-    isActive: false,
-    isPrimary: false,
   },
 ];
 

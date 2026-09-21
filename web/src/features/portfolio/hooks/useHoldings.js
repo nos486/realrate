@@ -67,9 +67,6 @@ export function useHoldings(activePortfolio) {
                 await addPortfolioHolding({
                   portfolioId: activePortfolio.id,
                   assetId: itm.assetId,
-                  assetName: itm.name || itm.assetName,
-                  assetType: itm.category || itm.assetType || 'custom',
-                  unit: itm.unit,
                   amount: itm.amount,
                   buyPrice: itm.buyPrice || 0,
                   buyDate: itm.buyDate || '',

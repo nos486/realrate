@@ -27,11 +27,9 @@ describe('SourceRegistry – display name & unit resolution', () => {
     expect(resolveAssetUnit('custom_123', raw)).toBe('واحد');
   });
 
-  test('inactive source is still resolvable (display name) but not fetched', () => {
-    const cfg = getSourceConfig('src_def_some_inactive');
-    expect(cfg?.isActive).toBe(false);
-    // display name still works
-    expect(resolveAssetDisplayName('src_def_some_inactive')).toBeTruthy();
+  test('resolves canonical USDT unit to تتر', () => {
+    expect(resolveAssetUnit('USDT')).toBe('تتر');
+    expect(resolveAssetUnit('src_brs_usdt')).toBe('تتر');
   });
 });
 

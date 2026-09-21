@@ -200,34 +200,17 @@ export default function AddHoldingForm({
     const parsedBuyPrice = parseInputNumber(buyPrice);
 
     let finalAssetId = selectedAssetId;
-    let finalAssetName = '';
-    let finalUnit = 'واحد';
-    let finalAssetType = 'gold';
 
     if (selectedAssetId === 'custom' || selectedAssetId.startsWith('custom_')) {
       finalAssetId = editingHolding?.assetId || `custom_${Date.now()}`;
-      finalAssetName = customName.trim() || 'دارایی شخصی';
-      finalUnit = customUnit.trim() || 'واحد';
-      finalAssetType = 'custom';
     } else if (selectedBourseSymbol || selectedAssetId.startsWith('bourse_')) {
       const sym = selectedBourseSymbol?.symbol || selectedAssetId.replace('bourse_', '');
       finalAssetId = `bourse_${sym}`;
-      finalAssetName = selectedBourseSymbol?.name || sym;
-      finalAssetType = selectedBourseSymbol?.isFund ? 'bourse_fund' : 'bourse';
-      finalUnit = selectedBourseSymbol?.isFund ? 'واحد' : 'برگ سهم';
-    } else {
-      finalAssetType = resolveCategory(selectedAssetId);
-      finalAssetName = resolveAssetDisplayName(selectedAssetId) || customName;
-      finalUnit = resolveAssetUnit(selectedAssetId) || customUnit || 'واحد';
     }
 
     onSubmit?.({
       id: editingHolding?.id,
       assetId: finalAssetId,
-      assetName: finalAssetName,
-      assetType: finalAssetType,
-      category: finalAssetType,
-      unit: finalUnit,
       amount: parsedAmount,
       buyPrice: parsedBuyPrice !== null ? parsedBuyPrice : 0,
       buyDate: buyDate.trim(),

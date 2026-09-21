@@ -14,5 +14,4 @@ export {
   formatNum,
   parseInputNumber,
   normalizeHolding,
-  ASSET_TYPES,
 } from '../features/portfolio/utils/holdingHelpers.js';

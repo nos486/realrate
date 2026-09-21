@@ -36,7 +36,7 @@ FOREX_SPECS.forEach(item => {
     name: item.name,
     flag: item.flag,
     symbol: item.symbol,
-    unit: item.unit || 'تومان',
+    unit: item.unit || 'واحد',
     category: item.category || 'currency',
     badge: item.badge || 'ارز',
     defaultCross: item.defaultCross,
