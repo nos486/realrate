@@ -10,7 +10,7 @@
 export const CATEGORIES_CONFIG = [
   {
     key: 'gold',
-    name: 'طلا و آب‌شده',
+    name: 'طلا',
     badge: 'طلا',
     iconName: 'Award',
     color: 'amber',
