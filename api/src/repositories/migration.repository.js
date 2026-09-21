@@ -153,12 +153,25 @@ export async function ensureD1Tables(env) {
       is_paid INTEGER DEFAULT 0,
       paid_date TEXT DEFAULT '',
       paid_amount REAL DEFAULT 0,
+      is_manual_override INTEGER DEFAULT 0,
       created_at TEXT NOT NULL,
       updated_at TEXT NOT NULL
     )`,
     `CREATE INDEX IF NOT EXISTS idx_loan_installments_loan ON loan_installments(loan_id)`,
     `CREATE INDEX IF NOT EXISTS idx_loan_installments_user ON loan_installments(user_id)`,
     `CREATE INDEX IF NOT EXISTS idx_loan_installments_due ON loan_installments(due_date)`,
+    `CREATE TABLE IF NOT EXISTS loan_extra_payments (
+      id TEXT PRIMARY KEY,
+      loan_id TEXT NOT NULL,
+      user_id TEXT NOT NULL,
+      amount REAL NOT NULL,
+      payment_date TEXT NOT NULL,
+      reduction_mode TEXT NOT NULL DEFAULT 'reduce_amount',
+      notes TEXT DEFAULT '',
+      created_at TEXT NOT NULL
+    )`,
+    `CREATE INDEX IF NOT EXISTS idx_loan_extra_payments_loan ON loan_extra_payments(loan_id)`,
+    `CREATE INDEX IF NOT EXISTS idx_loan_extra_payments_user ON loan_extra_payments(user_id)`,
     `DROP TABLE IF EXISTS price_history`,
     `DROP TABLE IF EXISTS source_types`,
     `DROP TABLE IF EXISTS derived_assets`,
@@ -251,6 +264,11 @@ export async function ensureD1Tables(env) {
     // Backward-compat: display_config — extra UI metadata (JSON: description, tags, color, icon)
     try {
       await env.DB.prepare("ALTER TABLE price_sources ADD COLUMN display_config TEXT DEFAULT ''").run();
+    } catch (ignore) {}
+
+    // Backward-compat: ensure is_manual_override exists on loan_installments
+    try {
+      await env.DB.prepare("ALTER TABLE loan_installments ADD COLUMN is_manual_override INTEGER DEFAULT 0").run();
     } catch (ignore) {}
 
     // Programmatic seed of master price sources from PRICE_SOURCES_CONFIG to prevent drift

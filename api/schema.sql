@@ -196,10 +196,26 @@ CREATE TABLE IF NOT EXISTS loan_installments (
   is_paid INTEGER DEFAULT 0,
   paid_date TEXT DEFAULT '',
   paid_amount REAL DEFAULT 0,
+  is_manual_override INTEGER DEFAULT 0,
   created_at TEXT NOT NULL,
   updated_at TEXT NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_loan_installments_loan ON loan_installments(loan_id);
 CREATE INDEX IF NOT EXISTS idx_loan_installments_user ON loan_installments(user_id);
 CREATE INDEX IF NOT EXISTS idx_loan_installments_due ON loan_installments(due_date);
+
+-- 9. Loan Extra Payments Table
+CREATE TABLE IF NOT EXISTS loan_extra_payments (
+  id TEXT PRIMARY KEY,
+  loan_id TEXT NOT NULL,
+  user_id TEXT NOT NULL,
+  amount REAL NOT NULL,
+  payment_date TEXT NOT NULL,
+  reduction_mode TEXT NOT NULL DEFAULT 'reduce_amount',
+  notes TEXT DEFAULT '',
+  created_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_loan_extra_payments_loan ON loan_extra_payments(loan_id);
+CREATE INDEX IF NOT EXISTS idx_loan_extra_payments_user ON loan_extra_payments(user_id);
+
 

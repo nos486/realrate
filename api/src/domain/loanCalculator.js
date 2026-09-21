@@ -140,17 +140,38 @@ export function calculateFixedInstallmentAmount({
  *   remainingBalanceAfter: number
  * }>}
  */
-export function generateAmortizationSchedule({
-  principal,
+/**
+ * Recalculate amortization schedule starting from an arbitrary balance and installment offset.
+ *
+ * @param {object} params
+ * @param {number} params.anchorBalance - Current remaining balance to amortize
+ * @param {number} [params.anchorInstallmentNumber=0] - Preceding installment number (e.g., number of already paid installments)
+ * @param {number} params.remainingCount - Number of remaining installments to distribute over
+ * @param {number} [params.annualRatePct=0] - Annual interest rate percentage
+ * @param {number} [params.intervalMonths=1] - Frequency interval in months
+ * @param {string} params.startDateIso - Original loan start date
+ * @returns {Array<{
+ *   installmentNumber: number,
+ *   dueDateIso: string,
+ *   principalPortion: number,
+ *   interestPortion: number,
+ *   totalAmount: number,
+ *   remainingBalanceAfter: number
+ * }>}
+ */
+export function recalculateFromBalance({
+  anchorBalance,
+  anchorInstallmentNumber = 0,
+  remainingCount,
   annualRatePct = 0,
-  installmentCount,
-  startDateIso,
   intervalMonths = 1,
+  startDateIso,
 }) {
-  const p = Number(principal) || 0;
-  const n = parseInt(installmentCount, 10) || 0;
+  const p = Number(anchorBalance) || 0;
+  const n = parseInt(remainingCount, 10) || 0;
   const rate = Number(annualRatePct) || 0;
   const interval = parseInt(intervalMonths, 10) || 1;
+  const anchor = parseInt(anchorInstallmentNumber, 10) || 0;
 
   if (p <= 0 || n <= 0) return [];
 
@@ -166,10 +187,11 @@ export function generateAmortizationSchedule({
   const schedule = [];
   let remainingBalance = p;
 
-  for (let i = 1; i <= n; i++) {
-    const dueDateIso = computeClampedDueDate(parsedStart, i, interval);
+  for (let k = 1; k <= n; k++) {
+    const installmentNumber = anchor + k;
+    const dueDateIso = computeClampedDueDate(parsedStart, installmentNumber, interval);
 
-    if (i === n) {
+    if (k === n) {
       // Last installment reconciles remaining principal to guarantee exact zero balance
       const interestPortion = r > 0 ? Math.round(remainingBalance * r) : 0;
       const principalPortion = remainingBalance;
@@ -177,7 +199,7 @@ export function generateAmortizationSchedule({
       remainingBalance = 0;
 
       schedule.push({
-        installmentNumber: i,
+        installmentNumber,
         dueDateIso,
         principalPortion,
         interestPortion,
@@ -199,7 +221,7 @@ export function generateAmortizationSchedule({
       remainingBalance = remainingBalance - principalPortion;
 
       schedule.push({
-        installmentNumber: i,
+        installmentNumber,
         dueDateIso,
         principalPortion,
         interestPortion,
@@ -211,3 +233,133 @@ export function generateAmortizationSchedule({
 
   return schedule;
 }
+
+/**
+ * Generate full amortization schedule for a loan.
+ *
+ * @param {object} params
+ * @param {number} params.principal - Principal loan amount
+ * @param {number} params.annualRatePct - Annual interest rate percentage (0 for قرض‌الحسنه)
+ * @param {number} params.installmentCount - Total number of installments
+ * @param {string} params.startDateIso - Loan start date (ISO or YYYY-MM-DD)
+ * @param {number} [params.intervalMonths=1] - Interval in months (default 1)
+ * @returns {Array<{
+ *   installmentNumber: number,
+ *   dueDateIso: string,
+ *   principalPortion: number,
+ *   interestPortion: number,
+ *   totalAmount: number,
+ *   remainingBalanceAfter: number
+ * }>}
+ */
+export function generateAmortizationSchedule({
+  principal,
+  annualRatePct = 0,
+  installmentCount,
+  startDateIso,
+  intervalMonths = 1,
+}) {
+  return recalculateFromBalance({
+    anchorBalance: principal,
+    anchorInstallmentNumber: 0,
+    remainingCount: installmentCount,
+    annualRatePct,
+    intervalMonths,
+    startDateIso,
+  });
+}
+
+/**
+ * Calculate payoff schedule with a fixed installment amount ("کاهش تعداد اقساط" / Reduce Term).
+ * Simulates month-by-month payment until balance reaches exactly 0.
+ *
+ * @param {object} params
+ * @param {number} params.remainingBalance - Current remaining balance
+ * @param {number} params.fixedInstallmentAmount - Target fixed installment amount per period
+ * @param {number} [params.annualRatePct=0] - Annual interest rate percentage
+ * @param {number} [params.intervalMonths=1] - Frequency interval in months
+ * @param {string} params.startDateIso - Original loan start date
+ * @param {number} [params.anchorInstallmentNumber=0] - Number of already elapsed installments
+ * @returns {Array<{
+ *   installmentNumber: number,
+ *   dueDateIso: string,
+ *   principalPortion: number,
+ *   interestPortion: number,
+ *   totalAmount: number,
+ *   remainingBalanceAfter: number
+ * }>}
+ */
+export function calculatePayoffScheduleFixedAmount({
+  remainingBalance,
+  fixedInstallmentAmount,
+  annualRatePct = 0,
+  intervalMonths = 1,
+  startDateIso,
+  anchorInstallmentNumber = 0,
+}) {
+  let balance = Number(remainingBalance) || 0;
+  const pmt = Number(fixedInstallmentAmount) || 0;
+  const rate = Number(annualRatePct) || 0;
+  const interval = parseInt(intervalMonths, 10) || 1;
+  const anchor = parseInt(anchorInstallmentNumber, 10) || 0;
+
+  if (balance <= 0) return [];
+  if (pmt <= 0) {
+    throw new Error("مبلغ قسط ثابت باید بزرگتر از صفر باشد.");
+  }
+
+  const r = rate > 0 ? (rate / 100) * (interval / 12) : 0;
+
+  // Validate that payment exceeds initial period interest to avoid infinite loop
+  const initialInterest = r > 0 ? Math.round(balance * r) : 0;
+  if (r > 0 && pmt <= initialInterest) {
+    throw new Error("مبلغ قسط ثابت کمتر یا مساوی بهره دوره‌ای است و وام هرگز تسویه نخواهد شد.");
+  }
+
+  const parsedStart = parseDateParts(startDateIso);
+  const schedule = [];
+  const MAX_ITERATIONS = 1200; // 100 years safety cap
+  let iteration = 0;
+
+  while (balance > 0) {
+    iteration++;
+    if (iteration > MAX_ITERATIONS) {
+      throw new Error("تعداد اقساط محاسبه‌شده از سقف مجاز (۱۲۰۰ قسط) فراتر رفت.");
+    }
+
+    const installmentNumber = anchor + iteration;
+    const dueDateIso = computeClampedDueDate(parsedStart, installmentNumber, interval);
+    const interestPortion = r > 0 ? Math.round(balance * r) : 0;
+
+    let principalPortion = pmt - interestPortion;
+    if (principalPortion <= 0 && balance > 0) {
+      throw new Error("مبلغ قسط ثابت کمتر یا مساوی بهره دوره‌ای است و وام هرگز تسویه نخواهد شد.");
+    }
+
+    let remainingBalanceAfter = 0;
+    let totalAmount = pmt;
+
+    if (principalPortion >= balance) {
+      // Clamped final installment
+      principalPortion = balance;
+      totalAmount = principalPortion + interestPortion;
+      balance = 0;
+      remainingBalanceAfter = 0;
+    } else {
+      balance = balance - principalPortion;
+      remainingBalanceAfter = balance;
+    }
+
+    schedule.push({
+      installmentNumber,
+      dueDateIso,
+      principalPortion,
+      interestPortion,
+      totalAmount,
+      remainingBalanceAfter,
+    });
+  }
+
+  return schedule;
+}
+

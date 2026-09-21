@@ -2,6 +2,8 @@ import { describe, it, expect } from 'vitest';
 import {
   calculateFixedInstallmentAmount,
   generateAmortizationSchedule,
+  recalculateFromBalance,
+  calculatePayoffScheduleFixedAmount,
 } from '../../src/domain/loanCalculator.js';
 
 describe('Loan Calculator Domain (ماشین حساب وام و اقساط)', () => {
@@ -167,6 +169,132 @@ describe('Loan Calculator Domain (ماشین حساب وام و اقساط)', ()
       const sumPrincipal = schedule.reduce((acc, inst) => acc + inst.principalPortion, 0);
       expect(sumPrincipal).toBe(12000000);
       expect(schedule[3].remainingBalanceAfter).toBe(0);
+    });
+  });
+
+  describe('recalculateFromBalance (بازمحاسبه از مانده مشخص)', () => {
+    it('amortizes remaining balance starting from anchorInstallmentNumber + 1', () => {
+      // 4 installments already paid, 6 remaining out of 10
+      // anchorBalance = 60,000,000 at 23%
+      const remainingSchedule = recalculateFromBalance({
+        anchorBalance: 60000000,
+        anchorInstallmentNumber: 4,
+        remainingCount: 6,
+        annualRatePct: 23,
+        intervalMonths: 1,
+        startDateIso: '2026-01-10',
+      });
+
+      expect(remainingSchedule).toHaveLength(6);
+
+      // Installment numbers start from 5 to 10
+      expect(remainingSchedule.map((s) => s.installmentNumber)).toEqual([5, 6, 7, 8, 9, 10]);
+
+      // Due dates offset correctly from start date (month 1 + 5 = month 6 June, etc.)
+      expect(remainingSchedule[0].dueDateIso).toBe('2026-06-10');
+      expect(remainingSchedule[5].dueDateIso).toBe('2026-11-10');
+
+      // Sum of principal portions must exactly equal anchorBalance
+      const sumPrincipal = remainingSchedule.reduce((sum, item) => sum + item.principalPortion, 0);
+      expect(sumPrincipal).toBe(60000000);
+
+      // Final remaining balance must be 0
+      expect(remainingSchedule[5].remainingBalanceAfter).toBe(0);
+    });
+
+    it('handles zero remaining count or zero balance gracefully', () => {
+      expect(recalculateFromBalance({ anchorBalance: 0, remainingCount: 5, startDateIso: '2026-01-01' })).toEqual([]);
+      expect(recalculateFromBalance({ anchorBalance: 1000000, remainingCount: 0, startDateIso: '2026-01-01' })).toEqual([]);
+    });
+  });
+
+  describe('calculatePayoffScheduleFixedAmount (کاهش تعداد اقساط با قسط ثابت)', () => {
+    it('simulates faster payoff when fixed installment is higher than standard PMT', () => {
+      // 50,000,000 Tomans at 18%
+      // Standard 12-month PMT is ~4,584,000
+      // User pays fixed amount of 10,000,000 monthly
+      const schedule = calculatePayoffScheduleFixedAmount({
+        remainingBalance: 50000000,
+        fixedInstallmentAmount: 10000000,
+        annualRatePct: 18,
+        intervalMonths: 1,
+        startDateIso: '2026-01-01',
+        anchorInstallmentNumber: 2,
+      });
+
+      // At 10M per month, it should finish in 6 installments (installments 3, 4, 5, 6, 7, 8)
+      expect(schedule.length).toBeLessThan(12);
+      expect(schedule[0].installmentNumber).toBe(3);
+
+      // Sum of principal portions must equal 50,000,000
+      const totalPrincipal = schedule.reduce((sum, item) => sum + item.principalPortion, 0);
+      expect(totalPrincipal).toBe(50000000);
+
+      // Last installment must reach exact zero balance
+      expect(schedule[schedule.length - 1].remainingBalanceAfter).toBe(0);
+
+      // Last installment principal is clamped to exact remaining balance
+      const lastInst = schedule[schedule.length - 1];
+      expect(lastInst.principalPortion).toBeLessThanOrEqual(10000000);
+      expect(lastInst.totalAmount).toBe(lastInst.principalPortion + lastInst.interestPortion);
+    });
+
+    it('handles edge case: fixed installment amount >= entire remaining balance', () => {
+      // 5,000,000 remaining, user pays 6,000,000
+      const schedule = calculatePayoffScheduleFixedAmount({
+        remainingBalance: 5000000,
+        fixedInstallmentAmount: 6000000,
+        annualRatePct: 12,
+        intervalMonths: 1,
+        startDateIso: '2026-01-01',
+        anchorInstallmentNumber: 5,
+      });
+
+      expect(schedule).toHaveLength(1);
+      expect(schedule[0].installmentNumber).toBe(6);
+      expect(schedule[0].principalPortion).toBe(5000000); // Clamped to balance
+      expect(schedule[0].remainingBalanceAfter).toBe(0);
+      // Interest = 5,000,000 * 0.01 = 50,000
+      expect(schedule[0].interestPortion).toBe(50000);
+      expect(schedule[0].totalAmount).toBe(5050000);
+    });
+
+    it('handles zero interest (قرض‌الحسنه) correctly', () => {
+      const schedule = calculatePayoffScheduleFixedAmount({
+        remainingBalance: 30000000,
+        fixedInstallmentAmount: 10000000,
+        annualRatePct: 0,
+        startDateIso: '2026-01-01',
+      });
+
+      expect(schedule).toHaveLength(3);
+      schedule.forEach((inst) => {
+        expect(inst.interestPortion).toBe(0);
+        expect(inst.totalAmount).toBe(inst.principalPortion);
+      });
+      expect(schedule[2].remainingBalanceAfter).toBe(0);
+    });
+
+    it('throws meaningful error if fixed installment is less than periodic interest (never ends)', () => {
+      // 100,000,000 at 24% annual rate -> periodic monthly rate = 2% -> interest = 2,000,000
+      // User specifies fixed installment of 1,500,000 (less than 2,000,000 interest)
+      expect(() => {
+        calculatePayoffScheduleFixedAmount({
+          remainingBalance: 100000000,
+          fixedInstallmentAmount: 1500000,
+          annualRatePct: 24,
+          intervalMonths: 1,
+          startDateIso: '2026-01-01',
+        });
+      }).toThrow('مبلغ قسط ثابت کمتر یا مساوی بهره دوره‌ای است و وام هرگز تسویه نخواهد شد.');
+    });
+
+    it('returns empty array when remainingBalance is 0 or negative', () => {
+      expect(calculatePayoffScheduleFixedAmount({
+        remainingBalance: 0,
+        fixedInstallmentAmount: 1000000,
+        startDateIso: '2026-01-01',
+      })).toEqual([]);
     });
   });
 });

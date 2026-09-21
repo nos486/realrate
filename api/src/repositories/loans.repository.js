@@ -15,6 +15,7 @@ import { ensureD1Tables } from "./migration.repository.js";
 import { logger } from "../lib/logger.js";
 import {
   generateAmortizationSchedule,
+  recalculateFromBalance,
   parseDateParts,
   computeClampedDueDate,
 } from "../domain/loanCalculator.js";
@@ -70,6 +71,7 @@ function formatInstallmentRow(row) {
     isPaid: Boolean(row.is_paid ?? row.isPaid),
     paidDate: row.paid_date || row.paidDate || "",
     paidAmount: Number(row.paid_amount ?? row.paidAmount ?? 0),
+    isManualOverride: Boolean(row.is_manual_override ?? row.isManualOverride),
     createdAt: row.created_at || row.createdAt,
     updatedAt: row.updated_at || row.updatedAt,
   };
@@ -480,16 +482,16 @@ export async function dbUpdateLoan(env, userId, loanId, data) {
     statements.push(env.DB.prepare(deletePendingSql).bind(loanId, userId));
 
     if (remainingCount > 0 && remainingPrincipal > 0) {
-      // Generate amortization schedule for remaining principal over remaining count
-      const remainingSchedule = generateAmortizationSchedule({
-        principal: remainingPrincipal,
+      // Recalculate amortization schedule starting from remaining balance and paidCount offset
+      const remainingSchedule = recalculateFromBalance({
+        anchorBalance: remainingPrincipal,
+        anchorInstallmentNumber: paidCount,
+        remainingCount,
         annualRatePct: newRate,
-        installmentCount: remainingCount,
-        startDateIso: newStartDate,
         intervalMonths: newInterval,
+        startDateIso: newStartDate,
       });
 
-      const parsedStart = parseDateParts(newStartDate);
       const insertPendingSql = `
         INSERT INTO loan_installments (
           id, loan_id, user_id, installment_number, due_date,
@@ -499,20 +501,15 @@ export async function dbUpdateLoan(env, userId, loanId, data) {
         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `;
 
-      for (let j = 0; j < remainingSchedule.length; j++) {
-        const item = remainingSchedule[j];
-        const installmentNumber = paidCount + j + 1;
-        // Compute clamped due date relative to the loan start date at the correct installment offset
-        const dueDate = computeClampedDueDate(parsedStart, installmentNumber, newInterval);
+      for (const item of remainingSchedule) {
         const instId = generateId("inst");
-
         statements.push(
           env.DB.prepare(insertPendingSql).bind(
             instId,
             loanId,
             userId,
-            installmentNumber,
-            dueDate,
+            item.installmentNumber,
+            item.dueDateIso,
             item.principalPortion,
             item.interestPortion,
             item.totalAmount,
