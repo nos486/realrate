@@ -181,8 +181,15 @@ export async function ensureD1Tables(env) {
   ];
 
   try {
+    // Each statement runs independently: a failure in one (e.g. a single CREATE TABLE)
+    // must not silently block every statement after it in the list from ever running,
+    // on every future request, for the lifetime of the isolate.
     for (const sql of statements) {
-      await env.DB.prepare(sql).run();
+      try {
+        await env.DB.prepare(sql).run();
+      } catch (stmtErr) {
+        logger.error("D1 schema statement failed:", { sql, error: stmtErr.message });
+      }
     }
     // Backward-compat: ensure E2EE columns exist on portfolios
     try {
