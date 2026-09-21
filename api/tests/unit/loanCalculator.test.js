@@ -4,6 +4,7 @@ import {
   generateAmortizationSchedule,
   recalculateFromBalance,
   calculatePayoffScheduleFixedAmount,
+  computeEffectiveSchedule,
 } from '../../src/domain/loanCalculator.js';
 
 describe('Loan Calculator Domain (ماشین حساب وام و اقساط)', () => {
@@ -295,6 +296,254 @@ describe('Loan Calculator Domain (ماشین حساب وام و اقساط)', ()
         fixedInstallmentAmount: 1000000,
         startDateIso: '2026-01-01',
       })).toEqual([]);
+    });
+  });
+
+  describe('computeEffectiveSchedule — Shared Dynamic Schedule Computation (فاز ۲)', () => {
+    it('CRITICAL: returns exactly the same output as generateAmortizationSchedule(loan) when there are no events', () => {
+      const loan = {
+        id: 'loan_test_1',
+        principalAmount: 120000000,
+        annualInterestRate: 23,
+        installmentCount: 12,
+        startDate: '2026-01-10',
+        intervalMonths: 1,
+      };
+
+      const baseline = generateAmortizationSchedule(loan);
+      const effective = computeEffectiveSchedule({
+        loan,
+        installmentStates: [],
+        extraPayments: [],
+      });
+
+      expect(effective).toEqual(baseline);
+      expect(effective).toHaveLength(12);
+      expect(effective[0].installmentNumber).toBe(1);
+      expect(effective[effective.length - 1].remainingBalanceAfter).toBe(0);
+    });
+
+    it('Scenario 1: handles manual override in the middle with subsequent installments recalculated', () => {
+      // 12-month loan of 12,000,000 at 0% -> 1,000,000 per month
+      const loan = {
+        id: 'loan_override_1',
+        principalAmount: 12000000,
+        annualInterestRate: 0,
+        installmentCount: 12,
+        startDate: '2026-01-01',
+        intervalMonths: 1,
+      };
+
+      // Override installment 5 to 2,000,000 (instead of 1,000,000)
+      const installmentStates = [
+        {
+          installmentNumber: 5,
+          totalAmount: 2000000,
+          isManualOverride: true,
+        },
+      ];
+
+      const schedule = computeEffectiveSchedule({
+        loan,
+        installmentStates,
+        extraPayments: [],
+      });
+
+      expect(schedule).toHaveLength(12);
+
+      // Installments 1..4 are standard 1,000,000 each
+      for (let i = 0; i < 4; i++) {
+        expect(schedule[i].totalAmount).toBe(1000000);
+        expect(schedule[i].isManualOverride).toBe(false);
+      }
+
+      // Installment 5 is overridden to 2,000,000
+      expect(schedule[4].installmentNumber).toBe(5);
+      expect(schedule[4].totalAmount).toBe(2000000);
+      expect(schedule[4].isManualOverride).toBe(true);
+
+      // Balance before installment 5: 12,000,000 - 4,000,000 = 8,000,000
+      // Balance after installment 5: 8,000,000 - 2,000,000 = 6,000,000
+      expect(schedule[4].remainingBalanceAfter).toBe(6000000);
+
+      // Remaining 7 installments (6..12) distribute 6,000,000 -> Math.round(6,000,000 / 7) = 857,143
+      for (let i = 5; i < 11; i++) {
+        expect(schedule[i].totalAmount).toBe(857143);
+        expect(schedule[i].isManualOverride).toBe(false);
+      }
+
+      // Sum of all principal portions must exactly reconcile to original 12,000,000
+      const sumPrincipal = schedule.reduce((sum, inst) => sum + inst.principalPortion, 0);
+      expect(sumPrincipal).toBe(12000000);
+      expect(schedule[11].remainingBalanceAfter).toBe(0);
+    });
+
+    it('Scenario 2: handles manual override followed by reduce_amount extra payment', () => {
+      const loan = {
+        id: 'loan_override_epay_amount',
+        principalAmount: 12000000,
+        annualInterestRate: 0,
+        installmentCount: 12,
+        startDate: '2026-01-01',
+        intervalMonths: 1,
+      };
+
+      // 1. Override installment 3 to 2,000,000
+      // 2. Extra payment of 2,000,000 at anchor 5 (after installment 5)
+      const installmentStates = [
+        {
+          installmentNumber: 3,
+          totalAmount: 2000000,
+          isManualOverride: true,
+        },
+      ];
+
+      const extraPayments = [
+        {
+          anchorInstallmentNumber: 5,
+          amount: 2000000,
+          reductionMode: 'reduce_amount',
+          paymentDate: '2026-05-15',
+        },
+      ];
+
+      const schedule = computeEffectiveSchedule({
+        loan,
+        installmentStates,
+        extraPayments,
+      });
+
+      expect(schedule).toHaveLength(12);
+
+      // Installment 3 is overridden
+      expect(schedule[2].installmentNumber).toBe(3);
+      expect(schedule[2].totalAmount).toBe(2000000);
+      expect(schedule[2].isManualOverride).toBe(true);
+
+      // Balance before installment 3: 10,000,000. Balance after installment 3: 8,000,000.
+      // Installments 6..12 should be recalculated from post-extra-payment balance
+      expect(schedule[5].totalAmount).toBeLessThan(schedule[4].totalAmount);
+      expect(schedule[11].remainingBalanceAfter).toBe(0);
+
+      // Sum of principal should reconcile to original loan principal minus extra payment (or remaining balance is 0)
+      const sumPrincipal = schedule.reduce((sum, inst) => sum + inst.principalPortion, 0);
+      expect(sumPrincipal).toBe(10000000); // 12m - 2m extra payment
+    });
+
+    it('Scenario 3: reduce_term extra payment preserves the cached fixedAmount for subsequent installments', () => {
+      const loan = {
+        id: 'loan_reduce_term_test',
+        principalAmount: 24000000,
+        annualInterestRate: 18,
+        installmentCount: 24,
+        startDate: '2026-01-01',
+        intervalMonths: 1,
+      };
+
+      // Base schedule to inspect the initial fixedAmount
+      const base = generateAmortizationSchedule(loan);
+      const initialFixedAmount = base[0].totalAmount;
+
+      // Apply extra payment of 10,000,000 at anchor 4 in reduce_term mode
+      const extraPayments = [
+        {
+          anchorInstallmentNumber: 4,
+          amount: 10000000,
+          reductionMode: 'reduce_term',
+          paymentDate: '2026-04-15',
+        },
+      ];
+
+      const schedule = computeEffectiveSchedule({
+        loan,
+        installmentStates: [],
+        extraPayments,
+      });
+
+      // Total installments must be strictly reduced from 24
+      expect(schedule.length).toBeLessThan(24);
+      expect(schedule.length).toBeGreaterThan(4);
+
+      // CRITICAL: Subsequent installments must have the EXACT cached fixedAmount, NOT a new smaller PMT!
+      expect(schedule[4].installmentNumber).toBe(5);
+      expect(schedule[4].totalAmount).toBe(initialFixedAmount);
+      expect(schedule[5].installmentNumber).toBe(6);
+      expect(schedule[5].totalAmount).toBe(initialFixedAmount);
+
+      // Final installment balance must be 0
+      expect(schedule[schedule.length - 1].remainingBalanceAfter).toBe(0);
+    });
+
+    it('Scenario 4: combination of contiguous paid installments and a subsequent manual override', () => {
+      const loan = {
+        id: 'loan_paid_prefix_override',
+        principalAmount: 10000000,
+        annualInterestRate: 0,
+        installmentCount: 10,
+        startDate: '2026-01-01',
+        intervalMonths: 1,
+      };
+
+      // Installments 1, 2, 3 paid (contiguous cascaded prefix)
+      // Installment 4 has manual override (2,000,000)
+      const installmentStates = [
+        {
+          installmentNumber: 1,
+          isPaid: true,
+          paidDate: '2026-02-01',
+          paidAmount: 1000000,
+        },
+        {
+          installmentNumber: 2,
+          isPaid: true,
+          paidDate: '2026-03-01',
+          paidAmount: 1000000,
+        },
+        {
+          installmentNumber: 3,
+          isPaid: true,
+          paidDate: '2026-04-01',
+          paidAmount: 1000000,
+        },
+        {
+          installmentNumber: 4,
+          totalAmount: 2000000,
+          isManualOverride: true,
+          isPaid: false,
+        },
+      ];
+
+      const schedule = computeEffectiveSchedule({
+        loan,
+        installmentStates,
+        extraPayments: [],
+      });
+
+      expect(schedule).toHaveLength(10);
+
+      // 1..3 must have isPaid: true and their respective paid dates
+      for (let i = 0; i < 3; i++) {
+        expect(schedule[i].isPaid).toBe(true);
+        expect(schedule[i].paidDate).toBeTruthy();
+        expect(schedule[i].isManualOverride).toBe(false);
+      }
+
+      // Installment 4 is overridden and unpaid
+      expect(schedule[3].installmentNumber).toBe(4);
+      expect(schedule[3].isPaid).toBe(false);
+      expect(schedule[3].isManualOverride).toBe(true);
+      expect(schedule[3].totalAmount).toBe(2000000);
+
+      // Remaining 6 installments (5..10) are recalculated from installment 4's balance
+      // Balance before installment 4: 7,000,000. Balance after: 5,000,000.
+      // 5,000,000 / 6 = 833,333 per installment
+      for (let i = 4; i < 9; i++) {
+        expect(schedule[i].isPaid).toBe(false);
+        expect(schedule[i].totalAmount).toBe(833333);
+      }
+
+      // Final balance is 0
+      expect(schedule[9].remainingBalanceAfter).toBe(0);
     });
   });
 });

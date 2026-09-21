@@ -183,7 +183,7 @@ CREATE TABLE IF NOT EXISTS loans (
 );
 CREATE INDEX IF NOT EXISTS idx_loans_user ON loans(user_id);
 
-CREATE TABLE IF NOT EXISTS loan_installments (
+CREATE TABLE IF NOT EXISTS loan_installment_states (
   id TEXT PRIMARY KEY,
   loan_id TEXT NOT NULL,
   user_id TEXT NOT NULL,
@@ -200,9 +200,9 @@ CREATE TABLE IF NOT EXISTS loan_installments (
   created_at TEXT NOT NULL,
   updated_at TEXT NOT NULL
 );
-CREATE INDEX IF NOT EXISTS idx_loan_installments_loan ON loan_installments(loan_id);
-CREATE INDEX IF NOT EXISTS idx_loan_installments_user ON loan_installments(user_id);
-CREATE INDEX IF NOT EXISTS idx_loan_installments_due ON loan_installments(due_date);
+CREATE INDEX IF NOT EXISTS idx_loan_installment_states_loan ON loan_installment_states(loan_id);
+CREATE INDEX IF NOT EXISTS idx_loan_installment_states_user ON loan_installment_states(user_id);
+CREATE INDEX IF NOT EXISTS idx_loan_installment_states_due ON loan_installment_states(due_date);
 
 -- 9. Loan Extra Payments Table
 CREATE TABLE IF NOT EXISTS loan_extra_payments (
@@ -213,6 +213,9 @@ CREATE TABLE IF NOT EXISTS loan_extra_payments (
   payment_date TEXT NOT NULL,
   reduction_mode TEXT NOT NULL DEFAULT 'reduce_amount',
   notes TEXT DEFAULT '',
+  anchor_installment_number INTEGER NOT NULL DEFAULT 0,
+  resulting_balance REAL NOT NULL DEFAULT 0,
+  resulting_installment_count INTEGER,
   created_at TEXT NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_loan_extra_payments_loan ON loan_extra_payments(loan_id);

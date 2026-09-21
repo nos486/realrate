@@ -1,14 +1,11 @@
 /**
- * loans.repository.js — Cloudflare D1 Data Access Layer for Loans & Installments
+ * loans.repository.js — Cloudflare D1 Data Access Layer for Loans & Dynamic Amortization
  *
- * Implements:
- * - dbCreateLoan: creates loan + batch inserts all installments via generateAmortizationSchedule
- * - dbGetUserLoans: lists user loans with aggregate totals (paidCount, totalCount, remainingBalance, nextDueInstallment)
- * - dbGetLoanById: retrieves loan details and its full installment list
- * - dbUpdateLoan: updates loan info; if financial parameters change, rebuilds ONLY pending installments (is_paid=0)
- * - dbDeleteLoan: cascades deletion of loan and its installments
- * - dbMarkInstallmentPaid: marks an installment as paid with paidDate and paidAmount
- * - dbUnmarkInstallmentPaid: resets an installment back to unpaid (is_paid=0)
+ * Implements Virtual Schedule Architecture:
+ * - loans: stores loan master parameters
+ * - loan_installment_states: stores only mutated installments (manual overrides, paid events)
+ * - loan_extra_payments: stores lump sum payments with cached anchor & resulting balances
+ * - computeEffectiveSchedule: dynamically reconstructs the full installments list on read
  */
 
 import { ensureD1Tables } from "./migration.repository.js";
@@ -19,6 +16,7 @@ import {
   recalculateFromBalance,
   calculateFixedInstallmentAmount,
   calculatePayoffScheduleFixedAmount,
+  computeEffectiveSchedule,
   parseDateParts,
   computeClampedDueDate,
 } from "../domain/loanCalculator.js";
@@ -57,7 +55,7 @@ function formatLoanRow(row) {
 }
 
 /**
- * Format raw SQL installment row into camelCase object
+ * Format raw SQL installment state row into camelCase object
  */
 function formatInstallmentRow(row) {
   if (!row) return null;
@@ -67,6 +65,7 @@ function formatInstallmentRow(row) {
     userId: row.user_id || row.userId,
     installmentNumber: parseInt(row.installment_number ?? row.installmentNumber ?? 0, 10),
     dueDate: row.due_date || row.dueDate,
+    dueDateIso: row.due_date || row.dueDate,
     principalPortion: Number(row.principal_portion ?? row.principalPortion ?? 0),
     interestPortion: Number(row.interest_portion ?? row.interestPortion ?? 0),
     totalAmount: Number(row.total_amount ?? row.totalAmount ?? 0),
@@ -81,12 +80,15 @@ function formatInstallmentRow(row) {
 }
 
 /**
- * Create a new loan and batch-insert all its installments.
+ * Create a new loan.
+ * Only inserts the row in `loans`. No installment rows are created,
+ * unless a custom first installment amount is specified (in which case
+ * a single override row is created in `loan_installment_states`).
  *
  * @param {object} env
  * @param {string} userId
  * @param {object} data
- * @returns {Promise<object>} The created loan with its installments
+ * @returns {Promise<object>} The created loan with its calculated installments
  */
 export async function dbCreateLoan(env, userId, data) {
   if (!userId || !data) return null;
@@ -105,15 +107,6 @@ export async function dbCreateLoan(env, userId, data) {
   const notes = String(data.notes || "").trim();
   const nowIso = new Date().toISOString();
 
-  // Generate initial amortization schedule
-  const schedule = generateAmortizationSchedule({
-    principal: principalAmount,
-    annualRatePct: annualInterestRate,
-    installmentCount,
-    startDateIso: startDate,
-    intervalMonths,
-  });
-
   const insertLoanSql = `
     INSERT INTO loans (
       id, user_id, title, lender_name, principal_amount,
@@ -122,17 +115,7 @@ export async function dbCreateLoan(env, userId, data) {
     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `;
 
-  const insertInstallmentSql = `
-    INSERT INTO loan_installments (
-      id, loan_id, user_id, installment_number, due_date,
-      principal_portion, interest_portion, total_amount,
-      remaining_balance_after, is_paid, paid_date, paid_amount,
-      created_at, updated_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-  `;
-
-  const statements = [];
-  statements.push(
+  const statements = [
     env.DB.prepare(insertLoanSql).bind(
       loanId,
       userId,
@@ -146,44 +129,46 @@ export async function dbCreateLoan(env, userId, data) {
       notes,
       nowIso,
       nowIso
-    )
+    ),
+  ];
+
+  // If customFirstInstallmentAmount was provided, insert ONLY that single override state for installment #1
+  const customFirst = Number(
+    data.customFirstInstallmentAmount ??
+    data.custom_first_installment_amount ??
+    data.firstInstallmentAmount
   );
 
-  const installments = [];
-  for (const item of schedule) {
-    const instId = generateId("inst");
-    const instRecord = {
-      id: instId,
-      loanId,
-      userId,
-      installmentNumber: item.installmentNumber,
-      dueDate: item.dueDateIso,
-      principalPortion: item.principalPortion,
-      interestPortion: item.interestPortion,
-      totalAmount: item.totalAmount,
-      remainingBalanceAfter: item.remainingBalanceAfter,
-      isPaid: false,
-      paidDate: "",
-      paidAmount: 0,
-      createdAt: nowIso,
-      updatedAt: nowIso,
-    };
-    installments.push(instRecord);
+  if (!isNaN(customFirst) && customFirst > 0) {
+    const parsedStart = parseDateParts(startDate);
+    const dueDate1 = computeClampedDueDate(parsedStart, 1, intervalMonths);
+    const r = annualInterestRate > 0 ? (annualInterestRate / 100) * (intervalMonths / 12) : 0;
+    const interestPortion = r > 0 ? Math.round(principalAmount * r) : 0;
+    let principalPortion = customFirst - interestPortion;
+    if (principalPortion < 0) principalPortion = 0;
+    if (principalPortion > principalAmount) principalPortion = principalAmount;
+    const actualTotal = principalPortion + interestPortion;
+    const remainingBalanceAfter = principalAmount - principalPortion;
 
+    const inst1Id = generateId("inst");
+    const insertStateSql = `
+      INSERT INTO loan_installment_states (
+        id, loan_id, user_id, installment_number, due_date,
+        principal_portion, interest_portion, total_amount,
+        remaining_balance_after, is_paid, paid_date, paid_amount,
+        is_manual_override, created_at, updated_at
+      ) VALUES (?, ?, ?, 1, ?, ?, ?, ?, ?, 0, '', 0, 1, ?, ?)
+    `;
     statements.push(
-      env.DB.prepare(insertInstallmentSql).bind(
-        instId,
+      env.DB.prepare(insertStateSql).bind(
+        inst1Id,
         loanId,
         userId,
-        item.installmentNumber,
-        item.dueDateIso,
-        item.principalPortion,
-        item.interestPortion,
-        item.totalAmount,
-        item.remainingBalanceAfter,
-        0,
-        "",
-        0,
+        dueDate1,
+        principalPortion,
+        interestPortion,
+        actualTotal,
+        remainingBalanceAfter,
         nowIso,
         nowIso
       )
@@ -199,21 +184,7 @@ export async function dbCreateLoan(env, userId, data) {
       }
     }
 
-    return {
-      id: loanId,
-      userId,
-      title,
-      lenderName,
-      principalAmount,
-      annualInterestRate,
-      installmentCount,
-      intervalMonths,
-      startDate,
-      notes,
-      createdAt: nowIso,
-      updatedAt: nowIso,
-      installments,
-    };
+    return await dbGetLoanById(env, userId, loanId);
   } catch (e) {
     logger.error("D1 dbCreateLoan error:", { error: e.message, userId, loanId });
     throw e;
@@ -221,8 +192,8 @@ export async function dbCreateLoan(env, userId, data) {
 }
 
 /**
- * Fetch all loans for a user with aggregated metadata (totalCount, paidCount, remainingBalance, nextDueInstallment)
- * to prevent N+1 queries.
+ * Fetch all loans for a user with computed metadata (totalCount, paidCount, remainingBalance, nextDueInstallment).
+ * Uses 3 targeted queries + in-memory computeEffectiveSchedule to avoid heavy SQL JOINs.
  *
  * @param {object} env
  * @param {string} userId
@@ -234,70 +205,87 @@ export async function dbGetUserLoans(env, userId) {
   await ensureD1Tables(env);
 
   try {
-    // 1. Fetch loans with aggregated counts and remaining unpaid balance
-    const aggregateQuery = `
-      SELECT
-        l.id,
-        l.user_id AS userId,
-        l.title,
-        l.lender_name AS lenderName,
-        l.principal_amount AS principalAmount,
-        l.annual_interest_rate AS annualInterestRate,
-        l.installment_count AS installmentCount,
-        l.interval_months AS intervalMonths,
-        l.start_date AS startDate,
-        l.notes,
-        l.created_at AS createdAt,
-        l.updated_at AS updatedAt,
-        COUNT(i.id) AS totalCount,
-        SUM(CASE WHEN i.is_paid = 1 THEN 1 ELSE 0 END) AS paidCount,
-        COALESCE(SUM(CASE WHEN i.is_paid = 0 THEN i.total_amount ELSE 0 END), 0) AS remainingBalance
-      FROM loans l
-      LEFT JOIN loan_installments i ON l.id = i.loan_id
-      WHERE l.user_id = ?
-      GROUP BY l.id
-      ORDER BY l.created_at DESC
+    // 1. Fetch user loans
+    const loansQuery = `
+      SELECT id, user_id AS userId, title, lender_name AS lenderName,
+             principal_amount AS principalAmount, annual_interest_rate AS annualInterestRate,
+             installment_count AS installmentCount, interval_months AS intervalMonths,
+             start_date AS startDate, notes, created_at AS createdAt, updated_at AS updatedAt
+      FROM loans
+      WHERE user_id = ?
+      ORDER BY created_at DESC
     `;
+    const { results: rawLoans = [] } = await env.DB.prepare(loansQuery).bind(userId).all();
+    if (rawLoans.length === 0) return [];
 
-    const { results: rawLoans } = await env.DB.prepare(aggregateQuery).bind(userId).all();
-    if (!Array.isArray(rawLoans) || rawLoans.length === 0) {
-      return [];
+    // 2. Fetch all installment states for this user
+    const statesQuery = `
+      SELECT id, loan_id AS loanId, user_id AS userId,
+             installment_number AS installmentNumber, due_date AS dueDate,
+             principal_portion AS principalPortion, interest_portion AS interestPortion,
+             total_amount AS totalAmount, remaining_balance_after AS remainingBalanceAfter,
+             is_paid AS isPaid, paid_date AS paidDate, paid_amount AS paidAmount,
+             is_manual_override AS isManualOverride,
+             created_at AS createdAt, updated_at AS updatedAt
+      FROM loan_installment_states
+      WHERE user_id = ?
+      ORDER BY loan_id, installment_number ASC
+    `;
+    const { results: rawStates = [] } = await env.DB.prepare(statesQuery).bind(userId).all();
+
+    const statesByLoan = new Map();
+    for (const r of rawStates) {
+      const lid = r.loanId || r.loan_id;
+      if (!statesByLoan.has(lid)) statesByLoan.set(lid, []);
+      statesByLoan.get(lid).push(formatInstallmentRow(r));
     }
 
-    // 2. Efficiently fetch next upcoming unpaid installment for all user's loans (single query, no N+1)
-    const nextDueQuery = `
-      SELECT id, loan_id AS loanId, installment_number AS installmentNumber,
-             due_date AS dueDate, total_amount AS totalAmount,
-             principal_portion AS principalPortion, interest_portion AS interestPortion
-      FROM loan_installments
-      WHERE user_id = ? AND is_paid = 0
-      ORDER BY installment_number ASC
+    // 3. Fetch all extra payments for this user
+    const epQuery = `
+      SELECT id, loan_id AS loanId, user_id AS userId,
+             amount, payment_date AS paymentDate, reduction_mode AS reductionMode,
+             notes, anchor_installment_number AS anchorInstallmentNumber,
+             resulting_balance AS resultingBalance,
+             resulting_installment_count AS resultingInstallmentCount,
+             created_at AS createdAt
+      FROM loan_extra_payments
+      WHERE user_id = ?
+      ORDER BY loan_id, payment_date ASC, created_at ASC
     `;
+    const { results: rawEps = [] } = await env.DB.prepare(epQuery).bind(userId).all();
 
-    const { results: rawUnpaid } = await env.DB.prepare(nextDueQuery).bind(userId).all();
-    const nextDueMap = new Map();
-    if (Array.isArray(rawUnpaid)) {
-      for (const item of rawUnpaid) {
-        const lId = item.loanId || item.loan_id;
-        if (!nextDueMap.has(lId)) {
-          nextDueMap.set(lId, {
-            id: item.id,
-            installmentNumber: parseInt(item.installmentNumber || item.installment_number || 0, 10),
-            dueDate: item.dueDate || item.due_date,
-            totalAmount: Number(item.totalAmount || item.total_amount || 0),
-            principalPortion: Number(item.principalPortion || item.principal_portion || 0),
-            interestPortion: Number(item.interestPortion || item.interest_portion || 0),
-          });
-        }
-      }
+    const epsByLoan = new Map();
+    for (const r of rawEps) {
+      const lid = r.loanId || r.loan_id;
+      if (!epsByLoan.has(lid)) epsByLoan.set(lid, []);
+      epsByLoan.get(lid).push({
+        ...r,
+        amount: Number(r.amount || 0),
+        anchorInstallmentNumber: Number(r.anchor_installment_number ?? r.anchorInstallmentNumber ?? 0),
+        resultingBalance: Number(r.resulting_balance ?? r.resultingBalance ?? 0),
+        resultingInstallmentCount: (r.resulting_installment_count || r.resultingInstallmentCount)
+          ? Number(r.resulting_installment_count || r.resultingInstallmentCount)
+          : null,
+      });
     }
 
     return rawLoans.map((row) => {
       const loan = formatLoanRow(row);
-      const totalCount = parseInt(row.totalCount ?? 0, 10);
-      const paidCount = parseInt(row.paidCount ?? 0, 10);
-      const remainingBalance = Number(row.remainingBalance ?? 0);
-      const nextDueInstallment = nextDueMap.get(loan.id) || null;
+      const states = statesByLoan.get(loan.id) || [];
+      const eps = epsByLoan.get(loan.id) || [];
+
+      const installments = computeEffectiveSchedule({
+        loan,
+        installmentStates: states,
+        extraPayments: eps,
+      });
+
+      const paidCount = installments.filter((i) => i.isPaid).length;
+      const totalCount = installments.length;
+      const remainingBalance = installments
+        .filter((i) => !i.isPaid)
+        .reduce((sum, i) => sum + (Number(i.totalAmount) || 0), 0);
+      const nextDueInstallment = installments.find((i) => !i.isPaid) || null;
 
       return {
         ...loan,
@@ -314,7 +302,7 @@ export async function dbGetUserLoans(env, userId) {
 }
 
 /**
- * Fetch a single loan by ID with its full installment list
+ * Fetch a single loan by ID with its full calculated installment list
  *
  * @param {object} env
  * @param {string} userId
@@ -338,23 +326,66 @@ export async function dbGetLoanById(env, userId, loanId) {
     const loanRow = await env.DB.prepare(loanQuery).bind(loanId, userId).first();
     if (!loanRow) return null;
 
-    const installmentsQuery = `
+    const formattedLoan = formatLoanRow(loanRow);
+
+    const statesQuery = `
       SELECT id, loan_id AS loanId, user_id AS userId,
              installment_number AS installmentNumber, due_date AS dueDate,
              principal_portion AS principalPortion, interest_portion AS interestPortion,
              total_amount AS totalAmount, remaining_balance_after AS remainingBalanceAfter,
              is_paid AS isPaid, paid_date AS paidDate, paid_amount AS paidAmount,
+             is_manual_override AS isManualOverride,
              created_at AS createdAt, updated_at AS updatedAt
-      FROM loan_installments
+      FROM loan_installment_states
       WHERE loan_id = ? AND user_id = ?
       ORDER BY installment_number ASC
     `;
-    const { results: instRows } = await env.DB.prepare(installmentsQuery).bind(loanId, userId).all();
-    const installments = (instRows || []).map(formatInstallmentRow);
+    const { results: rawStates = [] } = await env.DB.prepare(statesQuery).bind(loanId, userId).all();
+    const installmentStates = rawStates.map(formatInstallmentRow);
+
+    const epQuery = `
+      SELECT id, loan_id AS loanId, user_id AS userId,
+             amount, payment_date AS paymentDate, reduction_mode AS reductionMode,
+             notes, anchor_installment_number AS anchorInstallmentNumber,
+             resulting_balance AS resultingBalance,
+             resulting_installment_count AS resultingInstallmentCount,
+             created_at AS createdAt
+      FROM loan_extra_payments
+      WHERE loan_id = ? AND user_id = ?
+      ORDER BY payment_date ASC, created_at ASC
+    `;
+    const { results: rawEps = [] } = await env.DB.prepare(epQuery).bind(loanId, userId).all();
+    const extraPayments = rawEps.map((row) => ({
+      ...row,
+      amount: Number(row.amount || 0),
+      anchorInstallmentNumber: Number(row.anchor_installment_number ?? row.anchorInstallmentNumber ?? 0),
+      resultingBalance: Number(row.resulting_balance ?? row.resultingBalance ?? 0),
+      resultingInstallmentCount: (row.resulting_installment_count || row.resultingInstallmentCount)
+        ? Number(row.resulting_installment_count || row.resultingInstallmentCount)
+        : null,
+    }));
+
+    const installments = computeEffectiveSchedule({
+      loan: formattedLoan,
+      installmentStates,
+      extraPayments,
+    });
+
+    const paidCount = installments.filter((i) => i.isPaid).length;
+    const totalCount = installments.length;
+    const remainingBalance = installments
+      .filter((i) => !i.isPaid)
+      .reduce((sum, i) => sum + (Number(i.totalAmount) || 0), 0);
+    const nextDueInstallment = installments.find((i) => !i.isPaid) || null;
 
     return {
-      ...formatLoanRow(loanRow),
+      ...formattedLoan,
+      totalCount,
+      paidCount,
+      remainingBalance,
+      nextDueInstallment,
       installments,
+      extraPayments,
     };
   } catch (e) {
     logger.error("D1 dbGetLoanById error:", { error: e.message, userId, loanId });
@@ -363,71 +394,62 @@ export async function dbGetLoanById(env, userId, loanId) {
 }
 
 /**
- * Update a loan.
- * CRITICAL REQUIREMENT:
- * If financial parameters (principal, rate, count, interval, or start date) change,
- * ONLY pending installments (is_paid = 0) are rebuilt.
- * Paid installments (is_paid = 1) remain strictly untouched.
+ * Update loan details.
+ * If financial parameters change, clears unpaid manual override states.
  *
  * @param {object} env
  * @param {string} userId
  * @param {string} loanId
  * @param {object} data
- * @returns {Promise<object|null>} The updated loan with its full installments
+ * @returns {Promise<object|null>}
  */
 export async function dbUpdateLoan(env, userId, loanId, data) {
-  if (!userId || !loanId || !data || !env || !env.DB) return null;
+  if (!userId || !loanId || !data) return null;
+  if (!env || !env.DB) return null;
 
   await ensureD1Tables(env);
 
   const existingLoan = await dbGetLoanById(env, userId, loanId);
   if (!existingLoan) return null;
 
+  const newTitle = data.title !== undefined ? String(data.title).trim() : existingLoan.title;
+  const newLenderName = data.lenderName !== undefined
+    ? String(data.lenderName).trim()
+    : data.lender_name !== undefined
+    ? String(data.lender_name).trim()
+    : existingLoan.lenderName;
+  const newNotes = data.notes !== undefined ? String(data.notes).trim() : existingLoan.notes;
   const nowIso = new Date().toISOString();
 
-  const newTitle = data.title !== undefined ? String(data.title).trim() : existingLoan.title;
-  const newLenderName =
-    data.lenderName !== undefined
-      ? String(data.lenderName).trim()
-      : data.lender_name !== undefined
-      ? String(data.lender_name).trim()
-      : existingLoan.lenderName;
-  const newNotes = data.notes !== undefined ? String(data.notes).trim() : existingLoan.notes;
+  const newPrincipal = data.principalAmount !== undefined
+    ? Number(data.principalAmount)
+    : data.principal !== undefined
+    ? Number(data.principal)
+    : existingLoan.principalAmount;
 
-  const newPrincipal =
-    data.principalAmount !== undefined
-      ? Number(data.principalAmount)
-      : data.principal !== undefined
-      ? Number(data.principal)
-      : existingLoan.principalAmount;
+  const newRate = data.annualInterestRate !== undefined
+    ? Number(data.annualInterestRate)
+    : data.annualRatePct !== undefined
+    ? Number(data.annualRatePct)
+    : existingLoan.annualInterestRate;
 
-  const newRate =
-    data.annualInterestRate !== undefined
-      ? Number(data.annualInterestRate)
-      : data.annualRatePct !== undefined
-      ? Number(data.annualRatePct)
-      : existingLoan.annualInterestRate;
+  const newCount = data.installmentCount !== undefined
+    ? parseInt(data.installmentCount, 10)
+    : data.installment_count !== undefined
+    ? parseInt(data.installment_count, 10)
+    : existingLoan.installmentCount;
 
-  const newCount =
-    data.installmentCount !== undefined
-      ? parseInt(data.installmentCount, 10)
-      : data.installment_count !== undefined
-      ? parseInt(data.installment_count, 10)
-      : existingLoan.installmentCount;
+  const newInterval = data.intervalMonths !== undefined
+    ? parseInt(data.intervalMonths, 10)
+    : data.interval_months !== undefined
+    ? parseInt(data.interval_months, 10)
+    : existingLoan.intervalMonths;
 
-  const newInterval =
-    data.intervalMonths !== undefined
-      ? parseInt(data.intervalMonths, 10)
-      : data.interval_months !== undefined
-      ? parseInt(data.interval_months, 10)
-      : existingLoan.intervalMonths;
-
-  const newStartDate =
-    data.startDate !== undefined
-      ? String(data.startDate).trim()
-      : data.start_date !== undefined
-      ? String(data.start_date).trim()
-      : existingLoan.startDate;
+  const newStartDate = data.startDate !== undefined
+    ? String(data.startDate).trim()
+    : data.start_date !== undefined
+    ? String(data.start_date).trim()
+    : existingLoan.startDate;
 
   const financialParamsChanged =
     newPrincipal !== existingLoan.principalAmount ||
@@ -438,7 +460,6 @@ export async function dbUpdateLoan(env, userId, loanId, data) {
 
   const statements = [];
 
-  // Update loan record
   const updateLoanSql = `
     UPDATE loans
     SET title = ?, lender_name = ?, principal_amount = ?,
@@ -463,69 +484,12 @@ export async function dbUpdateLoan(env, userId, loanId, data) {
   );
 
   if (financialParamsChanged) {
-    // Separate existing installments into paid vs pending
-    const paidInstallments = existingLoan.installments.filter((inst) => inst.isPaid);
-    const paidCount = paidInstallments.length;
-
-    // Sum of principal portions already paid
-    const alreadyPaidPrincipal = paidInstallments.reduce(
-      (sum, inst) => sum + (Number(inst.principalPortion) || 0),
-      0
-    );
-
-    // Remaining principal and installment count to amortize
-    const remainingPrincipal = Math.max(0, newPrincipal - alreadyPaidPrincipal);
-    const remainingCount = Math.max(0, newCount - paidCount);
-
-    // Delete ONLY pending installments (is_paid = 0)
-    const deletePendingSql = `
-      DELETE FROM loan_installments
+    // In the event-sourcing design, clear unpaid override states beyond paid installments
+    const deletePendingStatesSql = `
+      DELETE FROM loan_installment_states
       WHERE loan_id = ? AND user_id = ? AND is_paid = 0
     `;
-    statements.push(env.DB.prepare(deletePendingSql).bind(loanId, userId));
-
-    if (remainingCount > 0 && remainingPrincipal > 0) {
-      // Recalculate amortization schedule starting from remaining balance and paidCount offset
-      const remainingSchedule = recalculateFromBalance({
-        anchorBalance: remainingPrincipal,
-        anchorInstallmentNumber: paidCount,
-        remainingCount,
-        annualRatePct: newRate,
-        intervalMonths: newInterval,
-        startDateIso: newStartDate,
-      });
-
-      const insertPendingSql = `
-        INSERT INTO loan_installments (
-          id, loan_id, user_id, installment_number, due_date,
-          principal_portion, interest_portion, total_amount,
-          remaining_balance_after, is_paid, paid_date, paid_amount,
-          created_at, updated_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-      `;
-
-      for (const item of remainingSchedule) {
-        const instId = generateId("inst");
-        statements.push(
-          env.DB.prepare(insertPendingSql).bind(
-            instId,
-            loanId,
-            userId,
-            item.installmentNumber,
-            item.dueDateIso,
-            item.principalPortion,
-            item.interestPortion,
-            item.totalAmount,
-            item.remainingBalanceAfter,
-            0,
-            "",
-            0,
-            nowIso,
-            nowIso
-          )
-        );
-      }
-    }
+    statements.push(env.DB.prepare(deletePendingStatesSql).bind(loanId, userId));
   }
 
   try {
@@ -544,7 +508,7 @@ export async function dbUpdateLoan(env, userId, loanId, data) {
 }
 
 /**
- * Delete a loan and all its installments.
+ * Delete a loan and all its installment states and extra payments.
  *
  * @param {object} env
  * @param {string} userId
@@ -557,17 +521,22 @@ export async function dbDeleteLoan(env, userId, loanId) {
   await ensureD1Tables(env);
 
   try {
-    const deleteInstallmentsSql = `DELETE FROM loan_installments WHERE loan_id = ? AND user_id = ?`;
+    const deleteStatesSql = `DELETE FROM loan_installment_states WHERE loan_id = ? AND user_id = ?`;
+    const deleteEpSql = `DELETE FROM loan_extra_payments WHERE loan_id = ? AND user_id = ?`;
     const deleteLoanSql = `DELETE FROM loans WHERE id = ? AND user_id = ?`;
 
+    const statements = [
+      env.DB.prepare(deleteStatesSql).bind(loanId, userId),
+      env.DB.prepare(deleteEpSql).bind(loanId, userId),
+      env.DB.prepare(deleteLoanSql).bind(loanId, userId),
+    ];
+
     if (typeof env.DB.batch === "function") {
-      await env.DB.batch([
-        env.DB.prepare(deleteInstallmentsSql).bind(loanId, userId),
-        env.DB.prepare(deleteLoanSql).bind(loanId, userId),
-      ]);
+      await env.DB.batch(statements);
     } else {
-      await env.DB.prepare(deleteInstallmentsSql).bind(loanId, userId).run();
-      await env.DB.prepare(deleteLoanSql).bind(loanId, userId).run();
+      for (const stmt of statements) {
+        await stmt.run();
+      }
     }
     return true;
   } catch (e) {
@@ -578,6 +547,9 @@ export async function dbDeleteLoan(env, userId, loanId) {
 
 /**
  * Mark an installment as paid.
+ * If a state row does not exist for this installment yet, computes its financial portions
+ * via computeEffectiveSchedule and INSERTs it with is_paid = 1.
+ * If a state row already exists (e.g. was previously overridden), UPDATEs it with is_paid = 1.
  *
  * @param {object} env
  * @param {string} userId
@@ -585,6 +557,7 @@ export async function dbDeleteLoan(env, userId, loanId) {
  * @param {object} [details={}]
  * @param {string} [details.paidDate]
  * @param {number} [details.paidAmount]
+ * @param {string} [details.loanId]
  * @returns {Promise<object|null>} The updated installment
  */
 export async function dbMarkInstallmentPaid(env, userId, installmentId, details = {}) {
@@ -593,39 +566,129 @@ export async function dbMarkInstallmentPaid(env, userId, installmentId, details 
   await ensureD1Tables(env);
 
   try {
-    const selectQuery = `
+    const nowIso = new Date().toISOString();
+    let instNumArg = !isNaN(Number(installmentId)) ? Number(installmentId) : -1;
+    if (instNumArg === -1 && typeof installmentId === "string") {
+      const match = installmentId.match(/_(\d+)$/);
+      if (match) {
+        instNumArg = parseInt(match[1], 10);
+      }
+    }
+
+    // 1. Check if a row already exists in loan_installment_states
+    const existingStateQuery = `
       SELECT id, loan_id AS loanId, user_id AS userId, installment_number AS installmentNumber,
              due_date AS dueDate, principal_portion AS principalPortion, interest_portion AS interestPortion,
              total_amount AS totalAmount, remaining_balance_after AS remainingBalanceAfter,
              is_paid AS isPaid, paid_date AS paidDate, paid_amount AS paidAmount,
+             is_manual_override AS isManualOverride,
              created_at AS createdAt, updated_at AS updatedAt
-      FROM loan_installments
-      WHERE id = ? AND user_id = ?
+      FROM loan_installment_states
+      WHERE (id = ? OR installment_number = ?) AND user_id = ?
     `;
-    const row = await env.DB.prepare(selectQuery).bind(installmentId, userId).first();
-    if (!row) return null;
+    const existingRow = await env.DB.prepare(existingStateQuery).bind(installmentId, instNumArg, userId).first();
 
-    const nowIso = new Date().toISOString();
-    const paidDate = String(details.paidDate || details.paid_date || nowIso.split("T")[0]).trim();
-    const paidAmount =
-      details.paidAmount !== undefined && details.paidAmount !== null
+    if (existingRow) {
+      const paidDate = details.paidDate || details.paid_date || nowIso.split("T")[0];
+      const paidAmount = details.paidAmount !== undefined && details.paidAmount !== null
         ? Number(details.paidAmount)
-        : details.paid_amount !== undefined && details.paid_amount !== null
-        ? Number(details.paid_amount)
-        : Number(row.totalAmount || row.total_amount || 0);
+        : Number(existingRow.totalAmount || existingRow.total_amount || 0);
 
-    const updateQuery = `
-      UPDATE loan_installments
-      SET is_paid = 1, paid_date = ?, paid_amount = ?, updated_at = ?
-      WHERE id = ? AND user_id = ?
+      const updateSql = `
+        UPDATE loan_installment_states
+        SET is_paid = 1, paid_date = ?, paid_amount = ?, updated_at = ?
+        WHERE id = ? AND user_id = ?
+      `;
+      await env.DB.prepare(updateSql).bind(paidDate, paidAmount, nowIso, existingRow.id, userId).run();
+
+      return formatInstallmentRow({
+        ...existingRow,
+        is_paid: 1,
+        paid_date: paidDate,
+        paid_amount: paidAmount,
+        updated_at: nowIso,
+      });
+    }
+
+    // 2. If no row exists yet, resolve loan and find installment via computeEffectiveSchedule
+    let loanId = details.loanId || details.loan_id;
+    if (!loanId && typeof installmentId === "string" && installmentId.startsWith("inst_")) {
+      const parts = installmentId.split("_");
+      if (parts.length >= 3) {
+        loanId = parts.slice(1, parts.length - 1).join("_");
+      }
+    }
+
+    let loan = null;
+    if (loanId) {
+      loan = await dbGetLoanById(env, userId, loanId);
+    } else {
+      const userLoans = await dbGetUserLoans(env, userId);
+      for (const ul of userLoans) {
+        const fullLoan = await dbGetLoanById(env, userId, ul.id);
+        if (fullLoan?.installments?.some((i) => i.id === installmentId || String(i.installmentNumber) === String(installmentId))) {
+          loan = fullLoan;
+          loanId = ul.id;
+          break;
+        }
+      }
+    }
+
+    if (!loan) {
+      return null;
+    }
+
+    const targetInst = loan.installments.find(
+      (i) => i.id === installmentId || String(i.installmentNumber) === String(installmentId)
+    );
+    if (!targetInst) {
+      return null;
+    }
+
+    const paidDate = details.paidDate || details.paid_date || nowIso.split("T")[0];
+    const paidAmount = details.paidAmount !== undefined && details.paidAmount !== null
+      ? Number(details.paidAmount)
+      : targetInst.totalAmount;
+
+    const newInstId = installmentId.startsWith("inst_") && !installmentId.includes("loan_")
+      ? installmentId
+      : targetInst.id || generateId("inst");
+
+    const insertSql = `
+      INSERT INTO loan_installment_states (
+        id, loan_id, user_id, installment_number, due_date,
+        principal_portion, interest_portion, total_amount,
+        remaining_balance_after, is_paid, paid_date, paid_amount,
+        is_manual_override, created_at, updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?, 0, ?, ?)
     `;
-    await env.DB.prepare(updateQuery).bind(paidDate, paidAmount, nowIso, installmentId, userId).run();
+
+    await env.DB.prepare(insertSql).bind(
+      newInstId,
+      loanId,
+      userId,
+      targetInst.installmentNumber,
+      targetInst.dueDate,
+      targetInst.principalPortion,
+      targetInst.interestPortion,
+      targetInst.totalAmount,
+      targetInst.remainingBalanceAfter,
+      paidDate,
+      paidAmount,
+      nowIso,
+      nowIso
+    ).run();
 
     return {
-      ...formatInstallmentRow(row),
+      ...targetInst,
+      id: newInstId,
+      loanId,
+      userId,
       isPaid: true,
       paidDate,
       paidAmount,
+      isManualOverride: false,
+      createdAt: nowIso,
       updatedAt: nowIso,
     };
   } catch (e) {
@@ -635,12 +698,15 @@ export async function dbMarkInstallmentPaid(env, userId, installmentId, details 
 }
 
 /**
- * Reset an installment back to unpaid (is_paid = 0).
+ * Reset an installment back to unpaid.
+ * If the row has no manual override (it was a simple payment), DELETES the row entirely
+ * so it returns to being purely dynamically computed.
+ * If it has a manual override, resets is_paid=0, paid_date='', paid_amount=0 while preserving the override.
  *
  * @param {object} env
  * @param {string} userId
  * @param {string} installmentId
- * @returns {Promise<object|null>} The updated installment
+ * @returns {Promise<object|null>}
  */
 export async function dbUnmarkInstallmentPaid(env, userId, installmentId) {
   if (!userId || !installmentId || !env || !env.DB) return null;
@@ -648,33 +714,62 @@ export async function dbUnmarkInstallmentPaid(env, userId, installmentId) {
   await ensureD1Tables(env);
 
   try {
+    const nowIso = new Date().toISOString();
+    let instNumArg = !isNaN(Number(installmentId)) ? Number(installmentId) : -1;
+    if (instNumArg === -1 && typeof installmentId === "string") {
+      const match = installmentId.match(/_(\d+)$/);
+      if (match) {
+        instNumArg = parseInt(match[1], 10);
+      }
+    }
+
     const selectQuery = `
       SELECT id, loan_id AS loanId, user_id AS userId, installment_number AS installmentNumber,
              due_date AS dueDate, principal_portion AS principalPortion, interest_portion AS interestPortion,
              total_amount AS totalAmount, remaining_balance_after AS remainingBalanceAfter,
              is_paid AS isPaid, paid_date AS paidDate, paid_amount AS paidAmount,
+             is_manual_override AS isManualOverride,
              created_at AS createdAt, updated_at AS updatedAt
-      FROM loan_installments
-      WHERE id = ? AND user_id = ?
+      FROM loan_installment_states
+      WHERE (id = ? OR installment_number = ?) AND user_id = ?
     `;
-    const row = await env.DB.prepare(selectQuery).bind(installmentId, userId).first();
-    if (!row) return null;
+    const existing = await env.DB.prepare(selectQuery).bind(installmentId, instNumArg, userId).first();
+    if (!existing) {
+      return {
+        id: installmentId,
+        isPaid: false,
+        paidDate: "",
+        paidAmount: 0,
+      };
+    }
 
-    const nowIso = new Date().toISOString();
-    const updateQuery = `
-      UPDATE loan_installments
-      SET is_paid = 0, paid_date = '', paid_amount = 0, updated_at = ?
-      WHERE id = ? AND user_id = ?
-    `;
-    await env.DB.prepare(updateQuery).bind(nowIso, installmentId, userId).run();
+    const hasOverride = Boolean(existing.isManualOverride || existing.is_manual_override);
 
-    return {
-      ...formatInstallmentRow(row),
-      isPaid: false,
-      paidDate: "",
-      paidAmount: 0,
-      updatedAt: nowIso,
-    };
+    if (hasOverride) {
+      const updateSql = `
+        UPDATE loan_installment_states
+        SET is_paid = 0, paid_date = '', paid_amount = 0, updated_at = ?
+        WHERE id = ? AND user_id = ?
+      `;
+      await env.DB.prepare(updateSql).bind(nowIso, existing.id, userId).run();
+      return formatInstallmentRow({
+        ...existing,
+        is_paid: 0,
+        paid_date: "",
+        paid_amount: 0,
+        updated_at: nowIso,
+      });
+    } else {
+      const deleteSql = `DELETE FROM loan_installment_states WHERE id = ? AND user_id = ?`;
+      await env.DB.prepare(deleteSql).bind(existing.id, userId).run();
+      return formatInstallmentRow({
+        ...existing,
+        is_paid: 0,
+        paid_date: "",
+        paid_amount: 0,
+        updated_at: nowIso,
+      });
+    }
   } catch (e) {
     logger.error("D1 dbUnmarkInstallmentPaid error:", { error: e.message, userId, installmentId });
     return null;
@@ -682,16 +777,15 @@ export async function dbUnmarkInstallmentPaid(env, userId, installmentId) {
 }
 
 /**
- * Mark a specific installment as paid, cascading automatically to all prior unpaid installments of the same loan.
- * Target installment is marked with provided details (or today / totalAmount).
- * Prior unpaid installments are marked with paid_date = due_date and paid_amount = total_amount.
+ * Mark an installment as paid with automatic cascading payment of all prior unpaid installments.
+ * Uses computeEffectiveSchedule values for any installments without pre-existing state rows.
  *
  * @param {object} env
  * @param {string} userId
  * @param {string} loanId
  * @param {string} installmentId
  * @param {object} [details={}]
- * @returns {Promise<{ installment: object, cascadedInstallments: Array, cascadedCount: number, cascadedTotal: number }>}
+ * @returns {Promise<{ installment: object, cascadedInstallments: Array<object>, cascadedCount: number, cascadedTotal: number }>}
  */
 export async function dbMarkInstallmentPaidCascade(env, userId, loanId, installmentId, details = {}) {
   if (!userId || !loanId || !installmentId || !env || !env.DB) {
@@ -700,71 +794,116 @@ export async function dbMarkInstallmentPaidCascade(env, userId, loanId, installm
 
   await ensureD1Tables(env);
 
-  // 1. Find target installment
-  const targetQuery = `
-    SELECT id, loan_id AS loanId, user_id AS userId, installment_number AS installmentNumber,
-           due_date AS dueDate, principal_portion AS principalPortion, interest_portion AS interestPortion,
-           total_amount AS totalAmount, remaining_balance_after AS remainingBalanceAfter,
-           is_paid AS isPaid, paid_date AS paidDate, paid_amount AS paidAmount,
-           created_at AS createdAt, updated_at AS updatedAt, is_manual_override AS isManualOverride
-    FROM loan_installments
-    WHERE id = ? AND loan_id = ? AND user_id = ?
-  `;
-  const targetRow = await env.DB.prepare(targetQuery).bind(installmentId, loanId, userId).first();
-  if (!targetRow) {
-    throw AppError.notFound("قسط مورد نظر یافت نشد.");
+  const loan = await dbGetLoanById(env, userId, loanId);
+  if (!loan) {
+    throw AppError.notFound("وام مورد نظر یافت نشد.");
   }
 
-  if (targetRow.isPaid || targetRow.is_paid === 1) {
+  const targetInst = loan.installments.find(
+    (i) => i.id === installmentId || String(i.installmentNumber) === String(installmentId)
+  );
+  if (!targetInst) {
+    throw AppError.notFound("قسط مورد نظر یافت نشد.");
+  }
+  if (targetInst.isPaid) {
     throw AppError.badRequest("این قسط قبلاً پرداخت شده است.");
   }
 
-  const nowIso = new Date().toISOString();
-  const targetPaidDate = String(details.paidDate || details.paid_date || nowIso.split("T")[0]).trim();
-  const targetPaidAmount =
-    details.paidAmount !== undefined && details.paidAmount !== null
-      ? Number(details.paidAmount)
-      : details.paid_amount !== undefined && details.paid_amount !== null
-      ? Number(details.paid_amount)
-      : Number(targetRow.totalAmount || targetRow.total_amount || 0);
+  const priorUnpaid = loan.installments.filter(
+    (i) => i.installmentNumber < targetInst.installmentNumber && !i.isPaid
+  );
 
-  // 2. Find prior unpaid installments for this loan (installment_number < target and is_paid = 0)
-  const priorQuery = `
-    SELECT id, loan_id AS loanId, user_id AS userId, installment_number AS installmentNumber,
-           due_date AS dueDate, principal_portion AS principalPortion, interest_portion AS interestPortion,
-           total_amount AS totalAmount, remaining_balance_after AS remainingBalanceAfter,
-           is_paid AS isPaid, paid_date AS paidDate, paid_amount AS paidAmount,
-           created_at AS createdAt, updated_at AS updatedAt, is_manual_override AS isManualOverride
-    FROM loan_installments
-    WHERE loan_id = ? AND user_id = ? AND installment_number < ? AND is_paid = 0
-    ORDER BY installment_number ASC
-  `;
-  const { results: priorRows = [] } = await env.DB.prepare(priorQuery)
-    .bind(loanId, userId, targetRow.installmentNumber || targetRow.installment_number)
-    .all();
+  const { results: existingRows = [] } = await env.DB.prepare(
+    `SELECT * FROM loan_installment_states WHERE loan_id = ? AND user_id = ?`
+  ).bind(loanId, userId).all();
+
+  const existingMap = new Map();
+  for (const r of existingRows) {
+    existingMap.set(r.installment_number || r.installmentNumber, r);
+  }
+
+  const nowIso = new Date().toISOString();
+  const targetPaidDate = details.paidDate || details.paid_date || nowIso.split("T")[0];
+  const targetPaidAmount = details.paidAmount !== undefined && details.paidAmount !== null
+    ? Number(details.paidAmount)
+    : targetInst.totalAmount;
 
   const statements = [];
-
-  // Update target installment
-  const updateSql = `
-    UPDATE loan_installments
-    SET is_paid = 1, paid_date = ?, paid_amount = ?, updated_at = ?
-    WHERE id = ? AND loan_id = ? AND user_id = ?
-  `;
-  statements.push(env.DB.prepare(updateSql).bind(targetPaidDate, targetPaidAmount, nowIso, installmentId, loanId, userId));
-
-  // Update prior installments: paid_date = due_date, paid_amount = total_amount
   const cascadedInstallments = [];
   let cascadedTotal = 0;
 
-  for (const row of priorRows) {
-    const pDate = row.dueDate || row.due_date;
-    const pAmount = Number(row.totalAmount || row.total_amount || 0);
+  const updateSql = `
+    UPDATE loan_installment_states
+    SET is_paid = 1, paid_date = ?, paid_amount = ?, updated_at = ?
+    WHERE id = ? AND loan_id = ? AND user_id = ?
+  `;
+
+  const insertSql = `
+    INSERT INTO loan_installment_states (
+      id, loan_id, user_id, installment_number, due_date,
+      principal_portion, interest_portion, total_amount,
+      remaining_balance_after, is_paid, paid_date, paid_amount,
+      is_manual_override, created_at, updated_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?, 0, ?, ?)
+  `;
+
+  // 1. Process target installment
+  if (existingMap.has(targetInst.installmentNumber)) {
+    const row = existingMap.get(targetInst.installmentNumber);
+    statements.push(env.DB.prepare(updateSql).bind(targetPaidDate, targetPaidAmount, nowIso, row.id, loanId, userId));
+  } else {
+    const newId = targetInst.id && !targetInst.id.startsWith("inst_") ? targetInst.id : generateId("inst");
+    statements.push(
+      env.DB.prepare(insertSql).bind(
+        newId,
+        loanId,
+        userId,
+        targetInst.installmentNumber,
+        targetInst.dueDate,
+        targetInst.principalPortion,
+        targetInst.interestPortion,
+        targetInst.totalAmount,
+        targetInst.remainingBalanceAfter,
+        targetPaidDate,
+        targetPaidAmount,
+        nowIso,
+        nowIso
+      )
+    );
+  }
+
+  // 2. Process prior unpaid installments
+  for (const prior of priorUnpaid) {
+    const pDate = prior.dueDate;
+    const pAmount = prior.totalAmount;
     cascadedTotal += pAmount;
 
-    statements.push(env.DB.prepare(updateSql).bind(pDate, pAmount, nowIso, row.id, loanId, userId));
+    if (existingMap.has(prior.installmentNumber)) {
+      const row = existingMap.get(prior.installmentNumber);
+      statements.push(env.DB.prepare(updateSql).bind(pDate, pAmount, nowIso, row.id, loanId, userId));
+    } else {
+      const newId = prior.id && !prior.id.startsWith("inst_") ? prior.id : generateId("inst");
+      statements.push(
+        env.DB.prepare(insertSql).bind(
+          newId,
+          loanId,
+          userId,
+          prior.installmentNumber,
+          prior.dueDate,
+          prior.principalPortion,
+          prior.interestPortion,
+          prior.totalAmount,
+          prior.remainingBalanceAfter,
+          pDate,
+          pAmount,
+          nowIso,
+          nowIso
+        )
+      );
+    }
+
     cascadedInstallments.push({
-      ...formatInstallmentRow(row),
+      ...prior,
       isPaid: true,
       paidDate: pDate,
       paidAmount: pAmount,
@@ -781,7 +920,7 @@ export async function dbMarkInstallmentPaidCascade(env, userId, loanId, installm
   }
 
   const updatedTarget = {
-    ...formatInstallmentRow(targetRow),
+    ...targetInst,
     isPaid: true,
     paidDate: targetPaidDate,
     paidAmount: targetPaidAmount,
@@ -798,7 +937,8 @@ export async function dbMarkInstallmentPaidCascade(env, userId, loanId, installm
 
 /**
  * Manually set the installment amount for an unpaid installment.
- * Recalculates interest/principal breakdown and adjusts subsequent unpaid installments.
+ * Writes ONLY the single override row in `loan_installment_states`.
+ * Subsequent installments are dynamically recalculated by computeEffectiveSchedule.
  *
  * @param {object} env
  * @param {string} userId
@@ -825,7 +965,9 @@ export async function dbSetInstallmentAmount(env, userId, loanId, installmentId,
   }
 
   const installments = [...loan.installments].sort((a, b) => a.installmentNumber - b.installmentNumber);
-  const targetIdx = installments.findIndex((inst) => inst.id === installmentId);
+  const targetIdx = installments.findIndex(
+    (inst) => inst.id === installmentId || String(inst.installmentNumber) === String(installmentId)
+  );
 
   if (targetIdx === -1) {
     throw AppError.notFound("قسط مورد نظر یافت نشد.");
@@ -836,8 +978,6 @@ export async function dbSetInstallmentAmount(env, userId, loanId, installmentId,
     throw AppError.badRequest("امکان ویرایش قسط پرداخت‌شده وجود ندارد.");
   }
 
-  // Determine balance before this installment:
-  // If targetIdx === 0, balanceBefore = loan.principalAmount; otherwise, previous installment's remaining balance
   const balanceBefore = targetIdx === 0
     ? loan.principalAmount
     : installments[targetIdx - 1].remainingBalanceAfter;
@@ -846,109 +986,66 @@ export async function dbSetInstallmentAmount(env, userId, loanId, installmentId,
   const rate = loan.annualInterestRate || 0;
   const r = rate > 0 ? (rate / 100) * (interval / 12) : 0;
 
-  // New interest for this period based on balanceBefore
   const newInterestPortion = r > 0 ? Math.round(balanceBefore * r) : 0;
-
-  // New principal portion clamped between 0 and balanceBefore
   let newPrincipalPortion = targetAmount - newInterestPortion;
   if (newPrincipalPortion < 0) newPrincipalPortion = 0;
   if (newPrincipalPortion > balanceBefore) newPrincipalPortion = balanceBefore;
 
   const actualTotalAmount = newPrincipalPortion + newInterestPortion;
   const newRemainingBalanceAfter = balanceBefore - newPrincipalPortion;
-
   const nowIso = new Date().toISOString();
-  const statements = [];
 
-  // 1. Update target installment with is_manual_override = 1
-  const updateInstSql = `
-    UPDATE loan_installments
-    SET principal_portion = ?, interest_portion = ?, total_amount = ?,
-        remaining_balance_after = ?, is_manual_override = 1, updated_at = ?
-    WHERE id = ? AND loan_id = ? AND user_id = ?
-  `;
-  statements.push(
-    env.DB.prepare(updateInstSql).bind(
+  // Check if state row exists for this installment
+  const existingState = await env.DB.prepare(
+    `SELECT id FROM loan_installment_states WHERE loan_id = ? AND user_id = ? AND installment_number = ?`
+  ).bind(loanId, userId, targetInst.installmentNumber).first();
+
+  if (existingState) {
+    const updateSql = `
+      UPDATE loan_installment_states
+      SET principal_portion = ?, interest_portion = ?, total_amount = ?,
+          remaining_balance_after = ?, is_manual_override = 1, updated_at = ?
+      WHERE id = ? AND loan_id = ? AND user_id = ?
+    `;
+    await env.DB.prepare(updateSql).bind(
       newPrincipalPortion,
       newInterestPortion,
       actualTotalAmount,
       newRemainingBalanceAfter,
       nowIso,
-      targetInst.id,
+      existingState.id,
       loanId,
       userId
-    )
-  );
-
-  // 2. Delete all subsequent unpaid installments
-  const deleteSubsequentSql = `
-    DELETE FROM loan_installments
-    WHERE loan_id = ? AND user_id = ? AND installment_number > ? AND is_paid = 0
-  `;
-  statements.push(
-    env.DB.prepare(deleteSubsequentSql).bind(
-      loanId,
-      userId,
-      targetInst.installmentNumber
-    )
-  );
-
-  // 3. Rebuild subsequent unpaid installments with recalculateFromBalance
-  const remainingCount = loan.installmentCount - targetInst.installmentNumber;
-
-  if (remainingCount > 0 && newRemainingBalanceAfter > 0) {
-    const subsequentSchedule = recalculateFromBalance({
-      anchorBalance: newRemainingBalanceAfter,
-      anchorInstallmentNumber: targetInst.installmentNumber,
-      remainingCount,
-      annualRatePct: rate,
-      intervalMonths: interval,
-      startDateIso: loan.startDate,
-    });
-
-    const insertSubsequentSql = `
-      INSERT INTO loan_installments (
+    ).run();
+  } else {
+    const instId = targetInst.id || generateId("inst");
+    const insertSql = `
+      INSERT INTO loan_installment_states (
         id, loan_id, user_id, installment_number, due_date,
         principal_portion, interest_portion, total_amount,
         remaining_balance_after, is_paid, paid_date, paid_amount,
-        created_at, updated_at, is_manual_override
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        is_manual_override, created_at, updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0, '', 0, 1, ?, ?)
     `;
-
-    for (const item of subsequentSchedule) {
-      const instId = generateId("inst");
-      statements.push(
-        env.DB.prepare(insertSubsequentSql).bind(
-          instId,
-          loanId,
-          userId,
-          item.installmentNumber,
-          item.dueDateIso,
-          item.principalPortion,
-          item.interestPortion,
-          item.totalAmount,
-          item.remainingBalanceAfter,
-          0,
-          "",
-          0,
-          nowIso,
-          nowIso,
-          0
-        )
-      );
-    }
-  }
-
-  if (typeof env.DB.batch === "function") {
-    await env.DB.batch(statements);
-  } else {
-    for (const stmt of statements) {
-      await stmt.run();
-    }
+    await env.DB.prepare(insertSql).bind(
+      instId,
+      loanId,
+      userId,
+      targetInst.installmentNumber,
+      targetInst.dueDate,
+      newPrincipalPortion,
+      newInterestPortion,
+      actualTotalAmount,
+      newRemainingBalanceAfter,
+      nowIso,
+      nowIso
+    ).run();
   }
 
   const updatedLoan = await dbGetLoanById(env, userId, loanId);
-  const updatedInst = updatedLoan?.installments?.find((i) => i.id === installmentId) || null;
+  const updatedInst = updatedLoan?.installments?.find(
+    (i) => i.id === targetInst.id || i.installmentNumber === targetInst.installmentNumber
+  ) || null;
 
   return {
     loan: updatedLoan,
@@ -959,7 +1056,8 @@ export async function dbSetInstallmentAmount(env, userId, loanId, installmentId,
 
 /**
  * Add an extra (lump sum) payment to a loan.
- * Either reduces installment amounts ('reduce_amount') or shortens the loan term ('reduce_term').
+ * Writes ONLY the single row in `loan_extra_payments` with cached anchor & resulting balances.
+ * No subsequent installments are deleted or re-inserted.
  *
  * @param {object} env
  * @param {string} userId
@@ -998,29 +1096,6 @@ export async function dbAddExtraPayment(env, userId, loanId, {
     throw AppError.notFound("وام مورد نظر یافت نشد.");
   }
 
-  const nowIso = new Date().toISOString();
-  const paymentId = generateId("epay");
-
-  // 1. Record extra payment
-  const insertPaymentSql = `
-    INSERT INTO loan_extra_payments (
-      id, loan_id, user_id, amount, payment_date, reduction_mode, notes, created_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-  `;
-  const statements = [
-    env.DB.prepare(insertPaymentSql).bind(
-      paymentId,
-      loanId,
-      userId,
-      payAmount,
-      String(paymentDate).trim(),
-      mode,
-      String(notes || "").trim(),
-      nowIso
-    ),
-  ];
-
-  // 2. Current balance of loan = remaining_balance_after of last paid installment, or principalAmount if none
   const paidInstallments = loan.installments.filter((inst) => inst.isPaid);
   const paidCount = paidInstallments.length;
 
@@ -1030,165 +1105,89 @@ export async function dbAddExtraPayment(env, userId, loanId, {
     currentBalance = Number(lastPaid.remainingBalanceAfter) || 0;
   }
 
-  const newBalance = Math.max(0, currentBalance - payAmount);
+  const resultingBalance = Math.max(0, currentBalance - payAmount);
+  const fullyPaidOff = resultingBalance === 0;
 
-  // 3. Delete ALL unpaid installments (is_paid = 0)
-  const deletePendingSql = `
-    DELETE FROM loan_installments
-    WHERE loan_id = ? AND user_id = ? AND is_paid = 0
-  `;
-  statements.push(env.DB.prepare(deletePendingSql).bind(loanId, userId));
-
-  let fullyPaidOff = false;
-
-  if (newBalance === 0) {
-    fullyPaidOff = true;
-    // Loan is completely paid off! No new installments needed.
-    const updateLoanCountSql = `UPDATE loans SET installment_count = ?, updated_at = ? WHERE id = ? AND user_id = ?`;
-    statements.push(env.DB.prepare(updateLoanCountSql).bind(paidCount, nowIso, loanId, userId));
-  } else {
-    // There is still balance remaining to pay
-    const interval = loan.intervalMonths || 1;
-    const rate = loan.annualInterestRate || 0;
-
-    if (mode === "reduce_amount") {
-      // Keep original remaining installment count
-      const remainingCount = Math.max(1, loan.installmentCount - paidCount);
-
-      const newSchedule = recalculateFromBalance({
-        anchorBalance: newBalance,
-        anchorInstallmentNumber: paidCount,
-        remainingCount,
-        annualRatePct: rate,
-        intervalMonths: interval,
-        startDateIso: loan.startDate,
-      });
-
-      const insertPendingSql = `
-        INSERT INTO loan_installments (
-          id, loan_id, user_id, installment_number, due_date,
-          principal_portion, interest_portion, total_amount,
-          remaining_balance_after, is_paid, paid_date, paid_amount,
-          created_at, updated_at, is_manual_override
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-      `;
-
-      for (const item of newSchedule) {
-        const instId = generateId("inst");
-        statements.push(
-          env.DB.prepare(insertPendingSql).bind(
-            instId,
-            loanId,
-            userId,
-            item.installmentNumber,
-            item.dueDateIso,
-            item.principalPortion,
-            item.interestPortion,
-            item.totalAmount,
-            item.remainingBalanceAfter,
-            0,
-            "",
-            0,
-            nowIso,
-            nowIso,
-            0
-          )
-        );
-      }
+  let resultingInstallmentCount = null;
+  if (mode === "reduce_term" && resultingBalance > 0) {
+    const pendingInstallments = loan.installments.filter((inst) => !inst.isPaid);
+    let fixedAmount = 0;
+    if (pendingInstallments.length > 0 && pendingInstallments[0].totalAmount > 0) {
+      fixedAmount = pendingInstallments[0].totalAmount;
     } else {
-      // mode === 'reduce_term'
-      // Get fixed installment amount: from first pending installment, or standard PMT
-      const pendingInstallments = loan.installments.filter((inst) => !inst.isPaid);
-      let fixedAmount = 0;
-      if (pendingInstallments.length > 0 && pendingInstallments[0].totalAmount > 0) {
-        fixedAmount = pendingInstallments[0].totalAmount;
-      } else {
-        fixedAmount = calculateFixedInstallmentAmount({
-          principal: loan.principalAmount,
-          annualRatePct: rate,
-          installmentCount: loan.installmentCount,
-          intervalMonths: interval,
-        });
-      }
-
-      const newSchedule = calculatePayoffScheduleFixedAmount({
-        remainingBalance: newBalance,
-        fixedInstallmentAmount: fixedAmount,
-        annualRatePct: rate,
-        intervalMonths: interval,
-        startDateIso: loan.startDate,
-        anchorInstallmentNumber: paidCount,
+      fixedAmount = calculateFixedInstallmentAmount({
+        principal: loan.principalAmount,
+        annualRatePct: loan.annualInterestRate,
+        installmentCount: loan.installmentCount,
+        intervalMonths: loan.intervalMonths,
       });
-
-      const insertPendingSql = `
-        INSERT INTO loan_installments (
-          id, loan_id, user_id, installment_number, due_date,
-          principal_portion, interest_portion, total_amount,
-          remaining_balance_after, is_paid, paid_date, paid_amount,
-          created_at, updated_at, is_manual_override
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-      `;
-
-      for (const item of newSchedule) {
-        const instId = generateId("inst");
-        statements.push(
-          env.DB.prepare(insertPendingSql).bind(
-            instId,
-            loanId,
-            userId,
-            item.installmentNumber,
-            item.dueDateIso,
-            item.principalPortion,
-            item.interestPortion,
-            item.totalAmount,
-            item.remainingBalanceAfter,
-            0,
-            "",
-            0,
-            nowIso,
-            nowIso,
-            0
-          )
-        );
-      }
-
-      // Update total installmentCount on loan to paidCount + newSchedule.length
-      const newTotalCount = paidCount + newSchedule.length;
-      const updateCountSql = `UPDATE loans SET installment_count = ?, updated_at = ? WHERE id = ? AND user_id = ?`;
-      statements.push(env.DB.prepare(updateCountSql).bind(newTotalCount, nowIso, loanId, userId));
     }
+
+    const payoffSchedule = calculatePayoffScheduleFixedAmount({
+      remainingBalance: resultingBalance,
+      fixedInstallmentAmount: fixedAmount,
+      annualRatePct: loan.annualInterestRate,
+      intervalMonths: loan.intervalMonths,
+      startDateIso: loan.startDate,
+      anchorInstallmentNumber: paidCount,
+    });
+    resultingInstallmentCount = paidCount + payoffSchedule.length;
   }
 
-  if (typeof env.DB.batch === "function") {
-    await env.DB.batch(statements);
-  } else {
-    for (const stmt of statements) {
-      await stmt.run();
-    }
+  const nowIso = new Date().toISOString();
+  const paymentId = generateId("epay");
+
+  const insertPaymentSql = `
+    INSERT INTO loan_extra_payments (
+      id, loan_id, user_id, amount, payment_date, reduction_mode, notes,
+      anchor_installment_number, resulting_balance, resulting_installment_count, created_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `;
+
+  await env.DB.prepare(insertPaymentSql).bind(
+    paymentId,
+    loanId,
+    userId,
+    payAmount,
+    String(paymentDate).trim(),
+    mode,
+    String(notes || "").trim(),
+    paidCount,
+    resultingBalance,
+    resultingInstallmentCount,
+    nowIso
+  ).run();
+
+  if (fullyPaidOff || mode === "reduce_term") {
+    const newCount = fullyPaidOff ? paidCount : resultingInstallmentCount;
+    const updateLoanCountSql = `UPDATE loans SET installment_count = ?, updated_at = ? WHERE id = ? AND user_id = ?`;
+    await env.DB.prepare(updateLoanCountSql).bind(newCount, nowIso, loanId, userId).run();
   }
 
   const updatedLoan = await dbGetLoanById(env, userId, loanId);
-  const extraPayment = {
-    id: paymentId,
-    loanId,
-    userId,
-    amount: payAmount,
-    paymentDate: String(paymentDate).trim(),
-    reductionMode: mode,
-    notes: String(notes || "").trim(),
-    createdAt: nowIso,
-  };
 
   return {
     success: true,
     fullyPaidOff,
-    extraPayment,
+    extraPayment: {
+      id: paymentId,
+      loanId,
+      userId,
+      amount: payAmount,
+      paymentDate: String(paymentDate).trim(),
+      reductionMode: mode,
+      notes: String(notes || "").trim(),
+      anchorInstallmentNumber: paidCount,
+      resultingBalance,
+      resultingInstallmentCount,
+      createdAt: nowIso,
+    },
     loan: updatedLoan,
   };
 }
 
 /**
- * Fetch all extra payments recorded for a specific loan.
+ * Fetch all extra payments recorded for a loan
  *
  * @param {object} env
  * @param {string} userId
@@ -1200,30 +1199,28 @@ export async function dbGetLoanExtraPayments(env, userId, loanId) {
 
   await ensureD1Tables(env);
 
-  const query = `
-    SELECT id, loan_id AS loanId, user_id AS userId, amount, payment_date AS paymentDate,
-           reduction_mode AS reductionMode, notes, created_at AS createdAt
-    FROM loan_extra_payments
-    WHERE loan_id = ? AND user_id = ?
-    ORDER BY payment_date DESC, created_at DESC
-  `;
-
   try {
-    const { results } = await env.DB.prepare(query).bind(loanId, userId).all();
-    if (!Array.isArray(results)) return [];
+    const query = `
+      SELECT id, loan_id AS loanId, user_id AS userId,
+             amount, payment_date AS paymentDate, reduction_mode AS reductionMode,
+             notes, anchor_installment_number AS anchorInstallmentNumber,
+             resulting_balance AS resultingBalance,
+             resulting_installment_count AS resultingInstallmentCount,
+             created_at AS createdAt
+      FROM loan_extra_payments
+      WHERE loan_id = ? AND user_id = ?
+      ORDER BY payment_date DESC, created_at DESC
+    `;
+    const { results = [] } = await env.DB.prepare(query).bind(loanId, userId).all();
     return results.map((row) => ({
-      id: row.id,
-      loanId: row.loanId,
-      userId: row.userId,
+      ...row,
       amount: Number(row.amount || 0),
-      paymentDate: row.paymentDate || "",
-      reductionMode: row.reductionMode || "reduce_amount",
-      notes: row.notes || "",
-      createdAt: row.createdAt || "",
+      anchorInstallmentNumber: Number(row.anchorInstallmentNumber || 0),
+      resultingBalance: Number(row.resultingBalance || 0),
+      resultingInstallmentCount: row.resultingInstallmentCount ? Number(row.resultingInstallmentCount) : null,
     }));
   } catch (e) {
     logger.error("D1 dbGetLoanExtraPayments error:", { error: e.message, userId, loanId });
     return [];
   }
 }
-

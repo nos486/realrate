@@ -166,6 +166,7 @@ export function recalculateFromBalance({
   annualRatePct = 0,
   intervalMonths = 1,
   startDateIso,
+  loanId = '',
 }) {
   const p = Number(anchorBalance) || 0;
   const n = parseInt(remainingCount, 10) || 0;
@@ -190,6 +191,7 @@ export function recalculateFromBalance({
   for (let k = 1; k <= n; k++) {
     const installmentNumber = anchor + k;
     const dueDateIso = computeClampedDueDate(parsedStart, installmentNumber, interval);
+    const instId = loanId ? `inst_${loanId}_${installmentNumber}` : `inst_${installmentNumber}`;
 
     if (k === n) {
       // Last installment reconciles remaining principal to guarantee exact zero balance
@@ -199,12 +201,18 @@ export function recalculateFromBalance({
       remainingBalance = 0;
 
       schedule.push({
+        id: instId,
         installmentNumber,
+        dueDate: dueDateIso,
         dueDateIso,
         principalPortion,
         interestPortion,
         totalAmount,
         remainingBalanceAfter: 0,
+        isPaid: false,
+        paidDate: '',
+        paidAmount: 0,
+        isManualOverride: false,
       });
     } else {
       const interestPortion = r > 0 ? Math.round(remainingBalance * r) : 0;
@@ -221,12 +229,18 @@ export function recalculateFromBalance({
       remainingBalance = remainingBalance - principalPortion;
 
       schedule.push({
+        id: instId,
         installmentNumber,
+        dueDate: dueDateIso,
         dueDateIso,
         principalPortion,
         interestPortion,
         totalAmount,
         remainingBalanceAfter: remainingBalance,
+        isPaid: false,
+        paidDate: '',
+        paidAmount: 0,
+        isManualOverride: false,
       });
     }
   }
@@ -236,29 +250,19 @@ export function recalculateFromBalance({
 
 /**
  * Generate full amortization schedule for a loan.
+ * Accepts either { principal, annualRatePct, ... } or full loan model { principalAmount, annualInterestRate, ... }.
  *
  * @param {object} params
- * @param {number} params.principal - Principal loan amount
- * @param {number} params.annualRatePct - Annual interest rate percentage (0 for قرض‌الحسنه)
- * @param {number} params.installmentCount - Total number of installments
- * @param {string} params.startDateIso - Loan start date (ISO or YYYY-MM-DD)
- * @param {number} [params.intervalMonths=1] - Interval in months (default 1)
- * @returns {Array<{
- *   installmentNumber: number,
- *   dueDateIso: string,
- *   principalPortion: number,
- *   interestPortion: number,
- *   totalAmount: number,
- *   remainingBalanceAfter: number
- * }>}
+ * @returns {Array<object>}
  */
-export function generateAmortizationSchedule({
-  principal,
-  annualRatePct = 0,
-  installmentCount,
-  startDateIso,
-  intervalMonths = 1,
-}) {
+export function generateAmortizationSchedule(params = {}) {
+  const principal = Number(params.principal ?? params.principalAmount ?? 0);
+  const annualRatePct = Number(params.annualRatePct ?? params.annualInterestRate ?? 0);
+  const installmentCount = parseInt(params.installmentCount ?? 0, 10);
+  const startDateIso = params.startDateIso || params.startDate || '';
+  const intervalMonths = parseInt(params.intervalMonths ?? 1, 10);
+  const loanId = params.id || params.loanId || '';
+
   return recalculateFromBalance({
     anchorBalance: principal,
     anchorInstallmentNumber: 0,
@@ -266,6 +270,7 @@ export function generateAmortizationSchedule({
     annualRatePct,
     intervalMonths,
     startDateIso,
+    loanId,
   });
 }
 
@@ -280,14 +285,8 @@ export function generateAmortizationSchedule({
  * @param {number} [params.intervalMonths=1] - Frequency interval in months
  * @param {string} params.startDateIso - Original loan start date
  * @param {number} [params.anchorInstallmentNumber=0] - Number of already elapsed installments
- * @returns {Array<{
- *   installmentNumber: number,
- *   dueDateIso: string,
- *   principalPortion: number,
- *   interestPortion: number,
- *   totalAmount: number,
- *   remainingBalanceAfter: number
- * }>}
+ * @param {string} [params.loanId=''] - Optional loan ID for generating deterministic installment IDs
+ * @returns {Array<object>}
  */
 export function calculatePayoffScheduleFixedAmount({
   remainingBalance,
@@ -296,6 +295,7 @@ export function calculatePayoffScheduleFixedAmount({
   intervalMonths = 1,
   startDateIso,
   anchorInstallmentNumber = 0,
+  loanId = '',
 }) {
   let balance = Number(remainingBalance) || 0;
   const pmt = Number(fixedInstallmentAmount) || 0;
@@ -329,6 +329,7 @@ export function calculatePayoffScheduleFixedAmount({
 
     const installmentNumber = anchor + iteration;
     const dueDateIso = computeClampedDueDate(parsedStart, installmentNumber, interval);
+    const instId = loanId ? `inst_${loanId}_${installmentNumber}` : `inst_${installmentNumber}`;
     const interestPortion = r > 0 ? Math.round(balance * r) : 0;
 
     let principalPortion = pmt - interestPortion;
@@ -351,13 +352,335 @@ export function calculatePayoffScheduleFixedAmount({
     }
 
     schedule.push({
+      id: instId,
       installmentNumber,
+      dueDate: dueDateIso,
       dueDateIso,
       principalPortion,
       interestPortion,
       totalAmount,
       remainingBalanceAfter,
+      isPaid: false,
+      paidDate: '',
+      paidAmount: 0,
+      isManualOverride: false,
     });
+  }
+
+  return schedule;
+}
+
+/**
+ * Compute the effective amortization schedule dynamically from a loan definition,
+ * its recorded installment states (overrides, payments), and extra payments.
+ *
+ * @param {object} params
+ * @param {object} params.loan
+ * @param {Array<object>} [params.installmentStates=[]]
+ * @param {Array<object>} [params.extraPayments=[]]
+ * @returns {Array<object>}
+ */
+export function computeEffectiveSchedule({
+  loan,
+  installmentStates = [],
+  extraPayments = [],
+}) {
+  if (!loan) return [];
+
+  const principal = Number(loan.principalAmount ?? loan.principal ?? 0);
+  const annualRatePct = Number(loan.annualInterestRate ?? loan.annualRatePct ?? 0);
+  const installmentCount = parseInt(loan.installmentCount ?? 0, 10);
+  const intervalMonths = parseInt(loan.intervalMonths ?? 1, 10);
+  const startDateIso = loan.startDate || loan.startDateIso || '';
+  const loanId = loan.id || loan.loanId || '';
+
+  if (principal <= 0 || installmentCount <= 0) {
+    return [];
+  }
+
+  const r = annualRatePct > 0 ? (annualRatePct / 100) * (intervalMonths / 12) : 0;
+
+  // Index installmentStates by installmentNumber
+  const statesMap = new Map();
+  for (const s of installmentStates) {
+    const num = parseInt(s.installmentNumber ?? s.installment_number ?? 0, 10);
+    if (num > 0) {
+      statesMap.set(num, s);
+    }
+  }
+
+  // Group extraPayments by anchorInstallmentNumber
+  const epByAnchor = new Map();
+  for (const ep of extraPayments) {
+    const anchor = parseInt(ep.anchorInstallmentNumber ?? ep.anchor_installment_number ?? 0, 10);
+    if (!epByAnchor.has(anchor)) {
+      epByAnchor.set(anchor, []);
+    }
+    epByAnchor.get(anchor).push(ep);
+  }
+
+  // 1. Check if there are contiguous paid installments starting from installment 1
+  let contiguousPaidCount = 0;
+  while (statesMap.has(contiguousPaidCount + 1)) {
+    const st = statesMap.get(contiguousPaidCount + 1);
+    if (Boolean(st.isPaid ?? st.is_paid)) {
+      contiguousPaidCount++;
+    } else {
+      break;
+    }
+  }
+
+  let schedule = [];
+  let loopStartK = 1;
+
+  if (contiguousPaidCount > 0) {
+    const baseSchedule = generateAmortizationSchedule(loan);
+    const paidSlice = [];
+    for (let k = 1; k <= contiguousPaidCount; k++) {
+      const state = statesMap.get(k);
+      const baseItem = baseSchedule[k - 1];
+      paidSlice.push({
+        id: state.id || (baseItem ? baseItem.id : (loanId ? `inst_${loanId}_${k}` : `inst_${k}`)),
+        installmentNumber: k,
+        dueDate: state.dueDate || state.due_date || (baseItem ? baseItem.dueDate : ''),
+        dueDateIso: state.dueDate || state.due_date || (baseItem ? baseItem.dueDateIso : ''),
+        principalPortion: Number(state.principalPortion ?? state.principal_portion ?? (baseItem ? baseItem.principalPortion : 0)),
+        interestPortion: Number(state.interestPortion ?? state.interest_portion ?? (baseItem ? baseItem.interestPortion : 0)),
+        totalAmount: Number(state.totalAmount ?? state.total_amount ?? (baseItem ? baseItem.totalAmount : 0)),
+        remainingBalanceAfter: Number(state.remainingBalanceAfter ?? state.remaining_balance_after ?? (baseItem ? baseItem.remainingBalanceAfter : 0)),
+        isPaid: true,
+        paidDate: state.paidDate || state.paid_date || '',
+        paidAmount: Number(state.paidAmount ?? state.paid_amount ?? (baseItem ? baseItem.totalAmount : 0)),
+        isManualOverride: Boolean(state.isManualOverride ?? state.is_manual_override),
+      });
+    }
+
+    const alreadyPaidPrincipal = paidSlice.reduce((sum, inst) => sum + inst.principalPortion, 0);
+    const remainingPrincipal = Math.max(0, principal - alreadyPaidPrincipal);
+    const remainingCount = Math.max(0, installmentCount - contiguousPaidCount);
+
+    if (remainingCount > 0 && remainingPrincipal > 0) {
+      const remainingSchedule = recalculateFromBalance({
+        anchorBalance: remainingPrincipal,
+        anchorInstallmentNumber: contiguousPaidCount,
+        remainingCount,
+        annualRatePct,
+        intervalMonths,
+        startDateIso,
+        loanId,
+      });
+      schedule = paidSlice.concat(remainingSchedule);
+    } else {
+      schedule = paidSlice;
+    }
+
+    loopStartK = contiguousPaidCount + 1;
+  } else {
+    // Generate baseline schedule
+    schedule = generateAmortizationSchedule(loan);
+
+    // If no events exist, return baseline schedule directly
+    if (
+      (!installmentStates || installmentStates.length === 0) &&
+      (!extraPayments || extraPayments.length === 0)
+    ) {
+      return schedule;
+    }
+
+    // Handle anchor 0 extra payments if any
+    if (epByAnchor.has(0)) {
+      for (const ep of epByAnchor.get(0)) {
+        const epAmount = Number(ep.amount ?? 0);
+        const resultingBal = ep.resultingBalance !== undefined && ep.resultingBalance !== null
+          ? Number(ep.resultingBalance)
+          : Math.max(0, principal - epAmount);
+
+        if (resultingBal === 0) {
+          return [];
+        }
+
+        const mode = (ep.reductionMode ?? ep.reduction_mode) === 'reduce_term' ? 'reduce_term' : 'reduce_amount';
+        if (mode === 'reduce_term') {
+          const initialFixed = calculateFixedInstallmentAmount({
+            principal,
+            annualRatePct,
+            installmentCount,
+            intervalMonths,
+          });
+          schedule = calculatePayoffScheduleFixedAmount({
+            remainingBalance: resultingBal,
+            fixedInstallmentAmount: initialFixed,
+            annualRatePct,
+            intervalMonths,
+            startDateIso,
+            anchorInstallmentNumber: 0,
+            loanId,
+          });
+        } else {
+          schedule = recalculateFromBalance({
+            anchorBalance: resultingBal,
+            anchorInstallmentNumber: 0,
+            remainingCount: installmentCount,
+            annualRatePct,
+            intervalMonths,
+            startDateIso,
+            loanId,
+          });
+        }
+      }
+    }
+  }
+
+  // Process installment by installment: k = 1, 2, ...
+  for (let k = 1; k <= schedule.length; k++) {
+    const instIndex = k - 1;
+    const currentInst = schedule[instIndex];
+    if (!currentInst) break;
+
+    const state = statesMap.get(k);
+
+    // Step A: Check for manual override at installment k (only for pending installments)
+    const isOverride = Boolean(state?.isManualOverride ?? state?.is_manual_override);
+    if (isOverride && k > contiguousPaidCount) {
+      const balanceBefore = k === 1
+        ? principal
+        : schedule[k - 2].remainingBalanceAfter;
+
+      const desiredTotal = Number(state.totalAmount ?? state.total_amount);
+      const interestPortion = r > 0 ? Math.round(balanceBefore * r) : 0;
+      let principalPortion = desiredTotal - interestPortion;
+      if (principalPortion < 0) principalPortion = 0;
+      if (principalPortion > balanceBefore) principalPortion = balanceBefore;
+
+      const totalAmount = principalPortion + interestPortion;
+      const remainingBalanceAfter = balanceBefore - principalPortion;
+
+      schedule[instIndex] = {
+        ...currentInst,
+        id: state.id || currentInst.id,
+        principalPortion,
+        interestPortion,
+        totalAmount,
+        remainingBalanceAfter,
+        isManualOverride: true,
+      };
+
+      const remainingCount = schedule.length - k;
+      if (remainingCount > 0) {
+        if (remainingBalanceAfter === 0) {
+          schedule = schedule.slice(0, k);
+          break;
+        } else {
+          const subsequent = recalculateFromBalance({
+            anchorBalance: remainingBalanceAfter,
+            anchorInstallmentNumber: k,
+            remainingCount,
+            annualRatePct,
+            intervalMonths,
+            startDateIso,
+            loanId,
+          });
+          schedule = schedule.slice(0, k).concat(subsequent);
+        }
+      }
+    }
+
+    // Step B: Check for extra payments anchored at k
+    if (epByAnchor.has(k)) {
+      for (const ep of epByAnchor.get(k)) {
+        const balanceAtK = schedule[instIndex].remainingBalanceAfter;
+        const epAmount = Number(ep.amount ?? 0);
+        const resultingBal = ep.resultingBalance !== undefined && ep.resultingBalance !== null
+          ? Number(ep.resultingBalance)
+          : Math.max(0, balanceAtK - epAmount);
+
+        if (resultingBal === 0) {
+          schedule = schedule.slice(0, k);
+          break;
+        }
+
+        const mode = (ep.reductionMode ?? ep.reduction_mode) === 'reduce_term' ? 'reduce_term' : 'reduce_amount';
+        if (mode === 'reduce_term') {
+          // Keep the fixed installment amount from before this extra payment
+          let fixedAmount = 0;
+          if (schedule[k] && schedule[k].totalAmount > 0) {
+            fixedAmount = schedule[k].totalAmount;
+          } else {
+            fixedAmount = calculateFixedInstallmentAmount({
+              principal,
+              annualRatePct,
+              installmentCount,
+              intervalMonths,
+            });
+          }
+
+          const subsequent = calculatePayoffScheduleFixedAmount({
+            remainingBalance: resultingBal,
+            fixedInstallmentAmount: fixedAmount,
+            annualRatePct,
+            intervalMonths,
+            startDateIso,
+            anchorInstallmentNumber: k,
+            loanId,
+          });
+          schedule = schedule.slice(0, k).concat(subsequent);
+        } else {
+          // 'reduce_amount'
+          const remainingCount = Math.max(1, schedule.length - k);
+          const subsequent = recalculateFromBalance({
+            anchorBalance: resultingBal,
+            anchorInstallmentNumber: k,
+            remainingCount,
+            annualRatePct,
+            intervalMonths,
+            startDateIso,
+            loanId,
+          });
+          schedule = schedule.slice(0, k).concat(subsequent);
+        }
+      }
+      if (schedule.length <= k) {
+        break;
+      }
+    }
+  }
+
+  // Step C: Apply metadata (paid status, dates, etc.) from statesMap
+  for (let i = 0; i < schedule.length; i++) {
+    const inst = schedule[i];
+    const state = statesMap.get(inst.installmentNumber);
+    if (state) {
+      if (state.id) {
+        inst.id = state.id;
+      }
+      if (Boolean(state.isPaid ?? state.is_paid)) {
+        inst.isPaid = true;
+        inst.paidDate = state.paidDate || state.paid_date || '';
+        inst.paidAmount = Number(state.paidAmount ?? state.paid_amount ?? inst.totalAmount);
+        if (state.principalPortion !== undefined || state.principal_portion !== undefined) {
+          inst.principalPortion = Number(state.principalPortion ?? state.principal_portion);
+        }
+        if (state.interestPortion !== undefined || state.interest_portion !== undefined) {
+          inst.interestPortion = Number(state.interestPortion ?? state.interest_portion);
+        }
+        if (state.totalAmount !== undefined || state.total_amount !== undefined) {
+          inst.totalAmount = Number(state.totalAmount ?? state.total_amount);
+        }
+        if (state.remainingBalanceAfter !== undefined || state.remaining_balance_after !== undefined) {
+          inst.remainingBalanceAfter = Number(state.remainingBalanceAfter ?? state.remaining_balance_after);
+        }
+      }
+      if (Boolean(state.isManualOverride ?? state.is_manual_override)) {
+        inst.isManualOverride = true;
+      }
+    }
+    // Ensure all standard fields exist
+    inst.dueDate = inst.dueDate || inst.dueDateIso;
+    inst.dueDateIso = inst.dueDateIso || inst.dueDate;
+    inst.isPaid = Boolean(inst.isPaid);
+    inst.paidDate = inst.paidDate || '';
+    inst.paidAmount = Number(inst.paidAmount || 0);
+    inst.isManualOverride = Boolean(inst.isManualOverride);
   }
 
   return schedule;

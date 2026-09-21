@@ -44,31 +44,94 @@ function createMockD1() {
           });
           return { meta: { changes: 1 } };
         }
-        if (q.startsWith('INSERT INTO loan_installments')) {
-          const [
-            id, loan_id, user_id, installment_number, due_date,
-            principal_portion, interest_portion, total_amount,
-            remaining_balance_after, is_paid, paid_date, paid_amount,
-            created_at, updated_at, is_manual_override
-          ] = boundArgs;
-          installmentsStore.set(id, {
-            id, loan_id, user_id, installment_number, due_date,
-            principal_portion, interest_portion, total_amount,
-            remaining_balance_after, is_paid, paid_date, paid_amount,
-            created_at, updated_at,
-            is_manual_override: is_manual_override || 0,
-          });
+        if (q.startsWith('INSERT INTO loan_installment_states') || q.startsWith('INSERT INTO loan_installments')) {
+          if (boundArgs.length === 15) {
+            const [
+              id, loan_id, user_id, installment_number, due_date,
+              principal_portion, interest_portion, total_amount,
+              remaining_balance_after, is_paid, paid_date, paid_amount,
+              is_manual_override, created_at, updated_at
+            ] = boundArgs;
+            installmentsStore.set(id, {
+              id, loan_id, user_id, installment_number, due_date,
+              principal_portion, interest_portion, total_amount,
+              remaining_balance_after, is_paid, paid_date, paid_amount,
+              is_manual_override: is_manual_override || 0,
+              created_at, updated_at,
+            });
+          } else if (boundArgs.length === 13) {
+            const [
+              id, loan_id, user_id, installment_number, due_date,
+              principal_portion, interest_portion, total_amount,
+              remaining_balance_after, paid_date, paid_amount,
+              created_at, updated_at
+            ] = boundArgs;
+            installmentsStore.set(id, {
+              id, loan_id, user_id, installment_number, due_date,
+              principal_portion, interest_portion, total_amount,
+              remaining_balance_after, is_paid: 1, paid_date, paid_amount,
+              is_manual_override: 0,
+              created_at, updated_at,
+            });
+          } else if (boundArgs.length === 10) {
+            const [
+              id, loan_id, user_id, due_date,
+              principal_portion, interest_portion, total_amount,
+              remaining_balance_after, created_at, updated_at
+            ] = boundArgs;
+            installmentsStore.set(id, {
+              id, loan_id, user_id, installment_number: 1, due_date,
+              principal_portion, interest_portion, total_amount,
+              remaining_balance_after, is_paid: 0, paid_date: '', paid_amount: 0,
+              is_manual_override: 1,
+              created_at, updated_at,
+            });
+          } else if (boundArgs.length === 11) {
+            const [
+              id, loan_id, user_id, installment_number, due_date,
+              principal_portion, interest_portion, total_amount,
+              remaining_balance_after, created_at, updated_at
+            ] = boundArgs;
+            installmentsStore.set(id, {
+              id, loan_id, user_id, installment_number, due_date,
+              principal_portion, interest_portion, total_amount,
+              remaining_balance_after, is_paid: 0, paid_date: '', paid_amount: 0,
+              is_manual_override: 1,
+              created_at, updated_at,
+            });
+          }
           return { meta: { changes: 1 } };
         }
         if (q.startsWith('INSERT INTO loan_extra_payments')) {
-          const [
-            id, loan_id, user_id, amount, payment_date,
-            reduction_mode, notes, created_at
-          ] = boundArgs;
-          extraPaymentsStore.set(id, {
-            id, loan_id, user_id, amount, payment_date,
-            reduction_mode, notes, created_at
-          });
+          if (boundArgs.length >= 10) {
+            const [
+              id, loan_id, user_id, amount, payment_date,
+              reduction_mode, notes, anchor_installment_number,
+              resulting_balance, resulting_installment_count,
+              created_at
+            ] = boundArgs;
+            extraPaymentsStore.set(id, {
+              id, loan_id, user_id, amount, payment_date,
+              reduction_mode, notes,
+              anchor_installment_number: anchor_installment_number || 0,
+              resulting_balance: resulting_balance || 0,
+              resulting_installment_count: resulting_installment_count || null,
+              created_at: created_at || new Date().toISOString(),
+            });
+          } else {
+            const [
+              id, loan_id, user_id, amount, payment_date,
+              reduction_mode, notes, created_at
+            ] = boundArgs;
+            extraPaymentsStore.set(id, {
+              id, loan_id, user_id, amount, payment_date,
+              reduction_mode, notes,
+              anchor_installment_number: 0,
+              resulting_balance: 0,
+              resulting_installment_count: null,
+              created_at
+            });
+          }
           return { meta: { changes: 1 } };
         }
         if (q.includes('UPDATE loans SET installment_count = ?')) {
@@ -108,21 +171,7 @@ function createMockD1() {
           }
           return { meta: { changes: 0 } };
         }
-        if (q.includes('DELETE FROM loan_installments') && q.includes('installment_number > ?')) {
-          const [loanId, userId, anchorNumber] = boundArgs;
-          for (const [id, inst] of installmentsStore.entries()) {
-            if (
-              inst.loan_id === loanId &&
-              inst.user_id === userId &&
-              inst.installment_number > anchorNumber &&
-              (inst.is_paid === 0 || !inst.is_paid)
-            ) {
-              installmentsStore.delete(id);
-            }
-          }
-          return { meta: { changes: 1 } };
-        }
-        if (q.includes('DELETE FROM loan_installments') && q.includes('is_paid = 0')) {
+        if ((q.includes('DELETE FROM loan_installment_states') || q.includes('DELETE FROM loan_installments')) && q.includes('is_paid = 0')) {
           const [loanId, userId] = boundArgs;
           for (const [id, inst] of installmentsStore.entries()) {
             if (inst.loan_id === loanId && inst.user_id === userId && (inst.is_paid === 0 || !inst.is_paid)) {
@@ -131,11 +180,29 @@ function createMockD1() {
           }
           return { meta: { changes: 1 } };
         }
-        if (q.startsWith('DELETE FROM loan_installments') && !q.includes('is_paid = 0')) {
+        if ((q.includes('DELETE FROM loan_installment_states') || q.includes('DELETE FROM loan_installments')) && q.includes('WHERE id = ? AND user_id = ?')) {
+          const [id, userId] = boundArgs;
+          const existing = installmentsStore.get(id);
+          if (existing && existing.user_id === userId) {
+            installmentsStore.delete(id);
+            return { meta: { changes: 1 } };
+          }
+          return { meta: { changes: 0 } };
+        }
+        if ((q.includes('DELETE FROM loan_installment_states') || q.includes('DELETE FROM loan_installments')) && q.includes('WHERE loan_id = ? AND user_id = ?')) {
           const [loanId, userId] = boundArgs;
           for (const [id, inst] of installmentsStore.entries()) {
             if (inst.loan_id === loanId && inst.user_id === userId) {
               installmentsStore.delete(id);
+            }
+          }
+          return { meta: { changes: 1 } };
+        }
+        if (q.includes('DELETE FROM loan_extra_payments') && q.includes('WHERE loan_id = ? AND user_id = ?')) {
+          const [loanId, userId] = boundArgs;
+          for (const [id, ep] of extraPaymentsStore.entries()) {
+            if (ep.loan_id === loanId && ep.user_id === userId) {
+              extraPaymentsStore.delete(id);
             }
           }
           return { meta: { changes: 1 } };
@@ -149,19 +216,15 @@ function createMockD1() {
           }
           return { meta: { changes: 0 } };
         }
-        if (q.startsWith('UPDATE loan_installments') && q.includes('is_manual_override = 1')) {
-          const [
-            principalPortion,
-            interestPortion,
-            totalAmount,
-            remainingBalanceAfter,
-            nowIso,
-            installmentId,
-            loanId,
-            userId,
-          ] = boundArgs;
+        if ((q.startsWith('UPDATE loan_installment_states') || q.startsWith('UPDATE loan_installments')) && q.includes('is_manual_override = 1')) {
+          let principalPortion, interestPortion, totalAmount, remainingBalanceAfter, nowIso, installmentId, loanId, userId;
+          if (boundArgs.length === 8) {
+            [principalPortion, interestPortion, totalAmount, remainingBalanceAfter, nowIso, installmentId, loanId, userId] = boundArgs;
+          } else {
+            [principalPortion, interestPortion, totalAmount, remainingBalanceAfter, nowIso, installmentId, userId] = boundArgs;
+          }
           const existing = installmentsStore.get(installmentId);
-          if (existing && existing.user_id === userId && existing.loan_id === loanId) {
+          if (existing && existing.user_id === userId && (!loanId || existing.loan_id === loanId)) {
             installmentsStore.set(installmentId, {
               ...existing,
               principal_portion: principalPortion,
@@ -175,7 +238,7 @@ function createMockD1() {
           }
           return { meta: { changes: 0 } };
         }
-        if (q.startsWith('UPDATE loan_installments') && q.includes('is_paid = 1')) {
+        if ((q.startsWith('UPDATE loan_installment_states') || q.startsWith('UPDATE loan_installments')) && q.includes('is_paid = 1')) {
           let paidDate, paidAmount, updatedAt, installmentId, loanId, userId;
           if (boundArgs.length === 6) {
             [paidDate, paidAmount, updatedAt, installmentId, loanId, userId] = boundArgs;
@@ -195,7 +258,7 @@ function createMockD1() {
           }
           return { meta: { changes: 0 } };
         }
-        if (q.startsWith('UPDATE loan_installments') && q.includes('is_paid = 0')) {
+        if ((q.startsWith('UPDATE loan_installment_states') || q.startsWith('UPDATE loan_installments')) && q.includes('is_paid = 0')) {
           const [updatedAt, installmentId, userId] = boundArgs;
           const existing = installmentsStore.get(installmentId);
           if (existing && existing.user_id === userId) {
@@ -219,13 +282,31 @@ function createMockD1() {
           if (loan && loan.user_id === userId) return loan;
           return null;
         }
-        if (q.includes('FROM loan_installments') && q.includes('WHERE id = ? AND loan_id = ? AND user_id = ?')) {
+        if ((q.includes('FROM loan_installment_states') || q.includes('FROM loan_installments')) && q.includes('WHERE loan_id = ? AND user_id = ? AND installment_number = ?')) {
+          const [loanId, userId, instNum] = boundArgs;
+          for (const inst of installmentsStore.values()) {
+            if (inst.loan_id === loanId && inst.user_id === userId && inst.installment_number === Number(instNum)) {
+              return inst;
+            }
+          }
+          return null;
+        }
+        if ((q.includes('FROM loan_installment_states') || q.includes('FROM loan_installments')) && q.includes('(id = ? OR installment_number = ?) AND user_id = ?')) {
+          const [installmentId, instNum, userId] = boundArgs;
+          for (const inst of installmentsStore.values()) {
+            if (inst.user_id === userId && (inst.id === installmentId || inst.installment_number === Number(instNum))) {
+              return inst;
+            }
+          }
+          return null;
+        }
+        if ((q.includes('FROM loan_installment_states') || q.includes('FROM loan_installments')) && q.includes('WHERE id = ? AND loan_id = ? AND user_id = ?')) {
           const [installmentId, loanId, userId] = boundArgs;
           const inst = installmentsStore.get(installmentId);
           if (inst && inst.loan_id === loanId && inst.user_id === userId) return inst;
           return null;
         }
-        if (q.includes('FROM loan_installments') && q.includes('WHERE id = ? AND user_id = ?')) {
+        if ((q.includes('FROM loan_installment_states') || q.includes('FROM loan_installments')) && q.includes('WHERE id = ? AND user_id = ?')) {
           const [installmentId, userId] = boundArgs;
           const inst = installmentsStore.get(installmentId);
           if (inst && inst.user_id === userId) return inst;
@@ -234,62 +315,28 @@ function createMockD1() {
         return null;
       },
       async all() {
-        if (q.includes('FROM loans l') && q.includes('GROUP BY l.id')) {
+        if (q.includes('FROM loans') && q.includes('WHERE user_id = ?')) {
           const [userId] = boundArgs;
           const results = [];
           for (const loan of loansStore.values()) {
             if (loan.user_id === userId) {
-              let totalCount = 0;
-              let paidCount = 0;
-              let remainingBalance = 0;
-              for (const inst of installmentsStore.values()) {
-                if (inst.loan_id === loan.id) {
-                  totalCount++;
-                  if (inst.is_paid === 1) {
-                    paidCount++;
-                  } else {
-                    remainingBalance += (Number(inst.total_amount) || 0);
-                  }
-                }
-              }
-              results.push({
-                ...loan,
-                totalCount,
-                paidCount,
-                remainingBalance,
-              });
+              results.push(loan);
             }
           }
           return { results };
         }
-        if (q.includes('FROM loan_installments') && q.includes('WHERE user_id = ? AND is_paid = 0')) {
+        if ((q.includes('FROM loan_installment_states') || q.includes('FROM loan_installments')) && q.includes('WHERE user_id = ?')) {
           const [userId] = boundArgs;
           const results = [];
           for (const inst of installmentsStore.values()) {
-            if (inst.user_id === userId && (inst.is_paid === 0 || !inst.is_paid)) {
+            if (inst.user_id === userId) {
               results.push(inst);
             }
           }
           results.sort((a, b) => a.installment_number - b.installment_number);
           return { results };
         }
-        if (q.includes('FROM loan_installments') && q.includes('installment_number < ?') && q.includes('is_paid = 0')) {
-          const [loanId, userId, maxNum] = boundArgs;
-          const results = [];
-          for (const inst of installmentsStore.values()) {
-            if (
-              inst.loan_id === loanId &&
-              inst.user_id === userId &&
-              inst.installment_number < maxNum &&
-              (inst.is_paid === 0 || !inst.is_paid)
-            ) {
-              results.push(inst);
-            }
-          }
-          results.sort((a, b) => a.installment_number - b.installment_number);
-          return { results };
-        }
-        if (q.includes('FROM loan_installments') && q.includes('WHERE loan_id = ? AND user_id = ?')) {
+        if ((q.includes('FROM loan_installment_states') || q.includes('FROM loan_installments')) && q.includes('WHERE loan_id = ? AND user_id = ?')) {
           const [loanId, userId] = boundArgs;
           const results = [];
           for (const inst of installmentsStore.values()) {
@@ -311,6 +358,16 @@ function createMockD1() {
           results.sort((a, b) => (b.payment_date || '').localeCompare(a.payment_date || '') || (b.created_at || '').localeCompare(a.created_at || ''));
           return { results };
         }
+        if (q.includes('FROM loan_extra_payments') && q.includes('WHERE user_id = ?')) {
+          const [userId] = boundArgs;
+          const results = [];
+          for (const ep of extraPaymentsStore.values()) {
+            if (ep.user_id === userId) {
+              results.push(ep);
+            }
+          }
+          return { results };
+        }
         return { results: [] };
       }
     };
@@ -318,6 +375,9 @@ function createMockD1() {
   }
 
   return {
+    _loansStore: loansStore,
+    _installmentsStore: installmentsStore,
+    _extraPaymentsStore: extraPaymentsStore,
     prepare(q) {
       return makeStatement(q);
     },
@@ -338,7 +398,7 @@ describe('Loans Repository D1 Operations', () => {
     mockEnv = { DB: createMockD1() };
   });
 
-  it('creates a loan and batch-inserts full amortization installments', async () => {
+  it('creates a loan without inserting any installment rows into loan_installment_states', async () => {
     const loan = await dbCreateLoan(mockEnv, 'user_1', {
       title: 'وام مسکن',
       lenderName: 'بانک مسکن',
@@ -354,6 +414,10 @@ describe('Loans Repository D1 Operations', () => {
     expect(loan.principalAmount).toBe(12000000);
     expect(loan.installments).toHaveLength(12);
 
+    // D1 storage check: exactly 1 row in loans, 0 rows in loan_installment_states
+    expect(mockEnv.DB._loansStore.size).toBe(1);
+    expect(mockEnv.DB._installmentsStore.size).toBe(0);
+
     // Verify day clamping on installment dates
     expect(loan.installments[0].dueDate).toBe('2026-02-28');
     expect(loan.installments[1].dueDate).toBe('2026-03-31');
@@ -363,6 +427,34 @@ describe('Loans Repository D1 Operations', () => {
     expect(fetched).toBeDefined();
     expect(fetched.title).toBe('وام مسکن');
     expect(fetched.installments).toHaveLength(12);
+  });
+
+  it('creates a loan with customFirstInstallmentAmount and inserts only 1 override row into loan_installment_states', async () => {
+    const loan = await dbCreateLoan(mockEnv, 'user_1', {
+      title: 'وام خرید کالا با قسط اول متفاوت',
+      principalAmount: 10000000,
+      annualInterestRate: 0,
+      installmentCount: 5,
+      startDate: '2026-01-01',
+      customFirstInstallmentAmount: 4000000,
+    });
+
+    expect(loan).toBeDefined();
+    expect(mockEnv.DB._loansStore.size).toBe(1);
+    // Exactly 1 override state row inserted
+    expect(mockEnv.DB._installmentsStore.size).toBe(1);
+
+    const storedOverride = Array.from(mockEnv.DB._installmentsStore.values())[0];
+    expect(storedOverride.installment_number).toBe(1);
+    expect(storedOverride.is_manual_override).toBe(1);
+    expect(storedOverride.is_paid).toBe(0);
+    expect(storedOverride.total_amount).toBe(4000000);
+
+    // Generated schedule reflects custom first installment + remaining 4 re-amortized
+    expect(loan.installments).toHaveLength(5);
+    expect(loan.installments[0].totalAmount).toBe(4000000);
+    expect(loan.installments[0].isManualOverride).toBe(true);
+    expect(loan.installments[1].totalAmount).toBe(1500000);
   });
 
   it('retrieves user loans with accurate aggregate counts and next due installment (No N+1)', async () => {
@@ -395,7 +487,7 @@ describe('Loans Repository D1 Operations', () => {
     expect(item.nextDueInstallment.installmentNumber).toBe(2);
   });
 
-  it('marks and unmarks an installment as paid', async () => {
+  it('marks and unmarks an installment as paid: deletes simple payment row, preserves override row on unmark', async () => {
     const loan = await dbCreateLoan(mockEnv, 'user_1', {
       title: 'وام تحصیلی',
       principalAmount: 5000000,
@@ -404,8 +496,11 @@ describe('Loans Repository D1 Operations', () => {
       startDate: '2026-01-01',
     });
 
-    const inst = loan.installments[0];
-    const paid = await dbMarkInstallmentPaid(mockEnv, 'user_1', inst.id, {
+    expect(mockEnv.DB._installmentsStore.size).toBe(0);
+
+    // 1. Mark installment 1 as paid -> inserts 1 row in loan_installment_states
+    const inst1 = loan.installments[0];
+    const paid = await dbMarkInstallmentPaid(mockEnv, 'user_1', inst1.id, {
       paidDate: '2026-02-01',
       paidAmount: 1000000,
     });
@@ -414,13 +509,40 @@ describe('Loans Repository D1 Operations', () => {
     expect(paid.isPaid).toBe(true);
     expect(paid.paidDate).toBe('2026-02-01');
     expect(paid.paidAmount).toBe(1000000);
+    expect(mockEnv.DB._installmentsStore.size).toBe(1);
 
-    // Unmark
-    const unpaid = await dbUnmarkInstallmentPaid(mockEnv, 'user_1', inst.id);
+    // 2. Unmark installment 1 (no override) -> DELETES row from DB
+    const unpaid = await dbUnmarkInstallmentPaid(mockEnv, 'user_1', inst1.id);
     expect(unpaid).toBeDefined();
     expect(unpaid.isPaid).toBe(false);
     expect(unpaid.paidDate).toBe('');
     expect(unpaid.paidAmount).toBe(0);
+    expect(mockEnv.DB._installmentsStore.size).toBe(0);
+
+    // 3. Set manual override on installment 2 -> inserts 1 override row
+    const inst2 = loan.installments[1];
+    await dbSetInstallmentAmount(mockEnv, 'user_1', loan.id, inst2.id, 2000000);
+    expect(mockEnv.DB._installmentsStore.size).toBe(1);
+    const overrideBefore = Array.from(mockEnv.DB._installmentsStore.values())[0];
+    expect(overrideBefore.is_manual_override).toBe(1);
+    expect(overrideBefore.is_paid).toBe(0);
+
+    // 4. Mark overridden installment 2 as paid -> updates existing row
+    const paidOverride = await dbMarkInstallmentPaid(mockEnv, 'user_1', inst2.id, {
+      paidDate: '2026-03-01',
+      paidAmount: 2000000,
+    });
+    expect(paidOverride.isPaid).toBe(true);
+    expect(mockEnv.DB._installmentsStore.size).toBe(1);
+
+    // 5. Unmark overridden installment 2 -> DOES NOT DELETE row, resets is_paid=0 and keeps override
+    const unmarkOverride = await dbUnmarkInstallmentPaid(mockEnv, 'user_1', inst2.id);
+    expect(unmarkOverride.isPaid).toBe(false);
+    expect(unmarkOverride.isManualOverride).toBe(true);
+    expect(mockEnv.DB._installmentsStore.size).toBe(1);
+    const overrideAfter = Array.from(mockEnv.DB._installmentsStore.values())[0];
+    expect(overrideAfter.is_manual_override).toBe(1);
+    expect(overrideAfter.is_paid).toBe(0);
   });
 
   it('CRITICAL: updates loan financial params and rebuilds ONLY pending installments while paid installments remain untouched', async () => {
@@ -802,6 +924,122 @@ describe('Loans Repository D1 Operations', () => {
           paidDate: '2026-01-15',
         })
       ).rejects.toThrow('این قسط قبلاً پرداخت شده است.');
+    });
+  });
+
+  describe('Phase 4: 60-Month Comprehensive Lifecycle Verification (تست جامع وام ۶۰ ماهه)', () => {
+    it('executes full manual test scenario: create 60mo -> verify 1 loan row 0 installment rows -> pay 2 -> override 1 -> extra payments both modes -> verify complete schedules against manual calculations', async () => {
+      // 1. Create a 60-month loan: 300,000,000 Tomans, 23% interest, 60 installments
+      const loan = await dbCreateLoan(mockEnv, 'user_60', {
+        title: 'وام ۶۰ ماهه توسعه کسب‌وکار',
+        lenderName: 'بانک ملت',
+        principalAmount: 300000000,
+        annualInterestRate: 23,
+        installmentCount: 60,
+        intervalMonths: 1,
+        startDate: '2026-01-01',
+      });
+
+      // Verification Step 1: D1 row counts
+      expect(mockEnv.DB._loansStore.size).toBe(1);
+      expect(mockEnv.DB._installmentsStore.size).toBe(0);
+      expect(mockEnv.DB._extraPaymentsStore.size).toBe(0);
+
+      // Verify computed schedule length & mathematical convergence
+      expect(loan.installments).toHaveLength(60);
+      const monthlyRate = (23 / 100) * (1 / 12);
+      const expectedPmt = Math.round(
+        (300000000 * monthlyRate * Math.pow(1 + monthlyRate, 60)) /
+          (Math.pow(1 + monthlyRate, 60) - 1)
+      );
+      // Installment 1 total amount should match standard PMT formula (within rounding)
+      expect(Math.abs(loan.installments[0].totalAmount - expectedPmt)).toBeLessThanOrEqual(2);
+      // Final installment must perfectly close balance to 0
+      expect(loan.installments[59].remainingBalanceAfter).toBe(0);
+      expect(loan.remainingBalance).toBe(loan.installments.reduce((sum, i) => sum + i.totalAmount, 0));
+
+      // 2. Pay 2 installments (installment 1 and 2)
+      const inst1 = loan.installments[0];
+      const inst2 = loan.installments[1];
+      await dbMarkInstallmentPaid(mockEnv, 'user_60', inst1.id, {
+        paidDate: '2026-02-01',
+        paidAmount: inst1.totalAmount,
+      });
+      await dbMarkInstallmentPaid(mockEnv, 'user_60', inst2.id, {
+        paidDate: '2026-03-01',
+        paidAmount: inst2.totalAmount,
+      });
+
+      // Verification Step 2: D1 has exactly 2 rows in loan_installment_states
+      expect(mockEnv.DB._installmentsStore.size).toBe(2);
+      const loanAfter2Paid = await dbGetLoanById(mockEnv, 'user_60', loan.id);
+      expect(loanAfter2Paid.paidCount).toBe(2);
+      expect(loanAfter2Paid.installments[0].isPaid).toBe(true);
+      expect(loanAfter2Paid.installments[1].isPaid).toBe(true);
+      expect(loanAfter2Paid.installments[2].isPaid).toBe(false);
+
+      // 3. Override 1 installment: installment 5 to 15,000,000 Tomans
+      const inst5 = loanAfter2Paid.installments[4];
+      const overrideRes = await dbSetInstallmentAmount(mockEnv, 'user_60', loan.id, inst5.id, 15000000);
+      expect(overrideRes.installment.isManualOverride).toBe(true);
+      expect(overrideRes.installment.totalAmount).toBe(15000000);
+
+      // Verification Step 3: D1 has exactly 3 rows in loan_installment_states (2 paid + 1 override)
+      expect(mockEnv.DB._installmentsStore.size).toBe(3);
+      const loanAfterOverride = await dbGetLoanById(mockEnv, 'user_60', loan.id);
+      expect(loanAfterOverride.installments[4].totalAmount).toBe(15000000);
+      expect(loanAfterOverride.installments[4].isManualOverride).toBe(true);
+      expect(loanAfterOverride.installments[59].remainingBalanceAfter).toBe(0);
+
+      // 4. Extra payment in reduce_amount mode: 20,000,000 Tomans at installment 2
+      const epAmountRes = await dbAddExtraPayment(mockEnv, 'user_60', loan.id, {
+        amount: 20000000,
+        paymentDate: '2026-03-15',
+        reductionMode: 'reduce_amount',
+        notes: 'واریز پاداش نوروزی',
+      });
+      expect(epAmountRes.success).toBe(true);
+      expect(mockEnv.DB._extraPaymentsStore.size).toBe(1);
+      // Installment states table MUST STILL have only 3 rows
+      expect(mockEnv.DB._installmentsStore.size).toBe(3);
+
+      const loanAfterEpAmount = await dbGetLoanById(mockEnv, 'user_60', loan.id);
+      expect(loanAfterEpAmount.installmentCount).toBe(60);
+      expect(loanAfterEpAmount.installments).toHaveLength(60);
+      // Amounts of non-overridden pending installments should now be lower than original PMT
+      expect(loanAfterEpAmount.installments[2].totalAmount).toBeLessThan(expectedPmt);
+      expect(loanAfterEpAmount.installments[59].remainingBalanceAfter).toBe(0);
+
+      // 5. Extra payment in reduce_term mode: pay installment 3 & 4 then add lump sum 50,000,000
+      await dbMarkInstallmentPaid(mockEnv, 'user_60', loanAfterEpAmount.installments[2].id, {
+        paidDate: '2026-04-01',
+      });
+      await dbMarkInstallmentPaid(mockEnv, 'user_60', loanAfterEpAmount.installments[3].id, {
+        paidDate: '2026-05-01',
+      });
+      expect(mockEnv.DB._installmentsStore.size).toBe(5);
+
+      const epTermRes = await dbAddExtraPayment(mockEnv, 'user_60', loan.id, {
+        amount: 50000000,
+        paymentDate: '2026-05-15',
+        reductionMode: 'reduce_term',
+        notes: 'تسویه بخشی از اصل وام',
+      });
+      expect(epTermRes.success).toBe(true);
+      expect(mockEnv.DB._extraPaymentsStore.size).toBe(2);
+
+      const loanAfterEpTerm = await dbGetLoanById(mockEnv, 'user_60', loan.id);
+      expect(loanAfterEpTerm.installmentCount).toBeLessThan(60);
+      expect(loanAfterEpTerm.installments.length).toBeLessThan(60);
+      const finalInst = loanAfterEpTerm.installments[loanAfterEpTerm.installments.length - 1];
+      expect(finalInst.remainingBalanceAfter).toBe(0);
+
+      // Summary via dbGetUserLoans matches exactly
+      const userLoans = await dbGetUserLoans(mockEnv, 'user_60');
+      expect(userLoans).toHaveLength(1);
+      expect(userLoans[0].paidCount).toBe(4);
+      expect(userLoans[0].totalCount).toBe(loanAfterEpTerm.installments.length);
+      expect(userLoans[0].nextDueInstallment.installmentNumber).toBe(5);
     });
   });
 });
