@@ -210,7 +210,7 @@ export default function PortfolioTracker({ rates, calcData, usdToman, goldUsd })
       totalPnlPct,
       hasAnyCost,
     };
-  }, [holdings, computedHoldings, realPriceMap, boursePricesMap]);
+  }, [holdings, computedHoldings, realPriceMap, boursePricesMap, pricing?.itemMap]);
 
   // 6. Category Groups helper
   const buildCategoryGroups = useCallback((itemsList, filterQuery) => {

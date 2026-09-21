@@ -78,14 +78,18 @@ export function normalizeHolding(h, itemMap = null) {
     ? (itemMap[assetId] || itemMap[cleanId] || itemMap[assetId?.toLowerCase()] || null)
     : null;
 
-  const resolvedCategory = resolveItemCategory(h);
+  // Allow live catalog data to override the pattern-based category detection.
+  // This fixes legacy ids like "atieh" which resolve to "bourse" by pattern but
+  // are actually "bourse_fund" according to the live catalog sourceConfig.
+  const resolvedCategory = liveItem?.category || resolveItemCategory(h);
+  const liveSourceId = liveItem?.sourceId || liveItem?.source || null;
 
   // 1. Bourse Stocks & Funds
   if (resolvedCategory === 'bourse' || resolvedCategory === 'bourse_fund') {
     const isFund = resolvedCategory === 'bourse_fund';
     // Build enriched raw item for displayEngine when live data is available
     const rawForDisplay = liveItem
-      ? { ...h, name: liveItem.name, sourceId: liveItem.sourceId || liveItem.source, category: liveItem.category }
+      ? { ...h, name: liveItem.name, sourceId: liveSourceId, category: liveItem.category }
       : h;
     const displayName = resolveAssetDisplayName(assetId, rawForDisplay);
     if (!unit || unit === 'واحد' || unit === 'گرم' || unit === 'عدد' || unit === 'تومان') {
@@ -97,6 +101,7 @@ export function normalizeHolding(h, itemMap = null) {
       assetName: displayName,
       assetType: resolvedCategory,
       category: resolvedCategory,
+      ...(liveSourceId ? { sourceId: liveSourceId } : {}),
       unit,
       isFund,
       currentPrice,
@@ -120,7 +125,7 @@ export function normalizeHolding(h, itemMap = null) {
 
   // 3. Canonical standard assets (Gold, Coins, Silver, Forex, Crypto) + catalog items
   const rawForDisplay = liveItem
-    ? { ...h, name: liveItem.name, sourceId: liveItem.sourceId || liveItem.source, category: liveItem.category }
+    ? { ...h, name: liveItem.name, sourceId: liveSourceId, category: liveItem.category }
     : h;
   const displayName = resolveAssetDisplayName(assetId, rawForDisplay);
   const resolvedUnit = resolveAssetUnit(assetId, rawForDisplay, unit || 'واحد');
@@ -130,6 +135,7 @@ export function normalizeHolding(h, itemMap = null) {
     assetName: displayName,
     assetType: resolvedCategory,
     category: resolvedCategory,
+    ...(liveSourceId ? { sourceId: liveSourceId } : {}),
     unit: resolvedUnit,
     currentPrice,
     customPrice,

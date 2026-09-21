@@ -437,10 +437,7 @@ export default function TransactionsPage({
                             <span className="asset-name-text">{formatAssetName(tx, pricing?.itemMap)}</span>
                             <span className={`item-category-pill cat-${tx.category || tx.assetType || 'custom'}`}>
                               <CategoryIcon category={tx.category || tx.assetType} size={11} style={{ verticalAlign: 'middle', marginLeft: '4px' }} />
-                              {getItemBrand(tx, pricing?.itemMap
-                                ? { id: pricing.itemMap[tx.assetId]?.sourceId || pricing.itemMap[tx.assetId]?.source }
-                                : null
-                              )}
+                              {getItemBrand(tx, tx.sourceId ? { id: tx.sourceId } : null)}
                             </span>
                           </div>
                         </td>

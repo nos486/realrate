@@ -79,10 +79,7 @@ export default function HoldingsTable({
                           <span className="asset-name-text">{formatAssetName(item, itemMap)}</span>
                           <span className={`item-category-pill cat-${item.category || item.assetType || 'custom'}`}>
                             <CategoryIcon category={item.category || item.assetType} size={11} style={{ verticalAlign: 'middle', marginLeft: '4px' }} />
-                            {getItemBrand(item, itemMap
-                              ? { id: itemMap[item.assetId]?.sourceId || itemMap[item.assetId]?.source }
-                              : null
-                            )}
+                            {getItemBrand(item, item.sourceId ? { id: item.sourceId } : null)}
                           </span>
                         </div>
                       </td>
