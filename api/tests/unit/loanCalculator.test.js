@@ -5,6 +5,7 @@ import {
   recalculateFromBalance,
   calculatePayoffScheduleFixedAmount,
   computeEffectiveSchedule,
+  applyAnnualFee,
 } from '../../src/domain/loanCalculator.js';
 
 describe('Loan Calculator Domain (ماشین حساب وام و اقساط)', () => {
@@ -596,6 +597,131 @@ describe('Loan Calculator Domain (ماشین حساب وام و اقساط)', ()
 
       // Balance must reach exactly zero at the end.
       expect(schedule[11].remainingBalanceAfter).toBe(0);
+    });
+  });
+
+  describe('applyAnnualFee (کارمزد سالانه)', () => {
+    it('operates directly on a raw schedule array (pure function contract)', () => {
+      const loan = { intervalMonths: 1, annualFeeAmount: 300000 };
+      const schedule = [
+        { installmentNumber: 11, totalAmount: 1000000, isPaid: false, isManualOverride: false },
+        { installmentNumber: 12, totalAmount: 1000000, isPaid: false, isManualOverride: false },
+        { installmentNumber: 13, totalAmount: 1000000, isPaid: false, isManualOverride: false },
+      ];
+      const result = applyAnnualFee(schedule, loan);
+      expect(result[0].feePortion ?? 0).toBe(0);
+      expect(result[1].feePortion).toBe(300000);
+      expect(result[1].totalAmount).toBe(1300000);
+      expect(result[2].feePortion ?? 0).toBe(0);
+    });
+
+    it('adds the fee once to the installment nearest each 12-month anniversary (monthly loan)', () => {
+      const loan = {
+        principalAmount: 12000000,
+        annualInterestRate: 0,
+        installmentCount: 24,
+        intervalMonths: 1,
+        startDate: '2026-01-01',
+        annualFeeAmount: 500000,
+      };
+      const schedule = computeEffectiveSchedule({ loan });
+
+      // Only installments #12 and #24 (the first ones to cross a 12-month boundary) carry the fee.
+      const withFee = schedule.filter((i) => i.feePortion > 0);
+      expect(withFee.map((i) => i.installmentNumber)).toEqual([12, 24]);
+      expect(schedule[11].feePortion).toBe(500000);
+      expect(schedule[11].totalAmount).toBe(schedule[10].totalAmount + 500000);
+      expect(schedule[23].feePortion).toBe(500000);
+
+      // The fee is a pure surcharge: it must not change the amortized principal/balance trajectory.
+      const sumPrincipal = schedule.reduce((sum, inst) => sum + inst.principalPortion, 0);
+      expect(sumPrincipal).toBe(12000000);
+      expect(schedule[23].remainingBalanceAfter).toBe(0);
+    });
+
+    it('applies the fee to the correct installment for a quarterly loan (every 4th installment)', () => {
+      const loan = {
+        principalAmount: 4000000,
+        annualInterestRate: 0,
+        installmentCount: 8,
+        intervalMonths: 3,
+        startDate: '2026-01-01',
+        annualFeeAmount: 100000,
+      };
+      const schedule = computeEffectiveSchedule({ loan });
+      const withFee = schedule.filter((i) => i.feePortion > 0);
+      expect(withFee.map((i) => i.installmentNumber)).toEqual([4, 8]);
+    });
+
+    it('does not apply the fee to a paid installment (frozen historical amount)', () => {
+      const loan = {
+        principalAmount: 12000000,
+        annualInterestRate: 0,
+        installmentCount: 12,
+        intervalMonths: 1,
+        startDate: '2026-01-01',
+        annualFeeAmount: 500000,
+      };
+      const baseline = generateAmortizationSchedule(loan);
+      const installmentStates = [
+        {
+          installmentNumber: 12,
+          dueDate: baseline[11].dueDate,
+          principalPortion: baseline[11].principalPortion,
+          interestPortion: baseline[11].interestPortion,
+          totalAmount: baseline[11].totalAmount, // paid WITHOUT the fee ever having been added
+          remainingBalanceAfter: 0,
+          isPaid: true,
+          paidDate: '2026-12-01',
+          paidAmount: baseline[11].totalAmount,
+        },
+      ];
+      const schedule = computeEffectiveSchedule({ loan, installmentStates });
+      expect(schedule[11].isPaid).toBe(true);
+      expect(schedule[11].totalAmount).toBe(baseline[11].totalAmount);
+      expect(schedule[11].feePortion ?? 0).toBe(0);
+    });
+
+    it('does not apply the fee to a manually-overridden pending installment', () => {
+      const loan = {
+        principalAmount: 12000000,
+        annualInterestRate: 0,
+        installmentCount: 12,
+        intervalMonths: 1,
+        startDate: '2026-01-01',
+        annualFeeAmount: 500000,
+      };
+      const installmentStates = [
+        {
+          installmentNumber: 12,
+          dueDate: '2026-12-01',
+          principalPortion: 1000000,
+          interestPortion: 0,
+          totalAmount: 1000000,
+          remainingBalanceAfter: 0,
+          isPaid: false,
+          isManualOverride: true,
+        },
+      ];
+      const schedule = computeEffectiveSchedule({ loan, installmentStates });
+      expect(schedule[11].isManualOverride).toBe(true);
+      expect(schedule[11].totalAmount).toBe(1000000);
+      expect(schedule[11].feePortion ?? 0).toBe(0);
+    });
+
+    it('is a no-op when annualFeeAmount is 0 or unset (backward-compatible default)', () => {
+      const loan = {
+        principalAmount: 12000000,
+        annualInterestRate: 0,
+        installmentCount: 12,
+        intervalMonths: 1,
+        startDate: '2026-01-01',
+      };
+      const withoutFeeField = computeEffectiveSchedule({ loan });
+      const withZeroFee = computeEffectiveSchedule({ loan: { ...loan, annualFeeAmount: 0 } });
+      const baseline = generateAmortizationSchedule(loan);
+      expect(withoutFeeField).toEqual(baseline);
+      expect(withZeroFee).toEqual(baseline);
     });
   });
 });

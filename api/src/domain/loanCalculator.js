@@ -476,6 +476,42 @@ export function calculatePayoffScheduleFixedAmount({
 }
 
 /**
+ * Apply the loan's optional annual fee (کارمزد سالانه) on top of an already-computed schedule.
+ * The fee is charged once per full year elapsed since the loan start, added to whichever pending
+ * installment is the first to reach that anniversary (e.g. installment #12 for a monthly loan,
+ * #4 for a quarterly loan). It is a pure surcharge on `totalAmount` — it does not participate in
+ * the principal/interest amortization math and never changes `remainingBalanceAfter`.
+ *
+ * Paid installments (frozen, already reflect whatever fee applied when they were paid) and
+ * manually-overridden pending installments (the user's explicit chosen total) are left untouched.
+ *
+ * @param {Array<object>} schedule
+ * @param {object} loan
+ * @returns {Array<object>}
+ */
+export function applyAnnualFee(schedule, loan) {
+  const feeAmount = Number(loan?.annualFeeAmount ?? loan?.annual_fee_amount ?? 0);
+  const intervalMonths = parseInt(loan?.intervalMonths ?? loan?.interval_months ?? 1, 10) || 1;
+
+  return schedule.map((inst) => {
+    if (feeAmount > 0 && !inst.isPaid && !inst.isManualOverride) {
+      const monthsBefore = (inst.installmentNumber - 1) * intervalMonths;
+      const monthsAfter = inst.installmentNumber * intervalMonths;
+      const crossings = Math.floor(monthsAfter / 12) - Math.floor(monthsBefore / 12);
+      if (crossings > 0) {
+        const feePortion = feeAmount * crossings;
+        return {
+          ...inst,
+          feePortion,
+          totalAmount: inst.totalAmount + feePortion,
+        };
+      }
+    }
+    return inst;
+  });
+}
+
+/**
  * Compute the effective amortization schedule dynamically from a loan definition,
  * its recorded installment states (overrides, payments), and extra payments.
  *
@@ -600,7 +636,7 @@ export function computeEffectiveSchedule({
       (!installmentStates || installmentStates.length === 0) &&
       (!extraPayments || extraPayments.length === 0)
     ) {
-      return schedule;
+      return applyAnnualFee(schedule, loan);
     }
 
     // Handle anchor 0 extra payments if any
@@ -803,6 +839,6 @@ export function computeEffectiveSchedule({
     inst.isManualOverride = Boolean(inst.isManualOverride);
   }
 
-  return schedule;
+  return applyAnnualFee(schedule, loan);
 }
 

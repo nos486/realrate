@@ -337,6 +337,14 @@ export default function LoanInstallmentsTable({
                             ویرایش‌شده
                           </span>
                         )}
+                        {Number(inst.feePortion) > 0 && (
+                          <span
+                            className="badge-manual-override"
+                            title={`شامل ${formatNum(inst.feePortion)} تومان کارمزد سالانه`}
+                          >
+                            + کارمزد سالانه
+                          </span>
+                        )}
                         {!inst.isPaid && onSetInstallmentAmount && (
                           <button
                             type="button"
@@ -532,6 +540,14 @@ export default function LoanInstallmentsTable({
                     </strong>
                     {Boolean(inst.isManualOverride) && (
                       <span className="badge-manual-override">ویرایش‌شده</span>
+                    )}
+                    {Number(inst.feePortion) > 0 && (
+                      <span
+                        className="badge-manual-override"
+                        title={`شامل ${formatNum(inst.feePortion)} تومان کارمزد سالانه`}
+                      >
+                        + کارمزد سالانه
+                      </span>
                     )}
                   </div>
                   {!inst.isPaid && onSetInstallmentAmount && (

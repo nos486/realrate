@@ -135,6 +135,7 @@ export async function ensureD1Tables(env) {
       installment_count INTEGER NOT NULL,
       interval_months INTEGER NOT NULL DEFAULT 1,
       start_date TEXT NOT NULL,
+      annual_fee_amount REAL NOT NULL DEFAULT 0,
       notes TEXT DEFAULT '',
       created_at TEXT NOT NULL,
       updated_at TEXT NOT NULL
@@ -191,6 +192,11 @@ export async function ensureD1Tables(env) {
         logger.error("D1 schema statement failed:", { sql, error: stmtErr.message });
       }
     }
+
+    // Backward-compat: ensure the optional annual fee column exists on loans
+    try {
+      await env.DB.prepare("ALTER TABLE loans ADD COLUMN annual_fee_amount REAL NOT NULL DEFAULT 0").run();
+    } catch (ignore) {}
 
     // Backward-compat: ensure Virtual Schedule columns exist on loan_extra_payments
     try {

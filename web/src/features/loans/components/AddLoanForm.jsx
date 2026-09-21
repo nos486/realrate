@@ -18,7 +18,7 @@ import ShamsiDatePicker, {
   gregorianToShamsi,
   shamsiToGregorian,
 } from '../../portfolio/components/ShamsiDatePicker.jsx';
-import { calculateFixedInstallmentAmount } from '../../../utils/loanCalculator.js';
+import { calculateFixedInstallmentAmount, generateAmortizationSchedule } from '../../../utils/loanCalculator.js';
 
 const formatPersianNum = (val) => Number(val || 0).toLocaleString('fa-IR');
 
@@ -37,20 +37,25 @@ export default function AddLoanForm({
   const [intervalMonths, setIntervalMonths] = useState(1);
   const [startDateIso, setStartDateIso] = useState(new Date().toISOString().split('T')[0]);
   const [startDateShamsi, setStartDateShamsi] = useState(getTodayShamsi());
+  const [annualFeeAmount, setAnnualFeeAmount] = useState('');
   const [notes, setNotes] = useState('');
   const [formError, setFormError] = useState('');
 
-  // Custom first installment amount states (فاز C)
-  const [hasCustomFirstInstallment, setHasCustomFirstInstallment] = useState(false);
+  // How installment amounts are determined at creation time — creation-only, mutually exclusive:
+  // 'standard' = pure formula, 'customFirst' = only installment #1 is manual, 'customEach' = the
+  // user may manually set any subset of installments (formula still fills in the rest).
+  const [installmentMode, setInstallmentMode] = useState('standard');
   const [firstInstallmentAmount, setFirstInstallmentAmount] = useState('');
+  const [customAmounts, setCustomAmounts] = useState({});
 
   // Populate or reset form whenever modal opens or editingLoan changes
   useEffect(() => {
     if (!isOpen) return;
 
     setFormError('');
-    setHasCustomFirstInstallment(false);
+    setInstallmentMode('standard');
     setFirstInstallmentAmount('');
+    setCustomAmounts({});
 
     if (editingLoan) {
       setTitle(editingLoan.title || '');
@@ -72,6 +77,9 @@ export default function AddLoanForm({
         editingLoan.startDate || editingLoan.start_date || new Date().toISOString().split('T')[0];
       setStartDateIso(rawStart);
       setStartDateShamsi(gregorianToShamsi(rawStart));
+      setAnnualFeeAmount(
+        editingLoan.annualFeeAmount ? String(editingLoan.annualFeeAmount) : ''
+      );
       setNotes(editingLoan.notes || '');
     } else {
       setTitle('');
@@ -84,6 +92,7 @@ export default function AddLoanForm({
       const todayIso = new Date().toISOString().split('T')[0];
       setStartDateIso(todayIso);
       setStartDateShamsi(getTodayShamsi());
+      setAnnualFeeAmount('');
       setNotes('');
     }
   }, [isOpen, editingLoan]);
@@ -104,6 +113,11 @@ export default function AddLoanForm({
     return parseInt(s, 10) || 0;
   }, [installmentCount]);
 
+  const cleanAnnualFee = useMemo(() => {
+    const s = String(annualFeeAmount || '').replace(/,/g, '').trim();
+    return Number(s) || 0;
+  }, [annualFeeAmount]);
+
   // Live calculation of fixed periodic payment (PMT)
   const liveInstallment = useMemo(() => {
     if (cleanPrincipal <= 0 || cleanCount <= 0) return 0;
@@ -114,6 +128,19 @@ export default function AddLoanForm({
       intervalMonths,
     });
   }, [cleanPrincipal, cleanRate, cleanCount, intervalMonths]);
+
+  // Baseline formula-derived schedule, used as the live preview for the per-installment
+  // customization panel (creation-only)
+  const liveSchedule = useMemo(() => {
+    if (installmentMode !== 'customEach' || cleanPrincipal <= 0 || cleanCount <= 0) return [];
+    return generateAmortizationSchedule({
+      principal: cleanPrincipal,
+      annualRatePct: cleanRate,
+      installmentCount: cleanCount,
+      intervalMonths,
+      startDateIso: startDateIso || new Date().toISOString().split('T')[0],
+    });
+  }, [installmentMode, cleanPrincipal, cleanRate, cleanCount, intervalMonths, startDateIso]);
 
   const liveTotalRepayment = useMemo(() => {
     if (liveInstallment <= 0 || cleanCount <= 0) return 0;
@@ -134,6 +161,16 @@ export default function AddLoanForm({
     return cleanPrincipal !== origP || cleanRate !== origRate || cleanCount !== origCount;
   }, [editingLoan, cleanPrincipal, cleanRate, cleanCount]);
 
+  // Number of installments already paid on the loan being edited (0 for a new loan) — used to
+  // warn/block edits the server would reject anyway (see dbUpdateLoan's guard rails).
+  const editingPaidCount = editingLoan ? Number(editingLoan.paidCount || 0) : 0;
+  const isCountBelowPaid = editingPaidCount > 0 && cleanCount < editingPaidCount;
+  const isStartDateChangedAfterPaid = useMemo(() => {
+    if (!editingLoan || editingPaidCount === 0) return false;
+    const origStart = editingLoan.startDate || editingLoan.start_date || '';
+    return startDateIso !== origStart;
+  }, [editingLoan, editingPaidCount, startDateIso]);
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setFormError('');
@@ -150,14 +187,32 @@ export default function AddLoanForm({
       setFormError('تعداد اقساط باید حداقل ۱ قسط باشد.');
       return;
     }
+    if (isCountBelowPaid) {
+      setFormError(`تعداد اقساط نمی‌تواند از تعداد اقساط پرداخت‌شده (${editingPaidCount}) کمتر باشد.`);
+      return;
+    }
+    if (isStartDateChangedAfterPaid) {
+      setFormError('پس از پرداخت حداقل یک قسط، امکان تغییر تاریخ شروع وام وجود ندارد.');
+      return;
+    }
 
-    const cleanFirstInst = hasCustomFirstInstallment
+    const cleanFirstInst = installmentMode === 'customFirst'
       ? Number(String(firstInstallmentAmount || '').replace(/,/g, '').trim())
       : null;
 
-    if (hasCustomFirstInstallment && (!cleanFirstInst || cleanFirstInst <= 0)) {
+    if (installmentMode === 'customFirst' && (!cleanFirstInst || cleanFirstInst <= 0)) {
       setFormError('لطفاً مبلغ معتبر برای قسط اول وارد نمایید.');
       return;
+    }
+
+    let customInstallments = [];
+    if (installmentMode === 'customEach') {
+      customInstallments = Object.entries(customAmounts)
+        .map(([num, val]) => ({
+          installmentNumber: parseInt(num, 10),
+          totalAmount: Number(String(val || '').replace(/,/g, '').trim()),
+        }))
+        .filter((e) => e.installmentNumber >= 1 && e.installmentNumber <= cleanCount && e.totalAmount > 0);
     }
 
     try {
@@ -169,8 +224,10 @@ export default function AddLoanForm({
         installmentCount: cleanCount,
         intervalMonths,
         startDate: startDateIso || new Date().toISOString().split('T')[0],
+        annualFeeAmount: cleanAnnualFee,
         notes: notes.trim(),
         customFirstInstallmentAmount: cleanFirstInst,
+        customInstallments,
       });
       onClose();
     } catch (err) {
@@ -191,7 +248,7 @@ export default function AddLoanForm({
       <button
         type="submit"
         className="btn-primary"
-        disabled={submitting || cleanPrincipal <= 0 || cleanCount <= 0}
+        disabled={submitting || cleanPrincipal <= 0 || cleanCount <= 0 || isCountBelowPaid || isStartDateChangedAfterPaid}
         style={{ minWidth: '130px' }}
       >
         {submitting ? (
@@ -218,7 +275,7 @@ export default function AddLoanForm({
       icon={<Landmark size={20} className="text-amber-500" />}
       footer={footerActions}
       onSubmit={handleSubmit}
-      maxWidth="560px"
+      maxWidth={installmentMode === 'customEach' ? '720px' : '560px'}
     >
       <div className="add-holding-form" style={{ padding: '4px 0' }}>
         {formError && (
@@ -259,6 +316,12 @@ export default function AddLoanForm({
               <strong>توجه به تغییر شرایط مالی:</strong>
               <p style={{ margin: '2px 0 0 0', opacity: 0.95 }}>
                 اقساط پرداخت‌شده دست‌نخورده می‌مونن، فقط اقساط باقیمانده بازمحاسبه می‌شن.
+                {editingPaidCount > 0 && (
+                  <>
+                    {' '}تعداد اقساط نمی‌تواند کمتر از {editingPaidCount} و مبلغ اصل وام نمی‌تواند کمتر از مبلغ اصلِ قبلاً پرداخت‌شده باشد؛
+                    همچنین تاریخ شروع وام پس از پرداخت اولین قسط قابل تغییر نیست.
+                  </>
+                )}
               </p>
             </div>
           </div>
@@ -371,7 +434,24 @@ export default function AddLoanForm({
           </div>
         </div>
 
-        {/* Custom First Installment Checkbox (فاز C) — Only on creation */}
+        {/* Row 5: Optional Annual Fee */}
+        <div className="form-item" style={{ marginBottom: '16px' }}>
+          <label className="ui-input-label" style={{ display: 'block', marginBottom: '6px' }}>
+            کارمزد سالانه (اختیاری)
+          </label>
+          <NumericInput
+            value={annualFeeAmount}
+            onValueChange={(val) => setAnnualFeeAmount(val)}
+            placeholder="در صورت وجود، مبلغ کارمزدی که بانک هرسال دریافت می‌کند"
+            affix="تومان"
+            className="form-input"
+          />
+          <span style={{ display: 'block', fontSize: '0.74rem', color: '#94a3b8', marginTop: '6px' }}>
+            هر سال یک‌بار، به مبلغ نزدیک‌ترین قسط به سالگرد دریافت وام اضافه می‌شود.
+          </span>
+        </div>
+
+        {/* Installment Determination Mode — Only on creation */}
         {!editingLoan && (
           <div style={{
             background: 'rgba(255, 255, 255, 0.03)',
@@ -380,28 +460,25 @@ export default function AddLoanForm({
             padding: '12px 14px',
             marginBottom: '16px',
           }}>
-            <label style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '10px',
-              cursor: 'pointer',
-              userSelect: 'none',
-              fontSize: '0.88rem',
-              color: '#e2e8f0',
-            }}>
-              <input
-                type="checkbox"
-                checked={hasCustomFirstInstallment}
-                onChange={(e) => {
-                  setHasCustomFirstInstallment(e.target.checked);
-                  if (!e.target.checked) setFirstInstallmentAmount('');
-                }}
-                style={{ width: '16px', height: '16px', accentColor: '#f59e0b', cursor: 'pointer' }}
-              />
-              <span style={{ fontWeight: 600 }}>مبلغ قسط اول متفاوت است</span>
+            <label className="ui-input-label" style={{ display: 'block', marginBottom: '8px' }}>
+              روش تعیین مبلغ اقساط
             </label>
+            <select
+              value={installmentMode}
+              onChange={(e) => {
+                setInstallmentMode(e.target.value);
+                setFirstInstallmentAmount('');
+                setCustomAmounts({});
+              }}
+              className="form-select"
+              style={{ height: '42px', width: '100%' }}
+            >
+              <option value="standard">فرمول استاندارد (پیشنهادی)</option>
+              <option value="customFirst">قسط اول متفاوت است</option>
+              <option value="customEach">سفارشی‌سازی تک‌تک اقساط</option>
+            </select>
 
-            {hasCustomFirstInstallment && (
+            {installmentMode === 'customFirst' && (
               <div style={{ marginTop: '12px', paddingTop: '10px', borderTop: '1px dashed rgba(255, 255, 255, 0.08)' }}>
                 <label className="ui-input-label" style={{ display: 'block', marginBottom: '6px' }}>
                   مبلغ دلخواه قسط اول (تومان) *
@@ -417,6 +494,63 @@ export default function AddLoanForm({
                 <span style={{ display: 'block', fontSize: '0.74rem', color: '#94a3b8', marginTop: '6px' }}>
                   اقساط بعدی (۲ تا {cleanCount || '...'}) پس از ساخت وام، به صورت خودکار بر اساس مانده باقیمانده بازمحاسبه می‌شوند.
                 </span>
+              </div>
+            )}
+
+            {installmentMode === 'customEach' && (
+              <div style={{ marginTop: '12px', paddingTop: '10px', borderTop: '1px dashed rgba(255, 255, 255, 0.08)' }}>
+                {liveSchedule.length === 0 ? (
+                  <span style={{ display: 'block', fontSize: '0.8rem', color: '#94a3b8' }}>
+                    ابتدا مبلغ اصل وام و تعداد اقساط را وارد کنید.
+                  </span>
+                ) : (
+                  <>
+                    <span style={{ display: 'block', fontSize: '0.74rem', color: '#94a3b8', marginBottom: '8px' }}>
+                      هر قسطی که مبلغش را عوض نکنید، طبق فرمول استاندارد محاسبه می‌شود. فقط اقساطی که می‌خواهید مبلغ دلخواه داشته باشند را پر کنید.
+                    </span>
+                    <div style={{
+                      maxHeight: '260px',
+                      overflowY: 'auto',
+                      border: '1px solid rgba(255, 255, 255, 0.06)',
+                      borderRadius: '8px',
+                    }}>
+                      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.8rem' }}>
+                        <thead>
+                          <tr style={{ position: 'sticky', top: 0, background: 'rgba(15, 23, 42, 0.95)' }}>
+                            <th style={{ padding: '6px 8px', textAlign: 'right', color: '#94a3b8', fontWeight: 600 }}>قسط</th>
+                            <th style={{ padding: '6px 8px', textAlign: 'right', color: '#94a3b8', fontWeight: 600 }}>سررسید</th>
+                            <th style={{ padding: '6px 8px', textAlign: 'right', color: '#94a3b8', fontWeight: 600 }}>مبلغ (تومان)</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {liveSchedule.map((inst) => (
+                            <tr key={inst.installmentNumber} style={{ borderTop: '1px solid rgba(255, 255, 255, 0.05)' }}>
+                              <td style={{ padding: '5px 8px', color: '#e2e8f0' }}>{formatPersianNum(inst.installmentNumber)}</td>
+                              <td style={{ padding: '5px 8px', color: '#94a3b8', whiteSpace: 'nowrap' }}>
+                                {gregorianToShamsi(inst.dueDate)}
+                              </td>
+                              <td style={{ padding: '4px 8px' }}>
+                                <NumericInput
+                                  value={customAmounts[inst.installmentNumber] ?? ''}
+                                  onValueChange={(val) =>
+                                    setCustomAmounts((prev) => {
+                                      const next = { ...prev };
+                                      if (val) next[inst.installmentNumber] = val;
+                                      else delete next[inst.installmentNumber];
+                                      return next;
+                                    })
+                                  }
+                                  placeholder={formatPersianNum(inst.totalAmount)}
+                                  className="form-input"
+                                />
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </>
+                )}
               </div>
             )}
           </div>
@@ -481,7 +615,7 @@ export default function AddLoanForm({
           </div>
         </div>
 
-        {/* Row 5: Notes */}
+        {/* Row 6: Notes */}
         <Input
           as="textarea"
           label="توضیحات و شرایط (اختیاری)"

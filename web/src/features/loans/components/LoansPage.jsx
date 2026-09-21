@@ -83,7 +83,7 @@ function LoanDetailModal({ loanId, onClose, onRefreshLoans }) {
       title={loan ? loan.title : 'جدول اقساط وام'}
       subtitle={
         loan
-          ? `${loan.lenderName ? `وام‌دهنده: ${loan.lenderName} • ` : ''}اصل: ${formatNum(loan.principalAmount)} تومان • سود: ${loan.annualInterestRate === 0 ? 'قرض‌الحسنه' : `${loan.annualInterestRate}٪`}`
+          ? `${loan.lenderName ? `وام‌دهنده: ${loan.lenderName} • ` : ''}اصل: ${formatNum(loan.principalAmount)} تومان • سود: ${loan.annualInterestRate === 0 ? 'قرض‌الحسنه' : `${loan.annualInterestRate}٪`}${Number(loan.annualFeeAmount) > 0 ? ` • کارمزد سالانه: ${formatNum(loan.annualFeeAmount)} تومان` : ''}`
           : 'در حال دریافت اطلاعات...'
       }
       icon={<Landmark size={20} className="text-amber-500" />}

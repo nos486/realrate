@@ -35,12 +35,12 @@ function createMockD1() {
           const [
             id, user_id, title, lender_name, principal_amount,
             annual_interest_rate, installment_count, interval_months,
-            start_date, notes, created_at, updated_at
+            start_date, annual_fee_amount, notes, created_at, updated_at
           ] = boundArgs;
           loansStore.set(id, {
             id, user_id, title, lender_name, principal_amount,
             annual_interest_rate, installment_count, interval_months,
-            start_date, notes, created_at, updated_at
+            start_date, annual_fee_amount: annual_fee_amount || 0, notes, created_at, updated_at
           });
           return { meta: { changes: 1 } };
         }
@@ -150,7 +150,7 @@ function createMockD1() {
         if (q.startsWith('UPDATE loans')) {
           const [
             newTitle, newLender, newPrincipal, newRate,
-            newCount, newInterval, newStartDate, newNotes,
+            newCount, newInterval, newStartDate, newAnnualFeeAmount, newNotes,
             nowIso, loanId, userId
           ] = boundArgs;
           const existing = loansStore.get(loanId);
@@ -164,6 +164,7 @@ function createMockD1() {
               installment_count: newCount,
               interval_months: newInterval,
               start_date: newStartDate,
+              annual_fee_amount: newAnnualFeeAmount || 0,
               notes: newNotes,
               updated_at: nowIso,
             });
@@ -713,6 +714,221 @@ describe('Loans Repository D1 Operations', () => {
 
     const loansListAfterDelete = await dbGetUserLoans(mockEnv, 'user_1');
     expect(loansListAfterDelete).toHaveLength(0);
+  });
+
+  describe('dbUpdateLoan guard rails against paid-history-contradicting edits', () => {
+    async function createAndPayTwo() {
+      const loan = await dbCreateLoan(mockEnv, 'user_1', {
+        title: 'وام آزمایش گارد ادیت',
+        principalAmount: 4000000,
+        annualInterestRate: 0,
+        installmentCount: 4,
+        startDate: '2026-01-01',
+      });
+      await dbMarkInstallmentPaid(mockEnv, 'user_1', loan.installments[0].id, {
+        paidDate: '2026-02-01',
+        paidAmount: 1000000,
+      });
+      await dbMarkInstallmentPaid(mockEnv, 'user_1', loan.installments[1].id, {
+        paidDate: '2026-03-01',
+        paidAmount: 1000000,
+      });
+      return loan;
+    }
+
+    it('rejects reducing installmentCount below the number of already-paid installments', async () => {
+      const loan = await createAndPayTwo();
+      await expect(
+        dbUpdateLoan(mockEnv, 'user_1', loan.id, { installmentCount: 1 })
+      ).rejects.toThrow(/تعداد اقساط جدید/);
+
+      // Loan must remain unchanged after the rejected edit
+      const unchanged = await dbGetLoanById(mockEnv, 'user_1', loan.id);
+      expect(unchanged.installmentCount).toBe(4);
+    });
+
+    it('rejects reducing principalAmount below the principal already paid', async () => {
+      const loan = await createAndPayTwo();
+      // 2,000,000 of principal already paid (2 installments x 1,000,000)
+      await expect(
+        dbUpdateLoan(mockEnv, 'user_1', loan.id, { principalAmount: 1500000 })
+      ).rejects.toThrow(/مبلغ اصل وام جدید/);
+
+      const unchanged = await dbGetLoanById(mockEnv, 'user_1', loan.id);
+      expect(unchanged.principalAmount).toBe(4000000);
+    });
+
+    it('rejects changing startDate once at least one installment has been paid', async () => {
+      const loan = await createAndPayTwo();
+      await expect(
+        dbUpdateLoan(mockEnv, 'user_1', loan.id, { startDate: '2026-06-01' })
+      ).rejects.toThrow(/تاریخ شروع وام/);
+
+      const unchanged = await dbGetLoanById(mockEnv, 'user_1', loan.id);
+      expect(unchanged.startDate).toBe('2026-01-01');
+    });
+
+    it('still allows increasing principalAmount/installmentCount after paid installments (regression)', async () => {
+      const loan = await createAndPayTwo();
+      const updated = await dbUpdateLoan(mockEnv, 'user_1', loan.id, {
+        principalAmount: 8000000,
+        installmentCount: 5,
+      });
+      expect(updated.principalAmount).toBe(8000000);
+      expect(updated.installmentCount).toBe(5);
+    });
+
+    it('allows any edit (including startDate) before any installment has been paid', async () => {
+      const loan = await dbCreateLoan(mockEnv, 'user_1', {
+        title: 'وام بدون پرداخت',
+        principalAmount: 4000000,
+        installmentCount: 4,
+        startDate: '2026-01-01',
+      });
+      const updated = await dbUpdateLoan(mockEnv, 'user_1', loan.id, {
+        principalAmount: 1000000,
+        installmentCount: 1,
+        startDate: '2026-06-01',
+      });
+      expect(updated.principalAmount).toBe(1000000);
+      expect(updated.installmentCount).toBe(1);
+      expect(updated.startDate).toBe('2026-06-01');
+    });
+  });
+
+  describe('annualFeeAmount (کارمزد سالانه) persistence', () => {
+    it('persists annualFeeAmount on create and reflects it in the computed schedule', async () => {
+      const loan = await dbCreateLoan(mockEnv, 'user_1', {
+        title: 'وام با کارمزد سالانه',
+        principalAmount: 12000000,
+        annualInterestRate: 0,
+        installmentCount: 12,
+        startDate: '2026-01-01',
+        annualFeeAmount: 500000,
+      });
+
+      expect(loan.annualFeeAmount).toBe(500000);
+      expect(loan.installments[11].feePortion).toBe(500000);
+      expect(loan.installments[11].totalAmount).toBe(loan.installments[10].totalAmount + 500000);
+    });
+
+    it('defaults annualFeeAmount to 0 when not provided (backward compatible)', async () => {
+      const loan = await dbCreateLoan(mockEnv, 'user_1', {
+        title: 'وام بدون کارمزد',
+        principalAmount: 12000000,
+        installmentCount: 12,
+        startDate: '2026-01-01',
+      });
+      expect(loan.annualFeeAmount).toBe(0);
+      expect(loan.installments.every((i) => !i.feePortion)).toBe(true);
+    });
+
+    it('updates annualFeeAmount via dbUpdateLoan without requiring other financial params to change', async () => {
+      const loan = await dbCreateLoan(mockEnv, 'user_1', {
+        title: 'وام برای ویرایش کارمزد',
+        principalAmount: 12000000,
+        installmentCount: 12,
+        startDate: '2026-01-01',
+      });
+      const updated = await dbUpdateLoan(mockEnv, 'user_1', loan.id, {
+        annualFeeAmount: 300000,
+      });
+      expect(updated.annualFeeAmount).toBe(300000);
+      expect(updated.installments[11].feePortion).toBe(300000);
+    });
+  });
+
+  describe('dbCreateLoan with bulk customInstallments (سفارشی‌سازی تک‌تک اقساط)', () => {
+    it('applies custom amounts only to the specified installments, keeping the sparse storage model', async () => {
+      const loan = await dbCreateLoan(mockEnv, 'user_1', {
+        title: 'وام با اقساط سفارشی',
+        principalAmount: 12000000,
+        annualInterestRate: 0,
+        installmentCount: 12,
+        startDate: '2026-01-01',
+        customInstallments: [
+          { installmentNumber: 1, totalAmount: 2000000 },
+          { installmentNumber: 6, totalAmount: 500000 },
+        ],
+      });
+
+      expect(loan.installments).toHaveLength(12);
+      expect(loan.installments[0].totalAmount).toBe(2000000);
+      expect(loan.installments[0].isManualOverride).toBe(true);
+      expect(loan.installments[5].totalAmount).toBe(500000);
+      expect(loan.installments[5].isManualOverride).toBe(true);
+
+      // Only the 2 customized installments should have persisted state rows (sparse model)
+      expect(mockEnv.DB._installmentsStore.size).toBe(2);
+
+      // Total principal across the whole schedule must still equal the loan principal exactly
+      const sumPrincipal = loan.installments.reduce((sum, i) => sum + i.principalPortion, 0);
+      expect(sumPrincipal).toBe(12000000);
+      expect(loan.installments[11].remainingBalanceAfter).toBe(0);
+    });
+
+    it('composes multiple custom installments in ascending order (each reflows off the previous)', async () => {
+      const loan = await dbCreateLoan(mockEnv, 'user_1', {
+        title: 'وام با چند قسط سفارشی',
+        principalAmount: 10000000,
+        annualInterestRate: 0,
+        installmentCount: 5,
+        startDate: '2026-01-01',
+        // Passed out of order on purpose — dbCreateLoan must sort ascending before applying.
+        customInstallments: [
+          { installmentNumber: 3, totalAmount: 4000000 },
+          { installmentNumber: 1, totalAmount: 1000000 },
+        ],
+      });
+
+      expect(loan.installments[0].totalAmount).toBe(1000000);
+      expect(loan.installments[2].totalAmount).toBe(4000000);
+      const sumPrincipal = loan.installments.reduce((sum, i) => sum + i.principalPortion, 0);
+      expect(sumPrincipal).toBe(10000000);
+      expect(loan.installments[4].remainingBalanceAfter).toBe(0);
+    });
+
+    it('customInstallments for installment #1 supersedes customFirstInstallmentAmount when both are given', async () => {
+      const loan = await dbCreateLoan(mockEnv, 'user_1', {
+        title: 'وام تداخل قسط اول',
+        principalAmount: 6000000,
+        installmentCount: 3,
+        startDate: '2026-01-01',
+        customFirstInstallmentAmount: 999999,
+        customInstallments: [{ installmentNumber: 1, totalAmount: 3000000 }],
+      });
+      expect(loan.installments[0].totalAmount).toBe(3000000);
+      // Only 1 override row should exist, not 2 competing ones
+      expect(mockEnv.DB._installmentsStore.size).toBe(1);
+    });
+
+    it('rejects an installment number outside the valid range', async () => {
+      await expect(
+        dbCreateLoan(mockEnv, 'user_1', {
+          title: 'وام نامعتبر',
+          principalAmount: 1000000,
+          installmentCount: 3,
+          startDate: '2026-01-01',
+          customInstallments: [{ installmentNumber: 5, totalAmount: 100000 }],
+        })
+      ).rejects.toThrow(/خارج از بازه معتبر/);
+
+      // No loan row should have been left behind by the rejected create
+      const list = await dbGetUserLoans(mockEnv, 'user_1');
+      expect(list.find((l) => l.title === 'وام نامعتبر')).toBeUndefined();
+    });
+
+    it('rejects a non-positive custom installment amount', async () => {
+      await expect(
+        dbCreateLoan(mockEnv, 'user_1', {
+          title: 'وام مبلغ نامعتبر',
+          principalAmount: 1000000,
+          installmentCount: 3,
+          startDate: '2026-01-01',
+          customInstallments: [{ installmentNumber: 1, totalAmount: 0 }],
+        })
+      ).rejects.toThrow(/باید عددی بزرگتر از صفر/);
+    });
   });
 
   describe('dbSetInstallmentAmount (ویرایش مبلغ یک قسط)', () => {

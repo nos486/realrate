@@ -48,6 +48,7 @@ function formatLoanRow(row) {
     installmentCount: parseInt(row.installment_count ?? row.installmentCount ?? 0, 10),
     intervalMonths: parseInt(row.interval_months ?? row.intervalMonths ?? 1, 10),
     startDate: row.start_date || row.startDate,
+    annualFeeAmount: Number(row.annual_fee_amount ?? row.annualFeeAmount ?? 0),
     notes: row.notes || "",
     createdAt: row.created_at || row.createdAt,
     updatedAt: row.updated_at || row.updatedAt,
@@ -104,15 +105,35 @@ export async function dbCreateLoan(env, userId, data) {
   const installmentCount = parseInt(data.installmentCount ?? data.installment_count ?? 0, 10);
   const intervalMonths = parseInt(data.intervalMonths ?? data.interval_months ?? 1, 10);
   const startDate = String(data.startDate || data.start_date || new Date().toISOString().split("T")[0]).trim();
+  const annualFeeAmount = Math.max(0, Number(data.annualFeeAmount ?? data.annual_fee_amount ?? 0) || 0);
   const notes = String(data.notes || "").trim();
   const nowIso = new Date().toISOString();
+
+  // Bulk per-installment custom amounts ("سفارشی‌سازی تک‌تک اقساط"): validated up front so an
+  // invalid entry never leaves behind a half-created loan.
+  const rawCustomInstallments = Array.isArray(data.customInstallments) ? data.customInstallments : [];
+  const customInstallments = rawCustomInstallments
+    .map((entry) => ({
+      installmentNumber: parseInt(entry.installmentNumber ?? entry.installment_number, 10),
+      totalAmount: Number(entry.totalAmount ?? entry.amount),
+    }))
+    .filter((entry) => {
+      if (!Number.isInteger(entry.installmentNumber) || entry.installmentNumber < 1 || entry.installmentNumber > installmentCount) {
+        throw AppError.badRequest(`شماره قسط سفارشی‌سازی‌شده (${entry.installmentNumber}) خارج از بازه معتبر است.`);
+      }
+      if (isNaN(entry.totalAmount) || entry.totalAmount <= 0) {
+        throw AppError.badRequest(`مبلغ سفارشی‌سازی‌شده برای قسط ${entry.installmentNumber} باید عددی بزرگتر از صفر باشد.`);
+      }
+      return true;
+    })
+    .sort((a, b) => a.installmentNumber - b.installmentNumber);
 
   const insertLoanSql = `
     INSERT INTO loans (
       id, user_id, title, lender_name, principal_amount,
       annual_interest_rate, installment_count, interval_months,
-      start_date, notes, created_at, updated_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      start_date, annual_fee_amount, notes, created_at, updated_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `;
 
   const statements = [
@@ -126,20 +147,22 @@ export async function dbCreateLoan(env, userId, data) {
       installmentCount,
       intervalMonths,
       startDate,
+      annualFeeAmount,
       notes,
       nowIso,
       nowIso
     ),
   ];
 
-  // If customFirstInstallmentAmount was provided, insert ONLY that single override state for installment #1
+  // If customFirstInstallmentAmount was provided, insert ONLY that single override state for
+  // installment #1 — superseded by the bulk customInstallments list when both are present.
   const customFirst = Number(
     data.customFirstInstallmentAmount ??
     data.custom_first_installment_amount ??
     data.firstInstallmentAmount
   );
 
-  if (!isNaN(customFirst) && customFirst > 0) {
+  if (customInstallments.length === 0 && !isNaN(customFirst) && customFirst > 0) {
     const parsedStart = parseDateParts(startDate);
     const dueDate1 = computeClampedDueDate(parsedStart, 1, intervalMonths);
     const r = annualInterestRate > 0 ? (annualInterestRate / 100) * (intervalMonths / 12) : 0;
@@ -184,6 +207,14 @@ export async function dbCreateLoan(env, userId, data) {
       }
     }
 
+    // Apply bulk per-installment custom amounts strictly in ascending order: each call reads the
+    // schedule as reshaped by the previous one (same cascading-reflow logic dbSetInstallmentAmount
+    // already uses for a single manual override), so this composes N sequential overrides
+    // correctly instead of requiring a separate bulk code path.
+    for (const entry of customInstallments) {
+      await dbSetInstallmentAmount(env, userId, loanId, entry.installmentNumber, entry.totalAmount);
+    }
+
     return await dbGetLoanById(env, userId, loanId);
   } catch (e) {
     logger.error("D1 dbCreateLoan error:", { error: e.message, userId, loanId });
@@ -213,7 +244,8 @@ export async function dbGetUserLoans(env, userId) {
       SELECT id, user_id AS userId, title, lender_name AS lenderName,
              principal_amount AS principalAmount, annual_interest_rate AS annualInterestRate,
              installment_count AS installmentCount, interval_months AS intervalMonths,
-             start_date AS startDate, notes, created_at AS createdAt, updated_at AS updatedAt
+             start_date AS startDate, annual_fee_amount AS annualFeeAmount,
+             notes, created_at AS createdAt, updated_at AS updatedAt
       FROM loans
       WHERE user_id = ?
       ORDER BY created_at DESC
@@ -324,7 +356,8 @@ export async function dbGetLoanById(env, userId, loanId) {
     SELECT id, user_id AS userId, title, lender_name AS lenderName,
            principal_amount AS principalAmount, annual_interest_rate AS annualInterestRate,
            installment_count AS installmentCount, interval_months AS intervalMonths,
-           start_date AS startDate, notes, created_at AS createdAt, updated_at AS updatedAt
+           start_date AS startDate, annual_fee_amount AS annualFeeAmount,
+           notes, created_at AS createdAt, updated_at AS updatedAt
     FROM loans
     WHERE id = ? AND user_id = ?
   `;
@@ -452,6 +485,12 @@ export async function dbUpdateLoan(env, userId, loanId, data) {
     ? String(data.start_date).trim()
     : existingLoan.startDate;
 
+  const newAnnualFeeAmount = data.annualFeeAmount !== undefined
+    ? Math.max(0, Number(data.annualFeeAmount) || 0)
+    : data.annual_fee_amount !== undefined
+    ? Math.max(0, Number(data.annual_fee_amount) || 0)
+    : existingLoan.annualFeeAmount;
+
   const financialParamsChanged =
     newPrincipal !== existingLoan.principalAmount ||
     newRate !== existingLoan.annualInterestRate ||
@@ -459,13 +498,45 @@ export async function dbUpdateLoan(env, userId, loanId, data) {
     newInterval !== existingLoan.intervalMonths ||
     newStartDate !== existingLoan.startDate;
 
+  // Guard rails: an edit must never contradict already-recorded payment history. Without these,
+  // computeEffectiveSchedule silently truncates the schedule to just the paid installments instead
+  // of erroring (see loanCalculator.js's contiguousPaidCount/remainingPrincipal handling), and a
+  // changed startDate would desynchronize the due-date sequence between paid and pending
+  // installments with no way to reconcile it.
+  if (financialParamsChanged) {
+    const paidInstallments = (existingLoan.installments || []).filter((i) => i.isPaid);
+    const paidCount = paidInstallments.length;
+    const alreadyPaidPrincipal = paidInstallments.reduce(
+      (sum, i) => sum + (Number(i.principalPortion) || 0),
+      0
+    );
+
+    if (paidCount > 0) {
+      if (newCount < paidCount) {
+        throw AppError.badRequest(
+          `تعداد اقساط جدید (${newCount}) نمی‌تواند از تعداد اقساط پرداخت‌شده (${paidCount}) کمتر باشد.`
+        );
+      }
+      if (newPrincipal < alreadyPaidPrincipal) {
+        throw AppError.badRequest(
+          `مبلغ اصل وام جدید نمی‌تواند کمتر از مبلغ اصلِ قبلاً پرداخت‌شده (${Math.round(alreadyPaidPrincipal).toLocaleString("en-US")} تومان) باشد.`
+        );
+      }
+      if (newStartDate !== existingLoan.startDate) {
+        throw AppError.badRequest(
+          "پس از پرداخت حداقل یک قسط، امکان تغییر تاریخ شروع وام وجود ندارد."
+        );
+      }
+    }
+  }
+
   const statements = [];
 
   const updateLoanSql = `
     UPDATE loans
     SET title = ?, lender_name = ?, principal_amount = ?,
         annual_interest_rate = ?, installment_count = ?,
-        interval_months = ?, start_date = ?, notes = ?, updated_at = ?
+        interval_months = ?, start_date = ?, annual_fee_amount = ?, notes = ?, updated_at = ?
     WHERE id = ? AND user_id = ?
   `;
   statements.push(
@@ -477,6 +548,7 @@ export async function dbUpdateLoan(env, userId, loanId, data) {
       newCount,
       newInterval,
       newStartDate,
+      newAnnualFeeAmount,
       newNotes,
       nowIso,
       loanId,
