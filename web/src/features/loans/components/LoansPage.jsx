@@ -85,7 +85,8 @@ function LoanDetailModal({ loanId, onClose, onRefreshLoans }) {
           : 'در حال دریافت اطلاعات...'
       }
       icon={<Landmark size={20} className="text-amber-500" />}
-      maxWidth="900px"
+      maxWidth="min(1320px, 94vw)"
+      className="loan-detail-modal-wide"
     >
       {loading && !loan ? (
         <div style={{ textAlign: 'center', padding: '40px 0', color: '#94a3b8' }}>
