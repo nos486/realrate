@@ -204,7 +204,10 @@ export async function dbGetUserLoans(env, userId) {
 
   await ensureD1Tables(env);
 
-  try {
+  // NOTE: real errors are left to propagate (see dbGetLoanById for why) instead of being
+  // swallowed into an empty array, which would be indistinguishable from "user genuinely has
+  // no loans yet".
+  {
     // 1. Fetch user loans
     const loansQuery = `
       SELECT id, user_id AS userId, title, lender_name AS lenderName,
@@ -295,9 +298,6 @@ export async function dbGetUserLoans(env, userId) {
         nextDueInstallment,
       };
     });
-  } catch (e) {
-    logger.error("D1 dbGetUserLoans error:", { error: e.message, userId });
-    return [];
   }
 }
 
@@ -314,83 +314,84 @@ export async function dbGetLoanById(env, userId, loanId) {
 
   await ensureD1Tables(env);
 
-  try {
-    const loanQuery = `
-      SELECT id, user_id AS userId, title, lender_name AS lenderName,
-             principal_amount AS principalAmount, annual_interest_rate AS annualInterestRate,
-             installment_count AS installmentCount, interval_months AS intervalMonths,
-             start_date AS startDate, notes, created_at AS createdAt, updated_at AS updatedAt
-      FROM loans
-      WHERE id = ? AND user_id = ?
-    `;
-    const loanRow = await env.DB.prepare(loanQuery).bind(loanId, userId).first();
-    if (!loanRow) return null;
+  // NOTE: only the "loan does not exist" case returns null (a legitimate, expected outcome
+  // callers rely on to throw a 404). Any other failure (bad query, computeEffectiveSchedule
+  // throwing, etc.) is deliberately left to propagate instead of being swallowed here — an
+  // uncaught error surfaces as a real 500 with the actual message via handleRouteError, which
+  // is far more debuggable than silently returning null and having callers misreport it as
+  // "loan not found" (e.g. dbCreateLoan would otherwise return { success: true, loan: null }).
+  const loanQuery = `
+    SELECT id, user_id AS userId, title, lender_name AS lenderName,
+           principal_amount AS principalAmount, annual_interest_rate AS annualInterestRate,
+           installment_count AS installmentCount, interval_months AS intervalMonths,
+           start_date AS startDate, notes, created_at AS createdAt, updated_at AS updatedAt
+    FROM loans
+    WHERE id = ? AND user_id = ?
+  `;
+  const loanRow = await env.DB.prepare(loanQuery).bind(loanId, userId).first();
+  if (!loanRow) return null;
 
-    const formattedLoan = formatLoanRow(loanRow);
+  const formattedLoan = formatLoanRow(loanRow);
 
-    const statesQuery = `
-      SELECT id, loan_id AS loanId, user_id AS userId,
-             installment_number AS installmentNumber, due_date AS dueDate,
-             principal_portion AS principalPortion, interest_portion AS interestPortion,
-             total_amount AS totalAmount, remaining_balance_after AS remainingBalanceAfter,
-             is_paid AS isPaid, paid_date AS paidDate, paid_amount AS paidAmount,
-             is_manual_override AS isManualOverride,
-             created_at AS createdAt, updated_at AS updatedAt
-      FROM loan_installment_states
-      WHERE loan_id = ? AND user_id = ?
-      ORDER BY installment_number ASC
-    `;
-    const { results: rawStates = [] } = await env.DB.prepare(statesQuery).bind(loanId, userId).all();
-    const installmentStates = rawStates.map(formatInstallmentRow);
+  const statesQuery = `
+    SELECT id, loan_id AS loanId, user_id AS userId,
+           installment_number AS installmentNumber, due_date AS dueDate,
+           principal_portion AS principalPortion, interest_portion AS interestPortion,
+           total_amount AS totalAmount, remaining_balance_after AS remainingBalanceAfter,
+           is_paid AS isPaid, paid_date AS paidDate, paid_amount AS paidAmount,
+           is_manual_override AS isManualOverride,
+           created_at AS createdAt, updated_at AS updatedAt
+    FROM loan_installment_states
+    WHERE loan_id = ? AND user_id = ?
+    ORDER BY installment_number ASC
+  `;
+  const { results: rawStates = [] } = await env.DB.prepare(statesQuery).bind(loanId, userId).all();
+  const installmentStates = rawStates.map(formatInstallmentRow);
 
-    const epQuery = `
-      SELECT id, loan_id AS loanId, user_id AS userId,
-             amount, payment_date AS paymentDate, reduction_mode AS reductionMode,
-             notes, anchor_installment_number AS anchorInstallmentNumber,
-             resulting_balance AS resultingBalance,
-             resulting_installment_count AS resultingInstallmentCount,
-             created_at AS createdAt
-      FROM loan_extra_payments
-      WHERE loan_id = ? AND user_id = ?
-      ORDER BY payment_date ASC, created_at ASC
-    `;
-    const { results: rawEps = [] } = await env.DB.prepare(epQuery).bind(loanId, userId).all();
-    const extraPayments = rawEps.map((row) => ({
-      ...row,
-      amount: Number(row.amount || 0),
-      anchorInstallmentNumber: Number(row.anchor_installment_number ?? row.anchorInstallmentNumber ?? 0),
-      resultingBalance: Number(row.resulting_balance ?? row.resultingBalance ?? 0),
-      resultingInstallmentCount: (row.resulting_installment_count || row.resultingInstallmentCount)
-        ? Number(row.resulting_installment_count || row.resultingInstallmentCount)
-        : null,
-    }));
+  const epQuery = `
+    SELECT id, loan_id AS loanId, user_id AS userId,
+           amount, payment_date AS paymentDate, reduction_mode AS reductionMode,
+           notes, anchor_installment_number AS anchorInstallmentNumber,
+           resulting_balance AS resultingBalance,
+           resulting_installment_count AS resultingInstallmentCount,
+           created_at AS createdAt
+    FROM loan_extra_payments
+    WHERE loan_id = ? AND user_id = ?
+    ORDER BY payment_date ASC, created_at ASC
+  `;
+  const { results: rawEps = [] } = await env.DB.prepare(epQuery).bind(loanId, userId).all();
+  const extraPayments = rawEps.map((row) => ({
+    ...row,
+    amount: Number(row.amount || 0),
+    anchorInstallmentNumber: Number(row.anchor_installment_number ?? row.anchorInstallmentNumber ?? 0),
+    resultingBalance: Number(row.resulting_balance ?? row.resultingBalance ?? 0),
+    resultingInstallmentCount: (row.resulting_installment_count || row.resultingInstallmentCount)
+      ? Number(row.resulting_installment_count || row.resultingInstallmentCount)
+      : null,
+  }));
 
-    const installments = computeEffectiveSchedule({
-      loan: formattedLoan,
-      installmentStates,
-      extraPayments,
-    });
+  const installments = computeEffectiveSchedule({
+    loan: formattedLoan,
+    installmentStates,
+    extraPayments,
+  });
 
-    const paidCount = installments.filter((i) => i.isPaid).length;
-    const totalCount = installments.length;
-    const remainingBalance = installments
-      .filter((i) => !i.isPaid)
-      .reduce((sum, i) => sum + (Number(i.totalAmount) || 0), 0);
-    const nextDueInstallment = installments.find((i) => !i.isPaid) || null;
+  const paidCount = installments.filter((i) => i.isPaid).length;
+  const totalCount = installments.length;
+  const remainingBalance = installments
+    .filter((i) => !i.isPaid)
+    .reduce((sum, i) => sum + (Number(i.totalAmount) || 0), 0);
+  const nextDueInstallment = installments.find((i) => !i.isPaid) || null;
 
-    return {
-      ...formattedLoan,
-      totalCount,
-      paidCount,
-      remainingBalance,
-      nextDueInstallment,
-      installments,
-      extraPayments,
-    };
-  } catch (e) {
-    logger.error("D1 dbGetLoanById error:", { error: e.message, userId, loanId });
-    return null;
-  }
+  return {
+    ...formattedLoan,
+    totalCount,
+    paidCount,
+    remainingBalance,
+    nextDueInstallment,
+    installments,
+    extraPayments,
+  };
 }
 
 /**
