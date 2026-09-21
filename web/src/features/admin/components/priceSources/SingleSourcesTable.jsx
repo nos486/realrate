@@ -199,7 +199,7 @@ export default function SingleSourcesTable({
                       <td>
                         {src.lastPrice && Number(src.lastPrice) > 0 ? (
                           <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                            {src.isCatalog || typeInfo.category === 'multi_output' ? (
+                            {(src.lastMultiData?.items?.length > 1) || (src.lastMultiData?.totalCount > 1) || src.isCatalog || typeInfo.category === 'multi_output' ? (
                               <strong style={{ fontSize: '13px', color: 'var(--accent-blue)', fontWeight: '700' }}>
                                 {Number(src.lastPrice).toLocaleString('fa-IR')} {typeInfo.unit || 'مورد رصدشده'}
                               </strong>

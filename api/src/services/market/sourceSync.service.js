@@ -23,7 +23,10 @@ import {
   getSourceLastSync,
   setSourceLastSync,
 } from "../../repositories/sourceItems.repository.js";
-import { setLatestRatesCache } from "../../repositories/kvCache.repository.js";
+import {
+  setLatestRatesCache,
+  setSourcePriceCache,
+} from "../../repositories/kvCache.repository.js";
 import { compileLatestMarketRates } from "./priceAggregator.service.js";
 import { logger } from "../../lib/logger.js";
 
@@ -182,6 +185,13 @@ export async function syncAllSources(env, options = {}) {
             datetime,
           };
         }
+
+        // Fast KV cache path (source_price:{id}) for sub-millisecond dbGetPriceSources lookup
+        await setSourcePriceCache(env, src.id, {
+          price: src.lastPrice,
+          lastFetched: datetime,
+          lastMultiData: src.lastMultiData || null,
+        });
 
         results.push({ sourceId: src.id, success: true, itemsCount: items.length });
         syncedCount++;

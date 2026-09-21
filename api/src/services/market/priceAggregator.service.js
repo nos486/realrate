@@ -10,7 +10,6 @@ import {
 import {
   getLatestRatesCache,
   setLatestRatesCache,
-  setSourcePriceCache,
 } from "../../repositories/kvCache.repository.js";
 import { saveSourceItems } from "../../repositories/sourceItems.repository.js";
 import { getAdapterForSource } from "./sources/index.js";
@@ -134,24 +133,37 @@ export function compileLatestMarketRates(sources) {
 
       const METADATA_KEYS = new Set(['updatedat', 'totalsymbols', 'totalcount', 'totalfunds', 'stats', 'datetime', 'error', 'status', 'iscatalog', 'labels', 'result', 'message']);
 
-      if (multi && typeof multi === 'object') {
-        for (const [k, val] of Object.entries(multi)) {
-          if (METADATA_KEYS.has(k.toLowerCase())) continue;
-          const numPrice = typeof val === 'object' && val !== null ? Number(val.price) : Number(val);
-          if (numPrice > 0 && !excludedSet.has(k.toUpperCase())) {
-            const isHome = isMultiOutputOnHomePage(k, mSrc.displayConfig);
-            const lowerK = k.toLowerCase();
-            // Single primary sources take precedence over multi-sources unless multi-source is primary
-            if (!result[lowerK] || mSrc.isPrimary) {
-              result[lowerK] = {
-                price: numPrice,
-                datetime: mSrc.lastFetched || new Date().toISOString(),
-                label: `${mSrc.name} (${k.toUpperCase()})`,
-                sourceId: mSrc.id,
-                isPrimary: !!mSrc.isPrimary,
-                showOnHomePage: isHome,
-              };
-            }
+      // Unified items traversal: multi.items is an array of { id, name, price }
+      const itemsList = Array.isArray(multi?.items)
+        ? multi.items
+        : (multi && typeof multi === 'object'
+          ? Object.entries(multi)
+              .filter(([k]) => !METADATA_KEYS.has(k.toLowerCase()))
+              .map(([k, val]) => ({
+                id: k,
+                name: k,
+                price: typeof val === 'object' && val !== null ? val.price : val,
+              }))
+          : []);
+
+      for (const item of itemsList) {
+        if (!item || !item.id) continue;
+        const code = String(item.id).toUpperCase();
+        if (excludedSet.has(code)) continue;
+        const numPrice = Number(item.price);
+        if (numPrice > 0) {
+          const isHome = isMultiOutputOnHomePage(item.id, mSrc.displayConfig);
+          const lowerK = String(item.id).toLowerCase();
+          // Single primary sources take precedence over multi-sources unless multi-source is primary
+          if (!result[lowerK] || mSrc.isPrimary) {
+            result[lowerK] = {
+              price: numPrice,
+              datetime: mSrc.lastFetched || multi?.datetime || new Date().toISOString(),
+              label: `${mSrc.name} (${code})`,
+              sourceId: mSrc.id,
+              isPrimary: !!mSrc.isPrimary,
+              showOnHomePage: isHome,
+            };
           }
         }
       }

@@ -153,4 +153,56 @@ describe('compileLatestMarketRates dynamic source support', () => {
     expect(result.bourse.price).toBeUndefined();
     expect(result.bourse.showOnHomePage).toBe(false);
   });
+
+  it('should compile standardized multi-output sources where lastMultiData has items array ({id, name, price})', () => {
+    const mockForexSource = {
+      id: 'src_def_forex',
+      name: 'نرخ‌های جهانی فارکس',
+      priceType: 'forex',
+      sourceType: 'forex_api',
+      isActive: true,
+      isPrimary: true,
+      isCatalog: false,
+      lastMultiData: {
+        isCatalog: false,
+        totalCount: 4,
+        datetime: '2026-09-21T10:00:00Z',
+        items: [
+          { id: 'EUR', name: 'یورو', price: 1.092 },
+          { id: 'AED', name: 'درهم امارات', price: 0.272 },
+          { id: 'TRY', name: 'لیر ترکیه', price: 0.029 },
+          { id: 'GBP', name: 'پوند انگلیس', price: 1.285 },
+        ],
+      },
+      displayConfig: {
+        showOnHomePage: true,
+        homePageOutputs: ['EUR', 'AED', 'TRY'],
+      },
+    };
+
+    const result = compileLatestMarketRates([mockForexSource]);
+
+    // Check EUR
+    expect(result.eur).toBeDefined();
+    expect(result.eur.price).toBe(1.092);
+    expect(result.eur.label).toBe('نرخ‌های جهانی فارکس (EUR)');
+    expect(result.eur.sourceId).toBe('src_def_forex');
+    expect(result.eur.isPrimary).toBe(true);
+    expect(result.eur.showOnHomePage).toBe(true);
+
+    // Check AED
+    expect(result.aed).toBeDefined();
+    expect(result.aed.price).toBe(0.272);
+    expect(result.aed.showOnHomePage).toBe(true);
+
+    // Check TRY
+    expect(result.try).toBeDefined();
+    expect(result.try.price).toBe(0.029);
+    expect(result.try.showOnHomePage).toBe(true);
+
+    // Check GBP (not in homePageOutputs, but exists with showOnHomePage: false)
+    expect(result.gbp).toBeDefined();
+    expect(result.gbp.price).toBe(1.285);
+    expect(result.gbp.showOnHomePage).toBe(false);
+  });
 });

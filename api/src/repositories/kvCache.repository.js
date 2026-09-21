@@ -112,6 +112,9 @@ export async function getSourcePriceCache(env, id) {
   const kv = getKv(env);
   if (!kv || !id) return null;
   try {
+    const data = await kv.get(`source_price:${id}`);
+    if (data) return JSON.parse(data);
+
     const raw = await kv.get(`source_items:${id}`);
     if (raw) {
       const items = JSON.parse(raw);
@@ -124,21 +127,22 @@ export async function getSourcePriceCache(env, id) {
         };
       }
     }
-    const data = await kv.get(`source_price:${id}`);
-    return data ? JSON.parse(data) : null;
+    return null;
   } catch (e) {
     return null;
   }
 }
 
 export async function setSourcePriceCache(env, id, data) {
-  if (!env || !id || !data) return;
-  const items = Array.isArray(data.items)
-    ? data.items
-    : (Array.isArray(data.lastMultiData?.items)
-      ? data.lastMultiData.items
-      : [{ id, name: data.name || id, price: Number(data.price) || 0 }]);
-  await saveSourceItems(env, id, items, { datetime: data.lastFetched || data.datetime });
+  const kv = getKv(env);
+  if (!kv || !id || !data) return;
+  try {
+    await kv.put(`source_price:${id}`, JSON.stringify(data), {
+      expirationTtl: 86400 * 7,
+    });
+  } catch (e) {
+    logger.warn("KV put error for source_price:", { id, error: e.message });
+  }
 }
 
 export async function deleteSourcePriceCache(env, id) {

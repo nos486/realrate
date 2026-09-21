@@ -68,7 +68,7 @@ export async function hydrateCatalogSourceFromKv(src, env, lastPrice = 0, lastFe
         lastPrice: items.length,
         lastFetched: lastFetched || items[0]?.updatedAt || new Date().toISOString(),
         lastMultiData: {
-          isCatalog: true,
+          isCatalog: Boolean(src?.isCatalog),
           totalCount: items.length,
           items,
           compactList: items,

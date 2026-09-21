@@ -112,4 +112,37 @@ describe('Unified Market Items Route Handler', () => {
     expect(usdCur.badge).toBe('ارز');
     expect(usdCur.unit).toBe('دلار');
   });
+
+  it('derives currencies[].usdCrossRate for EUR, AED, TRY from live market rates instead of defaultCross', async () => {
+    const { getLatestMarketRates } = await import('../../src/services/priceSources.js');
+    getLatestMarketRates.mockResolvedValueOnce({
+      ons_gold: { price: 2900 },
+      ons_silver: { price: 34.5 },
+      usd_toman: { price: 62000, label: 'دلار آزاد' },
+      eur: { price: 1.092 },
+      aed: { price: 0.272 },
+      try: { price: 0.029 },
+    });
+
+    const mockEnv = {};
+    const mockRequest = new Request('https://realrate.ir/api/market/items');
+    const response = await handleGetUnifiedMarketItems(mockEnv, mockRequest);
+    const data = await response.json();
+
+    const eurCur = data.currencies.find(c => c.code === 'EUR');
+    const aedCur = data.currencies.find(c => c.code === 'AED');
+    const tryCur = data.currencies.find(c => c.code === 'TRY');
+
+    expect(eurCur).toBeDefined();
+    expect(eurCur.usdCrossRate).toBe(1.092);
+    expect(eurCur.usdCrossRate).not.toBe(0);
+
+    expect(aedCur).toBeDefined();
+    expect(aedCur.usdCrossRate).toBe(0.272);
+    expect(aedCur.usdCrossRate).not.toBe(0);
+
+    expect(tryCur).toBeDefined();
+    expect(tryCur.usdCrossRate).toBe(0.029);
+    expect(tryCur.usdCrossRate).not.toBe(0);
+  });
 });
