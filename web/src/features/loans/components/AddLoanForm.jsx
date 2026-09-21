@@ -40,11 +40,17 @@ export default function AddLoanForm({
   const [notes, setNotes] = useState('');
   const [formError, setFormError] = useState('');
 
+  // Custom first installment amount states (فاز C)
+  const [hasCustomFirstInstallment, setHasCustomFirstInstallment] = useState(false);
+  const [firstInstallmentAmount, setFirstInstallmentAmount] = useState('');
+
   // Populate or reset form whenever modal opens or editingLoan changes
   useEffect(() => {
     if (!isOpen) return;
 
     setFormError('');
+    setHasCustomFirstInstallment(false);
+    setFirstInstallmentAmount('');
 
     if (editingLoan) {
       setTitle(editingLoan.title || '');
@@ -145,6 +151,15 @@ export default function AddLoanForm({
       return;
     }
 
+    const cleanFirstInst = hasCustomFirstInstallment
+      ? Number(String(firstInstallmentAmount || '').replace(/,/g, '').trim())
+      : null;
+
+    if (hasCustomFirstInstallment && (!cleanFirstInst || cleanFirstInst <= 0)) {
+      setFormError('لطفاً مبلغ معتبر برای قسط اول وارد نمایید.');
+      return;
+    }
+
     try {
       await onSubmit?.({
         title: title.trim(),
@@ -155,6 +170,7 @@ export default function AddLoanForm({
         intervalMonths,
         startDate: startDateIso || new Date().toISOString().split('T')[0],
         notes: notes.trim(),
+        customFirstInstallmentAmount: cleanFirstInst,
       });
       onClose();
     } catch (err) {
@@ -354,6 +370,57 @@ export default function AddLoanForm({
             </select>
           </div>
         </div>
+
+        {/* Custom First Installment Checkbox (فاز C) — Only on creation */}
+        {!editingLoan && (
+          <div style={{
+            background: 'rgba(255, 255, 255, 0.03)',
+            border: '1px solid rgba(255, 255, 255, 0.07)',
+            borderRadius: '10px',
+            padding: '12px 14px',
+            marginBottom: '16px',
+          }}>
+            <label style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '10px',
+              cursor: 'pointer',
+              userSelect: 'none',
+              fontSize: '0.88rem',
+              color: '#e2e8f0',
+            }}>
+              <input
+                type="checkbox"
+                checked={hasCustomFirstInstallment}
+                onChange={(e) => {
+                  setHasCustomFirstInstallment(e.target.checked);
+                  if (!e.target.checked) setFirstInstallmentAmount('');
+                }}
+                style={{ width: '16px', height: '16px', accentColor: '#f59e0b', cursor: 'pointer' }}
+              />
+              <span style={{ fontWeight: 600 }}>مبلغ قسط اول متفاوت است</span>
+            </label>
+
+            {hasCustomFirstInstallment && (
+              <div style={{ marginTop: '12px', paddingTop: '10px', borderTop: '1px dashed rgba(255, 255, 255, 0.08)' }}>
+                <label className="ui-input-label" style={{ display: 'block', marginBottom: '6px' }}>
+                  مبلغ دلخواه قسط اول (تومان) *
+                </label>
+                <NumericInput
+                  value={firstInstallmentAmount}
+                  onValueChange={(val) => setFirstInstallmentAmount(val)}
+                  placeholder="مثلاً: مبلغ پیش‌پرداخت یا قسط اول"
+                  affix="تومان"
+                  className="form-input"
+                  required
+                />
+                <span style={{ display: 'block', fontSize: '0.74rem', color: '#94a3b8', marginTop: '6px' }}>
+                  اقساط بعدی (۲ تا {cleanCount || '...'}) پس از ساخت وام، به صورت خودکار بر اساس مانده باقیمانده بازمحاسبه می‌شوند.
+                </span>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Live Calculation Preview Box */}
         <div style={{

@@ -87,3 +87,18 @@ export async function unmarkInstallmentPaid(loanId, installmentId) {
     { isPaid: false }
   );
 }
+
+/**
+ * Manually override a specific unpaid installment amount
+ * @param {string} loanId
+ * @param {string} installmentId
+ * @param {number} totalAmount
+ * @returns {Promise<{ success: boolean, loan: object, installment: object, actualTotalAmount: number }>}
+ */
+export async function setInstallmentAmount(loanId, installmentId, totalAmount) {
+  if (!loanId || !installmentId) throw new Error('شناسه وام و قسط الزامی است');
+  return httpClient.put(
+    `/api/loans/${encodeURIComponent(loanId)}/installments/${encodeURIComponent(installmentId)}/amount`,
+    { totalAmount: Number(totalAmount) }
+  );
+}

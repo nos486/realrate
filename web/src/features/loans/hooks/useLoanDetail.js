@@ -7,6 +7,7 @@ import {
   getLoanDetail,
   markInstallmentPaid as apiMarkPaid,
   unmarkInstallmentPaid as apiUnmarkPaid,
+  setInstallmentAmount as apiSetInstallmentAmount,
 } from '../api/loanApi.js';
 
 export function useLoanDetail(loanId) {
@@ -141,6 +142,35 @@ export function useLoanDetail(loanId) {
     [loanId, loan, fetchLoan]
   );
 
+  /**
+   * Manually override a specific unpaid installment amount
+   * Automatically refetches the loan details because subsequent installments are recalculated.
+   * @param {string} installmentId
+   * @param {number} newAmount
+   * @returns {Promise<object>}
+   */
+  const setInstallmentAmount = useCallback(
+    async (installmentId, newAmount) => {
+      if (!loanId || !installmentId) return;
+
+      setSubmitting(true);
+      setError(null);
+
+      try {
+        const res = await apiSetInstallmentAmount(loanId, installmentId, newAmount);
+        // Refetch whole loan details because all subsequent installments were recalculated
+        await fetchLoan();
+        return res;
+      } catch (err) {
+        setError(err.message || 'خطا در ویرایش مبلغ قسط');
+        throw err;
+      } finally {
+        setSubmitting(false);
+      }
+    },
+    [loanId, fetchLoan]
+  );
+
   return {
     loan,
     loading,
@@ -149,5 +179,6 @@ export function useLoanDetail(loanId) {
     fetchLoan,
     markPaid,
     unmarkPaid,
+    setInstallmentAmount,
   };
 }

@@ -9,6 +9,7 @@ import {
   createLoan as apiCreateLoan,
   updateLoan as apiUpdateLoan,
   deleteLoan as apiDeleteLoan,
+  setInstallmentAmount as apiSetInstallmentAmount,
 } from '../api/loanApi.js';
 
 export function useLoans() {
@@ -52,6 +53,7 @@ export function useLoans() {
 
   /**
    * Create a new loan
+   * If customFirstInstallmentAmount is provided, automatically updates installment #1 amount
    * @param {object} loanData
    * @returns {Promise<object>} Created loan
    */
@@ -60,10 +62,34 @@ export function useLoans() {
       setSubmitting(true);
       setError(null);
       try {
-        const res = await apiCreateLoan(loanData);
+        const { customFirstInstallmentAmount, ...baseLoanData } = loanData;
+        const res = await apiCreateLoan(baseLoanData);
         if (res?.success && res.loan) {
+          let finalLoan = res.loan;
+
+          // If user requested a custom first installment amount (فاز C)
+          if (
+            customFirstInstallmentAmount &&
+            Array.isArray(finalLoan.installments) &&
+            finalLoan.installments.length > 0
+          ) {
+            const firstInst = finalLoan.installments[0];
+            try {
+              const overrideRes = await apiSetInstallmentAmount(
+                finalLoan.id,
+                firstInst.id,
+                customFirstInstallmentAmount
+              );
+              if (overrideRes?.loan) {
+                finalLoan = overrideRes.loan;
+              }
+            } catch (err) {
+              console.error('Failed to override first installment amount:', err);
+            }
+          }
+
           await fetchLoans();
-          return res.loan;
+          return finalLoan;
         }
         throw new Error(res?.message || 'خطا در ایجاد وام');
       } catch (err) {

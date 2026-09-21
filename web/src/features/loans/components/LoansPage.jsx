@@ -37,7 +37,7 @@ const formatNum = (v) => Number(v || 0).toLocaleString('fa-IR');
  * Isolated Modal Wrapper for Single Loan Detail & Schedule
  */
 function LoanDetailModal({ loanId, onClose, onRefreshLoans }) {
-  const { loan, loading, submitting, error, markPaid, unmarkPaid } = useLoanDetail(loanId);
+  const { loan, loading, submitting, error, markPaid, unmarkPaid, setInstallmentAmount } = useLoanDetail(loanId);
 
   const handleMarkPaid = async (installmentId, details) => {
     await markPaid(installmentId, details);
@@ -47,6 +47,12 @@ function LoanDetailModal({ loanId, onClose, onRefreshLoans }) {
   const handleUnmarkPaid = async (installmentId) => {
     await unmarkPaid(installmentId);
     onRefreshLoans?.();
+  };
+
+  const handleSetInstallmentAmount = async (installmentId, newAmount) => {
+    const res = await setInstallmentAmount(installmentId, newAmount);
+    onRefreshLoans?.();
+    return res;
   };
 
   if (!loanId) return null;
@@ -80,6 +86,7 @@ function LoanDetailModal({ loanId, onClose, onRefreshLoans }) {
             installments={loan.installments || []}
             onMarkPaid={handleMarkPaid}
             onUnmarkPaid={handleUnmarkPaid}
+            onSetInstallmentAmount={handleSetInstallmentAmount}
             submitting={submitting}
           />
         </div>

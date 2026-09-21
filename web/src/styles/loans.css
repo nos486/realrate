@@ -844,3 +844,74 @@
   border-radius: 8px;
   cursor: pointer;
 }
+
+/* ── Manual Override Badge & Edit Button ── */
+.badge-manual-override {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 0.68rem;
+  font-weight: 600;
+  padding: 1px 6px;
+  border-radius: 6px;
+  background: rgba(147, 51, 234, 0.18);
+  color: #c084fc;
+  border: 1px solid rgba(147, 51, 234, 0.35);
+  margin-right: 6px;
+}
+
+.btn-edit-installment {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: #94a3b8;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  margin-right: 6px;
+}
+
+.btn-edit-installment:hover {
+  background: rgba(245, 158, 11, 0.2);
+  border-color: rgba(245, 158, 11, 0.4);
+  color: #fbbf24;
+}
+
+.inline-edit-amount-box {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.inline-edit-amount-input {
+  width: 140px !important;
+  height: 30px !important;
+  font-size: 0.8rem !important;
+  padding: 2px 8px !important;
+}
+
+.btn-inline-save {
+  background: #10b981;
+  color: #000;
+  border: none;
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 4px 8px;
+  border-radius: 5px;
+  cursor: pointer;
+}
+
+.btn-inline-cancel {
+  background: rgba(255, 255, 255, 0.08);
+  color: #94a3b8;
+  border: none;
+  font-size: 0.72rem;
+  padding: 4px 6px;
+  border-radius: 5px;
+  cursor: pointer;
+}
+

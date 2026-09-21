@@ -1,7 +1,3 @@
-/**
- * LoanInstallmentsTable.jsx — Full Amortization Schedule & Installment Payments Table
- */
-
 import React, { useState } from 'react';
 import {
   CheckCircle2,
@@ -12,6 +8,8 @@ import {
   ChevronDown,
   X,
   AlertCircle,
+  Pencil,
+  Sparkles,
 } from 'lucide-react';
 import { gregorianToShamsi, getTodayShamsi } from '../../portfolio/components/ShamsiDatePicker.jsx';
 import NumericInput from '../../../shared/ui/NumericInput.jsx';
@@ -23,6 +21,7 @@ export default function LoanInstallmentsTable({
   installments = [],
   onMarkPaid,
   onUnmarkPaid,
+  onSetInstallmentAmount,
   submitting = false,
 }) {
   // Active paying installment dialog state
@@ -31,6 +30,11 @@ export default function LoanInstallmentsTable({
   const [payAmount, setPayAmount] = useState('');
   const [payError, setPayError] = useState('');
   const [actionLoadingId, setActionLoadingId] = useState(null);
+
+  // Active editing installment amount state
+  const [editingInstId, setEditingInstId] = useState(null);
+  const [editAmountValue, setEditAmountValue] = useState('');
+  const [editError, setEditError] = useState('');
 
   // Filter tabs (all, pending, paid)
   const [activeFilter, setActiveFilter] = useState('all');
@@ -80,6 +84,31 @@ export default function LoanInstallmentsTable({
       await onUnmarkPaid?.(inst.id);
     } catch (err) {
       alert(err.message || 'خطا در لغو پرداخت');
+    } finally {
+      setActionLoadingId(null);
+    }
+  };
+
+  const handleStartEditAmount = (inst) => {
+    setEditingInstId(inst.id);
+    setEditAmountValue(String(inst.totalAmount || ''));
+    setEditError('');
+  };
+
+  const handleSaveEditAmount = async (inst) => {
+    setEditError('');
+    const cleanAmt = Number(String(editAmountValue).replace(/,/g, '').trim());
+    if (isNaN(cleanAmt) || cleanAmt <= 0) {
+      setEditError('مبلغ قسط باید بزرگتر از صفر باشد.');
+      return;
+    }
+
+    try {
+      setActionLoadingId(inst.id);
+      await onSetInstallmentAmount?.(inst.id, cleanAmt);
+      setEditingInstId(null);
+    } catch (err) {
+      setEditError(err.message || 'خطا در ویرایش مبلغ قسط');
     } finally {
       setActionLoadingId(null);
     }
@@ -140,6 +169,7 @@ export default function LoanInstallmentsTable({
             {filteredInstallments.map((inst) => {
               const isActionLoading = actionLoadingId === inst.id || submitting;
               const isPaying = payingInstId === inst.id;
+              const isEditing = editingInstId === inst.id;
 
               return (
                 <tr
@@ -171,9 +201,61 @@ export default function LoanInstallmentsTable({
                   </td>
 
                   <td className="col-total">
-                    <strong className="amount-primary">
-                      {formatNum(inst.totalAmount)} <span className="unit">تومان</span>
-                    </strong>
+                    {isEditing ? (
+                      <div className="inline-edit-amount-box">
+                        <NumericInput
+                          value={editAmountValue}
+                          onValueChange={(val) => setEditAmountValue(val)}
+                          placeholder="مبلغ جدید"
+                          affix="تومان"
+                          className="form-input inline-edit-amount-input"
+                        />
+                        <button
+                          type="button"
+                          className="btn-inline-save"
+                          onClick={() => handleSaveEditAmount(inst)}
+                          disabled={isActionLoading}
+                        >
+                          {isActionLoading ? '...' : 'تأیید'}
+                        </button>
+                        <button
+                          type="button"
+                          className="btn-inline-cancel"
+                          onClick={() => setEditingInstId(null)}
+                          disabled={isActionLoading}
+                        >
+                          لغو
+                        </button>
+                      </div>
+                    ) : (
+                      <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '4px' }}>
+                        <strong className="amount-primary">
+                          {formatNum(inst.totalAmount)} <span className="unit">تومان</span>
+                        </strong>
+                        {Boolean(inst.isManualOverride) && (
+                          <span className="badge-manual-override" title="مبلغ این قسط به‌صورت دستی تنظیم شده است">
+                            ویرایش‌شده
+                          </span>
+                        )}
+                        {!inst.isPaid && onSetInstallmentAmount && (
+                          <button
+                            type="button"
+                            className="btn-edit-installment"
+                            onClick={() => handleStartEditAmount(inst)}
+                            title="ویرایش دستی مبلغ این قسط"
+                            disabled={isActionLoading}
+                          >
+                            <Pencil size={12} />
+                          </button>
+                        )}
+                      </div>
+                    )}
+                    {isEditing && editError && (
+                      <div className="inline-pay-error" style={{ marginTop: '4px' }}>
+                        <AlertCircle size={12} />
+                        <span>{editError}</span>
+                      </div>
+                    )}
                   </td>
 
                   <td className="col-principal">
@@ -306,12 +388,67 @@ export default function LoanInstallmentsTable({
               </div>
 
               <div className="mobile-card-body">
-                <div className="mobile-amount-row">
-                  <span className="label">مبلغ قسط:</span>
-                  <strong className="value-highlight">
-                    {formatNum(inst.totalAmount)} تومان
-                  </strong>
+                <div className="mobile-amount-row" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <span className="label">مبلغ قسط:</span>
+                    <strong className="value-highlight">
+                      {formatNum(inst.totalAmount)} تومان
+                    </strong>
+                    {Boolean(inst.isManualOverride) && (
+                      <span className="badge-manual-override">ویرایش‌شده</span>
+                    )}
+                  </div>
+                  {!inst.isPaid && onSetInstallmentAmount && (
+                    <button
+                      type="button"
+                      className="btn-edit-installment"
+                      onClick={() => handleStartEditAmount(inst)}
+                      title="ویرایش دستی مبلغ این قسط"
+                      disabled={isActionLoading}
+                    >
+                      <Pencil size={12} />
+                    </button>
+                  )}
                 </div>
+
+                {isEditing && (
+                  <div className="mobile-edit-box" style={{ margin: '6px 0', padding: '8px', background: 'rgba(255,255,255,0.04)', borderRadius: '8px' }}>
+                    {editError && (
+                      <div className="inline-pay-error" style={{ marginBottom: '6px' }}>
+                        <AlertCircle size={12} />
+                        <span>{editError}</span>
+                      </div>
+                    )}
+                    <div style={{ display: 'flex', gap: '6px' }}>
+                      <NumericInput
+                        value={editAmountValue}
+                        onValueChange={(val) => setEditAmountValue(val)}
+                        placeholder="مبلغ جدید"
+                        affix="تومان"
+                        className="form-input"
+                        style={{ height: '32px', fontSize: '0.82rem' }}
+                      />
+                      <button
+                        type="button"
+                        className="btn-inline-save"
+                        onClick={() => handleSaveEditAmount(inst)}
+                        disabled={isActionLoading}
+                        style={{ minWidth: '45px' }}
+                      >
+                        {isActionLoading ? '...' : 'تأیید'}
+                      </button>
+                      <button
+                        type="button"
+                        className="btn-inline-cancel"
+                        onClick={() => setEditingInstId(null)}
+                        disabled={isActionLoading}
+                        style={{ minWidth: '45px' }}
+                      >
+                        لغو
+                      </button>
+                    </div>
+                  </div>
+                )}
 
                 <div className="mobile-breakdown-row">
                   <span>اصل: {formatNum(inst.principalPortion)}</span>
