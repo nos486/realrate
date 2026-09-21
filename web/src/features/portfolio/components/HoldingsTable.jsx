@@ -1,7 +1,6 @@
 import React from 'react';
 import { Pencil, Trash2, Calendar, MessageSquare } from 'lucide-react';
-import { CategoryIcon, formatAssetName, formatNum } from '../utils/holdingHelpers.js';
-import { getCategoryBadge } from '../../../utils/financialSpecs.js';
+import { CategoryIcon, formatAssetName, formatNum, getItemBrand } from '../utils/holdingHelpers.js';
 
 export default function HoldingsTable({
   categoryGroups = [],
@@ -10,6 +9,7 @@ export default function HoldingsTable({
   deletingId = null,
   onEdit,
   onDelete,
+  itemMap = null,
 }) {
   if (!categoryGroups || categoryGroups.length === 0) return null;
 
@@ -76,10 +76,13 @@ export default function HoldingsTable({
                     <tr key={item.id} className="portfolio-table-row">
                       <td className="td-asset">
                         <div className="asset-cell-compact">
-                          <span className="asset-name-text">{formatAssetName(item)}</span>
+                          <span className="asset-name-text">{formatAssetName(item, itemMap)}</span>
                           <span className={`item-category-pill cat-${item.category || item.assetType || 'custom'}`}>
                             <CategoryIcon category={item.category || item.assetType} size={11} style={{ verticalAlign: 'middle', marginLeft: '4px' }} />
-                            {getCategoryBadge(item.category || item.assetType, 'سفارشی')}
+                            {getItemBrand(item, itemMap
+                              ? { id: itemMap[item.assetId]?.sourceId || itemMap[item.assetId]?.source }
+                              : null
+                            )}
                           </span>
                         </div>
                       </td>

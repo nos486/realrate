@@ -149,7 +149,7 @@ export default function PortfolioTracker({ rates, calcData, usdToman, goldUsd })
   // 5. Portfolio Metrics (combining manual holdings + computed holdings from transactions)
   const portfolioMetrics = useMemo(() => {
     const processHolding = (rawH, sourceTag = 'manual') => {
-      const h = normalizeHolding({ ...rawH, source: sourceTag });
+      const h = normalizeHolding({ ...rawH, source: sourceTag }, pricing?.itemMap);
       const amountNum = Number(h.amount) || 0;
       const buyPriceNum = Number(h.buyPrice) || 0;
       const hasBuyPrice = buyPriceNum > 0;
@@ -556,6 +556,7 @@ export default function PortfolioTracker({ rates, calcData, usdToman, goldUsd })
                       deletingId={deletingId}
                       onEdit={handleOpenEdit}
                       onDelete={handleDeleteHolding}
+                      itemMap={pricing?.itemMap}
                     />
                   </div>
                 )}
@@ -576,6 +577,7 @@ export default function PortfolioTracker({ rates, calcData, usdToman, goldUsd })
                       categoryGroups={computedCategoryGroups}
                       hideValues={hideValues}
                       readOnly={false}
+                      itemMap={pricing?.itemMap}
                     />
                   </div>
                 )}

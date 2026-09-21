@@ -154,7 +154,7 @@ export function PricingProvider({ children, initialUsdToman = null, initialGoldU
   }, []);
 
   // Compute live prices instantly whenever user edits USD or Gold spot
-  const { resolvedAssets, priceMap, summary } = useMemo(() => {
+  const { resolvedAssets, priceMap, itemMap, summary } = useMemo(() => {
     const usdNum = typeof usdToman === 'string' ? parseFloat(usdToman.replace(/,/g, '')) || 0 : Number(usdToman || 0);
     const goldNum = typeof goldUsd === 'string' ? parseFloat(goldUsd.replace(/,/g, '')) || 0 : Number(goldUsd || 0);
     const silverNum = typeof silverUsd === 'string' ? parseFloat(silverUsd.replace(/,/g, '')) || 0 : Number(silverUsd || 0);
@@ -193,6 +193,7 @@ export function PricingProvider({ children, initialUsdToman = null, initialGoldU
     marketItems,
     resolvedAssets,
     priceMap,
+    itemMap,
     summary,
     usdToman,
     setUsdToman,

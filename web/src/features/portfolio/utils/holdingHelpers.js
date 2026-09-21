@@ -20,8 +20,16 @@ import {
   resolveAssetDisplayWithSource,
   resolveAssetUnit,
 } from '../../../utils/financialSpecs.js';
+import { getCategoryIconName, getItemBrand } from '../../../config/displayEngine.js';
 
-export { resolveHoldingUnitRealPrice, normalizePersianText, resolveAssetDisplayName, resolveAssetDisplayWithSource, resolveAssetUnit };
+export {
+  resolveHoldingUnitRealPrice,
+  normalizePersianText,
+  resolveAssetDisplayName,
+  resolveAssetDisplayWithSource,
+  resolveAssetUnit,
+  getItemBrand,
+};
 
 export const CATEGORY_DEFINITIONS = PORTFOLIO_CATEGORIES;
 
@@ -42,7 +50,7 @@ export function parseInputNumber(val) {
   return isNaN(num) ? null : num;
 }
 
-export function normalizeHolding(h) {
+export function normalizeHolding(h, itemMap = null) {
   if (!h) return h;
   let assetId = String(h.assetId || '').trim();
   let assetName = String(h.assetName || '').trim();
@@ -64,12 +72,22 @@ export function normalizeHolding(h) {
 
   const cleanId = assetId.replace(/^src_def_/, '').replace(/^derived_/, '');
 
+  // Live itemMap lookup — if a catalog entry exists, we enrich the raw holding
+  // with its real name and sourceId so display engine resolves brand correctly.
+  const liveItem = itemMap
+    ? (itemMap[assetId] || itemMap[cleanId] || itemMap[assetId?.toLowerCase()] || null)
+    : null;
+
   const resolvedCategory = resolveItemCategory(h);
 
   // 1. Bourse Stocks & Funds
   if (resolvedCategory === 'bourse' || resolvedCategory === 'bourse_fund') {
     const isFund = resolvedCategory === 'bourse_fund';
-    const displayName = resolveAssetDisplayWithSource(assetId, h);
+    // Build enriched raw item for displayEngine when live data is available
+    const rawForDisplay = liveItem
+      ? { ...h, name: liveItem.name, sourceId: liveItem.sourceId || liveItem.source, category: liveItem.category }
+      : h;
+    const displayName = resolveAssetDisplayName(assetId, rawForDisplay);
     if (!unit || unit === 'واحد' || unit === 'گرم' || unit === 'عدد' || unit === 'تومان') {
       unit = isFund ? 'واحد' : 'برگ سهام';
     }
@@ -101,8 +119,11 @@ export function normalizeHolding(h) {
   }
 
   // 3. Canonical standard assets (Gold, Coins, Silver, Forex, Crypto) + catalog items
-  const displayName = resolveAssetDisplayWithSource(assetId, h);
-  const resolvedUnit = resolveAssetUnit(assetId, h, unit || 'واحد');
+  const rawForDisplay = liveItem
+    ? { ...h, name: liveItem.name, sourceId: liveItem.sourceId || liveItem.source, category: liveItem.category }
+    : h;
+  const displayName = resolveAssetDisplayName(assetId, rawForDisplay);
+  const resolvedUnit = resolveAssetUnit(assetId, rawForDisplay, unit || 'واحد');
   return {
     ...h,
     assetId: cleanId || assetId,
@@ -114,8 +135,6 @@ export function normalizeHolding(h) {
     customPrice,
   };
 }
-
-import { getCategoryIconName } from '../../../config/displayEngine.js';
 
 const ICON_COMPONENT_MAP = {
   Award,
@@ -134,12 +153,20 @@ export function CategoryIcon({ category, size = 18, className = '', style = {} }
   return React.createElement(IconComponent, { size, className, style });
 }
 
-export function formatAssetName(item) {
+export function formatAssetName(item, itemMap = null) {
   if (!item) return '';
   const assetId = item.assetId || (typeof item === 'string' ? item : null);
   if (!assetId) {
     const raw = item.assetName || item.name || '';
     return raw.replace(/\s*\([^)]*\)/g, '').trim() || raw || 'دارایی';
   }
-  return resolveAssetDisplayWithSource(assetId, item) || 'دارایی';
+  // Live itemMap lookup: if live catalog data is available use it for name resolution
+  const cleanId = String(assetId).replace(/^src_def_/, '').replace(/^derived_/, '');
+  const liveItem = itemMap
+    ? (itemMap[assetId] || itemMap[cleanId] || itemMap[assetId?.toLowerCase()] || null)
+    : null;
+  const rawForDisplay = liveItem
+    ? { ...item, name: liveItem.name, sourceId: liveItem.sourceId || liveItem.source, category: liveItem.category }
+    : item;
+  return resolveAssetDisplayName(assetId, rawForDisplay) || 'دارایی';
 }

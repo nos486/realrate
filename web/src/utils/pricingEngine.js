@@ -40,14 +40,17 @@ export function normalizePersianText(str) {
 let cachedMarketItemsRef = null;
 let cachedStaticAssets = null;
 let cachedStaticPriceMap = null;
+let cachedStaticItemMap = null;
 
 export function getStaticCatalogAssets(marketItems) {
-  if (marketItems && marketItems === cachedMarketItemsRef && cachedStaticAssets && cachedStaticPriceMap) {
-    return { staticAssets: cachedStaticAssets, staticPriceMap: cachedStaticPriceMap };
+  if (marketItems && marketItems === cachedMarketItemsRef && cachedStaticAssets && cachedStaticPriceMap && cachedStaticItemMap) {
+    return { staticAssets: cachedStaticAssets, staticPriceMap: cachedStaticPriceMap, staticItemMap: cachedStaticItemMap };
   }
 
   const staticAssets = [];
   const staticPriceMap = {};
+  // Maps every key variant → the full resolved asset object (for live name/brand lookup)
+  const staticItemMap = {};
 
   // ── 3. Investment Funds (Charisma, Emofid, etc.) ───────────────────────────
   const funds = marketItems?.funds || [];
@@ -75,35 +78,39 @@ export function getStaticCatalogAssets(marketItems) {
     };
 
     staticAssets.push(resolved);
-    staticPriceMap[f.id] = p;
+
+    // Helper to register a key in both maps
+    const regFund = (key) => { if (key) { staticPriceMap[key] = p; staticItemMap[key] = resolved; } };
+
+    regFund(f.id);
     const cleanId = String(f.id || '').replace(/^src_def_/, '').replace(/^derived_/, '');
     if (cleanId) {
-      staticPriceMap[cleanId] = p;
-      staticPriceMap[cleanId.toLowerCase()] = p;
-      staticPriceMap[cleanId.toUpperCase()] = p;
-      staticPriceMap[`src_def_${cleanId}`] = p;
-      staticPriceMap[`src_def_${cleanId.toLowerCase()}`] = p;
+      regFund(cleanId);
+      regFund(cleanId.toLowerCase());
+      regFund(cleanId.toUpperCase());
+      regFund(`src_def_${cleanId}`);
+      regFund(`src_def_${cleanId.toLowerCase()}`);
 
       if (cleanId.includes('__')) {
         const parts = cleanId.split('__');
         const suffix = parts[parts.length - 1];
         if (suffix) {
-          staticPriceMap[suffix] = p;
-          staticPriceMap[suffix.toLowerCase()] = p;
-          staticPriceMap[suffix.toUpperCase()] = p;
-          staticPriceMap[`bourse_${suffix}`] = p;
+          regFund(suffix);
+          regFund(suffix.toLowerCase());
+          regFund(suffix.toUpperCase());
+          regFund(`bourse_${suffix}`);
         }
       }
     }
     if (f.symbol) {
-      staticPriceMap[f.symbol] = p;
-      staticPriceMap[f.symbol.toLowerCase()] = p;
-      staticPriceMap[f.symbol.toUpperCase()] = p;
-      staticPriceMap[`bourse_${f.symbol}`] = p;
+      regFund(f.symbol);
+      regFund(f.symbol.toLowerCase());
+      regFund(f.symbol.toUpperCase());
+      regFund(`bourse_${f.symbol}`);
       const norm = normalizePersianText(f.symbol);
       if (norm) {
-        staticPriceMap[norm] = p;
-        staticPriceMap[`bourse_${norm}`] = p;
+        regFund(norm);
+        regFund(`bourse_${norm}`);
         fundSymbolsSet.add(norm);
       }
     }
@@ -139,18 +146,22 @@ export function getStaticCatalogAssets(marketItems) {
     };
 
     staticAssets.push(resolved);
-    staticPriceMap[b.id] = p;
+
+    // Helper to register a key in both maps
+    const regBourse = (key) => { if (key) { staticPriceMap[key] = p; staticItemMap[key] = resolved; } };
+
+    regBourse(b.id);
     const cleanBId = String(b.id || '').replace(/^src_def_/, '').replace(/^derived_/, '');
     if (cleanBId) {
-      staticPriceMap[cleanBId] = p;
-      staticPriceMap[`bourse_${cleanBId}`] = p;
+      regBourse(cleanBId);
+      regBourse(`bourse_${cleanBId}`);
     }
     if (b.symbol) {
-      staticPriceMap[b.symbol] = p;
-      staticPriceMap[`bourse_${b.symbol}`] = p;
+      regBourse(b.symbol);
+      regBourse(`bourse_${b.symbol}`);
       if (normSymbol) {
-        staticPriceMap[normSymbol] = p;
-        staticPriceMap[`bourse_${normSymbol}`] = p;
+        regBourse(normSymbol);
+        regBourse(`bourse_${normSymbol}`);
       }
     }
   });
@@ -158,8 +169,9 @@ export function getStaticCatalogAssets(marketItems) {
   cachedMarketItemsRef = marketItems;
   cachedStaticAssets = staticAssets;
   cachedStaticPriceMap = staticPriceMap;
+  cachedStaticItemMap = staticItemMap;
 
-  return { staticAssets, staticPriceMap };
+  return { staticAssets, staticPriceMap, staticItemMap };
 }
 
 /**
@@ -177,7 +189,7 @@ export function getStaticCatalogAssets(marketItems) {
  * @param {number} params.usdToman - Client's active USD rate in Tomans
  * @param {number} params.goldUsd - Gold ounce spot rate in USD
  * @param {number} params.silverUsd - Silver ounce spot rate in USD
- * @returns {{ resolvedAssets: Array, priceMap: object, summary: object }}
+ * @returns {{ resolvedAssets: Array, priceMap: object, itemMap: object, summary: object }}
  */
 export function computeUnifiedPrices({
   marketItems = {},
@@ -194,6 +206,8 @@ export function computeUnifiedPrices({
 
   const resolvedAssets = [];
   const priceMap = {};
+  // itemMap: every key variant → full resolved asset object (for portfolio name/brand lookups)
+  const itemMap = {};
 
   // ── 1. Gold & Coins ──────────────────────────────────────────────────────────
   const goldAndCoins = (marketItems?.goldAndCoins && marketItems.goldAndCoins.length > 0)
@@ -273,45 +287,34 @@ export function computeUnifiedPrices({
 
     resolvedAssets.push(resolved);
 
-    // Populate primary ID and aliases into priceMap for portfolio compatibility
+    // Populate primary ID and aliases into priceMap (and itemMap) for portfolio compatibility
     const idLower = item.id.toLowerCase();
-    priceMap[item.id] = effectivePrice;
-    priceMap[idLower] = effectivePrice;
-    priceMap[`src_def_${idLower}`] = effectivePrice;
+    const regGold = (key, val = effectivePrice) => { if (key) { priceMap[key] = val; itemMap[key] = resolved; } };
+
+    regGold(item.id);
+    regGold(idLower);
+    regGold(`src_def_${idLower}`);
 
     if (item.id === 'full_coin') {
-      priceMap['full_new'] = effectivePrice;
-      priceMap['full_old'] = effectivePrice;
-      priceMap['src_def_full_new'] = effectivePrice;
-      priceMap['src_def_full_old'] = effectivePrice;
+      regGold('full_new'); regGold('full_old');
+      regGold('src_def_full_new'); regGold('src_def_full_old');
     } else if (item.id === 'half_coin') {
-      priceMap['half'] = effectivePrice;
-      priceMap['src_def_half'] = effectivePrice;
+      regGold('half'); regGold('src_def_half');
     } else if (item.id === 'quarter_coin') {
-      priceMap['quarter'] = effectivePrice;
-      priceMap['src_def_quarter'] = effectivePrice;
+      regGold('quarter'); regGold('src_def_quarter');
     } else if (item.id === 'gerami_coin') {
-      priceMap['bank_gram'] = effectivePrice;
-      priceMap['gram'] = effectivePrice;
-      priceMap['src_def_bank_gram'] = effectivePrice;
+      regGold('bank_gram'); regGold('gram');
+      regGold('src_def_bank_gram');
     } else if (item.id === 'ons_gold') {
-      priceMap['gold_ounce'] = effectivePrice;
-      priceMap['src_def_gold_ounce'] = effectivePrice;
-      priceMap['XAU'] = effectivePrice;
-      priceMap['xau'] = effectivePrice;
+      regGold('gold_ounce'); regGold('src_def_gold_ounce');
+      regGold('XAU'); regGold('xau');
       const tomanVal = usdVal > 0 ? Math.round(goldVal * usdVal) : 0;
-      priceMap['ons_gold_toman'] = tomanVal;
-      priceMap['gold_ounce_toman'] = tomanVal;
-      priceMap['xau_toman'] = tomanVal;
+      regGold('ons_gold_toman', tomanVal); regGold('gold_ounce_toman', tomanVal); regGold('xau_toman', tomanVal);
     } else if (item.id === 'ons_silver') {
-      priceMap['silver_ounce'] = effectivePrice;
-      priceMap['src_def_silver_ounce'] = effectivePrice;
-      priceMap['XAG'] = effectivePrice;
-      priceMap['xag'] = effectivePrice;
+      regGold('silver_ounce'); regGold('src_def_silver_ounce');
+      regGold('XAG'); regGold('xag');
       const tomanVal = usdVal > 0 ? Math.round(silverVal * usdVal) : 0;
-      priceMap['ons_silver_toman'] = tomanVal;
-      priceMap['silver_ounce_toman'] = tomanVal;
-      priceMap['xag_toman'] = tomanVal;
+      regGold('ons_silver_toman', tomanVal); regGold('silver_ounce_toman', tomanVal); regGold('xag_toman', tomanVal);
     }
   });
 
@@ -350,17 +353,14 @@ export function computeUnifiedPrices({
 
     resolvedAssets.push(resolved);
     const codeLower = cur.code.toLowerCase();
-    priceMap[cur.code] = calculatedToman;
-    priceMap[codeLower] = calculatedToman;
-    priceMap[`src_def_${codeLower}`] = calculatedToman;
-    priceMap[`forex_${codeLower}`] = calculatedToman;
+    const regFx = (key, val = calculatedToman) => { if (key) { priceMap[key] = val; itemMap[key] = resolved; } };
+
+    regFx(cur.code); regFx(codeLower);
+    regFx(`src_def_${codeLower}`);
+    regFx(`forex_${codeLower}`);
 
     if (cur.code === 'USD') {
-      priceMap['usd'] = calculatedToman;
-      priceMap['usd_toman'] = calculatedToman;
-      priceMap['USDT'] = calculatedToman;
-      priceMap['usdt'] = calculatedToman;
-      priceMap['src_def_usd'] = calculatedToman;
+      regFx('usd'); regFx('usd_toman'); regFx('USDT'); regFx('usdt'); regFx('src_def_usd');
     }
   });
 
@@ -398,22 +398,25 @@ export function computeUnifiedPrices({
 
     resolvedAssets.push(resolved);
     const codeLower = code.toLowerCase();
+    const regCrypto = (key, val = p) => { if (key) { priceMap[key] = val; itemMap[key] = resolved; } };
     if (code) {
-      priceMap[code] = p;
-      priceMap[codeLower] = p;
-      priceMap[`crypto_${codeLower}`] = p;
+      regCrypto(code); regCrypto(codeLower); regCrypto(`crypto_${codeLower}`);
     }
   });
 
   // ── 4. Static Catalogs (Funds & Bourse: independent of USD/Gold spot) ──────
-  const { staticAssets, staticPriceMap } = getStaticCatalogAssets(marketItems);
+  const { staticAssets, staticPriceMap, staticItemMap } = getStaticCatalogAssets(marketItems);
   Object.assign(priceMap, staticPriceMap);
+  // Merge catalog itemMap — catalog entries OVERRIDE computed non-catalog keys
+  // so that bourse/fund ids always point to the correctly resolved live object.
+  Object.assign(itemMap, staticItemMap);
 
   const allResolvedAssets = resolvedAssets.concat(staticAssets);
 
   return {
     resolvedAssets: allResolvedAssets,
     priceMap,
+    itemMap,
     summary: {
       usdToman: usdVal,
       goldUsd: goldVal,

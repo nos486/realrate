@@ -31,7 +31,7 @@ import TransactionForm from './TransactionForm.jsx';
 import PortfolioSwitcher from '../../portfolio/components/PortfolioSwitcher.jsx';
 import VaultLockCard from '../../portfolio/components/VaultLockCard.jsx';
 import { usePricing } from '../../market/index.js';
-import { CategoryIcon, formatAssetName, formatNum } from '../../portfolio/utils/holdingHelpers.js';
+import { CategoryIcon, formatAssetName, formatNum, getItemBrand } from '../../portfolio/utils/holdingHelpers.js';
 import {
   deriveE2eeKey,
   verifyE2eeKey,
@@ -434,10 +434,13 @@ export default function TransactionsPage({
                         {/* Asset Info */}
                         <td className="td-asset">
                           <div className="asset-cell-compact">
-                            <span className="asset-name-text">{formatAssetName(tx)}</span>
+                            <span className="asset-name-text">{formatAssetName(tx, pricing?.itemMap)}</span>
                             <span className={`item-category-pill cat-${tx.category || tx.assetType || 'custom'}`}>
                               <CategoryIcon category={tx.category || tx.assetType} size={11} style={{ verticalAlign: 'middle', marginLeft: '4px' }} />
-                              {tx.unit || 'واحد'}
+                              {getItemBrand(tx, pricing?.itemMap
+                                ? { id: pricing.itemMap[tx.assetId]?.sourceId || pricing.itemMap[tx.assetId]?.source }
+                                : null
+                              )}
                             </span>
                           </div>
                         </td>
