@@ -545,5 +545,54 @@ describe('Loan Calculator Domain (ماشین حساب وام و اقساط)', ()
       // Final balance is 0
       expect(schedule[9].remainingBalanceAfter).toBe(0);
     });
+
+    it('Scenario 5: extra payment stays anchored once later installments are paid past it (regression)', () => {
+      const loan = {
+        id: 'loan_stale_extra_payment',
+        principalAmount: 12000000,
+        annualInterestRate: 0,
+        installmentCount: 12,
+        startDate: '2026-01-01',
+        intervalMonths: 1,
+      };
+
+      // Timeline: pay 1, pay 2, extra payment of 2,000,000 anchored at 2 (resultingBalance 8,000,000),
+      // then pay 3 and 4 (which, at the time they were paid, correctly recalculated to 800,000 each
+      // from the post-extra-payment balance of 8,000,000 over the 10 remaining installments).
+      const installmentStates = [
+        { installmentNumber: 1, isPaid: true, principalPortion: 1000000, interestPortion: 0, totalAmount: 1000000, remainingBalanceAfter: 11000000 },
+        { installmentNumber: 2, isPaid: true, principalPortion: 1000000, interestPortion: 0, totalAmount: 1000000, remainingBalanceAfter: 10000000 },
+        { installmentNumber: 3, isPaid: true, principalPortion: 800000, interestPortion: 0, totalAmount: 800000, remainingBalanceAfter: 7200000 },
+        { installmentNumber: 4, isPaid: true, principalPortion: 800000, interestPortion: 0, totalAmount: 800000, remainingBalanceAfter: 6400000 },
+      ];
+
+      const extraPayments = [
+        {
+          anchorInstallmentNumber: 2,
+          amount: 2000000,
+          reductionMode: 'reduce_amount',
+          resultingBalance: 8000000,
+          paymentDate: '2026-03-15',
+        },
+      ];
+
+      const schedule = computeEffectiveSchedule({ loan, installmentStates, extraPayments });
+
+      expect(schedule).toHaveLength(12);
+
+      // Installments 5..12 must continue from installment 4's REAL remaining balance (6,400,000),
+      // not re-derive a fresh (wrong) trajectory from the now-stale extra payment anchor at 2.
+      for (let i = 4; i < 12; i++) {
+        expect(schedule[i].totalAmount).toBe(800000);
+      }
+
+      // Total principal across all 12 installments must equal the loan principal minus the
+      // extra payment (12,000,000 - 2,000,000 = 10,000,000) — money must not appear or vanish.
+      const sumPrincipal = schedule.reduce((sum, inst) => sum + inst.principalPortion, 0);
+      expect(sumPrincipal).toBe(10000000);
+
+      // Balance must reach exactly zero at the end.
+      expect(schedule[11].remainingBalanceAfter).toBe(0);
+    });
   });
 });
