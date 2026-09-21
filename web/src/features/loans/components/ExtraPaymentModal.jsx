@@ -85,14 +85,16 @@ export default function ExtraPaymentModal({
         icon={<Sparkles size={22} className="text-emerald-400" />}
         maxWidth="480px"
         footer={
-          <button
-            type="button"
-            className="btn-submit"
-            onClick={handleClose}
-            style={{ width: '100%', background: '#10b981', color: '#000' }}
-          >
-            متوجه شدم، مشاهده وام
-          </button>
+          <div className="modal-actions" style={{ width: '100%' }}>
+            <button
+              type="button"
+              className="btn-primary"
+              onClick={handleClose}
+              style={{ width: '100%' }}
+            >
+              متوجه شدم، مشاهده وام
+            </button>
+          </div>
         }
       >
         <div style={{ textAlign: 'center', padding: '24px 10px' }}>
@@ -121,7 +123,7 @@ export default function ExtraPaymentModal({
   }
 
   const footerActions = (
-    <div style={{ display: 'flex', gap: '10px', width: '100%', justifyContent: 'flex-end' }}>
+    <div className="modal-actions">
       <button
         type="button"
         className="btn-cancel"
@@ -132,9 +134,9 @@ export default function ExtraPaymentModal({
       </button>
       <button
         type="submit"
-        className="btn-submit"
+        className="btn-primary"
         disabled={submitting || cleanAmount <= 0}
-        style={{ minWidth: '130px', background: '#f59e0b', color: '#000' }}
+        style={{ minWidth: '130px' }}
       >
         {submitting ? 'در حال ثبت...' : 'ثبت پرداخت اضافه'}
       </button>

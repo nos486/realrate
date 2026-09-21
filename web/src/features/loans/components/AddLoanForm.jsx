@@ -179,7 +179,7 @@ export default function AddLoanForm({
   };
 
   const footerActions = (
-    <div style={{ display: 'flex', gap: '10px', width: '100%', justifyContent: 'flex-end' }}>
+    <div className="modal-actions">
       <button
         type="button"
         className="btn-cancel"
@@ -190,7 +190,7 @@ export default function AddLoanForm({
       </button>
       <button
         type="submit"
-        className="btn-submit"
+        className="btn-primary"
         disabled={submitting || cleanPrincipal <= 0 || cleanCount <= 0}
         style={{ minWidth: '130px' }}
       >
