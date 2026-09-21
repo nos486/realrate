@@ -1,11 +1,12 @@
 import React, { useState, useMemo } from 'react';
 import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { Megaphone, TrendingUp, Briefcase, ShieldCheck, Radio, Settings, Receipt } from 'lucide-react';
+import { Megaphone, TrendingUp, Briefcase, ShieldCheck, Radio, Settings, Receipt, Landmark } from 'lucide-react';
 import { AppLayout, FilterPills, AlertBanner } from '../shared/ui/index.js';
 import MarketInputsToolbar from '../components/MarketInputsToolbar.jsx';
 import { AnalysisCards, CurrenciesList } from '../features/market/components/index.js';
 import { PortfolioTracker } from '../features/portfolio/index.js';
 import { TransactionsPage } from '../features/transactions/index.js';
+import { LoansPage, UpcomingInstallmentsAlert } from '../features/loans/index.js';
 import AdminPage from './AdminPage.jsx';
 import PriceSourcesPage from './PriceSourcesPage.jsx';
 import AccountSettingsView from '../components/AccountSettingsView.jsx';
@@ -51,6 +52,12 @@ export default function MainPage() {
       searchParams.get('tab') === 'transactions'
     );
 
+  const isLoans =
+    !isSettings && !isSources && !isAdmin && !isPortfolio && !isTransactions && (
+      location.pathname.startsWith('/loans') ||
+      searchParams.get('tab') === 'loans'
+    );
+
   const activeTab = isSettings
     ? 'settings'
     : isSources
@@ -61,10 +68,16 @@ export default function MainPage() {
           ? 'portfolio'
           : isTransactions
             ? 'transactions'
-            : 'market';
+            : isLoans
+              ? 'loans'
+              : 'market';
 
   const handleTabChange = (nextTab) => {
-    if (nextTab === 'transactions') {
+    if (nextTab === 'loans') {
+      if (!location.pathname.startsWith('/loans')) {
+        navigate('/loans');
+      }
+    } else if (nextTab === 'transactions') {
       if (!location.pathname.startsWith('/transactions')) {
         let lastId = null;
         try {
@@ -104,6 +117,7 @@ export default function MainPage() {
       { value: 'market', label: 'نرخ و حباب', icon: <TrendingUp size={16} strokeWidth={2} /> },
       { value: 'portfolio', label: 'پورتفو', icon: <Briefcase size={16} strokeWidth={2} /> },
       { value: 'transactions', label: 'تراکنش‌ها', icon: <Receipt size={16} strokeWidth={2} /> },
+      { value: 'loans', label: 'وام و اقساط', icon: <Landmark size={16} strokeWidth={2} /> },
     ];
     if (user) {
       options.push(
@@ -195,6 +209,13 @@ export default function MainPage() {
 
       {/* Tab Views */}
       <section className="tab-view-container">
+        {/* Active Loan Due Reminders Banner */}
+        {user && (
+          <div style={{ marginBottom: '14px', width: '100%' }}>
+            <UpcomingInstallmentsAlert onSelectLoan={(loanId) => navigate(loanId ? `/loans/${loanId}` : '/loans')} />
+          </div>
+        )}
+
         {activeTab === 'market' && (
           <div className="market-tab-content">
             {/* Market Inputs Toolbar */}
@@ -247,6 +268,10 @@ export default function MainPage() {
             goldUsd={goldUsd}
             initialPortfolioId={params.portfolioId || searchParams.get('p') || searchParams.get('id') || null}
           />
+        )}
+
+        {activeTab === 'loans' && (
+          <LoansPage initialLoanId={params.loanId || searchParams.get('id') || null} />
         )}
 
         {activeTab === 'settings' && (

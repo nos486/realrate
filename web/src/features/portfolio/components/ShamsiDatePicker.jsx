@@ -48,6 +48,76 @@ export function gregorianToShamsi(dateStr) {
   }
 }
 
+export function jalaliToGregorian(jY, jM, jD) {
+  jY = parseInt(jY, 10);
+  jM = parseInt(jM, 10);
+  jD = parseInt(jD, 10);
+  if (isNaN(jY) || isNaN(jM) || isNaN(jD)) return '';
+
+  let jy = jY - 979;
+  let jm = jM - 1;
+  let jd = jD - 1;
+
+  let j_day_no = 365 * jy + Math.floor(jy / 33) * 8 + Math.floor(((jy % 33) + 3) / 4);
+  for (let i = 0; i < jm; ++i) {
+    j_day_no += i < 6 ? 31 : 30;
+  }
+  j_day_no += jd;
+
+  let g_day_no = j_day_no + 79;
+
+  let gy = 1600 + 400 * Math.floor(g_day_no / 146097);
+  g_day_no = g_day_no % 146097;
+
+  let leap = true;
+  if (g_day_no >= 36525) {
+    g_day_no--;
+    gy += 100 * Math.floor(g_day_no / 36524);
+    g_day_no = g_day_no % 36524;
+    if (g_day_no >= 365) {
+      g_day_no++;
+    } else {
+      leap = false;
+    }
+  }
+
+  gy += 4 * Math.floor(g_day_no / 1461);
+  g_day_no %= 1461;
+
+  if (g_day_no >= 366) {
+    leap = false;
+    g_day_no--;
+    gy += Math.floor(g_day_no / 365);
+    g_day_no = g_day_no % 365;
+  }
+
+  let gd = g_day_no + 1;
+  let gm = 0;
+  const g_days_in_month = [31, (leap ? 29 : 28), 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+  for (let i = 0; i < 12; i++) {
+    if (gd > g_days_in_month[i]) {
+      gd -= g_days_in_month[i];
+    } else {
+      gm = i + 1;
+      break;
+    }
+  }
+
+  const gyStr = String(gy).padStart(4, '0');
+  const gmStr = String(gm).padStart(2, '0');
+  const gdStr = String(gd).padStart(2, '0');
+  return `${gyStr}-${gmStr}-${gdStr}`;
+}
+
+export function shamsiToGregorian(shamsiStr) {
+  if (!shamsiStr) return '';
+  const parts = String(shamsiStr).split('/');
+  if (parts.length === 3) {
+    return jalaliToGregorian(parts[0], parts[1], parts[2]);
+  }
+  return '';
+}
+
 export function parseShamsiDate(str) {
   const parts = (str || '').split('/');
   if (parts.length === 3 && parts[0].length === 4) {
@@ -65,20 +135,35 @@ export function parseShamsiDate(str) {
   };
 }
 
-export default function ShamsiDatePicker({ value = '', onChange, onTodayClick, label = 'تاریخ خرید', className = '' }) {
+export default function ShamsiDatePicker({
+  value = '',
+  onChange,
+  onChangeIso,
+  onTodayClick,
+  label = 'تاریخ خرید',
+  className = ''
+}) {
   const [showPicker, setShowPicker] = useState(false);
   const nativeDateRef = useRef(null);
 
+  // If value passed is an ISO date (e.g. 2026-09-21), format to Shamsi for display
+  const displayShamsi = value && value.includes('-') ? gregorianToShamsi(value) : value;
+
   const handleSetToday = () => {
-    const today = getTodayShamsi();
-    onChange?.(today);
-    onTodayClick?.(today);
+    const todayShamsi = getTodayShamsi();
+    const todayIso = new Date().toISOString().split('T')[0];
+    onChange?.(todayShamsi);
+    onChangeIso?.(todayIso);
+    onTodayClick?.(todayShamsi);
   };
 
   const handleDatePartChange = (part, val) => {
-    const current = parseShamsiDate(value);
+    const current = parseShamsiDate(displayShamsi);
     const updated = { ...current, [part]: val };
-    onChange?.(`${updated.year}/${updated.month}/${updated.day}`);
+    const shamsiStr = `${updated.year}/${updated.month}/${updated.day}`;
+    onChange?.(shamsiStr);
+    const isoStr = shamsiToGregorian(shamsiStr);
+    if (isoStr) onChangeIso?.(isoStr);
   };
 
   return (
@@ -98,8 +183,13 @@ export default function ShamsiDatePicker({ value = '', onChange, onTodayClick, l
         <input
           type="text"
           placeholder="مثلاً ۱۴۰۳/۱۱/۲۰ یا آبان ۱۴۰۳"
-          value={value}
-          onChange={(e) => onChange?.(e.target.value)}
+          value={displayShamsi}
+          onChange={(e) => {
+            const val = e.target.value;
+            onChange?.(val);
+            const iso = shamsiToGregorian(val);
+            if (iso) onChangeIso?.(iso);
+          }}
           className="form-input date-text-input"
         />
         <button
@@ -117,7 +207,9 @@ export default function ShamsiDatePicker({ value = '', onChange, onTodayClick, l
           className="hidden-native-date-picker"
           onChange={(e) => {
             if (e.target.value) {
-              onChange?.(gregorianToShamsi(e.target.value));
+              const iso = e.target.value;
+              onChange?.(gregorianToShamsi(iso));
+              onChangeIso?.(iso);
             }
           }}
         />

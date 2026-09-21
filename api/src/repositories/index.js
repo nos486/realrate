@@ -11,3 +11,4 @@ export * from "./holdings.repository.js";
 export * from "./transactionRepository.js";
 export * from "./priceSource.repository.js";
 export * from "./settings.repository.js";
+export * from "./loans.repository.js";

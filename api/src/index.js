@@ -58,6 +58,14 @@ import {
   handleUpdateTransaction,
   handleDeleteTransaction,
 } from "./handlers/transactionRoutes.js";
+import {
+  handleGetLoans,
+  handleCreateLoan,
+  handleGetLoan,
+  handleUpdateLoan,
+  handleDeleteLoan,
+  handleUpdateInstallment,
+} from "./handlers/loanRoutes.js";
 import { fetchAllPrices } from "./services/market/priceAggregator.service.js";
 import {
   searchCatalogItems,
@@ -160,6 +168,29 @@ export default {
       if (request.method === "POST")   return wrap((req, env) => handleCreateTransaction(req, env, { portfolioId }))(request, env);
       if (request.method === "PUT")    return wrap((req, env) => handleUpdateTransaction(req, env, { portfolioId, txId }))(request, env);
       if (request.method === "DELETE") return wrap((req, env) => handleDeleteTransaction(req, env, { portfolioId, txId }))(request, env);
+    }
+
+    // ── Loans & Installments API Routes ─────────────────────────────────────
+    const loanInstallmentMatch = normalizedPath.match(/^\/api\/loans\/([^/]+)\/installments\/([^/]+)$/);
+    if (loanInstallmentMatch) {
+      const loanId = loanInstallmentMatch[1];
+      const installmentId = loanInstallmentMatch[2];
+      if (request.method === "PUT") {
+        return wrap((req, e) => handleUpdateInstallment(req, e, { loanId, installmentId }))(request, env);
+      }
+    }
+
+    const loanSingleMatch = normalizedPath.match(/^\/api\/loans\/([^/]+)$/);
+    if (loanSingleMatch) {
+      const loanId = loanSingleMatch[1];
+      if (request.method === "GET")    return wrap((req, e) => handleGetLoan(req, e, { loanId }))(request, env);
+      if (request.method === "PUT")    return wrap((req, e) => handleUpdateLoan(req, e, { loanId }))(request, env);
+      if (request.method === "DELETE") return wrap((req, e) => handleDeleteLoan(req, e, { loanId }))(request, env);
+    }
+
+    if (normalizedPath === "/api/loans") {
+      if (request.method === "GET")  return wrap(handleGetLoans)(request, env);
+      if (request.method === "POST") return wrap(handleCreateLoan)(request, env);
     }
 
     // ── Public API Routes ───────────────────────────────────────────────────

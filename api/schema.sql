@@ -166,3 +166,40 @@ CREATE INDEX IF NOT EXISTS idx_transactions_user ON transactions(user_id);
 CREATE INDEX IF NOT EXISTS idx_transactions_portfolio ON transactions(portfolio_id);
 CREATE INDEX IF NOT EXISTS idx_transactions_created ON transactions(created_at DESC);
 
+-- 8. Loans & Installments Tables
+CREATE TABLE IF NOT EXISTS loans (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL,
+  title TEXT NOT NULL,
+  lender_name TEXT DEFAULT '',
+  principal_amount REAL NOT NULL,
+  annual_interest_rate REAL NOT NULL DEFAULT 0,
+  installment_count INTEGER NOT NULL,
+  interval_months INTEGER NOT NULL DEFAULT 1,
+  start_date TEXT NOT NULL,
+  notes TEXT DEFAULT '',
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_loans_user ON loans(user_id);
+
+CREATE TABLE IF NOT EXISTS loan_installments (
+  id TEXT PRIMARY KEY,
+  loan_id TEXT NOT NULL,
+  user_id TEXT NOT NULL,
+  installment_number INTEGER NOT NULL,
+  due_date TEXT NOT NULL,
+  principal_portion REAL NOT NULL,
+  interest_portion REAL NOT NULL,
+  total_amount REAL NOT NULL,
+  remaining_balance_after REAL NOT NULL,
+  is_paid INTEGER DEFAULT 0,
+  paid_date TEXT DEFAULT '',
+  paid_amount REAL DEFAULT 0,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_loan_installments_loan ON loan_installments(loan_id);
+CREATE INDEX IF NOT EXISTS idx_loan_installments_user ON loan_installments(user_id);
+CREATE INDEX IF NOT EXISTS idx_loan_installments_due ON loan_installments(due_date);
+
