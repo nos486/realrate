@@ -7,11 +7,14 @@ import ShamsiDatePicker from './ShamsiDatePicker.jsx';
 import { parseInputNumber } from '../utils/holdingHelpers.js';
 import {
   getCanonicalAssetSpec,
+  getCanonicalAssetName,
+  getCanonicalAssetUnit,
   resolveItemCategory,
 } from '../../../utils/financialSpecs.js';
 import {
   resolveAssetDisplayName,
   resolveAssetUnit,
+  resolveCategory,
 } from '../../../utils/sourceRegistry.js';
 import { usePricing } from '../../market/index.js';
 
@@ -213,9 +216,9 @@ export default function AddHoldingForm({
       finalAssetType = selectedBourseSymbol?.isFund ? 'bourse_fund' : 'bourse';
       finalUnit = selectedBourseSymbol?.isFund ? 'واحد' : 'برگ سهم';
     } else {
-      finalAssetType = resolveItemCategory(selectedAssetId);
-      finalAssetName = getCanonicalAssetName(selectedAssetId) || customName;
-      finalUnit = getCanonicalAssetUnit(selectedAssetId) || customUnit || 'واحد';
+      finalAssetType = resolveCategory(selectedAssetId);
+      finalAssetName = resolveAssetDisplayName(selectedAssetId) || customName;
+      finalUnit = resolveAssetUnit(selectedAssetId) || customUnit || 'واحد';
     }
 
     onSubmit?.({
