@@ -50,8 +50,9 @@ function LoanDetailModal({ loanId, onClose, onRefreshLoans }) {
   } = useLoanDetail(loanId);
 
   const handleMarkPaid = async (installmentId, details) => {
-    await markPaid(installmentId, details);
+    const res = await markPaid(installmentId, details);
     onRefreshLoans?.();
+    return res;
   };
 
   const handleUnmarkPaid = async (installmentId) => {

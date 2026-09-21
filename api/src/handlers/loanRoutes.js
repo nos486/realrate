@@ -18,6 +18,7 @@ import {
   dbUpdateLoan,
   dbDeleteLoan,
   dbMarkInstallmentPaid,
+  dbMarkInstallmentPaidCascade,
   dbUnmarkInstallmentPaid,
   dbSetInstallmentAmount,
   dbAddExtraPayment,
@@ -150,6 +151,7 @@ export async function handleDeleteLoan(request, env, params = {}) {
  */
 export async function handleUpdateInstallment(request, env, params = {}) {
   const { userId } = await requireUser(request, env);
+  const loanId = params.loanId || params.id;
   const installmentId = params.installmentId;
 
   if (!installmentId) {
@@ -158,10 +160,24 @@ export async function handleUpdateInstallment(request, env, params = {}) {
 
   const body = await request.json().catch(() => ({}));
   const isPaid = body.isPaid ?? body.is_paid;
+  const cascade = Boolean(body.cascade);
 
   let installment;
+  let cascadedCount = 0;
+  let cascadedTotal = 0;
+  let cascadedInstallments = [];
+
   if (isPaid === false || isPaid === 0) {
     installment = await dbUnmarkInstallmentPaid(env, userId, installmentId);
+  } else if (cascade && loanId) {
+    const cascadeRes = await dbMarkInstallmentPaidCascade(env, userId, loanId, installmentId, {
+      paidDate: body.paidDate || body.paid_date,
+      paidAmount: body.paidAmount ?? body.paid_amount,
+    });
+    installment = cascadeRes.installment;
+    cascadedCount = cascadeRes.cascadedCount;
+    cascadedTotal = cascadeRes.cascadedTotal;
+    cascadedInstallments = cascadeRes.cascadedInstallments;
   } else {
     installment = await dbMarkInstallmentPaid(env, userId, installmentId, {
       paidDate: body.paidDate || body.paid_date,
@@ -173,7 +189,13 @@ export async function handleUpdateInstallment(request, env, params = {}) {
     throw AppError.notFound("قسط مورد نظر یافت نشد.");
   }
 
-  return jsonResponse({ success: true, installment }, 200, request);
+  return jsonResponse({
+    success: true,
+    installment,
+    cascadedCount,
+    cascadedTotal,
+    cascadedInstallments,
+  }, 200, request);
 }
 
 /**

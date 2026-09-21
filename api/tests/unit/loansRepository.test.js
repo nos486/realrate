@@ -6,6 +6,7 @@ import {
   dbUpdateLoan,
   dbDeleteLoan,
   dbMarkInstallmentPaid,
+  dbMarkInstallmentPaidCascade,
   dbUnmarkInstallmentPaid,
   dbSetInstallmentAmount,
   dbAddExtraPayment,
@@ -175,9 +176,14 @@ function createMockD1() {
           return { meta: { changes: 0 } };
         }
         if (q.startsWith('UPDATE loan_installments') && q.includes('is_paid = 1')) {
-          const [paidDate, paidAmount, updatedAt, installmentId, userId] = boundArgs;
+          let paidDate, paidAmount, updatedAt, installmentId, loanId, userId;
+          if (boundArgs.length === 6) {
+            [paidDate, paidAmount, updatedAt, installmentId, loanId, userId] = boundArgs;
+          } else {
+            [paidDate, paidAmount, updatedAt, installmentId, userId] = boundArgs;
+          }
           const existing = installmentsStore.get(installmentId);
-          if (existing && existing.user_id === userId) {
+          if (existing && existing.user_id === userId && (!loanId || existing.loan_id === loanId)) {
             installmentsStore.set(installmentId, {
               ...existing,
               is_paid: 1,
@@ -211,6 +217,12 @@ function createMockD1() {
           const [loanId, userId] = boundArgs;
           const loan = loansStore.get(loanId);
           if (loan && loan.user_id === userId) return loan;
+          return null;
+        }
+        if (q.includes('FROM loan_installments') && q.includes('WHERE id = ? AND loan_id = ? AND user_id = ?')) {
+          const [installmentId, loanId, userId] = boundArgs;
+          const inst = installmentsStore.get(installmentId);
+          if (inst && inst.loan_id === loanId && inst.user_id === userId) return inst;
           return null;
         }
         if (q.includes('FROM loan_installments') && q.includes('WHERE id = ? AND user_id = ?')) {
@@ -255,6 +267,22 @@ function createMockD1() {
           const results = [];
           for (const inst of installmentsStore.values()) {
             if (inst.user_id === userId && (inst.is_paid === 0 || !inst.is_paid)) {
+              results.push(inst);
+            }
+          }
+          results.sort((a, b) => a.installment_number - b.installment_number);
+          return { results };
+        }
+        if (q.includes('FROM loan_installments') && q.includes('installment_number < ?') && q.includes('is_paid = 0')) {
+          const [loanId, userId, maxNum] = boundArgs;
+          const results = [];
+          for (const inst of installmentsStore.values()) {
+            if (
+              inst.loan_id === loanId &&
+              inst.user_id === userId &&
+              inst.installment_number < maxNum &&
+              (inst.is_paid === 0 || !inst.is_paid)
+            ) {
               results.push(inst);
             }
           }
@@ -697,6 +725,83 @@ describe('Loans Repository D1 Operations', () => {
       // All pending installments should be cleared
       expect(result.loan.installments).toHaveLength(0);
       expect(result.loan.installmentCount).toBe(0);
+    });
+  });
+
+  describe('dbMarkInstallmentPaidCascade', () => {
+    it('marks target installment and all prior unpaid installments as paid, leaving subsequent installments unpaid', async () => {
+      // 1. Create a loan with 12 installments
+      const loan = await dbCreateLoan(mockEnv, 'user_1', {
+        title: 'وام ۱۲ ماهه آبشار',
+        principalAmount: 12000000,
+        annualInterestRate: 0,
+        installmentCount: 12,
+        startDate: '2026-01-01',
+      });
+
+      expect(loan.installments).toHaveLength(12);
+
+      // 2. Pick installment #8 (index 7)
+      const targetInst = loan.installments[7];
+      expect(targetInst.installmentNumber).toBe(8);
+
+      // 3. Mark installment #8 as paid with cascade
+      const res = await dbMarkInstallmentPaidCascade(mockEnv, 'user_1', loan.id, targetInst.id, {
+        paidDate: '2026-08-15',
+        paidAmount: targetInst.totalAmount,
+      });
+
+      expect(res.installment.id).toBe(targetInst.id);
+      expect(res.installment.isPaid).toBe(true);
+      expect(res.installment.paidDate).toBe('2026-08-15');
+      expect(res.cascadedCount).toBe(7);
+      expect(res.cascadedInstallments).toHaveLength(7);
+
+      // 4. Fetch the full loan and verify installments 1-7, 8, and 9-12
+      const fullLoan = await dbGetLoanById(mockEnv, 'user_1', loan.id);
+      expect(fullLoan.installments).toHaveLength(12);
+
+      for (let num = 1; num <= 7; num++) {
+        const inst = fullLoan.installments[num - 1];
+        expect(inst.installmentNumber).toBe(num);
+        expect(inst.isPaid).toBe(true);
+        expect(inst.paidDate).toBe(inst.dueDate);
+        expect(inst.paidAmount).toBe(inst.totalAmount);
+      }
+
+      const paidTarget = fullLoan.installments[7];
+      expect(paidTarget.installmentNumber).toBe(8);
+      expect(paidTarget.isPaid).toBe(true);
+      expect(paidTarget.paidDate).toBe('2026-08-15');
+
+      for (let num = 9; num <= 12; num++) {
+        const inst = fullLoan.installments[num - 1];
+        expect(inst.installmentNumber).toBe(num);
+        expect(inst.isPaid).toBe(false);
+      }
+    });
+
+    it('throws an error if the target installment is already marked as paid', async () => {
+      const loan = await dbCreateLoan(mockEnv, 'user_1', {
+        title: 'وام تست خطا',
+        principalAmount: 6000000,
+        annualInterestRate: 0,
+        installmentCount: 6,
+        startDate: '2026-01-01',
+      });
+
+      const firstInst = loan.installments[0];
+      // Mark it as paid first
+      await dbMarkInstallmentPaid(mockEnv, 'user_1', firstInst.id, {
+        paidDate: '2026-01-10',
+      });
+
+      // Attempting to cascade pay an already-paid installment should throw
+      await expect(
+        dbMarkInstallmentPaidCascade(mockEnv, 'user_1', loan.id, firstInst.id, {
+          paidDate: '2026-01-15',
+        })
+      ).rejects.toThrow('این قسط قبلاً پرداخت شده است.');
     });
   });
 });

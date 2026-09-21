@@ -60,7 +60,8 @@ export async function deleteLoan(loanId) {
  * @param {object} [details={}]
  * @param {string} [details.paidDate]
  * @param {number} [details.paidAmount]
- * @returns {Promise<{ success: boolean, installment: object }>}
+ * @param {boolean} [details.cascade]
+ * @returns {Promise<{ success: boolean, installment: object, cascadedCount?: number, cascadedTotal?: number, cascadedInstallments?: Array }>}
  */
 export async function markInstallmentPaid(loanId, installmentId, details = {}) {
   if (!loanId || !installmentId) throw new Error('شناسه وام و قسط الزامی است');
@@ -70,6 +71,7 @@ export async function markInstallmentPaid(loanId, installmentId, details = {}) {
       isPaid: true,
       paidDate: details.paidDate,
       paidAmount: details.paidAmount,
+      cascade: Boolean(details.cascade),
     }
   );
 }

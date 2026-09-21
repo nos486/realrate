@@ -682,6 +682,121 @@ export async function dbUnmarkInstallmentPaid(env, userId, installmentId) {
 }
 
 /**
+ * Mark a specific installment as paid, cascading automatically to all prior unpaid installments of the same loan.
+ * Target installment is marked with provided details (or today / totalAmount).
+ * Prior unpaid installments are marked with paid_date = due_date and paid_amount = total_amount.
+ *
+ * @param {object} env
+ * @param {string} userId
+ * @param {string} loanId
+ * @param {string} installmentId
+ * @param {object} [details={}]
+ * @returns {Promise<{ installment: object, cascadedInstallments: Array, cascadedCount: number, cascadedTotal: number }>}
+ */
+export async function dbMarkInstallmentPaidCascade(env, userId, loanId, installmentId, details = {}) {
+  if (!userId || !loanId || !installmentId || !env || !env.DB) {
+    throw AppError.badRequest("پارامترهای درخواست ناقص است.");
+  }
+
+  await ensureD1Tables(env);
+
+  // 1. Find target installment
+  const targetQuery = `
+    SELECT id, loan_id AS loanId, user_id AS userId, installment_number AS installmentNumber,
+           due_date AS dueDate, principal_portion AS principalPortion, interest_portion AS interestPortion,
+           total_amount AS totalAmount, remaining_balance_after AS remainingBalanceAfter,
+           is_paid AS isPaid, paid_date AS paidDate, paid_amount AS paidAmount,
+           created_at AS createdAt, updated_at AS updatedAt, is_manual_override AS isManualOverride
+    FROM loan_installments
+    WHERE id = ? AND loan_id = ? AND user_id = ?
+  `;
+  const targetRow = await env.DB.prepare(targetQuery).bind(installmentId, loanId, userId).first();
+  if (!targetRow) {
+    throw AppError.notFound("قسط مورد نظر یافت نشد.");
+  }
+
+  if (targetRow.isPaid || targetRow.is_paid === 1) {
+    throw AppError.badRequest("این قسط قبلاً پرداخت شده است.");
+  }
+
+  const nowIso = new Date().toISOString();
+  const targetPaidDate = String(details.paidDate || details.paid_date || nowIso.split("T")[0]).trim();
+  const targetPaidAmount =
+    details.paidAmount !== undefined && details.paidAmount !== null
+      ? Number(details.paidAmount)
+      : details.paid_amount !== undefined && details.paid_amount !== null
+      ? Number(details.paid_amount)
+      : Number(targetRow.totalAmount || targetRow.total_amount || 0);
+
+  // 2. Find prior unpaid installments for this loan (installment_number < target and is_paid = 0)
+  const priorQuery = `
+    SELECT id, loan_id AS loanId, user_id AS userId, installment_number AS installmentNumber,
+           due_date AS dueDate, principal_portion AS principalPortion, interest_portion AS interestPortion,
+           total_amount AS totalAmount, remaining_balance_after AS remainingBalanceAfter,
+           is_paid AS isPaid, paid_date AS paidDate, paid_amount AS paidAmount,
+           created_at AS createdAt, updated_at AS updatedAt, is_manual_override AS isManualOverride
+    FROM loan_installments
+    WHERE loan_id = ? AND user_id = ? AND installment_number < ? AND is_paid = 0
+    ORDER BY installment_number ASC
+  `;
+  const { results: priorRows = [] } = await env.DB.prepare(priorQuery)
+    .bind(loanId, userId, targetRow.installmentNumber || targetRow.installment_number)
+    .all();
+
+  const statements = [];
+
+  // Update target installment
+  const updateSql = `
+    UPDATE loan_installments
+    SET is_paid = 1, paid_date = ?, paid_amount = ?, updated_at = ?
+    WHERE id = ? AND loan_id = ? AND user_id = ?
+  `;
+  statements.push(env.DB.prepare(updateSql).bind(targetPaidDate, targetPaidAmount, nowIso, installmentId, loanId, userId));
+
+  // Update prior installments: paid_date = due_date, paid_amount = total_amount
+  const cascadedInstallments = [];
+  let cascadedTotal = 0;
+
+  for (const row of priorRows) {
+    const pDate = row.dueDate || row.due_date;
+    const pAmount = Number(row.totalAmount || row.total_amount || 0);
+    cascadedTotal += pAmount;
+
+    statements.push(env.DB.prepare(updateSql).bind(pDate, pAmount, nowIso, row.id, loanId, userId));
+    cascadedInstallments.push({
+      ...formatInstallmentRow(row),
+      isPaid: true,
+      paidDate: pDate,
+      paidAmount: pAmount,
+      updatedAt: nowIso,
+    });
+  }
+
+  if (typeof env.DB.batch === "function") {
+    await env.DB.batch(statements);
+  } else {
+    for (const stmt of statements) {
+      await stmt.run();
+    }
+  }
+
+  const updatedTarget = {
+    ...formatInstallmentRow(targetRow),
+    isPaid: true,
+    paidDate: targetPaidDate,
+    paidAmount: targetPaidAmount,
+    updatedAt: nowIso,
+  };
+
+  return {
+    installment: updatedTarget,
+    cascadedInstallments,
+    cascadedCount: cascadedInstallments.length,
+    cascadedTotal,
+  };
+}
+
+/**
  * Manually set the installment amount for an unpaid installment.
  * Recalculates interest/principal breakdown and adjusts subsequent unpaid installments.
  *

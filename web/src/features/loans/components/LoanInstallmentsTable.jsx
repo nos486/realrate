@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   CheckCircle2,
   Clock,
@@ -14,7 +14,8 @@ import {
   TrendingDown,
   History,
 } from 'lucide-react';
-import { gregorianToShamsi, getTodayShamsi } from '../../portfolio/components/ShamsiDatePicker.jsx';
+import { gregorianToShamsi, getTodayShamsi, shamsiToGregorian } from '../../portfolio/components/ShamsiDatePicker.jsx';
+import ShamsiDatePicker from '../../portfolio/components/ShamsiDatePicker.jsx';
 import NumericInput from '../../../shared/ui/NumericInput.jsx';
 import ExtraPaymentModal from './ExtraPaymentModal.jsx';
 
@@ -53,29 +54,56 @@ export default function LoanInstallmentsTable({
     return true;
   });
 
+  // Success message toast/banner state
+  const [successMessage, setSuccessMessage] = useState('');
+
+  useEffect(() => {
+    if (!successMessage) return;
+    const timer = setTimeout(() => {
+      setSuccessMessage('');
+    }, 5000);
+    return () => clearTimeout(timer);
+  }, [successMessage]);
+
   const handleOpenPayModal = (inst) => {
     setPayingInstId(inst.id);
     setPayDate(getTodayShamsi());
     setPayAmount(String(inst.totalAmount || ''));
     setPayError('');
+    setSuccessMessage('');
   };
 
   const handleConfirmPay = async (inst) => {
     setPayError('');
+    setSuccessMessage('');
     const cleanAmt = Number(String(payAmount).replace(/,/g, '').trim());
     if (isNaN(cleanAmt) || cleanAmt <= 0) {
       setPayError('لطفاً مبلغ پرداختی معتبر وارد نمایید.');
       return;
     }
 
+    // Convert selected Shamsi payDate to ISO YYYY-MM-DD
+    let isoDate = shamsiToGregorian(payDate);
+    if (!isoDate) {
+      isoDate = new Date().toISOString().split('T')[0];
+    }
+
+    const priorUnpaid = installments.filter(
+      (i) => i.installmentNumber < inst.installmentNumber && !i.isPaid
+    );
+    const shouldCascade = priorUnpaid.length > 0;
+
     try {
       setActionLoadingId(inst.id);
-      const isoDate = new Date().toISOString().split('T')[0];
-      await onMarkPaid?.(inst.id, {
+      const res = await onMarkPaid?.(inst.id, {
         paidDate: isoDate,
         paidAmount: cleanAmt,
+        cascade: shouldCascade,
       });
       setPayingInstId(null);
+      if (res?.cascadedCount > 0) {
+        setSuccessMessage(`${res.cascadedCount} قسط قبلی نیز پرداخت‌شده ثبت شد.`);
+      }
     } catch (err) {
       setPayError(err.message || 'خطا در ثبت پرداخت');
     } finally {
@@ -184,6 +212,43 @@ export default function LoanInstallmentsTable({
           )}
         </div>
       </div>
+
+      {successMessage && (
+        <div
+          style={{
+            margin: '0 0 16px 0',
+            padding: '10px 16px',
+            borderRadius: '8px',
+            background: 'rgba(34, 197, 94, 0.15)',
+            border: '1px solid rgba(34, 197, 94, 0.35)',
+            color: '#22c55e',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            fontSize: '0.88rem',
+            fontWeight: 500,
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <CheckCircle2 size={16} />
+            <span>{successMessage}</span>
+          </div>
+          <button
+            type="button"
+            onClick={() => setSuccessMessage('')}
+            style={{
+              background: 'transparent',
+              border: 'none',
+              color: '#22c55e',
+              cursor: 'pointer',
+              fontSize: '1rem',
+              lineHeight: 1,
+            }}
+          >
+            ×
+          </button>
+        </div>
+      )}
 
       {/* Desktop Table View */}
       <div className="loan-inst-table-wrap">
@@ -342,7 +407,35 @@ export default function LoanInstallmentsTable({
                                 <span>{payError}</span>
                               </div>
                             )}
-                            <div className="inline-pay-inputs">
+
+                            {(() => {
+                              const priorUnpaid = installments.filter(
+                                (i) => i.installmentNumber < inst.installmentNumber && !i.isPaid
+                              );
+                              if (priorUnpaid.length === 0) return null;
+                              const priorTotal = priorUnpaid.reduce((sum, i) => sum + (Number(i.totalAmount) || 0), 0);
+                              return (
+                                <div style={{
+                                  background: 'rgba(245, 158, 11, 0.12)',
+                                  border: '1px solid rgba(245, 158, 11, 0.35)',
+                                  borderRadius: '8px',
+                                  padding: '8px 10px',
+                                  fontSize: '0.74rem',
+                                  color: '#fbbf24',
+                                  lineHeight: 1.4,
+                                  display: 'flex',
+                                  alignItems: 'flex-start',
+                                  gap: '6px',
+                                }}>
+                                  <AlertCircle size={14} style={{ flexShrink: 0, marginTop: '2px' }} />
+                                  <span>
+                                    با ثبت این پرداخت، {priorUnpaid.length} قسط قبلی (مجموعاً {formatNum(priorTotal)} تومان) هم خودکار پرداخت‌شده علامت می‌خورند (بر اساس تاریخ سررسید هرکدام).
+                                  </span>
+                                </div>
+                              );
+                            })()}
+
+                            <div className="inline-pay-inputs" style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                               <NumericInput
                                 value={payAmount}
                                 onValueChange={(val) => setPayAmount(val)}
@@ -350,7 +443,14 @@ export default function LoanInstallmentsTable({
                                 affix="تومان"
                                 className="form-input pay-amount-input"
                               />
+
+                              <ShamsiDatePicker
+                                label="تاریخ پرداخت"
+                                value={payDate}
+                                onChange={(val) => setPayDate(val)}
+                              />
                             </div>
+
                             <div className="inline-pay-buttons">
                               <button
                                 type="button"
@@ -523,6 +623,34 @@ export default function LoanInstallmentsTable({
                         <span>{payError}</span>
                       </div>
                     )}
+
+                    {(() => {
+                      const priorUnpaid = installments.filter(
+                        (i) => i.installmentNumber < inst.installmentNumber && !i.isPaid
+                      );
+                      if (priorUnpaid.length === 0) return null;
+                      const priorTotal = priorUnpaid.reduce((sum, i) => sum + (Number(i.totalAmount) || 0), 0);
+                      return (
+                        <div style={{
+                          background: 'rgba(245, 158, 11, 0.12)',
+                          border: '1px solid rgba(245, 158, 11, 0.35)',
+                          borderRadius: '8px',
+                          padding: '8px 10px',
+                          fontSize: '0.74rem',
+                          color: '#fbbf24',
+                          lineHeight: 1.4,
+                          display: 'flex',
+                          alignItems: 'flex-start',
+                          gap: '6px',
+                        }}>
+                          <AlertCircle size={14} style={{ flexShrink: 0, marginTop: '2px' }} />
+                          <span>
+                            با ثبت این پرداخت، {priorUnpaid.length} قسط قبلی (مجموعاً {formatNum(priorTotal)} تومان) هم خودکار پرداخت‌شده علامت می‌خورند (بر اساس تاریخ سررسید هرکدام).
+                          </span>
+                        </div>
+                      );
+                    })()}
+
                     <NumericInput
                       value={payAmount}
                       onValueChange={(val) => setPayAmount(val)}
@@ -530,6 +658,13 @@ export default function LoanInstallmentsTable({
                       affix="تومان"
                       className="form-input"
                     />
+
+                    <ShamsiDatePicker
+                      label="تاریخ پرداخت"
+                      value={payDate}
+                      onChange={(val) => setPayDate(val)}
+                    />
+
                     <div className="inline-pay-buttons">
                       <button
                         type="button"

@@ -108,9 +108,10 @@ export function useLoanDetail(loanId) {
       });
 
       try {
-        await apiMarkPaid(loanId, installmentId, details);
+        const res = await apiMarkPaid(loanId, installmentId, details);
         // Refresh to guarantee full server synchronization
         await fetchLoan();
+        return res;
       } catch (err) {
         // Rollback on error
         setLoan(prevLoan);
