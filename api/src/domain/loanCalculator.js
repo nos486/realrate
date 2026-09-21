@@ -6,7 +6,109 @@
  * 2. generateAmortizationSchedule — Full schedule with interest/principal breakdown,
  *    calendar day clamping (no overflow to next month), exact principal reconciliation,
  *    and guaranteed zero final balance.
+ *
+ * Installment due dates are computed by adding months in the JALALI (Persian) calendar,
+ * not the Gregorian one — this matches how real Iranian bank loans work (same day of the
+ * Persian month every installment). Computing in Gregorian and only converting to Jalali
+ * for display would make the displayed day-of-month silently drift, since Jalali and
+ * Gregorian months have different lengths.
  */
+
+/**
+ * Converts a Gregorian (year, month, day) into its Jalali (Persian) equivalent.
+ * Uses the platform's ICU Persian calendar (already relied on elsewhere in this codebase
+ * for Shamsi display) as the source of truth, instead of a hand-rolled leap-year algorithm.
+ *
+ * @param {number} year
+ * @param {number} month - 1..12
+ * @param {number} day
+ * @returns {{ jy: number, jm: number, jd: number }}
+ */
+export function gregorianToJalali(year, month, day) {
+  const date = new Date(Date.UTC(year, month - 1, day));
+  const parts = new Intl.DateTimeFormat('en-US-u-ca-persian', {
+    year: 'numeric',
+    month: 'numeric',
+    day: 'numeric',
+    timeZone: 'UTC',
+  }).formatToParts(date);
+  const map = {};
+  for (const p of parts) map[p.type] = p.value;
+  return {
+    jy: parseInt(map.year, 10),
+    jm: parseInt(map.month, 10),
+    jd: parseInt(map.day, 10),
+  };
+}
+
+const _jalaliNewYearCache = new Map();
+
+/**
+ * Finds the Gregorian (year, month, day) of Farvardin 1 (Jalali New Year) for a given Jalali year.
+ * Nowruz always falls within March 19–22 (Gregorian); the exact day is found by searching that
+ * window with gregorianToJalali as the oracle. Memoized since it is a pure function of jy alone.
+ *
+ * @param {number} jy
+ * @returns {{ year: number, month: number, day: number }}
+ */
+function findJalaliNewYearInGregorian(jy) {
+  if (_jalaliNewYearCache.has(jy)) return _jalaliNewYearCache.get(jy);
+
+  for (const gy of [jy + 621, jy + 622]) {
+    for (let day = 18; day <= 23; day++) {
+      const j = gregorianToJalali(gy, 3, day);
+      if (j.jy === jy && j.jm === 1 && j.jd === 1) {
+        const result = { year: gy, month: 3, day };
+        _jalaliNewYearCache.set(jy, result);
+        return result;
+      }
+    }
+  }
+  throw new Error(`Could not locate Jalali New Year for year ${jy}`);
+}
+
+function addDaysToGregorian(year, month, day, days) {
+  const dt = new Date(Date.UTC(year, month - 1, day));
+  dt.setUTCDate(dt.getUTCDate() + days);
+  return { year: dt.getUTCFullYear(), month: dt.getUTCMonth() + 1, day: dt.getUTCDate() };
+}
+
+/**
+ * Number of days in a given Jalali month (1..12), correctly accounting for leap years
+ * (Esfand/month 12 has 29 or 30 days).
+ *
+ * @param {number} jy
+ * @param {number} jm - 1..12
+ * @returns {number}
+ */
+export function getJalaliMonthLength(jy, jm) {
+  if (jm <= 6) return 31;
+  if (jm <= 11) return 30;
+  // Month 12 (Esfand): ask the oracle whether day 366 of the year still belongs to this
+  // Jalali year (leap, 30 days) or has already rolled into next year's Farvardin (29 days).
+  const ny = findJalaliNewYearInGregorian(jy);
+  const cand = addDaysToGregorian(ny.year, ny.month, ny.day, 365);
+  const j = gregorianToJalali(cand.year, cand.month, cand.day);
+  return (j.jy === jy && j.jm === 12 && j.jd === 30) ? 30 : 29;
+}
+
+/**
+ * Converts a Jalali (year, month, day) into its Gregorian equivalent.
+ *
+ * @param {number} jy
+ * @param {number} jm - 1..12
+ * @param {number} jd
+ * @returns {{ year: number, month: number, day: number }}
+ */
+export function jalaliToGregorian(jy, jm, jd) {
+  const ny = findJalaliNewYearInGregorian(jy);
+  let dayOffset = 0;
+  for (let m = 1; m < jm; m++) {
+    dayOffset += m <= 6 ? 31 : 30;
+  }
+  dayOffset += jd - 1;
+  return addDaysToGregorian(ny.year, ny.month, ny.day, dayOffset);
+}
 
 /**
  * Parse an ISO date or YYYY-MM-DD string into year, month, day parts.
@@ -59,17 +161,20 @@ export function parseDateParts(dateInput) {
  * @returns {string} Formatted ISO date (YYYY-MM-DD or full ISO if original had time)
  */
 export function computeClampedDueDate(parsedStart, i, intervalMonths) {
-  const totalMonths = (parsedStart.month - 1) + (i * intervalMonths);
-  const targetYear = parsedStart.year + Math.floor(totalMonths / 12);
-  const targetMonth = ((totalMonths % 12) + 12) % 12 + 1; // 1..12
+  const startJalali = gregorianToJalali(parsedStart.year, parsedStart.month, parsedStart.day);
 
-  // Get max days in target month (day 0 of targetMonth gives last day of previous 0-indexed month)
-  const daysInMonth = new Date(Date.UTC(targetYear, targetMonth, 0)).getUTCDate();
-  const targetDay = Math.min(parsedStart.day, daysInMonth);
+  const totalMonths = (startJalali.jm - 1) + (i * intervalMonths);
+  const targetJy = startJalali.jy + Math.floor(totalMonths / 12);
+  const targetJm = ((totalMonths % 12) + 12) % 12 + 1; // 1..12
 
-  const yStr = String(targetYear).padStart(4, '0');
-  const mStr = String(targetMonth).padStart(2, '0');
-  const dStr = String(targetDay).padStart(2, '0');
+  const maxDay = getJalaliMonthLength(targetJy, targetJm);
+  const targetJd = Math.min(startJalali.jd, maxDay);
+
+  const greg = jalaliToGregorian(targetJy, targetJm, targetJd);
+
+  const yStr = String(greg.year).padStart(4, '0');
+  const mStr = String(greg.month).padStart(2, '0');
+  const dStr = String(greg.day).padStart(2, '0');
   const dateStr = `${yStr}-${mStr}-${dStr}`;
 
   if (parsedStart.hasTime && typeof parsedStart.raw === 'string' && parsedStart.raw.includes('T')) {

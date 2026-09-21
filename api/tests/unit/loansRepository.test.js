@@ -418,9 +418,9 @@ describe('Loans Repository D1 Operations', () => {
     expect(mockEnv.DB._loansStore.size).toBe(1);
     expect(mockEnv.DB._installmentsStore.size).toBe(0);
 
-    // Verify day clamping on installment dates
-    expect(loan.installments[0].dueDate).toBe('2026-02-28');
-    expect(loan.installments[1].dueDate).toBe('2026-03-31');
+    // Verify day clamping on installment dates (Jalali calendar: start 2026-01-31 = 1404-11-11)
+    expect(loan.installments[0].dueDate).toBe('2026-03-02'); // Jalali 1404-12-11
+    expect(loan.installments[1].dueDate).toBe('2026-03-31'); // Jalali 1405-01-11
 
     // Retrieve by ID
     const fetched = await dbGetLoanById(mockEnv, 'user_1', loan.id);

@@ -123,9 +123,9 @@ describe('Loan Calculator Domain (ماشین حساب وام و اقساط)', ()
     });
   });
 
-  describe('Date Clamping (جلوگیری از Overflow روزهای ماه)', () => {
-    it('clamps 31st to 28th/29th in February and 30th in 30-day months without overflowing', () => {
-      // Start date: 2026-01-31 (not a leap year)
+  describe('Date Clamping (جلوگیری از Overflow روزهای ماه - تقویم جلالی)', () => {
+    it('keeps the same Jalali day of month across installments (no drift), clamping only near Esfand/Farvardin boundary', () => {
+      // Start date 2026-01-31 = Jalali 1404-11-11 (Bahman 11th)
       const schedule = generateAmortizationSchedule({
         principal: 6000000,
         annualRatePct: 0,
@@ -133,14 +133,15 @@ describe('Loan Calculator Domain (ماشین حساب وام و اقساط)', ()
         startDateIso: '2026-01-31',
       });
 
-      expect(schedule[0].dueDateIso).toBe('2026-02-28'); // Month 2 clamped to 28
-      expect(schedule[1].dueDateIso).toBe('2026-03-31'); // Month 3 restored to 31
-      expect(schedule[2].dueDateIso).toBe('2026-04-30'); // Month 4 clamped to 30
-      expect(schedule[3].dueDateIso).toBe('2026-05-31'); // Month 5 restored to 31
+      // Esfand 1404 (month 12) has 30 days in 1404 -> lands on day 11 (2026-03-02)
+      expect(schedule[0].dueDateIso).toBe('2026-03-02'); // Jalali 1404-12-11
+      expect(schedule[1].dueDateIso).toBe('2026-03-31'); // Jalali 1405-01-11
+      expect(schedule[2].dueDateIso).toBe('2026-05-01'); // Jalali 1405-02-11
+      expect(schedule[3].dueDateIso).toBe('2026-06-01'); // Jalali 1405-03-11
     });
 
-    it('handles leap years correctly for February 29th', () => {
-      // 2028 is a leap year
+    it('clamps to Esfand length (29/30 days) at year boundary, never drifting the day of month for regular months', () => {
+      // 2028-01-31 = Jalali 1406-11-11 (Bahman 11th)
       const schedule = generateAmortizationSchedule({
         principal: 1000000,
         annualRatePct: 0,
@@ -148,11 +149,11 @@ describe('Loan Calculator Domain (ماشین حساب وام و اقساط)', ()
         startDateIso: '2028-01-31',
       });
 
-      expect(schedule[0].dueDateIso).toBe('2028-02-29'); // Leap year Feb has 29 days
-      expect(schedule[1].dueDateIso).toBe('2028-03-31');
+      expect(schedule[0].dueDateIso).toBe('2028-03-01'); // Jalali 1406-12-11 (Esfand)
+      expect(schedule[1].dueDateIso).toBe('2028-03-30'); // Jalali 1407-01-11
     });
 
-    it('supports custom intervalMonths (e.g. quarterly payments)', () => {
+    it('supports custom intervalMonths (e.g. quarterly payments), keeping the Jalali day of month fixed', () => {
       const schedule = generateAmortizationSchedule({
         principal: 12000000,
         annualRatePct: 12,
@@ -162,10 +163,11 @@ describe('Loan Calculator Domain (ماشین حساب وام و اقساط)', ()
       });
 
       expect(schedule).toHaveLength(4);
-      expect(schedule[0].dueDateIso).toBe('2026-04-30'); // Jan 31 + 3 months -> Apr 30
-      expect(schedule[1].dueDateIso).toBe('2026-07-31'); // Apr + 3 months -> Jul 31
-      expect(schedule[2].dueDateIso).toBe('2026-10-31'); // Jul + 3 months -> Oct 31
-      expect(schedule[3].dueDateIso).toBe('2027-01-31'); // Oct + 3 months -> Jan 31 (next year)
+      // Start = Jalali 1404-11-11; +3 months each time, always day 11
+      expect(schedule[0].dueDateIso).toBe('2026-05-01'); // Jalali 1405-02-11
+      expect(schedule[1].dueDateIso).toBe('2026-08-02'); // Jalali 1405-05-11
+      expect(schedule[2].dueDateIso).toBe('2026-11-02'); // Jalali 1405-08-11
+      expect(schedule[3].dueDateIso).toBe('2027-01-31'); // Jalali 1405-11-11
 
       const sumPrincipal = schedule.reduce((acc, inst) => acc + inst.principalPortion, 0);
       expect(sumPrincipal).toBe(12000000);
@@ -191,9 +193,10 @@ describe('Loan Calculator Domain (ماشین حساب وام و اقساط)', ()
       // Installment numbers start from 5 to 10
       expect(remainingSchedule.map((s) => s.installmentNumber)).toEqual([5, 6, 7, 8, 9, 10]);
 
-      // Due dates offset correctly from start date (month 1 + 5 = month 6 June, etc.)
-      expect(remainingSchedule[0].dueDateIso).toBe('2026-06-10');
-      expect(remainingSchedule[5].dueDateIso).toBe('2026-11-10');
+      // Due dates offset correctly from start date, keeping the Jalali day of month fixed
+      // (start 2026-01-10 = Jalali 1404-10-20)
+      expect(remainingSchedule[0].dueDateIso).toBe('2026-06-10'); // Jalali 1405-03-20
+      expect(remainingSchedule[5].dueDateIso).toBe('2026-11-11'); // Jalali 1405-08-20
 
       // Sum of principal portions must exactly equal anchorBalance
       const sumPrincipal = remainingSchedule.reduce((sum, item) => sum + item.principalPortion, 0);
