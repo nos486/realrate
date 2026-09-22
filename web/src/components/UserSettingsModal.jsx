@@ -147,25 +147,41 @@ export default function UserSettingsModal({ isOpen, portfolio, onClose, onSaved,
 
         setSavingMsg('در حال رمزگشایی و بازگردانی داده‌های موجود به حالت عادی...');
 
+        // Disabling E2EE must be all-or-nothing: once we wipe e2eeSalt/e2eeVerifier below, any
+        // item that failed to decrypt becomes permanently unrecoverable (its ciphertext can never
+        // be re-derived without the salt). So every item must be CONFIRMED decrypted — not just
+        // "no exception was thrown" — before we're allowed to proceed. e2eeDecrypt/decryptHoldingFromApi
+        // both fail "gracefully" (return null / the original still-encrypted object) on a bad key
+        // or corrupted data, with no exception to catch — so each item's outcome is checked
+        // explicitly here rather than relying on a try/catch around the whole loop.
+        const failedItems = [];
+
         // 1. Decrypt and revert holdings in DB
         try {
           const hRes = await getPortfolio(portfolio.id);
           if (hRes && Array.isArray(hRes.holdings)) {
             for (const h of hRes.holdings) {
               if (isHoldingE2eeEncrypted(h)) {
-                const dec = await decryptHoldingFromApi(derivedKey, h);
-                const plainPayload = {
-                  ...dec,
-                  portfolioId: portfolio.id,
-                  notes: (typeof dec.notes === 'string' && dec.notes.startsWith('enc:e2ee:v1:')) ? '' : (dec.notes || ''),
-                };
-                delete plainPayload.isE2eeEncrypted;
-                await updatePortfolioHolding(plainPayload);
+                try {
+                  const dec = await decryptHoldingFromApi(derivedKey, h);
+                  if (!dec || dec.isE2eeEncrypted !== true) {
+                    throw new Error('رمزگشایی ناموفق بود');
+                  }
+                  const plainPayload = {
+                    ...dec,
+                    portfolioId: portfolio.id,
+                    notes: (typeof dec.notes === 'string' && dec.notes.startsWith('enc:e2ee:v1:')) ? '' : (dec.notes || ''),
+                  };
+                  delete plainPayload.isE2eeEncrypted;
+                  await updatePortfolioHolding(plainPayload);
+                } catch (itemErr) {
+                  failedItems.push(`دارایی «${h.assetName || h.assetId || h.id}»`);
+                }
               }
             }
           }
         } catch (hErr) {
-          console.warn('Failed decrypting holdings during disable:', hErr);
+          failedItems.push('خطا در دریافت فهرست دارایی‌ها از سرور');
         }
 
         // 2. Decrypt and revert transactions in DB
@@ -175,14 +191,30 @@ export default function UserSettingsModal({ isOpen, portfolio, onClose, onSaved,
             for (const tx of txRes.transactions) {
               const rawCipher = tx.encryptedPayload || tx.encrypted_payload || '';
               if (typeof rawCipher === 'string' && rawCipher.startsWith('enc:e2ee:v1:')) {
-                const decTx = await e2eeDecrypt(derivedKey, rawCipher);
-                const plainJson = JSON.stringify(decTx || {});
-                await updateTransaction(portfolio.id, tx.id, { encryptedPayload: plainJson });
+                try {
+                  const decTx = await e2eeDecrypt(derivedKey, rawCipher);
+                  if (!decTx || typeof decTx !== 'object') {
+                    throw new Error('رمزگشایی ناموفق بود');
+                  }
+                  const plainJson = JSON.stringify(decTx);
+                  await updateTransaction(portfolio.id, tx.id, { encryptedPayload: plainJson });
+                } catch (itemErr) {
+                  failedItems.push(`تراکنش ${tx.transactionDate ? 'مورخ ' + tx.transactionDate : tx.id}`);
+                }
               }
             }
           }
         } catch (txErr) {
-          console.warn('Failed decrypting transactions during disable:', txErr);
+          failedItems.push('خطا در دریافت فهرست تراکنش‌ها از سرور');
+        }
+
+        if (failedItems.length > 0) {
+          setMsg({
+            text: `غیرفعال‌سازی رمزنگاری متوقف شد: ${failedItems.length} مورد قابل رمزگشایی نبود (${failedItems.slice(0, 3).join('، ')}${failedItems.length > 3 ? ' و مورد دیگر' : ''}). برای جلوگیری از از‌دست‌رفتن داده، رمزنگاری سرتاسری همچنان فعال باقی ماند و هیچ تغییری اعمال نشد — رمز عبور گاوصندوق را بررسی و دوباره تلاش کنید.`,
+            type: 'error',
+          });
+          setSaving(false);
+          return;
         }
 
         e2eeSalt = '';
@@ -222,22 +254,31 @@ export default function UserSettingsModal({ isOpen, portfolio, onClose, onSaved,
 
         setSavingMsg('در حال رمزنگاری داده‌های موجود در پورتفو...');
 
+        // Same all-or-nothing principle as disabling: if some items fail to encrypt here, finalizing
+        // anyway would leave the portfolio flagged as E2EE while some items are still plaintext —
+        // an inconsistent state. Collect failures and abort before saving isE2ee/salt/verifier.
+        const enableFailedItems = [];
+
         // 1. Encrypt existing plain holdings in DB
         try {
           const hRes = await getPortfolio(portfolio.id);
           if (hRes && Array.isArray(hRes.holdings)) {
             for (const h of hRes.holdings) {
               if (!isHoldingE2eeEncrypted(h)) {
-                const encHolding = await encryptHoldingForApi(derivedKey, {
-                  ...h,
-                  portfolioId: portfolio.id,
-                });
-                await updatePortfolioHolding(encHolding);
+                try {
+                  const encHolding = await encryptHoldingForApi(derivedKey, {
+                    ...h,
+                    portfolioId: portfolio.id,
+                  });
+                  await updatePortfolioHolding(encHolding);
+                } catch (itemErr) {
+                  enableFailedItems.push(`دارایی «${h.assetName || h.assetId || h.id}»`);
+                }
               }
             }
           }
         } catch (hErr) {
-          console.warn('Failed encrypting holdings during enable:', hErr);
+          enableFailedItems.push('خطا در دریافت فهرست دارایی‌ها از سرور');
         }
 
         // 2. Encrypt existing plain transactions in DB
@@ -247,19 +288,32 @@ export default function UserSettingsModal({ isOpen, portfolio, onClose, onSaved,
             for (const tx of txRes.transactions) {
               const rawCipher = tx.encryptedPayload || tx.encrypted_payload || '';
               if (typeof rawCipher !== 'string' || !rawCipher.startsWith('enc:e2ee:v1:')) {
-                let payloadObj = {};
-                if (typeof rawCipher === 'string') {
-                  try { payloadObj = JSON.parse(rawCipher); } catch { payloadObj = { notes: rawCipher }; }
-                } else if (typeof rawCipher === 'object' && rawCipher !== null) {
-                  payloadObj = rawCipher;
+                try {
+                  let payloadObj = {};
+                  if (typeof rawCipher === 'string') {
+                    try { payloadObj = JSON.parse(rawCipher); } catch { payloadObj = { notes: rawCipher }; }
+                  } else if (typeof rawCipher === 'object' && rawCipher !== null) {
+                    payloadObj = rawCipher;
+                  }
+                  const encCipher = await e2eeEncrypt(derivedKey, payloadObj);
+                  await updateTransaction(portfolio.id, tx.id, { encryptedPayload: encCipher });
+                } catch (itemErr) {
+                  enableFailedItems.push(`تراکنش ${tx.transactionDate ? 'مورخ ' + tx.transactionDate : tx.id}`);
                 }
-                const encCipher = await e2eeEncrypt(derivedKey, payloadObj);
-                await updateTransaction(portfolio.id, tx.id, { encryptedPayload: encCipher });
               }
             }
           }
         } catch (txErr) {
-          console.warn('Failed encrypting transactions during enable:', txErr);
+          enableFailedItems.push('خطا در دریافت فهرست تراکنش‌ها از سرور');
+        }
+
+        if (enableFailedItems.length > 0) {
+          setMsg({
+            text: `فعال‌سازی رمزنگاری متوقف شد: ${enableFailedItems.length} مورد رمزنگاری نشد (${enableFailedItems.slice(0, 3).join('، ')}${enableFailedItems.length > 3 ? ' و مورد دیگر' : ''}). دوباره تلاش کنید.`,
+            type: 'error',
+          });
+          setSaving(false);
+          return;
         }
       } else {
         e2eeSalt = '';
