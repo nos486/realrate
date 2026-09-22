@@ -192,10 +192,7 @@ export default function AddHoldingForm({
   const handleSubmit = (e) => {
     e?.preventDefault();
     const parsedAmount = parseInputNumber(amount);
-    if (!parsedAmount || parsedAmount <= 0) {
-      alert('لطفاً مقدار دارایی را به درستی وارد کنید.');
-      return;
-    }
+    if (!parsedAmount || parsedAmount <= 0) return;
 
     const parsedBuyPrice = parseInputNumber(buyPrice);
 
@@ -218,6 +215,12 @@ export default function AddHoldingForm({
       customPrice: parseInputNumber(customCurrentPrice) || 0,
     });
   };
+
+  // Proactively disable the submit button instead of alert()-ing after a click — matches
+  // TransactionForm.jsx's isFormValid pattern for the sibling "add a financial item" form.
+  const parsedAmountForValidation = parseInputNumber(amount);
+  const isAmountValid = parsedAmountForValidation !== null && parsedAmountForValidation > 0;
+  const isFormValid = isAmountValid && !submitting;
 
   const selectedCategory = getItemCategory(selectedAssetId);
   const cleanSelectedId = (selectedAssetId || '').replace(/^src_def_/, '').replace(/^derived_/, '');
@@ -255,7 +258,7 @@ export default function AddHoldingForm({
           >
             انصراف
           </button>
-          <button type="submit" className="btn-primary" disabled={submitting}>
+          <button type="submit" className="btn-primary" disabled={!isFormValid}>
             {submitting
               ? 'در حال ذخیره...'
               : editingHolding

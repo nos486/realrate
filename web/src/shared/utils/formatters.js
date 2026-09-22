@@ -20,6 +20,21 @@ export function toEnglishDigits(str) {
 }
 
 /**
+ * Format a percentage value with Persian (fa-IR) digits and a fixed 1-decimal precision,
+ * matching the convention already used for allocation percentages (e.g. "۱۲.۳٪"). Prefer this
+ * over `.toFixed(1)` for any percentage shown directly in the UI, since `.toFixed` always
+ * produces Latin digits — inconsistent with the fa-IR amounts typically shown right next to it.
+ * @param {number} val
+ * @returns {string} e.g. "12.3" (rendered with Persian digits)
+ */
+export function formatPct(val) {
+  return Number(val || 0).toLocaleString('fa-IR', {
+    minimumFractionDigits: 1,
+    maximumFractionDigits: 1,
+  });
+}
+
+/**
  * Format a number or numeric string with 3-digit comma separators (e.g. 234,370 or 4,420.1)
  * @param {string|number} val - Input value
  * @param {boolean} [allowDecimals=false] - Whether to allow a decimal part

@@ -1,6 +1,7 @@
 import React from 'react';
 import { Pencil, Trash2, Calendar, MessageSquare } from 'lucide-react';
 import { CategoryIcon, formatAssetName, formatNum, getItemBrand } from '../utils/holdingHelpers.js';
+import { formatPct } from '../../../shared/utils/formatters.js';
 
 export default function HoldingsTable({
   categoryGroups = [],
@@ -45,7 +46,7 @@ export default function HoldingsTable({
                     {hideValues ? '**** تومان' : `${group.totalPnl >= 0 ? '+' : ''}${formatNum(group.totalPnl)} تومان`}
                   </strong>
                   <span className="subtotal-pnl-pct">
-                    {hideValues ? '(****)' : `(${group.totalPnl >= 0 ? '+' : ''}${group.totalPnlPct.toFixed(1).replace('-', '')}٪)`}
+                    {hideValues ? '(****)' : `(${group.totalPnl >= 0 ? '+' : ''}${formatPct(Math.abs(group.totalPnlPct))}٪)`}
                   </span>
                 </div>
               )}
@@ -128,7 +129,7 @@ export default function HoldingsTable({
                               {hideValues ? '****' : `${isProfit ? '+' : ''}${formatNum(item.itemPnl)} تومان`}
                             </span>
                             <span className="pnl-pct-badge">
-                              {hideValues ? '****' : `(${isProfit ? '+' : ''}${item.itemPnlPct?.toFixed(1).replace('-', '')}٪)`}
+                              {hideValues ? '****' : `(${isProfit ? '+' : ''}${formatPct(Math.abs(item.itemPnlPct || 0))}٪)`}
                             </span>
                           </div>
                         ) : (

@@ -11,10 +11,12 @@ import {
   CategoryIcon,
   CATEGORY_DEFINITIONS,
   formatAssetName,
+  formatNum,
   normalizeHolding,
   resolveHoldingUnitRealPrice,
   VaultLockCard,
 } from '../features/portfolio/index.js';
+import { formatPct } from '../shared/utils/formatters.js';
 import {
   getCategoryBadge,
   getCategoryLabel,
@@ -38,11 +40,6 @@ import {
   verifyE2eeKey,
   decryptHoldingFromApi,
 } from '../lib/e2ee.js';
-
-function formatNum(num) {
-  if (num === null || num === undefined || isNaN(num)) return '۰';
-  return Math.round(num).toLocaleString('fa-IR');
-}
 
 export default function SharedPortfolioPage() {
   const { slug } = useParams();
@@ -585,7 +582,7 @@ export default function SharedPortfolioPage() {
                           {!isVaultLocked && hasData && (
                             <span className={`pnl-badge ${isProfit ? 'profit' : 'loss'}`}>
                               {isProfit ? <ArrowUpRight size={13} style={{ verticalAlign: 'middle' }} /> : <ArrowDownRight size={13} style={{ verticalAlign: 'middle' }} />}
-                              {hideValues ? '****' : `${isProfit ? '+' : ''}${Math.abs(portfolioMetrics.totalPnlPct).toFixed(1)}٪`}
+                              {hideValues ? '****' : `${isProfit ? '+' : ''}${formatPct(Math.abs(portfolioMetrics.totalPnlPct))}٪`}
                             </span>
                           )}
                         </div>

@@ -32,6 +32,8 @@ import { useComputedHoldings } from '../hooks/useComputedHoldings.js';
 import TransactionForm from './TransactionForm.jsx';
 import PortfolioSwitcher from '../../portfolio/components/PortfolioSwitcher.jsx';
 import VaultLockCard from '../../portfolio/components/VaultLockCard.jsx';
+import AuthGate from '../../../shared/ui/AuthGate.jsx';
+import EmptyState from '../../../shared/ui/EmptyState.jsx';
 import { usePricing } from '../../market/index.js';
 import { CategoryIcon, formatAssetName, formatNum, getItemBrand } from '../../portfolio/utils/holdingHelpers.js';
 import {
@@ -239,6 +241,7 @@ export default function TransactionsPage({
   };
 
   const handleDeleteTx = async (id) => {
+    if (!window.confirm('آیا از حذف این تراکنش اطمینان دارید؟')) return;
     const ok = await deleteTransaction(id);
     if (ok) {
       fetchPortfolios();
@@ -259,79 +262,21 @@ export default function TransactionsPage({
   };
 
   // ─── AUTH GATE (Required Login Screen for Guests) ────────────────────────
-  if (authLoading) {
+  if (authLoading || !user) {
     return (
-      <div className="portfolio-loading-state">
-        <div className="spinner-glow"></div>
-        <p>در حال بارگذاری اطلاعات کاربری...</p>
-      </div>
-    );
-  }
-
-  if (!user) {
-    return (
-      <div className="portfolio-auth-gate">
-        <div className="auth-gate-card">
-          <div className="auth-gate-badge">
-            <span className="lock-icon">
-              <Lock size={15} style={{ verticalAlign: 'middle', marginLeft: '4px' }} />
-            </span>
-            <span className="badge-text">نیازمند ورود به حساب کاربری</span>
-          </div>
-
-          <h3 className="auth-gate-title">مدیریت معاملات و تاریخچه تراکنش‌ها</h3>
-          <p className="auth-gate-desc">
-            اطلاعات خرید و فروش و گردش حساب دارایی‌های شما به صورت امن با رمزنگاری سرتاسری (Zero-Knowledge) ذخیره شده و سود و زیان محقق‌شده محاسبه می‌گردد.
-          </p>
-
-          <div className="auth-gate-features">
-            <div className="gate-feature-item">
-              <span className="feature-icon"><Receipt size={18} /></span>
-              <div className="feature-info">
-                <strong>ثبت دقیق خرید و فروش</strong>
-                <span>ثبت معاملات انواع دارایی‌ها با تاریخ شمسی، قیمت تمام‌شده و کارمزد</span>
-              </div>
-            </div>
-            <div className="gate-feature-item">
-              <span className="feature-icon"><Lock size={18} /></span>
-              <div className="feature-info">
-                <strong>رمزنگاری سرتاسری (Zero-Knowledge)</strong>
-                <span>امنیت اطلاعات با کلید اختصاصی بدون امکان مشاهده توسط سرور</span>
-              </div>
-            </div>
-            <div className="gate-feature-item">
-              <span className="feature-icon"><TrendingUp size={18} /></span>
-              <div className="feature-info">
-                <strong>محاسبه خودکار سود و زیان</strong>
-                <span>محاسبه خودکار سود و زیان محقق‌شده و میانگین موزون قیمت خرید</span>
-              </div>
-            </div>
-            <div className="gate-feature-item">
-              <span className="feature-icon"><Cloud size={18} /></span>
-              <div className="feature-info">
-                <strong>ذخیره و همگام‌سازی ابری</strong>
-                <span>دسترسی امن به تاریخچه معاملات از تمام دستگاه‌ها</span>
-              </div>
-            </div>
-          </div>
-
-          <div className="auth-gate-actions">
-            <button className="btn-google-gate-login" onClick={triggerLogin}>
-              <svg width="20" height="20" viewBox="0 0 24 24">
-                <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
-                <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
-                <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" />
-                <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" />
-              </svg>
-              <span>ورود با گوگل</span>
-            </button>
-            <span className="gate-privacy-note">
-              <Lock size={12} style={{ verticalAlign: 'middle', marginLeft: '4px', display: 'inline' }} />
-              اطلاعات معاملات شما کاملاً محرمانه و رمزنگاری‌شده است.
-            </span>
-          </div>
-        </div>
-      </div>
+      <AuthGate
+        loading={authLoading}
+        title="مدیریت معاملات و تاریخچه تراکنش‌ها"
+        description="اطلاعات خرید و فروش و گردش حساب دارایی‌های شما به صورت امن با رمزنگاری سرتاسری (Zero-Knowledge) ذخیره شده و سود و زیان محقق‌شده محاسبه می‌گردد."
+        features={[
+          { icon: <Receipt size={18} />, title: 'ثبت دقیق خرید و فروش', desc: 'ثبت معاملات انواع دارایی‌ها با تاریخ شمسی، قیمت تمام‌شده و کارمزد' },
+          { icon: <Lock size={18} />, title: 'رمزنگاری سرتاسری (Zero-Knowledge)', desc: 'امنیت اطلاعات با کلید اختصاصی بدون امکان مشاهده توسط سرور' },
+          { icon: <TrendingUp size={18} />, title: 'محاسبه خودکار سود و زیان', desc: 'محاسبه خودکار سود و زیان محقق‌شده و میانگین موزون قیمت خرید' },
+          { icon: <Cloud size={18} />, title: 'ذخیره و همگام‌سازی ابری', desc: 'دسترسی امن به تاریخچه معاملات از تمام دستگاه‌ها' },
+        ]}
+        privacyNote="اطلاعات معاملات شما کاملاً محرمانه و رمزنگاری‌شده است."
+        onLogin={triggerLogin}
+      />
     );
   }
 
@@ -450,25 +395,25 @@ export default function TransactionsPage({
               در حال بارگذاری تراکنش‌ها...
             </div>
           ) : filteredTransactions.length === 0 ? (
-            <div className="transactions-empty-box">
-              <div className="empty-icon-circle">
-                <Receipt size={40} strokeWidth={1.5} color="var(--text-muted)" />
-              </div>
-              <h4>هیچ تراکنشی یافت نشد</h4>
-              <p>
-                {searchQuery || typeFilter !== 'all'
+            <EmptyState
+              icon={<Receipt size={40} strokeWidth={1.5} color="var(--text-muted)" />}
+              title="هیچ تراکنشی یافت نشد"
+              description={
+                searchQuery || typeFilter !== 'all'
                   ? 'تراکنشی با فیلترهای انتخابی مطابقت ندارد.'
-                  : 'هنوز هیچ معامله خریدی یا فروشی در این پورتفو ثبت نکرده‌اید. با کلیک روی دکمه زیر اولین معامله را ثبت کنید.'}
-              </p>
-              <button
-                type="button"
-                className="btn-add-transaction center"
-                onClick={handleOpenAdd}
-              >
-                <Plus size={16} style={{ verticalAlign: 'middle', marginLeft: '6px' }} />
-                ثبت اولین تراکنش
-              </button>
-            </div>
+                  : 'هنوز هیچ معامله خریدی یا فروشی در این پورتفو ثبت نکرده‌اید. با کلیک روی دکمه زیر اولین معامله را ثبت کنید.'
+              }
+              action={
+                <button
+                  type="button"
+                  className="btn-add-transaction center"
+                  onClick={handleOpenAdd}
+                >
+                  <Plus size={16} style={{ verticalAlign: 'middle', marginLeft: '6px' }} />
+                  ثبت اولین تراکنش
+                </button>
+              }
+            />
           ) : (
             <div className="portfolio-table-responsive">
               <table className="portfolio-data-table transactions-table">

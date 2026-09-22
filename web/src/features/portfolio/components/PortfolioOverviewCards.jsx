@@ -1,6 +1,7 @@
 import React from 'react';
 import { Plus, ArrowUpRight, ArrowDownRight, Lock } from 'lucide-react';
 import { formatNum } from '../utils/holdingHelpers.js';
+import { formatPct } from '../../../shared/utils/formatters.js';
 
 export default function PortfolioOverviewCards({
   portfolioMetrics = {},
@@ -80,7 +81,7 @@ export default function PortfolioOverviewCards({
               ) : (
                 <ArrowDownRight size={13} style={{ verticalAlign: 'middle' }} />
               )}
-              {hideValues ? '****' : `${isProfit ? '+' : ''}${Math.abs(portfolioMetrics.totalPnlPct || 0).toFixed(1)}٪`}
+              {hideValues ? '****' : `${isProfit ? '+' : ''}${formatPct(Math.abs(portfolioMetrics.totalPnlPct || 0))}٪`}
             </span>
           )}
         </div>
