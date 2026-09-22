@@ -9,8 +9,9 @@ import { X } from 'lucide-react';
  * - Mobile (<640px): Ergonomic touch-friendly Bottom-Sheet drawer with drag handle
  * - Automatic body scroll lock and cleanup
  * - ESC key dismissal
- * - Backdrop click to close
  * - Pinned header and footer with isolated scrollable body
+ * - Backdrop click does NOT close the modal — only explicit actions do (the × button, a
+ *   footer's cancel/submit, etc.), so an accidental click outside never discards in-progress input
  * - Optional form wrapping via onSubmit prop
  */
 export default function Modal({
@@ -83,12 +84,11 @@ export default function Modal({
   );
 
   return (
-    <div className="modal-backdrop" onClick={onClose} role="dialog" aria-modal="true">
+    <div className="modal-backdrop" role="dialog" aria-modal="true">
       <div
         ref={contentRef}
         className={`modal-content ${className}`}
         style={{ maxWidth }}
-        onClick={(e) => e.stopPropagation()}
       >
         {onSubmit ? (
           <form onSubmit={onSubmit} className="modal-form-layout">
