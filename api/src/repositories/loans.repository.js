@@ -128,6 +128,34 @@ export async function dbCreateLoan(env, userId, data) {
     })
     .sort((a, b) => a.installmentNumber - b.installmentNumber);
 
+  // Dry-run the resulting schedule before writing anything: a manual override on the last
+  // installment can leave the loan short of fully amortizing (see computeEffectiveSchedule's
+  // clamp against overpaying past what's actually owed at that point). Reject up front rather
+  // than silently creating a loan whose debt never reconciles to zero.
+  if (customInstallments.length > 0) {
+    const preview = computeEffectiveSchedule({
+      loan: {
+        principalAmount,
+        annualInterestRate,
+        installmentCount,
+        intervalMonths,
+        startDate,
+      },
+      installmentStates: customInstallments.map((entry) => ({
+        installmentNumber: entry.installmentNumber,
+        totalAmount: entry.totalAmount,
+        isManualOverride: true,
+        isPaid: false,
+      })),
+    });
+    const lastInst = preview[preview.length - 1];
+    if (lastInst && Number(lastInst.remainingBalanceAfter || 0) > 0) {
+      throw AppError.badRequest(
+        `با مبالغ سفارشی وارد شده، وام در پایان تسویه نمی‌شود (مانده باقیمانده: ${Math.round(lastInst.remainingBalanceAfter).toLocaleString("en-US")} تومان). لطفاً مبلغ قسط آخر را اصلاح کنید.`
+      );
+    }
+  }
+
   const insertLoanSql = `
     INSERT INTO loans (
       id, user_id, title, lender_name, principal_amount,

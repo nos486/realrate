@@ -20,8 +20,8 @@ import ShamsiDatePicker, {
 } from '../../portfolio/components/ShamsiDatePicker.jsx';
 import {
   calculateFixedInstallmentAmount,
-  generateAmortizationSchedule,
   solveAnnualRateFromKnownPayments,
+  computeEffectiveSchedule,
 } from '../../../utils/loanCalculator.js';
 
 const formatPersianNum = (val) => Number(val || 0).toLocaleString('fa-IR');
@@ -144,18 +144,30 @@ export default function AddLoanForm({
     });
   }, [cleanPrincipal, cleanRate, cleanCount, intervalMonths]);
 
-  // Baseline formula-derived schedule, used as the live preview for the per-installment
-  // customization panel (creation-only)
+  // Live preview for the per-installment customization panel (creation-only): every installment
+  // the user has typed a value for is fed back in as a manual override, and computeEffectiveSchedule
+  // — the same function that drives the real cascading reflow after dbSetInstallmentAmount — fills
+  // in every untouched installment in between/after them automatically off the loan's rate. Editing
+  // only installment #1 and the last one, for example, auto-divides everything between them.
   const liveSchedule = useMemo(() => {
     if (installmentMode !== 'customEach' || cleanPrincipal <= 0 || cleanCount <= 0) return [];
-    return generateAmortizationSchedule({
-      principal: cleanPrincipal,
-      annualRatePct: cleanRate,
+    const loan = {
+      principalAmount: cleanPrincipal,
+      annualInterestRate: cleanRate,
       installmentCount: cleanCount,
       intervalMonths,
-      startDateIso: startDateIso || new Date().toISOString().split('T')[0],
-    });
-  }, [installmentMode, cleanPrincipal, cleanRate, cleanCount, intervalMonths, startDateIso]);
+      startDate: startDateIso || new Date().toISOString().split('T')[0],
+    };
+    const installmentStates = Object.entries(customAmounts)
+      .map(([num, val]) => ({
+        installmentNumber: parseInt(num, 10),
+        totalAmount: Number(String(val || '').replace(/,/g, '').trim()),
+        isManualOverride: true,
+        isPaid: false,
+      }))
+      .filter((s) => s.installmentNumber >= 1 && s.installmentNumber <= cleanCount && s.totalAmount > 0);
+    return computeEffectiveSchedule({ loan, installmentStates });
+  }, [installmentMode, cleanPrincipal, cleanRate, cleanCount, intervalMonths, startDateIso, customAmounts]);
 
   const liveTotalRepayment = useMemo(() => {
     if (liveInstallment <= 0 || cleanCount <= 0) return 0;
@@ -185,6 +197,13 @@ export default function AddLoanForm({
     const origStart = editingLoan.startDate || editingLoan.start_date || '';
     return startDateIso !== origStart;
   }, [editingLoan, editingPaidCount, startDateIso]);
+
+  // In "customize each installment" mode, the manual amounts must still fully amortize the loan
+  const hasUnreconciledCustomSchedule = useMemo(() => {
+    if (installmentMode !== 'customEach' || liveSchedule.length === 0) return false;
+    const lastInst = liveSchedule[liveSchedule.length - 1];
+    return Number(lastInst?.remainingBalanceAfter || 0) > 0;
+  }, [installmentMode, liveSchedule]);
 
   const handleSolveRate = () => {
     setRateSolveMessage(null);
@@ -248,6 +267,11 @@ export default function AddLoanForm({
           totalAmount: Number(String(val || '').replace(/,/g, '').trim()),
         }))
         .filter((e) => e.installmentNumber >= 1 && e.installmentNumber <= cleanCount && e.totalAmount > 0);
+
+      if (hasUnreconciledCustomSchedule) {
+        setFormError('با مبالغ فعلی، وام در پایان تسویه نمی‌شود. لطفاً مبلغ قسط آخر را طوری تنظیم کنید که مانده صفر شود.');
+        return;
+      }
     }
 
     try {
@@ -283,7 +307,7 @@ export default function AddLoanForm({
       <button
         type="submit"
         className="btn-primary"
-        disabled={submitting || cleanPrincipal <= 0 || cleanCount <= 0 || isCountBelowPaid || isStartDateChangedAfterPaid}
+        disabled={submitting || cleanPrincipal <= 0 || cleanCount <= 0 || isCountBelowPaid || isStartDateChangedAfterPaid || hasUnreconciledCustomSchedule}
         style={{ minWidth: '130px' }}
       >
         {submitting ? (
@@ -580,7 +604,7 @@ export default function AddLoanForm({
                 ) : (
                   <>
                     <span style={{ display: 'block', fontSize: '0.74rem', color: '#94a3b8', marginBottom: '8px' }}>
-                      هر قسطی که مبلغش را عوض نکنید، طبق فرمول استاندارد محاسبه می‌شود. فقط اقساطی که می‌خواهید مبلغ دلخواه داشته باشند را پر کنید.
+                      همه‌ی اقساط طبق نرخ سود از پیش پر شده‌اند. هر کدام را که ویرایش کنید، بقیه‌ی اقساطِ دست‌نخورده به‌طور خودکار بر اساس مانده باقیمانده بین آن‌ها تقسیم می‌شوند.
                     </span>
                     <div style={{
                       maxHeight: '260px',
@@ -605,7 +629,7 @@ export default function AddLoanForm({
                               </td>
                               <td style={{ padding: '4px 8px' }}>
                                 <NumericInput
-                                  value={customAmounts[inst.installmentNumber] ?? ''}
+                                  value={customAmounts[inst.installmentNumber] ?? String(inst.totalAmount)}
                                   onValueChange={(val) =>
                                     setCustomAmounts((prev) => {
                                       const next = { ...prev };
@@ -614,8 +638,7 @@ export default function AddLoanForm({
                                       return next;
                                     })
                                   }
-                                  placeholder={formatPersianNum(inst.totalAmount)}
-                                  className="form-input"
+                                  className={`form-input${customAmounts[inst.installmentNumber] !== undefined ? ' input-touched' : ''}`}
                                 />
                               </td>
                             </tr>
@@ -623,6 +646,17 @@ export default function AddLoanForm({
                         </tbody>
                       </table>
                     </div>
+                    {(() => {
+                      const lastInst = liveSchedule[liveSchedule.length - 1];
+                      const leftover = lastInst ? Number(lastInst.remainingBalanceAfter || 0) : 0;
+                      if (leftover <= 0) return null;
+                      return (
+                        <span style={{ display: 'flex', alignItems: 'flex-start', gap: '6px', fontSize: '0.76rem', color: '#f87171', marginTop: '8px' }}>
+                          <AlertCircle size={14} style={{ flexShrink: 0, marginTop: '1px' }} />
+                          با مبالغ فعلی، بعد از آخرین قسط {formatPersianNum(leftover)} تومان از وام تسویه‌نشده باقی می‌ماند — مبلغ قسط آخر را افزایش دهید یا اصلاح کنید.
+                        </span>
+                      );
+                    })()}
                   </>
                 )}
               </div>

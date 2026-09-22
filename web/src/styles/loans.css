@@ -124,6 +124,13 @@
   border: 1px solid rgba(236, 72, 153, 0.28);
 }
 
+/* Marks a manually-edited installment amount in the per-installment customization table,
+   distinguishing it from the surrounding auto-filled/auto-divided cells. */
+.input-touched {
+  border-color: rgba(245, 158, 11, 0.55) !important;
+  background: rgba(245, 158, 11, 0.06) !important;
+}
+
 .stat-icon-wrap.count {
   background: rgba(59, 130, 246, 0.14);
   color: #60a5fa;

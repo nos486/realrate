@@ -929,6 +929,42 @@ describe('Loans Repository D1 Operations', () => {
         })
       ).rejects.toThrow(/باید عددی بزرگتر از صفر/);
     });
+
+    it('rejects a custom last-installment amount that would leave the loan unamortized, without persisting anything', async () => {
+      await expect(
+        dbCreateLoan(mockEnv, 'user_1', {
+          title: 'وام تسویه‌نشده',
+          principalAmount: 300000000,
+          annualInterestRate: 4,
+          installmentCount: 120,
+          startDate: '2026-01-01',
+          customInstallments: [
+            { installmentNumber: 1, totalAmount: 12000000 },
+            { installmentNumber: 120, totalAmount: 2000000 }, // far below what's actually owed by then
+          ],
+        })
+      ).rejects.toThrow(/تسویه نمی‌شود/);
+
+      // No loan row should have been left behind by the rejected create
+      const list = await dbGetUserLoans(mockEnv, 'user_1');
+      expect(list.find((l) => l.title === 'وام تسویه‌نشده')).toBeUndefined();
+    });
+
+    it('accepts a custom first+last combination that fully reconciles to zero', async () => {
+      const loan = await dbCreateLoan(mockEnv, 'user_1', {
+        title: 'وام تسویه‌شده با اقساط اول و آخر سفارشی',
+        principalAmount: 300000000,
+        annualInterestRate: 4,
+        installmentCount: 120,
+        startDate: '2026-01-01',
+        customInstallments: [{ installmentNumber: 1, totalAmount: 12000000 }],
+      });
+      const lastInst = loan.installments[loan.installments.length - 1];
+      expect(loan.installments[0].totalAmount).toBe(12000000);
+      // Untouched middle installments are auto-divided uniformly by the cascade
+      expect(loan.installments[1].totalAmount).toBe(loan.installments[59].totalAmount);
+      expect(lastInst.remainingBalanceAfter).toBe(0);
+    });
   });
 
   describe('dbSetInstallmentAmount (ویرایش مبلغ یک قسط)', () => {
