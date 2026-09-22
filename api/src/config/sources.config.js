@@ -11,21 +11,6 @@ import { mergeCharismaFunds } from "../services/market/sources/charismaFunds.sou
 import { mergeCharismaPlans } from "../services/market/sources/charismaPlans.source.adapter.js";
 
 export const PRICE_SOURCES_CONFIG = [
-  // ── Static & Cash Feeds ──────────────────────────────────────────────
-  {
-    id: "src_def_toman",
-    name: "تومان نقد",
-    brand: "نقد",
-    priceType: "toman",
-    sourceType: "static",
-    staticPrice: 1,
-    lastPrice: 1,
-    category: "cash",
-    unit: "تومان",
-    isActive: true,
-    isPrimary: true,
-    displayConfig: { showOnHomePage: false },
-  },
   // ── Single Output Feeds (Currencies, Gold, Coins, Ounces) ───────────
   {
     id: "src_def_usd",
