@@ -21,7 +21,6 @@ import ShamsiDatePicker, {
 import {
   calculateFixedInstallmentAmount,
   generateAmortizationSchedule,
-  solveAnnualRateFromKnownPayments,
   solveAnnualRateFromTotalRepayment,
   distributeInstallmentAmounts,
 } from '../../../utils/loanCalculator.js';
@@ -56,15 +55,10 @@ export default function AddLoanForm({
   const [formError, setFormError] = useState('');
 
   // How installment amounts are determined at creation time — creation-only, mutually exclusive:
-  // 'standard' = pure formula, 'customFirst' = only installment #1 is manual, 'customEach' = the
-  // user may manually set any subset of installments (formula still fills in the rest).
+  // 'standard' = pure formula (rate-based), 'totalRepaymentBased' = the user supplies the exact
+  // known total repayment instead of a rate. Editing individual installments (custom first,
+  // per-installment customization) happens after creation via "ویرایش گروهی اقساط" instead.
   const [installmentMode, setInstallmentMode] = useState('standard');
-  const [firstInstallmentAmount, setFirstInstallmentAmount] = useState('');
-  const [customAmounts, setCustomAmounts] = useState({});
-
-  // Reverse-solve the annual rate from a known first + subsequent installment pattern
-  const [knownSubsequentAmount, setKnownSubsequentAmount] = useState('');
-  const [rateSolveMessage, setRateSolveMessage] = useState(null); // { type: 'success'|'error', text }
 
   // When editing a loan whose scheduleMode is 'distributed' (built via "کل بازپرداخت" or
   // "سفارشی‌سازی تک‌تک اقساط" at creation, or via later بولک-edit), the edit form shows the
@@ -80,10 +74,6 @@ export default function AddLoanForm({
 
     setFormError('');
     setInstallmentMode('standard');
-    setFirstInstallmentAmount('');
-    setCustomAmounts({});
-    setKnownSubsequentAmount('');
-    setRateSolveMessage(null);
     setTotalRepaymentAmount('');
     setLoadingDistributedTotal(false);
 
@@ -171,11 +161,6 @@ export default function AddLoanForm({
     return Number(s) || 0;
   }, [annualFeeAmount]);
 
-  const cleanFirstInstallmentAmount = useMemo(() => {
-    const s = String(firstInstallmentAmount || '').replace(/,/g, '').trim();
-    return Number(s) || 0;
-  }, [firstInstallmentAmount]);
-
   // Live calculation of fixed periodic payment (PMT)
   const liveInstallment = useMemo(() => {
     if (cleanPrincipal <= 0 || cleanCount <= 0) return 0;
@@ -186,36 +171,6 @@ export default function AddLoanForm({
       intervalMonths,
     });
   }, [cleanPrincipal, cleanRate, cleanCount, intervalMonths]);
-
-  // Live preview for the per-installment customization panel (creation-only): every installment
-  // the user has typed a value for is treated as known/fixed, and distributeInstallmentAmounts —
-  // the exact same function dbCreateLoan/dbBulkDistributeInstallments use — equally divides
-  // whatever's left of the loan's expected total repayment among every OTHER installment, both
-  // before and after the touched ones (not a forward-only cascade).
-  const customEachResult = useMemo(() => {
-    if (installmentMode !== 'customEach' || cleanPrincipal <= 0 || cleanCount <= 0) {
-      return { schedule: [], error: null };
-    }
-    const loan = {
-      principalAmount: cleanPrincipal,
-      annualInterestRate: cleanRate,
-      installmentCount: cleanCount,
-      intervalMonths,
-      startDate: startDateIso || new Date().toISOString().split('T')[0],
-    };
-    const knownAmounts = Object.entries(customAmounts).reduce((map, [num, val]) => {
-      const amt = Number(String(val || '').replace(/,/g, '').trim());
-      if (amt > 0) map[num] = amt;
-      return map;
-    }, {});
-    try {
-      return { schedule: distributeInstallmentAmounts({ loan, knownAmounts }), error: null };
-    } catch (err) {
-      return { schedule: [], error: err.message || 'محاسبه ممکن نشد.' };
-    }
-  }, [installmentMode, cleanPrincipal, cleanRate, cleanCount, intervalMonths, startDateIso, customAmounts]);
-
-  const liveSchedule = customEachResult.schedule;
 
   // The true total repayment is NOT simply liveInstallment * cleanCount: the real schedule
   // (generateAmortizationSchedule) reconciles the LAST installment to absorb whatever rounding
@@ -302,38 +257,11 @@ export default function AddLoanForm({
     return startDateIso !== origStart;
   }, [editingLoan, editingPaidCount, startDateIso]);
 
-  // In "customize each installment" mode, the manually-touched amounts must not exceed the
-  // loan's total expected repayment (distributeInstallmentAmounts always reconciles the rest
-  // to exactly zero on its own, so this is the only way this mode can fail).
-  const hasUnreconciledCustomSchedule = installmentMode === 'customEach' && Boolean(customEachResult.error);
-
   // In edit mode the total-repayment field is read-only/informational (see the populate effect),
   // never user-submitted, so it must never block the save button — including while it's still
   // being fetched (briefly 0 before the async loan-detail fetch resolves).
   const isTotalRepaymentInvalid = installmentMode === 'totalRepaymentBased' && !editingLoan &&
     (cleanTotalRepaymentInput <= 0 || Boolean(totalBasedResult.error));
-
-  const handleSolveRate = () => {
-    setRateSolveMessage(null);
-    const cleanKnownSubsequent = Number(String(knownSubsequentAmount || '').replace(/,/g, '').trim());
-
-    try {
-      const result = solveAnnualRateFromKnownPayments({
-        principal: cleanPrincipal,
-        installmentCount: cleanCount,
-        firstInstallmentAmount: cleanFirstInstallmentAmount,
-        subsequentInstallmentAmount: cleanKnownSubsequent,
-        intervalMonths,
-      });
-      setAnnualInterestRate(String(result.annualRatePct));
-      setRateSolveMessage({
-        type: 'success',
-        text: `نرخ سود سالانه محاسبه‌شده: ${result.annualRatePct}٪ (قسط بعدی معادل: ${formatPersianNum(result.subsequentAmount)} تومان). فیلد نرخ سود به‌روزرسانی شد.`,
-      });
-    } catch (err) {
-      setRateSolveMessage({ type: 'error', text: err.message || 'محاسبه نرخ سود ممکن نشد.' });
-    }
-  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -358,28 +286,6 @@ export default function AddLoanForm({
     if (isStartDateChangedAfterPaid) {
       setFormError('پس از پرداخت حداقل یک قسط، امکان تغییر تاریخ شروع وام وجود ندارد.');
       return;
-    }
-
-    const cleanFirstInst = installmentMode === 'customFirst' ? cleanFirstInstallmentAmount : null;
-
-    if (installmentMode === 'customFirst' && (!cleanFirstInst || cleanFirstInst <= 0)) {
-      setFormError('لطفاً مبلغ معتبر برای قسط اول وارد نمایید.');
-      return;
-    }
-
-    let customInstallments = [];
-    if (installmentMode === 'customEach') {
-      customInstallments = Object.entries(customAmounts)
-        .map(([num, val]) => ({
-          installmentNumber: parseInt(num, 10),
-          totalAmount: Number(String(val || '').replace(/,/g, '').trim()),
-        }))
-        .filter((e) => e.installmentNumber >= 1 && e.installmentNumber <= cleanCount && e.totalAmount > 0);
-
-      if (hasUnreconciledCustomSchedule) {
-        setFormError(customEachResult.error || 'مجموع مبالغ واردشده معتبر نیست.');
-        return;
-      }
     }
 
     // In edit mode the total-repayment field is read-only/informational — it's never sent, and
@@ -408,8 +314,6 @@ export default function AddLoanForm({
         startDate: startDateIso || new Date().toISOString().split('T')[0],
         annualFeeAmount: cleanAnnualFee,
         notes: notes.trim(),
-        customFirstInstallmentAmount: cleanFirstInst,
-        customInstallments,
         totalRepaymentAmount: totalRepaymentAmountToSubmit,
       });
       onClose();
@@ -431,7 +335,7 @@ export default function AddLoanForm({
       <button
         type="submit"
         className="btn-primary"
-        disabled={submitting || cleanPrincipal <= 0 || cleanCount <= 0 || isCountBelowPaid || isStartDateChangedAfterPaid || hasUnreconciledCustomSchedule || isTotalRepaymentInvalid}
+        disabled={submitting || cleanPrincipal <= 0 || cleanCount <= 0 || isCountBelowPaid || isStartDateChangedAfterPaid || isTotalRepaymentInvalid}
         style={{ minWidth: '130px' }}
       >
         {submitting ? (
@@ -458,7 +362,7 @@ export default function AddLoanForm({
       icon={<Landmark size={20} className="text-amber-500" />}
       footer={footerActions}
       onSubmit={handleSubmit}
-      maxWidth={installmentMode === 'customEach' ? '720px' : '560px'}
+      maxWidth="560px"
     >
       <div className="add-holding-form" style={{ padding: '4px 0' }}>
         {formError && (
@@ -548,146 +452,18 @@ export default function AddLoanForm({
               value={installmentMode}
               onChange={(e) => {
                 setInstallmentMode(e.target.value);
-                setFirstInstallmentAmount('');
-                setCustomAmounts({});
-                setKnownSubsequentAmount('');
-                setRateSolveMessage(null);
                 setTotalRepaymentAmount('');
               }}
               className="form-select"
               style={{ height: '42px', width: '100%' }}
             >
-              <optgroup label="بر اساس نرخ سود">
-                <option value="standard">فرمول استاندارد (پیشنهادی)</option>
-                <option value="customFirst">قسط اول متفاوت است</option>
-                <option value="customEach">سفارشی‌سازی تک‌تک اقساط</option>
-              </optgroup>
-              <optgroup label="بر اساس کل بازپرداخت">
-                <option value="totalRepaymentBased">کل بازپرداخت را می‌دانم (بدون نرخ سود)</option>
-              </optgroup>
+              <option value="standard">نرخ سود سالانه (پیشنهادی)</option>
+              <option value="totalRepaymentBased">کل بازپرداخت را می‌دانم (بدون نرخ سود)</option>
             </select>
             {installmentMode === 'totalRepaymentBased' && (
               <span style={{ display: 'block', fontSize: '0.74rem', color: '#94a3b8', marginTop: '8px' }}>
                 مبلغ دقیق کل بازپرداختی که بانک اعلام کرده را وارد کنید — بدون نیاز به دانستن نرخ سود، این مبلغ به‌طور مساوی بین همه‌ی اقساط تقسیم می‌شود.
               </span>
-            )}
-
-            {installmentMode === 'customFirst' && (
-              <div style={{ marginTop: '12px', paddingTop: '10px', borderTop: '1px dashed rgba(255, 255, 255, 0.08)' }}>
-                <label className="ui-input-label" style={{ display: 'block', marginBottom: '6px' }}>
-                  مبلغ دلخواه قسط اول (تومان) *
-                </label>
-                <NumericInput
-                  value={firstInstallmentAmount}
-                  onValueChange={(val) => setFirstInstallmentAmount(val)}
-                  placeholder="مثلاً: مبلغ پیش‌پرداخت یا قسط اول"
-                  affix="تومان"
-                  className="form-input"
-                  required
-                />
-                <span style={{ display: 'block', fontSize: '0.74rem', color: '#94a3b8', marginTop: '6px' }}>
-                  اقساط بعدی (۲ تا {cleanCount || '...'}) پس از ساخت وام، به صورت خودکار بر اساس مانده باقیمانده بازمحاسبه می‌شوند.
-                </span>
-
-                {/* Reverse-solve the interest rate from a known subsequent installment amount */}
-                <div style={{ marginTop: '14px', paddingTop: '10px', borderTop: '1px dashed rgba(255, 255, 255, 0.08)' }}>
-                  <label className="ui-input-label" style={{ display: 'block', marginBottom: '6px' }}>
-                    نرخ سود را نمی‌دانید؟ از روی مبلغ اقساط بعدی حساب کنید (اختیاری)
-                  </label>
-                  <div style={{ display: 'flex', gap: '8px', alignItems: 'flex-start' }}>
-                    <NumericInput
-                      value={knownSubsequentAmount}
-                      onValueChange={(val) => setKnownSubsequentAmount(val)}
-                      placeholder="مبلغ ثابت اقساط ۲ تا آخر که می‌دانید"
-                      affix="تومان"
-                      className="form-input"
-                    />
-                    <button
-                      type="button"
-                      className="btn-cancel"
-                      style={{ whiteSpace: 'nowrap', height: '42px' }}
-                      onClick={handleSolveRate}
-                      disabled={cleanFirstInstallmentAmount <= 0 || !knownSubsequentAmount || cleanPrincipal <= 0 || cleanCount < 2}
-                    >
-                      محاسبه نرخ سود
-                    </button>
-                  </div>
-                  {rateSolveMessage && (
-                    <span
-                      style={{
-                        display: 'block',
-                        fontSize: '0.76rem',
-                        marginTop: '6px',
-                        color: rateSolveMessage.type === 'success' ? '#34d399' : '#f87171',
-                      }}
-                    >
-                      {rateSolveMessage.text}
-                    </span>
-                  )}
-                </div>
-              </div>
-            )}
-
-            {installmentMode === 'customEach' && (
-              <div style={{ marginTop: '12px', paddingTop: '10px', borderTop: '1px dashed rgba(255, 255, 255, 0.08)' }}>
-                {cleanPrincipal <= 0 || cleanCount <= 0 ? (
-                  <span style={{ display: 'block', fontSize: '0.8rem', color: '#94a3b8' }}>
-                    ابتدا مبلغ اصل وام و تعداد اقساط را وارد کنید.
-                  </span>
-                ) : liveSchedule.length > 0 ? (
-                  <>
-                    <span style={{ display: 'block', fontSize: '0.74rem', color: '#94a3b8', marginBottom: '8px' }}>
-                      همه‌ی اقساط طبق نرخ سود از پیش پر شده‌اند. هر قسطی را که ویرایش کنید، بقیه‌ی اقساطِ دست‌نخورده — چه قبل و چه بعد از آن — به‌طور مساوی از باقیمانده‌ی کل مبلغ قابل بازپرداخت سهم می‌گیرند.
-                    </span>
-                    <div style={{
-                      maxHeight: '260px',
-                      overflowY: 'auto',
-                      border: '1px solid rgba(255, 255, 255, 0.06)',
-                      borderRadius: '8px',
-                    }}>
-                      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.8rem' }}>
-                        <thead>
-                          <tr style={{ position: 'sticky', top: 0, background: 'rgba(15, 23, 42, 0.95)' }}>
-                            <th style={{ padding: '6px 8px', textAlign: 'right', color: '#94a3b8', fontWeight: 600 }}>قسط</th>
-                            <th style={{ padding: '6px 8px', textAlign: 'right', color: '#94a3b8', fontWeight: 600 }}>سررسید</th>
-                            <th style={{ padding: '6px 8px', textAlign: 'right', color: '#94a3b8', fontWeight: 600 }}>مبلغ (تومان)</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {liveSchedule.map((inst) => (
-                            <tr key={inst.installmentNumber} style={{ borderTop: '1px solid rgba(255, 255, 255, 0.05)' }}>
-                              <td style={{ padding: '5px 8px', color: '#e2e8f0' }}>{formatPersianNum(inst.installmentNumber)}</td>
-                              <td style={{ padding: '5px 8px', color: '#94a3b8', whiteSpace: 'nowrap' }}>
-                                {gregorianToShamsi(inst.dueDate)}
-                              </td>
-                              <td style={{ padding: '4px 8px' }}>
-                                <NumericInput
-                                  value={customAmounts[inst.installmentNumber] ?? String(inst.totalAmount)}
-                                  onValueChange={(val) =>
-                                    setCustomAmounts((prev) => {
-                                      const next = { ...prev };
-                                      if (val) next[inst.installmentNumber] = val;
-                                      else delete next[inst.installmentNumber];
-                                      return next;
-                                    })
-                                  }
-                                  className={`form-input${customAmounts[inst.installmentNumber] !== undefined ? ' input-touched' : ''}`}
-                                />
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  </>
-                ) : null}
-                {customEachResult.error && (
-                  <span style={{ display: 'flex', alignItems: 'flex-start', gap: '6px', fontSize: '0.76rem', color: '#f87171', marginTop: '8px' }}>
-                    <AlertCircle size={14} style={{ flexShrink: 0, marginTop: '1px' }} />
-                    {customEachResult.error}
-                  </span>
-                )}
-              </div>
             )}
           </div>
         )}
