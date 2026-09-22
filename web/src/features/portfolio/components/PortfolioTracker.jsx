@@ -28,6 +28,7 @@ import HoldingsTable from './HoldingsTable.jsx';
 import PortfolioOverviewCards from './PortfolioOverviewCards.jsx';
 import AddHoldingForm from './AddHoldingForm.jsx';
 import CsvExportButton from './CsvExportButton.jsx';
+import CsvImportButton from './CsvImportButton.jsx';
 import VaultLockCard from './VaultLockCard.jsx';
 import AuthGate from '../../../shared/ui/AuthGate.jsx';
 
@@ -411,6 +412,8 @@ export default function PortfolioTracker({ rates, calcData, usdToman, goldUsd })
                   portfolioName={activePortfolio?.name || 'portfolio'}
                   disabled={isVaultLocked || holdings.length === 0}
                 />
+
+                <CsvImportButton addHolding={addHolding} disabled={isVaultLocked} />
 
                 {activePortfolio && (
                   <button

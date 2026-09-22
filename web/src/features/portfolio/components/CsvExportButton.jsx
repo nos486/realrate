@@ -18,7 +18,9 @@ export default function CsvExportButton({ items = [], portfolioName = 'portfolio
       'سود/زیان (تومان)',
       'درصد بازدهی',
       'تاریخ خرید',
-      'یادداشت'
+      'یادداشت',
+      'شناسه سیستمی',
+      'منبع'
     ];
 
     const escapeCSV = (val) => {
@@ -41,7 +43,9 @@ export default function CsvExportButton({ items = [], portfolioName = 'portfolio
         escapeCSV(item.hasBuyPrice ? item.itemPnl : ''),
         escapeCSV(item.hasBuyPrice && item.itemPnlPct !== null && item.itemPnlPct !== undefined ? item.itemPnlPct.toFixed(1) + '%' : ''),
         escapeCSV(item.buyDate || ''),
-        escapeCSV(item.notes || '')
+        escapeCSV(item.notes || ''),
+        escapeCSV(item.assetId || ''),
+        escapeCSV(item.source === 'transactions' ? 'تراکنش‌ها' : 'دستی')
       ];
       return row.join(',');
     });
