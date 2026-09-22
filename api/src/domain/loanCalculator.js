@@ -351,6 +351,79 @@ export function solveAnnualRateFromKnownPayments({
  *   remainingBalanceAfter: number
  * }>}
  */
+
+/**
+ * Reverse-engineers the annual interest rate implied by a known TOTAL repayment amount for a
+ * standard equal-installment loan (principal + total interest, e.g. "I'm borrowing 100,000,000
+ * and I know I have to pay back 123,000,000 in total over 24 months — what's the rate?"). Unlike
+ * solveAnnualRateFromKnownPayments (uneven first+subsequent payments), every installment here is
+ * assumed equal, so this reduces to: find the rate whose calculateFixedInstallmentAmount matches
+ * totalRepayment / installmentCount. Uses bisection since PMT has no closed-form inverse in rate.
+ *
+ * @param {object} params
+ * @param {number} params.principal
+ * @param {number} params.installmentCount
+ * @param {number} params.totalRepayment - The full amount expected to be repaid (principal + interest)
+ * @param {number} [params.intervalMonths=1]
+ * @returns {{ annualRatePct: number, installmentAmount: number }}
+ */
+export function solveAnnualRateFromTotalRepayment({
+  principal,
+  installmentCount,
+  totalRepayment,
+  intervalMonths = 1,
+}) {
+  const p = Number(principal) || 0;
+  const n = parseInt(installmentCount, 10) || 0;
+  const total = Number(totalRepayment) || 0;
+  const interval = parseInt(intervalMonths, 10) || 1;
+
+  if (p <= 0) {
+    throw new Error('مبلغ اصل وام باید عددی بزرگتر از صفر باشد.');
+  }
+  if (n <= 0) {
+    throw new Error('تعداد اقساط باید عددی بزرگتر از صفر باشد.');
+  }
+  if (total < p) {
+    throw new Error('کل مبلغ قابل بازپرداخت نمی‌تواند کمتر از مبلغ اصل وام باشد.');
+  }
+
+  const targetInstallment = total / n;
+  const f = (ratePct) =>
+    calculateFixedInstallmentAmount({ principal: p, annualRatePct: ratePct, installmentCount: n, intervalMonths: interval }) -
+    targetInstallment;
+
+  if (f(0) >= 0) {
+    // Target is already met (or exceeded) at 0% — rate can only be 0%, never negative.
+    return {
+      annualRatePct: 0,
+      installmentAmount: calculateFixedInstallmentAmount({ principal: p, annualRatePct: 0, installmentCount: n, intervalMonths: interval }),
+    };
+  }
+
+  let lo = 0;
+  let hi = 500;
+  let fHi = f(hi);
+  let expansions = 0;
+  while (fHi < 0 && expansions < 20) {
+    hi *= 2;
+    fHi = f(hi);
+    expansions++;
+  }
+  if (fHi < 0) {
+    throw new Error('برای این مبلغ کل بازپرداخت، نرخ سود معتبری پیدا نشد. لطفاً مقادیر را بررسی کنید.');
+  }
+
+  for (let i = 0; i < 100 && hi - lo > 1e-6; i++) {
+    const mid = (lo + hi) / 2;
+    if (f(mid) < 0) lo = mid; else hi = mid;
+  }
+
+  const annualRatePct = Math.round(((lo + hi) / 2) * 100) / 100;
+  const installmentAmount = calculateFixedInstallmentAmount({ principal: p, annualRatePct, installmentCount: n, intervalMonths: interval });
+  return { annualRatePct, installmentAmount };
+}
+
 /**
  * Recalculate amortization schedule starting from an arbitrary balance and installment offset.
  *

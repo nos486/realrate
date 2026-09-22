@@ -21,6 +21,7 @@ import ShamsiDatePicker, {
 import {
   calculateFixedInstallmentAmount,
   solveAnnualRateFromKnownPayments,
+  solveAnnualRateFromTotalRepayment,
   distributeInstallmentAmounts,
 } from '../../../utils/loanCalculator.js';
 
@@ -39,6 +40,13 @@ export default function AddLoanForm({
   const [annualInterestRate, setAnnualInterestRate] = useState('23');
   const [installmentCount, setInstallmentCount] = useState('12');
   const [intervalMonths, setIntervalMonths] = useState(1);
+
+  // Total repayment (principal + interest) is kept in sync with principal & rate — a 3-way
+  // relationship where only 2 are ever independent (given a fixed installment count): whichever
+  // of the three the user last touched drives the other two. `lastEditedField` tracks which one
+  // is currently "driving" so the sync effect below doesn't fight the field the user is typing in.
+  const [totalRepaymentAmount, setTotalRepaymentAmount] = useState('');
+  const [lastEditedField, setLastEditedField] = useState(null); // 'principal' | 'rate' | 'total' | null
   const [startDateIso, setStartDateIso] = useState(new Date().toISOString().split('T')[0]);
   const [startDateShamsi, setStartDateShamsi] = useState(getTodayShamsi());
   const [annualFeeAmount, setAnnualFeeAmount] = useState('');
@@ -66,6 +74,8 @@ export default function AddLoanForm({
     setCustomAmounts({});
     setKnownSubsequentAmount('');
     setRateSolveMessage(null);
+    setTotalRepaymentAmount('');
+    setLastEditedField(null);
 
     if (editingLoan) {
       setTitle(editingLoan.title || '');
@@ -183,6 +193,35 @@ export default function AddLoanForm({
     if (liveTotalRepayment <= 0 || cleanPrincipal <= 0) return 0;
     return Math.max(0, liveTotalRepayment - cleanPrincipal);
   }, [liveTotalRepayment, cleanPrincipal]);
+
+  // Keep the total-repayment field synced to principal+rate whenever THOSE are the field the
+  // user is actively driving — but not while the user is typing into the total field itself,
+  // otherwise this would immediately overwrite what they're typing.
+  useEffect(() => {
+    if (lastEditedField === 'total') return;
+    setTotalRepaymentAmount(liveTotalRepayment > 0 ? String(liveTotalRepayment) : '');
+  }, [liveTotalRepayment, lastEditedField]);
+
+  const handleTotalRepaymentChange = (val) => {
+    setTotalRepaymentAmount(val);
+    setLastEditedField('total');
+
+    const cleanTotal = Number(String(val || '').replace(/,/g, '').trim());
+    if (cleanPrincipal <= 0 || cleanCount <= 0 || !cleanTotal || cleanTotal < cleanPrincipal) {
+      return; // Not a usable value yet (e.g. still mid-typing) — leave the rate untouched.
+    }
+    try {
+      const { annualRatePct } = solveAnnualRateFromTotalRepayment({
+        principal: cleanPrincipal,
+        installmentCount: cleanCount,
+        totalRepayment: cleanTotal,
+        intervalMonths,
+      });
+      setAnnualInterestRate(String(annualRatePct));
+    } catch {
+      // Silently ignore — the field keeps whatever the user typed, rate stays at its last value.
+    }
+  };
 
   // Check if financial parameters were altered in edit mode
   const isFinancialTermsChanged = useMemo(() => {
@@ -418,7 +457,10 @@ export default function AddLoanForm({
           </label>
           <NumericInput
             value={principalAmount}
-            onValueChange={(val) => setPrincipalAmount(val)}
+            onValueChange={(val) => {
+              setPrincipalAmount(val);
+              setLastEditedField('principal');
+            }}
             placeholder="مثلاً ۱۰۰,۰۰۰,۰۰۰"
             affix="تومان"
             className="form-input"
@@ -446,7 +488,10 @@ export default function AddLoanForm({
             </div>
             <NumericInput
               value={annualInterestRate}
-              onValueChange={(val) => setAnnualInterestRate(val)}
+              onValueChange={(val) => {
+                setAnnualInterestRate(val);
+                setLastEditedField('rate');
+              }}
               placeholder="۰ برای بدون سود"
               affix="٪"
               allowDecimals={true}
@@ -700,14 +745,25 @@ export default function AddLoanForm({
               </span>
             </div>
 
-            {/* Total Repayment */}
+            {/* Total Repayment — editable in standard mode: synced with principal & rate, and
+                editing it back-solves the rate (holding principal fixed) */}
             <div style={{ background: 'rgba(255, 255, 255, 0.03)', padding: '10px', borderRadius: '8px' }}>
               <span style={{ display: 'block', fontSize: '0.75rem', color: '#94a3b8', marginBottom: '4px' }}>
-                کل بازپرداخت:
+                کل بازپرداخت (اصل + سود):
               </span>
-              <span style={{ fontSize: '0.92rem', fontWeight: 600, color: '#e2e8f0' }}>
-                {liveTotalRepayment > 0 ? `${formatPersianNum(liveTotalRepayment)} تومان` : '—'}
-              </span>
+              {installmentMode === 'standard' && cleanPrincipal > 0 && cleanCount > 0 ? (
+                <NumericInput
+                  value={totalRepaymentAmount}
+                  onValueChange={handleTotalRepaymentChange}
+                  affix="تومان"
+                  className="form-input"
+                  style={{ fontWeight: 600 }}
+                />
+              ) : (
+                <span style={{ fontSize: '0.92rem', fontWeight: 600, color: '#e2e8f0' }}>
+                  {liveTotalRepayment > 0 ? `${formatPersianNum(liveTotalRepayment)} تومان` : '—'}
+                </span>
+              )}
             </div>
 
             {/* Total Interest */}

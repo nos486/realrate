@@ -7,6 +7,7 @@ import {
   computeEffectiveSchedule,
   applyAnnualFee,
   solveAnnualRateFromKnownPayments,
+  solveAnnualRateFromTotalRepayment,
   distributeInstallmentAmounts,
 } from '../../src/domain/loanCalculator.js';
 
@@ -151,6 +152,65 @@ describe('Loan Calculator Domain (ماشین حساب وام و اقساط)', ()
 
       // The installment amount the real schedule generator produces must match the solver's answer
       expect(remaining[0].totalAmount).toBe(solved.subsequentAmount);
+    });
+  });
+
+  describe('solveAnnualRateFromTotalRepayment (محاسبه نرخ سود از روی مبلغ کل قابل بازپرداخت)', () => {
+    it('recovers the exact original rate in a forward/reverse round trip', () => {
+      const principal = 100000000;
+      const installmentCount = 12;
+      const pmt = calculateFixedInstallmentAmount({ principal, annualRatePct: 23, installmentCount });
+      const totalRepayment = pmt * installmentCount;
+
+      const solved = solveAnnualRateFromTotalRepayment({ principal, installmentCount, totalRepayment });
+      expect(solved.annualRatePct).toBe(23);
+      expect(solved.installmentAmount).toBe(pmt);
+    });
+
+    it('returns 0% when totalRepayment equals the principal exactly (قرض‌الحسنه)', () => {
+      const solved = solveAnnualRateFromTotalRepayment({
+        principal: 12000000,
+        installmentCount: 12,
+        totalRepayment: 12000000,
+      });
+      expect(solved.annualRatePct).toBe(0);
+      expect(solved.installmentAmount).toBe(1000000);
+    });
+
+    it('rejects a totalRepayment lower than the principal', () => {
+      expect(() =>
+        solveAnnualRateFromTotalRepayment({
+          principal: 12000000,
+          installmentCount: 12,
+          totalRepayment: 10000000,
+        })
+      ).toThrow(/کمتر از مبلغ اصل وام/);
+    });
+
+    it('rejects non-positive principal or installmentCount', () => {
+      expect(() =>
+        solveAnnualRateFromTotalRepayment({ principal: 0, installmentCount: 12, totalRepayment: 12000000 })
+      ).toThrow();
+      expect(() =>
+        solveAnnualRateFromTotalRepayment({ principal: 12000000, installmentCount: 0, totalRepayment: 12000000 })
+      ).toThrow();
+    });
+
+    it('the solved rate reproduces the real schedule when fed into generateAmortizationSchedule', () => {
+      const principal = 50000000;
+      const installmentCount = 24;
+      const totalRepayment = 61000000;
+
+      const solved = solveAnnualRateFromTotalRepayment({ principal, installmentCount, totalRepayment });
+      const schedule = generateAmortizationSchedule({
+        principal,
+        annualRatePct: solved.annualRatePct,
+        installmentCount,
+        startDateIso: '2026-01-01',
+      });
+      expect(schedule[0].totalAmount).toBe(solved.installmentAmount);
+      const sumPrincipal = schedule.reduce((sum, i) => sum + i.principalPortion, 0);
+      expect(sumPrincipal).toBe(principal);
     });
   });
 
