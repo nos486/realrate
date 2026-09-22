@@ -1178,6 +1178,69 @@ describe('Loans Repository D1 Operations', () => {
       const sumPrincipal = second.installments.reduce((sum, i) => sum + i.principalPortion, 0);
       expect(sumPrincipal).toBe(12000000);
     });
+
+    it('re-editing an already-distributed loan without an explicit total defaults to the loan\'s CURRENT total, not a stale rate-derived baseline (regression)', async () => {
+      // This is the bug reported as "the number shown in bulk-edit differs from the installment's
+      // real number": once a loan is in distributed mode, its stored totals are unrelated to
+      // annualInterestRate. A second bulk-edit call that doesn't explicitly pass
+      // totalRepaymentAmount must still redistribute around the loan's REAL current total
+      // (12,000,000 here), not silently fall back to a rate-derived formula total.
+      const loan = await dbCreateLoan(mockEnv, 'user_1', {
+        title: 'وام برای ویرایش گروهی دوباره',
+        principalAmount: 12000000,
+        annualInterestRate: 0,
+        installmentCount: 12,
+        startDate: '2026-01-01',
+        totalRepaymentAmount: 12000000,
+      });
+      expect(loan.scheduleMode).toBe('distributed');
+
+      const updated = await dbBulkDistributeInstallments(mockEnv, 'user_1', loan.id, { 1: 2000000 });
+
+      const sumTotal = updated.installments.reduce((sum, i) => sum + i.totalAmount, 0);
+      expect(sumTotal).toBe(12000000);
+      expect(updated.installments[0].totalAmount).toBe(2000000);
+      // Remaining 10,000,000 split evenly across the other 11 installments
+      expect(updated.installments[1].totalAmount).toBe(Math.round(10000000 / 11));
+    });
+
+    it('first-time distribution of a formula-mode loan with an already-applied extra payment defaults to the loan\'s REDUCED current total, not the original full rate-derived total (regression)', async () => {
+      // generateAmortizationSchedule (used internally as distributeInstallmentAmounts' fallback
+      // baseline) recomputes purely from loan.principalAmount and ignores loan_extra_payments
+      // entirely. Before this fix, a first bulk-edit call on a loan that already had an extra
+      // payment applied would silently redistribute around the ORIGINAL (too-high) total instead
+      // of what's actually left to repay.
+      const loan = await dbCreateLoan(mockEnv, 'user_1', {
+        title: 'وام با پرداخت اضافه قبل از ویرایش گروهی',
+        principalAmount: 12000000,
+        annualInterestRate: 0,
+        installmentCount: 12,
+        startDate: '2026-01-01',
+      });
+      const beforeExtraTotal = loan.installments.reduce((sum, i) => sum + i.totalAmount, 0);
+      expect(beforeExtraTotal).toBe(12000000);
+
+      await dbAddExtraPayment(mockEnv, 'user_1', loan.id, {
+        amount: 3000000,
+        paymentDate: '2026-01-15',
+        reductionMode: 'reduce_amount',
+      });
+      const afterExtra = await dbGetLoanById(mockEnv, 'user_1', loan.id);
+      const afterExtraTotal = afterExtra.installments.reduce((sum, i) => sum + i.totalAmount, 0);
+      expect(afterExtraTotal).toBe(9000000);
+
+      const distributed = await dbBulkDistributeInstallments(mockEnv, 'user_1', loan.id, { 1: 1000000 });
+      const distributedTotal = distributed.installments.reduce((sum, i) => sum + i.totalAmount, 0);
+      expect(distributedTotal).toBe(9000000);
+
+      // The sum of every installment's principalPortion must equal the ACTUAL remaining principal
+      // (9,000,000 — the original 12,000,000 minus the 3,000,000 extra payment), never the raw
+      // loan.principalAmount (12,000,000) which distributeInstallmentAmounts would otherwise wrongly
+      // reconcile against, silently overstating the principal by exactly the extra payment amount.
+      const distributedPrincipal = distributed.installments.reduce((sum, i) => sum + i.principalPortion, 0);
+      expect(distributedPrincipal).toBe(9000000);
+      expect(distributed.installments[11].remainingBalanceAfter).toBe(0);
+    });
   });
 
   describe('dbSetInstallmentAmount on a distributed-mode loan', () => {

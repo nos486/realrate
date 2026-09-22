@@ -8,7 +8,8 @@
  *   PUT    /api/loans/:id                                — Update loan details (rebuilds pending installments if needed)
  *   DELETE /api/loans/:id                                — Delete a loan
  *   PUT    /api/loans/:id/installments/:installmentId    — Pay or unpay a specific installment
- *   PUT    /api/loans/:id/installments/bulk               — Re-plan every pending installment at once (equal-split)
+ *   PUT    /api/loans/:id/installments/bulk               — Re-plan every pending installment at once (equal-split);
+ *                                                            the sole way to edit installment amounts (no single-installment edit)
  */
 
 import { getAuthenticatedUser } from "../lib/auth.js";
@@ -21,7 +22,6 @@ import {
   dbMarkInstallmentPaid,
   dbMarkInstallmentPaidCascade,
   dbUnmarkInstallmentPaid,
-  dbSetInstallmentAmount,
   dbBulkDistributeInstallments,
   dbAddExtraPayment,
   dbGetLoanExtraPayments,
@@ -199,30 +199,6 @@ export async function handleUpdateInstallment(request, env, params = {}) {
     cascadedTotal,
     cascadedInstallments,
   }, 200, request);
-}
-
-/**
- * PUT /api/loans/:id/installments/:installmentId/amount
- * Manually override single unpaid installment amount and recalculate remaining schedule
- */
-export async function handleSetInstallmentAmount(request, env, params = {}) {
-  const { userId } = await requireUser(request, env);
-  const loanId = params.loanId || params.id;
-  const installmentId = params.installmentId;
-
-  if (!loanId || !installmentId) {
-    throw AppError.badRequest("شناسه وام و قسط الزامی است.");
-  }
-
-  const body = await request.json().catch(() => ({}));
-  const totalAmount = body.totalAmount ?? body.amount ?? body.newTotalAmount;
-
-  if (totalAmount === undefined || totalAmount === null || isNaN(Number(totalAmount)) || Number(totalAmount) <= 0) {
-    throw AppError.badRequest("مبلغ قسط باید مقداری عددی و بزرگتر از صفر باشد.");
-  }
-
-  const result = await dbSetInstallmentAmount(env, userId, loanId, installmentId, Number(totalAmount));
-  return jsonResponse({ success: true, ...result }, 200, request);
 }
 
 /**

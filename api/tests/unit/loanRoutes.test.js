@@ -12,7 +12,6 @@ vi.mock('../../src/repositories/index.js', () => ({
   dbDeleteLoan: vi.fn(),
   dbMarkInstallmentPaid: vi.fn(),
   dbUnmarkInstallmentPaid: vi.fn(),
-  dbSetInstallmentAmount: vi.fn(),
   dbBulkDistributeInstallments: vi.fn(),
   dbAddExtraPayment: vi.fn(),
   dbGetLoanExtraPayments: vi.fn(),
@@ -27,7 +26,6 @@ import {
   dbDeleteLoan,
   dbMarkInstallmentPaid,
   dbUnmarkInstallmentPaid,
-  dbSetInstallmentAmount,
   dbBulkDistributeInstallments,
   dbAddExtraPayment,
   dbGetLoanExtraPayments,
@@ -39,7 +37,6 @@ import {
   handleUpdateLoan,
   handleDeleteLoan,
   handleUpdateInstallment,
-  handleSetInstallmentAmount,
   handleBulkDistributeInstallments,
   handleAddExtraPayment,
   handleGetLoanExtraPayments,
@@ -203,45 +200,6 @@ describe('Loan Routes Handlers (هندلرهای API وام‌ها)', () => {
       const json = await res.json();
       expect(json.installment.isPaid).toBe(false);
       expect(dbUnmarkInstallmentPaid).toHaveBeenCalledWith(mockEnv, 'u_1', 'inst_1');
-    });
-  });
-
-  describe('PUT /api/loans/:id/installments/:installmentId/amount', () => {
-    it('sets custom installment amount and returns updated loan and actual amount', async () => {
-      getAuthenticatedUser.mockResolvedValue({ userId: 'u_1' });
-      dbSetInstallmentAmount.mockResolvedValue({
-        loan: { id: 'l_1' },
-        installment: { id: 'inst_1', isManualOverride: true, totalAmount: 2500000 },
-        actualTotalAmount: 2500000,
-      });
-
-      const req = new Request('https://realrate.ir/api/loans/l_1/installments/inst_1/amount', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ totalAmount: 2500000 }),
-      });
-
-      const res = await handleSetInstallmentAmount(req, mockEnv, { loanId: 'l_1', installmentId: 'inst_1' });
-      expect(res.status).toBe(200);
-      const json = await res.json();
-      expect(json.success).toBe(true);
-      expect(json.actualTotalAmount).toBe(2500000);
-      expect(json.installment.isManualOverride).toBe(true);
-      expect(dbSetInstallmentAmount).toHaveBeenCalledWith(mockEnv, 'u_1', 'l_1', 'inst_1', 2500000);
-    });
-
-    it('rejects invalid or non-positive amount', async () => {
-      getAuthenticatedUser.mockResolvedValue({ userId: 'u_1' });
-
-      const req = new Request('https://realrate.ir/api/loans/l_1/installments/inst_1/amount', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ totalAmount: -500 }),
-      });
-
-      await expect(
-        handleSetInstallmentAmount(req, mockEnv, { loanId: 'l_1', installmentId: 'inst_1' })
-      ).rejects.toThrow();
     });
   });
 

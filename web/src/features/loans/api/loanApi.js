@@ -92,21 +92,6 @@ export async function unmarkInstallmentPaid(loanId, installmentId) {
 }
 
 /**
- * Manually override a specific unpaid installment amount
- * @param {string} loanId
- * @param {string} installmentId
- * @param {number} totalAmount
- * @returns {Promise<{ success: boolean, loan: object, installment: object, actualTotalAmount: number }>}
- */
-export async function setInstallmentAmount(loanId, installmentId, totalAmount) {
-  if (!loanId || !installmentId) throw new Error('شناسه وام و قسط الزامی است');
-  return httpClient.put(
-    `/api/loans/${encodeURIComponent(loanId)}/installments/${encodeURIComponent(installmentId)}/amount`,
-    { totalAmount: Number(totalAmount) }
-  );
-}
-
-/**
  * Re-plan every pending installment's amount at once ("ویرایش گروهی اقساط"): any subset gets a
  * known/fixed amount, and every other pending installment equally divides whatever's left —
  * both before and after the touched ones, not just a forward cascade. Available at any time,
@@ -114,13 +99,19 @@ export async function setInstallmentAmount(loanId, installmentId, totalAmount) {
  * installments and switches it into "distributed" schedule mode.
  * @param {string} loanId
  * @param {Object<number, number>} knownAmounts - installmentNumber -> totalAmount
+ * @param {number} [totalRepaymentAmount] - the exact pool (principal + interest) to divide;
+ *   should be the loan's current actual total so an edit never silently changes the grand total
  * @returns {Promise<{ success: boolean, loan: object }>}
  */
-export async function bulkDistributeInstallments(loanId, knownAmounts) {
+export async function bulkDistributeInstallments(loanId, knownAmounts, totalRepaymentAmount) {
   if (!loanId) throw new Error('شناسه وام الزامی است');
+  const body = { knownAmounts: knownAmounts || {} };
+  if (totalRepaymentAmount !== undefined && totalRepaymentAmount !== null) {
+    body.totalRepaymentAmount = Number(totalRepaymentAmount);
+  }
   return httpClient.put(
     `/api/loans/${encodeURIComponent(loanId)}/installments/bulk`,
-    { knownAmounts: knownAmounts || {} }
+    body
   );
 }
 

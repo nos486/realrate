@@ -1093,10 +1093,19 @@ export function computeEffectiveSchedule({
  * @param {number} [params.totalRepaymentOverride] - When given, this exact figure (principal +
  *   interest) is used as the pool to divide instead of the loan's rate-derived formula total —
  *   for "I know my total repayment is exactly X, split it evenly" rather than "solve a rate".
+ * @param {number} [params.principalOverride] - When given, this replaces `loan.principalAmount`
+ *   as the figure every installment's principalPortion (paid + pending combined) must sum to.
+ *   Needed because `loan.principalAmount` never changes when an extra (lump-sum) payment is
+ *   applied to a formula-mode loan — the actual remaining principal still owed is lower than the
+ *   raw field. Callers should pass the sum of the CURRENT (pre-redistribution) schedule's
+ *   installments' principalPortion, which already nets out extra payments correctly.
  * @returns {Array<object>} Full installmentCount-length schedule, same shape as computeEffectiveSchedule's output
  */
-export function distributeInstallmentAmounts({ loan, paidInstallments = [], knownAmounts = {}, totalRepaymentOverride }) {
+export function distributeInstallmentAmounts({ loan, paidInstallments = [], knownAmounts = {}, totalRepaymentOverride, principalOverride }) {
   const principal = Number(loan.principalAmount ?? loan.principal ?? 0);
+  const effectivePrincipal = principalOverride !== undefined && principalOverride !== null
+    ? Number(principalOverride)
+    : principal;
   const installmentCount = parseInt(loan.installmentCount ?? 0, 10);
   const loanId = loan.id || loan.loanId || '';
 
@@ -1111,7 +1120,7 @@ export function distributeInstallmentAmounts({ loan, paidInstallments = [], know
     ? Number(totalRepaymentOverride)
     : baseline.reduce((sum, i) => sum + i.totalAmount, 0);
 
-  if (totalRepaymentOverride !== undefined && totalRepaymentOverride !== null && baselineTotalRepayment < principal) {
+  if (totalRepaymentOverride !== undefined && totalRepaymentOverride !== null && baselineTotalRepayment < effectivePrincipal) {
     throw new Error('مبلغ کل بازپرداخت نمی‌تواند کمتر از مبلغ اصل وام باشد.');
   }
 
@@ -1154,10 +1163,10 @@ export function distributeInstallmentAmounts({ loan, paidInstallments = [], know
     );
   });
 
-  const principalRatio = baselineTotalRepayment > 0 ? principal / baselineTotalRepayment : 1;
+  const principalRatio = baselineTotalRepayment > 0 ? effectivePrincipal / baselineTotalRepayment : 1;
 
   const schedule = [];
-  let runningBalance = principal;
+  let runningBalance = effectivePrincipal;
   let lastPendingIndex = -1;
 
   for (let num = 1; num <= installmentCount; num++) {
@@ -1219,7 +1228,7 @@ export function distributeInstallmentAmounts({ loan, paidInstallments = [], know
   // totalAmount, which must stay exactly what was specified or evenly divided above. Paid
   // installments are historical/frozen and must never be adjusted.
   const sumPrincipal = schedule.reduce((sum, i) => sum + i.principalPortion, 0);
-  const diff = principal - sumPrincipal;
+  const diff = effectivePrincipal - sumPrincipal;
   if (diff !== 0 && lastPendingIndex >= 0) {
     const inst = schedule[lastPendingIndex];
     inst.principalPortion += diff;

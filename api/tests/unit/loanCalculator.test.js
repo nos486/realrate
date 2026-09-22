@@ -1046,5 +1046,43 @@ describe('Loan Calculator Domain (ماشین حساب وام و اقساط)', ()
         ).toThrow(/کمتر از مبلغ اصل وام/);
       });
     });
+
+    describe('principalOverride (اصل باقیمانده واقعی وام، نه مبلغ اصل خام)', () => {
+      it('reconciles every installment\'s principalPortion sum to principalOverride, not the raw loan.principalAmount', () => {
+        // Simulates a loan whose real principal already owed is 9,000,000 (e.g. after a
+        // 3,000,000 extra/lump-sum payment reduced it), even though loan.principalAmount is
+        // still the original 12,000,000 (extra payments never mutate that field).
+        const schedule = distributeInstallmentAmounts({
+          loan: { principalAmount: 12000000, annualInterestRate: 0, installmentCount: 12, intervalMonths: 1, startDate: '2026-01-01' },
+          knownAmounts: { 1: 1000000 },
+          totalRepaymentOverride: 9000000,
+          principalOverride: 9000000,
+        });
+        const sumPrincipal = schedule.reduce((sum, i) => sum + i.principalPortion, 0);
+        expect(sumPrincipal).toBe(9000000);
+        expect(schedule[11].remainingBalanceAfter).toBe(0);
+      });
+
+      it('without principalOverride, falls back to loan.principalAmount (backward compatible)', () => {
+        const schedule = distributeInstallmentAmounts({
+          loan: { principalAmount: 12000000, annualInterestRate: 0, installmentCount: 12, intervalMonths: 1, startDate: '2026-01-01' },
+          knownAmounts: { 1: 1000000 },
+        });
+        const sumPrincipal = schedule.reduce((sum, i) => sum + i.principalPortion, 0);
+        expect(sumPrincipal).toBe(12000000);
+      });
+
+      it('validates totalRepaymentOverride against principalOverride, not the raw principal, when both are given', () => {
+        // 9,000,000 total is below the raw 12,000,000 principal, but not below the real 9,000,000
+        // still-owed principal, so this must succeed rather than throw.
+        expect(() =>
+          distributeInstallmentAmounts({
+            loan: { principalAmount: 12000000, installmentCount: 12, intervalMonths: 1, startDate: '2026-01-01' },
+            totalRepaymentOverride: 9000000,
+            principalOverride: 9000000,
+          })
+        ).not.toThrow();
+      });
+    });
   });
 });

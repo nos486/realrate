@@ -8,7 +8,6 @@ import {
   ChevronDown,
   X,
   AlertCircle,
-  Pencil,
   Sparkles,
   DollarSign,
   TrendingDown,
@@ -29,7 +28,6 @@ export default function LoanInstallmentsTable({
   extraPayments = [],
   onMarkPaid,
   onUnmarkPaid,
-  onSetInstallmentAmount,
   onAddExtraPayment,
   onBulkDistributeInstallments,
   submitting = false,
@@ -46,11 +44,6 @@ export default function LoanInstallmentsTable({
   const [payAmount, setPayAmount] = useState('');
   const [payError, setPayError] = useState('');
   const [actionLoadingId, setActionLoadingId] = useState(null);
-
-  // Active editing installment amount state
-  const [editingInstId, setEditingInstId] = useState(null);
-  const [editAmountValue, setEditAmountValue] = useState('');
-  const [editError, setEditError] = useState('');
 
   // Filter tabs (all, pending, paid)
   const [activeFilter, setActiveFilter] = useState('all');
@@ -127,31 +120,6 @@ export default function LoanInstallmentsTable({
       await onUnmarkPaid?.(inst.id);
     } catch (err) {
       alert(err.message || 'خطا در لغو پرداخت');
-    } finally {
-      setActionLoadingId(null);
-    }
-  };
-
-  const handleStartEditAmount = (inst) => {
-    setEditingInstId(inst.id);
-    setEditAmountValue(String(inst.totalAmount || ''));
-    setEditError('');
-  };
-
-  const handleSaveEditAmount = async (inst) => {
-    setEditError('');
-    const cleanAmt = Number(String(editAmountValue).replace(/,/g, '').trim());
-    if (isNaN(cleanAmt) || cleanAmt <= 0) {
-      setEditError('مبلغ قسط باید بزرگتر از صفر باشد.');
-      return;
-    }
-
-    try {
-      setActionLoadingId(inst.id);
-      await onSetInstallmentAmount?.(inst.id, cleanAmt);
-      setEditingInstId(null);
-    } catch (err) {
-      setEditError(err.message || 'خطا در ویرایش مبلغ قسط');
     } finally {
       setActionLoadingId(null);
     }
@@ -261,7 +229,7 @@ export default function LoanInstallmentsTable({
         }}>
           <ListChecks size={16} style={{ flexShrink: 0, marginTop: '1px' }} />
           <span>
-            این وام با «سفارشی‌سازی و تقسیم مساوی اقساط» ساخته شده است. هر قسطی که با مداد ویرایش کنید، بقیه‌ی اقساطِ دست‌نخورده به‌طور خودکار و مساوی باقیمانده را تقسیم می‌کنند؛ برای ویرایش چند قسط با هم از «ویرایش گروهی اقساط» استفاده کنید. پرداخت اضافه/یکجا برای این حالت در دسترس نیست.
+            این وام با «سفارشی‌سازی و تقسیم مساوی اقساط» ساخته شده است. برای ویرایش مبلغ اقساط از «ویرایش گروهی اقساط» استفاده کنید — هر قسطی که در آن مشخص کنید ثابت می‌ماند و بقیه‌ی اقساطِ دست‌نخورده به‌طور خودکار و مساوی باقیمانده را تقسیم می‌کنند. پرداخت اضافه/یکجا برای این حالت در دسترس نیست.
           </span>
         </div>
       )}
@@ -322,7 +290,6 @@ export default function LoanInstallmentsTable({
             {filteredInstallments.map((inst) => {
               const isActionLoading = actionLoadingId === inst.id || submitting;
               const isPaying = payingInstId === inst.id;
-              const isEditing = editingInstId === inst.id;
 
               return (
                 <tr
@@ -354,69 +321,24 @@ export default function LoanInstallmentsTable({
                   </td>
 
                   <td className="col-total">
-                    {isEditing ? (
-                      <div className="inline-edit-amount-box">
-                        <NumericInput
-                          value={editAmountValue}
-                          onValueChange={(val) => setEditAmountValue(val)}
-                          placeholder="مبلغ جدید"
-                          affix="تومان"
-                          className="form-input inline-edit-amount-input"
-                        />
-                        <button
-                          type="button"
-                          className="btn-inline-save"
-                          onClick={() => handleSaveEditAmount(inst)}
-                          disabled={isActionLoading}
+                    <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '4px' }}>
+                      <strong className="amount-primary">
+                        {formatNum(inst.totalAmount)} <span className="unit">تومان</span>
+                      </strong>
+                      {Boolean(inst.isManualOverride) && (
+                        <span className="badge-manual-override" title="مبلغ این قسط به‌صورت دستی تنظیم شده است">
+                          ویرایش‌شده
+                        </span>
+                      )}
+                      {Number(inst.feePortion) > 0 && (
+                        <span
+                          className="badge-manual-override"
+                          title={`شامل ${formatNum(inst.feePortion)} تومان کارمزد سالانه`}
                         >
-                          {isActionLoading ? '...' : 'تأیید'}
-                        </button>
-                        <button
-                          type="button"
-                          className="btn-inline-cancel"
-                          onClick={() => setEditingInstId(null)}
-                          disabled={isActionLoading}
-                        >
-                          لغو
-                        </button>
-                      </div>
-                    ) : (
-                      <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '4px' }}>
-                        <strong className="amount-primary">
-                          {formatNum(inst.totalAmount)} <span className="unit">تومان</span>
-                        </strong>
-                        {Boolean(inst.isManualOverride) && (
-                          <span className="badge-manual-override" title="مبلغ این قسط به‌صورت دستی تنظیم شده است">
-                            ویرایش‌شده
-                          </span>
-                        )}
-                        {Number(inst.feePortion) > 0 && (
-                          <span
-                            className="badge-manual-override"
-                            title={`شامل ${formatNum(inst.feePortion)} تومان کارمزد سالانه`}
-                          >
-                            + کارمزد سالانه
-                          </span>
-                        )}
-                        {!inst.isPaid && onSetInstallmentAmount && (
-                          <button
-                            type="button"
-                            className="btn-edit-installment"
-                            onClick={() => handleStartEditAmount(inst)}
-                            title="ویرایش دستی مبلغ این قسط"
-                            disabled={isActionLoading}
-                          >
-                            <Pencil size={12} />
-                          </button>
-                        )}
-                      </div>
-                    )}
-                    {isEditing && editError && (
-                      <div className="inline-pay-error" style={{ marginTop: '4px' }}>
-                        <AlertCircle size={12} />
-                        <span>{editError}</span>
-                      </div>
-                    )}
+                          + کارمزد سالانه
+                        </span>
+                      )}
+                    </div>
                   </td>
 
                   <td className="col-principal">
@@ -557,7 +479,6 @@ export default function LoanInstallmentsTable({
         {filteredInstallments.map((inst) => {
           const isActionLoading = actionLoadingId === inst.id || submitting;
           const isPaying = payingInstId === inst.id;
-          const isEditing = editingInstId === inst.id;
 
           return (
             <div
@@ -603,57 +524,7 @@ export default function LoanInstallmentsTable({
                       </span>
                     )}
                   </div>
-                  {!inst.isPaid && onSetInstallmentAmount && (
-                    <button
-                      type="button"
-                      className="btn-edit-installment"
-                      onClick={() => handleStartEditAmount(inst)}
-                      title="ویرایش دستی مبلغ این قسط"
-                      disabled={isActionLoading}
-                    >
-                      <Pencil size={12} />
-                    </button>
-                  )}
                 </div>
-
-                {isEditing && (
-                  <div className="mobile-edit-box" style={{ margin: '6px 0', padding: '8px', background: 'rgba(255,255,255,0.04)', borderRadius: '8px' }}>
-                    {editError && (
-                      <div className="inline-pay-error" style={{ marginBottom: '6px' }}>
-                        <AlertCircle size={12} />
-                        <span>{editError}</span>
-                      </div>
-                    )}
-                    <div style={{ display: 'flex', gap: '6px' }}>
-                      <NumericInput
-                        value={editAmountValue}
-                        onValueChange={(val) => setEditAmountValue(val)}
-                        placeholder="مبلغ جدید"
-                        affix="تومان"
-                        className="form-input"
-                        style={{ height: '32px', fontSize: '0.82rem' }}
-                      />
-                      <button
-                        type="button"
-                        className="btn-inline-save"
-                        onClick={() => handleSaveEditAmount(inst)}
-                        disabled={isActionLoading}
-                        style={{ minWidth: '45px' }}
-                      >
-                        {isActionLoading ? '...' : 'تأیید'}
-                      </button>
-                      <button
-                        type="button"
-                        className="btn-inline-cancel"
-                        onClick={() => setEditingInstId(null)}
-                        disabled={isActionLoading}
-                        style={{ minWidth: '45px' }}
-                      >
-                        لغو
-                      </button>
-                    </div>
-                  </div>
-                )}
 
                 <div className="mobile-breakdown-row">
                   <span>اصل: {formatNum(inst.principalPortion)}</span>

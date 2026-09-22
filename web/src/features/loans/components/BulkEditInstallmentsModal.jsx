@@ -3,10 +3,12 @@
  *
  * Any subset of pending installments may be given a known/fixed amount; every other pending
  * installment — both before and after the touched ones — equally divides whatever's left of the
- * loan's expected total repayment (see distributeInstallmentAmounts). Already-paid installments
- * are shown as frozen/read-only and excluded from the split. Saving switches the loan into
- * "distributed" schedule mode (dbBulkDistributeInstallments), after which the ordinary single
- * pencil-icon edit and extra-payment flows are disabled in favor of reopening this panel.
+ * loan's ACTUAL current total repayment (its installments' stored totalAmount sum — not a
+ * rate-derived baseline, which would ignore extra payments or prior customization). Already-paid
+ * installments are shown as frozen/read-only and excluded from the split. This is the sole way to
+ * edit installment amounts (no single-installment edit exists). Saving switches the loan into
+ * "distributed" schedule mode (dbBulkDistributeInstallments), after which the extra-payment flow
+ * is disabled in favor of reopening this panel.
  */
 
 import React, { useState, useEffect, useMemo } from 'react';
@@ -39,6 +41,25 @@ export default function BulkEditInstallmentsModal({
     [loan]
   );
 
+  // The loan's ACTUAL current total (sum of every installment's stored totalAmount) — used as
+  // the pool to redistribute instead of a rate-derived baseline. The rate-derived baseline
+  // ignores extra payments and any prior manual/distributed customization, so it can silently
+  // differ from what's really stored (this is what made the preview show numbers that didn't
+  // match each installment's real amount).
+  const currentTotalPool = useMemo(
+    () => (loan?.installments || []).reduce((sum, i) => sum + Number(i.totalAmount || 0), 0),
+    [loan]
+  );
+
+  // The true remaining principal target — nets out any extra payment already applied to a
+  // formula-mode loan, unlike loan.principalAmount (see distributeInstallmentAmounts' docstring).
+  const currentPrincipalPool = useMemo(
+    () => (loan?.installments || []).reduce((sum, i) => sum + Number(i.principalPortion || 0), 0),
+    [loan]
+  );
+
+  const hasTouched = Object.keys(customAmounts).length > 0;
+
   const result = useMemo(() => {
     if (!loan) return { schedule: [], error: null };
     const knownAmounts = Object.entries(customAmounts).reduce((map, [num, val]) => {
@@ -48,15 +69,32 @@ export default function BulkEditInstallmentsModal({
     }, {});
     try {
       return {
-        schedule: distributeInstallmentAmounts({ loan, paidInstallments, knownAmounts }),
+        schedule: distributeInstallmentAmounts({
+          loan,
+          paidInstallments,
+          knownAmounts,
+          totalRepaymentOverride: currentTotalPool,
+          principalOverride: currentPrincipalPool,
+        }),
         error: null,
       };
     } catch (err) {
       return { schedule: [], error: err.message || 'محاسبه ممکن نشد.' };
     }
-  }, [loan, paidInstallments, customAmounts]);
+  }, [loan, paidInstallments, customAmounts, currentTotalPool, currentPrincipalPool]);
 
   const pendingRows = result.schedule.filter((i) => !i.isPaid);
+
+  // Before anything is touched, show each pending installment's actual current stored amount
+  // instead of a freshly re-flattened uniform split — otherwise the modal would display a number
+  // that differs from the installment's real amount just from being opened, before the user
+  // changed anything.
+  const displayRows = hasTouched
+    ? pendingRows
+    : (loan?.installments || [])
+        .filter((i) => !i.isPaid)
+        .slice()
+        .sort((a, b) => a.installmentNumber - b.installmentNumber);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -78,7 +116,7 @@ export default function BulkEditInstallmentsModal({
     }, {});
 
     try {
-      await onSubmit?.(knownAmounts);
+      await onSubmit?.(knownAmounts, currentTotalPool);
       onClose();
     } catch (err) {
       setFormError(err.message || 'خطا در ثبت ویرایش گروهی اقساط');
@@ -159,7 +197,7 @@ export default function BulkEditInstallmentsModal({
                   </td>
                 </tr>
               ))}
-              {pendingRows.map((inst) => (
+              {displayRows.map((inst) => (
                 <tr key={inst.installmentNumber} style={{ borderTop: '1px solid rgba(255, 255, 255, 0.05)' }}>
                   <td style={{ padding: '5px 8px', color: '#e2e8f0' }}>{formatNum(inst.installmentNumber)}</td>
                   <td style={{ padding: '5px 8px', color: '#94a3b8', whiteSpace: 'nowrap' }}>

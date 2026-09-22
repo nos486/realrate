@@ -1077,6 +1077,12 @@ export async function dbMarkInstallmentPaidCascade(env, userId, loanId, installm
 /**
  * Manually set the installment amount for an unpaid installment.
  *
+ * NOTE: this is no longer exposed via any API route or UI — single-installment editing was
+ * removed in favor of "ویرایش گروهی اقساط" (dbBulkDistributeInstallments) as the sole way to
+ * change installment amounts. It is kept internal-only because it exercises the sparse
+ * single-override-row + forward-cascade mechanism (still used elsewhere via
+ * customFirstInstallmentAmount) and is relied on by existing repository-level test coverage.
+ *
  * For a 'formula' (rate-based) loan: writes ONLY the single override row in
  * `loan_installment_states`, and every installment after it is dynamically cascaded forward
  * (recalculated from the real declining balance) by computeEffectiveSchedule on read.
@@ -1267,6 +1273,25 @@ export async function dbBulkDistributeInstallments(env, userId, loanId, knownAmo
 
   const paidInstallments = loan.installments.filter((inst) => inst.isPaid);
 
+  // When the caller doesn't specify an explicit total, default to the loan's ACTUAL current
+  // total (sum of every installment's stored totalAmount) rather than letting
+  // distributeInstallmentAmounts fall back to a rate-derived baseline. The rate-derived baseline
+  // ignores any extra payments already applied (dbAddExtraPayment never touches
+  // loan.principalAmount) and any prior manual/distributed customization, so on a loan that has
+  // either, it silently reflects the WRONG pool. Using the current total pool is safe for a
+  // pristine formula-mode loan too, since it is then mathematically identical to the rate-derived
+  // baseline (no events yet to diverge from it).
+  const effectiveTotalRepaymentOverride = totalRepaymentAmount !== undefined && totalRepaymentAmount !== null
+    ? Number(totalRepaymentAmount)
+    : loan.installments.reduce((sum, i) => sum + Number(i.totalAmount || 0), 0);
+
+  // Similarly, the sum of every CURRENT installment's principalPortion (paid + pending combined)
+  // is the true remaining principal target — unlike loan.principalAmount, it correctly nets out
+  // any extra (lump-sum) payment already applied to a formula-mode loan (dbAddExtraPayment never
+  // touches loan.principalAmount, but it does reduce every subsequent installment's declining
+  // balance, which is what this sum reflects).
+  const effectivePrincipalOverride = loan.installments.reduce((sum, i) => sum + Number(i.principalPortion || 0), 0);
+
   const cleanKnownAmounts = {};
   for (const [num, amt] of Object.entries(knownAmounts || {})) {
     const n = parseInt(num, 10);
@@ -1289,7 +1314,8 @@ export async function dbBulkDistributeInstallments(env, userId, loanId, knownAmo
       loan,
       paidInstallments,
       knownAmounts: cleanKnownAmounts,
-      totalRepaymentOverride: totalRepaymentAmount ? Number(totalRepaymentAmount) : undefined,
+      totalRepaymentOverride: effectiveTotalRepaymentOverride,
+      principalOverride: effectivePrincipalOverride,
     });
   } catch (e) {
     throw AppError.badRequest(e.message);

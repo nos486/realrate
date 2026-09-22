@@ -7,7 +7,6 @@ import {
   getLoanDetail,
   markInstallmentPaid as apiMarkPaid,
   unmarkInstallmentPaid as apiUnmarkPaid,
-  setInstallmentAmount as apiSetInstallmentAmount,
   bulkDistributeInstallments as apiBulkDistributeInstallments,
   addLoanExtraPayment as apiAddLoanExtraPayment,
   getLoanExtraPayments as apiGetLoanExtraPayments,
@@ -172,48 +171,20 @@ export function useLoanDetail(loanId) {
   );
 
   /**
-   * Manually override a specific unpaid installment amount
-   * Automatically refetches the loan details because subsequent installments are recalculated.
-   * @param {string} installmentId
-   * @param {number} newAmount
-   * @returns {Promise<object>}
-   */
-  const setInstallmentAmount = useCallback(
-    async (installmentId, newAmount) => {
-      if (!loanId || !installmentId) return;
-
-      setSubmitting(true);
-      setError(null);
-
-      try {
-        const res = await apiSetInstallmentAmount(loanId, installmentId, newAmount);
-        // Refetch whole loan details because all subsequent installments were recalculated
-        await fetchLoan();
-        return res;
-      } catch (err) {
-        setError(err.message || 'خطا در ویرایش مبلغ قسط');
-        throw err;
-      } finally {
-        setSubmitting(false);
-      }
-    },
-    [loanId, fetchLoan]
-  );
-
-  /**
    * Re-plan every pending installment's amount at once ("ویرایش گروهی اقساط")
    * @param {Object<number, number>} knownAmounts - installmentNumber -> totalAmount
+   * @param {number} [totalRepaymentAmount] - the exact pool to divide (loan's current total)
    * @returns {Promise<object>}
    */
   const bulkDistributeInstallments = useCallback(
-    async (knownAmounts) => {
+    async (knownAmounts, totalRepaymentAmount) => {
       if (!loanId) return;
 
       setSubmitting(true);
       setError(null);
 
       try {
-        const res = await apiBulkDistributeInstallments(loanId, knownAmounts);
+        const res = await apiBulkDistributeInstallments(loanId, knownAmounts, totalRepaymentAmount);
         await fetchLoan();
         return res;
       } catch (err) {
@@ -262,7 +233,6 @@ export function useLoanDetail(loanId) {
     fetchExtraPayments,
     markPaid,
     unmarkPaid,
-    setInstallmentAmount,
     bulkDistributeInstallments,
     addExtraPayment,
   };

@@ -65,7 +65,6 @@ import {
   handleUpdateLoan,
   handleDeleteLoan,
   handleUpdateInstallment,
-  handleSetInstallmentAmount,
   handleBulkDistributeInstallments,
   handleAddExtraPayment,
   handleGetLoanExtraPayments,
@@ -180,15 +179,6 @@ export default {
       const loanId = loanExtraPaymentsMatch[1];
       if (request.method === "GET")  return wrap((req, e) => handleGetLoanExtraPayments(req, e, { loanId }))(request, env);
       if (request.method === "POST") return wrap((req, e) => handleAddExtraPayment(req, e, { loanId }))(request, env);
-    }
-
-    const loanInstallmentAmountMatch = normalizedPath.match(/^\/api\/loans\/([^/]+)\/installments\/([^/]+)\/amount$/);
-    if (loanInstallmentAmountMatch) {
-      const loanId = loanInstallmentAmountMatch[1];
-      const installmentId = loanInstallmentAmountMatch[2];
-      if (request.method === "PUT") {
-        return wrap((req, e) => handleSetInstallmentAmount(req, e, { loanId, installmentId }))(request, env);
-      }
     }
 
     // Must be matched before loanInstallmentMatch below, since that generic pattern would
