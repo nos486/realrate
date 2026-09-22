@@ -136,6 +136,7 @@ export async function ensureD1Tables(env) {
       interval_months INTEGER NOT NULL DEFAULT 1,
       start_date TEXT NOT NULL,
       annual_fee_amount REAL NOT NULL DEFAULT 0,
+      schedule_mode TEXT NOT NULL DEFAULT 'formula',
       notes TEXT DEFAULT '',
       created_at TEXT NOT NULL,
       updated_at TEXT NOT NULL
@@ -196,6 +197,10 @@ export async function ensureD1Tables(env) {
     // Backward-compat: ensure the optional annual fee column exists on loans
     try {
       await env.DB.prepare("ALTER TABLE loans ADD COLUMN annual_fee_amount REAL NOT NULL DEFAULT 0").run();
+    } catch (ignore) {}
+    // Backward-compat: ensure the schedule_mode column exists on loans ('formula' | 'distributed')
+    try {
+      await env.DB.prepare("ALTER TABLE loans ADD COLUMN schedule_mode TEXT NOT NULL DEFAULT 'formula'").run();
     } catch (ignore) {}
 
     // Backward-compat: ensure Virtual Schedule columns exist on loan_extra_payments

@@ -9,6 +9,7 @@ import {
   dbMarkInstallmentPaidCascade,
   dbUnmarkInstallmentPaid,
   dbSetInstallmentAmount,
+  dbBulkDistributeInstallments,
   dbAddExtraPayment,
   dbGetLoanExtraPayments,
 } from '../../src/repositories/loans.repository.js';
@@ -35,12 +36,13 @@ function createMockD1() {
           const [
             id, user_id, title, lender_name, principal_amount,
             annual_interest_rate, installment_count, interval_months,
-            start_date, annual_fee_amount, notes, created_at, updated_at
+            start_date, annual_fee_amount, schedule_mode, notes, created_at, updated_at
           ] = boundArgs;
           loansStore.set(id, {
             id, user_id, title, lender_name, principal_amount,
             annual_interest_rate, installment_count, interval_months,
-            start_date, annual_fee_amount: annual_fee_amount || 0, notes, created_at, updated_at
+            start_date, annual_fee_amount: annual_fee_amount || 0,
+            schedule_mode: schedule_mode || 'formula', notes, created_at, updated_at
           });
           return { meta: { changes: 1 } };
         }
@@ -147,10 +149,23 @@ function createMockD1() {
           }
           return { meta: { changes: 0 } };
         }
+        if (q.includes("UPDATE loans SET schedule_mode = 'distributed'")) {
+          const [updatedAt, loanId, userId] = boundArgs;
+          const existing = loansStore.get(loanId);
+          if (existing && existing.user_id === userId) {
+            loansStore.set(loanId, {
+              ...existing,
+              schedule_mode: 'distributed',
+              updated_at: updatedAt,
+            });
+            return { meta: { changes: 1 } };
+          }
+          return { meta: { changes: 0 } };
+        }
         if (q.startsWith('UPDATE loans')) {
           const [
             newTitle, newLender, newPrincipal, newRate,
-            newCount, newInterval, newStartDate, newAnnualFeeAmount, newNotes,
+            newCount, newInterval, newStartDate, newAnnualFeeAmount, newScheduleMode, newNotes,
             nowIso, loanId, userId
           ] = boundArgs;
           const existing = loansStore.get(loanId);
@@ -165,6 +180,7 @@ function createMockD1() {
               interval_months: newInterval,
               start_date: newStartDate,
               annual_fee_amount: newAnnualFeeAmount || 0,
+              schedule_mode: newScheduleMode || 'formula',
               notes: newNotes,
               updated_at: nowIso,
             });
@@ -838,8 +854,8 @@ describe('Loans Repository D1 Operations', () => {
     });
   });
 
-  describe('dbCreateLoan with bulk customInstallments (سفارشی‌سازی تک‌تک اقساط)', () => {
-    it('applies custom amounts only to the specified installments, keeping the sparse storage model', async () => {
+  describe('dbCreateLoan with bulk customInstallments (سفارشی‌سازی تک‌تک اقساط — تقسیم مساوی)', () => {
+    it('applies the given amounts to the specified installments and equally divides every other one, materializing the full schedule', async () => {
       const loan = await dbCreateLoan(mockEnv, 'user_1', {
         title: 'وام با اقساط سفارشی',
         principalAmount: 12000000,
@@ -858,8 +874,14 @@ describe('Loans Repository D1 Operations', () => {
       expect(loan.installments[5].totalAmount).toBe(500000);
       expect(loan.installments[5].isManualOverride).toBe(true);
 
-      // Only the 2 customized installments should have persisted state rows (sparse model)
-      expect(mockEnv.DB._installmentsStore.size).toBe(2);
+      // Once ANY installment is customized, every pending installment's specific value was
+      // decided (even the auto-divided ones), so the full schedule is materialized as rows —
+      // this loan intentionally departs from the sparse model.
+      expect(mockEnv.DB._installmentsStore.size).toBe(12);
+
+      // Every OTHER installment (not #1 or #6) must be uniformly equal, regardless of position
+      const others = loan.installments.filter((_, i) => i !== 0 && i !== 5).map((i) => i.totalAmount);
+      expect(new Set(others).size).toBeLessThanOrEqual(2); // allow a 1-toman rounding remainder
 
       // Total principal across the whole schedule must still equal the loan principal exactly
       const sumPrincipal = loan.installments.reduce((sum, i) => sum + i.principalPortion, 0);
@@ -867,25 +889,26 @@ describe('Loans Repository D1 Operations', () => {
       expect(loan.installments[11].remainingBalanceAfter).toBe(0);
     });
 
-    it('composes multiple custom installments in ascending order (each reflows off the previous)', async () => {
+    it('dividing installments split symmetrically both BEFORE and AFTER a touched one, not just after it', async () => {
       const loan = await dbCreateLoan(mockEnv, 'user_1', {
-        title: 'وام با چند قسط سفارشی',
-        principalAmount: 10000000,
-        annualInterestRate: 0,
-        installmentCount: 5,
+        title: 'وام با قسط میانی سفارشی',
+        principalAmount: 300000000,
+        annualInterestRate: 4,
+        installmentCount: 60,
         startDate: '2026-01-01',
-        // Passed out of order on purpose — dbCreateLoan must sort ascending before applying.
-        customInstallments: [
-          { installmentNumber: 3, totalAmount: 4000000 },
-          { installmentNumber: 1, totalAmount: 1000000 },
-        ],
+        customInstallments: [{ installmentNumber: 30, totalAmount: 3000000 }],
       });
 
-      expect(loan.installments[0].totalAmount).toBe(1000000);
-      expect(loan.installments[2].totalAmount).toBe(4000000);
+      expect(loan.installments[29].totalAmount).toBe(3000000);
+      // Installments BEFORE #30 (e.g. #1) and AFTER #30 (e.g. #60) must both have changed to
+      // the same uniform divided amount — the whole point of the equal-split model.
+      expect(loan.installments[0].totalAmount).toBe(loan.installments[28].totalAmount);
+      expect(loan.installments[0].totalAmount).toBe(loan.installments[30].totalAmount);
+      expect(loan.installments[0].totalAmount).not.toBe(3000000);
+
       const sumPrincipal = loan.installments.reduce((sum, i) => sum + i.principalPortion, 0);
-      expect(sumPrincipal).toBe(10000000);
-      expect(loan.installments[4].remainingBalanceAfter).toBe(0);
+      expect(sumPrincipal).toBe(300000000);
+      expect(loan.installments[59].remainingBalanceAfter).toBe(0);
     });
 
     it('customInstallments for installment #1 supersedes customFirstInstallmentAmount when both are given', async () => {
@@ -898,8 +921,9 @@ describe('Loans Repository D1 Operations', () => {
         customInstallments: [{ installmentNumber: 1, totalAmount: 3000000 }],
       });
       expect(loan.installments[0].totalAmount).toBe(3000000);
-      // Only 1 override row should exist, not 2 competing ones
-      expect(mockEnv.DB._installmentsStore.size).toBe(1);
+      // The full 3-installment schedule is materialized (equal-split mode), not the single
+      // customFirstInstallmentAmount override row.
+      expect(mockEnv.DB._installmentsStore.size).toBe(3);
     });
 
     it('rejects an installment number outside the valid range', async () => {
@@ -930,40 +954,186 @@ describe('Loans Repository D1 Operations', () => {
       ).rejects.toThrow(/باید عددی بزرگتر از صفر/);
     });
 
-    it('rejects a custom last-installment amount that would leave the loan unamortized, without persisting anything', async () => {
-      await expect(
-        dbCreateLoan(mockEnv, 'user_1', {
-          title: 'وام تسویه‌نشده',
-          principalAmount: 300000000,
-          annualInterestRate: 4,
-          installmentCount: 120,
-          startDate: '2026-01-01',
-          customInstallments: [
-            { installmentNumber: 1, totalAmount: 12000000 },
-            { installmentNumber: 120, totalAmount: 2000000 }, // far below what's actually owed by then
-          ],
-        })
-      ).rejects.toThrow(/تسویه نمی‌شود/);
-
-      // No loan row should have been left behind by the rejected create
-      const list = await dbGetUserLoans(mockEnv, 'user_1');
-      expect(list.find((l) => l.title === 'وام تسویه‌نشده')).toBeUndefined();
-    });
-
-    it('accepts a custom first+last combination that fully reconciles to zero', async () => {
+    it('a low custom LAST-installment amount no longer breaks reconciliation (the other installments absorb the difference)', async () => {
+      // Under the old forward-only cascade this specific combination used to leave the loan
+      // unamortized; under equal-split, the shortfall on #120 is simply absorbed by the other
+      // 118 untouched installments, since the pool is shared symmetrically.
       const loan = await dbCreateLoan(mockEnv, 'user_1', {
-        title: 'وام تسویه‌شده با اقساط اول و آخر سفارشی',
+        title: 'وام با قسط آخر کم',
         principalAmount: 300000000,
         annualInterestRate: 4,
         installmentCount: 120,
         startDate: '2026-01-01',
-        customInstallments: [{ installmentNumber: 1, totalAmount: 12000000 }],
+        customInstallments: [
+          { installmentNumber: 1, totalAmount: 12000000 },
+          { installmentNumber: 120, totalAmount: 2000000 },
+        ],
       });
-      const lastInst = loan.installments[loan.installments.length - 1];
+
       expect(loan.installments[0].totalAmount).toBe(12000000);
-      // Untouched middle installments are auto-divided uniformly by the cascade
-      expect(loan.installments[1].totalAmount).toBe(loan.installments[59].totalAmount);
-      expect(lastInst.remainingBalanceAfter).toBe(0);
+      expect(loan.installments[119].totalAmount).toBe(2000000);
+      const sumPrincipal = loan.installments.reduce((sum, i) => sum + i.principalPortion, 0);
+      expect(sumPrincipal).toBe(300000000);
+      expect(loan.installments[119].remainingBalanceAfter).toBe(0);
+    });
+
+    it('rejects custom amounts that alone exceed the loan total repayment, without persisting anything', async () => {
+      await expect(
+        dbCreateLoan(mockEnv, 'user_1', {
+          title: 'وام مبلغ بیش‌ازحد',
+          principalAmount: 10000000,
+          installmentCount: 3,
+          startDate: '2026-01-01',
+          customInstallments: [{ installmentNumber: 1, totalAmount: 50000000 }],
+        })
+      ).rejects.toThrow(/بیشتر است/);
+
+      const list = await dbGetUserLoans(mockEnv, 'user_1');
+      expect(list.find((l) => l.title === 'وام مبلغ بیش‌ازحد')).toBeUndefined();
+    });
+  });
+
+  describe('dbBulkDistributeInstallments (ویرایش گروهی اقساط پس از ساخت وام)', () => {
+    it('re-plans a plain formula loan into a distributed one, dividing symmetrically around the touched installment', async () => {
+      const loan = await dbCreateLoan(mockEnv, 'user_1', {
+        title: 'وام معمولی برای ویرایش گروهی',
+        principalAmount: 300000000,
+        annualInterestRate: 4,
+        installmentCount: 60,
+        startDate: '2026-01-01',
+      });
+      expect(loan.scheduleMode).toBe('formula');
+
+      const updated = await dbBulkDistributeInstallments(mockEnv, 'user_1', loan.id, { 30: 3000000 });
+
+      expect(updated.scheduleMode).toBe('distributed');
+      expect(updated.installments[29].totalAmount).toBe(3000000);
+      expect(updated.installments[0].totalAmount).toBe(updated.installments[28].totalAmount);
+      expect(updated.installments[0].totalAmount).toBe(updated.installments[30].totalAmount);
+
+      const sumPrincipal = updated.installments.reduce((sum, i) => sum + i.principalPortion, 0);
+      expect(sumPrincipal).toBe(300000000);
+      expect(updated.installments[59].remainingBalanceAfter).toBe(0);
+    });
+
+    it('survives a full read round-trip without corrupting the principal/interest split (regression)', async () => {
+      // This is the exact bug found during implementation: computeEffectiveSchedule's ordinary
+      // cascade used to silently recompute (and corrupt) a distributed row's principal/interest
+      // on every read. scheduleMode='distributed' must route through the trust-as-is path instead.
+      const loan = await dbCreateLoan(mockEnv, 'user_1', {
+        title: 'وام برای تست خرابی احتمالی',
+        principalAmount: 300000000,
+        annualInterestRate: 4,
+        installmentCount: 60,
+        startDate: '2026-01-01',
+      });
+      await dbBulkDistributeInstallments(mockEnv, 'user_1', loan.id, { 30: 3000000 });
+
+      const reread1 = await dbGetLoanById(mockEnv, 'user_1', loan.id);
+      const reread2 = await dbGetLoanById(mockEnv, 'user_1', loan.id);
+
+      expect(reread1.installments[0].principalPortion).toBe(reread2.installments[0].principalPortion);
+      expect(reread1.installments.reduce((s, i) => s + i.principalPortion, 0)).toBe(300000000);
+    });
+
+    it('excludes already-paid installments from the split and leaves them untouched', async () => {
+      const loan = await dbCreateLoan(mockEnv, 'user_1', {
+        title: 'وام با دو قسط پرداخت‌شده',
+        principalAmount: 12000000,
+        annualInterestRate: 0,
+        installmentCount: 12,
+        startDate: '2026-01-01',
+      });
+      await dbMarkInstallmentPaid(mockEnv, 'user_1', loan.installments[0].id, { paidDate: '2026-02-01', paidAmount: 1000000 });
+      await dbMarkInstallmentPaid(mockEnv, 'user_1', loan.installments[1].id, { paidDate: '2026-03-01', paidAmount: 1000000 });
+
+      const updated = await dbBulkDistributeInstallments(mockEnv, 'user_1', loan.id, { 12: 500000 });
+
+      expect(updated.installments[0].isPaid).toBe(true);
+      expect(updated.installments[0].totalAmount).toBe(1000000);
+      expect(updated.installments[1].isPaid).toBe(true);
+      expect(updated.installments[11].totalAmount).toBe(500000);
+
+      const sumPrincipal = updated.installments.reduce((sum, i) => sum + i.principalPortion, 0);
+      expect(sumPrincipal).toBe(12000000);
+      expect(updated.installments[11].remainingBalanceAfter).toBe(0);
+    });
+
+    it('rejects trying to re-plan an already-paid installment', async () => {
+      const loan = await dbCreateLoan(mockEnv, 'user_1', {
+        title: 'وام با قسط پرداخت‌شده',
+        principalAmount: 6000000,
+        installmentCount: 6,
+        startDate: '2026-01-01',
+      });
+      await dbMarkInstallmentPaid(mockEnv, 'user_1', loan.installments[0].id, { paidDate: '2026-02-01', paidAmount: 1000000 });
+
+      await expect(
+        dbBulkDistributeInstallments(mockEnv, 'user_1', loan.id, { 1: 2000000 })
+      ).rejects.toThrow(/قبلاً پرداخت شده/);
+    });
+
+    it('a later bulk-edit call fully replaces the prior plan', async () => {
+      const loan = await dbCreateLoan(mockEnv, 'user_1', {
+        title: 'وام با دو بار ویرایش گروهی',
+        principalAmount: 12000000,
+        annualInterestRate: 0,
+        installmentCount: 12,
+        startDate: '2026-01-01',
+      });
+      await dbBulkDistributeInstallments(mockEnv, 'user_1', loan.id, { 1: 2000000 });
+      const second = await dbBulkDistributeInstallments(mockEnv, 'user_1', loan.id, { 6: 500000 });
+
+      // The first plan's touch on #1 is gone; #1 now follows the new equal-split baseline
+      expect(second.installments[0].totalAmount).not.toBe(2000000);
+      expect(second.installments[5].totalAmount).toBe(500000);
+      const sumPrincipal = second.installments.reduce((sum, i) => sum + i.principalPortion, 0);
+      expect(sumPrincipal).toBe(12000000);
+    });
+  });
+
+  describe('distributed-mode loans reject the ordinary single-edit and extra-payment flows', () => {
+    it('dbSetInstallmentAmount refuses a distributed-mode loan with a message pointing to bulk edit', async () => {
+      const loan = await dbCreateLoan(mockEnv, 'user_1', {
+        title: 'وام تقسیم‌شده',
+        principalAmount: 12000000,
+        installmentCount: 12,
+        startDate: '2026-01-01',
+        customInstallments: [{ installmentNumber: 1, totalAmount: 2000000 }],
+      });
+      expect(loan.scheduleMode).toBe('distributed');
+
+      await expect(
+        dbSetInstallmentAmount(mockEnv, 'user_1', loan.id, loan.installments[5].id, 999999)
+      ).rejects.toThrow(/ویرایش گروهی اقساط/);
+    });
+
+    it('dbAddExtraPayment refuses a distributed-mode loan', async () => {
+      const loan = await dbCreateLoan(mockEnv, 'user_1', {
+        title: 'وام تقسیم‌شده برای پرداخت اضافه',
+        principalAmount: 12000000,
+        installmentCount: 12,
+        startDate: '2026-01-01',
+        customInstallments: [{ installmentNumber: 1, totalAmount: 2000000 }],
+      });
+
+      await expect(
+        dbAddExtraPayment(mockEnv, 'user_1', loan.id, { amount: 1000000, paymentDate: '2026-03-01' })
+      ).rejects.toThrow(/پشتیبانی نمی‌شود/);
+    });
+
+    it('editing financial params via dbUpdateLoan reverts a distributed loan back to formula mode', async () => {
+      const loan = await dbCreateLoan(mockEnv, 'user_1', {
+        title: 'وام تقسیم‌شده برای ادیت',
+        principalAmount: 12000000,
+        installmentCount: 12,
+        startDate: '2026-01-01',
+        customInstallments: [{ installmentNumber: 1, totalAmount: 2000000 }],
+      });
+      expect(loan.scheduleMode).toBe('distributed');
+
+      const updated = await dbUpdateLoan(mockEnv, 'user_1', loan.id, { annualInterestRate: 10 });
+      expect(updated.scheduleMode).toBe('formula');
     });
   });
 

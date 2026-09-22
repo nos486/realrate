@@ -645,6 +645,48 @@ export function computeEffectiveSchedule({
     return [];
   }
 
+  // "Distributed" loans (built via distributeInstallmentAmounts — see that function's docstring)
+  // store a fully-materialized row for EVERY pending installment, whose principal/interest split
+  // is not derived from real declining-balance math. The cascade logic below (Step A) always
+  // recomputes an override's principal/interest from the actual balance flowing into it, which
+  // is essential for the ordinary single-override lifecycle but would silently corrupt a
+  // distributed schedule's blended-ratio split on every read. So distributed loans take a
+  // completely separate, trust-the-stored-row read path and never reach the cascade below.
+  if ((loan.scheduleMode || loan.schedule_mode) === 'distributed') {
+    const distStatesMap = new Map();
+    for (const s of installmentStates) {
+      const num = parseInt(s.installmentNumber ?? s.installment_number ?? 0, 10);
+      if (num > 0) distStatesMap.set(num, s);
+    }
+    const baseline = generateAmortizationSchedule(loan);
+    const schedule = [];
+    for (let num = 1; num <= installmentCount; num++) {
+      const state = distStatesMap.get(num);
+      const baseItem = baseline[num - 1];
+      if (state) {
+        schedule.push({
+          id: state.id || (loanId ? `inst_${loanId}_${num}` : `inst_${num}`),
+          installmentNumber: num,
+          dueDate: state.dueDate || state.due_date || (baseItem ? baseItem.dueDate : ''),
+          dueDateIso: state.dueDate || state.due_date || (baseItem ? baseItem.dueDateIso : ''),
+          principalPortion: Number(state.principalPortion ?? state.principal_portion ?? 0),
+          interestPortion: Number(state.interestPortion ?? state.interest_portion ?? 0),
+          totalAmount: Number(state.totalAmount ?? state.total_amount ?? 0),
+          remainingBalanceAfter: Number(state.remainingBalanceAfter ?? state.remaining_balance_after ?? 0),
+          isPaid: Boolean(state.isPaid ?? state.is_paid),
+          paidDate: state.paidDate || state.paid_date || '',
+          paidAmount: Number(state.paidAmount ?? state.paid_amount ?? 0),
+          isManualOverride: Boolean(state.isManualOverride ?? state.is_manual_override),
+        });
+      } else if (baseItem) {
+        // Defensive fallback only — a well-formed distributed loan always has a stored row for
+        // every pending installment.
+        schedule.push({ ...baseItem, isPaid: false, paidDate: '', paidAmount: 0, isManualOverride: false });
+      }
+    }
+    return applyAnnualFee(schedule, loan);
+  }
+
   const r = annualRatePct > 0 ? (annualRatePct / 100) * (intervalMonths / 12) : 0;
 
   // Index installmentStates by installmentNumber
@@ -946,5 +988,140 @@ export function computeEffectiveSchedule({
   }
 
   return applyAnnualFee(schedule, loan);
+}
+
+/**
+ * Distributes a full installmentCount-length schedule where some installments have a known,
+ * fixed amount (already paid, or manually specified by the user) and every other pending
+ * installment splits whatever is left of the loan's expected total repayment EQUALLY among
+ * themselves — a simple, position-independent "divide what's left" model.
+ *
+ * This is deliberately different from computeEffectiveSchedule's cascade (Step A), which can
+ * only reflow installments AFTER a touched one, since real declining-balance interest is
+ * causal (installment 30's balance cannot depend on installment 31 onward). That model is
+ * still the right one for the ongoing pay/override lifecycle. This function is for planning
+ * or bulk-editing every remaining installment's amount at once — e.g. "I know installment 1
+ * is 12,000,000 and installment 60 is 3,000,000, split the other 58 evenly" — where the
+ * un-pinned installments are not meant to carry a "true" monthly balance calculation at all.
+ *
+ * Because the split totals aren't derived from a real running balance, the principal/interest
+ * breakdown for touched and auto-divided installments is only an estimate: a single blended
+ * ratio (loan principal ÷ the loan's baseline total repayment under its stated rate) is applied
+ * to every installment's total. Already-paid installments are used exactly as recorded and are
+ * never touched. Rounding is reconciled onto the LAST pending installment so the sum of every
+ * installment's principalPortion always equals the loan's principal exactly.
+ *
+ * @param {object} params
+ * @param {object} params.loan - { principalAmount, annualInterestRate, installmentCount, intervalMonths, startDate, id? }
+ * @param {Array<object>} [params.paidInstallments=[]] - Already-paid installments (a contiguous
+ *   prefix starting at #1), used as-is and excluded from redistribution.
+ * @param {Object<number, number>} [params.knownAmounts={}] - installmentNumber -> user-specified
+ *   totalAmount for pending installments the user has explicitly set.
+ * @returns {Array<object>} Full installmentCount-length schedule, same shape as computeEffectiveSchedule's output
+ */
+export function distributeInstallmentAmounts({ loan, paidInstallments = [], knownAmounts = {} }) {
+  const principal = Number(loan.principalAmount ?? loan.principal ?? 0);
+  const installmentCount = parseInt(loan.installmentCount ?? 0, 10);
+  const loanId = loan.id || loan.loanId || '';
+
+  if (principal <= 0 || installmentCount <= 0) return [];
+
+  const baseline = generateAmortizationSchedule(loan);
+  const baselineTotalRepayment = baseline.reduce((sum, i) => sum + i.totalAmount, 0);
+
+  const paidByNumber = new Map();
+  for (const p of paidInstallments) {
+    const num = parseInt(p.installmentNumber ?? p.installment_number, 10);
+    if (num >= 1) paidByNumber.set(num, p);
+  }
+  const paidTotal = paidInstallments.reduce((sum, p) => sum + Number(p.totalAmount ?? p.total_amount ?? 0), 0);
+
+  const knownEntries = Object.entries(knownAmounts)
+    .map(([num, amt]) => [parseInt(num, 10), Number(amt)])
+    .filter(([num, amt]) => num >= 1 && num <= installmentCount && amt > 0 && !paidByNumber.has(num));
+  const knownByNumber = new Map(knownEntries);
+  const touchedTotal = knownEntries.reduce((sum, [, amt]) => sum + amt, 0);
+
+  const fixedCount = paidByNumber.size + knownByNumber.size;
+  const untouchedCount = Math.max(0, installmentCount - fixedCount);
+  const leftoverPool = baselineTotalRepayment - paidTotal - touchedTotal;
+
+  if (untouchedCount > 0 && leftoverPool < 0) {
+    throw new Error('مجموع مبالغ واردشده از کل مبلغ قابل بازپرداخت وام بیشتر است.');
+  }
+
+  const perUntouchedTotal = untouchedCount > 0 ? Math.round(leftoverPool / untouchedCount) : 0;
+  const principalRatio = baselineTotalRepayment > 0 ? principal / baselineTotalRepayment : 1;
+
+  const schedule = [];
+  let runningBalance = principal;
+  let lastPendingIndex = -1;
+
+  for (let num = 1; num <= installmentCount; num++) {
+    const baseItem = baseline[num - 1];
+    const instId = loanId ? `inst_${loanId}_${num}` : `inst_${num}`;
+
+    if (paidByNumber.has(num)) {
+      const p = paidByNumber.get(num);
+      const principalPortion = Number(p.principalPortion ?? p.principal_portion ?? 0);
+      runningBalance = p.remainingBalanceAfter !== undefined
+        ? Number(p.remainingBalanceAfter)
+        : runningBalance - principalPortion;
+
+      schedule.push({
+        id: p.id || instId,
+        installmentNumber: num,
+        dueDate: p.dueDate || p.due_date || (baseItem ? baseItem.dueDate : ''),
+        dueDateIso: p.dueDate || p.due_date || (baseItem ? baseItem.dueDateIso : ''),
+        principalPortion,
+        interestPortion: Number(p.interestPortion ?? p.interest_portion ?? 0),
+        totalAmount: Number(p.totalAmount ?? p.total_amount ?? 0),
+        remainingBalanceAfter: runningBalance,
+        isPaid: true,
+        paidDate: p.paidDate || p.paid_date || '',
+        paidAmount: Number(p.paidAmount ?? p.paid_amount ?? p.totalAmount ?? 0),
+        isManualOverride: Boolean(p.isManualOverride ?? p.is_manual_override),
+      });
+      continue;
+    }
+
+    const totalAmount = knownByNumber.has(num) ? knownByNumber.get(num) : perUntouchedTotal;
+    let principalPortion = Math.round(totalAmount * principalRatio);
+    if (principalPortion < 0) principalPortion = 0;
+    if (principalPortion > runningBalance) principalPortion = runningBalance;
+    let interestPortion = totalAmount - principalPortion;
+    if (interestPortion < 0) interestPortion = 0;
+
+    runningBalance -= principalPortion;
+
+    schedule.push({
+      id: instId,
+      installmentNumber: num,
+      dueDate: baseItem ? baseItem.dueDate : '',
+      dueDateIso: baseItem ? baseItem.dueDateIso : '',
+      principalPortion,
+      interestPortion,
+      totalAmount,
+      remainingBalanceAfter: runningBalance,
+      isPaid: false,
+      paidDate: '',
+      paidAmount: 0,
+      isManualOverride: true,
+    });
+    lastPendingIndex = schedule.length - 1;
+  }
+
+  // Reconcile rounding onto the last pending installment so total principal is always exact.
+  // Paid installments are historical/frozen and must never be adjusted.
+  const sumPrincipal = schedule.reduce((sum, i) => sum + i.principalPortion, 0);
+  const diff = principal - sumPrincipal;
+  if (diff !== 0 && lastPendingIndex >= 0) {
+    const inst = schedule[lastPendingIndex];
+    inst.principalPortion += diff;
+    inst.totalAmount += diff;
+    inst.remainingBalanceAfter = Math.max(0, inst.remainingBalanceAfter - diff);
+  }
+
+  return schedule;
 }
 

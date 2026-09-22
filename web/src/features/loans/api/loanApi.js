@@ -107,6 +107,24 @@ export async function setInstallmentAmount(loanId, installmentId, totalAmount) {
 }
 
 /**
+ * Re-plan every pending installment's amount at once ("ویرایش گروهی اقساط"): any subset gets a
+ * known/fixed amount, and every other pending installment equally divides whatever's left —
+ * both before and after the touched ones, not just a forward cascade. Available at any time,
+ * not just at creation; each call fully replaces the loan's prior plan for still-pending
+ * installments and switches it into "distributed" schedule mode.
+ * @param {string} loanId
+ * @param {Object<number, number>} knownAmounts - installmentNumber -> totalAmount
+ * @returns {Promise<{ success: boolean, loan: object }>}
+ */
+export async function bulkDistributeInstallments(loanId, knownAmounts) {
+  if (!loanId) throw new Error('شناسه وام الزامی است');
+  return httpClient.put(
+    `/api/loans/${encodeURIComponent(loanId)}/installments/bulk`,
+    { knownAmounts: knownAmounts || {} }
+  );
+}
+
+/**
  * Record an extra lump-sum payment for a loan
  * @param {string} loanId
  * @param {object} paymentData

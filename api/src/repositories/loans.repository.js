@@ -17,6 +17,7 @@ import {
   calculateFixedInstallmentAmount,
   calculatePayoffScheduleFixedAmount,
   computeEffectiveSchedule,
+  distributeInstallmentAmounts,
   parseDateParts,
   computeClampedDueDate,
 } from "../domain/loanCalculator.js";
@@ -49,6 +50,7 @@ function formatLoanRow(row) {
     intervalMonths: parseInt(row.interval_months ?? row.intervalMonths ?? 1, 10),
     startDate: row.start_date || row.startDate,
     annualFeeAmount: Number(row.annual_fee_amount ?? row.annualFeeAmount ?? 0),
+    scheduleMode: row.schedule_mode || row.scheduleMode || "formula",
     notes: row.notes || "",
     createdAt: row.created_at || row.createdAt,
     updatedAt: row.updated_at || row.updatedAt,
@@ -109,59 +111,51 @@ export async function dbCreateLoan(env, userId, data) {
   const notes = String(data.notes || "").trim();
   const nowIso = new Date().toISOString();
 
-  // Bulk per-installment custom amounts ("سفارشی‌سازی تک‌تک اقساط"): validated up front so an
-  // invalid entry never leaves behind a half-created loan.
+  // Bulk per-installment custom amounts ("سفارشی‌سازی تک‌تک اقساط"): every OTHER pending
+  // installment splits the remaining expected repayment equally, both before and after any
+  // touched installment (see distributeInstallmentAmounts — this is deliberately NOT the
+  // forward-only cascade used elsewhere, since here the user is planning the whole schedule at
+  // once rather than reacting to a real declining balance). Because those auto-divided amounts
+  // are no longer derivable from the loan's formula alone once ANY installment is customized,
+  // every pending installment gets its own stored row below — the one case where this loan
+  // intentionally skips the sparse/event-sourcing model, since every value genuinely was decided.
   const rawCustomInstallments = Array.isArray(data.customInstallments) ? data.customInstallments : [];
-  const customInstallments = rawCustomInstallments
+  const customInstallmentsInput = rawCustomInstallments
     .map((entry) => ({
       installmentNumber: parseInt(entry.installmentNumber ?? entry.installment_number, 10),
       totalAmount: Number(entry.totalAmount ?? entry.amount),
     }))
-    .filter((entry) => {
+    .reduce((map, entry) => {
       if (!Number.isInteger(entry.installmentNumber) || entry.installmentNumber < 1 || entry.installmentNumber > installmentCount) {
         throw AppError.badRequest(`شماره قسط سفارشی‌سازی‌شده (${entry.installmentNumber}) خارج از بازه معتبر است.`);
       }
       if (isNaN(entry.totalAmount) || entry.totalAmount <= 0) {
         throw AppError.badRequest(`مبلغ سفارشی‌سازی‌شده برای قسط ${entry.installmentNumber} باید عددی بزرگتر از صفر باشد.`);
       }
-      return true;
-    })
-    .sort((a, b) => a.installmentNumber - b.installmentNumber);
+      map[entry.installmentNumber] = entry.totalAmount;
+      return map;
+    }, {});
 
-  // Dry-run the resulting schedule before writing anything: a manual override on the last
-  // installment can leave the loan short of fully amortizing (see computeEffectiveSchedule's
-  // clamp against overpaying past what's actually owed at that point). Reject up front rather
-  // than silently creating a loan whose debt never reconciles to zero.
-  if (customInstallments.length > 0) {
-    const preview = computeEffectiveSchedule({
-      loan: {
-        principalAmount,
-        annualInterestRate,
-        installmentCount,
-        intervalMonths,
-        startDate,
-      },
-      installmentStates: customInstallments.map((entry) => ({
-        installmentNumber: entry.installmentNumber,
-        totalAmount: entry.totalAmount,
-        isManualOverride: true,
-        isPaid: false,
-      })),
-    });
-    const lastInst = preview[preview.length - 1];
-    if (lastInst && Number(lastInst.remainingBalanceAfter || 0) > 0) {
-      throw AppError.badRequest(
-        `با مبالغ سفارشی وارد شده، وام در پایان تسویه نمی‌شود (مانده باقیمانده: ${Math.round(lastInst.remainingBalanceAfter).toLocaleString("en-US")} تومان). لطفاً مبلغ قسط آخر را اصلاح کنید.`
-      );
+  let distributedSchedule = [];
+  if (Object.keys(customInstallmentsInput).length > 0) {
+    try {
+      distributedSchedule = distributeInstallmentAmounts({
+        loan: { principalAmount, annualInterestRate, installmentCount, intervalMonths, startDate },
+        knownAmounts: customInstallmentsInput,
+      });
+    } catch (e) {
+      throw AppError.badRequest(e.message);
     }
   }
+
+  const scheduleMode = distributedSchedule.length > 0 ? "distributed" : "formula";
 
   const insertLoanSql = `
     INSERT INTO loans (
       id, user_id, title, lender_name, principal_amount,
       annual_interest_rate, installment_count, interval_months,
-      start_date, annual_fee_amount, notes, created_at, updated_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      start_date, annual_fee_amount, schedule_mode, notes, created_at, updated_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `;
 
   const statements = [
@@ -176,6 +170,7 @@ export async function dbCreateLoan(env, userId, data) {
       intervalMonths,
       startDate,
       annualFeeAmount,
+      scheduleMode,
       notes,
       nowIso,
       nowIso
@@ -190,7 +185,7 @@ export async function dbCreateLoan(env, userId, data) {
     data.firstInstallmentAmount
   );
 
-  if (customInstallments.length === 0 && !isNaN(customFirst) && customFirst > 0) {
+  if (distributedSchedule.length === 0 && !isNaN(customFirst) && customFirst > 0) {
     const parsedStart = parseDateParts(startDate);
     const dueDate1 = computeClampedDueDate(parsedStart, 1, intervalMonths);
     const r = annualInterestRate > 0 ? (annualInterestRate / 100) * (intervalMonths / 12) : 0;
@@ -226,6 +221,34 @@ export async function dbCreateLoan(env, userId, data) {
     );
   }
 
+  if (distributedSchedule.length > 0) {
+    const insertStateSql = `
+      INSERT INTO loan_installment_states (
+        id, loan_id, user_id, installment_number, due_date,
+        principal_portion, interest_portion, total_amount,
+        remaining_balance_after, is_paid, paid_date, paid_amount,
+        is_manual_override, created_at, updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0, '', 0, 1, ?, ?)
+    `;
+    for (const inst of distributedSchedule) {
+      statements.push(
+        env.DB.prepare(insertStateSql).bind(
+          inst.id || generateId("inst"),
+          loanId,
+          userId,
+          inst.installmentNumber,
+          inst.dueDate,
+          inst.principalPortion,
+          inst.interestPortion,
+          inst.totalAmount,
+          inst.remainingBalanceAfter,
+          nowIso,
+          nowIso
+        )
+      );
+    }
+  }
+
   try {
     if (typeof env.DB.batch === "function") {
       await env.DB.batch(statements);
@@ -233,14 +256,6 @@ export async function dbCreateLoan(env, userId, data) {
       for (const stmt of statements) {
         await stmt.run();
       }
-    }
-
-    // Apply bulk per-installment custom amounts strictly in ascending order: each call reads the
-    // schedule as reshaped by the previous one (same cascading-reflow logic dbSetInstallmentAmount
-    // already uses for a single manual override), so this composes N sequential overrides
-    // correctly instead of requiring a separate bulk code path.
-    for (const entry of customInstallments) {
-      await dbSetInstallmentAmount(env, userId, loanId, entry.installmentNumber, entry.totalAmount);
     }
 
     return await dbGetLoanById(env, userId, loanId);
@@ -273,6 +288,7 @@ export async function dbGetUserLoans(env, userId) {
              principal_amount AS principalAmount, annual_interest_rate AS annualInterestRate,
              installment_count AS installmentCount, interval_months AS intervalMonths,
              start_date AS startDate, annual_fee_amount AS annualFeeAmount,
+             schedule_mode AS scheduleMode,
              notes, created_at AS createdAt, updated_at AS updatedAt
       FROM loans
       WHERE user_id = ?
@@ -385,6 +401,7 @@ export async function dbGetLoanById(env, userId, loanId) {
            principal_amount AS principalAmount, annual_interest_rate AS annualInterestRate,
            installment_count AS installmentCount, interval_months AS intervalMonths,
            start_date AS startDate, annual_fee_amount AS annualFeeAmount,
+           schedule_mode AS scheduleMode,
            notes, created_at AS createdAt, updated_at AS updatedAt
     FROM loans
     WHERE id = ? AND user_id = ?
@@ -558,13 +575,19 @@ export async function dbUpdateLoan(env, userId, loanId, data) {
     }
   }
 
+  // A "distributed" schedule (see distributeInstallmentAmounts) is a materialized snapshot tied
+  // to the loan's financial params at the time it was built — once those change, the pending
+  // rows are wiped below and there is nothing left to trust as "distributed", so the loan reverts
+  // to ordinary formula-driven computation for its (now empty) pending installments.
+  const newScheduleMode = financialParamsChanged ? "formula" : (existingLoan.scheduleMode || "formula");
+
   const statements = [];
 
   const updateLoanSql = `
     UPDATE loans
     SET title = ?, lender_name = ?, principal_amount = ?,
         annual_interest_rate = ?, installment_count = ?,
-        interval_months = ?, start_date = ?, annual_fee_amount = ?, notes = ?, updated_at = ?
+        interval_months = ?, start_date = ?, annual_fee_amount = ?, schedule_mode = ?, notes = ?, updated_at = ?
     WHERE id = ? AND user_id = ?
   `;
   statements.push(
@@ -577,6 +600,7 @@ export async function dbUpdateLoan(env, userId, loanId, data) {
       newInterval,
       newStartDate,
       newAnnualFeeAmount,
+      newScheduleMode,
       newNotes,
       nowIso,
       loanId,
@@ -1065,6 +1089,12 @@ export async function dbSetInstallmentAmount(env, userId, loanId, installmentId,
     throw AppError.notFound("وام مورد نظر یافت نشد.");
   }
 
+  if (loan.scheduleMode === "distributed") {
+    throw AppError.badRequest(
+      "این وام با حالت «سفارشی‌سازی و تقسیم مساوی اقساط» ساخته شده است. برای ویرایش مبلغ اقساط از «ویرایش گروهی اقساط» استفاده کنید."
+    );
+  }
+
   const installments = [...loan.installments].sort((a, b) => a.installmentNumber - b.installmentNumber);
   const targetIdx = installments.findIndex(
     (inst) => inst.id === installmentId || String(inst.installmentNumber) === String(installmentId)
@@ -1156,6 +1186,119 @@ export async function dbSetInstallmentAmount(env, userId, loanId, installmentId,
 }
 
 /**
+ * Bulk re-plan every PENDING installment's amount at once ("ویرایش گروهی اقساط"): any subset of
+ * pending installments may be given a known/fixed amount, and every other pending installment —
+ * both before and after them — equally divides whatever's left of the loan's expected total
+ * repayment (see distributeInstallmentAmounts for the algorithm and why it deliberately does not
+ * reuse computeEffectiveSchedule's cascade). Already-paid installments are frozen and excluded.
+ *
+ * Re-materializes every pending installment as its own stored row (deletes the old pending rows
+ * first) and switches the loan into "distributed" schedule_mode, since after this call every
+ * pending installment's amount was explicitly decided rather than left to the formula. Available
+ * both right after creation and at any later point — each call fully replaces the prior plan for
+ * whatever is still pending at that time.
+ *
+ * @param {object} env
+ * @param {string} userId
+ * @param {string} loanId
+ * @param {Object<number, number>} knownAmounts - installmentNumber -> user-specified totalAmount
+ * @returns {Promise<object>} The updated loan with its recomputed installment list
+ */
+export async function dbBulkDistributeInstallments(env, userId, loanId, knownAmounts = {}) {
+  if (!userId || !loanId || !env || !env.DB) {
+    throw AppError.badRequest("پارامترهای درخواست ناقص است.");
+  }
+
+  await ensureD1Tables(env);
+
+  const loan = await dbGetLoanById(env, userId, loanId);
+  if (!loan) {
+    throw AppError.notFound("وام مورد نظر یافت نشد.");
+  }
+
+  const paidInstallments = loan.installments.filter((inst) => inst.isPaid);
+
+  const cleanKnownAmounts = {};
+  for (const [num, amt] of Object.entries(knownAmounts || {})) {
+    const n = parseInt(num, 10);
+    const a = Number(amt);
+    if (!Number.isInteger(n) || n < 1 || n > loan.installmentCount) {
+      throw AppError.badRequest(`شماره قسط سفارشی‌سازی‌شده (${n}) خارج از بازه معتبر است.`);
+    }
+    if (isNaN(a) || a <= 0) {
+      throw AppError.badRequest(`مبلغ سفارشی‌سازی‌شده برای قسط ${n} باید عددی بزرگتر از صفر باشد.`);
+    }
+    if (paidInstallments.some((p) => p.installmentNumber === n)) {
+      throw AppError.badRequest(`قسط ${n} قبلاً پرداخت شده و قابل ویرایش نیست.`);
+    }
+    cleanKnownAmounts[n] = a;
+  }
+
+  let distributedSchedule;
+  try {
+    distributedSchedule = distributeInstallmentAmounts({
+      loan,
+      paidInstallments,
+      knownAmounts: cleanKnownAmounts,
+    });
+  } catch (e) {
+    throw AppError.badRequest(e.message);
+  }
+
+  const pendingEntries = distributedSchedule.filter((inst) => !inst.isPaid);
+  const nowIso = new Date().toISOString();
+
+  const statements = [
+    env.DB.prepare(
+      `UPDATE loans SET schedule_mode = 'distributed', updated_at = ? WHERE id = ? AND user_id = ?`
+    ).bind(nowIso, loanId, userId),
+    env.DB.prepare(
+      `DELETE FROM loan_installment_states WHERE loan_id = ? AND user_id = ? AND is_paid = 0`
+    ).bind(loanId, userId),
+  ];
+
+  const insertStateSql = `
+    INSERT INTO loan_installment_states (
+      id, loan_id, user_id, installment_number, due_date,
+      principal_portion, interest_portion, total_amount,
+      remaining_balance_after, is_paid, paid_date, paid_amount,
+      is_manual_override, created_at, updated_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0, '', 0, 1, ?, ?)
+  `;
+  for (const inst of pendingEntries) {
+    statements.push(
+      env.DB.prepare(insertStateSql).bind(
+        inst.id || generateId("inst"),
+        loanId,
+        userId,
+        inst.installmentNumber,
+        inst.dueDate,
+        inst.principalPortion,
+        inst.interestPortion,
+        inst.totalAmount,
+        inst.remainingBalanceAfter,
+        nowIso,
+        nowIso
+      )
+    );
+  }
+
+  try {
+    if (typeof env.DB.batch === "function") {
+      await env.DB.batch(statements);
+    } else {
+      for (const stmt of statements) {
+        await stmt.run();
+      }
+    }
+    return await dbGetLoanById(env, userId, loanId);
+  } catch (e) {
+    logger.error("D1 dbBulkDistributeInstallments error:", { error: e.message, userId, loanId });
+    throw e;
+  }
+}
+
+/**
  * Add an extra (lump sum) payment to a loan.
  * Writes ONLY the single row in `loan_extra_payments` with cached anchor & resulting balances.
  * No subsequent installments are deleted or re-inserted.
@@ -1195,6 +1338,12 @@ export async function dbAddExtraPayment(env, userId, loanId, {
   const loan = await dbGetLoanById(env, userId, loanId);
   if (!loan) {
     throw AppError.notFound("وام مورد نظر یافت نشد.");
+  }
+
+  if (loan.scheduleMode === "distributed") {
+    throw AppError.badRequest(
+      "ثبت پرداخت اضافه برای وام‌هایی با حالت «سفارشی‌سازی و تقسیم مساوی اقساط» پشتیبانی نمی‌شود."
+    );
   }
 
   const paidInstallments = loan.installments.filter((inst) => inst.isPaid);

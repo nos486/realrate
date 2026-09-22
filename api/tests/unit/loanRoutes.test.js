@@ -13,6 +13,7 @@ vi.mock('../../src/repositories/index.js', () => ({
   dbMarkInstallmentPaid: vi.fn(),
   dbUnmarkInstallmentPaid: vi.fn(),
   dbSetInstallmentAmount: vi.fn(),
+  dbBulkDistributeInstallments: vi.fn(),
   dbAddExtraPayment: vi.fn(),
   dbGetLoanExtraPayments: vi.fn(),
 }));
@@ -27,6 +28,7 @@ import {
   dbMarkInstallmentPaid,
   dbUnmarkInstallmentPaid,
   dbSetInstallmentAmount,
+  dbBulkDistributeInstallments,
   dbAddExtraPayment,
   dbGetLoanExtraPayments,
 } from '../../src/repositories/index.js';
@@ -38,6 +40,7 @@ import {
   handleDeleteLoan,
   handleUpdateInstallment,
   handleSetInstallmentAmount,
+  handleBulkDistributeInstallments,
   handleAddExtraPayment,
   handleGetLoanExtraPayments,
 } from '../../src/handlers/loanRoutes.js';
@@ -239,6 +242,26 @@ describe('Loan Routes Handlers (هندلرهای API وام‌ها)', () => {
       await expect(
         handleSetInstallmentAmount(req, mockEnv, { loanId: 'l_1', installmentId: 'inst_1' })
       ).rejects.toThrow();
+    });
+  });
+
+  describe('PUT /api/loans/:id/installments/bulk', () => {
+    it('re-plans installments and returns the updated loan', async () => {
+      getAuthenticatedUser.mockResolvedValue({ userId: 'u_1' });
+      dbBulkDistributeInstallments.mockResolvedValue({ id: 'l_1', scheduleMode: 'distributed' });
+
+      const req = new Request('https://realrate.ir/api/loans/l_1/installments/bulk', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ knownAmounts: { 1: 2000000, 6: 500000 } }),
+      });
+
+      const res = await handleBulkDistributeInstallments(req, mockEnv, { loanId: 'l_1' });
+      expect(res.status).toBe(200);
+      const json = await res.json();
+      expect(json.success).toBe(true);
+      expect(json.loan.scheduleMode).toBe('distributed');
+      expect(dbBulkDistributeInstallments).toHaveBeenCalledWith(mockEnv, 'u_1', 'l_1', { 1: 2000000, 6: 500000 });
     });
   });
 

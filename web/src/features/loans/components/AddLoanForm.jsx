@@ -21,7 +21,7 @@ import ShamsiDatePicker, {
 import {
   calculateFixedInstallmentAmount,
   solveAnnualRateFromKnownPayments,
-  computeEffectiveSchedule,
+  distributeInstallmentAmounts,
 } from '../../../utils/loanCalculator.js';
 
 const formatPersianNum = (val) => Number(val || 0).toLocaleString('fa-IR');
@@ -145,12 +145,14 @@ export default function AddLoanForm({
   }, [cleanPrincipal, cleanRate, cleanCount, intervalMonths]);
 
   // Live preview for the per-installment customization panel (creation-only): every installment
-  // the user has typed a value for is fed back in as a manual override, and computeEffectiveSchedule
-  // — the same function that drives the real cascading reflow after dbSetInstallmentAmount — fills
-  // in every untouched installment in between/after them automatically off the loan's rate. Editing
-  // only installment #1 and the last one, for example, auto-divides everything between them.
-  const liveSchedule = useMemo(() => {
-    if (installmentMode !== 'customEach' || cleanPrincipal <= 0 || cleanCount <= 0) return [];
+  // the user has typed a value for is treated as known/fixed, and distributeInstallmentAmounts —
+  // the exact same function dbCreateLoan/dbBulkDistributeInstallments use — equally divides
+  // whatever's left of the loan's expected total repayment among every OTHER installment, both
+  // before and after the touched ones (not a forward-only cascade).
+  const customEachResult = useMemo(() => {
+    if (installmentMode !== 'customEach' || cleanPrincipal <= 0 || cleanCount <= 0) {
+      return { schedule: [], error: null };
+    }
     const loan = {
       principalAmount: cleanPrincipal,
       annualInterestRate: cleanRate,
@@ -158,16 +160,19 @@ export default function AddLoanForm({
       intervalMonths,
       startDate: startDateIso || new Date().toISOString().split('T')[0],
     };
-    const installmentStates = Object.entries(customAmounts)
-      .map(([num, val]) => ({
-        installmentNumber: parseInt(num, 10),
-        totalAmount: Number(String(val || '').replace(/,/g, '').trim()),
-        isManualOverride: true,
-        isPaid: false,
-      }))
-      .filter((s) => s.installmentNumber >= 1 && s.installmentNumber <= cleanCount && s.totalAmount > 0);
-    return computeEffectiveSchedule({ loan, installmentStates });
+    const knownAmounts = Object.entries(customAmounts).reduce((map, [num, val]) => {
+      const amt = Number(String(val || '').replace(/,/g, '').trim());
+      if (amt > 0) map[num] = amt;
+      return map;
+    }, {});
+    try {
+      return { schedule: distributeInstallmentAmounts({ loan, knownAmounts }), error: null };
+    } catch (err) {
+      return { schedule: [], error: err.message || 'محاسبه ممکن نشد.' };
+    }
   }, [installmentMode, cleanPrincipal, cleanRate, cleanCount, intervalMonths, startDateIso, customAmounts]);
+
+  const liveSchedule = customEachResult.schedule;
 
   const liveTotalRepayment = useMemo(() => {
     if (liveInstallment <= 0 || cleanCount <= 0) return 0;
@@ -198,12 +203,10 @@ export default function AddLoanForm({
     return startDateIso !== origStart;
   }, [editingLoan, editingPaidCount, startDateIso]);
 
-  // In "customize each installment" mode, the manual amounts must still fully amortize the loan
-  const hasUnreconciledCustomSchedule = useMemo(() => {
-    if (installmentMode !== 'customEach' || liveSchedule.length === 0) return false;
-    const lastInst = liveSchedule[liveSchedule.length - 1];
-    return Number(lastInst?.remainingBalanceAfter || 0) > 0;
-  }, [installmentMode, liveSchedule]);
+  // In "customize each installment" mode, the manually-touched amounts must not exceed the
+  // loan's total expected repayment (distributeInstallmentAmounts always reconciles the rest
+  // to exactly zero on its own, so this is the only way this mode can fail).
+  const hasUnreconciledCustomSchedule = installmentMode === 'customEach' && Boolean(customEachResult.error);
 
   const handleSolveRate = () => {
     setRateSolveMessage(null);
@@ -269,7 +272,7 @@ export default function AddLoanForm({
         .filter((e) => e.installmentNumber >= 1 && e.installmentNumber <= cleanCount && e.totalAmount > 0);
 
       if (hasUnreconciledCustomSchedule) {
-        setFormError('با مبالغ فعلی، وام در پایان تسویه نمی‌شود. لطفاً مبلغ قسط آخر را طوری تنظیم کنید که مانده صفر شود.');
+        setFormError(customEachResult.error || 'مجموع مبالغ واردشده معتبر نیست.');
         return;
       }
     }
@@ -379,6 +382,11 @@ export default function AddLoanForm({
                   <>
                     {' '}تعداد اقساط نمی‌تواند کمتر از {editingPaidCount} و مبلغ اصل وام نمی‌تواند کمتر از مبلغ اصلِ قبلاً پرداخت‌شده باشد؛
                     همچنین تاریخ شروع وام پس از پرداخت اولین قسط قابل تغییر نیست.
+                  </>
+                )}
+                {editingLoan?.scheduleMode === 'distributed' && (
+                  <>
+                    {' '}این وام با «ویرایش گروهی اقساط» تقسیم‌بندی شده بود؛ با این تغییر، آن تقسیم‌بندی پاک می‌شود و اقساط باقیمانده دوباره طبق فرمول استاندارد محاسبه می‌شوند.
                   </>
                 )}
               </p>
@@ -597,14 +605,14 @@ export default function AddLoanForm({
 
             {installmentMode === 'customEach' && (
               <div style={{ marginTop: '12px', paddingTop: '10px', borderTop: '1px dashed rgba(255, 255, 255, 0.08)' }}>
-                {liveSchedule.length === 0 ? (
+                {cleanPrincipal <= 0 || cleanCount <= 0 ? (
                   <span style={{ display: 'block', fontSize: '0.8rem', color: '#94a3b8' }}>
                     ابتدا مبلغ اصل وام و تعداد اقساط را وارد کنید.
                   </span>
-                ) : (
+                ) : liveSchedule.length > 0 ? (
                   <>
                     <span style={{ display: 'block', fontSize: '0.74rem', color: '#94a3b8', marginBottom: '8px' }}>
-                      همه‌ی اقساط طبق نرخ سود از پیش پر شده‌اند. هر کدام را که ویرایش کنید، بقیه‌ی اقساطِ دست‌نخورده به‌طور خودکار بر اساس مانده باقیمانده بین آن‌ها تقسیم می‌شوند.
+                      همه‌ی اقساط طبق نرخ سود از پیش پر شده‌اند. هر قسطی را که ویرایش کنید، بقیه‌ی اقساطِ دست‌نخورده — چه قبل و چه بعد از آن — به‌طور مساوی از باقیمانده‌ی کل مبلغ قابل بازپرداخت سهم می‌گیرند.
                     </span>
                     <div style={{
                       maxHeight: '260px',
@@ -646,18 +654,13 @@ export default function AddLoanForm({
                         </tbody>
                       </table>
                     </div>
-                    {(() => {
-                      const lastInst = liveSchedule[liveSchedule.length - 1];
-                      const leftover = lastInst ? Number(lastInst.remainingBalanceAfter || 0) : 0;
-                      if (leftover <= 0) return null;
-                      return (
-                        <span style={{ display: 'flex', alignItems: 'flex-start', gap: '6px', fontSize: '0.76rem', color: '#f87171', marginTop: '8px' }}>
-                          <AlertCircle size={14} style={{ flexShrink: 0, marginTop: '1px' }} />
-                          با مبالغ فعلی، بعد از آخرین قسط {formatPersianNum(leftover)} تومان از وام تسویه‌نشده باقی می‌ماند — مبلغ قسط آخر را افزایش دهید یا اصلاح کنید.
-                        </span>
-                      );
-                    })()}
                   </>
+                ) : null}
+                {customEachResult.error && (
+                  <span style={{ display: 'flex', alignItems: 'flex-start', gap: '6px', fontSize: '0.76rem', color: '#f87171', marginTop: '8px' }}>
+                    <AlertCircle size={14} style={{ flexShrink: 0, marginTop: '1px' }} />
+                    {customEachResult.error}
+                  </span>
                 )}
               </div>
             )}

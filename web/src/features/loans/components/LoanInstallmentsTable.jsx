@@ -13,11 +13,13 @@ import {
   DollarSign,
   TrendingDown,
   History,
+  ListChecks,
 } from 'lucide-react';
 import { gregorianToShamsi, getTodayShamsi, shamsiToGregorian } from '../../portfolio/components/ShamsiDatePicker.jsx';
 import ShamsiDatePicker from '../../portfolio/components/ShamsiDatePicker.jsx';
 import NumericInput from '../../../shared/ui/NumericInput.jsx';
 import ExtraPaymentModal from './ExtraPaymentModal.jsx';
+import BulkEditInstallmentsModal from './BulkEditInstallmentsModal.jsx';
 
 const formatNum = (v) => Number(v || 0).toLocaleString('fa-IR');
 
@@ -29,10 +31,15 @@ export default function LoanInstallmentsTable({
   onUnmarkPaid,
   onSetInstallmentAmount,
   onAddExtraPayment,
+  onBulkDistributeInstallments,
   submitting = false,
 }) {
+  const isDistributedMode = loan?.scheduleMode === 'distributed';
+
   // Extra payment modal state
   const [isExtraPayOpen, setIsExtraPayOpen] = useState(false);
+  // Bulk edit ("ویرایش گروهی اقساط") modal state
+  const [isBulkEditOpen, setIsBulkEditOpen] = useState(false);
   // Active paying installment dialog state
   const [payingInstId, setPayingInstId] = useState(null);
   const [payDate, setPayDate] = useState('');
@@ -186,7 +193,33 @@ export default function LoanInstallmentsTable({
             </div>
           )}
 
-          {loan && Number(loan.remainingBalance ?? 0) > 0 && onAddExtraPayment && (
+          {loan && Number(loan.remainingBalance ?? 0) > 0 && onBulkDistributeInstallments && (
+            <button
+              type="button"
+              className="btn-extra-payment-trigger"
+              onClick={() => setIsBulkEditOpen(true)}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px',
+                background: 'rgba(96, 165, 250, 0.15)',
+                border: '1px solid rgba(96, 165, 250, 0.35)',
+                color: '#60a5fa',
+                padding: '6px 14px',
+                borderRadius: '8px',
+                fontSize: '0.82rem',
+                fontWeight: 600,
+                cursor: 'pointer',
+                transition: 'all 0.15s ease',
+              }}
+              title="مبلغ هر قسط را دستی تنظیم کنید؛ بقیه به‌طور خودکار و مساوی تقسیم می‌شوند"
+            >
+              <ListChecks size={14} />
+              <span>ویرایش گروهی اقساط</span>
+            </button>
+          )}
+
+          {loan && Number(loan.remainingBalance ?? 0) > 0 && onAddExtraPayment && !isDistributedMode && (
             <button
               type="button"
               className="btn-extra-payment-trigger"
@@ -212,6 +245,26 @@ export default function LoanInstallmentsTable({
           )}
         </div>
       </div>
+
+      {isDistributedMode && (
+        <div style={{
+          display: 'flex',
+          alignItems: 'flex-start',
+          gap: '8px',
+          background: 'rgba(96, 165, 250, 0.08)',
+          border: '1px solid rgba(96, 165, 250, 0.25)',
+          borderRadius: '10px',
+          padding: '10px 14px',
+          margin: '0 0 14px 0',
+          fontSize: '0.8rem',
+          color: '#93c5fd',
+        }}>
+          <ListChecks size={16} style={{ flexShrink: 0, marginTop: '1px' }} />
+          <span>
+            این وام با «سفارشی‌سازی و تقسیم مساوی اقساط» ساخته شده است. برای تغییر مبلغ اقساط از دکمه‌ی «ویرایش گروهی اقساط» استفاده کنید؛ پرداخت اضافه/یکجا برای این حالت در دسترس نیست.
+          </span>
+        </div>
+      )}
 
       {successMessage && (
         <div
@@ -345,7 +398,7 @@ export default function LoanInstallmentsTable({
                             + کارمزد سالانه
                           </span>
                         )}
-                        {!inst.isPaid && onSetInstallmentAmount && (
+                        {!inst.isPaid && onSetInstallmentAmount && !isDistributedMode && (
                           <button
                             type="button"
                             className="btn-edit-installment"
@@ -550,7 +603,7 @@ export default function LoanInstallmentsTable({
                       </span>
                     )}
                   </div>
-                  {!inst.isPaid && onSetInstallmentAmount && (
+                  {!inst.isPaid && onSetInstallmentAmount && !isDistributedMode && (
                     <button
                       type="button"
                       className="btn-edit-installment"
@@ -788,6 +841,16 @@ export default function LoanInstallmentsTable({
           onClose={() => setIsExtraPayOpen(false)}
           loan={loan}
           onSubmit={onAddExtraPayment}
+          submitting={submitting}
+        />
+      )}
+
+      {isBulkEditOpen && (
+        <BulkEditInstallmentsModal
+          isOpen={isBulkEditOpen}
+          onClose={() => setIsBulkEditOpen(false)}
+          loan={loan}
+          onSubmit={onBulkDistributeInstallments}
           submitting={submitting}
         />
       )}

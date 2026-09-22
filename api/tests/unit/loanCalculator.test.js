@@ -7,6 +7,7 @@ import {
   computeEffectiveSchedule,
   applyAnnualFee,
   solveAnnualRateFromKnownPayments,
+  distributeInstallmentAmounts,
 } from '../../src/domain/loanCalculator.js';
 
 describe('Loan Calculator Domain (ماشین حساب وام و اقساط)', () => {
@@ -838,6 +839,86 @@ describe('Loan Calculator Domain (ماشین حساب وام و اقساط)', ()
       const baseline = generateAmortizationSchedule(loan);
       expect(withoutFeeField).toEqual(baseline);
       expect(withZeroFee).toEqual(baseline);
+    });
+  });
+
+  describe('distributeInstallmentAmounts (تقسیم مساوی اقساط دست‌نخورده)', () => {
+    const loan = {
+      principalAmount: 300000000,
+      annualInterestRate: 4,
+      installmentCount: 60,
+      intervalMonths: 1,
+      startDate: '2026-01-01',
+    };
+
+    it('divides the remaining pool equally among ALL untouched installments, both before and after the touched one', () => {
+      const schedule = distributeInstallmentAmounts({
+        loan,
+        knownAmounts: { 30: 3000000 },
+      });
+
+      expect(schedule).toHaveLength(60);
+      expect(schedule[29].totalAmount).toBe(3000000); // the touched one keeps its exact value
+
+      // Every OTHER installment — both before (#1-29) and after (#31-60) — gets the same
+      // uniform divided amount, not just the ones after the touched installment.
+      const untouchedAmounts = new Set(
+        schedule.filter((_, i) => i !== 29).map((i) => i.totalAmount)
+      );
+      expect(untouchedAmounts.size).toBeLessThanOrEqual(2); // allow for a 1-toman rounding remainder on the last one
+      expect(schedule[0].totalAmount).toBe(schedule[28].totalAmount); // #1 same as #29
+      expect(schedule[0].totalAmount).toBe(schedule[30].totalAmount); // #1 same as #31 (after)
+    });
+
+    it('reconciles total principal exactly and zeroes the balance at the final installment', () => {
+      const schedule = distributeInstallmentAmounts({
+        loan,
+        knownAmounts: { 1: 12000000, 30: 3000000 },
+      });
+      const sumPrincipal = schedule.reduce((sum, i) => sum + i.principalPortion, 0);
+      expect(sumPrincipal).toBe(300000000);
+      expect(schedule[59].remainingBalanceAfter).toBe(0);
+    });
+
+    it('leaves already-paid installments untouched and excludes them from the split', () => {
+      const paidInstallments = [
+        { installmentNumber: 1, totalAmount: 5567752, principalPortion: 4567752, interestPortion: 1000000, remainingBalanceAfter: 295432248, dueDate: '2026-01-31', isPaid: true, paidDate: '2026-02-01' },
+        { installmentNumber: 2, totalAmount: 5567752, principalPortion: 4583000, interestPortion: 984752, remainingBalanceAfter: 290849248, dueDate: '2026-03-02', isPaid: true, paidDate: '2026-03-05' },
+      ];
+      const schedule = distributeInstallmentAmounts({
+        loan,
+        paidInstallments,
+        knownAmounts: { 30: 3000000 },
+      });
+
+      expect(schedule[0].isPaid).toBe(true);
+      expect(schedule[0].totalAmount).toBe(5567752);
+      expect(schedule[0].principalPortion).toBe(4567752);
+      expect(schedule[1].isPaid).toBe(true);
+      expect(schedule[1].totalAmount).toBe(5567752);
+
+      // Remaining principal to distribute must exclude the already-paid principal
+      const sumPrincipal = schedule.reduce((sum, i) => sum + i.principalPortion, 0);
+      expect(sumPrincipal).toBe(300000000);
+      expect(schedule[59].remainingBalanceAfter).toBe(0);
+
+      // Pending installments 3..29 and 31..60 must still all be uniform with each other
+      expect(schedule[2].totalAmount).toBe(schedule[28].totalAmount);
+      expect(schedule[2].totalAmount).toBe(schedule[30].totalAmount);
+    });
+
+    it('throws a clear error when the touched amounts exceed the loan total repayment', () => {
+      expect(() =>
+        distributeInstallmentAmounts({
+          loan,
+          knownAmounts: { 1: 400000000 }, // more than the entire expected repayment
+        })
+      ).toThrow(/بیشتر است/);
+    });
+
+    it('returns [] for an invalid loan (non-positive principal or count)', () => {
+      expect(distributeInstallmentAmounts({ loan: { ...loan, principalAmount: 0 } })).toEqual([]);
+      expect(distributeInstallmentAmounts({ loan: { ...loan, installmentCount: 0 } })).toEqual([]);
     });
   });
 });

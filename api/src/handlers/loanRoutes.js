@@ -8,6 +8,7 @@
  *   PUT    /api/loans/:id                                — Update loan details (rebuilds pending installments if needed)
  *   DELETE /api/loans/:id                                — Delete a loan
  *   PUT    /api/loans/:id/installments/:installmentId    — Pay or unpay a specific installment
+ *   PUT    /api/loans/:id/installments/bulk               — Re-plan every pending installment at once (equal-split)
  */
 
 import { getAuthenticatedUser } from "../lib/auth.js";
@@ -21,6 +22,7 @@ import {
   dbMarkInstallmentPaidCascade,
   dbUnmarkInstallmentPaid,
   dbSetInstallmentAmount,
+  dbBulkDistributeInstallments,
   dbAddExtraPayment,
   dbGetLoanExtraPayments,
 } from "../repositories/index.js";
@@ -221,6 +223,28 @@ export async function handleSetInstallmentAmount(request, env, params = {}) {
 
   const result = await dbSetInstallmentAmount(env, userId, loanId, installmentId, Number(totalAmount));
   return jsonResponse({ success: true, ...result }, 200, request);
+}
+
+/**
+ * PUT /api/loans/:id/installments/bulk
+ * Re-plan every pending installment's amount at once ("ویرایش گروهی اقساط"): any subset of
+ * pending installments may be given a known amount, and every other pending installment equally
+ * divides what's left of the loan's expected total repayment (see distributeInstallmentAmounts).
+ * Body: { knownAmounts: { [installmentNumber]: totalAmount } }
+ */
+export async function handleBulkDistributeInstallments(request, env, params = {}) {
+  const { userId } = await requireUser(request, env);
+  const loanId = params.loanId || params.id;
+
+  if (!loanId) {
+    throw AppError.badRequest("شناسه وام الزامی است.");
+  }
+
+  const body = await request.json().catch(() => ({}));
+  const knownAmounts = body.knownAmounts && typeof body.knownAmounts === "object" ? body.knownAmounts : {};
+
+  const loan = await dbBulkDistributeInstallments(env, userId, loanId, knownAmounts);
+  return jsonResponse({ success: true, loan }, 200, request);
 }
 
 /**

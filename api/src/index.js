@@ -66,6 +66,7 @@ import {
   handleDeleteLoan,
   handleUpdateInstallment,
   handleSetInstallmentAmount,
+  handleBulkDistributeInstallments,
   handleAddExtraPayment,
   handleGetLoanExtraPayments,
 } from "./handlers/loanRoutes.js";
@@ -187,6 +188,16 @@ export default {
       const installmentId = loanInstallmentAmountMatch[2];
       if (request.method === "PUT") {
         return wrap((req, e) => handleSetInstallmentAmount(req, e, { loanId, installmentId }))(request, env);
+      }
+    }
+
+    // Must be matched before loanInstallmentMatch below, since that generic pattern would
+    // otherwise treat "bulk" as an installmentId.
+    const loanInstallmentsBulkMatch = normalizedPath.match(/^\/api\/loans\/([^/]+)\/installments\/bulk$/);
+    if (loanInstallmentsBulkMatch) {
+      const loanId = loanInstallmentsBulkMatch[1];
+      if (request.method === "PUT") {
+        return wrap((req, e) => handleBulkDistributeInstallments(req, e, { loanId }))(request, env);
       }
     }
 

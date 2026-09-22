@@ -8,6 +8,7 @@ import {
   markInstallmentPaid as apiMarkPaid,
   unmarkInstallmentPaid as apiUnmarkPaid,
   setInstallmentAmount as apiSetInstallmentAmount,
+  bulkDistributeInstallments as apiBulkDistributeInstallments,
   addLoanExtraPayment as apiAddLoanExtraPayment,
   getLoanExtraPayments as apiGetLoanExtraPayments,
 } from '../api/loanApi.js';
@@ -200,6 +201,32 @@ export function useLoanDetail(loanId) {
   );
 
   /**
+   * Re-plan every pending installment's amount at once ("ویرایش گروهی اقساط")
+   * @param {Object<number, number>} knownAmounts - installmentNumber -> totalAmount
+   * @returns {Promise<object>}
+   */
+  const bulkDistributeInstallments = useCallback(
+    async (knownAmounts) => {
+      if (!loanId) return;
+
+      setSubmitting(true);
+      setError(null);
+
+      try {
+        const res = await apiBulkDistributeInstallments(loanId, knownAmounts);
+        await fetchLoan();
+        return res;
+      } catch (err) {
+        setError(err.message || 'خطا در ویرایش گروهی اقساط');
+        throw err;
+      } finally {
+        setSubmitting(false);
+      }
+    },
+    [loanId, fetchLoan]
+  );
+
+  /**
    * Record extra payment
    * @param {object} paymentData
    * @returns {Promise<object>}
@@ -236,6 +263,7 @@ export function useLoanDetail(loanId) {
     markPaid,
     unmarkPaid,
     setInstallmentAmount,
+    bulkDistributeInstallments,
     addExtraPayment,
   };
 }

@@ -48,6 +48,7 @@ function LoanDetailModal({ loanId, onClose, onRefreshLoans }) {
     markPaid,
     unmarkPaid,
     setInstallmentAmount,
+    bulkDistributeInstallments,
     addExtraPayment,
   } = useLoanDetail(loanId);
 
@@ -70,6 +71,12 @@ function LoanDetailModal({ loanId, onClose, onRefreshLoans }) {
 
   const handleAddExtraPayment = async (paymentData) => {
     const res = await addExtraPayment(paymentData);
+    onRefreshLoans?.();
+    return res;
+  };
+
+  const handleBulkDistributeInstallments = async (knownAmounts) => {
+    const res = await bulkDistributeInstallments(knownAmounts);
     onRefreshLoans?.();
     return res;
   };
@@ -109,6 +116,7 @@ function LoanDetailModal({ loanId, onClose, onRefreshLoans }) {
             onUnmarkPaid={handleUnmarkPaid}
             onSetInstallmentAmount={handleSetInstallmentAmount}
             onAddExtraPayment={handleAddExtraPayment}
+            onBulkDistributeInstallments={handleBulkDistributeInstallments}
             submitting={submitting}
           />
         </div>
