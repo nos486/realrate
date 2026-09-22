@@ -1090,9 +1090,12 @@ export function computeEffectiveSchedule({
  *   prefix starting at #1), used as-is and excluded from redistribution.
  * @param {Object<number, number>} [params.knownAmounts={}] - installmentNumber -> user-specified
  *   totalAmount for pending installments the user has explicitly set.
+ * @param {number} [params.totalRepaymentOverride] - When given, this exact figure (principal +
+ *   interest) is used as the pool to divide instead of the loan's rate-derived formula total —
+ *   for "I know my total repayment is exactly X, split it evenly" rather than "solve a rate".
  * @returns {Array<object>} Full installmentCount-length schedule, same shape as computeEffectiveSchedule's output
  */
-export function distributeInstallmentAmounts({ loan, paidInstallments = [], knownAmounts = {} }) {
+export function distributeInstallmentAmounts({ loan, paidInstallments = [], knownAmounts = {}, totalRepaymentOverride }) {
   const principal = Number(loan.principalAmount ?? loan.principal ?? 0);
   const installmentCount = parseInt(loan.installmentCount ?? 0, 10);
   const loanId = loan.id || loan.loanId || '';
@@ -1100,7 +1103,17 @@ export function distributeInstallmentAmounts({ loan, paidInstallments = [], know
   if (principal <= 0 || installmentCount <= 0) return [];
 
   const baseline = generateAmortizationSchedule(loan);
-  const baselineTotalRepayment = baseline.reduce((sum, i) => sum + i.totalAmount, 0);
+  // When the user supplies an explicit known total repayment (rather than deriving it from the
+  // loan's rate), that number IS the pool — not the rate-based formula total. This is what makes
+  // e.g. "I know my bank total is exactly 151,187,328, split it evenly over 12" reconcile exactly
+  // to that figure, instead of round-tripping through a notional back-solved rate first.
+  const baselineTotalRepayment = totalRepaymentOverride !== undefined && totalRepaymentOverride !== null
+    ? Number(totalRepaymentOverride)
+    : baseline.reduce((sum, i) => sum + i.totalAmount, 0);
+
+  if (totalRepaymentOverride !== undefined && totalRepaymentOverride !== null && baselineTotalRepayment < principal) {
+    throw new Error('مبلغ کل بازپرداخت نمی‌تواند کمتر از مبلغ اصل وام باشد.');
+  }
 
   const paidByNumber = new Map();
   for (const p of paidInstallments) {
@@ -1115,15 +1128,32 @@ export function distributeInstallmentAmounts({ loan, paidInstallments = [], know
   const knownByNumber = new Map(knownEntries);
   const touchedTotal = knownEntries.reduce((sum, [, amt]) => sum + amt, 0);
 
-  const fixedCount = paidByNumber.size + knownByNumber.size;
-  const untouchedCount = Math.max(0, installmentCount - fixedCount);
+  // Untouched installment numbers, in ascending order.
+  const untouchedNumbers = [];
+  for (let num = 1; num <= installmentCount; num++) {
+    if (!paidByNumber.has(num) && !knownByNumber.has(num)) untouchedNumbers.push(num);
+  }
+  const untouchedCount = untouchedNumbers.length;
   const leftoverPool = baselineTotalRepayment - paidTotal - touchedTotal;
 
   if (untouchedCount > 0 && leftoverPool < 0) {
     throw new Error('مجموع مبالغ واردشده از کل مبلغ قابل بازپرداخت وام بیشتر است.');
   }
 
+  // Assign each untouched installment's totalAmount so their SUM is EXACTLY leftoverPool — not
+  // just each individually rounded, which can drift the grand total by a few toman across many
+  // installments (this is what let a known total like 151,187,328 come back slightly off). The
+  // last untouched installment (by position) absorbs whatever rounding remainder is left.
   const perUntouchedTotal = untouchedCount > 0 ? Math.round(leftoverPool / untouchedCount) : 0;
+  const untouchedTotalByNumber = new Map();
+  untouchedNumbers.forEach((num, idx) => {
+    const isLastUntouched = idx === untouchedNumbers.length - 1;
+    untouchedTotalByNumber.set(
+      num,
+      isLastUntouched ? leftoverPool - perUntouchedTotal * (untouchedCount - 1) : perUntouchedTotal
+    );
+  });
+
   const principalRatio = baselineTotalRepayment > 0 ? principal / baselineTotalRepayment : 1;
 
   const schedule = [];
@@ -1158,7 +1188,7 @@ export function distributeInstallmentAmounts({ loan, paidInstallments = [], know
       continue;
     }
 
-    const totalAmount = knownByNumber.has(num) ? knownByNumber.get(num) : perUntouchedTotal;
+    const totalAmount = knownByNumber.has(num) ? knownByNumber.get(num) : untouchedTotalByNumber.get(num);
     let principalPortion = Math.round(totalAmount * principalRatio);
     if (principalPortion < 0) principalPortion = 0;
     if (principalPortion > runningBalance) principalPortion = runningBalance;
@@ -1184,14 +1214,16 @@ export function distributeInstallmentAmounts({ loan, paidInstallments = [], know
     lastPendingIndex = schedule.length - 1;
   }
 
-  // Reconcile rounding onto the last pending installment so total principal is always exact.
-  // Paid installments are historical/frozen and must never be adjusted.
+  // Reconcile principal rounding onto the last pending installment's principal/interest SPLIT
+  // only — shifting `diff` between principalPortion and interestPortion, never touching
+  // totalAmount, which must stay exactly what was specified or evenly divided above. Paid
+  // installments are historical/frozen and must never be adjusted.
   const sumPrincipal = schedule.reduce((sum, i) => sum + i.principalPortion, 0);
   const diff = principal - sumPrincipal;
   if (diff !== 0 && lastPendingIndex >= 0) {
     const inst = schedule[lastPendingIndex];
     inst.principalPortion += diff;
-    inst.totalAmount += diff;
+    inst.interestPortion -= diff;
     inst.remainingBalanceAfter = Math.max(0, inst.remainingBalanceAfter - diff);
   }
 

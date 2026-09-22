@@ -42,12 +42,12 @@ export default function AddLoanForm({
   const [installmentCount, setInstallmentCount] = useState('12');
   const [intervalMonths, setIntervalMonths] = useState(1);
 
-  // Total repayment (principal + interest) is kept in sync with principal & rate — a 3-way
-  // relationship where only 2 are ever independent (given a fixed installment count): whichever
-  // of the three the user last touched drives the other two. `lastEditedField` tracks which one
-  // is currently "driving" so the sync effect below doesn't fight the field the user is typing in.
+  // Only used in installmentMode === 'totalRepaymentBased' — the user-known exact total
+  // (principal + interest) that gets divided evenly across all installments, with NO notional
+  // rate solved or involved. Kept entirely separate from the rate-based modes so editing it can
+  // never surprise the user by silently recomputing/overriding the rate (see git history for the
+  // confusing back-solve behavior this replaced).
   const [totalRepaymentAmount, setTotalRepaymentAmount] = useState('');
-  const [lastEditedField, setLastEditedField] = useState(null); // 'principal' | 'rate' | 'total' | null
   const [startDateIso, setStartDateIso] = useState(new Date().toISOString().split('T')[0]);
   const [startDateShamsi, setStartDateShamsi] = useState(getTodayShamsi());
   const [annualFeeAmount, setAnnualFeeAmount] = useState('');
@@ -76,7 +76,6 @@ export default function AddLoanForm({
     setKnownSubsequentAmount('');
     setRateSolveMessage(null);
     setTotalRepaymentAmount('');
-    setLastEditedField(null);
 
     if (editingLoan) {
       setTitle(editingLoan.title || '');
@@ -209,34 +208,47 @@ export default function AddLoanForm({
     return Math.max(0, liveTotalRepayment - cleanPrincipal);
   }, [liveTotalRepayment, cleanPrincipal]);
 
-  // Keep the total-repayment field synced to principal+rate whenever THOSE are the field the
-  // user is actively driving — but not while the user is typing into the total field itself,
-  // otherwise this would immediately overwrite what they're typing.
-  useEffect(() => {
-    if (lastEditedField === 'total') return;
-    setTotalRepaymentAmount(liveTotalRepayment > 0 ? String(liveTotalRepayment) : '');
-  }, [liveTotalRepayment, lastEditedField]);
+  const cleanTotalRepaymentInput = useMemo(() => {
+    const s = String(totalRepaymentAmount || '').replace(/,/g, '').trim();
+    return Number(s) || 0;
+  }, [totalRepaymentAmount]);
 
-  const handleTotalRepaymentChange = (val) => {
-    setTotalRepaymentAmount(val);
-    setLastEditedField('total');
-
-    const cleanTotal = Number(String(val || '').replace(/,/g, '').trim());
-    if (cleanPrincipal <= 0 || cleanCount <= 0 || !cleanTotal || cleanTotal < cleanPrincipal) {
-      return; // Not a usable value yet (e.g. still mid-typing) — leave the rate untouched.
+  // Live preview for installmentMode === 'totalRepaymentBased': the exact total the user typed
+  // is divided evenly across all installments (no rate involved at all — see
+  // distributeInstallmentAmounts's totalRepaymentOverride).
+  const totalBasedResult = useMemo(() => {
+    if (installmentMode !== 'totalRepaymentBased' || cleanPrincipal <= 0 || cleanCount <= 0) {
+      return { schedule: [], error: null };
     }
+    if (cleanTotalRepaymentInput <= 0) {
+      return { schedule: [], error: null };
+    }
+    const loan = {
+      principalAmount: cleanPrincipal,
+      installmentCount: cleanCount,
+      intervalMonths,
+      startDate: startDateIso || new Date().toISOString().split('T')[0],
+    };
     try {
-      const { annualRatePct } = solveAnnualRateFromTotalRepayment({
-        principal: cleanPrincipal,
-        installmentCount: cleanCount,
-        totalRepayment: cleanTotal,
-        intervalMonths,
-      });
-      setAnnualInterestRate(String(annualRatePct));
-    } catch {
-      // Silently ignore — the field keeps whatever the user typed, rate stays at its last value.
+      const schedule = distributeInstallmentAmounts({ loan, totalRepaymentOverride: cleanTotalRepaymentInput });
+      // Approximate equivalent annual rate, for the user's own reference only — never sent to
+      // the server and never used to compute the actual (flat, exact) installment amounts.
+      let approxRatePct = null;
+      try {
+        approxRatePct = solveAnnualRateFromTotalRepayment({
+          principal: cleanPrincipal,
+          installmentCount: cleanCount,
+          totalRepayment: cleanTotalRepaymentInput,
+          intervalMonths,
+        }).annualRatePct;
+      } catch {
+        approxRatePct = null;
+      }
+      return { schedule, error: null, approxRatePct };
+    } catch (err) {
+      return { schedule: [], error: err.message || 'محاسبه ممکن نشد.', approxRatePct: null };
     }
-  };
+  }, [installmentMode, cleanPrincipal, cleanCount, intervalMonths, startDateIso, cleanTotalRepaymentInput]);
 
   // Check if financial parameters were altered in edit mode
   const isFinancialTermsChanged = useMemo(() => {
@@ -261,6 +273,9 @@ export default function AddLoanForm({
   // loan's total expected repayment (distributeInstallmentAmounts always reconciles the rest
   // to exactly zero on its own, so this is the only way this mode can fail).
   const hasUnreconciledCustomSchedule = installmentMode === 'customEach' && Boolean(customEachResult.error);
+
+  const isTotalRepaymentInvalid = installmentMode === 'totalRepaymentBased' &&
+    (cleanTotalRepaymentInput <= 0 || Boolean(totalBasedResult.error));
 
   const handleSolveRate = () => {
     setRateSolveMessage(null);
@@ -331,12 +346,25 @@ export default function AddLoanForm({
       }
     }
 
+    let totalRepaymentAmountToSubmit = null;
+    if (installmentMode === 'totalRepaymentBased') {
+      if (cleanTotalRepaymentInput <= 0) {
+        setFormError('لطفاً مبلغ کل بازپرداخت را وارد نمایید.');
+        return;
+      }
+      if (totalBasedResult.error) {
+        setFormError(totalBasedResult.error);
+        return;
+      }
+      totalRepaymentAmountToSubmit = cleanTotalRepaymentInput;
+    }
+
     try {
       await onSubmit?.({
         title: title.trim(),
         lenderName: lenderName.trim(),
         principalAmount: cleanPrincipal,
-        annualInterestRate: cleanRate,
+        annualInterestRate: installmentMode === 'totalRepaymentBased' ? 0 : cleanRate,
         installmentCount: cleanCount,
         intervalMonths,
         startDate: startDateIso || new Date().toISOString().split('T')[0],
@@ -344,6 +372,7 @@ export default function AddLoanForm({
         notes: notes.trim(),
         customFirstInstallmentAmount: cleanFirstInst,
         customInstallments,
+        totalRepaymentAmount: totalRepaymentAmountToSubmit,
       });
       onClose();
     } catch (err) {
@@ -364,7 +393,7 @@ export default function AddLoanForm({
       <button
         type="submit"
         className="btn-primary"
-        disabled={submitting || cleanPrincipal <= 0 || cleanCount <= 0 || isCountBelowPaid || isStartDateChangedAfterPaid || hasUnreconciledCustomSchedule}
+        disabled={submitting || cleanPrincipal <= 0 || cleanCount <= 0 || isCountBelowPaid || isStartDateChangedAfterPaid || hasUnreconciledCustomSchedule || isTotalRepaymentInvalid}
         style={{ minWidth: '130px' }}
       >
         {submitting ? (
@@ -472,10 +501,7 @@ export default function AddLoanForm({
           </label>
           <NumericInput
             value={principalAmount}
-            onValueChange={(val) => {
-              setPrincipalAmount(val);
-              setLastEditedField('principal');
-            }}
+            onValueChange={(val) => setPrincipalAmount(val)}
             placeholder="مثلاً ۱۰۰,۰۰۰,۰۰۰"
             affix="تومان"
             className="form-input"
@@ -483,36 +509,35 @@ export default function AddLoanForm({
           />
         </div>
 
-        {/* Row 3: Rate & Installment Count */}
+        {/* Row 3: Rate (rate-based modes only) & Installment Count */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '14px', marginBottom: '14px' }}>
-          <div className="form-item">
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
-              <label className="ui-input-label">نرخ سود سالانه (٪)</label>
-              {cleanRate === 0 && (
-                <span style={{
-                  fontSize: '0.75rem',
-                  padding: '1px 8px',
-                  borderRadius: '12px',
-                  background: 'rgba(16, 185, 129, 0.15)',
-                  color: '#34d399',
-                  fontWeight: 600,
-                }}>
-                  قرض‌الحسنه
-                </span>
-              )}
+          {installmentMode !== 'totalRepaymentBased' && (
+            <div className="form-item">
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                <label className="ui-input-label">نرخ سود سالانه (٪)</label>
+                {cleanRate === 0 && (
+                  <span style={{
+                    fontSize: '0.75rem',
+                    padding: '1px 8px',
+                    borderRadius: '12px',
+                    background: 'rgba(16, 185, 129, 0.15)',
+                    color: '#34d399',
+                    fontWeight: 600,
+                  }}>
+                    قرض‌الحسنه
+                  </span>
+                )}
+              </div>
+              <NumericInput
+                value={annualInterestRate}
+                onValueChange={(val) => setAnnualInterestRate(val)}
+                placeholder="۰ برای بدون سود"
+                affix="٪"
+                allowDecimals={true}
+                className="form-input"
+              />
             </div>
-            <NumericInput
-              value={annualInterestRate}
-              onValueChange={(val) => {
-                setAnnualInterestRate(val);
-                setLastEditedField('rate');
-              }}
-              placeholder="۰ برای بدون سود"
-              affix="٪"
-              allowDecimals={true}
-              className="form-input"
-            />
-          </div>
+          )}
 
           <div className="form-item">
             <label className="ui-input-label" style={{ display: 'block', marginBottom: '6px' }}>
@@ -527,6 +552,33 @@ export default function AddLoanForm({
               required
             />
           </div>
+
+          {installmentMode === 'totalRepaymentBased' && (
+            <div className="form-item">
+              <label className="ui-input-label" style={{ display: 'block', marginBottom: '6px' }}>
+                کل بازپرداخت (اصل + سود) *
+              </label>
+              <NumericInput
+                value={totalRepaymentAmount}
+                onValueChange={(val) => setTotalRepaymentAmount(val)}
+                placeholder="مبلغ دقیقی که طبق بانک باید در مجموع پس بدهید"
+                affix="تومان"
+                className="form-input"
+                required
+              />
+              {totalBasedResult.approxRatePct !== null && totalBasedResult.approxRatePct !== undefined && (
+                <span style={{ display: 'block', fontSize: '0.74rem', color: '#94a3b8', marginTop: '6px' }}>
+                  نرخ سود معادل تقریبی: {totalBasedResult.approxRatePct}٪ (فقط اطلاعاتی — در محاسبه اقساط استفاده نمی‌شود)
+                </span>
+              )}
+              {totalBasedResult.error && (
+                <span style={{ display: 'flex', alignItems: 'flex-start', gap: '6px', fontSize: '0.76rem', color: '#f87171', marginTop: '6px' }}>
+                  <AlertCircle size={14} style={{ flexShrink: 0, marginTop: '1px' }} />
+                  {totalBasedResult.error}
+                </span>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Row 4: Start Date & Payment Interval */}
@@ -598,14 +650,25 @@ export default function AddLoanForm({
                 setCustomAmounts({});
                 setKnownSubsequentAmount('');
                 setRateSolveMessage(null);
+                setTotalRepaymentAmount('');
               }}
               className="form-select"
               style={{ height: '42px', width: '100%' }}
             >
-              <option value="standard">فرمول استاندارد (پیشنهادی)</option>
-              <option value="customFirst">قسط اول متفاوت است</option>
-              <option value="customEach">سفارشی‌سازی تک‌تک اقساط</option>
+              <optgroup label="بر اساس نرخ سود">
+                <option value="standard">فرمول استاندارد (پیشنهادی)</option>
+                <option value="customFirst">قسط اول متفاوت است</option>
+                <option value="customEach">سفارشی‌سازی تک‌تک اقساط</option>
+              </optgroup>
+              <optgroup label="بر اساس کل بازپرداخت">
+                <option value="totalRepaymentBased">کل بازپرداخت را می‌دانم (بدون نرخ سود)</option>
+              </optgroup>
             </select>
+            {installmentMode === 'totalRepaymentBased' && (
+              <span style={{ display: 'block', fontSize: '0.74rem', color: '#94a3b8', marginTop: '8px' }}>
+                مبلغ دقیق کل بازپرداختی که بانک اعلام کرده را وارد کنید — بدون نیاز به دانستن نرخ سود، این مبلغ به‌طور مساوی بین همه‌ی اقساط تقسیم می‌شود.
+              </span>
+            )}
 
             {installmentMode === 'customFirst' && (
               <div style={{ marginTop: '12px', paddingTop: '10px', borderTop: '1px dashed rgba(255, 255, 255, 0.08)' }}>
@@ -727,7 +790,8 @@ export default function AddLoanForm({
           </div>
         )}
 
-        {/* Live Calculation Preview Box */}
+        {/* Live Calculation Preview Box — rate-based modes only */}
+        {installmentMode !== 'totalRepaymentBased' && (
         <div style={{
           background: 'var(--bg-card-dark, rgba(15, 23, 42, 0.7))',
           border: '1px solid var(--border-color, rgba(255, 255, 255, 0.08))',
@@ -760,25 +824,14 @@ export default function AddLoanForm({
               </span>
             </div>
 
-            {/* Total Repayment — editable in standard mode: synced with principal & rate, and
-                editing it back-solves the rate (holding principal fixed) */}
+            {/* Total Repayment (read-only preview, computed from the real schedule generator) */}
             <div style={{ background: 'rgba(255, 255, 255, 0.03)', padding: '10px', borderRadius: '8px' }}>
               <span style={{ display: 'block', fontSize: '0.75rem', color: '#94a3b8', marginBottom: '4px' }}>
                 کل بازپرداخت (اصل + سود):
               </span>
-              {installmentMode === 'standard' && cleanPrincipal > 0 && cleanCount > 0 ? (
-                <NumericInput
-                  value={totalRepaymentAmount}
-                  onValueChange={handleTotalRepaymentChange}
-                  affix="تومان"
-                  className="form-input"
-                  style={{ fontWeight: 600 }}
-                />
-              ) : (
-                <span style={{ fontSize: '0.92rem', fontWeight: 600, color: '#e2e8f0' }}>
-                  {liveTotalRepayment > 0 ? `${formatPersianNum(liveTotalRepayment)} تومان` : '—'}
-                </span>
-              )}
+              <span style={{ fontSize: '0.92rem', fontWeight: 600, color: '#e2e8f0' }}>
+                {liveTotalRepayment > 0 ? `${formatPersianNum(liveTotalRepayment)} تومان` : '—'}
+              </span>
             </div>
 
             {/* Total Interest */}
@@ -796,6 +849,51 @@ export default function AddLoanForm({
             </div>
           </div>
         </div>
+        )}
+
+        {/* Live Preview — totalRepaymentBased mode: a flat, equal division of the exact known
+            total, guaranteed to reconcile to it exactly (no rate/formula involved) */}
+        {installmentMode === 'totalRepaymentBased' && totalBasedResult.schedule.length > 0 && (
+          <div style={{
+            background: 'var(--bg-card-dark, rgba(15, 23, 42, 0.7))',
+            border: '1px solid var(--border-color, rgba(255, 255, 255, 0.08))',
+            borderRadius: '12px',
+            padding: '14px 16px',
+            marginBottom: '14px',
+            boxShadow: '0 4px 16px rgba(0, 0, 0, 0.2)',
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--text-secondary, #94a3b8)', fontSize: '0.85rem', marginBottom: '10px' }}>
+              <Calculator size={16} className="text-amber-400" />
+              <span style={{ fontWeight: 600 }}>پیش‌نمایش زنده اقساط (تقسیم مساوی کل بازپرداخت)</span>
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '12px' }}>
+              <div style={{ background: 'rgba(255, 255, 255, 0.03)', padding: '10px', borderRadius: '8px' }}>
+                <span style={{ display: 'block', fontSize: '0.75rem', color: '#94a3b8', marginBottom: '4px' }}>
+                  مبلغ هر قسط:
+                </span>
+                <span style={{ fontSize: '1rem', fontWeight: 700, color: '#f59e0b' }}>
+                  {formatPersianNum(totalBasedResult.schedule[0].totalAmount)} تومان
+                </span>
+              </div>
+              <div style={{ background: 'rgba(255, 255, 255, 0.03)', padding: '10px', borderRadius: '8px' }}>
+                <span style={{ display: 'block', fontSize: '0.75rem', color: '#94a3b8', marginBottom: '4px' }}>
+                  کل بازپرداخت (اصل + سود):
+                </span>
+                <span style={{ fontSize: '0.92rem', fontWeight: 600, color: '#e2e8f0' }}>
+                  {formatPersianNum(cleanTotalRepaymentInput)} تومان
+                </span>
+              </div>
+              <div style={{ background: 'rgba(255, 255, 255, 0.03)', padding: '10px', borderRadius: '8px' }}>
+                <span style={{ display: 'block', fontSize: '0.75rem', color: '#94a3b8', marginBottom: '4px' }}>
+                  مجموع سود وام:
+                </span>
+                <span style={{ fontSize: '0.92rem', fontWeight: 600, color: '#e2e8f0' }}>
+                  {formatPersianNum(Math.max(0, cleanTotalRepaymentInput - cleanPrincipal))} تومان
+                </span>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Row 6: Notes */}
         <Input

@@ -242,8 +242,9 @@ export async function handleBulkDistributeInstallments(request, env, params = {}
 
   const body = await request.json().catch(() => ({}));
   const knownAmounts = body.knownAmounts && typeof body.knownAmounts === "object" ? body.knownAmounts : {};
+  const totalRepaymentAmount = body.totalRepaymentAmount ?? body.total_repayment_amount;
 
-  const loan = await dbBulkDistributeInstallments(env, userId, loanId, knownAmounts);
+  const loan = await dbBulkDistributeInstallments(env, userId, loanId, knownAmounts, totalRepaymentAmount);
   return jsonResponse({ success: true, loan }, 200, request);
 }
 

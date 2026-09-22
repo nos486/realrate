@@ -136,12 +136,26 @@ export async function dbCreateLoan(env, userId, data) {
       return map;
     }, {});
 
+  // "Total repayment basis" ("بر اساس کل بازپرداخت"): the user supplies the exact total they
+  // know they must repay instead of a rate, and every installment simply divides that figure
+  // evenly (see distributeInstallmentAmounts's totalRepaymentOverride) — no notional rate is
+  // solved or involved in the actual math at all.
+  const totalRepaymentInput = data.totalRepaymentAmount !== undefined && data.totalRepaymentAmount !== null
+    ? Number(data.totalRepaymentAmount)
+    : data.total_repayment_amount !== undefined && data.total_repayment_amount !== null
+    ? Number(data.total_repayment_amount)
+    : null;
+  if (totalRepaymentInput !== null && (isNaN(totalRepaymentInput) || totalRepaymentInput <= 0)) {
+    throw AppError.badRequest("مبلغ کل بازپرداخت باید عددی بزرگتر از صفر باشد.");
+  }
+
   let distributedSchedule = [];
-  if (Object.keys(customInstallmentsInput).length > 0) {
+  if (Object.keys(customInstallmentsInput).length > 0 || totalRepaymentInput) {
     try {
       distributedSchedule = distributeInstallmentAmounts({
         loan: { principalAmount, annualInterestRate, installmentCount, intervalMonths, startDate },
         knownAmounts: customInstallmentsInput,
+        totalRepaymentOverride: totalRepaymentInput || undefined,
       });
     } catch (e) {
       throw AppError.badRequest(e.message);
@@ -1202,11 +1216,19 @@ export async function dbSetInstallmentAmount(env, userId, loanId, installmentId,
  * @param {string} userId
  * @param {string} loanId
  * @param {Object<number, number>} knownAmounts - installmentNumber -> user-specified totalAmount
+ * @param {number} [totalRepaymentAmount] - When given, this exact total (principal + interest)
+ *   is the pool divided evenly, instead of a rate-derived formula total ("بر اساس کل بازپرداخت")
  * @returns {Promise<object>} The updated loan with its recomputed installment list
  */
-export async function dbBulkDistributeInstallments(env, userId, loanId, knownAmounts = {}) {
+export async function dbBulkDistributeInstallments(env, userId, loanId, knownAmounts = {}, totalRepaymentAmount) {
   if (!userId || !loanId || !env || !env.DB) {
     throw AppError.badRequest("پارامترهای درخواست ناقص است.");
+  }
+  if (totalRepaymentAmount !== undefined && totalRepaymentAmount !== null) {
+    const t = Number(totalRepaymentAmount);
+    if (isNaN(t) || t <= 0) {
+      throw AppError.badRequest("مبلغ کل بازپرداخت باید عددی بزرگتر از صفر باشد.");
+    }
   }
 
   await ensureD1Tables(env);
@@ -1240,6 +1262,7 @@ export async function dbBulkDistributeInstallments(env, userId, loanId, knownAmo
       loan,
       paidInstallments,
       knownAmounts: cleanKnownAmounts,
+      totalRepaymentOverride: totalRepaymentAmount ? Number(totalRepaymentAmount) : undefined,
     });
   } catch (e) {
     throw AppError.badRequest(e.message);

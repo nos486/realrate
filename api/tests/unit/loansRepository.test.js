@@ -993,6 +993,55 @@ describe('Loans Repository D1 Operations', () => {
     });
   });
 
+  describe('dbCreateLoan with totalRepaymentAmount (بر اساس کل بازپرداخت دقیق، بدون نرخ)', () => {
+    it('splits a known total repayment evenly across all installments, ignoring the rate field entirely', async () => {
+      const loan = await dbCreateLoan(mockEnv, 'user_1', {
+        title: 'وام بر اساس کل بازپرداخت',
+        principalAmount: 130000000,
+        annualInterestRate: 20, // should have no effect on the actual math in this mode
+        installmentCount: 12,
+        startDate: '2026-01-01',
+        totalRepaymentAmount: 151187328,
+      });
+
+      expect(loan.scheduleMode).toBe('distributed');
+      expect(loan.installments).toHaveLength(12);
+      const sumTotal = loan.installments.reduce((sum, i) => sum + i.totalAmount, 0);
+      expect(sumTotal).toBe(151187328);
+      const sumPrincipal = loan.installments.reduce((sum, i) => sum + i.principalPortion, 0);
+      expect(sumPrincipal).toBe(130000000);
+      expect(loan.installments[11].remainingBalanceAfter).toBe(0);
+
+      // All installments equal (or within 1 toman rounding remainder on the last)
+      const uniqueAmounts = new Set(loan.installments.map((i) => i.totalAmount));
+      expect(uniqueAmounts.size).toBeLessThanOrEqual(2);
+    });
+
+    it('rejects a non-positive totalRepaymentAmount', async () => {
+      await expect(
+        dbCreateLoan(mockEnv, 'user_1', {
+          title: 'وام نامعتبر',
+          principalAmount: 10000000,
+          installmentCount: 12,
+          startDate: '2026-01-01',
+          totalRepaymentAmount: 0,
+        })
+      ).rejects.toThrow(/باید عددی بزرگتر از صفر/);
+    });
+
+    it('rejects a totalRepaymentAmount lower than the principal', async () => {
+      await expect(
+        dbCreateLoan(mockEnv, 'user_1', {
+          title: 'وام نامعتبر',
+          principalAmount: 10000000,
+          installmentCount: 12,
+          startDate: '2026-01-01',
+          totalRepaymentAmount: 5000000,
+        })
+      ).rejects.toThrow(/کمتر از مبلغ اصل وام/);
+    });
+  });
+
   describe('dbBulkDistributeInstallments (ویرایش گروهی اقساط پس از ساخت وام)', () => {
     it('re-plans a plain formula loan into a distributed one, dividing symmetrically around the touched installment', async () => {
       const loan = await dbCreateLoan(mockEnv, 'user_1', {

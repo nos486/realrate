@@ -261,7 +261,21 @@ describe('Loan Routes Handlers (هندلرهای API وام‌ها)', () => {
       const json = await res.json();
       expect(json.success).toBe(true);
       expect(json.loan.scheduleMode).toBe('distributed');
-      expect(dbBulkDistributeInstallments).toHaveBeenCalledWith(mockEnv, 'u_1', 'l_1', { 1: 2000000, 6: 500000 });
+      expect(dbBulkDistributeInstallments).toHaveBeenCalledWith(mockEnv, 'u_1', 'l_1', { 1: 2000000, 6: 500000 }, undefined);
+    });
+
+    it('passes totalRepaymentAmount through to dbBulkDistributeInstallments', async () => {
+      getAuthenticatedUser.mockResolvedValue({ userId: 'u_1' });
+      dbBulkDistributeInstallments.mockResolvedValue({ id: 'l_1', scheduleMode: 'distributed' });
+
+      const req = new Request('https://realrate.ir/api/loans/l_1/installments/bulk', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ knownAmounts: {}, totalRepaymentAmount: 151187328 }),
+      });
+
+      await handleBulkDistributeInstallments(req, mockEnv, { loanId: 'l_1' });
+      expect(dbBulkDistributeInstallments).toHaveBeenCalledWith(mockEnv, 'u_1', 'l_1', {}, 151187328);
     });
   });
 

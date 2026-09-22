@@ -980,5 +980,71 @@ describe('Loan Calculator Domain (ماشین حساب وام و اقساط)', ()
       expect(distributeInstallmentAmounts({ loan: { ...loan, principalAmount: 0 } })).toEqual([]);
       expect(distributeInstallmentAmounts({ loan: { ...loan, installmentCount: 0 } })).toEqual([]);
     });
+
+    it('regression: sum of totalAmount across untouched installments must exactly equal the pool, not drift from per-installment rounding', () => {
+      // Principal reconciliation must never leak into totalAmount — only into the principal/
+      // interest split of the last pending installment (see the fix history in this function).
+      const schedule = distributeInstallmentAmounts({
+        loan: { principalAmount: 130000000, annualInterestRate: 20, installmentCount: 12, intervalMonths: 1, startDate: '2026-01-01' },
+        knownAmounts: {},
+        totalRepaymentOverride: 151187328,
+      });
+      const sumTotal = schedule.reduce((sum, i) => sum + i.totalAmount, 0);
+      expect(sumTotal).toBe(151187328);
+      const sumPrincipal = schedule.reduce((sum, i) => sum + i.principalPortion, 0);
+      expect(sumPrincipal).toBe(130000000);
+    });
+
+    describe('totalRepaymentOverride (تقسیم بر اساس مبلغ کل بازپرداخت دقیق، نه نرخ)', () => {
+      it('splits a known total repayment evenly across all installments, reconciling exactly', () => {
+        const schedule = distributeInstallmentAmounts({
+          loan: { principalAmount: 130000000, annualInterestRate: 0, installmentCount: 12, intervalMonths: 1, startDate: '2026-01-01' },
+          totalRepaymentOverride: 151187328,
+        });
+        expect(schedule).toHaveLength(12);
+        const uniqueAmounts = new Set(schedule.map((i) => i.totalAmount));
+        expect(uniqueAmounts.size).toBeLessThanOrEqual(2); // all equal except a 1-toman remainder on the last
+        const sumTotal = schedule.reduce((sum, i) => sum + i.totalAmount, 0);
+        expect(sumTotal).toBe(151187328);
+      });
+
+      it('reconciles exactly even when the total does not divide evenly by the installment count', () => {
+        const schedule = distributeInstallmentAmounts({
+          loan: { principalAmount: 90000000, annualInterestRate: 0, installmentCount: 7, intervalMonths: 1, startDate: '2026-01-01' },
+          totalRepaymentOverride: 100000000,
+        });
+        const sumTotal = schedule.reduce((sum, i) => sum + i.totalAmount, 0);
+        expect(sumTotal).toBe(100000000);
+        const sumPrincipal = schedule.reduce((sum, i) => sum + i.principalPortion, 0);
+        expect(sumPrincipal).toBe(90000000);
+      });
+
+      it('combines with touched installments: touched ones keep their value, the rest split the remaining pool', () => {
+        const schedule = distributeInstallmentAmounts({
+          loan: { principalAmount: 130000000, annualInterestRate: 0, installmentCount: 12, intervalMonths: 1, startDate: '2026-01-01' },
+          knownAmounts: { 1: 20000000 },
+          totalRepaymentOverride: 151187328,
+        });
+        expect(schedule[0].totalAmount).toBe(20000000);
+        const sumTotal = schedule.reduce((sum, i) => sum + i.totalAmount, 0);
+        expect(sumTotal).toBe(151187328);
+      });
+
+      it('ignores the loan rate entirely — the same principal/count with a different rate yields the same split', () => {
+        const base = { principalAmount: 130000000, installmentCount: 12, intervalMonths: 1, startDate: '2026-01-01' };
+        const a = distributeInstallmentAmounts({ loan: { ...base, annualInterestRate: 0 }, totalRepaymentOverride: 151187328 });
+        const b = distributeInstallmentAmounts({ loan: { ...base, annualInterestRate: 35 }, totalRepaymentOverride: 151187328 });
+        expect(a.map((i) => i.totalAmount)).toEqual(b.map((i) => i.totalAmount));
+      });
+
+      it('rejects a totalRepaymentOverride lower than the loan principal', () => {
+        expect(() =>
+          distributeInstallmentAmounts({
+            loan: { principalAmount: 10000000, installmentCount: 12, intervalMonths: 1, startDate: '2026-01-01' },
+            totalRepaymentOverride: 5000000,
+          })
+        ).toThrow(/کمتر از مبلغ اصل وام/);
+      });
+    });
   });
 });
