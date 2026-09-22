@@ -85,16 +85,24 @@ export default function BulkEditInstallmentsModal({
 
   const pendingRows = result.schedule.filter((i) => !i.isPaid);
 
-  // Before anything is touched, show each pending installment's actual current stored amount
-  // instead of a freshly re-flattened uniform split — otherwise the modal would display a number
-  // that differs from the installment's real amount just from being opened, before the user
-  // changed anything.
-  const displayRows = hasTouched
-    ? pendingRows
-    : (loan?.installments || [])
-        .filter((i) => !i.isPaid)
-        .slice()
-        .sort((a, b) => a.installmentNumber - b.installmentNumber);
+  // The stable list of pending installments straight from the loan — always available regardless
+  // of whether the live redistribution computation currently succeeds. Used as the table's row
+  // source whenever that computation errors out (e.g. a typed amount exceeds the loan's total),
+  // so an invalid value shows an error banner instead of silently wiping every row/input from the
+  // table — the user needs to see the field to fix it, not have it vanish.
+  const pendingLoanInstallments = useMemo(
+    () => (loan?.installments || [])
+      .filter((i) => !i.isPaid)
+      .slice()
+      .sort((a, b) => a.installmentNumber - b.installmentNumber),
+    [loan]
+  );
+
+  // Before anything is touched — or whenever the current inputs don't reconcile — show each
+  // pending installment's actual current stored amount instead of a freshly re-flattened uniform
+  // split, which would either mismatch the real amount (untouched, per-installment case) or simply
+  // not exist (error case, since result.schedule is empty when distributeInstallmentAmounts throws).
+  const displayRows = (hasTouched && !result.error) ? pendingRows : pendingLoanInstallments;
 
   const handleSubmit = async (e) => {
     e.preventDefault();
