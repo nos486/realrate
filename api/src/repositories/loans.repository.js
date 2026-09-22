@@ -379,6 +379,11 @@ export async function dbGetUserLoans(env, userId) {
         .filter((i) => !i.isPaid)
         .reduce((sum, i) => sum + (Number(i.totalAmount) || 0), 0);
       const nextDueInstallment = installments.find((i) => !i.isPaid) || null;
+      // Grand total (principal + interest, paid + pending combined) — used by the UI to derive an
+      // effective/implied rate for loans whose stored annualInterestRate is just a placeholder
+      // (e.g. distributed loans built from a known total repayment), instead of misreporting them
+      // as قرض‌الحسنه (interest-free) purely because the stored rate field happens to be 0.
+      const totalRepaymentAmount = installments.reduce((sum, i) => sum + (Number(i.totalAmount) || 0), 0);
 
       return {
         ...loan,
@@ -386,6 +391,7 @@ export async function dbGetUserLoans(env, userId) {
         paidCount,
         remainingBalance,
         nextDueInstallment,
+        totalRepaymentAmount,
       };
     });
   }
@@ -474,6 +480,7 @@ export async function dbGetLoanById(env, userId, loanId) {
     .filter((i) => !i.isPaid)
     .reduce((sum, i) => sum + (Number(i.totalAmount) || 0), 0);
   const nextDueInstallment = installments.find((i) => !i.isPaid) || null;
+  const totalRepaymentAmount = installments.reduce((sum, i) => sum + (Number(i.totalAmount) || 0), 0);
 
   return {
     ...formattedLoan,
@@ -481,6 +488,7 @@ export async function dbGetLoanById(env, userId, loanId) {
     paidCount,
     remainingBalance,
     nextDueInstallment,
+    totalRepaymentAmount,
     installments,
     extraPayments,
   };

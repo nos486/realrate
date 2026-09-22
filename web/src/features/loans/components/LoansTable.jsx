@@ -15,6 +15,7 @@ import {
   Sparkles,
 } from 'lucide-react';
 import { gregorianToShamsi } from '../../portfolio/components/ShamsiDatePicker.jsx';
+import { getDisplayRatePct } from '../../../utils/loanCalculator.js';
 
 const formatNum = (v) => Number(v || 0).toLocaleString('fa-IR');
 
@@ -31,7 +32,8 @@ export default function LoansTable({
         const paidCount = loan.paidCount || 0;
         const progressPct = totalCount > 0 ? Math.min(100, Math.round((paidCount / totalCount) * 100)) : 0;
         const isCompleted = loan.remainingBalance === 0 || (totalCount > 0 && paidCount >= totalCount);
-        const isZeroInterest = Number(loan.annualInterestRate || 0) === 0;
+        const displayRatePct = getDisplayRatePct(loan);
+        const isZeroInterest = displayRatePct === 0;
 
         return (
           <div
@@ -55,7 +57,7 @@ export default function LoansTable({
 
               <div className="loan-header-actions" onClick={(e) => e.stopPropagation()}>
                 <span className={`badge-rate ${isZeroInterest ? 'zero' : ''}`}>
-                  {isZeroInterest ? 'قرض‌الحسنه' : `${loan.annualInterestRate}٪`}
+                  {displayRatePct}٪
                 </span>
                 <button
                   type="button"

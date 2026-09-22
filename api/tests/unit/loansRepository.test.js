@@ -1038,6 +1038,24 @@ describe('Loans Repository D1 Operations', () => {
       expect(uniqueAmounts.size).toBeLessThanOrEqual(2);
     });
 
+    it('exposes totalRepaymentAmount on both dbGetLoanById and dbGetUserLoans so the UI can show an effective rate instead of قرض‌الحسنه', async () => {
+      const loan = await dbCreateLoan(mockEnv, 'user_1', {
+        title: 'وام بر اساس کل بازپرداخت برای نمایش نرخ',
+        principalAmount: 130000000,
+        installmentCount: 12,
+        startDate: '2026-01-01',
+        totalRepaymentAmount: 151187328,
+      });
+      expect(loan.annualInterestRate).toBe(0);
+
+      const fetched = await dbGetLoanById(mockEnv, 'user_1', loan.id);
+      expect(fetched.totalRepaymentAmount).toBe(151187328);
+
+      const list = await dbGetUserLoans(mockEnv, 'user_1');
+      const listed = list.find((l) => l.id === loan.id);
+      expect(listed.totalRepaymentAmount).toBe(151187328);
+    });
+
     it('rejects a non-positive totalRepaymentAmount', async () => {
       await expect(
         dbCreateLoan(mockEnv, 'user_1', {

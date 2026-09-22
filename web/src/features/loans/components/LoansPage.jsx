@@ -32,6 +32,7 @@ import LoanInstallmentsTable from './LoanInstallmentsTable.jsx';
 import Modal from '../../../shared/ui/Modal.jsx';
 import EmptyState from '../../../shared/ui/EmptyState.jsx';
 import { gregorianToShamsi } from '../../portfolio/components/ShamsiDatePicker.jsx';
+import { getDisplayRatePct } from '../../../utils/loanCalculator.js';
 
 const formatNum = (v) => Number(v || 0).toLocaleString('fa-IR');
 
@@ -83,7 +84,7 @@ function LoanDetailModal({ loanId, onClose, onRefreshLoans }) {
       title={loan ? loan.title : 'جدول اقساط وام'}
       subtitle={
         loan
-          ? `${loan.lenderName ? `وام‌دهنده: ${loan.lenderName} • ` : ''}اصل: ${formatNum(loan.principalAmount)} تومان • سود: ${loan.annualInterestRate === 0 ? 'قرض‌الحسنه' : `${loan.annualInterestRate}٪`}${Number(loan.annualFeeAmount) > 0 ? ` • کارمزد سالانه: ${formatNum(loan.annualFeeAmount)} تومان` : ''}`
+          ? `${loan.lenderName ? `وام‌دهنده: ${loan.lenderName} • ` : ''}اصل: ${formatNum(loan.principalAmount)} تومان • سود: ${getDisplayRatePct(loan)}٪${Number(loan.annualFeeAmount) > 0 ? ` • کارمزد سالانه: ${formatNum(loan.annualFeeAmount)} تومان` : ''}`
           : 'در حال دریافت اطلاعات...'
       }
       icon={<Landmark size={20} className="text-amber-500" />}

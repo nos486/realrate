@@ -9,6 +9,7 @@ import {
   solveAnnualRateFromKnownPayments,
   solveAnnualRateFromTotalRepayment,
   distributeInstallmentAmounts,
+  getDisplayRatePct,
 } from '../../src/domain/loanCalculator.js';
 
 describe('Loan Calculator Domain (ماشین حساب وام و اقساط)', () => {
@@ -211,6 +212,50 @@ describe('Loan Calculator Domain (ماشین حساب وام و اقساط)', ()
       expect(schedule[0].totalAmount).toBe(solved.installmentAmount);
       const sumPrincipal = schedule.reduce((sum, i) => sum + i.principalPortion, 0);
       expect(sumPrincipal).toBe(principal);
+    });
+  });
+
+  describe('getDisplayRatePct (نرخ نمایشی — هیچ‌وقت باعث نمایش اشتباه «قرض‌الحسنه» نمی‌شود)', () => {
+    it('returns the stored rate unchanged for an ordinary rate-based loan', () => {
+      expect(getDisplayRatePct({ annualInterestRate: 23, principalAmount: 10000000 })).toBe(23);
+    });
+
+    it('returns 0 for a genuinely interest-free loan (total repayment equals principal)', () => {
+      expect(getDisplayRatePct({
+        annualInterestRate: 0,
+        principalAmount: 12000000,
+        installmentCount: 12,
+        totalRepaymentAmount: 12000000,
+      })).toBe(0);
+    });
+
+    it('derives the effective rate from totalRepaymentAmount when the stored rate is just a placeholder 0', () => {
+      // A loan built via "کل بازپرداخت" always stores annualInterestRate = 0, even though it
+      // carries real interest (totalRepaymentAmount > principalAmount) — this must never be
+      // reported as قرض‌الحسنه.
+      const pct = getDisplayRatePct({
+        annualInterestRate: 0,
+        principalAmount: 130000000,
+        installmentCount: 12,
+        intervalMonths: 1,
+        totalRepaymentAmount: 151187328,
+      });
+      expect(pct).toBeGreaterThan(0);
+
+      // Sanity check: feeding the derived rate back through the real schedule generator lands
+      // close to the same total (bisection tolerance, not an exact round-trip).
+      const schedule = generateAmortizationSchedule({
+        principal: 130000000,
+        annualRatePct: pct,
+        installmentCount: 12,
+        startDateIso: '2026-01-01',
+      });
+      const total = schedule.reduce((sum, i) => sum + i.totalAmount, 0);
+      expect(Math.abs(total - 151187328)).toBeLessThan(200000);
+    });
+
+    it('falls back to the stored rate when principal is missing/invalid', () => {
+      expect(getDisplayRatePct({ annualInterestRate: 0, principalAmount: 0, totalRepaymentAmount: 5000000 })).toBe(0);
     });
   });
 

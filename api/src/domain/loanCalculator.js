@@ -425,6 +425,39 @@ export function solveAnnualRateFromTotalRepayment({
 }
 
 /**
+ * The annual rate percentage to SHOW for a loan, for badges/summaries — never the raw stored
+ * `annualInterestRate` field blindly. For a 'distributed' loan (built from a known total
+ * repayment or per-installment customization), that field is just an unused placeholder
+ * (usually 0), so displaying it directly would misreport a loan that genuinely does carry
+ * interest as قرض‌الحسنه (interest-free) purely because no rate was ever solved for it. This
+ * derives the effective rate from the loan's real total repayment instead whenever the stored
+ * rate is 0 but the total repayment exceeds the principal; otherwise it just returns the stored
+ * rate unchanged (including a genuinely-0% loan, where total repayment equals principal).
+ *
+ * @param {object} loan - { annualInterestRate, principalAmount, installmentCount, intervalMonths, totalRepaymentAmount }
+ * @returns {number} annualRatePct, rounded to 2 decimals
+ */
+export function getDisplayRatePct(loan) {
+  const storedRate = Number(loan?.annualInterestRate ?? 0);
+  if (storedRate > 0) return storedRate;
+
+  const principal = Number(loan?.principalAmount ?? 0);
+  const totalRepayment = Number(loan?.totalRepaymentAmount ?? 0);
+  if (principal <= 0 || totalRepayment <= principal) return 0;
+
+  try {
+    return solveAnnualRateFromTotalRepayment({
+      principal,
+      installmentCount: loan?.installmentCount,
+      totalRepayment,
+      intervalMonths: loan?.intervalMonths || 1,
+    }).annualRatePct;
+  } catch {
+    return storedRate;
+  }
+}
+
+/**
  * Recalculate amortization schedule starting from an arbitrary balance and installment offset.
  *
  * @param {object} params
