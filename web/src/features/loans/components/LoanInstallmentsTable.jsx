@@ -261,7 +261,7 @@ export default function LoanInstallmentsTable({
         }}>
           <ListChecks size={16} style={{ flexShrink: 0, marginTop: '1px' }} />
           <span>
-            این وام با «سفارشی‌سازی و تقسیم مساوی اقساط» ساخته شده است. برای تغییر مبلغ اقساط از دکمه‌ی «ویرایش گروهی اقساط» استفاده کنید؛ پرداخت اضافه/یکجا برای این حالت در دسترس نیست.
+            این وام با «سفارشی‌سازی و تقسیم مساوی اقساط» ساخته شده است. هر قسطی که با مداد ویرایش کنید، بقیه‌ی اقساطِ دست‌نخورده به‌طور خودکار و مساوی باقیمانده را تقسیم می‌کنند؛ برای ویرایش چند قسط با هم از «ویرایش گروهی اقساط» استفاده کنید. پرداخت اضافه/یکجا برای این حالت در دسترس نیست.
           </span>
         </div>
       )}
@@ -398,7 +398,7 @@ export default function LoanInstallmentsTable({
                             + کارمزد سالانه
                           </span>
                         )}
-                        {!inst.isPaid && onSetInstallmentAmount && !isDistributedMode && (
+                        {!inst.isPaid && onSetInstallmentAmount && (
                           <button
                             type="button"
                             className="btn-edit-installment"
@@ -603,7 +603,7 @@ export default function LoanInstallmentsTable({
                       </span>
                     )}
                   </div>
-                  {!inst.isPaid && onSetInstallmentAmount && !isDistributedMode && (
+                  {!inst.isPaid && onSetInstallmentAmount && (
                     <button
                       type="button"
                       className="btn-edit-installment"

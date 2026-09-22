@@ -38,6 +38,9 @@ function createMockD1() {
             annual_interest_rate, installment_count, interval_months,
             start_date, annual_fee_amount, schedule_mode, notes, created_at, updated_at
           ] = boundArgs;
+          if (loansStore.has(id)) {
+            throw new Error(`D1_ERROR: UNIQUE constraint failed: loans.id: SQLITE_CONSTRAINT (extended: SQLITE_CONSTRAINT_PRIMARYKEY)`);
+          }
           loansStore.set(id, {
             id, user_id, title, lender_name, principal_amount,
             annual_interest_rate, installment_count, interval_months,
@@ -47,6 +50,12 @@ function createMockD1() {
           return { meta: { changes: 1 } };
         }
         if (q.startsWith('INSERT INTO loan_installment_states') || q.startsWith('INSERT INTO loan_installments')) {
+          // Mirror real SQLite's PRIMARY KEY enforcement — a plain Map.set would silently
+          // overwrite a colliding id instead of failing loudly like the real D1 database does.
+          const insertedId = boundArgs[0];
+          if (installmentsStore.has(insertedId)) {
+            throw new Error(`D1_ERROR: UNIQUE constraint failed: loan_installment_states.id: SQLITE_CONSTRAINT (extended: SQLITE_CONSTRAINT_PRIMARYKEY)`);
+          }
           if (boundArgs.length === 15) {
             const [
               id, loan_id, user_id, installment_number, due_date,
@@ -1040,6 +1049,36 @@ describe('Loans Repository D1 Operations', () => {
         })
       ).rejects.toThrow(/کمتر از مبلغ اصل وام/);
     });
+
+    it('regression: installment state ids are namespaced per loan so a second distributed loan does not collide (D1 PRIMARY KEY)', async () => {
+      // Reproduces the exact production bug: distributeInstallmentAmounts was called without the
+      // loan's id, so every loan got installment_states rows with the same bare ids (inst_1,
+      // inst_2, ...) — fine against a real SQL engine's UNIQUE PRIMARY KEY the moment a second
+      // loan used this mode. The mock now enforces that constraint too, so this fails loudly if
+      // it regresses instead of silently overwriting rows via Map.set.
+      const loanA = await dbCreateLoan(mockEnv, 'user_1', {
+        title: 'وام اول',
+        principalAmount: 130000000,
+        installmentCount: 12,
+        startDate: '2026-01-01',
+        totalRepaymentAmount: 151187328,
+      });
+      const loanB = await dbCreateLoan(mockEnv, 'user_1', {
+        title: 'وام دوم',
+        principalAmount: 60000000,
+        installmentCount: 12,
+        startDate: '2026-01-01',
+        totalRepaymentAmount: 66000000,
+      });
+
+      expect(loanA.installments).toHaveLength(12);
+      expect(loanB.installments).toHaveLength(12);
+      // 24 distinct rows total, not overwritten into fewer
+      expect(mockEnv.DB._installmentsStore.size).toBe(24);
+
+      const sumB = loanB.installments.reduce((sum, i) => sum + i.totalAmount, 0);
+      expect(sumB).toBe(66000000);
+    });
   });
 
   describe('dbBulkDistributeInstallments (ویرایش گروهی اقساط پس از ساخت وام)', () => {
@@ -1141,22 +1180,52 @@ describe('Loans Repository D1 Operations', () => {
     });
   });
 
-  describe('distributed-mode loans reject the ordinary single-edit and extra-payment flows', () => {
-    it('dbSetInstallmentAmount refuses a distributed-mode loan with a message pointing to bulk edit', async () => {
+  describe('dbSetInstallmentAmount on a distributed-mode loan', () => {
+    it('fixes the edited installment and redistributes the remaining pool evenly among the OTHER pending ones', async () => {
       const loan = await dbCreateLoan(mockEnv, 'user_1', {
         title: 'وام تقسیم‌شده',
-        principalAmount: 12000000,
-        installmentCount: 12,
+        principalAmount: 10800000,
+        installmentCount: 3,
         startDate: '2026-01-01',
-        customInstallments: [{ installmentNumber: 1, totalAmount: 2000000 }],
+        totalRepaymentAmount: 12000000, // 3 x 4,000,000 initially
       });
       expect(loan.scheduleMode).toBe('distributed');
+      expect(loan.installments[1].totalAmount).toBe(4000000);
 
-      await expect(
-        dbSetInstallmentAmount(mockEnv, 'user_1', loan.id, loan.installments[5].id, 999999)
-      ).rejects.toThrow(/ویرایش گروهی اقساط/);
+      const result = await dbSetInstallmentAmount(mockEnv, 'user_1', loan.id, loan.installments[1].id, 2000000);
+
+      expect(result.actualTotalAmount).toBe(2000000);
+      expect(result.installment.totalAmount).toBe(2000000);
+      // The other two (untouched) installments absorb the 2,000,000 difference evenly (+1,000,000 each)
+      expect(result.loan.installments[0].totalAmount).toBe(5000000);
+      expect(result.loan.installments[1].totalAmount).toBe(2000000);
+      expect(result.loan.installments[2].totalAmount).toBe(5000000);
+
+      // The loan's grand total is preserved exactly — the edit only reshuffles it
+      const sumTotal = result.loan.installments.reduce((sum, i) => sum + i.totalAmount, 0);
+      expect(sumTotal).toBe(12000000);
+      const sumPrincipal = result.loan.installments.reduce((sum, i) => sum + i.principalPortion, 0);
+      expect(sumPrincipal).toBe(10800000);
+      expect(result.loan.installments[2].remainingBalanceAfter).toBe(0);
     });
 
+    it('refuses to edit an already-paid installment even in distributed mode', async () => {
+      const loan = await dbCreateLoan(mockEnv, 'user_1', {
+        title: 'وام تقسیم‌شده با قسط پرداخت‌شده',
+        principalAmount: 10800000,
+        installmentCount: 3,
+        startDate: '2026-01-01',
+        totalRepaymentAmount: 12000000,
+      });
+      await dbMarkInstallmentPaid(mockEnv, 'user_1', loan.installments[0].id, { paidDate: '2026-02-01', paidAmount: 4000000 });
+
+      await expect(
+        dbSetInstallmentAmount(mockEnv, 'user_1', loan.id, loan.installments[0].id, 999999)
+      ).rejects.toThrow(/پرداخت‌شده/);
+    });
+  });
+
+  describe('distributed-mode loans reject the extra-payment flow', () => {
     it('dbAddExtraPayment refuses a distributed-mode loan', async () => {
       const loan = await dbCreateLoan(mockEnv, 'user_1', {
         title: 'وام تقسیم‌شده برای پرداخت اضافه',

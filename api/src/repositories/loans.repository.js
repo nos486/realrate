@@ -153,7 +153,7 @@ export async function dbCreateLoan(env, userId, data) {
   if (Object.keys(customInstallmentsInput).length > 0 || totalRepaymentInput) {
     try {
       distributedSchedule = distributeInstallmentAmounts({
-        loan: { principalAmount, annualInterestRate, installmentCount, intervalMonths, startDate },
+        loan: { id: loanId, principalAmount, annualInterestRate, installmentCount, intervalMonths, startDate },
         knownAmounts: customInstallmentsInput,
         totalRepaymentOverride: totalRepaymentInput || undefined,
       });
@@ -1076,8 +1076,16 @@ export async function dbMarkInstallmentPaidCascade(env, userId, loanId, installm
 
 /**
  * Manually set the installment amount for an unpaid installment.
- * Writes ONLY the single override row in `loan_installment_states`.
- * Subsequent installments are dynamically recalculated by computeEffectiveSchedule.
+ *
+ * For a 'formula' (rate-based) loan: writes ONLY the single override row in
+ * `loan_installment_states`, and every installment after it is dynamically cascaded forward
+ * (recalculated from the real declining balance) by computeEffectiveSchedule on read.
+ *
+ * For a 'distributed' loan (built via distributeInstallmentAmounts): there is no real balance
+ * to cascade from, so this delegates to dbBulkDistributeInstallments instead — the edited
+ * installment is fixed at the new amount, and every OTHER pending installment equally divides
+ * whatever's left of the loan's current total pool (preserved exactly, so a single edit never
+ * silently changes the loan's grand total).
  *
  * @param {object} env
  * @param {string} userId
@@ -1103,12 +1111,6 @@ export async function dbSetInstallmentAmount(env, userId, loanId, installmentId,
     throw AppError.notFound("وام مورد نظر یافت نشد.");
   }
 
-  if (loan.scheduleMode === "distributed") {
-    throw AppError.badRequest(
-      "این وام با حالت «سفارشی‌سازی و تقسیم مساوی اقساط» ساخته شده است. برای ویرایش مبلغ اقساط از «ویرایش گروهی اقساط» استفاده کنید."
-    );
-  }
-
   const installments = [...loan.installments].sort((a, b) => a.installmentNumber - b.installmentNumber);
   const targetIdx = installments.findIndex(
     (inst) => inst.id === installmentId || String(inst.installmentNumber) === String(installmentId)
@@ -1121,6 +1123,31 @@ export async function dbSetInstallmentAmount(env, userId, loanId, installmentId,
   const targetInst = installments[targetIdx];
   if (targetInst.isPaid) {
     throw AppError.badRequest("امکان ویرایش قسط پرداخت‌شده وجود ندارد.");
+  }
+
+  if (loan.scheduleMode === "distributed") {
+    // In distributed mode there's no real declining balance to cascade from — this installment
+    // becomes fixed at the new amount, and every OTHER currently-pending installment equally
+    // divides whatever's left of the loan's current total pool (see dbBulkDistributeInstallments
+    // / distributeInstallmentAmounts). The current pool is preserved exactly as the sum of every
+    // installment's existing totalAmount, so an edit never silently changes what the loan's grand
+    // total is — it only reshuffles how the untouched remainder is split.
+    const currentTotalPool = loan.installments.reduce((sum, i) => sum + Number(i.totalAmount || 0), 0);
+    const updatedLoan = await dbBulkDistributeInstallments(
+      env,
+      userId,
+      loanId,
+      { [targetInst.installmentNumber]: targetAmount },
+      currentTotalPool
+    );
+    const updatedInst = updatedLoan?.installments?.find(
+      (i) => i.installmentNumber === targetInst.installmentNumber
+    ) || null;
+    return {
+      loan: updatedLoan,
+      installment: updatedInst,
+      actualTotalAmount: updatedInst?.totalAmount ?? targetAmount,
+    };
   }
 
   const balanceBefore = targetIdx === 0
