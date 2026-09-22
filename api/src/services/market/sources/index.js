@@ -9,6 +9,7 @@ import { emofidFundsSourceAdapter } from "./emofidFunds.source.adapter.js";
 import { charismaFundsSourceAdapter } from "./charismaFunds.source.adapter.js";
 import { charismaPlansSourceAdapter } from "./charismaPlans.source.adapter.js";
 import { apiUrlSourceAdapter } from "./apiUrl.source.adapter.js";
+import { staticSourceAdapter } from "./static.source.adapter.js";
 
 export {
   telegramSourceAdapter,
@@ -18,6 +19,7 @@ export {
   charismaFundsSourceAdapter,
   charismaPlansSourceAdapter,
   apiUrlSourceAdapter,
+  staticSourceAdapter,
 };
 
 export * from "./parsingUtils.js";
@@ -26,6 +28,7 @@ export * from "./parsingUtils.js";
  * List of registered price source adapters in evaluation priority order
  */
 export const sourceAdapters = [
+  staticSourceAdapter,
   forexApiSourceAdapter,
   bourseSymbolsSourceAdapter,
   emofidFundsSourceAdapter,

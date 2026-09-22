@@ -203,6 +203,9 @@ export function useHoldings(activePortfolio) {
 
   // Add holding
   const addHolding = async (holdingData) => {
+    if (isVaultLocked) {
+      throw new Error("پورتفو قفل است، ابتدا آن را باز کنید.");
+    }
     if (!activePortfolio?.id) return null;
     setSubmitting(true);
     try {
@@ -223,6 +226,9 @@ export function useHoldings(activePortfolio) {
 
   // Update holding
   const updateHolding = async (holdingData) => {
+    if (isVaultLocked) {
+      throw new Error("پورتفو قفل است، ابتدا آن را باز کنید.");
+    }
     if (!holdingData?.id || !activePortfolio?.id) return null;
     setSubmitting(true);
     try {
@@ -243,6 +249,9 @@ export function useHoldings(activePortfolio) {
 
   // Delete holding
   const deleteHolding = async (id) => {
+    if (isVaultLocked) {
+      throw new Error("پورتفو قفل است، ابتدا آن را باز کنید.");
+    }
     if (!id) return false;
     setDeletingId(id);
     try {

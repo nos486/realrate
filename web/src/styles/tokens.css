@@ -1,5 +1,6 @@
 /* ── Global Theme & Design Tokens (High-End Dark Minimalist System) ────────── */
 :root {
+  color-scheme: dark;
   /* Core Dark Canvas & Surfaces */
   --bg-app: #07090e;
   --bg-surface: #0c101a;

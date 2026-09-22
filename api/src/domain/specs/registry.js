@@ -7,6 +7,7 @@ import { COIN_SPECS } from './coin.spec.js';
 import { SILVER_SPECS } from './silver.spec.js';
 import { FOREX_SPECS } from './forex.spec.js';
 import { CRYPTO_SPECS } from './crypto.spec.js';
+import { CASH_SPECS } from './cash.spec.js';
 // ── Master Canonical Asset Registry ──────────────────────────────────────────
 export const CANONICAL_ASSET_REGISTRY = {};
 
@@ -52,6 +53,13 @@ Object.values(CRYPTO_SPECS).forEach(item => {
   CANONICAL_ASSET_REGISTRY[item.id.toLowerCase()] = item;
 });
 
+// Register Cash & Bank Accounts
+Object.values(CASH_SPECS).forEach(item => {
+  CANONICAL_ASSET_REGISTRY[item.id] = item;
+  CANONICAL_ASSET_REGISTRY[item.id.toLowerCase()] = item;
+  CANONICAL_ASSET_REGISTRY[`src_def_${item.id.toLowerCase()}`] = item;
+});
+
 // Standard Aliases for historical / alternate identifiers
 const ALIAS_MAP = {
   // Gold Aliases
@@ -73,6 +81,9 @@ const ALIAS_MAP = {
   // Currency / Forex Aliases
   usd: 'USD',
   usd_toman: 'USD',
+  // Cash Aliases
+  cash: 'toman',
+  rial: 'toman',
 };
 
 for (const [alias, canonicalId] of Object.entries(ALIAS_MAP)) {

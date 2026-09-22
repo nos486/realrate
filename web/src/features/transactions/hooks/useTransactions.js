@@ -152,6 +152,9 @@ export function useTransactions(activePortfolio, externalVaultKey = null) {
 
   // Add transaction
   const addTransaction = async (txData) => {
+    if (isVaultLocked) {
+      throw new Error("پورتفو قفل است، ابتدا آن را باز کنید.");
+    }
     if (!activePortfolio?.id) return null;
     setSubmitting(true);
     try {
@@ -188,6 +191,9 @@ export function useTransactions(activePortfolio, externalVaultKey = null) {
 
   // Update transaction
   const updateTransaction = async (id, txData) => {
+    if (isVaultLocked) {
+      throw new Error("پورتفو قفل است، ابتدا آن را باز کنید.");
+    }
     if (!activePortfolio?.id || !id) return null;
     setSubmitting(true);
     try {
@@ -223,6 +229,9 @@ export function useTransactions(activePortfolio, externalVaultKey = null) {
 
   // Delete transaction
   const deleteTransaction = async (id) => {
+    if (isVaultLocked) {
+      throw new Error("پورتفو قفل است، ابتدا آن را باز کنید.");
+    }
     if (!activePortfolio?.id || !id) return false;
     setDeletingId(id);
     try {

@@ -278,10 +278,26 @@ export async function handleAddPortfolio(request, env) {
   }
 
   const userId = user.userId || user.id || user.email;
+  const targetPortfolioId = body.portfolioId || body.portfolio_id || null;
+  let targetPortfolio = null;
+  if (targetPortfolioId) {
+    targetPortfolio = await dbGetPortfolioById(env, targetPortfolioId, userId);
+    if (!targetPortfolio) {
+      throw AppError.notFound("پورتفوی مورد نظر یافت نشد یا شما به آن دسترسی ندارید.");
+    }
+  } else {
+    const pList = await dbGetUserPortfolios(env, userId);
+    targetPortfolio = pList?.find((p) => p.isDefault) || pList?.[0] || null;
+  }
+
+  if (targetPortfolio?.isE2ee && !isE2eeHolding) {
+    throw AppError.badRequest("این پورتفو دارای رمزنگاری مبدا به مقصد (E2EE) است. دارایی باید به صورت رمزنگاری‌شده ثبت شود.");
+  }
+
   const holdingData = {
     id: body.id || `h_${Date.now()}_${crypto.randomUUID().slice(0, 8)}`,
     userId,
-    portfolioId: body.portfolioId || body.portfolio_id || null,
+    portfolioId: targetPortfolio?.id || targetPortfolioId,
     assetId: String(body.assetId || "gold_18k"),
     amount: isNaN(amount) ? 0 : amount,
     buyPrice: isNaN(buyPrice) ? 0 : buyPrice,

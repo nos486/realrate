@@ -71,13 +71,18 @@ export async function handleGetTransactions(request, env, params = {}) {
 export async function handleCreateTransaction(request, env, params = {}) {
   const url = new URL(request.url);
   const portfolioId = params.portfolioId || url.searchParams.get("portfolioId");
-  const { userId } = await authenticateAndVerifyPortfolio(request, env, portfolioId);
+  const { userId, portfolio } = await authenticateAndVerifyPortfolio(request, env, portfolioId);
 
   const body = await request.json().catch(() => ({}));
   const encryptedPayload = body.encryptedPayload || body.payload;
 
   if (!encryptedPayload) {
     throw AppError.badRequest("داده تراکنش (encryptedPayload) نمی‌تواند خالی باشد.");
+  }
+
+  const isE2ee = Boolean(portfolio?.isE2ee);
+  if (isE2ee && (typeof encryptedPayload !== "string" || !encryptedPayload.startsWith("enc:e2ee:v1:"))) {
+    throw AppError.badRequest("این پورتفو دارای رمزنگاری مبدا به مقصد (E2EE) است. داده‌های ارسالی باید رمزنگاری شده باشند.");
   }
 
   const transaction = await dbCreateTransaction(env, {
@@ -101,7 +106,7 @@ export async function handleCreateTransaction(request, env, params = {}) {
 export async function handleUpdateTransaction(request, env, params = {}) {
   const url = new URL(request.url);
   const portfolioId = params.portfolioId || url.searchParams.get("portfolioId");
-  const { userId } = await authenticateAndVerifyPortfolio(request, env, portfolioId);
+  const { userId, portfolio } = await authenticateAndVerifyPortfolio(request, env, portfolioId);
 
   const body = await request.json().catch(() => ({}));
   const txId = params.txId || url.searchParams.get("id") || url.searchParams.get("txId") || body.id || body.txId;
@@ -113,6 +118,11 @@ export async function handleUpdateTransaction(request, env, params = {}) {
   const encryptedPayload = body.encryptedPayload || body.payload;
   if (!encryptedPayload) {
     throw AppError.badRequest("داده تراکنش (encryptedPayload) نمی‌تواند خالی باشد.");
+  }
+
+  const isE2ee = Boolean(portfolio?.isE2ee);
+  if (isE2ee && (typeof encryptedPayload !== "string" || !encryptedPayload.startsWith("enc:e2ee:v1:"))) {
+    throw AppError.badRequest("این پورتفو دارای رمزنگاری مبدا به مقصد (E2EE) است. داده‌های ارسالی باید رمزنگاری شده باشند.");
   }
 
   const existing = await dbGetTransactionById(env, txId, userId);

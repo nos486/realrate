@@ -46,6 +46,11 @@ textarea {
   border: 1px solid var(--border-input);
 }
 
+select option {
+  background-color: #0c101a;
+  color: #ffffff;
+}
+
 input::placeholder,
 textarea::placeholder {
   color: var(--placeholder-color);

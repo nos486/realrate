@@ -404,6 +404,29 @@ export function computeUnifiedPrices({
     }
   });
 
+  // ── 3.5 Cash & Bank Accounts (Toman) ─────────────────────────────────────────
+  const cashResolved = {
+    id: 'toman',
+    code: 'TOMAN',
+    name: 'تومان نقد',
+    category: 'cash',
+    badge: 'نقد',
+    unit: 'تومان',
+    price: 1,
+    priceToman: 1,
+    priceType: 'cash',
+    priceTypeLabel: 'وجه نقد',
+    subText: 'موجودی ریالی / حساب بانکی (نرخ ثابت ۱ تومان)',
+    aliases: ['تومان', 'نقد', 'ریال', 'پول نقد', 'حساب بانکی', 'toman', 'cash'],
+  };
+  resolvedAssets.push(cashResolved);
+  const regCash = (key) => { if (key) { priceMap[key] = 1; itemMap[key] = cashResolved; } };
+  regCash('toman');
+  regCash('TOMAN');
+  regCash('src_def_toman');
+  regCash('cash');
+  regCash('rial');
+
   // ── 4. Static Catalogs (Funds & Bourse: independent of USD/Gold spot) ──────
   const { staticAssets, staticPriceMap, staticItemMap } = getStaticCatalogAssets(marketItems);
   Object.assign(priceMap, staticPriceMap);

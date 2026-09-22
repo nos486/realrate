@@ -8,6 +8,7 @@ import {
   TrendingUp,
   Layers,
   Sparkles,
+  Wallet,
 } from 'lucide-react';
 import {
   getCanonicalAssetSpec,
@@ -151,6 +152,7 @@ const ICON_COMPONENT_MAP = {
   TrendingUp,
   Layers,
   Sparkles,
+  Wallet,
 };
 
 export function CategoryIcon({ category, size = 18, className = '', style = {} }) {

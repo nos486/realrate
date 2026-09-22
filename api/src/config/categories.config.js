@@ -9,6 +9,14 @@
 
 export const CATEGORIES_CONFIG = [
   {
+    key: 'cash',
+    name: 'وجه نقد و حساب بانکی',
+    badge: 'نقد',
+    iconName: 'Wallet',
+    color: 'emerald',
+    order: 0,
+  },
+  {
     key: 'gold',
     name: 'طلا',
     badge: 'طلا',

@@ -11,6 +11,7 @@ import {
   Layers,
   Sparkles,
   Check,
+  Wallet,
 } from 'lucide-react';
 import { apiGetPriceSources, apiSearchBourseSymbols } from '../api/client.js';
 import { usePricing } from '../features/market/index.js';
@@ -381,6 +382,7 @@ const ICON_COMPONENT_MAP = {
   TrendingUp,
   Layers,
   Sparkles,
+  Wallet,
 };
 
 function getAssetIcon(item) {

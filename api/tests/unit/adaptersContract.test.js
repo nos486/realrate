@@ -7,6 +7,7 @@ import {
   emofidFundsSourceAdapter,
   charismaFundsSourceAdapter,
   charismaPlansSourceAdapter,
+  staticSourceAdapter,
   sourceAdapters,
 } from "../../src/services/market/sources/index.js";
 
@@ -241,8 +242,29 @@ describe("Phase 1 Contract Verification — All Adapters output strictly {items:
     });
   });
 
-  // 8. Catalog adapters method hygiene (deprecated methods removed, getItems active)
-  test("8. Catalog adapters only expose getItems(env) and removed legacy method names", () => {
+  // 8. staticSourceAdapter
+  test("8. staticSourceAdapter.parse returns {items: [{id, name, price}], datetime}", async () => {
+    const raw = { staticPrice: 1 };
+    const sourceConfig = {
+      id: "src_def_toman",
+      name: "تومان نقد",
+      priceType: "toman",
+      sourceType: "static",
+      staticPrice: 1,
+    };
+
+    const parsed = await staticSourceAdapter.parse(raw, sourceConfig);
+    assertStrictParseResult(parsed, "staticSourceAdapter");
+    expect(parsed.items).toHaveLength(1);
+    expect(parsed.items[0]).toEqual({
+      id: "src_def_toman",
+      name: "تومان نقد",
+      price: 1,
+    });
+  });
+
+  // 9. Catalog adapters method hygiene (deprecated methods removed, getItems active)
+  test("9. Catalog adapters only expose getItems(env) and removed legacy method names", () => {
     // bourseSymbols
     expect(typeof bourseSymbolsSourceAdapter.getItems).toBe("function");
     expect(bourseSymbolsSourceAdapter.getSymbols).toBeUndefined();
@@ -260,9 +282,9 @@ describe("Phase 1 Contract Verification — All Adapters output strictly {items:
     expect(charismaPlansSourceAdapter.getLatestPlans).toBeUndefined();
   });
 
-  // 9. All 7 adapters have getItems()
-  test("9. All registered adapters in sourceAdapters implement getItems()", () => {
-    expect(sourceAdapters.length).toBe(7);
+  // 10. All 8 adapters have getItems()
+  test("10. All registered adapters in sourceAdapters implement getItems()", () => {
+    expect(sourceAdapters.length).toBe(8);
     for (const adapter of sourceAdapters) {
       expect(
         typeof adapter.getItems,
@@ -271,8 +293,8 @@ describe("Phase 1 Contract Verification — All Adapters output strictly {items:
     }
   });
 
-  // 10. Universal Contract Compliance: Generic runner over ALL adapters from sources/index.js
-  describe("10. Universal Source Adapter Compliance Suite (sources/index.js)", () => {
+  // 11. Universal Contract Compliance: Generic runner over ALL adapters from sources/index.js
+  describe("11. Universal Source Adapter Compliance Suite (sources/index.js)", () => {
     const SAMPLE_FIXTURES = {
       telegram: {
         raw: `<div class="tgme_widget_message"><div class="tgme_widget_message_text">نرخ دلار 65,000 فروش</div></div>`,
@@ -301,6 +323,10 @@ describe("Phase 1 Contract Verification — All Adapters output strictly {items:
       api_url: {
         raw: { price: "72000" },
         config: { id: "src_test_api", name: "تست وب سرویس", priceType: "custom", endpoint: "https://api.test/price" },
+      },
+      static: {
+        raw: { staticPrice: 1 },
+        config: { id: "src_def_toman", name: "تومان نقد", priceType: "toman", sourceType: "static", staticPrice: 1 },
       },
     };
 
