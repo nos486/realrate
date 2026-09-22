@@ -20,6 +20,7 @@ import ShamsiDatePicker, {
 } from '../../portfolio/components/ShamsiDatePicker.jsx';
 import {
   calculateFixedInstallmentAmount,
+  generateAmortizationSchedule,
   solveAnnualRateFromKnownPayments,
   solveAnnualRateFromTotalRepayment,
   distributeInstallmentAmounts,
@@ -184,10 +185,24 @@ export default function AddLoanForm({
 
   const liveSchedule = customEachResult.schedule;
 
+  // The true total repayment is NOT simply liveInstallment * cleanCount: the real schedule
+  // (generateAmortizationSchedule) reconciles the LAST installment to absorb whatever rounding
+  // remainder is left so principal sums exactly — naively multiplying the uniform installment
+  // amount by the count ignores that and can be off by a few toman (e.g. showing a total
+  // slightly ABOVE the principal even at 0% interest, purely from rounding N-1 installments up).
+  // Deriving this from the actual schedule generator keeps the preview byte-for-byte consistent
+  // with what dbCreateLoan will actually produce.
   const liveTotalRepayment = useMemo(() => {
-    if (liveInstallment <= 0 || cleanCount <= 0) return 0;
-    return liveInstallment * cleanCount;
-  }, [liveInstallment, cleanCount]);
+    if (cleanPrincipal <= 0 || cleanCount <= 0) return 0;
+    const schedule = generateAmortizationSchedule({
+      principal: cleanPrincipal,
+      annualRatePct: cleanRate,
+      installmentCount: cleanCount,
+      intervalMonths,
+      startDateIso: startDateIso || new Date().toISOString().split('T')[0],
+    });
+    return schedule.reduce((sum, inst) => sum + inst.totalAmount, 0);
+  }, [cleanPrincipal, cleanRate, cleanCount, intervalMonths, startDateIso]);
 
   const liveTotalInterest = useMemo(() => {
     if (liveTotalRepayment <= 0 || cleanPrincipal <= 0) return 0;
