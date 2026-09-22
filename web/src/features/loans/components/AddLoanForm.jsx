@@ -25,6 +25,7 @@ import {
   solveAnnualRateFromTotalRepayment,
   distributeInstallmentAmounts,
 } from '../../../utils/loanCalculator.js';
+import { getLoanDetail } from '../api/loanApi.js';
 
 const formatPersianNum = (val) => Number(val || 0).toLocaleString('fa-IR');
 
@@ -65,6 +66,14 @@ export default function AddLoanForm({
   const [knownSubsequentAmount, setKnownSubsequentAmount] = useState('');
   const [rateSolveMessage, setRateSolveMessage] = useState(null); // { type: 'success'|'error', text }
 
+  // When editing a loan whose scheduleMode is 'distributed' (built via "کل بازپرداخت" or
+  // "سفارشی‌سازی تک‌تک اقساط" at creation, or via later بولک-edit), the edit form shows the
+  // loan's ACTUAL current total instead of a rate field — a rate is meaningless for such a loan
+  // (computeEffectiveSchedule never uses it for distributed loans). This total is fetched fresh
+  // (the lightweight loan list objects don't carry installments) and shown read-only: changing
+  // installment amounts belongs to "ویرایش گروهی اقساط", not this form.
+  const [loadingDistributedTotal, setLoadingDistributedTotal] = useState(false);
+
   // Populate or reset form whenever modal opens or editingLoan changes
   useEffect(() => {
     if (!isOpen) return;
@@ -76,6 +85,26 @@ export default function AddLoanForm({
     setKnownSubsequentAmount('');
     setRateSolveMessage(null);
     setTotalRepaymentAmount('');
+    setLoadingDistributedTotal(false);
+
+    let cancelled = false;
+    if (editingLoan && editingLoan.scheduleMode === 'distributed') {
+      setInstallmentMode('totalRepaymentBased');
+      setLoadingDistributedTotal(true);
+      getLoanDetail(editingLoan.id)
+        .then((res) => {
+          if (cancelled) return;
+          const installments = res?.loan?.installments || [];
+          const total = installments.reduce((sum, i) => sum + Number(i.totalAmount || 0), 0);
+          setTotalRepaymentAmount(total > 0 ? String(total) : '');
+        })
+        .catch(() => {
+          if (!cancelled) setTotalRepaymentAmount('');
+        })
+        .finally(() => {
+          if (!cancelled) setLoadingDistributedTotal(false);
+        });
+    }
 
     if (editingLoan) {
       setTitle(editingLoan.title || '');
@@ -115,6 +144,10 @@ export default function AddLoanForm({
       setAnnualFeeAmount('');
       setNotes('');
     }
+
+    return () => {
+      cancelled = true;
+    };
   }, [isOpen, editingLoan]);
 
   // Clean numeric values for calculations
@@ -274,7 +307,10 @@ export default function AddLoanForm({
   // to exactly zero on its own, so this is the only way this mode can fail).
   const hasUnreconciledCustomSchedule = installmentMode === 'customEach' && Boolean(customEachResult.error);
 
-  const isTotalRepaymentInvalid = installmentMode === 'totalRepaymentBased' &&
+  // In edit mode the total-repayment field is read-only/informational (see the populate effect),
+  // never user-submitted, so it must never block the save button — including while it's still
+  // being fetched (briefly 0 before the async loan-detail fetch resolves).
+  const isTotalRepaymentInvalid = installmentMode === 'totalRepaymentBased' && !editingLoan &&
     (cleanTotalRepaymentInput <= 0 || Boolean(totalBasedResult.error));
 
   const handleSolveRate = () => {
@@ -346,8 +382,10 @@ export default function AddLoanForm({
       }
     }
 
+    // In edit mode the total-repayment field is read-only/informational — it's never sent, and
+    // editing amounts on a distributed loan happens exclusively via "ویرایش گروهی اقساط".
     let totalRepaymentAmountToSubmit = null;
-    if (installmentMode === 'totalRepaymentBased') {
+    if (installmentMode === 'totalRepaymentBased' && !editingLoan) {
       if (cleanTotalRepaymentInput <= 0) {
         setFormError('لطفاً مبلغ کل بازپرداخت را وارد نمایید.');
         return;
@@ -364,7 +402,7 @@ export default function AddLoanForm({
         title: title.trim(),
         lenderName: lenderName.trim(),
         principalAmount: cleanPrincipal,
-        annualInterestRate: installmentMode === 'totalRepaymentBased' ? 0 : cleanRate,
+        annualInterestRate: installmentMode === 'totalRepaymentBased' && !editingLoan ? 0 : cleanRate,
         installmentCount: cleanCount,
         intervalMonths,
         startDate: startDateIso || new Date().toISOString().split('T')[0],
@@ -556,26 +594,35 @@ export default function AddLoanForm({
           {installmentMode === 'totalRepaymentBased' && (
             <div className="form-item">
               <label className="ui-input-label" style={{ display: 'block', marginBottom: '6px' }}>
-                کل بازپرداخت (اصل + سود) *
+                کل بازپرداخت (اصل + سود) {editingLoan ? '' : '*'}
               </label>
               <NumericInput
-                value={totalRepaymentAmount}
+                value={loadingDistributedTotal ? '' : totalRepaymentAmount}
                 onValueChange={(val) => setTotalRepaymentAmount(val)}
-                placeholder="مبلغ دقیقی که طبق بانک باید در مجموع پس بدهید"
+                placeholder={loadingDistributedTotal ? 'در حال دریافت مبلغ فعلی...' : 'مبلغ دقیقی که طبق بانک باید در مجموع پس بدهید'}
                 affix="تومان"
                 className="form-input"
-                required
+                required={!editingLoan}
+                disabled={Boolean(editingLoan)}
               />
-              {totalBasedResult.approxRatePct !== null && totalBasedResult.approxRatePct !== undefined && (
+              {editingLoan ? (
                 <span style={{ display: 'block', fontSize: '0.74rem', color: '#94a3b8', marginTop: '6px' }}>
-                  نرخ سود معادل تقریبی: {totalBasedResult.approxRatePct}٪ (فقط اطلاعاتی — در محاسبه اقساط استفاده نمی‌شود)
+                  این وام با «ویرایش گروهی اقساط» تنظیم شده — برای تغییر مبلغ اقساط از همان بخش (داخل جدول اقساط وام) استفاده کنید.
                 </span>
-              )}
-              {totalBasedResult.error && (
-                <span style={{ display: 'flex', alignItems: 'flex-start', gap: '6px', fontSize: '0.76rem', color: '#f87171', marginTop: '6px' }}>
-                  <AlertCircle size={14} style={{ flexShrink: 0, marginTop: '1px' }} />
-                  {totalBasedResult.error}
-                </span>
+              ) : (
+                <>
+                  {totalBasedResult.approxRatePct !== null && totalBasedResult.approxRatePct !== undefined && (
+                    <span style={{ display: 'block', fontSize: '0.74rem', color: '#94a3b8', marginTop: '6px' }}>
+                      نرخ سود معادل تقریبی: {totalBasedResult.approxRatePct}٪ (فقط اطلاعاتی — در محاسبه اقساط استفاده نمی‌شود)
+                    </span>
+                  )}
+                  {totalBasedResult.error && (
+                    <span style={{ display: 'flex', alignItems: 'flex-start', gap: '6px', fontSize: '0.76rem', color: '#f87171', marginTop: '6px' }}>
+                      <AlertCircle size={14} style={{ flexShrink: 0, marginTop: '1px' }} />
+                      {totalBasedResult.error}
+                    </span>
+                  )}
+                </>
               )}
             </div>
           )}
@@ -852,8 +899,11 @@ export default function AddLoanForm({
         )}
 
         {/* Live Preview — totalRepaymentBased mode: a flat, equal division of the exact known
-            total, guaranteed to reconcile to it exactly (no rate/formula involved) */}
-        {installmentMode === 'totalRepaymentBased' && totalBasedResult.schedule.length > 0 && (
+            total, guaranteed to reconcile to it exactly (no rate/formula involved). Creation-only:
+            in edit mode the field above is read-only/informational and this would misleadingly
+            show a fresh equal split even when the loan's real installments aren't uniform (e.g.
+            it was customized per-installment via "ویرایش گروهی اقساط"). */}
+        {!editingLoan && installmentMode === 'totalRepaymentBased' && totalBasedResult.schedule.length > 0 && (
           <div style={{
             background: 'var(--bg-card-dark, rgba(15, 23, 42, 0.7))',
             border: '1px solid var(--border-color, rgba(255, 255, 255, 0.08))',
