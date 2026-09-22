@@ -317,6 +317,18 @@ function createMockD1() {
           }
           return null;
         }
+        if ((q.includes('FROM loan_installment_states') || q.includes('FROM loan_installments')) && q.includes('(id = ? OR (installment_number = ? AND loan_id = ?)) AND user_id = ?')) {
+          const [installmentId, instNum, loanId, userId] = boundArgs;
+          for (const inst of installmentsStore.values()) {
+            if (
+              inst.user_id === userId &&
+              (inst.id === installmentId || (inst.installment_number === Number(instNum) && inst.loan_id === loanId))
+            ) {
+              return inst;
+            }
+          }
+          return null;
+        }
         if ((q.includes('FROM loan_installment_states') || q.includes('FROM loan_installments')) && q.includes('(id = ? OR installment_number = ?) AND user_id = ?')) {
           const [installmentId, instNum, userId] = boundArgs;
           for (const inst of installmentsStore.values()) {
@@ -1078,6 +1090,87 @@ describe('Loans Repository D1 Operations', () => {
 
       const sumB = loanB.installments.reduce((sum, i) => sum + i.totalAmount, 0);
       expect(sumB).toBe(66000000);
+    });
+  });
+
+  describe('dbMarkInstallmentPaid / dbUnmarkInstallmentPaid never cross into another loan (regression)', () => {
+    it('marking loan A\'s never-touched installment #1 as paid does not match loan B\'s already-materialized installment #1', async () => {
+      // Reproduces a live production bug: user pays loan A's installment #1 (which has no
+      // loan_installment_states row yet — first time being touched), but loan B (same user)
+      // already has a row for installment_number = 1 (e.g. from a prior bulk-edit, which
+      // materializes a row for EVERY pending installment). The lookup query used to be
+      // `WHERE (id = ? OR installment_number = ?) AND user_id = ?` — missing loan_id entirely —
+      // so it could match loan B's row purely by installment_number and silently mark the WRONG
+      // loan's installment as paid, leaving loan A's installment looking untouched.
+      const loanA = await dbCreateLoan(mockEnv, 'user_1', {
+        title: 'وام الف',
+        principalAmount: 12000000,
+        annualInterestRate: 0,
+        installmentCount: 12,
+        startDate: '2026-01-01',
+      });
+      const loanB = await dbCreateLoan(mockEnv, 'user_1', {
+        title: 'وام ب',
+        principalAmount: 6000000,
+        annualInterestRate: 0,
+        installmentCount: 6,
+        startDate: '2026-01-01',
+      });
+      // Bulk-edit loan B so its installment #1 gets a materialized row (installment_number = 1).
+      await dbBulkDistributeInstallments(mockEnv, 'user_1', loanB.id, { 6: 500000 });
+      const loanBAfterBulk = await dbGetLoanById(mockEnv, 'user_1', loanB.id);
+      expect(loanBAfterBulk.installments[0].isPaid).toBe(false);
+
+      // Now pay loan A's installment #1 — its first-ever touch, no row exists for it yet.
+      const loanAInst1 = loanA.installments[0];
+      const paid = await dbMarkInstallmentPaid(mockEnv, 'user_1', loanAInst1.id, {
+        paidDate: '2026-02-01',
+        paidAmount: loanAInst1.totalAmount,
+      }, loanA.id);
+
+      expect(paid.id).toBe(loanAInst1.id);
+      expect(paid.isPaid).toBe(true);
+
+      const loanAAfter = await dbGetLoanById(mockEnv, 'user_1', loanA.id);
+      expect(loanAAfter.installments[0].isPaid).toBe(true);
+
+      // Loan B must be completely untouched by loan A's payment.
+      const loanBAfter = await dbGetLoanById(mockEnv, 'user_1', loanB.id);
+      expect(loanBAfter.installments[0].isPaid).toBe(false);
+    });
+
+    it('unmarking loan A\'s installment #1 does not delete/reset loan B\'s installment #1 row', async () => {
+      const loanA = await dbCreateLoan(mockEnv, 'user_1', {
+        title: 'وام الف برای لغو پرداخت',
+        principalAmount: 12000000,
+        annualInterestRate: 0,
+        installmentCount: 12,
+        startDate: '2026-01-01',
+      });
+      const loanB = await dbCreateLoan(mockEnv, 'user_1', {
+        title: 'وام ب برای لغو پرداخت',
+        principalAmount: 6000000,
+        annualInterestRate: 0,
+        installmentCount: 6,
+        startDate: '2026-01-01',
+      });
+      await dbBulkDistributeInstallments(mockEnv, 'user_1', loanB.id, { 6: 500000 });
+
+      const loanAInst1 = loanA.installments[0];
+      await dbMarkInstallmentPaid(mockEnv, 'user_1', loanAInst1.id, {
+        paidDate: '2026-02-01',
+        paidAmount: loanAInst1.totalAmount,
+      }, loanA.id);
+
+      await dbUnmarkInstallmentPaid(mockEnv, 'user_1', loanAInst1.id, loanA.id);
+
+      const loanAAfter = await dbGetLoanById(mockEnv, 'user_1', loanA.id);
+      expect(loanAAfter.installments[0].isPaid).toBe(false);
+
+      // Loan B's bulk-edited installment #1 row must still exist, untouched.
+      const loanBAfter = await dbGetLoanById(mockEnv, 'user_1', loanB.id);
+      expect(loanBAfter.installments[0].isPaid).toBe(false);
+      expect(loanBAfter.installments[0].totalAmount).toBeGreaterThan(0);
     });
   });
 

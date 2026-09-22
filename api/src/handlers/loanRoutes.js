@@ -171,7 +171,7 @@ export async function handleUpdateInstallment(request, env, params = {}) {
   let cascadedInstallments = [];
 
   if (isPaid === false || isPaid === 0) {
-    installment = await dbUnmarkInstallmentPaid(env, userId, installmentId);
+    installment = await dbUnmarkInstallmentPaid(env, userId, installmentId, loanId);
   } else if (cascade && loanId) {
     const cascadeRes = await dbMarkInstallmentPaidCascade(env, userId, loanId, installmentId, {
       paidDate: body.paidDate || body.paid_date,
@@ -185,6 +185,7 @@ export async function handleUpdateInstallment(request, env, params = {}) {
     installment = await dbMarkInstallmentPaid(env, userId, installmentId, {
       paidDate: body.paidDate || body.paid_date,
       paidAmount: body.paidAmount ?? body.paid_amount,
+      loanId,
     });
   }
 

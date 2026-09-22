@@ -182,6 +182,7 @@ describe('Loan Routes Handlers (هندلرهای API وام‌ها)', () => {
       expect(dbMarkInstallmentPaid).toHaveBeenCalledWith(mockEnv, 'u_1', 'inst_1', {
         paidDate: '2026-03-01',
         paidAmount: 1000000,
+        loanId: 'l_1',
       });
     });
 
@@ -199,7 +200,7 @@ describe('Loan Routes Handlers (هندلرهای API وام‌ها)', () => {
       expect(res.status).toBe(200);
       const json = await res.json();
       expect(json.installment.isPaid).toBe(false);
-      expect(dbUnmarkInstallmentPaid).toHaveBeenCalledWith(mockEnv, 'u_1', 'inst_1');
+      expect(dbUnmarkInstallmentPaid).toHaveBeenCalledWith(mockEnv, 'u_1', 'inst_1', 'l_1');
     });
   });
 

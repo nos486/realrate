@@ -714,18 +714,45 @@ export async function dbMarkInstallmentPaid(env, userId, installmentId, details 
       }
     }
 
+    // Resolve which loan this installment belongs to (explicit details.loanId, or parsed out of
+    // the `inst_{loanId}_{num}` id format) BEFORE the lookup below, so the "installment_number"
+    // fallback match never crosses into a DIFFERENT loan of the same user. Without this, a user
+    // with two loans that both have an (as-yet-unpaid, row-less) installment #1 could have this
+    // query match the WRONG loan's row purely by installment_number, silently marking the wrong
+    // loan's installment as paid while the one actually requested stays untouched.
+    let resolvedLoanId = details.loanId || details.loan_id || null;
+    if (!resolvedLoanId && typeof installmentId === "string" && installmentId.startsWith("inst_")) {
+      const parts = installmentId.split("_");
+      if (parts.length >= 3) {
+        resolvedLoanId = parts.slice(1, parts.length - 1).join("_");
+      }
+    }
+
     // 1. Check if a row already exists in loan_installment_states
-    const existingStateQuery = `
-      SELECT id, loan_id AS loanId, user_id AS userId, installment_number AS installmentNumber,
-             due_date AS dueDate, principal_portion AS principalPortion, interest_portion AS interestPortion,
-             total_amount AS totalAmount, remaining_balance_after AS remainingBalanceAfter,
-             is_paid AS isPaid, paid_date AS paidDate, paid_amount AS paidAmount,
-             is_manual_override AS isManualOverride,
-             created_at AS createdAt, updated_at AS updatedAt
-      FROM loan_installment_states
-      WHERE (id = ? OR installment_number = ?) AND user_id = ?
-    `;
-    const existingRow = await env.DB.prepare(existingStateQuery).bind(installmentId, instNumArg, userId).first();
+    const existingStateQuery = resolvedLoanId
+      ? `
+        SELECT id, loan_id AS loanId, user_id AS userId, installment_number AS installmentNumber,
+               due_date AS dueDate, principal_portion AS principalPortion, interest_portion AS interestPortion,
+               total_amount AS totalAmount, remaining_balance_after AS remainingBalanceAfter,
+               is_paid AS isPaid, paid_date AS paidDate, paid_amount AS paidAmount,
+               is_manual_override AS isManualOverride,
+               created_at AS createdAt, updated_at AS updatedAt
+        FROM loan_installment_states
+        WHERE (id = ? OR (installment_number = ? AND loan_id = ?)) AND user_id = ?
+      `
+      : `
+        SELECT id, loan_id AS loanId, user_id AS userId, installment_number AS installmentNumber,
+               due_date AS dueDate, principal_portion AS principalPortion, interest_portion AS interestPortion,
+               total_amount AS totalAmount, remaining_balance_after AS remainingBalanceAfter,
+               is_paid AS isPaid, paid_date AS paidDate, paid_amount AS paidAmount,
+               is_manual_override AS isManualOverride,
+               created_at AS createdAt, updated_at AS updatedAt
+        FROM loan_installment_states
+        WHERE (id = ? OR installment_number = ?) AND user_id = ?
+      `;
+    const existingRow = resolvedLoanId
+      ? await env.DB.prepare(existingStateQuery).bind(installmentId, instNumArg, resolvedLoanId, userId).first()
+      : await env.DB.prepare(existingStateQuery).bind(installmentId, instNumArg, userId).first();
 
     if (existingRow) {
       const paidDate = details.paidDate || details.paid_date || nowIso.split("T")[0];
@@ -750,13 +777,7 @@ export async function dbMarkInstallmentPaid(env, userId, installmentId, details 
     }
 
     // 2. If no row exists yet, resolve loan and find installment via computeEffectiveSchedule
-    let loanId = details.loanId || details.loan_id;
-    if (!loanId && typeof installmentId === "string" && installmentId.startsWith("inst_")) {
-      const parts = installmentId.split("_");
-      if (parts.length >= 3) {
-        loanId = parts.slice(1, parts.length - 1).join("_");
-      }
-    }
+    let loanId = resolvedLoanId;
 
     let loan = null;
     if (loanId) {
@@ -845,9 +866,12 @@ export async function dbMarkInstallmentPaid(env, userId, installmentId, details 
  * @param {object} env
  * @param {string} userId
  * @param {string} installmentId
+ * @param {string} [loanId] - When known (e.g. from the request URL), scopes the lookup to this
+ *   loan so a same-numbered installment on a DIFFERENT loan of the same user is never matched
+ *   by mistake (see the matching note in dbMarkInstallmentPaid).
  * @returns {Promise<object|null>}
  */
-export async function dbUnmarkInstallmentPaid(env, userId, installmentId) {
+export async function dbUnmarkInstallmentPaid(env, userId, installmentId, loanId) {
   if (!userId || !installmentId || !env || !env.DB) return null;
 
   await ensureD1Tables(env);
@@ -862,17 +886,38 @@ export async function dbUnmarkInstallmentPaid(env, userId, installmentId) {
       }
     }
 
-    const selectQuery = `
-      SELECT id, loan_id AS loanId, user_id AS userId, installment_number AS installmentNumber,
-             due_date AS dueDate, principal_portion AS principalPortion, interest_portion AS interestPortion,
-             total_amount AS totalAmount, remaining_balance_after AS remainingBalanceAfter,
-             is_paid AS isPaid, paid_date AS paidDate, paid_amount AS paidAmount,
-             is_manual_override AS isManualOverride,
-             created_at AS createdAt, updated_at AS updatedAt
-      FROM loan_installment_states
-      WHERE (id = ? OR installment_number = ?) AND user_id = ?
-    `;
-    const existing = await env.DB.prepare(selectQuery).bind(installmentId, instNumArg, userId).first();
+    let resolvedLoanId = loanId || null;
+    if (!resolvedLoanId && typeof installmentId === "string" && installmentId.startsWith("inst_")) {
+      const parts = installmentId.split("_");
+      if (parts.length >= 3) {
+        resolvedLoanId = parts.slice(1, parts.length - 1).join("_");
+      }
+    }
+
+    const selectQuery = resolvedLoanId
+      ? `
+        SELECT id, loan_id AS loanId, user_id AS userId, installment_number AS installmentNumber,
+               due_date AS dueDate, principal_portion AS principalPortion, interest_portion AS interestPortion,
+               total_amount AS totalAmount, remaining_balance_after AS remainingBalanceAfter,
+               is_paid AS isPaid, paid_date AS paidDate, paid_amount AS paidAmount,
+               is_manual_override AS isManualOverride,
+               created_at AS createdAt, updated_at AS updatedAt
+        FROM loan_installment_states
+        WHERE (id = ? OR (installment_number = ? AND loan_id = ?)) AND user_id = ?
+      `
+      : `
+        SELECT id, loan_id AS loanId, user_id AS userId, installment_number AS installmentNumber,
+               due_date AS dueDate, principal_portion AS principalPortion, interest_portion AS interestPortion,
+               total_amount AS totalAmount, remaining_balance_after AS remainingBalanceAfter,
+               is_paid AS isPaid, paid_date AS paidDate, paid_amount AS paidAmount,
+               is_manual_override AS isManualOverride,
+               created_at AS createdAt, updated_at AS updatedAt
+        FROM loan_installment_states
+        WHERE (id = ? OR installment_number = ?) AND user_id = ?
+      `;
+    const existing = resolvedLoanId
+      ? await env.DB.prepare(selectQuery).bind(installmentId, instNumArg, resolvedLoanId, userId).first()
+      : await env.DB.prepare(selectQuery).bind(installmentId, instNumArg, userId).first();
     if (!existing) {
       return {
         id: installmentId,
