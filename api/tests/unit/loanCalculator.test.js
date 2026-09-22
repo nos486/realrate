@@ -6,6 +6,7 @@ import {
   calculatePayoffScheduleFixedAmount,
   computeEffectiveSchedule,
   applyAnnualFee,
+  solveAnnualRateFromKnownPayments,
 } from '../../src/domain/loanCalculator.js';
 
 describe('Loan Calculator Domain (ماشین حساب وام و اقساط)', () => {
@@ -34,6 +35,121 @@ describe('Loan Calculator Domain (ماشین حساب وام و اقساط)', ()
     it('handles zero or invalid input gracefully', () => {
       expect(calculateFixedInstallmentAmount({ principal: 0, installmentCount: 10 })).toBe(0);
       expect(calculateFixedInstallmentAmount({ principal: 10000000, installmentCount: 0 })).toBe(0);
+    });
+  });
+
+  describe('solveAnnualRateFromKnownPayments (محاسبه نرخ سود از روی اقساط شناخته‌شده)', () => {
+    it('recovers the exact original rate in a forward/reverse round trip', () => {
+      // Build a known scenario at 18% and verify the solver recovers it exactly
+      const principal = 300000000;
+      const installmentCount = 120;
+      const firstInstallmentAmount = 12000000;
+
+      const r = (18 / 100) * (1 / 12);
+      const interest1 = Math.round(principal * r);
+      const balance1 = principal - (firstInstallmentAmount - interest1);
+      const subsequentInstallmentAmount = calculateFixedInstallmentAmount({
+        principal: balance1,
+        annualRatePct: 18,
+        installmentCount: installmentCount - 1,
+      });
+
+      const solved = solveAnnualRateFromKnownPayments({
+        principal,
+        installmentCount,
+        firstInstallmentAmount,
+        subsequentInstallmentAmount,
+      });
+
+      expect(solved.annualRatePct).toBe(18);
+      expect(solved.subsequentAmount).toBe(subsequentInstallmentAmount);
+      expect(solved.remainingCount).toBe(119);
+    });
+
+    it('returns 0% when the reported subsequent amount is already at or below the قرض‌الحسنه payoff', () => {
+      // principal 10,000,000, first installment 5,000,000 -> balance1 = 5,000,000 over 2
+      // installments. At 0% that's already 2,500,000/installment; the true rate can only be
+      // 0% (never negative) if the user reports a subsequent amount at or below that.
+      const solved = solveAnnualRateFromKnownPayments({
+        principal: 10000000,
+        installmentCount: 3,
+        firstInstallmentAmount: 5000000,
+        subsequentInstallmentAmount: 2000000,
+      });
+      expect(solved.annualRatePct).toBe(0);
+    });
+
+    it('rejects a first installment amount that is >= the principal', () => {
+      expect(() =>
+        solveAnnualRateFromKnownPayments({
+          principal: 10000000,
+          installmentCount: 12,
+          firstInstallmentAmount: 10000000,
+          subsequentInstallmentAmount: 500000,
+        })
+      ).toThrow(/کل اصل وام/);
+    });
+
+    it('rejects fewer than 2 installments', () => {
+      expect(() =>
+        solveAnnualRateFromKnownPayments({
+          principal: 10000000,
+          installmentCount: 1,
+          firstInstallmentAmount: 5000000,
+          subsequentInstallmentAmount: 5000000,
+        })
+      ).toThrow(/حداقل ۲ قسط/);
+    });
+
+    it('rejects non-positive amounts', () => {
+      expect(() =>
+        solveAnnualRateFromKnownPayments({
+          principal: 10000000,
+          installmentCount: 12,
+          firstInstallmentAmount: 0,
+          subsequentInstallmentAmount: 500000,
+        })
+      ).toThrow();
+      expect(() =>
+        solveAnnualRateFromKnownPayments({
+          principal: 10000000,
+          installmentCount: 12,
+          firstInstallmentAmount: 2000000,
+          subsequentInstallmentAmount: 0,
+        })
+      ).toThrow();
+    });
+
+    it('the solved rate reproduces the real schedule when fed back into dbCreateLoan-style generation', () => {
+      // Same math dbCreateLoan's customFirstInstallmentAmount path and generateAmortizationSchedule
+      // use — verifies the two code paths stay consistent, not just internally self-consistent.
+      const principal = 50000000;
+      const installmentCount = 24;
+      const firstInstallmentAmount = 3000000;
+      const subsequentInstallmentAmount = 2100000;
+
+      const solved = solveAnnualRateFromKnownPayments({
+        principal,
+        installmentCount,
+        firstInstallmentAmount,
+        subsequentInstallmentAmount,
+      });
+
+      const r = (solved.annualRatePct / 100) * (1 / 12);
+      const interest1 = r > 0 ? Math.round(principal * r) : 0;
+      const principal1 = firstInstallmentAmount - interest1;
+      const balance1 = principal - principal1;
+
+      const remaining = recalculateFromBalance({
+        anchorBalance: balance1,
+        anchorInstallmentNumber: 1,
+        remainingCount: installmentCount - 1,
+        annualRatePct: solved.annualRatePct,
+        startDateIso: '2026-01-01',
+      });
+
+      // The installment amount the real schedule generator produces must match the solver's answer
+      expect(remaining[0].totalAmount).toBe(solved.subsequentAmount);
     });
   });
 

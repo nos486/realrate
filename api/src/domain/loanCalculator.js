@@ -228,6 +228,112 @@ export function calculateFixedInstallmentAmount({
 }
 
 /**
+ * Simulates installment #1 (a custom amount) followed by `remainingCount` standard fixed
+ * installments at a given annual rate, mirroring exactly what dbCreateLoan's customFirstInstallment
+ * path and computeEffectiveSchedule's recalculateFromBalance would produce for that rate.
+ *
+ * @param {number} principal
+ * @param {number} firstInstallmentAmount
+ * @param {number} remainingCount
+ * @param {number} annualRatePct
+ * @param {number} intervalMonths
+ * @returns {{ balanceAfterFirst: number, subsequentAmount: number }}
+ */
+function simulateSubsequentInstallment(principal, firstInstallmentAmount, remainingCount, annualRatePct, intervalMonths) {
+  const r = annualRatePct > 0 ? (annualRatePct / 100) * (intervalMonths / 12) : 0;
+  const interest1 = r > 0 ? Math.round(principal * r) : 0;
+  let principal1 = firstInstallmentAmount - interest1;
+  if (principal1 < 0) principal1 = 0;
+  if (principal1 > principal) principal1 = principal;
+  const balanceAfterFirst = principal - principal1;
+
+  const subsequentAmount = calculateFixedInstallmentAmount({
+    principal: balanceAfterFirst,
+    annualRatePct,
+    installmentCount: remainingCount,
+    intervalMonths,
+  });
+
+  return { balanceAfterFirst, subsequentAmount };
+}
+
+/**
+ * Reverse-engineers the annual interest rate implied by a known repayment pattern: a custom
+ * first installment followed by a uniform amount for the remaining installments (e.g. "month 1
+ * was 12,000,000, every month after that is 3,000,000 for a 120-month loan — what's the rate?").
+ *
+ * There is no closed-form solution for uneven cash flows, so this finds the rate numerically via
+ * bisection over simulateSubsequentInstallment, which reuses the exact same rounding-aware formula
+ * generateAmortizationSchedule/dbCreateLoan already use — so the returned rate reproduces the real
+ * schedule the app would generate, not just a continuous-math approximation.
+ *
+ * @param {object} params
+ * @param {number} params.principal
+ * @param {number} params.installmentCount - Total installment count (must be >= 2)
+ * @param {number} params.firstInstallmentAmount
+ * @param {number} params.subsequentInstallmentAmount - The known, uniform amount for installments 2..N
+ * @param {number} [params.intervalMonths=1]
+ * @returns {{ annualRatePct: number, subsequentAmount: number, remainingCount: number }}
+ */
+export function solveAnnualRateFromKnownPayments({
+  principal,
+  installmentCount,
+  firstInstallmentAmount,
+  subsequentInstallmentAmount,
+  intervalMonths = 1,
+}) {
+  const p = Number(principal) || 0;
+  const n = parseInt(installmentCount, 10) || 0;
+  const a1 = Number(firstInstallmentAmount) || 0;
+  const a2 = Number(subsequentInstallmentAmount) || 0;
+  const interval = parseInt(intervalMonths, 10) || 1;
+
+  if (p <= 0) {
+    throw new Error('مبلغ اصل وام باید عددی بزرگتر از صفر باشد.');
+  }
+  if (n < 2) {
+    throw new Error('این محاسبه به حداقل ۲ قسط (قسط اول و حداقل یک قسط بعدی) نیاز دارد.');
+  }
+  if (a1 <= 0 || a2 <= 0) {
+    throw new Error('مبلغ قسط اول و مبلغ اقساط بعدی باید عددی بزرگتر از صفر باشند.');
+  }
+  if (a1 >= p) {
+    throw new Error('مبلغ قسط اول نمی‌تواند از (یا برابر با) کل اصل وام بیشتر باشد.');
+  }
+
+  const remainingCount = n - 1;
+  const f = (ratePct) => simulateSubsequentInstallment(p, a1, remainingCount, ratePct, interval).subsequentAmount - a2;
+
+  // Even at 0% (قرض‌الحسنه) the implied installment already meets or exceeds the target — rate is 0%.
+  if (f(0) >= 0) {
+    const zero = simulateSubsequentInstallment(p, a1, remainingCount, 0, interval);
+    return { annualRatePct: 0, subsequentAmount: zero.subsequentAmount, remainingCount };
+  }
+
+  let lo = 0;
+  let hi = 500; // 500% annual ceiling — comfortably beyond any real-world loan
+  let fHi = f(hi);
+  let expansions = 0;
+  while (fHi < 0 && expansions < 20) {
+    hi *= 2;
+    fHi = f(hi);
+    expansions++;
+  }
+  if (fHi < 0) {
+    throw new Error('برای این ترکیب از مبلغ اقساط، نرخ سود معتبری پیدا نشد. لطفاً مقادیر را بررسی کنید.');
+  }
+
+  for (let i = 0; i < 100 && hi - lo > 1e-6; i++) {
+    const mid = (lo + hi) / 2;
+    if (f(mid) < 0) lo = mid; else hi = mid;
+  }
+
+  const annualRatePct = Math.round(((lo + hi) / 2) * 100) / 100;
+  const finalSim = simulateSubsequentInstallment(p, a1, remainingCount, annualRatePct, interval);
+  return { annualRatePct, subsequentAmount: finalSim.subsequentAmount, remainingCount };
+}
+
+/**
  * Generate full amortization schedule for a loan.
  *
  * @param {object} params

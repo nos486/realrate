@@ -18,7 +18,11 @@ import ShamsiDatePicker, {
   gregorianToShamsi,
   shamsiToGregorian,
 } from '../../portfolio/components/ShamsiDatePicker.jsx';
-import { calculateFixedInstallmentAmount, generateAmortizationSchedule } from '../../../utils/loanCalculator.js';
+import {
+  calculateFixedInstallmentAmount,
+  generateAmortizationSchedule,
+  solveAnnualRateFromKnownPayments,
+} from '../../../utils/loanCalculator.js';
 
 const formatPersianNum = (val) => Number(val || 0).toLocaleString('fa-IR');
 
@@ -48,6 +52,10 @@ export default function AddLoanForm({
   const [firstInstallmentAmount, setFirstInstallmentAmount] = useState('');
   const [customAmounts, setCustomAmounts] = useState({});
 
+  // Reverse-solve the annual rate from a known first + subsequent installment pattern
+  const [knownSubsequentAmount, setKnownSubsequentAmount] = useState('');
+  const [rateSolveMessage, setRateSolveMessage] = useState(null); // { type: 'success'|'error', text }
+
   // Populate or reset form whenever modal opens or editingLoan changes
   useEffect(() => {
     if (!isOpen) return;
@@ -56,6 +64,8 @@ export default function AddLoanForm({
     setInstallmentMode('standard');
     setFirstInstallmentAmount('');
     setCustomAmounts({});
+    setKnownSubsequentAmount('');
+    setRateSolveMessage(null);
 
     if (editingLoan) {
       setTitle(editingLoan.title || '');
@@ -118,6 +128,11 @@ export default function AddLoanForm({
     return Number(s) || 0;
   }, [annualFeeAmount]);
 
+  const cleanFirstInstallmentAmount = useMemo(() => {
+    const s = String(firstInstallmentAmount || '').replace(/,/g, '').trim();
+    return Number(s) || 0;
+  }, [firstInstallmentAmount]);
+
   // Live calculation of fixed periodic payment (PMT)
   const liveInstallment = useMemo(() => {
     if (cleanPrincipal <= 0 || cleanCount <= 0) return 0;
@@ -171,6 +186,28 @@ export default function AddLoanForm({
     return startDateIso !== origStart;
   }, [editingLoan, editingPaidCount, startDateIso]);
 
+  const handleSolveRate = () => {
+    setRateSolveMessage(null);
+    const cleanKnownSubsequent = Number(String(knownSubsequentAmount || '').replace(/,/g, '').trim());
+
+    try {
+      const result = solveAnnualRateFromKnownPayments({
+        principal: cleanPrincipal,
+        installmentCount: cleanCount,
+        firstInstallmentAmount: cleanFirstInstallmentAmount,
+        subsequentInstallmentAmount: cleanKnownSubsequent,
+        intervalMonths,
+      });
+      setAnnualInterestRate(String(result.annualRatePct));
+      setRateSolveMessage({
+        type: 'success',
+        text: `نرخ سود سالانه محاسبه‌شده: ${result.annualRatePct}٪ (قسط بعدی معادل: ${formatPersianNum(result.subsequentAmount)} تومان). فیلد نرخ سود به‌روزرسانی شد.`,
+      });
+    } catch (err) {
+      setRateSolveMessage({ type: 'error', text: err.message || 'محاسبه نرخ سود ممکن نشد.' });
+    }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setFormError('');
@@ -196,9 +233,7 @@ export default function AddLoanForm({
       return;
     }
 
-    const cleanFirstInst = installmentMode === 'customFirst'
-      ? Number(String(firstInstallmentAmount || '').replace(/,/g, '').trim())
-      : null;
+    const cleanFirstInst = installmentMode === 'customFirst' ? cleanFirstInstallmentAmount : null;
 
     if (installmentMode === 'customFirst' && (!cleanFirstInst || cleanFirstInst <= 0)) {
       setFormError('لطفاً مبلغ معتبر برای قسط اول وارد نمایید.');
@@ -469,6 +504,8 @@ export default function AddLoanForm({
                 setInstallmentMode(e.target.value);
                 setFirstInstallmentAmount('');
                 setCustomAmounts({});
+                setKnownSubsequentAmount('');
+                setRateSolveMessage(null);
               }}
               className="form-select"
               style={{ height: '42px', width: '100%' }}
@@ -494,6 +531,43 @@ export default function AddLoanForm({
                 <span style={{ display: 'block', fontSize: '0.74rem', color: '#94a3b8', marginTop: '6px' }}>
                   اقساط بعدی (۲ تا {cleanCount || '...'}) پس از ساخت وام، به صورت خودکار بر اساس مانده باقیمانده بازمحاسبه می‌شوند.
                 </span>
+
+                {/* Reverse-solve the interest rate from a known subsequent installment amount */}
+                <div style={{ marginTop: '14px', paddingTop: '10px', borderTop: '1px dashed rgba(255, 255, 255, 0.08)' }}>
+                  <label className="ui-input-label" style={{ display: 'block', marginBottom: '6px' }}>
+                    نرخ سود را نمی‌دانید؟ از روی مبلغ اقساط بعدی حساب کنید (اختیاری)
+                  </label>
+                  <div style={{ display: 'flex', gap: '8px', alignItems: 'flex-start' }}>
+                    <NumericInput
+                      value={knownSubsequentAmount}
+                      onValueChange={(val) => setKnownSubsequentAmount(val)}
+                      placeholder="مبلغ ثابت اقساط ۲ تا آخر که می‌دانید"
+                      affix="تومان"
+                      className="form-input"
+                    />
+                    <button
+                      type="button"
+                      className="btn-cancel"
+                      style={{ whiteSpace: 'nowrap', height: '42px' }}
+                      onClick={handleSolveRate}
+                      disabled={cleanFirstInstallmentAmount <= 0 || !knownSubsequentAmount || cleanPrincipal <= 0 || cleanCount < 2}
+                    >
+                      محاسبه نرخ سود
+                    </button>
+                  </div>
+                  {rateSolveMessage && (
+                    <span
+                      style={{
+                        display: 'block',
+                        fontSize: '0.76rem',
+                        marginTop: '6px',
+                        color: rateSolveMessage.type === 'success' ? '#34d399' : '#f87171',
+                      }}
+                    >
+                      {rateSolveMessage.text}
+                    </span>
+                  )}
+                </div>
               </div>
             )}
 
