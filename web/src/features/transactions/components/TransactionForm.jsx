@@ -79,7 +79,11 @@ export default function TransactionForm({
   const handleAssetSelect = (asset) => {
     if (!asset) return;
     const rawItem = asset.raw || asset;
-    const rawId = rawItem.id || rawItem.priceType || rawItem.symbol || '';
+    // Prefer the search result's OWN id (asset.id) — UniversalAssetSearch.jsx always constructs
+    // a correct, canonical id for every item it produces. asset.raw is a thinner spread of the
+    // underlying adapter/catalog record and can lack its own `.id` entirely (e.g. Emofid/Charisma
+    // fund items never set raw.id), which used to silently fall back to a bare symbol like "عیار".
+    const rawId = asset.id || rawItem.id || rawItem.priceType || rawItem.symbol || '';
     const cleanId = String(rawId).replace(/^src_def_/, '').replace(/^derived_/, '');
     const canonicalSpec = getCanonicalAssetSpec(cleanId || rawId || rawItem.symbol);
     const resolvedId = canonicalSpec?.id || cleanId || rawId;
@@ -87,7 +91,12 @@ export default function TransactionForm({
     const resolvedCat = getItemCategory(rawItem);
     const resolvedUnit = getItemUnit(rawItem);
     const isCustom = resolvedCat === 'custom' || resolvedId === 'custom' || resolvedId.startsWith('custom_');
-    const isBourse = (resolvedCat === 'bourse' || resolvedCat === 'bourse_fund') && !resolvedId.includes('charisma');
+    // Only a REAL Tehran Stock Exchange symbol should get the flat "bourse_SYMBOL" id — identified
+    // by its actual source, not by category: Emofid/Charisma funds also carry category
+    // 'bourse_fund' but must keep their own src_def_X__symbol id, or their transactions/holdings
+    // silently split into a second, differently-named duplicate every time this runs (the bare
+    // symbol "عیار" was previously mistaken for the bourse stock ticker "عیار").
+    const isBourse = asset.sourceId === 'src_def_bourse' || rawItem.sourceId === 'src_def_bourse';
 
     if (isBourse) {
       const symCode = (rawItem.symbol || rawItem.s || resolvedId.replace('bourse_', '')).trim();
