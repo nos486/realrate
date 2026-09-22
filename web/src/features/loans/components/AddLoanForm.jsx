@@ -532,151 +532,6 @@ export default function AddLoanForm({
           />
         </div>
 
-        {/* Row 2: Principal Amount */}
-        <div className="form-item" style={{ marginBottom: '14px' }}>
-          <label className="ui-input-label" style={{ display: 'block', marginBottom: '6px' }}>
-            مبلغ اصل وام (تومان) *
-          </label>
-          <NumericInput
-            value={principalAmount}
-            onValueChange={(val) => setPrincipalAmount(val)}
-            placeholder="مثلاً ۱۰۰,۰۰۰,۰۰۰"
-            affix="تومان"
-            className="form-input"
-            required
-          />
-        </div>
-
-        {/* Row 3: Rate (rate-based modes only) & Installment Count */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '14px', marginBottom: '14px' }}>
-          {installmentMode !== 'totalRepaymentBased' && (
-            <div className="form-item">
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
-                <label className="ui-input-label">نرخ سود سالانه (٪)</label>
-                {cleanRate === 0 && (
-                  <span style={{
-                    fontSize: '0.75rem',
-                    padding: '1px 8px',
-                    borderRadius: '12px',
-                    background: 'rgba(16, 185, 129, 0.15)',
-                    color: '#34d399',
-                    fontWeight: 600,
-                  }}>
-                    قرض‌الحسنه
-                  </span>
-                )}
-              </div>
-              <NumericInput
-                value={annualInterestRate}
-                onValueChange={(val) => setAnnualInterestRate(val)}
-                placeholder="۰ برای بدون سود"
-                affix="٪"
-                allowDecimals={true}
-                className="form-input"
-              />
-            </div>
-          )}
-
-          <div className="form-item">
-            <label className="ui-input-label" style={{ display: 'block', marginBottom: '6px' }}>
-              تعداد کل اقساط *
-            </label>
-            <NumericInput
-              value={installmentCount}
-              onValueChange={(val) => setInstallmentCount(val)}
-              placeholder="مثلاً: ۱۲، ۲۴، ۳۶"
-              affix="قسط"
-              className="form-input"
-              required
-            />
-          </div>
-
-          {installmentMode === 'totalRepaymentBased' && (
-            <div className="form-item">
-              <label className="ui-input-label" style={{ display: 'block', marginBottom: '6px' }}>
-                کل بازپرداخت (اصل + سود) {editingLoan ? '' : '*'}
-              </label>
-              <NumericInput
-                value={loadingDistributedTotal ? '' : totalRepaymentAmount}
-                onValueChange={(val) => setTotalRepaymentAmount(val)}
-                placeholder={loadingDistributedTotal ? 'در حال دریافت مبلغ فعلی...' : 'مبلغ دقیقی که طبق بانک باید در مجموع پس بدهید'}
-                affix="تومان"
-                className="form-input"
-                required={!editingLoan}
-                disabled={Boolean(editingLoan)}
-              />
-              {editingLoan ? (
-                <span style={{ display: 'block', fontSize: '0.74rem', color: '#94a3b8', marginTop: '6px' }}>
-                  این وام با «ویرایش گروهی اقساط» تنظیم شده — برای تغییر مبلغ اقساط از همان بخش (داخل جدول اقساط وام) استفاده کنید.
-                </span>
-              ) : (
-                <>
-                  {totalBasedResult.approxRatePct !== null && totalBasedResult.approxRatePct !== undefined && (
-                    <span style={{ display: 'block', fontSize: '0.74rem', color: '#94a3b8', marginTop: '6px' }}>
-                      نرخ سود معادل تقریبی: {totalBasedResult.approxRatePct}٪ (فقط اطلاعاتی — در محاسبه اقساط استفاده نمی‌شود)
-                    </span>
-                  )}
-                  {totalBasedResult.error && (
-                    <span style={{ display: 'flex', alignItems: 'flex-start', gap: '6px', fontSize: '0.76rem', color: '#f87171', marginTop: '6px' }}>
-                      <AlertCircle size={14} style={{ flexShrink: 0, marginTop: '1px' }} />
-                      {totalBasedResult.error}
-                    </span>
-                  )}
-                </>
-              )}
-            </div>
-          )}
-        </div>
-
-        {/* Row 4: Start Date & Payment Interval */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '14px', marginBottom: '16px' }}>
-          <ShamsiDatePicker
-            label="تاریخ دریافت وام *"
-            value={startDateShamsi}
-            onChange={(val) => {
-              setStartDateShamsi(val);
-              const iso = shamsiToGregorian(val);
-              if (iso) setStartDateIso(iso);
-            }}
-            onChangeIso={(iso) => setStartDateIso(iso)}
-          />
-
-          <div className="form-item">
-            <label className="ui-input-label" style={{ display: 'block', marginBottom: '6px' }}>
-              دوره پرداخت اقساط
-            </label>
-            <select
-              value={intervalMonths}
-              onChange={(e) => setIntervalMonths(parseInt(e.target.value, 10) || 1)}
-              className="form-select"
-              style={{ height: '42px' }}
-            >
-              <option value={1}>ماهانه (هر ۱ ماه)</option>
-              <option value={2}>دو ماه یک‌بار</option>
-              <option value={3}>فصلی (هر ۳ ماه)</option>
-              <option value={6}>شش‌ماهه (هر ۶ ماه)</option>
-              <option value={12}>سالانه (هر ۱۲ ماه)</option>
-            </select>
-          </div>
-        </div>
-
-        {/* Row 5: Optional Annual Fee */}
-        <div className="form-item" style={{ marginBottom: '16px' }}>
-          <label className="ui-input-label" style={{ display: 'block', marginBottom: '6px' }}>
-            کارمزد سالانه (اختیاری)
-          </label>
-          <NumericInput
-            value={annualFeeAmount}
-            onValueChange={(val) => setAnnualFeeAmount(val)}
-            placeholder="در صورت وجود، مبلغ کارمزدی که بانک هرسال دریافت می‌کند"
-            affix="تومان"
-            className="form-input"
-          />
-          <span style={{ display: 'block', fontSize: '0.74rem', color: '#94a3b8', marginTop: '6px' }}>
-            هر سال یک‌بار، به مبلغ نزدیک‌ترین قسط به سالگرد دریافت وام اضافه می‌شود.
-          </span>
-        </div>
-
         {/* Installment Determination Mode — Only on creation */}
         {!editingLoan && (
           <div style={{
@@ -836,6 +691,151 @@ export default function AddLoanForm({
             )}
           </div>
         )}
+
+        {/* Row 2: Principal Amount */}
+        <div className="form-item" style={{ marginBottom: '14px' }}>
+          <label className="ui-input-label" style={{ display: 'block', marginBottom: '6px' }}>
+            مبلغ اصل وام (تومان) *
+          </label>
+          <NumericInput
+            value={principalAmount}
+            onValueChange={(val) => setPrincipalAmount(val)}
+            placeholder="مثلاً ۱۰۰,۰۰۰,۰۰۰"
+            affix="تومان"
+            className="form-input"
+            required
+          />
+        </div>
+
+        {/* Row 3: Rate (rate-based modes only) & Installment Count */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '14px', marginBottom: '14px' }}>
+          {installmentMode !== 'totalRepaymentBased' && (
+            <div className="form-item">
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                <label className="ui-input-label">نرخ سود سالانه (٪)</label>
+                {cleanRate === 0 && (
+                  <span style={{
+                    fontSize: '0.75rem',
+                    padding: '1px 8px',
+                    borderRadius: '12px',
+                    background: 'rgba(16, 185, 129, 0.15)',
+                    color: '#34d399',
+                    fontWeight: 600,
+                  }}>
+                    قرض‌الحسنه
+                  </span>
+                )}
+              </div>
+              <NumericInput
+                value={annualInterestRate}
+                onValueChange={(val) => setAnnualInterestRate(val)}
+                placeholder="۰ برای بدون سود"
+                affix="٪"
+                allowDecimals={true}
+                className="form-input"
+              />
+            </div>
+          )}
+
+          <div className="form-item">
+            <label className="ui-input-label" style={{ display: 'block', marginBottom: '6px' }}>
+              تعداد کل اقساط *
+            </label>
+            <NumericInput
+              value={installmentCount}
+              onValueChange={(val) => setInstallmentCount(val)}
+              placeholder="مثلاً: ۱۲، ۲۴، ۳۶"
+              affix="قسط"
+              className="form-input"
+              required
+            />
+          </div>
+
+          {installmentMode === 'totalRepaymentBased' && (
+            <div className="form-item">
+              <label className="ui-input-label" style={{ display: 'block', marginBottom: '6px' }}>
+                کل بازپرداخت (اصل + سود) {editingLoan ? '' : '*'}
+              </label>
+              <NumericInput
+                value={loadingDistributedTotal ? '' : totalRepaymentAmount}
+                onValueChange={(val) => setTotalRepaymentAmount(val)}
+                placeholder={loadingDistributedTotal ? 'در حال دریافت مبلغ فعلی...' : 'مبلغ دقیقی که طبق بانک باید در مجموع پس بدهید'}
+                affix="تومان"
+                className="form-input"
+                required={!editingLoan}
+                disabled={Boolean(editingLoan)}
+              />
+              {editingLoan ? (
+                <span style={{ display: 'block', fontSize: '0.74rem', color: '#94a3b8', marginTop: '6px' }}>
+                  این وام با «ویرایش گروهی اقساط» تنظیم شده — برای تغییر مبلغ اقساط از همان بخش (داخل جدول اقساط وام) استفاده کنید.
+                </span>
+              ) : (
+                <>
+                  {totalBasedResult.approxRatePct !== null && totalBasedResult.approxRatePct !== undefined && (
+                    <span style={{ display: 'block', fontSize: '0.74rem', color: '#94a3b8', marginTop: '6px' }}>
+                      نرخ سود معادل تقریبی: {totalBasedResult.approxRatePct}٪ (فقط اطلاعاتی — در محاسبه اقساط استفاده نمی‌شود)
+                    </span>
+                  )}
+                  {totalBasedResult.error && (
+                    <span style={{ display: 'flex', alignItems: 'flex-start', gap: '6px', fontSize: '0.76rem', color: '#f87171', marginTop: '6px' }}>
+                      <AlertCircle size={14} style={{ flexShrink: 0, marginTop: '1px' }} />
+                      {totalBasedResult.error}
+                    </span>
+                  )}
+                </>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Row 4: Start Date & Payment Interval */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '14px', marginBottom: '16px' }}>
+          <ShamsiDatePicker
+            label="تاریخ دریافت وام *"
+            value={startDateShamsi}
+            onChange={(val) => {
+              setStartDateShamsi(val);
+              const iso = shamsiToGregorian(val);
+              if (iso) setStartDateIso(iso);
+            }}
+            onChangeIso={(iso) => setStartDateIso(iso)}
+          />
+
+          <div className="form-item">
+            <label className="ui-input-label" style={{ display: 'block', marginBottom: '6px' }}>
+              دوره پرداخت اقساط
+            </label>
+            <select
+              value={intervalMonths}
+              onChange={(e) => setIntervalMonths(parseInt(e.target.value, 10) || 1)}
+              className="form-select"
+              style={{ height: '42px' }}
+            >
+              <option value={1}>ماهانه (هر ۱ ماه)</option>
+              <option value={2}>دو ماه یک‌بار</option>
+              <option value={3}>فصلی (هر ۳ ماه)</option>
+              <option value={6}>شش‌ماهه (هر ۶ ماه)</option>
+              <option value={12}>سالانه (هر ۱۲ ماه)</option>
+            </select>
+          </div>
+        </div>
+
+        {/* Row 5: Optional Annual Fee */}
+        <div className="form-item" style={{ marginBottom: '16px' }}>
+          <label className="ui-input-label" style={{ display: 'block', marginBottom: '6px' }}>
+            کارمزد سالانه (اختیاری)
+          </label>
+          <NumericInput
+            value={annualFeeAmount}
+            onValueChange={(val) => setAnnualFeeAmount(val)}
+            placeholder="در صورت وجود، مبلغ کارمزدی که بانک هرسال دریافت می‌کند"
+            affix="تومان"
+            className="form-input"
+          />
+          <span style={{ display: 'block', fontSize: '0.74rem', color: '#94a3b8', marginTop: '6px' }}>
+            هر سال یک‌بار، به مبلغ نزدیک‌ترین قسط به سالگرد دریافت وام اضافه می‌شود.
+          </span>
+        </div>
 
         {/* Live Calculation Preview Box — rate-based modes only */}
         {installmentMode !== 'totalRepaymentBased' && (
