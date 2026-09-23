@@ -1,82 +1,59 @@
-/**
- * LandingPage.jsx — Logged-out marketing page shown at "/" and every gated route.
- *
- * The whole site (including live market prices) requires a login — this page carries
- * no live data of its own, just the pitch and the sign-in CTA. Once the user logs in,
- * MainPage stops rendering this and shows the real dashboard at the same URL.
- */
 import React from 'react';
-import { TrendingUp, Wallet, Briefcase, Receipt, Landmark, ShieldCheck } from 'lucide-react';
-import AppLayout from '../shared/ui/AppLayout.jsx';
-import { useAuth } from '../features/auth/index.js';
-
-const FEATURES = [
-  {
-    icon: <TrendingUp size={20} />,
-    title: 'نرخ لحظه‌ای طلا، سکه و ارز',
-    desc: 'قیمت لحظه‌ای بازار به همراه تحلیل حباب نسبت به ارزش جهانی',
-  },
-  {
-    icon: <Wallet size={20} />,
-    title: 'ثبت و گزارش درآمدها',
-    desc: 'مدیریت کامل ورودی‌های مالی به تفکیک منبع، ماه و سال',
-  },
-  {
-    icon: <Briefcase size={20} />,
-    title: 'مدیریت پورتفوی سرمایه‌گذاری',
-    desc: 'ارزش‌گذاری دقیق دارایی‌ها بر پایه قیمت جهانی طلا، نقره و ارز',
-  },
-  {
-    icon: <Receipt size={20} />,
-    title: 'ثبت معاملات و تراکنش‌ها',
-    desc: 'محاسبه خودکار سود و زیان محقق‌شده با رمزنگاری سرتاسری',
-  },
-  {
-    icon: <Landmark size={20} />,
-    title: 'مدیریت وام و اقساط',
-    desc: 'پیگیری سررسید، مانده بدهی و اقساط به تفکیک بانک',
-  },
-];
+import {
+  LandingNavbar,
+  LandingHero,
+  LandingLiveTicker,
+  LandingTrustMetrics,
+  LandingBubbleExplainer,
+  LandingBentoFeatures,
+  LandingHowItWorks,
+  LandingSecurityVault,
+  LandingPhoneShowcase,
+  LandingFaqAccordion,
+  LandingFinalCta,
+  LandingFooter,
+} from '../features/landing/index.js';
 
 export default function LandingPage() {
-  const { triggerLogin } = useAuth();
-
   return (
-    <AppLayout layoutClassName="landing-layout">
-      <div className="landing-page">
-        <section className="landing-hero">
-          <span className="landing-hero-badge">
-            <ShieldCheck size={14} style={{ verticalAlign: 'middle', marginLeft: '4px' }} />
-            ورود امن با حساب گوگل
-          </span>
-          <h1 className="landing-hero-title">
-            مدیریت هوشمند دارایی، درآمد و اقساط شما، یکجا
-          </h1>
-          <p className="landing-hero-desc">
-            نرخ لحظه‌ای بازار، پورتفوی سرمایه‌گذاری، تراکنش‌ها، درآمدها و وام‌های شما — همه در یک
-            حساب امن و رمزنگاری‌شده. برای مشاهده قیمت‌ها و استفاده از امکانات سایت وارد شوید.
-          </p>
-          <button type="button" className="btn-google-gate-login landing-cta" onClick={triggerLogin}>
-            <svg width="20" height="20" viewBox="0 0 24 24">
-              <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
-              <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
-              <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" />
-              <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" />
-            </svg>
-            <span>ورود و شروع رایگان</span>
-          </button>
-        </section>
+    <div className="landing-root-wrapper" dir="rtl">
+      {/* Sticky Glass Navigation Bar */}
+      <LandingNavbar />
 
-        <section className="landing-features-grid">
-          {FEATURES.map((f) => (
-            <div className="landing-feature-card" key={f.title}>
-              <span className="landing-feature-icon">{f.icon}</span>
-              <h3>{f.title}</h3>
-              <p>{f.desc}</p>
-            </div>
-          ))}
-        </section>
-      </div>
-    </AppLayout>
+      <main className="landing-main-content">
+        {/* 1. Hero Section with 3D-tilt glass dashboard & animated counter */}
+        <LandingHero />
+
+        {/* 2. Marquee Live Ticker */}
+        <LandingLiveTicker />
+
+        {/* 3. Trust Metrics / Key Stats Strip */}
+        <LandingTrustMetrics />
+
+        {/* 4. Interactive Bubble Explainer & Simulator */}
+        <LandingBubbleExplainer />
+
+        {/* 5. Bento Grid Features with Cursor-Follow Glow */}
+        <LandingBentoFeatures />
+
+        {/* 6. How It Works Timeline */}
+        <LandingHowItWorks />
+
+        {/* 7. Zero-Knowledge Security Vault Showcase */}
+        <LandingSecurityVault />
+
+        {/* 8. Phone Showcase (Shared Portfolio & Privacy Mode) */}
+        <LandingPhoneShowcase />
+
+        {/* 9. FAQ Accordion */}
+        <LandingFaqAccordion />
+
+        {/* 10. Final Call to Action */}
+        <LandingFinalCta />
+      </main>
+
+      {/* 11. Footer */}
+      <LandingFooter />
+    </div>
   );
 }

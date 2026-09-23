@@ -1,5 +1,6 @@
 import { Routes, Route, Navigate } from 'react-router-dom';
 import MainPage from './pages/MainPage.jsx';
+import LandingPage from './pages/LandingPage.jsx';
 import SharedPortfolioPage from './pages/SharedPortfolioPage.jsx';
 import FullscreenLoader from './shared/ui/FullscreenLoader.jsx';
 import { PricingProvider } from './features/market/index.js';
@@ -27,6 +28,7 @@ export default function App() {
           <Route path="/derived-assets" element={<Navigate to="/admin/sources" replace />} />
           <Route path="/sources" element={<MainPage />} />
           <Route path="/p/:slug" element={<SharedPortfolioPage />} />
+          <Route path="/welcome" element={<LandingPage />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
         <FullscreenLoader />
