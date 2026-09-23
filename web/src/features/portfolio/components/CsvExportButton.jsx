@@ -1,5 +1,6 @@
 import React from 'react';
 import { Download } from 'lucide-react';
+import { resolveAssetDisplayName } from '../utils/holdingHelpers.js';
 
 export default function CsvExportButton({ items = [], portfolioName = 'portfolio', disabled = false }) {
   const handleExportCSV = () => {
@@ -20,7 +21,10 @@ export default function CsvExportButton({ items = [], portfolioName = 'portfolio
       'تاریخ خرید',
       'یادداشت',
       'شناسه سیستمی',
-      'منبع'
+      'منبع',
+      'دارایی مرجع (پرداخت/تهاتر)',
+      'شناسه دارایی مرجع',
+      'مقدار دارایی مرجع'
     ];
 
     const escapeCSV = (val) => {
@@ -45,7 +49,10 @@ export default function CsvExportButton({ items = [], portfolioName = 'portfolio
         escapeCSV(item.buyDate || ''),
         escapeCSV(item.notes || ''),
         escapeCSV(item.assetId || ''),
-        escapeCSV(item.source === 'transactions' ? 'تراکنش‌ها' : 'دستی')
+        escapeCSV(item.source === 'transactions' ? 'تراکنش‌ها' : 'دستی'),
+        escapeCSV(item.referenceAssetId ? resolveAssetDisplayName(item.referenceAssetId) : ''),
+        escapeCSV(item.referenceAssetId || ''),
+        escapeCSV(item.referenceAssetId && item.referenceQuantity > 0 ? item.referenceQuantity : '')
       ];
       return row.join(',');
     });

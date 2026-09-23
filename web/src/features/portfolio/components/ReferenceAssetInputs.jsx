@@ -44,6 +44,18 @@ export default function ReferenceAssetInputs({
   const userEditedPrice = useRef(!autoFillPrice);
   const prevAssetId = useRef(referenceAsset?.id || null);
 
+  // AddHoldingForm/TransactionForm populate referenceAsset from the record being edited
+  // in an effect that runs AFTER this component's first mount, so on the very first open
+  // of the edit modal referenceAsset is still null at mount time (useState above then
+  // freezes `expanded` at false) and only arrives a render later. Sync `expanded` to it
+  // directly instead of relying on the mount-time snapshot, or the panel opens empty
+  // until the modal is closed and reopened.
+  useEffect(() => {
+    if (referenceAsset) {
+      setExpanded(true);
+    }
+  }, [referenceAsset]);
+
   useEffect(() => {
     const id = referenceAsset?.id || null;
     if (!id) {

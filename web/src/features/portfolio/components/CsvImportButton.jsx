@@ -15,6 +15,8 @@ const HEADERS = {
   notes: 'یادداشت',
   assetId: 'شناسه سیستمی',
   source: 'منبع',
+  referenceAssetId: 'شناسه دارایی مرجع',
+  referenceQuantity: 'مقدار دارایی مرجع',
 };
 
 // Exact-name → canonical assetId lookup, used only as a best-effort fallback for CSVs
@@ -132,10 +134,26 @@ function buildRows(headerIndex, dataRows) {
         notes = notes ? `${notes} — نام اصلی: ${name}` : `نام اصلی: ${name}`;
       }
 
+      // Paid/swapped with another asset (see ReferenceAssetInputs) — buyPrice above already
+      // reflects the resulting Toman cost basis, so these are just carried through verbatim
+      // for display/editing; nothing needs to be recomputed.
+      const referenceAssetIdRaw = get(row, 'referenceAssetId').trim();
+      const referenceQuantityRaw = parseInputNumber(get(row, 'referenceQuantity'));
+      const hasReference = Boolean(referenceAssetIdRaw) && referenceQuantityRaw > 0;
+
       return {
         status: isFallback ? 'custom' : 'ok',
         name: name || assetId,
-        holding: { assetId, amount, buyPrice, buyDate, notes, customPrice },
+        holding: {
+          assetId,
+          amount,
+          buyPrice,
+          buyDate,
+          notes,
+          customPrice,
+          referenceAssetId: hasReference ? referenceAssetIdRaw : '',
+          referenceQuantity: hasReference ? referenceQuantityRaw : 0,
+        },
       };
     })
     .filter(Boolean);
