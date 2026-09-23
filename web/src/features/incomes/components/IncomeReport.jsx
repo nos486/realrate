@@ -6,7 +6,7 @@ import React from 'react';
 import { PieChart, BarChart3 } from 'lucide-react';
 import { Card } from '../../../shared/ui/index.js';
 import { formatNum } from '../../portfolio/utils/holdingHelpers.js';
-import { formatCompactToman, formatPct } from '../../../shared/utils/formatters.js';
+import { formatPct } from '../../../shared/utils/formatters.js';
 import { getIncomeCategory } from '../constants/incomeCategories.js';
 
 /** Most recent months shown in the monthly breakdown */
@@ -20,8 +20,8 @@ function BreakdownRow({ label, icon = null, color, amount, ratio, meta, hideValu
           {icon}
           {label}
         </span>
-        <span className="income-breakdown-amount" title={hideValues ? '' : `${formatNum(amount)} تومان`}>
-          {hideValues ? '****' : formatCompactToman(amount)}
+        <span className="income-breakdown-amount">
+          {hideValues ? '****' : `${formatNum(amount)} تومان`}
           <span className="income-breakdown-meta">{meta}</span>
         </span>
       </div>

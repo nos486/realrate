@@ -7,7 +7,6 @@ import { Calendar, MessageSquare, Pencil, Trash2 } from 'lucide-react';
 import { ResponsiveDataTable } from '../../../shared/ui/index.js';
 import { gregorianToShamsi } from '../../portfolio/components/ShamsiDatePicker.jsx';
 import { formatNum } from '../../portfolio/utils/holdingHelpers.js';
-import { formatCompactToman } from '../../../shared/utils/formatters.js';
 import { getIncomeCategory } from '../constants/incomeCategories.js';
 
 export default function IncomesTable({ incomes, onEdit, onDelete, deletingId = null, hideValues = false }) {
@@ -49,11 +48,8 @@ export default function IncomesTable({ incomes, onEdit, onDelete, deletingId = n
       mobile: 'stat',
       render: (income) => (
         <div className="cell-currency-wrap">
-          <strong
-            className={`cell-val-bold cell-compact-val text-profit ${hideValues ? 'is-masked' : ''}`}
-            title={hideValues ? '' : `${formatNum(income.amount)} تومان`}
-          >
-            {hideValues ? '****' : formatCompactToman(income.amount)}
+          <strong className={`cell-val-bold text-profit ${hideValues ? 'is-masked' : ''}`}>
+            {hideValues ? '****' : formatNum(income.amount)}
           </strong>
           <span className="cell-unit">تومان</span>
         </div>
