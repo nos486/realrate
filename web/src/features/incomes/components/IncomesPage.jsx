@@ -16,7 +16,6 @@ import {
   Button,
   EmptyState,
   FeaturePageHeader,
-  FilterPills,
   SearchBar,
   SplitPageLayout,
 } from '../../../shared/ui/index.js';
@@ -104,29 +103,13 @@ export default function IncomesPage() {
         <AlertBanner type="error" message={error} onClose={clearError} />
       )}
 
-      {loadingIncomes && !hasIncomes ? (
-        <div className="incomes-loading-state">
-          <RefreshCw size={22} className="spin-anim" />
-          <span>در حال دریافت لیست درآمدها...</span>
-        </div>
-      ) : error && !hasIncomes ? (
+      {error && !hasIncomes ? (
         <AlertBanner
           type="error"
           message={error}
           action={
             <Button size="sm" variant="secondary" onClick={fetchIncomes}>
               تلاش مجدد
-            </Button>
-          }
-        />
-      ) : !hasIncomes ? (
-        <EmptyState
-          icon={<Wallet size={44} strokeWidth={1.5} />}
-          title="هنوز هیچ درآمدی ثبت نشده است"
-          description="با ثبت اولین درآمد، گزارش مجموع ورودی‌ها به تفکیک ماه و منبع درآمد اینجا نمایش داده می‌شود."
-          action={
-            <Button icon={<Plus size={16} />} onClick={handleOpenAdd}>
-              ثبت اولین درآمد
             </Button>
           }
         />
@@ -147,7 +130,7 @@ export default function IncomesPage() {
                 </div>
               </div>
 
-              {report.count > 0 && (
+              {hasIncomes && (
                 <SearchBar
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
@@ -159,34 +142,53 @@ export default function IncomesPage() {
             </div>
 
             <div className="table-card-body">
-              <FilterPills
-                variant="segmented"
-                options={INCOME_PERIODS}
-                activeValue={period}
-                onChange={setPeriod}
-                className="incomes-period-filter"
-              />
+              <div className="tx-filter-pills-bar">
+                {INCOME_PERIODS.map((opt) => (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    className={`tx-filter-pill ${period === opt.value ? 'active' : ''}`}
+                    onClick={() => setPeriod(opt.value)}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
 
-              {report.count > 0 ? (
-                visibleIncomes.length > 0 ? (
-                  <IncomesTable
-                    incomes={visibleIncomes}
-                    onEdit={handleOpenEdit}
-                    onDelete={handleDelete}
-                    deletingId={deletingId}
-                    hideValues={hideValues}
-                  />
-                ) : (
-                  <EmptyState
-                    title="موردی یافت نشد"
-                    description="هیچ درآمدی با عبارت جستجو شده مطابقت ندارد."
-                  />
-                )
-              ) : (
+              {loadingIncomes && !hasIncomes ? (
+                <div className="incomes-loading-state">
+                  <RefreshCw size={22} className="spin-anim" />
+                  <span>در حال دریافت لیست درآمدها...</span>
+                </div>
+              ) : !hasIncomes ? (
+                <EmptyState
+                  icon={<Wallet size={44} strokeWidth={1.5} />}
+                  title="هنوز هیچ درآمدی ثبت نشده است"
+                  description="با ثبت اولین درآمد، گزارش مجموع ورودی‌ها به تفکیک ماه و منبع درآمد اینجا نمایش داده می‌شود."
+                  action={
+                    <Button icon={<Plus size={16} />} onClick={handleOpenAdd}>
+                      ثبت اولین درآمد
+                    </Button>
+                  }
+                />
+              ) : report.count === 0 ? (
                 <EmptyState
                   icon={<CalendarRange size={40} strokeWidth={1.5} />}
                   title="در این بازه درآمدی ثبت نشده است"
                   description="بازه زمانی دیگری را انتخاب کنید یا درآمد جدیدی ثبت نمایید."
+                />
+              ) : visibleIncomes.length === 0 ? (
+                <EmptyState
+                  title="موردی یافت نشد"
+                  description="هیچ درآمدی با عبارت جستجو شده مطابقت ندارد."
+                />
+              ) : (
+                <IncomesTable
+                  incomes={visibleIncomes}
+                  onEdit={handleOpenEdit}
+                  onDelete={handleDelete}
+                  deletingId={deletingId}
+                  hideValues={hideValues}
                 />
               )}
             </div>
