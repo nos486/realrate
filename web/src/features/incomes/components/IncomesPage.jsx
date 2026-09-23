@@ -24,6 +24,8 @@ import IncomeForm from './IncomeForm.jsx';
 import IncomeSummaryCards from './IncomeSummaryCards.jsx';
 import IncomeReport from './IncomeReport.jsx';
 import IncomesTable from './IncomesTable.jsx';
+import IncomeCsvExportButton from './IncomeCsvExportButton.jsx';
+import IncomeCsvImportButton from './IncomeCsvImportButton.jsx';
 import { INCOME_PERIODS, buildIncomeReport, filterIncomesByPeriod } from '../utils/incomeReport.js';
 import { getIncomeCategory } from '../constants/incomeCategories.js';
 
@@ -88,9 +90,13 @@ export default function IncomesPage() {
         title="درآمدها"
         subtitle="ثبت ورودی‌ها و گزارش کلی درآمد به تفکیک منبع و ماه"
         actions={
-          <Button icon={<Plus size={16} />} onClick={handleOpenAdd}>
-            ثبت درآمد جدید
-          </Button>
+          <>
+            <IncomeCsvExportButton incomes={incomes} disabled={!hasIncomes} />
+            <IncomeCsvImportButton saveIncome={saveIncome} />
+            <Button icon={<Plus size={16} />} onClick={handleOpenAdd}>
+              ثبت درآمد جدید
+            </Button>
+          </>
         }
       />
 

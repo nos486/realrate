@@ -21,6 +21,8 @@ import { useLoanDetail } from '../hooks/useLoanDetail.js';
 import LoansTable from './LoansTable.jsx';
 import AddLoanForm from './AddLoanForm.jsx';
 import LoanInstallmentsTable from './LoanInstallmentsTable.jsx';
+import LoanCsvExportButton from './LoanCsvExportButton.jsx';
+import LoanCsvImportButton from './LoanCsvImportButton.jsx';
 import Modal from '../../../shared/ui/Modal.jsx';
 import EmptyState from '../../../shared/ui/EmptyState.jsx';
 import FeaturePageHeader from '../../../shared/ui/FeaturePageHeader.jsx';
@@ -270,10 +272,14 @@ export default function LoansPage({ initialLoanId = null }) {
         title="مدیریت وام‌ها و اقساط"
         subtitle="برنامه استهلاک بانکی، جدول سررسید و ثبت تسویه اقساط"
         actions={
-          <button type="button" className="btn-add-loan" onClick={handleOpenAddModal}>
-            <Plus size={18} />
-            <span>افزودن وام جدید</span>
-          </button>
+          <>
+            <LoanCsvExportButton loans={loans} disabled={loans.length === 0} />
+            <LoanCsvImportButton addLoan={addLoan} />
+            <button type="button" className="btn-add-loan" onClick={handleOpenAddModal}>
+              <Plus size={18} />
+              <span>افزودن وام جدید</span>
+            </button>
+          </>
         }
       />
 
