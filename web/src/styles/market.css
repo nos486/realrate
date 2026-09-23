@@ -1023,6 +1023,8 @@
 .blue-text { color: var(--blue-sky); }
 .good-text { color: var(--green-emerald); }
 .warn-text { color: #f59e0b; }
+.text-profit { color: var(--green-emerald); }
+.text-loss { color: var(--rose-red); }
 .danger-text { color: var(--rose-red); }
 
 /* Specifications Box */

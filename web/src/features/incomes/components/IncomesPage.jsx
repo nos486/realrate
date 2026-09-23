@@ -8,27 +8,28 @@
  */
 
 import React, { useState, useMemo } from 'react';
-import { Wallet, Plus, PieChart, CalendarRange, Cloud, RefreshCw } from 'lucide-react';
-import { useAuth } from '../../auth/index.js';
+import { Wallet, Plus, CalendarRange, RefreshCw } from 'lucide-react';
 import { useIncomes } from '../hooks/useIncomes.js';
 import { usePrivacyMode } from '../../../hooks/usePrivacyMode.js';
 import {
   AlertBanner,
-  AuthGate,
   Button,
   EmptyState,
+  FeaturePageHeader,
   FilterPills,
   SearchBar,
+  SplitPageLayout,
 } from '../../../shared/ui/index.js';
 import IncomeForm from './IncomeForm.jsx';
 import IncomeSummaryCards from './IncomeSummaryCards.jsx';
 import IncomeReport from './IncomeReport.jsx';
 import IncomesTable from './IncomesTable.jsx';
+import IncomeCsvExportButton from './IncomeCsvExportButton.jsx';
+import IncomeCsvImportButton from './IncomeCsvImportButton.jsx';
 import { INCOME_PERIODS, buildIncomeReport, filterIncomesByPeriod } from '../utils/incomeReport.js';
 import { getIncomeCategory } from '../constants/incomeCategories.js';
 
 export default function IncomesPage() {
-  const { user, loading: authLoading, triggerLogin } = useAuth();
   const {
     incomes,
     loadingIncomes,
@@ -78,45 +79,26 @@ export default function IncomesPage() {
     }
   };
 
-  // ─── AUTH GATE (Required Login Screen for Guests) ────────────────────────
-  if (authLoading || !user) {
-    return (
-      <AuthGate
-        loading={authLoading}
-        title="ثبت و گزارش درآمدها"
-        description="تمام درآمدهای خود را با مبلغ، منبع و تاریخ ثبت کنید و گزارشی کامل از مجموع ورودی‌ها به تفکیک ماه و منبع درآمد ببینید."
-        features={[
-          { icon: <Wallet size={18} />, title: 'ثبت سریع درآمدها', desc: 'حقوق، پروژه، اجاره، سود سرمایه‌گذاری و هر ورودی دیگر با تاریخ شمسی' },
-          { icon: <PieChart size={18} />, title: 'تفکیک منابع درآمد', desc: 'سهم هر منبع از کل درآمد به صورت درصدی' },
-          { icon: <CalendarRange size={18} />, title: 'گزارش ماهانه و سالانه', desc: 'مجموع و میانگین درآمد در هر ماه و سال شمسی' },
-          { icon: <Cloud size={18} />, title: 'ذخیره ابری و امن', desc: 'دسترسی به سوابق درآمد از تمام دستگاه‌ها' },
-        ]}
-        privacyNote="اطلاعات درآمدهای شما کاملاً شخصی و محرمانه است."
-        onLogin={triggerLogin}
-      />
-    );
-  }
+  // Login is guaranteed by MainPage's site-wide auth gate before this component renders.
 
   const hasIncomes = incomes.length > 0;
 
   return (
     <div className="incomes-page-container">
-      {/* Header & primary action */}
-      <div className="incomes-header-bar">
-        <div className="incomes-header-title-wrap">
-          <div className="incomes-header-icon">
-            <Wallet size={24} />
-          </div>
-          <div>
-            <h1 className="incomes-page-title">درآمدها</h1>
-            <p className="incomes-page-subtitle">ثبت ورودی‌ها و گزارش کلی درآمد به تفکیک منبع و ماه</p>
-          </div>
-        </div>
-
-        <Button icon={<Plus size={16} />} onClick={handleOpenAdd}>
-          ثبت درآمد جدید
-        </Button>
-      </div>
+      <FeaturePageHeader
+        icon={<Wallet size={24} />}
+        title="درآمدها"
+        subtitle="ثبت ورودی‌ها و گزارش کلی درآمد به تفکیک منبع و ماه"
+        actions={
+          <>
+            <IncomeCsvExportButton incomes={incomes} disabled={!hasIncomes} />
+            <IncomeCsvImportButton saveIncome={saveIncome} />
+            <Button icon={<Plus size={16} />} onClick={handleOpenAdd}>
+              ثبت درآمد جدید
+            </Button>
+          </>
+        }
+      />
 
       {error && hasIncomes && (
         <AlertBanner type="error" message={error} onClose={clearError} />
@@ -149,7 +131,14 @@ export default function IncomesPage() {
           }
         />
       ) : (
-        <>
+        <SplitPageLayout
+          sidebar={
+            <>
+              <IncomeSummaryCards report={report} hideValues={hideValues} />
+              {report.count > 0 && <IncomeReport report={report} hideValues={hideValues} />}
+            </>
+          }
+        >
           <FilterPills
             variant="segmented"
             options={INCOME_PERIODS}
@@ -158,12 +147,8 @@ export default function IncomesPage() {
             className="incomes-period-filter"
           />
 
-          <IncomeSummaryCards report={report} hideValues={hideValues} />
-
           {report.count > 0 ? (
             <>
-              <IncomeReport report={report} hideValues={hideValues} />
-
               <div className="incomes-toolbar">
                 <SearchBar
                   value={searchQuery}
@@ -196,7 +181,7 @@ export default function IncomesPage() {
               description="بازه زمانی دیگری را انتخاب کنید یا درآمد جدیدی ثبت نمایید."
             />
           )}
-        </>
+        </SplitPageLayout>
       )}
 
       {formOpen && (

@@ -2,9 +2,6 @@ import React, { useState, useMemo, useCallback } from 'react';
 import {
   Lock,
   Unlock,
-  Cloud,
-  ShieldCheck,
-  Sparkles,
   Pencil,
   Search,
   X,
@@ -12,13 +9,8 @@ import {
   Plus,
   Briefcase,
   AlertTriangle,
-  Eye,
-  EyeOff,
   FolderPlus,
-  Layers,
-  Receipt,
 } from 'lucide-react';
-import { useAuth } from '../../auth/index.js';
 import { usePricing } from '../../market/index.js';
 import Modal from '../../../shared/ui/Modal.jsx';
 import UserSettingsModal from '../../../components/UserSettingsModal.jsx';
@@ -30,12 +22,11 @@ import AddHoldingForm from './AddHoldingForm.jsx';
 import CsvExportButton from './CsvExportButton.jsx';
 import CsvImportButton from './CsvImportButton.jsx';
 import VaultLockCard from './VaultLockCard.jsx';
-import AuthGate from '../../../shared/ui/AuthGate.jsx';
 
 import { usePortfolio } from '../hooks/usePortfolio.js';
 import { useHoldings } from '../hooks/useHoldings.js';
 import { useTransactions, useComputedHoldings } from '../../transactions/index.js';
-import { AlertBanner } from '../../../shared/ui/index.js';
+import { AlertBanner, FeaturePageHeader, SplitPageLayout } from '../../../shared/ui/index.js';
 import {
   normalizeHolding,
   formatAssetName,
@@ -49,7 +40,6 @@ import { getItemCategory } from '../../../config/displayEngine.js';
 import { usePrivacyMode } from '../../../hooks/usePrivacyMode.js';
 
 export default function PortfolioTracker({ rates, calcData, usdToman, goldUsd }) {
-  const { user, loading: authLoading, triggerLogin } = useAuth();
   const pricing = usePricing();
 
   // 1. Portfolio Management Hook
@@ -293,28 +283,21 @@ export default function PortfolioTracker({ rates, calcData, usdToman, goldUsd })
     if (ok) setSettingsModalOpen(false);
   };
 
-  // ─── AUTH GATE (Required Login Screen) ──────────────────────────────────
-  if (authLoading || !user) {
-    return (
-      <AuthGate
-        loading={authLoading}
-        title="مدیریت هوشمند پورتفوی سرمایه‌گذاری"
-        description="اطلاعات دارایی‌های شما به صورت امن در پایگاه داده ابری ذخیره شده و ارزش روز آن‌ها بر پایه نرخ لحظه‌ای طلا، نقره و دلار محاسبه می‌گردد."
-        features={[
-          { icon: <Cloud size={18} />, title: 'ذخیره ابری', desc: 'دسترسی به پورتفو از تمام دستگاه‌ها با امنیت کامل' },
-          { icon: <ShieldCheck size={18} />, title: 'محاسبه ارزش واقعی', desc: 'ارزش خالص طلا و نقره بر اساس قیمت جهانی و دلار' },
-          { icon: <Sparkles size={18} />, title: 'تنوع دارایی‌ها', desc: 'پشتیبانی از انواع طلا، سکه، نقره، ارزها و دارایی‌های شخصی' },
-          { icon: <Pencil size={18} />, title: 'ثبت جزئیات', desc: 'امکان ثبت تاریخ خرید، قیمت تمام‌شده و یادداشت' },
-        ]}
-        privacyNote="اطلاعات پورتفو کاملاً محرمانه است."
-        onLogin={triggerLogin}
-      />
-    );
-  }
-
-  // ─── LOGGED IN VIEW ─────────────────────────────────────────────────────
+  // Login is guaranteed by MainPage's site-wide auth gate before this component renders.
   return (
     <div className="portfolio-section">
+      <FeaturePageHeader
+        icon={<Briefcase size={24} />}
+        title="پورتفو"
+        subtitle="ارزش‌گذاری دارایی‌ها بر پایه نرخ لحظه‌ای طلا، نقره و ارز"
+        actions={
+          <button type="button" className="btn-add-asset-center" onClick={handleOpenAdd} disabled={isVaultLocked}>
+            <Plus size={15} style={{ verticalAlign: 'middle', marginLeft: '4px' }} />
+            ثبت دارایی جدید
+          </button>
+        }
+      />
+
       {/* Portfolios Navigation Bar */}
       <PortfolioSwitcher
         portfolios={portfolios}
@@ -327,9 +310,18 @@ export default function PortfolioTracker({ rates, calcData, usdToman, goldUsd })
       />
 
       {/* Two Column Split: Right (Content & Holdings Tables), Left (Overview Summary Cards) */}
-      <div className="portfolio-layout-split">
-        {/* Right Column: Holdings List Grouped by Category */}
-        <div className="portfolio-content-column">
+      <SplitPageLayout
+        sidebar={
+          <PortfolioOverviewCards
+            portfolioMetrics={portfolioMetrics}
+            categoryGroups={categoryGroups}
+            holdingsCount={holdings.length}
+            hideValues={hideValues}
+            onOpenAdd={handleOpenAdd}
+            isVaultLocked={isVaultLocked}
+          />
+        }
+      >
           <div className="portfolio-table-card">
             <div className="portfolio-table-header">
               <div className="table-title">
@@ -514,20 +506,7 @@ export default function PortfolioTracker({ rates, calcData, usdToman, goldUsd })
               </div>
             )}
           </div>
-        </div>
-
-        {/* Left Column: Summary & Overview Cards */}
-        <div className="portfolio-sidebar-column">
-          <PortfolioOverviewCards
-            portfolioMetrics={portfolioMetrics}
-            categoryGroups={categoryGroups}
-            holdingsCount={holdings.length}
-            hideValues={hideValues}
-            onOpenAdd={handleOpenAdd}
-            isVaultLocked={isVaultLocked}
-          />
-        </div>
-      </div>
+      </SplitPageLayout>
 
       {/* Add / Edit Holding Modal */}
       <AddHoldingForm

@@ -8,47 +8,6 @@
 }
 
 /* ── Header ── */
-.incomes-header-bar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  flex-wrap: wrap;
-  gap: 14px;
-  padding: 4px 0;
-}
-
-.incomes-header-title-wrap {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-}
-
-.incomes-header-icon {
-  width: 44px;
-  height: 44px;
-  border-radius: 12px;
-  background: var(--green-soft);
-  color: var(--green-emerald);
-  border: 1px solid rgba(16, 185, 129, 0.28);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-}
-
-.incomes-page-title {
-  font-size: 1.35rem;
-  font-weight: 800;
-  color: var(--text-primary);
-  margin: 0 0 4px 0;
-}
-
-.incomes-page-subtitle {
-  font-size: 0.85rem;
-  color: var(--text-secondary);
-  margin: 0;
-}
-
 .incomes-loading-state {
   display: flex;
   align-items: center;
@@ -197,7 +156,7 @@
 }
 
 @media (max-width: 640px) {
-  .incomes-header-bar > .ui-btn {
+  .feature-page-header-bar > .ui-btn {
     width: 100%;
   }
 

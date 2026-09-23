@@ -14,26 +14,19 @@ import {
   ArrowDownLeft,
   ArrowUpRight,
   Search,
-  Lock,
-  Eye,
-  EyeOff,
   AlertTriangle,
   Calendar,
   MessageSquare,
-  Sparkles,
-  TrendingDown,
-  TrendingUp,
-  Cloud,
 } from 'lucide-react';
-import { useAuth } from '../../auth/index.js';
 import { usePortfolio } from '../../portfolio/hooks/usePortfolio.js';
 import { useTransactions } from '../hooks/useTransactions.js';
 import { useComputedHoldings } from '../hooks/useComputedHoldings.js';
 import TransactionForm from './TransactionForm.jsx';
 import PortfolioSwitcher from '../../portfolio/components/PortfolioSwitcher.jsx';
 import VaultLockCard from '../../portfolio/components/VaultLockCard.jsx';
-import AuthGate from '../../../shared/ui/AuthGate.jsx';
 import EmptyState from '../../../shared/ui/EmptyState.jsx';
+import FeaturePageHeader from '../../../shared/ui/FeaturePageHeader.jsx';
+import SplitPageLayout from '../../../shared/ui/SplitPageLayout.jsx';
 import { usePricing } from '../../market/index.js';
 import { CategoryIcon, formatAssetName, formatNum, getItemBrand, resolveAssetDisplayName } from '../../portfolio/utils/holdingHelpers.js';
 import ResponsiveDataTable from '../../../shared/ui/ResponsiveDataTable.jsx';
@@ -43,6 +36,7 @@ import {
   saveVaultPassphraseToSession,
 } from '../../../lib/e2ee.js';
 import { usePrivacyMode } from '../../../hooks/usePrivacyMode.js';
+import { useSortableRows } from '../../../hooks/useSortableRows.js';
 
 export default function TransactionsPage({
   calcData = null,
@@ -51,7 +45,6 @@ export default function TransactionsPage({
   goldUsd = null,
   initialPortfolioId = null,
 }) {
-  const { user, loading: authLoading, triggerLogin } = useAuth();
   const pricing = usePricing();
   const {
     portfolios,
@@ -162,6 +155,23 @@ export default function TransactionsPage({
     });
   }, [transactions, typeFilter, searchQuery]);
 
+  // Column sorting (click a header to sort; click again to reverse, a third time to reset)
+  const sortAccessors = useMemo(
+    () => ({
+      type: (tx) => (tx.transactionType || tx.type || 'buy').toLowerCase(),
+      asset: (tx) => (tx.assetName || tx.assetId || '').toLowerCase(),
+      qty: (tx) => Number(tx.quantity || tx.amount || 0),
+      unitPrice: (tx) => Number(tx.unitPrice || tx.buyPrice || 0),
+      totalPrice: (tx) => Number(tx.quantity || tx.amount || 0) * Number(tx.unitPrice || tx.buyPrice || 0),
+      date: (tx) => tx.transactionDate || '',
+    }),
+    []
+  );
+  const { sortedRows: sortedTransactions, sortState, toggleSort } = useSortableRows(
+    filteredTransactions,
+    sortAccessors
+  );
+
   // Stats
   const stats = useMemo(() => {
     let totalBuys = 0;
@@ -239,29 +249,13 @@ export default function TransactionsPage({
     }
   };
 
-  // ─── AUTH GATE (Required Login Screen for Guests) ────────────────────────
-  if (authLoading || !user) {
-    return (
-      <AuthGate
-        loading={authLoading}
-        title="مدیریت معاملات و تاریخچه تراکنش‌ها"
-        description="اطلاعات خرید و فروش و گردش حساب دارایی‌های شما به صورت امن با رمزنگاری سرتاسری (Zero-Knowledge) ذخیره شده و سود و زیان محقق‌شده محاسبه می‌گردد."
-        features={[
-          { icon: <Receipt size={18} />, title: 'ثبت دقیق خرید و فروش', desc: 'ثبت معاملات انواع دارایی‌ها با تاریخ شمسی، قیمت تمام‌شده و کارمزد' },
-          { icon: <Lock size={18} />, title: 'رمزنگاری سرتاسری (Zero-Knowledge)', desc: 'امنیت اطلاعات با کلید اختصاصی بدون امکان مشاهده توسط سرور' },
-          { icon: <TrendingUp size={18} />, title: 'محاسبه خودکار سود و زیان', desc: 'محاسبه خودکار سود و زیان محقق‌شده و میانگین موزون قیمت خرید' },
-          { icon: <Cloud size={18} />, title: 'ذخیره و همگام‌سازی ابری', desc: 'دسترسی امن به تاریخچه معاملات از تمام دستگاه‌ها' },
-        ]}
-        privacyNote="اطلاعات معاملات شما کاملاً محرمانه و رمزنگاری‌شده است."
-        onLogin={triggerLogin}
-      />
-    );
-  }
+  // Login is guaranteed by MainPage's site-wide auth gate before this component renders.
 
   const transactionColumns = [
     {
       key: 'type',
       header: 'نوع',
+      sortKey: 'type',
       thClassName: 'th-type',
       tdClassName: 'td-type',
       mobile: 'meta',
@@ -287,6 +281,7 @@ export default function TransactionsPage({
     {
       key: 'asset',
       header: 'دارایی',
+      sortKey: 'asset',
       thClassName: 'th-asset',
       tdClassName: 'td-asset',
       mobile: 'title',
@@ -303,6 +298,7 @@ export default function TransactionsPage({
     {
       key: 'qty',
       header: 'مقدار',
+      sortKey: 'qty',
       thClassName: 'th-qty',
       tdClassName: 'td-qty',
       mobile: 'meta',
@@ -315,6 +311,7 @@ export default function TransactionsPage({
     {
       key: 'unitPrice',
       header: 'قیمت واحد',
+      sortKey: 'unitPrice',
       thClassName: 'th-unit-price',
       tdClassName: 'td-unit-price',
       // Hidden on mobile — the total below is what matters at a glance there.
@@ -338,6 +335,7 @@ export default function TransactionsPage({
     {
       key: 'totalPrice',
       header: 'ارزش کل',
+      sortKey: 'totalPrice',
       thClassName: 'th-total-price',
       tdClassName: 'td-total-price',
       mobile: 'stat',
@@ -357,6 +355,7 @@ export default function TransactionsPage({
     {
       key: 'date',
       header: 'تاریخ معامله',
+      sortKey: 'date',
       thClassName: 'th-date',
       tdClassName: 'td-date',
       render: (tx) => (
@@ -418,6 +417,18 @@ export default function TransactionsPage({
 
   return (
     <div className="transactions-page-container">
+      <FeaturePageHeader
+        icon={<Receipt size={24} />}
+        title="تراکنش‌ها"
+        subtitle="ثبت خرید و فروش، تاریخچه معاملات و گردش مالی هر پورتفو"
+        actions={
+          <button type="button" className="btn-add-transaction" onClick={handleOpenAdd}>
+            <Plus size={16} style={{ verticalAlign: 'middle', marginLeft: '6px' }} />
+            ثبت تراکنش جدید
+          </button>
+        }
+      />
+
       {/* 1. Portfolio Switcher */}
       <PortfolioSwitcher
         portfolios={portfolios}
@@ -438,47 +449,48 @@ export default function TransactionsPage({
           loading={unlockingVault}
         />
       ) : (
-        <>
-          {/* 3. Stats Overview Cards */}
-          <div className="transactions-stats-bar">
-            <div className="tx-stat-card">
-              <span className="tx-stat-icon buy">
-                <ArrowDownLeft size={18} />
-              </span>
-              <div className="tx-stat-info">
-                <span className="tx-stat-label">مجموع خرید ({stats.totalBuys.toLocaleString('fa-IR')} معامله)</span>
-                <strong className={`tx-stat-val text-profit ${hideValues ? 'is-masked' : ''}`}>
-                  {hideValues ? '****' : formatNum(stats.totalBuyCost)} <span className="tx-stat-unit">تومان</span>
-                </strong>
+        <SplitPageLayout
+          sidebar={
+            <div className="portfolio-overview-grid">
+              {/* Card 1: Total Turnover (highlight) */}
+              <div className="portfolio-stat-card main-val">
+                <div className="stat-header">
+                  <span className="stat-label">گردش مالی کل</span>
+                </div>
+                <div className={`stat-number gold-gradient-text ${hideValues ? 'is-masked' : ''}`}>
+                  {hideValues ? '****' : formatNum(stats.totalTurnover)}
+                  <span className="stat-unit">تومان</span>
+                </div>
+                <div className="stat-sub">{stats.totalCount.toLocaleString('fa-IR')} تراکنش</div>
+              </div>
+
+              {/* Card 2: Total Buys */}
+              <div className="portfolio-stat-card">
+                <div className="stat-header">
+                  <span className="stat-label">مجموع خرید</span>
+                  <span className="count-pill">{stats.totalBuys.toLocaleString('fa-IR')} معامله</span>
+                </div>
+                <div className={`stat-number text-profit ${hideValues ? 'is-masked' : ''}`}>
+                  {hideValues ? '****' : formatNum(stats.totalBuyCost)}
+                  <span className="stat-unit">تومان</span>
+                </div>
+              </div>
+
+              {/* Card 3: Total Sells */}
+              <div className="portfolio-stat-card">
+                <div className="stat-header">
+                  <span className="stat-label">مجموع فروش</span>
+                  <span className="count-pill">{stats.totalSells.toLocaleString('fa-IR')} معامله</span>
+                </div>
+                <div className={`stat-number text-loss ${hideValues ? 'is-masked' : ''}`}>
+                  {hideValues ? '****' : formatNum(stats.totalSellProceeds)}
+                  <span className="stat-unit">تومان</span>
+                </div>
               </div>
             </div>
-
-            <div className="tx-stat-card">
-              <span className="tx-stat-icon sell">
-                <ArrowUpRight size={18} />
-              </span>
-              <div className="tx-stat-info">
-                <span className="tx-stat-label">مجموع فروش ({stats.totalSells.toLocaleString('fa-IR')} معامله)</span>
-                <strong className={`tx-stat-val text-loss ${hideValues ? 'is-masked' : ''}`}>
-                  {hideValues ? '****' : formatNum(stats.totalSellProceeds)} <span className="tx-stat-unit">تومان</span>
-                </strong>
-              </div>
-            </div>
-
-            <div className="tx-stat-card">
-              <span className="tx-stat-icon turnover">
-                <Receipt size={18} />
-              </span>
-              <div className="tx-stat-info">
-                <span className="tx-stat-label">گردش مالی کل ({stats.totalCount.toLocaleString('fa-IR')} تراکنش)</span>
-                <strong className={`tx-stat-val gold-text ${hideValues ? 'is-masked' : ''}`}>
-                  {hideValues ? '****' : formatNum(stats.totalTurnover)} <span className="tx-stat-unit">تومان</span>
-                </strong>
-              </div>
-            </div>
-          </div>
-
-          {/* 4. Controls & Filters Toolbar */}
+          }
+        >
+          {/* Controls & Filters Toolbar */}
           <div className="transactions-toolbar">
             <div className="tx-search-box">
               <Search size={15} className="search-icon" />
@@ -514,18 +526,9 @@ export default function TransactionsPage({
                 فروش ({stats.totalSells.toLocaleString('fa-IR')})
               </button>
             </div>
-
-            <button
-              type="button"
-              className="btn-add-transaction"
-              onClick={handleOpenAdd}
-            >
-              <Plus size={16} style={{ verticalAlign: 'middle', marginLeft: '6px' }} />
-              ثبت تراکنش جدید
-            </button>
           </div>
 
-          {/* 5. Transactions Data Table */}
+          {/* Transactions Data Table */}
           {loadingTransactions ? (
             <div className="transactions-loading-placeholder">
               در حال بارگذاری تراکنش‌ها...
@@ -553,13 +556,15 @@ export default function TransactionsPage({
           ) : (
             <ResponsiveDataTable
               columns={transactionColumns}
-              rows={filteredTransactions}
+              rows={sortedTransactions}
               wrapperClassName="portfolio-table-responsive"
               tableClassName="portfolio-data-table transactions-table"
               rowClassName={() => 'portfolio-table-row'}
+              sortState={sortState}
+              onSortChange={toggleSort}
             />
           )}
-        </>
+        </SplitPageLayout>
       )}
 
       {/* Form Modal */}
