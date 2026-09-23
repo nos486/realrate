@@ -1609,6 +1609,28 @@ input.search-bar-input:focus-visible {
    existing classes (passed via tableClassName/wrapperClassName), so only the
    mobile card view needs styling here.
    ========================================================================== */
+.rdt-sort-th-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: none;
+  border: none;
+  padding: 0;
+  margin: 0;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+
+.rdt-sort-icon.idle {
+  color: var(--text-muted);
+  opacity: 0.5;
+}
+
+.rdt-sort-icon.active {
+  color: var(--gold-light, #f59e0b);
+}
+
 .rdt-mobile-list {
   display: flex;
   flex-direction: column;

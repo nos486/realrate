@@ -1,5 +1,15 @@
 import React from 'react';
+import { ChevronUp, ChevronDown, ChevronsUpDown } from 'lucide-react';
 import { useIsMobile } from '../../hooks/useMediaQuery.js';
+
+function SortIcon({ active, dir }) {
+  if (!active) return <ChevronsUpDown size={12} className="rdt-sort-icon idle" />;
+  return dir === 'asc' ? (
+    <ChevronUp size={12} className="rdt-sort-icon active" />
+  ) : (
+    <ChevronDown size={12} className="rdt-sort-icon active" />
+  );
+}
 
 /**
  * ResponsiveDataTable — a dense desktop `<table>` that collapses into compact,
@@ -27,6 +37,11 @@ import { useIsMobile } from '../../hooks/useMediaQuery.js';
  * @param {string} [wrapperClassName]
  * @param {number} [mobileBreakpoint=768]
  * @param {ReactNode} [emptyState]
+ * @param {object} [sortState] - { key, dir: 'asc'|'desc' } | null — from useSortableRows.
+ *   A column opts into sorting by setting `sortKey` to the same key used in the
+ *   accessors map passed to useSortableRows; its header then becomes a clickable
+ *   button with a direction indicator instead of plain text.
+ * @param {(key: string) => void} [onSortChange] - toggleSort from useSortableRows.
  */
 export default function ResponsiveDataTable({
   columns,
@@ -37,6 +52,8 @@ export default function ResponsiveDataTable({
   wrapperClassName = '',
   mobileBreakpoint = 768,
   emptyState = null,
+  sortState = null,
+  onSortChange = null,
 }) {
   const isMobile = useIsMobile(mobileBreakpoint);
 
@@ -93,11 +110,24 @@ export default function ResponsiveDataTable({
       <table className={tableClassName}>
         <thead>
           <tr>
-            {columns.map((c) => (
-              <th key={c.key} className={c.thClassName}>
-                {c.header}
-              </th>
-            ))}
+            {columns.map((c) =>
+              c.sortKey ? (
+                <th key={c.key} className={c.thClassName}>
+                  <button
+                    type="button"
+                    className="rdt-sort-th-btn"
+                    onClick={() => onSortChange?.(c.sortKey)}
+                  >
+                    {c.header}
+                    <SortIcon active={sortState?.key === c.sortKey} dir={sortState?.dir} />
+                  </button>
+                </th>
+              ) : (
+                <th key={c.key} className={c.thClassName}>
+                  {c.header}
+                </th>
+              )
+            )}
           </tr>
         </thead>
         <tbody>

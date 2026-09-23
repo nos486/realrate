@@ -36,6 +36,7 @@ import {
   saveVaultPassphraseToSession,
 } from '../../../lib/e2ee.js';
 import { usePrivacyMode } from '../../../hooks/usePrivacyMode.js';
+import { useSortableRows } from '../../../hooks/useSortableRows.js';
 
 export default function TransactionsPage({
   calcData = null,
@@ -154,6 +155,23 @@ export default function TransactionsPage({
     });
   }, [transactions, typeFilter, searchQuery]);
 
+  // Column sorting (click a header to sort; click again to reverse, a third time to reset)
+  const sortAccessors = useMemo(
+    () => ({
+      type: (tx) => (tx.transactionType || tx.type || 'buy').toLowerCase(),
+      asset: (tx) => (tx.assetName || tx.assetId || '').toLowerCase(),
+      qty: (tx) => Number(tx.quantity || tx.amount || 0),
+      unitPrice: (tx) => Number(tx.unitPrice || tx.buyPrice || 0),
+      totalPrice: (tx) => Number(tx.quantity || tx.amount || 0) * Number(tx.unitPrice || tx.buyPrice || 0),
+      date: (tx) => tx.transactionDate || '',
+    }),
+    []
+  );
+  const { sortedRows: sortedTransactions, sortState, toggleSort } = useSortableRows(
+    filteredTransactions,
+    sortAccessors
+  );
+
   // Stats
   const stats = useMemo(() => {
     let totalBuys = 0;
@@ -237,6 +255,7 @@ export default function TransactionsPage({
     {
       key: 'type',
       header: 'نوع',
+      sortKey: 'type',
       thClassName: 'th-type',
       tdClassName: 'td-type',
       mobile: 'meta',
@@ -262,6 +281,7 @@ export default function TransactionsPage({
     {
       key: 'asset',
       header: 'دارایی',
+      sortKey: 'asset',
       thClassName: 'th-asset',
       tdClassName: 'td-asset',
       mobile: 'title',
@@ -278,6 +298,7 @@ export default function TransactionsPage({
     {
       key: 'qty',
       header: 'مقدار',
+      sortKey: 'qty',
       thClassName: 'th-qty',
       tdClassName: 'td-qty',
       mobile: 'meta',
@@ -290,6 +311,7 @@ export default function TransactionsPage({
     {
       key: 'unitPrice',
       header: 'قیمت واحد',
+      sortKey: 'unitPrice',
       thClassName: 'th-unit-price',
       tdClassName: 'td-unit-price',
       // Hidden on mobile — the total below is what matters at a glance there.
@@ -313,6 +335,7 @@ export default function TransactionsPage({
     {
       key: 'totalPrice',
       header: 'ارزش کل',
+      sortKey: 'totalPrice',
       thClassName: 'th-total-price',
       tdClassName: 'td-total-price',
       mobile: 'stat',
@@ -332,6 +355,7 @@ export default function TransactionsPage({
     {
       key: 'date',
       header: 'تاریخ معامله',
+      sortKey: 'date',
       thClassName: 'th-date',
       tdClassName: 'td-date',
       render: (tx) => (
@@ -532,10 +556,12 @@ export default function TransactionsPage({
           ) : (
             <ResponsiveDataTable
               columns={transactionColumns}
-              rows={filteredTransactions}
+              rows={sortedTransactions}
               wrapperClassName="portfolio-table-responsive"
               tableClassName="portfolio-data-table transactions-table"
               rowClassName={() => 'portfolio-table-row'}
+              sortState={sortState}
+              onSortChange={toggleSort}
             />
           )}
         </SplitPageLayout>
