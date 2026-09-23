@@ -37,7 +37,6 @@ import EmptyState from '../../../shared/ui/EmptyState.jsx';
 import { usePricing } from '../../market/index.js';
 import { CategoryIcon, formatAssetName, formatNum, getItemBrand, resolveAssetDisplayName } from '../../portfolio/utils/holdingHelpers.js';
 import ResponsiveDataTable from '../../../shared/ui/ResponsiveDataTable.jsx';
-import { formatCompactToman } from '../../../shared/utils/formatters.js';
 import {
   deriveE2eeKey,
   verifyE2eeKey,
@@ -347,11 +346,8 @@ export default function TransactionsPage({
         const totalVal = Number(tx.quantity || tx.amount || 0) * Number(tx.unitPrice || tx.buyPrice || 0);
         return (
           <div className="cell-currency-wrap">
-            <strong
-              className={`cell-val-bold cell-compact-val ${isBuy ? 'text-profit' : 'text-loss'} ${hideValues ? 'is-masked' : ''}`}
-              title={hideValues ? '' : `${formatNum(totalVal)} تومان`}
-            >
-              {hideValues ? '****' : formatCompactToman(totalVal)}
+            <strong className={`cell-val-bold ${isBuy ? 'text-profit' : 'text-loss'} ${hideValues ? 'is-masked' : ''}`}>
+              {hideValues ? '****' : formatNum(totalVal)}
             </strong>
             <span className="cell-unit">تومان</span>
           </div>

@@ -1199,12 +1199,6 @@
   font-weight: 600;
 }
 
-.cell-compact-val {
-  cursor: help;
-  border-bottom: 1px dotted currentColor;
-  opacity: 0.85;
-}
-
 .pnl-native-sub.profit {
   color: #34d399;
 }
