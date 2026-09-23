@@ -8,13 +8,11 @@
  */
 
 import React, { useState, useMemo } from 'react';
-import { Wallet, Plus, PieChart, CalendarRange, Cloud, RefreshCw } from 'lucide-react';
-import { useAuth } from '../../auth/index.js';
+import { Wallet, Plus, CalendarRange, RefreshCw } from 'lucide-react';
 import { useIncomes } from '../hooks/useIncomes.js';
 import { usePrivacyMode } from '../../../hooks/usePrivacyMode.js';
 import {
   AlertBanner,
-  AuthGate,
   Button,
   EmptyState,
   FilterPills,
@@ -28,7 +26,6 @@ import { INCOME_PERIODS, buildIncomeReport, filterIncomesByPeriod } from '../uti
 import { getIncomeCategory } from '../constants/incomeCategories.js';
 
 export default function IncomesPage() {
-  const { user, loading: authLoading, triggerLogin } = useAuth();
   const {
     incomes,
     loadingIncomes,
@@ -78,24 +75,7 @@ export default function IncomesPage() {
     }
   };
 
-  // ─── AUTH GATE (Required Login Screen for Guests) ────────────────────────
-  if (authLoading || !user) {
-    return (
-      <AuthGate
-        loading={authLoading}
-        title="ثبت و گزارش درآمدها"
-        description="تمام درآمدهای خود را با مبلغ، منبع و تاریخ ثبت کنید و گزارشی کامل از مجموع ورودی‌ها به تفکیک ماه و منبع درآمد ببینید."
-        features={[
-          { icon: <Wallet size={18} />, title: 'ثبت سریع درآمدها', desc: 'حقوق، پروژه، اجاره، سود سرمایه‌گذاری و هر ورودی دیگر با تاریخ شمسی' },
-          { icon: <PieChart size={18} />, title: 'تفکیک منابع درآمد', desc: 'سهم هر منبع از کل درآمد به صورت درصدی' },
-          { icon: <CalendarRange size={18} />, title: 'گزارش ماهانه و سالانه', desc: 'مجموع و میانگین درآمد در هر ماه و سال شمسی' },
-          { icon: <Cloud size={18} />, title: 'ذخیره ابری و امن', desc: 'دسترسی به سوابق درآمد از تمام دستگاه‌ها' },
-        ]}
-        privacyNote="اطلاعات درآمدهای شما کاملاً شخصی و محرمانه است."
-        onLogin={triggerLogin}
-      />
-    );
-  }
+  // Login is guaranteed by MainPage's site-wide auth gate before this component renders.
 
   const hasIncomes = incomes.length > 0;
 

@@ -10,6 +10,7 @@ import { LoansPage, UpcomingInstallmentsAlert } from '../features/loans/index.js
 import { IncomesPage } from '../features/incomes/index.js';
 import AdminPage from './AdminPage.jsx';
 import PriceSourcesPage from './PriceSourcesPage.jsx';
+import LandingPage from './LandingPage.jsx';
 import AccountSettingsView from '../components/AccountSettingsView.jsx';
 import LiveRatesTicker from '../components/LiveRatesTicker.jsx';
 import { useMarketData } from '../features/market/hooks/useMarketData.js';
@@ -21,7 +22,7 @@ export default function MainPage() {
   const navigate = useNavigate();
   const params = useParams();
   const [searchParams] = useSearchParams();
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
 
   // Determine active tab from pathname or query params
   const isSettings =
@@ -41,28 +42,28 @@ export default function MainPage() {
       searchParams.get('tab') === 'admin'
     );
 
-  const isPortfolio =
+  const isIncomes =
     !isSettings && !isSources && !isAdmin && (
+      location.pathname.startsWith('/incomes') ||
+      searchParams.get('tab') === 'incomes'
+    );
+
+  const isPortfolio =
+    !isSettings && !isSources && !isAdmin && !isIncomes && (
       location.pathname.startsWith('/portfolio') ||
       searchParams.get('tab') === 'portfolio'
     );
 
   const isTransactions =
-    !isSettings && !isSources && !isAdmin && !isPortfolio && (
+    !isSettings && !isSources && !isAdmin && !isIncomes && !isPortfolio && (
       location.pathname.startsWith('/transactions') ||
       searchParams.get('tab') === 'transactions'
     );
 
   const isLoans =
-    !isSettings && !isSources && !isAdmin && !isPortfolio && !isTransactions && (
+    !isSettings && !isSources && !isAdmin && !isIncomes && !isPortfolio && !isTransactions && (
       location.pathname.startsWith('/loans') ||
       searchParams.get('tab') === 'loans'
-    );
-
-  const isIncomes =
-    !isSettings && !isSources && !isAdmin && !isPortfolio && !isTransactions && !isLoans && (
-      location.pathname.startsWith('/incomes') ||
-      searchParams.get('tab') === 'incomes'
     );
 
   const activeTab = isSettings
@@ -71,14 +72,14 @@ export default function MainPage() {
       ? 'sources'
       : isAdmin
         ? 'admin'
-        : isPortfolio
-          ? 'portfolio'
-          : isTransactions
-            ? 'transactions'
-            : isLoans
-              ? 'loans'
-              : isIncomes
-                ? 'incomes'
+        : isIncomes
+          ? 'incomes'
+          : isPortfolio
+            ? 'portfolio'
+            : isTransactions
+              ? 'transactions'
+              : isLoans
+                ? 'loans'
                 : 'market';
 
   const handleTabChange = (nextTab) => {
@@ -128,10 +129,10 @@ export default function MainPage() {
   const tabOptions = useMemo(() => {
     const options = [
       { value: 'market', label: 'نرخ و حباب', icon: <TrendingUp size={16} strokeWidth={2} /> },
+      { value: 'incomes', label: 'درآمدها', icon: <Wallet size={16} strokeWidth={2} /> },
       { value: 'portfolio', label: 'پورتفو', icon: <Briefcase size={16} strokeWidth={2} /> },
       { value: 'transactions', label: 'تراکنش‌ها', icon: <Receipt size={16} strokeWidth={2} /> },
       { value: 'loans', label: 'وام و اقساط', icon: <Landmark size={16} strokeWidth={2} /> },
-      { value: 'incomes', label: 'درآمدها', icon: <Wallet size={16} strokeWidth={2} /> },
     ];
     if (user) {
       options.push(
@@ -181,6 +182,24 @@ export default function MainPage() {
 
   const showUsdOnHome = true;
 
+  // ─── SITE-WIDE AUTH GATE ─────────────────────────────────────────────────
+  // Login is required to use any part of the site, including the market/prices
+  // tab — logged-out visitors only ever see the landing page at every route.
+  if (authLoading) {
+    return (
+      <AppLayout hideFooter>
+        <div className="portfolio-loading-state" style={{ minHeight: '50vh' }}>
+          <div className="spinner-glow"></div>
+          <p>در حال بررسی وضعیت ورود...</p>
+        </div>
+      </AppLayout>
+    );
+  }
+
+  if (!user) {
+    return <LandingPage />;
+  }
+
   return (
     <AppLayout
       usdToman={usdToman}
@@ -224,11 +243,9 @@ export default function MainPage() {
       {/* Tab Views */}
       <section className="tab-view-container">
         {/* Active Loan Due Reminders Banner */}
-        {user && (
-          <div style={{ marginBottom: '14px', width: '100%' }}>
-            <UpcomingInstallmentsAlert onSelectLoan={(loanId) => navigate(loanId ? `/loans/${loanId}` : '/loans')} />
-          </div>
-        )}
+        <div style={{ marginBottom: '14px', width: '100%' }}>
+          <UpcomingInstallmentsAlert onSelectLoan={(loanId) => navigate(loanId ? `/loans/${loanId}` : '/loans')} />
+        </div>
 
         {activeTab === 'market' && (
           <div className="market-tab-content">

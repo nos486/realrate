@@ -16,13 +16,10 @@ import {
   CheckCircle2,
   Clock,
   AlertCircle,
-  Calendar,
   CalendarDays,
   RefreshCw,
   Wallet,
-  Cloud,
 } from 'lucide-react';
-import { useAuth } from '../../auth/index.js';
 import { useLoansContext } from '../context/LoansContext.jsx';
 import { useLoanDetail } from '../hooks/useLoanDetail.js';
 import LoansTable from './LoansTable.jsx';
@@ -30,7 +27,6 @@ import AddLoanForm from './AddLoanForm.jsx';
 import LoanInstallmentsTable from './LoanInstallmentsTable.jsx';
 import Modal from '../../../shared/ui/Modal.jsx';
 import EmptyState from '../../../shared/ui/EmptyState.jsx';
-import AuthGate from '../../../shared/ui/AuthGate.jsx';
 import { gregorianToShamsi } from '../../portfolio/components/ShamsiDatePicker.jsx';
 import { getDisplayRatePct } from '../../../utils/loanCalculator.js';
 
@@ -119,7 +115,6 @@ function LoanDetailModal({ loanId, onClose, onRefreshLoans }) {
 }
 
 export default function LoansPage({ initialLoanId = null }) {
-  const { user, loading: authLoading, triggerLogin } = useAuth();
   const {
     loans,
     loadingLoans,
@@ -259,24 +254,7 @@ export default function LoansPage({ initialLoanId = null }) {
     }
   };
 
-  // ─── AUTH GATE (Required Login Screen for Guests) ────────────────────────
-  if (authLoading || !user) {
-    return (
-      <AuthGate
-        loading={authLoading}
-        title="مدیریت هوشمند وام‌ها و اقساط"
-        description="اطلاعات وام‌ها و جدول استهلاک اقساط به صورت امن در حساب کاربری شما ذخیره شده و سررسید اقساط پیش‌رو به طور هوشمند یادآوری می‌شود."
-        features={[
-          { icon: <Landmark size={18} />, title: 'محاسبه استهلاک بانکی', desc: 'محاسبه دقیق اقساط، سهم اصل و سود با فرمول استاندارد' },
-          { icon: <Calendar size={18} />, title: 'یادآوری خودکار سررسید', desc: 'هشدار اقساط نزدیک در ۷ روز آینده و اقساط معوق' },
-          { icon: <CheckCircle2 size={18} />, title: 'ثبت و پیگیری پرداخت‌ها', desc: 'ثبت آسان وضعیت تسویه هر قسط و مشاهده مانده کل بدهی' },
-          { icon: <Cloud size={18} />, title: 'ذخیره ابری و امن', desc: 'دسترسی همیشگی به برنامه‌ی اقساط از تمام دستگاه‌ها' },
-        ]}
-        privacyNote="اطلاعات وام‌های شما کاملاً شخصی و محرمانه است."
-        onLogin={triggerLogin}
-      />
-    );
-  }
+  // Login is guaranteed by MainPage's site-wide auth gate before this component renders.
 
   return (
     <div className="loans-page-container">

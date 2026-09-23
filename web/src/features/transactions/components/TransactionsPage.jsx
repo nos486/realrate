@@ -14,25 +14,16 @@ import {
   ArrowDownLeft,
   ArrowUpRight,
   Search,
-  Lock,
-  Eye,
-  EyeOff,
   AlertTriangle,
   Calendar,
   MessageSquare,
-  Sparkles,
-  TrendingDown,
-  TrendingUp,
-  Cloud,
 } from 'lucide-react';
-import { useAuth } from '../../auth/index.js';
 import { usePortfolio } from '../../portfolio/hooks/usePortfolio.js';
 import { useTransactions } from '../hooks/useTransactions.js';
 import { useComputedHoldings } from '../hooks/useComputedHoldings.js';
 import TransactionForm from './TransactionForm.jsx';
 import PortfolioSwitcher from '../../portfolio/components/PortfolioSwitcher.jsx';
 import VaultLockCard from '../../portfolio/components/VaultLockCard.jsx';
-import AuthGate from '../../../shared/ui/AuthGate.jsx';
 import EmptyState from '../../../shared/ui/EmptyState.jsx';
 import { usePricing } from '../../market/index.js';
 import { CategoryIcon, formatAssetName, formatNum, getItemBrand, resolveAssetDisplayName } from '../../portfolio/utils/holdingHelpers.js';
@@ -51,7 +42,6 @@ export default function TransactionsPage({
   goldUsd = null,
   initialPortfolioId = null,
 }) {
-  const { user, loading: authLoading, triggerLogin } = useAuth();
   const pricing = usePricing();
   const {
     portfolios,
@@ -239,24 +229,7 @@ export default function TransactionsPage({
     }
   };
 
-  // ─── AUTH GATE (Required Login Screen for Guests) ────────────────────────
-  if (authLoading || !user) {
-    return (
-      <AuthGate
-        loading={authLoading}
-        title="مدیریت معاملات و تاریخچه تراکنش‌ها"
-        description="اطلاعات خرید و فروش و گردش حساب دارایی‌های شما به صورت امن با رمزنگاری سرتاسری (Zero-Knowledge) ذخیره شده و سود و زیان محقق‌شده محاسبه می‌گردد."
-        features={[
-          { icon: <Receipt size={18} />, title: 'ثبت دقیق خرید و فروش', desc: 'ثبت معاملات انواع دارایی‌ها با تاریخ شمسی، قیمت تمام‌شده و کارمزد' },
-          { icon: <Lock size={18} />, title: 'رمزنگاری سرتاسری (Zero-Knowledge)', desc: 'امنیت اطلاعات با کلید اختصاصی بدون امکان مشاهده توسط سرور' },
-          { icon: <TrendingUp size={18} />, title: 'محاسبه خودکار سود و زیان', desc: 'محاسبه خودکار سود و زیان محقق‌شده و میانگین موزون قیمت خرید' },
-          { icon: <Cloud size={18} />, title: 'ذخیره و همگام‌سازی ابری', desc: 'دسترسی امن به تاریخچه معاملات از تمام دستگاه‌ها' },
-        ]}
-        privacyNote="اطلاعات معاملات شما کاملاً محرمانه و رمزنگاری‌شده است."
-        onLogin={triggerLogin}
-      />
-    );
-  }
+  // Login is guaranteed by MainPage's site-wide auth gate before this component renders.
 
   const transactionColumns = [
     {
