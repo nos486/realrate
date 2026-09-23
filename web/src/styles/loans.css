@@ -70,14 +70,7 @@
   box-shadow: 0 6px 20px rgba(245, 158, 11, 0.38);
 }
 
-/* ── Overview Statistics Grid ── */
-.loans-stats-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-  gap: 14px;
-  width: 100%;
-}
-
+/* ── Overview Statistics Cards (grid/stacking handled by .portfolio-overview-grid) ── */
 .loan-stat-card {
   background: var(--card-bg, rgba(15, 23, 42, 0.6));
   border: var(--card-border, 1px solid rgba(255, 255, 255, 0.08));
@@ -206,6 +199,14 @@
 .stat-empty-text {
   font-size: 0.85rem;
   color: #64748b;
+}
+
+/* ── Bank-grouped Loans Sections (reuses .category-group-card etc. from portfolio-extras.css) ── */
+.loans-bank-groups {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  width: 100%;
 }
 
 /* ── Loans Grid & Cards ── */

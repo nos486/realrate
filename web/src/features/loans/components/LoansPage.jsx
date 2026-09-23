@@ -200,6 +200,30 @@ export default function LoansPage({ initialLoanId = null }) {
     };
   }, [loans]);
 
+  // 2. Group loans by bank/lender — loans sharing the same lender name are shown
+  // together under one header; loans with no lender name fall into a shared bucket.
+  // Sorted by remaining balance so the heaviest debts surface first.
+  const bankGroups = useMemo(() => {
+    const order = [];
+    const groups = new Map();
+    for (const loan of loans) {
+      const bankName = (loan.lenderName || '').trim();
+      const key = bankName || '__none__';
+      if (!groups.has(key)) {
+        const group = { key, name: bankName || 'بدون بانک مشخص', items: [] };
+        groups.set(key, group);
+        order.push(group);
+      }
+      groups.get(key).items.push(loan);
+    }
+    return order
+      .map((group) => ({
+        ...group,
+        totalRemaining: group.items.reduce((acc, l) => acc + Number(l.remainingBalance ?? 0), 0),
+      }))
+      .sort((a, b) => b.totalRemaining - a.totalRemaining);
+  }, [loans]);
+
   // Handlers
   const handleOpenAddModal = () => {
     setEditingLoan(null);
@@ -282,106 +306,146 @@ export default function LoansPage({ initialLoanId = null }) {
         </div>
       </div>
 
-      {/* Overview Statistics Cards */}
-      <div className="loans-stats-grid">
-        {/* Card 1: Total Remaining Debt */}
-        <div className="loan-stat-card primary">
-          <div className="stat-icon-wrap debt">
-            <Wallet size={22} />
-          </div>
-          <div className="stat-content">
-            <span className="stat-label">مجموع بدهی باقیمانده</span>
-            <strong className="stat-value highlight">
-              {formatNum(summaryMetrics.totalDebt)}{' '}
-              <span className="stat-unit">تومان</span>
-            </strong>
-          </div>
+      {/* Two Column Split: Right (Loans List, Grouped by Bank), Left (Overview Summary) */}
+      <div className="portfolio-layout-split">
+        {/* Right Column: Main Content — Loans List */}
+        <div className="portfolio-content-column">
+          {loadingLoans && loans.length === 0 ? (
+            <div className="loans-loading-state">
+              <RefreshCw size={24} className="animate-spin text-amber-500" />
+              <span>در حال دریافت لیست وام‌ها...</span>
+            </div>
+          ) : error && loans.length === 0 ? (
+            <div className="loans-error-state">
+              <AlertCircle size={20} />
+              <span>{error}</span>
+              <button type="button" onClick={fetchLoans} className="btn-retry">
+                تلاش مجدد
+              </button>
+            </div>
+          ) : loans.length === 0 ? (
+            <EmptyState
+              icon={<Landmark size={48} className="text-amber-500" />}
+              title="هنوز هیچ وامی ثبت نشده است"
+              description="با ثبت اولین وام، سیستم به طور خودکار جدول اقساط را محاسبه کرده و سررسیدها را پیگیری می‌کند."
+              action={
+                <button type="button" className="btn-primary" onClick={handleOpenAddModal}>
+                  افزودن اولین وام
+                </button>
+              }
+            />
+          ) : bankGroups.length > 1 ? (
+            <div className="loans-bank-groups">
+              {bankGroups.map((group) => (
+                <div key={group.key} className="category-group-card">
+                  <div className="category-group-header">
+                    <div className="cat-header-identity">
+                      <span className="cat-group-icon">
+                        <Landmark size={20} />
+                      </span>
+                      <div className="cat-group-titles">
+                        <h4 className="cat-group-name">{group.name}</h4>
+                        <span className="cat-group-count">
+                          {group.items.length.toLocaleString('fa-IR')} وام
+                        </span>
+                      </div>
+                    </div>
+                    <div className="cat-header-subtotals">
+                      <div className="cat-subtotal-val">
+                        <span className="subtotal-label">باقیمانده:</span>
+                        <strong className="subtotal-amount">{formatNum(group.totalRemaining)}</strong>
+                        <span className="subtotal-unit">تومان</span>
+                      </div>
+                    </div>
+                  </div>
+                  <LoansTable
+                    loans={group.items}
+                    onSelectLoan={handleSelectLoan}
+                    onEditLoan={handleOpenEditModal}
+                    onDeleteLoan={handleDeleteLoan}
+                  />
+                </div>
+              ))}
+            </div>
+          ) : (
+            <LoansTable
+              loans={loans}
+              onSelectLoan={handleSelectLoan}
+              onEditLoan={handleOpenEditModal}
+              onDeleteLoan={handleDeleteLoan}
+            />
+          )}
         </div>
 
-        {/* Card 2: Total Monthly Installment */}
-        <div className="loan-stat-card">
-          <div className="stat-icon-wrap monthly">
-            <CalendarDays size={22} />
-          </div>
-          <div className="stat-content">
-            <span className="stat-label">مجموع قسط ماهانه</span>
-            <strong className="stat-value">
-              {formatNum(summaryMetrics.totalMonthlyInstallment)}{' '}
-              <span className="stat-unit">تومان</span>
-            </strong>
-          </div>
-        </div>
-
-        {/* Card 3: Paid Installments Ratio */}
-        <div className="loan-stat-card">
-          <div className="stat-icon-wrap progress">
-            <CheckCircle2 size={22} />
-          </div>
-          <div className="stat-content">
-            <span className="stat-label">کل اقساط پرداخت شده</span>
-            <strong className="stat-value">
-              {formatNum(summaryMetrics.totalPaidCount)}{' '}
-              <span className="stat-sub">از {formatNum(summaryMetrics.totalCount)} قسط ({formatNum(summaryMetrics.overallProgress)}٪)</span>
-            </strong>
-          </div>
-        </div>
-
-        {/* Card 4: Next Upcoming Due */}
-        <div className="loan-stat-card">
-          <div className="stat-icon-wrap due">
-            <Clock size={22} />
-          </div>
-          <div className="stat-content">
-            <span className="stat-label">نزدیک‌ترین سررسید</span>
-            {summaryMetrics.nextUpcomingDue ? (
-              <div className="stat-due-details">
-                <strong className="stat-value due">
-                  {gregorianToShamsi(summaryMetrics.nextUpcomingDue.dueDate)}
-                </strong>
-                <span className="stat-due-sub">
-                  {summaryMetrics.nextUpcomingDue.loanTitle} • {formatNum(summaryMetrics.nextUpcomingDue.totalAmount)} تومان
-                </span>
+        {/* Left Column: Overview Summary Cards */}
+        <div className="portfolio-sidebar-column">
+          <div className="portfolio-overview-grid">
+            {/* Card 1: Total Remaining Debt */}
+            <div className="loan-stat-card primary">
+              <div className="stat-icon-wrap debt">
+                <Wallet size={22} />
               </div>
-            ) : (
-              <span className="stat-empty-text">سررسید معوقی وجود ندارد</span>
-            )}
+              <div className="stat-content">
+                <span className="stat-label">مجموع بدهی باقیمانده</span>
+                <strong className="stat-value highlight">
+                  {formatNum(summaryMetrics.totalDebt)}{' '}
+                  <span className="stat-unit">تومان</span>
+                </strong>
+              </div>
+            </div>
+
+            {/* Card 2: Total Monthly Installment */}
+            <div className="loan-stat-card">
+              <div className="stat-icon-wrap monthly">
+                <CalendarDays size={22} />
+              </div>
+              <div className="stat-content">
+                <span className="stat-label">مجموع قسط ماهانه</span>
+                <strong className="stat-value">
+                  {formatNum(summaryMetrics.totalMonthlyInstallment)}{' '}
+                  <span className="stat-unit">تومان</span>
+                </strong>
+              </div>
+            </div>
+
+            {/* Card 3: Paid Installments Ratio */}
+            <div className="loan-stat-card">
+              <div className="stat-icon-wrap progress">
+                <CheckCircle2 size={22} />
+              </div>
+              <div className="stat-content">
+                <span className="stat-label">کل اقساط پرداخت شده</span>
+                <strong className="stat-value">
+                  {formatNum(summaryMetrics.totalPaidCount)}{' '}
+                  <span className="stat-sub">از {formatNum(summaryMetrics.totalCount)} قسط ({formatNum(summaryMetrics.overallProgress)}٪)</span>
+                </strong>
+              </div>
+            </div>
+
+            {/* Card 4: Next Upcoming Due */}
+            <div className="loan-stat-card">
+              <div className="stat-icon-wrap due">
+                <Clock size={22} />
+              </div>
+              <div className="stat-content">
+                <span className="stat-label">نزدیک‌ترین سررسید</span>
+                {summaryMetrics.nextUpcomingDue ? (
+                  <div className="stat-due-details">
+                    <strong className="stat-value due">
+                      {gregorianToShamsi(summaryMetrics.nextUpcomingDue.dueDate)}
+                    </strong>
+                    <span className="stat-due-sub">
+                      {summaryMetrics.nextUpcomingDue.loanTitle} • {formatNum(summaryMetrics.nextUpcomingDue.totalAmount)} تومان
+                    </span>
+                  </div>
+                ) : (
+                  <span className="stat-empty-text">سررسید معوقی وجود ندارد</span>
+                )}
+              </div>
+            </div>
           </div>
         </div>
       </div>
-
-      {/* Main Content Area */}
-      {loadingLoans && loans.length === 0 ? (
-        <div className="loans-loading-state">
-          <RefreshCw size={24} className="animate-spin text-amber-500" />
-          <span>در حال دریافت لیست وام‌ها...</span>
-        </div>
-      ) : error && loans.length === 0 ? (
-        <div className="loans-error-state">
-          <AlertCircle size={20} />
-          <span>{error}</span>
-          <button type="button" onClick={fetchLoans} className="btn-retry">
-            تلاش مجدد
-          </button>
-        </div>
-      ) : loans.length === 0 ? (
-        <EmptyState
-          icon={<Landmark size={48} className="text-amber-500" />}
-          title="هنوز هیچ وامی ثبت نشده است"
-          description="با ثبت اولین وام، سیستم به طور خودکار جدول اقساط را محاسبه کرده و سررسیدها را پیگیری می‌کند."
-          action={
-            <button type="button" className="btn-primary" onClick={handleOpenAddModal}>
-              افزودن اولین وام
-            </button>
-          }
-        />
-      ) : (
-        <LoansTable
-          loans={loans}
-          onSelectLoan={handleSelectLoan}
-          onEditLoan={handleOpenEditModal}
-          onDeleteLoan={handleDeleteLoan}
-        />
-      )}
 
       {/* Add / Edit Loan Modal */}
       <AddLoanForm
