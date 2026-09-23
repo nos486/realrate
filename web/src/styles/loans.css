@@ -80,7 +80,7 @@
   display: flex;
   align-items: center;
   gap: 10px;
-  flex: 1 1 200px;
+  flex: 0 1 200px;
   min-width: 150px;
 }
 
@@ -150,10 +150,11 @@
   min-width: 0;
 }
 
-/* flex-grow so these three columns share the row's leftover width evenly instead of
-   leaving a rigid, occasionally-awkward gap when the identity block's title is short */
+/* Only the progress column grows — identity/balance/next-due are plain values that don't
+   benefit from extra width, so all of the row's leftover space concentrates into the
+   progress bar instead of sitting unused between the fixed-size columns. */
 .loan-row-balance {
-  flex: 1 1 160px;
+  flex: 0 1 160px;
 }
 
 .loan-row-progress-block {
@@ -161,7 +162,7 @@
 }
 
 .loan-row-next-due {
-  flex: 1 1 190px;
+  flex: 0 1 190px;
 }
 
 .loan-row-label {
