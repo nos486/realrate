@@ -25,6 +25,8 @@ import TransactionForm from './TransactionForm.jsx';
 import PortfolioSwitcher from '../../portfolio/components/PortfolioSwitcher.jsx';
 import VaultLockCard from '../../portfolio/components/VaultLockCard.jsx';
 import EmptyState from '../../../shared/ui/EmptyState.jsx';
+import FeaturePageHeader from '../../../shared/ui/FeaturePageHeader.jsx';
+import SplitPageLayout from '../../../shared/ui/SplitPageLayout.jsx';
 import { usePricing } from '../../market/index.js';
 import { CategoryIcon, formatAssetName, formatNum, getItemBrand, resolveAssetDisplayName } from '../../portfolio/utils/holdingHelpers.js';
 import ResponsiveDataTable from '../../../shared/ui/ResponsiveDataTable.jsx';
@@ -391,6 +393,18 @@ export default function TransactionsPage({
 
   return (
     <div className="transactions-page-container">
+      <FeaturePageHeader
+        icon={<Receipt size={24} />}
+        title="تراکنش‌ها"
+        subtitle="ثبت خرید و فروش، تاریخچه معاملات و گردش مالی هر پورتفو"
+        actions={
+          <button type="button" className="btn-add-transaction" onClick={handleOpenAdd}>
+            <Plus size={16} style={{ verticalAlign: 'middle', marginLeft: '6px' }} />
+            ثبت تراکنش جدید
+          </button>
+        }
+      />
+
       {/* 1. Portfolio Switcher */}
       <PortfolioSwitcher
         portfolios={portfolios}
@@ -411,47 +425,48 @@ export default function TransactionsPage({
           loading={unlockingVault}
         />
       ) : (
-        <>
-          {/* 3. Stats Overview Cards */}
-          <div className="transactions-stats-bar">
-            <div className="tx-stat-card">
-              <span className="tx-stat-icon buy">
-                <ArrowDownLeft size={18} />
-              </span>
-              <div className="tx-stat-info">
-                <span className="tx-stat-label">مجموع خرید ({stats.totalBuys.toLocaleString('fa-IR')} معامله)</span>
-                <strong className={`tx-stat-val text-profit ${hideValues ? 'is-masked' : ''}`}>
-                  {hideValues ? '****' : formatNum(stats.totalBuyCost)} <span className="tx-stat-unit">تومان</span>
-                </strong>
+        <SplitPageLayout
+          sidebar={
+            <div className="portfolio-overview-grid">
+              {/* Card 1: Total Turnover (highlight) */}
+              <div className="portfolio-stat-card main-val">
+                <div className="stat-header">
+                  <span className="stat-label">گردش مالی کل</span>
+                </div>
+                <div className={`stat-number gold-gradient-text ${hideValues ? 'is-masked' : ''}`}>
+                  {hideValues ? '****' : formatNum(stats.totalTurnover)}
+                  <span className="stat-unit">تومان</span>
+                </div>
+                <div className="stat-sub">{stats.totalCount.toLocaleString('fa-IR')} تراکنش</div>
+              </div>
+
+              {/* Card 2: Total Buys */}
+              <div className="portfolio-stat-card">
+                <div className="stat-header">
+                  <span className="stat-label">مجموع خرید</span>
+                  <span className="count-pill">{stats.totalBuys.toLocaleString('fa-IR')} معامله</span>
+                </div>
+                <div className={`stat-number text-profit ${hideValues ? 'is-masked' : ''}`}>
+                  {hideValues ? '****' : formatNum(stats.totalBuyCost)}
+                  <span className="stat-unit">تومان</span>
+                </div>
+              </div>
+
+              {/* Card 3: Total Sells */}
+              <div className="portfolio-stat-card">
+                <div className="stat-header">
+                  <span className="stat-label">مجموع فروش</span>
+                  <span className="count-pill">{stats.totalSells.toLocaleString('fa-IR')} معامله</span>
+                </div>
+                <div className={`stat-number text-loss ${hideValues ? 'is-masked' : ''}`}>
+                  {hideValues ? '****' : formatNum(stats.totalSellProceeds)}
+                  <span className="stat-unit">تومان</span>
+                </div>
               </div>
             </div>
-
-            <div className="tx-stat-card">
-              <span className="tx-stat-icon sell">
-                <ArrowUpRight size={18} />
-              </span>
-              <div className="tx-stat-info">
-                <span className="tx-stat-label">مجموع فروش ({stats.totalSells.toLocaleString('fa-IR')} معامله)</span>
-                <strong className={`tx-stat-val text-loss ${hideValues ? 'is-masked' : ''}`}>
-                  {hideValues ? '****' : formatNum(stats.totalSellProceeds)} <span className="tx-stat-unit">تومان</span>
-                </strong>
-              </div>
-            </div>
-
-            <div className="tx-stat-card">
-              <span className="tx-stat-icon turnover">
-                <Receipt size={18} />
-              </span>
-              <div className="tx-stat-info">
-                <span className="tx-stat-label">گردش مالی کل ({stats.totalCount.toLocaleString('fa-IR')} تراکنش)</span>
-                <strong className={`tx-stat-val gold-text ${hideValues ? 'is-masked' : ''}`}>
-                  {hideValues ? '****' : formatNum(stats.totalTurnover)} <span className="tx-stat-unit">تومان</span>
-                </strong>
-              </div>
-            </div>
-          </div>
-
-          {/* 4. Controls & Filters Toolbar */}
+          }
+        >
+          {/* Controls & Filters Toolbar */}
           <div className="transactions-toolbar">
             <div className="tx-search-box">
               <Search size={15} className="search-icon" />
@@ -487,18 +502,9 @@ export default function TransactionsPage({
                 فروش ({stats.totalSells.toLocaleString('fa-IR')})
               </button>
             </div>
-
-            <button
-              type="button"
-              className="btn-add-transaction"
-              onClick={handleOpenAdd}
-            >
-              <Plus size={16} style={{ verticalAlign: 'middle', marginLeft: '6px' }} />
-              ثبت تراکنش جدید
-            </button>
           </div>
 
-          {/* 5. Transactions Data Table */}
+          {/* Transactions Data Table */}
           {loadingTransactions ? (
             <div className="transactions-loading-placeholder">
               در حال بارگذاری تراکنش‌ها...
@@ -532,7 +538,7 @@ export default function TransactionsPage({
               rowClassName={() => 'portfolio-table-row'}
             />
           )}
-        </>
+        </SplitPageLayout>
       )}
 
       {/* Form Modal */}

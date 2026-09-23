@@ -26,7 +26,7 @@ import VaultLockCard from './VaultLockCard.jsx';
 import { usePortfolio } from '../hooks/usePortfolio.js';
 import { useHoldings } from '../hooks/useHoldings.js';
 import { useTransactions, useComputedHoldings } from '../../transactions/index.js';
-import { AlertBanner } from '../../../shared/ui/index.js';
+import { AlertBanner, FeaturePageHeader, SplitPageLayout } from '../../../shared/ui/index.js';
 import {
   normalizeHolding,
   formatAssetName,
@@ -286,6 +286,18 @@ export default function PortfolioTracker({ rates, calcData, usdToman, goldUsd })
   // Login is guaranteed by MainPage's site-wide auth gate before this component renders.
   return (
     <div className="portfolio-section">
+      <FeaturePageHeader
+        icon={<Briefcase size={24} />}
+        title="پورتفو"
+        subtitle="ارزش‌گذاری دارایی‌ها بر پایه نرخ لحظه‌ای طلا، نقره و ارز"
+        actions={
+          <button type="button" className="btn-add-asset-center" onClick={handleOpenAdd} disabled={isVaultLocked}>
+            <Plus size={15} style={{ verticalAlign: 'middle', marginLeft: '4px' }} />
+            ثبت دارایی جدید
+          </button>
+        }
+      />
+
       {/* Portfolios Navigation Bar */}
       <PortfolioSwitcher
         portfolios={portfolios}
@@ -298,9 +310,18 @@ export default function PortfolioTracker({ rates, calcData, usdToman, goldUsd })
       />
 
       {/* Two Column Split: Right (Content & Holdings Tables), Left (Overview Summary Cards) */}
-      <div className="portfolio-layout-split">
-        {/* Right Column: Holdings List Grouped by Category */}
-        <div className="portfolio-content-column">
+      <SplitPageLayout
+        sidebar={
+          <PortfolioOverviewCards
+            portfolioMetrics={portfolioMetrics}
+            categoryGroups={categoryGroups}
+            holdingsCount={holdings.length}
+            hideValues={hideValues}
+            onOpenAdd={handleOpenAdd}
+            isVaultLocked={isVaultLocked}
+          />
+        }
+      >
           <div className="portfolio-table-card">
             <div className="portfolio-table-header">
               <div className="table-title">
@@ -485,20 +506,7 @@ export default function PortfolioTracker({ rates, calcData, usdToman, goldUsd })
               </div>
             )}
           </div>
-        </div>
-
-        {/* Left Column: Summary & Overview Cards */}
-        <div className="portfolio-sidebar-column">
-          <PortfolioOverviewCards
-            portfolioMetrics={portfolioMetrics}
-            categoryGroups={categoryGroups}
-            holdingsCount={holdings.length}
-            hideValues={hideValues}
-            onOpenAdd={handleOpenAdd}
-            isVaultLocked={isVaultLocked}
-          />
-        </div>
-      </div>
+      </SplitPageLayout>
 
       {/* Add / Edit Holding Modal */}
       <AddHoldingForm

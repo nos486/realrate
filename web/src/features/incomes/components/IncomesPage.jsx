@@ -15,8 +15,10 @@ import {
   AlertBanner,
   Button,
   EmptyState,
+  FeaturePageHeader,
   FilterPills,
   SearchBar,
+  SplitPageLayout,
 } from '../../../shared/ui/index.js';
 import IncomeForm from './IncomeForm.jsx';
 import IncomeSummaryCards from './IncomeSummaryCards.jsx';
@@ -81,22 +83,16 @@ export default function IncomesPage() {
 
   return (
     <div className="incomes-page-container">
-      {/* Header & primary action */}
-      <div className="incomes-header-bar">
-        <div className="incomes-header-title-wrap">
-          <div className="incomes-header-icon">
-            <Wallet size={24} />
-          </div>
-          <div>
-            <h1 className="incomes-page-title">درآمدها</h1>
-            <p className="incomes-page-subtitle">ثبت ورودی‌ها و گزارش کلی درآمد به تفکیک منبع و ماه</p>
-          </div>
-        </div>
-
-        <Button icon={<Plus size={16} />} onClick={handleOpenAdd}>
-          ثبت درآمد جدید
-        </Button>
-      </div>
+      <FeaturePageHeader
+        icon={<Wallet size={24} />}
+        title="درآمدها"
+        subtitle="ثبت ورودی‌ها و گزارش کلی درآمد به تفکیک منبع و ماه"
+        actions={
+          <Button icon={<Plus size={16} />} onClick={handleOpenAdd}>
+            ثبت درآمد جدید
+          </Button>
+        }
+      />
 
       {error && hasIncomes && (
         <AlertBanner type="error" message={error} onClose={clearError} />
@@ -129,7 +125,14 @@ export default function IncomesPage() {
           }
         />
       ) : (
-        <>
+        <SplitPageLayout
+          sidebar={
+            <>
+              <IncomeSummaryCards report={report} hideValues={hideValues} />
+              {report.count > 0 && <IncomeReport report={report} hideValues={hideValues} />}
+            </>
+          }
+        >
           <FilterPills
             variant="segmented"
             options={INCOME_PERIODS}
@@ -138,12 +141,8 @@ export default function IncomesPage() {
             className="incomes-period-filter"
           />
 
-          <IncomeSummaryCards report={report} hideValues={hideValues} />
-
           {report.count > 0 ? (
             <>
-              <IncomeReport report={report} hideValues={hideValues} />
-
               <div className="incomes-toolbar">
                 <SearchBar
                   value={searchQuery}
@@ -176,7 +175,7 @@ export default function IncomesPage() {
               description="بازه زمانی دیگری را انتخاب کنید یا درآمد جدیدی ثبت نمایید."
             />
           )}
-        </>
+        </SplitPageLayout>
       )}
 
       {formOpen && (
