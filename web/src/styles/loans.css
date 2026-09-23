@@ -150,16 +150,18 @@
   min-width: 0;
 }
 
+/* flex-grow so these three columns share the row's leftover width evenly instead of
+   leaving a rigid, occasionally-awkward gap when the identity block's title is short */
 .loan-row-balance {
-  flex: 0 0 160px;
+  flex: 1 1 160px;
 }
 
 .loan-row-progress-block {
-  flex: 0 0 150px;
+  flex: 1 1 150px;
 }
 
 .loan-row-next-due {
-  flex: 0 0 190px;
+  flex: 1 1 190px;
 }
 
 .loan-row-label {
