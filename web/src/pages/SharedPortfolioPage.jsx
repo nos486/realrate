@@ -14,8 +14,10 @@ import {
   formatNum,
   normalizeHolding,
   resolveHoldingUnitRealPrice,
+  computeReferenceAssetPnl,
   VaultLockCard,
 } from '../features/portfolio/index.js';
+import { calculateComputedHoldings } from '../features/transactions/index.js';
 import { formatPct } from '../shared/utils/formatters.js';
 import {
   getCategoryBadge,
@@ -39,6 +41,7 @@ import {
   deriveE2eeKey,
   verifyE2eeKey,
   decryptHoldingFromApi,
+  e2eeDecrypt,
 } from '../lib/e2ee.js';
 import { usePrivacyMode } from '../hooks/usePrivacyMode.js';
 
@@ -132,6 +135,53 @@ export default function SharedPortfolioPage() {
   const isE2ee = Boolean(portfolioData?.portfolio?.isE2ee);
   const isVaultLocked = Boolean(isE2ee && !vaultKey);
 
+  // Transactions for this shared portfolio, decrypted/parsed the same way useTransactions.js
+  // does for the authenticated view — needed so positions built purely from buy/sell
+  // transactions (not a manually-added holding) aren't silently missing from the share.
+  const [decryptedTransactions, setDecryptedTransactions] = useState([]);
+
+  useEffect(() => {
+    const rawTxs = portfolioData?.transactions;
+    if (!Array.isArray(rawTxs) || rawTxs.length === 0) {
+      setDecryptedTransactions([]);
+      return undefined;
+    }
+    if (isE2ee && !vaultKey) {
+      setDecryptedTransactions([]);
+      return undefined;
+    }
+
+    let cancelled = false;
+    (async () => {
+      const results = await Promise.all(
+        rawTxs.map(async (tx) => {
+          const rawCipher = tx.encryptedPayload || tx.encrypted_payload || '';
+          if (typeof rawCipher === 'string' && rawCipher.startsWith('enc:e2ee:v1:')) {
+            if (!vaultKey) return null;
+            const dec = await e2eeDecrypt(vaultKey, rawCipher);
+            return dec && typeof dec === 'object' ? { ...tx, ...dec } : null;
+          }
+          if (typeof rawCipher === 'string') {
+            try {
+              return { ...tx, ...JSON.parse(rawCipher) };
+            } catch {
+              return null;
+            }
+          }
+          if (typeof rawCipher === 'object' && rawCipher) {
+            return { ...tx, ...rawCipher };
+          }
+          return null;
+        })
+      );
+      if (!cancelled) setDecryptedTransactions(results.filter(Boolean));
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [portfolioData, isE2ee, vaultKey]);
+
   const handleUnlockVault = async (passphrase) => {
     if (!portfolioData?.portfolio?.isE2ee) return false;
     const pass = (passphrase || '').trim();
@@ -187,6 +237,13 @@ export default function SharedPortfolioPage() {
     return map;
   }, [pricing?.priceMap, marketRates, calcData]);
 
+  // Positions computed from the portfolio's buy/sell transactions (Weighted Average Cost) —
+  // the second half of what the authenticated view shows alongside manually-added holdings.
+  const { computedHoldings } = useMemo(
+    () => calculateComputedHoldings(decryptedTransactions, realPriceMap),
+    [decryptedTransactions, realPriceMap]
+  );
+
   const portfolioMetrics = useMemo(() => {
     if (!portfolioData?.holdings) {
       return {
@@ -199,8 +256,8 @@ export default function SharedPortfolioPage() {
       };
     }
 
-    const items = portfolioData.holdings.map((rawH) => {
-      const h = normalizeHolding(rawH);
+    const processHolding = (rawH, sourceTag) => {
+      const h = normalizeHolding({ ...rawH, source: sourceTag }, pricing?.itemMap);
       const amountNum = Number(h.amount) || 0;
       const buyPriceNum = Number(h.buyPrice) || 0;
       const hasBuyPrice = buyPriceNum > 0;
@@ -217,8 +274,11 @@ export default function SharedPortfolioPage() {
       const itemPnl = hasBuyPrice ? itemRealVal - itemCost : null;
       const itemPnlPct = hasBuyPrice && itemCost > 0 ? parseFloat(((itemPnl / itemCost) * 100).toFixed(1)) : null;
 
+      const referencePnlInfo = computeReferenceAssetPnl({ ...h, itemRealVal }, realPriceMap, pricing?.itemMap);
+
       return {
         ...h,
+        source: sourceTag,
         hasBuyPrice,
         isCustomItem,
         unitRealPrice,
@@ -226,8 +286,13 @@ export default function SharedPortfolioPage() {
         itemRealVal,
         itemPnl,
         itemPnlPct,
+        referencePnlInfo,
       };
-    });
+    };
+
+    const manualItems = portfolioData.holdings.map((h) => processHolding(h, 'manual'));
+    const computedItems = computedHoldings.map((h) => processHolding(h, 'transactions'));
+    const items = [...manualItems, ...computedItems];
 
     const costedItems = items.filter((it) => it.hasBuyPrice);
     const totalCost = costedItems.reduce((acc, it) => acc + it.itemCost, 0);
@@ -237,7 +302,7 @@ export default function SharedPortfolioPage() {
     const totalPnlPct = hasAnyCost ? parseFloat(((totalPnl / totalCost) * 100).toFixed(1)) : 0;
 
     return { items, totalCost, totalRealValue, totalPnl, totalPnlPct, hasAnyCost };
-  }, [portfolioData, realPriceMap]);
+  }, [portfolioData, computedHoldings, realPriceMap]);
 
   const categoryGroups = useMemo(() => {
     return CATEGORY_DEFINITIONS.map((cat) => {

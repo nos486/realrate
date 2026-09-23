@@ -26,6 +26,7 @@ import {
   dbDeletePortfolioHolding,
   dbGetUserById,
   dbUpdateUserSettings,
+  dbGetTransactionsByPortfolio,
 } from "../repositories/index.js";
 import { jsonResponse } from "../lib/helpers.js";
 import { AppError } from "../lib/AppError.js";
@@ -461,8 +462,15 @@ export async function handleGetSharedPortfolio(request, env) {
     }
   }
 
-  // Password passed or not required: return holdings for this portfolio
-  const holdings = await dbGetPortfolioHoldings(env, targetPortfolio.userId, targetPortfolio.id);
+  // Password passed or not required: return holdings AND transactions for this portfolio.
+  // The private (authenticated) view combines manually-added holdings with positions
+  // computed from buy/sell transactions (useComputedHoldings) — the shared view must
+  // include the same transactions or it silently omits any transaction-derived asset,
+  // showing a portfolio that doesn't match what the owner actually sees.
+  const [holdings, transactions] = await Promise.all([
+    dbGetPortfolioHoldings(env, targetPortfolio.userId, targetPortfolio.id),
+    dbGetTransactionsByPortfolio(env, targetPortfolio.userId, targetPortfolio.id),
+  ]);
 
   return jsonResponse({
     success: true,
@@ -479,5 +487,6 @@ export async function handleGetSharedPortfolio(request, env) {
       slug: targetPortfolio.shareSlug,
     },
     holdings: holdings.map(resolveHoldingMetadata),
+    transactions,
   }, 200, request);
 }
