@@ -12,6 +12,7 @@ export default function App() {
       <LoansProvider>
         <Routes>
           <Route path="/" element={<MainPage />} />
+          <Route path="/landing" element={<LandingPage />} />
           <Route path="/rates" element={<MainPage />} />
           <Route path="/market" element={<Navigate to="/" replace />} />
           <Route path="/portfolio" element={<MainPage />} />
@@ -28,7 +29,6 @@ export default function App() {
           <Route path="/derived-assets" element={<Navigate to="/admin/sources" replace />} />
           <Route path="/sources" element={<MainPage />} />
           <Route path="/p/:slug" element={<SharedPortfolioPage />} />
-          <Route path="/welcome" element={<LandingPage />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
         <FullscreenLoader />

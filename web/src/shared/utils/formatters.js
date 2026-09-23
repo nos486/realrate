@@ -63,3 +63,14 @@ export function formatThousands(val, allowDecimals = false) {
     return parseInt(intPart, 10).toLocaleString('en-US');
   }
 }
+
+/**
+ * Convert standard ASCII digits (0-9) to Persian digits (۰-۹)
+ * @param {string|number} n
+ * @returns {string}
+ */
+export function toPersianDigits(n) {
+  if (n === null || n === undefined) return '';
+  const pers = ['۰', '۱', '۲', '۳', '۴', '۵', '۶', '۷', '۸', '۹'];
+  return String(n).replace(/[0-9]/g, (w) => pers[+w]);
+}
