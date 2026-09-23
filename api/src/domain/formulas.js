@@ -9,7 +9,6 @@
  */
 
 import { TROY_OUNCE_GRAMS } from './specs/gold.spec.js';
-import { FOREX_DICT } from './specs/forex.spec.js';
 
 /**
  * Calculate pure 24k gold gram value in Tomans
@@ -47,41 +46,6 @@ export function calculateForexTomanPrice(usdCrossRate, usdToman) {
   const usd = Number(usdToman || 0);
   if (cross <= 0 || usd <= 0) return 0;
   return Math.round(cross * usd);
-}
-
-/**
- * Resolve the current Toman value of 1 unit of a given ISO currency code.
- * Used to translate a foreign-currency-denominated holding/transaction back to Toman
- * (both for its historical cost, via an FX rate the caller supplies, and for its live value).
- *
- * Live priceMap entry takes priority (e.g. a dedicated forex price source); when absent,
- * falls back to the currency's static USD cross-rate (FOREX_SPECS.defaultCross) times the
- * live USD/Toman rate — always resolvable for any of the ~50 currencies in FOREX_SPECS.
- *
- * @param {string} currencyCode - ISO code, e.g. 'USD', 'EUR'. 'IRT'/falsy returns 1 (Toman itself).
- * @param {object} [priceMap={}]
- * @param {number} [usdToman=0]
- * @returns {number}
- */
-export function resolveCurrencyToTomanRate(currencyCode, priceMap = {}, usdToman = 0) {
-  const code = String(currencyCode || '').toUpperCase().trim();
-  if (!code || code === 'IRT' || code === 'TOMAN') return 1;
-
-  const usdRate = Number(usdToman || priceMap?.USD || priceMap?.usd || 0);
-
-  if (code === 'USD') {
-    return usdRate > 0 ? Math.round(usdRate) : 0;
-  }
-
-  const live = Number(priceMap?.[code] || priceMap?.[code.toLowerCase()] || 0);
-  if (live > 0) return Math.round(live);
-
-  const spec = FOREX_DICT[code];
-  if (spec?.defaultCross) {
-    return calculateForexTomanPrice(spec.defaultCross, usdRate);
-  }
-
-  return 0;
 }
 
 /**

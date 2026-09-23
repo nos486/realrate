@@ -42,7 +42,7 @@ import {
   formatNum,
   parseInputNumber,
   resolveHoldingUnitRealPrice,
-  computeNativeCurrencyPnl,
+  computeReferenceAssetPnl,
   CATEGORY_DEFINITIONS,
 } from '../utils/holdingHelpers.js';
 import { getItemCategory } from '../../../config/displayEngine.js';
@@ -178,10 +178,10 @@ export default function PortfolioTracker({ rates, calcData, usdToman, goldUsd })
           ? parseFloat(((itemPnl / itemCost) * 100).toFixed(1))
           : null;
 
-      const nativePnlInfo = computeNativeCurrencyPnl(
+      const referencePnlInfo = computeReferenceAssetPnl(
         { ...h, itemRealVal },
         pricing?.priceMap || realPriceMap,
-        pricing?.usdToman || usdToman
+        pricing?.itemMap
       );
 
       return {
@@ -195,7 +195,7 @@ export default function PortfolioTracker({ rates, calcData, usdToman, goldUsd })
         itemRealVal,
         itemPnl,
         itemPnlPct,
-        nativePnlInfo,
+        referencePnlInfo,
       };
     };
 

@@ -14,9 +14,8 @@ import Modal from '../../../shared/ui/Modal.jsx';
 import NumericInput from '../../../shared/ui/NumericInput.jsx';
 import UniversalAssetSearch from '../../../components/UniversalAssetSearch.jsx';
 import ShamsiDatePicker, { getTodayShamsi } from '../../portfolio/components/ShamsiDatePicker.jsx';
-import CurrencyCostInputs from '../../portfolio/components/CurrencyCostInputs.jsx';
+import ReferenceAssetInputs from '../../portfolio/components/ReferenceAssetInputs.jsx';
 import { parseInputNumber } from '../../portfolio/utils/holdingHelpers.js';
-import { usePricing } from '../../market/index.js';
 import {
   getCanonicalAssetSpec,
   resolveItemCategory,
@@ -49,10 +48,9 @@ export default function TransactionForm({
   const [unitPrice, setUnitPrice] = useState('');
   const [transactionDate, setTransactionDate] = useState(() => getTodayShamsi());
   const [notes, setNotes] = useState('');
-  const [currency, setCurrency] = useState('IRT');
-  const [nativeUnitPrice, setNativeUnitPrice] = useState('');
-  const [fxRateAtPurchase, setFxRateAtPurchase] = useState('');
-  const pricing = usePricing();
+  const [referenceAsset, setReferenceAsset] = useState(null);
+  const [referenceQuantity, setReferenceQuantity] = useState('');
+  const [referencePriceToman, setReferencePriceToman] = useState('');
 
   // Reset or populate on open/edit
   useEffect(() => {
@@ -69,15 +67,22 @@ export default function TransactionForm({
       setTransactionDate(editingTransaction.transactionDate || getTodayShamsi());
       setNotes(editingTransaction.notes || '');
 
-      const editCurrency = editingTransaction.currency || 'IRT';
-      setCurrency(editCurrency);
-      if (editCurrency !== 'IRT' && editingTransaction.nativeUnitPrice) {
-        setNativeUnitPrice(String(editingTransaction.nativeUnitPrice));
-        const reconstructedRate = Number(editingTransaction.unitPrice) / Number(editingTransaction.nativeUnitPrice);
-        setFxRateAtPurchase(reconstructedRate > 0 ? String(Math.round(reconstructedRate)) : '');
+      if (editingTransaction.referenceAssetId && editingTransaction.referenceQuantity) {
+        const refId = editingTransaction.referenceAssetId;
+        setReferenceAsset({
+          id: refId,
+          name: resolveAssetDisplayName(refId) || refId,
+          unit: resolveAssetUnit(refId) || 'واحد',
+          category: getItemCategory(refId),
+        });
+        setReferenceQuantity(String(editingTransaction.referenceQuantity));
+        const totalToman = Number(editingTransaction.unitPrice) * Number(editingTransaction.quantity);
+        const reconstructedPrice = totalToman / Number(editingTransaction.referenceQuantity);
+        setReferencePriceToman(reconstructedPrice > 0 ? String(Math.round(reconstructedPrice)) : '');
       } else {
-        setNativeUnitPrice('');
-        setFxRateAtPurchase('');
+        setReferenceAsset(null);
+        setReferenceQuantity('');
+        setReferencePriceToman('');
       }
     } else {
       setAssetId('gold_18k');
@@ -89,9 +94,9 @@ export default function TransactionForm({
       setUnitPrice('');
       setTransactionDate(getTodayShamsi());
       setNotes('');
-      setCurrency('IRT');
-      setNativeUnitPrice('');
-      setFxRateAtPurchase('');
+      setReferenceAsset(null);
+      setReferenceQuantity('');
+      setReferencePriceToman('');
     }
   }, [isOpen, editingTransaction]);
 
@@ -153,13 +158,16 @@ export default function TransactionForm({
 
   // Validation logic
   const quantityNum = parseInputNumber(quantity);
-  const isForeignCurrency = currency !== 'IRT';
-  const parsedNativeUnitPrice = parseInputNumber(nativeUnitPrice);
-  const parsedFxRate = parseInputNumber(fxRateAtPurchase);
-  // The Toman unit price the rest of the app relies on: either typed directly, or —
-  // for a foreign-currency purchase — derived as native price × the FX rate at purchase.
-  const finalUnitPriceNum = isForeignCurrency
-    ? (parsedNativeUnitPrice > 0 && parsedFxRate > 0 ? Math.round(parsedNativeUnitPrice * parsedFxRate) : null)
+  const hasReference = Boolean(referenceAsset);
+  const parsedReferenceQuantity = parseInputNumber(referenceQuantity);
+  const parsedReferencePrice = parseInputNumber(referencePriceToman);
+  // The Toman unit price the rest of the app relies on: either typed directly, or — when
+  // paid/settled with another asset — derived as (total reference quantity × its Toman
+  // price at trade time) ÷ this transaction's quantity.
+  const finalUnitPriceNum = hasReference
+    ? (parsedReferenceQuantity > 0 && parsedReferencePrice > 0 && quantityNum > 0
+        ? Math.round((parsedReferenceQuantity * parsedReferencePrice) / quantityNum)
+        : null)
     : parseInputNumber(unitPrice);
   const isDateValid = Boolean(transactionDate && transactionDate.trim().length >= 8);
   const isQuantityValid = quantityNum !== null && quantityNum > 0;
@@ -186,8 +194,8 @@ export default function TransactionForm({
       transactionDate: transactionDate.trim(),
       notes: notes.trim(),
       createdAt: editingTransaction?.createdAt,
-      currency: isForeignCurrency ? currency : 'IRT',
-      nativeUnitPrice: isForeignCurrency ? parsedNativeUnitPrice : 0,
+      referenceAssetId: hasReference ? referenceAsset.id : '',
+      referenceQuantity: hasReference ? parsedReferenceQuantity : 0,
     });
   };
 
@@ -274,7 +282,7 @@ export default function TransactionForm({
           />
         </div>
 
-        {currency === 'IRT' && (
+        {!hasReference && (
           <div className="form-item">
             <label>
               قیمت واحد معامله (تومان) <span className="field-required">*</span>
@@ -291,19 +299,17 @@ export default function TransactionForm({
         )}
       </div>
 
-      {/* Foreign-currency cost basis (paid in USD/EUR/... instead of Toman) */}
-      <CurrencyCostInputs
-        currency={currency}
-        onCurrencyChange={setCurrency}
-        nativePrice={nativeUnitPrice}
-        onNativePriceChange={setNativeUnitPrice}
-        fxRate={fxRateAtPurchase}
-        onFxRateChange={setFxRateAtPurchase}
-        unitLabel={unit}
-        realPriceMap={realPriceMap || pricing?.priceMap}
-        usdToman={pricing?.usdToman}
-        autoFillFxRate={!editingTransaction}
-        priceLabel="قیمت واحد معامله"
+      {/* Paid / settled with another asset (a currency, gold, a stock, ...) instead of Toman */}
+      <ReferenceAssetInputs
+        referenceAsset={referenceAsset}
+        onReferenceAssetChange={setReferenceAsset}
+        referenceQuantity={referenceQuantity}
+        onReferenceQuantityChange={setReferenceQuantity}
+        referencePriceToman={referencePriceToman}
+        onReferencePriceChange={setReferencePriceToman}
+        newAssetAmount={quantityNum || 0}
+        newAssetUnitLabel={unit}
+        autoFillPrice={!editingTransaction}
       />
 
       {/* Total Turnover Summary Pill */}

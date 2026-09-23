@@ -4,7 +4,7 @@ import Modal from '../../../shared/ui/Modal.jsx';
 import NumericInput from '../../../shared/ui/NumericInput.jsx';
 import UniversalAssetSearch from '../../../components/UniversalAssetSearch.jsx';
 import ShamsiDatePicker from './ShamsiDatePicker.jsx';
-import CurrencyCostInputs from './CurrencyCostInputs.jsx';
+import ReferenceAssetInputs from './ReferenceAssetInputs.jsx';
 import { parseInputNumber } from '../utils/holdingHelpers.js';
 import {
   getCanonicalAssetSpec,
@@ -44,9 +44,9 @@ export default function AddHoldingForm({
   const [buyDate, setBuyDate] = useState('');
   const [notes, setNotes] = useState('');
   const [selectedBourseSymbol, setSelectedBourseSymbol] = useState(null);
-  const [currency, setCurrency] = useState('IRT');
-  const [nativeBuyPrice, setNativeBuyPrice] = useState('');
-  const [fxRateAtPurchase, setFxRateAtPurchase] = useState('');
+  const [referenceAsset, setReferenceAsset] = useState(null);
+  const [referenceQuantity, setReferenceQuantity] = useState('');
+  const [referencePriceToman, setReferencePriceToman] = useState('');
 
   // Initialize or reset form state on open / edit
   useEffect(() => {
@@ -59,17 +59,24 @@ export default function AddHoldingForm({
       setBuyDate(editingHolding.buyDate || '');
       setNotes(editingHolding.notes || '');
 
-      const editCurrency = editingHolding.currency || 'IRT';
-      setCurrency(editCurrency);
-      if (editCurrency !== 'IRT' && editingHolding.nativeBuyPrice) {
-        setNativeBuyPrice(String(editingHolding.nativeBuyPrice));
-        // Reconstruct the FX rate that was used at purchase from the two stored prices,
-        // so re-opening the edit form shows the original rate, not today's.
-        const reconstructedRate = Number(editingHolding.buyPrice) / Number(editingHolding.nativeBuyPrice);
-        setFxRateAtPurchase(reconstructedRate > 0 ? String(Math.round(reconstructedRate)) : '');
+      if (editingHolding.referenceAssetId && editingHolding.referenceQuantity) {
+        const refId = editingHolding.referenceAssetId;
+        setReferenceAsset({
+          id: refId,
+          name: resolveAssetDisplayName(refId) || refId,
+          unit: resolveAssetUnit(refId) || 'واحد',
+          category: getItemCategory(refId),
+        });
+        setReferenceQuantity(String(editingHolding.referenceQuantity));
+        // Reconstruct the reference asset's Toman price AT TRADE TIME from the two stored
+        // totals, so re-opening the edit form shows the original price, not today's.
+        const totalToman = Number(editingHolding.buyPrice) * Number(editingHolding.amount);
+        const reconstructedPrice = totalToman / Number(editingHolding.referenceQuantity);
+        setReferencePriceToman(reconstructedPrice > 0 ? String(Math.round(reconstructedPrice)) : '');
       } else {
-        setNativeBuyPrice('');
-        setFxRateAtPurchase('');
+        setReferenceAsset(null);
+        setReferenceQuantity('');
+        setReferencePriceToman('');
       }
 
       if (editingHolding.category === 'custom' || editingHolding.assetType === 'custom') {
@@ -103,9 +110,9 @@ export default function AddHoldingForm({
       setBuyDate('');
       setNotes('');
       setSelectedBourseSymbol(null);
-      setCurrency('IRT');
-      setNativeBuyPrice('');
-      setFxRateAtPurchase('');
+      setReferenceAsset(null);
+      setReferenceQuantity('');
+      setReferencePriceToman('');
     }
   }, [isOpen, editingHolding]);
 
@@ -223,13 +230,14 @@ export default function AddHoldingForm({
       finalAssetId = `bourse_${sym}`;
     }
 
-    // Foreign-currency cost basis: the Toman price the rest of the app relies on is
-    // always native price × the FX rate at purchase, never a manually-typed Toman figure.
-    const parsedNativeBuyPrice = parseInputNumber(nativeBuyPrice);
-    const parsedFxRate = parseInputNumber(fxRateAtPurchase);
-    const isForeignCurrency = currency !== 'IRT' && parsedNativeBuyPrice > 0 && parsedFxRate > 0;
-    const finalBuyPrice = isForeignCurrency
-      ? Math.round(parsedNativeBuyPrice * parsedFxRate)
+    // Paid/swapped with a reference asset: the Toman price the rest of the app relies on
+    // is always (total reference quantity × its Toman price at trade time) ÷ this asset's
+    // amount — never a manually-typed Toman figure.
+    const parsedReferenceQuantity = parseInputNumber(referenceQuantity);
+    const parsedReferencePrice = parseInputNumber(referencePriceToman);
+    const hasReference = Boolean(referenceAsset) && parsedReferenceQuantity > 0 && parsedReferencePrice > 0;
+    const finalBuyPrice = hasReference
+      ? Math.round((parsedReferenceQuantity * parsedReferencePrice) / parsedAmount)
       : (parseInputNumber(buyPrice) || 0);
 
     onSubmit?.({
@@ -240,8 +248,8 @@ export default function AddHoldingForm({
       buyDate: buyDate.trim(),
       notes: notes.trim(),
       customPrice: parseInputNumber(customCurrentPrice) || 0,
-      currency: isForeignCurrency ? currency : 'IRT',
-      nativeBuyPrice: isForeignCurrency ? parsedNativeBuyPrice : 0,
+      referenceAssetId: hasReference ? referenceAsset.id : '',
+      referenceQuantity: hasReference ? parsedReferenceQuantity : 0,
     });
   };
 
@@ -445,20 +453,8 @@ export default function AddHoldingForm({
         />
       </div>
 
-      {/* Buy Price Input — Toman (default) or foreign-currency cost basis */}
-      <CurrencyCostInputs
-        currency={currency}
-        onCurrencyChange={setCurrency}
-        nativePrice={nativeBuyPrice}
-        onNativePriceChange={setNativeBuyPrice}
-        fxRate={fxRateAtPurchase}
-        onFxRateChange={setFxRateAtPurchase}
-        unitLabel={unitLabel}
-        realPriceMap={realPriceMap || pricing?.priceMap}
-        usdToman={pricing?.usdToman}
-        autoFillFxRate={!editingHolding}
-      />
-      {currency === 'IRT' && (
+      {/* Buy Price Input — Toman (default), unless paid/swapped with another asset */}
+      {!referenceAsset && (
         <div className="form-item">
           <label>قیمت خرید هر {unitLabel} (تومان)</label>
           <NumericInput
@@ -475,6 +471,18 @@ export default function AddHoldingForm({
           />
         </div>
       )}
+
+      <ReferenceAssetInputs
+        referenceAsset={referenceAsset}
+        onReferenceAssetChange={setReferenceAsset}
+        referenceQuantity={referenceQuantity}
+        onReferenceQuantityChange={setReferenceQuantity}
+        referencePriceToman={referencePriceToman}
+        onReferencePriceChange={setReferencePriceToman}
+        newAssetAmount={parseInputNumber(amount) || 0}
+        newAssetUnitLabel={unitLabel}
+        autoFillPrice={!editingHolding}
+      />
 
       {/* Custom or Bourse Asset: Current Market Price field */}
       {(isModalCustom || isModalBourse) && (

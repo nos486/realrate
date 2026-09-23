@@ -83,12 +83,12 @@ export function calculateComputedHoldings(transactions = [], livePriceMap = {}) 
     let totalSellQty = 0;
     let latestBuyDate = '';
     let latestTxDate = '';
-    // Foreign-currency cost basis is only meaningful when EVERY buy lot for this asset
-    // was paid in the exact same currency — a mixed-currency weighted average would be
-    // meaningless, so we simply omit it rather than show a misleading blended figure.
-    let commonBuyCurrency = undefined;
-    let hasMixedBuyCurrency = false;
-    let totalNativeBuyCost = 0;
+    // A reference-asset cost basis is only meaningful when EVERY buy lot for this asset
+    // was paid/swapped with the exact same reference asset — blending different ones
+    // would be meaningless, so we simply omit it rather than show a misleading figure.
+    let commonReferenceAssetId = undefined;
+    let hasMixedReferenceAsset = false;
+    let totalReferenceQuantity = 0;
 
     // Sort chronologically if dates exist
     const sortedTxs = [...group.transactions].sort((a, b) => {
@@ -115,18 +115,18 @@ export function calculateComputedHoldings(transactions = [], livePriceMap = {}) 
             latestBuyDate = date;
           }
 
-          const txCurrency = t.currency || 'IRT';
-          if (txCurrency !== 'IRT') {
-            if (commonBuyCurrency === undefined) {
-              commonBuyCurrency = txCurrency;
-            } else if (commonBuyCurrency !== txCurrency) {
-              hasMixedBuyCurrency = true;
+          const txReferenceAssetId = t.referenceAssetId || '';
+          if (txReferenceAssetId) {
+            if (commonReferenceAssetId === undefined) {
+              commonReferenceAssetId = txReferenceAssetId;
+            } else if (commonReferenceAssetId !== txReferenceAssetId) {
+              hasMixedReferenceAsset = true;
             }
-            totalNativeBuyCost += qty * (Number(t.nativeUnitPrice) || 0);
-          } else if (commonBuyCurrency === undefined) {
-            commonBuyCurrency = 'IRT';
-          } else if (commonBuyCurrency !== 'IRT') {
-            hasMixedBuyCurrency = true;
+            totalReferenceQuantity += Number(t.referenceQuantity) || 0;
+          } else if (commonReferenceAssetId === undefined) {
+            commonReferenceAssetId = '';
+          } else if (commonReferenceAssetId !== '') {
+            hasMixedReferenceAsset = true;
           }
         }
       } else if (type === 'sell') {
@@ -185,7 +185,12 @@ export function calculateComputedHoldings(transactions = [], livePriceMap = {}) 
         ? parseFloat(((itemPnl / itemCost) * 100).toFixed(1))
         : null;
 
-    const hasUniformForeignCurrency = !hasMixedBuyCurrency && commonBuyCurrency && commonBuyCurrency !== 'IRT';
+    const hasUniformReferenceAsset = !hasMixedReferenceAsset && Boolean(commonReferenceAssetId);
+    // Scale the reference quantity down proportionally to what's still held (mirrors how
+    // itemCost above scales the Toman cost basis by currentQty ÷ totalBuyQty), so a
+    // partially-sold position doesn't overstate what was originally given up for it.
+    const scaledReferenceQuantity =
+      hasUniformReferenceAsset && totalBuyQty > 0 ? totalReferenceQuantity * (currentQty / totalBuyQty) : 0;
 
     computedHoldings.push({
       id: `computed_${assetId}`,
@@ -209,10 +214,10 @@ export function calculateComputedHoldings(transactions = [], livePriceMap = {}) 
       source: 'transactions',
       isComputed: true,
       txCount: group.transactions.length,
-      // Only set when every buy transaction for this asset shares one non-Toman currency —
-      // otherwise a blended figure across currencies would be meaningless, so it's omitted.
-      currency: hasUniformForeignCurrency ? commonBuyCurrency : 'IRT',
-      nativeBuyPrice: hasUniformForeignCurrency && totalBuyQty > 0 ? totalNativeBuyCost / totalBuyQty : 0,
+      // Only set when every buy transaction for this asset shares one reference asset —
+      // otherwise a blended figure across different references would be meaningless.
+      referenceAssetId: hasUniformReferenceAsset ? commonReferenceAssetId : '',
+      referenceQuantity: scaledReferenceQuantity,
     });
   }
 

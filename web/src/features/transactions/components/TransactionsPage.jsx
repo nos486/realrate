@@ -35,7 +35,7 @@ import VaultLockCard from '../../portfolio/components/VaultLockCard.jsx';
 import AuthGate from '../../../shared/ui/AuthGate.jsx';
 import EmptyState from '../../../shared/ui/EmptyState.jsx';
 import { usePricing } from '../../market/index.js';
-import { CategoryIcon, formatAssetName, formatNum, getItemBrand, FOREX_DICT } from '../../portfolio/utils/holdingHelpers.js';
+import { CategoryIcon, formatAssetName, formatNum, getItemBrand, resolveAssetDisplayName } from '../../portfolio/utils/holdingHelpers.js';
 import {
   deriveE2eeKey,
   verifyE2eeKey,
@@ -481,10 +481,10 @@ export default function TransactionsPage({
                               {hideValues ? '****' : formatNum(price)}
                             </span>
                             <span className="cell-unit">تومان</span>
-                            {tx.currency && tx.currency !== 'IRT' && tx.nativeUnitPrice > 0 && !hideValues && (
+                            {tx.referenceAssetId && tx.referenceQuantity > 0 && !hideValues && (
                               <span className="cell-native-sub">
-                                ({FOREX_DICT[tx.currency]?.symbol || tx.currency}
-                                {Number(tx.nativeUnitPrice).toLocaleString('fa-IR', { maximumFractionDigits: 2 })})
+                                ({Number(tx.referenceQuantity).toLocaleString('fa-IR', { maximumFractionDigits: 2 })}{' '}
+                                {resolveAssetDisplayName(tx.referenceAssetId)})
                               </span>
                             )}
                           </div>

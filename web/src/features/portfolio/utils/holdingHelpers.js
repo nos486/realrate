@@ -16,59 +16,120 @@ import {
   resolveItemCategory,
   PORTFOLIO_CATEGORIES,
   resolveHoldingUnitRealPrice,
-  resolveCurrencyToTomanRate,
   normalizePersianText,
   resolveAssetDisplayName,
   resolveAssetDisplayWithSource,
   resolveAssetUnit,
-  FOREX_DICT,
 } from '../../../utils/financialSpecs.js';
-import { getCategoryIconName, getItemBrand } from '../../../config/displayEngine.js';
+import { getCategoryIconName, getItemBrand, getItemCategory } from '../../../config/displayEngine.js';
 
 export {
   resolveHoldingUnitRealPrice,
-  resolveCurrencyToTomanRate,
   normalizePersianText,
   resolveAssetDisplayName,
   resolveAssetDisplayWithSource,
   resolveAssetUnit,
   getItemBrand,
-  FOREX_DICT,
 };
 
 /**
- * Compute a holding's unrealized profit/loss expressed in its own foreign purchase
- * currency, alongside the primary Toman figures — for holdings paid in USD/EUR/etc.
- * Cost basis is what was actually paid (nativeBuyPrice); current value translates
- * today's already-computed Toman value back via the live FX rate, so the Toman total
- * stays exactly as before and this is purely an additional, consistent view.
+ * Resolve a UniversalAssetSearch onSelect() result down to a plain, storable
+ * {id, name, unit, category} — the same resolution TransactionForm/AddHoldingForm's own
+ * handleAssetSelect uses for the PRIMARY asset, reused here for picking a REFERENCE asset
+ * (whatever was paid/swapped to acquire the primary one). Returns null for a personal
+ * "custom" asset, which has no live price and so cannot serve as a priceable reference.
  *
- * @param {object} item - a holding with .currency, .nativeBuyPrice, .amount, .itemRealVal
- * @param {object} [priceMap={}]
- * @param {number} [usdToman=0]
- * @returns {null|{currency, symbol, nativeCost, nativeCurrentValue, nativePnl, nativePnlPct}}
+ * @param {object} asset - result from UniversalAssetSearch's onSelect
+ * @returns {null|{id: string, name: string, unit: string, category: string}}
  */
-export function computeNativeCurrencyPnl(item, priceMap = {}, usdToman = 0) {
-  if (!item || !item.currency || item.currency === 'IRT') return null;
-  const nativeBuyPrice = Number(item.nativeBuyPrice) || 0;
-  const amount = Number(item.amount) || 0;
-  if (nativeBuyPrice <= 0 || amount <= 0) return null;
+export function resolveSelectedAsset(asset) {
+  if (!asset) return null;
+  const rawItem = asset.raw || asset;
+  const rawId = asset.id || rawItem.id || rawItem.priceType || rawItem.symbol || '';
+  const cleanId = String(rawId).replace(/^src_def_/, '').replace(/^derived_/, '');
+  const canonicalSpec = getCanonicalAssetSpec(cleanId || rawId || rawItem.symbol);
+  const resolvedId = canonicalSpec?.id || cleanId || rawId;
+  const resolvedCat = getItemCategory(rawItem);
+  const resolvedUnit = resolveAssetUnit(resolvedId, rawItem);
+  const isCustom = resolvedCat === 'custom' || resolvedId === 'custom' || String(resolvedId).startsWith('custom_');
+  const isBourse = asset.sourceId === 'src_def_bourse' || rawItem.sourceId === 'src_def_bourse';
 
-  const fxRate = resolveCurrencyToTomanRate(item.currency, priceMap, usdToman);
-  if (fxRate <= 0) return null;
+  if (isCustom) return null;
 
-  const nativeCost = amount * nativeBuyPrice;
-  const nativeCurrentValue = Number(item.itemRealVal || 0) / fxRate;
-  const nativePnl = nativeCurrentValue - nativeCost;
-  const nativePnlPct = nativeCost > 0 ? (nativePnl / nativeCost) * 100 : null;
+  if (isBourse) {
+    const symCode = (rawItem.symbol || rawItem.s || String(resolvedId).replace('bourse_', '')).trim();
+    const finalId = String(resolvedId).includes('__') ? resolvedId : `bourse_${symCode}`;
+    return { id: finalId, name: resolveAssetDisplayName(finalId, rawItem), unit: resolvedUnit, category: resolvedCat };
+  }
+
+  return { id: resolvedId, name: resolveAssetDisplayName(resolvedId, rawItem), unit: resolvedUnit, category: resolvedCat };
+}
+
+/**
+ * Resolve the current Toman price of ONE unit of any asset — the same lookup the whole
+ * app already uses (pricing.priceMap / itemMap from computeUnifiedPrices, the single
+ * pricing engine), never a separate computation of our own. For gold/coin/silver
+ * specifically this deliberately prefers intrinsicPrice (pure world-spot-based value)
+ * over the domestic market price, since a swap's reference value should track the
+ * world benchmark, not local bazaar premium/discount noise.
+ *
+ * @param {string} assetId
+ * @param {object} [priceMap={}]
+ * @param {object} [itemMap={}]
+ * @returns {number}
+ */
+export function resolveReferencePriceToman(assetId, priceMap = {}, itemMap = {}) {
+  if (!assetId) return 0;
+  const cleanId = String(assetId).replace(/^src_def_/, '').replace(/^derived_/, '');
+  const item = itemMap?.[assetId] || itemMap?.[cleanId] || itemMap?.[assetId.toLowerCase?.()] || null;
+  const category = item?.category || getItemCategory(assetId);
+
+  if (['gold', 'coin', 'silver'].includes(category) && Number(item?.intrinsicPrice) > 0) {
+    return Math.round(Number(item.intrinsicPrice));
+  }
+
+  const live = Number(priceMap?.[assetId] || priceMap?.[cleanId] || 0);
+  return live > 0 ? Math.round(live) : 0;
+}
+
+/**
+ * Compute a holding's unrealized profit/loss relative to its REFERENCE asset — whatever
+ * it was actually paid for / swapped with (a currency, gold, a bourse stock, ...) instead
+ * of a plain Toman amount. Answers "was this trade worth it, compared to simply having
+ * kept the reference asset": referenceCurrentValue is what referenceQuantity of the
+ * reference asset would be worth TODAY (at its live/world price), so the comparison
+ * accounts for the reference asset's own price movement too, not just this holding's.
+ * The primary Toman P&L (cost basis fixed at trade time) is untouched by this — purely
+ * an additional, consistent view built from the one shared pricing engine's output.
+ *
+ * @param {object} item - a holding with .referenceAssetId, .referenceQuantity, .itemRealVal
+ * @param {object} [priceMap={}]
+ * @param {object} [itemMap={}]
+ * @returns {null|{referenceAssetId, referenceAssetName, unit, referenceQuantity, referenceCurrentValue, referencePnl, referencePnlPct}}
+ */
+export function computeReferenceAssetPnl(item, priceMap = {}, itemMap = {}) {
+  if (!item || !item.referenceAssetId) return null;
+  const referenceQuantity = Number(item.referenceQuantity) || 0;
+  if (referenceQuantity <= 0) return null;
+
+  const currentRefPrice = resolveReferencePriceToman(item.referenceAssetId, priceMap, itemMap);
+  if (currentRefPrice <= 0) return null;
+
+  const cleanId = String(item.referenceAssetId).replace(/^src_def_/, '').replace(/^derived_/, '');
+  const refItem = itemMap?.[item.referenceAssetId] || itemMap?.[cleanId] || null;
+
+  const referenceCurrentValue = referenceQuantity * currentRefPrice;
+  const referencePnl = Number(item.itemRealVal || 0) - referenceCurrentValue;
+  const referencePnlPct = referenceCurrentValue > 0 ? (referencePnl / referenceCurrentValue) * 100 : null;
 
   return {
-    currency: item.currency,
-    symbol: FOREX_DICT[item.currency]?.symbol || item.currency,
-    nativeCost,
-    nativeCurrentValue,
-    nativePnl,
-    nativePnlPct,
+    referenceAssetId: item.referenceAssetId,
+    referenceAssetName: refItem?.name || resolveAssetDisplayName(item.referenceAssetId) || item.referenceAssetId,
+    unit: refItem?.unit || resolveAssetUnit(item.referenceAssetId) || 'واحد',
+    referenceQuantity,
+    referenceCurrentValue,
+    referencePnl,
+    referencePnlPct,
   };
 }
 

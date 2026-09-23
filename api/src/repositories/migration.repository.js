@@ -194,13 +194,16 @@ export async function ensureD1Tables(env) {
       }
     }
 
-    // Backward-compat: ensure foreign-currency cost-basis columns exist on portfolio_holdings
-    // (currency defaults to 'IRT'/Toman so every pre-existing row keeps its current behavior)
+    // Backward-compat: ensure reference-asset cost-basis columns exist on portfolio_holdings.
+    // A holding can be recorded as acquired by paying/swapping with ANY other asset (a
+    // currency, gold, a bourse stock, ...) instead of a plain Toman amount — referenceAssetId
+    // identifies that asset (empty = plain Toman, every pre-existing row keeps its behavior)
+    // and referenceQuantity is the TOTAL amount of it that was given up.
     try {
-      await env.DB.prepare("ALTER TABLE portfolio_holdings ADD COLUMN currency TEXT NOT NULL DEFAULT 'IRT'").run();
+      await env.DB.prepare("ALTER TABLE portfolio_holdings ADD COLUMN reference_asset_id TEXT NOT NULL DEFAULT ''").run();
     } catch (ignore) {}
     try {
-      await env.DB.prepare("ALTER TABLE portfolio_holdings ADD COLUMN native_buy_price REAL NOT NULL DEFAULT 0").run();
+      await env.DB.prepare("ALTER TABLE portfolio_holdings ADD COLUMN reference_quantity REAL NOT NULL DEFAULT 0").run();
     } catch (ignore) {}
 
     // Backward-compat: ensure the optional annual fee column exists on loans

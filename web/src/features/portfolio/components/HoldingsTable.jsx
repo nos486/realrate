@@ -1,6 +1,6 @@
 import React from 'react';
 import { Pencil, Trash2, Calendar, MessageSquare } from 'lucide-react';
-import { CategoryIcon, formatAssetName, formatNum, getItemBrand } from '../utils/holdingHelpers.js';
+import { CategoryIcon, formatAssetName, formatNum, getItemBrand, resolveAssetDisplayName } from '../utils/holdingHelpers.js';
 import { formatPct } from '../../../shared/utils/formatters.js';
 
 export default function HoldingsTable({
@@ -98,10 +98,10 @@ export default function HoldingsTable({
                               {hideValues ? '****' : formatNum(item.buyPrice)}
                             </span>
                             <span className="cell-unit">تومان</span>
-                            {item.nativePnlInfo && !hideValues && (
+                            {item.referenceAssetId && item.referenceQuantity > 0 && !hideValues && (
                               <span className="cell-native-sub">
-                                ({item.nativePnlInfo.symbol}
-                                {Number(item.nativeBuyPrice).toLocaleString('fa-IR', { maximumFractionDigits: 2 })})
+                                ({Number(item.referenceQuantity).toLocaleString('fa-IR', { maximumFractionDigits: 2 })}{' '}
+                                {resolveAssetDisplayName(item.referenceAssetId)})
                               </span>
                             )}
                           </div>
@@ -137,13 +137,15 @@ export default function HoldingsTable({
                             <span className="pnl-pct-badge">
                               {hideValues ? '****' : `(${isProfit ? '+' : ''}${formatPct(Math.abs(item.itemPnlPct || 0))}٪)`}
                             </span>
-                            {item.nativePnlInfo && !hideValues && (
-                              <span className={`pnl-native-sub ${item.nativePnlInfo.nativePnl >= 0 ? 'profit' : 'loss'}`}>
-                                {item.nativePnlInfo.nativePnl >= 0 ? '+' : '-'}
-                                {item.nativePnlInfo.symbol}
-                                {Math.round(Math.abs(item.nativePnlInfo.nativePnl)).toLocaleString('fa-IR')}
-                                {item.nativePnlInfo.nativePnlPct !== null && (
-                                  <> ({item.nativePnlInfo.nativePnl >= 0 ? '+' : '-'}{formatPct(Math.abs(item.nativePnlInfo.nativePnlPct))}٪)</>
+                            {item.referencePnlInfo && !hideValues && (
+                              <span
+                                className={`pnl-native-sub ${item.referencePnlInfo.referencePnl >= 0 ? 'profit' : 'loss'}`}
+                                title={`اگر هنوز ${item.referencePnlInfo.referenceAssetName} بود: ${formatNum(item.referencePnlInfo.referenceCurrentValue)} تومان`}
+                              >
+                                نسبت به {item.referencePnlInfo.referenceAssetName}: {item.referencePnlInfo.referencePnl >= 0 ? '+' : '-'}
+                                {formatNum(Math.abs(item.referencePnlInfo.referencePnl))} تومان
+                                {item.referencePnlInfo.referencePnlPct !== null && (
+                                  <> ({item.referencePnlInfo.referencePnl >= 0 ? '+' : '-'}{formatPct(Math.abs(item.referencePnlInfo.referencePnlPct))}٪)</>
                                 )}
                               </span>
                             )}

@@ -1037,15 +1037,117 @@
   color: #fbbf24;
 }
 
-/* ── Foreign-Currency Cost Basis (Holdings/Transactions) ─────────────────── */
-.currency-cost-inputs .form-item {
+/* ── Reference-Asset Cost Basis (Holdings/Transactions) ───────────────────── */
+.btn-add-reference-asset {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  justify-content: center;
+  padding: 9px 12px;
+  margin-bottom: 14px;
+  background: rgba(148, 163, 184, 0.06);
+  border: 1px dashed var(--border-color);
+  border-radius: 10px;
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: var(--transition-fast);
+}
+
+.btn-add-reference-asset:hover {
+  background: rgba(56, 189, 248, 0.08);
+  border-color: rgba(56, 189, 248, 0.35);
+  color: #38bdf8;
+}
+
+.reference-asset-card {
+  padding: 12px;
+  margin-bottom: 14px;
+  background: rgba(56, 189, 248, 0.04);
+  border: 1px solid rgba(56, 189, 248, 0.18);
+  border-radius: 12px;
+}
+
+.reference-asset-card .form-item {
   margin-bottom: 12px;
 }
 
-.currency-cost-inputs label {
+.reference-asset-card .form-item:last-child {
+  margin-bottom: 0;
+}
+
+.reference-asset-card label {
   display: flex;
   align-items: center;
   gap: 6px;
+}
+
+.reference-asset-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
+.reference-asset-card-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 700;
+  color: #38bdf8;
+}
+
+.btn-remove-reference {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  background: rgba(148, 163, 184, 0.1);
+  border: none;
+  border-radius: 50%;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: var(--transition-fast);
+}
+
+.btn-remove-reference:hover {
+  background: rgba(239, 68, 68, 0.15);
+  color: #f87171;
+}
+
+.reference-asset-selected-pill {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 6px 10px;
+  margin-bottom: 12px;
+  background: rgba(59, 130, 246, 0.1);
+  border: 1px solid rgba(59, 130, 246, 0.25);
+  border-radius: 16px;
+  font-size: 12px;
+  font-weight: 700;
+  color: #93c5fd;
+}
+
+.reference-asset-selected-pill button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: none;
+  color: inherit;
+  cursor: pointer;
+  opacity: 0.7;
+}
+
+.reference-asset-selected-pill button:hover {
+  opacity: 1;
 }
 
 .btn-fx-rate-refresh {
