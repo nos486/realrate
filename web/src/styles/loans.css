@@ -55,14 +55,22 @@
   background: var(--card-bg, rgba(15, 23, 42, 0.65));
   border: var(--card-border, 1px solid rgba(255, 255, 255, 0.08));
   border-radius: 12px;
-  padding: 10px 16px;
+  padding: 12px 16px;
   display: flex;
-  align-items: center;
-  gap: 18px;
+  flex-direction: column;
+  gap: 10px;
+  width: 100%;
   cursor: pointer;
   transition: transform 0.16s ease, border-color 0.16s ease, box-shadow 0.16s ease;
   backdrop-filter: blur(14px);
   -webkit-backdrop-filter: blur(14px);
+}
+
+.loan-row-main {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  width: 100%;
 }
 
 .loan-row-card:hover {
@@ -150,18 +158,21 @@
   min-width: 0;
 }
 
-/* flex-grow so these three columns share the row's leftover width evenly instead of
-   leaving a rigid, occasionally-awkward gap when the identity block's title is short */
 .loan-row-balance {
-  flex: 1 1 160px;
-}
-
-.loan-row-progress-block {
-  flex: 1 1 150px;
+  flex: 0 0 auto;
+  min-width: 130px;
 }
 
 .loan-row-next-due {
-  flex: 1 1 190px;
+  flex: 0 0 auto;
+  min-width: 155px;
+}
+
+.loan-row-progress-block {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
 }
 
 .loan-row-label {
@@ -216,9 +227,9 @@
 
 .loan-progress-track {
   width: 100%;
-  height: 5px;
+  height: 6px;
   background: rgba(255, 255, 255, 0.08);
-  border-radius: 6px;
+  border-radius: 999px;
   overflow: hidden;
   margin-top: 3px;
 }
@@ -226,7 +237,7 @@
 .loan-progress-bar {
   height: 100%;
   background: linear-gradient(90deg, #f59e0b, #eab308);
-  border-radius: 6px;
+  border-radius: 999px;
   transition: width 0.3s ease;
 }
 
@@ -286,7 +297,7 @@
 }
 
 @media (max-width: 900px) {
-  .loan-row-card {
+  .loan-row-main {
     flex-wrap: wrap;
     row-gap: 10px;
   }
@@ -296,7 +307,6 @@
   }
 
   .loan-row-balance,
-  .loan-row-progress-block,
   .loan-row-next-due {
     flex: 1 1 45%;
   }
@@ -308,7 +318,6 @@
 
 @media (max-width: 480px) {
   .loan-row-balance,
-  .loan-row-progress-block,
   .loan-row-next-due {
     flex: 1 1 100%;
   }
