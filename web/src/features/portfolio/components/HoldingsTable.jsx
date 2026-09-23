@@ -2,6 +2,7 @@ import React from 'react';
 import { Pencil, Trash2, Calendar, MessageSquare } from 'lucide-react';
 import { CategoryIcon, formatAssetName, formatNum, getItemBrand, resolveAssetDisplayName } from '../utils/holdingHelpers.js';
 import { formatPct } from '../../../shared/utils/formatters.js';
+import ResponsiveDataTable from '../../../shared/ui/ResponsiveDataTable.jsx';
 
 export default function HoldingsTable({
   categoryGroups = [],
@@ -13,6 +14,196 @@ export default function HoldingsTable({
   itemMap = null,
 }) {
   if (!categoryGroups || categoryGroups.length === 0) return null;
+
+  const columns = [
+    {
+      key: 'asset',
+      header: 'دارایی',
+      thClassName: 'th-asset',
+      tdClassName: 'td-asset',
+      mobile: 'title',
+      render: (item) => (
+        <div className="asset-cell-compact">
+          <span className="asset-name-text">{formatAssetName(item, itemMap)}</span>
+          <span className={`item-category-pill cat-${item.category || item.assetType || 'custom'}`}>
+            <CategoryIcon category={item.category || item.assetType} size={11} style={{ verticalAlign: 'middle', marginLeft: '4px' }} />
+            {getItemBrand(item, item.sourceId ? { id: item.sourceId } : null)}
+          </span>
+        </div>
+      ),
+    },
+    {
+      key: 'qty',
+      header: 'مقدار',
+      thClassName: 'th-qty',
+      tdClassName: 'td-qty',
+      mobile: 'meta',
+      render: (item) => (
+        <span className="table-qty-badge">
+          {hideValues ? '****' : `${Number(item.amount).toLocaleString('fa-IR')} ${item.unit}`}
+        </span>
+      ),
+    },
+    {
+      key: 'buyPrice',
+      header: 'قیمت خرید',
+      thClassName: 'th-buy-price',
+      tdClassName: 'td-buy-price',
+      // Hidden on mobile — visible only in the full desktop table, per record.
+      render: (item) =>
+        item.hasBuyPrice ? (
+          <div className="cell-currency-wrap">
+            <span className={`cell-val ${hideValues ? 'is-masked' : ''}`}>
+              {hideValues ? '****' : formatNum(item.buyPrice)}
+            </span>
+            <span className="cell-unit">تومان</span>
+            {item.referenceAssetId && item.referenceQuantity > 0 && !hideValues && (
+              <span className="cell-native-sub">
+                ({Number(item.referenceQuantity).toLocaleString('fa-IR', { maximumFractionDigits: 2 })}{' '}
+                {resolveAssetDisplayName(item.referenceAssetId)})
+              </span>
+            )}
+          </div>
+        ) : (
+          <span className="table-notes-text" title="قیمت خرید وارد نشده است">—</span>
+        ),
+    },
+    {
+      key: 'realPrice',
+      header: 'ارزش روز واحد',
+      thClassName: 'th-real-price',
+      tdClassName: 'td-real-price',
+      render: (item) => (
+        <div className="cell-currency-wrap">
+          <span className={`cell-val real-val ${hideValues ? 'is-masked' : ''}`} title="محاسبه مستقیم بر مبنای ارزش واقعی">
+            {hideValues ? '****' : formatNum(item.unitRealPrice)}
+          </span>
+          <span className="cell-unit">تومان</span>
+        </div>
+      ),
+    },
+    {
+      key: 'totalVal',
+      header: 'ارزش کل',
+      thClassName: 'th-total-val',
+      tdClassName: 'td-total-val',
+      mobile: 'stat',
+      render: (item) => (
+        <div className="cell-currency-wrap">
+          <strong className={`cell-val-bold gold-text ${hideValues ? 'is-masked' : ''}`}>
+            {hideValues ? '****' : formatNum(item.itemRealVal)}
+          </strong>
+          <span className="cell-unit">تومان</span>
+        </div>
+      ),
+    },
+    {
+      key: 'pnl',
+      header: 'سود / زیان',
+      thClassName: 'th-pnl',
+      tdClassName: 'td-pnl',
+      mobile: 'stat-secondary',
+      render: (item) => {
+        const isProfit = (item.itemPnl || 0) >= 0;
+        return item.hasBuyPrice ? (
+          <div className={`table-pnl-cell ${isProfit ? 'profit' : 'loss'}`}>
+            <span className={`pnl-amount ${hideValues ? 'is-masked' : ''}`}>
+              {hideValues ? '****' : `${isProfit ? '+' : ''}${formatNum(item.itemPnl)} تومان`}
+            </span>
+            <span className="pnl-pct-badge">
+              {hideValues ? '****' : `(${isProfit ? '+' : ''}${formatPct(Math.abs(item.itemPnlPct || 0))}٪)`}
+            </span>
+            {item.referencePnlInfo && !hideValues && (
+              <span
+                className={`pnl-native-sub ${item.referencePnlInfo.referencePnl >= 0 ? 'profit' : 'loss'}`}
+                title={`اگر هنوز ${item.referencePnlInfo.referenceAssetName} بود: ${formatNum(item.referencePnlInfo.referenceCurrentValue)} تومان`}
+              >
+                نسبت به {item.referencePnlInfo.referenceAssetName}: {item.referencePnlInfo.referencePnl >= 0 ? '+' : '-'}
+                {formatNum(Math.abs(item.referencePnlInfo.referencePnl))} تومان
+                {item.referencePnlInfo.referencePnlPct !== null && (
+                  <> ({item.referencePnlInfo.referencePnl >= 0 ? '+' : '-'}{formatPct(Math.abs(item.referencePnlInfo.referencePnlPct))}٪)</>
+                )}
+              </span>
+            )}
+          </div>
+        ) : (
+          <span className="table-notes-text" title="بدون قیمت خرید در سود و زیان محاسبه نمی‌شود">—</span>
+        );
+      },
+    },
+    {
+      key: 'date',
+      header: 'تاریخ خرید',
+      thClassName: 'th-date',
+      tdClassName: 'td-date',
+      render: (item) => (
+        <span className="table-date-text">
+          {item.buyDate ? (
+            <>
+              <Calendar size={12} style={{ verticalAlign: 'middle', marginLeft: '4px' }} />
+              {item.buyDate}
+            </>
+          ) : '—'}
+        </span>
+      ),
+    },
+    {
+      key: 'notes',
+      header: 'یادداشت',
+      thClassName: 'th-notes',
+      tdClassName: 'td-notes',
+      render: (item) => (
+        <span className="table-notes-text" title={item.notes || ''}>
+          {item.notes ? (
+            <>
+              <MessageSquare size={12} style={{ verticalAlign: 'middle', marginLeft: '4px' }} />
+              {item.notes}
+            </>
+          ) : '—'}
+        </span>
+      ),
+    },
+    ...(!readOnly
+      ? [
+          {
+            key: 'actions',
+            header: 'عملیات',
+            thClassName: 'th-actions',
+            tdClassName: 'td-actions',
+            mobile: 'actions',
+            render: (item) =>
+              item.source === 'transactions' ? (
+                <span
+                  className="tx-auto-badge-pill"
+                  title="محاسبه‌شده از روی تراکنش‌ها. جهت تغییر یا حذف، تراکنش مربوطه را در تب «تراکنش‌ها» ویرایش فرمایید."
+                >
+                  خودکار
+                </span>
+              ) : (
+                <div className="row-actions-group">
+                  <button
+                    type="button"
+                    className="btn-table-action edit"
+                    title="ویرایش دارایی"
+                    onClick={() => onEdit?.(item)}
+                  >
+                    <Pencil size={13} strokeWidth={2} />
+                  </button>
+                  <button
+                    type="button"
+                    className={`btn-table-action delete ${deletingId === item.id ? 'loading' : ''}`}
+                    title="حذف دارایی"
+                    onClick={() => onDelete?.(item.id)}
+                    disabled={deletingId === item.id}
+                  >
+                    <Trash2 size={13} strokeWidth={2} />
+                  </button>
+                </div>
+              ),
+          },
+        ]
+      : []),
+  ];
 
   return (
     <div className="portfolio-categories-container">
@@ -53,168 +244,14 @@ export default function HoldingsTable({
             </div>
           </div>
 
-          {/* High-density Data Table for this category */}
-          <div className="portfolio-table-responsive">
-            <table className="portfolio-data-table">
-              <thead>
-                <tr>
-                  <th className="th-asset">دارایی</th>
-                  <th className="th-qty">مقدار</th>
-                  <th className="th-buy-price">قیمت خرید</th>
-                  <th className="th-real-price">ارزش روز واحد</th>
-                  <th className="th-total-val">ارزش کل</th>
-                  <th className="th-pnl">سود / زیان</th>
-                  <th className="th-date">تاریخ خرید</th>
-                  <th className="th-notes">یادداشت</th>
-                  {!readOnly && <th className="th-actions">عملیات</th>}
-                </tr>
-              </thead>
-              <tbody>
-                {group.items.map((item) => {
-                  const isProfit = (item.itemPnl || 0) >= 0;
-                  const isDeleting = deletingId === item.id;
-                  return (
-                    <tr key={item.id} className="portfolio-table-row">
-                      <td className="td-asset">
-                        <div className="asset-cell-compact">
-                          <span className="asset-name-text">{formatAssetName(item, itemMap)}</span>
-                          <span className={`item-category-pill cat-${item.category || item.assetType || 'custom'}`}>
-                            <CategoryIcon category={item.category || item.assetType} size={11} style={{ verticalAlign: 'middle', marginLeft: '4px' }} />
-                            {getItemBrand(item, item.sourceId ? { id: item.sourceId } : null)}
-                          </span>
-                        </div>
-                      </td>
-
-                      <td className="td-qty">
-                        <span className="table-qty-badge">
-                          {hideValues ? '****' : `${Number(item.amount).toLocaleString('fa-IR')} ${item.unit}`}
-                        </span>
-                      </td>
-
-                      <td className="td-buy-price">
-                        {item.hasBuyPrice ? (
-                          <div className="cell-currency-wrap">
-                            <span className={`cell-val ${hideValues ? 'is-masked' : ''}`}>
-                              {hideValues ? '****' : formatNum(item.buyPrice)}
-                            </span>
-                            <span className="cell-unit">تومان</span>
-                            {item.referenceAssetId && item.referenceQuantity > 0 && !hideValues && (
-                              <span className="cell-native-sub">
-                                ({Number(item.referenceQuantity).toLocaleString('fa-IR', { maximumFractionDigits: 2 })}{' '}
-                                {resolveAssetDisplayName(item.referenceAssetId)})
-                              </span>
-                            )}
-                          </div>
-                        ) : (
-                          <span className="table-notes-text" title="قیمت خرید وارد نشده است">—</span>
-                        )}
-                      </td>
-
-                      <td className="td-real-price">
-                        <div className="cell-currency-wrap">
-                          <span className={`cell-val real-val ${hideValues ? 'is-masked' : ''}`} title="محاسبه مستقیم بر مبنای ارزش واقعی">
-                            {hideValues ? '****' : formatNum(item.unitRealPrice)}
-                          </span>
-                          <span className="cell-unit">تومان</span>
-                        </div>
-                      </td>
-
-                      <td className="td-total-val">
-                        <div className="cell-currency-wrap">
-                          <strong className={`cell-val-bold gold-text ${hideValues ? 'is-masked' : ''}`}>
-                            {hideValues ? '****' : formatNum(item.itemRealVal)}
-                          </strong>
-                          <span className="cell-unit">تومان</span>
-                        </div>
-                      </td>
-
-                      <td className="td-pnl">
-                        {item.hasBuyPrice ? (
-                          <div className={`table-pnl-cell ${isProfit ? 'profit' : 'loss'}`}>
-                            <span className={`pnl-amount ${hideValues ? 'is-masked' : ''}`}>
-                              {hideValues ? '****' : `${isProfit ? '+' : ''}${formatNum(item.itemPnl)} تومان`}
-                            </span>
-                            <span className="pnl-pct-badge">
-                              {hideValues ? '****' : `(${isProfit ? '+' : ''}${formatPct(Math.abs(item.itemPnlPct || 0))}٪)`}
-                            </span>
-                            {item.referencePnlInfo && !hideValues && (
-                              <span
-                                className={`pnl-native-sub ${item.referencePnlInfo.referencePnl >= 0 ? 'profit' : 'loss'}`}
-                                title={`اگر هنوز ${item.referencePnlInfo.referenceAssetName} بود: ${formatNum(item.referencePnlInfo.referenceCurrentValue)} تومان`}
-                              >
-                                نسبت به {item.referencePnlInfo.referenceAssetName}: {item.referencePnlInfo.referencePnl >= 0 ? '+' : '-'}
-                                {formatNum(Math.abs(item.referencePnlInfo.referencePnl))} تومان
-                                {item.referencePnlInfo.referencePnlPct !== null && (
-                                  <> ({item.referencePnlInfo.referencePnl >= 0 ? '+' : '-'}{formatPct(Math.abs(item.referencePnlInfo.referencePnlPct))}٪)</>
-                                )}
-                              </span>
-                            )}
-                          </div>
-                        ) : (
-                          <span className="table-notes-text" title="بدون قیمت خرید در سود و زیان محاسبه نمی‌شود">—</span>
-                        )}
-                      </td>
-
-                      <td className="td-date">
-                        <span className="table-date-text">
-                          {item.buyDate ? (
-                            <>
-                              <Calendar size={12} style={{ verticalAlign: 'middle', marginLeft: '4px' }} />
-                              {item.buyDate}
-                            </>
-                          ) : '—'}
-                        </span>
-                      </td>
-
-                      <td className="td-notes">
-                        <span className="table-notes-text" title={item.notes || ''}>
-                          {item.notes ? (
-                            <>
-                              <MessageSquare size={12} style={{ verticalAlign: 'middle', marginLeft: '4px' }} />
-                              {item.notes}
-                            </>
-                          ) : '—'}
-                        </span>
-                      </td>
-
-                      {!readOnly && (
-                        <td className="td-actions">
-                          {item.source === 'transactions' ? (
-                            <span
-                              className="tx-auto-badge-pill"
-                              title="محاسبه‌شده از روی تراکنش‌ها. جهت تغییر یا حذف، تراکنش مربوطه را در تب «تراکنش‌ها» ویرایش فرمایید."
-                            >
-                              خودکار
-                            </span>
-                          ) : (
-                            <div className="row-actions-group">
-                              <button
-                                type="button"
-                                className="btn-table-action edit"
-                                title="ویرایش دارایی"
-                                onClick={() => onEdit?.(item)}
-                              >
-                                <Pencil size={13} strokeWidth={2} />
-                              </button>
-                              <button
-                                type="button"
-                                className={`btn-table-action delete ${isDeleting ? 'loading' : ''}`}
-                                title="حذف دارایی"
-                                onClick={() => onDelete?.(item.id)}
-                                disabled={isDeleting}
-                              >
-                                <Trash2 size={13} strokeWidth={2} />
-                              </button>
-                            </div>
-                          )}
-                        </td>
-                      )}
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+          {/* High-density Data Table for this category — compact cards below 768px */}
+          <ResponsiveDataTable
+            columns={columns}
+            rows={group.items}
+            wrapperClassName="portfolio-table-responsive"
+            tableClassName="portfolio-data-table"
+            rowClassName={() => 'portfolio-table-row'}
+          />
         </div>
       ))}
     </div>

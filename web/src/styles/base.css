@@ -1601,3 +1601,89 @@ input.search-bar-input:focus-visible {
   gap: 8px;
   margin: 12px 0;
 }
+
+/* ==========================================================================
+   UI Components: ResponsiveDataTable — shared minimal mobile card layout for
+   any dense data table in the app (below the 768px breakpoint, in place of a
+   horizontally-scrolling table). Desktop rendering reuses each table's own
+   existing classes (passed via tableClassName/wrapperClassName), so only the
+   mobile card view needs styling here.
+   ========================================================================== */
+.rdt-mobile-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 6px;
+}
+
+.rdt-mobile-card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 12px;
+  background: rgba(255, 255, 255, 0.025);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: var(--radius-md);
+  overflow-wrap: break-word;
+}
+
+/* Column render() functions are shared verbatim with the desktop table, which relies on
+   `white-space: nowrap` (safe there — the table scrolls horizontally). Reset it back to
+   wrapping specifically inside the mobile card, or a long asset/fund name overflows the
+   card instead of wrapping. */
+.rdt-mobile-card .asset-cell-compact,
+.rdt-mobile-card .table-pnl-cell,
+.rdt-mobile-card .cell-currency-wrap {
+  white-space: normal;
+  flex-wrap: wrap;
+}
+
+.rdt-mobile-card-row {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+}
+
+.rdt-mobile-card-top {
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.rdt-mobile-card-title {
+  flex: 1;
+  min-width: 0;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-heading);
+}
+
+.rdt-mobile-card-actions {
+  flex-shrink: 0;
+}
+
+.rdt-mobile-card-meta {
+  flex-wrap: wrap;
+  gap: 8px;
+  font-size: 11.5px;
+  color: var(--text-muted);
+}
+
+.rdt-mobile-card-stats {
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 6px 14px;
+  padding-top: 4px;
+  border-top: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+.rdt-mobile-stat {
+  min-width: 0;
+  max-width: 100%;
+  font-size: 12.5px;
+  overflow-wrap: break-word;
+}
+
+.rdt-mobile-stat-secondary {
+  text-align: left;
+}

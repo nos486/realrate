@@ -36,6 +36,7 @@ import AuthGate from '../../../shared/ui/AuthGate.jsx';
 import EmptyState from '../../../shared/ui/EmptyState.jsx';
 import { usePricing } from '../../market/index.js';
 import { CategoryIcon, formatAssetName, formatNum, getItemBrand, resolveAssetDisplayName } from '../../portfolio/utils/holdingHelpers.js';
+import ResponsiveDataTable from '../../../shared/ui/ResponsiveDataTable.jsx';
 import {
   deriveE2eeKey,
   verifyE2eeKey,
@@ -280,6 +281,162 @@ export default function TransactionsPage({
     );
   }
 
+  const transactionColumns = [
+    {
+      key: 'type',
+      header: 'نوع',
+      thClassName: 'th-type',
+      tdClassName: 'td-type',
+      mobile: 'meta',
+      render: (tx) => {
+        const isBuy = (tx.transactionType || tx.type || 'buy').toLowerCase() === 'buy';
+        return (
+          <span className={`tx-badge ${isBuy ? 'buy' : 'sell'}`}>
+            {isBuy ? (
+              <>
+                <ArrowDownLeft size={13} style={{ verticalAlign: 'middle', marginLeft: '3px' }} />
+                خرید
+              </>
+            ) : (
+              <>
+                <ArrowUpRight size={13} style={{ verticalAlign: 'middle', marginLeft: '3px' }} />
+                فروش
+              </>
+            )}
+          </span>
+        );
+      },
+    },
+    {
+      key: 'asset',
+      header: 'دارایی',
+      thClassName: 'th-asset',
+      tdClassName: 'td-asset',
+      mobile: 'title',
+      render: (tx) => (
+        <div className="asset-cell-compact">
+          <span className="asset-name-text">{formatAssetName(tx, pricing?.itemMap)}</span>
+          <span className={`item-category-pill cat-${tx.category || tx.assetType || 'custom'}`}>
+            <CategoryIcon category={tx.category || tx.assetType} size={11} style={{ verticalAlign: 'middle', marginLeft: '4px' }} />
+            {getItemBrand(tx, tx.sourceId ? { id: tx.sourceId } : null)}
+          </span>
+        </div>
+      ),
+    },
+    {
+      key: 'qty',
+      header: 'مقدار',
+      thClassName: 'th-qty',
+      tdClassName: 'td-qty',
+      mobile: 'meta',
+      render: (tx) => (
+        <span className={`table-qty-badge ${hideValues ? 'is-masked' : ''}`}>
+          {hideValues ? '****' : `${Number(tx.quantity || tx.amount || 0).toLocaleString('fa-IR')} ${tx.unit || 'واحد'}`}
+        </span>
+      ),
+    },
+    {
+      key: 'unitPrice',
+      header: 'قیمت واحد',
+      thClassName: 'th-unit-price',
+      tdClassName: 'td-unit-price',
+      // Hidden on mobile — the total below is what matters at a glance there.
+      render: (tx) => (
+        <div className="cell-currency-wrap">
+          <span className={`cell-val ${hideValues ? 'is-masked' : ''}`}>
+            {hideValues ? '****' : formatNum(Number(tx.unitPrice || tx.buyPrice || 0))}
+          </span>
+          <span className="cell-unit">تومان</span>
+          {tx.referenceAssetId && tx.referenceQuantity > 0 && !hideValues && (
+            <span className="cell-native-sub">
+              ({Number(tx.referenceQuantity).toLocaleString('fa-IR', { maximumFractionDigits: 2 })}{' '}
+              {resolveAssetDisplayName(tx.referenceAssetId)})
+            </span>
+          )}
+        </div>
+      ),
+    },
+    {
+      key: 'totalPrice',
+      header: 'ارزش کل',
+      thClassName: 'th-total-price',
+      tdClassName: 'td-total-price',
+      mobile: 'stat',
+      render: (tx) => {
+        const isBuy = (tx.transactionType || tx.type || 'buy').toLowerCase() === 'buy';
+        const totalVal = Number(tx.quantity || tx.amount || 0) * Number(tx.unitPrice || tx.buyPrice || 0);
+        return (
+          <div className="cell-currency-wrap">
+            <strong className={`cell-val-bold ${isBuy ? 'text-profit' : 'text-loss'} ${hideValues ? 'is-masked' : ''}`}>
+              {hideValues ? '****' : formatNum(totalVal)}
+            </strong>
+            <span className="cell-unit">تومان</span>
+          </div>
+        );
+      },
+    },
+    {
+      key: 'date',
+      header: 'تاریخ معامله',
+      thClassName: 'th-date',
+      tdClassName: 'td-date',
+      render: (tx) => (
+        <span className="table-date-text">
+          {tx.transactionDate ? (
+            <>
+              <Calendar size={12} style={{ verticalAlign: 'middle', marginLeft: '4px' }} />
+              {tx.transactionDate}
+            </>
+          ) : '—'}
+        </span>
+      ),
+    },
+    {
+      key: 'notes',
+      header: 'یادداشت',
+      thClassName: 'th-notes',
+      tdClassName: 'td-notes',
+      render: (tx) => (
+        <span className="table-notes-text" title={tx.notes || ''}>
+          {tx.notes ? (
+            <>
+              <MessageSquare size={12} style={{ verticalAlign: 'middle', marginLeft: '4px' }} />
+              {tx.notes}
+            </>
+          ) : '—'}
+        </span>
+      ),
+    },
+    {
+      key: 'actions',
+      header: 'عملیات',
+      thClassName: 'th-actions',
+      tdClassName: 'td-actions',
+      mobile: 'actions',
+      render: (tx) => (
+        <div className="row-actions-group">
+          <button
+            type="button"
+            className="btn-table-action edit"
+            title="ویرایش تراکنش"
+            onClick={() => handleOpenEdit(tx)}
+          >
+            <Pencil size={13} strokeWidth={2} />
+          </button>
+          <button
+            type="button"
+            className={`btn-table-action delete ${deletingId === tx.id ? 'loading' : ''}`}
+            title="حذف تراکنش"
+            onClick={() => handleDeleteTx(tx.id)}
+            disabled={deletingId === tx.id}
+          >
+            <Trash2 size={13} strokeWidth={2} />
+          </button>
+        </div>
+      ),
+    },
+  ];
+
   return (
     <div className="transactions-page-container">
       {/* 1. Portfolio Switcher */}
@@ -415,143 +572,13 @@ export default function TransactionsPage({
               }
             />
           ) : (
-            <div className="portfolio-table-responsive">
-              <table className="portfolio-data-table transactions-table">
-                <thead>
-                  <tr>
-                    <th className="th-type">نوع</th>
-                    <th className="th-asset">دارایی</th>
-                    <th className="th-qty">مقدار</th>
-                    <th className="th-unit-price">قیمت واحد</th>
-                    <th className="th-total-price">ارزش کل</th>
-                    <th className="th-date">تاریخ معامله</th>
-                    <th className="th-notes">یادداشت</th>
-                    <th className="th-actions">عملیات</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredTransactions.map((tx) => {
-                    const isBuy = (tx.transactionType || tx.type || 'buy').toLowerCase() === 'buy';
-                    const qty = Number(tx.quantity || tx.amount || 0);
-                    const price = Number(tx.unitPrice || tx.buyPrice || 0);
-                    const totalVal = qty * price;
-                    const isDeleting = deletingId === tx.id;
-
-                    return (
-                      <tr key={tx.id} className="portfolio-table-row">
-                        {/* Transaction Type Badge */}
-                        <td className="td-type">
-                          <span className={`tx-badge ${isBuy ? 'buy' : 'sell'}`}>
-                            {isBuy ? (
-                              <>
-                                <ArrowDownLeft size={13} style={{ verticalAlign: 'middle', marginLeft: '3px' }} />
-                                خرید
-                              </>
-                            ) : (
-                              <>
-                                <ArrowUpRight size={13} style={{ verticalAlign: 'middle', marginLeft: '3px' }} />
-                                فروش
-                              </>
-                            )}
-                          </span>
-                        </td>
-
-                        {/* Asset Info */}
-                        <td className="td-asset">
-                          <div className="asset-cell-compact">
-                            <span className="asset-name-text">{formatAssetName(tx, pricing?.itemMap)}</span>
-                            <span className={`item-category-pill cat-${tx.category || tx.assetType || 'custom'}`}>
-                              <CategoryIcon category={tx.category || tx.assetType} size={11} style={{ verticalAlign: 'middle', marginLeft: '4px' }} />
-                              {getItemBrand(tx, tx.sourceId ? { id: tx.sourceId } : null)}
-                            </span>
-                          </div>
-                        </td>
-
-                        {/* Quantity */}
-                        <td className="td-qty">
-                          <span className={`table-qty-badge ${hideValues ? 'is-masked' : ''}`}>
-                            {hideValues ? '****' : `${qty.toLocaleString('fa-IR')} ${tx.unit || 'واحد'}`}
-                          </span>
-                        </td>
-
-                        {/* Unit Price */}
-                        <td className="td-unit-price">
-                          <div className="cell-currency-wrap">
-                            <span className={`cell-val ${hideValues ? 'is-masked' : ''}`}>
-                              {hideValues ? '****' : formatNum(price)}
-                            </span>
-                            <span className="cell-unit">تومان</span>
-                            {tx.referenceAssetId && tx.referenceQuantity > 0 && !hideValues && (
-                              <span className="cell-native-sub">
-                                ({Number(tx.referenceQuantity).toLocaleString('fa-IR', { maximumFractionDigits: 2 })}{' '}
-                                {resolveAssetDisplayName(tx.referenceAssetId)})
-                              </span>
-                            )}
-                          </div>
-                        </td>
-
-                        {/* Total Price */}
-                        <td className="td-total-price">
-                          <div className="cell-currency-wrap">
-                            <strong className={`cell-val-bold ${isBuy ? 'text-profit' : 'text-loss'} ${hideValues ? 'is-masked' : ''}`}>
-                              {hideValues ? '****' : formatNum(totalVal)}
-                            </strong>
-                            <span className="cell-unit">تومان</span>
-                          </div>
-                        </td>
-
-                        {/* Transaction Date */}
-                        <td className="td-date">
-                          <span className="table-date-text">
-                            {tx.transactionDate ? (
-                              <>
-                                <Calendar size={12} style={{ verticalAlign: 'middle', marginLeft: '4px' }} />
-                                {tx.transactionDate}
-                              </>
-                            ) : '—'}
-                          </span>
-                        </td>
-
-                        {/* Notes */}
-                        <td className="td-notes">
-                          <span className="table-notes-text" title={tx.notes || ''}>
-                            {tx.notes ? (
-                              <>
-                                <MessageSquare size={12} style={{ verticalAlign: 'middle', marginLeft: '4px' }} />
-                                {tx.notes}
-                              </>
-                            ) : '—'}
-                          </span>
-                        </td>
-
-                        {/* Actions */}
-                        <td className="td-actions">
-                          <div className="row-actions-group">
-                            <button
-                              type="button"
-                              className="btn-table-action edit"
-                              title="ویرایش تراکنش"
-                              onClick={() => handleOpenEdit(tx)}
-                            >
-                              <Pencil size={13} strokeWidth={2} />
-                            </button>
-                            <button
-                              type="button"
-                              className={`btn-table-action delete ${isDeleting ? 'loading' : ''}`}
-                              title="حذف تراکنش"
-                              onClick={() => handleDeleteTx(tx.id)}
-                              disabled={isDeleting}
-                            >
-                              <Trash2 size={13} strokeWidth={2} />
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
+            <ResponsiveDataTable
+              columns={transactionColumns}
+              rows={filteredTransactions}
+              wrapperClassName="portfolio-table-responsive"
+              tableClassName="portfolio-data-table transactions-table"
+              rowClassName={() => 'portfolio-table-row'}
+            />
           )}
         </>
       )}

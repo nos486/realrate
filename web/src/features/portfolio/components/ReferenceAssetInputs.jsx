@@ -59,8 +59,12 @@ export default function ReferenceAssetInputs({
     if (live > 0) {
       onReferencePriceChange(String(live));
     }
+    // Deliberately re-runs whenever pricing data refreshes too (not just on asset change) —
+    // if the reference asset was picked before pricing.priceMap had finished its first load,
+    // this is what lets the auto-fill still land once live data arrives, without ever
+    // overwriting a value the user already typed (guarded above by userEditedPrice).
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [referenceAsset?.id, autoFillPrice]);
+  }, [referenceAsset?.id, autoFillPrice, pricing?.priceMap, pricing?.itemMap]);
 
   const handlePick = (asset) => {
     const resolved = resolveSelectedAsset(asset);
