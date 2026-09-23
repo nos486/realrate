@@ -98,6 +98,12 @@ export default function HoldingsTable({
                               {hideValues ? '****' : formatNum(item.buyPrice)}
                             </span>
                             <span className="cell-unit">تومان</span>
+                            {item.nativePnlInfo && !hideValues && (
+                              <span className="cell-native-sub">
+                                ({item.nativePnlInfo.symbol}
+                                {Number(item.nativeBuyPrice).toLocaleString('fa-IR', { maximumFractionDigits: 2 })})
+                              </span>
+                            )}
                           </div>
                         ) : (
                           <span className="table-notes-text" title="قیمت خرید وارد نشده است">—</span>
@@ -131,6 +137,16 @@ export default function HoldingsTable({
                             <span className="pnl-pct-badge">
                               {hideValues ? '****' : `(${isProfit ? '+' : ''}${formatPct(Math.abs(item.itemPnlPct || 0))}٪)`}
                             </span>
+                            {item.nativePnlInfo && !hideValues && (
+                              <span className={`pnl-native-sub ${item.nativePnlInfo.nativePnl >= 0 ? 'profit' : 'loss'}`}>
+                                {item.nativePnlInfo.nativePnl >= 0 ? '+' : '-'}
+                                {item.nativePnlInfo.symbol}
+                                {Math.round(Math.abs(item.nativePnlInfo.nativePnl)).toLocaleString('fa-IR')}
+                                {item.nativePnlInfo.nativePnlPct !== null && (
+                                  <> ({item.nativePnlInfo.nativePnl >= 0 ? '+' : '-'}{formatPct(Math.abs(item.nativePnlInfo.nativePnlPct))}٪)</>
+                                )}
+                              </span>
+                            )}
                           </div>
                         ) : (
                           <span className="table-notes-text" title="بدون قیمت خرید در سود و زیان محاسبه نمی‌شود">—</span>

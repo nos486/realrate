@@ -14,7 +14,9 @@ import Modal from '../../../shared/ui/Modal.jsx';
 import NumericInput from '../../../shared/ui/NumericInput.jsx';
 import UniversalAssetSearch from '../../../components/UniversalAssetSearch.jsx';
 import ShamsiDatePicker, { getTodayShamsi } from '../../portfolio/components/ShamsiDatePicker.jsx';
+import CurrencyCostInputs from '../../portfolio/components/CurrencyCostInputs.jsx';
 import { parseInputNumber } from '../../portfolio/utils/holdingHelpers.js';
+import { usePricing } from '../../market/index.js';
 import {
   getCanonicalAssetSpec,
   resolveItemCategory,
@@ -47,6 +49,10 @@ export default function TransactionForm({
   const [unitPrice, setUnitPrice] = useState('');
   const [transactionDate, setTransactionDate] = useState(() => getTodayShamsi());
   const [notes, setNotes] = useState('');
+  const [currency, setCurrency] = useState('IRT');
+  const [nativeUnitPrice, setNativeUnitPrice] = useState('');
+  const [fxRateAtPurchase, setFxRateAtPurchase] = useState('');
+  const pricing = usePricing();
 
   // Reset or populate on open/edit
   useEffect(() => {
@@ -62,6 +68,17 @@ export default function TransactionForm({
       setUnitPrice(editingTransaction.unitPrice !== undefined ? String(editingTransaction.unitPrice) : '');
       setTransactionDate(editingTransaction.transactionDate || getTodayShamsi());
       setNotes(editingTransaction.notes || '');
+
+      const editCurrency = editingTransaction.currency || 'IRT';
+      setCurrency(editCurrency);
+      if (editCurrency !== 'IRT' && editingTransaction.nativeUnitPrice) {
+        setNativeUnitPrice(String(editingTransaction.nativeUnitPrice));
+        const reconstructedRate = Number(editingTransaction.unitPrice) / Number(editingTransaction.nativeUnitPrice);
+        setFxRateAtPurchase(reconstructedRate > 0 ? String(Math.round(reconstructedRate)) : '');
+      } else {
+        setNativeUnitPrice('');
+        setFxRateAtPurchase('');
+      }
     } else {
       setAssetId('gold_18k');
       setAssetName('طلای ۱۸ عیار');
@@ -72,6 +89,9 @@ export default function TransactionForm({
       setUnitPrice('');
       setTransactionDate(getTodayShamsi());
       setNotes('');
+      setCurrency('IRT');
+      setNativeUnitPrice('');
+      setFxRateAtPurchase('');
     }
   }, [isOpen, editingTransaction]);
 
@@ -133,14 +153,21 @@ export default function TransactionForm({
 
   // Validation logic
   const quantityNum = parseInputNumber(quantity);
-  const unitPriceNum = parseInputNumber(unitPrice);
+  const isForeignCurrency = currency !== 'IRT';
+  const parsedNativeUnitPrice = parseInputNumber(nativeUnitPrice);
+  const parsedFxRate = parseInputNumber(fxRateAtPurchase);
+  // The Toman unit price the rest of the app relies on: either typed directly, or —
+  // for a foreign-currency purchase — derived as native price × the FX rate at purchase.
+  const finalUnitPriceNum = isForeignCurrency
+    ? (parsedNativeUnitPrice > 0 && parsedFxRate > 0 ? Math.round(parsedNativeUnitPrice * parsedFxRate) : null)
+    : parseInputNumber(unitPrice);
   const isDateValid = Boolean(transactionDate && transactionDate.trim().length >= 8);
   const isQuantityValid = quantityNum !== null && quantityNum > 0;
-  const isUnitPriceValid = unitPriceNum !== null && unitPriceNum > 0;
+  const isUnitPriceValid = finalUnitPriceNum !== null && finalUnitPriceNum > 0;
   const isFormValid = isDateValid && isQuantityValid && isUnitPriceValid && !submitting;
 
   // Total calculated value
-  const totalValue = isQuantityValid && isUnitPriceValid ? quantityNum * unitPriceNum : 0;
+  const totalValue = isQuantityValid && isUnitPriceValid ? quantityNum * finalUnitPriceNum : 0;
 
   // Sell warning: check available balance for asset
   const availableBalance = currentHoldingsMap[assetId]?.amount || 0;
@@ -155,10 +182,12 @@ export default function TransactionForm({
       assetId,
       transactionType,
       quantity: quantityNum,
-      unitPrice: unitPriceNum,
+      unitPrice: finalUnitPriceNum,
       transactionDate: transactionDate.trim(),
       notes: notes.trim(),
       createdAt: editingTransaction?.createdAt,
+      currency: isForeignCurrency ? currency : 'IRT',
+      nativeUnitPrice: isForeignCurrency ? parsedNativeUnitPrice : 0,
     });
   };
 
@@ -245,20 +274,37 @@ export default function TransactionForm({
           />
         </div>
 
-        <div className="form-item">
-          <label>
-            قیمت واحد معامله (تومان) <span className="field-required">*</span>
-          </label>
-          <NumericInput
-            value={unitPrice}
-            onValueChange={setUnitPrice}
-            allowDecimals={false}
-            placeholder="قیمت هر واحد در لحظه معامله"
-            required
-            className="form-input"
-          />
-        </div>
+        {currency === 'IRT' && (
+          <div className="form-item">
+            <label>
+              قیمت واحد معامله (تومان) <span className="field-required">*</span>
+            </label>
+            <NumericInput
+              value={unitPrice}
+              onValueChange={setUnitPrice}
+              allowDecimals={false}
+              placeholder="قیمت هر واحد در لحظه معامله"
+              required
+              className="form-input"
+            />
+          </div>
+        )}
       </div>
+
+      {/* Foreign-currency cost basis (paid in USD/EUR/... instead of Toman) */}
+      <CurrencyCostInputs
+        currency={currency}
+        onCurrencyChange={setCurrency}
+        nativePrice={nativeUnitPrice}
+        onNativePriceChange={setNativeUnitPrice}
+        fxRate={fxRateAtPurchase}
+        onFxRateChange={setFxRateAtPurchase}
+        unitLabel={unit}
+        realPriceMap={realPriceMap || pricing?.priceMap}
+        usdToman={pricing?.usdToman}
+        autoFillFxRate={!editingTransaction}
+        priceLabel="قیمت واحد معامله"
+      />
 
       {/* Total Turnover Summary Pill */}
       {totalValue > 0 && (

@@ -16,21 +16,61 @@ import {
   resolveItemCategory,
   PORTFOLIO_CATEGORIES,
   resolveHoldingUnitRealPrice,
+  resolveCurrencyToTomanRate,
   normalizePersianText,
   resolveAssetDisplayName,
   resolveAssetDisplayWithSource,
   resolveAssetUnit,
+  FOREX_DICT,
 } from '../../../utils/financialSpecs.js';
 import { getCategoryIconName, getItemBrand } from '../../../config/displayEngine.js';
 
 export {
   resolveHoldingUnitRealPrice,
+  resolveCurrencyToTomanRate,
   normalizePersianText,
   resolveAssetDisplayName,
   resolveAssetDisplayWithSource,
   resolveAssetUnit,
   getItemBrand,
+  FOREX_DICT,
 };
+
+/**
+ * Compute a holding's unrealized profit/loss expressed in its own foreign purchase
+ * currency, alongside the primary Toman figures — for holdings paid in USD/EUR/etc.
+ * Cost basis is what was actually paid (nativeBuyPrice); current value translates
+ * today's already-computed Toman value back via the live FX rate, so the Toman total
+ * stays exactly as before and this is purely an additional, consistent view.
+ *
+ * @param {object} item - a holding with .currency, .nativeBuyPrice, .amount, .itemRealVal
+ * @param {object} [priceMap={}]
+ * @param {number} [usdToman=0]
+ * @returns {null|{currency, symbol, nativeCost, nativeCurrentValue, nativePnl, nativePnlPct}}
+ */
+export function computeNativeCurrencyPnl(item, priceMap = {}, usdToman = 0) {
+  if (!item || !item.currency || item.currency === 'IRT') return null;
+  const nativeBuyPrice = Number(item.nativeBuyPrice) || 0;
+  const amount = Number(item.amount) || 0;
+  if (nativeBuyPrice <= 0 || amount <= 0) return null;
+
+  const fxRate = resolveCurrencyToTomanRate(item.currency, priceMap, usdToman);
+  if (fxRate <= 0) return null;
+
+  const nativeCost = amount * nativeBuyPrice;
+  const nativeCurrentValue = Number(item.itemRealVal || 0) / fxRate;
+  const nativePnl = nativeCurrentValue - nativeCost;
+  const nativePnlPct = nativeCost > 0 ? (nativePnl / nativeCost) * 100 : null;
+
+  return {
+    currency: item.currency,
+    symbol: FOREX_DICT[item.currency]?.symbol || item.currency,
+    nativeCost,
+    nativeCurrentValue,
+    nativePnl,
+    nativePnlPct,
+  };
+}
 
 export const CATEGORY_DEFINITIONS = PORTFOLIO_CATEGORIES;
 

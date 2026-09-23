@@ -4,6 +4,7 @@ import Modal from '../../../shared/ui/Modal.jsx';
 import NumericInput from '../../../shared/ui/NumericInput.jsx';
 import UniversalAssetSearch from '../../../components/UniversalAssetSearch.jsx';
 import ShamsiDatePicker from './ShamsiDatePicker.jsx';
+import CurrencyCostInputs from './CurrencyCostInputs.jsx';
 import { parseInputNumber } from '../utils/holdingHelpers.js';
 import {
   getCanonicalAssetSpec,
@@ -43,6 +44,9 @@ export default function AddHoldingForm({
   const [buyDate, setBuyDate] = useState('');
   const [notes, setNotes] = useState('');
   const [selectedBourseSymbol, setSelectedBourseSymbol] = useState(null);
+  const [currency, setCurrency] = useState('IRT');
+  const [nativeBuyPrice, setNativeBuyPrice] = useState('');
+  const [fxRateAtPurchase, setFxRateAtPurchase] = useState('');
 
   // Initialize or reset form state on open / edit
   useEffect(() => {
@@ -54,6 +58,19 @@ export default function AddHoldingForm({
       setBuyPrice(editingHolding.buyPrice ? String(editingHolding.buyPrice) : '');
       setBuyDate(editingHolding.buyDate || '');
       setNotes(editingHolding.notes || '');
+
+      const editCurrency = editingHolding.currency || 'IRT';
+      setCurrency(editCurrency);
+      if (editCurrency !== 'IRT' && editingHolding.nativeBuyPrice) {
+        setNativeBuyPrice(String(editingHolding.nativeBuyPrice));
+        // Reconstruct the FX rate that was used at purchase from the two stored prices,
+        // so re-opening the edit form shows the original rate, not today's.
+        const reconstructedRate = Number(editingHolding.buyPrice) / Number(editingHolding.nativeBuyPrice);
+        setFxRateAtPurchase(reconstructedRate > 0 ? String(Math.round(reconstructedRate)) : '');
+      } else {
+        setNativeBuyPrice('');
+        setFxRateAtPurchase('');
+      }
 
       if (editingHolding.category === 'custom' || editingHolding.assetType === 'custom') {
         setCustomName(editingHolding.assetName || editingHolding.name || '');
@@ -86,6 +103,9 @@ export default function AddHoldingForm({
       setBuyDate('');
       setNotes('');
       setSelectedBourseSymbol(null);
+      setCurrency('IRT');
+      setNativeBuyPrice('');
+      setFxRateAtPurchase('');
     }
   }, [isOpen, editingHolding]);
 
@@ -194,8 +214,6 @@ export default function AddHoldingForm({
     const parsedAmount = parseInputNumber(amount);
     if (!parsedAmount || parsedAmount <= 0) return;
 
-    const parsedBuyPrice = parseInputNumber(buyPrice);
-
     let finalAssetId = selectedAssetId;
 
     if (selectedAssetId === 'custom' || selectedAssetId.startsWith('custom_')) {
@@ -205,14 +223,25 @@ export default function AddHoldingForm({
       finalAssetId = `bourse_${sym}`;
     }
 
+    // Foreign-currency cost basis: the Toman price the rest of the app relies on is
+    // always native price × the FX rate at purchase, never a manually-typed Toman figure.
+    const parsedNativeBuyPrice = parseInputNumber(nativeBuyPrice);
+    const parsedFxRate = parseInputNumber(fxRateAtPurchase);
+    const isForeignCurrency = currency !== 'IRT' && parsedNativeBuyPrice > 0 && parsedFxRate > 0;
+    const finalBuyPrice = isForeignCurrency
+      ? Math.round(parsedNativeBuyPrice * parsedFxRate)
+      : (parseInputNumber(buyPrice) || 0);
+
     onSubmit?.({
       id: editingHolding?.id,
       assetId: finalAssetId,
       amount: parsedAmount,
-      buyPrice: parsedBuyPrice !== null ? parsedBuyPrice : 0,
+      buyPrice: finalBuyPrice,
       buyDate: buyDate.trim(),
       notes: notes.trim(),
       customPrice: parseInputNumber(customCurrentPrice) || 0,
+      currency: isForeignCurrency ? currency : 'IRT',
+      nativeBuyPrice: isForeignCurrency ? parsedNativeBuyPrice : 0,
     });
   };
 
@@ -416,22 +445,36 @@ export default function AddHoldingForm({
         />
       </div>
 
-      {/* Buy Price Input */}
-      <div className="form-item">
-        <label>قیمت خرید هر {unitLabel} (تومان)</label>
-        <NumericInput
-          placeholder={
-            isModalBourse
-              ? 'قیمت خرید هر سهم به تومان (اختیاری)...'
-              : 'مبلغ هر واحد به تومان (اختیاری)...'
-          }
-          value={buyPrice}
-          onValueChange={setBuyPrice}
-          onChange={(e) => setBuyPrice(e.target.value)}
-          className="form-input"
-          allowDecimals={false}
-        />
-      </div>
+      {/* Buy Price Input — Toman (default) or foreign-currency cost basis */}
+      <CurrencyCostInputs
+        currency={currency}
+        onCurrencyChange={setCurrency}
+        nativePrice={nativeBuyPrice}
+        onNativePriceChange={setNativeBuyPrice}
+        fxRate={fxRateAtPurchase}
+        onFxRateChange={setFxRateAtPurchase}
+        unitLabel={unitLabel}
+        realPriceMap={realPriceMap || pricing?.priceMap}
+        usdToman={pricing?.usdToman}
+        autoFillFxRate={!editingHolding}
+      />
+      {currency === 'IRT' && (
+        <div className="form-item">
+          <label>قیمت خرید هر {unitLabel} (تومان)</label>
+          <NumericInput
+            placeholder={
+              isModalBourse
+                ? 'قیمت خرید هر سهم به تومان (اختیاری)...'
+                : 'مبلغ هر واحد به تومان (اختیاری)...'
+            }
+            value={buyPrice}
+            onValueChange={setBuyPrice}
+            onChange={(e) => setBuyPrice(e.target.value)}
+            className="form-input"
+            allowDecimals={false}
+          />
+        </div>
+      )}
 
       {/* Custom or Bourse Asset: Current Market Price field */}
       {(isModalCustom || isModalBourse) && (

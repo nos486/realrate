@@ -83,6 +83,12 @@ export function calculateComputedHoldings(transactions = [], livePriceMap = {}) 
     let totalSellQty = 0;
     let latestBuyDate = '';
     let latestTxDate = '';
+    // Foreign-currency cost basis is only meaningful when EVERY buy lot for this asset
+    // was paid in the exact same currency — a mixed-currency weighted average would be
+    // meaningless, so we simply omit it rather than show a misleading blended figure.
+    let commonBuyCurrency = undefined;
+    let hasMixedBuyCurrency = false;
+    let totalNativeBuyCost = 0;
 
     // Sort chronologically if dates exist
     const sortedTxs = [...group.transactions].sort((a, b) => {
@@ -107,6 +113,20 @@ export function calculateComputedHoldings(transactions = [], livePriceMap = {}) 
           totalBuyCost += qty * price;
           if (date && (!latestBuyDate || date > latestBuyDate)) {
             latestBuyDate = date;
+          }
+
+          const txCurrency = t.currency || 'IRT';
+          if (txCurrency !== 'IRT') {
+            if (commonBuyCurrency === undefined) {
+              commonBuyCurrency = txCurrency;
+            } else if (commonBuyCurrency !== txCurrency) {
+              hasMixedBuyCurrency = true;
+            }
+            totalNativeBuyCost += qty * (Number(t.nativeUnitPrice) || 0);
+          } else if (commonBuyCurrency === undefined) {
+            commonBuyCurrency = 'IRT';
+          } else if (commonBuyCurrency !== 'IRT') {
+            hasMixedBuyCurrency = true;
           }
         }
       } else if (type === 'sell') {
@@ -165,6 +185,8 @@ export function calculateComputedHoldings(transactions = [], livePriceMap = {}) 
         ? parseFloat(((itemPnl / itemCost) * 100).toFixed(1))
         : null;
 
+    const hasUniformForeignCurrency = !hasMixedBuyCurrency && commonBuyCurrency && commonBuyCurrency !== 'IRT';
+
     computedHoldings.push({
       id: `computed_${assetId}`,
       portfolioId: group.transactions[0]?.portfolioId || '',
@@ -187,6 +209,10 @@ export function calculateComputedHoldings(transactions = [], livePriceMap = {}) 
       source: 'transactions',
       isComputed: true,
       txCount: group.transactions.length,
+      // Only set when every buy transaction for this asset shares one non-Toman currency —
+      // otherwise a blended figure across currencies would be meaningless, so it's omitted.
+      currency: hasUniformForeignCurrency ? commonBuyCurrency : 'IRT',
+      nativeBuyPrice: hasUniformForeignCurrency && totalBuyQty > 0 ? totalNativeBuyCost / totalBuyQty : 0,
     });
   }
 

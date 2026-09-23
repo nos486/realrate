@@ -165,6 +165,8 @@ export function useTransactions(activePortfolio, externalVaultKey = null) {
         unitPrice: Number(txData.unitPrice) || 0,
         transactionDate: txData.transactionDate || '',
         notes: txData.notes || '',
+        currency: txData.currency || 'IRT',
+        nativeUnitPrice: Number(txData.nativeUnitPrice) || 0,
       };
 
       let encryptedPayload;
@@ -204,6 +206,8 @@ export function useTransactions(activePortfolio, externalVaultKey = null) {
         unitPrice: Number(txData.unitPrice) || 0,
         transactionDate: txData.transactionDate || '',
         notes: txData.notes || '',
+        currency: txData.currency || 'IRT',
+        nativeUnitPrice: Number(txData.nativeUnitPrice) || 0,
       };
 
       let encryptedPayload;
