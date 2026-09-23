@@ -31,6 +31,7 @@ import {
   PriceSourcesTableSection,
   FeedDataExplorerModal,
 } from '../features/admin/components/priceSources/index.js';
+import { APP_BASE, appPath } from '../shared/routes.js';
 
 export default function PriceSourcesPage({ embedded = false, usdToman: propUsdToman, gold18kPrice: propGold18kPrice }) {
   const { user, loading: authLoading, triggerLogin } = useAuth();
@@ -50,7 +51,7 @@ export default function PriceSourcesPage({ embedded = false, usdToman: propUsdTo
     return (
       <AppLayout
         activeTab="sources"
-        setActiveTab={(tab) => navigate(tab === 'portfolio' ? '/portfolio' : '/')}
+        setActiveTab={(tab) => navigate(appPath(tab === 'portfolio' ? '/portfolio' : ''))}
         usdToman={usdToman}
         gold18kPrice={gold18kPrice}
         layoutClassName="price-sources-fullscreen-app"
@@ -337,7 +338,7 @@ export default function PriceSourcesPage({ embedded = false, usdToman: propUsdTo
             صفحه مدیریت یکپارچه سورس‌های قیمت و نمودارهای تحلیلی تنها برای مدیران سیستم در دسترس است.
           </p>
           <div style={{ display: 'flex', justifyContent: 'center', gap: '10px' }}>
-            <Link to="/" className="btn-sm site-link" style={{ padding: '8px 16px', fontSize: '13px' }}>
+            <Link to={APP_BASE} className="btn-sm site-link" style={{ padding: '8px 16px', fontSize: '13px' }}>
               بازگشت به خانه
             </Link>
             <button

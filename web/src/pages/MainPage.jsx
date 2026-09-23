@@ -10,11 +10,11 @@ import { LoansPage, UpcomingInstallmentsAlert } from '../features/loans/index.js
 import { IncomesPage } from '../features/incomes/index.js';
 import AdminPage from './AdminPage.jsx';
 import PriceSourcesPage from './PriceSourcesPage.jsx';
-import LandingPage from './LandingPage.jsx';
 import AccountSettingsView from '../components/AccountSettingsView.jsx';
 import LiveRatesTicker from '../components/LiveRatesTicker.jsx';
 import { useMarketData } from '../features/market/hooks/useMarketData.js';
 import { useAuth } from '../features/auth/index.js';
+import { appPath, getAppSubPath } from '../shared/routes.js';
 import { toEnglishDigits } from '../utils/formatters.js';
 
 export default function MainPage() {
@@ -22,47 +22,49 @@ export default function MainPage() {
   const navigate = useNavigate();
   const params = useParams();
   const [searchParams] = useSearchParams();
-  const { user, loading: authLoading } = useAuth();
+  const { user } = useAuth();
 
-  // Determine active tab from pathname or query params
+  // Determine active tab from the path below /app (or the ?tab= query param)
+  const subPath = getAppSubPath(location.pathname);
+
   const isSettings =
-    location.pathname.startsWith('/settings') ||
+    subPath.startsWith('/settings') ||
     searchParams.get('tab') === 'settings';
 
   const isSources =
     !isSettings && (
-      location.pathname.startsWith('/admin/sources') ||
-      location.pathname.startsWith('/sources') ||
+      subPath.startsWith('/admin/sources') ||
+      subPath.startsWith('/sources') ||
       searchParams.get('tab') === 'sources'
     );
 
   const isAdmin =
     !isSettings && !isSources && (
-      location.pathname.startsWith('/admin') ||
+      subPath.startsWith('/admin') ||
       searchParams.get('tab') === 'admin'
     );
 
   const isIncomes =
     !isSettings && !isSources && !isAdmin && (
-      location.pathname.startsWith('/incomes') ||
+      subPath.startsWith('/incomes') ||
       searchParams.get('tab') === 'incomes'
     );
 
   const isPortfolio =
     !isSettings && !isSources && !isAdmin && !isIncomes && (
-      location.pathname.startsWith('/portfolio') ||
+      subPath.startsWith('/portfolio') ||
       searchParams.get('tab') === 'portfolio'
     );
 
   const isTransactions =
     !isSettings && !isSources && !isAdmin && !isIncomes && !isPortfolio && (
-      location.pathname.startsWith('/transactions') ||
+      subPath.startsWith('/transactions') ||
       searchParams.get('tab') === 'transactions'
     );
 
   const isLoans =
     !isSettings && !isSources && !isAdmin && !isIncomes && !isPortfolio && !isTransactions && (
-      location.pathname.startsWith('/loans') ||
+      subPath.startsWith('/loans') ||
       searchParams.get('tab') === 'loans'
     );
 
@@ -84,44 +86,44 @@ export default function MainPage() {
 
   const handleTabChange = (nextTab) => {
     if (nextTab === 'incomes') {
-      if (!location.pathname.startsWith('/incomes')) {
-        navigate('/incomes');
+      if (!subPath.startsWith('/incomes')) {
+        navigate(appPath('/incomes'));
       }
     } else if (nextTab === 'loans') {
-      if (!location.pathname.startsWith('/loans')) {
-        navigate('/loans');
+      if (!subPath.startsWith('/loans')) {
+        navigate(appPath('/loans'));
       }
     } else if (nextTab === 'transactions') {
-      if (!location.pathname.startsWith('/transactions')) {
+      if (!subPath.startsWith('/transactions')) {
         let lastId = null;
         try {
           lastId = localStorage.getItem('realrate_last_portfolio_id');
         } catch { }
-        navigate(lastId ? `/transactions/${lastId}` : '/transactions');
+        navigate(appPath(lastId ? `/transactions/${lastId}` : '/transactions'));
       }
     } else if (nextTab === 'portfolio') {
-      if (!location.pathname.startsWith('/portfolio')) {
+      if (!subPath.startsWith('/portfolio')) {
         let lastId = null;
         try {
           lastId = localStorage.getItem('realrate_last_portfolio_id');
         } catch { }
-        navigate(lastId ? `/portfolio/${lastId}` : '/portfolio');
+        navigate(appPath(lastId ? `/portfolio/${lastId}` : '/portfolio'));
       }
     } else if (nextTab === 'settings') {
-      if (location.pathname !== '/settings') {
-        navigate('/settings');
+      if (subPath !== '/settings') {
+        navigate(appPath('/settings'));
       }
     } else if (nextTab === 'admin') {
-      if (location.pathname !== '/admin') {
-        navigate('/admin');
+      if (subPath !== '/admin') {
+        navigate(appPath('/admin'));
       }
     } else if (nextTab === 'sources') {
-      if (location.pathname !== '/admin/sources') {
-        navigate('/admin/sources');
+      if (subPath !== '/admin/sources') {
+        navigate(appPath('/admin/sources'));
       }
     } else {
-      if (location.pathname !== '/' && location.pathname !== '/rates') {
-        navigate('/');
+      if (subPath !== '/' && subPath !== '/rates') {
+        navigate(appPath('/'));
       }
     }
   };
@@ -182,24 +184,6 @@ export default function MainPage() {
 
   const showUsdOnHome = true;
 
-  // ─── SITE-WIDE AUTH GATE ─────────────────────────────────────────────────
-  // Login is required to use any part of the site, including the market/prices
-  // tab — logged-out visitors only ever see the landing page at every route.
-  if (authLoading) {
-    return (
-      <AppLayout hideFooter>
-        <div className="portfolio-loading-state" style={{ minHeight: '50vh' }}>
-          <div className="spinner-glow"></div>
-          <p>در حال بررسی وضعیت ورود...</p>
-        </div>
-      </AppLayout>
-    );
-  }
-
-  if (!user) {
-    return <LandingPage />;
-  }
-
   return (
     <AppLayout
       usdToman={usdToman}
@@ -244,7 +228,7 @@ export default function MainPage() {
       <section className="tab-view-container">
         {/* Active Loan Due Reminders Banner */}
         <div style={{ marginBottom: '14px', width: '100%' }}>
-          <UpcomingInstallmentsAlert onSelectLoan={(loanId) => navigate(loanId ? `/loans/${loanId}` : '/loans')} />
+          <UpcomingInstallmentsAlert onSelectLoan={(loanId) => navigate(appPath(loanId ? `/loans/${loanId}` : '/loans'))} />
         </div>
 
         {activeTab === 'market' && (

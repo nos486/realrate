@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../features/auth/index.js';
 import { usePrivacyMode, setPrivacyMode } from '../hooks/usePrivacyMode.js';
+import { APP_BASE, LANDING_PATH } from '../shared/routes.js';
 
 const LogoMark = () => (
   <svg width="28" height="28" viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -38,7 +39,7 @@ export default function Header({ activeTab, setActiveTab }) {
       <div className="header-main-row">
         {/* Brand */}
         <div className="header-brand">
-          <Link to="/" className="brand-link">
+          <Link to={user ? APP_BASE : LANDING_PATH} className="brand-link">
             <LogoMark />
             <div className="brand-texts">
               <span className="brand-name">RealRate</span>

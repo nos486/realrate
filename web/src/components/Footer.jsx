@@ -1,6 +1,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { Smartphone, ShieldCheck } from 'lucide-react';
+import { appPath } from '../shared/routes.js';
 
 export default function Footer() {
   const triggerPwaInstall = () => {
@@ -39,7 +40,7 @@ export default function Footer() {
           </a>
 
           <Link
-            to="/admin"
+            to={appPath('/admin')}
             title="ورود به پنل مدیریت"
             className="footer-icon-btn"
           >

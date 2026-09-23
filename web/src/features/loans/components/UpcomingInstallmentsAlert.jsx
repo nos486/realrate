@@ -12,6 +12,7 @@ import { AlertCircle, AlertTriangle, ChevronLeft, Clock, Landmark } from 'lucide
 import AlertBanner from '../../../shared/ui/AlertBanner.jsx';
 import { gregorianToShamsi } from '../../portfolio/components/ShamsiDatePicker.jsx';
 import { useLoansContext } from '../context/LoansContext.jsx';
+import { appPath } from '../../../shared/routes.js';
 
 const formatNum = (v) => Number(v || 0).toLocaleString('fa-IR');
 
@@ -79,7 +80,7 @@ export default function UpcomingInstallmentsAlert({ onSelectLoan }) {
     if (onSelectLoan) {
       onSelectLoan(loanId);
     } else {
-      navigate('/loans');
+      navigate(appPath('/loans'));
     }
   };
 
