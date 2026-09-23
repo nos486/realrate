@@ -27,7 +27,8 @@ export async function dbGetPortfolioHoldings(env, userId, portfolioId = null) {
       let query = `
         SELECT id, user_id AS userId, portfolio_id AS portfolioId, asset_id AS assetId,
                amount, buy_price AS buyPrice, current_price AS currentPrice, buy_date AS buyDate,
-               notes, created_at AS createdAt, updated_at AS updatedAt
+               notes, currency, native_buy_price AS nativeBuyPrice,
+               created_at AS createdAt, updated_at AS updatedAt
         FROM portfolio_holdings
         WHERE user_id = ?
       `;
@@ -95,6 +96,8 @@ export async function dbAddPortfolioHolding(env, item) {
     currentPrice: Number(item.currentPrice) || 0,
     buyDate: item.buyDate || '',
     notes: item.notes || '',
+    currency: item.currency || 'IRT',
+    nativeBuyPrice: Number(item.nativeBuyPrice) || 0,
     createdAt: item.createdAt || now,
     updatedAt: now,
   };
@@ -105,9 +108,9 @@ export async function dbAddPortfolioHolding(env, item) {
       await env.DB.prepare(`
         INSERT INTO portfolio_holdings (
           id, user_id, portfolio_id, asset_id,
-          amount, buy_price, current_price, buy_date, notes, created_at, updated_at
+          amount, buy_price, current_price, buy_date, notes, currency, native_buy_price, created_at, updated_at
         )
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ON CONFLICT(id) DO UPDATE SET
           portfolio_id = excluded.portfolio_id,
           asset_id = excluded.asset_id,
@@ -116,6 +119,8 @@ export async function dbAddPortfolioHolding(env, item) {
           current_price = excluded.current_price,
           buy_date = excluded.buy_date,
           notes = excluded.notes,
+          currency = excluded.currency,
+          native_buy_price = excluded.native_buy_price,
           updated_at = excluded.updated_at
       `).bind(
         holding.id,
@@ -127,6 +132,8 @@ export async function dbAddPortfolioHolding(env, item) {
         holding.currentPrice,
         holding.buyDate,
         holding.notes,
+        holding.currency,
+        holding.nativeBuyPrice,
         holding.createdAt,
         holding.updatedAt
       ).run();

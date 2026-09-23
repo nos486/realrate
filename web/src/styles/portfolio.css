@@ -1037,6 +1037,68 @@
   color: #fbbf24;
 }
 
+/* ── Foreign-Currency Cost Basis (Holdings/Transactions) ─────────────────── */
+.currency-cost-inputs .form-item {
+  margin-bottom: 12px;
+}
+
+.currency-cost-inputs label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.btn-fx-rate-refresh {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  background: rgba(56, 189, 248, 0.12);
+  border: none;
+  border-radius: 50%;
+  color: #38bdf8;
+  cursor: pointer;
+  transition: var(--transition-fast);
+}
+
+.btn-fx-rate-refresh:hover {
+  background: rgba(56, 189, 248, 0.22);
+  transform: rotate(90deg);
+}
+
+.currency-cost-preview {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-bottom: 12px;
+}
+
+.currency-cost-preview strong {
+  color: var(--text-heading);
+}
+
+.cell-native-sub {
+  font-size: 10px;
+  color: var(--text-muted);
+  margin-right: 4px;
+}
+
+.pnl-native-sub {
+  display: block;
+  font-size: 11px;
+  font-weight: 600;
+  margin-top: 2px;
+}
+
+.pnl-native-sub.profit {
+  color: #34d399;
+}
+
+.pnl-native-sub.loss {
+  color: #f87171;
+}
+
 .csv-import-fail-list {
   margin: 0 0 8px;
   padding-inline-start: 20px;

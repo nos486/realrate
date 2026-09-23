@@ -304,6 +304,8 @@ export async function handleAddPortfolio(request, env) {
     currentPrice: parseFloat(body.currentPrice) || 0,
     buyDate: String(body.buyDate || "").trim(),
     notes: String(body.notes || "").trim(),
+    currency: String(body.currency || "IRT").trim() || "IRT",
+    nativeBuyPrice: parseFloat(body.nativeBuyPrice) || 0,
     createdAt: body.createdAt || new Date().toISOString(),
   };
 

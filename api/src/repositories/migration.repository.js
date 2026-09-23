@@ -194,6 +194,15 @@ export async function ensureD1Tables(env) {
       }
     }
 
+    // Backward-compat: ensure foreign-currency cost-basis columns exist on portfolio_holdings
+    // (currency defaults to 'IRT'/Toman so every pre-existing row keeps its current behavior)
+    try {
+      await env.DB.prepare("ALTER TABLE portfolio_holdings ADD COLUMN currency TEXT NOT NULL DEFAULT 'IRT'").run();
+    } catch (ignore) {}
+    try {
+      await env.DB.prepare("ALTER TABLE portfolio_holdings ADD COLUMN native_buy_price REAL NOT NULL DEFAULT 0").run();
+    } catch (ignore) {}
+
     // Backward-compat: ensure the optional annual fee column exists on loans
     try {
       await env.DB.prepare("ALTER TABLE loans ADD COLUMN annual_fee_amount REAL NOT NULL DEFAULT 0").run();

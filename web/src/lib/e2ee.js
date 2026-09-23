@@ -186,6 +186,8 @@ export async function encryptHoldingForApi(arg1, arg2) {
     buyDate: holding.buyDate || "",
     notes: holding.notes || "",
     assetName: holding.assetName || holding.assetId || "",
+    currency: holding.currency || "IRT",
+    nativeBuyPrice: Number(holding.nativeBuyPrice) || 0,
   };
 
   const encryptedBundle = await e2eeEncrypt(key, sensitiveBundle);
@@ -198,6 +200,8 @@ export async function encryptHoldingForApi(arg1, arg2) {
     buyDate: "",
     notes: encryptedBundle,
     assetName: "[گاوصندوق E2EE]",
+    currency: "IRT",
+    nativeBuyPrice: 0,
   };
 }
 
@@ -227,6 +231,8 @@ export async function decryptHoldingFromApi(arg1, arg2) {
         buyDate: decrypted.buyDate !== undefined ? decrypted.buyDate : holding.buyDate,
         notes: decrypted.notes !== undefined ? decrypted.notes : "",
         assetName: decrypted.assetName || holding.assetName,
+        currency: decrypted.currency || "IRT",
+        nativeBuyPrice: decrypted.nativeBuyPrice !== undefined ? decrypted.nativeBuyPrice : 0,
         isE2eeEncrypted: true,
       };
     }
