@@ -312,6 +312,16 @@
   border: 1.5px solid var(--border-medium, rgba(255, 255, 255, 0.15));
 }
 
+.header-avatar-fallback {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--primary-soft-bg);
+  color: var(--accent-color);
+  font-size: 12px;
+  font-weight: 800;
+}
+
 .btn-header-logout {
   display: inline-flex;
   align-items: center;

@@ -15,6 +15,7 @@
  *   loading.css         — Global fullscreen loading overlay
  *   settings.css        — Account settings, profile, theme switcher
  *   sources.css         — Price sources page, charts, fullscreen layout
+ *   incomes.css         — Incomes page, summary cards, category/monthly report
  */
 
 @import './tokens.css';
@@ -31,4 +32,4 @@
 @import './sources.css';
 @import './universal-search.css';
 @import './transactions.css';
-@import './loans.css';
+@import './loans.css';@import './incomes.css';

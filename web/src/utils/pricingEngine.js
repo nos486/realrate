@@ -17,7 +17,7 @@ import {
   calculateSilverGram,
   calculateBubble,
 } from './financialSpecs.js';
-import { getSourceDisplayName } from '../config/sources.config.js';
+import { getSourceDisplayName } from '../config/displayEngine.js';
 import {
   getItemCategory,
   getItemBadge,
@@ -27,7 +27,7 @@ import {
 export function normalizePersianText(str) {
   if (!str) return '';
   return String(str)
-    .replace(/[\u200B\u200C\u200D\uFEFF]/g, '') // zero-width
+    .replace(/\u200B|\u200C|\u200D|\uFEFF/g, '') // zero-width
     .replace(/[ي]/g, 'ی')
     .replace(/[ك]/g, 'ک')
     .replace(/[آأإ]/g, 'ا')

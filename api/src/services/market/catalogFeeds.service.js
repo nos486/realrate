@@ -11,7 +11,8 @@
  * fetches/merges them, normalizes search, and provides standardized items across RealRate.
  */
 
-import { PRICE_SOURCES_CONFIG, getSourceDisplayName } from "../../config/sources.config.js";
+import { PRICE_SOURCES_CONFIG } from "../../config/sources.config.js";
+import { getSourceDisplayName } from "../../domain/displayEngine.js";
 import { getItemCategory, getItemUnit, getItemBadge } from "../../domain/displayEngine.js";
 import { getAdapterForSource } from "./sources/index.js";
 import { normalizePersian } from "./sources/parsingUtils.js";

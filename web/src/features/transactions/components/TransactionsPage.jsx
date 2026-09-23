@@ -5,7 +5,7 @@
  * Persian date support, asset search, and real-time turnover statistics.
  */
 
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   Receipt,
   Plus,
@@ -42,6 +42,7 @@ import {
   verifyE2eeKey,
   saveVaultPassphraseToSession,
 } from '../../../lib/e2ee.js';
+import { usePrivacyMode } from '../../../hooks/usePrivacyMode.js';
 
 export default function TransactionsPage({
   calcData = null,
@@ -108,31 +109,7 @@ export default function TransactionsPage({
   }, [computedHoldings]);
 
   // UI state
-  const [hideValues, setHideValues] = useState(() => {
-    try {
-      return localStorage.getItem('realrate_hide_values') === 'true';
-    } catch {
-      return false;
-    }
-  });
-
-  useEffect(() => {
-    const handlePrivacyChange = (e) => {
-      try {
-        if (e && e.detail && typeof e.detail.hideValues === 'boolean') {
-          setHideValues(e.detail.hideValues);
-        } else {
-          setHideValues(localStorage.getItem('realrate_hide_values') === 'true');
-        }
-      } catch {}
-    };
-    window.addEventListener('realrate_privacy_change', handlePrivacyChange);
-    window.addEventListener('storage', handlePrivacyChange);
-    return () => {
-      window.removeEventListener('realrate_privacy_change', handlePrivacyChange);
-      window.removeEventListener('storage', handlePrivacyChange);
-    };
-  }, []);
+  const hideValues = usePrivacyMode();
 
   const [searchQuery, setSearchQuery] = useState('');
   const [typeFilter, setTypeFilter] = useState('all'); // 'all' | 'buy' | 'sell'

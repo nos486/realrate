@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import {
   Lock,
   Unlock,
@@ -46,6 +46,7 @@ import {
   CATEGORY_DEFINITIONS,
 } from '../utils/holdingHelpers.js';
 import { getItemCategory } from '../../../config/displayEngine.js';
+import { usePrivacyMode } from '../../../hooks/usePrivacyMode.js';
 
 export default function PortfolioTracker({ rates, calcData, usdToman, goldUsd }) {
   const { user, loading: authLoading, triggerLogin } = useAuth();
@@ -82,31 +83,7 @@ export default function PortfolioTracker({ rates, calcData, usdToman, goldUsd })
   } = useHoldings(activePortfolio);
 
   // 3. UI State
-  const [hideValues, setHideValues] = useState(() => {
-    try {
-      return localStorage.getItem('realrate_hide_values') === 'true';
-    } catch {
-      return false;
-    }
-  });
-
-  useEffect(() => {
-    const handlePrivacyChange = (e) => {
-      try {
-        if (e && e.detail && typeof e.detail.hideValues === 'boolean') {
-          setHideValues(e.detail.hideValues);
-        } else {
-          setHideValues(localStorage.getItem('realrate_hide_values') === 'true');
-        }
-      } catch { }
-    };
-    window.addEventListener('realrate_privacy_change', handlePrivacyChange);
-    window.addEventListener('storage', handlePrivacyChange);
-    return () => {
-      window.removeEventListener('realrate_privacy_change', handlePrivacyChange);
-      window.removeEventListener('storage', handlePrivacyChange);
-    };
-  }, []);
+  const hideValues = usePrivacyMode();
 
   const [holdingsFilterQuery, setHoldingsFilterQuery] = useState('');
   const [modalOpen, setModalOpen] = useState(false);

@@ -221,4 +221,16 @@ CREATE TABLE IF NOT EXISTS loan_extra_payments (
 CREATE INDEX IF NOT EXISTS idx_loan_extra_payments_loan ON loan_extra_payments(loan_id);
 CREATE INDEX IF NOT EXISTS idx_loan_extra_payments_user ON loan_extra_payments(user_id);
 
-
+-- 10. Incomes Table (user-recorded income entries: salary, freelance, rental, ...)
+CREATE TABLE IF NOT EXISTS incomes (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL,
+  title TEXT NOT NULL,
+  category TEXT NOT NULL DEFAULT 'other',
+  amount REAL NOT NULL,
+  income_date TEXT NOT NULL,
+  notes TEXT DEFAULT '',
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_incomes_user_date ON incomes(user_id, income_date DESC);

@@ -19,6 +19,7 @@ export default function App() {
           <Route path="/transactions/:portfolioId" element={<MainPage />} />
           <Route path="/loans" element={<MainPage />} />
           <Route path="/loans/:loanId" element={<MainPage />} />
+          <Route path="/incomes" element={<MainPage />} />
           <Route path="/settings" element={<MainPage />} />
           <Route path="/admin" element={<MainPage />} />
           <Route path="/admin/sources" element={<MainPage />} />
