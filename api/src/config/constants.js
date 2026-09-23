@@ -28,3 +28,22 @@ export const DEFAULT_BOURSE_SEARCH_LIMIT = 50;
 
 /** Maximum limit for market item queries */
 export const MAX_MARKET_ITEMS_LIMIT = 2000;
+
+// ─── Incomes ────────────────────────────────────────────────────────────────
+/**
+ * Allowed income categories. Kept in sync with web/src/features/incomes/constants/incomeCategories.js —
+ * the server only accepts these keys and falls back to "other" for anything else.
+ */
+export const INCOME_CATEGORIES = [
+  "salary",
+  "freelance",
+  "business",
+  "investment",
+  "rental",
+  "gift",
+  "other",
+];
+
+/** Maximum length of an income title / notes field (characters) */
+export const INCOME_TITLE_MAX_LENGTH = 120;
+export const INCOME_NOTES_MAX_LENGTH = 500;

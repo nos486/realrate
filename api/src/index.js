@@ -69,6 +69,12 @@ import {
   handleAddExtraPayment,
   handleGetLoanExtraPayments,
 } from "./handlers/loanRoutes.js";
+import {
+  handleGetIncomes,
+  handleCreateIncome,
+  handleUpdateIncome,
+  handleDeleteIncome,
+} from "./handlers/incomeRoutes.js";
 import { fetchAllPrices } from "./services/market/priceAggregator.service.js";
 import {
   searchCatalogItems,
@@ -211,6 +217,19 @@ export default {
     if (normalizedPath === "/api/loans") {
       if (request.method === "GET")  return wrap(handleGetLoans)(request, env);
       if (request.method === "POST") return wrap(handleCreateLoan)(request, env);
+    }
+
+    // ── Incomes API Routes ──────────────────────────────────────────────────
+    const incomeSingleMatch = normalizedPath.match(/^\/api\/incomes\/([^/]+)$/);
+    if (incomeSingleMatch) {
+      const incomeId = incomeSingleMatch[1];
+      if (request.method === "PUT")    return wrap((req, e) => handleUpdateIncome(req, e, { incomeId }))(request, env);
+      if (request.method === "DELETE") return wrap((req, e) => handleDeleteIncome(req, e, { incomeId }))(request, env);
+    }
+
+    if (normalizedPath === "/api/incomes") {
+      if (request.method === "GET")  return wrap(handleGetIncomes)(request, env);
+      if (request.method === "POST") return wrap(handleCreateIncome)(request, env);
     }
 
     // ── Public API Routes ───────────────────────────────────────────────────

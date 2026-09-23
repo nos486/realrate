@@ -96,6 +96,26 @@ Returns all active assets and market rates normalized through the centralized `d
 }
 ```
 
+### Incomes (Protected)
+
+| Method | Endpoint | Description |
+| :--- | :--- | :--- |
+| `GET` | `/api/v1/incomes` | List the user's incomes (ordered by incomeDate DESC, createdAt DESC) |
+| `POST` | `/api/v1/incomes` | Record a new income |
+| `PUT` | `/api/v1/incomes/:id` | Update an income |
+| `DELETE` | `/api/v1/incomes/:id` | Delete an income |
+
+#### Income Payload Format
+```json
+{
+  "title": "حقوق مهر",
+  "category": "salary", // salary | freelance | business | investment | rental | gift | other
+  "amount": 45000000,   // Toman, > 0
+  "incomeDate": "2026-09-22", // Gregorian ISO date (displayed as Shamsi in the UI)
+  "notes": "با اضافه‌کاری"
+}
+```
+
 ### Admin Endpoints (Admin Role Only)
 
 | Method | Endpoint | Description |

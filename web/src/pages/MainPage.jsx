@@ -1,12 +1,13 @@
 import React, { useState, useMemo } from 'react';
 import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { Megaphone, TrendingUp, Briefcase, ShieldCheck, Radio, Settings, Receipt, Landmark } from 'lucide-react';
+import { Megaphone, TrendingUp, Briefcase, ShieldCheck, Radio, Settings, Receipt, Landmark, Wallet } from 'lucide-react';
 import { AppLayout, FilterPills, AlertBanner } from '../shared/ui/index.js';
 import MarketInputsToolbar from '../components/MarketInputsToolbar.jsx';
 import { AnalysisCards, CurrenciesList } from '../features/market/components/index.js';
 import { PortfolioTracker } from '../features/portfolio/index.js';
 import { TransactionsPage } from '../features/transactions/index.js';
 import { LoansPage, UpcomingInstallmentsAlert } from '../features/loans/index.js';
+import { IncomesPage } from '../features/incomes/index.js';
 import AdminPage from './AdminPage.jsx';
 import PriceSourcesPage from './PriceSourcesPage.jsx';
 import AccountSettingsView from '../components/AccountSettingsView.jsx';
@@ -58,6 +59,12 @@ export default function MainPage() {
       searchParams.get('tab') === 'loans'
     );
 
+  const isIncomes =
+    !isSettings && !isSources && !isAdmin && !isPortfolio && !isTransactions && !isLoans && (
+      location.pathname.startsWith('/incomes') ||
+      searchParams.get('tab') === 'incomes'
+    );
+
   const activeTab = isSettings
     ? 'settings'
     : isSources
@@ -70,10 +77,16 @@ export default function MainPage() {
             ? 'transactions'
             : isLoans
               ? 'loans'
-              : 'market';
+              : isIncomes
+                ? 'incomes'
+                : 'market';
 
   const handleTabChange = (nextTab) => {
-    if (nextTab === 'loans') {
+    if (nextTab === 'incomes') {
+      if (!location.pathname.startsWith('/incomes')) {
+        navigate('/incomes');
+      }
+    } else if (nextTab === 'loans') {
       if (!location.pathname.startsWith('/loans')) {
         navigate('/loans');
       }
@@ -118,6 +131,7 @@ export default function MainPage() {
       { value: 'portfolio', label: 'پورتفو', icon: <Briefcase size={16} strokeWidth={2} /> },
       { value: 'transactions', label: 'تراکنش‌ها', icon: <Receipt size={16} strokeWidth={2} /> },
       { value: 'loans', label: 'وام و اقساط', icon: <Landmark size={16} strokeWidth={2} /> },
+      { value: 'incomes', label: 'درآمدها', icon: <Wallet size={16} strokeWidth={2} /> },
     ];
     if (user) {
       options.push(
@@ -272,6 +286,10 @@ export default function MainPage() {
 
         {activeTab === 'loans' && (
           <LoansPage initialLoanId={params.loanId || searchParams.get('id') || null} />
+        )}
+
+        {activeTab === 'incomes' && (
+          <IncomesPage />
         )}
 
         {activeTab === 'settings' && (
