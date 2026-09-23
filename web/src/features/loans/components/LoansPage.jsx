@@ -353,6 +353,15 @@ export default function LoansPage({ initialLoanId = null }) {
           </div>
         }
       >
+        <div className="portfolio-table-card">
+          <div className="portfolio-table-header">
+            <div className="table-title">
+              <div className="table-title-main">
+                <h3>لیست وام‌ها</h3>
+              </div>
+            </div>
+          </div>
+          <div className="table-card-body">
           {loadingLoans && loans.length === 0 ? (
             <div className="loans-loading-state">
               <RefreshCw size={24} className="animate-spin text-amber-500" />
@@ -418,6 +427,8 @@ export default function LoansPage({ initialLoanId = null }) {
               ))}
             </div>
           )}
+          </div>
+        </div>
       </SplitPageLayout>
 
       {/* Add / Edit Loan Modal */}

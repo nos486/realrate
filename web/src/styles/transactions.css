@@ -7,20 +7,6 @@
   width: 100%;
 }
 
-/* ── Transactions Toolbar ── */
-.transactions-toolbar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  flex-wrap: wrap;
-  background: var(--card-bg);
-  border: var(--card-border);
-  border-radius: 14px;
-  padding: 10px 14px;
-  box-shadow: var(--card-shadow);
-}
-
 .tx-search-box {
   display: flex;
   align-items: center;

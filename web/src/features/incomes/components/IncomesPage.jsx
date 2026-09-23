@@ -139,17 +139,15 @@ export default function IncomesPage() {
             </>
           }
         >
-          <FilterPills
-            variant="segmented"
-            options={INCOME_PERIODS}
-            activeValue={period}
-            onChange={setPeriod}
-            className="incomes-period-filter"
-          />
+          <div className="portfolio-table-card">
+            <div className="portfolio-table-header">
+              <div className="table-title">
+                <div className="table-title-main">
+                  <h3>لیست درآمدها</h3>
+                </div>
+              </div>
 
-          {report.count > 0 ? (
-            <>
-              <div className="incomes-toolbar">
+              {report.count > 0 && (
                 <SearchBar
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
@@ -157,30 +155,42 @@ export default function IncomesPage() {
                   badge={`${visibleIncomes.length.toLocaleString('fa-IR')} مورد`}
                   className="incomes-search"
                 />
-              </div>
+              )}
+            </div>
 
-              {visibleIncomes.length > 0 ? (
-                <IncomesTable
-                  incomes={visibleIncomes}
-                  onEdit={handleOpenEdit}
-                  onDelete={handleDelete}
-                  deletingId={deletingId}
-                  hideValues={hideValues}
-                />
+            <div className="table-card-body">
+              <FilterPills
+                variant="segmented"
+                options={INCOME_PERIODS}
+                activeValue={period}
+                onChange={setPeriod}
+                className="incomes-period-filter"
+              />
+
+              {report.count > 0 ? (
+                visibleIncomes.length > 0 ? (
+                  <IncomesTable
+                    incomes={visibleIncomes}
+                    onEdit={handleOpenEdit}
+                    onDelete={handleDelete}
+                    deletingId={deletingId}
+                    hideValues={hideValues}
+                  />
+                ) : (
+                  <EmptyState
+                    title="موردی یافت نشد"
+                    description="هیچ درآمدی با عبارت جستجو شده مطابقت ندارد."
+                  />
+                )
               ) : (
                 <EmptyState
-                  title="موردی یافت نشد"
-                  description="هیچ درآمدی با عبارت جستجو شده مطابقت ندارد."
+                  icon={<CalendarRange size={40} strokeWidth={1.5} />}
+                  title="در این بازه درآمدی ثبت نشده است"
+                  description="بازه زمانی دیگری را انتخاب کنید یا درآمد جدیدی ثبت نمایید."
                 />
               )}
-            </>
-          ) : (
-            <EmptyState
-              icon={<CalendarRange size={40} strokeWidth={1.5} />}
-              title="در این بازه درآمدی ثبت نشده است"
-              description="بازه زمانی دیگری را انتخاب کنید یا درآمد جدیدی ثبت نمایید."
-            />
-          )}
+            </div>
+          </div>
         </SplitPageLayout>
       )}
 

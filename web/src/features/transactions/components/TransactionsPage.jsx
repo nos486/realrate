@@ -490,80 +490,90 @@ export default function TransactionsPage({
             </div>
           }
         >
-          {/* Controls & Filters Toolbar */}
-          <div className="transactions-toolbar">
-            <div className="tx-search-box">
-              <Search size={15} className="search-icon" />
-              <input
-                type="text"
-                placeholder="جستجو در نماد، نام دارایی یا یادداشت..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="tx-search-input"
-              />
+          <div className="portfolio-table-card">
+            <div className="portfolio-table-header">
+              <div className="table-title">
+                <div className="table-title-main">
+                  <h3>{activePortfolio?.name || 'تراکنش‌ها'}</h3>
+                </div>
+              </div>
+
+              <div className="tx-search-box">
+                <Search size={15} className="search-icon" />
+                <input
+                  type="text"
+                  placeholder="جستجو در نماد، نام دارایی یا یادداشت..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="tx-search-input"
+                />
+              </div>
             </div>
 
-            <div className="tx-filter-pills-bar">
-              <button
-                type="button"
-                className={`tx-filter-pill ${typeFilter === 'all' ? 'active' : ''}`}
-                onClick={() => setTypeFilter('all')}
-              >
-                همه ({stats.totalCount.toLocaleString('fa-IR')})
-              </button>
-              <button
-                type="button"
-                className={`tx-filter-pill buy ${typeFilter === 'buy' ? 'active' : ''}`}
-                onClick={() => setTypeFilter('buy')}
-              >
-                خرید ({stats.totalBuys.toLocaleString('fa-IR')})
-              </button>
-              <button
-                type="button"
-                className={`tx-filter-pill sell ${typeFilter === 'sell' ? 'active' : ''}`}
-                onClick={() => setTypeFilter('sell')}
-              >
-                فروش ({stats.totalSells.toLocaleString('fa-IR')})
-              </button>
-            </div>
-          </div>
-
-          {/* Transactions Data Table */}
-          {loadingTransactions ? (
-            <div className="transactions-loading-placeholder">
-              در حال بارگذاری تراکنش‌ها...
-            </div>
-          ) : filteredTransactions.length === 0 ? (
-            <EmptyState
-              icon={<Receipt size={40} strokeWidth={1.5} color="var(--text-muted)" />}
-              title="هیچ تراکنشی یافت نشد"
-              description={
-                searchQuery || typeFilter !== 'all'
-                  ? 'تراکنشی با فیلترهای انتخابی مطابقت ندارد.'
-                  : 'هنوز هیچ معامله خریدی یا فروشی در این پورتفو ثبت نکرده‌اید. با کلیک روی دکمه زیر اولین معامله را ثبت کنید.'
-              }
-              action={
+            <div className="table-card-body">
+              {/* Type Filter Pills */}
+              <div className="tx-filter-pills-bar">
                 <button
                   type="button"
-                  className="btn-add-transaction center"
-                  onClick={handleOpenAdd}
+                  className={`tx-filter-pill ${typeFilter === 'all' ? 'active' : ''}`}
+                  onClick={() => setTypeFilter('all')}
                 >
-                  <Plus size={16} style={{ verticalAlign: 'middle', marginLeft: '6px' }} />
-                  ثبت اولین تراکنش
+                  همه ({stats.totalCount.toLocaleString('fa-IR')})
                 </button>
-              }
-            />
-          ) : (
-            <ResponsiveDataTable
-              columns={transactionColumns}
-              rows={sortedTransactions}
-              wrapperClassName="portfolio-table-responsive"
-              tableClassName="portfolio-data-table transactions-table"
-              rowClassName={() => 'portfolio-table-row'}
-              sortState={sortState}
-              onSortChange={toggleSort}
-            />
-          )}
+                <button
+                  type="button"
+                  className={`tx-filter-pill buy ${typeFilter === 'buy' ? 'active' : ''}`}
+                  onClick={() => setTypeFilter('buy')}
+                >
+                  خرید ({stats.totalBuys.toLocaleString('fa-IR')})
+                </button>
+                <button
+                  type="button"
+                  className={`tx-filter-pill sell ${typeFilter === 'sell' ? 'active' : ''}`}
+                  onClick={() => setTypeFilter('sell')}
+                >
+                  فروش ({stats.totalSells.toLocaleString('fa-IR')})
+                </button>
+              </div>
+
+              {/* Transactions Data Table */}
+              {loadingTransactions ? (
+                <div className="transactions-loading-placeholder">
+                  در حال بارگذاری تراکنش‌ها...
+                </div>
+              ) : filteredTransactions.length === 0 ? (
+                <EmptyState
+                  icon={<Receipt size={40} strokeWidth={1.5} color="var(--text-muted)" />}
+                  title="هیچ تراکنشی یافت نشد"
+                  description={
+                    searchQuery || typeFilter !== 'all'
+                      ? 'تراکنشی با فیلترهای انتخابی مطابقت ندارد.'
+                      : 'هنوز هیچ معامله خریدی یا فروشی در این پورتفو ثبت نکرده‌اید. با کلیک روی دکمه زیر اولین معامله را ثبت کنید.'
+                  }
+                  action={
+                    <button
+                      type="button"
+                      className="btn-add-transaction center"
+                      onClick={handleOpenAdd}
+                    >
+                      <Plus size={16} style={{ verticalAlign: 'middle', marginLeft: '6px' }} />
+                      ثبت اولین تراکنش
+                    </button>
+                  }
+                />
+              ) : (
+                <ResponsiveDataTable
+                  columns={transactionColumns}
+                  rows={sortedTransactions}
+                  wrapperClassName="portfolio-table-responsive"
+                  tableClassName="portfolio-data-table transactions-table"
+                  rowClassName={() => 'portfolio-table-row'}
+                  sortState={sortState}
+                  onSortChange={toggleSort}
+                />
+              )}
+            </div>
+          </div>
         </SplitPageLayout>
       )}
 

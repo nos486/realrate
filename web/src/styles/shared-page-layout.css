@@ -66,3 +66,21 @@
     width: 100%;
   }
 }
+
+/* ── Shared Content Card Body ──────────────────────────────────────────────
+   The .portfolio-table-card/.portfolio-table-header frame itself (background,
+   border, header bar with the bottom divider) already lives in portfolio.css
+   and is reused as-is by every feature page's content column — this is just
+   the one bit those pages didn't have yet: consistent inner padding for
+   whatever sits below the header bar (a table, a list of grouped cards, a
+   loading/empty state, ...), since .portfolio-table-card itself has no
+   padding of its own. */
+.table-card-body {
+  padding: 14px 18px;
+}
+
+@media (max-width: 768px) {
+  .table-card-body {
+    padding: 10px 12px;
+  }
+}
