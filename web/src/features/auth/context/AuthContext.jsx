@@ -2,7 +2,7 @@ import React, { createContext, useContext, useState, useEffect, useCallback } fr
 import { useNavigate } from 'react-router-dom';
 import { getMe, googleLogin, logout as apiLogout, getGoogleLoginUrl } from '../api/authApi.js';
 import { setToken } from '../../../shared/api/httpClient.js';
-import { APP_BASE, LANDING_PATH } from '../../../shared/routes.js';
+import { APP_BASE, LANDING_PATH, isAppPath } from '../../../shared/routes.js';
 
 const AuthContext = createContext(null);
 
@@ -65,8 +65,7 @@ export function AuthProvider({ children }) {
   // from inside the app it returns to the exact page the user was on.
   const triggerLogin = useCallback(() => {
     const { origin, pathname, href } = window.location;
-    const isInApp = pathname === APP_BASE || pathname.startsWith(`${APP_BASE}/`);
-    window.location.href = getGoogleLoginUrl(isInApp ? href : `${origin}${APP_BASE}`);
+    window.location.href = getGoogleLoginUrl(isAppPath(pathname) ? href : `${origin}${APP_BASE}`);
   }, []);
 
   const logout = useCallback(async () => {
