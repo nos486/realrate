@@ -11,7 +11,7 @@ import {
   CheckCircle2,
   Clock,
 } from 'lucide-react';
-import { gregorianToShamsi } from '../../portfolio/components/ShamsiDatePicker.jsx';
+import { formatShamsiDisplay } from '../../portfolio/components/ShamsiDatePicker.jsx';
 import { getDisplayRatePct } from '../../../utils/loanCalculator.js';
 
 const formatNum = (v) => Number(v || 0).toLocaleString('fa-IR');
@@ -91,7 +91,7 @@ export default function LoansTable({
                   <strong className="loan-row-value due">
                     {formatNum(loan.nextDueInstallment.totalAmount)} تومان
                   </strong>
-                  <span className="loan-row-sub">{gregorianToShamsi(loan.nextDueInstallment.dueDate)}</span>
+                  <span className="loan-row-sub">{formatShamsiDisplay(loan.nextDueInstallment.dueDate)}</span>
                 </>
               ) : (
                 <span className="loan-row-empty">سررسید معوقی نیست</span>

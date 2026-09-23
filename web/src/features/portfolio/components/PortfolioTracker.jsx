@@ -317,7 +317,6 @@ export default function PortfolioTracker({ rates, calcData, usdToman, goldUsd })
             categoryGroups={categoryGroups}
             holdingsCount={holdings.length}
             hideValues={hideValues}
-            onOpenAdd={handleOpenAdd}
             isVaultLocked={isVaultLocked}
           />
         }

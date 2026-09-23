@@ -27,7 +27,7 @@ import Modal from '../../../shared/ui/Modal.jsx';
 import EmptyState from '../../../shared/ui/EmptyState.jsx';
 import FeaturePageHeader from '../../../shared/ui/FeaturePageHeader.jsx';
 import SplitPageLayout from '../../../shared/ui/SplitPageLayout.jsx';
-import { gregorianToShamsi } from '../../portfolio/components/ShamsiDatePicker.jsx';
+import { formatShamsiDisplay } from '../../portfolio/components/ShamsiDatePicker.jsx';
 import { getDisplayRatePct } from '../../../utils/loanCalculator.js';
 import { appPath } from '../../../shared/routes.js';
 
@@ -330,7 +330,7 @@ export default function LoansPage({ initialLoanId = null }) {
               </div>
               {summaryMetrics.nextUpcomingDue ? (
                 <>
-                  <div className="stat-number">{gregorianToShamsi(summaryMetrics.nextUpcomingDue.dueDate)}</div>
+                  <div className="stat-number">{formatShamsiDisplay(summaryMetrics.nextUpcomingDue.dueDate)}</div>
                   <div className="stat-sub">
                     {summaryMetrics.nextUpcomingDue.loanTitle} • {formatNum(summaryMetrics.nextUpcomingDue.totalAmount)} تومان
                   </div>

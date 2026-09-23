@@ -1,5 +1,5 @@
 import React from 'react';
-import { Plus, ArrowUpRight, ArrowDownRight, Lock } from 'lucide-react';
+import { ArrowUpRight, ArrowDownRight, Lock } from 'lucide-react';
 import { formatNum } from '../utils/holdingHelpers.js';
 import { formatPct } from '../../../shared/utils/formatters.js';
 
@@ -8,7 +8,6 @@ export default function PortfolioOverviewCards({
   categoryGroups = [],
   holdingsCount = 0,
   hideValues = false,
-  onOpenAdd,
   isVaultLocked = false,
 }) {
   const hasData = portfolioMetrics.hasAnyCost;
@@ -95,30 +94,23 @@ export default function PortfolioOverviewCards({
         </div>
       </div>
 
-      {/* Card 3: Actions & Count */}
+      {/* Card 3: Item Count */}
       <div className="portfolio-stat-card action-card">
         <div className="stat-header">
           <span className="stat-label">تعداد اقلام</span>
-          <span className="count-pill">
-            {isVaultLocked ? (
-              <>
-                <Lock size={11} style={{ verticalAlign: 'middle', marginLeft: '3px' }} /> قفل
-              </>
-            ) : (
-              `${holdingsCount.toLocaleString('fa-IR')} قلم`
-            )}
-          </span>
         </div>
-        <button
-          type="button"
-          className="btn-add-asset"
-          onClick={onOpenAdd}
-          disabled={isVaultLocked}
-          title={isVaultLocked ? 'ابتدا گاوصندوق را باز کنید' : 'افزودن دارایی'}
-        >
-          <Plus size={16} strokeWidth={2.5} />
-          <span>{isVaultLocked ? 'قفل است' : 'ثبت دارایی'}</span>
-        </button>
+        <div className="stat-number">
+          {isVaultLocked ? (
+            <span className="locked-stat">
+              <Lock size={16} style={{ verticalAlign: 'middle', marginLeft: '4px' }} /> قفل
+            </span>
+          ) : (
+            <>
+              {holdingsCount.toLocaleString('fa-IR')}
+              <span className="stat-unit">قلم</span>
+            </>
+          )}
+        </div>
       </div>
 
       {/* Card 4: Asset Allocation Distribution Breakdown */}

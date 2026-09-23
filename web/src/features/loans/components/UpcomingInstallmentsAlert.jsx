@@ -10,7 +10,7 @@ import React, { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AlertCircle, AlertTriangle, ChevronLeft, Clock, Landmark } from 'lucide-react';
 import AlertBanner from '../../../shared/ui/AlertBanner.jsx';
-import { gregorianToShamsi } from '../../portfolio/components/ShamsiDatePicker.jsx';
+import { formatShamsiDisplay } from '../../portfolio/components/ShamsiDatePicker.jsx';
 import { useLoansContext } from '../context/LoansContext.jsx';
 import { appPath } from '../../../shared/routes.js';
 
@@ -129,7 +129,7 @@ export default function UpcomingInstallmentsAlert({ onSelectLoan }) {
                 <strong>{item.loanTitle}</strong>
                 <span>(قسط #{item.installmentNumber})</span>
                 <span>•</span>
-                <span>سررسید: {gregorianToShamsi(item.dueDate)} ({formatNum(item.daysPast)} روز گذشته)</span>
+                <span>سررسید: {formatShamsiDisplay(item.dueDate)} ({formatNum(item.daysPast)} روز گذشته)</span>
                 <span>•</span>
                 <strong style={{ color: '#fca5a5' }}>{formatNum(item.totalAmount)} تومان</strong>
               </div>
@@ -178,7 +178,7 @@ export default function UpcomingInstallmentsAlert({ onSelectLoan }) {
                 <span>(قسط #{item.installmentNumber})</span>
                 <span>•</span>
                 <span>
-                  سررسید: {gregorianToShamsi(item.dueDate)}{' '}
+                  سررسید: {formatShamsiDisplay(item.dueDate)}{' '}
                   {item.daysLeft === 0 ? '(امروز!)' : `(تا ${formatNum(item.daysLeft)} روز دیگر)`}
                 </span>
                 <span>•</span>

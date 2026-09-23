@@ -428,31 +428,6 @@
   border-radius: var(--radius-full);
 }
 
-.btn-add-asset {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  width: 100%;
-  padding: 12px 18px;
-  background: var(--primary-gradient);
-  border: 1px solid rgba(255, 255, 255, 0.15);
-  border-radius: var(--radius-md);
-  color: #ffffff;
-  font-size: 13.5px;
-  font-weight: 700;
-  box-shadow: 0 4px 18px rgba(2, 132, 199, 0.4);
-  cursor: pointer;
-  transition: var(--transition-fast);
-  margin-top: auto;
-}
-
-.btn-add-asset:hover {
-  filter: brightness(1.1);
-  transform: translateY(-1px);
-  box-shadow: 0 6px 24px rgba(2, 132, 199, 0.55);
-}
-
 /* Portfolio Table & Items (Frameless Glass Card) */
 .portfolio-table-card {
   background: var(--card-bg);

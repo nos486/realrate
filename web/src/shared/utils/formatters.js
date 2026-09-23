@@ -20,6 +20,19 @@ export function toEnglishDigits(str) {
 }
 
 /**
+ * Convert ASCII digits (0-9) to Persian digits, for read-only display text — never use this on
+ * a value that will be typed into or re-parsed from an editable field (e.g. ShamsiDatePicker's
+ * own input), since Persian digits break that round-trip.
+ * @param {string|number} str
+ * @returns {string}
+ */
+export function toPersianDigits(str) {
+  if (str === null || str === undefined || str === '') return '';
+  const pers = ['۰', '۱', '۲', '۳', '۴', '۵', '۶', '۷', '۸', '۹'];
+  return String(str).replace(/[0-9]/g, (d) => pers[Number(d)]);
+}
+
+/**
  * Format a percentage value with Persian (fa-IR) digits and a fixed 1-decimal precision,
  * matching the convention already used for allocation percentages (e.g. "۱۲.۳٪"). Prefer this
  * over `.toFixed(1)` for any percentage shown directly in the UI, since `.toFixed` always

@@ -14,7 +14,7 @@ import {
   History,
   ListChecks,
 } from 'lucide-react';
-import { gregorianToShamsi, getTodayShamsi, shamsiToGregorian } from '../../portfolio/components/ShamsiDatePicker.jsx';
+import { formatShamsiDisplay, getTodayShamsi, shamsiToGregorian } from '../../portfolio/components/ShamsiDatePicker.jsx';
 import ShamsiDatePicker from '../../portfolio/components/ShamsiDatePicker.jsx';
 import NumericInput from '../../../shared/ui/NumericInput.jsx';
 import ExtraPaymentModal from './ExtraPaymentModal.jsx';
@@ -316,7 +316,7 @@ export default function LoanInstallmentsTable({
 
                   <td className="col-date">
                     <span className="shamsi-date">
-                      {gregorianToShamsi(inst.dueDate) || inst.dueDate}
+                      {formatShamsiDisplay(inst.dueDate) || inst.dueDate}
                     </span>
                   </td>
 
@@ -366,7 +366,7 @@ export default function LoanInstallmentsTable({
                       <div className="paid-actions-wrap">
                         <div className="paid-meta-text">
                           <span className="paid-date-badge">
-                            {inst.paidDate ? gregorianToShamsi(inst.paidDate) : 'پرداخت شده'}
+                            {inst.paidDate ? formatShamsiDisplay(inst.paidDate) : 'پرداخت شده'}
                           </span>
                         </div>
                         <button
@@ -489,7 +489,7 @@ export default function LoanInstallmentsTable({
                 <div className="card-num-group">
                   <span className="inst-num-badge">#{inst.installmentNumber}</span>
                   <span className="shamsi-date">
-                    سررسید: {gregorianToShamsi(inst.dueDate) || inst.dueDate}
+                    سررسید: {formatShamsiDisplay(inst.dueDate) || inst.dueDate}
                   </span>
                 </div>
                 <div>
@@ -537,7 +537,7 @@ export default function LoanInstallmentsTable({
                 {inst.isPaid && (
                   <div className="mobile-paid-info">
                     <span>
-                      پرداخت شده در: {inst.paidDate ? gregorianToShamsi(inst.paidDate) : '—'}
+                      پرداخت شده در: {inst.paidDate ? formatShamsiDisplay(inst.paidDate) : '—'}
                     </span>
                     <span>مبلغ: {formatNum(inst.paidAmount)} تومان</span>
                   </div>
@@ -696,7 +696,7 @@ export default function LoanInstallmentsTable({
                     </span>
                   )}
                   <span>
-                    تاریخ: {ep.paymentDate ? gregorianToShamsi(ep.paymentDate) : '—'}
+                    تاریخ: {ep.paymentDate ? formatShamsiDisplay(ep.paymentDate) : '—'}
                   </span>
                 </div>
               </div>

@@ -15,7 +15,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { AlertCircle, ListChecks } from 'lucide-react';
 import Modal from '../../../shared/ui/Modal.jsx';
 import NumericInput from '../../../shared/ui/NumericInput.jsx';
-import { gregorianToShamsi } from '../../portfolio/components/ShamsiDatePicker.jsx';
+import { formatShamsiDisplay } from '../../portfolio/components/ShamsiDatePicker.jsx';
 import { distributeInstallmentAmounts } from '../../../utils/loanCalculator.js';
 
 const formatNum = (v) => Number(v || 0).toLocaleString('fa-IR');
@@ -198,7 +198,7 @@ export default function BulkEditInstallmentsModal({
                 <tr key={inst.id} style={{ borderTop: '1px solid rgba(255, 255, 255, 0.05)', opacity: 0.55 }}>
                   <td style={{ padding: '5px 8px', color: '#e2e8f0' }}>{formatNum(inst.installmentNumber)}</td>
                   <td style={{ padding: '5px 8px', color: '#94a3b8', whiteSpace: 'nowrap' }}>
-                    {gregorianToShamsi(inst.dueDate)}
+                    {formatShamsiDisplay(inst.dueDate)}
                   </td>
                   <td style={{ padding: '5px 8px', color: '#94a3b8' }}>
                     {formatNum(inst.totalAmount)} <span style={{ fontSize: '0.72rem' }}>(پرداخت‌شده)</span>
@@ -209,7 +209,7 @@ export default function BulkEditInstallmentsModal({
                 <tr key={inst.installmentNumber} style={{ borderTop: '1px solid rgba(255, 255, 255, 0.05)' }}>
                   <td style={{ padding: '5px 8px', color: '#e2e8f0' }}>{formatNum(inst.installmentNumber)}</td>
                   <td style={{ padding: '5px 8px', color: '#94a3b8', whiteSpace: 'nowrap' }}>
-                    {gregorianToShamsi(inst.dueDate)}
+                    {formatShamsiDisplay(inst.dueDate)}
                   </td>
                   <td style={{ padding: '4px 8px' }}>
                     <NumericInput

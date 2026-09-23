@@ -5,7 +5,7 @@
 import React from 'react';
 import { Calendar, MessageSquare, Pencil, Trash2 } from 'lucide-react';
 import { ResponsiveDataTable } from '../../../shared/ui/index.js';
-import { gregorianToShamsi } from '../../portfolio/components/ShamsiDatePicker.jsx';
+import { formatShamsiDisplay } from '../../portfolio/components/ShamsiDatePicker.jsx';
 import { formatNum } from '../../portfolio/utils/holdingHelpers.js';
 import { getIncomeCategory } from '../constants/incomeCategories.js';
 
@@ -38,7 +38,7 @@ export default function IncomesTable({ incomes, onEdit, onDelete, deletingId = n
       render: (income) => (
         <span className="table-date-text">
           <Calendar size={12} style={{ verticalAlign: 'middle', marginLeft: '4px' }} />
-          {gregorianToShamsi(`${income.incomeDate}T00:00:00`)}
+          {formatShamsiDisplay(`${income.incomeDate}T00:00:00`)}
         </span>
       ),
     },

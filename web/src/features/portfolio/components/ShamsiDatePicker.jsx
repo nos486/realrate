@@ -1,5 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { Calendar } from 'lucide-react';
+import { toPersianDigits } from '../../../shared/utils/formatters.js';
 
 export const PERSIAN_MONTHS = [
   { value: '01', label: 'فروردین' },
@@ -32,6 +33,10 @@ export function getTodayShamsi() {
   }
 }
 
+// Latin digits on purpose — this string round-trips through shamsiToGregorian/parseShamsiDate
+// (raw .split('/') + parseInt) and feeds ShamsiDatePicker's own editable input, both of which
+// only understand ASCII digits. Never switch this to Persian digits; use formatShamsiDisplay
+// below wherever a Shamsi date is only ever being displayed, not parsed or re-typed.
 export function gregorianToShamsi(dateStr) {
   try {
     if (!dateStr) return '';
@@ -46,6 +51,11 @@ export function gregorianToShamsi(dateStr) {
   } catch (e) {
     return dateStr;
   }
+}
+
+/** Display-only: same as gregorianToShamsi but with Persian digits, for read-only UI text. */
+export function formatShamsiDisplay(dateStr) {
+  return toPersianDigits(gregorianToShamsi(dateStr));
 }
 
 export function jalaliToGregorian(jY, jM, jD) {
