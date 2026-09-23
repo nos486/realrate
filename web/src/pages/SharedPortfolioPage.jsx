@@ -40,6 +40,7 @@ import {
   verifyE2eeKey,
   decryptHoldingFromApi,
 } from '../lib/e2ee.js';
+import { usePrivacyMode } from '../hooks/usePrivacyMode.js';
 
 export default function SharedPortfolioPage() {
   const { slug } = useParams();
@@ -58,27 +59,7 @@ export default function SharedPortfolioPage() {
   const [decryptingVault, setDecryptingVault] = useState(false);
 
   // Privacy Mode State (Mask values as ****)
-  const [hideValues, setHideValues] = useState(() => {
-    try {
-      return localStorage.getItem('realrate_hide_values') === 'true';
-    } catch {
-      return false;
-    }
-  });
-
-  useEffect(() => {
-    const onPrivacyChange = () => {
-      try {
-        setHideValues(localStorage.getItem('realrate_hide_values') === 'true');
-      } catch {}
-    };
-    window.addEventListener('realrate_privacy_change', onPrivacyChange);
-    window.addEventListener('storage', onPrivacyChange);
-    return () => {
-      window.removeEventListener('realrate_privacy_change', onPrivacyChange);
-      window.removeEventListener('storage', onPrivacyChange);
-    };
-  }, []);
+  const hideValues = usePrivacyMode();
 
   const [portfolioData, setPortfolioData] = useState(null); // { user, holdings }
   const [marketRates, setMarketRates] = useState(null);

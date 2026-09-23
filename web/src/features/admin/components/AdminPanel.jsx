@@ -350,11 +350,13 @@ export default function AdminPanel() {
                 <tr key={u.id || idx}>
                   <td>
                     <div className="user-cell">
-                      <img
-                        src={u.picture || ''}
-                        alt={u.name || ''}
-                        onError={(e) => { e.target.style.display = 'none'; }}
-                      />
+                      {u.picture && (
+                        <img
+                          src={u.picture}
+                          alt={u.name || ''}
+                          onError={(e) => { e.target.style.display = 'none'; }}
+                        />
+                      )}
                       <div>
                         <strong>{u.customName || u.name || '-'}</strong>
                         {u.customName && u.name && <div style={{ fontSize: '10px', color: 'var(--text-muted)' }}>({u.name})</div>}

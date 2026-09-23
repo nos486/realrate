@@ -22,7 +22,7 @@ import {
   apiGetMarketItems,
 } from '../api/client.js';
 import { extractMultiItems } from '../components/UniversalAssetSearch.jsx';
-import { getSourceDisplayName } from '../config/sources.config.js';
+import { getSourceDisplayName } from '../config/displayEngine.js';
 import { getItemUnit } from '../config/displayEngine.js';
 import {
   CANONICAL_PRICE_TYPE_INFO,

@@ -12,7 +12,21 @@ function readHideValues() {
 }
 
 /**
- * usePrivacyMode — follows the app-wide "hide values" toggle (set from the Header) so amounts
+ * Turn the app-wide "hide values" mode on or off. Persists the choice and notifies every
+ * mounted usePrivacyMode() consumer.
+ * @param {boolean} hideValues
+ */
+export function setPrivacyMode(hideValues) {
+  try {
+    localStorage.setItem(STORAGE_KEY, String(hideValues));
+  } catch {
+    // Storage unavailable (private mode) — the in-memory event below still syncs this tab
+  }
+  window.dispatchEvent(new CustomEvent(CHANGE_EVENT, { detail: { hideValues } }));
+}
+
+/**
+ * usePrivacyMode — follows the app-wide "hide values" toggle (see setPrivacyMode) so amounts
  * can be masked with "****". Stays in sync across components (custom event) and tabs (storage).
  * @returns {boolean} hideValues
  */

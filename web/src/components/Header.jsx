@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { Link } from 'react-router-dom';
 import {
   Eye,
@@ -6,6 +6,7 @@ import {
   LogOut,
 } from 'lucide-react';
 import { useAuth } from '../features/auth/index.js';
+import { usePrivacyMode, setPrivacyMode } from '../hooks/usePrivacyMode.js';
 
 const LogoMark = () => (
   <svg width="28" height="28" viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -22,45 +23,15 @@ const LogoMark = () => (
   </svg>
 );
 
+/** Tabs that display monetary values and therefore offer the hide-values toggle */
+const PRIVACY_TABS = ['portfolio', 'transactions', 'incomes'];
+
 export default function Header({ activeTab, setActiveTab }) {
   const { user, triggerLogin, logout } = useAuth();
 
-  const [hideValues, setHideValues] = useState(() => {
-    try {
-      return localStorage.getItem('realrate_hide_values') === 'true';
-    } catch {
-      return false;
-    }
-  });
+  const hideValues = usePrivacyMode();
 
-  useEffect(() => {
-    const onPrivacyChange = (e) => {
-      try {
-        if (e && e.detail && typeof e.detail.hideValues === 'boolean') {
-          setHideValues(e.detail.hideValues);
-        } else {
-          setHideValues(localStorage.getItem('realrate_hide_values') === 'true');
-        }
-      } catch { }
-    };
-    window.addEventListener('realrate_privacy_change', onPrivacyChange);
-    window.addEventListener('storage', onPrivacyChange);
-    return () => {
-      window.removeEventListener('realrate_privacy_change', onPrivacyChange);
-      window.removeEventListener('storage', onPrivacyChange);
-    };
-  }, []);
-
-  const togglePrivacy = () => {
-    setHideValues((prev) => {
-      const next = !prev;
-      try {
-        localStorage.setItem('realrate_hide_values', String(next));
-      } catch { }
-      window.dispatchEvent(new CustomEvent('realrate_privacy_change', { detail: { hideValues: next } }));
-      return next;
-    });
-  };
+  const togglePrivacy = () => setPrivacyMode(!hideValues);
 
   return (
     <header className="site-header">
@@ -78,7 +49,7 @@ export default function Header({ activeTab, setActiveTab }) {
 
         {/* Header Right: User Profile & Auth */}
         <div className="header-right">
-          {(activeTab === 'portfolio' || activeTab === 'transactions') && (
+          {PRIVACY_TABS.includes(activeTab) && (
             <button
               type="button"
               className={`btn-privacy-toggle icon-only ${hideValues ? 'active' : ''}`}
@@ -94,13 +65,22 @@ export default function Header({ activeTab, setActiveTab }) {
           <div className="auth-widget">
             {user ? (
               <div className="header-user-profile-direct">
-                <img
-                  src={user.picture || ''}
-                  alt={user.name || 'کاربر'}
-                  className="user-avatar header-avatar-direct"
-                  title={`${user.customName || user.name} (${user.email})`}
-                  onError={(e) => { e.target.style.display = 'none'; }}
-                />
+                {user.picture ? (
+                  <img
+                    src={user.picture}
+                    alt={user.name || 'کاربر'}
+                    className="user-avatar header-avatar-direct"
+                    title={`${user.customName || user.name} (${user.email})`}
+                    onError={(e) => { e.target.style.display = 'none'; }}
+                  />
+                ) : (
+                  <span
+                    className="user-avatar header-avatar-direct header-avatar-fallback"
+                    title={`${user.customName || user.name} (${user.email})`}
+                  >
+                    {(user.customName || user.name || user.email || 'U')[0]}
+                  </span>
+                )}
                 <button
                   type="button"
                   className="btn-header-logout"

@@ -1,5 +1,5 @@
 import { describe, it, test, expect } from 'vitest';
-import { getSourceDisplayName } from '../../src/config/sources.config.js';
+import { getSourceDisplayName } from '../../src/domain/displayEngine.js';
 import {
   resolveAssetDisplayName,
   resolveAssetDisplayWithSource,

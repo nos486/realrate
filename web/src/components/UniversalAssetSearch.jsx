@@ -15,11 +15,8 @@ import {
 } from 'lucide-react';
 import { apiGetPriceSources, apiSearchBourseSymbols } from '../api/client.js';
 import { usePricing } from '../features/market/index.js';
-import {
-  getMasterPriceSourcesConfig,
-  getSourceDisplayName,
-  getSourceCategoryConfig,
-} from '../config/sources.config.js';
+import { getMasterPriceSourcesConfig } from '../config/sources.config.js';
+import { getSourceDisplayName, getSourceCategoryConfig } from '../config/displayEngine.js';
 import {
   getItemCategory,
   getItemBadge,
@@ -122,7 +119,7 @@ export function normalizeSearchText(str) {
   return String(str)
     .toLowerCase()
     .replace(/\u200C/g, ' ')
-    .replace(/[\u200B\u200D\uFEFF]/g, '')
+    .replace(/\u200B|\u200D|\uFEFF/g, '')
     .replace(/[ي]/g, 'ی')
     .replace(/[ك]/g, 'ک')
     .replace(/[آأإ]/g, 'ا')

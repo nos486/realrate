@@ -302,8 +302,6 @@ export function getMasterPriceSourcesConfig() {
   return PRICE_SOURCES_CONFIG.map((src) => ({
     regex: "",
     jsonPath: "",
-    fieldMapping: null,
-    excludedOutputs: [],
     ...src,
     customParser: src.customParser || null,
     displayConfig: src.displayConfig ? { ...src.displayConfig } : null,
@@ -347,10 +345,4 @@ export function getReferenceRatesSpecs() {
       };
     });
 }
-
-export {
-  getSourceDisplayName,
-  getSourceCategoryConfig,
-  getSourceItemDisplayName,
-} from "../domain/displayEngine.js";
 
