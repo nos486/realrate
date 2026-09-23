@@ -17,13 +17,9 @@ import {
   TrendingUp,
   ShieldCheck,
   Landmark,
-  Wallet,
   PieChart,
   Lock,
   Scale,
-  Share2,
-  Eye,
-  EyeOff,
   CalendarCheck,
   Sparkles,
   Check,
@@ -147,9 +143,6 @@ export default function LandingPage() {
       });
     }
   };
-
-  // Interactive Privacy Mode demo on Bento Card 6
-  const [privacyHidden, setPrivacyHidden] = useState(false);
 
   // Smooth scroll handler
   const scrollToSection = (e, id) => {
@@ -447,331 +440,71 @@ export default function LandingPage() {
           </div>
         </section>
 
-        {/* ── 2. BENTO GRID FEATURES ──────────────────────────────────── */}
-        <section id="features" className="landing-bento-section">
-          <div className="landing-section-header">
-            <span className="section-pill">قابلیت‌های کلیدی</span>
-            <h2 className="section-title">ابزاری همه‌جانبه برای شفافیت مالی</h2>
-            <p className="section-subtitle">
-              طراحی‌شده برای آن‌هایی که می‌خواهند بدون تکیه بر اطلاعات پراکنده، ارزش واقعی دارایی خود را ارزیابی کنند.
-            </p>
+        {/* ── 2. CORE FEATURES (Single Row) ─────────────────────────── */}
+        <section id="features" className="landing-features-compact-section">
+          <div className="landing-section-header compact">
+            <span className="section-pill">ویژگی‌های کلیدی</span>
+            <h2 className="section-title">ابزار یکپارچه مدیریت مالی شخصی</h2>
           </div>
 
-          <div className="bento-grid">
-            {/* Card 1: حباب و ارزش ذاتی (Large 2-column) */}
-            <div
-              className="bento-card bento-span-2 bento-card-bubble"
-              onMouseMove={handleBentoMouseMove}
-            >
+          <div className="features-single-row">
+            {/* Feature 1 */}
+            <div className="feature-compact-card" onMouseMove={handleBentoMouseMove}>
               <div className="bento-spotlight" />
-              <div className="bento-content">
-                <div className="bento-icon-wrapper icon-gold">
-                  <Scale size={24} />
-                </div>
-                <h3 className="bento-title">تحلیل حباب و ارزش ذاتی</h3>
-                <p className="bento-desc">
-                  مقایسه دقیق نرخ جاری بازار با ارزش ذاتی طلا، سکه بهار آزادی، امامی، نیم و ربع
-                  بر مبنای انس جهانی و فرمول‌های دقیق ضرابخانه بدون قیمت‌گذاری فرضی.
-                </p>
-
-                {/* Interactive visual gauge bar */}
-                <div className="bento-visual-bubble">
-                  <div className="bubble-row">
-                    <div className="bubble-stat-box">
-                      <span className="b-label">حباب تخمینی ربع سکه</span>
-                      <span className="b-val text-amber">+{toPersianDigits('۳۴.۲')}٪</span>
-                      <span className="b-badge badge-warning">ریسک بالا</span>
-                    </div>
-                    <div className="bubble-stat-box">
-                      <span className="b-label">حباب طلای ۱۸ عیار</span>
-                      <span className="b-val text-emerald">+{toPersianDigits('۰.۶')}٪</span>
-                      <span className="b-badge badge-safe">حباب ناچیز</span>
-                    </div>
-                  </div>
-
-                  <div className="bubble-comparison-bar">
-                    <div className="comp-label-row">
-                      <span>ارزش وزنی طلای خالص: ۹۲٪</span>
-                      <span>سهم حباب روانی: ۸٪</span>
-                    </div>
-                    <div className="comp-dual-track">
-                      <div className="comp-fill-gold" style={{ width: '92%' }} />
-                      <div className="comp-fill-amber" style={{ width: '8%' }} />
-                    </div>
-                  </div>
-                </div>
+              <div className="feature-compact-icon icon-gold">
+                <Scale size={22} />
+              </div>
+              <h3 className="feature-compact-title">تحلیل حباب طلا و سکه</h3>
+              <p className="feature-compact-desc">
+                سنجش دقیق حباب و ارزش ذاتی بر پایه انس جهانی و فرمول‌های رسمی بازار بدون قیمت‌گذاری فرضی.
+              </p>
+              <div className="feature-compact-tag text-amber">
+                <span>سنجش لحظه‌ای حباب</span>
               </div>
             </div>
 
-            {/* Card 2: مدیریت پورتفو (Large 2-column) */}
-            <div
-              className="bento-card bento-span-2 bento-card-portfolio"
-              onMouseMove={handleBentoMouseMove}
-            >
+            {/* Feature 2 */}
+            <div className="feature-compact-card" onMouseMove={handleBentoMouseMove}>
               <div className="bento-spotlight" />
-              <div className="bento-content">
-                <div className="bento-icon-wrapper icon-blue">
-                  <PieChart size={24} />
-                </div>
-                <h3 className="bento-title">مدیریت پورتفوی چنددارایی</h3>
-                <p className="bento-desc">
-                  پایش متمرکز طلا، مسکوکات، ارزهای جهان، صندوق‌های ETF بورس و نقدینگی ریالی با محاسبه
-                  لحظه‌ای سود و زیان محقق‌شده و میانگین موزون قیمت خرید.
-                </p>
-
-                {/* Donut Chart Visual */}
-                <div className="bento-visual-donut">
-                  <div className="donut-svg-wrap">
-                    <svg viewBox="0 0 120 120" className="donut-svg" aria-hidden="true">
-                      {/* Segment 1: Gold 40% */}
-                      <circle
-                        cx="60"
-                        cy="60"
-                        r="45"
-                        fill="transparent"
-                        stroke="#fbbf24"
-                        strokeWidth="18"
-                        strokeDasharray="113 283"
-                        strokeDashoffset="0"
-                      />
-                      {/* Segment 2: Forex 30% */}
-                      <circle
-                        cx="60"
-                        cy="60"
-                        r="45"
-                        fill="transparent"
-                        stroke="#0284c7"
-                        strokeWidth="18"
-                        strokeDasharray="85 283"
-                        strokeDashoffset="-113"
-                      />
-                      {/* Segment 3: Bourse/Funds 18% */}
-                      <circle
-                        cx="60"
-                        cy="60"
-                        r="45"
-                        fill="transparent"
-                        stroke="#8b5cf6"
-                        strokeWidth="18"
-                        strokeDasharray="51 283"
-                        strokeDashoffset="-198"
-                      />
-                      {/* Segment 4: Cash 12% */}
-                      <circle
-                        cx="60"
-                        cy="60"
-                        r="45"
-                        fill="transparent"
-                        stroke="#10b981"
-                        strokeWidth="18"
-                        strokeDasharray="34 283"
-                        strokeDashoffset="-249"
-                      />
-                    </svg>
-                    <div className="donut-center-text">
-                      <span className="donut-center-val">۱۰۰٪</span>
-                      <span className="donut-center-lbl">توازن</span>
-                    </div>
-                  </div>
-
-                  <div className="donut-legend">
-                    <div className="legend-row">
-                      <span className="legend-chip bg-gold" />
-                      <span className="legend-name">طلا و سکه</span>
-                      <span className="legend-pct">{toPersianDigits('۴۰')}٪</span>
-                    </div>
-                    <div className="legend-row">
-                      <span className="legend-chip bg-blue" />
-                      <span className="legend-name">ارز و تتر</span>
-                      <span className="legend-pct">{toPersianDigits('۳۰')}٪</span>
-                    </div>
-                    <div className="legend-row">
-                      <span className="legend-chip bg-purple" />
-                      <span className="legend-name">صندوق‌های سهامی</span>
-                      <span className="legend-pct">{toPersianDigits('۱۸')}٪</span>
-                    </div>
-                    <div className="legend-row">
-                      <span className="legend-chip bg-green" />
-                      <span className="legend-name">نقدینگی / سپرده</span>
-                      <span className="legend-pct">{toPersianDigits('۱۲')}٪</span>
-                    </div>
-                  </div>
-                </div>
+              <div className="feature-compact-icon icon-blue">
+                <PieChart size={22} />
+              </div>
+              <h3 className="feature-compact-title">مدیریت پورتفوی چنددارایی</h3>
+              <p className="feature-compact-desc">
+                پایش متمرکز طلا، ارز، صندوق‌های بورس و نقدینگی همراه با محاسبه خودکار سود و زیان محقق‌شده.
+              </p>
+              <div className="feature-compact-tag text-cyan">
+                <span>تنوع‌بخشی و بازدهی</span>
               </div>
             </div>
 
-            {/* Card 3: رمزنگاری سرتاسری (Zero-Knowledge) */}
-            <div
-              className="bento-card bento-card-e2ee"
-              onMouseMove={handleBentoMouseMove}
-            >
+            {/* Feature 3 */}
+            <div className="feature-compact-card" onMouseMove={handleBentoMouseMove}>
               <div className="bento-spotlight" />
-              <div className="bento-content">
-                <div className="bento-icon-wrapper icon-emerald">
-                  <Lock size={24} />
-                </div>
-                <h3 className="bento-title">رمزنگاری سرتاسری (Zero-Knowledge)</h3>
-                <p className="bento-desc">
-                  دارایی‌ها و تراکنش‌های صندوق‌های شخصی شما با کلید اختصاصی در مرورگر رمزنگاری می‌شوند.
-                  حتی سرورهای ما هم هرگز قادر به مشاهده محتوای دارایی شما نیستند.
-                </p>
-
-                <div className="bento-visual-vault">
-                  <div className="vault-shield-wrap">
-                    <div className="vault-pulse-ring" />
-                    <div className="vault-icon-circle">
-                      <ShieldCheck size={28} className="text-emerald" />
-                    </div>
-                  </div>
-                  <div className="vault-specs-chip">
-                    <span className="mono-badge">AES-GCM-256</span>
-                    <span className="spec-label">کلید محلی بدون نشت سروری</span>
-                  </div>
-                </div>
+              <div className="feature-compact-icon icon-emerald">
+                <Lock size={22} />
+              </div>
+              <h3 className="feature-compact-title">امنیت Zero-Knowledge</h3>
+              <p className="feature-compact-desc">
+                رمزنگاری داده‌ها با کلید شخصی در مرورگر؛ حتی سرورهای RealRate به ارقام دارایی شما دسترسی ندارند.
+              </p>
+              <div className="feature-compact-tag text-emerald">
+                <span>رمزنگاری سرتاسری</span>
               </div>
             </div>
 
-            {/* Card 4: وام و اقساط */}
-            <div
-              className="bento-card bento-card-loans"
-              onMouseMove={handleBentoMouseMove}
-            >
+            {/* Feature 4 */}
+            <div className="feature-compact-card" onMouseMove={handleBentoMouseMove}>
               <div className="bento-spotlight" />
-              <div className="bento-content">
-                <div className="bento-icon-wrapper icon-cyan">
-                  <Landmark size={24} />
-                </div>
-                <h3 className="bento-title">وام، اقساط و استهلاک</h3>
-                <p className="bento-desc">
-                  ثبت وام‌های بانکی و قرض‌الحسنه، محاسبه نرخ سود واقعی، یادآوری خودکار سررسید و ثبت
-                  پرداخت‌ها با تقویم خورشیدی.
-                </p>
-
-                <div className="bento-visual-timeline">
-                  <div className="timeline-item is-paid">
-                    <span className="tl-check">✓</span>
-                    <div className="tl-info">
-                      <span className="tl-title">قسط ۱۲ (بانک ملی)</span>
-                      <span className="tl-status">پرداخت‌شده</span>
-                    </div>
-                  </div>
-                  <div className="timeline-item is-paid">
-                    <span className="tl-check">✓</span>
-                    <div className="tl-info">
-                      <span className="tl-title">قسط ۱۳ (بانک ملی)</span>
-                      <span className="tl-status">پرداخت‌شده</span>
-                    </div>
-                  </div>
-                  <div className="timeline-item is-due">
-                    <span className="tl-dot" />
-                    <div className="tl-info">
-                      <span className="tl-title">قسط ۱۴ (بانک ملی)</span>
-                      <span className="tl-status status-due">سررسید: ۸ روز آینده</span>
-                    </div>
-                  </div>
-                </div>
+              <div className="feature-compact-icon icon-cyan">
+                <Landmark size={22} />
               </div>
-            </div>
-
-            {/* Card 5: مدیریت درآمدها */}
-            <div
-              className="bento-card bento-card-incomes"
-              onMouseMove={handleBentoMouseMove}
-            >
-              <div className="bento-spotlight" />
-              <div className="bento-content">
-                <div className="bento-icon-wrapper icon-amber">
-                  <Wallet size={24} />
-                </div>
-                <h3 className="bento-title">ثبت و گزارش درآمدها</h3>
-                <p className="bento-desc">
-                  ثبت درآمدهای ماهانه به تفکیک دسته‌بندی (حقوق، سرمایه‌گذاری، فریلنس، پاداش) و
-                  مقایسه روندهای فصلی با گزارش‌های خروجی CSV.
-                </p>
-
-                <div className="bento-visual-bars">
-                  <div className="bar-col">
-                    <div className="bar-track">
-                      <div className="bar-fill" style={{ height: '45%' }} />
-                    </div>
-                    <span className="bar-label">فروردین</span>
-                  </div>
-                  <div className="bar-col">
-                    <div className="bar-track">
-                      <div className="bar-fill" style={{ height: '62%' }} />
-                    </div>
-                    <span className="bar-label">اردیبهشت</span>
-                  </div>
-                  <div className="bar-col">
-                    <div className="bar-track">
-                      <div className="bar-fill" style={{ height: '54%' }} />
-                    </div>
-                    <span className="bar-label">خرداد</span>
-                  </div>
-                  <div className="bar-col">
-                    <div className="bar-track">
-                      <div className="bar-fill" style={{ height: '78%' }} />
-                    </div>
-                    <span className="bar-label">تیر</span>
-                  </div>
-                  <div className="bar-col">
-                    <div className="bar-track">
-                      <div className="bar-fill" style={{ height: '70%' }} />
-                    </div>
-                    <span className="bar-label">مرداد</span>
-                  </div>
-                  <div className="bar-col">
-                    <div className="bar-track">
-                      <div className="bar-fill highlight" style={{ height: '92%' }} />
-                    </div>
-                    <span className="bar-label">شهریور</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Card 6: اشتراک‌گذاری امن و حالت خلوت (Interactive Demo) */}
-            <div
-              className="bento-card bento-card-privacy"
-              onMouseMove={handleBentoMouseMove}
-            >
-              <div className="bento-spotlight" />
-              <div className="bento-content">
-                <div className="bento-icon-wrapper icon-purple">
-                  <Share2 size={24} />
-                </div>
-                <h3 className="bento-title">اشتراک‌گذاری امن و حالت خلوت</h3>
-                <p className="bento-desc">
-                  تولید لینک عمومی با رمز عبور و امکان ماسک‌کردن ارقام به هنگام اسکرین‌شات یا ارائه به مشاور مالی.
-                </p>
-
-                <div className="bento-visual-privacy">
-                  <div className="privacy-toggle-bar">
-                    <span className="privacy-toggle-label">حالت خلوت (Privacy Mode):</span>
-                    <button
-                      type="button"
-                      className={`privacy-toggle-btn ${privacyHidden ? 'is-active' : ''}`}
-                      onClick={() => setPrivacyHidden(!privacyHidden)}
-                      aria-label="تغییر وضعیت نمایش ارقام"
-                    >
-                      {privacyHidden ? <EyeOff size={15} /> : <Eye size={15} />}
-                      <span>{privacyHidden ? 'مبالغ پنهان' : 'مبالغ نمایان'}</span>
-                    </button>
-                  </div>
-
-                  <div className="privacy-preview-box">
-                    <div className="preview-row">
-                      <span className="preview-asset">ارزش کل پورتفوی فرضی</span>
-                      <span className="preview-val">
-                        {privacyHidden ? '••••••••••' : `${toPersianDigits('۲۴')} قلم دارایی`}
-                      </span>
-                    </div>
-                    <div className="preview-row">
-                      <span className="preview-asset">وضعیت لینک عمومی</span>
-                      <span className="preview-badge">محافظت‌شده با رمز</span>
-                    </div>
-                  </div>
-                </div>
+              <h3 className="feature-compact-title">وام‌ها، اقساط و درآمدها</h3>
+              <p className="feature-compact-desc">
+                محاسبه استهلاک اقساط، یادآوری سررسید و ثبت منظم درآمدهای ماهانه با خروجی‌های استاندارد.
+              </p>
+              <div className="feature-compact-tag text-cyan">
+                <span>انضباط مالی جامع</span>
               </div>
             </div>
           </div>
@@ -873,36 +606,9 @@ export default function LandingPage() {
             </div>
           </div>
         </section>
-
-        {/* ── 5. FINAL CALL TO ACTION (CTA) ──────────────────────────── */}
-        <section className="landing-final-cta-section">
-          <div className="final-cta-card">
-            <div className="cta-glow-mesh" aria-hidden="true" />
-            <div className="final-cta-inner">
-              <span className="final-cta-pill">ورود سریع و امن</span>
-              <h2 className="final-cta-title">
-                همین حالا شروع کن — کاملاً رایگان و متن‌باز
-              </h2>
-              <p className="final-cta-desc">
-                در کمتر از چند ثانیه با حساب کاربری گوگل وارد شوید و ارزش واقعی دارایی‌های خود را هوشمندانه بسنجید.
-              </p>
-
-              <button
-                type="button"
-                className="landing-cta-main cta-large"
-                onClick={triggerLogin}
-              >
-                <span className="cta-shimmer" />
-                <GoogleLogo size={22} />
-                <span>ورود با حساب گوگل</span>
-                <ArrowLeft size={20} className="cta-arrow" />
-              </button>
-            </div>
-          </div>
-        </section>
       </main>
 
-      {/* ── 5. MINIMAL CLEAN FOOTER ─────────────────────────────────────── */}
+      {/* ── 4. MINIMAL CLEAN FOOTER ─────────────────────────────────────── */}
       <footer className="landing-footer">
         <div className="landing-footer-inner">
           <div className="footer-brand-side">
