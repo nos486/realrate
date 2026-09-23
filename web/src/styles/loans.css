@@ -209,58 +209,51 @@
   width: 100%;
 }
 
-/* ── Loans Grid & Cards ── */
-.loans-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-  gap: 16px;
+/* ── Loans List: Compact Full-width Row Cards ────────────────────────────── */
+.loans-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
   width: 100%;
 }
 
-.loan-card {
+.loan-row-card {
   background: var(--card-bg, rgba(15, 23, 42, 0.65));
   border: var(--card-border, 1px solid rgba(255, 255, 255, 0.08));
-  border-radius: 16px;
-  padding: 18px;
+  border-radius: 12px;
+  padding: 10px 16px;
   display: flex;
-  flex-direction: column;
-  gap: 14px;
+  align-items: center;
+  gap: 18px;
   cursor: pointer;
-  position: relative;
-  transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+  transition: transform 0.16s ease, border-color 0.16s ease, box-shadow 0.16s ease;
   backdrop-filter: blur(14px);
   -webkit-backdrop-filter: blur(14px);
 }
 
-.loan-card:hover {
-  transform: translateY(-3px);
+.loan-row-card:hover {
+  transform: translateY(-2px);
   border-color: rgba(245, 158, 11, 0.35);
-  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.4);
+  box-shadow: 0 10px 26px rgba(0, 0, 0, 0.35);
 }
 
-.loan-card.is-completed {
+.loan-row-card.is-completed {
   border-color: rgba(16, 185, 129, 0.3);
-  background: linear-gradient(180deg, rgba(16, 185, 129, 0.04) 0%, rgba(15, 23, 42, 0.65) 100%);
+  background: linear-gradient(90deg, rgba(16, 185, 129, 0.04) 0%, rgba(15, 23, 42, 0.65) 100%);
 }
 
-.loan-card-header {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 10px;
-}
-
-.loan-title-group {
+.loan-row-identity {
   display: flex;
   align-items: center;
-  gap: 12px;
-  min-width: 0;
+  gap: 10px;
+  flex: 1 1 200px;
+  min-width: 150px;
 }
 
 .loan-icon-box {
-  width: 40px;
-  height: 40px;
-  border-radius: 10px;
+  width: 34px;
+  height: 34px;
+  border-radius: 9px;
   background: rgba(245, 158, 11, 0.12);
   color: #f59e0b;
   display: flex;
@@ -274,8 +267,15 @@
   color: #10b981;
 }
 
+.loan-row-titles {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+
 .loan-title {
-  font-size: 1.05rem;
+  font-size: 0.92rem;
   font-weight: 700;
   margin: 0;
   color: var(--text-primary, #f8fafc);
@@ -285,26 +285,22 @@
 }
 
 .loan-lender-name {
-  display: block;
-  font-size: 0.78rem;
+  font-size: 0.72rem;
   color: var(--text-secondary, #94a3b8);
-  margin-top: 2px;
-}
-
-.loan-header-actions {
-  display: flex;
-  align-items: center;
-  gap: 6px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .badge-rate {
-  font-size: 0.75rem;
+  font-size: 0.72rem;
   font-weight: 600;
   padding: 3px 8px;
   border-radius: 12px;
   background: rgba(245, 158, 11, 0.15);
   color: #f59e0b;
   border: 1px solid rgba(245, 158, 11, 0.25);
+  flex-shrink: 0;
 }
 
 .badge-rate.zero {
@@ -313,9 +309,119 @@
   border-color: rgba(16, 185, 129, 0.25);
 }
 
+.loan-row-block {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.loan-row-balance {
+  flex: 0 0 160px;
+}
+
+.loan-row-progress-block {
+  flex: 0 0 150px;
+}
+
+.loan-row-next-due {
+  flex: 0 0 190px;
+}
+
+.loan-row-label {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 0.7rem;
+  color: var(--text-secondary, #94a3b8);
+  white-space: nowrap;
+}
+
+.loan-row-value {
+  font-size: 0.88rem;
+  font-weight: 700;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.loan-row-value.active {
+  color: #f59e0b;
+}
+
+.loan-row-value.completed {
+  color: #10b981;
+}
+
+.loan-row-value.due {
+  color: #c084fc;
+}
+
+.loan-row-sub {
+  font-size: 0.7rem;
+  color: #94a3b8;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.loan-row-progress-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.7rem;
+  color: var(--text-secondary, #94a3b8);
+}
+
+.progress-pct {
+  font-weight: 700;
+  color: #f8fafc;
+}
+
+.loan-progress-track {
+  width: 100%;
+  height: 5px;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 6px;
+  overflow: hidden;
+  margin-top: 3px;
+}
+
+.loan-progress-bar {
+  height: 100%;
+  background: linear-gradient(90deg, #f59e0b, #eab308);
+  border-radius: 6px;
+  transition: width 0.3s ease;
+}
+
+.loan-progress-bar.completed {
+  background: linear-gradient(90deg, #10b981, #34d399);
+}
+
+.next-due-completed-inline {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: #34d399;
+}
+
+.loan-row-empty {
+  font-size: 0.78rem;
+  color: #64748b;
+}
+
+.loan-row-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
 .btn-loan-action {
-  width: 30px;
-  height: 30px;
+  width: 28px;
+  height: 28px;
   border-radius: 8px;
   background: rgba(255, 255, 255, 0.04);
   border: 1px solid rgba(255, 255, 255, 0.08);
@@ -338,154 +444,38 @@
   border-color: rgba(239, 68, 68, 0.3);
 }
 
-/* ── Metric Section ── */
-.loan-metric-section {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  background: rgba(0, 0, 0, 0.25);
-  border-radius: 10px;
-  padding: 10px 14px;
+.loan-row-chevron {
+  color: #64748b;
+  flex-shrink: 0;
 }
 
-.metric-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
+@media (max-width: 900px) {
+  .loan-row-card {
+    flex-wrap: wrap;
+    row-gap: 10px;
+  }
+
+  .loan-row-identity {
+    flex: 1 1 100%;
+  }
+
+  .loan-row-balance,
+  .loan-row-progress-block,
+  .loan-row-next-due {
+    flex: 1 1 45%;
+  }
+
+  .loan-row-chevron {
+    display: none;
+  }
 }
 
-.metric-label {
-  font-size: 0.8rem;
-  color: var(--text-secondary, #94a3b8);
-}
-
-.metric-value {
-  font-size: 1.05rem;
-  font-weight: 700;
-}
-
-.metric-value.active {
-  color: #f59e0b;
-}
-
-.metric-value.completed {
-  color: #10b981;
-}
-
-.metric-row.sub .metric-label {
-  font-size: 0.75rem;
-}
-
-.metric-sub-value {
-  font-size: 0.85rem;
-  color: #cbd5e1;
-}
-
-/* ── Progress Section ── */
-.loan-progress-section {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.progress-labels {
-  display: flex;
-  justify-content: space-between;
-  font-size: 0.78rem;
-  color: var(--text-secondary, #94a3b8);
-}
-
-.progress-pct {
-  font-weight: 700;
-  color: #f8fafc;
-}
-
-.loan-progress-track {
-  width: 100%;
-  height: 6px;
-  background: rgba(255, 255, 255, 0.08);
-  border-radius: 6px;
-  overflow: hidden;
-}
-
-.loan-progress-bar {
-  height: 100%;
-  background: linear-gradient(90deg, #f59e0b, #eab308);
-  border-radius: 6px;
-  transition: width 0.3s ease;
-}
-
-.loan-progress-bar.completed {
-  background: linear-gradient(90deg, #10b981, #34d399);
-}
-
-/* ── Next Due Box ── */
-.loan-next-due-box {
-  background: rgba(255, 255, 255, 0.02);
-  border: 1px dashed rgba(255, 255, 255, 0.1);
-  border-radius: 10px;
-  padding: 10px 12px;
-}
-
-.next-due-details {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.next-due-top {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  font-size: 0.78rem;
-}
-
-.next-due-tag {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  color: #c084fc;
-  font-weight: 600;
-}
-
-.next-due-date {
-  color: #94a3b8;
-}
-
-.next-due-amount {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  font-size: 0.85rem;
-  color: #cbd5e1;
-}
-
-.next-due-amount strong {
-  color: #f8fafc;
-}
-
-.next-due-completed {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  color: #34d399;
-  font-size: 0.82rem;
-  font-weight: 600;
-}
-
-.loan-card-footer {
-  display: flex;
-  justify-content: flex-end;
-  padding-top: 4px;
-}
-
-.btn-view-schedule {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 0.82rem;
-  font-weight: 600;
-  color: #f59e0b;
+@media (max-width: 480px) {
+  .loan-row-balance,
+  .loan-row-progress-block,
+  .loan-row-next-due {
+    flex: 1 1 100%;
+  }
 }
 
 /* ── Loan Installments Table Dialog ── */
