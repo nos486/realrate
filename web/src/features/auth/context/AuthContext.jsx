@@ -1,12 +1,15 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { getMe, googleLogin, logout as apiLogout, getGoogleLoginUrl } from '../api/authApi.js';
 import { setToken } from '../../../shared/api/httpClient.js';
+import { APP_BASE, LANDING_PATH } from '../../../shared/routes.js';
 
 const AuthContext = createContext(null);
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
+  const navigate = useNavigate();
 
   // On mount: check auth_token / auth_error from Google OAuth redirect, then check session
   useEffect(() => {
@@ -57,16 +60,20 @@ export function AuthProvider({ children }) {
     }
   }, []);
 
-  // Primary Login Flow: Redirect to server-side Google OAuth 2.0 endpoint
+  // Primary Login Flow: Redirect to server-side Google OAuth 2.0 endpoint.
+  // Signing in from anywhere outside the app (landing, shared portfolio) lands in the app;
+  // from inside the app it returns to the exact page the user was on.
   const triggerLogin = useCallback(() => {
-    const loginUrl = getGoogleLoginUrl(window.location.href);
-    window.location.href = loginUrl;
+    const { origin, pathname, href } = window.location;
+    const isInApp = pathname === APP_BASE || pathname.startsWith(`${APP_BASE}/`);
+    window.location.href = getGoogleLoginUrl(isInApp ? href : `${origin}${APP_BASE}`);
   }, []);
 
   const logout = useCallback(async () => {
     await apiLogout().catch(() => {});
     setUser(null);
-  }, []);
+    navigate(LANDING_PATH, { replace: true });
+  }, [navigate]);
 
   const updateUser = useCallback((fields) => {
     setUser((prev) => (prev ? { ...prev, ...fields } : null));

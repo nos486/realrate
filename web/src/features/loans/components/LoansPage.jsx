@@ -29,6 +29,7 @@ import FeaturePageHeader from '../../../shared/ui/FeaturePageHeader.jsx';
 import SplitPageLayout from '../../../shared/ui/SplitPageLayout.jsx';
 import { gregorianToShamsi } from '../../portfolio/components/ShamsiDatePicker.jsx';
 import { getDisplayRatePct } from '../../../utils/loanCalculator.js';
+import { appPath } from '../../../shared/routes.js';
 
 const formatNum = (v) => Number(v || 0).toLocaleString('fa-IR');
 
@@ -140,13 +141,13 @@ export default function LoansPage({ initialLoanId = null }) {
   const handleSelectLoan = (loan) => {
     if (!loan?.id) return;
     setSelectedLoanId(loan.id);
-    navigate(`/loans/${loan.id}`);
+    navigate(appPath(`/loans/${loan.id}`));
   };
 
   const handleCloseDetailModal = () => {
     setSelectedLoanId(null);
-    if (location.pathname !== '/loans' || location.search.includes('id=')) {
-      navigate('/loans');
+    if (location.pathname !== appPath('/loans') || location.search.includes('id=')) {
+      navigate(appPath('/loans'));
     }
   };
 

@@ -2,7 +2,7 @@
   "name": "RealRate — تحلیل ارزش واقعی طلا، سکه و ارز",
   "short_name": "RealRate",
   "description": "محاسبه قیمت واقعی و حباب طلا و سکه و مدیریت هوشمند پورتفوی دارایی",
-  "start_url": "/",
+  "start_url": "/app",
   "display": "standalone",
   "background_color": "#0a0d14",
   "theme_color": "#0a0d14",

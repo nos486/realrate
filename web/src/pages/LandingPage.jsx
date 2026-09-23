@@ -30,7 +30,9 @@ import {
   ArrowLeft,
   Code2,
 } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../features/auth/index.js';
+import { APP_BASE } from '../shared/routes.js';
 import { toPersianDigits } from '../shared/utils/formatters.js';
 
 // Clean standard GitHub SVG icon
@@ -78,7 +80,14 @@ function GoogleLogo({ size = 20 }) {
 }
 
 export default function LandingPage() {
-  const { triggerLogin } = useAuth();
+  const { user, triggerLogin } = useAuth();
+  const navigate = useNavigate();
+
+  // Signed-in visitors go straight into the app; guests start the Google login
+  const enterApp = useCallback(() => {
+    if (user) navigate(APP_BASE);
+    else triggerLogin();
+  }, [user, navigate, triggerLogin]);
 
   // Mouse tilt for Hero Mockup
   const [tilt, setTilt] = useState({ x: 0, y: 0 });
@@ -198,7 +207,7 @@ export default function LandingPage() {
             <button
               type="button"
               className="landing-btn-primary"
-              onClick={triggerLogin}
+              onClick={enterApp}
               aria-label="ورود به برنامه RealRate"
             >
               <span>ورود به برنامه</span>
@@ -235,7 +244,7 @@ export default function LandingPage() {
                 <button
                   type="button"
                   className="landing-cta-main"
-                  onClick={triggerLogin}
+                  onClick={enterApp}
                 >
                   <span className="cta-shimmer" />
                   <GoogleLogo size={20} />

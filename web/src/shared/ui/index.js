@@ -16,3 +16,4 @@ export { default as ResponsiveDataTable } from './ResponsiveDataTable.jsx';
 export { default as SearchBar } from './SearchBar.jsx';
 export { default as SplitPageLayout } from './SplitPageLayout.jsx';
 export { default as TimeAgoBadge } from './TimeAgoBadge.jsx';
+export { default as RequireAuth } from './RequireAuth.jsx';

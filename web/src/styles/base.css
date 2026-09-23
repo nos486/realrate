@@ -1709,3 +1709,11 @@ input.search-bar-input:focus-visible {
 .rdt-mobile-stat-secondary {
   text-align: left;
 }
+/* Full-page loader shown by RequireAuth while the session is being checked */
+.require-auth-loading {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-app);
+}

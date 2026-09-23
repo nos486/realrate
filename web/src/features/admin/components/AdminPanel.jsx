@@ -29,6 +29,7 @@ import {
   Button,
   Input,
 } from '../../../shared/ui/index.js';
+import { APP_BASE } from '../../../shared/routes.js';
 
 function formatNum(num) {
   if (num === null || num === undefined || isNaN(num)) return '۰';
@@ -216,7 +217,7 @@ export default function AdminPanel() {
             <ShieldCheck size={14} style={{ verticalAlign: 'middle', marginLeft: '4px', display: 'inline' }} />
             احراز هویت اختصاصی بر اساس متغیر محیطی ADMIN_EMAIL
           </p>
-          <Link to="/" style={{ marginTop: '12px', display: 'inline-block' }}>
+          <Link to={APP_BASE} style={{ marginTop: '12px', display: 'inline-block' }}>
             <Button variant="ghost" size="sm">
               بازگشت به صفحه اصلی سایت
             </Button>
@@ -246,7 +247,7 @@ export default function AdminPanel() {
             <Button variant="danger" size="sm" onClick={logout} icon={<RefreshCw size={13} />}>
               خروج و تعویض حساب گوگل
             </Button>
-            <Link to="/">
+            <Link to={APP_BASE}>
               <Button variant="secondary" size="sm" icon={<Home size={13} />}>
                 بازگشت به سایت
               </Button>
