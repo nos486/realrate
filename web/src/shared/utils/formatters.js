@@ -35,6 +35,37 @@ export function formatPct(val) {
 }
 
 /**
+ * Format a large Toman amount compactly — "۱۱۷.۴ م.ت" (million), "۸۳۱ ه.ت" (thousand),
+ * "۲.۳ ب.ت" (billion) — for dense table cells where a full comma-separated figure widens
+ * the column too much to stay readable on a narrow screen. Below 1,000 (and any falsy
+ * input) falls back to the plain comma-separated amount, since abbreviating a small
+ * number saves nothing and only adds noise.
+ *
+ * Pair this with a `title` attribute holding the full amount (see `formatNum`/
+ * `formatThousands`) so the exact figure is still one hover away — never show a
+ * compacted amount without that full-value tooltip.
+ *
+ * @param {number} val
+ * @returns {string}
+ */
+export function formatCompactToman(val) {
+  const num = Number(val) || 0;
+  const abs = Math.abs(num);
+  const sign = num < 0 ? '-' : '';
+
+  if (abs >= 1_000_000_000) {
+    return `${sign}${(abs / 1_000_000_000).toLocaleString('fa-IR', { maximumFractionDigits: 1 })} ب.ت`;
+  }
+  if (abs >= 1_000_000) {
+    return `${sign}${(abs / 1_000_000).toLocaleString('fa-IR', { maximumFractionDigits: 1 })} م.ت`;
+  }
+  if (abs >= 1_000) {
+    return `${sign}${(abs / 1_000).toLocaleString('fa-IR', { maximumFractionDigits: 1 })} ه.ت`;
+  }
+  return `${sign}${Math.round(abs).toLocaleString('fa-IR')}`;
+}
+
+/**
  * Format a number or numeric string with 3-digit comma separators (e.g. 234,370 or 4,420.1)
  * @param {string|number} val - Input value
  * @param {boolean} [allowDecimals=false] - Whether to allow a decimal part

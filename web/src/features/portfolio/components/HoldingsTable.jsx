@@ -1,7 +1,7 @@
 import React from 'react';
 import { Pencil, Trash2, Calendar, MessageSquare } from 'lucide-react';
 import { CategoryIcon, formatAssetName, formatNum, getItemBrand, resolveAssetDisplayName } from '../utils/holdingHelpers.js';
-import { formatPct } from '../../../shared/utils/formatters.js';
+import { formatPct, formatCompactToman } from '../../../shared/utils/formatters.js';
 import ResponsiveDataTable from '../../../shared/ui/ResponsiveDataTable.jsx';
 
 export default function HoldingsTable({
@@ -52,11 +52,13 @@ export default function HoldingsTable({
       // Hidden on mobile — visible only in the full desktop table, per record.
       render: (item) =>
         item.hasBuyPrice ? (
-          <div className="cell-currency-wrap">
-            <span className={`cell-val ${hideValues ? 'is-masked' : ''}`}>
-              {hideValues ? '****' : formatNum(item.buyPrice)}
-            </span>
-            <span className="cell-unit">تومان</span>
+          <div className="cell-value-stack">
+            <div className="cell-currency-wrap">
+              <span className={`cell-val ${hideValues ? 'is-masked' : ''}`}>
+                {hideValues ? '****' : formatNum(item.buyPrice)}
+              </span>
+              <span className="cell-unit">تومان</span>
+            </div>
             {item.referenceAssetId && item.referenceQuantity > 0 && !hideValues && (
               <span className="cell-native-sub">
                 ({Number(item.referenceQuantity).toLocaleString('fa-IR', { maximumFractionDigits: 2 })}{' '}
@@ -75,8 +77,11 @@ export default function HoldingsTable({
       tdClassName: 'td-real-price',
       render: (item) => (
         <div className="cell-currency-wrap">
-          <span className={`cell-val real-val ${hideValues ? 'is-masked' : ''}`} title="محاسبه مستقیم بر مبنای ارزش واقعی">
-            {hideValues ? '****' : formatNum(item.unitRealPrice)}
+          <span
+            className={`cell-val real-val cell-compact-val ${hideValues ? 'is-masked' : ''}`}
+            title={hideValues ? '' : `محاسبه مستقیم بر مبنای ارزش واقعی — ${formatNum(item.unitRealPrice)} تومان`}
+          >
+            {hideValues ? '****' : formatCompactToman(item.unitRealPrice)}
           </span>
           <span className="cell-unit">تومان</span>
         </div>
@@ -90,8 +95,11 @@ export default function HoldingsTable({
       mobile: 'stat',
       render: (item) => (
         <div className="cell-currency-wrap">
-          <strong className={`cell-val-bold gold-text ${hideValues ? 'is-masked' : ''}`}>
-            {hideValues ? '****' : formatNum(item.itemRealVal)}
+          <strong
+            className={`cell-val-bold gold-text cell-compact-val ${hideValues ? 'is-masked' : ''}`}
+            title={hideValues ? '' : `${formatNum(item.itemRealVal)} تومان`}
+          >
+            {hideValues ? '****' : formatCompactToman(item.itemRealVal)}
           </strong>
           <span className="cell-unit">تومان</span>
         </div>
@@ -107,19 +115,21 @@ export default function HoldingsTable({
         const isProfit = (item.itemPnl || 0) >= 0;
         return item.hasBuyPrice ? (
           <div className={`table-pnl-cell ${isProfit ? 'profit' : 'loss'}`}>
-            <span className={`pnl-amount ${hideValues ? 'is-masked' : ''}`}>
-              {hideValues ? '****' : `${isProfit ? '+' : ''}${formatNum(item.itemPnl)} تومان`}
-            </span>
-            <span className="pnl-pct-badge">
-              {hideValues ? '****' : `(${isProfit ? '+' : ''}${formatPct(Math.abs(item.itemPnlPct || 0))}٪)`}
-            </span>
+            <div className="pnl-cell-main">
+              <span className={`pnl-amount ${hideValues ? 'is-masked' : ''}`}>
+                {hideValues ? '****' : `${isProfit ? '+' : ''}${formatNum(item.itemPnl)} تومان`}
+              </span>
+              <span className="pnl-pct-badge">
+                {hideValues ? '****' : `(${isProfit ? '+' : ''}${formatPct(Math.abs(item.itemPnlPct || 0))}٪)`}
+              </span>
+            </div>
             {item.referencePnlInfo && !hideValues && (
               <span
-                className={`pnl-native-sub ${item.referencePnlInfo.referencePnl >= 0 ? 'profit' : 'loss'}`}
+                className={`pnl-native-sub cell-compact-val ${item.referencePnlInfo.referencePnl >= 0 ? 'profit' : 'loss'}`}
                 title={`اگر هنوز ${item.referencePnlInfo.referenceAssetName} بود: ${formatNum(item.referencePnlInfo.referenceCurrentValue)} تومان`}
               >
                 نسبت به {item.referencePnlInfo.referenceAssetName}: {item.referencePnlInfo.referencePnl >= 0 ? '+' : '-'}
-                {formatNum(Math.abs(item.referencePnlInfo.referencePnl))} تومان
+                {formatCompactToman(Math.abs(item.referencePnlInfo.referencePnl))} تومان
                 {item.referencePnlInfo.referencePnlPct !== null && (
                   <> ({item.referencePnlInfo.referencePnl >= 0 ? '+' : '-'}{formatPct(Math.abs(item.referencePnlInfo.referencePnlPct))}٪)</>
                 )}
@@ -224,8 +234,11 @@ export default function HoldingsTable({
             <div className="cat-header-subtotals">
               <div className="cat-subtotal-val">
                 <span className="subtotal-label">ارزش:</span>
-                <strong className={`subtotal-amount ${hideValues ? 'is-masked' : ''}`}>
-                  {hideValues ? '****' : formatNum(group.totalRealValue)}
+                <strong
+                  className={`subtotal-amount cell-compact-val ${hideValues ? 'is-masked' : ''}`}
+                  title={hideValues ? '' : `${formatNum(group.totalRealValue)} تومان`}
+                >
+                  {hideValues ? '****' : formatCompactToman(group.totalRealValue)}
                 </strong>
                 <span className="subtotal-unit">تومان</span>
               </div>

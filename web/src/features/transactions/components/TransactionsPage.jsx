@@ -37,6 +37,7 @@ import EmptyState from '../../../shared/ui/EmptyState.jsx';
 import { usePricing } from '../../market/index.js';
 import { CategoryIcon, formatAssetName, formatNum, getItemBrand, resolveAssetDisplayName } from '../../portfolio/utils/holdingHelpers.js';
 import ResponsiveDataTable from '../../../shared/ui/ResponsiveDataTable.jsx';
+import { formatCompactToman } from '../../../shared/utils/formatters.js';
 import {
   deriveE2eeKey,
   verifyE2eeKey,
@@ -342,11 +343,13 @@ export default function TransactionsPage({
       tdClassName: 'td-unit-price',
       // Hidden on mobile — the total below is what matters at a glance there.
       render: (tx) => (
-        <div className="cell-currency-wrap">
-          <span className={`cell-val ${hideValues ? 'is-masked' : ''}`}>
-            {hideValues ? '****' : formatNum(Number(tx.unitPrice || tx.buyPrice || 0))}
-          </span>
-          <span className="cell-unit">تومان</span>
+        <div className="cell-value-stack">
+          <div className="cell-currency-wrap">
+            <span className={`cell-val ${hideValues ? 'is-masked' : ''}`}>
+              {hideValues ? '****' : formatNum(Number(tx.unitPrice || tx.buyPrice || 0))}
+            </span>
+            <span className="cell-unit">تومان</span>
+          </div>
           {tx.referenceAssetId && tx.referenceQuantity > 0 && !hideValues && (
             <span className="cell-native-sub">
               ({Number(tx.referenceQuantity).toLocaleString('fa-IR', { maximumFractionDigits: 2 })}{' '}
@@ -367,8 +370,11 @@ export default function TransactionsPage({
         const totalVal = Number(tx.quantity || tx.amount || 0) * Number(tx.unitPrice || tx.buyPrice || 0);
         return (
           <div className="cell-currency-wrap">
-            <strong className={`cell-val-bold ${isBuy ? 'text-profit' : 'text-loss'} ${hideValues ? 'is-masked' : ''}`}>
-              {hideValues ? '****' : formatNum(totalVal)}
+            <strong
+              className={`cell-val-bold cell-compact-val ${isBuy ? 'text-profit' : 'text-loss'} ${hideValues ? 'is-masked' : ''}`}
+              title={hideValues ? '' : `${formatNum(totalVal)} تومان`}
+            >
+              {hideValues ? '****' : formatCompactToman(totalVal)}
             </strong>
             <span className="cell-unit">تومان</span>
           </div>

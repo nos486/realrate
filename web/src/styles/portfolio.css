@@ -1180,17 +1180,29 @@
   color: var(--text-heading);
 }
 
+/* Stacks a cell's main value row above a smaller reference-asset sub-note, instead of
+   cramming both onto one line — keeps the column from widening just to fit the note. */
+.cell-value-stack {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+}
+
 .cell-native-sub {
   font-size: 10px;
   color: var(--text-muted);
-  margin-right: 4px;
 }
 
 .pnl-native-sub {
-  display: block;
   font-size: 11px;
   font-weight: 600;
-  margin-top: 2px;
+}
+
+.cell-compact-val {
+  cursor: help;
+  border-bottom: 1px dotted currentColor;
+  opacity: 0.85;
 }
 
 .pnl-native-sub.profit {
@@ -1430,8 +1442,16 @@
   color: var(--text-muted);
 }
 
-/* Table PnL Cell */
+/* Table PnL Cell — the amount+badge stay on one row (.pnl-cell-main); a reference-asset
+   note, when present, stacks on its own row below rather than widening the column. */
 .table-pnl-cell {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+}
+
+.pnl-cell-main {
   display: inline-flex;
   align-items: center;
   gap: 5px;
