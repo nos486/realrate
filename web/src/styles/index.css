@@ -17,6 +17,7 @@
  *   sources.css         — Price sources page, charts, fullscreen layout
  *   incomes.css         — Incomes page, summary cards, category/monthly report
  *   landing.css          — Logged-out landing page
+ *   shared-page-layout.css — Shared feature-page header bar (Portfolio/Transactions/Loans/Incomes)
  */
 
 @import './tokens.css';
@@ -24,6 +25,7 @@
 @import './header.css';
 @import './market.css';
 @import './portfolio.css';
+@import './shared-page-layout.css';
 @import './modals.css';
 @import './admin.css';
 @import './footer.css';

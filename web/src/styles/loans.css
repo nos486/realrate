@@ -7,48 +7,6 @@
   width: 100%;
 }
 
-/* ── Top Header ── */
-.loans-header-bar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  flex-wrap: wrap;
-  gap: 16px;
-  padding: 4px 0;
-}
-
-.loans-header-title-wrap {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-}
-
-.loans-header-icon {
-  width: 44px;
-  height: 44px;
-  border-radius: 12px;
-  background: rgba(245, 158, 11, 0.14);
-  color: #f59e0b;
-  border: 1px solid rgba(245, 158, 11, 0.28);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-}
-
-.loans-page-title {
-  font-size: 1.35rem;
-  font-weight: 800;
-  color: var(--text-primary, #f8fafc);
-  margin: 0 0 4px 0;
-}
-
-.loans-page-subtitle {
-  font-size: 0.85rem;
-  color: var(--text-secondary, #94a3b8);
-  margin: 0;
-}
-
 .btn-add-loan {
   display: inline-flex;
   align-items: center;
@@ -70,135 +28,11 @@
   box-shadow: 0 6px 20px rgba(245, 158, 11, 0.38);
 }
 
-/* ── Overview Statistics Cards (grid/stacking handled by .portfolio-overview-grid) ── */
-.loan-stat-card {
-  background: var(--card-bg, rgba(15, 23, 42, 0.6));
-  border: var(--card-border, 1px solid rgba(255, 255, 255, 0.08));
-  border-radius: var(--card-radius, 14px);
-  padding: 16px 18px;
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  box-shadow: var(--card-shadow, 0 8px 24px rgba(0, 0, 0, 0.3));
-  backdrop-filter: blur(14px);
-  -webkit-backdrop-filter: blur(14px);
-  transition: transform 0.2s ease, border-color 0.2s ease;
-}
-
-.loan-stat-card:hover {
-  transform: translateY(-2px);
-  border-color: rgba(255, 255, 255, 0.15);
-}
-
-.loan-stat-card.primary {
-  border-color: rgba(245, 158, 11, 0.35);
-  background: linear-gradient(135deg, rgba(245, 158, 11, 0.08) 0%, rgba(15, 23, 42, 0.7) 100%);
-}
-
-.stat-icon-wrap {
-  width: 44px;
-  height: 44px;
-  border-radius: 12px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-}
-
-.stat-icon-wrap.debt {
-  background: rgba(245, 158, 11, 0.14);
-  color: #f59e0b;
-  border: 1px solid rgba(245, 158, 11, 0.28);
-}
-
-.stat-icon-wrap.monthly {
-  background: rgba(236, 72, 153, 0.14);
-  color: #f472b6;
-  border: 1px solid rgba(236, 72, 153, 0.28);
-}
-
 /* Marks a manually-edited installment amount in the per-installment customization table,
    distinguishing it from the surrounding auto-filled/auto-divided cells. */
 .input-touched {
   border-color: rgba(245, 158, 11, 0.55) !important;
   background: rgba(245, 158, 11, 0.06) !important;
-}
-
-.stat-icon-wrap.count {
-  background: rgba(59, 130, 246, 0.14);
-  color: #60a5fa;
-  border: 1px solid rgba(59, 130, 246, 0.28);
-}
-
-.stat-icon-wrap.progress {
-  background: rgba(16, 185, 129, 0.14);
-  color: #34d399;
-  border: 1px solid rgba(16, 185, 129, 0.28);
-}
-
-.stat-icon-wrap.due {
-  background: rgba(168, 85, 247, 0.14);
-  color: #c084fc;
-  border: 1px solid rgba(168, 85, 247, 0.28);
-}
-
-.stat-content {
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-  min-width: 0;
-}
-
-.stat-label {
-  font-size: 0.78rem;
-  color: var(--text-secondary, #94a3b8);
-}
-
-.stat-value {
-  font-size: 1.15rem;
-  font-weight: 700;
-  color: var(--text-primary, #f8fafc);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.stat-value.highlight {
-  color: #f59e0b;
-}
-
-.stat-value.due {
-  color: #c084fc;
-}
-
-.stat-unit {
-  font-size: 0.8rem;
-  font-weight: 400;
-  color: var(--text-secondary, #94a3b8);
-}
-
-.stat-sub {
-  font-size: 0.78rem;
-  font-weight: 400;
-  color: var(--text-secondary, #94a3b8);
-}
-
-.stat-due-details {
-  display: flex;
-  flex-direction: column;
-}
-
-.stat-due-sub {
-  font-size: 0.75rem;
-  color: var(--text-secondary, #94a3b8);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.stat-empty-text {
-  font-size: 0.85rem;
-  color: #64748b;
 }
 
 /* ── Bank-grouped Loans Sections (reuses .category-group-card etc. from portfolio-extras.css) ── */

@@ -1,0 +1,68 @@
+/* ── Shared Feature Page Header (Portfolio / Transactions / Loans / Incomes) ─
+   Single source of truth for the icon+title+subtitle+actions bar every
+   top-level feature page opens with, so they render identically instead of
+   each page keeping its own near-duplicate header block. */
+.feature-page-header-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 16px;
+  padding: 4px 0;
+}
+
+.feature-page-header-title-wrap {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.feature-page-header-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  background: rgba(245, 158, 11, 0.14);
+  color: #f59e0b;
+  border: 1px solid rgba(245, 158, 11, 0.28);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.feature-page-header-icon.green {
+  background: var(--green-soft, rgba(16, 185, 129, 0.14));
+  color: var(--green-emerald, #10b981);
+  border-color: rgba(16, 185, 129, 0.28);
+}
+
+.feature-page-header-icon.blue {
+  background: rgba(59, 130, 246, 0.14);
+  color: #60a5fa;
+  border-color: rgba(59, 130, 246, 0.28);
+}
+
+.feature-page-title {
+  font-size: 1.35rem;
+  font-weight: 800;
+  color: var(--text-primary, #f8fafc);
+  margin: 0 0 4px 0;
+}
+
+.feature-page-subtitle {
+  font-size: 0.85rem;
+  color: var(--text-secondary, #94a3b8);
+  margin: 0;
+}
+
+.feature-page-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+@media (max-width: 640px) {
+  .feature-page-header-actions {
+    width: 100%;
+  }
+}
