@@ -38,76 +38,28 @@ export default function LoansTable({
             className={`loan-row-card ${isCompleted ? 'is-completed' : ''}`}
             onClick={() => onSelectLoan?.(loan)}
           >
-            {/* Main row: Identity, Balance, Next Due, Actions */}
-            <div className="loan-row-main">
-              {/* Identity: icon + title + lender */}
-              <div className="loan-row-identity">
-                <div className={`loan-icon-box ${isCompleted ? 'completed' : ''}`}>
-                  <Landmark size={18} />
-                </div>
-                <div className="loan-row-titles">
-                  <h3 className="loan-title">{loan.title}</h3>
-                  <span className="loan-lender-name">{loan.lenderName || '—'}</span>
-                </div>
-                <span className={`badge-rate ${isZeroInterest ? 'zero' : ''}`}>{displayRatePct}٪</span>
+            {/* Identity: icon + title + lender */}
+            <div className="loan-row-identity">
+              <div className={`loan-icon-box ${isCompleted ? 'completed' : ''}`}>
+                <Landmark size={18} />
               </div>
-
-              {/* Remaining balance / principal */}
-              <div className="loan-row-block loan-row-balance">
-                <span className="loan-row-label">مانده بدهی</span>
-                <strong className={`loan-row-value ${isCompleted ? 'completed' : 'active'}`}>
-                  {isCompleted ? 'تسویه شده' : `${formatNum(loan.remainingBalance)} تومان`}
-                </strong>
-                <span className="loan-row-sub">اصل: {formatNum(loan.principalAmount)} تومان</span>
+              <div className="loan-row-titles">
+                <h3 className="loan-title">{loan.title}</h3>
+                <span className="loan-lender-name">{loan.lenderName || '—'}</span>
               </div>
-
-              {/* Next due installment */}
-              <div className="loan-row-block loan-row-next-due">
-                {isCompleted ? (
-                  <span className="next-due-completed-inline">
-                    <CheckCircle2 size={14} className="text-emerald-400" />
-                    بدون قسط باقیمانده
-                  </span>
-                ) : loan.nextDueInstallment ? (
-                  <>
-                    <span className="loan-row-label">
-                      <Clock size={12} />
-                      قسط بعدی: #{loan.nextDueInstallment.installmentNumber}
-                    </span>
-                    <strong className="loan-row-value due">
-                      {formatNum(loan.nextDueInstallment.totalAmount)} تومان
-                    </strong>
-                    <span className="loan-row-sub">{gregorianToShamsi(loan.nextDueInstallment.dueDate)}</span>
-                  </>
-                ) : (
-                  <span className="loan-row-empty">سررسید معوقی نیست</span>
-                )}
-              </div>
-
-              {/* Actions + affordance */}
-              <div className="loan-row-actions" onClick={(e) => e.stopPropagation()}>
-                <button
-                  type="button"
-                  className="btn-loan-action edit"
-                  onClick={() => onEditLoan?.(loan)}
-                  title="ویرایش وام"
-                >
-                  <Edit2 size={14} />
-                </button>
-                <button
-                  type="button"
-                  className="btn-loan-action delete"
-                  onClick={() => onDeleteLoan?.(loan.id)}
-                  title="حذف وام"
-                >
-                  <Trash2 size={14} />
-                </button>
-              </div>
-
-              <ChevronLeft size={16} className="loan-row-chevron" />
+              <span className={`badge-rate ${isZeroInterest ? 'zero' : ''}`}>{displayRatePct}٪</span>
             </div>
 
-            {/* Installments progress — spans full width of card */}
+            {/* Remaining balance / principal */}
+            <div className="loan-row-block loan-row-balance">
+              <span className="loan-row-label">مانده بدهی</span>
+              <strong className={`loan-row-value ${isCompleted ? 'completed' : 'active'}`}>
+                {isCompleted ? 'تسویه شده' : `${formatNum(loan.remainingBalance)} تومان`}
+              </strong>
+              <span className="loan-row-sub">اصل: {formatNum(loan.principalAmount)} تومان</span>
+            </div>
+
+            {/* Installments progress */}
             <div className="loan-row-block loan-row-progress-block">
               <div className="loan-row-progress-top">
                 <span className="loan-row-label">
@@ -122,6 +74,51 @@ export default function LoansTable({
                 />
               </div>
             </div>
+
+            {/* Next due installment */}
+            <div className="loan-row-block loan-row-next-due">
+              {isCompleted ? (
+                <span className="next-due-completed-inline">
+                  <CheckCircle2 size={14} className="text-emerald-400" />
+                  بدون قسط باقیمانده
+                </span>
+              ) : loan.nextDueInstallment ? (
+                <>
+                  <span className="loan-row-label">
+                    <Clock size={12} />
+                    قسط بعدی: #{loan.nextDueInstallment.installmentNumber}
+                  </span>
+                  <strong className="loan-row-value due">
+                    {formatNum(loan.nextDueInstallment.totalAmount)} تومان
+                  </strong>
+                  <span className="loan-row-sub">{gregorianToShamsi(loan.nextDueInstallment.dueDate)}</span>
+                </>
+              ) : (
+                <span className="loan-row-empty">سررسید معوقی نیست</span>
+              )}
+            </div>
+
+            {/* Actions + affordance */}
+            <div className="loan-row-actions" onClick={(e) => e.stopPropagation()}>
+              <button
+                type="button"
+                className="btn-loan-action edit"
+                onClick={() => onEditLoan?.(loan)}
+                title="ویرایش وام"
+              >
+                <Edit2 size={14} />
+              </button>
+              <button
+                type="button"
+                className="btn-loan-action delete"
+                onClick={() => onDeleteLoan?.(loan.id)}
+                title="حذف وام"
+              >
+                <Trash2 size={14} />
+              </button>
+            </div>
+
+            <ChevronLeft size={16} className="loan-row-chevron" />
           </div>
         );
       })}
