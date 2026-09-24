@@ -3,7 +3,6 @@
  * Calculations performed 100% on the client with zero latency
  */
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
-import { getPrices } from '../api/marketApi.js';
 import { calculateMarketData } from '../../../utils/calculator.js';
 import { formatThousands } from '../../../utils/formatters.js';
 import { usePricing } from '../context/PricingContext.jsx';
@@ -21,16 +20,19 @@ function parseNum(val) {
 
 export function useMarketData() {
   const pricing = usePricing();
-  const [rates, setRates] = useState(null);
+  // The /api/prices snapshot is fetched (and auto-refreshed) once by PricingContext
+  const rates = pricing?.pricesData || null;
+  const loading = Boolean(pricing?.loading) && !rates;
   const [calcData, setCalcData] = useState(null);
-  const [loading, setLoading] = useState(true);
   const [usdToman, setUsdToman] = useState('');
   const [goldUsd, setGoldUsd] = useState('');
 
-  // Track if usd was manually edited
+  // Track if usd / gold were manually edited
   const userEditedUsd = useRef(false);
+  const userEditedGold = useRef(false);
 
-  // Sync when pricing.usdToman or activeReferenceKey changes externally (e.g. via cycleReferenceRate)
+  // Sync when pricing.usdToman or activeReferenceKey changes externally (e.g. via cycleReferenceRate
+  // or a background refresh)
   useEffect(() => {
     if (pricing?.usdToman) {
       const priceNum = typeof pricing.usdToman === 'string'
@@ -44,39 +46,29 @@ export function useMarketData() {
     }
   }, [pricing?.usdToman, pricing?.activeReferenceKey]);
 
-  // Load initial raw prices from market API
+  // Same for the ounce price, unless the user typed their own
   useEffect(() => {
-    getPrices()
-      .then((data) => {
-        if (data && data.success) {
-          setRates(data);
+    if (userEditedGold.current) return;
+    const goldNum = typeof pricing?.goldUsd === 'string' ? parseNum(pricing.goldUsd) : Number(pricing?.goldUsd || 0);
+    if (goldNum > 0) {
+      const formatted = formatThousands(goldNum, true);
+      setGoldUsd((prev) => (prev === formatted ? prev : formatted));
+    }
+  }, [pricing?.goldUsd]);
 
-          if (data.reference_rates && pricing?.updateReferenceRates) {
-            pricing.updateReferenceRates(data.reference_rates);
-          }
-
-          const storedKey = (() => {
-            try {
-              return localStorage.getItem('realrate_active_reference_rate') || 'usd';
-            } catch {
-              return 'usd';
-            }
-          })();
-
-          const availableRefs = data.reference_rates || data.prices?.reference_rates || [];
-          const matchedRef = availableRefs.find((r) => r.key === storedKey) || availableRefs[0];
-
-          const usd = matchedRef?.price || data.live_usd_toman || data.prices?.usd_toman?.price || data.prices?.usd?.price || data.globalSettings?.default_usd_toman || '';
-          const gold = data.gold_usd || data.prices?.ons_gold?.price || data.globalSettings?.default_gold_usd || '';
-          setUsdToman(usd ? formatThousands(Math.round(usd), false) : '');
-          setGoldUsd(gold ? formatThousands(gold, true) : '');
-          if (pricing?.setUsdToman && usd) pricing.setUsdToman(Math.round(usd));
-          if (pricing?.setGoldUsd && gold) pricing.setGoldUsd(gold);
-        }
-      })
-      .catch(console.error)
-      .finally(() => setLoading(false));
-  }, []);
+  // Fall back to the admin defaults when the snapshot has no live USD / gold price
+  useEffect(() => {
+    if (!rates) return;
+    const defaults = rates.globalSettings || {};
+    if (!parseNum(usdToman) && !Number(pricing?.usdToman) && defaults.default_usd_toman) {
+      setUsdToman(formatThousands(Math.round(defaults.default_usd_toman), false));
+      pricing?.setUsdToman?.(Math.round(defaults.default_usd_toman));
+    }
+    if (!parseNum(goldUsd) && !Number(pricing?.goldUsd) && defaults.default_gold_usd) {
+      setGoldUsd(formatThousands(defaults.default_gold_usd, true));
+      pricing?.setGoldUsd?.(Number(defaults.default_gold_usd));
+    }
+  }, [rates]);
 
   // Instant client-side calculation whenever inputs or rates change (0ms, zero network lag)
   useEffect(() => {
@@ -84,10 +76,14 @@ export function useMarketData() {
     const goldNum = parseNum(goldUsd);
     if (!usdNum || usdNum <= 0) return;
 
-    if (pricing?.setUsdToman && pricing.usdToman !== usdNum) {
+    // Only values the user typed flow back into the shared context. Pushing every local value
+    // back would ping-pong with background refreshes: the context gets the new live price
+    // while this effect still sees the previous local one, and each side keeps resetting the
+    // other on every render.
+    if (userEditedUsd.current && pricing?.setUsdToman && pricing.usdToman !== usdNum) {
       pricing.setUsdToman(usdNum);
     }
-    if (pricing?.setGoldUsd && goldNum > 0 && pricing.goldUsd !== goldNum) {
+    if (userEditedGold.current && pricing?.setGoldUsd && goldNum > 0 && pricing.goldUsd !== goldNum) {
       pricing.setGoldUsd(goldNum);
     }
 
@@ -150,6 +146,7 @@ export function useMarketData() {
 
     if (nextRate) {
       userEditedUsd.current = false;
+      pricing?.setManualOverride?.({ usd: false });
       setInternalRefKey(nextRate.key);
       try {
         localStorage.setItem('realrate_active_reference_rate', nextRate.key);
@@ -176,6 +173,7 @@ export function useMarketData() {
 
     if (targetRate) {
       userEditedUsd.current = false;
+      pricing?.setManualOverride?.({ usd: false });
       setInternalRefKey(targetRate.key);
       try {
         localStorage.setItem('realrate_active_reference_rate', targetRate.key);
@@ -201,8 +199,16 @@ export function useMarketData() {
     loading,
     usdToman,
     goldUsd,
-    setUsdToman: (v) => { userEditedUsd.current = true; setUsdToman(v); },
-    setGoldUsd,
+    setUsdToman: (v) => {
+      userEditedUsd.current = true;
+      pricing?.setManualOverride?.({ usd: true });
+      setUsdToman(v);
+    },
+    setGoldUsd: (v) => {
+      userEditedGold.current = true;
+      pricing?.setManualOverride?.({ gold: true });
+      setGoldUsd(v);
+    },
     liveUsdSource: rates?.live_usd_toman ? 'live' : 'manual',
     liveUsdDatetime: rates?.live_usd_item?.datetime || null,
     referenceRates: availableReferenceRates,

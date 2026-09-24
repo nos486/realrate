@@ -4,12 +4,15 @@
  * Provides single-source-of-truth pricing across the whole app.
  */
 
-import React, { createContext, useContext, useState, useEffect, useMemo, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { getMarketItems, getPrices } from '../api/marketApi.js';
 import { computeUnifiedPrices, searchUnifiedAssets } from '../../../utils/pricingEngine.js';
 import { getReferenceRatesSpecs } from '../../../config/sources.config.js';
 
 const PricingContext = createContext(null);
+
+/** How often live prices are refreshed in the background while the tab is visible */
+export const PRICE_REFRESH_INTERVAL_MS = 2 * 60 * 1000;
 
 export function PricingProvider({ children, initialUsdToman = null, initialGoldUsd = null }) {
   const [marketItems, setMarketItems] = useState(null);
@@ -102,22 +105,65 @@ export function PricingProvider({ children, initialUsdToman = null, initialGoldU
     }
   }, []);
 
-  const fetchItems = useCallback(async () => {
+  // Raw /api/prices snapshot (shared with useMarketData so it isn't fetched twice)
+  const [pricesData, setPricesData] = useState(null);
+  const [lastUpdatedAt, setLastUpdatedAt] = useState(null);
+  const [refreshing, setRefreshing] = useState(false);
+
+  // Values the user typed by hand in the calculator must survive background refreshes
+  const manualOverrideRef = useRef({ usd: false, gold: false });
+  const setManualOverride = useCallback((flags) => {
+    manualOverrideRef.current = { ...manualOverrideRef.current, ...flags };
+  }, []);
+
+  const fetchSeqRef = useRef(0);
+  const inFlightRef = useRef(false);
+  const lastUpdatedAtRef = useRef(null);
+
+  /**
+   * Fetch catalog + price snapshot.
+   * @param {{ background?: boolean }} [options] - background refreshes are silent (no
+   *   full-screen loader) and keep showing the last good data if they fail.
+   */
+  const fetchItems = useCallback(async ({ background = false } = {}) => {
+    if (background && inFlightRef.current) return;
+    const seq = ++fetchSeqRef.current;
+    inFlightRef.current = true;
+
     try {
-      setLoading(true);
+      if (background) setRefreshing(true);
+      else setLoading(true);
+
+      const requestOptions = background ? { silent: true } : {};
       const [itemsRes, pricesRes] = await Promise.allSettled([
-        getMarketItems(),
-        getPrices(),
+        getMarketItems('', '', requestOptions),
+        getPrices(requestOptions),
       ]);
+      if (seq !== fetchSeqRef.current) return;
 
       const res = itemsRes.status === 'fulfilled' && itemsRes.value?.success ? itemsRes.value : null;
-      const pricesData = pricesRes.status === 'fulfilled' && pricesRes.value?.success ? pricesRes.value : null;
+      const freshPrices = pricesRes.status === 'fulfilled' && pricesRes.value?.success ? pricesRes.value : null;
 
       if (res) {
         setMarketItems(res);
       }
+      if (freshPrices) {
+        setPricesData(freshPrices);
+      }
 
-      const availableRefs = pricesData?.reference_rates || res?.meta?.reference_rates || [];
+      if (!res || !freshPrices) {
+        const failed = [itemsRes, pricesRes].find((r) => r.status === 'rejected');
+        setError(failed?.reason?.message || 'دریافت قیمت‌ها از سرور ناموفق بود.');
+      } else {
+        setError(null);
+      }
+      if (res || freshPrices) {
+        const now = Date.now();
+        lastUpdatedAtRef.current = now;
+        setLastUpdatedAt(now);
+      }
+
+      const availableRefs = freshPrices?.reference_rates || res?.meta?.reference_rates || [];
       if (availableRefs.length > 0) {
         setCustomReferenceRates(availableRefs);
       }
@@ -132,26 +178,57 @@ export function PricingProvider({ children, initialUsdToman = null, initialGoldU
 
       const matchedRef = availableRefs.find((r) => r.key === storedKey) || availableRefs[0];
 
-      const liveUsd = matchedRef?.price || pricesData?.live_usd_toman || pricesData?.prices?.usd_toman?.price || res?.meta?.live_usd_toman;
-      if (liveUsd) {
+      const liveUsd = matchedRef?.price || freshPrices?.live_usd_toman || freshPrices?.prices?.usd_toman?.price || res?.meta?.live_usd_toman;
+      if (liveUsd && !manualOverrideRef.current.usd) {
         setUsdToman(liveUsd);
         if (matchedRef?.key) setActiveReferenceKey(matchedRef.key);
       }
-      const liveGold = pricesData?.gold_usd || res?.meta?.gold_usd;
-      if (liveGold) setGoldUsd(liveGold);
-      const liveSilver = pricesData?.silver_usd || res?.meta?.silver_usd;
+      const liveGold = freshPrices?.gold_usd || res?.meta?.gold_usd;
+      if (liveGold && !manualOverrideRef.current.gold) setGoldUsd(liveGold);
+      const liveSilver = freshPrices?.silver_usd || res?.meta?.silver_usd;
       if (liveSilver) setSilverUsd(liveSilver);
     } catch (e) {
+      if (seq !== fetchSeqRef.current) return;
       console.error('Error fetching unified market items:', e);
-      setError(e.message);
+      setError(e.message || 'دریافت قیمت‌ها از سرور ناموفق بود.');
     } finally {
-      setLoading(false);
+      if (seq === fetchSeqRef.current) {
+        inFlightRef.current = false;
+        setLoading(false);
+        setRefreshing(false);
+      }
     }
   }, []);
 
   useEffect(() => {
     fetchItems();
-  }, []);
+  }, [fetchItems]);
+
+  // Background auto-refresh: every PRICE_REFRESH_INTERVAL_MS while the tab is visible, plus
+  // an immediate refresh when the user comes back to a tab (or network) with stale data.
+  useEffect(() => {
+    if (typeof window === 'undefined' || typeof document === 'undefined') return undefined;
+
+    const isStale = () =>
+      !lastUpdatedAtRef.current || Date.now() - lastUpdatedAtRef.current >= PRICE_REFRESH_INTERVAL_MS;
+    const refreshIfVisible = () => {
+      if (document.visibilityState === 'visible') fetchItems({ background: true });
+    };
+    const refreshIfStale = () => {
+      if (document.visibilityState === 'visible' && isStale()) fetchItems({ background: true });
+    };
+
+    const timer = window.setInterval(refreshIfVisible, PRICE_REFRESH_INTERVAL_MS);
+    document.addEventListener('visibilitychange', refreshIfStale);
+    window.addEventListener('online', refreshIfStale);
+    return () => {
+      window.clearInterval(timer);
+      document.removeEventListener('visibilitychange', refreshIfStale);
+      window.removeEventListener('online', refreshIfStale);
+    };
+  }, [fetchItems]);
+
+  const refresh = useCallback(() => fetchItems({ background: true }), [fetchItems]);
 
   // Compute live prices instantly whenever user edits USD or Gold spot
   const { resolvedAssets, priceMap, itemMap, summary } = useMemo(() => {
@@ -187,10 +264,13 @@ export function PricingProvider({ children, initialUsdToman = null, initialGoldU
     return searchUnifiedAssets(resolvedAssets, query, options);
   }, [resolvedAssets]);
 
-  const value = {
+  const value = useMemo(() => ({
     loading,
+    refreshing,
     error,
+    lastUpdatedAt,
     marketItems,
+    pricesData,
     resolvedAssets,
     priceMap,
     itemMap,
@@ -201,17 +281,23 @@ export function PricingProvider({ children, initialUsdToman = null, initialGoldU
     setGoldUsd,
     silverUsd,
     setSilverUsd,
+    setManualOverride,
     getAssetPrice,
     getAsset,
     searchAssets,
-    refresh: fetchItems,
+    refresh,
     activeReferenceKey,
     activeReferenceRate,
     referenceRates,
     cycleReferenceRate,
     setReferenceRateKey,
     updateReferenceRates,
-  };
+  }), [
+    loading, refreshing, error, lastUpdatedAt, marketItems, pricesData, resolvedAssets, priceMap,
+    itemMap, summary, usdToman, goldUsd, silverUsd, setManualOverride, getAssetPrice, getAsset,
+    searchAssets, refresh, activeReferenceKey, activeReferenceRate, referenceRates,
+    cycleReferenceRate, setReferenceRateKey, updateReferenceRates,
+  ]);
 
   return (
     <PricingContext.Provider value={value}>

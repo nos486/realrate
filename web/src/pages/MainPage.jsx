@@ -3,7 +3,7 @@ import { useLocation, useNavigate, useParams, useSearchParams } from 'react-rout
 import { Megaphone, TrendingUp, Briefcase, ShieldCheck, Radio, Settings, Landmark, Wallet } from 'lucide-react';
 import { AppLayout, FilterPills, AlertBanner } from '../shared/ui/index.js';
 import MarketInputsToolbar from '../components/MarketInputsToolbar.jsx';
-import { AnalysisCards, CurrenciesList } from '../features/market/components/index.js';
+import { AnalysisCards, CurrenciesList, PriceRefreshStatus } from '../features/market/components/index.js';
 import { PortfolioTracker } from '../features/portfolio/index.js';
 import { LoansPage, UpcomingInstallmentsAlert } from '../features/loans/index.js';
 import { IncomesPage } from '../features/incomes/index.js';
@@ -225,6 +225,8 @@ export default function MainPage() {
           />
         </div>
       </div>
+
+      <PriceRefreshStatus />
 
       {/* Tab Views */}
       <section className="tab-view-container">
