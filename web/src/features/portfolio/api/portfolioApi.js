@@ -13,8 +13,8 @@ export async function createPortfolio(portfolioData) {
   return httpClient.post('/api/portfolios', portfolioData);
 }
 
-export async function updatePortfolio(portfolioData) {
-  return httpClient.put('/api/portfolios', portfolioData);
+export async function updatePortfolio(portfolioData, options) {
+  return httpClient.put('/api/portfolios', portfolioData, options);
 }
 
 export async function deletePortfolio(id) {
@@ -37,8 +37,8 @@ export async function addPortfolioHolding(holdingData) {
   return httpClient.post('/api/portfolio', holdingData);
 }
 
-export async function updatePortfolioHolding(holdingData) {
-  return httpClient.put('/api/portfolio', holdingData);
+export async function updatePortfolioHolding(holdingData, options) {
+  return httpClient.put('/api/portfolio', holdingData, options);
 }
 
 export async function deletePortfolioHolding(id) {

@@ -18,6 +18,8 @@ import {
   saveVaultPassphraseToSession,
   clearVaultPassphraseFromSession,
 } from '../../../lib/e2ee.js';
+import { usePortfolioVaultKey } from '../../../shared/vault/usePortfolioVaultKey.js';
+import { unlockVault as unlockAccountVault, lockVault as lockAccountVault } from '../../../shared/vault/vaultStore.js';
 
 export function useHoldings(activePortfolio) {
   const { user } = useAuth();
@@ -34,14 +36,16 @@ export function useHoldings(activePortfolio) {
   // Bourse Live Prices Map
   const [boursePricesMap, setBoursePricesMap] = useState({});
 
-  // Active vault key for current portfolio
-  const activeVaultKey = activePortfolio?.isE2ee && activePortfolio?.id
-    ? vaultKeys[activePortfolio.id] || null
-    : null;
+  // Key for the current portfolio: from the account-wide vault when the portfolio is under it,
+  // otherwise from the portfolio's own (older) passphrase vault. An account-vault portfolio that
+  // came from an older vault can still be opened with its old passphrase too.
+  const { accountManaged, key: accountKey, resolving: resolvingAccountKey } = usePortfolioVaultKey(activePortfolio);
+  const usesEncryption = Boolean(activePortfolio?.id && (activePortfolio.isE2ee || accountManaged));
+  const passphraseKey = usesEncryption ? vaultKeys[activePortfolio.id] || null : null;
+  const activeVaultKey = accountKey || passphraseKey;
+  const hasOwnPassphrase = Boolean(activePortfolio?.e2eeSalt && activePortfolio?.e2eeVerifier);
 
-  const isVaultLocked = Boolean(
-    activePortfolio?.isE2ee && activePortfolio?.id && !activeVaultKey
-  );
+  const isVaultLocked = Boolean(usesEncryption && !activeVaultKey && !resolvingAccountKey);
 
   // Only the newest fetch may write state: a slow response for a portfolio the user already
   // switched away from must not overwrite the current one's holdings.
@@ -67,6 +71,12 @@ export function useHoldings(activePortfolio) {
     // Don't keep showing the previous portfolio's rows while the new one loads
     if (loadedPortfolioIdRef.current !== activePortfolio.id) {
       setHoldings([]);
+    }
+
+    // The account key is still being unwrapped: stay in the loading state, the next run decrypts
+    if (usesEncryption && resolvingAccountKey) {
+      setLoadingHoldings(true);
+      return;
     }
 
     try {
@@ -105,8 +115,8 @@ export function useHoldings(activePortfolio) {
         }
 
         // Handle E2EE Decryption if portfolio is encrypted
-        if (activePortfolio.isE2ee) {
-          const key = vaultKeys[activePortfolio.id];
+        if (usesEncryption) {
+          const key = activeVaultKey;
           if (key) {
             const decrypted = await Promise.all(
               rawHoldings.map((h) => decryptHoldingFromApi(key, h))
@@ -115,7 +125,7 @@ export function useHoldings(activePortfolio) {
           } else {
             // Check session storage for cached passphrase
             const cachedPass = getVaultPassphraseFromSession(activePortfolio.id);
-            if (cachedPass && activePortfolio.e2eeSalt && activePortfolio.e2eeVerifier) {
+            if (cachedPass && hasOwnPassphrase) {
               try {
                 const derivedKey = await deriveE2eeKey(cachedPass, activePortfolio.e2eeSalt);
                 const isValid = await verifyE2eeKey(derivedKey, activePortfolio.e2eeVerifier);
@@ -147,7 +157,7 @@ export function useHoldings(activePortfolio) {
     } finally {
       if (!isStale()) setLoadingHoldings(false);
     }
-  }, [user, activePortfolio, vaultKeys]);
+  }, [user, activePortfolio, usesEncryption, activeVaultKey, resolvingAccountKey, hasOwnPassphrase]);
 
   useEffect(() => {
     fetchHoldings();
@@ -187,11 +197,20 @@ export function useHoldings(activePortfolio) {
 
   // Unlock E2EE Vault
   const unlockVault = async (passphrase) => {
-    if (!activePortfolio || !activePortfolio.isE2ee || !passphrase) return false;
+    if (!activePortfolio || !usesEncryption || !passphrase) return false;
     setUnlockingVault(true);
     setVaultUnlockError('');
 
     try {
+      if (accountManaged) {
+        // One passphrase opens the whole account vault (every portfolio, loans, incomes)
+        if (await unlockAccountVault(passphrase)) return true;
+        if (!hasOwnPassphrase) {
+          setVaultUnlockError('رمز عبور رمزنگاری حساب اشتباه است.');
+          return false;
+        }
+      }
+
       const derivedKey = await deriveE2eeKey(passphrase, activePortfolio.e2eeSalt);
       const isValid = await verifyE2eeKey(derivedKey, activePortfolio.e2eeVerifier);
       if (!isValid) {
@@ -212,6 +231,7 @@ export function useHoldings(activePortfolio) {
 
   const lockVault = () => {
     if (!activePortfolio?.id) return;
+    if (accountManaged) lockAccountVault();
     setVaultKeys((prev) => {
       const copy = { ...prev };
       delete copy[activePortfolio.id];
@@ -229,7 +249,7 @@ export function useHoldings(activePortfolio) {
     setSubmitting(true);
     try {
       let payload = { ...holdingData, portfolioId: activePortfolio.id };
-      if (activePortfolio.isE2ee && activeVaultKey) {
+      if (usesEncryption && activeVaultKey) {
         payload = await encryptHoldingForApi(activeVaultKey, payload);
       }
       const res = await addPortfolioHolding(payload);
@@ -252,7 +272,7 @@ export function useHoldings(activePortfolio) {
     setSubmitting(true);
     try {
       let payload = { ...holdingData, portfolioId: activePortfolio.id };
-      if (activePortfolio.isE2ee && activeVaultKey) {
+      if (usesEncryption && activeVaultKey) {
         payload = await encryptHoldingForApi(activeVaultKey, payload);
       }
       const res = await updatePortfolioHolding(payload);
@@ -301,5 +321,6 @@ export function useHoldings(activePortfolio) {
     vaultUnlockError,
     unlockingVault,
     activeVaultKey,
+    accountManaged,
   };
 }

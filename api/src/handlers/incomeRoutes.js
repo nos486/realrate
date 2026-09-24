@@ -20,6 +20,7 @@ import {
 } from "../repositories/index.js";
 import { jsonResponse } from "../lib/helpers.js";
 import { AppError } from "../lib/AppError.js";
+import { rejectWhenVaultEnabled } from "../repositories/vault.repository.js";
 import {
   INCOME_CATEGORIES,
   INCOME_TITLE_MAX_LENGTH,
@@ -87,6 +88,7 @@ export async function handleGetIncomes(request, env) {
 export async function handleCreateIncome(request, env) {
   const { userId } = await requireUser(request, env);
   const body = await request.json().catch(() => ({}));
+  await rejectWhenVaultEnabled(env, userId);
   const income = await dbCreateIncome(env, userId, parseIncomeInput(body));
   return jsonResponse({ success: true, income }, 201, request);
 }

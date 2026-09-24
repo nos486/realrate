@@ -196,6 +196,27 @@ export async function ensureD1Tables(env) {
       updated_at TEXT NOT NULL
     )`,
     `CREATE INDEX IF NOT EXISTS idx_incomes_user_date ON incomes(user_id, income_date DESC)`,
+    // Account-wide end-to-end encryption: a row means the user's vault is on. The data key is
+    // random and only ever stored wrapped (encrypted) with the key derived from the passphrase.
+    `CREATE TABLE IF NOT EXISTS user_vaults (
+      user_id TEXT PRIMARY KEY,
+      salt TEXT NOT NULL,
+      wrapped_key TEXT NOT NULL,
+      version INTEGER NOT NULL DEFAULT 1,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    )`,
+    // Encrypted records of an E2EE account (loans, incomes, ...): the server only sees the kind,
+    // the id and the timestamps — the payload is ciphertext produced in the browser.
+    `CREATE TABLE IF NOT EXISTS vault_records (
+      user_id TEXT NOT NULL,
+      kind TEXT NOT NULL,
+      id TEXT NOT NULL,
+      payload TEXT NOT NULL,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL,
+      PRIMARY KEY (user_id, kind, id)
+    )`,
     `DROP TABLE IF EXISTS price_history`,
     `DROP TABLE IF EXISTS source_types`,
     `DROP TABLE IF EXISTS derived_assets`,
@@ -223,6 +244,12 @@ export async function ensureD1Tables(env) {
     } catch (ignore) {}
     try {
       await env.DB.prepare("ALTER TABLE portfolio_holdings ADD COLUMN reference_quantity REAL NOT NULL DEFAULT 0").run();
+    } catch (ignore) {}
+
+    // Backward-compat: a portfolio protected by the account vault stores its own data key wrapped
+    // with the account's data key ('' = a legacy per-portfolio passphrase vault, or no E2EE)
+    try {
+      await env.DB.prepare("ALTER TABLE portfolios ADD COLUMN e2ee_wrapped_key TEXT NOT NULL DEFAULT ''").run();
     } catch (ignore) {}
 
     // Backward-compat: ensure the optional annual fee column exists on loans

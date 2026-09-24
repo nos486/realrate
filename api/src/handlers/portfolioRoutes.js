@@ -27,6 +27,8 @@ import {
   dbGetUserById,
   dbUpdateUserSettings,
   dbGetTransactionsByPortfolio,
+  dbHasUserVault,
+  isCipherText,
 } from "../repositories/index.js";
 import { jsonResponse, getClientIp } from "../lib/helpers.js";
 import {
@@ -93,6 +95,7 @@ export async function handleGetPortfolios(request, env) {
       isE2ee: !!p.isE2ee,
       e2eeSalt: p.e2eeSalt || "",
       e2eeVerifier: p.e2eeVerifier || "",
+      e2eeWrappedKey: p.e2eeWrappedKey || "",
       hasPassword: !!(p.sharePassword && p.sharePassword.trim()),
       itemCount: Number(p.itemCount) || 0,
       transactionCount: Number(p.transactionCount) || 0,
@@ -120,7 +123,17 @@ export async function handleCreatePortfolio(request, env) {
   }
 
   const userId = user.userId || user.id || user.email;
-  const created = await dbCreatePortfolio(env, userId, { name });
+  // With account-wide encryption on, every new portfolio must arrive with its own data key
+  // (wrapped by the account key) so nothing is ever stored in plaintext.
+  const e2eeWrappedKey = isCipherText(body.e2eeWrappedKey) ? body.e2eeWrappedKey : "";
+  if (!e2eeWrappedKey && (await dbHasUserVault(env, userId))) {
+    throw new AppError("رمزنگاری سرتاسری حساب فعال است؛ پورتفوی جدید باید رمزنگاری‌شده ساخته شود. صفحه را تازه کنید.", 409, "VAULT_ENABLED");
+  }
+  const created = await dbCreatePortfolio(env, userId, {
+    name,
+    isE2ee: Boolean(e2eeWrappedKey),
+    e2eeWrappedKey,
+  });
 
   return jsonResponse({
     success: true,
@@ -132,9 +145,10 @@ export async function handleCreatePortfolio(request, env) {
       isDefault: !!created.isDefault,
       shareSlug: created.shareSlug || "",
       shareEnabled: !!created.shareEnabled,
-      isE2ee: false,
+      isE2ee: !!created.isE2ee,
       e2eeSalt: "",
       e2eeVerifier: "",
+      e2eeWrappedKey: created.e2eeWrappedKey || "",
       hasPassword: false,
       itemCount: 0,
       transactionCount: 0,
@@ -171,6 +185,7 @@ export async function handleUpdatePortfolio(request, env) {
     isE2ee: body.isE2ee !== undefined ? !!body.isE2ee : undefined,
     e2eeSalt: body.e2eeSalt,
     e2eeVerifier: body.e2eeVerifier,
+    e2eeWrappedKey: body.e2eeWrappedKey,
   });
 
   if (!updated) {
@@ -190,6 +205,7 @@ export async function handleUpdatePortfolio(request, env) {
       isE2ee: !!updated.isE2ee,
       e2eeSalt: updated.e2eeSalt || "",
       e2eeVerifier: updated.e2eeVerifier || "",
+      e2eeWrappedKey: updated.e2eeWrappedKey || "",
       hasPassword: !!(updated.sharePassword && updated.sharePassword.trim()),
       itemCount: Number(updated.itemCount) || 0,
       transactionCount: Number(updated.transactionCount) || 0,
@@ -514,6 +530,9 @@ export async function handleGetSharedPortfolio(request, env) {
       isE2ee: !!targetPortfolio.isE2ee,
       e2eeSalt: targetPortfolio.e2eeSalt || "",
       e2eeVerifier: targetPortfolio.e2eeVerifier || "",
+      // Protected by the owner's account key: the viewer needs the portfolio key carried in the
+      // share link's #fragment (never sent to the server)
+      e2eeLinkKey: Boolean(targetPortfolio.e2eeWrappedKey),
     },
     user: {
       name: ownerName,

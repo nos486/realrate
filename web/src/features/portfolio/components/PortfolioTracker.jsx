@@ -8,6 +8,7 @@ import { TransactionsView } from '../../transactions/index.js';
 
 import { usePortfolio } from '../hooks/usePortfolio.js';
 import { FeaturePageHeader } from '../../../shared/ui/index.js';
+import { useFeedback } from '../../../shared/ui/FeedbackProvider.jsx';
 
 export default function PortfolioTracker({
   rates,
@@ -62,6 +63,8 @@ export default function PortfolioTracker({
     }
   };
 
+  const { toast } = useFeedback();
+
   const handleCreatePortfolio = async (e) => {
     e.preventDefault();
     if (!newPortfolioName.trim()) return;
@@ -72,6 +75,8 @@ export default function PortfolioTracker({
         setNewPortfolioName('');
         setNewPortfolioModalOpen(false);
       }
+    } catch (err) {
+      toast.error(err.message || 'خطا در ساخت پورتفو');
     } finally {
       setCreatingPortfolio(false);
     }

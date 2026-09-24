@@ -29,10 +29,12 @@ import { INCOME_PERIODS, buildIncomeReport, filterIncomesByPeriod } from '../uti
 import { getIncomeCategory } from '../constants/incomeCategories.js';
 import { useFeedback } from '../../../shared/ui/FeedbackProvider.jsx';
 import { SkeletonRows } from '../../../shared/ui/Skeleton.jsx';
+import VaultUnlockCard from '../../../shared/vault/VaultUnlockCard.jsx';
 
 export default function IncomesPage() {
   const {
     incomes,
+    vaultLocked,
     loadingIncomes,
     submitting,
     deletingId,
@@ -91,6 +93,19 @@ export default function IncomesPage() {
   // Login is guaranteed by MainPage's site-wide auth gate before this component renders.
 
   const hasIncomes = incomes.length > 0;
+
+  if (vaultLocked) {
+    return (
+      <div className="incomes-page-container">
+        <FeaturePageHeader
+          icon={<Wallet size={24} />}
+          title="درآمدها"
+          subtitle="ثبت ورودی‌ها و گزارش کلی درآمد به تفکیک منبع و ماه"
+        />
+        <VaultUnlockCard title="درآمدهای شما رمزنگاری شده‌اند" />
+      </div>
+    );
+  }
 
   return (
     <div className="incomes-page-container">

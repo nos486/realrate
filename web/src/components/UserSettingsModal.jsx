@@ -4,26 +4,15 @@ import {
   Eye,
   EyeOff,
   Trash2,
+  Lock,
+  ShieldCheck,
 } from 'lucide-react';
 import Modal from '../shared/ui/Modal.jsx';
 import AlertBanner from '../shared/ui/AlertBanner.jsx';
 import { apiUpdatePortfolio } from '../api/client.js';
-import {
-  generateE2eeSalt,
-  deriveE2eeKey,
-  createE2eeVerifier,
-  verifyE2eeKey,
-  saveVaultPassphraseToSession,
-  getVaultPassphraseFromSession,
-  clearVaultPassphraseFromSession,
-  encryptHoldingForApi,
-  decryptHoldingFromApi,
-  isHoldingE2eeEncrypted,
-  e2eeEncrypt,
-  e2eeDecrypt,
-} from '../lib/e2ee.js';
-import { getPortfolio, updatePortfolioHolding } from '../features/portfolio/api/portfolioApi.js';
-import { getTransactions, updateTransaction } from '../features/transactions/api/transactionApi.js';
+import { rawKeyToLinkToken } from '../lib/e2ee.js';
+import { useVault } from '../shared/vault/useVault.js';
+import { getPortfolioRawKey, isAccountVaultPortfolio } from '../shared/vault/vaultStore.js';
 
 export function generateRandomSlug(len = 8) {
   const chars = '23456789abcdefghjkmnpqrstuvwxyz';
@@ -34,6 +23,10 @@ export function generateRandomSlug(len = 8) {
   return slug;
 }
 
+/**
+ * Portfolio settings: name, default flag and public sharing. End-to-end encryption is managed
+ * for the whole account from account settings; this modal only reports the portfolio's state.
+ */
 export default function UserSettingsModal({ isOpen, portfolio, onClose, onSaved, canDelete, onDelete }) {
   const [portfolioName, setPortfolioName] = useState('');
   const [shareSlug, setShareSlug] = useState('');
@@ -46,21 +39,33 @@ export default function UserSettingsModal({ isOpen, portfolio, onClose, onSaved,
   const [showPassword, setShowPassword] = useState(false);
   const [isDefault, setIsDefault] = useState(false);
 
-  // E2EE Vault States
-  const [isE2ee, setIsE2ee] = useState(false);
-  const [vaultPassword, setVaultPassword] = useState('');
-  const [vaultPasswordConfirm, setVaultPasswordConfirm] = useState('');
-  const [showVaultPassword, setShowVaultPassword] = useState(false);
-  const [disableVaultPassword, setDisableVaultPassword] = useState('');
-  const [showDisablePassword, setShowDisablePassword] = useState(false);
-  const [savingMsg, setSavingMsg] = useState('');
-
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState({ text: '', type: '' });
   const [copied, setCopied] = useState(false);
 
-  const isDisablingE2ee = Boolean(portfolio?.isE2ee && !isE2ee);
+  // A portfolio under the account vault is shared with its own key in the link's #fragment —
+  // browsers never send the fragment to the server, so only link holders can decrypt.
+  const vault = useVault();
+  const accountManaged = isAccountVaultPortfolio(portfolio);
+  const isLegacyVault = Boolean(portfolio?.isE2ee && !accountManaged);
+  const [linkKey, setLinkKey] = useState({ wrapped: '', token: '' });
+
+  useEffect(() => {
+    if (!isOpen || !accountManaged || vault.status !== 'unlocked') return undefined;
+    let cancelled = false;
+    getPortfolioRawKey(portfolio)
+      .then((raw) => {
+        if (!cancelled) setLinkKey({ wrapped: portfolio.e2eeWrappedKey, token: raw ? rawKeyToLinkToken(raw) : '' });
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [isOpen, accountManaged, portfolio, vault.status]);
+
+  const shareKeyToken =
+    accountManaged && vault.status === 'unlocked' && linkKey.wrapped === portfolio?.e2eeWrappedKey ? linkKey.token : '';
 
   useEffect(() => {
     if (isOpen) {
@@ -86,18 +91,6 @@ export default function UserSettingsModal({ isOpen, portfolio, onClose, onSaved,
         setHasExistingPassword(!!portfolio.hasPassword);
         setRemovePassword(false);
         setIsDefault(!!portfolio.isDefault);
-        setIsE2ee(!!portfolio.isE2ee);
-
-        const cachedVaultPass = getVaultPassphraseFromSession(portfolio.id);
-        if (cachedVaultPass) {
-          setVaultPassword(cachedVaultPass);
-          setVaultPasswordConfirm(cachedVaultPass);
-          setDisableVaultPassword(cachedVaultPass);
-        } else {
-          setVaultPassword('');
-          setVaultPasswordConfirm('');
-          setDisableVaultPassword('');
-        }
       }
       setLoading(false);
     }
@@ -105,12 +98,14 @@ export default function UserSettingsModal({ isOpen, portfolio, onClose, onSaved,
 
   if (!isOpen) return null;
 
-  const fullShareUrl = typeof window !== 'undefined'
+  const baseShareUrl = typeof window !== 'undefined'
     ? `${window.location.origin}/p/${shareSlug || ''}`
     : `/p/${shareSlug || ''}`;
+  const fullShareUrl = shareKeyToken ? `${baseShareUrl}#k=${shareKeyToken}` : baseShareUrl;
+  const shareLinkNeedsUnlock = accountManaged && !shareKeyToken;
 
   const handleCopyLink = () => {
-    if (!shareSlug) return;
+    if (!shareSlug || shareLinkNeedsUnlock) return;
     navigator.clipboard.writeText(fullShareUrl);
     setCopied(true);
     setTimeout(() => setCopied(false), 3000);
@@ -119,212 +114,8 @@ export default function UserSettingsModal({ isOpen, portfolio, onClose, onSaved,
   const handleSave = async (e) => {
     e.preventDefault();
     setSaving(true);
-    setSavingMsg('در حال اعتبارسنجی و ذخیره...');
     setMsg({ text: '', type: '' });
     try {
-      let e2eeSalt = portfolio?.e2eeSalt || '';
-      let e2eeVerifier = portfolio?.e2eeVerifier || '';
-
-      if (isDisablingE2ee) {
-        const passToVerify = disableVaultPassword.trim();
-        if (!passToVerify) {
-          setMsg({
-            text: 'برای غیرفعال‌سازی رمزنگاری سرتاسری و بازگرداندن داده‌ها به حالت عادی، وارد کردن رمز عبور گاوصندوق الزامی است.',
-            type: 'error',
-          });
-          setSaving(false);
-          return;
-        }
-
-        const derivedKey = await deriveE2eeKey(passToVerify, portfolio.e2eeSalt);
-        const isValid = await verifyE2eeKey(derivedKey, portfolio.e2eeVerifier);
-        if (!isValid) {
-          setMsg({
-            text: 'رمز عبور گاوصندوق وارد شده نادرست است. بدون رمز صحیح امکان خاموش کردن وجود ندارد.',
-            type: 'error',
-          });
-          setSaving(false);
-          return;
-        }
-
-        setSavingMsg('در حال رمزگشایی و بازگردانی داده‌های موجود به حالت عادی...');
-
-        // Disabling E2EE must be all-or-nothing: once we wipe e2eeSalt/e2eeVerifier below, any
-        // item that failed to decrypt becomes permanently unrecoverable (its ciphertext can never
-        // be re-derived without the salt). So every item must be CONFIRMED decrypted — not just
-        // "no exception was thrown" — before we're allowed to proceed. e2eeDecrypt/decryptHoldingFromApi
-        // both fail "gracefully" (return null / the original still-encrypted object) on a bad key
-        // or corrupted data, with no exception to catch — so each item's outcome is checked
-        // explicitly here rather than relying on a try/catch around the whole loop.
-        const failedItems = [];
-
-        // 1. Decrypt and revert holdings in DB
-        try {
-          const hRes = await getPortfolio(portfolio.id);
-          if (hRes && Array.isArray(hRes.holdings)) {
-            for (const h of hRes.holdings) {
-              if (isHoldingE2eeEncrypted(h)) {
-                try {
-                  const dec = await decryptHoldingFromApi(derivedKey, h);
-                  if (!dec || dec.isE2eeEncrypted !== true) {
-                    throw new Error('رمزگشایی ناموفق بود');
-                  }
-                  const plainPayload = {
-                    ...dec,
-                    portfolioId: portfolio.id,
-                    notes: (typeof dec.notes === 'string' && dec.notes.startsWith('enc:e2ee:v1:')) ? '' : (dec.notes || ''),
-                  };
-                  delete plainPayload.isE2eeEncrypted;
-                  await updatePortfolioHolding(plainPayload);
-                } catch {
-                  failedItems.push(`دارایی «${h.assetName || h.assetId || h.id}»`);
-                }
-              }
-            }
-          }
-        } catch {
-          failedItems.push('خطا در دریافت فهرست دارایی‌ها از سرور');
-        }
-
-        // 2. Decrypt and revert transactions in DB
-        try {
-          const txRes = await getTransactions(portfolio.id);
-          if (txRes && Array.isArray(txRes.transactions)) {
-            for (const tx of txRes.transactions) {
-              const rawCipher = tx.encryptedPayload || tx.encrypted_payload || '';
-              if (typeof rawCipher === 'string' && rawCipher.startsWith('enc:e2ee:v1:')) {
-                try {
-                  const decTx = await e2eeDecrypt(derivedKey, rawCipher);
-                  if (!decTx || typeof decTx !== 'object') {
-                    throw new Error('رمزگشایی ناموفق بود');
-                  }
-                  const plainJson = JSON.stringify(decTx);
-                  await updateTransaction(portfolio.id, tx.id, { encryptedPayload: plainJson });
-                } catch {
-                  failedItems.push(`تراکنش ${tx.transactionDate ? 'مورخ ' + tx.transactionDate : tx.id}`);
-                }
-              }
-            }
-          }
-        } catch {
-          failedItems.push('خطا در دریافت فهرست تراکنش‌ها از سرور');
-        }
-
-        if (failedItems.length > 0) {
-          setMsg({
-            text: `غیرفعال‌سازی رمزنگاری متوقف شد: ${failedItems.length} مورد قابل رمزگشایی نبود (${failedItems.slice(0, 3).join('، ')}${failedItems.length > 3 ? ' و مورد دیگر' : ''}). برای جلوگیری از از‌دست‌رفتن داده، رمزنگاری سرتاسری همچنان فعال باقی ماند و هیچ تغییری اعمال نشد — رمز عبور گاوصندوق را بررسی و دوباره تلاش کنید.`,
-            type: 'error',
-          });
-          setSaving(false);
-          return;
-        }
-
-        e2eeSalt = '';
-        e2eeVerifier = '';
-        clearVaultPassphraseFromSession(portfolio.id);
-      } else if (isE2ee) {
-        const cleanPass = vaultPassword.trim();
-        if (!cleanPass || cleanPass.length < 4) {
-          setMsg({ text: 'رمز عبور گاوصندوق E2EE باید حداقل ۴ کاراکتر باشد.', type: 'error' });
-          setSaving(false);
-          return;
-        }
-        if (cleanPass !== vaultPasswordConfirm.trim()) {
-          setMsg({ text: 'تکرار رمز عبور گاوصندوق با رمز وارد شده همخوانی ندارد.', type: 'error' });
-          setSaving(false);
-          return;
-        }
-
-        let derivedKey;
-        if (!e2eeSalt || !e2eeVerifier || (portfolio && !portfolio.isE2ee)) {
-          e2eeSalt = generateE2eeSalt();
-          derivedKey = await deriveE2eeKey(cleanPass, e2eeSalt);
-          e2eeVerifier = await createE2eeVerifier(derivedKey);
-        } else {
-          derivedKey = await deriveE2eeKey(cleanPass, e2eeSalt);
-          const valid = await verifyE2eeKey(derivedKey, e2eeVerifier);
-          if (!valid) {
-            e2eeSalt = generateE2eeSalt();
-            derivedKey = await deriveE2eeKey(cleanPass, e2eeSalt);
-            e2eeVerifier = await createE2eeVerifier(derivedKey);
-          }
-        }
-
-        if (portfolio && portfolio.id) {
-          saveVaultPassphraseToSession(portfolio.id, cleanPass);
-        }
-
-        setSavingMsg('در حال رمزنگاری داده‌های موجود در پورتفو...');
-
-        // Same all-or-nothing principle as disabling: if some items fail to encrypt here, finalizing
-        // anyway would leave the portfolio flagged as E2EE while some items are still plaintext —
-        // an inconsistent state. Collect failures and abort before saving isE2ee/salt/verifier.
-        const enableFailedItems = [];
-
-        // 1. Encrypt existing plain holdings in DB
-        try {
-          const hRes = await getPortfolio(portfolio.id);
-          if (hRes && Array.isArray(hRes.holdings)) {
-            for (const h of hRes.holdings) {
-              if (!isHoldingE2eeEncrypted(h)) {
-                try {
-                  const encHolding = await encryptHoldingForApi(derivedKey, {
-                    ...h,
-                    portfolioId: portfolio.id,
-                  });
-                  await updatePortfolioHolding(encHolding);
-                } catch {
-                  enableFailedItems.push(`دارایی «${h.assetName || h.assetId || h.id}»`);
-                }
-              }
-            }
-          }
-        } catch {
-          enableFailedItems.push('خطا در دریافت فهرست دارایی‌ها از سرور');
-        }
-
-        // 2. Encrypt existing plain transactions in DB
-        try {
-          const txRes = await getTransactions(portfolio.id);
-          if (txRes && Array.isArray(txRes.transactions)) {
-            for (const tx of txRes.transactions) {
-              const rawCipher = tx.encryptedPayload || tx.encrypted_payload || '';
-              if (typeof rawCipher !== 'string' || !rawCipher.startsWith('enc:e2ee:v1:')) {
-                try {
-                  let payloadObj = {};
-                  if (typeof rawCipher === 'string') {
-                    try { payloadObj = JSON.parse(rawCipher); } catch { payloadObj = { notes: rawCipher }; }
-                  } else if (typeof rawCipher === 'object' && rawCipher !== null) {
-                    payloadObj = rawCipher;
-                  }
-                  const encCipher = await e2eeEncrypt(derivedKey, payloadObj);
-                  await updateTransaction(portfolio.id, tx.id, { encryptedPayload: encCipher });
-                } catch {
-                  enableFailedItems.push(`تراکنش ${tx.transactionDate ? 'مورخ ' + tx.transactionDate : tx.id}`);
-                }
-              }
-            }
-          }
-        } catch {
-          enableFailedItems.push('خطا در دریافت فهرست تراکنش‌ها از سرور');
-        }
-
-        if (enableFailedItems.length > 0) {
-          setMsg({
-            text: `فعال‌سازی رمزنگاری متوقف شد: ${enableFailedItems.length} مورد رمزنگاری نشد (${enableFailedItems.slice(0, 3).join('، ')}${enableFailedItems.length > 3 ? ' و مورد دیگر' : ''}). دوباره تلاش کنید.`,
-            type: 'error',
-          });
-          setSaving(false);
-          return;
-        }
-      } else {
-        e2eeSalt = '';
-        e2eeVerifier = '';
-        if (portfolio && portfolio.id) {
-          clearVaultPassphraseFromSession(portfolio.id);
-        }
-      }
-
       if (portfolio && portfolio.id) {
         await apiUpdatePortfolio({
           id: portfolio.id,
@@ -334,21 +125,12 @@ export default function UserSettingsModal({ isOpen, portfolio, onClose, onSaved,
           sharePassword: removePassword ? '' : (sharePassword.trim() || undefined),
           shareEnabled,
           isDefault,
-          isE2ee,
-          e2eeSalt,
-          e2eeVerifier,
         });
       }
 
       setMsg({ text: 'تنظیمات با موفقیت ذخیره شد.', type: 'success' });
       if (onSaved) {
-        onSaved({
-          portfolioName,
-          portfolioId: portfolio?.id,
-          isE2ee,
-          e2eeSalt,
-          e2eeVerifier,
-        });
+        onSaved({ portfolioName, portfolioId: portfolio?.id });
       }
       setTimeout(() => {
         onClose();
@@ -400,7 +182,7 @@ export default function UserSettingsModal({ isOpen, portfolio, onClose, onSaved,
                 className="btn-primary"
                 disabled={saving}
               >
-                {saving ? (savingMsg || 'در حال ذخیره...') : 'ذخیره'}
+                {saving ? 'در حال ذخیره...' : 'ذخیره'}
               </button>
             </div>
           </div>
@@ -497,10 +279,21 @@ export default function UserSettingsModal({ isOpen, portfolio, onClose, onSaved,
                   type="button"
                   className={`btn-copy-link ${copied ? 'copied' : ''}`}
                   onClick={handleCopyLink}
+                  disabled={shareLinkNeedsUnlock}
                 >
                   {copied ? 'کپی شد' : 'کپی لینک'}
                 </button>
               </div>
+            )}
+            {shareEnabled && accountManaged && (
+              <AlertBanner
+                type="info"
+                message={
+                  shareLinkNeedsUnlock
+                    ? 'این پورتفو رمزنگاری سرتاسری دارد؛ برای ساخت لینک اشتراک (که کلید نمایش را در خود دارد) ابتدا رمزنگاری حساب را باز کنید.'
+                    : 'این لینک کلید رمزگشایی همین پورتفو را در بخش # خود دارد که هرگز به سرور ارسال نمی‌شود. هر کس لینک کامل را داشته باشد می‌تواند این پورتفو را ببیند — فقط این پورتفو، نه بقیه اطلاعات شما.'
+                }
+              />
             )}
 
             {/* Share Password Protection */}
@@ -539,104 +332,21 @@ export default function UserSettingsModal({ isOpen, portfolio, onClose, onSaved,
               )}
             </div>
 
-            {/* E2EE Vault Toggle Card */}
-            <div className={`vault-toggle-card ${isE2ee ? 'active' : ''}`}>
-              <div className="vault-toggle-header">
-                <div className="toggle-info">
-                  <div className="toggle-title-row">
-                    <span className="share-status-indicator" style={{ backgroundColor: isE2ee ? '#10b981' : '#64748b' }}></span>
-                    <strong>رمزنگاری سرتاسری (E2EE)</strong>
-                  </div>
-                  <span className="vault-subtitle">
-                    قفل دارایی‌ها با رمز عبور شخصی
-                  </span>
+            {/* End-to-end encryption status (managed account-wide from account settings) */}
+            <div className={`vault-toggle-card ${portfolio?.isE2ee ? 'active' : ''}`}>
+              <div className="toggle-info">
+                <div className="toggle-title-row">
+                  {portfolio?.isE2ee ? <ShieldCheck size={15} className="vault-modal-icon on" /> : <Lock size={15} className="vault-modal-icon" />}
+                  <strong>رمزنگاری سرتاسری (E2EE)</strong>
                 </div>
-                <label className="switch-wrapper">
-                  <input
-                    type="checkbox"
-                    checked={isE2ee}
-                    onChange={(e) => setIsE2ee(e.target.checked)}
-                  />
-                  <span className="switch-slider"></span>
-                </label>
+                <span className="vault-subtitle">
+                  {accountManaged
+                    ? 'این پورتفو با رمزنگاری سرتاسری حساب محافظت می‌شود.'
+                    : isLegacyVault
+                    ? 'این پورتفو با رمز جداگانه خودش رمزنگاری شده است. با فعال‌سازی رمزنگاری در «تنظیمات حساب»، به رمزنگاری حساب منتقل می‌شود.'
+                    : 'رمزنگاری سرتاسری از «تنظیمات حساب» برای همه پورتفوها، وام‌ها و درآمدها یک‌جا فعال می‌شود.'}
+                </span>
               </div>
-
-              {isE2ee && (
-                <div className="vault-form-section">
-                  <AlertBanner
-                    type="warning"
-                    message="این رمز در سرور ذخیره نمی‌شود. با فعال‌سازی، کلیه دارایی‌ها و تراکنش‌های این پورتفو در مرورگر شما رمزنگاری خواهند شد."
-                    style={{ marginBottom: '14px' }}
-                  />
-
-                  <div className="form-group">
-                    <label htmlFor="settingsVaultPassword">رمز عبور گاوصندوق</label>
-                    <div className="password-input-wrapper">
-                      <input
-                        type={showVaultPassword ? 'text' : 'password'}
-                        id="settingsVaultPassword"
-                        placeholder="حداقل ۴ کاراکتر یا عدد..."
-                        value={vaultPassword}
-                        onChange={(e) => setVaultPassword(e.target.value)}
-                        required={isE2ee}
-                      />
-                      <button
-                        type="button"
-                        className="btn-toggle-pwd"
-                        onClick={() => setShowVaultPassword(!showVaultPassword)}
-                        title={showVaultPassword ? 'مخفی کردن' : 'نمایش رمز'}
-                      >
-                        {showVaultPassword ? <EyeOff size={15} /> : <Eye size={15} />}
-                      </button>
-                    </div>
-                  </div>
-
-                  <div className="form-group">
-                    <label htmlFor="settingsVaultPasswordConfirm">تکرار رمز عبور</label>
-                    <input
-                      type={showVaultPassword ? 'text' : 'password'}
-                      id="settingsVaultPasswordConfirm"
-                      placeholder="تکرار رمز..."
-                      value={vaultPasswordConfirm}
-                      onChange={(e) => setVaultPasswordConfirm(e.target.value)}
-                      required={isE2ee}
-                    />
-                  </div>
-                </div>
-              )}
-
-              {isDisablingE2ee && (
-                <div className="vault-form-section" style={{ marginTop: '14px', borderTop: '1px solid rgba(239, 68, 68, 0.25)', paddingTop: '14px' }}>
-                  <AlertBanner
-                    type="warning"
-                    message="جهت خاموش کردن رمزنگاری سرتاسری و رمزگشایی و بازگرداندن داده‌ها به حالت عادی (Plaintext)، وارد کردن رمز عبور فعلی گاوصندوق الزامی است."
-                    style={{ marginBottom: '14px' }}
-                  />
-
-                  <div className="form-group">
-                    <label htmlFor="settingsDisableVaultPassword">رمز عبور فعلی گاوصندوق جهت رمزگشایی</label>
-                    <div className="password-input-wrapper">
-                      <input
-                        type={showDisablePassword ? 'text' : 'password'}
-                        id="settingsDisableVaultPassword"
-                        placeholder="رمز عبور فعلی گاوصندوق..."
-                        value={disableVaultPassword}
-                        onChange={(e) => setDisableVaultPassword(e.target.value)}
-                        required
-                        autoFocus
-                      />
-                      <button
-                        type="button"
-                        className="btn-toggle-pwd"
-                        onClick={() => setShowDisablePassword(!showDisablePassword)}
-                        title={showDisablePassword ? 'مخفی کردن' : 'نمایش رمز'}
-                      >
-                        {showDisablePassword ? <EyeOff size={15} /> : <Eye size={15} />}
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              )}
             </div>
           </>
         )}

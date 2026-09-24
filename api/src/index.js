@@ -102,6 +102,16 @@ import {
   handleCreateCustomBank,
   handleDeleteCustomBank,
 } from "./handlers/bankRoutes.js";
+import {
+  handleGetVault,
+  handleSaveVault,
+  handleDeleteVault,
+  handleListVaultRecords,
+  handlePutVaultRecord,
+  handleDeleteVaultRecord,
+  handleRestoreVaultRecord,
+  handleGetLoanDocument,
+} from "./handlers/vaultRoutes.js";
 import { fetchAllPrices } from "./services/market/priceAggregator.service.js";
 import {
   searchCatalogItems,
@@ -206,7 +216,36 @@ export default {
       if (request.method === "DELETE") return wrap((req, env) => handleDeleteTransaction(req, env, { portfolioId, txId }))(request, env);
     }
 
+    // ── End-to-end Encryption Vault Routes ──────────────────────────────────
+    if (normalizedPath === "/api/vault") {
+      if (request.method === "GET")    return wrap(handleGetVault)(request, env);
+      if (request.method === "PUT")    return wrap(handleSaveVault)(request, env);
+      if (request.method === "DELETE") return wrap(handleDeleteVault)(request, env);
+    }
+    const vaultRestoreMatch = normalizedPath.match(/^\/api\/vault\/records\/([^/]+)\/([^/]+)\/restore$/);
+    if (vaultRestoreMatch && request.method === "POST") {
+      const [, kind, id] = vaultRestoreMatch;
+      return wrap((req, e) => handleRestoreVaultRecord(req, e, { kind, id }))(request, env);
+    }
+    const vaultRecordMatch = normalizedPath.match(/^\/api\/vault\/records\/([^/]+)\/([^/]+)$/);
+    if (vaultRecordMatch) {
+      const [, kind, id] = vaultRecordMatch;
+      if (request.method === "PUT")    return wrap((req, e) => handlePutVaultRecord(req, e, { kind, id }))(request, env);
+      if (request.method === "DELETE") return wrap((req, e) => handleDeleteVaultRecord(req, e, { kind, id }))(request, env);
+    }
+    const vaultRecordsMatch = normalizedPath.match(/^\/api\/vault\/records\/([^/]+)$/);
+    if (vaultRecordsMatch && request.method === "GET") {
+      const kind = vaultRecordsMatch[1];
+      return wrap((req, e) => handleListVaultRecords(req, e, { kind }))(request, env);
+    }
+
     // ── Loans & Installments API Routes ─────────────────────────────────────
+    const loanDocumentMatch = normalizedPath.match(/^\/api\/loans\/([^/]+)\/document$/);
+    if (loanDocumentMatch && request.method === "GET") {
+      const loanId = loanDocumentMatch[1];
+      return wrap((req, e) => handleGetLoanDocument(req, e, { loanId }))(request, env);
+    }
+
     const loanExtraPaymentsMatch = normalizedPath.match(/^\/api\/loans\/([^/]+)\/extra-payments$/);
     if (loanExtraPaymentsMatch) {
       const loanId = loanExtraPaymentsMatch[1];

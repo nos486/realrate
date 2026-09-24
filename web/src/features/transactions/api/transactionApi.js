@@ -14,11 +14,12 @@ export async function createTransaction(portfolioId, transactionData) {
   return httpClient.post(`/api/portfolios/${encodeURIComponent(portfolioId)}/transactions`, transactionData);
 }
 
-export async function updateTransaction(portfolioId, transactionId, transactionData) {
+export async function updateTransaction(portfolioId, transactionId, transactionData, options) {
   if (!portfolioId || !transactionId) throw new Error("شناسه پورتفو و تراکنش الزامی است.");
   return httpClient.put(
     `/api/portfolios/${encodeURIComponent(portfolioId)}/transactions?id=${encodeURIComponent(transactionId)}`,
-    transactionData
+    transactionData,
+    options
   );
 }
 

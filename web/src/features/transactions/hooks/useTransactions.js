@@ -25,6 +25,7 @@ import {
   resolveCategory,
 } from '../../../config/sourceRegistry.js';
 import { useAuth } from '../../auth/index.js';
+import { usePortfolioVaultKey } from '../../../shared/vault/usePortfolioVaultKey.js';
 
 export function useTransactions(activePortfolio, externalVaultKey = null) {
   const { user } = useAuth();
@@ -39,7 +40,9 @@ export function useTransactions(activePortfolio, externalVaultKey = null) {
   const [restoredVault, setRestoredVault] = useState({ portfolioId: null, key: null });
 
   const portfolioId = activePortfolio?.id || null;
-  const isE2eePortfolio = Boolean(activePortfolio?.isE2ee && portfolioId);
+  // Portfolios under the account-wide vault get their key from it
+  const { accountManaged, key: accountKey } = usePortfolioVaultKey(activePortfolio);
+  const isE2eePortfolio = Boolean(portfolioId && (activePortfolio?.isE2ee || accountManaged));
   const restoredKey =
     isE2eePortfolio &&
     restoredVault.portfolioId === portfolioId &&
@@ -47,12 +50,12 @@ export function useTransactions(activePortfolio, externalVaultKey = null) {
     getVaultPassphraseFromSession(portfolioId)
       ? restoredVault.key
       : null;
-  const activeVaultKey = isE2eePortfolio ? (externalVaultKey || restoredKey) : null;
+  const activeVaultKey = isE2eePortfolio ? (externalVaultKey || accountKey || restoredKey) : null;
   const isVaultLocked = Boolean(isE2eePortfolio && !activeVaultKey);
 
   // Try to restore the vault key from session storage if the portfolio is E2EE
   useEffect(() => {
-    if (!isE2eePortfolio || externalVaultKey || restoredVault.portfolioId === portfolioId) return;
+    if (!isE2eePortfolio || externalVaultKey || accountKey || restoredVault.portfolioId === portfolioId) return;
 
     const cachedPass = getVaultPassphraseFromSession(portfolioId);
     if (!cachedPass || !activePortfolio.e2eeSalt || !activePortfolio.e2eeVerifier) return;
@@ -69,7 +72,7 @@ export function useTransactions(activePortfolio, externalVaultKey = null) {
     return () => {
       cancelled = true;
     };
-  }, [activePortfolio, portfolioId, isE2eePortfolio, externalVaultKey, restoredVault.portfolioId]);
+  }, [activePortfolio, portfolioId, isE2eePortfolio, externalVaultKey, accountKey, restoredVault.portfolioId]);
 
   // Only the newest fetch may write state: a slow response for a portfolio the user already
   // switched away from must not overwrite the current one's transactions.
@@ -198,7 +201,7 @@ export function useTransactions(activePortfolio, externalVaultKey = null) {
       };
 
       let encryptedPayload;
-      if (activePortfolio.isE2ee && activeVaultKey) {
+      if (isE2eePortfolio && activeVaultKey) {
         encryptedPayload = await e2eeEncrypt(activeVaultKey, payloadData);
       } else {
         encryptedPayload = JSON.stringify(payloadData);
@@ -239,7 +242,7 @@ export function useTransactions(activePortfolio, externalVaultKey = null) {
       };
 
       let encryptedPayload;
-      if (activePortfolio.isE2ee && activeVaultKey) {
+      if (isE2eePortfolio && activeVaultKey) {
         encryptedPayload = await e2eeEncrypt(activeVaultKey, payloadData);
       } else {
         encryptedPayload = JSON.stringify(payloadData);

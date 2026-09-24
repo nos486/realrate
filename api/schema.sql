@@ -93,6 +93,7 @@ CREATE TABLE IF NOT EXISTS portfolios (
   is_e2ee INTEGER DEFAULT 0,
   e2ee_salt TEXT DEFAULT '',
   e2ee_verifier TEXT DEFAULT '',
+  e2ee_wrapped_key TEXT NOT NULL DEFAULT '',
   created_at TEXT NOT NULL,
   updated_at TEXT NOT NULL
 );
@@ -244,3 +245,25 @@ CREATE TABLE IF NOT EXISTS incomes (
   updated_at TEXT NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_incomes_user_date ON incomes(user_id, income_date DESC);
+
+-- Account-wide end-to-end encryption (row present = vault on); wrapped_key is the random data
+-- key encrypted with the passphrase-derived key
+CREATE TABLE IF NOT EXISTS user_vaults (
+  user_id TEXT PRIMARY KEY,
+  salt TEXT NOT NULL,
+  wrapped_key TEXT NOT NULL,
+  version INTEGER NOT NULL DEFAULT 1,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
+
+-- Encrypted records of an E2EE account (loans, incomes); payload is browser-side ciphertext
+CREATE TABLE IF NOT EXISTS vault_records (
+  user_id TEXT NOT NULL,
+  kind TEXT NOT NULL,
+  id TEXT NOT NULL,
+  payload TEXT NOT NULL,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL,
+  PRIMARY KEY (user_id, kind, id)
+);

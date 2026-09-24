@@ -33,6 +33,7 @@ import { useFeedback } from '../../../shared/ui/FeedbackProvider.jsx';
 import { SkeletonRows } from '../../../shared/ui/Skeleton.jsx';
 import { BankLogo, resolveBank, useCustomBanks } from '../../../shared/banks/index.js';
 import LoanBankShareChart from './LoanBankShareChart.jsx';
+import VaultUnlockCard from '../../../shared/vault/VaultUnlockCard.jsx';
 
 const formatNum = (v) => Number(v || 0).toLocaleString('fa-IR');
 
@@ -119,6 +120,7 @@ function LoanDetailModal({ loanId, onClose, onRefreshLoans }) {
 export default function LoansPage({ initialLoanId = null }) {
   const {
     loans,
+    vaultLocked,
     loadingLoans,
     submitting,
     error,
@@ -276,6 +278,19 @@ export default function LoansPage({ initialLoanId = null }) {
   };
 
   // Login is guaranteed by MainPage's site-wide auth gate before this component renders.
+
+  if (vaultLocked) {
+    return (
+      <div className="loans-page-container">
+        <FeaturePageHeader
+          icon={<Landmark size={24} />}
+          title="مدیریت وام‌ها و اقساط"
+          subtitle="برنامه استهلاک بانکی، جدول سررسید و ثبت تسویه اقساط"
+        />
+        <VaultUnlockCard title="وام‌های شما رمزنگاری شده‌اند" />
+      </div>
+    );
+  }
 
   return (
     <div className="loans-page-container">

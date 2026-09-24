@@ -24,6 +24,7 @@ export async function dbGetUserPortfolios(env, userId) {
                p.share_slug AS shareSlug, p.share_password AS sharePassword,
                p.share_enabled AS shareEnabled, p.is_e2ee AS isE2ee,
                p.e2ee_salt AS e2eeSalt, p.e2ee_verifier AS e2eeVerifier,
+               p.e2ee_wrapped_key AS e2eeWrappedKey,
                p.created_at AS createdAt, p.updated_at AS updatedAt,
                COUNT(DISTINCT h.id) AS itemCount,
                COUNT(DISTINCT t.id) AS transactionCount
@@ -70,6 +71,7 @@ export async function dbGetUserPortfolios(env, userId) {
                  p.share_slug AS shareSlug, p.share_password AS sharePassword,
                  p.share_enabled AS shareEnabled, p.is_e2ee AS isE2ee,
                  p.e2ee_salt AS e2eeSalt, p.e2ee_verifier AS e2eeVerifier,
+               p.e2ee_wrapped_key AS e2eeWrappedKey,
                  p.created_at AS createdAt, p.updated_at AS updatedAt,
                  COUNT(DISTINCT h.id) AS itemCount,
                  COUNT(DISTINCT t.id) AS transactionCount
@@ -109,6 +111,7 @@ export async function dbGetPortfolioById(env, portfolioId, userId) {
                p.share_slug AS shareSlug, p.share_password AS sharePassword,
                p.share_enabled AS shareEnabled, p.is_e2ee AS isE2ee,
                p.e2ee_salt AS e2eeSalt, p.e2ee_verifier AS e2eeVerifier,
+               p.e2ee_wrapped_key AS e2eeWrappedKey,
                p.created_at AS createdAt, p.updated_at AS updatedAt
         FROM portfolios p
         WHERE p.id = ? AND p.user_id = ?
@@ -128,7 +131,7 @@ export async function dbGetPortfolioById(env, portfolioId, userId) {
  * @param {object} options
  * @returns {Promise<object>}
  */
-export async function dbCreatePortfolio(env, userId, { name, isE2ee = false, e2eeSalt = "", e2eeVerifier = "" }) {
+export async function dbCreatePortfolio(env, userId, { name, isE2ee = false, e2eeSalt = "", e2eeVerifier = "", e2eeWrappedKey = "" }) {
   if (!userId) throw new Error("شناسه کاربر الزامی است.");
   const portfolioName = String(name || "").trim() || "پورتفوی جدید";
   const now = new Date().toISOString();
@@ -139,9 +142,9 @@ export async function dbCreatePortfolio(env, userId, { name, isE2ee = false, e2e
   if (env && env.DB) {
     await ensureD1Tables(env);
     await env.DB.prepare(`
-      INSERT INTO portfolios (id, user_id, name, is_default, share_slug, share_password, share_enabled, is_e2ee, e2ee_salt, e2ee_verifier, created_at, updated_at)
-      VALUES (?, ?, ?, 0, ?, '', 0, ?, ?, ?, ?, ?)
-    `).bind(id, userId, portfolioName, shareSlug, e2eeVal, e2eeSalt || "", e2eeVerifier || "", now, now).run();
+      INSERT INTO portfolios (id, user_id, name, is_default, share_slug, share_password, share_enabled, is_e2ee, e2ee_salt, e2ee_verifier, e2ee_wrapped_key, created_at, updated_at)
+      VALUES (?, ?, ?, 0, ?, '', 0, ?, ?, ?, ?, ?, ?)
+    `).bind(id, userId, portfolioName, shareSlug, e2eeVal, e2eeSalt || "", e2eeVerifier || "", e2eeWrappedKey || "", now, now).run();
   }
 
   return {
@@ -155,6 +158,7 @@ export async function dbCreatePortfolio(env, userId, { name, isE2ee = false, e2e
     isE2ee: !!e2eeVal,
     e2eeSalt: e2eeSalt || '',
     e2eeVerifier: e2eeVerifier || '',
+    e2eeWrappedKey: e2eeWrappedKey || '',
     itemCount: 0,
     transactionCount: 0,
     createdAt: now,
@@ -170,7 +174,7 @@ export async function dbCreatePortfolio(env, userId, { name, isE2ee = false, e2e
  * @param {object} options
  * @returns {Promise<object|null>}
  */
-export async function dbUpdatePortfolio(env, portfolioId, userId, { name, shareSlug, sharePassword, shareEnabled, isDefault, isE2ee, e2eeSalt, e2eeVerifier }) {
+export async function dbUpdatePortfolio(env, portfolioId, userId, { name, shareSlug, sharePassword, shareEnabled, isDefault, isE2ee, e2eeSalt, e2eeVerifier, e2eeWrappedKey }) {
   if (!portfolioId || !userId) throw new Error("شناسه پورتفو و کاربر الزامی است.");
   if (env && env.DB) {
     await ensureD1Tables(env);
@@ -235,6 +239,10 @@ export async function dbUpdatePortfolio(env, portfolioId, userId, { name, shareS
       updates.push("e2ee_verifier = ?");
       bindings.push(String(e2eeVerifier || '').trim());
     }
+    if (e2eeWrappedKey !== undefined) {
+      updates.push("e2ee_wrapped_key = ?");
+      bindings.push(String(e2eeWrappedKey || '').trim());
+    }
 
     bindings.push(portfolioId, userId);
     await env.DB.prepare(`
@@ -248,6 +256,7 @@ export async function dbUpdatePortfolio(env, portfolioId, userId, { name, shareS
              p.share_slug AS shareSlug, p.share_password AS sharePassword,
              p.share_enabled AS shareEnabled, p.is_e2ee AS isE2ee,
              p.e2ee_salt AS e2eeSalt, p.e2ee_verifier AS e2eeVerifier,
+               p.e2ee_wrapped_key AS e2eeWrappedKey,
              p.created_at AS createdAt, p.updated_at AS updatedAt,
              COUNT(DISTINCT h.id) AS itemCount,
              COUNT(DISTINCT t.id) AS transactionCount
@@ -332,6 +341,7 @@ export async function dbGetPortfolioByShareSlug(env, slug) {
                p.share_slug AS shareSlug, p.share_password AS sharePassword,
                p.share_enabled AS shareEnabled, p.is_e2ee AS isE2ee,
                p.e2ee_salt AS e2eeSalt, p.e2ee_verifier AS e2eeVerifier,
+               p.e2ee_wrapped_key AS e2eeWrappedKey,
                u.name AS userName, u.custom_name AS userCustomName, u.email AS userEmail
         FROM portfolios p
         JOIN users u ON p.user_id = u.id

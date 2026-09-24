@@ -1643,3 +1643,49 @@ export async function dbGetLoanExtraPayments(env, userId, loanId) {
     return [];
   }
 }
+
+/**
+ * A loan's raw stored document — parameters, sparse installment states and extra payments —
+ * exactly as persisted (nothing computed). Used to move a loan into an end-to-end encrypted
+ * vault record, where the browser runs the same logic via domain/loanDocument.js.
+ *
+ * @returns {Promise<{ loan: object, states: Array<object>, extraPayments: Array<object> }|null>}
+ */
+export async function dbGetLoanDocument(env, userId, loanId) {
+  const view = await dbGetLoanById(env, userId, loanId);
+  if (!view) return null;
+
+  const { results: rawStates = [] } = await env.DB.prepare(`
+    SELECT id, loan_id AS loanId, user_id AS userId,
+           installment_number AS installmentNumber, due_date AS dueDate,
+           principal_portion AS principalPortion, interest_portion AS interestPortion,
+           total_amount AS totalAmount, remaining_balance_after AS remainingBalanceAfter,
+           is_paid AS isPaid, paid_date AS paidDate, paid_amount AS paidAmount,
+           is_manual_override AS isManualOverride,
+           created_at AS createdAt, updated_at AS updatedAt
+    FROM loan_installment_states
+    WHERE loan_id = ? AND user_id = ?
+    ORDER BY installment_number ASC
+  `).bind(loanId, userId).all();
+
+  const loan = formatLoanRow(view);
+  delete loan.userId;
+  const strip = ({ userId: _userId, user_id: _user_id, ...rest }) => rest;
+
+  return {
+    loan,
+    states: rawStates.map(formatInstallmentRow).map(strip),
+    extraPayments: (view.extraPayments || []).map((p) => strip({
+      id: p.id,
+      loanId: p.loanId || p.loan_id || loanId,
+      amount: Number(p.amount || 0),
+      paymentDate: p.paymentDate || p.payment_date,
+      reductionMode: p.reductionMode || p.reduction_mode || "reduce_amount",
+      notes: p.notes || "",
+      anchorInstallmentNumber: Number(p.anchorInstallmentNumber ?? p.anchor_installment_number ?? 0),
+      resultingBalance: Number(p.resultingBalance ?? p.resulting_balance ?? 0),
+      resultingInstallmentCount: p.resultingInstallmentCount ?? p.resulting_installment_count ?? null,
+      createdAt: p.createdAt || p.created_at,
+    })),
+  };
+}
