@@ -20,9 +20,11 @@ export async function runCronPolling(event, env, ctx) {
     })
   );
 
-  // Once an hour is plenty for purging expired sessions
-  const scheduledAt = new Date(event?.scheduledTime || Date.now());
-  if (scheduledAt.getUTCMinutes() === 0) {
+  // Once an hour is plenty for purging expired sessions. Keyed off the trigger's own
+  // scheduledTime (always set by Cloudflare) rather than the wall clock, so the decision is
+  // deterministic for a given tick.
+  const scheduledTime = Number(event?.scheduledTime);
+  if (Number.isFinite(scheduledTime) && scheduledTime > 0 && new Date(scheduledTime).getUTCMinutes() === 0) {
     ctx.waitUntil(dbDeleteExpiredSessions(env));
   }
 }
