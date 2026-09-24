@@ -139,6 +139,12 @@ export function loadVault(userId, { force = false } = {}) {
       return state;
     })
     .catch((err) => {
+      // An API without vault support yet (the site can deploy before the worker) means no
+      // account can have a vault — treat it as off instead of blocking every data screen.
+      if (err?.status === 404) {
+        setState({ status: 'off', vault: null });
+        return state;
+      }
       setState({ status: 'error', error: err.message || 'خطا در دریافت وضعیت رمزنگاری' });
       return state;
     })

@@ -89,6 +89,18 @@ describe('account vault store', () => {
     expect(store.getVaultState().status).toBe('locked');
   });
 
+  it('an API without vault support counts as vault off, other failures as unknown', async () => {
+    const api = await import('../../../web/src/shared/vault/vaultApi.js');
+    api.getVault.mockRejectedValueOnce(Object.assign(new Error('not found'), { status: 404 }));
+    await store.loadVault('u1');
+    expect(store.getVaultState().status).toBe('off');
+
+    store.resetVault();
+    api.getVault.mockRejectedValueOnce(Object.assign(new Error('offline'), { status: 0 }));
+    await store.loadVault('u1');
+    expect(store.getVaultState().status).toBe('error');
+  });
+
   it('changing the passphrase keeps every record readable', async () => {
     await store.loadVault('u1');
     await store.createVault('first passphrase');
