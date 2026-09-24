@@ -1,0 +1,90 @@
+/* ── In-app confirm / alert dialog ─────────────────────────────────────────── */
+.feedback-dialog-message {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.9;
+  color: var(--text-secondary);
+  white-space: pre-line;
+}
+
+.feedback-dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  width: 100%;
+}
+
+.feedback-dialog.is-danger .modal-icon {
+  color: var(--rose-red);
+}
+
+/* ── Toasts ─────────────────────────────────────────────────────────────── */
+.toast-stack {
+  position: fixed;
+  inset-inline: 16px;
+  bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+  z-index: 10000;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  pointer-events: none;
+}
+
+.toast-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  width: 100%;
+  max-width: 420px;
+  padding: 11px 12px;
+  border: 1px solid var(--border-medium);
+  border-radius: 12px;
+  background: var(--bg-modal);
+  box-shadow: var(--shadow-dropdown);
+  color: var(--text-primary, #fff);
+  font-size: 13px;
+  line-height: 1.7;
+  pointer-events: auto;
+  animation: toast-in 0.18s ease-out;
+}
+
+.toast-item .toast-icon {
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.toast-item.success .toast-icon { color: var(--green-emerald); }
+.toast-item.error .toast-icon { color: var(--rose-red); }
+.toast-item.warning .toast-icon { color: var(--gold-primary); }
+.toast-item.info .toast-icon { color: var(--blue-sky); }
+
+.toast-item.error { border-color: rgba(244, 63, 94, 0.35); }
+
+.toast-message {
+  flex: 1;
+  white-space: pre-line;
+}
+
+.toast-close {
+  flex-shrink: 0;
+  display: inline-flex;
+  padding: 2px;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.toast-close:hover {
+  color: var(--text-secondary);
+}
+
+@keyframes toast-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .toast-item { animation: none; }
+}

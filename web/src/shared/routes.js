@@ -35,3 +35,29 @@ export function getAppSubPath(pathname) {
 export function isAppPath(pathname) {
   return pathname !== LANDING_PATH && !pathname.startsWith('/p/');
 }
+
+const POST_LOGIN_PATH_KEY = 'realrate_post_login_path';
+
+/**
+ * Remember an in-app page a guest tried to open, so login can return there
+ * @param {string} path - pathname + search
+ */
+export function rememberPostLoginPath(path) {
+  if (!path || !path.startsWith('/') || path.startsWith('//') || !isAppPath(path.split('?')[0])) return;
+  try {
+    sessionStorage.setItem(POST_LOGIN_PATH_KEY, path);
+  } catch {}
+}
+
+/**
+ * Read and clear the remembered in-app page
+ * @returns {string|null}
+ */
+export function takePostLoginPath() {
+  try {
+    const path = sessionStorage.getItem(POST_LOGIN_PATH_KEY);
+    sessionStorage.removeItem(POST_LOGIN_PATH_KEY);
+    if (path && path.startsWith('/') && !path.startsWith('//') && isAppPath(path.split('?')[0])) return path;
+  } catch {}
+  return null;
+}

@@ -9,6 +9,7 @@
  *   market.css          — Market controls, cards, currencies tab
  *   portfolio.css       — Portfolio tracker, nav, split layout
  *   modals.css          — Shared modal/bottom-sheet dialogs
+ *   feedback.css        — In-app confirm/alert dialog and toasts
  *   admin.css           — Admin panel, price source management, forms
  *   footer.css          — Site footer
  *   portfolio-extras.css — Asset allocation bars, category groups
@@ -27,6 +28,7 @@
 @import './portfolio.css';
 @import './shared-page-layout.css';
 @import './modals.css';
+@import './feedback.css';
 @import './admin.css';
 @import './footer.css';
 @import './portfolio-extras.css';

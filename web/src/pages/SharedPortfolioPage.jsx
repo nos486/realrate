@@ -44,6 +44,7 @@ import {
   e2eeDecrypt,
 } from '../lib/e2ee.js';
 import { usePrivacyMode } from '../hooks/usePrivacyMode.js';
+import { useFeedback } from '../shared/ui/FeedbackProvider.jsx';
 
 export default function SharedPortfolioPage() {
   const { slug } = useParams();
@@ -328,10 +329,12 @@ export default function SharedPortfolioPage() {
   const ownerName = portfolioData?.user?.name || slug;
   const portfolioName = portfolioData?.portfolio?.name;
 
+  const { toast } = useFeedback();
+
   // Export Shared Portfolio to CSV with UTF-8 BOM
   const handleExportCSV = () => {
     if (!portfolioMetrics.items.length) {
-      alert('دارایی برای دریافت خروجی در این پورتفو وجود ندارد.');
+      toast.info('دارایی برای دریافت خروجی در این پورتفو وجود ندارد.');
       return;
     }
 
