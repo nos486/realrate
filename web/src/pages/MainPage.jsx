@@ -1,20 +1,32 @@
-import React, { useState, useMemo } from 'react';
+import React, { useMemo, lazy, Suspense } from 'react';
 import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { Megaphone, TrendingUp, Briefcase, ShieldCheck, Radio, Settings, Landmark, Wallet } from 'lucide-react';
 import { AppLayout, FilterPills, AlertBanner } from '../shared/ui/index.js';
 import MarketInputsToolbar from '../components/MarketInputsToolbar.jsx';
 import { AnalysisCards, CurrenciesList, PriceRefreshStatus } from '../features/market/components/index.js';
-import { PortfolioTracker } from '../features/portfolio/index.js';
-import { LoansPage, UpcomingInstallmentsAlert } from '../features/loans/index.js';
-import { IncomesPage } from '../features/incomes/index.js';
-import AdminPage from './AdminPage.jsx';
-import PriceSourcesPage from './PriceSourcesPage.jsx';
-import AccountSettingsView from '../components/AccountSettingsView.jsx';
+// Imported from its own file (not the loans barrel) so LoansPage stays in its lazy chunk
+import UpcomingInstallmentsAlert from '../features/loans/components/UpcomingInstallmentsAlert.jsx';
 import LiveRatesTicker from '../components/LiveRatesTicker.jsx';
 import { useMarketData } from '../features/market/hooks/useMarketData.js';
 import { useAuth } from '../features/auth/index.js';
 import { appPath, getAppSubPath } from '../shared/routes.js';
 import { toEnglishDigits } from '../shared/utils/formatters.js';
+
+// Each tab other than the market home is loaded on first use, keeping the initial bundle small
+const PortfolioTracker = lazy(() => import('../features/portfolio/components/PortfolioTracker.jsx'));
+const LoansPage = lazy(() => import('../features/loans/components/LoansPage.jsx'));
+const IncomesPage = lazy(() => import('../features/incomes/components/IncomesPage.jsx'));
+const AccountSettingsView = lazy(() => import('../components/AccountSettingsView.jsx'));
+const AdminPage = lazy(() => import('./AdminPage.jsx'));
+const PriceSourcesPage = lazy(() => import('./PriceSourcesPage.jsx'));
+
+function TabLoader() {
+  return (
+    <div className="tab-lazy-loader" role="status" aria-label="در حال بارگذاری">
+      <div className="spinner-glow" />
+    </div>
+  );
+}
 
 export default function MainPage() {
   const location = useLocation();
@@ -269,6 +281,7 @@ export default function MainPage() {
           </div>
         )}
 
+        <Suspense fallback={<TabLoader />}>
         {activeTab === 'portfolio' && (
           <PortfolioTracker
             calcData={calcData}
@@ -304,6 +317,7 @@ export default function MainPage() {
             gold18kPrice={gold18kPrice}
           />
         )}
+        </Suspense>
       </section>
     </AppLayout>
   );
