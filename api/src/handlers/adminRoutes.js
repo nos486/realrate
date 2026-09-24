@@ -67,7 +67,10 @@ export async function handleAdminGetUserPortfolio(request, env) {
     throw AppError.notFound("کاربر مورد نظر یافت نشد.");
   }
 
-  const portfolios = await dbGetUserPortfolios(env, targetUser.id);
+  const portfolios = (await dbGetUserPortfolios(env, targetUser.id)).map(({ sharePassword, ...p }) => ({
+    ...p,
+    hasPassword: !!(sharePassword && String(sharePassword).trim()),
+  }));
   const holdings = await dbGetPortfolioHoldings(env, targetUser.id, portfolioId);
 
   return jsonResponse({

@@ -5,6 +5,7 @@
 import { ensureD1Tables } from "./migration.repository.js";
 import { dbGetUserPortfolios } from "./portfolio.repository.js";
 import { logger } from "../lib/logger.js";
+import { AppError } from "../lib/AppError.js";
 import {
   resolveAssetDisplayName,
   resolveAssetUnit,
@@ -104,8 +105,9 @@ export async function dbAddPortfolioHolding(env, item) {
 
   if (env && env.DB) {
     await ensureD1Tables(env);
+    let writeResult = null;
     try {
-      await env.DB.prepare(`
+      writeResult = await env.DB.prepare(`
         INSERT INTO portfolio_holdings (
           id, user_id, portfolio_id, asset_id,
           amount, buy_price, current_price, buy_date, notes, reference_asset_id, reference_quantity, created_at, updated_at
@@ -122,6 +124,7 @@ export async function dbAddPortfolioHolding(env, item) {
           reference_asset_id = excluded.reference_asset_id,
           reference_quantity = excluded.reference_quantity,
           updated_at = excluded.updated_at
+        WHERE portfolio_holdings.user_id = excluded.user_id
       `).bind(
         holding.id,
         holding.userId,
@@ -139,6 +142,11 @@ export async function dbAddPortfolioHolding(env, item) {
       ).run();
     } catch (e) {
       logger.error("D1 dbAddPortfolioHolding error:", { error: e.message });
+    }
+
+    // An existing id owned by another user makes the conditional upsert a no-op
+    if (writeResult?.meta && writeResult.meta.changes === 0) {
+      throw AppError.notFound("دارایی مورد نظر یافت نشد یا شما به آن دسترسی ندارید.");
     }
   }
 

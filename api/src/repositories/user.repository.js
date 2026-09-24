@@ -4,6 +4,7 @@
 
 import { ensureD1Tables } from "./migration.repository.js";
 import { logger } from "../lib/logger.js";
+import { hashSharePassword } from "../lib/security.js";
 
 /**
  * Generate a random alphanumeric slug for shared URLs
@@ -203,8 +204,9 @@ export async function dbUpdateUserSettings(env, userId, { customName, shareSlug,
       bindings.push(shareSlug);
     }
     if (sharePassword !== undefined) {
+      const cleanPassword = String(sharePassword || '').trim();
       updates.push("share_password = ?");
-      bindings.push(sharePassword ? sharePassword.trim() : null);
+      bindings.push(cleanPassword ? await hashSharePassword(cleanPassword) : null);
     }
     if (shareEnabled !== undefined) {
       updates.push("share_enabled = ?");

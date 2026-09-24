@@ -19,7 +19,10 @@ export async function googleLogin(credential) {
 }
 
 export async function logout() {
-  const res = await httpClient.post('/api/auth/logout', {});
-  setToken(null);
-  return res;
+  try {
+    return await httpClient.post('/api/auth/logout', {});
+  } finally {
+    // Always drop the local token, even if the server call fails (offline, 5xx, ...)
+    setToken(null);
+  }
 }

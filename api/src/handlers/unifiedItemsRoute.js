@@ -28,7 +28,8 @@ export async function handleGetUnifiedMarketItems(env, request) {
     const url = new URL(request.url);
     const q = (url.searchParams.get("q") || "").trim().toLowerCase();
     const categoryFilter = url.searchParams.get("category") || "";
-    const limit = parseInt(url.searchParams.get("limit") || String(MAX_MARKET_ITEMS_LIMIT), 10);
+    const rawLimit = parseInt(url.searchParams.get("limit") || String(MAX_MARKET_ITEMS_LIMIT), 10);
+    const limit = Number.isFinite(rawLimit) && rawLimit > 0 ? Math.min(rawLimit, MAX_MARKET_ITEMS_LIMIT) : MAX_MARKET_ITEMS_LIMIT;
 
     // Parallel fetch of base market data and all catalog sources
     const [prices, globalSettings, catalogData] = await Promise.all([

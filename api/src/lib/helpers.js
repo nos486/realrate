@@ -2,6 +2,8 @@
  * helpers.js — Shared HTTP response helpers, dynamic CORS, and common utilities
  */
 
+import { isTrustedOrigin } from "./security.js";
+
 /**
  * Allowed origins for CORS.
  * Add your Cloudflare Pages URL and any custom domains here.
@@ -19,12 +21,8 @@ const ALLOWED_ORIGINS = [
 function isOriginAllowed(origin) {
   if (!origin) return false;
   if (ALLOWED_ORIGINS.includes(origin)) return true;
-  if (
-    origin.endsWith(".pages.dev") ||
-    origin.endsWith(".geekio.org") ||
-    origin.endsWith("realrate.ir")
-  ) return true;
-  return false;
+  // Subdomains of our own domains only (exact label-boundary match, https only)
+  return isTrustedOrigin(origin) && new URL(origin).origin === origin;
 }
 
 /**

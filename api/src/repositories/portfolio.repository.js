@@ -5,6 +5,7 @@
 import { ensureD1Tables } from "./migration.repository.js";
 import { dbGetUserById, generateRandomSlug } from "./user.repository.js";
 import { logger } from "../lib/logger.js";
+import { hashSharePassword, isHashedSharePassword } from "../lib/security.js";
 
 /**
  * Fetch all portfolios for a user (with auto-bootstrap default portfolio if none exist)
@@ -208,8 +209,11 @@ export async function dbUpdatePortfolio(env, portfolioId, userId, { name, shareS
       bindings.push(shareSlug);
     }
     if (sharePassword !== undefined) {
+      // Never store the share password in plaintext; "" clears it. An already-hashed value
+      // (e.g. a lazy upgrade of a legacy plaintext password) is stored as-is.
+      const cleanPassword = String(sharePassword || '').trim();
       updates.push("share_password = ?");
-      bindings.push(String(sharePassword || '').trim());
+      bindings.push(isHashedSharePassword(cleanPassword) ? cleanPassword : await hashSharePassword(cleanPassword));
     }
     if (shareEnabled !== undefined) {
       updates.push("share_enabled = ?");

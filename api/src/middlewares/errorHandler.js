@@ -49,7 +49,6 @@ export function handleRouteError(err, request = null) {
     error: {
       code: "INTERNAL_SERVER_ERROR",
       message: "خطای داخلی سرور رخ داده است.",
-      details: err?.message || String(err),
     },
   };
 

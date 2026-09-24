@@ -16,6 +16,28 @@ import { validateEnv } from "./config/env.js";
 import { withErrorHandler } from "./middlewares/errorHandler.js";
 import { logger } from "./lib/logger.js";
 import { DEFAULT_BOURSE_SEARCH_LIMIT } from "./config/constants.js";
+import { getAuthenticatedUser } from "./lib/auth.js";
+import { AppError } from "./lib/AppError.js";
+
+const MAX_CATALOG_SEARCH_LIMIT = 500;
+
+/** Parse a ?limit= value into a sane, bounded integer */
+function parseLimit(raw, fallback) {
+  const n = parseInt(raw || String(fallback), 10);
+  if (!Number.isFinite(n) || n <= 0) return fallback;
+  return Math.min(n, MAX_CATALOG_SEARCH_LIMIT);
+}
+
+/**
+ * Upstream syncs and forced refreshes hit third-party sources and burn Worker/D1 quota,
+ * so only an admin may trigger them on demand (the cron keeps them fresh otherwise).
+ */
+async function requireAdmin(request, env) {
+  const user = await getAuthenticatedUser(request, env);
+  if (!user || user.role !== "admin") {
+    throw AppError.forbidden("دسترسی غیرمجاز. فقط مدیر سیستم مجاز است.");
+  }
+}
 
 import {
   handleGoogleAuth,
@@ -245,9 +267,10 @@ export default {
     if (normalizedPath === "/api/bourse/symbols" || normalizedPath === "/api/bourse/search") {
       return wrap(async () => {
         const q = url.searchParams.get("q") || "";
-        const limit = parseInt(url.searchParams.get("limit") || String(DEFAULT_BOURSE_SEARCH_LIMIT), 10);
+        const limit = parseLimit(url.searchParams.get("limit"), DEFAULT_BOURSE_SEARCH_LIMIT);
         const force = url.searchParams.get("force") === "true";
         if (force) {
+          await requireAdmin(request, env);
           await syncCatalogSource(env, "src_def_bourse");
         }
         const symbols = await searchCatalogItems(env, { q, sourceId: "src_def_bourse", limit });
@@ -258,6 +281,7 @@ export default {
     }
     if (normalizedPath === "/api/bourse/sync" && request.method === "POST") {
       return wrap(async () => {
+        await requireAdmin(request, env);
         const syncRes = await syncCatalogSource(env, "src_def_bourse");
         return new Response(JSON.stringify(syncRes), {
           headers: { "Content-Type": "application/json; charset=utf-8", ...corsHeaders },
@@ -269,7 +293,7 @@ export default {
     if (normalizedPath === "/api/funds" || normalizedPath === "/api/funds/search") {
       return wrap(async () => {
         const q = url.searchParams.get("q") || "";
-        const limit = parseInt(url.searchParams.get("limit") || "200", 10);
+        const limit = parseLimit(url.searchParams.get("limit"), 200);
         const funds = await searchCatalogItems(env, { q, category: "bourse_fund", limit });
         return new Response(JSON.stringify({ success: true, count: funds.length, funds }), {
           headers: { "Content-Type": "application/json; charset=utf-8", ...corsHeaders },
@@ -278,6 +302,7 @@ export default {
     }
     if (normalizedPath === "/api/funds/sync" && request.method === "POST") {
       return wrap(async () => {
+        await requireAdmin(request, env);
         const syncRes = await syncAllCatalogSources(env);
         return new Response(JSON.stringify({ success: true, results: syncRes }), {
           headers: { "Content-Type": "application/json; charset=utf-8", ...corsHeaders },
@@ -288,6 +313,7 @@ export default {
     if (normalizedPath === "/api/telegram") {
       return wrap(async () => {
         const forceRefresh = url.searchParams.get("force") === "true";
+        if (forceRefresh) await requireAdmin(request, env);
         const globalSettings = await getGlobalSettings(env);
         const tgData = await fetchAllPrices(env, forceRefresh, globalSettings);
         return new Response(JSON.stringify(tgData, null, 2), {
