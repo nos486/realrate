@@ -16,7 +16,7 @@ import {
   resolveAssetDisplayName,
   resolveAssetUnit,
   resolveCategory,
-} from '../../../utils/sourceRegistry.js';
+} from '../../../config/sourceRegistry.js';
 import {
   getItemCategory,
   getItemUnit,

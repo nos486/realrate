@@ -7,7 +7,7 @@ import {
   AlertCircle,
   X,
 } from 'lucide-react';
-import EmptyState from '../../../../components/ui/EmptyState.jsx';
+import EmptyState from '../../../../shared/ui/EmptyState.jsx';
 import { formatNum, formatPersianDate, CANONICAL_PRICE_TYPE_INFO } from './priceSourceConstants.js';
 import { getItemUnit } from '../../../../config/displayEngine.js';
 

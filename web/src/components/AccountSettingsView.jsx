@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { User, ShieldCheck, Save } from 'lucide-react';
-import Card from './ui/Card.jsx';
-import AlertBanner from './ui/AlertBanner.jsx';
-import Button from './ui/Button.jsx';
-import Input from './ui/Input.jsx';
+import Card from '../shared/ui/Card.jsx';
+import AlertBanner from '../shared/ui/AlertBanner.jsx';
+import Button from '../shared/ui/Button.jsx';
+import Input from '../shared/ui/Input.jsx';
 import { useAuth } from '../features/auth/index.js';
 import { apiGetUserSettings, apiUpdateUserSettings } from '../api/client.js';
 

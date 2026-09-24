@@ -4,7 +4,7 @@ import { apiGetSharedPortfolio, apiGetPrices } from '../api/client.js';
 import { calculateMarketData } from '../utils/calculator.js';
 import { computeUnifiedPrices } from '../utils/pricingEngine.js';
 import Header from '../components/Header.jsx';
-import AlertBanner from '../components/ui/AlertBanner.jsx';
+import AlertBanner from '../shared/ui/AlertBanner.jsx';
 import { usePricing } from '../features/market/index.js';
 import {
   HoldingsTable,
