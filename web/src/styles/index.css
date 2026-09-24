@@ -16,6 +16,7 @@
  *   loading.css         — Global fullscreen loading overlay
  *   settings.css        — Account settings, profile, theme switcher
  *   sources.css         — Price sources page, charts, fullscreen layout
+ *   banks.css           — Bank logos, bank picker and the loans-by-bank chart
  *   incomes.css         — Incomes page, summary cards, category/monthly report
  *   landing.css          — Logged-out landing page
  *   shared-page-layout.css — Shared feature-page header bar (Portfolio/Transactions/Loans/Incomes)
@@ -38,5 +39,6 @@
 @import './universal-search.css';
 @import './transactions.css';
 @import './loans.css';
+@import './banks.css';
 @import './incomes.css';
 @import './landing.css';

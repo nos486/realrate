@@ -4,6 +4,7 @@ import { getMe, googleLogin, logout as apiLogout, getGoogleLoginUrl } from '../a
 import { setToken, getToken, HttpError } from '../../../shared/api/httpClient.js';
 import { APP_BASE, LANDING_PATH, isAppPath, takePostLoginPath } from '../../../shared/routes.js';
 import { useFeedback } from '../../../shared/ui/FeedbackProvider.jsx';
+import { resetCustomBanks } from '../../../shared/banks/useCustomBanks.js';
 
 const AuthContext = createContext(null);
 
@@ -107,6 +108,7 @@ export function AuthProvider({ children }) {
   const logout = useCallback(async () => {
     await apiLogout().catch(() => {});
     writeCachedUser(null);
+    resetCustomBanks();
     setUser(null);
     navigate(LANDING_PATH, { replace: true });
   }, [navigate]);

@@ -142,6 +142,13 @@ export async function ensureD1Tables(env) {
       updated_at TEXT NOT NULL
     )`,
     `CREATE INDEX IF NOT EXISTS idx_loans_user ON loans(user_id)`,
+    `CREATE TABLE IF NOT EXISTS custom_banks (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL,
+      name TEXT NOT NULL,
+      created_at TEXT NOT NULL
+    )`,
+    `CREATE INDEX IF NOT EXISTS idx_custom_banks_user ON custom_banks(user_id)`,
     `CREATE TABLE IF NOT EXISTS loan_installment_states (
       id TEXT PRIMARY KEY,
       loan_id TEXT NOT NULL,
@@ -221,6 +228,11 @@ export async function ensureD1Tables(env) {
     // Backward-compat: ensure the optional annual fee column exists on loans
     try {
       await env.DB.prepare("ALTER TABLE loans ADD COLUMN annual_fee_amount REAL NOT NULL DEFAULT 0").run();
+    } catch (ignore) {}
+    // Backward-compat: standardized bank reference on loans — a standard bank id from
+    // config/banks.config.js or a custom_banks id; '' = unset (lender_name is the fallback)
+    try {
+      await env.DB.prepare("ALTER TABLE loans ADD COLUMN bank_id TEXT NOT NULL DEFAULT ''").run();
     } catch (ignore) {}
     // Backward-compat: ensure the schedule_mode column exists on loans ('formula' | 'distributed')
     try {

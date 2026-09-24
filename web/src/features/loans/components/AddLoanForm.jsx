@@ -25,6 +25,7 @@ import {
   distributeInstallmentAmounts,
 } from '../../../utils/loanCalculator.js';
 import { getLoanDetail } from '../api/loanApi.js';
+import { BankPicker } from '../../../shared/banks/index.js';
 
 const formatPersianNum = (val) => Number(val || 0).toLocaleString('fa-IR');
 
@@ -36,7 +37,9 @@ export default function AddLoanForm({
   submitting = false,
 }) {
   const [title, setTitle] = useState('');
-  const [lenderName, setLenderName] = useState('');
+  // The bank as stored on the loan: a standard/custom bank id, plus the lender name as the
+  // display fallback (older loans only have the name)
+  const [bank, setBank] = useState({ bankId: '', lenderName: '' });
   const [principalAmount, setPrincipalAmount] = useState('');
   const [annualInterestRate, setAnnualInterestRate] = useState('23');
   const [installmentCount, setInstallmentCount] = useState('12');
@@ -98,7 +101,10 @@ export default function AddLoanForm({
 
     if (editingLoan) {
       setTitle(editingLoan.title || '');
-      setLenderName(editingLoan.lenderName || editingLoan.lender_name || '');
+      setBank({
+        bankId: editingLoan.bankId || '',
+        lenderName: editingLoan.lenderName || editingLoan.lender_name || '',
+      });
       setPrincipalAmount(
         editingLoan.principalAmount ? String(editingLoan.principalAmount) : ''
       );
@@ -122,7 +128,7 @@ export default function AddLoanForm({
       setNotes(editingLoan.notes || '');
     } else {
       setTitle('');
-      setLenderName('');
+      setBank({ bankId: '', lenderName: '' });
       setPrincipalAmount('');
       setAnnualInterestRate('23');
       setInstallmentCount('12');
@@ -306,7 +312,8 @@ export default function AddLoanForm({
     try {
       await onSubmit?.({
         title: title.trim(),
-        lenderName: lenderName.trim(),
+        bankId: bank.bankId || '',
+        lenderName: (bank.lenderName || '').trim(),
         principalAmount: cleanPrincipal,
         annualInterestRate: installmentMode === 'totalRepaymentBased' && !editingLoan ? 0 : cleanRate,
         installmentCount: cleanCount,
@@ -428,12 +435,7 @@ export default function AddLoanForm({
             onChange={(e) => setTitle(e.target.value)}
             required
           />
-          <Input
-            label="نام وام‌دهنده / بانک (اختیاری)"
-            placeholder="مثلاً: بانک مسکن، بانک رسالت"
-            value={lenderName}
-            onChange={(e) => setLenderName(e.target.value)}
-          />
+          <BankPicker id="loan-bank" value={bank} onChange={setBank} label="بانک / وام‌دهنده" />
         </div>
 
         {/* Installment Determination Mode — Only on creation */}
