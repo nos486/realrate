@@ -5,7 +5,7 @@ import { Lock, Eye, EyeOff, AlertTriangle } from 'lucide-react';
  * VaultLockCard.jsx — Reusable Zero-Knowledge E2EE Vault Unlock Component
  *
  * Provides a unified, centered glassmorphism card for unlocking E2EE vaults
- * across PortfolioTracker, TransactionsPage, and SharedPortfolioPage.
+ * across PortfolioTracker's Holdings/Transactions sub-tabs and SharedPortfolioPage.
  */
 export default function VaultLockCard({
   portfolioName = '',

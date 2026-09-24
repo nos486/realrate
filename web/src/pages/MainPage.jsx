@@ -1,11 +1,10 @@
 import React, { useState, useMemo } from 'react';
 import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { Megaphone, TrendingUp, Briefcase, ShieldCheck, Radio, Settings, Receipt, Landmark, Wallet } from 'lucide-react';
+import { Megaphone, TrendingUp, Briefcase, ShieldCheck, Radio, Settings, Landmark, Wallet } from 'lucide-react';
 import { AppLayout, FilterPills, AlertBanner } from '../shared/ui/index.js';
 import MarketInputsToolbar from '../components/MarketInputsToolbar.jsx';
 import { AnalysisCards, CurrenciesList } from '../features/market/components/index.js';
 import { PortfolioTracker } from '../features/portfolio/index.js';
-import { TransactionsPage } from '../features/transactions/index.js';
 import { LoansPage, UpcomingInstallmentsAlert } from '../features/loans/index.js';
 import { IncomesPage } from '../features/incomes/index.js';
 import AdminPage from './AdminPage.jsx';
@@ -50,20 +49,20 @@ export default function MainPage() {
       searchParams.get('tab') === 'incomes'
     );
 
+  // Transactions is a sub-tab inside the Portfolio page now, not its own top-level tab —
+  // but /transactions and /transactions/:id stay working deep links into it.
+  const isTransactionsSubView =
+    subPath.startsWith('/transactions') || searchParams.get('tab') === 'transactions';
+
   const isPortfolio =
     !isSettings && !isSources && !isAdmin && !isIncomes && (
       subPath.startsWith('/portfolio') ||
-      searchParams.get('tab') === 'portfolio'
-    );
-
-  const isTransactions =
-    !isSettings && !isSources && !isAdmin && !isIncomes && !isPortfolio && (
-      subPath.startsWith('/transactions') ||
-      searchParams.get('tab') === 'transactions'
+      searchParams.get('tab') === 'portfolio' ||
+      isTransactionsSubView
     );
 
   const isLoans =
-    !isSettings && !isSources && !isAdmin && !isIncomes && !isPortfolio && !isTransactions && (
+    !isSettings && !isSources && !isAdmin && !isIncomes && !isPortfolio && (
       subPath.startsWith('/loans') ||
       searchParams.get('tab') === 'loans'
     );
@@ -78,11 +77,9 @@ export default function MainPage() {
           ? 'incomes'
           : isPortfolio
             ? 'portfolio'
-            : isTransactions
-              ? 'transactions'
-              : isLoans
-                ? 'loans'
-                : 'market';
+            : isLoans
+              ? 'loans'
+              : 'market';
 
   const handleTabChange = (nextTab) => {
     if (nextTab === 'incomes') {
@@ -92,14 +89,6 @@ export default function MainPage() {
     } else if (nextTab === 'loans') {
       if (!subPath.startsWith('/loans')) {
         navigate(appPath('/loans'));
-      }
-    } else if (nextTab === 'transactions') {
-      if (!subPath.startsWith('/transactions')) {
-        let lastId = null;
-        try {
-          lastId = localStorage.getItem('realrate_last_portfolio_id');
-        } catch { }
-        navigate(appPath(lastId ? `/transactions/${lastId}` : '/transactions'));
       }
     } else if (nextTab === 'portfolio') {
       if (!subPath.startsWith('/portfolio')) {
@@ -128,12 +117,25 @@ export default function MainPage() {
     }
   };
 
+  // Switching between the Holdings and Transactions sub-tabs inside the Portfolio page —
+  // keeps /transactions and /transactions/:id working as their own deep links.
+  const handlePortfolioViewChange = (nextView) => {
+    let lastId = null;
+    try {
+      lastId = localStorage.getItem('realrate_last_portfolio_id');
+    } catch { }
+    if (nextView === 'transactions') {
+      navigate(appPath(lastId ? `/transactions/${lastId}` : '/transactions'));
+    } else {
+      navigate(appPath(lastId ? `/portfolio/${lastId}` : '/portfolio'));
+    }
+  };
+
   const tabOptions = useMemo(() => {
     const options = [
       { value: 'market', label: 'نرخ و حباب', icon: <TrendingUp size={16} strokeWidth={2} /> },
       { value: 'incomes', label: 'درآمدها', icon: <Wallet size={16} strokeWidth={2} /> },
       { value: 'portfolio', label: 'پورتفو', icon: <Briefcase size={16} strokeWidth={2} /> },
-      { value: 'transactions', label: 'تراکنش‌ها', icon: <Receipt size={16} strokeWidth={2} /> },
       { value: 'loans', label: 'وام و اقساط', icon: <Landmark size={16} strokeWidth={2} /> },
     ];
     if (user) {
@@ -272,16 +274,8 @@ export default function MainPage() {
             usdToman={usdToman}
             goldUsd={goldUsd}
             initialPortfolioId={params.portfolioId || searchParams.get('p') || searchParams.get('id') || null}
-          />
-        )}
-
-        {activeTab === 'transactions' && (
-          <TransactionsPage
-            calcData={calcData}
-            rates={rates}
-            usdToman={usdToman}
-            goldUsd={goldUsd}
-            initialPortfolioId={params.portfolioId || searchParams.get('p') || searchParams.get('id') || null}
+            initialView={isTransactionsSubView ? 'transactions' : 'holdings'}
+            onViewChange={handlePortfolioViewChange}
           />
         )}
 

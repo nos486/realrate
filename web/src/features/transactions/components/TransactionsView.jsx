@@ -1,11 +1,13 @@
 /**
- * TransactionsPage.jsx — Main view for user portfolio transactions
+ * TransactionsView.jsx — Transactions sub-tab of the merged Portfolio page
  *
- * Provides full CRUD for buy/sell transactions with Zero-Knowledge E2EE encryption,
- * Persian date support, asset search, and real-time turnover statistics.
+ * Renders buy/sell transaction CRUD, search/filter, and turnover stats for the portfolio
+ * selected by the parent (PortfolioTracker). The portfolio switcher and page header live in
+ * the parent, shared with the Holdings sub-tab — this view owns only its own vault-unlock
+ * state and transaction data, exactly as it did as a standalone page.
  */
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect, forwardRef, useImperativeHandle } from 'react';
 import {
   Receipt,
   Plus,
@@ -14,18 +16,14 @@ import {
   ArrowDownLeft,
   ArrowUpRight,
   Search,
-  AlertTriangle,
   Calendar,
   MessageSquare,
 } from 'lucide-react';
-import { usePortfolio } from '../../portfolio/hooks/usePortfolio.js';
 import { useTransactions } from '../hooks/useTransactions.js';
 import { useComputedHoldings } from '../hooks/useComputedHoldings.js';
 import TransactionForm from './TransactionForm.jsx';
-import PortfolioSwitcher from '../../portfolio/components/PortfolioSwitcher.jsx';
 import VaultLockCard from '../../portfolio/components/VaultLockCard.jsx';
 import EmptyState from '../../../shared/ui/EmptyState.jsx';
-import FeaturePageHeader from '../../../shared/ui/FeaturePageHeader.jsx';
 import SplitPageLayout from '../../../shared/ui/SplitPageLayout.jsx';
 import { usePricing } from '../../market/index.js';
 import { CategoryIcon, formatAssetName, formatNum, getItemBrand, resolveAssetDisplayName } from '../../portfolio/utils/holdingHelpers.js';
@@ -38,23 +36,11 @@ import {
 import { usePrivacyMode } from '../../../hooks/usePrivacyMode.js';
 import { useSortableRows } from '../../../hooks/useSortableRows.js';
 
-export default function TransactionsPage({
-  calcData = null,
-  rates = null,
-  usdToman = null,
-  goldUsd = null,
-  initialPortfolioId = null,
-}) {
+const TransactionsView = forwardRef(function TransactionsView(
+  { activePortfolio, calcData = null, rates = null, fetchPortfolios, onCountChange },
+  ref
+) {
   const pricing = usePricing();
-  const {
-    portfolios,
-    activePortfolioId,
-    activePortfolio,
-    loadingPortfolios,
-    switchPortfolio,
-    createPortfolio,
-    fetchPortfolios,
-  } = usePortfolio(initialPortfolioId);
 
   // E2EE Vault Keys State
   const [vaultKey, setVaultKey] = useState(null);
@@ -72,6 +58,10 @@ export default function TransactionsPage({
     updateTransaction,
     deleteTransaction,
   } = useTransactions(activePortfolio, vaultKey);
+
+  useEffect(() => {
+    onCountChange?.(transactions.length);
+  }, [transactions.length, onCountChange]);
 
   // Price map
   const realPriceMap = useMemo(() => {
@@ -108,9 +98,13 @@ export default function TransactionsPage({
   const [typeFilter, setTypeFilter] = useState('all'); // 'all' | 'buy' | 'sell'
   const [formOpen, setFormOpen] = useState(false);
   const [editingTx, setEditingTx] = useState(null);
-  const [newPortfolioModalOpen, setNewPortfolioModalOpen] = useState(false);
-  const [newPortfolioName, setNewPortfolioName] = useState('');
-  const [creatingPortfolio, setCreatingPortfolio] = useState(false);
+
+  const handleOpenAdd = () => {
+    setEditingTx(null);
+    setFormOpen(true);
+  };
+
+  useImperativeHandle(ref, () => ({ openAdd: handleOpenAdd }));
 
   // Handle Vault Unlock
   const handleUnlockVault = async (passphrase) => {
@@ -204,11 +198,6 @@ export default function TransactionsPage({
     };
   }, [transactions]);
 
-  const handleOpenAdd = () => {
-    setEditingTx(null);
-    setFormOpen(true);
-  };
-
   const handleOpenEdit = (tx) => {
     setEditingTx(tx);
     setFormOpen(true);
@@ -233,19 +222,6 @@ export default function TransactionsPage({
     const ok = await deleteTransaction(id);
     if (ok) {
       fetchPortfolios();
-    }
-  };
-
-  const handleCreateNewPortfolio = async (e) => {
-    if (e && e.preventDefault) e.preventDefault();
-    if (!newPortfolioName.trim()) return;
-    setCreatingPortfolio(true);
-    try {
-      await createPortfolio(newPortfolioName.trim());
-      setNewPortfolioModalOpen(false);
-      setNewPortfolioName('');
-    } finally {
-      setCreatingPortfolio(false);
     }
   };
 
@@ -416,31 +392,7 @@ export default function TransactionsPage({
   ];
 
   return (
-    <div className="transactions-page-container">
-      <FeaturePageHeader
-        icon={<Receipt size={24} />}
-        title="تراکنش‌ها"
-        subtitle="ثبت خرید و فروش، تاریخچه معاملات و گردش مالی هر پورتفو"
-        actions={
-          <button type="button" className="btn-add-transaction" onClick={handleOpenAdd}>
-            <Plus size={16} style={{ verticalAlign: 'middle', marginLeft: '6px' }} />
-            ثبت تراکنش جدید
-          </button>
-        }
-      />
-
-      {/* 1. Portfolio Switcher */}
-      <PortfolioSwitcher
-        portfolios={portfolios}
-        activePortfolioId={activePortfolioId}
-        onSelect={switchPortfolio}
-        onNewPortfolio={() => setNewPortfolioModalOpen(true)}
-        holdingsCount={transactions.length}
-        activeCount={transactions.length}
-        mode="transactions"
-      />
-
-      {/* 2. Vault Locked View */}
+    <>
       {isVaultLocked ? (
         <VaultLockCard
           portfolioName={activePortfolio?.name}
@@ -588,6 +540,8 @@ export default function TransactionsPage({
         realPriceMap={realPriceMap}
         currentHoldingsMap={currentHoldingsMap}
       />
-    </div>
+    </>
   );
-}
+});
+
+export default TransactionsView;
