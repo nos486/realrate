@@ -451,14 +451,16 @@ export default function UniversalAssetSearch({
   }, []);
 
   // 3. Build Unified Items List (100% Client-Side, Single Source of Truth via PricingContext)
+  const resolvedAssets = pricingContext?.resolvedAssets;
+  const livePriceMap = pricingContext?.priceMap;
   const allItems = useMemo(() => {
     const items = [];
     const seenKeys = new Set();
     const seenNames = new Set();
 
     // ── بخش ۱: دارایی‌های کاتالوگ محاسباتی PricingContext ──────────────────────
-    if (pricingContext?.resolvedAssets && pricingContext.resolvedAssets.length > 0) {
-      pricingContext.resolvedAssets.forEach((asset) => {
+    if (resolvedAssets && resolvedAssets.length > 0) {
+      resolvedAssets.forEach((asset) => {
         const sym = (asset.symbol || asset.code || '').trim();
         const canonicalId = (asset.id || '').toLowerCase().trim();
         const normName = normalizeSearchText(asset.name);
@@ -532,7 +534,7 @@ export default function UniversalAssetSearch({
       if (spec.code) seenKeys.add(String(spec.code).toLowerCase());
 
       const cat = getItemCategory(spec);
-      const livePrice = pricingContext?.priceMap?.[spec.id] || pricingContext?.priceMap?.[canonicalId] || 0;
+      const livePrice = livePriceMap?.[spec.id] || livePriceMap?.[canonicalId] || 0;
       const badge = getItemBadge(spec);
       const unit = getItemUnit(spec);
 
@@ -645,8 +647,8 @@ export default function UniversalAssetSearch({
         const badgeClass = category;
 
         let priceToman = 0;
-        if (pricingContext?.priceMap) {
-          priceToman = pricingContext.priceMap[symCode] || pricingContext.priceMap[canonicalId] || 0;
+        if (livePriceMap) {
+          priceToman = livePriceMap[symCode] || livePriceMap[canonicalId] || 0;
         }
         if (!priceToman) {
           if (sub.price !== undefined) priceToman = Number(sub.price);
@@ -697,7 +699,7 @@ export default function UniversalAssetSearch({
     }
 
     return items;
-  }, [pricingContext?.resolvedAssets, pricingContext?.priceMap, bourseSymbols, internalSources, priceTypeInfo]);
+  }, [resolvedAssets, livePriceMap, bourseSymbols, internalSources, priceTypeInfo]);
 
   // 4. Pure Client-Side Instant Search Filter with Scoring, Category Filter, and Tokenized Matching
   const filteredItems = useMemo(() => {

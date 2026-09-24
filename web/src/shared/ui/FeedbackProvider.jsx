@@ -1,4 +1,4 @@
-import React, { createContext, useCallback, useContext, useMemo, useRef, useState } from 'react';
+import React, { createContext, useCallback, useContext, useMemo, useState } from 'react';
 import { AlertTriangle, CheckCircle2, AlertCircle, Info, X } from 'lucide-react';
 import Modal from './Modal.jsx';
 import Button from './Button.jsx';
@@ -18,6 +18,8 @@ const FeedbackContext = createContext(null);
 
 const TOAST_DURATION_MS = 4500;
 
+let toastSeq = 0;
+
 const TOAST_ICONS = {
   success: CheckCircle2,
   error: AlertCircle,
@@ -28,7 +30,6 @@ const TOAST_ICONS = {
 export function FeedbackProvider({ children }) {
   const [dialog, setDialog] = useState(null);
   const [toasts, setToasts] = useState([]);
-  const toastIdRef = useRef(0);
 
   const openDialog = useCallback((options, kind) => new Promise((resolve) => {
     const opts = typeof options === 'string' ? { message: options } : (options || {});
@@ -48,7 +49,7 @@ export function FeedbackProvider({ children }) {
 
   const showToast = useCallback((type, message, { duration = TOAST_DURATION_MS } = {}) => {
     if (!message) return;
-    const id = ++toastIdRef.current;
+    const id = ++toastSeq;
     setToasts((list) => [...list.slice(-3), { id, type, message }]);
     if (duration > 0) window.setTimeout(() => dismissToast(id), duration);
   }, [dismissToast]);

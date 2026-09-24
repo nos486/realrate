@@ -81,7 +81,7 @@ export function useTransactions(activePortfolio, externalVaultKey = null) {
     const seq = ++fetchSeqRef.current;
     const isStale = () => seq !== fetchSeqRef.current;
 
-    if (!user || !activePortfolio?.id) {
+    if (!user || !portfolioId) {
       loadedPortfolioIdRef.current = null;
       setTransactions([]);
       setLoadingTransactions(false);
@@ -89,13 +89,13 @@ export function useTransactions(activePortfolio, externalVaultKey = null) {
     }
 
     // Don't keep showing the previous portfolio's rows while the new one loads
-    if (loadedPortfolioIdRef.current !== activePortfolio.id) {
+    if (loadedPortfolioIdRef.current !== portfolioId) {
       setTransactions([]);
     }
 
     try {
       setLoadingTransactions(true);
-      const res = await getTransactions(activePortfolio.id);
+      const res = await getTransactions(portfolioId);
       if (isStale()) return;
 
       if (res && res.success && Array.isArray(res.transactions)) {
@@ -142,9 +142,9 @@ export function useTransactions(activePortfolio, externalVaultKey = null) {
         );
 
         if (isStale()) return;
-        loadedPortfolioIdRef.current = activePortfolio.id;
+        loadedPortfolioIdRef.current = portfolioId;
 
-        if (activePortfolio?.isE2ee && !activeVaultKey) {
+        if (isE2eePortfolio && !activeVaultKey) {
           setTransactions([]);
         } else {
           setTransactions(
@@ -162,7 +162,7 @@ export function useTransactions(activePortfolio, externalVaultKey = null) {
           );
         }
       } else {
-        loadedPortfolioIdRef.current = activePortfolio.id;
+        loadedPortfolioIdRef.current = portfolioId;
         setTransactions([]);
       }
     } catch (err) {
@@ -172,7 +172,7 @@ export function useTransactions(activePortfolio, externalVaultKey = null) {
     } finally {
       if (!isStale()) setLoadingTransactions(false);
     }
-  }, [user, activePortfolio?.id, activePortfolio?.isE2ee, activeVaultKey]);
+  }, [user, portfolioId, isE2eePortfolio, activeVaultKey]);
 
   useEffect(() => {
     fetchTransactions();

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { apiGetSharedPortfolio, apiGetPrices } from '../api/client.js';
 import { calculateMarketData } from '../utils/calculator.js';
@@ -89,7 +89,7 @@ export default function SharedPortfolioPage() {
   }, []);
 
   // 2. Fetch shared portfolio
-  const loadPortfolio = async (pwd = '') => {
+  const loadPortfolio = useCallback(async (pwd = '') => {
     setErrorMsg('');
     try {
       const res = await apiGetSharedPortfolio(slug, pwd);
@@ -111,14 +111,14 @@ export default function SharedPortfolioPage() {
       setLoading(false);
       setUnlocking(false);
     }
-  };
+  }, [slug]);
 
   useEffect(() => {
     if (slug) {
       setLoading(true);
       loadPortfolio();
     }
-  }, [slug]);
+  }, [slug, loadPortfolio]);
 
   const handleUnlock = (e) => {
     e.preventDefault();
@@ -214,10 +214,15 @@ export default function SharedPortfolioPage() {
   };
 
   // Accurate Real Values & Metrics calculation via Canonical Pricing Engine
+  const livePriceMap = pricing?.priceMap;
+  const liveItemMap = pricing?.itemMap;
+  const liveUsdToman = pricing?.usdToman;
+  const liveGoldUsd = pricing?.goldUsd;
+  const liveSilverUsd = pricing?.silverUsd;
   const realPriceMap = useMemo(() => {
     const map = {};
-    if (pricing?.priceMap) {
-      Object.assign(map, pricing.priceMap);
+    if (livePriceMap) {
+      Object.assign(map, livePriceMap);
     }
     if (marketRates || calcData) {
       const { priceMap } = computeUnifiedPrices({
@@ -233,7 +238,7 @@ export default function SharedPortfolioPage() {
       }
     }
     return map;
-  }, [pricing?.priceMap, marketRates, calcData]);
+  }, [livePriceMap, marketRates, calcData]);
 
   // Positions computed from the portfolio's buy/sell transactions (Weighted Average Cost) —
   // the second half of what the authenticated view shows alongside manually-added holdings.
@@ -255,16 +260,16 @@ export default function SharedPortfolioPage() {
     }
 
     const processHolding = (rawH, sourceTag) => {
-      const h = normalizeHolding({ ...rawH, source: sourceTag }, pricing?.itemMap);
+      const h = normalizeHolding({ ...rawH, source: sourceTag }, liveItemMap);
       const amountNum = Number(h.amount) || 0;
       const buyPriceNum = Number(h.buyPrice) || 0;
       const hasBuyPrice = buyPriceNum > 0;
       const isCustomItem = h.assetType === 'custom' || h.assetId?.startsWith('custom_');
 
       const unitRealPrice = resolveHoldingUnitRealPrice(h, realPriceMap, {}, {
-        usdToman: pricing?.usdToman || marketRates?.live_usd_toman || calcData?.inputs?.usd_toman,
-        goldUsd: pricing?.goldUsd || marketRates?.gold_usd || calcData?.inputs?.gold_usd,
-        silverUsd: pricing?.silverUsd || marketRates?.silver_usd || calcData?.silver?.silver_usd,
+        usdToman: liveUsdToman || marketRates?.live_usd_toman || calcData?.inputs?.usd_toman,
+        goldUsd: liveGoldUsd || marketRates?.gold_usd || calcData?.inputs?.gold_usd,
+        silverUsd: liveSilverUsd || marketRates?.silver_usd || calcData?.silver?.silver_usd,
       });
 
       const itemCost = hasBuyPrice ? amountNum * buyPriceNum : 0;
@@ -272,7 +277,7 @@ export default function SharedPortfolioPage() {
       const itemPnl = hasBuyPrice ? itemRealVal - itemCost : null;
       const itemPnlPct = hasBuyPrice && itemCost > 0 ? parseFloat(((itemPnl / itemCost) * 100).toFixed(1)) : null;
 
-      const referencePnlInfo = computeReferenceAssetPnl({ ...h, itemRealVal }, realPriceMap, pricing?.itemMap);
+      const referencePnlInfo = computeReferenceAssetPnl({ ...h, itemRealVal }, realPriceMap, liveItemMap);
 
       return {
         ...h,
@@ -300,7 +305,8 @@ export default function SharedPortfolioPage() {
     const totalPnlPct = hasAnyCost ? parseFloat(((totalPnl / totalCost) * 100).toFixed(1)) : 0;
 
     return { items, totalCost, totalRealValue, totalPnl, totalPnlPct, hasAnyCost };
-  }, [portfolioData, computedHoldings, realPriceMap]);
+    // Prices also feed unitRealPrice directly (formula-priced assets), not only via realPriceMap
+  }, [portfolioData, computedHoldings, realPriceMap, liveItemMap, liveUsdToman, liveGoldUsd, liveSilverUsd, marketRates, calcData]);
 
   const categoryGroups = useMemo(() => {
     return CATEGORY_DEFINITIONS.map((cat) => {
