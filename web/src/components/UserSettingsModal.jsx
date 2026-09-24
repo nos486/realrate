@@ -9,8 +9,8 @@ import {
   Copy,
   Trash2,
 } from 'lucide-react';
-import Modal from './ui/Modal.jsx';
-import AlertBanner from './ui/AlertBanner.jsx';
+import Modal from '../shared/ui/Modal.jsx';
+import AlertBanner from '../shared/ui/AlertBanner.jsx';
 import { apiUpdatePortfolio } from '../api/client.js';
 import {
   generateE2eeSalt,

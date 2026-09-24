@@ -4,7 +4,7 @@
  */
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { calculateMarketData } from '../../../utils/calculator.js';
-import { formatThousands } from '../../../utils/formatters.js';
+import { formatThousands } from '../../../shared/utils/formatters.js';
 import { usePricing } from '../context/PricingContext.jsx';
 import { getReferenceRatesSpecs } from '../../../config/sources.config.js';
 

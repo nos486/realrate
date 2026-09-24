@@ -23,7 +23,7 @@ import {
   resolveAssetDisplayName,
   resolveAssetUnit,
   resolveCategory,
-} from '../../../utils/sourceRegistry.js';
+} from '../../../config/sourceRegistry.js';
 import { useAuth } from '../../auth/index.js';
 
 export function useTransactions(activePortfolio, externalVaultKey = null) {

@@ -10,7 +10,7 @@ import {
   resolveAssetDisplayName,
   resolveAssetUnit,
   resolveCategory,
-} from '../../../utils/sourceRegistry.js';
+} from '../../../config/sourceRegistry.js';
 
 /** Quantities closer to zero than this are treated as zero (float noise from decimal amounts) */
 const QTY_EPSILON = 1e-9;

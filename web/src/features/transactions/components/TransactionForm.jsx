@@ -23,7 +23,7 @@ import {
 import {
   resolveAssetDisplayName,
   resolveAssetUnit,
-} from '../../../utils/sourceRegistry.js';
+} from '../../../config/sourceRegistry.js';
 import {
   getItemCategory,
   getItemUnit,

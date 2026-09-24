@@ -8,11 +8,11 @@ import {
   ShieldCheck,
   Zap,
 } from 'lucide-react';
-import AppLayout from '../components/ui/AppLayout.jsx';
-import AlertBanner from '../components/ui/AlertBanner.jsx';
-import Card from '../components/ui/Card.jsx';
+import AppLayout from '../shared/ui/AppLayout.jsx';
+import AlertBanner from '../shared/ui/AlertBanner.jsx';
+import Card from '../shared/ui/Card.jsx';
 import { useAuth } from '../features/auth/index.js';
-import { useMarketData } from '../hooks/useMarketData.js';
+import { useMarketData } from '../features/market/hooks/useMarketData.js';
 import {
   apiGetPriceSources,
   apiSavePriceSource,

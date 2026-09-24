@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { ChevronDown, Check } from 'lucide-react';
-import { toEnglishDigits } from '../utils/formatters.js';
+import { toEnglishDigits } from '../shared/utils/formatters.js';
 import { getReferenceRatesSpecs } from '../config/sources.config.js';
 
 function formatRate(num) {

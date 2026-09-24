@@ -1,6 +1,6 @@
 import React from 'react';
-import TimeAgoBadge, { formatRelativeTime } from './ui/TimeAgoBadge.jsx';
-import NumericInput from './ui/NumericInput.jsx';
+import TimeAgoBadge, { formatRelativeTime } from '../shared/ui/TimeAgoBadge.jsx';
+import NumericInput from '../shared/ui/NumericInput.jsx';
 import { getReferenceRatesSpecs } from '../config/sources.config.js';
 
 /**

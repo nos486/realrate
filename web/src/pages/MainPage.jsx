@@ -14,7 +14,7 @@ import LiveRatesTicker from '../components/LiveRatesTicker.jsx';
 import { useMarketData } from '../features/market/hooks/useMarketData.js';
 import { useAuth } from '../features/auth/index.js';
 import { appPath, getAppSubPath } from '../shared/routes.js';
-import { toEnglishDigits } from '../utils/formatters.js';
+import { toEnglishDigits } from '../shared/utils/formatters.js';
 
 export default function MainPage() {
   const location = useLocation();

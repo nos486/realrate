@@ -1,5 +1,5 @@
 import React, { forwardRef, useRef, useImperativeHandle } from 'react';
-import { formatThousands } from '../../utils/formatters.js';
+import { formatThousands } from '../utils/formatters.js';
 
 /**
  * Universal NumericInput Component
