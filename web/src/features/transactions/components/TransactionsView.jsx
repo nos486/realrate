@@ -43,7 +43,10 @@ const TransactionsView = forwardRef(function TransactionsView(
   const pricing = usePricing();
 
   // E2EE Vault Keys State
-  const [vaultKey, setVaultKey] = useState(null);
+  // Tagged with the portfolio it unlocks, so switching portfolios never reuses it
+  const [unlockedVault, setUnlockedVault] = useState({ portfolioId: null, key: null });
+  const vaultKey =
+    activePortfolio?.id && unlockedVault.portfolioId === activePortfolio.id ? unlockedVault.key : null;
   const [vaultUnlockError, setVaultUnlockError] = useState('');
   const [unlockingVault, setUnlockingVault] = useState(false);
 
@@ -116,7 +119,7 @@ const TransactionsView = forwardRef(function TransactionsView(
       const derivedKey = await deriveE2eeKey(passphrase, activePortfolio.e2eeSalt);
       const isValid = await verifyE2eeKey(derivedKey, activePortfolio.e2eeVerifier);
       if (isValid) {
-        setVaultKey(derivedKey);
+        setUnlockedVault({ portfolioId: activePortfolio.id, key: derivedKey });
         saveVaultPassphraseToSession(activePortfolio.id, passphrase);
         return true;
       } else {

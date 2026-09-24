@@ -43,17 +43,36 @@ export function useHoldings(activePortfolio) {
     activePortfolio?.isE2ee && activePortfolio?.id && !activeVaultKey
   );
 
+  // Only the newest fetch may write state: a slow response for a portfolio the user already
+  // switched away from must not overwrite the current one's holdings.
+  const fetchSeqRef = useRef(0);
+  const loadedPortfolioIdRef = useRef(null);
+
   // 1. Fetch Holdings for active portfolio + Auto-migration of local storage holdings
   const fetchHoldings = useCallback(async () => {
+    const seq = ++fetchSeqRef.current;
+    const isStale = () => seq !== fetchSeqRef.current;
+    const applyHoldings = (list) => {
+      if (isStale()) return;
+      loadedPortfolioIdRef.current = activePortfolio?.id || null;
+      setHoldings(list);
+    };
+
     if (!user || !activePortfolio?.id) {
-      setHoldings([]);
+      applyHoldings([]);
       setLoadingHoldings(false);
       return;
+    }
+
+    // Don't keep showing the previous portfolio's rows while the new one loads
+    if (loadedPortfolioIdRef.current !== activePortfolio.id) {
+      setHoldings([]);
     }
 
     try {
       setLoadingHoldings(true);
       const res = await getPortfolio(activePortfolio.id);
+      if (isStale()) return;
 
       if (res && res.success && Array.isArray(res.holdings)) {
         let rawHoldings = res.holdings;
@@ -92,7 +111,7 @@ export function useHoldings(activePortfolio) {
             const decrypted = await Promise.all(
               rawHoldings.map((h) => decryptHoldingFromApi(key, h))
             );
-            setHoldings(decrypted.map(normalizeHolding));
+            applyHoldings(decrypted.map(normalizeHolding));
           } else {
             // Check session storage for cached passphrase
             const cachedPass = getVaultPassphraseFromSession(activePortfolio.id);
@@ -100,33 +119,33 @@ export function useHoldings(activePortfolio) {
               try {
                 const derivedKey = await deriveE2eeKey(cachedPass, activePortfolio.e2eeSalt);
                 const isValid = await verifyE2eeKey(derivedKey, activePortfolio.e2eeVerifier);
-                if (isValid) {
+                if (isValid && !isStale()) {
                   setVaultKeys((prev) => ({ ...prev, [activePortfolio.id]: derivedKey }));
                   const decrypted = await Promise.all(
                     rawHoldings.map((h) => decryptHoldingFromApi(derivedKey, h))
                   );
-                  setHoldings(decrypted.map(normalizeHolding));
+                  applyHoldings(decrypted.map(normalizeHolding));
                 } else {
-                  setHoldings([]);
+                  applyHoldings([]);
                 }
               } catch {
-                setHoldings([]);
+                applyHoldings([]);
               }
             } else {
-              setHoldings([]);
+              applyHoldings([]);
             }
           }
         } else {
-          setHoldings(rawHoldings.map(normalizeHolding));
+          applyHoldings(rawHoldings.map(normalizeHolding));
         }
       } else {
-        setHoldings([]);
+        applyHoldings([]);
       }
     } catch (err) {
-      console.error('Failed to load portfolio holdings:', err);
-      setHoldings([]);
+      if (!isStale()) console.error('Failed to load portfolio holdings:', err);
+      applyHoldings([]);
     } finally {
-      setLoadingHoldings(false);
+      if (!isStale()) setLoadingHoldings(false);
     }
   }, [user, activePortfolio, vaultKeys]);
 

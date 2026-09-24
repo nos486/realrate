@@ -5,7 +5,7 @@
  * Decrypts transactions client-side using the active vault key derived from PBKDF2.
  */
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import {
   getTransactions,
   createTransaction,
@@ -33,47 +33,70 @@ export function useTransactions(activePortfolio, externalVaultKey = null) {
   const [submitting, setSubmitting] = useState(false);
   const [deletingId, setDeletingId] = useState(null);
 
-  // Internal vault key state if not provided externally
-  const [internalVaultKey, setInternalVaultKey] = useState(null);
+  // Key restored from the session-cached passphrase when the caller has none. It is tagged
+  // with the portfolio it belongs to, so switching portfolios can never reuse another
+  // portfolio's key (which would encrypt new transactions with the wrong key).
+  const [restoredVault, setRestoredVault] = useState({ portfolioId: null, key: null });
 
-  const activeVaultKey = externalVaultKey || internalVaultKey;
-  const isVaultLocked = Boolean(
-    activePortfolio?.isE2ee && activePortfolio?.id && !activeVaultKey
-  );
+  const portfolioId = activePortfolio?.id || null;
+  const isE2eePortfolio = Boolean(activePortfolio?.isE2ee && portfolioId);
+  const restoredKey =
+    isE2eePortfolio &&
+    restoredVault.portfolioId === portfolioId &&
+    // Locking the vault clears the cached passphrase — honour that immediately
+    getVaultPassphraseFromSession(portfolioId)
+      ? restoredVault.key
+      : null;
+  const activeVaultKey = isE2eePortfolio ? (externalVaultKey || restoredKey) : null;
+  const isVaultLocked = Boolean(isE2eePortfolio && !activeVaultKey);
 
-  // Try to restore vault key from session storage if portfolio is E2EE
+  // Try to restore the vault key from session storage if the portfolio is E2EE
   useEffect(() => {
-    if (externalVaultKey) {
-      setInternalVaultKey(externalVaultKey);
-      return;
-    }
+    if (!isE2eePortfolio || externalVaultKey || restoredVault.portfolioId === portfolioId) return;
 
-    if (activePortfolio?.isE2ee && activePortfolio?.id && !internalVaultKey) {
-      const cachedPass = getVaultPassphraseFromSession(activePortfolio.id);
-      if (cachedPass && activePortfolio.e2eeSalt && activePortfolio.e2eeVerifier) {
-        deriveE2eeKey(cachedPass, activePortfolio.e2eeSalt)
-          .then(async (derivedKey) => {
-            const valid = await verifyE2eeKey(derivedKey, activePortfolio.e2eeVerifier);
-            if (valid) {
-              setInternalVaultKey(derivedKey);
-            }
-          })
-          .catch(() => {});
-      }
-    }
-  }, [activePortfolio, externalVaultKey, internalVaultKey]);
+    const cachedPass = getVaultPassphraseFromSession(portfolioId);
+    if (!cachedPass || !activePortfolio.e2eeSalt || !activePortfolio.e2eeVerifier) return;
+
+    let cancelled = false;
+    deriveE2eeKey(cachedPass, activePortfolio.e2eeSalt)
+      .then(async (derivedKey) => {
+        const valid = await verifyE2eeKey(derivedKey, activePortfolio.e2eeVerifier);
+        if (valid && !cancelled) {
+          setRestoredVault({ portfolioId, key: derivedKey });
+        }
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [activePortfolio, portfolioId, isE2eePortfolio, externalVaultKey, restoredVault.portfolioId]);
+
+  // Only the newest fetch may write state: a slow response for a portfolio the user already
+  // switched away from must not overwrite the current one's transactions.
+  const fetchSeqRef = useRef(0);
+  const loadedPortfolioIdRef = useRef(null);
 
   // Fetch and decrypt transactions
   const fetchTransactions = useCallback(async () => {
+    const seq = ++fetchSeqRef.current;
+    const isStale = () => seq !== fetchSeqRef.current;
+
     if (!user || !activePortfolio?.id) {
+      loadedPortfolioIdRef.current = null;
       setTransactions([]);
       setLoadingTransactions(false);
       return;
     }
 
+    // Don't keep showing the previous portfolio's rows while the new one loads
+    if (loadedPortfolioIdRef.current !== activePortfolio.id) {
+      setTransactions([]);
+    }
+
     try {
       setLoadingTransactions(true);
       const res = await getTransactions(activePortfolio.id);
+      if (isStale()) return;
 
       if (res && res.success && Array.isArray(res.transactions)) {
         const rawList = res.transactions;
@@ -118,6 +141,9 @@ export function useTransactions(activePortfolio, externalVaultKey = null) {
           })
         );
 
+        if (isStale()) return;
+        loadedPortfolioIdRef.current = activePortfolio.id;
+
         if (activePortfolio?.isE2ee && !activeVaultKey) {
           setTransactions([]);
         } else {
@@ -136,15 +162,17 @@ export function useTransactions(activePortfolio, externalVaultKey = null) {
           );
         }
       } else {
+        loadedPortfolioIdRef.current = activePortfolio.id;
         setTransactions([]);
       }
     } catch (err) {
+      if (isStale()) return;
       console.error('Failed to fetch transactions:', err);
       setTransactions([]);
     } finally {
-      setLoadingTransactions(false);
+      if (!isStale()) setLoadingTransactions(false);
     }
-  }, [user, activePortfolio?.id, activeVaultKey]);
+  }, [user, activePortfolio?.id, activePortfolio?.isE2ee, activeVaultKey]);
 
   useEffect(() => {
     fetchTransactions();
@@ -257,7 +285,6 @@ export function useTransactions(activePortfolio, externalVaultKey = null) {
     deletingId,
     activeVaultKey,
     isVaultLocked,
-    setInternalVaultKey,
     fetchTransactions,
     addTransaction,
     updateTransaction,
