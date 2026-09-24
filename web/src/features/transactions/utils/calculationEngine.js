@@ -2,7 +2,7 @@
  * calculationEngine.js — Pure client-side calculation engine for transactions
  *
  * Zero React dependencies — purely functional and 100% testable in any JS runtime.
- * Implements Weighted Average Cost (WAC) and real-time PnL computation.
+ * Implements moving Weighted Average Cost (WAC), realized PnL and real-time unrealized PnL.
  */
 
 import { resolveHoldingUnitRealPrice, resolveItemCategory } from '../../../utils/financialSpecs.js';
@@ -11,6 +11,36 @@ import {
   resolveAssetUnit,
   resolveCategory,
 } from '../../../utils/sourceRegistry.js';
+
+/** Quantities closer to zero than this are treated as zero (float noise from decimal amounts) */
+const QTY_EPSILON = 1e-9;
+
+function isZeroQty(qty) {
+  return Math.abs(qty) < QTY_EPSILON;
+}
+
+function getTransactionType(t) {
+  return String(t.transactionType || t.type || 'buy').toLowerCase();
+}
+
+function getTransactionDate(t) {
+  return t.transactionDate || t.buyDate || t.date || '';
+}
+
+/**
+ * Order transactions by trade date, then by creation time. On the same day, buys go before
+ * sells so a same-day buy-then-sell never looks like an oversell because of entry order.
+ */
+function sortTransactionsChronologically(transactions) {
+  return [...transactions].sort((a, b) => {
+    const byDate = String(getTransactionDate(a)).localeCompare(String(getTransactionDate(b)));
+    if (byDate !== 0) return byDate;
+    const typeRank = (t) => (getTransactionType(t) === 'sell' ? 1 : 0);
+    const byType = typeRank(a) - typeRank(b);
+    if (byType !== 0) return byType;
+    return String(a.createdAt || '').localeCompare(String(b.createdAt || ''));
+  });
+}
 
 /**
  * Aggregate an array of decrypted transactions into net holdings with Weighted Average Cost.
@@ -30,7 +60,9 @@ export function calculateComputedHoldings(transactions = [], livePriceMap = {}) 
         totalPnl: 0,
         totalPnlPct: 0,
         hasAnyCost: false,
-        totalTransactionsCount: 0,
+        totalRealizedPnl: 0,
+        hasRealizedPnl: false,
+        count: 0,
       },
     };
   }
@@ -75,46 +107,63 @@ export function calculateComputedHoldings(transactions = [], livePriceMap = {}) 
 
   const computedHoldings = [];
   const warnings = [];
+  let totalRealizedPnl = 0;
+  let hasRealizedPnl = false;
 
   // 2. Aggregate each asset group
   for (const [assetId, group] of groups.entries()) {
+    // Running position, replayed in chronological order (moving-average cost method):
+    //  - a buy adds its quantity and cost to the open position
+    //  - a sell removes quantity at the CURRENT average cost (the average itself is unchanged)
+    //    and realizes (sellPrice − averageCost) × soldQty
+    //  - once the position is fully closed the cost basis resets, so a later re-buy starts a
+    //    fresh average instead of being blended with lots that were already sold
+    let openQty = 0;
+    let openCost = 0;
     let totalBuyQty = 0;
-    let totalBuyCost = 0;
     let totalSellQty = 0;
+    let realizedPnl = 0;
+    let assetHasRealized = false;
     let latestBuyDate = '';
     let latestTxDate = '';
-    // A reference-asset cost basis is only meaningful when EVERY buy lot for this asset
-    // was paid/swapped with the exact same reference asset — blending different ones
-    // would be meaningless, so we simply omit it rather than show a misleading figure.
+    // A reference-asset cost basis is only meaningful when EVERY buy lot in the open position
+    // was paid/swapped with the exact same reference asset — blending different ones would be
+    // meaningless, so we simply omit it rather than show a misleading figure.
     let commonReferenceAssetId = undefined;
     let hasMixedReferenceAsset = false;
-    let totalReferenceQuantity = 0;
+    let openReferenceQuantity = 0;
+    const resetOpenPosition = () => {
+      openCost = 0;
+      commonReferenceAssetId = undefined;
+      hasMixedReferenceAsset = false;
+      openReferenceQuantity = 0;
+    };
 
-    // Sort chronologically if dates exist
-    const sortedTxs = [...group.transactions].sort((a, b) => {
-      const dateA = a.transactionDate || a.buyDate || a.date || a.createdAt || '';
-      const dateB = b.transactionDate || b.buyDate || b.date || b.createdAt || '';
-      return String(dateA).localeCompare(String(dateB));
-    });
-
-    for (const t of sortedTxs) {
-      const type = String(t.transactionType || t.type || 'buy').toLowerCase();
+    for (const t of sortTransactionsChronologically(group.transactions)) {
+      const type = getTransactionType(t);
       const qty = Number(t.quantity !== undefined ? t.quantity : (t.amount || 0));
       const price = Number(t.unitPrice !== undefined ? t.unitPrice : (t.buyPrice || t.price || 0));
-      const date = t.transactionDate || t.buyDate || t.date || '';
+      const date = getTransactionDate(t);
 
       if (date && (!latestTxDate || date > latestTxDate)) {
         latestTxDate = date;
       }
+      if (!(qty > 0)) continue;
 
       if (type === 'buy') {
-        if (qty > 0) {
-          totalBuyQty += qty;
-          totalBuyCost += qty * price;
-          if (date && (!latestBuyDate || date > latestBuyDate)) {
-            latestBuyDate = date;
-          }
+        totalBuyQty += qty;
+        // Part of a buy may first cover an earlier oversell (a sell dated before its buy);
+        // only the remainder opens/extends the position at this price.
+        const coveringQty = openQty < 0 ? Math.min(qty, -openQty) : 0;
+        const addedQty = qty - coveringQty;
+        openQty += qty;
+        if (isZeroQty(openQty)) openQty = 0;
+        openCost += addedQty * (price > 0 ? price : 0);
+        if (date && (!latestBuyDate || date > latestBuyDate)) {
+          latestBuyDate = date;
+        }
 
+        if (addedQty > 0) {
           const txReferenceAssetId = t.referenceAssetId || '';
           if (txReferenceAssetId) {
             if (commonReferenceAssetId === undefined) {
@@ -122,7 +171,7 @@ export function calculateComputedHoldings(transactions = [], livePriceMap = {}) 
             } else if (commonReferenceAssetId !== txReferenceAssetId) {
               hasMixedReferenceAsset = true;
             }
-            totalReferenceQuantity += Number(t.referenceQuantity) || 0;
+            openReferenceQuantity += (Number(t.referenceQuantity) || 0) * (addedQty / qty);
           } else if (commonReferenceAssetId === undefined) {
             commonReferenceAssetId = '';
           } else if (commonReferenceAssetId !== '') {
@@ -130,13 +179,33 @@ export function calculateComputedHoldings(transactions = [], livePriceMap = {}) 
           }
         }
       } else if (type === 'sell') {
-        if (qty > 0) {
-          totalSellQty += qty;
+        totalSellQty += qty;
+        const heldQty = openQty > 0 ? openQty : 0;
+        const soldFromPosition = Math.min(qty, heldQty);
+        const averageCost = heldQty > 0 ? openCost / heldQty : 0;
+
+        if (soldFromPosition > 0) {
+          if (price > 0 && averageCost > 0) {
+            realizedPnl += soldFromPosition * (price - averageCost);
+            assetHasRealized = true;
+          }
+          const remainingShare = (heldQty - soldFromPosition) / heldQty;
+          openCost *= remainingShare;
+          openReferenceQuantity *= remainingShare;
         }
+
+        openQty -= qty;
+        if (isZeroQty(openQty)) openQty = 0;
+        if (openQty <= 0) resetOpenPosition();
       }
     }
 
-    const currentQty = totalBuyQty - totalSellQty;
+    if (assetHasRealized) {
+      totalRealizedPnl += realizedPnl;
+      hasRealizedPnl = true;
+    }
+
+    const currentQty = openQty;
 
     // Scenario A: Overselling (User error — sells exceed purchases)
     if (currentQty < 0) {
@@ -159,9 +228,8 @@ export function calculateComputedHoldings(transactions = [], livePriceMap = {}) 
       continue;
     }
 
-    // Scenario C: Positive balance -> Calculate Weighted Average Cost
-    // WAC = Total Buy Cost / Total Buy Quantity
-    const weightedAveragePrice = totalBuyQty > 0 ? (totalBuyCost / totalBuyQty) : 0;
+    // Scenario C: Positive balance -> average cost of the lots still held
+    const weightedAveragePrice = openCost / currentQty;
 
     // Resolve current market price
     const unitRealPrice = resolveHoldingUnitRealPrice(
@@ -186,11 +254,9 @@ export function calculateComputedHoldings(transactions = [], livePriceMap = {}) 
         : null;
 
     const hasUniformReferenceAsset = !hasMixedReferenceAsset && Boolean(commonReferenceAssetId);
-    // Scale the reference quantity down proportionally to what's still held (mirrors how
-    // itemCost above scales the Toman cost basis by currentQty ÷ totalBuyQty), so a
-    // partially-sold position doesn't overstate what was originally given up for it.
-    const scaledReferenceQuantity =
-      hasUniformReferenceAsset && totalBuyQty > 0 ? totalReferenceQuantity * (currentQty / totalBuyQty) : 0;
+    // Already scaled down on every sell alongside the Toman cost basis, so a partially-sold
+    // position doesn't overstate what was originally given up for it.
+    const scaledReferenceQuantity = hasUniformReferenceAsset ? openReferenceQuantity : 0;
 
     computedHoldings.push({
       id: `computed_${assetId}`,
@@ -214,6 +280,7 @@ export function calculateComputedHoldings(transactions = [], livePriceMap = {}) 
       source: 'transactions',
       isComputed: true,
       txCount: group.transactions.length,
+      realizedPnl: assetHasRealized ? realizedPnl : null,
       // Only set when every buy transaction for this asset shares one reference asset —
       // otherwise a blended figure across different references would be meaningless.
       referenceAssetId: hasUniformReferenceAsset ? commonReferenceAssetId : '',
@@ -238,6 +305,8 @@ export function calculateComputedHoldings(transactions = [], livePriceMap = {}) 
       totalPnl,
       totalPnlPct,
       hasAnyCost,
+      totalRealizedPnl,
+      hasRealizedPnl,
       count: computedHoldings.length,
     },
   };
