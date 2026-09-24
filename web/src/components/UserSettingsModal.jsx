@@ -42,7 +42,11 @@ export default function UserSettingsModal({ isOpen, portfolio, onClose, onSaved,
   const [portfolioName, setPortfolioName] = useState('');
   const [shareSlug, setShareSlug] = useState('');
   const [shareEnabled, setShareEnabled] = useState(false);
+  // The server never returns the share password (it is stored hashed), so this field only
+  // ever holds a NEW password; leaving it empty keeps the current one.
   const [sharePassword, setSharePassword] = useState('');
+  const [hasExistingPassword, setHasExistingPassword] = useState(false);
+  const [removePassword, setRemovePassword] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [isDefault, setIsDefault] = useState(false);
 
@@ -82,7 +86,9 @@ export default function UserSettingsModal({ isOpen, portfolio, onClose, onSaved,
         setPortfolioName(portfolio.name || '');
         setShareSlug(portfolio.shareSlug || generateRandomSlug(8));
         setShareEnabled(!!portfolio.shareEnabled);
-        setSharePassword(portfolio.sharePassword || '');
+        setSharePassword('');
+        setHasExistingPassword(!!portfolio.hasPassword);
+        setRemovePassword(false);
         setIsDefault(!!portfolio.isDefault);
         setIsE2ee(!!portfolio.isE2ee);
 
@@ -328,7 +334,8 @@ export default function UserSettingsModal({ isOpen, portfolio, onClose, onSaved,
           id: portfolio.id,
           name: portfolioName.trim() || portfolio.name,
           shareSlug,
-          sharePassword: sharePassword ? sharePassword.trim() : '',
+          // undefined → unchanged, '' → removed, otherwise the new password
+          sharePassword: removePassword ? '' : (sharePassword.trim() || undefined),
           shareEnabled,
           isDefault,
           isE2ee,
@@ -507,8 +514,9 @@ export default function UserSettingsModal({ isOpen, portfolio, onClose, onSaved,
                 <input
                   type={showPassword ? 'text' : 'password'}
                   id="settingsSharePassword"
-                  placeholder="رمز دلخواه..."
+                  placeholder={hasExistingPassword && !removePassword ? 'رمز تنظیم شده — برای تغییر، رمز جدید وارد کنید' : 'رمز دلخواه...'}
                   value={sharePassword}
+                  disabled={removePassword}
                   onChange={(e) => setSharePassword(e.target.value)}
                 />
                 <button
@@ -520,6 +528,19 @@ export default function UserSettingsModal({ isOpen, portfolio, onClose, onSaved,
                   {showPassword ? <EyeOff size={15} /> : <Eye size={15} />}
                 </button>
               </div>
+              {hasExistingPassword && (
+                <label className="share-password-remove">
+                  <input
+                    type="checkbox"
+                    checked={removePassword}
+                    onChange={(e) => {
+                      setRemovePassword(e.target.checked);
+                      if (e.target.checked) setSharePassword('');
+                    }}
+                  />
+                  <span>حذف رمز عبور لینک</span>
+                </label>
+              )}
             </div>
 
             {/* E2EE Vault Toggle Card */}

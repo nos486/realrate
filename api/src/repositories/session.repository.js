@@ -86,3 +86,17 @@ export async function dbDeleteSession(env, token) {
 
   await deleteSessionKV(env, token);
 }
+
+/**
+ * Delete sessions that have already expired (run periodically from the cron)
+ * @param {object} env
+ */
+export async function dbDeleteExpiredSessions(env) {
+  if (!env || !env.DB) return;
+  await ensureD1Tables(env);
+  try {
+    await env.DB.prepare("DELETE FROM sessions WHERE expires_at <= ?").bind(Date.now()).run();
+  } catch (e) {
+    logger.error("D1 dbDeleteExpiredSessions error:", { error: e.message });
+  }
+}

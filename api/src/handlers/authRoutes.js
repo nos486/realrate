@@ -12,6 +12,7 @@ import { isUserAdmin, getAuthenticatedUser } from "../lib/auth.js";
 import { dbUpsertUser, dbSaveSession, dbDeleteSession, dbGetUserById } from "../repositories/index.js";
 import { jsonResponse, errorResponse, getCorsHeaders } from "../lib/helpers.js";
 import { logger } from "../lib/logger.js";
+import { isTrustedOrigin } from "../lib/security.js";
 import {
   SESSION_TTL_SECONDS,
   SESSION_COOKIE_MAX_AGE,
@@ -55,41 +56,30 @@ function resolveRedirectUri(request, env) {
   return `${url.origin}/api/auth/google/callback`;
 }
 
-function isTrustedFrontendHostname(hostname) {
-  if (!hostname) return false;
-  return (
-    hostname === "localhost" ||
-    hostname.endsWith("geekio.org") ||
-    hostname.endsWith("pages.dev") ||
-    hostname.endsWith("realrate.ir")
-  );
-}
+const DEFAULT_FRONTEND_ORIGIN = "https://realrate.geekio.org";
 
-function buildFrontendRedirect(frontendOrigin, returnTo, params = {}) {
-  let baseOrigin = "https://realrate.geekio.org";
-  if (frontendOrigin) {
-    try {
-      const u = new URL(frontendOrigin);
-      if (isTrustedFrontendHostname(u.hostname)) {
-        baseOrigin = u.origin;
-      }
-    } catch {}
+/**
+ * Build the post-login redirect URL. The final URL is always re-checked against the trusted
+ * origin list, so neither an absolute return_to nor a protocol-relative one ("//evil.example")
+ * can send the session token off-site.
+ */
+export function buildFrontendRedirect(frontendOrigin, returnTo, params = {}) {
+  let baseOrigin = DEFAULT_FRONTEND_ORIGIN;
+  if (frontendOrigin && isTrustedOrigin(frontendOrigin)) {
+    baseOrigin = new URL(frontendOrigin).origin;
   }
 
   let finalUrl;
   try {
-    if (returnTo && (returnTo.startsWith("http://") || returnTo.startsWith("https://"))) {
-      const u = new URL(returnTo);
-      if (isTrustedFrontendHostname(u.hostname)) {
-        finalUrl = u;
-      } else {
-        finalUrl = new URL("/", baseOrigin);
-      }
-    } else {
-      const path = (returnTo && returnTo.startsWith("/")) ? returnTo : `/${returnTo || ""}`;
-      finalUrl = new URL(path, baseOrigin);
-    }
+    const target = String(returnTo || "/");
+    finalUrl = /^https?:\/\//i.test(target)
+      ? new URL(target)
+      : new URL(target.startsWith("/") ? target : `/${target}`, baseOrigin);
   } catch {
+    finalUrl = null;
+  }
+
+  if (!finalUrl || !isTrustedOrigin(finalUrl.origin)) {
     finalUrl = new URL("/", baseOrigin);
   }
 
@@ -116,12 +106,12 @@ export async function handleGoogleLogin(request, env) {
   const returnTo = url.searchParams.get("return_to") || url.searchParams.get("redirect") || "/";
 
   // Determine frontend origin from referer or return_to
-  let frontendOrigin = "https://realrate.geekio.org";
+  let frontendOrigin = DEFAULT_FRONTEND_ORIGIN;
   const referer = request.headers.get("referer");
   if (referer) {
     try {
       const refUrl = new URL(referer);
-      if (isTrustedFrontendHostname(refUrl.hostname)) {
+      if (isTrustedOrigin(refUrl.origin)) {
         frontendOrigin = refUrl.origin;
       }
     } catch {}
@@ -129,7 +119,7 @@ export async function handleGoogleLogin(request, env) {
 
   try {
     const parsed = new URL(returnTo);
-    if (isTrustedFrontendHostname(parsed.hostname)) {
+    if (isTrustedOrigin(parsed.origin)) {
       frontendOrigin = parsed.origin;
     }
   } catch {}
@@ -189,7 +179,7 @@ export async function handleGoogleCallback(request, env) {
     }
   }
 
-  const frontendOrigin = stateData.frontendOrigin || "https://realrate.geekio.org";
+  const frontendOrigin = stateData.frontendOrigin || DEFAULT_FRONTEND_ORIGIN;
   const returnTo = stateData.returnTo || "/";
   const redirectUri = stateData.redirectUri || resolveRedirectUri(request, env);
 
@@ -215,10 +205,18 @@ export async function handleGoogleCallback(request, env) {
   if (match) {
     try {
       const [v, nonce] = decodeURIComponent(match[1]).split(":");
-      if (!stateData.nonce || nonce === stateData.nonce) {
+      if (v && nonce && stateData.nonce && nonce === stateData.nonce) {
         codeVerifier = v;
       }
     } catch {}
+  }
+
+  // The state must come from a login this browser started (login-CSRF protection)
+  if (!codeVerifier) {
+    const errorTarget = buildFrontendRedirect(frontendOrigin, returnTo, {
+      auth_error: "نشست ورود نامعتبر یا منقضی شده است. لطفاً دوباره وارد شوید.",
+    });
+    return Response.redirect(errorTarget, 302);
   }
 
   try {
@@ -233,9 +231,7 @@ export async function handleGoogleCallback(request, env) {
     if (env.GOOGLE_CLIENT_SECRET && env.GOOGLE_CLIENT_SECRET.trim()) {
       tokenBody.append("client_secret", env.GOOGLE_CLIENT_SECRET.trim());
     }
-    if (codeVerifier) {
-      tokenBody.append("code_verifier", codeVerifier);
-    }
+    tokenBody.append("code_verifier", codeVerifier);
 
     const tokenRes = await fetch("https://oauth2.googleapis.com/token", {
       method: "POST",
@@ -329,7 +325,7 @@ export async function handleGoogleCallback(request, env) {
   } catch (e) {
     logger.error("Error in handleGoogleCallback:", { error: e.message, stack: e.stack });
     const errorTarget = buildFrontendRedirect(frontendOrigin, returnTo, {
-      auth_error: "خطای سرور در تکمیل فرآیند ورود: " + e.message,
+      auth_error: "خطای سرور در تکمیل فرآیند ورود.",
     });
     return Response.redirect(errorTarget, 302);
   }
@@ -420,7 +416,7 @@ export async function handleGoogleAuth(request, env) {
     });
   } catch (e) {
     logger.error("Error in handleGoogleAuth:", { error: e.message, stack: e.stack });
-    return errorResponse("خطای سرور در احراز هویت با گوگل: " + e.message, 500, request);
+    return errorResponse("خطای سرور در احراز هویت با گوگل.", 500, request);
   }
 }
 

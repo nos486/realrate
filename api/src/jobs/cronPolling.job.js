@@ -4,6 +4,7 @@
  */
 
 import { syncAllSources } from "../services/market/sourceSync.service.js";
+import { dbDeleteExpiredSessions } from "../repositories/session.repository.js";
 import { logger } from "../lib/logger.js";
 
 /**
@@ -18,4 +19,10 @@ export async function runCronPolling(event, env, ctx) {
       logger.error("[CronPolling] Source sync error:", { error: err.message, stack: err.stack });
     })
   );
+
+  // Once an hour is plenty for purging expired sessions
+  const scheduledAt = new Date(event?.scheduledTime || Date.now());
+  if (scheduledAt.getUTCMinutes() === 0) {
+    ctx.waitUntil(dbDeleteExpiredSessions(env));
+  }
 }

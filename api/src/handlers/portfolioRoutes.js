@@ -28,7 +28,18 @@ import {
   dbUpdateUserSettings,
   dbGetTransactionsByPortfolio,
 } from "../repositories/index.js";
-import { jsonResponse } from "../lib/helpers.js";
+import { jsonResponse, getClientIp } from "../lib/helpers.js";
+import {
+  verifySharePassword,
+  hashSharePassword,
+  isHashedSharePassword,
+  getRateLimitState,
+  recordRateLimitHit,
+  clearRateLimit,
+} from "../lib/security.js";
+
+/** Failed share-password attempts allowed per slug + IP within the window */
+const SHARE_PASSWORD_RATE_LIMIT = { limit: 10, windowSec: 15 * 60 };
 import { AppError } from "../lib/AppError.js";
 import { logger } from "../lib/logger.js";
 import {
@@ -83,7 +94,6 @@ export async function handleGetPortfolios(request, env) {
       e2eeSalt: p.e2eeSalt || "",
       e2eeVerifier: p.e2eeVerifier || "",
       hasPassword: !!(p.sharePassword && p.sharePassword.trim()),
-      sharePassword: p.sharePassword || "",
       itemCount: Number(p.itemCount) || 0,
       transactionCount: Number(p.transactionCount) || 0,
       createdAt: p.createdAt,
@@ -126,7 +136,6 @@ export async function handleCreatePortfolio(request, env) {
       e2eeSalt: "",
       e2eeVerifier: "",
       hasPassword: false,
-      sharePassword: "",
       itemCount: 0,
       transactionCount: 0,
       createdAt: created.createdAt,
@@ -182,7 +191,6 @@ export async function handleUpdatePortfolio(request, env) {
       e2eeSalt: updated.e2eeSalt || "",
       e2eeVerifier: updated.e2eeVerifier || "",
       hasPassword: !!(updated.sharePassword && updated.sharePassword.trim()),
-      sharePassword: updated.sharePassword || "",
       itemCount: Number(updated.itemCount) || 0,
       transactionCount: Number(updated.transactionCount) || 0,
       createdAt: updated.createdAt,
@@ -376,7 +384,6 @@ export async function handleGetUserSettings(request, env) {
       shareSlug: userData.shareSlug || "",
       shareEnabled: !!userData.shareEnabled,
       hasPassword: !!(userData.sharePassword && userData.sharePassword.trim()),
-      sharePassword: userData.sharePassword || "",
     },
   }, 200, request);
 }
@@ -410,7 +417,6 @@ export async function handleUpdateUserSettings(request, env) {
       shareSlug: updatedUser.shareSlug || "",
       shareEnabled: !!updatedUser.shareEnabled,
       hasPassword: !!(updatedUser.sharePassword && updatedUser.sharePassword.trim()),
-      sharePassword: updatedUser.sharePassword || "",
     },
   }, 200, request);
 }
@@ -422,12 +428,14 @@ export async function handleUpdateUserSettings(request, env) {
 export async function handleGetSharedPortfolio(request, env) {
   const url = new URL(request.url);
   let slug = url.searchParams.get("slug");
-  let password = url.searchParams.get("password") || request.headers.get("X-Portfolio-Password");
+  // The password is only accepted in a POST body — never in the query string, which ends up
+  // in logs, browser history and Referer headers.
+  let password = "";
 
   if (request.method === "POST") {
     const body = await request.json().catch(() => ({}));
     if (body.slug) slug = body.slug;
-    if (body.password !== undefined) password = body.password;
+    if (body.password !== undefined && body.password !== null) password = String(body.password);
   }
 
   if (!slug) {
@@ -441,32 +449,57 @@ export async function handleGetSharedPortfolio(request, env) {
 
   const ownerName = targetPortfolio.userCustomName || targetPortfolio.userName || "کاربر";
   const portfolioName = targetPortfolio.name || "پورتفوی سرمایه‌گذاری";
+  const storedPassword = String(targetPortfolio.sharePassword || "").trim();
 
-  // Check password protection
-  if (targetPortfolio.sharePassword && targetPortfolio.sharePassword.trim().length > 0) {
-    if (!password || String(password).trim() !== targetPortfolio.sharePassword.trim()) {
-      return jsonResponse({
-        success: false,
-        requirePassword: true,
-        portfolio: {
-          id: targetPortfolio.id,
-          name: portfolioName,
-          slug: targetPortfolio.shareSlug,
-        },
-        user: {
-          name: ownerName,
-          slug: targetPortfolio.shareSlug,
-        },
-        message: password ? "رمز عبور وارد شده نادرست است." : "جهت مشاهده این پورتفو، لطفاً رمز عبور را وارد نمایید.",
-      }, 200, request);
+  if (storedPassword) {
+    const lockedResponse = (message) => jsonResponse({
+      success: false,
+      requirePassword: true,
+      portfolio: {
+        id: targetPortfolio.id,
+        name: portfolioName,
+        slug: targetPortfolio.shareSlug,
+      },
+      user: {
+        name: ownerName,
+        slug: targetPortfolio.shareSlug,
+      },
+      message,
+    }, 200, request);
+
+    if (!password.trim()) {
+      return lockedResponse("جهت مشاهده این پورتفو، لطفاً رمز عبور را وارد نمایید.");
+    }
+
+    const rateKey = `share:${String(targetPortfolio.shareSlug || slug).toLowerCase()}:${getClientIp(request)}`;
+    const { limited } = await getRateLimitState(env, rateKey, SHARE_PASSWORD_RATE_LIMIT);
+    if (limited) {
+      throw new AppError("تعداد تلاش‌های ناموفق بیش از حد مجاز است. لطفاً چند دقیقه دیگر دوباره تلاش کنید.", 429, "TOO_MANY_REQUESTS");
+    }
+
+    const valid = await verifySharePassword(password, storedPassword);
+    if (!valid) {
+      await recordRateLimitHit(env, rateKey, SHARE_PASSWORD_RATE_LIMIT);
+      return lockedResponse("رمز عبور وارد شده نادرست است.");
+    }
+
+    await clearRateLimit(env, rateKey);
+
+    // Lazily replace a legacy plaintext password with its hash
+    if (!isHashedSharePassword(storedPassword) && targetPortfolio.shareSlug) {
+      try {
+        const hashed = await hashSharePassword(password);
+        // Only a real portfolio row owning this slug — not the legacy users-table fallback
+        const ownRow = await dbGetPortfolioById(env, targetPortfolio.id, targetPortfolio.userId);
+        if (ownRow && String(ownRow.shareSlug || "").toLowerCase() === String(targetPortfolio.shareSlug).toLowerCase()) {
+          await dbUpdatePortfolio(env, targetPortfolio.id, targetPortfolio.userId, { sharePassword: hashed });
+        }
+      } catch (e) {
+        logger.warn("Could not upgrade legacy share password hash:", { error: e.message });
+      }
     }
   }
 
-  // Password passed or not required: return holdings AND transactions for this portfolio.
-  // The private (authenticated) view combines manually-added holdings with positions
-  // computed from buy/sell transactions (useComputedHoldings) — the shared view must
-  // include the same transactions or it silently omits any transaction-derived asset,
-  // showing a portfolio that doesn't match what the owner actually sees.
   const [holdings, transactions] = await Promise.all([
     dbGetPortfolioHoldings(env, targetPortfolio.userId, targetPortfolio.id),
     dbGetTransactionsByPortfolio(env, targetPortfolio.userId, targetPortfolio.id),

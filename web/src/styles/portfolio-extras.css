@@ -483,6 +483,20 @@
   color: #000;
 }
 
+.share-password-remove {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 8px;
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+
+.share-password-remove input {
+  accent-color: #ef4444;
+}
+
 .password-input-wrapper {
   position: relative;
   display: flex;
