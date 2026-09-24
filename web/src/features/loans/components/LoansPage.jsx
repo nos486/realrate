@@ -8,7 +8,7 @@
  * - Loan details dialog with interactive full installment schedule & payment toggling
  */
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import {
   Landmark,
@@ -135,9 +135,12 @@ export default function LoansPage({ initialLoanId = null }) {
   const [editingLoan, setEditingLoan] = useState(null);
   const [selectedLoanId, setSelectedLoanId] = useState(initialLoanId);
 
-  useEffect(() => {
+  // Follow route changes (/loans/:loanId), adjusted during render instead of in an effect
+  const [prevInitialLoanId, setPrevInitialLoanId] = useState(initialLoanId);
+  if (initialLoanId !== prevInitialLoanId) {
+    setPrevInitialLoanId(initialLoanId);
     setSelectedLoanId(initialLoanId || null);
-  }, [initialLoanId]);
+  }
 
   const handleSelectLoan = (loan) => {
     if (!loan?.id) return;

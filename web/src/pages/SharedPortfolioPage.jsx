@@ -136,18 +136,21 @@ export default function SharedPortfolioPage() {
   // Transactions for this shared portfolio, decrypted/parsed the same way useTransactions.js
   // does for the authenticated view — needed so positions built purely from buy/sell
   // transactions (not a manually-added holding) aren't silently missing from the share.
-  const [decryptedTransactions, setDecryptedTransactions] = useState([]);
+  // The async result is tagged with the inputs it was computed from, so an empty/locked state
+  // is derived during render and a result for older data is never shown.
+  const [decryptResult, setDecryptResult] = useState({ source: null, key: null, list: [] });
+  const rawTransactions = portfolioData?.transactions;
+  const canDecrypt = Array.isArray(rawTransactions) && rawTransactions.length > 0 && !(isE2ee && !vaultKey);
+  const decryptedTransactions = useMemo(
+    () => (canDecrypt && decryptResult.source === rawTransactions && decryptResult.key === vaultKey
+      ? decryptResult.list
+      : []),
+    [canDecrypt, decryptResult, rawTransactions, vaultKey]
+  );
 
   useEffect(() => {
-    const rawTxs = portfolioData?.transactions;
-    if (!Array.isArray(rawTxs) || rawTxs.length === 0) {
-      setDecryptedTransactions([]);
-      return undefined;
-    }
-    if (isE2ee && !vaultKey) {
-      setDecryptedTransactions([]);
-      return undefined;
-    }
+    const rawTxs = rawTransactions;
+    if (!canDecrypt) return undefined;
 
     let cancelled = false;
     (async () => {
@@ -172,13 +175,13 @@ export default function SharedPortfolioPage() {
           return null;
         })
       );
-      if (!cancelled) setDecryptedTransactions(results.filter(Boolean));
+      if (!cancelled) setDecryptResult({ source: rawTxs, key: vaultKey, list: results.filter(Boolean) });
     })();
 
     return () => {
       cancelled = true;
     };
-  }, [portfolioData, isE2ee, vaultKey]);
+  }, [rawTransactions, canDecrypt, vaultKey]);
 
   const handleUnlockVault = async (passphrase) => {
     if (!portfolioData?.portfolio?.isE2ee) return false;
