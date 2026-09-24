@@ -11,7 +11,8 @@ import { isTrustedOrigin } from "./security.js";
 const ALLOWED_ORIGINS = [
   "http://localhost:5173",      // Vite dev server
   "http://localhost:4173",      // Vite preview
-  "https://realrate.pages.dev", // Cloudflare Pages (production)
+  "https://realrate-5pn.pages.dev", // Cloudflare Pages (production)
+  "https://realrate.pages.dev",
   "https://realrate.geekio.org",
   "https://geekio.org",
   "https://realrate.ir",

@@ -196,4 +196,106 @@ describe('Computed Holdings Engine - Weighted Average Cost & Aggregation', () =>
     expect(goldItem.category).toBe('gold');
     expect(goldItem.amount).toBe(10);
   });
+
+  describe('moving average cost & realized PnL', () => {
+    const tx = (type, quantity, unitPrice, transactionDate, extra = {}) => ({
+      assetId: 'gold_18k',
+      transactionType: type,
+      quantity,
+      unitPrice,
+      transactionDate,
+      ...extra,
+    });
+
+    it('starts a fresh average after the position was fully sold and bought again', () => {
+      const { computedHoldings, summary } = calculateComputedHoldings(
+        [
+          tx('buy', 1, 100, '1403/01/01'),
+          tx('sell', 1, 150, '1403/02/01'),
+          tx('buy', 1, 200, '1403/03/01'),
+        ],
+        { gold_18k: 200 }
+      );
+      expect(computedHoldings).toHaveLength(1);
+      expect(computedHoldings[0].buyPrice).toBe(200);
+      expect(computedHoldings[0].itemCost).toBe(200);
+      expect(computedHoldings[0].realizedPnl).toBe(50);
+      expect(summary.totalRealizedPnl).toBe(50);
+      expect(summary.hasRealizedPnl).toBe(true);
+    });
+
+    it('realizes PnL at the average cost on partial sells and keeps the remaining average', () => {
+      const { computedHoldings, summary } = calculateComputedHoldings(
+        [
+          tx('buy', 10, 100, '1403/01/01'),
+          tx('buy', 10, 200, '1403/01/05'),
+          tx('sell', 5, 300, '1403/02/01'),
+          tx('buy', 5, 400, '1403/03/01'),
+        ],
+        { gold_18k: 400 }
+      );
+      // avg 150 → sell 5 @300 realizes 750; remaining 15 @150 + 5 @400 → avg 212.5
+      expect(summary.totalRealizedPnl).toBe(750);
+      expect(computedHoldings[0].amount).toBe(20);
+      expect(computedHoldings[0].itemCost).toBeCloseTo(4250);
+      expect(computedHoldings[0].buyPrice).toBe(213);
+    });
+
+    it('keeps realized PnL of fully closed positions in the summary', () => {
+      const { computedHoldings, summary } = calculateComputedHoldings([
+        tx('buy', 2, 1000, '1403/01/01'),
+        tx('sell', 2, 900, '1403/01/10'),
+      ]);
+      expect(computedHoldings).toHaveLength(0);
+      expect(summary.totalRealizedPnl).toBe(-200);
+    });
+
+    it('does not realize PnL for a sell without a price', () => {
+      const { summary } = calculateComputedHoldings([
+        tx('buy', 2, 1000, '1403/01/01'),
+        tx('sell', 1, 0, '1403/01/10'),
+      ]);
+      expect(summary.hasRealizedPnl).toBe(false);
+      expect(summary.totalRealizedPnl).toBe(0);
+    });
+
+    it('treats float residue from decimal quantities as a closed position', () => {
+      const { computedHoldings, warnings } = calculateComputedHoldings([
+        tx('buy', 0.1, 1000, '1403/01/01'),
+        tx('buy', 0.2, 1000, '1403/01/02'),
+        tx('sell', 0.3, 1200, '1403/01/03'),
+      ]);
+      expect(computedHoldings).toHaveLength(0);
+      expect(warnings).toHaveLength(0);
+    });
+
+    it('orders a same-day buy before its sell regardless of entry order', () => {
+      const { computedHoldings, warnings, summary } = calculateComputedHoldings([
+        tx('sell', 1, 150, '1403/01/01', { createdAt: '2024-01-01T10:00:00Z' }),
+        tx('buy', 2, 100, '1403/01/01', { createdAt: '2024-01-01T11:00:00Z' }),
+      ]);
+      expect(warnings).toHaveLength(0);
+      expect(computedHoldings[0].amount).toBe(1);
+      expect(computedHoldings[0].buyPrice).toBe(100);
+      expect(summary.totalRealizedPnl).toBe(50);
+    });
+
+    it('scales the reference-asset quantity with sells and resets it with the position', () => {
+      const ref = { referenceAssetId: 'usd', referenceQuantity: 10 };
+      const partial = calculateComputedHoldings([
+        tx('buy', 4, 100, '1403/01/01', ref),
+        tx('sell', 1, 100, '1403/01/02'),
+      ]);
+      expect(partial.computedHoldings[0].referenceAssetId).toBe('usd');
+      expect(partial.computedHoldings[0].referenceQuantity).toBeCloseTo(7.5);
+
+      const reopened = calculateComputedHoldings([
+        tx('buy', 4, 100, '1403/01/01', ref),
+        tx('sell', 4, 100, '1403/01/02'),
+        tx('buy', 1, 100, '1403/01/03'),
+      ]);
+      // The old usd-funded lot is gone, so the new position has no reference asset
+      expect(reopened.computedHoldings[0].referenceAssetId).toBe('');
+    });
+  });
 });

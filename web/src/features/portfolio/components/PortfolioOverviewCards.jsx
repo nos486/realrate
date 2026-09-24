@@ -9,6 +9,8 @@ export default function PortfolioOverviewCards({
   holdingsCount = 0,
   hideValues = false,
   isVaultLocked = false,
+  // Realized profit/loss from sell transactions (null when there is none to show)
+  realizedPnl = null,
 }) {
   const hasData = portfolioMetrics.hasAnyCost;
   const isProfit = (portfolioMetrics.totalPnl || 0) >= 0;
@@ -92,6 +94,16 @@ export default function PortfolioOverviewCards({
             ? 'از زمان خرید اولیه'
             : 'محاسبه به نرخ روز'}
         </div>
+
+        {!isVaultLocked && realizedPnl !== null && (
+          <div className="stat-sub realized-pnl-row">
+            سود/زیان تحقق‌یافته (فروش‌ها):{' '}
+            <strong className={realizedPnl >= 0 ? 'profit-text' : 'loss-text'}>
+              {hideValues ? '****' : `${realizedPnl > 0 ? '+' : ''}${formatNum(realizedPnl)}`}
+            </strong>{' '}
+            تومان
+          </div>
+        )}
       </div>
 
       {/* Card 3: Item Count */}

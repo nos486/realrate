@@ -118,7 +118,7 @@ const HoldingsView = forwardRef(function HoldingsView(
 
   // Transactions & Computed Holdings Hook for active portfolio
   const { transactions } = useTransactions(activePortfolio, activeVaultKey);
-  const { computedHoldings, warnings: transactionWarnings } = useComputedHoldings(transactions, realPriceMap);
+  const { computedHoldings, warnings: transactionWarnings, summary: transactionSummary } = useComputedHoldings(transactions, realPriceMap);
 
   // Portfolio Metrics (combining manual holdings + computed holdings from transactions)
   const portfolioMetrics = useMemo(() => {
@@ -277,6 +277,7 @@ const HoldingsView = forwardRef(function HoldingsView(
             holdingsCount={holdings.length}
             hideValues={hideValues}
             isVaultLocked={isVaultLocked}
+            realizedPnl={transactionSummary?.hasRealizedPnl ? transactionSummary.totalRealizedPnl : null}
           />
         }
       >
