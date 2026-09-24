@@ -179,3 +179,14 @@
 .vault-modal-icon.on {
   color: #34d399;
 }
+
+/* Header: lock everything encrypted in this tab */
+.btn-vault-lock-all {
+  color: #fbbf24;
+  border-color: rgba(245, 158, 11, 0.35);
+}
+
+.btn-vault-lock-all:hover {
+  background: rgba(245, 158, 11, 0.12);
+  color: #fcd34d;
+}

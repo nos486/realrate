@@ -62,7 +62,6 @@ const HoldingsView = forwardRef(function HoldingsView(
     deleteHolding,
     isVaultLocked,
     unlockVault,
-    lockVault,
     vaultUnlockError,
     unlockingVault,
     activeVaultKey,
@@ -357,18 +356,6 @@ const HoldingsView = forwardRef(function HoldingsView(
               )}
 
               <div className="portfolio-header-actions">
-                {activePortfolio?.isE2ee && !isVaultLocked && (
-                  <button
-                    type="button"
-                    className="btn-lock-vault"
-                    onClick={lockVault}
-                    title="قفل کردن گاوصندوق"
-                  >
-                    <Lock size={12} style={{ verticalAlign: 'middle', marginLeft: '4px' }} />
-                    <span>قفل</span>
-                  </button>
-                )}
-
                 <CsvExportButton
                   items={portfolioMetrics.items}
                   portfolioName={activePortfolio?.name || 'portfolio'}

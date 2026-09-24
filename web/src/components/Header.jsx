@@ -4,10 +4,13 @@ import {
   Eye,
   EyeOff,
   LogOut,
+  Lock,
 } from 'lucide-react';
 import { useAuth } from '../features/auth/index.js';
 import { usePrivacyMode, setPrivacyMode } from '../hooks/usePrivacyMode.js';
 import { APP_BASE, LANDING_PATH } from '../shared/routes.js';
+import { useVault } from '../shared/vault/useVault.js';
+import { lockAll } from '../shared/vault/vaultStore.js';
 
 const LogoMark = () => (
   <svg width="28" height="28" viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -34,6 +37,11 @@ export default function Header({ activeTab }) {
 
   const togglePrivacy = () => setPrivacyMode(!hideValues);
 
+  // One lock for everything encrypted that is open in this tab (account vault and any
+  // portfolio opened with its own older passphrase)
+  const vault = useVault();
+  const canLock = Boolean(user) && (vault.status === 'unlocked' || vault.legacyUnlocked);
+
   return (
     <header className="site-header">
       <div className="header-main-row">
@@ -59,6 +67,18 @@ export default function Header({ activeTab }) {
               aria-label={hideValues ? 'نمایش مجدد مقادیر مالی' : 'مخفی‌سازی مبالغ دارایی (حالت محرمانگی)'}
             >
               {hideValues ? <Eye size={15} strokeWidth={2.2} /> : <EyeOff size={15} strokeWidth={2.2} />}
+            </button>
+          )}
+
+          {canLock && (
+            <button
+              type="button"
+              className="btn-privacy-toggle icon-only btn-vault-lock-all"
+              onClick={lockAll}
+              title="قفل کردن اطلاعات رمزنگاری‌شده"
+              aria-label="قفل کردن اطلاعات رمزنگاری‌شده"
+            >
+              <Lock size={15} strokeWidth={2.2} />
             </button>
           )}
 

@@ -89,6 +89,21 @@ describe('account vault store', () => {
     expect(store.getVaultState().status).toBe('locked');
   });
 
+  it('lockAll locks the vault and forgets passphrases of older per-portfolio vaults', async () => {
+    await store.loadVault('u1');
+    await store.createVault('correct horse');
+    sessionStorage.setItem('rr_e2ee_pass_p1', 'oldpass');
+    store.markLegacyVaultUnlocked();
+    let fired = 0;
+    window.addEventListener(store.LOCK_ALL_EVENT, () => { fired += 1; });
+
+    store.lockAll();
+    expect(store.getVaultState()).toMatchObject({ status: 'locked', legacyUnlocked: false });
+    expect(sessionStorage.getItem('rr_e2ee_pass_p1')).toBeNull();
+    expect(sessionStorage.getItem('rr_vault_session')).toBeNull();
+    expect(fired).toBe(1);
+  });
+
   it('an API without vault support counts as vault off, other failures as unknown', async () => {
     const api = await import('../../../web/src/shared/vault/vaultApi.js');
     api.getVault.mockRejectedValueOnce(Object.assign(new Error('not found'), { status: 404 }));

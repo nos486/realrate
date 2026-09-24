@@ -19,7 +19,12 @@ import {
   clearVaultPassphraseFromSession,
 } from '../../../lib/e2ee.js';
 import { usePortfolioVaultKey } from '../../../shared/vault/usePortfolioVaultKey.js';
-import { unlockVault as unlockAccountVault, lockVault as lockAccountVault } from '../../../shared/vault/vaultStore.js';
+import {
+  unlockVault as unlockAccountVault,
+  lockAll,
+  markLegacyVaultUnlocked,
+  LOCK_ALL_EVENT,
+} from '../../../shared/vault/vaultStore.js';
 
 export function useHoldings(activePortfolio) {
   const { user } = useAuth();
@@ -131,6 +136,7 @@ export function useHoldings(activePortfolio) {
                 const isValid = await verifyE2eeKey(derivedKey, activePortfolio.e2eeVerifier);
                 if (isValid && !isStale()) {
                   setVaultKeys((prev) => ({ ...prev, [activePortfolio.id]: derivedKey }));
+                  markLegacyVaultUnlocked();
                   const decrypted = await Promise.all(
                     rawHoldings.map((h) => decryptHoldingFromApi(derivedKey, h))
                   );
@@ -162,6 +168,13 @@ export function useHoldings(activePortfolio) {
   useEffect(() => {
     fetchHoldings();
   }, [fetchHoldings]);
+
+  // The header's global lock also drops keys opened with a portfolio's own passphrase
+  useEffect(() => {
+    const dropKeys = () => setVaultKeys({});
+    window.addEventListener(LOCK_ALL_EVENT, dropKeys);
+    return () => window.removeEventListener(LOCK_ALL_EVENT, dropKeys);
+  }, []);
 
   // Synchronize bourse prices for active bourse holdings
   useEffect(() => {
@@ -219,6 +232,7 @@ export function useHoldings(activePortfolio) {
       }
 
       setVaultKeys((prev) => ({ ...prev, [activePortfolio.id]: derivedKey }));
+      markLegacyVaultUnlocked();
       saveVaultPassphraseToSession(activePortfolio.id, passphrase);
       return true;
     } catch (err) {
@@ -231,7 +245,7 @@ export function useHoldings(activePortfolio) {
 
   const lockVault = () => {
     if (!activePortfolio?.id) return;
-    if (accountManaged) lockAccountVault();
+    if (accountManaged) lockAll();
     setVaultKeys((prev) => {
       const copy = { ...prev };
       delete copy[activePortfolio.id];

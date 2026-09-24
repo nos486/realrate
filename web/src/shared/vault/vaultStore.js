@@ -31,7 +31,7 @@ const SESSION_KEY = 'rr_vault_session';
 /**
  * @typedef {'idle'|'loading'|'off'|'locked'|'unlocked'|'error'} VaultStatus
  */
-let state = { status: 'idle', vault: null, error: null, epoch: 0, userId: null };
+let state = { status: 'idle', vault: null, error: null, epoch: 0, userId: null, legacyUnlocked: false };
 let dataKey = null;
 let loadPromise = null;
 const portfolioKeys = new Map(); // wrapped key → { key, raw }
@@ -178,13 +178,44 @@ export function lockVault() {
   if (state.vault) setState({ status: 'locked', epoch: state.epoch + 1 });
 }
 
+export const LOCK_ALL_EVENT = 'realrate:vault-lock-all';
+const LEGACY_PASS_PREFIX = 'rr_e2ee_pass_';
+
+/** A portfolio with its own (older) passphrase vault was opened in this tab */
+export function markLegacyVaultUnlocked() {
+  if (!state.legacyUnlocked) setState({ legacyUnlocked: true });
+}
+
+/**
+ * Lock everything in this tab at once: the account vault and every portfolio opened with its
+ * own older passphrase. Screens holding a passphrase key listen for LOCK_ALL_EVENT.
+ */
+export function lockAll() {
+  try {
+    Object.keys(sessionStorage)
+      .filter((key) => key.startsWith(LEGACY_PASS_PREFIX))
+      .forEach((key) => sessionStorage.removeItem(key));
+  } catch {
+    // sessionStorage unavailable — nothing cached to clear
+  }
+  dataKey = null;
+  portfolioKeys.clear();
+  writeSession(null);
+  setState({
+    status: state.vault ? 'locked' : state.status,
+    legacyUnlocked: false,
+    epoch: state.epoch + 1,
+  });
+  window.dispatchEvent(new Event(LOCK_ALL_EVENT));
+}
+
 /** Forget everything (logout) */
 export function resetVault() {
   dataKey = null;
   portfolioKeys.clear();
   loadPromise = null;
   writeSession(null);
-  setState({ status: 'idle', vault: null, error: null, userId: null, epoch: state.epoch + 1 });
+  setState({ status: 'idle', vault: null, error: null, userId: null, legacyUnlocked: false, epoch: state.epoch + 1 });
 }
 
 /** Check a passphrase against the stored vault without changing state */
