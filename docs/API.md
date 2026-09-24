@@ -25,7 +25,7 @@ RealRate Cloudflare Worker API supports versioned routing starting with **v1**.
 | `GET` | `/api/v1/sparklines` | Sparkline price trends (24h) |
 | `GET` | `/api/v1/bourse/symbols` | Search and list Tehran Stock Exchange symbols (`?q=...&limit=...`) |
 | `POST` | `/api/v1/bourse/sync` | Force synchronize bourse symbols cache |
-| `GET` | `/api/v1/portfolio/shared` | Retrieve a publicly shared user portfolio (`?id=...`) |
+| `GET` / `POST` | `/api/v1/portfolio/shared` | Retrieve a publicly shared portfolio (`?slug=...`; a share password is accepted only in a `POST` body `{ slug, password }`) |
 
 #### Unified Market Items Schema (`/api/v1/market/items`)
 Returns all active assets and market rates normalized through the centralized `displayEngine`:
@@ -115,6 +115,48 @@ Returns all active assets and market rates normalized through the centralized `d
   "notes": "با اضافه‌کاری"
 }
 ```
+
+### Loans (Protected)
+
+| Method | Endpoint | Description |
+| :--- | :--- | :--- |
+| `GET` | `/api/v1/loans` | List loans with aggregates (`remainingBalance`, `paidCount`, `totalCount`, `nextDueInstallment`) |
+| `POST` | `/api/v1/loans` | Create a loan (`bankId` or `lenderName`, optional `customInstallments` / `totalRepaymentAmount` / `customFirstInstallmentAmount`) |
+| `GET` | `/api/v1/loans/:id` | Loan with its full computed installment schedule and extra payments |
+| `PUT` | `/api/v1/loans/:id` | Update a loan (financial changes rebuild pending installments) |
+| `DELETE` | `/api/v1/loans/:id` | Delete a loan and its installments |
+| `PUT` | `/api/v1/loans/:id/installments/:installmentId` | Mark paid (`{ isPaid: true, paidDate, paidAmount, cascade }`) or unpaid (`{ isPaid: false }`) |
+| `PUT` | `/api/v1/loans/:id/installments/bulk` | Re-plan pending installments (`{ knownAmounts, totalRepaymentAmount }`) |
+| `GET` / `POST` | `/api/v1/loans/:id/extra-payments` | List / record an extra payment (`{ amount, paymentDate, reductionMode }`) |
+| `GET` | `/api/v1/loans/:id/document` | Raw stored loan `{ loan, states, extraPayments }` (used to encrypt it) |
+
+### Custom Banks (Protected)
+
+Standard banks are static (`api/src/config/banks.config.js`) and ship with the client.
+
+| Method | Endpoint | Description |
+| :--- | :--- | :--- |
+| `GET` | `/api/v1/banks/custom` | List the user's custom banks |
+| `POST` | `/api/v1/banks/custom` | Add a custom bank (`{ name }`; returns the existing one for a duplicate name) |
+| `DELETE` | `/api/v1/banks/custom/:id` | Remove a custom bank (loans keep their lender name) |
+
+### End-to-End Encryption Vault (Protected)
+
+All payloads are ciphertext produced in the browser (`enc:e2ee:v1:...`); see [E2EE_VAULT.md](E2EE_VAULT.md).
+While a vault exists, plaintext `POST` of loans, incomes and portfolios returns `409 VAULT_ENABLED`.
+
+| Method | Endpoint | Description |
+| :--- | :--- | :--- |
+| `GET` | `/api/v1/vault` | The account vault `{ salt, wrappedKey, version }` or `null` |
+| `PUT` | `/api/v1/vault` | Turn on, or re-wrap after a passphrase change (`previousWrappedKey` required; `409` on mismatch) |
+| `DELETE` | `/api/v1/vault` | Turn off — refused (`409`) while any record or portfolio is still encrypted |
+| `GET` | `/api/v1/vault/records/:kind` | Encrypted records of `loan` or `income` |
+| `PUT` | `/api/v1/vault/records/:kind/:id` | Create/replace a record (`{ payload, replacePlain }` — `replacePlain` deletes the plaintext row with the same id in the same batch) |
+| `DELETE` | `/api/v1/vault/records/:kind/:id` | Delete a record |
+| `POST` | `/api/v1/vault/records/:kind/:id/restore` | Write the decrypted record back to the plaintext tables and drop the encrypted copy (`{ plain }`) |
+
+Portfolios protected by the vault carry `e2eeWrappedKey`; `/api/v1/portfolio/shared` reports `e2eeLinkKey: true` for them
+(the viewer needs the key from the share link's `#k=` fragment).
 
 ### Admin Endpoints (Admin Role Only)
 
