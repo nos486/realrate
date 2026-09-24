@@ -86,7 +86,10 @@ export function stopGlobalLoading() {
  * Low-level HTTP request method
  */
 export async function httpRequest(path, options = {}) {
-  const isSilent = Boolean(options.silent);
+  // Reads are silent by default: each view shows its own skeleton instead of the blocking
+  // full-screen loader, which is kept for writes (save/delete/import). Pass `silent` to override.
+  const method = String(options.method || 'GET').toUpperCase();
+  const isSilent = options.silent !== undefined ? Boolean(options.silent) : method === 'GET';
   if (!isSilent) {
     startGlobalLoading();
   }
@@ -103,8 +106,9 @@ export async function httpRequest(path, options = {}) {
       ? path
       : `${API_BASE}${path}`;
 
+    const { silent: _silent, ...fetchOptions } = options;
     const res = await fetch(url, {
-      ...options,
+      ...fetchOptions,
       headers,
       credentials: 'include',
     });

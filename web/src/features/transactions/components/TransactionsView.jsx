@@ -36,9 +36,10 @@ import {
 import { usePrivacyMode } from '../../../hooks/usePrivacyMode.js';
 import { useSortableRows } from '../../../hooks/useSortableRows.js';
 import { useFeedback } from '../../../shared/ui/FeedbackProvider.jsx';
+import { SkeletonRows } from '../../../shared/ui/Skeleton.jsx';
 
 const TransactionsView = forwardRef(function TransactionsView(
-  { activePortfolio, calcData = null, rates = null, fetchPortfolios, onCountChange },
+  { activePortfolio, loadingPortfolios = false, calcData = null, rates = null, fetchPortfolios, onCountChange },
   ref
 ) {
   const pricing = usePricing();
@@ -509,10 +510,8 @@ const TransactionsView = forwardRef(function TransactionsView(
               </div>
 
               {/* Transactions Data Table */}
-              {loadingTransactions ? (
-                <div className="transactions-loading-placeholder">
-                  در حال بارگذاری تراکنش‌ها...
-                </div>
+              {(loadingPortfolios && !activePortfolio) || (loadingTransactions && transactions.length === 0) ? (
+                <SkeletonRows rows={5} columns={5} label="در حال بارگذاری تراکنش‌ها" />
               ) : filteredTransactions.length === 0 ? (
                 <EmptyState
                   icon={<Receipt size={40} strokeWidth={1.5} color="var(--text-muted)" />}

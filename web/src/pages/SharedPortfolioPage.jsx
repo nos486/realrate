@@ -42,6 +42,7 @@ import {
 } from '../lib/e2ee.js';
 import { usePrivacyMode } from '../hooks/usePrivacyMode.js';
 import { useFeedback } from '../shared/ui/FeedbackProvider.jsx';
+import { SkeletonRows, SkeletonCards } from '../shared/ui/Skeleton.jsx';
 
 export default function SharedPortfolioPage() {
   const { slug } = useParams();
@@ -411,9 +412,9 @@ export default function SharedPortfolioPage() {
 
       <main className="main-content">
         {loading ? (
-          <div className="portfolio-loading-state" style={{ minHeight: '50vh' }}>
-            <div className="spinner-glow"></div>
-            <p>در حال بارگذاری اطلاعات پورتفوی اشتراکی...</p>
+          <div className="shared-portfolio-skeleton">
+            <SkeletonCards count={3} label="در حال بارگذاری پورتفوی اشتراکی" />
+            <SkeletonRows rows={5} columns={5} />
           </div>
         ) : requirePassword ? (
           /* Password Gate Card */

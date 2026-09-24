@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { SearchBar, EmptyState } from '../../../shared/ui/index.js';
+import { SkeletonRows } from '../../../shared/ui/Skeleton.jsx';
 
 function formatNum(num) {
   if (num === null || num === undefined || isNaN(num)) return '-';
@@ -51,10 +52,7 @@ export default function CurrenciesList({ currencies, onCurrencyClick }) {
 
   if (!currencies || currencies.length === 0) {
     return (
-      <div className="empty-loading-block">
-        <div className="loading-spinner"></div>
-        <span>در حال دریافت نرخ ارزها و دارایی‌ها...</span>
-      </div>
+      <SkeletonRows rows={6} columns={3} label="در حال دریافت نرخ ارزها و دارایی‌ها" />
     );
   }
 

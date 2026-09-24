@@ -1,18 +1,31 @@
 import React, { useState, useEffect } from 'react';
 import { subscribeLoading } from '../api/httpClient.js';
 
+const SHOW_DELAY_MS = 400;
+
 /**
  * FullscreenLoader — Global blocking loading screen that captures all pointer and keyboard events
- * whenever data is loading from the server across any page.
+ * while a write request (save, delete, import) is in flight. Reads use per-view skeletons.
  */
 export default function FullscreenLoader() {
   const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
+    // Only show for writes that take a noticeable time, so quick saves don't flash a
+    // full-screen overlay
+    let timer = null;
     const unsubscribe = subscribeLoading((loading) => {
-      setIsLoading(loading);
+      window.clearTimeout(timer);
+      if (loading) {
+        timer = window.setTimeout(() => setIsLoading(true), SHOW_DELAY_MS);
+      } else {
+        setIsLoading(false);
+      }
     });
-    return unsubscribe;
+    return () => {
+      window.clearTimeout(timer);
+      unsubscribe();
+    };
   }, []);
 
   useEffect(() => {

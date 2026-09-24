@@ -14,7 +14,6 @@ import {
   Landmark,
   Plus,
   AlertCircle,
-  RefreshCw,
 } from 'lucide-react';
 import { useLoansContext } from '../context/LoansContext.jsx';
 import { useLoanDetail } from '../hooks/useLoanDetail.js';
@@ -31,6 +30,7 @@ import { formatShamsiDisplay } from '../../portfolio/components/ShamsiDatePicker
 import { getDisplayRatePct } from '../../../utils/loanCalculator.js';
 import { appPath } from '../../../shared/routes.js';
 import { useFeedback } from '../../../shared/ui/FeedbackProvider.jsx';
+import { SkeletonRows } from '../../../shared/ui/Skeleton.jsx';
 
 const formatNum = (v) => Number(v || 0).toLocaleString('fa-IR');
 
@@ -90,9 +90,7 @@ function LoanDetailModal({ loanId, onClose, onRefreshLoans }) {
       className="loan-detail-modal-wide"
     >
       {loading && !loan ? (
-        <div style={{ textAlign: 'center', padding: '40px 0', color: '#94a3b8' }}>
-          در حال بارگذاری جدول اقساط...
-        </div>
+        <SkeletonRows rows={8} columns={5} label="در حال بارگذاری جدول اقساط" />
       ) : error ? (
         <div className="form-error-banner" style={{ margin: '20px 0' }}>
           <AlertCircle size={16} />
@@ -374,10 +372,7 @@ export default function LoansPage({ initialLoanId = null }) {
           </div>
           <div className="table-card-body">
           {loadingLoans && loans.length === 0 ? (
-            <div className="loans-loading-state">
-              <RefreshCw size={24} className="animate-spin text-amber-500" />
-              <span>در حال دریافت لیست وام‌ها...</span>
-            </div>
+            <SkeletonRows rows={4} columns={5} label="در حال دریافت لیست وام‌ها" />
           ) : error && loans.length === 0 ? (
             <div className="loans-error-state">
               <AlertCircle size={20} />

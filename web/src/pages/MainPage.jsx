@@ -1,7 +1,7 @@
 import React, { useMemo, lazy, Suspense } from 'react';
 import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { Megaphone, TrendingUp, Briefcase, ShieldCheck, Radio, Settings, Landmark, Wallet } from 'lucide-react';
-import { AppLayout, FilterPills, AlertBanner } from '../shared/ui/index.js';
+import { AppLayout, FilterPills, AlertBanner, SkeletonCards } from '../shared/ui/index.js';
 import MarketInputsToolbar from '../components/MarketInputsToolbar.jsx';
 import { AnalysisCards, CurrenciesList, PriceRefreshStatus } from '../features/market/components/index.js';
 // Imported from its own file (not the loans barrel) so LoansPage stays in its lazy chunk
@@ -168,6 +168,7 @@ export default function MainPage() {
   const {
     rates,
     calcData,
+    loading: marketLoading,
     usdToman,
     goldUsd,
     setUsdToman,
@@ -261,7 +262,8 @@ export default function MainPage() {
             />
 
             {/* Alert Banner if USD is null or 0 */}
-            {!hasUsd && (
+            {/* Only once prices have loaded — while loading, a missing rate is just not here yet */}
+            {!hasUsd && !marketLoading && (
               <AlertBanner
                 type="warning"
                 message="لطفاً نرخ دلار را برای محاسبه ارزش واقعی و حباب وارد کنید."
@@ -269,10 +271,14 @@ export default function MainPage() {
               />
             )}
 
-            <AnalysisCards
-              analysis={analysis}
-              recommendation={recommendation}
-            />
+            {marketLoading && !analysis?.length ? (
+              <SkeletonCards count={4} label="در حال دریافت قیمت‌ها" />
+            ) : (
+              <AnalysisCards
+                analysis={analysis}
+                recommendation={recommendation}
+              />
+            )}
             <CurrenciesList
               currencies={currencies}
             />
