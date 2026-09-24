@@ -3,12 +3,23 @@ import { Link } from 'react-router-dom';
 import { Smartphone, ShieldCheck } from 'lucide-react';
 import { appPath } from '../shared/routes.js';
 import { useFeedback } from '../shared/ui/FeedbackProvider.jsx';
+import { usePwaInstall } from '../shared/pwa/usePwaInstall.js';
 
 export default function Footer() {
-  const { alert: showAlert } = useFeedback();
+  const { alert: showAlert, toast } = useFeedback();
+  const { canPrompt, promptInstall, isIos, isInstalled } = usePwaInstall();
 
-  const triggerPwaInstall = () => {
-    const isIos = /iphone|ipad|ipod/i.test(navigator.userAgent);
+  const triggerPwaInstall = async () => {
+    if (isInstalled) {
+      toast.info('اپلیکیشن RealRate روی این دستگاه نصب شده است.');
+      return;
+    }
+    // Browsers that support it (Chrome, Edge, Android) show their own install dialog
+    if (canPrompt) {
+      const accepted = await promptInstall();
+      if (accepted) toast.success('اپلیکیشن نصب شد.');
+      return;
+    }
     if (isIos) {
       showAlert({
         title: 'نصب اپلیکیشن',

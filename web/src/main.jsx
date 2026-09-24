@@ -8,6 +8,9 @@ import { FeedbackProvider } from './shared/ui/FeedbackProvider.jsx'
 import '@fontsource-variable/vazirmatn'
 import './styles/index.css'
 import App from './App.jsx'
+import { registerServiceWorker } from './shared/pwa/registerServiceWorker.js'
+
+registerServiceWorker()
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>
