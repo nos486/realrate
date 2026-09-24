@@ -44,6 +44,9 @@ describe('isTrustedOrigin', () => {
     expect(isTrustedOrigin('https://realrate.geekio.org')).toBe(true);
     expect(isTrustedOrigin('https://realrate.pages.dev')).toBe(true);
     expect(isTrustedOrigin('https://abc123.realrate.pages.dev')).toBe(true);
+    expect(isTrustedOrigin('https://realrate-5pn.pages.dev')).toBe(true);
+    expect(isTrustedOrigin('https://9848beec.realrate-5pn.pages.dev')).toBe(true);
+    expect(isTrustedOrigin('https://claude-dazzling-goodall-wu8v.realrate-5pn.pages.dev')).toBe(true);
     expect(isTrustedOrigin('http://localhost:5173')).toBe(true);
   });
 

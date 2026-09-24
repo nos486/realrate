@@ -12,7 +12,8 @@ import { getKv } from "../repositories/kvCache.repository.js";
 const TRUSTED_DOMAINS = [
   "realrate.ir",
   "geekio.org",
-  "realrate.pages.dev", // Cloudflare Pages production + its preview deployments (<hash>.realrate.pages.dev)
+  "realrate-5pn.pages.dev", // Cloudflare Pages project + its preview deployments (<hash>.realrate-5pn.pages.dev)
+  "realrate.pages.dev",
 ];
 
 /**
