@@ -23,6 +23,7 @@ import { useTransactions } from '../hooks/useTransactions.js';
 import { useComputedHoldings } from '../hooks/useComputedHoldings.js';
 import TransactionForm from './TransactionForm.jsx';
 import VaultLockCard from '../../portfolio/components/VaultLockCard.jsx';
+import { isAccountVaultPortfolio, unlockVault as unlockAccountVault } from '../../../shared/vault/vaultStore.js';
 import EmptyState from '../../../shared/ui/EmptyState.jsx';
 import SplitPageLayout from '../../../shared/ui/SplitPageLayout.jsx';
 import { usePricing } from '../../market/index.js';
@@ -114,11 +115,21 @@ const TransactionsView = forwardRef(function TransactionsView(
 
   // Handle Vault Unlock
   const handleUnlockVault = async (passphrase) => {
-    if (!passphrase || !activePortfolio?.e2eeSalt) return false;
+    if (!passphrase || !activePortfolio) return false;
+    const accountManaged = isAccountVaultPortfolio(activePortfolio);
+    if (!accountManaged && !activePortfolio.e2eeSalt) return false;
 
     setUnlockingVault(true);
     setVaultUnlockError('');
     try {
+      if (accountManaged) {
+        // One passphrase opens the whole account vault
+        if (await unlockAccountVault(passphrase)) return true;
+        if (!activePortfolio.e2eeSalt) {
+          setVaultUnlockError('رمز عبور رمزنگاری حساب اشتباه است.');
+          return false;
+        }
+      }
       const derivedKey = await deriveE2eeKey(passphrase, activePortfolio.e2eeSalt);
       const isValid = await verifyE2eeKey(derivedKey, activePortfolio.e2eeVerifier);
       if (isValid) {
@@ -420,6 +431,7 @@ const TransactionsView = forwardRef(function TransactionsView(
           onUnlock={handleUnlockVault}
           error={vaultUnlockError}
           loading={unlockingVault}
+          description={isAccountVaultPortfolio(activePortfolio) ? 'این پورتفو با رمزنگاری سرتاسری حساب محافظت می‌شود. رمز عبور رمزنگاری حساب را وارد کنید.' : null}
         />
       ) : (
         <SplitPageLayout

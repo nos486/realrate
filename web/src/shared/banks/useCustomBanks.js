@@ -40,6 +40,12 @@ function load(force = false) {
   return inflight;
 }
 
+/** The user's custom banks, loading them first if needed (for non-React callers) */
+export async function ensureCustomBanks() {
+  if (!state.loaded) await load();
+  return state.banks;
+}
+
 /** Drop the cache (e.g. on logout) so the next user starts clean */
 export function resetCustomBanks() {
   generation++;

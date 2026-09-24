@@ -1,0 +1,181 @@
+/* ── Account-wide E2EE settings (shared/vault/VaultSettingsSection) ────────────── */
+.vault-settings {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  margin-top: 28px;
+  padding-top: 22px;
+  border-top: 1px solid var(--border-medium);
+}
+
+.vault-settings .section-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin: 0;
+}
+
+.vault-settings-title-icon {
+  vertical-align: middle;
+  margin-left: 6px;
+  color: var(--accent-blue, #38bdf8);
+}
+
+.vault-status-pill {
+  padding: 2px 10px;
+  border-radius: 999px;
+  background: var(--bg-surface-elevated);
+  box-shadow: inset 0 0 0 1px var(--border-medium);
+  color: var(--text-muted);
+  font-size: 11.5px;
+  font-weight: 700;
+}
+
+.vault-status-pill.is-on {
+  background: rgba(16, 185, 129, 0.12);
+  box-shadow: inset 0 0 0 1px rgba(16, 185, 129, 0.35);
+  color: #34d399;
+}
+
+.vault-status-pill.is-locked {
+  background: rgba(245, 158, 11, 0.12);
+  box-shadow: inset 0 0 0 1px rgba(245, 158, 11, 0.35);
+  color: #fbbf24;
+}
+
+.vault-settings-text {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.9;
+  color: var(--text-secondary);
+}
+
+.vault-settings-block {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 14px;
+  border-radius: var(--radius-md);
+  background: var(--bg-surface-elevated);
+  box-shadow: inset 0 0 0 1px var(--border-medium);
+}
+
+.vault-settings-subtitle {
+  margin: 0;
+  font-size: 13.5px;
+  font-weight: 800;
+  color: var(--text-primary);
+}
+
+.vault-settings-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.vault-settings-pass {
+  position: relative;
+}
+
+.vault-settings-eye {
+  position: absolute;
+  top: 34px;
+  left: 10px;
+  display: inline-flex;
+  padding: 4px;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.vault-settings-check {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  font-size: 12.5px;
+  line-height: 1.8;
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+
+.vault-settings-check input {
+  margin-top: 5px;
+  accent-color: var(--primary-color);
+}
+
+.vault-settings-unlock {
+  padding: 0;
+}
+
+.vault-legacy-row {
+  display: grid;
+  grid-template-columns: minmax(90px, 0.8fr) minmax(0, 2fr) auto;
+  align-items: start;
+  gap: 10px;
+}
+
+.vault-legacy-name {
+  padding-top: 10px;
+  overflow: hidden;
+  font-size: 13px;
+  color: var(--text-primary);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.vault-legacy-row .ui-btn {
+  margin-top: 4px;
+}
+
+@media (max-width: 560px) {
+  .vault-legacy-row {
+    grid-template-columns: 1fr;
+  }
+  .vault-legacy-name {
+    padding-top: 0;
+  }
+}
+
+.vault-progress {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 12.5px;
+  color: var(--text-secondary);
+}
+
+.vault-progress-top {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.vault-progress-track {
+  height: 6px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--bg-surface-elevated);
+}
+
+.vault-progress-bar {
+  height: 100%;
+  border-radius: 999px;
+  background: var(--primary-color);
+  transition: width 0.2s ease;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .vault-progress-bar { transition: none; }
+}
+
+/* Portfolio settings modal: encryption status icon */
+.vault-modal-icon {
+  flex-shrink: 0;
+  color: var(--text-muted);
+}
+
+.vault-modal-icon.on {
+  color: #34d399;
+}

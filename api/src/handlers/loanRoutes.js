@@ -28,6 +28,7 @@ import {
 } from "../repositories/index.js";
 import { jsonResponse } from "../lib/helpers.js";
 import { AppError } from "../lib/AppError.js";
+import { rejectWhenVaultEnabled } from "../repositories/vault.repository.js";
 import { logger } from "../lib/logger.js";
 
 /**
@@ -79,6 +80,7 @@ export async function handleCreateLoan(request, env) {
     throw AppError.badRequest("تعداد اقساط باید حداقل ۱ باشد.");
   }
 
+  await rejectWhenVaultEnabled(env, userId);
   const loan = await dbCreateLoan(env, userId, body);
   return jsonResponse({ success: true, loan }, 201, request);
 }

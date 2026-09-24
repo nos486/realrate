@@ -28,7 +28,7 @@ export function generateE2eeSalt() {
  * @param {string} saltBase64 - 16-byte random salt from portfolio.e2eeSalt
  * @returns {Promise<CryptoKey>}
  */
-export async function deriveE2eeKey(passphrase, saltBase64) {
+export async function deriveE2eeKey(passphrase, saltBase64, { extractable = false } = {}) {
   if (!passphrase) throw new Error("رمز عبور گاوصندوق نمی‌تواند خالی باشد.");
 
   // Decode salt
@@ -56,7 +56,7 @@ export async function deriveE2eeKey(passphrase, saltBase64) {
     },
     baseKey,
     { name: "AES-GCM", length: 256 },
-    false,
+    extractable,
     ["encrypt", "decrypt"]
   );
 }
@@ -263,6 +263,78 @@ export async function decryptHoldingFromApi(arg1, arg2) {
 export function isHoldingE2eeEncrypted(holding) {
   return !!(holding && typeof holding.notes === "string" && holding.notes.startsWith(E2EE_PREFIX));
 }
+
+// ── Key wrapping (account vault) ─────────────────────────────────────────────
+// The account vault uses a random data key, stored only "wrapped" (encrypted) with the key
+// derived from the passphrase — so a passphrase change never re-encrypts any data. Every
+// portfolio also gets its own random key, wrapped with the account data key; a portfolio's key
+// can be handed out in a share link without exposing anything else.
+
+function bytesToBase64(bytes) {
+  let binary = "";
+  for (let i = 0; i < bytes.byteLength; i++) binary += String.fromCharCode(bytes[i]);
+  return btoa(binary);
+}
+
+function base64ToBytes(b64) {
+  const binary = atob(b64);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+  return bytes;
+}
+
+/** A fresh random 256-bit key, as raw bytes */
+export function generateRawKey() {
+  return globalThis.crypto.getRandomValues(new Uint8Array(32));
+}
+
+/** Import raw key bytes as a (non-extractable) AES-GCM key */
+export async function importRawKey(rawBytes) {
+  return globalThis.crypto.subtle.importKey("raw", rawBytes, { name: "AES-GCM" }, false, ["encrypt", "decrypt"]);
+}
+
+/** Raw bytes of an extractable key */
+export async function exportRawKey(key) {
+  return new Uint8Array(await globalThis.crypto.subtle.exportKey("raw", key));
+}
+
+/** Encrypt raw key bytes with another key (result is a normal E2EE cipher string) */
+export async function wrapRawKey(wrappingKey, rawBytes) {
+  return e2eeEncrypt(wrappingKey, { v: 1, k: bytesToBase64(rawBytes) });
+}
+
+/**
+ * Decrypt a key wrapped by wrapRawKey. Returns null on a wrong key or tampered data (AES-GCM
+ * authenticates, so a wrong passphrase can never yield a "wrong but valid" key).
+ */
+export async function unwrapRawKey(wrappingKey, wrapped) {
+  const decoded = await e2eeDecrypt(wrappingKey, wrapped);
+  if (!decoded || typeof decoded !== "object" || typeof decoded.k !== "string") return null;
+  try {
+    const bytes = base64ToBytes(decoded.k);
+    return bytes.length === 32 ? bytes : null;
+  } catch {
+    return null;
+  }
+}
+
+/** URL-safe base64 of raw key bytes (for a share link #fragment) */
+export function rawKeyToLinkToken(rawBytes) {
+  return bytesToBase64(rawBytes).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+}
+
+/** Inverse of rawKeyToLinkToken; null when the token is not a 256-bit key */
+export function linkTokenToRawKey(token) {
+  try {
+    const b64 = String(token || "").replace(/-/g, "+").replace(/_/g, "/");
+    const bytes = base64ToBytes(b64 + "===".slice((b64.length + 3) % 4));
+    return bytes.length === 32 ? bytes : null;
+  } catch {
+    return null;
+  }
+}
+
+export { bytesToBase64, base64ToBytes };
 
 // ── Session Storage Key Helpers ──────────────────────────────────────────────
 const STORAGE_PREFIX = "rr_e2ee_pass_";

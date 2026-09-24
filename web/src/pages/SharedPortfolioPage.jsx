@@ -39,7 +39,18 @@ import {
   verifyE2eeKey,
   decryptHoldingFromApi,
   e2eeDecrypt,
+  importRawKey,
+  linkTokenToRawKey,
 } from '../lib/e2ee.js';
+
+/** Portfolio key carried in the share link's #fragment (never sent to the server) */
+function readLinkKeyToken() {
+  try {
+    return new URLSearchParams(window.location.hash.replace(/^#/, '')).get('k') || '';
+  } catch {
+    return '';
+  }
+}
 import { usePrivacyMode } from '../hooks/usePrivacyMode.js';
 import { useFeedback } from '../shared/ui/FeedbackProvider.jsx';
 import { SkeletonRows, SkeletonCards } from '../shared/ui/Skeleton.jsx';
@@ -184,8 +195,48 @@ export default function SharedPortfolioPage() {
     };
   }, [rawTransactions, canDecrypt, vaultKey]);
 
+  const applyVaultKey = useCallback(async (key) => {
+    setVaultKey(key);
+    const holdings = portfolioData?.holdings;
+    if (Array.isArray(holdings)) {
+      const decrypted = await Promise.all(holdings.map((h) => decryptHoldingFromApi(key, h)));
+      setPortfolioData((prev) => ({ ...prev, holdings: decrypted }));
+    }
+  }, [portfolioData?.holdings]);
+
+  // A portfolio protected by its owner's account-wide encryption opens with the key in the link
+  const linkKeyRequired = Boolean(portfolioData?.portfolio?.e2eeLinkKey);
+  const [linkKeyState, setLinkKeyState] = useState({ tried: null, invalid: false });
+  useEffect(() => {
+    const portfolioId = portfolioData?.portfolio?.id;
+    if (!linkKeyRequired || vaultKey || linkKeyState.tried === portfolioId) return undefined;
+    let cancelled = false;
+    (async () => {
+      const raw = linkTokenToRawKey(readLinkKeyToken());
+      let invalid = true;
+      if (raw) {
+        const key = await importRawKey(raw);
+        // The key must actually open this portfolio's data
+        const probe = (portfolioData.holdings || []).find((h) => typeof h.notes === 'string' && h.notes.startsWith('enc:e2ee:v1:'));
+        const works = !probe || (await decryptHoldingFromApi(key, probe))?.isE2eeEncrypted === true;
+        if (works && !cancelled) {
+          await applyVaultKey(key);
+          invalid = false;
+        }
+      }
+      if (!cancelled) setLinkKeyState({ tried: portfolioId, invalid });
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [linkKeyRequired, vaultKey, linkKeyState.tried, portfolioData, applyVaultKey]);
+
   const handleUnlockVault = async (passphrase) => {
     if (!portfolioData?.portfolio?.isE2ee) return false;
+    if (!portfolioData.portfolio.e2eeSalt) {
+      setVaultError('این پورتفو فقط با لینک کامل (همراه با کلید) که مالک ارسال کرده باز می‌شود.');
+      return false;
+    }
     const pass = (passphrase || '').trim();
     if (!pass) {
       setVaultError('لطفاً رمز عبور شخصی گاوصندوق را وارد فرمایید.');
@@ -200,13 +251,7 @@ export default function SharedPortfolioPage() {
         setVaultError('رمز عبور وارد شده نادرست است.');
         return false;
       }
-      setVaultKey(key);
-      if (Array.isArray(portfolioData.holdings)) {
-        const decrypted = await Promise.all(
-          portfolioData.holdings.map((h) => decryptHoldingFromApi(key, h))
-        );
-        setPortfolioData((prev) => ({ ...prev, holdings: decrypted }));
-      }
+      await applyVaultKey(key);
       return true;
     } catch (err) {
       console.error('Shared vault unlock error:', err);
@@ -535,12 +580,25 @@ export default function SharedPortfolioPage() {
                   </div>
 
                   {isVaultLocked ? (
-                    <VaultLockCard
-                      portfolioName={portfolioData?.portfolio?.name}
-                      onUnlock={handleUnlockVault}
-                      error={vaultError}
-                      loading={decryptingVault}
-                    />
+                    linkKeyRequired && !portfolioData?.portfolio?.e2eeSalt ? (
+                      <div className="portfolio-empty-state">
+                        <h4>این پورتفو رمزنگاری سرتاسری دارد</h4>
+                        <p>
+                          {linkKeyState.invalid && readLinkKeyToken()
+                            ? 'کلید داخل این لینک معتبر نیست. لینک کامل را دوباره از مالک پورتفو بگیرید.'
+                            : linkKeyState.tried
+                            ? 'برای مشاهده، لینک کامل (همراه با بخش #k=…) که مالک پورتفو ارسال کرده لازم است.'
+                            : 'در حال رمزگشایی…'}
+                        </p>
+                      </div>
+                    ) : (
+                      <VaultLockCard
+                        portfolioName={portfolioData?.portfolio?.name}
+                        onUnlock={handleUnlockVault}
+                        error={vaultError}
+                        loading={decryptingVault}
+                      />
+                    )
                   ) : categoryGroups.length === 0 ? (
                     <div className="portfolio-empty-state">
                       <div className="empty-icon">

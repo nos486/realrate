@@ -4,12 +4,14 @@
  */
 
 import { httpClient } from '../../../shared/api/httpClient.js';
+import { routeThroughVault } from '../../../shared/vault/vaultRouting.js';
+import * as vaultLoans from '../../../shared/vault/vaultLoans.js';
 
 /**
  * Fetch all loans for the current user
  * @returns {Promise<{ success: boolean, count: number, loans: Array }>}
  */
-export async function getLoans() {
+async function getLoansRest() {
   return httpClient.get('/api/loans');
 }
 
@@ -19,7 +21,7 @@ export async function getLoans() {
  * @param {object} loanData
  * @returns {Promise<{ success: boolean, loan: object }>}
  */
-export async function createLoan(loanData) {
+async function createLoanRest(loanData) {
   return httpClient.post('/api/loans', loanData);
 }
 
@@ -28,7 +30,7 @@ export async function createLoan(loanData) {
  * @param {string} loanId
  * @returns {Promise<{ success: boolean, loan: object }>}
  */
-export async function getLoanDetail(loanId) {
+async function getLoanDetailRest(loanId) {
   if (!loanId) throw new Error('شناسه وام الزامی است');
   return httpClient.get(`/api/loans/${encodeURIComponent(loanId)}`);
 }
@@ -39,7 +41,7 @@ export async function getLoanDetail(loanId) {
  * @param {object} loanData
  * @returns {Promise<{ success: boolean, loan: object }>}
  */
-export async function updateLoan(loanId, loanData) {
+async function updateLoanRest(loanId, loanData) {
   if (!loanId) throw new Error('شناسه وام الزامی است');
   return httpClient.put(`/api/loans/${encodeURIComponent(loanId)}`, loanData);
 }
@@ -49,7 +51,7 @@ export async function updateLoan(loanId, loanData) {
  * @param {string} loanId
  * @returns {Promise<{ success: boolean, message: string }>}
  */
-export async function deleteLoan(loanId) {
+async function deleteLoanRest(loanId) {
   if (!loanId) throw new Error('شناسه وام الزامی است');
   return httpClient.delete(`/api/loans/${encodeURIComponent(loanId)}`);
 }
@@ -64,7 +66,7 @@ export async function deleteLoan(loanId) {
  * @param {boolean} [details.cascade]
  * @returns {Promise<{ success: boolean, installment: object, cascadedCount?: number, cascadedTotal?: number, cascadedInstallments?: Array }>}
  */
-export async function markInstallmentPaid(loanId, installmentId, details = {}) {
+async function markInstallmentPaidRest(loanId, installmentId, details = {}) {
   if (!loanId || !installmentId) throw new Error('شناسه وام و قسط الزامی است');
   return httpClient.put(
     `/api/loans/${encodeURIComponent(loanId)}/installments/${encodeURIComponent(installmentId)}`,
@@ -83,7 +85,7 @@ export async function markInstallmentPaid(loanId, installmentId, details = {}) {
  * @param {string} installmentId
  * @returns {Promise<{ success: boolean, installment: object }>}
  */
-export async function unmarkInstallmentPaid(loanId, installmentId) {
+async function unmarkInstallmentPaidRest(loanId, installmentId) {
   if (!loanId || !installmentId) throw new Error('شناسه وام و قسط الزامی است');
   return httpClient.put(
     `/api/loans/${encodeURIComponent(loanId)}/installments/${encodeURIComponent(installmentId)}`,
@@ -103,7 +105,7 @@ export async function unmarkInstallmentPaid(loanId, installmentId) {
  *   should be the loan's current actual total so an edit never silently changes the grand total
  * @returns {Promise<{ success: boolean, loan: object }>}
  */
-export async function bulkDistributeInstallments(loanId, knownAmounts, totalRepaymentAmount) {
+async function bulkDistributeInstallmentsRest(loanId, knownAmounts, totalRepaymentAmount) {
   if (!loanId) throw new Error('شناسه وام الزامی است');
   const body = { knownAmounts: knownAmounts || {} };
   if (totalRepaymentAmount !== undefined && totalRepaymentAmount !== null) {
@@ -125,7 +127,7 @@ export async function bulkDistributeInstallments(loanId, knownAmounts, totalRepa
  * @param {string} [paymentData.notes]
  * @returns {Promise<{ success: boolean, fullyPaidOff: boolean, extraPayment: object, loan: object }>}
  */
-export async function addLoanExtraPayment(loanId, paymentData) {
+async function addLoanExtraPaymentRest(loanId, paymentData) {
   if (!loanId) throw new Error('شناسه وام الزامی است');
   return httpClient.post(
     `/api/loans/${encodeURIComponent(loanId)}/extra-payments`,
@@ -138,7 +140,36 @@ export async function addLoanExtraPayment(loanId, paymentData) {
  * @param {string} loanId
  * @returns {Promise<{ success: boolean, count: number, extraPayments: Array }>}
  */
-export async function getLoanExtraPayments(loanId) {
+async function getLoanExtraPaymentsRest(loanId) {
   if (!loanId) throw new Error('شناسه وام الزامی است');
   return httpClient.get(`/api/loans/${encodeURIComponent(loanId)}/extra-payments`);
 }
+
+// With account-wide end-to-end encryption on, every call runs against the encrypted loan
+// documents in the browser instead (same signatures and response shapes).
+export const {
+  getLoans,
+  createLoan,
+  getLoanDetail,
+  updateLoan,
+  deleteLoan,
+  markInstallmentPaid,
+  unmarkInstallmentPaid,
+  bulkDistributeInstallments,
+  addLoanExtraPayment,
+  getLoanExtraPayments,
+} = routeThroughVault(
+  {
+    getLoans: getLoansRest,
+    createLoan: createLoanRest,
+    getLoanDetail: getLoanDetailRest,
+    updateLoan: updateLoanRest,
+    deleteLoan: deleteLoanRest,
+    markInstallmentPaid: markInstallmentPaidRest,
+    unmarkInstallmentPaid: unmarkInstallmentPaidRest,
+    bulkDistributeInstallments: bulkDistributeInstallmentsRest,
+    addLoanExtraPayment: addLoanExtraPaymentRest,
+    getLoanExtraPayments: getLoanExtraPaymentsRest,
+  },
+  vaultLoans
+);

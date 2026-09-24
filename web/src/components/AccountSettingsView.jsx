@@ -6,6 +6,7 @@ import Button from '../shared/ui/Button.jsx';
 import Input from '../shared/ui/Input.jsx';
 import { useAuth } from '../features/auth/index.js';
 import { apiGetUserSettings, apiUpdateUserSettings } from '../api/client.js';
+import VaultSettingsSection from '../shared/vault/VaultSettingsSection.jsx';
 
 /**
  * AccountSettingsView
@@ -172,6 +173,8 @@ export default function AccountSettingsView() {
           ذخیره تنظیمات حساب
         </Button>
       </form>
+
+      <VaultSettingsSection />
     </Card>
   );
 }

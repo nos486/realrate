@@ -6,6 +6,7 @@ import MarketInputsToolbar from '../components/MarketInputsToolbar.jsx';
 import { AnalysisCards, CurrenciesList, PriceRefreshStatus } from '../features/market/components/index.js';
 // Imported from its own file (not the loans barrel) so LoansPage stays in its lazy chunk
 import UpcomingInstallmentsAlert from '../features/loans/components/UpcomingInstallmentsAlert.jsx';
+import VaultPendingBanner from '../shared/vault/VaultPendingBanner.jsx';
 import LiveRatesTicker from '../components/LiveRatesTicker.jsx';
 import { useMarketData } from '../features/market/hooks/useMarketData.js';
 import { useAuth } from '../features/auth/index.js';
@@ -241,6 +242,8 @@ export default function MainPage() {
 
       {/* Tab Views */}
       <section className="tab-view-container">
+        {activeTab !== 'settings' && <VaultPendingBanner onOpenSettings={() => handleTabChange('settings')} />}
+
         {/* Active Loan Due Reminders Banner */}
         <div style={{ marginBottom: '14px', width: '100%' }}>
           <UpcomingInstallmentsAlert onSelectLoan={(loanId) => navigate(appPath(loanId ? `/loans/${loanId}` : '/loans'))} />

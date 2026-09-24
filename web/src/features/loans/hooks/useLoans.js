@@ -4,6 +4,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../../auth/index.js';
+import { useVault } from '../../../shared/vault/useVault.js';
 import {
   getLoans,
   createLoan as apiCreateLoan,
@@ -13,6 +14,9 @@ import {
 
 export function useLoans() {
   const { user } = useAuth();
+  // With account-wide encryption on, data is only readable once the vault is unlocked
+  const { status: vaultStatus, epoch: vaultEpoch } = useVault();
+  const vaultLocked = vaultStatus === 'locked';
   const [loans, setLoans] = useState([]);
   const [loadingLoans, setLoadingLoans] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -22,7 +26,7 @@ export function useLoans() {
    * Fetch all user loans with aggregate metadata
    */
   const fetchLoans = useCallback(async () => {
-    if (!user) {
+    if (!user || vaultLocked) {
       setLoans([]);
       setLoadingLoans(false);
       return;
@@ -43,7 +47,9 @@ export function useLoans() {
     } finally {
       setLoadingLoans(false);
     }
-  }, [user]);
+    // vaultEpoch: reload after unlocking or migrating
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user, vaultLocked, vaultEpoch]);
 
   // Initial fetch on mount or auth change
   useEffect(() => {
@@ -128,6 +134,7 @@ export function useLoans() {
 
   return {
     loans,
+    vaultLocked,
     loadingLoans,
     submitting,
     error,

@@ -5,6 +5,14 @@ import { setToken, getToken, HttpError } from '../../../shared/api/httpClient.js
 import { APP_BASE, LANDING_PATH, isAppPath, takePostLoginPath } from '../../../shared/routes.js';
 import { useFeedback } from '../../../shared/ui/FeedbackProvider.jsx';
 import { resetCustomBanks } from '../../../shared/banks/useCustomBanks.js';
+import { loadVault, resetVault } from '../../../shared/vault/vaultStore.js';
+
+// Start loading the account's encryption state together with the user, before any screen that
+// reads data renders — so nothing is ever fetched or saved through the wrong (plaintext) path.
+function signInUser(setUser, nextUser) {
+  if (nextUser?.id) loadVault(nextUser.id);
+  setUser(nextUser);
+}
 
 const AuthContext = createContext(null);
 
@@ -60,7 +68,7 @@ export function AuthProvider({ children }) {
     getMe()
       .then((data) => {
         if (data && data.authenticated && data.user) {
-          setUser(data.user);
+          signInUser(setUser, data.user);
           writeCachedUser(data.user);
         } else {
           writeCachedUser(null);
@@ -70,7 +78,7 @@ export function AuthProvider({ children }) {
         // A server answer (401, 5xx...) is authoritative; only a network failure falls back
         const isNetworkError = !(err instanceof HttpError) || !err.status;
         const cached = isNetworkError && getToken() ? readCachedUser() : null;
-        if (cached) setUser(cached);
+        if (cached) signInUser(setUser, cached);
       })
       .finally(() => setLoading(false));
     // Runs once on mount; `toast` is stable for the provider's lifetime
@@ -84,7 +92,7 @@ export function AuthProvider({ children }) {
       const data = await googleLogin(response.credential);
       if (data && data.success && data.user) {
         if (data.token) setToken(data.token);
-        setUser(data.user);
+        signInUser(setUser, data.user);
         writeCachedUser(data.user);
       } else {
         toast.error(data?.message || 'خطا در ورود با گوگل');
@@ -109,6 +117,7 @@ export function AuthProvider({ children }) {
     await apiLogout().catch(() => {});
     writeCachedUser(null);
     resetCustomBanks();
+    resetVault();
     setUser(null);
     navigate(LANDING_PATH, { replace: true });
   }, [navigate]);

@@ -18,6 +18,7 @@
  *   sources.css         — Price sources page, charts, fullscreen layout
  *   banks.css           — Bank logos and bank picker
  *   donut-chart.css     — Shared donut (part-to-whole) chart card
+ *   vault.css           — Account-wide end-to-end encryption settings
  *   incomes.css         — Incomes page, summary cards, category/monthly report
  *   landing.css          — Logged-out landing page
  *   shared-page-layout.css — Shared feature-page header bar (Portfolio/Transactions/Loans/Incomes)
@@ -42,5 +43,6 @@
 @import './loans.css';
 @import './banks.css';
 @import './donut-chart.css';
+@import './vault.css';
 @import './incomes.css';
 @import './landing.css';

@@ -4,6 +4,8 @@
  */
 
 import { httpClient } from '../../../shared/api/httpClient.js';
+import { routeThroughVault } from '../../../shared/vault/vaultRouting.js';
+import * as vaultIncomes from '../../../shared/vault/vaultIncomes.js';
 
 /**
  * @typedef {object} IncomeInput
@@ -18,7 +20,7 @@ import { httpClient } from '../../../shared/api/httpClient.js';
  * Fetch all incomes of the current user (newest first)
  * @returns {Promise<{ success: boolean, count: number, incomes: Array }>}
  */
-export async function getIncomes() {
+async function getIncomesRest() {
   return httpClient.get('/api/incomes');
 }
 
@@ -27,7 +29,7 @@ export async function getIncomes() {
  * @param {IncomeInput} incomeData
  * @returns {Promise<{ success: boolean, income: object }>}
  */
-export async function createIncome(incomeData) {
+async function createIncomeRest(incomeData) {
   return httpClient.post('/api/incomes', incomeData);
 }
 
@@ -37,7 +39,7 @@ export async function createIncome(incomeData) {
  * @param {IncomeInput} incomeData
  * @returns {Promise<{ success: boolean, income: object }>}
  */
-export async function updateIncome(incomeId, incomeData) {
+async function updateIncomeRest(incomeId, incomeData) {
   if (!incomeId) throw new Error('شناسه درآمد الزامی است');
   return httpClient.put(`/api/incomes/${encodeURIComponent(incomeId)}`, incomeData);
 }
@@ -47,7 +49,24 @@ export async function updateIncome(incomeId, incomeData) {
  * @param {string} incomeId
  * @returns {Promise<{ success: boolean, message: string }>}
  */
-export async function deleteIncome(incomeId) {
+async function deleteIncomeRest(incomeId) {
   if (!incomeId) throw new Error('شناسه درآمد الزامی است');
   return httpClient.delete(`/api/incomes/${encodeURIComponent(incomeId)}`);
 }
+
+// With account-wide end-to-end encryption on, incomes are encrypted records handled in the
+// browser instead (same signatures and response shapes).
+export const {
+  getIncomes,
+  createIncome,
+  updateIncome,
+  deleteIncome,
+} = routeThroughVault(
+  {
+    getIncomes: getIncomesRest,
+    createIncome: createIncomeRest,
+    updateIncome: updateIncomeRest,
+    deleteIncome: deleteIncomeRest,
+  },
+  vaultIncomes
+);

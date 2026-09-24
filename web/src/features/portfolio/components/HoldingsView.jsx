@@ -66,6 +66,7 @@ const HoldingsView = forwardRef(function HoldingsView(
     vaultUnlockError,
     unlockingVault,
     activeVaultKey,
+    accountManaged,
   } = useHoldings(activePortfolio);
 
   useEffect(() => {
@@ -400,6 +401,7 @@ const HoldingsView = forwardRef(function HoldingsView(
                 onUnlock={unlockVault}
                 error={vaultUnlockError}
                 loading={unlockingVault}
+                description={accountManaged ? 'این پورتفو با رمزنگاری سرتاسری حساب محافظت می‌شود. رمز عبور رمزنگاری حساب را وارد کنید — همه پورتفوها، وام‌ها و درآمدها با هم باز می‌شوند.' : null}
               />
             ) : portfolioMetrics.items.length === 0 ? (
               <div className="portfolio-empty-state">

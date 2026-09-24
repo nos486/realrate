@@ -4,6 +4,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../../auth/index.js';
+import { useVault } from '../../../shared/vault/useVault.js';
 import {
   getIncomes,
   createIncome as apiCreateIncome,
@@ -18,6 +19,9 @@ const byNewest = (a, b) =>
 
 export function useIncomes() {
   const { user } = useAuth();
+  // With account-wide encryption on, data is only readable once the vault is unlocked
+  const { status: vaultStatus, epoch: vaultEpoch } = useVault();
+  const vaultLocked = vaultStatus === 'locked';
   const [incomes, setIncomes] = useState([]);
   const [loadingIncomes, setLoadingIncomes] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -25,7 +29,7 @@ export function useIncomes() {
   const [error, setError] = useState(null);
 
   const fetchIncomes = useCallback(async () => {
-    if (!user) {
+    if (!user || vaultLocked) {
       setIncomes([]);
       setLoadingIncomes(false);
       return;
@@ -42,7 +46,9 @@ export function useIncomes() {
     } finally {
       setLoadingIncomes(false);
     }
-  }, [user]);
+    // vaultEpoch: reload after unlocking or migrating
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user, vaultLocked, vaultEpoch]);
 
   useEffect(() => {
     fetchIncomes();
@@ -98,6 +104,7 @@ export function useIncomes() {
 
   return {
     incomes,
+    vaultLocked,
     loadingIncomes,
     submitting,
     deletingId,

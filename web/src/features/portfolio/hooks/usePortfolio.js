@@ -6,9 +6,13 @@ import {
   deletePortfolio as apiDeletePortfolio,
 } from '../api/portfolioApi.js';
 import { useAuth } from '../../auth/index.js';
+import { useVault } from '../../../shared/vault/useVault.js';
+import { isVaultOn, createPortfolioKey } from '../../../shared/vault/vaultStore.js';
 
 export function usePortfolio(initialPortfolioId = null) {
   const { user } = useAuth();
+  // Migrations into / out of the account vault change portfolio flags — reload after them
+  const { epoch: vaultEpoch } = useVault();
   const [portfolios, setPortfolios] = useState([]);
   const [activePortfolioId, setActivePortfolioId] = useState(null);
   const [loadingPortfolios, setLoadingPortfolios] = useState(true);
@@ -73,7 +77,7 @@ export function usePortfolio(initialPortfolioId = null) {
 
   useEffect(() => {
     fetchPortfolios();
-  }, [fetchPortfolios]);
+  }, [fetchPortfolios, vaultEpoch]);
 
   const switchPortfolio = useCallback((portfolioId) => {
     setActivePortfolioId(portfolioId);
@@ -84,7 +88,10 @@ export function usePortfolio(initialPortfolioId = null) {
 
   const createPortfolio = useCallback(async (name) => {
     if (!name || !name.trim()) return null;
-    const res = await apiCreatePortfolio({ name: name.trim() });
+    // With account-wide encryption on, a new portfolio is born encrypted with its own key
+    const payload = { name: name.trim() };
+    if (isVaultOn()) payload.e2eeWrappedKey = (await createPortfolioKey()).wrapped;
+    const res = await apiCreatePortfolio(payload);
     if (res && res.success && res.portfolio) {
       await fetchPortfolios(res.portfolio.id);
       return res.portfolio;
