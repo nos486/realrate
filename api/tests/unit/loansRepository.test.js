@@ -34,7 +34,7 @@ function createMockD1() {
         }
         if (q.startsWith('INSERT INTO loans')) {
           const [
-            id, user_id, title, lender_name, principal_amount,
+            id, user_id, title, lender_name, bank_id, principal_amount,
             annual_interest_rate, installment_count, interval_months,
             start_date, annual_fee_amount, schedule_mode, notes, created_at, updated_at
           ] = boundArgs;
@@ -42,7 +42,7 @@ function createMockD1() {
             throw new Error(`D1_ERROR: UNIQUE constraint failed: loans.id: SQLITE_CONSTRAINT (extended: SQLITE_CONSTRAINT_PRIMARYKEY)`);
           }
           loansStore.set(id, {
-            id, user_id, title, lender_name, principal_amount,
+            id, user_id, title, lender_name, bank_id, principal_amount,
             annual_interest_rate, installment_count, interval_months,
             start_date, annual_fee_amount: annual_fee_amount || 0,
             schedule_mode: schedule_mode || 'formula', notes, created_at, updated_at
@@ -173,7 +173,7 @@ function createMockD1() {
         }
         if (q.startsWith('UPDATE loans')) {
           const [
-            newTitle, newLender, newPrincipal, newRate,
+            newTitle, newLender, newBankId, newPrincipal, newRate,
             newCount, newInterval, newStartDate, newAnnualFeeAmount, newScheduleMode, newNotes,
             nowIso, loanId, userId
           ] = boundArgs;
@@ -183,6 +183,7 @@ function createMockD1() {
               ...existing,
               title: newTitle,
               lender_name: newLender,
+              bank_id: newBankId,
               principal_amount: newPrincipal,
               annual_interest_rate: newRate,
               installment_count: newCount,

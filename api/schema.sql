@@ -172,6 +172,7 @@ CREATE TABLE IF NOT EXISTS loans (
   user_id TEXT NOT NULL,
   title TEXT NOT NULL,
   lender_name TEXT DEFAULT '',
+  bank_id TEXT NOT NULL DEFAULT '',
   principal_amount REAL NOT NULL,
   annual_interest_rate REAL NOT NULL DEFAULT 0,
   installment_count INTEGER NOT NULL,
@@ -182,6 +183,15 @@ CREATE TABLE IF NOT EXISTS loans (
   updated_at TEXT NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_loans_user ON loans(user_id);
+
+-- User-defined banks (standard banks live in api/src/config/banks.config.js)
+CREATE TABLE IF NOT EXISTS custom_banks (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL,
+  name TEXT NOT NULL,
+  created_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_custom_banks_user ON custom_banks(user_id);
 
 CREATE TABLE IF NOT EXISTS loan_installment_states (
   id TEXT PRIMARY KEY,

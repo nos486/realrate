@@ -97,6 +97,11 @@ import {
   handleUpdateIncome,
   handleDeleteIncome,
 } from "./handlers/incomeRoutes.js";
+import {
+  handleListCustomBanks,
+  handleCreateCustomBank,
+  handleDeleteCustomBank,
+} from "./handlers/bankRoutes.js";
 import { fetchAllPrices } from "./services/market/priceAggregator.service.js";
 import {
   searchCatalogItems,
@@ -252,6 +257,17 @@ export default {
     if (normalizedPath === "/api/incomes") {
       if (request.method === "GET")  return wrap(handleGetIncomes)(request, env);
       if (request.method === "POST") return wrap(handleCreateIncome)(request, env);
+    }
+
+    // ── Custom Banks API Routes ─────────────────────────────────────────────
+    if (normalizedPath === "/api/banks/custom") {
+      if (request.method === "GET")  return wrap(handleListCustomBanks)(request, env);
+      if (request.method === "POST") return wrap(handleCreateCustomBank)(request, env);
+    }
+    const customBankMatch = normalizedPath.match(/^\/api\/banks\/custom\/([^/]+)$/);
+    if (customBankMatch && request.method === "DELETE") {
+      const bankId = customBankMatch[1];
+      return wrap((req, e) => handleDeleteCustomBank(req, e, { bankId }))(request, env);
     }
 
     // ── Public API Routes ───────────────────────────────────────────────────

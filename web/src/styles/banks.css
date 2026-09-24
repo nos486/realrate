@@ -1,0 +1,428 @@
+/* ── Bank logo ──────────────────────────────────────────────────────────────── */
+.bank-logo {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  overflow: hidden;
+  border-radius: 25%;
+  /* Bank marks are designed for light backgrounds — show them on a white tile */
+  background: #ffffff;
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.08);
+}
+
+.bank-logo img {
+  width: 78%;
+  height: 78%;
+  object-fit: contain;
+}
+
+.bank-logo.is-placeholder {
+  background: var(--bg-surface-elevated);
+  box-shadow: inset 0 0 0 1px var(--border-medium);
+  color: var(--text-secondary);
+  font-weight: 800;
+  line-height: 1;
+}
+
+.bank-logo.is-empty {
+  color: var(--text-muted);
+}
+
+/* ── Bank picker ────────────────────────────────────────────────────────────── */
+.bank-picker {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: 100%;
+}
+
+.bank-picker-label {
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--text-secondary);
+}
+
+.bank-picker-optional {
+  font-weight: 500;
+  color: var(--text-muted);
+}
+
+.bank-picker-trigger {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 7px 12px;
+  border: none;
+  border-radius: var(--radius-md);
+  background: var(--bg-input);
+  color: var(--text-input);
+  font: inherit;
+  font-size: 13.5px;
+  font-weight: 600;
+  text-align: right;
+  cursor: pointer;
+  transition: background var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.bank-picker-trigger:hover,
+.bank-picker.is-open .bank-picker-trigger {
+  background: var(--bg-input-focus);
+}
+
+.bank-picker-trigger:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-input-focus);
+}
+
+.bank-picker-value {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.bank-picker-value.is-placeholder {
+  color: var(--placeholder-color);
+}
+
+.bank-picker-chevron {
+  flex-shrink: 0;
+  color: var(--text-muted);
+  transition: transform var(--transition-fast);
+}
+
+.bank-picker.is-open .bank-picker-chevron {
+  transform: rotate(180deg);
+}
+
+.bank-picker-panel {
+  display: flex;
+  flex-direction: column;
+  border: var(--border-dropdown);
+  border-radius: var(--radius-md);
+  background: var(--bg-dropdown);
+  box-shadow: var(--shadow-dropdown);
+  overflow: hidden;
+}
+
+.bank-picker-search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border-subtle);
+  color: var(--text-muted);
+}
+
+.bank-picker-search input {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  outline: none;
+  background: transparent;
+  color: var(--text-input);
+  font: inherit;
+  font-size: 13px;
+}
+
+.bank-picker-search input::placeholder {
+  color: var(--placeholder-color);
+}
+
+.bank-picker-scroll {
+  max-height: 320px;
+  overflow-y: auto;
+  padding: 6px 10px 10px;
+  overscroll-behavior: contain;
+}
+
+.bank-picker-group + .bank-picker-group {
+  margin-top: 6px;
+}
+
+.bank-picker-group h5 {
+  margin: 8px 2px 6px;
+  font-size: 11.5px;
+  font-weight: 700;
+  color: var(--text-muted);
+}
+
+.bank-picker-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(118px, 1fr));
+  gap: 6px;
+}
+
+.bank-option-wrap {
+  position: relative;
+}
+
+.bank-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 44px;
+  padding: 7px 8px;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.025);
+  color: var(--text-primary);
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 600;
+  text-align: right;
+  cursor: pointer;
+  transition: background var(--transition-fast), border-color var(--transition-fast);
+}
+
+.bank-option span:last-child {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.bank-option:hover {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.bank-option:focus-visible {
+  outline: none;
+  border-color: var(--primary-color);
+}
+
+.bank-option-wrap.is-selected .bank-option {
+  border-color: var(--primary-color);
+  background: var(--primary-soft-bg);
+}
+
+.bank-option-remove {
+  position: absolute;
+  top: 4px;
+  left: 4px;
+  display: inline-flex;
+  padding: 3px;
+  border: none;
+  border-radius: 6px;
+  background: rgba(0, 0, 0, 0.35);
+  color: var(--text-secondary);
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity var(--transition-fast);
+}
+
+.bank-option-wrap:hover .bank-option-remove,
+.bank-option-remove:focus-visible {
+  opacity: 1;
+}
+
+@media (hover: none) {
+  .bank-option-remove {
+    opacity: 1;
+  }
+}
+
+.bank-picker-clear {
+  margin: 6px 2px 0;
+  padding: 4px 0;
+  border: none;
+  background: none;
+  color: var(--text-muted);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.bank-picker-clear:hover {
+  color: var(--text-secondary);
+}
+
+.bank-picker-empty {
+  margin: 16px 0;
+  text-align: center;
+  font-size: 12.5px;
+  color: var(--text-muted);
+}
+
+.bank-picker-footer {
+  padding: 10px 12px;
+  border-top: 1px solid var(--border-subtle);
+}
+
+.bank-picker-add {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: none;
+  background: none;
+  color: var(--accent-color);
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.bank-picker-add:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.bank-picker-hint {
+  font-size: 11.5px;
+  color: var(--text-muted);
+}
+
+/* ── Loans: bank share donut ────────────────────────────────────────────────── */
+.loan-bank-share .stat-header {
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.loan-bank-share-toggle {
+  display: inline-flex;
+  padding: 2px;
+  border-radius: 999px;
+  background: var(--bg-surface-elevated);
+  box-shadow: inset 0 0 0 1px var(--border-medium);
+}
+
+.loan-bank-share-toggle button {
+  padding: 3px 10px;
+  border: none;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--text-muted);
+  font: inherit;
+  font-size: 11.5px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: var(--transition-fast);
+}
+
+.loan-bank-share-toggle button:hover {
+  color: var(--text-secondary);
+}
+
+.loan-bank-share-toggle button.is-active {
+  background: var(--primary-soft-bg);
+  color: var(--text-primary);
+}
+
+.loan-bank-share-body {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+}
+
+.loan-bank-share-donut {
+  position: relative;
+  width: 148px;
+  height: 148px;
+}
+
+.loan-bank-share-donut svg {
+  display: block;
+  overflow: visible;
+}
+
+/* 2px surface gap between segments */
+.loan-bank-share-slice {
+  stroke: var(--bg-surface);
+  stroke-width: 2;
+  stroke-linejoin: round;
+  transition: opacity 0.15s ease;
+  cursor: default;
+}
+
+.loan-bank-share-slice.is-dimmed,
+.loan-bank-share-row.is-dimmed {
+  opacity: 0.4;
+}
+
+.loan-bank-share-center {
+  position: absolute;
+  inset: 26px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  text-align: center;
+  pointer-events: none;
+}
+
+.loan-bank-share-center strong {
+  font-size: 15px;
+  font-weight: 800;
+  color: var(--text-primary);
+  line-height: 1.3;
+}
+
+.loan-bank-share-center span {
+  max-width: 100%;
+  overflow: hidden;
+  font-size: 11px;
+  color: var(--text-muted);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.loan-bank-share-legend {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.loan-bank-share-row {
+  display: grid;
+  grid-template-columns: 8px 22px minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 6px;
+  border-radius: 8px;
+  font-size: 12.5px;
+  transition: opacity 0.15s ease, background 0.15s ease;
+}
+
+.loan-bank-share-row:hover {
+  background: var(--bg-surface-elevated);
+}
+
+.loan-bank-share-swatch {
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+}
+
+.loan-bank-share-name {
+  overflow: hidden;
+  color: var(--text-secondary);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.loan-bank-share-pct {
+  font-weight: 800;
+  color: var(--text-primary);
+}
+
+.loan-bank-share-amount {
+  min-width: 64px;
+  font-size: 11.5px;
+  color: var(--text-muted);
+  text-align: left;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .loan-bank-share-slice,
+  .loan-bank-share-row { transition: none; }
+}

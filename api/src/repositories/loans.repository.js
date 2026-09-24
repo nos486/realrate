@@ -9,6 +9,8 @@
  */
 
 import { ensureD1Tables } from "./migration.repository.js";
+import { getBankById, isCustomBankId, matchBankIdByName } from "../config/banks.config.js";
+import { dbGetCustomBank } from "./customBanks.repository.js";
 import { logger } from "../lib/logger.js";
 import { AppError } from "../lib/AppError.js";
 import {
@@ -44,6 +46,7 @@ function formatLoanRow(row) {
     userId: row.user_id || row.userId,
     title: row.title,
     lenderName: row.lender_name || row.lenderName || "",
+    bankId: row.bank_id || row.bankId || "",
     principalAmount: Number(row.principal_amount ?? row.principalAmount ?? 0),
     annualInterestRate: Number(row.annual_interest_rate ?? row.annualInterestRate ?? 0),
     installmentCount: parseInt(row.installment_count ?? row.installmentCount ?? 0, 10),
@@ -83,6 +86,33 @@ function formatInstallmentRow(row) {
 }
 
 /**
+ * Resolve the bank a loan refers to into the stored pair (bank_id, lender_name).
+ *  - An explicit standard or custom bank id wins, and the display name is taken from the bank
+ *    itself so the two can never disagree.
+ *  - Without an id (older clients, CSV import), a lender name matching a standard bank is
+ *    linked to it; anything else stays a plain name with no bank id.
+ * @returns {Promise<{ bankId: string, lenderName: string }>}
+ */
+export async function resolveLoanBank(env, userId, { bankId, lenderName }) {
+  const cleanName = String(lenderName || "").trim();
+  const cleanId = String(bankId || "").trim();
+
+  if (cleanId) {
+    const standard = getBankById(cleanId);
+    if (standard) return { bankId: standard.id, lenderName: standard.name };
+    if (isCustomBankId(cleanId)) {
+      const custom = await dbGetCustomBank(env, userId, cleanId);
+      if (custom) return { bankId: custom.id, lenderName: custom.name };
+    }
+    throw AppError.badRequest("بانک انتخاب‌شده معتبر نیست.");
+  }
+
+  const matched = matchBankIdByName(cleanName);
+  if (matched) return { bankId: matched, lenderName: cleanName || getBankById(matched).name };
+  return { bankId: "", lenderName: cleanName };
+}
+
+/**
  * Create a new loan.
  * Only inserts the row in `loans`. No installment rows are created,
  * unless a custom first installment amount is specified (in which case
@@ -101,7 +131,10 @@ export async function dbCreateLoan(env, userId, data) {
 
   const loanId = data.id || generateId("loan");
   const title = String(data.title || "").trim();
-  const lenderName = String(data.lenderName || data.lender_name || "").trim();
+  const { bankId, lenderName } = await resolveLoanBank(env, userId, {
+    bankId: data.bankId ?? data.bank_id,
+    lenderName: data.lenderName || data.lender_name,
+  });
   const principalAmount = Number(data.principalAmount ?? data.principal ?? 0);
   const annualInterestRate = Number(data.annualInterestRate ?? data.annualRatePct ?? 0);
   const installmentCount = parseInt(data.installmentCount ?? data.installment_count ?? 0, 10);
@@ -166,10 +199,10 @@ export async function dbCreateLoan(env, userId, data) {
 
   const insertLoanSql = `
     INSERT INTO loans (
-      id, user_id, title, lender_name, principal_amount,
+      id, user_id, title, lender_name, bank_id, principal_amount,
       annual_interest_rate, installment_count, interval_months,
       start_date, annual_fee_amount, schedule_mode, notes, created_at, updated_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `;
 
   const statements = [
@@ -178,6 +211,7 @@ export async function dbCreateLoan(env, userId, data) {
       userId,
       title,
       lenderName,
+      bankId,
       principalAmount,
       annualInterestRate,
       installmentCount,
@@ -298,7 +332,7 @@ export async function dbGetUserLoans(env, userId) {
   {
     // 1. Fetch user loans
     const loansQuery = `
-      SELECT id, user_id AS userId, title, lender_name AS lenderName,
+      SELECT id, user_id AS userId, title, lender_name AS lenderName, bank_id AS bankId,
              principal_amount AS principalAmount, annual_interest_rate AS annualInterestRate,
              installment_count AS installmentCount, interval_months AS intervalMonths,
              start_date AS startDate, annual_fee_amount AS annualFeeAmount,
@@ -417,7 +451,7 @@ export async function dbGetLoanById(env, userId, loanId) {
   // is far more debuggable than silently returning null and having callers misreport it as
   // "loan not found" (e.g. dbCreateLoan would otherwise return { success: true, loan: null }).
   const loanQuery = `
-    SELECT id, user_id AS userId, title, lender_name AS lenderName,
+    SELECT id, user_id AS userId, title, lender_name AS lenderName, bank_id AS bankId,
            principal_amount AS principalAmount, annual_interest_rate AS annualInterestRate,
            installment_count AS installmentCount, interval_months AS intervalMonths,
            start_date AS startDate, annual_fee_amount AS annualFeeAmount,
@@ -514,11 +548,16 @@ export async function dbUpdateLoan(env, userId, loanId, data) {
   if (!existingLoan) return null;
 
   const newTitle = data.title !== undefined ? String(data.title).trim() : existingLoan.title;
-  const newLenderName = data.lenderName !== undefined
-    ? String(data.lenderName).trim()
-    : data.lender_name !== undefined
-    ? String(data.lender_name).trim()
-    : existingLoan.lenderName;
+  const incomingBankId = data.bankId !== undefined ? data.bankId : data.bank_id;
+  const incomingLenderName = data.lenderName !== undefined ? data.lenderName : data.lender_name;
+  // Only re-resolve the bank when the request touches it; otherwise keep what's stored
+  const { bankId: newBankId, lenderName: newLenderName } =
+    incomingBankId !== undefined || incomingLenderName !== undefined
+      ? await resolveLoanBank(env, userId, {
+          bankId: incomingBankId,
+          lenderName: incomingLenderName !== undefined ? incomingLenderName : existingLoan.lenderName,
+        })
+      : { bankId: existingLoan.bankId || "", lenderName: existingLoan.lenderName };
   const newNotes = data.notes !== undefined ? String(data.notes).trim() : existingLoan.notes;
   const nowIso = new Date().toISOString();
 
@@ -607,7 +646,7 @@ export async function dbUpdateLoan(env, userId, loanId, data) {
 
   const updateLoanSql = `
     UPDATE loans
-    SET title = ?, lender_name = ?, principal_amount = ?,
+    SET title = ?, lender_name = ?, bank_id = ?, principal_amount = ?,
         annual_interest_rate = ?, installment_count = ?,
         interval_months = ?, start_date = ?, annual_fee_amount = ?, schedule_mode = ?, notes = ?, updated_at = ?
     WHERE id = ? AND user_id = ?
@@ -616,6 +655,7 @@ export async function dbUpdateLoan(env, userId, loanId, data) {
     env.DB.prepare(updateLoanSql).bind(
       newTitle,
       newLenderName,
+      newBankId,
       newPrincipal,
       newRate,
       newCount,

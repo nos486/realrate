@@ -31,6 +31,8 @@ import { getDisplayRatePct } from '../../../utils/loanCalculator.js';
 import { appPath } from '../../../shared/routes.js';
 import { useFeedback } from '../../../shared/ui/FeedbackProvider.jsx';
 import { SkeletonRows } from '../../../shared/ui/Skeleton.jsx';
+import { BankLogo, resolveBank, useCustomBanks } from '../../../shared/banks/index.js';
+import LoanBankShareChart from './LoanBankShareChart.jsx';
 
 const formatNum = (v) => Number(v || 0).toLocaleString('fa-IR');
 
@@ -201,25 +203,26 @@ export default function LoansPage({ initialLoanId = null }) {
     };
   }, [loans]);
 
-  // 2. Group loans by bank/lender — loans sharing the same lender name are shown
-  // together under one header; loans with no lender name fall into a shared bucket.
+  // 2. Group loans by bank — the bank is resolved from the stored bank id (or, for older loans,
+  // matched from the free-text lender name) so spelling variations land in the same group.
   // Sorted by remaining balance so the heaviest debts surface first.
+  const { customBanks } = useCustomBanks();
   const bankGroups = useMemo(() => {
     const order = [];
     const groups = new Map();
     for (const loan of loans) {
-      const bankName = (loan.lenderName || '').trim();
-      const key = bankName || '__none__';
-      if (!groups.has(key)) {
-        const group = { key, name: bankName || 'بدون بانک مشخص', items: [] };
-        groups.set(key, group);
+      const bank = resolveBank(loan, customBanks);
+      if (!groups.has(bank.key)) {
+        const group = { key: bank.key, bank, name: bank.name, items: [] };
+        groups.set(bank.key, group);
         order.push(group);
       }
-      groups.get(key).items.push(loan);
+      groups.get(bank.key).items.push(loan);
     }
     return order
       .map((group) => ({
         ...group,
+        totalPrincipal: group.items.reduce((acc, l) => acc + Number(l.principalAmount ?? 0), 0),
         totalRemaining: group.items.reduce((acc, l) => acc + Number(l.remainingBalance ?? 0), 0),
         // Sum of each loan's next unpaid installment amount, as the bank's upcoming
         // payment burden — same simplification the overall "monthly installment" stat uses.
@@ -229,7 +232,7 @@ export default function LoansPage({ initialLoanId = null }) {
         ),
       }))
       .sort((a, b) => b.totalRemaining - a.totalRemaining);
-  }, [loans]);
+  }, [loans, customBanks]);
 
   // Handlers
   const handleOpenAddModal = () => {
@@ -296,6 +299,7 @@ export default function LoansPage({ initialLoanId = null }) {
       <SplitPageLayout
         sidebar={
           <div className="portfolio-overview-grid">
+
             {/* Card 1: Total Remaining Debt */}
             <div className="portfolio-stat-card main-val">
               <div className="stat-header">
@@ -307,6 +311,9 @@ export default function LoansPage({ initialLoanId = null }) {
               </div>
               <div className="stat-sub">{summaryMetrics.activeLoans.toLocaleString('fa-IR')} وام فعال</div>
             </div>
+
+            {/* Card 2: Share of each bank in the loans */}
+            {loans.length > 0 && <LoanBankShareChart groups={bankGroups} />}
 
             {/* Card 2: Total Monthly Installment */}
             <div className="portfolio-stat-card">
@@ -398,9 +405,7 @@ export default function LoansPage({ initialLoanId = null }) {
                 <div key={group.key} className="category-group-card">
                   <div className="category-group-header">
                     <div className="cat-header-identity">
-                      <span className="cat-group-icon">
-                        <Landmark size={20} />
-                      </span>
+                      <BankLogo bank={group.bank} size={34} />
                       <div className="cat-group-titles">
                         <h4 className="cat-group-name">{group.name}</h4>
                         <span className="cat-group-count">
