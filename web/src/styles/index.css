@@ -12,11 +12,12 @@
  *   feedback.css        — In-app confirm/alert dialog, toasts and skeleton placeholders
  *   admin.css           — Admin panel, price source management, forms
  *   footer.css          — Site footer
- *   portfolio-extras.css — Asset allocation bars, category groups
+ *   portfolio-extras.css — Category groups
  *   loading.css         — Global fullscreen loading overlay
  *   settings.css        — Account settings, profile, theme switcher
  *   sources.css         — Price sources page, charts, fullscreen layout
- *   banks.css           — Bank logos, bank picker and the loans-by-bank chart
+ *   banks.css           — Bank logos and bank picker
+ *   donut-chart.css     — Shared donut (part-to-whole) chart card
  *   incomes.css         — Incomes page, summary cards, category/monthly report
  *   landing.css          — Logged-out landing page
  *   shared-page-layout.css — Shared feature-page header bar (Portfolio/Transactions/Loans/Incomes)
@@ -40,5 +41,6 @@
 @import './transactions.css';
 @import './loans.css';
 @import './banks.css';
+@import './donut-chart.css';
 @import './incomes.css';
 @import './landing.css';

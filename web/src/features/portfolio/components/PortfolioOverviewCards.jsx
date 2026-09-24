@@ -1,7 +1,10 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { ArrowUpRight, ArrowDownRight, Lock } from 'lucide-react';
-import { formatNum } from '../utils/holdingHelpers.js';
+import { CategoryIcon, formatNum } from '../utils/holdingHelpers.js';
 import { formatPct } from '../../../shared/utils/formatters.js';
+import DonutChart from '../../../shared/ui/DonutChart.jsx';
+
+const otherCategoriesLabel = (count) => `سایر (${count.toLocaleString('fa-IR')} دسته)`;
 
 export default function PortfolioOverviewCards({
   portfolioMetrics = {},
@@ -19,6 +22,25 @@ export default function PortfolioOverviewCards({
     : hasData
     ? (isProfit ? 'profit' : 'loss')
     : 'neutral';
+
+  // Largest categories first, so the biggest slices take the first palette colors
+  const allocationItems = useMemo(
+    () =>
+      [...categoryGroups]
+        .sort((a, b) => b.totalRealValue - a.totalRealValue)
+        .map((cat) => ({
+          key: cat.key,
+          label: cat.name,
+          shortLabel: cat.badge || cat.name,
+          value: cat.totalRealValue,
+          icon: (
+            <span className="donut-chart-cat-icon" aria-hidden="true">
+              <CategoryIcon category={cat.key} size={13} />
+            </span>
+          ),
+        })),
+    [categoryGroups]
+  );
 
   return (
     <div className="portfolio-overview-grid">
@@ -125,48 +147,16 @@ export default function PortfolioOverviewCards({
         </div>
       </div>
 
-      {/* Card 4: Asset Allocation Distribution Breakdown */}
+      {/* Card 4: Asset allocation donut */}
       {categoryGroups.length > 0 && (portfolioMetrics.totalRealValue || 0) > 0 && !isVaultLocked && (
-        <div className="portfolio-stat-card allocation-card">
-          <div className="stat-header">
-            <span className="stat-label">ترکیب دارایی‌ها</span>
-            <span className="count-pill">{categoryGroups.length.toLocaleString('fa-IR')} دسته</span>
-          </div>
-          <div className="allocation-bar" aria-label="نمودار تفکیک دارایی‌ها">
-            {categoryGroups.map((cat) => {
-              const pct = (cat.totalRealValue / portfolioMetrics.totalRealValue) * 100;
-              if (pct < 0.5) return null;
-              return (
-                <div
-                  key={cat.key}
-                  className={`allocation-segment cat-${cat.key}`}
-                  style={{ width: `${pct}%` }}
-                  title={`${cat.name}: ${Number(pct).toLocaleString('fa-IR', {
-                    minimumFractionDigits: 1,
-                    maximumFractionDigits: 1,
-                  })}٪`}
-                />
-              );
-            })}
-          </div>
-          <div className="allocation-chips">
-            {categoryGroups.map((cat) => {
-              const pct = (cat.totalRealValue / portfolioMetrics.totalRealValue) * 100;
-              return (
-                <div key={cat.key} className="allocation-chip">
-                  <span className={`chip-dot cat-${cat.key}`} />
-                  <span className="chip-name">{cat.name}:</span>
-                  <strong className="chip-pct">
-                    {Number(pct).toLocaleString('fa-IR', {
-                      minimumFractionDigits: 1,
-                      maximumFractionDigits: 1,
-                    })}٪
-                  </strong>
-                </div>
-              );
-            })}
-          </div>
-        </div>
+        <DonutChart
+          title="ترکیب دارایی‌ها"
+          items={allocationItems}
+          centerLabel="ارزش کل"
+          masked={hideValues}
+          otherLabel={otherCategoriesLabel}
+          headerExtra={<span className="count-pill">{categoryGroups.length.toLocaleString('fa-IR')} دسته</span>}
+        />
       )}
     </div>
   );

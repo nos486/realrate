@@ -76,3 +76,21 @@ export function toPersianDigits(n) {
   const pers = ['۰', '۱', '۲', '۳', '۴', '۵', '۶', '۷', '۸', '۹'];
   return String(n).replace(/[0-9]/g, (w) => pers[+w]);
 }
+
+/** Short Persian amount, e.g. «۱٫۲ میلیارد» */
+export function formatCompactAmount(value) {
+  const v = Number(value || 0);
+  const abs = Math.abs(v);
+  const units = [
+    [1e12, 'هزار میلیارد'],
+    [1e9, 'میلیارد'],
+    [1e6, 'میلیون'],
+  ];
+  for (const [size, label] of units) {
+    if (abs >= size) {
+      const n = v / size;
+      return `${n.toLocaleString('fa-IR', { maximumFractionDigits: Math.abs(n) < 10 ? 1 : 0 })} ${label}`;
+    }
+  }
+  return Math.round(v).toLocaleString('fa-IR');
+}
