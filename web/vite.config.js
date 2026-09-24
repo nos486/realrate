@@ -18,5 +18,14 @@ export default defineConfig({
   build: {
     outDir: 'dist',
     sourcemap: false,
+    rolldownOptions: {
+      output: {
+        // Route/tab chunks are split with React.lazy; keep the shared icons in one chunk
+        // instead of a dozen sub-kilobyte files (one request each).
+        advancedChunks: {
+          groups: [{ name: 'icons', test: /node_modules[\\/]lucide-react/ }],
+        },
+      },
+    },
   },
 })

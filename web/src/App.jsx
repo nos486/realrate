@@ -1,12 +1,24 @@
+import { lazy, Suspense } from 'react';
 import { Routes, Route, Navigate, Outlet, useLocation } from 'react-router-dom';
-import MainPage from './pages/MainPage.jsx';
-import LandingPage from './pages/LandingPage.jsx';
-import SharedPortfolioPage from './pages/SharedPortfolioPage.jsx';
 import FullscreenLoader from './shared/ui/FullscreenLoader.jsx';
 import RequireAuth from './shared/ui/RequireAuth.jsx';
 import { APP_BASE, LANDING_PATH } from './shared/routes.js';
-import { PricingProvider } from './features/market/index.js';
-import { LoansProvider } from './features/loans/index.js';
+// Direct file imports (not the feature barrels) so the pages below stay in their lazy chunks
+import { PricingProvider } from './features/market/context/PricingContext.jsx';
+import { LoansProvider } from './features/loans/context/LoansContext.jsx';
+
+// Route-level code splitting: a visitor only downloads the page they open
+const MainPage = lazy(() => import('./pages/MainPage.jsx'));
+const LandingPage = lazy(() => import('./pages/LandingPage.jsx'));
+const SharedPortfolioPage = lazy(() => import('./pages/SharedPortfolioPage.jsx'));
+
+function RouteLoader() {
+  return (
+    <div className="require-auth-loading" role="status" aria-label="در حال بارگذاری">
+      <div className="spinner-glow" />
+    </div>
+  );
+}
 
 /**
  * Links from the short-lived period when every section lived under /app/... — redirect them
@@ -43,6 +55,7 @@ function LoansScope() {
 export default function App() {
   return (
     <>
+      <Suspense fallback={<RouteLoader />}>
       <Routes>
         {/* Public, no pricing data */}
         <Route path={LANDING_PATH} element={<LandingPage />} />
@@ -77,6 +90,7 @@ export default function App() {
         <Route path="/landing" element={<Navigate to={LANDING_PATH} replace />} />
         <Route path="*" element={<Navigate to={LANDING_PATH} replace />} />
       </Routes>
+      </Suspense>
       <FullscreenLoader />
     </>
   );
