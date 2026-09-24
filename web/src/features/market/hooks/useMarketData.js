@@ -68,6 +68,9 @@ export function useMarketData() {
       setGoldUsd(formatThousands(defaults.default_gold_usd, true));
       pricing?.setGoldUsd?.(Number(defaults.default_gold_usd));
     }
+    // Only when a new price snapshot arrives: re-running on usdToman/goldUsd would refill the
+    // default the moment the user clears the field to type their own value.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [rates]);
 
   // Instant client-side calculation whenever inputs or rates change (0ms, zero network lag)
@@ -99,6 +102,10 @@ export function useMarketData() {
     if (data.success) {
       setCalcData(data);
     }
+    // Recalculate on input/snapshot changes only. `pricing` is read for its latest values and
+    // written back only for user-typed input; depending on it would rerun the whole calculation
+    // on every context update (e.g. each background refresh) for no change in the result.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [usdToman, goldUsd, rates]);
 
   // Active reference rate key with resilient local state
@@ -115,7 +122,7 @@ export function useMarketData() {
     if (pricing?.activeReferenceKey && pricing.activeReferenceKey !== internalRefKey) {
       setInternalRefKey(pricing.activeReferenceKey);
     }
-  }, [pricing?.activeReferenceKey]);
+  }, [pricing?.activeReferenceKey, internalRefKey]);
 
   const currentRefKey = internalRefKey || pricing?.activeReferenceKey || 'usd';
 

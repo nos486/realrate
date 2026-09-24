@@ -68,10 +68,11 @@ const TransactionsView = forwardRef(function TransactionsView(
   }, [transactions.length, onCountChange]);
 
   // Price map
+  const livePriceMap = pricing?.priceMap;
   const realPriceMap = useMemo(() => {
     const map = {};
-    if (pricing?.priceMap) {
-      Object.assign(map, pricing.priceMap);
+    if (livePriceMap) {
+      Object.assign(map, livePriceMap);
     }
     if (calcData?.analysis && Array.isArray(calcData.analysis)) {
       calcData.analysis.forEach((item) => {
@@ -83,7 +84,7 @@ const TransactionsView = forwardRef(function TransactionsView(
       });
     }
     return map;
-  }, [pricing?.priceMap, calcData]);
+  }, [livePriceMap, calcData]);
 
   // Computed Holdings (for checking balances on sell)
   const { computedHoldings } = useComputedHoldings(transactions, realPriceMap);
