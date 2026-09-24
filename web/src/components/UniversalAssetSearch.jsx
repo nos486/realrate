@@ -405,26 +405,26 @@ export default function UniversalAssetSearch({
   const [query, setQuery] = useState('');
   const [activeCategory, setActiveCategory] = useState('all');
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-  const [internalSources, setInternalSources] = useState(() => (sources && sources.length > 0 ? sources : getMasterPriceSourcesConfig()));
+  const hasSourcesProp = Boolean(sources && sources.length > 0);
+  const [fetchedSources, setFetchedSources] = useState(() => getMasterPriceSourcesConfig());
+  // Sources passed in by the parent win; otherwise use the ones fetched below
+  const internalSources = hasSourcesProp ? sources : fetchedSources;
   const [bourseSymbols, setBourseSymbols] = useState([]);
   const containerRef = useRef(null);
 
   // 1. Fetch Sources if not passed in props
   useEffect(() => {
-    if (sources && sources.length > 0) {
-      setInternalSources(sources);
-      return;
-    }
+    if (hasSourcesProp) return undefined;
     let isMounted = true;
     apiGetPriceSources()
       .then((res) => {
         if (isMounted && res?.success && Array.isArray(res.sources)) {
-          setInternalSources(res.sources);
+          setFetchedSources(res.sources);
         }
       })
       .catch((err) => console.error('Error loading sources:', err));
     return () => { isMounted = false; };
-  }, [sources]);
+  }, [hasSourcesProp]);
 
   // 2. Preload Bourse symbols once upfront for instant search
   useEffect(() => {

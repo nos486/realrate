@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useCallback, useSyncExternalStore } from 'react';
 
 /**
  * useMediaQuery — subscribes to a CSS media query and re-renders on change.
@@ -6,30 +6,26 @@ import { useState, useEffect } from 'react';
  * @returns {boolean}
  */
 export function useMediaQuery(query) {
-  const [matches, setMatches] = useState(() =>
-    typeof window !== 'undefined' && typeof window.matchMedia === 'function'
-      ? window.matchMedia(query).matches
-      : false
-  );
-
-  useEffect(() => {
-    if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return undefined;
-
+  const subscribe = useCallback((onChange) => {
+    if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return () => {};
     const mql = window.matchMedia(query);
-    const handleChange = (e) => setMatches(e.matches);
-
-    setMatches(mql.matches);
-
     if (mql.addEventListener) {
-      mql.addEventListener('change', handleChange);
-      return () => mql.removeEventListener('change', handleChange);
+      mql.addEventListener('change', onChange);
+      return () => mql.removeEventListener('change', onChange);
     }
     // Safari <14 fallback
-    mql.addListener(handleChange);
-    return () => mql.removeListener(handleChange);
+    mql.addListener(onChange);
+    return () => mql.removeListener(onChange);
   }, [query]);
 
-  return matches;
+  const getSnapshot = () =>
+    typeof window !== 'undefined' && typeof window.matchMedia === 'function'
+      ? window.matchMedia(query).matches
+      : false;
+
+  // useSyncExternalStore reads the current value during render, so a query change or a
+  // resize is reflected without an extra effect-driven render
+  return useSyncExternalStore(subscribe, getSnapshot, () => false);
 }
 
 /**

@@ -38,10 +38,14 @@ export default function PortfolioTracker({
   const [creatingPortfolio, setCreatingPortfolio] = useState(false);
 
   // Follow route-driven changes to which sub-tab should be shown (e.g. a deep link to
-  // /transactions/:id landing here after initial mount already picked 'holdings').
-  React.useEffect(() => {
+  // /transactions/:id landing here after initial mount already picked 'holdings'). Adjusted
+  // during render (React's recommended pattern) instead of in an effect, so the new tab shows
+  // in the same render rather than one render late.
+  const [prevInitialView, setPrevInitialView] = useState(initialView);
+  if (initialView !== prevInitialView) {
+    setPrevInitialView(initialView);
     setView(initialView);
-  }, [initialView]);
+  }
 
   const handleViewChange = (nextView) => {
     setView(nextView);
