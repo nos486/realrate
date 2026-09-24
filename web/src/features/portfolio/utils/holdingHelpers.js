@@ -12,7 +12,6 @@ import {
 } from 'lucide-react';
 import {
   getCanonicalAssetSpec,
-  getCanonicalAssetName,
   resolveItemCategory,
   PORTFOLIO_CATEGORIES,
   resolveHoldingUnitRealPrice,

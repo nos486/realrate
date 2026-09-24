@@ -31,11 +31,6 @@ import {
 } from '../../../shared/ui/index.js';
 import { APP_BASE } from '../../../shared/routes.js';
 
-function formatNum(num) {
-  if (num === null || num === undefined || isNaN(num)) return '۰';
-  return Math.round(num).toLocaleString('fa-IR');
-}
-
 function formatPersianDate(isoStr) {
   if (!isoStr) return '-';
   try {

@@ -4,17 +4,13 @@
  */
 
 import {
-  TROY_OUNCE_GRAMS,
   GOLD_SPECS,
   COIN_SPECS,
-  SILVER_SPECS,
-  FOREX_SPECS,
   CURRENCY_METADATA_MAP,
   getCanonicalAssetSpec,
   getCanonicalAssetName,
   calculateGold24kGram,
   calculateIntrinsicValue,
-  calculateForexTomanPrice,
   calculateSilverGram,
   calculateSilver925,
   calculateSilverOunce,

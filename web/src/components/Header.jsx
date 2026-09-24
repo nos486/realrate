@@ -27,7 +27,7 @@ const LogoMark = () => (
 /** Tabs that display monetary values and therefore offer the hide-values toggle */
 const PRIVACY_TABS = ['portfolio', 'transactions', 'incomes'];
 
-export default function Header({ activeTab, setActiveTab }) {
+export default function Header({ activeTab }) {
   const { user, triggerLogin, logout } = useAuth();
 
   const hideValues = usePrivacyMode();

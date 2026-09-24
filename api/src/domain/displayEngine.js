@@ -10,8 +10,8 @@
  */
 
 import { PRICE_SOURCES_CONFIG } from "../config/sources.config.js";
-import { CATEGORIES_CONFIG, CATEGORY_MAP } from "../config/categories.config.js";
-import { getCanonicalAssetSpec, getCanonicalAssetName } from "./specs/registry.js";
+import { CATEGORY_MAP } from "../config/categories.config.js";
+import { getCanonicalAssetSpec } from "./specs/registry.js";
 
 /**
  * Parses any item identifier into its sourceId and itemKey components.

@@ -5,7 +5,7 @@
  * Implements moving Weighted Average Cost (WAC), realized PnL and real-time unrealized PnL.
  */
 
-import { resolveHoldingUnitRealPrice, resolveItemCategory } from '../../../utils/financialSpecs.js';
+import { resolveHoldingUnitRealPrice } from '../../../utils/financialSpecs.js';
 import {
   resolveAssetDisplayName,
   resolveAssetUnit,

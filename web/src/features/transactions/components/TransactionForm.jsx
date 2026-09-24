@@ -2,13 +2,12 @@
  * TransactionForm.jsx — Modal form to create or edit a buy/sell transaction
  */
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   ArrowDownLeft,
   ArrowUpRight,
   Receipt,
   AlertTriangle,
-  Info,
 } from 'lucide-react';
 import Modal from '../../../shared/ui/Modal.jsx';
 import NumericInput from '../../../shared/ui/NumericInput.jsx';
@@ -18,7 +17,6 @@ import ReferenceAssetInputs from '../../portfolio/components/ReferenceAssetInput
 import { parseInputNumber } from '../../portfolio/utils/holdingHelpers.js';
 import {
   getCanonicalAssetSpec,
-  resolveItemCategory,
 } from '../../../utils/financialSpecs.js';
 import {
   resolveAssetDisplayName,
@@ -35,13 +33,11 @@ export default function TransactionForm({
   onSubmit,
   editingTransaction = null,
   submitting = false,
-  rates = null,
   realPriceMap = null,
   currentHoldingsMap = {}, // assetId -> { amount, unit } for sell warnings
 }) {
   const [assetId, setAssetId] = useState('gold_18k');
   const [assetName, setAssetName] = useState('طلای ۱۸ عیار');
-  const [assetType, setAssetType] = useState('gold');
   const [unit, setUnit] = useState('گرم');
   const [transactionType, setTransactionType] = useState('buy'); // 'buy' | 'sell'
   const [quantity, setQuantity] = useState('');
@@ -59,7 +55,6 @@ export default function TransactionForm({
     if (editingTransaction) {
       setAssetId(editingTransaction.assetId || 'gold_18k');
       setAssetName(editingTransaction.assetName || resolveAssetDisplayName(editingTransaction.assetId) || 'دارایی');
-      setAssetType(editingTransaction.assetType || 'custom');
       setUnit(editingTransaction.unit || 'واحد');
       setTransactionType(editingTransaction.transactionType || 'buy');
       setQuantity(editingTransaction.quantity !== undefined ? String(editingTransaction.quantity) : '');
@@ -87,7 +82,6 @@ export default function TransactionForm({
     } else {
       setAssetId('gold_18k');
       setAssetName('طلای ۱۸ عیار');
-      setAssetType('gold');
       setUnit('گرم');
       setTransactionType('buy');
       setQuantity('');
@@ -127,7 +121,6 @@ export default function TransactionForm({
       const symCode = (rawItem.symbol || rawItem.s || resolvedId.replace('bourse_', '')).trim();
       setAssetId(resolvedId.includes('__') ? resolvedId : `bourse_${symCode}`);
       setAssetName(resolveAssetDisplayName(resolvedId, rawItem));
-      setAssetType(resolvedCat);
       setUnit(resolvedUnit);
 
       const liveP = rawItem.priceToman || (rawItem.priceRial ? Math.round(rawItem.priceRial / 10) : rawItem.price || 0);
@@ -137,14 +130,12 @@ export default function TransactionForm({
     } else if (isCustom) {
       setAssetId(resolvedId.startsWith('custom_') ? resolvedId : `custom_${Date.now()}`);
       setAssetName(rawItem.name || rawItem.title || 'دارایی شخصی');
-      setAssetType('custom');
       setUnit(resolvedUnit);
     } else {
       // Canonical assets (gold, coin, forex) AND catalog items (charisma_plans__gold, ...)
       const displayId = canonicalSpec?.id || cleanId || rawId;
       setAssetId(displayId);
       setAssetName(resolveAssetDisplayName(displayId, rawItem));
-      setAssetType(resolvedCat);
       setUnit(resolvedUnit);
 
       const liveP = realPriceMap?.[cleanAssetId(displayId)] || realPriceMap?.[displayId] || rawItem.priceToman || rawItem.price || 0;

@@ -155,7 +155,7 @@ export const PRICE_SOURCES_CONFIG = [
     referencePulseColor: "cyan",
     referenceOrder: 2,
     displayConfig: { showOnHomePage: true },
-    customParser: (data, sourceConfig) => {
+    customParser: (data) => {
       const tetherItem = data?.currency?.find((item) => item.symbol === "USDT_IRT");
       if (!tetherItem || !tetherItem.price) {
         throw new Error("آیتم تتر در پاسخ وب‌سرویس یافت نشد.");

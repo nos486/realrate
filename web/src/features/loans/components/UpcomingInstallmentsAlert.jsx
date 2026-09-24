@@ -8,7 +8,7 @@
 
 import React, { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { AlertCircle, AlertTriangle, ChevronLeft, Clock, Landmark } from 'lucide-react';
+import { ChevronLeft } from 'lucide-react';
 import AlertBanner from '../../../shared/ui/AlertBanner.jsx';
 import { formatShamsiDisplay } from '../../portfolio/components/ShamsiDatePicker.jsx';
 import { useLoansContext } from '../context/LoansContext.jsx';

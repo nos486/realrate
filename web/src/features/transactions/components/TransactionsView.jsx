@@ -127,7 +127,7 @@ const TransactionsView = forwardRef(function TransactionsView(
         setVaultUnlockError('رمز عبور وارد شده صحیح نیست.');
         return false;
       }
-    } catch (err) {
+    } catch {
       setVaultUnlockError('خطا در رمزگشایی گاوصندوق.');
       return false;
     } finally {

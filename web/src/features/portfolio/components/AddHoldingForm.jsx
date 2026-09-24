@@ -8,14 +8,10 @@ import ReferenceAssetInputs from './ReferenceAssetInputs.jsx';
 import { parseInputNumber } from '../utils/holdingHelpers.js';
 import {
   getCanonicalAssetSpec,
-  getCanonicalAssetName,
-  getCanonicalAssetUnit,
-  resolveItemCategory,
 } from '../../../utils/financialSpecs.js';
 import {
   resolveAssetDisplayName,
   resolveAssetUnit,
-  resolveCategory,
 } from '../../../config/sourceRegistry.js';
 import {
   getItemCategory,

@@ -21,13 +21,11 @@ import {
   getItemCategory,
   getItemBadge,
   getItemUnit,
-  getItemDisplayName,
   getSourceBrand,
 } from '../config/displayEngine.js';
 import { getCategoryIconName } from '../config/categories.config.js';
 import {
   FOREX_SPECS,
-  TROY_OUNCE_GRAMS,
   PORTFOLIO_CATEGORIES,
   CANONICAL_ASSET_REGISTRY,
   getCanonicalAssetSpec,
@@ -302,7 +300,6 @@ export function extractMultiItems(src) {
   const priceField = fm?.priceField;
   const altPriceField = fm?.altPriceField;
   const changeField = fm?.changePercentField || fm?.changeField;
-  const catField = fm?.categoryField || fm?.brandField;
 
   return rawList
     .filter((item) => {
@@ -401,27 +398,9 @@ export default function UniversalAssetSearch({
   title = '',
   subtitle = '',
   autoFocus = false,
-  usdToman: propUsdToman = null,
-  goldUsd: propGoldUsd = null,
-  silverUsd: propSilverUsd = null,
   showCategories = false,
 }) {
   const pricingContext = usePricing();
-  const effectiveUsdToman = Number(
-    propUsdToman ||
-    pricingContext?.usdToman ||
-    0
-  );
-  const effectiveGoldUsd = Number(
-    propGoldUsd ||
-    pricingContext?.goldUsd ||
-    0
-  );
-  const effectiveSilverUsd = Number(
-    propSilverUsd ||
-    pricingContext?.silverUsd ||
-    0
-  );
 
   const [query, setQuery] = useState('');
   const [activeCategory, setActiveCategory] = useState('all');

@@ -818,7 +818,7 @@ export function computeEffectiveSchedule({
   let contiguousPaidCount = 0;
   while (statesMap.has(contiguousPaidCount + 1)) {
     const st = statesMap.get(contiguousPaidCount + 1);
-    if (Boolean(st.isPaid ?? st.is_paid)) {
+    if (st.isPaid ?? st.is_paid) {
       contiguousPaidCount++;
     } else {
       break;
@@ -826,7 +826,6 @@ export function computeEffectiveSchedule({
   }
 
   let schedule = [];
-  let loopStartK = 1;
 
   if (contiguousPaidCount > 0) {
     const baseSchedule = generateAmortizationSchedule(loan);
@@ -880,7 +879,6 @@ export function computeEffectiveSchedule({
       schedule = paidSlice;
     }
 
-    loopStartK = contiguousPaidCount + 1;
   } else {
     // Generate baseline schedule
     schedule = generateAmortizationSchedule(loan);
@@ -1063,7 +1061,7 @@ export function computeEffectiveSchedule({
       if (state.id) {
         inst.id = state.id;
       }
-      if (Boolean(state.isPaid ?? state.is_paid)) {
+      if (state.isPaid ?? state.is_paid) {
         inst.isPaid = true;
         inst.paidDate = state.paidDate || state.paid_date || '';
         inst.paidAmount = Number(state.paidAmount ?? state.paid_amount ?? inst.totalAmount);
@@ -1080,7 +1078,7 @@ export function computeEffectiveSchedule({
           inst.remainingBalanceAfter = Number(state.remainingBalanceAfter ?? state.remaining_balance_after);
         }
       }
-      if (Boolean(state.isManualOverride ?? state.is_manual_override)) {
+      if (state.isManualOverride ?? state.is_manual_override) {
         inst.isManualOverride = true;
       }
     }
