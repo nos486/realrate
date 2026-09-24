@@ -168,7 +168,6 @@ export default function MainPage() {
   const {
     rates,
     calcData,
-    loading,
     usdToman,
     goldUsd,
     setUsdToman,
@@ -196,7 +195,6 @@ export default function MainPage() {
 
   const hasUsd = usdNum > 0;
 
-  const showUsdOnHome = true;
 
   return (
     <AppLayout

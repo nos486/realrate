@@ -1,12 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import {
   Settings,
-  Check,
-  CheckCircle2,
-  AlertTriangle,
   Eye,
   EyeOff,
-  Copy,
   Trash2,
 } from 'lucide-react';
 import Modal from '../shared/ui/Modal.jsx';
@@ -180,13 +176,13 @@ export default function UserSettingsModal({ isOpen, portfolio, onClose, onSaved,
                   };
                   delete plainPayload.isE2eeEncrypted;
                   await updatePortfolioHolding(plainPayload);
-                } catch (itemErr) {
+                } catch {
                   failedItems.push(`دارایی «${h.assetName || h.assetId || h.id}»`);
                 }
               }
             }
           }
-        } catch (hErr) {
+        } catch {
           failedItems.push('خطا در دریافت فهرست دارایی‌ها از سرور');
         }
 
@@ -204,13 +200,13 @@ export default function UserSettingsModal({ isOpen, portfolio, onClose, onSaved,
                   }
                   const plainJson = JSON.stringify(decTx);
                   await updateTransaction(portfolio.id, tx.id, { encryptedPayload: plainJson });
-                } catch (itemErr) {
+                } catch {
                   failedItems.push(`تراکنش ${tx.transactionDate ? 'مورخ ' + tx.transactionDate : tx.id}`);
                 }
               }
             }
           }
-        } catch (txErr) {
+        } catch {
           failedItems.push('خطا در دریافت فهرست تراکنش‌ها از سرور');
         }
 
@@ -277,13 +273,13 @@ export default function UserSettingsModal({ isOpen, portfolio, onClose, onSaved,
                     portfolioId: portfolio.id,
                   });
                   await updatePortfolioHolding(encHolding);
-                } catch (itemErr) {
+                } catch {
                   enableFailedItems.push(`دارایی «${h.assetName || h.assetId || h.id}»`);
                 }
               }
             }
           }
-        } catch (hErr) {
+        } catch {
           enableFailedItems.push('خطا در دریافت فهرست دارایی‌ها از سرور');
         }
 
@@ -303,13 +299,13 @@ export default function UserSettingsModal({ isOpen, portfolio, onClose, onSaved,
                   }
                   const encCipher = await e2eeEncrypt(derivedKey, payloadObj);
                   await updateTransaction(portfolio.id, tx.id, { encryptedPayload: encCipher });
-                } catch (itemErr) {
+                } catch {
                   enableFailedItems.push(`تراکنش ${tx.transactionDate ? 'مورخ ' + tx.transactionDate : tx.id}`);
                 }
               }
             }
           }
-        } catch (txErr) {
+        } catch {
           enableFailedItems.push('خطا در دریافت فهرست تراکنش‌ها از سرور');
         }
 

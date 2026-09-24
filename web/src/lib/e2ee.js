@@ -129,12 +129,12 @@ export async function e2eeDecrypt(key, cipherStr) {
     if ((str.startsWith("{") && str.endsWith("}")) || (str.startsWith("[") && str.endsWith("]"))) {
       try {
         return JSON.parse(str);
-      } catch (e) {
+      } catch {
         return str;
       }
     }
     return str;
-  } catch (err) {
+  } catch {
     // Decryption failed (invalid key or tampered data)
     return null;
   }
@@ -270,13 +270,13 @@ const STORAGE_PREFIX = "rr_e2ee_pass_";
 export function saveVaultPassphraseToSession(portfolioId, passphrase) {
   try {
     sessionStorage.setItem(`${STORAGE_PREFIX}${portfolioId}`, passphrase);
-  } catch (e) {}
+  } catch {}
 }
 
 export function getVaultPassphraseFromSession(portfolioId) {
   try {
     return sessionStorage.getItem(`${STORAGE_PREFIX}${portfolioId}`);
-  } catch (e) {
+  } catch {
     return null;
   }
 }
@@ -284,5 +284,5 @@ export function getVaultPassphraseFromSession(portfolioId) {
 export function clearVaultPassphraseFromSession(portfolioId) {
   try {
     sessionStorage.removeItem(`${STORAGE_PREFIX}${portfolioId}`);
-  } catch (e) {}
+  } catch {}
 }

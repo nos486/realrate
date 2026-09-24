@@ -223,7 +223,7 @@ export default function CsvImportButton({ addHolding, disabled = false }) {
         } else {
           failedNames.push(row.name);
         }
-      } catch (err) {
+      } catch {
         failedNames.push(row.name);
       }
       setProgress({ done: i + 1, total: importable.length });

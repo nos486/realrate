@@ -8,7 +8,6 @@ import AlertBanner from '../shared/ui/AlertBanner.jsx';
 import { usePricing } from '../features/market/index.js';
 import {
   HoldingsTable,
-  CategoryIcon,
   CATEGORY_DEFINITIONS,
   formatAssetName,
   formatNum,
@@ -31,8 +30,6 @@ import {
   EyeOff,
   Briefcase,
   FileText,
-  Calendar,
-  MessageSquare,
   ArrowUpRight,
   ArrowDownRight,
   Download,

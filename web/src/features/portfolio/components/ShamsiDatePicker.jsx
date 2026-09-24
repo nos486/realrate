@@ -28,7 +28,7 @@ export function getTodayShamsi() {
       day: '2-digit'
     });
     return formatter.format(new Date());
-  } catch (e) {
+  } catch {
     return '';
   }
 }
@@ -48,7 +48,7 @@ export function gregorianToShamsi(dateStr) {
       day: '2-digit'
     });
     return formatter.format(date);
-  } catch (e) {
+  } catch {
     return dateStr;
   }
 }

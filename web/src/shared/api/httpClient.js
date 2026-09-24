@@ -114,7 +114,7 @@ export async function httpRequest(path, options = {}) {
     if (contentType.includes('application/json')) {
       try {
         data = await res.json();
-      } catch (err) {
+      } catch {
         data = null;
       }
     } else {

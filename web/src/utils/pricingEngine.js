@@ -5,14 +5,12 @@
  */
 
 import {
-  TROY_OUNCE_GRAMS,
   GOLD_SPECS,
   COIN_SPECS,
   SILVER_SPECS,
   FOREX_SPECS,
   CRYPTO_SPECS,
   calculateGold24kGram,
-  calculateIntrinsicValue,
   calculateForexTomanPrice,
   calculateSilverGram,
   calculateBubble,
@@ -246,7 +244,6 @@ export function computeUnifiedPrices({
       // Physical gold / silver intrinsic value calculation
       const baseGram = item.category === 'silver' ? silverGramToman : gold24kGramToman;
       intrinsicPrice = Math.round(baseGram * (item.gold24kWeight || item.weight || 1));
-      const targetExpected = Math.round(intrinsicPrice * (1 + (item.targetBubblePct || 0) / 100));
 
       const hasSourcePrice = typeof item.marketPrice === 'number' && item.marketPrice > 0;
 

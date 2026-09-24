@@ -6,7 +6,6 @@
  */
 
 import { PRICE_SOURCES_CONFIG } from "./sources.config.js";
-import { getCanonicalAssetSpec } from "../domain/specs/registry.js";
 import {
   CATEGORIES_CONFIG,
   CATEGORY_MAP,
@@ -135,36 +134,6 @@ export function getSourceConfig(key) {
   );
 }
 
-/**
- * Helper to resolve catalog item info from knownItems in sources
- * @param {string} assetId
- * @returns {{ name?: string, unit?: string, badge?: string } | null}
- */
-function findCatalogItem(assetId) {
-  if (!assetId || typeof assetId !== "string") return null;
-  const cleanFull = assetId.replace(/^src_def_/, "").replace(/^derived_/, "").trim();
-  const cleanLower = cleanFull.toLowerCase();
-
-  // 1. Check double underscore notation: prefix__suffix (e.g. charisma_plans__gold)
-  if (cleanLower.includes("__")) {
-    const [prefix, suffix] = cleanFull.split("__");
-    const src = getSourceConfig(prefix);
-    if (src?.symbolToItem) {
-      const match = src.symbolToItem[suffix] || src.symbolToItem[suffix.toLowerCase()];
-      if (match) return match;
-    }
-  }
-
-  // 2. Search all catalog sources with knownItems
-  for (const src of _registry.values()) {
-    if (!src.knownItems) continue;
-    if (src.symbolToItem && (src.symbolToItem[cleanFull] || src.symbolToItem[cleanLower])) {
-      return src.symbolToItem[cleanFull] || src.symbolToItem[cleanLower];
-    }
-  }
-
-  return null;
-}
 import {
   parseItemId,
   getItemBaseName,
