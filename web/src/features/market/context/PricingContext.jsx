@@ -4,12 +4,25 @@
  * Provides single-source-of-truth pricing across the whole app.
  */
 
-import React, { createContext, useContext, useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import React, { createContext, useContext, useState, useEffect, useMemo, useCallback, useRef, useSyncExternalStore } from 'react';
 import { getMarketItems, getPrices } from '../api/marketApi.js';
 import { computeUnifiedPrices, searchUnifiedAssets } from '../../../utils/pricingEngine.js';
 import { getReferenceRatesSpecs } from '../../../config/sources.config.js';
 
 const PricingContext = createContext(null);
+
+function subscribeOnlineStatus(onChange) {
+  window.addEventListener('online', onChange);
+  window.addEventListener('offline', onChange);
+  return () => {
+    window.removeEventListener('online', onChange);
+    window.removeEventListener('offline', onChange);
+  };
+}
+
+function isBrowserOffline() {
+  return typeof navigator !== 'undefined' && navigator.onLine === false;
+}
 
 /** How often live prices are refreshed in the background while the tab is visible */
 export const PRICE_REFRESH_INTERVAL_MS = 2 * 60 * 1000;
@@ -18,6 +31,7 @@ export function PricingProvider({ children, initialUsdToman = null, initialGoldU
   const [marketItems, setMarketItems] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const isOffline = useSyncExternalStore(subscribeOnlineStatus, isBrowserOffline, () => false);
 
   // Client-side inputs for live zero-latency recalculations
   const [usdToman, setUsdToman] = useState(initialUsdToman || '');
@@ -157,7 +171,9 @@ export function PricingProvider({ children, initialUsdToman = null, initialGoldU
       } else {
         setError(null);
       }
-      if (res || freshPrices) {
+      // Offline, the service worker answers with the last saved snapshot: show it, but don't
+      // claim it was just updated
+      if ((res || freshPrices) && !isBrowserOffline()) {
         const now = Date.now();
         lastUpdatedAtRef.current = now;
         setLastUpdatedAt(now);
@@ -268,6 +284,7 @@ export function PricingProvider({ children, initialUsdToman = null, initialGoldU
     loading,
     refreshing,
     error,
+    isOffline,
     lastUpdatedAt,
     marketItems,
     pricesData,
@@ -293,7 +310,7 @@ export function PricingProvider({ children, initialUsdToman = null, initialGoldU
     setReferenceRateKey,
     updateReferenceRates,
   }), [
-    loading, refreshing, error, lastUpdatedAt, marketItems, pricesData, resolvedAssets, priceMap,
+    loading, refreshing, error, isOffline, lastUpdatedAt, marketItems, pricesData, resolvedAssets, priceMap,
     itemMap, summary, usdToman, goldUsd, silverUsd, setManualOverride, getAssetPrice, getAsset,
     searchAssets, refresh, activeReferenceKey, activeReferenceRate, referenceRates,
     cycleReferenceRate, setReferenceRateKey, updateReferenceRates,

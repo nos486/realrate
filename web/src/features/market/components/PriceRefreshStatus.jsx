@@ -33,7 +33,7 @@ export default function PriceRefreshStatus() {
   }, []);
 
   if (!pricing) return null;
-  const { lastUpdatedAt, error, refreshing, refresh } = pricing;
+  const { lastUpdatedAt, error, isOffline, refreshing, refresh } = pricing;
   const updatedAgo = formatUpdatedAgo(lastUpdatedAt, now);
 
   const refreshButton = (
@@ -49,6 +49,21 @@ export default function PriceRefreshStatus() {
       {error && <span>تلاش مجدد</span>}
     </button>
   );
+
+  if (isOffline) {
+    return (
+      <AlertBanner
+        type="warning"
+        icon={<WifiOff size={16} />}
+        className="price-refresh-alert"
+        message={
+          lastUpdatedAt
+            ? `اتصال اینترنت برقرار نیست — قیمت‌های ذخیره‌شده (${updatedAgo}) نمایش داده می‌شود.`
+            : 'اتصال اینترنت برقرار نیست — آخرین قیمت‌های ذخیره‌شده نمایش داده می‌شود.'
+        }
+      />
+    );
+  }
 
   if (error) {
     return (
