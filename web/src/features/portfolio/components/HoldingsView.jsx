@@ -40,6 +40,7 @@ import {
 } from '../utils/holdingHelpers.js';
 import { getItemCategory } from '../../../config/displayEngine.js';
 import { usePrivacyMode } from '../../../hooks/usePrivacyMode.js';
+import { useFeedback } from '../../../shared/ui/FeedbackProvider.jsx';
 
 const HoldingsView = forwardRef(function HoldingsView(
   { activePortfolio, portfolios, rates, calcData, usdToman, goldUsd, fetchPortfolios, deletePortfolio, onVaultLockChange, onCountChange },
@@ -254,15 +255,33 @@ const HoldingsView = forwardRef(function HoldingsView(
     }
   };
 
+  const { confirm, toast } = useFeedback();
+
   const handleDeleteHolding = async (id) => {
-    if (!window.confirm('آیا از حذف این دارایی از پورتفو اطمینان دارید؟')) return;
-    await deleteHolding(id);
+    const confirmed = await confirm({
+      title: 'حذف دارایی',
+      message: 'آیا از حذف این دارایی از پورتفو اطمینان دارید؟',
+      confirmLabel: 'حذف',
+      danger: true,
+    });
+    if (!confirmed) return;
+    try {
+      const ok = await deleteHolding(id);
+      if (ok) toast.success('دارایی حذف شد.');
+      else toast.error('حذف دارایی انجام نشد.');
+    } catch (err) {
+      toast.error(err.message || 'خطا در حذف دارایی');
+    }
   };
 
   const handleDeleteActivePortfolio = async (portfolioId) => {
-    if (!window.confirm('آیا از حذف این پورتفو اطمینان دارید؟ تمام دارایی‌های آن حذف خواهد شد.')) {
-      return;
-    }
+    const confirmed = await confirm({
+      title: 'حذف پورتفو',
+      message: 'آیا از حذف این پورتفو اطمینان دارید؟ تمام دارایی‌ها و تراکنش‌های آن حذف خواهد شد و این کار قابل بازگشت نیست.',
+      confirmLabel: 'حذف پورتفو',
+      danger: true,
+    });
+    if (!confirmed) return;
     const ok = await deletePortfolio(portfolioId || activePortfolio?.id);
     if (ok) setSettingsModalOpen(false);
   };

@@ -30,6 +30,7 @@ import SplitPageLayout from '../../../shared/ui/SplitPageLayout.jsx';
 import { formatShamsiDisplay } from '../../portfolio/components/ShamsiDatePicker.jsx';
 import { getDisplayRatePct } from '../../../utils/loanCalculator.js';
 import { appPath } from '../../../shared/routes.js';
+import { useFeedback } from '../../../shared/ui/FeedbackProvider.jsx';
 
 const formatNum = (v) => Number(v || 0).toLocaleString('fa-IR');
 
@@ -240,19 +241,25 @@ export default function LoansPage({ initialLoanId = null }) {
     setIsAddModalOpen(true);
   };
 
+  const { confirm, toast } = useFeedback();
+
   const handleDeleteLoan = async (loanId) => {
     const loan = loans.find((l) => l.id === loanId);
     const name = loan ? `«${loan.title}»` : 'این وام';
-    if (!window.confirm(`آیا از حذف وام ${name} و تمام اقساط آن اطمینان دارید؟`)) {
-      return;
-    }
+    const confirmed = await confirm({
+      title: 'حذف وام',
+      message: `آیا از حذف وام ${name} و تمام اقساط آن اطمینان دارید؟ این کار قابل بازگشت نیست.`,
+      confirmLabel: 'حذف وام',
+      danger: true,
+    });
+    if (!confirmed) return;
     try {
       await deleteLoan(loanId);
       if (selectedLoanId === loanId) {
         handleCloseDetailModal();
       }
     } catch (err) {
-      alert(err.message || 'خطا در حذف وام');
+      toast.error(err.message || 'خطا در حذف وام');
     }
   };
 

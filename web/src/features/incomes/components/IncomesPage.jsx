@@ -27,6 +27,7 @@ import IncomeCsvExportButton from './IncomeCsvExportButton.jsx';
 import IncomeCsvImportButton from './IncomeCsvImportButton.jsx';
 import { INCOME_PERIODS, buildIncomeReport, filterIncomesByPeriod } from '../utils/incomeReport.js';
 import { getIncomeCategory } from '../constants/incomeCategories.js';
+import { useFeedback } from '../../../shared/ui/FeedbackProvider.jsx';
 
 export default function IncomesPage() {
   const {
@@ -69,8 +70,16 @@ export default function IncomesPage() {
     setFormOpen(true);
   };
 
+  const { confirm } = useFeedback();
+
   const handleDelete = async (income) => {
-    if (!window.confirm(`آیا از حذف درآمد «${income.title}» اطمینان دارید؟`)) return;
+    const confirmed = await confirm({
+      title: 'حذف درآمد',
+      message: `آیا از حذف درآمد «${income.title}» اطمینان دارید؟`,
+      confirmLabel: 'حذف',
+      danger: true,
+    });
+    if (!confirmed) return;
     try {
       await deleteIncome(income.id);
     } catch {

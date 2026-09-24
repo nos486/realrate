@@ -2,14 +2,23 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { Smartphone, ShieldCheck } from 'lucide-react';
 import { appPath } from '../shared/routes.js';
+import { useFeedback } from '../shared/ui/FeedbackProvider.jsx';
 
 export default function Footer() {
+  const { alert: showAlert } = useFeedback();
+
   const triggerPwaInstall = () => {
     const isIos = /iphone|ipad|ipod/i.test(navigator.userAgent);
     if (isIos) {
-      alert('جهت نصب اپلیکیشن روی آیفون:\n۱. دکمه اشتراک (Share) در پایین مرورگر Safari را بزنید.\n۲. گزینه "Add to Home Screen" را انتخاب کنید.');
+      showAlert({
+        title: 'نصب اپلیکیشن',
+        message: 'جهت نصب اپلیکیشن روی آیفون:\n۱. دکمه اشتراک (Share) در پایین مرورگر Safari را بزنید.\n۲. گزینه "Add to Home Screen" را انتخاب کنید.',
+      });
     } else {
-      alert('جهت نصب اپلیکیشن روی گوشی:\n۱. منوی ۳ نقطه مرورگر را بزنید.\n۲. گزینه "Add to Home Screen" یا "Install app" را انتخاب کنید.');
+      showAlert({
+        title: 'نصب اپلیکیشن',
+        message: 'جهت نصب اپلیکیشن روی گوشی:\n۱. منوی ۳ نقطه مرورگر را بزنید.\n۲. گزینه "Add to Home Screen" یا "Install app" را انتخاب کنید.',
+      });
     }
   };
 

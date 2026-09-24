@@ -19,6 +19,7 @@ import ShamsiDatePicker from '../../portfolio/components/ShamsiDatePicker.jsx';
 import NumericInput from '../../../shared/ui/NumericInput.jsx';
 import ExtraPaymentModal from './ExtraPaymentModal.jsx';
 import BulkEditInstallmentsModal from './BulkEditInstallmentsModal.jsx';
+import { useFeedback } from '../../../shared/ui/FeedbackProvider.jsx';
 
 const formatNum = (v) => Number(v || 0).toLocaleString('fa-IR');
 
@@ -111,15 +112,21 @@ export default function LoanInstallmentsTable({
     }
   };
 
+  const { confirm, toast } = useFeedback();
+
   const handleUnmark = async (inst) => {
-    if (!window.confirm(`آیا از لغو ثبت پرداخت قسط شماره ${inst.installmentNumber} اطمینان دارید؟`)) {
-      return;
-    }
+    const confirmed = await confirm({
+      title: 'لغو پرداخت قسط',
+      message: `آیا از لغو ثبت پرداخت قسط شماره ${inst.installmentNumber} اطمینان دارید؟`,
+      confirmLabel: 'لغو پرداخت',
+      danger: true,
+    });
+    if (!confirmed) return;
     try {
       setActionLoadingId(inst.id);
       await onUnmarkPaid?.(inst.id);
     } catch (err) {
-      alert(err.message || 'خطا در لغو پرداخت');
+      toast.error(err.message || 'خطا در لغو پرداخت');
     } finally {
       setActionLoadingId(null);
     }

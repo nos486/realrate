@@ -35,6 +35,7 @@ import {
 } from '../../../lib/e2ee.js';
 import { usePrivacyMode } from '../../../hooks/usePrivacyMode.js';
 import { useSortableRows } from '../../../hooks/useSortableRows.js';
+import { useFeedback } from '../../../shared/ui/FeedbackProvider.jsx';
 
 const TransactionsView = forwardRef(function TransactionsView(
   { activePortfolio, calcData = null, rates = null, fetchPortfolios, onCountChange },
@@ -220,11 +221,26 @@ const TransactionsView = forwardRef(function TransactionsView(
     }
   };
 
+  const { confirm, toast } = useFeedback();
+
   const handleDeleteTx = async (id) => {
-    if (!window.confirm('آیا از حذف این تراکنش اطمینان دارید؟')) return;
-    const ok = await deleteTransaction(id);
-    if (ok) {
-      fetchPortfolios();
+    const confirmed = await confirm({
+      title: 'حذف تراکنش',
+      message: 'آیا از حذف این تراکنش اطمینان دارید؟',
+      confirmLabel: 'حذف',
+      danger: true,
+    });
+    if (!confirmed) return;
+    try {
+      const ok = await deleteTransaction(id);
+      if (ok) {
+        toast.success('تراکنش حذف شد.');
+        fetchPortfolios();
+      } else {
+        toast.error('حذف تراکنش انجام نشد.');
+      }
+    } catch (err) {
+      toast.error(err.message || 'خطا در حذف تراکنش');
     }
   };
 

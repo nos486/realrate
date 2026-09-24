@@ -2,7 +2,8 @@ import React, { createContext, useContext, useState, useEffect, useCallback } fr
 import { useNavigate } from 'react-router-dom';
 import { getMe, googleLogin, logout as apiLogout, getGoogleLoginUrl } from '../api/authApi.js';
 import { setToken } from '../../../shared/api/httpClient.js';
-import { APP_BASE, LANDING_PATH, isAppPath } from '../../../shared/routes.js';
+import { APP_BASE, LANDING_PATH, isAppPath, takePostLoginPath } from '../../../shared/routes.js';
+import { useFeedback } from '../../../shared/ui/FeedbackProvider.jsx';
 
 const AuthContext = createContext(null);
 
@@ -10,6 +11,7 @@ export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
+  const { toast } = useFeedback();
 
   // On mount: check auth_token / auth_error from Google OAuth redirect, then check session
   useEffect(() => {
@@ -25,7 +27,7 @@ export function AuthProvider({ children }) {
           const cleanSearch = url.searchParams.toString() ? `?${url.searchParams.toString()}` : '';
           window.history.replaceState({}, document.title, url.pathname + cleanSearch + url.hash);
         } else if (authError) {
-          alert(`خطا در ورود با گوگل: ${decodeURIComponent(authError)}`);
+          toast.error(`خطا در ورود با گوگل: ${authError}`, { duration: 8000 });
           url.searchParams.delete('auth_error');
           const cleanSearch = url.searchParams.toString() ? `?${url.searchParams.toString()}` : '';
           window.history.replaceState({}, document.title, url.pathname + cleanSearch + url.hash);
@@ -41,6 +43,8 @@ export function AuthProvider({ children }) {
       })
       .catch(() => {})
       .finally(() => setLoading(false));
+    // Runs once on mount; `toast` is stable for the provider's lifetime
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Backward-compatibility: if Google One-Tap credential callback is triggered
@@ -52,20 +56,22 @@ export function AuthProvider({ children }) {
         if (data.token) setToken(data.token);
         setUser(data.user);
       } else {
-        alert(data?.message || 'خطا در ورود با گوگل');
+        toast.error(data?.message || 'خطا در ورود با گوگل');
       }
     } catch (e) {
       console.error('Auth error:', e);
-      alert('خطا در ارتباط با سرور');
+      toast.error('خطا در ارتباط با سرور');
     }
-  }, []);
+  }, [toast]);
 
   // Primary Login Flow: Redirect to server-side Google OAuth 2.0 endpoint.
-  // Signing in from anywhere outside the app (landing, shared portfolio) lands in the app;
-  // from inside the app it returns to the exact page the user was on.
+  // Signing in from anywhere outside the app (landing, shared portfolio) lands in the app —
+  // on the page a guest was bounced from, if any; from inside the app it returns to the exact
+  // page the user was on.
   const triggerLogin = useCallback(() => {
     const { origin, pathname, href } = window.location;
-    window.location.href = getGoogleLoginUrl(isAppPath(pathname) ? href : `${origin}${APP_BASE}`);
+    const target = isAppPath(pathname) ? href : `${origin}${takePostLoginPath() || APP_BASE}`;
+    window.location.href = getGoogleLoginUrl(target);
   }, []);
 
   const logout = useCallback(async () => {

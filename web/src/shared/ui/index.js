@@ -17,3 +17,4 @@ export { default as SearchBar } from './SearchBar.jsx';
 export { default as SplitPageLayout } from './SplitPageLayout.jsx';
 export { default as TimeAgoBadge } from './TimeAgoBadge.jsx';
 export { default as RequireAuth } from './RequireAuth.jsx';
+export { FeedbackProvider, useFeedback } from './FeedbackProvider.jsx';
