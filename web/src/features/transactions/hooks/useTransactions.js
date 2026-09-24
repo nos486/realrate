@@ -26,6 +26,7 @@ import {
 } from '../../../config/sourceRegistry.js';
 import { useAuth } from '../../auth/index.js';
 import { usePortfolioVaultKey } from '../../../shared/vault/usePortfolioVaultKey.js';
+import { markLegacyVaultUnlocked } from '../../../shared/vault/vaultStore.js';
 
 export function useTransactions(activePortfolio, externalVaultKey = null) {
   const { user } = useAuth();
@@ -66,6 +67,7 @@ export function useTransactions(activePortfolio, externalVaultKey = null) {
         const valid = await verifyE2eeKey(derivedKey, activePortfolio.e2eeVerifier);
         if (valid && !cancelled) {
           setRestoredVault({ portfolioId, key: derivedKey });
+          markLegacyVaultUnlocked();
         }
       })
       .catch(() => {});

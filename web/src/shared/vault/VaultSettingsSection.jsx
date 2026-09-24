@@ -17,7 +17,7 @@ import {
   createVault,
   changeVaultPassphrase,
   verifyVaultPassphrase,
-  lockVault,
+  lockAll,
   loadVault,
   bumpVaultEpoch,
   VAULT_MIN_PASSPHRASE_LENGTH,
@@ -280,6 +280,19 @@ export default function VaultSettingsSection() {
     }
   };
 
+  // Leaving mid-migration is safe (the next run finishes it) but leaves data half-converted
+  // until then — ask the browser to confirm closing or reloading the tab meanwhile.
+  const migrating = Boolean(progress);
+  useEffect(() => {
+    if (!migrating) return undefined;
+    const warn = (e) => {
+      e.preventDefault();
+      e.returnValue = '';
+    };
+    window.addEventListener('beforeunload', warn);
+    return () => window.removeEventListener('beforeunload', warn);
+  }, [migrating]);
+
   const pendingCount = pending
     ? pending.plainPortfolios.length + pending.plainLoans + pending.plainIncomes
     : 0;
@@ -363,7 +376,7 @@ export default function VaultSettingsSection() {
       {vault.status === 'unlocked' && (
         <>
           <div className="vault-settings-actions">
-            <Button variant="secondary" size="sm" icon={<LockOpen size={14} />} onClick={lockVault} disabled={busy}>
+            <Button variant="secondary" size="sm" icon={<LockOpen size={14} />} onClick={lockAll} disabled={busy}>
               قفل کردن در این مرورگر
             </Button>
             <Button

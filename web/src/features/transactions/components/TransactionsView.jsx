@@ -23,7 +23,12 @@ import { useTransactions } from '../hooks/useTransactions.js';
 import { useComputedHoldings } from '../hooks/useComputedHoldings.js';
 import TransactionForm from './TransactionForm.jsx';
 import VaultLockCard from '../../portfolio/components/VaultLockCard.jsx';
-import { isAccountVaultPortfolio, unlockVault as unlockAccountVault } from '../../../shared/vault/vaultStore.js';
+import {
+  isAccountVaultPortfolio,
+  unlockVault as unlockAccountVault,
+  markLegacyVaultUnlocked,
+  LOCK_ALL_EVENT,
+} from '../../../shared/vault/vaultStore.js';
 import EmptyState from '../../../shared/ui/EmptyState.jsx';
 import SplitPageLayout from '../../../shared/ui/SplitPageLayout.jsx';
 import { usePricing } from '../../market/index.js';
@@ -50,6 +55,12 @@ const TransactionsView = forwardRef(function TransactionsView(
   const [unlockedVault, setUnlockedVault] = useState({ portfolioId: null, key: null });
   const vaultKey =
     activePortfolio?.id && unlockedVault.portfolioId === activePortfolio.id ? unlockedVault.key : null;
+  // The header's global lock drops this view's passphrase key too
+  useEffect(() => {
+    const dropKey = () => setUnlockedVault({ portfolioId: null, key: null });
+    window.addEventListener(LOCK_ALL_EVENT, dropKey);
+    return () => window.removeEventListener(LOCK_ALL_EVENT, dropKey);
+  }, []);
   const [vaultUnlockError, setVaultUnlockError] = useState('');
   const [unlockingVault, setUnlockingVault] = useState(false);
 
@@ -134,6 +145,7 @@ const TransactionsView = forwardRef(function TransactionsView(
       const isValid = await verifyE2eeKey(derivedKey, activePortfolio.e2eeVerifier);
       if (isValid) {
         setUnlockedVault({ portfolioId: activePortfolio.id, key: derivedKey });
+        markLegacyVaultUnlocked();
         saveVaultPassphraseToSession(activePortfolio.id, passphrase);
         return true;
       } else {
