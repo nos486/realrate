@@ -162,17 +162,30 @@ export async function verifyE2eeKey(key, verifierStr) {
 }
 
 /**
+ * Whether a value is a WebCrypto key (instanceof may fail across realms, so also duck-type)
+ * @param {any} value
+ * @returns {boolean}
+ */
+function isCryptoKeyLike(value) {
+  if (!value || typeof value !== 'object') return false;
+  if (typeof CryptoKey !== 'undefined' && value instanceof CryptoKey) return true;
+  return Boolean(value.type && value.algorithm && value.usages);
+}
+
+/**
  * Encrypt holding sensitive attributes before sending to the server API
  * @param {CryptoKey} key
  * @param {object} holding
  * @returns {Promise<object>}
  */
 export async function encryptHoldingForApi(arg1, arg2) {
-  const isKey1 = (typeof CryptoKey !== 'undefined' && arg1 instanceof CryptoKey) || (arg1 && typeof arg1 === 'object' && arg1.type && arg1.algorithm);
+  const isKey1 = isCryptoKeyLike(arg1);
   const key = isKey1 ? arg1 : arg2;
   const holding = isKey1 ? arg2 : arg1;
 
-  if (!key) {
+  // Checked on the resolved key itself: with a missing key in either position the other
+  // argument (the holding) must never be mistaken for one and silently "encrypted" to null.
+  if (!isCryptoKeyLike(key)) {
     throw new Error("کلید رمزنگاری معتبر نیست یا گاوصندوق باز نشده است.");
   }
   if (!holding || typeof holding !== 'object') {
@@ -212,11 +225,13 @@ export async function encryptHoldingForApi(arg1, arg2) {
  * @returns {Promise<object>}
  */
 export async function decryptHoldingFromApi(arg1, arg2) {
-  const isKey1 = (typeof CryptoKey !== 'undefined' && arg1 instanceof CryptoKey) || (arg1 && typeof arg1 === 'object' && arg1.type && arg1.algorithm);
+  const isKey1 = isCryptoKeyLike(arg1);
   const key = isKey1 ? arg1 : arg2;
-  const holding = isKey1 ? arg2 : arg1;
+  // Without a key in either slot, the holding is whichever argument is the plain object —
+  // it must come back untouched, never swapped for the (missing) key.
+  const holding = isKey1 ? arg2 : (isCryptoKeyLike(arg2) || arg1 ? arg1 : arg2);
 
-  if (!key || !holding || typeof holding !== 'object') {
+  if (!isCryptoKeyLike(key) || !holding || typeof holding !== 'object') {
     return holding;
   }
 

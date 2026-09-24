@@ -231,4 +231,16 @@ describe('Unified Orchestration — sourceSync.service (Phase 4)', () => {
       expect(count).toBeLessThanOrEqual(1);
     }
   });
+
+  it('cronPolling.job.js purges expired sessions only on the top-of-hour tick', async () => {
+    const ctxFor = () => ({ waitUntil: vi.fn() });
+
+    const atMinute5 = ctxFor();
+    await runCronPolling({ scheduledTime: Date.UTC(2026, 0, 1, 10, 5) }, mockEnv, atMinute5);
+    expect(atMinute5.waitUntil).toHaveBeenCalledTimes(1);
+
+    const atMinute0 = ctxFor();
+    await runCronPolling({ scheduledTime: Date.UTC(2026, 0, 1, 11, 0) }, mockEnv, atMinute0);
+    expect(atMinute0.waitUntil).toHaveBeenCalledTimes(2);
+  });
 });
