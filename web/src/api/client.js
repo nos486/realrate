@@ -265,9 +265,12 @@ export async function apiUpdateUserSettings(settings) {
 }
 
 export async function apiGetSharedPortfolio(slug, password = '') {
+  // A read sent as POST only to keep the password out of the URL — show the page's skeleton,
+  // not the full-screen write overlay
   const res = await apiFetch('/api/portfolio/shared', {
     method: 'POST',
     body: JSON.stringify({ slug, password }),
+    silent: true,
   });
   return res.json();
 }

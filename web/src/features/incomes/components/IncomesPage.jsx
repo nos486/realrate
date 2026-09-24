@@ -8,7 +8,7 @@
  */
 
 import React, { useState, useMemo } from 'react';
-import { Wallet, Plus, CalendarRange, RefreshCw } from 'lucide-react';
+import { Wallet, Plus, CalendarRange } from 'lucide-react';
 import { useIncomes } from '../hooks/useIncomes.js';
 import { usePrivacyMode } from '../../../hooks/usePrivacyMode.js';
 import {
@@ -28,6 +28,7 @@ import IncomeCsvImportButton from './IncomeCsvImportButton.jsx';
 import { INCOME_PERIODS, buildIncomeReport, filterIncomesByPeriod } from '../utils/incomeReport.js';
 import { getIncomeCategory } from '../constants/incomeCategories.js';
 import { useFeedback } from '../../../shared/ui/FeedbackProvider.jsx';
+import { SkeletonRows } from '../../../shared/ui/Skeleton.jsx';
 
 export default function IncomesPage() {
   const {
@@ -165,10 +166,7 @@ export default function IncomesPage() {
               </div>
 
               {loadingIncomes && !hasIncomes ? (
-                <div className="incomes-loading-state">
-                  <RefreshCw size={22} className="spin-anim" />
-                  <span>در حال دریافت لیست درآمدها...</span>
-                </div>
+                <SkeletonRows rows={5} columns={4} label="در حال دریافت لیست درآمدها" />
               ) : !hasIncomes ? (
                 <EmptyState
                   icon={<Wallet size={44} strokeWidth={1.5} />}

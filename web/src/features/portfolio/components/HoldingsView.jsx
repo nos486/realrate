@@ -41,9 +41,10 @@ import {
 import { getItemCategory } from '../../../config/displayEngine.js';
 import { usePrivacyMode } from '../../../hooks/usePrivacyMode.js';
 import { useFeedback } from '../../../shared/ui/FeedbackProvider.jsx';
+import { SkeletonRows } from '../../../shared/ui/Skeleton.jsx';
 
 const HoldingsView = forwardRef(function HoldingsView(
-  { activePortfolio, portfolios, rates, calcData, usdToman, goldUsd, fetchPortfolios, deletePortfolio, onVaultLockChange, onCountChange },
+  { activePortfolio, portfolios, loadingPortfolios = false, rates, calcData, usdToman, goldUsd, fetchPortfolios, deletePortfolio, onVaultLockChange, onCountChange },
   ref
 ) {
   const pricing = usePricing();
@@ -389,11 +390,10 @@ const HoldingsView = forwardRef(function HoldingsView(
               </div>
             </div>
 
-            {loadingHoldings ? (
-              <div className="portfolio-empty-state">
-                <div className="spinner-glow"></div>
-                <p>در حال دریافت اطلاعات پورتفوی شما از دیتابیس...</p>
-              </div>
+            {/* Until the portfolio list itself has loaded there is nothing to show — never flash
+                "portfolio is empty" at a user who has holdings */}
+            {(loadingPortfolios && !activePortfolio) || (loadingHoldings && holdings.length === 0) ? (
+              <SkeletonRows rows={5} columns={6} label="در حال دریافت دارایی‌های پورتفو" />
             ) : isVaultLocked ? (
               <VaultLockCard
                 portfolioName={activePortfolio?.name}

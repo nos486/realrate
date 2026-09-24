@@ -25,6 +25,7 @@ export default function PortfolioTracker({
     createPortfolio,
     deletePortfolio,
     fetchPortfolios,
+    loadingPortfolios,
   } = usePortfolio(initialPortfolioId);
 
   const [view, setView] = useState(initialView);
@@ -133,6 +134,7 @@ export default function PortfolioTracker({
 
       {view === 'holdings' ? (
         <HoldingsView
+          loadingPortfolios={loadingPortfolios}
           ref={holdingsRef}
           activePortfolio={activePortfolio}
           portfolios={portfolios}
@@ -147,6 +149,7 @@ export default function PortfolioTracker({
         />
       ) : (
         <TransactionsView
+          loadingPortfolios={loadingPortfolios}
           ref={transactionsRef}
           activePortfolio={activePortfolio}
           calcData={calcData}

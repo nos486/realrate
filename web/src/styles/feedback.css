@@ -88,3 +88,85 @@
 @media (prefers-reduced-motion: reduce) {
   .toast-item { animation: none; }
 }
+
+/* ── Skeleton placeholders ─────────────────────────────────────────────────── */
+.ui-skeleton {
+  display: block;
+  max-width: 100%;
+  background: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0.045) 0%,
+    rgba(255, 255, 255, 0.1) 40%,
+    rgba(255, 255, 255, 0.045) 80%
+  );
+  background-size: 300% 100%;
+  animation: ui-skeleton-shimmer 1.4s ease-in-out infinite;
+}
+
+.ui-skeleton-group {
+  width: 100%;
+}
+
+.ui-skeleton-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 8px 4px;
+}
+
+.ui-skeleton-row {
+  display: grid;
+  grid-template-columns: 2fr repeat(var(--skeleton-cols, 3), minmax(0, 1fr));
+  align-items: center;
+  gap: 16px;
+  padding: 14px 12px;
+  border-bottom: 1px solid var(--border-table-row, rgba(255, 255, 255, 0.04));
+}
+
+.ui-skeleton-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 16px;
+}
+
+.ui-skeleton-card {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 18px;
+  border: var(--card-border);
+  border-radius: var(--card-radius, 16px);
+  background: var(--card-bg);
+}
+
+.ui-skeleton-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+@keyframes ui-skeleton-shimmer {
+  0% { background-position: 100% 0; }
+  100% { background-position: -100% 0; }
+}
+
+@media (max-width: 640px) {
+  .ui-skeleton-row {
+    grid-template-columns: 1fr 1fr;
+  }
+  .ui-skeleton-row > .ui-skeleton:nth-child(n + 3) {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ui-skeleton { animation: none; }
+}
+
+.shared-portfolio-skeleton {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  padding: 8px 0;
+}
