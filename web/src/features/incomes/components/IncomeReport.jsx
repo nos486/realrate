@@ -1,91 +1,63 @@
 /**
- * IncomeReport.jsx — Category share & monthly breakdown of the (period-filtered) incomes
+ * IncomeReport.jsx — Category share & monthly breakdown of the (period-filtered) incomes, as
+ * donut charts (shared DonutChart: legend with amounts and shares, hover details)
  */
 
-import React from 'react';
-import { PieChart, BarChart3 } from 'lucide-react';
-import { Card } from '../../../shared/ui/index.js';
-import { formatNum } from '../../portfolio/utils/holdingHelpers.js';
-import { formatPct } from '../../../shared/utils/formatters.js';
+import React, { useMemo } from 'react';
+import DonutChart from '../../../shared/ui/DonutChart.jsx';
 import { getIncomeCategory } from '../constants/incomeCategories.js';
 
-/** Most recent months shown in the monthly breakdown */
-const MAX_MONTHS = 12;
-
-function BreakdownRow({ label, icon = null, color, amount, ratio, meta, hideValues }) {
-  return (
-    <li className="income-breakdown-row">
-      <div className="income-breakdown-head">
-        <span className="income-breakdown-label">
-          {icon}
-          {label}
-        </span>
-        <span className="income-breakdown-amount">
-          {hideValues ? '****' : `${formatNum(amount)} تومان`}
-          <span className="income-breakdown-meta">{meta}</span>
-        </span>
-      </div>
-      <div className="income-breakdown-track">
-        <div
-          className="income-breakdown-bar"
-          style={{ width: `${Math.max(ratio * 100, 2)}%`, background: color }}
-        />
-      </div>
-    </li>
-  );
-}
+/**
+ * Most recent months in the monthly chart: one per donut palette color, so every month keeps its
+ * own slice (a gray slice of older months would dwarf the recent ones and say little)
+ */
+const MAX_MONTHS = 5;
+const RECENT_LABEL = `${MAX_MONTHS.toLocaleString('fa-IR')} ماه اخیر`;
+const otherSourcesLabel = (count) => `سایر منابع (${count.toLocaleString('fa-IR')})`;
 
 export default function IncomeReport({ report, hideValues = false }) {
-  const months = report.byMonth.slice(0, MAX_MONTHS);
-  const maxMonthTotal = Math.max(...months.map((m) => m.total), 0);
+  // Largest source first, so the biggest ones get their own slice
+  const categoryItems = useMemo(
+    () =>
+      report.byCategory.map((c) => {
+        const meta = getIncomeCategory(c.category);
+        return {
+          key: c.category,
+          label: meta.label,
+          value: c.total,
+          icon: <meta.Icon size={14} style={{ color: meta.color }} />,
+        };
+      }),
+    [report.byCategory]
+  );
+
+  // Newest month first
+  const monthItems = useMemo(
+    () =>
+      report.byMonth.slice(0, MAX_MONTHS).map((m) => ({
+        key: m.key,
+        label: `${m.label} (${m.count.toLocaleString('fa-IR')} مورد)`,
+        shortLabel: m.label,
+        value: m.total,
+      })),
+    [report.byMonth]
+  );
 
   return (
     <div className="incomes-report-grid">
-      <Card
+      <DonutChart
         title="تفکیک بر اساس منبع"
-        subtitle="سهم هر دسته از مجموع درآمد"
-        icon={<PieChart size={16} />}
-        className="incomes-report-card"
-      >
-        <ul className="income-breakdown-list">
-          {report.byCategory.map((c) => {
-            const meta = getIncomeCategory(c.category);
-            return (
-              <BreakdownRow
-                key={c.category}
-                label={meta.label}
-                icon={<meta.Icon size={13} style={{ color: meta.color }} />}
-                color={meta.color}
-                amount={c.total}
-                ratio={c.share / 100}
-                meta={`${formatPct(c.share)}٪`}
-                hideValues={hideValues}
-              />
-            );
-          })}
-        </ul>
-      </Card>
-
-      <Card
-        title="درآمد ماهانه"
-        subtitle={report.byMonth.length > MAX_MONTHS ? `${MAX_MONTHS.toLocaleString('fa-IR')} ماه اخیر` : 'به تفکیک ماه شمسی'}
-        icon={<BarChart3 size={16} />}
-        className="incomes-report-card"
-      >
-        <ul className="income-breakdown-list">
-          {months.map((m) => (
-            <BreakdownRow
-              key={m.key}
-              label={m.label}
-              color="var(--green-emerald)"
-              amount={m.total}
-              ratio={maxMonthTotal > 0 ? m.total / maxMonthTotal : 0}
-              meta={`${m.count.toLocaleString('fa-IR')} مورد`}
-              hideValues={hideValues}
-            />
-          ))}
-        </ul>
-      </Card>
+        items={categoryItems}
+        centerLabel="مجموع درآمد"
+        otherLabel={otherSourcesLabel}
+        masked={hideValues}
+      />
+      <DonutChart
+        title={report.byMonth.length > MAX_MONTHS ? `درآمد ماهانه (${RECENT_LABEL})` : 'درآمد ماهانه'}
+        items={monthItems}
+        centerLabel={report.byMonth.length > MAX_MONTHS ? RECENT_LABEL : 'مجموع'}
+        masked={hideValues}
+      />
     </div>
   );
 }

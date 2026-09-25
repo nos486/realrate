@@ -36,6 +36,8 @@ export const MAX_MARKET_ITEMS_LIMIT = 2000;
  */
 export const INCOME_CATEGORIES = [
   "salary",
+  "benefits",
+  "bonus",
   "freelance",
   "business",
   "investment",
