@@ -22,12 +22,13 @@ import {
 import IncomeForm from './IncomeForm.jsx';
 import IncomeSummaryCards from './IncomeSummaryCards.jsx';
 import IncomeReport from './IncomeReport.jsx';
+import MonthlyIncomeChart from './MonthlyIncomeChart.jsx';
 import IncomesTable from './IncomesTable.jsx';
 import IncomeCsvExportButton from './IncomeCsvExportButton.jsx';
 import IncomeCsvImportButton from './IncomeCsvImportButton.jsx';
 import RecurringIncomesCard from './RecurringIncomesCard.jsx';
 import { ruleInput } from '../utils/recurringSync.js';
-import { INCOME_PERIODS, buildIncomeReport, filterIncomesByPeriod } from '../utils/incomeReport.js';
+import { INCOME_PERIODS, buildIncomeReport, buildMonthlySeries, filterIncomesByPeriod } from '../utils/incomeReport.js';
 import { getIncomeCategory } from '../constants/incomeCategories.js';
 import { useFeedback } from '../../../shared/ui/FeedbackProvider.jsx';
 import { SkeletonRows } from '../../../shared/ui/Skeleton.jsx';
@@ -63,6 +64,8 @@ export default function IncomesPage() {
 
   const periodIncomes = useMemo(() => filterIncomesByPeriod(incomes, period), [incomes, period]);
   const report = useMemo(() => buildIncomeReport(periodIncomes), [periodIncomes]);
+  // Always the last 12 months, whatever the period filter: it is there to show the trend
+  const monthlySeries = useMemo(() => buildMonthlySeries(incomes), [incomes]);
 
   const visibleIncomes = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
@@ -190,7 +193,10 @@ export default function IncomesPage() {
                 onDelete={handleDeleteRecurring}
                 hideValues={hideValues}
               />
-              {report.count > 0 && <IncomeReport report={report} hideValues={hideValues} />}
+              <div className="incomes-report-grid">
+                <MonthlyIncomeChart series={monthlySeries} hideValues={hideValues} />
+                {report.count > 0 && <IncomeReport report={report} hideValues={hideValues} />}
+              </div>
             </>
           }
         >
