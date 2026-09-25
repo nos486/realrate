@@ -29,8 +29,8 @@ async function getIncomesRest() {
  * @param {IncomeInput} incomeData
  * @returns {Promise<{ success: boolean, income: object }>}
  */
-async function createIncomeRest(incomeData) {
-  return httpClient.post('/api/incomes', incomeData);
+async function createIncomeRest(incomeData, options) {
+  return httpClient.post('/api/incomes', incomeData, options);
 }
 
 /**

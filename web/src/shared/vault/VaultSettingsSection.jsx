@@ -294,7 +294,7 @@ export default function VaultSettingsSection() {
   }, [migrating]);
 
   const pendingCount = pending
-    ? pending.plainPortfolios.length + pending.plainLoans + pending.plainIncomes + pending.plainCheques
+    ? pending.plainPortfolios.length + pending.plainLoans + pending.plainIncomes + pending.plainCheques + pending.plainRecurringIncomes
     : 0;
 
   return (

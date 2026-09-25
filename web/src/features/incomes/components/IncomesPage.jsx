@@ -25,6 +25,8 @@ import IncomeReport from './IncomeReport.jsx';
 import IncomesTable from './IncomesTable.jsx';
 import IncomeCsvExportButton from './IncomeCsvExportButton.jsx';
 import IncomeCsvImportButton from './IncomeCsvImportButton.jsx';
+import RecurringIncomesCard from './RecurringIncomesCard.jsx';
+import { ruleInput } from '../utils/recurringSync.js';
 import { INCOME_PERIODS, buildIncomeReport, filterIncomesByPeriod } from '../utils/incomeReport.js';
 import { getIncomeCategory } from '../constants/incomeCategories.js';
 import { useFeedback } from '../../../shared/ui/FeedbackProvider.jsx';
@@ -43,6 +45,12 @@ export default function IncomesPage() {
     fetchIncomes,
     saveIncome,
     deleteIncome,
+    recurringRules,
+    recurringError,
+    clearRecurringError,
+    saveRecurring,
+    toggleRecurring,
+    deleteRecurring,
   } = useIncomes();
   const hideValues = usePrivacyMode();
 
@@ -50,6 +58,8 @@ export default function IncomesPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [formOpen, setFormOpen] = useState(false);
   const [editingIncome, setEditingIncome] = useState(null);
+  const [editingRule, setEditingRule] = useState(null);
+  const [startRecurring, setStartRecurring] = useState(false);
 
   const periodIncomes = useMemo(() => filterIncomesByPeriod(incomes, period), [incomes, period]);
   const report = useMemo(() => buildIncomeReport(periodIncomes), [periodIncomes]);
@@ -63,17 +73,44 @@ export default function IncomesPage() {
     );
   }, [periodIncomes, searchQuery]);
 
-  const handleOpenAdd = () => {
-    setEditingIncome(null);
-    setFormOpen(true);
-  };
-
-  const handleOpenEdit = (income) => {
+  const openForm = ({ income = null, rule = null, recurring = false } = {}) => {
     setEditingIncome(income);
+    setEditingRule(rule);
+    setStartRecurring(recurring);
     setFormOpen(true);
   };
 
-  const { confirm } = useFeedback();
+  const handleOpenAdd = () => openForm();
+  const handleOpenEdit = (income) => openForm({ income });
+
+  const { confirm, toast } = useFeedback();
+
+  const handleSaveRecurring = (data) =>
+    // Editing keeps what the rule already generated, so past entries are not added again
+    saveRecurring(editingRule ? { ...ruleInput(editingRule), ...data } : data, editingRule?.id);
+
+  const handleToggleRecurring = async (rule) => {
+    try {
+      await toggleRecurring(rule);
+    } catch (err) {
+      toast.error(err.message || 'تغییر وضعیت درآمد ثابت ناموفق بود.');
+    }
+  };
+
+  const handleDeleteRecurring = async (rule) => {
+    const ok = await confirm({
+      title: 'حذف درآمد ثابت',
+      message: `«${rule.title}» دیگر خودکار ثبت نمی‌شود. درآمدهایی که تا امروز ثبت کرده در لیست می‌مانند.`,
+      confirmLabel: 'حذف',
+      danger: true,
+    });
+    if (!ok) return;
+    try {
+      await deleteRecurring(rule.id);
+    } catch (err) {
+      toast.error(err.message || 'حذف درآمد ثابت ناموفق بود.');
+    }
+  };
 
   const handleDelete = async (income) => {
     const confirmed = await confirm({
@@ -124,6 +161,8 @@ export default function IncomesPage() {
         }
       />
 
+      {recurringError && <AlertBanner type="warning" message={recurringError} onClose={clearRecurringError} />}
+
       {error && hasIncomes && (
         <AlertBanner type="error" message={error} onClose={clearError} />
       )}
@@ -143,6 +182,14 @@ export default function IncomesPage() {
           sidebar={
             <>
               <IncomeSummaryCards report={report} hideValues={hideValues} />
+              <RecurringIncomesCard
+                rules={recurringRules}
+                onAdd={() => openForm({ recurring: true })}
+                onEdit={(rule) => openForm({ rule })}
+                onToggle={handleToggleRecurring}
+                onDelete={handleDeleteRecurring}
+                hideValues={hideValues}
+              />
               {report.count > 0 && <IncomeReport report={report} hideValues={hideValues} />}
             </>
           }
@@ -220,10 +267,14 @@ export default function IncomesPage() {
 
       {formOpen && (
         <IncomeForm
-          key={editingIncome?.id || 'new'}
+          key={editingIncome?.id || editingRule?.id || 'new'}
           onClose={() => setFormOpen(false)}
-          onSubmit={(data) => saveIncome(data, editingIncome?.id)}
+          // An auto-created entry keeps its link to the fixed income that made it
+          onSubmit={(data) => saveIncome({ ...data, recurringId: editingIncome?.recurringId || '' }, editingIncome?.id)}
+          onSubmitRecurring={handleSaveRecurring}
           editingIncome={editingIncome}
+          editingRule={editingRule}
+          startRecurring={startRecurring}
           submitting={submitting}
         />
       )}

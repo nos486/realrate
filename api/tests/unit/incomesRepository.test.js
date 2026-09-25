@@ -21,6 +21,7 @@ function createMockD1() {
     amount: r.amount,
     incomeDate: r.income_date,
     notes: r.notes,
+    recurringId: r.recurring_id,
     createdAt: r.created_at,
     updatedAt: r.updated_at,
   });
@@ -39,15 +40,15 @@ function createMockD1() {
           return { success: true, meta: { changes: 0 } };
         }
         if (q.startsWith('INSERT INTO incomes')) {
-          const [id, user_id, title, category, amount, income_date, notes, created_at, updated_at] = args;
-          store.set(id, { id, user_id, title, category, amount, income_date, notes, created_at, updated_at });
+          const [id, user_id, title, category, amount, income_date, notes, recurring_id, created_at, updated_at] = args;
+          store.set(id, { id, user_id, title, category, amount, income_date, notes, recurring_id, created_at, updated_at });
           return { meta: { changes: 1 } };
         }
         if (q.startsWith('UPDATE incomes')) {
-          const [title, category, amount, income_date, notes, updated_at, id, user_id] = args;
+          const [title, category, amount, income_date, notes, recurring_id, updated_at, id, user_id] = args;
           const row = store.get(id);
           if (!row || row.user_id !== user_id) return { meta: { changes: 0 } };
-          Object.assign(row, { title, category, amount, income_date, notes, updated_at });
+          Object.assign(row, { title, category, amount, income_date, notes, recurring_id, updated_at });
           return { meta: { changes: 1 } };
         }
         if (q.startsWith('DELETE FROM incomes')) {

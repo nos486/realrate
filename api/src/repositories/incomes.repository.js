@@ -10,7 +10,7 @@ import { ensureD1Tables } from "./migration.repository.js";
 
 const INCOME_COLUMNS = `
   id, user_id AS userId, title, category, amount,
-  income_date AS incomeDate, notes,
+  income_date AS incomeDate, notes, recurring_id AS recurringId,
   created_at AS createdAt, updated_at AS updatedAt
 `;
 
@@ -39,6 +39,7 @@ function formatIncomeRow(row) {
     amount: Number(row.amount ?? 0),
     incomeDate: row.incomeDate,
     notes: row.notes || "",
+    recurringId: row.recurringId || "",
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
   };
@@ -107,13 +108,14 @@ export async function dbCreateIncome(env, userId, data) {
     amount: data.amount,
     incomeDate: data.incomeDate,
     notes: data.notes || "",
+    recurringId: data.recurringId || "",
     createdAt: nowIso,
     updatedAt: nowIso,
   };
 
   await env.DB.prepare(`
-    INSERT INTO incomes (id, user_id, title, category, amount, income_date, notes, created_at, updated_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO incomes (id, user_id, title, category, amount, income_date, notes, recurring_id, created_at, updated_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `).bind(
     income.id,
     income.userId,
@@ -122,6 +124,7 @@ export async function dbCreateIncome(env, userId, data) {
     income.amount,
     income.incomeDate,
     income.notes,
+    income.recurringId,
     income.createdAt,
     income.updatedAt
   ).run();
@@ -144,7 +147,7 @@ export async function dbUpdateIncome(env, userId, incomeId, data) {
 
   const res = await env.DB.prepare(`
     UPDATE incomes
-    SET title = ?, category = ?, amount = ?, income_date = ?, notes = ?, updated_at = ?
+    SET title = ?, category = ?, amount = ?, income_date = ?, notes = ?, recurring_id = ?, updated_at = ?
     WHERE id = ? AND user_id = ?
   `).bind(
     data.title,
@@ -152,6 +155,7 @@ export async function dbUpdateIncome(env, userId, incomeId, data) {
     data.amount,
     data.incomeDate,
     data.notes || "",
+    data.recurringId || "",
     new Date().toISOString(),
     incomeId,
     userId

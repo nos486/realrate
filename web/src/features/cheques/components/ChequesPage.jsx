@@ -64,10 +64,12 @@ export default function ChequesPage() {
     fetchCheques,
     saveCheque,
     changeStatus,
+    restoreCheque,
     deleteCheque,
   } = useChequesContext();
   const hideValues = usePrivacyMode();
-  const { confirm } = useFeedback();
+  const { confirm, toast } = useFeedback();
+  const [clearingId, setClearingId] = useState(null);
 
   const [directionFilter, setDirectionFilter] = useState('all');
   const [stateFilter, setStateFilter] = useState('open');
@@ -97,6 +99,25 @@ export default function ChequesPage() {
   const openEdit = (cheque) => {
     setTrackingId(null);
     setFormState({ cheque });
+  };
+
+  // One tap: mark an open cheque cleared today, with an undo in the toast
+  const handleQuickClear = async (cheque) => {
+    setClearingId(cheque.id);
+    try {
+      await changeStatus(cheque, 'cleared', todayIso(), '');
+      toast.success(`چک «${cheque.counterparty}» پاس شد.`, {
+        duration: 7000,
+        action: {
+          label: 'بازگردانی',
+          onClick: () => restoreCheque(cheque).catch((err) => toast.error(err.message || 'بازگردانی ناموفق بود.')),
+        },
+      });
+    } catch (err) {
+      toast.error(err.message || 'ثبت پاس شدن چک ناموفق بود.');
+    } finally {
+      setClearingId(null);
+    }
   };
 
   const handleDelete = async (cheque) => {
@@ -226,6 +247,8 @@ export default function ChequesPage() {
                 <ChequesTable
                   cheques={visibleCheques}
                   onTrack={(cheque) => setTrackingId(cheque.id)}
+                  onClear={handleQuickClear}
+                  clearingId={clearingId}
                   onEdit={openEdit}
                   onDelete={handleDelete}
                   deletingId={deletingId}

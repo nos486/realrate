@@ -89,6 +89,9 @@ export function useCheques() {
     return saveCheque(toInput(applyChequeStatus(cheque, status, date, note)), cheque.id);
   }, [saveCheque]);
 
+  /** Put a cheque back exactly as it was (undo of a quick status change) */
+  const restoreCheque = useCallback((cheque) => saveCheque(toInput(cheque), cheque.id), [saveCheque]);
+
   const deleteCheque = useCallback(async (chequeId) => {
     setDeletingId(chequeId);
     setError(null);
@@ -117,6 +120,7 @@ export function useCheques() {
     fetchCheques,
     saveCheque,
     changeStatus,
+    restoreCheque,
     deleteCheque,
   };
 }

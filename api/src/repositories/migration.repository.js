@@ -196,6 +196,24 @@ export async function ensureD1Tables(env) {
       updated_at TEXT NOT NULL
     )`,
     `CREATE INDEX IF NOT EXISTS idx_incomes_user_date ON incomes(user_id, income_date DESC)`,
+    // Fixed incomes: a rule the browser turns into income entries as each period comes due
+    `CREATE TABLE IF NOT EXISTS recurring_incomes (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL,
+      title TEXT NOT NULL,
+      category TEXT NOT NULL DEFAULT 'other',
+      amount REAL NOT NULL,
+      day_of_month INTEGER NOT NULL,
+      interval_months INTEGER NOT NULL DEFAULT 1,
+      start_date TEXT NOT NULL,
+      end_date TEXT NOT NULL DEFAULT '',
+      notes TEXT NOT NULL DEFAULT '',
+      active INTEGER NOT NULL DEFAULT 1,
+      generated_through TEXT NOT NULL DEFAULT '',
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    )`,
+    `CREATE INDEX IF NOT EXISTS idx_recurring_incomes_user ON recurring_incomes(user_id)`,
     // Cheques (received / issued) with their tracking log (history: JSON array of status changes)
     `CREATE TABLE IF NOT EXISTS cheques (
       id TEXT PRIMARY KEY,
@@ -280,6 +298,11 @@ export async function ensureD1Tables(env) {
     // with the account's data key ('' = a legacy per-portfolio passphrase vault, or no E2EE)
     try {
       await env.DB.prepare("ALTER TABLE portfolios ADD COLUMN e2ee_wrapped_key TEXT NOT NULL DEFAULT ''").run();
+    } catch (ignore) {}
+
+    // Backward-compat: incomes created by a fixed (recurring) income point to their rule
+    try {
+      await env.DB.prepare("ALTER TABLE incomes ADD COLUMN recurring_id TEXT NOT NULL DEFAULT ''").run();
     } catch (ignore) {}
 
     // Backward-compat: email/password sign-in. Every account created before this existed signed

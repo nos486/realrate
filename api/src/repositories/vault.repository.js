@@ -12,8 +12,9 @@
 import { ensureD1Tables } from "./migration.repository.js";
 import { AppError } from "../lib/AppError.js";
 import { insertChequeStatement } from "./cheques.repository.js";
+import { insertRecurringStatement } from "./recurringIncomes.repository.js";
 
-export const VAULT_RECORD_KINDS = ["loan", "income", "cheque"];
+export const VAULT_RECORD_KINDS = ["loan", "income", "cheque", "recurring_income"];
 export const E2EE_CIPHER_PREFIX = "enc:e2ee:v1:";
 const MAX_PAYLOAD_LENGTH = 512 * 1024;
 const RECORD_ID_RE = /^[A-Za-z0-9_-]{1,80}$/;
@@ -142,6 +143,9 @@ function deletePlainStatements(env, userId, kind, id) {
   if (kind === "cheque") {
     return [env.DB.prepare(`DELETE FROM cheques WHERE id = ? AND user_id = ?`).bind(id, userId)];
   }
+  if (kind === "recurring_income") {
+    return [env.DB.prepare(`DELETE FROM recurring_incomes WHERE id = ? AND user_id = ?`).bind(id, userId)];
+  }
   return [env.DB.prepare(`DELETE FROM incomes WHERE id = ? AND user_id = ?`).bind(id, userId)];
 }
 
@@ -249,13 +253,21 @@ export async function dbRestoreVaultRecord(env, userId, kind, id, plain) {
       createdAt: str(plain.createdAt, now),
       updatedAt: now,
     }));
+  } else if (kind === "recurring_income") {
+    // `plain` was validated by the route handler (same rules as creating a rule)
+    statements.push(insertRecurringStatement(env, userId, {
+      ...plain,
+      id,
+      createdAt: str(plain.createdAt, now),
+      updatedAt: now,
+    }));
   } else {
     statements.push(env.DB.prepare(`
-      INSERT INTO incomes (id, user_id, title, category, amount, income_date, notes, created_at, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO incomes (id, user_id, title, category, amount, income_date, notes, recurring_id, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).bind(
       id, userId, str(plain.title, "درآمد"), str(plain.category, "other"), num(plain.amount),
-      str(plain.incomeDate), str(plain.notes), str(plain.createdAt, now), now
+      str(plain.incomeDate), str(plain.notes), str(plain.recurringId), str(plain.createdAt, now), now
     ));
   }
 

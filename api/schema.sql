@@ -245,10 +245,31 @@ CREATE TABLE IF NOT EXISTS incomes (
   amount REAL NOT NULL,
   income_date TEXT NOT NULL,
   notes TEXT DEFAULT '',
+  recurring_id TEXT NOT NULL DEFAULT '',   -- the fixed income that created it ('' = entered by hand)
   created_at TEXT NOT NULL,
   updated_at TEXT NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_incomes_user_date ON incomes(user_id, income_date DESC);
+
+-- 10b. Fixed (recurring) incomes: the browser creates an income entry each time one comes due;
+-- generated_through is the last date already created (a deleted entry is never re-created)
+CREATE TABLE IF NOT EXISTS recurring_incomes (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL,
+  title TEXT NOT NULL,
+  category TEXT NOT NULL DEFAULT 'other',
+  amount REAL NOT NULL,
+  day_of_month INTEGER NOT NULL,      -- Shamsi day, clamped to shorter months
+  interval_months INTEGER NOT NULL DEFAULT 1,
+  start_date TEXT NOT NULL,
+  end_date TEXT NOT NULL DEFAULT '',
+  notes TEXT NOT NULL DEFAULT '',
+  active INTEGER NOT NULL DEFAULT 1,
+  generated_through TEXT NOT NULL DEFAULT '',
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_recurring_incomes_user ON recurring_incomes(user_id);
 
 -- 11. Cheques Table (received / issued cheques; history is the JSON tracking log of status changes)
 CREATE TABLE IF NOT EXISTS cheques (
