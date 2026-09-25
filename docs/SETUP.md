@@ -81,8 +81,7 @@ npx wrangler d1 execute realrate-db --remote --file=./api/schema.sql
 
 ### بک‌اند (Cloudflare Workers)
 
-اتصال Git در **Workers & Pages > realrate-api > Settings > Build** با Root directory برابر `api` تنظیم می‌شود.
-انتشار دستی (مثلاً برای اولین بار یا بدون Git):
+انتشار خودکار از طریق اتصال Git در پنل Cloudflare (Workers Builds) انجام می‌شود. انتشار دستی (مثلاً برای اولین بار یا بدون Git):
 
 ```bash
 npm run api:deploy
