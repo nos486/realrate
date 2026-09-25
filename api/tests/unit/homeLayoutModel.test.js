@@ -9,6 +9,8 @@ import {
   addItem,
   removeItem,
   moveItem,
+  reorderSections,
+  reorderItems,
 } from '../../../web/src/features/home/homeLayoutModel.js';
 import { buildAssetIndex, resolveHomeAsset } from '../../../web/src/features/home/homeAssets.js';
 
@@ -81,6 +83,29 @@ describe('home layout model', () => {
     l = removeSection(l, 's_gold');
     expect(l.sections.map((s) => s.id)).toEqual([added.id, 's_fx']);
     expect(JSON.stringify(start)).toBe(snapshot);
+  });
+});
+
+describe('drag & drop reordering', () => {
+  const base = {
+    version: 1,
+    sections: [
+      { id: 'a', title: 'A', style: 'compact', items: ['USD', 'EUR', 'AED', 'TRY'] },
+      { id: 'b', title: 'B', style: 'detailed', items: [] },
+      { id: 'c', title: 'C', style: 'compact', items: [] },
+    ],
+  };
+
+  it('moves an item to the position of the one it is dropped on', () => {
+    expect(reorderItems(base, 'a', 'TRY', 'EUR').sections[0].items).toEqual(['USD', 'TRY', 'EUR', 'AED']);
+    expect(reorderItems(base, 'a', 'USD', 'AED').sections[0].items).toEqual(['EUR', 'AED', 'USD', 'TRY']);
+    expect(reorderItems(base, 'a', 'USD', 'missing').sections[0].items).toEqual(['USD', 'EUR', 'AED', 'TRY']);
+  });
+
+  it('moves a section to the position of the one it is dropped on', () => {
+    expect(reorderSections(base, 'c', 'a').sections.map((s) => s.id)).toEqual(['c', 'a', 'b']);
+    expect(reorderSections(base, 'a', 'b').sections.map((s) => s.id)).toEqual(['b', 'a', 'c']);
+    expect(reorderSections(base, 'a', 'a').sections.map((s) => s.id)).toEqual(['a', 'b', 'c']);
   });
 });
 
