@@ -8,13 +8,20 @@
 
 import React, { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ChevronLeft, ChevronDown } from 'lucide-react';
-import AlertBanner from '../../../shared/ui/AlertBanner.jsx';
+import DueReminderAlert from '../../../shared/ui/DueReminderAlert.jsx';
 import { formatShamsiDisplay } from '../../portfolio/components/ShamsiDatePicker.jsx';
 import { useLoansContext } from '../context/LoansContext.jsx';
 import { appPath } from '../../../shared/routes.js';
+import { todayIso } from '../../../shared/utils/dates.js';
 
 const formatNum = (v) => Number(v || 0).toLocaleString('fa-IR');
+
+const toReminderItem = (item, when) => ({
+  key: `${item.loanId}_${item.installmentNumber}`,
+  title: item.loanTitle,
+  detail: `قسط ${formatNum(item.installmentNumber)}، سررسید ${formatShamsiDisplay(item.dueDate)}، ${when}`,
+  amount: item.totalAmount,
+});
 
 export default function UpcomingInstallmentsAlert({ onSelectLoan }) {
   const { loans } = useLoansContext();
@@ -29,7 +36,7 @@ export default function UpcomingInstallmentsAlert({ onSelectLoan }) {
 
     const now = new Date();
     // Normalize today to start of day in UTC/local
-    const todayStr = now.toISOString().split('T')[0];
+    const todayStr = todayIso(now);
     const todayTimestamp = new Date(todayStr).getTime();
     const sevenDaysFromNowTimestamp = todayTimestamp + 7 * 24 * 60 * 60 * 1000;
 
@@ -89,13 +96,12 @@ export default function UpcomingInstallmentsAlert({ onSelectLoan }) {
   }
 
   return (
-    <div className="upcoming-installments-alerts-stack">
+    <div className="due-alerts-stack">
       {!dismissedOverdue && overdueItems.length > 0 && (
-        <InstallmentAlert
+        <DueReminderAlert
           type="error"
           title={`${formatNum(overdueItems.length)} قسط معوق`}
-          items={overdueItems}
-          describe={(item) => `سررسید ${formatShamsiDisplay(item.dueDate)}، ${formatNum(item.daysPast)} روز گذشته`}
+          items={overdueItems.map((item) => toReminderItem(item, `${formatNum(item.daysPast)} روز گذشته`))}
           actionLabel="مشاهده و تسویه"
           onAction={() => handleGoToLoan(overdueItems[0].loanId)}
           onClose={() => setDismissedOverdue(true)}
@@ -103,68 +109,16 @@ export default function UpcomingInstallmentsAlert({ onSelectLoan }) {
       )}
 
       {!dismissedUpcoming && upcomingItems.length > 0 && (
-        <InstallmentAlert
+        <DueReminderAlert
           type="warning"
           title={`${formatNum(upcomingItems.length)} قسط تا ۷ روز آینده`}
-          items={upcomingItems}
-          describe={(item) =>
-            `سررسید ${formatShamsiDisplay(item.dueDate)}، ${item.daysLeft === 0 ? 'امروز' : `${formatNum(item.daysLeft)} روز دیگر`}`}
+          items={upcomingItems.map((item) =>
+            toReminderItem(item, item.daysLeft === 0 ? 'امروز' : `${formatNum(item.daysLeft)} روز دیگر`))}
           actionLabel="مشاهده اقساط"
           onAction={() => handleGoToLoan(upcomingItems[0].loanId)}
           onClose={() => setDismissedUpcoming(true)}
         />
       )}
     </div>
-  );
-}
-
-/**
- * One-line summary (count and total) that expands to the list of installments on demand, so a
- * reminder never pushes the page content down.
- */
-function InstallmentAlert({ type, title, items, describe, actionLabel, onAction, onClose }) {
-  const [expanded, setExpanded] = useState(false);
-  const total = items.reduce((sum, item) => sum + (Number(item.totalAmount) || 0), 0);
-
-  return (
-    <AlertBanner
-      type={type}
-      className="installment-alert"
-      onClose={onClose}
-      message={
-        <div className="installment-alert-body">
-          <div className="installment-alert-summary">
-            <strong>{title}</strong>
-            <span className="installment-alert-total">مجموع {formatNum(total)} تومان</span>
-            <button
-              type="button"
-              className="installment-alert-toggle"
-              onClick={() => setExpanded((v) => !v)}
-              aria-expanded={expanded}
-            >
-              {expanded ? 'بستن' : 'جزئیات'}
-              <ChevronDown size={14} className={expanded ? 'is-open' : ''} />
-            </button>
-          </div>
-          {expanded && (
-            <ul className="installment-alert-list">
-              {items.map((item) => (
-                <li key={`${item.loanId}_${item.installmentNumber}`}>
-                  <strong>{item.loanTitle}</strong>
-                  <span>قسط {formatNum(item.installmentNumber)}، {describe(item)}</span>
-                  <strong className="installment-alert-amount">{formatNum(item.totalAmount)} تومان</strong>
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
-      }
-      action={
-        <button type="button" className={`installment-alert-action is-${type}`} onClick={onAction}>
-          <span>{actionLabel}</span>
-          <ChevronLeft size={14} />
-        </button>
-      }
-    />
   );
 }

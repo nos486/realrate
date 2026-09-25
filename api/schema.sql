@@ -247,6 +247,27 @@ CREATE TABLE IF NOT EXISTS incomes (
 );
 CREATE INDEX IF NOT EXISTS idx_incomes_user_date ON incomes(user_id, income_date DESC);
 
+-- 11. Cheques Table (received / issued cheques; history is the JSON tracking log of status changes)
+CREATE TABLE IF NOT EXISTS cheques (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL,
+  direction TEXT NOT NULL,
+  status TEXT NOT NULL DEFAULT 'pending',
+  amount REAL NOT NULL,
+  due_date TEXT NOT NULL,
+  issue_date TEXT DEFAULT '',
+  counterparty TEXT NOT NULL,
+  bank_id TEXT DEFAULT '',
+  bank_name TEXT DEFAULT '',
+  cheque_number TEXT DEFAULT '',
+  sayad_id TEXT DEFAULT '',
+  notes TEXT DEFAULT '',
+  history TEXT NOT NULL DEFAULT '[]',
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_cheques_user_due ON cheques(user_id, due_date);
+
 -- Account-wide end-to-end encryption (row present = vault on); wrapped_key is the random data
 -- key encrypted with the passphrase-derived key
 CREATE TABLE IF NOT EXISTS user_vaults (
@@ -258,7 +279,7 @@ CREATE TABLE IF NOT EXISTS user_vaults (
   updated_at TEXT NOT NULL
 );
 
--- Encrypted records of an E2EE account (loans, incomes); payload is browser-side ciphertext
+-- Encrypted records of an E2EE account (loans, incomes, cheques); payload is browser-side ciphertext
 CREATE TABLE IF NOT EXISTS vault_records (
   user_id TEXT NOT NULL,
   kind TEXT NOT NULL,

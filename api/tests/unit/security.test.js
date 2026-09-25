@@ -68,6 +68,32 @@ describe('CORS', () => {
   });
 });
 
+describe('CSRF guard', () => {
+  const send = (method, origin) => worker.fetch(
+    new Request('https://api.realrate.ir/api/cheques', {
+      method,
+      headers: { 'Content-Type': 'text/plain', ...(origin ? { Origin: origin } : {}) },
+      body: method === 'GET' ? undefined : '{}',
+    }),
+    {},
+    {}
+  );
+
+  it('refuses writes from a foreign site before touching any handler', async () => {
+    const res = await send('POST', 'https://evil.example');
+    expect(res.status).toBe(403);
+    expect((await res.json()).error.code).toBe('FORBIDDEN_ORIGIN');
+    expect((await send('DELETE', 'https://realrate.ir.evil.example')).status).toBe(403);
+  });
+
+  it('lets our own frontends and non-browser clients through (to authentication)', async () => {
+    expect((await send('POST', 'https://realrate.ir')).status).toBe(401);
+    expect((await send('POST', 'http://localhost:5173')).status).toBe(401);
+    expect((await send('POST', null)).status).toBe(401);
+    expect((await send('GET', 'https://evil.example')).status).toBe(401);
+  });
+});
+
 describe('buildFrontendRedirect (OAuth token redirect)', () => {
   const base = 'https://realrate.ir';
 

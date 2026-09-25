@@ -54,6 +54,7 @@ function readLinkKeyToken() {
 import { usePrivacyMode } from '../hooks/usePrivacyMode.js';
 import { useFeedback } from '../shared/ui/FeedbackProvider.jsx';
 import { SkeletonRows, SkeletonCards } from '../shared/ui/Skeleton.jsx';
+import { todayIso } from '../shared/utils/dates.js';
 
 export default function SharedPortfolioPage() {
   const { slug } = useParams();
@@ -439,7 +440,7 @@ export default function SharedPortfolioPage() {
     const a = document.createElement('a');
     a.href = url;
     const safeName = (portfolioName || 'shared-portfolio').replace(/[/\\?%*:|"<>]/g, '-');
-    const dateStr = new Date().toISOString().slice(0, 10);
+    const dateStr = todayIso();
     a.download = `portfolio-${safeName}-${dateStr}.csv`;
     document.body.appendChild(a);
     a.click();

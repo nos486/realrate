@@ -1,6 +1,7 @@
 import React from 'react';
 import { Download } from 'lucide-react';
 import { resolveAssetDisplayName } from '../utils/holdingHelpers.js';
+import { todayIso } from '../../../shared/utils/dates.js';
 
 export default function CsvExportButton({ items = [], portfolioName = 'portfolio', disabled = false }) {
   const handleExportCSV = () => {
@@ -63,7 +64,7 @@ export default function CsvExportButton({ items = [], portfolioName = 'portfolio
     const a = document.createElement('a');
     a.href = url;
     const safeName = (portfolioName || 'portfolio').replace(/[^a-zA-Z0-9_\u0600-\u06FF-]/g, '_');
-    const dateStr = new Date().toISOString().slice(0, 10);
+    const dateStr = todayIso();
     a.download = `portfolio-${safeName}-${dateStr}.csv`;
     document.body.appendChild(a);
     a.click();

@@ -5,7 +5,7 @@
  *   GET    /api/vault                                — The account vault (salt + wrapped key) or null
  *   PUT    /api/vault                                — Turn on / re-wrap after a passphrase change
  *   DELETE /api/vault                                — Turn off (only once nothing is encrypted with it)
- *   GET    /api/vault/records/:kind                  — Encrypted records of a kind (loan | income)
+ *   GET    /api/vault/records/:kind                  — Encrypted records of a kind (loan | income | cheque)
  *   PUT    /api/vault/records/:kind/:id              — Create/replace one ({ payload, replacePlain })
  *   DELETE /api/vault/records/:kind/:id              — Delete one
  *   POST   /api/vault/records/:kind/:id/restore      — Write it back as plaintext and drop the copy
@@ -28,6 +28,7 @@ import {
 import { jsonResponse } from "../lib/helpers.js";
 import { AppError } from "../lib/AppError.js";
 import { parseIncomeInput } from "./incomeRoutes.js";
+import { parseChequeInput } from "./chequeRoutes.js";
 
 async function requireUserId(request, env) {
   const user = await getAuthenticatedUser(request, env);
@@ -88,6 +89,8 @@ export async function handleRestoreVaultRecord(request, env, { kind, id }) {
   if (kind === "income") {
     // Same rules as creating an income, so restored rows are always valid
     plain = { ...parseIncomeInput(plain || {}), createdAt: plain?.createdAt };
+  } else if (kind === "cheque") {
+    plain = { ...parseChequeInput(plain || {}), createdAt: plain?.createdAt };
   } else if (kind === "loan") {
     const loan = plain?.loan || {};
     if (!String(loan.title || "").trim() || !(Number(loan.principalAmount) > 0) || !(Number(loan.installmentCount) >= 0)) {

@@ -26,6 +26,7 @@ import {
 } from '../../../utils/loanCalculator.js';
 import { getLoanDetail } from '../api/loanApi.js';
 import { BankPicker } from '../../../shared/banks/index.js';
+import { todayIso } from '../../../shared/utils/dates.js';
 
 const formatPersianNum = (val) => Number(val || 0).toLocaleString('fa-IR');
 
@@ -51,7 +52,7 @@ export default function AddLoanForm({
   // never surprise the user by silently recomputing/overriding the rate (see git history for the
   // confusing back-solve behavior this replaced).
   const [totalRepaymentAmount, setTotalRepaymentAmount] = useState('');
-  const [startDateIso, setStartDateIso] = useState(new Date().toISOString().split('T')[0]);
+  const [startDateIso, setStartDateIso] = useState(todayIso());
   const [startDateShamsi, setStartDateShamsi] = useState(getTodayShamsi());
   const [annualFeeAmount, setAnnualFeeAmount] = useState('');
   const [notes, setNotes] = useState('');
@@ -119,7 +120,7 @@ export default function AddLoanForm({
       setIntervalMonths(editingLoan.intervalMonths || 1);
 
       const rawStart =
-        editingLoan.startDate || editingLoan.start_date || new Date().toISOString().split('T')[0];
+        editingLoan.startDate || editingLoan.start_date || todayIso();
       setStartDateIso(rawStart);
       setStartDateShamsi(gregorianToShamsi(rawStart));
       setAnnualFeeAmount(
@@ -134,8 +135,7 @@ export default function AddLoanForm({
       setInstallmentCount('12');
       setIntervalMonths(1);
 
-      const todayIso = new Date().toISOString().split('T')[0];
-      setStartDateIso(todayIso);
+      setStartDateIso(todayIso());
       setStartDateShamsi(getTodayShamsi());
       setAnnualFeeAmount('');
       setNotes('');
@@ -192,7 +192,7 @@ export default function AddLoanForm({
       annualRatePct: cleanRate,
       installmentCount: cleanCount,
       intervalMonths,
-      startDateIso: startDateIso || new Date().toISOString().split('T')[0],
+      startDateIso: startDateIso || todayIso(),
     });
     return schedule.reduce((sum, inst) => sum + inst.totalAmount, 0);
   }, [cleanPrincipal, cleanRate, cleanCount, intervalMonths, startDateIso]);
@@ -221,7 +221,7 @@ export default function AddLoanForm({
       principalAmount: cleanPrincipal,
       installmentCount: cleanCount,
       intervalMonths,
-      startDate: startDateIso || new Date().toISOString().split('T')[0],
+      startDate: startDateIso || todayIso(),
     };
     try {
       const schedule = distributeInstallmentAmounts({ loan, totalRepaymentOverride: cleanTotalRepaymentInput });
@@ -318,7 +318,7 @@ export default function AddLoanForm({
         annualInterestRate: installmentMode === 'totalRepaymentBased' && !editingLoan ? 0 : cleanRate,
         installmentCount: cleanCount,
         intervalMonths,
-        startDate: startDateIso || new Date().toISOString().split('T')[0],
+        startDate: startDateIso || todayIso(),
         annualFeeAmount: cleanAnnualFee,
         notes: notes.trim(),
         totalRepaymentAmount: totalRepaymentAmountToSubmit,

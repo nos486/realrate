@@ -793,8 +793,8 @@
   }
 }
 
-/* Loan reminders above the home page (features/loans UpcomingInstallmentsAlert) */
-.upcoming-installments-alerts-stack {
+/* Due reminders above the home page (shared/ui/DueReminderAlert: loan installments, cheques) */
+.due-alerts-stack {
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -802,29 +802,29 @@
   margin-bottom: 14px;
 }
 
-.upcoming-installments-alerts-stack .ui-alert-banner {
+.due-alerts-stack .ui-alert-banner {
   margin: 0;
 }
 
-.installment-alert-body {
+.due-alert-body {
   display: flex;
   flex-direction: column;
   gap: 8px;
 }
 
-.installment-alert-summary {
+.due-alert-summary {
   display: flex;
   align-items: center;
   flex-wrap: wrap;
   gap: 4px 10px;
 }
 
-.installment-alert-total {
+.due-alert-total {
   font-size: 12px;
   opacity: 0.85;
 }
 
-.installment-alert-toggle {
+.due-alert-toggle {
   display: inline-flex;
   align-items: center;
   gap: 3px;
@@ -840,15 +840,15 @@
   cursor: pointer;
 }
 
-.installment-alert-toggle svg {
+.due-alert-toggle svg {
   transition: transform 0.2s ease;
 }
 
-.installment-alert-toggle svg.is-open {
+.due-alert-toggle svg.is-open {
   transform: rotate(180deg);
 }
 
-.installment-alert-list {
+.due-alert-list {
   display: flex;
   flex-direction: column;
   gap: 6px;
@@ -857,7 +857,7 @@
   list-style: none;
 }
 
-.installment-alert-list li {
+.due-alert-list li {
   display: flex;
   align-items: baseline;
   flex-wrap: wrap;
@@ -865,15 +865,15 @@
   font-size: 12px;
 }
 
-.installment-alert-list li span {
+.due-alert-list li span {
   opacity: 0.8;
 }
 
-.installment-alert-amount {
+.due-alert-amount {
   margin-inline-start: auto;
 }
 
-.installment-alert-action {
+.due-alert-action {
   display: inline-flex;
   align-items: center;
   gap: 2px;
@@ -887,22 +887,22 @@
   cursor: pointer;
 }
 
-.installment-alert-action.is-error {
+.due-alert-action.is-error {
   background: rgba(244, 63, 94, 0.18);
   color: #fecaca;
 }
 
-.installment-alert-action.is-warning {
+.due-alert-action.is-warning {
   background: rgba(245, 158, 11, 0.18);
   color: #fde68a;
 }
 
 @media (max-width: 640px) {
-  .installment-alert-total {
+  .due-alert-total {
     display: none;
   }
 
-  .installment-alert-action span {
+  .due-alert-action span {
     display: none;
   }
 }

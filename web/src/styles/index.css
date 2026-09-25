@@ -21,6 +21,7 @@
  *   vault.css           — Account-wide end-to-end encryption settings
  *   home.css            — Customizable home page (sections, edit mode, asset picker)
  *   incomes.css         — Incomes page, summary cards, category/monthly report
+ *   cheques.css         — Cheques page, status badges, tracking timeline
  *   landing.css          — Logged-out landing page
  *   shared-page-layout.css — Shared feature-page header bar (Portfolio/Transactions/Loans/Incomes)
  */
@@ -47,4 +48,5 @@
 @import './vault.css';
 @import './home.css';
 @import './incomes.css';
+@import './cheques.css';
 @import './landing.css';

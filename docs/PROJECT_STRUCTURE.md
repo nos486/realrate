@@ -17,9 +17,9 @@ realrate/
 │   └── src/
 │       ├── index.js              # روتینگ و ورودی Worker (fetch + scheduled)
 │       ├── config/               # مراجع واحد: سورس‌ها، دسته‌بندی‌ها، بانک‌ها، ثابت‌ها
-│       ├── domain/               # منطق خالص: فرمول‌ها، موتور نمایش، محاسبه وام، سند وام
+│       ├── domain/               # منطق خالص: فرمول‌ها، موتور نمایش، محاسبه وام، سند وام، چک
 │       ├── handlers/             # کنترلرهای HTTP (بازار، احراز هویت، پورتفو، تراکنش،
-│       │                         #   وام، درآمد، بانک، رمزنگاری، ادمین)
+│       │                         #   وام، درآمد، چک، بانک، رمزنگاری، ادمین)
 │       ├── repositories/         # دسترسی به داده D1/KV (الگوی Repository)
 │       ├── services/market/      # دریافت نرخ‌ها: ادپتورهای سورس و ارکستراتور پولینگ
 │       ├── jobs/                 # جاب کرون
@@ -31,7 +31,7 @@ realrate/
         ├── App.jsx, main.jsx     # روت‌ها و مونت برنامه
         ├── pages/                # صفحه اصلی، صفحه عمومی پورتفو، لندینگ، ادمین
         ├── features/             # ماژول‌های قابلیت‌محور:
-        │                         #   home (صفحه اصلی شخصی)، market، portfolio، transactions، loans، incomes، auth، admin
+        │                         #   home (صفحه اصلی شخصی)، market، portfolio، transactions، loans، incomes، cheques، auth، admin
         ├── shared/
         │   ├── ui/               # کامپوننت‌های پایه (Modal، Button، DonutChart، Skeleton، ...)
         │   ├── api/              # httpClient
@@ -52,6 +52,7 @@ realrate/
 | `utils/loanCalculator.js` | `domain/loanCalculator.js` |
 | `utils/loanDocument.js` | `domain/loanDocument.js` |
 | `utils/homeLayout.js` | `domain/homeLayout.js` |
+| `utils/chequeDocument.js` | `domain/chequeDocument.js` (و `domain/isoDate.js`) |
 | `utils/financialSpecs.js` | `lib/financialSpecs.js` |
 
 برای تغییر هر کدام، فایل مبدأ در `api/` را ویرایش کنید.

@@ -11,6 +11,7 @@ import {
   addLoanExtraPayment as apiAddLoanExtraPayment,
   getLoanExtraPayments as apiGetLoanExtraPayments,
 } from '../api/loanApi.js';
+import { todayIso } from '../../../shared/utils/dates.js';
 
 export function useLoanDetail(loanId) {
   const [loan, setLoan] = useState(null);
@@ -99,7 +100,7 @@ export function useLoanDetail(loanId) {
               ? {
                   ...inst,
                   isPaid: true,
-                  paidDate: details.paidDate || new Date().toISOString().split('T')[0],
+                  paidDate: details.paidDate || todayIso(),
                   paidAmount: details.paidAmount ?? inst.totalAmount,
                 }
               : inst

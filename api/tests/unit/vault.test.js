@@ -18,7 +18,7 @@ const CIPHER_2 = 'enc:e2ee:v1:SUpLTE1OT1A=';
 function createDb() {
   const vaults = new Map();
   const records = new Map();
-  const plain = { loans: [], loan_installment_states: [], loan_extra_payments: [], incomes: [], portfolios: [] };
+  const plain = { loans: [], loan_installment_states: [], loan_extra_payments: [], incomes: [], cheques: [], portfolios: [] };
   const recordKey = (u, k, i) => `${u}|${k}|${i}`;
   let failNextBatch = false;
 
@@ -67,7 +67,7 @@ function createDb() {
           if (del) {
             const [table, col] = [del[1], del[2]];
             const colIndex = { id: 0, loan_id: 1 }[col];
-            plain[table] = plain[table].filter((row) => !(row[colIndex] === args[0] && row[table === 'loans' || table === 'incomes' ? 1 : 2] === args[1]));
+            plain[table] = plain[table].filter((row) => !(row[colIndex] === args[0] && row[['loans', 'incomes', 'cheques'].includes(table) ? 1 : 2] === args[1]));
             return { meta: { changes: 1 } };
           }
           throw new Error(`unexpected run: ${q}`);
@@ -204,6 +204,32 @@ describe('vault records', () => {
   });
 });
 
+describe('encrypted cheques', () => {
+  let env;
+  beforeEach(async () => {
+    env = { DB: createDb() };
+    await dbSaveUserVault(env, 'u1', { salt: 's', wrappedKey: CIPHER });
+  });
+
+  it('replaces the plaintext cheque and restores it back with its tracking log', async () => {
+    env.DB.plain.cheques.push(['chq_1', 'u1'], ['chq_2', 'u1']);
+    await dbPutVaultRecord(env, 'u1', 'cheque', 'chq_1', { payload: CIPHER, replacePlain: true });
+    expect(env.DB.plain.cheques.map((r) => r[0])).toEqual(['chq_2']);
+
+    const history = [{ status: 'pending', date: '2026-09-01', note: '' }, { status: 'cleared', date: '2026-09-20', note: 'وصول شد' }];
+    await dbRestoreVaultRecord(env, 'u1', 'cheque', 'chq_1', {
+      direction: 'received', status: 'cleared', amount: 5000000, dueDate: '2026-09-20', issueDate: '',
+      counterparty: 'علی', bankId: 'mellat', bankName: '', chequeNumber: '123', sayadId: '', notes: '',
+      history, createdAt: '2026-09-01T10:00:00.000Z',
+    });
+    const row = env.DB.plain.cheques.find((r) => r[0] === 'chq_1');
+    expect(row.slice(0, 5)).toEqual(['chq_1', 'u1', 'received', 'cleared', 5000000]);
+    expect(JSON.parse(row[13])).toEqual(history);
+    expect(row[14]).toBe('2026-09-01T10:00:00.000Z');
+    expect(await dbListVaultRecords(env, 'u1', 'cheque')).toHaveLength(0);
+  });
+});
+
 describe('vault routes', () => {
   it.each([
     ['GET', '/api/vault'],
@@ -213,6 +239,11 @@ describe('vault routes', () => {
     ['PUT', '/api/vault/records/loan/loan_1'],
     ['DELETE', '/api/vault/records/income/inc_1'],
     ['POST', '/api/vault/records/income/inc_1/restore'],
+    ['GET', '/api/vault/records/cheque'],
+    ['GET', '/api/cheques'],
+    ['POST', '/api/cheques'],
+    ['PUT', '/api/cheques/chq_1'],
+    ['DELETE', '/api/cheques/chq_1'],
     ['GET', '/api/loans/loan_1/document'],
   ])('%s %s requires a signed-in user', async (method, path) => {
     const res = await worker.fetch(new Request(`https://api.realrate.ir${path}`, { method }), {}, {});

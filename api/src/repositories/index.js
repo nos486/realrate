@@ -13,5 +13,6 @@ export * from "./priceSource.repository.js";
 export * from "./settings.repository.js";
 export * from "./loans.repository.js";
 export * from "./incomes.repository.js";
+export * from "./cheques.repository.js";
 export * from "./customBanks.repository.js";
 export * from "./vault.repository.js";
