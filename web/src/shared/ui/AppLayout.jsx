@@ -18,6 +18,7 @@ export default function AppLayout({
   children,
   activeTab = null,
   setActiveTab = null,
+  navItems = null,
   usdToman = undefined,
   gold18kPrice = undefined,
   className = '',
@@ -33,6 +34,7 @@ export default function AppLayout({
           gold18kPrice={gold18kPrice}
           activeTab={activeTab}
           setActiveTab={setActiveTab}
+          navItems={navItems}
         />
       )}
 

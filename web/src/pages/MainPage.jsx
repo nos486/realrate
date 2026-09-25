@@ -205,6 +205,7 @@ export default function MainPage() {
       gold18kPrice={gold18kPrice}
       activeTab={activeTab}
       setActiveTab={handleTabChange}
+      navItems={tabOptions}
     >
       {/* System Announcement Banner */}
       {announcement && (
