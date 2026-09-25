@@ -1,15 +1,20 @@
 /**
- * MonthlyIncomeChart.jsx — Bar chart of income per Shamsi month over the last year
+ * MonthlyIncomeChart.jsx — Stacked bar chart of income per Shamsi month over the last year
  *
- * One bar per month (oldest on the left, so growth reads as a rising line of bars), a dashed
- * line at the monthly average, and a readout above the plot: by default the latest month with
- * income (the current month may have only just begun) and its change against the month before;
- * hovering / tapping a bar shows that month instead.
+ * One bar per month (oldest on the left, so growth reads as a rising line of bars), stacked by
+ * income source, a dashed line at the monthly average, and a readout above the plot: by default
+ * the latest month with income (the current month may have only just begun) and its change
+ * against the month before; hovering / tapping a bar shows that month instead. The legend lists
+ * the sources with the selected month's amount of each.
  */
 
 import React, { useMemo, useState } from 'react';
 import { TrendingUp, TrendingDown } from 'lucide-react';
 import { formatCompactAmount } from '../../../shared/utils/formatters.js';
+import { CHART_COLORS, CHART_OTHER_COLOR } from '../../../shared/ui/chartColors.js';
+import { getIncomeCategory } from '../constants/incomeCategories.js';
+
+const OTHER_KEY = '__other__';
 
 const formatPct = (v) => `${Math.abs(v).toLocaleString('fa-IR', { maximumFractionDigits: Math.abs(v) < 10 ? 1 : 0 })}٪`;
 
@@ -20,13 +25,54 @@ function changeFrom(prev, month) {
 }
 
 /**
+ * The stacked series: one per income source, in `order` first (so colors match the source donut,
+ * which takes the same hues in that order), then the rest by their total over the whole chart.
+ * Sources past the palette fold into one gray "Other".
+ */
+function buildStacks(series, order) {
+  const totals = new Map();
+  for (const m of series) {
+    for (const [category, value] of Object.entries(m.byCategory || {})) {
+      totals.set(category, (totals.get(category) || 0) + value);
+    }
+  }
+  const present = [
+    ...order.filter((c) => totals.has(c)),
+    ...[...totals.keys()].filter((c) => !order.includes(c)).sort((a, b) => totals.get(b) - totals.get(a)),
+  ];
+  const stacks = present.slice(0, CHART_COLORS.length).map((category, i) => ({
+    key: category,
+    categories: [category],
+    label: getIncomeCategory(category).label,
+    color: CHART_COLORS[i],
+  }));
+  const rest = present.slice(CHART_COLORS.length);
+  if (rest.length > 0) {
+    stacks.push({
+      key: rest.length === 1 ? rest[0] : OTHER_KEY,
+      categories: rest,
+      label: rest.length === 1 ? getIncomeCategory(rest[0]).label : 'سایر منابع',
+      color: CHART_OTHER_COLOR,
+    });
+  }
+  return stacks;
+}
+
+const stackValue = (month, stack) => stack.categories.reduce((acc, c) => acc + (month.byCategory?.[c] || 0), 0);
+
+/**
  * @param {{
- *   series: Array<{ key: string, label: string, monthLabel: string, total: number, count: number }>,
+ *   series: Array<{ key: string, label: string, monthLabel: string, total: number, count: number,
+ *     byCategory: Record<string, number> }>,
+ *   categoryOrder?: string[],   // source order of the donut next to it, to share its colors
  *   hideValues?: boolean,
  * }} props oldest month first
  */
-export default function MonthlyIncomeChart({ series, hideValues = false }) {
+export default function MonthlyIncomeChart({ series, categoryOrder = [], hideValues = false }) {
   const [activeIndex, setActiveIndex] = useState(null);
+  const [activeStack, setActiveStack] = useState(null);
+
+  const stacks = useMemo(() => buildStacks(series, categoryOrder), [series, categoryOrder]);
 
   const { max, average, total, latestIndex } = useMemo(() => {
     const sum = series.reduce((acc, m) => acc + m.total, 0);
@@ -97,7 +143,18 @@ export default function MonthlyIncomeChart({ series, hideValues = false }) {
             aria-label={`${m.label}: ${hideValues ? 'مبلغ پنهان' : formatCompactAmount(m.total)}`}
             aria-pressed={i === index}
           >
-            <span className="monthly-income-bar" style={{ height: `${height(m.total)}%` }} />
+            <span className="monthly-income-bar" style={{ height: `${height(m.total)}%` }}>
+              {stacks.map((st) => {
+                const value = stackValue(m, st);
+                return value > 0 ? (
+                  <span
+                    key={st.key}
+                    className={`monthly-income-seg ${activeStack && activeStack !== st.key ? 'is-dimmed' : ''}`}
+                    style={{ flexGrow: value, background: st.color }}
+                  />
+                ) : null;
+              })}
+            </span>
           </button>
         ))}
       </div>
@@ -112,6 +169,23 @@ export default function MonthlyIncomeChart({ series, hideValues = false }) {
           </span>
         ))}
       </div>
+
+      <ul className="monthly-income-legend" aria-label={`ترکیب درآمد ${month.label}`}>
+        {stacks.map((st) => (
+          <li
+            key={st.key}
+            className={activeStack && activeStack !== st.key ? 'is-dimmed' : ''}
+            onMouseEnter={() => setActiveStack(st.key)}
+            onMouseLeave={() => setActiveStack(null)}
+          >
+            <span className="monthly-income-swatch" style={{ background: st.color }} aria-hidden="true" />
+            <span className="monthly-income-legend-name">{st.label}</span>
+            <span className="monthly-income-legend-amount">
+              {stackValue(month, st) > 0 ? amount(stackValue(month, st)) : '—'}
+            </span>
+          </li>
+        ))}
+      </ul>
     </div>
   );
 }

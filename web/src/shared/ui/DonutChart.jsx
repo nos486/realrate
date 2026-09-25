@@ -5,12 +5,10 @@
 
 import React, { useMemo, useState } from 'react';
 import { formatCompactAmount } from '../utils/formatters.js';
+import { CHART_COLORS as DONUT_COLORS, CHART_OTHER_COLOR as OTHER_COLOR } from './chartColors.js';
 
-// Categorical hues in fixed order (validated for CVD separation and contrast on the dark card
-// surface). Slices take them in the order they're given; anything past the last hue folds into
+// Slices take the shared hues in the order they're given; anything past the last hue folds into
 // a neutral "Other" slice.
-const DONUT_COLORS = ['#3987e5', '#d95926', '#199e70', '#c98500', '#d55181'];
-const OTHER_COLOR = '#6b7280';
 const OTHER_KEY = '__other__';
 
 const SIZE = 148;
