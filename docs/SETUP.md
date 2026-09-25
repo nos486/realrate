@@ -72,9 +72,16 @@ npx wrangler d1 execute realrate-db --remote --file=./api/schema.sql
 
 ## استقرار
 
-فرانت‌اند و بک‌اند **جدا از هم** منتشر می‌شوند. مرج در `main` فقط فرانت‌اند (Pages) را خودکار منتشر می‌کند؛ ورکر باید دستی منتشر شود.
+مرج در `main` هر دو بخش را خودکار منتشر می‌کند و در هر PR هم برای هر دو یک پیش‌نمایش ساخته می‌شود:
+
+| بخش | سرویس | چک در GitHub |
+| :--- | :--- | :--- |
+| فرانت‌اند (`web/`) | Cloudflare Pages | `Cloudflare Pages` |
+| بک‌اند (`api/`) | Cloudflare Workers Builds | `Workers Builds: realrate-api` |
 
 ### بک‌اند (Cloudflare Workers)
+
+انتشار خودکار از طریق اتصال Git در پنل Cloudflare (Workers Builds) انجام می‌شود. انتشار دستی (مثلاً برای اولین بار یا بدون Git):
 
 ```bash
 npm run api:deploy
@@ -82,8 +89,7 @@ npm run api:deploy
 cd api && npx wrangler deploy
 ```
 
-> هر تغییری در `api/` (اندپوینت یا جدول جدید) تا زمان این استقرار در سرور اعمال نمی‌شود.
-> برای جلوگیری از ناسازگاری، ورکر را قبل از فرانت‌اند منتشر کنید.
+جداول جدید با اولین درخواست پس از انتشار خودکار ساخته می‌شوند.
 
 ### فرانت‌اند (Cloudflare Pages)
 

@@ -41,12 +41,9 @@ npm test
 
 ## استقرار
 
-```bash
-npm run api:deploy   # بک‌اند (Cloudflare Workers) — دستی
-```
-
-فرانت‌اند با مرج در `main` روی Cloudflare Pages منتشر می‌شود. بک‌اند جداگانه است و باید **قبل از** فرانت‌اند منتشر شود.
-راهنمای کامل (D1، KV، ورود با گوگل، Pages): [docs/SETUP.md](docs/SETUP.md)
+مرج در `main` هر دو بخش را خودکار منتشر می‌کند: فرانت‌اند روی Cloudflare Pages و بک‌اند با Cloudflare Workers Builds.
+انتشار دستی بک‌اند در صورت نیاز: `npm run api:deploy`.
+راهنمای کامل (D1، KV، ورود با گوگل، Pages، Workers): [docs/SETUP.md](docs/SETUP.md)
 
 ## مستندات
 
