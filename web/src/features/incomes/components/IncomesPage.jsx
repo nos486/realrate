@@ -66,6 +66,8 @@ export default function IncomesPage() {
   const report = useMemo(() => buildIncomeReport(periodIncomes), [periodIncomes]);
   // Always the last 12 months, whatever the period filter: it is there to show the trend
   const monthlySeries = useMemo(() => buildMonthlySeries(incomes), [incomes]);
+  // The source donut's order, so the bar chart's stacks take the same colors
+  const categoryOrder = useMemo(() => report.byCategory.map((c) => c.category), [report.byCategory]);
 
   const visibleIncomes = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
@@ -194,7 +196,7 @@ export default function IncomesPage() {
                 hideValues={hideValues}
               />
               <div className="incomes-report-grid">
-                <MonthlyIncomeChart series={monthlySeries} hideValues={hideValues} />
+                <MonthlyIncomeChart series={monthlySeries} categoryOrder={categoryOrder} hideValues={hideValues} />
                 {report.count > 0 && <IncomeReport report={report} hideValues={hideValues} />}
               </div>
             </>

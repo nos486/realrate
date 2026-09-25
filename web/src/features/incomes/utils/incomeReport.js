@@ -129,7 +129,8 @@ export function buildIncomeReport(incomes) {
  * @param {Array<object>} incomes
  * @param {number} [months]
  * @param {string} [todayShamsi] - injectable for deterministic callers
- * @returns {Array<{ key: string, label: string, monthLabel: string, total: number, count: number }>}
+ * @returns {Array<{ key: string, label: string, monthLabel: string, total: number, count: number,
+ *   byCategory: Record<string, number> }>} byCategory: amount per income category that month
  */
 export function buildMonthlySeries(incomes, months = 12, todayShamsi = getTodayShamsi()) {
   const today = parseShamsiYearMonth(todayShamsi);
@@ -147,6 +148,7 @@ export function buildMonthlySeries(incomes, months = 12, todayShamsi = getTodayS
       monthLabel: PERSIAN_MONTHS[month - 1]?.label || '',
       total: 0,
       count: 0,
+      byCategory: {},
     });
   }
 
@@ -155,8 +157,10 @@ export function buildMonthlySeries(incomes, months = 12, todayShamsi = getTodayS
     if (!ym) continue;
     const slot = series[ym.year * 12 + (ym.month - 1) - first];
     if (!slot) continue;
-    slot.total += Number(income.amount) || 0;
+    const amount = Number(income.amount) || 0;
+    slot.total += amount;
     slot.count += 1;
+    slot.byCategory[income.category] = (slot.byCategory[income.category] || 0) + amount;
   }
   return series;
 }
