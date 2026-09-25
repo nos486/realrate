@@ -1,16 +1,18 @@
-import React from 'react';
+import React, { useCallback, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
   Eye,
   EyeOff,
   LogOut,
   Lock,
+  Menu,
 } from 'lucide-react';
 import { useAuth } from '../features/auth/index.js';
 import { usePrivacyMode, setPrivacyMode } from '../hooks/usePrivacyMode.js';
 import { APP_BASE, LANDING_PATH } from '../shared/routes.js';
 import { useVault } from '../shared/vault/useVault.js';
 import { lockAll } from '../shared/vault/vaultStore.js';
+import MobileNavDrawer from './MobileNavDrawer.jsx';
 
 const LogoMark = () => (
   <svg width="28" height="28" viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -30,7 +32,7 @@ const LogoMark = () => (
 /** Tabs that display monetary values and therefore offer the hide-values toggle */
 const PRIVACY_TABS = ['portfolio', 'transactions', 'incomes'];
 
-export default function Header({ activeTab }) {
+export default function Header({ activeTab, setActiveTab = null, navItems = null }) {
   const { user, triggerLogin, logout } = useAuth();
 
   const hideValues = usePrivacyMode();
@@ -42,18 +44,38 @@ export default function Header({ activeTab }) {
   const vault = useVault();
   const canLock = Boolean(user) && (vault.status === 'unlocked' || vault.legacyUnlocked);
 
+  // On phones the app's sections live in a side menu instead of the tab bar
+  const hasDrawer = Boolean(navItems?.length);
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const closeDrawer = useCallback(() => setDrawerOpen(false), []);
+
+  const brand = (
+    <Link to={user ? APP_BASE : LANDING_PATH} className="brand-link">
+      <LogoMark />
+      <div className="brand-texts">
+        <span className="brand-name">RealRate</span>
+        <span className="brand-tagline">سامانه تحلیل زنده طلا، سکه و ارز</span>
+      </div>
+    </Link>
+  );
+
   return (
-    <header className="site-header">
+    <header className={`site-header ${hasDrawer ? 'has-nav-drawer' : ''}`}>
       <div className="header-main-row">
         {/* Brand */}
         <div className="header-brand">
-          <Link to={user ? APP_BASE : LANDING_PATH} className="brand-link">
-            <LogoMark />
-            <div className="brand-texts">
-              <span className="brand-name">RealRate</span>
-              <span className="brand-tagline">سامانه تحلیل زنده طلا، سکه و ارز</span>
-            </div>
-          </Link>
+          {hasDrawer && (
+            <button
+              type="button"
+              className="header-menu-btn"
+              onClick={() => setDrawerOpen(true)}
+              aria-label="باز کردن منو"
+              aria-expanded={drawerOpen}
+            >
+              <Menu size={20} strokeWidth={2.2} />
+            </button>
+          )}
+          {brand}
         </div>
 
         {/* Header Right: User Profile & Auth */}
@@ -126,6 +148,24 @@ export default function Header({ activeTab }) {
           </div>
         </div>
       </div>
+
+      {hasDrawer && (
+        <MobileNavDrawer
+          isOpen={drawerOpen}
+          onClose={closeDrawer}
+          items={navItems}
+          activeTab={activeTab}
+          onSelect={setActiveTab}
+          user={user}
+          brand={brand}
+          hideValues={hideValues}
+          onTogglePrivacy={togglePrivacy}
+          canLock={canLock}
+          onLock={lockAll}
+          onLogout={logout}
+          onLogin={triggerLogin}
+        />
+      )}
     </header>
   );
 }
