@@ -1,6 +1,7 @@
 import React from 'react';
 import { Download } from 'lucide-react';
 import { buildCsvContent, downloadCsvFile, safeFilenamePart } from '../utils/csv.js';
+import { todayIso } from '../utils/dates.js';
 
 /**
  * GenericCsvExportButton — feature-agnostic "export to CSV" icon button.
@@ -26,7 +27,7 @@ export default function GenericCsvExportButton({
     if (!items || items.length === 0) return;
     const rows = items.map(mapRow);
     const content = buildCsvContent(headers, rows);
-    const dateStr = new Date().toISOString().slice(0, 10);
+    const dateStr = todayIso();
     downloadCsvFile(`${safeFilenamePart(fileBaseName)}-${dateStr}.csv`, content);
   };
 

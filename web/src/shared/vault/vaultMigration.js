@@ -7,7 +7,7 @@
  *    items not yet converted stay readable (plaintext items are shown as-is) until a later run;
  *  - a portfolio that already had its own passphrase vault keeps its data untouched: its existing
  *    key is simply wrapped with the account key once its passphrase is known;
- *  - loans and incomes become encrypted vault records; the server swaps each plaintext record
+ *  - loans, incomes and cheques become encrypted vault records; the server swaps each plaintext record
  *    for its ciphertext in one batch.
  * Every step is idempotent, so an interrupted run is finished by simply running it again.
  *
@@ -48,6 +48,7 @@ import {
 } from './vaultStore.js';
 import { clearVaultLoansCache } from './vaultLoans.js';
 import { clearVaultIncomesCache } from './vaultIncomes.js';
+import { clearVaultChequesCache } from './vaultCheques.js';
 
 const SILENT = { silent: true };
 const E2EE_PREFIX = 'enc:e2ee:v1:';
@@ -193,18 +194,34 @@ export async function encryptAccountData({ passphrase, onProgress } = {}) {
     tick('درآمدها');
   }
 
+  // 4. Cheques (with their tracking log)
+  const chequesRes = await httpClient.get('/api/cheques');
+  const cheques = chequesRes?.cheques || [];
+  plan(cheques.length, 'چک‌ها');
+  for (const cheque of cheques) {
+    try {
+      const { userId: _userId, ...record } = cheque;
+      await putVaultRecord('cheque', cheque.id, await encryptVaultRecord(record), { replacePlain: true, ...SILENT });
+    } catch {
+      report.failed.push(`چک «${cheque.counterparty}»`);
+    }
+    tick('چک‌ها');
+  }
+
   clearVaultLoansCache();
   clearVaultIncomesCache();
+  clearVaultChequesCache();
   bumpVaultEpoch();
   return report;
 }
 
 /** Whether anything is still waiting to be encrypted (plaintext data or unlinked vaults) */
 export async function findPendingPlaintext() {
-  const [pRes, loansRes, incomesRes] = await Promise.all([
+  const [pRes, loansRes, incomesRes, chequesRes] = await Promise.all([
     getPortfolios(),
     httpClient.get('/api/loans'),
     httpClient.get('/api/incomes'),
+    httpClient.get('/api/cheques'),
   ]);
   const portfolios = pRes?.portfolios || [];
   return {
@@ -212,6 +229,7 @@ export async function findPendingPlaintext() {
     legacyPortfolios: portfolios.filter(isLegacyVaultPortfolio),
     plainLoans: (loansRes?.loans || []).length,
     plainIncomes: (incomesRes?.incomes || []).length,
+    plainCheques: (chequesRes?.cheques || []).length,
   };
 }
 
@@ -264,8 +282,12 @@ async function decryptPortfolio(portfolio, key, { tick, plan, report }) {
 export async function decryptAccountData({ onProgress } = {}) {
   const { report, tick, plan } = createReport(onProgress);
 
-  for (const kind of ['income', 'loan']) {
-    const label = kind === 'loan' ? 'وام‌ها' : 'درآمدها';
+  const KIND_LABELS = {
+    income: ['درآمدها', 'درآمد'],
+    cheque: ['چک‌ها', 'چک'],
+    loan: ['وام‌ها', 'وام'],
+  };
+  for (const [kind, [label, singular]] of Object.entries(KIND_LABELS)) {
     const res = await listVaultRecords(kind);
     const records = res?.records || [];
     plan(records.length, label);
@@ -275,7 +297,7 @@ export async function decryptAccountData({ onProgress } = {}) {
         if (!plain) throw new Error('decrypt');
         await restoreVaultRecord(kind, record.id, plain, SILENT);
       } catch {
-        report.failed.push(`${kind === 'loan' ? 'وام' : 'درآمد'} ${record.id}`);
+        report.failed.push(`${singular} ${record.id}`);
       }
       tick(label);
     }
@@ -294,6 +316,7 @@ export async function decryptAccountData({ onProgress } = {}) {
 
   clearVaultLoansCache();
   clearVaultIncomesCache();
+  clearVaultChequesCache();
   if (report.failed.length === 0) {
     await deleteVault(SILENT);
     markVaultOff();

@@ -109,6 +109,18 @@ describe('Loan Routes Handlers (هندلرهای API وام‌ها)', () => {
       expect(json.success).toBe(true);
       expect(json.loan.id).toBe('loan_new');
     });
+
+    it('rejects a start date that is not a real Gregorian date (e.g. Shamsi)', async () => {
+      getAuthenticatedUser.mockResolvedValue({ userId: 'u_1' });
+      dbCreateLoan.mockClear();
+      const req = new Request('https://realrate.ir/api/loans', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title: 'وام', principalAmount: 1000, installmentCount: 2, startDate: '1404-07-01' }),
+      });
+      await expect(handleCreateLoan(req, mockEnv)).rejects.toMatchObject({ statusCode: 400 });
+      expect(dbCreateLoan).not.toHaveBeenCalled();
+    });
   });
 
   describe('GET /api/loans/:id', () => {

@@ -1,12 +1,13 @@
 import React, { useMemo, lazy, Suspense } from 'react';
 import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { Megaphone, TrendingUp, Briefcase, ShieldCheck, Radio, Settings, Landmark, Wallet } from 'lucide-react';
+import { Megaphone, TrendingUp, Briefcase, ShieldCheck, Radio, Settings, Landmark, Wallet, ReceiptText } from 'lucide-react';
 import { AppLayout, FilterPills, AlertBanner } from '../shared/ui/index.js';
 import MarketInputsToolbar from '../components/MarketInputsToolbar.jsx';
 import { PriceRefreshStatus } from '../features/market/components/index.js';
 import HomeDashboard from '../features/home/HomeDashboard.jsx';
 // Imported from its own file (not the loans barrel) so LoansPage stays in its lazy chunk
 import UpcomingInstallmentsAlert from '../features/loans/components/UpcomingInstallmentsAlert.jsx';
+import UpcomingChequesAlert from '../features/cheques/components/UpcomingChequesAlert.jsx';
 import VaultPendingBanner from '../shared/vault/VaultPendingBanner.jsx';
 import LiveRatesTicker from '../components/LiveRatesTicker.jsx';
 import { useMarketData } from '../features/market/hooks/useMarketData.js';
@@ -18,6 +19,7 @@ import { toEnglishDigits } from '../shared/utils/formatters.js';
 const PortfolioTracker = lazy(() => import('../features/portfolio/components/PortfolioTracker.jsx'));
 const LoansPage = lazy(() => import('../features/loans/components/LoansPage.jsx'));
 const IncomesPage = lazy(() => import('../features/incomes/components/IncomesPage.jsx'));
+const ChequesPage = lazy(() => import('../features/cheques/components/ChequesPage.jsx'));
 const AccountSettingsView = lazy(() => import('../components/AccountSettingsView.jsx'));
 const AdminPage = lazy(() => import('./AdminPage.jsx'));
 const PriceSourcesPage = lazy(() => import('./PriceSourcesPage.jsx'));
@@ -68,37 +70,44 @@ export default function MainPage() {
   const isTransactionsSubView =
     subPath.startsWith('/transactions') || searchParams.get('tab') === 'transactions';
 
-  const isPortfolio =
+  const isCheques =
     !isSettings && !isSources && !isAdmin && !isIncomes && (
+      subPath.startsWith('/cheques') ||
+      searchParams.get('tab') === 'cheques'
+    );
+
+  const isPortfolio =
+    !isSettings && !isSources && !isAdmin && !isIncomes && !isCheques && (
       subPath.startsWith('/portfolio') ||
       searchParams.get('tab') === 'portfolio' ||
       isTransactionsSubView
     );
 
   const isLoans =
-    !isSettings && !isSources && !isAdmin && !isIncomes && !isPortfolio && (
+    !isSettings && !isSources && !isAdmin && !isIncomes && !isCheques && !isPortfolio && (
       subPath.startsWith('/loans') ||
       searchParams.get('tab') === 'loans'
     );
 
-  const activeTab = isSettings
-    ? 'settings'
-    : isSources
-      ? 'sources'
-      : isAdmin
-        ? 'admin'
-        : isIncomes
-          ? 'incomes'
-          : isPortfolio
-            ? 'portfolio'
-            : isLoans
-              ? 'loans'
-              : 'market';
+  // First matching section wins; the market home is the fallback
+  const activeTab = [
+    ['settings', isSettings],
+    ['sources', isSources],
+    ['admin', isAdmin],
+    ['incomes', isIncomes],
+    ['cheques', isCheques],
+    ['portfolio', isPortfolio],
+    ['loans', isLoans],
+  ].find(([, matches]) => matches)?.[0] || 'market';
 
   const handleTabChange = (nextTab) => {
     if (nextTab === 'incomes') {
       if (!subPath.startsWith('/incomes')) {
         navigate(appPath('/incomes'));
+      }
+    } else if (nextTab === 'cheques') {
+      if (!subPath.startsWith('/cheques')) {
+        navigate(appPath('/cheques'));
       }
     } else if (nextTab === 'loans') {
       if (!subPath.startsWith('/loans')) {
@@ -151,6 +160,7 @@ export default function MainPage() {
       { value: 'incomes', label: 'درآمدها', icon: <Wallet size={16} strokeWidth={2} /> },
       { value: 'portfolio', label: 'پورتفو', icon: <Briefcase size={16} strokeWidth={2} /> },
       { value: 'loans', label: 'وام و اقساط', icon: <Landmark size={16} strokeWidth={2} /> },
+      { value: 'cheques', label: 'چک‌ها', icon: <ReceiptText size={16} strokeWidth={2} /> },
     ];
     if (user) {
       options.push(
@@ -248,6 +258,7 @@ export default function MainPage() {
 
         {/* Active Loan Due Reminders Banner */}
         <UpcomingInstallmentsAlert onSelectLoan={(loanId) => navigate(appPath(loanId ? `/loans/${loanId}` : '/loans'))} />
+        {activeTab !== 'cheques' && <UpcomingChequesAlert onOpen={() => handleTabChange('cheques')} />}
 
         {activeTab === 'market' && (
           <div className="market-tab-content">
@@ -295,6 +306,10 @@ export default function MainPage() {
 
         {activeTab === 'incomes' && (
           <IncomesPage />
+        )}
+
+        {activeTab === 'cheques' && (
+          <ChequesPage />
         )}
 
         {activeTab === 'settings' && (

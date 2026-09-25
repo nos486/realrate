@@ -6,6 +6,7 @@ import { APP_BASE, LANDING_PATH } from './shared/routes.js';
 // Direct file imports (not the feature barrels) so the pages below stay in their lazy chunks
 import { PricingProvider } from './features/market/context/PricingContext.jsx';
 import { LoansProvider } from './features/loans/context/LoansContext.jsx';
+import { ChequesProvider } from './features/cheques/context/ChequesContext.jsx';
 
 // Route-level code splitting: a visitor only downloads the page they open
 const MainPage = lazy(() => import('./pages/MainPage.jsx'));
@@ -44,10 +45,13 @@ function PricingScope() {
   );
 }
 
-function LoansScope() {
+/** Data with due dates (loan installments, cheques), shared by its page and the home reminders */
+function DueDataScope() {
   return (
     <LoansProvider>
-      <Outlet />
+      <ChequesProvider>
+        <Outlet />
+      </ChequesProvider>
     </LoansProvider>
   );
 }
@@ -65,7 +69,7 @@ export default function App() {
 
           {/* Authenticated application — home at /app, every section on its own route */}
           <Route element={<RequireAuth />}>
-            <Route element={<LoansScope />}>
+            <Route element={<DueDataScope />}>
               <Route path={APP_BASE} element={<MainPage />} />
               <Route path="/rates" element={<MainPage />} />
               <Route path="/market" element={<Navigate to={APP_BASE} replace />} />
@@ -76,6 +80,7 @@ export default function App() {
               <Route path="/loans" element={<MainPage />} />
               <Route path="/loans/:loanId" element={<MainPage />} />
               <Route path="/incomes" element={<MainPage />} />
+              <Route path="/cheques" element={<MainPage />} />
               <Route path="/settings" element={<MainPage />} />
               <Route path="/admin" element={<MainPage />} />
               <Route path="/admin/sources" element={<MainPage />} />

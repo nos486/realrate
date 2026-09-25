@@ -196,6 +196,26 @@ export async function ensureD1Tables(env) {
       updated_at TEXT NOT NULL
     )`,
     `CREATE INDEX IF NOT EXISTS idx_incomes_user_date ON incomes(user_id, income_date DESC)`,
+    // Cheques (received / issued) with their tracking log (history: JSON array of status changes)
+    `CREATE TABLE IF NOT EXISTS cheques (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL,
+      direction TEXT NOT NULL,
+      status TEXT NOT NULL DEFAULT 'pending',
+      amount REAL NOT NULL,
+      due_date TEXT NOT NULL,
+      issue_date TEXT DEFAULT '',
+      counterparty TEXT NOT NULL,
+      bank_id TEXT DEFAULT '',
+      bank_name TEXT DEFAULT '',
+      cheque_number TEXT DEFAULT '',
+      sayad_id TEXT DEFAULT '',
+      notes TEXT DEFAULT '',
+      history TEXT NOT NULL DEFAULT '[]',
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    )`,
+    `CREATE INDEX IF NOT EXISTS idx_cheques_user_due ON cheques(user_id, due_date)`,
     // Account-wide end-to-end encryption: a row means the user's vault is on. The data key is
     // random and only ever stored wrapped (encrypted) with the key derived from the passphrase.
     `CREATE TABLE IF NOT EXISTS user_vaults (

@@ -153,8 +153,8 @@ web/src/
    - `useTransactions`: Handles transaction CRUD with client-side Zero-Knowledge E2EE encryption and decryption.
    - `useComputedHoldings`: Automatically derives current holdings and Weighted Average Cost (WAC) from transaction history.
 3. **Account-wide Zero-Knowledge E2EE** (`shared/vault/`, see [E2EE_VAULT.md](E2EE_VAULT.md)):
-   - One passphrase (PBKDF2) unwraps a random account key, which wraps a per-portfolio key and encrypts loan and income records (AES-GCM 256).
-   - `loanApi` / `incomeApi` route to encrypted in-browser stores when the vault is on; loans run on the shared pure engine `domain/loanDocument.js`.
+   - One passphrase (PBKDF2) unwraps a random account key, which wraps a per-portfolio key and encrypts loan, income and cheque records (AES-GCM 256).
+   - `loanApi` / `incomeApi` / `chequeApi` route to encrypted in-browser stores when the vault is on; loans run on the shared pure engine `domain/loanDocument.js`, cheques validate with the shared `domain/chequeDocument.js`.
    - The server only stores ciphertext; passphrases never leave the client.
 4. **Persian / Shamsi Localization**:
    - Native Jalali calendar calculations (`ShamsiDatePicker.jsx`).

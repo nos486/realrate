@@ -118,6 +118,36 @@ Returns all active assets and market rates normalized through the centralized `d
 }
 ```
 
+### Cheques (Protected)
+
+| Method | Endpoint | Description |
+| :--- | :--- | :--- |
+| `GET` | `/api/v1/cheques` | List the user's cheques (ordered by dueDate ASC, createdAt ASC) |
+| `POST` | `/api/v1/cheques` | Register a cheque |
+| `PUT` | `/api/v1/cheques/:id` | Update a cheque; a status change is sent with its new `history` entry |
+| `DELETE` | `/api/v1/cheques/:id` | Delete a cheque and its tracking log |
+
+Validation is the shared `api/src/domain/chequeDocument.js` (the browser uses the same rules for encrypted cheques).
+
+#### Cheque Payload Format
+```json
+{
+  "direction": "received",       // received (دریافتی) | issued (صادره)
+  "status": "pending",           // pending | deposited* | cleared | bounced | transferred* | cancelled  (*received only)
+  "amount": 45000000,            // Toman, > 0
+  "dueDate": "2026-10-01",       // Gregorian ISO date (displayed as Shamsi in the UI)
+  "counterparty": "شرکت آلفا",   // drawer (received) or payee (issued)
+  "bankId": "mellat",            // optional: standard bank id or custom bank id
+  "bankName": "",                // optional: free-text bank name
+  "chequeNumber": "123456",      // optional, digits (/ and - allowed)
+  "sayadId": "1234567812345678", // optional, exactly 16 digits
+  "notes": "",
+  "history": [                   // tracking log; defaults to the registration entry
+    { "status": "pending", "date": "2026-09-25", "note": "" }
+  ]
+}
+```
+
 ### Loans (Protected)
 
 | Method | Endpoint | Description |
@@ -145,7 +175,7 @@ Standard banks are static (`api/src/config/banks.config.js`) and ship with the c
 ### End-to-End Encryption Vault (Protected)
 
 All payloads are ciphertext produced in the browser (`enc:e2ee:v1:...`); see [E2EE_VAULT.md](E2EE_VAULT.md).
-While a vault exists, plaintext `POST` of loans, incomes and portfolios returns `409 VAULT_ENABLED`.
+While a vault exists, plaintext `POST` of loans, incomes, cheques and portfolios returns `409 VAULT_ENABLED`.
 
 | Method | Endpoint | Description |
 | :--- | :--- | :--- |

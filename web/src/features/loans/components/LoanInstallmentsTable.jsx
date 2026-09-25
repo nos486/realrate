@@ -14,6 +14,7 @@ import NumericInput from '../../../shared/ui/NumericInput.jsx';
 import ExtraPaymentModal from './ExtraPaymentModal.jsx';
 import BulkEditInstallmentsModal from './BulkEditInstallmentsModal.jsx';
 import { useFeedback } from '../../../shared/ui/FeedbackProvider.jsx';
+import { todayIso } from '../../../shared/utils/dates.js';
 
 const formatNum = (v) => Number(v || 0).toLocaleString('fa-IR');
 
@@ -80,7 +81,7 @@ export default function LoanInstallmentsTable({
     // Convert selected Shamsi payDate to ISO YYYY-MM-DD
     let isoDate = shamsiToGregorian(payDate);
     if (!isoDate) {
-      isoDate = new Date().toISOString().split('T')[0];
+      isoDate = todayIso();
     }
 
     const priorUnpaid = installments.filter(

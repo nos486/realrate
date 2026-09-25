@@ -260,7 +260,7 @@ export default function VaultSettingsSection() {
       }
       const confirmed = await confirm({
         title: 'غیرفعال‌سازی رمزنگاری سرتاسری',
-        message: 'همه پورتفوها، وام‌ها و درآمدها رمزگشایی و به‌صورت عادی روی سرور ذخیره می‌شوند. ادامه می‌دهید؟',
+        message: 'همه پورتفوها، وام‌ها، درآمدها و چک‌ها رمزگشایی و به‌صورت عادی روی سرور ذخیره می‌شوند. ادامه می‌دهید؟',
         confirmLabel: 'غیرفعال‌سازی',
         danger: true,
       });
@@ -294,7 +294,7 @@ export default function VaultSettingsSection() {
   }, [migrating]);
 
   const pendingCount = pending
-    ? pending.plainPortfolios.length + pending.plainLoans + pending.plainIncomes
+    ? pending.plainPortfolios.length + pending.plainLoans + pending.plainIncomes + pending.plainCheques
     : 0;
 
   return (
@@ -310,7 +310,7 @@ export default function VaultSettingsSection() {
       </div>
 
       <p className="vault-settings-text">
-        با فعال‌سازی، همه اطلاعات مالی شما — پورتفوها (دارایی‌ها و تراکنش‌ها)، وام‌ها و درآمدها — پیش از ارسال، در
+        با فعال‌سازی، همه اطلاعات مالی شما — پورتفوها (دارایی‌ها و تراکنش‌ها)، وام‌ها، درآمدها و چک‌ها — پیش از ارسال، در
         همین مرورگر رمزنگاری می‌شوند. سرور فقط داده رمزشده را می‌بیند و بدون رمز شما هیچ‌کس (حتی ما) نمی‌تواند آن را بخواند.
       </p>
 

@@ -1,6 +1,7 @@
 import React, { useState, useRef } from 'react';
 import { Calendar } from 'lucide-react';
 import { toPersianDigits } from '../../../shared/utils/formatters.js';
+import { todayIso } from '../../../shared/utils/dates.js';
 
 export const PERSIAN_MONTHS = [
   { value: '01', label: 'فروردین' },
@@ -161,9 +162,8 @@ export default function ShamsiDatePicker({
 
   const handleSetToday = () => {
     const todayShamsi = getTodayShamsi();
-    const todayIso = new Date().toISOString().split('T')[0];
     onChange?.(todayShamsi);
-    onChangeIso?.(todayIso);
+    onChangeIso?.(todayIso());
     onTodayClick?.(todayShamsi);
   };
 

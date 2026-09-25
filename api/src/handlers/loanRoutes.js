@@ -30,6 +30,14 @@ import { jsonResponse } from "../lib/helpers.js";
 import { AppError } from "../lib/AppError.js";
 import { rejectWhenVaultEnabled } from "../repositories/vault.repository.js";
 import { logger } from "../lib/logger.js";
+import { isValidIsoDate } from "../domain/isoDate.js";
+
+/** An optional date field must, when present, be a real Gregorian ISO date */
+function assertOptionalDate(value, message) {
+  if (value !== undefined && value !== null && value !== "" && !isValidIsoDate(String(value).slice(0, 10))) {
+    throw AppError.badRequest(message);
+  }
+}
 
 /**
  * Helper to ensure authenticated user
@@ -79,6 +87,7 @@ export async function handleCreateLoan(request, env) {
   if (!installmentCount || installmentCount <= 0) {
     throw AppError.badRequest("تعداد اقساط باید حداقل ۱ باشد.");
   }
+  assertOptionalDate(body.startDate ?? body.start_date, "تاریخ دریافت وام نامعتبر است.");
 
   await rejectWhenVaultEnabled(env, userId);
   const loan = await dbCreateLoan(env, userId, body);
@@ -120,6 +129,7 @@ export async function handleUpdateLoan(request, env, params = {}) {
   }
 
   const body = await request.json().catch(() => ({}));
+  assertOptionalDate(body.startDate ?? body.start_date, "تاریخ دریافت وام نامعتبر است.");
   const updatedLoan = await dbUpdateLoan(env, userId, loanId, body);
 
   if (!updatedLoan) {
@@ -164,6 +174,7 @@ export async function handleUpdateInstallment(request, env, params = {}) {
   }
 
   const body = await request.json().catch(() => ({}));
+  assertOptionalDate(body.paidDate ?? body.paid_date, "تاریخ پرداخت قسط نامعتبر است.");
   const isPaid = body.isPaid ?? body.is_paid;
   const cascade = Boolean(body.cascade);
 
@@ -251,6 +262,7 @@ export async function handleAddExtraPayment(request, env, params = {}) {
   if (!paymentDate) {
     throw AppError.badRequest("تاریخ پرداخت اضافه الزامی است.");
   }
+  assertOptionalDate(paymentDate, "تاریخ پرداخت اضافه نامعتبر است.");
 
   const result = await dbAddExtraPayment(env, userId, loanId, {
     amount,

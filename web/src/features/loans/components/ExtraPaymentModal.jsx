@@ -14,6 +14,7 @@ import ShamsiDatePicker, {
   getTodayShamsi,
   shamsiToGregorian,
 } from '../../portfolio/components/ShamsiDatePicker.jsx';
+import { todayIso } from '../../../shared/utils/dates.js';
 
 const formatNum = (v) => Number(v || 0).toLocaleString('fa-IR');
 
@@ -26,7 +27,7 @@ export default function ExtraPaymentModal({
 }) {
   const [amount, setAmount] = useState('');
   const [paymentDateShamsi, setPaymentDateShamsi] = useState(getTodayShamsi());
-  const [paymentDateIso, setPaymentDateIso] = useState(new Date().toISOString().split('T')[0]);
+  const [paymentDateIso, setPaymentDateIso] = useState(todayIso());
   const [reductionMode, setReductionMode] = useState('reduce_amount');
   const [notes, setNotes] = useState('');
   const [formError, setFormError] = useState('');
@@ -49,7 +50,7 @@ export default function ExtraPaymentModal({
     try {
       const res = await onSubmit?.({
         amount: cleanAmount,
-        paymentDate: paymentDateIso || new Date().toISOString().split('T')[0],
+        paymentDate: paymentDateIso || todayIso(),
         reductionMode,
         notes: notes.trim(),
       });

@@ -4,15 +4,16 @@
  * The server never sees a key or plaintext here:
  *  - user_vaults holds the passphrase salt and the account data key *wrapped* (encrypted) with
  *    the passphrase-derived key — useless without the passphrase, which never leaves the browser.
- *  - vault_records holds browser-encrypted records (loans, incomes) as opaque ciphertext.
+ *  - vault_records holds browser-encrypted records (loans, incomes, cheques) as opaque ciphertext.
  * Converting a record between plaintext tables and the vault happens in one D1 batch, so a
  * record is never lost or duplicated halfway.
  */
 
 import { ensureD1Tables } from "./migration.repository.js";
 import { AppError } from "../lib/AppError.js";
+import { insertChequeStatement } from "./cheques.repository.js";
 
-export const VAULT_RECORD_KINDS = ["loan", "income"];
+export const VAULT_RECORD_KINDS = ["loan", "income", "cheque"];
 export const E2EE_CIPHER_PREFIX = "enc:e2ee:v1:";
 const MAX_PAYLOAD_LENGTH = 512 * 1024;
 const RECORD_ID_RE = /^[A-Za-z0-9_-]{1,80}$/;
@@ -138,6 +139,9 @@ function deletePlainStatements(env, userId, kind, id) {
       env.DB.prepare(`DELETE FROM loans WHERE id = ? AND user_id = ?`).bind(id, userId),
     ];
   }
+  if (kind === "cheque") {
+    return [env.DB.prepare(`DELETE FROM cheques WHERE id = ? AND user_id = ?`).bind(id, userId)];
+  }
   return [env.DB.prepare(`DELETE FROM incomes WHERE id = ? AND user_id = ?`).bind(id, userId)];
 }
 
@@ -237,6 +241,14 @@ export async function dbRestoreVaultRecord(env, userId, kind, id, plain) {
         str(p.createdAt, now)
       ));
     }
+  } else if (kind === "cheque") {
+    // `plain` was validated by the route handler (same rules as creating a cheque)
+    statements.push(insertChequeStatement(env, userId, {
+      ...plain,
+      id,
+      createdAt: str(plain.createdAt, now),
+      updatedAt: now,
+    }));
   } else {
     statements.push(env.DB.prepare(`
       INSERT INTO incomes (id, user_id, title, category, amount, income_date, notes, created_at, updated_at)

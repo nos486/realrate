@@ -11,7 +11,7 @@
  */
 
 import { getGlobalSettings } from "./repositories/settings.repository.js";
-import { getCorsHeaders } from "./lib/helpers.js";
+import { getCorsHeaders, isOriginAllowed } from "./lib/helpers.js";
 import { validateEnv } from "./config/env.js";
 import { withErrorHandler } from "./middlewares/errorHandler.js";
 import { logger } from "./lib/logger.js";
@@ -98,6 +98,12 @@ import {
   handleDeleteIncome,
 } from "./handlers/incomeRoutes.js";
 import {
+  handleGetCheques,
+  handleCreateCheque,
+  handleUpdateCheque,
+  handleDeleteCheque,
+} from "./handlers/chequeRoutes.js";
+import {
   handleListCustomBanks,
   handleCreateCustomBank,
   handleDeleteCustomBank,
@@ -131,6 +137,24 @@ export default {
     // ── CORS Preflight ──────────────────────────────────────────────────────
     if (request.method === "OPTIONS") {
       return new Response(null, { status: 204, headers: corsHeaders });
+    }
+
+    // ── CSRF guard ──────────────────────────────────────────────────────────
+    // The session cookie is SameSite=None, and a cross-site form POST (text/plain) needs no CORS
+    // preflight — so a write coming from a browser must come from one of our own frontends.
+    // Browsers always send Origin on cross-site writes; non-browser clients send none.
+    if (request.method !== "GET" && request.method !== "HEAD") {
+      const origin = request.headers.get("Origin");
+      if (origin && !isOriginAllowed(origin)) {
+        return new Response(
+          JSON.stringify({
+            success: false,
+            message: "درخواست از مبدأ غیرمجاز رد شد.",
+            error: { code: "FORBIDDEN_ORIGIN", message: "درخواست از مبدأ غیرمجاز رد شد." },
+          }),
+          { status: 403, headers: { "Content-Type": "application/json", ...corsHeaders } }
+        );
+      }
     }
 
     // ── 404 for non-API routes ──────────────────────────────────────────────
@@ -303,6 +327,19 @@ export default {
     if (normalizedPath === "/api/incomes") {
       if (request.method === "GET")  return wrap(handleGetIncomes)(request, env);
       if (request.method === "POST") return wrap(handleCreateIncome)(request, env);
+    }
+
+    // ── Cheques API Routes ──────────────────────────────────────────────────
+    const chequeSingleMatch = normalizedPath.match(/^\/api\/cheques\/([^/]+)$/);
+    if (chequeSingleMatch) {
+      const chequeId = chequeSingleMatch[1];
+      if (request.method === "PUT")    return wrap((req, e) => handleUpdateCheque(req, e, { chequeId }))(request, env);
+      if (request.method === "DELETE") return wrap((req, e) => handleDeleteCheque(req, e, { chequeId }))(request, env);
+    }
+
+    if (normalizedPath === "/api/cheques") {
+      if (request.method === "GET")  return wrap(handleGetCheques)(request, env);
+      if (request.method === "POST") return wrap(handleCreateCheque)(request, env);
     }
 
     // ── Custom Banks API Routes ─────────────────────────────────────────────

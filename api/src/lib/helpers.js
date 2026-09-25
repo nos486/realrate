@@ -19,7 +19,7 @@ const ALLOWED_ORIGINS = [
   "https://www.realrate.ir",
 ];
 
-function isOriginAllowed(origin) {
+export function isOriginAllowed(origin) {
   if (!origin) return false;
   if (ALLOWED_ORIGINS.includes(origin)) return true;
   // Subdomains of our own domains only (exact label-boundary match, https only)
