@@ -1,9 +1,10 @@
 import React, { useMemo, lazy, Suspense } from 'react';
 import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { Megaphone, TrendingUp, Briefcase, ShieldCheck, Radio, Settings, Landmark, Wallet } from 'lucide-react';
-import { AppLayout, FilterPills, AlertBanner, SkeletonCards } from '../shared/ui/index.js';
+import { AppLayout, FilterPills, AlertBanner } from '../shared/ui/index.js';
 import MarketInputsToolbar from '../components/MarketInputsToolbar.jsx';
-import { AnalysisCards, CurrenciesList, PriceRefreshStatus } from '../features/market/components/index.js';
+import { PriceRefreshStatus } from '../features/market/components/index.js';
+import HomeDashboard from '../features/home/HomeDashboard.jsx';
 // Imported from its own file (not the loans barrel) so LoansPage stays in its lazy chunk
 import UpcomingInstallmentsAlert from '../features/loans/components/UpcomingInstallmentsAlert.jsx';
 import VaultPendingBanner from '../shared/vault/VaultPendingBanner.jsx';
@@ -274,16 +275,12 @@ export default function MainPage() {
               />
             )}
 
-            {marketLoading && !analysis?.length ? (
-              <SkeletonCards count={4} label="در حال دریافت قیمت‌ها" />
-            ) : (
-              <AnalysisCards
-                analysis={analysis}
-                recommendation={recommendation}
-              />
-            )}
-            <CurrenciesList
+            {/* The user's own home page: sections of any assets, customizable per user */}
+            <HomeDashboard
+              analysis={analysis}
               currencies={currencies}
+              recommendation={recommendation}
+              loading={marketLoading}
             />
           </div>
         )}

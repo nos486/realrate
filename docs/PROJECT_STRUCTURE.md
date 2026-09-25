@@ -31,7 +31,7 @@ realrate/
         ├── App.jsx, main.jsx     # روت‌ها و مونت برنامه
         ├── pages/                # صفحه اصلی، صفحه عمومی پورتفو، لندینگ، ادمین
         ├── features/             # ماژول‌های قابلیت‌محور:
-        │                         #   market، portfolio، transactions، loans، incomes، auth، admin
+        │                         #   home (صفحه اصلی شخصی)، market، portfolio، transactions، loans، incomes، auth، admin
         ├── shared/
         │   ├── ui/               # کامپوننت‌های پایه (Modal، Button، DonutChart، Skeleton، ...)
         │   ├── api/              # httpClient
@@ -51,6 +51,7 @@ realrate/
 | `config/*.config.js`، `config/displayEngine.js` | `config/`، `domain/displayEngine.js` |
 | `utils/loanCalculator.js` | `domain/loanCalculator.js` |
 | `utils/loanDocument.js` | `domain/loanDocument.js` |
+| `utils/homeLayout.js` | `domain/homeLayout.js` |
 | `utils/financialSpecs.js` | `lib/financialSpecs.js` |
 
 برای تغییر هر کدام، فایل مبدأ در `api/` را ویرایش کنید.

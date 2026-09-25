@@ -19,6 +19,7 @@
  *   banks.css           — Bank logos and bank picker
  *   donut-chart.css     — Shared donut (part-to-whole) chart card
  *   vault.css           — Account-wide end-to-end encryption settings
+ *   home.css            — Customizable home page (sections, edit mode, asset picker)
  *   incomes.css         — Incomes page, summary cards, category/monthly report
  *   landing.css          — Logged-out landing page
  *   shared-page-layout.css — Shared feature-page header bar (Portfolio/Transactions/Loans/Incomes)
@@ -44,5 +45,6 @@
 @import './banks.css';
 @import './donut-chart.css';
 @import './vault.css';
+@import './home.css';
 @import './incomes.css';
 @import './landing.css';

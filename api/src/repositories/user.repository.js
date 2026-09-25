@@ -4,6 +4,7 @@
 
 import { ensureD1Tables } from "./migration.repository.js";
 import { logger } from "../lib/logger.js";
+import { sanitizeHomeLayout } from "../domain/homeLayout.js";
 import { hashSharePassword } from "../lib/security.js";
 
 /**
@@ -223,4 +224,37 @@ export async function dbUpdateUserSettings(env, userId, { customName, shareSlug,
     return await dbGetUserById(env, userId);
   }
   return null;
+}
+
+/**
+ * The user's customized home page layout, or null for the default home page
+ * @param {object} env
+ * @param {string} userId
+ * @returns {Promise<object|null>}
+ */
+export async function dbGetHomeLayout(env, userId) {
+  if (!userId || !env?.DB) return null;
+  await ensureD1Tables(env);
+  const row = await env.DB.prepare(`SELECT home_layout AS homeLayout FROM users WHERE id = ? OR email = ?`)
+    .bind(userId, userId).first();
+  if (!row?.homeLayout) return null;
+  try {
+    return sanitizeHomeLayout(JSON.parse(row.homeLayout));
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Save (or with null, reset) the user's home page layout
+ * @param {object} env
+ * @param {string} userId
+ * @param {object|null} layout Already sanitized
+ */
+export async function dbSaveHomeLayout(env, userId, layout) {
+  if (!userId) throw new Error("شناسه کاربر الزامی است.");
+  await ensureD1Tables(env);
+  await env.DB.prepare(`UPDATE users SET home_layout = ? WHERE id = ? OR email = ?`)
+    .bind(layout ? JSON.stringify(layout) : "", userId, userId).run();
+  return layout;
 }

@@ -67,6 +67,8 @@ Returns all active assets and market rates normalized through the centralized `d
 | :--- | :--- | :--- |
 | `GET` | `/api/v1/user/settings` | Retrieve user preferences and settings |
 | `POST` / `PUT` | `/api/v1/user/settings` | Save user preferences |
+| `GET` | `/api/v1/user/home-layout` | The user's customized home page `{ version, sections: [{ id, title, style, items }] }` or `null` (default page) |
+| `PUT` | `/api/v1/user/home-layout` | Save the home page layout (`{ layout }`, sanitized by `domain/homeLayout.js`); `{ layout: null }` resets to default |
 | `GET` | `/api/v1/portfolios` | List all portfolio groups for user (returns `itemCount` and `transactionCount`) |
 | `POST` | `/api/v1/portfolios` | Create a new portfolio group |
 | `PUT` | `/api/v1/portfolios` | Update portfolio group details |
