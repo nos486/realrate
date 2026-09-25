@@ -21,7 +21,9 @@ export default function LoansTable({
   onSelectLoan,
   onEditLoan,
   onDeleteLoan,
+  hideValues = false,
 }) {
+  const money = (v) => (hideValues ? '****' : formatNum(v));
   return (
     <div className="loans-list">
       {loans.map((loan) => {
@@ -54,9 +56,9 @@ export default function LoansTable({
             <div className="loan-row-block loan-row-balance">
               <span className="loan-row-label">مانده بدهی</span>
               <strong className={`loan-row-value ${isCompleted ? 'completed' : 'active'}`}>
-                {isCompleted ? 'تسویه شده' : `${formatNum(loan.remainingBalance)} تومان`}
+                {isCompleted ? 'تسویه شده' : `${money(loan.remainingBalance)} تومان`}
               </strong>
-              <span className="loan-row-sub">اصل: {formatNum(loan.principalAmount)} تومان</span>
+              <span className="loan-row-sub">اصل: {money(loan.principalAmount)} تومان</span>
             </div>
 
             {/* Installments progress */}
@@ -89,7 +91,7 @@ export default function LoansTable({
                     قسط بعدی: #{loan.nextDueInstallment.installmentNumber}
                   </span>
                   <strong className="loan-row-value due">
-                    {formatNum(loan.nextDueInstallment.totalAmount)} تومان
+                    {money(loan.nextDueInstallment.totalAmount)} تومان
                   </strong>
                   <span className="loan-row-sub">{formatShamsiDisplay(loan.nextDueInstallment.dueDate)}</span>
                 </>

@@ -5,7 +5,7 @@ import AlertBanner from '../shared/ui/AlertBanner.jsx';
 import Button from '../shared/ui/Button.jsx';
 import Input from '../shared/ui/Input.jsx';
 import { useAuth } from '../features/auth/index.js';
-import { apiGetUserSettings, apiUpdateUserSettings } from '../api/client.js';
+import { getUserSettings, updateUserSettings } from '../features/portfolio/api/portfolioApi.js';
 import VaultSettingsSection from '../shared/vault/VaultSettingsSection.jsx';
 
 /**
@@ -19,24 +19,28 @@ export default function AccountSettingsView() {
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState({ text: '', type: '' });
 
+  // Load once per signed-in account. Keyed on the id, not the user object: saving calls
+  // updateUser(), which must not reload the form and wipe the "saved" message.
+  const userId = user?.id;
+  const initialCustomName = user?.customName || '';
   useEffect(() => {
-    if (user) {
-      setMsg({ text: '', type: '' });
-      setCustomName(user.customName || '');
-      setLoading(true);
+    if (!userId) return;
+    setMsg({ text: '', type: '' });
+    setCustomName(initialCustomName);
+    setLoading(true);
 
-      apiGetUserSettings()
-        .then((res) => {
-          if (res?.success && res.settings) {
-            setCustomName(res.settings.customName || user.customName || '');
-          }
-        })
-        .catch((err) => {
-          setMsg({ text: 'خطا در دریافت اطلاعات: ' + err.message, type: 'error' });
-        })
-        .finally(() => setLoading(false));
-    }
-  }, [user]);
+    getUserSettings()
+      .then((res) => {
+        if (res?.success && res.settings) {
+          setCustomName(res.settings.customName || initialCustomName);
+        }
+      })
+      .catch((err) => {
+        setMsg({ text: 'خطا در دریافت اطلاعات: ' + err.message, type: 'error' });
+      })
+      .finally(() => setLoading(false));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [userId]);
 
   const handleSave = async (e) => {
     e.preventDefault();
@@ -44,16 +48,9 @@ export default function AccountSettingsView() {
     setMsg({ text: '', type: '' });
 
     try {
-      const res = await apiUpdateUserSettings({
-        customName: customName.trim(),
-      });
-
-      if (res?.success) {
-        updateUser({ customName: customName.trim() });
-        setMsg({ text: 'تنظیمات حساب کاربری با موفقیت ذخیره شد.', type: 'success' });
-      } else {
-        setMsg({ text: res.message || 'خطا در ذخیره تنظیمات', type: 'error' });
-      }
+      await updateUserSettings({ customName: customName.trim() });
+      updateUser({ customName: customName.trim() });
+      setMsg({ text: 'تنظیمات حساب کاربری با موفقیت ذخیره شد.', type: 'success' });
     } catch (err) {
       setMsg({ text: err.message || 'خطای سرور', type: 'error' });
     } finally {

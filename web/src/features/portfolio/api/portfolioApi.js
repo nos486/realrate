@@ -46,7 +46,9 @@ export async function deletePortfolioHolding(id) {
 }
 
 export async function getSharedPortfolio(slug, password = '') {
-  return httpClient.post('/api/portfolio/shared', { slug, password });
+  // A read sent as POST only to keep the password out of the URL — the page shows its own
+  // skeleton, not the full-screen write overlay
+  return httpClient.post('/api/portfolio/shared', { slug, password }, { silent: true });
 }
 
 export async function getUserSettings() {

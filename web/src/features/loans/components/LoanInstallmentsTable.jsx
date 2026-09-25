@@ -16,7 +16,7 @@ import BulkEditInstallmentsModal from './BulkEditInstallmentsModal.jsx';
 import { useFeedback } from '../../../shared/ui/FeedbackProvider.jsx';
 import { todayIso } from '../../../shared/utils/dates.js';
 
-const formatNum = (v) => Number(v || 0).toLocaleString('fa-IR');
+const formatAmount = (v) => Number(v || 0).toLocaleString('fa-IR');
 
 export default function LoanInstallmentsTable({
   loan,
@@ -27,7 +27,10 @@ export default function LoanInstallmentsTable({
   onAddExtraPayment,
   onBulkDistributeInstallments,
   submitting = false,
+  hideValues = false,
 }) {
+  // Every number formatted here is an amount, so all follow the "hide values" toggle
+  const formatNum = (v) => (hideValues ? '****' : formatAmount(v));
   const isDistributedMode = loan?.scheduleMode === 'distributed';
 
   // Extra payment modal state

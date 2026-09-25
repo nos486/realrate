@@ -13,6 +13,7 @@ import { formatShamsiDisplay } from '../../portfolio/components/ShamsiDatePicker
 import { useLoansContext } from '../context/LoansContext.jsx';
 import { appPath } from '../../../shared/routes.js';
 import { todayIso } from '../../../shared/utils/dates.js';
+import { usePrivacyMode } from '../../../hooks/usePrivacyMode.js';
 
 const formatNum = (v) => Number(v || 0).toLocaleString('fa-IR');
 
@@ -25,6 +26,7 @@ const toReminderItem = (item, when) => ({
 
 export default function UpcomingInstallmentsAlert({ onSelectLoan }) {
   const { loans } = useLoansContext();
+  const hideValues = usePrivacyMode();
   const navigate = useNavigate();
   const [dismissedOverdue, setDismissedOverdue] = useState(false);
   const [dismissedUpcoming, setDismissedUpcoming] = useState(false);
@@ -105,6 +107,7 @@ export default function UpcomingInstallmentsAlert({ onSelectLoan }) {
           actionLabel="مشاهده و تسویه"
           onAction={() => handleGoToLoan(overdueItems[0].loanId)}
           onClose={() => setDismissedOverdue(true)}
+          hideValues={hideValues}
         />
       )}
 
@@ -117,6 +120,7 @@ export default function UpcomingInstallmentsAlert({ onSelectLoan }) {
           actionLabel="مشاهده اقساط"
           onAction={() => handleGoToLoan(upcomingItems[0].loanId)}
           onClose={() => setDismissedUpcoming(true)}
+          hideValues={hideValues}
         />
       )}
     </div>

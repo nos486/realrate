@@ -34,8 +34,11 @@ import { SkeletonRows } from '../../../shared/ui/Skeleton.jsx';
 import { BankLogo, resolveBank, useCustomBanks } from '../../../shared/banks/index.js';
 import LoanBankShareChart from './LoanBankShareChart.jsx';
 import VaultUnlockCard from '../../../shared/vault/VaultUnlockCard.jsx';
+import { usePrivacyMode } from '../../../hooks/usePrivacyMode.js';
 
 const formatNum = (v) => Number(v || 0).toLocaleString('fa-IR');
+/** Amounts follow the app-wide "hide values" toggle; counts and percentages stay visible */
+const formatMoney = (v, hidden) => (hidden ? '****' : formatNum(v));
 
 /**
  * Isolated Modal Wrapper for Single Loan Detail & Schedule
@@ -52,6 +55,7 @@ function LoanDetailModal({ loanId, onClose, onRefreshLoans }) {
     bulkDistributeInstallments,
     addExtraPayment,
   } = useLoanDetail(loanId);
+  const hideValues = usePrivacyMode();
 
   const handleMarkPaid = async (installmentId, details) => {
     const res = await markPaid(installmentId, details);
@@ -85,7 +89,7 @@ function LoanDetailModal({ loanId, onClose, onRefreshLoans }) {
       title={loan ? loan.title : 'جدول اقساط وام'}
       subtitle={
         loan
-          ? `${loan.lenderName ? `وام‌دهنده: ${loan.lenderName} • ` : ''}اصل: ${formatNum(loan.principalAmount)} تومان • سود: ${getDisplayRatePct(loan)}٪${Number(loan.annualFeeAmount) > 0 ? ` • کارمزد سالانه: ${formatNum(loan.annualFeeAmount)} تومان` : ''}`
+          ? `${loan.lenderName ? `وام‌دهنده: ${loan.lenderName} • ` : ''}اصل: ${formatMoney(loan.principalAmount, hideValues)} تومان • سود: ${getDisplayRatePct(loan)}٪${Number(loan.annualFeeAmount) > 0 ? ` • کارمزد سالانه: ${formatMoney(loan.annualFeeAmount, hideValues)} تومان` : ''}`
           : 'در حال دریافت اطلاعات...'
       }
       icon={<Landmark size={20} className="text-amber-500" />}
@@ -110,6 +114,7 @@ function LoanDetailModal({ loanId, onClose, onRefreshLoans }) {
             onAddExtraPayment={handleAddExtraPayment}
             onBulkDistributeInstallments={handleBulkDistributeInstallments}
             submitting={submitting}
+            hideValues={hideValues}
           />
         </div>
       ) : null}
@@ -118,6 +123,7 @@ function LoanDetailModal({ loanId, onClose, onRefreshLoans }) {
 }
 
 export default function LoansPage({ initialLoanId = null }) {
+  const hideValues = usePrivacyMode();
   const {
     loans,
     vaultLocked,
@@ -321,14 +327,14 @@ export default function LoansPage({ initialLoanId = null }) {
                 <span className="stat-label">مجموع بدهی باقیمانده</span>
               </div>
               <div className="stat-number gold-gradient-text">
-                {formatNum(summaryMetrics.totalDebt)}
+                {formatMoney(summaryMetrics.totalDebt, hideValues)}
                 <span className="stat-unit">تومان</span>
               </div>
               <div className="stat-sub">{summaryMetrics.activeLoans.toLocaleString('fa-IR')} وام فعال</div>
             </div>
 
             {/* Card 2: Share of each bank in the loans */}
-            {loans.length > 0 && <LoanBankShareChart groups={bankGroups} />}
+            {loans.length > 0 && <LoanBankShareChart groups={bankGroups} hideValues={hideValues} />}
 
             {/* Card 2: Total Monthly Installment */}
             <div className="portfolio-stat-card">
@@ -336,7 +342,7 @@ export default function LoansPage({ initialLoanId = null }) {
                 <span className="stat-label">مجموع قسط ماهانه</span>
               </div>
               <div className="stat-number">
-                {formatNum(summaryMetrics.totalMonthlyInstallment)}
+                {formatMoney(summaryMetrics.totalMonthlyInstallment, hideValues)}
                 <span className="stat-unit">تومان</span>
               </div>
             </div>
@@ -362,7 +368,7 @@ export default function LoansPage({ initialLoanId = null }) {
                 <>
                   <div className="stat-number">{formatShamsiDisplay(summaryMetrics.nextUpcomingDue.dueDate)}</div>
                   <div className="stat-sub">
-                    {summaryMetrics.nextUpcomingDue.loanTitle} • {formatNum(summaryMetrics.nextUpcomingDue.totalAmount)} تومان
+                    {summaryMetrics.nextUpcomingDue.loanTitle} • {formatMoney(summaryMetrics.nextUpcomingDue.totalAmount, hideValues)} تومان
                   </div>
                 </>
               ) : (
@@ -376,7 +382,7 @@ export default function LoansPage({ initialLoanId = null }) {
                 <span className="stat-label">مجموع مبلغ دریافتی وام‌ها</span>
               </div>
               <div className="stat-number">
-                {formatNum(summaryMetrics.totalReceived)}
+                {formatMoney(summaryMetrics.totalReceived, hideValues)}
                 <span className="stat-unit">تومان</span>
               </div>
               <div className="stat-sub">مجموع اصل {loans.length.toLocaleString('fa-IR')} وام ثبت‌شده</div>
@@ -432,13 +438,13 @@ export default function LoansPage({ initialLoanId = null }) {
                       {group.nextMonthTotal > 0 && (
                         <div className="cat-subtotal-val">
                           <span className="subtotal-label">قسط ماه بعد:</span>
-                          <strong className="subtotal-amount">{formatNum(group.nextMonthTotal)}</strong>
+                          <strong className="subtotal-amount">{formatMoney(group.nextMonthTotal, hideValues)}</strong>
                           <span className="subtotal-unit">تومان</span>
                         </div>
                       )}
                       <div className="cat-subtotal-val">
                         <span className="subtotal-label">باقیمانده:</span>
-                        <strong className="subtotal-amount">{formatNum(group.totalRemaining)}</strong>
+                        <strong className="subtotal-amount">{formatMoney(group.totalRemaining, hideValues)}</strong>
                         <span className="subtotal-unit">تومان</span>
                       </div>
                     </div>
@@ -448,6 +454,7 @@ export default function LoansPage({ initialLoanId = null }) {
                     onSelectLoan={handleSelectLoan}
                     onEditLoan={handleOpenEditModal}
                     onDeleteLoan={handleDeleteLoan}
+                    hideValues={hideValues}
                   />
                 </div>
               ))}

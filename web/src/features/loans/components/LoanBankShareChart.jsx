@@ -17,7 +17,7 @@ const otherBanksLabel = (count) => `سایر (${count.toLocaleString('fa-IR')} �
  * @param {{ groups: Array<{ key: string, name: string, bank: object,
  *   totalPrincipal: number, totalRemaining: number }> }} props
  */
-export default function LoanBankShareChart({ groups = [] }) {
+export default function LoanBankShareChart({ groups = [], hideValues = false }) {
   const [measureId, setMeasureId] = useState('principal');
   const measure = MEASURES.find((m) => m.id === measureId) || MEASURES[0];
 
@@ -39,6 +39,7 @@ export default function LoanBankShareChart({ groups = [] }) {
     <DonutChart
       title="سهم بانک‌ها از وام‌ها"
       items={items}
+      masked={hideValues}
       centerLabel={measure.centerLabel}
       otherLabel={otherBanksLabel}
       emptyMessage="همه وام‌ها تسویه شده‌اند — بدهی باقیمانده‌ای وجود ندارد."

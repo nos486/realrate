@@ -13,7 +13,9 @@ import {
   Check,
   Wallet,
 } from 'lucide-react';
-import { apiGetPriceSources, apiSearchBourseSymbols } from '../api/client.js';
+import { getPriceSources } from '../features/admin/api/adminApi.js';
+import { searchBourseSymbols } from '../features/portfolio/api/portfolioApi.js';
+import { useAuth } from '../features/auth/index.js';
 import { usePricing } from '../features/market/index.js';
 import { getMasterPriceSourcesConfig } from '../config/sources.config.js';
 import { getSourceDisplayName, getSourceCategoryConfig } from '../config/displayEngine.js';
@@ -401,6 +403,8 @@ export default function UniversalAssetSearch({
   showCategories = false,
 }) {
   const pricingContext = usePricing();
+  const { user } = useAuth();
+  const isAdmin = user?.role === 'admin';
 
   const [query, setQuery] = useState('');
   const [activeCategory, setActiveCategory] = useState('all');
@@ -412,11 +416,12 @@ export default function UniversalAssetSearch({
   const [bourseSymbols, setBourseSymbols] = useState([]);
   const containerRef = useRef(null);
 
-  // 1. Fetch Sources if not passed in props
+  // 1. Fetch the live source list (admin-only endpoint) unless passed in props; everyone else
+  //    keeps the static source config the state starts from
   useEffect(() => {
-    if (hasSourcesProp) return undefined;
+    if (hasSourcesProp || !isAdmin) return undefined;
     let isMounted = true;
-    apiGetPriceSources()
+    getPriceSources()
       .then((res) => {
         if (isMounted && res?.success && Array.isArray(res.sources)) {
           setFetchedSources(res.sources);
@@ -424,12 +429,12 @@ export default function UniversalAssetSearch({
       })
       .catch((err) => console.error('Error loading sources:', err));
     return () => { isMounted = false; };
-  }, [hasSourcesProp]);
+  }, [hasSourcesProp, isAdmin]);
 
   // 2. Preload Bourse symbols once upfront for instant search
   useEffect(() => {
     let isMounted = true;
-    apiSearchBourseSymbols('', 2000)
+    searchBourseSymbols('', 2000)
       .then((res) => {
         if (isMounted && res?.success && Array.isArray(res.symbols)) {
           setBourseSymbols(res.symbols);
