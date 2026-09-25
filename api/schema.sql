@@ -14,7 +14,8 @@ CREATE TABLE IF NOT EXISTS users (
   share_enabled INTEGER DEFAULT 0,
   created_at TEXT NOT NULL,
   last_login TEXT NOT NULL,
-  login_count INTEGER DEFAULT 1
+  login_count INTEGER DEFAULT 1,
+  home_layout TEXT NOT NULL DEFAULT ''
 );
 
 CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);

@@ -252,6 +252,11 @@ export async function ensureD1Tables(env) {
       await env.DB.prepare("ALTER TABLE portfolios ADD COLUMN e2ee_wrapped_key TEXT NOT NULL DEFAULT ''").run();
     } catch (ignore) {}
 
+    // Backward-compat: each user's customized home page (JSON, '' = the default home page)
+    try {
+      await env.DB.prepare("ALTER TABLE users ADD COLUMN home_layout TEXT NOT NULL DEFAULT ''").run();
+    } catch (ignore) {}
+
     // Backward-compat: ensure the optional annual fee column exists on loans
     try {
       await env.DB.prepare("ALTER TABLE loans ADD COLUMN annual_fee_amount REAL NOT NULL DEFAULT 0").run();

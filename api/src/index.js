@@ -112,6 +112,7 @@ import {
   handleRestoreVaultRecord,
   handleGetLoanDocument,
 } from "./handlers/vaultRoutes.js";
+import { handleGetHomeLayout, handleSaveHomeLayout } from "./handlers/homeLayoutRoutes.js";
 import { fetchAllPrices } from "./services/market/priceAggregator.service.js";
 import {
   searchCatalogItems,
@@ -214,6 +215,12 @@ export default {
       if (request.method === "POST")   return wrap((req, env) => handleCreateTransaction(req, env, { portfolioId }))(request, env);
       if (request.method === "PUT")    return wrap((req, env) => handleUpdateTransaction(req, env, { portfolioId, txId }))(request, env);
       if (request.method === "DELETE") return wrap((req, env) => handleDeleteTransaction(req, env, { portfolioId, txId }))(request, env);
+    }
+
+    // ── Customized home page ────────────────────────────────────────────────
+    if (normalizedPath === "/api/user/home-layout") {
+      if (request.method === "GET") return wrap(handleGetHomeLayout)(request, env);
+      if (request.method === "PUT") return wrap(handleSaveHomeLayout)(request, env);
     }
 
     // ── End-to-end Encryption Vault Routes ──────────────────────────────────
