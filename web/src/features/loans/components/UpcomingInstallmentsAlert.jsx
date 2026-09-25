@@ -8,7 +8,7 @@
 
 import React, { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ChevronLeft } from 'lucide-react';
+import { ChevronLeft, ChevronDown } from 'lucide-react';
 import AlertBanner from '../../../shared/ui/AlertBanner.jsx';
 import { formatShamsiDisplay } from '../../portfolio/components/ShamsiDatePicker.jsx';
 import { useLoansContext } from '../context/LoansContext.jsx';
@@ -89,105 +89,82 @@ export default function UpcomingInstallmentsAlert({ onSelectLoan }) {
   }
 
   return (
-    <div className="upcoming-installments-alerts-stack" style={{ display: 'flex', flexDirection: 'column', gap: '10px', width: '100%' }}>
-      {/* 1. Overdue Installments Alert (Red / Error) */}
+    <div className="upcoming-installments-alerts-stack">
       {!dismissedOverdue && overdueItems.length > 0 && (
-        <AlertBanner
+        <InstallmentAlert
           type="error"
-          title={`هشدار: ${formatNum(overdueItems.length)} قسط وام عقب‌افتاده و معوق`}
+          title={`${formatNum(overdueItems.length)} قسط معوق`}
+          items={overdueItems}
+          describe={(item) => `سررسید ${formatShamsiDisplay(item.dueDate)}، ${formatNum(item.daysPast)} روز گذشته`}
+          actionLabel="مشاهده و تسویه"
+          onAction={() => handleGoToLoan(overdueItems[0].loanId)}
           onClose={() => setDismissedOverdue(true)}
-          action={
-            <button
-              type="button"
-              className="alert-banner-action-btn"
-              onClick={() => handleGoToLoan(overdueItems[0].loanId)}
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '4px',
-                background: 'rgba(239, 68, 68, 0.2)',
-                border: '1px solid rgba(239, 68, 68, 0.4)',
-                color: '#f87171',
-                padding: '4px 10px',
-                borderRadius: '6px',
-                fontSize: '0.8rem',
-                fontWeight: 600,
-                cursor: 'pointer',
-              }}
-            >
-              <span>مشاهده و تسویه</span>
-              <ChevronLeft size={14} />
-            </button>
-          }
-        >
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', marginTop: '2px' }}>
-            {overdueItems.map((item) => (
-              <div
-                key={`${item.loanId}_${item.installmentNumber}`}
-                style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', fontSize: '0.84rem' }}
-              >
-                <strong>{item.loanTitle}</strong>
-                <span>(قسط #{item.installmentNumber})</span>
-                <span>•</span>
-                <span>سررسید: {formatShamsiDisplay(item.dueDate)} ({formatNum(item.daysPast)} روز گذشته)</span>
-                <span>•</span>
-                <strong style={{ color: '#fca5a5' }}>{formatNum(item.totalAmount)} تومان</strong>
-              </div>
-            ))}
-          </div>
-        </AlertBanner>
+        />
       )}
 
-      {/* 2. Upcoming Installments Alert (Amber / Warning - within 7 days) */}
       {!dismissedUpcoming && upcomingItems.length > 0 && (
-        <AlertBanner
+        <InstallmentAlert
           type="warning"
-          title={`یادآوری: سررسید ${formatNum(upcomingItems.length)} قسط وام طی ۷ روز آینده`}
+          title={`${formatNum(upcomingItems.length)} قسط تا ۷ روز آینده`}
+          items={upcomingItems}
+          describe={(item) =>
+            `سررسید ${formatShamsiDisplay(item.dueDate)}، ${item.daysLeft === 0 ? 'امروز' : `${formatNum(item.daysLeft)} روز دیگر`}`}
+          actionLabel="مشاهده اقساط"
+          onAction={() => handleGoToLoan(upcomingItems[0].loanId)}
           onClose={() => setDismissedUpcoming(true)}
-          action={
-            <button
-              type="button"
-              className="alert-banner-action-btn"
-              onClick={() => handleGoToLoan(upcomingItems[0].loanId)}
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '4px',
-                background: 'rgba(245, 158, 11, 0.2)',
-                border: '1px solid rgba(245, 158, 11, 0.4)',
-                color: '#fbbf24',
-                padding: '4px 10px',
-                borderRadius: '6px',
-                fontSize: '0.8rem',
-                fontWeight: 600,
-                cursor: 'pointer',
-              }}
-            >
-              <span>مشاهده اقساط</span>
-              <ChevronLeft size={14} />
-            </button>
-          }
-        >
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', marginTop: '2px' }}>
-            {upcomingItems.map((item) => (
-              <div
-                key={`${item.loanId}_${item.installmentNumber}`}
-                style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', fontSize: '0.84rem' }}
-              >
-                <strong>{item.loanTitle}</strong>
-                <span>(قسط #{item.installmentNumber})</span>
-                <span>•</span>
-                <span>
-                  سررسید: {formatShamsiDisplay(item.dueDate)}{' '}
-                  {item.daysLeft === 0 ? '(امروز!)' : `(تا ${formatNum(item.daysLeft)} روز دیگر)`}
-                </span>
-                <span>•</span>
-                <strong style={{ color: '#fcd34d' }}>{formatNum(item.totalAmount)} تومان</strong>
-              </div>
-            ))}
-          </div>
-        </AlertBanner>
+        />
       )}
     </div>
+  );
+}
+
+/**
+ * One-line summary (count and total) that expands to the list of installments on demand, so a
+ * reminder never pushes the page content down.
+ */
+function InstallmentAlert({ type, title, items, describe, actionLabel, onAction, onClose }) {
+  const [expanded, setExpanded] = useState(false);
+  const total = items.reduce((sum, item) => sum + (Number(item.totalAmount) || 0), 0);
+
+  return (
+    <AlertBanner
+      type={type}
+      className="installment-alert"
+      onClose={onClose}
+      message={
+        <div className="installment-alert-body">
+          <div className="installment-alert-summary">
+            <strong>{title}</strong>
+            <span className="installment-alert-total">مجموع {formatNum(total)} تومان</span>
+            <button
+              type="button"
+              className="installment-alert-toggle"
+              onClick={() => setExpanded((v) => !v)}
+              aria-expanded={expanded}
+            >
+              {expanded ? 'بستن' : 'جزئیات'}
+              <ChevronDown size={14} className={expanded ? 'is-open' : ''} />
+            </button>
+          </div>
+          {expanded && (
+            <ul className="installment-alert-list">
+              {items.map((item) => (
+                <li key={`${item.loanId}_${item.installmentNumber}`}>
+                  <strong>{item.loanTitle}</strong>
+                  <span>قسط {formatNum(item.installmentNumber)}، {describe(item)}</span>
+                  <strong className="installment-alert-amount">{formatNum(item.totalAmount)} تومان</strong>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      }
+      action={
+        <button type="button" className={`installment-alert-action is-${type}`} onClick={onAction}>
+          <span>{actionLabel}</span>
+          <ChevronLeft size={14} />
+        </button>
+      }
+    />
   );
 }

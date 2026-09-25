@@ -158,3 +158,25 @@ export function removeItem(layout, sectionId, assetId) {
 export function moveItem(layout, sectionId, assetId, delta) {
   return mapSection(layout, sectionId, (s) => ({ ...s, items: move(s.items, s.items.indexOf(assetId), delta) }));
 }
+
+const reorder = (list, fromIndex, toIndex) => {
+  if (fromIndex < 0 || toIndex < 0 || fromIndex === toIndex) return list;
+  const next = [...list];
+  const [moved] = next.splice(fromIndex, 1);
+  next.splice(toIndex, 0, moved);
+  return next;
+};
+
+/** Drag & drop: place section `sectionId` where `overId` is */
+export function reorderSections(layout, sectionId, overId) {
+  const ids = layout.sections.map((s) => s.id);
+  return layoutOf(reorder(layout.sections, ids.indexOf(sectionId), ids.indexOf(overId)));
+}
+
+/** Drag & drop: place asset `assetId` where `overId` is, inside one section */
+export function reorderItems(layout, sectionId, assetId, overId) {
+  return mapSection(layout, sectionId, (s) => ({
+    ...s,
+    items: reorder(s.items, s.items.indexOf(assetId), s.items.indexOf(overId)),
+  }));
+}

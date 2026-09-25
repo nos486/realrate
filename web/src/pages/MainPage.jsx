@@ -246,41 +246,31 @@ export default function MainPage() {
         {activeTab !== 'settings' && <VaultPendingBanner onOpenSettings={() => handleTabChange('settings')} />}
 
         {/* Active Loan Due Reminders Banner */}
-        <div style={{ marginBottom: '14px', width: '100%' }}>
-          <UpcomingInstallmentsAlert onSelectLoan={(loanId) => navigate(appPath(loanId ? `/loans/${loanId}` : '/loans'))} />
-        </div>
+        <UpcomingInstallmentsAlert onSelectLoan={(loanId) => navigate(appPath(loanId ? `/loans/${loanId}` : '/loans'))} />
 
         {activeTab === 'market' && (
           <div className="market-tab-content">
-            {/* Market Inputs Toolbar */}
-            <MarketInputsToolbar
-              usdToman={usdToman}
-              setUsdToman={setUsdToman}
-              goldUsd={goldUsd}
-              setGoldUsd={setGoldUsd}
-              liveUsdSource={liveUsdSource}
-              liveUsdDatetime={liveUsdDatetime}
-              activeReferenceRate={activeReferenceRate}
-              referenceRates={referenceRates}
-              onCycleReferenceRate={cycleReferenceRate}
-            />
-
-            {/* Alert Banner if USD is null or 0 */}
-            {/* Only once prices have loaded — while loading, a missing rate is just not here yet */}
-            {!hasUsd && !marketLoading && (
-              <AlertBanner
-                type="warning"
-                message="لطفاً نرخ دلار را برای محاسبه ارزش واقعی و حباب وارد کنید."
-                style={{ marginBottom: '8px' }}
-              />
-            )}
-
             {/* The user's own home page: sections of any assets, customizable per user */}
             <HomeDashboard
               analysis={analysis}
               currencies={currencies}
               recommendation={recommendation}
               loading={marketLoading}
+              // Only once prices have loaded — while loading, a missing rate is just not here yet
+              needsRates={!hasUsd && !marketLoading}
+              ratesPanel={
+                <MarketInputsToolbar
+                  usdToman={usdToman}
+                  setUsdToman={setUsdToman}
+                  goldUsd={goldUsd}
+                  setGoldUsd={setGoldUsd}
+                  liveUsdSource={liveUsdSource}
+                  liveUsdDatetime={liveUsdDatetime}
+                  activeReferenceRate={activeReferenceRate}
+                  referenceRates={referenceRates}
+                  onCycleReferenceRate={cycleReferenceRate}
+                />
+              }
             />
           </div>
         )}
