@@ -119,6 +119,16 @@ these endpoints are rate-limited (`429 TOO_MANY_REQUESTS`). Without an email pro
 | `PUT` | `/api/v1/incomes/:id` | Update an income |
 | `DELETE` | `/api/v1/incomes/:id` | Delete an income |
 
+| `GET` | `/api/v1/incomes/recurring` | List fixed (recurring) income rules |
+| `POST` | `/api/v1/incomes/recurring` | Create a rule (`{ title, category, amount, startDate, intervalMonths, dayOfMonth?, endDate?, notes?, active? }`) |
+| `PUT` | `/api/v1/incomes/recurring/:id` | Update a rule (the browser also advances `generatedThrough` here) |
+| `DELETE` | `/api/v1/incomes/recurring/:id` | Delete a rule (entries it created stay) |
+
+The browser creates the due entries itself (normal `POST /incomes` with `recurringId`), then advances the rule's
+`generatedThrough`, so it works identically for encrypted accounts and a deleted entry is never re-created.
+Occurrences fall on `dayOfMonth` of every `intervalMonths` Shamsi months (clamped to shorter months); see
+`api/src/domain/recurringIncome.js`.
+
 #### Income Payload Format
 ```json
 {
@@ -126,7 +136,8 @@ these endpoints are rate-limited (`429 TOO_MANY_REQUESTS`). Without an email pro
   "category": "salary", // salary | freelance | business | investment | rental | gift | other
   "amount": 45000000,   // Toman, > 0
   "incomeDate": "2026-09-22", // Gregorian ISO date (displayed as Shamsi in the UI)
-  "notes": "با اضافه‌کاری"
+  "notes": "با اضافه‌کاری",
+  "recurringId": "" // set on entries a fixed income created
 }
 ```
 

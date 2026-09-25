@@ -49,6 +49,7 @@ import {
 import { clearVaultLoansCache } from './vaultLoans.js';
 import { clearVaultIncomesCache } from './vaultIncomes.js';
 import { clearVaultChequesCache } from './vaultCheques.js';
+import { clearVaultRecurringIncomesCache } from './vaultRecurringIncomes.js';
 
 const SILENT = { silent: true };
 const E2EE_PREFIX = 'enc:e2ee:v1:';
@@ -208,20 +209,36 @@ export async function encryptAccountData({ passphrase, onProgress } = {}) {
     tick('چک‌ها');
   }
 
+  // 5. Fixed income rules
+  const rulesRes = await httpClient.get('/api/incomes/recurring');
+  const rules = rulesRes?.rules || [];
+  plan(rules.length, 'درآمدهای ثابت');
+  for (const rule of rules) {
+    try {
+      const { userId: _userId, ...record } = rule;
+      await putVaultRecord('recurring_income', rule.id, await encryptVaultRecord(record), { replacePlain: true, ...SILENT });
+    } catch {
+      report.failed.push(`درآمد ثابت «${rule.title}»`);
+    }
+    tick('درآمدهای ثابت');
+  }
+
   clearVaultLoansCache();
   clearVaultIncomesCache();
   clearVaultChequesCache();
+  clearVaultRecurringIncomesCache();
   bumpVaultEpoch();
   return report;
 }
 
 /** Whether anything is still waiting to be encrypted (plaintext data or unlinked vaults) */
 export async function findPendingPlaintext() {
-  const [pRes, loansRes, incomesRes, chequesRes] = await Promise.all([
+  const [pRes, loansRes, incomesRes, chequesRes, rulesRes] = await Promise.all([
     getPortfolios(),
     httpClient.get('/api/loans'),
     httpClient.get('/api/incomes'),
     httpClient.get('/api/cheques'),
+    httpClient.get('/api/incomes/recurring'),
   ]);
   const portfolios = pRes?.portfolios || [];
   return {
@@ -230,6 +247,7 @@ export async function findPendingPlaintext() {
     plainLoans: (loansRes?.loans || []).length,
     plainIncomes: (incomesRes?.incomes || []).length,
     plainCheques: (chequesRes?.cheques || []).length,
+    plainRecurringIncomes: (rulesRes?.rules || []).length,
   };
 }
 
@@ -285,6 +303,7 @@ export async function decryptAccountData({ onProgress } = {}) {
   const KIND_LABELS = {
     income: ['درآمدها', 'درآمد'],
     cheque: ['چک‌ها', 'چک'],
+    recurring_income: ['درآمدهای ثابت', 'درآمد ثابت'],
     loan: ['وام‌ها', 'وام'],
   };
   for (const [kind, [label, singular]] of Object.entries(KIND_LABELS)) {
@@ -317,6 +336,7 @@ export async function decryptAccountData({ onProgress } = {}) {
   clearVaultLoansCache();
   clearVaultIncomesCache();
   clearVaultChequesCache();
+  clearVaultRecurringIncomesCache();
   if (report.failed.length === 0) {
     await deleteVault(SILENT);
     markVaultOff();

@@ -26,6 +26,7 @@ import {
   INCOME_TITLE_MAX_LENGTH,
   INCOME_NOTES_MAX_LENGTH,
 } from "../config/constants.js";
+import { isRecurringId } from "../domain/recurringIncome.js";
 
 const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -45,7 +46,7 @@ async function requireUser(request, env) {
  * Validate & normalize an income request body into the shape the repository persists.
  * Throws a 400 AppError with a user-facing message on invalid input.
  * @param {object} body
- * @returns {{ title: string, category: string, amount: number, incomeDate: string, notes: string }}
+ * @returns {{ title: string, category: string, amount: number, incomeDate: string, notes: string, recurringId: string }}
  */
 export function parseIncomeInput(body = {}) {
   const title = String(body.title ?? "").trim();
@@ -53,6 +54,8 @@ export function parseIncomeInput(body = {}) {
   const incomeDate = String(body.incomeDate ?? body.income_date ?? "").trim();
   const notes = String(body.notes ?? "").trim();
   const category = INCOME_CATEGORIES.includes(body.category) ? body.category : "other";
+  // Set on entries a fixed (recurring) income created; '' for entries typed by the user
+  const recurringId = String(body.recurringId ?? "").trim();
 
   if (!title) {
     throw AppError.badRequest("عنوان درآمد الزامی است.");
@@ -70,7 +73,11 @@ export function parseIncomeInput(body = {}) {
     throw AppError.badRequest(`یادداشت نباید بیشتر از ${INCOME_NOTES_MAX_LENGTH} کاراکتر باشد.`);
   }
 
-  return { title, category, amount, incomeDate, notes };
+  if (!isRecurringId(recurringId)) {
+    throw AppError.badRequest("شناسه درآمد ثابت نامعتبر است.");
+  }
+
+  return { title, category, amount, incomeDate, notes, recurringId };
 }
 
 /**

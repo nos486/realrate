@@ -3,7 +3,7 @@
  */
 
 import React from 'react';
-import { Calendar, ClipboardList, Pencil, Trash2 } from 'lucide-react';
+import { Calendar, CheckCircle2, ClipboardList, Pencil, Trash2 } from 'lucide-react';
 import { ResponsiveDataTable } from '../../../shared/ui/index.js';
 import { formatShamsiDisplay } from '../../portfolio/components/ShamsiDatePicker.jsx';
 import { formatNum } from '../../portfolio/utils/holdingHelpers.js';
@@ -13,7 +13,7 @@ import { todayIso } from '../../../shared/utils/dates.js';
 import { getDirectionDisplay, describeDueDays } from '../constants/chequeDisplay.js';
 import ChequeStatusBadge from './ChequeStatusBadge.jsx';
 
-export default function ChequesTable({ cheques, onTrack, onEdit, onDelete, deletingId = null, hideValues = false }) {
+export default function ChequesTable({ cheques, onTrack, onClear, onEdit, onDelete, deletingId = null, clearingId = null, hideValues = false }) {
   const { customBanks } = useCustomBanks();
   const today = todayIso();
 
@@ -96,6 +96,19 @@ export default function ChequesTable({ cheques, onTrack, onEdit, onDelete, delet
       mobile: 'actions',
       render: (cheque) => (
         <div className="row-actions-group">
+          {isChequeOpen(cheque) && (
+            <button
+              type="button"
+              className={`btn-table-action cheque-clear-btn ${clearingId === cheque.id ? 'loading' : ''}`}
+              title="پاس شد (با تاریخ امروز)"
+              aria-label={`پاس شدن چک ${cheque.counterparty}`}
+              onClick={() => onClear(cheque)}
+              disabled={clearingId === cheque.id}
+            >
+              <CheckCircle2 size={13} strokeWidth={2.2} />
+              <span>پاس شد</span>
+            </button>
+          )}
           <button type="button" className="btn-table-action" title="پیگیری و تغییر وضعیت" aria-label="پیگیری" onClick={() => onTrack(cheque)}>
             <ClipboardList size={13} strokeWidth={2} />
           </button>

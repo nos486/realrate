@@ -170,3 +170,20 @@
   gap: 20px;
   padding: 8px 0;
 }
+
+.toast-action {
+  flex-shrink: 0;
+  padding: 4px 10px;
+  border: none;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--text-primary);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.toast-action:hover {
+  background: rgba(255, 255, 255, 0.14);
+}

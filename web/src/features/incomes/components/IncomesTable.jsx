@@ -3,7 +3,7 @@
  */
 
 import React from 'react';
-import { Calendar, MessageSquare, Pencil, Trash2 } from 'lucide-react';
+import { Calendar, MessageSquare, Pencil, Repeat, Trash2 } from 'lucide-react';
 import { ResponsiveDataTable } from '../../../shared/ui/index.js';
 import { formatShamsiDisplay } from '../../portfolio/components/ShamsiDatePicker.jsx';
 import { formatNum } from '../../portfolio/utils/holdingHelpers.js';
@@ -15,7 +15,17 @@ export default function IncomesTable({ incomes, onEdit, onDelete, deletingId = n
       key: 'title',
       header: 'عنوان',
       mobile: 'title',
-      render: (income) => <span className="income-title-text">{income.title}</span>,
+      render: (income) => (
+        <span className="income-title-text">
+          {income.title}
+          {income.recurringId && (
+            <span className="income-recurring-badge" title="ثبت خودکار از درآمد ثابت">
+              <Repeat size={10} />
+              ثابت
+            </span>
+          )}
+        </span>
+      ),
     },
     {
       key: 'category',

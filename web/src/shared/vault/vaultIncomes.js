@@ -7,6 +7,7 @@
  */
 
 import { INCOME_CATEGORIES } from '../../features/incomes/constants/incomeCategories.js';
+import { isRecurringId } from '../../utils/recurringIncome.js';
 import { listVaultRecords, putVaultRecord, deleteVaultRecord } from './vaultApi.js';
 import { encryptVaultRecord, decryptVaultRecord } from './vaultStore.js';
 
@@ -30,6 +31,7 @@ export function parseIncomeInput(body = {}) {
   const incomeDate = String(body.incomeDate ?? body.income_date ?? '').trim();
   const notes = String(body.notes ?? '').trim();
   const category = CATEGORY_KEYS.has(body.category) ? body.category : 'other';
+  const recurringId = String(body.recurringId ?? '').trim();
 
   if (!title) throw new IncomeValidationError('عنوان درآمد الزامی است.');
   if (title.length > TITLE_MAX_LENGTH) throw new IncomeValidationError(`عنوان درآمد نباید بیشتر از ${TITLE_MAX_LENGTH} کاراکتر باشد.`);
@@ -39,7 +41,9 @@ export function parseIncomeInput(body = {}) {
   }
   if (notes.length > NOTES_MAX_LENGTH) throw new IncomeValidationError(`یادداشت نباید بیشتر از ${NOTES_MAX_LENGTH} کاراکتر باشد.`);
 
-  return { title, category, amount, incomeDate, notes };
+  if (!isRecurringId(recurringId)) throw new IncomeValidationError('شناسه درآمد ثابت نامعتبر است.');
+
+  return { title, category, amount, incomeDate, notes, recurringId };
 }
 
 function newIncomeId() {

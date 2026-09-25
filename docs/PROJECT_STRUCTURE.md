@@ -53,6 +53,7 @@ realrate/
 | `utils/loanDocument.js` | `domain/loanDocument.js` |
 | `utils/homeLayout.js` | `domain/homeLayout.js` |
 | `utils/chequeDocument.js` | `domain/chequeDocument.js` (و `domain/isoDate.js`) |
+| `utils/recurringIncome.js` | `domain/recurringIncome.js` |
 | `utils/financialSpecs.js` | `lib/financialSpecs.js` |
 
 برای تغییر هر کدام، فایل مبدأ در `api/` را ویرایش کنید.

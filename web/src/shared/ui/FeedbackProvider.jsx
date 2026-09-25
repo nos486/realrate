@@ -47,10 +47,11 @@ export function FeedbackProvider({ children }) {
     setToasts((list) => list.filter((t) => t.id !== id));
   }, []);
 
-  const showToast = useCallback((type, message, { duration = TOAST_DURATION_MS } = {}) => {
+  // `action`: optional { label, onClick } button inside the toast (e.g. "undo")
+  const showToast = useCallback((type, message, { duration = TOAST_DURATION_MS, action = null } = {}) => {
     if (!message) return;
     const id = ++toastSeq;
-    setToasts((list) => [...list.slice(-3), { id, type, message }]);
+    setToasts((list) => [...list.slice(-3), { id, type, message, action }]);
     if (duration > 0) window.setTimeout(() => dismissToast(id), duration);
   }, [dismissToast]);
 
@@ -111,6 +112,18 @@ export function FeedbackProvider({ children }) {
             <div key={t.id} className={`toast-item ${t.type}`}>
               <Icon size={17} className="toast-icon" />
               <span className="toast-message">{t.message}</span>
+              {t.action && (
+                <button
+                  type="button"
+                  className="toast-action"
+                  onClick={() => {
+                    dismissToast(t.id);
+                    t.action.onClick();
+                  }}
+                >
+                  {t.action.label}
+                </button>
+              )}
               <button
                 type="button"
                 className="toast-close"

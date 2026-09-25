@@ -41,6 +41,9 @@ const validBody = {
   notes: 'با اضافه‌کاری',
 };
 
+/** What the handler persists: the body plus an empty recurringId (entered by hand) */
+const normalized = { ...validBody, recurringId: '' };
+
 describe('Income Routes Handlers (هندلرهای API درآمدها)', () => {
   const mockEnv = {};
 
@@ -59,7 +62,7 @@ describe('Income Routes Handlers (هندلرهای API درآمدها)', () => {
 
   describe('parseIncomeInput', () => {
     it('trims and normalizes a valid body', () => {
-      expect(parseIncomeInput({ ...validBody, title: '  حقوق مهر  ' })).toEqual(validBody);
+      expect(parseIncomeInput({ ...validBody, title: '  حقوق مهر  ' })).toEqual(normalized);
     });
 
     it('falls back to "other" for unknown categories', () => {
@@ -74,6 +77,7 @@ describe('Income Routes Handlers (هندلرهای API درآمدها)', () => {
       ['shamsi date', { ...validBody, incomeDate: '1405/07/01' }],
       ['invalid ISO date', { ...validBody, incomeDate: '2026-13-45' }],
       ['too long title', { ...validBody, title: 'x'.repeat(121) }],
+      ['malformed recurring id', { ...validBody, recurringId: 'a b;' }],
     ])('rejects %s', (_label, body) => {
       expect(() => parseIncomeInput(body)).toThrow();
     });
@@ -97,7 +101,7 @@ describe('Income Routes Handlers (هندلرهای API درآمدها)', () => {
 
       const res = await handleCreateIncome(jsonRequest('POST', validBody), mockEnv);
       expect(res.status).toBe(201);
-      expect(dbCreateIncome).toHaveBeenCalledWith(mockEnv, 'u_1', validBody);
+      expect(dbCreateIncome).toHaveBeenCalledWith(mockEnv, 'u_1', normalized);
       expect((await res.json()).income.id).toBe('inc_1');
     });
 
@@ -117,7 +121,7 @@ describe('Income Routes Handlers (هندلرهای API درآمدها)', () => {
         { incomeId: 'inc_1' }
       );
       expect(res.status).toBe(200);
-      expect(dbUpdateIncome).toHaveBeenCalledWith(mockEnv, 'u_1', 'inc_1', { ...validBody, amount: 50000000 });
+      expect(dbUpdateIncome).toHaveBeenCalledWith(mockEnv, 'u_1', 'inc_1', { ...normalized, amount: 50000000 });
     });
 
     it('returns not found when the income does not belong to the user', async () => {
