@@ -9,6 +9,16 @@
 export const LANDING_PATH = '/';
 export const APP_BASE = '/app';
 
+/** Sign-in pages (public, outside the app) */
+export const AUTH_PATHS = {
+  login: '/login',
+  register: '/register',
+  forgot: '/forgot-password',
+  reset: '/reset-password',
+  verify: '/verify-email',
+};
+const AUTH_PATH_SET = new Set(Object.values(AUTH_PATHS));
+
 /**
  * Absolute path of an in-app route
  * @param {string} [subPath] - e.g. '/loans' or 'loans/123'; empty for the app home
@@ -33,7 +43,7 @@ export function getAppSubPath(pathname) {
  * @param {string} pathname
  */
 export function isAppPath(pathname) {
-  return pathname !== LANDING_PATH && !pathname.startsWith('/p/');
+  return pathname !== LANDING_PATH && !pathname.startsWith('/p/') && !AUTH_PATH_SET.has(pathname);
 }
 
 const POST_LOGIN_PATH_KEY = 'realrate_post_login_path';

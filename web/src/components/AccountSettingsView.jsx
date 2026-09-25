@@ -7,6 +7,7 @@ import Input from '../shared/ui/Input.jsx';
 import { useAuth } from '../features/auth/index.js';
 import { getUserSettings, updateUserSettings } from '../features/portfolio/api/portfolioApi.js';
 import VaultSettingsSection from '../shared/vault/VaultSettingsSection.jsx';
+import PasswordSettingsSection from '../features/auth/components/PasswordSettingsSection.jsx';
 
 /**
  * AccountSettingsView
@@ -68,7 +69,7 @@ export default function AccountSettingsView() {
           ورود به حساب کاربری
         </h3>
         <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '20px', lineHeight: '1.7' }}>
-          جهت مشاهده و مدیریت تنظیمات حساب، لطفاً ابتدا وارد حساب گوگل خود شوید.
+          جهت مشاهده و مدیریت تنظیمات حساب، لطفاً ابتدا وارد حساب کاربری خود شوید.
         </p>
         <Button
           variant="secondary"
@@ -84,7 +85,7 @@ export default function AccountSettingsView() {
             </svg>
           }
         >
-          ورود با حساب گوگل
+          ورود یا ثبت‌نام
         </Button>
       </Card>
     );
@@ -134,7 +135,7 @@ export default function AccountSettingsView() {
               </span>
             ) : (
               <span style={{ fontSize: '11px', color: 'var(--text-muted)', background: 'rgba(255,255,255,0.06)', padding: '2px 8px', borderRadius: '10px' }}>
-                کاربر تأییدشده
+                {user.emailVerified === false ? 'ایمیل تأییدنشده' : 'کاربر تأییدشده'}
               </span>
             )}
           </div>
@@ -170,6 +171,8 @@ export default function AccountSettingsView() {
           ذخیره تنظیمات حساب
         </Button>
       </form>
+
+      <PasswordSettingsSection />
 
       <VaultSettingsSection />
     </Card>

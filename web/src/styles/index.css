@@ -23,6 +23,7 @@
  *   incomes.css         — Incomes page, summary cards, category/monthly report
  *   cheques.css         — Cheques page, status badges, tracking timeline
  *   landing.css          — Logged-out landing page
+ *   auth.css            — Sign-in / sign-up / email-link pages
  *   shared-page-layout.css — Shared feature-page header bar (Portfolio/Transactions/Loans/Incomes)
  */
 
@@ -50,3 +51,4 @@
 @import './incomes.css';
 @import './cheques.css';
 @import './landing.css';
+@import './auth.css';

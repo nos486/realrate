@@ -26,3 +26,37 @@ export async function logout() {
     setToken(null);
   }
 }
+
+// ── Email / password accounts ───────────────────────────────────────────────
+
+/** Create an account; the server emails a verification link (no session yet) */
+export function register({ name, email, password }) {
+  return httpClient.post('/api/auth/register', { name, email, password });
+}
+
+/** Use the emailed verification token; answers `{ token, user }` like a login */
+export function verifyEmail(token) {
+  return httpClient.post('/api/auth/verify-email', { token });
+}
+
+export function resendVerification(email) {
+  return httpClient.post('/api/auth/verify-email/resend', { email }, { silent: true });
+}
+
+export function loginWithPassword(email, password) {
+  return httpClient.post('/api/auth/login', { email, password });
+}
+
+export function requestPasswordReset(email) {
+  return httpClient.post('/api/auth/password/forgot', { email });
+}
+
+/** Use the emailed reset token; answers `{ token, user }` (other sessions are signed out) */
+export function resetPassword(token, password) {
+  return httpClient.post('/api/auth/password/reset', { token, password });
+}
+
+/** Signed in: add a first password (Google accounts) or change it (current password needed) */
+export function setPassword({ currentPassword, newPassword }) {
+  return httpClient.post('/api/auth/password', { currentPassword, newPassword });
+}

@@ -104,6 +104,15 @@ import {
   handleDeleteCheque,
 } from "./handlers/chequeRoutes.js";
 import {
+  handleRegister,
+  handleVerifyEmail,
+  handleResendVerification,
+  handleLogin,
+  handleForgotPassword,
+  handleResetPassword,
+  handleSetPassword,
+} from "./handlers/accountRoutes.js";
+import {
   handleListCustomBanks,
   handleCreateCustomBank,
   handleDeleteCustomBank,
@@ -183,6 +192,17 @@ export default {
     if (normalizedPath === "/api/auth/google" && request.method === "POST")         return wrap(handleGoogleAuth)(request, env);
     if (normalizedPath === "/api/auth/me"     && request.method === "GET")          return wrap(handleGetMe)(request, env);
     if (normalizedPath === "/api/auth/logout" && request.method === "POST")         return wrap(handleLogout)(request, env);
+
+    // Email/password accounts
+    if (request.method === "POST") {
+      if (normalizedPath === "/api/auth/register")            return wrap(handleRegister)(request, env);
+      if (normalizedPath === "/api/auth/verify-email")        return wrap(handleVerifyEmail)(request, env);
+      if (normalizedPath === "/api/auth/verify-email/resend") return wrap(handleResendVerification)(request, env);
+      if (normalizedPath === "/api/auth/login")               return wrap(handleLogin)(request, env);
+      if (normalizedPath === "/api/auth/password/forgot")     return wrap(handleForgotPassword)(request, env);
+      if (normalizedPath === "/api/auth/password/reset")      return wrap(handleResetPassword)(request, env);
+      if (normalizedPath === "/api/auth/password")            return wrap(handleSetPassword)(request, env);
+    }
 
     // ── User Settings API Routes (Requires Login) ────────────────────────────
     if (normalizedPath === "/api/user/settings") {

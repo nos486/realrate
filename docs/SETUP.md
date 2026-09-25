@@ -70,6 +70,25 @@ npx wrangler d1 execute realrate-db --remote --file=./api/schema.sql
      ```
 4. `GOOGLE_CLIENT_SECRET` را به‌صورت secret ثبت کنید: `npx wrangler secret put GOOGLE_CLIENT_SECRET`
 
+## ثبت‌نام با ایمیل (ارسال ایمیل)
+
+ثبت‌نام بدون گوگل و بازیابی رمز عبور به ارسال ایمیل (لینک تأیید / بازیابی) نیاز دارد. ارسال از طریق API سرویس
+[Resend](https://resend.com) انجام می‌شود (ورکرها SMTP ندارند):
+
+1. در Resend دامنه ارسال (مثلاً `geekio.org`) را اضافه و رکوردهای DNS آن را در Cloudflare ثبت کنید تا تأیید شود.
+2. یک API Key بسازید و به‌صورت secret ثبت کنید: `npx wrangler secret put RESEND_API_KEY`
+3. فرستنده را در `api/wrangler.toml` تعیین کنید:
+   ```toml
+   [vars]
+   EMAIL_FROM = "RealRate <no-reply@geekio.org>"
+   # اختیاری: آدرس فرانت‌اند برای لینک‌ها وقتی درخواست Origin ندارد
+   # FRONTEND_URL = "https://realrate.geekio.org"
+   ```
+
+تا وقتی ارسال ایمیل تنظیم نشده، ثبت‌نام و بازیابی رمز با پیام «ارسال ایمیل تنظیم نشده است» رد می‌شوند و ورود با گوگل
+مثل قبل کار می‌کند. برای توسعه محلی بدون سرویس ایمیل: `npx wrangler dev --var EMAIL_DEBUG_LOG:true` — متن ایمیل‌ها
+(همراه لینک) در لاگ ورکر نوشته می‌شود.
+
 ## استقرار
 
 مرج در `main` هر دو بخش را خودکار منتشر می‌کند و در هر PR هم برای هر دو یک پیش‌نمایش ساخته می‌شود:

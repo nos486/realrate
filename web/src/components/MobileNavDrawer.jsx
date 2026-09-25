@@ -122,7 +122,7 @@ export default function MobileNavDrawer({
             </>
           ) : (
             <button type="button" className="btn-primary nav-drawer-login" onClick={run(onLogin)}>
-              ورود با گوگل
+              ورود یا ثبت‌نام
             </button>
           )}
         </div>
