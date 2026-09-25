@@ -9,7 +9,7 @@
  */
 
 import { isUserAdmin, getAuthenticatedUser } from "../lib/auth.js";
-import { dbUpsertUser, dbSaveSession, dbDeleteSession, dbGetUserById } from "../repositories/index.js";
+import { dbUpsertUser, dbSaveSession, dbDeleteSession, dbGetUserById, dbGetUserAuthById } from "../repositories/index.js";
 import { jsonResponse, errorResponse, getCorsHeaders } from "../lib/helpers.js";
 import { logger } from "../lib/logger.js";
 import { isTrustedOrigin } from "../lib/security.js";
@@ -432,12 +432,19 @@ export async function handleGetMe(request, env) {
 
   const userId = user.userId || user.id;
   let customName = user.customName || "";
-  if (!customName) {
-    try {
+  let hasPassword = false;
+  let emailVerified = true;
+  try {
+    const account = await dbGetUserAuthById(env, userId);
+    if (account) {
+      customName = customName || account.customName;
+      hasPassword = Boolean(account.passwordHash);
+      emailVerified = account.emailVerified;
+    } else if (!customName) {
       const userData = await dbGetUserById(env, userId);
       if (userData?.customName) customName = userData.customName;
-    } catch (e) {}
-  }
+    }
+  } catch (e) {}
 
   return jsonResponse({
     authenticated: true,
@@ -449,6 +456,8 @@ export async function handleGetMe(request, env) {
       picture: user.picture,
       role: user.role,
       isAdmin: user.role === "admin",
+      hasPassword,
+      emailVerified,
     },
   }, 200, request);
 }

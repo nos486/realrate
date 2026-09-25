@@ -2,7 +2,7 @@ import { lazy, Suspense } from 'react';
 import { Routes, Route, Navigate, Outlet, useLocation } from 'react-router-dom';
 import FullscreenLoader from './shared/ui/FullscreenLoader.jsx';
 import RequireAuth from './shared/ui/RequireAuth.jsx';
-import { APP_BASE, LANDING_PATH } from './shared/routes.js';
+import { APP_BASE, LANDING_PATH, AUTH_PATHS } from './shared/routes.js';
 // Direct file imports (not the feature barrels) so the pages below stay in their lazy chunks
 import { PricingProvider } from './features/market/context/PricingContext.jsx';
 import { LoansProvider } from './features/loans/context/LoansContext.jsx';
@@ -11,6 +11,7 @@ import { ChequesProvider } from './features/cheques/context/ChequesContext.jsx';
 // Route-level code splitting: a visitor only downloads the page they open
 const MainPage = lazy(() => import('./pages/MainPage.jsx'));
 const LandingPage = lazy(() => import('./pages/LandingPage.jsx'));
+const AuthPage = lazy(() => import('./features/auth/components/AuthPage.jsx'));
 const SharedPortfolioPage = lazy(() => import('./pages/SharedPortfolioPage.jsx'));
 
 function RouteLoader() {
@@ -63,6 +64,10 @@ export default function App() {
       <Routes>
         {/* Public, no pricing data */}
         <Route path={LANDING_PATH} element={<LandingPage />} />
+        {/* Sign in / sign up / email links (public, no pricing data) */}
+        {Object.values(AUTH_PATHS).map((path) => (
+          <Route key={path} path={path} element={<AuthPage />} />
+        ))}
 
         <Route element={<PricingScope />}>
           <Route path="/p/:slug" element={<SharedPortfolioPage />} />

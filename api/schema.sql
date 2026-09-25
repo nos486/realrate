@@ -15,7 +15,10 @@ CREATE TABLE IF NOT EXISTS users (
   created_at TEXT NOT NULL,
   last_login TEXT NOT NULL,
   login_count INTEGER DEFAULT 1,
-  home_layout TEXT NOT NULL DEFAULT ''
+  home_layout TEXT NOT NULL DEFAULT '',
+  password_hash TEXT NOT NULL DEFAULT '',        -- '' = no password (Google-only account)
+  email_verified INTEGER NOT NULL DEFAULT 1,     -- email sign-ups start at 0 until the link is used
+  password_updated_at TEXT NOT NULL DEFAULT ''
 );
 
 CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
@@ -267,6 +270,16 @@ CREATE TABLE IF NOT EXISTS cheques (
   updated_at TEXT NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_cheques_user_due ON cheques(user_id, due_date);
+
+-- 12. One-time email links (verify address, reset password); only the token's SHA-256 is stored
+CREATE TABLE IF NOT EXISTS auth_tokens (
+  token_hash TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL,
+  purpose TEXT NOT NULL,            -- verify_email | reset_password
+  expires_at INTEGER NOT NULL,      -- epoch ms
+  created_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_auth_tokens_user ON auth_tokens(user_id, purpose);
 
 -- Account-wide end-to-end encryption (row present = vault on); wrapped_key is the random data
 -- key encrypted with the passphrase-derived key

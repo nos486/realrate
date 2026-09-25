@@ -2,7 +2,7 @@ import React, { createContext, useContext, useState, useEffect, useCallback } fr
 import { useNavigate } from 'react-router-dom';
 import { getMe, googleLogin, logout as apiLogout, getGoogleLoginUrl } from '../api/authApi.js';
 import { setToken, getToken, HttpError } from '../../../shared/api/httpClient.js';
-import { APP_BASE, LANDING_PATH, isAppPath, takePostLoginPath } from '../../../shared/routes.js';
+import { APP_BASE, LANDING_PATH, AUTH_PATHS, isAppPath, rememberPostLoginPath, takePostLoginPath } from '../../../shared/routes.js';
 import { useFeedback } from '../../../shared/ui/FeedbackProvider.jsx';
 import { resetCustomBanks } from '../../../shared/banks/useCustomBanks.js';
 import { loadVault, resetVault } from '../../../shared/vault/vaultStore.js';
@@ -103,15 +103,28 @@ export function AuthProvider({ children }) {
     }
   }, [toast]);
 
-  // Primary Login Flow: Redirect to server-side Google OAuth 2.0 endpoint.
-  // Signing in from anywhere outside the app (landing, shared portfolio) lands in the app —
-  // on the page a guest was bounced from, if any; from inside the app it returns to the exact
-  // page the user was on.
+  // Every "sign in" button opens the sign-in page (Google or email/password). From inside the app
+  // the current page is remembered, so signing in returns there.
   const triggerLogin = useCallback(() => {
-    const { origin, pathname, href } = window.location;
-    const target = isAppPath(pathname) ? href : `${origin}${takePostLoginPath() || APP_BASE}`;
-    window.location.href = getGoogleLoginUrl(target);
+    const { pathname, search } = window.location;
+    if (isAppPath(pathname)) rememberPostLoginPath(`${pathname}${search}`);
+    navigate(AUTH_PATHS.login);
+  }, [navigate]);
+
+  // Google: redirect to the server-side OAuth 2.0 flow, landing on the remembered page (or the app)
+  const loginWithGoogle = useCallback(() => {
+    const { origin } = window.location;
+    window.location.href = getGoogleLoginUrl(`${origin}${takePostLoginPath() || APP_BASE}`);
   }, []);
+
+  /** Finish an email/password sign-in (login, verified email, reset password): `{ token, user }` */
+  const completeLogin = useCallback((data) => {
+    if (!data?.token || !data?.user) return;
+    setToken(data.token);
+    signInUser(setUser, data.user);
+    writeCachedUser(data.user);
+    navigate(takePostLoginPath() || APP_BASE, { replace: true });
+  }, [navigate]);
 
   const logout = useCallback(async () => {
     await apiLogout().catch(() => {});
@@ -131,7 +144,7 @@ export function AuthProvider({ children }) {
   }, []);
 
   return (
-    <AuthContext.Provider value={{ user, loading, triggerLogin, logout, updateUser, handleGoogleCredential }}>
+    <AuthContext.Provider value={{ user, loading, triggerLogin, loginWithGoogle, completeLogin, logout, updateUser, handleGoogleCredential }}>
       {children}
     </AuthContext.Provider>
   );

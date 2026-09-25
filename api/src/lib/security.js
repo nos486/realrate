@@ -150,6 +150,56 @@ export async function verifySharePassword(submitted, stored) {
   }
 }
 
+// ─── Account passwords & one-time tokens ───────────────────────────────────────
+
+/**
+ * Hash an account password for storage (same PBKDF2 format as share passwords). Unlike share
+ * passwords it is used exactly as typed: spaces are part of a password.
+ * @param {string} password
+ * @returns {Promise<string>} "pbkdf2$<iterations>$<salt>$<hash>"
+ */
+export async function hashPassword(password) {
+  const salt = crypto.getRandomValues(new Uint8Array(16));
+  const hash = await pbkdf2(String(password), salt, SHARE_HASH_ITERATIONS);
+  return `${SHARE_HASH_PREFIX}${SHARE_HASH_ITERATIONS}$${bytesToBase64(salt)}$${bytesToBase64(hash)}`;
+}
+
+/**
+ * Verify an account password. With no stored hash it still runs one PBKDF2 round, so a
+ * missing account takes as long as a wrong password (no timing oracle for registered emails).
+ * @param {string} submitted
+ * @param {string} stored
+ * @returns {Promise<boolean>}
+ */
+export async function verifyPassword(submitted, stored) {
+  const storedValue = String(stored ?? "");
+  const parts = isHashedSharePassword(storedValue) ? storedValue.slice(SHARE_HASH_PREFIX.length).split("$") : [];
+  if (parts.length !== 3) {
+    await pbkdf2(String(submitted ?? ""), new Uint8Array(16), SHARE_HASH_ITERATIONS);
+    return false;
+  }
+  const iterations = parseInt(parts[0], 10);
+  if (!Number.isFinite(iterations) || iterations <= 0) return false;
+  try {
+    const actual = bytesToBase64(await pbkdf2(String(submitted ?? ""), base64ToBytes(parts[1]), iterations));
+    return timingSafeEqual(actual, parts[2]);
+  } catch {
+    return false;
+  }
+}
+
+/** A random URL-safe token (256 bits) for email links */
+export function generateUrlToken() {
+  const bytes = crypto.getRandomValues(new Uint8Array(32));
+  return bytesToBase64(bytes).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+}
+
+/** SHA-256 hex digest — one-time tokens are stored only as their hash */
+export async function sha256Hex(value) {
+  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(String(value)));
+  return [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, "0")).join("");
+}
+
 // ─── Rate limiting ───────────────────────────────────────────────────────────────
 
 /**

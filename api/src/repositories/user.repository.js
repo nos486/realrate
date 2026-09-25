@@ -39,7 +39,11 @@ export async function dbUpsertUser(env, userData) {
           picture = excluded.picture,
           role = excluded.role,
           last_login = excluded.last_login,
-          login_count = users.login_count + 1
+          login_count = users.login_count + 1,
+          -- Google proves the address. A password set by an unverified sign-up could have been
+          -- chosen by someone else who typed this email, so it is dropped rather than trusted.
+          password_hash = CASE WHEN users.email_verified = 0 THEN '' ELSE users.password_hash END,
+          email_verified = 1
       `).bind(
         userData.id,
         userData.email,
@@ -52,6 +56,8 @@ export async function dbUpsertUser(env, userData) {
 
       const updated = await env.DB.prepare("SELECT * FROM users WHERE email = ?").bind(userData.email).first();
       if (updated) {
+        // An account first created with email/password keeps its own id; sessions must use it
+        userData.id = updated.id;
         userData.loginCount = updated.login_count;
         userData.createdAt = updated.created_at;
 

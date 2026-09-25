@@ -216,6 +216,16 @@ export async function ensureD1Tables(env) {
       updated_at TEXT NOT NULL
     )`,
     `CREATE INDEX IF NOT EXISTS idx_cheques_user_due ON cheques(user_id, due_date)`,
+    // One-time links sent by email (verify an address, reset a password); only the SHA-256 of the
+    // token is stored, so a database leak cannot be turned into working links
+    `CREATE TABLE IF NOT EXISTS auth_tokens (
+      token_hash TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL,
+      purpose TEXT NOT NULL,
+      expires_at INTEGER NOT NULL,
+      created_at TEXT NOT NULL
+    )`,
+    `CREATE INDEX IF NOT EXISTS idx_auth_tokens_user ON auth_tokens(user_id, purpose)`,
     // Account-wide end-to-end encryption: a row means the user's vault is on. The data key is
     // random and only ever stored wrapped (encrypted) with the key derived from the passphrase.
     `CREATE TABLE IF NOT EXISTS user_vaults (
@@ -270,6 +280,18 @@ export async function ensureD1Tables(env) {
     // with the account's data key ('' = a legacy per-portfolio passphrase vault, or no E2EE)
     try {
       await env.DB.prepare("ALTER TABLE portfolios ADD COLUMN e2ee_wrapped_key TEXT NOT NULL DEFAULT ''").run();
+    } catch (ignore) {}
+
+    // Backward-compat: email/password sign-in. Every account created before this existed signed
+    // in with Google, so existing rows are verified; new email sign-ups are inserted unverified.
+    try {
+      await env.DB.prepare("ALTER TABLE users ADD COLUMN password_hash TEXT NOT NULL DEFAULT ''").run();
+    } catch (ignore) {}
+    try {
+      await env.DB.prepare("ALTER TABLE users ADD COLUMN email_verified INTEGER NOT NULL DEFAULT 1").run();
+    } catch (ignore) {}
+    try {
+      await env.DB.prepare("ALTER TABLE users ADD COLUMN password_updated_at TEXT NOT NULL DEFAULT ''").run();
     } catch (ignore) {}
 
     // Backward-compat: each user's customized home page (JSON, '' = the default home page)

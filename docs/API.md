@@ -60,6 +60,18 @@ Returns all active assets and market rates normalized through the centralized `d
 | `POST` | `/api/v1/auth/google` | Exchange Google OAuth ID token for session |
 | `GET` | `/api/v1/auth/me` | Current authenticated session details |
 | `POST` | `/api/v1/auth/logout` | Invalidate current session cookie |
+| `POST` | `/api/v1/auth/register` | Create an email/password account (`{ name, email, password }`); emails a verification link, no session yet |
+| `POST` | `/api/v1/auth/verify-email` | `{ token }` from the link → verifies the address and returns `{ token, user }` |
+| `POST` | `/api/v1/auth/verify-email/resend` | `{ email }` — send the verification link again |
+| `POST` | `/api/v1/auth/login` | `{ email, password }` → `{ token, user }`; `401 INVALID_CREDENTIALS`, `403 EMAIL_NOT_VERIFIED` |
+| `POST` | `/api/v1/auth/password/forgot` | `{ email }` — email a reset link (also how a Google account adds a password) |
+| `POST` | `/api/v1/auth/password/reset` | `{ token, password }` → sets it, verifies the address, signs out other sessions, returns `{ token, user }` |
+| `POST` | `/api/v1/auth/password` | Signed in: `{ newPassword, currentPassword? }` — add a first password or change it (other sessions are signed out) |
+
+Passwords: at least 8 characters with letters and digits, stored as PBKDF2-SHA256 (100,000 rounds).
+Links are single-use, expire (verify 24 h, reset 1 h) and are stored only as SHA-256.
+`register`, `resend` and `forgot` answer identically whether or not the email is registered, and all of
+these endpoints are rate-limited (`429 TOO_MANY_REQUESTS`). Without an email provider they answer `503 EMAIL_NOT_CONFIGURED`.
 
 ### User Settings & Portfolios (Protected)
 
