@@ -122,3 +122,41 @@ export function buildIncomeReport(incomes) {
 
   return { total, count: incomes.length, monthlyAverage, largest, byCategory, byMonth };
 }
+
+/**
+ * Income per Shamsi month over the last `months` months, ending with the current one (oldest
+ * first). Months without income are included as zero so the chart shows real gaps and trends.
+ * @param {Array<object>} incomes
+ * @param {number} [months]
+ * @param {string} [todayShamsi] - injectable for deterministic callers
+ * @returns {Array<{ key: string, label: string, monthLabel: string, total: number, count: number }>}
+ */
+export function buildMonthlySeries(incomes, months = 12, todayShamsi = getTodayShamsi()) {
+  const today = parseShamsiYearMonth(todayShamsi);
+  if (!today) return [];
+  const last = today.year * 12 + (today.month - 1);
+  const first = last - months + 1;
+
+  const series = [];
+  for (let index = first; index <= last; index++) {
+    const year = Math.floor(index / 12);
+    const month = (index % 12) + 1;
+    series.push({
+      key: `${year}/${String(month).padStart(2, '0')}`,
+      label: formatShamsiMonth(year, month),
+      monthLabel: PERSIAN_MONTHS[month - 1]?.label || '',
+      total: 0,
+      count: 0,
+    });
+  }
+
+  for (const income of incomes) {
+    const ym = getShamsiYearMonth(income.incomeDate);
+    if (!ym) continue;
+    const slot = series[ym.year * 12 + (ym.month - 1) - first];
+    if (!slot) continue;
+    slot.total += Number(income.amount) || 0;
+    slot.count += 1;
+  }
+  return series;
+}

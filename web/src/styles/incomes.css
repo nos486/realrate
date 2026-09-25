@@ -278,3 +278,154 @@
   flex-shrink: 0;
   gap: 2px;
 }
+
+/* ── Monthly income bar chart (last 12 months) ── */
+.monthly-income-readout {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 6px 10px;
+  margin: 6px 0 12px;
+}
+
+.monthly-income-readout > div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.monthly-income-readout strong {
+  color: var(--text-primary);
+  font-size: 18px;
+  font-weight: 800;
+}
+
+.monthly-income-readout span {
+  color: var(--text-muted);
+  font-size: 11.5px;
+}
+
+.monthly-income-change {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  border-radius: var(--radius-full);
+  font-size: 12px !important;
+  font-weight: 800;
+  direction: rtl;
+}
+
+.monthly-income-change small {
+  font-size: 10.5px;
+  font-weight: 500;
+  opacity: 0.85;
+}
+
+.monthly-income-change.is-up {
+  background: var(--green-soft);
+  color: var(--green-emerald) !important;
+}
+
+.monthly-income-change.is-down {
+  background: var(--rose-soft);
+  color: var(--rose-red) !important;
+}
+
+/* Time runs left to right, like any chart axis, even on an RTL page */
+.monthly-income-plot,
+.monthly-income-axis {
+  direction: ltr;
+  display: grid;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+}
+
+.monthly-income-plot {
+  position: relative;
+  height: 140px;
+  align-items: end;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.monthly-income-col {
+  height: 100%;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding: 0 2px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.monthly-income-col:focus-visible {
+  outline: 2px solid var(--primary, #3987e5);
+  outline-offset: -2px;
+  border-radius: 4px;
+}
+
+.monthly-income-bar {
+  width: 100%;
+  max-width: 18px;
+  min-height: 0;
+  border-radius: 4px 4px 0 0;
+  background: #3987e5;
+  opacity: 0.55;
+  transition: opacity 0.15s ease, height var(--transition-smooth, 0.3s ease);
+}
+
+.monthly-income-col.is-active .monthly-income-bar {
+  opacity: 1;
+}
+
+.monthly-income-average {
+  position: absolute;
+  inset-inline: 0;
+  border-top: 1px dashed var(--text-muted);
+  opacity: 0.6;
+  pointer-events: none;
+}
+
+.monthly-income-avg-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--text-muted);
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+/* Legend key for the dashed average line */
+.monthly-income-avg-key {
+  width: 14px;
+  border-top: 1px dashed var(--text-muted);
+}
+
+.monthly-income-axis {
+  margin-top: 5px;
+}
+
+.monthly-income-axis span {
+  color: var(--text-muted);
+  font-size: 9.5px;
+  text-align: center;
+  white-space: nowrap;
+  overflow: visible;
+  direction: rtl;
+}
+
+.monthly-income-axis span.is-minor {
+  visibility: hidden;
+}
+
+.monthly-income-axis span.is-active {
+  visibility: visible;
+  color: var(--text-primary);
+  font-weight: 700;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .monthly-income-bar { transition: none; }
+}
