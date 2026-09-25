@@ -1,7 +1,7 @@
 import React from 'react';
 import { GenericCsvImportButton } from '../../../shared/ui/index.js';
 import { parseInputNumber } from '../../portfolio/utils/holdingHelpers.js';
-import { INCOME_CATEGORIES, DEFAULT_INCOME_CATEGORY } from '../constants/incomeCategories.js';
+import { INCOME_CATEGORIES, DEFAULT_INCOME_CATEGORY, LEGACY_CATEGORY_LABELS } from '../constants/incomeCategories.js';
 
 // Column headers must mirror IncomeCsvExportButton.jsx exactly so the exported file round-trips.
 const HEADERS = {
@@ -12,7 +12,10 @@ const HEADERS = {
   notes: 'یادداشت',
 };
 
-const CATEGORY_LABEL_TO_VALUE = new Map(INCOME_CATEGORIES.map((c) => [c.label, c.value]));
+const CATEGORY_LABEL_TO_VALUE = new Map([
+  ...Object.entries(LEGACY_CATEGORY_LABELS),
+  ...INCOME_CATEGORIES.map((c) => [c.label, c.value]),
+]);
 
 function parseIncomeRow(row, headerIndex, i) {
   const get = (key) => {

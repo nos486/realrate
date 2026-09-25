@@ -3,10 +3,12 @@
  * Keys must stay in sync with INCOME_CATEGORIES in api/src/config/constants.js.
  */
 
-import { Briefcase, Laptop, Store, TrendingUp, Home, Gift, CircleDollarSign } from 'lucide-react';
+import { Briefcase, HandCoins, Award, Laptop, Store, TrendingUp, Home, Gift, CircleDollarSign } from 'lucide-react';
 
 export const INCOME_CATEGORIES = [
-  { value: 'salary', label: 'حقوق و دستمزد', Icon: Briefcase, color: '#38bdf8' },
+  { value: 'salary', label: 'حقوق', Icon: Briefcase, color: '#38bdf8' },
+  { value: 'benefits', label: 'مزایا', Icon: HandCoins, color: '#22d3ee' },
+  { value: 'bonus', label: 'پاداش', Icon: Award, color: '#facc15' },
   { value: 'freelance', label: 'پروژه و فریلنس', Icon: Laptop, color: '#a78bfa' },
   { value: 'business', label: 'کسب‌وکار', Icon: Store, color: '#f59e0b' },
   { value: 'investment', label: 'سود سرمایه‌گذاری', Icon: TrendingUp, color: '#10b981' },
@@ -16,6 +18,9 @@ export const INCOME_CATEGORIES = [
 ];
 
 export const DEFAULT_INCOME_CATEGORY = 'salary';
+
+/** Labels used by earlier versions (e.g. in exported CSV files) → category key */
+export const LEGACY_CATEGORY_LABELS = { 'حقوق و دستمزد': 'salary' };
 
 const CATEGORY_MAP = Object.fromEntries(INCOME_CATEGORIES.map((c) => [c.value, c]));
 
