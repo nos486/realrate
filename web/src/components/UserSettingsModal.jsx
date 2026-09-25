@@ -9,7 +9,7 @@ import {
 } from 'lucide-react';
 import Modal from '../shared/ui/Modal.jsx';
 import AlertBanner from '../shared/ui/AlertBanner.jsx';
-import { apiUpdatePortfolio } from '../api/client.js';
+import { updatePortfolio } from '../features/portfolio/api/portfolioApi.js';
 import { rawKeyToLinkToken } from '../lib/e2ee.js';
 import { useVault } from '../shared/vault/useVault.js';
 import { getPortfolioRawKey, isAccountVaultPortfolio } from '../shared/vault/vaultStore.js';
@@ -117,7 +117,7 @@ export default function UserSettingsModal({ isOpen, portfolio, onClose, onSaved,
     setMsg({ text: '', type: '' });
     try {
       if (portfolio && portfolio.id) {
-        await apiUpdatePortfolio({
+        await updatePortfolio({
           id: portfolio.id,
           name: portfolioName.trim() || portfolio.name,
           shareSlug,

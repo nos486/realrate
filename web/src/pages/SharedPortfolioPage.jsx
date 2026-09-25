@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { apiGetSharedPortfolio, apiGetPrices } from '../api/client.js';
+import { getSharedPortfolio } from '../features/portfolio/api/portfolioApi.js';
+import { getPrices } from '../features/market/api/marketApi.js';
 import { calculateMarketData } from '../utils/calculator.js';
 import { computeUnifiedPrices } from '../utils/pricingEngine.js';
 import Header from '../components/Header.jsx';
@@ -81,7 +82,7 @@ export default function SharedPortfolioPage() {
 
   // 1. Fetch live market rates (gold, dollar, silver) & calculate real prices
   useEffect(() => {
-    apiGetPrices()
+    getPrices()
       .then((data) => {
         if (data && data.success) {
           setMarketRates(data);
@@ -105,7 +106,7 @@ export default function SharedPortfolioPage() {
   const loadPortfolio = useCallback(async (pwd = '') => {
     setErrorMsg('');
     try {
-      const res = await apiGetSharedPortfolio(slug, pwd);
+      const res = await getSharedPortfolio(slug, pwd);
       if (res.requirePassword) {
         setRequirePassword(true);
         setPortfolioData(res);

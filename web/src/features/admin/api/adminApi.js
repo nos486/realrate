@@ -3,7 +3,7 @@
  * Interfaces with RealRate Admin Endpoints via httpClient
  */
 
-import { httpClient } from '../../../shared/api/httpClient.js';
+import { httpClient, HttpError } from '../../../shared/api/httpClient.js';
 
 export async function getAdminStats() {
   return httpClient.get('/api/admin/stats');
@@ -37,8 +37,17 @@ export async function setPrimarySource(id, priceType = null) {
   return httpClient.post('/api/admin/price-sources/set-primary', { id, priceType });
 }
 
+/**
+ * Test a source config. A failed test is a result to show (the server answers 400 with the
+ * details), not an exception: the result body is returned either way.
+ */
 export async function testPriceSource(config) {
-  return httpClient.post('/api/admin/price-sources/test', config);
+  try {
+    return await httpClient.post('/api/admin/price-sources/test', config);
+  } catch (err) {
+    if (err instanceof HttpError && err.data && typeof err.data === 'object') return err.data;
+    throw err;
+  }
 }
 
 export async function inspectApiSource(apiUrl, headers = {}) {

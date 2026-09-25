@@ -6,6 +6,7 @@ import { ensureD1Tables } from "./migration.repository.js";
 import { dbGetUserById, generateRandomSlug } from "./user.repository.js";
 import { logger } from "../lib/logger.js";
 import { hashSharePassword, isHashedSharePassword } from "../lib/security.js";
+import { AppError } from "../lib/AppError.js";
 
 /**
  * Fetch all portfolios for a user (with auto-bootstrap default portfolio if none exist)
@@ -183,13 +184,13 @@ export async function dbUpdatePortfolio(env, portfolioId, userId, { name, shareS
     if (shareSlug) {
       const cleanedSlug = shareSlug.trim().toLowerCase().replace(/[^a-z0-9_-]/g, '-');
       if (cleanedSlug.length < 2) {
-        throw new Error("آدرس اختصاصی باید حداقل ۲ کاراکتر و از حروف یا اعداد انگلیسی باشد.");
+        throw AppError.badRequest("آدرس اختصاصی باید حداقل ۲ کاراکتر و از حروف یا اعداد انگلیسی باشد.");
       }
       const existing = await env.DB.prepare(`
         SELECT id FROM portfolios WHERE LOWER(share_slug) = LOWER(?) AND id != ?
       `).bind(cleanedSlug, portfolioId).first();
       if (existing) {
-        throw new Error("این آدرس اختصاصی (slug) قبلاً برای پورتفوی دیگری ثبت شده است.");
+        throw new AppError("این آدرس اختصاصی (slug) قبلاً برای پورتفوی دیگری ثبت شده است.", 409, "SLUG_TAKEN");
       }
       shareSlug = cleanedSlug;
     }

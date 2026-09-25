@@ -14,13 +14,13 @@ import Card from '../shared/ui/Card.jsx';
 import { useAuth } from '../features/auth/index.js';
 import { useMarketData } from '../features/market/hooks/useMarketData.js';
 import {
-  apiGetPriceSources,
-  apiSavePriceSource,
-  apiSetPrimarySource,
-  apiTestPriceSource,
-  apiFetchAllSourcesNow,
-  apiGetMarketItems,
-} from '../api/client.js';
+  getPriceSources,
+  savePriceSource,
+  setPrimarySource,
+  testPriceSource,
+  fetchAllSourcesNow,
+} from '../features/admin/api/adminApi.js';
+import { getMarketItems } from '../features/market/api/marketApi.js';
 import { extractMultiItems } from '../components/UniversalAssetSearch.jsx';
 import { getSourceDisplayName } from '../config/displayEngine.js';
 import { getItemUnit } from '../config/displayEngine.js';
@@ -93,7 +93,7 @@ export default function PriceSourcesPage({ embedded = false, usdToman: propUsdTo
   const loadSources = async () => {
     setLoadingSources(true);
     try {
-      const res = await apiGetPriceSources();
+      const res = await getPriceSources();
       if (res.success && Array.isArray(res.sources)) {
         setSources(res.sources);
       }
@@ -122,7 +122,7 @@ export default function PriceSourcesPage({ embedded = false, usdToman: propUsdTo
   const handleFetchAllNow = async () => {
     setFetchingAll(true);
     try {
-      const res = await apiFetchAllSourcesNow();
+      const res = await fetchAllSourcesNow();
       if (res.success) {
         showMsg(`استخراج آنی انجام شد: ${res.extractedCount} سورس به‌روزرسانی شد.`, 'success');
         await loadSources();
@@ -139,7 +139,7 @@ export default function PriceSourcesPage({ embedded = false, usdToman: propUsdTo
   const handleTestMultiRowSource = async (src) => {
     setMultiRowTestingId(src.id);
     try {
-      const res = await apiTestPriceSource(src);
+      const res = await testPriceSource(src);
       if (res.success) {
         showMsg(res.message || `تست فید «${src.name}» با موفقیت انجام شد.`, 'success');
       } else {
@@ -192,7 +192,7 @@ export default function PriceSourcesPage({ embedded = false, usdToman: propUsdTo
     // 2. Fetch live data via universal test/preview endpoint
     setExplorerLoading(true);
     try {
-      const testRes = await apiTestPriceSource(src);
+      const testRes = await testPriceSource(src);
       if (testRes.success) {
         const rawList = testRes.compactList || testRes.items || testRes.sampleItems;
         if (Array.isArray(rawList) && rawList.length > 0) {
@@ -208,7 +208,7 @@ export default function PriceSourcesPage({ embedded = false, usdToman: propUsdTo
 
       // 3. Fallback to unified catalog market items if test endpoint didn't supply items
       try {
-        const marketRes = await apiGetMarketItems();
+        const marketRes = await getMarketItems();
         if (marketRes?.success) {
           const candidates = [
             ...(marketRes.funds || []),
@@ -243,7 +243,7 @@ export default function PriceSourcesPage({ embedded = false, usdToman: propUsdTo
   // Set Primary Source
   const handleSetPrimary = async (src) => {
     try {
-      const res = await apiSetPrimarySource(src.id, src.priceType);
+      const res = await setPrimarySource(src.id, src.priceType);
       if (res.success) {
         showMsg(`سورس «${src.name}» به عنوان مرجع قیمت تعیین شد.`, 'success');
         loadSources();
@@ -258,7 +258,7 @@ export default function PriceSourcesPage({ embedded = false, usdToman: propUsdTo
   // Toggle Active State
   const handleToggleActive = async (src) => {
     try {
-      const res = await apiSavePriceSource({
+      const res = await savePriceSource({
         ...src,
         isActive: !src.isActive,
       });
@@ -275,7 +275,7 @@ export default function PriceSourcesPage({ embedded = false, usdToman: propUsdTo
   const handleTestRowSource = async (src) => {
     setRowTestingId(src.id);
     try {
-      const res = await apiTestPriceSource(src);
+      const res = await testPriceSource(src);
       setRowTestResults((prev) => ({ ...prev, [src.id]: res }));
 
       if (res.success && res.price) {
