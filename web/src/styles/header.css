@@ -65,8 +65,9 @@
 }
 
 @media (max-width: 768px) {
+  /* Stays pinned while scrolling (sticky, above); in the installed app it also clears the notch */
   .site-header {
-    padding: 10px 0;
+    padding: calc(10px + env(safe-area-inset-top, 0px)) 0 10px;
   }
 
   .header-main-row {
