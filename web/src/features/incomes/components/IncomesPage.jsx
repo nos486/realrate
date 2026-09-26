@@ -5,8 +5,8 @@
  * - Period picker at the top (last month / 3 / 6 months / a year / all; 6 months by default):
  *   only that date window is fetched from the server
  * - Summary cards, per-category breakdown and the monthly chart, all of the period (never more)
- * - The list: 10 per page, paged and sorted by date on the server; a search looks through the
- *   whole period in the browser (titles and notes are encrypted)
+ * - The list: 10 per page, sorted by date; paging, sorting and search all work in the browser on
+ *   the period already fetched (one query per period — amounts and titles are encrypted)
  */
 
 import React, { useState, useMemo } from 'react';
@@ -41,17 +41,10 @@ import VaultUnlockCard from '../../../shared/vault/VaultUnlockCard.jsx';
 
 export default function IncomesPage() {
   const {
-    incomes,
-    total,
-    page,
-    setPage,
+    incomes: periodIncomes,
     pageSize,
     period,
     setPeriod,
-    order,
-    setOrder,
-    windowIncomes,
-    loadingWindow,
     loadAllIncomes,
     vaultLocked,
     loadingIncomes,
@@ -72,15 +65,16 @@ export default function IncomesPage() {
   const hideValues = usePrivacyMode();
 
   const [searchQuery, setSearchQuery] = useState('');
-  // The page within the search results, reset whenever the search itself changes
-  const [searchPaging, setSearchPaging] = useState({ key: '', page: 1 });
+  // Newest first by default (the date column flips it)
+  const [order, setOrder] = useState('desc');
+  // The page, reset whenever what is listed changes
+  const [paging, setPaging] = useState({ key: '', page: 1 });
   const [formOpen, setFormOpen] = useState(false);
   const [editingIncome, setEditingIncome] = useState(null);
   const [editingRule, setEditingRule] = useState(null);
   const [startRecurring, setStartRecurring] = useState(false);
 
-  // Everything in the sidebar is the period, exactly what was fetched
-  const periodIncomes = windowIncomes;
+  // Everything on the page is the period, exactly what was fetched
   const report = useMemo(() => buildIncomeReport(periodIncomes), [periodIncomes]);
   // One bar per Shamsi month of the period («all»: since the first income)
   const chartMonths = periodMonths(period) ?? monthsSpanned(periodIncomes);
@@ -89,26 +83,28 @@ export default function IncomesPage() {
   // The source donut's order, so the bar chart's stacks take the same colors
   const categoryOrder = useMemo(() => report.byCategory.map((c) => c.category), [report.byCategory]);
 
-  // Searching looks through the whole period in the browser (titles and notes are encrypted)
+  // The list: the period, searched (titles and notes are encrypted, so in the browser) and
+  // sorted by date, then 10 at a time
   const query = searchQuery.trim().toLowerCase();
-  const searchMatches = useMemo(() => {
-    if (!query) return [];
-    const dir = order === 'asc' ? 1 : -1;
-    return periodIncomes
-      .filter((income) =>
-        [income.title, income.notes, getIncomeCategory(income.category).label]
-          .some((field) => String(field || '').toLowerCase().includes(query))
-      )
-      .sort((a, b) => dir * (String(a.incomeDate).localeCompare(String(b.incomeDate)) || String(a.createdAt || '').localeCompare(String(b.createdAt || ''))));
-  }, [periodIncomes, query, order]);
-  const searchKey = `${query}|${period}|${order}`;
-  const searchPage = searchPaging.key === searchKey ? searchPaging.page : 1;
-  const setSearchPage = (next) => setSearchPaging({ key: searchKey, page: next });
-
   const searching = Boolean(query);
-  const listTotal = searching ? searchMatches.length : total;
-  const listPage = searching ? searchPage : page;
-  const listRows = searching ? searchMatches.slice((searchPage - 1) * pageSize, searchPage * pageSize) : incomes;
+  const listed = useMemo(() => {
+    const dir = order === 'asc' ? 1 : -1;
+    const matches = query
+      ? periodIncomes.filter((income) =>
+          [income.title, income.notes, getIncomeCategory(income.category).label]
+            .some((field) => String(field || '').toLowerCase().includes(query))
+        )
+      : periodIncomes;
+    return [...matches].sort((a, b) =>
+      dir * (String(a.incomeDate).localeCompare(String(b.incomeDate)) || String(a.createdAt || '').localeCompare(String(b.createdAt || '')))
+    );
+  }, [periodIncomes, query, order]);
+  const listKey = `${query}|${period}|${order}`;
+  const lastPage = Math.max(1, Math.ceil(listed.length / pageSize));
+  // A delete can leave the last page empty: show the new last page
+  const page = Math.min(paging.key === listKey ? paging.page : 1, lastPage);
+  const setPage = (next) => setPaging({ key: listKey, page: next });
+  const listRows = listed.slice((page - 1) * pageSize, page * pageSize);
 
   const openForm = ({ income = null, rule = null, recurring = false } = {}) => {
     setEditingIncome(income);
@@ -167,8 +163,8 @@ export default function IncomesPage() {
   // Login is guaranteed by MainPage's site-wide auth gate before this component renders.
 
   // Nothing at all only when even «all» is empty; otherwise just this period is
-  const hasIncomes = total > 0 || windowIncomes.length > 0 || period !== 'all';
-  const periodEmpty = !loadingIncomes && total === 0;
+  const hasIncomes = periodIncomes.length > 0 || period !== 'all';
+  const periodEmpty = !loadingIncomes && periodIncomes.length === 0;
 
   if (vaultLocked) {
     return (
@@ -251,14 +247,14 @@ export default function IncomesPage() {
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   placeholder="جستجو در عنوان، منبع یا یادداشت..."
-                  badge={`${listTotal.toLocaleString('fa-IR')} مورد`}
+                  badge={`${listed.length.toLocaleString('fa-IR')} مورد`}
                   className="incomes-search"
                 />
               )}
             </div>
 
             <div className="table-card-body">
-              {loadingIncomes && incomes.length === 0 && !searching ? (
+              {loadingIncomes && periodIncomes.length === 0 ? (
                 <SkeletonRows rows={5} columns={4} label="در حال دریافت لیست درآمدها" />
               ) : !hasIncomes ? (
                 <EmptyState
@@ -277,13 +273,13 @@ export default function IncomesPage() {
                   title="در این بازه درآمدی ثبت نشده است"
                   description="بازه زمانی دیگری را از بالای صفحه انتخاب کنید یا درآمد جدیدی ثبت نمایید."
                 />
-              ) : searching && searchMatches.length === 0 ? (
+              ) : searching && listed.length === 0 ? (
                 <EmptyState
                   title="موردی یافت نشد"
-                  description={loadingWindow ? 'در حال جستجو…' : 'هیچ درآمدی در این بازه با عبارت جستجو شده مطابقت ندارد.'}
+                  description="هیچ درآمدی در این بازه با عبارت جستجو شده مطابقت ندارد."
                 />
               ) : (
-                <div className={loadingIncomes && !searching ? 'is-refreshing' : ''} aria-busy={loadingIncomes}>
+                <div className={loadingIncomes ? 'is-refreshing' : ''} aria-busy={loadingIncomes}>
                   <IncomesTable
                     incomes={listRows}
                     onEdit={handleOpenEdit}
@@ -297,11 +293,11 @@ export default function IncomesPage() {
               )}
 
               <Pagination
-                page={listPage}
+                page={page}
                 pageSize={pageSize}
-                total={listTotal}
-                loading={loadingIncomes && !searching}
-                onChange={searching ? setSearchPage : setPage}
+                total={listed.length}
+                loading={loadingIncomes}
+                onChange={setPage}
                 label="صفحه‌بندی درآمدها"
               />
             </div>

@@ -1,10 +1,10 @@
 /**
- * useIncomes.js — The user's incomes by period, a page at a time, and their CRUD operations
+ * useIncomes.js — The user's incomes of a period, and their CRUD operations
  *
- * Only a date window is ever fetched (the server filters on each income's plaintext date):
- * - the list: one page of the chosen period, sorted by date on the server;
- * - the sidebar: the whole period (amounts are encrypted, so totals and the monthly chart are
- *   built in the browser) — never more than the period.
+ * One query per period: the server filters on each income's plaintext date and returns only the
+ * chosen window (6 months by default). Amounts are encrypted, so the totals, the monthly chart
+ * and the list's pages are all built in the browser from that one result — nothing is fetched
+ * twice and nothing outside the period is fetched at all.
  */
 
 import { useState, useEffect, useCallback, useRef } from 'react';
@@ -37,13 +37,10 @@ export function useIncomes() {
   const vaultLocked = vaultStatus === 'locked';
   const ready = Boolean(user) && !vaultLocked;
 
-  const [period, setPeriodState] = useState(DEFAULT_RECENT_PERIOD);
-  const [order, setOrderState] = useState('desc');
-  const [page, setPage] = useState(1);
+  const [period, setPeriod] = useState(DEFAULT_RECENT_PERIOD);
   const [reloadToken, setReloadToken] = useState(0);
 
-  // Each result is tagged with the request it answers, so loading is derived, not stored
-  const [pageData, setPageData] = useState({ key: null, incomes: [], total: 0 });
+  // The result is tagged with the request it answers, so loading is derived, not stored
   const [windowData, setWindowData] = useState({ key: null, incomes: [] });
   const [submitting, setSubmitting] = useState(false);
   const [deletingId, setDeletingId] = useState(null);
@@ -56,58 +53,23 @@ export function useIncomes() {
   const from = periodFrom(period, today);
 
   const reload = useCallback(() => setReloadToken((n) => n + 1), []);
-  const setPeriod = useCallback((next) => {
-    setPeriodState(next);
-    setPage(1);
-  }, []);
-  const setOrder = useCallback((next) => {
-    setOrderState(next);
-    setPage(1);
-  }, []);
 
-  // One page of the list (vaultEpoch: reload after unlocking or migrating)
-  const pageKey = `${from}|${order}|${page}|${reloadToken}|${vaultEpoch}`;
-  useEffect(() => {
-    if (!ready) return undefined;
-    let active = true;
-    getIncomes({ from, order, limit: INCOMES_PAGE_SIZE, offset: (page - 1) * INCOMES_PAGE_SIZE })
-      .then((res) => {
-        if (!active) return;
-        const total = Number(res?.total) || 0;
-        // A delete can leave the last page empty: step back to the new last page
-        const lastPage = Math.max(1, Math.ceil(total / INCOMES_PAGE_SIZE));
-        if (page > lastPage) {
-          setPage(lastPage);
-          return;
-        }
-        setPageData({ key: pageKey, incomes: Array.isArray(res?.incomes) ? res.incomes : [], total });
-        setError(null);
-      })
-      .catch((err) => {
-        if (!active) return;
-        setPageData((prev) => ({ ...prev, key: pageKey }));
-        setError(err.message || 'خطا در بارگذاری لیست درآمدها');
-      });
-    return () => {
-      active = false;
-    };
-    // `pageKey` is derived from exactly these values
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ready, pageKey]);
-
-  // The whole period, for the sidebar (report + monthly chart) and search
+  // The whole period: the list, the report, the monthly chart and search all read it
+  // (vaultEpoch: reload after unlocking or migrating)
   const windowKey = `${from}|${reloadToken}|${vaultEpoch}`;
   useEffect(() => {
     if (!ready) return undefined;
     let active = true;
     getIncomes({ from })
       .then((res) => {
-        if (active) setWindowData({ key: windowKey, incomes: Array.isArray(res?.incomes) ? res.incomes : [] });
+        if (!active) return;
+        setWindowData({ key: windowKey, incomes: Array.isArray(res?.incomes) ? res.incomes : [] });
+        setError(null);
       })
       .catch((err) => {
         if (!active) return;
         setWindowData((prev) => ({ ...prev, key: windowKey }));
-        setError(err.message || 'خطا در بارگذاری گزارش درآمدها');
+        setError(err.message || 'خطا در بارگذاری لیست درآمدها');
       });
     return () => {
       active = false;
@@ -116,8 +78,7 @@ export function useIncomes() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ready, windowKey]);
 
-  const loadingIncomes = ready && pageData.key !== pageKey;
-  const loadingWindow = ready && windowData.key !== windowKey;
+  const loadingIncomes = ready && windowData.key !== windowKey;
 
   /**
    * Create the entries fixed incomes owe up to today (one run at a time). Only the incomes since
@@ -206,8 +167,8 @@ export function useIncomes() {
   }, []);
 
   /**
-   * Create or update an income depending on whether `incomeId` is given, then reload the page
-   * and the period. Errors are re-thrown (not stored in `error`) so the open form can show them.
+   * Create or update an income depending on whether `incomeId` is given, then reload the period.
+   * Errors are re-thrown (not stored in `error`) so the open form can show them.
    * @param {object} incomeData
    * @param {string|null} [incomeId]
    * @param {{ reload?: boolean }} [options] reload: false while importing many at once
@@ -259,20 +220,11 @@ export function useIncomes() {
   const clearError = useCallback(() => setError(null), []);
 
   return {
-    // The list: one page of the period
-    incomes: ready ? pageData.incomes : [],
-    total: ready ? pageData.total : 0,
-    page,
-    setPage,
+    // Every income of the period (newest first, as the server sorts them)
+    incomes: ready ? windowData.incomes : [],
     pageSize: INCOMES_PAGE_SIZE,
     period,
     setPeriod,
-    periodStart: from,
-    order,
-    setOrder,
-    // The whole period
-    windowIncomes: ready ? windowData.incomes : [],
-    loadingWindow,
     vaultLocked,
     loadingIncomes,
     submitting,

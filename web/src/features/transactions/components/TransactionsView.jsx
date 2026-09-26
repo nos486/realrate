@@ -3,9 +3,9 @@
  *
  * Renders buy/sell transaction CRUD, search/filter, and turnover stats for the portfolio
  * selected by the parent (PortfolioTracker). A period picker (6 months by default) sets the date
- * window fetched from the server; the list shows 10 per page — paged by date on the server,
- * or in the browser while searching, filtering by type or sorting by another column (those
- * fields are encrypted). The full history is loaded only for the form's sell-balance check. The portfolio switcher and page header live in
+ * window fetched from the server — one query per period; the stats, search, type filter,
+ * sorting and the 10-per-page list all work in the browser on that result (the fields are
+ * encrypted). The full history is loaded only for the form's sell-balance check. The portfolio switcher and page header live in
  * the parent, shared with the Holdings sub-tab — this view owns only its own vault-unlock
  * state and transaction data, exactly as it did as a standalone page.
  */
@@ -23,7 +23,6 @@ import {
   MessageSquare,
 } from 'lucide-react';
 import { useTransactions } from '../hooks/useTransactions.js';
-import { useTransactionPage } from '../hooks/useTransactionPage.js';
 import { useComputedHoldings } from '../hooks/useComputedHoldings.js';
 import TransactionForm from './TransactionForm.jsx';
 import VaultLockCard from '../../portfolio/components/VaultLockCard.jsx';
@@ -86,8 +85,6 @@ const TransactionsView = forwardRef(function TransactionsView(
     addTransaction,
     updateTransaction,
     deleteTransaction,
-    activeVaultKey,
-    changeCount,
   } = useTransactions(activePortfolio, vaultKey, { from: periodStart });
 
   useEffect(() => {
@@ -232,25 +229,13 @@ const TransactionsView = forwardRef(function TransactionsView(
   // Paging: 10 per page, reset whenever what is listed changes
   const listKey = `${activePortfolio?.id}|${period}|${typeFilter}|${searchQuery.trim()}|${sortState.key}|${sortState.dir}`;
   const [paging, setPaging] = useState({ key: '', page: 1 });
-  const page = paging.key === listKey ? paging.page : 1;
   const setPage = (next) => setPaging({ key: listKey, page: next });
 
-  // With no search / type filter and the date order, the server pages the encrypted records
-  const plainDateList = !searchQuery.trim() && typeFilter === 'all' && sortState.key === 'date';
-  const serverPage = useTransactionPage(activePortfolio, activeVaultKey, {
-    from: periodStart,
-    order: sortState.dir,
-    page,
-    pageSize: TX_PAGE_SIZE,
-    enabled: plainDateList && !isVaultLocked,
-    // Refetch after an add / edit / delete
-    version: changeCount,
-    onOverflow: setPage,
-  });
-  const listRows = serverPage.serverPaged
-    ? serverPage.rows
-    : sortedTransactions.slice((page - 1) * TX_PAGE_SIZE, page * TX_PAGE_SIZE);
-  const listTotal = serverPage.serverPaged ? serverPage.total : sortedTransactions.length;
+  const lastPage = Math.max(1, Math.ceil(sortedTransactions.length / TX_PAGE_SIZE));
+  // A delete can leave the last page empty: show the new last page
+  const page = Math.min(paging.key === listKey ? paging.page : 1, lastPage);
+  const listRows = sortedTransactions.slice((page - 1) * TX_PAGE_SIZE, page * TX_PAGE_SIZE);
+  const listTotal = sortedTransactions.length;
 
   // Stats
   const stats = useMemo(() => {
@@ -593,7 +578,7 @@ const TransactionsView = forwardRef(function TransactionsView(
               </div>
 
               {/* Transactions Data Table */}
-              {(loadingPortfolios && !activePortfolio) || (loadingTransactions && transactions.length === 0 && !serverPage.serverPaged) || (serverPage.loading && serverPage.rows.length === 0) ? (
+              {(loadingPortfolios && !activePortfolio) || (loadingTransactions && transactions.length === 0) ? (
                 <SkeletonRows rows={5} columns={5} label="در حال بارگذاری تراکنش‌ها" />
               ) : listTotal === 0 ? (
                 <EmptyState
@@ -618,7 +603,7 @@ const TransactionsView = forwardRef(function TransactionsView(
                   }
                 />
               ) : (
-                <div className={serverPage.loading ? 'is-refreshing' : ''} aria-busy={serverPage.loading}>
+                <div className={loadingTransactions ? 'is-refreshing' : ''} aria-busy={loadingTransactions}>
                   <ResponsiveDataTable
                     columns={transactionColumns}
                     rows={listRows}
@@ -635,7 +620,7 @@ const TransactionsView = forwardRef(function TransactionsView(
                 page={page}
                 pageSize={TX_PAGE_SIZE}
                 total={listTotal}
-                loading={serverPage.loading}
+                loading={loadingTransactions}
                 onChange={setPage}
                 label="صفحه‌بندی تراکنش‌ها"
               />
