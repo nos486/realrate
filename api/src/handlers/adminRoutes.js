@@ -6,6 +6,7 @@
 import { getAuthenticatedUser } from "../lib/auth.js";
 import {
   dbGetUsersPage,
+  USER_SORTS,
   dbGetUserById,
   dbGetPortfolioHoldings,
   dbGetUserPortfolios,
@@ -34,12 +35,13 @@ export async function handleAdminStatsRoute(request, env) {
   return jsonResponse(stats, 200, request);
 }
 
-const USERS_PAGE_SIZE_DEFAULT = 20;
+const USERS_PAGE_SIZE_DEFAULT = 10;
 const USERS_PAGE_SIZE_MAX = 100;
 
 /**
- * GET /api/admin/users?page=1&pageSize=20&q=...
- * One page of registered users (most recently active first), optionally filtered — admin only
+ * GET /api/admin/users?page=1&pageSize=10&q=...&sort=lastLogin|createdAt&dir=desc|asc
+ * One page of registered users (by default most recently active first), optionally filtered —
+ * admin only
  */
 export async function handleAdminUsersRoute(request, env) {
   const user = await getAuthenticatedUser(request, env);
@@ -53,16 +55,20 @@ export async function handleAdminUsersRoute(request, env) {
   const pageSize = Math.min(toInt(url.searchParams.get("pageSize"), USERS_PAGE_SIZE_DEFAULT), USERS_PAGE_SIZE_MAX);
   const q = (url.searchParams.get("q") || "").trim().slice(0, 100);
   const requestedPage = toInt(url.searchParams.get("page"), 1);
+  const sortParam = url.searchParams.get("sort");
+  const sort = Object.hasOwn(USER_SORTS, sortParam || "") ? sortParam : "lastLogin";
+  const dir = url.searchParams.get("dir") === "asc" ? "asc" : "desc";
+  const query = { q, sort, dir, limit: pageSize };
 
-  let { users, total } = await dbGetUsersPage(env, { q, limit: pageSize, offset: (requestedPage - 1) * pageSize });
+  let { users, total } = await dbGetUsersPage(env, { ...query, offset: (requestedPage - 1) * pageSize });
   // Past the last page (e.g. the list shrank): answer with the last page instead of an empty one
   const pageCount = Math.max(1, Math.ceil(total / pageSize));
   const page = Math.min(requestedPage, pageCount);
   if (page !== requestedPage) {
-    ({ users, total } = await dbGetUsersPage(env, { q, limit: pageSize, offset: (page - 1) * pageSize }));
+    ({ users, total } = await dbGetUsersPage(env, { ...query, offset: (page - 1) * pageSize }));
   }
 
-  return jsonResponse({ success: true, users, total, page, pageSize, pageCount }, 200, request);
+  return jsonResponse({ success: true, users, total, page, pageSize, pageCount, sort, dir }, 200, request);
 }
 
 /**

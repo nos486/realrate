@@ -814,3 +814,37 @@
   font-weight: 700;
   white-space: nowrap;
 }
+
+/* Sortable date headers */
+.users-sort-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.users-sort-btn svg {
+  opacity: 0.5;
+}
+
+.users-sort-btn:hover,
+.users-sort-btn.is-active {
+  color: var(--text-primary);
+}
+
+.users-sort-btn.is-active svg {
+  opacity: 1;
+  color: var(--accent-blue);
+}
+
+.users-sort-btn:focus-visible {
+  outline: 2px solid var(--accent-blue);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
