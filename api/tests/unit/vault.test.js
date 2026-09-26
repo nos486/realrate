@@ -47,10 +47,10 @@ function createDb() {
             return { meta: { changes: 1 } };
           }
           if (q.startsWith('INSERT INTO vault_records')) {
-            const [user_id, kind, id, payload, created_at, updated_at] = args;
+            const [user_id, kind, id, payload, record_date, parent_id, created_at, updated_at] = args;
             const key = recordKey(user_id, kind, id);
             const prev = records.get(key);
-            records.set(key, { id, kind, payload, createdAt: prev?.createdAt || created_at, updatedAt: updated_at, user_id });
+            records.set(key, { id, kind, payload, recordDate: record_date, parentId: parent_id, createdAt: prev?.createdAt || created_at, updatedAt: updated_at, user_id });
             return { meta: { changes: 1 } };
           }
           if (q.startsWith('DELETE FROM vault_records')) {
@@ -84,8 +84,19 @@ function createDb() {
         },
         async all() {
           if (q.includes('FROM vault_records')) {
-            const [user_id, kind] = args;
-            return { results: [...records.values()].filter((r) => r.user_id === user_id && r.kind === kind) };
+            // Mirrors the optional filters in their fixed order: from, to, parent
+            const [user_id, kind, ...rest] = args;
+            let i = 0;
+            const from = q.includes('record_date >= ?') ? rest[i++] : null;
+            const to = q.includes('record_date <= ?') ? rest[i++] : null;
+            const parent = q.includes('parent_id = ?') ? rest[i++] : null;
+            return {
+              results: [...records.values()]
+                .filter((r) => r.user_id === user_id && r.kind === kind)
+                .filter((r) => (from === null || r.recordDate >= from) && (to === null || (r.recordDate && r.recordDate <= to)))
+                .filter((r) => parent === null || r.parentId === parent)
+                .sort((a, b) => b.recordDate.localeCompare(a.recordDate)),
+            };
           }
           return { results: [] };
         },
@@ -168,6 +179,27 @@ describe('vault records', () => {
     expect(list).toHaveLength(1);
     expect(list[0].payload).toBe(CIPHER_2);
     expect(await dbListVaultRecords(env, 'u1', 'income')).toHaveLength(0);
+  });
+
+  it('keeps one plaintext date and parent beside the ciphertext, and filters on them', async () => {
+    await expect(dbPutVaultRecord(env, 'u1', 'income', 'inc_x', { payload: CIPHER, recordDate: '2026-13-40' })).rejects.toMatchObject({ statusCode: 400 });
+    await expect(dbPutVaultRecord(env, 'u1', 'income', 'inc_x', { payload: CIPHER, recordDate: '1405/07/01' })).rejects.toMatchObject({ statusCode: 400 });
+    await expect(dbPutVaultRecord(env, 'u1', 'income', 'inc_x', { payload: CIPHER, parentId: '../p' })).rejects.toMatchObject({ statusCode: 400 });
+
+    await dbPutVaultRecord(env, 'u1', 'income', 'inc_1', { payload: CIPHER, recordDate: '2026-03-21' });
+    await dbPutVaultRecord(env, 'u1', 'income', 'inc_2', { payload: CIPHER, recordDate: '2026-06-01' });
+    await dbPutVaultRecord(env, 'u1', 'income', 'inc_3', { payload: CIPHER });
+    const all = await dbListVaultRecords(env, 'u1', 'income');
+    expect(all.map((r) => r.id)).toEqual(['inc_2', 'inc_1', 'inc_3']);
+    expect(all[0]).toMatchObject({ recordDate: '2026-06-01', parentId: '' });
+
+    const spring = await dbListVaultRecords(env, 'u1', 'income', { from: '2026-03-01', to: '2026-05-31' });
+    expect(spring.map((r) => r.id)).toEqual(['inc_1']);
+    await expect(dbListVaultRecords(env, 'u1', 'income', { from: 'yesterday' })).rejects.toMatchObject({ statusCode: 400 });
+
+    await dbPutVaultRecord(env, 'u1', 'income', 'inc_1', { payload: CIPHER_2, recordDate: '2026-03-22', parentId: 'p_1' });
+    const byParent = await dbListVaultRecords(env, 'u1', 'income', { parentId: 'p_1' });
+    expect(byParent).toEqual([expect.objectContaining({ id: 'inc_1', payload: CIPHER_2, recordDate: '2026-03-22' })]);
   });
 
   it('encrypting an existing record removes its plaintext in the same batch', async () => {

@@ -8,7 +8,8 @@
 
 import { validateChequeInput, compareChequesByDue } from '../../utils/chequeDocument.js';
 import { todayIso } from '../utils/dates.js';
-import { listVaultRecords, putVaultRecord, deleteVaultRecord } from './vaultApi.js';
+import { listVaultRecords, deleteVaultRecord } from './vaultApi.js';
+import { putRecord, backfillRecordDates } from './vaultRecordMeta.js';
 import { encryptVaultRecord, decryptVaultRecord } from './vaultStore.js';
 
 const KIND = 'cheque';
@@ -33,7 +34,7 @@ function newChequeId() {
 let cheques = new Map();
 
 async function save(cheque) {
-  await putVaultRecord(KIND, cheque.id, await encryptVaultRecord(cheque));
+  await putRecord(KIND, cheque.id, await encryptVaultRecord(cheque), cheque);
   cheques.set(cheque.id, cheque);
   return cheque;
 }
@@ -45,12 +46,16 @@ export function clearVaultChequesCache() {
 export async function getCheques() {
   const res = await listVaultRecords(KIND);
   const next = new Map();
+  const decrypted = [];
   for (const record of res?.records || []) {
     const cheque = await decryptVaultRecord(record.payload);
-    if (cheque?.id) next.set(record.id, cheque);
-    else console.warn('Skipped a cheque that could not be decrypted:', record.id);
+    if (cheque?.id) {
+      next.set(record.id, cheque);
+      decrypted.push({ record, plain: cheque });
+    } else console.warn('Skipped a cheque that could not be decrypted:', record.id);
   }
   cheques = next;
+  backfillRecordDates(KIND, decrypted);
   const list = [...cheques.values()].sort(compareChequesByDue);
   return { success: true, count: list.length, cheques: list };
 }

@@ -17,10 +17,20 @@ export const saveVault = ({ salt, wrappedKey, previousWrappedKey }, options) =>
 
 export const deleteVault = (options) => httpClient.delete('/api/vault', options);
 
-export const listVaultRecords = (kind, options) => httpClient.get(`/api/vault/records/${seg(kind)}`, options);
+/**
+ * Records of one kind. `filters` narrow by the plaintext metadata only: { from, to } (inclusive
+ * YYYY-MM-DD on the record's primary date) and { parent } (e.g. a portfolio id).
+ */
+export const listVaultRecords = (kind, options, filters = {}) => {
+  const params = new URLSearchParams();
+  for (const key of ['from', 'to', 'parent']) if (filters[key]) params.set(key, filters[key]);
+  const query = params.toString();
+  return httpClient.get(`/api/vault/records/${seg(kind)}${query ? `?${query}` : ''}`, options);
+};
 
-export const putVaultRecord = (kind, id, payload, { replacePlain = false, ...options } = {}) =>
-  httpClient.put(`/api/vault/records/${seg(kind)}/${seg(id)}`, { payload, replacePlain }, options);
+/** Store a record: ciphertext + its plaintext metadata (recordDate, parentId) */
+export const putVaultRecord = (kind, id, payload, { replacePlain = false, recordDate = '', parentId = '', ...options } = {}) =>
+  httpClient.put(`/api/vault/records/${seg(kind)}/${seg(id)}`, { payload, replacePlain, recordDate, parentId }, options);
 
 export const deleteVaultRecord = (kind, id, options) =>
   httpClient.delete(`/api/vault/records/${seg(kind)}/${seg(id)}`, options);

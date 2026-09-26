@@ -62,7 +62,12 @@ export async function handleDeleteVault(request, env) {
 
 export async function handleListVaultRecords(request, env, { kind }) {
   const userId = await requireUserId(request, env);
-  const records = await dbListVaultRecords(env, userId, kind);
+  const params = new URL(request.url).searchParams;
+  const records = await dbListVaultRecords(env, userId, kind, {
+    from: params.get("from") || "",
+    to: params.get("to") || "",
+    parentId: params.get("parent") || "",
+  });
   return jsonResponse({ success: true, records }, 200, request);
 }
 
@@ -72,6 +77,8 @@ export async function handlePutVaultRecord(request, env, { kind, id }) {
   const record = await dbPutVaultRecord(env, userId, kind, id, {
     payload: body.payload,
     replacePlain: Boolean(body.replacePlain),
+    recordDate: body.recordDate,
+    parentId: body.parentId,
   });
   return jsonResponse({ success: true, record }, 200, request);
 }
