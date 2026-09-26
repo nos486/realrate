@@ -190,15 +190,38 @@ export default function AdminUserDetailModal({ userId, fallback, onClose, onChan
 
           <section>
             <h4 className="admin-detail-title">استفاده از برنامه</h4>
+            {detail.plaintextPending > 0 && (
+              <AlertBanner
+                type="warning"
+                message={`رمزنگاری این حساب فعال است اما ${faNum(detail.plaintextPending)} مورد (وام، درآمد، چک یا درآمد ثابت) هنوز رمزنگاری‌نشده ذخیره شده است. کاربر باید در تنظیمات حساب (بخش رمزنگاری سرتاسری) دکمه «رمزنگاری» را بزند.`}
+              />
+            )}
             <div className="admin-usage">
-              {USAGE_LABELS.map(([key, label]) => (
-                <div key={key} className={`admin-usage-item ${detail.usage?.[key] ? '' : 'is-zero'}`}>
-                  <strong>{faNum(detail.usage?.[key] || 0)}</strong>
-                  <span>{label}</span>
-                </div>
-              ))}
+              {USAGE_LABELS.map(([key, label]) => {
+                const plain = detail.usage?.[key] || 0;
+                // Encrypted portfolios are the same rows as their plain count; vault records add up
+                const locked = detail.encrypted?.[key] || 0;
+                const total = key === 'portfolios' ? plain : plain + locked;
+                return (
+                  <div key={key} className={`admin-usage-item ${total ? '' : 'is-zero'}`}>
+                    <strong>{faNum(total)}</strong>
+                    <span>{label}</span>
+                    {locked > 0 && (
+                      <small className="admin-usage-locked" title="ذخیره‌شده به‌صورت رمزنگاری‌شده">
+                        <Lock size={10} /> {key === 'portfolios' && locked === total ? 'همه' : faNum(locked)} رمزشده
+                      </small>
+                    )}
+                    {detail.vaultEnabled && key !== 'portfolios' && key !== 'holdings' && key !== 'transactions' && plain > 0 && (
+                      <small className="admin-usage-plain">{faNum(plain)} بدون رمز</small>
+                    )}
+                  </div>
+                );
+              })}
             </div>
-            <p className="admin-detail-note">فقط تعداد نمایش داده می‌شود؛ محتوای اطلاعات مالی کاربر در دسترس مدیر نیست.</p>
+            <p className="admin-detail-note">
+              فقط تعداد نمایش داده می‌شود؛ محتوای اطلاعات مالی کاربر در دسترس مدیر نیست
+              {detail.vaultEnabled ? ' و موارد رمزشده حتی برای سرور هم قابل خواندن نیستند.' : '.'}
+            </p>
           </section>
         </div>
       )}
