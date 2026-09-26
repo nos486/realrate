@@ -332,9 +332,8 @@
 }
 
 .portfolio-stat-card:hover {
+  /* Same hover as every card: a slightly brighter border, nothing moves */
   border-color: rgba(255, 255, 255, 0.12);
-  box-shadow: var(--card-shadow-hover);
-  transform: translateY(-1px);
 }
 
 .real-pill {
