@@ -3,6 +3,8 @@
  *
  * With "درآمد ثابت" on, the entry becomes a rule that adds itself every period from the chosen
  * date on (the first one right away when that date has passed). `editingRule` edits such a rule.
+ * While a new fixed income is being added, the existing ones are listed below the form (pause /
+ * resume, edit, delete) — they are managed here, not on the page.
  * Mounted only while open (keyed by what it edits), so its state is initialized straight from
  * props instead of being reset in an effect.
  */
@@ -18,6 +20,7 @@ import ShamsiDatePicker, {
 import { parseInputNumber } from '../../portfolio/utils/holdingHelpers.js';
 import { INCOME_CATEGORIES, DEFAULT_INCOME_CATEGORY } from '../constants/incomeCategories.js';
 import { RECURRING_INTERVALS } from '../../../utils/recurringIncome.js';
+import RecurringIncomesCard from './RecurringIncomesCard.jsx';
 
 const INTERVAL_OPTIONS = RECURRING_INTERVALS.map(({ months, label }) => ({ value: String(months), label }));
 
@@ -35,6 +38,11 @@ export default function IncomeForm({
   editingRule = null,
   startRecurring = false,
   submitting = false,
+  recurringRules = [],
+  onEditRule,
+  onToggleRule,
+  onDeleteRule,
+  hideValues = false,
 }) {
   const source = editingRule || editingIncome;
   const [title, setTitle] = useState(source?.title || '');
@@ -190,6 +198,17 @@ export default function IncomeForm({
           maxLength={500}
           rows={2}
         />
+
+        {recurring && !editingRule && recurringRules.length > 0 && (
+          <RecurringIncomesCard
+            title="درآمدهای ثابت شما"
+            rules={recurringRules}
+            onEdit={onEditRule}
+            onToggle={onToggleRule}
+            onDelete={onDeleteRule}
+            hideValues={hideValues}
+          />
+        )}
       </div>
     </Modal>
   );

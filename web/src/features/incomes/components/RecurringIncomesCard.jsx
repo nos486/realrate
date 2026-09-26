@@ -1,5 +1,8 @@
 /**
  * RecurringIncomesCard.jsx — The user's fixed incomes: next date, pause / resume, edit, delete
+ *
+ * Shown inside the income form while «درآمد ثابت» is chosen (no add button there: the form itself
+ * adds one).
  */
 
 import React, { useState } from 'react';
@@ -10,7 +13,7 @@ import { intervalLabel, nextOccurrence } from '../../../utils/recurringIncome.js
 import { todayIso } from '../../../shared/utils/dates.js';
 import { getIncomeCategory } from '../constants/incomeCategories.js';
 
-export default function RecurringIncomesCard({ rules, onAdd, onEdit, onToggle, onDelete, hideValues = false }) {
+export default function RecurringIncomesCard({ rules, onAdd = null, onEdit, onToggle, onDelete, hideValues = false, title = 'درآمدهای ثابت' }) {
   const [busyId, setBusyId] = useState(null);
   const today = todayIso();
 
@@ -28,12 +31,14 @@ export default function RecurringIncomesCard({ rules, onAdd, onEdit, onToggle, o
       <div className="recurring-card-head">
         <h3 id="recurring-card-title">
           <Repeat size={15} />
-          درآمدهای ثابت
+          {title}
         </h3>
-        <button type="button" className="recurring-add-btn" onClick={onAdd}>
-          <Plus size={14} />
-          <span>افزودن</span>
-        </button>
+        {onAdd && (
+          <button type="button" className="recurring-add-btn" onClick={onAdd}>
+            <Plus size={14} />
+            <span>افزودن</span>
+          </button>
+        )}
       </div>
 
       {rules.length === 0 ? (
