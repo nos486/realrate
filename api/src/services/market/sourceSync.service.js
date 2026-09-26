@@ -12,7 +12,8 @@
  *   5. saveSourceItems(env, src.id, items, { datetime })
  *   6. setSourceLastSync(env, src.id, nowMs)
  *   7. Recompile homepage latest_rates cache
- *   8. Record the tick's prices in the price history (one write, keyed by asset id)
+ *   8. Build the price book (one standard item per id, in tomans) → KV "prices"
+ *   9. Record the tick's prices in the price history, keyed by the same ids
  *
  * Guarantees that in any single tick, no source is fetched more than once.
  */
@@ -27,10 +28,11 @@ import {
 import {
   setLatestRatesCache,
   setSourcePriceCache,
+  setPriceBookCache,
 } from "../../repositories/kvCache.repository.js";
 import { compileLatestMarketRates } from "./priceAggregator.service.js";
 import { logger } from "../../lib/logger.js";
-import { catalogHistoryPoints, marketRateHistoryPoints } from "../../domain/priceHistoryKeys.js";
+import { buildPriceBook } from "../../domain/priceBook.js";
 
 /**
  * Records a tick's prices in the price history. Registered by the Worker entry (index.js)
@@ -155,8 +157,8 @@ export async function syncAllSources(env, options = {}) {
     endpointContentMap.set(endpointKeys[i], rawResults[i]);
   }
 
-  // Catalog prices of this tick, for the price history
-  const catalogPoints = [];
+  // Sources that brought new values this tick (their items go to the price history)
+  const syncedSourceIds = new Set();
 
   // 3. Process, parse, and persist each source (uniform pipeline)
   for (const src of dueSources) {
@@ -188,7 +190,7 @@ export async function syncAllSources(env, options = {}) {
           ttlSeconds: Math.max(86400, intervalSec * 3),
         });
 
-        if (src.isCatalog) catalogPoints.push(...catalogHistoryPoints(src.id, items));
+        syncedSourceIds.add(src.id);
 
         // Set last sync timestamp
         await setSourceLastSync(env, src.id, nowMs, Math.max(86400, intervalSec * 3));
@@ -234,9 +236,20 @@ export async function syncAllSources(env, options = {}) {
     logger.warn("[SourceSync] Error updating latest rates cache:", { error: rateErr.message });
   }
 
-  // 5. Price history: every app price of this tick, in one write (the writer never throws)
-  if (priceHistoryWriter && syncedCount > 0) {
-    await priceHistoryWriter(env, [...marketRateHistoryPoints(latestRates), ...catalogPoints], new Date(nowMs).toISOString());
+  // 5. The price book: every price in the standard shape, the latest of each under KV "prices"
+  if (syncedCount > 0) {
+    const book = buildPriceBook(activeSources, { now: new Date(nowMs).toISOString() });
+    await setPriceBookCache(env, book);
+
+    // 6. Price history, keyed by the book's ids (the writer never throws). Items of sources that
+    // didn't sync keep their value, except those computed from the dollar and the ounce.
+    if (priceHistoryWriter) {
+      const points = Object.values(book.items)
+        .filter((item) => !item.sourceId || syncedSourceIds.has(item.sourceId)
+          || item.params?.usd !== undefined || item.params?.usdCross !== undefined)
+        .map((item) => ({ id: item.id, price: item.price }));
+      await priceHistoryWriter(env, points, book.updatedAt);
+    }
   }
 
   return {

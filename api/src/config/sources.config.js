@@ -110,6 +110,8 @@ export const PRICE_SOURCES_CONFIG = [
     name: "انس طلا جهانی (XAU)",
     brand: "انس جهانی",
     priceType: "ons_gold",
+    // Quoted in dollars: the price book turns it into tomans with the USD price
+    quote: "usd",
     sourceType: "api_url",
     endpoint: "https://api.gold-api.com/price/XAU",
     jsonPath: "price",
@@ -125,6 +127,8 @@ export const PRICE_SOURCES_CONFIG = [
     name: "انس نقره جهانی (XAG)",
     brand: "انس جهانی",
     priceType: "ons_silver",
+    // Quoted in dollars: the price book turns it into tomans with the USD price
+    quote: "usd",
     sourceType: "api_url",
     endpoint: "https://api.gold-api.com/price/XAG",
     jsonPath: "price",
@@ -170,6 +174,8 @@ export const PRICE_SOURCES_CONFIG = [
     name: "نرخ‌های جهانی فارکس (Open ER-API)",
     brand: "فارکس",
     priceType: "forex",
+    // Each currency's value in dollars: the price book turns it into tomans with the USD price
+    quote: "usd_cross",
     sourceType: "forex_api",
     endpoint: "https://open.er-api.com/v6/latest/USD",
     jsonPath: "rates",

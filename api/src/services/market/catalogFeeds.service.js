@@ -19,7 +19,7 @@ import { normalizePersian } from "./sources/parsingUtils.js";
 import { DEFAULT_BOURSE_SEARCH_LIMIT } from "../../config/constants.js";
 import { logger } from "../../lib/logger.js";
 import { syncAllSources } from "./sourceSync.service.js";
-import { catalogAssetId, catalogItemSymbol } from "../../domain/priceHistoryKeys.js";
+import { catalogAssetId, catalogItemSymbol, catalogItemPriceToman } from "../../domain/priceBook.js";
 
 /**
  * Returns all configured catalog sources from PRICE_SOURCES_CONFIG
@@ -47,18 +47,7 @@ export function standardizeCatalogItem(item, sourceConfig = {}) {
   const name = String(item.name || item.n || item.title || symbol).trim();
   if (!symbol && !name) return null;
 
-  let priceToman = 0;
-  if (item.price !== undefined && Number(item.price) > 0) {
-    priceToman = Math.round(Number(item.price));
-  } else if (item.priceToman !== undefined && Number(item.priceToman) > 0) {
-    priceToman = Math.round(Number(item.priceToman));
-  } else if (item.p !== undefined && Number(item.p) > 0) {
-    priceToman = Math.round(Number(item.p));
-  } else if (item.priceRial !== undefined && Number(item.priceRial) > 0) {
-    priceToman = Math.round(Number(item.priceRial) / 10);
-  } else if (item.pl !== undefined && Number(item.pl) > 0) {
-    priceToman = Math.round(Number(item.pl) / 10);
-  }
+  const priceToman = catalogItemPriceToman(item);
 
   const priceRial = (item.priceRial !== undefined && Number(item.priceRial) > 0)
     ? Math.round(Number(item.priceRial))
