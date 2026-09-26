@@ -3,6 +3,7 @@ import { Routes, Route, Navigate, Outlet, useLocation } from 'react-router-dom';
 import FullscreenLoader from './shared/ui/FullscreenLoader.jsx';
 import RequireAuth from './shared/ui/RequireAuth.jsx';
 import { useAuth } from './features/auth/context/AuthContext.jsx';
+import MaintenancePage from './pages/MaintenancePage.jsx';
 import { getToken } from './shared/api/httpClient.js';
 import { APP_BASE, LANDING_PATH, AUTH_PATHS } from './shared/routes.js';
 // Direct file imports (not the feature barrels) so the pages below stay in their lazy chunks
@@ -31,6 +32,21 @@ function RouteLoader() {
 function LegacyAppRedirect() {
   const { pathname, search } = useLocation();
   return <Navigate to={`${pathname.slice(APP_BASE.length)}${search}`} replace />;
+}
+
+const AUTH_PATH_LIST = Object.values(AUTH_PATHS);
+
+/**
+ * Maintenance ("under development") mode: everyone but an admin sees the maintenance page. The
+ * sign-in pages stay reachable so an admin can sign in (the server refuses anyone else).
+ */
+function MaintenanceGate({ children }) {
+  const { user, maintenance } = useAuth();
+  const { pathname } = useLocation();
+  if (maintenance?.enabled && user?.role !== 'admin' && !AUTH_PATH_LIST.includes(pathname)) {
+    return <MaintenancePage />;
+  }
+  return children;
 }
 
 /**
@@ -75,6 +91,7 @@ export default function App() {
   return (
     <>
       <Suspense fallback={<RouteLoader />}>
+      <MaintenanceGate>
       <Routes>
         {/* Public, no pricing data; signed-in users go to the app */}
         <Route path={LANDING_PATH} element={<GuestLanding />} />
@@ -114,6 +131,7 @@ export default function App() {
         <Route path="/landing" element={<Navigate to={LANDING_PATH} replace />} />
         <Route path="*" element={<Navigate to={LANDING_PATH} replace />} />
       </Routes>
+      </MaintenanceGate>
       </Suspense>
       <FullscreenLoader />
     </>

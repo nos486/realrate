@@ -240,3 +240,35 @@ p.auth-muted {
     border-radius: 18px;
   }
 }
+
+/* ── Maintenance page (pages/MaintenancePage) ── */
+.maintenance-icon {
+  background: rgba(245, 158, 11, 0.14);
+  color: var(--accent-amber);
+}
+
+.maintenance-message {
+  margin: 0;
+  color: var(--text-primary);
+  font-size: 14px;
+  line-height: 1.9;
+  white-space: pre-line;
+}
+
+.maintenance-note {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 12.5px;
+}
+
+.maintenance-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.maintenance-actions .auth-link-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  text-decoration: none;
+}

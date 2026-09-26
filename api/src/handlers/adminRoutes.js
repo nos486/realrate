@@ -7,6 +7,7 @@ import { getAuthenticatedUser } from "../lib/auth.js";
 import {
   dbGetUsersPage,
   USER_SORTS,
+  USER_FILTERS,
   dbGetUserById,
   dbGetPortfolioHoldings,
   dbGetUserPortfolios,
@@ -16,6 +17,7 @@ import {
   dbSetPrimaryPriceSource,
   dbUpdateSourceLastPrice,
   saveGlobalSettings,
+  getGlobalSettings,
 } from "../repositories/index.js";
 import { getAdminStats } from "../lib/analytics.js";
 import { testPriceSourceConfig, fetchAllPrices, inspectApiEndpointStructure, refreshMarketRatesCache } from "../services/market/priceAggregator.service.js";
@@ -39,7 +41,8 @@ const USERS_PAGE_SIZE_DEFAULT = 10;
 const USERS_PAGE_SIZE_MAX = 100;
 
 /**
- * GET /api/admin/users?page=1&pageSize=10&q=...&sort=lastLogin|createdAt&dir=desc|asc
+ * GET /api/admin/users?page=1&pageSize=10&q=...&filter=all|new|inactive|unverified|google|blocked
+ *   &sort=lastLogin|createdAt&dir=desc|asc
  * One page of registered users (by default most recently active first), optionally filtered —
  * admin only
  */
@@ -58,7 +61,9 @@ export async function handleAdminUsersRoute(request, env) {
   const sortParam = url.searchParams.get("sort");
   const sort = Object.hasOwn(USER_SORTS, sortParam || "") ? sortParam : "lastLogin";
   const dir = url.searchParams.get("dir") === "asc" ? "asc" : "desc";
-  const query = { q, sort, dir, limit: pageSize };
+  const filterParam = url.searchParams.get("filter");
+  const filter = Object.hasOwn(USER_FILTERS, filterParam || "") ? filterParam : "all";
+  const query = { q, filter, sort, dir, limit: pageSize };
 
   let { users, total } = await dbGetUsersPage(env, { ...query, offset: (requestedPage - 1) * pageSize });
   // Past the last page (e.g. the list shrank): answer with the last page instead of an empty one
@@ -68,7 +73,7 @@ export async function handleAdminUsersRoute(request, env) {
     ({ users, total } = await dbGetUsersPage(env, { ...query, offset: (page - 1) * pageSize }));
   }
 
-  return jsonResponse({ success: true, users, total, page, pageSize, pageCount, sort, dir }, 200, request);
+  return jsonResponse({ success: true, users, total, page, pageSize, pageCount, sort, dir, filter }, 200, request);
 }
 
 /**
@@ -127,17 +132,27 @@ export async function handleAdminSaveSettings(request, env) {
 
   try {
     const body = await request.json();
-    const newSettings = {
-      bubble_pct_full:      parseFloat(body.bubble_pct_full)   >= 0 ? parseFloat(body.bubble_pct_full)   : 15,
-      bubble_pct_half:      parseFloat(body.bubble_pct_half)   >= 0 ? parseFloat(body.bubble_pct_half)   : 20,
-      bubble_pct_quarter:   parseFloat(body.bubble_pct_quarter) >= 0 ? parseFloat(body.bubble_pct_quarter) : 25,
-      announcement:         (body.announcement || "").trim(),
+    // Only the fields sent change, so each panel card can save its own settings
+    const next = { ...(await getGlobalSettings(env, true)) };
+    const percent = (value) => {
+      const n = parseFloat(value);
+      return Number.isFinite(n) && n >= 0 && n <= 1000 ? n : null;
     };
+    for (const key of ["bubble_pct_full", "bubble_pct_half", "bubble_pct_quarter"]) {
+      if (body[key] === undefined) continue;
+      const n = percent(body[key]);
+      if (n === null) throw AppError.badRequest("درصد حباب باید عددی بین ۰ تا ۱۰۰۰ باشد.");
+      next[key] = n;
+    }
+    if (body.announcement !== undefined) next.announcement = String(body.announcement || "").trim().slice(0, 500);
+    if (body.maintenance_mode !== undefined) next.maintenance_mode = body.maintenance_mode ? 1 : 0;
+    if (body.maintenance_message !== undefined) next.maintenance_message = String(body.maintenance_message || "").trim().slice(0, 500);
 
-    await saveGlobalSettings(env, newSettings);
+    await saveGlobalSettings(env, next);
 
-    return jsonResponse({ success: true, message: "تنظیمات عمومی با موفقیت ذخیره شد.", settings: newSettings }, 200, request);
+    return jsonResponse({ success: true, message: "تنظیمات با موفقیت ذخیره شد.", settings: next }, 200, request);
   } catch (e) {
+    if (e instanceof AppError) throw e;
     return errorResponse(e.message, 500, request);
   }
 }

@@ -1,7 +1,7 @@
 import React, { useMemo, lazy, Suspense } from 'react';
 import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { Megaphone, TrendingUp, Briefcase, ShieldCheck, Radio, Settings, Landmark, Wallet, ReceiptText } from 'lucide-react';
-import { AppLayout, FilterPills, AlertBanner } from '../shared/ui/index.js';
+import { Megaphone, TrendingUp, Briefcase, ShieldCheck, Radio, Settings, Landmark, Wallet, ReceiptText, Wrench } from 'lucide-react';
+import { AppLayout, FilterPills, AlertBanner, Button } from '../shared/ui/index.js';
 import MarketInputsToolbar from '../components/MarketInputsToolbar.jsx';
 import { PriceRefreshStatus } from '../features/market/components/index.js';
 import HomeDashboard from '../features/home/HomeDashboard.jsx';
@@ -37,7 +37,7 @@ export default function MainPage() {
   const navigate = useNavigate();
   const params = useParams();
   const [searchParams] = useSearchParams();
-  const { user } = useAuth();
+  const { user, maintenance } = useAuth();
 
   // Determine active tab from the path below /app (or the ?tab= query param)
   const subPath = getAppSubPath(location.pathname);
@@ -217,6 +217,23 @@ export default function MainPage() {
       setActiveTab={handleTabChange}
       navItems={tabOptions}
     >
+      {/* Maintenance mode is on: only admins reach this page, remind them to switch it off */}
+      {maintenance?.enabled && user?.role === 'admin' && (
+        <AlertBanner
+          type="warning"
+          icon={<Wrench size={16} />}
+          message="حالت توسعه فعال است: فقط مدیران به سایت دسترسی دارند و بقیه صفحه «در حال به‌روزرسانی» را می‌بینند."
+          action={
+            activeTab !== 'admin' ? (
+              <Button size="sm" variant="secondary" onClick={() => handleTabChange('admin')}>
+                پنل مدیریت
+              </Button>
+            ) : null
+          }
+          style={{ marginBottom: '20px' }}
+        />
+      )}
+
       {/* System Announcement Banner */}
       {announcement && (
         <AlertBanner

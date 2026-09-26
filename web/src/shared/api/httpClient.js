@@ -47,6 +47,15 @@ export function setToken(token) {
   } catch {}
 }
 
+/** Event fired when the API answers "maintenance mode" (detail: { message }) */
+export const MAINTENANCE_EVENT = 'realrate:maintenance';
+
+function notifyMaintenance(message) {
+  try {
+    window.dispatchEvent(new CustomEvent(MAINTENANCE_EVENT, { detail: { message: message || '' } }));
+  } catch {}
+}
+
 let activeLoadingCount = 0;
 const loadingListeners = new Set();
 
@@ -139,6 +148,12 @@ export async function httpRequest(path, options = {}) {
           data.success = false;
         }
       }
+    }
+
+    // Maintenance mode switched on while the app is open: tell the auth layer (it swaps the
+    // app for the maintenance page)
+    if (res.status === 503 && data && typeof data === 'object' && data.errorCode === 'MAINTENANCE') {
+      notifyMaintenance(data.message);
     }
 
     if (!res.ok) {

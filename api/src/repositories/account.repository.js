@@ -8,10 +8,11 @@
 import { ensureD1Tables } from "./migration.repository.js";
 import { deleteSessionKV } from "./kvCache.repository.js";
 import { generateUrlToken, sha256Hex } from "../lib/security.js";
+import { dbRecordUserActivity } from "./user.repository.js";
 
 const AUTH_COLUMNS = `
   id, email, name, custom_name AS customName, picture, role,
-  password_hash AS passwordHash, email_verified AS emailVerified, created_at AS createdAt
+  password_hash AS passwordHash, email_verified AS emailVerified, created_at AS createdAt, disabled
 `;
 
 function formatAuthRow(row) {
@@ -26,6 +27,7 @@ function formatAuthRow(row) {
     passwordHash: row.passwordHash || "",
     emailVerified: Number(row.emailVerified) === 1,
     createdAt: row.createdAt,
+    disabled: Number(row.disabled) === 1,
   };
 }
 
@@ -95,6 +97,7 @@ export async function dbRecordLogin(env, userId) {
   await env.DB.prepare(`
     UPDATE users SET last_login = ?, login_count = COALESCE(login_count, 0) + 1 WHERE id = ?
   `).bind(new Date().toISOString(), userId).run();
+  await dbRecordUserActivity(env, userId);
 }
 
 /**

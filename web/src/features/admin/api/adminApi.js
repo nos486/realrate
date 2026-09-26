@@ -11,13 +11,39 @@ export async function getAdminStats() {
 
 /**
  * One page of registered users
- * @param {{ page?: number, pageSize?: number, q?: string, sort?: 'lastLogin'|'createdAt', dir?: 'asc'|'desc' }} [params]
+ * @param {{ page?: number, pageSize?: number, q?: string, filter?: string,
+ *   sort?: 'lastLogin'|'createdAt', dir?: 'asc'|'desc' }} [params]
  * @returns {Promise<{ users: object[], total: number, page: number, pageSize: number, pageCount: number }>}
  */
-export async function getAdminUsers({ page = 1, pageSize = 10, q = '', sort = 'lastLogin', dir = 'desc' } = {}) {
-  const params = new URLSearchParams({ page: String(page), pageSize: String(pageSize), sort, dir });
+export async function getAdminUsers({ page = 1, pageSize = 10, q = '', filter = 'all', sort = 'lastLogin', dir = 'desc' } = {}) {
+  const params = new URLSearchParams({ page: String(page), pageSize: String(pageSize), filter, sort, dir });
   if (q.trim()) params.set('q', q.trim());
   return httpClient.get(`/api/admin/users?${params}`);
+}
+
+/** Account facts and usage counts of one user */
+export async function getAdminUserDetail(userId) {
+  return httpClient.get(`/api/admin/users/detail?userId=${encodeURIComponent(userId)}`);
+}
+
+/** Block (true) or unblock (false) a user; blocking also signs them out everywhere */
+export async function setAdminUserBlocked(userId, blocked) {
+  return httpClient.post('/api/admin/users/block', { userId, blocked });
+}
+
+/** End every session of a user */
+export async function signOutAdminUser(userId) {
+  return httpClient.post('/api/admin/users/signout', { userId });
+}
+
+/** Send a fresh verification link to an unverified email/password account */
+export async function resendAdminVerification(userId) {
+  return httpClient.post('/api/admin/users/resend-verification', { userId });
+}
+
+/** Sign-ups and active users per day over the last `days` days */
+export async function getAdminGrowth(days = 30) {
+  return httpClient.get(`/api/admin/growth?days=${days}`);
 }
 
 export async function saveAdminSettings(settings) {

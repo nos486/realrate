@@ -7,6 +7,30 @@ import { logger } from "../lib/logger.js";
 import { sanitizeHomeLayout } from "../domain/homeLayout.js";
 import { hashSharePassword } from "../lib/security.js";
 
+// Users already recorded as active today in this isolate, so opening the app again is free
+const recordedActivity = new Set();
+
+/**
+ * Mark a user active today (UTC) for the admin panel's daily-active-users chart. Idempotent;
+ * never throws (activity tracking must not break sign-in or loading the app).
+ * @param {object} env
+ * @param {string} userId
+ */
+export async function dbRecordUserActivity(env, userId) {
+  if (!env?.DB || !userId) return;
+  const day = new Date().toISOString().slice(0, 10);
+  const key = `${userId}|${day}`;
+  if (recordedActivity.has(key)) return;
+  try {
+    await ensureD1Tables(env);
+    await env.DB.prepare("INSERT OR IGNORE INTO user_activity (user_id, day) VALUES (?, ?)").bind(userId, day).run();
+    if (recordedActivity.size > 5000) recordedActivity.clear();
+    recordedActivity.add(key);
+  } catch (e) {
+    logger.error("D1 dbRecordUserActivity error:", { error: e.message });
+  }
+}
+
 /**
  * Generate a random alphanumeric slug for shared URLs
  * @param {number} len
@@ -32,9 +56,10 @@ export async function dbUpsertUser(env, userData) {
     await ensureD1Tables(env);
     try {
       await env.DB.prepare(`
-        INSERT INTO users (id, email, name, picture, role, created_at, last_login, login_count)
-        VALUES (?, ?, ?, ?, ?, ?, ?, 1)
+        INSERT INTO users (id, email, name, picture, role, created_at, last_login, login_count, google_linked)
+        VALUES (?, ?, ?, ?, ?, ?, ?, 1, 1)
         ON CONFLICT(email) DO UPDATE SET
+          google_linked = 1,
           name = excluded.name,
           picture = excluded.picture,
           role = excluded.role,
@@ -84,6 +109,8 @@ export async function dbUpsertUser(env, userData) {
 
         userData.shareEnabled = updated.share_enabled || 0;
         userData.customName = updated.custom_name || '';
+        userData.disabled = Number(updated.disabled) === 1;
+        await dbRecordUserActivity(env, updated.id);
       }
     } catch (e) {
       logger.error("D1 dbUpsertUser error:", { error: e.message });
@@ -91,84 +118,6 @@ export async function dbUpsertUser(env, userData) {
   }
 
   return userData;
-}
-
-/** Sortable user columns (whitelisted: the value is interpolated into SQL) */
-export const USER_SORTS = {
-  lastLogin: "last_login",
-  createdAt: "created_at",
-};
-
-/** ORDER BY clause for a sort key; users without a value (never logged in) always come last */
-function userOrderBy(sort, dir) {
-  const column = USER_SORTS[sort] || USER_SORTS.lastLogin;
-  const direction = dir === "asc" ? "ASC" : "DESC";
-  return `${column} IS NULL, ${column} ${direction}, id`;
-}
-
-/**
- * One page of registered users for the admin panel, most recently active first
- * @param {object} env
- * @param {{ q?: string, limit?: number, offset?: number, sort?: string, dir?: string }} [options]
- *   q matches name, custom name, email, id or share slug (case-insensitive substring); sort is a
- *   USER_SORTS key, dir 'asc' | 'desc'
- * @returns {Promise<{ users: object[], total: number }>}
- */
-export async function dbGetUsersPage(env, { q = "", limit = 20, offset = 0, sort = "lastLogin", dir = "desc" } = {}) {
-  if (!env || !env.DB) return { users: [], total: 0 };
-  await ensureD1Tables(env);
-
-  const term = String(q || "").trim().toLowerCase();
-  // LIKE wildcards in the search text are matched literally
-  const pattern = `%${term.replace(/[\\%_]/g, (c) => `\\${c}`)}%`;
-  const where = term
-    ? `WHERE LOWER(COALESCE(name, '')) LIKE ?1 ESCAPE '\\'
-         OR LOWER(COALESCE(custom_name, '')) LIKE ?1 ESCAPE '\\'
-         OR LOWER(email) LIKE ?1 ESCAPE '\\'
-         OR LOWER(id) LIKE ?1 ESCAPE '\\'
-         OR LOWER(COALESCE(share_slug, '')) LIKE ?1 ESCAPE '\\'`
-    : "";
-  const params = term ? [pattern] : [];
-
-  try {
-    const countRow = await env.DB.prepare(`SELECT COUNT(*) AS total FROM users ${where}`).bind(...params).first();
-    const { results } = await env.DB.prepare(`
-      SELECT id, email, name, custom_name AS customName, picture, role,
-             share_slug AS shareSlug, share_enabled AS shareEnabled,
-             created_at AS createdAt, last_login AS lastLogin, login_count AS loginCount
-      FROM users
-      ${where}
-      ORDER BY ${userOrderBy(sort, dir)}
-      LIMIT ${term ? "?2" : "?1"} OFFSET ${term ? "?3" : "?2"}
-    `).bind(...params, limit, offset).all();
-    return { users: Array.isArray(results) ? results : [], total: Number(countRow?.total) || 0 };
-  } catch (e) {
-    logger.error("D1 dbGetUsersPage error:", { error: e.message });
-    return { users: [], total: 0 };
-  }
-}
-
-/**
- * Headline counts for the admin panel
- * @param {object} env
- * @returns {Promise<{ registeredUsers: number, publicPortfolios: number }>}
- */
-export async function dbGetUserStats(env) {
-  if (!env || !env.DB) return { registeredUsers: 0, publicPortfolios: 0 };
-  await ensureD1Tables(env);
-  try {
-    const row = await env.DB.prepare(`
-      SELECT (SELECT COUNT(*) FROM users) AS registeredUsers,
-             (SELECT COUNT(*) FROM portfolios WHERE share_enabled = 1) AS publicPortfolios
-    `).first();
-    return {
-      registeredUsers: Number(row?.registeredUsers) || 0,
-      publicPortfolios: Number(row?.publicPortfolios) || 0,
-    };
-  } catch (e) {
-    logger.error("D1 dbGetUserStats error:", { error: e.message });
-    return { registeredUsers: 0, publicPortfolios: 0 };
-  }
 }
 
 /**

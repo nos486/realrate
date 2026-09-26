@@ -112,7 +112,11 @@ export default function ResponsiveDataTable({
           <tr>
             {columns.map((c) =>
               c.sortKey ? (
-                <th key={c.key} className={c.thClassName}>
+                <th
+                  key={c.key}
+                  className={c.thClassName}
+                  aria-sort={sortState?.key === c.sortKey ? (sortState.dir === 'asc' ? 'ascending' : 'descending') : 'none'}
+                >
                   <button
                     type="button"
                     className="rdt-sort-th-btn"

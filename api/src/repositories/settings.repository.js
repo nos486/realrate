@@ -12,6 +12,9 @@ export const DEFAULT_SETTINGS = {
   bubble_pct_half: 20,
   bubble_pct_quarter: 25,
   announcement: "",
+  // Maintenance ("under development") mode: only admins can sign in and use the API
+  maintenance_mode: 0,
+  maintenance_message: "",
 };
 
 /** Only the known settings, so keys retired from older KV copies never leak back out */
@@ -82,19 +85,24 @@ export async function saveGlobalSettings(env, newSettings) {
     await ensureD1Tables(env);
     try {
       await env.DB.prepare(`
-        INSERT INTO settings (id, bubble_pct_full, bubble_pct_half, bubble_pct_quarter, announcement, updated_at)
-        VALUES (1, ?, ?, ?, ?, datetime('now'))
+        INSERT INTO settings (id, bubble_pct_full, bubble_pct_half, bubble_pct_quarter, announcement,
+                              maintenance_mode, maintenance_message, updated_at)
+        VALUES (1, ?, ?, ?, ?, ?, ?, datetime('now'))
         ON CONFLICT(id) DO UPDATE SET
           bubble_pct_full      = excluded.bubble_pct_full,
           bubble_pct_half      = excluded.bubble_pct_half,
           bubble_pct_quarter   = excluded.bubble_pct_quarter,
           announcement         = excluded.announcement,
+          maintenance_mode     = excluded.maintenance_mode,
+          maintenance_message  = excluded.maintenance_message,
           updated_at           = excluded.updated_at
       `).bind(
         mergedSettings.bubble_pct_full,
         mergedSettings.bubble_pct_half,
         mergedSettings.bubble_pct_quarter,
-        mergedSettings.announcement
+        mergedSettings.announcement,
+        mergedSettings.maintenance_mode ? 1 : 0,
+        mergedSettings.maintenance_message
       ).run();
     } catch (e) {
       logger.error("Error saving settings to D1:", { error: e.message });

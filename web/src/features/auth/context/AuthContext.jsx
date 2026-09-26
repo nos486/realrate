@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getMe, googleLogin, logout as apiLogout, getGoogleLoginUrl } from '../api/authApi.js';
-import { setToken, getToken, HttpError } from '../../../shared/api/httpClient.js';
+import { setToken, getToken, HttpError, MAINTENANCE_EVENT } from '../../../shared/api/httpClient.js';
 import { APP_BASE, LANDING_PATH, AUTH_PATHS, isAppPath, rememberPostLoginPath, takePostLoginPath } from '../../../shared/routes.js';
 import { useFeedback } from '../../../shared/ui/FeedbackProvider.jsx';
 import { resetCustomBanks } from '../../../shared/banks/useCustomBanks.js';
@@ -38,6 +38,8 @@ function writeCachedUser(user) {
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
+  // Maintenance ("under development") mode: only admins may use the app while it is on
+  const [maintenance, setMaintenance] = useState({ enabled: false, message: '' });
   const navigate = useNavigate();
   const { toast } = useFeedback();
 
@@ -67,6 +69,7 @@ export function AuthProvider({ children }) {
 
     getMe()
       .then((data) => {
+        if (data?.maintenance) setMaintenance({ enabled: Boolean(data.maintenance.enabled), message: data.maintenance.message || '' });
         if (data && data.authenticated && data.user) {
           signInUser(setUser, data.user);
           writeCachedUser(data.user);
@@ -83,6 +86,13 @@ export function AuthProvider({ children }) {
       .finally(() => setLoading(false));
     // Runs once on mount; `toast` is stable for the provider's lifetime
     // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // An API call answered "maintenance mode" (switched on while the app is open)
+  useEffect(() => {
+    const onMaintenance = (e) => setMaintenance({ enabled: true, message: e.detail?.message || '' });
+    window.addEventListener(MAINTENANCE_EVENT, onMaintenance);
+    return () => window.removeEventListener(MAINTENANCE_EVENT, onMaintenance);
   }, []);
 
   // Backward-compatibility: if Google One-Tap credential callback is triggered
@@ -144,7 +154,7 @@ export function AuthProvider({ children }) {
   }, []);
 
   return (
-    <AuthContext.Provider value={{ user, loading, triggerLogin, loginWithGoogle, completeLogin, logout, updateUser, handleGoogleCredential }}>
+    <AuthContext.Provider value={{ user, loading, maintenance, setMaintenance, triggerLogin, loginWithGoogle, completeLogin, logout, updateUser, handleGoogleCredential }}>
       {children}
     </AuthContext.Provider>
   );
