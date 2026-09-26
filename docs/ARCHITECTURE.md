@@ -78,6 +78,7 @@ The backend follows Clean Architecture principles divided into decoupled layers:
 ### B. Repository Layer (`api/src/repositories/`)
 Decouples database and KV storage queries from business logic. Direct SQL and KV queries are strictly encapsulated in repositories:
 - `sourceItems.repository.js`: **Single persistence path for all price sources.** Provides `saveSourceItems(env, sourceId, items)` and `getSourceItems(env, sourceId)` unifying dual writes into a single standardized KV key (`source_items:{sourceId}`) and D1 mirror table.
+- `priceHistory.repository.js`: **Price history, kept forever, in Postgres (Cloudflare Hyperdrive, binding `HYPERDRIVE`).** `saveSourceItems` hands every save, whatever the source, to `recordPriceHistory`, which the Worker entry (`index.js`) registers with `setPriceHistoryWriter` — the web app shares `sourceItems.repository.js` through the source adapters, so it must not import the Postgres driver itself. One table, `price_history (item_key, recorded_at, value)`, created on the first write; a row is added only when an item's value differs from its latest stored value. Without the binding, or when Postgres is down, nothing is recorded and the price sync carries on.
 - `userRepository.js`: User accounts, roles, settings, Google OAuth mappings.
 - `portfolioRepository.js`: Portfolios, multi-portfolio management, sharing slugs, salts, and verifiers.
 - `holdingRepository.js`: Encrypted or plaintext holding items, quantities, purchase prices, dates, and notes.
