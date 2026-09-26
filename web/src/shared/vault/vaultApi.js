@@ -15,8 +15,6 @@ export const getVault = (options) => httpClient.get('/api/vault', options);
 export const saveVault = ({ salt, wrappedKey, previousWrappedKey }, options) =>
   httpClient.put('/api/vault', { salt, wrappedKey, previousWrappedKey }, options);
 
-export const deleteVault = (options) => httpClient.delete('/api/vault', options);
-
 /**
  * Records of one kind. `filters` narrow by the plaintext metadata only: { from, to } (inclusive
  * YYYY-MM-DD on the record's primary date) and { parent } (e.g. a portfolio id).
@@ -34,9 +32,6 @@ export const putVaultRecord = (kind, id, payload, { replacePlain = false, record
 
 export const deleteVaultRecord = (kind, id, options) =>
   httpClient.delete(`/api/vault/records/${seg(kind)}/${seg(id)}`, options);
-
-export const restoreVaultRecord = (kind, id, plain, options) =>
-  httpClient.post(`/api/vault/records/${seg(kind)}/${seg(id)}/restore`, { plain }, options);
 
 /** Raw stored loan (parameters + states + extra payments), used to encrypt an existing loan */
 export const getLoanDocument = (loanId, options) => httpClient.get(`/api/loans/${seg(loanId)}/document`, options);

@@ -27,8 +27,6 @@ vi.mock('../../../web/src/features/transactions/api/transactionApi.js', () => ({
 vi.mock('../../../web/src/shared/vault/vaultApi.js', () => ({
   listVaultRecords: vi.fn(),
   putVaultRecord: vi.fn(async (kind, id, payload, options) => { puts.push({ kind, id, payload, replacePlain: options?.replacePlain }); }),
-  restoreVaultRecord: vi.fn(),
-  deleteVault: vi.fn(),
   getLoanDocument: vi.fn(async (id) => ({ document: { loan: { id } } })),
 }));
 vi.mock('../../../web/src/shared/vault/vaultStore.js', () => ({
@@ -37,7 +35,6 @@ vi.mock('../../../web/src/shared/vault/vaultStore.js', () => ({
   createPortfolioKey: vi.fn(),
   getPortfolioKey: vi.fn(),
   wrapPortfolioKey: vi.fn(),
-  markVaultOff: vi.fn(),
   bumpVaultEpoch: vi.fn(),
   isAccountVaultPortfolio: vi.fn(() => false),
 }));

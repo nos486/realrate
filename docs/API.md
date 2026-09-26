@@ -198,17 +198,17 @@ Standard banks are static (`api/src/config/banks.config.js`) and ship with the c
 ### End-to-End Encryption Vault (Protected)
 
 All payloads are ciphertext produced in the browser (`enc:e2ee:v1:...`); see [E2EE_VAULT.md](E2EE_VAULT.md).
-While a vault exists, plaintext `POST` of loans, incomes, cheques and portfolios returns `409 VAULT_ENABLED`.
+Encryption is mandatory. Without a vault, every save (`POST`/`PUT` of loans, incomes, cheques, portfolios, holdings,
+transactions and custom banks) returns `403 ENCRYPTION_REQUIRED`; reads and deletes still work. With a vault, the plaintext
+loan / income / cheque endpoints return `409 VAULT_ENABLED` and portfolio data must be ciphertext. The vault cannot be turned off.
 
 | Method | Endpoint | Description |
 | :--- | :--- | :--- |
-| `GET` | `/api/v1/vault` | The account vault `{ salt, wrappedKey, version }` or `null` |
+| `GET` | `/api/v1/vault` | The account vault `{ salt, wrappedKey, version }` or `null`, plus `hasPlaintextData` (whether an account without it has data) |
 | `PUT` | `/api/v1/vault` | Turn on, or re-wrap after a passphrase change (`previousWrappedKey` required; `409` on mismatch) |
-| `DELETE` | `/api/v1/vault` | Turn off — refused (`409`) while any record or portfolio is still encrypted |
-| `GET` | `/api/v1/vault/records/:kind` | Encrypted records of `loan` or `income` |
+| `GET` | `/api/v1/vault/records/:kind` | Encrypted records of `loan`, `income`, `cheque`, `recurring_income`, `holding` or `transaction` (`?from`, `?to`, `?parent`) |
 | `PUT` | `/api/v1/vault/records/:kind/:id` | Create/replace a record (`{ payload, replacePlain }` — `replacePlain` deletes the plaintext row with the same id in the same batch) |
 | `DELETE` | `/api/v1/vault/records/:kind/:id` | Delete a record |
-| `POST` | `/api/v1/vault/records/:kind/:id/restore` | Write the decrypted record back to the plaintext tables and drop the encrypted copy (`{ plain }`) |
 
 Portfolios protected by the vault carry `e2eeWrappedKey`; `/api/v1/portfolio/shared` reports `e2eeLinkKey: true` for them
 (the viewer needs the key from the share link's `#k=` fragment).

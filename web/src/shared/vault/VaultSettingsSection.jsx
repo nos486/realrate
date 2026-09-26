@@ -1,75 +1,25 @@
 /**
  * VaultSettingsSection.jsx — Account-wide end-to-end encryption, managed from account settings
  *
- * One switch for the whole account: portfolios (holdings + transactions), loans and incomes are
- * all encrypted in the browser with a key only the user's passphrase can unlock.
+ * Mandatory for the whole account: portfolios (holdings + transactions), loans, incomes and
+ * cheques are all encrypted in the browser with a key only the user's passphrase can unlock.
+ * Once on it cannot be turned off — only the passphrase can be changed.
  */
 
 import React, { useCallback, useEffect, useState } from 'react';
-import { Lock, LockOpen, ShieldCheck, ShieldOff, KeyRound, RefreshCw, Eye, EyeOff } from 'lucide-react';
+import { LockOpen, ShieldCheck, KeyRound, RefreshCw } from 'lucide-react';
 import Button from '../ui/Button.jsx';
 import Input from '../ui/Input.jsx';
 import AlertBanner from '../ui/AlertBanner.jsx';
 import { useFeedback } from '../ui/FeedbackProvider.jsx';
 import { useVault } from './useVault.js';
 import VaultUnlockCard from './VaultUnlockCard.jsx';
-import {
-  createVault,
-  changeVaultPassphrase,
-  verifyVaultPassphrase,
-  lockAll,
-  loadVault,
-  bumpVaultEpoch,
-  VAULT_MIN_PASSPHRASE_LENGTH,
-} from './vaultStore.js';
-import {
-  encryptAccountData,
-  decryptAccountData,
-  findPendingPlaintext,
-  adoptLegacyPortfolio,
-} from './vaultMigration.js';
+import VaultEnableForm, { PassphraseInput, ProgressBar, ReportBanner } from './VaultEnableForm.jsx';
+import { useWarnBeforeUnload } from './useWarnBeforeUnload.js';
+import { changeVaultPassphrase, lockAll, loadVault, bumpVaultEpoch, VAULT_MIN_PASSPHRASE_LENGTH } from './vaultStore.js';
+import { encryptAccountData, findPendingPlaintext, adoptLegacyPortfolio } from './vaultMigration.js';
 
 const faNum = (n) => Number(n || 0).toLocaleString('fa-IR');
-
-function PassphraseInput({ show, onToggle, ...props }) {
-  return (
-    <div className="vault-settings-pass">
-      <Input type={show ? 'text' : 'password'} dir="ltr" autoComplete="new-password" {...props} />
-      <button type="button" className="vault-settings-eye" onClick={onToggle} tabIndex={-1} aria-label={show ? 'مخفی کردن رمز' : 'نمایش رمز'}>
-        {show ? <EyeOff size={15} /> : <Eye size={15} />}
-      </button>
-    </div>
-  );
-}
-
-function ProgressBar({ progress }) {
-  if (!progress) return null;
-  const pct = progress.total > 0 ? Math.min(100, Math.round((progress.done / progress.total) * 100)) : 0;
-  return (
-    <div className="vault-progress" role="status" aria-live="polite">
-      <div className="vault-progress-top">
-        <span>{progress.label || 'در حال پردازش…'}</span>
-        <span>{faNum(progress.done)} از {faNum(progress.total)}</span>
-      </div>
-      <div className="vault-progress-track">
-        <div className="vault-progress-bar" style={{ width: `${pct}%` }} />
-      </div>
-    </div>
-  );
-}
-
-function ReportBanner({ report, onClose }) {
-  if (!report) return null;
-  const failed = report.failed || [];
-  if (failed.length === 0) return null;
-  return (
-    <AlertBanner
-      type="warning"
-      onClose={onClose}
-      message={`${faNum(failed.length)} مورد پردازش نشد (${failed.slice(0, 3).join('، ')}${failed.length > 3 ? ' و …' : ''}). هیچ داده‌ای از دست نرفته — دوباره تلاش کنید.`}
-    />
-  );
-}
 
 /** Portfolios that still have their own (older) vault passphrase */
 function LegacyPortfolios({ portfolios, onAdopted }) {
@@ -134,11 +84,8 @@ function LegacyPortfolios({ portfolios, onAdopted }) {
 
 export default function VaultSettingsSection() {
   const vault = useVault();
-  const { confirm, toast } = useFeedback();
+  const { toast } = useFeedback();
 
-  const [pass, setPass] = useState('');
-  const [passConfirm, setPassConfirm] = useState('');
-  const [acknowledged, setAcknowledged] = useState(false);
   const [showPass, setShowPass] = useState(false);
   const [busy, setBusy] = useState(false);
   const [progress, setProgress] = useState(null);
@@ -149,8 +96,7 @@ export default function VaultSettingsSection() {
   const [currentPass, setCurrentPass] = useState('');
   const [newPass, setNewPass] = useState('');
   const [newPassConfirm, setNewPassConfirm] = useState('');
-  const [disablePass, setDisablePass] = useState('');
-  const [panel, setPanel] = useState(null); // 'change' | 'disable' | null
+  const [changing, setChanging] = useState(false);
 
   const refreshPending = useCallback(async () => {
     try {
@@ -182,37 +128,6 @@ export default function VaultSettingsSection() {
     return res;
   };
 
-  const handleEnable = async (e) => {
-    e.preventDefault();
-    setError('');
-    if (pass.length < VAULT_MIN_PASSPHRASE_LENGTH) {
-      setError(`رمز عبور باید حداقل ${faNum(VAULT_MIN_PASSPHRASE_LENGTH)} کاراکتر باشد.`);
-      return;
-    }
-    if (pass !== passConfirm) {
-      setError('تکرار رمز عبور با رمز وارد شده یکسان نیست.');
-      return;
-    }
-    if (!acknowledged) {
-      setError('لطفاً تأیید کنید که در صورت فراموشی رمز، داده‌ها قابل بازیابی نیستند.');
-      return;
-    }
-    setBusy(true);
-    try {
-      await createVault(pass);
-      const res = await runEncrypt(pass);
-      setPass('');
-      setPassConfirm('');
-      setAcknowledged(false);
-      if (res.failed.length === 0) toast.success('رمزنگاری سرتاسری حساب فعال شد و همه داده‌ها رمزنگاری شدند.');
-    } catch (err) {
-      setError(err.message || 'خطا در فعال‌سازی رمزنگاری');
-      setProgress(null);
-    } finally {
-      setBusy(false);
-    }
-  };
-
   const handleEncryptPending = async () => {
     setBusy(true);
     setError('');
@@ -240,7 +155,7 @@ export default function VaultSettingsSection() {
       setCurrentPass('');
       setNewPass('');
       setNewPassConfirm('');
-      setPanel(null);
+      setChanging(false);
       toast.success('رمز عبور رمزنگاری تغییر کرد.');
     } catch (err) {
       setError(err.message || 'خطا در تغییر رمز');
@@ -249,49 +164,9 @@ export default function VaultSettingsSection() {
     }
   };
 
-  const handleDisable = async (e) => {
-    e.preventDefault();
-    setError('');
-    setBusy(true);
-    try {
-      if (!(await verifyVaultPassphrase(disablePass))) {
-        setError('رمز عبور رمزنگاری نادرست است.');
-        return;
-      }
-      const confirmed = await confirm({
-        title: 'غیرفعال‌سازی رمزنگاری سرتاسری',
-        message: 'همه پورتفوها، وام‌ها، درآمدها و چک‌ها رمزگشایی و به‌صورت عادی روی سرور ذخیره می‌شوند. ادامه می‌دهید؟',
-        confirmLabel: 'غیرفعال‌سازی',
-        danger: true,
-      });
-      if (!confirmed) return;
-      setProgress({ done: 0, total: 0, label: 'در حال آماده‌سازی…' });
-      const res = await decryptAccountData({ onProgress: setProgress });
-      setReport(res);
-      setProgress(null);
-      setDisablePass('');
-      setPanel(null);
-      if (res.failed.length === 0) toast.success('رمزنگاری سرتاسری غیرفعال شد.');
-    } catch (err) {
-      setError(err.message || 'خطا در غیرفعال‌سازی');
-      setProgress(null);
-    } finally {
-      setBusy(false);
-    }
-  };
-
   // Leaving mid-migration is safe (the next run finishes it) but leaves data half-converted
   // until then — ask the browser to confirm closing or reloading the tab meanwhile.
-  const migrating = Boolean(progress);
-  useEffect(() => {
-    if (!migrating) return undefined;
-    const warn = (e) => {
-      e.preventDefault();
-      e.returnValue = '';
-    };
-    window.addEventListener('beforeunload', warn);
-    return () => window.removeEventListener('beforeunload', warn);
-  }, [migrating]);
+  useWarnBeforeUnload(Boolean(progress));
 
   const pendingCount = pending
     ? pending.plainPortfolios.length + pending.plainLoans + pending.plainIncomes + pending.plainCheques + pending.plainRecurringIncomes
@@ -306,12 +181,13 @@ export default function VaultSettingsSection() {
         </span>
         {vault.status === 'unlocked' && <span className="vault-status-pill is-on">فعال</span>}
         {vault.status === 'locked' && <span className="vault-status-pill is-locked">قفل</span>}
-        {vault.status === 'off' && <span className="vault-status-pill">غیرفعال</span>}
+        {vault.status === 'off' && <span className="vault-status-pill is-required">الزامی</span>}
       </div>
 
       <p className="vault-settings-text">
-        با فعال‌سازی، همه اطلاعات مالی شما — پورتفوها (دارایی‌ها و تراکنش‌ها)، وام‌ها، درآمدها و چک‌ها — پیش از ارسال، در
-        همین مرورگر رمزنگاری می‌شوند. سرور فقط داده رمزشده را می‌بیند و بدون رمز شما هیچ‌کس (حتی ما) نمی‌تواند آن را بخواند.
+        همه اطلاعات مالی شما — پورتفوها (دارایی‌ها و تراکنش‌ها)، وام‌ها، درآمدها و چک‌ها — پیش از ارسال، در همین مرورگر
+        رمزنگاری می‌شوند. سرور فقط داده رمزشده را می‌بیند و بدون رمز شما هیچ‌کس (حتی ما) نمی‌تواند آن را بخواند. برای امنیت
+        کاربران، رمزنگاری برای همه حساب‌ها اجباری است و پس از فعال‌سازی خاموش نمی‌شود.
       </p>
 
       {error && <AlertBanner type="error" message={error} onClose={() => setError('')} />}
@@ -335,38 +211,19 @@ export default function VaultSettingsSection() {
       )}
 
       {vault.status === 'off' && (
-        <form className="vault-settings-block" onSubmit={handleEnable}>
+        <>
           <AlertBanner
-            type="warning"
-            message="رمز عبور رمزنگاری هیچ‌جا ذخیره نمی‌شود و قابل بازیابی نیست. اگر آن را فراموش کنید، داده‌های رمزنگاری‌شده برای همیشه از دست می‌روند."
+            type="error"
+            message="رمزنگاری سرتاسری برای حساب شما هنوز فعال نشده است. تا آن را فعال نکنید، امکان ذخیره اطلاعات جدید وجود ندارد."
           />
-          <PassphraseInput
-            show={showPass}
-            onToggle={() => setShowPass((v) => !v)}
-            label="رمز عبور رمزنگاری"
-            id="vault-new-pass"
-            value={pass}
-            onChange={(e) => setPass(e.target.value)}
-            disabled={busy}
-            hint={`حداقل ${faNum(VAULT_MIN_PASSPHRASE_LENGTH)} کاراکتر؛ آن را با رمز حساب گوگل یکی نکنید. اگر قبلاً برای پورتفویی رمز گذاشته‌اید، همان رمز را وارد کنید تا آن پورتفو خودکار منتقل شود.`}
+          <VaultEnableForm
+            onDone={(res) => {
+              setReport(res);
+              refreshPending();
+              if (res.failed.length === 0) toast.success('رمزنگاری سرتاسری حساب فعال شد و همه داده‌ها رمزنگاری شدند.');
+            }}
           />
-          <PassphraseInput
-            show={showPass}
-            onToggle={() => setShowPass((v) => !v)}
-            label="تکرار رمز عبور"
-            id="vault-new-pass-confirm"
-            value={passConfirm}
-            onChange={(e) => setPassConfirm(e.target.value)}
-            disabled={busy}
-          />
-          <label className="vault-settings-check">
-            <input type="checkbox" checked={acknowledged} onChange={(e) => setAcknowledged(e.target.checked)} disabled={busy} />
-            <span>متوجه هستم که در صورت فراموشی رمز، اطلاعاتم قابل بازیابی نیست.</span>
-          </label>
-          <Button type="submit" variant="primary" loading={busy} icon={<Lock size={16} />} block>
-            فعال‌سازی و رمزنگاری همه داده‌ها
-          </Button>
-        </form>
+        </>
       )}
 
       {vault.status === 'locked' && (
@@ -383,19 +240,10 @@ export default function VaultSettingsSection() {
               variant="secondary"
               size="sm"
               icon={<KeyRound size={14} />}
-              onClick={() => setPanel(panel === 'change' ? null : 'change')}
+              onClick={() => setChanging((v) => !v)}
               disabled={busy}
             >
               تغییر رمز عبور
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              icon={<ShieldOff size={14} />}
-              onClick={() => setPanel(panel === 'disable' ? null : 'disable')}
-              disabled={busy}
-            >
-              غیرفعال‌سازی
             </Button>
           </div>
 
@@ -415,7 +263,7 @@ export default function VaultSettingsSection() {
 
           <LegacyPortfolios portfolios={pending?.legacyPortfolios || []} onAdopted={() => { refreshPending(); bumpVaultEpoch(); }} />
 
-          {panel === 'change' && (
+          {changing && (
             <form className="vault-settings-block" onSubmit={handleChangePass}>
               <h5 className="vault-settings-subtitle">تغییر رمز عبور رمزنگاری</h5>
               <PassphraseInput show={showPass} onToggle={() => setShowPass((v) => !v)} label="رمز فعلی" id="vault-cur-pass" value={currentPass} onChange={(e) => setCurrentPass(e.target.value)} disabled={busy} />
@@ -423,17 +271,6 @@ export default function VaultSettingsSection() {
               <PassphraseInput show={showPass} onToggle={() => setShowPass((v) => !v)} label="تکرار رمز جدید" id="vault-next-pass-confirm" value={newPassConfirm} onChange={(e) => setNewPassConfirm(e.target.value)} disabled={busy} />
               <p className="vault-settings-text">داده‌ها دوباره رمزنگاری نمی‌شوند؛ فقط کلید حساب با رمز جدید قفل می‌شود.</p>
               <Button type="submit" variant="primary" loading={busy} block>ذخیره رمز جدید</Button>
-            </form>
-          )}
-
-          {panel === 'disable' && (
-            <form className="vault-settings-block" onSubmit={handleDisable}>
-              <h5 className="vault-settings-subtitle">غیرفعال‌سازی رمزنگاری</h5>
-              <p className="vault-settings-text">
-                همه داده‌ها رمزگشایی و به حالت عادی ذخیره می‌شوند. اگر پورتفوی عمومی رمزنگاری‌شده دارید، لینک اشتراک آن دوباره بدون کلید کار می‌کند.
-              </p>
-              <PassphraseInput show={showPass} onToggle={() => setShowPass((v) => !v)} label="رمز عبور رمزنگاری" id="vault-disable-pass" value={disablePass} onChange={(e) => setDisablePass(e.target.value)} disabled={busy} />
-              <Button type="submit" variant="danger" loading={busy} disabled={!disablePass} block>رمزگشایی همه داده‌ها و غیرفعال‌سازی</Button>
             </form>
           )}
         </>

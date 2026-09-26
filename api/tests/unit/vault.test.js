@@ -2,12 +2,11 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import {
   dbGetUserVault,
   dbSaveUserVault,
-  dbDeleteUserVault,
   dbListVaultRecords,
   dbPutVaultRecord,
   dbDeleteVaultRecord,
-  dbRestoreVaultRecord,
   rejectWhenVaultEnabled,
+  dbUserHasPlaintextData,
 } from '../../src/repositories/vault.repository.js';
 import worker from '../../src/index.js';
 
@@ -77,6 +76,10 @@ function createDb() {
           if (q.includes('COUNT(*) AS n FROM vault_records')) {
             return { n: [...records.values()].filter((r) => r.user_id === args[0]).length };
           }
+          if (q.includes('EXISTS (SELECT 1 FROM')) {
+            const tables = [...q.matchAll(/FROM (\w+) WHERE/g)].map((m) => m[1]);
+            return { has: tables.some((t) => (plain[t] || []).some((row) => row[1] === args[0])) ? 1 : 0 };
+          }
           if (q.includes('COUNT(*) AS n FROM portfolios')) {
             return { n: plain.portfolios.filter((p) => p.user_id === args[0] && p.e2ee_wrapped_key).length };
           }
@@ -138,18 +141,12 @@ describe('account vault', () => {
     await expect(dbSaveUserVault(env, 'u1', { salt: '', wrappedKey: CIPHER })).rejects.toMatchObject({ statusCode: 400 });
   });
 
-  it('refuses to turn off while anything is still encrypted with it', async () => {
-    await dbSaveUserVault(env, 'u1', { salt: 's', wrappedKey: CIPHER });
-    await dbPutVaultRecord(env, 'u1', 'income', 'inc_1', { payload: CIPHER });
-    await expect(dbDeleteUserVault(env, 'u1')).rejects.toMatchObject({ statusCode: 409 });
-
-    await dbDeleteVaultRecord(env, 'u1', 'income', 'inc_1');
-    env.DB.plain.portfolios.push({ user_id: 'u1', e2ee_wrapped_key: CIPHER });
-    await expect(dbDeleteUserVault(env, 'u1')).rejects.toMatchObject({ statusCode: 409 });
-
-    env.DB.plain.portfolios.length = 0;
-    await dbDeleteUserVault(env, 'u1');
-    expect(await dbGetUserVault(env, 'u1')).toBeNull();
+  it('tells whether an account without the vault already has data', async () => {
+    expect(await dbUserHasPlaintextData(env, 'u1')).toBe(false);
+    env.DB.plain.incomes.push(['inc_1', 'u2']);
+    expect(await dbUserHasPlaintextData(env, 'u1')).toBe(false);
+    env.DB.plain.transactions.push(['tx_1', 'u1']);
+    expect(await dbUserHasPlaintextData(env, 'u1')).toBe(true);
   });
 
   it('blocks plaintext creates only while the vault is on', async () => {
@@ -219,21 +216,6 @@ describe('vault records', () => {
     expect(env.DB.plain.loan_extra_payments).toHaveLength(0);
   });
 
-  it('restores a loan document back to plaintext tables and drops the encrypted copy', async () => {
-    await dbPutVaultRecord(env, 'u1', 'loan', 'loan_1', { payload: CIPHER });
-    await dbRestoreVaultRecord(env, 'u1', 'loan', 'loan_1', {
-      loan: { id: 'loan_1', title: 'وام', principalAmount: 1000, installmentCount: 3, intervalMonths: 1, startDate: '1404-01-01', scheduleMode: 'formula' },
-      states: [{ id: 's1', installmentNumber: 1, dueDate: '1404-02-01', totalAmount: 400, isPaid: true, paidDate: '1404-02-01', paidAmount: 400 }],
-      extraPayments: [{ id: 'e1', amount: 100, paymentDate: '1404-02-10', reductionMode: 'reduce_term', resultingInstallmentCount: 2 }],
-    });
-    expect(env.DB.plain.loans).toHaveLength(1);
-    expect(env.DB.plain.loans[0].slice(0, 3)).toEqual(['loan_1', 'u1', 'وام']);
-    expect(env.DB.plain.loan_installment_states[0][9]).toBe(1); // is_paid
-    expect(env.DB.plain.loan_extra_payments[0][5]).toBe('reduce_term');
-    expect(await dbListVaultRecords(env, 'u1', 'loan')).toHaveLength(0);
-
-    await expect(dbRestoreVaultRecord(env, 'u1', 'loan', 'loan_9', { loan: { id: 'other' } })).rejects.toMatchObject({ statusCode: 400 });
-  });
 });
 
 describe('encrypted cheques', () => {
@@ -243,22 +225,10 @@ describe('encrypted cheques', () => {
     await dbSaveUserVault(env, 'u1', { salt: 's', wrappedKey: CIPHER });
   });
 
-  it('replaces the plaintext cheque and restores it back with its tracking log', async () => {
+  it('replaces the plaintext cheque in the same batch', async () => {
     env.DB.plain.cheques.push(['chq_1', 'u1'], ['chq_2', 'u1']);
     await dbPutVaultRecord(env, 'u1', 'cheque', 'chq_1', { payload: CIPHER, replacePlain: true });
     expect(env.DB.plain.cheques.map((r) => r[0])).toEqual(['chq_2']);
-
-    const history = [{ status: 'pending', date: '2026-09-01', note: '' }, { status: 'cleared', date: '2026-09-20', note: 'وصول شد' }];
-    await dbRestoreVaultRecord(env, 'u1', 'cheque', 'chq_1', {
-      direction: 'received', status: 'cleared', amount: 5000000, dueDate: '2026-09-20', issueDate: '',
-      counterparty: 'علی', bankId: 'mellat', bankName: '', chequeNumber: '123', sayadId: '', notes: '',
-      history, createdAt: '2026-09-01T10:00:00.000Z',
-    });
-    const row = env.DB.plain.cheques.find((r) => r[0] === 'chq_1');
-    expect(row.slice(0, 5)).toEqual(['chq_1', 'u1', 'received', 'cleared', 5000000]);
-    expect(JSON.parse(row[13])).toEqual(history);
-    expect(row[14]).toBe('2026-09-01T10:00:00.000Z');
-    expect(await dbListVaultRecords(env, 'u1', 'cheque')).toHaveLength(0);
   });
 });
 
@@ -269,7 +239,7 @@ describe('encrypted portfolio items', () => {
     await dbSaveUserVault(env, 'u1', { salt: 's', wrappedKey: CIPHER });
   });
 
-  it('keeps holdings and transactions under their portfolio, dated, and restores them to the tables', async () => {
+  it('keeps holdings and transactions under their portfolio, and dated', async () => {
     await expect(dbPutVaultRecord(env, 'u1', 'holding', 'h_1', { payload: CIPHER })).rejects.toMatchObject({ statusCode: 400 });
 
     env.DB.plain.portfolio_holdings.push(['h_1', 'u1'], ['h_2', 'u1']);
@@ -283,20 +253,6 @@ describe('encrypted portfolio items', () => {
     ]);
     expect(await dbListVaultRecords(env, 'u1', 'holding', { parentId: 'p_2' })).toHaveLength(0);
 
-    await dbRestoreVaultRecord(env, 'u1', 'holding', 'h_1', {
-      portfolioId: 'p_1', assetId: 'usd', amount: 1500, buyPrice: 80000, currentPrice: 0, buyDate: '2025-01-01', notes: 'پس‌انداز',
-    });
-    const holding = env.DB.plain.portfolio_holdings.find((r) => r[0] === 'h_1');
-    expect(holding.slice(0, 9)).toEqual(['h_1', 'u1', 'p_1', 'usd', 1500, 80000, 0, '2025-01-01', 'پس‌انداز']);
-
-    await dbRestoreVaultRecord(env, 'u1', 'transaction', 'tx_1', {
-      portfolioId: 'p_1', transactionType: 'buy', assetId: 'usd', amount: 500, transactionDate: '1404-02-01', createdAt: '2025-04-21T00:00:00.000Z',
-    });
-    const tx = env.DB.plain.transactions[0];
-    expect(tx.slice(0, 3)).toEqual(['tx_1', 'u1', 'p_1']);
-    expect(JSON.parse(tx[3])).toEqual({ transactionType: 'buy', assetId: 'usd', amount: 500, transactionDate: '1404-02-01' });
-    expect(await dbListVaultRecords(env, 'u1', 'holding')).toHaveLength(0);
-    expect(await dbListVaultRecords(env, 'u1', 'transaction')).toHaveLength(0);
   });
 });
 
@@ -304,11 +260,9 @@ describe('vault routes', () => {
   it.each([
     ['GET', '/api/vault'],
     ['PUT', '/api/vault'],
-    ['DELETE', '/api/vault'],
     ['GET', '/api/vault/records/loan'],
     ['PUT', '/api/vault/records/loan/loan_1'],
     ['DELETE', '/api/vault/records/income/inc_1'],
-    ['POST', '/api/vault/records/income/inc_1/restore'],
     ['GET', '/api/vault/records/cheque'],
     ['GET', '/api/cheques'],
     ['POST', '/api/cheques'],
@@ -318,5 +272,14 @@ describe('vault routes', () => {
   ])('%s %s requires a signed-in user', async (method, path) => {
     const res = await worker.fetch(new Request(`https://api.realrate.ir${path}`, { method }), {}, {});
     expect(res.status).toBe(401);
+  });
+
+  it.each([
+    ['DELETE', '/api/vault'],
+    ['POST', '/api/vault/records/income/inc_1/restore'],
+  ])('%s %s is gone: encryption cannot be turned off', async (method, path) => {
+    const res = await worker.fetch(new Request(`https://api.realrate.ir${path}`, { method }), {}, {});
+    expect(res.status).toBe(403);
+    expect((await res.json()).error.code).toBe('ENCRYPTION_MANDATORY');
   });
 });

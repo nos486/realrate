@@ -31,7 +31,7 @@ const SESSION_KEY = 'rr_vault_session';
 /**
  * @typedef {'idle'|'loading'|'off'|'locked'|'unlocked'|'error'} VaultStatus
  */
-let state = { status: 'idle', vault: null, error: null, epoch: 0, userId: null, legacyUnlocked: false };
+let state = { status: 'idle', vault: null, error: null, epoch: 0, userId: null, legacyUnlocked: false, hasPlaintextData: false };
 let dataKey = null;
 let loadPromise = null;
 const portfolioKeys = new Map(); // wrapped key → { key, raw }
@@ -117,8 +117,9 @@ export function loadVault(userId, { force = false } = {}) {
       const vault = res?.vault || null;
       if (!vault) {
         dataKey = null;
-            writeSession(null);
-        setState({ status: 'off', vault: null });
+        writeSession(null);
+        // Encryption is mandatory: an account without data sets it up before anything else
+        setState({ status: 'off', vault: null, hasPlaintextData: Boolean(res?.hasPlaintextData) });
         return state;
       }
       if (dataKey && state.vault?.wrappedKey === vault.wrappedKey) {
@@ -135,7 +136,7 @@ export function loadVault(userId, { force = false } = {}) {
         }
       }
       dataKey = null;
-        setState({ status: 'locked', vault });
+      setState({ status: 'locked', vault });
       return state;
     })
     .catch((err) => {
@@ -215,15 +216,7 @@ export function resetVault() {
   portfolioKeys.clear();
   loadPromise = null;
   writeSession(null);
-  setState({ status: 'idle', vault: null, error: null, userId: null, legacyUnlocked: false, epoch: state.epoch + 1 });
-}
-
-/** Check a passphrase against the stored vault without changing state */
-export async function verifyVaultPassphrase(passphrase) {
-  const vault = state.vault;
-  if (!vault) return false;
-  const kek = await deriveE2eeKey(String(passphrase || ''), vault.salt);
-  return Boolean(await unwrapRawKey(kek, vault.wrappedKey));
+  setState({ status: 'idle', vault: null, error: null, userId: null, legacyUnlocked: false, hasPlaintextData: false, epoch: state.epoch + 1 });
 }
 
 function assertPassphrase(passphrase) {
@@ -261,14 +254,6 @@ export async function changeVaultPassphrase(currentPassphrase, newPassphrase) {
   const wrappedKey = await wrapRawKey(newKek, raw);
   const res = await saveVault({ salt, wrappedKey, previousWrappedKey: vault.wrappedKey });
   await setUnlocked(raw, res.vault);
-}
-
-/** Called after the server vault row was deleted (vault turned off) */
-export function markVaultOff() {
-  dataKey = null;
-  portfolioKeys.clear();
-  writeSession(null);
-  setState({ status: 'off', vault: null, epoch: state.epoch + 1 });
 }
 
 function requireDataKey() {

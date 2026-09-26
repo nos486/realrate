@@ -177,6 +177,11 @@ export async function handleUpdatePortfolio(request, env) {
   }
 
   const userId = user.userId || user.id || user.email;
+  // Encryption is mandatory: a portfolio can never be switched back to plaintext
+  const clearsKey = body.e2eeWrappedKey !== undefined && !isCipherText(body.e2eeWrappedKey);
+  if (body.isE2ee === false || clearsKey) {
+    throw new AppError("رمزنگاری سرتاسری اجباری است؛ پورتفو نمی‌تواند بدون رمز شود.", 403, "ENCRYPTION_MANDATORY");
+  }
   const updated = await dbUpdatePortfolio(env, portfolioId, userId, {
     name: body.name,
     shareSlug: body.shareSlug,
