@@ -28,6 +28,7 @@ import {
   dbUpdateUserSettings,
   dbGetTransactionsByPortfolio,
   dbHasUserVault,
+  dbListVaultRecords,
   isCipherText,
 } from "../repositories/index.js";
 import { jsonResponse, getClientIp } from "../lib/helpers.js";
@@ -516,10 +517,16 @@ export async function handleGetSharedPortfolio(request, env) {
     }
   }
 
-  const [holdings, transactions] = await Promise.all([
+  // A portfolio under the account vault keeps its items as encrypted vault records (its own
+  // key, carried in the share link's #fragment, decrypts them in the viewer's browser)
+  const underAccountVault = Boolean(targetPortfolio.e2eeWrappedKey);
+  const [holdings, transactions, vaultHoldings, vaultTransactions] = await Promise.all([
     dbGetPortfolioHoldings(env, targetPortfolio.userId, targetPortfolio.id),
     dbGetTransactionsByPortfolio(env, targetPortfolio.userId, targetPortfolio.id),
+    underAccountVault ? dbListVaultRecords(env, targetPortfolio.userId, "holding", { parentId: targetPortfolio.id }) : [],
+    underAccountVault ? dbListVaultRecords(env, targetPortfolio.userId, "transaction", { parentId: targetPortfolio.id }) : [],
   ]);
+  const publicRecord = ({ id, payload, recordDate, createdAt, updatedAt }) => ({ id, payload, recordDate, createdAt, updatedAt });
 
   return jsonResponse({
     success: true,
@@ -540,5 +547,7 @@ export async function handleGetSharedPortfolio(request, env) {
     },
     holdings: holdings.map(resolveHoldingMetadata),
     transactions,
+    vaultHoldings: vaultHoldings.map(publicRecord),
+    vaultTransactions: vaultTransactions.map(publicRecord),
   }, 200, request);
 }

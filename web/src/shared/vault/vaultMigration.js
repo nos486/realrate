@@ -20,10 +20,8 @@ import {
   deriveE2eeKey,
   verifyE2eeKey,
   exportRawKey,
-  encryptHoldingForApi,
   decryptHoldingFromApi,
   isHoldingE2eeEncrypted,
-  e2eeEncrypt,
   e2eeDecrypt,
   getVaultPassphraseFromSession,
 } from '../../lib/e2ee.js';
@@ -46,6 +44,7 @@ import {
   isAccountVaultPortfolio,
 } from './vaultStore.js';
 import { putRecord } from './vaultRecordMeta.js';
+import { movePortfolioItemsToVault } from './vaultPortfolioItems.js';
 import { clearVaultLoansCache } from './vaultLoans.js';
 import { clearVaultIncomesCache } from './vaultIncomes.js';
 import { clearVaultChequesCache } from './vaultCheques.js';
@@ -92,42 +91,21 @@ const txLabel = (tx) => `تراکنش ${tx.transactionDate ? `مورخ ${tx.tran
 
 // ── Encrypting ──────────────────────────────────────────────────────────────
 
+/**
+ * Move a portfolio's holdings and transactions into encrypted vault records (its own key). Rows
+ * already encrypted in place are decrypted and moved; plaintext rows are encrypted and moved.
+ */
 async function encryptPortfolioItems(portfolio, key, { tick, plan, report }) {
-  const [hRes, txRes] = await Promise.all([
-    getPortfolio(portfolio.id).catch(() => null),
-    getTransactions(portfolio.id).catch(() => null),
-  ]);
-  if (!hRes || !txRes) {
+  try {
+    const moved = await movePortfolioItemsToVault(portfolio, key, {
+      onItem: () => {
+        plan(1, `پورتفوی «${portfolio.name}»`);
+        tick(`پورتفوی «${portfolio.name}»`);
+      },
+    });
+    report.failed.push(...moved.failed);
+  } catch {
     report.failed.push(`دریافت اقلام پورتفوی «${portfolio.name}»`);
-    return;
-  }
-  const holdings = (hRes.holdings || []).filter((h) => !isHoldingE2eeEncrypted(h));
-  const transactions = (txRes.transactions || []).filter((tx) => !isCipher(tx.encryptedPayload || tx.encrypted_payload));
-  plan(holdings.length + transactions.length, `پورتفوی «${portfolio.name}»`);
-
-  for (const h of holdings) {
-    try {
-      await updatePortfolioHolding(await encryptHoldingForApi(key, { ...h, portfolioId: portfolio.id }), SILENT);
-    } catch {
-      report.failed.push(holdingLabel(h));
-    }
-    tick(`پورتفوی «${portfolio.name}»`);
-  }
-
-  for (const tx of transactions) {
-    const raw = tx.encryptedPayload || tx.encrypted_payload || '';
-    try {
-      let payloadObj = {};
-      if (typeof raw === 'string') {
-        try { payloadObj = JSON.parse(raw); } catch { payloadObj = { notes: raw }; }
-      } else if (raw && typeof raw === 'object') {
-        payloadObj = raw;
-      }
-      await updateTransaction(portfolio.id, tx.id, { encryptedPayload: await e2eeEncrypt(key, payloadObj) }, SILENT);
-    } catch {
-      report.failed.push(txLabel(tx));
-    }
-    tick(`پورتفوی «${portfolio.name}»`);
   }
 }
 
@@ -270,6 +248,23 @@ async function decryptPortfolio(portfolio, key, { tick, plan, report }) {
   // Unflag first (the server only accepts plaintext items in a non-E2EE portfolio); the wrapped
   // key stays until every item is back in plaintext, so nothing becomes unreadable midway.
   if (portfolio.isE2ee) await updatePortfolio({ id: portfolio.id, isE2ee: false }, SILENT);
+
+  // Items kept as account-vault records go back into the plain tables first
+  for (const kind of ['holding', 'transaction']) {
+    const res = await listVaultRecords(kind, SILENT, { parent: portfolio.id });
+    const records = res?.records || [];
+    plan(records.length, `پورتفوی «${portfolio.name}»`);
+    for (const record of records) {
+      try {
+        const plain = await e2eeDecrypt(key, record.payload);
+        if (!plain || typeof plain !== 'object') throw new Error('decrypt');
+        await restoreVaultRecord(kind, record.id, { ...plain, id: record.id, portfolioId: portfolio.id }, SILENT);
+      } catch {
+        report.failed.push(`${kind === 'holding' ? 'دارایی' : 'تراکنش'} ${record.id}`);
+      }
+      tick(`پورتفوی «${portfolio.name}»`);
+    }
+  }
 
   const [hRes, txRes] = await Promise.all([getPortfolio(portfolio.id), getTransactions(portfolio.id)]);
   const holdings = (hRes?.holdings || []).filter(isHoldingE2eeEncrypted);
