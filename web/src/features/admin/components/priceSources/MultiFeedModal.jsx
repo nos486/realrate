@@ -206,7 +206,7 @@ export default function MultiFeedModal({
             border: `1px solid ${multiTestResult.success ? 'rgba(16, 185, 129, 0.3)' : 'rgba(244, 63, 94, 0.3)'}`
           }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
-              <span style={{ fontSize: '12.5px', fontWeight: '700', color: multiTestResult.success ? '#10b981' : '#f43f5e' }}>
+              <span style={{ fontSize: '12.5px', fontWeight: '700', color: multiTestResult.success ? 'var(--color-positive)' : 'var(--color-negative)' }}>
                 {multiTestResult.success ? `✓ ${multiTestResult.message}` : `✗ خطا: ${multiTestResult.error}`}
               </span>
             </div>
@@ -226,7 +226,7 @@ export default function MultiFeedModal({
                       <tr key={idx}>
                         <td><strong>{item.s || item.symbol}</strong></td>
                         <td>{item.n || item.name}</td>
-                        <td style={{ color: '#10b981', fontWeight: '700' }}>
+                        <td style={{ color: 'var(--color-positive)', fontWeight: '700' }}>
                           {Number(item.priceToman || item.p || item.price || 0).toLocaleString('fa-IR')}
                         </td>
                       </tr>

@@ -64,7 +64,7 @@
   gap: 6px;
   background: rgba(56, 189, 248, 0.08);
   border: none;
-  color: #38bdf8;
+  color: var(--color-primary-text);
   border-radius: var(--radius-full);
   padding: 6px 14px;
   font-size: 12px;
@@ -141,7 +141,7 @@
 .btn-privacy-toggle.active {
   background: rgba(245, 158, 11, 0.12);
   border-color: rgba(245, 158, 11, 0.35);
-  color: #fbbf24;
+  color: var(--color-warning-text);
 }
 
 .btn-privacy-toggle.active:hover {

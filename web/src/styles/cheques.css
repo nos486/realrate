@@ -15,7 +15,7 @@
 .cheque-status-badge.tone-warning { background: var(--gold-soft-bg); color: var(--gold-light); }
 .cheque-status-badge.tone-info { background: var(--blue-soft); color: var(--blue-sky); }
 .cheque-status-badge.tone-good { background: var(--green-soft); color: var(--green-emerald); }
-.cheque-status-badge.tone-danger { background: var(--rose-soft); color: #fb7185; }
+.cheque-status-badge.tone-danger { background: var(--rose-soft); color: var(--color-negative-text); }
 .cheque-status-badge.tone-neutral { background: rgba(255, 255, 255, 0.06); color: var(--text-secondary); }
 
 /* Filters: direction + state, each a segmented row */
@@ -109,7 +109,7 @@
 }
 
 .cheque-due-hint.is-soon { background: var(--gold-soft-bg); color: var(--gold-light); }
-.cheque-due-hint.is-late { background: var(--rose-soft); color: #fb7185; font-weight: 700; }
+.cheque-due-hint.is-late { background: var(--rose-soft); color: var(--color-negative-text); font-weight: 700; }
 
 /* Status choices wrap instead of hiding behind a horizontal scroll */
 .cheque-form-body .ui-filter-pills,
@@ -126,7 +126,7 @@
 }
 
 .cheques-table .portfolio-table-row.is-overdue {
-  box-shadow: inset -3px 0 0 #fb7185;
+  box-shadow: inset -3px 0 0 var(--color-negative-text);
 }
 
 /* Form */
@@ -278,7 +278,7 @@
 .cheque-timeline-item.tone-warning .cheque-timeline-dot { background: var(--gold-soft-bg); color: var(--gold-light); }
 .cheque-timeline-item.tone-info .cheque-timeline-dot { background: var(--blue-soft); color: var(--blue-sky); }
 .cheque-timeline-item.tone-good .cheque-timeline-dot { background: var(--green-soft); color: var(--green-emerald); }
-.cheque-timeline-item.tone-danger .cheque-timeline-dot { background: var(--rose-soft); color: #fb7185; }
+.cheque-timeline-item.tone-danger .cheque-timeline-dot { background: var(--rose-soft); color: var(--color-negative-text); }
 
 .cheque-timeline-body {
   flex: 1;
@@ -335,5 +335,5 @@
 
 .btn-table-action.cheque-clear-btn:hover:not(:disabled) {
   background: rgba(16, 185, 129, 0.2);
-  color: #34d399;
+  color: var(--color-positive-text);
 }

@@ -87,7 +87,7 @@
   height: 44px;
   border-radius: 14px;
   background: var(--primary-soft-bg);
-  color: var(--blue-sky, #38bdf8);
+  color: var(--blue-sky, var(--color-primary-text));
 }
 
 .auth-google-btn {
@@ -109,7 +109,7 @@
 }
 
 .auth-google-btn:hover {
-  background: #f1f5f9;
+  background: var(--text-primary);
 }
 
 .auth-divider {
@@ -172,7 +172,7 @@
 
 .auth-link,
 .auth-link-btn {
-  color: var(--blue-sky, #38bdf8);
+  color: var(--blue-sky, var(--color-primary-text));
   font-size: 13px;
   font-weight: 700;
   text-decoration: none;

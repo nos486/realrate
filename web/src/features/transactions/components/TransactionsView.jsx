@@ -33,6 +33,7 @@ import {
   LOCK_ALL_EVENT,
 } from '../../../shared/vault/vaultStore.js';
 import EmptyState from '../../../shared/ui/EmptyState.jsx';
+import Button from '../../../shared/ui/Button.jsx';
 import SplitPageLayout from '../../../shared/ui/SplitPageLayout.jsx';
 import { usePricing } from '../../market/index.js';
 import { CategoryIcon, formatAssetName, formatNum, getItemBrand, resolveAssetDisplayName } from '../../portfolio/utils/holdingHelpers.js';
@@ -582,7 +583,7 @@ const TransactionsView = forwardRef(function TransactionsView(
                 <SkeletonRows rows={5} columns={5} label="در حال بارگذاری تراکنش‌ها" />
               ) : listTotal === 0 ? (
                 <EmptyState
-                  icon={<Receipt size={40} strokeWidth={1.5} color="var(--text-muted)" />}
+                  icon={<Receipt size={40} strokeWidth={1.5} color="#64748b" />}
                   title="هیچ تراکنشی یافت نشد"
                   description={
                     searchQuery || typeFilter !== 'all'
@@ -592,14 +593,9 @@ const TransactionsView = forwardRef(function TransactionsView(
                         : 'هنوز هیچ معامله خریدی یا فروشی در این پورتفو ثبت نکرده‌اید. با کلیک روی دکمه زیر اولین معامله را ثبت کنید.'
                   }
                   action={
-                    <button
-                      type="button"
-                      className="btn-add-transaction center"
-                      onClick={handleOpenAdd}
-                    >
-                      <Plus size={16} style={{ verticalAlign: 'middle', marginLeft: '6px' }} />
+                    <Button icon={<Plus size={16} />} onClick={handleOpenAdd}>
                       ثبت اولین تراکنش
-                    </button>
+                    </Button>
                   }
                 />
               ) : (

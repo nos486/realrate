@@ -530,7 +530,7 @@ export default function SharedPortfolioPage() {
         ) : errorMsg ? (
           <div className="portfolio-empty-state" style={{ minHeight: '50vh' }}>
             <div className="empty-icon">
-              <AlertTriangle size={42} color="var(--text-muted)" />
+              <AlertTriangle size={42} color="#64748b" />
             </div>
             <h4>پورتفو در دسترس نیست</h4>
             <p>{errorMsg}</p>
@@ -614,7 +614,7 @@ export default function SharedPortfolioPage() {
                   ) : categoryGroups.length === 0 ? (
                     <div className="portfolio-empty-state">
                       <div className="empty-icon">
-                        <Briefcase size={40} strokeWidth={1.5} color="var(--text-muted)" />
+                        <Briefcase size={40} strokeWidth={1.5} color="#64748b" />
                       </div>
                       <h4>پورتفو خالی است</h4>
                     </div>

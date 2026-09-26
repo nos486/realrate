@@ -84,7 +84,7 @@
 .portfolio-tab-pill.active {
   background: rgba(245, 158, 11, 0.12);
   border-color: rgba(245, 158, 11, 0.4);
-  color: #fbbf24;
+  color: var(--color-warning-text);
   box-shadow: 0 0 16px rgba(245, 158, 11, 0.12);
 }
 
@@ -129,7 +129,7 @@
   padding: 6px 14px;
   font-size: 12px;
   font-weight: 700;
-  color: #38bdf8;
+  color: var(--color-primary-text);
   cursor: pointer;
   white-space: nowrap;
   transition: var(--transition-fast);
@@ -137,7 +137,7 @@
 
 .btn-new-portfolio-tab:hover {
   background: rgba(56, 189, 248, 0.16);
-  border-color: #38bdf8;
+  border-color: var(--color-primary-text);
   transform: translateY(-1px);
 }
 
@@ -340,14 +340,14 @@
 .real-pill {
   font-size: 10.5px;
   font-weight: 800;
-  color: #38bdf8;
+  color: var(--color-primary-text);
   background: rgba(56, 189, 248, 0.08);
   border-radius: 999px;
   padding: 3px 10px;
 }
 
 .sky-gradient-text {
-  background: linear-gradient(135deg, #7dd3fc 0%, #38bdf8 50%, #0284c7 100%);
+  background: linear-gradient(135deg, var(--color-primary-text) 0%, var(--color-primary-text) 50%, var(--color-primary) 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
 }
@@ -511,7 +511,7 @@
   gap: 4px;
   background: rgba(16, 185, 129, 0.08);
   border: 1px solid rgba(16, 185, 129, 0.22);
-  color: #34d399 !important;
+  color: var(--color-positive-text) !important;
   font-size: 11px !important;
   font-weight: 700;
   padding: 2px 8px;
@@ -554,7 +554,7 @@
 .security-badge-text strong {
   font-size: 12.5px;
   font-weight: 800;
-  color: #34d399;
+  color: var(--color-positive-text);
 }
 
 .security-badge-text span {
@@ -567,13 +567,13 @@
 .portfolio-encryption-tag.e2ee {
   background: rgba(16, 185, 129, 0.12);
   border-color: rgba(16, 185, 129, 0.35);
-  color: #10b981 !important;
+  color: var(--color-positive) !important;
 }
 
 .portfolio-encryption-tag.e2ee.locked {
   background: rgba(245, 158, 11, 0.12);
   border-color: rgba(245, 158, 11, 0.35);
-  color: #fbbf24 !important;
+  color: var(--color-warning-text) !important;
 }
 
 .tab-pill-e2ee {
@@ -641,7 +641,7 @@
 
 .vault-warning-box p {
   font-size: 11.5px;
-  color: #fcd34d;
+  color: var(--color-warning-text);
   line-height: 1.6;
   margin: 0;
 }
@@ -681,7 +681,7 @@
   gap: 6px;
   background: rgba(245, 158, 11, 0.12);
   border: 1px solid rgba(245, 158, 11, 0.3);
-  color: #f59e0b;
+  color: var(--color-warning);
   font-size: 12px;
   font-weight: 800;
   padding: 4px 14px;
@@ -757,7 +757,7 @@
 .vault-unlock-error {
   background: rgba(239, 68, 68, 0.12);
   border: 1px solid rgba(239, 68, 68, 0.3);
-  color: #f87171;
+  color: var(--color-negative-text);
   border-radius: var(--radius-sm);
   padding: 9px 14px;
   font-size: 12px;
@@ -773,7 +773,7 @@
 .btn-vault-unlock {
   width: 100%;
   padding: 13px 20px;
-  background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+  background: linear-gradient(135deg, var(--color-warning) 0%, #d97706 100%);
   color: #000;
   font-weight: 800;
   font-size: 13.5px;
@@ -894,7 +894,7 @@
   padding: 6px 13px;
   background: rgba(16, 185, 129, 0.09);
   border: 1px solid rgba(16, 185, 129, 0.2);
-  color: #34d399;
+  color: var(--color-positive-text);
   border-radius: var(--radius-full);
   font-size: 12px;
   font-weight: 700;
@@ -922,7 +922,7 @@
   background: rgba(56, 189, 248, 0.09);
   border: 1px solid rgba(56, 189, 248, 0.2);
   border-radius: var(--radius-full);
-  color: #38bdf8;
+  color: var(--color-primary-text);
   font-size: 12px;
   font-weight: 700;
   cursor: pointer;
@@ -961,13 +961,13 @@
 }
 
 .csv-import-summary-list .ok-icon {
-  color: #34d399;
+  color: var(--color-positive-text);
   flex-shrink: 0;
   margin-top: 2px;
 }
 
 .csv-import-summary-list .warn-icon {
-  color: #fbbf24;
+  color: var(--color-warning-text);
   flex-shrink: 0;
   margin-top: 2px;
 }
@@ -984,7 +984,7 @@
   background: rgba(251, 191, 36, 0.08);
   border: 1px solid rgba(251, 191, 36, 0.2);
   border-radius: 10px;
-  color: #fbbf24;
+  color: var(--color-warning-text);
   font-size: 12px;
   line-height: 1.7;
 }
@@ -997,7 +997,7 @@
   background: rgba(239, 68, 68, 0.08);
   border: 1px solid rgba(239, 68, 68, 0.25);
   border-radius: 10px;
-  color: #f87171;
+  color: var(--color-negative-text);
   font-size: 13px;
 }
 
@@ -1022,11 +1022,11 @@
 }
 
 .csv-import-result .ok-icon {
-  color: #34d399;
+  color: var(--color-positive-text);
 }
 
 .csv-import-result .warn-icon {
-  color: #fbbf24;
+  color: var(--color-warning-text);
 }
 
 /* ── Reference-Asset Cost Basis (Holdings/Transactions) ───────────────────── */
@@ -1051,7 +1051,7 @@
 .btn-add-reference-asset:hover {
   background: rgba(56, 189, 248, 0.08);
   border-color: rgba(56, 189, 248, 0.35);
-  color: #38bdf8;
+  color: var(--color-primary-text);
 }
 
 .reference-asset-card {
@@ -1089,7 +1089,7 @@
   gap: 6px;
   font-size: 12px;
   font-weight: 700;
-  color: #38bdf8;
+  color: var(--color-primary-text);
 }
 
 .btn-remove-reference {
@@ -1109,7 +1109,7 @@
 
 .btn-remove-reference:hover {
   background: rgba(239, 68, 68, 0.15);
-  color: #f87171;
+  color: var(--color-negative-text);
 }
 
 .reference-asset-selected-pill {
@@ -1124,7 +1124,7 @@
   border-radius: 16px;
   font-size: 12px;
   font-weight: 700;
-  color: #93c5fd;
+  color: var(--color-primary-text);
 }
 
 .reference-asset-selected-pill button {
@@ -1152,7 +1152,7 @@
   background: rgba(56, 189, 248, 0.12);
   border: none;
   border-radius: 50%;
-  color: #38bdf8;
+  color: var(--color-primary-text);
   cursor: pointer;
   transition: var(--transition-fast);
 }
@@ -1192,11 +1192,11 @@
 }
 
 .pnl-native-sub.profit {
-  color: #34d399;
+  color: var(--color-positive-text);
 }
 
 .pnl-native-sub.loss {
-  color: #f87171;
+  color: var(--color-negative-text);
 }
 
 .csv-import-fail-list {
@@ -1338,22 +1338,22 @@
 }
 
 .item-category-pill.cat-gold {
-  color: #facc15;
+  color: var(--color-warning-text);
   background: rgba(234, 179, 8, 0.15);
 }
 
 .item-category-pill.cat-coin {
-  color: #38bdf8;
+  color: var(--color-primary-text);
   background: rgba(56, 189, 248, 0.15);
 }
 
 .item-category-pill.cat-silver {
-  color: #f87171;
+  color: var(--color-negative-text);
   background: rgba(239, 68, 68, 0.15);
 }
 
 .item-category-pill.cat-currency {
-  color: #34d399;
+  color: var(--color-positive-text);
   background: rgba(16, 185, 129, 0.15);
 }
 
@@ -1363,7 +1363,7 @@
 }
 
 .item-category-pill.cat-bourse {
-  color: #38bdf8;
+  color: var(--color-primary-text);
   background: rgba(56, 189, 248, 0.15);
   border: 1px solid rgba(56, 189, 248, 0.25);
 }
@@ -1406,7 +1406,7 @@
 }
 
 .cell-val.real-val {
-  color: #38bdf8;
+  color: var(--color-primary-text);
   font-weight: 800;
   background: rgba(56, 189, 248, 0.08);
   padding: 2px 6px;
@@ -1420,7 +1420,7 @@
 }
 
 .cell-val-bold.gold-text {
-  color: #fbbf24;
+  color: var(--color-warning-text);
 }
 
 .cell-unit {
@@ -1611,7 +1611,7 @@
 }
 
 .live-hint-box-detailed .hint-val-sky {
-  color: #38bdf8;
+  color: var(--color-primary-text);
   font-weight: 800;
 }
 
@@ -1747,12 +1747,12 @@
 }
 
 .active-asset-summary-pill .summary-val {
-  color: var(--gold-light, #fbbf24);
+  color: var(--gold-light, var(--color-warning-text));
   font-weight: 700;
 }
 
 .active-asset-summary-pill .summary-price {
-  color: #38bdf8;
+  color: var(--color-primary-text);
   font-weight: 600;
   font-size: 11px;
 }
@@ -1833,7 +1833,7 @@
   align-items: center;
   gap: 5px;
   background: rgba(56, 189, 248, 0.15);
-  color: #38bdf8;
+  color: var(--color-primary-text);
   border: 1px solid rgba(56, 189, 248, 0.3);
   font-size: 10.5px;
   font-weight: 700;
@@ -1852,7 +1852,7 @@
 }
 
 .timer-pulse-icon {
-  color: #fbbf24;
+  color: var(--color-warning-text);
 }
 
 .asset-search-clear-btn {
@@ -1994,7 +1994,7 @@
 
 .bourse-row .bourse-tag {
   background: rgba(56, 189, 248, 0.15);
-  color: #38bdf8;
+  color: var(--color-primary-text);
   font-weight: 800;
   font-size: 11px;
   padding: 2px 7px;
@@ -2014,7 +2014,7 @@
   font-weight: 800;
   padding: 1px 5px;
   background: rgba(234, 179, 8, 0.15);
-  color: #eab308;
+  color: var(--color-warning-text);
   border-radius: 4px;
   border: 1px solid rgba(234, 179, 8, 0.3);
   white-space: nowrap;
@@ -2050,12 +2050,12 @@
 }
 
 .bourse-pct-val.profit {
-  color: #34d399;
+  color: var(--color-positive-text);
   background: rgba(52, 211, 153, 0.12);
 }
 
 .bourse-pct-val.loss {
-  color: #f87171;
+  color: var(--color-negative-text);
   background: rgba(248, 113, 113, 0.12);
 }
 
@@ -2083,7 +2083,7 @@
 }
 
 .bourse-active-badge {
-  background: #0284c7;
+  background: var(--color-primary);
   color: #fff;
   font-size: 10px;
   font-weight: 800;
@@ -2094,7 +2094,7 @@
 .preview-symbol-code {
   font-size: 14px;
   font-weight: 800;
-  color: #38bdf8;
+  color: var(--color-primary-text);
 }
 
 .preview-company-name {
@@ -2131,7 +2131,7 @@
 }
 
 .preview-price-num {
-  color: #38bdf8;
+  color: var(--color-primary-text);
   font-size: 14px;
   font-weight: 800;
 }

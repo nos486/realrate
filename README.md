@@ -57,6 +57,7 @@ npm test
 | [ARCHITECTURE.md](docs/ARCHITECTURE.md) | معماری و جریان داده |
 | [API.md](docs/API.md) | مرجع REST API |
 | [E2EE_VAULT.md](docs/E2EE_VAULT.md) | رمزنگاری سرتاسری حساب |
+| [DESIGN.md](docs/DESIGN.md) | استاندارد رنگ‌ها و چیدمان صفحه‌ها |
 | [ADDING_NEW_ASSET.md](docs/ADDING_NEW_ASSET.md) | افزودن دارایی جدید |
 | [ADDING_NEW_PRICE_SOURCE.md](docs/ADDING_NEW_PRICE_SOURCE.md) | افزودن سورس قیمت |
 

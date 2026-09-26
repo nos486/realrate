@@ -378,7 +378,7 @@ export default function AddLoanForm({
             border: '1px solid rgba(239, 68, 68, 0.3)',
             borderRadius: '10px',
             padding: '10px 14px',
-            color: '#f87171',
+            color: 'var(--color-negative-text)',
             fontSize: '0.85rem',
             marginBottom: '14px',
             display: 'flex',
@@ -397,7 +397,7 @@ export default function AddLoanForm({
             border: '1px solid rgba(245, 158, 11, 0.35)',
             borderRadius: '10px',
             padding: '11px 14px',
-            color: '#fbbf24',
+            color: 'var(--color-warning-text)',
             fontSize: '0.85rem',
             marginBottom: '16px',
             display: 'flex',
@@ -463,7 +463,7 @@ export default function AddLoanForm({
               <option value="totalRepaymentBased">کل بازپرداخت را می‌دانم (بدون نرخ سود)</option>
             </select>
             {installmentMode === 'totalRepaymentBased' && (
-              <span style={{ display: 'block', fontSize: '0.74rem', color: '#94a3b8', marginTop: '8px' }}>
+              <span style={{ display: 'block', fontSize: '0.74rem', color: 'var(--text-secondary)', marginTop: '8px' }}>
                 مبلغ دقیق کل بازپرداختی که بانک اعلام کرده را وارد کنید — بدون نیاز به دانستن نرخ سود، این مبلغ به‌طور مساوی بین همه‌ی اقساط تقسیم می‌شود.
               </span>
             )}
@@ -497,7 +497,7 @@ export default function AddLoanForm({
                     padding: '1px 8px',
                     borderRadius: '12px',
                     background: 'rgba(16, 185, 129, 0.15)',
-                    color: '#34d399',
+                    color: 'var(--color-positive-text)',
                     fontWeight: 600,
                   }}>
                     قرض‌الحسنه
@@ -544,18 +544,18 @@ export default function AddLoanForm({
                 disabled={Boolean(editingLoan)}
               />
               {editingLoan ? (
-                <span style={{ display: 'block', fontSize: '0.74rem', color: '#94a3b8', marginTop: '6px' }}>
+                <span style={{ display: 'block', fontSize: '0.74rem', color: 'var(--text-secondary)', marginTop: '6px' }}>
                   این وام با «ویرایش گروهی اقساط» تنظیم شده — برای تغییر مبلغ اقساط از همان بخش (داخل جدول اقساط وام) استفاده کنید.
                 </span>
               ) : (
                 <>
                   {totalBasedResult.approxRatePct !== null && totalBasedResult.approxRatePct !== undefined && (
-                    <span style={{ display: 'block', fontSize: '0.74rem', color: '#94a3b8', marginTop: '6px' }}>
+                    <span style={{ display: 'block', fontSize: '0.74rem', color: 'var(--text-secondary)', marginTop: '6px' }}>
                       نرخ سود معادل تقریبی: {totalBasedResult.approxRatePct}٪ (فقط اطلاعاتی — در محاسبه اقساط استفاده نمی‌شود)
                     </span>
                   )}
                   {totalBasedResult.error && (
-                    <span style={{ display: 'flex', alignItems: 'flex-start', gap: '6px', fontSize: '0.76rem', color: '#f87171', marginTop: '6px' }}>
+                    <span style={{ display: 'flex', alignItems: 'flex-start', gap: '6px', fontSize: '0.76rem', color: 'var(--color-negative-text)', marginTop: '6px' }}>
                       <AlertCircle size={14} style={{ flexShrink: 0, marginTop: '1px' }} />
                       {totalBasedResult.error}
                     </span>
@@ -610,7 +610,7 @@ export default function AddLoanForm({
             affix="تومان"
             className="form-input"
           />
-          <span style={{ display: 'block', fontSize: '0.74rem', color: '#94a3b8', marginTop: '6px' }}>
+          <span style={{ display: 'block', fontSize: '0.74rem', color: 'var(--text-secondary)', marginTop: '6px' }}>
             هر سال یک‌بار، به مبلغ نزدیک‌ترین قسط به سالگرد دریافت وام اضافه می‌شود.
           </span>
         </div>
@@ -631,7 +631,7 @@ export default function AddLoanForm({
               <span style={{ fontWeight: 600 }}>پیش‌نمایش زنده اقساط (فرمول بانکی)</span>
             </div>
             {liveInstallment > 0 && (
-              <span style={{ fontSize: '0.75rem', color: '#10b981', display: 'flex', alignItems: 'center', gap: '4px' }}>
+              <span style={{ fontSize: '0.75rem', color: 'var(--color-positive)', display: 'flex', alignItems: 'center', gap: '4px' }}>
                 <CheckCircle2 size={13} />
                 محاسبه آنی
               </span>
@@ -641,30 +641,30 @@ export default function AddLoanForm({
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '12px' }}>
             {/* Installment Amount */}
             <div style={{ background: 'rgba(255, 255, 255, 0.03)', padding: '10px', borderRadius: '8px' }}>
-              <span style={{ display: 'block', fontSize: '0.75rem', color: '#94a3b8', marginBottom: '4px' }}>
+              <span style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '4px' }}>
                 مبلغ هر قسط:
               </span>
-              <span style={{ fontSize: '1rem', fontWeight: 700, color: '#f59e0b' }}>
+              <span style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--color-warning)' }}>
                 {liveInstallment > 0 ? `${formatPersianNum(liveInstallment)} تومان` : '—'}
               </span>
             </div>
 
             {/* Total Repayment (read-only preview, computed from the real schedule generator) */}
             <div style={{ background: 'rgba(255, 255, 255, 0.03)', padding: '10px', borderRadius: '8px' }}>
-              <span style={{ display: 'block', fontSize: '0.75rem', color: '#94a3b8', marginBottom: '4px' }}>
+              <span style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '4px' }}>
                 کل بازپرداخت (اصل + سود):
               </span>
-              <span style={{ fontSize: '0.92rem', fontWeight: 600, color: '#e2e8f0' }}>
+              <span style={{ fontSize: '0.92rem', fontWeight: 600, color: 'var(--text-primary)' }}>
                 {liveTotalRepayment > 0 ? `${formatPersianNum(liveTotalRepayment)} تومان` : '—'}
               </span>
             </div>
 
             {/* Total Interest */}
             <div style={{ background: 'rgba(255, 255, 255, 0.03)', padding: '10px', borderRadius: '8px' }}>
-              <span style={{ display: 'block', fontSize: '0.75rem', color: '#94a3b8', marginBottom: '4px' }}>
+              <span style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '4px' }}>
                 مجموع سود وام:
               </span>
-              <span style={{ fontSize: '0.92rem', fontWeight: 600, color: cleanRate === 0 ? '#34d399' : '#e2e8f0' }}>
+              <span style={{ fontSize: '0.92rem', fontWeight: 600, color: cleanRate === 0 ? 'var(--color-positive-text)' : 'var(--text-primary)' }}>
                 {cleanRate === 0
                   ? '۰ (بدون سود)'
                   : liveTotalInterest > 0
@@ -696,26 +696,26 @@ export default function AddLoanForm({
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '12px' }}>
               <div style={{ background: 'rgba(255, 255, 255, 0.03)', padding: '10px', borderRadius: '8px' }}>
-                <span style={{ display: 'block', fontSize: '0.75rem', color: '#94a3b8', marginBottom: '4px' }}>
+                <span style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '4px' }}>
                   مبلغ هر قسط:
                 </span>
-                <span style={{ fontSize: '1rem', fontWeight: 700, color: '#f59e0b' }}>
+                <span style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--color-warning)' }}>
                   {formatPersianNum(totalBasedResult.schedule[0].totalAmount)} تومان
                 </span>
               </div>
               <div style={{ background: 'rgba(255, 255, 255, 0.03)', padding: '10px', borderRadius: '8px' }}>
-                <span style={{ display: 'block', fontSize: '0.75rem', color: '#94a3b8', marginBottom: '4px' }}>
+                <span style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '4px' }}>
                   کل بازپرداخت (اصل + سود):
                 </span>
-                <span style={{ fontSize: '0.92rem', fontWeight: 600, color: '#e2e8f0' }}>
+                <span style={{ fontSize: '0.92rem', fontWeight: 600, color: 'var(--text-primary)' }}>
                   {formatPersianNum(cleanTotalRepaymentInput)} تومان
                 </span>
               </div>
               <div style={{ background: 'rgba(255, 255, 255, 0.03)', padding: '10px', borderRadius: '8px' }}>
-                <span style={{ display: 'block', fontSize: '0.75rem', color: '#94a3b8', marginBottom: '4px' }}>
+                <span style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '4px' }}>
                   مجموع سود وام:
                 </span>
-                <span style={{ fontSize: '0.92rem', fontWeight: 600, color: '#e2e8f0' }}>
+                <span style={{ fontSize: '0.92rem', fontWeight: 600, color: 'var(--text-primary)' }}>
                   {formatPersianNum(Math.max(0, cleanTotalRepaymentInput - cleanPrincipal))} تومان
                 </span>
               </div>

@@ -343,7 +343,7 @@ export default function AddHoldingForm({
             <span className="summary-label" style={{ color: 'var(--text-muted)' }}>
               انتخاب‌شده:
             </span>
-            <strong className="summary-val" style={{ color: '#93c5fd' }}>
+            <strong className="summary-val" style={{ color: 'var(--color-primary-text)' }}>
               {selectedAssetTitle}
             </strong>
           </div>
