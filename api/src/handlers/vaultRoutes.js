@@ -2,35 +2,30 @@
  * vaultRoutes.js — Account-wide end-to-end encryption
  *
  * Endpoints:
- *   GET    /api/vault                                — The account vault (salt + wrapped key) or null
+ *   GET    /api/vault                                — The account vault (salt + wrapped key) or null,
+ *                                                       and whether an account without it has data
  *   PUT    /api/vault                                — Turn on / re-wrap after a passphrase change
- *   DELETE /api/vault                                — Turn off (only once nothing is encrypted with it)
- *   GET    /api/vault/records/:kind                  — Encrypted records of a kind (loan | income | cheque | recurring_income)
+ *   GET    /api/vault/records/:kind                  — Encrypted records of a kind (loan | income | cheque | recurring_income | holding | transaction)
  *   PUT    /api/vault/records/:kind/:id              — Create/replace one ({ payload, replacePlain })
  *   DELETE /api/vault/records/:kind/:id              — Delete one
- *   POST   /api/vault/records/:kind/:id/restore      — Write it back as plaintext and drop the copy
  *   GET    /api/loans/:id/document                   — Raw stored loan (for encrypting it)
  *
  * Every key operation happens in the browser; these routes only move opaque ciphertext.
+ * Encryption is mandatory: the vault is never turned off (see lib/encryptionGate.js).
  */
 
 import { getAuthenticatedUser } from "../lib/auth.js";
 import {
   dbGetUserVault,
+  dbUserHasPlaintextData,
   dbSaveUserVault,
-  dbDeleteUserVault,
   dbListVaultRecords,
   dbPutVaultRecord,
   dbDeleteVaultRecord,
-  dbRestoreVaultRecord,
   dbGetLoanDocument,
-  dbGetPortfolioById,
 } from "../repositories/index.js";
 import { jsonResponse } from "../lib/helpers.js";
 import { AppError } from "../lib/AppError.js";
-import { parseIncomeInput } from "./incomeRoutes.js";
-import { parseChequeInput } from "./chequeRoutes.js";
-import { parseRecurringIncomeInput } from "./recurringIncomeRoutes.js";
 
 async function requireUserId(request, env) {
   const user = await getAuthenticatedUser(request, env);
@@ -41,7 +36,9 @@ async function requireUserId(request, env) {
 export async function handleGetVault(request, env) {
   const userId = await requireUserId(request, env);
   const vault = await dbGetUserVault(env, userId);
-  return jsonResponse({ success: true, vault }, 200, request);
+  // Without the vault, whether there is anything to encrypt: a new account sets it up right away
+  const hasPlaintextData = vault ? false : await dbUserHasPlaintextData(env, userId);
+  return jsonResponse({ success: true, vault, hasPlaintextData }, 200, request);
 }
 
 export async function handleSaveVault(request, env) {
@@ -53,12 +50,6 @@ export async function handleSaveVault(request, env) {
     previousWrappedKey: body.previousWrappedKey,
   });
   return jsonResponse({ success: true, vault }, 200, request);
-}
-
-export async function handleDeleteVault(request, env) {
-  const userId = await requireUserId(request, env);
-  await dbDeleteUserVault(env, userId);
-  return jsonResponse({ success: true, vault: null }, 200, request);
 }
 
 export async function handleListVaultRecords(request, env, { kind }) {
@@ -88,32 +79,6 @@ export async function handleDeleteVaultRecord(request, env, { kind, id }) {
   const userId = await requireUserId(request, env);
   const deleted = await dbDeleteVaultRecord(env, userId, kind, id);
   if (!deleted) throw AppError.notFound("رکورد مورد نظر یافت نشد.");
-  return jsonResponse({ success: true }, 200, request);
-}
-
-export async function handleRestoreVaultRecord(request, env, { kind, id }) {
-  const userId = await requireUserId(request, env);
-  const body = await request.json().catch(() => ({}));
-  let plain = body.plain;
-  if (kind === "income") {
-    // Same rules as creating an income, so restored rows are always valid
-    plain = { ...parseIncomeInput(plain || {}), createdAt: plain?.createdAt };
-  } else if (kind === "recurring_income") {
-    plain = { ...parseRecurringIncomeInput(plain || {}), createdAt: plain?.createdAt };
-  } else if (kind === "cheque") {
-    plain = { ...parseChequeInput(plain || {}), createdAt: plain?.createdAt };
-  } else if (kind === "holding" || kind === "transaction") {
-    const portfolioId = String(plain?.portfolioId || "");
-    const portfolio = portfolioId ? await dbGetPortfolioById(env, portfolioId, userId) : null;
-    if (!portfolio) throw AppError.badRequest("پورتفوی این مورد یافت نشد.");
-    if (kind === "holding" && !String(plain.assetId || "").trim()) throw AppError.badRequest("نوع دارایی نامعتبر است.");
-  } else if (kind === "loan") {
-    const loan = plain?.loan || {};
-    if (!String(loan.title || "").trim() || !(Number(loan.principalAmount) > 0) || !(Number(loan.installmentCount) >= 0)) {
-      throw AppError.badRequest("داده وام رمزگشایی‌شده نامعتبر است.");
-    }
-  }
-  await dbRestoreVaultRecord(env, userId, kind, id, plain);
   return jsonResponse({ success: true }, 200, request);
 }
 

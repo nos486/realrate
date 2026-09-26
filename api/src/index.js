@@ -14,6 +14,7 @@ import { getCorsHeaders, isOriginAllowed } from "./lib/helpers.js";
 import { validateEnv } from "./config/env.js";
 import { withErrorHandler } from "./middlewares/errorHandler.js";
 import { enforceMaintenance } from "./lib/maintenance.js";
+import { encryptionRuleFor, enforceEncryptionRule } from "./lib/encryptionGate.js";
 import { logger } from "./lib/logger.js";
 import { DEFAULT_BOURSE_SEARCH_LIMIT } from "./config/constants.js";
 import { getAuthenticatedUser } from "./lib/auth.js";
@@ -132,11 +133,9 @@ import {
 import {
   handleGetVault,
   handleSaveVault,
-  handleDeleteVault,
   handleListVaultRecords,
   handlePutVaultRecord,
   handleDeleteVaultRecord,
-  handleRestoreVaultRecord,
   handleGetLoanDocument,
 } from "./handlers/vaultRoutes.js";
 import { handleGetHomeLayout, handleSaveHomeLayout } from "./handlers/homeLayoutRoutes.js";
@@ -223,6 +222,16 @@ export default {
     })(request, env);
     if (maintenanceBlock) return maintenanceBlock;
 
+    // ── Mandatory encryption: no financial data is ever saved unencrypted ────
+    const encryptionRule = encryptionRuleFor(normalizedPath, request.method);
+    if (encryptionRule) {
+      const encryptionBlock = await wrap(async (req, e) => {
+        await enforceEncryptionRule(req, e, encryptionRule);
+        return null;
+      })(request, env);
+      if (encryptionBlock) return encryptionBlock;
+    }
+
     // ── User Settings API Routes (Requires Login) ────────────────────────────
     if (normalizedPath === "/api/user/settings") {
       if (request.method === "GET") return wrap(handleGetUserSettings)(request, env);
@@ -294,12 +303,6 @@ export default {
     if (normalizedPath === "/api/vault") {
       if (request.method === "GET")    return wrap(handleGetVault)(request, env);
       if (request.method === "PUT")    return wrap(handleSaveVault)(request, env);
-      if (request.method === "DELETE") return wrap(handleDeleteVault)(request, env);
-    }
-    const vaultRestoreMatch = normalizedPath.match(/^\/api\/vault\/records\/([^/]+)\/([^/]+)\/restore$/);
-    if (vaultRestoreMatch && request.method === "POST") {
-      const [, kind, id] = vaultRestoreMatch;
-      return wrap((req, e) => handleRestoreVaultRecord(req, e, { kind, id }))(request, env);
     }
     const vaultRecordMatch = normalizedPath.match(/^\/api\/vault\/records\/([^/]+)\/([^/]+)$/);
     if (vaultRecordMatch) {

@@ -9,6 +9,8 @@ import HomeDashboard from '../features/home/HomeDashboard.jsx';
 import UpcomingInstallmentsAlert from '../features/loans/components/UpcomingInstallmentsAlert.jsx';
 import UpcomingChequesAlert from '../features/cheques/components/UpcomingChequesAlert.jsx';
 import VaultPendingBanner from '../shared/vault/VaultPendingBanner.jsx';
+import VaultSetupScreen from '../shared/vault/VaultSetupScreen.jsx';
+import { useVault } from '../shared/vault/useVault.js';
 import LiveRatesTicker from '../components/LiveRatesTicker.jsx';
 import { useMarketData } from '../features/market/hooks/useMarketData.js';
 import { useAuth } from '../features/auth/index.js';
@@ -38,6 +40,7 @@ export default function MainPage() {
   const params = useParams();
   const [searchParams] = useSearchParams();
   const { user, maintenance } = useAuth();
+  const vault = useVault();
 
   // Determine active tab from the path below /app (or the ?tab= query param)
   const subPath = getAppSubPath(location.pathname);
@@ -207,6 +210,9 @@ export default function MainPage() {
   const gold18kPrice = gold18kItem?.market || gold18kItem?.intrinsic || computed18k;
 
   const hasUsd = usdNum > 0;
+  // Admin tools stay reachable; everything else waits for the encryption passphrase
+  const needsVaultSetup =
+    Boolean(user) && vault.status === 'off' && !vault.hasPlaintextData && activeTab !== 'admin' && activeTab !== 'sources';
 
 
   return (
@@ -271,6 +277,11 @@ export default function MainPage() {
 
       {/* Tab Views */}
       <section className="tab-view-container">
+        {/* Encryption is mandatory: a new account (no data yet) chooses its passphrase first */}
+        {needsVaultSetup ? (
+          <VaultSetupScreen />
+        ) : (
+        <>
         {activeTab !== 'settings' && <VaultPendingBanner onOpenSettings={() => handleTabChange('settings')} />}
 
         {/* Active Loan Due Reminders Banner */}
@@ -345,6 +356,8 @@ export default function MainPage() {
           />
         )}
         </Suspense>
+        </>
+        )}
       </section>
     </AppLayout>
   );

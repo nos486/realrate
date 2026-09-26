@@ -7,14 +7,13 @@
  *  - vault_records holds browser-encrypted records (loans, incomes, cheques) as opaque ciphertext.
  *    The only plaintext beside the kind and id is the record's primary date (record_date, for
  *    range queries and sorting) and its parent (parent_id, e.g. the portfolio of an item).
- * Converting a record between plaintext tables and the vault happens in one D1 batch, so a
- * record is never lost or duplicated halfway.
+ * Moving a record from the older plaintext tables into the vault happens in one D1 batch, so a
+ * record is never lost or duplicated halfway. The vault is never turned off and nothing is
+ * written back to the plaintext tables.
  */
 
 import { ensureD1Tables } from "./migration.repository.js";
 import { AppError } from "../lib/AppError.js";
-import { insertChequeStatement } from "./cheques.repository.js";
-import { insertRecurringStatement } from "./recurringIncomes.repository.js";
 
 export const VAULT_RECORD_KINDS = ["loan", "income", "cheque", "recurring_income", "holding", "transaction"];
 /** Kinds that belong to a portfolio: parent_id is the portfolio, encrypted with its own key */
@@ -102,26 +101,15 @@ export async function dbSaveUserVault(env, userId, { salt, wrappedKey, previousW
   return dbGetUserVault(env, userId);
 }
 
-/**
- * Turn the vault off. Only allowed once nothing depends on its key any more (every record and
- * portfolio was decrypted back first) — otherwise that data would become unreadable forever.
- */
-export async function dbDeleteUserVault(env, userId) {
+/** Plaintext tables of a user's own data (an empty auto-created portfolio does not count) */
+const PLAINTEXT_DATA_TABLES = ["portfolio_holdings", "transactions", "loans", "incomes", "cheques", "recurring_incomes"];
+
+/** Whether the user has any data stored in the plaintext tables */
+export async function dbUserHasPlaintextData(env, userId) {
   await ensureD1Tables(env);
-  const records = await env.DB.prepare(`SELECT COUNT(*) AS n FROM vault_records WHERE user_id = ?`).bind(userId).first();
-  const portfolios = await env.DB.prepare(
-    `SELECT COUNT(*) AS n FROM portfolios WHERE user_id = ? AND e2ee_wrapped_key != ''`
-  ).bind(userId).first();
-  const remaining = (Number(records?.n) || 0) + (Number(portfolios?.n) || 0);
-  if (remaining > 0) {
-    throw new AppError(
-      `هنوز ${remaining.toLocaleString("fa-IR")} مورد رمزنگاری‌شده باقی مانده است؛ ابتدا همه داده‌ها باید رمزگشایی شوند.`,
-      409,
-      "VAULT_NOT_EMPTY"
-    );
-  }
-  await env.DB.prepare(`DELETE FROM user_vaults WHERE user_id = ?`).bind(userId).run();
-  return true;
+  const checks = PLAINTEXT_DATA_TABLES.map((table) => `EXISTS (SELECT 1 FROM ${table} WHERE user_id = ?1)`);
+  const row = await env.DB.prepare(`SELECT (${checks.join(" OR ")}) AS has`).bind(userId).first();
+  return Number(row?.has) === 1;
 }
 
 /**
@@ -224,118 +212,4 @@ export async function dbDeleteVaultRecord(env, userId, kind, id) {
   const res = await env.DB.prepare(`DELETE FROM vault_records WHERE user_id = ? AND kind = ? AND id = ?`)
     .bind(userId, kind, id).run();
   return (res?.meta?.changes ?? 0) > 0;
-}
-
-const num = (v, fallback = 0) => (Number.isFinite(Number(v)) ? Number(v) : fallback);
-const str = (v, fallback = "") => (v === undefined || v === null ? fallback : String(v));
-
-/**
- * Write a decrypted record back into the plaintext tables and drop its encrypted copy, in one
- * batch (used when turning the vault off). The plaintext is the record's own decrypted content.
- */
-export async function dbRestoreVaultRecord(env, userId, kind, id, plain) {
-  assertKind(kind);
-  assertRecordId(id);
-  if (!plain || typeof plain !== "object") throw AppError.badRequest("داده رمزگشایی‌شده نامعتبر است.");
-  await ensureD1Tables(env);
-
-  const now = new Date().toISOString();
-  const statements = [...deletePlainStatements(env, userId, kind, id)];
-
-  if (kind === "loan") {
-    const loan = plain.loan || {};
-    if (loan.id !== id) throw AppError.badRequest("شناسه وام با رکورد همخوانی ندارد.");
-    statements.push(env.DB.prepare(`
-      INSERT INTO loans (
-        id, user_id, title, lender_name, bank_id, principal_amount,
-        annual_interest_rate, installment_count, interval_months,
-        start_date, annual_fee_amount, schedule_mode, notes, created_at, updated_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `).bind(
-      id, userId, str(loan.title, "وام"), str(loan.lenderName), str(loan.bankId),
-      num(loan.principalAmount), num(loan.annualInterestRate), Math.trunc(num(loan.installmentCount, 1)),
-      Math.trunc(num(loan.intervalMonths, 1)), str(loan.startDate), num(loan.annualFeeAmount),
-      loan.scheduleMode === "distributed" ? "distributed" : "formula", str(loan.notes),
-      str(loan.createdAt, now), now
-    ));
-
-    for (const s of Array.isArray(plain.states) ? plain.states : []) {
-      statements.push(env.DB.prepare(`
-        INSERT INTO loan_installment_states (
-          id, loan_id, user_id, installment_number, due_date,
-          principal_portion, interest_portion, total_amount,
-          remaining_balance_after, is_paid, paid_date, paid_amount,
-          is_manual_override, created_at, updated_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-      `).bind(
-        str(s.id), id, userId, Math.trunc(num(s.installmentNumber)), str(s.dueDate),
-        num(s.principalPortion), num(s.interestPortion), num(s.totalAmount),
-        num(s.remainingBalanceAfter), s.isPaid ? 1 : 0, str(s.paidDate), num(s.paidAmount),
-        s.isManualOverride ? 1 : 0, str(s.createdAt, now), str(s.updatedAt, now)
-      ));
-    }
-
-    for (const p of Array.isArray(plain.extraPayments) ? plain.extraPayments : []) {
-      statements.push(env.DB.prepare(`
-        INSERT INTO loan_extra_payments (
-          id, loan_id, user_id, amount, payment_date, reduction_mode, notes,
-          anchor_installment_number, resulting_balance, resulting_installment_count, created_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-      `).bind(
-        str(p.id), id, userId, num(p.amount), str(p.paymentDate),
-        p.reductionMode === "reduce_term" ? "reduce_term" : "reduce_amount", str(p.notes),
-        Math.trunc(num(p.anchorInstallmentNumber)), num(p.resultingBalance),
-        p.resultingInstallmentCount === null || p.resultingInstallmentCount === undefined
-          ? null
-          : Math.trunc(num(p.resultingInstallmentCount)),
-        str(p.createdAt, now)
-      ));
-    }
-  } else if (kind === "cheque") {
-    // `plain` was validated by the route handler (same rules as creating a cheque)
-    statements.push(insertChequeStatement(env, userId, {
-      ...plain,
-      id,
-      createdAt: str(plain.createdAt, now),
-      updatedAt: now,
-    }));
-  } else if (kind === "recurring_income") {
-    // `plain` was validated by the route handler (same rules as creating a rule)
-    statements.push(insertRecurringStatement(env, userId, {
-      ...plain,
-      id,
-      createdAt: str(plain.createdAt, now),
-      updatedAt: now,
-    }));
-  } else if (kind === "holding") {
-    // The portfolio was checked by the route handler (it belongs to this user)
-    statements.push(env.DB.prepare(`
-      INSERT INTO portfolio_holdings (
-        id, user_id, portfolio_id, asset_id, amount, buy_price, current_price, buy_date, notes,
-        reference_asset_id, reference_quantity, created_at, updated_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `).bind(
-      id, userId, str(plain.portfolioId), str(plain.assetId), num(plain.amount), num(plain.buyPrice),
-      num(plain.currentPrice), str(plain.buyDate), str(plain.notes), str(plain.referenceAssetId),
-      num(plain.referenceQuantity), str(plain.createdAt, now), now
-    ));
-  } else if (kind === "transaction") {
-    const { id: _id, portfolioId, createdAt, updatedAt: _u, ...payload } = plain;
-    statements.push(env.DB.prepare(`
-      INSERT INTO transactions (id, user_id, portfolio_id, encrypted_payload, created_at, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?)
-    `).bind(id, userId, str(portfolioId), JSON.stringify(payload), str(createdAt, now), now));
-  } else {
-    statements.push(env.DB.prepare(`
-      INSERT INTO incomes (id, user_id, title, category, amount, income_date, notes, recurring_id, created_at, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `).bind(
-      id, userId, str(plain.title, "درآمد"), str(plain.category, "other"), num(plain.amount),
-      str(plain.incomeDate), str(plain.notes), str(plain.recurringId), str(plain.createdAt, now), now
-    ));
-  }
-
-  statements.push(env.DB.prepare(`DELETE FROM vault_records WHERE user_id = ? AND kind = ? AND id = ?`).bind(userId, kind, id));
-  await env.DB.batch(statements);
-  return true;
 }

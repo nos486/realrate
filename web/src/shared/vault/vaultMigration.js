@@ -1,5 +1,5 @@
 /**
- * vaultMigration.js — Move an account's data into, or back out of, the account vault
+ * vaultMigration.js — Move an account's data into the account vault
  *
  * Encrypting (vault on):
  *  - every plaintext portfolio gets its own random key (wrapped with the account key); the flag
@@ -11,8 +11,8 @@
  *    for its ciphertext in one batch.
  * Every step is idempotent, so an interrupted run is finished by simply running it again.
  *
- * Decrypting (vault off) runs the reverse, and deletes the vault only when nothing still needs
- * its key (the server refuses otherwise).
+ * Encryption is mandatory, so there is no way back: nothing is ever decrypted into the plaintext
+ * tables again.
  */
 
 import { httpClient } from '../api/httpClient.js';
@@ -20,26 +20,15 @@ import {
   deriveE2eeKey,
   verifyE2eeKey,
   exportRawKey,
-  decryptHoldingFromApi,
-  isHoldingE2eeEncrypted,
-  e2eeDecrypt,
   getVaultPassphraseFromSession,
 } from '../../lib/e2ee.js';
-import { getPortfolios, updatePortfolio, getPortfolio, updatePortfolioHolding } from '../../features/portfolio/api/portfolioApi.js';
-import { getTransactions, updateTransaction } from '../../features/transactions/api/transactionApi.js';
-import {
-  listVaultRecords,
-  restoreVaultRecord,
-  deleteVault,
-  getLoanDocument,
-} from './vaultApi.js';
+import { getPortfolios, updatePortfolio } from '../../features/portfolio/api/portfolioApi.js';
+import { getLoanDocument } from './vaultApi.js';
 import {
   encryptVaultRecord,
-  decryptVaultRecord,
   createPortfolioKey,
   getPortfolioKey,
   wrapPortfolioKey,
-  markVaultOff,
   bumpVaultEpoch,
   isAccountVaultPortfolio,
 } from './vaultStore.js';
@@ -51,8 +40,6 @@ import { clearVaultChequesCache } from './vaultCheques.js';
 import { clearVaultRecurringIncomesCache } from './vaultRecurringIncomes.js';
 
 const SILENT = { silent: true };
-const E2EE_PREFIX = 'enc:e2ee:v1:';
-const isCipher = (v) => typeof v === 'string' && v.startsWith(E2EE_PREFIX);
 
 /** A portfolio protected by its own (pre-account-vault) passphrase */
 export function isLegacyVaultPortfolio(portfolio) {
@@ -86,8 +73,6 @@ async function fetchList(report, label, fetcher, key) {
   }
 }
 
-const holdingLabel = (h) => `دارایی «${h.assetName || h.assetId || h.id}»`;
-const txLabel = (tx) => `تراکنش ${tx.transactionDate ? `مورخ ${tx.transactionDate}` : tx.id}`;
 
 // ── Encrypting ──────────────────────────────────────────────────────────────
 
@@ -240,116 +225,4 @@ export async function findPendingPlaintext() {
     plainCheques: (chequesRes?.cheques || []).length,
     plainRecurringIncomes: (rulesRes?.rules || []).length,
   };
-}
-
-// ── Decrypting ──────────────────────────────────────────────────────────────
-
-async function decryptPortfolio(portfolio, key, { tick, plan, report }) {
-  // Unflag first (the server only accepts plaintext items in a non-E2EE portfolio); the wrapped
-  // key stays until every item is back in plaintext, so nothing becomes unreadable midway.
-  if (portfolio.isE2ee) await updatePortfolio({ id: portfolio.id, isE2ee: false }, SILENT);
-
-  // Items kept as account-vault records go back into the plain tables first
-  for (const kind of ['holding', 'transaction']) {
-    const res = await listVaultRecords(kind, SILENT, { parent: portfolio.id });
-    const records = res?.records || [];
-    plan(records.length, `پورتفوی «${portfolio.name}»`);
-    for (const record of records) {
-      try {
-        const plain = await e2eeDecrypt(key, record.payload);
-        if (!plain || typeof plain !== 'object') throw new Error('decrypt');
-        await restoreVaultRecord(kind, record.id, { ...plain, id: record.id, portfolioId: portfolio.id }, SILENT);
-      } catch {
-        report.failed.push(`${kind === 'holding' ? 'دارایی' : 'تراکنش'} ${record.id}`);
-      }
-      tick(`پورتفوی «${portfolio.name}»`);
-    }
-  }
-
-  const [hRes, txRes] = await Promise.all([getPortfolio(portfolio.id), getTransactions(portfolio.id)]);
-  const holdings = (hRes?.holdings || []).filter(isHoldingE2eeEncrypted);
-  const transactions = (txRes?.transactions || []).filter((tx) => isCipher(tx.encryptedPayload || tx.encrypted_payload));
-  plan(holdings.length + transactions.length, `پورتفوی «${portfolio.name}»`);
-  const failedBefore = report.failed.length;
-
-  for (const h of holdings) {
-    try {
-      const dec = await decryptHoldingFromApi(key, h);
-      if (!dec || dec.isE2eeEncrypted !== true) throw new Error('decrypt');
-      const plain = { ...dec, portfolioId: portfolio.id, notes: isCipher(dec.notes) ? '' : dec.notes || '' };
-      delete plain.isE2eeEncrypted;
-      await updatePortfolioHolding(plain, SILENT);
-    } catch {
-      report.failed.push(holdingLabel(h));
-    }
-    tick(`پورتفوی «${portfolio.name}»`);
-  }
-
-  for (const tx of transactions) {
-    try {
-      const dec = await e2eeDecrypt(key, tx.encryptedPayload || tx.encrypted_payload);
-      if (!dec || typeof dec !== 'object') throw new Error('decrypt');
-      await updateTransaction(portfolio.id, tx.id, { encryptedPayload: JSON.stringify(dec) }, SILENT);
-    } catch {
-      report.failed.push(txLabel(tx));
-    }
-    tick(`پورتفوی «${portfolio.name}»`);
-  }
-
-  if (report.failed.length === failedBefore) {
-    await updatePortfolio({ id: portfolio.id, isE2ee: false, e2eeWrappedKey: '', e2eeSalt: '', e2eeVerifier: '' }, SILENT);
-  }
-}
-
-/**
- * Decrypt everything back to plaintext and turn the vault off. Stops short of deleting the vault
- * if anything failed, so no data can be orphaned.
- */
-export async function decryptAccountData({ onProgress } = {}) {
-  const { report, tick, plan } = createReport(onProgress);
-
-  const KIND_LABELS = {
-    income: ['درآمدها', 'درآمد'],
-    cheque: ['چک‌ها', 'چک'],
-    recurring_income: ['درآمدهای ثابت', 'درآمد ثابت'],
-    loan: ['وام‌ها', 'وام'],
-  };
-  for (const [kind, [label, singular]] of Object.entries(KIND_LABELS)) {
-    const res = await listVaultRecords(kind);
-    const records = res?.records || [];
-    plan(records.length, label);
-    for (const record of records) {
-      try {
-        const plain = await decryptVaultRecord(record.payload);
-        if (!plain) throw new Error('decrypt');
-        await restoreVaultRecord(kind, record.id, plain, SILENT);
-      } catch {
-        report.failed.push(`${singular} ${record.id}`);
-      }
-      tick(label);
-    }
-  }
-
-  const pRes = await getPortfolios();
-  for (const portfolio of (pRes?.portfolios || []).filter(isAccountVaultPortfolio)) {
-    try {
-      const key = await getPortfolioKey(portfolio);
-      if (!key) throw new Error('key');
-      await decryptPortfolio(portfolio, key, { tick, plan, report });
-    } catch {
-      report.failed.push(`پورتفوی «${portfolio.name}»`);
-    }
-  }
-
-  clearVaultLoansCache();
-  clearVaultIncomesCache();
-  clearVaultChequesCache();
-  clearVaultRecurringIncomesCache();
-  if (report.failed.length === 0) {
-    await deleteVault(SILENT);
-    markVaultOff();
-  } else {
-    bumpVaultEpoch();
-  }
-  return report;
 }
