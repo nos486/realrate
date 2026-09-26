@@ -35,7 +35,7 @@ import { markLegacyVaultUnlocked } from '../../../shared/vault/vaultStore.js';
 import { toIsoDay } from '../../../shared/vault/vaultRecordMeta.js';
 
 /** Display fields shown with every transaction (from the asset id) */
-export function withDisplayFields(tx) {
+function withDisplayFields(tx) {
   const cat = resolveCategory(tx.assetId, tx.assetType);
   return {
     ...tx,
@@ -58,8 +58,6 @@ export function useTransactions(activePortfolio, externalVaultKey = null, { from
   const [loadingTransactions, setLoadingTransactions] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [deletingId, setDeletingId] = useState(null);
-  // Counts saved changes (add / edit / delete), for views that fetch the same data another way
-  const [changeCount, setChangeCount] = useState(0);
 
   // Key restored from the session-cached passphrase when the caller has none. It is tagged
   // with the portfolio it belongs to, so switching portfolios can never reuse another
@@ -247,7 +245,6 @@ export function useTransactions(activePortfolio, externalVaultKey = null, { from
 
       if (res && res.success) {
         await fetchTransactions();
-        setChangeCount((n) => n + 1);
         return res.transaction;
       }
       return null;
@@ -291,7 +288,6 @@ export function useTransactions(activePortfolio, externalVaultKey = null, { from
 
       if (res && res.success) {
         await fetchTransactions();
-        setChangeCount((n) => n + 1);
         return res.transaction;
       }
       return null;
@@ -313,7 +309,6 @@ export function useTransactions(activePortfolio, externalVaultKey = null, { from
         : await apiDeleteTransaction(activePortfolio.id, id);
       if (res && res.success) {
         setTransactions((prev) => prev.filter((t) => t.id !== id));
-        setChangeCount((n) => n + 1);
         return true;
       }
       return false;
@@ -329,7 +324,6 @@ export function useTransactions(activePortfolio, externalVaultKey = null, { from
     deletingId,
     activeVaultKey,
     isVaultLocked,
-    changeCount,
     fetchTransactions,
     addTransaction,
     updateTransaction,
