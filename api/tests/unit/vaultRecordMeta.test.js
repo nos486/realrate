@@ -2,11 +2,14 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 const puts = [];
+const lists = [];
+let undatedRecords = [];
 vi.mock('../../../web/src/shared/vault/vaultApi.js', () => ({
   putVaultRecord: vi.fn(async (kind, id, payload, options) => { puts.push({ kind, id, payload, ...options }); }),
+  listVaultRecords: vi.fn(async (kind, options, filters) => { lists.push({ kind, ...filters }); return { records: undatedRecords }; }),
 }));
 
-const { recordDateOf, putRecord, backfillRecordDates } = await import('../../../web/src/shared/vault/vaultRecordMeta.js');
+const { recordDateOf, putRecord, backfillRecordDates, repairRecordDates } = await import('../../../web/src/shared/vault/vaultRecordMeta.js');
 
 const flush = () => new Promise((r) => setTimeout(r, 0));
 
@@ -48,5 +51,29 @@ describe('vault record metadata', () => {
     ]);
     await flush();
     expect(puts).toEqual([expect.objectContaining({ id: 'inc_old', payload: 'enc:e2ee:v1:old', recordDate: '2026-03-21' })]);
+  });
+
+  it('fixes undated records once before date-range queries, keeping their ciphertext', async () => {
+    lists.length = 0;
+    undatedRecords = [
+      { id: 'tx_1', payload: 'enc:e2ee:v1:A', recordDate: '', parentId: 'p_1' },
+      { id: 'tx_2', payload: 'enc:e2ee:v1:B', recordDate: '1404-02-01', parentId: 'p_1' },
+      { id: 'tx_3', payload: 'enc:e2ee:v1:C', recordDate: '', parentId: 'p_1' },
+    ];
+    const contents = {
+      'enc:e2ee:v1:A': { transactionDate: '1405/07/04' },
+      'enc:e2ee:v1:B': { transactionDate: '1404-02-01' },
+      'enc:e2ee:v1:C': { notes: 'no date' },
+    };
+    await repairRecordDates('transaction', async (payload) => contents[payload], 'p_1');
+    expect(lists).toEqual([{ kind: 'transaction', undated: true, parent: 'p_1' }]);
+    expect(puts).toEqual([
+      { kind: 'transaction', id: 'tx_1', payload: 'enc:e2ee:v1:A', recordDate: '2026-09-26', parentId: 'p_1', silent: true },
+      { kind: 'transaction', id: 'tx_2', payload: 'enc:e2ee:v1:B', recordDate: '2025-04-21', parentId: 'p_1', silent: true },
+    ]);
+
+    // Once per kind and portfolio in this tab
+    await repairRecordDates('transaction', async (payload) => contents[payload], 'p_1');
+    expect(lists).toHaveLength(1);
   });
 });

@@ -4,10 +4,11 @@ import { getIncomeCategory } from '../constants/incomeCategories.js';
 
 const HEADERS = ['عنوان', 'دسته‌بندی', 'مبلغ (تومان)', 'تاریخ دریافت', 'یادداشت'];
 
-export default function IncomeCsvExportButton({ incomes = [], disabled = false }) {
+/** Exports every income (all dates), fetched when clicked */
+export default function IncomeCsvExportButton({ loadIncomes, disabled = false }) {
   return (
     <GenericCsvExportButton
-      items={incomes}
+      loadItems={loadIncomes}
       headers={HEADERS}
       mapRow={(income) => [
         income.title,

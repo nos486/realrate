@@ -6,7 +6,7 @@
  * the portfolio id (parent_id).
  */
 
-import { putVaultRecord } from './vaultApi.js';
+import { putVaultRecord, listVaultRecords } from './vaultApi.js';
 import { jalaliToGregorian } from '../../utils/loanCalculator.js';
 import { toEnglishDigits } from '../utils/formatters.js';
 
@@ -74,4 +74,35 @@ export function backfillRecordDates(kind, items) {
       }
     }
   })();
+}
+
+/** Repairs done (or running) in this tab: kind|parent → promise, shared by concurrent queries */
+const repairs = new Map();
+
+/**
+ * Before a date-range query: records saved before their date was stored (or with a Shamsi date
+ * read as Gregorian) would fall outside every range, so they are found once per kind (and
+ * portfolio) in this tab and stored again with the right date — same ciphertext.
+ * @param {string} kind
+ * @param {(payload: string) => Promise<object|null>} decrypt
+ * @param {string} [parent] portfolio id, for portfolio items
+ */
+export function repairRecordDates(kind, decrypt, parent = '') {
+  const tag = `${kind}|${parent}`;
+  if (!repairs.has(tag)) {
+    const run = (async () => {
+      const res = await listVaultRecords(kind, { silent: true }, { undated: true, parent });
+      for (const record of res?.records || []) {
+        const plain = await decrypt(record.payload);
+        const recordDate = plain && typeof plain === 'object' ? recordDateOf(kind, plain) : '';
+        // A record with no date of its own stays undated (it still shows under «all»)
+        if (!recordDate || recordDate === record.recordDate) continue;
+        await putVaultRecord(kind, record.id, record.payload, { recordDate, parentId: record.parentId || '', silent: true });
+      }
+    })();
+    // A failed run is tried again by the next query
+    run.catch(() => repairs.delete(tag));
+    repairs.set(tag, run);
+  }
+  return repairs.get(tag);
 }

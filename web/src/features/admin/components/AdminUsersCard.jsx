@@ -4,8 +4,8 @@
  */
 
 import React from 'react';
-import { Users, ChevronRight, ChevronLeft, Ban, MailWarning, ShieldCheck, Eye, Lock } from 'lucide-react';
-import { Button, EmptyState, FilterPills, ResponsiveDataTable, SearchBar } from '../../../shared/ui/index.js';
+import { Users, Ban, MailWarning, ShieldCheck, Eye, Lock } from 'lucide-react';
+import { Button, EmptyState, FilterPills, Pagination, ResponsiveDataTable, SearchBar } from '../../../shared/ui/index.js';
 import { SkeletonRows } from '../../../shared/ui/Skeleton.jsx';
 import { useIsMobile } from '../../../hooks/useMediaQuery.js';
 import { USERS_PAGE_SIZE } from '../hooks/useAdminUsers.js';
@@ -55,7 +55,7 @@ export function UserBadges({ user }) {
 
 export default function AdminUsersCard({ list, filterCounts = {}, onOpenUser }) {
   const isMobile = useIsMobile();
-  const { users, total, page, pageCount, loading } = list;
+  const { users, total, page, loading } = list;
 
   const columns = [
     {
@@ -137,8 +137,6 @@ export default function AdminUsersCard({ list, filterCounts = {}, onOpenUser }) 
     badge: filterCounts[o.value] !== undefined ? faNum(filterCounts[o.value]) : undefined,
   }));
 
-  const firstRow = (page - 1) * USERS_PAGE_SIZE + 1;
-  const lastRow = Math.min(page * USERS_PAGE_SIZE, total);
 
   return (
     <div className="portfolio-table-card admin-users-card">
@@ -215,38 +213,14 @@ export default function AdminUsersCard({ list, filterCounts = {}, onOpenUser }) 
           </div>
         )}
 
-        {total > 0 && (
-          <nav className="admin-pagination" aria-label="صفحه‌بندی کاربران">
-            <span className="admin-pagination-range">
-              نمایش {faNum(firstRow)} تا {faNum(lastRow)} از {faNum(total)}
-            </span>
-            {pageCount > 1 && (
-              <div className="admin-pagination-controls">
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  icon={<ChevronRight size={14} />}
-                  disabled={list.currentPage <= 1 || loading}
-                  onClick={() => list.setPage((p) => Math.max(1, p - 1))}
-                >
-                  قبلی
-                </Button>
-                <span className="admin-pagination-page" aria-live="polite">
-                  صفحه {faNum(page)} از {faNum(pageCount)}
-                </span>
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  disabled={list.currentPage >= pageCount || loading}
-                  onClick={() => list.setPage((p) => Math.min(pageCount, p + 1))}
-                >
-                  بعدی
-                  <ChevronLeft size={14} />
-                </Button>
-              </div>
-            )}
-          </nav>
-        )}
+        <Pagination
+          page={page}
+          pageSize={USERS_PAGE_SIZE}
+          total={total}
+          loading={loading}
+          onChange={list.setPage}
+          label="صفحه‌بندی کاربران"
+        />
       </div>
     </div>
   );

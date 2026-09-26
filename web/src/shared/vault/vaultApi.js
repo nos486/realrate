@@ -16,12 +16,19 @@ export const saveVault = ({ salt, wrappedKey, previousWrappedKey }, options) =>
   httpClient.put('/api/vault', { salt, wrappedKey, previousWrappedKey }, options);
 
 /**
- * Records of one kind. `filters` narrow by the plaintext metadata only: { from, to } (inclusive
- * YYYY-MM-DD on the record's primary date) and { parent } (e.g. a portfolio id).
+ * Records of one kind. `filters` work on the plaintext metadata only: { from, to } (inclusive
+ * YYYY-MM-DD on the record's primary date), { parent } (e.g. a portfolio id), { undated: true }
+ * (records whose date still needs fixing) and { order: 'asc' | 'desc' }. With { limit, offset }
+ * one page comes back with the `total` matching.
  */
 export const listVaultRecords = (kind, options, filters = {}) => {
   const params = new URLSearchParams();
-  for (const key of ['from', 'to', 'parent']) if (filters[key]) params.set(key, filters[key]);
+  for (const key of ['from', 'to', 'parent', 'order']) if (filters[key]) params.set(key, filters[key]);
+  if (filters.undated) params.set('undated', '1');
+  if (filters.limit) {
+    params.set('limit', String(filters.limit));
+    params.set('offset', String(filters.offset || 0));
+  }
   const query = params.toString();
   return httpClient.get(`/api/vault/records/${seg(kind)}${query ? `?${query}` : ''}`, options);
 };

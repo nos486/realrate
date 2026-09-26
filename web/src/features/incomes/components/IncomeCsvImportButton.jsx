@@ -38,11 +38,13 @@ function parseIncomeRow(row, headerIndex, i) {
   return { status: 'ok', name: title, data: { title, category, amount, incomeDate, notes } };
 }
 
-export default function IncomeCsvImportButton({ saveIncome, disabled = false }) {
+export default function IncomeCsvImportButton({ saveIncome, onImported, disabled = false }) {
   return (
     <GenericCsvImportButton
       parseRow={parseIncomeRow}
-      onImportRow={(data) => saveIncome(data)}
+      // The list reloads once at the end, not after every row
+      onImportRow={(data) => saveIncome(data, null, { reload: false })}
+      onFinished={onImported}
       itemLabel="درآمد"
       disabled={disabled}
     />

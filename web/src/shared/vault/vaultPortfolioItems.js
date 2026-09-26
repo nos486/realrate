@@ -17,7 +17,7 @@ import { resolveAssetDisplayName, resolveAssetUnit, resolveCategory } from '../.
 import { getPortfolio, deletePortfolioHolding } from '../../features/portfolio/api/portfolioApi.js';
 import { getTransactions, deleteTransaction as deleteTransactionRest } from '../../features/transactions/api/transactionApi.js';
 import { listVaultRecords, deleteVaultRecord } from './vaultApi.js';
-import { putRecord, backfillRecordDates } from './vaultRecordMeta.js';
+import { putRecord, backfillRecordDates, repairRecordDates } from './vaultRecordMeta.js';
 
 const SILENT = { silent: true };
 const E2EE_PREFIX = 'enc:e2ee:v1:';
@@ -96,9 +96,13 @@ async function storeTransaction(portfolioId, key, record, options = {}) {
   return record;
 }
 
-/** Decrypt a portfolio's vault records of one kind (records this key cannot open are skipped) */
-async function decryptRecords(kind, portfolioId, key) {
-  const res = await listVaultRecords(kind, SILENT, { parent: portfolioId });
+/**
+ * Decrypt a portfolio's vault records of one kind (records this key cannot open are skipped).
+ * `filters` (from / to / order / limit / offset) select them on the server by their date.
+ * @returns {Promise<{ items: object[], total: number }>}
+ */
+async function decryptRecords(kind, portfolioId, key, filters = {}) {
+  const res = await listVaultRecords(kind, SILENT, { ...filters, parent: portfolioId });
   const items = [];
   const decrypted = [];
   for (const record of res?.records || []) {
@@ -109,7 +113,7 @@ async function decryptRecords(kind, portfolioId, key) {
     } else console.warn(`Skipped a ${kind} that could not be decrypted:`, record.id);
   }
   backfillRecordDates(kind, decrypted);
-  return items;
+  return { items, total: res?.total ?? items.length };
 }
 
 /**
@@ -175,7 +179,7 @@ async function moveTransactions(portfolio, key, onItem) {
 /** Every holding of the portfolio, decrypted (older rows are moved into the vault first) */
 export async function listPortfolioHoldings(portfolio, key) {
   const moved = await moveHoldings(portfolio, key);
-  const stored = await decryptRecords('holding', portfolio.id, key);
+  const { items: stored } = await decryptRecords('holding', portfolio.id, key);
   const byId = new Map(stored.map((h) => [h.id, h]));
   for (const h of moved.items) if (!byId.has(h.id)) byId.set(h.id, h);
   return [...byId.values()]
@@ -203,15 +207,47 @@ export async function deletePortfolioHoldingRecord(id) {
 
 // ── Transactions ────────────────────────────────────────────────────────────
 
-/** Every transaction of the portfolio, decrypted, newest first */
-export async function listPortfolioTransactions(portfolio, key) {
-  const moved = await moveTransactions(portfolio, key);
-  const stored = await decryptRecords('transaction', portfolio.id, key);
+/**
+ * Moving a portfolio's older transaction rows, per portfolio: shared by concurrent queries, and
+ * kept once the table is empty (nothing new can land there)
+ */
+const transactionMoves = new Map();
+
+function moveTransactionsOnce(portfolio, key) {
+  if (!transactionMoves.has(portfolio.id)) {
+    const run = moveTransactions(portfolio, key);
+    transactionMoves.set(portfolio.id, run);
+    run.then(
+      (moved) => { if (moved.failed.length) transactionMoves.delete(portfolio.id); },
+      () => transactionMoves.delete(portfolio.id)
+    );
+    return run;
+  }
+  // Rows already shown by the query that moved them
+  return transactionMoves.get(portfolio.id).then(() => ({ items: [], failed: [] }));
+}
+
+/**
+ * The portfolio's transactions, decrypted: every one, or those `filters` select by date on the
+ * server ({ from, to, order, limit, offset }; older rows are moved into the vault first).
+ * @returns {Promise<{ transactions: object[], total: number }>}
+ */
+export async function queryPortfolioTransactions(portfolio, key, filters = {}) {
+  const moved = await moveTransactionsOnce(portfolio, key);
+  await repairRecordDates('transaction', (payload) => e2eeDecrypt(key, payload), portfolio.id);
+  const { items: stored, total } = await decryptRecords('transaction', portfolio.id, key, filters);
+  const filtered = Boolean(filters.from || filters.to || filters.limit);
   const byId = new Map(stored.map((t) => [t.id, t]));
-  for (const t of moved.items) if (!byId.has(t.id)) byId.set(t.id, t);
-  return [...byId.values()]
-    .sort((a, b) => String(b.createdAt || '').localeCompare(String(a.createdAt || '')))
-    .map(asTransaction);
+  // A row whose move failed is still shown (it is retried next time) — only in the full list
+  if (!filtered) for (const t of moved.items) if (!byId.has(t.id)) byId.set(t.id, t);
+  const list = [...byId.values()];
+  if (!filtered) list.sort((a, b) => String(b.createdAt || '').localeCompare(String(a.createdAt || '')));
+  return { transactions: list.map(asTransaction), total: filtered ? total : list.length };
+}
+
+/** Every transaction of the portfolio (or those from a date on), decrypted */
+export async function listPortfolioTransactions(portfolio, key, filters = {}) {
+  return (await queryPortfolioTransactions(portfolio, key, filters)).transactions;
 }
 
 /** Create (id empty) or update a transaction */

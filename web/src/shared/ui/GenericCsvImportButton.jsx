@@ -12,12 +12,14 @@ import { parseCsvText } from '../utils/csv.js';
  * @param {(row: string[], headerIndex: object, rowIndex: number) => ({status: 'ok'|'invalid'|'skipped', name: string, data?: object} | null)} parseRow
  * @param {(data: object) => Promise<any>} onImportRow - resolves truthy on success
  * @param {string} itemLabel - e.g. "قلم" | "وام" | "درآمد", used in preview/progress copy
+ * @param {() => void} [onFinished] - after the last row (e.g. reload the list once)
  * @param {boolean} [disabled]
  */
 export default function GenericCsvImportButton({
   parseRow,
   onImportRow,
   itemLabel = 'قلم',
+  onFinished,
   disabled = false,
 }) {
   const fileInputRef = useRef(null);
@@ -88,6 +90,7 @@ export default function GenericCsvImportButton({
     }
     setResult({ success, failed: failedNames.length, failedNames });
     setStep('done');
+    if (success > 0) onFinished?.();
   };
 
   const handleClose = () => {

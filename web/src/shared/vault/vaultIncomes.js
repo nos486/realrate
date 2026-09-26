@@ -9,7 +9,7 @@
 import { INCOME_CATEGORIES } from '../../features/incomes/constants/incomeCategories.js';
 import { isRecurringId } from '../../utils/recurringIncome.js';
 import { listVaultRecords, deleteVaultRecord } from './vaultApi.js';
-import { putRecord, backfillRecordDates } from './vaultRecordMeta.js';
+import { putRecord, backfillRecordDates, repairRecordDates } from './vaultRecordMeta.js';
 import { encryptVaultRecord, decryptVaultRecord } from './vaultStore.js';
 
 const KIND = 'income';
@@ -63,25 +63,32 @@ export function clearVaultIncomesCache() {
   incomes = new Map();
 }
 
-export async function getIncomes() {
-  const res = await listVaultRecords(KIND);
-  const next = new Map();
+/**
+ * Incomes by their date, newest first — only what the filters select is fetched and decrypted.
+ * @param {{ from?: string, to?: string, order?: 'asc'|'desc', limit?: number, offset?: number }} [filters]
+ *   `from`/`to` inclusive YYYY-MM-DD; with `limit`, one page plus the `total` matching
+ */
+export async function getIncomes(filters = {}) {
+  await repairRecordDates(KIND, decryptVaultRecord);
+  const res = await listVaultRecords(KIND, undefined, filters);
+  const list = [];
   const decrypted = [];
   for (const record of res?.records || []) {
     const income = await decryptVaultRecord(record.payload);
     if (income?.id) {
-      next.set(record.id, income);
+      incomes.set(record.id, income);
+      list.push(income);
       decrypted.push({ record, plain: income });
     } else console.warn('Skipped an income that could not be decrypted:', record.id);
   }
-  incomes = next;
   backfillRecordDates(KIND, decrypted);
-  const list = [...incomes.values()].sort(
-    (a, b) =>
-      String(b.incomeDate).localeCompare(String(a.incomeDate)) ||
-      String(b.createdAt || '').localeCompare(String(a.createdAt || ''))
-  );
-  return { success: true, count: list.length, incomes: list };
+  return { success: true, count: list.length, incomes: list, total: res?.total ?? list.length };
+}
+
+/** One income (from what was already read, or looked up) */
+async function findIncome(incomeId) {
+  if (!incomes.has(incomeId)) await getIncomes();
+  return incomes.get(incomeId);
 }
 
 export async function createIncome(incomeData) {
@@ -91,8 +98,7 @@ export async function createIncome(incomeData) {
 }
 
 export async function updateIncome(incomeId, incomeData) {
-  if (!incomes.has(incomeId)) await getIncomes();
-  const existing = incomes.get(incomeId);
+  const existing = await findIncome(incomeId);
   if (!existing) throw new IncomeValidationError('درآمد مورد نظر یافت نشد.', 404);
   const income = { ...existing, ...parseIncomeInput(incomeData), updatedAt: new Date().toISOString() };
   return { success: true, income: await save(income) };

@@ -9,7 +9,7 @@ import { formatShamsiDisplay } from '../../portfolio/components/ShamsiDatePicker
 import { formatNum } from '../../portfolio/utils/holdingHelpers.js';
 import { getIncomeCategory } from '../constants/incomeCategories.js';
 
-export default function IncomesTable({ incomes, onEdit, onDelete, deletingId = null, hideValues = false }) {
+export default function IncomesTable({ incomes, onEdit, onDelete, deletingId = null, hideValues = false, sortState = null, onSortChange = null }) {
   const columns = [
     {
       key: 'title',
@@ -44,6 +44,8 @@ export default function IncomesTable({ incomes, onEdit, onDelete, deletingId = n
     {
       key: 'date',
       header: 'تاریخ دریافت',
+      // Sorted on the server (by the plaintext date), newest first by default
+      sortKey: 'date',
       mobile: 'meta',
       render: (income) => (
         <span className="table-date-text">
@@ -115,6 +117,8 @@ export default function IncomesTable({ incomes, onEdit, onDelete, deletingId = n
       wrapperClassName="portfolio-table-responsive"
       tableClassName="portfolio-data-table incomes-table"
       rowClassName={() => 'portfolio-table-row'}
+      sortState={sortState}
+      onSortChange={onSortChange}
     />
   );
 }
