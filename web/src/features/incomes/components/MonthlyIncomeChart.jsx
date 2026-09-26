@@ -1,5 +1,5 @@
 /**
- * MonthlyIncomeChart.jsx — Stacked bar chart of income per Shamsi month over the last year
+ * MonthlyIncomeChart.jsx — Stacked bar chart of income per Shamsi month over the chosen period
  *
  * One bar per month (oldest on the left, so growth reads as a rising line of bars), stacked by
  * income source, a dashed line at the monthly average, and a readout above the plot: by default
@@ -64,11 +64,12 @@ const stackValue = (month, stack) => stack.categories.reduce((acc, c) => acc + (
  * @param {{
  *   series: Array<{ key: string, label: string, monthLabel: string, total: number, count: number,
  *     byCategory: Record<string, number> }>,
+ *   title?: string,             // the period, e.g. «۶ ماه اخیر»
  *   categoryOrder?: string[],   // source order of the donut next to it, to share its colors
  *   hideValues?: boolean,
  * }} props oldest month first
  */
-export default function MonthlyIncomeChart({ series, categoryOrder = [], hideValues = false }) {
+export default function MonthlyIncomeChart({ series, title = 'یک سال اخیر', categoryOrder = [], hideValues = false }) {
   const [activeIndex, setActiveIndex] = useState(null);
   const [activeStack, setActiveStack] = useState(null);
 
@@ -91,11 +92,12 @@ export default function MonthlyIncomeChart({ series, categoryOrder = [], hideVal
   const change = changeFrom(series[index - 1], month);
   const amount = (v) => (hideValues ? '****' : formatCompactAmount(v));
   const height = (v) => (max > 0 ? (v / max) * 100 : 0);
+  const labelStep = series.length <= 4 ? 1 : series.length <= 8 ? 2 : 3;
 
   return (
     <div className="portfolio-stat-card monthly-income-chart">
       <div className="stat-header">
-        <span className="stat-label">درآمد ماهانه (یک سال اخیر)</span>
+        <span className="stat-label">درآمد ماهانه ({title})</span>
         <span className="monthly-income-avg-label">
           <span className="monthly-income-avg-key" aria-hidden="true" />
           میانگین {amount(average)}
@@ -160,10 +162,11 @@ export default function MonthlyIncomeChart({ series, categoryOrder = [], hideVal
       </div>
       <div className="monthly-income-axis" aria-hidden="true">
         {series.map((m, i) => (
-          // Every third month (counting back from the latest) is labeled, plus the selected one
+          // Every month up to 4, every other one up to 8, then every third (counting back from
+          // the latest), plus the selected one
           <span
             key={m.key}
-            className={`${i === index ? 'is-active' : ''} ${(series.length - 1 - i) % 3 === 0 ? '' : 'is-minor'}`}
+            className={`${i === index ? 'is-active' : ''} ${(series.length - 1 - i) % labelStep === 0 ? '' : 'is-minor'}`}
           >
             {m.monthLabel}
           </span>

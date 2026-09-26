@@ -124,6 +124,23 @@ export function buildIncomeReport(incomes) {
 }
 
 /**
+ * Shamsi months from the oldest income's month through the current one (at least 1)
+ * @param {Array<object>} incomes
+ * @param {string} [todayShamsi]
+ */
+export function monthsSpanned(incomes, todayShamsi = getTodayShamsi()) {
+  const today = parseShamsiYearMonth(todayShamsi);
+  if (!today) return 1;
+  const last = today.year * 12 + (today.month - 1);
+  let first = last;
+  for (const income of incomes) {
+    const ym = getShamsiYearMonth(income.incomeDate);
+    if (ym) first = Math.min(first, ym.year * 12 + (ym.month - 1));
+  }
+  return last - first + 1;
+}
+
+/**
  * Income per Shamsi month over the last `months` months, ending with the current one (oldest
  * first). Months without income are included as zero so the chart shows real gaps and trends.
  * @param {Array<object>} incomes
