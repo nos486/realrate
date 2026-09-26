@@ -191,7 +191,7 @@
   background: var(--gold-gradient);
   color: #000;
   font-weight: 800;
-  box-shadow: 0 2px 8px rgba(245, 158, 11, 0.25);
+  box-shadow: none;
 }
 
 .source-hint {
@@ -433,7 +433,7 @@
   font-weight: 700;
   padding: 3px 8px;
   border-radius: var(--radius-full);
-  box-shadow: 0 0 8px rgba(234, 179, 8, 0.15);
+  box-shadow: none;
   animation: pulse-border 2.5s infinite;
 }
 

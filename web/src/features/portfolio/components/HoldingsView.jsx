@@ -9,6 +9,7 @@
  */
 
 import React, { useState, useMemo, useCallback, useEffect, forwardRef, useImperativeHandle } from 'react';
+import { createPortal } from 'react-dom';
 import {
   Lock,
   Unlock,
@@ -44,7 +45,7 @@ import { useFeedback } from '../../../shared/ui/FeedbackProvider.jsx';
 import { SkeletonRows } from '../../../shared/ui/Skeleton.jsx';
 
 const HoldingsView = forwardRef(function HoldingsView(
-  { activePortfolio, portfolios, loadingPortfolios = false, rates, calcData, usdToman, goldUsd, fetchPortfolios, deletePortfolio, onVaultLockChange, onCountChange },
+  { activePortfolio, portfolios, loadingPortfolios = false, rates, calcData, usdToman, goldUsd, fetchPortfolios, deletePortfolio, onVaultLockChange, onCountChange, toolbarSlot = null },
   ref
 ) {
   const pricing = usePricing();
@@ -292,6 +293,55 @@ const HoldingsView = forwardRef(function HoldingsView(
     if (ok) setSettingsModalOpen(false);
   };
 
+  const toolbar = (
+    <div className="portfolio-toolbar">
+      {!isVaultLocked && holdings.length > 0 && (
+        <div className="portfolio-search-box">
+          <Search size={14} className="portfolio-search-icon" />
+          <input
+            type="text"
+            placeholder="جستجو در اقلام پورتفو..."
+            value={holdingsFilterQuery}
+            onChange={(e) => setHoldingsFilterQuery(e.target.value)}
+            className="portfolio-search-input"
+          />
+          {holdingsFilterQuery && (
+            <button
+              type="button"
+              className="portfolio-search-clear"
+              onClick={() => setHoldingsFilterQuery('')}
+              title="پاک کردن جستجو"
+            >
+              <X size={12} />
+            </button>
+          )}
+        </div>
+      )}
+
+      <div className="portfolio-header-actions">
+        <CsvExportButton
+          items={portfolioMetrics.items}
+          portfolioName={activePortfolio?.name || 'portfolio'}
+          disabled={isVaultLocked || holdings.length === 0}
+        />
+
+        <CsvImportButton addHolding={addHolding} disabled={isVaultLocked} />
+
+        {activePortfolio && (
+          <button
+            type="button"
+            className="btn-portfolio-settings icon-only"
+            onClick={() => setSettingsModalOpen(true)}
+            title="تنظیمات پورتفو"
+            aria-label="تنظیمات پورتفو"
+          >
+            <Settings size={15} strokeWidth={2} />
+          </button>
+        )}
+      </div>
+    </div>
+  );
+
   return (
     <>
       <SplitPageLayout
@@ -333,50 +383,8 @@ const HoldingsView = forwardRef(function HoldingsView(
                 </div>
               </div>
 
-              {!isVaultLocked && holdings.length > 0 && (
-                <div className="portfolio-search-box">
-                  <Search size={14} className="portfolio-search-icon" />
-                  <input
-                    type="text"
-                    placeholder="جستجو در اقلام پورتفو..."
-                    value={holdingsFilterQuery}
-                    onChange={(e) => setHoldingsFilterQuery(e.target.value)}
-                    className="portfolio-search-input"
-                  />
-                  {holdingsFilterQuery && (
-                    <button
-                      type="button"
-                      className="portfolio-search-clear"
-                      onClick={() => setHoldingsFilterQuery('')}
-                      title="پاک کردن جستجو"
-                    >
-                      <X size={12} />
-                    </button>
-                  )}
-                </div>
-              )}
-
-              <div className="portfolio-header-actions">
-                <CsvExportButton
-                  items={portfolioMetrics.items}
-                  portfolioName={activePortfolio?.name || 'portfolio'}
-                  disabled={isVaultLocked || holdings.length === 0}
-                />
-
-                <CsvImportButton addHolding={addHolding} disabled={isVaultLocked} />
-
-                {activePortfolio && (
-                  <button
-                    type="button"
-                    className="btn-portfolio-settings icon-only"
-                    onClick={() => setSettingsModalOpen(true)}
-                    title="تنظیمات پورتفو"
-                    aria-label="تنظیمات پورتفو"
-                  >
-                    <Settings size={15} strokeWidth={2} />
-                  </button>
-                )}
-              </div>
+              {/* Search, export / import and settings sit in the sub-tab row when there is one */}
+              {toolbarSlot ? createPortal(toolbar, toolbarSlot) : toolbar}
             </div>
 
             {/* Until the portfolio list itself has loaded there is nothing to show — never flash

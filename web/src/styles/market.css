@@ -256,7 +256,7 @@
 .tab-segment-btn.active {
   background: rgba(255, 255, 255, 0.09);
   color: var(--text-heading);
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.25);
+  box-shadow: none;
 }
 
 .new-tag {
@@ -266,7 +266,7 @@
   background: var(--green-emerald);
   color: #ffffff;
   font-weight: 900;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+  text-shadow: none;
 }
 
 /* ── Fintech Cards Grid (4-Column Full-Screen Layout) ─────────────────── */
@@ -320,7 +320,7 @@
 
 .fintech-card.best-choice {
   background: rgba(16, 185, 129, 0.035);
-  box-shadow: 0 0 30px rgba(16, 185, 129, 0.08);
+  box-shadow: none;
 }
 
 .card-top-row {
@@ -414,7 +414,7 @@
 }
 
 .sparkline-latest-dot {
-  filter: drop-shadow(0 0 4px currentColor);
+  filter: none;
   animation: pulse-dot 2s infinite ease-in-out;
 }
 
@@ -456,7 +456,7 @@
   pointer-events: none;
   z-index: 20;
   white-space: nowrap;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35);
+  box-shadow: none;
   animation: tooltip-fade 0.12s ease-out;
 }
 
@@ -686,7 +686,7 @@
 .fintech-card.clickable:hover {
   border-color: rgba(255, 255, 255, 0.18);
   transform: translateY(-3px);
-  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.4);
+  box-shadow: none;
 }
 
 .fintech-card.clickable:focus-visible {
@@ -906,7 +906,7 @@
   border: 2px solid #0f172a;
   transform: translate(-50%, -50%);
   pointer-events: none;
-  box-shadow: 0 0 8px currentColor;
+  box-shadow: none;
   z-index: 5;
 }
 
@@ -931,7 +931,7 @@
   padding: 4px 8px;
   pointer-events: none;
   z-index: 30;
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.45);
+  box-shadow: none;
   white-space: nowrap;
   direction: rtl;
 }

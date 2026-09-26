@@ -11,7 +11,7 @@
   border-radius: var(--radius-lg);
   padding: 12px 14px;
   border: 1px solid rgba(255, 255, 255, 0.05);
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.25);
+  box-shadow: none;
   display: flex;
   flex-direction: column;
   gap: 10px;
@@ -528,7 +528,7 @@
 }
 
 .btn-unlock-shared:hover {
-  box-shadow: 0 4px 16px rgba(245, 158, 11, 0.35);
+  box-shadow: none;
   transform: translateY(-1px);
 }
 

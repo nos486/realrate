@@ -27,7 +27,7 @@
 
 .incomes-summary-card.is-primary {
   border-color: rgba(16, 185, 129, 0.35);
-  background: linear-gradient(135deg, var(--green-soft) 0%, var(--bg-surface-elevated) 100%);
+  background: var(--color-positive-soft);
 }
 
 .incomes-summary-card .mini-card-value {

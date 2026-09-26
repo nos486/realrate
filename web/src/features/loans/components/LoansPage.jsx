@@ -303,7 +303,7 @@ export default function LoansPage({ initialLoanId = null }) {
     <div className="loans-page-container">
       <FeaturePageHeader
         icon={<Landmark size={24} />}
-        title="مدیریت وام‌ها و اقساط"
+        title="وام‌ها و اقساط"
         subtitle="برنامه استهلاک بانکی، جدول سررسید و ثبت تسویه اقساط"
         actions={
           <>

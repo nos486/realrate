@@ -15,8 +15,9 @@
   --card-bg-hover: rgba(22, 30, 48, 0.82);
   --card-border: 1px solid rgba(255, 255, 255, 0.07);
   --border-color: rgba(255, 255, 255, 0.07);
-  --card-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.5), 0 12px 36px -4px rgba(0, 0, 0, 0.65);
-  --card-shadow-hover: 0 8px 28px -2px rgba(0, 0, 0, 0.6), 0 20px 48px -4px rgba(0, 0, 0, 0.75);
+  /* Minimal, flat design: surfaces are separated by borders, never by shadows or glows */
+  --card-shadow: none;
+  --card-shadow-hover: none;
   --card-radius: 16px;
 
   --bg-card-hover: var(--card-bg-hover);
@@ -37,12 +38,12 @@
   --bg-modal: #0e131d;
   --bg-modal-backdrop: rgba(0, 0, 0, 0.82);
   --border-modal: 1px solid rgba(255, 255, 255, 0.09);
-  --shadow-modal: 0 24px 64px rgba(0, 0, 0, 0.88);
+  --shadow-modal: none;
 
   /* Dropdowns */
   --bg-dropdown: #0e1420;
   --border-dropdown: 1px solid rgba(255, 255, 255, 0.08);
-  --shadow-dropdown: 0 16px 40px rgba(0, 0, 0, 0.6);
+  --shadow-dropdown: none;
 
   /* Tables & Lists */
   --bg-table-header: rgba(255, 255, 255, 0.025);
@@ -88,9 +89,10 @@
   /* Older names, kept as aliases of the semantic colors above */
   --primary-color: var(--color-primary);
   --primary-color-hover: #0369a1;
-  --primary-gradient: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-strong) 100%);
-  --primary-glow: 0 4px 18px rgba(2, 132, 199, 0.35);
-  --primary-glow-lg: 0 6px 26px rgba(2, 132, 199, 0.45);
+  /* Solid, no gradient or glow (kept as tokens so older rules still resolve) */
+  --primary-gradient: linear-gradient(var(--color-primary), var(--color-primary));
+  --primary-glow: none;
+  --primary-glow-lg: none;
   --primary-soft-bg: var(--color-primary-soft);
   --primary-border: 1px solid var(--color-primary-border);
   --primary-text: #ffffff;
@@ -103,7 +105,8 @@
 
   --gold-primary: var(--color-warning);
   --gold-light: var(--color-warning-text);
-  --gold-gradient: linear-gradient(135deg, var(--color-warning-text) 0%, #d97706 100%);
+  /* One solid gold: the headline total and every other gold value are the same color */
+  --gold-gradient: linear-gradient(var(--color-warning-text), var(--color-warning-text));
   --gold-soft-bg: var(--color-warning-soft);
 
   --green-emerald: var(--color-positive);
@@ -134,9 +137,9 @@
   --radius-full: 9999px;
 
   /* Shadows */
-  --shadow-sm: 0 4px 16px rgba(0, 0, 0, 0.25);
-  --shadow-md: 0 8px 30px rgba(0, 0, 0, 0.38);
-  --shadow-lg: 0 16px 48px rgba(0, 0, 0, 0.55);
+  --shadow-sm: none;
+  --shadow-md: none;
+  --shadow-lg: none;
 
   /* Transitions */
   --transition-fast: 0.16s cubic-bezier(0.4, 0, 0.2, 1);

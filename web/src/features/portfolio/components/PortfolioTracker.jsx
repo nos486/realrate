@@ -31,6 +31,8 @@ export default function PortfolioTracker({
 
   const [view, setView] = useState(initialView);
   const holdingsRef = useRef(null);
+  // The active view renders its toolbar (search, export / import, settings) into this row
+  const [toolbarSlot, setToolbarSlot] = useState(null);
   const transactionsRef = useRef(null);
   const [holdingsVaultLocked, setHoldingsVaultLocked] = useState(false);
   const [activeViewCount, setActiveViewCount] = useState(null);
@@ -111,7 +113,8 @@ export default function PortfolioTracker({
         mode={view === 'holdings' ? 'portfolio' : 'transactions'}
       />
 
-      {/* Holdings / Transactions Sub-tab Switch */}
+      {/* Holdings / Transactions sub-tabs, with the active view's toolbar beside them */}
+      <div className="portfolio-subtabs-row">
       <div className="tx-filter-pills-bar">
         <button
           type="button"
@@ -130,6 +133,8 @@ export default function PortfolioTracker({
           تراکنش‌ها
         </button>
       </div>
+      <div className="portfolio-subtabs-toolbar" ref={setToolbarSlot} />
+      </div>
 
       {view === 'holdings' ? (
         <HoldingsView
@@ -144,6 +149,7 @@ export default function PortfolioTracker({
           fetchPortfolios={fetchPortfolios}
           deletePortfolio={deletePortfolio}
           onVaultLockChange={setHoldingsVaultLocked}
+          toolbarSlot={toolbarSlot}
           onCountChange={setActiveViewCount}
         />
       ) : (
@@ -155,6 +161,7 @@ export default function PortfolioTracker({
           rates={rates}
           fetchPortfolios={fetchPortfolios}
           onCountChange={setActiveViewCount}
+          toolbarSlot={toolbarSlot}
         />
       )}
 
