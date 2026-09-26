@@ -16,7 +16,9 @@ import { AppError } from "../lib/AppError.js";
 import { insertChequeStatement } from "./cheques.repository.js";
 import { insertRecurringStatement } from "./recurringIncomes.repository.js";
 
-export const VAULT_RECORD_KINDS = ["loan", "income", "cheque", "recurring_income"];
+export const VAULT_RECORD_KINDS = ["loan", "income", "cheque", "recurring_income", "holding", "transaction"];
+/** Kinds that belong to a portfolio: parent_id is the portfolio, encrypted with its own key */
+export const PORTFOLIO_ITEM_KINDS = ["holding", "transaction"];
 export const E2EE_CIPHER_PREFIX = "enc:e2ee:v1:";
 const MAX_PAYLOAD_LENGTH = 512 * 1024;
 const RECORD_ID_RE = /^[A-Za-z0-9_-]{1,80}$/;
@@ -179,6 +181,12 @@ function deletePlainStatements(env, userId, kind, id) {
   if (kind === "recurring_income") {
     return [env.DB.prepare(`DELETE FROM recurring_incomes WHERE id = ? AND user_id = ?`).bind(id, userId)];
   }
+  if (kind === "holding") {
+    return [env.DB.prepare(`DELETE FROM portfolio_holdings WHERE id = ? AND user_id = ?`).bind(id, userId)];
+  }
+  if (kind === "transaction") {
+    return [env.DB.prepare(`DELETE FROM transactions WHERE id = ? AND user_id = ?`).bind(id, userId)];
+  }
   return [env.DB.prepare(`DELETE FROM incomes WHERE id = ? AND user_id = ?`).bind(id, userId)];
 }
 
@@ -192,6 +200,7 @@ export async function dbPutVaultRecord(env, userId, kind, id, { payload, replace
   assertPayload(payload);
   const date = parseRecordDate(recordDate);
   const parent = parseParentId(parentId);
+  if (PORTFOLIO_ITEM_KINDS.includes(kind) && !parent) throw AppError.badRequest("پورتفوی این مورد مشخص نشده است.");
   await requireVault(env, userId);
 
   const now = new Date().toISOString();
@@ -298,6 +307,24 @@ export async function dbRestoreVaultRecord(env, userId, kind, id, plain) {
       createdAt: str(plain.createdAt, now),
       updatedAt: now,
     }));
+  } else if (kind === "holding") {
+    // The portfolio was checked by the route handler (it belongs to this user)
+    statements.push(env.DB.prepare(`
+      INSERT INTO portfolio_holdings (
+        id, user_id, portfolio_id, asset_id, amount, buy_price, current_price, buy_date, notes,
+        reference_asset_id, reference_quantity, created_at, updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `).bind(
+      id, userId, str(plain.portfolioId), str(plain.assetId), num(plain.amount), num(plain.buyPrice),
+      num(plain.currentPrice), str(plain.buyDate), str(plain.notes), str(plain.referenceAssetId),
+      num(plain.referenceQuantity), str(plain.createdAt, now), now
+    ));
+  } else if (kind === "transaction") {
+    const { id: _id, portfolioId, createdAt, updatedAt: _u, ...payload } = plain;
+    statements.push(env.DB.prepare(`
+      INSERT INTO transactions (id, user_id, portfolio_id, encrypted_payload, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?)
+    `).bind(id, userId, str(portfolioId), JSON.stringify(payload), str(createdAt, now), now));
   } else {
     statements.push(env.DB.prepare(`
       INSERT INTO incomes (id, user_id, title, category, amount, income_date, notes, recurring_id, created_at, updated_at)

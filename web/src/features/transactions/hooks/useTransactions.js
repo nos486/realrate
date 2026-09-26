@@ -26,7 +26,24 @@ import {
 } from '../../../config/sourceRegistry.js';
 import { useAuth } from '../../auth/index.js';
 import { usePortfolioVaultKey } from '../../../shared/vault/usePortfolioVaultKey.js';
+import {
+  listPortfolioTransactions,
+  savePortfolioTransaction,
+  deletePortfolioTransactionRecord,
+} from '../../../shared/vault/vaultPortfolioItems.js';
 import { markLegacyVaultUnlocked } from '../../../shared/vault/vaultStore.js';
+
+/** Display fields shown with every transaction (from the asset id) */
+function withDisplayFields(tx) {
+  const cat = resolveCategory(tx.assetId, tx.assetType);
+  return {
+    ...tx,
+    assetName: resolveAssetDisplayName(tx.assetId, tx),
+    assetType: cat,
+    category: cat,
+    unit: resolveAssetUnit(tx.assetId, tx),
+  };
+}
 
 export function useTransactions(activePortfolio, externalVaultKey = null) {
   const { user } = useAuth();
@@ -100,6 +117,16 @@ export function useTransactions(activePortfolio, externalVaultKey = null) {
 
     try {
       setLoadingTransactions(true);
+
+      // Account vault: every transaction is an encrypted vault record of this portfolio
+      if (accountManaged && activeVaultKey) {
+        const list = await listPortfolioTransactions(activePortfolio, activeVaultKey);
+        if (isStale()) return;
+        loadedPortfolioIdRef.current = portfolioId;
+        setTransactions(list.map(withDisplayFields));
+        return;
+      }
+
       const res = await getTransactions(portfolioId);
       if (isStale()) return;
 
@@ -152,19 +179,7 @@ export function useTransactions(activePortfolio, externalVaultKey = null) {
         if (isE2eePortfolio && !activeVaultKey) {
           setTransactions([]);
         } else {
-          setTransactions(
-            decryptedList.map((tx) => {
-              if (tx.isLocked) return tx;
-              const cat = resolveCategory(tx.assetId, tx.assetType);
-              return {
-                ...tx,
-                assetName: resolveAssetDisplayName(tx.assetId, tx),
-                assetType: cat,
-                category: cat,
-                unit: resolveAssetUnit(tx.assetId, tx),
-              };
-            })
-          );
+          setTransactions(decryptedList.map((tx) => (tx.isLocked ? tx : withDisplayFields(tx))));
         }
       } else {
         loadedPortfolioIdRef.current = portfolioId;
@@ -177,7 +192,7 @@ export function useTransactions(activePortfolio, externalVaultKey = null) {
     } finally {
       if (!isStale()) setLoadingTransactions(false);
     }
-  }, [user, portfolioId, isE2eePortfolio, activeVaultKey]);
+  }, [user, portfolioId, isE2eePortfolio, activeVaultKey, accountManaged, activePortfolio]);
 
   useEffect(() => {
     fetchTransactions();
@@ -202,17 +217,21 @@ export function useTransactions(activePortfolio, externalVaultKey = null) {
         referenceQuantity: Number(txData.referenceQuantity) || 0,
       };
 
-      let encryptedPayload;
-      if (isE2eePortfolio && activeVaultKey) {
-        encryptedPayload = await e2eeEncrypt(activeVaultKey, payloadData);
+      let res;
+      if (accountManaged && activeVaultKey) {
+        res = await savePortfolioTransaction(activePortfolio, activeVaultKey, null, {
+          ...payloadData,
+          createdAt: txData.createdAt || new Date().toISOString(),
+        });
       } else {
-        encryptedPayload = JSON.stringify(payloadData);
+        const encryptedPayload = isE2eePortfolio && activeVaultKey
+          ? await e2eeEncrypt(activeVaultKey, payloadData)
+          : JSON.stringify(payloadData);
+        res = await createTransaction(activePortfolio.id, {
+          encryptedPayload,
+          createdAt: txData.createdAt || new Date().toISOString(),
+        });
       }
-
-      const res = await createTransaction(activePortfolio.id, {
-        encryptedPayload,
-        createdAt: txData.createdAt || new Date().toISOString(),
-      });
 
       if (res && res.success) {
         await fetchTransactions();
@@ -243,16 +262,19 @@ export function useTransactions(activePortfolio, externalVaultKey = null) {
         referenceQuantity: Number(txData.referenceQuantity) || 0,
       };
 
-      let encryptedPayload;
-      if (isE2eePortfolio && activeVaultKey) {
-        encryptedPayload = await e2eeEncrypt(activeVaultKey, payloadData);
+      let res;
+      if (accountManaged && activeVaultKey) {
+        const existing = transactions.find((t) => t.id === id);
+        res = await savePortfolioTransaction(activePortfolio, activeVaultKey, id, {
+          ...payloadData,
+          createdAt: existing?.createdAt,
+        });
       } else {
-        encryptedPayload = JSON.stringify(payloadData);
+        const encryptedPayload = isE2eePortfolio && activeVaultKey
+          ? await e2eeEncrypt(activeVaultKey, payloadData)
+          : JSON.stringify(payloadData);
+        res = await apiUpdateTransaction(activePortfolio.id, id, { encryptedPayload });
       }
-
-      const res = await apiUpdateTransaction(activePortfolio.id, id, {
-        encryptedPayload,
-      });
 
       if (res && res.success) {
         await fetchTransactions();
@@ -272,7 +294,9 @@ export function useTransactions(activePortfolio, externalVaultKey = null) {
     if (!activePortfolio?.id || !id) return false;
     setDeletingId(id);
     try {
-      const res = await apiDeleteTransaction(activePortfolio.id, id);
+      const res = accountManaged
+        ? await deletePortfolioTransactionRecord(activePortfolio.id, id)
+        : await apiDeleteTransaction(activePortfolio.id, id);
       if (res && res.success) {
         setTransactions((prev) => prev.filter((t) => t.id !== id));
         return true;

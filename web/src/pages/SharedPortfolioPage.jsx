@@ -43,6 +43,7 @@ import {
   importRawKey,
   linkTokenToRawKey,
 } from '../lib/e2ee.js';
+import { decryptSharedItems } from '../shared/vault/vaultPortfolioItems.js';
 
 /** Portfolio key carried in the share link's #fragment (never sent to the server) */
 function readLinkKeyToken() {
@@ -153,13 +154,16 @@ export default function SharedPortfolioPage() {
   // The async result is tagged with the inputs it was computed from, so an empty/locked state
   // is derived during render and a result for older data is never shown.
   const [decryptResult, setDecryptResult] = useState({ source: null, key: null, list: [] });
+  // Items the owner keeps as account-vault records, opened with the link key
+  const [vaultTransactions, setVaultTransactions] = useState({ key: null, list: [] });
   const rawTransactions = portfolioData?.transactions;
   const canDecrypt = Array.isArray(rawTransactions) && rawTransactions.length > 0 && !(isE2ee && !vaultKey);
   const decryptedTransactions = useMemo(
-    () => (canDecrypt && decryptResult.source === rawTransactions && decryptResult.key === vaultKey
-      ? decryptResult.list
-      : []),
-    [canDecrypt, decryptResult, rawTransactions, vaultKey]
+    () => [
+      ...(canDecrypt && decryptResult.source === rawTransactions && decryptResult.key === vaultKey ? decryptResult.list : []),
+      ...(vaultKey && vaultTransactions.key === vaultKey ? vaultTransactions.list : []),
+    ],
+    [canDecrypt, decryptResult, rawTransactions, vaultKey, vaultTransactions]
   );
 
   useEffect(() => {
@@ -198,13 +202,16 @@ export default function SharedPortfolioPage() {
   }, [rawTransactions, canDecrypt, vaultKey]);
 
   const applyVaultKey = useCallback(async (key) => {
+    const holdings = Array.isArray(portfolioData?.holdings) ? portfolioData.holdings : [];
+    const decrypted = await Promise.all(holdings.map((h) => decryptHoldingFromApi(key, h)));
+    const shared = await decryptSharedItems(key, {
+      vaultHoldings: portfolioData?.vaultHoldings || [],
+      vaultTransactions: portfolioData?.vaultTransactions || [],
+    });
+    setVaultTransactions({ key, list: shared.transactions });
+    setPortfolioData((prev) => ({ ...prev, holdings: [...decrypted, ...shared.holdings] }));
     setVaultKey(key);
-    const holdings = portfolioData?.holdings;
-    if (Array.isArray(holdings)) {
-      const decrypted = await Promise.all(holdings.map((h) => decryptHoldingFromApi(key, h)));
-      setPortfolioData((prev) => ({ ...prev, holdings: decrypted }));
-    }
-  }, [portfolioData?.holdings]);
+  }, [portfolioData]);
 
   // A portfolio protected by its owner's account-wide encryption opens with the key in the link
   const linkKeyRequired = Boolean(portfolioData?.portfolio?.e2eeLinkKey);
@@ -220,7 +227,10 @@ export default function SharedPortfolioPage() {
         const key = await importRawKey(raw);
         // The key must actually open this portfolio's data
         const probe = (portfolioData.holdings || []).find((h) => typeof h.notes === 'string' && h.notes.startsWith('enc:e2ee:v1:'));
-        const works = !probe || (await decryptHoldingFromApi(key, probe))?.isE2eeEncrypted === true;
+        const vaultProbe = [...(portfolioData.vaultHoldings || []), ...(portfolioData.vaultTransactions || [])][0];
+        const works = probe
+          ? (await decryptHoldingFromApi(key, probe))?.isE2eeEncrypted === true
+          : !vaultProbe || Boolean(await e2eeDecrypt(key, vaultProbe.payload));
         if (works && !cancelled) {
           await applyVaultKey(key);
           invalid = false;

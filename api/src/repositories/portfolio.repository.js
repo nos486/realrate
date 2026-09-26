@@ -8,6 +8,13 @@ import { logger } from "../lib/logger.js";
 import { hashSharePassword, isHashedSharePassword } from "../lib/security.js";
 import { AppError } from "../lib/AppError.js";
 
+// Items of a portfolio: plaintext / older encrypted rows plus the account-vault records whose
+// parent is the portfolio
+const ITEM_COUNT_SQL = `((SELECT COUNT(*) FROM portfolio_holdings h WHERE h.portfolio_id = p.id)
+               + (SELECT COUNT(*) FROM vault_records v WHERE v.user_id = p.user_id AND v.kind = 'holding' AND v.parent_id = p.id))`;
+const TX_COUNT_SQL = `((SELECT COUNT(*) FROM transactions t WHERE t.portfolio_id = p.id)
+               + (SELECT COUNT(*) FROM vault_records v WHERE v.user_id = p.user_id AND v.kind = 'transaction' AND v.parent_id = p.id))`;
+
 /**
  * Fetch all portfolios for a user (with auto-bootstrap default portfolio if none exist)
  * @param {object} env
@@ -27,13 +34,10 @@ export async function dbGetUserPortfolios(env, userId) {
                p.e2ee_salt AS e2eeSalt, p.e2ee_verifier AS e2eeVerifier,
                p.e2ee_wrapped_key AS e2eeWrappedKey,
                p.created_at AS createdAt, p.updated_at AS updatedAt,
-               COUNT(DISTINCT h.id) AS itemCount,
-               COUNT(DISTINCT t.id) AS transactionCount
+               ${ITEM_COUNT_SQL} AS itemCount,
+               ${TX_COUNT_SQL} AS transactionCount
         FROM portfolios p
-        LEFT JOIN portfolio_holdings h ON p.id = h.portfolio_id
-        LEFT JOIN transactions t ON p.id = t.portfolio_id
         WHERE p.user_id = ?
-        GROUP BY p.id
         ORDER BY p.is_default DESC, p.created_at ASC
       `).bind(userId).all();
 
@@ -74,13 +78,10 @@ export async function dbGetUserPortfolios(env, userId) {
                  p.e2ee_salt AS e2eeSalt, p.e2ee_verifier AS e2eeVerifier,
                p.e2ee_wrapped_key AS e2eeWrappedKey,
                  p.created_at AS createdAt, p.updated_at AS updatedAt,
-                 COUNT(DISTINCT h.id) AS itemCount,
-                 COUNT(DISTINCT t.id) AS transactionCount
+                 ${ITEM_COUNT_SQL} AS itemCount,
+                 ${TX_COUNT_SQL} AS transactionCount
           FROM portfolios p
-          LEFT JOIN portfolio_holdings h ON p.id = h.portfolio_id
-          LEFT JOIN transactions t ON p.id = t.portfolio_id
           WHERE p.user_id = ?
-          GROUP BY p.id
           ORDER BY p.is_default DESC, p.created_at ASC
         `).bind(userId).all();
         results = reQuery.results;
@@ -259,13 +260,10 @@ export async function dbUpdatePortfolio(env, portfolioId, userId, { name, shareS
              p.e2ee_salt AS e2eeSalt, p.e2ee_verifier AS e2eeVerifier,
                p.e2ee_wrapped_key AS e2eeWrappedKey,
              p.created_at AS createdAt, p.updated_at AS updatedAt,
-             COUNT(DISTINCT h.id) AS itemCount,
-             COUNT(DISTINCT t.id) AS transactionCount
+             ${ITEM_COUNT_SQL} AS itemCount,
+             ${TX_COUNT_SQL} AS transactionCount
       FROM portfolios p
-      LEFT JOIN portfolio_holdings h ON p.id = h.portfolio_id
-      LEFT JOIN transactions t ON p.id = t.portfolio_id
       WHERE p.id = ? AND p.user_id = ?
-      GROUP BY p.id
     `).bind(portfolioId, userId).first();
 
     return updated;
@@ -303,6 +301,11 @@ export async function dbDeletePortfolio(env, portfolioId, userId) {
     await env.DB.prepare(`
       DELETE FROM transactions WHERE portfolio_id = ? AND user_id = ?
     `).bind(portfolioId, userId).run();
+
+    // Delete its encrypted items (account vault)
+    await env.DB.prepare(`
+      DELETE FROM vault_records WHERE user_id = ? AND parent_id = ? AND kind IN ('holding', 'transaction')
+    `).bind(userId, portfolioId).run();
 
     // Delete portfolio
     await env.DB.prepare(`

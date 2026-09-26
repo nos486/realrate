@@ -24,6 +24,7 @@ import {
   dbDeleteVaultRecord,
   dbRestoreVaultRecord,
   dbGetLoanDocument,
+  dbGetPortfolioById,
 } from "../repositories/index.js";
 import { jsonResponse } from "../lib/helpers.js";
 import { AppError } from "../lib/AppError.js";
@@ -101,6 +102,11 @@ export async function handleRestoreVaultRecord(request, env, { kind, id }) {
     plain = { ...parseRecurringIncomeInput(plain || {}), createdAt: plain?.createdAt };
   } else if (kind === "cheque") {
     plain = { ...parseChequeInput(plain || {}), createdAt: plain?.createdAt };
+  } else if (kind === "holding" || kind === "transaction") {
+    const portfolioId = String(plain?.portfolioId || "");
+    const portfolio = portfolioId ? await dbGetPortfolioById(env, portfolioId, userId) : null;
+    if (!portfolio) throw AppError.badRequest("پورتفوی این مورد یافت نشد.");
+    if (kind === "holding" && !String(plain.assetId || "").trim()) throw AppError.badRequest("نوع دارایی نامعتبر است.");
   } else if (kind === "loan") {
     const loan = plain?.loan || {};
     if (!String(loan.title || "").trim() || !(Number(loan.principalAmount) > 0) || !(Number(loan.installmentCount) >= 0)) {

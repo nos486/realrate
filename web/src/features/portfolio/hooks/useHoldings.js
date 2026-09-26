@@ -20,6 +20,11 @@ import {
 } from '../../../lib/e2ee.js';
 import { usePortfolioVaultKey } from '../../../shared/vault/usePortfolioVaultKey.js';
 import {
+  listPortfolioHoldings,
+  savePortfolioHolding,
+  deletePortfolioHoldingRecord,
+} from '../../../shared/vault/vaultPortfolioItems.js';
+import {
   unlockVault as unlockAccountVault,
   lockAll,
   markLegacyVaultUnlocked,
@@ -86,6 +91,14 @@ export function useHoldings(activePortfolio) {
 
     try {
       setLoadingHoldings(true);
+
+      // Account vault: every holding is an encrypted vault record of this portfolio
+      if (accountManaged && activeVaultKey) {
+        const items = await listPortfolioHoldings(activePortfolio, activeVaultKey);
+        applyHoldings(items.map(normalizeHolding));
+        return;
+      }
+
       const res = await getPortfolio(activePortfolio.id);
       if (isStale()) return;
 
@@ -163,7 +176,7 @@ export function useHoldings(activePortfolio) {
     } finally {
       if (!isStale()) setLoadingHoldings(false);
     }
-  }, [user, activePortfolio, usesEncryption, activeVaultKey, resolvingAccountKey, hasOwnPassphrase]);
+  }, [user, activePortfolio, usesEncryption, activeVaultKey, resolvingAccountKey, hasOwnPassphrase, accountManaged]);
 
   useEffect(() => {
     fetchHoldings();
@@ -263,10 +276,13 @@ export function useHoldings(activePortfolio) {
     setSubmitting(true);
     try {
       let payload = { ...holdingData, portfolioId: activePortfolio.id };
-      if (usesEncryption && activeVaultKey) {
-        payload = await encryptHoldingForApi(activeVaultKey, payload);
+      let res;
+      if (accountManaged && activeVaultKey) {
+        res = await savePortfolioHolding(activePortfolio, activeVaultKey, { ...payload, id: undefined });
+      } else {
+        if (usesEncryption && activeVaultKey) payload = await encryptHoldingForApi(activeVaultKey, payload);
+        res = await addPortfolioHolding(payload);
       }
-      const res = await addPortfolioHolding(payload);
       if (res && res.success) {
         await fetchHoldings();
         return res;
@@ -286,10 +302,13 @@ export function useHoldings(activePortfolio) {
     setSubmitting(true);
     try {
       let payload = { ...holdingData, portfolioId: activePortfolio.id };
-      if (usesEncryption && activeVaultKey) {
-        payload = await encryptHoldingForApi(activeVaultKey, payload);
+      let res;
+      if (accountManaged && activeVaultKey) {
+        res = await savePortfolioHolding(activePortfolio, activeVaultKey, payload);
+      } else {
+        if (usesEncryption && activeVaultKey) payload = await encryptHoldingForApi(activeVaultKey, payload);
+        res = await updatePortfolioHolding(payload);
       }
-      const res = await updatePortfolioHolding(payload);
       if (res && res.success) {
         await fetchHoldings();
         return res;
@@ -308,7 +327,7 @@ export function useHoldings(activePortfolio) {
     if (!id) return false;
     setDeletingId(id);
     try {
-      const res = await deletePortfolioHolding(id);
+      const res = accountManaged ? await deletePortfolioHoldingRecord(id) : await deletePortfolioHolding(id);
       if (res && res.success) {
         setHoldings((prev) => prev.filter((h) => h.id !== id));
         return true;

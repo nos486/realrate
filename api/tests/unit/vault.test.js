@@ -18,7 +18,7 @@ const CIPHER_2 = 'enc:e2ee:v1:SUpLTE1OT1A=';
 function createDb() {
   const vaults = new Map();
   const records = new Map();
-  const plain = { loans: [], loan_installment_states: [], loan_extra_payments: [], incomes: [], cheques: [], portfolios: [] };
+  const plain = { loans: [], loan_installment_states: [], loan_extra_payments: [], incomes: [], cheques: [], portfolios: [], portfolio_holdings: [], transactions: [] };
   const recordKey = (u, k, i) => `${u}|${k}|${i}`;
   let failNextBatch = false;
 
@@ -67,7 +67,7 @@ function createDb() {
           if (del) {
             const [table, col] = [del[1], del[2]];
             const colIndex = { id: 0, loan_id: 1 }[col];
-            plain[table] = plain[table].filter((row) => !(row[colIndex] === args[0] && row[['loans', 'incomes', 'cheques'].includes(table) ? 1 : 2] === args[1]));
+            plain[table] = plain[table].filter((row) => !(row[colIndex] === args[0] && row[['loans', 'incomes', 'cheques', 'portfolio_holdings', 'transactions'].includes(table) ? 1 : 2] === args[1]));
             return { meta: { changes: 1 } };
           }
           throw new Error(`unexpected run: ${q}`);
@@ -259,6 +259,44 @@ describe('encrypted cheques', () => {
     expect(JSON.parse(row[13])).toEqual(history);
     expect(row[14]).toBe('2026-09-01T10:00:00.000Z');
     expect(await dbListVaultRecords(env, 'u1', 'cheque')).toHaveLength(0);
+  });
+});
+
+describe('encrypted portfolio items', () => {
+  let env;
+  beforeEach(async () => {
+    env = { DB: createDb() };
+    await dbSaveUserVault(env, 'u1', { salt: 's', wrappedKey: CIPHER });
+  });
+
+  it('keeps holdings and transactions under their portfolio, dated, and restores them to the tables', async () => {
+    await expect(dbPutVaultRecord(env, 'u1', 'holding', 'h_1', { payload: CIPHER })).rejects.toMatchObject({ statusCode: 400 });
+
+    env.DB.plain.portfolio_holdings.push(['h_1', 'u1'], ['h_2', 'u1']);
+    env.DB.plain.transactions.push(['tx_1', 'u1']);
+    await dbPutVaultRecord(env, 'u1', 'holding', 'h_1', { payload: CIPHER, recordDate: '2025-01-01', parentId: 'p_1', replacePlain: true });
+    await dbPutVaultRecord(env, 'u1', 'transaction', 'tx_1', { payload: CIPHER, recordDate: '2025-04-21', parentId: 'p_1', replacePlain: true });
+    expect(env.DB.plain.portfolio_holdings.map((r) => r[0])).toEqual(['h_2']);
+    expect(env.DB.plain.transactions).toHaveLength(0);
+    expect(await dbListVaultRecords(env, 'u1', 'holding', { parentId: 'p_1' })).toEqual([
+      expect.objectContaining({ id: 'h_1', recordDate: '2025-01-01', parentId: 'p_1' }),
+    ]);
+    expect(await dbListVaultRecords(env, 'u1', 'holding', { parentId: 'p_2' })).toHaveLength(0);
+
+    await dbRestoreVaultRecord(env, 'u1', 'holding', 'h_1', {
+      portfolioId: 'p_1', assetId: 'usd', amount: 1500, buyPrice: 80000, currentPrice: 0, buyDate: '2025-01-01', notes: 'پس‌انداز',
+    });
+    const holding = env.DB.plain.portfolio_holdings.find((r) => r[0] === 'h_1');
+    expect(holding.slice(0, 9)).toEqual(['h_1', 'u1', 'p_1', 'usd', 1500, 80000, 0, '2025-01-01', 'پس‌انداز']);
+
+    await dbRestoreVaultRecord(env, 'u1', 'transaction', 'tx_1', {
+      portfolioId: 'p_1', transactionType: 'buy', assetId: 'usd', amount: 500, transactionDate: '1404-02-01', createdAt: '2025-04-21T00:00:00.000Z',
+    });
+    const tx = env.DB.plain.transactions[0];
+    expect(tx.slice(0, 3)).toEqual(['tx_1', 'u1', 'p_1']);
+    expect(JSON.parse(tx[3])).toEqual({ transactionType: 'buy', assetId: 'usd', amount: 500, transactionDate: '1404-02-01' });
+    expect(await dbListVaultRecords(env, 'u1', 'holding')).toHaveLength(0);
+    expect(await dbListVaultRecords(env, 'u1', 'transaction')).toHaveLength(0);
   });
 });
 

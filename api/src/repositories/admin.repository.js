@@ -171,7 +171,12 @@ const VAULT_KIND_KEYS = {
   cheque: "cheques",
   income: "incomes",
   recurring_income: "recurringIncomes",
+  holding: "holdings",
+  transaction: "transactions",
 };
+/** Kinds whose plaintext rows are leftovers once the vault is on (portfolio items of a
+ *  portfolio still behind its own older passphrase legitimately stay in their tables) */
+const PENDING_KEYS = ["loans", "cheques", "incomes", "recurringIncomes"];
 
 /**
  * One user's account facts and usage counts (never the records themselves)
@@ -222,7 +227,7 @@ export async function dbGetUserDetail(env, userId, { now = Date.now() } = {}) {
     // With the vault on, plaintext loans / incomes / cheques / fixed incomes are leftovers of an
     // unfinished migration (new ones can only be stored encrypted)
     plaintextPending: vaultEnabled
-      ? Object.values(VAULT_KIND_KEYS).reduce((sum, key) => sum + (usage[key] || 0), 0)
+      ? PENDING_KEYS.reduce((sum, key) => sum + (usage[key] || 0), 0)
       : 0,
   };
 }
