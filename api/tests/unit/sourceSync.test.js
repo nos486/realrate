@@ -260,4 +260,13 @@ describe('Unified Orchestration — sourceSync.service (Phase 4)', () => {
       'src_def_bourse__foolad', 'src_def_bourse__femi', 'src_def_charisma__ahrom', 'src_def_charisma__kahroba',
     ]));
   });
+
+  it('writes the whole price book as one JSON under the KV key "prices"', async () => {
+    await syncAllSources(mockEnv);
+    const call = mockEnv.REALRATE_KV.put.mock.calls.find(([key]) => key === 'prices');
+    expect(call).toBeTruthy();
+    const book = JSON.parse(call[1]);
+    expect(book.items['src_def_bourse__foolad']).toMatchObject({ price: 540, sourceId: 'src_def_bourse' });
+    for (const [id, item] of Object.entries(book.items)) expect(item.id).toBe(id);
+  });
 });

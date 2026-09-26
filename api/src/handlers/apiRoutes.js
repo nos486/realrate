@@ -4,6 +4,7 @@
  */
 
 import { getLatestMarketRates } from "../services/priceSources.js";
+import { getPriceBook } from "../services/market/priceAggregator.service.js";
 import { getGlobalSettings } from "../repositories/settings.repository.js";
 import { jsonResponse } from "../lib/helpers.js";
 import { logger } from "../lib/logger.js";
@@ -73,6 +74,16 @@ export async function handleGetPrices(env, request = null) {
       },
     }, 500, request);
   }
+}
+
+/**
+ * GET /api/prices/book
+ * Every price in the standard shape (domain/priceBook.js): `{ updatedAt, items: { [id]: item } }`,
+ * each item in tomans under its unique id — the ids stored data, charts and the history use.
+ */
+export async function handleGetPriceBook(env, request = null) {
+  const book = await getPriceBook(env);
+  return jsonResponse({ success: true, ...book }, 200, request);
 }
 
 /**

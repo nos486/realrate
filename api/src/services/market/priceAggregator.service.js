@@ -10,7 +10,10 @@ import {
 import {
   getLatestRatesCache,
   setLatestRatesCache,
+  getPriceBookCache,
+  setPriceBookCache,
 } from "../../repositories/kvCache.repository.js";
+import { buildPriceBook } from "../../domain/priceBook.js";
 import { saveSourceItems } from "../../repositories/sourceItems.repository.js";
 import { getAdapterForSource } from "./sources/index.js";
 import { resolveApiUrl } from "./sources/apiUrl.source.adapter.js";
@@ -346,6 +349,7 @@ export async function refreshMarketRatesCache(env) {
       const activeSources = sources.filter(s => s.isActive);
       const latestRates = compileLatestMarketRates(activeSources);
       await setLatestRatesCache(env, latestRates);
+      await setPriceBookCache(env, buildPriceBook(activeSources));
       memoryPricesCache = { ...latestRates };
       lastFetchTime = Date.now();
       return latestRates;
@@ -382,6 +386,22 @@ export async function getLatestMarketRates(env) {
   // 3. Fallback: If KV is cold/empty, trigger extraction immediately
   const { rates } = await handleScheduledPriceExtraction(env, true);
   return rates;
+}
+
+/**
+ * The price book: every price in the standard shape (see domain/priceBook.js), from KV "prices".
+ * Built from the sources when KV has none yet.
+ * @param {object} env
+ * @returns {Promise<{ updatedAt: string, items: Record<string, object> }>}
+ */
+export async function getPriceBook(env) {
+  const cached = await getPriceBookCache(env);
+  if (cached?.items && Object.keys(cached.items).length > 0) return cached;
+  const sources = await dbGetPriceSources(env).catch(() => []);
+  const book = buildPriceBook((sources || []).filter((s) => s.isActive));
+  // Only a book with source prices is worth keeping (the next sync rewrites it anyway)
+  if (Object.values(book.items).some((item) => item.sourceId)) await setPriceBookCache(env, book);
+  return book;
 }
 
 /**

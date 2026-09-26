@@ -72,7 +72,7 @@ import {
   handleAdminFetchAllSources,
   handleAdminInspectApiRoute,
 } from "./handlers/adminRoutes.js";
-import { handleGetPrices, handleGetSparklines } from "./handlers/apiRoutes.js";
+import { handleGetPrices, handleGetSparklines, handleGetPriceBook } from "./handlers/apiRoutes.js";
 import { handleGetUnifiedMarketItems } from "./handlers/unifiedItemsRoute.js";
 import {
   handleGetPortfolios,
@@ -421,6 +421,7 @@ export default {
       return wrap(handleGetUnifiedMarketItems)(env, request);
     }
     if (normalizedPath === "/api/prices") return wrap(handleGetPrices)(env, request);
+    if (normalizedPath === "/api/prices/book") return wrap(handleGetPriceBook)(env, request);
     if (normalizedPath === "/api/sparklines" || normalizedPath === "/api/prices/sparklines") {
       return wrap(handleGetSparklines)(env, request);
     }

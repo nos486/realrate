@@ -80,6 +80,34 @@ export async function setGlobalSettingsKV(env, settings) {
 }
 
 /* ─────────────────────────────────────────────────────────────
+ * Price book KV: the latest price of every item, one JSON under "prices"
+ * ───────────────────────────────────────────────────────────── */
+
+export const PRICE_BOOK_KV_KEY = "prices";
+
+/** @returns {Promise<{ updatedAt: string, items: Record<string, object> }|null>} */
+export async function getPriceBookCache(env) {
+  const kv = getKv(env);
+  if (!kv) return null;
+  try {
+    return await kv.get(PRICE_BOOK_KV_KEY, "json");
+  } catch (e) {
+    logger.error("KV read error for prices:", { error: e.message });
+    return null;
+  }
+}
+
+export async function setPriceBookCache(env, book) {
+  const kv = getKv(env);
+  if (!kv) return;
+  try {
+    await kv.put(PRICE_BOOK_KV_KEY, JSON.stringify(book));
+  } catch (e) {
+    logger.error("KV write error for prices:", { error: e.message });
+  }
+}
+
+/* ─────────────────────────────────────────────────────────────
  * Market Rates KV
  * ───────────────────────────────────────────────────────────── */
 

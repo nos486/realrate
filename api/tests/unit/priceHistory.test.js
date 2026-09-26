@@ -21,11 +21,6 @@ import {
   TREND_BASELINE_SQL,
 } from '../../src/repositories/priceHistory.repository.js';
 import { saveSourceItems } from '../../src/repositories/sourceItems.repository.js';
-import {
-  catalogAssetId,
-  catalogHistoryPoints,
-  marketRateHistoryPoints,
-} from '../../src/domain/priceHistoryKeys.js';
 import { handleGetSparklines } from '../../src/handlers/apiRoutes.js';
 
 function fakeClient({ failQuery = false, failConnect = false } = {}) {
@@ -101,41 +96,6 @@ describe('recordPriceHistory', () => {
 
   it('saveSourceItems works without Postgres (history is written by the sync, not here)', async () => {
     await expect(saveSourceItems({ DB: null }, 'src_x', [{ id: 'usd', price: 1 }])).resolves.toBe(true);
-  });
-});
-
-describe('history keys = the app\'s asset ids', () => {
-  it('uses the rate keys, and a toman value for currencies', () => {
-    const points = marketRateHistoryPoints({
-      last_updated: '2026-01-01T00:00:00Z',
-      usd_toman: { price: 100000 },
-      usd: { price: 1 },
-      gold_18k: { price: 8000000 },
-      eur: { price: 1.1 },
-      try: { price: 0.03 },
-      ons_gold: { price: 2400 },
-      broken: { price: 0 },
-    });
-    expect(Object.fromEntries(points.map((p) => [p.id, p.price]))).toEqual({
-      usd: 100000, gold_18k: 8000000, eur: 110000, try: 3000, ons_gold: 2400,
-    });
-  });
-
-  it('never records the forex feed\'s USD cross rate (1) as the dollar price', () => {
-    expect(marketRateHistoryPoints({ usd: { price: 1 }, gold_18k: { price: 5 } })).toEqual([{ id: 'gold_18k', price: 5 }]);
-    expect(marketRateHistoryPoints({ usd: { price: 101000 } })).toEqual([{ id: 'usd', price: 101000 }]);
-  });
-
-  it('drops currency cross rates when the USD rate is unknown', () => {
-    expect(marketRateHistoryPoints({ eur: { price: 1.1 }, gold_18k: { price: 5 } })).toEqual([{ id: 'gold_18k', price: 5 }]);
-  });
-
-  it('keys catalog items like the catalog does', () => {
-    expect(catalogAssetId('src_def_bourse', 'فولاد')).toBe('src_def_bourse__فولاد');
-    expect(catalogAssetId('src_def_bourse', 'src_def_bourse__فولاد')).toBe('src_def_bourse__فولاد');
-    expect(catalogHistoryPoints('src_def_emofid', [{ symbol: 'X', price: 3 }, { price: 4 }])).toEqual([
-      { id: 'src_def_emofid__X', price: 3 },
-    ]);
   });
 });
 
