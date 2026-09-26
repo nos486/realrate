@@ -139,7 +139,7 @@ function collectEntries(sources) {
               ...(Number.isFinite(Number(item.changePercent ?? item.cp ?? item.plp))
                 ? { changePercent: Number(item.changePercent ?? item.cp ?? item.plp) }
                 : {}),
-              ...(src.isFund ? { isFund: true } : {}),
+              ...(src.isFund || item.isFund || item.f === 1 ? { isFund: true } : {}),
             },
           },
         });
@@ -197,7 +197,7 @@ function toItem(entry, price, extraParams = {}) {
     id: entry.id,
     price,
     name: spec?.name || entry.meta.name || entry.src.name || entry.id,
-    category: spec?.category || entry.src.category || "",
+    category: spec?.category || (entry.meta.params.isFund ? "bourse_fund" : entry.src.category) || "",
     // A dollar-quoted spec names its currency as the unit ("دلار"); in tomans the unit is what
     // is priced (the source's "اونس")
     unit: (entry.quote === "usd" ? entry.src.unit || spec?.unit : spec?.unit || entry.src.unit) || "",

@@ -6,9 +6,7 @@ import UniversalAssetSearch from '../../../components/UniversalAssetSearch.jsx';
 import ShamsiDatePicker from './ShamsiDatePicker.jsx';
 import ReferenceAssetInputs from './ReferenceAssetInputs.jsx';
 import { parseInputNumber } from '../utils/holdingHelpers.js';
-import {
-  getCanonicalAssetSpec,
-} from '../../../utils/financialSpecs.js';
+import { toPriceId, isCustomAssetId } from '../../../utils/priceIds.js';
 import {
   resolveAssetDisplayName,
   resolveAssetUnit,
@@ -28,7 +26,6 @@ export default function AddHoldingForm({
   editingHolding = null,
   submitting = false,
   rates = null,
-  realPriceMap = null,
 }) {
   const pricing = usePricing();
   const [selectedAssetId, setSelectedAssetId] = useState('gold_18k');
@@ -58,7 +55,7 @@ export default function AddHoldingForm({
       if (editingHolding.referenceAssetId && editingHolding.referenceQuantity) {
         const refId = editingHolding.referenceAssetId;
         setReferenceAsset({
-          id: refId,
+          id: toPriceId(refId),
           name: resolveAssetDisplayName(refId) || refId,
           unit: resolveAssetUnit(refId) || 'واحد',
           category: getItemCategory(refId),
@@ -114,102 +111,30 @@ export default function AddHoldingForm({
 
   const handleAssetSelect = (asset) => {
     if (!asset) return;
-    const rawItem = asset.raw || asset;
-    // Prefer the search result's OWN id (asset.id) — UniversalAssetSearch.jsx always constructs
-    // a correct, canonical id for every item it produces. asset.raw is a thinner spread of the
-    // underlying adapter/catalog record and can lack its own `.id` entirely (e.g. Emofid/Charisma
-    // fund items never set raw.id), which used to silently fall back to a bare symbol like "عیار".
-    const rawId = asset.id || rawItem.id || rawItem.priceType || rawItem.symbol || '';
-    const cleanId = String(rawId).replace(/^src_def_/, '').replace(/^derived_/, '');
-    const canonicalSpec = getCanonicalAssetSpec(cleanId || rawId || rawItem.symbol);
-    const resolvedId = canonicalSpec?.id || cleanId || rawId;
-
-    const resolvedCat = getItemCategory(rawItem);
-    const resolvedUnit = getItemUnit(rawItem);
-    const isCustom = resolvedCat === 'custom' || resolvedId === 'custom' || resolvedId.startsWith('custom_');
-    // Only a REAL Tehran Stock Exchange symbol should get the flat "bourse_SYMBOL" id — identified
-    // by its actual source, not by category: Emofid/Charisma funds also carry category
-    // 'bourse_fund' but must keep their own src_def_X__symbol id, or their holdings silently split
-    // into a second, differently-named duplicate every time this runs (the bare symbol "عیار" was
-    // previously mistaken for the bourse stock ticker "عیار").
-    const isBourse = asset.sourceId === 'src_def_bourse' || rawItem.sourceId === 'src_def_bourse';
-
-    if (isBourse) {
-      const symCode = (rawItem.symbol || rawItem.s || resolvedId.replace('bourse_', '')).trim();
-      setSelectedAssetId(resolvedId.includes('__') ? resolvedId : `bourse_${symCode}`);
-      setSelectedBourseSymbol({
-        ...rawItem,
-        symbol: symCode,
-        priceToman: rawItem.priceToman || (rawItem.priceRial ? Math.round(rawItem.priceRial / 10) : rawItem.price || 0),
-      });
-      setCustomName(resolveAssetDisplayName(resolvedId, rawItem));
-      setCustomUnit(resolvedUnit);
-      const p = rawItem.priceToman || (rawItem.priceRial ? Math.round(rawItem.priceRial / 10) : rawItem.price || '');
-      setCustomCurrentPrice(p ? String(p) : '');
-    } else if (isCustom) {
+    if (asset.category === 'custom' || isCustomAssetId(asset.id)) {
       setSelectedAssetId('custom');
       setSelectedBourseSymbol(null);
-      setCustomName(rawItem.name || '');
-      setCustomUnit(resolvedUnit);
-      if (rawItem.price > 0) {
-        setCustomCurrentPrice(String(Math.round(rawItem.price)));
-      }
-    } else {
-      // Canonical assets (gold, coin, forex) AND catalog items (charisma_plans__gold, ...)
-      setSelectedAssetId(resolvedId);
-      setSelectedBourseSymbol(null);
-      setCustomName(resolveAssetDisplayName(resolvedId, rawItem));
-      setCustomUnit(resolvedUnit);
-      const p = rawItem.priceToman || (rawItem.priceRial ? Math.round(rawItem.priceRial / 10) : rawItem.price || '');
-      if (p > 0) {
-        setCustomCurrentPrice(String(Math.round(p)));
-      }
+      setCustomName(asset.name || '');
+      setCustomUnit(asset.unit || 'واحد');
+      if (asset.price > 0) setCustomCurrentPrice(String(Math.round(asset.price)));
+      return;
     }
+    // Picked from the price book: its id is what gets stored
+    setSelectedAssetId(toPriceId(asset.id));
+    const isBourse = ['bourse', 'bourse_fund'].includes(asset.category);
+    setSelectedBourseSymbol(isBourse
+      ? { symbol: asset.symbol, name: asset.name, priceToman: asset.price, isFund: Boolean(asset.isFund) }
+      : null);
+    setCustomName(asset.name || '');
+    setCustomUnit(asset.unit || 'واحد');
+    setCustomCurrentPrice(asset.price > 0 ? String(Math.round(asset.price)) : '');
   };
 
   const handleTodayClick = () => {
-    let currentPrice = null;
-
-    // 1. If bourse asset
-    if (selectedBourseSymbol?.priceToman > 0) {
-      currentPrice = Math.round(selectedBourseSymbol.priceToman);
-    }
-    // 2. If custom current price was entered
-    else if (customCurrentPrice) {
-      const parsed = parseInputNumber(customCurrentPrice);
-      if (parsed && parsed > 0) currentPrice = Math.round(parsed);
-    }
-
-    const cleanId = (selectedAssetId || '').replace(/^src_def_/, '').replace(/^derived_/, '').trim();
-
-    // 3. realPriceMap if passed
-    if (!currentPrice && realPriceMap) {
-      const p = realPriceMap[selectedAssetId] || realPriceMap[cleanId] || realPriceMap[cleanId.toLowerCase()];
-      if (p && Number(p) > 0) currentPrice = Math.round(Number(p));
-    }
-
-    // 4. pricing context
-    if (!currentPrice && pricing) {
-      if (typeof pricing.getAssetPrice === 'function') {
-        const p = pricing.getAssetPrice(cleanId) || pricing.getAssetPrice(selectedAssetId);
-        if (p && Number(p) > 0) currentPrice = Math.round(Number(p));
-      }
-      if (!currentPrice && pricing.priceMap) {
-        const p = pricing.priceMap[cleanId] || pricing.priceMap[cleanId.toLowerCase()] || pricing.priceMap[selectedAssetId];
-        if (p && Number(p) > 0) currentPrice = Math.round(Number(p));
-      }
-    }
-
-    // 5. rates prop fallback
-    if (!currentPrice && rates) {
-      const r = rates[cleanId] || rates[cleanId.toLowerCase()] || rates[selectedAssetId];
-      const p = r?.price || r?.market || r?.expected_price || r;
-      if (p && Number(p) > 0) currentPrice = Math.round(Number(p));
-    }
-
-    if (currentPrice && currentPrice > 0) {
-      setBuyPrice(String(currentPrice));
-    }
+    // Today's price: the one entered for a personal asset, else the price book's
+    const entered = parseInputNumber(customCurrentPrice);
+    const currentPrice = entered > 0 ? entered : (pricing?.getAssetPrice?.(selectedAssetId) || 0);
+    if (currentPrice > 0) setBuyPrice(String(Math.round(currentPrice)));
   };
 
   const handleSubmit = (e) => {
@@ -219,11 +144,10 @@ export default function AddHoldingForm({
 
     let finalAssetId = selectedAssetId;
 
-    if (selectedAssetId === 'custom' || selectedAssetId.startsWith('custom_')) {
+    if (isCustomAssetId(selectedAssetId)) {
       finalAssetId = editingHolding?.assetId || `custom_${Date.now()}`;
-    } else if (selectedBourseSymbol || ['bourse', 'bourse_fund'].includes(getItemCategory(selectedAssetId))) {
-      const sym = selectedBourseSymbol?.symbol || selectedAssetId.replace(/^bourse_/, '').replace(/^src_def_bourse__/, '');
-      finalAssetId = `bourse_${sym}`;
+    } else {
+      finalAssetId = toPriceId(selectedAssetId, pricing?.priceMap);
     }
 
     // Paid/swapped with a reference asset: the Toman price the rest of the app relies on
@@ -255,8 +179,8 @@ export default function AddHoldingForm({
   const isAmountValid = parsedAmountForValidation !== null && parsedAmountForValidation > 0;
   const isFormValid = isAmountValid && !submitting;
 
-  const selectedCategory = getItemCategory(selectedAssetId);
-  const cleanSelectedId = (selectedAssetId || '').replace(/^src_def_/, '').replace(/^derived_/, '');
+  const selectedBookAsset = pricing?.getAsset?.(selectedAssetId) || null;
+  const selectedCategory = selectedBookAsset?.category || getItemCategory(selectedAssetId);
   const isModalBourse =
     ['bourse', 'bourse_fund'].includes(selectedCategory) ||
     selectedBourseSymbol !== null;
@@ -268,9 +192,9 @@ export default function AddHoldingForm({
 
   const selectedAssetTitle = isModalBourse
     ? (selectedBourseSymbol?.symbol ? `${selectedBourseSymbol.symbol} (${selectedBourseSymbol.name || 'سهام بورس'})` : customName || 'سهام بورس')
-    : (isModalCustom ? (customName || 'دارایی شخصی') : (resolveAssetDisplayName(cleanSelectedId, null) || customName || selectedAssetId || 'انتخاب نشده'));
+    : (isModalCustom ? (customName || 'دارایی شخصی') : (selectedBookAsset?.name || customName || selectedAssetId || 'انتخاب نشده'));
 
-  const unitLabel = getItemUnit(selectedAssetId, null, isModalFund ? 'واحد' : (isModalBourse ? 'برگ سهام' : (customUnit || 'واحد')));
+  const unitLabel = selectedBookAsset?.unit || getItemUnit(selectedAssetId, null, isModalFund ? 'واحد' : (isModalBourse ? 'برگ سهام' : (customUnit || 'واحد')));
 
   return (
     <Modal

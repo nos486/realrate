@@ -77,9 +77,9 @@ function GoldDetailedCard({ asset, isBest }) {
         <span className={`bubble-pill ${badge.className}`}>{badge.text}</span>
       </div>
 
-      {/* Without a market quote, the computed intrinsic value is the useful number */}
+      {/* The price book's price; without a market quote the calculator's intrinsic value */}
       <PriceLine
-        value={hasMarket ? item.market : item.intrinsic}
+        value={asset.price || (hasMarket ? item.market : item.intrinsic)}
         unit="تومان"
         caption={hasMarket ? null : 'ارزش ذاتی — نرخ بازار فعلاً در دسترس نیست'}
       />
@@ -166,10 +166,6 @@ function CompactCard({ asset }) {
 const TREND_WINDOW_LABEL = '۲۴ ساعت';
 const TREND_WINDOW_MS = 24 * 3600 * 1000;
 
-// The history keeps every price in tomans, except the world ounce prices (in dollars)
-const historyUnit = (asset) => (/^ons_/i.test(asset.id) ? 'دلار' : 'تومان');
-const sinceFormat = new Intl.DateTimeFormat('fa-IR', { hour: '2-digit', minute: '2-digit' });
-
 function TrendBody({ asset, unit, trend, status, bucketSec }) {
   if (trend && trend.points.length >= 2) {
     const direction = trend.changePct > 0 ? 'up' : trend.changePct < 0 ? 'down' : 'flat';
@@ -203,12 +199,9 @@ function TrendBody({ asset, unit, trend, status, bucketSec }) {
 function TrendCard({ asset, trend, status, bucketSec }) {
   const hasTrend = trend && trend.points.length >= 2;
   const change = hasTrend ? changeBadge(Number(trend.changePct.toFixed(2))) : null;
-  // The headline and the line must be in the same unit: when the card's own price is quoted
-  // differently (e.g. a currency in dollars), show the history's latest value instead
-  const unit = historyUnit(asset);
-  const sameUnit = asset.unit === unit;
-  const price = hasTrend && !(sameUnit && asset.price) ? trend.last : asset.price;
-  const priceUnit = hasTrend ? unit : asset.unit;
+  // The card and the history both hold the price book's price, in tomans
+  const unit = asset.unit;
+  const price = asset.price || (hasTrend ? trend.last : null);
   return (
     <div className="fintech-card home-trend-card">
       <div className="card-top-row">
@@ -223,7 +216,7 @@ function TrendCard({ asset, trend, status, bucketSec }) {
           </span>
         )}
       </div>
-      <PriceLine value={price} unit={priceUnit} />
+      <PriceLine value={price} unit={unit} />
       <TrendBody asset={asset} unit={unit} trend={trend} status={status} bucketSec={bucketSec} />
     </div>
   );

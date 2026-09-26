@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useAuth } from '../auth/index.js';
 import { sanitizeHomeLayout } from '../../utils/homeLayout.js';
 import { getHomeLayout, saveHomeLayout } from './homeApi.js';
+import { normalizeLayoutIds } from './homeLayoutModel.js';
 
 const CACHE_PREFIX = 'realrate_home_layout_';
 const SAVE_DELAY_MS = 700;
@@ -46,9 +47,16 @@ export function useHomeLayout() {
       .then((res) => {
         // Never overwrite an edit the user made while this request was in flight
         if (cancelled || pendingRef.current !== undefined) return;
-        const serverLayout = sanitizeHomeLayout(res?.layout);
+        const stored = sanitizeHomeLayout(res?.layout);
+        // A layout saved with older asset ids is stored again with the price book's ids, once
+        const serverLayout = normalizeLayoutIds(stored);
         writeCache(userId, serverLayout);
         setState({ userId, layout: serverLayout });
+        if (serverLayout && JSON.stringify(serverLayout) !== JSON.stringify(stored)) {
+          saveHomeLayout(serverLayout).catch(() => {
+            // Stored again the next time it loads
+          });
+        }
       })
       .catch(() => {
         // Offline or older API: keep the cached layout

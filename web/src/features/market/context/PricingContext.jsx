@@ -1,12 +1,17 @@
 /**
  * PricingContext.jsx — Unified Pricing & Asset Catalog React Context
  * Feature: features/market
- * Provides single-source-of-truth pricing across the whole app.
+ *
+ * Every price comes from the server's price book (GET /api/prices/book): tomans, one id per
+ * asset, computed once on the server. The USD / ounce inputs below are the calculator's
+ * "what if" rates for intrinsic value and bubble only — they never change a price.
  */
 
 import React, { createContext, useContext, useState, useEffect, useMemo, useCallback, useRef, useSyncExternalStore } from 'react';
-import { getMarketItems, getPrices } from '../api/marketApi.js';
-import { computeUnifiedPrices, searchUnifiedAssets } from '../../../utils/pricingEngine.js';
+import { getMarketItems, getPrices, getPriceBook } from '../api/marketApi.js';
+import { searchUnifiedAssets } from '../../../utils/pricingEngine.js';
+import { bookToAssets, priceOf, assetOf } from '../priceBookAssets.js';
+import { setKnownPriceIds } from '../knownPriceIds.js';
 import { getReferenceRatesSpecs } from '../../../config/sources.config.js';
 
 const PricingContext = createContext(null);
@@ -29,6 +34,7 @@ export const PRICE_REFRESH_INTERVAL_MS = 2 * 60 * 1000;
 
 export function PricingProvider({ children, initialUsdToman = null, initialGoldUsd = null }) {
   const [marketItems, setMarketItems] = useState(null);
+  const [priceBook, setPriceBook] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const isOffline = useSyncExternalStore(subscribeOnlineStatus, isBrowserOffline, () => false);
@@ -149,9 +155,10 @@ export function PricingProvider({ children, initialUsdToman = null, initialGoldU
       else setLoading(true);
 
       const requestOptions = background ? { silent: true } : {};
-      const [itemsRes, pricesRes] = await Promise.allSettled([
+      const [itemsRes, pricesRes, bookRes] = await Promise.allSettled([
         getMarketItems('', '', requestOptions),
         getPrices(requestOptions),
+        getPriceBook(requestOptions),
       ]);
       if (seq !== fetchSeqRef.current) return;
 
@@ -160,6 +167,9 @@ export function PricingProvider({ children, initialUsdToman = null, initialGoldU
 
       if (res) {
         setMarketItems(res);
+      }
+      if (bookRes.status === 'fulfilled' && bookRes.value?.items) {
+        setPriceBook({ updatedAt: bookRes.value.updatedAt, items: bookRes.value.items });
       }
       if (freshPrices) {
         setPricesData(freshPrices);
@@ -246,35 +256,28 @@ export function PricingProvider({ children, initialUsdToman = null, initialGoldU
 
   const refresh = useCallback(() => fetchItems({ background: true }), [fetchItems]);
 
-  // Compute live prices instantly whenever user edits USD or Gold spot
-  const { resolvedAssets, priceMap, itemMap, summary } = useMemo(() => {
-    const usdNum = typeof usdToman === 'string' ? parseFloat(usdToman.replace(/,/g, '')) || 0 : Number(usdToman || 0);
-    const goldNum = typeof goldUsd === 'string' ? parseFloat(goldUsd.replace(/,/g, '')) || 0 : Number(goldUsd || 0);
-    const silverNum = typeof silverUsd === 'string' ? parseFloat(silverUsd.replace(/,/g, '')) || 0 : Number(silverUsd || 0);
+  // Every price is the book's; nothing here recomputes one
+  const { assets: resolvedAssets, priceMap, itemMap } = useMemo(() => bookToAssets(priceBook), [priceBook]);
 
-    return computeUnifiedPrices({
-      marketItems,
-      usdToman: usdNum,
-      goldUsd: goldNum,
-      silverUsd: silverNum,
-    });
-  }, [marketItems, usdToman, goldUsd, silverUsd]);
+  // Code outside React (the vault's migration of stored ids) resolves ids against the book too
+  useEffect(() => setKnownPriceIds(priceMap), [priceMap]);
 
-  const getAssetPrice = useCallback((id) => {
-    if (!id) return 0;
-    const cleanId = String(id).replace(/^src_def_/, '').replace(/^derived_/, '').trim();
-    return priceMap[cleanId] || priceMap[cleanId.toLowerCase()] || priceMap[id] || 0;
-  }, [priceMap]);
+  // The calculator's rates (what the user typed, or the live ones)
+  const summary = useMemo(() => {
+    const num = (v) => (typeof v === 'string' ? parseFloat(v.replace(/,/g, '')) || 0 : Number(v || 0));
+    return {
+      usdToman: num(usdToman),
+      goldUsd: num(goldUsd),
+      silverUsd: num(silverUsd),
+      totalAssetsCount: resolvedAssets.length,
+    };
+  }, [usdToman, goldUsd, silverUsd, resolvedAssets.length]);
 
-  const getAsset = useCallback((id) => {
-    if (!id) return null;
-    const cleanId = String(id).replace(/^src_def_/, '').replace(/^derived_/, '').trim().toLowerCase();
-    return resolvedAssets.find(a =>
-      a.id?.toLowerCase() === cleanId ||
-      a.symbol?.toLowerCase() === cleanId ||
-      a.code?.toLowerCase() === cleanId
-    ) || null;
-  }, [resolvedAssets]);
+  /** The price of any stored id (old id forms included) */
+  const getAssetPrice = useCallback((id) => priceOf(priceMap, id), [priceMap]);
+
+  /** The asset of any stored id (old id forms included) */
+  const getAsset = useCallback((id) => assetOf(itemMap, id), [itemMap]);
 
   const searchAssets = useCallback((query, options) => {
     return searchUnifiedAssets(resolvedAssets, query, options);
@@ -288,6 +291,7 @@ export function PricingProvider({ children, initialUsdToman = null, initialGoldU
     lastUpdatedAt,
     marketItems,
     pricesData,
+    priceBook,
     resolvedAssets,
     priceMap,
     itemMap,
@@ -310,7 +314,7 @@ export function PricingProvider({ children, initialUsdToman = null, initialGoldU
     setReferenceRateKey,
     updateReferenceRates,
   }), [
-    loading, refreshing, error, isOffline, lastUpdatedAt, marketItems, pricesData, resolvedAssets, priceMap,
+    loading, refreshing, error, isOffline, lastUpdatedAt, marketItems, pricesData, priceBook, resolvedAssets, priceMap,
     itemMap, summary, usdToman, goldUsd, silverUsd, setManualOverride, getAssetPrice, getAsset,
     searchAssets, refresh, activeReferenceKey, activeReferenceRate, referenceRates,
     cycleReferenceRate, setReferenceRateKey, updateReferenceRates,

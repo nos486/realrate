@@ -55,7 +55,7 @@ import { SkeletonRows } from '../../../shared/ui/Skeleton.jsx';
 const TX_PAGE_SIZE = 20;
 
 const TransactionsView = forwardRef(function TransactionsView(
-  { activePortfolio, loadingPortfolios = false, calcData = null, rates = null, fetchPortfolios, onCountChange, toolbarSlot = null },
+  { activePortfolio, loadingPortfolios = false, rates = null, fetchPortfolios, onCountChange, toolbarSlot = null },
   ref
 ) {
   const pricing = usePricing();
@@ -95,22 +95,8 @@ const TransactionsView = forwardRef(function TransactionsView(
 
   // Price map
   const livePriceMap = pricing?.priceMap;
-  const realPriceMap = useMemo(() => {
-    const map = {};
-    if (livePriceMap) {
-      Object.assign(map, livePriceMap);
-    }
-    if (calcData?.analysis && Array.isArray(calcData.analysis)) {
-      calcData.analysis.forEach((item) => {
-        const val = item.market || item.expected_price || item.intrinsic;
-        if (val > 0 && !map[item.id]) {
-          map[item.id] = Math.round(val);
-          map[`src_def_${item.id}`] = Math.round(val);
-        }
-      });
-    }
-    return map;
-  }, [livePriceMap, calcData]);
+  // Valued at the price book's prices (the same numbers shown everywhere)
+  const realPriceMap = useMemo(() => livePriceMap || {}, [livePriceMap]);
 
   // Computed Holdings (for checking balances on sell): they need every transaction ever made,
   // so the full history is read only while the form is open (the period already is all of it)

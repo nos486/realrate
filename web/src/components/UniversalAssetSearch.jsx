@@ -13,11 +13,8 @@ import {
   Check,
   Wallet,
 } from 'lucide-react';
-import { getPriceSources } from '../features/admin/api/adminApi.js';
-import { searchBourseSymbols } from '../features/portfolio/api/portfolioApi.js';
-import { useAuth } from '../features/auth/index.js';
 import { usePricing } from '../features/market/index.js';
-import { getMasterPriceSourcesConfig } from '../config/sources.config.js';
+import { toPriceId } from '../utils/priceIds.js';
 import { getSourceDisplayName, getSourceCategoryConfig } from '../config/displayEngine.js';
 import {
   getItemCategory,
@@ -29,7 +26,6 @@ import { getCategoryIconName } from '../config/categories.config.js';
 import {
   FOREX_SPECS,
   PORTFOLIO_CATEGORIES,
-  CANONICAL_ASSET_REGISTRY,
   getCanonicalAssetSpec,
   getCanonicalAssetName,
 } from '../utils/financialSpecs.js';
@@ -391,8 +387,6 @@ function getAssetIcon(item) {
 
 export default function UniversalAssetSearch({
   mode = 'picker',
-  sources = null,
-  priceTypeInfo = null,
   selectedAsset = null,
   selectedAssetId = null,
   onSelect = () => {},
@@ -403,46 +397,10 @@ export default function UniversalAssetSearch({
   showCategories = false,
 }) {
   const pricingContext = usePricing();
-  const { user } = useAuth();
-  const isAdmin = user?.role === 'admin';
-
   const [query, setQuery] = useState('');
   const [activeCategory, setActiveCategory] = useState('all');
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-  const hasSourcesProp = Boolean(sources && sources.length > 0);
-  const [fetchedSources, setFetchedSources] = useState(() => getMasterPriceSourcesConfig());
-  // Sources passed in by the parent win; otherwise use the ones fetched below
-  const internalSources = hasSourcesProp ? sources : fetchedSources;
-  const [bourseSymbols, setBourseSymbols] = useState([]);
   const containerRef = useRef(null);
-
-  // 1. Fetch the live source list (admin-only endpoint) unless passed in props; everyone else
-  //    keeps the static source config the state starts from
-  useEffect(() => {
-    if (hasSourcesProp || !isAdmin) return undefined;
-    let isMounted = true;
-    getPriceSources()
-      .then((res) => {
-        if (isMounted && res?.success && Array.isArray(res.sources)) {
-          setFetchedSources(res.sources);
-        }
-      })
-      .catch((err) => console.error('Error loading sources:', err));
-    return () => { isMounted = false; };
-  }, [hasSourcesProp, isAdmin]);
-
-  // 2. Preload Bourse symbols once upfront for instant search
-  useEffect(() => {
-    let isMounted = true;
-    searchBourseSymbols('', 2000)
-      .then((res) => {
-        if (isMounted && res?.success && Array.isArray(res.symbols)) {
-          setBourseSymbols(res.symbols);
-        }
-      })
-      .catch((err) => console.error('Error preloading bourse symbols:', err));
-    return () => { isMounted = false; };
-  }, []);
 
   // Close dropdown on outside click
   useEffect(() => {
@@ -455,256 +413,30 @@ export default function UniversalAssetSearch({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  // 3. Build Unified Items List (100% Client-Side, Single Source of Truth via PricingContext)
+  // 3. Every asset of the price book — the one list, the one id and the one price the whole app uses
   const resolvedAssets = pricingContext?.resolvedAssets;
-  const livePriceMap = pricingContext?.priceMap;
-  const allItems = useMemo(() => {
-    const items = [];
-    const seenKeys = new Set();
-    const seenNames = new Set();
-
-    // ── بخش ۱: دارایی‌های کاتالوگ محاسباتی PricingContext ──────────────────────
-    if (resolvedAssets && resolvedAssets.length > 0) {
-      resolvedAssets.forEach((asset) => {
-        const sym = (asset.symbol || asset.code || '').trim();
-        const canonicalId = (asset.id || '').toLowerCase().trim();
-        const normName = normalizeSearchText(asset.name);
-
-        if (seenKeys.has(canonicalId) || (sym && seenKeys.has(sym.toLowerCase()))) return;
-        seenKeys.add(canonicalId);
-        if (sym) seenKeys.add(sym.toLowerCase());
-        seenNames.add(normName);
-
-        const category = getItemCategory(asset);
-        const badge = getItemBadge(asset);
-        const unit = getItemUnit(asset);
-        const spec = getCanonicalAssetSpec(asset.id || sym);
-        const isFund = category === 'bourse_fund' || Boolean(asset.isFund);
-        const aliases = Array.from(new Set([
-          ...(spec?.aliases || asset.aliases || []),
-          sym,
-          asset.name,
-          ...(isFund && sym ? [`صندوق ${sym}`] : []),
-        ])).filter(Boolean);
-        const isMulti = asset.isMultiItem || category === 'currency' || category.startsWith('bourse') || Boolean(asset.sourceName);
-        const sourceName = getSourceBrand(asset) || getSourceDisplayName(asset, internalSources) || asset.sourceName;
-        const subText = isMulti && sourceName
-          ? (sym ? `نماد: ${sym} • ${sourceName}` : sourceName)
-          : (asset.subText || '');
-
-        items.push({
-          id: asset.id,
-          sourceId: asset.sourceId || asset.id,
-          sourceName: sourceName || undefined,
-          priceType: asset.priceType || asset.id,
-          name: asset.name,
-          symbol: sym,
-          subText,
-          badge,
-          badgeClass: category,
-          category,
-          aliases,
-          price: asset.price,
-          unit,
-          type: asset.priceType === 'forex' ? 'forex' : (category.startsWith('bourse') ? 'bourse' : 'standard'),
-          changePercent: asset.changePercent,
-          raw: {
-            ...asset,
-            id: asset.id,
-            symbol: sym,
-            name: asset.name,
-            faName: asset.name,
-            aliases,
-            usdCrossRate: asset.usdCrossRate,
-            priceToman: asset.price,
-            price: asset.price,
-            category,
-            unit,
-            isFund: category === 'bourse_fund',
-            isMultiItem: category === 'currency' || category.startsWith('bourse'),
-          },
-        });
-      });
-    }
-
-    // ── بخش ۲: دارایی‌های پایه استاندارد (Fallback برای تضمین حضور طلا، سکه، نقره، فارکس و کریپتو) ──
-    Object.values(CANONICAL_ASSET_REGISTRY).forEach((spec) => {
-      if (!spec || typeof spec !== 'object') return;
-      const rawId = spec.id || spec.code || spec.symbol;
-      if (!rawId) return;
-      const canonicalId = String(rawId).toLowerCase().trim();
-      if (seenKeys.has(canonicalId)) return;
-      seenKeys.add(canonicalId);
-      if (spec.symbol) seenKeys.add(String(spec.symbol).toLowerCase());
-      if (spec.code) seenKeys.add(String(spec.code).toLowerCase());
-
-      const cat = getItemCategory(spec);
-      const livePrice = livePriceMap?.[spec.id] || livePriceMap?.[canonicalId] || 0;
-      const badge = getItemBadge(spec);
-      const unit = getItemUnit(spec);
-
-      items.push({
-        id: spec.id || canonicalId,
-        sourceId: `src_def_${spec.id || canonicalId}`,
-        priceType: spec.id || canonicalId,
-        name: spec.name,
-        symbol: spec.symbol || spec.code || '',
-        subText: spec.formulaText || '',
-        badge,
-        badgeClass: cat,
-        category: cat,
-        aliases: spec.aliases || [],
-        price: livePrice,
-        unit,
-        type: cat === 'currency' ? 'forex' : 'standard',
-        raw: {
-          ...spec,
-          id: spec.id,
-          name: spec.name,
-          category: cat,
-          aliases: spec.aliases || [],
-          unit,
-          price: livePrice,
-          priceToman: livePrice,
-        },
-      });
-    });
-
-    // ── بخش ۳: سورس‌های چند خروجی و فیدهای فعال (صندوق‌های مفید، کاریزما، فارکس، و ...) ──
-    internalSources.forEach((src) => {
-      const isActive = src.isActive === 1 || src.isActive === true || src.is_active === 1 || src.is_active === true;
-      if (!isActive) return;
-      const isMulti = isSourceMultiOutput(src, priceTypeInfo);
-      if (!isMulti) return;
-
-      const subItems = extractMultiItems(src);
-      subItems.forEach((sub) => {
-        const symCode = (sub.id || sub.symbol || sub.s || '').trim();
-        const itemName = (sub.name || sub.n || symCode).trim();
-        if (!symCode && !itemName) return;
-
-        const isForex = src.priceType === 'forex';
-        const isCatalog = Boolean(src.isCatalog || src.category === 'catalog');
-        const itemKey = (sub.id || (isCatalog && symCode ? `${src.priceType || 'item'}_${symCode}` : `${src.id}::${symCode || itemName}`)).toLowerCase();
-
-        if (seenKeys.has(itemKey) || (symCode && seenKeys.has(symCode.toLowerCase()))) return;
-        seenKeys.add(itemKey);
-        if (symCode) seenKeys.add(symCode.toLowerCase());
-
-        const category = getItemCategory(sub, src);
-        const isFund = category === 'bourse_fund';
-        const badge = getItemBadge(sub, src);
-
-        let priceToman = Number(sub.price !== undefined ? sub.price : (sub.priceToman !== undefined ? sub.priceToman : (sub.p || 0)));
-        if (priceToman === 0 && sub.priceRial) priceToman = Math.round(Number(sub.priceRial) / 10);
-        const unit = getItemUnit(sub, src);
-
-        const sourceName = getSourceBrand(src) || getSourceDisplayName(sub, internalSources) || sub.sourceName || src.name;
-        const subDetails = symCode
-          ? (sourceName ? `نماد: ${symCode} • ${sourceName}` : `نماد: ${symCode}`)
-          : (sourceName || '');
-
-        items.push({
-          id: itemKey,
-          sourceId: src.id,
-          sourceName,
-          symbol: symCode,
-          name: itemName,
-          subText: subDetails,
-          badge,
-          badgeClass: category,
-          category,
-          aliases: [symCode, itemName, isFund ? `صندوق ${symCode}` : symCode],
-          price: priceToman,
-          unit,
-          type: sub.type || (isForex ? 'forex' : (src.priceType || 'source')),
-          changePercent: Number(sub.changePercent ?? sub.cp ?? 0),
-          raw: {
-            ...sub,
-            symbol: symCode,
-            name: itemName,
-            category,
-            unit,
-            price: priceToman,
-            priceToman,
-            sourceName,
-            isFund,
-          },
-        });
-      });
-    });
-
-    // ── بخش ۴: نمادهای سهام و صندوق‌های بورس اوراق بهادار تهران (۲۰۰۰+ نماد) ──────
-    if (bourseSymbols && bourseSymbols.length > 0) {
-      bourseSymbols.forEach((sub) => {
-        const symCode = (sub.id || sub.symbol || sub.s || '').trim();
-        const itemName = (sub.name || sub.title || sub.n || symCode).trim();
-        if (!symCode && !itemName) return;
-
-        const canonicalId = `bourse_${symCode}`.toLowerCase();
-        if (seenKeys.has(canonicalId) || (symCode && seenKeys.has(symCode.toLowerCase()))) return;
-        seenKeys.add(canonicalId);
-        if (symCode) seenKeys.add(symCode.toLowerCase());
-
-        const category = getItemCategory(sub, { id: 'src_def_bourse', category: sub.isFund ? 'bourse_fund' : 'bourse' });
-        const isFund = category === 'bourse_fund';
-        const badge = getItemBadge(category);
-        const badgeClass = category;
-
-        let priceToman = 0;
-        if (livePriceMap) {
-          priceToman = livePriceMap[symCode] || livePriceMap[canonicalId] || 0;
-        }
-        if (!priceToman) {
-          if (sub.price !== undefined) priceToman = Number(sub.price);
-          else if (sub.priceToman !== undefined) priceToman = Number(sub.priceToman);
-          else if (sub.priceRial !== undefined) priceToman = Math.round(Number(sub.priceRial) / 10);
-          else priceToman = Number(sub.p || 0);
-        }
-
-        const unit = getItemUnit(sub, { id: 'src_def_bourse', category });
-        const sourceName = getSourceDisplayName(sub, internalSources) || sub.sourceName || 'بورس اوراق بهادار تهران (TSETMC / BRS API)';
-        const subDetails = symCode
-          ? (sourceName ? `نماد: ${symCode} • ${sourceName}` : `نماد: ${symCode}`)
-          : sourceName;
-
-        const displayName = isFund && !itemName.includes(symCode)
-          ? `${itemName} (${symCode})`
-          : itemName;
-
-        items.push({
-          id: `bourse_${symCode}`,
-          sourceId: sub.sourceId || 'src_def_bourse',
-          sourceName,
-          symbol: symCode,
-          name: displayName,
-          subText: subDetails,
-          badge,
-          badgeClass,
-          category,
-          aliases: [symCode, itemName, isFund ? `صندوق ${symCode}` : `سهام ${symCode}`],
-          price: priceToman,
-          unit,
-          type: 'bourse',
-          changePercent: Number(sub.changePercent ?? sub.cp ?? sub.plp ?? 0),
-          raw: {
-            ...sub,
-            id: `bourse_${symCode}`,
-            symbol: symCode,
-            name: displayName,
-            priceToman,
-            price: priceToman,
-            sourceName,
-            isFund,
-            category,
-            unit,
-          },
-        });
-      });
-    }
-
-    return items;
-  }, [resolvedAssets, livePriceMap, bourseSymbols, internalSources, priceTypeInfo]);
+  const allItems = useMemo(() => (resolvedAssets || []).map((asset) => {
+    const category = asset.category || 'custom';
+    const isBourse = category.startsWith('bourse');
+    return {
+      id: asset.id,
+      sourceId: asset.sourceId || null,
+      sourceName: asset.sourceName || undefined,
+      name: asset.name,
+      symbol: asset.symbol || '',
+      subText: asset.subText || '',
+      badge: asset.badge,
+      badgeClass: category,
+      category,
+      aliases: asset.aliases || [],
+      price: asset.price,
+      unit: asset.unit,
+      type: category === 'currency' ? 'forex' : (isBourse ? 'bourse' : 'standard'),
+      changePercent: asset.changePercent,
+      isFund: asset.isFund,
+      raw: asset,
+    };
+  }), [resolvedAssets]);
 
   // 4. Pure Client-Side Instant Search Filter with Scoring, Category Filter, and Tokenized Matching
   const filteredItems = useMemo(() => {
@@ -793,11 +525,8 @@ export default function UniversalAssetSearch({
 
   const isItemActive = (item) => {
     const targetId = selectedAssetId || (selectedAsset?.id ? selectedAsset.id : null);
-    if (!targetId) return false;
-    if (item.id === targetId) return true;
-    if (item.symbol && targetId === `bourse_${item.symbol}`) return true;
-    if (item.sourceId && item.sourceId === targetId) return true;
-    return false;
+    // A stored id may be an older form of the book id
+    return Boolean(targetId) && item.id === toPriceId(targetId, pricingContext?.itemMap);
   };
 
   const handleSelectItem = (item) => {
@@ -832,7 +561,7 @@ export default function UniversalAssetSearch({
                   {getAssetIcon(selectedAsset)}
                 </div>
                 <strong className="universal-active-name">
-                  {(priceTypeInfo && priceTypeInfo[selectedAsset?.priceType]?.label) || selectedAsset?.name || 'انتخاب نشده'}
+                  {selectedAsset?.name || 'انتخاب نشده'}
                 </strong>
               </div>
             </div>

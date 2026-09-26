@@ -13,6 +13,8 @@ import {
   reorderItems,
 } from '../../../web/src/features/home/homeLayoutModel.js';
 import { buildAssetIndex, resolveHomeAsset } from '../../../web/src/features/home/homeAssets.js';
+import { bookToAssets } from '../../../web/src/features/market/priceBookAssets.js';
+import { normalizeLayoutIds } from '../../../web/src/features/home/homeLayoutModel.js';
 
 const ctx = {
   analysis: [
@@ -41,7 +43,7 @@ describe('home layout model', () => {
     const layout = buildDefaultLayout(ctx);
     expect(layout.sections.map((s) => [s.style, s.items])).toEqual([
       ['detailed', ['gold_18k', 'full_coin']],
-      ['compact', ['USD', 'EUR', 'KWD']],
+      ['compact', ['usd', 'eur', 'kwd']],
     ]);
   });
 
@@ -96,10 +98,18 @@ describe('drag & drop reordering', () => {
     ],
   };
 
-  it('moves an item to the position of the one it is dropped on', () => {
-    expect(reorderItems(base, 'a', 'TRY', 'EUR').sections[0].items).toEqual(['USD', 'TRY', 'EUR', 'AED']);
-    expect(reorderItems(base, 'a', 'USD', 'AED').sections[0].items).toEqual(['EUR', 'AED', 'USD', 'TRY']);
-    expect(reorderItems(base, 'a', 'USD', 'missing').sections[0].items).toEqual(['USD', 'EUR', 'AED', 'TRY']);
+  it('moves an item to the position of the one it is dropped on (ids as price book ids)', () => {
+    const l = normalizeLayoutIds(base);
+    expect(l.sections[0].items).toEqual(['usd', 'eur', 'aed', 'try']);
+    expect(reorderItems(l, 'a', 'try', 'eur').sections[0].items).toEqual(['usd', 'try', 'eur', 'aed']);
+    expect(reorderItems(l, 'a', 'usd', 'aed').sections[0].items).toEqual(['eur', 'aed', 'usd', 'try']);
+    expect(reorderItems(l, 'a', 'usd', 'missing').sections[0].items).toEqual(['usd', 'eur', 'aed', 'try']);
+  });
+
+  it('turns an old stored layout\'s ids into price book ids', () => {
+    const old = { version: 1, sections: [{ id: 'x', title: '', style: 'compact', items: ['USD', 'src_def_gold_18k', 'bourse_فولاد', 'XAU'] }] };
+    expect(normalizeLayoutIds(old).sections[0].items).toEqual(['usd', 'gold_18k', 'src_def_bourse__فولاد', 'ons_gold']);
+    expect(normalizeLayoutIds(null)).toBeNull();
   });
 
   it('moves a section to the position of the one it is dropped on', () => {
@@ -110,21 +120,22 @@ describe('drag & drop reordering', () => {
 });
 
 describe('resolving any asset for a home card', () => {
-  const index = buildAssetIndex(ctx);
+  const book = {
+    items: {
+      gold_18k: { id: 'gold_18k', price: 5_000_000, name: 'طلای ۱۸', category: 'gold', unit: 'گرم', params: { intrinsic: 4_000_000 } },
+      usd: { id: 'usd', price: 100_000, name: 'دلار', category: 'currency', unit: 'دلار', params: {} },
+      btc: { id: 'btc', price: 9_000_000_000, name: 'بیت‌کوین', category: 'crypto', unit: 'عدد', params: { changePercent: -2.5 } },
+      'src_def_bourse__فولاد': { id: 'src_def_bourse__فولاد', price: 5_400, name: 'فولاد مبارکه', category: 'bourse', unit: 'سهم', params: { symbol: 'فولاد', sourceName: 'بورس' } },
+    },
+  };
+  const index = buildAssetIndex({ itemMap: bookToAssets(book).itemMap, analysis: ctx.analysis });
 
-  it('gold keeps its bubble analysis, currencies their quote, anything else its catalog data', () => {
+  it('shows the price book\'s price in tomans, with the calculator\'s analysis for gold', () => {
+    expect(resolveHomeAsset('gold_18k', index)).toMatchObject({ price: 5_000_000, unit: 'تومان', perUnit: 'گرم' });
     expect(resolveHomeAsset('gold_18k', index).analysis).toMatchObject({ market: 5_000_000 });
-    expect(resolveHomeAsset('USD', index)).toMatchObject({ found: true, flag: '🇺🇸', price: 100_000, category: 'currency' });
-    expect(resolveHomeAsset('BTC', index)).toMatchObject({ found: true, price: 9_000_000_000, changePercent: -2.5, category: 'crypto' });
-    expect(resolveHomeAsset('tsetmc__foolad', index)).toMatchObject({ found: true, sourceName: 'بورس', category: 'bourse' });
+    expect(resolveHomeAsset('USD', index)).toMatchObject({ id: 'usd', found: true, flag: '🇺🇸', price: 100_000, category: 'currency' });
+    expect(resolveHomeAsset('btc', index)).toMatchObject({ found: true, price: 9_000_000_000, changePercent: -2.5, category: 'crypto' });
+    expect(resolveHomeAsset('bourse_فولاد', index)).toMatchObject({ found: true, sourceName: 'بورس', category: 'bourse' });
     expect(resolveHomeAsset('nope', index)).toEqual({ id: 'nope', found: false });
-  });
-
-  it('a gold item without a market quote keeps its computed price', () => {
-    const idx = buildAssetIndex({
-      assets: [{ id: 'gold_18k', name: 'طلای ۱۸', category: 'gold', price: 3_600_000, unit: 'گرم' }],
-      analysis: [{ id: 'gold_18k', name: 'طلای ۱۸', market: null, intrinsic: 3_600_000 }],
-    });
-    expect(resolveHomeAsset('gold_18k', idx).price).toBe(3_600_000);
   });
 });

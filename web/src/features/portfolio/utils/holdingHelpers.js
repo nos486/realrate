@@ -11,7 +11,6 @@ import {
   Wallet,
 } from 'lucide-react';
 import {
-  getCanonicalAssetSpec,
   resolveItemCategory,
   PORTFOLIO_CATEGORIES,
   resolveHoldingUnitRealPrice,
@@ -21,6 +20,8 @@ import {
   resolveAssetUnit,
 } from '../../../utils/financialSpecs.js';
 import { getCategoryIconName, getItemBrand, getItemCategory } from '../../../config/displayEngine.js';
+import { toPriceId, isCustomAssetId } from '../../../utils/priceIds.js';
+import { assetOf, priceOf } from '../../market/priceBookAssets.js';
 
 export {
   resolveHoldingUnitRealPrice,
@@ -44,29 +45,16 @@ export {
 export function resolveSelectedAsset(asset) {
   if (!asset) return null;
   const rawItem = asset.raw || asset;
-  const rawId = asset.id || rawItem.id || rawItem.priceType || rawItem.symbol || '';
-  const cleanId = String(rawId).replace(/^src_def_/, '').replace(/^derived_/, '');
-  const canonicalSpec = getCanonicalAssetSpec(cleanId || rawId || rawItem.symbol);
-  const resolvedId = canonicalSpec?.id || cleanId || rawId;
-  const resolvedCat = getItemCategory(rawItem);
-  const resolvedUnit = resolveAssetUnit(resolvedId, rawItem);
-  const isCustom = resolvedCat === 'custom' || resolvedId === 'custom' || String(resolvedId).startsWith('custom_');
-  const isBourse = asset.sourceId === 'src_def_bourse' || rawItem.sourceId === 'src_def_bourse';
-
-  if (isCustom) return null;
-
-  if (isBourse) {
-    const symCode = (rawItem.symbol || rawItem.s || String(resolvedId).replace('bourse_', '')).trim();
-    const finalId = String(resolvedId).includes('__') ? resolvedId : `bourse_${symCode}`;
-    return { id: finalId, name: resolveAssetDisplayName(finalId, rawItem), unit: resolvedUnit, category: resolvedCat };
-  }
-
-  return { id: resolvedId, name: resolveAssetDisplayName(resolvedId, rawItem), unit: resolvedUnit, category: resolvedCat };
+  const category = asset.category || getItemCategory(rawItem);
+  if (category === 'custom' || isCustomAssetId(asset.id)) return null;
+  // Picked assets come from the price book: their id is the one to store
+  const id = toPriceId(asset.id || rawItem.id);
+  return { id, name: asset.name || resolveAssetDisplayName(id, rawItem), unit: asset.unit || resolveAssetUnit(id, rawItem), category };
 }
 
 /**
  * Resolve the current Toman price of ONE unit of any asset — the same lookup the whole
- * app already uses (pricing.priceMap / itemMap from computeUnifiedPrices, the single
+ * app already uses (pricing.priceMap / itemMap from the price book, the single
  * pricing engine), never a separate computation of our own. For gold/coin/silver
  * specifically this deliberately prefers intrinsicPrice (pure world-spot-based value)
  * over the domestic market price, since a swap's reference value should track the
@@ -79,16 +67,11 @@ export function resolveSelectedAsset(asset) {
  */
 export function resolveReferencePriceToman(assetId, priceMap = {}, itemMap = {}) {
   if (!assetId) return 0;
-  const cleanId = String(assetId).replace(/^src_def_/, '').replace(/^derived_/, '');
-  const item = itemMap?.[assetId] || itemMap?.[cleanId] || itemMap?.[assetId.toLowerCase?.()] || null;
-  const category = item?.category || getItemCategory(assetId);
-
-  if (['gold', 'coin', 'silver'].includes(category) && Number(item?.intrinsicPrice) > 0) {
+  const item = assetOf(itemMap, assetId);
+  if (['gold', 'coin', 'silver'].includes(item?.category) && Number(item?.intrinsicPrice) > 0) {
     return Math.round(Number(item.intrinsicPrice));
   }
-
-  const live = Number(priceMap?.[assetId] || priceMap?.[cleanId] || 0);
-  return live > 0 ? Math.round(live) : 0;
+  return Math.round(priceOf(priceMap, assetId));
 }
 
 /**
@@ -114,8 +97,7 @@ export function computeReferenceAssetPnl(item, priceMap = {}, itemMap = {}) {
   const currentRefPrice = resolveReferencePriceToman(item.referenceAssetId, priceMap, itemMap);
   if (currentRefPrice <= 0) return null;
 
-  const cleanId = String(item.referenceAssetId).replace(/^src_def_/, '').replace(/^derived_/, '');
-  const refItem = itemMap?.[item.referenceAssetId] || itemMap?.[cleanId] || null;
+  const refItem = assetOf(itemMap, item.referenceAssetId);
 
   const referenceCurrentValue = referenceQuantity * currentRefPrice;
   const referencePnl = Number(item.itemRealVal || 0) - referenceCurrentValue;
@@ -171,13 +153,11 @@ export function normalizeHolding(h, itemMap = null) {
         : 0)
   );
 
-  const cleanId = assetId.replace(/^src_def_/, '').replace(/^derived_/, '');
+  const cleanId = isCustomAssetId(assetId) ? assetId : toPriceId(assetId, itemMap);
 
-  // Live itemMap lookup — if a catalog entry exists, we enrich the raw holding
-  // with its real name and sourceId so display engine resolves brand correctly.
-  const liveItem = itemMap
-    ? (itemMap[assetId] || itemMap[cleanId] || itemMap[assetId?.toLowerCase()] || null)
-    : null;
+  // The asset in the price book (old stored ids resolve too): its name and source win
+  const liveItem = isCustomAssetId(assetId) ? null : assetOf(itemMap, assetId);
+  if (liveItem) assetId = liveItem.id;
 
   // Allow live catalog data to override the pattern-based category detection.
   // This fixes legacy ids like "atieh" which resolve to "bourse" by pattern but
@@ -268,11 +248,8 @@ export function formatAssetName(item, itemMap = null) {
     const raw = item.assetName || item.name || '';
     return raw.replace(/\s*\([^)]*\)/g, '').trim() || raw || 'دارایی';
   }
-  // Live itemMap lookup: if live catalog data is available use it for name resolution
-  const cleanId = String(assetId).replace(/^src_def_/, '').replace(/^derived_/, '');
-  const liveItem = itemMap
-    ? (itemMap[assetId] || itemMap[cleanId] || itemMap[assetId?.toLowerCase()] || null)
-    : null;
+  // The asset in the price book (old stored ids resolve too) gives the name
+  const liveItem = assetOf(itemMap, assetId);
   const rawForDisplay = liveItem
     ? { ...item, name: liveItem.name, sourceId: liveItem.sourceId || liveItem.source, category: liveItem.category }
     : item;
