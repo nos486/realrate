@@ -1,13 +1,15 @@
 /**
- * calculator.js — Pure client-side gold, currency, and bubble calculation engine
- * Zero latency, 100% synchronous in-memory calculation
+ * calculator.js — The home calculator: intrinsic value and bubble of gold and coins at the rates
+ * the user entered
+ *
+ * Market prices are never computed here: every price is the price book's (tomans, one id per
+ * item). The user's dollar and ounce rates only decide the intrinsic values, bubbles and the
+ * recommendation.
  */
 
 import {
   GOLD_SPECS,
   COIN_SPECS,
-  CURRENCY_METADATA_MAP,
-  getCanonicalAssetSpec,
   getCanonicalAssetName,
   calculateGold24kGram,
   calculateIntrinsicValue,
@@ -16,35 +18,37 @@ import {
   calculateSilverOunce,
   calculateBubble,
 } from './financialSpecs.js';
+import { BASE_PRICE_IDS, SPEC_BY_ID } from './priceBook.js';
 
-// Re-export dynamic currency metadata map (backed by financialSpecs.js single source of truth)
-export { CURRENCY_METADATA_MAP };
-
+/** The gold and coins the calculator analyzes, with their target bubble setting */
+const ANALYZED = [
+  { id: 'gold_18k', spec: GOLD_SPECS.gold_18k, setting: null },
+  { id: 'mesghal', spec: GOLD_SPECS.mesghal, setting: null },
+  { id: 'full_coin', spec: COIN_SPECS.full_coin, setting: 'bubble_pct_full' },
+  { id: 'half_coin', spec: COIN_SPECS.half_coin, setting: 'bubble_pct_half' },
+  { id: 'quarter_coin', spec: COIN_SPECS.quarter_coin, setting: 'bubble_pct_quarter' },
+];
 
 /**
- * Perform all financial, gold, coin bubble, and currency conversions on the client
  * @param {object} params
- * @param {number} params.usdToman
- * @param {number} params.goldUsd
- * @param {number} [params.silverUsd]
- * @param {object} [params.marketPrices]
- * @param {object} [params.forex]
+ * @param {number} params.usdToman - the dollar rate the user entered (or the live one)
+ * @param {number} params.goldUsd - the gold ounce in dollars
+ * @param {number} [params.silverUsd] - the silver ounce in dollars
+ * @param {{ items?: Record<string, object> }|null} [params.book] - the price book
  * @param {object} [params.globalSettings]
  * @returns {object} calcData
  */
 export function calculateMarketData({
   usdToman = 0,
   goldUsd = 0,
-  silverUsd = null,
-  marketPrices = {},
-  forex = {},
+  silverUsd = 0,
+  book = null,
   globalSettings = {},
 }) {
+  const items = book?.items || {};
   const usd_toman = Number(usdToman) || 0;
-  const gold_usd = Number(goldUsd) || Number(marketPrices?.ons_gold?.price) || 0;
-  const silver_usd = silverUsd !== null && silverUsd !== undefined
-    ? Number(silverUsd)
-    : (Number(marketPrices?.ons_silver?.price) || 0);
+  const gold_usd = Number(goldUsd) || Number(items[BASE_PRICE_IDS.goldOunce]?.params?.usd) || 0;
+  const silver_usd = Number(silverUsd) || Number(items[BASE_PRICE_IDS.silverOunce]?.params?.usd) || 0;
 
   if (!usd_toman || usd_toman <= 0) {
     return {
@@ -54,37 +58,34 @@ export function calculateMarketData({
     };
   }
 
-  // 1. Gold intrinsic calculations (canonical specifications)
-  const gold_24k_gram = calculateGold24kGram(gold_usd, usd_toman);
-  const gold_18k_gram = calculateIntrinsicValue(GOLD_SPECS.gold_18k, gold_usd, usd_toman);
-  const mesghal_17k = calculateIntrinsicValue(GOLD_SPECS.mesghal, gold_usd, usd_toman);
-  const full_intrinsic = calculateIntrinsicValue(COIN_SPECS.full_coin, gold_usd, usd_toman);
-  const half_intrinsic = calculateIntrinsicValue(COIN_SPECS.half_coin, gold_usd, usd_toman);
-  const quarter_intrinsic = calculateIntrinsicValue(COIN_SPECS.quarter_coin, gold_usd, usd_toman);
-
-  function analyzeItem(id, name, intrinsic, targetBubblePct, marketItem) {
-    const market = marketItem && typeof marketItem.price === 'number' && marketItem.price > 0
-      ? marketItem.price
-      : null;
+  // 1. Gold and coins: the book's market price against the intrinsic value at these rates
+  const itemsAnalysis = ANALYZED.map(({ id, spec, setting }) => {
+    const item = items[id] || null;
+    const intrinsic = calculateIntrinsicValue(spec, gold_usd, usd_toman);
+    const targetBubblePct = Number(
+      (setting ? globalSettings?.[setting] : null) ?? item?.params?.targetBubblePct ?? spec.targetBubblePct ?? 0,
+    );
     const expected_price = Math.round(intrinsic * (1 + targetBubblePct / 100));
+    // Only a price a source gave is a market price (an intrinsic-only item is not)
+    const market = item?.sourceId && item.price > 0 ? item.price : null;
 
     let bubble = null;
     let bubble_pct = null;
     let diff_from_expected = null;
     let diff_from_expected_pct = null;
-
     if (market !== null) {
       const bData = calculateBubble(market, intrinsic);
       bubble = bData.bubble;
       bubble_pct = bData.bubblePct;
       diff_from_expected = market - expected_price;
-      diff_from_expected_pct = parseFloat(((diff_from_expected / expected_price) * 100).toFixed(1));
+      diff_from_expected_pct = expected_price
+        ? parseFloat(((diff_from_expected / expected_price) * 100).toFixed(1))
+        : null;
     }
-
 
     return {
       id,
-      name,
+      name: getCanonicalAssetName(id, spec.name),
       intrinsic: Math.round(intrinsic),
       target_bubble_pct: targetBubblePct,
       expected_price,
@@ -93,21 +94,13 @@ export function calculateMarketData({
       bubble_pct,
       diff_from_expected: diff_from_expected !== null ? Math.round(diff_from_expected) : null,
       diff_from_expected_pct,
-      updated_at: marketItem ? marketItem.datetime : null,
-      showOnHomePage: marketItem?.showOnHomePage !== undefined ? Boolean(marketItem.showOnHomePage) : true,
+      updated_at: item?.updatedAt || null,
+      showOnHomePage: !item?.params?.hideOnHome,
     };
-  }
-
-  const itemsAnalysis = [
-    analyzeItem('gold_18k', getCanonicalAssetName('gold_18k', 'طلا ۱۸ عیار'), gold_18k_gram, 0, marketPrices?.gold_18k),
-    analyzeItem('mesghal', getCanonicalAssetName('mesghal', 'مثقال طلا (مظنه)'), mesghal_17k, 0, marketPrices?.mesghal),
-    analyzeItem('full_coin', getCanonicalAssetName('full_coin', 'سکه تمام بهار آزادی'), full_intrinsic, globalSettings?.bubble_pct_full ?? 15, marketPrices?.full_coin),
-    analyzeItem('half_coin', getCanonicalAssetName('half_coin', 'نیم سکه بهار آزادی'), half_intrinsic, globalSettings?.bubble_pct_half ?? 20, marketPrices?.half_coin),
-    analyzeItem('quarter_coin', getCanonicalAssetName('quarter_coin', 'ربع سکه بهار آزادی'), quarter_intrinsic, globalSettings?.bubble_pct_quarter ?? 25, marketPrices?.quarter_coin),
-  ];
+  });
 
   // Recommendation: lowest bubble percentage (only considering visible items)
-  const availableItems = itemsAnalysis.filter(i => i.market !== null && i.bubble_pct !== null && i.showOnHomePage !== false);
+  const availableItems = itemsAnalysis.filter((i) => i.market !== null && i.bubble_pct !== null && i.showOnHomePage);
   let recommendation = null;
   if (availableItems.length > 0) {
     const best = [...availableItems].sort((a, b) => a.bubble_pct - b.bubble_pct)[0];
@@ -119,168 +112,29 @@ export function calculateMarketData({
     };
   }
 
-  // 2. Currencies sourced dynamically from active sources in marketPrices / forex
-  const seenCodes = new Set(['USD']);
-  const usdSource = marketPrices?.usd_toman || marketPrices?.usd;
-  const showUsdOnHome = true;
-  const usdSpec = getCanonicalAssetSpec('USD') || {};
-  const cashUsdPrice = Number(usdSource?.price) > 0 ? Math.round(Number(usdSource.price)) : Math.round(usd_toman);
-  const currencies = [
-    {
-      code: 'USD',
-      priceType: 'usd',
-      name: usdSpec.name || 'دلار',
-      flag: usdSpec.flag || '🇺🇸',
-      symbol: usdSpec.symbol || '$',
-      usd_cross_rate: 1.0,
-      toman_price: cashUsdPrice,
-      note: 'نرخ دلار نقدی بازار آزاد',
-      showOnHomePage: showUsdOnHome,
-      aliases: usdSpec.aliases || ['دلار', 'USD'],
-    },
-  ];
-
-  // ── Global Benchmark Assets (World Gold Ounce - XAU) ─────────────────────────
-  if (gold_usd > 0) {
-    const onsSpec = getCanonicalAssetSpec('ons_gold') || {};
-    const onsToman = usd_toman > 0 ? Math.round(gold_usd * usd_toman) : 0;
-    currencies.push({
-      code: onsSpec.code || 'XAU',
-      id: 'ons_gold',
-      priceType: 'ons_gold',
-      name: onsSpec.name || 'انس طلای جهانی',
-      flag: onsSpec.flag || '🪙',
-      symbol: onsSpec.symbol || 'XAU',
-      unit: onsSpec.unit || 'دلار',
-      price: gold_usd,
-      usd_price: gold_usd,
-      toman_price: onsToman,
-      usd_cross_rate: gold_usd,
-      subPriceText: onsToman > 0 ? `${Math.round(onsToman).toLocaleString('fa-IR')} تومان` : null,
-      note: onsToman > 0 ? `معادل ${Math.round(onsToman).toLocaleString('fa-IR')} تومان` : 'نرخ لحظه‌ای بازارهای جهانی',
-      showOnHomePage: true,
-      aliases: onsSpec.aliases || ['انس', 'اونس', 'XAU', 'طلا'],
-    });
-  }
-
-  // Collect candidate currency keys dynamically from marketPrices and forex
-  const candidateKeys = new Set();
-  const nonCurrencyKeys = new Set([
-    'usd', 'usd_toman', 'gold_18k', 'gold_24k', 'gold_melted', 'mesghal',
-    'full_coin', 'half_coin', 'quarter_coin', 'gerami_coin',
-    'ons_gold', 'ons_silver', 'bourse', 'bourse_fund', 'forex', 'custom_feed',
-    'multi_output', 'last_updated', 'price', 'rates', 'datetime', 'label',
-    'sourceid', 'isprimary', 'showonhomepage'
-  ]);
-
-  if (forex && typeof forex === 'object') {
-    Object.keys(forex).forEach((k) => {
-      const lower = k.toLowerCase();
-      const upper = k.toUpperCase();
-      if (!nonCurrencyKeys.has(lower) && upper.length >= 2 && upper.length <= 6) {
-        candidateKeys.add(upper);
-      }
-    });
-  }
-  if (marketPrices && typeof marketPrices === 'object') {
-    Object.keys(marketPrices).forEach((k) => {
-      const lower = k.toLowerCase();
-      const upper = k.toUpperCase();
-      if (!nonCurrencyKeys.has(lower) && upper.length >= 2 && upper.length <= 6) {
-        candidateKeys.add(upper);
-      }
-    });
-  }
-
-  // Priority order for display (prominent currencies, gold ounce, and digital currencies first)
-  const DEFAULT_PRIORITY_ORDER = ['USD', 'USDT', 'XAU', 'EUR', 'AED', 'TRY', 'GBP', 'CHF', 'CAD', 'AUD', 'CNY', 'JPY'];
-  const sortedCandidateKeys = Array.from(candidateKeys).sort((a, b) => {
-    const idxA = DEFAULT_PRIORITY_ORDER.indexOf(a);
-    const idxB = DEFAULT_PRIORITY_ORDER.indexOf(b);
-    if (idxA !== -1 && idxB !== -1) return idxA - idxB;
-    if (idxA !== -1) return -1;
-    if (idxB !== -1) return 1;
-    return a.localeCompare(b);
-  });
-
-  sortedCandidateKeys.forEach((code) => {
-    if (code === 'USD' || nonCurrencyKeys.has(code.toLowerCase()) || seenCodes.has(code)) return;
-    const lowerKey = code.toLowerCase();
-    const srcData = marketPrices?.[lowerKey] || marketPrices?.[code];
-    const rawVal = Number(srcData?.price !== undefined ? srcData.price : (forex?.[code] !== undefined ? forex[code] : (forex?.[lowerKey] !== undefined ? forex[lowerKey] : null)));
-
-    if (rawVal && rawVal > 0) {
-      seenCodes.add(code);
-      const meta = CURRENCY_METADATA_MAP[code] || {
-        name: srcData?.label ? srcData.label.replace(/\(.*\)/, '').trim() : `${code}`,
-        flag: '🌐',
-        symbol: code,
+  // 2. Currencies (and the gold ounce), at their book prices
+  const bookUsd = Number(items[BASE_PRICE_IDS.usd]?.price) || 0;
+  const currencies = Object.values(items)
+    .filter((item) => item.category === 'currency' || item.id === BASE_PRICE_IDS.goldOunce)
+    .map((item) => {
+      const spec = SPEC_BY_ID.get(item.id) || {};
+      const p = item.params || {};
+      const crossRate = p.usdCross ?? p.usd ?? (bookUsd ? item.price / bookUsd : null);
+      return {
+        id: item.id,
+        code: String(spec.code || item.id).toUpperCase(),
+        priceType: item.id,
+        name: item.name,
+        flag: spec.flag || '🌐',
+        symbol: spec.symbol || String(spec.code || item.id).toUpperCase(),
+        usd_cross_rate: crossRate !== null ? parseFloat(Number(crossRate).toFixed(4)) : null,
+        toman_price: item.price,
+        sourceId: item.sourceId,
+        showOnHomePage: !p.hideOnHome,
       };
+    });
 
-      let crossRate = 1.0;
-      let tomanPrice = 0;
-      let note = '';
-
-      if (rawVal >= 1000) {
-        // Direct Toman price feed (e.g. USDT, local crypto/forex feeds)
-        tomanPrice = Math.round(rawVal);
-        crossRate = usd_toman > 0 ? parseFloat((tomanPrice / usd_toman).toFixed(4)) : 1.0;
-        const diffFromUsd = usd_toman > 0 ? ((tomanPrice - usd_toman) / usd_toman) * 100 : 0;
-        if (Math.abs(diffFromUsd) < 10) {
-          note = diffFromUsd >= 0
-            ? `${Math.abs(diffFromUsd).toFixed(1)}٪+ نسبت به اسکناس دلار`
-            : `${Math.abs(diffFromUsd).toFixed(1)}٪- نسبت به اسکناس دلار`;
-        } else {
-          note = 'نرخ لحظه‌ای بازار';
-        }
-      } else {
-        // Forex cross-rate quoted against USD (e.g. 1.08 for EUR, 0.272 for AED)
-        crossRate = rawVal;
-        tomanPrice = Math.round(crossRate * usd_toman);
-        note = crossRate > 1
-          ? `۱ ${meta.name.split(' ')[0]} = ${crossRate.toFixed(4)} دلار`
-          : `۱ دلار = ${(1 / crossRate).toFixed(2)} ${meta.name.split(' ')[0]}`;
-      }
-
-      let isHome = true;
-      if (srcData?.showOnHomePage !== undefined) {
-        isHome = Boolean(srcData.showOnHomePage);
-      } else {
-        const parentMulti = marketPrices?.forex || marketPrices?.src_def_forex;
-        const parentDc = parentMulti?.displayConfig;
-        if (parentDc) {
-          const dc = typeof parentDc === 'string' ? (() => { try { return JSON.parse(parentDc); } catch { return {}; } })() : parentDc;
-          const allowed = dc.homePageOutputs || dc.homeOutputs || (Array.isArray(dc.showOnHomePage) ? dc.showOnHomePage : null);
-          if (Array.isArray(allowed)) {
-            isHome = allowed.map((x) => String(x).toUpperCase()).includes(code.toUpperCase());
-          } else if (dc.showOnHomePage === false) {
-            isHome = false;
-          }
-        }
-      }
-
-      currencies.push({
-        code,
-        priceType: lowerKey,
-        name: meta.name || srcData?.label || code,
-        flag: meta.flag,
-        symbol: meta.symbol,
-        usd_cross_rate: parseFloat(crossRate.toFixed(4)),
-        toman_price: tomanPrice,
-        note,
-        sourceLabel: srcData?.label,
-        sourceId: srcData?.sourceId,
-        showOnHomePage: isHome,
-      });
-    }
-  });
-
-  const quick_currencies = {};
-  currencies.forEach((c) => {
-    quick_currencies[c.code] = c.toman_price;
-  });
-
-  // 3. Silver calculations (canonical formulas from financialSpecs.js)
+  // 3. Silver at these rates
   const silver_999_gram = calculateSilverGram(silver_usd, usd_toman);
   const silver_925_gram = calculateSilver925(silver_usd, usd_toman);
   const silver_ounce = calculateSilverOunce(silver_usd, usd_toman);
@@ -290,9 +144,9 @@ export function calculateMarketData({
     timestamp: new Date().toISOString(),
     inputs: { usd_toman, gold_usd, silver_usd },
     gold: {
-      gold_24k_gram: Math.round(gold_24k_gram),
-      gold_18k_gram: Math.round(gold_18k_gram),
-      mesghal_17k: Math.round(mesghal_17k),
+      gold_24k_gram: Math.round(calculateGold24kGram(gold_usd, usd_toman)),
+      gold_18k_gram: Math.round(calculateIntrinsicValue(GOLD_SPECS.gold_18k, gold_usd, usd_toman)),
+      mesghal_17k: Math.round(calculateIntrinsicValue(GOLD_SPECS.mesghal, gold_usd, usd_toman)),
       bank_gram_intrinsic: calculateIntrinsicValue(COIN_SPECS.gerami_coin, gold_usd, usd_toman),
     },
     silver: {
@@ -301,9 +155,7 @@ export function calculateMarketData({
       silver_925_gram: Math.round(silver_925_gram),
       silver_ounce: Math.round(silver_ounce),
     },
-    quick_currencies,
     currencies,
-    market_data: marketPrices,
     analysis: itemsAnalysis,
     recommendation,
     globalSettings,

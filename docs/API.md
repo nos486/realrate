@@ -20,9 +20,9 @@ RealRate Cloudflare Worker API supports versioned routing starting with **v1**.
 
 | Method | Endpoint | Description |
 | :--- | :--- | :--- |
-| `GET` | `/api/v1/market/items` | Unified market items (Gold, Coins, Silver, Forex, Crypto, Bourse, Funds, Plans) |
-| `GET` | `/api/v1/prices` | Raw price snapshots across all active sources |
-| `GET` | `/api/prices/book` | Every price in the standard shape: `{ updatedAt, items: { [id]: { id, price (toman), name, category, unit, sourceId, updatedAt, params } } }` |
+| `GET` | `/api/prices/book` | **The prices.** Every price in the standard shape, plus the public global settings: `{ updatedAt, items: { [id]: { id, price (toman), name, category, unit, sourceId, updatedAt, params } }, globalSettings }`. The web app's only price request. |
+| `GET` | `/api/v1/market/items` | Older shape, kept for clients that haven't updated: unified market items (Gold, Coins, Silver, Forex, Bourse, Funds, Plans), priced from the book |
+| `GET` | `/api/v1/prices` | Older shape, kept for clients that haven't updated: `{ prices: { [id]: { price, … } }, live_usd_toman, gold_usd, forex, reference_rates, globalSettings }`, read off the book (the ounce in dollars and currencies as rates against the dollar, as before) |
 | `GET` | `/api/sparklines?keys=usd,gold_18k&range=1d` | Trend series from the Postgres price history, per asset id (`range`: `1d` per minute — the default, `7d`, `30d`, `1y`) |
 | `GET` | `/api/v1/bourse/symbols` | Search and list Tehran Stock Exchange symbols (`?q=...&limit=...`) |
 | `POST` | `/api/v1/bourse/sync` | Force synchronize bourse symbols cache |

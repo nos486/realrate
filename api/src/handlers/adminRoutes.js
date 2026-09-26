@@ -15,12 +15,12 @@ import {
   dbSavePriceSource,
   dbDeletePriceSource,
   dbSetPrimaryPriceSource,
-  dbUpdateSourceLastPrice,
+  dbStoreTestedSourceItems,
   saveGlobalSettings,
   getGlobalSettings,
 } from "../repositories/index.js";
 import { getAdminStats } from "../lib/analytics.js";
-import { testPriceSourceConfig, fetchAllPrices, inspectApiEndpointStructure, refreshMarketRatesCache } from "../services/market/priceAggregator.service.js";
+import { testPriceSourceConfig, fetchAllPrices, inspectApiEndpointStructure, refreshPriceBook } from "../services/market/priceAggregator.service.js";
 import { jsonResponse, errorResponse, forbiddenResponse } from "../lib/helpers.js";
 import { AppError } from "../lib/AppError.js";
 import { logger } from "../lib/logger.js";
@@ -184,7 +184,7 @@ export async function handleAdminSavePriceSource(request, env) {
   try {
     const body = await request.json();
     const saved = await dbSavePriceSource(env, body);
-    await refreshMarketRatesCache(env).catch(() => {});
+    await refreshPriceBook(env).catch(() => {});
     return jsonResponse({
       success: true,
       message: "سورس قیمت با موفقیت ذخیره شد.",
@@ -220,7 +220,7 @@ export async function handleAdminDeletePriceSource(request, env) {
       return errorResponse("سورس یافت نشد یا حذف ناموفق بود.", 404, request);
     }
 
-    await refreshMarketRatesCache(env).catch(() => {});
+    await refreshPriceBook(env).catch(() => {});
 
     return jsonResponse({ success: true, message: "سورس قیمت با موفقیت حذف شد." }, 200, request);
   } catch (e) {
@@ -242,7 +242,7 @@ export async function handleAdminSetPrimarySource(request, env) {
     if (!id) return errorResponse("شناسه سورس الزامی است.", 400, request);
 
     const updated = await dbSetPrimaryPriceSource(env, id, priceType);
-    await refreshMarketRatesCache(env).catch(() => {});
+    await refreshPriceBook(env).catch(() => {});
     return jsonResponse({
       success: true,
       message: "سورس مرجع با موفقیت تعیین شد.",
@@ -256,7 +256,8 @@ export async function handleAdminSetPrimarySource(request, env) {
 /**
  * POST /api/admin/price-sources/test
  * Test a price source config without saving — admin only.
- * If body.id is provided and test succeeds, updates last_price and records price history.
+ * If body.id is provided and the test succeeds, what it returned becomes the source's items and
+ * the price book is rebuilt.
  */
 export async function handleAdminTestPriceSource(request, env) {
   const user = await getAuthenticatedUser(request, env);
@@ -266,9 +267,9 @@ export async function handleAdminTestPriceSource(request, env) {
     const body = await request.json();
     const testResult = await testPriceSourceConfig(body, env);
 
-    if (testResult.success && body.id && testResult.price) {
-      const nowIso = testResult.datetime || new Date().toISOString();
-      await dbUpdateSourceLastPrice(env, body.id, testResult.price, nowIso, testResult.multiData || null);
+    if (testResult.success && body.id && Array.isArray(testResult.items) && testResult.items.length > 0) {
+      await dbStoreTestedSourceItems(env, body.id, testResult.items);
+      await refreshPriceBook(env);
       testResult.saved = true;
     }
 

@@ -11,10 +11,6 @@ import { Button, FeaturePageHeader } from '../../../shared/ui/index.js';
 import { useFeedback } from '../../../shared/ui/FeedbackProvider.jsx';
 
 export default function PortfolioTracker({
-  rates,
-  calcData,
-  usdToman,
-  goldUsd,
   initialPortfolioId = null,
   initialView = 'holdings',
   onViewChange,
@@ -142,10 +138,6 @@ export default function PortfolioTracker({
           ref={holdingsRef}
           activePortfolio={activePortfolio}
           portfolios={portfolios}
-          rates={rates}
-          calcData={calcData}
-          usdToman={usdToman}
-          goldUsd={goldUsd}
           fetchPortfolios={fetchPortfolios}
           deletePortfolio={deletePortfolio}
           onVaultLockChange={setHoldingsVaultLocked}
@@ -157,8 +149,6 @@ export default function PortfolioTracker({
           loadingPortfolios={loadingPortfolios}
           ref={transactionsRef}
           activePortfolio={activePortfolio}
-          calcData={calcData}
-          rates={rates}
           fetchPortfolios={fetchPortfolios}
           onCountChange={setActiveViewCount}
           toolbarSlot={toolbarSlot}

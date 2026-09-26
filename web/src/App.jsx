@@ -64,8 +64,8 @@ function GuestLanding() {
 /**
  * Wraps every route that needs live pricing (the authenticated app, plus the public shared-
  * portfolio view) — but never the landing page, which has no real prices on it at all. Scoping
- * the provider here instead of around the whole app means its fetch to /api/prices and
- * /api/market/items only ever fires once one of those routes actually mounts, never for a
+ * the provider here instead of around the whole app means its fetch of the price book
+ * (/api/prices/book) only ever fires once one of those routes actually mounts, never for a
  * logged-out visitor sitting on /.
  */
 function PricingScope() {

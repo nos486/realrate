@@ -6,12 +6,7 @@
 
 import { USER_AGENT } from "./parsingUtils.js";
 import { logger } from "../../../lib/logger.js";
-import {
-  saveSourceItems,
-  getSourceItems,
-  getSourceLastSync,
-  setSourceLastSync,
-} from "../../../repositories/sourceItems.repository.js";
+import { getSourceItems } from "../../../repositories/sourceItems.repository.js";
 
 export const EMOFID_API_URL = "https://www.emofid.com/api/funds/";
 
@@ -195,16 +190,9 @@ export const emofidFundsSourceAdapter = {
 
     let previousList = inMemoryEmofidList || [];
 
-    // Fallback 1: check sourceConfig lastMultiData
-    if (previousList.length === 0 && sourceConfig.lastMultiData) {
-      const lmd = typeof sourceConfig.lastMultiData === "string"
-        ? JSON.parse(sourceConfig.lastMultiData)
-        : sourceConfig.lastMultiData;
-      if (Array.isArray(lmd?.items)) {
-        previousList = lmd.items;
-      } else if (Array.isArray(lmd?.compactList)) {
-        previousList = lmd.compactList;
-      }
+    // The list the last sync stored (the sync hands it in as `items`)
+    if (previousList.length === 0 && Array.isArray(sourceConfig.items)) {
+      previousList = sourceConfig.items;
     }
 
     if (previousList.length === 0 && env) {
@@ -223,13 +211,6 @@ export const emofidFundsSourceAdapter = {
 
     inMemoryEmofidList = mergedList;
 
-    if (env && mergedList.length > 0) {
-      try {
-        await saveSourceItems(env, sourceConfig?.id || "src_def_emofid", mergedList, { datetime: nowIso });
-      } catch (err) {
-        logger.warn("Error caching emofid funds:", { error: err.message });
-      }
-    }
 
     logger.info(`[EmofidAdapter] Processed ${mergedList.length} funds. Added: ${stats.addedCount}, Updated: ${stats.updatedCount}, Retained: ${stats.retainedCount}`);
 
@@ -288,64 +269,7 @@ export const emofidFundsSourceAdapter = {
         return inMemoryEmofidList;
       }
     }
-    // Auto on-demand fetch if empty
-    const syncRes = await fetchAndStoreEmofidFunds(env);
-    if (syncRes.success && Array.isArray(syncRes.funds) && syncRes.funds.length > 0) {
-      return syncRes.funds;
-    }
     return inMemoryEmofidList || [];
   },
-
-  /**
-   * Periodic sync for Emofid funds governed by sources.config.js (fetchIntervalSec)
-   */
-  async handleScheduledSync(env, sourceConfig = null) {
-    if (!env) return false;
-    try {
-      const lastSync = await getSourceLastSync(env, this.id) || 0;
-      const now = Date.now();
-
-      const intervalSec = Number(sourceConfig?.fetchIntervalSec) > 0
-        ? Number(sourceConfig.fetchIntervalSec)
-        : 1800;
-      const intervalMs = intervalSec * 1000;
-
-      if (now - lastSync < intervalMs) {
-        return false;
-      }
-
-      const raw = await this.fetchRaw({}, env);
-      const parsed = await this.parse(raw, { id: "src_def_emofid", name: sourceConfig?.name || this.name }, env);
-      if (parsed && parsed.items?.length > 0) {
-        const expirationTtl = Math.max(86400, intervalSec * 3);
-        await setSourceLastSync(env, this.id, now, expirationTtl);
-        return true;
-      }
-    } catch (err) {
-      logger.error("[EmofidAdapter] Scheduled sync error:", { error: err.message, stack: err.stack });
-    }
-    return false;
-  },
 };
-
-/**
- * Direct helper to fetch, parse, and persist Emofid funds to memory and KV
- * @param {object} [env=null]
- * @returns {Promise<{ success: boolean, count?: number, funds: Array, error?: string }>}
- */
-export async function fetchAndStoreEmofidFunds(env = null) {
-  try {
-    const raw = await emofidFundsSourceAdapter.fetchRaw({}, env);
-    const parsed = await emofidFundsSourceAdapter.parse(
-      raw,
-      { id: "src_def_emofid", name: emofidFundsSourceAdapter.name },
-      env
-    );
-    const list = parsed.items || inMemoryEmofidList || [];
-    return { success: true, count: list.length, funds: list };
-  } catch (err) {
-    logger.error("[EmofidAdapter] fetchAndStoreEmofidFunds error:", { error: err.message });
-    return { success: false, error: err.message, funds: inMemoryEmofidList || [] };
-  }
-}
 

@@ -45,10 +45,10 @@
  *    (in `sources.config.js` and `categories.config.js`). Items NEVER define independent units/categories.
  * 4. Presentation Invariant: Display name is strictly formatted by `displayEngine.js` as
  *    `"{item.name} ({sourceName})"`. No hardcoded strings or brand checks in frontend components.
- * 5. Storage Invariant: Dual-write paths are retired; all items are persisted via `saveSourceItems(env, sourceId, items)`.
+ * 5. Storage Invariant: parse() never writes. The sync (sourceSync.service.js) stores a source's items
+ *    once, under `source_items:${sourceId}`, and only when they changed.
  *
  * Optional Hooks:
- * - handleScheduledSync(env, sourceConfig?): Periodic background sync handler.
  * - test(sourceConfig, env?): Run an end-to-end test without persisting to storage.
  */
 
@@ -75,6 +75,5 @@
  * @property {(sourceConfig: object, env?: object) => Promise<any>} fetchRaw - Fetch raw content from endpoint
  * @property {(raw: any, sourceConfig: object, env?: object) => Promise<ParsedPriceResult>|ParsedPriceResult} parse - Parse raw content into standard clean price result: { items: [{ id, name, price }], datetime }
  * @property {(env?: object) => Promise<Array<AdapterItem>>} getItems - Unified method to retrieve items across all adapters
- * @property {(env: object, sourceConfig?: object) => Promise<boolean>} [handleScheduledSync] - Periodic background sync handler
  * @property {(sourceConfig: object, env?: object) => Promise<object>} [test] - Run end-to-end test without saving
  */

@@ -1,13 +1,23 @@
 import { describe, it, expect, vi } from 'vitest';
+import { getMasterPriceSourceById } from '../../src/config/sources.config.js';
 
-vi.mock('../../src/services/priceSources.js', () => ({
-  getLatestMarketRates: vi.fn(async () => ({
-    // Note: ons_silver has no label in prices, testing fallback to sources.config.js name!
-    ons_gold: { price: 2900 },
-    ons_silver: { price: 34.5 },
-    usd_toman: { price: 62000, label: 'دلار آزاد' },
-  })),
+// A price book item (tomans; dollar quotes keep their dollar value in params)
+const item = (id, price, params = {}, extra = {}) => ({ id, price, name: id, sourceId: `src_def_${id}`, params, ...extra });
+const bookWith = (extraItems = {}) => ({
+  updatedAt: '2026-01-01T00:00:00Z',
+  items: {
+    // The book names every item's source (sources.config.js)
+    ons_gold: item('ons_gold', 2900 * 62000, { usd: 2900, sourceName: getMasterPriceSourceById('src_def_ons_gold').name }),
+    ons_silver: item('ons_silver', 34.5 * 62000, { usd: 34.5, sourceName: getMasterPriceSourceById('src_def_ons_silver').name }),
+    usd: item('usd', 62000, { sourceName: 'دلار آزاد' }),
+    ...extraItems,
+  },
+});
+
+vi.mock('../../src/services/market/priceAggregator.service.js', () => ({
+  getPriceBook: vi.fn(async () => bookWith()),
 }));
+
 
 vi.mock('../../src/services/market/catalogFeeds.service.js', () => ({
   getAllCatalogItems: vi.fn(async () => ({
@@ -29,6 +39,13 @@ vi.mock('../../src/services/market/catalogFeeds.service.js', () => ({
 import { handleGetUnifiedMarketItems } from '../../src/handlers/unifiedItemsRoute.js';
 
 describe('Unified Market Items Route Handler', () => {
+  it('prices everything from the price book (the ounce in dollars, the dollar in tomans)', async () => {
+    const response = await handleGetUnifiedMarketItems({}, new Request('https://realrate.ir/api/market/items'));
+    const data = await response.json();
+    expect(data.meta).toMatchObject({ gold_usd: 2900, silver_usd: 34.5, live_usd_toman: 62000 });
+    expect(data.currencies.find((c) => c.code === 'USD')).toMatchObject({ marketPrice: 62000, sourceName: 'دلار آزاد' });
+  });
+
   it('returns unified catalog including gold, currencies, bourse, and funds', async () => {
     const mockEnv = {};
     const mockRequest = new Request('https://realrate.ir/api/market/items');
@@ -114,15 +131,12 @@ describe('Unified Market Items Route Handler', () => {
   });
 
   it('derives currencies[].usdCrossRate for EUR, AED, TRY from live market rates instead of defaultCross', async () => {
-    const { getLatestMarketRates } = await import('../../src/services/priceSources.js');
-    getLatestMarketRates.mockResolvedValueOnce({
-      ons_gold: { price: 2900 },
-      ons_silver: { price: 34.5 },
-      usd_toman: { price: 62000, label: 'دلار آزاد' },
-      eur: { price: 1.092 },
-      aed: { price: 0.272 },
-      try: { price: 0.029 },
-    });
+    const { getPriceBook } = await import('../../src/services/market/priceAggregator.service.js');
+    getPriceBook.mockResolvedValueOnce(bookWith({
+      eur: item('eur', 67704, { usdCross: 1.092 }, { sourceId: 'src_def_forex' }),
+      aed: item('aed', 16864, { usdCross: 0.272 }, { sourceId: 'src_def_forex' }),
+      try: item('try', 1798, { usdCross: 0.029 }, { sourceId: 'src_def_forex' }),
+    }));
 
     const mockEnv = {};
     const mockRequest = new Request('https://realrate.ir/api/market/items');

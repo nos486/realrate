@@ -288,31 +288,21 @@ export async function getCatalogItemDetail(env, symbol, sourceId = null) {
 }
 
 /**
- * Triggers a sync for a specific catalog source
+ * Fetch one catalog source now, through the same pipeline as the cron (stores its items and
+ * rebuilds the price book)
  * @param {object} env - Cloudflare Worker env
  * @param {string} sourceId - Source ID
- * @returns {Promise<{ success: boolean, count?: number, error?: string }>}
+ * @returns {Promise<{ success: boolean, count?: number, error?: string, sourceId: string }>}
  */
 export async function syncCatalogSource(env, sourceId) {
-  const sourceConfig = PRICE_SOURCES_CONFIG.find((s) => s.id === sourceId);
-  if (!sourceConfig) {
-    return { success: false, error: `Catalog source ${sourceId} not found` };
+  if (!PRICE_SOURCES_CONFIG.some((s) => s.id === sourceId)) {
+    return { success: false, error: `Catalog source ${sourceId} not found`, sourceId };
   }
-
-  const adapter = getAdapterForSource(sourceConfig);
-  if (!adapter) {
-    return { success: false, error: `No adapter found for ${sourceId}` };
-  }
-
-  try {
-    const raw = await adapter.fetchRaw(sourceConfig, env);
-    const parsed = await adapter.parse(raw, sourceConfig, env);
-    const count = parsed.multiOutput?.length || parsed.multiData?.items?.length || parsed.price || 0;
-    return { success: true, count, sourceId };
-  } catch (err) {
-    logger.error(`[CatalogEngine] Sync error for ${sourceId}:`, { error: err.message });
-    return { success: false, error: err.message, sourceId };
-  }
+  const { results } = await syncAllSources(env, { forceAll: true, sourceIds: [sourceId] });
+  const result = results.find((r) => r.sourceId === sourceId);
+  return result?.success
+    ? { success: true, count: result.itemsCount, sourceId }
+    : { success: false, error: result?.error || "Sync failed", sourceId };
 }
 
 /**

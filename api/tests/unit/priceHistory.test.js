@@ -95,7 +95,8 @@ describe('recordPriceHistory', () => {
   });
 
   it('saveSourceItems works without Postgres (history is written by the sync, not here)', async () => {
-    await expect(saveSourceItems({ DB: null }, 'src_x', [{ id: 'usd', price: 1 }])).resolves.toBe(true);
+    const env = { REALRATE_KV: { put: async () => {} } };
+    await expect(saveSourceItems(env, 'src_x', [{ id: 'usd', price: 1 }])).resolves.toBe(true);
   });
 });
 

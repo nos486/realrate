@@ -3,202 +3,76 @@
  */
 
 import { ensureD1Tables } from "./migration.repository.js";
-import {
-  getSourcePriceCache,
-  setSourcePriceCache,
-  deleteSourcePriceCache,
-} from "./kvCache.repository.js";
-import { getSourceItems, saveSourceItems } from "./sourceItems.repository.js";
+import { getPriceBookCache } from "./kvCache.repository.js";
+import { readSourceItems, saveSourceItems, deleteSourceItems } from "./sourceItems.repository.js";
 import {
   getMasterPriceSourcesConfig,
   getMasterPriceSourceById,
 } from "../config/sources.config.js";
-import { logger } from "../lib/logger.js";
 import { DEFAULT_FETCH_INTERVAL_SEC } from "../config/constants.js";
 
 /* ─────────────────────────────────────────────────────────────
- * Price Sources CRUD & Management (Code-First + KV/D1 Runtime Cache)
+ * Price sources: defined in code (sources.config.js); what each one last gave is its stored
+ * item list (sourceItems.repository.js) and when it last synced is in the price book
  * ───────────────────────────────────────────────────────────── */
 
 /**
- * Helper to normalize row schema
+ * A configured source with what it last gave
+ * @param {object} src - the source's config
+ * @param {{ json: string|null, items: Array<object> }} stored - its stored items
+ * @param {object|null} state - its entry in the price book's `sources`
  */
-function normalizePriceSourceRow(row) {
-  let parsedFieldMapping = null;
-  if (row.fieldMapping) {
-    try { parsedFieldMapping = typeof row.fieldMapping === 'string' ? JSON.parse(row.fieldMapping) : row.fieldMapping; } catch {}
-  }
-  let parsedExcludedOutputs = [];
-  if (row.excludedOutputs) {
-    try { parsedExcludedOutputs = typeof row.excludedOutputs === 'string' ? JSON.parse(row.excludedOutputs) : row.excludedOutputs; } catch {}
-  }
-  let parsedDisplayConfig = null;
-  if (row.displayConfig) {
-    try { parsedDisplayConfig = typeof row.displayConfig === 'string' ? JSON.parse(row.displayConfig) : row.displayConfig; } catch {}
-  }
-  let parsedLastMultiData = null;
-  if (row.lastMultiData) {
-    try { parsedLastMultiData = typeof row.lastMultiData === 'string' ? JSON.parse(row.lastMultiData) : row.lastMultiData; } catch {}
-  }
-  return {
-    ...row,
-    fieldMapping: parsedFieldMapping || row.fieldMapping || null,
-    excludedOutputs: Array.isArray(parsedExcludedOutputs) ? parsedExcludedOutputs : [],
-    displayConfig: parsedDisplayConfig || null,
-    lastMultiData: parsedLastMultiData !== null ? parsedLastMultiData : (row.lastMultiData || null),
-    channelUsername: row.sourceType === "telegram" ? row.endpoint : "",
-    apiUrl: row.sourceType === "api_url" ? row.endpoint : "",
-    regexPattern: row.regex || "",
-    fetchIntervalMinutes: Math.round((row.fetchIntervalSec || 300) / 60),
+function withRuntimeState(src, stored, state) {
+  const items = stored.items;
+  const source = {
+    ...src,
+    excludedOutputs: Array.isArray(src.excludedOutputs) ? src.excludedOutputs : [],
+    displayConfig: src.displayConfig || null,
+    items,
+    itemsCount: items.length,
+    // A single price, shown as the source's price (a list has none: see itemsCount)
+    lastPrice: items.length === 1 ? Number(items[0]?.price) || 0 : 0,
+    lastFetched: state?.fetchedAt || "",
+    syncedAt: state?.syncedAt || null,
+    lastError: state?.error || null,
+    channelUsername: src.sourceType === "telegram" ? src.endpoint : "",
+    apiUrl: src.sourceType === "api_url" ? src.endpoint : "",
+    regexPattern: src.regex || "",
+    fetchIntervalMinutes: Math.round((src.fetchIntervalSec || 300) / 60),
   };
+  // The stored form, to skip rewriting an unchanged list (not sent to clients)
+  Object.defineProperty(source, "storedItemsJson", { value: stored.json, enumerable: false });
+  return source;
 }
 
 /**
- * Helper to hydrate catalog sources (Charisma, Emofid, Bourse) from their dedicated KV caches
- * when lastMultiData is empty or lastPrice is 0.
- */
-export async function hydrateCatalogSourceFromKv(src, env, lastPrice = 0, lastFetched = null, lastMultiData = null) {
-  // Only catalogs are rebuilt from their item list: for a single-price source it would replace the
-  // price with the number of items (1)
-  if (!env || !src?.isCatalog || (lastMultiData && lastPrice > 0)) {
-    return { lastPrice, lastFetched, lastMultiData };
-  }
-  try {
-    const items = await getSourceItems(env, src.id);
-    if (Array.isArray(items) && items.length > 0) {
-      return {
-        lastPrice: items.length,
-        lastFetched: lastFetched || items[0]?.updatedAt || new Date().toISOString(),
-        lastMultiData: {
-          isCatalog: Boolean(src?.isCatalog),
-          totalCount: items.length,
-          items,
-          compactList: items,
-          sampleItems: items.slice(0, 50),
-        },
-      };
-    }
-  } catch (err) {
-    logger.warn("hydrateCatalogSourceFromKv error:", { id: src.id, error: err.message });
-  }
-  return { lastPrice, lastFetched, lastMultiData };
-}
-
-/**
- * Get all price sources from Code-First registry, enriched with runtime KV/D1 cached prices
+ * Every configured source with its stored items and sync state
  * @param {object} env
- * @returns {Promise<Array>}
+ * @param {{ book?: object|null }} [options] - the price book, when the caller already read it
+ * @returns {Promise<Array<object>>}
  */
-export async function dbGetPriceSources(env) {
-  const masterSources = getMasterPriceSourcesConfig();
-
-  // Load latest cached runtime prices from KV (or fallback D1)
-  const enriched = await Promise.all(
-    masterSources.map(async (src) => {
-      let lastPrice = src.lastPrice || 0;
-      let lastFetched = src.lastFetched || "";
-      let lastMultiData = src.lastMultiData || null;
-
-      // 1. Check KV cache first (sub-millisecond)
-      if (env) {
-        const kvData = await getSourcePriceCache(env, src.id).catch(() => null);
-        if (kvData) {
-          lastPrice = Number(kvData.price) || lastPrice;
-          lastFetched = kvData.lastFetched || lastFetched;
-          lastMultiData = kvData.lastMultiData || lastMultiData;
-        }
-
-        // 2. Fallback to D1 if KV was empty
-        if (!lastPrice && env.DB) {
-          try {
-            const row = await env.DB.prepare(
-              "SELECT last_price, last_fetched, last_multi_data FROM price_sources WHERE id = ?"
-            ).bind(src.id).first();
-            if (row) {
-              lastPrice = Number(row.last_price) || 0;
-              lastFetched = row.last_fetched || "";
-              if (row.last_multi_data) {
-                try {
-                  lastMultiData = typeof row.last_multi_data === 'string'
-                    ? JSON.parse(row.last_multi_data)
-                    : row.last_multi_data;
-                } catch {}
-              }
-            }
-          } catch {}
-        }
-      }
-
-      // 3. Fallback to dedicated catalog KV caches if needed
-      const hydrated = await hydrateCatalogSourceFromKv(src, env, lastPrice, lastFetched, lastMultiData);
-      lastPrice = hydrated.lastPrice;
-      lastFetched = hydrated.lastFetched;
-      lastMultiData = hydrated.lastMultiData;
-
-      return normalizePriceSourceRow({
-        ...src,
-        lastPrice,
-        lastFetched,
-        lastMultiData,
-      });
-    })
-  );
-
-  return enriched;
+export async function dbGetPriceSources(env, { book } = {}) {
+  const masters = getMasterPriceSourcesConfig();
+  const priceBook = book !== undefined ? book : (env ? await getPriceBookCache(env) : null);
+  return Promise.all(masters.map(async (src) => {
+    const stored = env ? await readSourceItems(env, src.id) : { json: null, items: [] };
+    return withRuntimeState(src, stored, priceBook?.sources?.[src.id] || null);
+  }));
 }
 
 /**
- * Get single price source by ID from Code-First registry
+ * One configured source with its stored items and sync state
  * @param {object} env
  * @param {string} id
  * @returns {Promise<object|null>}
  */
 export async function dbGetPriceSourceById(env, id) {
-  if (!id) return null;
-  const master = getMasterPriceSourceById(id);
+  const master = id ? getMasterPriceSourceById(id) : null;
   if (!master) return null;
-
-  let lastPrice = master.lastPrice || 0;
-  let lastFetched = master.lastFetched || "";
-  let lastMultiData = master.lastMultiData || null;
-
-  if (env) {
-    const kvData = await getSourcePriceCache(env, id).catch(() => null);
-    if (kvData) {
-      lastPrice = Number(kvData.price) || lastPrice;
-      lastFetched = kvData.lastFetched || lastFetched;
-      lastMultiData = kvData.lastMultiData || lastMultiData;
-    } else if (env.DB) {
-      try {
-        const row = await env.DB.prepare(
-          "SELECT last_price, last_fetched, last_multi_data FROM price_sources WHERE id = ?"
-        ).bind(id).first();
-        if (row) {
-          lastPrice = Number(row.last_price) || 0;
-          lastFetched = row.last_fetched || "";
-          if (row.last_multi_data) {
-            try {
-              lastMultiData = typeof row.last_multi_data === 'string'
-                ? JSON.parse(row.last_multi_data)
-                : row.last_multi_data;
-            } catch {}
-          }
-        }
-      } catch {}
-    }
-
-    const hydrated = await hydrateCatalogSourceFromKv(master, env, lastPrice, lastFetched, lastMultiData);
-    lastPrice = hydrated.lastPrice;
-    lastFetched = hydrated.lastFetched;
-    lastMultiData = hydrated.lastMultiData;
-  }
-
-  return normalizePriceSourceRow({
-    ...master,
-    lastPrice,
-    lastFetched,
-    lastMultiData,
-  });
+  const [stored, book] = env
+    ? await Promise.all([readSourceItems(env, id), getPriceBookCache(env)])
+    : [{ json: null, items: [] }, null];
+  return withRuntimeState(master, stored, book?.sources?.[id] || null);
 }
 
 /**
@@ -347,8 +221,8 @@ export async function dbDeletePriceSource(env, id) {
       }
     }
 
-    // Remove from KV
-    await deleteSourcePriceCache(env, id);
+    // Remove its stored items
+    await deleteSourceItems(env, id);
 
     return true;
   }
@@ -399,47 +273,12 @@ export async function dbSetPrimaryPriceSource(env, id, priceType = null) {
 }
 
 /**
- * Update last price and fetched timestamp of a source
+ * Store what an admin's test of a source returned as the source's items
  * @param {object} env
  * @param {string} id
- * @param {number} lastPrice
- * @param {string} [lastFetched=null]
- * @param {string|object|null} [lastMultiData=null]
+ * @param {Array<object>} items - the test's items
  */
-export async function dbUpdateSourceLastPrice(env, id, lastPrice, lastFetched = null, lastMultiData = null) {
-  if (!id || !env) return;
-  const isoTime = lastFetched || new Date().toISOString();
-  const priceNum = Number(lastPrice) || 0;
-  let items = [];
-  if (lastMultiData) {
-    try {
-      const parsedMulti = typeof lastMultiData === 'string' ? JSON.parse(lastMultiData) : lastMultiData;
-      if (Array.isArray(parsedMulti?.items)) {
-        items = parsedMulti.items;
-      }
-    } catch (_) {}
-  }
-  if (items.length === 0) {
-    items = [{ id, name: id, price: priceNum }];
-  }
-  await saveSourceItems(env, id, items, { datetime: isoTime });
-}
-
-/**
- * Batch update forex primary sources last_price in D1
- * @param {object} env
- * @param {Array<{priceType: string, crossRate: number}>} updates
- * @param {string} nowIso
- */
-export async function dbBatchUpdateForexPrices(env, updates, nowIso) {
-  if (!env || !env.DB || !updates || updates.length === 0) return;
-  await ensureD1Tables(env);
-  const statements = updates.map(({ priceType, crossRate }) =>
-    env.DB.prepare(`
-      UPDATE price_sources
-      SET last_price = ?, last_fetched = ?, updated_at = ?
-      WHERE price_type = ? AND is_primary = 1
-    `).bind(crossRate, nowIso, nowIso, priceType)
-  );
-  await env.DB.batch(statements);
+export async function dbStoreTestedSourceItems(env, id, items) {
+  if (!id || !env || !Array.isArray(items) || items.length === 0) return false;
+  return saveSourceItems(env, id, items);
 }

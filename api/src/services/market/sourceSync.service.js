@@ -1,36 +1,23 @@
 /**
- * sourceSync.service.js — Unified Orchestrator for Price & Catalog Sources Sync
+ * sourceSync.service.js — The one pipeline every price goes through
  *
- * Merges handleScheduledPriceExtraction and syncAllCatalogSources into a single,
- * cohesive polling pipeline.
+ * Per tick:
+ *   1. Read the price book (KV "prices"): it holds when each source last synced
+ *   2. Pick the active sources whose fetchIntervalSec is due (all of them with forceAll, or only
+ *      `sourceIds` when given)
+ *   3. Fetch each endpoint once (sources sharing one are fetched together)
+ *   4. adapter.parse(raw, src) → { items: [{ id, name, price }], datetime }
+ *   5. Store a source's items (`source_items:${id}`) only when they changed
+ *   6. Build the price book from every active source (synced or not) → KV "prices", one write
+ *   7. Record the prices that came in this tick in the price history, keyed by the same ids
  *
- * Pipeline per active due source:
- *   1. Check fetchIntervalSec & lastSync (skip if not due, unless forceAll=true)
- *   2. Deduplicate network fetch by endpoint
- *   3. adapter.fetchRaw(src, env)
- *   4. adapter.parse(raw, src, env) -> returns { items: [{id, name, price}], datetime }
- *   5. saveSourceItems(env, src.id, items, { datetime })
- *   6. setSourceLastSync(env, src.id, nowMs)
- *   7. Recompile homepage latest_rates cache
- *   8. Build the price book (one standard item per id, in tomans) → KV "prices"
- *   9. Record the tick's prices in the price history, keyed by the same ids
- *
- * Guarantees that in any single tick, no source is fetched more than once.
+ * Nothing else is written: every screen and route reads the book.
  */
 
 import { dbGetPriceSources } from "../../repositories/priceSource.repository.js";
 import { getAdapterForSource } from "./sources/index.js";
-import {
-  saveSourceItems,
-  getSourceLastSync,
-  setSourceLastSync,
-} from "../../repositories/sourceItems.repository.js";
-import {
-  setLatestRatesCache,
-  setSourcePriceCache,
-  setPriceBookCache,
-} from "../../repositories/kvCache.repository.js";
-import { compileLatestMarketRates } from "./priceAggregator.service.js";
+import { saveSourceItems } from "../../repositories/sourceItems.repository.js";
+import { getPriceBookCache, setPriceBookCache } from "../../repositories/kvCache.repository.js";
 import { logger } from "../../lib/logger.js";
 import { buildPriceBook } from "../../domain/priceBook.js";
 
@@ -46,212 +33,142 @@ export function setPriceHistoryWriter(writer) {
   priceHistoryWriter = writer;
 }
 
+/** Seconds between two fetches of a source */
+export const fetchIntervalSecOf = (src) => Math.max(15, Number(src.fetchIntervalSec) || 60);
+
+const endpointKeyOf = (src) => `${src.sourceType}::${src.endpoint || src.apiUrl || ""}`;
+
 /**
- * Synchronizes all active sources whose fetch interval is due.
+ * Synchronizes the active sources whose fetch interval is due, then rebuilds the price book.
  *
  * @param {object} env - Cloudflare Worker environment bindings
- * @param {object} [options={}] - Execution options
- * @param {boolean} [options.forceAll=false] - If true, bypasses interval check and syncs all active sources
- * @param {Array<string>} [options.sourceIds] - Optional filter for specific source IDs
+ * @param {object} [options={}]
+ * @param {boolean} [options.forceAll=false] - fetch every (selected) source, due or not
+ * @param {Array<string>} [options.sourceIds] - fetch only these sources (the book is still built
+ *   from all of them)
  * @returns {Promise<{
  *   totalActive: number,
  *   dueCount: number,
  *   syncedCount: number,
  *   failedCount: number,
  *   results: Array<{ sourceId: string, success: boolean, itemsCount?: number, error?: string }>,
- *   rates?: object
+ *   book?: object
  * }>}
  */
 export async function syncAllSources(env, options = {}) {
-  if (!env) {
-    return { totalActive: 0, dueCount: 0, syncedCount: 0, failedCount: 0, results: [] };
-  }
+  const empty = { totalActive: 0, dueCount: 0, syncedCount: 0, failedCount: 0, results: [] };
+  if (!env) return empty;
 
   const { forceAll = false, sourceIds = null } = options;
 
+  let previousBook = null;
   let sources = [];
   try {
-    sources = await dbGetPriceSources(env);
+    previousBook = await getPriceBookCache(env);
+    sources = await dbGetPriceSources(env, { book: previousBook });
   } catch (err) {
     logger.error("[SourceSync] Failed to load price sources:", { error: err.message });
-    return { totalActive: 0, dueCount: 0, syncedCount: 0, failedCount: 0, results: [] };
+    return empty;
   }
 
-  if (!Array.isArray(sources) || sources.length === 0) {
-    return { totalActive: 0, dueCount: 0, syncedCount: 0, failedCount: 0, results: [] };
-  }
+  const activeSources = (Array.isArray(sources) ? sources : []).filter((s) => s.isActive !== false);
+  if (activeSources.length === 0) return empty;
 
-  let activeSources = sources.filter(s => s.isActive !== false);
-  if (Array.isArray(sourceIds) && sourceIds.length > 0) {
-    const filterSet = new Set(sourceIds);
-    activeSources = activeSources.filter(s => filterSet.has(s.id));
-  }
-
-  if (activeSources.length === 0) {
-    return { totalActive: 0, dueCount: 0, syncedCount: 0, failedCount: 0, results: [] };
-  }
+  const selected = Array.isArray(sourceIds) && sourceIds.length > 0
+    ? activeSources.filter((s) => sourceIds.includes(s.id))
+    : activeSources;
 
   const nowMs = Date.now();
+  const nowIso = new Date(nowMs).toISOString();
+  const states = { ...(previousBook?.sources || {}) };
 
-  // 1. Identify due sources based on fetchIntervalSec & lastSync
-  const dueSources = [];
-  for (const src of activeSources) {
-    if (forceAll) {
-      dueSources.push(src);
-      continue;
-    }
-
-    const intervalSec = Math.max(15, Number(src.fetchIntervalSec) || 60);
-    const intervalMs = intervalSec * 1000;
-
-    const lastSyncVal = await getSourceLastSync(env, src.id);
-    const lastSyncMs = lastSyncVal
-      ? Number(lastSyncVal)
-      : (src.lastFetched ? new Date(src.lastFetched).getTime() : 0);
-
-    if (nowMs - lastSyncMs >= intervalMs) {
-      dueSources.push(src);
-    }
-  }
+  // 1. Due sources
+  const dueSources = selected.filter((src) => {
+    if (forceAll) return true;
+    const last = Date.parse(states[src.id]?.syncedAt || "") || 0;
+    return nowMs - last >= fetchIntervalSecOf(src) * 1000;
+  });
 
   logger.info(`[SourceSync] Running sync for ${dueSources.length}/${activeSources.length} due sources.`);
-
-  const results = [];
-  let syncedCount = 0;
-  let failedCount = 0;
-
   if (dueSources.length === 0) {
-    return {
-      totalActive: activeSources.length,
-      dueCount: 0,
-      syncedCount: 0,
-      failedCount: 0,
-      results: [],
-    };
+    return { ...empty, totalActive: activeSources.length };
   }
 
-  // 2. Deduplicate network requests by (sourceType + "::" + endpoint)
-  const endpointRequests = new Map();
+  // 2. One network request per endpoint
+  const requests = new Map();
   for (const src of dueSources) {
-    const endpointKey = `${src.sourceType}::${src.endpoint || src.apiUrl || ""}`;
-    if (!endpointRequests.has(endpointKey)) {
-      const adapter = getAdapterForSource(src);
-      if (!adapter) {
-        endpointRequests.set(endpointKey, Promise.resolve(null));
-        continue;
-      }
-      endpointRequests.set(
-        endpointKey,
-        adapter.fetchRaw(src, env).catch(err => {
-          logger.warn(`[SourceSync] Fetch failed for ${endpointKey}:`, { error: err.message });
-          return null;
-        })
-      );
-    }
+    const key = endpointKeyOf(src);
+    if (requests.has(key)) continue;
+    const adapter = getAdapterForSource(src);
+    requests.set(key, adapter
+      ? adapter.fetchRaw(src, env).catch((err) => {
+        logger.warn(`[SourceSync] Fetch failed for ${key}:`, { error: err.message });
+        return null;
+      })
+      : Promise.resolve(null));
   }
+  const keys = [...requests.keys()];
+  const raws = await Promise.all(requests.values());
+  const rawByEndpoint = new Map(keys.map((k, i) => [k, raws[i]]));
 
-  const endpointKeys = Array.from(endpointRequests.keys());
-  const rawResults = await Promise.all(endpointRequests.values());
-  const endpointContentMap = new Map();
-  for (let i = 0; i < endpointKeys.length; i++) {
-    endpointContentMap.set(endpointKeys[i], rawResults[i]);
-  }
-
-  // Sources that brought new values this tick (their items go to the price history)
+  // 3. Parse and store each source
+  const results = [];
   const syncedSourceIds = new Set();
+  const fail = (src, error) => {
+    results.push({ sourceId: src.id, success: false, error });
+    states[src.id] = { ...states[src.id], error, failedAt: nowIso };
+  };
 
-  // 3. Process, parse, and persist each source (uniform pipeline)
   for (const src of dueSources) {
     const adapter = getAdapterForSource(src);
     if (!adapter) {
-      results.push({ sourceId: src.id, success: false, error: "No adapter registered" });
-      failedCount++;
+      fail(src, "No adapter registered");
       continue;
     }
-
-    const endpointKey = `${src.sourceType}::${src.endpoint || src.apiUrl || ""}`;
-    const raw = endpointContentMap.get(endpointKey);
+    const raw = rawByEndpoint.get(endpointKeyOf(src));
     if (!raw) {
-      results.push({ sourceId: src.id, success: false, error: "Empty or failed raw fetch" });
-      failedCount++;
+      fail(src, "Empty or failed raw fetch");
       continue;
     }
 
     try {
       const parsed = await adapter.parse(raw, src, env);
       const items = Array.isArray(parsed?.items) ? parsed.items : [];
-      const datetime = parsed?.datetime || new Date().toISOString();
-      const intervalSec = Math.max(15, Number(src.fetchIntervalSec) || 60);
-
-      if (items.length > 0) {
-        // Unified single write path to KV + D1
-        await saveSourceItems(env, src.id, items, {
-          datetime,
-          ttlSeconds: Math.max(86400, intervalSec * 3),
-        });
-
-        syncedSourceIds.add(src.id);
-
-        // Set last sync timestamp
-        await setSourceLastSync(env, src.id, nowMs, Math.max(86400, intervalSec * 3));
-
-        // Update in-memory source state for latest rates compile
-        src.lastFetched = datetime;
-        src.lastPrice = items.length === 1 ? Number(items[0]?.price) || 0 : items.length;
-        // A single price carries no list: an older one would be stored again beside the new price
-        if (items.length === 1) src.lastMultiData = null;
-        if (items.length > 1) {
-          src.lastMultiData = {
-            isCatalog: Boolean(src.isCatalog),
-            totalCount: items.length,
-            items,
-            datetime,
-          };
-        }
-
-        // Fast KV cache path (source_price:{id}) for sub-millisecond dbGetPriceSources lookup
-        await setSourcePriceCache(env, src.id, {
-          price: src.lastPrice,
-          lastFetched: datetime,
-          lastMultiData: src.lastMultiData || null,
-        });
-
-        results.push({ sourceId: src.id, success: true, itemsCount: items.length });
-        syncedCount++;
-      } else {
-        results.push({ sourceId: src.id, success: false, error: "Adapter returned 0 items" });
-        failedCount++;
+      if (items.length === 0) {
+        fail(src, "Adapter returned 0 items");
+        continue;
       }
+      const fetchedAt = parsed?.datetime || nowIso;
+      await saveSourceItems(env, src.id, items, { previous: src.storedItemsJson });
+      src.items = items;
+      states[src.id] = { syncedAt: nowIso, fetchedAt, count: items.length };
+      syncedSourceIds.add(src.id);
+      results.push({ sourceId: src.id, success: true, itemsCount: items.length });
     } catch (parseErr) {
       logger.warn(`[SourceSync] Parse failed for ${src.name} (${src.id}):`, { error: parseErr.message });
-      results.push({ sourceId: src.id, success: false, error: parseErr.message });
-      failedCount++;
+      fail(src, parseErr.message);
     }
   }
 
-  // 4. Recompile latest market rates for homepage
-  let latestRates = {};
-  try {
-    latestRates = compileLatestMarketRates(activeSources);
-    await setLatestRatesCache(env, latestRates);
-  } catch (rateErr) {
-    logger.warn("[SourceSync] Error updating latest rates cache:", { error: rateErr.message });
-  }
+  const syncedCount = syncedSourceIds.size;
+  const failedCount = results.length - syncedCount;
 
-  // 5. The price book: every price in the standard shape, the latest of each under KV "prices"
-  if (syncedCount > 0) {
-    const book = buildPriceBook(activeSources, { now: new Date(nowMs).toISOString() });
-    await setPriceBookCache(env, book);
+  // 4. The price book, from every active source, with each source's sync state. Written even when
+  //    nothing synced, so failures show up in the book's `sources`.
+  const book = buildPriceBook(activeSources.map((src) => ({
+    ...src,
+    lastFetched: states[src.id]?.fetchedAt || src.lastFetched || null,
+  })), { now: nowIso, sourceStates: states });
+  await setPriceBookCache(env, book);
 
-    // 6. Price history, keyed by the book's ids (the writer never throws). Items of sources that
-    // didn't sync keep their value, except those computed from the dollar and the ounce.
-    if (priceHistoryWriter) {
-      const points = Object.values(book.items)
-        .filter((item) => !item.sourceId || syncedSourceIds.has(item.sourceId)
-          || item.params?.usd !== undefined || item.params?.usdCross !== undefined)
-        .map((item) => ({ id: item.id, price: item.price }));
-      await priceHistoryWriter(env, points, book.updatedAt);
-    }
+  // 5. Price history, keyed by the book's ids (the writer never throws). Items of sources that
+  // didn't sync keep their value, except those computed from the dollar and the ounce.
+  if (priceHistoryWriter && syncedCount > 0) {
+    const points = Object.values(book.items)
+      .filter((item) => !item.sourceId || syncedSourceIds.has(item.sourceId)
+        || item.params?.usd !== undefined || item.params?.usdCross !== undefined)
+      .map((item) => ({ id: item.id, price: item.price }));
+    await priceHistoryWriter(env, points, book.updatedAt);
   }
 
   return {
@@ -260,6 +177,6 @@ export async function syncAllSources(env, options = {}) {
     syncedCount,
     failedCount,
     results,
-    rates: latestRates,
+    book,
   };
 }

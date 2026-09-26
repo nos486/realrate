@@ -8,11 +8,11 @@
  */
 
 import React, { createContext, useContext, useState, useEffect, useMemo, useCallback, useRef, useSyncExternalStore } from 'react';
-import { getMarketItems, getPrices, getPriceBook } from '../api/marketApi.js';
+import { getPriceBook } from '../api/marketApi.js';
 import { searchUnifiedAssets } from '../../../utils/pricingEngine.js';
+import { baseRatesOf, referenceRatesOf } from '../../../utils/priceBookViews.js';
 import { bookToAssets, priceOf, assetOf } from '../priceBookAssets.js';
 import { setKnownPriceIds } from '../knownPriceIds.js';
-import { getReferenceRatesSpecs } from '../../../config/sources.config.js';
 
 const PricingContext = createContext(null);
 
@@ -32,101 +32,60 @@ function isBrowserOffline() {
 /** How often live prices are refreshed in the background while the tab is visible */
 export const PRICE_REFRESH_INTERVAL_MS = 2 * 60 * 1000;
 
+const REFERENCE_KEY_STORAGE = 'realrate_active_reference_rate';
+
+function storedReferenceKey() {
+  try {
+    return localStorage.getItem(REFERENCE_KEY_STORAGE) || 'usd';
+  } catch {
+    return 'usd';
+  }
+}
+
 export function PricingProvider({ children, initialUsdToman = null, initialGoldUsd = null }) {
-  const [marketItems, setMarketItems] = useState(null);
   const [priceBook, setPriceBook] = useState(null);
+  const [globalSettings, setGlobalSettings] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const isOffline = useSyncExternalStore(subscribeOnlineStatus, isBrowserOffline, () => false);
 
-  // Client-side inputs for live zero-latency recalculations
+  // The calculator's rates: the live ones from the book, or what the user typed
   const [usdToman, setUsdToman] = useState(initialUsdToman || '');
   const [goldUsd, setGoldUsd] = useState(initialGoldUsd || '');
   const [silverUsd, setSilverUsd] = useState('');
 
-  // Active base reference rate key (e.g. 'usd' or 'usdt' or any future reference rate)
-  const [activeReferenceKey, setActiveReferenceKey] = useState(() => {
-    try {
-      return localStorage.getItem('realrate_active_reference_rate') || 'usd';
-    } catch {
-      return 'usd';
-    }
-  });
+  // Which reference rate (dollar, tether, …) the calculator starts from
+  const [activeReferenceKey, setActiveReferenceKey] = useState(storedReferenceKey);
 
-  const [customReferenceRates, setCustomReferenceRates] = useState([]);
-
-  // Dynamic list of available reference rates discovered from backend meta or catalog
-  const referenceRates = useMemo(() => {
-    if (customReferenceRates && customReferenceRates.length > 0) {
-      return customReferenceRates;
-    }
-    if (marketItems?.meta?.reference_rates && Array.isArray(marketItems.meta.reference_rates) && marketItems.meta.reference_rates.length > 0) {
-      return marketItems.meta.reference_rates;
-    }
-
-    // Dynamic discovery fallback derived directly from sources.config.js
-    return getReferenceRatesSpecs().map((spec) => {
-      let price = 0;
-      if (spec.key === 'usd') {
-        price = Number(marketItems?.meta?.live_usd_toman || 0);
-      } else {
-        const candidate = marketItems?.currencies?.find((c) => String(c.code).toUpperCase() === spec.key.toUpperCase())
-          || marketItems?.goldAndCoins?.find((c) => String(c.symbol).toUpperCase() === spec.key.toUpperCase());
-        price = Number(candidate?.priceToman || candidate?.price || candidate?.marketPrice || 0);
-      }
-      return {
-        ...spec,
-        price,
-      };
-    });
-  }, [customReferenceRates, marketItems]);
+  // The reference rates, each at its price in the book
+  const referenceRates = useMemo(() => referenceRatesOf(priceBook), [priceBook]);
 
   const activeReferenceRate = useMemo(() => {
     return referenceRates.find((r) => r.key === activeReferenceKey) || referenceRates[0] || null;
   }, [referenceRates, activeReferenceKey]);
 
-  // Cycle to next reference rate in rotation (e.g. USD -> USDT -> etc.)
-  const cycleReferenceRate = useCallback(() => {
-    if (!referenceRates || referenceRates.length === 0) return null;
-    const currentIdx = referenceRates.findIndex((r) => r.key === activeReferenceKey);
-    const nextIdx = currentIdx === -1 ? 0 : (currentIdx + 1) % referenceRates.length;
-    const nextRate = referenceRates[nextIdx];
-
-    if (nextRate) {
-      setActiveReferenceKey(nextRate.key);
-      try {
-        localStorage.setItem('realrate_active_reference_rate', nextRate.key);
-      } catch { }
-
-      if (Number(nextRate.price) > 0) {
-        setUsdToman(nextRate.price);
-      }
-      window.dispatchEvent(new CustomEvent('realrate_reference_rate_changed', { detail: nextRate }));
-      return nextRate;
-    }
-    return null;
-  }, [referenceRates, activeReferenceKey]);
-
   const setReferenceRateKey = useCallback((key) => {
     setActiveReferenceKey(key);
     try {
-      localStorage.setItem('realrate_active_reference_rate', key);
+      localStorage.setItem(REFERENCE_KEY_STORAGE, key);
     } catch { }
     const targetRate = referenceRates.find((r) => r.key === key);
     if (targetRate && Number(targetRate.price) > 0) {
       const priceVal = Math.round(Number(targetRate.price));
       setUsdToman((prev) => (Number(prev) === priceVal ? prev : priceVal));
     }
+    if (targetRate) window.dispatchEvent(new CustomEvent('realrate_reference_rate_changed', { detail: targetRate }));
+    return targetRate || null;
   }, [referenceRates]);
 
-  const updateReferenceRates = useCallback((newRates) => {
-    if (Array.isArray(newRates) && newRates.length > 0) {
-      setCustomReferenceRates(newRates);
-    }
-  }, []);
+  // Cycle to the next reference rate (dollar → tether → …)
+  const cycleReferenceRate = useCallback(() => {
+    if (referenceRates.length === 0) return null;
+    const currentIdx = referenceRates.findIndex((r) => r.key === activeReferenceKey);
+    const next = referenceRates[currentIdx === -1 ? 0 : (currentIdx + 1) % referenceRates.length];
+    return next ? setReferenceRateKey(next.key) : null;
+  }, [referenceRates, activeReferenceKey, setReferenceRateKey]);
 
-  // Raw /api/prices snapshot (shared with useMarketData so it isn't fetched twice)
-  const [pricesData, setPricesData] = useState(null);
   const [lastUpdatedAt, setLastUpdatedAt] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
 
@@ -141,7 +100,7 @@ export function PricingProvider({ children, initialUsdToman = null, initialGoldU
   const lastUpdatedAtRef = useRef(null);
 
   /**
-   * Fetch catalog + price snapshot.
+   * Fetch the price book (one request: every price, plus the global settings).
    * @param {{ background?: boolean }} [options] - background refreshes are silent (no
    *   full-screen loader) and keep showing the last good data if they fail.
    */
@@ -154,68 +113,36 @@ export function PricingProvider({ children, initialUsdToman = null, initialGoldU
       if (background) setRefreshing(true);
       else setLoading(true);
 
-      const requestOptions = background ? { silent: true } : {};
-      const [itemsRes, pricesRes, bookRes] = await Promise.allSettled([
-        getMarketItems('', '', requestOptions),
-        getPrices(requestOptions),
-        getPriceBook(requestOptions),
-      ]);
+      const res = await getPriceBook(background ? { silent: true } : {});
       if (seq !== fetchSeqRef.current) return;
+      if (!res?.items) throw new Error('دریافت قیمت‌ها از سرور ناموفق بود.');
 
-      const res = itemsRes.status === 'fulfilled' && itemsRes.value?.success ? itemsRes.value : null;
-      const freshPrices = pricesRes.status === 'fulfilled' && pricesRes.value?.success ? pricesRes.value : null;
-
-      if (res) {
-        setMarketItems(res);
-      }
-      if (bookRes.status === 'fulfilled' && bookRes.value?.items) {
-        setPriceBook({ updatedAt: bookRes.value.updatedAt, items: bookRes.value.items });
-      }
-      if (freshPrices) {
-        setPricesData(freshPrices);
-      }
-
-      if (!res || !freshPrices) {
-        const failed = [itemsRes, pricesRes].find((r) => r.status === 'rejected');
-        setError(failed?.reason?.message || 'دریافت قیمت‌ها از سرور ناموفق بود.');
-      } else {
-        setError(null);
-      }
+      const book = { updatedAt: res.updatedAt, items: res.items };
+      setPriceBook(book);
+      if (res.globalSettings) setGlobalSettings(res.globalSettings);
+      setError(null);
       // Offline, the service worker answers with the last saved snapshot: show it, but don't
       // claim it was just updated
-      if ((res || freshPrices) && !isBrowserOffline()) {
+      if (!isBrowserOffline()) {
         const now = Date.now();
         lastUpdatedAtRef.current = now;
         setLastUpdatedAt(now);
       }
 
-      const availableRefs = freshPrices?.reference_rates || res?.meta?.reference_rates || [];
-      if (availableRefs.length > 0) {
-        setCustomReferenceRates(availableRefs);
-      }
-
-      const storedKey = (() => {
-        try {
-          return localStorage.getItem('realrate_active_reference_rate') || 'usd';
-        } catch {
-          return 'usd';
-        }
-      })();
-
-      const matchedRef = availableRefs.find((r) => r.key === storedKey) || availableRefs[0];
-
-      const liveUsd = matchedRef?.price || freshPrices?.live_usd_toman || freshPrices?.prices?.usd_toman?.price || res?.meta?.live_usd_toman;
+      // The calculator follows the live rates until the user types their own
+      const base = baseRatesOf(book);
+      const refs = referenceRatesOf(book);
+      const matchedRef = refs.find((r) => r.key === storedReferenceKey()) || refs[0];
+      const liveUsd = matchedRef?.price || base.usdToman;
       if (liveUsd && !manualOverrideRef.current.usd) {
         setUsdToman(liveUsd);
         if (matchedRef?.key) setActiveReferenceKey(matchedRef.key);
       }
-      const liveGold = freshPrices?.gold_usd || res?.meta?.gold_usd;
-      if (liveGold && !manualOverrideRef.current.gold) setGoldUsd(liveGold);
-      const liveSilver = freshPrices?.silver_usd || res?.meta?.silver_usd;
-      if (liveSilver) setSilverUsd(liveSilver);
+      if (base.goldUsd && !manualOverrideRef.current.gold) setGoldUsd(base.goldUsd);
+      if (base.silverUsd) setSilverUsd(base.silverUsd);
     } catch (e) {
       if (seq !== fetchSeqRef.current) return;
-      console.error('Error fetching unified market items:', e);
+      console.error('Error fetching the price book:', e);
       setError(e.message || 'دریافت قیمت‌ها از سرور ناموفق بود.');
     } finally {
       if (seq === fetchSeqRef.current) {
@@ -289,9 +216,8 @@ export function PricingProvider({ children, initialUsdToman = null, initialGoldU
     error,
     isOffline,
     lastUpdatedAt,
-    marketItems,
-    pricesData,
     priceBook,
+    globalSettings,
     resolvedAssets,
     priceMap,
     itemMap,
@@ -312,12 +238,11 @@ export function PricingProvider({ children, initialUsdToman = null, initialGoldU
     referenceRates,
     cycleReferenceRate,
     setReferenceRateKey,
-    updateReferenceRates,
   }), [
-    loading, refreshing, error, isOffline, lastUpdatedAt, marketItems, pricesData, priceBook, resolvedAssets, priceMap,
+    loading, refreshing, error, isOffline, lastUpdatedAt, priceBook, globalSettings, resolvedAssets, priceMap,
     itemMap, summary, usdToman, goldUsd, silverUsd, setManualOverride, getAssetPrice, getAsset,
     searchAssets, refresh, activeReferenceKey, activeReferenceRate, referenceRates,
-    cycleReferenceRate, setReferenceRateKey, updateReferenceRates,
+    cycleReferenceRate, setReferenceRateKey,
   ]);
 
   return (

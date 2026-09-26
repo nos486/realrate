@@ -55,7 +55,7 @@ import { SkeletonRows } from '../../../shared/ui/Skeleton.jsx';
 const TX_PAGE_SIZE = 20;
 
 const TransactionsView = forwardRef(function TransactionsView(
-  { activePortfolio, loadingPortfolios = false, rates = null, fetchPortfolios, onCountChange, toolbarSlot = null },
+  { activePortfolio, loadingPortfolios = false, fetchPortfolios, onCountChange, toolbarSlot = null },
   ref
 ) {
   const pricing = usePricing();
@@ -623,7 +623,6 @@ const TransactionsView = forwardRef(function TransactionsView(
         onSubmit={handleSubmitForm}
         editingTransaction={editingTx}
         submitting={submitting}
-        rates={rates}
         realPriceMap={realPriceMap}
         currentHoldingsMap={currentHoldingsMap}
       />

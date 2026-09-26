@@ -165,7 +165,11 @@ export default function PriceSourcesTableSection({
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
                           <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                             <strong style={{ fontSize: '13.5px', color: 'var(--accent-green, #10b981)', fontWeight: '800' }}>
-                              {Number(src.lastPrice || 0) > 0 ? Number(src.lastPrice).toLocaleString('fa-IR') : '-'}
+                              {(() => {
+                                // A list shows how many items it has; a single source its price
+                                const shown = isMulti ? Number(src.itemsCount || 0) : Number(src.lastPrice || 0);
+                                return shown > 0 ? shown.toLocaleString('fa-IR') : '-';
+                              })()}
                             </strong>
                             <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
                               {isMulti ? (typeInfo.unit || 'مورد') : (src.unit || typeInfo.unit || 'تومان')}
@@ -174,6 +178,11 @@ export default function PriceSourcesTableSection({
                           {src.lastFetched && (
                             <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>
                               {formatPersianDate(src.lastFetched)}
+                            </span>
+                          )}
+                          {src.lastError && (
+                            <span style={{ fontSize: '10px', color: 'var(--color-danger-text, #ef4444)' }} title={src.lastError}>
+                              آخرین تلاش ناموفق بود
                             </span>
                           )}
                         </div>

@@ -43,7 +43,7 @@ import { useFeedback } from '../../../shared/ui/FeedbackProvider.jsx';
 import { SkeletonRows } from '../../../shared/ui/Skeleton.jsx';
 
 const HoldingsView = forwardRef(function HoldingsView(
-  { activePortfolio, portfolios, loadingPortfolios = false, rates, fetchPortfolios, deletePortfolio, onVaultLockChange, onCountChange, toolbarSlot = null },
+  { activePortfolio, portfolios, loadingPortfolios = false, fetchPortfolios, deletePortfolio, onVaultLockChange, onCountChange, toolbarSlot = null },
   ref
 ) {
   const pricing = usePricing();
@@ -437,7 +437,6 @@ const HoldingsView = forwardRef(function HoldingsView(
         onSubmit={handleSubmitHolding}
         editingHolding={editingHolding}
         submitting={submitting}
-        rates={rates}
         realPriceMap={realPriceMap}
       />
 

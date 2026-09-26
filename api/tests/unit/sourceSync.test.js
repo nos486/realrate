@@ -31,6 +31,7 @@ describe('Unified Orchestration — sourceSync.service (Phase 4)', () => {
     mockSources = [
       {
         id: 'src_def_usd',
+        priceType: 'usd',
         name: 'دلار آمریکا (آزاد)',
         sourceType: 'telegram',
         endpoint: 'tg://channel/rate_usd',
@@ -40,6 +41,7 @@ describe('Unified Orchestration — sourceSync.service (Phase 4)', () => {
       },
       {
         id: 'src_def_gold_18k',
+        priceType: 'gold_18k',
         name: 'طلای ۱۸ عیار',
         sourceType: 'telegram',
         endpoint: 'tg://channel/rate_gold',
@@ -91,10 +93,6 @@ describe('Unified Orchestration — sourceSync.service (Phase 4)', () => {
       savedItemsRecord.set(sourceId, items);
       return true;
     });
-
-    // Mock getSourceLastSync (default to 0 so all are due)
-    vi.spyOn(sourceItemsRepo, 'getSourceLastSync').mockResolvedValue(0);
-    vi.spyOn(sourceItemsRepo, 'setSourceLastSync').mockResolvedValue(true);
 
     // Mock getAdapterForSource
     vi.spyOn(adapterIndex, 'getAdapterForSource').mockImplementation((sourceConfig) => {
@@ -270,12 +268,51 @@ describe('Unified Orchestration — sourceSync.service (Phase 4)', () => {
     for (const [id, item] of Object.entries(book.items)) expect(item.id).toBe(id);
   });
 
-  it('stores a single-price source without an item list, so no stale copy survives', async () => {
-    Object.assign(mockSources[0], { priceType: 'usd', lastMultiData: { items: [{ id: 'src_def_usd', price: 1 }] } });
+  it('writes nothing but the source lists and the book: no second copy of any price', async () => {
     await syncAllSources(mockEnv);
-    const call = mockEnv.REALRATE_KV.put.mock.calls.find(([key]) => key === 'source_price:src_def_usd');
-    expect(JSON.parse(call[1])).toMatchObject({ price: 95000, lastMultiData: null });
+    const keys = mockEnv.REALRATE_KV.put.mock.calls.map(([key]) => key);
+    expect(keys).toEqual(['prices']); // source lists go through saveSourceItems (mocked here)
+    const book = JSON.parse(mockEnv.REALRATE_KV.put.mock.calls[0][1]);
+    expect(book.items.usd).toMatchObject({ price: 95000, sourceId: 'src_def_usd' });
+    expect(book.sources.src_def_usd).toMatchObject({ count: 1, fetchedAt: '2026-09-21T10:00:00Z' });
+  });
+
+  it('skips a source the book says synced within its interval, and still prices it from its stored items', async () => {
+    const now = new Date().toISOString();
+    mockEnv.REALRATE_KV.get = vi.fn(async (key) => (key === 'prices'
+      ? { items: {}, sources: { src_def_usd: { syncedAt: now, fetchedAt: now, count: 1 } } }
+      : null));
+    mockSources[0].items = [{ id: 'src_def_usd', price: 94000 }];
+
+    const result = await syncAllSources(mockEnv);
+    expect(fetchRawCallCounts.get('src_def_usd')).toBeUndefined();
+    expect(result.dueCount).toBe(3);
+    const book = JSON.parse(mockEnv.REALRATE_KV.put.mock.calls.find(([key]) => key === 'prices')[1]);
+    expect(book.items.usd.price).toBe(94000);
+    expect(book.sources.src_def_usd.syncedAt).toBe(now);
+  });
+
+  it('fetching one source keeps every other source in the book', async () => {
+    mockSources[1].items = [{ id: 'src_def_gold_18k', price: 4100000 }];
+    const result = await syncAllSources(mockEnv, { forceAll: true, sourceIds: ['src_def_usd'] });
+    expect(result.dueCount).toBe(1);
+    expect(fetchRawCallCounts.get('src_def_gold_18k')).toBeUndefined();
     const book = JSON.parse(mockEnv.REALRATE_KV.put.mock.calls.find(([key]) => key === 'prices')[1]);
     expect(book.items.usd.price).toBe(95000);
+    expect(book.items.gold_18k.price).toBe(4100000);
+  });
+
+  it('records a failed source in the book without dropping its last prices', async () => {
+    mockSources[1].items = [{ id: 'src_def_gold_18k', price: 4100000 }];
+    const base = adapterIndex.getAdapterForSource.getMockImplementation();
+    vi.spyOn(adapterIndex, 'getAdapterForSource').mockImplementation((src) => (src.id === 'src_def_gold_18k'
+      ? { fetchRaw: async () => { throw new Error('down'); }, parse: async () => ({ items: [] }) }
+      : base(src)));
+
+    const result = await syncAllSources(mockEnv, { forceAll: true });
+    expect(result.failedCount).toBe(1);
+    const book = JSON.parse(mockEnv.REALRATE_KV.put.mock.calls.find(([key]) => key === 'prices')[1]);
+    expect(book.items.gold_18k.price).toBe(4100000);
+    expect(book.sources.src_def_gold_18k).toMatchObject({ error: 'Empty or failed raw fetch' });
   });
 });

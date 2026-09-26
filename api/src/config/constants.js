@@ -19,9 +19,6 @@ export const DEFAULT_FETCH_INTERVAL_SEC = 300;
 /** In-memory global settings cache TTL: 60 seconds in ms */
 export const SETTINGS_MEMORY_CACHE_TTL_MS = 60000;
 
-/** Forex rate history KV expiration TTL: 1 hour in seconds */
-export const FOREX_HISTORY_EXPIRATION_TTL = 3600;
-
 // ─── Query Limits ───────────────────────────────────────────────────────────
 /** Default number of items returned in search queries */
 export const DEFAULT_BOURSE_SEARCH_LIMIT = 50;
