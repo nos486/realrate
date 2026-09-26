@@ -77,12 +77,21 @@ describe('buildPriceBook', () => {
     expect(b.items.eur).toBeUndefined();
   });
 
-  it('reads a single-price source stored as a one-item list under its own id', () => {
+  it('falls back to a single-price source\'s one-item list when it has no price of its own', () => {
     const b = buildPriceBook([
-      single('src_def_usd', 'usd', 1, { lastMultiData: { items: [{ id: 'src_def_usd', price: 101500 }] } }),
+      single('src_def_usd', 'usd', 0, { lastMultiData: { items: [{ id: 'src_def_usd', price: 101500 }] } }),
     ], { now: NOW });
     expect(Object.keys(b.items).filter((k) => k !== 'toman')).toEqual(['usd']);
     expect(b.items.usd.price).toBe(101500);
+  });
+
+  it('takes a single source\'s latest price, never an older copy stored beside it', () => {
+    // The dollar showed 231,500 for hours while its source said 234,000: the book read a stale
+    // one-item list instead of the source's price
+    const b = buildPriceBook([
+      single('src_def_usd', 'usd', 234000, { lastMultiData: { items: [{ id: 'src_def_usd', price: 231500 }] } }),
+    ], { now: NOW });
+    expect(b.items.usd.price).toBe(234000);
   });
 
   it('skips inactive sources and empty prices', () => {

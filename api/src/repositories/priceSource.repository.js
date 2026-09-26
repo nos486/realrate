@@ -58,7 +58,9 @@ function normalizePriceSourceRow(row) {
  * when lastMultiData is empty or lastPrice is 0.
  */
 export async function hydrateCatalogSourceFromKv(src, env, lastPrice = 0, lastFetched = null, lastMultiData = null) {
-  if (!env || (lastMultiData && lastPrice > 0)) {
+  // Only catalogs are rebuilt from their item list: for a single-price source it would replace the
+  // price with the number of items (1)
+  if (!env || !src?.isCatalog || (lastMultiData && lastPrice > 0)) {
     return { lastPrice, lastFetched, lastMultiData };
   }
   try {

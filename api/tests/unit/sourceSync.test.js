@@ -269,4 +269,13 @@ describe('Unified Orchestration — sourceSync.service (Phase 4)', () => {
     expect(book.items['src_def_bourse__foolad']).toMatchObject({ price: 540, sourceId: 'src_def_bourse' });
     for (const [id, item] of Object.entries(book.items)) expect(item.id).toBe(id);
   });
+
+  it('stores a single-price source without an item list, so no stale copy survives', async () => {
+    Object.assign(mockSources[0], { priceType: 'usd', lastMultiData: { items: [{ id: 'src_def_usd', price: 1 }] } });
+    await syncAllSources(mockEnv);
+    const call = mockEnv.REALRATE_KV.put.mock.calls.find(([key]) => key === 'source_price:src_def_usd');
+    expect(JSON.parse(call[1])).toMatchObject({ price: 95000, lastMultiData: null });
+    const book = JSON.parse(mockEnv.REALRATE_KV.put.mock.calls.find(([key]) => key === 'prices')[1]);
+    expect(book.items.usd.price).toBe(95000);
+  });
 });
