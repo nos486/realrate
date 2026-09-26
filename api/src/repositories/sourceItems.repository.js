@@ -8,9 +8,12 @@
  *     source_items_last_sync:${sourceId}
  * - D1 Database Mirror:
  *     price_sources table (last_price, last_multi_data, last_fetched, updated_at)
+ * - Price history (Postgres via Hyperdrive, when bound):
+ *     price_history table — every change of every item's value, kept forever
  */
 
 import { getKv } from "./kvCache.repository.js";
+import { recordPriceHistory } from "./priceHistory.repository.js";
 import { logger } from "../lib/logger.js";
 
 export const SOURCE_ITEMS_KEY_PREFIX = "source_items:";
@@ -73,6 +76,9 @@ export async function saveSourceItems(env, sourceId, items, options = {}) {
       logger.warn(`[saveSourceItems] D1 mirror write error for ${sourceId}:`, { error: d1Err.message });
     }
   }
+
+  // 3. Append to the price history (never throws)
+  await recordPriceHistory(env, items, nowIso);
 
   return true;
 }

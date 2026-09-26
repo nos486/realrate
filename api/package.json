@@ -15,5 +15,8 @@
     "happy-dom": "^20.14.5",
     "vitest": "^5.0.0",
     "wrangler": "^3.80.0"
+  },
+  "dependencies": {
+    "pg": "^8.23.0"
   }
 }

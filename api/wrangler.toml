@@ -1,6 +1,8 @@
 name = "realrate-api"
 main = "src/index.js"
-compatibility_date = "2024-08-01"
+compatibility_date = "2024-09-23"
+# The Postgres driver (pg) needs Node.js APIs
+compatibility_flags = ["nodejs_compat"]
 
 [vars]
 DEFAULT_USD_TOMAN = ""
@@ -22,3 +24,11 @@ database_id = "19efe9ed-fc88-4e87-aaee-43ba6c6b3797"
 [triggers]
 crons = ["* * * * *"]
 
+
+# Postgres for the price history (api/src/repositories/priceHistory.repository.js).
+# Local dev: point localConnectionString at a local Postgres; if none is running, history
+# writes just fail and are logged — the app works the same.
+[[hyperdrive]]
+binding = "HYPERDRIVE"
+id = "c503e09fe4334a2c8351480139a9bce7"
+localConnectionString = "postgres://postgres:postgres@localhost:5432/realrate"
