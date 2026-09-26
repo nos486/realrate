@@ -22,7 +22,7 @@ RealRate Cloudflare Worker API supports versioned routing starting with **v1**.
 | :--- | :--- | :--- |
 | `GET` | `/api/v1/market/items` | Unified market items (Gold, Coins, Silver, Forex, Crypto, Bourse, Funds, Plans) |
 | `GET` | `/api/v1/prices` | Raw price snapshots across all active sources |
-| `GET` | `/api/v1/sparklines` | Sparkline price trends (24h) |
+| `GET` | `/api/sparklines?keys=usd,gold_18k&range=7d` | Trend series from the Postgres price history, per asset id (`range`: `1d`, `7d`, `30d`, `1y`) |
 | `GET` | `/api/v1/bourse/symbols` | Search and list Tehran Stock Exchange symbols (`?q=...&limit=...`) |
 | `POST` | `/api/v1/bourse/sync` | Force synchronize bourse symbols cache |
 | `GET` / `POST` | `/api/v1/portfolio/shared` | Retrieve a publicly shared portfolio (`?slug=...`; a share password is accepted only in a `POST` body `{ slug, password }`) |

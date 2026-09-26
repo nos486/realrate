@@ -19,6 +19,7 @@ import { normalizePersian } from "./sources/parsingUtils.js";
 import { DEFAULT_BOURSE_SEARCH_LIMIT } from "../../config/constants.js";
 import { logger } from "../../lib/logger.js";
 import { syncAllSources } from "./sourceSync.service.js";
+import { catalogAssetId, catalogItemSymbol } from "../../domain/priceHistoryKeys.js";
 
 /**
  * Returns all configured catalog sources from PRICE_SOURCES_CONFIG
@@ -42,7 +43,7 @@ export function getAllCatalogSources(activeOnly = true) {
 export function standardizeCatalogItem(item, sourceConfig = {}) {
   if (!item || typeof item !== "object") return null;
 
-  const symbol = String(item.id || item.symbol || item.s || item.code || "").trim();
+  const symbol = catalogItemSymbol(item);
   const name = String(item.name || item.n || item.title || symbol).trim();
   if (!symbol && !name) return null;
 
@@ -64,9 +65,7 @@ export function standardizeCatalogItem(item, sourceConfig = {}) {
     : (priceToman * 10);
 
   const sourceId = sourceConfig.id || item.sourceId || "";
-  const fullId = (sourceId && symbol.startsWith(`${sourceId}__`))
-    ? symbol
-    : (sourceId ? `${sourceId}__${symbol}` : symbol);
+  const fullId = catalogAssetId(sourceId, symbol);
 
   const category = getItemCategory(item, sourceConfig);
   const badge = getItemBadge(item, sourceConfig);

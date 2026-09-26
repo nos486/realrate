@@ -14,7 +14,19 @@ import {
   INSERT_CHANGED_SQL,
   PRICE_HISTORY_SCHEMA,
 } from '../../src/repositories/priceHistory.repository.js';
-import { saveSourceItems, setPriceHistoryWriter } from '../../src/repositories/sourceItems.repository.js';
+import {
+  buildTrendSeries,
+  readPriceTrends,
+  TREND_BUCKETS_SQL,
+  TREND_BASELINE_SQL,
+} from '../../src/repositories/priceHistory.repository.js';
+import { saveSourceItems } from '../../src/repositories/sourceItems.repository.js';
+import {
+  catalogAssetId,
+  catalogHistoryPoints,
+  marketRateHistoryPoints,
+} from '../../src/domain/priceHistoryKeys.js';
+import { handleGetSparklines } from '../../src/handlers/apiRoutes.js';
 
 function fakeClient({ failQuery = false, failConnect = false } = {}) {
   return {
@@ -87,20 +99,113 @@ describe('recordPriceHistory', () => {
     expect(client.end).not.toHaveBeenCalled();
   });
 
-  it('is skipped by saveSourceItems when Postgres is not bound', async () => {
+  it('saveSourceItems works without Postgres (history is written by the sync, not here)', async () => {
     await expect(saveSourceItems({ DB: null }, 'src_x', [{ id: 'usd', price: 1 }])).resolves.toBe(true);
   });
+});
 
-  it('saveSourceItems hands every save to the registered writer', async () => {
-    const writer = vi.fn(async () => 0);
-    setPriceHistoryWriter(writer);
-    try {
-      const items = [{ id: 'usd', price: 1 }];
-      await saveSourceItems({ DB: null }, 'src_x', items, { datetime: '2026-01-01T00:00:00Z' });
-      expect(writer).toHaveBeenCalledWith({ DB: null }, items, '2026-01-01T00:00:00Z');
-    } finally {
-      setPriceHistoryWriter(null);
-    }
+describe('history keys = the app\'s asset ids', () => {
+  it('uses the rate keys, and a toman value for currencies', () => {
+    const points = marketRateHistoryPoints({
+      last_updated: '2026-01-01T00:00:00Z',
+      usd: { price: 100000 },
+      gold_18k: { price: 8000000 },
+      eur: { price: 1.1 },
+      try: { price: 0.03 },
+      ons_gold: { price: 2400 },
+      broken: { price: 0 },
+    });
+    expect(Object.fromEntries(points.map((p) => [p.id, p.price]))).toEqual({
+      usd: 100000, gold_18k: 8000000, eur: 110000, try: 3000, ons_gold: 2400,
+    });
+  });
+
+  it('drops currency cross rates when the USD rate is unknown', () => {
+    expect(marketRateHistoryPoints({ eur: { price: 1.1 }, gold_18k: { price: 5 } })).toEqual([{ id: 'gold_18k', price: 5 }]);
+  });
+
+  it('keys catalog items like the catalog does', () => {
+    expect(catalogAssetId('src_def_bourse', 'فولاد')).toBe('src_def_bourse__فولاد');
+    expect(catalogAssetId('src_def_bourse', 'src_def_bourse__فولاد')).toBe('src_def_bourse__فولاد');
+    expect(catalogHistoryPoints('src_def_emofid', [{ symbol: 'X', price: 3 }, { price: 4 }])).toEqual([
+      { id: 'src_def_emofid__X', price: 3 },
+    ]);
+  });
+});
+
+describe('buildTrendSeries', () => {
+  const hour = 3600e3;
+  const bucketSec = 3600;
+
+  it('carries the value at the window start forward through empty buckets', () => {
+    const series = buildTrendSeries({
+      baseline: 100,
+      buckets: new Map([[2, 110], [4, 90]]),
+      fromMs: 0,
+      nowMs: 5 * hour,
+      bucketSec,
+    });
+    expect(series.points).toEqual([100, 100, 110, 110, 90, 90]);
+    expect(series.first).toBe(100);
+    expect(series.last).toBe(90);
+    expect(series.changePct).toBeCloseTo(-10);
+    expect(series.since).toBe(new Date(0).toISOString());
+  });
+
+  it('starts at the first known value when the history is younger than the window', () => {
+    const series = buildTrendSeries({ buckets: new Map([[3, 50], [4, 55]]), fromMs: 0, nowMs: 4 * hour, bucketSec });
+    expect(series.points).toEqual([50, 55]);
+    expect(series.changePct).toBeCloseTo(10);
+    expect(series.since).toBe(new Date(3 * hour).toISOString());
+  });
+
+  it('is null without any value', () => {
+    expect(buildTrendSeries({ buckets: new Map(), fromMs: 0, nowMs: hour, bucketSec })).toBeNull();
+  });
+});
+
+describe('readPriceTrends', () => {
+  it('is null without Postgres', async () => {
+    expect(await readPriceTrends({}, ['usd'])).toBeNull();
+  });
+
+  it('reads buckets and baselines for the lower-cased keys, then builds each series', async () => {
+    const now = Date.UTC(2026, 0, 8);
+    const client = {
+      connect: vi.fn(async () => {}),
+      end: vi.fn(async () => {}),
+      query: vi.fn(async (sql) => {
+        if (sql === TREND_BASELINE_SQL) return { rows: [{ item_key: 'usd', value: 100 }] };
+        if (sql === TREND_BUCKETS_SQL) {
+          return { rows: [{ item_key: 'usd', bucket: String(Math.floor(now / 3600e3 / 3)), value: 120 }] };
+        }
+        return { rows: [] };
+      }),
+    };
+    const result = await readPriceTrends(env, ['USD', 'usd', 'nothing'], { range: '7d', now }, { createClient: () => client });
+    expect(Object.keys(result)).toEqual(['usd']);
+    expect(result.usd.first).toBe(100);
+    expect(result.usd.last).toBe(120);
+    expect(result.usd.points.length).toBe(57);
+    expect(client.query.mock.calls[0][1][0]).toEqual(['usd', 'nothing']);
+    expect(client.end).toHaveBeenCalled();
+  });
+
+  it('is null (not an error) when the database fails', async () => {
+    const client = fakeClient({ failConnect: true });
+    expect(await readPriceTrends(env, ['usd'], {}, { createClient: () => client })).toBeNull();
+  });
+});
+
+describe('GET /api/sparklines', () => {
+  it('answers an empty set without touching the database', async () => {
+    const res = await handleGetSparklines({}, new Request('https://x/api/sparklines'));
+    expect(await res.json()).toEqual({ success: true, available: true, range: '7d', bucketSec: 10800, sparklines: {} });
+  });
+
+  it('says the history is unavailable when Postgres is not bound', async () => {
+    const res = await handleGetSparklines({}, new Request('https://x/api/sparklines?keys=usd,EUR&range=30d'));
+    expect(await res.json()).toEqual({ success: true, available: false, range: '30d', bucketSec: 43200, sparklines: {} });
   });
 });
 
@@ -132,5 +237,16 @@ describe.skipIf(!PG_URL)('price_history against a real Postgres', () => {
       { item_key: 'usd', t: '00:03', value: '1000' },
     ]);
     await admin.end();
+  });
+
+  it('reads trend series across the window', async () => {
+    const pgEnv = { HYPERDRIVE: { connectionString: PG_URL } };
+    const now = Date.parse('2026-01-01T00:10:00Z');
+    const trends = await readPriceTrends(pgEnv, ['USD', 'eur', 'missing'], { range: '1d', now });
+    expect(Object.keys(trends).sort()).toEqual(['eur', 'usd']);
+    expect(trends.usd.first).toBe(1000);
+    expect(trends.usd.last).toBe(1000);
+    expect(trends.eur.last).toBe(1200);
+    expect(trends.usd.since).toBe('2026-01-01T00:00:00.000Z');
   });
 });

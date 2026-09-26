@@ -40,6 +40,7 @@ import {
   ChevronDown,
   Coins,
   LayoutTemplate,
+  TrendingUp,
 } from 'lucide-react';
 import { SearchBar, EmptyState, Modal } from '../../shared/ui/index.js';
 import { SkeletonCards } from '../../shared/ui/Skeleton.jsx';
@@ -50,6 +51,7 @@ import { HOME_LAYOUT_LIMITS } from '../../utils/homeLayout.js';
 import HomeAssetCard from './HomeAssetCard.jsx';
 import AssetPickerModal from './AssetPickerModal.jsx';
 import { useHomeLayout } from './useHomeLayout.js';
+import { useTrends } from './useTrends.js';
 import { buildAssetIndex, resolveHomeAsset } from './homeAssets.js';
 import {
   HOME_PRESETS,
@@ -66,6 +68,7 @@ import {
 const STYLE_OPTIONS = [
   { id: 'detailed', label: 'کامل', Icon: LayoutGrid },
   { id: 'compact', label: 'فشرده', Icon: Rows3 },
+  { id: 'trend', label: 'روند', Icon: TrendingUp },
 ];
 
 const COLLAPSED_KEY = 'realrate_home_collapsed';
@@ -110,12 +113,22 @@ function useSortableStyle(id) {
   return { ...sortable, style };
 }
 
-function SortableItem({ asset, section, isBest, onRemove }) {
+/** The trend props of one card (only trend sections use them) */
+function trendProps(section, asset, trends) {
+  if (section.style !== 'trend' || !trends) return {};
+  return {
+    trend: trends.trends[String(asset.id).toLowerCase()] || null,
+    trendStatus: trends.status,
+    bucketSec: trends.bucketSec,
+  };
+}
+
+function SortableItem({ asset, section, isBest, trends, onRemove }) {
   const { setNodeRef, setActivatorNodeRef, attributes, listeners, style, isDragging } = useSortableStyle(asset.id);
   const name = asset.name || asset.id;
   return (
     <div ref={setNodeRef} style={style} className={`home-item ${isDragging ? 'is-dragging' : ''}`}>
-      <HomeAssetCard asset={asset} style={section.style} isBest={isBest} />
+      <HomeAssetCard asset={asset} style={section.style} isBest={isBest} {...trendProps(section, asset, trends)} />
       <div className="home-item-tools">
         <button
           type="button"
@@ -135,9 +148,9 @@ function SortableItem({ asset, section, isBest, onRemove }) {
   );
 }
 
-function SectionItems({ section, editing, recommendation, onReorder, onRemoveItem, onAdd }) {
+function SectionItems({ section, editing, recommendation, trends, onReorder, onRemoveItem, onAdd }) {
   const sensors = useDndSensors();
-  const gridClass = section.style === 'detailed' ? 'cards-modern-grid' : 'currency-cards-grid home-compact-list';
+  const gridClass = section.style === 'compact' ? 'currency-cards-grid home-compact-list' : 'cards-modern-grid';
   const ids = section.resolved.map((a) => a.id);
 
   if (!editing) {
@@ -145,7 +158,12 @@ function SectionItems({ section, editing, recommendation, onReorder, onRemoveIte
       <div className={gridClass}>
         {section.resolved.map((asset) => (
           <div key={asset.id} className="home-item">
-            <HomeAssetCard asset={asset} style={section.style} isBest={recommendation?.best_id === asset.id} />
+            <HomeAssetCard
+              asset={asset}
+              style={section.style}
+              isBest={recommendation?.best_id === asset.id}
+              {...trendProps(section, asset, trends)}
+            />
           </div>
         ))}
       </div>
@@ -166,11 +184,12 @@ function SectionItems({ section, editing, recommendation, onReorder, onRemoveIte
               asset={asset}
               section={section}
               isBest={recommendation?.best_id === asset.id}
+              trends={trends}
               onRemove={() => onRemoveItem(asset.id)}
             />
           ))}
           {section.items.length < HOME_LAYOUT_LIMITS.itemsPerSection && (
-            <button type="button" className={`home-add-tile ${section.style === 'detailed' ? 'is-detailed' : ''}`} onClick={onAdd}>
+            <button type="button" className={`home-add-tile ${section.style !== 'compact' ? 'is-detailed' : ''}`} onClick={onAdd}>
               <Plus size={18} />
               <span>افزودن دارایی</span>
             </button>
@@ -283,6 +302,13 @@ export default function HomeDashboard({
     return { ...section, resolved: q ? items.filter((a) => a.found && a.searchText.includes(q)) : items };
   }), [effective, index, q]);
 
+  // Every asset in a trend section, fetched together
+  const trendIds = useMemo(
+    () => effective.sections.filter((s) => s.style === 'trend').flatMap((s) => s.items),
+    [effective],
+  );
+  const trends = useTrends(trendIds);
+
   const commit = (fn) => setLayout(fn(effective));
   const pickerSection = effective.sections.find((s) => s.id === pickerSectionId) || null;
   const hasData = Boolean(analysis?.length || currencies?.length || assets?.length);
@@ -350,6 +376,7 @@ export default function HomeDashboard({
       section={section}
       editing={editing}
       recommendation={recommendation}
+      trends={trends}
       onReorder={(activeId, overId) => commit((l) => reorderItems(l, section.id, activeId, overId))}
       onRemoveItem={(assetId) => commit((l) => removeItem(l, section.id, assetId))}
       onAdd={() => setPickerSectionId(section.id)}

@@ -10,7 +10,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { syncAllSources } from '../../src/services/market/sourceSync.service.js';
+import { syncAllSources, setPriceHistoryWriter } from '../../src/services/market/sourceSync.service.js';
 import { runCronPolling } from '../../src/jobs/cronPolling.job.js';
 import * as priceSourceRepo from '../../src/repositories/priceSource.repository.js';
 import * as adapterIndex from '../../src/services/market/sources/index.js';
@@ -242,5 +242,22 @@ describe('Unified Orchestration — sourceSync.service (Phase 4)', () => {
     const atMinute0 = ctxFor();
     await runCronPolling({ scheduledTime: Date.UTC(2026, 0, 1, 11, 0) }, mockEnv, atMinute0);
     expect(atMinute0.waitUntil).toHaveBeenCalledTimes(2);
+  });
+
+  it('records the tick\'s prices in one history write, catalog items under their catalog id', async () => {
+    const writer = vi.fn(async () => 0);
+    setPriceHistoryWriter(writer);
+    try {
+      await syncAllSources(mockEnv);
+    } finally {
+      setPriceHistoryWriter(null);
+    }
+    expect(writer).toHaveBeenCalledTimes(1);
+    const [, points, recordedAt] = writer.mock.calls[0];
+    expect(typeof recordedAt).toBe('string');
+    const ids = points.map((p) => p.id);
+    expect(ids).toEqual(expect.arrayContaining([
+      'src_def_bourse__foolad', 'src_def_bourse__femi', 'src_def_charisma__ahrom', 'src_def_charisma__kahroba',
+    ]));
   });
 });

@@ -7,6 +7,9 @@
  *
  * Postgres is optional: without the HYPERDRIVE binding nothing is recorded, and a failed write
  * is logged and never breaks the price sync that called it.
+ *
+ * Reads (readPriceTrends) return a small fixed-size series per key for trend cards: the window
+ * is cut into equal buckets, each holding the last value known at its end.
  */
 
 import { Client } from "pg";
@@ -56,6 +59,68 @@ export function toHistoryPoints(items) {
   return { keys: [...byKey.keys()], values: [...byKey.values()].map(String) };
 }
 
+/** Trend windows: length and bucket size (a few dozen points each) */
+export const TREND_RANGES = {
+  "1d": { ms: 24 * 3600e3, bucketSec: 30 * 60 },
+  "7d": { ms: 7 * 24 * 3600e3, bucketSec: 3 * 3600 },
+  "30d": { ms: 30 * 24 * 3600e3, bucketSec: 12 * 3600 },
+  "1y": { ms: 365 * 24 * 3600e3, bucketSec: 7 * 24 * 3600 },
+};
+export const DEFAULT_TREND_RANGE = "7d";
+
+/** $1: keys, $2: window start, $3: bucket size in seconds → the last value of each bucket */
+export const TREND_BUCKETS_SQL = `
+SELECT item_key,
+       floor(extract(epoch FROM recorded_at) / $3)::bigint AS bucket,
+       ((array_agg(value ORDER BY recorded_at DESC))[1])::float8 AS value
+FROM price_history
+WHERE item_key = ANY($1::text[]) AND recorded_at >= $2::timestamptz
+GROUP BY item_key, bucket
+`;
+
+/** $1: keys, $2: window start → each key's value when the window starts (its last value before) */
+export const TREND_BASELINE_SQL = `
+SELECT k.item_key, b.value::float8 AS value
+FROM unnest($1::text[]) AS k(item_key)
+CROSS JOIN LATERAL (
+  SELECT h.value FROM price_history h
+  WHERE h.item_key = k.item_key AND h.recorded_at < $2::timestamptz
+  ORDER BY h.recorded_at DESC
+  LIMIT 1
+) AS b
+`;
+
+/**
+ * One key's series: a value per bucket from the window start to now, each carrying the last
+ * known value forward. Buckets before the first known value are dropped.
+ * @param {{ baseline?: number|null, buckets: Map<number, number>, fromMs: number, nowMs: number, bucketSec: number }} input
+ * @returns {{ points: number[], first: number, last: number, changePct: number, since: string }|null}
+ */
+export function buildTrendSeries({ baseline = null, buckets, fromMs, nowMs, bucketSec }) {
+  const size = bucketSec * 1000;
+  const firstBucket = Math.floor(fromMs / size);
+  const lastBucket = Math.floor(nowMs / size);
+  const points = [];
+  let carry = Number.isFinite(baseline) ? baseline : null;
+  let sinceBucket = null;
+  for (let b = firstBucket; b <= lastBucket; b++) {
+    if (buckets.has(b)) carry = buckets.get(b);
+    if (carry === null) continue;
+    if (sinceBucket === null) sinceBucket = b;
+    points.push(carry);
+  }
+  if (points.length === 0) return null;
+  const first = points[0];
+  const last = points[points.length - 1];
+  return {
+    points,
+    first,
+    last,
+    changePct: first > 0 ? ((last - first) / first) * 100 : 0,
+    since: new Date(Math.max(sinceBucket * size, fromMs)).toISOString(),
+  };
+}
+
 // A dead database must not stall the price sync that is writing
 const CONNECT_TIMEOUT_MS = 5000;
 const QUERY_TIMEOUT_MS = 10000;
@@ -66,6 +131,70 @@ let schemaReady = null;
 /** For tests: forget that the schema was created */
 export function resetPriceHistorySchemaCache() {
   schemaReady = null;
+}
+
+function connectClient(connectionString, deps) {
+  const createClient = deps.createClient || ((cs) => new Client({
+    connectionString: cs,
+    connectionTimeoutMillis: CONNECT_TIMEOUT_MS,
+    query_timeout: QUERY_TIMEOUT_MS,
+  }));
+  return createClient(connectionString);
+}
+
+/**
+ * Trend series for asset keys over a window
+ * @param {object} env - needs env.HYPERDRIVE
+ * @param {string[]} keys - asset ids (compared lower-cased, as they are recorded)
+ * @param {{ range?: string, now?: number }} [options]
+ * @param {{ createClient?: (connectionString: string) => object }} [deps] - for tests
+ * @returns {Promise<Record<string, ReturnType<typeof buildTrendSeries>>|null>} null when history
+ *   is unavailable (no binding or a database error); keys without data are left out
+ */
+export async function readPriceTrends(env, keys, { range = DEFAULT_TREND_RANGE, now = Date.now() } = {}, deps = {}) {
+  const connectionString = env?.HYPERDRIVE?.connectionString;
+  if (!connectionString) return null;
+  const window = TREND_RANGES[range] || TREND_RANGES[DEFAULT_TREND_RANGE];
+  const wanted = [...new Set((keys || []).map((k) => String(k ?? "").trim().toLowerCase()).filter(Boolean))];
+  if (wanted.length === 0) return {};
+
+  const fromMs = now - window.ms;
+  const fromIso = new Date(fromMs).toISOString();
+  const client = connectClient(connectionString, deps);
+  let connected = false;
+  try {
+    await client.connect();
+    connected = true;
+    const [bucketRes, baseRes] = await Promise.all([
+      client.query(TREND_BUCKETS_SQL, [wanted, fromIso, window.bucketSec]),
+      client.query(TREND_BASELINE_SQL, [wanted, fromIso]),
+    ]);
+
+    const bucketsByKey = new Map();
+    for (const row of bucketRes.rows || []) {
+      if (!bucketsByKey.has(row.item_key)) bucketsByKey.set(row.item_key, new Map());
+      bucketsByKey.get(row.item_key).set(Number(row.bucket), Number(row.value));
+    }
+    const baselineByKey = new Map((baseRes.rows || []).map((row) => [row.item_key, Number(row.value)]));
+
+    const result = {};
+    for (const key of wanted) {
+      const series = buildTrendSeries({
+        baseline: baselineByKey.get(key) ?? null,
+        buckets: bucketsByKey.get(key) || new Map(),
+        fromMs,
+        nowMs: now,
+        bucketSec: window.bucketSec,
+      });
+      if (series) result[key] = series;
+    }
+    return result;
+  } catch (err) {
+    logger.warn("[PriceHistory] Read failed:", { error: err.message, keys: wanted.length });
+    return null;
+  } finally {
+    if (connected) await client.end().catch(() => {});
+  }
 }
 
 /**
@@ -84,12 +213,7 @@ export async function recordPriceHistory(env, items, recordedAt, deps = {}) {
   if (keys.length === 0) return 0;
 
   const time = recordedAt || new Date().toISOString();
-  const createClient = deps.createClient || ((cs) => new Client({
-    connectionString: cs,
-    connectionTimeoutMillis: CONNECT_TIMEOUT_MS,
-    query_timeout: QUERY_TIMEOUT_MS,
-  }));
-  const client = createClient(connectionString);
+  const client = connectClient(connectionString, deps);
   let connected = false;
   try {
     await client.connect();

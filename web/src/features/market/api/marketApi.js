@@ -29,11 +29,13 @@ export async function getPrices(options = {}) {
 }
 
 /**
- * Fetch sparkline trend series
- * @param {string|null} [assetId]
- * @returns {Promise<object>}
+ * Trend series of assets from the price history
+ * @param {string[]} keys - asset ids
+ * @param {'1d'|'7d'|'30d'|'1y'} [range]
+ * @returns {Promise<{ available: boolean, range: string, bucketSec: number,
+ *   sparklines: Record<string, { points: number[], first: number, last: number, changePct: number, since: string }> }>}
  */
-export async function getSparklines(assetId = null) {
-  const query = assetId ? `?asset=${encodeURIComponent(assetId)}` : '';
-  return httpClient.get(`/api/sparklines${query}`);
+export async function getSparklines(keys, range = '7d', options = {}) {
+  const query = new URLSearchParams({ keys: keys.join(','), range });
+  return httpClient.get(`/api/sparklines?${query}`, options);
 }

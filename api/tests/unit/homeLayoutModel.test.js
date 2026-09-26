@@ -49,7 +49,7 @@ describe('home layout model', () => {
     for (const preset of HOME_PRESETS) {
       const layout = preset.build(ctx);
       expect(layout.sections.length).toBeGreaterThan(0);
-      for (const s of layout.sections) expect(['detailed', 'compact']).toContain(s.style);
+      for (const s of layout.sections) expect(['detailed', 'compact', 'trend']).toContain(s.style);
     }
     const bourse = HOME_PRESETS.find((p) => p.key === 'bourse').build(ctx);
     expect(bourse.sections.find((s) => s.id === 's_funds').items).toEqual(['fund__ayar']);
