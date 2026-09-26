@@ -14,7 +14,7 @@ import {
   INSERT_CHANGED_SQL,
   PRICE_HISTORY_SCHEMA,
 } from '../../src/repositories/priceHistory.repository.js';
-import { saveSourceItems } from '../../src/repositories/sourceItems.repository.js';
+import { saveSourceItems, setPriceHistoryWriter } from '../../src/repositories/sourceItems.repository.js';
 
 function fakeClient({ failQuery = false, failConnect = false } = {}) {
   return {
@@ -89,6 +89,18 @@ describe('recordPriceHistory', () => {
 
   it('is skipped by saveSourceItems when Postgres is not bound', async () => {
     await expect(saveSourceItems({ DB: null }, 'src_x', [{ id: 'usd', price: 1 }])).resolves.toBe(true);
+  });
+
+  it('saveSourceItems hands every save to the registered writer', async () => {
+    const writer = vi.fn(async () => 0);
+    setPriceHistoryWriter(writer);
+    try {
+      const items = [{ id: 'usd', price: 1 }];
+      await saveSourceItems({ DB: null }, 'src_x', items, { datetime: '2026-01-01T00:00:00Z' });
+      expect(writer).toHaveBeenCalledWith({ DB: null }, items, '2026-01-01T00:00:00Z');
+    } finally {
+      setPriceHistoryWriter(null);
+    }
   });
 });
 

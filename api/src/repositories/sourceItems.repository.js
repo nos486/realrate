@@ -13,8 +13,19 @@
  */
 
 import { getKv } from "./kvCache.repository.js";
-import { recordPriceHistory } from "./priceHistory.repository.js";
 import { logger } from "../lib/logger.js";
+
+/**
+ * Records each save in the price history. Registered by the Worker entry (index.js) rather than
+ * imported here: the web app shares this module through the source adapters, and its bundle must
+ * not pull in the Postgres driver.
+ */
+let priceHistoryWriter = null;
+
+/** @param {((env: object, items: object[], recordedAt: string) => Promise<unknown>)|null} writer */
+export function setPriceHistoryWriter(writer) {
+  priceHistoryWriter = writer;
+}
 
 export const SOURCE_ITEMS_KEY_PREFIX = "source_items:";
 export const SOURCE_ITEMS_BACKUP_KEY_PREFIX = "source_items_backup:";
@@ -77,8 +88,8 @@ export async function saveSourceItems(env, sourceId, items, options = {}) {
     }
   }
 
-  // 3. Append to the price history (never throws)
-  await recordPriceHistory(env, items, nowIso);
+  // 3. Append to the price history (the writer never throws)
+  if (priceHistoryWriter) await priceHistoryWriter(env, items, nowIso);
 
   return true;
 }
