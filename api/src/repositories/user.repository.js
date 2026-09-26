@@ -94,30 +94,67 @@ export async function dbUpsertUser(env, userData) {
 }
 
 /**
- * Fetch all registered users from D1
+ * One page of registered users for the admin panel, most recently active first
  * @param {object} env
- * @returns {Promise<Array>}
+ * @param {{ q?: string, limit?: number, offset?: number }} [options] q matches name, custom name,
+ *   email, id or share slug (case-insensitive substring)
+ * @returns {Promise<{ users: object[], total: number }>}
  */
-export async function dbGetUsers(env) {
-  if (env && env.DB) {
-    await ensureD1Tables(env);
-    try {
-      const { results } = await env.DB.prepare(`
-        SELECT id, email, name, custom_name AS customName, picture, role,
-               share_slug AS shareSlug, share_enabled AS shareEnabled,
-               created_at AS createdAt, last_login AS lastLogin, login_count AS loginCount
-        FROM users
-        ORDER BY last_login DESC
-      `).all();
-      if (Array.isArray(results) && results.length > 0) {
-        return results;
-      }
-    } catch (e) {
-      logger.error("D1 dbGetUsers error:", { error: e.message });
-    }
-  }
+export async function dbGetUsersPage(env, { q = "", limit = 20, offset = 0 } = {}) {
+  if (!env || !env.DB) return { users: [], total: 0 };
+  await ensureD1Tables(env);
 
-  return [];
+  const term = String(q || "").trim().toLowerCase();
+  // LIKE wildcards in the search text are matched literally
+  const pattern = `%${term.replace(/[\\%_]/g, (c) => `\\${c}`)}%`;
+  const where = term
+    ? `WHERE LOWER(COALESCE(name, '')) LIKE ?1 ESCAPE '\\'
+         OR LOWER(COALESCE(custom_name, '')) LIKE ?1 ESCAPE '\\'
+         OR LOWER(email) LIKE ?1 ESCAPE '\\'
+         OR LOWER(id) LIKE ?1 ESCAPE '\\'
+         OR LOWER(COALESCE(share_slug, '')) LIKE ?1 ESCAPE '\\'`
+    : "";
+  const params = term ? [pattern] : [];
+
+  try {
+    const countRow = await env.DB.prepare(`SELECT COUNT(*) AS total FROM users ${where}`).bind(...params).first();
+    const { results } = await env.DB.prepare(`
+      SELECT id, email, name, custom_name AS customName, picture, role,
+             share_slug AS shareSlug, share_enabled AS shareEnabled,
+             created_at AS createdAt, last_login AS lastLogin, login_count AS loginCount
+      FROM users
+      ${where}
+      ORDER BY last_login DESC, id
+      LIMIT ${term ? "?2" : "?1"} OFFSET ${term ? "?3" : "?2"}
+    `).bind(...params, limit, offset).all();
+    return { users: Array.isArray(results) ? results : [], total: Number(countRow?.total) || 0 };
+  } catch (e) {
+    logger.error("D1 dbGetUsersPage error:", { error: e.message });
+    return { users: [], total: 0 };
+  }
+}
+
+/**
+ * Headline counts for the admin panel
+ * @param {object} env
+ * @returns {Promise<{ registeredUsers: number, publicPortfolios: number }>}
+ */
+export async function dbGetUserStats(env) {
+  if (!env || !env.DB) return { registeredUsers: 0, publicPortfolios: 0 };
+  await ensureD1Tables(env);
+  try {
+    const row = await env.DB.prepare(`
+      SELECT (SELECT COUNT(*) FROM users) AS registeredUsers,
+             (SELECT COUNT(*) FROM portfolios WHERE share_enabled = 1) AS publicPortfolios
+    `).first();
+    return {
+      registeredUsers: Number(row?.registeredUsers) || 0,
+      publicPortfolios: Number(row?.publicPortfolios) || 0,
+    };
+  } catch (e) {
+    logger.error("D1 dbGetUserStats error:", { error: e.message });
+    return { registeredUsers: 0, publicPortfolios: 0 };
+  }
 }
 
 /**

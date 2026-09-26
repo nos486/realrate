@@ -47,16 +47,10 @@ export async function ensureD1Tables(env) {
     `CREATE INDEX IF NOT EXISTS idx_sessions_expires_at ON sessions(expires_at)`,
     `CREATE TABLE IF NOT EXISTS settings (
       id INTEGER PRIMARY KEY CHECK (id = 1),
-      default_usd_toman REAL DEFAULT 62000,
-      default_gold_usd REAL DEFAULT 2450,
       bubble_pct_full REAL DEFAULT 15,
       bubble_pct_half REAL DEFAULT 20,
       bubble_pct_quarter REAL DEFAULT 25,
       announcement TEXT DEFAULT '',
-      usd_source_type TEXT DEFAULT 'telegram',
-      usd_telegram_channel TEXT DEFAULT 'tahran_sabza',
-      usd_api_url TEXT DEFAULT '',
-      usd_api_json_path TEXT DEFAULT '',
       updated_at TEXT
     )`,
     `CREATE TABLE IF NOT EXISTS portfolios (

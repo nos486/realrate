@@ -59,7 +59,7 @@ export function getAdapterForSource(sourceConfig) {
   }
 
   // 3. Fallback: generic HTTP API endpoint vs telegram channel
-  if (sourceConfig.endpoint || sourceConfig.apiUrl || sourceConfig.usd_api_url) {
+  if (sourceConfig.endpoint || sourceConfig.apiUrl) {
     return apiUrlSourceAdapter;
   }
 

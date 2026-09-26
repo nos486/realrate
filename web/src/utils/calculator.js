@@ -41,7 +41,7 @@ export function calculateMarketData({
   globalSettings = {},
 }) {
   const usd_toman = Number(usdToman) || 0;
-  const gold_usd = Number(goldUsd) || Number(marketPrices?.ons_gold?.price) || Number(globalSettings?.default_gold_usd) || 0;
+  const gold_usd = Number(goldUsd) || Number(marketPrices?.ons_gold?.price) || 0;
   const silver_usd = silverUsd !== null && silverUsd !== undefined
     ? Number(silverUsd)
     : (Number(marketPrices?.ons_silver?.price) || 0);

@@ -5,7 +5,7 @@
 
 import { getAuthenticatedUser } from "../lib/auth.js";
 import {
-  dbGetUsers,
+  dbGetUsersPage,
   dbGetUserById,
   dbGetPortfolioHoldings,
   dbGetUserPortfolios,
@@ -34,16 +34,35 @@ export async function handleAdminStatsRoute(request, env) {
   return jsonResponse(stats, 200, request);
 }
 
+const USERS_PAGE_SIZE_DEFAULT = 20;
+const USERS_PAGE_SIZE_MAX = 100;
+
 /**
- * GET /api/admin/users
- * Return all registered users from D1/KV — admin only
+ * GET /api/admin/users?page=1&pageSize=20&q=...
+ * One page of registered users (most recently active first), optionally filtered — admin only
  */
 export async function handleAdminUsersRoute(request, env) {
   const user = await getAuthenticatedUser(request, env);
   if (!user || user.role !== "admin") throw AppError.forbidden("دسترسی غیرمجاز. فقط مدیر سیستم مجاز است.");
 
-  const users = await dbGetUsers(env);
-  return jsonResponse({ success: true, users }, 200, request);
+  const url = new URL(request.url);
+  const toInt = (value, fallback) => {
+    const n = parseInt(value, 10);
+    return Number.isFinite(n) && n > 0 ? n : fallback;
+  };
+  const pageSize = Math.min(toInt(url.searchParams.get("pageSize"), USERS_PAGE_SIZE_DEFAULT), USERS_PAGE_SIZE_MAX);
+  const q = (url.searchParams.get("q") || "").trim().slice(0, 100);
+  const requestedPage = toInt(url.searchParams.get("page"), 1);
+
+  let { users, total } = await dbGetUsersPage(env, { q, limit: pageSize, offset: (requestedPage - 1) * pageSize });
+  // Past the last page (e.g. the list shrank): answer with the last page instead of an empty one
+  const pageCount = Math.max(1, Math.ceil(total / pageSize));
+  const page = Math.min(requestedPage, pageCount);
+  if (page !== requestedPage) {
+    ({ users, total } = await dbGetUsersPage(env, { q, limit: pageSize, offset: (page - 1) * pageSize }));
+  }
+
+  return jsonResponse({ success: true, users, total, page, pageSize, pageCount }, 200, request);
 }
 
 /**
@@ -103,44 +122,15 @@ export async function handleAdminSaveSettings(request, env) {
   try {
     const body = await request.json();
     const newSettings = {
-      default_usd_toman:    parseFloat(body.default_usd_toman) || 62000,
-      default_gold_usd:     parseFloat(body.default_gold_usd)  || 2450,
       bubble_pct_full:      parseFloat(body.bubble_pct_full)   >= 0 ? parseFloat(body.bubble_pct_full)   : 15,
       bubble_pct_half:      parseFloat(body.bubble_pct_half)   >= 0 ? parseFloat(body.bubble_pct_half)   : 20,
       bubble_pct_quarter:   parseFloat(body.bubble_pct_quarter) >= 0 ? parseFloat(body.bubble_pct_quarter) : 25,
       announcement:         (body.announcement || "").trim(),
-      usd_source_type:      body.usd_source_type === "api_url" ? "api_url" : "telegram",
-      usd_telegram_channel: (body.usd_telegram_channel || "tahran_sabza").trim(),
-      usd_api_url:          (body.usd_api_url || "").trim(),
-      usd_api_json_path:    (body.usd_api_json_path || "").trim(),
     };
 
     await saveGlobalSettings(env, newSettings);
 
     return jsonResponse({ success: true, message: "تنظیمات عمومی با موفقیت ذخیره شد.", settings: newSettings }, 200, request);
-  } catch (e) {
-    return errorResponse(e.message, 500, request);
-  }
-}
-
-/**
- * POST /api/admin/test-usd-source
- * Test USD price source (Telegram or external API) without saving — admin only
- */
-export async function handleAdminTestUsdSource(request, env) {
-  const user = await getAuthenticatedUser(request, env);
-  if (!user || user.role !== "admin") return forbiddenResponse(request);
-
-  try {
-    const body = await request.json();
-    const config = {
-      priceType: "usd",
-      sourceType: body.usd_source_type === "api_url" ? "api_url" : "telegram",
-      endpoint: body.usd_source_type === "api_url" ? (body.usd_api_url || "").trim() : (body.usd_telegram_channel || "tahran_sabza").trim(),
-      jsonPath: (body.usd_api_json_path || "").trim(),
-    };
-    const testResult = await testPriceSourceConfig(config, env);
-    return jsonResponse(testResult, testResult.success ? 200 : 400, request);
   } catch (e) {
     return errorResponse(e.message, 500, request);
   }

@@ -195,7 +195,7 @@ export function computeUnifiedPrices({
   goldUsd = 0,
   silverUsd = 0,
 }) {
-  const usdVal = Number(usdToman) || Number(marketItems?.meta?.live_usd_toman) || Number(marketItems?.meta?.default_usd_toman) || 0;
+  const usdVal = Number(usdToman) || Number(marketItems?.meta?.live_usd_toman) || 0;
   const goldVal = Number(goldUsd) || Number(marketItems?.meta?.gold_usd) || 2890;
   const silverVal = Number(silverUsd) || Number(marketItems?.meta?.silver_usd) || 33.5;
 

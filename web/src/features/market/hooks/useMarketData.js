@@ -56,23 +56,6 @@ export function useMarketData() {
     }
   }, [pricing?.goldUsd]);
 
-  // Fall back to the admin defaults when the snapshot has no live USD / gold price
-  useEffect(() => {
-    if (!rates) return;
-    const defaults = rates.globalSettings || {};
-    if (!parseNum(usdToman) && !Number(pricing?.usdToman) && defaults.default_usd_toman) {
-      setUsdToman(formatThousands(Math.round(defaults.default_usd_toman), false));
-      pricing?.setUsdToman?.(Math.round(defaults.default_usd_toman));
-    }
-    if (!parseNum(goldUsd) && !Number(pricing?.goldUsd) && defaults.default_gold_usd) {
-      setGoldUsd(formatThousands(defaults.default_gold_usd, true));
-      pricing?.setGoldUsd?.(Number(defaults.default_gold_usd));
-    }
-    // Only when a new price snapshot arrives: re-running on usdToman/goldUsd would refill the
-    // default the moment the user clears the field to type their own value.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [rates]);
-
   // Instant client-side calculation whenever inputs or rates change (0ms, zero network lag)
   useEffect(() => {
     const usdNum = parseNum(usdToman);

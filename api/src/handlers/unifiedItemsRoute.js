@@ -38,10 +38,10 @@ export async function handleGetUnifiedMarketItems(env, request) {
       getAllCatalogItems(env, { q, limit }),
     ]);
 
-    const gold_usd = prices.ons_gold?.price || globalSettings?.default_gold_usd || 0;
+    const gold_usd = prices.ons_gold?.price || 0;
     const silver_usd = prices.ons_silver?.price || 0;
     const live_usd_item = prices.usd_toman || prices.usd || null;
-    const live_usd_toman = live_usd_item ? live_usd_item.price : (globalSettings?.default_usd_toman || 0);
+    const live_usd_toman = live_usd_item ? live_usd_item.price : 0;
 
     // 1. Gold, Coin, and Silver definitions with physical specs and live source market prices
     const allPhysicalSpecs = [
@@ -141,7 +141,6 @@ export async function handleGetUnifiedMarketItems(env, request) {
         gold_usd,
         silver_usd,
         live_usd_toman,
-        default_usd_toman: globalSettings?.default_usd_toman || 62000,
         reference_rates: prices.reference_rates || [],
         globalSettings,
       },

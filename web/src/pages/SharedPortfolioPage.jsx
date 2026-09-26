@@ -86,8 +86,8 @@ export default function SharedPortfolioPage() {
       .then((data) => {
         if (data && data.success) {
           setMarketRates(data);
-          const u = data.live_usd_toman || data.globalSettings?.default_usd_toman || 0;
-          const g = data.gold_usd || data.globalSettings?.default_gold_usd || 0;
+          const u = data.live_usd_toman || 0;
+          const g = data.gold_usd || 0;
           const cRes = calculateMarketData({
             usdToman: u,
             goldUsd: g,
