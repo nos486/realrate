@@ -1087,3 +1087,15 @@
   .admin-switch-thumb,
   .admin-users-loading { transition: none; }
 }
+
+.admin-usage-locked,
+.admin-usage-plain {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 10.5px;
+  font-weight: 700;
+}
+
+.admin-usage-locked { color: var(--green-emerald); }
+.admin-usage-plain { color: var(--accent-amber); }

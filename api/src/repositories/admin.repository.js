@@ -189,17 +189,22 @@ export async function dbGetUserDetail(env, userId, { now = Date.now() } = {}) {
            (SELECT COUNT(*) FROM user_activity WHERE user_id = ?1 AND day >= ?3) AS activeDays30
   `).bind(userId, now, new Date(now - 29 * DAY_MS).toISOString().slice(0, 10)).first();
 
+  // `usage` counts the plaintext rows; `encrypted` the browser-encrypted vault records of the
+  // same kinds, so the panel can tell stored-encrypted data from data still in plaintext
   const usage = Object.fromEntries(USAGE_TABLES.map(([key]) => [key, Number(usageRow?.[key]) || 0]));
+  const encrypted = Object.fromEntries(Object.values(VAULT_KIND_KEYS).map((key) => [key, 0]));
   const vaultEnabled = Number(usageRow?.vaultEnabled) > 0;
-  if (vaultEnabled) {
-    const { results = [] } = await env.DB.prepare(`
-      SELECT kind, COUNT(*) AS count FROM vault_records WHERE user_id = ? GROUP BY kind
-    `).bind(userId).all();
-    for (const { kind, count } of results) {
-      const key = VAULT_KIND_KEYS[kind];
-      if (key) usage[key] += Number(count) || 0;
-    }
+  const { results: vaultCounts = [] } = await env.DB.prepare(`
+    SELECT kind, COUNT(*) AS count FROM vault_records WHERE user_id = ? GROUP BY kind
+  `).bind(userId).all();
+  for (const { kind, count } of vaultCounts) {
+    const key = VAULT_KIND_KEYS[kind];
+    if (key) encrypted[key] += Number(count) || 0;
   }
+  const encryptedPortfolios = await env.DB.prepare(`
+    SELECT COUNT(*) AS count FROM portfolios WHERE user_id = ? AND is_e2ee = 1
+  `).bind(userId).first();
+  encrypted.portfolios = Number(encryptedPortfolios?.count) || 0;
 
   return {
     ...formatListRow(user),
@@ -208,6 +213,12 @@ export async function dbGetUserDetail(env, userId, { now = Date.now() } = {}) {
     activeDays30: Number(usageRow?.activeDays30) || 0,
     vaultEnabled,
     usage,
+    encrypted,
+    // With the vault on, plaintext loans / incomes / cheques / fixed incomes are leftovers of an
+    // unfinished migration (new ones can only be stored encrypted)
+    plaintextPending: vaultEnabled
+      ? Object.values(VAULT_KIND_KEYS).reduce((sum, key) => sum + (usage[key] || 0), 0)
+      : 0,
   };
 }
 
