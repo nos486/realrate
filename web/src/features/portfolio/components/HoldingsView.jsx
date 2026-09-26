@@ -11,8 +11,6 @@
 import React, { useState, useMemo, useCallback, useEffect, forwardRef, useImperativeHandle } from 'react';
 import { createPortal } from 'react-dom';
 import {
-  Lock,
-  Unlock,
   Search,
   X,
   Settings,
@@ -358,34 +356,9 @@ const HoldingsView = forwardRef(function HoldingsView(
       >
           {/* The asset groups are cards of their own: no card around them */}
           <div className="portfolio-table-card is-plain">
-            <div className="portfolio-table-header">
-              <div className="table-title">
-                <div className="table-title-main">
-                  <h3>{activePortfolio?.name || 'سبد دارایی'}</h3>
-                  {activePortfolio?.isE2ee && (
-                    <span
-                      className={`portfolio-encryption-tag e2ee ${isVaultLocked ? 'locked' : 'unlocked'}`}
-                      title="داده‌ها با رمز اختصاصی شما در مرورگر رمزنگاری می‌شوند."
-                    >
-                      {isVaultLocked ? (
-                        <>
-                          <Lock size={12} style={{ verticalAlign: 'middle', marginLeft: '4px' }} />
-                          قفل
-                        </>
-                      ) : (
-                        <>
-                          <Unlock size={12} style={{ verticalAlign: 'middle', marginLeft: '4px' }} />
-                          باز
-                        </>
-                      )}
-                    </span>
-                  )}
-                </div>
-              </div>
-
-              {/* Search, export / import and settings sit in the sub-tab row when there is one */}
-              {toolbarSlot ? createPortal(toolbar, toolbarSlot) : toolbar}
-            </div>
+            {/* No list header: the portfolio is named in the switcher above, and its toolbar
+                (search, export / import, settings) sits in the sub-tab row */}
+            {toolbarSlot ? createPortal(toolbar, toolbarSlot) : toolbar}
 
             {/* Until the portfolio list itself has loaded there is nothing to show — never flash
                 "portfolio is empty" at a user who has holdings */}
