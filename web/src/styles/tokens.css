@@ -19,6 +19,12 @@
   --card-shadow: none;
   --card-shadow-hover: none;
   --card-radius: 16px;
+  /* A card nested inside a card (e.g. a loan inside its bank group): a lighter step of the same
+     surface, so it reads as a separate layer without a shadow */
+  --card-inner-bg: #161d2c;
+  --card-inner-bg-hover: #1b2334;
+  --card-inner-border: 1px solid rgba(255, 255, 255, 0.08);
+  --card-inner-border-hover: rgba(255, 255, 255, 0.16);
 
   --bg-card-hover: var(--card-bg-hover);
   --bg-card-elevated: rgba(19, 27, 42, 0.92);
