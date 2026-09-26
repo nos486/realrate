@@ -3,7 +3,8 @@
  *
  * The history is read by asset id (the same ids the home page and the market catalog use), so
  * prices are recorded under those ids, lower-cased:
- * - market rates by their rate key: usd, gold_18k, full_coin, ons_gold, ...
+ * - market rates by their rate key: usd, gold_18k, full_coin, ons_gold, ... — USD only as a toman
+ *   value (usd_toman); the forex feed's own USD entry is its cross rate, always 1, and is skipped
  * - currencies (other than USD) by their code, as a toman value (USD rate × cross rate) — the
  *   number their cards show, not the raw cross rate
  * - catalog items (bourse symbols, funds) by their catalog id: `${sourceId}__${symbol}`
@@ -56,8 +57,14 @@ export function marketRateHistoryPoints(latestRates) {
     if (price) byKey.set(key.toLowerCase(), price);
   }
 
+  // USD: the toman rate, under "usd". A "usd" of 1 is the forex feed's cross rate, not a price.
+  byKey.delete("usd_toman");
+  byKey.delete("usd");
+  const usdRaw = positive(rates.usd?.price);
+  const usdToman = positive(rates.usd_toman?.price) || (usdRaw > 1 ? usdRaw : 0);
+  if (usdToman) byKey.set("usd", usdToman);
+
   // Currencies: toman value from the USD rate, replacing the raw cross rate
-  const usdToman = positive(rates.usd_toman?.price) || positive(rates.usd?.price);
   for (const spec of FOREX_SPECS) {
     const key = spec.code.toLowerCase();
     if (key === "usd") continue;

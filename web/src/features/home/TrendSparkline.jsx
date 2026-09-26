@@ -12,7 +12,9 @@ const W = 200;
 const H = 48;
 const PAD_Y = 4;
 
-const timeFormat = new Intl.DateTimeFormat('fa-IR-u-ca-persian', {
+// Within a day the time says it all; longer windows also name the day
+const clockFormat = new Intl.DateTimeFormat('fa-IR', { hour: '2-digit', minute: '2-digit' });
+const dayFormat = new Intl.DateTimeFormat('fa-IR-u-ca-persian', {
   month: 'short',
   day: 'numeric',
   hour: '2-digit',
@@ -44,6 +46,7 @@ export default function TrendSparkline({ points, since, bucketSec, unit = '', di
 
   const n = points.length;
   const startMs = Date.parse(since);
+  const timeFormat = n * bucketSec <= 24 * 3600 + bucketSec ? clockFormat : dayFormat;
   const timeOf = (i) => (i === n - 1 ? 'اکنون' : timeFormat.format(new Date(startMs + i * bucketSec * 1000)));
 
   const pick = (e) => {

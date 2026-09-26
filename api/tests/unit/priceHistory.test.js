@@ -108,7 +108,8 @@ describe('history keys = the app\'s asset ids', () => {
   it('uses the rate keys, and a toman value for currencies', () => {
     const points = marketRateHistoryPoints({
       last_updated: '2026-01-01T00:00:00Z',
-      usd: { price: 100000 },
+      usd_toman: { price: 100000 },
+      usd: { price: 1 },
       gold_18k: { price: 8000000 },
       eur: { price: 1.1 },
       try: { price: 0.03 },
@@ -118,6 +119,11 @@ describe('history keys = the app\'s asset ids', () => {
     expect(Object.fromEntries(points.map((p) => [p.id, p.price]))).toEqual({
       usd: 100000, gold_18k: 8000000, eur: 110000, try: 3000, ons_gold: 2400,
     });
+  });
+
+  it('never records the forex feed\'s USD cross rate (1) as the dollar price', () => {
+    expect(marketRateHistoryPoints({ usd: { price: 1 }, gold_18k: { price: 5 } })).toEqual([{ id: 'gold_18k', price: 5 }]);
+    expect(marketRateHistoryPoints({ usd: { price: 101000 } })).toEqual([{ id: 'usd', price: 101000 }]);
   });
 
   it('drops currency cross rates when the USD rate is unknown', () => {
@@ -200,7 +206,7 @@ describe('readPriceTrends', () => {
 describe('GET /api/sparklines', () => {
   it('answers an empty set without touching the database', async () => {
     const res = await handleGetSparklines({}, new Request('https://x/api/sparklines'));
-    expect(await res.json()).toEqual({ success: true, available: true, range: '7d', bucketSec: 10800, sparklines: {} });
+    expect(await res.json()).toEqual({ success: true, available: true, range: '1d', bucketSec: 60, sparklines: {} });
   });
 
   it('says the history is unavailable when Postgres is not bound', async () => {

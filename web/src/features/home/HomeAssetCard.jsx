@@ -4,7 +4,7 @@
  * - detailed: large card. Gold & coins show the bubble analysis (intrinsic value, standard price,
  *   deviation); every other asset shows its price, daily change and source.
  * - compact: small row card (flag/icon, name, symbol, price).
- * - trend: price, its change over the trend window and a sparkline from the price history.
+ * - trend: price, its change over the last 24 hours and a per-minute sparkline from the price history.
  */
 
 import React from 'react';
@@ -163,19 +163,18 @@ function CompactCard({ asset }) {
   );
 }
 
-const TREND_WINDOW_LABEL = '۷ روز';
+const TREND_WINDOW_LABEL = '۲۴ ساعت';
+const TREND_WINDOW_MS = 24 * 3600 * 1000;
 
 // The history keeps every price in tomans, except the world ounce prices (in dollars)
 const historyUnit = (asset) => (/^ons_/i.test(asset.id) ? 'دلار' : 'تومان');
-const DAY_MS = 24 * 3600 * 1000;
-
-const sinceFormat = new Intl.DateTimeFormat('fa-IR-u-ca-persian', { month: 'long', day: 'numeric' });
+const sinceFormat = new Intl.DateTimeFormat('fa-IR', { hour: '2-digit', minute: '2-digit' });
 
 function TrendBody({ asset, unit, trend, status, bucketSec }) {
   if (trend && trend.points.length >= 2) {
     const direction = trend.changePct > 0 ? 'up' : trend.changePct < 0 ? 'down' : 'flat';
     // A history younger than the window (fewer points than it holds) says where it starts
-    const young = trend.points.length * bucketSec * 1000 < 6.5 * DAY_MS;
+    const young = trend.points.length * bucketSec * 1000 < 0.95 * TREND_WINDOW_MS;
     const label = `روند ${asset.name}: از ${formatNum(trend.first)} به ${formatNum(trend.last)} ${unit}`;
     return (
       <>
@@ -188,7 +187,7 @@ function TrendBody({ asset, unit, trend, status, bucketSec }) {
           label={label}
         />
         <p className="home-trend-caption">
-          {young ? `از ${sinceFormat.format(new Date(trend.since))}` : `${TREND_WINDOW_LABEL} اخیر`}
+          {young ? `از ساعت ${sinceFormat.format(new Date(trend.since))}` : `${TREND_WINDOW_LABEL} اخیر`}
         </p>
       </>
     );

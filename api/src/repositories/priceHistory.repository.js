@@ -59,14 +59,14 @@ export function toHistoryPoints(items) {
   return { keys: [...byKey.keys()], values: [...byKey.values()].map(String) };
 }
 
-/** Trend windows: length and bucket size (a few dozen points each) */
+/** Trend windows: length and bucket size (the day is per minute, as often as prices are synced) */
 export const TREND_RANGES = {
-  "1d": { ms: 24 * 3600e3, bucketSec: 30 * 60 },
+  "1d": { ms: 24 * 3600e3, bucketSec: 60 },
   "7d": { ms: 7 * 24 * 3600e3, bucketSec: 3 * 3600 },
   "30d": { ms: 30 * 24 * 3600e3, bucketSec: 12 * 3600 },
   "1y": { ms: 365 * 24 * 3600e3, bucketSec: 7 * 24 * 3600 },
 };
-export const DEFAULT_TREND_RANGE = "7d";
+export const DEFAULT_TREND_RANGE = "1d";
 
 /** $1: keys, $2: window start, $3: bucket size in seconds → the last value of each bucket */
 export const TREND_BUCKETS_SQL = `
