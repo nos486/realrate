@@ -2,7 +2,7 @@
  * useIncomes.js — The user's incomes of a period, and their CRUD operations
  *
  * One query per period: the server filters on each income's plaintext date and returns only the
- * chosen window (6 months by default). Amounts are encrypted, so the totals, the monthly chart
+ * chosen window (a year by default). Amounts are encrypted, so the totals, the monthly chart
  * and the list's pages are all built in the browser from that one result — nothing is fetched
  * twice and nothing outside the period is fetched at all.
  */
@@ -28,7 +28,7 @@ import { todayIso } from '../../../shared/utils/dates.js';
 import { DEFAULT_RECENT_PERIOD, periodFrom } from '../../../shared/utils/recentPeriods.js';
 
 const SILENT = { silent: true };
-export const INCOMES_PAGE_SIZE = 10;
+export const INCOMES_PAGE_SIZE = 20;
 
 export function useIncomes() {
   const { user } = useAuth();

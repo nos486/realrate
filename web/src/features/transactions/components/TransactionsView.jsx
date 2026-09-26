@@ -2,9 +2,9 @@
  * TransactionsView.jsx — Transactions sub-tab of the merged Portfolio page
  *
  * Renders buy/sell transaction CRUD, search/filter, and turnover stats for the portfolio
- * selected by the parent (PortfolioTracker). A period picker (6 months by default) sets the date
+ * selected by the parent (PortfolioTracker). A period picker (a year by default) sets the date
  * window fetched from the server — one query per period; the stats, search, type filter,
- * sorting and the 10-per-page list all work in the browser on that result (the fields are
+ * sorting and the 20-per-page list all work in the browser on that result (the fields are
  * encrypted). The full history is loaded only for the form's sell-balance check. The portfolio switcher and page header live in
  * the parent, shared with the Holdings sub-tab — this view owns only its own vault-unlock
  * state and transaction data, exactly as it did as a standalone page.
@@ -50,7 +50,7 @@ import { usePrivacyMode } from '../../../hooks/usePrivacyMode.js';
 import { useFeedback } from '../../../shared/ui/FeedbackProvider.jsx';
 import { SkeletonRows } from '../../../shared/ui/Skeleton.jsx';
 
-const TX_PAGE_SIZE = 10;
+const TX_PAGE_SIZE = 20;
 
 const TransactionsView = forwardRef(function TransactionsView(
   { activePortfolio, loadingPortfolios = false, calcData = null, rates = null, fetchPortfolios, onCountChange },
@@ -226,7 +226,7 @@ const TransactionsView = forwardRef(function TransactionsView(
     });
   }, [filteredTransactions, sortAccessors, sortState]);
 
-  // Paging: 10 per page, reset whenever what is listed changes
+  // Paging: 20 per page, reset whenever what is listed changes
   const listKey = `${activePortfolio?.id}|${period}|${typeFilter}|${searchQuery.trim()}|${sortState.key}|${sortState.dir}`;
   const [paging, setPaging] = useState({ key: '', page: 1 });
   const setPage = (next) => setPaging({ key: listKey, page: next });

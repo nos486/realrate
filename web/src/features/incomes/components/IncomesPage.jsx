@@ -2,10 +2,10 @@
  * IncomesPage.jsx — Income tracking dashboard
  *
  * - Record / edit / delete income entries (title, category, amount, Shamsi date, notes)
- * - Period picker at the top (last month / 3 / 6 months / a year / all; 6 months by default):
+ * - Period picker at the top (last month / 3 / 6 months / a year / all; a year by default):
  *   only that date window is fetched from the server
  * - Summary cards, per-category breakdown and the monthly chart, all of the period (never more)
- * - The list: 10 per page, sorted by date; paging, sorting and search all work in the browser on
+ * - The list: 20 per page, sorted by date; paging, sorting and search all work in the browser on
  *   the period already fetched (one query per period — amounts and titles are encrypted)
  */
 
@@ -84,7 +84,7 @@ export default function IncomesPage() {
   const categoryOrder = useMemo(() => report.byCategory.map((c) => c.category), [report.byCategory]);
 
   // The list: the period, searched (titles and notes are encrypted, so in the browser) and
-  // sorted by date, then 10 at a time
+  // sorted by date, then 20 at a time
   const query = searchQuery.trim().toLowerCase();
   const searching = Boolean(query);
   const listed = useMemo(() => {
