@@ -1,13 +1,15 @@
 /**
- * HomeAssetCard.jsx — One asset on the home page, in either card style
+ * HomeAssetCard.jsx — One asset on the home page, in any of the card styles
  *
  * - detailed: large card. Gold & coins show the bubble analysis (intrinsic value, standard price,
  *   deviation); every other asset shows its price, daily change and source.
  * - compact: small row card (flag/icon, name, symbol, price).
+ * - trend: price, its change over the trend window and a sparkline from the price history.
  */
 
 import React from 'react';
 import { CategoryIcon } from '../portfolio/utils/holdingHelpers.js';
+import TrendSparkline from './TrendSparkline.jsx';
 
 function formatNum(num) {
   if (num === null || num === undefined || isNaN(num)) return '-';
@@ -161,17 +163,89 @@ function CompactCard({ asset }) {
   );
 }
 
+const TREND_WINDOW_LABEL = '۷ روز';
+
+// The history keeps every price in tomans, except the world ounce prices (in dollars)
+const historyUnit = (asset) => (/^ons_/i.test(asset.id) ? 'دلار' : 'تومان');
+const DAY_MS = 24 * 3600 * 1000;
+
+const sinceFormat = new Intl.DateTimeFormat('fa-IR-u-ca-persian', { month: 'long', day: 'numeric' });
+
+function TrendBody({ asset, unit, trend, status, bucketSec }) {
+  if (trend && trend.points.length >= 2) {
+    const direction = trend.changePct > 0 ? 'up' : trend.changePct < 0 ? 'down' : 'flat';
+    // A history younger than the window (fewer points than it holds) says where it starts
+    const young = trend.points.length * bucketSec * 1000 < 6.5 * DAY_MS;
+    const label = `روند ${asset.name}: از ${formatNum(trend.first)} به ${formatNum(trend.last)} ${unit}`;
+    return (
+      <>
+        <TrendSparkline
+          points={trend.points}
+          since={trend.since}
+          bucketSec={bucketSec}
+          unit={unit}
+          direction={direction}
+          label={label}
+        />
+        <p className="home-trend-caption">
+          {young ? `از ${sinceFormat.format(new Date(trend.since))}` : `${TREND_WINDOW_LABEL} اخیر`}
+        </p>
+      </>
+    );
+  }
+  if (!trend && status === 'loading') return <div className="home-trend-skeleton" aria-hidden="true" />;
+  return (
+    <p className="home-trend-empty">
+      {status === 'unavailable' ? 'روند قیمت فعلاً در دسترس نیست' : 'روندی برای این مورد هنوز ثبت نشده'}
+    </p>
+  );
+}
+
+function TrendCard({ asset, trend, status, bucketSec }) {
+  const hasTrend = trend && trend.points.length >= 2;
+  const change = hasTrend ? changeBadge(Number(trend.changePct.toFixed(2))) : null;
+  // The headline and the line must be in the same unit: when the card's own price is quoted
+  // differently (e.g. a currency in dollars), show the history's latest value instead
+  const unit = historyUnit(asset);
+  const sameUnit = asset.unit === unit;
+  const price = hasTrend && !(sameUnit && asset.price) ? trend.last : asset.price;
+  const priceUnit = hasTrend ? unit : asset.unit;
+  return (
+    <div className="fintech-card home-trend-card">
+      <div className="card-top-row">
+        <div className="home-card-identity">
+          <AssetIcon asset={asset} />
+          <h3 className="card-name">{asset.name}</h3>
+          {asset.code && <span className="curr-code-pill">{asset.code}</span>}
+        </div>
+        {change && (
+          <span className={`bubble-pill ${change.className}`} title={`تغییر در ${TREND_WINDOW_LABEL} اخیر`}>
+            {change.text}
+          </span>
+        )}
+      </div>
+      <PriceLine value={price} unit={priceUnit} />
+      <TrendBody asset={asset} unit={unit} trend={trend} status={status} bucketSec={bucketSec} />
+    </div>
+  );
+}
+
 function MissingCard({ asset, style }) {
   return (
-    <div className={`${style === 'detailed' ? 'fintech-card' : 'currency-item-card'} home-card-missing`}>
+    <div className={`${style === 'compact' ? 'currency-item-card' : 'fintech-card'} home-card-missing`}>
       <span className="curr-persian-name">{asset.id}</span>
       <span className="curr-desc">این مورد فعلاً در بازار نرخی ندارد.</span>
     </div>
   );
 }
 
-export default function HomeAssetCard({ asset, style, isBest = false }) {
+/**
+ * @param {{ asset: object, style: 'detailed'|'compact'|'trend', isBest?: boolean,
+ *   trend?: object|null, trendStatus?: string, bucketSec?: number }} props
+ */
+export default function HomeAssetCard({ asset, style, isBest = false, trend = null, trendStatus = 'idle', bucketSec = 0 }) {
   if (!asset.found) return <MissingCard asset={asset} style={style} />;
   if (style === 'compact') return <CompactCard asset={asset} />;
+  if (style === 'trend') return <TrendCard asset={asset} trend={trend} status={trendStatus} bucketSec={bucketSec} />;
   return asset.analysis ? <GoldDetailedCard asset={asset} isBest={isBest} /> : <DetailedCard asset={asset} />;
 }

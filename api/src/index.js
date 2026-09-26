@@ -19,7 +19,7 @@ import { logger } from "./lib/logger.js";
 import { DEFAULT_BOURSE_SEARCH_LIMIT } from "./config/constants.js";
 import { getAuthenticatedUser } from "./lib/auth.js";
 import { AppError } from "./lib/AppError.js";
-import { setPriceHistoryWriter } from "./repositories/sourceItems.repository.js";
+import { setPriceHistoryWriter } from "./services/market/sourceSync.service.js";
 import { recordPriceHistory } from "./repositories/priceHistory.repository.js";
 
 // Every saved price also goes to the Postgres history (see priceHistory.repository.js)

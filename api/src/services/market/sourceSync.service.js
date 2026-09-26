@@ -12,6 +12,7 @@
  *   5. saveSourceItems(env, src.id, items, { datetime })
  *   6. setSourceLastSync(env, src.id, nowMs)
  *   7. Recompile homepage latest_rates cache
+ *   8. Record the tick's prices in the price history (one write, keyed by asset id)
  *
  * Guarantees that in any single tick, no source is fetched more than once.
  */
@@ -29,6 +30,19 @@ import {
 } from "../../repositories/kvCache.repository.js";
 import { compileLatestMarketRates } from "./priceAggregator.service.js";
 import { logger } from "../../lib/logger.js";
+import { catalogHistoryPoints, marketRateHistoryPoints } from "../../domain/priceHistoryKeys.js";
+
+/**
+ * Records a tick's prices in the price history. Registered by the Worker entry (index.js)
+ * rather than imported here: the web app shares market modules with the API, and its bundle
+ * must not pull in the Postgres driver.
+ */
+let priceHistoryWriter = null;
+
+/** @param {((env: object, points: Array<{ id: string, price: number }>, recordedAt: string) => Promise<unknown>)|null} writer */
+export function setPriceHistoryWriter(writer) {
+  priceHistoryWriter = writer;
+}
 
 /**
  * Synchronizes all active sources whose fetch interval is due.
@@ -141,6 +155,9 @@ export async function syncAllSources(env, options = {}) {
     endpointContentMap.set(endpointKeys[i], rawResults[i]);
   }
 
+  // Catalog prices of this tick, for the price history
+  const catalogPoints = [];
+
   // 3. Process, parse, and persist each source (uniform pipeline)
   for (const src of dueSources) {
     const adapter = getAdapterForSource(src);
@@ -170,6 +187,8 @@ export async function syncAllSources(env, options = {}) {
           datetime,
           ttlSeconds: Math.max(86400, intervalSec * 3),
         });
+
+        if (src.isCatalog) catalogPoints.push(...catalogHistoryPoints(src.id, items));
 
         // Set last sync timestamp
         await setSourceLastSync(env, src.id, nowMs, Math.max(86400, intervalSec * 3));
@@ -213,6 +232,11 @@ export async function syncAllSources(env, options = {}) {
     await setLatestRatesCache(env, latestRates);
   } catch (rateErr) {
     logger.warn("[SourceSync] Error updating latest rates cache:", { error: rateErr.message });
+  }
+
+  // 5. Price history: every app price of this tick, in one write (the writer never throws)
+  if (priceHistoryWriter && syncedCount > 0) {
+    await priceHistoryWriter(env, [...marketRateHistoryPoints(latestRates), ...catalogPoints], new Date(nowMs).toISOString());
   }
 
   return {

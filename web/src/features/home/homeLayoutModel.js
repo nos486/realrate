@@ -67,6 +67,15 @@ export const HOME_PRESETS = [
     build: buildDefaultLayout,
   },
   {
+    key: 'trend',
+    label: 'روند بازار',
+    description: 'نرخ‌های اصلی با نمودار روند هفت روز اخیر',
+    build: (ctx) => layoutOf([
+      { id: 's_trend', title: 'روند بازار', style: 'trend', items: ['USD', 'gold_18k', 'full_coin', 'USDT', 'EUR'] },
+      { id: 's_gold', title: 'طلا و سکه', style: 'detailed', items: goldIds(ctx) },
+    ]),
+  },
+  {
     key: 'gold',
     label: 'طلا و سکه',
     description: 'کارت کامل طلا و سکه، به‌همراه انس، نقره و دلار',

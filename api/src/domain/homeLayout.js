@@ -9,7 +9,8 @@
  *   version: 1,
  *   sections: [
  *     { id: "s_gold", title: "طلا و سکه", style: "detailed", items: ["gold_18k", "full_coin"] },
- *     { id: "s_fx",   title: "ارزها",     style: "compact",  items: ["USD", "EUR"] }
+ *     { id: "s_fx",   title: "ارزها",     style: "compact",  items: ["USD", "EUR"] },
+ *     { id: "s_trend", title: "روند",     style: "trend",    items: ["USD", "gold_18k"] }
  *   ]
  * }
  */
@@ -20,6 +21,7 @@ export const HOME_LAYOUT_VERSION = 1;
 export const HOME_SECTION_STYLES = {
   detailed: "کارت کامل",
   compact: "کارت فشرده",
+  trend: "کارت روند",
 };
 
 export const HOME_LAYOUT_LIMITS = {

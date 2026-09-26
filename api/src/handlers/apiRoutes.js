@@ -7,6 +7,10 @@ import { getLatestMarketRates } from "../services/priceSources.js";
 import { getGlobalSettings } from "../repositories/settings.repository.js";
 import { jsonResponse } from "../lib/helpers.js";
 import { logger } from "../lib/logger.js";
+import { readPriceTrends, TREND_RANGES, DEFAULT_TREND_RANGE } from "../repositories/priceHistory.repository.js";
+
+const SPARKLINE_MAX_KEYS = 200;
+const SPARKLINE_CACHE_SECONDS = 300;
 
 /**
  * GET /api/prices
@@ -71,11 +75,42 @@ export async function handleGetPrices(env, request = null) {
 }
 
 /**
- * GET /api/sparklines
- * Return 24-hour lightweight price sparklines for charts.
- * Supports ?asset=gold_18k to only query the requested asset on-demand (zero wasted DB queries).
- * Cached in Cloudflare KV for 3 minutes for blazing-fast edge performance.
+ * GET /api/sparklines?keys=usd,gold_18k,...&range=7d
+ * Trend series of the given asset ids from the price history (Postgres): per key a fixed-size
+ * list of values across the window (one per `bucketSec`, from `since`), plus its first and last
+ * value and the change in percent.
+ * Keys without history are left out; `available: false` means the history can't be read now.
+ * Answers are cached at the edge for a few minutes (keys are sorted, so any order hits the cache).
  */
 export async function handleGetSparklines(env, request = null) {
-  return jsonResponse({ success: true, sparklines: {} }, 200, request);
+  const url = new URL(request?.url || "http://localhost/api/sparklines");
+  const range = Object.hasOwn(TREND_RANGES, url.searchParams.get("range")) ? url.searchParams.get("range") : DEFAULT_TREND_RANGE;
+  const { bucketSec } = TREND_RANGES[range];
+  const keys = [...new Set(
+    (url.searchParams.get("keys") || url.searchParams.get("asset") || "")
+      .split(",")
+      .map((k) => k.trim().toLowerCase())
+      .filter((k) => k && k.length <= 160),
+  )].sort().slice(0, SPARKLINE_MAX_KEYS);
+
+  if (keys.length === 0) {
+    return jsonResponse({ success: true, available: true, range, bucketSec, sparklines: {} }, 200, request);
+  }
+
+  const cache = globalThis.caches?.default || null;
+  const cacheKey = new Request(`https://sparklines.cache/${range}?keys=${encodeURIComponent(keys.join(","))}`);
+  if (cache) {
+    const hit = await cache.match(cacheKey).catch(() => null);
+    if (hit) return jsonResponse(await hit.json(), 200, request);
+  }
+
+  const sparklines = await readPriceTrends(env, keys, { range });
+  const body = { success: true, available: sparklines !== null, range, bucketSec, sparklines: sparklines || {} };
+  if (cache && sparklines !== null) {
+    const toStore = new Response(JSON.stringify(body), {
+      headers: { "Content-Type": "application/json", "Cache-Control": `max-age=${SPARKLINE_CACHE_SECONDS}` },
+    });
+    await cache.put(cacheKey, toStore).catch(() => {});
+  }
+  return jsonResponse(body, 200, request);
 }
