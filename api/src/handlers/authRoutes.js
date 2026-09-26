@@ -9,7 +9,9 @@
  */
 
 import { isUserAdmin, getAuthenticatedUser } from "../lib/auth.js";
-import { dbUpsertUser, dbSaveSession, dbDeleteSession, dbGetUserById, dbGetUserAuthById } from "../repositories/index.js";
+import { dbUpsertUser, dbSaveSession, dbDeleteSession, dbGetUserById, dbGetUserAuthById, dbRecordUserActivity } from "../repositories/index.js";
+import { ACCOUNT_DISABLED_MESSAGE } from "./accountRoutes.js";
+import { getMaintenance } from "../lib/maintenance.js";
 import { jsonResponse, errorResponse, getCorsHeaders } from "../lib/helpers.js";
 import { logger } from "../lib/logger.js";
 import { isTrustedOrigin } from "../lib/security.js";
@@ -289,8 +291,16 @@ export async function handleGoogleCallback(request, env) {
 
     const userData = { id: userId, email, name, picture, role, createdAt: now, lastLogin: now, loginCount: 1 };
 
+    const maintenance = await getMaintenance(env);
+    if (maintenance.enabled && !isAdmin) {
+      return Response.redirect(buildFrontendRedirect(frontendOrigin, returnTo, { auth_error: maintenance.message }), 302);
+    }
+
     // 1. Upsert user in D1 (+ KV sync)
     await dbUpsertUser(env, userData);
+    if (userData.disabled) {
+      return Response.redirect(buildFrontendRedirect(frontendOrigin, returnTo, { auth_error: ACCOUNT_DISABLED_MESSAGE }), 302);
+    }
 
     // 2. Create 30-day session
     const sessionToken = crypto.randomUUID();
@@ -381,8 +391,12 @@ export async function handleGoogleAuth(request, env) {
 
     const userData = { id: userId, email, name, picture, role, createdAt: now, lastLogin: now, loginCount: 1 };
 
+    const maintenance = await getMaintenance(env);
+    if (maintenance.enabled && !isAdmin) return errorResponse(maintenance.message, 503, request);
+
     // 1. Upsert user in D1 (+ KV sync)
     await dbUpsertUser(env, userData);
+    if (userData.disabled) return errorResponse(ACCOUNT_DISABLED_MESSAGE, 403, request);
 
     // 2. Create 30-day session
     const sessionToken = crypto.randomUUID();
@@ -426,8 +440,10 @@ export async function handleGoogleAuth(request, env) {
  */
 export async function handleGetMe(request, env) {
   const user = await getAuthenticatedUser(request, env);
+  // Everyone learns about maintenance mode here, so the browser can show its page
+  const maintenance = await getMaintenance(env);
   if (!user) {
-    return jsonResponse({ authenticated: false, user: null }, 200, request);
+    return jsonResponse({ authenticated: false, user: null, maintenance }, 200, request);
   }
 
   const userId = user.userId || user.id;
@@ -436,6 +452,9 @@ export async function handleGetMe(request, env) {
   let emailVerified = true;
   try {
     const account = await dbGetUserAuthById(env, userId);
+    if (account?.disabled) {
+      return jsonResponse({ authenticated: false, user: null, maintenance }, 200, request);
+    }
     if (account) {
       customName = customName || account.customName;
       hasPassword = Boolean(account.passwordHash);
@@ -445,9 +464,11 @@ export async function handleGetMe(request, env) {
       if (userData?.customName) customName = userData.customName;
     }
   } catch (e) {}
+  await dbRecordUserActivity(env, userId);
 
   return jsonResponse({
     authenticated: true,
+    maintenance,
     user: {
       id: userId,
       email: user.email,

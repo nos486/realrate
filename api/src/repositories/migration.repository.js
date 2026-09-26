@@ -51,6 +51,8 @@ export async function ensureD1Tables(env) {
       bubble_pct_half REAL DEFAULT 20,
       bubble_pct_quarter REAL DEFAULT 25,
       announcement TEXT DEFAULT '',
+      maintenance_mode INTEGER DEFAULT 0,
+      maintenance_message TEXT DEFAULT '',
       updated_at TEXT
     )`,
     `CREATE TABLE IF NOT EXISTS portfolios (
@@ -259,6 +261,15 @@ export async function ensureD1Tables(env) {
       updated_at TEXT NOT NULL,
       PRIMARY KEY (user_id, kind, id)
     )`,
+    // One row per user per day they used the app (signed in or opened it), for the admin
+    // panel's daily-active-users chart
+    `CREATE TABLE IF NOT EXISTS user_activity (
+      user_id TEXT NOT NULL,
+      day TEXT NOT NULL,
+      PRIMARY KEY (user_id, day)
+    )`,
+    `CREATE INDEX IF NOT EXISTS idx_user_activity_day ON user_activity(day)`,
+    `CREATE INDEX IF NOT EXISTS idx_users_created_at ON users(created_at)`,
     `DROP TABLE IF EXISTS price_history`,
     `DROP TABLE IF EXISTS source_types`,
     `DROP TABLE IF EXISTS derived_assets`,
@@ -309,6 +320,36 @@ export async function ensureD1Tables(env) {
     } catch (ignore) {}
     try {
       await env.DB.prepare("ALTER TABLE users ADD COLUMN password_updated_at TEXT NOT NULL DEFAULT ''").run();
+    } catch (ignore) {}
+
+    // Backward-compat: maintenance ("under development") mode in the global settings
+    try {
+      await env.DB.prepare("ALTER TABLE settings ADD COLUMN maintenance_mode INTEGER DEFAULT 0").run();
+    } catch (ignore) {}
+    try {
+      await env.DB.prepare("ALTER TABLE settings ADD COLUMN maintenance_message TEXT DEFAULT ''").run();
+    } catch (ignore) {}
+
+    // Backward-compat: an admin can block an account (no sign-in, all sessions ended)
+    try {
+      await env.DB.prepare("ALTER TABLE users ADD COLUMN disabled INTEGER NOT NULL DEFAULT 0").run();
+    } catch (ignore) {}
+    // Backward-compat: whether the account has signed in with Google. Existing Google accounts
+    // are keyed by the Google subject id; email sign-ups get a generated `usr_` id.
+    try {
+      await env.DB.prepare("ALTER TABLE users ADD COLUMN google_linked INTEGER NOT NULL DEFAULT 0").run();
+      await env.DB.prepare("UPDATE users SET google_linked = 1 WHERE id NOT LIKE 'usr\\_%' ESCAPE '\\'").run();
+    } catch (ignore) {}
+    // Backfill the activity log once from what is known (sign-up and last sign-in days)
+    try {
+      const { count } = await env.DB.prepare("SELECT COUNT(*) AS count FROM user_activity").first();
+      if (Number(count) === 0) {
+        await env.DB.prepare(`
+          INSERT OR IGNORE INTO user_activity (user_id, day)
+          SELECT id, substr(last_login, 1, 10) FROM users WHERE last_login LIKE '____-__-__%'
+          UNION SELECT id, substr(created_at, 1, 10) FROM users WHERE created_at LIKE '____-__-__%'
+        `).run();
+      }
     } catch (ignore) {}
 
     // Backward-compat: each user's customized home page (JSON, '' = the default home page)

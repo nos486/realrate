@@ -16,6 +16,7 @@
  * are single-use and stored hashed, and a reset or change signs out every other session.
  */
 
+import { assertNotMaintenance } from "../lib/maintenance.js";
 import { getAuthenticatedUser, isUserAdmin } from "../lib/auth.js";
 import {
   dbGetUserAuthByEmail,
@@ -134,8 +135,12 @@ export function publicUser(account, env) {
   };
 }
 
+export const ACCOUNT_DISABLED_MESSAGE = "حساب کاربری شما توسط مدیر سیستم مسدود شده است.";
+
 /** Start a 30-day session and answer with the token (body + cookie), like Google sign-in */
 async function signIn(request, env, account, message) {
+  if (account.disabled) throw new AppError(ACCOUNT_DISABLED_MESSAGE, 403, "ACCOUNT_DISABLED");
+  await assertNotMaintenance(env, account.email);
   const user = publicUser(account, env);
   const token = crypto.randomUUID();
   await dbSaveSession(env, {
@@ -153,7 +158,7 @@ async function signIn(request, env, account, message) {
   });
 }
 
-async function sendVerification(request, env, account) {
+export async function sendVerification(request, env, account) {
   const token = await dbCreateAuthToken(env, account.id, "verify_email", VERIFY_TOKEN_TTL);
   const url = `${resolveFrontendOrigin(request, env)}/verify-email?token=${encodeURIComponent(token)}`;
   await sendEmail(env, { to: account.email, ...verificationEmail(url) });
@@ -179,6 +184,7 @@ async function sendAccountExists(request, env, account) {
  * so a sign-up is never created that could not be verified), then a per-address and per-IP brake.
  */
 async function guardEmailSending(request, env, email) {
+  await assertNotMaintenance(env, email);
   if (!isEmailConfigured(env)) {
     throw new AppError("ارسال ایمیل روی سرور تنظیم نشده است. فعلاً با گوگل وارد شوید.", 503, "EMAIL_NOT_CONFIGURED");
   }
@@ -295,6 +301,7 @@ export async function handleResetPassword(request, env) {
 export async function handleSetPassword(request, env) {
   const user = await getAuthenticatedUser(request, env);
   if (!user) throw AppError.unauthorized();
+  await assertNotMaintenance(env, user.email);
   const userId = user.userId || user.id;
   const account = await dbGetUserAuthById(env, userId);
   if (!account) throw AppError.unauthorized();

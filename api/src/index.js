@@ -13,6 +13,7 @@
 import { getCorsHeaders, isOriginAllowed } from "./lib/helpers.js";
 import { validateEnv } from "./config/env.js";
 import { withErrorHandler } from "./middlewares/errorHandler.js";
+import { enforceMaintenance } from "./lib/maintenance.js";
 import { logger } from "./lib/logger.js";
 import { DEFAULT_BOURSE_SEARCH_LIMIT } from "./config/constants.js";
 import { getAuthenticatedUser } from "./lib/auth.js";
@@ -45,6 +46,13 @@ import {
   handleGetMe,
   handleLogout,
 } from "./handlers/authRoutes.js";
+import {
+  handleAdminUserDetail,
+  handleAdminBlockUser,
+  handleAdminSignOutUser,
+  handleAdminResendVerification,
+  handleAdminGrowth,
+} from "./handlers/adminUserRoutes.js";
 import {
   handleAdminStatsRoute,
   handleAdminUsersRoute,
@@ -208,6 +216,13 @@ export default {
       if (normalizedPath === "/api/auth/password")            return wrap(handleSetPassword)(request, env);
     }
 
+    // ── Maintenance mode: past the sign-in routes, only admins get through ────
+    const maintenanceBlock = await wrap(async (req, e) => {
+      await enforceMaintenance(req, e);
+      return null;
+    })(request, env);
+    if (maintenanceBlock) return maintenanceBlock;
+
     // ── User Settings API Routes (Requires Login) ────────────────────────────
     if (normalizedPath === "/api/user/settings") {
       if (request.method === "GET") return wrap(handleGetUserSettings)(request, env);
@@ -217,6 +232,11 @@ export default {
     // ── Admin API Routes ────────────────────────────────────────────────────
     if (normalizedPath === "/api/admin/stats")                                   return wrap(handleAdminStatsRoute)(request, env);
     if (normalizedPath === "/api/admin/users/portfolio")                         return wrap(handleAdminGetUserPortfolio)(request, env);
+    if (normalizedPath === "/api/admin/users/detail")                            return wrap(handleAdminUserDetail)(request, env);
+    if (normalizedPath === "/api/admin/users/block" && request.method === "POST") return wrap(handleAdminBlockUser)(request, env);
+    if (normalizedPath === "/api/admin/users/signout" && request.method === "POST") return wrap(handleAdminSignOutUser)(request, env);
+    if (normalizedPath === "/api/admin/users/resend-verification" && request.method === "POST") return wrap(handleAdminResendVerification)(request, env);
+    if (normalizedPath === "/api/admin/growth")                                  return wrap(handleAdminGrowth)(request, env);
     if (normalizedPath === "/api/admin/users")                                   return wrap(handleAdminUsersRoute)(request, env);
     if (normalizedPath === "/api/admin/settings" && request.method === "POST")   return wrap(handleAdminSaveSettings)(request, env);
 

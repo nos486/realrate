@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { dbUpdatePortfolio } from '../../src/repositories/portfolio.repository.js';
 
-/** D1 stub: the slug lookup finds `takenBy`; any UPDATE is recorded */
+/** D1 stub: the slug lookup finds `takenBy`; any UPDATE of a portfolio is recorded */
 function envWithSlugOwner(takenBy) {
   const updates = [];
   const DB = {
@@ -10,7 +10,7 @@ function envWithSlugOwner(takenBy) {
       const stmt = {
         bind(...a) { args = a; return stmt; },
         async run() {
-          if (/^\s*UPDATE/.test(sql)) updates.push(args);
+          if (/^\s*UPDATE\s+portfolios\b/.test(sql)) updates.push(args);
           return { meta: { changes: 1 } };
         },
         async first() {

@@ -47,6 +47,8 @@ CREATE TABLE IF NOT EXISTS settings (
   bubble_pct_half REAL DEFAULT 20,
   bubble_pct_quarter REAL DEFAULT 25,
   announcement TEXT DEFAULT '',
+  maintenance_mode INTEGER DEFAULT 0,
+  maintenance_message TEXT DEFAULT '',
   updated_at TEXT
 );
 
