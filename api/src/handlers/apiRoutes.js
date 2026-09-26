@@ -1,10 +1,9 @@
 /**
- * apiRoutes.js — Public API route handlers
- * /api/prices — Live raw market prices, spot rates & forex (pure data, zero server-side calculations)
+ * apiRoutes.js — Public price routes. Every price comes from the price book (KV "prices").
  */
 
-import { getLatestMarketRates } from "../services/priceSources.js";
 import { getPriceBook } from "../services/market/priceAggregator.service.js";
+import { baseRatesOf, forexCrossRatesOf, legacyPricesOf } from "../domain/priceBookViews.js";
 import { getGlobalSettings } from "../repositories/settings.repository.js";
 import { jsonResponse } from "../lib/helpers.js";
 import { logger } from "../lib/logger.js";
@@ -16,52 +15,26 @@ const SPARKLINE_MAX_CACHE_SECONDS = 300;
 
 /**
  * GET /api/prices
- * Return live raw market prices, spot gold/silver, USD, forex rates, and global settings.
- * Reads directly from KV / memory cache (sub-2ms response, zero calculation overhead).
+ * The price book in the shape older clients read (see priceBookViews.legacyPricesOf), with the
+ * global settings.
  */
 export async function handleGetPrices(env, request = null) {
   try {
-    const [prices, globalSettings] = await Promise.all([
-      getLatestMarketRates(env),
-      getGlobalSettings(env),
-    ]);
-
-    const gold_usd = prices.ons_gold?.price || 0;
-    const silver_usd = prices.ons_silver?.price || 0;
-    const live_usd_item = prices.usd_toman || null;
-    const live_usd_toman = live_usd_item ? live_usd_item.price : 0;
-
-    // Derive forex cross-rates directly from prices (compiled from sources)
-    const forex = {};
-    const standardNonForex = new Set([
-      'usd', 'usd_toman', 'gold_18k', 'gold_24k', 'gold_melted', 'mesghal',
-      'full_coin', 'full_new', 'full_old', 'half_coin', 'half', 'quarter_coin', 'quarter',
-      'gerami_coin', 'gerami', 'ons_gold', 'ons_silver', 'silver_999', 'silver_ounce',
-      'bourse', 'bourse_fund', 'forex', 'custom_feed', 'multi_output', 'last_updated'
-    ]);
-    for (const [t, item] of Object.entries(prices)) {
-      if (item && item.price > 0 && !standardNonForex.has(t.toLowerCase()) && (item.usdCrossRate !== undefined || Number(item.price) < 500)) {
-        forex[t.toUpperCase()] = item.price;
-      }
-    }
-    const fallbackForexTypes = ['eur', 'try', 'aed', 'gbp', 'chf', 'cad', 'aud', 'cny'];
-    for (const t of fallbackForexTypes) {
-      if (prices[t]?.price && !forex[t.toUpperCase()]) {
-        forex[t.toUpperCase()] = prices[t].price;
-      }
-    }
+    const [book, globalSettings] = await Promise.all([getPriceBook(env), getGlobalSettings(env)]);
+    const prices = legacyPricesOf(book);
+    const base = baseRatesOf(book);
 
     return jsonResponse({
       success: true,
       prices,
       market_prices: prices,
-      gold_usd,
-      silver_usd,
-      live_usd_toman,
-      live_usd_item,
-      forex,
+      gold_usd: base.goldUsd,
+      silver_usd: base.silverUsd,
+      live_usd_toman: base.usdToman,
+      live_usd_item: prices.usd || null,
+      forex: forexCrossRatesOf(book),
       globalSettings,
-      reference_rates: prices.reference_rates || [],
+      reference_rates: prices.reference_rates,
     }, 200, request);
   } catch (err) {
     logger.error("handleGetPrices error:", { error: err.message, stack: err.stack });
@@ -80,10 +53,12 @@ export async function handleGetPrices(env, request = null) {
  * GET /api/prices/book
  * Every price in the standard shape (domain/priceBook.js): `{ updatedAt, items: { [id]: item } }`,
  * each item in tomans under its unique id — the ids stored data, charts and the history use.
+ * The global settings (announcement, target bubbles) come along, so a page needs one request.
+ * Sources' sync state stays private (its errors may name an endpoint).
  */
 export async function handleGetPriceBook(env, request = null) {
-  const book = await getPriceBook(env);
-  return jsonResponse({ success: true, ...book }, 200, request);
+  const [book, globalSettings] = await Promise.all([getPriceBook(env), getGlobalSettings(env)]);
+  return jsonResponse({ success: true, updatedAt: book.updatedAt, items: book.items, globalSettings }, 200, request);
 }
 
 /**

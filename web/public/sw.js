@@ -5,8 +5,9 @@
  *  - Page navigations: network first, falling back to the cached app shell (index.html).
  *  - Hashed build assets (/assets/*): cache first; they are immutable per build.
  *  - Other same-origin static files (fonts, icons, manifest): stale-while-revalidate.
- *  - Public market data only (/api/prices, /api/market/items): network first, falling back to
- *    the last response so the calculator and rates still work offline.
+ *  - Public market data only (/api/prices/book, and the older /api/prices, /api/market/items):
+ *    network first, falling back to the last response so the calculator and rates still work
+ *    offline.
  *  - Everything else — auth, portfolios, transactions, loans, incomes — is never cached, so
  *    personal financial data is not persisted by the service worker.
  */
@@ -20,7 +21,10 @@ const CURRENT_CACHES = [SHELL_CACHE, ASSET_CACHE, STATIC_CACHE, MARKET_CACHE];
 
 const SHELL_URL = '/index.html';
 const MAX_ASSET_ENTRIES = 120;
-const PUBLIC_MARKET_PATHS = ['/api/prices', '/api/v1/prices', '/api/market/items', '/api/v1/market/items'];
+const PUBLIC_MARKET_PATHS = [
+  '/api/prices/book', '/api/v1/prices/book',
+  '/api/prices', '/api/v1/prices', '/api/market/items', '/api/v1/market/items',
+];
 
 self.addEventListener('install', (event) => {
   event.waitUntil(

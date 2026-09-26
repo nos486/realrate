@@ -14,7 +14,10 @@ import { getMasterPriceSourcesConfig } from '../../src/config/sources.config.js'
 import { TROY_OUNCE_GRAMS } from '../../src/domain/specs/gold.spec.js';
 
 const NOW = '2026-01-01T00:00:00.000Z';
-const single = (id, priceType, lastPrice, extra = {}) => ({ id, priceType, lastPrice, isActive: true, isPrimary: true, name: id, ...extra });
+// A single-price source gives one item under its own id
+const single = (id, priceType, price, extra = {}) => ({
+  id, priceType, items: price ? [{ id, price }] : [], isActive: true, isPrimary: true, name: id, ...extra,
+});
 
 describe('buildPriceBook', () => {
   const usd = single('src_usd', 'usd', 100000);
@@ -22,12 +25,12 @@ describe('buildPriceBook', () => {
   const ounce = single('src_ons', 'ons_gold', 2400, { quote: 'usd', unit: 'اونس' });
   const forex = {
     id: 'src_fx', priceType: 'forex', quote: 'usd_cross', isActive: true, isPrimary: true, name: 'fx',
-    lastMultiData: { items: [{ id: 'EUR', price: 1.1 }, { id: 'TRY', price: 0.02 }, { id: 'CNY', price: 0.14 }] },
+    items: [{ id: 'EUR', price: 1.1 }, { id: 'TRY', price: 0.02 }, { id: 'CNY', price: 0.14 }],
     excludedOutputs: ['CNY'],
   };
   const bourse = {
     id: 'src_def_bourse', isCatalog: true, isActive: true, isPrimary: true, name: 'bourse',
-    lastMultiData: { items: [{ id: 'فولاد', name: 'فولاد مبارکه', price: 540 }, { symbol: 'فملی', priceRial: 6800 }] },
+    items: [{ id: 'فولاد', name: 'فولاد مبارکه', price: 540 }, { symbol: 'فملی', priceRial: 6800 }],
   };
 
   const book = buildPriceBook([usd, gold, ounce, forex, bourse], { now: NOW });
@@ -77,21 +80,25 @@ describe('buildPriceBook', () => {
     expect(b.items.eur).toBeUndefined();
   });
 
-  it('falls back to a single-price source\'s one-item list when it has no price of its own', () => {
+  it('reads a single-price source\'s one item under its priceType, and nothing else', () => {
+    // Older fields (a price and a list stored beside it) are not read at all: the dollar once
+    // showed 231,500 for hours from such a stale copy while its source said 234,000
     const b = buildPriceBook([
-      single('src_def_usd', 'usd', 0, { lastMultiData: { items: [{ id: 'src_def_usd', price: 101500 }] } }),
+      single('src_def_usd', 'usd', 234000, { lastPrice: 1, lastMultiData: { items: [{ id: 'src_def_usd', price: 231500 }] } }),
     ], { now: NOW });
     expect(Object.keys(b.items).filter((k) => k !== 'toman')).toEqual(['usd']);
-    expect(b.items.usd.price).toBe(101500);
+    expect(b.items.usd.price).toBe(234000);
   });
 
-  it('takes a single source\'s latest price, never an older copy stored beside it', () => {
-    // The dollar showed 231,500 for hours while its source said 234,000: the book read a stale
-    // one-item list instead of the source's price
-    const b = buildPriceBook([
-      single('src_def_usd', 'usd', 234000, { lastMultiData: { items: [{ id: 'src_def_usd', price: 231500 }] } }),
-    ], { now: NOW });
-    expect(b.items.usd.price).toBe(234000);
+  it('marks items the admin hides from the home page, and keeps the sources\' sync state', () => {
+    const fx = { ...forex, displayConfig: { homePageOutputs: ['EUR'] } };
+    const b = buildPriceBook([usd, fx], {
+      now: NOW,
+      sourceStates: { src_usd: { syncedAt: NOW, fetchedAt: NOW, count: 1 } },
+    });
+    expect(b.items.eur.params.hideOnHome).toBeUndefined();
+    expect(b.items.try.params.hideOnHome).toBe(true);
+    expect(b.sources.src_usd).toMatchObject({ syncedAt: NOW, count: 1 });
   });
 
   it('skips inactive sources and empty prices', () => {
@@ -105,7 +112,7 @@ describe('the source config follows the standard', () => {
   const sources = getMasterPriceSourcesConfig();
 
   it('has no id claimed by two primary sources', () => {
-    const withValues = sources.map((s) => ({ ...s, lastPrice: 1, lastMultiData: null }));
+    const withValues = sources.map((s) => ({ ...s, items: [{ id: s.id, price: 1 }] }));
     expect(findPrimaryIdConflicts(withValues)).toEqual([]);
   });
 

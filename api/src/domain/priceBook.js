@@ -101,12 +101,39 @@ const parseList = (v) => {
   return [];
 };
 
-const multiItemsOf = (src) => {
-  const multi = typeof src.lastMultiData === "string" ? (() => {
-    try { return JSON.parse(src.lastMultiData); } catch { return null; }
-  })() : src.lastMultiData;
-  return Array.isArray(multi?.items) ? multi.items : null;
+const parseObject = (v) => {
+  if (v && typeof v === "object") return v;
+  if (typeof v === "string") {
+    try {
+      const parsed = JSON.parse(v);
+      return parsed && typeof parsed === "object" ? parsed : null;
+    } catch {
+      return null;
+    }
+  }
+  return null;
 };
+
+/**
+ * Whether the admin shows an item of a source on the home page by default (displayConfig:
+ * showOnHomePage true/false or a list of item codes, homePageOutputs, excludedHomePageOutputs)
+ * @param {string} code - the item's code ("EUR", "usd", …)
+ * @param {object|string|null} displayConfig - the source's displayConfig
+ */
+export function isShownOnHome(code, displayConfig) {
+  const dc = parseObject(displayConfig);
+  if (!dc) return true;
+  if (dc.showOnHomePage === false) return false;
+  const key = String(code ?? "").trim().toUpperCase();
+  const allowed = [dc.homePageOutputs, dc.homeOutputs, dc.displayOutputs, dc.showOnHomePage].find(Array.isArray);
+  if (allowed) return allowed.some((x) => String(x).trim().toUpperCase() === key);
+  if (Array.isArray(dc.excludedHomePageOutputs)
+    && dc.excludedHomePageOutputs.some((x) => String(x).trim().toUpperCase() === key)) return false;
+  return true;
+}
+
+/** What a source last gave: its stored item list */
+const itemsOf = (src) => (Array.isArray(src.items) ? src.items : []);
 
 const isCatalogSource = (src) => Boolean(src.isCatalog);
 
@@ -119,10 +146,10 @@ function collectEntries(sources) {
   for (const src of sources) {
     if (!src || src.isActive === false) continue;
     const quote = PRICE_QUOTES.includes(src.quote) ? src.quote : "toman";
-    const items = multiItemsOf(src);
+    const items = itemsOf(src);
 
     if (isCatalogSource(src)) {
-      for (const item of items || []) {
+      for (const item of items) {
         const symbol = catalogItemSymbol(item);
         const value = catalogItemPriceToman(item);
         if (!symbol || !value) continue;
@@ -147,10 +174,10 @@ function collectEntries(sources) {
       continue;
     }
 
-    // A single-price source may also carry its value as a one-item list under its own id: only
-    // items with ids of their own make a multi-output feed
+    // A single-price source gives one item under its own id; items with ids of their own make a
+    // multi-output feed
     const ownIds = new Set([normalizePriceId(src.id), normalizePriceId(src.priceType)]);
-    const isMulti = Boolean(items && items.some((item) => !ownIds.has(normalizePriceId(item?.id))));
+    const isMulti = items.some((item) => !ownIds.has(normalizePriceId(item?.id)));
 
     if (isMulti) {
       const excluded = new Set(parseList(src.excludedOutputs).map(normalizePriceId));
@@ -159,16 +186,16 @@ function collectEntries(sources) {
         if (!baseId || excluded.has(baseId)) continue;
         const value = positive(item.price);
         if (!value) continue;
-        entries.push({ baseId, src, value, quote, meta: { name: item.name || "", params: {} } });
+        const params = isShownOnHome(item.id, src.displayConfig) ? {} : { hideOnHome: true };
+        entries.push({ baseId, src, value, quote, meta: { name: item.name || "", updatedAt: item.updatedAt || null, params } });
       }
       continue;
     }
 
-    // A single-price source's own latest price wins; a one-item list is only a fallback (an older
-    // copy may have been stored beside it)
     const baseId = normalizePriceId(src.priceType);
-    const value = positive(src.lastPrice) || positive(items?.[0]?.price);
-    if (baseId && value) entries.push({ baseId, src, value, quote, meta: { name: src.name || "", params: {} } });
+    const value = positive(items[0]?.price);
+    const params = isShownOnHome(baseId, src.displayConfig) ? {} : { hideOnHome: true };
+    if (baseId && value) entries.push({ baseId, src, value, quote, meta: { name: src.name || "", params } });
   }
   return entries;
 }
@@ -221,11 +248,12 @@ function intrinsicOf(spec, { goldGram, silverGram }) {
 
 /**
  * Build the price book from the sources
- * @param {Array<object>} sources - price sources with their last values (lastPrice, lastMultiData)
- * @param {{ now?: string }} [options]
- * @returns {{ updatedAt: string, items: Record<string, object> }}
+ * @param {Array<object>} sources - price sources with what they last gave (`items`)
+ * @param {{ now?: string, sourceStates?: Record<string, object> }} [options] - `sourceStates`: when
+ *   each source last synced (kept in the book as `sources`)
+ * @returns {{ updatedAt: string, items: Record<string, object>, sources: Record<string, object> }}
  */
-export function buildPriceBook(sources, { now = new Date().toISOString() } = {}) {
+export function buildPriceBook(sources, { now = new Date().toISOString(), sourceStates = {} } = {}) {
   const list = Array.isArray(sources) ? sources : [];
   const entries = assignIds(collectEntries(list));
   const items = {};
@@ -295,7 +323,7 @@ export function buildPriceBook(sources, { now = new Date().toISOString() } = {})
     }
   }
 
-  return { updatedAt: now, items };
+  return { updatedAt: now, items, sources: sourceStates || {} };
 }
 
 /**

@@ -3,12 +3,7 @@
  * Fetches, merges incrementally, and caches Iranian stock symbols and mutual funds in KV.
  */
 
-import {
-  saveSourceItems,
-  getSourceItems,
-  getSourceLastSync,
-  setSourceLastSync,
-} from "../../../repositories/sourceItems.repository.js";
+import { getSourceItems } from "../../../repositories/sourceItems.repository.js";
 import { logger } from "../../../lib/logger.js";
 import { resolveApiUrl } from "./apiUrl.source.adapter.js";
 
@@ -233,9 +228,6 @@ export const bourseSymbolsSourceAdapter = {
       throw new Error("هیچ نماد معتبری از پاسخ بورس استخراج یا ابقا نشد.");
     }
 
-    if (env) {
-      await saveSourceItems(env, sourceConfig?.id || "src_def_bourse", mergedList, { datetime: nowIso });
-    }
 
     inMemoryBourseList = mergedList;
 
@@ -280,36 +272,5 @@ export const bourseSymbolsSourceAdapter = {
       }
     }
     return [];
-  },
-
-  /**
-   * Scheduled sync for Bourse symbols governed by sources.config.js (fetchIntervalSec)
-   */
-  async handleScheduledSync(env, sourceConfig = null) {
-    try {
-      const lastSync = await getSourceLastSync(env, this.id) || 0;
-      const now = Date.now();
-
-      const intervalSec = Number(sourceConfig?.fetchIntervalSec) > 0
-        ? Number(sourceConfig.fetchIntervalSec)
-        : 3600;
-      const intervalMs = intervalSec * 1000;
-
-      if (now - lastSync < intervalMs) {
-        return false;
-      }
-
-      const url = getBourseApiUrl(env);
-      const raw = await this.fetchRaw({ apiUrl: url }, env);
-      const parsed = await this.parse(raw, { name: sourceConfig?.name || "بورس اوراق بهادار تهران (TSETMC / BRS API)" }, env);
-      if (parsed && parsed.items?.length > 0) {
-        const expirationTtl = Math.max(86400, intervalSec * 3);
-        await setSourceLastSync(env, this.id, now, expirationTtl);
-        return true;
-      }
-    } catch (err) {
-      logger.error("[BourseAdapter] Scheduled sync error:", { error: err.message, stack: err.stack });
-    }
-    return false;
   },
 };

@@ -20,9 +20,8 @@ import {
   testPriceSource,
   fetchAllSourcesNow,
 } from '../features/admin/api/adminApi.js';
-import { getMarketItems } from '../features/market/api/marketApi.js';
+import { usePricing } from '../features/market/context/PricingContext.jsx';
 import { extractMultiItems } from '../components/UniversalAssetSearch.jsx';
-import { getSourceDisplayName } from '../config/displayEngine.js';
 import { getItemUnit } from '../config/displayEngine.js';
 import {
   CANONICAL_PRICE_TYPE_INFO,
@@ -36,6 +35,7 @@ import { APP_BASE, appPath } from '../shared/routes.js';
 export default function PriceSourcesPage({ embedded = false, usdToman: propUsdToman, gold18kPrice: propGold18kPrice }) {
   const { user, loading: authLoading, triggerLogin } = useAuth();
   const marketData = useMarketData();
+  const pricing = usePricing();
   const usdToman = propUsdToman !== undefined ? propUsdToman : marketData.usdToman;
   const gold18kPrice = propGold18kPrice !== undefined ? propGold18kPrice : marketData.gold18kPrice;
   const navigate = useNavigate();
@@ -182,8 +182,8 @@ export default function PriceSourcesPage({ embedded = false, usdToman: propUsdTo
     setExplorerModalOpen(true);
     setExplorerItems([]);
 
-    // 1. Direct extracted items check from source's cached multi-data
-    let items = extractMultiItems(src);
+    // 1. What the source last gave (its stored items)
+    let items = Array.isArray(src.items) && src.items.length > 0 ? src.items : extractMultiItems(src);
     if (items.length > 0) {
       setExplorerItems(items.map(mapToExplorerItem));
       return;
@@ -206,28 +206,12 @@ export default function PriceSourcesPage({ embedded = false, usdToman: propUsdTo
         }
       }
 
-      // 3. Fallback to unified catalog market items if test endpoint didn't supply items
-      try {
-        const marketRes = await getMarketItems();
-        if (marketRes?.success) {
-          const candidates = [
-            ...(marketRes.funds || []),
-            ...(marketRes.bourse || []),
-            ...(marketRes.currencies || []),
-            ...(marketRes.goldAndCoins || []),
-          ];
-          const matched = candidates.filter((it) => {
-            if (it.sourceId && (it.sourceId === src.id || it.sourceId === src.sourceType || it.sourceId === src.priceType)) return true;
-            const itemSrcName = it.sourceName || getSourceDisplayName(it);
-            if (itemSrcName && itemSrcName === src.name) return true;
-            return false;
-          });
-          if (matched.length > 0) {
-            setExplorerItems(matched.map(mapToExplorerItem));
-            return;
-          }
-        }
-      } catch {}
+      // 3. The source's items in the price book
+      const fromBook = Object.values(pricing?.itemMap || {}).filter((it) => it.sourceId === src.id);
+      if (fromBook.length > 0) {
+        setExplorerItems(fromBook.map(mapToExplorerItem));
+        return;
+      }
 
       if (!testRes?.success && testRes?.error) {
         showMsg(`عدم برقراری ارتباط زنده: ${testRes.error}`, 'warning');
@@ -279,13 +263,17 @@ export default function PriceSourcesPage({ embedded = false, usdToman: propUsdTo
       setRowTestResults((prev) => ({ ...prev, [src.id]: res }));
 
       if (res.success && res.price) {
+        const items = Array.isArray(res.items) ? res.items : [];
         setSources((prev) =>
           prev.map((s) =>
             s.id === src.id
               ? {
                   ...s,
-                  lastPrice: res.price,
+                  items,
+                  itemsCount: items.length,
+                  lastPrice: items.length === 1 ? Number(items[0]?.price) || 0 : 0,
                   lastFetched: res.datetime || new Date().toISOString(),
+                  lastError: null,
                 }
               : s
           )

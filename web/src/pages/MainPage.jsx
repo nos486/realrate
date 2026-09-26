@@ -181,8 +181,8 @@ export default function MainPage() {
 
 
   const {
-    rates,
     calcData,
+    globalSettings,
     loading: marketLoading,
     usdToman,
     goldUsd,
@@ -196,18 +196,15 @@ export default function MainPage() {
     setReferenceRateKey,
   } = useMarketData();
 
-  const announcement = calcData?.globalSettings?.announcement || rates?.globalSettings?.announcement;
+  const announcement = globalSettings?.announcement;
   const analysis = calcData?.analysis;
   const recommendation = calcData?.recommendation;
-  const currencies = calcData?.currencies || rates?.currencies;
+  const currencies = calcData?.currencies;
 
   const usdNum = parseFloat(toEnglishDigits(String(usdToman)).replace(/,/g, '')) || 0;
-  const goldUsdNum = parseFloat(toEnglishDigits(String(goldUsd)).replace(/,/g, '')) || 0;
+  // The book's price; its intrinsic value (at the calculator's rates) only when no source prices it
   const gold18kItem = calcData?.analysis?.find((i) => i.id === 'gold_18k');
-  const computed18k = (goldUsdNum > 0 && usdNum > 0)
-    ? Math.round(((goldUsdNum / 31.1034768) * usdNum) * 0.75)
-    : null;
-  const gold18kPrice = gold18kItem?.market || gold18kItem?.intrinsic || computed18k;
+  const gold18kPrice = gold18kItem?.market || gold18kItem?.intrinsic || null;
 
   const hasUsd = usdNum > 0;
   // Admin tools stay reachable; everything else waits for the encryption passphrase
@@ -264,7 +261,7 @@ export default function MainPage() {
 
         <div className="main-live-ticker-row">
           <LiveRatesTicker
-            usdPrice={usdToman || rates?.live_usd_toman || rates?.prices?.usd_toman?.price}
+            usdPrice={usdToman}
             activeReferenceRate={activeReferenceRate}
             referenceRates={referenceRates}
             onSelectReferenceRate={setReferenceRateKey}
@@ -323,10 +320,6 @@ export default function MainPage() {
         <Suspense fallback={<TabLoader />}>
         {activeTab === 'portfolio' && (
           <PortfolioTracker
-            calcData={calcData}
-            rates={rates}
-            usdToman={usdToman}
-            goldUsd={goldUsd}
             initialPortfolioId={params.portfolioId || searchParams.get('p') || searchParams.get('id') || null}
             initialView={isTransactionsSubView ? 'transactions' : 'holdings'}
             onViewChange={handlePortfolioViewChange}

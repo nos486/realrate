@@ -6,17 +6,8 @@
 import { USER_AGENT } from "./parsingUtils.js";
 import {
   FOREX_SPECS as PROMINENT_FOREX_CURRENCIES,
-  normalizeForexToUsdCrossRate,
 } from "../../../domain/specs/index.js";
-import { dbBatchUpdateForexPrices } from "../../../repositories/priceSource.repository.js";
-import {
-  getLastForexD1RecordTime,
-  setLastForexD1RecordTime,
-  getForexRatesCache,
-  setForexRatesCache,
-} from "../../../repositories/kvCache.repository.js";
-import { FOREX_HISTORY_EXPIRATION_TTL } from "../../../config/constants.js";
-import { logger } from "../../../lib/logger.js";
+import { getSourceItems } from "../../../repositories/sourceItems.repository.js";
 
 export { PROMINENT_FOREX_CURRENCIES };
 
@@ -72,7 +63,7 @@ export const forexApiSourceAdapter = {
     return await res.json();
   },
 
-  async parse(raw, sourceConfig, env = null) {
+  async parse(raw) {
     const data = typeof raw === "string" ? JSON.parse(raw) : raw;
     const rates = (data && data.rates && typeof data.rates === "object") ? data.rates : data;
 
@@ -104,64 +95,16 @@ export const forexApiSourceAdapter = {
       throw new Error("هیچ یک از ارزهای مطرح در پاسخ وب‌سرویس یافت نشد.");
     }
 
-    // Cache entire forex rates payload in KV
-    if (env) {
-      await setForexRatesCache(env, { rates: { ...FOREX_FALLBACK, ...rates }, last_updated: nowIso }).catch(() => {});
-
-      // Record to D1 price_sources table (throttled to at most once per 15 minutes)
-      this.syncToPriceSourcesD1(env, rates).catch(() => {});
-    }
-
     return {
       items,
       datetime: nowIso,
     };
   },
 
-  async syncToPriceSourcesD1(env, fetchedRates) {
-    if (!env?.DB || !fetchedRates) return;
-    try {
-      const nowMs = Date.now();
-      let lastRecordMs = 0;
-      const val = await getLastForexD1RecordTime(env);
-      if (val) lastRecordMs = parseInt(val, 10) || 0;
-
-      if (nowMs - lastRecordMs < 900000) return; // 15-minute throttle
-
-      const nowIso = new Date(nowMs).toISOString();
-      const currenciesToRecord = ['EUR', 'TRY', 'AED', 'GBP', 'CHF', 'CAD', 'AUD', 'CNY'];
-      const updates = [];
-
-      for (const code of currenciesToRecord) {
-        const raw = fetchedRates[code];
-        if (raw && Number(raw) > 0) {
-          const priceType = code.toLowerCase();
-          const crossRate = normalizeForexToUsdCrossRate(priceType, raw);
-          if (!crossRate || crossRate <= 0) continue;
-          updates.push({ priceType, crossRate });
-        }
-      }
-
-      if (updates.length > 0) {
-        await dbBatchUpdateForexPrices(env, updates, nowIso);
-      }
-
-      await setLastForexD1RecordTime(env, nowMs, FOREX_HISTORY_EXPIRATION_TTL);
-    } catch (err) {
-      logger.warn("[ForexAdapter] Error recording history in D1:", { error: err.message });
-    }
-  },
-
   async getItems(env = null) {
-    if (env) {
-      try {
-        const cached = await getForexRatesCache(env);
-        if (cached?.rates) {
-          const parsed = await this.parse(cached, { name: this.name }, null);
-          return parsed.items || [];
-        }
-      } catch {}
-    }
+    // What the last sync stored
+    const stored = env ? await getSourceItems(env, "src_def_forex") : [];
+    if (stored.length > 0) return stored;
     const raw = await this.fetchRaw({ endpoint: FOREX_API_DEFAULT_URL }, env);
     const parsed = await this.parse(raw, { name: this.name }, env);
     return parsed.items || [];

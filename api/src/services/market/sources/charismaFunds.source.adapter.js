@@ -6,12 +6,7 @@
 
 import { USER_AGENT } from "./parsingUtils.js";
 import { logger } from "../../../lib/logger.js";
-import {
-  saveSourceItems,
-  getSourceItems,
-  getSourceLastSync,
-  setSourceLastSync,
-} from "../../../repositories/sourceItems.repository.js";
+import { getSourceItems } from "../../../repositories/sourceItems.repository.js";
 
 export const CHARISMA_PAGE_URL = "https://charisma.ir/funds";
 export const CHARISMA_API_URL = "https://webapi.charisma.ir/api/fund";
@@ -296,14 +291,6 @@ export const charismaFundsSourceAdapter = {
     // Cache updated list in memory
     inMemoryCharismaList = mergedList;
 
-    // Cache updated list in KV
-    if (env && mergedList.length > 0) {
-      try {
-        await saveSourceItems(env, sourceConfig?.id || "src_def_charisma", mergedList, { datetime: nowIso });
-      } catch (err) {
-        logger.warn("Error caching charisma funds:", { error: err.message });
-      }
-    }
 
     logger.info(`[CharismaAdapter] Processed ${stats.totalFunds} funds. Added: ${stats.addedCount}, Updated: ${stats.updatedCount}, Retained: ${stats.retainedCount}`);
 
@@ -365,65 +352,7 @@ export const charismaFundsSourceAdapter = {
       }
     }
 
-    // Auto on-demand fetch if empty
-    const syncRes = await fetchAndStoreCharismaFunds(env);
-    if (syncRes.success && Array.isArray(syncRes.funds) && syncRes.funds.length > 0) {
-      return syncRes.funds;
-    }
     return inMemoryCharismaList || [];
   },
-
-  async handleScheduledSync(env, sourceConfig = null) {
-    if (!env) return;
-
-    try {
-      const lastSync = await getSourceLastSync(env, this.id);
-      const now = Date.now();
-
-      const intervalSec = Number(sourceConfig?.fetchIntervalSec) > 0
-        ? Number(sourceConfig.fetchIntervalSec)
-        : 1800;
-      const intervalMs = intervalSec * 1000;
-
-      if (lastSync) {
-        const elapsed = now - Number(lastSync);
-        if (elapsed < intervalMs) {
-          return;
-        }
-      }
-
-      logger.info("[CharismaAdapter] Starting scheduled Charisma funds sync...");
-
-      const raw = await this.fetchRaw({}, env);
-      await this.parse(raw, { id: "src_def_charisma", name: sourceConfig?.name || this.name }, env);
-      const expirationTtl = Math.max(86400, intervalSec * 3);
-      await setSourceLastSync(env, this.id, now, expirationTtl);
-
-      logger.info("[CharismaAdapter] Scheduled Charisma funds sync completed successfully.");
-    } catch (err) {
-      logger.error("[CharismaAdapter] Scheduled sync failed:", { error: err.message, stack: err.stack });
-    }
-  },
 };
-
-/**
- * Direct helper to fetch, parse, and persist Charisma funds to memory and KV
- * @param {object} [env=null]
- * @returns {Promise<{ success: boolean, count?: number, funds: Array, error?: string }>}
- */
-export async function fetchAndStoreCharismaFunds(env = null) {
-  try {
-    const raw = await charismaFundsSourceAdapter.fetchRaw({}, env);
-    const parsed = await charismaFundsSourceAdapter.parse(
-      raw,
-      { id: "src_def_charisma", name: charismaFundsSourceAdapter.name },
-      env
-    );
-    const list = parsed.items || inMemoryCharismaList || [];
-    return { success: true, count: list.length, funds: list };
-  } catch (err) {
-    logger.error("[CharismaAdapter] fetchAndStoreCharismaFunds error:", { error: err.message });
-    return { success: false, error: err.message, funds: inMemoryCharismaList || [] };
-  }
-}
 

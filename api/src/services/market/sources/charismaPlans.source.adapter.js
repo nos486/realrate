@@ -6,12 +6,7 @@
 
 import { USER_AGENT } from "./parsingUtils.js";
 import { logger } from "../../../lib/logger.js";
-import {
-  saveSourceItems,
-  getSourceItems,
-  getSourceLastSync,
-  setSourceLastSync,
-} from "../../../repositories/sourceItems.repository.js";
+import { getSourceItems } from "../../../repositories/sourceItems.repository.js";
 
 export const CHARISMA_PLANS_WEBHOOK_URL = "https://n8n.geekio.ir/webhook/38899601-0906-4aa4-aedb-8f7de5493894";
 
@@ -218,14 +213,6 @@ export const charismaPlansSourceAdapter = {
     // Cache updated list in memory
     inMemoryCharismaPlansList = mergedList;
 
-    // Cache updated list in KV
-    if (env && mergedList.length > 0) {
-      try {
-        await saveSourceItems(env, sourceConfig?.id || "src_def_charisma_plans", mergedList, { datetime: nowIso });
-      } catch (err) {
-        logger.warn("Error caching charisma plans:", { error: err.message });
-      }
-    }
 
     logger.info(`[CharismaPlansAdapter] Processed ${stats.totalPlans} plans. Added: ${stats.addedCount}, Updated: ${stats.updatedCount}, Retained: ${stats.retainedCount}`);
 
@@ -287,64 +274,7 @@ export const charismaPlansSourceAdapter = {
       }
     }
 
-    // Auto on-demand fetch if empty
-    const syncRes = await fetchAndStoreCharismaPlans(env);
-    if (syncRes.success && Array.isArray(syncRes.plans) && syncRes.plans.length > 0) {
-      return syncRes.plans;
-    }
     return inMemoryCharismaPlansList || [];
-  },
-
-  async handleScheduledSync(env, sourceConfig = null) {
-    if (!env) return;
-
-    try {
-      const lastSync = await getSourceLastSync(env, this.id);
-      const now = Date.now();
-
-      const intervalSec = Number(sourceConfig?.fetchIntervalSec) > 0
-        ? Number(sourceConfig.fetchIntervalSec)
-        : 1800;
-      const intervalMs = intervalSec * 1000;
-
-      if (lastSync) {
-        const elapsed = now - Number(lastSync);
-        if (elapsed < intervalMs) {
-          return;
-        }
-      }
-
-      logger.info("[CharismaPlansAdapter] Starting scheduled Charisma plans sync...");
-
-      const raw = await this.fetchRaw({}, env);
-      await this.parse(raw, { id: "src_def_charisma_plans", name: sourceConfig?.name || this.name }, env);
-      const expirationTtl = Math.max(86400, intervalSec * 3);
-      await setSourceLastSync(env, this.id, now, expirationTtl);
-
-      logger.info("[CharismaPlansAdapter] Scheduled Charisma plans sync completed successfully.");
-    } catch (err) {
-      logger.error("[CharismaPlansAdapter] Scheduled sync failed:", { error: err.message, stack: err.stack });
-    }
   },
 };
 
-/**
- * Direct helper to fetch, parse, and persist Charisma plans to memory and KV
- * @param {object} [env=null]
- * @returns {Promise<{ success: boolean, count?: number, plans: Array, error?: string }>}
- */
-export async function fetchAndStoreCharismaPlans(env = null) {
-  try {
-    const raw = await charismaPlansSourceAdapter.fetchRaw({}, env);
-    const parsed = await charismaPlansSourceAdapter.parse(
-      raw,
-      { id: "src_def_charisma_plans", name: charismaPlansSourceAdapter.name },
-      env
-    );
-    const list = parsed.items || inMemoryCharismaPlansList || [];
-    return { success: true, count: list.length, plans: list };
-  } catch (err) {
-    logger.error("[CharismaPlansAdapter] fetchAndStoreCharismaPlans error:", { error: err.message });
-    return { success: false, error: err.message, plans: inMemoryCharismaPlansList || [] };
-  }
-}

@@ -25,7 +25,6 @@ export default function AddHoldingForm({
   onSubmit,
   editingHolding = null,
   submitting = false,
-  rates = null,
 }) {
   const pricing = usePricing();
   const [selectedAssetId, setSelectedAssetId] = useState('gold_18k');
@@ -278,7 +277,6 @@ export default function AddHoldingForm({
           selectedAssetId={selectedAssetId}
           showCategories={true}
           onSelect={handleAssetSelect}
-          rates={rates}
         />
       </div>
 

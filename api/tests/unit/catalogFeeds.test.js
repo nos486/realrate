@@ -6,12 +6,13 @@ import {
   searchCatalogItems,
   getCatalogItemDetail,
 } from '../../src/services/market/catalogFeeds.service.js';
-import {
-  BOURSE_KV_KEY,
-  CHARISMA_FUNDS_KV_KEY,
-  CHARISMA_PLANS_KV_KEY,
-  EMOFID_FUNDS_KV_KEY,
-} from '../../src/repositories/kvCache.repository.js';
+import { SOURCE_ITEMS_KEY_PREFIX } from '../../src/repositories/sourceItems.repository.js';
+
+// Each catalog's stored list (the one key its sync writes)
+const BOURSE_KV_KEY = `${SOURCE_ITEMS_KEY_PREFIX}src_def_bourse`;
+const CHARISMA_FUNDS_KV_KEY = `${SOURCE_ITEMS_KEY_PREFIX}src_def_charisma`;
+const CHARISMA_PLANS_KV_KEY = `${SOURCE_ITEMS_KEY_PREFIX}src_def_charisma_plans`;
+const EMOFID_FUNDS_KV_KEY = `${SOURCE_ITEMS_KEY_PREFIX}src_def_emofid`;
 
 describe('Unified Catalog Feeds Service Tests', () => {
   it('discovers all active catalog sources from sources.config.js', () => {

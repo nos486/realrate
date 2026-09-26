@@ -327,26 +327,24 @@ export function getMasterPriceSourceById(id) {
 }
 
 /**
- * Extract all reference rate specifications configured across all sources.
- * Single source of truth for reference rates (USD, USDT, and any future reference rates).
- * Reads directly from PRICE_SOURCES_CONFIG without any hardcoded labels or symbols elsewhere.
+ * The reference rates (the header's base rate: dollar, tether, …): the sources marked
+ * `isReferenceRate`, in `referenceOrder`. Each one's `key` is its price book id.
  * @returns {Array<{ key: string, priceType: string, sourceId: string, label: string, shortLabel: string, symbol: string, pulseColor: string, order: number }>}
  */
 export function getReferenceRatesSpecs() {
   return PRICE_SOURCES_CONFIG
-    .filter((s) => s.isReferenceRate || s.priceType === 'usd' || String(s.priceType).toLowerCase() === 'usdt')
+    .filter((s) => s.isReferenceRate)
     .sort((a, b) => (Number(a.referenceOrder) || 99) - (Number(b.referenceOrder) || 99))
     .map((s) => {
-      const rawKey = String(s.priceType || '').toLowerCase();
-      const key = rawKey === 'usd_toman' ? 'usd' : rawKey;
+      const key = String(s.priceType || '').trim().toLowerCase();
       return {
         key,
         priceType: s.priceType,
         sourceId: s.id,
         label: s.referenceLabel || s.name,
         shortLabel: s.referenceShortLabel || s.name,
-        symbol: s.referenceSymbol || (key === 'usdt' ? '₮' : '$'),
-        pulseColor: s.referencePulseColor || (key === 'usdt' ? 'cyan' : 'green'),
+        symbol: s.referenceSymbol || '$',
+        pulseColor: s.referencePulseColor || 'green',
         order: Number(s.referenceOrder) || 99,
       };
     });

@@ -14,7 +14,7 @@ import { useAuth } from '../../auth/index.js';
 import { Button, EmptyState, FeaturePageHeader, SplitPageLayout } from '../../../shared/ui/index.js';
 import { useFeedback } from '../../../shared/ui/FeedbackProvider.jsx';
 import { getAdminStats, saveAdminSettings } from '../api/adminApi.js';
-import { getPrices } from '../../market/api/marketApi.js';
+import { getPriceBook } from '../../market/api/marketApi.js';
 import { useAdminUsers } from '../hooks/useAdminUsers.js';
 import AdminStatsCards from './AdminStatsCards.jsx';
 import AdminGrowthChart from './AdminGrowthChart.jsx';
@@ -54,7 +54,7 @@ export default function AdminPanel() {
   useEffect(() => {
     if (!isAdmin) return;
     loadStats();
-    getPrices()
+    getPriceBook()
       .then((data) => setSettings(data?.globalSettings || {}))
       .catch(() => setSettings({}));
   }, [isAdmin, loadStats]);

@@ -1,9 +1,12 @@
 /**
- * unifiedItemsRoute.js — Single Source of Truth API for all market assets & prices
- * /api/market/items — Unified catalog of gold, coins, forex, bourse, and investment funds
+ * unifiedItemsRoute.js — /api/market/items: the catalog of gold, coins, forex, bourse and funds in
+ * the older response shape. Prices are the price book's (read through legacyPricesOf, where the
+ * ounce is in dollars and a currency is its rate against the dollar); new clients read
+ * /api/prices/book instead.
  */
 
-import { getLatestMarketRates } from "../services/priceSources.js";
+import { getPriceBook } from "../services/market/priceAggregator.service.js";
+import { legacyPricesOf } from "../domain/priceBookViews.js";
 import { getGlobalSettings } from "../repositories/settings.repository.js";
 import { jsonResponse } from "../lib/helpers.js";
 import { getAllCatalogItems } from "../services/market/catalogFeeds.service.js";
@@ -32,12 +35,13 @@ export async function handleGetUnifiedMarketItems(env, request) {
     const limit = Number.isFinite(rawLimit) && rawLimit > 0 ? Math.min(rawLimit, MAX_MARKET_ITEMS_LIMIT) : MAX_MARKET_ITEMS_LIMIT;
 
     // Parallel fetch of base market data and all catalog sources
-    const [prices, globalSettings, catalogData] = await Promise.all([
-      getLatestMarketRates(env),
+    const [book, globalSettings, catalogData] = await Promise.all([
+      getPriceBook(env),
       getGlobalSettings(env),
       getAllCatalogItems(env, { q, limit }),
     ]);
 
+    const prices = legacyPricesOf(book);
     const gold_usd = prices.ons_gold?.price || 0;
     const silver_usd = prices.ons_silver?.price || 0;
     const live_usd_item = prices.usd_toman || prices.usd || null;
