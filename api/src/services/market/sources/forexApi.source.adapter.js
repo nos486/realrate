@@ -84,6 +84,9 @@ export const forexApiSourceAdapter = {
     const items = [];
 
     for (const cur of PROMINENT_FOREX_CURRENCIES) {
+      // The feed is priced in USD, so its own USD is always 1 — not a rate. The dollar's price
+      // comes from its own source (usd_toman); a "usd" of 1 here would shadow it.
+      if (cur.code === "USD") continue;
       const rawRate = Number(rates[cur.code]);
       if (!rawRate || isNaN(rawRate) || rawRate <= 0) continue;
 

@@ -105,6 +105,8 @@ describe("Phase 1 Contract Verification — All Adapters output strictly {items:
     for (const it of parsed.items) {
       expect(EXPECTED_ITEM_KEYS).toEqual(Object.keys(it).sort());
     }
+    // The feed's own USD (always 1) is not a rate and must never reach the app
+    expect(parsed.items.map((it) => it.id)).not.toContain("USD");
   });
 
   // 3. apiUrlSourceAdapter (both Single-Output and Multi-Output)
