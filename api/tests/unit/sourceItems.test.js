@@ -168,6 +168,7 @@ describe('Unified Storage — sourceItems.repository', () => {
       id: 'src_def_charisma_plans',
       name: 'طرح‌های سرمایه‌گذاری کاریزما',
       priceType: 'charisma_plans',
+      isCatalog: true,
       lastPrice: 0,
       lastMultiData: '',
     };
@@ -190,5 +191,12 @@ describe('Unified Storage — sourceItems.repository', () => {
       : hydrated.lastMultiData;
     expect(parsedMulti.totalCount).toBe(2);
     expect(parsedMulti.items).toHaveLength(2);
+  });
+
+  it('hydrateCatalogSourceFromKv leaves a single-price source\'s price alone', async () => {
+    const usd = { id: 'src_def_usd', priceType: 'usd', lastPrice: 234000, lastMultiData: null };
+    await saveSourceItems(mockEnv, usd.id, [{ id: 'src_def_usd', price: 231500 }]);
+    const hydrated = await hydrateCatalogSourceFromKv(usd, mockEnv, 234000, null, null);
+    expect(hydrated).toEqual({ lastPrice: 234000, lastFetched: null, lastMultiData: null });
   });
 });

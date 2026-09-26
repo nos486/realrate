@@ -164,8 +164,10 @@ function collectEntries(sources) {
       continue;
     }
 
+    // A single-price source's own latest price wins; a one-item list is only a fallback (an older
+    // copy may have been stored beside it)
     const baseId = normalizePriceId(src.priceType);
-    const value = positive(items?.length === 1 ? items[0].price : src.lastPrice) || positive(src.lastPrice);
+    const value = positive(src.lastPrice) || positive(items?.[0]?.price);
     if (baseId && value) entries.push({ baseId, src, value, quote, meta: { name: src.name || "", params: {} } });
   }
   return entries;

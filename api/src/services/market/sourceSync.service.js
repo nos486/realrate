@@ -198,6 +198,8 @@ export async function syncAllSources(env, options = {}) {
         // Update in-memory source state for latest rates compile
         src.lastFetched = datetime;
         src.lastPrice = items.length === 1 ? Number(items[0]?.price) || 0 : items.length;
+        // A single price carries no list: an older one would be stored again beside the new price
+        if (items.length === 1) src.lastMultiData = null;
         if (items.length > 1) {
           src.lastMultiData = {
             isCatalog: Boolean(src.isCatalog),
