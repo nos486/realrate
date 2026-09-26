@@ -8,7 +8,8 @@
 
 import { INCOME_CATEGORIES } from '../../features/incomes/constants/incomeCategories.js';
 import { isRecurringId } from '../../utils/recurringIncome.js';
-import { listVaultRecords, putVaultRecord, deleteVaultRecord } from './vaultApi.js';
+import { listVaultRecords, deleteVaultRecord } from './vaultApi.js';
+import { putRecord, backfillRecordDates } from './vaultRecordMeta.js';
 import { encryptVaultRecord, decryptVaultRecord } from './vaultStore.js';
 
 const KIND = 'income';
@@ -53,7 +54,7 @@ function newIncomeId() {
 let incomes = new Map();
 
 async function save(income) {
-  await putVaultRecord(KIND, income.id, await encryptVaultRecord(income));
+  await putRecord(KIND, income.id, await encryptVaultRecord(income), income);
   incomes.set(income.id, income);
   return income;
 }
@@ -65,12 +66,16 @@ export function clearVaultIncomesCache() {
 export async function getIncomes() {
   const res = await listVaultRecords(KIND);
   const next = new Map();
+  const decrypted = [];
   for (const record of res?.records || []) {
     const income = await decryptVaultRecord(record.payload);
-    if (income?.id) next.set(record.id, income);
-    else console.warn('Skipped an income that could not be decrypted:', record.id);
+    if (income?.id) {
+      next.set(record.id, income);
+      decrypted.push({ record, plain: income });
+    } else console.warn('Skipped an income that could not be decrypted:', record.id);
   }
   incomes = next;
+  backfillRecordDates(KIND, decrypted);
   const list = [...incomes.values()].sort(
     (a, b) =>
       String(b.incomeDate).localeCompare(String(a.incomeDate)) ||

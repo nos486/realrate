@@ -22,7 +22,8 @@ import {
 } from '../../utils/loanDocument.js';
 import { getBankById, isCustomBankId, matchBankIdByName } from '../../config/banks.config.js';
 import { ensureCustomBanks } from '../banks/useCustomBanks.js';
-import { listVaultRecords, putVaultRecord, deleteVaultRecord } from './vaultApi.js';
+import { listVaultRecords, deleteVaultRecord } from './vaultApi.js';
+import { putRecord, backfillRecordDates } from './vaultRecordMeta.js';
 import { encryptVaultRecord, decryptVaultRecord } from './vaultStore.js';
 
 const KIND = 'loan';
@@ -56,11 +57,16 @@ async function makeBankResolver() {
 async function loadDocs() {
   const res = await listVaultRecords(KIND);
   const next = new Map();
+  const decrypted = [];
   for (const record of res?.records || []) {
     const doc = await decryptVaultRecord(record.payload);
-    if (doc?.loan?.id) next.set(record.id, doc);
+    if (doc?.loan?.id) {
+      next.set(record.id, doc);
+      decrypted.push({ record, plain: doc });
+    }
   }
   docs = next;
+  backfillRecordDates(KIND, decrypted);
   return docs;
 }
 
@@ -73,7 +79,7 @@ async function getDoc(loanId) {
 
 async function saveDoc(doc) {
   const payload = await encryptVaultRecord(doc);
-  await putVaultRecord(KIND, doc.loan.id, payload);
+  await putRecord(KIND, doc.loan.id, payload, doc);
   docs.set(doc.loan.id, doc);
   return doc;
 }

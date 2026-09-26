@@ -7,7 +7,8 @@
  */
 
 import { validateRecurringIncome } from '../../utils/recurringIncome.js';
-import { listVaultRecords, putVaultRecord, deleteVaultRecord } from './vaultApi.js';
+import { listVaultRecords, deleteVaultRecord } from './vaultApi.js';
+import { putRecord, backfillRecordDates } from './vaultRecordMeta.js';
 import { encryptVaultRecord, decryptVaultRecord } from './vaultStore.js';
 
 const KIND = 'recurring_income';
@@ -28,7 +29,7 @@ function parse(body) {
 let rules = new Map();
 
 async function save(rule) {
-  await putVaultRecord(KIND, rule.id, await encryptVaultRecord(rule));
+  await putRecord(KIND, rule.id, await encryptVaultRecord(rule), rule);
   rules.set(rule.id, rule);
   return rule;
 }
@@ -40,12 +41,16 @@ export function clearVaultRecurringIncomesCache() {
 export async function getRecurringIncomes() {
   const res = await listVaultRecords(KIND);
   const next = new Map();
+  const decrypted = [];
   for (const record of res?.records || []) {
     const rule = await decryptVaultRecord(record.payload);
-    if (rule?.id) next.set(record.id, rule);
-    else console.warn('Skipped a fixed income that could not be decrypted:', record.id);
+    if (rule?.id) {
+      next.set(record.id, rule);
+      decrypted.push({ record, plain: rule });
+    } else console.warn('Skipped a fixed income that could not be decrypted:', record.id);
   }
   rules = next;
+  backfillRecordDates(KIND, decrypted);
   const list = [...rules.values()].sort((a, b) => String(a.createdAt || '').localeCompare(String(b.createdAt || '')));
   return { success: true, count: list.length, rules: list };
 }

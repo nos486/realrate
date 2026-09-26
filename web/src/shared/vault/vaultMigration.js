@@ -31,7 +31,6 @@ import { getPortfolios, updatePortfolio, getPortfolio, updatePortfolioHolding } 
 import { getTransactions, updateTransaction } from '../../features/transactions/api/transactionApi.js';
 import {
   listVaultRecords,
-  putVaultRecord,
   restoreVaultRecord,
   deleteVault,
   getLoanDocument,
@@ -46,6 +45,7 @@ import {
   bumpVaultEpoch,
   isAccountVaultPortfolio,
 } from './vaultStore.js';
+import { putRecord } from './vaultRecordMeta.js';
 import { clearVaultLoansCache } from './vaultLoans.js';
 import { clearVaultIncomesCache } from './vaultIncomes.js';
 import { clearVaultChequesCache } from './vaultCheques.js';
@@ -187,7 +187,7 @@ export async function encryptAccountData({ passphrase, onProgress } = {}) {
   for (const loan of loans) {
     try {
       const { document } = await getLoanDocument(loan.id, SILENT);
-      await putVaultRecord('loan', loan.id, await encryptVaultRecord(document), { replacePlain: true, ...SILENT });
+      await putRecord('loan', loan.id, await encryptVaultRecord(document), document, { replacePlain: true, ...SILENT });
     } catch {
       report.failed.push(`وام «${loan.title}»`);
     }
@@ -200,7 +200,7 @@ export async function encryptAccountData({ passphrase, onProgress } = {}) {
   for (const income of incomes) {
     try {
       const { userId: _userId, ...record } = income;
-      await putVaultRecord('income', income.id, await encryptVaultRecord(record), { replacePlain: true, ...SILENT });
+      await putRecord('income', income.id, await encryptVaultRecord(record), record, { replacePlain: true, ...SILENT });
     } catch {
       report.failed.push(`درآمد «${income.title}»`);
     }
@@ -213,7 +213,7 @@ export async function encryptAccountData({ passphrase, onProgress } = {}) {
   for (const cheque of cheques) {
     try {
       const { userId: _userId, ...record } = cheque;
-      await putVaultRecord('cheque', cheque.id, await encryptVaultRecord(record), { replacePlain: true, ...SILENT });
+      await putRecord('cheque', cheque.id, await encryptVaultRecord(record), record, { replacePlain: true, ...SILENT });
     } catch {
       report.failed.push(`چک «${cheque.counterparty}»`);
     }
@@ -226,7 +226,7 @@ export async function encryptAccountData({ passphrase, onProgress } = {}) {
   for (const rule of rules) {
     try {
       const { userId: _userId, ...record } = rule;
-      await putVaultRecord('recurring_income', rule.id, await encryptVaultRecord(record), { replacePlain: true, ...SILENT });
+      await putRecord('recurring_income', rule.id, await encryptVaultRecord(record), record, { replacePlain: true, ...SILENT });
     } catch {
       report.failed.push(`درآمد ثابت «${rule.title}»`);
     }

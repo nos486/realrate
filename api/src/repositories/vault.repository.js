@@ -5,6 +5,8 @@
  *  - user_vaults holds the passphrase salt and the account data key *wrapped* (encrypted) with
  *    the passphrase-derived key — useless without the passphrase, which never leaves the browser.
  *  - vault_records holds browser-encrypted records (loans, incomes, cheques) as opaque ciphertext.
+ *    The only plaintext beside the kind and id is the record's primary date (record_date, for
+ *    range queries and sorting) and its parent (parent_id, e.g. the portfolio of an item).
  * Converting a record between plaintext tables and the vault happens in one D1 batch, so a
  * record is never lost or duplicated halfway.
  */
@@ -18,6 +20,7 @@ export const VAULT_RECORD_KINDS = ["loan", "income", "cheque", "recurring_income
 export const E2EE_CIPHER_PREFIX = "enc:e2ee:v1:";
 const MAX_PAYLOAD_LENGTH = 512 * 1024;
 const RECORD_ID_RE = /^[A-Za-z0-9_-]{1,80}$/;
+const RECORD_DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
 export function isCipherText(value) {
   return typeof value === "string" && value.startsWith(E2EE_CIPHER_PREFIX) && value.length > E2EE_CIPHER_PREFIX.length;
@@ -29,6 +32,23 @@ function assertKind(kind) {
 
 function assertRecordId(id) {
   if (!RECORD_ID_RE.test(String(id || ""))) throw AppError.badRequest("شناسه رکورد نامعتبر است.");
+}
+
+/** '' (no date) or a real YYYY-MM-DD day */
+function parseRecordDate(value) {
+  const date = String(value ?? "").trim();
+  if (!date) return "";
+  if (!RECORD_DATE_RE.test(date) || Number.isNaN(new Date(`${date}T00:00:00Z`).getTime())) {
+    throw AppError.badRequest("تاریخ رکورد نامعتبر است.");
+  }
+  return date;
+}
+
+/** '' (no parent) or an id like the record ids */
+function parseParentId(value) {
+  const parentId = String(value ?? "").trim();
+  if (parentId && !RECORD_ID_RE.test(parentId)) throw AppError.badRequest("شناسه والد رکورد نامعتبر است.");
+  return parentId;
 }
 
 function assertPayload(payload) {
@@ -120,14 +140,27 @@ async function requireVault(env, userId) {
 
 // ── Encrypted records ───────────────────────────────────────────────────────
 
-export async function dbListVaultRecords(env, userId, kind) {
+/**
+ * Records of one kind, newest date first. Optional filters work on the plaintext metadata only:
+ * `from` / `to` (inclusive YYYY-MM-DD on record_date) and `parentId`.
+ */
+export async function dbListVaultRecords(env, userId, kind, { from = "", to = "", parentId = "" } = {}) {
   assertKind(kind);
   await ensureD1Tables(env);
+  const conditions = ["user_id = ?", "kind = ?"];
+  const params = [userId, kind];
+  const fromDate = parseRecordDate(from);
+  const toDate = parseRecordDate(to);
+  const parent = parseParentId(parentId);
+  if (fromDate) { conditions.push("record_date >= ?"); params.push(fromDate); }
+  if (toDate) { conditions.push("record_date != '' AND record_date <= ?"); params.push(toDate); }
+  if (parent) { conditions.push("parent_id = ?"); params.push(parent); }
   const { results = [] } = await env.DB.prepare(`
-    SELECT id, kind, payload, created_at AS createdAt, updated_at AS updatedAt
-    FROM vault_records WHERE user_id = ? AND kind = ?
-    ORDER BY created_at DESC
-  `).bind(userId, kind).all();
+    SELECT id, kind, payload, record_date AS recordDate, parent_id AS parentId,
+           created_at AS createdAt, updated_at AS updatedAt
+    FROM vault_records WHERE ${conditions.join(" AND ")}
+    ORDER BY record_date DESC, created_at DESC
+  `).bind(...params).all();
   return results;
 }
 
@@ -153,23 +186,27 @@ function deletePlainStatements(env, userId, kind, id) {
  * Create or replace an encrypted record. With `replacePlain`, the plaintext record with the same
  * id is deleted in the same batch (used when encrypting existing data).
  */
-export async function dbPutVaultRecord(env, userId, kind, id, { payload, replacePlain = false }) {
+export async function dbPutVaultRecord(env, userId, kind, id, { payload, replacePlain = false, recordDate = "", parentId = "" }) {
   assertKind(kind);
   assertRecordId(id);
   assertPayload(payload);
+  const date = parseRecordDate(recordDate);
+  const parent = parseParentId(parentId);
   await requireVault(env, userId);
 
   const now = new Date().toISOString();
   const statements = [
     env.DB.prepare(`
-      INSERT INTO vault_records (user_id, kind, id, payload, created_at, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?)
-      ON CONFLICT(user_id, kind, id) DO UPDATE SET payload = excluded.payload, updated_at = excluded.updated_at
-    `).bind(userId, kind, id, payload, now, now),
+      INSERT INTO vault_records (user_id, kind, id, payload, record_date, parent_id, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      ON CONFLICT(user_id, kind, id) DO UPDATE SET
+        payload = excluded.payload, record_date = excluded.record_date,
+        parent_id = excluded.parent_id, updated_at = excluded.updated_at
+    `).bind(userId, kind, id, payload, date, parent, now, now),
   ];
   if (replacePlain) statements.push(...deletePlainStatements(env, userId, kind, id));
   await env.DB.batch(statements);
-  return { id, kind, payload, updatedAt: now };
+  return { id, kind, payload, recordDate: date, parentId: parent, updatedAt: now };
 }
 
 export async function dbDeleteVaultRecord(env, userId, kind, id) {

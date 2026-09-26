@@ -322,6 +322,19 @@ export async function ensureD1Tables(env) {
       await env.DB.prepare("ALTER TABLE users ADD COLUMN password_updated_at TEXT NOT NULL DEFAULT ''").run();
     } catch (ignore) {}
 
+    // Plaintext metadata of vault records: one primary date (for range queries and sorting) and
+    // the parent a record belongs to (e.g. a portfolio). Everything else stays ciphertext.
+    try {
+      await env.DB.prepare("ALTER TABLE vault_records ADD COLUMN record_date TEXT NOT NULL DEFAULT ''").run();
+    } catch (ignore) {}
+    try {
+      await env.DB.prepare("ALTER TABLE vault_records ADD COLUMN parent_id TEXT NOT NULL DEFAULT ''").run();
+    } catch (ignore) {}
+    try {
+      await env.DB.prepare("CREATE INDEX IF NOT EXISTS idx_vault_records_date ON vault_records(user_id, kind, record_date)").run();
+      await env.DB.prepare("CREATE INDEX IF NOT EXISTS idx_vault_records_parent ON vault_records(user_id, kind, parent_id)").run();
+    } catch (ignore) {}
+
     // Backward-compat: maintenance ("under development") mode in the global settings
     try {
       await env.DB.prepare("ALTER TABLE settings ADD COLUMN maintenance_mode INTEGER DEFAULT 0").run();
