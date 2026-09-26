@@ -41,11 +41,22 @@ describe('admin users list', () => {
     expect(list.args.slice(6)).toEqual([10, 20]);
   });
 
+  it('filters users with and without end-to-end encryption', async () => {
+    for (const [filter, clause] of [['noE2ee', 'id NOT IN (SELECT user_id FROM user_vaults)'], ['e2ee', 'id IN (SELECT user_id FROM user_vaults)']]) {
+      const { env, queries } = recordingEnv([[/SELECT\s+id, email/, [{ id: 'u1', e2eeEnabled: 1 }]]]);
+      const { users } = await dbGetUsersPage(env, { filter, now: NOW });
+      const list = queries.find((q) => /LIMIT \? OFFSET \?/.test(q.sql));
+      expect(list.sql).toContain(`WHERE ${clause}`);
+      expect(users[0].e2eeEnabled).toBe(true);
+    }
+  });
+
   it('ignores unknown filters and sorts (nothing user-supplied reaches the SQL text)', async () => {
     const { env, queries } = recordingEnv();
     await dbGetUsersPage(env, { filter: 'x; DROP TABLE users', sort: 'id; --', dir: 'sideways', now: NOW });
     const list = queries.find((q) => /LIMIT \? OFFSET \?/.test(q.sql));
-    expect(list.sql).not.toMatch(/WHERE/);
+    // no filter clause (the only WHERE left is the encryption-flag column's own subquery)
+    expect(list.sql).not.toMatch(/WHERE (?!v\.user_id)/);
     expect(list.sql).toMatch(/ORDER BY last_login IS NULL, last_login DESC, id/);
   });
 });

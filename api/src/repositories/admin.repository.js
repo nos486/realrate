@@ -28,6 +28,9 @@ export const USER_FILTERS = {
   unverified: { where: "email_verified = 0" },
   google: { where: "google_linked = 1" },
   blocked: { where: "disabled = 1" },
+  // Account-wide end-to-end encryption on / off (a user_vaults row means on)
+  e2ee: { where: "id IN (SELECT user_id FROM user_vaults)" },
+  noE2ee: { where: "id NOT IN (SELECT user_id FROM user_vaults)" },
 };
 
 const cutoffIso = (days, now = Date.now()) => new Date(now - days * DAY_MS).toISOString();
@@ -51,7 +54,8 @@ const USER_LIST_COLUMNS = `
   share_slug AS shareSlug, share_enabled AS shareEnabled,
   created_at AS createdAt, last_login AS lastLogin, login_count AS loginCount,
   email_verified AS emailVerified, disabled, google_linked AS googleLinked,
-  password_hash != '' AS hasPassword
+  password_hash != '' AS hasPassword,
+  EXISTS (SELECT 1 FROM user_vaults v WHERE v.user_id = users.id) AS e2eeEnabled
 `;
 
 /** Numeric SQLite flags as booleans */
@@ -63,6 +67,7 @@ function formatListRow(row) {
     disabled: Number(row.disabled) === 1,
     googleLinked: Number(row.googleLinked) === 1,
     hasPassword: Number(row.hasPassword) === 1,
+    e2eeEnabled: Number(row.e2eeEnabled) === 1,
   };
 }
 

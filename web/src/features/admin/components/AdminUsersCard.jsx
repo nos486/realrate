@@ -4,7 +4,7 @@
  */
 
 import React from 'react';
-import { Users, ChevronRight, ChevronLeft, Ban, MailWarning, ShieldCheck, Eye } from 'lucide-react';
+import { Users, ChevronRight, ChevronLeft, Ban, MailWarning, ShieldCheck, Eye, Lock } from 'lucide-react';
 import { Button, EmptyState, FilterPills, ResponsiveDataTable, SearchBar } from '../../../shared/ui/index.js';
 import { SkeletonRows } from '../../../shared/ui/Skeleton.jsx';
 import { useIsMobile } from '../../../hooks/useMediaQuery.js';
@@ -19,6 +19,8 @@ const USER_FILTER_OPTIONS = [
   { value: 'unverified', label: 'ایمیل تأییدنشده' },
   { value: 'google', label: 'ورود با گوگل' },
   { value: 'blocked', label: 'مسدود' },
+  { value: 'noE2ee', label: 'بدون رمزنگاری' },
+  { value: 'e2ee', label: 'رمزنگاری فعال' },
 ];
 
 const SORT_OPTIONS = [
@@ -84,6 +86,11 @@ export default function AdminUsersCard({ list, filterCounts = {}, onOpenUser }) 
             {u.googleLinked && <GoogleIcon size={13} />}
             {u.hasPassword && <span className="admin-chip">رمز</span>}
           </span>
+          {u.e2eeEnabled && (
+            <span className="admin-chip is-green" title="رمزنگاری سرتاسری فعال است">
+              <Lock size={11} /> رمزنگاری
+            </span>
+          )}
           <UserBadges user={u} />
         </span>
       ),

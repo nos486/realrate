@@ -41,7 +41,7 @@ const USERS_PAGE_SIZE_DEFAULT = 10;
 const USERS_PAGE_SIZE_MAX = 100;
 
 /**
- * GET /api/admin/users?page=1&pageSize=10&q=...&filter=all|new|inactive|unverified|google|blocked
+ * GET /api/admin/users?page=1&pageSize=10&q=...&filter=all|new|inactive|unverified|google|blocked|e2ee|noE2ee
  *   &sort=lastLogin|createdAt&dir=desc|asc
  * One page of registered users (by default most recently active first), optionally filtered —
  * admin only
