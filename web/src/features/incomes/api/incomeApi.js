@@ -6,6 +6,7 @@
 import { httpClient } from '../../../shared/api/httpClient.js';
 import { routeThroughVault } from '../../../shared/vault/vaultRouting.js';
 import * as vaultIncomes from '../../../shared/vault/vaultIncomes.js';
+import { pageLocally } from '../../../shared/utils/pageLocally.js';
 
 /**
  * @typedef {object} IncomeInput
@@ -17,11 +18,14 @@ import * as vaultIncomes from '../../../shared/vault/vaultIncomes.js';
  */
 
 /**
- * Fetch all incomes of the current user (newest first)
- * @returns {Promise<{ success: boolean, count: number, incomes: Array }>}
+ * Incomes of the current user by date (newest first), filtered and paged like the encrypted store
+ * @param {{ from?: string, to?: string, order?: 'asc'|'desc', limit?: number, offset?: number }} [filters]
+ * @returns {Promise<{ success: boolean, count: number, incomes: Array, total: number }>}
  */
-async function getIncomesRest() {
-  return httpClient.get('/api/incomes');
+async function getIncomesRest(filters = {}) {
+  const res = await httpClient.get('/api/incomes');
+  const { items, total } = pageLocally(Array.isArray(res?.incomes) ? res.incomes : [], filters, (i) => i.incomeDate);
+  return { ...res, count: items.length, incomes: items, total };
 }
 
 /**

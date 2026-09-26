@@ -206,7 +206,7 @@ loan / income / cheque endpoints return `409 VAULT_ENABLED` and portfolio data m
 | :--- | :--- | :--- |
 | `GET` | `/api/v1/vault` | The account vault `{ salt, wrappedKey, version }` or `null`, plus `hasPlaintextData` (whether an account without it has data) |
 | `PUT` | `/api/v1/vault` | Turn on, or re-wrap after a passphrase change (`previousWrappedKey` required; `409` on mismatch) |
-| `GET` | `/api/v1/vault/records/:kind` | Encrypted records of `loan`, `income`, `cheque`, `recurring_income`, `holding` or `transaction` (`?from`, `?to`, `?parent`) |
+| `GET` | `/api/v1/vault/records/:kind` | Encrypted records of `loan`, `income`, `cheque`, `recurring_income`, `holding` or `transaction` — newest date first. Filters on the plaintext metadata only: `?from`, `?to` (inclusive `YYYY-MM-DD`), `?parent`, `?undated=1` (date missing or not yet Gregorian); `?order=asc\|desc`; with `?limit` (1–200) and `?offset` one page plus `total` |
 | `PUT` | `/api/v1/vault/records/:kind/:id` | Create/replace a record (`{ payload, replacePlain }` — `replacePlain` deletes the plaintext row with the same id in the same batch) |
 | `DELETE` | `/api/v1/vault/records/:kind/:id` | Delete a record |
 

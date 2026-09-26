@@ -2,7 +2,10 @@
  * TransactionsView.jsx — Transactions sub-tab of the merged Portfolio page
  *
  * Renders buy/sell transaction CRUD, search/filter, and turnover stats for the portfolio
- * selected by the parent (PortfolioTracker). The portfolio switcher and page header live in
+ * selected by the parent (PortfolioTracker). A period picker (6 months by default) sets the date
+ * window fetched from the server; the list shows 10 per page — paged by date on the server,
+ * or in the browser while searching, filtering by type or sorting by another column (those
+ * fields are encrypted). The full history is loaded only for the form's sell-balance check. The portfolio switcher and page header live in
  * the parent, shared with the Holdings sub-tab — this view owns only its own vault-unlock
  * state and transaction data, exactly as it did as a standalone page.
  */
@@ -20,6 +23,7 @@ import {
   MessageSquare,
 } from 'lucide-react';
 import { useTransactions } from '../hooks/useTransactions.js';
+import { useTransactionPage } from '../hooks/useTransactionPage.js';
 import { useComputedHoldings } from '../hooks/useComputedHoldings.js';
 import TransactionForm from './TransactionForm.jsx';
 import VaultLockCard from '../../portfolio/components/VaultLockCard.jsx';
@@ -34,15 +38,20 @@ import SplitPageLayout from '../../../shared/ui/SplitPageLayout.jsx';
 import { usePricing } from '../../market/index.js';
 import { CategoryIcon, formatAssetName, formatNum, getItemBrand, resolveAssetDisplayName } from '../../portfolio/utils/holdingHelpers.js';
 import ResponsiveDataTable from '../../../shared/ui/ResponsiveDataTable.jsx';
+import Pagination from '../../../shared/ui/Pagination.jsx';
+import PeriodBar from '../../../shared/ui/PeriodBar.jsx';
+import { DEFAULT_RECENT_PERIOD, periodFrom } from '../../../shared/utils/recentPeriods.js';
+import { toIsoDay } from '../../../shared/vault/vaultRecordMeta.js';
 import {
   deriveE2eeKey,
   verifyE2eeKey,
   saveVaultPassphraseToSession,
 } from '../../../lib/e2ee.js';
 import { usePrivacyMode } from '../../../hooks/usePrivacyMode.js';
-import { useSortableRows } from '../../../hooks/useSortableRows.js';
 import { useFeedback } from '../../../shared/ui/FeedbackProvider.jsx';
 import { SkeletonRows } from '../../../shared/ui/Skeleton.jsx';
+
+const TX_PAGE_SIZE = 10;
 
 const TransactionsView = forwardRef(function TransactionsView(
   { activePortfolio, loadingPortfolios = false, calcData = null, rates = null, fetchPortfolios, onCountChange },
@@ -64,7 +73,10 @@ const TransactionsView = forwardRef(function TransactionsView(
   const [vaultUnlockError, setVaultUnlockError] = useState('');
   const [unlockingVault, setUnlockingVault] = useState(false);
 
-  // Transactions Hook for active portfolio
+  const [period, setPeriod] = useState(DEFAULT_RECENT_PERIOD);
+  const periodStart = periodFrom(period);
+
+  // The period's transactions (fetched by date on the server) for the stats and the list
   const {
     transactions,
     loadingTransactions,
@@ -74,7 +86,9 @@ const TransactionsView = forwardRef(function TransactionsView(
     addTransaction,
     updateTransaction,
     deleteTransaction,
-  } = useTransactions(activePortfolio, vaultKey);
+    activeVaultKey,
+    changeCount,
+  } = useTransactions(activePortfolio, vaultKey, { from: periodStart });
 
   useEffect(() => {
     onCountChange?.(transactions.length);
@@ -99,8 +113,13 @@ const TransactionsView = forwardRef(function TransactionsView(
     return map;
   }, [livePriceMap, calcData]);
 
-  // Computed Holdings (for checking balances on sell)
-  const { computedHoldings } = useComputedHoldings(transactions, realPriceMap);
+  // Computed Holdings (for checking balances on sell): they need every transaction ever made,
+  // so the full history is read only while the form is open (the period already is all of it)
+  const [formOpen, setFormOpen] = useState(false);
+  const { transactions: fullHistory } = useTransactions(activePortfolio, vaultKey, {
+    enabled: formOpen && Boolean(periodStart),
+  });
+  const { computedHoldings } = useComputedHoldings(periodStart ? fullHistory : transactions, realPriceMap);
   const currentHoldingsMap = useMemo(() => {
     const map = {};
     computedHoldings.forEach((h) => {
@@ -114,7 +133,8 @@ const TransactionsView = forwardRef(function TransactionsView(
 
   const [searchQuery, setSearchQuery] = useState('');
   const [typeFilter, setTypeFilter] = useState('all'); // 'all' | 'buy' | 'sell'
-  const [formOpen, setFormOpen] = useState(false);
+  // Newest first by default; the date is the only column the server can sort by
+  const [sortState, setSortState] = useState({ key: 'date', dir: 'desc' });
   const [editingTx, setEditingTx] = useState(null);
 
   const handleOpenAdd = () => {
@@ -178,7 +198,15 @@ const TransactionsView = forwardRef(function TransactionsView(
     });
   }, [transactions, typeFilter, searchQuery]);
 
-  // Column sorting (click a header to sort; click again to reverse, a third time to reset)
+  // Column sorting: the date flips between newest and oldest first; another column sorts
+  // ascending, then descending, then back to the date
+  const toggleSort = (key) => {
+    setSortState((prev) => {
+      if (key === 'date') return { key, dir: prev.key === 'date' && prev.dir === 'desc' ? 'asc' : 'desc' };
+      if (prev.key !== key) return { key, dir: 'asc' };
+      return prev.dir === 'asc' ? { key, dir: 'desc' } : { key: 'date', dir: 'desc' };
+    });
+  };
   const sortAccessors = useMemo(
     () => ({
       type: (tx) => (tx.transactionType || tx.type || 'buy').toLowerCase(),
@@ -186,14 +214,43 @@ const TransactionsView = forwardRef(function TransactionsView(
       qty: (tx) => Number(tx.quantity || tx.amount || 0),
       unitPrice: (tx) => Number(tx.unitPrice || tx.buyPrice || 0),
       totalPrice: (tx) => Number(tx.quantity || tx.amount || 0) * Number(tx.unitPrice || tx.buyPrice || 0),
-      date: (tx) => tx.transactionDate || '',
+      date: (tx) => toIsoDay(tx.transactionDate || tx.date) || '',
     }),
     []
   );
-  const { sortedRows: sortedTransactions, sortState, toggleSort } = useSortableRows(
-    filteredTransactions,
-    sortAccessors
-  );
+  const sortedTransactions = useMemo(() => {
+    const accessor = sortAccessors[sortState.key];
+    const dir = sortState.dir === 'asc' ? 1 : -1;
+    return [...filteredTransactions].sort((a, b) => {
+      const va = accessor(a);
+      const vb = accessor(b);
+      const primary = typeof va === 'string' ? va.localeCompare(vb, 'fa') : va - vb;
+      return dir * (primary || String(a.createdAt || '').localeCompare(String(b.createdAt || '')));
+    });
+  }, [filteredTransactions, sortAccessors, sortState]);
+
+  // Paging: 10 per page, reset whenever what is listed changes
+  const listKey = `${activePortfolio?.id}|${period}|${typeFilter}|${searchQuery.trim()}|${sortState.key}|${sortState.dir}`;
+  const [paging, setPaging] = useState({ key: '', page: 1 });
+  const page = paging.key === listKey ? paging.page : 1;
+  const setPage = (next) => setPaging({ key: listKey, page: next });
+
+  // With no search / type filter and the date order, the server pages the encrypted records
+  const plainDateList = !searchQuery.trim() && typeFilter === 'all' && sortState.key === 'date';
+  const serverPage = useTransactionPage(activePortfolio, activeVaultKey, {
+    from: periodStart,
+    order: sortState.dir,
+    page,
+    pageSize: TX_PAGE_SIZE,
+    enabled: plainDateList && !isVaultLocked,
+    // Refetch after an add / edit / delete
+    version: changeCount,
+    onOverflow: setPage,
+  });
+  const listRows = serverPage.serverPaged
+    ? serverPage.rows
+    : sortedTransactions.slice((page - 1) * TX_PAGE_SIZE, page * TX_PAGE_SIZE);
+  const listTotal = serverPage.serverPaged ? serverPage.total : sortedTransactions.length;
 
   // Stats
   const stats = useMemo(() => {
@@ -446,13 +503,15 @@ const TransactionsView = forwardRef(function TransactionsView(
           description={isAccountVaultPortfolio(activePortfolio) ? 'این پورتفو با رمزنگاری سرتاسری حساب محافظت می‌شود. رمز عبور رمزنگاری حساب را وارد کنید.' : null}
         />
       ) : (
+        <>
+        <PeriodBar value={period} onChange={setPeriod} />
         <SplitPageLayout
           sidebar={
             <div className="portfolio-overview-grid">
               {/* Card 1: Total Turnover (highlight) */}
               <div className="portfolio-stat-card main-val">
                 <div className="stat-header">
-                  <span className="stat-label">گردش مالی کل</span>
+                  <span className="stat-label">گردش مالی این بازه</span>
                 </div>
                 <div className={`stat-number gold-gradient-text ${hideValues ? 'is-masked' : ''}`}>
                   {hideValues ? '****' : formatNum(stats.totalTurnover)}
@@ -534,16 +593,18 @@ const TransactionsView = forwardRef(function TransactionsView(
               </div>
 
               {/* Transactions Data Table */}
-              {(loadingPortfolios && !activePortfolio) || (loadingTransactions && transactions.length === 0) ? (
+              {(loadingPortfolios && !activePortfolio) || (loadingTransactions && transactions.length === 0 && !serverPage.serverPaged) || (serverPage.loading && serverPage.rows.length === 0) ? (
                 <SkeletonRows rows={5} columns={5} label="در حال بارگذاری تراکنش‌ها" />
-              ) : filteredTransactions.length === 0 ? (
+              ) : listTotal === 0 ? (
                 <EmptyState
                   icon={<Receipt size={40} strokeWidth={1.5} color="var(--text-muted)" />}
                   title="هیچ تراکنشی یافت نشد"
                   description={
                     searchQuery || typeFilter !== 'all'
                       ? 'تراکنشی با فیلترهای انتخابی مطابقت ندارد.'
-                      : 'هنوز هیچ معامله خریدی یا فروشی در این پورتفو ثبت نکرده‌اید. با کلیک روی دکمه زیر اولین معامله را ثبت کنید.'
+                      : periodStart
+                        ? 'در این بازه تراکنشی ثبت نشده است؛ بازه دیگری را از بالای صفحه انتخاب کنید.'
+                        : 'هنوز هیچ معامله خریدی یا فروشی در این پورتفو ثبت نکرده‌اید. با کلیک روی دکمه زیر اولین معامله را ثبت کنید.'
                   }
                   action={
                     <button
@@ -557,19 +618,31 @@ const TransactionsView = forwardRef(function TransactionsView(
                   }
                 />
               ) : (
-                <ResponsiveDataTable
-                  columns={transactionColumns}
-                  rows={sortedTransactions}
-                  wrapperClassName="portfolio-table-responsive"
-                  tableClassName="portfolio-data-table transactions-table"
-                  rowClassName={() => 'portfolio-table-row'}
-                  sortState={sortState}
-                  onSortChange={toggleSort}
-                />
+                <div className={serverPage.loading ? 'is-refreshing' : ''} aria-busy={serverPage.loading}>
+                  <ResponsiveDataTable
+                    columns={transactionColumns}
+                    rows={listRows}
+                    wrapperClassName="portfolio-table-responsive"
+                    tableClassName="portfolio-data-table transactions-table"
+                    rowClassName={() => 'portfolio-table-row'}
+                    sortState={sortState}
+                    onSortChange={toggleSort}
+                  />
+                </div>
               )}
+
+              <Pagination
+                page={page}
+                pageSize={TX_PAGE_SIZE}
+                total={listTotal}
+                loading={serverPage.loading}
+                onChange={setPage}
+                label="صفحه‌بندی تراکنش‌ها"
+              />
             </div>
           </div>
         </SplitPageLayout>
+        </>
       )}
 
       {/* Form Modal */}

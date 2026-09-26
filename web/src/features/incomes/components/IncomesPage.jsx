@@ -2,9 +2,11 @@
  * IncomesPage.jsx — Income tracking dashboard
  *
  * - Record / edit / delete income entries (title, category, amount, Shamsi date, notes)
- * - Period filter (all / this Shamsi year / this Shamsi month) driving every figure on the page
- * - Summary cards + per-category and per-month breakdown
- * - Searchable, responsive list of entries
+ * - Period picker at the top (last month / 3 / 6 months / a year / all; 6 months by default):
+ *   only that date window is fetched from the server
+ * - Summary cards + per-category breakdown of the period, and the last 12 months as a chart
+ * - The list: 10 per page, paged and sorted by date on the server; a search looks through the
+ *   whole period in the browser (titles and notes are encrypted)
  */
 
 import React, { useState, useMemo } from 'react';
@@ -16,6 +18,8 @@ import {
   Button,
   EmptyState,
   FeaturePageHeader,
+  Pagination,
+  PeriodBar,
   SearchBar,
   SplitPageLayout,
 } from '../../../shared/ui/index.js';
@@ -28,7 +32,7 @@ import IncomeCsvExportButton from './IncomeCsvExportButton.jsx';
 import IncomeCsvImportButton from './IncomeCsvImportButton.jsx';
 import RecurringIncomesCard from './RecurringIncomesCard.jsx';
 import { ruleInput } from '../utils/recurringSync.js';
-import { INCOME_PERIODS, buildIncomeReport, buildMonthlySeries, filterIncomesByPeriod } from '../utils/incomeReport.js';
+import { buildIncomeReport, buildMonthlySeries } from '../utils/incomeReport.js';
 import { getIncomeCategory } from '../constants/incomeCategories.js';
 import { useFeedback } from '../../../shared/ui/FeedbackProvider.jsx';
 import { SkeletonRows } from '../../../shared/ui/Skeleton.jsx';
@@ -37,6 +41,18 @@ import VaultUnlockCard from '../../../shared/vault/VaultUnlockCard.jsx';
 export default function IncomesPage() {
   const {
     incomes,
+    total,
+    page,
+    setPage,
+    pageSize,
+    period,
+    setPeriod,
+    periodStart,
+    order,
+    setOrder,
+    windowIncomes,
+    loadingWindow,
+    loadAllIncomes,
     vaultLocked,
     loadingIncomes,
     submitting,
@@ -55,28 +71,45 @@ export default function IncomesPage() {
   } = useIncomes();
   const hideValues = usePrivacyMode();
 
-  const [period, setPeriod] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
+  // The page within the search results, reset whenever the search itself changes
+  const [searchPaging, setSearchPaging] = useState({ key: '', page: 1 });
   const [formOpen, setFormOpen] = useState(false);
   const [editingIncome, setEditingIncome] = useState(null);
   const [editingRule, setEditingRule] = useState(null);
   const [startRecurring, setStartRecurring] = useState(false);
 
-  const periodIncomes = useMemo(() => filterIncomesByPeriod(incomes, period), [incomes, period]);
+  // The sidebar's window also holds the chart's 12 months: the period is the part on or after its start
+  const periodIncomes = useMemo(
+    () => (periodStart ? windowIncomes.filter((i) => String(i.incomeDate) >= periodStart) : windowIncomes),
+    [windowIncomes, periodStart]
+  );
   const report = useMemo(() => buildIncomeReport(periodIncomes), [periodIncomes]);
-  // Always the last 12 months, whatever the period filter: it is there to show the trend
-  const monthlySeries = useMemo(() => buildMonthlySeries(incomes), [incomes]);
+  // Always the last 12 months, whatever the period: it is there to show the trend
+  const monthlySeries = useMemo(() => buildMonthlySeries(windowIncomes), [windowIncomes]);
   // The source donut's order, so the bar chart's stacks take the same colors
   const categoryOrder = useMemo(() => report.byCategory.map((c) => c.category), [report.byCategory]);
 
-  const visibleIncomes = useMemo(() => {
-    const q = searchQuery.trim().toLowerCase();
-    if (!q) return periodIncomes;
-    return periodIncomes.filter((income) =>
-      [income.title, income.notes, getIncomeCategory(income.category).label]
-        .some((field) => String(field || '').toLowerCase().includes(q))
-    );
-  }, [periodIncomes, searchQuery]);
+  // Searching looks through the whole period in the browser (titles and notes are encrypted)
+  const query = searchQuery.trim().toLowerCase();
+  const searchMatches = useMemo(() => {
+    if (!query) return [];
+    const dir = order === 'asc' ? 1 : -1;
+    return periodIncomes
+      .filter((income) =>
+        [income.title, income.notes, getIncomeCategory(income.category).label]
+          .some((field) => String(field || '').toLowerCase().includes(query))
+      )
+      .sort((a, b) => dir * (String(a.incomeDate).localeCompare(String(b.incomeDate)) || String(a.createdAt || '').localeCompare(String(b.createdAt || ''))));
+  }, [periodIncomes, query, order]);
+  const searchKey = `${query}|${period}|${order}`;
+  const searchPage = searchPaging.key === searchKey ? searchPaging.page : 1;
+  const setSearchPage = (next) => setSearchPaging({ key: searchKey, page: next });
+
+  const searching = Boolean(query);
+  const listTotal = searching ? searchMatches.length : total;
+  const listPage = searching ? searchPage : page;
+  const listRows = searching ? searchMatches.slice((searchPage - 1) * pageSize, searchPage * pageSize) : incomes;
 
   const openForm = ({ income = null, rule = null, recurring = false } = {}) => {
     setEditingIncome(income);
@@ -134,7 +167,9 @@ export default function IncomesPage() {
 
   // Login is guaranteed by MainPage's site-wide auth gate before this component renders.
 
-  const hasIncomes = incomes.length > 0;
+  // Nothing at all only when even «all» is empty; otherwise just this period is
+  const hasIncomes = total > 0 || windowIncomes.length > 0 || period !== 'all';
+  const periodEmpty = !loadingIncomes && total === 0;
 
   if (vaultLocked) {
     return (
@@ -157,14 +192,16 @@ export default function IncomesPage() {
         subtitle="ثبت ورودی‌ها و گزارش کلی درآمد به تفکیک منبع و ماه"
         actions={
           <>
-            <IncomeCsvExportButton incomes={incomes} disabled={!hasIncomes} />
-            <IncomeCsvImportButton saveIncome={saveIncome} />
+            <IncomeCsvExportButton loadIncomes={loadAllIncomes} disabled={!hasIncomes} />
+            <IncomeCsvImportButton saveIncome={saveIncome} onImported={fetchIncomes} />
             <Button icon={<Plus size={16} />} onClick={handleOpenAdd}>
               ثبت درآمد جدید
             </Button>
           </>
         }
       />
+
+      <PeriodBar value={period} onChange={setPeriod} />
 
       {recurringError && <AlertBanner type="warning" message={recurringError} onClose={clearRecurringError} />}
 
@@ -215,27 +252,14 @@ export default function IncomesPage() {
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   placeholder="جستجو در عنوان، منبع یا یادداشت..."
-                  badge={`${visibleIncomes.length.toLocaleString('fa-IR')} مورد`}
+                  badge={`${listTotal.toLocaleString('fa-IR')} مورد`}
                   className="incomes-search"
                 />
               )}
             </div>
 
             <div className="table-card-body">
-              <div className="tx-filter-pills-bar">
-                {INCOME_PERIODS.map((opt) => (
-                  <button
-                    key={opt.value}
-                    type="button"
-                    className={`tx-filter-pill ${period === opt.value ? 'active' : ''}`}
-                    onClick={() => setPeriod(opt.value)}
-                  >
-                    {opt.label}
-                  </button>
-                ))}
-              </div>
-
-              {loadingIncomes && !hasIncomes ? (
+              {loadingIncomes && incomes.length === 0 && !searching ? (
                 <SkeletonRows rows={5} columns={4} label="در حال دریافت لیست درآمدها" />
               ) : !hasIncomes ? (
                 <EmptyState
@@ -248,26 +272,39 @@ export default function IncomesPage() {
                     </Button>
                   }
                 />
-              ) : report.count === 0 ? (
+              ) : periodEmpty && !searching ? (
                 <EmptyState
                   icon={<CalendarRange size={40} strokeWidth={1.5} />}
                   title="در این بازه درآمدی ثبت نشده است"
-                  description="بازه زمانی دیگری را انتخاب کنید یا درآمد جدیدی ثبت نمایید."
+                  description="بازه زمانی دیگری را از بالای صفحه انتخاب کنید یا درآمد جدیدی ثبت نمایید."
                 />
-              ) : visibleIncomes.length === 0 ? (
+              ) : searching && searchMatches.length === 0 ? (
                 <EmptyState
                   title="موردی یافت نشد"
-                  description="هیچ درآمدی با عبارت جستجو شده مطابقت ندارد."
+                  description={loadingWindow ? 'در حال جستجو…' : 'هیچ درآمدی در این بازه با عبارت جستجو شده مطابقت ندارد.'}
                 />
               ) : (
-                <IncomesTable
-                  incomes={visibleIncomes}
-                  onEdit={handleOpenEdit}
-                  onDelete={handleDelete}
-                  deletingId={deletingId}
-                  hideValues={hideValues}
-                />
+                <div className={loadingIncomes && !searching ? 'is-refreshing' : ''} aria-busy={loadingIncomes}>
+                  <IncomesTable
+                    incomes={listRows}
+                    onEdit={handleOpenEdit}
+                    onDelete={handleDelete}
+                    deletingId={deletingId}
+                    hideValues={hideValues}
+                    sortState={{ key: 'date', dir: order }}
+                    onSortChange={() => setOrder(order === 'desc' ? 'asc' : 'desc')}
+                  />
+                </div>
               )}
+
+              <Pagination
+                page={listPage}
+                pageSize={pageSize}
+                total={listTotal}
+                loading={loadingIncomes && !searching}
+                onChange={searching ? setSearchPage : setPage}
+                label="صفحه‌بندی درآمدها"
+              />
             </div>
           </div>
         </SplitPageLayout>

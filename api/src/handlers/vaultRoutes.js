@@ -5,7 +5,8 @@
  *   GET    /api/vault                                — The account vault (salt + wrapped key) or null,
  *                                                       and whether an account without it has data
  *   PUT    /api/vault                                — Turn on / re-wrap after a passphrase change
- *   GET    /api/vault/records/:kind                  — Encrypted records of a kind (loan | income | cheque | recurring_income | holding | transaction)
+ *   GET    /api/vault/records/:kind                  — Encrypted records of a kind (loan | income | cheque | recurring_income | holding | transaction);
+ *                                                       ?from&to&parent&undated=1&order=asc|desc&limit&offset (a page adds `total`)
  *   PUT    /api/vault/records/:kind/:id              — Create/replace one ({ payload, replacePlain })
  *   DELETE /api/vault/records/:kind/:id              — Delete one
  *   GET    /api/loans/:id/document                   — Raw stored loan (for encrypting it)
@@ -55,12 +56,18 @@ export async function handleSaveVault(request, env) {
 export async function handleListVaultRecords(request, env, { kind }) {
   const userId = await requireUserId(request, env);
   const params = new URL(request.url).searchParams;
-  const records = await dbListVaultRecords(env, userId, kind, {
+  const result = await dbListVaultRecords(env, userId, kind, {
     from: params.get("from") || "",
     to: params.get("to") || "",
     parentId: params.get("parent") || "",
+    undated: params.get("undated") === "1",
+    order: params.get("order") === "asc" ? "asc" : "desc",
+    limit: params.get("limit"),
+    offset: params.get("offset") || 0,
   });
-  return jsonResponse({ success: true, records }, 200, request);
+  // A page carries the total matching; without `limit`, every matching record
+  const body = Array.isArray(result) ? { records: result } : result;
+  return jsonResponse({ success: true, ...body }, 200, request);
 }
 
 export async function handlePutVaultRecord(request, env, { kind, id }) {

@@ -12,6 +12,8 @@ export { default as Input } from './Input.jsx';
 export { default as MiniCard } from './MiniCard.jsx';
 export { default as Modal } from './Modal.jsx';
 export { default as NumericInput } from './NumericInput.jsx';
+export { default as Pagination } from './Pagination.jsx';
+export { default as PeriodBar } from './PeriodBar.jsx';
 export { default as ResponsiveDataTable } from './ResponsiveDataTable.jsx';
 export { default as SearchBar } from './SearchBar.jsx';
 export { default as SplitPageLayout } from './SplitPageLayout.jsx';

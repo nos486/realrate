@@ -32,9 +32,10 @@ import {
   deletePortfolioTransactionRecord,
 } from '../../../shared/vault/vaultPortfolioItems.js';
 import { markLegacyVaultUnlocked } from '../../../shared/vault/vaultStore.js';
+import { toIsoDay } from '../../../shared/vault/vaultRecordMeta.js';
 
 /** Display fields shown with every transaction (from the asset id) */
-function withDisplayFields(tx) {
+export function withDisplayFields(tx) {
   const cat = resolveCategory(tx.assetId, tx.assetType);
   return {
     ...tx,
@@ -45,12 +46,20 @@ function withDisplayFields(tx) {
   };
 }
 
-export function useTransactions(activePortfolio, externalVaultKey = null) {
+/**
+ * @param {object|null} activePortfolio
+ * @param {CryptoKey|null} [externalVaultKey]
+ * @param {{ from?: string, enabled?: boolean }} [options] from: only transactions dated on or
+ *   after it (YYYY-MM-DD; filtered on the server for encrypted portfolios); enabled: false loads nothing
+ */
+export function useTransactions(activePortfolio, externalVaultKey = null, { from = '', enabled = true } = {}) {
   const { user } = useAuth();
   const [transactions, setTransactions] = useState([]);
   const [loadingTransactions, setLoadingTransactions] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [deletingId, setDeletingId] = useState(null);
+  // Counts saved changes (add / edit / delete), for views that fetch the same data another way
+  const [changeCount, setChangeCount] = useState(0);
 
   // Key restored from the session-cached passphrase when the caller has none. It is tagged
   // with the portfolio it belongs to, so switching portfolios can never reuse another
@@ -103,7 +112,7 @@ export function useTransactions(activePortfolio, externalVaultKey = null) {
     const seq = ++fetchSeqRef.current;
     const isStale = () => seq !== fetchSeqRef.current;
 
-    if (!user || !portfolioId) {
+    if (!user || !portfolioId || !enabled) {
       loadedPortfolioIdRef.current = null;
       setTransactions([]);
       setLoadingTransactions(false);
@@ -120,7 +129,7 @@ export function useTransactions(activePortfolio, externalVaultKey = null) {
 
       // Account vault: every transaction is an encrypted vault record of this portfolio
       if (accountManaged && activeVaultKey) {
-        const list = await listPortfolioTransactions(activePortfolio, activeVaultKey);
+        const list = await listPortfolioTransactions(activePortfolio, activeVaultKey, from ? { from } : {});
         if (isStale()) return;
         loadedPortfolioIdRef.current = portfolioId;
         setTransactions(list.map(withDisplayFields));
@@ -179,7 +188,10 @@ export function useTransactions(activePortfolio, externalVaultKey = null) {
         if (isE2eePortfolio && !activeVaultKey) {
           setTransactions([]);
         } else {
-          setTransactions(decryptedList.map((tx) => (tx.isLocked ? tx : withDisplayFields(tx))));
+          const inRange = from
+            ? decryptedList.filter((tx) => toIsoDay(tx.transactionDate || tx.date) >= from)
+            : decryptedList;
+          setTransactions(inRange.map((tx) => (tx.isLocked ? tx : withDisplayFields(tx))));
         }
       } else {
         loadedPortfolioIdRef.current = portfolioId;
@@ -192,7 +204,7 @@ export function useTransactions(activePortfolio, externalVaultKey = null) {
     } finally {
       if (!isStale()) setLoadingTransactions(false);
     }
-  }, [user, portfolioId, isE2eePortfolio, activeVaultKey, accountManaged, activePortfolio]);
+  }, [user, portfolioId, isE2eePortfolio, activeVaultKey, accountManaged, activePortfolio, from, enabled]);
 
   useEffect(() => {
     fetchTransactions();
@@ -235,6 +247,7 @@ export function useTransactions(activePortfolio, externalVaultKey = null) {
 
       if (res && res.success) {
         await fetchTransactions();
+        setChangeCount((n) => n + 1);
         return res.transaction;
       }
       return null;
@@ -278,6 +291,7 @@ export function useTransactions(activePortfolio, externalVaultKey = null) {
 
       if (res && res.success) {
         await fetchTransactions();
+        setChangeCount((n) => n + 1);
         return res.transaction;
       }
       return null;
@@ -299,6 +313,7 @@ export function useTransactions(activePortfolio, externalVaultKey = null) {
         : await apiDeleteTransaction(activePortfolio.id, id);
       if (res && res.success) {
         setTransactions((prev) => prev.filter((t) => t.id !== id));
+        setChangeCount((n) => n + 1);
         return true;
       }
       return false;
@@ -314,6 +329,7 @@ export function useTransactions(activePortfolio, externalVaultKey = null) {
     deletingId,
     activeVaultKey,
     isVaultLocked,
+    changeCount,
     fetchTransactions,
     addTransaction,
     updateTransaction,

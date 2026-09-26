@@ -21,6 +21,23 @@ function createDb() {
   const recordKey = (u, k, i) => `${u}|${k}|${i}`;
   let failNextBatch = false;
 
+  /** vault_records rows a list query selects (its optional filters come in a fixed order) */
+  const matching = (q, args) => {
+    const [user_id, kind, ...rest] = args;
+    let i = 0;
+    const from = q.includes('record_date >= ?') ? rest[i++] : null;
+    const to = q.includes('record_date <= ?') ? rest[i++] : null;
+    const parent = q.includes('parent_id = ?') ? rest[i++] : null;
+    const undated = q.includes("record_date = '' OR record_date < '1700'");
+    const dir = q.includes('record_date ASC') ? 1 : -1;
+    return [...records.values()]
+      .filter((r) => r.user_id === user_id && r.kind === kind)
+      .filter((r) => (from === null || r.recordDate >= from) && (to === null || (r.recordDate && r.recordDate <= to)))
+      .filter((r) => parent === null || r.parentId === parent)
+      .filter((r) => !undated || r.recordDate === '' || r.recordDate < '1700')
+      .sort((a, b) => dir * (a.recordDate.localeCompare(b.recordDate) || a.createdAt.localeCompare(b.createdAt)));
+  };
+
   const db = {
     vaults, records, plain,
     failNextBatch() { failNextBatch = true; },
@@ -74,7 +91,7 @@ function createDb() {
         async first() {
           if (q.includes('FROM user_vaults')) return vaults.get(args[0]) || null;
           if (q.includes('COUNT(*) AS n FROM vault_records')) {
-            return { n: [...records.values()].filter((r) => r.user_id === args[0]).length };
+            return { n: q.includes('kind = ?') ? matching(q, args).length : [...records.values()].filter((r) => r.user_id === args[0]).length };
           }
           if (q.includes('EXISTS (SELECT 1 FROM')) {
             const tables = [...q.matchAll(/FROM (\w+) WHERE/g)].map((m) => m[1]);
@@ -87,19 +104,9 @@ function createDb() {
         },
         async all() {
           if (q.includes('FROM vault_records')) {
-            // Mirrors the optional filters in their fixed order: from, to, parent
-            const [user_id, kind, ...rest] = args;
-            let i = 0;
-            const from = q.includes('record_date >= ?') ? rest[i++] : null;
-            const to = q.includes('record_date <= ?') ? rest[i++] : null;
-            const parent = q.includes('parent_id = ?') ? rest[i++] : null;
-            return {
-              results: [...records.values()]
-                .filter((r) => r.user_id === user_id && r.kind === kind)
-                .filter((r) => (from === null || r.recordDate >= from) && (to === null || (r.recordDate && r.recordDate <= to)))
-                .filter((r) => parent === null || r.parentId === parent)
-                .sort((a, b) => b.recordDate.localeCompare(a.recordDate)),
-            };
+            const rows = matching(q, args);
+            const page = q.includes('LIMIT ? OFFSET ?') ? args.slice(-2) : null;
+            return { results: page ? rows.slice(page[1], page[1] + page[0]) : rows };
           }
           return { results: [] };
         },
@@ -197,6 +204,30 @@ describe('vault records', () => {
     await dbPutVaultRecord(env, 'u1', 'income', 'inc_1', { payload: CIPHER_2, recordDate: '2026-03-22', parentId: 'p_1' });
     const byParent = await dbListVaultRecords(env, 'u1', 'income', { parentId: 'p_1' });
     expect(byParent).toEqual([expect.objectContaining({ id: 'inc_1', payload: CIPHER_2, recordDate: '2026-03-22' })]);
+  });
+
+  it('pages records by date, oldest or newest first, with the total matching', async () => {
+    const days = ['2026-01-05', '2026-02-05', '2026-03-05', '2026-04-05', '2026-05-05'];
+    for (const [i, day] of days.entries()) {
+      await dbPutVaultRecord(env, 'u1', 'income', `inc_${i}`, { payload: CIPHER, recordDate: day });
+    }
+    await dbPutVaultRecord(env, 'u1', 'income', 'inc_old', { payload: CIPHER });
+    await dbPutVaultRecord(env, 'u1', 'income', 'inc_shamsi', { payload: CIPHER, recordDate: '1404-02-01' });
+
+    const first = await dbListVaultRecords(env, 'u1', 'income', { from: '2026-02-01', limit: 2 });
+    expect(first.total).toBe(4);
+    expect(first.records.map((r) => r.id)).toEqual(['inc_4', 'inc_3']);
+    const second = await dbListVaultRecords(env, 'u1', 'income', { from: '2026-02-01', limit: 2, offset: 2 });
+    expect(second.records.map((r) => r.id)).toEqual(['inc_2', 'inc_1']);
+    const oldest = await dbListVaultRecords(env, 'u1', 'income', { order: 'asc', limit: 1, from: '2026-01-01' });
+    expect(oldest.records.map((r) => r.id)).toEqual(['inc_0']);
+
+    const undated = await dbListVaultRecords(env, 'u1', 'income', { undated: true });
+    expect(undated.map((r) => r.id).sort()).toEqual(['inc_old', 'inc_shamsi']);
+
+    await expect(dbListVaultRecords(env, 'u1', 'income', { limit: 0 })).rejects.toMatchObject({ statusCode: 400 });
+    await expect(dbListVaultRecords(env, 'u1', 'income', { limit: 500 })).rejects.toMatchObject({ statusCode: 400 });
+    await expect(dbListVaultRecords(env, 'u1', 'income', { limit: 10, offset: -1 })).rejects.toMatchObject({ statusCode: 400 });
   });
 
   it('encrypting an existing record removes its plaintext in the same batch', async () => {

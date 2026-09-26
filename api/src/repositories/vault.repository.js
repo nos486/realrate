@@ -130,11 +130,18 @@ async function requireVault(env, userId) {
 
 // ── Encrypted records ───────────────────────────────────────────────────────
 
+const MAX_PAGE_SIZE = 200;
+
 /**
- * Records of one kind, newest date first. Optional filters work on the plaintext metadata only:
- * `from` / `to` (inclusive YYYY-MM-DD on record_date) and `parentId`.
+ * Records of one kind, newest date first. Every filter works on the plaintext metadata only:
+ * `from` / `to` (inclusive YYYY-MM-DD on record_date), `parentId`, and `undated` (records whose
+ * date is missing or not yet Gregorian — the browser fixes those). `order` is "desc" (default) or
+ * "asc". With `limit`, one page is returned (`offset` rows skipped) plus the `total` matching.
+ * @returns {Promise<Array<object>>|Promise<{ records: Array<object>, total: number }>}
  */
-export async function dbListVaultRecords(env, userId, kind, { from = "", to = "", parentId = "" } = {}) {
+export async function dbListVaultRecords(env, userId, kind, {
+  from = "", to = "", parentId = "", undated = false, order = "desc", limit = null, offset = 0,
+} = {}) {
   assertKind(kind);
   await ensureD1Tables(env);
   const conditions = ["user_id = ?", "kind = ?"];
@@ -145,16 +152,34 @@ export async function dbListVaultRecords(env, userId, kind, { from = "", to = ""
   if (fromDate) { conditions.push("record_date >= ?"); params.push(fromDate); }
   if (toDate) { conditions.push("record_date != '' AND record_date <= ?"); params.push(toDate); }
   if (parent) { conditions.push("parent_id = ?"); params.push(parent); }
+  if (undated) conditions.push("(record_date = '' OR record_date < '1700')");
+  const where = conditions.join(" AND ");
+  const dir = order === "asc" ? "ASC" : "DESC";
+  const page = parsePage(limit, offset);
+
   const { results = [] } = await env.DB.prepare(`
     SELECT id, kind, payload, record_date AS recordDate, parent_id AS parentId,
            created_at AS createdAt, updated_at AS updatedAt
-    FROM vault_records WHERE ${conditions.join(" AND ")}
-    ORDER BY record_date DESC, created_at DESC
-  `).bind(...params).all();
-  return results;
+    FROM vault_records WHERE ${where}
+    ORDER BY record_date ${dir}, created_at ${dir}${page ? " LIMIT ? OFFSET ?" : ""}
+  `).bind(...params, ...(page ? [page.limit, page.offset] : [])).all();
+  if (!page) return results;
+
+  const count = await env.DB.prepare(`SELECT COUNT(*) AS n FROM vault_records WHERE ${where}`).bind(...params).first();
+  return { records: results, total: Number(count?.n) || 0 };
 }
 
-/** Plaintext rows that an encrypted record of this kind replaces (same id) */
+/** A page request, or null for every record */
+function parsePage(limit, offset) {
+  if (limit === null || limit === undefined || limit === "") return null;
+  const size = Number(limit);
+  const skip = Number(offset || 0);
+  if (!Number.isInteger(size) || size < 1 || size > MAX_PAGE_SIZE || !Number.isInteger(skip) || skip < 0) {
+    throw AppError.badRequest("صفحه‌بندی نامعتبر است.");
+  }
+  return { limit: size, offset: skip };
+}
+
 function deletePlainStatements(env, userId, kind, id) {
   if (kind === "loan") {
     return [
