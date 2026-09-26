@@ -73,6 +73,20 @@ function createReport(onProgress) {
   return { report, tick, plan };
 }
 
+/**
+ * Fetch one list for the migration. A failure is reported and yields an empty list, so one
+ * unreachable section (a network hiccup) never stops the other sections from being converted.
+ */
+async function fetchList(report, label, fetcher, key) {
+  try {
+    const res = await fetcher();
+    return Array.isArray(res?.[key]) ? res[key] : [];
+  } catch {
+    report.failed.push(`دریافت فهرست ${label}`);
+    return [];
+  }
+}
+
 const holdingLabel = (h) => `دارایی «${h.assetName || h.assetId || h.id}»`;
 const txLabel = (tx) => `تراکنش ${tx.transactionDate ? `مورخ ${tx.transactionDate}` : tx.id}`;
 
@@ -143,8 +157,8 @@ export async function encryptAccountData({ passphrase, onProgress } = {}) {
   const { report, tick, plan } = createReport(onProgress);
 
   // 1. Portfolios
-  const pRes = await getPortfolios();
-  for (const portfolio of pRes?.portfolios || []) {
+  const portfolios = await fetchList(report, 'پورتفوها', getPortfolios, 'portfolios');
+  for (const portfolio of portfolios) {
     try {
       if (isAccountVaultPortfolio(portfolio)) {
         const key = await getPortfolioKey(portfolio);
@@ -168,8 +182,7 @@ export async function encryptAccountData({ passphrase, onProgress } = {}) {
   }
 
   // 2. Loans — the whole stored document (states + extra payments) becomes one record
-  const loansRes = await httpClient.get('/api/loans');
-  const loans = loansRes?.loans || [];
+  const loans = await fetchList(report, 'وام‌ها', () => httpClient.get('/api/loans'), 'loans');
   plan(loans.length, 'وام‌ها');
   for (const loan of loans) {
     try {
@@ -182,8 +195,7 @@ export async function encryptAccountData({ passphrase, onProgress } = {}) {
   }
 
   // 3. Incomes
-  const incomesRes = await httpClient.get('/api/incomes');
-  const incomes = incomesRes?.incomes || [];
+  const incomes = await fetchList(report, 'درآمدها', () => httpClient.get('/api/incomes'), 'incomes');
   plan(incomes.length, 'درآمدها');
   for (const income of incomes) {
     try {
@@ -196,8 +208,7 @@ export async function encryptAccountData({ passphrase, onProgress } = {}) {
   }
 
   // 4. Cheques (with their tracking log)
-  const chequesRes = await httpClient.get('/api/cheques');
-  const cheques = chequesRes?.cheques || [];
+  const cheques = await fetchList(report, 'چک‌ها', () => httpClient.get('/api/cheques'), 'cheques');
   plan(cheques.length, 'چک‌ها');
   for (const cheque of cheques) {
     try {
@@ -210,8 +221,7 @@ export async function encryptAccountData({ passphrase, onProgress } = {}) {
   }
 
   // 5. Fixed income rules
-  const rulesRes = await httpClient.get('/api/incomes/recurring');
-  const rules = rulesRes?.rules || [];
+  const rules = await fetchList(report, 'درآمدهای ثابت', () => httpClient.get('/api/incomes/recurring'), 'rules');
   plan(rules.length, 'درآمدهای ثابت');
   for (const rule of rules) {
     try {
@@ -233,13 +243,16 @@ export async function encryptAccountData({ passphrase, onProgress } = {}) {
 
 /** Whether anything is still waiting to be encrypted (plaintext data or unlinked vaults) */
 export async function findPendingPlaintext() {
-  const [pRes, loansRes, incomesRes, chequesRes, rulesRes] = await Promise.all([
+  // Each list on its own: one failing request must not hide what the others found
+  const settled = await Promise.allSettled([
     getPortfolios(),
     httpClient.get('/api/loans'),
     httpClient.get('/api/incomes'),
     httpClient.get('/api/cheques'),
     httpClient.get('/api/incomes/recurring'),
   ]);
+  const [pRes, loansRes, incomesRes, chequesRes, rulesRes] = settled.map((r) => (r.status === 'fulfilled' ? r.value : null));
+  if (settled.every((r) => r.status === 'rejected')) throw settled[0].reason;
   const portfolios = pRes?.portfolios || [];
   return {
     plainPortfolios: portfolios.filter((p) => !p.isE2ee && !p.e2eeWrappedKey),
