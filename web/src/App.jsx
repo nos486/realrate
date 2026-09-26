@@ -2,6 +2,8 @@ import { lazy, Suspense } from 'react';
 import { Routes, Route, Navigate, Outlet, useLocation } from 'react-router-dom';
 import FullscreenLoader from './shared/ui/FullscreenLoader.jsx';
 import RequireAuth from './shared/ui/RequireAuth.jsx';
+import { useAuth } from './features/auth/context/AuthContext.jsx';
+import { getToken } from './shared/api/httpClient.js';
 import { APP_BASE, LANDING_PATH, AUTH_PATHS } from './shared/routes.js';
 // Direct file imports (not the feature barrels) so the pages below stay in their lazy chunks
 import { PricingProvider } from './features/market/context/PricingContext.jsx';
@@ -29,6 +31,18 @@ function RouteLoader() {
 function LegacyAppRedirect() {
   const { pathname, search } = useLocation();
   return <Navigate to={`${pathname.slice(APP_BASE.length)}${search}`} replace />;
+}
+
+/**
+ * The landing page is for guests: a signed-in visitor opening `/` goes straight to the app home.
+ * While a stored session is still being checked a loader is shown instead of flashing the
+ * landing page; without a stored token there is no session to wait for.
+ */
+function GuestLanding() {
+  const { user, loading } = useAuth();
+  if (user) return <Navigate to={APP_BASE} replace />;
+  if (loading && getToken()) return <RouteLoader />;
+  return <LandingPage />;
 }
 
 /**
@@ -62,8 +76,8 @@ export default function App() {
     <>
       <Suspense fallback={<RouteLoader />}>
       <Routes>
-        {/* Public, no pricing data */}
-        <Route path={LANDING_PATH} element={<LandingPage />} />
+        {/* Public, no pricing data; signed-in users go to the app */}
+        <Route path={LANDING_PATH} element={<GuestLanding />} />
         {/* Sign in / sign up / email links (public, no pricing data) */}
         {Object.values(AUTH_PATHS).map((path) => (
           <Route key={path} path={path} element={<AuthPage />} />
