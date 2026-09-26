@@ -20,9 +20,6 @@ body {
 
 body {
   background-color: var(--bg-app);
-  background-image:
-    radial-gradient(ellipse 70% 35% at 50% -5%, rgba(245, 158, 11, 0.04) 0%, transparent 60%),
-    radial-gradient(ellipse 60% 30% at 85% 100%, rgba(2, 132, 199, 0.035) 0%, transparent 60%);
   color: var(--text-primary);
   min-height: 100vh;
   direction: rtl;
@@ -329,7 +326,7 @@ textarea:focus {
 .admin-btn-danger:hover:not(:disabled) {
   background: rgba(244, 63, 94, 0.18);
   color: #ffffff;
-  box-shadow: 0 4px 14px rgba(244, 63, 94, 0.25);
+  box-shadow: none;
 }
 
 /* Ghost / Outline */
@@ -716,12 +713,12 @@ textarea:focus {
 .ui-mini-card:hover {
   border-color: var(--border-strong);
   transform: translateY(-2px);
-  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2);
+  box-shadow: none;
 }
 
 .ui-mini-card.is-selected {
   border-color: var(--accent-blue, var(--color-primary-text));
-  box-shadow: 0 0 0 1px var(--accent-blue, var(--color-primary-text)), 0 4px 18px rgba(56, 189, 248, 0.22);
+  box-shadow: 0 0 0 1px var(--accent-blue, var(--color-primary-text));
 }
 
 .mini-card-head {
@@ -825,7 +822,7 @@ textarea:focus {
 
 .mini-card-status-dot.active::before {
   background: var(--color-positive);
-  box-shadow: 0 0 6px rgba(16, 185, 129, 0.6);
+  box-shadow: none;
 }
 
 .mini-card-status-dot.inactive {
@@ -1096,7 +1093,7 @@ input.search-bar-input:focus-visible {
 
 .main-live-ticker.open {
   border-color: var(--accent-blue, var(--color-primary-text));
-  box-shadow: 0 0 16px rgba(56, 189, 248, 0.22);
+  box-shadow: none;
 }
 
 .main-live-ticker .ticker-pulse {
@@ -1108,19 +1105,19 @@ input.search-bar-input:focus-visible {
 
 .main-live-ticker .ticker-pulse.gold {
   background-color: var(--color-warning-text);
-  box-shadow: 0 0 8px var(--color-warning-text);
+  box-shadow: none;
   animation: pulseGold 2s infinite;
 }
 
 .main-live-ticker .ticker-pulse.green {
   background-color: var(--color-positive);
-  box-shadow: 0 0 8px var(--color-positive);
+  box-shadow: none;
   animation: pulseGreen 2s infinite;
 }
 
 .main-live-ticker .ticker-pulse.cyan {
   background-color: #06b6d4;
-  box-shadow: 0 0 8px #06b6d4;
+  box-shadow: none;
   animation: pulseCyan 2s infinite;
 }
 
@@ -1135,7 +1132,7 @@ input.search-bar-input:focus-visible {
   50% {
     transform: scale(1.2);
     opacity: 1;
-    box-shadow: 0 0 12px var(--color-warning-text);
+    box-shadow: none;
   }
 }
 
@@ -1150,7 +1147,7 @@ input.search-bar-input:focus-visible {
   50% {
     transform: scale(1.2);
     opacity: 1;
-    box-shadow: 0 0 12px var(--color-positive);
+    box-shadow: none;
   }
 }
 
@@ -1165,7 +1162,7 @@ input.search-bar-input:focus-visible {
   50% {
     transform: scale(1.2);
     opacity: 1;
-    box-shadow: 0 0 12px #06b6d4;
+    box-shadow: none;
   }
 }
 
@@ -1219,7 +1216,7 @@ input.search-bar-input:focus-visible {
   border: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: 14px;
   padding: 6px;
-  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.45);
+  box-shadow: none;
   z-index: 1000;
   display: flex;
   flex-direction: column;
@@ -1630,7 +1627,7 @@ input.search-bar-input:focus-visible {
   color: var(--primary-text, #ffffff) !important;
   font-weight: 700;
   border: 1px solid rgba(255, 255, 255, 0.15);
-  box-shadow: 0 4px 14px rgba(2, 132, 199, 0.45);
+  box-shadow: none;
 }
 
 .ui-filter-pills.variant-segmented .filter-pill-btn.active .pill-icon {

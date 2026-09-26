@@ -11,6 +11,7 @@
  */
 
 import React, { useState, useMemo, useEffect, forwardRef, useImperativeHandle } from 'react';
+import { createPortal } from 'react-dom';
 import {
   Receipt,
   Plus,
@@ -54,7 +55,7 @@ import { SkeletonRows } from '../../../shared/ui/Skeleton.jsx';
 const TX_PAGE_SIZE = 20;
 
 const TransactionsView = forwardRef(function TransactionsView(
-  { activePortfolio, loadingPortfolios = false, calcData = null, rates = null, fetchPortfolios, onCountChange },
+  { activePortfolio, loadingPortfolios = false, calcData = null, rates = null, fetchPortfolios, onCountChange, toolbarSlot = null },
   ref
 ) {
   const pricing = usePricing();
@@ -490,7 +491,10 @@ const TransactionsView = forwardRef(function TransactionsView(
         />
       ) : (
         <>
-        <PeriodBar value={period} onChange={setPeriod} />
+        {/* The period picker sits in the sub-tab row when there is one */}
+        {toolbarSlot
+          ? createPortal(<div className="portfolio-toolbar"><PeriodBar value={period} onChange={setPeriod} /></div>, toolbarSlot)
+          : <PeriodBar value={period} onChange={setPeriod} />}
         <SplitPageLayout
           sidebar={
             <div className="portfolio-overview-grid">

@@ -304,7 +304,7 @@
   transform: translateX(-50%);
   width: 240px;
   height: 240px;
-  background: radial-gradient(circle, rgba(245, 158, 11, 0.12) 0%, transparent 70%);
+  background: none;
   pointer-events: none;
 }
 
@@ -409,13 +409,13 @@
   font-weight: 800;
   cursor: pointer;
   transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25);
+  box-shadow: none;
 }
 
 .btn-google-gate-login:hover {
   background: var(--text-primary);
   transform: translateY(-2px);
-  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.35);
+  box-shadow: none;
 }
 
 .gate-privacy-note {
@@ -547,7 +547,7 @@
   border: 1px solid rgba(245, 158, 11, 0.35);
   border-radius: 10px;
   padding: 10px 12px;
-  box-shadow: 0 8px 24px -4px rgba(0, 0, 0, 0.5), 0 0 12px rgba(245, 158, 11, 0.12);
+  box-shadow: none;
   animation: fadeInPop 0.18s ease-out;
 }
 

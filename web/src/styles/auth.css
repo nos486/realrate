@@ -54,7 +54,7 @@
   padding: 26px 24px;
   border-radius: 20px;
   background: var(--bg-surface-elevated, #111726);
-  box-shadow: 0 0 0 1px var(--border-medium, rgba(255, 255, 255, 0.08)), 0 24px 60px rgba(0, 0, 0, 0.45);
+  box-shadow: 0 0 0 1px var(--border-medium, rgba(255, 255, 255, 0.08));
   box-sizing: border-box;
 }
 

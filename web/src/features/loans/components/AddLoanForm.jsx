@@ -623,7 +623,7 @@ export default function AddLoanForm({
           borderRadius: '12px',
           padding: '14px 16px',
           marginBottom: '14px',
-          boxShadow: '0 4px 16px rgba(0, 0, 0, 0.2)',
+          boxShadow: 'none',
         }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--text-secondary, #94a3b8)', fontSize: '0.85rem' }}>
@@ -688,7 +688,7 @@ export default function AddLoanForm({
             borderRadius: '12px',
             padding: '14px 16px',
             marginBottom: '14px',
-            boxShadow: '0 4px 16px rgba(0, 0, 0, 0.2)',
+            boxShadow: 'none',
           }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--text-secondary, #94a3b8)', fontSize: '0.85rem', marginBottom: '10px' }}>
               <Calculator size={16} className="text-amber-400" />

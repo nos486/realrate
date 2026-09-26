@@ -85,7 +85,7 @@
   background: rgba(245, 158, 11, 0.12);
   border-color: rgba(245, 158, 11, 0.4);
   color: var(--color-warning-text);
-  box-shadow: 0 0 16px rgba(245, 158, 11, 0.12);
+  box-shadow: none;
 }
 
 .tab-pill-icon {
@@ -347,7 +347,7 @@
 }
 
 .sky-gradient-text {
-  background: linear-gradient(135deg, var(--color-primary-text) 0%, var(--color-primary-text) 50%, var(--color-primary) 100%);
+  background: linear-gradient(var(--color-primary-text), var(--color-primary-text));
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
 }
@@ -596,7 +596,7 @@
 .vault-toggle-card.active {
   border-color: rgba(16, 185, 129, 0.35);
   background: rgba(16, 185, 129, 0.035);
-  box-shadow: 0 4px 20px rgba(16, 185, 129, 0.05);
+  box-shadow: none;
 }
 
 .vault-toggle-header {
@@ -657,7 +657,7 @@
 }
 
 .vault-lock-card {
-  background: linear-gradient(145deg, rgba(30, 41, 59, 0.6) 0%, rgba(15, 23, 42, 0.85) 100%);
+  background: var(--card-bg);
   backdrop-filter: blur(24px);
   -webkit-backdrop-filter: blur(24px);
   border: 1px solid rgba(245, 158, 11, 0.22);
@@ -666,7 +666,7 @@
   max-width: 480px;
   width: 100%;
   text-align: center;
-  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.55), 0 0 30px rgba(245, 158, 11, 0.06);
+  box-shadow: none;
   animation: fadeInScale 0.3s ease-out;
 }
 
@@ -773,7 +773,7 @@
 .btn-vault-unlock {
   width: 100%;
   padding: 13px 20px;
-  background: linear-gradient(135deg, var(--color-warning) 0%, #d97706 100%);
+  background: var(--color-warning);
   color: #000;
   font-weight: 800;
   font-size: 13.5px;
@@ -781,12 +781,12 @@
   border-radius: var(--radius-md);
   cursor: pointer;
   transition: var(--transition-fast);
-  box-shadow: 0 4px 16px rgba(245, 158, 11, 0.3);
+  box-shadow: none;
 }
 
 .btn-vault-unlock:hover:not(:disabled) {
   transform: translateY(-1px);
-  box-shadow: 0 6px 20px rgba(245, 158, 11, 0.45);
+  box-shadow: none;
 }
 
 .btn-vault-unlock:disabled {
@@ -1661,7 +1661,7 @@
 .portfolio-search-box:focus-within {
   border-color: var(--gold-primary);
   background: rgba(212, 163, 89, 0.06);
-  box-shadow: 0 0 12px rgba(212, 163, 89, 0.15);
+  box-shadow: none;
   width: 250px;
 }
 
@@ -1714,7 +1714,7 @@
   display: flex;
   flex-direction: column;
   gap: 12px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+  box-shadow: none;
 }
 
 .unified-picker-header {
@@ -1785,7 +1785,7 @@
   border-color: var(--gold-primary);
   color: #fff;
   font-weight: 700;
-  box-shadow: 0 0 10px rgba(212, 163, 89, 0.2);
+  box-shadow: none;
 }
 
 .frequent-asset-chip .chip-icon {
@@ -1914,7 +1914,7 @@
   background: #18191d;
   border: 1px solid rgba(212, 163, 89, 0.35);
   border-radius: var(--radius-md);
-  box-shadow: 0 14px 32px rgba(0, 0, 0, 0.6), 0 0 1px rgba(255, 255, 255, 0.1);
+  box-shadow: none;
   z-index: 1050;
   max-height: 280px;
   overflow-y: auto;
@@ -2061,7 +2061,7 @@
 
 /* Selected Bourse Preview Card in Modal */
 .selected-bourse-preview-card {
-  background: linear-gradient(135deg, rgba(56, 189, 248, 0.08) 0%, rgba(15, 23, 42, 0.5) 100%);
+  background: var(--color-primary-soft);
   border: 1px solid rgba(56, 189, 248, 0.25);
   border-radius: var(--radius-md);
   padding: 12px 14px;
@@ -2141,3 +2141,44 @@
   font-size: 10.5px;
 }
 
+
+/* ── Sub-tabs row: holdings / transactions on one side, the view's toolbar on the other ── */
+.portfolio-subtabs-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.portfolio-subtabs-row > .tx-filter-pills-bar {
+  flex: 0 0 auto;
+}
+
+.portfolio-subtabs-toolbar:empty {
+  display: none;
+}
+
+.portfolio-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  min-width: 0;
+}
+
+.portfolio-toolbar .portfolio-search-box,
+.portfolio-toolbar .period-bar {
+  margin: 0;
+}
+
+@media (max-width: 640px) {
+  .portfolio-subtabs-toolbar,
+  .portfolio-toolbar {
+    width: 100%;
+  }
+  .portfolio-toolbar .portfolio-search-box {
+    flex: 1 1 auto;
+  }
+}

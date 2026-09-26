@@ -31,7 +31,7 @@
   padding: 32px 36px;
   background: rgba(22, 27, 39, 0.72);
   border: 1px solid rgba(255, 255, 255, 0.09);
-  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.7), 0 0 35px rgba(245, 158, 11, 0.1);
+  box-shadow: none;
   border-radius: var(--radius-xl);
   max-width: 90vw;
   width: 360px;
@@ -61,7 +61,7 @@
   border-top-color: var(--color-warning);
   border-right-color: var(--color-warning-text);
   border-bottom-color: rgba(245, 158, 11, 0.2);
-  filter: drop-shadow(0 0 8px rgba(245, 158, 11, 0.6));
+  filter: none;
   animation: spinOuterRing 1.1s linear infinite;
 }
 
@@ -71,7 +71,7 @@
   border: 2.5px solid transparent;
   border-top-color: var(--color-primary-text);
   border-left-color: var(--color-primary);
-  filter: drop-shadow(0 0 6px rgba(56, 189, 248, 0.5));
+  filter: none;
   animation: spinInnerRing 0.85s linear infinite reverse;
 }
 
@@ -80,7 +80,7 @@
   height: 10px;
   border-radius: 50%;
   background: var(--gold-light);
-  box-shadow: 0 0 12px var(--gold-light);
+  box-shadow: none;
   animation: pulseSpark 1.2s ease-in-out infinite;
 }
 
@@ -121,7 +121,7 @@
   top: 0;
   bottom: 0;
   width: 50%;
-  background: linear-gradient(90deg, var(--color-warning), var(--color-primary-text));
+  background: var(--color-primary);
   border-radius: 999px;
   animation: shimmerProgress 1.4s ease-in-out infinite;
 }
