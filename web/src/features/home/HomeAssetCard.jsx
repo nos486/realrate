@@ -165,6 +165,7 @@ function CompactCard({ asset }) {
 
 const TREND_WINDOW_LABEL = '۲۴ ساعت';
 const TREND_WINDOW_MS = 24 * 3600 * 1000;
+const sinceFormat = new Intl.DateTimeFormat('fa-IR', { hour: '2-digit', minute: '2-digit' });
 
 function TrendBody({ asset, unit, trend, status, bucketSec }) {
   if (trend && trend.points.length >= 2) {
