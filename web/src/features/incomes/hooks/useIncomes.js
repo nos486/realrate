@@ -3,8 +3,8 @@
  *
  * Only a date window is ever fetched (the server filters on each income's plaintext date):
  * - the list: one page of the chosen period, sorted by date on the server;
- * - the sidebar: the whole period (amounts are encrypted, so totals are summed in the browser),
- *   widened to the last 12 months for the monthly chart.
+ * - the sidebar: the whole period (amounts are encrypted, so totals and the monthly chart are
+ *   built in the browser) — never more than the period.
  */
 
 import { useState, useEffect, useCallback, useRef } from 'react';
@@ -25,15 +25,10 @@ import {
 import { syncRecurringIncomes, ruleInput } from '../utils/recurringSync.js';
 import { dueOccurrences } from '../../../utils/recurringIncome.js';
 import { todayIso } from '../../../shared/utils/dates.js';
-import { DEFAULT_RECENT_PERIOD, monthsAgo, periodFrom } from '../../../shared/utils/recentPeriods.js';
+import { DEFAULT_RECENT_PERIOD, periodFrom } from '../../../shared/utils/recentPeriods.js';
 
 const SILENT = { silent: true };
 export const INCOMES_PAGE_SIZE = 10;
-/** The monthly chart always shows the last 12 Shamsi months; 13 Gregorian months cover them */
-const CHART_WINDOW_MONTHS = 13;
-
-/** The earlier of two YYYY-MM-DD dates, where '' means "no limit" */
-const earliest = (a, b) => (!a || !b ? '' : a < b ? a : b);
 
 export function useIncomes() {
   const { user } = useAuth();
@@ -59,7 +54,6 @@ export function useIncomes() {
 
   const today = todayIso();
   const from = periodFrom(period, today);
-  const windowFrom = earliest(from, monthsAgo(CHART_WINDOW_MONTHS, today));
 
   const reload = useCallback(() => setReloadToken((n) => n + 1), []);
   const setPeriod = useCallback((next) => {
@@ -101,12 +95,12 @@ export function useIncomes() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ready, pageKey]);
 
-  // The period (and the chart's 12 months) for the sidebar and search
-  const windowKey = `${windowFrom}|${reloadToken}|${vaultEpoch}`;
+  // The whole period, for the sidebar (report + monthly chart) and search
+  const windowKey = `${from}|${reloadToken}|${vaultEpoch}`;
   useEffect(() => {
     if (!ready) return undefined;
     let active = true;
-    getIncomes({ from: windowFrom })
+    getIncomes({ from })
       .then((res) => {
         if (active) setWindowData({ key: windowKey, incomes: Array.isArray(res?.incomes) ? res.incomes : [] });
       })
@@ -276,7 +270,7 @@ export function useIncomes() {
     periodStart: from,
     order,
     setOrder,
-    // The period + the chart's 12 months
+    // The whole period
     windowIncomes: ready ? windowData.incomes : [],
     loadingWindow,
     vaultLocked,

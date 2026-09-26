@@ -4,7 +4,7 @@
  * - Record / edit / delete income entries (title, category, amount, Shamsi date, notes)
  * - Period picker at the top (last month / 3 / 6 months / a year / all; 6 months by default):
  *   only that date window is fetched from the server
- * - Summary cards + per-category breakdown of the period, and the last 12 months as a chart
+ * - Summary cards, per-category breakdown and the monthly chart, all of the period (never more)
  * - The list: 10 per page, paged and sorted by date on the server; a search looks through the
  *   whole period in the browser (titles and notes are encrypted)
  */
@@ -32,7 +32,8 @@ import IncomeCsvExportButton from './IncomeCsvExportButton.jsx';
 import IncomeCsvImportButton from './IncomeCsvImportButton.jsx';
 import RecurringIncomesCard from './RecurringIncomesCard.jsx';
 import { ruleInput } from '../utils/recurringSync.js';
-import { buildIncomeReport, buildMonthlySeries } from '../utils/incomeReport.js';
+import { buildIncomeReport, buildMonthlySeries, monthsSpanned } from '../utils/incomeReport.js';
+import { RECENT_PERIODS, periodMonths } from '../../../shared/utils/recentPeriods.js';
 import { getIncomeCategory } from '../constants/incomeCategories.js';
 import { useFeedback } from '../../../shared/ui/FeedbackProvider.jsx';
 import { SkeletonRows } from '../../../shared/ui/Skeleton.jsx';
@@ -47,7 +48,6 @@ export default function IncomesPage() {
     pageSize,
     period,
     setPeriod,
-    periodStart,
     order,
     setOrder,
     windowIncomes,
@@ -79,14 +79,13 @@ export default function IncomesPage() {
   const [editingRule, setEditingRule] = useState(null);
   const [startRecurring, setStartRecurring] = useState(false);
 
-  // The sidebar's window also holds the chart's 12 months: the period is the part on or after its start
-  const periodIncomes = useMemo(
-    () => (periodStart ? windowIncomes.filter((i) => String(i.incomeDate) >= periodStart) : windowIncomes),
-    [windowIncomes, periodStart]
-  );
+  // Everything in the sidebar is the period, exactly what was fetched
+  const periodIncomes = windowIncomes;
   const report = useMemo(() => buildIncomeReport(periodIncomes), [periodIncomes]);
-  // Always the last 12 months, whatever the period: it is there to show the trend
-  const monthlySeries = useMemo(() => buildMonthlySeries(windowIncomes), [windowIncomes]);
+  // One bar per Shamsi month of the period («all»: since the first income)
+  const chartMonths = periodMonths(period) ?? monthsSpanned(periodIncomes);
+  const monthlySeries = useMemo(() => buildMonthlySeries(periodIncomes, chartMonths), [periodIncomes, chartMonths]);
+  const chartTitle = period === 'all' ? 'از ابتدا' : RECENT_PERIODS.find((p) => p.value === period)?.label;
   // The source donut's order, so the bar chart's stacks take the same colors
   const categoryOrder = useMemo(() => report.byCategory.map((c) => c.category), [report.byCategory]);
 
@@ -233,7 +232,7 @@ export default function IncomesPage() {
                 hideValues={hideValues}
               />
               <div className="incomes-report-grid">
-                <MonthlyIncomeChart series={monthlySeries} categoryOrder={categoryOrder} hideValues={hideValues} />
+                <MonthlyIncomeChart series={monthlySeries} title={chartTitle} categoryOrder={categoryOrder} hideValues={hideValues} />
                 {report.count > 0 && <IncomeReport report={report} hideValues={hideValues} />}
               </div>
             </>
