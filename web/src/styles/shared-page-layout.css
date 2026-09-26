@@ -22,7 +22,7 @@
   height: 44px;
   border-radius: 12px;
   background: rgba(245, 158, 11, 0.14);
-  color: #f59e0b;
+  color: var(--color-warning);
   border: 1px solid rgba(245, 158, 11, 0.28);
   display: flex;
   align-items: center;
@@ -32,26 +32,26 @@
 
 .feature-page-header-icon.green {
   background: var(--green-soft, rgba(16, 185, 129, 0.14));
-  color: var(--green-emerald, #10b981);
+  color: var(--green-emerald, var(--color-positive));
   border-color: rgba(16, 185, 129, 0.28);
 }
 
 .feature-page-header-icon.blue {
   background: rgba(59, 130, 246, 0.14);
-  color: #60a5fa;
+  color: var(--color-primary-text);
   border-color: rgba(59, 130, 246, 0.28);
 }
 
 .feature-page-title {
   font-size: 1.35rem;
   font-weight: 800;
-  color: var(--text-primary, #f8fafc);
+  color: var(--text-primary, var(--text-primary));
   margin: 0 0 4px 0;
 }
 
 .feature-page-subtitle {
   font-size: 0.85rem;
-  color: var(--text-secondary, #94a3b8);
+  color: var(--text-secondary, var(--text-secondary));
   margin: 0;
 }
 

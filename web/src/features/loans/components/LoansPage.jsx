@@ -23,6 +23,7 @@ import LoanInstallmentsTable from './LoanInstallmentsTable.jsx';
 import LoanCsvExportButton from './LoanCsvExportButton.jsx';
 import LoanCsvImportButton from './LoanCsvImportButton.jsx';
 import Modal from '../../../shared/ui/Modal.jsx';
+import Button from '../../../shared/ui/Button.jsx';
 import EmptyState from '../../../shared/ui/EmptyState.jsx';
 import FeaturePageHeader from '../../../shared/ui/FeaturePageHeader.jsx';
 import SplitPageLayout from '../../../shared/ui/SplitPageLayout.jsx';
@@ -290,7 +291,7 @@ export default function LoansPage({ initialLoanId = null }) {
       <div className="loans-page-container">
         <FeaturePageHeader
           icon={<Landmark size={24} />}
-          title="مدیریت وام‌ها و اقساط"
+          title="وام‌ها و اقساط"
           subtitle="برنامه استهلاک بانکی، جدول سررسید و ثبت تسویه اقساط"
         />
         <VaultUnlockCard title="وام‌های شما رمزنگاری شده‌اند" />
@@ -308,10 +309,9 @@ export default function LoansPage({ initialLoanId = null }) {
           <>
             <LoanCsvExportButton loans={loans} disabled={loans.length === 0} />
             <LoanCsvImportButton addLoan={addLoan} />
-            <button type="button" className="btn-add-loan" onClick={handleOpenAddModal}>
-              <Plus size={18} />
-              <span>افزودن وام جدید</span>
-            </button>
+            <Button icon={<Plus size={16} />} onClick={handleOpenAddModal}>
+              افزودن وام جدید
+            </Button>
           </>
         }
       />
@@ -392,13 +392,6 @@ export default function LoansPage({ initialLoanId = null }) {
       >
         {/* The bank groups are cards of their own: no card around them */}
         <div className="portfolio-table-card is-plain">
-          <div className="portfolio-table-header">
-            <div className="table-title">
-              <div className="table-title-main">
-                <h3>لیست وام‌ها</h3>
-              </div>
-            </div>
-          </div>
           <div className="table-card-body">
           {loadingLoans && loans.length === 0 ? (
             <SkeletonRows rows={4} columns={5} label="در حال دریافت لیست وام‌ها" />

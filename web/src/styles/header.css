@@ -108,14 +108,14 @@
 }
 
 .ticker-pulse.gold {
-  background-color: #fbbf24;
-  box-shadow: 0 0 8px #fbbf24;
+  background-color: var(--color-warning-text);
+  box-shadow: 0 0 8px var(--color-warning-text);
   animation: pulseGold 2s infinite;
 }
 
 .ticker-pulse.green {
-  background-color: #10b981;
-  box-shadow: 0 0 8px #10b981;
+  background-color: var(--color-positive);
+  box-shadow: 0 0 8px var(--color-positive);
   animation: pulseGreen 2s infinite;
 }
 
@@ -130,7 +130,7 @@
   50% {
     transform: scale(1.2);
     opacity: 1;
-    box-shadow: 0 0 12px #fbbf24;
+    box-shadow: 0 0 12px var(--color-warning-text);
   }
 }
 
@@ -145,7 +145,7 @@
   50% {
     transform: scale(1.2);
     opacity: 1;
-    box-shadow: 0 0 12px #10b981;
+    box-shadow: 0 0 12px var(--color-positive);
   }
 }
 
@@ -156,14 +156,14 @@
 }
 
 .header-ticker-item.gold .ticker-amount {
-  color: #fbbf24;
+  color: var(--color-warning-text);
   font-weight: 800;
   font-size: 14.5px;
   letter-spacing: -0.3px;
 }
 
 .header-ticker-item.usd .ticker-amount {
-  color: #10b981;
+  color: var(--color-positive);
   font-weight: 800;
   font-size: 14.5px;
   letter-spacing: -0.3px;
@@ -211,13 +211,13 @@
   }
 
   .mobile-ticker-chip.gold strong {
-    color: #fbbf24;
+    color: var(--color-warning-text);
     font-weight: 800;
     font-size: 13px;
   }
 
   .mobile-ticker-chip.usd strong {
-    color: #10b981;
+    color: var(--color-positive);
     font-weight: 800;
     font-size: 13px;
   }
@@ -340,7 +340,7 @@
 
 .btn-header-logout:hover {
   background: rgba(244, 63, 94, 0.15);
-  color: var(--accent-rose, #fb7185);
+  color: var(--accent-rose, var(--color-negative-text));
   transform: scale(1.05);
 }
 
@@ -645,7 +645,7 @@
 }
 
 .nav-drawer-item.is-danger {
-  color: #fb7185;
+  color: var(--color-negative-text);
 }
 
 .nav-drawer-item-icon {

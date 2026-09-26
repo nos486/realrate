@@ -177,7 +177,7 @@ export default function LoanInstallmentsTable({
                 gap: '6px',
                 background: 'rgba(96, 165, 250, 0.15)',
                 border: '1px solid rgba(96, 165, 250, 0.35)',
-                color: '#60a5fa',
+                color: 'var(--color-primary-text)',
                 padding: '6px 14px',
                 borderRadius: '8px',
                 fontSize: '0.82rem',
@@ -203,7 +203,7 @@ export default function LoanInstallmentsTable({
                 gap: '6px',
                 background: 'rgba(245, 158, 11, 0.15)',
                 border: '1px solid rgba(245, 158, 11, 0.35)',
-                color: '#f59e0b',
+                color: 'var(--color-warning)',
                 padding: '6px 14px',
                 borderRadius: '8px',
                 fontSize: '0.82rem',
@@ -230,7 +230,7 @@ export default function LoanInstallmentsTable({
           padding: '10px 14px',
           margin: '0 0 14px 0',
           fontSize: '0.8rem',
-          color: '#93c5fd',
+          color: 'var(--color-primary-text)',
         }}>
           <ListChecks size={16} style={{ flexShrink: 0, marginTop: '1px' }} />
           <span>
@@ -247,7 +247,7 @@ export default function LoanInstallmentsTable({
             borderRadius: '8px',
             background: 'rgba(34, 197, 94, 0.15)',
             border: '1px solid rgba(34, 197, 94, 0.35)',
-            color: '#22c55e',
+            color: 'var(--color-positive)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
@@ -265,7 +265,7 @@ export default function LoanInstallmentsTable({
             style={{
               background: 'transparent',
               border: 'none',
-              color: '#22c55e',
+              color: 'var(--color-positive)',
               cursor: 'pointer',
               fontSize: '1rem',
               lineHeight: 1,
@@ -409,7 +409,7 @@ export default function LoanInstallmentsTable({
                                   borderRadius: '8px',
                                   padding: '8px 10px',
                                   fontSize: '0.74rem',
-                                  color: '#fbbf24',
+                                  color: 'var(--color-warning-text)',
                                   lineHeight: 1.4,
                                   display: 'flex',
                                   alignItems: 'flex-start',
@@ -582,7 +582,7 @@ export default function LoanInstallmentsTable({
                           borderRadius: '8px',
                           padding: '8px 10px',
                           fontSize: '0.74rem',
-                          color: '#fbbf24',
+                          color: 'var(--color-warning-text)',
                           lineHeight: 1.4,
                           display: 'flex',
                           alignItems: 'flex-start',
@@ -656,7 +656,7 @@ export default function LoanInstallmentsTable({
         }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
             <History size={16} className="text-amber-500" />
-            <h4 style={{ margin: 0, fontSize: '0.92rem', fontWeight: 700, color: '#f8fafc' }}>
+            <h4 style={{ margin: 0, fontSize: '0.92rem', fontWeight: 700, color: 'var(--text-primary)' }}>
               تاریخچه پرداخت‌های اضافه / یکجا ({extraPayments.length})
             </h4>
           </div>
@@ -679,7 +679,7 @@ export default function LoanInstallmentsTable({
                 }}
               >
                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                  <span style={{ color: '#f59e0b', fontWeight: 700, fontSize: '0.92rem' }}>
+                  <span style={{ color: 'var(--color-warning)', fontWeight: 700, fontSize: '0.92rem' }}>
                     {formatNum(ep.amount)} تومان
                   </span>
                   <span style={{
@@ -687,16 +687,16 @@ export default function LoanInstallmentsTable({
                     padding: '2px 8px',
                     borderRadius: '6px',
                     background: ep.reductionMode === 'reduce_term' ? 'rgba(192, 132, 252, 0.15)' : 'rgba(56, 189, 248, 0.15)',
-                    color: ep.reductionMode === 'reduce_term' ? '#c084fc' : '#38bdf8',
+                    color: ep.reductionMode === 'reduce_term' ? '#c084fc' : 'var(--color-primary-text)',
                     border: `1px solid ${ep.reductionMode === 'reduce_term' ? 'rgba(192, 132, 252, 0.3)' : 'rgba(56, 189, 248, 0.3)'}`,
                   }}>
                     {ep.reductionMode === 'reduce_term' ? 'کاهش مدت وام' : 'کاهش مبلغ اقساط'}
                   </span>
                 </div>
 
-                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', color: '#94a3b8' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', color: 'var(--text-secondary)' }}>
                   {ep.notes && (
-                    <span style={{ fontSize: '0.78rem', color: '#cbd5e1' }}>
+                    <span style={{ fontSize: '0.78rem', color: 'var(--text-primary)' }}>
                       «{ep.notes}»
                     </span>
                   )}

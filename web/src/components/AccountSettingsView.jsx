@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { User, ShieldCheck, Save } from 'lucide-react';
+import { User, ShieldCheck, Save, Settings } from 'lucide-react';
 import Card from '../shared/ui/Card.jsx';
 import AlertBanner from '../shared/ui/AlertBanner.jsx';
 import Button from '../shared/ui/Button.jsx';
 import Input from '../shared/ui/Input.jsx';
+import FeaturePageHeader from '../shared/ui/FeaturePageHeader.jsx';
 import { useAuth } from '../features/auth/index.js';
 import { getUserSettings, updateUserSettings } from '../features/portfolio/api/portfolioApi.js';
 import VaultSettingsSection from '../shared/vault/VaultSettingsSection.jsx';
@@ -92,11 +93,14 @@ export default function AccountSettingsView() {
   }
 
   return (
+    <div className="account-settings-page">
+    {/* Same page header as every other page */}
+    <FeaturePageHeader icon={<Settings size={24} />} title="تنظیمات" subtitle="حساب کاربری، ورود و رمزنگاری" />
     <Card className="admin-container account-settings-fullscreen-card" padding="lg" style={{ width: '100%', maxWidth: '100%', margin: '0 0 32px 0' }}>
       <div className="section-title" style={{ marginTop: 0 }}>
         <span>
           <User size={18} style={{ verticalAlign: 'middle', marginLeft: '6px', display: 'inline', color: 'var(--accent-blue)' }} />
-          تنظیمات حساب کاربری
+          پروفایل
         </span>
       </div>
 
@@ -176,5 +180,6 @@ export default function AccountSettingsView() {
 
       <VaultSettingsSection />
     </Card>
+    </div>
   );
 }

@@ -84,7 +84,7 @@
   width: 7px;
   height: 7px;
   border-radius: 50%;
-  background: #fbbf24;
+  background: var(--color-warning-text);
 }
 
 .home-search {
@@ -106,7 +106,7 @@
   margin: 0;
   font-size: 12.5px;
   font-weight: 700;
-  color: #fbbf24;
+  color: var(--color-warning-text);
 }
 
 /* Sections */
@@ -262,12 +262,12 @@
 
 .home-change.badge-good {
   background: rgba(16, 185, 129, 0.12);
-  color: #34d399;
+  color: var(--color-positive-text);
 }
 
 .home-change.badge-danger {
   background: rgba(244, 63, 94, 0.12);
-  color: #fb7185;
+  color: var(--color-negative-text);
 }
 
 .home-card-missing {
@@ -395,7 +395,7 @@
 }
 
 .home-icon-btn.is-danger:hover:not(:disabled) {
-  color: #f87171;
+  color: var(--color-negative-text);
 }
 
 /* Grip + remove straddle the card's top edge (centre is free of content), so edit mode keeps
@@ -427,7 +427,7 @@
 }
 
 .home-item-tool.is-danger:hover {
-  color: #f87171;
+  color: var(--color-negative-text);
 }
 
 .is-editing .home-item > .fintech-card,
@@ -671,7 +671,7 @@
 }
 
 .asset-picker-row.is-added .asset-picker-action {
-  color: #34d399;
+  color: var(--color-positive-text);
 }
 
 .asset-picker-empty {

@@ -129,11 +129,11 @@ export default function PriceSourcesTableSection({
                             </strong>
                             {!isMulti && (
                               dc.showOnHomePage === false ? (
-                                <span style={{ fontSize: '10px', color: '#f43f5e', background: 'rgba(244,63,94,0.12)', padding: '1px 6px', borderRadius: '4px' }}>
+                                <span style={{ fontSize: '10px', color: 'var(--color-negative)', background: 'rgba(244,63,94,0.12)', padding: '1px 6px', borderRadius: '4px' }}>
                                   مخفی از خانه
                                 </span>
                               ) : (
-                                <span style={{ fontSize: '10px', color: '#10b981', background: 'rgba(16,185,129,0.12)', padding: '1px 6px', borderRadius: '4px' }}>
+                                <span style={{ fontSize: '10px', color: 'var(--color-positive)', background: 'rgba(16,185,129,0.12)', padding: '1px 6px', borderRadius: '4px' }}>
                                   صفحه اول
                                 </span>
                               )
@@ -186,7 +186,7 @@ export default function PriceSourcesTableSection({
                             style={{
                               fontSize: '11px',
                               fontWeight: '700',
-                              color: src.sourceType === 'telegram' ? '#38bdf8' : '#a855f7',
+                              color: src.sourceType === 'telegram' ? 'var(--color-primary-text)' : '#a855f7',
                             }}
                           >
                             {src.sourceType === 'telegram' ? 'کانال تلگرام' : (src.isCatalog ? 'کاتالوگ اختصاصی' : 'وب‌سرویس API')}
@@ -275,7 +275,7 @@ export default function PriceSourcesTableSection({
                             onClick={() => onTest && onTest(src)}
                             disabled={isRowTesting}
                             style={{
-                              color: '#34d399',
+                              color: 'var(--color-positive-text)',
                               background: 'rgba(16,185,129,0.12)',
                               border: '1px solid rgba(16,185,129,0.2)',
                               padding: '5px 12px',

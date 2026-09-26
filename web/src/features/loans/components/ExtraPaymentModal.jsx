@@ -104,7 +104,7 @@ export default function ExtraPaymentModal({
             height: '64px',
             borderRadius: '50%',
             background: 'rgba(16, 185, 129, 0.15)',
-            color: '#34d399',
+            color: 'var(--color-positive-text)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
@@ -112,10 +112,10 @@ export default function ExtraPaymentModal({
           }}>
             <CheckCircle2 size={36} />
           </div>
-          <h3 style={{ fontSize: '1.25rem', fontWeight: 700, color: '#f8fafc', marginBottom: '8px' }}>
+          <h3 style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '8px' }}>
             وام با موفقیت تسویه شد!
           </h3>
-          <p style={{ color: '#94a3b8', fontSize: '0.9rem', lineHeight: 1.6, maxWidth: '360px', margin: '0 auto' }}>
+          <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', lineHeight: 1.6, maxWidth: '360px', margin: '0 auto' }}>
             تمام اقساط باقیمانده حذف شدند و مانده بدهی شما برای این وام به صفر رسید.
           </p>
         </div>
@@ -166,7 +166,7 @@ export default function ExtraPaymentModal({
             border: '1px solid rgba(239, 68, 68, 0.3)',
             borderRadius: '10px',
             padding: '10px 14px',
-            color: '#f87171',
+            color: 'var(--color-negative-text)',
             fontSize: '0.85rem',
             marginBottom: '14px',
             display: 'flex',
@@ -192,7 +192,7 @@ export default function ExtraPaymentModal({
             required
           />
           {cleanAmount > 0 && remainingBalance > 0 && cleanAmount >= remainingBalance && (
-            <span style={{ display: 'block', fontSize: '0.78rem', color: '#34d399', marginTop: '6px', fontWeight: 600 }}>
+            <span style={{ display: 'block', fontSize: '0.78rem', color: 'var(--color-positive-text)', marginTop: '6px', fontWeight: 600 }}>
               ✓ این مبلغ کل مانده را تسویه خواهد کرد.
             </span>
           )}
@@ -237,14 +237,14 @@ export default function ExtraPaymentModal({
                 value="reduce_amount"
                 checked={reductionMode === 'reduce_amount'}
                 onChange={() => setReductionMode('reduce_amount')}
-                style={{ marginTop: '3px', accentColor: '#f59e0b', cursor: 'pointer' }}
+                style={{ marginTop: '3px', accentColor: 'var(--color-warning)', cursor: 'pointer' }}
               />
               <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
-                <strong style={{ fontSize: '0.88rem', color: reductionMode === 'reduce_amount' ? '#fbbf24' : '#f8fafc', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <strong style={{ fontSize: '0.88rem', color: reductionMode === 'reduce_amount' ? 'var(--color-warning-text)' : 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '6px' }}>
                   <TrendingDown size={15} />
                   کاهش مبلغ اقساط باقیمانده
                 </strong>
-                <span style={{ fontSize: '0.78rem', color: '#94a3b8', lineHeight: 1.4 }}>
+                <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', lineHeight: 1.4 }}>
                   تعداد اقساط باقیمانده بدون تغییر می‌ماند، ولی مبلغ پرداختی هر قسط سبک‌تر و کمتر می‌شود.
                 </span>
               </div>
@@ -268,14 +268,14 @@ export default function ExtraPaymentModal({
                 value="reduce_term"
                 checked={reductionMode === 'reduce_term'}
                 onChange={() => setReductionMode('reduce_term')}
-                style={{ marginTop: '3px', accentColor: '#f59e0b', cursor: 'pointer' }}
+                style={{ marginTop: '3px', accentColor: 'var(--color-warning)', cursor: 'pointer' }}
               />
               <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
-                <strong style={{ fontSize: '0.88rem', color: reductionMode === 'reduce_term' ? '#fbbf24' : '#f8fafc', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <strong style={{ fontSize: '0.88rem', color: reductionMode === 'reduce_term' ? 'var(--color-warning-text)' : 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '6px' }}>
                   <Clock size={15} />
                   کاهش تعداد اقساط (مبلغ هر قسط ثابت بمونه)
                 </strong>
-                <span style={{ fontSize: '0.78rem', color: '#94a3b8', lineHeight: 1.4 }}>
+                <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', lineHeight: 1.4 }}>
                   مبلغ هر قسط ثابت می‌ماند، ولی مدت زمان وام کوتاه‌تر شده و وام زودتر تسویه می‌شود.
                 </span>
               </div>

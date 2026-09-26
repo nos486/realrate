@@ -221,7 +221,7 @@ export default function UserSettingsModal({ isOpen, portfolio, onClose, onSaved,
             <div className="share-toggle-card default-portfolio-toggle">
               <div className="toggle-info">
                 <div className="toggle-title-row">
-                  <span className="share-status-indicator" style={{ backgroundColor: isDefault ? '#f59e0b' : '#64748b' }}></span>
+                  <span className="share-status-indicator" style={{ backgroundColor: isDefault ? 'var(--color-warning)' : 'var(--text-muted)' }}></span>
                   <strong>پورتفوی پیش‌فرض</strong>
                 </div>
               </div>
@@ -239,7 +239,7 @@ export default function UserSettingsModal({ isOpen, portfolio, onClose, onSaved,
             <div className={`share-toggle-card ${shareEnabled ? 'active' : ''}`}>
               <div className="toggle-info">
                 <div className="toggle-title-row">
-                  <span className="share-status-indicator" style={{ backgroundColor: shareEnabled ? '#10b981' : '#64748b' }}></span>
+                  <span className="share-status-indicator" style={{ backgroundColor: shareEnabled ? 'var(--color-positive)' : 'var(--text-muted)' }}></span>
                   <strong>اشتراک‌گذاری</strong>
                 </div>
               </div>

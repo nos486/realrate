@@ -942,7 +942,7 @@ export default function UniversalAssetSearch({
                           <span className="universal-result-unit">{item.unit || 'تومان'}</span>
                         </>
                       ) : (
-                        <span className="universal-result-badge" style={{ color: '#60a5fa' }}>
+                        <span className="universal-result-badge" style={{ color: 'var(--color-primary-text)' }}>
                           {active ? <Check size={12} /> : 'انتخاب'}
                         </span>
                       )}
@@ -996,7 +996,7 @@ export default function UniversalAssetSearch({
                           <span className="universal-result-unit">{item.unit || 'تومان'}</span>
                         </>
                       ) : (
-                        <span className="universal-result-badge" style={{ color: '#60a5fa' }}>
+                        <span className="universal-result-badge" style={{ color: 'var(--color-primary-text)' }}>
                           {active ? <Check size={12} /> : 'انتخاب'}
                         </span>
                       )}

@@ -28,7 +28,7 @@
   --bg-input: rgba(255, 255, 255, 0.04);
   --bg-input-focus: rgba(255, 255, 255, 0.07);
   --border-input: 1px solid rgba(255, 255, 255, 0.08);
-  --border-input-focus: var(--primary-color, #0284c7);
+  --border-input-focus: var(--color-primary);
   --shadow-input-focus: 0 0 0 2px rgba(2, 132, 199, 0.35);
   --text-input: #ffffff;
   --placeholder-color: rgba(255, 255, 255, 0.35);
@@ -53,34 +53,64 @@
   --border-subtle: rgba(255, 255, 255, 0.05);
   --border-medium: rgba(255, 255, 255, 0.08);
   --border-strong: rgba(255, 255, 255, 0.15);
-  --border-gold: rgba(245, 158, 11, 0.3);
+  --border-gold: var(--color-warning-border);
 
-  /* ── Unified Brand Palette (Ocean Blue & Sky Cyan) ── */
-  --primary-color: #0284c7;
+  /* ── Semantic colors: the standard every page uses (docs/DESIGN.md) ──────────
+     primary   actions, the active tab, focus, links and informative accents
+     positive  money in, profit, paid / received / done
+     negative  loss, overdue, errors and destructive actions
+     warning   debt still owed, due soon, attention — and the gold brand accent
+     Everything else (neutral amounts, labels) uses the text tokens below; charts and
+     category chips use the categorical palette (shared/ui/chartColors.js).
+     Each hue has a base (fills, icons, borders), a -text shade that reads well on the
+     dark surfaces, and -soft / -border tints for badges, chips and alerts. */
+  --color-primary: #0284c7;
+  --color-primary-strong: #2563eb;
+  --color-primary-text: #38bdf8;
+  --color-primary-soft: rgba(2, 132, 199, 0.12);
+  --color-primary-border: rgba(2, 132, 199, 0.3);
+
+  --color-positive: #10b981;
+  --color-positive-text: #34d399;
+  --color-positive-soft: rgba(16, 185, 129, 0.12);
+  --color-positive-border: rgba(16, 185, 129, 0.3);
+
+  --color-negative: #f43f5e;
+  --color-negative-text: #fb7185;
+  --color-negative-soft: rgba(244, 63, 94, 0.12);
+  --color-negative-border: rgba(244, 63, 94, 0.3);
+
+  --color-warning: #f59e0b;
+  --color-warning-text: #fbbf24;
+  --color-warning-soft: rgba(245, 158, 11, 0.12);
+  --color-warning-border: rgba(245, 158, 11, 0.3);
+
+  /* Older names, kept as aliases of the semantic colors above */
+  --primary-color: var(--color-primary);
   --primary-color-hover: #0369a1;
-  --primary-gradient: linear-gradient(135deg, #0284c7 0%, #2563eb 100%);
+  --primary-gradient: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-strong) 100%);
   --primary-glow: 0 4px 18px rgba(2, 132, 199, 0.35);
   --primary-glow-lg: 0 6px 26px rgba(2, 132, 199, 0.45);
-  --primary-soft-bg: rgba(2, 132, 199, 0.12);
-  --primary-border: 1px solid rgba(2, 132, 199, 0.3);
+  --primary-soft-bg: var(--color-primary-soft);
+  --primary-border: 1px solid var(--color-primary-border);
   --primary-text: #ffffff;
 
-  --accent-color: #38bdf8;
-  --accent-blue: var(--primary-color);
-  --accent-amber: #f59e0b;
-  --accent-green: #10b981;
-  --accent-rose: #f43f5e;
+  --accent-color: var(--color-primary-text);
+  --accent-blue: var(--color-primary);
+  --accent-amber: var(--color-warning);
+  --accent-green: var(--color-positive);
+  --accent-rose: var(--color-negative);
 
-  --gold-primary: #f59e0b;
-  --gold-light: #fbbf24;
-  --gold-gradient: linear-gradient(135deg, #fbbf24 0%, #d97706 100%);
-  --gold-soft-bg: rgba(245, 158, 11, 0.1);
+  --gold-primary: var(--color-warning);
+  --gold-light: var(--color-warning-text);
+  --gold-gradient: linear-gradient(135deg, var(--color-warning-text) 0%, #d97706 100%);
+  --gold-soft-bg: var(--color-warning-soft);
 
-  --green-emerald: #10b981;
-  --green-soft: rgba(16, 185, 129, 0.1);
-  --rose-red: #f43f5e;
-  --rose-soft: rgba(244, 63, 94, 0.1);
-  --blue-sky: #38bdf8;
+  --green-emerald: var(--color-positive);
+  --green-soft: var(--color-positive-soft);
+  --rose-red: var(--color-negative);
+  --rose-soft: var(--color-negative-soft);
+  --blue-sky: var(--color-primary-text);
   --blue-soft: rgba(56, 189, 248, 0.1);
 
   /* Typography */

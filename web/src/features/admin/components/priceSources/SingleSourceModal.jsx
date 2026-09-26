@@ -159,7 +159,7 @@ export default function SingleSourceModal({
             <div className="live-text-viewer-card">
               <div className="live-text-viewer-header">
                 <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <Activity size={13} style={{ color: '#38bdf8' }} />
+                  <Activity size={13} style={{ color: 'var(--color-primary-text)' }} />
                   <span>آخرین پیام دریافتی از کانال:</span>
                 </span>
                 <span style={{ fontSize: '10.5px', color: 'var(--text-muted)' }}>الگوی قیمت را بر اساس این متن بنویسید</span>
@@ -316,7 +316,7 @@ export default function SingleSourceModal({
         {modalTestResult && modalTestResult.success && (
           <div className="live-extracted-price-callout" style={{ marginTop: '10px' }}>
             <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <CheckCircle2 size={16} style={{ color: '#10b981' }} />
+              <CheckCircle2 size={16} style={{ color: 'var(--color-positive)' }} />
               <span>قیمت با موفقیت استخراج شد:</span>
             </span>
             <span className="live-extracted-price-val">
@@ -327,7 +327,7 @@ export default function SingleSourceModal({
 
         {modalTestResult && !modalTestResult.success && (
           <div className="error-callout" style={{ fontSize: '12px', padding: '10px 14px', display: 'flex', alignItems: 'center', gap: '8px', marginTop: '10px' }}>
-            <AlertCircle size={16} style={{ color: '#f43f5e', flexShrink: 0 }} />
+            <AlertCircle size={16} style={{ color: 'var(--color-negative)', flexShrink: 0 }} />
             <span>{modalTestResult.error}</span>
           </div>
         )}

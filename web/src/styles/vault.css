@@ -19,7 +19,7 @@
 .vault-settings-title-icon {
   vertical-align: middle;
   margin-left: 6px;
-  color: var(--accent-blue, #38bdf8);
+  color: var(--accent-blue, var(--color-primary-text));
 }
 
 .vault-status-pill {
@@ -35,13 +35,13 @@
 .vault-status-pill.is-on {
   background: rgba(16, 185, 129, 0.12);
   box-shadow: inset 0 0 0 1px rgba(16, 185, 129, 0.35);
-  color: #34d399;
+  color: var(--color-positive-text);
 }
 
 .vault-status-pill.is-locked {
   background: rgba(245, 158, 11, 0.12);
   box-shadow: inset 0 0 0 1px rgba(245, 158, 11, 0.35);
-  color: #fbbf24;
+  color: var(--color-warning-text);
 }
 
 .vault-settings-text {
@@ -177,24 +177,24 @@
 }
 
 .vault-modal-icon.on {
-  color: #34d399;
+  color: var(--color-positive-text);
 }
 
 /* Header: lock everything encrypted in this tab */
 .btn-vault-lock-all {
-  color: #fbbf24;
+  color: var(--color-warning-text);
   border-color: rgba(245, 158, 11, 0.35);
 }
 
 .btn-vault-lock-all:hover {
   background: rgba(245, 158, 11, 0.12);
-  color: #fcd34d;
+  color: var(--color-warning-text);
 }
 
 .vault-status-pill.is-required {
   background: rgba(244, 63, 94, 0.12);
   box-shadow: inset 0 0 0 1px rgba(244, 63, 94, 0.35);
-  color: #fb7185;
+  color: var(--color-negative-text);
 }
 
 /* ── First-run setup (shared/vault/VaultSetupScreen) ─────────────────────────── */
@@ -234,7 +234,7 @@
   margin: 0 auto;
   border-radius: 16px;
   background: rgba(56, 189, 248, 0.12);
-  color: var(--accent-blue, #38bdf8);
+  color: var(--accent-blue, var(--color-primary-text));
 }
 
 .vault-setup-footer {

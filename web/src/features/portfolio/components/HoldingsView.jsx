@@ -31,7 +31,7 @@ import VaultLockCard from './VaultLockCard.jsx';
 
 import { useHoldings } from '../hooks/useHoldings.js';
 import { useTransactions, useComputedHoldings } from '../../transactions/index.js';
-import { AlertBanner, SplitPageLayout } from '../../../shared/ui/index.js';
+import { AlertBanner, Button, SplitPageLayout } from '../../../shared/ui/index.js';
 import {
   normalizeHolding,
   resolveHoldingUnitRealPrice,
@@ -407,16 +407,15 @@ const HoldingsView = forwardRef(function HoldingsView(
                   </div>
                 )}
                 <div className="empty-icon">
-                  <Briefcase size={44} strokeWidth={1.5} color="var(--text-muted)" />
+                  <Briefcase size={44} strokeWidth={1.5} color="#64748b" />
                 </div>
                 <h4>پورتفو خالی است</h4>
                 <p>
                   دارایی‌های خود اعم از طلا، سکه، نقره یا ارز را ثبت کنید یا از تب تراکنش‌ها معامله جدید وارد نمایید.
                 </p>
-                <button className="btn-add-asset-center" onClick={handleOpenAdd}>
-                  <Plus size={15} style={{ verticalAlign: 'middle', marginLeft: '4px' }} />
+                <Button icon={<Plus size={16} />} onClick={handleOpenAdd}>
                   ثبت دارایی دستی
-                </button>
+                </Button>
               </div>
             ) : (
               <div className="portfolio-dual-tables-container">

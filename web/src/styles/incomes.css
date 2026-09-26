@@ -228,8 +228,8 @@
   width: 30px;
   height: 30px;
   border-radius: 9px;
-  background: color-mix(in srgb, var(--income-cat-color, #38bdf8) 16%, transparent);
-  color: var(--income-cat-color, #38bdf8);
+  background: color-mix(in srgb, var(--income-cat-color, var(--color-primary-text)) 16%, transparent);
+  color: var(--income-cat-color, var(--color-primary-text));
 }
 
 .recurring-main {

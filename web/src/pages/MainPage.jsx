@@ -273,7 +273,8 @@ export default function MainPage() {
         </div>
       </div>
 
-      <PriceRefreshStatus />
+      {/* Only where prices are shown */}
+      {(activeTab === 'market' || activeTab === 'portfolio') && <PriceRefreshStatus />}
 
       {/* Tab Views */}
       <section className="tab-view-container">
@@ -285,8 +286,12 @@ export default function MainPage() {
         {activeTab !== 'settings' && <VaultPendingBanner onOpenSettings={() => handleTabChange('settings')} />}
 
         {/* Active Loan Due Reminders Banner */}
-        <UpcomingInstallmentsAlert onSelectLoan={(loanId) => navigate(appPath(loanId ? `/loans/${loanId}` : '/loans'))} />
-        {activeTab !== 'cheques' && <UpcomingChequesAlert onOpen={() => handleTabChange('cheques')} />}
+        {/* Due-date reminders: on the home page, and installments on the loans page too — not
+            repeated on every other page */}
+        {(activeTab === 'market' || activeTab === 'loans') && (
+          <UpcomingInstallmentsAlert onSelectLoan={(loanId) => navigate(appPath(loanId ? `/loans/${loanId}` : '/loans'))} />
+        )}
+        {activeTab === 'market' && <UpcomingChequesAlert onOpen={() => handleTabChange('cheques')} />}
 
         {activeTab === 'market' && (
           <div className="market-tab-content">

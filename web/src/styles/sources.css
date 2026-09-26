@@ -44,7 +44,7 @@
 
 .admin-nav-tab.active {
   color: #ffffff;
-  background: var(--accent-blue, #3b82f6);
+  background: var(--accent-blue, var(--color-primary-strong));
   box-shadow: 0 2px 8px rgba(59, 130, 246, 0.35);
 }
 
@@ -61,7 +61,7 @@
   border-radius: 8px;
   background: rgba(255, 255, 255, 0.05);
   border: 1px solid rgba(255, 255, 255, 0.1);
-  color: var(--text-muted, #94a3b8);
+  color: var(--text-muted, var(--text-secondary));
   cursor: pointer;
   outline: none;
   font-family: inherit;
@@ -86,7 +86,7 @@
 
 /* Play/Test Button */
 .action-icon-btn.test-btn {
-  color: #38bdf8;
+  color: var(--color-primary-text);
   background: rgba(56, 189, 248, 0.08);
   border-color: rgba(56, 189, 248, 0.22);
 }
@@ -94,7 +94,7 @@
 .action-icon-btn.test-btn:hover:not(:disabled) {
   background: rgba(56, 189, 248, 0.22);
   border-color: rgba(56, 189, 248, 0.45);
-  color: #7dd3fc;
+  color: var(--color-primary-text);
   box-shadow: 0 0 12px rgba(56, 189, 248, 0.3);
 }
 
@@ -114,7 +114,7 @@
 
 /* Edit Button */
 .action-icon-btn.edit-btn {
-  color: #fbbf24;
+  color: var(--color-warning-text);
   background: rgba(245, 158, 11, 0.08);
   border-color: rgba(245, 158, 11, 0.22);
 }
@@ -128,7 +128,7 @@
 
 /* Delete Button */
 .action-icon-btn.delete-btn {
-  color: #fb7185;
+  color: var(--color-negative-text);
   background: rgba(244, 63, 94, 0.08);
   border-color: rgba(244, 63, 94, 0.22);
 }
@@ -167,7 +167,7 @@
 .source-toggle-btn.active {
   background: rgba(16, 185, 129, 0.12);
   border-color: rgba(16, 185, 129, 0.3);
-  color: #10b981;
+  color: var(--color-positive);
 }
 
 .source-toggle-btn.active:hover {
@@ -178,7 +178,7 @@
 .source-toggle-btn.inactive {
   background: rgba(244, 63, 94, 0.1);
   border-color: rgba(244, 63, 94, 0.25);
-  color: #f43f5e;
+  color: var(--color-negative);
 }
 
 .source-toggle-btn.inactive:hover {
@@ -197,7 +197,7 @@
   font-weight: 700;
   background: rgba(245, 158, 11, 0.14);
   border: 1px solid rgba(245, 158, 11, 0.35);
-  color: #f59e0b;
+  color: var(--color-warning);
 }
 
 .btn-set-primary {
@@ -220,7 +220,7 @@
 .btn-set-primary:hover {
   background: rgba(245, 158, 11, 0.12);
   border-color: rgba(245, 158, 11, 0.35);
-  color: #f59e0b;
+  color: var(--color-warning);
 }
 
 /* ── Source Type Pill & Protocol Tag ─────────────────────────────────────── */
@@ -238,21 +238,21 @@
 .source-type-pill.pill-blue {
   background: rgba(56, 189, 248, 0.1);
   border-color: rgba(56, 189, 248, 0.25);
-  color: #38bdf8;
+  color: var(--color-primary-text);
 }
 
 .source-type-pill.pill-gold,
 .source-type-pill.pill-amber {
   background: rgba(245, 158, 11, 0.1);
   border-color: rgba(245, 158, 11, 0.25);
-  color: #f59e0b;
+  color: var(--color-warning);
 }
 
 .source-type-pill.pill-green,
 .source-type-pill.pill-emerald {
   background: rgba(16, 185, 129, 0.1);
   border-color: rgba(16, 185, 129, 0.25);
-  color: #10b981;
+  color: var(--color-positive);
 }
 
 .source-type-pill.pill-purple {
@@ -353,7 +353,7 @@
 }
 
 .breadcrumb-item:hover {
-  color: var(--accent-blue, #38bdf8);
+  color: var(--accent-blue, var(--color-primary-text));
 }
 
 .breadcrumb-item.current {
@@ -422,7 +422,7 @@
 
 .btn-hero-action.primary-glow {
   background: rgba(56, 189, 248, 0.12);
-  color: var(--accent-blue, #38bdf8);
+  color: var(--accent-blue, var(--color-primary-text));
   border-color: rgba(56, 189, 248, 0.3);
 }
 
@@ -432,7 +432,7 @@
 }
 
 .btn-hero-action.accent {
-  background: var(--accent-blue, #2563eb);
+  background: var(--accent-blue, var(--color-primary-strong));
   color: #ffffff;
 }
 
@@ -496,7 +496,7 @@
 }
 
 .source-selector-pill.active {
-  background: var(--accent-blue, #2563eb);
+  background: var(--accent-blue, var(--color-primary-strong));
   border-color: transparent;
   color: #ffffff;
   box-shadow: 0 2px 10px rgba(37, 99, 235, 0.4);
@@ -509,11 +509,11 @@
 }
 
 .pill-dot.blue {
-  background: #38bdf8;
+  background: var(--color-primary-text);
 }
 
 .pill-dot.gold {
-  background: #f59e0b;
+  background: var(--color-warning);
 }
 
 .pill-dot.amber {
@@ -525,7 +525,7 @@
 }
 
 .pill-dot.rose {
-  background: #f43f5e;
+  background: var(--color-negative);
 }
 
 .pill-dot.purple {
@@ -583,8 +583,8 @@
 }
 
 .source-mini-card.selected-card {
-  border-color: var(--accent-blue, #38bdf8);
-  box-shadow: 0 0 0 1px var(--accent-blue, #38bdf8), 0 8px 24px rgba(56, 189, 248, 0.15);
+  border-color: var(--accent-blue, var(--color-primary-text));
+  box-shadow: 0 0 0 1px var(--accent-blue, var(--color-primary-text)), 0 8px 24px rgba(56, 189, 248, 0.15);
 }
 
 .mini-card-header {
@@ -599,7 +599,7 @@
   gap: 3px;
   font-size: 10px;
   font-weight: 700;
-  color: #f59e0b;
+  color: var(--color-warning);
   background: rgba(245, 158, 11, 0.12);
   padding: 1px 6px;
   border-radius: 4px;
@@ -614,12 +614,12 @@
 
 .status-indicator.active {
   background: rgba(16, 185, 129, 0.12);
-  color: #10b981;
+  color: var(--color-positive);
 }
 
 .status-indicator.inactive {
   background: rgba(244, 63, 94, 0.12);
-  color: #f43f5e;
+  color: var(--color-negative);
 }
 
 .mini-card-body {
@@ -656,7 +656,7 @@
 .card-price-value {
   font-size: 18px;
   font-weight: 900;
-  color: var(--accent-green, #10b981);
+  color: var(--accent-green, var(--color-positive));
 }
 
 .card-price-unit {
@@ -684,7 +684,7 @@
   align-items: center;
   gap: 4px;
   font-size: 11px;
-  color: var(--accent-blue, #38bdf8);
+  color: var(--accent-blue, var(--color-primary-text));
   background: transparent;
   border: none;
   cursor: pointer;
@@ -737,7 +737,7 @@
 .admin-modal-body .form-group label {
   font-size: 12px;
   font-weight: 700;
-  color: var(--text-heading, #e2e8f0);
+  color: var(--text-heading, var(--text-primary));
 }
 
 .admin-modal-body .form-group input,
@@ -747,7 +747,7 @@
   border: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: 8px;
   padding: 9px 12px;
-  color: var(--text-primary, #e2e8f0);
+  color: var(--text-primary, var(--text-primary));
   font-size: 13px;
   font-family: inherit;
   transition: border-color 0.18s;
@@ -765,7 +765,7 @@
 
 .admin-modal-body .form-group select option {
   background: #0f172a;
-  color: #e2e8f0;
+  color: var(--text-primary);
 }
 
 .form-row-2 {
@@ -785,7 +785,7 @@
   align-items: center;
   gap: 8px;
   font-size: 13px;
-  color: var(--text-primary, #e2e8f0);
+  color: var(--text-primary, var(--text-primary));
   cursor: pointer;
   user-select: none;
   padding: 4px 0;
@@ -794,7 +794,7 @@
 .admin-checkbox-label input[type="checkbox"] {
   width: 16px;
   height: 16px;
-  accent-color: var(--accent-blue, #38bdf8);
+  accent-color: var(--accent-blue, var(--color-primary-text));
   cursor: pointer;
   flex-shrink: 0;
 }
@@ -821,13 +821,13 @@
 .modal-test-result-box.success {
   background: rgba(16, 185, 129, 0.1);
   border: 1px solid rgba(16, 185, 129, 0.3);
-  color: #6ee7b7;
+  color: var(--color-positive-text);
 }
 
 .modal-test-result-box.error {
   background: rgba(244, 63, 94, 0.1);
   border: 1px solid rgba(244, 63, 94, 0.3);
-  color: #fca5a5;
+  color: var(--color-negative-text);
 }
 
 .sample-snippet-box {
@@ -845,7 +845,7 @@
   font-family: monospace;
   direction: ltr;
   text-align: left;
-  color: #94a3b8;
+  color: var(--text-secondary);
   white-space: pre-wrap;
   word-break: break-word;
 }
@@ -917,7 +917,7 @@
 
 .forex-cur-chip .cur-code {
   font-weight: 700;
-  color: var(--accent-blue, #38bdf8);
+  color: var(--accent-blue, var(--color-primary-text));
   font-family: monospace;
 }
 
@@ -986,7 +986,7 @@
   display: flex;
   align-items: center;
   gap: 4px;
-  background: var(--accent-blue, #38bdf8);
+  background: var(--accent-blue, var(--color-primary-text));
   color: #0f172a;
   font-weight: 700;
   font-size: 12px;
@@ -1068,7 +1068,7 @@
 
 .test-currency-badge .code {
   font-weight: 700;
-  color: var(--accent-blue, #38bdf8);
+  color: var(--accent-blue, var(--color-primary-text));
 }
 
 .test-currency-badge .label {
@@ -1077,7 +1077,7 @@
 
 .test-currency-badge .rate {
   font-family: monospace;
-  color: var(--accent-green, #10b981);
+  color: var(--accent-green, var(--color-positive));
   direction: ltr;
 }
 
@@ -1138,7 +1138,7 @@
 
 .sources-count-pill.multi-glow {
   background: rgba(16, 185, 129, 0.15);
-  color: #34d399;
+  color: var(--color-positive-text);
 }
 
 /* ─── Multi-Output Feeds Hub Workspace ──────────────────────────────────── */
@@ -1293,7 +1293,7 @@
   padding: 1px 6px;
   border-radius: 4px;
   background: rgba(244, 63, 94, 0.15);
-  color: #f43f5e;
+  color: var(--color-negative);
 }
 
 .schema-field-opt {
@@ -1363,7 +1363,7 @@
 .btn-exclude-row {
   background: rgba(244, 63, 94, 0.12);
   border: 1px solid rgba(244, 63, 94, 0.25);
-  color: #f43f5e;
+  color: var(--color-negative);
   border-radius: 6px;
   padding: 3px 8px;
   font-size: 11px;
@@ -1376,14 +1376,14 @@
 }
 
 .btn-exclude-row:hover {
-  background: #f43f5e;
+  background: var(--color-negative);
   color: #fff;
 }
 
 .btn-exclude-row.active {
   background: rgba(16, 185, 129, 0.15);
   border-color: rgba(16, 185, 129, 0.3);
-  color: #10b981;
+  color: var(--color-positive);
 }
 
 /* ─── Data Explorer Modal ─────────────────────────────────────────────────── */
@@ -1437,7 +1437,7 @@
   padding: 10px 12px;
   font-family: monospace;
   font-size: 11.5px;
-  color: #e2e8f0;
+  color: var(--text-primary);
   line-height: 1.6;
   max-height: 160px;
   overflow-y: auto;
@@ -1462,7 +1462,7 @@
   padding: 4px 10px;
   font-size: 11px;
   font-family: monospace;
-  color: var(--accent-blue, #38bdf8);
+  color: var(--accent-blue, var(--color-primary-text));
   cursor: pointer;
   transition: all 0.15s ease;
   direction: ltr;
@@ -1487,7 +1487,7 @@
 .live-extracted-price-val {
   font-size: 15px;
   font-weight: 800;
-  color: #10b981;
+  color: var(--color-positive);
   font-family: monospace;
 }
 
@@ -1554,7 +1554,7 @@
   padding: 2px 7px;
   border-radius: 99px;
   background: rgba(16, 185, 129, 0.2);
-  color: #34d399;
+  color: var(--color-positive-text);
   border: 1px solid rgba(16, 185, 129, 0.3);
 }
 
@@ -1685,7 +1685,7 @@
 .preset-chip-btn.danger-action:hover {
   background: rgba(244, 63, 94, 0.15);
   border-color: rgba(244, 63, 94, 0.4);
-  color: #f43f5e;
+  color: var(--color-negative);
 }
 
 /* Feed Item Select Table */
@@ -1772,5 +1772,5 @@
   font-family: monospace;
   font-weight: 800;
   font-size: 12px;
-  color: var(--accent-green, #10b981);
+  color: var(--accent-green, var(--color-positive));
 }

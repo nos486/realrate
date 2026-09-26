@@ -167,7 +167,7 @@ export default function BulkEditInstallmentsModal({
             border: '1px solid rgba(239, 68, 68, 0.3)',
             borderRadius: '10px',
             padding: '10px 14px',
-            color: '#f87171',
+            color: 'var(--color-negative-text)',
             fontSize: '0.85rem',
             marginBottom: '14px',
             display: 'flex',
@@ -188,27 +188,27 @@ export default function BulkEditInstallmentsModal({
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.8rem' }}>
             <thead>
               <tr style={{ position: 'sticky', top: 0, background: 'rgba(15, 23, 42, 0.95)' }}>
-                <th style={{ padding: '6px 8px', textAlign: 'right', color: '#94a3b8', fontWeight: 600 }}>قسط</th>
-                <th style={{ padding: '6px 8px', textAlign: 'right', color: '#94a3b8', fontWeight: 600 }}>سررسید</th>
-                <th style={{ padding: '6px 8px', textAlign: 'right', color: '#94a3b8', fontWeight: 600 }}>مبلغ (تومان)</th>
+                <th style={{ padding: '6px 8px', textAlign: 'right', color: 'var(--text-secondary)', fontWeight: 600 }}>قسط</th>
+                <th style={{ padding: '6px 8px', textAlign: 'right', color: 'var(--text-secondary)', fontWeight: 600 }}>سررسید</th>
+                <th style={{ padding: '6px 8px', textAlign: 'right', color: 'var(--text-secondary)', fontWeight: 600 }}>مبلغ (تومان)</th>
               </tr>
             </thead>
             <tbody>
               {paidInstallments.map((inst) => (
                 <tr key={inst.id} style={{ borderTop: '1px solid rgba(255, 255, 255, 0.05)', opacity: 0.55 }}>
-                  <td style={{ padding: '5px 8px', color: '#e2e8f0' }}>{formatNum(inst.installmentNumber)}</td>
-                  <td style={{ padding: '5px 8px', color: '#94a3b8', whiteSpace: 'nowrap' }}>
+                  <td style={{ padding: '5px 8px', color: 'var(--text-primary)' }}>{formatNum(inst.installmentNumber)}</td>
+                  <td style={{ padding: '5px 8px', color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>
                     {formatShamsiDisplay(inst.dueDate)}
                   </td>
-                  <td style={{ padding: '5px 8px', color: '#94a3b8' }}>
+                  <td style={{ padding: '5px 8px', color: 'var(--text-secondary)' }}>
                     {formatNum(inst.totalAmount)} <span style={{ fontSize: '0.72rem' }}>(پرداخت‌شده)</span>
                   </td>
                 </tr>
               ))}
               {displayRows.map((inst) => (
                 <tr key={inst.installmentNumber} style={{ borderTop: '1px solid rgba(255, 255, 255, 0.05)' }}>
-                  <td style={{ padding: '5px 8px', color: '#e2e8f0' }}>{formatNum(inst.installmentNumber)}</td>
-                  <td style={{ padding: '5px 8px', color: '#94a3b8', whiteSpace: 'nowrap' }}>
+                  <td style={{ padding: '5px 8px', color: 'var(--text-primary)' }}>{formatNum(inst.installmentNumber)}</td>
+                  <td style={{ padding: '5px 8px', color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>
                     {formatShamsiDisplay(inst.dueDate)}
                   </td>
                   <td style={{ padding: '4px 8px' }}>
@@ -232,7 +232,7 @@ export default function BulkEditInstallmentsModal({
         </div>
 
         {pendingRows.length === 0 && !result.error && (
-          <span style={{ display: 'block', fontSize: '0.8rem', color: '#94a3b8', marginTop: '10px' }}>
+          <span style={{ display: 'block', fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: '10px' }}>
             هیچ قسط در‌انتظاری برای ویرایش وجود ندارد.
           </span>
         )}

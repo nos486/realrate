@@ -7,7 +7,7 @@ import HoldingsView from './HoldingsView.jsx';
 import { TransactionsView } from '../../transactions/index.js';
 
 import { usePortfolio } from '../hooks/usePortfolio.js';
-import { FeaturePageHeader } from '../../../shared/ui/index.js';
+import { Button, FeaturePageHeader } from '../../../shared/ui/index.js';
 import { useFeedback } from '../../../shared/ui/FeedbackProvider.jsx';
 
 export default function PortfolioTracker({
@@ -94,15 +94,9 @@ export default function PortfolioTracker({
             : 'ثبت خرید و فروش، تاریخچه معاملات و گردش مالی هر پورتفو'
         }
         actions={
-          <button
-            type="button"
-            className="btn-add-asset-center"
-            onClick={handleOpenAdd}
-            disabled={view === 'holdings' && holdingsVaultLocked}
-          >
-            <Plus size={15} style={{ verticalAlign: 'middle', marginLeft: '4px' }} />
+          <Button icon={<Plus size={16} />} onClick={handleOpenAdd} disabled={view === 'holdings' && holdingsVaultLocked}>
             {view === 'holdings' ? 'ثبت دارایی جدید' : 'ثبت تراکنش جدید'}
-          </button>
+          </Button>
         }
       />
 
