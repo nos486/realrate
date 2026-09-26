@@ -49,7 +49,7 @@ export function interpolateEnvVariables(str, env = null) {
  */
 export function resolveApiUrl(urlOrConfig, env = null) {
   const config = typeof urlOrConfig === "string" ? { endpoint: urlOrConfig } : (urlOrConfig || {});
-  let url = (config.endpoint || config.apiUrl || config.usd_api_url || "").trim();
+  let url = (config.endpoint || config.apiUrl || "").trim();
   if (!url) return "";
 
   // 1. Generic template interpolation for ANY environment variable
@@ -78,7 +78,7 @@ export const apiUrlSourceAdapter = {
 
   supports(sourceConfig) {
     const type = (sourceConfig.sourceType || sourceConfig.source_type || "").toLowerCase();
-    return type === "api_url" || Boolean(sourceConfig.apiUrl || sourceConfig.endpoint || sourceConfig.usd_api_url);
+    return type === "api_url" || Boolean(sourceConfig.apiUrl || sourceConfig.endpoint);
   },
 
   async fetchRaw(sourceConfig, env = null) {
@@ -228,7 +228,7 @@ export const apiUrlSourceAdapter = {
     }
 
     // 2. Standard Single-Output JSON parsing
-    const jsonPath = sourceConfig.jsonPath || sourceConfig.json_path || sourceConfig.usd_api_json_path || "";
+    const jsonPath = sourceConfig.jsonPath || sourceConfig.json_path || "";
     let extractedVal = extractValueByPath(data, jsonPath);
 
     if (sourceConfig.regex && (typeof extractedVal === "string" || typeof extractedVal === "number")) {
@@ -287,7 +287,7 @@ export const apiUrlSourceAdapter = {
   },
 
   async test(sourceConfig, env = null) {
-    const url = (sourceConfig.endpoint || sourceConfig.apiUrl || sourceConfig.usd_api_url || "").trim();
+    const url = (sourceConfig.endpoint || sourceConfig.apiUrl || "").trim();
     if (!url) {
       return { success: false, error: "لطفاً آدرس API URL را وارد کنید." };
     }

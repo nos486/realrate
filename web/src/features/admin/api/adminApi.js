@@ -9,16 +9,19 @@ export async function getAdminStats() {
   return httpClient.get('/api/admin/stats');
 }
 
-export async function getAdminUsers() {
-  return httpClient.get('/api/admin/users');
+/**
+ * One page of registered users
+ * @param {{ page?: number, pageSize?: number, q?: string }} [params]
+ * @returns {Promise<{ users: object[], total: number, page: number, pageSize: number, pageCount: number }>}
+ */
+export async function getAdminUsers({ page = 1, pageSize = 20, q = '' } = {}) {
+  const params = new URLSearchParams({ page: String(page), pageSize: String(pageSize) });
+  if (q.trim()) params.set('q', q.trim());
+  return httpClient.get(`/api/admin/users?${params}`);
 }
 
 export async function saveAdminSettings(settings) {
   return httpClient.post('/api/admin/settings', settings);
-}
-
-export async function testUsdSource(config) {
-  return httpClient.post('/api/admin/test-usd-source', config);
 }
 
 export async function getPriceSources() {

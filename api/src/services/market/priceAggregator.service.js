@@ -388,10 +388,9 @@ export async function getLatestMarketRates(env) {
  * Fetch all prices (compatible wrapper)
  * @param {object} env
  * @param {boolean} [forceRefresh=false]
- * @param {object} [settings=null]
  * @returns {Promise<object>}
  */
-export async function fetchAllPrices(env, forceRefresh = false, settings = null) {
+export async function fetchAllPrices(env, forceRefresh = false) {
   if (forceRefresh) {
     const { rates } = await handleScheduledPriceExtraction(env, true);
     return rates;

@@ -20,12 +20,10 @@ export async function handleGetPrices(env, request = null) {
       getGlobalSettings(env),
     ]);
 
-    const gold_usd = prices.ons_gold?.price || globalSettings?.default_gold_usd || 0;
+    const gold_usd = prices.ons_gold?.price || 0;
     const silver_usd = prices.ons_silver?.price || 0;
     const live_usd_item = prices.usd_toman || null;
-    const live_usd_toman = live_usd_item
-      ? live_usd_item.price
-      : (globalSettings?.default_usd_toman || 0);
+    const live_usd_toman = live_usd_item ? live_usd_item.price : 0;
 
     // Derive forex cross-rates directly from prices (compiled from sources)
     const forex = {};

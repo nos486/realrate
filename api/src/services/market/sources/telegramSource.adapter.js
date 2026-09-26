@@ -141,11 +141,11 @@ export const telegramSourceAdapter = {
 
   supports(sourceConfig) {
     const type = sourceConfig.sourceType || sourceConfig.source_type;
-    return type === "telegram" || (!type && Boolean(sourceConfig.channelUsername || sourceConfig.usd_telegram_channel));
+    return type === "telegram" || (!type && Boolean(sourceConfig.channelUsername));
   },
 
   async fetchRaw(sourceConfig) {
-    const endpoint = sourceConfig.endpoint || sourceConfig.channelUsername || sourceConfig.usd_telegram_channel || "tahran_sabza";
+    const endpoint = sourceConfig.endpoint || sourceConfig.channelUsername || "tahran_sabza";
     const target = getTelegramFetchTarget(endpoint);
 
     const res = await fetch(target.url, {
@@ -169,7 +169,7 @@ export const telegramSourceAdapter = {
   },
 
   parse(rawContent, sourceConfig) {
-    const endpoint = sourceConfig.endpoint || sourceConfig.channelUsername || sourceConfig.usd_telegram_channel || "tahran_sabza";
+    const endpoint = sourceConfig.endpoint || sourceConfig.channelUsername || "tahran_sabza";
     const target = getTelegramFetchTarget(endpoint);
     const regex = (sourceConfig.regex || sourceConfig.regexPattern || "").trim();
     const priceType = (sourceConfig.priceType || sourceConfig.price_type || "usd").toLowerCase();
@@ -249,7 +249,7 @@ export const telegramSourceAdapter = {
   },
 
   async test(sourceConfig) {
-    const endpoint = (sourceConfig.endpoint || sourceConfig.channelUsername || sourceConfig.usd_telegram_channel || "tahran_sabza").trim();
+    const endpoint = (sourceConfig.endpoint || sourceConfig.channelUsername || "tahran_sabza").trim();
     if (!endpoint) {
       return { success: false, error: "لطفاً نام یا لینک کانال تلگرام را وارد کنید." };
     }

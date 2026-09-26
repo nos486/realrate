@@ -10,7 +10,6 @@
  * The frontend (React + Vite) is hosted separately on Cloudflare Pages.
  */
 
-import { getGlobalSettings } from "./repositories/settings.repository.js";
 import { getCorsHeaders, isOriginAllowed } from "./lib/helpers.js";
 import { validateEnv } from "./config/env.js";
 import { withErrorHandler } from "./middlewares/errorHandler.js";
@@ -51,7 +50,6 @@ import {
   handleAdminUsersRoute,
   handleAdminSaveSettings,
   handleAdminGetUserPortfolio,
-  handleAdminTestUsdSource,
   handleAdminGetPriceSources,
   handleAdminSavePriceSource,
   handleAdminDeletePriceSource,
@@ -221,7 +219,6 @@ export default {
     if (normalizedPath === "/api/admin/users/portfolio")                         return wrap(handleAdminGetUserPortfolio)(request, env);
     if (normalizedPath === "/api/admin/users")                                   return wrap(handleAdminUsersRoute)(request, env);
     if (normalizedPath === "/api/admin/settings" && request.method === "POST")   return wrap(handleAdminSaveSettings)(request, env);
-    if (normalizedPath === "/api/admin/test-usd-source" && request.method === "POST") return wrap(handleAdminTestUsdSource)(request, env);
 
     if (normalizedPath === "/api/admin/price-sources") {
       if (request.method === "GET") return wrap(handleAdminGetPriceSources)(request, env);
@@ -451,8 +448,7 @@ export default {
       return wrap(async () => {
         const forceRefresh = url.searchParams.get("force") === "true";
         if (forceRefresh) await requireAdmin(request, env);
-        const globalSettings = await getGlobalSettings(env);
-        const tgData = await fetchAllPrices(env, forceRefresh, globalSettings);
+        const tgData = await fetchAllPrices(env, forceRefresh);
         return new Response(JSON.stringify(tgData, null, 2), {
           headers: { "Content-Type": "application/json; charset=utf-8", ...corsHeaders },
         });

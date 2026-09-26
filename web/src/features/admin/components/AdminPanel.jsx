@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import {
   ShieldCheck,
@@ -8,8 +8,9 @@ import {
   BarChart3,
   Users,
   Share2,
-  Sliders,
   Coins,
+  ChevronRight,
+  ChevronLeft,
   Megaphone,
   Save,
 } from 'lucide-react';
@@ -45,42 +46,38 @@ function formatPersianDate(isoStr) {
   }
 }
 
+const USERS_PAGE_SIZE = 20;
+const SEARCH_DEBOUNCE_MS = 300;
+
+const faNum = (n) => Number(n || 0).toLocaleString('fa-IR');
+
 export default function AdminPanel() {
   const { user, loading, triggerLogin, logout } = useAuth();
 
   const [stats, setStats] = useState(null);
-  const [users, setUsers] = useState([]);
   const [loadingStats, setLoadingStats] = useState(false);
-  const [loadingUsers, setLoadingUsers] = useState(false);
 
+  // Users are paged and searched on the server
+  const [usersPage, setUsersPage] = useState({ key: null, users: [], total: 0, page: 1, pageCount: 1 });
+  const [page, setPage] = useState(1);
+  const [usersReload, setUsersReload] = useState(0);
   const [userSearch, setUserSearch] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
+  const usersRequest = useRef(0);
 
-  const filteredUsers = useMemo(() => {
-    if (!userSearch.trim()) return users;
-    const q = userSearch.toLowerCase().trim();
-    return users.filter(
-      (u) =>
-        (u.name && u.name.toLowerCase().includes(q)) ||
-        (u.customName && u.customName.toLowerCase().includes(q)) ||
-        (u.email && u.email.toLowerCase().includes(q)) ||
-        (u.id && u.id.toLowerCase().includes(q)) ||
-        (u.shareSlug && u.shareSlug.toLowerCase().includes(q))
-    );
-  }, [users, userSearch]);
+  // Search after typing pauses, from the first page
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setSearchQuery(userSearch.trim());
+      setPage(1);
+    }, SEARCH_DEBOUNCE_MS);
+    return () => clearTimeout(timer);
+  }, [userSearch]);
 
-  // Fallback defaults
-  const [usdToman, setUsdToman] = useState(62000);
-  const [goldUsd, setGoldUsd] = useState(2450);
   const [bubbleFull, setBubbleFull] = useState(15);
   const [bubbleHalf, setBubbleHalf] = useState(20);
   const [bubbleQuarter, setBubbleQuarter] = useState(25);
   const [announcement, setAnnouncement] = useState('');
-
-  // USD dynamic source configuration
-  const [usdSourceType, setUsdSourceType] = useState('telegram');
-  const [usdTelegramChannel, setUsdTelegramChannel] = useState('tahran_sabza');
-  const [usdApiUrl, setUsdApiUrl] = useState('');
-  const [usdApiJsonPath, setUsdApiJsonPath] = useState('');
 
   const [msg, setMsg] = useState({ text: '', type: '' });
   const [saving, setSaving] = useState(false);
@@ -106,61 +103,66 @@ export default function AdminPanel() {
     }
   };
 
-  const loadUsers = async () => {
-    setLoadingUsers(true);
-    try {
-      const data = await getAdminUsers();
-      if (data.success && Array.isArray(data.users)) {
-        setUsers(data.users);
-      }
-    } catch (e) {
-      console.error('Failed to load users:', e);
-    } finally {
-      setLoadingUsers(false);
-    }
-  };
+  const isAdmin = user?.role === 'admin';
 
-  // Fetch initial data once admin user is confirmed
+  // The table is loading until the page for the current page number, search and reload arrives
+  const usersKey = `${page}|${searchQuery}|${usersReload}`;
+  const loadingUsers = usersPage.key !== usersKey;
+
   useEffect(() => {
-    if (user?.role === 'admin') {
+    if (!isAdmin) return;
+    // Only the latest request may update the table (fast typing / paging can overlap requests)
+    const requestId = ++usersRequest.current;
+    getAdminUsers({ page, pageSize: USERS_PAGE_SIZE, q: searchQuery })
+      .then((data) => {
+        if (requestId !== usersRequest.current) return;
+        setUsersPage({
+          key: usersKey,
+          users: Array.isArray(data.users) ? data.users : [],
+          total: data.total || 0,
+          page: data.page || page,
+          pageCount: data.pageCount || 1,
+        });
+        // The server answers with its last page when asked past the end
+        if (data.page && data.page !== page) setPage(data.page);
+      })
+      .catch((e) => {
+        if (requestId !== usersRequest.current) return;
+        setUsersPage((prev) => ({ ...prev, key: usersKey }));
+        showMsg('دریافت لیست کاربران ناموفق بود: ' + e.message, 'error');
+      });
+    // usersKey is derived from page, searchQuery and usersReload
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isAdmin, page, searchQuery, usersReload]);
+
+  // Fetch the stats and settings once the admin user is confirmed
+  useEffect(() => {
+    if (isAdmin) {
       loadStats();
-      loadUsers();
 
       getPrices()
         .then((data) => {
           if (data?.globalSettings) {
             const s = data.globalSettings;
-            if (s.default_usd_toman) setUsdToman(s.default_usd_toman);
-            if (s.default_gold_usd) setGoldUsd(s.default_gold_usd);
             if (s.bubble_pct_full !== undefined) setBubbleFull(s.bubble_pct_full);
             if (s.bubble_pct_half !== undefined) setBubbleHalf(s.bubble_pct_half);
             if (s.bubble_pct_quarter !== undefined) setBubbleQuarter(s.bubble_pct_quarter);
             if (s.announcement !== undefined) setAnnouncement(s.announcement || '');
-            if (s.usd_source_type) setUsdSourceType(s.usd_source_type);
-            if (s.usd_telegram_channel) setUsdTelegramChannel(s.usd_telegram_channel);
-            if (s.usd_api_url !== undefined) setUsdApiUrl(s.usd_api_url || '');
-            if (s.usd_api_json_path !== undefined) setUsdApiJsonPath(s.usd_api_json_path || '');
           }
         })
         .catch(console.error);
     }
-  }, [user]);
+  }, [isAdmin]);
 
   const handleSave = async (e) => {
     e.preventDefault();
     setSaving(true);
     try {
       const res = await saveAdminSettings({
-        default_usd_toman: parseFloat(usdToman),
-        default_gold_usd: parseFloat(goldUsd),
         bubble_pct_full: parseFloat(bubbleFull),
         bubble_pct_half: parseFloat(bubbleHalf),
         bubble_pct_quarter: parseFloat(bubbleQuarter),
         announcement,
-        usd_source_type: usdSourceType,
-        usd_telegram_channel: usdTelegramChannel,
-        usd_api_url: usdApiUrl,
-        usd_api_json_path: usdApiJsonPath,
       });
 
       if (res.success) {
@@ -267,7 +269,7 @@ export default function AdminPanel() {
       <div className="section-title">
         <span>
           <BarChart3 size={15} style={{ verticalAlign: 'middle', marginLeft: '6px', display: 'inline' }} />
-          آمار و آنالیتیکس سیستم (Cloudflare KV)
+          آمار سیستم
         </span>
         <Button variant="ghost" size="sm" onClick={loadStats} loading={loadingStats} icon={<RefreshCw size={11} />}>
           بروزرسانی
@@ -278,13 +280,13 @@ export default function AdminPanel() {
         <MiniCard
           icon={<Users size={14} />}
           title="کاربران ثبت‌نام شده"
-          value={stats?.registeredUsers?.toLocaleString('fa-IR') || users.length.toLocaleString('fa-IR')}
+          value={stats ? faNum(stats.registeredUsers) : '—'}
           color="blue"
         />
         <MiniCard
           icon={<Share2 size={14} />}
           title="پورتفوهای عمومی فعال"
-          value={users.filter((u) => u.shareEnabled).length.toLocaleString('fa-IR')}
+          value={stats ? faNum(stats.publicPortfolios) : '—'}
           color="green"
         />
       </div>
@@ -293,9 +295,9 @@ export default function AdminPanel() {
       <div className="section-title" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
         <span>
           <Users size={15} style={{ verticalAlign: 'middle', marginLeft: '6px', display: 'inline' }} />
-          جدول کاربران ({filteredUsers.length.toLocaleString('fa-IR')} کاربر)
+          کاربران ({faNum(usersPage.total)} {searchQuery ? 'نتیجه' : 'کاربر'})
         </span>
-        <Button variant="ghost" size="sm" onClick={loadUsers} loading={loadingUsers} icon={<RefreshCw size={11} />}>
+        <Button variant="ghost" size="sm" onClick={() => setUsersReload((n) => n + 1)} loading={loadingUsers} icon={<RefreshCw size={11} />}>
           تازه‌سازی کاربران
         </Button>
       </div>
@@ -321,14 +323,14 @@ export default function AdminPanel() {
             </tr>
           </thead>
           <tbody>
-            {filteredUsers.length === 0 ? (
+            {usersPage.users.length === 0 ? (
               <tr>
                 <td colSpan="5" style={{ textAlign: 'center', padding: '24px' }}>
                   <EmptyState
                     title={loadingUsers ? 'در حال دریافت اطلاعات کاربران...' : 'هیچ کاربری با این مشخصات یافت نشد.'}
-                    description={userSearch ? `کاربری با عبارت "${userSearch}" پیدا نشد.` : null}
+                    description={!loadingUsers && searchQuery ? `کاربری با عبارت "${searchQuery}" پیدا نشد.` : null}
                     action={
-                      userSearch ? (
+                      !loadingUsers && searchQuery ? (
                         <Button
                           variant="secondary"
                           size="sm"
@@ -342,7 +344,7 @@ export default function AdminPanel() {
                 </td>
               </tr>
             ) : (
-              filteredUsers.map((u, idx) => (
+              usersPage.users.map((u, idx) => (
                 <tr key={u.id || idx}>
                   <td>
                     <div className="user-cell">
@@ -384,33 +386,42 @@ export default function AdminPanel() {
         </table>
       </div>
 
-      {/* ─── Global Fallback Settings & Calculations ───────────────────────── */}
-      <form onSubmit={handleSave} style={{ marginTop: '28px' }}>
-        <div className="section-title">
-          <span>
-            <Sliders size={15} style={{ verticalAlign: 'middle', marginLeft: '6px', display: 'inline' }} />
-            تنظیمات قیمت و انس عمومی (Fallback و محاسبات پایه)
+      {usersPage.total > 0 && (
+        <nav className="admin-pagination" aria-label="صفحه‌بندی کاربران">
+          <span className="admin-pagination-range">
+            نمایش {faNum((usersPage.page - 1) * USERS_PAGE_SIZE + 1)} تا{' '}
+            {faNum(Math.min(usersPage.page * USERS_PAGE_SIZE, usersPage.total))} از {faNum(usersPage.total)}
           </span>
-        </div>
+          {usersPage.pageCount > 1 && (
+            <div className="admin-pagination-controls">
+              <Button
+                variant="secondary"
+                size="sm"
+                icon={<ChevronRight size={14} />}
+                disabled={page <= 1 || loadingUsers}
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
+              >
+                قبلی
+              </Button>
+              <span className="admin-pagination-page" aria-live="polite">
+                صفحه {faNum(usersPage.page)} از {faNum(usersPage.pageCount)}
+              </span>
+              <Button
+                variant="secondary"
+                size="sm"
+                disabled={page >= usersPage.pageCount || loadingUsers}
+                onClick={() => setPage((p) => Math.min(usersPage.pageCount, p + 1))}
+              >
+                بعدی
+                <ChevronLeft size={14} />
+              </Button>
+            </div>
+          )}
+        </nav>
+      )}
 
-        <div className="grid-2">
-          <Input
-            id="adminUsdToman"
-            type="number"
-            label="قیمت پیش‌فرض دلار (تومان)"
-            value={usdToman}
-            onChange={(e) => setUsdToman(e.target.value)}
-          />
-
-          <Input
-            id="adminGoldUsd"
-            type="number"
-            label="پیش‌فرض انس طلا ($)"
-            value={goldUsd}
-            onChange={(e) => setGoldUsd(e.target.value)}
-          />
-        </div>
-
+      {/* ─── Coin bubble targets & site announcement ───────────────────────── */}
+      <form onSubmit={handleSave} style={{ marginTop: '28px' }}>
         <div className="section-title">
           <span>
             <Coins size={15} style={{ verticalAlign: 'middle', marginLeft: '6px', display: 'inline' }} />
