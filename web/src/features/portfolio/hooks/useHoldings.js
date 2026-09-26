@@ -4,11 +4,9 @@ import {
   addPortfolioHolding,
   updatePortfolioHolding,
   deletePortfolioHolding,
-  searchBourseSymbols,
 } from '../api/portfolioApi.js';
 import { useAuth } from '../../auth/index.js';
 import { normalizeHolding } from '../utils/holdingHelpers.js';
-import { getItemCategory } from '../../../config/displayEngine.js';
 import {
   deriveE2eeKey,
   verifyE2eeKey,
@@ -44,7 +42,6 @@ export function useHoldings(activePortfolio) {
   const [unlockingVault, setUnlockingVault] = useState(false);
 
   // Bourse Live Prices Map
-  const [boursePricesMap, setBoursePricesMap] = useState({});
 
   // Key for the current portfolio: from the account-wide vault when the portfolio is under it,
   // otherwise from the portfolio's own (older) passphrase vault. An account-vault portfolio that
@@ -190,36 +187,6 @@ export function useHoldings(activePortfolio) {
   }, []);
 
   // Synchronize bourse prices for active bourse holdings
-  useEffect(() => {
-    let isMounted = true;
-    const bourseHoldings = holdings.filter((h) => {
-      const cat = getItemCategory(h.assetId || h);
-      return cat === 'bourse' || cat === 'bourse_fund';
-    });
-    if (bourseHoldings.length === 0) return;
-
-    searchBourseSymbols('', 2000)
-      .then((res) => {
-        if (!isMounted || !res?.success || !Array.isArray(res.symbols)) return;
-        const newMap = {};
-        res.symbols.forEach((s) => {
-          const p = Number(s.priceToman !== undefined ? s.priceToman : (s.price || 0));
-          if (s.symbol) {
-            newMap[s.symbol] = p;
-            const norm = s.symbol.replace(/ي/g, 'ی').replace(/ك/g, 'ک').trim();
-            newMap[norm] = p;
-          }
-        });
-        setBoursePricesMap((prev) => ({ ...prev, ...newMap }));
-      })
-      .catch((err) => {
-        console.warn('Failed to fetch bourse symbols for portfolio:', err);
-      });
-
-    return () => {
-      isMounted = false;
-    };
-  }, [holdings]);
 
   // Unlock E2EE Vault
   const unlockVault = async (passphrase) => {
@@ -343,7 +310,6 @@ export function useHoldings(activePortfolio) {
     loadingHoldings,
     submitting,
     deletingId,
-    boursePricesMap,
     fetchHoldings,
     addHolding,
     updateHolding,

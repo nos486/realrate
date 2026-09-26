@@ -6,6 +6,7 @@
  */
 
 import { resolveHoldingUnitRealPrice } from '../../../utils/financialSpecs.js';
+import { toPriceId, isCustomAssetId } from '../../../utils/priceIds.js';
 import {
   resolveAssetDisplayName,
   resolveAssetUnit,
@@ -73,8 +74,10 @@ export function calculateComputedHoldings(transactions = [], livePriceMap = {}) 
   for (const tx of transactions) {
     if (!tx) continue;
     const payload = tx.payload || tx.decryptedPayload || tx;
-    const assetId = String(payload.assetId || payload.symbol || payload.id || '').trim();
-    if (!assetId) continue;
+    const storedId = String(payload.assetId || payload.symbol || payload.id || '').trim();
+    if (!storedId) continue;
+    // One position per asset, whatever id form older transactions were saved with
+    const assetId = isCustomAssetId(storedId) ? storedId : toPriceId(storedId, livePriceMap || null);
 
     if (!groups.has(assetId)) {
       const resolvedType = resolveCategory(assetId, payload.assetType || payload.category);

@@ -56,6 +56,7 @@ import { buildAssetIndex, resolveHomeAsset } from './homeAssets.js';
 import {
   HOME_PRESETS,
   buildDefaultLayout,
+  normalizeLayoutIds,
   addSection,
   removeSection,
   updateSection,
@@ -292,8 +293,9 @@ export default function HomeDashboard({
 
   const ctx = useMemo(() => ({ analysis: analysis || [], currencies: currencies || [], assets: assets || [] }), [analysis, currencies, assets]);
   const defaultLayout = useMemo(() => buildDefaultLayout(ctx), [ctx]);
-  const effective = layout || defaultLayout;
-  const index = useMemo(() => buildAssetIndex({ assets, itemMap, analysis, currencies }), [assets, itemMap, analysis, currencies]);
+  const storedLayout = useMemo(() => normalizeLayoutIds(layout), [layout]);
+  const effective = storedLayout || defaultLayout;
+  const index = useMemo(() => buildAssetIndex({ itemMap, analysis }), [itemMap, analysis]);
 
   // Search only filters the normal view; edit mode always shows everything
   const q = !editing && searchOpen ? query.trim().toLowerCase() : '';

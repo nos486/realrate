@@ -1,9 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { getSharedPortfolio } from '../features/portfolio/api/portfolioApi.js';
-import { getPrices } from '../features/market/api/marketApi.js';
-import { calculateMarketData } from '../utils/calculator.js';
-import { computeUnifiedPrices } from '../utils/pricingEngine.js';
 import Header from '../components/Header.jsx';
 import AlertBanner from '../shared/ui/AlertBanner.jsx';
 import { usePricing } from '../features/market/index.js';
@@ -78,31 +75,6 @@ export default function SharedPortfolioPage() {
   const hideValues = usePrivacyMode();
 
   const [portfolioData, setPortfolioData] = useState(null); // { user, holdings }
-  const [marketRates, setMarketRates] = useState(null);
-  const [calcData, setCalcData] = useState(null);
-
-  // 1. Fetch live market rates (gold, dollar, silver) & calculate real prices
-  useEffect(() => {
-    getPrices()
-      .then((data) => {
-        if (data && data.success) {
-          setMarketRates(data);
-          const u = data.live_usd_toman || 0;
-          const g = data.gold_usd || 0;
-          const cRes = calculateMarketData({
-            usdToman: u,
-            goldUsd: g,
-            silverUsd: data.silver_usd,
-            marketPrices: data.prices || data.market_prices || {},
-            forex: data.forex || {},
-            globalSettings: data.globalSettings || {},
-          });
-          if (cRes && cRes.success) setCalcData(cRes);
-        }
-      })
-      .catch(console.error);
-  }, []);
-
   // 2. Fetch shared portfolio
   const loadPortfolio = useCallback(async (pwd = '') => {
     setErrorMsg('');
@@ -274,32 +246,10 @@ export default function SharedPortfolioPage() {
     }
   };
 
-  // Accurate Real Values & Metrics calculation via Canonical Pricing Engine
+  // Valued at the price book's prices (the same numbers shown everywhere)
   const livePriceMap = pricing?.priceMap;
   const liveItemMap = pricing?.itemMap;
-  const liveUsdToman = pricing?.usdToman;
-  const liveGoldUsd = pricing?.goldUsd;
-  const liveSilverUsd = pricing?.silverUsd;
-  const realPriceMap = useMemo(() => {
-    const map = {};
-    if (livePriceMap) {
-      Object.assign(map, livePriceMap);
-    }
-    if (marketRates || calcData) {
-      const { priceMap } = computeUnifiedPrices({
-        marketItems: calcData || marketRates,
-        usdToman: marketRates?.live_usd_toman || calcData?.inputs?.usd_toman,
-        goldUsd: marketRates?.gold_usd || calcData?.inputs?.gold_usd,
-        silverUsd: marketRates?.silver_usd || calcData?.silver?.silver_usd,
-      });
-      if (priceMap) {
-        Object.entries(priceMap).forEach(([k, v]) => {
-          if (!map[k] && v > 0) map[k] = v;
-        });
-      }
-    }
-    return map;
-  }, [livePriceMap, marketRates, calcData]);
+  const realPriceMap = useMemo(() => livePriceMap || {}, [livePriceMap]);
 
   // Positions computed from the portfolio's buy/sell transactions (Weighted Average Cost) —
   // the second half of what the authenticated view shows alongside manually-added holdings.
@@ -327,11 +277,7 @@ export default function SharedPortfolioPage() {
       const hasBuyPrice = buyPriceNum > 0;
       const isCustomItem = h.assetType === 'custom' || h.assetId?.startsWith('custom_');
 
-      const unitRealPrice = resolveHoldingUnitRealPrice(h, realPriceMap, {}, {
-        usdToman: liveUsdToman || marketRates?.live_usd_toman || calcData?.inputs?.usd_toman,
-        goldUsd: liveGoldUsd || marketRates?.gold_usd || calcData?.inputs?.gold_usd,
-        silverUsd: liveSilverUsd || marketRates?.silver_usd || calcData?.silver?.silver_usd,
-      });
+      const unitRealPrice = resolveHoldingUnitRealPrice(h, realPriceMap);
 
       const itemCost = hasBuyPrice ? amountNum * buyPriceNum : 0;
       const itemRealVal = amountNum * unitRealPrice;
@@ -366,8 +312,7 @@ export default function SharedPortfolioPage() {
     const totalPnlPct = hasAnyCost ? parseFloat(((totalPnl / totalCost) * 100).toFixed(1)) : 0;
 
     return { items, totalCost, totalRealValue, totalPnl, totalPnlPct, hasAnyCost };
-    // Prices also feed unitRealPrice directly (formula-priced assets), not only via realPriceMap
-  }, [portfolioData, computedHoldings, realPriceMap, liveItemMap, liveUsdToman, liveGoldUsd, liveSilverUsd, marketRates, calcData]);
+  }, [portfolioData, computedHoldings, realPriceMap, liveItemMap]);
 
   const categoryGroups = useMemo(() => {
     return CATEGORY_DEFINITIONS.map((cat) => {
@@ -462,7 +407,7 @@ export default function SharedPortfolioPage() {
   return (
     <div className="app-layout">
       <Header
-        usdToman={marketRates?.live_usd_toman || calcData?.inputs?.usd_toman || 0}
+        usdToman={realPriceMap.usd || 0}
         gold18kPrice={realPriceMap['gold_18k'] || 0}
         activeTab="portfolio"
       />

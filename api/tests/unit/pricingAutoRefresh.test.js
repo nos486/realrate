@@ -6,9 +6,10 @@ import { renderHook, act, cleanup } from '@testing-library/react';
 vi.mock('../../../web/src/features/market/api/marketApi.js', () => ({
   getMarketItems: vi.fn(),
   getPrices: vi.fn(),
+  getPriceBook: vi.fn(),
 }));
 
-import { getMarketItems, getPrices } from '../../../web/src/features/market/api/marketApi.js';
+import { getMarketItems, getPrices, getPriceBook } from '../../../web/src/features/market/api/marketApi.js';
 import {
   PricingProvider,
   usePricing,
@@ -22,6 +23,15 @@ const prices = (usd, gold = 2500) => ({
   live_usd_toman: usd,
   gold_usd: gold,
   reference_rates: [{ key: 'usd', price: usd }],
+});
+
+const book = (usd) => ({
+  success: true,
+  updatedAt: '2026-01-01T00:00:00Z',
+  items: {
+    usd: { id: 'usd', price: usd, name: 'دلار', category: 'currency', unit: 'دلار', sourceId: 'src_def_usd', params: {} },
+    try: { id: 'try', price: Math.round(usd * 0.02), name: 'لیر', category: 'currency', unit: 'لیر', sourceId: 'src_def_forex', params: { usdCross: 0.02 } },
+  },
 });
 
 function setVisibility(state) {
@@ -47,6 +57,7 @@ beforeEach(() => {
   setVisibility('visible');
   getMarketItems.mockResolvedValue(items('first'));
   getPrices.mockResolvedValue(prices(100000));
+  getPriceBook.mockResolvedValue(book(100000));
 });
 
 afterEach(() => {
@@ -200,5 +211,25 @@ describe('useMarketData on top of the shared refresh', () => {
     expect(getPrices).toHaveBeenCalledTimes(3);
     expect(result.current.market.usdToman).toBe('95,000');
     expect(Number(result.current.pricing.usdToman)).toBe(95000);
+  });
+});
+
+describe('prices come from the price book only', () => {
+  it('exposes the book\'s prices by id, and resolves old stored ids', async () => {
+    const { result } = renderPricing();
+    await flush();
+    expect(result.current.priceMap).toEqual({ usd: 100000, try: 2000 });
+    expect(result.current.getAssetPrice('try')).toBe(2000);
+    expect(result.current.getAssetPrice('TRY')).toBe(2000);
+    expect(result.current.getAssetPrice('src_def_usd')).toBe(100000);
+    expect(result.current.getAsset('forex_try')?.name).toBe('لیر');
+  });
+
+  it('never changes a price when the calculator\'s USD rate is edited', async () => {
+    const { result } = renderPricing();
+    await flush();
+    act(() => result.current.setUsdToman(120000));
+    expect(result.current.getAssetPrice('try')).toBe(2000);
+    expect(result.current.summary.usdToman).toBe(120000);
   });
 });

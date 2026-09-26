@@ -15,17 +15,12 @@ import UniversalAssetSearch from '../../../components/UniversalAssetSearch.jsx';
 import ShamsiDatePicker, { getTodayShamsi } from '../../portfolio/components/ShamsiDatePicker.jsx';
 import ReferenceAssetInputs from '../../portfolio/components/ReferenceAssetInputs.jsx';
 import { parseInputNumber } from '../../portfolio/utils/holdingHelpers.js';
-import {
-  getCanonicalAssetSpec,
-} from '../../../utils/financialSpecs.js';
+import { toPriceId, isCustomAssetId } from '../../../utils/priceIds.js';
 import {
   resolveAssetDisplayName,
   resolveAssetUnit,
 } from '../../../config/sourceRegistry.js';
-import {
-  getItemCategory,
-  getItemUnit,
-} from '../../../config/displayEngine.js';
+import { getItemCategory } from '../../../config/displayEngine.js';
 
 export default function TransactionForm({
   isOpen,
@@ -33,7 +28,6 @@ export default function TransactionForm({
   onSubmit,
   editingTransaction = null,
   submitting = false,
-  realPriceMap = null,
   currentHoldingsMap = {}, // assetId -> { amount, unit } for sell warnings
 }) {
   const [assetId, setAssetId] = useState('gold_18k');
@@ -97,55 +91,18 @@ export default function TransactionForm({
   // Asset selection handler
   const handleAssetSelect = (asset) => {
     if (!asset) return;
-    const rawItem = asset.raw || asset;
-    // Prefer the search result's OWN id (asset.id) — UniversalAssetSearch.jsx always constructs
-    // a correct, canonical id for every item it produces. asset.raw is a thinner spread of the
-    // underlying adapter/catalog record and can lack its own `.id` entirely (e.g. Emofid/Charisma
-    // fund items never set raw.id), which used to silently fall back to a bare symbol like "عیار".
-    const rawId = asset.id || rawItem.id || rawItem.priceType || rawItem.symbol || '';
-    const cleanId = String(rawId).replace(/^src_def_/, '').replace(/^derived_/, '');
-    const canonicalSpec = getCanonicalAssetSpec(cleanId || rawId || rawItem.symbol);
-    const resolvedId = canonicalSpec?.id || cleanId || rawId;
-
-    const resolvedCat = getItemCategory(rawItem);
-    const resolvedUnit = getItemUnit(rawItem);
-    const isCustom = resolvedCat === 'custom' || resolvedId === 'custom' || resolvedId.startsWith('custom_');
-    // Only a REAL Tehran Stock Exchange symbol should get the flat "bourse_SYMBOL" id — identified
-    // by its actual source, not by category: Emofid/Charisma funds also carry category
-    // 'bourse_fund' but must keep their own src_def_X__symbol id, or their transactions/holdings
-    // silently split into a second, differently-named duplicate every time this runs (the bare
-    // symbol "عیار" was previously mistaken for the bourse stock ticker "عیار").
-    const isBourse = asset.sourceId === 'src_def_bourse' || rawItem.sourceId === 'src_def_bourse';
-
-    if (isBourse) {
-      const symCode = (rawItem.symbol || rawItem.s || resolvedId.replace('bourse_', '')).trim();
-      setAssetId(resolvedId.includes('__') ? resolvedId : `bourse_${symCode}`);
-      setAssetName(resolveAssetDisplayName(resolvedId, rawItem));
-      setUnit(resolvedUnit);
-
-      const liveP = rawItem.priceToman || (rawItem.priceRial ? Math.round(rawItem.priceRial / 10) : rawItem.price || 0);
-      if (!unitPrice && liveP > 0) {
-        setUnitPrice(String(liveP));
-      }
-    } else if (isCustom) {
-      setAssetId(resolvedId.startsWith('custom_') ? resolvedId : `custom_${Date.now()}`);
-      setAssetName(rawItem.name || rawItem.title || 'دارایی شخصی');
-      setUnit(resolvedUnit);
-    } else {
-      // Canonical assets (gold, coin, forex) AND catalog items (charisma_plans__gold, ...)
-      const displayId = canonicalSpec?.id || cleanId || rawId;
-      setAssetId(displayId);
-      setAssetName(resolveAssetDisplayName(displayId, rawItem));
-      setUnit(resolvedUnit);
-
-      const liveP = realPriceMap?.[cleanAssetId(displayId)] || realPriceMap?.[displayId] || rawItem.priceToman || rawItem.price || 0;
-      if (!unitPrice && liveP > 0) {
-        setUnitPrice(String(liveP));
-      }
+    if (asset.category === 'custom' || isCustomAssetId(asset.id)) {
+      setAssetId(isCustomAssetId(asset.id) && asset.id !== 'custom' ? asset.id : `custom_${Date.now()}`);
+      setAssetName(asset.name || 'دارایی شخصی');
+      setUnit(asset.unit || 'واحد');
+      return;
     }
+    // Picked from the price book: its id is what gets stored, its price is today's
+    setAssetId(toPriceId(asset.id));
+    setAssetName(asset.name || '');
+    setUnit(asset.unit || 'واحد');
+    if (!unitPrice && asset.price > 0) setUnitPrice(String(Math.round(asset.price)));
   };
-
-  const cleanAssetId = (id) => String(id || '').replace(/^src_def_/, '').replace(/^derived_/, '');
 
   // Validation logic
   const quantityNum = parseInputNumber(quantity);

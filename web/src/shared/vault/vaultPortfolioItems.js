@@ -18,6 +18,8 @@ import { getPortfolio, deletePortfolioHolding } from '../../features/portfolio/a
 import { getTransactions, deleteTransaction as deleteTransactionRest } from '../../features/transactions/api/transactionApi.js';
 import { listVaultRecords, deleteVaultRecord } from './vaultApi.js';
 import { putRecord, backfillRecordDates, repairRecordDates } from './vaultRecordMeta.js';
+import { migrateRecordPriceIds } from '../../utils/priceIds.js';
+import { getKnownPriceIds } from '../../features/market/knownPriceIds.js';
 
 const SILENT = { silent: true };
 const E2EE_PREFIX = 'enc:e2ee:v1:';
@@ -105,15 +107,36 @@ async function decryptRecords(kind, portfolioId, key, filters = {}) {
   const res = await listVaultRecords(kind, SILENT, { ...filters, parent: portfolioId });
   const items = [];
   const decrypted = [];
+  const migrated = [];
+  const knownIds = getKnownPriceIds();
   for (const record of res?.records || []) {
-    const value = await e2eeDecrypt(key, record.payload);
-    if (value && typeof value === 'object') {
+    const stored = await e2eeDecrypt(key, record.payload);
+    if (stored && typeof stored === 'object') {
+      // Asset ids saved in an older form become the price book's id
+      const { changed, record: value } = migrateRecordPriceIds(stored, knownIds);
+      if (changed) migrated.push({ ...value, id: record.id, portfolioId });
       items.push({ ...value, id: record.id, portfolioId });
       decrypted.push({ record, plain: value });
     } else console.warn(`Skipped a ${kind} that could not be decrypted:`, record.id);
   }
   backfillRecordDates(kind, decrypted);
+  storeMigrated(kind, portfolioId, key, migrated);
   return { items, total: res?.total ?? items.length };
+}
+
+/** Save records whose ids were migrated (in the background; a failure is retried on the next read) */
+function storeMigrated(kind, portfolioId, key, records) {
+  if (records.length === 0) return;
+  const store = kind === 'holding' ? storeHolding : storeTransaction;
+  (async () => {
+    for (const record of records) {
+      try {
+        await store(portfolioId, key, record, SILENT);
+      } catch {
+        // Migrated again next time
+      }
+    }
+  })();
 }
 
 /**

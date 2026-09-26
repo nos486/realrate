@@ -43,7 +43,7 @@ import { useFeedback } from '../../../shared/ui/FeedbackProvider.jsx';
 import { SkeletonRows } from '../../../shared/ui/Skeleton.jsx';
 
 const HoldingsView = forwardRef(function HoldingsView(
-  { activePortfolio, portfolios, loadingPortfolios = false, rates, calcData, usdToman, goldUsd, fetchPortfolios, deletePortfolio, onVaultLockChange, onCountChange, toolbarSlot = null },
+  { activePortfolio, portfolios, loadingPortfolios = false, rates, fetchPortfolios, deletePortfolio, onVaultLockChange, onCountChange, toolbarSlot = null },
   ref
 ) {
   const pricing = usePricing();
@@ -54,7 +54,6 @@ const HoldingsView = forwardRef(function HoldingsView(
     loadingHoldings,
     submitting,
     deletingId,
-    boursePricesMap,
     fetchHoldings,
     addHolding,
     updateHolding,
@@ -90,36 +89,10 @@ const HoldingsView = forwardRef(function HoldingsView(
 
   useImperativeHandle(ref, () => ({ openAdd: handleOpenAdd }));
 
-  // Pricing Map & Asset Real Price Calculation
+  // Every holding is valued at the price book's price (the same number shown everywhere)
   const livePriceMap = pricing?.priceMap;
   const liveItemMap = pricing?.itemMap;
-  const liveUsdToman = pricing?.usdToman;
-  const liveGoldUsd = pricing?.goldUsd;
-  const realPriceMap = useMemo(() => {
-    const map = {};
-    if (livePriceMap) {
-      Object.assign(map, livePriceMap);
-    }
-    if (boursePricesMap) {
-      Object.entries(boursePricesMap).forEach(([sym, pt]) => {
-        if (pt > 0) {
-          map[`bourse_${sym}`] = pt;
-          map[sym] = pt;
-        }
-      });
-    }
-    if (calcData?.analysis && Array.isArray(calcData.analysis)) {
-      calcData.analysis.forEach((item) => {
-        const val = item.market || item.expected_price || item.intrinsic;
-        if (val > 0 && !map[item.id]) {
-          const rounded = Math.round(val);
-          map[item.id] = rounded;
-          map[`src_def_${item.id}`] = rounded;
-        }
-      });
-    }
-    return map;
-  }, [livePriceMap, boursePricesMap, calcData]);
+  const realPriceMap = useMemo(() => livePriceMap || {}, [livePriceMap]);
 
   // Transactions & Computed Holdings Hook for active portfolio
   const { transactions } = useTransactions(activePortfolio, activeVaultKey);
@@ -141,10 +114,7 @@ const HoldingsView = forwardRef(function HoldingsView(
         getItemCategory(h.assetId || h)
       );
 
-      const unitRealPrice = resolveHoldingUnitRealPrice(h, realPriceMap, boursePricesMap, {
-        usdToman: liveUsdToman || usdToman,
-        goldUsd: liveGoldUsd || goldUsd,
-      });
+      const unitRealPrice = resolveHoldingUnitRealPrice(h, realPriceMap);
 
       const itemCost = hasBuyPrice ? amountNum * buyPriceNum : 0;
       const itemRealVal = amountNum * unitRealPrice;
@@ -156,7 +126,7 @@ const HoldingsView = forwardRef(function HoldingsView(
 
       const referencePnlInfo = computeReferenceAssetPnl(
         { ...h, itemRealVal },
-        livePriceMap || realPriceMap,
+        realPriceMap,
         liveItemMap
       );
 
@@ -196,8 +166,7 @@ const HoldingsView = forwardRef(function HoldingsView(
       totalPnlPct,
       hasAnyCost,
     };
-    // Prices feed unitRealPrice directly too (formula-priced assets), not only via realPriceMap
-  }, [holdings, computedHoldings, realPriceMap, livePriceMap, boursePricesMap, liveItemMap, liveUsdToman, liveGoldUsd, usdToman, goldUsd]);
+  }, [holdings, computedHoldings, realPriceMap, liveItemMap]);
 
   // Category Groups helper
   const buildCategoryGroups = useCallback((itemsList, filterQuery) => {

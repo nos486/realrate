@@ -6,6 +6,12 @@
  */
 
 import { sanitizeHomeLayout, HOME_LAYOUT_VERSION, HOME_LAYOUT_LIMITS } from '../../utils/homeLayout.js';
+import { toPriceId } from '../../utils/priceIds.js';
+
+/** A stored layout with its items as price book ids (older layouts saved "USD", "src_def_…") */
+export function normalizeLayoutIds(layout) {
+  return layout ? layoutOf(layout.sections || []) : null;
+}
 
 /** Default order of currencies on the home page */
 export const DEFAULT_PRIORITY_CURRENCIES = [
@@ -16,7 +22,11 @@ export function newSectionId() {
   return `s_${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
 }
 
-const layoutOf = (sections) => sanitizeHomeLayout({ version: HOME_LAYOUT_VERSION, sections });
+// Items are price book ids (lower-case), whatever form a preset or an old layout gives them in
+const layoutOf = (sections) => sanitizeHomeLayout({
+  version: HOME_LAYOUT_VERSION,
+  sections: sections.map((s) => ({ ...s, items: (s.items || []).map((id) => toPriceId(id)) })),
+});
 
 const byPriority = (a, b) => {
   const ia = DEFAULT_PRIORITY_CURRENCIES.indexOf(String(a.code || '').toUpperCase());

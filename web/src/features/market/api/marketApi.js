@@ -29,6 +29,14 @@ export async function getPrices(options = {}) {
 }
 
 /**
+ * The price book: every price in tomans under its unique id
+ * @returns {Promise<{ success: boolean, updatedAt: string, items: Record<string, object> }>}
+ */
+export async function getPriceBook(options = {}) {
+  return httpClient.get('/api/prices/book', options);
+}
+
+/**
  * Trend series of assets from the price history
  * @param {string[]} keys - asset ids
  * @param {'1d'|'7d'|'30d'|'1y'} [range]
