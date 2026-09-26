@@ -7,10 +7,13 @@
 }
 
 .category-group-card {
-  background: rgba(255, 255, 255, 0.02);
-  border-radius: var(--radius-lg);
+  /* A top-level card now (no card around the list): the same surface as every other card */
+  background: var(--card-bg);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-radius: var(--card-radius);
   padding: 12px 14px;
-  border: 1px solid rgba(255, 255, 255, 0.05);
+  border: var(--card-border);
   box-shadow: none;
   display: flex;
   flex-direction: column;
@@ -19,8 +22,7 @@
 }
 
 .category-group-card:hover {
-  background: rgba(255, 255, 255, 0.03);
-  border-color: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.12);
 }
 
 .category-group-header {
