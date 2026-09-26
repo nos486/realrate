@@ -15,7 +15,7 @@ export const RECENT_PERIODS = [
   { value: 'all', label: 'همه', months: null },
 ];
 
-export const DEFAULT_RECENT_PERIOD = '6m';
+export const DEFAULT_RECENT_PERIOD = '1y';
 
 /** Months a period covers (null for all) */
 export function periodMonths(period) {

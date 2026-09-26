@@ -3,9 +3,9 @@ import { monthsAgo, periodFrom, periodMonths, RECENT_PERIODS, DEFAULT_RECENT_PER
 import { pageLocally } from '../../../web/src/shared/utils/pageLocally.js';
 
 describe('recent periods', () => {
-  it('offers last month / 3 / 6 months / a year / all, 6 months by default', () => {
+  it('offers last month / 3 / 6 months / a year / all, a year by default', () => {
     expect(RECENT_PERIODS.map((p) => p.value)).toEqual(['1m', '3m', '6m', '1y', 'all']);
-    expect(DEFAULT_RECENT_PERIOD).toBe('6m');
+    expect(DEFAULT_RECENT_PERIOD).toBe('1y');
     expect(periodMonths('1y')).toBe(12);
     expect(periodMonths('all')).toBeNull();
   });
