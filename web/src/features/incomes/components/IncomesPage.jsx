@@ -30,7 +30,6 @@ import MonthlyIncomeChart from './MonthlyIncomeChart.jsx';
 import IncomesTable from './IncomesTable.jsx';
 import IncomeCsvExportButton from './IncomeCsvExportButton.jsx';
 import IncomeCsvImportButton from './IncomeCsvImportButton.jsx';
-import RecurringIncomesCard from './RecurringIncomesCard.jsx';
 import { ruleInput } from '../utils/recurringSync.js';
 import { buildIncomeReport, buildMonthlySeries, monthsSpanned } from '../utils/incomeReport.js';
 import { RECENT_PERIODS, periodMonths } from '../../../shared/utils/recentPeriods.js';
@@ -219,14 +218,6 @@ export default function IncomesPage() {
           sidebar={
             <>
               <IncomeSummaryCards report={report} hideValues={hideValues} />
-              <RecurringIncomesCard
-                rules={recurringRules}
-                onAdd={() => openForm({ recurring: true })}
-                onEdit={(rule) => openForm({ rule })}
-                onToggle={handleToggleRecurring}
-                onDelete={handleDeleteRecurring}
-                hideValues={hideValues}
-              />
               <div className="incomes-report-grid">
                 <MonthlyIncomeChart series={monthlySeries} title={chartTitle} categoryOrder={categoryOrder} hideValues={hideValues} />
                 {report.count > 0 && <IncomeReport report={report} hideValues={hideValues} />}
@@ -316,6 +307,12 @@ export default function IncomesPage() {
           editingRule={editingRule}
           startRecurring={startRecurring}
           submitting={submitting}
+          // Fixed incomes are managed in the form (with «درآمد ثابت» chosen)
+          recurringRules={recurringRules}
+          onEditRule={(rule) => openForm({ rule })}
+          onToggleRule={handleToggleRecurring}
+          onDeleteRule={handleDeleteRecurring}
+          hideValues={hideValues}
         />
       )}
     </div>

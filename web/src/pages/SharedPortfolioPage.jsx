@@ -558,7 +558,7 @@ export default function SharedPortfolioPage() {
             <div className="portfolio-layout-split">
               {/* Right Column: Categorized Holdings List */}
               <div className="portfolio-content-column">
-                <div className="portfolio-table-card">
+                <div className="portfolio-table-card is-plain">
                   <div className="portfolio-table-header">
                     <div className="table-title">
                       <div className="table-title-main">

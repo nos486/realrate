@@ -306,7 +306,8 @@ const HoldingsView = forwardRef(function HoldingsView(
           />
         }
       >
-          <div className="portfolio-table-card">
+          {/* The asset groups are cards of their own: no card around them */}
+          <div className="portfolio-table-card is-plain">
             <div className="portfolio-table-header">
               <div className="table-title">
                 <div className="table-title-main">

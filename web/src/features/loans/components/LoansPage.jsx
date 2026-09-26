@@ -390,7 +390,8 @@ export default function LoansPage({ initialLoanId = null }) {
           </div>
         }
       >
-        <div className="portfolio-table-card">
+        {/* The bank groups are cards of their own: no card around them */}
+        <div className="portfolio-table-card is-plain">
           <div className="portfolio-table-header">
             <div className="table-title">
               <div className="table-title-main">

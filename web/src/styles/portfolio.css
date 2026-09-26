@@ -444,6 +444,38 @@
   overflow: hidden;
 }
 
+/* A list made of cards (asset groups, bank groups) needs no card around it: transparent,
+   borderless and without padding, so only the inner cards show */
+.portfolio-table-card.is-plain {
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  overflow: visible;
+  padding: 0;
+}
+
+.portfolio-table-card.is-plain > .portfolio-table-header {
+  padding: 0 0 12px;
+  background: transparent;
+  border-bottom: none;
+}
+
+.portfolio-table-card.is-plain > .table-card-body {
+  padding: 0;
+}
+
+/* …and the lists inside line up with the header instead of being inset */
+.portfolio-table-card.is-plain .portfolio-categories-container {
+  padding: 0;
+}
+
+.portfolio-table-card.is-plain .portfolio-section-title-row {
+  padding-inline: 0;
+}
+
 .portfolio-table-header {
   display: flex;
   justify-content: space-between;
