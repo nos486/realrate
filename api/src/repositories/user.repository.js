@@ -93,14 +93,28 @@ export async function dbUpsertUser(env, userData) {
   return userData;
 }
 
+/** Sortable user columns (whitelisted: the value is interpolated into SQL) */
+export const USER_SORTS = {
+  lastLogin: "last_login",
+  createdAt: "created_at",
+};
+
+/** ORDER BY clause for a sort key; users without a value (never logged in) always come last */
+function userOrderBy(sort, dir) {
+  const column = USER_SORTS[sort] || USER_SORTS.lastLogin;
+  const direction = dir === "asc" ? "ASC" : "DESC";
+  return `${column} IS NULL, ${column} ${direction}, id`;
+}
+
 /**
  * One page of registered users for the admin panel, most recently active first
  * @param {object} env
- * @param {{ q?: string, limit?: number, offset?: number }} [options] q matches name, custom name,
- *   email, id or share slug (case-insensitive substring)
+ * @param {{ q?: string, limit?: number, offset?: number, sort?: string, dir?: string }} [options]
+ *   q matches name, custom name, email, id or share slug (case-insensitive substring); sort is a
+ *   USER_SORTS key, dir 'asc' | 'desc'
  * @returns {Promise<{ users: object[], total: number }>}
  */
-export async function dbGetUsersPage(env, { q = "", limit = 20, offset = 0 } = {}) {
+export async function dbGetUsersPage(env, { q = "", limit = 20, offset = 0, sort = "lastLogin", dir = "desc" } = {}) {
   if (!env || !env.DB) return { users: [], total: 0 };
   await ensureD1Tables(env);
 
@@ -124,7 +138,7 @@ export async function dbGetUsersPage(env, { q = "", limit = 20, offset = 0 } = {
              created_at AS createdAt, last_login AS lastLogin, login_count AS loginCount
       FROM users
       ${where}
-      ORDER BY last_login DESC, id
+      ORDER BY ${userOrderBy(sort, dir)}
       LIMIT ${term ? "?2" : "?1"} OFFSET ${term ? "?3" : "?2"}
     `).bind(...params, limit, offset).all();
     return { users: Array.isArray(results) ? results : [], total: Number(countRow?.total) || 0 };

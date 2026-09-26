@@ -11,6 +11,9 @@ import {
   Coins,
   ChevronRight,
   ChevronLeft,
+  ArrowDown,
+  ArrowUp,
+  ArrowUpDown,
   Megaphone,
   Save,
 } from 'lucide-react';
@@ -36,6 +39,7 @@ function formatPersianDate(isoStr) {
   if (!isoStr) return '-';
   try {
     const d = new Date(isoStr);
+    if (Number.isNaN(d.getTime())) return '-';
     return (
       d.toLocaleDateString('fa-IR') +
       ' ' +
@@ -46,7 +50,7 @@ function formatPersianDate(isoStr) {
   }
 }
 
-const USERS_PAGE_SIZE = 20;
+const USERS_PAGE_SIZE = 10;
 const SEARCH_DEBOUNCE_MS = 300;
 
 const faNum = (n) => Number(n || 0).toLocaleString('fa-IR');
@@ -61,6 +65,7 @@ export default function AdminPanel() {
   const [usersPage, setUsersPage] = useState({ key: null, users: [], total: 0, page: 1, pageCount: 1 });
   const [page, setPage] = useState(1);
   const [usersReload, setUsersReload] = useState(0);
+  const [sort, setSort] = useState({ key: 'lastLogin', dir: 'desc' });
   const [userSearch, setUserSearch] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const usersRequest = useRef(0);
@@ -106,14 +111,14 @@ export default function AdminPanel() {
   const isAdmin = user?.role === 'admin';
 
   // The table is loading until the page for the current page number, search and reload arrives
-  const usersKey = `${page}|${searchQuery}|${usersReload}`;
+  const usersKey = `${page}|${searchQuery}|${sort.key}|${sort.dir}|${usersReload}`;
   const loadingUsers = usersPage.key !== usersKey;
 
   useEffect(() => {
     if (!isAdmin) return;
     // Only the latest request may update the table (fast typing / paging can overlap requests)
     const requestId = ++usersRequest.current;
-    getAdminUsers({ page, pageSize: USERS_PAGE_SIZE, q: searchQuery })
+    getAdminUsers({ page, pageSize: USERS_PAGE_SIZE, q: searchQuery, sort: sort.key, dir: sort.dir })
       .then((data) => {
         if (requestId !== usersRequest.current) return;
         setUsersPage({
@@ -131,9 +136,33 @@ export default function AdminPanel() {
         setUsersPage((prev) => ({ ...prev, key: usersKey }));
         showMsg('دریافت لیست کاربران ناموفق بود: ' + e.message, 'error');
       });
-    // usersKey is derived from page, searchQuery and usersReload
+    // usersKey is derived from page, searchQuery, sort and usersReload
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isAdmin, page, searchQuery, usersReload]);
+  }, [isAdmin, page, searchQuery, sort, usersReload]);
+
+  // A column header sorts by that date, newest first; pressing it again flips the direction
+  const toggleSort = (key) => {
+    setSort((prev) => (prev.key === key ? { key, dir: prev.dir === 'desc' ? 'asc' : 'desc' } : { key, dir: 'desc' }));
+    setPage(1);
+  };
+
+  const sortHeader = (key, label) => {
+    const active = sort.key === key;
+    const Icon = !active ? ArrowUpDown : sort.dir === 'desc' ? ArrowDown : ArrowUp;
+    return (
+      <th aria-sort={active ? (sort.dir === 'desc' ? 'descending' : 'ascending') : 'none'}>
+        <button
+          type="button"
+          className={`users-sort-btn ${active ? 'is-active' : ''}`}
+          onClick={() => toggleSort(key)}
+          title={active && sort.dir === 'desc' ? 'مرتب‌سازی از قدیمی به جدید' : 'مرتب‌سازی از جدید به قدیمی'}
+        >
+          {label}
+          <Icon size={12} aria-hidden="true" />
+        </button>
+      </th>
+    );
+  };
 
   // Fetch the stats and settings once the admin user is confirmed
   useEffect(() => {
@@ -319,13 +348,14 @@ export default function AdminPanel() {
               <th>ایمیل</th>
               <th>نقش</th>
               <th>لینک اشتراک</th>
-              <th>آخرین ورود</th>
+              {sortHeader('createdAt', 'تاریخ ثبت‌نام')}
+              {sortHeader('lastLogin', 'آخرین ورود')}
             </tr>
           </thead>
           <tbody>
             {usersPage.users.length === 0 ? (
               <tr>
-                <td colSpan="5" style={{ textAlign: 'center', padding: '24px' }}>
+                <td colSpan="6" style={{ textAlign: 'center', padding: '24px' }}>
                   <EmptyState
                     title={loadingUsers ? 'در حال دریافت اطلاعات کاربران...' : 'هیچ کاربری با این مشخصات یافت نشد.'}
                     description={!loadingUsers && searchQuery ? `کاربری با عبارت "${searchQuery}" پیدا نشد.` : null}
@@ -378,6 +408,7 @@ export default function AdminPanel() {
                       <span style={{ color: 'var(--text-muted)', fontSize: '11px' }}>-</span>
                     )}
                   </td>
+                  <td>{formatPersianDate(u.createdAt)}</td>
                   <td>{formatPersianDate(u.lastLogin)}</td>
                 </tr>
               ))

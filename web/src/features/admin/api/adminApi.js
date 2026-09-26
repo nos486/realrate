@@ -11,11 +11,11 @@ export async function getAdminStats() {
 
 /**
  * One page of registered users
- * @param {{ page?: number, pageSize?: number, q?: string }} [params]
+ * @param {{ page?: number, pageSize?: number, q?: string, sort?: 'lastLogin'|'createdAt', dir?: 'asc'|'desc' }} [params]
  * @returns {Promise<{ users: object[], total: number, page: number, pageSize: number, pageCount: number }>}
  */
-export async function getAdminUsers({ page = 1, pageSize = 20, q = '' } = {}) {
-  const params = new URLSearchParams({ page: String(page), pageSize: String(pageSize) });
+export async function getAdminUsers({ page = 1, pageSize = 10, q = '', sort = 'lastLogin', dir = 'desc' } = {}) {
+  const params = new URLSearchParams({ page: String(page), pageSize: String(pageSize), sort, dir });
   if (q.trim()) params.set('q', q.trim());
   return httpClient.get(`/api/admin/users?${params}`);
 }
