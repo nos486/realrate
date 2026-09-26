@@ -10,7 +10,8 @@ import { logger } from "../lib/logger.js";
 import { readPriceTrends, TREND_RANGES, DEFAULT_TREND_RANGE } from "../repositories/priceHistory.repository.js";
 
 const SPARKLINE_MAX_KEYS = 200;
-const SPARKLINE_CACHE_SECONDS = 300;
+// A series never changes faster than its buckets: cache at most one bucket, up to 5 minutes
+const SPARKLINE_MAX_CACHE_SECONDS = 300;
 
 /**
  * GET /api/prices
@@ -75,12 +76,13 @@ export async function handleGetPrices(env, request = null) {
 }
 
 /**
- * GET /api/sparklines?keys=usd,gold_18k,...&range=7d
+ * GET /api/sparklines?keys=usd,gold_18k,...&range=1d
  * Trend series of the given asset ids from the price history (Postgres): per key a fixed-size
  * list of values across the window (one per `bucketSec`, from `since`), plus its first and last
  * value and the change in percent.
  * Keys without history are left out; `available: false` means the history can't be read now.
- * Answers are cached at the edge for a few minutes (keys are sorted, so any order hits the cache).
+ * Answers are cached at the edge for one bucket, at most 5 minutes (keys are sorted, so any order
+ * hits the cache).
  */
 export async function handleGetSparklines(env, request = null) {
   const url = new URL(request?.url || "http://localhost/api/sparklines");
@@ -108,7 +110,10 @@ export async function handleGetSparklines(env, request = null) {
   const body = { success: true, available: sparklines !== null, range, bucketSec, sparklines: sparklines || {} };
   if (cache && sparklines !== null) {
     const toStore = new Response(JSON.stringify(body), {
-      headers: { "Content-Type": "application/json", "Cache-Control": `max-age=${SPARKLINE_CACHE_SECONDS}` },
+      headers: {
+        "Content-Type": "application/json",
+        "Cache-Control": `max-age=${Math.min(bucketSec, SPARKLINE_MAX_CACHE_SECONDS)}`,
+      },
     });
     await cache.put(cacheKey, toStore).catch(() => {});
   }

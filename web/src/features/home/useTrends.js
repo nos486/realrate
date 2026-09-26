@@ -2,15 +2,16 @@
  * useTrends.js — Trend series for the assets shown in "trend" sections of the home page
  *
  * One request for every trend card on the page (ids are sorted, so the server's cache is shared
- * across users with the same cards), refreshed every few minutes. History is kept per asset id
+ * across users with the same cards), refreshed every minute. History is kept per asset id
  * in lower case, so the series of an asset is `trends[id.toLowerCase()]`.
  */
 
 import { useEffect, useState } from 'react';
 import { getSparklines } from '../market/api/marketApi.js';
 
-export const TREND_RANGE = '7d';
-const REFRESH_MS = 5 * 60 * 1000;
+// The last 24 hours, one point per minute (prices are synced every minute)
+export const TREND_RANGE = '1d';
+const REFRESH_MS = 60 * 1000;
 
 /**
  * @param {string[]} ids - asset ids of the trend cards
