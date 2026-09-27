@@ -14,6 +14,7 @@ import { readFileSync, writeFileSync, copyFileSync, mkdirSync, existsSync } from
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createRequire } from 'node:module';
+import { createHash } from 'node:crypto';
 import { SITE, FEATURE_PAGES, STATIC_PAGES } from '../src/seo/pages.js';
 import { generateRedirects } from '../src/seo/spaRoutes.js';
 
@@ -62,6 +63,8 @@ try {
 }
 
 const publicSeoCss = resolve(webDir, 'public/seo/seo.css');
+// Content hash in the stylesheet URL, so a changed seo.css is never served from a stale cache
+const SEO_CSS_VERSION = createHash('sha256').update(readFileSync(publicSeoCss)).digest('hex').slice(0, 10);
 if (existsSync(publicSeoCss)) {
   copyFileSync(publicSeoCss, resolve(distDir, 'seo/seo.css'));
   console.log('✓ Copied seo.css to dist/seo/');
@@ -265,7 +268,7 @@ function renderStaticPage({
     <link rel="manifest" href="/manifest.webmanifest" />
 
     <!-- Standalone SEO Stylesheet -->
-    <link rel="stylesheet" href="/seo/seo.css" />
+    <link rel="stylesheet" href="/seo/seo.css?v=${SEO_CSS_VERSION}" />
 ${jsonLdBlock}
   </head>
   <body>
@@ -589,8 +592,8 @@ console.log(`✓ Generated ${FEATURE_PAGES.length} feature pages in dist/feature
     bodyHtml,
   });
 
-  writeFileSync(resolve(distDir, 'features/index.html'), hubHtml, 'utf-8');
-  console.log('✓ Generated dist/features/index.html (hub)');
+  writeFileSync(resolve(distDir, 'features.html'), hubHtml, 'utf-8');
+  console.log('✓ Generated dist/features.html (hub, served at /features)');
 }
 
 // ── 7. Generate About Page (/about) ──────────────────────────────────────────
@@ -844,33 +847,6 @@ Sitemap: ${SITE.origin}/sitemap.xml
   console.log('✓ Generated dist/_redirects from spaRoutes.js (explicit SPA rewrites)');
 }
 
-// ── 13. Update dist/_headers ─────────────────────────────────────────────────
-{
-  const baseHeadersPath = resolve(webDir, 'public/_headers');
-  let headersContent = existsSync(baseHeadersPath) ? readFileSync(baseHeadersPath, 'utf-8') : '';
-
-  const additionalHeaders = `
-# Disallow indexing of private or raw SPA shell responses
-/p/*
-  X-Robots-Tag: noindex
-/spa
-  X-Robots-Tag: noindex
-/spa.html
-  X-Robots-Tag: noindex
-
-# Immutable static SEO assets
-/seo/*
-  Cache-Control: public, max-age=31536000, immutable
-/og/*
-  Cache-Control: public, max-age=31536000, immutable
-`;
-
-  if (!headersContent.includes('X-Robots-Tag: noindex')) {
-    headersContent += additionalHeaders;
-  }
-
-  writeFileSync(resolve(distDir, '_headers'), headersContent, 'utf-8');
-  console.log('✓ Generated dist/_headers with X-Robots-Tag and cache rules');
-}
+// dist/_headers comes straight from public/_headers (Vite copies it)
 
 console.log('🎉 SEO post-build generation completed successfully!');

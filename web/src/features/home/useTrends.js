@@ -2,7 +2,7 @@
  * useTrends.js — Trend series for the assets shown in "trend" sections of the home page
  *
  * One request for every trend card on the page (ids are sorted, so the server's cache is shared
- * across users with the same cards), refreshed every minute. History is kept per asset id
+ * across users with the same cards), refreshed every minute while the tab is visible. History is kept per asset id
  * in lower case, so the series of an asset is `trends[id.toLowerCase()]`.
  */
 
@@ -41,11 +41,21 @@ export function useTrends(ids) {
           if (active) setState((prev) => (prev.key === key ? prev : { key, trends: {}, bucketSec: 0, status: 'unavailable' }));
         });
     };
+    // A hidden tab asks nothing (many users leave the app open); it catches up when shown again
+    let lastLoad = 0;
+    const loadIfVisible = () => {
+      if (document.hidden || Date.now() - lastLoad < REFRESH_MS - 1000) return;
+      lastLoad = Date.now();
+      load();
+    };
+    lastLoad = Date.now();
     load();
-    const timer = setInterval(load, REFRESH_MS);
+    const timer = setInterval(loadIfVisible, REFRESH_MS);
+    document.addEventListener('visibilitychange', loadIfVisible);
     return () => {
       active = false;
       clearInterval(timer);
+      document.removeEventListener('visibilitychange', loadIfVisible);
     };
   }, [key]);
 

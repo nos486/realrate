@@ -225,6 +225,13 @@ describe('email/password accounts', () => {
       expect(repo.dbSetUserPassword).toHaveBeenCalled();
     });
 
+    it.each(['demo_view', 'demo_edit'])('refuses a %s session (it would sign every other demo visitor out)', async (kind) => {
+      getAuthenticatedUser.mockResolvedValue({ userId: 'demo_1', email: 'demo@realrate.ir', kind });
+      await expect(handleSetPassword(authed({ newPassword: 'fresh1234' }), env)).rejects.toMatchObject({ statusCode: 403 });
+      expect(repo.dbSetUserPassword).not.toHaveBeenCalled();
+      expect(repo.dbDeleteUserSessions).not.toHaveBeenCalled();
+    });
+
     it('requires a session', async () => {
       getAuthenticatedUser.mockResolvedValue(null);
       await expect(handleSetPassword(authed({ newPassword: 'fresh1234' }), env)).rejects.toMatchObject({ statusCode: 401 });

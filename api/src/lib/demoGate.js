@@ -20,6 +20,9 @@ export const DEMO_READ_ONLY_MESSAGE = "این نسخه دمو است و تغیی
  * @param {string} normalizedPath
  */
 export async function enforceDemoGate(request, env, normalizedPath) {
+  // Every rule below is about writes or admin routes: plain reads (the price book polled by
+  // every open tab) skip the session lookup
+  if (!WRITE_METHODS.has(request.method.toUpperCase()) && !normalizedPath.startsWith("/api/admin")) return;
   const user = await getAuthenticatedUser(request, env);
   if (!user || !user.kind) return;
 

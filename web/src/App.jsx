@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect } from 'react';
+import { lazy, Suspense, useEffect, useRef } from 'react';
 import { Routes, Route, Navigate, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import FullscreenLoader from './shared/ui/FullscreenLoader.jsx';
 import RequireAuth from './shared/ui/RequireAuth.jsx';
@@ -63,39 +63,24 @@ function GuestLanding() {
 }
 
 /**
- * Public route to launch the demo account directly:
- * - If already signed in, goes straight to /app.
- * - Otherwise calls enterDemo() from useDemo(), shows a loader while starting,
- *   and redirects back to / if login fails.
+ * /demo: opens the read-only demo account (the static feature pages link here). A signed-in
+ * visitor goes straight to the app; the demo login runs once, and a failure returns to /.
  */
 function DemoRoute() {
-  const { user } = useAuth();
+  const { user, loading } = useAuth();
   const { enterDemo } = useDemo();
   const navigate = useNavigate();
+  const started = useRef(false);
+  // A stored session is still being checked: wait for it instead of replacing it with the demo
+  const waiting = loading && Boolean(getToken());
 
   useEffect(() => {
-    if (user) {
-      navigate(APP_BASE, { replace: true });
-      return;
-    }
-    let isMounted = true;
-    enterDemo()
-      .then((success) => {
-        if (!isMounted) return;
-        if (!success) {
-          navigate(LANDING_PATH, { replace: true });
-        }
-      })
-      .catch(() => {
-        if (isMounted) {
-          navigate(LANDING_PATH, { replace: true });
-        }
-      });
-
-    return () => {
-      isMounted = false;
-    };
-  }, [user, enterDemo, navigate]);
+    if (user || waiting || started.current) return;
+    started.current = true;
+    enterDemo().then((ok) => {
+      if (!ok) navigate(LANDING_PATH, { replace: true });
+    });
+  }, [user, waiting, enterDemo, navigate]);
 
   if (user) return <Navigate to={APP_BASE} replace />;
   return <RouteLoader />;

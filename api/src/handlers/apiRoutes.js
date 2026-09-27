@@ -58,17 +58,38 @@ export async function handleGetPrices(env, request = null) {
  * Sources' sync state stays private (its errors may name an endpoint).
  */
 export async function handleGetPriceBook(env, request = null) {
-  const [book, globalSettings] = await Promise.all([getPriceBook(env), getGlobalSettings(env)]);
-  // Unchanged prices and settings: the client keeps what it has (304, no body)
-  const version = book.version || priceBookVersion(book.items);
-  const etag = `W/"${version}-${priceBookVersion({ s: { price: JSON.stringify(globalSettings ?? null) } })}"`;
+  const { etag, body } = await readPriceBookResponse(env);
   const cacheHeaders = { ETag: etag, "Cache-Control": "no-cache" };
+  // Unchanged prices and settings: the client keeps what it has (304, no body)
   if (request?.headers?.get("If-None-Match") === etag) {
     return new Response(null, { status: 304, headers: { ...cacheHeaders, ...getCorsHeaders(request) } });
   }
-  const response = jsonResponse({ success: true, updatedAt: book.updatedAt, version, items: book.items, globalSettings }, 200, request);
-  for (const [name, value] of Object.entries(cacheHeaders)) response.headers.set(name, value);
-  return response;
+  return new Response(body, {
+    status: 200,
+    headers: { "Content-Type": "application/json; charset=utf-8", ...getCorsHeaders(request), ...cacheHeaders },
+  });
+}
+
+// Every open tab polls the book, which only changes when the cron syncs (once a minute): an
+// isolate reuses its serialized answer for a few seconds instead of reading and re-encoding the
+// whole book from KV on every request
+const PRICE_BOOK_MEMORY_TTL_MS = 10_000;
+let priceBookMemo = null;
+
+async function readPriceBookResponse(env) {
+  const now = Date.now();
+  if (priceBookMemo && now - priceBookMemo.at < PRICE_BOOK_MEMORY_TTL_MS) return priceBookMemo;
+  const [book, globalSettings] = await Promise.all([getPriceBook(env), getGlobalSettings(env)]);
+  const version = book.version || priceBookVersion(book.items);
+  const etag = `W/"${version}-${priceBookVersion({ s: { price: JSON.stringify(globalSettings ?? null) } })}"`;
+  const body = JSON.stringify({ success: true, updatedAt: book.updatedAt, version, items: book.items, globalSettings });
+  priceBookMemo = { at: now, etag, body };
+  return priceBookMemo;
+}
+
+/** Forget the isolate's copy of the price book answer (tests, and after an admin change) */
+export function resetPriceBookMemo() {
+  priceBookMemo = null;
 }
 
 /**

@@ -359,7 +359,27 @@ export const APP_TABLES = [
       "CREATE INDEX IF NOT EXISTS idx_user_activity_day ON user_activity(day)",
     ],
   },
+  {
+    // The version of the DDL above that was last applied (see ensurePgSchema)
+    name: "app_schema",
+    columns: ["id", "version"],
+    ddl: [
+      `CREATE TABLE IF NOT EXISTS app_schema (
+        id BIGINT PRIMARY KEY CHECK (id = 1),
+        version TEXT NOT NULL
+      )`,
+    ],
+  },
 ];
+
+/** A fingerprint of every DDL statement: any change to the schema above changes it */
+export const SCHEMA_VERSION = (() => {
+  let hash = 5381;
+  for (const sql of APP_TABLES.flatMap((t) => t.ddl)) {
+    for (let i = 0; i < sql.length; i++) hash = ((hash * 33) ^ sql.charCodeAt(i)) >>> 0;
+  }
+  return `v1-${hash.toString(36)}`;
+})();
 
 // Created once per isolate
 let schemaReady = null;
@@ -376,9 +396,16 @@ export function resetPgSchemaCache() {
 export function ensurePgSchema(db) {
   if (!schemaReady) {
     schemaReady = (async () => {
+      // A new isolate asks one question instead of re-running every statement: the ALTERs take
+      // table locks even when there is nothing to change, stalling queries behind them
+      const applied = await db.prepare("SELECT version FROM app_schema WHERE id = 1").first().catch(() => null);
+      if (applied?.version === SCHEMA_VERSION) return;
       for (const table of APP_TABLES) {
         for (const sql of table.ddl) await db.prepare(sql).run();
       }
+      await db.prepare(
+        "INSERT INTO app_schema (id, version) VALUES (1, ?) ON CONFLICT (id) DO UPDATE SET version = excluded.version"
+      ).bind(SCHEMA_VERSION).run();
     })().catch((err) => {
       schemaReady = null;
       throw err;

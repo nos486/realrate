@@ -26,7 +26,22 @@ export function isUserAdmin(email, env) {
  * @param {object} env
  * @returns {object|null} user session or null
  */
-export async function getAuthenticatedUser(request, env) {
+export function getAuthenticatedUser(request, env) {
+  // The router gates (maintenance, demo, encryption) and the handler all ask for the user of
+  // the same request: look the session up once per request, not once per caller
+  if (!request || typeof request !== "object") return lookupUser(request, env);
+  let pending = userLookups.get(request);
+  if (!pending) {
+    pending = lookupUser(request, env);
+    userLookups.set(request, pending);
+  }
+  return pending;
+}
+
+/** One session lookup per Request object (entries go away with the request) */
+const userLookups = new WeakMap();
+
+async function lookupUser(request, env) {
   let token = null;
 
   // 1. Check Authorization: Bearer <token> header
