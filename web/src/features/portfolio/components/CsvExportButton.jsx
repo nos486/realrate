@@ -1,64 +1,13 @@
 import React from 'react';
 import { Download } from 'lucide-react';
-import { resolveAssetDisplayName } from '../utils/holdingHelpers.js';
+import { buildHoldingsCsv } from '../utils/holdingsCsv.js';
 import { todayIso } from '../../../shared/utils/dates.js';
 
 export default function CsvExportButton({ items = [], portfolioName = 'portfolio', disabled = false }) {
   const handleExportCSV = () => {
     if (!items || items.length === 0) return;
 
-    const headers = [
-      'نام دارایی',
-      'دسته‌بندی',
-      'نوع',
-      'مقدار',
-      'واحد',
-      'قیمت خرید (تومان)',
-      'سرمایه اولیه (تومان)',
-      'ارزش روز واحد (تومان)',
-      'ارزش روز کل (تومان)',
-      'سود/زیان (تومان)',
-      'درصد بازدهی',
-      'تاریخ خرید',
-      'یادداشت',
-      'شناسه سیستمی',
-      'منبع',
-      'دارایی مرجع (پرداخت/تهاتر)',
-      'شناسه دارایی مرجع',
-      'مقدار دارایی مرجع'
-    ];
-
-    const escapeCSV = (val) => {
-      if (val === null || val === undefined) return '""';
-      const str = String(val).replace(/"/g, '""');
-      return `"${str}"`;
-    };
-
-    const rows = items.map((item) => {
-      const row = [
-        escapeCSV(item.assetName || item.name || item.assetId),
-        escapeCSV(item.category || item.assetType || 'سفارشی'),
-        escapeCSV(item.assetType || item.category || 'custom'),
-        escapeCSV(item.amount),
-        escapeCSV(item.unit),
-        escapeCSV(item.hasBuyPrice ? item.buyPrice : ''),
-        escapeCSV(item.hasBuyPrice ? item.itemCost : ''),
-        escapeCSV(item.unitRealPrice),
-        escapeCSV(item.itemRealVal),
-        escapeCSV(item.hasBuyPrice ? item.itemPnl : ''),
-        escapeCSV(item.hasBuyPrice && item.itemPnlPct !== null && item.itemPnlPct !== undefined ? item.itemPnlPct.toFixed(1) + '%' : ''),
-        escapeCSV(item.buyDate || ''),
-        escapeCSV(item.notes || ''),
-        escapeCSV(item.assetId || ''),
-        escapeCSV(item.source === 'transactions' ? 'تراکنش‌ها' : 'دستی'),
-        escapeCSV(item.referenceAssetId ? resolveAssetDisplayName(item.referenceAssetId) : ''),
-        escapeCSV(item.referenceAssetId || ''),
-        escapeCSV(item.referenceAssetId && item.referenceQuantity > 0 ? item.referenceQuantity : '')
-      ];
-      return row.join(',');
-    });
-
-    const csvContent = '\uFEFF' + [headers.map(escapeCSV).join(','), ...rows].join('\r\n');
+    const csvContent = buildHoldingsCsv(items);
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');

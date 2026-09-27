@@ -81,6 +81,9 @@ export default function ReferenceAssetInputs({
   const handlePick = (asset) => {
     const resolved = resolveSelectedAsset(asset);
     if (!resolved) return; // personal "custom" assets have no live price to reference
+    // A newly picked asset starts from today's price, also when editing
+    userEditedPrice.current = false;
+    prevAssetId.current = resolved.id;
     onReferenceAssetChange(resolved);
   };
 

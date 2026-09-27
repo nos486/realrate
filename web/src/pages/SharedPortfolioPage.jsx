@@ -11,6 +11,7 @@ import {
   normalizeHolding,
   resolveHoldingUnitRealPrice,
   computeReferenceAssetPnl,
+  computeCompareAssetPnl,
   VaultLockCard,
 } from '../features/portfolio/index.js';
 import { calculateComputedHoldings } from '../features/transactions/index.js';
@@ -290,6 +291,7 @@ export default function SharedPortfolioPage() {
       const itemPnlPct = hasBuyPrice && itemCost > 0 ? parseFloat(((itemPnl / itemCost) * 100).toFixed(1)) : null;
 
       const referencePnlInfo = computeReferenceAssetPnl({ ...h, itemRealVal }, realPriceMap, liveItemMap);
+      const comparePnlInfo = computeCompareAssetPnl({ ...h, itemCost, itemRealVal }, realPriceMap, liveItemMap);
 
       return {
         ...h,
@@ -302,6 +304,7 @@ export default function SharedPortfolioPage() {
         itemPnl,
         itemPnlPct,
         referencePnlInfo,
+        comparePnlInfo,
       };
     };
 
