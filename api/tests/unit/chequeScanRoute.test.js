@@ -135,7 +135,7 @@ describe('POST /api/cheques/scan route', () => {
     await handleChequeScanRoute(createScanRequest(), env);
 
     const [url, init] = fetchMock.mock.calls[0];
-    expect(url).toContain('/models/gemini-3.5-flash:generateContent');
+    expect(url).toContain('/models/gemini-3.8-flash:generateContent');
     expect(url).not.toContain('gkey');
     expect(init.headers['x-goog-api-key']).toBe('gkey');
     const body = JSON.parse(init.body);
@@ -192,7 +192,7 @@ describe('POST /api/cheques/scan route', () => {
     expect(data.fields.bankId).toBe('pasargad');
     expect(data.fields.bankName).toBe('بانک پاسارگاد');
     expect(data.fields.counterparty).toBe('علی محمدی');
-    expect(data.model).toBe('gemini-3.5-flash');
+    expect(data.model).toBe('gemini-3.8-flash');
     expect(typeof data.durationMs).toBe('number');
     expect(dbCalls).toEqual([]);
   });

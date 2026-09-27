@@ -5,6 +5,6 @@
  * (`npx wrangler secret put GEMINI_API_KEY`).
  */
 
-export const CHEQUE_SCAN_MODEL = { id: "gemini-3.5-flash", label: "Gemini 3.5 Flash" };
+export const CHEQUE_SCAN_MODEL = { id: "gemini-3.8-flash", label: "Gemini 3.8 Flash" };
 
 export const GEMINI_API_KEY_SECRET = "GEMINI_API_KEY";
