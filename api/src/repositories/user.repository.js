@@ -23,7 +23,7 @@ export async function dbRecordUserActivity(env, userId) {
   if (recordedActivity.has(key)) return;
   try {
     await ensureD1Tables(env);
-    await env.DB.prepare("INSERT OR IGNORE INTO user_activity (user_id, day) VALUES (?, ?)").bind(userId, day).run();
+    await env.DB.prepare("INSERT INTO user_activity (user_id, day) VALUES (?, ?) ON CONFLICT DO NOTHING").bind(userId, day).run();
     if (recordedActivity.size > 5000) recordedActivity.clear();
     recordedActivity.add(key);
   } catch (e) {

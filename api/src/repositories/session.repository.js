@@ -20,8 +20,12 @@ export async function dbSaveSession(env, sessionData, ttlSeconds = SESSION_TTL_S
     await ensureD1Tables(env);
     try {
       await env.DB.prepare(`
-        INSERT OR REPLACE INTO sessions (token, user_id, email, name, picture, role, created_at, expires_at)
+        INSERT INTO sessions (token, user_id, email, name, picture, role, created_at, expires_at)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        ON CONFLICT(token) DO UPDATE SET
+          user_id = excluded.user_id, email = excluded.email, name = excluded.name,
+          picture = excluded.picture, role = excluded.role, created_at = excluded.created_at,
+          expires_at = excluded.expires_at
       `).bind(
         sessionData.token,
         sessionData.userId,

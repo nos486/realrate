@@ -53,6 +53,22 @@ id = "YOUR_KV_ID"
 npx wrangler d1 execute realrate-db --remote --file=./api/schema.sql
 ```
 
+## Postgres (Hyperdrive)
+
+داده‌های برنامه و تاریخچه قیمت‌ها در Postgres است و Worker از طریق Cloudflare Hyperdrive به آن وصل می‌شود (binding: `HYPERDRIVE` در `api/wrangler.toml`). جدول‌ها خودکار ساخته می‌شوند.
+
+کش کوئری Hyperdrive باید خاموش باشد، وگرنه ممکن است بعد از ذخیره، داده قدیمی خوانده شود:
+
+```bash
+npx wrangler hyperdrive update <HYPERDRIVE_ID> --caching-disabled true
+```
+
+برای اجرای محلی، `localConnectionString` را به یک Postgres محلی بدهید.
+
+### انتقال از D1
+
+اگر داده‌ها هنوز روی D1 است: پنل مدیریت → کارت «پایگاه داده» → «انتقال به Postgres». سایت به حالت توسعه می‌رود، همه جدول‌ها کپی و شمارش می‌شوند و فقط اگر همه برابر بودند برنامه به Postgres سوییچ می‌کند؛ بعد «باز کردن سایت» را بزنید.
+
 ## ورود با گوگل
 
 1. در [Google Cloud Console](https://console.cloud.google.com/) یک **OAuth 2.0 Client ID (Web Application)** بسازید.

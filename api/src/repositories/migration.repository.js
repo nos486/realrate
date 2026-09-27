@@ -4,6 +4,7 @@
 
 import { logger } from "../lib/logger.js";
 import { PRICE_SOURCES_CONFIG } from "../config/sources.config.js";
+import { ensurePgSchema } from "./pgSchema.js";
 
 // In-memory flag to avoid re-running CREATE TABLE IF NOT EXISTS on every request
 let d1Initialized = false;
@@ -14,6 +15,11 @@ let d1Initialized = false;
  */
 export async function ensureD1Tables(env) {
   if (!env || !env.DB) return;
+  // On Postgres the tables are created from pgSchema.js
+  if (env.DB.isPostgres) {
+    await ensurePgSchema(env.DB);
+    return;
+  }
   if (d1Initialized) return;
 
   const statements = [

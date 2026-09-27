@@ -16,6 +16,8 @@ GOOGLE_CLIENT_ID = "420432138114-sfg3n1k34ke674192pct6envne50o1c7.apps.googleuse
 binding = "REALRATE_KV"
 id = "4c1bbe085e964f2a8d3eb82a17befde8"
 
+# D1: where the app's data was before Postgres. Only read by the one-time move to Postgres
+# (admin panel → پایگاه داده); removed once the move is done.
 [[d1_databases]]
 binding = "DB"
 database_name = "realrate-db"
@@ -25,9 +27,10 @@ database_id = "19efe9ed-fc88-4e87-aaee-43ba6c6b3797"
 crons = ["* * * * *"]
 
 
-# Postgres for the price history (api/src/repositories/priceHistory.repository.js).
-# Local dev: point localConnectionString at a local Postgres; if none is running, history
-# writes just fail and are logged — the app works the same.
+# Postgres: the app's database (after the move from D1) and the price history.
+# Query caching must be off for this Hyperdrive, or a page may read data from before a save:
+#   npx wrangler hyperdrive update c503e09fe4334a2c8351480139a9bce7 --caching-disabled true
+# Local dev: point localConnectionString at a local Postgres.
 [[hyperdrive]]
 binding = "HYPERDRIVE"
 id = "c503e09fe4334a2c8351480139a9bce7"
