@@ -10,11 +10,12 @@ import {
 import { Modal, Button, AlertBanner } from '../../../../shared/ui/index.js';
 import { useChequeScan } from './useChequeScan.js';
 import ChequeScanResult from './ChequeScanResult.jsx';
-import { CHEQUE_SCAN_MODELS } from '../../../../config/ai.config.js';
+import { ScanModelSelect } from './ScanModelSelect.jsx';
 
 export function ChequeScanModal({ isOpen, onClose, onFillForm }) {
   const {
     status,
+    models,
     file,
     resized,
     previewUrl,
@@ -173,18 +174,12 @@ export function ChequeScanModal({ isOpen, onClose, onFillForm }) {
                 مدل پردازش تصویر هوش مصنوعی:
               </label>
               <div className="ui-input-wrapper">
-                <select
+                <ScanModelSelect
                   id="scan-modal-model-select"
-                  className="ui-input-control"
+                  models={models}
                   value={selectedModel}
-                  onChange={(e) => setSelectedModel(e.target.value)}
-                >
-                  {CHEQUE_SCAN_MODELS.map((m) => (
-                    <option key={m.id} value={m.id}>
-                      {m.label} {m.default ? '(پیش‌فرض)' : ''}
-                    </option>
-                  ))}
-                </select>
+                  onChange={setSelectedModel}
+                />
               </div>
             </div>
           </div>
@@ -216,18 +211,13 @@ export function ChequeScanModal({ isOpen, onClose, onFillForm }) {
             {/* AI Model Confirmation */}
             <div className="preview-model-bar">
               <span className="model-label">مدل انتخابی:</span>
-              <select
+              <ScanModelSelect
                 className="ui-input-control scan-model-select-compact"
+                models={models}
                 value={selectedModel}
                 disabled={status === 'uploading'}
-                onChange={(e) => setSelectedModel(e.target.value)}
-              >
-                {CHEQUE_SCAN_MODELS.map((m) => (
-                  <option key={m.id} value={m.id}>
-                    {m.label}
-                  </option>
-                ))}
-              </select>
+                onChange={setSelectedModel}
+              />
             </div>
 
             {/* Actions / Uploading progress */}
@@ -261,6 +251,7 @@ export function ChequeScanModal({ isOpen, onClose, onFillForm }) {
         {/* ── STEP 3: Scan Result ────────────────────────────────────────────── */}
         {status === 'done' && result && (
           <ChequeScanResult
+            models={models}
             result={result}
             imageMeta={resized}
             onFillForm={handleCompleteFill}

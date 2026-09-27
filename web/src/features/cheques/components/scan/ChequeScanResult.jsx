@@ -13,7 +13,7 @@ import {
 } from 'lucide-react';
 import { AlertBanner, Button } from '../../../../shared/ui/index.js';
 import { gregorianToShamsi } from '../../../portfolio/components/ShamsiDatePicker.jsx';
-import { CHEQUE_SCAN_MODELS } from '../../../../config/ai.config.js';
+import { ScanModelSelect } from './ScanModelSelect.jsx';
 
 const SCAN_FIELDS_CONFIG = [
   { key: 'amount', label: 'مبلغ چک', format: (val) => (val ? `${Number(val).toLocaleString('fa-IR')} تومان` : null) },
@@ -27,6 +27,7 @@ const SCAN_FIELDS_CONFIG = [
 
 export function ChequeScanResult({
   result,
+  models = [],
   imageMeta,
   onFillForm,
   onRescan,
@@ -34,7 +35,7 @@ export function ChequeScanResult({
 }) {
   const [ratings, setRatings] = useState({});
   const [copied, setCopied] = useState(false);
-  const [selectedModel, setSelectedModel] = useState(result.model || CHEQUE_SCAN_MODELS[0].id);
+  const [selectedModel, setSelectedModel] = useState(result.model || models[0]?.id || '');
 
   const fields = result.fields || {};
   const confidence = result.confidence || {};
@@ -59,7 +60,7 @@ export function ChequeScanResult({
   const rejectedCount = Object.values(ratings).filter((v) => v === false).length;
   const totalRated = confirmedCount + rejectedCount;
 
-  const currentModelLabel = CHEQUE_SCAN_MODELS.find((m) => m.id === result.model)?.label || result.model;
+  const currentModelLabel = models.find((m) => m.id === result.model)?.label || result.model;
 
   const confidenceBadge = (level) => {
     switch (level) {
@@ -213,17 +214,13 @@ export function ChequeScanResult({
       <div className="scan-rescan-bar">
         <span className="rescan-label">اسکن دوباره با مدل دیگر:</span>
         <div className="rescan-controls">
-          <select
+          <ScanModelSelect
             className="ui-input-control scan-model-select"
+            models={models}
             value={selectedModel}
-            onChange={(e) => setSelectedModel(e.target.value)}
-          >
-            {CHEQUE_SCAN_MODELS.map((m) => (
-              <option key={m.id} value={m.id}>
-                {m.label} {m.id === result.model ? '(فعلی)' : ''}
-              </option>
-            ))}
-          </select>
+            currentId={result.model}
+            onChange={setSelectedModel}
+          />
           <Button
             size="sm"
             variant="secondary"

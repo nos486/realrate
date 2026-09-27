@@ -6,7 +6,13 @@
  */
 
 import { requireFeature } from '../lib/features.js';
-import { enforceScanRateLimit, processChequeScan } from '../services/ai/chequeScan.service.js';
+import {
+  assertChequeScanModelReady,
+  enforceScanRateLimit,
+  listChequeScanModels,
+  processChequeScan,
+} from '../services/ai/chequeScan.service.js';
+import { resolveChequeScanModel } from '../config/ai.config.js';
 import { jsonResponse } from '../lib/helpers.js';
 import { AppError } from '../lib/AppError.js';
 
@@ -61,7 +67,8 @@ export async function handleChequeScanRoute(request, env) {
     );
   }
 
-  // 8. Daily limit (30 scans per day in KV), counted only for a valid upload
+  // 8. Daily limit (30 scans per day in KV), counted only for a valid upload to a usable model
+  assertChequeScanModelReady(resolveChequeScanModel(requestedModel, env), env);
   const userId = user.userId || user.id || user.email;
   await enforceScanRateLimit(env, userId);
 
@@ -74,4 +81,13 @@ export async function handleChequeScanRoute(request, env) {
   });
 
   return jsonResponse(scanResult, 200, request);
+}
+
+/**
+ * GET /api/cheques/scan/models — the models the scan offers, and which this Worker can call
+ * (never the keys themselves)
+ */
+export async function handleChequeScanModelsRoute(request, env) {
+  await requireFeature(request, env, 'cheque_scan');
+  return jsonResponse({ success: true, models: listChequeScanModels(env) }, 200, request);
 }
