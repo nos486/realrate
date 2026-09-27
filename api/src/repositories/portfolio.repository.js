@@ -1,8 +1,8 @@
 /**
- * portfolio.repository.js — Cloudflare D1 Portfolio Data Access Layer
+ * portfolio.repository.js — Postgres Portfolio Data Access Layer
  */
 
-import { ensureD1Tables } from "./migration.repository.js";
+import { ensureSchema } from "./migration.repository.js";
 import { dbGetUserById, generateRandomSlug } from "./user.repository.js";
 import { logger } from "../lib/logger.js";
 import { hashSharePassword, isHashedSharePassword } from "../lib/security.js";
@@ -25,7 +25,7 @@ export async function dbGetUserPortfolios(env, userId) {
   if (!userId) return [];
 
   if (env && env.DB) {
-    await ensureD1Tables(env);
+    await ensureSchema(env);
     try {
       let { results } = await env.DB.prepare(`
         SELECT p.id, p.user_id AS userId, p.name, p.is_default AS isDefault,
@@ -89,7 +89,7 @@ export async function dbGetUserPortfolios(env, userId) {
 
       return Array.isArray(results) ? results : [];
     } catch (e) {
-      logger.error("D1 dbGetUserPortfolios error:", { error: e.message });
+      logger.error("[DB] dbGetUserPortfolios error:", { error: e.message });
     }
   }
 
@@ -106,7 +106,7 @@ export async function dbGetUserPortfolios(env, userId) {
 export async function dbGetPortfolioById(env, portfolioId, userId) {
   if (!portfolioId || !userId) return null;
   if (env && env.DB) {
-    await ensureD1Tables(env);
+    await ensureSchema(env);
     try {
       const row = await env.DB.prepare(`
         SELECT p.id, p.user_id AS userId, p.name, p.is_default AS isDefault,
@@ -120,7 +120,7 @@ export async function dbGetPortfolioById(env, portfolioId, userId) {
       `).bind(portfolioId, userId).first();
       return row || null;
     } catch (e) {
-      logger.error("D1 dbGetPortfolioById error:", { error: e.message });
+      logger.error("[DB] dbGetPortfolioById error:", { error: e.message });
     }
   }
   return null;
@@ -142,7 +142,7 @@ export async function dbCreatePortfolio(env, userId, { name, isE2ee = false, e2e
   const e2eeVal = isE2ee ? 1 : 0;
 
   if (env && env.DB) {
-    await ensureD1Tables(env);
+    await ensureSchema(env);
     await env.DB.prepare(`
       INSERT INTO portfolios (id, user_id, name, is_default, share_slug, share_password, share_enabled, is_e2ee, e2ee_salt, e2ee_verifier, e2ee_wrapped_key, created_at, updated_at)
       VALUES (?, ?, ?, 0, ?, '', 0, ?, ?, ?, ?, ?, ?)
@@ -179,7 +179,7 @@ export async function dbCreatePortfolio(env, userId, { name, isE2ee = false, e2e
 export async function dbUpdatePortfolio(env, portfolioId, userId, { name, shareSlug, sharePassword, shareEnabled, isDefault, isE2ee, e2eeSalt, e2eeVerifier, e2eeWrappedKey }) {
   if (!portfolioId || !userId) throw new Error("شناسه پورتفو و کاربر الزامی است.");
   if (env && env.DB) {
-    await ensureD1Tables(env);
+    await ensureSchema(env);
 
     // Validate shareSlug uniqueness if provided
     if (shareSlug) {
@@ -282,7 +282,7 @@ export async function dbUpdatePortfolio(env, portfolioId, userId, { name, shareS
 export async function dbDeletePortfolio(env, portfolioId, userId) {
   if (!portfolioId || !userId) throw new Error("شناسه پورتفو و کاربر الزامی است.");
   if (env && env.DB) {
-    await ensureD1Tables(env);
+    await ensureSchema(env);
 
     const countRow = await env.DB.prepare(`
       SELECT COUNT(*) AS total FROM portfolios WHERE user_id = ?
@@ -337,7 +337,7 @@ export async function dbDeletePortfolio(env, portfolioId, userId) {
 export async function dbGetPortfolioByShareSlug(env, slug) {
   if (!slug) return null;
   if (env && env.DB) {
-    await ensureD1Tables(env);
+    await ensureSchema(env);
     try {
       // 1. Search in portfolios table
       const portfolio = await env.DB.prepare(`
@@ -389,7 +389,7 @@ export async function dbGetPortfolioByShareSlug(env, slug) {
         };
       }
     } catch (e) {
-      logger.error("D1 dbGetPortfolioShareSlug error:", { error: e.message });
+      logger.error("[DB] dbGetPortfolioShareSlug error:", { error: e.message });
     }
   }
   return null;

@@ -8,7 +8,7 @@
  *   - extraPayments: recorded lump-sum payments
  *
  * Every operation here mirrors the matching loans.repository.js function exactly (same rules,
- * same validation messages, same results) but works on the document instead of D1. It exists for
+ * same validation messages, same results) but works on the document instead of the database. It exists for
  * end-to-end encrypted accounts: the server only ever stores the encrypted document, so the
  * client runs these operations itself. Shared with the web client through a symlink; parity
  * with the repository is enforced by tests/unit/loanDocument.test.js.

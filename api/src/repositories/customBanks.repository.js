@@ -4,7 +4,7 @@
  * standard bank id, so loans today and bank accounts later can use either transparently.
  */
 
-import { ensureD1Tables } from "./migration.repository.js";
+import { ensureSchema } from "./migration.repository.js";
 import { AppError } from "../lib/AppError.js";
 import { CUSTOM_BANK_PREFIX, normalizeBankName } from "../config/banks.config.js";
 
@@ -23,7 +23,7 @@ function formatRow(row) {
  */
 export async function dbListCustomBanks(env, userId) {
   if (!env?.DB || !userId) return [];
-  await ensureD1Tables(env);
+  await ensureSchema(env);
   const { results } = await env.DB.prepare(
     "SELECT id, name, created_at FROM custom_banks WHERE user_id = ? ORDER BY created_at ASC"
   ).bind(userId).all();
@@ -37,7 +37,7 @@ export async function dbListCustomBanks(env, userId) {
  */
 export async function dbGetCustomBank(env, userId, bankId) {
   if (!env?.DB || !userId || !bankId) return null;
-  await ensureD1Tables(env);
+  await ensureSchema(env);
   const row = await env.DB.prepare(
     "SELECT id, name, created_at FROM custom_banks WHERE id = ? AND user_id = ?"
   ).bind(bankId, userId).first();
@@ -82,7 +82,7 @@ export async function dbCreateCustomBank(env, userId, rawName) {
  */
 export async function dbDeleteCustomBank(env, userId, bankId) {
   if (!env?.DB || !userId || !bankId) return false;
-  await ensureD1Tables(env);
+  await ensureSchema(env);
   const results = await env.DB.batch([
     env.DB.prepare("DELETE FROM custom_banks WHERE id = ? AND user_id = ?").bind(bankId, userId),
     env.DB.prepare("UPDATE loans SET bank_id = '' WHERE bank_id = ? AND user_id = ?").bind(bankId, userId),

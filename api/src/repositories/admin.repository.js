@@ -6,7 +6,7 @@
  * uses the app, never what they recorded.
  */
 
-import { ensureD1Tables } from "./migration.repository.js";
+import { ensureSchema } from "./migration.repository.js";
 import { logger } from "../lib/logger.js";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -81,7 +81,7 @@ function formatListRow(row) {
  */
 export async function dbGetUsersPage(env, { q = "", filter = "all", limit = 20, offset = 0, sort = "lastLogin", dir = "desc", now = Date.now() } = {}) {
   if (!env || !env.DB) return { users: [], total: 0 };
-  await ensureD1Tables(env);
+  await ensureSchema(env);
 
   const { conditions, params } = filterClause(filter, now);
   const term = String(q || "").trim().toLowerCase();
@@ -105,7 +105,7 @@ export async function dbGetUsersPage(env, { q = "", filter = "all", limit = 20, 
     `).bind(...params, limit, offset).all();
     return { users: (results || []).map(formatListRow), total: Number(countRow?.total) || 0 };
   } catch (e) {
-    logger.error("D1 dbGetUsersPage error:", { error: e.message });
+    logger.error("[DB] dbGetUsersPage error:", { error: e.message });
     return { users: [], total: 0 };
   }
 }
@@ -119,7 +119,7 @@ export async function dbGetUsersPage(env, { q = "", filter = "all", limit = 20, 
 export async function dbGetUserStats(env, { now = Date.now() } = {}) {
   const empty = { registeredUsers: 0, publicPortfolios: 0, activeToday: 0, filters: {} };
   if (!env || !env.DB) return empty;
-  await ensureD1Tables(env);
+  await ensureSchema(env);
   try {
     const filterKeys = Object.keys(USER_FILTERS).filter((k) => k !== "all");
     const parts = filterKeys.map((key) => {
@@ -143,14 +143,14 @@ export async function dbGetUserStats(env, { now = Date.now() } = {}) {
       ]),
     };
   } catch (e) {
-    logger.error("D1 dbGetUserStats error:", { error: e.message });
+    logger.error("[DB] dbGetUserStats error:", { error: e.message });
     return empty;
   }
 }
 
 /** Block or unblock an account */
 export async function dbSetUserDisabled(env, userId, disabled) {
-  await ensureD1Tables(env);
+  await ensureSchema(env);
   await env.DB.prepare("UPDATE users SET disabled = ? WHERE id = ?").bind(disabled ? 1 : 0, userId).run();
 }
 
@@ -184,7 +184,7 @@ const PENDING_KEYS = ["loans", "cheques", "incomes", "recurringIncomes"];
  */
 export async function dbGetUserDetail(env, userId, { now = Date.now() } = {}) {
   if (!env?.DB || !userId) return null;
-  await ensureD1Tables(env);
+  await ensureSchema(env);
   const user = await env.DB.prepare(`
     SELECT ${USER_LIST_COLUMNS}, password_updated_at AS passwordUpdatedAt
     FROM users WHERE id = ?
@@ -243,7 +243,7 @@ export async function dbGetDailyGrowth(env, days = 30, { now = Date.now() } = {}
     series.push({ day: new Date(now - i * DAY_MS).toISOString().slice(0, 10), signups: 0, active: 0 });
   }
   if (!env?.DB || series.length === 0) return series;
-  await ensureD1Tables(env);
+  await ensureSchema(env);
   const from = series[0].day;
   const byDay = new Map(series.map((d) => [d.day, d]));
   try {
@@ -259,7 +259,7 @@ export async function dbGetDailyGrowth(env, days = 30, { now = Date.now() } = {}
     for (const r of signups.results || []) if (byDay.has(r.day)) byDay.get(r.day).signups = Number(r.count) || 0;
     for (const r of active.results || []) if (byDay.has(r.day)) byDay.get(r.day).active = Number(r.count) || 0;
   } catch (e) {
-    logger.error("D1 dbGetDailyGrowth error:", { error: e.message });
+    logger.error("[DB] dbGetDailyGrowth error:", { error: e.message });
   }
   return series;
 }

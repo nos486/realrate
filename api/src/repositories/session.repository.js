@@ -1,14 +1,14 @@
 /**
- * session.repository.js — Cloudflare D1 & KV Session Data Access Layer
+ * session.repository.js — Postgres & KV Session Data Access Layer
  */
 
-import { ensureD1Tables } from "./migration.repository.js";
+import { ensureSchema } from "./migration.repository.js";
 import { getSessionKV, setSessionKV, deleteSessionKV } from "./kvCache.repository.js";
 import { logger } from "../lib/logger.js";
 import { SESSION_TTL_SECONDS } from "../config/constants.js";
 
 /**
- * Save a session token to D1 SQL and KV
+ * Save a session token to the database and KV
  * @param {object} env
  * @param {object} sessionData - { token, userId, email, name, picture, role, createdAt }
  * @param {number} [ttlSeconds=SESSION_TTL_SECONDS]
@@ -17,7 +17,7 @@ export async function dbSaveSession(env, sessionData, ttlSeconds = SESSION_TTL_S
   const expiresAt = Date.now() + ttlSeconds * 1000;
 
   if (env && env.DB) {
-    await ensureD1Tables(env);
+    await ensureSchema(env);
     try {
       await env.DB.prepare(`
         INSERT INTO sessions (token, user_id, email, name, picture, role, created_at, expires_at)
@@ -37,7 +37,7 @@ export async function dbSaveSession(env, sessionData, ttlSeconds = SESSION_TTL_S
         expiresAt
       ).run();
     } catch (e) {
-      logger.error("D1 dbSaveSession error:", { error: e.message });
+      logger.error("[DB] dbSaveSession error:", { error: e.message });
     }
   }
 
@@ -45,7 +45,7 @@ export async function dbSaveSession(env, sessionData, ttlSeconds = SESSION_TTL_S
 }
 
 /**
- * Retrieve a valid (non-expired) session from D1 or KV
+ * Retrieve a valid (non-expired) session from the database or KV
  * @param {object} env
  * @param {string} token
  * @returns {Promise<object|null>}
@@ -54,7 +54,7 @@ export async function dbGetSession(env, token) {
   if (!token) return null;
 
   if (env && env.DB) {
-    await ensureD1Tables(env);
+    await ensureSchema(env);
     try {
       const row = await env.DB.prepare(`
         SELECT token, user_id AS userId, email, name, picture, role, created_at AS createdAt, expires_at AS expiresAt
@@ -64,7 +64,7 @@ export async function dbGetSession(env, token) {
 
       if (row) return row;
     } catch (e) {
-      logger.error("D1 dbGetSession error:", { error: e.message });
+      logger.error("[DB] dbGetSession error:", { error: e.message });
     }
   }
 
@@ -72,7 +72,7 @@ export async function dbGetSession(env, token) {
 }
 
 /**
- * Delete a session from D1 and KV on logout
+ * Delete a session from the database and KV on logout
  * @param {object} env
  * @param {string} token
  */
@@ -80,11 +80,11 @@ export async function dbDeleteSession(env, token) {
   if (!token) return;
 
   if (env && env.DB) {
-    await ensureD1Tables(env);
+    await ensureSchema(env);
     try {
       await env.DB.prepare("DELETE FROM sessions WHERE token = ?").bind(token).run();
     } catch (e) {
-      logger.error("D1 dbDeleteSession error:", { error: e.message });
+      logger.error("[DB] dbDeleteSession error:", { error: e.message });
     }
   }
 
@@ -97,10 +97,10 @@ export async function dbDeleteSession(env, token) {
  */
 export async function dbDeleteExpiredSessions(env) {
   if (!env || !env.DB) return;
-  await ensureD1Tables(env);
+  await ensureSchema(env);
   try {
     await env.DB.prepare("DELETE FROM sessions WHERE expires_at <= ?").bind(Date.now()).run();
   } catch (e) {
-    logger.error("D1 dbDeleteExpiredSessions error:", { error: e.message });
+    logger.error("[DB] dbDeleteExpiredSessions error:", { error: e.message });
   }
 }

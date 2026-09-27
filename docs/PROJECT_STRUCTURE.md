@@ -8,11 +8,10 @@ realrate/
 ├── package.json                  # اسکریپت‌های مشترک (dev، test، deploy)
 ├── docs/                         # مستندات
 │
-├── api/                          # بک‌اند: Cloudflare Worker (D1 + KV)
+├── api/                          # بک‌اند: Cloudflare Worker (Postgres + KV)
 │   ├── wrangler.toml             # بایندینگ‌ها، متغیرها و Cron
-│   ├── schema.sql                # اسکیمای D1 (ساخت خودکار با migration.repository)
 │   ├── tests/
-│   │   ├── helpers/              # ابزار تست (مثل D1 شبیه‌سازی‌شده وام‌ها)
+│   │   ├── helpers/              # ابزار تست (مثل دیتابیس شبیه‌سازی‌شده وام‌ها)
 │   │   └── unit/                 # آزمون‌های Vitest
 │   └── src/
 │       ├── index.js              # روتینگ و ورودی Worker (fetch + scheduled)
@@ -20,7 +19,7 @@ realrate/
 │       ├── domain/               # منطق خالص: فرمول‌ها، موتور نمایش، محاسبه وام، سند وام، چک
 │       ├── handlers/             # کنترلرهای HTTP (بازار، احراز هویت، پورتفو، تراکنش،
 │       │                         #   وام، درآمد، چک، بانک، رمزنگاری، ادمین)
-│       ├── repositories/         # دسترسی به داده D1/KV (الگوی Repository)
+│       ├── repositories/         # دسترسی به داده Postgres/KV (الگوی Repository)
 │       ├── services/market/      # دریافت نرخ‌ها: ادپتورهای سورس و ارکستراتور پولینگ
 │       ├── jobs/                 # جاب کرون
 │       ├── lib/                  # احراز هویت، امنیت، خطا، لاگ، CORS

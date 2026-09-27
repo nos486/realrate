@@ -127,7 +127,7 @@ export default function AdminPanel() {
             <AdminGrowthChart reloadToken={growthToken} />
             <MaintenanceCard settings={settings} onSave={saveSettings} />
             <SiteSettingsCard settings={settings} onSave={saveSettings} />
-            <DatabaseCard settings={settings} onSave={saveSettings} />
+            <DatabaseCard />
           </div>
         }
       >

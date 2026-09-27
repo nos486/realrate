@@ -1,7 +1,7 @@
 /**
  * useTransactions.js — Hook for managing portfolio transactions with Zero-Knowledge E2EE
  *
- * Encrypts transaction details before saving to the Cloudflare D1 backend.
+ * Encrypts transaction details before saving them to the server.
  * Decrypts transactions client-side using the active vault key derived from PBKDF2.
  */
 

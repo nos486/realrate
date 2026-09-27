@@ -19,7 +19,7 @@ export function isUserAdmin(email, env) {
 }
 
 /**
- * Extract and authenticate a user from Bearer header or Cookie using D1 (or KV fallback)
+ * Extract and authenticate a user from Bearer header or Cookie using the database (or KV fallback)
  * Dynamically re-evaluates role against current ADMIN_EMAIL so changing it takes
  * effect without requiring users to re-login.
  * @param {Request} request

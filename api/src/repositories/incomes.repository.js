@@ -1,12 +1,12 @@
 /**
- * incomes.repository.js — Cloudflare D1 Data Access Layer for user income entries
+ * incomes.repository.js — Postgres Data Access Layer for user income entries
  *
  * Each row is one income event (salary, freelance payment, rent, ...) owned by a single user.
  * Input is expected to be validated & normalized by the route handler (see incomeRoutes.js);
  * this layer only persists and maps rows to camelCase objects.
  */
 
-import { ensureD1Tables } from "./migration.repository.js";
+import { ensureSchema } from "./migration.repository.js";
 
 const INCOME_COLUMNS = `
   id, user_id AS userId, title, category, amount,
@@ -54,7 +54,7 @@ function formatIncomeRow(row) {
 export async function dbGetUserIncomes(env, userId) {
   if (!userId || !env || !env.DB) return [];
 
-  await ensureD1Tables(env);
+  await ensureSchema(env);
 
   const { results = [] } = await env.DB.prepare(`
     SELECT ${INCOME_COLUMNS}
@@ -76,7 +76,7 @@ export async function dbGetUserIncomes(env, userId) {
 export async function dbGetIncomeById(env, userId, incomeId) {
   if (!userId || !incomeId || !env || !env.DB) return null;
 
-  await ensureD1Tables(env);
+  await ensureSchema(env);
 
   const row = await env.DB.prepare(`
     SELECT ${INCOME_COLUMNS}
@@ -97,7 +97,7 @@ export async function dbGetIncomeById(env, userId, incomeId) {
 export async function dbCreateIncome(env, userId, data) {
   if (!userId || !data || !env || !env.DB) return null;
 
-  await ensureD1Tables(env);
+  await ensureSchema(env);
 
   const nowIso = new Date().toISOString();
   const income = {
@@ -143,7 +143,7 @@ export async function dbCreateIncome(env, userId, data) {
 export async function dbUpdateIncome(env, userId, incomeId, data) {
   if (!userId || !incomeId || !data || !env || !env.DB) return null;
 
-  await ensureD1Tables(env);
+  await ensureSchema(env);
 
   const res = await env.DB.prepare(`
     UPDATE incomes
@@ -175,7 +175,7 @@ export async function dbUpdateIncome(env, userId, incomeId, data) {
 export async function dbDeleteIncome(env, userId, incomeId) {
   if (!userId || !incomeId || !env || !env.DB) return false;
 
-  await ensureD1Tables(env);
+  await ensureSchema(env);
 
   const res = await env.DB.prepare(`DELETE FROM incomes WHERE id = ? AND user_id = ?`)
     .bind(incomeId, userId)

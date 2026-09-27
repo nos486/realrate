@@ -610,7 +610,7 @@ export default function LandingPage() {
               <span className="tech-badge">React 19</span>
               <span className="tech-badge">Vite</span>
               <span className="tech-badge">Cloudflare Workers</span>
-              <span className="tech-badge">SQLite D1</span>
+              <span className="tech-badge">PostgreSQL</span>
               <span className="tech-badge">Web Crypto (E2EE)</span>
             </div>
           </div>

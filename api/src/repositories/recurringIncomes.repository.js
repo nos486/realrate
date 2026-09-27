@@ -1,11 +1,11 @@
 /**
- * recurringIncomes.repository.js — D1 access for fixed (recurring) income rules
+ * recurringIncomes.repository.js — Postgres access for fixed (recurring) income rules
  *
  * Input is validated by the route handler with domain/recurringIncome.js; this layer persists
  * rules and maps rows to camelCase objects.
  */
 
-import { ensureD1Tables } from "./migration.repository.js";
+import { ensureSchema } from "./migration.repository.js";
 
 const COLUMNS = `
   id, user_id AS userId, title, category, amount, day_of_month AS dayOfMonth,
@@ -35,7 +35,7 @@ export function formatRecurringRow(row) {
 
 export async function dbGetUserRecurringIncomes(env, userId) {
   if (!userId || !env?.DB) return [];
-  await ensureD1Tables(env);
+  await ensureSchema(env);
   const { results = [] } = await env.DB.prepare(`
     SELECT ${COLUMNS} FROM recurring_incomes WHERE user_id = ? ORDER BY created_at ASC
   `).bind(userId).all();
@@ -44,7 +44,7 @@ export async function dbGetUserRecurringIncomes(env, userId) {
 
 export async function dbGetRecurringIncomeById(env, userId, ruleId) {
   if (!userId || !ruleId || !env?.DB) return null;
-  await ensureD1Tables(env);
+  await ensureSchema(env);
   const row = await env.DB.prepare(`SELECT ${COLUMNS} FROM recurring_incomes WHERE id = ? AND user_id = ?`)
     .bind(ruleId, userId)
     .first();
@@ -67,7 +67,7 @@ export function insertRecurringStatement(env, userId, rule) {
 
 export async function dbCreateRecurringIncome(env, userId, data) {
   if (!userId || !data || !env?.DB) return null;
-  await ensureD1Tables(env);
+  await ensureSchema(env);
   const now = new Date().toISOString();
   const rule = { id: `rinc_${crypto.randomUUID().replace(/-/g, "").slice(0, 16)}`, userId, ...data, createdAt: now, updatedAt: now };
   await insertRecurringStatement(env, userId, rule).run();
@@ -76,7 +76,7 @@ export async function dbCreateRecurringIncome(env, userId, data) {
 
 export async function dbUpdateRecurringIncome(env, userId, ruleId, data) {
   if (!userId || !ruleId || !data || !env?.DB) return null;
-  await ensureD1Tables(env);
+  await ensureSchema(env);
   const res = await env.DB.prepare(`
     UPDATE recurring_incomes
     SET title = ?, category = ?, amount = ?, day_of_month = ?, interval_months = ?, start_date = ?,
@@ -94,7 +94,7 @@ export async function dbUpdateRecurringIncome(env, userId, ruleId, data) {
 /** Deleting a rule stops future entries; the ones it already created stay */
 export async function dbDeleteRecurringIncome(env, userId, ruleId) {
   if (!userId || !ruleId || !env?.DB) return false;
-  await ensureD1Tables(env);
+  await ensureSchema(env);
   const res = await env.DB.prepare(`DELETE FROM recurring_incomes WHERE id = ? AND user_id = ?`).bind(ruleId, userId).run();
   return Boolean(res?.meta?.changes);
 }

@@ -5,7 +5,7 @@
 [![Cloudflare Workers](https://img.shields.io/badge/Cloudflare-Workers-F38020?style=flat-square&logo=cloudflare&logoColor=white)](https://workers.cloudflare.com/)
 [![React 19](https://img.shields.io/badge/React-19-61DAFB?style=flat-square&logo=react&logoColor=black)](https://react.dev/)
 [![Vite](https://img.shields.io/badge/Vite-8-646CFF?style=flat-square&logo=vite&logoColor=white)](https://vitejs.dev/)
-[![Cloudflare D1](https://img.shields.io/badge/DB-Cloudflare_D1-0A84FF?style=flat-square&logo=sqlite&logoColor=white)](https://developers.cloudflare.com/d1/)
+[![PostgreSQL](https://img.shields.io/badge/DB-PostgreSQL_(Hyperdrive)-336791?style=flat-square&logo=postgresql&logoColor=white)](https://developers.cloudflare.com/hyperdrive/)
 [![Vitest](https://img.shields.io/badge/Tests-Vitest-FCC72B?style=flat-square&logo=vitest&logoColor=black)](https://vitest.dev/)
 ![License: MIT](https://img.shields.io/badge/License-MIT-34D399?style=flat-square)
 
@@ -45,7 +45,7 @@ npm test
 
 مرج در `main` هر دو بخش را خودکار منتشر می‌کند: فرانت‌اند روی Cloudflare Pages و بک‌اند با Cloudflare Workers Builds.
 انتشار دستی بک‌اند در صورت نیاز: `npm run api:deploy`.
-راهنمای کامل (D1، KV، ورود با گوگل، Pages، Workers): [docs/SETUP.md](docs/SETUP.md)
+راهنمای کامل (Postgres، KV، ورود با گوگل، Pages، Workers): [docs/SETUP.md](docs/SETUP.md)
 
 ## مستندات
 

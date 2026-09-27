@@ -1,5 +1,5 @@
 /**
- * priceSource.repository.js — Cloudflare D1 & KV Price Sources Data Access Layer
+ * priceSource.repository.js — Postgres & KV Price Sources Data Access Layer
  */
 
 import { getPriceBookCache, getKv } from "./kvCache.repository.js";

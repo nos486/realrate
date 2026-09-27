@@ -221,8 +221,6 @@ Portfolios protected by the vault carry `e2eeWrappedKey`; `/api/v1/portfolio/sha
 | `GET` | `/api/v1/admin/stats` | System statistics and telemetry |
 | `GET` | `/api/v1/admin/users` | List registered users |
 | `POST` | `/api/v1/admin/settings` | Save system-wide settings |
-| `GET` | `/api/v1/admin/database` | Which database the app runs on (`d1` / `postgres`) and where the move is; `?counts=1` compares every table's row count on both sides |
-| `POST` | `/api/v1/admin/database/migrate` | The next part of moving the data from D1 to Postgres (call until `state.phase` is `done`; `{ restart: true }` starts over) |
 | `POST` | `/api/v1/admin/kv/cleanup` | Delete the KV keys the app no longer uses |
 | `GET` | `/api/v1/admin/price-sources` | List all price crawler sources |
 | `POST` | `/api/v1/admin/price-sources` | Add/update crawler price source |

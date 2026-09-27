@@ -1,10 +1,10 @@
 /**
- * transactionRepository.js — Cloudflare D1 Portfolio Transactions Data Access Layer
+ * transactionRepository.js — Postgres Portfolio Transactions Data Access Layer
  *
  * Persists client-side encrypted transactions for Zero-Knowledge portfolio management.
  */
 
-import { ensureD1Tables } from "./migration.repository.js";
+import { ensureSchema } from "./migration.repository.js";
 import { logger } from "../lib/logger.js";
 
 /**
@@ -18,7 +18,7 @@ export async function dbGetTransactionsByPortfolio(env, userId, portfolioId) {
   if (!userId || !portfolioId) return [];
 
   if (env && env.DB) {
-    await ensureD1Tables(env);
+    await ensureSchema(env);
     try {
       const query = `
         SELECT id, user_id AS userId, portfolio_id AS portfolioId,
@@ -33,7 +33,7 @@ export async function dbGetTransactionsByPortfolio(env, userId, portfolioId) {
         return results;
       }
     } catch (e) {
-      logger.error("D1 dbGetTransactionsByPortfolio error:", { error: e.message, userId, portfolioId });
+      logger.error("[DB] dbGetTransactionsByPortfolio error:", { error: e.message, userId, portfolioId });
     }
   }
 
@@ -51,7 +51,7 @@ export async function dbGetTransactionById(env, id, userId) {
   if (!id || !userId) return null;
 
   if (env && env.DB) {
-    await ensureD1Tables(env);
+    await ensureSchema(env);
     try {
       const query = `
         SELECT id, user_id AS userId, portfolio_id AS portfolioId,
@@ -64,7 +64,7 @@ export async function dbGetTransactionById(env, id, userId) {
       const row = await env.DB.prepare(query).bind(id, userId).first();
       return row || null;
     } catch (e) {
-      logger.error("D1 dbGetTransactionById error:", { error: e.message, id, userId });
+      logger.error("[DB] dbGetTransactionById error:", { error: e.message, id, userId });
     }
   }
 
@@ -91,7 +91,7 @@ export async function dbCreateTransaction(env, item) {
   };
 
   if (env && env.DB) {
-    await ensureD1Tables(env);
+    await ensureSchema(env);
     try {
       await env.DB.prepare(`
         INSERT INTO transactions (id, user_id, portfolio_id, encrypted_payload, created_at, updated_at)
@@ -105,7 +105,7 @@ export async function dbCreateTransaction(env, item) {
         tx.updatedAt
       ).run();
     } catch (e) {
-      logger.error("D1 dbCreateTransaction error:", { error: e.message, txId: tx.id });
+      logger.error("[DB] dbCreateTransaction error:", { error: e.message, txId: tx.id });
       throw e;
     }
   }
@@ -131,7 +131,7 @@ export async function dbUpdateTransaction(env, item) {
   if (!id || !userId) return null;
 
   if (env && env.DB) {
-    await ensureD1Tables(env);
+    await ensureSchema(env);
     try {
       let query = `
         UPDATE transactions
@@ -162,7 +162,7 @@ export async function dbUpdateTransaction(env, item) {
         updatedAt: now,
       };
     } catch (e) {
-      logger.error("D1 dbUpdateTransaction error:", { error: e.message, id, userId });
+      logger.error("[DB] dbUpdateTransaction error:", { error: e.message, id, userId });
       throw e;
     }
   }
@@ -181,14 +181,14 @@ export async function dbDeleteTransaction(env, id, userId) {
   if (!id || !userId) return false;
 
   if (env && env.DB) {
-    await ensureD1Tables(env);
+    await ensureSchema(env);
     try {
       await env.DB.prepare(`
         DELETE FROM transactions WHERE id = ? AND user_id = ?
       `).bind(id, userId).run();
       return true;
     } catch (e) {
-      logger.error("D1 dbDeleteTransaction error:", { error: e.message, id, userId });
+      logger.error("[DB] dbDeleteTransaction error:", { error: e.message, id, userId });
       return false;
     }
   }
