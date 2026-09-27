@@ -13,7 +13,6 @@ import {
   resetPriceHistorySchemaCache,
   INSERT_CHANGED_SQL,
   PRICE_HISTORY_SCHEMA,
-  migratePriceHistoryKeys,
   HEARTBEAT_SEC,
 } from '../../src/repositories/priceHistory.repository.js';
 import {
@@ -30,8 +29,6 @@ function fakeClient({ failQuery = false, failConnect = false } = {}) {
     connect: vi.fn(async () => { if (failConnect) throw new Error('connection attempt failed'); }),
     query: vi.fn(async (sql) => {
       if (failQuery) throw new Error('db down');
-      // The keys are already in today's id form
-      if (String(sql).includes("key = 'id_version'")) return { rows: [{ value: '2' }] };
       return { rowCount: sql === INSERT_CHANGED_SQL ? 2 : 0 };
     }),
     end: vi.fn(async () => {}),
@@ -196,7 +193,7 @@ describe.skipIf(!PG_URL)('price_history against a real Postgres', () => {
   it('stores every change, skips repeats, and keeps all sources in one series per key', async () => {
     const admin = new Client({ connectionString: PG_URL });
     await admin.connect();
-    await admin.query('DROP TABLE IF EXISTS price_history; DROP TABLE IF EXISTS price_history_meta');
+    await admin.query('DROP TABLE IF EXISTS price_history');
     resetPriceHistorySchemaCache();
     const pgEnv = { HYPERDRIVE: { connectionString: PG_URL } };
 
@@ -257,62 +254,5 @@ describe.skipIf(!PG_URL)('price_history against a real Postgres', () => {
     expect(trends.usd.last).toBe(1000);
     expect(trends.eur.last).toBe(1200);
     expect(trends.usd.since).toBe('2026-01-01T00:00:00.000Z');
-  });
-
-  it('moves keys written in older id forms to today\'s, once', async () => {
-    const admin = new Client({ connectionString: PG_URL });
-    await admin.connect();
-    await admin.query('DROP TABLE IF EXISTS price_history; DROP TABLE IF EXISTS price_history_meta');
-    await admin.query(PRICE_HISTORY_SCHEMA);
-    const old = [
-      ['src_def_bourse__فولاد', 540], ['src_def_bourse__عیار', 10], ['src_def_emofid__عیار', 11],
-      ['src_def_emofid__پیشتاز', 20], ['src_def_charisma__كهربا', 30], ['src_def_charisma_plans__gold', 40],
-      ['src_def_bourse__فملي', 680], ['usd', 1],
-    ];
-    for (const [key, value] of old) await admin.query('INSERT INTO price_history VALUES ($1, now(), $2)', [key, value]);
-
-    expect(await migratePriceHistoryKeys(admin)).toBe(true);
-    expect(await migratePriceHistoryKeys(admin)).toBe(false);
-    const { rows } = await admin.query('SELECT item_key, value::text AS value FROM price_history ORDER BY item_key');
-    expect(Object.fromEntries(rows.map((r) => [r.item_key, r.value]))).toEqual({
-      'bourse__فولاد': '540',
-      'bourse__فملی': '680',
-      // The exchange's price is the fund's id; the fund house's own copy keeps its series apart
-      'bourse__عیار': '10',
-      'src_def_emofid__bourse__عیار': '11',
-      'bourse__پیشتاز': '20',
-      'bourse__کهربا': '30',
-      'charisma_plan__gold': '40',
-      usd: '1',
-    });
-    await admin.end();
-  });
-});
-
-describe('migratePriceHistoryKeys', () => {
-  it('runs every statement in one locked transaction and records the version', async () => {
-    const sqls = [];
-    const client = {
-      query: vi.fn(async (sql) => {
-        sqls.push(String(sql).trim().split(/\s+/).slice(0, 3).join(' '));
-        return { rows: [] };
-      }),
-    };
-    expect(await migratePriceHistoryKeys(client)).toBe(true);
-    expect(sqls[2]).toBe('BEGIN');
-    expect(sqls[3]).toContain('pg_advisory_xact_lock');
-    expect(sqls.at(-2)).toBe('INSERT INTO price_history_meta');
-    expect(sqls.at(-1)).toBe('COMMIT');
-  });
-
-  it('rolls back and reports a failure', async () => {
-    const client = {
-      query: vi.fn(async (sql) => {
-        if (String(sql).includes('UPDATE price_history')) throw new Error('boom');
-        return { rows: [] };
-      }),
-    };
-    await expect(migratePriceHistoryKeys(client)).rejects.toThrow('boom');
-    expect(client.query).toHaveBeenLastCalledWith('ROLLBACK');
   });
 });

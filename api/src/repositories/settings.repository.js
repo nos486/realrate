@@ -2,7 +2,7 @@
  * settings.repository.js — Postgres & KV System Settings Data Access Layer
  */
 
-import { ensureSchema } from "./migration.repository.js";
+import { ensureSchema } from "./schema.repository.js";
 import { getGlobalSettingsKV, setGlobalSettingsKV } from "./kvCache.repository.js";
 import { logger } from "../lib/logger.js";
 import { SETTINGS_MEMORY_CACHE_TTL_MS } from "../config/constants.js";

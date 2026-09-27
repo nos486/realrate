@@ -6,7 +6,7 @@
  * shared domain/chequeDocument.js; this layer only persists and maps rows to camelCase objects.
  */
 
-import { ensureSchema } from "./migration.repository.js";
+import { ensureSchema } from "./schema.repository.js";
 
 const CHEQUE_COLUMNS = `
   id, user_id AS userId, direction, status, amount, due_date AS dueDate, issue_date AS issueDate,

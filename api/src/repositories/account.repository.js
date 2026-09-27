@@ -5,7 +5,7 @@
  * can add a password, and signing in with Google verifies an email account.
  */
 
-import { ensureSchema } from "./migration.repository.js";
+import { ensureSchema } from "./schema.repository.js";
 import { deleteSessionKV } from "./kvCache.repository.js";
 import { generateUrlToken, sha256Hex } from "../lib/security.js";
 import { dbRecordUserActivity } from "./user.repository.js";

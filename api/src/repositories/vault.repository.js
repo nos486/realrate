@@ -12,7 +12,7 @@
  * written back to the plaintext tables.
  */
 
-import { ensureSchema } from "./migration.repository.js";
+import { ensureSchema } from "./schema.repository.js";
 import { AppError } from "../lib/AppError.js";
 
 export const VAULT_RECORD_KINDS = ["loan", "income", "cheque", "recurring_income", "holding", "transaction"];

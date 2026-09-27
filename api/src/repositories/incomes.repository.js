@@ -6,7 +6,7 @@
  * this layer only persists and maps rows to camelCase objects.
  */
 
-import { ensureSchema } from "./migration.repository.js";
+import { ensureSchema } from "./schema.repository.js";
 
 const INCOME_COLUMNS = `
   id, user_id AS userId, title, category, amount,

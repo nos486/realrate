@@ -2,7 +2,7 @@
  * user.repository.js — Postgres User Data Access Layer
  */
 
-import { ensureSchema } from "./migration.repository.js";
+import { ensureSchema } from "./schema.repository.js";
 import { logger } from "../lib/logger.js";
 import { sanitizeHomeLayout } from "../domain/homeLayout.js";
 import { hashSharePassword } from "../lib/security.js";

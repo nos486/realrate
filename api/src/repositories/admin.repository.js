@@ -6,7 +6,7 @@
  * uses the app, never what they recorded.
  */
 
-import { ensureSchema } from "./migration.repository.js";
+import { ensureSchema } from "./schema.repository.js";
 import { logger } from "../lib/logger.js";
 
 const DAY_MS = 24 * 60 * 60 * 1000;

@@ -14,9 +14,7 @@
 
 import { Client } from "pg";
 import { logger } from "../lib/logger.js";
-import { normalizePriceId, catalogMarketOf } from "../domain/priceBook.js";
-import { PRICE_ID_VERSION } from "../domain/priceIds.js";
-import { getMasterPriceSourcesConfig } from "../config/sources.config.js";
+import { normalizePriceId } from "../domain/priceBook.js";
 
 export const PRICE_HISTORY_SCHEMA = `
 CREATE TABLE IF NOT EXISTS price_history (
@@ -26,91 +24,6 @@ CREATE TABLE IF NOT EXISTS price_history (
 );
 CREATE INDEX IF NOT EXISTS price_history_key_time ON price_history (item_key, recorded_at DESC);
 `;
-
-/** Which id form the table's keys are in (price_history_meta 'id_version') */
-export const PRICE_HISTORY_META_SCHEMA = `
-CREATE TABLE IF NOT EXISTS price_history_meta (
-  key   text PRIMARY KEY,
-  value text NOT NULL
-);
-`;
-
-// Letters and digits normalizePriceId rewrites, in the same order (for SQL translate())
-const KEY_FROM_CHARS = "يكةأإٱ۰۱۲۳۴۵۶۷۸۹٠١٢٣٤٥٦٧٨٩";
-const KEY_TO_CHARS = "یکهااا01234567890123456789";
-const KEY_DROPPED_CHARS = "[\u200b-\u200f\u202a-\u202e\u2066-\u2069\ufeff\u0640]";
-
-const likePrefix = (prefix) => `${prefix.replace(/[\\_%]/g, (c) => `\\${c}`)}%`;
-
-/**
- * The statements that bring keys written in older id forms to today's (PRICE_ID_VERSION 2):
- * Persian letters in one form, then catalog keys from `${sourceId}__x` to `${market}__x`. The
- * first source of a market (config order, as the price book orders them) takes the market id; a
- * later source's key whose market id is already taken becomes `${sourceId}__${market}__x`, the id
- * the book gives its copy.
- * @returns {Array<{ sql: string, params: unknown[] }>}
- */
-export function historyKeyMigrations(sources = getMasterPriceSourcesConfig()) {
-  const statements = [{
-    sql: `UPDATE price_history
-          SET item_key = regexp_replace(translate(item_key, $1, $2), $3, '', 'g')
-          WHERE item_key <> regexp_replace(translate(item_key, $1, $2), $3, '', 'g')`,
-    params: [KEY_FROM_CHARS, KEY_TO_CHARS, KEY_DROPPED_CHARS],
-  }];
-  for (const src of sources) {
-    if (!src.isCatalog) continue;
-    const market = normalizePriceId(catalogMarketOf(src));
-    const oldPrefix = `${normalizePriceId(src.id)}__`;
-    if (!market || `${market}__` === oldPrefix) continue;
-    const copyPrefix = `${oldPrefix}${market}__`;
-    // $1 old prefix (LIKE), $2 its length, $3 market, $4 the copy's prefix (LIKE)
-    statements.push({
-      sql: `UPDATE price_history h
-            SET item_key = $3 || '__' || substr(h.item_key, $2 + 1)
-            WHERE h.item_key LIKE $1 AND h.item_key NOT LIKE $4
-              AND NOT EXISTS (SELECT 1 FROM price_history x WHERE x.item_key = $3 || '__' || substr(h.item_key, $2 + 1))`,
-      params: [likePrefix(oldPrefix), oldPrefix.length, market, likePrefix(copyPrefix)],
-    });
-    statements.push({
-      sql: `UPDATE price_history
-            SET item_key = $3 || '__' || substr(item_key, $2 + 1)
-            WHERE item_key LIKE $1 AND item_key NOT LIKE $4`,
-      params: [likePrefix(oldPrefix), oldPrefix.length, copyPrefix.slice(0, -2), likePrefix(copyPrefix)],
-    });
-  }
-  return statements;
-}
-
-/**
- * Bring the table's keys to today's id form, once (the version is kept in price_history_meta;
- * an advisory lock keeps two Workers from doing it together)
- */
-export async function migratePriceHistoryKeys(client, sources) {
-  await client.query(PRICE_HISTORY_META_SCHEMA);
-  const current = await client.query("SELECT value FROM price_history_meta WHERE key = 'id_version'");
-  if (Number(current.rows?.[0]?.value) >= PRICE_ID_VERSION) return false;
-  await client.query("BEGIN");
-  try {
-    await client.query("SELECT pg_advisory_xact_lock(727170)");
-    const again = await client.query("SELECT value FROM price_history_meta WHERE key = 'id_version'");
-    if (Number(again.rows?.[0]?.value) >= PRICE_ID_VERSION) {
-      await client.query("COMMIT");
-      return false;
-    }
-    for (const { sql, params } of historyKeyMigrations(sources)) await client.query(sql, params);
-    await client.query(
-      `INSERT INTO price_history_meta (key, value) VALUES ('id_version', $1)
-       ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value`,
-      [String(PRICE_ID_VERSION)],
-    );
-    await client.query("COMMIT");
-    logger.info(`[PriceHistory] Keys moved to id version ${PRICE_ID_VERSION}`);
-    return true;
-  } catch (err) {
-    await client.query("ROLLBACK").catch(() => {});
-    throw err;
-  }
-}
 
 /** A price that hasn't changed for this long is written again, so "flat" and "dead" differ */
 export const HEARTBEAT_SEC = 3600;
@@ -329,7 +242,6 @@ export async function recordPriceHistory(env, items, recordedAt, deps = {}) {
     connected = true;
     if (!schemaReady) {
       schemaReady = client.query(PRICE_HISTORY_SCHEMA)
-        .then(() => migratePriceHistoryKeys(client))
         .catch((err) => {
           schemaReady = null;
           throw err;
