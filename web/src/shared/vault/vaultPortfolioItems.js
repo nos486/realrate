@@ -47,6 +47,9 @@ function holdingRecord(portfolioId, h, now = new Date().toISOString()) {
     notes: String(h.notes || ''),
     referenceAssetId: String(h.referenceAssetId || ''),
     referenceQuantity: num(h.referenceQuantity),
+    // "What if I had bought this instead" (comparison only)
+    compareAssetId: String(h.compareAssetId || ''),
+    comparePriceToman: num(h.comparePriceToman),
     createdAt: h.createdAt || now,
     updatedAt: now,
   };

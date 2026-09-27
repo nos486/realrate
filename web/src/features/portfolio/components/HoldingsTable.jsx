@@ -129,6 +129,17 @@ export default function HoldingsTable({
                 )}
               </span>
             )}
+            {item.comparePnlInfo && !hideValues && (
+              <span
+                className={`pnl-native-sub ${item.comparePnlInfo.comparePnl >= 0 ? 'profit' : 'loss'}`}
+                title={`با همین پول در روز خرید ${item.comparePnlInfo.compareQuantity.toLocaleString('fa-IR', { maximumFractionDigits: 3 })} ${item.comparePnlInfo.unit} ${item.comparePnlInfo.compareAssetName} می‌شد`}
+              >
+                اگر {item.comparePnlInfo.compareAssetName} می‌خریدید: {formatNum(item.comparePnlInfo.compareCurrentValue)} تومان
+                {item.comparePnlInfo.comparePnlPct !== null && (
+                  <> (این خرید {formatPct(Math.abs(item.comparePnlInfo.comparePnlPct))}٪ {item.comparePnlInfo.comparePnl >= 0 ? 'بهتر' : 'بدتر'})</>
+                )}
+              </span>
+            )}
           </div>
         ) : (
           <span className="table-notes-text" title="بدون قیمت خرید در سود و زیان محاسبه نمی‌شود">—</span>

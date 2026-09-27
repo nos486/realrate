@@ -5,6 +5,7 @@ import NumericInput from '../../../shared/ui/NumericInput.jsx';
 import UniversalAssetSearch from '../../../components/UniversalAssetSearch.jsx';
 import ShamsiDatePicker from './ShamsiDatePicker.jsx';
 import ReferenceAssetInputs from './ReferenceAssetInputs.jsx';
+import CompareAssetInputs from './CompareAssetInputs.jsx';
 import { parseInputNumber } from '../utils/holdingHelpers.js';
 import { toPriceId, isCustomAssetId } from '../../../utils/priceIds.js';
 import {
@@ -39,6 +40,9 @@ export default function AddHoldingForm({
   const [referenceAsset, setReferenceAsset] = useState(null);
   const [referenceQuantity, setReferenceQuantity] = useState('');
   const [referencePriceToman, setReferencePriceToman] = useState('');
+  // "What if I had bought this instead" (comparison only, nothing paid with it)
+  const [compareAsset, setCompareAsset] = useState(null);
+  const [comparePriceToman, setComparePriceToman] = useState('');
 
   // Read when the form opens, not a reason to reset it (prices refresh in the background)
   const getAssetRef = useRef(null);
@@ -77,6 +81,20 @@ export default function AddHoldingForm({
         setReferencePriceToman('');
       }
 
+      if (editingHolding.compareAssetId && Number(editingHolding.comparePriceToman) > 0) {
+        const cmpId = editingHolding.compareAssetId;
+        setCompareAsset({
+          id: toPriceId(cmpId),
+          name: resolveAssetDisplayName(cmpId) || cmpId,
+          unit: resolveAssetUnit(cmpId) || 'واحد',
+          category: getItemCategory(cmpId),
+        });
+        setComparePriceToman(String(editingHolding.comparePriceToman));
+      } else {
+        setCompareAsset(null);
+        setComparePriceToman('');
+      }
+
       if (editingHolding.category === 'custom' || editingHolding.assetType === 'custom') {
         setCustomName(editingHolding.assetName || editingHolding.name || '');
         setCustomUnit(editingHolding.unit || 'واحد');
@@ -113,6 +131,8 @@ export default function AddHoldingForm({
       setReferenceAsset(null);
       setReferenceQuantity('');
       setReferencePriceToman('');
+      setCompareAsset(null);
+      setComparePriceToman('');
     }
   }, [isOpen, editingHolding]);
 
@@ -167,6 +187,9 @@ export default function AddHoldingForm({
       ? Math.round((parsedReferenceQuantity * parsedReferencePrice) / parsedAmount)
       : (parseInputNumber(buyPrice) || 0);
 
+    const parsedComparePrice = parseInputNumber(comparePriceToman);
+    const hasCompare = Boolean(compareAsset) && parsedComparePrice > 0;
+
     onSubmit?.({
       id: editingHolding?.id,
       assetId: finalAssetId,
@@ -177,6 +200,8 @@ export default function AddHoldingForm({
       customPrice: parseInputNumber(customCurrentPrice) || 0,
       referenceAssetId: hasReference ? referenceAsset.id : '',
       referenceQuantity: hasReference ? parsedReferenceQuantity : 0,
+      compareAssetId: hasCompare ? compareAsset.id : '',
+      comparePriceToman: hasCompare ? Math.round(parsedComparePrice) : 0,
     });
   };
 
@@ -185,6 +210,15 @@ export default function AddHoldingForm({
   const parsedAmountForValidation = parseInputNumber(amount);
   const isAmountValid = parsedAmountForValidation !== null && parsedAmountForValidation > 0;
   const isFormValid = isAmountValid && !submitting;
+
+  // The purchase's Toman cost, as it will be saved (for the comparison preview)
+  const previewCostToman = (() => {
+    const amountNum = parseInputNumber(amount) || 0;
+    const refQty = parseInputNumber(referenceQuantity) || 0;
+    const refPrice = parseInputNumber(referencePriceToman) || 0;
+    if (referenceAsset && refQty > 0 && refPrice > 0) return Math.round(refQty * refPrice);
+    return Math.round(amountNum * (parseInputNumber(buyPrice) || 0));
+  })();
 
   const selectedBookAsset = pricing?.getAsset?.(selectedAssetId) || null;
   const selectedCategory = selectedBookAsset?.category || getItemCategory(selectedAssetId);
@@ -407,6 +441,15 @@ export default function AddHoldingForm({
         onReferencePriceChange={setReferencePriceToman}
         newAssetAmount={parseInputNumber(amount) || 0}
         newAssetUnitLabel={unitLabel}
+        autoFillPrice={!editingHolding}
+      />
+
+      <CompareAssetInputs
+        compareAsset={compareAsset}
+        onCompareAssetChange={setCompareAsset}
+        comparePriceToman={comparePriceToman}
+        onComparePriceChange={setComparePriceToman}
+        totalCostToman={previewCostToman}
         autoFillPrice={!editingHolding}
       />
 
