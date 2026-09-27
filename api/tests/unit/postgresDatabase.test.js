@@ -1,7 +1,6 @@
 /**
  * postgresDatabase.test.js — The app's database on Postgres: the repositories' SQL runs there
- * through one small interface, every request gets it, and the KV keys the app no longer uses
- * can be deleted
+ * through one small interface, and every request gets it
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
@@ -9,27 +8,8 @@ import { DatabaseSync } from 'node:sqlite';
 import pg from 'pg';
 import { translateSql, createPgDatabase } from '../../src/lib/pgDatabase.js';
 import { withDatabase } from '../../src/lib/database.js';
-import { deleteLegacyKvKeys, LEGACY_KV_KEYS } from '../../src/services/database/kvCleanup.js';
 import { APP_TABLES, resetPgSchemaCache } from '../../src/repositories/pgSchema.js';
-import { ensureSchema } from '../../src/repositories/migration.repository.js';
-
-/** A Worker KV namespace in memory (with list) */
-function memoryKv(initial = {}) {
-  const store = new Map(Object.entries(initial));
-  return {
-    store,
-    get: vi.fn(async (key, type) => {
-      const v = store.has(key) ? store.get(key) : null;
-      return v !== null && type === 'json' ? JSON.parse(v) : v;
-    }),
-    put: vi.fn(async (key, value) => { store.set(key, String(value)); }),
-    delete: vi.fn(async (key) => { store.delete(key); }),
-    list: vi.fn(async ({ prefix = '' } = {}) => ({
-      keys: [...store.keys()].filter((k) => k.startsWith(prefix)).map((name) => ({ name })),
-      list_complete: true,
-    })),
-  };
-}
+import { ensureSchema } from '../../src/repositories/schema.repository.js';
 
 describe('translateSql', () => {
   it('numbers placeholders, keeps literals, quotes camelCase aliases, LIKE ignores case', () => {
@@ -100,27 +80,6 @@ describe('withDatabase', () => {
     const injected = { prepare: vi.fn() };
     expect(withDatabase({ DB: injected }).env.DB).toBe(injected);
     await expect(withDatabase({}).close()).resolves.toBeUndefined();
-  });
-});
-
-describe('deleteLegacyKvKeys', () => {
-  it('deletes the keys the app no longer uses, and only those', async () => {
-    const kv = memoryKv({
-      latest_rates: '{}',
-      emofid_funds_v1: '[]',
-      'source_price:src_def_usd': '{}',
-      'source_items_backup:src_def_usd': '[]',
-      'source_items_last_sync:src_def_usd': '1',
-      prices: '{}',
-      'source_items:src_def_usd': '[]',
-      'session:abc': '{}',
-      global_settings: '{}',
-    });
-    const { deleted } = await deleteLegacyKvKeys({ REALRATE_KV: kv });
-    expect(deleted.sort()).toEqual(['emofid_funds_v1', 'latest_rates', 'source_items_backup:src_def_usd', 'source_items_last_sync:src_def_usd', 'source_price:src_def_usd']);
-    expect([...kv.store.keys()].sort()).toEqual(['global_settings', 'prices', 'session:abc', 'source_items:src_def_usd']);
-    expect(LEGACY_KV_KEYS).not.toContain('prices');
-    expect(LEGACY_KV_KEYS).toEqual(expect.arrayContaining(['database_backend', 'database_migration']));
   });
 });
 

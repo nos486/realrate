@@ -4,7 +4,7 @@
  * Persists client-side encrypted transactions for Zero-Knowledge portfolio management.
  */
 
-import { ensureSchema } from "./migration.repository.js";
+import { ensureSchema } from "./schema.repository.js";
 import { logger } from "../lib/logger.js";
 
 /**

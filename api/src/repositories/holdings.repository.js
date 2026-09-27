@@ -2,7 +2,7 @@
  * holdings.repository.js — Postgres Portfolio Holdings Data Access Layer
  */
 
-import { ensureSchema } from "./migration.repository.js";
+import { ensureSchema } from "./schema.repository.js";
 import { dbGetUserPortfolios } from "./portfolio.repository.js";
 import { logger } from "../lib/logger.js";
 import { AppError } from "../lib/AppError.js";

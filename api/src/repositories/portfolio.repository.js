@@ -2,7 +2,7 @@
  * portfolio.repository.js — Postgres Portfolio Data Access Layer
  */
 
-import { ensureSchema } from "./migration.repository.js";
+import { ensureSchema } from "./schema.repository.js";
 import { dbGetUserById, generateRandomSlug } from "./user.repository.js";
 import { logger } from "../lib/logger.js";
 import { hashSharePassword, isHashedSharePassword } from "../lib/security.js";

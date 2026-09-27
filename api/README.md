@@ -54,7 +54,7 @@ api/
     │   ├── holdingRepository.js       # افزودن، ویرایش، حذف و واکشی اقلام دارایی پورتفو
     │   ├── transactionRepository.js   # ذخیره، ویرایش و حذف تراکنش‌های خرید/فروش (E2EE)
     │   ├── priceSource.repository.js  # مدیریت رکوردهای سورس‌های قیمت در دیتابیس
-    │   ├── migration.repository.js    # مایگریشن و سید پویا از روی sources.config.js
+    │   ├── schema.repository.js       # ساخت جدول‌ها (pgSchema.js) پیش از اولین استفاده
     │   └── auditRepository.js         # لاگ‌های امنیتی و حسابرسی سیستم
     ├── services/                      # سرویس‌های دامنه و اپلیکیشن
     │   └── market/

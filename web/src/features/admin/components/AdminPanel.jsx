@@ -22,7 +22,6 @@ import AdminUsersCard from './AdminUsersCard.jsx';
 import AdminUserDetailModal from './AdminUserDetailModal.jsx';
 import MaintenanceCard from './MaintenanceCard.jsx';
 import SiteSettingsCard from './SiteSettingsCard.jsx';
-import DatabaseCard from './DatabaseCard.jsx';
 
 const HEADER = {
   icon: <ShieldCheck size={24} />,
@@ -127,7 +126,6 @@ export default function AdminPanel() {
             <AdminGrowthChart reloadToken={growthToken} />
             <MaintenanceCard settings={settings} onSave={saveSettings} />
             <SiteSettingsCard settings={settings} onSave={saveSettings} />
-            <DatabaseCard />
           </div>
         }
       >

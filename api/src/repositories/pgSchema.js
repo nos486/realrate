@@ -1,7 +1,7 @@
 /**
  * pgSchema.js — The app's tables in Postgres
  *
- * Created on first use (migration.repository.js ensureSchema). Flags are 0/1 BIGINTs, times in
+ * Created on first use (schema.repository.js ensureSchema). Flags are 0/1 BIGINTs, times in
  * ms are BIGINTs, amounts DOUBLE PRECISION. The price history tables live in
  * priceHistory.repository.js. `npm run db:schema` prints this schema as SQL.
  */

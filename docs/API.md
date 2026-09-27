@@ -221,7 +221,6 @@ Portfolios protected by the vault carry `e2eeWrappedKey`; `/api/v1/portfolio/sha
 | `GET` | `/api/v1/admin/stats` | System statistics and telemetry |
 | `GET` | `/api/v1/admin/users` | List registered users |
 | `POST` | `/api/v1/admin/settings` | Save system-wide settings |
-| `POST` | `/api/v1/admin/kv/cleanup` | Delete the KV keys the app no longer uses |
 | `GET` | `/api/v1/admin/price-sources` | List all price crawler sources |
 | `POST` | `/api/v1/admin/price-sources` | Add/update crawler price source |
 | `DELETE` | `/api/v1/admin/price-sources` | Remove crawler price source |

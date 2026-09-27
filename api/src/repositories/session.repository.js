@@ -2,7 +2,7 @@
  * session.repository.js — Postgres & KV Session Data Access Layer
  */
 
-import { ensureSchema } from "./migration.repository.js";
+import { ensureSchema } from "./schema.repository.js";
 import { getSessionKV, setSessionKV, deleteSessionKV } from "./kvCache.repository.js";
 import { logger } from "../lib/logger.js";
 import { SESSION_TTL_SECONDS } from "../config/constants.js";

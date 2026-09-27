@@ -2,7 +2,7 @@
  * repositories/index.js — Barrel export for the RealRate Repository Layer
  */
 
-export * from "./migration.repository.js";
+export * from "./schema.repository.js";
 export * from "./kvCache.repository.js";
 export * from "./user.repository.js";
 export * from "./admin.repository.js";

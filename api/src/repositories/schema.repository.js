@@ -1,5 +1,5 @@
 /**
- * migration.repository.js — Make sure the app's tables exist before a repository uses them
+ * schema.repository.js — Make sure the app's tables exist before a repository uses them
  *
  * The tables are defined in pgSchema.js and created in Postgres once per isolate. A failure is
  * logged, not thrown: the query that follows reports the real problem.

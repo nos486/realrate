@@ -67,7 +67,6 @@ import {
   handleAdminGetPriceSources,
   handleAdminSavePriceSource,
   handleAdminDeletePriceSource,
-  handleAdminKvCleanup,
   handleAdminSetPrimarySource,
   handleAdminTestPriceSource,
   handleAdminFetchAllSources,
@@ -257,7 +256,6 @@ async function handleRequest(request, env, ctx) {
   if (normalizedPath === "/api/admin/growth")                                  return wrap(handleAdminGrowth)(request, env);
   if (normalizedPath === "/api/admin/users")                                   return wrap(handleAdminUsersRoute)(request, env);
   if (normalizedPath === "/api/admin/settings" && request.method === "POST")   return wrap(handleAdminSaveSettings)(request, env);
-  if (normalizedPath === "/api/admin/kv/cleanup" && request.method === "POST") return wrap(handleAdminKvCleanup)(request, env);
 
   if (normalizedPath === "/api/admin/price-sources") {
     if (request.method === "GET") return wrap(handleAdminGetPriceSources)(request, env);

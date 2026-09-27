@@ -8,7 +8,7 @@
  * - computeEffectiveSchedule: dynamically reconstructs the full installments list on read
  */
 
-import { ensureSchema } from "./migration.repository.js";
+import { ensureSchema } from "./schema.repository.js";
 import { getBankById, isCustomBankId, matchBankIdByName } from "../config/banks.config.js";
 import { dbGetCustomBank } from "./customBanks.repository.js";
 import { logger } from "../lib/logger.js";

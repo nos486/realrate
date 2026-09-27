@@ -4,7 +4,7 @@
  * standard bank id, so loans today and bank accounts later can use either transparently.
  */
 
-import { ensureSchema } from "./migration.repository.js";
+import { ensureSchema } from "./schema.repository.js";
 import { AppError } from "../lib/AppError.js";
 import { CUSTOM_BANK_PREFIX, normalizeBankName } from "../config/banks.config.js";
 

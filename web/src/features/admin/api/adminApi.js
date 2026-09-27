@@ -95,8 +95,3 @@ export async function getAdminUserPortfolio(userId, portfolioId = null) {
     : `/api/admin/users/portfolio?userId=${encodeURIComponent(userId)}`;
   return httpClient.get(url);
 }
-
-/** Delete the KV keys the app no longer uses */
-export async function cleanupLegacyKv() {
-  return httpClient.post('/api/admin/kv/cleanup', {});
-}

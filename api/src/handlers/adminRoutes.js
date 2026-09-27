@@ -3,7 +3,6 @@
  * All routes require admin role verified via session
  */
 
-import { deleteLegacyKvKeys } from "../services/database/kvCleanup.js";
 import { getAuthenticatedUser } from "../lib/auth.js";
 import {
   dbGetUsersPage,
@@ -298,19 +297,5 @@ export async function handleAdminInspectApiRoute(request, env) {
     return jsonResponse(result, 200, request);
   } catch (e) {
     return errorResponse(e.message, 400, request);
-  }
-}
-
-/**
- * POST /api/admin/kv/cleanup — delete the KV keys the app no longer uses — admin only
- */
-export async function handleAdminKvCleanup(request, env) {
-  const user = await getAuthenticatedUser(request, env);
-  if (!user || user.role !== "admin") return forbiddenResponse(request);
-  try {
-    const { deleted } = await deleteLegacyKvKeys(env);
-    return jsonResponse({ success: true, deletedCount: deleted.length, deleted }, 200, request);
-  } catch (e) {
-    return errorResponse(e.message, 500, request);
   }
 }
