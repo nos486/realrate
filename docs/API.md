@@ -185,7 +185,7 @@ Validation is the shared `api/src/domain/chequeDocument.js` (the browser uses th
 
 ### AI Cheque Scan (Beta / Admin Only)
 
-Stateless image analysis via Cloudflare Workers AI for prefilling cheque details.
+Stateless image analysis with a vision model (Gemini, Claude, OpenAI or Workers AI; `api/src/config/ai.config.js`) for prefilling cheque details. A model whose API key secret is not set is refused with `400 MODEL_NOT_CONFIGURED` (without using the daily quota); a provider failure returns `502` with the provider's short reason.
 - **Feature Flag Gate**: Requires the `cheque_scan` feature flag (`requireFeature`). Requests from unauthorized or regular users strictly return `404 Not Found` (masquerading non-existence).
 - **Encryption Gate Exemption**: This endpoint is explicitly exempted from the mandatory E2EE ciphertext gate because it does not store any financial data.
 - **Privacy & Zero Storage Guarantee**: The image, model prompts, and structured output are **never** persisted to Postgres, KV, disk, or logs.
@@ -193,7 +193,8 @@ Stateless image analysis via Cloudflare Workers AI for prefilling cheque details
 
 | Method | Endpoint | Description |
 | :--- | :--- | :--- |
-| `POST` | `/api/v1/cheques/scan` | Analyze a cheque image using Cloudflare Workers AI vision models |
+| `POST` | `/api/v1/cheques/scan` | Analyze a cheque image with the chosen vision model |
+| `GET` | `/api/v1/cheques/scan/models` | The scan's models, each with `available` (whether its key is set) and the `secret` it needs |
 
 #### Request Format
 `Content-Type: multipart/form-data`

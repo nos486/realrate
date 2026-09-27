@@ -75,3 +75,10 @@ export async function scanCheque(imageBlob, model, { signal } = {}) {
   return httpClient.post('/api/cheques/scan', formData, { signal });
 }
 
+/**
+ * The models the cheque scan offers, each with `available` (whether its API key is set)
+ * @returns {Promise<{ models: Array<{ id: string, label: string, provider: string, available: boolean, secret?: string }> }>}
+ */
+export async function getScanModels() {
+  return httpClient.get('/api/cheques/scan/models', { silent: true });
+}

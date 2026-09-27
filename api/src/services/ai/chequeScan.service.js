@@ -1,12 +1,18 @@
 /**
- * chequeScan.service.js — Cloudflare Workers AI integration for Iranian Cheque Scanning
+ * chequeScan.service.js — Read an Iranian cheque from a photo with a vision model (visionProviders.js)
  *
  * Privacy & Security:
  * - Image binary and extracted data are NEVER stored in database, KV, or logs.
  * - Logs strictly record metadata: model ID, duration, image size, and success status.
  */
 
-import { resolveChequeScanModel } from '../../config/ai.config.js';
+import {
+  AI_PROVIDER_SECRETS,
+  CHEQUE_SCAN_MODELS,
+  isChequeScanModelAvailable,
+  resolveChequeScanModel,
+} from '../../config/ai.config.js';
+import { runVisionModel, toBase64, VisionProviderError } from './visionProviders.js';
 import { CHEQUE_SCAN_SYSTEM_PROMPT, CHEQUE_SCAN_JSON_SCHEMA } from './chequeScanPrompt.js';
 import { normalizeChequeScan, parseChequeScanJson } from '../../domain/chequeScan.js';
 import { AppError } from '../../lib/AppError.js';
@@ -49,23 +55,28 @@ export async function enforceScanRateLimit(env, userId) {
   }
 }
 
-const AI_TIMEOUT_MS = 45000;
+/** The models the scan offers, and whether this Worker can call each */
+export function listChequeScanModels(env) {
+  return CHEQUE_SCAN_MODELS.map(({ id, label, provider }) => ({
+    id,
+    label,
+    provider,
+    available: isChequeScanModelAvailable({ provider }, env),
+    ...(provider === 'workers-ai' ? {} : { secret: AI_PROVIDER_SECRETS[provider] }),
+  }));
+}
 
-/** One model call, failing with AI_TIMEOUT after AI_TIMEOUT_MS */
-async function runWithTimeout(env, modelId, payload) {
-  let timer;
-  const timeout = new Promise((_, reject) => {
-    timer = setTimeout(() => reject(new Error('AI_TIMEOUT')), AI_TIMEOUT_MS);
-  });
-  try {
-    return await Promise.race([env.AI.run(modelId, payload), timeout]);
-  } finally {
-    clearTimeout(timer);
-  }
+/** Refuse (400 MODEL_NOT_CONFIGURED) a model whose binding or API key this Worker lacks */
+export function assertChequeScanModelReady(model, env) {
+  if (isChequeScanModelAvailable(model, env)) return;
+  const what = model.provider === 'workers-ai'
+    ? 'اتصال Workers AI (binding «AI»)'
+    : `کلید ${AI_PROVIDER_SECRETS[model.provider]}`;
+  throw new AppError(`${what} برای مدل «${model.label}» تنظیم نشده است.`, 400, 'MODEL_NOT_CONFIGURED');
 }
 
 /**
- * Execute cheque vision scan with Workers AI binding.
+ * Scan one cheque image with the requested vision model.
  *
  * @param {object} env
  * @param {object} params
@@ -75,101 +86,41 @@ async function runWithTimeout(env, modelId, payload) {
  * @returns {Promise<object>}
  */
 export async function processChequeScan(env, { imageBuffer, mimeType, requestedModel }) {
-  const modelId = resolveChequeScanModel(requestedModel);
+  const model = resolveChequeScanModel(requestedModel, env);
+  const modelId = model.id;
   const startTime = Date.now();
   const imageBytes = imageBuffer ? imageBuffer.byteLength : 0;
 
-  if (!env.AI || typeof env.AI.run !== 'function') {
-    logger.error('[ChequeScan] Workers AI binding (env.AI) is missing or invalid.');
-    throw new AppError('پردازش تصویر ناموفق بود.', 502, 'AI_GATEWAY_ERROR');
-  }
-
-  // Convert image to base64 data URL
-  const uint8 = new Uint8Array(imageBuffer);
-  let binary = '';
-  const len = uint8.byteLength;
-  for (let i = 0; i < len; i++) {
-    binary += String.fromCharCode(uint8[i]);
-  }
-  const base64 = btoa(binary);
-  const dataUrl = `data:${mimeType};base64,${base64}`;
-
-  const payload = {
-    messages: [
-      {
-        role: 'system',
-        content: CHEQUE_SCAN_SYSTEM_PROMPT,
-      },
-      {
-        role: 'user',
-        content: [
-          {
-            type: 'text',
-            text: 'اطلاعات این چک بانکی را طبق دستورالعمل در قالب JSON استخراج کن.',
-          },
-          {
-            type: 'image_url',
-            image_url: { url: dataUrl },
-          },
-        ],
-      },
-    ],
-    temperature: 0.1,
-    max_tokens: 1000,
-  };
+  assertChequeScanModelReady(model, env);
 
   let aiResponse = null;
-
   try {
-    // JSON mode first; a model that doesn't take it with an image gets the plain request (the
-    // prompt asks for JSON, and the parser finds it in text)
-    try {
-      aiResponse = await runWithTimeout(env, modelId, {
-        ...payload,
-        response_format: { type: 'json_schema', json_schema: CHEQUE_SCAN_JSON_SCHEMA },
-      });
-    } catch (err) {
-      if (err.message === 'AI_TIMEOUT') throw err;
-      logger.warn('[ChequeScan] JSON mode refused, retrying without it:', { model: modelId, error: err.message });
-      aiResponse = await runWithTimeout(env, modelId, payload);
-    }
+    aiResponse = await runVisionModel(env, model, {
+      systemPrompt: CHEQUE_SCAN_SYSTEM_PROMPT,
+      userText: 'اطلاعات این چک بانکی را طبق دستورالعمل در قالب JSON استخراج کن.',
+      imageBase64: toBase64(imageBuffer),
+      mimeType,
+      jsonSchema: CHEQUE_SCAN_JSON_SCHEMA,
+    });
   } catch (err) {
     const durationMs = Date.now() - startTime;
+    const reason = err instanceof VisionProviderError ? err.reason : '';
     logger.error('[ChequeScan] Model inference failed:', {
       model: modelId,
       durationMs,
       imageBytes,
       error: err.message,
     });
-    throw new AppError('پردازش تصویر ناموفق بود.', 502, 'AI_GATEWAY_ERROR');
+    // Admin-only beta: the provider's reason helps tell a bad key or region from a bad model
+    const message = reason ? `پردازش تصویر ناموفق بود (${model.label}: ${reason})` : 'پردازش تصویر ناموفق بود.';
+    throw new AppError(message, 502, 'AI_GATEWAY_ERROR');
   }
 
   const durationMs = Date.now() - startTime;
 
-  // Extract raw text or object from Workers AI envelope
-  let rawText = '';
-  let parsedJson = null;
-
-  if (aiResponse) {
-    if (typeof aiResponse === 'string') {
-      rawText = aiResponse;
-      parsedJson = parseChequeScanJson(aiResponse);
-    } else if (typeof aiResponse === 'object') {
-      if (typeof aiResponse.response === 'string') {
-        rawText = aiResponse.response;
-        parsedJson = parseChequeScanJson(aiResponse.response);
-      } else if (aiResponse.response && typeof aiResponse.response === 'object') {
-        parsedJson = aiResponse.response;
-        rawText = JSON.stringify(aiResponse.response, null, 2);
-      } else if (aiResponse.choices?.[0]?.message?.content) {
-        rawText = aiResponse.choices[0].message.content;
-        parsedJson = parseChequeScanJson(rawText);
-      } else {
-        rawText = JSON.stringify(aiResponse, null, 2);
-        parsedJson = aiResponse;
-      }
-    }
-  }
+  // The provider returns text (or, from Workers AI, an already-parsed object)
+  const rawText = typeof aiResponse === 'string' ? aiResponse : JSON.stringify(aiResponse ?? null, null, 2);
+  const parsedJson = typeof aiResponse === 'string' ? parseChequeScanJson(aiResponse) : aiResponse;
 
   const normalized = normalizeChequeScan(parsedJson || rawText);
 

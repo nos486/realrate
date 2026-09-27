@@ -1,6 +1,6 @@
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, useEffect } from 'react';
 import { resizeImage } from '../../../../shared/utils/imageResize.js';
-import { scanCheque } from '../../api/chequeApi.js';
+import { scanCheque, getScanModels } from '../../api/chequeApi.js';
 import { CHEQUE_SCAN_MODELS } from '../../../../config/ai.config.js';
 
 export function useChequeScan() {
@@ -13,6 +13,23 @@ export function useChequeScan() {
   const [error, setError] = useState(null);
 
   const abortControllerRef = useRef(null);
+
+  // Which models this Worker can call; until the list arrives every model is offered
+  const [models, setModels] = useState(CHEQUE_SCAN_MODELS);
+  useEffect(() => {
+    let cancelled = false;
+    getScanModels()
+      .then((res) => {
+        if (cancelled || !Array.isArray(res?.models)) return;
+        setModels(res.models);
+        setSelectedModel((current) => {
+          const usable = res.models.filter((m) => m.available);
+          return usable.some((m) => m.id === current) ? current : (usable[0]?.id || current);
+        });
+      })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, []);
 
   const selectFile = useCallback(async (newFile) => {
     if (!newFile) return;
@@ -91,11 +108,11 @@ export function useChequeScan() {
     setPreviewUrl(null);
     setResult(null);
     setError(null);
-    setSelectedModel(CHEQUE_SCAN_MODELS[0].id);
   }, [previewUrl]);
 
   return {
     status,
+    models,
     file,
     resized,
     previewUrl,

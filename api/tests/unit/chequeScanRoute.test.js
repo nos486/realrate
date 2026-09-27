@@ -7,7 +7,10 @@ vi.mock('../../src/lib/auth.js', () => ({
 
 import { getAuthenticatedUser } from '../../src/lib/auth.js';
 import { handleChequeScanRoute } from '../../src/handlers/chequeScanRoutes.js';
-import { DEFAULT_CHEQUE_SCAN_MODEL } from '../../src/config/ai.config.js';
+import { CHEQUE_SCAN_MODELS } from '../../src/config/ai.config.js';
+
+// Only the AI binding is set here: the first Workers AI model is the default
+const DEFAULT_CHEQUE_SCAN_MODEL = CHEQUE_SCAN_MODELS.find((m) => m.provider === 'workers-ai');
 
 describe('POST /api/cheques/scan route', () => {
   let env;
@@ -173,7 +176,8 @@ describe('POST /api/cheques/scan route', () => {
     await expect(handleChequeScanRoute(req, env)).rejects.toMatchObject({
       statusCode: 502,
       code: 'AI_GATEWAY_ERROR',
-      message: 'پردازش تصویر ناموفق بود.',
+      // The provider's reason is passed on to the admin
+      message: expect.stringContaining('Cloudflare AI backend overloaded'),
     });
   });
 
