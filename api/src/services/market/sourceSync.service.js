@@ -7,9 +7,11 @@
  *      `sourceIds` when given)
  *   3. Fetch each endpoint once (sources sharing one are fetched together)
  *   4. adapter.parse(raw, src) → { items: [{ id, name, price }], datetime }
- *   5. Store a source's items (`source_items:${id}`) only when they changed
- *   6. Build the price book from every active source (synced or not) → KV "prices", one write
- *   7. Record the prices that came in this tick in the price history, keyed by the same ids
+ *   5. Hold back implausible jumps (priceGuard.js): an item keeps its last value until the new
+ *      one repeats for a few syncs
+ *   6. Store a source's items (`source_items:${id}`) only when they changed
+ *   7. Build the price book from every active source (synced or not) → KV "prices", one write
+ *   8. Record the prices that came in this tick in the price history, keyed by the same ids
  *
  * Nothing else is written: every screen and route reads the book.
  */
@@ -20,6 +22,7 @@ import { saveSourceItems } from "../../repositories/sourceItems.repository.js";
 import { getPriceBookCache, setPriceBookCache } from "../../repositories/kvCache.repository.js";
 import { logger } from "../../lib/logger.js";
 import { buildPriceBook } from "../../domain/priceBook.js";
+import { guardSourceItems } from "../../domain/priceGuard.js";
 
 /**
  * Records a tick's prices in the price history. Registered by the Worker entry (index.js)
@@ -133,15 +136,30 @@ export async function syncAllSources(env, options = {}) {
 
     try {
       const parsed = await adapter.parse(raw, src, env);
-      const items = Array.isArray(parsed?.items) ? parsed.items : [];
-      if (items.length === 0) {
+      const parsedItems = Array.isArray(parsed?.items) ? parsed.items : [];
+      if (parsedItems.length === 0) {
         fail(src, "Adapter returned 0 items");
         continue;
+      }
+      const { items, held, rejected } = guardSourceItems(src.items, parsedItems, {
+        maxJumpPct: src.maxJumpPct,
+        confirmTicks: src.confirmTicks,
+        held: states[src.id]?.held,
+      });
+      if (rejected.length > 0) {
+        logger.warn(`[SourceSync] Held back ${rejected.length} implausible price(s) from ${src.id}:`, {
+          sample: rejected.slice(0, 5),
+        });
       }
       const fetchedAt = parsed?.datetime || nowIso;
       await saveSourceItems(env, src.id, items, { previous: src.storedItemsJson });
       src.items = items;
-      states[src.id] = { syncedAt: nowIso, fetchedAt, count: items.length };
+      states[src.id] = {
+        syncedAt: nowIso,
+        fetchedAt,
+        count: items.length,
+        ...(Object.keys(held).length > 0 ? { held } : {}),
+      };
       syncedSourceIds.add(src.id);
       results.push({ sourceId: src.id, success: true, itemsCount: items.length });
     } catch (parseErr) {

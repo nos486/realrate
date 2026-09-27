@@ -315,4 +315,13 @@ describe('Unified Orchestration — sourceSync.service (Phase 4)', () => {
     expect(book.items.gold_18k.price).toBe(4100000);
     expect(book.sources.src_def_gold_18k).toMatchObject({ error: 'Empty or failed raw fetch' });
   });
+
+  it('holds back an implausible price instead of storing it, and remembers it in the book', async () => {
+    mockSources[0].items = [{ id: 'src_def_usd', price: 9500 }]; // the source now says 95,000: ×10
+    await syncAllSources(mockEnv, { forceAll: true });
+    expect(savedItemsRecord.get('src_def_usd')).toEqual([{ id: 'src_def_usd', price: 9500 }]);
+    const book = JSON.parse(mockEnv.REALRATE_KV.put.mock.calls.find(([key]) => key === 'prices')[1]);
+    expect(book.items.usd.price).toBe(9500);
+    expect(book.sources.src_def_usd.held.src_def_usd).toEqual({ value: 95000, ticks: 1 });
+  });
 });

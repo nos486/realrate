@@ -49,6 +49,9 @@ export function toAsset(item) {
     changePercent: p.changePercent ?? null,
     intrinsicPrice: p.intrinsic ?? null,
     bubblePct: p.bubblePct ?? null,
+    // Its source hasn't synced for a while (or it is computed from a stale dollar/ounce)
+    stale: Boolean(p.stale),
+    staleSince: p.staleSince || null,
     subText: describe(item),
     aliases,
     searchText: aliases.join(' ').toLowerCase(),

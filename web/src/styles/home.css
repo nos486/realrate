@@ -243,6 +243,19 @@
   color: var(--text-muted);
 }
 
+/* A price whose source hasn't updated for a while */
+.home-stale-mark {
+  align-self: flex-start;
+  padding: 1px 7px;
+  border-radius: 999px;
+  font-size: 10.5px;
+  font-weight: 700;
+  color: var(--color-warning-text);
+  background: var(--color-warning-soft);
+  box-shadow: inset 0 0 0 1px var(--color-warning-border);
+  cursor: help;
+}
+
 .home-card-meta {
   margin: 0;
   overflow: hidden;
@@ -1011,4 +1024,8 @@
   margin-top: auto;
   border-radius: 10px;
   background: var(--bg-input);
+}
+
+.curr-price-block .home-stale-mark {
+  align-self: auto;
 }

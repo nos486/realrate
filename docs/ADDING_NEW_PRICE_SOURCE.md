@@ -22,6 +22,10 @@ export const PRICE_SOURCES_CONFIG = [
     unit: "واحد",                   // واحد شمارش دارایی (تومان، گرم، عدد، برگ سهم، واحد، دلار، تتر)
     isFund: true,                   // آیا ماهیت صندوق یا طرح دارد؟
     fetchIntervalSec: 60,           // دوره پولینگ به ثانیه
+    // اختیاری — محافظ قیمت نامعقول و قدیمی شدن:
+    // maxJumpPct: 25,              // بیشترین تغییر بین دو دریافت (٪)؛ بیشتر از این تا تکرار نشود پذیرفته نمی‌شود
+    // confirmTicks: 3,             // چند دریافت پشت‌سرهم تا جهش واقعی پذیرفته شود
+    // staleAfterSec: 1800,         // پس از این مدت بدون دریافت موفق، قیمت «قدیمی» علامت می‌خورد
     isActive: true,
     isPrimary: false,
     displayConfig: { showOnHomePage: true },
