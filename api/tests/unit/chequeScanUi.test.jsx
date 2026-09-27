@@ -69,7 +69,7 @@ describe('ChequeScanResult Component', () => {
     },
     warnings: ['مبلغ چک بالا است'],
     raw: '{"amount": 500000000}',
-    model: 'gemini-3.5-flash',
+    model: 'gemini-3.8-flash',
     durationMs: 1420,
   };
 

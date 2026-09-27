@@ -101,7 +101,7 @@ npx wrangler secret put DEMO_VAULT_PASSPHRASE
 
 ## اسکن چک با هوش مصنوعی (Gemini)
 
-اسکن چک تصویر را با **Gemini 3.5 Flash** گوگل می‌خواند. کلید API را (رایگان از [Google AI Studio](https://aistudio.google.com))
+اسکن چک تصویر را با **Gemini 3.8 Flash** گوگل می‌خواند. کلید API را (رایگان از [Google AI Studio](https://aistudio.google.com))
 به‌صورت secret ثبت کنید؛ کلید در کد نوشته نمی‌شود:
 
 ```bash
