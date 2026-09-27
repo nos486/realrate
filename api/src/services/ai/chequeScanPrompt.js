@@ -1,5 +1,5 @@
 /**
- * chequeScanPrompt.js — What the cheque scan asks the model, and the JSON shape it wants back
+ * chequeScanPrompt.js — What the cheque scan asks the model
  *
  * Server only (config/ai.config.js, which the web app shares, holds just the model list).
  */
@@ -24,30 +24,3 @@ export const CHEQUE_SCAN_SYSTEM_PROMPT = `تو یک دستیار هوشمند و
 - confidence: شیئی شامل کلیدهای amount, dueDate, sayadId, chequeNumber, bankName, counterparty با مقادیر "high" یا "medium" یا "low".
 ۴. هر فیلدی که خوانا نیست، در تصویر وجود ندارد یا نسبت به آن مطمئن نیستی را حتماً null قرار بده و به هیچ وجه حدس نزن.
 ۵. ارقام عددی (amount, dueDate, sayadId, chequeNumber) را فقط با ارقام انگلیسی/لاتین (0-9) بنویس.`;
-
-export const CHEQUE_SCAN_JSON_SCHEMA = {
-  type: 'object',
-  properties: {
-    notACheque: { type: 'boolean' },
-    amount: { type: ['number', 'null'] },
-    amountWords: { type: ['string', 'null'] },
-    dueDate: { type: ['string', 'null'] },
-    sayadId: { type: ['string', 'null'] },
-    chequeNumber: { type: ['string', 'null'] },
-    bankName: { type: ['string', 'null'] },
-    branchName: { type: ['string', 'null'] },
-    payee: { type: ['string', 'null'] },
-    drawer: { type: ['string', 'null'] },
-    confidence: {
-      type: 'object',
-      properties: {
-        amount: { type: 'string', enum: ['high', 'medium', 'low'] },
-        dueDate: { type: 'string', enum: ['high', 'medium', 'low'] },
-        sayadId: { type: 'string', enum: ['high', 'medium', 'low'] },
-        chequeNumber: { type: 'string', enum: ['high', 'medium', 'low'] },
-        bankName: { type: 'string', enum: ['high', 'medium', 'low'] },
-        counterparty: { type: 'string', enum: ['high', 'medium', 'low'] },
-      },
-    },
-  },
-};

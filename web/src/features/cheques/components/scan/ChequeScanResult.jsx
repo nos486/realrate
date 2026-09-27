@@ -4,16 +4,14 @@ import {
   X,
   Copy,
   CheckCheck,
-  RotateCcw,
   Sparkles,
   FileCheck2,
   Clock,
   HardDrive,
-  Cpu,
 } from 'lucide-react';
 import { AlertBanner, Button } from '../../../../shared/ui/index.js';
 import { gregorianToShamsi } from '../../../portfolio/components/ShamsiDatePicker.jsx';
-import { ScanModelSelect } from './ScanModelSelect.jsx';
+import { useFeature } from '../../../../shared/features/index.js';
 
 const SCAN_FIELDS_CONFIG = [
   { key: 'amount', label: 'مبلغ چک', format: (val) => (val ? `${Number(val).toLocaleString('fa-IR')} تومان` : null) },
@@ -27,15 +25,14 @@ const SCAN_FIELDS_CONFIG = [
 
 export function ChequeScanResult({
   result,
-  models = [],
   imageMeta,
   onFillForm,
-  onRescan,
   onNewPhoto,
 }) {
+  // Accuracy rating, timings and the raw answer are for checking the model (admins)
+  const debug = useFeature('cheque_scan_debug');
   const [ratings, setRatings] = useState({});
   const [copied, setCopied] = useState(false);
-  const [selectedModel, setSelectedModel] = useState(result.model || models[0]?.id || '');
 
   const fields = result.fields || {};
   const confidence = result.confidence || {};
@@ -60,7 +57,6 @@ export function ChequeScanResult({
   const rejectedCount = Object.values(ratings).filter((v) => v === false).length;
   const totalRated = confirmedCount + rejectedCount;
 
-  const currentModelLabel = models.find((m) => m.id === result.model)?.label || result.model;
 
   const confidenceBadge = (level) => {
     switch (level) {
@@ -92,11 +88,8 @@ export function ChequeScanResult({
       ) : null}
 
       {/* Model & Processing Stats Header */}
+      {debug && (
       <div className="scan-stats-bar">
-        <div className="scan-stat-item">
-          <Cpu size={14} />
-          <span>مدل: <strong>{currentModelLabel}</strong></span>
-        </div>
         <div className="scan-stat-item">
           <Clock size={14} />
           <span>زمان پاسخ: <strong>{(result.durationMs / 1000).toFixed(1)} ثانیه</strong></span>
@@ -110,8 +103,10 @@ export function ChequeScanResult({
           </div>
         )}
       </div>
+      )}
 
       {/* Accuracy Verification Tool for Admin */}
+      {debug && (
       <div className="scan-accuracy-summary-card">
         <div className="accuracy-header">
           <div className="accuracy-title-wrap">
@@ -128,6 +123,7 @@ export function ChequeScanResult({
           جهت ارزیابی کیفیت مدل، درستی هر فیلد را با زدن تیک یا ضربدر مشخص کنید.
         </p>
       </div>
+      )}
 
       {/* Extracted Fields Table */}
       <div className="scan-fields-table-wrapper">
@@ -137,7 +133,7 @@ export function ChequeScanResult({
               <th>فیلد</th>
               <th>مقدار استخراج‌شده</th>
               <th>اطمینان</th>
-              <th className="th-accuracy">درست است؟</th>
+              {debug && <th className="th-accuracy">درست است؟</th>}
             </tr>
           </thead>
           <tbody>
@@ -162,6 +158,7 @@ export function ChequeScanResult({
                   <td className="field-confidence-cell">
                     {confidenceBadge(confLevel)}
                   </td>
+                  {debug && (
                   <td className="field-accuracy-cell">
                     <button
                       type="button"
@@ -180,6 +177,7 @@ export function ChequeScanResult({
                       <X size={14} strokeWidth={2.5} />
                     </button>
                   </td>
+                  )}
                 </tr>
               );
             })}
@@ -188,7 +186,7 @@ export function ChequeScanResult({
       </div>
 
       {/* Collapsible Raw Model Output */}
-      {result.raw && (
+      {debug && result.raw && (
         <details className="scan-raw-output-details">
           <summary className="scan-raw-output-summary">
             <span>مشاهده خروجی خام مدل هوش مصنوعی</span>
@@ -209,29 +207,6 @@ export function ChequeScanResult({
           </pre>
         </details>
       )}
-
-      {/* Model Rescan Option */}
-      <div className="scan-rescan-bar">
-        <span className="rescan-label">اسکن دوباره با مدل دیگر:</span>
-        <div className="rescan-controls">
-          <ScanModelSelect
-            className="ui-input-control scan-model-select"
-            models={models}
-            value={selectedModel}
-            currentId={result.model}
-            onChange={setSelectedModel}
-          />
-          <Button
-            size="sm"
-            variant="secondary"
-            icon={<RotateCcw size={13} />}
-            disabled={selectedModel === result.model}
-            onClick={() => onRescan(selectedModel)}
-          >
-            اسکن دوباره
-          </Button>
-        </div>
-      </div>
 
       {/* Footer Primary Actions */}
       <div className="scan-result-actions">

@@ -1,4 +1,9 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+/**
+ * chequeScanRoute.test.js — POST /api/cheques/scan and GET /api/cheques/scan/quota: who may scan,
+ * what is sent to Gemini, the daily limit per user tier, and that nothing is stored
+ */
+
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 vi.mock('../../src/lib/auth.js', () => ({
   getAuthenticatedUser: vi.fn(),
@@ -6,24 +11,44 @@ vi.mock('../../src/lib/auth.js', () => ({
 }));
 
 import { getAuthenticatedUser } from '../../src/lib/auth.js';
-import { handleChequeScanRoute } from '../../src/handlers/chequeScanRoutes.js';
-import { CHEQUE_SCAN_MODELS } from '../../src/config/ai.config.js';
+import { handleChequeScanRoute, handleChequeScanQuotaRoute } from '../../src/handlers/chequeScanRoutes.js';
+import { tehranDay } from '../../src/lib/usageQuota.js';
 
-// Only the AI binding is set here: the first Workers AI model is the default
-const DEFAULT_CHEQUE_SCAN_MODEL = CHEQUE_SCAN_MODELS.find((m) => m.provider === 'workers-ai');
+const ADMIN = { id: 'a1', role: 'admin', email: 'admin@example.com' };
+const USER = { id: 'u1', role: 'user', email: 'user@example.com' };
+
+const GEMINI_ANSWER = JSON.stringify({
+  amount: 500000000, // 500M Rials
+  amountWords: 'پنجاه میلیون تومان', // 50M Tomans = 500M Rials
+  sayadId: '1234567890123456',
+  dueDate: '1404/08/15',
+  bankName: 'بانک پاسارگاد',
+  payee: 'علی محمدی',
+  chequeNumber: '987654',
+  confidence: { amount: 'high', dueDate: 'high', sayadId: 'high' },
+});
+
+const geminiReply = (text = GEMINI_ANSWER) => new Response(
+  JSON.stringify({ candidates: [{ content: { parts: [{ text }] } }] }),
+  { status: 200, headers: { 'Content-Type': 'application/json' } },
+);
 
 describe('POST /api/cheques/scan route', () => {
   let env;
   let kvStore;
   let dbCalls;
+  let fetchMock;
 
   beforeEach(() => {
     vi.clearAllMocks();
     kvStore = new Map();
     dbCalls = [];
+    fetchMock = vi.fn(async () => geminiReply());
+    vi.stubGlobal('fetch', fetchMock);
 
     env = {
       ADMIN_EMAIL: 'admin@example.com',
+      GEMINI_API_KEY: 'gkey',
       REALRATE_KV: {
         get: vi.fn(async (key) => kvStore.get(key) || null),
         put: vi.fn(async (key, val) => kvStore.set(key, val)),
@@ -31,179 +56,134 @@ describe('POST /api/cheques/scan route', () => {
       DB: {
         prepare: vi.fn(() => {
           dbCalls.push('prepare');
-          return {
-            bind: vi.fn(() => {
-              dbCalls.push('bind');
-              return {
-                first: vi.fn(async () => null),
-                all: vi.fn(async () => []),
-                run: vi.fn(async () => ({ success: true })),
-              };
-            }),
-          };
+          return { bind: vi.fn(() => ({ first: vi.fn(), all: vi.fn(), run: vi.fn() })) };
         }),
         batch: vi.fn(async () => {
           dbCalls.push('batch');
           return [];
         }),
       },
-      AI: {
-        run: vi.fn(async () => ({
-          response: {
-            amount: 500000000, // 500M Rials
-            amountWords: 'پنجاه میلیون تومان', // 50M Tomans = 500M Rials
-            sayadId: '1234567890123456',
-            dueDate: '1404/08/15',
-            bankName: 'بانک پاسارگاد',
-            payee: 'علی محمدی',
-            chequeNumber: '987654',
-            confidence: {
-              amount: 'high',
-              dueDate: 'high',
-              sayadId: 'high',
-            },
-          },
-        })),
-      },
     };
   });
 
-  function createScanRequest({ file, model = null, headers = {} } = {}) {
+  afterEach(() => vi.unstubAllGlobals());
+
+  function createScanRequest({ file } = {}) {
     const formData = new FormData();
     if (file !== undefined) {
-      if (file !== null) {
-        formData.append('image', file);
-      }
+      if (file !== null) formData.append('image', file);
     } else {
-      // Default valid 100-byte JPEG
-      const dummyJpeg = new Blob([new Uint8Array(100)], { type: 'image/jpeg' });
-      formData.append('image', dummyJpeg, 'cheque.jpg');
+      formData.append('image', new Blob([new Uint8Array(100)], { type: 'image/jpeg' }), 'cheque.jpg');
     }
-
-    if (model) {
-      formData.append('model', model);
-    }
-
-    return new Request('https://api.realrate.ir/api/cheques/scan', {
-      method: 'POST',
-      body: formData,
-      headers,
-    });
+    return new Request('https://api.realrate.ir/api/cheques/scan', { method: 'POST', body: formData });
   }
+
+  const usedToday = (user) => Number(kvStore.get(`quota:cheque_scan:${user.id}:${tehranDay()}`) || 0);
 
   it('conceals route with 404 when unauthenticated', async () => {
     getAuthenticatedUser.mockResolvedValue(null);
-    const req = createScanRequest();
-
-    await expect(handleChequeScanRoute(req, env)).rejects.toMatchObject({
-      statusCode: 404,
-      code: 'NOT_FOUND',
-    });
+    await expect(handleChequeScanRoute(createScanRequest(), env)).rejects.toMatchObject({ statusCode: 404, code: 'NOT_FOUND' });
   });
 
-  it('conceals route with 404 when user is not admin', async () => {
-    getAuthenticatedUser.mockResolvedValue({ id: 'u1', role: 'user', email: 'user@example.com' });
-    const req = createScanRequest();
+  it('lets a regular user scan, and counts the scan', async () => {
+    getAuthenticatedUser.mockResolvedValue(USER);
+    const res = await handleChequeScanRoute(createScanRequest(), env);
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.quota).toMatchObject({ limit: 10, used: 1, remaining: 9 });
+    expect(usedToday(USER)).toBe(1);
+    // The raw answer is for admins only
+    expect(body.raw).toBeUndefined();
+  });
 
-    await expect(handleChequeScanRoute(req, env)).rejects.toMatchObject({
-      statusCode: 404,
-      code: 'NOT_FOUND',
-    });
+  it('refuses a regular user\'s 11th scan of the day with 429', async () => {
+    getAuthenticatedUser.mockResolvedValue(USER);
+    kvStore.set(`quota:cheque_scan:${USER.id}:${tehranDay()}`, '10');
+    await expect(handleChequeScanRoute(createScanRequest(), env)).rejects.toMatchObject({ statusCode: 429, code: 'QUOTA_EXCEEDED' });
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('never limits the admin', async () => {
+    getAuthenticatedUser.mockResolvedValue(ADMIN);
+    kvStore.set(`quota:cheque_scan:${ADMIN.id}:${tehranDay()}`, '500');
+    const res = await handleChequeScanRoute(createScanRequest(), env);
+    const body = await res.json();
+    expect(body.quota).toMatchObject({ limit: null, remaining: null, used: 501 });
+    expect(body.raw).toBe(GEMINI_ANSWER);
   });
 
   it('rejects requests without image file with 400', async () => {
-    getAuthenticatedUser.mockResolvedValue({ id: 'a1', role: 'admin', email: 'admin@example.com' });
-    const req = createScanRequest({ file: null });
-
-    await expect(handleChequeScanRoute(req, env)).rejects.toMatchObject({
-      statusCode: 400,
-      code: 'BAD_REQUEST',
-    });
-  });
-
-  it('rejects invalid file MIME type with 400', async () => {
-    getAuthenticatedUser.mockResolvedValue({ id: 'a1', role: 'admin', email: 'admin@example.com' });
-    const pdfBlob = new Blob(['%PDF-1.4'], { type: 'application/pdf' });
-    const req = createScanRequest({ file: pdfBlob });
-
-    await expect(handleChequeScanRoute(req, env)).rejects.toMatchObject({
-      statusCode: 400,
-      code: 'INVALID_FILE_TYPE',
-    });
+    getAuthenticatedUser.mockResolvedValue(ADMIN);
+    await expect(handleChequeScanRoute(createScanRequest({ file: null }), env)).rejects.toMatchObject({ statusCode: 400, code: 'BAD_REQUEST' });
   });
 
   it('rejects files larger than 2MB with 413', async () => {
-    getAuthenticatedUser.mockResolvedValue({ id: 'a1', role: 'admin', email: 'admin@example.com' });
-    // 2.5 MB blob
-    const largeBlob = new Blob([new Uint8Array(2.5 * 1024 * 1024)], { type: 'image/jpeg' });
-    const req = createScanRequest({ file: largeBlob });
-
-    await expect(handleChequeScanRoute(req, env)).rejects.toMatchObject({
-      statusCode: 413,
-      code: 'PAYLOAD_TOO_LARGE',
-    });
+    getAuthenticatedUser.mockResolvedValue(ADMIN);
+    const big = new Blob([new Uint8Array(2 * 1024 * 1024 + 10)], { type: 'image/jpeg' });
+    await expect(handleChequeScanRoute(createScanRequest({ file: big }), env)).rejects.toMatchObject({ statusCode: 413, code: 'PAYLOAD_TOO_LARGE' });
   });
 
-  it('falls back to default model when requested model is not in allowed list', async () => {
-    getAuthenticatedUser.mockResolvedValue({ id: 'a1', role: 'admin', email: 'admin@example.com' });
-    const req = createScanRequest({ model: 'unsupported/rogue-model' });
-
-    const res = await handleChequeScanRoute(req, env);
-    expect(res.status).toBe(200);
-    const body = await res.json();
-
-    expect(body.model).toBe(DEFAULT_CHEQUE_SCAN_MODEL.id);
-    expect(env.AI.run).toHaveBeenCalledWith(DEFAULT_CHEQUE_SCAN_MODEL.id, expect.any(Object));
+  it('does not count an invalid upload against the daily limit', async () => {
+    getAuthenticatedUser.mockResolvedValue(USER);
+    const gif = new Blob([new Uint8Array(10)], { type: 'image/gif' });
+    await expect(handleChequeScanRoute(createScanRequest({ file: gif }), env)).rejects.toMatchObject({ statusCode: 400 });
+    expect(usedToday(USER)).toBe(0);
   });
 
-  it('uses requested model when it is valid in allowed list', async () => {
-    getAuthenticatedUser.mockResolvedValue({ id: 'a1', role: 'admin', email: 'admin@example.com' });
-    const req = createScanRequest({ model: '@cf/mistralai/mistral-small-3.1-24b-instruct' });
+  it('sends the image inline to Gemini with the key in a header', async () => {
+    getAuthenticatedUser.mockResolvedValue(USER);
+    await handleChequeScanRoute(createScanRequest(), env);
 
-    const res = await handleChequeScanRoute(req, env);
-    expect(res.status).toBe(200);
-    const body = await res.json();
-
-    expect(body.model).toBe('@cf/mistralai/mistral-small-3.1-24b-instruct');
-    expect(env.AI.run).toHaveBeenCalledWith('@cf/mistralai/mistral-small-3.1-24b-instruct', expect.any(Object));
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(url).toContain('/models/gemini-3.5-flash:generateContent');
+    expect(url).not.toContain('gkey');
+    expect(init.headers['x-goog-api-key']).toBe('gkey');
+    const body = JSON.parse(init.body);
+    expect(body.contents[0].parts[0].inlineData.mimeType).toBe('image/jpeg');
+    expect(body.generationConfig.responseMimeType).toBe('application/json');
   });
 
-  it('returns 502 with friendly Persian message when AI model fails or throws', async () => {
-    getAuthenticatedUser.mockResolvedValue({ id: 'a1', role: 'admin', email: 'admin@example.com' });
-    env.AI.run.mockRejectedValue(new Error('Cloudflare AI backend overloaded'));
+  it('gives the scan back when Gemini fails, and tells only the admin why', async () => {
+    fetchMock.mockImplementation(async () => new Response(JSON.stringify({ error: { message: 'API key not valid' } }), { status: 400 }));
 
-    const req = createScanRequest();
-    await expect(handleChequeScanRoute(req, env)).rejects.toMatchObject({
+    getAuthenticatedUser.mockResolvedValue(USER);
+    await expect(handleChequeScanRoute(createScanRequest(), env)).rejects.toMatchObject({
       statusCode: 502,
       code: 'AI_GATEWAY_ERROR',
-      // The provider's reason is passed on to the admin
-      message: expect.stringContaining('Cloudflare AI backend overloaded'),
+      message: 'پردازش تصویر ناموفق بود.',
+    });
+    expect(usedToday(USER)).toBe(0);
+
+    getAuthenticatedUser.mockResolvedValue(ADMIN);
+    await expect(handleChequeScanRoute(createScanRequest(), env)).rejects.toMatchObject({
+      statusCode: 502,
+      message: expect.stringContaining('API key not valid'),
     });
   });
 
-  it('enforces daily rate limit of 30 scans with 429 response', async () => {
-    getAuthenticatedUser.mockResolvedValue({ id: 'a1', role: 'admin', email: 'admin@example.com' });
-    const today = new Date().toISOString().slice(0, 10);
-    kvStore.set(`ai_scan:a1:${today}`, '30');
+  it('answers 503 without the Gemini key, naming the secret to the admin only', async () => {
+    delete env.GEMINI_API_KEY;
+    getAuthenticatedUser.mockResolvedValue(USER);
+    await expect(handleChequeScanRoute(createScanRequest(), env)).rejects.toMatchObject({
+      statusCode: 503,
+      code: 'SCAN_NOT_CONFIGURED',
+      message: 'اسکن چک فعلاً در دسترس نیست.',
+    });
+    expect(usedToday(USER)).toBe(0);
 
-    const req = createScanRequest();
-    await expect(handleChequeScanRoute(req, env)).rejects.toMatchObject({
-      statusCode: 429,
-      code: 'RATE_LIMIT_EXCEEDED',
+    getAuthenticatedUser.mockResolvedValue(ADMIN);
+    await expect(handleChequeScanRoute(createScanRequest(), env)).rejects.toMatchObject({
+      message: expect.stringContaining('GEMINI_API_KEY'),
     });
   });
 
   it('succeeds with proper response shape and NEVER writes to database', async () => {
-    getAuthenticatedUser.mockResolvedValue({ id: 'admin_user', role: 'admin', email: 'admin@example.com' });
-    const req = createScanRequest();
-
-    const res = await handleChequeScanRoute(req, env);
-    expect(res.status).toBe(200);
+    getAuthenticatedUser.mockResolvedValue(USER);
+    const res = await handleChequeScanRoute(createScanRequest(), env);
     const data = await res.json();
 
     expect(data.success).toBe(true);
     expect(data.notACheque).toBe(false);
-    expect(data.fields).toBeDefined();
     // 500,000,000 Rials / 10 = 50,000,000 Tomans for ChequeForm
     expect(data.fields.amount).toBe(50000000);
     expect(data.fields.dueDate).toBe('2025-11-06'); // 1404/08/15
@@ -212,43 +192,15 @@ describe('POST /api/cheques/scan route', () => {
     expect(data.fields.bankId).toBe('pasargad');
     expect(data.fields.bankName).toBe('بانک پاسارگاد');
     expect(data.fields.counterparty).toBe('علی محمدی');
-    expect(data.confidence).toBeDefined();
-    expect(data.raw).toBeDefined();
+    expect(data.model).toBe('gemini-3.5-flash');
     expect(typeof data.durationMs).toBe('number');
-
-    // Strict validation: ZERO queries or writes to Database
     expect(dbCalls).toEqual([]);
   });
-  it('sends the image once, inside the messages, and asks for JSON by schema', async () => {
-    getAuthenticatedUser.mockResolvedValue({ id: 'a1', role: 'admin', email: 'admin@example.com' });
-    await handleChequeScanRoute(createScanRequest(), env);
 
-    const payload = env.AI.run.mock.calls[0][1];
-    expect(payload.image).toBeUndefined();
-    const imagePart = payload.messages[1].content.find((c) => c.type === 'image_url');
-    expect(imagePart.image_url.url).toMatch(/^data:image\/jpeg;base64,/);
-    expect(payload.response_format.type).toBe('json_schema');
-  });
-
-  it('retries without JSON mode when the model refuses it', async () => {
-    getAuthenticatedUser.mockResolvedValue({ id: 'a1', role: 'admin', email: 'admin@example.com' });
-    const answer = await env.AI.run();
-    env.AI.run.mockReset();
-    env.AI.run
-      .mockRejectedValueOnce(new Error('response_format not supported'))
-      .mockResolvedValueOnce(answer);
-
-    const res = await handleChequeScanRoute(createScanRequest(), env);
-    expect(res.status).toBe(200);
-    expect(env.AI.run).toHaveBeenCalledTimes(2);
-    expect(env.AI.run.mock.calls[1][1].response_format).toBeUndefined();
-    expect((await res.json()).fields.amount).toBe(50000000);
-  });
-
-  it('does not count an invalid upload against the daily limit', async () => {
-    getAuthenticatedUser.mockResolvedValue({ id: 'a1', role: 'admin', email: 'admin@example.com' });
-    const gif = new Blob([new Uint8Array(10)], { type: 'image/gif' });
-    await expect(handleChequeScanRoute(createScanRequest({ file: gif }), env)).rejects.toMatchObject({ statusCode: 400 });
-    expect(kvStore.size).toBe(0);
+  it('reports today\'s quota', async () => {
+    getAuthenticatedUser.mockResolvedValue(USER);
+    kvStore.set(`quota:cheque_scan:${USER.id}:${tehranDay()}`, '3');
+    const res = await handleChequeScanQuotaRoute(new Request('https://api.realrate.ir/api/cheques/scan/quota'), env);
+    expect((await res.json()).quota).toEqual({ key: 'cheque_scan', limit: 10, used: 3, remaining: 7 });
   });
 });

@@ -6,27 +6,39 @@ import {
   Loader2,
   Sparkles,
   Info,
+  ShieldCheck,
 } from 'lucide-react';
 import { Modal, Button, AlertBanner } from '../../../../shared/ui/index.js';
 import { useChequeScan } from './useChequeScan.js';
 import ChequeScanResult from './ChequeScanResult.jsx';
-import { ScanModelSelect } from './ScanModelSelect.jsx';
+
+const faNum = (n) => Number(n).toLocaleString('fa-IR');
+
+/** "N of M scans left today", or null while unknown / unlimited */
+function QuotaLine({ quota }) {
+  if (!quota || quota.limit === null) return null;
+  const out = quota.remaining <= 0;
+  return (
+    <p className={`scan-quota-line ${out ? 'is-empty' : ''}`}>
+      {out
+        ? `سهمیه امروز شما (${faNum(quota.limit)} اسکن) تمام شده است؛ فردا دوباره می‌توانید اسکن کنید.`
+        : `${faNum(quota.remaining)} اسکن از ${faNum(quota.limit)} اسکن امروز باقی مانده است.`}
+    </p>
+  );
+}
 
 export function ChequeScanModal({ isOpen, onClose, onFillForm }) {
   const {
     status,
-    models,
+    quota,
     file,
     resized,
     previewUrl,
-    selectedModel,
-    setSelectedModel,
     result,
     error,
     selectFile,
     startScan,
     cancelScan,
-    rescanWithModel,
     reset,
   } = useChequeScan();
 
@@ -35,6 +47,8 @@ export function ChequeScanModal({ isOpen, onClose, onFillForm }) {
   const galleryInputRef = useRef(null);
 
   if (!isOpen) return null;
+
+  const outOfScans = quota && quota.limit !== null && quota.remaining <= 0;
 
   const handleClose = () => {
     reset();
@@ -104,7 +118,7 @@ export function ChequeScanModal({ isOpen, onClose, onFillForm }) {
             type="error"
             message={error}
             action={
-              status === 'error' && resized ? (
+              status === 'error' && resized && !outOfScans ? (
                 <Button size="sm" variant="secondary" onClick={() => startScan()}>
                   تلاش مجدد
                 </Button>
@@ -168,20 +182,15 @@ export function ChequeScanModal({ isOpen, onClose, onFillForm }) {
               </button>
             </div>
 
-            {/* AI Model Selector */}
-            <div className="scan-model-config-row">
-              <label htmlFor="scan-modal-model-select" className="ui-input-label">
-                مدل پردازش تصویر هوش مصنوعی:
-              </label>
-              <div className="ui-input-wrapper">
-                <ScanModelSelect
-                  id="scan-modal-model-select"
-                  models={models}
-                  value={selectedModel}
-                  onChange={setSelectedModel}
-                />
-              </div>
+            {/* Where the image goes */}
+            <div className="scan-tip-card">
+              <ShieldCheck size={15} className="scan-tip-icon" />
+              <span>
+                برای خواندن اطلاعات، تصویر یک‌بار برای سرویس هوش مصنوعی Gemini (گوگل) فرستاده می‌شود و در سرور ما ذخیره نمی‌شود.
+                چک ثبت‌شده مثل بقیه اطلاعات شما رمزنگاری‌شده ذخیره می‌شود.
+              </span>
             </div>
+            <QuotaLine quota={quota} />
           </div>
         )}
 
@@ -208,17 +217,7 @@ export function ChequeScanModal({ isOpen, onClose, onFillForm }) {
               )}
             </div>
 
-            {/* AI Model Confirmation */}
-            <div className="preview-model-bar">
-              <span className="model-label">مدل انتخابی:</span>
-              <ScanModelSelect
-                className="ui-input-control scan-model-select-compact"
-                models={models}
-                value={selectedModel}
-                disabled={status === 'uploading'}
-                onChange={setSelectedModel}
-              />
-            </div>
+            <QuotaLine quota={quota} />
 
             {/* Actions / Uploading progress */}
             {status === 'uploading' ? (
@@ -239,6 +238,7 @@ export function ChequeScanModal({ isOpen, onClose, onFillForm }) {
                 <Button
                   variant="primary"
                   icon={<Sparkles size={16} />}
+                  disabled={outOfScans}
                   onClick={() => startScan()}
                 >
                   استخراج اطلاعات چک
@@ -251,11 +251,9 @@ export function ChequeScanModal({ isOpen, onClose, onFillForm }) {
         {/* ── STEP 3: Scan Result ────────────────────────────────────────────── */}
         {status === 'done' && result && (
           <ChequeScanResult
-            models={models}
             result={result}
             imageMeta={resized}
             onFillForm={handleCompleteFill}
-            onRescan={rescanWithModel}
             onNewPhoto={reset}
           />
         )}

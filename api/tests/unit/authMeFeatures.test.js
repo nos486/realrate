@@ -70,7 +70,7 @@ describe('handleGetMe with feature flags', () => {
     expect(body.user.features).toContain('cheque_scan');
   });
 
-  it('returns features: [] for regular user', async () => {
+  it('returns only the released features for a regular user', async () => {
     const regularUser = {
       userId: 'user_1',
       id: 'user_1',
@@ -91,6 +91,6 @@ describe('handleGetMe with feature flags', () => {
     expect(body.authenticated).toBe(true);
     expect(body.user.role).toBe('user');
     expect(body.user.isAdmin).toBe(false);
-    expect(body.user.features).toEqual([]);
+    expect(body.user.features).toEqual(['cheque_scan']);
   });
 });

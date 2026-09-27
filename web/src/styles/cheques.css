@@ -474,14 +474,6 @@
   color: var(--text-muted);
 }
 
-/* Model Selector in Setup */
-.scan-model-config-row {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  margin-top: 4px;
-}
-
 /* Resizing / Processing Box */
 .scan-processing-box {
   display: flex;
@@ -555,26 +547,9 @@
   font-weight: 700;
 }
 
-.preview-model-bar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 8px 12px;
-  border-radius: var(--radius-md, 8px);
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid var(--border-color, rgba(255, 255, 255, 0.08));
-}
-
 .model-label {
   font-size: 12.5px;
   color: var(--text-secondary);
-}
-
-.scan-model-select-compact {
-  max-width: 200px;
-  padding: 4px 8px;
-  font-size: 12.5px;
 }
 
 .uploading-state-container {
@@ -854,34 +829,6 @@
   max-height: 200px;
 }
 
-/* Rescan bar */
-.scan-rescan-bar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 8px 12px;
-  border-radius: var(--radius-md, 8px);
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid var(--border-color, rgba(255, 255, 255, 0.08));
-}
-
-.rescan-label {
-  font-size: 12.5px;
-  color: var(--text-secondary);
-}
-
-.rescan-controls {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.scan-model-select {
-  padding: 4px 8px;
-  font-size: 12px;
-}
-
 /* Result Actions */
 .scan-result-actions {
   display: flex;
@@ -924,18 +871,24 @@
     flex-direction: column;
     align-items: flex-start;
   }
-  .scan-rescan-bar {
-    flex-direction: column;
-    align-items: stretch;
-  }
-  .rescan-controls {
-    flex-direction: column;
-    align-items: stretch;
-  }
+  
+  
   .scan-result-actions {
     flex-direction: column-reverse;
   }
   .scan-result-actions .ui-btn {
     width: 100%;
   }
+}
+
+/* Today's remaining scans */
+.scan-quota-line {
+  margin: 0;
+  font-size: 12.5px;
+  color: var(--text-secondary);
+}
+
+.scan-quota-line.is-empty {
+  color: var(--color-negative-text);
+  font-weight: 600;
 }
