@@ -164,3 +164,17 @@ describe('toBase64', () => {
     expect(toBase64(bytes.buffer)).toBe(Buffer.from(bytes).toString('base64'));
   });
 });
+
+describe('Workers AI', () => {
+  it('gives Qwen 3.8 (a thinking model) more tokens than the others', async () => {
+    const run = vi.fn(async () => ({ response: ANSWER }));
+    await runVisionModel({ AI: { run } }, getChequeScanModel('@cf/qwen/qwen3.8-27b'), REQ);
+    expect(run.mock.calls[0][1].max_tokens).toBe(8000);
+    await runVisionModel({ AI: { run } }, getChequeScanModel('@cf/google/gemma-3-12b-it'), REQ);
+    expect(run.mock.calls[1][1].max_tokens).toBe(1000);
+  });
+
+  it('makes Qwen the default when only the AI binding is set', () => {
+    expect(resolveChequeScanModel(undefined, { AI: { run() {} } }).id).toBe('@cf/qwen/qwen3.8-27b');
+  });
+});

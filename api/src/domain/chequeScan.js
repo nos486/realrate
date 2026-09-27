@@ -237,7 +237,8 @@ export function wordsToNumberPersian(text) {
 export function parseChequeScanJson(text) {
   if (!text || typeof text !== 'string') return null;
 
-  const trimmed = text.trim();
+  // A thinking model's reasoning (<think>…</think>) comes before its answer
+  const trimmed = text.replace(/<think>[\s\S]*?<\/think>/gi, '').trim();
 
   // 1. Direct parse attempt
   try {
