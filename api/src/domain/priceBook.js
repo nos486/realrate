@@ -35,6 +35,15 @@ export const BASE_PRICE_IDS = {
   silverOunce: "ons_silver",
 };
 
+/**
+ * How long after its last successful sync a source's prices count as stale: its own
+ * `staleAfterSec`, else a few missed fetches, at least half an hour
+ */
+export const staleAfterSecOf = (src) =>
+  Number(src?.staleAfterSec) > 0
+    ? Number(src.staleAfterSec)
+    : Math.max(1800, 5 * Math.max(15, Number(src?.fetchIntervalSec) || 60));
+
 /** What a source's numbers are quoted in */
 export const PRICE_QUOTES = ["toman", "rial", "usd", "usd_cross"];
 
@@ -323,7 +332,41 @@ export function buildPriceBook(sources, { now = new Date().toISOString(), source
     }
   }
 
+  // 5. Staleness: a source that hasn't synced for a while marks its prices, and prices computed
+  //    from a stale dollar or ounce are stale too
+  markStale(items, list, sourceStates || {}, Date.parse(now) || Date.now());
+
   return { updatedAt: now, items, sources: sourceStates || {} };
+}
+
+/**
+ * Set `params.stale` (and `params.staleSince`, the last successful sync) on stale items
+ * @param {Record<string, object>} items - the book's items (changed in place)
+ */
+function markStale(items, sources, states, nowMs) {
+  const staleSince = new Map();
+  for (const src of sources) {
+    const syncedAt = states[src.id]?.syncedAt;
+    const last = Date.parse(syncedAt || "");
+    // A source the book has no sync time for (just added, or before the first sync) isn't judged
+    if (last && nowMs - last > staleAfterSecOf(src) * 1000) staleSince.set(src.id, syncedAt);
+  }
+  const mark = (item, since) => {
+    item.params = { ...item.params, stale: true, ...(since ? { staleSince: since } : {}) };
+  };
+  for (const item of Object.values(items)) {
+    if (item.sourceId && staleSince.has(item.sourceId)) mark(item, staleSince.get(item.sourceId));
+  }
+  // Prices computed from the dollar or the ounces inherit their staleness
+  const isStale = (id) => Boolean(items[id]?.params?.stale);
+  for (const item of Object.values(items)) {
+    if (item.params?.stale) continue;
+    const p = item.params || {};
+    const fromDollar = p.usd !== undefined || p.usdCross !== undefined;
+    const ounce = item.category === "silver" ? BASE_PRICE_IDS.silverOunce : BASE_PRICE_IDS.goldOunce;
+    if ((fromDollar && isStale(BASE_PRICE_IDS.usd))
+      || (p.derived === "intrinsic" && (isStale(BASE_PRICE_IDS.usd) || isStale(ounce)))) mark(item, null);
+  }
 }
 
 /**

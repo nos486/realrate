@@ -46,7 +46,18 @@ function AssetIcon({ asset }) {
   );
 }
 
-function PriceLine({ value, unit, caption }) {
+const staleTimeFormat = new Intl.DateTimeFormat('fa-IR', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+
+/** A price whose source hasn't updated for a while says so */
+function StaleMark({ asset }) {
+  if (!asset?.stale) return null;
+  const since = asset.staleSince ? new Date(asset.staleSince) : null;
+  const when = since && !Number.isNaN(since.getTime()) ? staleTimeFormat.format(since) : '';
+  const title = when ? `این قیمت از ${when} به‌روز نشده است` : 'این قیمت مدتی است به‌روز نشده است';
+  return <span className="home-stale-mark" title={title}>قدیمی</span>;
+}
+
+function PriceLine({ value, unit, caption, asset = null }) {
   return (
     <div className="main-price-block">
       <div className="price-big-row">
@@ -60,6 +71,7 @@ function PriceLine({ value, unit, caption }) {
         )}
       </div>
       {caption && <span className="home-price-caption">{caption}</span>}
+      <StaleMark asset={asset} />
     </div>
   );
 }
@@ -82,6 +94,7 @@ function GoldDetailedCard({ asset, isBest }) {
         value={asset.price || (hasMarket ? item.market : item.intrinsic)}
         unit="تومان"
         caption={hasMarket ? null : 'ارزش ذاتی — نرخ بازار فعلاً در دسترس نیست'}
+        asset={asset}
       />
 
       {(hasMarket || showStandard) && (
@@ -132,7 +145,7 @@ function DetailedCard({ asset }) {
           asset.badge && <span className="bubble-pill disabled">{asset.badge}</span>
         )}
       </div>
-      <PriceLine value={asset.price} unit={asset.unit} />
+      <PriceLine value={asset.price} unit={asset.unit} asset={asset} />
       {meta && <p className="home-card-meta" title={meta}>{meta}</p>}
     </div>
   );
@@ -158,6 +171,7 @@ function CompactCard({ asset }) {
           <span className="curr-unit">{asset.unit}</span>
         </div>
         {change && <span className={`home-change ${change.className}`}>{change.text}</span>}
+        <StaleMark asset={asset} />
       </div>
     </div>
   );
@@ -217,7 +231,7 @@ function TrendCard({ asset, trend, status, bucketSec }) {
           </span>
         )}
       </div>
-      <PriceLine value={price} unit={unit} />
+      <PriceLine value={price} unit={unit} asset={asset} />
       <TrendBody asset={asset} unit={unit} trend={trend} status={status} bucketSec={bucketSec} />
     </div>
   );

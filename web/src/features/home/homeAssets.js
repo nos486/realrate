@@ -24,7 +24,8 @@ const num = (v) => (v === null || v === undefined || v === '' || !Number.isFinit
 /**
  * @returns {{ id: string, found: boolean, name?: string, code?: string, flag?: string,
  *   category?: string, badge?: string, price?: number|null, unit?: string, perUnit?: string,
- *   note?: string, sourceName?: string, changePercent?: number|null, analysis?: object|null,
+ *   note?: string, sourceName?: string, changePercent?: number|null, stale?: boolean,
+ *   staleSince?: string|null, analysis?: object|null,
  *   searchText?: string }}
  */
 export function resolveHomeAsset(id, index) {
@@ -46,6 +47,8 @@ export function resolveHomeAsset(id, index) {
     note: asset.subText || '',
     sourceName: asset.sourceName || '',
     changePercent: num(asset.changePercent),
+    stale: Boolean(asset.stale),
+    staleSince: asset.staleSince || asset.updatedAt || null,
     analysis,
     searchText: asset.searchText || String(asset.name || '').toLowerCase(),
   };
