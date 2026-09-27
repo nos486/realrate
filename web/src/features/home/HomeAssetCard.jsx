@@ -13,6 +13,8 @@ import TrendSparkline from './TrendSparkline.jsx';
 
 function formatNum(num) {
   if (num === null || num === undefined || isNaN(num)) return '-';
+  // A price under 100 tomans keeps its fraction (a coin worth 0.37 toman is not 0)
+  if (Math.abs(num) > 0 && Math.abs(num) < 100) return Number(num).toLocaleString('fa-IR', { maximumSignificantDigits: 4 });
   return Math.round(num).toLocaleString('fa-IR');
 }
 

@@ -8,6 +8,7 @@ import {
   findPrimaryIdConflicts,
   catalogAssetId,
   catalogItemPriceToman,
+  roundToman,
   BASE_PRICE_IDS,
 } from '../../src/domain/priceBook.js';
 import { getMasterPriceSourcesConfig } from '../../src/config/sources.config.js';
@@ -116,6 +117,16 @@ describe('buildPriceBook', () => {
     expect(b.sources.src_usd).toMatchObject({ syncedAt: NOW, count: 1 });
   });
 
+  it('keeps the fraction of a price under 100 tomans (never rounds a cheap coin to 0)', () => {
+    expect(roundToman(0.3712)).toBe(0.3712);
+    expect(roundToman(12.34567)).toBe(12.35);
+    expect(roundToman(1234.5)).toBe(1235);
+    expect(roundToman(0)).toBe(0);
+    const coin = { id: 'src_cheap', priceType: 'shib', quote: 'usd_cross', items: [{ id: 'SHIB', price: 0.000012 }], isActive: true, isPrimary: true, name: 'c' };
+    const b = buildPriceBook([usd, coin], { now: NOW });
+    expect(b.items.shib.price).toBeCloseTo(1.2, 5);
+  });
+
   it('skips inactive sources and empty prices', () => {
     const b = buildPriceBook([single('a', 'x', 0), single('b', 'y', 5, { isActive: false })], { now: NOW });
     expect(b.items.x).toBeUndefined();
@@ -141,7 +152,8 @@ describe('the source config follows the standard', () => {
   });
 
   it('reads catalog prices from whichever field a feed fills', () => {
-    expect(catalogItemPriceToman({ price: 10.4 })).toBe(10);
+    expect(catalogItemPriceToman({ price: 1040.4 })).toBe(1040);
+    expect(catalogItemPriceToman({ price: 10.4 })).toBe(10.4); // under 100 tomans a fraction matters
     expect(catalogItemPriceToman({ priceRial: 1000 })).toBe(100);
     expect(catalogItemPriceToman({ pl: 50 })).toBe(5);
     expect(catalogItemPriceToman({})).toBe(0);

@@ -180,12 +180,19 @@ export async function syncAllSources(env, options = {}) {
   await setPriceBookCache(env, book);
 
   // 5. Price history, keyed by the book's ids (the writer never throws). Items of sources that
-  // didn't sync keep their value, except those computed from the dollar and the ounce.
+  // didn't sync keep their value, except those computed from the dollar and the ounce. Each price
+  // is recorded at the time its source gave it; live, non-catalog prices also get an hourly
+  // heartbeat row, so a flat price and a dead source look different in the history.
   if (priceHistoryWriter && syncedCount > 0) {
     const points = Object.values(book.items)
       .filter((item) => !item.sourceId || syncedSourceIds.has(item.sourceId)
         || item.params?.usd !== undefined || item.params?.usdCross !== undefined)
-      .map((item) => ({ id: item.id, price: item.price }));
+      .map((item) => ({
+        id: item.id,
+        price: item.price,
+        at: item.updatedAt,
+        heartbeat: !item.params?.stale && !item.params?.symbol,
+      }));
     await priceHistoryWriter(env, points, book.updatedAt);
   }
 

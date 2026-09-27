@@ -14,6 +14,7 @@ import {
   INSERT_CHANGED_SQL,
   PRICE_HISTORY_SCHEMA,
   migratePriceHistoryKeys,
+  HEARTBEAT_SEC,
 } from '../../src/repositories/priceHistory.repository.js';
 import {
   buildTrendSeries,
@@ -50,11 +51,20 @@ describe('toHistoryPoints', () => {
       { id: 'نماد۱', price: 12.5 },
       { id: 'bourse__فملي', price: 680 },
     ]);
-    expect(points).toEqual({ keys: ['usd', 'نماد1', 'bourse__فملی'], values: ['1100', '12.5', '680'] });
+    expect(points).toMatchObject({ keys: ['usd', 'نماد1', 'bourse__فملی'], values: ['1100', '12.5', '680'] });
+  });
+
+  it('carries each point\'s own time and whether it may be a heartbeat', () => {
+    const points = toHistoryPoints([
+      { id: 'usd', price: 1, at: '2026-01-01T00:00:00Z', heartbeat: true },
+      { id: 'eur', price: 2, at: 'not a date' },
+    ]);
+    expect(points.ats).toEqual(['2026-01-01T00:00:00.000Z', null]);
+    expect(points.heartbeats).toEqual([true, false]);
   });
 
   it('handles a missing list', () => {
-    expect(toHistoryPoints(null)).toEqual({ keys: [], values: [] });
+    expect(toHistoryPoints(null)).toEqual({ keys: [], values: [], ats: [], heartbeats: [] });
   });
 });
 
@@ -78,7 +88,7 @@ describe('recordPriceHistory', () => {
     expect(createClient).toHaveBeenCalledWith('postgres://x');
     expect(clients[0].query).toHaveBeenNthCalledWith(1, PRICE_HISTORY_SCHEMA);
     expect(clients[0].query).toHaveBeenLastCalledWith(INSERT_CHANGED_SQL, [
-      ['usd', 'eur'], ['1000', '1200'], '2026-01-01T00:00:00Z',
+      ['usd', 'eur'], ['1000', '1200'], '2026-01-01T00:00:00Z', [null, null], [false, false], HEARTBEAT_SEC,
     ]);
     // The second update skips the schema
     expect(clients[1].query).toHaveBeenCalledTimes(1);
@@ -206,6 +216,34 @@ describe.skipIf(!PG_URL)('price_history against a real Postgres', () => {
       { item_key: 'usd', t: '00:00', value: '1000' },
       { item_key: 'usd', t: '00:02', value: '1010.5' },
       { item_key: 'usd', t: '00:03', value: '1000' },
+    ]);
+    await admin.end();
+  });
+
+  it('records a price at its source\'s time, never before the latest row, and a heartbeat after an hour', async () => {
+    const admin = new Client({ connectionString: PG_URL });
+    await admin.connect();
+    await admin.query("DELETE FROM price_history WHERE item_key LIKE 'hb_%'");
+    const pgEnv = { HYPERDRIVE: { connectionString: PG_URL } };
+    const rec = (price, at, now, heartbeat = true) => recordPriceHistory(pgEnv, [{ id: 'hb_gold', price, at, heartbeat }], now);
+
+    // Priced by its source a minute before the sync
+    expect(await rec(100, '2026-02-01T09:59:00Z', '2026-02-01T10:00:00Z')).toBe(1);
+    // A later change the source dates before the latest row still lands after it
+    expect(await rec(101, '2026-02-01T09:00:00Z', '2026-02-01T10:01:00Z')).toBe(1);
+    // Unchanged within the hour: nothing; after an hour: a heartbeat row
+    expect(await rec(101, null, '2026-02-01T10:30:00Z')).toBe(0);
+    expect(await rec(101, null, '2026-02-01T11:30:00Z')).toBe(1);
+    // A catalog price (no heartbeat) stays change-only
+    expect(await rec(101, null, '2026-02-01T13:30:00Z', false)).toBe(0);
+
+    const { rows } = await admin.query(
+      "SELECT to_char(recorded_at AT TIME ZONE 'UTC', 'HH24:MI:SS.MS') AS t, value::text AS value FROM price_history WHERE item_key = 'hb_gold' ORDER BY recorded_at",
+    );
+    expect(rows).toEqual([
+      { t: '09:59:00.000', value: '100' },
+      { t: '09:59:00.001', value: '101' },
+      { t: '11:30:00.000', value: '101' },
     ]);
     await admin.end();
   });

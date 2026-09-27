@@ -112,28 +112,42 @@ export async function migratePriceHistoryKeys(client, sources) {
   }
 }
 
+/** A price that hasn't changed for this long is written again, so "flat" and "dead" differ */
+export const HEARTBEAT_SEC = 3600;
+
 /**
- * Insert the points whose value differs from the latest stored value of the same key.
- * $1: keys, $2: values (same order), $3: the time of this update.
+ * Insert the points whose value differs from the latest stored value of the same key, and the
+ * heartbeat points whose key has no row for HEARTBEAT_SEC.
+ * $1: keys, $2: values, $3: the time of this update, $4: each point's own time (null: $3),
+ * $5: whether a point may be a heartbeat, $6: the heartbeat interval in seconds.
+ * A point is recorded at its own time — when its source priced it — but never after this update
+ * and never at or before the key's latest row (so the latest row is always the latest value).
  */
 export const INSERT_CHANGED_SQL = `
 INSERT INTO price_history (item_key, recorded_at, value)
-SELECT n.item_key, $3::timestamptz, n.value
-FROM unnest($1::text[], $2::numeric[]) AS n(item_key, value)
+SELECT n.item_key,
+       GREATEST(
+         LEAST(COALESCE(n.at, $3::timestamptz), $3::timestamptz),
+         COALESCE(last.recorded_at + interval '1 millisecond', '-infinity'::timestamptz)
+       ),
+       n.value
+FROM unnest($1::text[], $2::numeric[], $4::timestamptz[], $5::boolean[]) AS n(item_key, value, at, heartbeat)
 LEFT JOIN LATERAL (
-  SELECT h.value FROM price_history h
+  SELECT h.value, h.recorded_at FROM price_history h
   WHERE h.item_key = n.item_key
   ORDER BY h.recorded_at DESC
   LIMIT 1
 ) AS last ON true
 WHERE last.value IS DISTINCT FROM n.value
+   OR (n.heartbeat AND last.recorded_at < $3::timestamptz - make_interval(secs => $6))
 `;
 
 /**
- * Turn a source's items into history points: one per key (the last one wins), positive
- * finite values only. Keys are in the price book's id form (normalizePriceId).
- * @param {Array<{ id: string, price: number|string }>} items
- * @returns {{ keys: string[], values: string[] }}
+ * Turn items into history points: one per key (the last one wins), positive finite values only.
+ * Keys are in the price book's id form (normalizePriceId).
+ * @param {Array<{ id: string, price: number|string, at?: string|null, heartbeat?: boolean }>} items
+ *   `at`: when the price is from; `heartbeat`: write it again after HEARTBEAT_SEC even if unchanged
+ * @returns {{ keys: string[], values: string[], ats: Array<string|null>, heartbeats: boolean[] }}
  */
 export function toHistoryPoints(items) {
   const byKey = new Map();
@@ -141,10 +155,17 @@ export function toHistoryPoints(items) {
     const key = normalizePriceId(item?.id);
     const value = Number(item?.price);
     if (!key || !Number.isFinite(value) || value <= 0) continue;
-    byKey.set(key, value);
+    const at = Date.parse(item?.at || "");
+    byKey.set(key, { value, at: Number.isFinite(at) ? new Date(at).toISOString() : null, heartbeat: Boolean(item?.heartbeat) });
   }
+  const points = [...byKey.values()];
   // Values go as strings so numeric keeps them exactly as JS printed them
-  return { keys: [...byKey.keys()], values: [...byKey.values()].map(String) };
+  return {
+    keys: [...byKey.keys()],
+    values: points.map((p) => String(p.value)),
+    ats: points.map((p) => p.at),
+    heartbeats: points.map((p) => p.heartbeat),
+  };
 }
 
 /** Trend windows: length and bucket size (the day is per minute, as often as prices are synced) */
@@ -288,7 +309,7 @@ export async function readPriceTrends(env, keys, { range = DEFAULT_TREND_RANGE, 
 /**
  * Record the items of one update in the history
  * @param {object} env - needs env.HYPERDRIVE
- * @param {Array<{ id: string, price: number|string }>} items
+ * @param {Array<{ id: string, price: number|string, at?: string|null, heartbeat?: boolean }>} items
  * @param {string} [recordedAt] - ISO time of the update (defaults to now)
  * @param {{ createClient?: (connectionString: string) => object }} [deps] - for tests
  * @returns {Promise<number>} How many rows were inserted
@@ -297,7 +318,7 @@ export async function recordPriceHistory(env, items, recordedAt, deps = {}) {
   const connectionString = env?.HYPERDRIVE?.connectionString;
   if (!connectionString) return 0;
 
-  const { keys, values } = toHistoryPoints(items);
+  const { keys, values, ats, heartbeats } = toHistoryPoints(items);
   if (keys.length === 0) return 0;
 
   const time = recordedAt || new Date().toISOString();
@@ -315,7 +336,7 @@ export async function recordPriceHistory(env, items, recordedAt, deps = {}) {
         });
     }
     await schemaReady;
-    const res = await client.query(INSERT_CHANGED_SQL, [keys, values, time]);
+    const res = await client.query(INSERT_CHANGED_SQL, [keys, values, time, ats, heartbeats, HEARTBEAT_SEC]);
     return res?.rowCount || 0;
   } catch (err) {
     logger.warn("[PriceHistory] Write failed:", { error: err.message, items: keys.length });
