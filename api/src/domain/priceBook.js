@@ -86,14 +86,24 @@ export function catalogItemSymbol(item) {
   return String(item?.id || item?.symbol || item?.s || item?.code || "").trim();
 }
 
+/**
+ * A price in tomans, rounded to what matters: whole tomans from 100 up, four significant digits
+ * below (a coin worth 0.37 toman stays 0.37, never 0)
+ */
+export function roundToman(value) {
+  const n = Number(value);
+  if (!Number.isFinite(n) || n <= 0) return 0;
+  return n >= 100 ? Math.round(n) : Number(n.toPrecision(4));
+}
+
 /** A catalog item's price in tomans, whichever field its feed fills */
 export function catalogItemPriceToman(item) {
   const n = (v) => (v !== undefined && Number(v) > 0 ? Number(v) : 0);
-  if (n(item?.price)) return Math.round(n(item.price));
-  if (n(item?.priceToman)) return Math.round(n(item.priceToman));
-  if (n(item?.p)) return Math.round(n(item.p));
-  if (n(item?.priceRial)) return Math.round(n(item.priceRial) / 10);
-  if (n(item?.pl)) return Math.round(n(item.pl) / 10);
+  if (n(item?.price)) return roundToman(n(item.price));
+  if (n(item?.priceToman)) return roundToman(n(item.priceToman));
+  if (n(item?.p)) return roundToman(n(item.p));
+  if (n(item?.priceRial)) return roundToman(n(item.priceRial) / 10);
+  if (n(item?.pl)) return roundToman(n(item.pl) / 10);
   return 0;
 }
 
@@ -291,17 +301,17 @@ export function buildPriceBook(sources, { now = new Date().toISOString(), source
 
   // 1. Prices already in tomans
   for (const entry of entries) {
-    if (entry.quote === "toman") items[entry.id] = toItem(entry, Math.round(entry.value));
-    else if (entry.quote === "rial") items[entry.id] = toItem(entry, Math.round(entry.value / 10));
+    if (entry.quote === "toman") items[entry.id] = toItem(entry, roundToman(entry.value));
+    else if (entry.quote === "rial") items[entry.id] = toItem(entry, roundToman(entry.value / 10));
   }
 
   // 2. Dollar quotes, through the book's own USD price
   const usdToman = positive(items[BASE_PRICE_IDS.usd]?.price);
   for (const entry of entries) {
     if (entry.quote === "usd" && usdToman) {
-      items[entry.id] = toItem(entry, Math.round(entry.value * usdToman), { usd: entry.value });
+      items[entry.id] = toItem(entry, roundToman(entry.value * usdToman), { usd: entry.value });
     } else if (entry.quote === "usd_cross" && usdToman) {
-      items[entry.id] = toItem(entry, Math.round(entry.value * usdToman), { usdCross: entry.value });
+      items[entry.id] = toItem(entry, roundToman(entry.value * usdToman), { usdCross: entry.value });
     }
   }
 
@@ -358,7 +368,25 @@ export function buildPriceBook(sources, { now = new Date().toISOString(), source
   //    from a stale dollar or ounce are stale too
   markStale(items, list, sourceStates || {}, Date.parse(now) || Date.now());
 
-  return { updatedAt: now, items, sources: sourceStates || {} };
+  return { updatedAt: now, version: priceBookVersion(items), items, sources: sourceStates || {} };
+}
+
+/**
+ * A short fingerprint of what the book says: every id with its price and whether it is stale
+ * (not the timestamps, which move on every sync). Equal versions mean nothing a screen shows
+ * changed; it is the book's ETag.
+ * @param {Record<string, object>} items
+ */
+export function priceBookVersion(items) {
+  // FNV-1a, 32 bits, over "id=price[!];" in id order
+  let hash = 0x811c9dc5;
+  const text = Object.keys(items || {}).sort()
+    .map((id) => `${id}=${items[id]?.price}${items[id]?.params?.stale ? "!" : ""};`).join("");
+  for (let i = 0; i < text.length; i++) {
+    hash ^= text.charCodeAt(i);
+    hash = Math.imul(hash, 0x01000193) >>> 0;
+  }
+  return hash.toString(36);
 }
 
 /**

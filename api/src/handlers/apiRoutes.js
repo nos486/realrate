@@ -3,9 +3,10 @@
  */
 
 import { getPriceBook } from "../services/market/priceAggregator.service.js";
+import { priceBookVersion } from "../domain/priceBook.js";
 import { baseRatesOf, forexCrossRatesOf, legacyPricesOf } from "../domain/priceBookViews.js";
 import { getGlobalSettings } from "../repositories/settings.repository.js";
-import { jsonResponse } from "../lib/helpers.js";
+import { jsonResponse, getCorsHeaders } from "../lib/helpers.js";
 import { logger } from "../lib/logger.js";
 import { readPriceTrends, TREND_RANGES, DEFAULT_TREND_RANGE } from "../repositories/priceHistory.repository.js";
 
@@ -58,7 +59,16 @@ export async function handleGetPrices(env, request = null) {
  */
 export async function handleGetPriceBook(env, request = null) {
   const [book, globalSettings] = await Promise.all([getPriceBook(env), getGlobalSettings(env)]);
-  return jsonResponse({ success: true, updatedAt: book.updatedAt, items: book.items, globalSettings }, 200, request);
+  // Unchanged prices and settings: the client keeps what it has (304, no body)
+  const version = book.version || priceBookVersion(book.items);
+  const etag = `W/"${version}-${priceBookVersion({ s: { price: JSON.stringify(globalSettings ?? null) } })}"`;
+  const cacheHeaders = { ETag: etag, "Cache-Control": "no-cache" };
+  if (request?.headers?.get("If-None-Match") === etag) {
+    return new Response(null, { status: 304, headers: { ...cacheHeaders, ...getCorsHeaders(request) } });
+  }
+  const response = jsonResponse({ success: true, updatedAt: book.updatedAt, version, items: book.items, globalSettings }, 200, request);
+  for (const [name, value] of Object.entries(cacheHeaders)) response.headers.set(name, value);
+  return response;
 }
 
 /**

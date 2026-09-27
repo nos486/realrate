@@ -13,7 +13,6 @@ import {
   dbGetUserPortfolios,
   dbGetPriceSources,
   dbSavePriceSource,
-  dbDeletePriceSource,
   dbSetPrimaryPriceSource,
   dbStoreTestedSourceItems,
   saveGlobalSettings,
@@ -175,7 +174,8 @@ export async function handleAdminGetPriceSources(request, env) {
 
 /**
  * POST /api/admin/price-sources
- * Create or update a price source — admin only
+ * Switch a source on or off (or make it primary): the only changes kept for a source defined in
+ * code — admin only
  */
 export async function handleAdminSavePriceSource(request, env) {
   const user = await getAuthenticatedUser(request, env);
@@ -197,35 +197,13 @@ export async function handleAdminSavePriceSource(request, env) {
 
 /**
  * DELETE /api/admin/price-sources
- * Delete a price source by ID (?id=...) — admin only
+ * Sources are defined in code (sources.config.js) and can't be deleted from the admin; switching
+ * one off does the same for the prices — admin only
  */
 export async function handleAdminDeletePriceSource(request, env) {
   const user = await getAuthenticatedUser(request, env);
   if (!user || user.role !== "admin") return forbiddenResponse(request);
-
-  try {
-    const url = new URL(request.url);
-    let id = url.searchParams.get("id");
-    if (!id) {
-      const body = await request.json().catch(() => ({}));
-      id = body.id;
-    }
-
-    if (!id) {
-      return errorResponse("شناسه سورس الزامی است.", 400, request);
-    }
-
-    const success = await dbDeletePriceSource(env, id);
-    if (!success) {
-      return errorResponse("سورس یافت نشد یا حذف ناموفق بود.", 404, request);
-    }
-
-    await refreshPriceBook(env).catch(() => {});
-
-    return jsonResponse({ success: true, message: "سورس قیمت با موفقیت حذف شد." }, 200, request);
-  } catch (e) {
-    return errorResponse(e.message, 500, request);
-  }
+  return errorResponse("سورس‌ها در کد تعریف شده‌اند و حذف نمی‌شوند؛ برای کنار گذاشتن، سورس را غیرفعال کنید.", 400, request);
 }
 
 /**

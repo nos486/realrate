@@ -11,7 +11,7 @@ import {
   serializeSourceItems,
   SOURCE_ITEMS_KEY_PREFIX,
 } from '../../src/repositories/sourceItems.repository.js';
-import { dbGetPriceSources } from '../../src/repositories/priceSource.repository.js';
+import { dbGetPriceSources, dbSavePriceSource, dbSetPrimaryPriceSource, PRICE_SOURCE_OVERRIDES_KEY } from '../../src/repositories/priceSource.repository.js';
 
 describe('source items storage', () => {
   let store;
@@ -72,5 +72,18 @@ describe('source items storage', () => {
     // The stored form is kept for the unchanged-check, but never sent to a client
     expect(usd.storedItemsJson).toBe(serializeSourceItems([{ id: 'src_def_usd', price: 95500 }]));
     expect(JSON.stringify(usd)).not.toContain('storedItemsJson');
+  });
+
+  it('keeps an admin\'s on/off and primary choices over the code config, and nothing else', async () => {
+    const off = await dbSavePriceSource(env, { id: 'src_def_usd', isActive: false, name: 'ignored', endpoint: 'x' });
+    expect(off).toMatchObject({ id: 'src_def_usd', isActive: false });
+    expect(off.name).not.toBe('ignored');
+    expect(JSON.parse(store.get(PRICE_SOURCE_OVERRIDES_KEY))).toEqual({ src_def_usd: { isActive: false } });
+    expect((await dbGetPriceSources(env, { book: null })).find((s) => s.id === 'src_def_usd').isActive).toBe(false);
+
+    await dbSetPrimaryPriceSource(env, 'src_def_usd');
+    expect((await dbGetPriceSources(env, { book: null })).find((s) => s.id === 'src_def_usd')).toMatchObject({ isActive: true, isPrimary: true });
+
+    await expect(dbSavePriceSource(env, { id: 'src_new_thing', isActive: true })).rejects.toThrow('sources.config.js');
   });
 });
