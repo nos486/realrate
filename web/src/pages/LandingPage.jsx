@@ -212,28 +212,6 @@ export default function LandingPage() {
           <div className="landing-header-actions">
             <button
               type="button"
-              className="landing-btn-demo"
-              onClick={handleDemoClick}
-              disabled={enteringDemo}
-              aria-label="مشاهده نسخه دمو"
-            >
-              <Sparkles size={16} />
-              <span>{enteringDemo ? 'در حال ورود...' : 'نسخه دمو'}</span>
-            </button>
-
-            <a
-              href="https://github.com/nos486/realrate"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="landing-btn-github"
-              aria-label="مشاهده مخزن RealRate در گیت‌هاب"
-            >
-              <GithubIcon size={18} />
-              <span className="hide-mobile">گیت‌هاب</span>
-            </a>
-
-            <button
-              type="button"
               className="landing-btn-primary"
               onClick={enterApp}
               aria-label="ورود به برنامه RealRate"
@@ -269,37 +247,43 @@ export default function LandingPage() {
               </p>
 
               <div className="landing-cta-group">
-                <button
-                  type="button"
-                  className="landing-cta-main"
-                  onClick={enterApp}
-                >
-                  <span className="cta-shimmer" />
-                  <GoogleLogo size={20} />
-                  <span>شروع رایگان با گوگل</span>
-                  <ArrowLeft size={18} className="cta-arrow" />
-                </button>
+                <div className="landing-cta-actions">
+                  <button
+                    type="button"
+                    className="landing-cta-main"
+                    onClick={enterApp}
+                  >
+                    <span className="cta-shimmer" />
+                    <GoogleLogo size={20} />
+                    <span>شروع رایگان با گوگل</span>
+                    <ArrowLeft size={18} className="cta-arrow" />
+                  </button>
 
-                <button
-                  type="button"
-                  className="landing-cta-demo"
-                  onClick={handleDemoClick}
-                  disabled={enteringDemo}
-                >
-                  <Sparkles size={18} />
-                  <span>{enteringDemo ? 'در حال آماده‌سازی دمو...' : 'مشاهده نسخه دمو'}</span>
-                </button>
+                  <button
+                    type="button"
+                    className="landing-cta-demo"
+                    onClick={handleDemoClick}
+                    disabled={enteringDemo}
+                  >
+                    <Sparkles size={18} className="cta-sparkle-icon" />
+                    <span>{enteringDemo ? 'در حال ورود به دمو...' : 'مشاهده نسخه دمو'}</span>
+                  </button>
+                </div>
 
-                <a
-                  href="https://github.com/nos486/realrate"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="landing-cta-ghost"
-                >
-                  <GithubIcon size={19} />
-                  <span>کد منبع در GitHub</span>
-                  <ExternalLink size={14} className="ghost-ext-icon" />
-                </a>
+                <div className="landing-cta-sub">
+                  <a
+                    href="https://github.com/nos486/realrate"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="landing-cta-github-link"
+                  >
+                    <GithubIcon size={16} />
+                    <span>کد منبع در GitHub</span>
+                    <ExternalLink size={13} className="ghost-ext-icon" />
+                  </a>
+                  <span className="landing-cta-sub-divider" aria-hidden="true">•</span>
+                  <span className="landing-cta-sub-badge">۱۰۰٪ رایگان و متن‌باز</span>
+                </div>
               </div>
             </div>
 

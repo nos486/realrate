@@ -309,10 +309,17 @@
 
 .landing-cta-group {
   display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 14px;
+  margin-top: 10px;
+}
+
+.landing-cta-actions {
+  display: flex;
   align-items: center;
   flex-wrap: wrap;
-  gap: 16px;
-  margin-top: 8px;
+  gap: 14px;
 }
 
 .landing-cta-main {
@@ -321,21 +328,21 @@
   display: inline-flex;
   align-items: center;
   gap: 12px;
-  padding: 14px 28px;
-  font-size: 15.5px;
+  padding: 13px 26px;
+  font-size: 15px;
   font-weight: 700;
   color: #ffffff;
   background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-strong) 100%);
   border: 1px solid rgba(56, 189, 248, 0.45);
   border-radius: 14px;
   cursor: pointer;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  box-shadow: 0 4px 16px rgba(14, 165, 233, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.2);
   transition: all 0.25s ease;
 }
 
 .landing-cta-main:hover {
   transform: translateY(-2px);
-  box-shadow: none;
+  box-shadow: 0 6px 20px rgba(14, 165, 233, 0.38);
   border-color: rgba(56, 189, 248, 0.8);
 }
 
@@ -373,30 +380,88 @@
   }
 }
 
-.landing-cta-ghost {
+.landing-cta-demo {
+  position: relative;
   display: inline-flex;
   align-items: center;
   gap: 10px;
-  padding: 13px 22px;
+  padding: 13px 24px;
   font-size: 15px;
-  font-weight: 600;
-  color: var(--text-primary);
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  font-weight: 700;
+  color: #fde68a;
+  background: rgba(245, 158, 11, 0.1);
+  border: 1px solid rgba(245, 158, 11, 0.32);
   border-radius: 14px;
-  text-decoration: none;
-  backdrop-filter: blur(10px);
-  transition: all 0.2s ease;
+  cursor: pointer;
+  transition: all 0.25s ease;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
 }
 
-.landing-cta-ghost:hover {
-  background: rgba(255, 255, 255, 0.08);
-  border-color: rgba(255, 255, 255, 0.22);
+.landing-cta-demo:hover {
+  transform: translateY(-2px);
+  background: rgba(245, 158, 11, 0.18);
+  border-color: rgba(245, 158, 11, 0.58);
+  color: #ffffff;
+  box-shadow: 0 4px 16px rgba(245, 158, 11, 0.2);
+}
+
+.landing-cta-demo:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.cta-sparkle-icon {
+  color: #fbbf24;
+  transition: transform 0.25s ease;
+}
+
+.landing-cta-demo:hover .cta-sparkle-icon {
+  transform: rotate(15deg) scale(1.1);
+}
+
+.landing-cta-sub {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13.5px;
+  color: var(--text-secondary);
+  padding-right: 2px;
+}
+
+.landing-cta-github-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text-secondary);
+  text-decoration: none;
+  font-weight: 500;
+  transition: color 0.2s ease;
+}
+
+.landing-cta-github-link:hover {
   color: #ffffff;
 }
 
-.ghost-ext-icon {
+.landing-cta-github-link .ghost-ext-icon {
   opacity: 0.6;
+  transition: transform 0.2s ease, opacity 0.2s ease;
+}
+
+.landing-cta-github-link:hover .ghost-ext-icon {
+  opacity: 1;
+  transform: translate(-2px, -2px);
+}
+
+.landing-cta-sub-divider {
+  opacity: 0.35;
+  font-size: 11px;
+}
+
+.landing-cta-sub-badge {
+  font-size: 12.5px;
+  color: var(--text-muted);
 }
 
 /* ── Hero 3D Perspective Floating Mockup ────────────────────────────────────── */
@@ -1303,14 +1368,27 @@
   }
 
   .landing-cta-group {
-    justify-content: center;
+    align-items: stretch;
     width: 100%;
   }
 
+  .landing-cta-actions {
+    flex-direction: column;
+    width: 100%;
+    gap: 12px;
+  }
+
   .landing-cta-main,
-  .landing-cta-ghost {
+  .landing-cta-demo {
     width: 100%;
     justify-content: center;
+  }
+
+  .landing-cta-sub {
+    justify-content: center;
+    flex-wrap: wrap;
+    text-align: center;
+    padding-right: 0;
   }
 
   .features-single-row {
