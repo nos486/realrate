@@ -26,12 +26,15 @@
       (function() {
         try {
           document.documentElement.setAttribute('data-theme', 'dark');
+          // A signed-in visitor on / is sent to the app: don't flash the static landing text
+          if (localStorage.getItem('realrate_token')) document.documentElement.classList.add('has-session');
           localStorage.setItem('realrate_theme', 'dark');
           var meta = document.querySelector('meta[name="theme-color"]');
           if (meta) meta.setAttribute('content', '#06080d');
         } catch(e) {}
       })();
     </script>
+    <style>html.has-session .landing-ssr-fallback { display: none !important; }</style>
   </head>
   <body>
     <div id="root"></div>

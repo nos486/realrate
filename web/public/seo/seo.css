@@ -713,5 +713,32 @@ a:hover {
 
   .seo-header-inner {
     height: 60px;
+    gap: 0.5rem;
   }
+}
+
+/* Phones: brand + two buttons must fit in 360px */
+@media (max-width: 520px) {
+  .seo-brand-tag,
+  .seo-header-actions .seo-btn-ghost {
+    display: none;
+  }
+
+  .seo-brand {
+    font-size: 1.05rem;
+  }
+
+  .seo-header-actions {
+    gap: 0.4rem;
+  }
+
+  .seo-header-actions .seo-btn {
+    padding: 0.4rem 0.7rem;
+    font-size: 0.82rem;
+  }
+}
+
+/* Long Persian words and URLs never widen the page */
+.seo-main {
+  overflow-wrap: anywhere;
 }

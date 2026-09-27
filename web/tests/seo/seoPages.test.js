@@ -37,7 +37,7 @@ describe('SEO Pages Acceptance Tests', () => {
 
   const staticHtmlFiles = [
     { slug: 'index', path: resolve(distDir, 'index.html'), isLanding: true },
-    { slug: 'features/index', path: resolve(distDir, 'features/index.html') },
+    { slug: 'features', path: resolve(distDir, 'features.html') },
     { slug: 'about', path: resolve(distDir, 'about.html') },
     { slug: 'faq', path: resolve(distDir, 'faq.html') },
     ...FEATURE_PAGES.map((p) => ({
