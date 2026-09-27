@@ -111,7 +111,7 @@ npx wrangler secret put GEMINI_API_KEY
 
 بدون این کلید، اسکن به کاربران «فعلاً در دسترس نیست» می‌گوید و به مدیر نام secret را. مدل در `api/src/config/ai.config.js` است.
 
-**محدودیت استفاده:** هر کاربر روزانه ۱۰ اسکن دارد و مدیر بی‌محدودیت است (`api/src/config/usageLimits.js`؛ بخش
+**محدودیت استفاده:** Gemini برای همه کاربران روی هم حداکثر ۵ بار در دقیقه صدا زده می‌شود (Durable Object `RATE_GATE` در `api/wrangler.toml`؛ با اولین انتشار خودکار ساخته می‌شود). هر کاربر روزانه ۱۰ اسکن دارد و مدیر بی‌محدودیت است (`api/src/config/usageLimits.js`؛ بخش
 «محدودیت استفاده» در `docs/ARCHITECTURE.md`).
 
 ## استقرار

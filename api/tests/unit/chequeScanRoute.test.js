@@ -203,4 +203,14 @@ describe('POST /api/cheques/scan route', () => {
     const res = await handleChequeScanQuotaRoute(new Request('https://api.realrate.ir/api/cheques/scan/quota'), env);
     expect((await res.json()).quota).toEqual({ key: 'cheque_scan', limit: 10, used: 3, remaining: 7 });
   });
+  it('gives the scan back when Gemini is busy (6th call of the minute)', async () => {
+    getAuthenticatedUser.mockResolvedValue(USER);
+    env.RATE_GATE = {
+      idFromName: (n) => n,
+      get: () => ({ fetch: async () => Response.json({ ok: false, retryAfterSec: 20 }) }),
+    };
+    await expect(handleChequeScanRoute(createScanRequest(), env)).rejects.toMatchObject({ statusCode: 429, code: 'SERVICE_BUSY' });
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(usedToday(USER)).toBe(0);
+  });
 });
