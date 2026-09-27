@@ -183,7 +183,7 @@ export function ChequeScanModal({ isOpen, onClose, onFillForm }) {
             </div>
 
             {/* Where the image goes */}
-            <div className="scan-tip-card">
+            <div className="scan-tip-card is-muted">
               <ShieldCheck size={15} className="scan-tip-icon" />
               <span>
                 برای خواندن اطلاعات، تصویر یک‌بار برای سرویس هوش مصنوعی Gemini (گوگل) فرستاده می‌شود و در سرور ما ذخیره نمی‌شود.
