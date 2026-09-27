@@ -218,7 +218,7 @@ async function renderTemplate({ title, subtitle, badge }) {
       <span class="tag">رمزنگاری سرتاسری (Zero-Knowledge)</span>
       <span class="tag">بدون ردیاب تجاری</span>
     </div>
-    <span class="domain">realrate.geekio.org</span>
+    <span class="domain">realrate.ir</span>
   </div>
 </body>
 </html>`;

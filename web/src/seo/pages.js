@@ -5,12 +5,12 @@
  */
 
 export const SITE = {
-  origin: 'https://realrate.geekio.org',
+  origin: 'https://realrate.ir',
   name: 'RealRate',
   nameFa: 'ریل‌ریت',
   slogan: 'تحلیل ارزش واقعی طلا و سکه و مدیریت مالی شخصی',
   description: 'پلتفرم مستقل و رمزنگاری‌شده برای تحلیل ارزش واقعی و حباب طلا و سکه، مدیریت پورتفوی چنددارایی، وام‌ها و درآمدها — کاملاً رایگان و متن‌باز.',
-  ogImage: 'https://realrate.geekio.org/og/default.png',
+  ogImage: 'https://realrate.ir/og/default.png',
 };
 
 export const FEATURE_PAGES = [
@@ -91,7 +91,7 @@ export const FEATURE_PAGES = [
       },
     ],
     related: ['portfolio', 'transactions', 'personal-dashboard'],
-    ogImage: 'https://realrate.geekio.org/og/gold-coin-bubble.png',
+    ogImage: 'https://realrate.ir/og/gold-coin-bubble.png',
   },
 
   {
@@ -171,7 +171,7 @@ export const FEATURE_PAGES = [
       },
     ],
     related: ['transactions', 'gold-coin-bubble', 'encryption'],
-    ogImage: 'https://realrate.geekio.org/og/portfolio.png',
+    ogImage: 'https://realrate.ir/og/portfolio.png',
   },
 
   {
@@ -251,7 +251,7 @@ export const FEATURE_PAGES = [
       },
     ],
     related: ['portfolio', 'gold-coin-bubble', 'income'],
-    ogImage: 'https://realrate.geekio.org/og/transactions.png',
+    ogImage: 'https://realrate.ir/og/transactions.png',
   },
 
   {
@@ -331,7 +331,7 @@ export const FEATURE_PAGES = [
       },
     ],
     related: ['cheques', 'income', 'personal-dashboard'],
-    ogImage: 'https://realrate.geekio.org/og/loans.png',
+    ogImage: 'https://realrate.ir/og/loans.png',
   },
 
   {
@@ -411,7 +411,7 @@ export const FEATURE_PAGES = [
       },
     ],
     related: ['loans', 'portfolio', 'transactions'],
-    ogImage: 'https://realrate.geekio.org/og/income.png',
+    ogImage: 'https://realrate.ir/og/income.png',
   },
 
   {
@@ -491,7 +491,7 @@ export const FEATURE_PAGES = [
       },
     ],
     related: ['ai-cheque-scan', 'loans', 'encryption'],
-    ogImage: 'https://realrate.geekio.org/og/cheques.png',
+    ogImage: 'https://realrate.ir/og/cheques.png',
   },
 
   {
@@ -571,7 +571,7 @@ export const FEATURE_PAGES = [
       },
     ],
     related: ['cheques', 'encryption', 'personal-dashboard'],
-    ogImage: 'https://realrate.geekio.org/og/ai-cheque-scan.png',
+    ogImage: 'https://realrate.ir/og/ai-cheque-scan.png',
   },
 
   {
@@ -651,7 +651,7 @@ export const FEATURE_PAGES = [
       },
     ],
     related: ['portfolio', 'personal-dashboard', 'cheques'],
-    ogImage: 'https://realrate.geekio.org/og/encryption.png',
+    ogImage: 'https://realrate.ir/og/encryption.png',
   },
 
   {
@@ -731,7 +731,7 @@ export const FEATURE_PAGES = [
       },
     ],
     related: ['portfolio', 'gold-coin-bubble', 'loans'],
-    ogImage: 'https://realrate.geekio.org/og/personal-dashboard.png',
+    ogImage: 'https://realrate.ir/og/personal-dashboard.png',
   },
 
   {
@@ -811,7 +811,7 @@ export const FEATURE_PAGES = [
       },
     ],
     related: ['portfolio', 'gold-coin-bubble', 'personal-dashboard'],
-    ogImage: 'https://realrate.geekio.org/og/demo.png',
+    ogImage: 'https://realrate.ir/og/demo.png',
   },
 ];
 
@@ -822,7 +822,7 @@ export const STATIC_PAGES = {
     description: 'مجموعه کامل ابزارهای تحلیل ارزش طلا و سکه، مدیریت پورتفوی چنددارایی، وام، چک و درآمد در نرم‌افزار مدیریت مالی شخصی ریل‌ریت.',
     h1: 'امکانات و قابلیت‌های پلتفرم مدیریت مالی ریل‌ریت',
     intro: 'ریل‌ریت نرم‌افزار مدیریت مالی شخصی مستقل، متن‌باز و رمزنگاری‌شده است که مجموعه‌ای یکپارچه از ابزارهای تحلیلی، پایش پورتفوی چنددارایی، مدیریت اقساط وام، کنترل چک‌های صیادی و ارزیابی جریان نقدی را در اختیارتان می‌گذارد. همه این امکانات به صورت رایگان، بدون تبلیغات و با حفظ کامل حریم خصوصی عرضه شده است.',
-    ogImage: 'https://realrate.geekio.org/og/default.png',
+    ogImage: 'https://realrate.ir/og/default.png',
   },
 
   about: {
@@ -869,7 +869,7 @@ export const STATIC_PAGES = {
         ],
       },
     ],
-    ogImage: 'https://realrate.geekio.org/og/default.png',
+    ogImage: 'https://realrate.ir/og/default.png',
   },
 
   faq: {
@@ -928,6 +928,6 @@ export const STATIC_PAGES = {
         a: 'پروژه روی گیت‌هاب متن‌باز است؛ می‌توانید با ستاره دادن، گزارش باگ‌ها، پیشنهاد امکانات تازه یا ارسال Pull Request در توسعه آن سهیم شوید.',
       },
     ],
-    ogImage: 'https://realrate.geekio.org/og/default.png',
+    ogImage: 'https://realrate.ir/og/default.png',
   },
 };
