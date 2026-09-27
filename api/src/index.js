@@ -123,6 +123,7 @@ import {
   handleUpdateCheque,
   handleDeleteCheque,
 } from "./handlers/chequeRoutes.js";
+import { handleChequeScanRoute } from "./handlers/chequeScanRoutes.js";
 import {
   handleGetRecurringIncomes,
   handleCreateRecurringIncome,
@@ -420,6 +421,10 @@ async function handleRequest(request, env, ctx) {
   }
 
   // ── Cheques API Routes ──────────────────────────────────────────────────
+  if (normalizedPath === "/api/cheques/scan" && request.method === "POST") {
+    return wrap(handleChequeScanRoute)(request, env);
+  }
+
   const chequeSingleMatch = normalizedPath.match(/^\/api\/cheques\/([^/]+)$/);
   if (chequeSingleMatch) {
     const chequeId = chequeSingleMatch[1];

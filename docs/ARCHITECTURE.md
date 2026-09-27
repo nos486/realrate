@@ -174,3 +174,44 @@ web/src/
 5. **Privacy Mode (`btn-privacy-toggle`)**:
    - Masks numbers across all tables and cards with `****`.
    - Global event propagation via `CustomEvent('realrate_privacy_change')`.
+
+---
+
+## 3. سازوکار ویژگی‌های آزمایشی و بتا (Beta Features / Feature Flags)
+
+سیستم دارای سازوکار یکپارچه و چندمرحله‌ای Feature Flag بین کلاینت و سرور است تا امکان تست امکانات جدید در محیط پروداکشن واقعی به صورت امن و محدود به مدیر سیستم فراهم شود:
+
+### چرخه عمر ویژگی‌ها (Feature Stages)
+هر ویژگی در فایل مشترک `api/src/config/features.js` (با symlink در `web/src/config/features.js`) تعریف می‌شود:
+```javascript
+export const FEATURES = {
+  cheque_scan: {
+    stage: 'beta', // 'off' | 'beta' | 'ga'
+    label: 'اسکن چک با هوش مصنوعی',
+    description: 'استخراج هوشمند اطلاعات چک از روی تصویر با Workers AI',
+  },
+};
+```
+- `'off'`: کاملاً غیرفعال برای همه کاربران (همیشه `false`).
+- `'beta'`: فعال **فقط برای مدیران سیستم** (`user?.role === 'admin'`). نقش مدیر منحصراً توسط سرور بر اساس `ADMIN_EMAIL` محاسبه می‌شود و کلاینت نقشی در تعیین آن ندارد.
+- `'ga'` (General Availability): فعال عمومی برای تمام کاربران وارد شده (`Boolean(user)`).
+
+### امنیت در لایه سرور
+- **محافظت مسیرها با `requireFeature` (`api/src/lib/features.js`)**:
+  هر مسیر مربوط به ویژگی آزمایشی قبل از هر کاری `await requireFeature(request, env, 'feature_key')` را فراخوانی می‌کند.
+  اگر ویژگی برای کاربر فعال نباشد، سرور خطای `404 Not Found` برمی‌گرداند تا وجود اندپوینت مخفی بماند.
+- **انتشار در مشخصات کاربر**:
+  پاسخ `GET /api/v1/auth/me` آرایه کلیدهای فعال را در فیلد `features: enabledFeatures(user)` ارسال می‌کند.
+
+### استفاده در فرانت‌اند
+- **هوک `useFeature(key)`**: با خواندن `user.features` از کانتکست احراز هویت، فعال بودن ویژگی را تعیین می‌کند.
+- **کامپوننت `<Feature name="cheque_scan" fallback={null}>`**: جهت رندر مشروط بخش‌های رابط کاربری.
+- **نشانگر `<BetaBadge />`**: برچسب ظریف «بتا» با استایل هماهنگ با تم برنامه.
+- **قاعده طلایی**: هیچ کامپوننتی نباید مستقیماً `user.role === 'admin'` را برای ویژگی‌های بتا بررسی کند؛ کلیه کامپوننت‌ها ملزم به استفاده از `useFeature` یا `<Feature>` هستند.
+
+### راهنمای افزودن ویژگی جدید بتا
+1. ویژگی جدید را با کلید یکتا و مشخصات در `api/src/config/features.js` ثبت کنید (`stage: 'beta'`).
+2. اندپوینت‌های سرور را در ابتدای کار با `await requireFeature(request, env, 'key')` محافظت کنید.
+3. در کلاینت، دکمه‌ها و المان‌های UI را درون `<Feature name="key">` قرار دهید.
+4. پس از اطمینان از پایداری و عملکرد در محیط واقعی، تنها با تغییر `stage: 'ga'` ویژگی را برای عموم کاربران فعال کنید.
+

@@ -76,10 +76,13 @@ Links are single-use, expire (verify 24 h, reset 1 h) and are stored only as SHA
 these endpoints are rate-limited (`429 TOO_MANY_REQUESTS`). Without an email provider they answer `503 EMAIL_NOT_CONFIGURED`.
 Direct password or Google OAuth logins to the demo account (`demo@realrate.invalid` or `is_demo = 1`) are strictly rejected.
 
-`GET /api/v1/auth/me`: For demo sessions (`demo_view` or `demo_edit`), additionally returns:
-- `demo: { mode: 'view' | 'edit' }`
-- `demoVaultPassphrase`: Public passphrase for the demo vault (configured via `DEMO_VAULT_PASSPHRASE`).
-For standard user sessions, these properties are never included.
+`GET /api/v1/auth/me`: Returns current user session details:
+- `user`: `{ id, email, name, role, isDemo, emailVerified, createdAt, updatedAt }`
+- `features`: Array of active feature flag keys enabled for the user (e.g. `['cheque_scan']` for admin users when `stage: 'beta'`).
+- For demo sessions (`demo_view` or `demo_edit`), additionally returns:
+  - `demo: { mode: 'view' | 'edit' }`
+  - `demoVaultPassphrase`: Public passphrase for the demo vault (configured via `DEMO_VAULT_PASSPHRASE`).
+For standard user sessions, demo properties are never included.
 
 
 ### User Settings & Portfolios (Protected)
@@ -179,6 +182,58 @@ Validation is the shared `api/src/domain/chequeDocument.js` (the browser uses th
   ]
 }
 ```
+
+### AI Cheque Scan (Beta / Admin Only)
+
+Stateless image analysis via Cloudflare Workers AI for prefilling cheque details.
+- **Feature Flag Gate**: Requires the `cheque_scan` feature flag (`requireFeature`). Requests from unauthorized or regular users strictly return `404 Not Found` (masquerading non-existence).
+- **Encryption Gate Exemption**: This endpoint is explicitly exempted from the mandatory E2EE ciphertext gate because it does not store any financial data.
+- **Privacy & Zero Storage Guarantee**: The image, model prompts, and structured output are **never** persisted to Postgres, KV, disk, or logs.
+- **Rate Limit**: Maximum 30 scans per day per user, tracked via ephemeral KV counter (`ai_scan:<userId>:<YYYY-MM-DD>`, 2-day TTL). Exceeding returns `429 Too Many Requests`.
+
+| Method | Endpoint | Description |
+| :--- | :--- | :--- |
+| `POST` | `/api/v1/cheques/scan` | Analyze a cheque image using Cloudflare Workers AI vision models |
+
+#### Request Format
+`Content-Type: multipart/form-data`
+- `image`: Image binary file (Accepted MIME types: `image/jpeg`, `image/png`, `image/webp`. Max file size: 2MB). Exceeding 2MB returns `413 Payload Too Large`; unsupported formats return `400 Bad Request`.
+- `model` *(optional)*: Model identifier from the allowed catalog. Supported:
+  - `@cf/meta/llama-4-scout-17b-16e-instruct` (Default)
+  - `@cf/mistralai/mistral-small-3.1-24b-instruct`
+  - `@cf/google/gemma-3-12b-it`
+  *(Any unlisted model string silently falls back to the default).*
+
+#### Response Schema (`200 OK`)
+```json
+{
+  "success": true,
+  "fields": {
+    "amount": 50000000,
+    "dueDate": "2026-10-15",
+    "issueDate": "",
+    "sayadId": "1234567890123456",
+    "chequeNumber": "123456",
+    "bankId": "melli",
+    "bankName": "بانک ملی ایران",
+    "counterparty": "شرکت پخش آریا",
+    "notes": "شعبه مرکزی"
+  },
+  "confidence": {
+    "amount": "high",
+    "dueDate": "high",
+    "sayadId": "high",
+    "chequeNumber": "medium",
+    "bankName": "high",
+    "counterparty": "medium"
+  },
+  "warnings": [],
+  "raw": "{\"amount\": 500000000, ...}",
+  "model": "@cf/meta/llama-4-scout-17b-16e-instruct",
+  "durationMs": 1350
+}
+```
+*Note: Cheque amounts on physical Iranian cheques are printed in Rials, but `fields.amount` is automatically converted to Tomans to match the app standard (`amountRials / 10`). `raw` is returned exclusively in the admin beta stage for model evaluation.*
 
 ### Loans (Protected)
 

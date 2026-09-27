@@ -114,11 +114,15 @@ export async function httpRequest(path, options = {}) {
 
   try {
     const token = getToken();
+    const isFormData = typeof FormData !== 'undefined' && options.body instanceof FormData;
     const headers = {
-      'Content-Type': 'application/json',
+      ...(isFormData ? {} : { 'Content-Type': 'application/json' }),
       ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
       ...(options.headers || {}),
     };
+    if (isFormData && headers['Content-Type']) {
+      delete headers['Content-Type'];
+    }
 
     const url = path.startsWith('http://') || path.startsWith('https://')
       ? path
@@ -192,8 +196,22 @@ export async function httpRequest(path, options = {}) {
  */
 export const httpClient = {
   get: (path, options = {}) => httpRequest(path, { ...options, method: 'GET' }),
-  post: (path, body, options = {}) => httpRequest(path, { ...options, method: 'POST', body: body !== undefined ? JSON.stringify(body) : undefined }),
-  put: (path, body, options = {}) => httpRequest(path, { ...options, method: 'PUT', body: body !== undefined ? JSON.stringify(body) : undefined }),
+  post: (path, body, options = {}) => {
+    const isFormData = typeof FormData !== 'undefined' && body instanceof FormData;
+    return httpRequest(path, {
+      ...options,
+      method: 'POST',
+      body: isFormData ? body : (body !== undefined ? JSON.stringify(body) : undefined),
+    });
+  },
+  put: (path, body, options = {}) => {
+    const isFormData = typeof FormData !== 'undefined' && body instanceof FormData;
+    return httpRequest(path, {
+      ...options,
+      method: 'PUT',
+      body: isFormData ? body : (body !== undefined ? JSON.stringify(body) : undefined),
+    });
+  },
   delete: (path, options = {}) => httpRequest(path, { ...options, method: 'DELETE' }),
   request: httpRequest,
 };

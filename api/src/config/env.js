@@ -41,6 +41,10 @@ export function validateEnv(env) {
     missing.push("ADMIN_EMAIL (Admin Email)");
   }
 
+  if (!env.AI) {
+    missing.push("AI (Workers AI binding)");
+  }
+
   if (missing.length > 0) {
     logger.warn("[Env] Missing vital environment variables or bindings:", {
       missingBindings: missing,

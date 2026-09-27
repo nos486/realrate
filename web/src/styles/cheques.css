@@ -337,3 +337,605 @@
   background: rgba(16, 185, 129, 0.2);
   color: var(--color-positive-text);
 }
+
+/* ── Cheque AI Scan Modal & Components ────────────────────────────────────── */
+
+.cheque-scan-modal-body {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* Tip / Notice card */
+.scan-tip-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 10px 12px;
+  border-radius: var(--radius-md, 8px);
+  background: var(--blue-soft, rgba(56, 189, 248, 0.08));
+  border: 1px solid rgba(56, 189, 248, 0.2);
+  color: var(--blue-sky, #38bdf8);
+  font-size: 12.5px;
+  line-height: 1.6;
+}
+
+.scan-tip-icon {
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+/* Drag & Drop Zone */
+.cheque-scan-dropzone {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 28px 16px;
+  border: 2px dashed var(--border-color, rgba(255, 255, 255, 0.12));
+  border-radius: var(--radius-lg, 12px);
+  background: rgba(255, 255, 255, 0.02);
+  cursor: pointer;
+  text-align: center;
+  transition: all 0.2s ease;
+}
+
+.cheque-scan-dropzone:hover,
+.cheque-scan-dropzone.is-drag-over {
+  border-color: var(--color-primary, #0284c7);
+  background: rgba(2, 132, 199, 0.06);
+}
+
+.dropzone-icon-wrap {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  background: var(--primary-soft-bg, rgba(2, 132, 199, 0.1));
+  color: var(--color-primary-text, #38bdf8);
+  margin-bottom: 12px;
+}
+
+.dropzone-primary-text {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 4px;
+}
+
+.dropzone-secondary-text {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+/* Capture Action Buttons Grid */
+.scan-capture-buttons-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-top: 4px;
+}
+
+.scan-action-btn {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  border-radius: var(--radius-md, 10px);
+  border: 1px solid var(--border-color, rgba(255, 255, 255, 0.1));
+  background: var(--bg-card, rgba(255, 255, 255, 0.04));
+  color: var(--text-primary);
+  text-align: start;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.scan-action-btn:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+.btn-icon-bubble {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 42px;
+  height: 42px;
+  border-radius: 10px;
+  flex-shrink: 0;
+}
+
+.camera-btn .btn-icon-bubble {
+  background: var(--primary-soft-bg, rgba(2, 132, 199, 0.15));
+  color: var(--color-primary-text, #38bdf8);
+}
+
+.gallery-btn .btn-icon-bubble {
+  background: var(--color-warning-soft, rgba(245, 158, 11, 0.15));
+  color: var(--color-warning-text, #fbbf24);
+}
+
+.btn-text-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.btn-title {
+  font-size: 13.5px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.btn-sub {
+  font-size: 11.5px;
+  color: var(--text-muted);
+}
+
+/* Model Selector in Setup */
+.scan-model-config-row {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 4px;
+}
+
+/* Resizing / Processing Box */
+.scan-processing-box {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 48px 16px;
+  text-align: center;
+  gap: 12px;
+}
+
+.processing-title {
+  font-size: 14.5px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.processing-subtitle {
+  font-size: 12.5px;
+  color: var(--text-muted);
+}
+
+/* Step 2: Preview & Submit */
+.scan-step-preview {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.preview-image-card {
+  position: relative;
+  width: 100%;
+  max-height: 280px;
+  border-radius: var(--radius-md, 10px);
+  overflow: hidden;
+  border: 1px solid var(--border-color, rgba(255, 255, 255, 0.12));
+  background: #000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.preview-cheque-img {
+  max-width: 100%;
+  max-height: 280px;
+  object-fit: contain;
+}
+
+.preview-size-badge {
+  position: absolute;
+  bottom: 8px;
+  inset-inline-end: 8px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.85);
+  backdrop-filter: blur(4px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: var(--text-secondary);
+  font-size: 11.5px;
+}
+
+.preview-size-badge .arrow {
+  color: var(--color-positive-text);
+}
+
+.preview-size-badge strong {
+  color: var(--color-positive-text);
+  font-weight: 700;
+}
+
+.preview-model-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 12px;
+  border-radius: var(--radius-md, 8px);
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--border-color, rgba(255, 255, 255, 0.08));
+}
+
+.model-label {
+  font-size: 12.5px;
+  color: var(--text-secondary);
+}
+
+.scan-model-select-compact {
+  max-width: 200px;
+  padding: 4px 8px;
+  font-size: 12.5px;
+}
+
+.uploading-state-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 20px;
+  background: rgba(255, 255, 255, 0.02);
+  border-radius: var(--radius-md, 8px);
+  border: 1px solid var(--border-color, rgba(255, 255, 255, 0.08));
+}
+
+.uploading-spinner-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.uploading-text {
+  font-size: 13.5px;
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+.preview-actions-row {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+/* ── Result Screen ────────────────────────────────────────────────────────── */
+.cheque-scan-result-container {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.scan-stats-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 12px;
+  border-radius: var(--radius-md, 8px);
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--border-color, rgba(255, 255, 255, 0.08));
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.scan-stat-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.scan-stat-item strong {
+  color: var(--text-primary);
+}
+
+/* Accuracy verification banner */
+.scan-accuracy-summary-card {
+  padding: 12px 14px;
+  border-radius: var(--radius-md, 8px);
+  background: rgba(245, 158, 11, 0.07);
+  border: 1px solid rgba(245, 158, 11, 0.2);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.accuracy-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.accuracy-title-wrap {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.accuracy-icon {
+  color: var(--color-warning-text);
+}
+
+.accuracy-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--color-warning-text);
+}
+
+.accuracy-score-pill {
+  font-size: 11.5px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: rgba(245, 158, 11, 0.15);
+  color: var(--color-warning-text);
+}
+
+.accuracy-hint {
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin: 0;
+}
+
+/* Fields Table */
+.scan-fields-table-wrapper {
+  overflow-x: auto;
+  border: 1px solid var(--border-color, rgba(255, 255, 255, 0.1));
+  border-radius: var(--radius-md, 8px);
+}
+
+.scan-fields-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  text-align: start;
+}
+
+.scan-fields-table th {
+  padding: 10px 12px;
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text-muted);
+  font-size: 11.5px;
+  font-weight: 700;
+  border-bottom: 1px solid var(--border-color, rgba(255, 255, 255, 0.08));
+}
+
+.scan-fields-table th.th-accuracy {
+  text-align: center;
+  width: 90px;
+}
+
+.scan-fields-table td {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border-color, rgba(255, 255, 255, 0.05));
+  vertical-align: middle;
+}
+
+.scan-fields-table tr:last-child td {
+  border-bottom: none;
+}
+
+.scan-fields-table tr.is-confirmed {
+  background: rgba(16, 185, 129, 0.05);
+}
+
+.scan-fields-table tr.is-rejected {
+  background: rgba(244, 63, 94, 0.05);
+}
+
+.field-label-cell {
+  font-weight: 600;
+  color: var(--text-primary);
+  width: 150px;
+}
+
+.field-value-cell {
+  color: var(--text-primary);
+}
+
+.val-text {
+  font-weight: 600;
+}
+
+.val-empty {
+  color: var(--text-muted);
+  font-style: italic;
+  font-size: 12px;
+}
+
+.field-confidence-cell {
+  width: 60px;
+}
+
+.scan-confidence-badge {
+  display: inline-block;
+  padding: 2px 7px;
+  border-radius: 999px;
+  font-size: 10.5px;
+  font-weight: 700;
+}
+
+.scan-confidence-badge.high {
+  background: var(--color-positive-soft);
+  color: var(--color-positive-text);
+}
+
+.scan-confidence-badge.medium {
+  background: var(--color-warning-soft);
+  color: var(--color-warning-text);
+}
+
+.scan-confidence-badge.low {
+  background: var(--color-negative-soft);
+  color: var(--color-negative-text);
+}
+
+/* Accuracy Rating Buttons */
+.field-accuracy-cell {
+  text-align: center;
+  white-space: nowrap;
+}
+
+.accuracy-check-btn,
+.accuracy-cross-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 6px;
+  border: 1px solid transparent;
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text-muted);
+  cursor: pointer;
+  margin: 0 2px;
+  transition: all 0.15s ease;
+}
+
+.accuracy-check-btn:hover {
+  background: var(--color-positive-soft);
+  color: var(--color-positive-text);
+}
+
+.accuracy-cross-btn:hover {
+  background: var(--color-negative-soft);
+  color: var(--color-negative-text);
+}
+
+.accuracy-check-btn.active-yes {
+  background: var(--color-positive);
+  color: #fff;
+  border-color: var(--color-positive);
+}
+
+.accuracy-cross-btn.active-no {
+  background: var(--color-negative);
+  color: #fff;
+  border-color: var(--color-negative);
+}
+
+/* Raw Output Collapsible */
+.scan-raw-output-details {
+  border: 1px solid var(--border-color, rgba(255, 255, 255, 0.08));
+  border-radius: var(--radius-md, 8px);
+  background: rgba(0, 0, 0, 0.2);
+  overflow: hidden;
+}
+
+.scan-raw-output-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  font-size: 12.5px;
+  color: var(--text-secondary);
+  cursor: pointer;
+  user-select: none;
+}
+
+.scan-raw-output-pre {
+  margin: 0;
+  padding: 12px;
+  background: rgba(0, 0, 0, 0.3);
+  border-top: 1px solid var(--border-color, rgba(255, 255, 255, 0.08));
+  font-size: 12px;
+  font-family: monospace;
+  color: #a5b4fc;
+  overflow-x: auto;
+  max-height: 200px;
+}
+
+/* Rescan bar */
+.scan-rescan-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 12px;
+  border-radius: var(--radius-md, 8px);
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--border-color, rgba(255, 255, 255, 0.08));
+}
+
+.rescan-label {
+  font-size: 12.5px;
+  color: var(--text-secondary);
+}
+
+.rescan-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.scan-model-select {
+  padding: 4px 8px;
+  font-size: 12px;
+}
+
+/* Result Actions */
+.scan-result-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border-color, rgba(255, 255, 255, 0.08));
+}
+
+/* Form Low-Confidence Highlights */
+.scan-low-confidence {
+  border-color: var(--color-warning) !important;
+  box-shadow: 0 0 0 1px var(--color-warning-border) !important;
+}
+
+.scan-low-confidence-group .ui-input-control {
+  border-color: var(--color-warning) !important;
+  box-shadow: 0 0 0 1px var(--color-warning-border) !important;
+}
+
+.has-scan-warning .ui-input-control,
+.has-scan-warning .shamsi-picker-input {
+  border-color: var(--color-warning) !important;
+}
+
+.scan-confidence-hint {
+  display: block;
+  font-size: 11px;
+  color: var(--color-warning-text);
+  margin-top: 4px;
+}
+
+/* Mobile responsive for scan modals */
+@media (max-width: 640px) {
+  .scan-capture-buttons-grid {
+    grid-template-columns: 1fr;
+  }
+  .scan-stats-bar {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  .scan-rescan-bar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .rescan-controls {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .scan-result-actions {
+    flex-direction: column-reverse;
+  }
+  .scan-result-actions .ui-btn {
+    width: 100%;
+  }
+}

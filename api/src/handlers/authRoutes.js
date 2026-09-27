@@ -29,6 +29,7 @@ import {
   SESSION_COOKIE_MAX_AGE,
   OAUTH_VERIFIER_COOKIE_MAX_AGE,
 } from "../config/constants.js";
+import { enabledFeatures } from "../config/features.js";
 
 function base64UrlEncode(buffer) {
   const bytes = buffer instanceof Uint8Array ? buffer : new Uint8Array(buffer);
@@ -511,6 +512,7 @@ export async function handleGetMe(request, env) {
       isAdmin: user.role === "admin",
       hasPassword,
       emailVerified,
+      features: enabledFeatures(user),
     },
     ...demoPayload,
   }, 200, request);

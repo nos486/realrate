@@ -1787,3 +1787,21 @@ input.search-bar-input:focus-visible {
   justify-content: center;
   background: var(--bg-app);
 }
+
+/* Beta Badge for Beta Features */
+.beta-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1.2;
+  padding: 1px 6px;
+  border-radius: 6px;
+  background: var(--color-warning-soft);
+  color: var(--color-warning-text);
+  border: 1px solid var(--color-warning-border);
+  letter-spacing: 0.02em;
+  user-select: none;
+  vertical-align: middle;
+}
