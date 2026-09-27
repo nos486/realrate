@@ -215,4 +215,36 @@ describe('POST /api/cheques/scan route', () => {
     // Strict validation: ZERO queries or writes to Database
     expect(dbCalls).toEqual([]);
   });
+  it('sends the image once, inside the messages, and asks for JSON by schema', async () => {
+    getAuthenticatedUser.mockResolvedValue({ id: 'a1', role: 'admin', email: 'admin@example.com' });
+    await handleChequeScanRoute(createScanRequest(), env);
+
+    const payload = env.AI.run.mock.calls[0][1];
+    expect(payload.image).toBeUndefined();
+    const imagePart = payload.messages[1].content.find((c) => c.type === 'image_url');
+    expect(imagePart.image_url.url).toMatch(/^data:image\/jpeg;base64,/);
+    expect(payload.response_format.type).toBe('json_schema');
+  });
+
+  it('retries without JSON mode when the model refuses it', async () => {
+    getAuthenticatedUser.mockResolvedValue({ id: 'a1', role: 'admin', email: 'admin@example.com' });
+    const answer = await env.AI.run();
+    env.AI.run.mockReset();
+    env.AI.run
+      .mockRejectedValueOnce(new Error('response_format not supported'))
+      .mockResolvedValueOnce(answer);
+
+    const res = await handleChequeScanRoute(createScanRequest(), env);
+    expect(res.status).toBe(200);
+    expect(env.AI.run).toHaveBeenCalledTimes(2);
+    expect(env.AI.run.mock.calls[1][1].response_format).toBeUndefined();
+    expect((await res.json()).fields.amount).toBe(50000000);
+  });
+
+  it('does not count an invalid upload against the daily limit', async () => {
+    getAuthenticatedUser.mockResolvedValue({ id: 'a1', role: 'admin', email: 'admin@example.com' });
+    const gif = new Blob([new Uint8Array(10)], { type: 'image/gif' });
+    await expect(handleChequeScanRoute(createScanRequest({ file: gif }), env)).rejects.toMatchObject({ statusCode: 400 });
+    expect(kvStore.size).toBe(0);
+  });
 });

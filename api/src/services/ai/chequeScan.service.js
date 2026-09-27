@@ -6,11 +6,8 @@
  * - Logs strictly record metadata: model ID, duration, image size, and success status.
  */
 
-import {
-  CHEQUE_SCAN_SYSTEM_PROMPT,
-  CHEQUE_SCAN_JSON_SCHEMA,
-  resolveChequeScanModel,
-} from '../../config/ai.config.js';
+import { resolveChequeScanModel } from '../../config/ai.config.js';
+import { CHEQUE_SCAN_SYSTEM_PROMPT, CHEQUE_SCAN_JSON_SCHEMA } from './chequeScanPrompt.js';
 import { normalizeChequeScan, parseChequeScanJson } from '../../domain/chequeScan.js';
 import { AppError } from '../../lib/AppError.js';
 import { logger } from '../../lib/logger.js';
@@ -49,6 +46,21 @@ export async function enforceScanRateLimit(env, userId) {
   } catch (err) {
     if (err instanceof AppError) throw err;
     logger.warn('[ChequeScan] KV rate limit check error:', { error: err.message });
+  }
+}
+
+const AI_TIMEOUT_MS = 45000;
+
+/** One model call, failing with AI_TIMEOUT after AI_TIMEOUT_MS */
+async function runWithTimeout(env, modelId, payload) {
+  let timer;
+  const timeout = new Promise((_, reject) => {
+    timer = setTimeout(() => reject(new Error('AI_TIMEOUT')), AI_TIMEOUT_MS);
+  });
+  try {
+    return await Promise.race([env.AI.run(modelId, payload), timeout]);
+  } finally {
+    clearTimeout(timer);
   }
 }
 
@@ -102,26 +114,25 @@ export async function processChequeScan(env, { imageBuffer, mimeType, requestedM
         ],
       },
     ],
-    // Pass image array as well for models expecting native Workers AI input
-    image: [...uint8],
     temperature: 0.1,
     max_tokens: 1000,
-    response_format: {
-      type: 'json_object',
-      json_schema: CHEQUE_SCAN_JSON_SCHEMA,
-    },
   };
 
   let aiResponse = null;
 
   try {
-    // 45-second timeout race
-    const runPromise = env.AI.run(modelId, payload);
-    const timeoutPromise = new Promise((_, reject) =>
-      setTimeout(() => reject(new Error('AI_TIMEOUT')), 45000)
-    );
-
-    aiResponse = await Promise.race([runPromise, timeoutPromise]);
+    // JSON mode first; a model that doesn't take it with an image gets the plain request (the
+    // prompt asks for JSON, and the parser finds it in text)
+    try {
+      aiResponse = await runWithTimeout(env, modelId, {
+        ...payload,
+        response_format: { type: 'json_schema', json_schema: CHEQUE_SCAN_JSON_SCHEMA },
+      });
+    } catch (err) {
+      if (err.message === 'AI_TIMEOUT') throw err;
+      logger.warn('[ChequeScan] JSON mode refused, retrying without it:', { model: modelId, error: err.message });
+      aiResponse = await runWithTimeout(env, modelId, payload);
+    }
   } catch (err) {
     const durationMs = Date.now() - startTime;
     logger.error('[ChequeScan] Model inference failed:', {

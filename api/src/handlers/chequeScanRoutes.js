@@ -21,10 +21,6 @@ export async function handleChequeScanRoute(request, env) {
   // 1. Guard with beta feature check (throws 404 for non-admins or unauthenticated)
   const user = await requireFeature(request, env, 'cheque_scan');
 
-  // 2. Enforce daily rate limit (30 scans per day in KV)
-  const userId = user.userId || user.id || user.email;
-  await enforceScanRateLimit(env, userId);
-
   // 3. Validate Content-Type
   const contentType = request.headers.get('content-type') || '';
   if (!contentType.includes('multipart/form-data')) {
@@ -65,7 +61,11 @@ export async function handleChequeScanRoute(request, env) {
     );
   }
 
-  // 8. Process image with Workers AI
+  // 8. Daily limit (30 scans per day in KV), counted only for a valid upload
+  const userId = user.userId || user.id || user.email;
+  await enforceScanRateLimit(env, userId);
+
+  // 9. Process image with Workers AI
   const imageBuffer = await imageFile.arrayBuffer();
   const scanResult = await processChequeScan(env, {
     imageBuffer,

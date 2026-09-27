@@ -96,8 +96,10 @@ export function parseAndConvertShamsiDate(str) {
 
   if (year < 1300 || year > 1500) return null;
   if (month < 1 || month > 12) return null;
-  const maxDays = month <= 6 ? 31 : (month <= 11 ? 30 : 30);
+  const maxDays = month <= 6 ? 31 : 30;
   if (day < 1 || day > maxDays) return null;
+  // Esfand 30 exists only in a leap year: otherwise it is the same day as Farvardin 1
+  if (month === 12 && day === 30 && jalaliToGregorian(year, 12, 30) === jalaliToGregorian(year + 1, 1, 1)) return null;
 
   const iso = jalaliToGregorian(year, month, day);
   if (!isValidIsoDate(iso)) return null;
@@ -368,8 +370,8 @@ export function normalizeChequeScan(rawInput) {
   if (raw.sayadId) {
     const sayadDigits = toAsciiDigits(String(raw.sayadId)).replace(/[\s-]+/g, '');
     if (/^\d{16}$/.test(sayadDigits)) {
+      // A well-formed id is not a correctly read one: the model's own confidence stands
       normalizedSayadId = sayadDigits;
-      if (confidence.sayadId !== 'low') confidence.sayadId = 'high';
     } else {
       confidence.sayadId = 'low';
       if (sayadDigits.length > 0) {
@@ -418,7 +420,6 @@ export function normalizeChequeScan(rawInput) {
       const canonicalBank = getBankById(matchedId);
       if (canonicalBank) {
         bankName = canonicalBank.name;
-        if (confidence.bankName !== 'low') confidence.bankName = 'high';
       }
     }
   } else {

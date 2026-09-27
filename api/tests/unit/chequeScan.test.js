@@ -189,3 +189,20 @@ describe('normalizeChequeScan', () => {
     expect(res2.notACheque).toBe(true);
   });
 });
+
+describe('cheque scan: dates and confidence', () => {
+  it('accepts Esfand 30 only in a leap year', () => {
+    expect(parseAndConvertShamsiDate('1403/12/30')?.isoDate).toBe('2025-03-20');
+    expect(parseAndConvertShamsiDate('1404/12/30')).toBeNull();
+  });
+
+  it('keeps the model\'s confidence for a well-formed Sayad id and a known bank', () => {
+    const res = normalizeChequeScan({
+      amount: 1000000, sayadId: '1234567890123456', bankName: 'بانک ملت', dueDate: '1404/08/15',
+      confidence: { sayadId: 'medium', bankName: 'medium' },
+    });
+    expect(res.fields.sayadId).toBe('1234567890123456');
+    expect(res.confidence.sayadId).toBe('medium');
+    expect(res.confidence.bankName).toBe('medium');
+  });
+});
