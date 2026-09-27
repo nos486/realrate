@@ -19,7 +19,7 @@ import { normalizePersian } from "./sources/parsingUtils.js";
 import { DEFAULT_BOURSE_SEARCH_LIMIT } from "../../config/constants.js";
 import { logger } from "../../lib/logger.js";
 import { syncAllSources } from "./sourceSync.service.js";
-import { catalogAssetId, catalogItemSymbol, catalogItemPriceToman } from "../../domain/priceBook.js";
+import { catalogAssetId, catalogMarketOf, catalogItemSymbol, catalogItemPriceToman, normalizePriceId } from "../../domain/priceBook.js";
 
 /**
  * Returns all configured catalog sources from PRICE_SOURCES_CONFIG
@@ -54,7 +54,8 @@ export function standardizeCatalogItem(item, sourceConfig = {}) {
     : (priceToman * 10);
 
   const sourceId = sourceConfig.id || item.sourceId || "";
-  const fullId = catalogAssetId(sourceId, symbol);
+  // The same id the price book gives it
+  const fullId = normalizePriceId(catalogAssetId(catalogMarketOf({ ...sourceConfig, id: sourceId }), symbol));
 
   const category = getItemCategory(item, sourceConfig);
   const badge = getItemBadge(item, sourceConfig);

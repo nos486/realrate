@@ -108,7 +108,7 @@ describe('drag & drop reordering', () => {
 
   it('turns an old stored layout\'s ids into price book ids', () => {
     const old = { version: 1, sections: [{ id: 'x', title: '', style: 'compact', items: ['USD', 'src_def_gold_18k', 'bourse_فولاد', 'XAU'] }] };
-    expect(normalizeLayoutIds(old).sections[0].items).toEqual(['usd', 'gold_18k', 'src_def_bourse__فولاد', 'ons_gold']);
+    expect(normalizeLayoutIds(old).sections[0].items).toEqual(['usd', 'gold_18k', 'bourse__فولاد', 'ons_gold']);
     expect(normalizeLayoutIds(null)).toBeNull();
   });
 
@@ -125,7 +125,7 @@ describe('resolving any asset for a home card', () => {
       gold_18k: { id: 'gold_18k', price: 5_000_000, name: 'طلای ۱۸', category: 'gold', unit: 'گرم', params: { intrinsic: 4_000_000 } },
       usd: { id: 'usd', price: 100_000, name: 'دلار', category: 'currency', unit: 'دلار', params: {} },
       btc: { id: 'btc', price: 9_000_000_000, name: 'بیت‌کوین', category: 'crypto', unit: 'عدد', params: { changePercent: -2.5 } },
-      'src_def_bourse__فولاد': { id: 'src_def_bourse__فولاد', price: 5_400, name: 'فولاد مبارکه', category: 'bourse', unit: 'سهم', params: { symbol: 'فولاد', sourceName: 'بورس' } },
+      'bourse__فولاد': { id: 'bourse__فولاد', price: 5_400, name: 'فولاد مبارکه', category: 'bourse', unit: 'سهم', params: { symbol: 'فولاد', sourceName: 'بورس' } },
     },
   };
   const index = buildAssetIndex({ itemMap: bookToAssets(book).itemMap, analysis: ctx.analysis });

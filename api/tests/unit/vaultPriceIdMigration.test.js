@@ -33,7 +33,7 @@ describe('stored asset ids become price book ids', () => {
   beforeEach(async () => {
     puts.length = 0;
     key = key || await deriveE2eeKey('pass-for-tests', generateE2eeSalt());
-    setKnownPriceIds({ usd: 1, 'src_def_bourse__فولاد': 1, gold_18k: 1 });
+    setKnownPriceIds({ usd: 1, 'bourse__فولاد': 1, gold_18k: 1 });
   });
 
   it('re-encrypts a holding saved with an old id, and shows it with the new one', async () => {
@@ -45,13 +45,13 @@ describe('stored asset ids become price book ids', () => {
     ];
 
     const holdings = await listPortfolioHoldings(portfolio, key);
-    expect(holdings.find((h) => h.id === 'h1')).toMatchObject({ assetId: 'src_def_bourse__فولاد', referenceAssetId: 'usd' });
+    expect(holdings.find((h) => h.id === 'h1')).toMatchObject({ assetId: 'bourse__فولاد', referenceAssetId: 'usd' });
 
     await flush();
     const saved = puts.filter((p) => p.kind === 'holding');
     expect(saved.map((p) => p.id)).toEqual(['h1']); // the standard one is left alone
     expect(saved[0]).toMatchObject({ parentId: 'p1', recordDate: '2026-01-01' });
-    expect(await e2eeDecrypt(key, saved[0].payload)).toMatchObject({ id: 'h1', assetId: 'src_def_bourse__فولاد', referenceAssetId: 'usd', amount: 10 });
+    expect(await e2eeDecrypt(key, saved[0].payload)).toMatchObject({ id: 'h1', assetId: 'bourse__فولاد', referenceAssetId: 'usd', amount: 10, priceIdVersion: 2 });
   });
 
   it('does the same for transactions', async () => {

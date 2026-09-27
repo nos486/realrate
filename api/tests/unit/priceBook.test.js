@@ -29,7 +29,7 @@ describe('buildPriceBook', () => {
     excludedOutputs: ['CNY'],
   };
   const bourse = {
-    id: 'src_def_bourse', isCatalog: true, isActive: true, isPrimary: true, name: 'bourse',
+    id: 'src_def_bourse', market: 'bourse', isCatalog: true, isActive: true, isPrimary: true, name: 'bourse',
     items: [{ id: 'فولاد', name: 'فولاد مبارکه', price: 540 }, { symbol: 'فملی', priceRial: 6800 }],
   };
 
@@ -53,9 +53,24 @@ describe('buildPriceBook', () => {
     expect(book.items.cny).toBeUndefined(); // excluded output
   });
 
-  it('gives catalog items their catalog id and a toman price', () => {
-    expect(book.items[catalogAssetId('src_def_bourse', 'فولاد')]).toMatchObject({ price: 540, name: 'فولاد مبارکه' });
-    expect(book.items['src_def_bourse__فملی'].price).toBe(680);
+  it('gives catalog items their market id (not the provider\'s) and a toman price', () => {
+    expect(book.items[catalogAssetId('bourse', 'فولاد')]).toMatchObject({ price: 540, name: 'فولاد مبارکه', sourceId: 'src_def_bourse' });
+    expect(book.items['bourse__فملی'].price).toBe(680);
+  });
+
+  it('gives an asset two sources list one id: the first source\'s, the other copy prefixed', () => {
+    const fund = { id: 'src_def_emofid', market: 'bourse', isCatalog: true, isActive: true, isPrimary: true, name: 'emofid', items: [{ id: 'فولاد', price: 541 }, { id: 'عیار', price: 10 }] };
+    const b = buildPriceBook([bourse, fund], { now: NOW });
+    expect(b.items['bourse__فولاد']).toMatchObject({ price: 540, sourceId: 'src_def_bourse' });
+    expect(b.items['src_def_emofid__bourse__فولاد']).toMatchObject({ price: 541 });
+    expect(b.items['bourse__عیار']).toMatchObject({ price: 10, sourceId: 'src_def_emofid' });
+  });
+
+  it('writes a symbol in one form whichever letters its feed uses', () => {
+    const arabic = { ...bourse, items: [{ id: 'فملي', price: 680 }, { id: 'اخزا۱۰۲', price: 900 }] };
+    const b = buildPriceBook([arabic], { now: NOW });
+    expect(b.items['bourse__فملی'].price).toBe(680);
+    expect(b.items.bourse__اخزا102.params.symbol).toBe('اخزا۱۰۲'); // shown as the feed wrote it
   });
 
   it('adds intrinsic values: on market items, and as items where no source prices them', () => {

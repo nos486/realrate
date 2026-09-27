@@ -2,7 +2,8 @@
  * displayEngine.js — Master Display & Metadata Engine for RealRate
  *
  * Universal Contracts:
- * 1. ID Contract: Always ${sourceId}__${itemKey} (with backward-compatible parsing for legacy bourse_ and flat IDs)
+ * 1. ID Contract: catalog items are ${market}__${itemKey} (older ${sourceId}__${itemKey}, bourse_ and
+ *    flat ids are still parsed)
  * 2. Metadata Contract: Units, categories, and badges are ONLY defined at source/category level
  * 3. Display Contract: Item display name is strictly generated as "{item.name} ({sourceName})"
  *
@@ -15,7 +16,7 @@ import { getCanonicalAssetSpec } from "./specs/registry.js";
 
 /**
  * Parses any item identifier into its sourceId and itemKey components.
- * Contract: ${sourceId}__${itemKey}
+ * Contract: ${market}__${itemKey} (the market resolves to its first source) or ${sourceId}__${itemKey}
  * Backward compatibility: handles legacy "bourse_XYZ", "src_def_XYZ", and plain symbols/keys.
  *
  * @param {string} id - Identifier to parse
@@ -79,7 +80,10 @@ export function getSourceConfig(key) {
     const sPType = String(s.priceType || "").toLowerCase().trim();
 
     return sRawId === rawClean || sCleanId === clean || sPType === clean || sPType === rawClean;
-  }) || null;
+  })
+    // A catalog id's market ("bourse__x", "charisma_plan__x"): its first source
+    || PRICE_SOURCES_CONFIG.find((s) => s?.market && String(s.market).toLowerCase() === rawClean)
+    || null;
 }
 
 /**

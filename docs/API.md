@@ -50,7 +50,7 @@ Returns all active assets and market rates normalized through the centralized `d
   ]
 }
 ```
-*Note: Catalog item IDs strictly adhere to `${sourceId}__${itemKey}` format, whereas single-item sources use their canonical ID (e.g. `gold_18k`, `usd_bonbast`).*
+*Note: ids name the asset, not the provider. A catalog item is `${market}__${symbol}` (e.g. `bourse__فولاد`, `charisma_plan__gold`), a single-price source's item its canonical id (e.g. `gold_18k`, `usd`). Ids are lower-case with Persian letters and digits in one form.*
 
 ### Authentication Endpoints
 
