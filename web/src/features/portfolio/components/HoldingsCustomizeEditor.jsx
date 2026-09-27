@@ -390,11 +390,10 @@ export default function HoldingsCustomizeEditor({
     return map;
   }, [portfolioMetrics?.items]);
 
-  const layoutGroups = layout?.groups;
+  const groups = useMemo(() => layout?.groups || [], [layout?.groups]);
 
   // Group assets according to the current layout
   const { categorizedGroups, uncategorizedAssets } = useMemo(() => {
-    const groups = layoutGroups || [];
     const claimedKeys = new Set();
     const resultGroups = groups.map((g) => {
       const gAssets = [];
@@ -418,7 +417,7 @@ export default function HoldingsCustomizeEditor({
     }
 
     return { categorizedGroups: resultGroups, uncategorizedAssets: unassigned };
-  }, [layoutGroups, uniqueAssetsMap]);
+  }, [groups, uniqueAssetsMap]);
 
   // Actions
   const handleAddCategory = () => {
