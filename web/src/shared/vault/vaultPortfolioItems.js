@@ -18,7 +18,7 @@ import { getPortfolio, deletePortfolioHolding } from '../../features/portfolio/a
 import { getTransactions, deleteTransaction as deleteTransactionRest } from '../../features/transactions/api/transactionApi.js';
 import { listVaultRecords, deleteVaultRecord } from './vaultApi.js';
 import { putRecord, backfillRecordDates, repairRecordDates } from './vaultRecordMeta.js';
-import { migrateRecordPriceIds } from '../../utils/priceIds.js';
+import { migrateRecordPriceIds, withPriceIdVersion } from '../../utils/priceIds.js';
 import { getKnownPriceIds } from '../../features/market/knownPriceIds.js';
 
 const SILENT = { silent: true };
@@ -88,12 +88,15 @@ function withHoldingDisplay(h) {
 
 const asTransaction = (t) => ({ ...t, isEncrypted: true });
 
-async function storeHolding(portfolioId, key, record, options = {}) {
+// Everything stored carries price book ids, stamped with their version (priceIds.js)
+async function storeHolding(portfolioId, key, holding, options = {}) {
+  const record = withPriceIdVersion(holding, getKnownPriceIds());
   await putRecord('holding', record.id, await e2eeEncrypt(key, record), record, { parentId: portfolioId, ...options });
   return record;
 }
 
-async function storeTransaction(portfolioId, key, record, options = {}) {
+async function storeTransaction(portfolioId, key, transaction, options = {}) {
+  const record = withPriceIdVersion(transaction, getKnownPriceIds());
   await putRecord('transaction', record.id, await e2eeEncrypt(key, record), record, { parentId: portfolioId, ...options });
   return record;
 }

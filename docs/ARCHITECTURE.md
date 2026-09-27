@@ -102,7 +102,8 @@ All upstream price sources implement the standardized `ISourceAdapter` contract 
   - `fetchRaw(sourceConfig, env?)`: Fetches raw payload/HTML/JSON from the external endpoint.
   - `parse(raw, sourceConfig, env?)`: **Always** returns `{ items: [{ id, name, price }], datetime }`.
   - `getItems(env?)`: Unified method name across all adapters to retrieve current active items (retiring legacy method names).
-- **Universal ID Convention**: All catalog items follow `\${sourceId}__\${itemKey}` (e.g. `src_def_bourse__فولاد`, `src_def_charisma__اهرم`).
+- **Universal ID Convention**: ids name the asset, never the provider. A catalog item is `${market}__${symbol}` — the source's `market` (`bourse__فولاد`, `bourse__اهرم`, `charisma_plan__gold`) — so an asset keeps its id if its source is replaced, and a fund listed by the exchange and by its fund house is one id (the first source in config order prices it; another source's copy is `${sourceId}__${market}__${symbol}`). `normalizePriceId` writes every id in one form: lower-case, Arabic ي/ك as ی/ک, Persian/Arabic digits as 0–9, no zero-width characters.
+- **Id versions**: stored holdings and transactions carry `priceIdVersion` (`PRICE_ID_VERSION` in `domain/priceIds.js`). Records are stamped when stored; older ones are migrated on read (re-encrypted with the new ids) and then stamped, so the old-form rules and symbol matching only ever apply to old data — an id in today's form is never guessed at. The price history's keys are moved once to the current form when the Worker first writes (`price_history_meta.id_version`, under an advisory lock).
 
 ### D. Single-Tick Polling Orchestrator (`api/src/services/market/sourceSync.service.js`)
 - Replaces legacy parallel polling loops with a single unified function: `syncAllSources(env)`.

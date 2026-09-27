@@ -56,6 +56,7 @@ describe('Unified Orchestration — sourceSync.service (Phase 4)', () => {
         endpoint: 'https://api.brsapi.ir/bourse',
         isActive: true,
         isCatalog: true, // catalog source!
+        market: 'bourse',
         fetchIntervalSec: 3600,
       },
       {
@@ -65,6 +66,7 @@ describe('Unified Orchestration — sourceSync.service (Phase 4)', () => {
         endpoint: 'https://webapi.charisma.ir/api/fund',
         isActive: true,
         isCatalog: true, // catalog source!
+        market: 'bourse',
         fetchIntervalSec: 1800,
       },
       {
@@ -121,8 +123,8 @@ describe('Unified Orchestration — sourceSync.service (Phase 4)', () => {
           if (src.id === 'src_def_bourse') {
             return {
               items: [
-                { id: 'src_def_bourse__foolad', name: 'فولاد', price: 540 },
-                { id: 'src_def_bourse__femi', name: 'فملی', price: 680 },
+                { id: 'foolad', name: 'فولاد', price: 540 },
+                { id: 'femi', name: 'فملی', price: 680 },
               ],
               datetime: '2026-09-21T10:00:00Z',
             };
@@ -130,8 +132,8 @@ describe('Unified Orchestration — sourceSync.service (Phase 4)', () => {
           if (src.id === 'src_def_charisma') {
             return {
               items: [
-                { id: 'src_def_charisma__ahrom', name: 'اهرم', price: 7500 },
-                { id: 'src_def_charisma__kahroba', name: 'کهربا', price: 21000 },
+                { id: 'ahrom', name: 'اهرم', price: 7500 },
+                { id: 'kahroba', name: 'کهربا', price: 21000 },
               ],
               datetime: '2026-09-21T10:00:00Z',
             };
@@ -242,7 +244,7 @@ describe('Unified Orchestration — sourceSync.service (Phase 4)', () => {
     expect(atMinute0.waitUntil).toHaveBeenCalledTimes(2);
   });
 
-  it('records the tick\'s prices in one history write, catalog items under their catalog id', async () => {
+  it('records the tick\'s prices in one history write, catalog items under their market id', async () => {
     const writer = vi.fn(async () => 0);
     setPriceHistoryWriter(writer);
     try {
@@ -255,7 +257,7 @@ describe('Unified Orchestration — sourceSync.service (Phase 4)', () => {
     expect(typeof recordedAt).toBe('string');
     const ids = points.map((p) => p.id);
     expect(ids).toEqual(expect.arrayContaining([
-      'src_def_bourse__foolad', 'src_def_bourse__femi', 'src_def_charisma__ahrom', 'src_def_charisma__kahroba',
+      'bourse__foolad', 'bourse__femi', 'bourse__ahrom', 'bourse__kahroba',
     ]));
   });
 
@@ -264,7 +266,9 @@ describe('Unified Orchestration — sourceSync.service (Phase 4)', () => {
     const call = mockEnv.REALRATE_KV.put.mock.calls.find(([key]) => key === 'prices');
     expect(call).toBeTruthy();
     const book = JSON.parse(call[1]);
-    expect(book.items['src_def_bourse__foolad']).toMatchObject({ price: 540, sourceId: 'src_def_bourse' });
+    expect(book.items.bourse__foolad).toMatchObject({ price: 540, sourceId: 'src_def_bourse' });
+    // A fund from two sources is one id: the first source's (the other's copy is prefixed)
+    expect(book.items.bourse__ahrom).toMatchObject({ price: 7500, sourceId: 'src_def_charisma' });
     for (const [id, item] of Object.entries(book.items)) expect(item.id).toBe(id);
   });
 

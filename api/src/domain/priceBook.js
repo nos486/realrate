@@ -9,9 +9,11 @@
  *   "toman" (default), "rial", "usd" (e.g. the world ounce) or "usd_cross" (a currency's value
  *   in dollars, e.g. the forex feed). Dollar quotes are turned into tomans with the book's own
  *   USD price, so e.g. the lira is computed once here and is the same number everywhere.
- * - `id` is unique and lower-case. A single-price source gives its priceType ("usd", "gold_18k"),
- *   a multi-output feed its item code ("eur"), a catalog `${sourceId}__${symbol}`. When two
- *   sources give the same id, the primary one keeps it and the others become `${sourceId}__${id}`.
+ * - `id` names the asset, never the provider: unique, lower-case, with Persian letters in one form.
+ *   A single-price source gives its priceType ("usd", "gold_18k"), a multi-output feed its item
+ *   code ("eur"), a catalog `${market}__${symbol}` ("bourse__فولاد": there is one فولاد whichever
+ *   source prices it). When two sources give the same id, the primary one keeps it and the
+ *   others become `${sourceId}__${id}`.
  * - Prices computed from others are items too: the intrinsic value of gold, coins and silver with
  *   no market source (from the ounce and USD), and cash (1 toman). Items that also have a market
  *   price carry their intrinsic value and bubble in `params`.
@@ -49,14 +51,34 @@ export const PRICE_QUOTES = ["toman", "rial", "usd", "usd_cross"];
 
 // ── Ids ──────────────────────────────────────────────────────────────────────
 
-/** Lower-case, trimmed id */
-export const normalizePriceId = (id) => String(id ?? "").trim().toLowerCase();
+const PERSIAN_DIGITS = "۰۱۲۳۴۵۶۷۸۹";
+const ARABIC_DIGITS = "٠١٢٣٤٥٦٧٨٩";
 
-/** The catalog id of an item: `${sourceId}__${symbol}` (a symbol may already carry the prefix) */
-export function catalogAssetId(sourceId, symbol) {
+/**
+ * An id in its one form: trimmed, lower-case, Arabic ي/ك/ة/أ as their Persian letters, Persian and
+ * Arabic digits as 0–9, no zero-width joiners or kashida, single spaces. A feed that writes
+ * «فملي» or «اخزا۱۰۲» gives the same id as one that writes «فملی» or «اخزا102».
+ */
+export const normalizePriceId = (id) => String(id ?? "")
+  .replace(/[ي]/g, "ی")
+  .replace(/[ك]/g, "ک")
+  .replace(/[ة]/g, "ه")
+  .replace(/[أإٱ]/g, "ا")
+  .replace(/[۰-۹]/g, (d) => String(PERSIAN_DIGITS.indexOf(d)))
+  .replace(/[٠-٩]/g, (d) => String(ARABIC_DIGITS.indexOf(d)))
+  .replace(/[\u200b-\u200f\u202a-\u202e\u2066-\u2069\ufeff\u0640]/g, "")
+  .replace(/\s+/g, " ")
+  .trim()
+  .toLowerCase();
+
+/** The market a catalog source lists (its ids' prefix); a source without one uses its own id */
+export const catalogMarketOf = (src) => String(src?.market || src?.id || "").trim();
+
+/** The catalog id of an item: `${market}__${symbol}` (a symbol may already carry the prefix) */
+export function catalogAssetId(market, symbol) {
   const sym = String(symbol ?? "").trim();
-  if (!sourceId) return sym;
-  return sym.startsWith(`${sourceId}__`) ? sym : `${sourceId}__${sym}`;
+  if (!market) return sym;
+  return sym.startsWith(`${market}__`) ? sym : `${market}__${sym}`;
 }
 
 /** A catalog item's symbol, the same way the catalog reads it */
@@ -163,7 +185,7 @@ function collectEntries(sources) {
         const value = catalogItemPriceToman(item);
         if (!symbol || !value) continue;
         entries.push({
-          baseId: normalizePriceId(catalogAssetId(src.id, symbol)),
+          baseId: normalizePriceId(catalogAssetId(catalogMarketOf(src), symbol)),
           src,
           value,
           quote: "toman",

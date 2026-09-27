@@ -194,6 +194,7 @@ export const PRICE_SOURCES_CONFIG = [
     name: "بورس اوراق بهادار تهران (TSETMC / BRS API)",
     brand: "بورس",
     priceType: "bourse",
+    market: "bourse", // Its items are ids "bourse__<symbol>"
     sourceType: "bourse_symbols",
     endpoint: "https://api.brsapi.ir/Tsetmc/AllSymbols.php?type=1&key=${BRS_API_KEY}",
     category: "bourse",
@@ -216,6 +217,7 @@ export const PRICE_SOURCES_CONFIG = [
     name: "صندوق‌های سرمایه‌گذاری مفید (Emofid)",
     brand: "مفید",
     priceType: "emofid_funds",
+    market: "bourse", // Exchange-traded funds: the same "bourse__<symbol>" as on the exchange
     sourceType: "emofid_funds",
     endpoint: "https://www.emofid.com/api/funds/",
     jsonPath: "value",
@@ -241,6 +243,7 @@ export const PRICE_SOURCES_CONFIG = [
     name: "صندوق‌های سرمایه‌گذاری کاریزما (Charisma)",
     brand: "کاریزما",
     priceType: "charisma_funds",
+    market: "bourse", // Exchange-traded funds: the same "bourse__<symbol>" as on the exchange
     sourceType: "charisma_funds",
     endpoint: "https://charisma.ir/funds",
     jsonPath: "data",
@@ -269,6 +272,7 @@ export const PRICE_SOURCES_CONFIG = [
     name: "طرح‌های سرمایه‌گذاری کاریزما (Charisma Plans)",
     brand: "کاریزما",
     priceType: "charisma_plans",
+    market: "charisma_plan", // Charisma's own plans: "charisma_plan__<code>"
     sourceType: "charisma_plans",
     endpoint: "https://n8n.geekio.ir/webhook/38899601-0906-4aa4-aedb-8f7de5493894",
     category: "bourse_fund",

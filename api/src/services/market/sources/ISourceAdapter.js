@@ -40,7 +40,8 @@
  * CORE ARCHITECTURAL INVARIANTS (قواعد تغییرناپذیر معماری):
  * ─────────────────────────────────────────────────────────────────────────────
  * 1. Output Shape: Strictly `{ items: [{ id, name, price }], datetime }`.
- * 2. ID Convention: Always `${sourceId}__${itemKey}` for catalog items, or canonical source ID for single-rate.
+ * 2. ID Convention: a catalog item's id is its own symbol/code; the price book makes it
+ *    `${market}__${symbol}` (the source's `market`), so an asset keeps its id whichever source lists it.
  * 3. Metadata Invariant: Unit, category, badge, and color are defined ONLY at source and category level
  *    (in `sources.config.js` and `categories.config.js`). Items NEVER define independent units/categories.
  * 4. Presentation Invariant: Display name is strictly formatted by `displayEngine.js` as
@@ -54,7 +55,7 @@
 
 /**
  * @typedef {Object} AdapterItem
- * @property {string} id - Canonical identifier for the asset/item (${sourceId}__${itemKey})
+ * @property {string} id - The item's own symbol or code (the price book adds the market prefix)
  * @property {string} name - Clean Persian display name (e.g. "فولاد مبارکه", "دلار تهران سبزه میدان", "طرح طلا")
  * @property {number} price - Numerical price in Tomans (or USD for international commodities)
  */

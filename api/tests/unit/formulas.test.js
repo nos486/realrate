@@ -153,16 +153,16 @@ describe('Financial Formulas Unit Tests', () => {
       full_coin: 48000000,
       usd: 65000,
       ons_gold: 175500000,
-      src_def_charisma_plans__gold: 32242244,
-      src_def_emofid__ayyar: 24500,
-      'src_def_bourse__فولاد': 520,
+      charisma_plan__gold: 32242244,
+      bourse__ayyar: 24500,
+      'bourse__فولاد': 520,
     };
     const price = (assetId, extra = {}) => resolveHoldingUnitRealPrice({ assetId, ...extra }, priceMap);
 
     it('reads the book by id', () => {
       expect(price('gold_18k')).toBe(4500000);
       expect(price('ons_gold')).toBe(175500000);
-      expect(price('src_def_charisma_plans__gold')).toBe(32242244);
+      expect(price('charisma_plan__gold')).toBe(32242244);
     });
 
     it('understands every old stored form of an id', () => {
@@ -173,8 +173,11 @@ describe('Financial Formulas Unit Tests', () => {
       expect(price('gold_ounce')).toBe(175500000);
       expect(price('full_new')).toBe(48000000);
       expect(price('charisma_plans__gold')).toBe(32242244);
+      expect(price('src_def_charisma_plans__gold')).toBe(32242244);
       expect(price('emofid__ayyar')).toBe(24500);
+      expect(price('src_def_emofid__ayyar')).toBe(24500);
       expect(price('bourse_فولاد')).toBe(520);
+      expect(price('src_def_bourse__فولاد')).toBe(520);
     });
 
     it('uses customPrice / currentPrice for custom personal assets', () => {

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Coins } from 'lucide-react';
 import Modal from '../../../shared/ui/Modal.jsx';
 import NumericInput from '../../../shared/ui/NumericInput.jsx';
@@ -39,6 +39,12 @@ export default function AddHoldingForm({
   const [referenceAsset, setReferenceAsset] = useState(null);
   const [referenceQuantity, setReferenceQuantity] = useState('');
   const [referencePriceToman, setReferencePriceToman] = useState('');
+
+  // Read when the form opens, not a reason to reset it (prices refresh in the background)
+  const getAssetRef = useRef(null);
+  useEffect(() => {
+    getAssetRef.current = pricing?.getAsset;
+  });
 
   // Initialize or reset form state on open / edit
   useEffect(() => {
@@ -81,10 +87,12 @@ export default function AddHoldingForm({
         setCustomCurrentPrice('');
       }
 
-      const editCat = getItemCategory(editingHolding);
+      // The book knows whether a symbol is a share or a fund; the id alone can't tell
+      const editCat = getAssetRef.current?.(editingHolding.assetId)?.category || getItemCategory(editingHolding);
       if (editCat === 'bourse' || editCat === 'bourse_fund') {
         setSelectedBourseSymbol({
-          symbol: (editingHolding.assetId || '').replace(/^bourse_/, '').replace(/^src_def_bourse__/, ''),
+          // The symbol after the market ("bourse__فولاد"), whatever form the id was stored in
+          symbol: toPriceId(editingHolding.assetId || '').split('__').pop(),
           name: editingHolding.assetName,
           isFund: editCat === 'bourse_fund',
           priceToman: editingHolding.customPrice || 0,

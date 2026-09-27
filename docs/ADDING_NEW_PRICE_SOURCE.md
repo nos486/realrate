@@ -62,7 +62,7 @@ export const PRICE_SOURCES_CONFIG = [
 {
   items: [
     {
-      id: "src_def_my_source__item_key", // یا ${sourceId}__${itemKey}
+      id: "item_key", // نماد یا کد خود آیتم؛ پیشوند بازار را دفتر قیمت اضافه می‌کند
       name: "نام پاکسازی‌شده آیتم",
       price: 154200 // عدد قیمت نهایی به تومان یا دلار
     }
@@ -79,15 +79,16 @@ export const PRICE_SOURCES_CONFIG = [
 
 ## ۳. قرارداد شناسه‌ها (Universal ID Contract)
 
-برای تمام اقلام و کاتالوگ‌ها، شناسه با الگوی زیر تولید و خوانده می‌شود:
-$$\text{ID} = \$\{sourceId\}\_\_\$\{itemKey\}$$
+شناسه نام دارایی است، نه سورس: فولاد همیشه همان فولاد است، از هر سورسی که بیاید.
+برای اقلام کاتالوگ: `${market}__${symbol}` که `market` در کانفیگ سورس تعیین می‌شود.
 
 - **مثال‌ها:**
-  - `src_def_bourse__فولاد` (نماد فولاد از سورس بورس)
-  - `src_def_charisma__اهرم` (صندوق اهرم از سورس کاریزما)
-  - `src_def_charisma_plans__gold` (طرح طلا از سورس کاریزما)
-  - `src_def_emofid__عیار` (صندوق عیار از سورس مفید)
-  - `src_def_usd` (سورس‌های تک‌نرخی کانونیکال)
+  - `bourse__فولاد` (نماد فولاد، از هر سورسی)
+  - `bourse__اهرم` و `bourse__عیار` (صندوق‌های قابل معامله: همان شناسه بورس)
+  - `charisma_plan__gold` (طرح طلای کاریزما)
+  - `usd`، `usdt`، `gold_18k` (سورس‌های تک‌نرخی: priceType)
+- اگر دو سورس یک شناسه را بدهند، اولی (سورس اصلی، به ترتیب کانفیگ) همان شناسه را می‌گیرد و نسخه بقیه `${sourceId}__${id}` می‌شود.
+- شناسه‌ها یک شکل دارند: حروف کوچک، ي/ك عربی به ی/ک، ارقام فارسی به 0–9، بدون نیم‌فاصله.
 
 ---
 
@@ -107,13 +108,13 @@ import {
 } from "../config/displayEngine.js";
 
 // مثال کاربرد:
-const displayName = getItemDisplayName({ id: "src_def_bourse__فولاد", name: "فولاد مبارکه" });
+const displayName = getItemDisplayName({ id: "bourse__فولاد", name: "فولاد مبارکه" });
 // خروجی: "فولاد مبارکه (بورس)"
 
-const unit = getItemUnit("src_def_gold_18k");
+const unit = getItemUnit("gold_18k");
 // خروجی: "گرم"
 
-const category = getItemCategory("src_def_charisma__اهرم");
+const category = getItemCategory("src_def_charisma__اهرم") // شناسه قدیمی هم خوانده می‌شود;
 // خروجی: "bourse_fund"
 
 const badge = getItemBadge("src_def_charisma__اهرم");
