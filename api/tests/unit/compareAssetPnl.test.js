@@ -34,3 +34,15 @@ describe('computeCompareAssetPnl', () => {
     expect(computeCompareAssetPnl({ ...base, compareAssetId: 'unknown_asset' }, priceMap, itemMap)).toBeNull();
   });
 });
+
+describe('comparison asset id', () => {
+  it('is kept in the price book id form, like the holding and reference ids', async () => {
+    const { withPriceIdVersion, PRICE_ID_FIELDS } = await import('../../src/domain/priceIds.js');
+    expect(PRICE_ID_FIELDS).toContain('compareAssetId');
+    const record = withPriceIdVersion(
+      { assetId: 'src_def_usd', referenceAssetId: 'EUR', compareAssetId: 'derived_gold_18k' },
+      new Set(['usd', 'eur', 'gold_18k']),
+    );
+    expect(record).toMatchObject({ assetId: 'usd', referenceAssetId: 'eur', compareAssetId: 'gold_18k' });
+  });
+});

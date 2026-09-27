@@ -142,6 +142,8 @@ describe('E2EE client crypto (web/src/lib/e2ee.js)', () => {
       notes: 'یادداشت محرمانه',
       referenceAssetId: 'usd',
       referenceQuantity: 950,
+      compareAssetId: 'bourse__فولاد',
+      comparePriceToman: 713,
     };
 
     it('moves every sensitive field into the ciphertext', async () => {
@@ -156,10 +158,12 @@ describe('E2EE client crypto (web/src/lib/e2ee.js)', () => {
         buyDate: '',
         referenceAssetId: '',
         referenceQuantity: 0,
+        compareAssetId: '',
+        comparePriceToman: 0,
       });
       expect(isHoldingE2eeEncrypted(sent)).toBe(true);
       const serialized = JSON.stringify(sent);
-      for (const secret of ['یادداشت محرمانه', '4200000', '1403/05/10', '950']) {
+      for (const secret of ['یادداشت محرمانه', '4200000', '1403/05/10', '950', 'فولاد', '713']) {
         expect(serialized).not.toContain(secret);
       }
     });
@@ -195,6 +199,8 @@ describe('E2EE client crypto (web/src/lib/e2ee.js)', () => {
         assetName: 'طلای ۱۸ عیار',
         referenceAssetId: 'usd',
         referenceQuantity: 950,
+        compareAssetId: 'bourse__فولاد',
+        comparePriceToman: 713,
         isE2eeEncrypted: true,
       });
     });

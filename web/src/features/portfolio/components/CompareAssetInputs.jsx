@@ -45,6 +45,7 @@ export default function CompareAssetInputs({
       prevAssetId.current = null;
       return;
     }
+    // An asset set from outside (the record being edited) keeps its saved price
     if (id !== prevAssetId.current) {
       userEditedPrice.current = !autoFillPrice;
       prevAssetId.current = id;
@@ -58,6 +59,9 @@ export default function CompareAssetInputs({
   const handlePick = (asset) => {
     const resolved = resolveSelectedAsset(asset);
     if (!resolved) return; // a personal asset has no market price to compare with
+    // A newly picked asset starts from today's price, also when editing
+    userEditedPrice.current = false;
+    prevAssetId.current = resolved.id;
     onCompareAssetChange(resolved);
   };
 
