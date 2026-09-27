@@ -4,7 +4,8 @@
  * `provider` says how a model is called (services/ai/visionProviders.js). Workers AI runs through
  * the Worker's AI binding; the others need their API key as a Worker secret
  * (`npx wrangler secret put <KEY>`), and a model whose key isn't set is listed as unavailable.
- * The first available model in this order is the default.
+ * The first available model in this order is the default. A model may set `maxTokens` and
+ * `timeoutMs` when it needs more than the usual (a thinking model).
  */
 
 /** The Worker secret each provider's API key is kept in */
@@ -19,6 +20,8 @@ export const CHEQUE_SCAN_MODELS = [
   { id: 'claude-sonnet-5', label: 'Claude Sonnet 5', provider: 'anthropic' },
   { id: 'claude-haiku-4-5', label: 'Claude Haiku 4.5', provider: 'anthropic' },
   { id: 'gpt-5.4-mini', label: 'GPT-5.4 mini', provider: 'openai' },
+  // Thinks before it answers: more room and time than the others
+  { id: '@cf/qwen/qwen3.8-27b', label: 'Qwen 3.8 27B (Workers AI، رایگان)', provider: 'workers-ai', maxTokens: 8000, timeoutMs: 90000 },
   { id: '@cf/meta/llama-4-scout-17b-16e-instruct', label: 'Llama 4 Scout (Workers AI)', provider: 'workers-ai' },
   { id: '@cf/mistralai/mistral-small-3.1-24b-instruct', label: 'Mistral Small 3.1 (Workers AI)', provider: 'workers-ai' },
   { id: '@cf/google/gemma-3-12b-it', label: 'Gemma 3 12B (Workers AI)', provider: 'workers-ai' },

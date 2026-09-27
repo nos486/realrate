@@ -76,12 +76,13 @@ async function runWorkersAi(env, model, req) {
       },
     ],
     temperature: 0.1,
-    max_tokens: 1000,
+    max_tokens: model.maxTokens || 1000,
   };
+  const timeoutMs = model.timeoutMs || AI_TIMEOUT_MS;
   const run = async (body) => {
     let timer;
     const timeout = new Promise((_, reject) => {
-      timer = setTimeout(() => reject(new VisionProviderError("پاسخ مدل بیش از حد طول کشید.", { timeout: true })), AI_TIMEOUT_MS);
+      timer = setTimeout(() => reject(new VisionProviderError("پاسخ مدل بیش از حد طول کشید.", { timeout: true })), timeoutMs);
     });
     try {
       return await Promise.race([env.AI.run(model.id, body), timeout]);

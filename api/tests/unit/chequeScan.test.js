@@ -206,3 +206,10 @@ describe('cheque scan: dates and confidence', () => {
     expect(res.confidence.bankName).toBe('medium');
   });
 });
+
+describe('cheque scan: thinking models', () => {
+  it('reads the answer after a <think> block, even one holding braces', () => {
+    const text = '<think>The amount looks like {50,000,000}; the date…</think>\n{"amount": 500000000, "sayadId": "1234567890123456"}';
+    expect(parseChequeScanJson(text)).toEqual({ amount: 500000000, sayadId: '1234567890123456' });
+  });
+});
