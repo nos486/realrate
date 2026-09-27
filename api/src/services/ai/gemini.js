@@ -2,17 +2,20 @@
  * gemini.js — Ask a Google Gemini model about one image (generateContent)
  *
  * Failures are GeminiError: `reason` is short (Google's status and error message, never the key
- * or the image) and is shown to admins only.
+ * or the image) and is shown to admins only; `busy` marks Google being overloaded or out of quota
+ * (503 / 429), when another model may still answer.
  */
 
 export const GEMINI_TIMEOUT_MS = 45000;
 const MAX_OUTPUT_TOKENS = 4000;
 
 export class GeminiError extends Error {
-  constructor(reason) {
+  constructor(reason, { status = 0 } = {}) {
     super(reason);
     this.name = "GeminiError";
     this.reason = reason;
+    this.status = status;
+    this.busy = status === 503 || status === 429;
   }
 }
 
@@ -72,7 +75,7 @@ export async function geminiDescribeImage(apiKey, modelId, req) {
     } catch {
       detail = await res.text().catch(() => "");
     }
-    throw new GeminiError(`HTTP ${res.status}: ${shortReason(detail)}`);
+    throw new GeminiError(`HTTP ${res.status}: ${shortReason(detail)}`, { status: res.status });
   }
 
   const body = await res.json();

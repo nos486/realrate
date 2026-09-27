@@ -189,6 +189,7 @@ Stateless image analysis with Gemini (`api/src/config/ai.config.js`, key in the 
 - **Feature Flag Gate**: Requires the `cheque_scan` feature (`requireFeature`, stage `ga`: every signed-in user).
 - **Daily limit**: one use of the `cheque_scan` limit per scan (`config/usageLimits.js`): 10 a day for users, none for the admin, counted per Tehran day. Past it: `429 QUOTA_EXCEEDED`. Only a valid upload is counted, and a failed model call gives the use back. The response carries `quota: { limit, used, remaining }` (`limit`/`remaining` null: no limit).
 - **Service rate**: Gemini is called at most 5 times per 60 seconds by all users together (`SERVICE_RATE_LIMITS`, a Durable Object). Past it: `429 SERVICE_BUSY` with the wait in the message; the user's daily use is given back.
+- **Busy fallback**: when Google answers 503/429 (overloaded or out of quota) for the first model (`gemini-3.8-flash`), the scan tries the next one (`gemini-3.5-flash`) once; each model has its own quota at Google. When every model is busy: `503 AI_BUSY`, and the user's daily use is given back.
 - **Not configured**: without `GEMINI_API_KEY` the scan answers `503 SCAN_NOT_CONFIGURED` (the admin is told the secret's name).
 - **Admin debug** (`cheque_scan_debug` feature, beta): the response adds `raw` (the model's answer), and a `502` names Gemini's error.
 - **Encryption Gate Exemption**: This endpoint is explicitly exempted from the mandatory E2EE ciphertext gate because it does not store any financial data.
