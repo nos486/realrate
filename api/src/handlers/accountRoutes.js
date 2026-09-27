@@ -310,6 +310,11 @@ export async function handleResetPassword(request, env) {
 export async function handleSetPassword(request, env) {
   const user = await getAuthenticatedUser(request, env);
   if (!user) throw AppError.unauthorized();
+  // Sign-in routes run before the demo gate: a demo session setting a password would open the
+  // shared demo account to password sign-in and sign every other demo visitor out
+  if (user.kind === "demo_view" || user.kind === "demo_edit") {
+    throw new AppError("تغییر مشخصات ورود یا رمز عبور در حساب دمو مجاز نیست.", 403, "DEMO_READ_ONLY");
+  }
   await assertNotMaintenance(env, user.email);
   const userId = user.userId || user.id;
   const account = await dbGetUserAuthById(env, userId);

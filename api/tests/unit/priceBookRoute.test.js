@@ -9,11 +9,14 @@ let book;
 vi.mock('../../src/services/market/priceAggregator.service.js', () => ({ getPriceBook: vi.fn(async () => book) }));
 vi.mock('../../src/repositories/settings.repository.js', () => ({ getGlobalSettings: vi.fn(async () => ({ announcement: 'hi' })) }));
 
-const { handleGetPriceBook } = await import('../../src/handlers/apiRoutes.js');
+const { handleGetPriceBook, resetPriceBookMemo } = await import('../../src/handlers/apiRoutes.js');
+const { getPriceBook } = await import('../../src/services/market/priceAggregator.service.js');
 const { buildPriceBook } = await import('../../src/domain/priceBook.js');
 
 const source = (price) => ({ id: 'src_usd', priceType: 'usd', items: [{ id: 'src_usd', price }], isActive: true, isPrimary: true, name: 'usd' });
-const get = (etag) => handleGetPriceBook({}, new Request('https://x/api/prices/book', { headers: etag ? { 'If-None-Match': etag } : {} }));
+// Each call reads the book afresh, as after the isolate's short memo expires
+const get = (etag) => { resetPriceBookMemo(); return fetchBook(etag); };
+const fetchBook = (etag) => handleGetPriceBook({}, new Request('https://x/api/prices/book', { headers: etag ? { 'If-None-Match': etag } : {} }));
 
 describe('GET /api/prices/book', () => {
   it('sends the prices with the settings and an ETag, but never the sources\' sync state', async () => {
@@ -37,5 +40,16 @@ describe('GET /api/prices/book', () => {
     const changed = await get(etag);
     expect(changed.status).toBe(200);
     expect(changed.headers.get('ETag')).not.toBe(etag);
+  });
+
+  it('reuses its serialized answer for a few seconds instead of reading KV per request', async () => {
+    book = buildPriceBook([source(100000)], { now: '2026-01-01T00:00:00Z' });
+    resetPriceBookMemo();
+    getPriceBook.mockClear();
+    const first = await fetchBook();
+    const etag = first.headers.get('ETag');
+    expect((await fetchBook(etag)).status).toBe(304);
+    expect((await (await fetchBook()).json()).items.usd.price).toBe(100000);
+    expect(getPriceBook).toHaveBeenCalledTimes(1);
   });
 });
