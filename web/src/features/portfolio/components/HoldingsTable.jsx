@@ -217,7 +217,7 @@ export default function HoldingsTable({
           <div className="category-group-header">
             <div className="cat-header-identity">
               <span className="cat-group-icon">
-                <CategoryIcon category={group.key} size={20} />
+                <CategoryIcon category={group.icon || group.key} size={20} />
               </span>
               <div className="cat-group-titles">
                 <h4 className="cat-group-name">{group.name}</h4>

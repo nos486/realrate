@@ -15,9 +15,9 @@
 import { ensureSchema } from "./schema.repository.js";
 import { AppError } from "../lib/AppError.js";
 
-export const VAULT_RECORD_KINDS = ["loan", "income", "cheque", "recurring_income", "holding", "transaction"];
+export const VAULT_RECORD_KINDS = ["loan", "income", "cheque", "recurring_income", "holding", "transaction", "portfolio_layout"];
 /** Kinds that belong to a portfolio: parent_id is the portfolio, encrypted with its own key */
-export const PORTFOLIO_ITEM_KINDS = ["holding", "transaction"];
+export const PORTFOLIO_ITEM_KINDS = ["holding", "transaction", "portfolio_layout"];
 export const E2EE_CIPHER_PREFIX = "enc:e2ee:v1:";
 const MAX_PAYLOAD_LENGTH = 512 * 1024;
 const RECORD_ID_RE = /^[A-Za-z0-9_-]{1,80}$/;
@@ -199,6 +199,9 @@ function deletePlainStatements(env, userId, kind, id) {
   }
   if (kind === "transaction") {
     return [env.DB.prepare(`DELETE FROM transactions WHERE id = ? AND user_id = ?`).bind(id, userId)];
+  }
+  if (kind === "portfolio_layout") {
+    return [];
   }
   return [env.DB.prepare(`DELETE FROM incomes WHERE id = ? AND user_id = ?`).bind(id, userId)];
 }

@@ -4,12 +4,14 @@ vi.mock('../../src/repositories/index.js', () => ({
   dbGetPortfolioByShareSlug: vi.fn(),
   dbGetPortfolioHoldings: vi.fn(),
   dbGetTransactionsByPortfolio: vi.fn(),
+  dbListVaultRecords: vi.fn(),
 }));
 
 import {
   dbGetPortfolioByShareSlug,
   dbGetPortfolioHoldings,
   dbGetTransactionsByPortfolio,
+  dbListVaultRecords,
 } from '../../src/repositories/index.js';
 import { handleGetSharedPortfolio } from '../../src/handlers/portfolioRoutes.js';
 
@@ -77,5 +79,38 @@ describe('handleGetSharedPortfolio (اشتراک‌گذاری عمومی پور�
     expect(body.holdings).toBeUndefined();
     expect(body.transactions).toBeUndefined();
     expect(dbGetTransactionsByPortfolio).not.toHaveBeenCalled();
+  });
+
+  it('returns encrypted vault records including vaultLayout for a portfolio under account vault', async () => {
+    dbGetPortfolioByShareSlug.mockResolvedValue({
+      id: 'p1',
+      userId: 'u1',
+      name: 'پورتفوی رمزشده',
+      shareSlug: 'e2ee-slug',
+      shareEnabled: true,
+      sharePassword: '',
+      isE2ee: true,
+      e2eeWrappedKey: 'wrapped-portfolio-key',
+    });
+    dbGetPortfolioHoldings.mockResolvedValue([]);
+    dbGetTransactionsByPortfolio.mockResolvedValue([]);
+    dbListVaultRecords.mockImplementation(async (env, userId, kind) => {
+      if (kind === 'holding') return [{ id: 'h1', payload: 'enc:h1', recordDate: '2026-01-01' }];
+      if (kind === 'transaction') return [{ id: 't1', payload: 'enc:t1', recordDate: '2026-01-01' }];
+      if (kind === 'portfolio_layout') return [{ id: 'l1', payload: 'enc:l1', recordDate: '' }];
+      return [];
+    });
+
+    const req = new Request('https://realrate.ir/api/portfolio/shared?slug=e2ee-slug');
+    const res = await handleGetSharedPortfolio(req, mockEnv);
+    const body = await res.json();
+
+    expect(body.success).toBe(true);
+    expect(body.portfolio.e2eeLinkKey).toBe(true);
+    expect(body.vaultHoldings).toHaveLength(1);
+    expect(body.vaultTransactions).toHaveLength(1);
+    expect(body.vaultLayout).toHaveLength(1);
+    expect(body.vaultLayout[0].id).toBe('l1');
+    expect(body.vaultLayout[0].payload).toBe('enc:l1');
   });
 });

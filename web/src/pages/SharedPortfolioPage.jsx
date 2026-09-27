@@ -6,7 +6,6 @@ import AlertBanner from '../shared/ui/AlertBanner.jsx';
 import { usePricing } from '../features/market/index.js';
 import {
   HoldingsTable,
-  CATEGORY_DEFINITIONS,
   formatAssetName,
   formatNum,
   normalizeHolding,
@@ -41,6 +40,7 @@ import {
   linkTokenToRawKey,
 } from '../lib/e2ee.js';
 import { decryptSharedItems } from '../shared/vault/vaultPortfolioItems.js';
+import { buildCustomCategoryGroups } from '../features/portfolio/portfolioLayoutModel.js';
 
 /** Portfolio key carried in the share link's #fragment (never sent to the server) */
 function readLinkKeyToken() {
@@ -179,9 +179,14 @@ export default function SharedPortfolioPage() {
     const shared = await decryptSharedItems(key, {
       vaultHoldings: portfolioData?.vaultHoldings || [],
       vaultTransactions: portfolioData?.vaultTransactions || [],
+      vaultLayout: portfolioData?.vaultLayout || [],
     });
     setVaultTransactions({ key, list: shared.transactions });
-    setPortfolioData((prev) => ({ ...prev, holdings: [...decrypted, ...shared.holdings] }));
+    setPortfolioData((prev) => ({
+      ...prev,
+      holdings: [...decrypted, ...shared.holdings],
+      sharedLayout: shared.layout || null,
+    }));
     setVaultKey(key);
   }, [portfolioData]);
 
@@ -315,25 +320,8 @@ export default function SharedPortfolioPage() {
   }, [portfolioData, computedHoldings, realPriceMap, liveItemMap]);
 
   const categoryGroups = useMemo(() => {
-    return CATEGORY_DEFINITIONS.map((cat) => {
-      const groupItems = portfolioMetrics.items.filter(cat.match);
-      const costedGroupItems = groupItems.filter((it) => it.hasBuyPrice);
-      const hasCostedItems = costedGroupItems.length > 0;
-      const groupCost = costedGroupItems.reduce((acc, it) => acc + it.itemCost, 0);
-      const groupRealVal = groupItems.reduce((acc, it) => acc + it.itemRealVal, 0);
-      const groupPnl = costedGroupItems.reduce((acc, it) => acc + (it.itemPnl || 0), 0);
-      const groupPnlPct = groupCost > 0 ? parseFloat(((groupPnl / groupCost) * 100).toFixed(1)) : 0;
-      return {
-        ...cat,
-        items: groupItems,
-        totalCost: groupCost,
-        totalRealValue: groupRealVal,
-        totalPnl: hasCostedItems ? groupPnl : null,
-        totalPnlPct: groupPnlPct,
-        hasCostedItems,
-      };
-    }).filter((group) => group.items.length > 0);
-  }, [portfolioMetrics.items]);
+    return buildCustomCategoryGroups(portfolioMetrics.items, portfolioData?.sharedLayout || null);
+  }, [portfolioMetrics.items, portfolioData?.sharedLayout]);
 
   const ownerName = portfolioData?.user?.name || slug;
   const portfolioName = portfolioData?.portfolio?.name;
