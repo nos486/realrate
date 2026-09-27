@@ -130,12 +130,14 @@ export function DemoProvider({ children }) {
       const data = await authDemo();
       if (data?.token && data?.user) {
         completeLogin(data);
+        return true;
       } else {
         toast.error(data?.message || 'ورود به نسخه دمو امکان‌پذیر نیست.');
+        return false;
       }
     } catch (err) {
-      toast.error(err.message || 'خطا در ارتباط با سرور هنگام ورود به دمو');
-      throw err;
+      toast.error(err.message || 'حساب کاربری دمو هنوز ایجاد نشده است.');
+      return false;
     }
   }, [completeLogin, toast]);
 

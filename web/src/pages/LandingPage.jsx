@@ -96,6 +96,8 @@ export default function LandingPage() {
     setEnteringDemo(true);
     try {
       await enterDemo();
+    } catch (err) {
+      console.warn('Demo login failed:', err?.message || err);
     } finally {
       setEnteringDemo(false);
     }
