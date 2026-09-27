@@ -25,14 +25,13 @@ describe('ChequeScanButton Component', () => {
     expect(container.firstChild).toBeNull();
   });
 
-  it('renders button with beta badge for admin user with cheque_scan feature', () => {
+  it('renders the button for a user with the cheque_scan feature', () => {
     mockUseAuth.mockReturnValue({
-      user: { id: 'admin-1', email: 'admin@realrate.ir', role: 'admin', features: ['cheque_scan'] },
+      user: { id: 'user-1', email: 'user@realrate.ir', role: 'user', features: ['cheque_scan'] },
     });
 
     render(<ChequeScanButton onClick={() => {}} />);
     expect(screen.getByRole('button', { name: /اسکن چک/i })).toBeDefined();
-    expect(screen.getByText('بتا')).toBeDefined();
   });
 
   it('fires onClick when clicked', () => {
@@ -70,7 +69,7 @@ describe('ChequeScanResult Component', () => {
     },
     warnings: ['مبلغ چک بالا است'],
     raw: '{"amount": 500000000}',
-    model: '@cf/meta/llama-4-scout-17b-16e-instruct',
+    model: 'gemini-3.5-flash',
     durationMs: 1420,
   };
 
@@ -81,13 +80,20 @@ describe('ChequeScanResult Component', () => {
     height: 900,
   };
 
+  const asAdmin = () => mockUseAuth.mockReturnValue({
+    user: { id: 'admin-1', role: 'admin', features: ['cheque_scan', 'cheque_scan_debug'] },
+  });
+  const asUser = () => mockUseAuth.mockReturnValue({
+    user: { id: 'user-1', role: 'user', features: ['cheque_scan'] },
+  });
+
   it('renders extracted fields and warnings correctly', () => {
+    asUser();
     render(
       <ChequeScanResult
         result={mockResult}
         imageMeta={imageMeta}
         onFillForm={() => {}}
-        onRescan={() => {}}
         onNewPhoto={() => {}}
       />
     );
@@ -100,13 +106,20 @@ describe('ChequeScanResult Component', () => {
     expect(screen.getByText('پایین')).toBeDefined(); // low confidence badge
   });
 
+  it('hides the accuracy tools and raw answer from regular users', () => {
+    asUser();
+    render(<ChequeScanResult result={mockResult} imageMeta={imageMeta} onFillForm={() => {}} onNewPhoto={() => {}} />);
+    expect(screen.queryAllByTitle('درست است')).toHaveLength(0);
+    expect(screen.queryByText(/خروجی خام/)).toBeNull();
+  });
+
   it('allows marking fields as confirmed or rejected for admin accuracy rating', () => {
+    asAdmin();
     render(
       <ChequeScanResult
         result={mockResult}
         imageMeta={imageMeta}
         onFillForm={() => {}}
-        onRescan={() => {}}
         onNewPhoto={() => {}}
       />
     );
@@ -119,12 +132,12 @@ describe('ChequeScanResult Component', () => {
 
   it('calls onFillForm when "پر کردن فرم چک" button is clicked', () => {
     const handleFill = vi.fn();
+    asUser();
     render(
       <ChequeScanResult
         result={mockResult}
         imageMeta={imageMeta}
         onFillForm={handleFill}
-        onRescan={() => {}}
         onNewPhoto={() => {}}
       />
     );

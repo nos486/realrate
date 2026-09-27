@@ -29,5 +29,3 @@ binding = "HYPERDRIVE"
 id = "c503e09fe4334a2c8351480139a9bce7"
 localConnectionString = "postgres://postgres:postgres@localhost:5432/realrate"
 
-[ai]
-binding = "AI"

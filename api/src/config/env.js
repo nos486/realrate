@@ -41,8 +41,8 @@ export function validateEnv(env) {
     missing.push("ADMIN_EMAIL (Admin Email)");
   }
 
-  if (!env.AI) {
-    missing.push("AI (Workers AI binding)");
+  if (!env.GEMINI_API_KEY) {
+    missing.push("GEMINI_API_KEY (cheque scan)");
   }
 
   if (missing.length > 0) {

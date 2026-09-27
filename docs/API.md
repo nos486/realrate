@@ -78,7 +78,7 @@ Direct password or Google OAuth logins to the demo account (`demo@realrate.inval
 
 `GET /api/v1/auth/me`: Returns current user session details:
 - `user`: `{ id, email, name, role, isDemo, emailVerified, createdAt, updatedAt }`
-- `features`: Array of active feature flag keys enabled for the user (e.g. `['cheque_scan']` for admin users when `stage: 'beta'`).
+- `features`: Array of active feature flag keys enabled for the user (e.g. `['cheque_scan']`; admins also get beta features such as `cheque_scan_debug`).
 - For demo sessions (`demo_view` or `demo_edit`), additionally returns:
   - `demo: { mode: 'view' | 'edit' }`
   - `demoVaultPassphrase`: Public passphrase for the demo vault (configured via `DEMO_VAULT_PASSPHRASE`).
@@ -183,18 +183,20 @@ Validation is the shared `api/src/domain/chequeDocument.js` (the browser uses th
 }
 ```
 
-### AI Cheque Scan (Beta / Admin Only)
+### AI Cheque Scan
 
-Stateless image analysis with a vision model (Gemini, Claude, OpenAI or Workers AI; `api/src/config/ai.config.js`) for prefilling cheque details. A model whose API key secret is not set is refused with `400 MODEL_NOT_CONFIGURED` (without using the daily quota); a provider failure returns `502` with the provider's short reason.
-- **Feature Flag Gate**: Requires the `cheque_scan` feature flag (`requireFeature`). Requests from unauthorized or regular users strictly return `404 Not Found` (masquerading non-existence).
+Stateless image analysis with Gemini (`api/src/config/ai.config.js`, key in the `GEMINI_API_KEY` secret) for prefilling cheque details.
+- **Feature Flag Gate**: Requires the `cheque_scan` feature (`requireFeature`, stage `ga`: every signed-in user).
+- **Daily limit**: one use of the `cheque_scan` limit per scan (`config/usageLimits.js`): 10 a day for users, none for the admin, counted per Tehran day. Past it: `429 QUOTA_EXCEEDED`. Only a valid upload is counted, and a failed model call gives the use back. The response carries `quota: { limit, used, remaining }` (`limit`/`remaining` null: no limit).
+- **Not configured**: without `GEMINI_API_KEY` the scan answers `503 SCAN_NOT_CONFIGURED` (the admin is told the secret's name).
+- **Admin debug** (`cheque_scan_debug` feature, beta): the response adds `raw` (the model's answer), and a `502` names Gemini's error.
 - **Encryption Gate Exemption**: This endpoint is explicitly exempted from the mandatory E2EE ciphertext gate because it does not store any financial data.
 - **Privacy & Zero Storage Guarantee**: The image, model prompts, and structured output are **never** persisted to Postgres, KV, disk, or logs.
-- **Rate Limit**: Maximum 30 scans per day per user, tracked via ephemeral KV counter (`ai_scan:<userId>:<YYYY-MM-DD>`, 2-day TTL). Exceeding returns `429 Too Many Requests`.
 
 | Method | Endpoint | Description |
 | :--- | :--- | :--- |
-| `POST` | `/api/v1/cheques/scan` | Analyze a cheque image with the chosen vision model |
-| `GET` | `/api/v1/cheques/scan/models` | The scan's models, each with `available` (whether its key is set) and the `secret` it needs |
+| `POST` | `/api/v1/cheques/scan` | Read a cheque image with Gemini |
+| `GET` | `/api/v1/cheques/scan/quota` | Today's scans: `limit`, `used`, `remaining` |
 
 #### Request Format
 `Content-Type: multipart/form-data`

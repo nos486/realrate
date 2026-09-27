@@ -58,27 +58,23 @@ export const {
 );
 
 /**
- * Scans a cheque image via Workers AI
+ * Scans a cheque image (read by Gemini on the server)
  *
  * @param {Blob|File} imageBlob
- * @param {string} [model]
  * @param {object} [options]
  * @param {AbortSignal} [options.signal]
  * @returns {Promise<object>}
  */
-export async function scanCheque(imageBlob, model, { signal } = {}) {
+export async function scanCheque(imageBlob, { signal } = {}) {
   const formData = new FormData();
   formData.append('image', imageBlob, 'cheque.jpg');
-  if (model) {
-    formData.append('model', model);
-  }
   return httpClient.post('/api/cheques/scan', formData, { signal });
 }
 
 /**
- * The models the cheque scan offers, each with `available` (whether its API key is set)
- * @returns {Promise<{ models: Array<{ id: string, label: string, provider: string, available: boolean, secret?: string }> }>}
+ * Today's cheque scans: `limit` (null: no limit), `used`, `remaining` (null: no limit)
+ * @returns {Promise<{ quota: { limit: number|null, used: number, remaining: number|null } }>}
  */
-export async function getScanModels() {
-  return httpClient.get('/api/cheques/scan/models', { silent: true });
+export async function getScanQuota() {
+  return httpClient.get('/api/cheques/scan/quota', { silent: true });
 }

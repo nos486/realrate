@@ -1,1 +1,0 @@
-../../../api/src/config/ai.config.js

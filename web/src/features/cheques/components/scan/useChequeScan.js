@@ -1,32 +1,23 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { resizeImage } from '../../../../shared/utils/imageResize.js';
-import { scanCheque, getScanModels } from '../../api/chequeApi.js';
-import { CHEQUE_SCAN_MODELS } from '../../../../config/ai.config.js';
+import { scanCheque, getScanQuota } from '../../api/chequeApi.js';
 
 export function useChequeScan() {
   const [status, setStatus] = useState('idle'); // 'idle' | 'resizing' | 'ready' | 'uploading' | 'done' | 'error'
   const [file, setFile] = useState(null);
   const [resized, setResized] = useState(null);
   const [previewUrl, setPreviewUrl] = useState(null);
-  const [selectedModel, setSelectedModel] = useState(CHEQUE_SCAN_MODELS[0].id);
   const [result, setResult] = useState(null);
   const [error, setError] = useState(null);
 
   const abortControllerRef = useRef(null);
 
-  // Which models this Worker can call; until the list arrives every model is offered
-  const [models, setModels] = useState(CHEQUE_SCAN_MODELS);
+  // Today's scans (limit null: no limit); refreshed by every scan
+  const [quota, setQuota] = useState(null);
   useEffect(() => {
     let cancelled = false;
-    getScanModels()
-      .then((res) => {
-        if (cancelled || !Array.isArray(res?.models)) return;
-        setModels(res.models);
-        setSelectedModel((current) => {
-          const usable = res.models.filter((m) => m.available);
-          return usable.some((m) => m.id === current) ? current : (usable[0]?.id || current);
-        });
-      })
+    getScanQuota()
+      .then((res) => { if (!cancelled && res?.quota) setQuota(res.quota); })
       .catch(() => {});
     return () => { cancelled = true; };
   }, []);
@@ -55,10 +46,9 @@ export function useChequeScan() {
     }
   }, []);
 
-  const startScan = useCallback(async (modelOverride = null) => {
+  const startScan = useCallback(async () => {
     if (!resized?.blob) return;
 
-    const modelToUse = modelOverride || selectedModel;
     setError(null);
     setStatus('uploading');
 
@@ -66,8 +56,9 @@ export function useChequeScan() {
     abortControllerRef.current = controller;
 
     try {
-      const res = await scanCheque(resized.blob, modelToUse, { signal: controller.signal });
+      const res = await scanCheque(resized.blob, { signal: controller.signal });
       setResult(res);
+      if (res?.quota) setQuota(res.quota);
       setStatus('done');
     } catch (err) {
       if (err.name === 'AbortError') {
@@ -75,11 +66,15 @@ export function useChequeScan() {
       } else {
         setError(err.message || 'پردازش تصویر ناموفق بود.');
         setStatus('error');
+        // Out of scans for today
+        if (err.status === 429 || err.code === 'QUOTA_EXCEEDED') {
+          setQuota((q) => (q && q.limit !== null ? { ...q, used: q.limit, remaining: 0 } : q));
+        }
       }
     } finally {
       abortControllerRef.current = null;
     }
-  }, [resized, selectedModel]);
+  }, [resized]);
 
   const cancelScan = useCallback(() => {
     if (abortControllerRef.current) {
@@ -88,11 +83,6 @@ export function useChequeScan() {
     }
     setStatus('ready');
   }, []);
-
-  const rescanWithModel = useCallback(async (newModel) => {
-    setSelectedModel(newModel);
-    await startScan(newModel);
-  }, [startScan]);
 
   const reset = useCallback(() => {
     if (abortControllerRef.current) {
@@ -112,18 +102,15 @@ export function useChequeScan() {
 
   return {
     status,
-    models,
+    quota,
     file,
     resized,
     previewUrl,
-    selectedModel,
-    setSelectedModel,
     result,
     error,
     selectFile,
     startScan,
     cancelScan,
-    rescanWithModel,
     reset,
   };
 }

@@ -99,37 +99,20 @@ npx wrangler secret put DEMO_VAULT_PASSPHRASE
 
 در صورت تنظیم نشدن این secret، ورکر از مقدار پیش‌فرض داخلی استفاده می‌کند.
 
-## هوش مصنوعی ابری (Cloudflare Workers AI)
+## اسکن چک با هوش مصنوعی (Gemini)
 
-برای پردازش تصویر و اسکن هوشمند چک‌ها، از سرویس بومی Cloudflare Workers AI استفاده می‌شود.
-
-در فایل `api/wrangler.toml` اتصال AI فعال شده است:
-```toml
-[ai]
-binding = "AI"
-```
-
-- **سهمیه رایگان**: کلودفلر روزانه **۱۰٬۰۰۰ واحد محاسباتی (Neurons)** رایگان در اختیار هر حساب قرار می‌دهد که برای پردازش روزانه صدها اسکن چک کافی است.
-- **توسعه و آزمون محلی**: برای استفاده از مدل‌های واقعی هوش مصنوعی هنگام اجرای محلی ورکر، می‌توانید از فلگ ریموت استفاده کنید:
-  ```bash
-  cd api && npx wrangler dev --remote
-  ```
-  در صورت عدم وجود اتصال `env.AI` (مثلاً در اجرای محلی استاندارد بدون ریموت)، سیستم فقط یک هشدار در لاگ می‌دهد و سایر بخش‌های برنامه بدون وقفه کار می‌کنند.
-
-### مدل‌های Gemini، Claude و OpenAI برای اسکن چک
-
-مدل‌های کوچک Workers AI متن فارسی دست‌نویس را خوب نمی‌خوانند؛ اسکن چک می‌تواند از Gemini، Claude یا OpenAI هم استفاده کند.
-هر کدام با ثبت کلید API آن به‌صورت secret فعال می‌شود (کلید در کد نوشته نمی‌شود):
+اسکن چک تصویر را با **Gemini 3.5 Flash** گوگل می‌خواند. کلید API را (رایگان از [Google AI Studio](https://aistudio.google.com))
+به‌صورت secret ثبت کنید؛ کلید در کد نوشته نمی‌شود:
 
 ```bash
 cd api
-npx wrangler secret put GEMINI_API_KEY      # Gemini 3.5 Flash
-npx wrangler secret put ANTHROPIC_API_KEY   # Claude Sonnet 5 و Claude Haiku 4.5
-npx wrangler secret put OPENAI_API_KEY      # GPT-5.4 mini
+npx wrangler secret put GEMINI_API_KEY
 ```
 
-فهرست مدل‌ها در `api/src/config/ai.config.js` است. مدلی که کلیدش ثبت نشده در انتخاب‌گر مدل غیرفعال نشان داده می‌شود
-و اولین مدل در دسترس (به همان ترتیب فهرست) پیش‌فرض است. خطای سرویس (مثلاً کلید نامعتبر یا منطقه پشتیبانی‌نشده) در پیام خطای اسکن برای مدیر نمایش داده می‌شود.
+بدون این کلید، اسکن به کاربران «فعلاً در دسترس نیست» می‌گوید و به مدیر نام secret را. مدل در `api/src/config/ai.config.js` است.
+
+**محدودیت استفاده:** هر کاربر روزانه ۱۰ اسکن دارد و مدیر بی‌محدودیت است (`api/src/config/usageLimits.js`؛ بخش
+«محدودیت استفاده» در `docs/ARCHITECTURE.md`).
 
 ## استقرار
 

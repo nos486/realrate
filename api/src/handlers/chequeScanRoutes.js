@@ -1,18 +1,16 @@
 /**
- * chequeScanRoutes.js — Route handler for AI cheque scanning
+ * chequeScanRoutes.js — Route handlers for AI cheque scanning
  *
- * Endpoint: POST /api/cheques/scan
- * Permissions: Admin only (protected via requireFeature('cheque_scan'))
+ * POST /api/cheques/scan        — scan one image (a daily use of the `cheque_scan` limit)
+ * GET  /api/cheques/scan/quota  — today's use of that limit
+ * Behind the `cheque_scan` feature; the `cheque_scan_debug` feature (admins) adds the model's raw
+ * answer and a failure's reason.
  */
 
 import { requireFeature } from '../lib/features.js';
-import {
-  assertChequeScanModelReady,
-  enforceScanRateLimit,
-  listChequeScanModels,
-  processChequeScan,
-} from '../services/ai/chequeScan.service.js';
-import { resolveChequeScanModel } from '../config/ai.config.js';
+import { isFeatureEnabled } from '../config/features.js';
+import { consumeQuota, getQuota, refundQuota } from '../lib/usageQuota.js';
+import { assertChequeScanReady, processChequeScan } from '../services/ai/chequeScan.service.js';
 import { jsonResponse } from '../lib/helpers.js';
 import { AppError } from '../lib/AppError.js';
 
@@ -21,10 +19,10 @@ const ALLOWED_MIME_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp']);
 
 /**
  * POST /api/cheques/scan
- * Handles image upload via multipart/form-data and delegates to Workers AI
+ * Handles image upload via multipart/form-data and reads it with Gemini
  */
 export async function handleChequeScanRoute(request, env) {
-  // 1. Guard with beta feature check (throws 404 for non-admins or unauthenticated)
+  // 1. Guard with the feature check (404 when it isn't enabled for this user)
   const user = await requireFeature(request, env, 'cheque_scan');
 
   // 3. Validate Content-Type
@@ -42,7 +40,6 @@ export async function handleChequeScanRoute(request, env) {
   }
 
   const imageFile = formData.get('image');
-  const requestedModel = formData.get('model');
 
   // 5. Validate image presence
   if (!imageFile || typeof imageFile === 'string' || !imageFile.size) {
@@ -67,27 +64,29 @@ export async function handleChequeScanRoute(request, env) {
     );
   }
 
-  // 8. Daily limit (30 scans per day in KV), counted only for a valid upload to a usable model
-  assertChequeScanModelReady(resolveChequeScanModel(requestedModel, env), env);
-  const userId = user.userId || user.id || user.email;
-  await enforceScanRateLimit(env, userId);
+  // 8. Today's use of the limit, taken only for a valid upload the scan can serve
+  const debug = isFeatureEnabled('cheque_scan_debug', user);
+  assertChequeScanReady(env, { isAdmin: debug });
+  const quota = await consumeQuota(env, user, 'cheque_scan');
 
-  // 9. Process image with Workers AI
-  const imageBuffer = await imageFile.arrayBuffer();
-  const scanResult = await processChequeScan(env, {
-    imageBuffer,
-    mimeType: imageFile.type,
-    requestedModel,
-  });
+  // 9. Read the cheque; a failed call gives the use back
+  let scanResult;
+  try {
+    scanResult = await processChequeScan(env, {
+      imageBuffer: await imageFile.arrayBuffer(),
+      mimeType: imageFile.type,
+      debug,
+    });
+  } catch (err) {
+    await refundQuota(env, user, 'cheque_scan');
+    throw err;
+  }
 
-  return jsonResponse(scanResult, 200, request);
+  return jsonResponse({ ...scanResult, quota }, 200, request);
 }
 
-/**
- * GET /api/cheques/scan/models — the models the scan offers, and which this Worker can call
- * (never the keys themselves)
- */
-export async function handleChequeScanModelsRoute(request, env) {
-  await requireFeature(request, env, 'cheque_scan');
-  return jsonResponse({ success: true, models: listChequeScanModels(env) }, 200, request);
+/** GET /api/cheques/scan/quota — today's scans: limit (null: none), used, remaining */
+export async function handleChequeScanQuotaRoute(request, env) {
+  const user = await requireFeature(request, env, 'cheque_scan');
+  return jsonResponse({ success: true, quota: await getQuota(env, user, 'cheque_scan') }, 200, request);
 }

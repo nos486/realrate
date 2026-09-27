@@ -9,9 +9,14 @@
 
 export const FEATURES = {
   cheque_scan: {
-    stage: 'beta',
+    stage: 'ga',
     label: 'اسکن چک با هوش مصنوعی',
-    description: 'استخراج هوشمند اطلاعات چک بانکی از تصویر با مدل‌های بینایی Workers AI',
+    description: 'استخراج اطلاعات چک بانکی از تصویر با Gemini (محدودیت روزانه: config/usageLimits.js)',
+  },
+  cheque_scan_debug: {
+    stage: 'beta',
+    label: 'ابزار بررسی دقت اسکن چک',
+    description: 'خروجی خام مدل، دلیل خطا و سنجش دقت فیلدها در نتیجه اسکن',
   },
 };
 

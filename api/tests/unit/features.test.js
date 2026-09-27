@@ -11,20 +11,20 @@ vi.mock('../../src/lib/auth.js', () => ({
 const { getAuthenticatedUser } = await import('../../src/lib/auth.js');
 
 describe('Feature Flags Configuration and Logic', () => {
-  it('correctly defines cheque_scan in FEATURES', () => {
-    expect(FEATURES.cheque_scan).toBeDefined();
-    expect(FEATURES.cheque_scan.stage).toBe('beta');
+  it('opens the cheque scan to everyone and keeps its debug tools in beta', () => {
+    expect(FEATURES.cheque_scan.stage).toBe('ga');
     expect(FEATURES.cheque_scan.label).toBe('اسکن چک با هوش مصنوعی');
+    expect(FEATURES.cheque_scan_debug.stage).toBe('beta');
   });
 
   it('evaluates stage: beta only for admin users', () => {
     const adminUser = { role: 'admin', email: 'admin@example.com' };
     const regularUser = { role: 'user', email: 'user@example.com' };
 
-    expect(isFeatureEnabled('cheque_scan', adminUser)).toBe(true);
-    expect(isFeatureEnabled('cheque_scan', regularUser)).toBe(false);
-    expect(isFeatureEnabled('cheque_scan', null)).toBe(false);
-    expect(isFeatureEnabled('cheque_scan', undefined)).toBe(false);
+    expect(isFeatureEnabled('cheque_scan_debug', adminUser)).toBe(true);
+    expect(isFeatureEnabled('cheque_scan_debug', regularUser)).toBe(false);
+    expect(isFeatureEnabled('cheque_scan_debug', null)).toBe(false);
+    expect(isFeatureEnabled('cheque_scan_debug', undefined)).toBe(false);
   });
 
   it('evaluates stage: off, beta, and ga correctly', () => {
@@ -56,8 +56,8 @@ describe('Feature Flags Configuration and Logic', () => {
     const admin = { role: 'admin' };
     const user = { role: 'user' };
 
-    expect(enabledFeatures(admin)).toContain('cheque_scan');
-    expect(enabledFeatures(user)).not.toContain('cheque_scan');
+    expect(enabledFeatures(admin)).toEqual(expect.arrayContaining(['cheque_scan', 'cheque_scan_debug']));
+    expect(enabledFeatures(user)).toEqual(['cheque_scan']);
     expect(enabledFeatures(null)).toEqual([]);
   });
 });
@@ -80,11 +80,11 @@ describe('requireFeature Server Guard', () => {
     });
   });
 
-  it('throws 404 AppError when user is regular user (not admin)', async () => {
+  it('throws 404 AppError when a regular user asks for a beta feature', async () => {
     getAuthenticatedUser.mockResolvedValue({ id: 'u1', role: 'user', email: 'user@example.com' });
 
-    await expect(requireFeature(request, env, 'cheque_scan')).rejects.toThrowError(AppError);
-    await expect(requireFeature(request, env, 'cheque_scan')).rejects.toMatchObject({
+    await expect(requireFeature(request, env, 'cheque_scan_debug')).rejects.toThrowError(AppError);
+    await expect(requireFeature(request, env, 'cheque_scan_debug')).rejects.toMatchObject({
       statusCode: 404,
       code: 'NOT_FOUND',
     });
