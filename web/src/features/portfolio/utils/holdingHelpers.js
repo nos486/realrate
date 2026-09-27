@@ -233,11 +233,23 @@ const ICON_COMPONENT_MAP = {
   Layers,
   Sparkles,
   Wallet,
+  wallet: Wallet,
+  gold: Award,
+  coin: Coins,
+  silver: Disc,
+  currency: Banknote,
+  crypto: Zap,
+  bourse: TrendingUp,
+  bourse_fund: Layers,
+  custom: Wallet,
+  sparkles: Sparkles,
 };
 
 export function CategoryIcon({ category, size = 18, className = '', style = {} }) {
-  const iconName = getCategoryIconName(category);
-  const IconComponent = ICON_COMPONENT_MAP[iconName] || Sparkles;
+  const IconComponent =
+    ICON_COMPONENT_MAP[category] ||
+    ICON_COMPONENT_MAP[getCategoryIconName(category)] ||
+    Sparkles;
   return React.createElement(IconComponent, { size, className, style });
 }
 

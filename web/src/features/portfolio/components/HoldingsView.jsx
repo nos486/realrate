@@ -17,6 +17,7 @@ import {
   Plus,
   Briefcase,
   AlertTriangle,
+  SlidersHorizontal,
 } from 'lucide-react';
 import { usePricing } from '../../market/index.js';
 import UserSettingsModal from '../../../components/UserSettingsModal.jsx';
@@ -27,16 +28,21 @@ import AddHoldingForm from './AddHoldingForm.jsx';
 import CsvExportButton from './CsvExportButton.jsx';
 import CsvImportButton from './CsvImportButton.jsx';
 import VaultLockCard from './VaultLockCard.jsx';
+import HoldingsCustomizeEditor from './HoldingsCustomizeEditor.jsx';
 
 import { useHoldings } from '../hooks/useHoldings.js';
+import { usePortfolioLayout } from '../hooks/usePortfolioLayout.js';
 import { useTransactions, useComputedHoldings } from '../../transactions/index.js';
 import { AlertBanner, Button, SplitPageLayout } from '../../../shared/ui/index.js';
 import {
   normalizeHolding,
   resolveHoldingUnitRealPrice,
   computeReferenceAssetPnl,
-  CATEGORY_DEFINITIONS,
 } from '../utils/holdingHelpers.js';
+import {
+  buildCustomCategoryGroups,
+  buildDefaultPortfolioLayout,
+} from '../portfolioLayoutModel.js';
 import { getItemCategory } from '../../../config/displayEngine.js';
 import { usePrivacyMode } from '../../../hooks/usePrivacyMode.js';
 import { useFeedback } from '../../../shared/ui/FeedbackProvider.jsx';
@@ -65,6 +71,19 @@ const HoldingsView = forwardRef(function HoldingsView(
     activeVaultKey,
     accountManaged,
   } = useHoldings(activePortfolio);
+
+  // Custom Category Layout Hook for active portfolio
+  const {
+    layout: customLayout,
+    setLayout: setCustomLayout,
+    resetLayout: resetCustomLayout,
+  } = usePortfolioLayout(activePortfolio, activeVaultKey, isVaultLocked);
+
+  const [isCustomizing, setIsCustomizing] = useState(false);
+
+  useEffect(() => {
+    setIsCustomizing(false);
+  }, [activePortfolio?.id]);
 
   useEffect(() => {
     onVaultLockChange?.(isVaultLocked);
@@ -168,38 +187,21 @@ const HoldingsView = forwardRef(function HoldingsView(
     };
   }, [holdings, computedHoldings, realPriceMap, liveItemMap]);
 
-  // Category Groups helper
-  const buildCategoryGroups = useCallback((itemsList, filterQuery) => {
-    let itemsToGroup = itemsList || [];
-    if (filterQuery && filterQuery.trim()) {
-      const q = filterQuery.trim().toLowerCase();
-      itemsToGroup = itemsToGroup.filter((it) => {
-        const name = (it.assetName || '').toLowerCase();
-        const id = (it.assetId || '').toLowerCase();
-        const notes = (it.notes || '').toLowerCase();
-        return name.includes(q) || id.includes(q) || notes.includes(q);
-      });
-    }
+  // Category Groups helper (custom layout if saved, otherwise default fixed categories)
+  const buildCategoryGroups = useCallback(
+    (itemsList, filterQuery) => {
+      return buildCustomCategoryGroups(itemsList, customLayout, filterQuery);
+    },
+    [customLayout]
+  );
 
-    return CATEGORY_DEFINITIONS.map((cat) => {
-      const groupItems = itemsToGroup.filter(cat.match);
-      const costedGroupItems = groupItems.filter((it) => it.hasBuyPrice);
-      const hasCostedItems = costedGroupItems.length > 0;
-      const groupCost = costedGroupItems.reduce((acc, it) => acc + it.itemCost, 0);
-      const groupRealVal = groupItems.reduce((acc, it) => acc + it.itemRealVal, 0);
-      const groupPnl = costedGroupItems.reduce((acc, it) => acc + (it.itemPnl || 0), 0);
-      const groupPnlPct = groupCost > 0 ? parseFloat(((groupPnl / groupCost) * 100).toFixed(1)) : 0;
-      return {
-        ...cat,
-        items: groupItems,
-        totalCost: groupCost,
-        totalRealValue: groupRealVal,
-        totalPnl: hasCostedItems ? groupPnl : null,
-        totalPnlPct: groupPnlPct,
-        hasCostedItems,
-      };
-    }).filter((group) => group.items.length > 0);
-  }, []);
+  const handleToggleCustomize = useCallback(() => {
+    if (!isCustomizing && !customLayout) {
+      const defaultLayout = buildDefaultPortfolioLayout(portfolioMetrics.items);
+      setCustomLayout(defaultLayout);
+    }
+    setIsCustomizing((prev) => !prev);
+  }, [isCustomizing, customLayout, portfolioMetrics.items, setCustomLayout]);
 
   const manualCategoryGroups = useMemo(() => {
     return buildCategoryGroups(portfolioMetrics.manualItems, holdingsFilterQuery);
@@ -286,6 +288,19 @@ const HoldingsView = forwardRef(function HoldingsView(
       )}
 
       <div className="portfolio-header-actions">
+        {!isVaultLocked && portfolioMetrics.items.length > 0 && (
+          <button
+            type="button"
+            className={`btn-portfolio-customize ${isCustomizing ? 'is-active' : ''}`}
+            onClick={handleToggleCustomize}
+            title={isCustomizing ? 'پایان شخصی‌سازی دسته‌ها' : 'شخصی‌سازی دسته‌ها'}
+            aria-label="شخصی‌سازی دسته‌ها"
+          >
+            <SlidersHorizontal size={14} />
+            <span>{isCustomizing ? 'پایان ویرایش' : 'شخصی‌سازی دسته‌ها'}</span>
+          </button>
+        )}
+
         <CsvExportButton
           items={portfolioMetrics.items}
           portfolioName={activePortfolio?.name || 'portfolio'}
@@ -367,6 +382,18 @@ const HoldingsView = forwardRef(function HoldingsView(
                   ثبت دارایی دستی
                 </Button>
               </div>
+            ) : isCustomizing ? (
+              <HoldingsCustomizeEditor
+                layout={customLayout || buildDefaultPortfolioLayout(portfolioMetrics.items)}
+                portfolioMetrics={portfolioMetrics}
+                itemMap={pricing?.itemMap}
+                onChange={setCustomLayout}
+                onReset={() => {
+                  resetCustomLayout();
+                  setIsCustomizing(false);
+                }}
+                onClose={() => setIsCustomizing(false)}
+              />
             ) : (
               <div className="portfolio-dual-tables-container">
                 {/* Warnings from oversold transactions */}

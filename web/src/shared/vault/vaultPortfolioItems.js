@@ -296,7 +296,7 @@ export async function deletePortfolioTransactionRecord(portfolioId, id) {
 // ── Shared portfolio (viewer holding the link key) ───────────────────────────
 
 /** Decrypt the vault records a share-link response carries */
-export async function decryptSharedItems(key, { vaultHoldings = [], vaultTransactions = [] }) {
+export async function decryptSharedItems(key, { vaultHoldings = [], vaultTransactions = [], vaultLayout = [] }) {
   const open = async (records) => {
     const out = [];
     for (const r of records) {
@@ -305,8 +305,20 @@ export async function decryptSharedItems(key, { vaultHoldings = [], vaultTransac
     }
     return out;
   };
+
+  let layout = null;
+  if (Array.isArray(vaultLayout) && vaultLayout.length > 0) {
+    try {
+      const dec = await e2eeDecrypt(key, vaultLayout[0].payload);
+      if (dec && typeof dec === 'object') layout = dec;
+    } catch {
+      // Ignore layout decryption failure
+    }
+  }
+
   return {
     holdings: (await open(vaultHoldings)).map(withHoldingDisplay),
     transactions: (await open(vaultTransactions)).map(asTransaction),
+    layout,
   };
 }

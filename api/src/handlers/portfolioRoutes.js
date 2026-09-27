@@ -525,11 +525,12 @@ export async function handleGetSharedPortfolio(request, env) {
   // A portfolio under the account vault keeps its items as encrypted vault records (its own
   // key, carried in the share link's #fragment, decrypts them in the viewer's browser)
   const underAccountVault = Boolean(targetPortfolio.e2eeWrappedKey);
-  const [holdings, transactions, vaultHoldings, vaultTransactions] = await Promise.all([
+  const [holdings, transactions, vaultHoldings, vaultTransactions, vaultLayout] = await Promise.all([
     dbGetPortfolioHoldings(env, targetPortfolio.userId, targetPortfolio.id),
     dbGetTransactionsByPortfolio(env, targetPortfolio.userId, targetPortfolio.id),
     underAccountVault ? dbListVaultRecords(env, targetPortfolio.userId, "holding", { parentId: targetPortfolio.id }) : [],
     underAccountVault ? dbListVaultRecords(env, targetPortfolio.userId, "transaction", { parentId: targetPortfolio.id }) : [],
+    underAccountVault ? dbListVaultRecords(env, targetPortfolio.userId, "portfolio_layout", { parentId: targetPortfolio.id }) : [],
   ]);
   const publicRecord = ({ id, payload, recordDate, createdAt, updatedAt }) => ({ id, payload, recordDate, createdAt, updatedAt });
 
@@ -554,5 +555,6 @@ export async function handleGetSharedPortfolio(request, env) {
     transactions,
     vaultHoldings: vaultHoldings.map(publicRecord),
     vaultTransactions: vaultTransactions.map(publicRecord),
+    vaultLayout: vaultLayout.map(publicRecord),
   }, 200, request);
 }

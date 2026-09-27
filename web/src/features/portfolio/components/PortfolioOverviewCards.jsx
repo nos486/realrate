@@ -35,7 +35,7 @@ export default function PortfolioOverviewCards({
           value: cat.totalRealValue,
           icon: (
             <span className="donut-chart-cat-icon" aria-hidden="true">
-              <CategoryIcon category={cat.key} size={13} />
+              <CategoryIcon category={cat.icon || cat.key} size={13} />
             </span>
           ),
         })),
