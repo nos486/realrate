@@ -38,6 +38,7 @@ import {
   normalizeHolding,
   resolveHoldingUnitRealPrice,
   computeReferenceAssetPnl,
+  computeCompareAssetPnl,
 } from '../utils/holdingHelpers.js';
 import {
   buildCustomCategoryGroups,
@@ -151,6 +152,12 @@ const HoldingsView = forwardRef(function HoldingsView(
         liveItemMap
       );
 
+      const comparePnlInfo = computeCompareAssetPnl(
+        { ...h, itemCost, itemRealVal },
+        realPriceMap,
+        liveItemMap
+      );
+
       return {
         ...h,
         source: sourceTag,
@@ -163,6 +170,7 @@ const HoldingsView = forwardRef(function HoldingsView(
         itemPnl,
         itemPnlPct,
         referencePnlInfo,
+        comparePnlInfo,
       };
     };
 

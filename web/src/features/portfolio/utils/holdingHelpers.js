@@ -114,6 +114,45 @@ export function computeReferenceAssetPnl(item, priceMap = {}, itemMap = {}) {
   };
 }
 
+/**
+ * "What if I had bought something else with the same money": a holding may name a COMPARISON
+ * asset (compareAssetId) and that asset's Toman price on the day of the purchase
+ * (comparePriceToman). The purchase's Toman cost would then have bought
+ * cost ÷ comparePriceToman of it; valued at today's price, that is what the money would be worth
+ * now had it gone into the comparison asset instead. Nothing was actually paid with it (unlike
+ * the reference asset above), and the holding's own Toman P&L is unchanged.
+ *
+ * @param {object} item - a holding with .compareAssetId, .comparePriceToman, .itemCost, .itemRealVal
+ * @param {object} [priceMap={}]
+ * @param {object} [itemMap={}]
+ * @returns {null|{compareAssetId, compareAssetName, unit, compareQuantity, compareCurrentValue, comparePnl, comparePnlPct}}
+ *   comparePnl > 0: this purchase is worth more today than the comparison would be
+ */
+export function computeCompareAssetPnl(item, priceMap = {}, itemMap = {}) {
+  if (!item || !item.compareAssetId) return null;
+  const priceThen = Number(item.comparePriceToman) || 0;
+  const cost = Number(item.itemCost) || 0;
+  if (priceThen <= 0 || cost <= 0) return null;
+
+  const priceNow = resolveReferencePriceToman(item.compareAssetId, priceMap, itemMap);
+  if (priceNow <= 0) return null;
+
+  const compareQuantity = cost / priceThen;
+  const compareCurrentValue = compareQuantity * priceNow;
+  const comparePnl = Number(item.itemRealVal || 0) - compareCurrentValue;
+  const refItem = assetOf(itemMap, item.compareAssetId);
+
+  return {
+    compareAssetId: item.compareAssetId,
+    compareAssetName: refItem?.name || resolveAssetDisplayName(item.compareAssetId) || item.compareAssetId,
+    unit: refItem?.unit || resolveAssetUnit(item.compareAssetId) || 'واحد',
+    compareQuantity,
+    compareCurrentValue,
+    comparePnl,
+    comparePnlPct: compareCurrentValue > 0 ? (comparePnl / compareCurrentValue) * 100 : null,
+  };
+}
+
 export const CATEGORY_DEFINITIONS = PORTFOLIO_CATEGORIES;
 
 export function formatNum(num) {
