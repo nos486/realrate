@@ -43,6 +43,11 @@ const ALWAYS_REFUSED = [
 export function encryptionRuleFor(path, method) {
   if (ALWAYS_REFUSED.some((r) => r.method === method && r.re.test(path))) return "refused";
   if (!WRITE_METHODS.has(method)) return null;
+
+  // /api/cheques/scan is a stateless AI vision extraction route that does not store or persist
+  // any data and is strictly exempt from financial vault encryption gates.
+  if (path === "/api/cheques/scan") return null;
+
   if (PLAINTEXT_ONLY.some((re) => re.test(path))) return "plaintext";
   if (VAULT_REQUIRED.some((re) => re.test(path))) return "vault";
   return null;
