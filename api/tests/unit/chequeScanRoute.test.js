@@ -203,4 +203,48 @@ describe('POST /api/cheques/scan route', () => {
     const res = await handleChequeScanQuotaRoute(new Request('https://api.realrate.ir/api/cheques/scan/quota'), env);
     expect((await res.json()).quota).toEqual({ key: 'cheque_scan', limit: 10, used: 3, remaining: 7 });
   });
+  it('gives the scan back when Gemini is busy (6th call of the minute)', async () => {
+    getAuthenticatedUser.mockResolvedValue(USER);
+    env.RATE_GATE = {
+      idFromName: (n) => n,
+      get: () => ({ fetch: async () => Response.json({ ok: false, retryAfterSec: 20 }) }),
+    };
+    await expect(handleChequeScanRoute(createScanRequest(), env)).rejects.toMatchObject({ statusCode: 429, code: 'SERVICE_BUSY' });
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(usedToday(USER)).toBe(0);
+  });
+  it('falls back to the next Gemini model when the first is overloaded', async () => {
+    getAuthenticatedUser.mockResolvedValue(USER);
+    fetchMock
+      .mockImplementationOnce(async () => new Response(JSON.stringify({ error: { message: 'This model is currently experiencing high demand.' } }), { status: 503 }))
+      .mockImplementationOnce(async () => geminiReply());
+
+    const res = await handleChequeScanRoute(createScanRequest(), env);
+    const body = await res.json();
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(fetchMock.mock.calls[0][0]).toContain('/models/gemini-3.8-flash:');
+    expect(fetchMock.mock.calls[1][0]).toContain('/models/gemini-3.5-flash:');
+    expect(body.model).toBe('gemini-3.5-flash');
+    expect(body.fields.amount).toBe(50000000);
+    expect(usedToday(USER)).toBe(1);
+  });
+
+  it('does not try another model for an error that is not about load', async () => {
+    getAuthenticatedUser.mockResolvedValue(USER);
+    fetchMock.mockImplementation(async () => new Response(JSON.stringify({ error: { message: 'bad image' } }), { status: 400 }));
+    await expect(handleChequeScanRoute(createScanRequest(), env)).rejects.toMatchObject({ statusCode: 502 });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('answers 503 AI_BUSY and gives the scan back when every model is busy', async () => {
+    getAuthenticatedUser.mockResolvedValue(USER);
+    fetchMock.mockImplementation(async () => new Response(JSON.stringify({ error: { message: 'Resource exhausted' } }), { status: 429 }));
+    await expect(handleChequeScanRoute(createScanRequest(), env)).rejects.toMatchObject({
+      statusCode: 503,
+      code: 'AI_BUSY',
+      message: expect.stringContaining('شلوغ'),
+    });
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(usedToday(USER)).toBe(0);
+  });
 });

@@ -533,6 +533,9 @@ async function handleRequest(request, env, ctx) {
   );
 }
 
+// The Durable Object behind lib/rateGate.js (binding RATE_GATE)
+export { RateGate } from "./lib/rateGate.js";
+
 export default {
   async fetch(request, env, ctx) {
     const { env: requestEnv, close } = withDatabase(env);

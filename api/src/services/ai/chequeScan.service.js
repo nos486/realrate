@@ -5,7 +5,7 @@
  * the model, duration, image size and outcome only.
  */
 
-import { CHEQUE_SCAN_MODEL, GEMINI_API_KEY_SECRET } from '../../config/ai.config.js';
+import { CHEQUE_SCAN_MODELS, GEMINI_API_KEY_SECRET } from '../../config/ai.config.js';
 import { geminiDescribeImage, toBase64, GeminiError } from './gemini.js';
 import { CHEQUE_SCAN_SYSTEM_PROMPT } from './chequeScanPrompt.js';
 import { normalizeChequeScan, parseChequeScanJson } from '../../domain/chequeScan.js';
@@ -34,26 +34,45 @@ export function assertChequeScanReady(env, { isAdmin = false } = {}) {
  */
 export async function processChequeScan(env, { imageBuffer, mimeType, debug = false }) {
   assertChequeScanReady(env, { isAdmin: debug });
-  const modelId = CHEQUE_SCAN_MODEL.id;
   const startTime = Date.now();
   const imageBytes = imageBuffer ? imageBuffer.byteLength : 0;
+  const request = {
+    systemPrompt: CHEQUE_SCAN_SYSTEM_PROMPT,
+    userText: 'اطلاعات این چک بانکی را طبق دستورالعمل در قالب JSON استخراج کن.',
+    imageBase64: toBase64(imageBuffer),
+    mimeType,
+  };
 
+  // The first model; the next only when Google says the previous one is busy
   let answer;
-  try {
-    answer = await geminiDescribeImage(env[GEMINI_API_KEY_SECRET], modelId, {
-      systemPrompt: CHEQUE_SCAN_SYSTEM_PROMPT,
-      userText: 'اطلاعات این چک بانکی را طبق دستورالعمل در قالب JSON استخراج کن.',
-      imageBase64: toBase64(imageBuffer),
-      mimeType,
-    });
-  } catch (err) {
-    logger.error('[ChequeScan] Model inference failed:', {
-      model: modelId,
-      durationMs: Date.now() - startTime,
-      imageBytes,
-      error: err.message,
-    });
-    const reason = debug && err instanceof GeminiError ? err.reason : '';
+  let modelId;
+  let lastError;
+  for (const model of CHEQUE_SCAN_MODELS) {
+    try {
+      answer = await geminiDescribeImage(env[GEMINI_API_KEY_SECRET], model.id, request);
+      modelId = model.id;
+      break;
+    } catch (err) {
+      lastError = err;
+      logger.error('[ChequeScan] Model inference failed:', {
+        model: model.id,
+        durationMs: Date.now() - startTime,
+        imageBytes,
+        error: err.message,
+      });
+      if (!(err instanceof GeminiError && err.busy)) break;
+    }
+  }
+
+  if (answer === undefined) {
+    const reason = debug && lastError instanceof GeminiError ? lastError.reason : '';
+    if (lastError instanceof GeminiError && lastError.busy) {
+      throw new AppError(
+        reason ? `سرویس هوش مصنوعی گوگل شلوغ است (${reason})` : 'سرویس هوش مصنوعی گوگل الان شلوغ است؛ چند دقیقه دیگر دوباره امتحان کنید.',
+        503,
+        'AI_BUSY',
+      );
+    }
     throw new AppError(reason ? `پردازش تصویر ناموفق بود (${reason})` : 'پردازش تصویر ناموفق بود.', 502, 'AI_GATEWAY_ERROR');
   }
 

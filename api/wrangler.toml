@@ -29,3 +29,11 @@ binding = "HYPERDRIVE"
 id = "c503e09fe4334a2c8351480139a9bce7"
 localConnectionString = "postgres://postgres:postgres@localhost:5432/realrate"
 
+# Caps calls to paid services (Gemini) across all users: lib/rateGate.js
+[[durable_objects.bindings]]
+name = "RATE_GATE"
+class_name = "RateGate"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["RateGate"]

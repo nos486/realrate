@@ -66,8 +66,8 @@ export function useChequeScan() {
       } else {
         setError(err.message || 'پردازش تصویر ناموفق بود.');
         setStatus('error');
-        // Out of scans for today
-        if (err.status === 429 || err.code === 'QUOTA_EXCEEDED') {
+        // Out of scans for today (a busy service is a 429 too, but only for a moment)
+        if (err.code === 'QUOTA_EXCEEDED') {
           setQuota((q) => (q && q.limit !== null ? { ...q, used: q.limit, remaining: 0 } : q));
         }
       }
