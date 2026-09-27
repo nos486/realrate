@@ -2,7 +2,7 @@
 
 ## پیش‌نیازها
 - Node.js نسخه ۲۰ یا بالاتر، npm نسخه ۹ یا بالاتر
-- حساب Cloudflare (Workers، D1، KV، Pages)
+- حساب Cloudflare (Workers، KV، Hyperdrive، Pages) و یک پایگاه‌داده Postgres
 
 ## اجرای محلی
 
@@ -21,36 +21,20 @@ npm run web:dev    # فقط وب (Vite)
 npm test           # آزمون‌های Vitest
 ```
 
-برای دیتابیس محلی D1:
+برای اجرای محلی یک Postgres لازم است (بخش Postgres را ببینید).
+
+## Cloudflare KV
 
 ```bash
-cd api && npm run db:migrate:local
-```
-
-## Cloudflare D1 و KV
-
-```bash
-npx wrangler d1 create realrate-db
 npx wrangler kv:namespace create REALRATE_KV
 ```
 
-شناسه‌ها را در `api/wrangler.toml` قرار دهید:
+شناسه را در `api/wrangler.toml` قرار دهید:
 
 ```toml
-[[d1_databases]]
-binding = "DB"
-database_name = "realrate-db"
-database_id = "YOUR_DATABASE_ID"
-
 [[kv_namespaces]]
 binding = "REALRATE_KV"
 id = "YOUR_KV_ID"
-```
-
-جداول با اولین درخواست به ورکر خودکار ساخته و به‌روز می‌شوند (`migration.repository.js`). اعمال دستی:
-
-```bash
-npx wrangler d1 execute realrate-db --remote --file=./api/schema.sql
 ```
 
 ## Postgres (Hyperdrive)
@@ -65,9 +49,7 @@ npx wrangler hyperdrive update <HYPERDRIVE_ID> --caching-disabled true
 
 برای اجرای محلی، `localConnectionString` را به یک Postgres محلی بدهید.
 
-### انتقال از D1
-
-اگر داده‌ها هنوز روی D1 است: پنل مدیریت → کارت «پایگاه داده» → «انتقال به Postgres». سایت به حالت توسعه می‌رود، همه جدول‌ها کپی و شمارش می‌شوند و فقط اگر همه برابر بودند برنامه به Postgres سوییچ می‌کند؛ بعد «باز کردن سایت» را بزنید.
+جداول با اولین درخواست به ورکر خودکار ساخته می‌شوند (`api/src/repositories/pgSchema.js`). برای دیدن SQL آن‌ها: `cd api && npm run db:schema`.
 
 ## ورود با گوگل
 

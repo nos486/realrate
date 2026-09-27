@@ -1,12 +1,12 @@
 /**
- * cheques.repository.js — Cloudflare D1 Data Access Layer for user cheques
+ * cheques.repository.js — Postgres Data Access Layer for user cheques
  *
  * Each row is one received or issued cheque owned by a single user; `history` holds its tracking
  * log (status changes) as JSON. Input is validated & normalized by the route handler with the
  * shared domain/chequeDocument.js; this layer only persists and maps rows to camelCase objects.
  */
 
-import { ensureD1Tables } from "./migration.repository.js";
+import { ensureSchema } from "./migration.repository.js";
 
 const CHEQUE_COLUMNS = `
   id, user_id AS userId, direction, status, amount, due_date AS dueDate, issue_date AS issueDate,
@@ -56,7 +56,7 @@ export function formatChequeRow(row) {
  */
 export async function dbGetUserCheques(env, userId) {
   if (!userId || !env || !env.DB) return [];
-  await ensureD1Tables(env);
+  await ensureSchema(env);
   const { results = [] } = await env.DB.prepare(`
     SELECT ${CHEQUE_COLUMNS}
     FROM cheques
@@ -68,7 +68,7 @@ export async function dbGetUserCheques(env, userId) {
 
 export async function dbGetChequeById(env, userId, chequeId) {
   if (!userId || !chequeId || !env || !env.DB) return null;
-  await ensureD1Tables(env);
+  await ensureSchema(env);
   const row = await env.DB.prepare(`SELECT ${CHEQUE_COLUMNS} FROM cheques WHERE id = ? AND user_id = ?`)
     .bind(chequeId, userId)
     .first();
@@ -109,7 +109,7 @@ export function insertChequeStatement(env, userId, cheque) {
  */
 export async function dbCreateCheque(env, userId, data) {
   if (!userId || !data || !env || !env.DB) return null;
-  await ensureD1Tables(env);
+  await ensureSchema(env);
   const nowIso = new Date().toISOString();
   const cheque = { id: generateId(), userId, ...data, createdAt: nowIso, updatedAt: nowIso };
   await insertChequeStatement(env, userId, cheque).run();
@@ -122,7 +122,7 @@ export async function dbCreateCheque(env, userId, data) {
  */
 export async function dbUpdateCheque(env, userId, chequeId, data) {
   if (!userId || !chequeId || !data || !env || !env.DB) return null;
-  await ensureD1Tables(env);
+  await ensureSchema(env);
   const res = await env.DB.prepare(`
     UPDATE cheques
     SET direction = ?, status = ?, amount = ?, due_date = ?, issue_date = ?, counterparty = ?,
@@ -153,7 +153,7 @@ export async function dbUpdateCheque(env, userId, chequeId, data) {
 /** @returns {Promise<boolean>} true when a row was removed */
 export async function dbDeleteCheque(env, userId, chequeId) {
   if (!userId || !chequeId || !env || !env.DB) return false;
-  await ensureD1Tables(env);
+  await ensureSchema(env);
   const res = await env.DB.prepare(`DELETE FROM cheques WHERE id = ? AND user_id = ?`)
     .bind(chequeId, userId)
     .run();

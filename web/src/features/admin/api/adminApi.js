@@ -96,16 +96,6 @@ export async function getAdminUserPortfolio(userId, portfolioId = null) {
   return httpClient.get(url);
 }
 
-/** Which database the app runs on, and where the move to Postgres is (`counts`: compare tables) */
-export async function getDatabaseStatus({ counts = false } = {}) {
-  return httpClient.get(`/api/admin/database${counts ? '?counts=1' : ''}`);
-}
-
-/** The next part of moving the data to Postgres (call until state.phase is "done") */
-export async function runDatabaseMigrationStep({ restart = false } = {}) {
-  return httpClient.post('/api/admin/database/migrate', { restart }, { silent: true });
-}
-
 /** Delete the KV keys the app no longer uses */
 export async function cleanupLegacyKv() {
   return httpClient.post('/api/admin/kv/cleanup', {});

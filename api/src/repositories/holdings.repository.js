@@ -1,8 +1,8 @@
 /**
- * holdings.repository.js — Cloudflare D1 Portfolio Holdings Data Access Layer
+ * holdings.repository.js — Postgres Portfolio Holdings Data Access Layer
  */
 
-import { ensureD1Tables } from "./migration.repository.js";
+import { ensureSchema } from "./migration.repository.js";
 import { dbGetUserPortfolios } from "./portfolio.repository.js";
 import { logger } from "../lib/logger.js";
 import { AppError } from "../lib/AppError.js";
@@ -23,7 +23,7 @@ export async function dbGetPortfolioHoldings(env, userId, portfolioId = null) {
   if (!userId) return [];
 
   if (env && env.DB) {
-    await ensureD1Tables(env);
+    await ensureSchema(env);
     try {
       let query = `
         SELECT id, user_id AS userId, portfolio_id AS portfolioId, asset_id AS assetId,
@@ -56,7 +56,7 @@ export async function dbGetPortfolioHoldings(env, userId, portfolioId = null) {
         });
       }
     } catch (e) {
-      logger.error("D1 dbGetPortfolioHoldings error:", { error: e.message });
+      logger.error("[DB] dbGetPortfolioHoldings error:", { error: e.message });
     }
   }
 
@@ -75,7 +75,7 @@ export async function dbAddPortfolioHolding(env, item) {
 
   // If no portfolioId provided, resolve user's default portfolio
   if (!portfolioId && env && env.DB) {
-    await ensureD1Tables(env);
+    await ensureSchema(env);
     const defP = await env.DB.prepare(`
       SELECT id FROM portfolios WHERE user_id = ? ORDER BY is_default DESC, created_at ASC LIMIT 1
     `).bind(item.userId).first();
@@ -104,7 +104,7 @@ export async function dbAddPortfolioHolding(env, item) {
   };
 
   if (env && env.DB) {
-    await ensureD1Tables(env);
+    await ensureSchema(env);
     let writeResult = null;
     try {
       writeResult = await env.DB.prepare(`
@@ -141,7 +141,7 @@ export async function dbAddPortfolioHolding(env, item) {
         holding.updatedAt
       ).run();
     } catch (e) {
-      logger.error("D1 dbAddPortfolioHolding error:", { error: e.message });
+      logger.error("[DB] dbAddPortfolioHolding error:", { error: e.message });
     }
 
     // An existing id owned by another user makes the conditional upsert a no-op
@@ -171,13 +171,13 @@ export async function dbDeletePortfolioHolding(env, id, userId) {
   if (!id || !userId) return false;
 
   if (env && env.DB) {
-    await ensureD1Tables(env);
+    await ensureSchema(env);
     try {
       await env.DB.prepare(`
         DELETE FROM portfolio_holdings WHERE id = ? AND user_id = ?
       `).bind(id, userId).run();
     } catch (e) {
-      logger.error("D1 dbDeletePortfolioHolding error:", { error: e.message });
+      logger.error("[DB] dbDeletePortfolioHolding error:", { error: e.message });
     }
   }
 

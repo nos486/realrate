@@ -1,5 +1,5 @@
 /**
- * loans.repository.js — Cloudflare D1 Data Access Layer for Loans & Dynamic Amortization
+ * loans.repository.js — Postgres Data Access Layer for Loans & Dynamic Amortization
  *
  * Implements Virtual Schedule Architecture:
  * - loans: stores loan master parameters
@@ -8,7 +8,7 @@
  * - computeEffectiveSchedule: dynamically reconstructs the full installments list on read
  */
 
-import { ensureD1Tables } from "./migration.repository.js";
+import { ensureSchema } from "./migration.repository.js";
 import { getBankById, isCustomBankId, matchBankIdByName } from "../config/banks.config.js";
 import { dbGetCustomBank } from "./customBanks.repository.js";
 import { logger } from "../lib/logger.js";
@@ -127,7 +127,7 @@ export async function dbCreateLoan(env, userId, data) {
   if (!userId || !data) return null;
   if (!env || !env.DB) return null;
 
-  await ensureD1Tables(env);
+  await ensureSchema(env);
 
   const loanId = data.id || generateId("loan");
   const title = String(data.title || "").trim();
@@ -308,7 +308,7 @@ export async function dbCreateLoan(env, userId, data) {
 
     return await dbGetLoanById(env, userId, loanId);
   } catch (e) {
-    logger.error("D1 dbCreateLoan error:", { error: e.message, userId, loanId });
+    logger.error("[DB] dbCreateLoan error:", { error: e.message, userId, loanId });
     throw e;
   }
 }
@@ -324,7 +324,7 @@ export async function dbCreateLoan(env, userId, data) {
 export async function dbGetUserLoans(env, userId) {
   if (!userId || !env || !env.DB) return [];
 
-  await ensureD1Tables(env);
+  await ensureSchema(env);
 
   // NOTE: real errors are left to propagate (see dbGetLoanById for why) instead of being
   // swallowed into an empty array, which would be indistinguishable from "user genuinely has
@@ -442,7 +442,7 @@ export async function dbGetUserLoans(env, userId) {
 export async function dbGetLoanById(env, userId, loanId) {
   if (!userId || !loanId || !env || !env.DB) return null;
 
-  await ensureD1Tables(env);
+  await ensureSchema(env);
 
   // NOTE: only the "loan does not exist" case returns null (a legitimate, expected outcome
   // callers rely on to throw a 404). Any other failure (bad query, computeEffectiveSchedule
@@ -542,7 +542,7 @@ export async function dbUpdateLoan(env, userId, loanId, data) {
   if (!userId || !loanId || !data) return null;
   if (!env || !env.DB) return null;
 
-  await ensureD1Tables(env);
+  await ensureSchema(env);
 
   const existingLoan = await dbGetLoanById(env, userId, loanId);
   if (!existingLoan) return null;
@@ -689,7 +689,7 @@ export async function dbUpdateLoan(env, userId, loanId, data) {
     }
     return await dbGetLoanById(env, userId, loanId);
   } catch (e) {
-    logger.error("D1 dbUpdateLoan error:", { error: e.message, userId, loanId });
+    logger.error("[DB] dbUpdateLoan error:", { error: e.message, userId, loanId });
     throw e;
   }
 }
@@ -705,7 +705,7 @@ export async function dbUpdateLoan(env, userId, loanId, data) {
 export async function dbDeleteLoan(env, userId, loanId) {
   if (!userId || !loanId || !env || !env.DB) return false;
 
-  await ensureD1Tables(env);
+  await ensureSchema(env);
 
   try {
     const deleteStatesSql = `DELETE FROM loan_installment_states WHERE loan_id = ? AND user_id = ?`;
@@ -727,7 +727,7 @@ export async function dbDeleteLoan(env, userId, loanId) {
     }
     return true;
   } catch (e) {
-    logger.error("D1 dbDeleteLoan error:", { error: e.message, userId, loanId });
+    logger.error("[DB] dbDeleteLoan error:", { error: e.message, userId, loanId });
     return false;
   }
 }
@@ -750,7 +750,7 @@ export async function dbDeleteLoan(env, userId, loanId) {
 export async function dbMarkInstallmentPaid(env, userId, installmentId, details = {}) {
   if (!userId || !installmentId || !env || !env.DB) return null;
 
-  await ensureD1Tables(env);
+  await ensureSchema(env);
 
   try {
     const nowIso = new Date().toISOString();
@@ -900,7 +900,7 @@ export async function dbMarkInstallmentPaid(env, userId, installmentId, details 
       updatedAt: nowIso,
     };
   } catch (e) {
-    logger.error("D1 dbMarkInstallmentPaid error:", { error: e.message, userId, installmentId });
+    logger.error("[DB] dbMarkInstallmentPaid error:", { error: e.message, userId, installmentId });
     return null;
   }
 }
@@ -922,7 +922,7 @@ export async function dbMarkInstallmentPaid(env, userId, installmentId, details 
 export async function dbUnmarkInstallmentPaid(env, userId, installmentId, loanId) {
   if (!userId || !installmentId || !env || !env.DB) return null;
 
-  await ensureD1Tables(env);
+  await ensureSchema(env);
 
   try {
     const nowIso = new Date().toISOString();
@@ -1003,7 +1003,7 @@ export async function dbUnmarkInstallmentPaid(env, userId, installmentId, loanId
       });
     }
   } catch (e) {
-    logger.error("D1 dbUnmarkInstallmentPaid error:", { error: e.message, userId, installmentId });
+    logger.error("[DB] dbUnmarkInstallmentPaid error:", { error: e.message, userId, installmentId });
     return null;
   }
 }
@@ -1024,7 +1024,7 @@ export async function dbMarkInstallmentPaidCascade(env, userId, loanId, installm
     throw AppError.badRequest("پارامترهای درخواست ناقص است.");
   }
 
-  await ensureD1Tables(env);
+  await ensureSchema(env);
 
   const loan = await dbGetLoanById(env, userId, loanId);
   if (!loan) {
@@ -1203,7 +1203,7 @@ export async function dbSetInstallmentAmount(env, userId, loanId, installmentId,
     throw AppError.badRequest("مبلغ قسط باید عددی بزرگتر از صفر باشد.");
   }
 
-  await ensureD1Tables(env);
+  await ensureSchema(env);
 
   const loan = await dbGetLoanById(env, userId, loanId);
   if (!loan) {
@@ -1357,7 +1357,7 @@ export async function dbBulkDistributeInstallments(env, userId, loanId, knownAmo
     }
   }
 
-  await ensureD1Tables(env);
+  await ensureSchema(env);
 
   const loan = await dbGetLoanById(env, userId, loanId);
   if (!loan) {
@@ -1462,7 +1462,7 @@ export async function dbBulkDistributeInstallments(env, userId, loanId, knownAmo
     }
     return await dbGetLoanById(env, userId, loanId);
   } catch (e) {
-    logger.error("D1 dbBulkDistributeInstallments error:", { error: e.message, userId, loanId });
+    logger.error("[DB] dbBulkDistributeInstallments error:", { error: e.message, userId, loanId });
     throw e;
   }
 }
@@ -1502,7 +1502,7 @@ export async function dbAddExtraPayment(env, userId, loanId, {
 
   const mode = reductionMode === "reduce_term" ? "reduce_term" : "reduce_amount";
 
-  await ensureD1Tables(env);
+  await ensureSchema(env);
 
   const loan = await dbGetLoanById(env, userId, loanId);
   if (!loan) {
@@ -1616,7 +1616,7 @@ export async function dbAddExtraPayment(env, userId, loanId, {
 export async function dbGetLoanExtraPayments(env, userId, loanId) {
   if (!userId || !loanId || !env || !env.DB) return [];
 
-  await ensureD1Tables(env);
+  await ensureSchema(env);
 
   try {
     const query = `
@@ -1639,7 +1639,7 @@ export async function dbGetLoanExtraPayments(env, userId, loanId) {
       resultingInstallmentCount: row.resultingInstallmentCount ? Number(row.resultingInstallmentCount) : null,
     }));
   } catch (e) {
-    logger.error("D1 dbGetLoanExtraPayments error:", { error: e.message, userId, loanId });
+    logger.error("[DB] dbGetLoanExtraPayments error:", { error: e.message, userId, loanId });
     return [];
   }
 }

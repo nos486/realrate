@@ -1,12 +1,9 @@
 /**
  * pgSchema.js — The app's tables in Postgres
  *
- * The same tables and columns the app had in D1 (SQLite), every later column included, with
- * SQLite's types as Postgres ones: INTEGER → BIGINT (flags stay 0/1, times in ms fit), REAL →
- * DOUBLE PRECISION, TEXT → TEXT. The price history tables live in priceHistory.repository.js.
- *
- * APP_TABLES also drives the one-time copy from D1 (services/database/d1ToPostgres.js): its
- * order is the copy order, and `columns` is what is copied.
+ * Created on first use (migration.repository.js ensureSchema). Flags are 0/1 BIGINTs, times in
+ * ms are BIGINTs, amounts DOUBLE PRECISION. The price history tables live in
+ * priceHistory.repository.js. `npm run db:schema` prints this schema as SQL.
  */
 
 /** @type {Array<{ name: string, columns: string[], ddl: string[] }>} */

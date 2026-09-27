@@ -1,8 +1,8 @@
 /**
- * settings.repository.js — Cloudflare D1 & KV System Settings Data Access Layer
+ * settings.repository.js — Postgres & KV System Settings Data Access Layer
  */
 
-import { ensureD1Tables } from "./migration.repository.js";
+import { ensureSchema } from "./migration.repository.js";
 import { getGlobalSettingsKV, setGlobalSettingsKV } from "./kvCache.repository.js";
 import { logger } from "../lib/logger.js";
 import { SETTINGS_MEMORY_CACHE_TTL_MS } from "../config/constants.js";
@@ -30,7 +30,7 @@ let memorySettings = null;
 let memorySettingsTime = 0;
 
 /**
- * Read global settings from in-memory cache, D1 SQL, or KV (fallback)
+ * Read global settings from in-memory cache, the database, or KV (fallback)
  * @param {object} env
  * @param {boolean} [forceFresh=false]
  * @returns {Promise<object>} settings object
@@ -43,16 +43,16 @@ export async function getGlobalSettings(env, forceFresh = false) {
 
   let loaded = null;
 
-  // 1. Try D1 SQL
+  // 1. Try the database
   if (env && env.DB) {
-    await ensureD1Tables(env);
+    await ensureSchema(env);
     try {
       const row = await env.DB.prepare("SELECT * FROM settings WHERE id = 1").first();
       if (row) {
         loaded = pickSettings(row);
       }
     } catch (e) {
-      logger.error("Error reading settings from D1:", { error: e.message });
+      logger.error("Error reading settings from the database:", { error: e.message });
     }
   }
 
@@ -70,7 +70,7 @@ export async function getGlobalSettings(env, forceFresh = false) {
 }
 
 /**
- * Save global settings to D1 SQL and KV
+ * Save global settings to the database and KV
  * @param {object} env
  * @param {object} newSettings - validated settings object
  */
@@ -80,9 +80,9 @@ export async function saveGlobalSettings(env, newSettings) {
     ...pickSettings(newSettings),
   };
 
-  // 1. Save to D1 SQL
+  // 1. Save to the database
   if (env && env.DB) {
-    await ensureD1Tables(env);
+    await ensureSchema(env);
     try {
       await env.DB.prepare(`
         INSERT INTO settings (id, bubble_pct_full, bubble_pct_half, bubble_pct_quarter, announcement,
@@ -105,7 +105,7 @@ export async function saveGlobalSettings(env, newSettings) {
         mergedSettings.maintenance_message
       ).run();
     } catch (e) {
-      logger.error("Error saving settings to D1:", { error: e.message });
+      logger.error("Error saving settings to the database:", { error: e.message });
     }
   }
 

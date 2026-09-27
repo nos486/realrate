@@ -1,12 +1,12 @@
 /**
- * pgDatabase.js — The app's database on Postgres (through Cloudflare Hyperdrive), with the same
- * interface the repositories were written against (Cloudflare D1's): prepare(sql).bind(...args)
- * then .first() / .all() / .run(), and batch([...]) as one transaction.
+ * pgDatabase.js — The app's database: Postgres (through Cloudflare Hyperdrive), with the small
+ * interface the repositories are written against: prepare(sql).bind(...args) then .first() /
+ * .all() / .run(), and batch([...]) as one transaction.
  *
- * The repositories' SQL is written once and runs here as Postgres: translateSql() turns
- * `?` / `?N` placeholders into `$N`, quotes camelCase aliases (Postgres would fold them to
- * lower case), makes LIKE case-insensitive as it is in SQLite, and rewrites the few SQLite-only
- * forms still in use. Whole numbers and numerics come back as JS numbers, as they did from D1.
+ * translateSql() turns the repositories' SQL into Postgres's: `?` / `?N` placeholders into `$N`,
+ * camelCase aliases quoted (Postgres would fold them to lower case), LIKE case-insensitive
+ * (ILIKE), and the older `INSERT OR IGNORE` / `datetime('now')` forms rewritten. Whole numbers and
+ * numerics come back as JS numbers.
  *
  * One connection per request (Hyperdrive pools the real ones): opened on the first query and
  * closed once the request is done and no query is running — a query from work still running
@@ -16,7 +16,7 @@
 import pg from "pg";
 import { logger } from "./logger.js";
 
-// BIGINT (COUNT(*), timestamps) and NUMERIC (SUM, AVG) as numbers, like D1 returned them
+// BIGINT (COUNT(*), timestamps) and NUMERIC (SUM, AVG) as numbers
 pg.types.setTypeParser(20, (v) => (v === null ? null : Number(v)));
 pg.types.setTypeParser(1700, (v) => (v === null ? null : Number(v)));
 
@@ -24,7 +24,7 @@ const CONNECT_TIMEOUT_MS = 5000;
 const QUERY_TIMEOUT_MS = 20000;
 
 /**
- * SQL written for D1 (SQLite) as Postgres
+ * The repositories' SQL as Postgres
  * @param {string} sql
  * @returns {string}
  */
@@ -161,7 +161,7 @@ export function createPgDatabase(connectionString, deps = {}) {
   return {
     isPostgres: true,
     prepare: (sql) => statement(sql),
-    /** Several statements in one transaction (D1's batch is atomic too) */
+    /** Several statements in one transaction */
     async batch(statements) {
       pending++;
       try {

@@ -5,7 +5,7 @@
  * can add a password, and signing in with Google verifies an email account.
  */
 
-import { ensureD1Tables } from "./migration.repository.js";
+import { ensureSchema } from "./migration.repository.js";
 import { deleteSessionKV } from "./kvCache.repository.js";
 import { generateUrlToken, sha256Hex } from "../lib/security.js";
 import { dbRecordUserActivity } from "./user.repository.js";
@@ -38,14 +38,14 @@ export function normalizeEmail(email) {
 
 export async function dbGetUserAuthByEmail(env, email) {
   if (!env?.DB) return null;
-  await ensureD1Tables(env);
+  await ensureSchema(env);
   const row = await env.DB.prepare(`SELECT ${AUTH_COLUMNS} FROM users WHERE email = ?`).bind(normalizeEmail(email)).first();
   return formatAuthRow(row);
 }
 
 export async function dbGetUserAuthById(env, userId) {
   if (!env?.DB || !userId) return null;
-  await ensureD1Tables(env);
+  await ensureSchema(env);
   const row = await env.DB.prepare(`SELECT ${AUTH_COLUMNS} FROM users WHERE id = ?`).bind(userId).first();
   return formatAuthRow(row);
 }
@@ -55,7 +55,7 @@ export async function dbGetUserAuthById(env, userId) {
  * @returns {Promise<object>} the account (auth shape)
  */
 export async function dbCreatePasswordUser(env, { email, name, passwordHash, role = "user" }) {
-  await ensureD1Tables(env);
+  await ensureSchema(env);
   const now = new Date().toISOString();
   const id = `usr_${crypto.randomUUID().replace(/-/g, "").slice(0, 20)}`;
   await env.DB.prepare(`
@@ -68,7 +68,7 @@ export async function dbCreatePasswordUser(env, { email, name, passwordHash, rol
 
 /** A repeated sign-up of a still-unverified account replaces its name and password */
 export async function dbUpdateUnverifiedSignup(env, userId, { name, passwordHash }) {
-  await ensureD1Tables(env);
+  await ensureSchema(env);
   await env.DB.prepare(`
     UPDATE users SET name = ?, password_hash = ?, password_updated_at = ?
     WHERE id = ? AND email_verified = 0
@@ -80,7 +80,7 @@ export async function dbUpdateUnverifiedSignup(env, userId, { name, passwordHash
  * proves the address just like the verification link does.
  */
 export async function dbSetUserPassword(env, userId, passwordHash, { markVerified = false } = {}) {
-  await ensureD1Tables(env);
+  await ensureSchema(env);
   await env.DB.prepare(`
     UPDATE users SET password_hash = ?, password_updated_at = ?${markVerified ? ", email_verified = 1" : ""}
     WHERE id = ?
@@ -88,12 +88,12 @@ export async function dbSetUserPassword(env, userId, passwordHash, { markVerifie
 }
 
 export async function dbMarkEmailVerified(env, userId) {
-  await ensureD1Tables(env);
+  await ensureSchema(env);
   await env.DB.prepare(`UPDATE users SET email_verified = 1 WHERE id = ?`).bind(userId).run();
 }
 
 export async function dbRecordLogin(env, userId) {
-  await ensureD1Tables(env);
+  await ensureSchema(env);
   await env.DB.prepare(`
     UPDATE users SET last_login = ?, login_count = COALESCE(login_count, 0) + 1 WHERE id = ?
   `).bind(new Date().toISOString(), userId).run();
@@ -106,7 +106,7 @@ export async function dbRecordLogin(env, userId) {
  * @returns {Promise<string>} the raw token (only its hash is stored)
  */
 export async function dbCreateAuthToken(env, userId, purpose, ttlSeconds) {
-  await ensureD1Tables(env);
+  await ensureSchema(env);
   const token = generateUrlToken();
   const tokenHash = await sha256Hex(token);
   await env.DB.batch([
@@ -124,7 +124,7 @@ export async function dbCreateAuthToken(env, userId, purpose, ttlSeconds) {
  */
 export async function dbConsumeAuthToken(env, token, purpose) {
   if (!token || typeof token !== "string" || token.length > 200) return null;
-  await ensureD1Tables(env);
+  await ensureSchema(env);
   const tokenHash = await sha256Hex(token);
   const row = await env.DB.prepare(`
     SELECT user_id AS userId, purpose, expires_at AS expiresAt FROM auth_tokens WHERE token_hash = ?
@@ -136,10 +136,10 @@ export async function dbConsumeAuthToken(env, token, purpose) {
 
 /**
  * Sign a user out everywhere (after a password reset or change), optionally keeping the
- * current session. Sessions live in D1 and KV, so both copies are removed.
+ * current session. Sessions live in the database and KV, so both copies are removed.
  */
 export async function dbDeleteUserSessions(env, userId, { exceptToken = null } = {}) {
-  await ensureD1Tables(env);
+  await ensureSchema(env);
   const { results = [] } = await env.DB.prepare(`SELECT token FROM sessions WHERE user_id = ?`).bind(userId).all();
   const tokens = results.map((r) => r.token).filter((t) => t && t !== exceptToken);
   for (const token of tokens) {

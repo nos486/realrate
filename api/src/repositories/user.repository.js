@@ -1,8 +1,8 @@
 /**
- * user.repository.js — Cloudflare D1 User Data Access Layer
+ * user.repository.js — Postgres User Data Access Layer
  */
 
-import { ensureD1Tables } from "./migration.repository.js";
+import { ensureSchema } from "./migration.repository.js";
 import { logger } from "../lib/logger.js";
 import { sanitizeHomeLayout } from "../domain/homeLayout.js";
 import { hashSharePassword } from "../lib/security.js";
@@ -22,12 +22,12 @@ export async function dbRecordUserActivity(env, userId) {
   const key = `${userId}|${day}`;
   if (recordedActivity.has(key)) return;
   try {
-    await ensureD1Tables(env);
+    await ensureSchema(env);
     await env.DB.prepare("INSERT INTO user_activity (user_id, day) VALUES (?, ?) ON CONFLICT DO NOTHING").bind(userId, day).run();
     if (recordedActivity.size > 5000) recordedActivity.clear();
     recordedActivity.add(key);
   } catch (e) {
-    logger.error("D1 dbRecordUserActivity error:", { error: e.message });
+    logger.error("[DB] dbRecordUserActivity error:", { error: e.message });
   }
 }
 
@@ -46,14 +46,14 @@ export function generateRandomSlug(len = 8) {
 }
 
 /**
- * Upsert a user into D1 SQL
+ * Upsert a user into the database
  * @param {object} env
  * @param {object} userData - { id, email, name, picture, role, createdAt, lastLogin }
  * @returns {object} updated userData
  */
 export async function dbUpsertUser(env, userData) {
   if (env && env.DB) {
-    await ensureD1Tables(env);
+    await ensureSchema(env);
     try {
       await env.DB.prepare(`
         INSERT INTO users (id, email, name, picture, role, created_at, last_login, login_count, google_linked)
@@ -113,7 +113,7 @@ export async function dbUpsertUser(env, userData) {
         await dbRecordUserActivity(env, updated.id);
       }
     } catch (e) {
-      logger.error("D1 dbUpsertUser error:", { error: e.message });
+      logger.error("[DB] dbUpsertUser error:", { error: e.message });
     }
   }
 
@@ -129,7 +129,7 @@ export async function dbUpsertUser(env, userData) {
 export async function dbGetUserById(env, userId) {
   if (!userId) return null;
   if (env && env.DB) {
-    await ensureD1Tables(env);
+    await ensureSchema(env);
     try {
       const row = await env.DB.prepare(`
         SELECT id, email, name, custom_name AS customName, picture, role,
@@ -140,7 +140,7 @@ export async function dbGetUserById(env, userId) {
       `).bind(userId, userId).first();
       return row || null;
     } catch (e) {
-      logger.error("D1 dbGetUserById error:", { error: e.message });
+      logger.error("[DB] dbGetUserById error:", { error: e.message });
     }
   }
   return null;
@@ -155,7 +155,7 @@ export async function dbGetUserById(env, userId) {
 export async function dbGetUserByShareSlug(env, slug) {
   if (!slug) return null;
   if (env && env.DB) {
-    await ensureD1Tables(env);
+    await ensureSchema(env);
     try {
       const row = await env.DB.prepare(`
         SELECT id, email, name, custom_name AS customName, picture, role,
@@ -166,7 +166,7 @@ export async function dbGetUserByShareSlug(env, slug) {
       `).bind(slug.trim()).first();
       return row || null;
     } catch (e) {
-      logger.error("D1 dbGetUserByShareSlug error:", { error: e.message });
+      logger.error("[DB] dbGetUserByShareSlug error:", { error: e.message });
     }
   }
   return null;
@@ -182,7 +182,7 @@ export async function dbGetUserByShareSlug(env, slug) {
 export async function dbUpdateUserSettings(env, userId, { customName, shareSlug, sharePassword, shareEnabled }) {
   if (!userId) throw new Error("شناسه کاربر الزامی است.");
   if (env && env.DB) {
-    await ensureD1Tables(env);
+    await ensureSchema(env);
 
     // Validate and check if new shareSlug is already taken by another user
     if (shareSlug) {
@@ -240,7 +240,7 @@ export async function dbUpdateUserSettings(env, userId, { customName, shareSlug,
  */
 export async function dbGetHomeLayout(env, userId) {
   if (!userId || !env?.DB) return null;
-  await ensureD1Tables(env);
+  await ensureSchema(env);
   const row = await env.DB.prepare(`SELECT home_layout AS homeLayout FROM users WHERE id = ? OR email = ?`)
     .bind(userId, userId).first();
   if (!row?.homeLayout) return null;
@@ -259,7 +259,7 @@ export async function dbGetHomeLayout(env, userId) {
  */
 export async function dbSaveHomeLayout(env, userId, layout) {
   if (!userId) throw new Error("شناسه کاربر الزامی است.");
-  await ensureD1Tables(env);
+  await ensureSchema(env);
   await env.DB.prepare(`UPDATE users SET home_layout = ? WHERE id = ? OR email = ?`)
     .bind(layout ? JSON.stringify(layout) : "", userId, userId).run();
   return layout;

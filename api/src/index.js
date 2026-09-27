@@ -35,7 +35,7 @@ function parseLimit(raw, fallback) {
 }
 
 /**
- * Upstream syncs and forced refreshes hit third-party sources and burn Worker/D1 quota,
+ * Upstream syncs and forced refreshes hit third-party sources and burn Worker quota,
  * so only an admin may trigger them on demand (the cron keeps them fresh otherwise).
  */
 async function requireAdmin(request, env) {
@@ -67,8 +67,6 @@ import {
   handleAdminGetPriceSources,
   handleAdminSavePriceSource,
   handleAdminDeletePriceSource,
-  handleAdminDatabaseStatus,
-  handleAdminDatabaseMigrate,
   handleAdminKvCleanup,
   handleAdminSetPrimarySource,
   handleAdminTestPriceSource,
@@ -259,8 +257,6 @@ async function handleRequest(request, env, ctx) {
   if (normalizedPath === "/api/admin/growth")                                  return wrap(handleAdminGrowth)(request, env);
   if (normalizedPath === "/api/admin/users")                                   return wrap(handleAdminUsersRoute)(request, env);
   if (normalizedPath === "/api/admin/settings" && request.method === "POST")   return wrap(handleAdminSaveSettings)(request, env);
-  if (normalizedPath === "/api/admin/database" && request.method === "GET")   return wrap(handleAdminDatabaseStatus)(request, env);
-  if (normalizedPath === "/api/admin/database/migrate" && request.method === "POST") return wrap(handleAdminDatabaseMigrate)(request, env);
   if (normalizedPath === "/api/admin/kv/cleanup" && request.method === "POST") return wrap(handleAdminKvCleanup)(request, env);
 
   if (normalizedPath === "/api/admin/price-sources") {
@@ -509,7 +505,7 @@ async function handleRequest(request, env, ctx) {
 
 export default {
   async fetch(request, env, ctx) {
-    const { env: requestEnv, close } = await withDatabase(env);
+    const { env: requestEnv, close } = withDatabase(env);
     try {
       return await handleRequest(request, requestEnv, ctx);
     } finally {
@@ -522,7 +518,7 @@ export default {
    * Runs automatically every minute to extract due price sources based on fetchIntervalSec
    */
   async scheduled(event, env, ctx) {
-    const { env: runEnv, close } = await withDatabase(env);
+    const { env: runEnv, close } = withDatabase(env);
     try {
       await runCronPolling(event, runEnv, ctx);
     } finally {

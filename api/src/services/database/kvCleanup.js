@@ -25,6 +25,9 @@ export const LEGACY_KV_KEYS = [
   "charisma_plans_v1",
   "charisma_plans_backup_v1",
   "charisma_plans_last_sync_v1",
+  // The move from D1 to Postgres (done)
+  "database_backend",
+  "database_migration",
 ];
 
 /** Key prefixes */

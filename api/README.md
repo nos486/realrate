@@ -11,7 +11,7 @@
 | مؤلفه | فناوری / بستر | کاربرد |
 | :--- | :--- | :--- |
 | **Edge Runtime** | Cloudflare Workers (V8 Isolate) | اجرای سرورلس Native REST API با تأخیر زیر ۱۰ میلی‌ثانیه |
-| **پایگاه‌داده رابطه‌ای** | Cloudflare D1 (SQLite) | نگهداری کاربران، نشست‌ها، تنظیمات و پورتفولیوها |
+| **پایگاه‌داده رابطه‌ای** | PostgreSQL (از طریق Cloudflare Hyperdrive) | کاربران، نشست‌ها، تنظیمات، پورتفولیوها، داده‌های رمزشده و تاریخچه قیمت‌ها |
 | **حافظه سریع توزیع‌شده** | Cloudflare KV | دفتر قیمت (`prices`: آخرین قیمت همه اقلام) و خروجی هر سورس (`source_items:{sourceId}`) |
 | **زمان‌بندی خودکار** | Cloudflare Cron Triggers | پولینگ منظم تک‌تیک بدون درخواست تکراری با `sourceSync.service.js` |
 | **تست خودکار** | Vitest | آزمون‌های واحد فوق‌سریع برای فرمول‌های مالی، قرارداد ادپتورها و موتور نمایش |
@@ -24,15 +24,14 @@
 
 ```text
 api/
-├── schema.sql                         # اسکیمای کامل دیتابیس Cloudflare D1
-├── wrangler.toml                      # پیکربندی بایندینگ‌های Workers، D1، KV و متغیرها
+├── wrangler.toml                      # پیکربندی بایندینگ‌های Workers، Hyperdrive، KV و متغیرها
 ├── package.json                       # اسکریپت‌های اجرایی و وابستگی‌ها
 ├── vitest.config.js                   # کانفیگ تست‌های واحد Vitest
 ├── tests/                             # آزمون‌های خودکار
 │   └── unit/
 │       ├── adaptersContract.test.js   # تست تطابق قرارداد خروجی تمامی ادپتورها ({items, datetime})
 │       ├── displayEngine.test.js      # تست جامع موتور مرکزی نمایش برای تمام ۸ دسته‌بندی
-│       ├── sourceItems.test.js        # تست ذخیره‌سازی یکدست در KV و D1
+│       ├── sourceItems.test.js        # تست ذخیره‌سازی اقلام هر سورس در KV
 │       ├── sourceSync.test.js         # تست ارکستراسیون تک‌تیک و حذف درخواست‌های تکراری
 │       ├── sourcesValidation.test.js  # اعتبارسنجی یکپارچگی کانفیگ سورس‌ها
 │       ├── formulas.test.js           # تست فرمول‌های طلا، انس، عیار و حباب
@@ -49,7 +48,7 @@ api/
     │   ├── formulas.js                # فرمول‌های خالص ریاضی طلا، ارزش ذاتی و حباب
     │   └── specs/                     # رجیستری مشخصات فیزیکی طلا، سکه، نقره، فارکس و کریپتو
     ├── repositories/                  # لایه دسترسی به داده (Repository Layer)
-    │   ├── sourceItems.repository.js  # مسیر واحد ذخیره‌سازی اقلام منابع در KV و D1
+    │   ├── sourceItems.repository.js  # مسیر واحد ذخیره‌سازی اقلام منابع در KV
     │   ├── userRepository.js          # کوئری‌های کاربران، نقش‌ها و تنظیمات حساب
     │   ├── portfolioRepository.js     # مدیریت پورتفوها، اسلاگ‌های اشتراک و سالت‌های E2EE
     │   ├── holdingRepository.js       # افزودن، ویرایش، حذف و واکشی اقلام دارایی پورتفو

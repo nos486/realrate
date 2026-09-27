@@ -7,12 +7,12 @@
  *  - vault_records holds browser-encrypted records (loans, incomes, cheques) as opaque ciphertext.
  *    The only plaintext beside the kind and id is the record's primary date (record_date, for
  *    range queries and sorting) and its parent (parent_id, e.g. the portfolio of an item).
- * Moving a record from the older plaintext tables into the vault happens in one D1 batch, so a
+ * Moving a record from the older plaintext tables into the vault happens in one database batch, so a
  * record is never lost or duplicated halfway. The vault is never turned off and nothing is
  * written back to the plaintext tables.
  */
 
-import { ensureD1Tables } from "./migration.repository.js";
+import { ensureSchema } from "./migration.repository.js";
 import { AppError } from "../lib/AppError.js";
 
 export const VAULT_RECORD_KINDS = ["loan", "income", "cheque", "recurring_income", "holding", "transaction"];
@@ -62,7 +62,7 @@ function assertPayload(payload) {
 /** @returns {Promise<{salt: string, wrappedKey: string, version: number, createdAt: string, updatedAt: string}|null>} */
 export async function dbGetUserVault(env, userId) {
   if (!userId || !env?.DB) return null;
-  await ensureD1Tables(env);
+  await ensureSchema(env);
   const row = await env.DB.prepare(`
     SELECT salt, wrapped_key AS wrappedKey, version, created_at AS createdAt, updated_at AS updatedAt
     FROM user_vaults WHERE user_id = ?
@@ -106,7 +106,7 @@ const PLAINTEXT_DATA_TABLES = ["portfolio_holdings", "transactions", "loans", "i
 
 /** Whether the user has any data stored in the plaintext tables */
 export async function dbUserHasPlaintextData(env, userId) {
-  await ensureD1Tables(env);
+  await ensureSchema(env);
   const checks = PLAINTEXT_DATA_TABLES.map((table) => `EXISTS (SELECT 1 FROM ${table} WHERE user_id = ?1)`);
   const row = await env.DB.prepare(`SELECT (${checks.join(" OR ")}) AS has`).bind(userId).first();
   return Number(row?.has) === 1;
@@ -143,7 +143,7 @@ export async function dbListVaultRecords(env, userId, kind, {
   from = "", to = "", parentId = "", undated = false, order = "desc", limit = null, offset = 0,
 } = {}) {
   assertKind(kind);
-  await ensureD1Tables(env);
+  await ensureSchema(env);
   const conditions = ["user_id = ?", "kind = ?"];
   const params = [userId, kind];
   const fromDate = parseRecordDate(from);
@@ -233,7 +233,7 @@ export async function dbPutVaultRecord(env, userId, kind, id, { payload, replace
 
 export async function dbDeleteVaultRecord(env, userId, kind, id) {
   assertKind(kind);
-  await ensureD1Tables(env);
+  await ensureSchema(env);
   const res = await env.DB.prepare(`DELETE FROM vault_records WHERE user_id = ? AND kind = ? AND id = ?`)
     .bind(userId, kind, id).run();
   return (res?.meta?.changes ?? 0) > 0;

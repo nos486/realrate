@@ -25,8 +25,8 @@ export function validateEnv(env) {
 
   const missing = [];
 
-  if (!env.DB) {
-    missing.push("DB (D1 Database binding)");
+  if (!env.HYPERDRIVE?.connectionString) {
+    missing.push("HYPERDRIVE (Postgres through Hyperdrive)");
   }
 
   if (!env.REALRATE_KV && !env.KV) {
