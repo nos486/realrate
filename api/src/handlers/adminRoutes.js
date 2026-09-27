@@ -3,6 +3,8 @@
  * All routes require admin role verified via session
  */
 
+import { getMigrationStatus, runMigrationStep, compareCounts } from "../services/database/d1ToPostgres.js";
+import { deleteLegacyKvKeys } from "../services/database/kvCleanup.js";
 import { getAuthenticatedUser } from "../lib/auth.js";
 import {
   dbGetUsersPage,
@@ -300,3 +302,49 @@ export async function handleAdminInspectApiRoute(request, env) {
   }
 }
 
+/**
+ * GET /api/admin/database — which database the app runs on and where the move to Postgres is
+ * (?counts=1 also compares every table's row count on both sides) — admin only
+ */
+export async function handleAdminDatabaseStatus(request, env) {
+  const user = await getAuthenticatedUser(request, env);
+  if (!user || user.role !== "admin") return forbiddenResponse(request);
+  try {
+    const status = await getMigrationStatus(env);
+    const wantCounts = new URL(request.url).searchParams.get("counts") === "1";
+    const counts = wantCounts && (env.D1 || !env.DB?.isPostgres) ? await compareCounts(env) : null;
+    return jsonResponse({ success: true, ...status, counts }, 200, request);
+  } catch (e) {
+    return errorResponse(e.message, 500, request);
+  }
+}
+
+/**
+ * POST /api/admin/database/migrate — the next part of moving the data from D1 to Postgres;
+ * the panel calls it until state.phase is "done" ({ restart: true } starts over) — admin only
+ */
+export async function handleAdminDatabaseMigrate(request, env) {
+  const user = await getAuthenticatedUser(request, env);
+  if (!user || user.role !== "admin") return forbiddenResponse(request);
+  try {
+    const body = await request.json().catch(() => ({}));
+    const result = await runMigrationStep(env, { restart: Boolean(body?.restart) });
+    return jsonResponse({ success: true, ...result }, 200, request);
+  } catch (e) {
+    return errorResponse(e.message, 500, request);
+  }
+}
+
+/**
+ * POST /api/admin/kv/cleanup — delete the KV keys the app no longer uses — admin only
+ */
+export async function handleAdminKvCleanup(request, env) {
+  const user = await getAuthenticatedUser(request, env);
+  if (!user || user.role !== "admin") return forbiddenResponse(request);
+  try {
+    const { deleted } = await deleteLegacyKvKeys(env);
+    return jsonResponse({ success: true, deletedCount: deleted.length, deleted }, 200, request);
+  } catch (e) {
+    return errorResponse(e.message, 500, request);
+  }
+}

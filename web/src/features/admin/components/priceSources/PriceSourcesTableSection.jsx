@@ -181,7 +181,7 @@ export default function PriceSourcesTableSection({
                             </span>
                           )}
                           {src.lastError && (
-                            <span style={{ fontSize: '10px', color: 'var(--color-danger-text, #ef4444)' }} title={src.lastError}>
+                            <span style={{ fontSize: '10px', color: 'var(--color-negative-text)' }} title={src.lastError}>
                               آخرین تلاش ناموفق بود
                             </span>
                           )}
