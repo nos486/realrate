@@ -29,7 +29,11 @@ binding = "HYPERDRIVE"
 id = "c503e09fe4334a2c8351480139a9bce7"
 localConnectionString = "postgres://postgres:postgres@localhost:5432/realrate"
 
-# RateGate is retired (lib/rateGate.js); its class and this migration stay so deploys keep working
+# Durable Object history: RateGate was added (v1) and removed (v2); keep both entries
 [[migrations]]
 tag = "v1"
 new_sqlite_classes = ["RateGate"]
+
+[[migrations]]
+tag = "v2"
+deleted_classes = ["RateGate"]

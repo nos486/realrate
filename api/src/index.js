@@ -533,9 +533,6 @@ async function handleRequest(request, env, ctx) {
   );
 }
 
-// A retired Durable Object class, kept exported for its migration history (lib/rateGate.js)
-export { RateGate } from "./lib/rateGate.js";
-
 export default {
   async fetch(request, env, ctx) {
     const { env: requestEnv, close } = withDatabase(env);
