@@ -3,6 +3,7 @@
  */
 
 import React, { useState, useEffect, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Sparkles,
   PlusCircle,
@@ -19,6 +20,7 @@ import { Button, Modal } from '../../../shared/ui/index.js';
 import { useFeedback } from '../../../shared/ui/FeedbackProvider.jsx';
 import { useAuth } from '../../auth/index.js';
 import { getToken } from '../../../shared/api/httpClient.js';
+import { APP_BASE } from '../../../shared/routes.js';
 import {
   getAdminDemoStatus,
   createAdminDemo,
@@ -32,6 +34,7 @@ const ADMIN_RETURN_TOKEN_KEY = 'rr_admin_return_token';
 export default function AdminDemoCard() {
   const { toast } = useFeedback();
   const { completeLogin } = useAuth();
+  const navigate = useNavigate();
 
   const [loading, setLoading] = useState(true);
   const [demoData, setDemoData] = useState(null);
@@ -42,7 +45,8 @@ export default function AdminDemoCard() {
     setLoading(true);
     try {
       const res = await getAdminDemoStatus();
-      setDemoData(res?.demo || null);
+      const payload = res?.demo || res;
+      setDemoData(payload && typeof payload === 'object' ? payload : null);
     } catch (err) {
       toast.error(err.message || 'خطا در دریافت وضعیت حساب دمو');
     } finally {
@@ -78,6 +82,7 @@ export default function AdminDemoCard() {
       if (data?.token && data?.user) {
         toast.info('وارد حالت ویرایش داده‌های دمو شدید.');
         completeLogin(data);
+        navigate(APP_BASE);
       } else {
         toast.error('ایجاد سشن ویرایش دمو ناموفق بود.');
       }
@@ -102,8 +107,9 @@ export default function AdminDemoCard() {
     }
   };
 
-  const exists = demoData?.exists;
-  const stats = demoData?.stats;
+  const exists = Boolean(demoData?.exists);
+  const stats = demoData?.counts || demoData?.stats || {};
+
 
   return (
     <div className="portfolio-stat-card admin-demo-card">

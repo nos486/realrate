@@ -103,7 +103,7 @@ export async function handleDemoLogin(request, env) {
 export async function handleAdminGetDemo(request, env) {
   await requireAdmin(request, env);
   const stats = await dbGetDemoStats(env);
-  return jsonResponse({ success: true, ...stats }, 200, request);
+  return jsonResponse({ success: true, demo: stats, ...stats }, 200, request);
 }
 
 /**
