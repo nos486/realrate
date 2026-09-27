@@ -346,6 +346,13 @@
   gap: 16px;
 }
 
+/* Step 1: pick an image */
+.scan-step-select {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
 /* Tip / Notice card */
 .scan-tip-card {
   display: flex;
@@ -881,11 +888,22 @@
   }
 }
 
+/* A quieter notice (where the image goes) */
+.scan-tip-card.is-muted {
+  background: var(--bg-control);
+  border-color: var(--border-medium);
+  color: var(--text-secondary);
+}
+
 /* Today's remaining scans */
 .scan-quota-line {
+  align-self: center;
   margin: 0;
+  padding: 4px 12px;
+  border-radius: 999px;
   font-size: 12.5px;
   color: var(--text-secondary);
+  background: var(--bg-control);
 }
 
 .scan-quota-line.is-empty {
