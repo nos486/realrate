@@ -533,7 +533,7 @@ async function handleRequest(request, env, ctx) {
   );
 }
 
-// The Durable Object behind lib/rateGate.js (binding RATE_GATE)
+// A retired Durable Object class, kept exported for its migration history (lib/rateGate.js)
 export { RateGate } from "./lib/rateGate.js";
 
 export default {

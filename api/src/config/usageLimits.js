@@ -8,9 +8,6 @@
  * To meter a new feature: add it to USAGE_LIMITS, give each tier its limit, and call
  * consumeQuota(env, user, key) (lib/usageQuota.js) before the costly work.
  * To add a tier (a paid plan, say): add it to USER_TIERS and return it from userTierOf.
- *
- * SERVICE_RATE_LIMITS caps how often a paid service is called by everyone together (whatever
- * each user's own limit), enforced by lib/rateGate.js.
  */
 
 /** Metered features: `label` and `unit` are shown to users */
@@ -21,11 +18,6 @@ export const USAGE_LIMITS = {
 export const USER_TIERS = {
   admin: { label: "مدیر", unlimited: true, limits: {} },
   user: { label: "کاربر", limits: { cheque_scan: 10 } },
-};
-
-/** Calls per window to each paid service, all users together */
-export const SERVICE_RATE_LIMITS = {
-  gemini: { limit: 5, windowSec: 60 },
 };
 
 /** The tier of a signed-in user (the admin role comes from ADMIN_EMAIL, on the server) */

@@ -10,7 +10,6 @@
 import { requireFeature } from '../lib/features.js';
 import { isFeatureEnabled } from '../config/features.js';
 import { consumeQuota, getQuota, refundQuota } from '../lib/usageQuota.js';
-import { acquireServiceSlot } from '../lib/rateGate.js';
 import { assertChequeScanReady, processChequeScan } from '../services/ai/chequeScan.service.js';
 import { jsonResponse } from '../lib/helpers.js';
 import { AppError } from '../lib/AppError.js';
@@ -70,11 +69,9 @@ export async function handleChequeScanRoute(request, env) {
   assertChequeScanReady(env, { isAdmin: debug });
   const quota = await consumeQuota(env, user, 'cheque_scan');
 
-  // 9. Read the cheque (at most 5 Gemini calls a minute, all users together); a scan that
-  // didn't reach or failed at Gemini gives the use back
+  // 9. Read the cheque; a failed call gives the use back
   let scanResult;
   try {
-    await acquireServiceSlot(env, 'gemini');
     scanResult = await processChequeScan(env, {
       imageBuffer: await imageFile.arrayBuffer(),
       mimeType: imageFile.type,
