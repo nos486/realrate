@@ -32,6 +32,7 @@ import ChequeTrackingModal from './ChequeTrackingModal.jsx';
 import ChequesTable from './ChequesTable.jsx';
 import ChequeSummaryCards from './ChequeSummaryCards.jsx';
 import ChequeCsvExportButton from './ChequeCsvExportButton.jsx';
+import { ChequeScanButton, ChequeScanModal } from './scan/index.js';
 import { useDemo } from '../../demo/index.js';
 
 const DIRECTION_FILTERS = [
@@ -76,7 +77,8 @@ export default function ChequesPage() {
   const [directionFilter, setDirectionFilter] = useState('all');
   const [stateFilter, setStateFilter] = useState('open');
   const [searchQuery, setSearchQuery] = useState('');
-  const [formState, setFormState] = useState(null); // null | { cheque: object|null }
+  const [formState, setFormState] = useState(null); // null | { cheque: object|null, initialValues?: object, confidence?: object }
+  const [scanModalOpen, setScanModalOpen] = useState(false);
   const [trackingId, setTrackingId] = useState(null);
 
   const summary = useMemo(() => summarizeCheques(cheques, todayIso()), [cheques]);
@@ -154,6 +156,10 @@ export default function ChequesPage() {
         {...HEADER}
         actions={
           <>
+            <ChequeScanButton
+              onClick={() => setScanModalOpen(true)}
+              disabled={readOnly}
+            />
             <ChequeCsvExportButton cheques={cheques} disabled={!hasCheques} />
             <Button
               icon={<Plus size={16} />}
@@ -270,11 +276,28 @@ export default function ChequesPage() {
 
       {formState && (
         <ChequeForm
-          key={formState.cheque?.id || 'new'}
+          key={formState.cheque?.id || (formState.initialValues ? 'scan-prefilled' : 'new')}
           onClose={() => setFormState(null)}
           onSubmit={(data) => saveCheque(data, formState.cheque?.id)}
           editingCheque={formState.cheque}
+          initialValues={formState.initialValues}
+          confidence={formState.confidence}
           submitting={submitting}
+        />
+      )}
+
+      {scanModalOpen && (
+        <ChequeScanModal
+          isOpen={scanModalOpen}
+          onClose={() => setScanModalOpen(false)}
+          onFillForm={(fields, confidence) => {
+            setScanModalOpen(false);
+            setFormState({
+              cheque: null,
+              initialValues: fields,
+              confidence,
+            });
+          }}
         />
       )}
 

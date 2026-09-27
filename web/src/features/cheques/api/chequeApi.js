@@ -56,3 +56,22 @@ export const {
   },
   vaultCheques
 );
+
+/**
+ * Scans a cheque image via Workers AI
+ *
+ * @param {Blob|File} imageBlob
+ * @param {string} [model]
+ * @param {object} [options]
+ * @param {AbortSignal} [options.signal]
+ * @returns {Promise<object>}
+ */
+export async function scanCheque(imageBlob, model, { signal } = {}) {
+  const formData = new FormData();
+  formData.append('image', imageBlob, 'cheque.jpg');
+  if (model) {
+    formData.append('model', model);
+  }
+  return httpClient.post('/api/cheques/scan', formData, { signal });
+}
+

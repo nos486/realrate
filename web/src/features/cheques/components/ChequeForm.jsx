@@ -33,19 +33,48 @@ const statusOptions = (direction) =>
 
 const digitsOnly = (v) => toAsciiDigits(v).replace(/[^\d]/g, '');
 
-export default function ChequeForm({ onClose, onSubmit, editingCheque = null, submitting = false }) {
+export default function ChequeForm({
+  onClose,
+  onSubmit,
+  editingCheque = null,
+  submitting = false,
+  initialValues = null,
+  confidence = null,
+}) {
   const [direction, setDirection] = useState(editingCheque?.direction || 'received');
   const [status, setStatus] = useState(editingCheque?.status || 'pending');
-  const [amount, setAmount] = useState(editingCheque ? String(editingCheque.amount) : '');
-  const [counterparty, setCounterparty] = useState(editingCheque?.counterparty || '');
-  const [dueShamsi, setDueShamsi] = useState(() =>
-    editingCheque ? gregorianToShamsi(`${editingCheque.dueDate}T00:00:00`) : getTodayShamsi()
+  const [amount, setAmount] = useState(() => {
+    if (editingCheque) return String(editingCheque.amount);
+    if (initialValues?.amount) return String(initialValues.amount);
+    return '';
+  });
+  const [counterparty, setCounterparty] = useState(
+    editingCheque?.counterparty || initialValues?.counterparty || ''
   );
-  const [bank, setBank] = useState({ bankId: editingCheque?.bankId || '', lenderName: editingCheque?.bankName || '' });
-  const [chequeNumber, setChequeNumber] = useState(editingCheque?.chequeNumber || '');
-  const [sayadId, setSayadId] = useState(editingCheque?.sayadId || '');
-  const [notes, setNotes] = useState(editingCheque?.notes || '');
+  const [dueShamsi, setDueShamsi] = useState(() => {
+    if (editingCheque?.dueDate) return gregorianToShamsi(`${editingCheque.dueDate}T00:00:00`);
+    if (initialValues?.dueDate) {
+      if (initialValues.dueDate.includes('/')) return initialValues.dueDate;
+      return gregorianToShamsi(`${initialValues.dueDate}T00:00:00`);
+    }
+    return getTodayShamsi();
+  });
+  const [bank, setBank] = useState({
+    bankId: editingCheque?.bankId || initialValues?.bankId || '',
+    lenderName: editingCheque?.bankName || initialValues?.bankName || '',
+  });
+  const [chequeNumber, setChequeNumber] = useState(
+    editingCheque?.chequeNumber || initialValues?.chequeNumber || ''
+  );
+  const [sayadId, setSayadId] = useState(
+    editingCheque?.sayadId || initialValues?.sayadId || ''
+  );
+  const [notes, setNotes] = useState(
+    editingCheque?.notes || initialValues?.notes || ''
+  );
   const [submitError, setSubmitError] = useState('');
+
+  const isLow = (key) => Boolean(!editingCheque && initialValues && confidence?.[key] === 'low');
 
   const directionDisplay = getDirectionDisplay(direction);
   const amountNum = parseInputNumber(amount);
@@ -118,6 +147,12 @@ export default function ChequeForm({ onClose, onSubmit, editingCheque = null, su
     >
       <div className="cheque-form-body">
         {submitError && <AlertBanner type="error" message={submitError} />}
+        {initialValues && !editingCheque && (
+          <AlertBanner
+            type="info"
+            message="اطلاعات فرم از اسکن چک با هوش مصنوعی استخراج شده است. لطفاً پیش از ثبت، فیلدها را بازبینی فرمایید."
+          />
+        )}
 
         <div className="ui-input-group">
           <span className="ui-input-label">نوع چک</span>
@@ -125,7 +160,7 @@ export default function ChequeForm({ onClose, onSubmit, editingCheque = null, su
         </div>
 
         <div className="cheque-form-row">
-          <div className="ui-input-group">
+          <div className={`ui-input-group ${isLow('amount') ? 'has-scan-warning' : ''}`}>
             <label htmlFor="cheque-amount" className="ui-input-label">مبلغ (تومان) *</label>
             <div className="ui-input-wrapper">
               <NumericInput
@@ -133,12 +168,20 @@ export default function ChequeForm({ onClose, onSubmit, editingCheque = null, su
                 value={amount}
                 onValueChange={setAmount}
                 placeholder="مثلاً ۵۰,۰۰۰,۰۰۰"
-                className="ui-input-control"
+                className={`ui-input-control ${isLow('amount') ? 'scan-low-confidence' : ''}`}
                 required
               />
             </div>
+            {isLow('amount') && (
+              <span className="scan-confidence-hint">از اسکن — لطفاً بررسی کنید</span>
+            )}
           </div>
-          <ShamsiDatePicker label="تاریخ سررسید *" value={dueShamsi} onChange={setDueShamsi} />
+          <div className={`scan-date-group ${isLow('dueDate') ? 'has-scan-warning' : ''}`}>
+            <ShamsiDatePicker label="تاریخ سررسید *" value={dueShamsi} onChange={setDueShamsi} />
+            {isLow('dueDate') && (
+              <span className="scan-confidence-hint">از اسکن — لطفاً بررسی کنید</span>
+            )}
+          </div>
         </div>
 
         <Input
@@ -148,11 +191,18 @@ export default function ChequeForm({ onClose, onSubmit, editingCheque = null, su
           value={counterparty}
           onChange={(e) => setCounterparty(e.target.value)}
           maxLength={CHEQUE_LIMITS.counterpartyLength}
-          autoFocus={!editingCheque}
+          autoFocus={!editingCheque && !initialValues}
           required
+          className={isLow('counterparty') ? 'scan-low-confidence-group' : ''}
+          hint={isLow('counterparty') ? 'از اسکن — لطفاً بررسی کنید' : undefined}
         />
 
-        <BankPicker id="cheque-bank" value={bank} onChange={setBank} label="بانک" />
+        <div className={`scan-bank-group ${isLow('bankName') ? 'has-scan-warning' : ''}`}>
+          <BankPicker id="cheque-bank" value={bank} onChange={setBank} label="بانک" />
+          {isLow('bankName') && (
+            <span className="scan-confidence-hint">از اسکن — لطفاً بررسی کنید</span>
+          )}
+        </div>
 
         <div className="cheque-form-row">
           <Input
@@ -164,6 +214,8 @@ export default function ChequeForm({ onClose, onSubmit, editingCheque = null, su
             maxLength={CHEQUE_LIMITS.chequeNumberLength}
             inputMode="numeric"
             dir="ltr"
+            className={isLow('chequeNumber') ? 'scan-low-confidence-group' : ''}
+            hint={isLow('chequeNumber') ? 'از اسکن — لطفاً بررسی کنید' : undefined}
           />
           <Input
             id="cheque-sayad"
@@ -175,6 +227,8 @@ export default function ChequeForm({ onClose, onSubmit, editingCheque = null, su
             inputMode="numeric"
             dir="ltr"
             error={sayadInvalid ? 'شناسه صیادی باید ۱۶ رقم باشد.' : undefined}
+            className={isLow('sayadId') ? 'scan-low-confidence-group' : ''}
+            hint={!sayadInvalid && isLow('sayadId') ? 'از اسکن — لطفاً بررسی کنید' : undefined}
           />
         </div>
 
