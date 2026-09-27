@@ -47,12 +47,14 @@ import { getItemCategory } from '../../../config/displayEngine.js';
 import { usePrivacyMode } from '../../../hooks/usePrivacyMode.js';
 import { useFeedback } from '../../../shared/ui/FeedbackProvider.jsx';
 import { SkeletonRows } from '../../../shared/ui/Skeleton.jsx';
+import { useDemo } from '../../demo/index.js';
 
 const HoldingsView = forwardRef(function HoldingsView(
   { activePortfolio, portfolios, loadingPortfolios = false, fetchPortfolios, deletePortfolio, onVaultLockChange, onCountChange, toolbarSlot = null },
   ref
 ) {
   const pricing = usePricing();
+  const { readOnly } = useDemo();
 
   // Holdings Management Hook for active portfolio
   const {
@@ -293,7 +295,8 @@ const HoldingsView = forwardRef(function HoldingsView(
             type="button"
             className={`btn-portfolio-customize ${isCustomizing ? 'is-active' : ''}`}
             onClick={handleToggleCustomize}
-            title={isCustomizing ? 'پایان شخصی‌سازی دسته‌ها' : 'شخصی‌سازی دسته‌ها'}
+            disabled={readOnly}
+            title={readOnly ? 'در نسخه دمو غیرفعال است' : (isCustomizing ? 'پایان شخصی‌سازی دسته‌ها' : 'شخصی‌سازی دسته‌ها')}
             aria-label="شخصی‌سازی دسته‌ها"
           >
             <SlidersHorizontal size={14} />
@@ -307,14 +310,15 @@ const HoldingsView = forwardRef(function HoldingsView(
           disabled={isVaultLocked || holdings.length === 0}
         />
 
-        <CsvImportButton addHolding={addHolding} disabled={isVaultLocked} />
+        <CsvImportButton addHolding={addHolding} disabled={readOnly || isVaultLocked} />
 
         {activePortfolio && (
           <button
             type="button"
             className="btn-portfolio-settings icon-only"
             onClick={() => setSettingsModalOpen(true)}
-            title="تنظیمات پورتفو"
+            disabled={readOnly}
+            title={readOnly ? 'در نسخه دمو غیرفعال است' : 'تنظیمات پورتفو'}
             aria-label="تنظیمات پورتفو"
           >
             <Settings size={15} strokeWidth={2} />
@@ -423,7 +427,7 @@ const HoldingsView = forwardRef(function HoldingsView(
                     <HoldingsTable
                       categoryGroups={manualCategoryGroups}
                       hideValues={hideValues}
-                      readOnly={false}
+                      readOnly={readOnly}
                       deletingId={deletingId}
                       onEdit={handleOpenEdit}
                       onDelete={handleDeleteHolding}
@@ -447,7 +451,7 @@ const HoldingsView = forwardRef(function HoldingsView(
                     <HoldingsTable
                       categoryGroups={computedCategoryGroups}
                       hideValues={hideValues}
-                      readOnly={false}
+                      readOnly={readOnly}
                       itemMap={pricing?.itemMap}
                     />
                   </div>

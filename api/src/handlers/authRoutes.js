@@ -9,7 +9,16 @@
  */
 
 import { isUserAdmin, getAuthenticatedUser } from "../lib/auth.js";
-import { dbUpsertUser, dbSaveSession, dbDeleteSession, dbGetUserById, dbGetUserAuthById, dbRecordUserActivity } from "../repositories/index.js";
+import {
+  dbUpsertUser,
+  dbSaveSession,
+  dbDeleteSession,
+  dbGetUserById,
+  dbGetUserAuthById,
+  dbGetUserAuthByEmail,
+  dbRecordUserActivity,
+} from "../repositories/index.js";
+import { getDemoVaultPassphrase, DEMO_EMAIL } from "../repositories/demo.repository.js";
 import { ACCOUNT_DISABLED_MESSAGE } from "./accountRoutes.js";
 import { getMaintenance } from "../lib/maintenance.js";
 import { jsonResponse, errorResponse, getCorsHeaders } from "../lib/helpers.js";
@@ -282,6 +291,14 @@ export async function handleGoogleCallback(request, env) {
       return Response.redirect(errorTarget, 302);
     }
 
+    const existingUser = await dbGetUserAuthByEmail(env, email);
+    if (existingUser?.isDemo || email === DEMO_EMAIL) {
+      const errorTarget = buildFrontendRedirect(frontendOrigin, returnTo, {
+        auth_error: "ورود به حساب دمو از طریق گوگل امکان‌پذیر نیست.",
+      });
+      return Response.redirect(errorTarget, 302);
+    }
+
     const isAdmin = isUserAdmin(email, env);
     const role = isAdmin ? "admin" : "user";
     const now = new Date().toISOString();
@@ -382,6 +399,11 @@ export async function handleGoogleAuth(request, env) {
       return errorResponse("ایمیل از حساب گوگل دریافت نشد.", 400, request);
     }
 
+    const existingUser = await dbGetUserAuthByEmail(env, email);
+    if (existingUser?.isDemo || email === DEMO_EMAIL) {
+      return errorResponse("ورود به حساب دمو از طریق گوگل امکان‌پذیر نیست.", 403, request);
+    }
+
     const isAdmin = isUserAdmin(email, env);
     const role = isAdmin ? "admin" : "user";
     const now = new Date().toISOString();
@@ -464,7 +486,17 @@ export async function handleGetMe(request, env) {
       if (userData?.customName) customName = userData.customName;
     }
   } catch (e) {}
-  await dbRecordUserActivity(env, userId);
+  if (user.kind !== "demo_view") {
+    await dbRecordUserActivity(env, userId);
+  }
+
+  const isDemo = user.kind === "demo_view" || user.kind === "demo_edit";
+  const demoPayload = isDemo
+    ? {
+        demo: { mode: user.kind === "demo_edit" ? "edit" : "view" },
+        demoVaultPassphrase: getDemoVaultPassphrase(env),
+      }
+    : {};
 
   return jsonResponse({
     authenticated: true,
@@ -480,6 +512,7 @@ export async function handleGetMe(request, env) {
       hasPassword,
       emailVerified,
     },
+    ...demoPayload,
   }, 200, request);
 }
 

@@ -22,7 +22,7 @@ import ChequeStatusBadge from './ChequeStatusBadge.jsx';
 
 const showDate = (iso) => formatShamsiDisplay(`${iso}T00:00:00`);
 
-export default function ChequeTrackingModal({ cheque, onClose, onChangeStatus, onEdit, submitting = false, hideValues = false }) {
+export default function ChequeTrackingModal({ cheque, onClose, onChangeStatus, onEdit, submitting = false, hideValues = false, readOnly = false }) {
   const { customBanks } = useCustomBanks();
   const [status, setStatus] = useState(cheque.status);
   const [dateShamsi, setDateShamsi] = useState(getTodayShamsi());
@@ -34,7 +34,7 @@ export default function ChequeTrackingModal({ cheque, onClose, onChangeStatus, o
   const days = daysUntilDue(cheque, todayIso());
   const dateIso = shamsiToGregorian(dateShamsi);
   const sameStatus = status === cheque.status;
-  const canSubmit = Boolean(dateIso) && (!sameStatus || note.trim().length > 0) && !submitting;
+  const canSubmit = !readOnly && Boolean(dateIso) && (!sameStatus || note.trim().length > 0) && !submitting;
   const history = [...(cheque.history || [])].reverse();
 
   const statusOptions = statusesFor(cheque.direction).map(({ value, label }) => {
@@ -44,7 +44,7 @@ export default function ChequeTrackingModal({ cheque, onClose, onChangeStatus, o
 
   const handleSubmit = async (e) => {
     e?.preventDefault?.();
-    if (!canSubmit) return;
+    if (!canSubmit || readOnly) return;
     setSubmitError('');
     try {
       await onChangeStatus(cheque, status, dateIso, note.trim());
@@ -64,14 +64,16 @@ export default function ChequeTrackingModal({ cheque, onClose, onChangeStatus, o
       maxWidth="600px"
       onSubmit={handleSubmit}
       footer={
-        <div className="modal-actions">
-          <Button variant="secondary" block icon={<Pencil size={14} />} onClick={() => onEdit(cheque)} disabled={submitting}>
-            ویرایش مشخصات
-          </Button>
-          <Button type="submit" block loading={submitting} disabled={!canSubmit}>
-            {sameStatus ? 'افزودن یادداشت پیگیری' : 'ثبت وضعیت جدید'}
-          </Button>
-        </div>
+        !readOnly ? (
+          <div className="modal-actions">
+            <Button variant="secondary" block icon={<Pencil size={14} />} onClick={() => onEdit(cheque)} disabled={submitting}>
+              ویرایش مشخصات
+            </Button>
+            <Button type="submit" block loading={submitting} disabled={!canSubmit}>
+              {sameStatus ? 'افزودن یادداشت پیگیری' : 'ثبت وضعیت جدید'}
+            </Button>
+          </div>
+        ) : null
       }
     >
       <div className="cheque-tracking">
@@ -147,22 +149,24 @@ export default function ChequeTrackingModal({ cheque, onClose, onChangeStatus, o
           </ol>
         </section>
 
-        <section className="cheque-update-section" aria-label="ثبت پیگیری">
-          <h4>چه اتفاقی افتاد؟</h4>
-          {submitError && <AlertBanner type="error" message={submitError} />}
-          <FilterPills options={statusOptions} activeValue={status} onChange={setStatus} size="sm" />
-          <div className="cheque-form-row">
-            <ShamsiDatePicker label="تاریخ" value={dateShamsi} onChange={setDateShamsi} />
-            <Input
-              id="cheque-track-note"
-              label={sameStatus ? 'یادداشت پیگیری *' : 'یادداشت (اختیاری)'}
-              placeholder={sameStatus ? 'مثلاً: با صادرکننده تماس گرفتم' : 'مثلاً: به حساب ملت واریز شد'}
-              value={note}
-              onChange={(e) => setNote(e.target.value)}
-              maxLength={CHEQUE_LIMITS.historyNoteLength}
-            />
-          </div>
-        </section>
+        {!readOnly && (
+          <section className="cheque-update-section" aria-label="ثبت پیگیری">
+            <h4>چه اتفاقی افتاد؟</h4>
+            {submitError && <AlertBanner type="error" message={submitError} />}
+            <FilterPills options={statusOptions} activeValue={status} onChange={setStatus} size="sm" />
+            <div className="cheque-form-row">
+              <ShamsiDatePicker label="تاریخ" value={dateShamsi} onChange={setDateShamsi} />
+              <Input
+                id="cheque-track-note"
+                label={sameStatus ? 'یادداشت پیگیری *' : 'یادداشت (اختیاری)'}
+                placeholder={sameStatus ? 'مثلاً: با صادرکننده تماس گرفتم' : 'مثلاً: به حساب ملت واریز شد'}
+                value={note}
+                onChange={(e) => setNote(e.target.value)}
+                maxLength={CHEQUE_LIMITS.historyNoteLength}
+              />
+            </div>
+          </section>
+        )}
       </div>
     </Modal>
   );

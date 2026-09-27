@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client'
 import { BrowserRouter } from 'react-router-dom'
 import { ThemeProvider } from './context/ThemeContext.jsx'
 import { AuthProvider } from './features/auth/index.js'
+import { DemoProvider } from './features/demo/index.js'
 import { FeedbackProvider } from './shared/ui/FeedbackProvider.jsx'
 // Self-hosted: Google Fonts is slow or blocked for many users in Iran
 import '@fontsource-variable/vazirmatn'
@@ -18,7 +19,9 @@ createRoot(document.getElementById('root')).render(
       <ThemeProvider>
         <FeedbackProvider>
           <AuthProvider>
-            <App />
+            <DemoProvider>
+              <App />
+            </DemoProvider>
           </AuthProvider>
         </FeedbackProvider>
       </ThemeProvider>

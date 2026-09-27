@@ -9,6 +9,7 @@ import { TransactionsView } from '../../transactions/index.js';
 import { usePortfolio } from '../hooks/usePortfolio.js';
 import { Button, FeaturePageHeader } from '../../../shared/ui/index.js';
 import { useFeedback } from '../../../shared/ui/FeedbackProvider.jsx';
+import { useDemo } from '../../demo/index.js';
 
 export default function PortfolioTracker({
   initialPortfolioId = null,
@@ -26,6 +27,7 @@ export default function PortfolioTracker({
   } = usePortfolio(initialPortfolioId);
 
   const [view, setView] = useState(initialView);
+  const { readOnly } = useDemo();
   const holdingsRef = useRef(null);
   // The active view renders its toolbar (search, export / import, settings) into this row
   const [toolbarSlot, setToolbarSlot] = useState(null);
@@ -54,6 +56,7 @@ export default function PortfolioTracker({
   };
 
   const handleOpenAdd = () => {
+    if (readOnly) return;
     if (view === 'holdings') {
       holdingsRef.current?.openAdd();
     } else {
@@ -92,7 +95,12 @@ export default function PortfolioTracker({
             : 'ثبت خرید و فروش، تاریخچه معاملات و گردش مالی هر پورتفو'
         }
         actions={
-          <Button icon={<Plus size={16} />} onClick={handleOpenAdd} disabled={view === 'holdings' && holdingsVaultLocked}>
+          <Button
+            icon={<Plus size={16} />}
+            onClick={handleOpenAdd}
+            disabled={readOnly || (view === 'holdings' && holdingsVaultLocked)}
+            title={readOnly ? 'در نسخه دمو غیرفعال است' : undefined}
+          >
             {view === 'holdings' ? 'ثبت دارایی جدید' : 'ثبت تراکنش جدید'}
           </Button>
         }
@@ -103,7 +111,7 @@ export default function PortfolioTracker({
         portfolios={portfolios}
         activePortfolioId={activePortfolio?.id}
         onSelect={switchPortfolio}
-        onNewPortfolio={() => setNewPortfolioModalOpen(true)}
+        onNewPortfolio={readOnly ? undefined : () => setNewPortfolioModalOpen(true)}
         holdingsCount={activeViewCount ?? 0}
         activeCount={activeViewCount}
         mode={view === 'holdings' ? 'portfolio' : 'transactions'}

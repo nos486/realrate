@@ -22,6 +22,7 @@ import AdminUsersCard from './AdminUsersCard.jsx';
 import AdminUserDetailModal from './AdminUserDetailModal.jsx';
 import MaintenanceCard from './MaintenanceCard.jsx';
 import SiteSettingsCard from './SiteSettingsCard.jsx';
+import { AdminDemoCard } from '../../demo/index.js';
 
 const HEADER = {
   icon: <ShieldCheck size={24} />,
@@ -123,6 +124,7 @@ export default function AdminPanel() {
         sidebar={
           <div className="incomes-report-grid">
             <AdminStatsCards stats={stats} />
+            <AdminDemoCard />
             <AdminGrowthChart reloadToken={growthToken} />
             <MaintenanceCard settings={settings} onSave={saveSettings} />
             <SiteSettingsCard settings={settings} onSave={saveSettings} />

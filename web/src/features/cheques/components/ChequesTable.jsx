@@ -13,7 +13,7 @@ import { todayIso } from '../../../shared/utils/dates.js';
 import { getDirectionDisplay, describeDueDays } from '../constants/chequeDisplay.js';
 import ChequeStatusBadge from './ChequeStatusBadge.jsx';
 
-export default function ChequesTable({ cheques, onTrack, onClear, onEdit, onDelete, deletingId = null, clearingId = null, hideValues = false }) {
+export default function ChequesTable({ cheques, onTrack, onClear, onEdit, onDelete, deletingId = null, clearingId = null, hideValues = false, readOnly = false }) {
   const { customBanks } = useCustomBanks();
   const today = todayIso();
 
@@ -96,7 +96,7 @@ export default function ChequesTable({ cheques, onTrack, onClear, onEdit, onDele
       mobile: 'actions',
       render: (cheque) => (
         <div className="row-actions-group">
-          {isChequeOpen(cheque) && (
+          {!readOnly && isChequeOpen(cheque) && (
             <button
               type="button"
               className={`btn-table-action cheque-clear-btn ${clearingId === cheque.id ? 'loading' : ''}`}
@@ -109,22 +109,26 @@ export default function ChequesTable({ cheques, onTrack, onClear, onEdit, onDele
               <span>پاس شد</span>
             </button>
           )}
-          <button type="button" className="btn-table-action" title="پیگیری و تغییر وضعیت" aria-label="پیگیری" onClick={() => onTrack(cheque)}>
+          <button type="button" className="btn-table-action" title="پیگیری و مشاهده وضعیت" aria-label="پیگیری" onClick={() => onTrack(cheque)}>
             <ClipboardList size={13} strokeWidth={2} />
           </button>
-          <button type="button" className="btn-table-action edit" title="ویرایش چک" aria-label="ویرایش" onClick={() => onEdit(cheque)}>
-            <Pencil size={13} strokeWidth={2} />
-          </button>
-          <button
-            type="button"
-            className={`btn-table-action delete ${deletingId === cheque.id ? 'loading' : ''}`}
-            title="حذف چک"
-            aria-label="حذف"
-            onClick={() => onDelete(cheque)}
-            disabled={deletingId === cheque.id}
-          >
-            <Trash2 size={13} strokeWidth={2} />
-          </button>
+          {!readOnly && (
+            <>
+              <button type="button" className="btn-table-action edit" title="ویرایش چک" aria-label="ویرایش" onClick={() => onEdit(cheque)}>
+                <Pencil size={13} strokeWidth={2} />
+              </button>
+              <button
+                type="button"
+                className={`btn-table-action delete ${deletingId === cheque.id ? 'loading' : ''}`}
+                title="حذف چک"
+                aria-label="حذف"
+                onClick={() => onDelete(cheque)}
+                disabled={deletingId === cheque.id}
+              >
+                <Trash2 size={13} strokeWidth={2} />
+              </button>
+            </>
+          )}
         </div>
       ),
     },

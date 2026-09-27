@@ -12,7 +12,8 @@ import { dbRecordUserActivity } from "./user.repository.js";
 
 const AUTH_COLUMNS = `
   id, email, name, custom_name AS customName, picture, role,
-  password_hash AS passwordHash, email_verified AS emailVerified, created_at AS createdAt, disabled
+  password_hash AS passwordHash, email_verified AS emailVerified, created_at AS createdAt, disabled,
+  COALESCE(is_demo, 0) AS isDemo
 `;
 
 function formatAuthRow(row) {
@@ -28,6 +29,7 @@ function formatAuthRow(row) {
     emailVerified: Number(row.emailVerified) === 1,
     createdAt: row.createdAt,
     disabled: Number(row.disabled) === 1,
+    isDemo: Number(row.isDemo ?? row.is_demo ?? 0) === 1,
   };
 }
 

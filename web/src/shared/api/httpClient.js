@@ -56,6 +56,15 @@ function notifyMaintenance(message) {
   } catch {}
 }
 
+/** Event fired when the API answers "demo read-only" (detail: { message }) */
+export const DEMO_READ_ONLY_EVENT = 'realrate:demo-read-only';
+
+export function notifyDemoReadOnly(message) {
+  try {
+    window.dispatchEvent(new CustomEvent(DEMO_READ_ONLY_EVENT, { detail: { message: message || 'این نسخه دمو است و تغییرات ذخیره نمی‌شود.' } }));
+  } catch {}
+}
+
 let activeLoadingCount = 0;
 const loadingListeners = new Set();
 
@@ -154,6 +163,13 @@ export async function httpRequest(path, options = {}) {
     // app for the maintenance page)
     if (res.status === 503 && data && typeof data === 'object' && data.errorCode === 'MAINTENANCE') {
       notifyMaintenance(data.message);
+    }
+
+    // Demo read-only response: notify app unless request was silent
+    if (res.status === 403 && data && typeof data === 'object' && data.errorCode === 'DEMO_READ_ONLY') {
+      if (!isSilent) {
+        notifyDemoReadOnly(data.message);
+      }
     }
 
     if (!res.ok) {

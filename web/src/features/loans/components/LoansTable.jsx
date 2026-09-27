@@ -22,6 +22,7 @@ export default function LoansTable({
   onEditLoan,
   onDeleteLoan,
   hideValues = false,
+  readOnly = false,
 }) {
   const money = (v) => (hideValues ? '****' : formatNum(v));
   return (
@@ -101,24 +102,26 @@ export default function LoansTable({
             </div>
 
             {/* Actions + affordance */}
-            <div className="loan-row-actions" onClick={(e) => e.stopPropagation()}>
-              <button
-                type="button"
-                className="btn-loan-action edit"
-                onClick={() => onEditLoan?.(loan)}
-                title="ویرایش وام"
-              >
-                <Edit2 size={14} />
-              </button>
-              <button
-                type="button"
-                className="btn-loan-action delete"
-                onClick={() => onDeleteLoan?.(loan.id)}
-                title="حذف وام"
-              >
-                <Trash2 size={14} />
-              </button>
-            </div>
+            {!readOnly && (
+              <div className="loan-row-actions" onClick={(e) => e.stopPropagation()}>
+                <button
+                  type="button"
+                  className="btn-loan-action edit"
+                  onClick={() => onEditLoan?.(loan)}
+                  title="ویرایش وام"
+                >
+                  <Edit2 size={14} />
+                </button>
+                <button
+                  type="button"
+                  className="btn-loan-action delete"
+                  onClick={() => onDeleteLoan?.(loan.id)}
+                  title="حذف وام"
+                >
+                  <Trash2 size={14} />
+                </button>
+              </div>
+            )}
 
             <ChevronLeft size={16} className="loan-row-chevron" />
           </div>

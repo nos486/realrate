@@ -12,7 +12,7 @@ export const APP_TABLES = [
     name: "users",
     columns: ["id", "email", "name", "custom_name", "picture", "role", "share_slug", "share_password", "share_enabled",
       "created_at", "last_login", "login_count", "password_hash", "email_verified", "password_updated_at", "disabled",
-      "google_linked", "home_layout"],
+      "google_linked", "home_layout", "is_demo"],
     ddl: [
       `CREATE TABLE IF NOT EXISTS users (
         id TEXT PRIMARY KEY,
@@ -32,15 +32,18 @@ export const APP_TABLES = [
         password_updated_at TEXT NOT NULL DEFAULT '',
         disabled BIGINT NOT NULL DEFAULT 0,
         google_linked BIGINT NOT NULL DEFAULT 0,
-        home_layout TEXT NOT NULL DEFAULT ''
+        home_layout TEXT NOT NULL DEFAULT '',
+        is_demo BIGINT NOT NULL DEFAULT 0
       )`,
+      "ALTER TABLE users ADD COLUMN IF NOT EXISTS is_demo BIGINT NOT NULL DEFAULT 0",
       "CREATE INDEX IF NOT EXISTS idx_users_last_login ON users(last_login DESC)",
       "CREATE INDEX IF NOT EXISTS idx_users_created_at ON users(created_at)",
+      "CREATE UNIQUE INDEX IF NOT EXISTS idx_users_one_demo ON users(is_demo) WHERE is_demo = 1",
     ],
   },
   {
     name: "sessions",
-    columns: ["token", "user_id", "email", "name", "picture", "role", "created_at", "expires_at"],
+    columns: ["token", "user_id", "email", "name", "picture", "role", "created_at", "expires_at", "kind"],
     ddl: [
       `CREATE TABLE IF NOT EXISTS sessions (
         token TEXT PRIMARY KEY,
@@ -50,8 +53,10 @@ export const APP_TABLES = [
         picture TEXT,
         role TEXT NOT NULL,
         created_at TEXT NOT NULL,
-        expires_at BIGINT NOT NULL
+        expires_at BIGINT NOT NULL,
+        kind TEXT NOT NULL DEFAULT ''
       )`,
+      "ALTER TABLE sessions ADD COLUMN IF NOT EXISTS kind TEXT NOT NULL DEFAULT ''",
       "CREATE INDEX IF NOT EXISTS idx_sessions_expires_at ON sessions(expires_at)",
       "CREATE INDEX IF NOT EXISTS idx_sessions_user ON sessions(user_id)",
     ],

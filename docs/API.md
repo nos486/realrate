@@ -68,11 +68,19 @@ Returns all active assets and market rates normalized through the centralized `d
 | `POST` | `/api/v1/auth/password/forgot` | `{ email }` — email a reset link (also how a Google account adds a password) |
 | `POST` | `/api/v1/auth/password/reset` | `{ token, password }` → sets it, verifies the address, signs out other sessions, returns `{ token, user }` |
 | `POST` | `/api/v1/auth/password` | Signed in: `{ newPassword, currentPassword? }` — add a first password or change it (other sessions are signed out) |
+| `POST` | `/api/v1/auth/demo` | Public: create a short-lived `demo_view` session (2 hours) for the unique demo account (`users.is_demo = 1`); returns `{ token, user }`. Rate-limited per IP. |
 
 Passwords: at least 8 characters with letters and digits, stored as PBKDF2-SHA256 (100,000 rounds).
 Links are single-use, expire (verify 24 h, reset 1 h) and are stored only as SHA-256.
 `register`, `resend` and `forgot` answer identically whether or not the email is registered, and all of
 these endpoints are rate-limited (`429 TOO_MANY_REQUESTS`). Without an email provider they answer `503 EMAIL_NOT_CONFIGURED`.
+Direct password or Google OAuth logins to the demo account (`demo@realrate.invalid` or `is_demo = 1`) are strictly rejected.
+
+`GET /api/v1/auth/me`: For demo sessions (`demo_view` or `demo_edit`), additionally returns:
+- `demo: { mode: 'view' | 'edit' }`
+- `demoVaultPassphrase`: Public passphrase for the demo vault (configured via `DEMO_VAULT_PASSPHRASE`).
+For standard user sessions, these properties are never included.
+
 
 ### User Settings & Portfolios (Protected)
 
@@ -227,3 +235,24 @@ Portfolios protected by the vault carry `e2eeWrappedKey`; `/api/v1/portfolio/sha
 | `POST` | `/api/v1/admin/price-sources/set-primary` | Set primary source for asset type |
 | `POST` | `/api/v1/admin/price-sources/test` | Test fetching from specific source |
 | `POST` | `/api/v1/admin/price-sources/fetch-all` | Trigger immediate fetch across all sources |
+| `GET` | `/api/v1/admin/demo` | Inspect demo account state (existence, non-confidential record counts, last updated) |
+| `POST` | `/api/v1/admin/demo` | Idempotently create / ensure the single demo user account exists |
+| `POST` | `/api/v1/admin/demo/edit-session` | Issue a short-lived `demo_edit` session token for the admin to populate/edit demo data |
+| `POST` | `/api/v1/admin/demo/reset` | Purge all demo account vault and financial data (requires confirmation in UI) |
+
+### Demo Gate (`demoGate.js`) Rules
+
+Enforced centrally after the maintenance gate and before the encryption gate:
+- **`demo_view` Sessions (Public Visitor):**
+  - All mutating HTTP methods (`POST`, `PUT`, `PATCH`, `DELETE`) are blocked with `403` and `{ code: 'DEMO_READ_ONLY', message: 'این نسخه دمو است و تغییرات ذخیره نمی‌شود.' }`.
+  - The single allowed mutating exception is `POST /api/auth/logout`.
+  - All `/api/admin/*` routes are blocked (`403 FORBIDDEN`).
+  - Read endpoints (`GET`) never perform background mutations (such as updating last active timestamp or auto-creating default portfolios) when requested by a `demo_view` session.
+- **`demo_edit` Sessions (Admin Editing Demo Data):**
+  - Normal app mutations are permitted to allow editing demo holdings, transactions, loans, incomes, cheques, and layouts.
+  - Guardrails strictly block:
+    - Modifying vault passphrase or re-wrapping vault key (`PUT /api/vault` with `previousWrappedKey`).
+    - Changing credentials or account settings (`POST /api/auth/password`, `POST /api/auth/logout-all`).
+    - Deleting account.
+    - Enabling public portfolio sharing (`shareEnabled: true`).
+

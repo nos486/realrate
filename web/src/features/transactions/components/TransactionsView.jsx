@@ -51,6 +51,7 @@ import {
 import { usePrivacyMode } from '../../../hooks/usePrivacyMode.js';
 import { useFeedback } from '../../../shared/ui/FeedbackProvider.jsx';
 import { SkeletonRows } from '../../../shared/ui/Skeleton.jsx';
+import { useDemo } from '../../demo/index.js';
 
 const TX_PAGE_SIZE = 20;
 
@@ -58,6 +59,7 @@ const TransactionsView = forwardRef(function TransactionsView(
   { activePortfolio, loadingPortfolios = false, fetchPortfolios, onCountChange, toolbarSlot = null },
   ref
 ) {
+  const { readOnly } = useDemo();
   const pricing = usePricing();
 
   // E2EE Vault Keys State
@@ -435,34 +437,38 @@ const TransactionsView = forwardRef(function TransactionsView(
         </span>
       ),
     },
-    {
-      key: 'actions',
-      header: 'عملیات',
-      thClassName: 'th-actions',
-      tdClassName: 'td-actions',
-      mobile: 'actions',
-      render: (tx) => (
-        <div className="row-actions-group">
-          <button
-            type="button"
-            className="btn-table-action edit"
-            title="ویرایش تراکنش"
-            onClick={() => handleOpenEdit(tx)}
-          >
-            <Pencil size={13} strokeWidth={2} />
-          </button>
-          <button
-            type="button"
-            className={`btn-table-action delete ${deletingId === tx.id ? 'loading' : ''}`}
-            title="حذف تراکنش"
-            onClick={() => handleDeleteTx(tx.id)}
-            disabled={deletingId === tx.id}
-          >
-            <Trash2 size={13} strokeWidth={2} />
-          </button>
-        </div>
-      ),
-    },
+    ...(!readOnly
+      ? [
+          {
+            key: 'actions',
+            header: 'عملیات',
+            thClassName: 'th-actions',
+            tdClassName: 'td-actions',
+            mobile: 'actions',
+            render: (tx) => (
+              <div className="row-actions-group">
+                <button
+                  type="button"
+                  className="btn-table-action edit"
+                  title="ویرایش تراکنش"
+                  onClick={() => handleOpenEdit(tx)}
+                >
+                  <Pencil size={13} strokeWidth={2} />
+                </button>
+                <button
+                  type="button"
+                  className={`btn-table-action delete ${deletingId === tx.id ? 'loading' : ''}`}
+                  title="حذف تراکنش"
+                  onClick={() => handleDeleteTx(tx.id)}
+                  disabled={deletingId === tx.id}
+                >
+                  <Trash2 size={13} strokeWidth={2} />
+                </button>
+              </div>
+            ),
+          },
+        ]
+      : []),
   ];
 
   return (

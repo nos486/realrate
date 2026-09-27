@@ -37,8 +37,10 @@ import { getIncomeCategory } from '../constants/incomeCategories.js';
 import { useFeedback } from '../../../shared/ui/FeedbackProvider.jsx';
 import { SkeletonRows } from '../../../shared/ui/Skeleton.jsx';
 import VaultUnlockCard from '../../../shared/vault/VaultUnlockCard.jsx';
+import { useDemo } from '../../demo/index.js';
 
 export default function IncomesPage() {
+  const { readOnly } = useDemo();
   const {
     incomes: periodIncomes,
     pageSize,
@@ -187,8 +189,13 @@ export default function IncomesPage() {
         actions={
           <>
             <IncomeCsvExportButton loadIncomes={loadAllIncomes} disabled={!hasIncomes} />
-            <IncomeCsvImportButton saveIncome={saveIncome} onImported={fetchIncomes} />
-            <Button icon={<Plus size={16} />} onClick={handleOpenAdd}>
+            <IncomeCsvImportButton saveIncome={saveIncome} onImported={fetchIncomes} disabled={readOnly} />
+            <Button
+              icon={<Plus size={16} />}
+              onClick={handleOpenAdd}
+              disabled={readOnly}
+              title={readOnly ? 'در نسخه دمو غیرفعال است' : undefined}
+            >
               ثبت درآمد جدید
             </Button>
           </>
@@ -277,6 +284,7 @@ export default function IncomesPage() {
                     onDelete={handleDelete}
                     deletingId={deletingId}
                     hideValues={hideValues}
+                    readOnly={readOnly}
                     sortState={{ key: 'date', dir: order }}
                     onSortChange={() => setOrder(order === 'desc' ? 'asc' : 'desc')}
                   />

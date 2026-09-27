@@ -32,6 +32,7 @@ import {
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../features/auth/index.js';
+import { useDemo } from '../features/demo/index.js';
 import { APP_BASE } from '../shared/routes.js';
 import { toPersianDigits } from '../shared/utils/formatters.js';
 
@@ -81,6 +82,8 @@ function GoogleLogo({ size = 20 }) {
 
 export default function LandingPage() {
   const { user, triggerLogin } = useAuth();
+  const { enterDemo } = useDemo();
+  const [enteringDemo, setEnteringDemo] = useState(false);
   const navigate = useNavigate();
 
   // Signed-in visitors go straight into the app; guests start the Google login
@@ -88,6 +91,15 @@ export default function LandingPage() {
     if (user) navigate(APP_BASE);
     else triggerLogin();
   }, [user, navigate, triggerLogin]);
+
+  const handleDemoClick = useCallback(async () => {
+    setEnteringDemo(true);
+    try {
+      await enterDemo();
+    } finally {
+      setEnteringDemo(false);
+    }
+  }, [enterDemo]);
 
   // Mouse tilt for Hero Mockup
   const [tilt, setTilt] = useState({ x: 0, y: 0 });
@@ -193,6 +205,17 @@ export default function LandingPage() {
           </nav>
 
           <div className="landing-header-actions">
+            <button
+              type="button"
+              className="landing-btn-demo"
+              onClick={handleDemoClick}
+              disabled={enteringDemo}
+              aria-label="مشاهده نسخه دمو"
+            >
+              <Sparkles size={16} />
+              <span>{enteringDemo ? 'در حال ورود...' : 'نسخه دمو'}</span>
+            </button>
+
             <a
               href="https://github.com/nos486/realrate"
               target="_blank"
@@ -250,6 +273,16 @@ export default function LandingPage() {
                   <GoogleLogo size={20} />
                   <span>شروع رایگان با گوگل</span>
                   <ArrowLeft size={18} className="cta-arrow" />
+                </button>
+
+                <button
+                  type="button"
+                  className="landing-cta-demo"
+                  onClick={handleDemoClick}
+                  disabled={enteringDemo}
+                >
+                  <Sparkles size={18} />
+                  <span>{enteringDemo ? 'در حال آماده‌سازی دمو...' : 'مشاهده نسخه دمو'}</span>
                 </button>
 
                 <a

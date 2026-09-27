@@ -36,6 +36,7 @@ import { BankLogo, resolveBank, useCustomBanks } from '../../../shared/banks/ind
 import LoanBankShareChart from './LoanBankShareChart.jsx';
 import VaultUnlockCard from '../../../shared/vault/VaultUnlockCard.jsx';
 import { usePrivacyMode } from '../../../hooks/usePrivacyMode.js';
+import { useDemo } from '../../demo/index.js';
 
 const formatNum = (v) => Number(v || 0).toLocaleString('fa-IR');
 /** Amounts follow the app-wide "hide values" toggle; counts and percentages stay visible */
@@ -44,7 +45,7 @@ const formatMoney = (v, hidden) => (hidden ? '****' : formatNum(v));
 /**
  * Isolated Modal Wrapper for Single Loan Detail & Schedule
  */
-function LoanDetailModal({ loanId, onClose, onRefreshLoans }) {
+function LoanDetailModal({ loanId, onClose, onRefreshLoans, readOnly = false }) {
   const {
     loan,
     extraPayments,
@@ -116,6 +117,7 @@ function LoanDetailModal({ loanId, onClose, onRefreshLoans }) {
             onBulkDistributeInstallments={handleBulkDistributeInstallments}
             submitting={submitting}
             hideValues={hideValues}
+            readOnly={readOnly}
           />
         </div>
       ) : null}
@@ -125,6 +127,7 @@ function LoanDetailModal({ loanId, onClose, onRefreshLoans }) {
 
 export default function LoansPage({ initialLoanId = null }) {
   const hideValues = usePrivacyMode();
+  const { readOnly } = useDemo();
   const {
     loans,
     vaultLocked,
@@ -308,8 +311,13 @@ export default function LoansPage({ initialLoanId = null }) {
         actions={
           <>
             <LoanCsvExportButton loans={loans} disabled={loans.length === 0} />
-            <LoanCsvImportButton addLoan={addLoan} />
-            <Button icon={<Plus size={16} />} onClick={handleOpenAddModal}>
+            <LoanCsvImportButton addLoan={addLoan} disabled={readOnly} />
+            <Button
+              icon={<Plus size={16} />}
+              onClick={handleOpenAddModal}
+              disabled={readOnly}
+              title={readOnly ? 'در نسخه دمو غیرفعال است' : undefined}
+            >
               افزودن وام جدید
             </Button>
           </>
@@ -449,6 +457,7 @@ export default function LoansPage({ initialLoanId = null }) {
                     onEditLoan={handleOpenEditModal}
                     onDeleteLoan={handleDeleteLoan}
                     hideValues={hideValues}
+                    readOnly={readOnly}
                   />
                 </div>
               ))}
@@ -476,6 +485,7 @@ export default function LoansPage({ initialLoanId = null }) {
           loanId={selectedLoanId}
           onClose={handleCloseDetailModal}
           onRefreshLoans={fetchLoans}
+          readOnly={readOnly}
         />
       )}
     </div>

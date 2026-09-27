@@ -9,6 +9,7 @@
 import { putVaultRecord, listVaultRecords } from './vaultApi.js';
 import { jalaliToGregorian } from '../../utils/loanCalculator.js';
 import { toEnglishDigits } from '../utils/formatters.js';
+import { isDemoReadOnly } from '../../features/demo/index.js';
 
 const DAY_RE = /^(\d{4})[-/](\d{1,2})[-/](\d{1,2})/;
 const pad = (n) => String(n).padStart(2, '0');
@@ -59,6 +60,7 @@ export function putRecord(kind, id, payload, plain, { parentId = '', ...options 
  * @param {Array<{ record: object, plain: object }>} items records as listed + their decrypted content
  */
 export function backfillRecordDates(kind, items) {
+  if (isDemoReadOnly()) return;
   const missing = items.filter(({ record, plain }) => recordDateOf(kind, plain) !== (record.recordDate || ''));
   if (missing.length === 0) return;
   (async () => {
@@ -88,6 +90,7 @@ const repairs = new Map();
  * @param {string} [parent] portfolio id, for portfolio items
  */
 export function repairRecordDates(kind, decrypt, parent = '') {
+  if (isDemoReadOnly()) return Promise.resolve();
   const tag = `${kind}|${parent}`;
   if (!repairs.has(tag)) {
     const run = (async () => {

@@ -32,6 +32,7 @@ import ChequeTrackingModal from './ChequeTrackingModal.jsx';
 import ChequesTable from './ChequesTable.jsx';
 import ChequeSummaryCards from './ChequeSummaryCards.jsx';
 import ChequeCsvExportButton from './ChequeCsvExportButton.jsx';
+import { useDemo } from '../../demo/index.js';
 
 const DIRECTION_FILTERS = [
   { value: 'all', label: 'همه' },
@@ -53,6 +54,7 @@ const HEADER = {
 };
 
 export default function ChequesPage() {
+  const { readOnly } = useDemo();
   const {
     cheques,
     vaultLocked,
@@ -153,7 +155,12 @@ export default function ChequesPage() {
         actions={
           <>
             <ChequeCsvExportButton cheques={cheques} disabled={!hasCheques} />
-            <Button icon={<Plus size={16} />} onClick={() => setFormState({ cheque: null })}>
+            <Button
+              icon={<Plus size={16} />}
+              onClick={() => setFormState({ cheque: null })}
+              disabled={readOnly}
+              title={readOnly ? 'در نسخه دمو غیرفعال است' : undefined}
+            >
               ثبت چک
             </Button>
           </>
@@ -253,6 +260,7 @@ export default function ChequesPage() {
                   onDelete={handleDelete}
                   deletingId={deletingId}
                   hideValues={hideValues}
+                  readOnly={readOnly}
                 />
               )}
             </div>
@@ -279,6 +287,7 @@ export default function ChequesPage() {
           onEdit={openEdit}
           submitting={submitting}
           hideValues={hideValues}
+          readOnly={readOnly}
         />
       )}
     </div>

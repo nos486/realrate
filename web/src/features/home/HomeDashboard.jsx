@@ -47,6 +47,7 @@ import { SkeletonCards } from '../../shared/ui/Skeleton.jsx';
 import AlertBanner from '../../shared/ui/AlertBanner.jsx';
 import { useFeedback } from '../../shared/ui/FeedbackProvider.jsx';
 import { usePricing } from '../market/context/PricingContext.jsx';
+import { useDemo } from '../demo/index.js';
 import { HOME_LAYOUT_LIMITS } from '../../utils/homeLayout.js';
 import HomeAssetCard from './HomeAssetCard.jsx';
 import AssetPickerModal from './AssetPickerModal.jsx';
@@ -276,6 +277,7 @@ export default function HomeDashboard({
 }) {
   const pricing = usePricing();
   const { confirm } = useFeedback();
+  const { readOnly } = useDemo();
   const { layout, isCustomized, setLayout, resetLayout, saveError } = useHomeLayout();
   const [editing, setEditing] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
@@ -416,7 +418,13 @@ export default function HomeDashboard({
                 <span>نرخ مبنا</span>
               </button>
             )}
-            <button type="button" className="home-header-btn" onClick={startEditing} title="شخصی‌سازی صفحه">
+            <button
+              type="button"
+              className="home-header-btn"
+              onClick={startEditing}
+              disabled={readOnly}
+              title={readOnly ? 'در نسخه دمو غیرفعال است' : 'شخصی‌سازی صفحه'}
+            >
               <SlidersHorizontal size={16} />
               <span>شخصی‌سازی</span>
             </button>

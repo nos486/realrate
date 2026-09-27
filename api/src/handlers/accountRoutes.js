@@ -32,6 +32,7 @@ import {
   dbSaveSession,
   normalizeEmail,
 } from "../repositories/index.js";
+import { DEMO_EMAIL } from "../repositories/demo.repository.js";
 import { getCorsHeaders, getClientIp } from "../lib/helpers.js";
 import { AppError } from "../lib/AppError.js";
 import {
@@ -200,6 +201,9 @@ async function guardEmailSending(request, env, email) {
 export async function handleRegister(request, env) {
   const body = await readJson(request);
   const email = parseEmail(body.email);
+  if (email === DEMO_EMAIL) {
+    throw AppError.badRequest("ثبت‌نام با این آدرس ایمیل مجاز نیست.");
+  }
   const password = parseNewPassword(body.password);
   const name = String(body.name ?? "").trim().slice(0, NAME_MAX_LENGTH) || email.split("@")[0];
 
@@ -260,6 +264,11 @@ export async function handleLogin(request, env) {
   await enforceLimit(env, `login:${email}`, LIMITS.loginEmail);
 
   const account = await dbGetUserAuthByEmail(env, email);
+  if (account?.isDemo || email === DEMO_EMAIL) {
+    await recordRateLimitHit(env, `login-ip:${ip}`, LIMITS.loginIp);
+    await recordRateLimitHit(env, `login:${email}`, LIMITS.loginEmail);
+    throw new AppError("ایمیل یا رمز عبور نادرست است.", 401, "INVALID_CREDENTIALS");
+  }
   // verifyPassword also runs for a missing account or one without a password (equal timing)
   const valid = await verifyPassword(password, account?.passwordHash || "");
   if (!account || !valid) {

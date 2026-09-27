@@ -14,6 +14,7 @@ import { getCorsHeaders, isOriginAllowed } from "./lib/helpers.js";
 import { validateEnv } from "./config/env.js";
 import { withErrorHandler } from "./middlewares/errorHandler.js";
 import { enforceMaintenance } from "./lib/maintenance.js";
+import { enforceDemoGate } from "./lib/demoGate.js";
 import { encryptionRuleFor, enforceEncryptionRule } from "./lib/encryptionGate.js";
 import { logger } from "./lib/logger.js";
 import { DEFAULT_BOURSE_SEARCH_LIMIT } from "./config/constants.js";
@@ -52,6 +53,13 @@ import {
   handleGetMe,
   handleLogout,
 } from "./handlers/authRoutes.js";
+import {
+  handleDemoLogin,
+  handleAdminGetDemo,
+  handleAdminCreateDemo,
+  handleAdminCreateDemoEditSession,
+  handleAdminResetDemo,
+} from "./handlers/demoRoutes.js";
 import {
   handleAdminUserDetail,
   handleAdminBlockUser,
@@ -218,6 +226,7 @@ async function handleRequest(request, env, ctx) {
     if (normalizedPath === "/api/auth/verify-email")        return wrap(handleVerifyEmail)(request, env);
     if (normalizedPath === "/api/auth/verify-email/resend") return wrap(handleResendVerification)(request, env);
     if (normalizedPath === "/api/auth/login")               return wrap(handleLogin)(request, env);
+    if (normalizedPath === "/api/auth/demo")                return wrap(handleDemoLogin)(request, env);
     if (normalizedPath === "/api/auth/password/forgot")     return wrap(handleForgotPassword)(request, env);
     if (normalizedPath === "/api/auth/password/reset")      return wrap(handleResetPassword)(request, env);
     if (normalizedPath === "/api/auth/password")            return wrap(handleSetPassword)(request, env);
@@ -229,6 +238,13 @@ async function handleRequest(request, env, ctx) {
     return null;
   })(request, env);
   if (maintenanceBlock) return maintenanceBlock;
+
+  // ── Demo gate: demo_view sessions are strictly read-only; demo_edit has guardrails ────
+  const demoBlock = await wrap(async (req, e) => {
+    await enforceDemoGate(req, e, normalizedPath);
+    return null;
+  })(request, env);
+  if (demoBlock) return demoBlock;
 
   // ── Mandatory encryption: no financial data is ever saved unencrypted ────
   const encryptionRule = encryptionRuleFor(normalizedPath, request.method);
@@ -256,6 +272,14 @@ async function handleRequest(request, env, ctx) {
   if (normalizedPath === "/api/admin/growth")                                  return wrap(handleAdminGrowth)(request, env);
   if (normalizedPath === "/api/admin/users")                                   return wrap(handleAdminUsersRoute)(request, env);
   if (normalizedPath === "/api/admin/settings" && request.method === "POST")   return wrap(handleAdminSaveSettings)(request, env);
+
+  // Admin Demo Management
+  if (normalizedPath === "/api/admin/demo") {
+    if (request.method === "GET") return wrap(handleAdminGetDemo)(request, env);
+    if (request.method === "POST") return wrap(handleAdminCreateDemo)(request, env);
+  }
+  if (normalizedPath === "/api/admin/demo/edit-session" && request.method === "POST") return wrap(handleAdminCreateDemoEditSession)(request, env);
+  if (normalizedPath === "/api/admin/demo/reset" && request.method === "POST")        return wrap(handleAdminResetDemo)(request, env);
 
   if (normalizedPath === "/api/admin/price-sources") {
     if (request.method === "GET") return wrap(handleAdminGetPriceSources)(request, env);

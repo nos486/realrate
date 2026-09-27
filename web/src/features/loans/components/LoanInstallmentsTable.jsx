@@ -28,6 +28,7 @@ export default function LoanInstallmentsTable({
   onBulkDistributeInstallments,
   submitting = false,
   hideValues = false,
+  readOnly = false,
 }) {
   // Every number formatted here is an amount, so all follow the "hide values" toggle
   const formatNum = (v) => (hideValues ? '****' : formatAmount(v));
@@ -171,6 +172,7 @@ export default function LoanInstallmentsTable({
               type="button"
               className="btn-extra-payment-trigger"
               onClick={() => setIsBulkEditOpen(true)}
+              disabled={readOnly}
               style={{
                 display: 'inline-flex',
                 alignItems: 'center',
@@ -182,10 +184,11 @@ export default function LoanInstallmentsTable({
                 borderRadius: '8px',
                 fontSize: '0.82rem',
                 fontWeight: 600,
-                cursor: 'pointer',
+                cursor: readOnly ? 'not-allowed' : 'pointer',
+                opacity: readOnly ? 0.6 : 1,
                 transition: 'all 0.15s ease',
               }}
-              title="مبلغ هر قسط را دستی تنظیم کنید؛ بقیه به‌طور خودکار و مساوی تقسیم می‌شوند"
+              title={readOnly ? 'در نسخه دمو غیرفعال است' : 'مبلغ هر قسط را دستی تنظیم کنید؛ بقیه به‌طور خودکار و مساوی تقسیم می‌شوند'}
             >
               <ListChecks size={14} />
               <span>ویرایش گروهی اقساط</span>
@@ -197,6 +200,7 @@ export default function LoanInstallmentsTable({
               type="button"
               className="btn-extra-payment-trigger"
               onClick={() => setIsExtraPayOpen(true)}
+              disabled={readOnly}
               style={{
                 display: 'inline-flex',
                 alignItems: 'center',
@@ -208,9 +212,11 @@ export default function LoanInstallmentsTable({
                 borderRadius: '8px',
                 fontSize: '0.82rem',
                 fontWeight: 600,
-                cursor: 'pointer',
+                cursor: readOnly ? 'not-allowed' : 'pointer',
+                opacity: readOnly ? 0.6 : 1,
                 transition: 'all 0.15s ease',
               }}
+              title={readOnly ? 'در نسخه دمو غیرفعال است' : 'ثبت بازپرداخت زودهنگام و کاهش اصل وام'}
             >
               <DollarSign size={14} />
               <span>پرداخت اضافه / یکجا</span>
@@ -378,8 +384,8 @@ export default function LoanInstallmentsTable({
                           type="button"
                           className="btn-unmark-paid"
                           onClick={() => handleUnmark(inst)}
-                          disabled={isActionLoading}
-                          title="لغو ثبت پرداخت"
+                          disabled={readOnly || isActionLoading}
+                          title={readOnly ? 'در نسخه دمو غیرفعال است' : 'لغو ثبت پرداخت'}
                         >
                           <RotateCcw size={13} />
                           لغو
@@ -463,7 +469,8 @@ export default function LoanInstallmentsTable({
                             type="button"
                             className="btn-mark-paid"
                             onClick={() => handleOpenPayModal(inst)}
-                            disabled={isActionLoading}
+                            disabled={readOnly || isActionLoading}
+                            title={readOnly ? 'در نسخه دمو غیرفعال است' : undefined}
                           >
                             <CheckCircle2 size={14} />
                             پرداخت شد
@@ -555,7 +562,8 @@ export default function LoanInstallmentsTable({
                     type="button"
                     className="btn-unmark-paid mobile"
                     onClick={() => handleUnmark(inst)}
-                    disabled={isActionLoading}
+                    disabled={readOnly || isActionLoading}
+                    title={readOnly ? 'در نسخه دمو غیرفعال است' : undefined}
                   >
                     <RotateCcw size={13} />
                     لغو پرداخت
@@ -633,7 +641,8 @@ export default function LoanInstallmentsTable({
                     type="button"
                     className="btn-mark-paid mobile"
                     onClick={() => handleOpenPayModal(inst)}
-                    disabled={isActionLoading}
+                    disabled={readOnly || isActionLoading}
+                    title={readOnly ? 'در نسخه دمو غیرفعال است' : undefined}
                   >
                     <CheckCircle2 size={14} />
                     ثبت پرداخت این قسط

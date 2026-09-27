@@ -14,6 +14,7 @@ import { useVault } from '../shared/vault/useVault.js';
 import LiveRatesTicker from '../components/LiveRatesTicker.jsx';
 import { useMarketData } from '../features/market/hooks/useMarketData.js';
 import { useAuth } from '../features/auth/index.js';
+import { useDemo } from '../features/demo/index.js';
 import { appPath, getAppSubPath } from '../shared/routes.js';
 import { toEnglishDigits } from '../shared/utils/formatters.js';
 
@@ -40,14 +41,17 @@ export default function MainPage() {
   const params = useParams();
   const [searchParams] = useSearchParams();
   const { user, maintenance } = useAuth();
+  const { isDemo } = useDemo();
   const vault = useVault();
 
   // Determine active tab from the path below /app (or the ?tab= query param)
   const subPath = getAppSubPath(location.pathname);
 
   const isSettings =
-    subPath.startsWith('/settings') ||
-    searchParams.get('tab') === 'settings';
+    !isDemo && (
+      subPath.startsWith('/settings') ||
+      searchParams.get('tab') === 'settings'
+    );
 
   const isSources =
     !isSettings && (
@@ -165,7 +169,7 @@ export default function MainPage() {
       { value: 'loans', label: 'وام و اقساط', icon: <Landmark size={16} strokeWidth={2} /> },
       { value: 'cheques', label: 'چک‌ها', icon: <ReceiptText size={16} strokeWidth={2} /> },
     ];
-    if (user) {
+    if (user && !isDemo) {
       options.push(
         { value: 'settings', label: 'تنظیمات', icon: <Settings size={16} strokeWidth={2} /> }
       );
@@ -177,7 +181,7 @@ export default function MainPage() {
       );
     }
     return options;
-  }, [user]);
+  }, [user, isDemo]);
 
 
   const {
@@ -209,7 +213,7 @@ export default function MainPage() {
   const hasUsd = usdNum > 0;
   // Admin tools stay reachable; everything else waits for the encryption passphrase
   const needsVaultSetup =
-    Boolean(user) && vault.status === 'off' && !vault.hasPlaintextData && activeTab !== 'admin' && activeTab !== 'sources';
+    Boolean(user) && !isDemo && vault.status === 'off' && !vault.hasPlaintextData && activeTab !== 'admin' && activeTab !== 'sources';
 
 
   return (
@@ -280,7 +284,7 @@ export default function MainPage() {
           <VaultSetupScreen />
         ) : (
         <>
-        {activeTab !== 'settings' && <VaultPendingBanner onOpenSettings={() => handleTabChange('settings')} />}
+        {!isDemo && activeTab !== 'settings' && <VaultPendingBanner onOpenSettings={() => handleTabChange('settings')} />}
 
         {/* Active Loan Due Reminders Banner */}
         {/* Due-date reminders: on the home page, and installments on the loans page too — not

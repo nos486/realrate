@@ -71,8 +71,13 @@ export function AuthProvider({ children }) {
       .then((data) => {
         if (data?.maintenance) setMaintenance({ enabled: Boolean(data.maintenance.enabled), message: data.maintenance.message || '' });
         if (data && data.authenticated && data.user) {
-          signInUser(setUser, data.user);
-          writeCachedUser(data.user);
+          const userWithDemo = {
+            ...data.user,
+            demo: data.demo || null,
+            demoVaultPassphrase: data.demoVaultPassphrase || null,
+          };
+          signInUser(setUser, userWithDemo);
+          writeCachedUser(userWithDemo);
         } else {
           writeCachedUser(null);
         }
@@ -102,8 +107,13 @@ export function AuthProvider({ children }) {
       const data = await googleLogin(response.credential);
       if (data && data.success && data.user) {
         if (data.token) setToken(data.token);
-        signInUser(setUser, data.user);
-        writeCachedUser(data.user);
+        const userWithDemo = {
+          ...data.user,
+          demo: data.demo || null,
+          demoVaultPassphrase: data.demoVaultPassphrase || null,
+        };
+        signInUser(setUser, userWithDemo);
+        writeCachedUser(userWithDemo);
       } else {
         toast.error(data?.message || 'خطا در ورود با گوگل');
       }
@@ -131,8 +141,13 @@ export function AuthProvider({ children }) {
   const completeLogin = useCallback((data) => {
     if (!data?.token || !data?.user) return;
     setToken(data.token);
-    signInUser(setUser, data.user);
-    writeCachedUser(data.user);
+    const userWithDemo = {
+      ...data.user,
+      demo: data.demo || null,
+      demoVaultPassphrase: data.demoVaultPassphrase || null,
+    };
+    signInUser(setUser, userWithDemo);
+    writeCachedUser(userWithDemo);
     navigate(takePostLoginPath() || APP_BASE, { replace: true });
   }, [navigate]);
 

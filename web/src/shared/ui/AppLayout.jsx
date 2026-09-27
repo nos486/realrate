@@ -1,6 +1,7 @@
 import React from 'react';
 import Header from '../../components/Header.jsx';
 import Footer from '../../components/Footer.jsx';
+import { DemoBanner } from '../../features/demo/index.js';
 
 /**
  * Standard AppLayout component
@@ -28,6 +29,7 @@ export default function AppLayout({
 }) {
   return (
     <div className={`app-layout ${layoutClassName}`}>
+      <DemoBanner />
       {!hideHeader && (
         <Header
           usdToman={usdToman}

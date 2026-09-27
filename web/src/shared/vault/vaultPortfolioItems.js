@@ -20,6 +20,7 @@ import { listVaultRecords, deleteVaultRecord } from './vaultApi.js';
 import { putRecord, backfillRecordDates, repairRecordDates } from './vaultRecordMeta.js';
 import { migrateRecordPriceIds, withPriceIdVersion } from '../../utils/priceIds.js';
 import { getKnownPriceIds } from '../../features/market/knownPriceIds.js';
+import { isDemoReadOnly } from '../../features/demo/index.js';
 
 const SILENT = { silent: true };
 const E2EE_PREFIX = 'enc:e2ee:v1:';
@@ -122,8 +123,10 @@ async function decryptRecords(kind, portfolioId, key, filters = {}) {
       decrypted.push({ record, plain: value });
     } else console.warn(`Skipped a ${kind} that could not be decrypted:`, record.id);
   }
-  backfillRecordDates(kind, decrypted);
-  storeMigrated(kind, portfolioId, key, migrated);
+  if (!isDemoReadOnly()) {
+    backfillRecordDates(kind, decrypted);
+    storeMigrated(kind, portfolioId, key, migrated);
+  }
   return { items, total: res?.total ?? items.length };
 }
 
@@ -148,11 +151,13 @@ function storeMigrated(kind, portfolioId, key, records) {
  *   items (shown even when a move failed; it is retried next time) and what could not be moved
  */
 export async function movePortfolioItemsToVault(portfolio, key, { onItem } = {}) {
+  if (isDemoReadOnly()) return { holdings: [], transactions: [], failed: [] };
   const [holdings, transactions] = [await moveHoldings(portfolio, key, onItem), await moveTransactions(portfolio, key, onItem)];
   return { holdings: holdings.items, transactions: transactions.items, failed: [...holdings.failed, ...transactions.failed] };
 }
 
 async function moveHoldings(portfolio, key, onItem) {
+  if (isDemoReadOnly()) return { items: [], failed: [] };
   const hRes = await getPortfolio(portfolio.id);
   const moved = { items: [], failed: [] };
   for (const row of hRes?.holdings || []) {
@@ -175,6 +180,7 @@ async function moveHoldings(portfolio, key, onItem) {
 }
 
 async function moveTransactions(portfolio, key, onItem) {
+  if (isDemoReadOnly()) return { items: [], failed: [] };
   const tRes = await getTransactions(portfolio.id);
   const moved = { items: [], failed: [] };
   for (const row of tRes?.transactions || []) {

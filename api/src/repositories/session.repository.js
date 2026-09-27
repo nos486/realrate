@@ -15,17 +15,18 @@ import { SESSION_TTL_SECONDS } from "../config/constants.js";
  */
 export async function dbSaveSession(env, sessionData, ttlSeconds = SESSION_TTL_SECONDS) {
   const expiresAt = Date.now() + ttlSeconds * 1000;
+  const kind = sessionData.kind || '';
 
   if (env && env.DB) {
     await ensureSchema(env);
     try {
       await env.DB.prepare(`
-        INSERT INTO sessions (token, user_id, email, name, picture, role, created_at, expires_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO sessions (token, user_id, email, name, picture, role, created_at, expires_at, kind)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
         ON CONFLICT(token) DO UPDATE SET
           user_id = excluded.user_id, email = excluded.email, name = excluded.name,
           picture = excluded.picture, role = excluded.role, created_at = excluded.created_at,
-          expires_at = excluded.expires_at
+          expires_at = excluded.expires_at, kind = excluded.kind
       `).bind(
         sessionData.token,
         sessionData.userId,
@@ -34,14 +35,15 @@ export async function dbSaveSession(env, sessionData, ttlSeconds = SESSION_TTL_S
         sessionData.picture,
         sessionData.role,
         sessionData.createdAt,
-        expiresAt
+        expiresAt,
+        kind
       ).run();
     } catch (e) {
       logger.error("[DB] dbSaveSession error:", { error: e.message });
     }
   }
 
-  await setSessionKV(env, sessionData.token, sessionData, ttlSeconds);
+  await setSessionKV(env, sessionData.token, { ...sessionData, kind }, ttlSeconds);
 }
 
 /**
@@ -57,7 +59,8 @@ export async function dbGetSession(env, token) {
     await ensureSchema(env);
     try {
       const row = await env.DB.prepare(`
-        SELECT token, user_id AS userId, email, name, picture, role, created_at AS createdAt, expires_at AS expiresAt
+        SELECT token, user_id AS userId, email, name, picture, role, created_at AS createdAt, expires_at AS expiresAt,
+               COALESCE(kind, '') AS kind
         FROM sessions
         WHERE token = ? AND expires_at > ?
       `).bind(token, Date.now()).first();
@@ -68,7 +71,8 @@ export async function dbGetSession(env, token) {
     }
   }
 
-  return await getSessionKV(env, token);
+  const kv = await getSessionKV(env, token);
+  return kv ? { ...kv, kind: kv.kind || '' } : null;
 }
 
 /**

@@ -19,3 +19,4 @@ export * from "./recurringIncomes.repository.js";
 export * from "./cheques.repository.js";
 export * from "./customBanks.repository.js";
 export * from "./vault.repository.js";
+export * from "./demo.repository.js";
