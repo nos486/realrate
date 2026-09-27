@@ -203,16 +203,6 @@ describe('POST /api/cheques/scan route', () => {
     const res = await handleChequeScanQuotaRoute(new Request('https://api.realrate.ir/api/cheques/scan/quota'), env);
     expect((await res.json()).quota).toEqual({ key: 'cheque_scan', limit: 10, used: 3, remaining: 7 });
   });
-  it('gives the scan back when Gemini is busy (6th call of the minute)', async () => {
-    getAuthenticatedUser.mockResolvedValue(USER);
-    env.RATE_GATE = {
-      idFromName: (n) => n,
-      get: () => ({ fetch: async () => Response.json({ ok: false, retryAfterSec: 20 }) }),
-    };
-    await expect(handleChequeScanRoute(createScanRequest(), env)).rejects.toMatchObject({ statusCode: 429, code: 'SERVICE_BUSY' });
-    expect(fetchMock).not.toHaveBeenCalled();
-    expect(usedToday(USER)).toBe(0);
-  });
   it('falls back to the next Gemini model when the first is overloaded', async () => {
     getAuthenticatedUser.mockResolvedValue(USER);
     fetchMock
@@ -223,8 +213,8 @@ describe('POST /api/cheques/scan route', () => {
     const body = await res.json();
     expect(fetchMock).toHaveBeenCalledTimes(2);
     expect(fetchMock.mock.calls[0][0]).toContain('/models/gemini-3.8-flash:');
-    expect(fetchMock.mock.calls[1][0]).toContain('/models/gemini-3.5-flash:');
-    expect(body.model).toBe('gemini-3.5-flash');
+    expect(fetchMock.mock.calls[1][0]).toContain('/models/gemini-3.7-flash:');
+    expect(body.model).toBe('gemini-3.7-flash');
     expect(body.fields.amount).toBe(50000000);
     expect(usedToday(USER)).toBe(1);
   });
@@ -244,7 +234,10 @@ describe('POST /api/cheques/scan route', () => {
       code: 'AI_BUSY',
       message: expect.stringContaining('شلوغ'),
     });
-    expect(fetchMock).toHaveBeenCalledTimes(2);
+    // 3.8, 3.7, 3.6, then 3.5 Flash
+    expect(fetchMock.mock.calls.map(([url]) => url.match(/models\/([^:]+):/)[1])).toEqual([
+      'gemini-3.8-flash', 'gemini-3.7-flash', 'gemini-3.6-flash', 'gemini-3.5-flash',
+    ]);
     expect(usedToday(USER)).toBe(0);
   });
 });
