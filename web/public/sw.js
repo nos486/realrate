@@ -1,25 +1,24 @@
 /**
  * RealRate service worker — offline app shell + last-known market prices.
  *
- * Caching policy (deliberately narrow):
- *  - Page navigations: network first, falling back to the cached app shell (index.html).
- *  - Hashed build assets (/assets/*): cache first; they are immutable per build.
- *  - Other same-origin static files (fonts, icons, manifest): stale-while-revalidate.
- *  - Public market data only (/api/prices/book, and the older /api/prices, /api/market/items):
- *    network first, falling back to the last response so the calculator and rates still work
- *    offline.
- *  - Everything else — auth, portfolios, transactions, loans, incomes — is never cached, so
- *    personal financial data is not persisted by the service worker.
+ * Caching policy:
+ *  - Static pages (/, /features/*, /about, /faq): bypassed so crawlers/users get fresh static HTML.
+ *    Offline fallback for / returns /spa.html so logged-in users can reach the offline app.
+ *  - App shell (/spa.html, and SPA client routes): network-first, caching into SHELL_CACHE.
+ *  - Static assets (/assets/*): cache first (immutable content hash).
+ *  - Other same-origin static files (seo, icons, fonts, manifest): stale-while-revalidate.
+ *  - Public market data (/api/prices/book, /api/prices): network first with fallback.
+ *  - Private user data (auth, portfolios, transactions, etc.): NEVER cached.
  */
 
-const VERSION = 'v1';
+const VERSION = 'v2';
 const SHELL_CACHE = `rr-shell-${VERSION}`;
 const ASSET_CACHE = `rr-assets-${VERSION}`;
 const STATIC_CACHE = `rr-static-${VERSION}`;
 const MARKET_CACHE = `rr-market-${VERSION}`;
 const CURRENT_CACHES = [SHELL_CACHE, ASSET_CACHE, STATIC_CACHE, MARKET_CACHE];
 
-const SHELL_URL = '/index.html';
+const SHELL_URL = '/spa.html';
 const MAX_ASSET_ENTRIES = 120;
 const PUBLIC_MARKET_PATHS = [
   '/api/prices/book', '/api/v1/prices/book',
@@ -34,8 +33,7 @@ self.addEventListener('install', (event) => {
       if (!res.ok) return;
       await cache.put(SHELL_URL, res.clone());
 
-      // Also precache the entry script/styles the shell references, so the first offline
-      // launch works even if the user never navigated while the worker was active.
+      // Precache the entry script/styles the shell references
       const html = await res.text();
       const assetUrls = [...html.matchAll(/(?:src|href)="(\/assets\/[^"]+)"/g)].map((m) => m[1]);
       if (assetUrls.length) {
@@ -66,6 +64,24 @@ self.addEventListener('fetch', (event) => {
   const sameOrigin = url.origin === self.location.origin;
 
   if (request.mode === 'navigate' && sameOrigin) {
+    const p = url.pathname;
+
+    // Static marketing & SEO pages: bypass SW completely when online so fresh static HTML is served
+    if (
+      p === '/' ||
+      p === '/about' ||
+      p === '/faq' ||
+      p === '/features' ||
+      p.startsWith('/features/') ||
+      p === '/404.html'
+    ) {
+      // In offline mode, if navigating to '/', fallback to the cached shell so logged-in users can open the app
+      if (p === '/') {
+        event.respondWith(networkFirstLandingWithShellFallback(request));
+      }
+      return;
+    }
+
     event.respondWith(networkFirstShell(request));
     return;
   }
@@ -86,11 +102,21 @@ self.addEventListener('fetch', (event) => {
   event.respondWith(staleWhileRevalidate(request, STATIC_CACHE));
 });
 
+async function networkFirstLandingWithShellFallback(request) {
+  try {
+    return await fetch(request);
+  } catch {
+    const cache = await caches.open(SHELL_CACHE);
+    const cached = await cache.match(SHELL_URL);
+    return cached || Response.error();
+  }
+}
+
 async function networkFirstShell(request) {
   const cache = await caches.open(SHELL_CACHE);
   try {
     const res = await fetch(request);
-    // SPA: every route serves index.html, so one shell entry covers all of them
+    // Only cache if successful response from an SPA navigation
     if (res.ok) cache.put(SHELL_URL, res.clone());
     return res;
   } catch {
@@ -139,6 +165,5 @@ async function trimCache(cacheName, maxEntries) {
   const cache = await caches.open(cacheName);
   const keys = await cache.keys();
   if (keys.length <= maxEntries) return;
-  // Oldest first (insertion order): old builds' chunks go before the current ones
   await Promise.all(keys.slice(0, keys.length - maxEntries).map((key) => cache.delete(key)));
 }

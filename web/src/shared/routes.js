@@ -8,6 +8,7 @@
 
 export const LANDING_PATH = '/';
 export const APP_BASE = '/app';
+export const DEMO_PATH = '/demo';
 
 /** Sign-in pages (public, outside the app) */
 export const AUTH_PATHS = {
@@ -43,7 +44,7 @@ export function getAppSubPath(pathname) {
  * @param {string} pathname
  */
 export function isAppPath(pathname) {
-  return pathname !== LANDING_PATH && !pathname.startsWith('/p/') && !AUTH_PATH_SET.has(pathname);
+  return pathname !== LANDING_PATH && pathname !== DEMO_PATH && !pathname.startsWith('/p/') && !AUTH_PATH_SET.has(pathname);
 }
 
 const POST_LOGIN_PATH_KEY = 'realrate_post_login_path';

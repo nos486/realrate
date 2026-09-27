@@ -35,6 +35,9 @@ import { useAuth } from '../features/auth/index.js';
 import { useDemo } from '../features/demo/index.js';
 import { APP_BASE } from '../shared/routes.js';
 import { toPersianDigits } from '../shared/utils/formatters.js';
+import { STATIC_PAGES } from '../seo/pages.js';
+
+const LANDING_FAQS = STATIC_PAGES.faq.faqs.slice(0, 5);
 
 // Clean standard GitHub SVG icon
 function GithubIcon({ size = 18, className = '' }) {
@@ -198,9 +201,9 @@ export default function LandingPage() {
           </a>
 
           <nav className="landing-nav" aria-label="منوی اصلی لندینگ">
-            <a href="#features" onClick={(e) => scrollToSection(e, 'features')}>
-              ویژگی‌ها
-            </a>
+            <a href="/features">ویژگی‌ها</a>
+            <a href="/about">درباره</a>
+            <a href="/faq">سؤالات متداول</a>
             <a href="#open-source" onClick={(e) => scrollToSection(e, 'open-source')}>
               کد منبع
             </a>
@@ -493,7 +496,7 @@ export default function LandingPage() {
 
           <div className="features-single-row">
             {/* Feature 1 */}
-            <div className="feature-compact-card" onMouseMove={handleBentoMouseMove}>
+            <a href="/features/gold-coin-bubble" className="feature-compact-card" onMouseMove={handleBentoMouseMove}>
               <div className="bento-spotlight" />
               <div className="feature-compact-icon icon-gold">
                 <Scale size={22} />
@@ -505,10 +508,10 @@ export default function LandingPage() {
               <div className="feature-compact-tag text-amber">
                 <span>سنجش لحظه‌ای حباب</span>
               </div>
-            </div>
+            </a>
 
             {/* Feature 2 */}
-            <div className="feature-compact-card" onMouseMove={handleBentoMouseMove}>
+            <a href="/features/portfolio" className="feature-compact-card" onMouseMove={handleBentoMouseMove}>
               <div className="bento-spotlight" />
               <div className="feature-compact-icon icon-blue">
                 <PieChart size={22} />
@@ -520,10 +523,10 @@ export default function LandingPage() {
               <div className="feature-compact-tag text-cyan">
                 <span>تنوع‌بخشی و بازدهی</span>
               </div>
-            </div>
+            </a>
 
             {/* Feature 3 */}
-            <div className="feature-compact-card" onMouseMove={handleBentoMouseMove}>
+            <a href="/features/encryption" className="feature-compact-card" onMouseMove={handleBentoMouseMove}>
               <div className="bento-spotlight" />
               <div className="feature-compact-icon icon-emerald">
                 <Lock size={22} />
@@ -535,10 +538,10 @@ export default function LandingPage() {
               <div className="feature-compact-tag text-emerald">
                 <span>رمزنگاری سرتاسری</span>
               </div>
-            </div>
+            </a>
 
             {/* Feature 4 */}
-            <div className="feature-compact-card" onMouseMove={handleBentoMouseMove}>
+            <a href="/features/loans" className="feature-compact-card" onMouseMove={handleBentoMouseMove}>
               <div className="bento-spotlight" />
               <div className="feature-compact-icon icon-cyan">
                 <Landmark size={22} />
@@ -550,7 +553,14 @@ export default function LandingPage() {
               <div className="feature-compact-tag text-cyan">
                 <span>انضباط مالی جامع</span>
               </div>
-            </div>
+            </a>
+          </div>
+
+          <div style={{ textAlign: 'center', marginTop: '20px' }}>
+            <a href="/features" className="features-view-all-link">
+              <span>مشاهده تمام امکانات و ویژگی‌ها</span>
+              <ArrowLeft size={16} />
+            </a>
           </div>
         </section>
 
@@ -650,9 +660,33 @@ export default function LandingPage() {
             </div>
           </div>
         </section>
+
+        {/* ── 4. FREQUENTLY ASKED QUESTIONS (FAQ) ────────────────────────── */}
+        <section id="faq" className="landing-faq-section">
+          <div className="landing-section-header compact">
+            <span className="section-pill">پرسش‌های متداول</span>
+            <h2 className="section-title">پاسخ به سوالات پرتکرار شما</h2>
+          </div>
+
+          <div className="landing-faq-grid">
+            {LANDING_FAQS.map((faq, i) => (
+              <div key={i} className="landing-faq-card">
+                <h3 className="landing-faq-question">{faq.q}</h3>
+                <p className="landing-faq-answer">{faq.a}</p>
+              </div>
+            ))}
+          </div>
+
+          <div className="landing-faq-footer">
+            <a href="/faq" className="landing-faq-more-link">
+              <span>مشاهده همه سؤالات و پاسخ‌ها</span>
+              <ArrowLeft size={16} />
+            </a>
+          </div>
+        </section>
       </main>
 
-      {/* ── 4. MINIMAL CLEAN FOOTER ─────────────────────────────────────── */}
+      {/* ── 5. MINIMAL CLEAN FOOTER ─────────────────────────────────────── */}
       <footer className="landing-footer">
         <div className="landing-footer-inner">
           <div className="footer-brand-side">
@@ -670,6 +704,10 @@ export default function LandingPage() {
           <div className="footer-links-side">
             <div className="footer-col">
               <span className="footer-col-title">دسترسی سریع</span>
+              <a href="/features">همه ویژگی‌ها</a>
+              <a href="/about">درباره ریل‌ریت</a>
+              <a href="/faq">سؤالات متداول</a>
+              <a href="/demo">مشاهده نسخه دمو</a>
               <a href="#features" onClick={(e) => scrollToSection(e, 'features')}>
                 قابلیت‌ها
               </a>

@@ -23,6 +23,7 @@ import {
 import GoogleIcon from './GoogleIcon.jsx';
 import PasswordInput from './PasswordInput.jsx';
 import { PASSWORD_HINT, checkNewPassword } from './passwordRules.js';
+import { useDocumentTitle } from '../../../shared/hooks/useDocumentTitle.js';
 
 const MODE_BY_PATH = Object.fromEntries(Object.entries(AUTH_PATHS).map(([mode, path]) => [path, mode]));
 const RESEND_COOLDOWN_SECONDS = 60;
@@ -384,6 +385,16 @@ export default function AuthPage() {
   const { pathname } = useLocation();
   const navigate = useNavigate();
   const mode = MODE_BY_PATH[pathname] || 'login';
+
+  const authTitle = {
+    login: 'ورود به حساب کاربری | RealRate',
+    register: 'ثبت‌نام در ریل‌ریت | RealRate',
+    forgot: 'بازیابی رمز عبور | RealRate',
+    reset: 'تغییر رمز عبور | RealRate',
+    verify: 'تأیید نشانی ایمیل | RealRate',
+  }[mode] || 'ورود به حساب کاربری | RealRate';
+
+  useDocumentTitle(authTitle);
 
   // Already signed in: sign-in and sign-up have nothing to do (links in emails still work)
   if (!loading && user && (mode === 'login' || mode === 'register' || mode === 'forgot')) {

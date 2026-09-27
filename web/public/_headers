@@ -8,3 +8,17 @@
 # Content-hashed build output never changes
 /assets/*
   Cache-Control: public, max-age=31536000, immutable
+
+# Disallow indexing of private or raw SPA shell responses
+/p/*
+  X-Robots-Tag: noindex
+/spa
+  X-Robots-Tag: noindex
+/spa.html
+  X-Robots-Tag: noindex
+
+# Immutable static SEO assets
+/seo/*
+  Cache-Control: public, max-age=31536000, immutable
+/og/*
+  Cache-Control: public, max-age=31536000, immutable

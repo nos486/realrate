@@ -1,11 +1,12 @@
-import { lazy, Suspense } from 'react';
-import { Routes, Route, Navigate, Outlet, useLocation } from 'react-router-dom';
+import { lazy, Suspense, useEffect } from 'react';
+import { Routes, Route, Navigate, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import FullscreenLoader from './shared/ui/FullscreenLoader.jsx';
 import RequireAuth from './shared/ui/RequireAuth.jsx';
 import { useAuth } from './features/auth/context/AuthContext.jsx';
+import { useDemo } from './features/demo/index.js';
 import MaintenancePage from './pages/MaintenancePage.jsx';
 import { getToken } from './shared/api/httpClient.js';
-import { APP_BASE, LANDING_PATH, AUTH_PATHS } from './shared/routes.js';
+import { APP_BASE, LANDING_PATH, AUTH_PATHS, DEMO_PATH } from './shared/routes.js';
 // Direct file imports (not the feature barrels) so the pages below stay in their lazy chunks
 import { PricingProvider } from './features/market/context/PricingContext.jsx';
 import { LoansProvider } from './features/loans/context/LoansContext.jsx';
@@ -62,6 +63,45 @@ function GuestLanding() {
 }
 
 /**
+ * Public route to launch the demo account directly:
+ * - If already signed in, goes straight to /app.
+ * - Otherwise calls enterDemo() from useDemo(), shows a loader while starting,
+ *   and redirects back to / if login fails.
+ */
+function DemoRoute() {
+  const { user } = useAuth();
+  const { enterDemo } = useDemo();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    if (user) {
+      navigate(APP_BASE, { replace: true });
+      return;
+    }
+    let isMounted = true;
+    enterDemo()
+      .then((success) => {
+        if (!isMounted) return;
+        if (!success) {
+          navigate(LANDING_PATH, { replace: true });
+        }
+      })
+      .catch(() => {
+        if (isMounted) {
+          navigate(LANDING_PATH, { replace: true });
+        }
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [user, enterDemo, navigate]);
+
+  if (user) return <Navigate to={APP_BASE} replace />;
+  return <RouteLoader />;
+}
+
+/**
  * Wraps every route that needs live pricing (the authenticated app, plus the public shared-
  * portfolio view) — but never the landing page, which has no real prices on it at all. Scoping
  * the provider here instead of around the whole app means its fetch of the price book
@@ -95,6 +135,7 @@ export default function App() {
       <Routes>
         {/* Public, no pricing data; signed-in users go to the app */}
         <Route path={LANDING_PATH} element={<GuestLanding />} />
+        <Route path={DEMO_PATH} element={<DemoRoute />} />
         {/* Sign in / sign up / email links (public, no pricing data) */}
         {Object.values(AUTH_PATHS).map((path) => (
           <Route key={path} path={path} element={<AuthPage />} />

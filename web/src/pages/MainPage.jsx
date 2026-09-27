@@ -17,6 +17,7 @@ import { useAuth } from '../features/auth/index.js';
 import { useDemo } from '../features/demo/index.js';
 import { appPath, getAppSubPath } from '../shared/routes.js';
 import { toEnglishDigits } from '../shared/utils/formatters.js';
+import { useDocumentTitle } from '../shared/hooks/useDocumentTitle.js';
 
 // Each tab other than the market home is loaded on first use, keeping the initial bundle small
 const PortfolioTracker = lazy(() => import('../features/portfolio/components/PortfolioTracker.jsx'));
@@ -106,6 +107,30 @@ export default function MainPage() {
     ['portfolio', isPortfolio],
     ['loans', isLoans],
   ].find(([, matches]) => matches)?.[0] || 'market';
+
+  const tabTitle = useMemo(() => {
+    if (isTransactionsSubView) return 'تراکنش‌ها | RealRate';
+    switch (activeTab) {
+      case 'portfolio':
+        return 'پورتفو | RealRate';
+      case 'loans':
+        return 'وام‌ها و اقساط | RealRate';
+      case 'incomes':
+        return 'درآمدها | RealRate';
+      case 'cheques':
+        return 'مدیریت چک‌ها | RealRate';
+      case 'settings':
+        return 'تنظیمات حساب | RealRate';
+      case 'admin':
+        return 'پنل مدیریت | RealRate';
+      case 'sources':
+        return 'مدیریت منابع قیمت | RealRate';
+      default:
+        return 'داشبورد بازار | RealRate';
+    }
+  }, [activeTab, isTransactionsSubView]);
+
+  useDocumentTitle(tabTitle);
 
   const handleTabChange = (nextTab) => {
     if (nextTab === 'incomes') {
