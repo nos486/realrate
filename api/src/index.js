@@ -135,6 +135,7 @@ import {
   handleVerifyEmail,
   handleResendVerification,
   handleLogin,
+  handleAppSignIn,
   handleForgotPassword,
   handleResetPassword,
   handleSetPassword,
@@ -227,6 +228,7 @@ async function handleRequest(request, env, ctx) {
     if (normalizedPath === "/api/auth/verify-email")        return wrap(handleVerifyEmail)(request, env);
     if (normalizedPath === "/api/auth/verify-email/resend") return wrap(handleResendVerification)(request, env);
     if (normalizedPath === "/api/auth/login")               return wrap(handleLogin)(request, env);
+    if (normalizedPath === "/api/auth/app/signin")          return wrap(handleAppSignIn)(request, env);
     if (normalizedPath === "/api/auth/demo")                return wrap(handleDemoLogin)(request, env);
     if (normalizedPath === "/api/auth/password/forgot")     return wrap(handleForgotPassword)(request, env);
     if (normalizedPath === "/api/auth/password/reset")      return wrap(handleResetPassword)(request, env);

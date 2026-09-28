@@ -1,11 +1,17 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { getMe, googleLogin, logout as apiLogout, getGoogleLoginUrl } from '../api/authApi.js';
+import { getMe, googleLogin, logout as apiLogout, getGoogleLoginUrl, appSignIn } from '../api/authApi.js';
 import { setToken, getToken, HttpError, MAINTENANCE_EVENT } from '../../../shared/api/httpClient.js';
 import { APP_BASE, LANDING_PATH, AUTH_PATHS, isAppPath, rememberPostLoginPath, takePostLoginPath } from '../../../shared/routes.js';
 import { useFeedback } from '../../../shared/ui/FeedbackProvider.jsx';
 import { resetCustomBanks } from '../../../shared/banks/useCustomBanks.js';
 import { loadVault, resetVault } from '../../../shared/vault/vaultStore.js';
+import {
+  isNativeApp,
+  startNativeGoogleLogin,
+  takeNativeLoginVerifier,
+  listenForNativeAuthReturn,
+} from '../../../shared/native/nativeApp.js';
 
 // Start loading the account's encryption state together with the user, before any screen that
 // reads data renders — so nothing is ever fetched or saved through the wrong (plaintext) path.
@@ -135,11 +141,16 @@ export function AuthProvider({ children }) {
     navigate(AUTH_PATHS.login, { replace: !fromApp });
   }, [navigate]);
 
-  // Google: redirect to the server-side OAuth 2.0 flow, landing on the remembered page (or the app)
+  // Google: redirect to the server-side OAuth 2.0 flow, landing on the remembered page (or the app).
+  // In the Android app it runs in the phone's browser and comes back through the app's link.
   const loginWithGoogle = useCallback(() => {
+    if (isNativeApp()) {
+      startNativeGoogleLogin().catch(() => toast.error('مرورگر برای ورود با گوگل باز نشد.'));
+      return;
+    }
     const { origin } = window.location;
     window.location.href = getGoogleLoginUrl(`${origin}${takePostLoginPath() || APP_BASE}`);
-  }, []);
+  }, [toast]);
 
   /** Finish an email/password sign-in (login, verified email, reset password): `{ token, user }` */
   const completeLogin = useCallback((data) => {
@@ -154,6 +165,24 @@ export function AuthProvider({ children }) {
     writeCachedUser(userWithDemo);
     navigate(takePostLoginPath() || APP_BASE, { replace: true });
   }, [navigate]);
+
+  // Android app: Google sign-in came back from the browser with a one-time code. Only a sign-in
+  // this app started (its verifier is kept) is finished; any other link is ignored.
+  const nativeReturnRef = useRef(null);
+  nativeReturnRef.current = async (result) => {
+    const verifier = takeNativeLoginVerifier();
+    if (!verifier) return;
+    if (result.error) {
+      toast.error(`خطا در ورود با گوگل: ${result.error}`, { duration: 8000 });
+      return;
+    }
+    try {
+      completeLogin(await appSignIn(result.code, verifier));
+    } catch (err) {
+      toast.error(err?.message || 'ورود با گوگل کامل نشد. دوباره تلاش کنید.');
+    }
+  };
+  useEffect(() => listenForNativeAuthReturn((result) => nativeReturnRef.current?.(result)), []);
 
   const logout = useCallback(async () => {
     await apiLogout().catch(() => {});

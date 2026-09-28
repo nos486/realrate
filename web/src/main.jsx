@@ -10,8 +10,10 @@ import '@fontsource-variable/vazirmatn'
 import './styles/index.css'
 import App from './App.jsx'
 import { registerServiceWorker } from './shared/pwa/registerServiceWorker.js'
+import { initNativeApp } from './shared/native/nativeApp.js'
 
 registerServiceWorker()
+initNativeApp()
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>

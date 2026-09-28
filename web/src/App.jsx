@@ -6,6 +6,7 @@ import { useAuth } from './features/auth/context/AuthContext.jsx';
 import { useDemo } from './features/demo/index.js';
 import MaintenancePage from './pages/MaintenancePage.jsx';
 import { getToken } from './shared/api/httpClient.js';
+import { isNativeApp } from './shared/native/nativeApp.js';
 import { APP_BASE, LANDING_PATH, AUTH_PATHS, DEMO_PATH } from './shared/routes.js';
 // Direct file imports (not the feature barrels) so the pages below stay in their lazy chunks
 import { PricingProvider } from './features/market/context/PricingContext.jsx';
@@ -53,12 +54,14 @@ function MaintenanceGate({ children }) {
 /**
  * The landing page is for guests: a signed-in visitor opening `/` goes straight to the app home.
  * While a stored session is still being checked a loader is shown instead of flashing the
- * landing page; without a stored token there is no session to wait for.
+ * landing page; without a stored token there is no session to wait for. The Android app has no
+ * landing page: a guest starts at sign-in.
  */
 function GuestLanding() {
   const { user, loading } = useAuth();
   if (user) return <Navigate to={APP_BASE} replace />;
   if (loading && getToken()) return <RouteLoader />;
+  if (isNativeApp()) return <Navigate to={AUTH_PATHS.login} replace />;
   return <LandingPage />;
 }
 
