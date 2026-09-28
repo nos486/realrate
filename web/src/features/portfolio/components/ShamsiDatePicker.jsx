@@ -2,6 +2,7 @@ import React, { useState, useRef } from 'react';
 import { Calendar } from 'lucide-react';
 import { toPersianDigits } from '../../../shared/utils/formatters.js';
 import { todayIso } from '../../../shared/utils/dates.js';
+import { useBackToClose } from '../../../shared/hooks/useBackToClose.js';
 
 export const PERSIAN_MONTHS = [
   { value: '01', label: 'فروردین' },
@@ -155,6 +156,7 @@ export default function ShamsiDatePicker({
   className = ''
 }) {
   const [showPicker, setShowPicker] = useState(false);
+  useBackToClose(showPicker, () => setShowPicker(false));
   const nativeDateRef = useRef(null);
 
   // If value passed is an ISO date (e.g. 2026-09-21), format to Shamsi for display

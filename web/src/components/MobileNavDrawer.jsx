@@ -3,12 +3,14 @@
  *
  * Replaces the tab bar on small screens: slides in from the start side (right in RTL) with the
  * user's profile, every section of the app, and the account actions (hide values, lock
- * encrypted data, sign out). Closes on Escape, on the backdrop, or after choosing an item.
+ * encrypted data, sign out). Closes on Escape, on the backdrop, with the phone's back button, or
+ * after choosing an item.
  */
 
 import React, { useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { X, Eye, EyeOff, Lock, LogOut } from 'lucide-react';
+import { useBackToClose } from '../shared/hooks/useBackToClose.js';
 
 export default function MobileNavDrawer({
   isOpen,
@@ -26,6 +28,7 @@ export default function MobileNavDrawer({
   onLogin,
 }) {
   const closeRef = useRef(null);
+  useBackToClose(isOpen, onClose);
 
   useEffect(() => {
     if (!isOpen) return undefined;

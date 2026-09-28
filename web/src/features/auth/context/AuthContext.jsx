@@ -127,8 +127,12 @@ export function AuthProvider({ children }) {
   // the current page is remembered, so signing in returns there.
   const triggerLogin = useCallback(() => {
     const { pathname, search } = window.location;
-    if (isAppPath(pathname)) rememberPostLoginPath(`${pathname}${search}`);
-    navigate(AUTH_PATHS.login);
+    const fromApp = isAppPath(pathname);
+    if (fromApp) rememberPostLoginPath(`${pathname}${search}`);
+    // From the landing page the sign-in page takes its place: once signed in (which replaces the
+    // sign-in page with the app) there is no guest page left behind, so back from the app leaves
+    // it instead of bouncing off a page that sends a signed-in visitor straight back
+    navigate(AUTH_PATHS.login, { replace: !fromApp });
   }, [navigate]);
 
   // Google: redirect to the server-side OAuth 2.0 flow, landing on the remembered page (or the app)

@@ -91,7 +91,7 @@ export default function LandingPage() {
 
   // Signed-in visitors go straight into the app; guests start the Google login
   const enterApp = useCallback(() => {
-    if (user) navigate(APP_BASE);
+    if (user) navigate(APP_BASE, { replace: true });
     else triggerLogin();
   }, [user, navigate, triggerLogin]);
 
