@@ -57,7 +57,7 @@ describe('Feature Flags Configuration and Logic', () => {
     const user = { role: 'user' };
 
     expect(enabledFeatures(admin)).toEqual(expect.arrayContaining(['cheque_scan', 'cheque_scan_debug']));
-    expect(enabledFeatures(user)).toEqual(['cheque_scan', 'expenses']);
+    expect(enabledFeatures(user)).toEqual(['cheque_scan', 'expenses', 'bank_accounts']);
     expect(enabledFeatures(null)).toEqual([]);
   });
 });

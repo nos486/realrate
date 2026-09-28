@@ -19,7 +19,7 @@ export const FEATURES = {
     description: 'بخش‌های هزینه (پروژه‌ها و ...) با ثبت هزینه به تومان یا دلار',
   },
   bank_accounts: {
-    stage: 'beta',
+    stage: 'ga',
     label: 'حساب‌ها',
     description: 'حساب‌های بانکی، نقد و کیف پول؛ منبع هر هزینه',
   },

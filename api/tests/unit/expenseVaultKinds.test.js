@@ -1,7 +1,7 @@
 /**
- * expenseVaultKinds.test.js — vault kinds that belong to a feature: expenses (generally available)
- * are open to every signed-in user; accounts (beta: admins) answer 404 to everyone else, as if
- * they did not exist
+ * expenseVaultKinds.test.js — vault kinds that belong to a feature: expenses and accounts (both
+ * generally available) are open to every signed-in user; a kind whose feature is off for a user
+ * answers 404, as if it did not exist
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
@@ -53,11 +53,23 @@ describe('expense vault kinds', () => {
     expect((await handleListVaultRecords(req(), {}, { kind: 'expense_group' })).status).toBe(200);
   });
 
-  it('hides the accounts kind from a regular user and lets an admin use it', async () => {
+  it('lets a regular user use accounts now that they are public', async () => {
     getAuthenticatedUser.mockResolvedValue(USER);
-    await expect(handleListVaultRecords(req(), {}, { kind: 'bank_account' })).rejects.toMatchObject({ statusCode: 404 });
-    getAuthenticatedUser.mockResolvedValue(ADMIN);
     expect((await handleListVaultRecords(req(), {}, { kind: 'bank_account' })).status).toBe(200);
+  });
+
+  it('answers 404 for a kind whose feature is off for the user', async () => {
+    const features = await import('../../src/config/features.js');
+    const saved = features.FEATURES.bank_accounts.stage;
+    features.FEATURES.bank_accounts.stage = 'beta';
+    try {
+      getAuthenticatedUser.mockResolvedValue(USER);
+      await expect(handleListVaultRecords(req(), {}, { kind: 'bank_account' })).rejects.toMatchObject({ statusCode: 404 });
+      getAuthenticatedUser.mockResolvedValue(ADMIN);
+      expect((await handleListVaultRecords(req(), {}, { kind: 'bank_account' })).status).toBe(200);
+    } finally {
+      features.FEATURES.bank_accounts.stage = saved;
+    }
   });
 
   it('leaves the other kinds as they were for regular users', async () => {
