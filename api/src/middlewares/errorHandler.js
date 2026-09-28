@@ -70,8 +70,10 @@ export function withErrorHandler(handler) {
   return async (...args) => {
     const request = args.find((a) => a && typeof a === "object" && typeof a.url === "string") || null;
     try {
-      const res = await handler(...args);
+      let res = await handler(...args);
       if (res instanceof Response && request) {
+        // Response.redirect() answers with immutable headers: add CORS to a copy of those
+        if (res.status >= 300 && res.status < 400) res = new Response(res.body, res);
         const corsHeaders = getCorsHeaders(request);
         for (const [key, value] of Object.entries(corsHeaders)) {
           res.headers.set(key, value);
