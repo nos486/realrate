@@ -91,6 +91,6 @@ describe('handleGetMe with feature flags', () => {
     expect(body.authenticated).toBe(true);
     expect(body.user.role).toBe('user');
     expect(body.user.isAdmin).toBe(false);
-    expect(body.user.features).toEqual(['cheque_scan']);
+    expect(body.user.features).toEqual(['cheque_scan', 'expenses']);
   });
 });

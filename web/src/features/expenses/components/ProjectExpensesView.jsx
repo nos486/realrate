@@ -141,7 +141,10 @@ export default function ProjectExpensesView({ groupId = null, onSelectGroup, usd
                   type="button"
                   className={`expense-group-chip ${active ? 'active' : ''}`}
                   aria-pressed={active}
-                  onClick={() => onSelectGroup?.(g.id)}
+                  onClick={() => {
+                    setSearchQuery('');
+                    onSelectGroup?.(g.id);
+                  }}
                 >
                   <span className="expense-group-chip-name">{g.name}</span>
                   <span className="expense-group-chip-total">

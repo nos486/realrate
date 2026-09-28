@@ -173,6 +173,8 @@ const VAULT_KIND_KEYS = {
   recurring_income: "recurringIncomes",
   holding: "holdings",
   transaction: "transactions",
+  expense: "expenses",
+  bank_account: "accounts",
 };
 /** Kinds whose plaintext rows are leftovers once the vault is on (portfolio items of a
  *  portfolio still behind its own older passphrase legitimately stay in their tables) */

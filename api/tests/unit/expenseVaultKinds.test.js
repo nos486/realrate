@@ -1,6 +1,7 @@
 /**
- * expenseVaultKinds.test.js — expense sections and expenses are vault records open only to users
- * of the `expenses` feature (beta: admins); everyone else gets 404, as if they did not exist
+ * expenseVaultKinds.test.js — vault kinds that belong to a feature: expenses (generally available)
+ * are open to every signed-in user; accounts (beta: admins) answer 404 to everyone else, as if
+ * they did not exist
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
@@ -31,14 +32,17 @@ const req = (method = 'GET', body) => new Request('https://api.realrate.ir/api/v
 describe('expense vault kinds', () => {
   beforeEach(() => vi.clearAllMocks());
 
-  it.each(['expense_group', 'expense'])('hides %s from a regular user with 404', async (kind) => {
+  it.each(['expense_group', 'expense'])('lets a regular user use %s now that expenses are public', async (kind) => {
     getAuthenticatedUser.mockResolvedValue(USER);
-    await expect(handleListVaultRecords(req(), {}, { kind })).rejects.toMatchObject({ statusCode: 404 });
-    await expect(handlePutVaultRecord(req('PUT', { payload: 'x' }), {}, { kind, id: 'e1' })).rejects.toMatchObject({ statusCode: 404 });
-    await expect(handleDeleteVaultRecord(req('DELETE'), {}, { kind, id: 'e1' })).rejects.toMatchObject({ statusCode: 404 });
-    expect(repo.dbListVaultRecords).not.toHaveBeenCalled();
-    expect(repo.dbPutVaultRecord).not.toHaveBeenCalled();
-    expect(repo.dbDeleteVaultRecord).not.toHaveBeenCalled();
+    expect((await handleListVaultRecords(req(), {}, { kind })).status).toBe(200);
+    expect((await handlePutVaultRecord(req('PUT', { payload: 'x', parentId: 'grp_1' }), {}, { kind, id: 'e1' })).status).toBe(200);
+    expect((await handleDeleteVaultRecord(req('DELETE'), {}, { kind, id: 'e1' })).status).toBe(200);
+    expect(repo.dbPutVaultRecord).toHaveBeenCalledWith({}, 'u1', kind, 'e1', expect.anything());
+  });
+
+  it('still requires a signed-in user', async () => {
+    getAuthenticatedUser.mockResolvedValue(null);
+    await expect(handleListVaultRecords(req(), {}, { kind: 'expense' })).rejects.toMatchObject({ statusCode: 401 });
   });
 
   it('lets an admin store and list them, with the section as parent', async () => {

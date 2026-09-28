@@ -14,7 +14,7 @@ export const FEATURES = {
     description: 'استخراج اطلاعات چک بانکی از تصویر با Gemini (محدودیت روزانه: config/usageLimits.js)',
   },
   expenses: {
-    stage: 'beta',
+    stage: 'ga',
     label: 'هزینه‌ها',
     description: 'بخش‌های هزینه (پروژه‌ها و ...) با ثبت هزینه به تومان یا دلار',
   },
