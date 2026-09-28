@@ -45,6 +45,7 @@ import {
 } from "../lib/security.js";
 import { sendEmail, isEmailConfigured, verificationEmail, passwordResetEmail, accountExistsEmail } from "../lib/email.js";
 import { SESSION_TTL_SECONDS, SESSION_COOKIE_MAX_AGE } from "../config/constants.js";
+import { isAppVerifier, appChallengeOf, appSignInPurpose, APP_WEBVIEW_ORIGIN } from "../lib/appAuth.js";
 
 export const PASSWORD_MIN_LENGTH = 8;
 export const PASSWORD_MAX_LENGTH = 128;
@@ -94,10 +95,13 @@ export function parseNewPassword(value) {
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
 
-/** Where links in emails point: the frontend that made the request, when it is one of ours */
+/**
+ * Where links in emails point: the frontend that made the request, when it is one of ours (the
+ * Android app's WebView origin is not a website: its links go to the configured frontend)
+ */
 export function resolveFrontendOrigin(request, env) {
   const origin = request.headers.get("Origin");
-  if (origin && isTrustedOrigin(origin)) return new URL(origin).origin;
+  if (origin && origin !== APP_WEBVIEW_ORIGIN && isTrustedOrigin(origin)) return new URL(origin).origin;
   const configured = String(env?.FRONTEND_URL || "").trim();
   if (configured && isTrustedOrigin(configured)) return new URL(configured).origin;
   return DEFAULT_FRONTEND_ORIGIN;
@@ -281,6 +285,28 @@ export async function handleLogin(request, env) {
   }
 
   await clearRateLimit(env, `login:${email}`);
+  return signIn(request, env, account, "ورود موفقیت‌آمیز بود.");
+}
+
+/**
+ * POST /api/auth/app/signin — The Android app finishes Google sign-in: the one-time code from
+ * its link plus the verifier it kept (see lib/appAuth.js) become a session
+ */
+export async function handleAppSignIn(request, env) {
+  const body = await readJson(request);
+  const code = typeof body.code === "string" ? body.code : "";
+  const verifier = typeof body.verifier === "string" ? body.verifier : "";
+  const ip = getClientIp(request);
+  await enforceLimit(env, `login-ip:${ip}`, LIMITS.loginIp);
+
+  const userId = code && isAppVerifier(verifier)
+    ? await dbConsumeAuthToken(env, code, appSignInPurpose(await appChallengeOf(verifier)))
+    : null;
+  const account = userId ? await dbGetUserAuthById(env, userId) : null;
+  if (!account) {
+    await recordRateLimitHit(env, `login-ip:${ip}`, LIMITS.loginIp);
+    throw AppError.badRequest("ورود با گوگل کامل نشد یا منقضی شده است. دوباره تلاش کنید.", "INVALID_TOKEN");
+  }
   return signIn(request, env, account, "ورود موفقیت‌آمیز بود.");
 }
 

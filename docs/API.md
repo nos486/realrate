@@ -65,6 +65,7 @@ Returns all active assets and market rates normalized through the centralized `d
 | `POST` | `/api/v1/auth/verify-email` | `{ token }` from the link → verifies the address and returns `{ token, user }` |
 | `POST` | `/api/v1/auth/verify-email/resend` | `{ email }` — send the verification link again |
 | `POST` | `/api/v1/auth/login` | `{ email, password }` → `{ token, user }`; `401 INVALID_CREDENTIALS`, `403 EMAIL_NOT_VERIFIED` |
+| `POST` | `/api/v1/auth/app/signin` | Android app Google sign-in: `{ code, verifier }` → `{ token, user }`; `400 INVALID_TOKEN` (see docs/ANDROID.md) |
 | `POST` | `/api/v1/auth/password/forgot` | `{ email }` — email a reset link (also how a Google account adds a password) |
 | `POST` | `/api/v1/auth/password/reset` | `{ token, password }` → sets it, verifies the address, signs out other sessions, returns `{ token, user }` |
 | `POST` | `/api/v1/auth/password` | Signed in: `{ newPassword, currentPassword? }` — add a first password or change it (other sessions are signed out) |

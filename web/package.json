@@ -9,9 +9,16 @@
     "deploy": "npx wrangler pages deploy dist",
     "lint": "oxlint",
     "test": "node --test tests/seo/*.test.js",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "build:app": "vite build --outDir dist-app",
+    "android:sync": "npm run build:app && cap sync android"
   },
   "dependencies": {
+    "@capacitor/app": "^8.1.1",
+    "@capacitor/browser": "^8.0.4",
+    "@capacitor/core": "^8.5.2",
+    "@capacitor/splash-screen": "^8.0.2",
+    "@capacitor/status-bar": "^8.0.3",
     "@dnd-kit/core": "^6.3.1",
     "@dnd-kit/sortable": "^10.0.0",
     "@dnd-kit/utilities": "^3.2.2",
@@ -22,6 +29,8 @@
     "react-router-dom": "^7.18.3"
   },
   "devDependencies": {
+    "@capacitor/android": "^8.5.2",
+    "@capacitor/cli": "^8.5.2",
     "@types/react": "^19.2.18",
     "@types/react-dom": "^19.2.4",
     "@vitejs/plugin-react": "^6.1.0",

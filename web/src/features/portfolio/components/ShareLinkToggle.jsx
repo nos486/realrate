@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Share2, Check, Copy } from 'lucide-react';
+import { publicOrigin } from '../../../shared/native/nativeApp.js';
 
 export default function ShareLinkToggle({ portfolio, onOpenSettings }) {
   const [copied, setCopied] = useState(false);
@@ -7,7 +8,7 @@ export default function ShareLinkToggle({ portfolio, onOpenSettings }) {
   if (!portfolio) return null;
 
   const shareUrl = portfolio.shareSlug
-    ? `${window.location.origin}/p/${portfolio.shareSlug}`
+    ? `${publicOrigin()}/p/${portfolio.shareSlug}`
     : '';
 
   const handleCopy = (e) => {

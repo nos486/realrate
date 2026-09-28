@@ -10,6 +10,11 @@ export function getGoogleLoginUrl(returnTo = '') {
   return `${API_BASE}/api/auth/google/login?return_to=${encodeURIComponent(target)}`;
 }
 
+/** The Android app finishes Google sign-in: its one-time code + verifier → `{ token, user }` */
+export function appSignIn(code, verifier) {
+  return httpClient.post('/api/auth/app/signin', { code, verifier });
+}
+
 export async function getMe() {
   return httpClient.get('/api/auth/me');
 }

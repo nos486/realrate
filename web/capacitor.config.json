@@ -1,0 +1,21 @@
+{
+  "appId": "ir.realrate.app",
+  "appName": "RealRate",
+  "webDir": "dist-app",
+  "android": {
+    "allowMixedContent": false,
+    "captureInput": true,
+    "webContentsDebuggingEnabled": false
+  },
+  "plugins": {
+    "SplashScreen": {
+      "launchShowDuration": 0,
+      "backgroundColor": "#06080d"
+    },
+    "StatusBar": {
+      "style": "DARK",
+      "backgroundColor": "#06080d",
+      "overlaysWebView": false
+    }
+  }
+}

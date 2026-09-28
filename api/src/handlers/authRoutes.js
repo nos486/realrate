@@ -17,6 +17,7 @@ import {
   dbGetUserAuthById,
   dbGetUserAuthByEmail,
   dbRecordUserActivity,
+  dbCreateAuthToken,
 } from "../repositories/index.js";
 import { getDemoVaultPassphrase, DEMO_EMAIL } from "../repositories/demo.repository.js";
 import { ACCOUNT_DISABLED_MESSAGE } from "./accountRoutes.js";
@@ -24,6 +25,7 @@ import { getMaintenance } from "../lib/maintenance.js";
 import { jsonResponse, errorResponse, getCorsHeaders } from "../lib/helpers.js";
 import { logger } from "../lib/logger.js";
 import { isTrustedOrigin } from "../lib/security.js";
+import { isAppChallenge, appAuthRedirect, appSignInPurpose, APP_SIGNIN_CODE_TTL } from "../lib/appAuth.js";
 import {
   SESSION_TTL_SECONDS,
   SESSION_COOKIE_MAX_AGE,
@@ -140,11 +142,14 @@ export async function handleGoogleLogin(request, env) {
   const { codeVerifier, codeChallenge } = await generatePkce();
   const nonce = crypto.randomUUID();
 
+  // Sign-in started by the Android app (in the phone's browser): it ends back in the app
+  const appChallenge = url.searchParams.get("app_challenge");
   const statePayload = {
     returnTo,
     frontendOrigin,
     redirectUri,
     nonce,
+    ...(isAppChallenge(appChallenge) ? { app: appChallenge } : {}),
   };
   const stateStr = base64UrlEncode(new TextEncoder().encode(JSON.stringify(statePayload)));
 
@@ -194,17 +199,21 @@ export async function handleGoogleCallback(request, env) {
   const frontendOrigin = stateData.frontendOrigin || DEFAULT_FRONTEND_ORIGIN;
   const returnTo = stateData.returnTo || "/";
   const redirectUri = stateData.redirectUri || resolveRedirectUri(request, env);
+  const appChallenge = isAppChallenge(stateData.app) ? stateData.app : null;
+  // Where the browser goes when sign-in ends: the web app, or back into the Android app
+  const finishTarget = (params) =>
+    appChallenge ? appAuthRedirect(params) : buildFrontendRedirect(frontendOrigin, returnTo, params);
 
   // If user cancelled or Google returned an error
   if (errorParam) {
-    const errorTarget = buildFrontendRedirect(frontendOrigin, returnTo, {
+    const errorTarget = finishTarget({
       auth_error: errorParam === "access_denied" ? "ورود با گوگل لغو شد." : errorParam,
     });
     return Response.redirect(errorTarget, 302);
   }
 
   if (!code) {
-    const errorTarget = buildFrontendRedirect(frontendOrigin, returnTo, {
+    const errorTarget = finishTarget({
       auth_error: "کد اعتبارسنجی از گوگل دریافت نشد.",
     });
     return Response.redirect(errorTarget, 302);
@@ -225,7 +234,7 @@ export async function handleGoogleCallback(request, env) {
 
   // The state must come from a login this browser started (login-CSRF protection)
   if (!codeVerifier) {
-    const errorTarget = buildFrontendRedirect(frontendOrigin, returnTo, {
+    const errorTarget = finishTarget({
       auth_error: "نشست ورود نامعتبر یا منقضی شده است. لطفاً دوباره وارد شوید.",
     });
     return Response.redirect(errorTarget, 302);
@@ -255,7 +264,7 @@ export async function handleGoogleCallback(request, env) {
       const errData = await tokenRes.json().catch(() => ({}));
       console.error("Google token exchange error:", tokenRes.status, errData);
       const msg = errData.error_description || errData.error || "خطا در تبادل کد با سرور گوگل";
-      const errorTarget = buildFrontendRedirect(frontendOrigin, returnTo, {
+      const errorTarget = finishTarget({
         auth_error: msg,
       });
       return Response.redirect(errorTarget, 302);
@@ -286,7 +295,7 @@ export async function handleGoogleCallback(request, env) {
 
     const email = (userInfo?.email || "").toLowerCase().trim();
     if (!email) {
-      const errorTarget = buildFrontendRedirect(frontendOrigin, returnTo, {
+      const errorTarget = finishTarget({
         auth_error: "ایمیل از حساب کاربری گوگل دریافت نشد.",
       });
       return Response.redirect(errorTarget, 302);
@@ -294,7 +303,7 @@ export async function handleGoogleCallback(request, env) {
 
     const existingUser = await dbGetUserAuthByEmail(env, email);
     if (existingUser?.isDemo || email === DEMO_EMAIL) {
-      const errorTarget = buildFrontendRedirect(frontendOrigin, returnTo, {
+      const errorTarget = finishTarget({
         auth_error: "ورود به حساب دمو از طریق گوگل امکان‌پذیر نیست.",
       });
       return Response.redirect(errorTarget, 302);
@@ -311,13 +320,20 @@ export async function handleGoogleCallback(request, env) {
 
     const maintenance = await getMaintenance(env);
     if (maintenance.enabled && !isAdmin) {
-      return Response.redirect(buildFrontendRedirect(frontendOrigin, returnTo, { auth_error: maintenance.message }), 302);
+      return Response.redirect(finishTarget({ auth_error: maintenance.message }), 302);
     }
 
     // 1. Upsert user in the database (+ KV sync)
     await dbUpsertUser(env, userData);
     if (userData.disabled) {
-      return Response.redirect(buildFrontendRedirect(frontendOrigin, returnTo, { auth_error: ACCOUNT_DISABLED_MESSAGE }), 302);
+      return Response.redirect(finishTarget({ auth_error: ACCOUNT_DISABLED_MESSAGE }), 302);
+    }
+
+    // The Android app gets a one-time code, redeemed with the secret only the app holds
+    // (POST /api/auth/app/signin); the session itself is created there
+    if (appChallenge) {
+      const appCode = await dbCreateAuthToken(env, userData.id, appSignInPurpose(appChallenge), APP_SIGNIN_CODE_TTL);
+      return Response.redirect(appAuthRedirect({ code: appCode }), 302);
     }
 
     // 2. Create 30-day session
@@ -337,7 +353,7 @@ export async function handleGoogleCallback(request, env) {
     const clearVerifierCookie = `rr_oauth_verifier=; Path=/api/auth/google; HttpOnly; Secure; SameSite=Lax; Max-Age=0`;
 
     // 3. Redirect user to frontend with auth_token in URL query param
-    const successTarget = buildFrontendRedirect(frontendOrigin, returnTo, {
+    const successTarget = finishTarget({
       auth_token: sessionToken,
     });
 
@@ -352,7 +368,7 @@ export async function handleGoogleCallback(request, env) {
     });
   } catch (e) {
     logger.error("Error in handleGoogleCallback:", { error: e.message, stack: e.stack });
-    const errorTarget = buildFrontendRedirect(frontendOrigin, returnTo, {
+    const errorTarget = finishTarget({
       auth_error: "خطای سرور در تکمیل فرآیند ورود.",
     });
     return Response.redirect(errorTarget, 302);

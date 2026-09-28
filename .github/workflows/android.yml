@@ -1,0 +1,79 @@
+# Android app: builds the APK from the web app (web/) and its Android shell (web/android).
+# Pull requests get a debug APK to try; main also gets a signed release APK when the signing
+# secrets are set (see docs/ANDROID.md). The APKs are attached to the run as artifacts.
+name: Android
+
+on:
+  push:
+    branches: [main]
+    paths: ['web/**', 'api/src/domain/**', 'package-lock.json', '.github/workflows/android.yml']
+  pull_request:
+    paths: ['web/**', 'api/src/domain/**', 'package-lock.json', '.github/workflows/android.yml']
+  workflow_dispatch:
+
+concurrency:
+  group: android-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      VERSION_CODE: ${{ github.run_number }}
+      VERSION_NAME: 1.0.${{ github.run_number }}
+      HAS_SIGNING: ${{ secrets.ANDROID_KEYSTORE_BASE64 != '' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+          cache: gradle
+
+      - name: Install
+        run: npm ci
+
+      - name: Build the web app into the Android project
+        working-directory: web
+        run: |
+          npm run build:app
+          npx cap sync android
+
+      - name: Debug APK
+        working-directory: web/android
+        run: ./gradlew --no-daemon assembleDebug -PversionCode=$VERSION_CODE -PversionName=$VERSION_NAME
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: realrate-debug-${{ env.VERSION_NAME }}
+          path: web/android/app/build/outputs/apk/debug/*.apk
+          retention-days: 14
+
+      - name: Release APK (signed)
+        if: github.event_name != 'pull_request' && env.HAS_SIGNING == 'true'
+        working-directory: web/android
+        env:
+          KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          export ANDROID_KEYSTORE_PATH="$RUNNER_TEMP/release.jks"
+          echo "$KEYSTORE_BASE64" | base64 -d > "$ANDROID_KEYSTORE_PATH"
+          ./gradlew --no-daemon assembleRelease -PversionCode=$VERSION_CODE -PversionName=$VERSION_NAME
+          rm -f "$ANDROID_KEYSTORE_PATH"
+
+      - uses: actions/upload-artifact@v4
+        if: github.event_name != 'pull_request'
+        with:
+          name: realrate-release-${{ env.VERSION_NAME }}
+          path: web/android/app/build/outputs/apk/release/*.apk
+          if-no-files-found: ignore
+          retention-days: 90
