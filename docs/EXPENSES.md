@@ -16,7 +16,7 @@
 - `currency`: `IRT` (تومان) یا `USD`. `usdRate`: نرخ دلار روز هزینه به تومان (اختیاری، فقط برای دلار).
 - اعتبارسنجی و محاسبه جمع‌ها: `api/src/domain/expenseDocument.js` (مشترک مرورگر و سرور، از طریق `web/src/utils/expenseDocument.js`).
 - ذخیره در مرورگر: `web/src/shared/vault/vaultExpenses.js`. صفحه: `web/src/features/expenses/`.
-- دسترسی: ویژگی `expenses` در `api/src/config/features.js` — اکنون `ga` (برای همه کاربران). `VAULT_KIND_FEATURES` در `vault.repository.js` نوع رکوردهای هر ویژگی را به آن گره می‌زند؛ ویژگی‌ای که برای کاربری فعال نیست ۴۰۴ می‌دهد (مثل `bank_account` تا وقتی حساب‌ها بتا هستند).
+- دسترسی: ویژگی `expenses` در `api/src/config/features.js` — اکنون `ga` (برای همه کاربران). `VAULT_KIND_FEATURES` در `vault.repository.js` نوع رکوردهای هر ویژگی را به آن گره می‌زند؛ ویژگی‌ای که برای کاربری فعال نیست ۴۰۴ می‌دهد (حساب‌ها، `bank_accounts`، هم اکنون `ga` است).
 
 ## مرحله ۲ — هزینه‌های روزمره (انجام شد)
 
@@ -26,7 +26,7 @@
 - محاسبات مشترک: `summarizeByCategory`، `shamsiMonthRange`، `shiftShamsiMonth`، `shamsiMonthOf`.
 - بعداً: دسته سفارشی، بودجه ماهانه هر دسته، و مانده ماه در کنار درآمدها.
 
-## حساب‌ها و بودجه (انجام شد، بتا)
+## حساب‌ها و بودجه (انجام شد)
 
 - **حساب‌ها** (`bank_account`، ویژگی `bank_accounts`): `{ id, name, type: bank|cash|wallet|other, bankId, bankName, cardLast4, currency, notes, archived }` — `api/src/domain/accountDocument.js`، صفحه `web/src/features/accounts/`.
 - هزینه: `accountId` (حسابی که از آن پرداخت شده).
