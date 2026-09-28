@@ -18,6 +18,11 @@ export const FEATURES = {
     label: 'هزینه‌ها',
     description: 'بخش‌های هزینه (پروژه‌ها و ...) با ثبت هزینه به تومان یا دلار',
   },
+  bank_accounts: {
+    stage: 'beta',
+    label: 'حساب‌ها',
+    description: 'حساب‌های بانکی، نقد و کیف پول؛ منبع هر هزینه',
+  },
   cheque_scan_debug: {
     stage: 'beta',
     label: 'ابزار بررسی دقت اسکن چک',

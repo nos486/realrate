@@ -28,6 +28,13 @@ import ExpenseGroupForm from './ExpenseGroupForm.jsx';
 import ExpenseForm from './ExpenseForm.jsx';
 import ExpensesTable from './ExpensesTable.jsx';
 import ExpenseSummaryCards from './ExpenseSummaryCards.jsx';
+import { GenericCsvExportButton } from '../../../shared/ui/index.js';
+import { useAccounts } from '../../accounts/hooks/useAccounts.js';
+import { accountLabel } from '../../accounts/constants/accountDisplay.js';
+import { formatShamsiDisplay } from '../../portfolio/components/ShamsiDatePicker.jsx';
+import { expenseInToman } from '../../../utils/expenseDocument.js';
+
+const CSV_HEADERS = ['تاریخ', 'عنوان', 'مبلغ', 'ارز', 'نرخ دلار', 'معادل تومان', 'پرداخت از', 'یادداشت'];
 
 export default function ProjectExpensesView({ groupId = null, onSelectGroup, usdToman = 0 }) {
   const { readOnly } = useDemo();
@@ -36,6 +43,8 @@ export default function ProjectExpensesView({ groupId = null, onSelectGroup, usd
     saveGroup, deleteGroup, saveExpense, deleteExpense,
   } = useExpenses();
   const hideValues = usePrivacyMode();
+  const { accounts } = useAccounts();
+  const accountById = useMemo(() => new Map(accounts.map((a) => [a.id, a])), [accounts]);
   const { confirm } = useFeedback();
   const [groupForm, setGroupForm] = useState(null); // null | { group: object|null }
   const [expenseForm, setExpenseForm] = useState(null); // null | { expense: object|null }
@@ -150,7 +159,7 @@ export default function ProjectExpensesView({ groupId = null, onSelectGroup, usd
           </nav>
 
           {selected && (
-            <SplitPageLayout sidebar={<ExpenseSummaryCards summary={selectedData.summary} hideValues={hideValues} />}>
+            <SplitPageLayout sidebar={<ExpenseSummaryCards summary={selectedData.summary} budget={selected.budget} hideValues={hideValues} />}>
               <div className="portfolio-table-card">
                 <div className="portfolio-table-header">
                   <div className="table-title">
@@ -185,6 +194,22 @@ export default function ProjectExpensesView({ groupId = null, onSelectGroup, usd
                         className="incomes-search"
                       />
                     )}
+                    <GenericCsvExportButton
+                      items={visibleExpenses}
+                      headers={CSV_HEADERS}
+                      fileBaseName={`هزینه‌های-${selected.name}`}
+                      disabled={visibleExpenses.length === 0}
+                      mapRow={(e) => [
+                        formatShamsiDisplay(`${e.date}T00:00:00`),
+                        e.title,
+                        e.amount,
+                        e.currency === 'USD' ? 'دلار' : 'تومان',
+                        e.usdRate || '',
+                        Math.round(expenseInToman(e, usdToman) || 0),
+                        e.accountId ? accountLabel(accountById.get(e.accountId)) : '',
+                        e.notes || '',
+                      ]}
+                    />
                     <Button
                       icon={<Plus size={16} />}
                       onClick={() => setExpenseForm({ expense: null })}
@@ -214,6 +239,7 @@ export default function ProjectExpensesView({ groupId = null, onSelectGroup, usd
                       deletingId={deletingId}
                       hideValues={hideValues}
                       readOnly={readOnly}
+                      accounts={accounts.length ? accounts : null}
                     />
                   )}
                 </div>
@@ -238,6 +264,7 @@ export default function ProjectExpensesView({ groupId = null, onSelectGroup, usd
           group={selected}
           expense={expenseForm.expense}
           usdToman={usdToman}
+          accounts={accounts.filter((a) => !a.archived || a.id === expenseForm.expense?.accountId)}
           onSubmit={(input) => saveExpense(input, expenseForm.expense)}
           onClose={() => setExpenseForm(null)}
           submitting={submitting}

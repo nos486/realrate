@@ -4,7 +4,8 @@
  * For a project section (`group`) the title is required. For everyday expenses (`daily`) a
  * category is picked instead and the title is optional (the category's name when left empty).
  * A dollar expense may carry the toman rate of its day; left empty, totals convert it at
- * today's rate. Mounted only while open, so its state starts from props.
+ * today's rate. With `accounts`, the account it was paid from can be picked (a new everyday
+ * expense starts from the last one used). Mounted only while open, so its state starts from props.
  */
 
 import React, { useState } from 'react';
@@ -18,6 +19,17 @@ import ShamsiDatePicker, {
 import { parseInputNumber, formatNum } from '../../portfolio/utils/holdingHelpers.js';
 import { EXPENSE_CURRENCIES, EXPENSE_LIMITS } from '../../../utils/expenseDocument.js';
 import { EXPENSE_CATEGORIES, getExpenseCategory } from '../constants/expenseCategories.js';
+import { accountLabel } from '../../accounts/constants/accountDisplay.js';
+
+const LAST_ACCOUNT_KEY = 'realrate_last_expense_account';
+
+function readLastAccount() {
+  try {
+    return localStorage.getItem(LAST_ACCOUNT_KEY) || '';
+  } catch {
+    return '';
+  }
+}
 
 const CURRENCY_OPTIONS = EXPENSE_CURRENCIES.map(({ value, label }) => ({ value, label }));
 const CATEGORY_OPTIONS = EXPENSE_CATEGORIES.map(({ value, label, Icon }) => ({
@@ -26,7 +38,12 @@ const CATEGORY_OPTIONS = EXPENSE_CATEGORIES.map(({ value, label, Icon }) => ({
   icon: <Icon size={14} strokeWidth={2} />,
 }));
 
-export default function ExpenseForm({ group = null, daily = false, expense = null, usdToman = 0, onSubmit, onClose, submitting = false }) {
+export default function ExpenseForm({ group = null, daily = false, expense = null, usdToman = 0, accounts = [], onSubmit, onClose, submitting = false }) {
+  const [accountId, setAccountId] = useState(() => {
+    if (expense) return expense.accountId || '';
+    const last = readLastAccount();
+    return accounts.some((a) => a.id === last) ? last : '';
+  });
   const [category, setCategory] = useState(expense?.category || 'groceries');
   // A daily expense titled after its category shows an empty title field (the default)
   const [title, setTitle] = useState(
@@ -54,6 +71,7 @@ export default function ExpenseForm({ group = null, daily = false, expense = nul
       await onSubmit({
         ...(group ? { groupId: group.id } : {}),
         ...(daily ? { category } : {}),
+        accountId,
         title: title.trim() || getExpenseCategory(category).label,
         amount: amountNum,
         currency,
@@ -61,6 +79,11 @@ export default function ExpenseForm({ group = null, daily = false, expense = nul
         date: dateIso,
         notes: notes.trim(),
       });
+      try {
+        if (accountId) localStorage.setItem(LAST_ACCOUNT_KEY, accountId);
+      } catch {
+        // Only a convenience
+      }
       onClose();
     } catch (err) {
       setSubmitError(err.message || 'خطا در ذخیره هزینه');
@@ -163,6 +186,22 @@ export default function ExpenseForm({ group = null, daily = false, expense = nul
                 {!rateNum && ' (به نرخ امروز)'}
               </p>
             )}
+          </div>
+        )}
+
+        {accounts.length > 0 && (
+          <div className="ui-input-group">
+            <span className="ui-input-label">پرداخت از</span>
+            <FilterPills
+              options={[
+                { value: '', label: 'نامشخص' },
+                ...accounts.map((a) => ({ value: a.id, label: accountLabel(a) })),
+              ]}
+              activeValue={accountId}
+              onChange={setAccountId}
+              size="sm"
+              className="income-category-picker"
+            />
           </div>
         )}
 

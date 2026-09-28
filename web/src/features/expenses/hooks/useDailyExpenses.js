@@ -16,8 +16,9 @@ const inRange = (e, { from, to }) => e.date >= from && e.date <= to;
 
 /**
  * @param {{ jy: number, jm: number }} month the Shamsi month shown
+ * @param {{ enabled?: boolean }} [options] nothing loads when false (a page without the feature)
  */
-export function useDailyExpenses(month) {
+export function useDailyExpenses(month, { enabled = true } = {}) {
   const { user } = useAuth();
   const { status: vaultStatus, epoch: vaultEpoch } = useVault();
   const vaultLocked = vaultStatus === 'locked';
@@ -33,7 +34,7 @@ export function useDailyExpenses(month) {
   const prevRange = shamsiMonthRange(prev.jy, prev.jm);
 
   const fetchMonth = useCallback(async () => {
-    if (!user || vaultLocked) {
+    if (!user || vaultLocked || !enabled) {
       setExpenses([]);
       setLoading(false);
       return;
@@ -53,7 +54,7 @@ export function useDailyExpenses(month) {
     }
     // vaultEpoch: reload after unlocking
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user, vaultLocked, vaultEpoch, range.to, prevRange.from]);
+  }, [user, vaultLocked, enabled, vaultEpoch, range.to, prevRange.from]);
 
   useEffect(() => {
     fetchMonth();
@@ -79,6 +80,19 @@ export function useDailyExpenses(month) {
     }
   }, [dailyGroup, prevRange.from, range.to]);
 
+  /** Set the monthly budgets (per category and `total`); creates the daily section if needed */
+  const saveBudgets = useCallback(async (budgets) => {
+    setSubmitting(true);
+    try {
+      const group = dailyGroup || await api.ensureDailyGroup((await api.getExpenseGroups()).groups);
+      const { group: saved } = await api.saveExpenseGroup({ budgets }, group);
+      setDailyGroup(saved);
+      return saved;
+    } finally {
+      setSubmitting(false);
+    }
+  }, [dailyGroup]);
+
   const deleteExpense = useCallback(async (expenseId) => {
     setDeletingId(expenseId);
     setError(null);
@@ -97,6 +111,7 @@ export function useDailyExpenses(month) {
     expenses: expenses.filter((e) => inRange(e, range)),
     previousExpenses: expenses.filter((e) => inRange(e, prevRange)),
     range,
+    budgets: dailyGroup?.budgets || {},
     vaultLocked,
     loading,
     submitting,
@@ -105,6 +120,7 @@ export function useDailyExpenses(month) {
     clearError: useCallback(() => setError(null), []),
     fetchMonth,
     saveExpense,
+    saveBudgets,
     deleteExpense,
   };
 }

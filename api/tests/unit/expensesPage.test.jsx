@@ -29,6 +29,8 @@ const daily = { expenses: [], previousExpenses: [] };
 vi.mock('../../../web/src/features/expenses/hooks/useDailyExpenses.js', () => ({
   useDailyExpenses: () => ({
     ...daily,
+    budgets: daily.budgets || {},
+    saveBudgets: vi.fn(),
     range: { from: '2026-09-23', to: '2026-10-22', days: 30 },
     loading: false,
     submitting: false,
@@ -39,6 +41,10 @@ vi.mock('../../../web/src/features/expenses/hooks/useDailyExpenses.js', () => ({
     saveExpense: vi.fn(),
     deleteExpense: vi.fn(),
   }),
+}));
+const accountState = { accounts: [] };
+vi.mock('../../../web/src/features/accounts/hooks/useAccounts.js', () => ({
+  useAccounts: () => ({ accounts: accountState.accounts, activeAccounts: accountState.accounts.filter((a) => !a.archived) }),
 }));
 vi.mock('../../../web/src/shared/vault/useVault.js', () => ({ useVault: () => ({ status: 'unlocked' }) }));
 vi.mock('../../../web/src/features/market/index.js', () => ({
@@ -59,6 +65,8 @@ afterEach(() => {
   state.expenses = [];
   daily.expenses = [];
   daily.previousExpenses = [];
+  daily.budgets = {};
+  accountState.accounts = [];
 });
 
 describe('ExpensesPage', () => {
@@ -126,5 +134,23 @@ describe('ExpensesPage', () => {
     renderPage({ segment: null, onNavigate });
     fireEvent.click(screen.getAllByText('پروژه‌ها').map((el) => el.closest('button')).find(Boolean));
     expect(onNavigate).toHaveBeenCalledWith('projects');
+  });
+
+  it('shows budgets as progress and what was paid from each account', () => {
+    accountState.accounts = [{ id: 'acc_1', name: 'ملت', type: 'bank', cardLast4: '1234' }];
+    daily.budgets = { total: 1_000_000, dining: 100_000 };
+    daily.expenses = [
+      { id: 'd1', groupId: 'exg_d', title: 'کافه', category: 'dining', amount: 150_000, currency: 'IRT', date: '2026-09-24', accountId: 'acc_1' },
+      { id: 'd2', groupId: 'exg_d', title: 'نان', category: 'groceries', amount: 50_000, currency: 'IRT', date: '2026-09-24' },
+    ];
+    renderPage({ segment: null });
+    expect(screen.getByText('بودجه ماه')).toBeTruthy();
+    // dining: 150,000 of 100,000 — over budget
+    expect(screen.getByText(/بیش از بودجه/)).toBeTruthy();
+    expect(screen.getAllByText('پرداخت از').length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/ملت \(۱۲۳۴\)/).length).toBeGreaterThan(0);
+
+    fireEvent.click(screen.getByRole('button', { name: /ثبت هزینه/ }));
+    expect(screen.getAllByText('نامشخص').length).toBeGreaterThan(0);
   });
 });

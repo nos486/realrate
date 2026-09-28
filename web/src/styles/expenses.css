@@ -167,3 +167,221 @@
     order: 0;
   }
 }
+
+/* Sidebar cards of the expenses views (budgets, paid-from) */
+.expense-side-card {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 14px 16px;
+  border: 1px solid var(--border-color);
+  border-radius: 14px;
+  background: var(--bg-card);
+}
+
+.expense-side-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.expense-side-card-head h4 {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.expense-side-card-empty {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.8;
+  color: var(--text-muted);
+}
+
+/* One budget line */
+.budget-progress {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.budget-progress-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 12px;
+}
+
+.budget-progress-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--text-primary);
+}
+
+.budget-progress-values {
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+.budget-progress-track {
+  height: 6px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.budget-progress-track span {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: var(--color-positive);
+}
+
+.budget-progress.is-warning .budget-progress-track span { background: var(--color-warning); }
+.budget-progress.is-over .budget-progress-track span { background: var(--color-negative); }
+.budget-progress.is-over .budget-progress-values strong { color: var(--color-negative-text); }
+
+.budget-progress-over {
+  font-size: 11px;
+  color: var(--color-negative-text);
+}
+
+.budget-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 4px 12px;
+}
+
+.budget-field .ui-input-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+@media (max-width: 520px) {
+  .budget-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Paid-from breakdown */
+.expense-account-breakdown {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 12.5px;
+}
+
+.expense-account-breakdown li {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.expense-account-breakdown small {
+  color: var(--text-muted);
+  font-weight: 400;
+}
+
+.expense-account-text {
+  font-size: 12px;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+/* ── Accounts (features/accounts) ───────────────────────────────────────────── */
+.account-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 14px;
+}
+
+.account-card {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px;
+  border: 1px solid var(--border-color);
+  border-radius: 16px;
+  background: var(--bg-card);
+}
+
+.account-card.is-archived {
+  opacity: 0.55;
+}
+
+.account-card-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.account-type-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  background: var(--gold-soft-bg);
+  color: var(--gold-light);
+}
+
+.account-card-title {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.account-card-title strong {
+  overflow: hidden;
+  font-size: 14.5px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.account-card-title span {
+  font-size: 11.5px;
+  color: var(--text-muted);
+}
+
+.account-card-number {
+  font-family: ui-monospace, monospace;
+  font-size: 14px;
+  letter-spacing: 1px;
+  color: var(--text-secondary);
+  text-align: left;
+}
+
+.account-card-stat {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border-color);
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.account-card-stat strong {
+  color: var(--color-negative-text);
+}
+
+.account-card-notes {
+  margin: 0;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.account-card-actions {
+  justify-content: flex-end;
+}

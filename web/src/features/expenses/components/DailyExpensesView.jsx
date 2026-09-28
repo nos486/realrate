@@ -3,13 +3,15 @@
  *
  * - Month switcher (previous / next / this month); only that month and the one before are loaded
  * - Summary: the month's total, the change from last month, the daily average and the largest
- *   category, plus a donut of the categories
- * - The month's expenses, filterable by category, with the form to add and edit them
+ *   category; the monthly budgets (total and per category) as progress bars; a donut of the
+ *   categories; and, with accounts, how much was paid from each
+ * - The month's expenses, filterable by category and account, with the form to add and edit
+ *   them and a CSV export of the month
  */
 
 import React, { useMemo, useState } from 'react';
-import { ChevronRight, ChevronLeft, Plus, Coins, TrendingUp, TrendingDown, CalendarDays, Tag } from 'lucide-react';
-import { AlertBanner, Button, EmptyState, MiniCard, SplitPageLayout } from '../../../shared/ui/index.js';
+import { ChevronRight, ChevronLeft, Plus, Coins, TrendingUp, TrendingDown, CalendarDays, Tag, Target } from 'lucide-react';
+import { AlertBanner, Button, EmptyState, GenericCsvExportButton, MiniCard, SplitPageLayout } from '../../../shared/ui/index.js';
 import DonutChart from '../../../shared/ui/DonutChart.jsx';
 import { useFeedback } from '../../../shared/ui/FeedbackProvider.jsx';
 import { SkeletonRows } from '../../../shared/ui/Skeleton.jsx';
@@ -17,6 +19,8 @@ import { todayIso } from '../../../shared/utils/dates.js';
 import {
   summarizeExpenses,
   summarizeByCategory,
+  summarizeByAccount,
+  expenseInToman,
   shamsiMonthOf,
   shamsiMonthRange,
   shiftShamsiMonth,
@@ -24,10 +28,17 @@ import {
 import { formatShamsiMonth } from '../../incomes/utils/incomeReport.js';
 import { useDemo } from '../../demo/index.js';
 import { useDailyExpenses } from '../hooks/useDailyExpenses.js';
+import { useAccounts } from '../../accounts/hooks/useAccounts.js';
+import { accountLabel } from '../../accounts/constants/accountDisplay.js';
+import { formatShamsiDisplay } from '../../portfolio/components/ShamsiDatePicker.jsx';
 import { getExpenseCategory } from '../constants/expenseCategories.js';
 import { formatAmount } from '../utils/format.js';
 import ExpenseForm from './ExpenseForm.jsx';
 import ExpensesTable from './ExpensesTable.jsx';
+import BudgetForm from './BudgetForm.jsx';
+import BudgetProgress from './BudgetProgress.jsx';
+
+const CSV_HEADERS = ['تاریخ', 'دسته‌بندی', 'عنوان', 'مبلغ', 'ارز', 'نرخ دلار', 'معادل تومان', 'پرداخت از', 'یادداشت'];
 
 const MASK = '****';
 const monthIndex = ({ jy, jm }) => jy * 12 + jm;
@@ -39,11 +50,15 @@ export default function DailyExpensesView({ usdToman = 0, hideValues = false }) 
   const thisMonth = useMemo(() => shamsiMonthOf(today), [today]);
   const [month, setMonth] = useState(thisMonth);
   const [categoryFilter, setCategoryFilter] = useState('all');
+  const [accountFilter, setAccountFilter] = useState('all');
   const [form, setForm] = useState(null); // null | { expense: object|null }
+  const [budgetOpen, setBudgetOpen] = useState(false);
   const {
-    expenses, previousExpenses, range, loading, submitting, deletingId, error, clearError, fetchMonth,
-    saveExpense, deleteExpense,
+    expenses, previousExpenses, range, budgets, loading, submitting, deletingId, error, clearError, fetchMonth,
+    saveExpense, saveBudgets, deleteExpense,
   } = useDailyExpenses(month);
+  const { accounts } = useAccounts();
+  const accountById = useMemo(() => new Map(accounts.map((a) => [a.id, a])), [accounts]);
 
   const isThisMonth = monthIndex(month) === monthIndex(thisMonth);
   const summary = useMemo(() => summarizeExpenses(expenses, { usdToman }), [expenses, usdToman]);
@@ -68,7 +83,14 @@ export default function DailyExpensesView({ usdToman = 0, hideValues = false }) 
   const top = byCategory[0] ? getExpenseCategory(byCategory[0].category) : null;
   const money = (v) => (hideValues ? MASK : formatAmount(v));
 
-  const visible = categoryFilter === 'all' ? expenses : expenses.filter((e) => (e.category || 'other') === categoryFilter);
+  const byAccount = useMemo(() => summarizeByAccount(expenses, { usdToman }), [expenses, usdToman]);
+  const usesAccounts = byAccount.some((a) => a.accountId);
+  const budgetKeys = Object.keys(budgets).filter((k) => k !== 'total');
+  const spentIn = new Map(byCategory.map((c) => [c.category, c.totalToman]));
+
+  const visible = expenses.filter((e) =>
+    (categoryFilter === 'all' || (e.category || 'other') === categoryFilter) &&
+    (accountFilter === 'all' || (e.accountId || '') === accountFilter));
   const donutItems = byCategory.map((c) => {
     const meta = getExpenseCategory(c.category);
     return { key: c.category, label: meta.label, value: c.totalToman, icon: <meta.Icon size={12} /> };
@@ -76,6 +98,7 @@ export default function DailyExpensesView({ usdToman = 0, hideValues = false }) 
 
   const goTo = (delta) => {
     setCategoryFilter('all');
+    setAccountFilter('all');
     setMonth((m) => shiftShamsiMonth(m, delta));
   };
 
@@ -130,8 +153,53 @@ export default function DailyExpensesView({ usdToman = 0, hideValues = false }) 
           footer={top && <span>{money(byCategory[0].totalToman)} تومان</span>}
         />
       </div>
+      <div className="expense-side-card">
+        <div className="expense-side-card-head">
+          <h4><Target size={14} /> بودجه ماه</h4>
+          {!readOnly && (
+            <Button size="sm" variant="secondary" onClick={() => setBudgetOpen(true)}>
+              {budgets.total || budgetKeys.length ? 'ویرایش' : 'تعیین بودجه'}
+            </Button>
+          )}
+        </div>
+        {budgets.total || budgetKeys.length ? (
+          <>
+            {budgets.total > 0 && (
+              <BudgetProgress label="کل ماه" spent={summary.totalToman} budget={budgets.total} hideValues={hideValues} />
+            )}
+            {budgetKeys.map((key) => {
+              const meta = getExpenseCategory(key);
+              return (
+                <BudgetProgress
+                  key={key}
+                  label={meta.label}
+                  icon={<meta.Icon size={12} />}
+                  spent={spentIn.get(key) || 0}
+                  budget={budgets[key]}
+                  hideValues={hideValues}
+                />
+              );
+            })}
+          </>
+        ) : (
+          <p className="expense-side-card-empty">برای کل ماه یا هر دسته سقف خرج بگذارید تا نزدیک شدن به آن را ببینید.</p>
+        )}
+      </div>
       {donutItems.length > 0 && (
         <DonutChart title="تفکیک دسته‌ها" items={donutItems} centerLabel="جمع ماه" masked={hideValues} />
+      )}
+      {usesAccounts && (
+        <div className="expense-side-card">
+          <div className="expense-side-card-head"><h4>پرداخت از</h4></div>
+          <ul className="expense-account-breakdown">
+            {byAccount.map((a) => (
+              <li key={a.accountId || 'none'}>
+                <span>{a.accountId ? accountLabel(accountById.get(a.accountId)) : 'نامشخص'}</span>
+                <strong>{money(a.totalToman)} <small>تومان</small></strong>
+              </li>
+            ))}
+          </ul>
+        </div>
       )}
     </>
   );
@@ -170,14 +238,33 @@ export default function DailyExpensesView({ usdToman = 0, hideValues = false }) 
                   </p>
                 )}
               </div>
-              <Button
-                icon={<Plus size={16} />}
-                onClick={() => setForm({ expense: null })}
-                disabled={readOnly}
-                title={readOnly ? 'در نسخه دمو غیرفعال است' : undefined}
-              >
-                ثبت هزینه
-              </Button>
+              <div className="expense-table-tools">
+                <GenericCsvExportButton
+                  items={visible}
+                  headers={CSV_HEADERS}
+                  fileBaseName={`هزینه‌های-روزمره-${formatShamsiMonth(month.jy, month.jm)}`}
+                  disabled={visible.length === 0}
+                  mapRow={(e) => [
+                    formatShamsiDisplay(`${e.date}T00:00:00`),
+                    getExpenseCategory(e.category).label,
+                    e.title,
+                    e.amount,
+                    e.currency === 'USD' ? 'دلار' : 'تومان',
+                    e.usdRate || '',
+                    Math.round(expenseInToman(e, usdToman) || 0),
+                    e.accountId ? accountLabel(accountById.get(e.accountId)) : '',
+                    e.notes || '',
+                  ]}
+                />
+                <Button
+                  icon={<Plus size={16} />}
+                  onClick={() => setForm({ expense: null })}
+                  disabled={readOnly}
+                  title={readOnly ? 'در نسخه دمو غیرفعال است' : undefined}
+                >
+                  ثبت هزینه
+                </Button>
+              </div>
             </div>
 
             <div className="table-card-body">
@@ -192,6 +279,23 @@ export default function DailyExpensesView({ usdToman = 0, hideValues = false }) 
                       onClick={() => setCategoryFilter(category)}
                     >
                       {category === 'all' ? 'همه' : getExpenseCategory(category).label}
+                      <span className="cheque-filter-count">{count.toLocaleString('fa-IR')}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              {usesAccounts && (
+                <div className="tx-filter-pills-bar expense-category-filter" role="group" aria-label="پرداخت از">
+                  {[{ accountId: 'all', count: expenses.length }, ...byAccount].map(({ accountId, count }) => (
+                    <button
+                      key={accountId || 'none'}
+                      type="button"
+                      className={`tx-filter-pill ${accountFilter === accountId ? 'active' : ''}`}
+                      aria-pressed={accountFilter === accountId}
+                      onClick={() => setAccountFilter(accountId)}
+                    >
+                      {accountId === 'all' ? 'همه حساب‌ها' : accountId ? accountLabel(accountById.get(accountId)) : 'نامشخص'}
                       <span className="cheque-filter-count">{count.toLocaleString('fa-IR')}</span>
                     </button>
                   ))}
@@ -219,6 +323,7 @@ export default function DailyExpensesView({ usdToman = 0, hideValues = false }) 
                   hideValues={hideValues}
                   readOnly={readOnly}
                   showCategory
+                  accounts={accounts.length ? accounts : null}
                 />
               )}
             </div>
@@ -232,10 +337,14 @@ export default function DailyExpensesView({ usdToman = 0, hideValues = false }) 
           daily
           expense={form.expense}
           usdToman={usdToman}
+          accounts={accounts.filter((a) => !a.archived || a.id === form.expense?.accountId)}
           onSubmit={(input) => saveExpense(input, form.expense)}
           onClose={() => setForm(null)}
           submitting={submitting}
         />
+      )}
+      {budgetOpen && (
+        <BudgetForm budgets={budgets} onSubmit={saveBudgets} onClose={() => setBudgetOpen(false)} submitting={submitting} />
       )}
     </>
   );

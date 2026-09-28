@@ -60,7 +60,7 @@ describe('validateExpense', () => {
 
   it('requires a section name', () => {
     expect(validateExpenseGroup({ name: '' }).error).toBeTruthy();
-    expect(validateExpenseGroup({ name: ' سفر ' }).value).toEqual({ name: 'سفر', type: 'project', notes: '', archived: false });
+    expect(validateExpenseGroup({ name: ' سفر ' }).value).toEqual({ name: 'سفر', type: 'project', notes: '', archived: false, budget: null, budgets: {} });
   });
 });
 

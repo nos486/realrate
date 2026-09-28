@@ -13,6 +13,10 @@
  * holds everyday spending, each expense in a category (DAILY_EXPENSE_CATEGORIES) and shown
  * month by month.
  *
+ * An expense may say which account paid it (`accountId`, an accountDocument.js account).
+ * Budgets: a project section may carry a total `budget` (tomans); the daily section carries
+ * `budgets`, a monthly budget per category plus `total` for the whole month.
+ *
  * Kept for what comes next: expense `source` ('manual' | 'sms') and `bankId`, for expenses read
  * from bank SMS.
  */
@@ -76,7 +80,39 @@ export function validateExpenseGroup(body = {}) {
   const notes = text(body.notes);
   if (notes.length > EXPENSE_LIMITS.notesLength) return { error: `توضیحات نباید بیشتر از ${EXPENSE_LIMITS.notesLength} کاراکتر باشد.` };
   const type = EXPENSE_GROUP_TYPES.includes(body.type) ? body.type : 'project';
-  return { value: { name, type, notes, archived: Boolean(body.archived) } };
+
+  // A project's total budget (tomans), or none
+  const budget = parseBudget(body.budget);
+  if (budget === undefined) return { error: 'بودجه باید عددی مثبت باشد.' };
+
+  // The daily section's monthly budgets: per category and `total`
+  const budgets = {};
+  if (type === 'daily' && body.budgets && typeof body.budgets === 'object') {
+    for (const [key, raw] of Object.entries(body.budgets)) {
+      if (key !== 'total' && !CATEGORY_VALUES.has(key)) continue;
+      const amount = parseBudget(raw);
+      if (amount === undefined) return { error: 'بودجه باید عددی مثبت باشد.' };
+      if (amount !== null) budgets[key] = amount;
+    }
+  }
+
+  return {
+    value: {
+      name,
+      type,
+      notes,
+      archived: Boolean(body.archived),
+      budget: type === 'project' ? budget : null,
+      budgets,
+    },
+  };
+}
+
+/** A budget amount: a positive number, null for none, undefined when invalid */
+function parseBudget(raw) {
+  if (raw === null || raw === undefined || raw === '' || raw === 0) return null;
+  const n = Number(raw);
+  return Number.isFinite(n) && n > 0 && n <= EXPENSE_LIMITS.maxAmount ? n : undefined;
 }
 
 /**
@@ -115,8 +151,9 @@ export function validateExpense(body = {}) {
   const category = CATEGORY_VALUES.has(body.category) ? body.category : '';
   const source = EXPENSE_SOURCES.includes(body.source) ? body.source : 'manual';
   const bankId = text(body.bankId).slice(0, 64);
+  const accountId = ID_RE.test(text(body.accountId)) ? text(body.accountId) : '';
 
-  return { value: { groupId, title, amount, currency, date, usdRate, notes, category, source, bankId } };
+  return { value: { groupId, title, amount, currency, date, usdRate, notes, category, source, bankId, accountId } };
 }
 
 /** Newest first; the same day by the time it was recorded */
@@ -202,4 +239,20 @@ export function shamsiMonthOf(isoDay) {
   const [y, m, d] = String(isoDay).split('-').map(Number);
   const { jy, jm } = gregorianToJalali(y, m, d);
   return { jy, jm };
+}
+
+/**
+ * Per-account totals in tomans, largest first (expenses without an account under '')
+ * @returns {Array<{ accountId: string, totalToman: number, count: number }>}
+ */
+export function summarizeByAccount(expenses = [], { usdToman = 0 } = {}) {
+  const byAccount = new Map();
+  for (const e of expenses) {
+    const key = e.accountId || '';
+    const entry = byAccount.get(key) || { accountId: key, totalToman: 0, count: 0 };
+    entry.totalToman += expenseInToman(e, usdToman) || 0;
+    entry.count++;
+    byAccount.set(key, entry);
+  }
+  return [...byAccount.values()].sort((a, b) => b.totalToman - a.totalToman);
 }

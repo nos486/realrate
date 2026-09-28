@@ -30,6 +30,7 @@ export const SPA_ROUTES = [
   { path: '/incomes', splat: true },
   { path: '/cheques', splat: true },
   { path: '/expenses', splat: true },
+  { path: '/accounts', splat: true },
   { path: '/settings', splat: true },
   { path: '/admin', splat: true },
   { path: '/admin/sources', splat: true },
