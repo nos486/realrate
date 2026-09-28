@@ -5,7 +5,9 @@
  * category is picked instead and the title is optional (the category's name when left empty).
  * A dollar expense may carry the toman rate of its day; left empty, totals convert it at
  * today's rate. With `accounts`, the account it was paid from can be picked (a new everyday
- * expense starts from the last one used). Mounted only while open, so its state starts from props.
+ * expense starts from the last one used). A new expense may start from a `draft` (a bank SMS:
+ * amount, day, account, note, and its source). Mounted only while open, so its state starts from
+ * props.
  */
 
 import React, { useState } from 'react';
@@ -38,9 +40,11 @@ const CATEGORY_OPTIONS = EXPENSE_CATEGORIES.map(({ value, label, Icon }) => ({
   icon: <Icon size={14} strokeWidth={2} />,
 }));
 
-export default function ExpenseForm({ group = null, daily = false, expense = null, usdToman = 0, accounts = [], onSubmit, onClose, submitting = false }) {
+export default function ExpenseForm({ group = null, daily = false, expense = null, draft = null, usdToman = 0, accounts = [], onSubmit, onClose, submitting = false }) {
+  const start = expense || draft;
   const [accountId, setAccountId] = useState(() => {
     if (expense) return expense.accountId || '';
+    if (draft?.accountId) return draft.accountId;
     const last = readLastAccount();
     return accounts.some((a) => a.id === last) ? last : '';
   });
@@ -49,11 +53,11 @@ export default function ExpenseForm({ group = null, daily = false, expense = nul
   const [title, setTitle] = useState(
     daily && expense?.title === getExpenseCategory(expense?.category).label ? '' : (expense?.title || ''));
   const [currency, setCurrency] = useState(expense?.currency || 'IRT');
-  const [amount, setAmount] = useState(expense ? String(expense.amount) : '');
+  const [amount, setAmount] = useState(start?.amount ? String(start.amount) : '');
   const [usdRate, setUsdRate] = useState(expense?.usdRate ? String(expense.usdRate) : '');
   const [dateShamsi, setDateShamsi] = useState(() =>
-    expense?.date ? gregorianToShamsi(`${expense.date}T00:00:00`) : getTodayShamsi());
-  const [notes, setNotes] = useState(expense?.notes || '');
+    start?.date ? gregorianToShamsi(`${start.date}T00:00:00`) : getTodayShamsi());
+  const [notes, setNotes] = useState(start?.notes || '');
   const [submitError, setSubmitError] = useState('');
 
   const isUsd = currency === 'USD';
@@ -78,6 +82,7 @@ export default function ExpenseForm({ group = null, daily = false, expense = nul
         usdRate: isUsd && rateNum > 0 ? rateNum : null,
         date: dateIso,
         notes: notes.trim(),
+        ...(draft && !expense ? { source: draft.source, bankId: draft.bankId, smsFingerprint: draft.smsFingerprint } : {}),
       });
       try {
         if (accountId) localStorage.setItem(LAST_ACCOUNT_KEY, accountId);

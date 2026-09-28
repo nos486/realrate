@@ -2,8 +2,8 @@
  * accountDocument.js — The user's money accounts: bank accounts, cash, e-wallets, ...
  *
  * An account is an end-to-end encrypted vault record ("bank_account"). Features point at one by
- * its id: an expense's `accountId` says where the money came from. Later the bank-SMS intake
- * will match a message to an account by its bank and card number's last four digits.
+ * its id: an expense's `accountId` says where the money came from. A bank SMS is matched to an
+ * account by its bank and the last four digits of its account number or card (bankSms.js).
  * Shared by the browser and the API, like the other domain modules.
  */
 
@@ -48,6 +48,9 @@ export function validateAccount(body = {}) {
 
   const cardLast4 = asciiDigits(body.cardLast4);
   if (cardLast4 && !/^\d{4}$/.test(cardLast4)) return { error: 'چهار رقم آخر کارت باید دقیقاً ۴ رقم باشد.' };
+  // The account number (digits; separators dropped), as the bank's SMS shows it
+  const accountNumber = asciiDigits(body.accountNumber).replace(/[\s.-]/g, '');
+  if (accountNumber && !/^\d{4,26}$/.test(accountNumber)) return { error: 'شماره حساب فقط شامل ارقام (۴ تا ۲۶ رقم) است.' };
 
   const currency = body.currency === 'USD' ? 'USD' : 'IRT';
   const notes = text(body.notes);
@@ -60,6 +63,7 @@ export function validateAccount(body = {}) {
       bankId,
       bankName,
       cardLast4: type === 'bank' ? cardLast4 : '',
+      accountNumber: type === 'bank' ? accountNumber : '',
       currency,
       notes,
       archived: Boolean(body.archived),
