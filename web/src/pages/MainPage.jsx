@@ -389,8 +389,8 @@ export default function MainPage() {
 
         {activeTab === 'expenses' && (
           <ExpensesPage
-            groupId={subPath.match(/^\/expenses\/([^/]+)/)?.[1] || null}
-            onSelectGroup={(id) => navigate(appPath(id ? `/expenses/${id}` : '/expenses'), { replace: true })}
+            segment={subPath.match(/^\/expenses\/([^/]+)/)?.[1] || null}
+            onNavigate={(segment) => navigate(appPath(segment ? `/expenses/${segment}` : '/expenses'), { replace: true })}
           />
         )}
 

@@ -111,3 +111,59 @@
     flex: 1 1 100%;
   }
 }
+
+/* Daily expenses: the month switcher and the category filter */
+.expense-month-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.expense-month-label {
+  min-width: 110px;
+  font-size: 16px;
+  text-align: center;
+}
+
+.expense-category-filter {
+  flex-wrap: nowrap;
+  max-width: 100%;
+  margin-bottom: 12px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.expense-category-filter .tx-filter-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+.expense-group-chip.is-add {
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-width: 0;
+  border-style: dashed;
+}
+
+.expense-month-total {
+  margin: 4px 0 0;
+  font-size: 12.5px;
+  color: var(--text-secondary);
+}
+
+.expense-month-total strong {
+  color: var(--color-negative-text);
+}
+
+/* Everyday expenses are entered often: on narrow screens the list (and its add button) comes
+   before the summary and the chart */
+@media (max-width: 1024px) {
+  .expenses-daily .portfolio-sidebar-column {
+    order: 0;
+  }
+}

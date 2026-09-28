@@ -7,7 +7,12 @@
  * utils/expenseDocument.js.
  */
 
-import { validateExpenseGroup, validateExpense, compareExpensesByDate } from '../../utils/expenseDocument.js';
+import {
+  validateExpenseGroup,
+  validateExpense,
+  compareExpensesByDate,
+  DAILY_GROUP_NAME,
+} from '../../utils/expenseDocument.js';
 import { listVaultRecords, deleteVaultRecord } from './vaultApi.js';
 import { putRecord } from './vaultRecordMeta.js';
 import { encryptVaultRecord, decryptVaultRecord } from './vaultStore.js';
@@ -65,9 +70,14 @@ export async function deleteExpenseGroup(groupId) {
   return { success: true };
 }
 
-/** Every expense (of every section), newest first */
-export async function getExpenses() {
-  const expenses = await decryptAll(EXPENSE_KIND);
+/**
+ * Expenses, newest first: of one section (`parent`) and/or between two days (`from`, `to`,
+ * inclusive YYYY-MM-DD) — the filters run on the server's plaintext metadata, so only what is
+ * asked for is downloaded and decrypted
+ * @param {{ parent?: string, from?: string, to?: string }} [filters]
+ */
+export async function getExpenses(filters = {}) {
+  const expenses = await decryptAll(EXPENSE_KIND, filters);
   expenses.sort(compareExpensesByDate);
   return { success: true, expenses };
 }
@@ -85,4 +95,15 @@ export async function saveExpense(input, existing = null) {
 export async function deleteExpense(expenseId) {
   await deleteVaultRecord(EXPENSE_KIND, expenseId);
   return { success: true };
+}
+
+/**
+ * The daily section among `groups`, created when missing (the first everyday expense)
+ * @returns {Promise<object>} the section
+ */
+export async function ensureDailyGroup(groups) {
+  const existing = groups.find((g) => g.type === 'daily');
+  if (existing) return existing;
+  const { group } = await saveExpenseGroup({ name: DAILY_GROUP_NAME, type: 'daily' });
+  return group;
 }

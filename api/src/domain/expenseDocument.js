@@ -9,20 +9,44 @@
  * An expense is in tomans or in US dollars. A dollar expense may carry the toman rate of its day
  * (`usdRate`); totals in tomans use that rate, or today's rate when it is missing.
  *
- * Fields kept for what comes next, unused by the first version's screens:
- *  - section `type`: 'project' now; a 'daily' section will hold everyday spending
- *  - expense `category`: the daily expenses' categories
- *  - expense `source` ('manual' | 'sms') and `bankId`: expenses read from bank SMS
+ * Section `type`: 'project' (a project, a trip, ...) or 'daily' — the one section per user that
+ * holds everyday spending, each expense in a category (DAILY_EXPENSE_CATEGORIES) and shown
+ * month by month.
+ *
+ * Kept for what comes next: expense `source` ('manual' | 'sms') and `bankId`, for expenses read
+ * from bank SMS.
  */
 
 import { isValidIsoDate } from './isoDate.js';
+import { jalaliToGregorian, getJalaliMonthLength, gregorianToJalali } from './loanCalculator.js';
 
 export const EXPENSE_CURRENCIES = [
   { value: 'IRT', label: 'تومان', symbol: 'تومان' },
   { value: 'USD', label: 'دلار', symbol: '$' },
 ];
 
-export const EXPENSE_GROUP_TYPES = ['project'];
+export const EXPENSE_GROUP_TYPES = ['project', 'daily'];
+
+/** Name of the daily section, created the first time an everyday expense is recorded */
+export const DAILY_GROUP_NAME = 'هزینه‌های روزمره';
+
+/** Categories of everyday expenses (display icons and colors live in the web app) */
+export const DAILY_EXPENSE_CATEGORIES = [
+  { value: 'groceries', label: 'خوراک و خواربار' },
+  { value: 'dining', label: 'رستوران و کافه' },
+  { value: 'transport', label: 'رفت‌وآمد و سوخت' },
+  { value: 'bills', label: 'قبوض و شارژ' },
+  { value: 'housing', label: 'مسکن و اجاره' },
+  { value: 'shopping', label: 'خرید و پوشاک' },
+  { value: 'health', label: 'سلامت و درمان' },
+  { value: 'education', label: 'آموزش' },
+  { value: 'entertainment', label: 'تفریح و سفر' },
+  { value: 'subscriptions', label: 'اینترنت و اشتراک‌ها' },
+  { value: 'gifts', label: 'هدیه و خیریه' },
+  { value: 'other', label: 'سایر' },
+];
+
+const CATEGORY_VALUES = new Set(DAILY_EXPENSE_CATEGORIES.map((c) => c.value));
 export const EXPENSE_SOURCES = ['manual', 'sms'];
 
 export const EXPENSE_LIMITS = {
@@ -87,7 +111,8 @@ export function validateExpense(body = {}) {
 
   const notes = text(body.notes);
   if (notes.length > EXPENSE_LIMITS.notesLength) return { error: `یادداشت نباید بیشتر از ${EXPENSE_LIMITS.notesLength} کاراکتر باشد.` };
-  const category = text(body.category).slice(0, EXPENSE_LIMITS.categoryLength);
+  // A known category, or none (project expenses)
+  const category = CATEGORY_VALUES.has(body.category) ? body.category : '';
   const source = EXPENSE_SOURCES.includes(body.source) ? body.source : 'manual';
   const bankId = text(body.bankId).slice(0, 64);
 
@@ -136,4 +161,45 @@ export function summarizeExpenses(expenses = [], { usdToman = 0 } = {}) {
     if (!summary.lastDate || e.date > summary.lastDate) summary.lastDate = e.date;
   }
   return summary;
+}
+
+/**
+ * Per-category totals in tomans, largest first (expenses without a category count as 'other')
+ * @returns {Array<{ category: string, totalToman: number, count: number }>}
+ */
+export function summarizeByCategory(expenses = [], { usdToman = 0 } = {}) {
+  const byCategory = new Map();
+  for (const e of expenses) {
+    const key = e.category || 'other';
+    const entry = byCategory.get(key) || { category: key, totalToman: 0, count: 0 };
+    entry.totalToman += expenseInToman(e, usdToman) || 0;
+    entry.count++;
+    byCategory.set(key, entry);
+  }
+  return [...byCategory.values()].sort((a, b) => b.totalToman - a.totalToman);
+}
+
+const pad = (n) => String(n).padStart(2, '0');
+const isoOf = ({ year, month, day }) => `${year}-${pad(month)}-${pad(day)}`;
+
+/**
+ * The Gregorian days of a Shamsi month (inclusive), for filtering expenses by their date
+ * @returns {{ from: string, to: string, days: number }}
+ */
+export function shamsiMonthRange(jy, jm) {
+  const days = getJalaliMonthLength(jy, jm);
+  return { from: isoOf(jalaliToGregorian(jy, jm, 1)), to: isoOf(jalaliToGregorian(jy, jm, days)), days };
+}
+
+/** The Shamsi month `delta` months away */
+export function shiftShamsiMonth({ jy, jm }, delta) {
+  const index = jy * 12 + (jm - 1) + delta;
+  return { jy: Math.floor(index / 12), jm: (index % 12) + 1 };
+}
+
+/** The Shamsi month of a Gregorian YYYY-MM-DD day */
+export function shamsiMonthOf(isoDay) {
+  const [y, m, d] = String(isoDay).split('-').map(Number);
+  const { jy, jm } = gregorianToJalali(y, m, d);
+  return { jy, jm };
 }

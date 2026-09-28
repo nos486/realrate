@@ -1,6 +1,8 @@
 /**
- * ExpenseForm.jsx — Modal to record or edit an expense of a section, in tomans or dollars
+ * ExpenseForm.jsx — Modal to record or edit an expense, in tomans or dollars
  *
+ * For a project section (`group`) the title is required. For everyday expenses (`daily`) a
+ * category is picked instead and the title is optional (the category's name when left empty).
  * A dollar expense may carry the toman rate of its day; left empty, totals convert it at
  * today's rate. Mounted only while open, so its state starts from props.
  */
@@ -15,11 +17,20 @@ import ShamsiDatePicker, {
 } from '../../portfolio/components/ShamsiDatePicker.jsx';
 import { parseInputNumber, formatNum } from '../../portfolio/utils/holdingHelpers.js';
 import { EXPENSE_CURRENCIES, EXPENSE_LIMITS } from '../../../utils/expenseDocument.js';
+import { EXPENSE_CATEGORIES, getExpenseCategory } from '../constants/expenseCategories.js';
 
 const CURRENCY_OPTIONS = EXPENSE_CURRENCIES.map(({ value, label }) => ({ value, label }));
+const CATEGORY_OPTIONS = EXPENSE_CATEGORIES.map(({ value, label, Icon }) => ({
+  value,
+  label,
+  icon: <Icon size={14} strokeWidth={2} />,
+}));
 
-export default function ExpenseForm({ group, expense = null, usdToman = 0, onSubmit, onClose, submitting = false }) {
-  const [title, setTitle] = useState(expense?.title || '');
+export default function ExpenseForm({ group = null, daily = false, expense = null, usdToman = 0, onSubmit, onClose, submitting = false }) {
+  const [category, setCategory] = useState(expense?.category || 'groceries');
+  // A daily expense titled after its category shows an empty title field (the default)
+  const [title, setTitle] = useState(
+    daily && expense?.title === getExpenseCategory(expense?.category).label ? '' : (expense?.title || ''));
   const [currency, setCurrency] = useState(expense?.currency || 'IRT');
   const [amount, setAmount] = useState(expense ? String(expense.amount) : '');
   const [usdRate, setUsdRate] = useState(expense?.usdRate ? String(expense.usdRate) : '');
@@ -32,7 +43,7 @@ export default function ExpenseForm({ group, expense = null, usdToman = 0, onSub
   const amountNum = parseInputNumber(amount);
   const rateNum = parseInputNumber(usdRate);
   const dateIso = shamsiToGregorian(dateShamsi);
-  const isValid = Boolean(title.trim()) && amountNum > 0 && Boolean(dateIso) && (!usdRate || rateNum > 0) && !submitting;
+  const isValid = (daily || Boolean(title.trim())) && amountNum > 0 && Boolean(dateIso) && (!usdRate || rateNum > 0) && !submitting;
   const tomanPreview = isUsd && amountNum > 0 ? amountNum * (rateNum || usdToman) : 0;
 
   const handleSubmit = async (e) => {
@@ -41,8 +52,9 @@ export default function ExpenseForm({ group, expense = null, usdToman = 0, onSub
     setSubmitError('');
     try {
       await onSubmit({
-        groupId: group.id,
-        title: title.trim(),
+        ...(group ? { groupId: group.id } : {}),
+        ...(daily ? { category } : {}),
+        title: title.trim() || getExpenseCategory(category).label,
         amount: amountNum,
         currency,
         usdRate: isUsd && rateNum > 0 ? rateNum : null,
@@ -59,8 +71,8 @@ export default function ExpenseForm({ group, expense = null, usdToman = 0, onSub
     <Modal
       isOpen
       onClose={onClose}
-      title={expense ? 'ویرایش هزینه' : 'ثبت هزینه'}
-      subtitle={`در بخش «${group.name}»`}
+      title={expense ? 'ویرایش هزینه' : daily ? 'ثبت هزینه روزمره' : 'ثبت هزینه'}
+      subtitle={daily ? 'در هزینه‌های روزمره' : `در بخش «${group.name}»`}
       icon={<Receipt size={18} />}
       maxWidth="520px"
       onSubmit={handleSubmit}
@@ -76,15 +88,28 @@ export default function ExpenseForm({ group, expense = null, usdToman = 0, onSub
       <div className="income-form-body">
         {submitError && <AlertBanner type="error" message={submitError} />}
 
+        {daily && (
+          <div className="ui-input-group">
+            <span className="ui-input-label">دسته‌بندی</span>
+            <FilterPills
+              options={CATEGORY_OPTIONS}
+              activeValue={category}
+              onChange={setCategory}
+              size="sm"
+              className="income-category-picker"
+            />
+          </div>
+        )}
+
         <Input
           id="expense-title"
-          label="عنوان هزینه *"
-          placeholder="مثلاً: خرید کاشی، دستمزد نقاش"
+          label={daily ? 'عنوان (اختیاری)' : 'عنوان هزینه *'}
+          placeholder={daily ? `خالی: «${getExpenseCategory(category).label}»` : 'مثلاً: خرید کاشی، دستمزد نقاش'}
           value={title}
           onChange={(e) => setTitle(e.target.value)}
           maxLength={EXPENSE_LIMITS.titleLength}
-          autoFocus={!expense}
-          required
+          autoFocus={!expense && !daily}
+          required={!daily}
         />
 
         <div className="ui-input-group">
