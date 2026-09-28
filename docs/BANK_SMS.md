@@ -8,6 +8,7 @@
 | `api/src/domain/bankSmsTemplates.js` | داده: قالب پیامک هر بانک. **برای افزودن بانک فقط همین فایل تغییر می‌کند** |
 | `api/tests/unit/bankSms.test.js` | نمونه پیامک‌های واقعی هر بانک (`SAMPLES`) |
 | `web/src/features/expenses/components/SmsImportForm.jsx` | «از پیامک» در هزینه‌های روزمره |
+| `web/src/shared/native/smsInbox.js` | اپ اندروید: خواندن پیامک‌های فرستنده‌های بانک (`senders`) از صندوق گوشی — `docs/ANDROID.md` |
 
 هر دو ماژول با symlink در `web/src/utils/` هم هستند (مثل بقیه‌ی ماژول‌های domain).
 
@@ -97,4 +98,4 @@
 
 | بانک | قالب‌ها |
 |---|---|
-| پارسیان | `parsian-balance` — شماره حساب، مبلغ با علامت، مانده، تاریخ `MM/DD`، ساعت |
+| پارسیان | فرستنده `PARSIANBANK`؛ `parsian-balance` — شماره حساب، مبلغ با علامت، مانده، تاریخ `MM/DD`، ساعت |

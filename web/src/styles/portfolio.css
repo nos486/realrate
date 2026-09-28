@@ -2181,3 +2181,26 @@
     flex: 1 1 auto;
   }
 }
+
+/* Android app: open the vault with the fingerprint (next to the passphrase button) */
+.btn-vault-biometric {
+  width: 100%;
+  margin-top: 8px;
+  padding: 12px 20px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background: transparent;
+  color: var(--text-primary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.btn-vault-biometric:disabled {
+  opacity: 0.6;
+  cursor: default;
+}

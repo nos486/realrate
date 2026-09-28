@@ -462,3 +462,88 @@
   min-width: 0;
   overflow-wrap: anywhere;
 }
+
+/* ── Bank SMS read by the Android app, waiting to be recorded ─────── */
+
+.sms-inbox-card {
+  margin-bottom: 16px;
+  padding: 14px 16px;
+  border: 1px solid var(--gold-primary);
+  border-radius: 14px;
+  background: var(--gold-soft-bg);
+}
+
+.sms-inbox-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.sms-inbox-head h4 {
+  margin: 0;
+  font-size: 0.95rem;
+}
+
+.sms-inbox-count {
+  margin-inline-start: auto;
+  min-width: 24px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--gold-primary);
+  color: #000;
+  font-size: 0.8rem;
+  font-weight: 700;
+  text-align: center;
+}
+
+.sms-inbox-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.sms-inbox-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: var(--bg-card);
+}
+
+.sms-inbox-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  flex: 1;
+}
+
+.sms-inbox-info small {
+  font-weight: 400;
+  color: var(--text-secondary);
+}
+
+.sms-inbox-info span {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sms-inbox-actions {
+  display: flex;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.sms-inbox-more {
+  margin: 8px 0 0;
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+}

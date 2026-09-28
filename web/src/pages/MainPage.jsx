@@ -1,6 +1,6 @@
-import React, { useMemo, lazy, Suspense } from 'react';
+import React, { useEffect, useMemo, lazy, Suspense } from 'react';
 import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { Megaphone, TrendingUp, Briefcase, ShieldCheck, Radio, Settings, Landmark, Wallet, ReceiptText, Wrench, HandCoins, WalletCards } from 'lucide-react';
+import { Megaphone, TrendingUp, Briefcase, ShieldCheck, Radio, Settings, Landmark, Wallet, ReceiptText, Wrench, HandCoins, WalletCards, Smartphone } from 'lucide-react';
 import { AppLayout, FilterPills, AlertBanner, Button } from '../shared/ui/index.js';
 import MarketInputsToolbar from '../components/MarketInputsToolbar.jsx';
 import { PriceRefreshStatus } from '../features/market/components/index.js';
@@ -20,6 +20,8 @@ import { toEnglishDigits } from '../shared/utils/formatters.js';
 import { useDocumentTitle } from '../shared/hooks/useDocumentTitle.js';
 import { useTabNavigation } from '../shared/hooks/useTabNavigation.js';
 import { useFeature } from '../shared/features/useFeature.js';
+import { isNativeApp } from '../shared/native/nativeApp.js';
+import { startSmsAutoRead } from '../shared/native/smsInbox.js';
 
 // Each tab other than the market home is loaded on first use, keeping the initial bundle small
 const PortfolioTracker = lazy(() => import('../features/portfolio/components/PortfolioTracker.jsx'));
@@ -29,6 +31,7 @@ const ChequesPage = lazy(() => import('../features/cheques/components/ChequesPag
 const ExpensesPage = lazy(() => import('../features/expenses/components/ExpensesPage.jsx'));
 const AccountsPage = lazy(() => import('../features/accounts/components/AccountsPage.jsx'));
 const AccountSettingsView = lazy(() => import('../components/AccountSettingsView.jsx'));
+const AppSettingsView = lazy(() => import('../features/app-settings/AppSettingsView.jsx'));
 const AdminPage = lazy(() => import('./AdminPage.jsx'));
 const PriceSourcesPage = lazy(() => import('./PriceSourcesPage.jsx'));
 
@@ -52,6 +55,9 @@ export default function MainPage() {
   const hasExpenses = useFeature('expenses');
   const hasAccounts = useFeature('bank_accounts');
 
+  // Android app: read new bank SMS on opening and on every return to the app (when turned on)
+  useEffect(() => startSmsAutoRead(), []);
+
   // Determine active tab from the path below /app (or the ?tab= query param)
   const subPath = getAppSubPath(location.pathname);
 
@@ -61,8 +67,15 @@ export default function MainPage() {
       searchParams.get('tab') === 'settings'
     );
 
+  // Settings of the Android app: only inside the app
+  const isAppSettings =
+    isNativeApp() && !isSettings && (
+      subPath.startsWith('/app-settings') ||
+      searchParams.get('tab') === 'app-settings'
+    );
+
   const isSources =
-    !isSettings && (
+    !isSettings && !isAppSettings && (
       subPath.startsWith('/admin/sources') ||
       subPath.startsWith('/sources') ||
       searchParams.get('tab') === 'sources'
@@ -119,6 +132,7 @@ export default function MainPage() {
   // First matching section wins; the market home is the fallback
   const activeTab = [
     ['settings', isSettings],
+    ['app-settings', isAppSettings],
     ['sources', isSources],
     ['admin', isAdmin],
     ['incomes', isIncomes],
@@ -146,6 +160,8 @@ export default function MainPage() {
         return 'حساب‌ها | RealRate';
       case 'settings':
         return 'تنظیمات حساب | RealRate';
+      case 'app-settings':
+        return 'تنظیمات اپ | RealRate';
       case 'admin':
         return 'پنل مدیریت | RealRate';
       case 'sources':
@@ -174,6 +190,7 @@ export default function MainPage() {
     accounts: '/accounts',
     loans: '/loans',
     settings: '/settings',
+    'app-settings': '/app-settings',
     admin: '/admin',
     sources: '/admin/sources',
   };
@@ -211,6 +228,9 @@ export default function MainPage() {
       options.push(
         { value: 'settings', label: 'تنظیمات', icon: <Settings size={16} strokeWidth={2} /> }
       );
+      if (isNativeApp()) {
+        options.push({ value: 'app-settings', label: 'تنظیمات اپ', icon: <Smartphone size={16} strokeWidth={2} /> });
+      }
     }
     if (user?.role === 'admin') {
       options.push(
@@ -391,6 +411,10 @@ export default function MainPage() {
 
         {activeTab === 'settings' && (
           <AccountSettingsView />
+        )}
+
+        {activeTab === 'app-settings' && (
+          <AppSettingsView onOpenExpenses={hasExpenses ? () => handleTabChange('expenses') : null} />
         )}
 
         {activeTab === 'admin' && (
