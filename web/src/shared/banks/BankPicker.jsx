@@ -5,6 +5,7 @@ import { bankLogoUrl, getBankGroups, matchBankIdByName, resolveBank } from './re
 import { normalizeBankName } from '../../config/banks.config.js';
 import { useCustomBanks } from './useCustomBanks.js';
 import { useFeedback } from '../ui/FeedbackProvider.jsx';
+import { useBackToClose } from '../hooks/useBackToClose.js';
 
 const BANK_GROUPS = getBankGroups();
 
@@ -17,6 +18,7 @@ export default function BankPicker({ value, onChange, label = 'بانک / وام
   const { customBanks, addBank, removeBank } = useCustomBanks();
   const { confirm, toast } = useFeedback();
   const [open, setOpen] = useState(false);
+  useBackToClose(open, () => setOpen(false));
   const [query, setQuery] = useState('');
   const [adding, setAdding] = useState(false);
   const searchRef = useRef(null);

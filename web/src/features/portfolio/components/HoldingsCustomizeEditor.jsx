@@ -53,6 +53,7 @@ import {
   AVAILABLE_CATEGORY_ICONS,
 } from '../portfolioLayoutModel.js';
 import { useFeedback } from '../../../shared/ui/FeedbackProvider.jsx';
+import { useBackToClose } from '../../../shared/hooks/useBackToClose.js';
 
 function useDndSensors() {
   return useSensors(
@@ -73,6 +74,7 @@ function useSortableStyle(id) {
 /** Icon picker dropdown / popover */
 function IconPicker({ currentIcon, onSelect }) {
   const [open, setOpen] = useState(false);
+  useBackToClose(open, () => setOpen(false));
   const containerRef = useRef(null);
 
   useEffect(() => {
@@ -127,6 +129,7 @@ function IconPicker({ currentIcon, onSelect }) {
 /** "Move to category..." popup menu for an asset (works on all devices including mobile) */
 function MoveMenu({ assetKey, currentGroupId, groups, onMove }) {
   const [open, setOpen] = useState(false);
+  useBackToClose(open, () => setOpen(false));
   const containerRef = useRef(null);
 
   useEffect(() => {

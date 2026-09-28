@@ -150,12 +150,12 @@ function LoginForm() {
         <Input id="auth-email" type="email" label="ایمیل" value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="email" dir="ltr" required />
         <PasswordInput id="auth-password" label="رمز عبور" value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="current-password" required />
         <div className="auth-row-end">
-          <Link to={AUTH_PATHS.forgot} className="auth-link">رمز عبور را فراموش کرده‌اید؟</Link>
+          <Link replace to={AUTH_PATHS.forgot} className="auth-link">رمز عبور را فراموش کرده‌اید؟</Link>
         </div>
         <Button type="submit" block loading={busy} disabled={!email.trim() || !password}>ورود</Button>
       </form>
       <p className="auth-switch">
-        حساب ندارید؟ <Link to={AUTH_PATHS.register} className="auth-link">ثبت‌نام کنید</Link>
+        حساب ندارید؟ <Link replace to={AUTH_PATHS.register} className="auth-link">ثبت‌نام کنید</Link>
       </p>
     </Card>
   );
@@ -213,7 +213,7 @@ function RegisterForm() {
         <Button type="submit" block loading={busy} disabled={!email.trim() || !password || !confirm}>ساخت حساب</Button>
       </form>
       <p className="auth-switch">
-        حساب دارید؟ <Link to={AUTH_PATHS.login} className="auth-link">وارد شوید</Link>
+        حساب دارید؟ <Link replace to={AUTH_PATHS.login} className="auth-link">وارد شوید</Link>
       </p>
     </Card>
   );
@@ -263,7 +263,7 @@ function ForgotForm() {
         <Button type="submit" block loading={busy} disabled={!email.trim()}>ارسال لینک</Button>
       </form>
       <p className="auth-switch">
-        <Link to={AUTH_PATHS.login} className="auth-link">بازگشت به ورود</Link>
+        <Link replace to={AUTH_PATHS.login} className="auth-link">بازگشت به ورود</Link>
       </p>
     </Card>
   );
@@ -307,7 +307,7 @@ function ResetForm() {
       </form>
       {error && (
         <p className="auth-switch">
-          <Link to={AUTH_PATHS.forgot} className="auth-link">درخواست لینک جدید</Link>
+          <Link replace to={AUTH_PATHS.forgot} className="auth-link">درخواست لینک جدید</Link>
         </p>
       )}
     </Card>
@@ -372,7 +372,7 @@ function InvalidLink({ kind, message }) {
         </form>
       )}
       <p className="auth-switch">
-        <Link to={AUTH_PATHS.login} className="auth-link">بازگشت به ورود</Link>
+        <Link replace to={AUTH_PATHS.login} className="auth-link">بازگشت به ورود</Link>
       </p>
     </Card>
   );
@@ -404,7 +404,7 @@ export default function AuthPage() {
   return (
     <div className="auth-page" dir="rtl">
       <header className="auth-top">
-        <button type="button" className="auth-back" onClick={() => navigate(LANDING_PATH)}>
+        <button type="button" className="auth-back" onClick={() => navigate(LANDING_PATH, { replace: true })}>
           <ArrowRight size={16} />
           <span>RealRate</span>
         </button>

@@ -1,5 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import { X } from 'lucide-react';
+import { useBackToClose } from '../hooks/useBackToClose.js';
 
 /**
  * Standard Unified Modal Component
@@ -8,7 +9,7 @@ import { X } from 'lucide-react';
  * - Desktop: Centered pop-in dialog with glassmorphism
  * - Mobile (<640px): Ergonomic touch-friendly Bottom-Sheet drawer with drag handle
  * - Automatic body scroll lock and cleanup
- * - ESC key dismissal
+ * - ESC key dismissal; the phone's back button closes it (useBackToClose)
  * - Pinned header and footer with isolated scrollable body
  * - Backdrop click does NOT close the modal — only explicit actions do (the × button, a
  *   footer's cancel/submit, etc.), so an accidental click outside never discards in-progress input
@@ -28,6 +29,7 @@ export default function Modal({
   bodyClassName = '',
 }) {
   const contentRef = useRef(null);
+  useBackToClose(isOpen, onClose);
 
   useEffect(() => {
     if (!isOpen) return;

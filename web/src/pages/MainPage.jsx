@@ -18,6 +18,7 @@ import { useDemo } from '../features/demo/index.js';
 import { appPath, getAppSubPath } from '../shared/routes.js';
 import { toEnglishDigits } from '../shared/utils/formatters.js';
 import { useDocumentTitle } from '../shared/hooks/useDocumentTitle.js';
+import { useTabNavigation } from '../shared/hooks/useTabNavigation.js';
 import { useFeature } from '../shared/features/useFeature.js';
 
 // Each tab other than the market home is loaded on first use, keeping the initial bundle small
@@ -156,66 +157,43 @@ export default function MainPage() {
 
   useDocumentTitle(tabTitle);
 
-  const handleTabChange = (nextTab) => {
-    if (nextTab === 'incomes') {
-      if (!subPath.startsWith('/incomes')) {
-        navigate(appPath('/incomes'));
-      }
-    } else if (nextTab === 'cheques') {
-      if (!subPath.startsWith('/cheques')) {
-        navigate(appPath('/cheques'));
-      }
-    } else if (nextTab === 'expenses') {
-      if (!subPath.startsWith('/expenses')) {
-        navigate(appPath('/expenses'));
-      }
-    } else if (nextTab === 'accounts') {
-      if (!subPath.startsWith('/accounts')) {
-        navigate(appPath('/accounts'));
-      }
-    } else if (nextTab === 'loans') {
-      if (!subPath.startsWith('/loans')) {
-        navigate(appPath('/loans'));
-      }
-    } else if (nextTab === 'portfolio') {
-      if (!subPath.startsWith('/portfolio')) {
-        let lastId = null;
-        try {
-          lastId = localStorage.getItem('realrate_last_portfolio_id');
-        } catch { }
-        navigate(appPath(lastId ? `/portfolio/${lastId}` : '/portfolio'));
-      }
-    } else if (nextTab === 'settings') {
-      if (subPath !== '/settings') {
-        navigate(appPath('/settings'));
-      }
-    } else if (nextTab === 'admin') {
-      if (subPath !== '/admin') {
-        navigate(appPath('/admin'));
-      }
-    } else if (nextTab === 'sources') {
-      if (subPath !== '/admin/sources') {
-        navigate(appPath('/admin/sources'));
-      }
-    } else {
-      if (subPath !== '/' && subPath !== '/rates') {
-        navigate(appPath('/'));
-      }
-    }
-  };
+  const goToTab = useTabNavigation(activeTab === 'market', appPath('/'));
 
-  // Switching between the Holdings and Transactions sub-tabs inside the Portfolio page —
-  // keeps /transactions and /transactions/:id working as their own deep links.
-  const handlePortfolioViewChange = (nextView) => {
+  const lastPortfolioPath = (base) => {
     let lastId = null;
     try {
       lastId = localStorage.getItem('realrate_last_portfolio_id');
     } catch { }
-    if (nextView === 'transactions') {
-      navigate(appPath(lastId ? `/transactions/${lastId}` : '/transactions'));
-    } else {
-      navigate(appPath(lastId ? `/portfolio/${lastId}` : '/portfolio'));
+    return appPath(lastId ? `${base}/${lastId}` : base);
+  };
+
+  const TAB_PATHS = {
+    incomes: '/incomes',
+    cheques: '/cheques',
+    expenses: '/expenses',
+    accounts: '/accounts',
+    loans: '/loans',
+    settings: '/settings',
+    admin: '/admin',
+    sources: '/admin/sources',
+  };
+
+  const handleTabChange = (nextTab) => {
+    if (nextTab === activeTab && !isTransactionsSubView) return;
+    if (nextTab === 'portfolio') {
+      if (!subPath.startsWith('/portfolio')) goToTab(lastPortfolioPath('/portfolio'));
+    } else if (TAB_PATHS[nextTab]) {
+      goToTab(appPath(TAB_PATHS[nextTab]));
+    } else if (subPath !== '/' && subPath !== '/rates') {
+      goToTab(appPath('/'));
     }
+  };
+
+  // Switching between the Holdings and Transactions sub-tabs inside the Portfolio page — keeps
+  // /transactions and /transactions/:id working as their own deep links; a sub-tab replaces the
+  // other (back leaves the portfolio instead of flipping between them)
+  const handlePortfolioViewChange = (nextView) => {
+    navigate(lastPortfolioPath(nextView === 'transactions' ? '/transactions' : '/portfolio'), { replace: true });
   };
 
   const tabOptions = useMemo(() => {
