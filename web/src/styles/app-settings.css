@@ -1,0 +1,126 @@
+/* Settings of the Android app (features/app-settings) */
+
+.app-settings-page {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin-bottom: 32px;
+}
+
+.app-setting-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.app-setting-row.is-stacked {
+  flex-direction: column;
+  align-items: stretch;
+}
+
+.app-setting-row strong {
+  display: block;
+  font-size: 0.95rem;
+}
+
+.app-setting-row p {
+  margin: 4px 0 0;
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  line-height: 1.7;
+}
+
+.app-setting-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.app-setting-facts {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 8px 14px;
+  margin: 14px 0 0;
+  font-size: 0.85rem;
+}
+
+.app-setting-facts dt {
+  color: var(--text-secondary);
+}
+
+.app-setting-facts dd {
+  margin: 0;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  min-width: 0;
+}
+
+.app-setting-facts small {
+  color: var(--text-muted);
+}
+
+/* On/off switch */
+.app-switch {
+  position: relative;
+  display: inline-flex;
+  flex-shrink: 0;
+  cursor: pointer;
+}
+
+.app-switch input {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  margin: 0;
+  cursor: inherit;
+}
+
+.app-switch-track {
+  width: 46px;
+  height: 26px;
+  border-radius: 999px;
+  background: var(--border-color);
+  position: relative;
+  transition: background 0.2s;
+}
+
+.app-switch-track::after {
+  content: '';
+  position: absolute;
+  top: 3px;
+  inset-inline-start: 3px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #fff;
+  transition: transform 0.2s;
+}
+
+.app-switch input:checked + .app-switch-track {
+  background: var(--gold-primary);
+}
+
+.app-switch input:checked + .app-switch-track::after {
+  transform: translateX(-20px);
+}
+
+[dir='ltr'] .app-switch input:checked + .app-switch-track::after {
+  transform: translateX(20px);
+}
+
+.app-switch input:focus-visible + .app-switch-track {
+  outline: 2px solid var(--gold-primary);
+  outline-offset: 2px;
+}
+
+.app-switch.is-disabled {
+  opacity: 0.5;
+  cursor: default;
+}

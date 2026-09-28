@@ -16,6 +16,7 @@ export default function VaultLockCard({
   loading = false,
   className = '',
   style = {},
+  extraAction = null,
 }) {
   const [passphrase, setPassphrase] = useState('');
   const [showPass, setShowPass] = useState(false);
@@ -108,6 +109,7 @@ export default function VaultLockCard({
             >
               {isBusy ? 'در حال بررسی...' : 'بازگشایی'}
             </button>
+            {extraAction}
           </div>
         </form>
 

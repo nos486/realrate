@@ -185,6 +185,8 @@ export function AuthProvider({ children }) {
   useEffect(() => listenForNativeAuthReturn((result) => nativeReturnRef.current?.(result)), []);
 
   const logout = useCallback(async () => {
+    // The fingerprint unlock belongs to the account signing out
+    if (isNativeApp()) import('../../../shared/native/biometricUnlock.js').then((m) => m.disableBiometric()).catch(() => {});
     await apiLogout().catch(() => {});
     writeCachedUser(null);
     resetCustomBanks();

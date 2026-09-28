@@ -30,7 +30,7 @@ const re = (source) => new RegExp(source, 'u');
 export const BANK_SMS_TEMPLATES = [
   {
     bankId: 'parsian',
-    senders: [],
+    senders: ['PARSIANBANK'],
     templates: [
       {
         // 30101540968603

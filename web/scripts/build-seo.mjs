@@ -829,6 +829,7 @@ Disallow: /cheques
 Disallow: /expenses
 Disallow: /accounts
 Disallow: /settings
+Disallow: /app-settings
 Disallow: /admin
 Disallow: /sources
 Disallow: /derived-assets

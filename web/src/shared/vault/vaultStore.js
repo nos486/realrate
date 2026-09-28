@@ -33,6 +33,8 @@ const SESSION_KEY = 'rr_vault_session';
  */
 let state = { status: 'idle', vault: null, error: null, epoch: 0, userId: null, legacyUnlocked: false, hasPlaintextData: false };
 let dataKey = null;
+// The unwrapped data key (base64), for the Android app's fingerprint unlock (biometricUnlock.js)
+let rawKeyB64 = null;
 let loadPromise = null;
 const portfolioKeys = new Map(); // wrapped key → { key, raw }
 const listeners = new Set();
@@ -92,6 +94,7 @@ function writeSession(value) {
 
 async function setUnlocked(raw, vault) {
   dataKey = await importRawKey(raw);
+  rawKeyB64 = bytesToBase64(raw);
   portfolioKeys.clear();
   writeSession({ userId: state.userId, wrappedKey: vault.wrappedKey, key: bytesToBase64(raw) });
   setState({ status: 'unlocked', vault, error: null, epoch: state.epoch + 1 });
@@ -108,6 +111,7 @@ export function loadVault(userId, { force = false } = {}) {
   }
   if (state.userId !== userId) {
     dataKey = null;
+    rawKeyB64 = null;
     portfolioKeys.clear();
   }
   setState({ status: state.status === 'unlocked' && state.userId === userId ? 'unlocked' : 'loading', userId, error: null });
@@ -136,6 +140,7 @@ export function loadVault(userId, { force = false } = {}) {
         }
       }
       dataKey = null;
+      rawKeyB64 = null;
       setState({ status: 'locked', vault });
       return state;
     })
@@ -172,7 +177,29 @@ export async function unlockVault(passphrase) {
   return true;
 }
 
+/**
+ * What the fingerprint unlock keeps (Android app): the unlocked data key, tied to this account and
+ * this wrapping of it (a changed passphrase asks to set the fingerprint up again)
+ * @returns {{ userId: string, wrappedKey: string, key: string }|null} null while locked
+ */
+export function getVaultUnlockSecret() {
+  if (!isVaultUnlocked() || !rawKeyB64 || !state.vault) return null;
+  return { userId: state.userId, wrappedKey: state.vault.wrappedKey, key: rawKeyB64 };
+}
+
+/**
+ * Unlock with a secret from getVaultUnlockSecret()
+ * @returns {Promise<boolean>} false when it is not for this account's current vault
+ */
+export async function unlockVaultWithSecret(secret) {
+  const vault = state.vault;
+  if (!vault || !secret?.key || secret.userId !== state.userId || secret.wrappedKey !== vault.wrappedKey) return false;
+  await setUnlocked(base64ToBytes(secret.key), vault);
+  return true;
+}
+
 export function lockVault() {
+  rawKeyB64 = null;
   dataKey = null;
   portfolioKeys.clear();
   writeSession(null);
@@ -192,6 +219,7 @@ export function markLegacyVaultUnlocked() {
  * own older passphrase. Screens holding a passphrase key listen for LOCK_ALL_EVENT.
  */
 export function lockAll() {
+  rawKeyB64 = null;
   try {
     Object.keys(sessionStorage)
       .filter((key) => key.startsWith(LEGACY_PASS_PREFIX))
@@ -212,6 +240,7 @@ export function lockAll() {
 
 /** Forget everything (logout) */
 export function resetVault() {
+  rawKeyB64 = null;
   dataKey = null;
   portfolioKeys.clear();
   loadPromise = null;

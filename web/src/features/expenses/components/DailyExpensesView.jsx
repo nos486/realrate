@@ -34,7 +34,9 @@ import { formatShamsiDisplay } from '../../portfolio/components/ShamsiDatePicker
 import { getExpenseCategory } from '../constants/expenseCategories.js';
 import { formatAmount } from '../utils/format.js';
 import ExpenseForm from './ExpenseForm.jsx';
-import SmsImportForm from './SmsImportForm.jsx';
+import SmsImportForm, { smsExpenseDraft } from './SmsImportForm.jsx';
+import SmsInboxCard from './SmsInboxCard.jsx';
+import { markSmsHandled } from '../../../shared/native/smsInbox.js';
 import ExpensesTable from './ExpensesTable.jsx';
 import BudgetForm from './BudgetForm.jsx';
 import BudgetProgress from './BudgetProgress.jsx';
@@ -227,6 +229,11 @@ export default function DailyExpensesView({ usdToman = 0, hideValues = false }) 
       )}
 
       <div className="expenses-daily">
+        <SmsInboxCard
+          accounts={accounts}
+          readOnly={readOnly}
+          onRecord={(item) => setForm({ expense: null, draft: smsExpenseDraft(item.tx, accounts) })}
+        />
         <SplitPageLayout sidebar={sidebar}>
           <div className="portfolio-table-card">
             <div className="portfolio-table-header">
@@ -352,6 +359,8 @@ export default function DailyExpensesView({ usdToman = 0, hideValues = false }) 
           accounts={accounts.filter((a) => !a.archived || a.id === form.expense?.accountId)}
           onSubmit={async (input) => {
             await saveExpense(input, form.expense);
+            // A message recorded (pasted or from the app's SMS inbox) never comes back
+            if (form.draft?.smsFingerprint) markSmsHandled(form.draft.smsFingerprint);
             // An SMS from another month: show the month it went into
             if (form.draft && input.date && !(input.date >= range.from && input.date <= range.to)) {
               setMonth(shamsiMonthOf(input.date));
