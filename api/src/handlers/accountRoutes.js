@@ -45,6 +45,7 @@ import {
 } from "../lib/security.js";
 import { sendEmail, isEmailConfigured, verificationEmail, passwordResetEmail, accountExistsEmail } from "../lib/email.js";
 import { SESSION_TTL_SECONDS, SESSION_COOKIE_MAX_AGE } from "../config/constants.js";
+import { enabledFeatures } from "../config/features.js";
 import { isAppVerifier, appChallengeOf, appSignInPurpose, APP_WEBVIEW_ORIGIN } from "../lib/appAuth.js";
 
 export const PASSWORD_MIN_LENGTH = 8;
@@ -137,6 +138,8 @@ export function publicUser(account, env) {
     isAdmin: role === "admin",
     hasPassword: Boolean(account.passwordHash),
     emailVerified: account.emailVerified,
+    // Same as GET /api/auth/me: a sign-in answer is used as the user without asking again
+    features: enabledFeatures({ id: account.id, email: account.email, role }),
   };
 }
 

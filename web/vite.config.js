@@ -1,9 +1,21 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 
+/**
+ * The Android app build (`vite build --mode app`, web/android): the page stays between the system
+ * bars. With viewport-fit=cover (for the installed iPhone web app) Capacitor would lay it out under
+ * the status bar instead.
+ */
+function androidAppViewport() {
+  return {
+    name: 'android-app-viewport',
+    transformIndexHtml: (html) => html.replace(', viewport-fit=cover', ''),
+  };
+}
+
 // https://vitejs.dev/config/
-export default defineConfig({
-  plugins: [react()],
+export default defineConfig(({ mode }) => ({
+  plugins: [react(), ...(mode === 'app' ? [androidAppViewport()] : [])],
   server: {
     port: 5173,
     proxy: {
@@ -28,4 +40,4 @@ export default defineConfig({
       },
     },
   },
-})
+}))

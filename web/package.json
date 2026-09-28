@@ -10,7 +10,7 @@
     "lint": "oxlint",
     "test": "node --test tests/seo/*.test.js",
     "preview": "vite preview",
-    "build:app": "vite build --outDir dist-app",
+    "build:app": "vite build --mode app --outDir dist-app",
     "android:sync": "npm run build:app && cap sync android"
   },
   "dependencies": {

@@ -140,7 +140,10 @@ describe('email/password accounts', () => {
     it('signs in with the right password', async () => {
       repo.dbGetUserAuthByEmail.mockResolvedValue(account());
       const res = await handleLogin(post('/api/auth/login', { email: 'SARA@example.com', password: 'secret123' }), env);
-      expect((await res.json()).user.email).toBe('sara@example.com');
+      const data = await res.json();
+      expect(data.user.email).toBe('sara@example.com');
+      // The same enabled features as GET /api/auth/me (the app shows its sections from them)
+      expect(data.user.features).toEqual(expect.arrayContaining(['expenses', 'bank_accounts']));
       expect(repo.dbSaveSession).toHaveBeenCalled();
     });
 

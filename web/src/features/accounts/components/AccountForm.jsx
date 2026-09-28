@@ -22,6 +22,7 @@ export default function AccountForm({ account = null, onSubmit, onClose, submitt
   const [name, setName] = useState(account?.name || '');
   const [bank, setBank] = useState({ bankId: account?.bankId || '', lenderName: account?.bankName || '' });
   const [cardLast4, setCardLast4] = useState(account?.cardLast4 || '');
+  const [accountNumber, setAccountNumber] = useState(account?.accountNumber || '');
   const [currency, setCurrency] = useState(account?.currency || 'IRT');
   const [notes, setNotes] = useState(account?.notes || '');
   const [submitError, setSubmitError] = useState('');
@@ -42,6 +43,7 @@ export default function AccountForm({ account = null, onSubmit, onClose, submitt
         bankId: isBank ? bank.bankId : '',
         bankName: isBank ? bank.lenderName : '',
         cardLast4: isBank ? cardLast4 : '',
+        accountNumber: isBank ? accountNumber : '',
         currency,
         notes: notes.trim(),
         archived: account?.archived || false,
@@ -99,6 +101,19 @@ export default function AccountForm({ account = null, onSubmit, onClose, submitt
             onChange={(e) => setCardLast4(e.target.value.replace(/[^\d۰-۹٠-٩]/g, '').slice(0, 4))}
             inputMode="numeric"
             maxLength={4}
+          />
+        )}
+
+        {isBank && (
+          <Input
+            id="account-number"
+            label="شماره حساب (اختیاری)"
+            placeholder="برای تشخیص خودکار پیامک‌های بانک"
+            value={accountNumber}
+            onChange={(e) => setAccountNumber(e.target.value.replace(/[^\d۰-۹٠-٩]/g, '').slice(0, 26))}
+            inputMode="numeric"
+            dir="ltr"
+            maxLength={26}
           />
         )}
 
