@@ -23,6 +23,8 @@ const USAGE_LABELS = [
   ['cheques', 'چک'],
   ['incomes', 'درآمد'],
   ['recurringIncomes', 'درآمد ثابت'],
+  ['expenses', 'هزینه'],
+  ['accounts', 'حساب'],
 ];
 
 function Fact({ label, children }) {

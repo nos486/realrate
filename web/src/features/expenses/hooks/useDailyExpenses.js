@@ -6,7 +6,7 @@
  * The daily section itself is created on the first everyday expense.
  */
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useAuth } from '../../auth/index.js';
 import { useVault } from '../../../shared/vault/useVault.js';
 import { compareExpensesByDate, shamsiMonthRange, shiftShamsiMonth } from '../../../utils/expenseDocument.js';
@@ -28,12 +28,18 @@ export function useDailyExpenses(month, { enabled = true } = {}) {
   const [submitting, setSubmitting] = useState(false);
   const [deletingId, setDeletingId] = useState(null);
   const [error, setError] = useState(null);
+  // Only the latest request's answer counts (months switched quickly answer out of order)
+  const requestRef = useRef(0);
 
-  const range = shamsiMonthRange(month.jy, month.jm);
-  const prev = shiftShamsiMonth(month, -1);
-  const prevRange = shamsiMonthRange(prev.jy, prev.jm);
+  const range = useMemo(() => shamsiMonthRange(month.jy, month.jm), [month.jy, month.jm]);
+  const prevRange = useMemo(() => {
+    const prev = shiftShamsiMonth(month, -1);
+    return shamsiMonthRange(prev.jy, prev.jm);
+  }, [month]);
 
   const fetchMonth = useCallback(async () => {
+    const request = ++requestRef.current;
+    const isLatest = () => request === requestRef.current;
     if (!user || vaultLocked || !enabled) {
       setExpenses([]);
       setLoading(false);
@@ -44,13 +50,14 @@ export function useDailyExpenses(month, { enabled = true } = {}) {
       setError(null);
       const { groups } = await api.getExpenseGroups();
       const group = groups.find((g) => g.type === 'daily') || null;
-      setDailyGroup(group);
       const res = group ? await api.getExpenses({ parent: group.id, from: prevRange.from, to: range.to }) : { expenses: [] };
+      if (!isLatest()) return;
+      setDailyGroup(group);
       setExpenses(res.expenses);
     } catch (err) {
-      setError(err.message || 'خطا در بارگذاری هزینه‌های روزمره');
+      if (isLatest()) setError(err.message || 'خطا در بارگذاری هزینه‌های روزمره');
     } finally {
-      setLoading(false);
+      if (isLatest()) setLoading(false);
     }
     // vaultEpoch: reload after unlocking
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -107,9 +114,12 @@ export function useDailyExpenses(month, { enabled = true } = {}) {
     }
   }, []);
 
+  const monthExpenses = useMemo(() => expenses.filter((e) => inRange(e, range)), [expenses, range]);
+  const previousExpenses = useMemo(() => expenses.filter((e) => inRange(e, prevRange)), [expenses, prevRange]);
+
   return {
-    expenses: expenses.filter((e) => inRange(e, range)),
-    previousExpenses: expenses.filter((e) => inRange(e, prevRange)),
+    expenses: monthExpenses,
+    previousExpenses,
     range,
     budgets: dailyGroup?.budgets || {},
     vaultLocked,

@@ -6,7 +6,7 @@
  *                                                       and whether an account without it has data
  *   PUT    /api/vault                                — Turn on / re-wrap after a passphrase change
  *   GET    /api/vault/records/:kind                  — Encrypted records of a kind (loan | income | cheque | recurring_income | holding | transaction |
- *                                                       expense_group | expense — the expense kinds only with the `expenses` feature);
+ *                                                       expense_group | expense | bank_account — each only with its feature: config/features.js);
  *                                                       ?from&to&parent&undated=1&order=asc|desc&limit&offset (a page adds `total`)
  *   PUT    /api/vault/records/:kind/:id              — Create/replace one ({ payload, replacePlain })
  *   DELETE /api/vault/records/:kind/:id              — Delete one

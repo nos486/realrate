@@ -1,6 +1,6 @@
 # هزینه‌ها — ساختار داده و برنامه مراحل بعد
 
-## مرحله ۱ (فعلی، بتا — فقط مدیر)
+## مرحله ۱
 
 بخش‌های هزینه (پروژه و ...) و هزینه‌های هر بخش، به تومان یا دلار.
 
@@ -16,9 +16,9 @@
 - `currency`: `IRT` (تومان) یا `USD`. `usdRate`: نرخ دلار روز هزینه به تومان (اختیاری، فقط برای دلار).
 - اعتبارسنجی و محاسبه جمع‌ها: `api/src/domain/expenseDocument.js` (مشترک مرورگر و سرور، از طریق `web/src/utils/expenseDocument.js`).
 - ذخیره در مرورگر: `web/src/shared/vault/vaultExpenses.js`. صفحه: `web/src/features/expenses/`.
-- دسترسی: ویژگی `expenses` در `api/src/config/features.js` (مرحله `beta`)؛ `VAULT_KIND_FEATURES` در `vault.repository.js` این دو نوع رکورد را برای بقیه کاربران ۴۰۴ می‌کند. برای عمومی کردن: `stage: 'ga'`.
+- دسترسی: ویژگی `expenses` در `api/src/config/features.js` — اکنون `ga` (برای همه کاربران). `VAULT_KIND_FEATURES` در `vault.repository.js` نوع رکوردهای هر ویژگی را به آن گره می‌زند؛ ویژگی‌ای که برای کاربری فعال نیست ۴۰۴ می‌دهد (مثل `bank_account` تا وقتی حساب‌ها بتا هستند).
 
-## مرحله ۲ — هزینه‌های روزمره (انجام شد، بتا)
+## مرحله ۲ — هزینه‌های روزمره (انجام شد)
 
 - یک بخش از نوع `type: 'daily'` برای هر کاربر («هزینه‌های روزمره»)، که با اولین هزینه روزمره ساخته می‌شود (`ensureDailyGroup`) و در نمای پروژه‌ها نمایش داده نمی‌شود.
 - `category` روی هر هزینه روزمره، از `DAILY_EXPENSE_CATEGORIES` در `expenseDocument.js` (آیکون و رنگ: `web/src/features/expenses/constants/expenseCategories.js`). دسته نامعتبر ذخیره نمی‌شود (`''`، در گزارش «سایر»).
