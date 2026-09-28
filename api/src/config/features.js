@@ -13,6 +13,11 @@ export const FEATURES = {
     label: 'اسکن چک با هوش مصنوعی',
     description: 'استخراج اطلاعات چک بانکی از تصویر با Gemini (محدودیت روزانه: config/usageLimits.js)',
   },
+  expenses: {
+    stage: 'beta',
+    label: 'هزینه‌ها',
+    description: 'بخش‌های هزینه (پروژه‌ها و ...) با ثبت هزینه به تومان یا دلار',
+  },
   cheque_scan_debug: {
     stage: 'beta',
     label: 'ابزار بررسی دقت اسکن چک',

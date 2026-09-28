@@ -1,6 +1,6 @@
 import React, { useMemo, lazy, Suspense } from 'react';
 import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { Megaphone, TrendingUp, Briefcase, ShieldCheck, Radio, Settings, Landmark, Wallet, ReceiptText, Wrench } from 'lucide-react';
+import { Megaphone, TrendingUp, Briefcase, ShieldCheck, Radio, Settings, Landmark, Wallet, ReceiptText, Wrench, HandCoins } from 'lucide-react';
 import { AppLayout, FilterPills, AlertBanner, Button } from '../shared/ui/index.js';
 import MarketInputsToolbar from '../components/MarketInputsToolbar.jsx';
 import { PriceRefreshStatus } from '../features/market/components/index.js';
@@ -18,12 +18,14 @@ import { useDemo } from '../features/demo/index.js';
 import { appPath, getAppSubPath } from '../shared/routes.js';
 import { toEnglishDigits } from '../shared/utils/formatters.js';
 import { useDocumentTitle } from '../shared/hooks/useDocumentTitle.js';
+import { useFeature } from '../shared/features/useFeature.js';
 
 // Each tab other than the market home is loaded on first use, keeping the initial bundle small
 const PortfolioTracker = lazy(() => import('../features/portfolio/components/PortfolioTracker.jsx'));
 const LoansPage = lazy(() => import('../features/loans/components/LoansPage.jsx'));
 const IncomesPage = lazy(() => import('../features/incomes/components/IncomesPage.jsx'));
 const ChequesPage = lazy(() => import('../features/cheques/components/ChequesPage.jsx'));
+const ExpensesPage = lazy(() => import('../features/expenses/components/ExpensesPage.jsx'));
 const AccountSettingsView = lazy(() => import('../components/AccountSettingsView.jsx'));
 const AdminPage = lazy(() => import('./AdminPage.jsx'));
 const PriceSourcesPage = lazy(() => import('./PriceSourcesPage.jsx'));
@@ -44,6 +46,8 @@ export default function MainPage() {
   const { user, maintenance } = useAuth();
   const { isDemo } = useDemo();
   const vault = useVault();
+  // Expenses are in beta: only users of the `expenses` feature (admins) see the section
+  const hasExpenses = useFeature('expenses');
 
   // Determine active tab from the path below /app (or the ?tab= query param)
   const subPath = getAppSubPath(location.pathname);
@@ -84,15 +88,21 @@ export default function MainPage() {
       searchParams.get('tab') === 'cheques'
     );
 
+  const isExpenses =
+    hasExpenses && !isSettings && !isSources && !isAdmin && !isIncomes && !isCheques && (
+      subPath.startsWith('/expenses') ||
+      searchParams.get('tab') === 'expenses'
+    );
+
   const isPortfolio =
-    !isSettings && !isSources && !isAdmin && !isIncomes && !isCheques && (
+    !isSettings && !isSources && !isAdmin && !isIncomes && !isCheques && !isExpenses && (
       subPath.startsWith('/portfolio') ||
       searchParams.get('tab') === 'portfolio' ||
       isTransactionsSubView
     );
 
   const isLoans =
-    !isSettings && !isSources && !isAdmin && !isIncomes && !isCheques && !isPortfolio && (
+    !isSettings && !isSources && !isAdmin && !isIncomes && !isCheques && !isExpenses && !isPortfolio && (
       subPath.startsWith('/loans') ||
       searchParams.get('tab') === 'loans'
     );
@@ -104,6 +114,7 @@ export default function MainPage() {
     ['admin', isAdmin],
     ['incomes', isIncomes],
     ['cheques', isCheques],
+    ['expenses', isExpenses],
     ['portfolio', isPortfolio],
     ['loans', isLoans],
   ].find(([, matches]) => matches)?.[0] || 'market';
@@ -119,6 +130,8 @@ export default function MainPage() {
         return 'درآمدها | RealRate';
       case 'cheques':
         return 'مدیریت چک‌ها | RealRate';
+      case 'expenses':
+        return 'هزینه‌ها | RealRate';
       case 'settings':
         return 'تنظیمات حساب | RealRate';
       case 'admin':
@@ -140,6 +153,10 @@ export default function MainPage() {
     } else if (nextTab === 'cheques') {
       if (!subPath.startsWith('/cheques')) {
         navigate(appPath('/cheques'));
+      }
+    } else if (nextTab === 'expenses') {
+      if (!subPath.startsWith('/expenses')) {
+        navigate(appPath('/expenses'));
       }
     } else if (nextTab === 'loans') {
       if (!subPath.startsWith('/loans')) {
@@ -194,6 +211,9 @@ export default function MainPage() {
       { value: 'loans', label: 'وام و اقساط', icon: <Landmark size={16} strokeWidth={2} /> },
       { value: 'cheques', label: 'چک‌ها', icon: <ReceiptText size={16} strokeWidth={2} /> },
     ];
+    if (hasExpenses) {
+      options.push({ value: 'expenses', label: 'هزینه‌ها', icon: <HandCoins size={16} strokeWidth={2} /> });
+    }
     if (user && !isDemo) {
       options.push(
         { value: 'settings', label: 'تنظیمات', icon: <Settings size={16} strokeWidth={2} /> }
@@ -206,7 +226,7 @@ export default function MainPage() {
       );
     }
     return options;
-  }, [user, isDemo]);
+  }, [user, isDemo, hasExpenses]);
 
 
   const {
@@ -365,6 +385,13 @@ export default function MainPage() {
 
         {activeTab === 'cheques' && (
           <ChequesPage />
+        )}
+
+        {activeTab === 'expenses' && (
+          <ExpensesPage
+            groupId={subPath.match(/^\/expenses\/([^/]+)/)?.[1] || null}
+            onSelectGroup={(id) => navigate(appPath(id ? `/expenses/${id}` : '/expenses'), { replace: true })}
+          />
         )}
 
         {activeTab === 'settings' && (

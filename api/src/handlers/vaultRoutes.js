@@ -5,7 +5,8 @@
  *   GET    /api/vault                                — The account vault (salt + wrapped key) or null,
  *                                                       and whether an account without it has data
  *   PUT    /api/vault                                — Turn on / re-wrap after a passphrase change
- *   GET    /api/vault/records/:kind                  — Encrypted records of a kind (loan | income | cheque | recurring_income | holding | transaction);
+ *   GET    /api/vault/records/:kind                  — Encrypted records of a kind (loan | income | cheque | recurring_income | holding | transaction |
+ *                                                       expense_group | expense — the expense kinds only with the `expenses` feature);
  *                                                       ?from&to&parent&undated=1&order=asc|desc&limit&offset (a page adds `total`)
  *   PUT    /api/vault/records/:kind/:id              — Create/replace one ({ payload, replacePlain })
  *   DELETE /api/vault/records/:kind/:id              — Delete one
@@ -25,12 +26,17 @@ import {
   dbDeleteVaultRecord,
   dbGetLoanDocument,
 } from "../repositories/index.js";
+import { VAULT_KIND_FEATURES } from "../repositories/vault.repository.js";
+import { isFeatureEnabled } from "../config/features.js";
 import { jsonResponse } from "../lib/helpers.js";
 import { AppError } from "../lib/AppError.js";
 
-async function requireUserId(request, env) {
+async function requireUserId(request, env, kind = null) {
   const user = await getAuthenticatedUser(request, env);
   if (!user) throw AppError.unauthorized("جهت مدیریت رمزنگاری، ابتدا وارد حساب کاربری خود شوید.");
+  // Records of a feature not open to this user are hidden like the feature itself
+  const feature = kind ? VAULT_KIND_FEATURES[kind] : null;
+  if (feature && !isFeatureEnabled(feature, user)) throw AppError.notFound("یافت نشد.");
   return user.userId || user.id || user.email;
 }
 
@@ -54,7 +60,7 @@ export async function handleSaveVault(request, env) {
 }
 
 export async function handleListVaultRecords(request, env, { kind }) {
-  const userId = await requireUserId(request, env);
+  const userId = await requireUserId(request, env, kind);
   const params = new URL(request.url).searchParams;
   const result = await dbListVaultRecords(env, userId, kind, {
     from: params.get("from") || "",
@@ -71,7 +77,7 @@ export async function handleListVaultRecords(request, env, { kind }) {
 }
 
 export async function handlePutVaultRecord(request, env, { kind, id }) {
-  const userId = await requireUserId(request, env);
+  const userId = await requireUserId(request, env, kind);
   const body = await request.json().catch(() => ({}));
   const record = await dbPutVaultRecord(env, userId, kind, id, {
     payload: body.payload,
@@ -83,7 +89,7 @@ export async function handlePutVaultRecord(request, env, { kind, id }) {
 }
 
 export async function handleDeleteVaultRecord(request, env, { kind, id }) {
-  const userId = await requireUserId(request, env);
+  const userId = await requireUserId(request, env, kind);
   const deleted = await dbDeleteVaultRecord(env, userId, kind, id);
   if (!deleted) throw AppError.notFound("رکورد مورد نظر یافت نشد.");
   return jsonResponse({ success: true }, 200, request);

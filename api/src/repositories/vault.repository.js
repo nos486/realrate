@@ -15,7 +15,14 @@
 import { ensureSchema } from "./schema.repository.js";
 import { AppError } from "../lib/AppError.js";
 
-export const VAULT_RECORD_KINDS = ["loan", "income", "cheque", "recurring_income", "holding", "transaction", "portfolio_layout"];
+export const VAULT_RECORD_KINDS = [
+  "loan", "income", "cheque", "recurring_income", "holding", "transaction", "portfolio_layout",
+  // Expenses: a section (a project, ...) and the expenses in it (parent_id = the section)
+  "expense_group", "expense",
+];
+
+/** Kinds that exist only for users of a feature (config/features.js); others get 404 */
+export const VAULT_KIND_FEATURES = { expense_group: "expenses", expense: "expenses" };
 /** Kinds that belong to a portfolio: parent_id is the portfolio, encrypted with its own key */
 export const PORTFOLIO_ITEM_KINDS = ["holding", "transaction", "portfolio_layout"];
 export const E2EE_CIPHER_PREFIX = "enc:e2ee:v1:";
@@ -200,10 +207,11 @@ function deletePlainStatements(env, userId, kind, id) {
   if (kind === "transaction") {
     return [env.DB.prepare(`DELETE FROM transactions WHERE id = ? AND user_id = ?`).bind(id, userId)];
   }
-  if (kind === "portfolio_layout") {
-    return [];
+  if (kind === "income") {
+    return [env.DB.prepare(`DELETE FROM incomes WHERE id = ? AND user_id = ?`).bind(id, userId)];
   }
-  return [env.DB.prepare(`DELETE FROM incomes WHERE id = ? AND user_id = ?`).bind(id, userId)];
+  // Kinds that were never stored in plaintext (portfolio_layout, expenses) have nothing to delete
+  return [];
 }
 
 /**
@@ -217,6 +225,7 @@ export async function dbPutVaultRecord(env, userId, kind, id, { payload, replace
   const date = parseRecordDate(recordDate);
   const parent = parseParentId(parentId);
   if (PORTFOLIO_ITEM_KINDS.includes(kind) && !parent) throw AppError.badRequest("پورتفوی این مورد مشخص نشده است.");
+  if (kind === "expense" && !parent) throw AppError.badRequest("بخش این هزینه مشخص نشده است.");
   await requireVault(env, userId);
 
   const now = new Date().toISOString();

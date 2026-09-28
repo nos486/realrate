@@ -22,6 +22,8 @@ const PRIMARY_DATE = {
   recurring_income: (r) => r?.startDate,
   holding: (h) => h?.buyDate,
   transaction: (t) => t?.transactionDate || t?.date,
+  expense_group: (g) => g?.createdAt,
+  expense: (e) => e?.date,
 };
 
 /**
