@@ -19,10 +19,12 @@ export const VAULT_RECORD_KINDS = [
   "loan", "income", "cheque", "recurring_income", "holding", "transaction", "portfolio_layout",
   // Expenses: a section (a project, ...) and the expenses in it (parent_id = the section)
   "expense_group", "expense",
+  // The user's money accounts (bank accounts, cash, ...), the source an expense points to
+  "bank_account",
 ];
 
 /** Kinds that exist only for users of a feature (config/features.js); others get 404 */
-export const VAULT_KIND_FEATURES = { expense_group: "expenses", expense: "expenses" };
+export const VAULT_KIND_FEATURES = { expense_group: "expenses", expense: "expenses", bank_account: "bank_accounts" };
 /** Kinds that belong to a portfolio: parent_id is the portfolio, encrypted with its own key */
 export const PORTFOLIO_ITEM_KINDS = ["holding", "transaction", "portfolio_layout"];
 export const E2EE_CIPHER_PREFIX = "enc:e2ee:v1:";

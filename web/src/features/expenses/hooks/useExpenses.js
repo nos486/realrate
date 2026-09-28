@@ -1,9 +1,10 @@
 /**
- * useExpenses.js — The user's expense sections and expenses, and every change to them
+ * useExpenses.js — The user's project sections and their expenses, and every change to them
  *
  * Everything is an encrypted vault record (shared/vault/vaultExpenses.js), so nothing loads
- * while the vault is locked. Sections and expenses are loaded once and kept in state; totals are
- * computed from them in the page.
+ * while the vault is locked. The daily section is left out (useDailyExpenses loads it a month at
+ * a time); each project's expenses are fetched by section, so everyday spending is never
+ * downloaded here. Totals are computed from them in the view.
  */
 
 import { useState, useEffect, useCallback } from 'react';
@@ -33,9 +34,11 @@ export function useExpenses() {
     try {
       setLoading(true);
       setError(null);
-      const [g, e] = await Promise.all([api.getExpenseGroups(), api.getExpenses()]);
-      setGroups(g.groups);
-      setExpenses(e.expenses);
+      const { groups: all } = await api.getExpenseGroups();
+      const projects = all.filter((g) => g.type !== 'daily');
+      const lists = await Promise.all(projects.map((g) => api.getExpenses({ parent: g.id })));
+      setGroups(projects);
+      setExpenses(lists.flatMap((res) => res.expenses).sort(compareExpensesByDate));
     } catch (err) {
       setError(err.message || 'خطا در بارگذاری هزینه‌ها');
     } finally {

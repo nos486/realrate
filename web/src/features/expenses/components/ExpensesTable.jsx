@@ -8,12 +8,31 @@ import { ResponsiveDataTable } from '../../../shared/ui/index.js';
 import { formatShamsiDisplay } from '../../portfolio/components/ShamsiDatePicker.jsx';
 import { formatAmount } from '../utils/format.js';
 import { expenseInToman } from '../../../utils/expenseDocument.js';
+import { getExpenseCategory } from '../constants/expenseCategories.js';
+import { accountLabel } from '../../accounts/constants/accountDisplay.js';
 
 const MASK = '****';
 
-export default function ExpensesTable({ expenses, usdToman = 0, onEdit, onDelete, deletingId = null, hideValues = false, readOnly = false }) {
+export default function ExpensesTable({ expenses, usdToman = 0, onEdit, onDelete, deletingId = null, hideValues = false, readOnly = false, showCategory = false, accounts = null }) {
+  const accountById = accounts ? new Map(accounts.map((a) => [a.id, a])) : null;
   const columns = [
     { key: 'title', header: 'عنوان', mobile: 'title', render: (e) => <span className="income-title-text">{e.title}</span> },
+    ...(showCategory
+      ? [{
+          key: 'category',
+          header: 'دسته‌بندی',
+          mobile: 'meta',
+          render: (e) => {
+            const { label, Icon, color } = getExpenseCategory(e.category);
+            return (
+              <span className="income-category-badge" style={{ '--income-cat-color': color }}>
+                <Icon size={12} />
+                {label}
+              </span>
+            );
+          },
+        }]
+      : []),
     {
       key: 'date',
       header: 'تاریخ',
@@ -49,6 +68,18 @@ export default function ExpensesTable({ expenses, usdToman = 0, onEdit, onDelete
         );
       },
     },
+    ...(accountById
+      ? [{
+          key: 'account',
+          header: 'پرداخت از',
+          mobile: 'meta',
+          render: (e) => (
+            <span className="expense-account-text">
+              {e.accountId ? accountLabel(accountById.get(e.accountId)) : '—'}
+            </span>
+          ),
+        }]
+      : []),
     {
       key: 'notes',
       header: 'یادداشت',

@@ -1,7 +1,8 @@
 // @vitest-environment happy-dom
 /**
- * expensesPage.test.jsx — the expenses page: sections as chips with their totals, the selected
- * section's expenses in tomans and dollars, and the empty state
+ * expensesPage.test.jsx — the expenses page: the daily view (a month of everyday expenses by
+ * category) and the projects view (sections as chips with their totals, the selected section's
+ * expenses in tomans and dollars)
  */
 import React from 'react';
 import { describe, it, expect, vi, afterEach } from 'vitest';
@@ -24,6 +25,28 @@ vi.mock('../../../web/src/features/expenses/hooks/useExpenses.js', () => ({
     deleteExpense: vi.fn(),
   }),
 }));
+const daily = { expenses: [], previousExpenses: [] };
+vi.mock('../../../web/src/features/expenses/hooks/useDailyExpenses.js', () => ({
+  useDailyExpenses: () => ({
+    ...daily,
+    budgets: daily.budgets || {},
+    saveBudgets: vi.fn(),
+    range: { from: '2026-09-23', to: '2026-10-22', days: 30 },
+    loading: false,
+    submitting: false,
+    deletingId: null,
+    error: null,
+    clearError: vi.fn(),
+    fetchMonth: vi.fn(),
+    saveExpense: vi.fn(),
+    deleteExpense: vi.fn(),
+  }),
+}));
+const accountState = { accounts: [] };
+vi.mock('../../../web/src/features/accounts/hooks/useAccounts.js', () => ({
+  useAccounts: () => ({ accounts: accountState.accounts, activeAccounts: accountState.accounts.filter((a) => !a.archived) }),
+}));
+vi.mock('../../../web/src/shared/vault/useVault.js', () => ({ useVault: () => ({ status: 'unlocked' }) }));
 vi.mock('../../../web/src/features/market/index.js', () => ({
   usePricing: () => ({ getAssetPrice: (id) => (id === 'usd' ? 100000 : 0), summary: {} }),
 }));
@@ -34,12 +57,16 @@ vi.mock('../../../web/src/shared/vault/VaultUnlockCard.jsx', () => ({ default: (
 const { FeedbackProvider } = await import('../../../web/src/shared/ui/FeedbackProvider.jsx');
 const { default: ExpensesPage } = await import('../../../web/src/features/expenses/components/ExpensesPage.jsx');
 
-const renderPage = (props = {}) => render(<FeedbackProvider><ExpensesPage {...props} /></FeedbackProvider>);
+const renderPage = (props = {}) => render(<FeedbackProvider><ExpensesPage segment="projects" {...props} /></FeedbackProvider>);
 
 afterEach(() => {
   cleanup();
   state.groups = [];
   state.expenses = [];
+  daily.expenses = [];
+  daily.previousExpenses = [];
+  daily.budgets = {};
+  accountState.accounts = [];
 });
 
 describe('ExpensesPage', () => {
@@ -61,7 +88,7 @@ describe('ExpensesPage', () => {
       { id: 'e3', groupId: 'exg_b', title: 'بلیت', amount: 5_000_000, currency: 'IRT', date: '2026-09-15', notes: '' },
     ];
     const onSelectGroup = vi.fn();
-    renderPage({ groupId: 'exg_a', onSelectGroup });
+    renderPage({ segment: 'exg_a', onNavigate: onSelectGroup });
 
     expect(screen.getByRole('heading', { name: 'بازسازی' })).toBeTruthy();
     expect(screen.getByText('آشپزخانه')).toBeTruthy();
@@ -76,10 +103,54 @@ describe('ExpensesPage', () => {
 
   it('opens the expense form for the selected section', () => {
     state.groups = [{ id: 'exg_a', name: 'بازسازی', notes: '', createdAt: '2026-09-01T00:00:00Z' }];
-    renderPage({ groupId: 'exg_a' });
+    renderPage({ segment: 'exg_a' });
     fireEvent.click(screen.getByRole('button', { name: /ثبت هزینه/ }));
     expect(screen.getByText('در بخش «بازسازی»')).toBeTruthy();
     fireEvent.click(screen.getAllByText('دلار').map((el) => el.closest('button')).find(Boolean));
     expect(screen.getByText(/نرخ دلار در روز هزینه/)).toBeTruthy();
+  });
+
+  it('shows the daily view by default, with the month total, categories and the comparison', () => {
+    daily.expenses = [
+      { id: 'd1', groupId: 'exg_d', title: 'نان', category: 'groceries', amount: 300_000, currency: 'IRT', date: '2026-09-24' },
+      { id: 'd2', groupId: 'exg_d', title: 'تاکسی', category: 'transport', amount: 100_000, currency: 'IRT', date: '2026-09-25' },
+    ];
+    daily.previousExpenses = [
+      { id: 'p1', groupId: 'exg_d', title: 'خرید', category: 'groceries', amount: 200_000, currency: 'IRT', date: '2026-08-24' },
+    ];
+    renderPage({ segment: null });
+    expect(screen.getByRole('heading', { name: /هزینه‌های/ })).toBeTruthy();
+    expect(screen.getAllByText((400_000).toLocaleString('fa-IR')).length).toBeGreaterThan(0);
+    expect(screen.getAllByText('خوراک و خواربار').length).toBeGreaterThan(0);
+    expect(screen.getByText('تفکیک دسته‌ها')).toBeTruthy();
+
+    fireEvent.click(screen.getByRole('button', { name: /ثبت هزینه/ }));
+    expect(screen.getByText('ثبت هزینه روزمره')).toBeTruthy();
+    expect(screen.getByText('عنوان (اختیاری)')).toBeTruthy();
+  });
+
+  it('switches between the daily and projects views', () => {
+    const onNavigate = vi.fn();
+    renderPage({ segment: null, onNavigate });
+    fireEvent.click(screen.getAllByText('پروژه‌ها').map((el) => el.closest('button')).find(Boolean));
+    expect(onNavigate).toHaveBeenCalledWith('projects');
+  });
+
+  it('shows budgets as progress and what was paid from each account', () => {
+    accountState.accounts = [{ id: 'acc_1', name: 'ملت', type: 'bank', cardLast4: '1234' }];
+    daily.budgets = { total: 1_000_000, dining: 100_000 };
+    daily.expenses = [
+      { id: 'd1', groupId: 'exg_d', title: 'کافه', category: 'dining', amount: 150_000, currency: 'IRT', date: '2026-09-24', accountId: 'acc_1' },
+      { id: 'd2', groupId: 'exg_d', title: 'نان', category: 'groceries', amount: 50_000, currency: 'IRT', date: '2026-09-24' },
+    ];
+    renderPage({ segment: null });
+    expect(screen.getByText('بودجه ماه')).toBeTruthy();
+    // dining: 150,000 of 100,000 — over budget
+    expect(screen.getByText(/بیش از بودجه/)).toBeTruthy();
+    expect(screen.getAllByText('پرداخت از').length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/ملت \(۱۲۳۴\)/).length).toBeGreaterThan(0);
+
+    fireEvent.click(screen.getByRole('button', { name: /ثبت هزینه/ }));
+    expect(screen.getAllByText('نامشخص').length).toBeGreaterThan(0);
   });
 });

@@ -1,6 +1,6 @@
 import React, { useMemo, lazy, Suspense } from 'react';
 import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { Megaphone, TrendingUp, Briefcase, ShieldCheck, Radio, Settings, Landmark, Wallet, ReceiptText, Wrench, HandCoins } from 'lucide-react';
+import { Megaphone, TrendingUp, Briefcase, ShieldCheck, Radio, Settings, Landmark, Wallet, ReceiptText, Wrench, HandCoins, WalletCards } from 'lucide-react';
 import { AppLayout, FilterPills, AlertBanner, Button } from '../shared/ui/index.js';
 import MarketInputsToolbar from '../components/MarketInputsToolbar.jsx';
 import { PriceRefreshStatus } from '../features/market/components/index.js';
@@ -26,6 +26,7 @@ const LoansPage = lazy(() => import('../features/loans/components/LoansPage.jsx'
 const IncomesPage = lazy(() => import('../features/incomes/components/IncomesPage.jsx'));
 const ChequesPage = lazy(() => import('../features/cheques/components/ChequesPage.jsx'));
 const ExpensesPage = lazy(() => import('../features/expenses/components/ExpensesPage.jsx'));
+const AccountsPage = lazy(() => import('../features/accounts/components/AccountsPage.jsx'));
 const AccountSettingsView = lazy(() => import('../components/AccountSettingsView.jsx'));
 const AdminPage = lazy(() => import('./AdminPage.jsx'));
 const PriceSourcesPage = lazy(() => import('./PriceSourcesPage.jsx'));
@@ -48,6 +49,7 @@ export default function MainPage() {
   const vault = useVault();
   // Expenses are in beta: only users of the `expenses` feature (admins) see the section
   const hasExpenses = useFeature('expenses');
+  const hasAccounts = useFeature('bank_accounts');
 
   // Determine active tab from the path below /app (or the ?tab= query param)
   const subPath = getAppSubPath(location.pathname);
@@ -94,15 +96,21 @@ export default function MainPage() {
       searchParams.get('tab') === 'expenses'
     );
 
+  const isAccounts =
+    hasAccounts && !isSettings && !isSources && !isAdmin && !isIncomes && !isCheques && !isExpenses && (
+      subPath.startsWith('/accounts') ||
+      searchParams.get('tab') === 'accounts'
+    );
+
   const isPortfolio =
-    !isSettings && !isSources && !isAdmin && !isIncomes && !isCheques && !isExpenses && (
+    !isSettings && !isSources && !isAdmin && !isIncomes && !isCheques && !isExpenses && !isAccounts && (
       subPath.startsWith('/portfolio') ||
       searchParams.get('tab') === 'portfolio' ||
       isTransactionsSubView
     );
 
   const isLoans =
-    !isSettings && !isSources && !isAdmin && !isIncomes && !isCheques && !isExpenses && !isPortfolio && (
+    !isSettings && !isSources && !isAdmin && !isIncomes && !isCheques && !isExpenses && !isAccounts && !isPortfolio && (
       subPath.startsWith('/loans') ||
       searchParams.get('tab') === 'loans'
     );
@@ -115,6 +123,7 @@ export default function MainPage() {
     ['incomes', isIncomes],
     ['cheques', isCheques],
     ['expenses', isExpenses],
+    ['accounts', isAccounts],
     ['portfolio', isPortfolio],
     ['loans', isLoans],
   ].find(([, matches]) => matches)?.[0] || 'market';
@@ -132,6 +141,8 @@ export default function MainPage() {
         return 'مدیریت چک‌ها | RealRate';
       case 'expenses':
         return 'هزینه‌ها | RealRate';
+      case 'accounts':
+        return 'حساب‌ها | RealRate';
       case 'settings':
         return 'تنظیمات حساب | RealRate';
       case 'admin':
@@ -157,6 +168,10 @@ export default function MainPage() {
     } else if (nextTab === 'expenses') {
       if (!subPath.startsWith('/expenses')) {
         navigate(appPath('/expenses'));
+      }
+    } else if (nextTab === 'accounts') {
+      if (!subPath.startsWith('/accounts')) {
+        navigate(appPath('/accounts'));
       }
     } else if (nextTab === 'loans') {
       if (!subPath.startsWith('/loans')) {
@@ -207,13 +222,13 @@ export default function MainPage() {
     const options = [
       { value: 'market', label: 'نرخ و حباب', icon: <TrendingUp size={16} strokeWidth={2} /> },
       { value: 'incomes', label: 'درآمدها', icon: <Wallet size={16} strokeWidth={2} /> },
+      // Beta (admins): expenses right after incomes, then the accounts they are paid from
+      ...(hasExpenses ? [{ value: 'expenses', label: 'هزینه‌ها', icon: <HandCoins size={16} strokeWidth={2} /> }] : []),
+      ...(hasAccounts ? [{ value: 'accounts', label: 'حساب‌ها', icon: <WalletCards size={16} strokeWidth={2} /> }] : []),
       { value: 'portfolio', label: 'پورتفو', icon: <Briefcase size={16} strokeWidth={2} /> },
       { value: 'loans', label: 'وام و اقساط', icon: <Landmark size={16} strokeWidth={2} /> },
       { value: 'cheques', label: 'چک‌ها', icon: <ReceiptText size={16} strokeWidth={2} /> },
     ];
-    if (hasExpenses) {
-      options.push({ value: 'expenses', label: 'هزینه‌ها', icon: <HandCoins size={16} strokeWidth={2} /> });
-    }
     if (user && !isDemo) {
       options.push(
         { value: 'settings', label: 'تنظیمات', icon: <Settings size={16} strokeWidth={2} /> }
@@ -226,7 +241,7 @@ export default function MainPage() {
       );
     }
     return options;
-  }, [user, isDemo, hasExpenses]);
+  }, [user, isDemo, hasExpenses, hasAccounts]);
 
 
   const {
@@ -387,10 +402,12 @@ export default function MainPage() {
           <ChequesPage />
         )}
 
+        {activeTab === 'accounts' && <AccountsPage />}
+
         {activeTab === 'expenses' && (
           <ExpensesPage
-            groupId={subPath.match(/^\/expenses\/([^/]+)/)?.[1] || null}
-            onSelectGroup={(id) => navigate(appPath(id ? `/expenses/${id}` : '/expenses'), { replace: true })}
+            segment={subPath.match(/^\/expenses\/([^/]+)/)?.[1] || null}
+            onNavigate={(segment) => navigate(appPath(segment ? `/expenses/${segment}` : '/expenses'), { replace: true })}
           />
         )}
 

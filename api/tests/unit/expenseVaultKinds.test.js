@@ -49,6 +49,13 @@ describe('expense vault kinds', () => {
     expect((await handleListVaultRecords(req(), {}, { kind: 'expense_group' })).status).toBe(200);
   });
 
+  it('hides the accounts kind from a regular user and lets an admin use it', async () => {
+    getAuthenticatedUser.mockResolvedValue(USER);
+    await expect(handleListVaultRecords(req(), {}, { kind: 'bank_account' })).rejects.toMatchObject({ statusCode: 404 });
+    getAuthenticatedUser.mockResolvedValue(ADMIN);
+    expect((await handleListVaultRecords(req(), {}, { kind: 'bank_account' })).status).toBe(200);
+  });
+
   it('leaves the other kinds as they were for regular users', async () => {
     getAuthenticatedUser.mockResolvedValue(USER);
     expect((await handleListVaultRecords(req(), {}, { kind: 'cheque' })).status).toBe(200);

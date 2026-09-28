@@ -5,12 +5,14 @@
 
 import React, { useState } from 'react';
 import { FolderKanban } from 'lucide-react';
-import { AlertBanner, Button, Input, Modal } from '../../../shared/ui/index.js';
+import { AlertBanner, Button, Input, Modal, NumericInput } from '../../../shared/ui/index.js';
+import { parseInputNumber } from '../../portfolio/utils/holdingHelpers.js';
 import { EXPENSE_LIMITS } from '../../../utils/expenseDocument.js';
 
 export default function ExpenseGroupForm({ group = null, onSubmit, onClose, submitting = false }) {
   const [name, setName] = useState(group?.name || '');
   const [notes, setNotes] = useState(group?.notes || '');
+  const [budget, setBudget] = useState(group?.budget ? String(group.budget) : '');
   const [submitError, setSubmitError] = useState('');
   const isValid = Boolean(name.trim()) && !submitting;
 
@@ -19,7 +21,7 @@ export default function ExpenseGroupForm({ group = null, onSubmit, onClose, subm
     if (!isValid) return;
     setSubmitError('');
     try {
-      await onSubmit({ name: name.trim(), notes: notes.trim(), type: group?.type || 'project' });
+      await onSubmit({ name: name.trim(), notes: notes.trim(), type: group?.type || 'project', budget: parseInputNumber(budget) || null });
       onClose();
     } catch (err) {
       setSubmitError(err.message || 'خطا در ذخیره بخش');
@@ -56,6 +58,19 @@ export default function ExpenseGroupForm({ group = null, onSubmit, onClose, subm
           autoFocus
           required
         />
+        <div className="ui-input-group">
+          <label htmlFor="expense-group-budget" className="ui-input-label">بودجه کل (تومان، اختیاری)</label>
+          <div className="ui-input-wrapper">
+            <NumericInput
+              id="expense-group-budget"
+              value={budget}
+              onValueChange={setBudget}
+              allowDecimals={false}
+              placeholder="مثلاً ۴۰۰,۰۰۰,۰۰۰"
+              className="ui-input-control"
+            />
+          </div>
+        </div>
         <Input
           id="expense-group-notes"
           as="textarea"

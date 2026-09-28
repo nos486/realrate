@@ -1,0 +1,1 @@
+../../../api/src/domain/accountDocument.js
