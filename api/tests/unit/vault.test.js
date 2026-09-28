@@ -261,6 +261,14 @@ describe('encrypted cheques', () => {
     await dbPutVaultRecord(env, 'u1', 'cheque', 'chq_1', { payload: CIPHER, replacePlain: true });
     expect(env.DB.plain.cheques.map((r) => r[0])).toEqual(['chq_2']);
   });
+
+  it('stores an expense only inside a section, and never touches plaintext incomes with its id', async () => {
+    env.DB.plain.incomes.push(['exp_1', 'u1']);
+    await expect(dbPutVaultRecord(env, 'u1', 'expense', 'exp_1', { payload: CIPHER })).rejects.toThrow();
+    await dbPutVaultRecord(env, 'u1', 'expense', 'exp_1', { payload: CIPHER, parentId: 'grp_1', replacePlain: true });
+    await dbPutVaultRecord(env, 'u1', 'expense_group', 'grp_1', { payload: CIPHER, replacePlain: true });
+    expect(env.DB.plain.incomes.map((r) => r[0])).toEqual(['exp_1']);
+  });
 });
 
 describe('encrypted portfolio items', () => {

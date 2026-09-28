@@ -143,6 +143,8 @@ export default function App() {
               <Route path="/loans/:loanId" element={<MainPage />} />
               <Route path="/incomes" element={<MainPage />} />
               <Route path="/cheques" element={<MainPage />} />
+              <Route path="/expenses" element={<MainPage />} />
+              <Route path="/expenses/:groupId" element={<MainPage />} />
               <Route path="/settings" element={<MainPage />} />
               <Route path="/admin" element={<MainPage />} />
               <Route path="/admin/sources" element={<MainPage />} />

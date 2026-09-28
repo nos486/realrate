@@ -826,6 +826,7 @@ Disallow: /transactions
 Disallow: /loans
 Disallow: /incomes
 Disallow: /cheques
+Disallow: /expenses
 Disallow: /settings
 Disallow: /admin
 Disallow: /sources
