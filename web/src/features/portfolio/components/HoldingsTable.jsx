@@ -1,7 +1,7 @@
 import React from 'react';
-import { Pencil, Trash2, Calendar, MessageSquare } from 'lucide-react';
+import { Pencil, Trash2, Calendar, MessageSquare, Layers } from 'lucide-react';
 import { CategoryIcon, formatAssetName, formatNum, getItemBrand, resolveAssetDisplayName } from '../utils/holdingHelpers.js';
-import { formatPct } from '../../../shared/utils/formatters.js';
+import { formatPct, toPersianDigits } from '../../../shared/utils/formatters.js';
 import ResponsiveDataTable from '../../../shared/ui/ResponsiveDataTable.jsx';
 
 export default function HoldingsTable({
@@ -12,8 +12,22 @@ export default function HoldingsTable({
   onEdit,
   onDelete,
   itemMap = null,
+  // One row per asset (utils/holdingAggregates.js): averages and totals, with its purchases
+  // behind «خریدها» (onShowLots)
+  aggregated = false,
+  onShowLots,
 }) {
   if (!categoryGroups || categoryGroups.length === 0) return null;
+  // Each date isolated (bdi): mixed with Persian words, slashed dates reorder
+  const lotsRange = (item) => {
+    if (!item.firstDate) return '—';
+    if (item.lastDate === item.firstDate) return <bdi>{toPersianDigits(item.firstDate)}</bdi>;
+    return (
+      <>
+        <bdi>{toPersianDigits(item.firstDate)}</bdi> تا <bdi>{toPersianDigits(item.lastDate)}</bdi>
+      </>
+    );
+  };
 
   const columns = [
     {
@@ -46,7 +60,7 @@ export default function HoldingsTable({
     },
     {
       key: 'buyPrice',
-      header: 'قیمت خرید',
+      header: aggregated ? 'میانگین قیمت خرید' : 'قیمت خرید',
       thClassName: 'th-buy-price',
       tdClassName: 'td-buy-price',
       // Hidden on mobile — visible only in the full desktop table, per record.
@@ -59,6 +73,11 @@ export default function HoldingsTable({
               </span>
               <span className="cell-unit">تومان</span>
             </div>
+            {item.partialCost && (
+              <span className="cell-native-sub" title="بعضی خریدها قیمت خرید ندارند و در میانگین و سود/زیان حساب نشده‌اند">
+                (فقط خریدهای دارای قیمت)
+              </span>
+            )}
             {item.referenceAssetId && item.referenceQuantity > 0 && !hideValues && (
               <span className="cell-native-sub">
                 ({Number(item.referenceQuantity).toLocaleString('fa-IR', { maximumFractionDigits: 2 })}{' '}
@@ -148,10 +167,12 @@ export default function HoldingsTable({
     },
     {
       key: 'date',
-      header: 'تاریخ خرید',
+      header: aggregated ? 'تاریخ خریدها' : 'تاریخ خرید',
       thClassName: 'th-date',
       tdClassName: 'td-date',
-      render: (item) => (
+      render: (item) => aggregated ? (
+        <span className="table-date-text holdings-lots-cell">{lotsRange(item)}</span>
+      ) : (
         <span className="table-date-text">
           {item.buyDate ? (
             <>
@@ -178,7 +199,28 @@ export default function HoldingsTable({
         </span>
       ),
     },
-    ...(!readOnly
+    ...(aggregated
+      ? [
+          {
+            key: 'actions',
+            header: 'جزئیات',
+            thClassName: 'th-actions',
+            tdClassName: 'td-actions',
+            mobile: 'actions',
+            render: (item) => (
+              <button
+                type="button"
+                className="btn-table-action holdings-lots-btn"
+                title="نمایش تک‌تک خریدهای این دارایی"
+                onClick={() => onShowLots?.(item)}
+              >
+                <Layers size={13} strokeWidth={2} />
+                <span>{item.lotCount.toLocaleString('fa-IR')} خرید</span>
+              </button>
+            ),
+          },
+        ]
+      : !readOnly
       ? [
           {
             key: 'actions',
@@ -261,7 +303,7 @@ export default function HoldingsTable({
 
           {/* High-density Data Table for this category — compact cards below 768px */}
           <ResponsiveDataTable
-            columns={columns}
+            columns={aggregated ? columns.filter((c) => c.key !== 'notes') : columns}
             rows={group.items}
             wrapperClassName="portfolio-table-responsive"
             tableClassName="portfolio-data-table"

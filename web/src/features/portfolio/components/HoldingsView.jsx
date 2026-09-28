@@ -18,6 +18,8 @@ import {
   Briefcase,
   AlertTriangle,
   SlidersHorizontal,
+  Layers,
+  List,
 } from 'lucide-react';
 import { usePricing } from '../../market/index.js';
 import UserSettingsModal from '../../../components/UserSettingsModal.jsx';
@@ -48,6 +50,18 @@ import { getItemCategory } from '../../../config/displayEngine.js';
 import { usePrivacyMode } from '../../../hooks/usePrivacyMode.js';
 import { useFeedback } from '../../../shared/ui/FeedbackProvider.jsx';
 import { SkeletonRows } from '../../../shared/ui/Skeleton.jsx';
+import { aggregateHoldings } from '../utils/holdingAggregates.js';
+
+// «هر خرید» (every lot, editable) or «جمع هر دارایی» (one row per asset); remembered per browser
+const HOLDINGS_VIEW_KEY = 'realrate_holdings_view';
+
+function readHoldingsView() {
+  try {
+    return localStorage.getItem(HOLDINGS_VIEW_KEY) === 'assets' ? 'assets' : 'lots';
+  } catch {
+    return 'lots';
+  }
+}
 import { useDemo } from '../../demo/index.js';
 
 const HoldingsView = forwardRef(function HoldingsView(
@@ -100,6 +114,15 @@ const HoldingsView = forwardRef(function HoldingsView(
   const hideValues = usePrivacyMode();
 
   const [holdingsFilterQuery, setHoldingsFilterQuery] = useState('');
+  const [holdingsView, setHoldingsView] = useState(readHoldingsView);
+  const changeHoldingsView = useCallback((view) => {
+    setHoldingsView(view);
+    try {
+      localStorage.setItem(HOLDINGS_VIEW_KEY, view);
+    } catch {
+      // Only a convenience
+    }
+  }, []);
   const [modalOpen, setModalOpen] = useState(false);
   const [editingHolding, setEditingHolding] = useState(null);
   const [settingsModalOpen, setSettingsModalOpen] = useState(false);
@@ -225,6 +248,20 @@ const HoldingsView = forwardRef(function HoldingsView(
     return buildCategoryGroups(portfolioMetrics.items, holdingsFilterQuery);
   }, [buildCategoryGroups, portfolioMetrics.items, holdingsFilterQuery]);
 
+  // Every lot of an asset (manual and from transactions) added up into one row
+  const assetItems = useMemo(() => aggregateHoldings(portfolioMetrics.items), [portfolioMetrics.items]);
+  const assetCategoryGroups = useMemo(
+    () => buildCategoryGroups(assetItems, holdingsFilterQuery),
+    [buildCategoryGroups, assetItems, holdingsFilterQuery]
+  );
+  const hasRepeatedAssets = assetItems.length < portfolioMetrics.items.length;
+
+  // «N خرید» on an asset row: its lots, found by name in the per-lot view
+  const handleShowLots = useCallback((item) => {
+    changeHoldingsView('lots');
+    setHoldingsFilterQuery(item.assetName || item.name || '');
+  }, [changeHoldingsView]);
+
   // Actions & Handlers
   const handleOpenEdit = (item) => {
     setEditingHolding(item);
@@ -298,6 +335,30 @@ const HoldingsView = forwardRef(function HoldingsView(
       )}
 
       <div className="portfolio-header-actions">
+        {!isVaultLocked && portfolioMetrics.items.length > 0 && !isCustomizing && (
+          <div className="holdings-view-switch" role="group" aria-label="نحوه نمایش">
+            <button
+              type="button"
+              className={holdingsView === 'lots' ? 'active' : ''}
+              aria-pressed={holdingsView === 'lots'}
+              onClick={() => changeHoldingsView('lots')}
+              title="هر خرید در یک ردیف (قابل ویرایش)"
+            >
+              <List size={14} />
+              <span>هر خرید</span>
+            </button>
+            <button
+              type="button"
+              className={holdingsView === 'assets' ? 'active' : ''}
+              aria-pressed={holdingsView === 'assets'}
+              onClick={() => changeHoldingsView('assets')}
+              title="جمع تعداد، میانگین قیمت خرید و سود/زیان هر دارایی"
+            >
+              <Layers size={14} />
+              <span>جمع هر دارایی</span>
+            </button>
+          </div>
+        )}
         {!isVaultLocked && portfolioMetrics.items.length > 0 && (
           <button
             type="button"
@@ -406,8 +467,33 @@ const HoldingsView = forwardRef(function HoldingsView(
                 }}
                 onClose={() => setIsCustomizing(false)}
               />
+            ) : holdingsView === 'assets' ? (
+              <div className="portfolio-dual-tables-container">
+                <div className="portfolio-table-group-section">
+                  <div className="portfolio-section-title-row">
+                    <h3 className="portfolio-section-title">جمع هر دارایی</h3>
+                    <span className="portfolio-section-count-badge">
+                      {assetItems.length.toLocaleString('fa-IR')} دارایی از {portfolioMetrics.items.length.toLocaleString('fa-IR')} خرید
+                    </span>
+                  </div>
+                  <HoldingsTable
+                    categoryGroups={assetCategoryGroups}
+                    hideValues={hideValues}
+                    readOnly={readOnly}
+                    itemMap={pricing?.itemMap}
+                    aggregated
+                    onShowLots={handleShowLots}
+                  />
+                </div>
+              </div>
             ) : (
               <div className="portfolio-dual-tables-container">
+                {hasRepeatedAssets && (
+                  <button type="button" className="holdings-repeat-hint" onClick={() => changeHoldingsView('assets')}>
+                    <Layers size={14} />
+                    بعضی دارایی‌ها چند بار خریده شده‌اند — «جمع هر دارایی» تعداد کل و میانگین قیمت خرید هرکدام را نشان می‌دهد
+                  </button>
+                )}
                 {/* Warnings from oversold transactions */}
                 {transactionWarnings.length > 0 && (
                   <div className="portfolio-tx-warnings-box" style={{ marginBottom: '16px' }}>
