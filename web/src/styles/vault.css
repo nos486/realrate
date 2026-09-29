@@ -78,6 +78,11 @@
   position: relative;
 }
 
+/* The passphrase (left-to-right) starts after the show/hide button, not under it */
+.vault-settings-pass .ui-input-control {
+  padding-left: 44px;
+}
+
 .vault-settings-eye {
   position: absolute;
   top: 34px;

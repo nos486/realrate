@@ -19,8 +19,24 @@ export const PUBLIC_SITE_ORIGIN = 'https://realrate.ir';
 const APP_AUTH_LINK = 'ir.realrate.app://auth';
 const VERIFIER_KEY = 'realrate_app_signin_verifier';
 
+/**
+ * Development only: preview the app's layout in a browser with `?app=1` (kept for the tab's
+ * session; `?app=0` ends it). Native plugins still fail there, as on the website.
+ */
+const DEV_APP_PREVIEW = (() => {
+  if (!import.meta.env?.DEV || typeof window === 'undefined') return false;
+  try {
+    const flag = new URLSearchParams(window.location.search).get('app');
+    if (flag === '1') sessionStorage.setItem('realrate_app_preview', '1');
+    if (flag === '0') sessionStorage.removeItem('realrate_app_preview');
+    return sessionStorage.getItem('realrate_app_preview') === '1';
+  } catch {
+    return false;
+  }
+})();
+
 export function isNativeApp() {
-  return Capacitor.isNativePlatform();
+  return DEV_APP_PREVIEW || Capacitor.isNativePlatform();
 }
 
 /** Origin for links shared with others: the website (inside the app, the page's origin is local) */
@@ -31,6 +47,9 @@ export function publicOrigin() {
 /** Colors and splash screen, once on start (inside the app only) */
 export async function initNativeApp() {
   if (!isNativeApp()) return;
+  // The app's own layout and touch feel (styles/app-shell.css), before the first render
+  document.documentElement.classList.add('is-native-app');
+  if (!Capacitor.isNativePlatform()) return;
   try {
     const [{ StatusBar, Style }, { SplashScreen }] = await Promise.all([
       import('@capacitor/status-bar'),

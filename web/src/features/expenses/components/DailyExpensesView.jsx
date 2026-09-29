@@ -37,6 +37,7 @@ import ExpenseForm from './ExpenseForm.jsx';
 import ExpensesTable from './ExpensesTable.jsx';
 import BudgetForm from './BudgetForm.jsx';
 import BudgetProgress from './BudgetProgress.jsx';
+import { useQuickAddParam } from '../../../shared/hooks/useQuickAddParam.js';
 
 const CSV_HEADERS = ['تاریخ', 'دسته‌بندی', 'عنوان', 'مبلغ', 'ارز', 'نرخ دلار', 'معادل تومان', 'پرداخت از', 'یادداشت'];
 
@@ -53,6 +54,8 @@ export default function DailyExpensesView({ usdToman = 0, hideValues = false }) 
   const [accountFilter, setAccountFilter] = useState('all');
   const [form, setForm] = useState(null); // null | { expense: object|null }
   const [budgetOpen, setBudgetOpen] = useState(false);
+  // The app's "+" button: /expenses?add=expense (this view shows only once the vault is open)
+  useQuickAddParam('expense', () => setForm({ expense: null }), !readOnly);
   const {
     expenses, previousExpenses, range, budgets, loading, submitting, deletingId, error, clearError, fetchMonth,
     saveExpense, saveBudgets, deleteExpense,
