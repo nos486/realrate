@@ -19,6 +19,7 @@ import java.lang.ref.WeakReference;
 import java.util.HashSet;
 import java.util.Locale;
 import java.util.Set;
+import java.util.regex.Pattern;
 
 /**
  * Reads bank messages from the phone's SMS inbox (the app's "read SMS automatically").
@@ -84,6 +85,27 @@ public class BankSmsPlugin extends Plugin {
         call.resolve();
     }
 
+    /** Spaces or the Persian half-space (ZWNJ) between words */
+    private static final String GAP = "[\\s\\u200c]*";
+    /**
+     * One-time passwords and login codes (same list as isSensitiveSms in bankSms.js): such a
+     * message is dropped right here — it never reaches the app's pages and gets no notification,
+     * even when it comes from a bank's sender
+     */
+    private static final Pattern SENSITIVE = Pattern.compile(
+        "رمز" + GAP + "(دوم" + GAP + ")?پویا"
+            + "|رمز" + GAP + "(یک" + GAP + "بار|موقت|عبور|ورود)"
+            + "|یک" + GAP + "بار" + GAP + "مصرف"
+            + "|کد" + GAP + "(تایید|تأیید|فعال" + GAP + "سازی|ورود|امنیتی|یک" + GAP + "بار)"
+            + "|\\b(otp|one[- ]?time|password|passcode|verification|login" + GAP + "code)\\b",
+        Pattern.CASE_INSENSITIVE | Pattern.UNICODE_CASE);
+
+    static boolean isSensitive(String body) {
+        if (body == null) return false;
+        String text = body.replace('ي', 'ی').replace('ك', 'ک');
+        return SENSITIVE.matcher(text).find();
+    }
+
     /** Same as normalizeSender in bankSms.js: digits without Iranian prefixes, else lower case */
     static String normalizeSender(String sender) {
         String raw = sender == null ? "" : sender.trim().toLowerCase(Locale.ROOT);
@@ -131,6 +153,7 @@ public class BankSmsPlugin extends Plugin {
                 while (cursor.moveToNext() && messages.length() < limit) {
                     String address = cursor.getString(addressCol);
                     if (!senders.contains(normalizeSender(address))) continue;
+                    if (isSensitive(cursor.getString(bodyCol))) continue;
                     JSObject message = new JSObject();
                     message.put("id", cursor.getString(idCol));
                     message.put("address", address);

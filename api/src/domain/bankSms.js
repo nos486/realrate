@@ -85,6 +85,26 @@ export function normalizeSmsText(text) {
     .join('\n');
 }
 
+const GAP = '[\\s\\u200c]*';
+/**
+ * One-time passwords and login codes (same list as BankSmsPlugin.isSensitive on Android, which
+ * already drops them before they reach the app): never read, stored or shown, even from a bank
+ */
+const SENSITIVE_RE = new RegExp(
+  [
+    `رمز${GAP}(دوم${GAP})?پویا`,
+    `رمز${GAP}(یک${GAP}بار|موقت|عبور|ورود)`,
+    `یک${GAP}بار${GAP}مصرف`,
+    `کد${GAP}(تایید|تأیید|فعال${GAP}سازی|ورود|امنیتی|یک${GAP}بار)`,
+    `\\b(otp|one[- ]?time|password|passcode|verification|login${GAP}code)\\b`,
+  ].join('|'),
+  'i',
+);
+
+export function isSensitiveSms(text) {
+  return SENSITIVE_RE.test(String(text ?? '').replace(/ي/g, 'ی').replace(/ك/g, 'ک'));
+}
+
 /** Sender digits without the Iranian prefixes ("+98", "0098", "98", "0") */
 export function normalizeSender(sender) {
   const raw = String(sender ?? '').trim().toLowerCase();
@@ -223,6 +243,7 @@ export function banksForSender(banks, sender) {
  * @returns {BankSmsTransaction|null} null when no template reads it
  */
 export function parseBankSms(text, banks, { sender = '', today = new Date() } = {}) {
+  if (isSensitiveSms(text)) return null;
   for (const bank of banksForSender(banks, sender)) {
     for (const template of bank.templates) {
       const tx = applyTemplate(bank, template, text, { today });

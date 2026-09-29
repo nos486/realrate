@@ -5,6 +5,7 @@ import {
   parseBankSms,
   smsDateToIso,
   smsFingerprint,
+  isSensitiveSms,
   matchSmsAccount,
   banksForSender,
 } from '../../src/domain/bankSms.js';
@@ -84,6 +85,29 @@ describe('reading messages the way phones deliver them', () => {
   it('the same message gives the same fingerprint, another message another one', () => {
     expect(smsFingerprint(base)).toBe(smsFingerprint(`‏${base.replace(/\n/g, '\r\n')}`));
     expect(smsFingerprint(base)).not.toBe(smsFingerprint(SAMPLES[1].text));
+  });
+});
+
+describe('one-time passwords and login codes', () => {
+  // Same cases as BankSmsPlugin.isSensitive (checked with javac when it changed)
+  it.each([
+    'بانک پارسیان\nرمز پویا: 123456\nمبلغ:1,000',
+    'رمز دوم پویا شما 88321 است',
+    'رمز یک‌بار مصرف: 5521',
+    'کد تأیید شما 4412',
+    'كد ورود 9911',
+    'Your OTP is 1234',
+  ])('%s is never read', (text) => {
+    expect(isSensitiveSms(text)).toBe(true);
+    expect(parse(text)).toBeNull();
+  });
+
+  it('a transaction is not taken for one', () => {
+    for (const sample of SAMPLES) expect(isSensitiveSms(sample.text)).toBe(false);
+  });
+
+  it('even in a transaction-shaped message', () => {
+    expect(parse(`${SAMPLES[0].text.split('\n')[0]}\nمبلغ:1,000-\nمانده:5\n07/06\n14:49\nرمز پویا 1234`)).toBeNull();
   });
 });
 

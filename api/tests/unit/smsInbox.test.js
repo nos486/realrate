@@ -85,6 +85,13 @@ describe('SMS inbox', () => {
     expect(addSmsMessages([DEBIT])).toBe(0);
   });
 
+  it('keeps what was read, never the message\'s text; one-time passwords are not kept at all', () => {
+    const otp = { id: '9', address: 'PARSIANBANK', body: 'رمز پویا شما: 551234', date: RECEIVED };
+    expect(addSmsMessages([DEBIT, otp])).toBe(1);
+    expect(getPendingSms()[0]).not.toHaveProperty('body');
+    expect(JSON.stringify(localStorage)).not.toContain('551234');
+  });
+
   it('a recorded or dismissed message never comes back', () => {
     addSmsMessages([DEBIT]);
     markSmsHandled(getPendingSms()[0].fingerprint);
