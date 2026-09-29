@@ -33,6 +33,7 @@ export const SPA_ROUTES = [
   { path: '/accounts', splat: true },
   { path: '/settings', splat: true },
   { path: '/app-settings', splat: true },
+  { path: '/sms', splat: true },
   { path: '/admin', splat: true },
   { path: '/admin/sources', splat: true },
   { path: '/admin/derived', splat: true },

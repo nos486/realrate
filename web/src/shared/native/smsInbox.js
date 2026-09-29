@@ -2,14 +2,17 @@
  * smsInbox.js — Bank SMS read by the Android app, waiting to be recorded (kept on the phone)
  *
  * The app reads the bank senders' messages from the SMS inbox (BankSms plugin), reads each with
- * bankSms.js, and keeps the withdrawals here until the user records them as expenses or
- * dismisses them. Everything stays in this phone's storage: message text never goes to the
- * server (a recorded expense is encrypted like any other).
+ * bankSms.js, and keeps withdrawals and deposits here until the user records them (an expense or
+ * an income) or dismisses them. Everything stays in this phone's storage: message text never
+ * goes to the server (a recorded expense or income is encrypted like any other).
  *
- * - automatic reading (setting): on app start and every return to the app, messages since the
- *   last read; the first time, the last few days
- * - "read the last N days": on demand, from the app's settings page
- * - a message recorded or dismissed is remembered (its fingerprint) and never comes back
+ * Automatic, on by default once the SMS permission is given, for messages arriving **from then
+ * on** (`startedAt`; nothing older is read by itself):
+ * - a bank message arriving shows a notification (BankSmsReceiver) that opens the SMS page, and
+ *   the running app reads it right away
+ * - on app start and every return to the app: messages since the last read
+ * Older messages are read only on request ("read the last N days", on the SMS page). A message
+ * recorded or dismissed is remembered (its fingerprint) and never comes back.
  */
 
 import { isNativeApp } from './nativeApp.js';
@@ -22,8 +25,9 @@ const PENDING_KEY = 'realrate_sms_pending';
 const HANDLED_KEY = 'realrate_sms_handled';
 const MAX_HANDLED = 3000;
 const DAY_MS = 86_400_000;
-/** The first automatic read looks this far back */
-export const FIRST_AUTO_READ_DAYS = 3;
+const READ_OVERLAP_MS = 60 * 60 * 1000;
+/** Where the notification of a bank message leads (BankSmsReceiver.INBOX_LINK) */
+export const SMS_INBOX_LINK = 'ir.realrate.app://sms-inbox';
 export const SMS_INBOX_EVENT = 'realrate:sms-inbox';
 
 /** Every sender the templates know */
@@ -48,19 +52,33 @@ function write(key, value) {
 
 const notify = () => window.dispatchEvent(new Event(SMS_INBOX_EVENT));
 
-/** @returns {{ auto: boolean, lastRead: number }} */
+/**
+ * @returns {{ auto: boolean, lastRead: number, startedAt: number }} automatic reading is on unless
+ *   turned off; `startedAt`: when it started (it never reads messages older than that)
+ */
 export function getSmsSettings() {
   const s = read(SETTINGS_KEY, {});
-  return { auto: Boolean(s.auto), lastRead: Number(s.lastRead) || 0 };
+  return { auto: s.auto !== false, lastRead: Number(s.lastRead) || 0, startedAt: Number(s.startedAt) || 0 };
 }
 
 export function setSmsSettings(patch) {
   write(SETTINGS_KEY, { ...getSmsSettings(), ...patch });
+  if ('auto' in patch) syncNativeSmsConfig();
   notify();
 }
 
+/** Tell BankSmsReceiver (runs without the app) whether to notify, and for which senders */
+export async function syncNativeSmsConfig() {
+  if (!isNativeApp()) return;
+  try {
+    await BankSms.configure({ enabled: getSmsSettings().auto, senders: SMS_SENDERS });
+  } catch (err) {
+    console.warn('SMS receiver setup failed:', err);
+  }
+}
+
 /**
- * Withdrawals waiting to be recorded, newest first
+ * Withdrawals and deposits waiting to be recorded, newest first
  * @returns {Array<{ fingerprint: string, receivedAt: number, sender: string, body: string, tx: object }>}
  */
 export function getPendingSms() {
@@ -82,7 +100,7 @@ export function markSmsHandled(fingerprint) {
 }
 
 /**
- * Add read messages to the inbox: only withdrawals the templates read, not handled, not there yet
+ * Add read messages to the inbox: those the templates read, not handled, not there yet
  * @param {Array<{ address: string, body: string, date: number }>} messages
  * @returns {number} how many were added
  */
@@ -95,7 +113,7 @@ export function addSmsMessages(messages) {
     const receivedAt = Number(message.date) || Date.now();
     // Without a year, a message's day is the most recent one up to when it arrived
     const tx = parseBankSms(message.body, BANK_SMS_TEMPLATES, { sender: message.address, today: new Date(receivedAt) });
-    if (!tx || tx.direction !== 'debit') continue;
+    if (!tx) continue;
     if (handled.has(tx.fingerprint) || known.has(tx.fingerprint)) continue;
     known.add(tx.fingerprint);
     pending.push({ fingerprint: tx.fingerprint, receivedAt, sender: message.address, body: message.body, tx });
@@ -109,15 +127,33 @@ export function addSmsMessages(messages) {
   return added;
 }
 
-/** Whether the app may read SMS: 'granted' | 'denied' | 'prompt' | 'unavailable' */
+/**
+ * Whether the app may read SMS: 'granted' | 'denied' | 'prompt' | 'unavailable'. Asking also asks
+ * for notifications (Android 13+), for the notification of each bank message.
+ */
 export async function smsPermission({ request = false } = {}) {
   if (!isNativeApp()) return 'unavailable';
   try {
-    const res = request ? await BankSms.requestPermissions({ permissions: ['sms'] }) : await BankSms.checkPermissions();
+    const res = request
+      ? await BankSms.requestPermissions({ permissions: ['sms', 'notifications'] })
+      : await BankSms.checkPermissions();
     return res?.sms || 'prompt';
   } catch {
     return 'unavailable';
   }
+}
+
+/**
+ * Turn automatic reading on (asks for the permissions): messages arriving from now on
+ * @returns {Promise<{ permission: string }>}
+ */
+export async function enableSmsReading() {
+  const permission = await smsPermission({ request: true });
+  if (permission !== 'granted') return { permission };
+  const now = Date.now();
+  const { startedAt } = getSmsSettings();
+  setSmsSettings({ auto: true, ...(startedAt ? {} : { startedAt: now, lastRead: now }) });
+  return { permission };
 }
 
 /**
@@ -142,11 +178,19 @@ export function readSmsDays(days) {
  * @returns {Promise<number>} how many new withdrawals were added
  */
 export async function autoReadSms() {
-  const { auto, lastRead } = getSmsSettings();
+  const { auto, lastRead, startedAt } = getSmsSettings();
   if (!auto || !isNativeApp()) return 0;
   if ((await smsPermission()) !== 'granted') return 0;
+  // The first time: from now on only
+  if (!startedAt) {
+    const now = Date.now();
+    setSmsSettings({ startedAt: now, lastRead: now });
+    return 0;
+  }
   try {
-    const since = lastRead || Date.now() - FIRST_AUTO_READ_DAYS * DAY_MS;
+    // Overlapping the last read: a message stored late by the SMS app is not skipped (repeats
+    // are dropped by their fingerprint); never before automatic reading started
+    const since = Math.max(startedAt, (lastRead || startedAt) - READ_OVERLAP_MS);
     return (await readSmsSince(since)).added;
   } catch (err) {
     console.warn('Reading SMS failed:', err);
@@ -154,20 +198,46 @@ export async function autoReadSms() {
   }
 }
 
-/** Start the automatic read: now and whenever the app comes back to the foreground */
-export function startSmsAutoRead() {
+const isInboxLink = (url) => String(url || '').startsWith(SMS_INBOX_LINK);
+// The link the app was launched with stays the same for the whole run: act on it once
+let launchLinkHandled = false;
+/** A message is announced before the SMS app has stored it: read a moment later */
+const AFTER_RECEIVE_MS = 4000;
+
+/**
+ * Start the automatic reading: now, whenever the app comes back to the foreground, and when a
+ * bank message arrives while it is open. `onOpenInbox` runs when the app is opened from a bank
+ * message's notification.
+ * @returns {() => void} stops
+ */
+export function startSmsAutoRead({ onOpenInbox } = {}) {
   if (!isNativeApp()) return () => {};
-  let handle = null;
+  const handles = [];
   let stopped = false;
+  const keep = (handle) => {
+    if (stopped) handle.remove();
+    else handles.push(handle);
+  };
+
+  syncNativeSmsConfig();
   autoReadSms();
+  BankSms.addListener('smsReceived', () => {
+    setTimeout(() => autoReadSms(), AFTER_RECEIVE_MS);
+  }).then(keep).catch(() => {});
   import('@capacitor/app').then(async ({ App }) => {
     if (stopped) return;
-    handle = await App.addListener('resume', () => {
-      autoReadSms();
-    });
+    keep(await App.addListener('resume', () => autoReadSms()));
+    keep(await App.addListener('appUrlOpen', ({ url }) => {
+      if (isInboxLink(url)) onOpenInbox?.();
+    }));
+    const launch = await App.getLaunchUrl().catch(() => null);
+    if (!stopped && !launchLinkHandled && isInboxLink(launch?.url)) {
+      launchLinkHandled = true;
+      onOpenInbox?.();
+    }
   }).catch(() => {});
   return () => {
     stopped = true;
-    handle?.remove();
+    handles.splice(0).forEach((h) => h.remove());
   };
 }

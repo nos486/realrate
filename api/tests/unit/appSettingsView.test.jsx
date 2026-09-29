@@ -32,14 +32,10 @@ afterEach(() => {
 });
 
 describe('AppSettingsView', () => {
-  it('asks for the SMS permission and reads the chosen days', async () => {
+  it('shows the banks read and their senders', () => {
     render(<AppSettingsView />);
     expect(screen.getByText('پیامک‌های بانکی')).toBeTruthy();
     expect(screen.getByText(/PARSIANBANK/)).toBeTruthy();
-    fireEvent.click(screen.getByText('بخوان'));
-    await waitFor(() => expect(plugin.read).toHaveBeenCalled());
-    expect(plugin.requestPermissions).toHaveBeenCalled();
-    expect(toast.success).toHaveBeenCalled();
   });
 
   it('turning on automatic reading asks for the permission', async () => {

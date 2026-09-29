@@ -830,6 +830,7 @@ Disallow: /expenses
 Disallow: /accounts
 Disallow: /settings
 Disallow: /app-settings
+Disallow: /sms
 Disallow: /admin
 Disallow: /sources
 Disallow: /derived-assets

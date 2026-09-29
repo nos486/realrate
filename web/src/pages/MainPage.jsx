@@ -1,6 +1,6 @@
-import React, { useEffect, useMemo, lazy, Suspense } from 'react';
+import React, { useEffect, useMemo, useRef, lazy, Suspense } from 'react';
 import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { Megaphone, TrendingUp, Briefcase, ShieldCheck, Radio, Settings, Landmark, Wallet, ReceiptText, Wrench, HandCoins, WalletCards, Smartphone } from 'lucide-react';
+import { Megaphone, TrendingUp, Briefcase, ShieldCheck, Radio, Settings, Landmark, Wallet, ReceiptText, Wrench, HandCoins, WalletCards, Smartphone, MessageSquareText } from 'lucide-react';
 import { AppLayout, FilterPills, AlertBanner, Button } from '../shared/ui/index.js';
 import MarketInputsToolbar from '../components/MarketInputsToolbar.jsx';
 import { PriceRefreshStatus } from '../features/market/components/index.js';
@@ -32,6 +32,7 @@ const ExpensesPage = lazy(() => import('../features/expenses/components/Expenses
 const AccountsPage = lazy(() => import('../features/accounts/components/AccountsPage.jsx'));
 const AccountSettingsView = lazy(() => import('../components/AccountSettingsView.jsx'));
 const AppSettingsView = lazy(() => import('../features/app-settings/AppSettingsView.jsx'));
+const SmsInboxPage = lazy(() => import('../features/sms-inbox/SmsInboxPage.jsx'));
 const AdminPage = lazy(() => import('./AdminPage.jsx'));
 const PriceSourcesPage = lazy(() => import('./PriceSourcesPage.jsx'));
 
@@ -55,8 +56,11 @@ export default function MainPage() {
   const hasExpenses = useFeature('expenses');
   const hasAccounts = useFeature('bank_accounts');
 
-  // Android app: read new bank SMS on opening and on every return to the app (when turned on)
-  useEffect(() => startSmsAutoRead(), []);
+  // Android app: read new bank SMS on opening, on every return to the app and as they arrive; a
+  // bank SMS notification opens the SMS page, where the messages wait to be recorded
+  const navigateRef = useRef(navigate);
+  navigateRef.current = navigate;
+  useEffect(() => startSmsAutoRead({ onOpenInbox: () => navigateRef.current(appPath('/sms')) }), []);
 
   // Determine active tab from the path below /app (or the ?tab= query param)
   const subPath = getAppSubPath(location.pathname);
@@ -74,8 +78,15 @@ export default function MainPage() {
       searchParams.get('tab') === 'app-settings'
     );
 
+  // Bank SMS read by the Android app: only inside the app
+  const isSms =
+    isNativeApp() && !isSettings && !isAppSettings && (
+      subPath.startsWith('/sms') ||
+      searchParams.get('tab') === 'sms'
+    );
+
   const isSources =
-    !isSettings && !isAppSettings && (
+    !isSettings && !isAppSettings && !isSms && (
       subPath.startsWith('/admin/sources') ||
       subPath.startsWith('/sources') ||
       searchParams.get('tab') === 'sources'
@@ -133,6 +144,7 @@ export default function MainPage() {
   const activeTab = [
     ['settings', isSettings],
     ['app-settings', isAppSettings],
+    ['sms', isSms],
     ['sources', isSources],
     ['admin', isAdmin],
     ['incomes', isIncomes],
@@ -162,6 +174,8 @@ export default function MainPage() {
         return 'تنظیمات حساب | RealRate';
       case 'app-settings':
         return 'تنظیمات اپ | RealRate';
+      case 'sms':
+        return 'پیامک‌های بانکی | RealRate';
       case 'admin':
         return 'پنل مدیریت | RealRate';
       case 'sources':
@@ -191,6 +205,7 @@ export default function MainPage() {
     loans: '/loans',
     settings: '/settings',
     'app-settings': '/app-settings',
+    sms: '/sms',
     admin: '/admin',
     sources: '/admin/sources',
   };
@@ -220,6 +235,8 @@ export default function MainPage() {
       // Beta (admins): expenses right after incomes, then the accounts they are paid from
       ...(hasExpenses ? [{ value: 'expenses', label: 'هزینه‌ها', icon: <HandCoins size={16} strokeWidth={2} /> }] : []),
       ...(hasAccounts ? [{ value: 'accounts', label: 'حساب‌ها', icon: <WalletCards size={16} strokeWidth={2} /> }] : []),
+      // Android app: the bank messages it read, next to the expenses and incomes they become
+      ...(isNativeApp() && hasExpenses ? [{ value: 'sms', label: 'پیامک‌ها', icon: <MessageSquareText size={16} strokeWidth={2} /> }] : []),
       { value: 'portfolio', label: 'پورتفو', icon: <Briefcase size={16} strokeWidth={2} /> },
       { value: 'loans', label: 'وام و اقساط', icon: <Landmark size={16} strokeWidth={2} /> },
       { value: 'cheques', label: 'چک‌ها', icon: <ReceiptText size={16} strokeWidth={2} /> },
@@ -414,8 +431,10 @@ export default function MainPage() {
         )}
 
         {activeTab === 'app-settings' && (
-          <AppSettingsView onOpenExpenses={hasExpenses ? () => handleTabChange('expenses') : null} />
+          <AppSettingsView onOpenSms={hasExpenses ? () => handleTabChange('sms') : null} />
         )}
+
+        {activeTab === 'sms' && <SmsInboxPage />}
 
         {activeTab === 'admin' && (
           <AdminPage embedded={true} />

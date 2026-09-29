@@ -29,6 +29,17 @@ const SAMPLES = [
     text: '30101540968603\nمبلغ:2,582,800,000+\nمانده:2,616,820,545\n07/04\n09:22',
     expect: { templateId: 'parsian-balance', direction: 'credit', amount: 258280000, balance: 261682054.5, date: '2026-09-26', time: '09:22' },
   },
+  {
+    bank: 'blu',
+    text: 'بلو\nبرداشت پول\nسینا عزیز، 20,000,000 ریال از حساب شما پرید.\nموجودی: 77,436,726 ریال\n۱۰:۴۷\n۱۴۰۵.۰۷.۰۶',
+    expect: { templateId: 'blu-balance', direction: 'debit', amount: 2000000, balance: 7743672.6, date: '2026-09-28', time: '10:47' },
+  },
+  {
+    bank: 'blu',
+    // As delivered: a space starting some lines
+    text: 'بلو\nواریز پول\n سینا عزیز، 2,500,000 ریال به حساب شما نشست.\n موجودی: 104,451,226 ریال\n۱۸:۲۳\n۱۴۰۵.۰۷.۰۳',
+    expect: { templateId: 'blu-balance', direction: 'credit', amount: 250000, balance: 10445122.6, date: '2026-09-25', time: '18:23' },
+  },
 ];
 
 describe('bank SMS samples', () => {

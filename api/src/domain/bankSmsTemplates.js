@@ -45,6 +45,25 @@ export const BANK_SMS_TEMPLATES = [
       },
     ],
   },
+  {
+    bankId: 'blu',
+    senders: ['+989999987641'],
+    templates: [
+      {
+        // بلو
+        // برداشت پول
+        // سینا عزیز، 20,000,000 ریال از حساب شما پرید.
+        // موجودی: 77,436,726 ریال
+        // ۱۰:۴۷
+        // ۱۴۰۵.۰۷.۰۶
+        // (a deposit: «واریز پول» … «ریال به حساب شما نشست.»)
+        id: 'blu-balance',
+        unit: 'rial',
+        direction: { debit: ['برداشت', 'خرید', 'پرداخت', 'انتقال'], credit: ['واریز'] },
+        pattern: re(String.raw`^بلو\n(?<kind>[^\n]+)\n[^\n]*?(?<amount>${P.amount})\sریال[^\n]*\nموجودی\s?:\s?(?<balance>${P.balance})\sریال\n(?<time>${P.time})\n(?<date>${P.date})$`),
+      },
+    ],
+  },
 ];
 
 /** The banks that have templates (for "supported banks" lists) */
