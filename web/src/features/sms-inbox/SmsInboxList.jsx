@@ -14,7 +14,7 @@ import { Button, EmptyState } from '../../shared/ui/index.js';
 import { useFeedback } from '../../shared/ui/FeedbackProvider.jsx';
 import { BankLogo, resolveBank } from '../../shared/banks/index.js';
 import { useSmsInbox } from '../../shared/native/useSmsInbox.js';
-import { markSmsHandled, smsPermission, enableSmsReading, setSmsSettings } from '../../shared/native/smsInbox.js';
+import { markSmsHandled, smsPermission, enableSmsReading, setSmsSettings, SMS_SENDERS } from '../../shared/native/smsInbox.js';
 import { matchSmsAccount } from '../../utils/bankSms.js';
 import { formatShamsiDisplay } from '../portfolio/components/ShamsiDatePicker.jsx';
 import { accountLabel } from '../accounts/constants/accountDisplay.js';
@@ -49,8 +49,13 @@ function EnableCard({ onChange }) {
       </header>
       <p className="sms-inbox-setup-text">
         از این پس با هر پیامک برداشت یا واریز بانک اعلانی می‌آید و مبلغ و تاریخ آماده‌ی ثبت است؛ فقط دسته را انتخاب کنید.
-        پیامک‌ها روی گوشی می‌مانند.
       </p>
+      <ul className="sms-inbox-privacy">
+        <li>فقط پیامک فرستنده‌های بانک (<bdi dir="ltr">{SMS_SENDERS.join(', ')}</bdi>) خوانده می‌شود؛ پیامک‌های دیگر دیده نمی‌شوند.</li>
+        <li>پیامک‌های رمز پویا و کد تأیید، حتی از خود بانک، همان‌جا کنار گذاشته می‌شوند و خوانده یا نمایش داده نمی‌شوند.</li>
+        <li>متن پیامک از گوشی خارج نمی‌شود و ذخیره هم نمی‌شود؛ فقط مبلغ و تاریخی که ثبت می‌کنید، رمزنگاری‌شده، ذخیره می‌شود.</li>
+        <li>اعلان‌ها متن پیامک را نشان نمی‌دهند. هر وقت بخواهید از تنظیمات اپ یا گوشی خاموشش کنید.</li>
+      </ul>
       <div className="sms-inbox-setup-actions">
         <Button size="sm" icon={<MessageSquareText size={14} />} onClick={handleEnable} loading={busy}>
           فعال کردن

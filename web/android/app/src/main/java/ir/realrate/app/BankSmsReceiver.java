@@ -25,8 +25,9 @@ import java.util.Set;
 
 /**
  * Catches bank messages as they arrive (even with the app closed): when automatic reading is on
- * and the sender is one of the banks' (BankSmsPlugin.configure), it shows a notification that
- * opens the app's SMS inbox, and tells the running app to read the message.
+ * and the sender is one of the banks' (BankSmsPlugin.configure), it shows a notification — without
+ * the message's text — that opens the app's SMS page, and tells the running app to read it.
+ * One-time passwords and login codes (BankSmsPlugin.isSensitive) are ignored.
  * The message itself stays in the phone's SMS inbox; the app reads it from there.
  */
 public class BankSmsReceiver extends BroadcastReceiver {
@@ -60,13 +61,18 @@ public class BankSmsReceiver extends BroadcastReceiver {
         }
         if (bodies.isEmpty()) return;
 
+        boolean any = false;
         for (Map.Entry<String, StringBuilder> entry : bodies.entrySet()) {
-            showNotification(context, entry.getValue().toString());
+            // One-time passwords never get a notification (nor reach the app)
+            if (BankSmsPlugin.isSensitive(entry.getValue().toString())) continue;
+            showNotification(context);
+            any = true;
         }
-        BankSmsPlugin.notifyReceived();
+        if (any) BankSmsPlugin.notifyReceived();
     }
 
-    private static void showNotification(Context context, String body) {
+    /** Only says a bank message arrived: the message's text is never shown in a notification */
+    private static void showNotification(Context context) {
         if (Build.VERSION.SDK_INT >= 33
             && ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
             return;
@@ -87,12 +93,11 @@ public class BankSmsReceiver extends BroadcastReceiver {
         PendingIntent pending = PendingIntent.getActivity(context, 0, open,
             PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
 
-        String oneLine = body.replaceAll("\\s+", " ").trim();
         NotificationCompat.Builder builder = new NotificationCompat.Builder(context, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_stat_bank_sms)
-            .setContentTitle("پیامک بانکی جدید — برای ثبت ضربه بزنید")
-            .setContentText(oneLine)
-            .setStyle(new NotificationCompat.BigTextStyle().bigText(body))
+            .setContentTitle("پیامک بانکی جدید")
+            .setContentText("برای ثبت در RealRate ضربه بزنید")
+            .setVisibility(NotificationCompat.VISIBILITY_PRIVATE)
             .setContentIntent(pending)
             .setAutoCancel(true)
             .setPriority(NotificationCompat.PRIORITY_DEFAULT);

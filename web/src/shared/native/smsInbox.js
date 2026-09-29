@@ -84,10 +84,12 @@ export async function syncNativeSmsConfig() {
 
 /**
  * Withdrawals and deposits waiting to be recorded, newest first
- * @returns {Array<{ fingerprint: string, receivedAt: number, sender: string, body: string, tx: object }>}
+ * Only what was read from each message is kept, never its text.
+ * @returns {Array<{ fingerprint: string, receivedAt: number, sender: string, tx: object }>}
  */
 export function getPendingSms() {
-  return read(PENDING_KEY, []);
+  // Entries saved by an earlier version still carry the message's text: dropped
+  return read(PENDING_KEY, []).map(({ body: _body, ...item }) => item);
 }
 
 function handledSet() {
@@ -142,7 +144,7 @@ export function addSmsMessages(messages) {
     if ([tx.fingerprint, tx.key].some((id) => handled.has(id) || known.has(id))) continue;
     known.add(tx.fingerprint);
     known.add(tx.key);
-    pending.push({ fingerprint: tx.fingerprint, receivedAt, sender: message.address, body: message.body, tx });
+    pending.push({ fingerprint: tx.fingerprint, receivedAt, sender: message.address, tx });
     added++;
   }
   if (added) {

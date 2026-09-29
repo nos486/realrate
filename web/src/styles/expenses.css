@@ -515,3 +515,14 @@
   color: var(--color-warning);
   font-size: 0.75rem;
 }
+
+.sms-inbox-privacy {
+  margin: 0 0 14px;
+  padding-inline-start: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 0.8rem;
+  line-height: 1.7;
+  color: var(--text-secondary);
+}
