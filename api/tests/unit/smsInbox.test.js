@@ -29,6 +29,7 @@ vi.mock('../../../web/src/shared/vault/vaultStore.js', () => ({
 
 import {
   addSmsMessages,
+  dropRecordedSms,
   getPendingSms,
   markSmsHandled,
   readSmsDays,
@@ -66,6 +67,22 @@ describe('SMS inbox', () => {
     expect(byDirection.debit).toMatchObject({ amount: 39750, date: '2026-09-28', bankId: 'parsian' });
     expect(byDirection.credit).toMatchObject({ amount: 258280000, date: '2026-09-26' });
     expect(addSmsMessages([DEBIT, CREDIT])).toBe(0);
+  });
+
+  it('the same transaction worded differently is one message', () => {
+    const reworded = { ...DEBIT, body: DEBIT.body.replace('مبلغ:397,500-', 'مبلغ : -397,500') };
+    expect(addSmsMessages([DEBIT, reworded])).toBe(1);
+    markSmsHandled(getPendingSms()[0].fingerprint);
+    // Handled: neither wording comes back
+    expect(addSmsMessages([reworded])).toBe(0);
+  });
+
+  it('a transaction already recorded (its key on an expense or income) leaves the inbox', () => {
+    addSmsMessages([DEBIT, CREDIT]);
+    const debitKey = getPendingSms().find((p) => p.tx.direction === 'debit').tx.key;
+    expect(dropRecordedSms(new Set([debitKey, 'other|key']))).toBe(1);
+    expect(getPendingSms().map((p) => p.tx.direction)).toEqual(['credit']);
+    expect(addSmsMessages([DEBIT])).toBe(0);
   });
 
   it('a recorded or dismissed message never comes back', () => {
@@ -149,6 +166,7 @@ describe('recording a message', () => {
     const accounts = [{ id: 'acc_1', bankId: 'parsian', accountNumber: '30101540968603' }];
     expect(smsExpenseDraft(tx, accounts)).toMatchObject({
       amount: 39750, date: '2026-09-28', accountId: 'acc_1', source: 'sms', bankId: 'parsian', notes: 'پیامک پارسیان · ساعت ۱۴:۴۹',
+      smsKey: 'parsian|debit|39750|2026-09-28|14:49',
     });
   });
 

@@ -57,7 +57,9 @@ import { jalaliToGregorian, gregorianToJalali } from './loanCalculator.js';
  * @property {string} date                 Gregorian YYYY-MM-DD ('' when the message has none)
  * @property {string} time                 HH:MM, or ''
  * @property {string} description
- * @property {string} fingerprint          same message → same value (spotting duplicates)
+ * @property {string} fingerprint          same message text → same value
+ * @property {string} key                  same transaction → same value, whatever the wording
+ *   (smsTransactionKey): how a transaction already recorded is recognized
  */
 
 const PERSIAN_DIGITS = '۰۱۲۳۴۵۶۷۸۹';
@@ -153,6 +155,14 @@ export function smsFingerprint(text) {
   return hash.toString(16).padStart(8, '0');
 }
 
+/**
+ * A transaction's identity: bank, direction, amount (tomans), day and time. Two messages with the
+ * same key are the same transaction; an expense or income recorded from one keeps it (`smsKey`).
+ */
+export function smsTransactionKey({ bankId, direction, amount, date, time }) {
+  return [bankId, direction, Math.round(Number(amount) || 0), date || '', time || ''].join('|');
+}
+
 function resolveDirection(template, groups, sign) {
   const rule = template.direction || 'sign';
   if (rule === 'debit' || rule === 'credit') return rule;
@@ -179,7 +189,7 @@ export function applyTemplate(bank, template, text, { today = new Date() } = {})
   const unit = template.unit || 'rial';
   const balance = groups.balance !== undefined ? parseAmount(groups.balance) : null;
 
-  return {
+  const tx = {
     bankId: bank.bankId,
     templateId: template.id,
     direction,
@@ -193,6 +203,8 @@ export function applyTemplate(bank, template, text, { today = new Date() } = {})
     description: String(groups.desc ?? '').trim(),
     fingerprint: smsFingerprint(text),
   };
+  tx.key = smsTransactionKey(tx);
+  return tx;
 }
 
 /** The banks that may have sent a message: by sender when it is known, else all of them */

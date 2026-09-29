@@ -26,6 +26,7 @@ export function smsExpenseDraft(tx, accounts = []) {
     source: 'sms',
     bankId: tx.bankId,
     smsFingerprint: tx.fingerprint,
+    smsKey: tx.key,
   };
 }
 
@@ -38,5 +39,6 @@ export function smsIncomeDraft(tx) {
     incomeDate: tx.date,
     notes: smsNote(tx),
     smsFingerprint: tx.fingerprint,
+    smsKey: tx.key,
   };
 }

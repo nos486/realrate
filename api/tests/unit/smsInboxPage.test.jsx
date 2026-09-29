@@ -19,12 +19,16 @@ vi.mock('../../../web/src/features/accounts/hooks/useAccounts.js', () => ({
 }));
 vi.mock('../../../web/src/features/market/index.js', () => ({ usePricing: () => null }));
 const expenses = vi.hoisted(() => ({
+  getExpenses: vi.fn(async () => ({ expenses: [] })),
   getExpenseGroups: vi.fn(async () => ({ groups: [] })),
   ensureDailyGroup: vi.fn(async () => ({ id: 'exg_daily', type: 'daily' })),
   saveExpense: vi.fn(async (input) => ({ expense: { id: 'exp_1', ...input } })),
 }));
 vi.mock('../../../web/src/shared/vault/vaultExpenses.js', () => expenses);
-const incomes = vi.hoisted(() => ({ createIncome: vi.fn(async (input) => ({ income: input })) }));
+const incomes = vi.hoisted(() => ({
+  createIncome: vi.fn(async (input) => ({ income: input })),
+  getIncomes: vi.fn(async () => ({ incomes: [] })),
+}));
 vi.mock('../../../web/src/features/incomes/api/incomeApi.js', () => incomes);
 const toast = vi.hoisted(() => ({ success: vi.fn(), error: vi.fn() }));
 vi.mock('../../../web/src/shared/ui/FeedbackProvider.jsx', () => ({ useFeedback: () => ({ toast, confirm: vi.fn() }) }));
@@ -39,6 +43,8 @@ const BLU_CREDIT = 'بلو\nواریز پول\nسینا عزیز، 2,500,000 ر�
 beforeEach(() => {
   localStorage.clear();
   vi.clearAllMocks();
+  expenses.getExpenses.mockResolvedValue({ expenses: [] });
+  incomes.getIncomes.mockResolvedValue({ incomes: [] });
   addSmsMessages([
     { address: '+989999987641', body: BLU_DEBIT, date: RECEIVED },
     { address: '+989999987641', body: BLU_CREDIT, date: RECEIVED - 1000 },
@@ -64,6 +70,7 @@ describe('SmsInboxPage', () => {
     await waitFor(() => expect(expenses.saveExpense).toHaveBeenCalled());
     expect(expenses.saveExpense.mock.calls[0][0]).toMatchObject({
       groupId: 'exg_daily', amount: 2000000, date: '2026-09-28', accountId: 'acc_1', source: 'sms', bankId: 'blu',
+      smsKey: 'blu|debit|2000000|2026-09-28|10:47',
     });
     await waitFor(() => expect(getPendingSms()).toHaveLength(1));
   });
@@ -74,8 +81,19 @@ describe('SmsInboxPage', () => {
     fireEvent.click(recordButtons()[1]);
     fireEvent.submit(screen.getByText('ثبت درآمد').closest('form'));
     await waitFor(() => expect(incomes.createIncome).toHaveBeenCalled());
-    expect(incomes.createIncome.mock.calls[0][0]).toMatchObject({ title: 'واریز بلو', amount: 250000, incomeDate: '2026-09-25' });
+    expect(incomes.createIncome.mock.calls[0][0]).toMatchObject({
+      title: 'واریز بلو', amount: 250000, incomeDate: '2026-09-25', smsKey: 'blu|credit|250000|2026-09-25|18:23',
+    });
     await waitFor(() => expect(getPendingSms()).toHaveLength(1));
+  });
+
+  it('drops a message already recorded from SMS (on any device), flags a hand-recorded look-alike', async () => {
+    expenses.getExpenses.mockResolvedValue({ expenses: [{ id: 'e1', date: '2026-09-28', amount: 2000000, currency: 'IRT', smsKey: 'blu|debit|2000000|2026-09-28|10:47' }] });
+    incomes.getIncomes.mockResolvedValue({ incomes: [{ id: 'i1', incomeDate: '2026-09-25', amount: 250000 }] });
+    render(<SmsInboxPage />);
+    await waitFor(() => expect(getPendingSms()).toHaveLength(1));
+    expect(expenses.getExpenses).toHaveBeenCalledWith({ from: '2026-09-25', to: '2026-09-28' });
+    await waitFor(() => expect(screen.getByText(/درآمدی با همین مبلغ در همین روز ثبت شده/)).toBeTruthy());
   });
 
   it('dismisses a message', async () => {

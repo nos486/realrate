@@ -5,7 +5,7 @@
  * from then on each bank message is read as it arrives), or to decline it. Afterwards: the
  * withdrawals and deposits (smsInbox.js) neither recorded nor dismissed, newest first.
  * «ثبت» hands the message to `onRecord` (the page opens the expense or income form); «رد» drops
- * it for good.
+ * it for good. One that looks already recorded by hand (`isPossiblyRecorded`) is flagged.
  */
 
 import React, { useEffect, useState } from 'react';
@@ -66,7 +66,7 @@ function EnableCard({ onChange }) {
 /**
  * @param {{ accounts?: object[], onRecord: (item: object) => void, canRecord?: boolean }} props
  */
-export default function SmsInboxList({ accounts = [], onRecord, canRecord = true }) {
+export default function SmsInboxList({ accounts = [], onRecord, canRecord = true, isPossiblyRecorded = () => false }) {
   const { pending, settings } = useSmsInbox();
   const [permission, setPermission] = useState(null);
 
@@ -112,6 +112,11 @@ export default function SmsInboxList({ accounts = [], onRecord, canRecord = true
                 {' · '}
                 {account ? accountLabel(account) : bank.shortName}
               </span>
+              {isPossiblyRecorded(tx) && (
+                <span className="sms-inbox-maybe">
+                  {isDebit ? 'هزینه‌ای' : 'درآمدی'} با همین مبلغ در همین روز ثبت شده؛ اگر همین است، «رد» را بزنید.
+                </span>
+              )}
             </div>
             <div className="sms-inbox-actions">
               <Button size="sm" icon={<Check size={14} />} onClick={() => onRecord(item)} disabled={!canRecord}>ثبت</Button>

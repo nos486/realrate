@@ -5,10 +5,11 @@
  *   expense form (withdrawal) or the income form (deposit), filled in from the message
  * - "read earlier messages": automatic reading only picks up messages from the moment it is on;
  *   older ones are read here on demand (the last 7, 30 or 90 days)
- * Recording writes encrypted records, so the vault must be unlocked for it.
+ * Recording writes encrypted records, so the vault must be unlocked for it. Once it is, messages
+ * already recorded (recordedCheck.js) leave the list, and hand-recorded look-alikes are flagged.
  */
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { MessageSquareText, History } from 'lucide-react';
 import { Button, Card, FeaturePageHeader, FilterPills } from '../../shared/ui/index.js';
 import { useFeedback } from '../../shared/ui/FeedbackProvider.jsx';
@@ -17,13 +18,15 @@ import { useVault } from '../../shared/vault/useVault.js';
 import { useDemo } from '../demo/index.js';
 import { useAccounts } from '../accounts/hooks/useAccounts.js';
 import { usePricing } from '../market/index.js';
-import { markSmsHandled, readSmsDays, smsPermission } from '../../shared/native/smsInbox.js';
+import { markSmsHandled, readSmsDays, smsPermission, dropRecordedSms } from '../../shared/native/smsInbox.js';
+import { useSmsInbox } from '../../shared/native/useSmsInbox.js';
 import * as expensesApi from '../../shared/vault/vaultExpenses.js';
 import { createIncome } from '../incomes/api/incomeApi.js';
 import ExpenseForm from '../expenses/components/ExpenseForm.jsx';
 import IncomeForm from '../incomes/components/IncomeForm.jsx';
 import SmsInboxList from './SmsInboxList.jsx';
 import { smsExpenseDraft, smsIncomeDraft } from './smsDrafts.js';
+import { findRecorded, sameDayKey } from './recordedCheck.js';
 
 const DAY_OPTIONS = [7, 30, 90].map((d) => ({ value: d, label: `${d.toLocaleString('fa-IR')} روز` }));
 
@@ -48,18 +51,40 @@ export default function SmsInboxPage() {
   const [reading, setReading] = useState(false);
 
   const locked = vaultStatus === 'locked';
+  const { pending } = useSmsInbox();
+  // Hand-recorded expenses/incomes that look like a waiting message (same day, amount and kind)
+  const [sameDay, setSameDay] = useState(() => new Set());
+  const pendingIds = pending.map((p) => p.fingerprint).join(',');
+
+  // Messages already recorded (here or on another device) leave the list
+  useEffect(() => {
+    if (vaultStatus !== 'unlocked' || !pendingIds) return undefined;
+    let cancelled = false;
+    findRecorded(pending)
+      .then(({ recordedKeys, sameDay: found }) => {
+        if (cancelled) return;
+        dropRecordedSms(recordedKeys);
+        setSameDay(found);
+      })
+      .catch((err) => console.warn('Checking recorded SMS failed:', err));
+    return () => {
+      cancelled = true;
+    };
+    // `pendingIds` stands for `pending`
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [vaultStatus, pendingIds]);
 
   const handleRecord = (item) => {
     if (item.tx.direction === 'debit') setExpenseDraft(smsExpenseDraft(item.tx, accounts));
     else setIncomeDraft(smsIncomeDraft(item.tx));
   };
 
-  /** Save through `save`, then drop the message from the inbox */
-  const record = (save, fingerprint, done) => async (input) => {
+  /** Save through `save` (with the transaction's key), then drop the message from the inbox */
+  const record = (save, draft, done) => async (input) => {
     setSaving(true);
     try {
-      await save(input);
-      markSmsHandled(fingerprint);
+      await save({ ...input, smsKey: draft.smsKey });
+      markSmsHandled(draft.smsFingerprint);
       toast.success(done);
     } finally {
       setSaving(false);
@@ -93,7 +118,12 @@ export default function SmsInboxPage() {
       {locked && <VaultUnlockCard title="برای ثبت، اطلاعات رمزنگاری‌شده را باز کنید" />}
 
       <Card className="sms-inbox-page-card" padding="lg">
-        <SmsInboxList accounts={accounts} onRecord={handleRecord} canRecord={!locked && !readOnly} />
+        <SmsInboxList
+          accounts={accounts}
+          onRecord={handleRecord}
+          canRecord={!locked && !readOnly}
+          isPossiblyRecorded={(tx) => sameDay.has(sameDayKey(tx.direction, tx.date, tx.amount))}
+        />
       </Card>
 
       <Card
@@ -117,7 +147,7 @@ export default function SmsInboxPage() {
           accounts={accounts.filter((a) => !a.archived)}
           submitting={saving}
           onClose={() => setExpenseDraft(null)}
-          onSubmit={record(saveDailyExpense, expenseDraft.smsFingerprint, 'هزینه ثبت شد.')}
+          onSubmit={record(saveDailyExpense, expenseDraft, 'هزینه ثبت شد.')}
         />
       )}
       {incomeDraft && (
@@ -125,7 +155,7 @@ export default function SmsInboxPage() {
           draft={incomeDraft}
           submitting={saving}
           onClose={() => setIncomeDraft(null)}
-          onSubmit={record(createIncome, incomeDraft.smsFingerprint, 'درآمد ثبت شد.')}
+          onSubmit={record(createIncome, incomeDraft, 'درآمد ثبت شد.')}
         />
       )}
     </div>
