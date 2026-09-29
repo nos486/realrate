@@ -510,12 +510,6 @@
   margin-bottom: 0;
 }
 
-.sms-inbox-info .sms-inbox-maybe {
-  white-space: normal;
-  color: var(--color-warning);
-  font-size: 0.75rem;
-}
-
 .sms-inbox-privacy {
   margin: 0 0 14px;
   padding-inline-start: 18px;

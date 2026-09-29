@@ -4,9 +4,10 @@
  * - the withdrawals and deposits waiting to be recorded (SmsInboxList); «ثبت» opens the everyday
  *   expense form (withdrawal) or the income form (deposit), filled in from the message
  * - "read earlier messages": automatic reading only picks up messages from the moment it is on;
- *   older ones are read here on demand (the last 7, 30 or 90 days)
+ *   older ones are read here on demand (the last 24 hours, 7, 30 or 90 days)
  * Recording writes encrypted records, so the vault must be unlocked for it. Once it is, messages
- * already recorded (recordedCheck.js) leave the list, and hand-recorded look-alikes are flagged.
+ * already recorded (recordedCheck.js) leave the list — by their transaction key, or a
+ * hand-recorded expense/income of the same day, amount and kind.
  */
 
 import React, { useEffect, useState } from 'react';
@@ -28,7 +29,10 @@ import SmsInboxList from './SmsInboxList.jsx';
 import { smsExpenseDraft, smsIncomeDraft } from './smsDrafts.js';
 import { findRecorded, sameDayKey } from './recordedCheck.js';
 
-const DAY_OPTIONS = [7, 30, 90].map((d) => ({ value: d, label: `${d.toLocaleString('fa-IR')} روز` }));
+const DAY_OPTIONS = [
+  { value: 1, label: '۲۴ ساعت' },
+  ...[7, 30, 90].map((d) => ({ value: d, label: `${d.toLocaleString('fa-IR')} روز` })),
+];
 
 /** An everyday expense (in the daily section, created on first use) */
 async function saveDailyExpense(input) {
@@ -52,19 +56,20 @@ export default function SmsInboxPage() {
 
   const locked = vaultStatus === 'locked';
   const { pending } = useSmsInbox();
-  // Hand-recorded expenses/incomes that look like a waiting message (same day, amount and kind)
-  const [sameDay, setSameDay] = useState(() => new Set());
   const pendingIds = pending.map((p) => p.fingerprint).join(',');
 
-  // Messages already recorded (here or on another device) leave the list
+  // Messages already recorded (from an SMS here or on another device, or by hand: the same day,
+  // amount and kind) leave the list for good
   useEffect(() => {
     if (vaultStatus !== 'unlocked' || !pendingIds) return undefined;
     let cancelled = false;
     findRecorded(pending)
       .then(({ recordedKeys, sameDay: found }) => {
         if (cancelled) return;
-        dropRecordedSms(recordedKeys);
-        setSameDay(found);
+        const byHand = pending
+          .filter((p) => p.tx?.key && found.has(sameDayKey(p.tx.direction, p.tx.date, p.tx.amount)))
+          .map((p) => p.tx.key);
+        dropRecordedSms([...recordedKeys, ...byHand]);
       })
       .catch((err) => console.warn('Checking recorded SMS failed:', err));
     return () => {
@@ -122,7 +127,6 @@ export default function SmsInboxPage() {
           accounts={accounts}
           onRecord={handleRecord}
           canRecord={!locked && !readOnly}
-          isPossiblyRecorded={(tx) => sameDay.has(sameDayKey(tx.direction, tx.date, tx.amount))}
         />
       </Card>
 

@@ -4,8 +4,8 @@
  * - recorded from an SMS (here or on another device): the expense or income keeps the
  *   transaction's key (`smsKey`) → the message is dropped from the inbox
  * - recorded by hand: nothing ties it to the message; one on the same day with the same amount
- *   (and the same kind: expense for a withdrawal, income for a deposit) is flagged "possibly
- *   recorded", for the user to dismiss
+ *   (and the same kind: expense for a withdrawal, income for a deposit) counts as recorded, and
+ *   the message is dropped too
  * Only the days the waiting messages cover are fetched (and decrypted).
  */
 

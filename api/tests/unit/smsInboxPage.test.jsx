@@ -87,13 +87,21 @@ describe('SmsInboxPage', () => {
     await waitFor(() => expect(getPendingSms()).toHaveLength(1));
   });
 
-  it('drops a message already recorded from SMS (on any device), flags a hand-recorded look-alike', async () => {
+  it('drops a message already recorded from SMS (on any device), and one recorded by hand (same day, amount and kind)', async () => {
     expenses.getExpenses.mockResolvedValue({ expenses: [{ id: 'e1', date: '2026-09-28', amount: 2000000, currency: 'IRT', smsKey: 'blu|debit|2000000|2026-09-28|10:47' }] });
     incomes.getIncomes.mockResolvedValue({ incomes: [{ id: 'i1', incomeDate: '2026-09-25', amount: 250000 }] });
     render(<SmsInboxPage />);
-    await waitFor(() => expect(getPendingSms()).toHaveLength(1));
+    await waitFor(() => expect(getPendingSms()).toHaveLength(0));
     expect(expenses.getExpenses).toHaveBeenCalledWith({ from: '2026-09-25', to: '2026-09-28' });
-    await waitFor(() => expect(screen.getByText(/درآمدی با همین مبلغ در همین روز ثبت شده/)).toBeTruthy());
+  });
+
+  it('keeps a message whose look-alike differs in amount', async () => {
+    expenses.getExpenses.mockResolvedValue({ expenses: [] });
+    incomes.getIncomes.mockResolvedValue({ incomes: [{ id: 'i1', incomeDate: '2026-09-25', amount: 250001 }] });
+    render(<SmsInboxPage />);
+    await waitFor(() => expect(incomes.getIncomes).toHaveBeenCalled());
+    await waitFor(() => expect(screen.getAllByLabelText('رد این پیامک')).toHaveLength(2));
+    expect(getPendingSms()).toHaveLength(2);
   });
 
   it('dismisses a message', async () => {

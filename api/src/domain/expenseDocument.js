@@ -47,6 +47,8 @@ export const DAILY_EXPENSE_CATEGORIES = [
   { value: 'entertainment', label: 'تفریح و سفر' },
   { value: 'subscriptions', label: 'اینترنت و اشتراک‌ها' },
   { value: 'gifts', label: 'هدیه و خیریه' },
+  { value: 'installments', label: 'پرداخت قسط' },
+  { value: 'investment', label: 'سرمایه‌گذاری' },
   { value: 'other', label: 'سایر' },
 ];
 

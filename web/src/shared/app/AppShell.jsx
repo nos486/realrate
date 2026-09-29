@@ -4,7 +4,7 @@
  *
  * Inside the app it replaces the website's header, side menu and footer (AppLayout.jsx):
  *   bottom bar   خانه · هزینه‌ها · (+) · پورتفو · بیشتر
- *   +            quick add: an expense, an income, a cheque, the bank messages waiting
+ *   +            quick add: an expense, an income, a portfolio asset, the bank messages waiting
  *   بیشتر        every other section, and the account actions (hide values, lock, sign out)
  * Sections come from the page's own `navItems` (MainPage), so a section a user does not have
  * (a feature not enabled) is simply not there.
@@ -16,7 +16,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Home, HandCoins, Wallet, Briefcase, LayoutGrid, Plus, Eye, EyeOff, Lock, LogOut,
-  ReceiptText, MessageSquareText, ChevronLeft,
+  MessageSquareText, ChevronLeft,
 } from 'lucide-react';
 import { useAuth } from '../../features/auth/index.js';
 import { usePrivacyMode, setPrivacyMode } from '../../hooks/usePrivacyMode.js';
@@ -130,7 +130,7 @@ export function AppBottomNav({ activeTab, navItems = [], onSelect }) {
   const quickAdd = [
     has('expenses') && { key: 'expense', label: 'هزینه', hint: 'خرید، قبض، رفت‌وآمد…', Icon: HandCoins, tone: 'rose', path: '/expenses?add=expense' },
     has('incomes') && { key: 'income', label: 'درآمد', hint: 'حقوق، فروش، سود…', Icon: Wallet, tone: 'green', path: '/incomes?add=income' },
-    has('cheques') && { key: 'cheque', label: 'چک', hint: 'دریافتی یا پرداختی', Icon: ReceiptText, tone: 'amber', path: '/cheques?add=cheque' },
+    has('portfolio') && { key: 'holding', label: 'پورتفو', hint: 'طلا، سکه، ارز…', Icon: Briefcase, tone: 'amber', path: '/portfolio?add=holding' },
   ].filter(Boolean);
 
   return (
