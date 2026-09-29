@@ -10,6 +10,9 @@
  *                                                       ?from&to&parent&undated=1&order=asc|desc&limit&offset (a page adds `total`)
  *   PUT    /api/vault/records/:kind/:id              — Create/replace one ({ payload, replacePlain })
  *   DELETE /api/vault/records/:kind/:id              — Delete one
+ *   GET    /api/vault/sync?cursor&limit               — Every change after `cursor` (records stored and
+ *                                                       deleted, all kinds the user may see), for devices
+ *                                                       keeping a copy (the Android app, offline)
  *   GET    /api/loans/:id/document                   — Raw stored loan (for encrypting it)
  *
  * Every key operation happens in the browser; these routes only move opaque ciphertext.
@@ -26,18 +29,30 @@ import {
   dbDeleteVaultRecord,
   dbGetLoanDocument,
 } from "../repositories/index.js";
-import { VAULT_KIND_FEATURES } from "../repositories/vault.repository.js";
+import { VAULT_KIND_FEATURES, VAULT_RECORD_KINDS, dbSyncVaultRecords } from "../repositories/vault.repository.js";
 import { isFeatureEnabled } from "../config/features.js";
 import { jsonResponse } from "../lib/helpers.js";
 import { AppError } from "../lib/AppError.js";
 
-async function requireUserId(request, env, kind = null) {
+async function requireUser(request, env) {
   const user = await getAuthenticatedUser(request, env);
   if (!user) throw AppError.unauthorized("جهت مدیریت رمزنگاری، ابتدا وارد حساب کاربری خود شوید.");
+  return user;
+}
+
+const userIdOf = (user) => user.userId || user.id || user.email;
+
+/** Whether a kind's records are open to the user (a kind of a feature they don't have is hidden) */
+function kindAllowed(kind, user) {
+  const feature = VAULT_KIND_FEATURES[kind];
+  return !feature || isFeatureEnabled(feature, user);
+}
+
+async function requireUserId(request, env, kind = null) {
+  const user = await requireUser(request, env);
   // Records of a feature not open to this user are hidden like the feature itself
-  const feature = kind ? VAULT_KIND_FEATURES[kind] : null;
-  if (feature && !isFeatureEnabled(feature, user)) throw AppError.notFound("یافت نشد.");
-  return user.userId || user.id || user.email;
+  if (kind && !kindAllowed(kind, user)) throw AppError.notFound("یافت نشد.");
+  return userIdOf(user);
 }
 
 export async function handleGetVault(request, env) {
@@ -93,6 +108,17 @@ export async function handleDeleteVaultRecord(request, env, { kind, id }) {
   const deleted = await dbDeleteVaultRecord(env, userId, kind, id);
   if (!deleted) throw AppError.notFound("رکورد مورد نظر یافت نشد.");
   return jsonResponse({ success: true }, 200, request);
+}
+
+export async function handleSyncVaultRecords(request, env) {
+  const user = await requireUser(request, env);
+  const params = new URL(request.url).searchParams;
+  const result = await dbSyncVaultRecords(env, userIdOf(user), {
+    cursor: params.get("cursor") || "",
+    limit: params.get("limit"),
+    kinds: VAULT_RECORD_KINDS.filter((kind) => kindAllowed(kind, user)),
+  });
+  return jsonResponse({ success: true, ...result }, 200, request);
 }
 
 export async function handleGetLoanDocument(request, env, { loanId }) {

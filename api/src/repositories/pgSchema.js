@@ -345,6 +345,24 @@ export const APP_TABLES = [
       )`,
       "CREATE INDEX IF NOT EXISTS idx_vault_records_date ON vault_records(user_id, kind, record_date)",
       "CREATE INDEX IF NOT EXISTS idx_vault_records_parent ON vault_records(user_id, kind, parent_id)",
+      // Incremental sync (GET /api/vault/sync): a user's records in the order they changed
+      "CREATE INDEX IF NOT EXISTS idx_vault_records_updated ON vault_records(user_id, updated_at, kind, id)",
+    ],
+  },
+  {
+    // Deleted vault records, so devices keeping a copy (the Android app's offline store) learn of
+    // deletions made elsewhere; pruned after VAULT_TOMBSTONE_RETENTION_DAYS
+    name: "vault_tombstones",
+    columns: ["user_id", "kind", "id", "deleted_at"],
+    ddl: [
+      `CREATE TABLE IF NOT EXISTS vault_tombstones (
+        user_id TEXT NOT NULL,
+        kind TEXT NOT NULL,
+        id TEXT NOT NULL,
+        deleted_at TEXT NOT NULL,
+        PRIMARY KEY (user_id, kind, id)
+      )`,
+      "CREATE INDEX IF NOT EXISTS idx_vault_tombstones_time ON vault_tombstones(user_id, deleted_at, kind, id)",
     ],
   },
   {
