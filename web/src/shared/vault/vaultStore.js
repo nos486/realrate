@@ -24,6 +24,20 @@ import {
   base64ToBytes,
 } from '../../lib/e2ee.js';
 import { getVault, saveVault } from './vaultApi.js';
+import { isNativeApp } from '../native/nativeApp.js';
+import {
+  configureOffline,
+  startOffline,
+  stopOffline,
+  VAULT_CHANGED_EVENT,
+} from '../offline/offlineSync.js';
+
+// The Android app keeps an encrypted copy of the records on the device (offline, fast screens);
+// when a sync brings changes, screens holding records read them again
+configureOffline({ isEnabled: isNativeApp });
+if (typeof window !== 'undefined') {
+  window.addEventListener(VAULT_CHANGED_EVENT, () => bumpVaultEpoch());
+}
 
 export const VAULT_MIN_PASSPHRASE_LENGTH = 8;
 const SESSION_KEY = 'rr_vault_session';
@@ -116,7 +130,10 @@ export function loadVault(userId, { force = false } = {}) {
   }
   setState({ status: state.status === 'unlocked' && state.userId === userId ? 'unlocked' : 'loading', userId, error: null });
 
-  loadPromise = getVault()
+  // The device's copy first (the vault itself is remembered there, for offline unlocking)
+  loadPromise = startOffline(userId)
+    .catch(() => {})
+    .then(() => getVault())
     .then(async (res) => {
       const vault = res?.vault || null;
       if (!vault) {
@@ -238,8 +255,9 @@ export function lockAll() {
   window.dispatchEvent(new Event(LOCK_ALL_EVENT));
 }
 
-/** Forget everything (logout) */
+/** Forget everything (logout), the device's copy included */
 export function resetVault() {
+  stopOffline({ clear: true }).catch(() => {});
   rawKeyB64 = null;
   dataKey = null;
   portfolioKeys.clear();

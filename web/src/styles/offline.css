@@ -1,0 +1,48 @@
+/* The bar at the top while offline or syncing (shared/offline/OfflineBar.jsx) */
+
+.offline-bar {
+  position: sticky;
+  top: 0;
+  z-index: 1001;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  padding: 7px 16px;
+  font-size: 12.5px;
+  line-height: 1.6;
+  text-align: center;
+  border-bottom: 1px solid transparent;
+}
+
+.offline-bar.is-offline {
+  background: var(--color-warning-soft, rgba(245, 158, 11, 0.14));
+  border-bottom-color: rgba(245, 158, 11, 0.35);
+  color: var(--color-warning, #f59e0b);
+}
+
+.offline-bar.is-offline strong {
+  font-weight: 800;
+}
+
+.offline-bar.is-syncing {
+  background: var(--gold-soft-bg);
+  color: var(--text-secondary);
+}
+
+.offline-bar .spin {
+  animation: offline-bar-spin 1s linear infinite;
+}
+
+@keyframes offline-bar-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .offline-bar .spin {
+    animation: none;
+  }
+}

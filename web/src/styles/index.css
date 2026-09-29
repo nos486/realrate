@@ -24,6 +24,7 @@
  *   cheques.css         — Cheques page, status badges, tracking timeline
  *   expenses.css        — Expenses page, section chips
  *   app-settings.css    — Settings of the Android app
+ *   offline.css         — The offline / syncing bar
  *   landing.css          — Logged-out landing page
  *   auth.css            — Sign-in / sign-up / email-link pages
  *   shared-page-layout.css — Shared feature-page header bar (Portfolio/Transactions/Loans/Incomes)
@@ -54,6 +55,7 @@
 @import './cheques.css';
 @import './expenses.css';
 @import './app-settings.css';
+@import './offline.css';
 @import './landing.css';
 @import './auth.css';
 @import './demo.css';
