@@ -8,6 +8,8 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 const puts = [];
 let records = [];
 vi.mock('../../../web/src/shared/vault/vaultApi.js', () => ({
+  configureVaultApi: () => {},
+  resetVaultData: vi.fn(async () => ({ success: true })),
   putVaultRecord: vi.fn(async (kind, id, payload, options) => { puts.push({ kind, id, payload, ...options }); }),
   listVaultRecords: vi.fn(async () => ({ records, total: records.length })),
   deleteVaultRecord: vi.fn(),

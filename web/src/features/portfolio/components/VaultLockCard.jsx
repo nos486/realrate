@@ -17,6 +17,7 @@ export default function VaultLockCard({
   className = '',
   style = {},
   extraAction = null,
+  helpLink = null,
 }) {
   const [passphrase, setPassphrase] = useState('');
   const [showPass, setShowPass] = useState(false);
@@ -116,6 +117,7 @@ export default function VaultLockCard({
         <div className="vault-lock-footer-note">
           رمزگشایی در مرورگر انجام می‌شود و رمز در سرور ذخیره نمی‌گردد.
         </div>
+        {helpLink}
       </div>
     </div>
   );

@@ -236,6 +236,21 @@ export function banksForSender(banks, sender) {
 }
 
 /**
+ * What the Android app needs to tell a withdrawal or deposit from any other bank message without
+ * this file (BankSmsPlugin / BankSmsReceiver, even with the app closed): per bank, its senders and
+ * its templates' patterns. The native side matches the pattern sources, as Java regexes, on the
+ * message normalized like normalizeSmsText — so a template must stay Java-compatible (named
+ * groups, classes and quantifiers as used here; no JS-only syntax)
+ * @param {BankSmsBank[]} banks
+ * @returns {Array<{ senders: string[], patterns: string[] }>}
+ */
+export function nativeSmsRules(banks) {
+  return banks
+    .filter((b) => (b.senders || []).length && (b.templates || []).length)
+    .map((b) => ({ senders: [...b.senders], patterns: b.templates.map((t) => t.pattern.source) }));
+}
+
+/**
  * Read a bank SMS
  * @param {string} text the message
  * @param {BankSmsBank[]} banks the templates (bankSmsTemplates.js)

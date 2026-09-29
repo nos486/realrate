@@ -3,7 +3,8 @@
  *
  * Mandatory for the whole account: portfolios (holdings + transactions), loans, incomes and
  * cheques are all encrypted in the browser with a key only the user's passphrase can unlock.
- * Once on it cannot be turned off — only the passphrase can be changed.
+ * Once on it cannot be turned off — only the passphrase can be changed, or, when it is forgotten,
+ * everything reset (VaultResetSection).
  */
 
 import React, { useCallback, useEffect, useState } from 'react';
@@ -14,6 +15,8 @@ import AlertBanner from '../ui/AlertBanner.jsx';
 import { useFeedback } from '../ui/FeedbackProvider.jsx';
 import { useVault } from './useVault.js';
 import VaultUnlockCard from './VaultUnlockCard.jsx';
+import VaultResetSection from './VaultResetSection.jsx';
+import { useDemo } from '../../features/demo/index.js';
 import VaultEnableForm, { PassphraseInput, ProgressBar, ReportBanner } from './VaultEnableForm.jsx';
 import { useWarnBeforeUnload } from './useWarnBeforeUnload.js';
 import { changeVaultPassphrase, lockAll, loadVault, bumpVaultEpoch, VAULT_MIN_PASSPHRASE_LENGTH } from './vaultStore.js';
@@ -85,6 +88,7 @@ function LegacyPortfolios({ portfolios, onAdopted }) {
 export default function VaultSettingsSection() {
   const vault = useVault();
   const { toast } = useFeedback();
+  const demo = useDemo();
 
   const [showPass, setShowPass] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -227,7 +231,7 @@ export default function VaultSettingsSection() {
       )}
 
       {vault.status === 'locked' && (
-        <VaultUnlockCard title="رمزنگاری حساب قفل است" className="vault-settings-unlock" />
+        <VaultUnlockCard title="رمزنگاری حساب قفل است" className="vault-settings-unlock" showForgot={false} />
       )}
 
       {vault.status === 'unlocked' && (
@@ -275,6 +279,8 @@ export default function VaultSettingsSection() {
           )}
         </>
       )}
+
+      {(vault.status === 'locked' || vault.status === 'unlocked') && !demo?.isDemo && <VaultResetSection />}
     </section>
   );
 }

@@ -9,12 +9,30 @@
  * - a change goes to the server as before; without a connection it is kept in the copy and
  *   queued, and sent when the connection is back (a refusal from the server still fails as before)
  * - the vault itself (salt + wrapped key) is remembered, so it can be unlocked offline
+ *
+ * Each record stored names the vault it was encrypted for (`vaultEpoch`, the vault's creation
+ * time): after a reset (forgotten passphrase) the server refuses records made with the old key —
+ * e.g. from a device that was offline — and vaultStore reloads the vault.
  */
 
 import { httpClient } from '../api/httpClient.js';
 import * as offline from '../offline/offlineSync.js';
 
 const seg = encodeURIComponent;
+
+let vaultEpoch = () => '';
+let onVaultGone = () => {};
+
+/** Set by vaultStore.js: the current vault's epoch, and what to do when it was reset elsewhere */
+export function configureVaultApi({ epoch, onGone }) {
+  if (epoch) vaultEpoch = epoch;
+  if (onGone) onVaultGone = onGone;
+}
+
+/** The vault was reset (another device) or is gone: this tab's key is stale */
+function watchVaultGone(err) {
+  if (err?.status === 409 && ['VAULT_CHANGED', 'VAULT_DISABLED'].includes(err.data?.errorCode || err.code)) onVaultGone();
+}
 
 export const getVault = async (options) => {
   if (!offline.isOfflineActive()) return httpClient.get('/api/vault', options);
@@ -36,6 +54,16 @@ export const getVault = async (options) => {
 /** Turn the vault on, or re-wrap its data key (pass `previousWrappedKey` when replacing) */
 export const saveVault = ({ salt, wrappedKey, previousWrappedKey }, options) =>
   httpClient.put('/api/vault', { salt, wrappedKey, previousWrappedKey }, options);
+
+/** What the server needs to confirm a reset (sent once the user typed the phrase) */
+export const VAULT_RESET_CONFIRM = 'RESET_ALL_DATA';
+
+/**
+ * Forgotten passphrase: delete the vault and ALL the account's financial data on the server.
+ * `password`: the account password (needed when the account has one)
+ */
+export const resetVaultData = ({ password } = {}, options) =>
+  httpClient.post('/api/vault/reset', { confirm: VAULT_RESET_CONFIRM, password }, options);
 
 /**
  * Records of one kind. `filters` work on the plaintext metadata only: { from, to } (inclusive
@@ -62,16 +90,24 @@ export const listVaultRecords = async (kind, options, filters = {}) => {
 
 /** Store a record: ciphertext + its plaintext metadata (recordDate, parentId) */
 export const putVaultRecord = async (kind, id, payload, { replacePlain = false, recordDate = '', parentId = '', ...options } = {}) => {
-  const body = { payload, replacePlain, recordDate, parentId };
+  const body = { payload, replacePlain, recordDate, parentId, vaultEpoch: vaultEpoch() || undefined };
   const path = `/api/vault/records/${seg(kind)}/${seg(id)}`;
-  if (!offline.isOfflineActive()) return httpClient.put(path, body, options);
+  if (!offline.isOfflineActive()) {
+    return httpClient.put(path, body, options).catch((err) => {
+      watchVaultGone(err);
+      throw err;
+    });
+  }
   try {
     const res = await httpClient.put(path, body, options);
     offline.reportOnline();
     await offline.keepRecord(kind, id, { payload, recordDate, parentId, updatedAt: res?.record?.updatedAt });
     return res;
   } catch (err) {
-    if (!offline.isNetworkError(err)) throw err;
+    if (!offline.isNetworkError(err)) {
+      watchVaultGone(err);
+      throw err;
+    }
     offline.reportOffline();
     // Kept and queued: sent when the connection is back
     await offline.keepRecord(kind, id, { payload, recordDate, parentId });

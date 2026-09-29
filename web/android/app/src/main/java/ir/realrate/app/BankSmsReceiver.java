@@ -25,9 +25,10 @@ import java.util.Set;
 
 /**
  * Catches bank messages as they arrive (even with the app closed): when automatic reading is on
- * and the sender is one of the banks' (BankSmsPlugin.configure), it shows a notification — without
- * the message's text — that opens the app's SMS page, and tells the running app to read it.
- * One-time passwords and login codes (BankSmsPlugin.isSensitive) are ignored.
+ * and the message is a withdrawal or deposit — from a bank's sender and read by one of that bank's
+ * templates (BankSmsRules, set by BankSmsPlugin.configure) — it shows a notification, without the
+ * message's text, that opens the app's SMS page, and tells the running app to read it.
+ * Every other message (balance notices, ads, one-time passwords…) is ignored.
  * The message itself stays in the phone's SMS inbox; the app reads it from there.
  */
 public class BankSmsReceiver extends BroadcastReceiver {
@@ -43,6 +44,7 @@ public class BankSmsReceiver extends BroadcastReceiver {
         if (!prefs.getBoolean(BankSmsPlugin.PREF_ENABLED, false)) return;
         Set<String> senders = prefs.getStringSet(BankSmsPlugin.PREF_SENDERS, Collections.emptySet());
         if (senders == null || senders.isEmpty()) return;
+        BankSmsRules rules = BankSmsPlugin.parseRules(prefs.getString(BankSmsPlugin.PREF_RULES, ""));
 
         SmsMessage[] parts = Telephony.Sms.Intents.getMessagesFromIntent(intent);
         if (parts == null) return;
@@ -63,15 +65,18 @@ public class BankSmsReceiver extends BroadcastReceiver {
 
         boolean any = false;
         for (Map.Entry<String, StringBuilder> entry : bodies.entrySet()) {
+            String body = entry.getValue().toString();
             // One-time passwords never get a notification (nor reach the app)
-            if (BankSmsPlugin.isSensitive(entry.getValue().toString())) continue;
+            if (BankSmsPlugin.isSensitive(body)) continue;
+            // Withdrawals and deposits only (rules not set yet by the app: every bank message)
+            if (!rules.isEmpty() && !rules.isTransaction(entry.getKey(), body)) continue;
             showNotification(context);
             any = true;
         }
         if (any) BankSmsPlugin.notifyReceived();
     }
 
-    /** Only says a bank message arrived: the message's text is never shown in a notification */
+    /** Only says a withdrawal or deposit arrived: the message's text is never shown in a notification */
     private static void showNotification(Context context) {
         if (Build.VERSION.SDK_INT >= 33
             && ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
@@ -95,7 +100,7 @@ public class BankSmsReceiver extends BroadcastReceiver {
 
         NotificationCompat.Builder builder = new NotificationCompat.Builder(context, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_stat_bank_sms)
-            .setContentTitle("پیامک بانکی جدید")
+            .setContentTitle("واریز یا برداشت جدید")
             .setContentText("برای ثبت در RealRate ضربه بزنید")
             .setVisibility(NotificationCompat.VISIBILITY_PRIVATE)
             .setContentIntent(pending)

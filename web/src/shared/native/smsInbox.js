@@ -22,7 +22,7 @@
 
 import { isNativeApp } from './nativeApp.js';
 import { BankSms } from './nativePlugins.js';
-import { parseBankSms } from '../../utils/bankSms.js';
+import { parseBankSms, nativeSmsRules } from '../../utils/bankSms.js';
 import { BANK_SMS_TEMPLATES } from '../../utils/bankSmsTemplates.js';
 
 const SETTINGS_KEY = 'realrate_sms_settings';
@@ -37,6 +37,11 @@ export const SMS_INBOX_EVENT = 'realrate:sms-inbox';
 
 /** Every sender the templates know */
 export const SMS_SENDERS = [...new Set(BANK_SMS_TEMPLATES.flatMap((b) => b.senders || []))];
+/**
+ * How the phone itself tells a withdrawal or deposit from the banks' other messages (balance
+ * notices, ads…): only those reach the app and get a notification
+ */
+const SMS_RULES = nativeSmsRules(BANK_SMS_TEMPLATES);
 
 function read(key, fallback) {
   try {
@@ -72,11 +77,11 @@ export function setSmsSettings(patch) {
   notify();
 }
 
-/** Tell BankSmsReceiver (runs without the app) whether to notify, and for which senders */
+/** Tell BankSmsReceiver (runs without the app) whether to notify, and for which messages */
 export async function syncNativeSmsConfig() {
   if (!isNativeApp()) return;
   try {
-    await BankSms.configure({ enabled: getSmsSettings().auto, senders: SMS_SENDERS });
+    await BankSms.configure({ enabled: getSmsSettings().auto, senders: SMS_SENDERS, rules: SMS_RULES });
   } catch (err) {
     console.warn('SMS receiver setup failed:', err);
   }
@@ -190,7 +195,7 @@ export async function enableSmsReading() {
  */
 export async function readSmsSince(since) {
   const now = Date.now();
-  const { messages = [] } = await BankSms.read({ senders: SMS_SENDERS, since: Math.max(0, Math.floor(since)) });
+  const { messages = [] } = await BankSms.read({ senders: SMS_SENDERS, rules: SMS_RULES, since: Math.max(0, Math.floor(since)) });
   const added = addSmsMessages(messages);
   setSmsSettings({ lastRead: now });
   return { read: messages.length, added };

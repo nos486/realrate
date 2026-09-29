@@ -319,6 +319,7 @@ describe('vault routes', () => {
   it.each([
     ['GET', '/api/vault'],
     ['PUT', '/api/vault'],
+    ['POST', '/api/vault/reset'],
     ['GET', '/api/vault/records/loan'],
     ['PUT', '/api/vault/records/loan/loan_1'],
     ['DELETE', '/api/vault/records/income/inc_1'],
