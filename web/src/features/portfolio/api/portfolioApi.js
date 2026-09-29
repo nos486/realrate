@@ -4,6 +4,7 @@
  */
 
 import { httpClient } from '../../../shared/api/httpClient.js';
+import { syncSoon } from '../../../shared/offline/offlineSync.js';
 
 export async function getPortfolios() {
   return httpClient.get('/api/portfolios');
@@ -18,7 +19,10 @@ export async function updatePortfolio(portfolioData, options) {
 }
 
 export async function deletePortfolio(id) {
-  return httpClient.delete(`/api/portfolios?id=${encodeURIComponent(id)}`);
+  const res = await httpClient.delete(`/api/portfolios?id=${encodeURIComponent(id)}`);
+  // Its encrypted items were deleted on the server: the device's copy learns it now
+  syncSoon(0);
+  return res;
 }
 
 export async function getPortfolio(portfolioId = null) {

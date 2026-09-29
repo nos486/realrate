@@ -2,6 +2,7 @@ import React from 'react';
 import Header from '../../components/Header.jsx';
 import Footer from '../../components/Footer.jsx';
 import { DemoBanner } from '../../features/demo/index.js';
+import OfflineBar from '../offline/OfflineBar.jsx';
 
 /**
  * Standard AppLayout component
@@ -29,6 +30,7 @@ export default function AppLayout({
 }) {
   return (
     <div className={`app-layout ${layoutClassName}`}>
+      <OfflineBar />
       <DemoBanner />
       {!hideHeader && (
         <Header
