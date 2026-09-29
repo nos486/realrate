@@ -43,13 +43,15 @@ export default function IncomeForm({
   onToggleRule,
   onDeleteRule,
   hideValues = false,
+  // A new income filled in from elsewhere (a bank SMS deposit): { title, amount, incomeDate, notes }
+  draft = null,
 }) {
-  const source = editingRule || editingIncome;
+  const source = editingRule || editingIncome || draft;
   const [title, setTitle] = useState(source?.title || '');
   const [category, setCategory] = useState(source?.category || DEFAULT_INCOME_CATEGORY);
   const [amount, setAmount] = useState(source ? String(source.amount) : '');
   const [dateShamsi, setDateShamsi] = useState(() => {
-    const iso = editingRule?.startDate || editingIncome?.incomeDate;
+    const iso = editingRule?.startDate || editingIncome?.incomeDate || draft?.incomeDate;
     return iso ? gregorianToShamsi(`${iso}T00:00:00`) : getTodayShamsi();
   });
   const [notes, setNotes] = useState(source?.notes || '');

@@ -1,21 +1,21 @@
 /**
  * AppSettingsView.jsx — Settings of the Android app (shown only inside the app)
  *
- * - Bank SMS: read them automatically (on opening the app and on every return to it), and read
- *   the last N days now; the withdrawals found wait in everyday expenses to be recorded
+ * - Bank SMS: automatic reading on/off (a notification for each bank message as it arrives);
+ *   the messages wait on the «پیامک‌های بانکی» page, which also reads older ones on request
  * - Fingerprint: open the encrypted data with the fingerprint instead of the passphrase
  * - The app's version
  */
 
 import React, { useEffect, useState } from 'react';
 import { Smartphone, MessageSquareText, Fingerprint, Info, ArrowLeft } from 'lucide-react';
-import { AlertBanner, Button, Card, FeaturePageHeader, FilterPills } from '../../shared/ui/index.js';
+import { AlertBanner, Button, Card, FeaturePageHeader } from '../../shared/ui/index.js';
 import { useFeedback } from '../../shared/ui/FeedbackProvider.jsx';
 import { useVault } from '../../shared/vault/useVault.js';
 import { resolveBank } from '../../shared/banks/index.js';
 import { SMS_BANK_IDS } from '../../utils/bankSmsTemplates.js';
 import { useSmsInbox } from '../../shared/native/useSmsInbox.js';
-import { setSmsSettings, smsPermission, readSmsDays, autoReadSms, SMS_SENDERS } from '../../shared/native/smsInbox.js';
+import { setSmsSettings, smsPermission, enableSmsReading, SMS_SENDERS } from '../../shared/native/smsInbox.js';
 import {
   isBiometricAvailable,
   isBiometricEnabled,
@@ -23,7 +23,6 @@ import {
   disableBiometric,
 } from '../../shared/native/biometricUnlock.js';
 
-const DAY_OPTIONS = [7, 30, 90].map((d) => ({ value: d, label: `${d.toLocaleString('fa-IR')} روز` }));
 const SUPPORTED_BANKS = SMS_BANK_IDS.map((id) => resolveBank({ bankId: id }).shortName).join('، ');
 
 function Switch({ checked, onChange, disabled, label }) {
@@ -40,13 +39,11 @@ function formatTime(ms) {
   return new Date(ms).toLocaleString('fa-IR', { dateStyle: 'medium', timeStyle: 'short' });
 }
 
-export default function AppSettingsView({ onOpenExpenses }) {
+export default function AppSettingsView({ onOpenSms }) {
   const { toast } = useFeedback();
   const vault = useVault();
   const { pending, settings } = useSmsInbox();
   const [permission, setPermission] = useState('prompt');
-  const [days, setDays] = useState(30);
-  const [reading, setReading] = useState(false);
   const [bio, setBio] = useState({ available: false, enabled: false, busy: false });
   const [version, setVersion] = useState('');
 
@@ -60,38 +57,18 @@ export default function AppSettingsView({ onOpenExpenses }) {
       .catch(() => {});
   }, [vault.userId]);
 
-  /** Ask for the SMS permission when needed; false when refused */
-  const ensurePermission = async () => {
-    if (permission === 'granted') return true;
-    const next = await smsPermission({ request: true });
+  const handleAuto = async (on) => {
+    if (!on) {
+      setSmsSettings({ auto: false });
+      return;
+    }
+    const { permission: next } = await enableSmsReading();
     setPermission(next);
     if (next !== 'granted') {
       toast.error('اجازه‌ی خواندن پیامک داده نشد. می‌توانید از تنظیمات گوشی (برنامه‌ها ← RealRate ← مجوزها) آن را بدهید.', { duration: 8000 });
-      return false;
+      return;
     }
-    return true;
-  };
-
-  const handleAuto = async (on) => {
-    if (on && !(await ensurePermission())) return;
-    setSmsSettings({ auto: on });
-    if (on) {
-      const added = await autoReadSms();
-      toast.success(added ? `${added.toLocaleString('fa-IR')} برداشت جدید پیدا شد.` : 'خواندن خودکار پیامک‌ها روشن شد.');
-    }
-  };
-
-  const handleReadDays = async () => {
-    if (!(await ensurePermission())) return;
-    setReading(true);
-    try {
-      const { read, added } = await readSmsDays(days);
-      toast.success(`${read.toLocaleString('fa-IR')} پیامک بانکی خوانده شد؛ ${added.toLocaleString('fa-IR')} برداشت جدید.`);
-    } catch (err) {
-      toast.error(err?.message || 'خواندن پیامک‌ها ممکن نشد.');
-    } finally {
-      setReading(false);
-    }
+    toast.success('از این پس پیامک‌های بانک خودکار خوانده می‌شوند.');
   };
 
   const handleBiometric = async (on) => {
@@ -122,25 +99,14 @@ export default function AppSettingsView({ onOpenExpenses }) {
         padding="lg"
         icon={<MessageSquareText size={18} />}
         title="پیامک‌های بانکی"
-        subtitle="برداشت‌ها از پیامک بانک خوانده می‌شوند تا فقط دسته‌شان را انتخاب کنید. متن پیامک‌ها روی گوشی می‌ماند."
+        subtitle="برداشت‌ها و واریزها از پیامک بانک خوانده می‌شوند تا فقط دسته‌شان را انتخاب کنید. متن پیامک‌ها روی گوشی می‌ماند."
       >
         <div className="app-setting-row">
           <div>
-            <strong>خواندن خودکار</strong>
-            <p>هر بار که اپ باز می‌شود، پیامک‌های جدید بانک خوانده می‌شوند.</p>
+            <strong>خواندن خودکار و اعلان</strong>
+            <p>با رسیدن هر پیامک بانک اعلانی می‌آید؛ با ضربه روی آن، مبلغ و تاریخ آماده‌ی ثبت است.</p>
           </div>
-          <Switch checked={settings.auto} onChange={handleAuto} label="خواندن خودکار پیامک" />
-        </div>
-
-        <div className="app-setting-row is-stacked">
-          <div>
-            <strong>خواندن پیامک‌های گذشته</strong>
-            <p>پیامک‌های بانک در این بازه یک‌جا خوانده می‌شوند (تکراری‌ها و ثبت‌شده‌ها کنار گذاشته می‌شوند).</p>
-          </div>
-          <div className="app-setting-actions">
-            <FilterPills options={DAY_OPTIONS} activeValue={days} onChange={setDays} size="sm" />
-            <Button size="sm" onClick={handleReadDays} loading={reading}>بخوان</Button>
-          </div>
+          <Switch checked={settings.auto && permission === 'granted'} onChange={handleAuto} label="خواندن خودکار پیامک" />
         </div>
 
         {permission === 'denied' && (
@@ -154,10 +120,10 @@ export default function AppSettingsView({ onOpenExpenses }) {
           <dd>{formatTime(settings.lastRead)}</dd>
           <dt>منتظر ثبت</dt>
           <dd>
-            {pending.length.toLocaleString('fa-IR')} برداشت
-            {pending.length > 0 && onOpenExpenses && (
-              <Button size="sm" variant="secondary" iconRight={<ArrowLeft size={14} />} onClick={onOpenExpenses}>
-                ثبت در هزینه‌ها
+            {pending.length.toLocaleString('fa-IR')} پیامک
+            {onOpenSms && (
+              <Button size="sm" variant="secondary" iconRight={<ArrowLeft size={14} />} onClick={onOpenSms}>
+                پیامک‌های بانکی
               </Button>
             )}
           </dd>

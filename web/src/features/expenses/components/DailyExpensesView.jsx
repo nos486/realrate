@@ -10,7 +10,7 @@
  */
 
 import React, { useMemo, useState } from 'react';
-import { ChevronRight, ChevronLeft, Plus, Coins, MessageSquareText, TrendingUp, TrendingDown, CalendarDays, Tag, Target } from 'lucide-react';
+import { ChevronRight, ChevronLeft, Plus, Coins, TrendingUp, TrendingDown, CalendarDays, Tag, Target } from 'lucide-react';
 import { AlertBanner, Button, EmptyState, GenericCsvExportButton, MiniCard, SplitPageLayout } from '../../../shared/ui/index.js';
 import DonutChart from '../../../shared/ui/DonutChart.jsx';
 import { useFeedback } from '../../../shared/ui/FeedbackProvider.jsx';
@@ -34,9 +34,6 @@ import { formatShamsiDisplay } from '../../portfolio/components/ShamsiDatePicker
 import { getExpenseCategory } from '../constants/expenseCategories.js';
 import { formatAmount } from '../utils/format.js';
 import ExpenseForm from './ExpenseForm.jsx';
-import SmsImportForm, { smsExpenseDraft } from './SmsImportForm.jsx';
-import SmsInboxCard from './SmsInboxCard.jsx';
-import { markSmsHandled } from '../../../shared/native/smsInbox.js';
 import ExpensesTable from './ExpensesTable.jsx';
 import BudgetForm from './BudgetForm.jsx';
 import BudgetProgress from './BudgetProgress.jsx';
@@ -54,8 +51,7 @@ export default function DailyExpensesView({ usdToman = 0, hideValues = false }) 
   const [month, setMonth] = useState(thisMonth);
   const [categoryFilter, setCategoryFilter] = useState('all');
   const [accountFilter, setAccountFilter] = useState('all');
-  const [form, setForm] = useState(null); // null | { expense: object|null, draft?: object }
-  const [smsOpen, setSmsOpen] = useState(false);
+  const [form, setForm] = useState(null); // null | { expense: object|null }
   const [budgetOpen, setBudgetOpen] = useState(false);
   const {
     expenses, previousExpenses, range, budgets, loading, submitting, deletingId, error, clearError, fetchMonth,
@@ -229,11 +225,6 @@ export default function DailyExpensesView({ usdToman = 0, hideValues = false }) 
       )}
 
       <div className="expenses-daily">
-        <SmsInboxCard
-          accounts={accounts}
-          readOnly={readOnly}
-          onRecord={(item) => setForm({ expense: null, draft: smsExpenseDraft(item.tx, accounts) })}
-        />
         <SplitPageLayout sidebar={sidebar}>
           <div className="portfolio-table-card">
             <div className="portfolio-table-header">
@@ -265,15 +256,6 @@ export default function DailyExpensesView({ usdToman = 0, hideValues = false }) 
                     e.notes || '',
                   ]}
                 />
-                <Button
-                  variant="secondary"
-                  icon={<MessageSquareText size={16} />}
-                  onClick={() => setSmsOpen(true)}
-                  disabled={readOnly}
-                  title={readOnly ? 'در نسخه دمو غیرفعال است' : 'ثبت هزینه از متن پیامک بانک'}
-                >
-                  از پیامک
-                </Button>
                 <Button
                   icon={<Plus size={16} />}
                   onClick={() => setForm({ expense: null })}
@@ -354,31 +336,11 @@ export default function DailyExpensesView({ usdToman = 0, hideValues = false }) 
           key={form.expense?.id || 'new'}
           daily
           expense={form.expense}
-          draft={form.draft || null}
           usdToman={usdToman}
           accounts={accounts.filter((a) => !a.archived || a.id === form.expense?.accountId)}
-          onSubmit={async (input) => {
-            await saveExpense(input, form.expense);
-            // A message recorded (pasted or from the app's SMS inbox) never comes back
-            if (form.draft?.smsFingerprint) markSmsHandled(form.draft.smsFingerprint);
-            // An SMS from another month: show the month it went into
-            if (form.draft && input.date && !(input.date >= range.from && input.date <= range.to)) {
-              setMonth(shamsiMonthOf(input.date));
-            }
-          }}
+          onSubmit={(input) => saveExpense(input, form.expense)}
           onClose={() => setForm(null)}
           submitting={submitting}
-        />
-      )}
-      {smsOpen && (
-        <SmsImportForm
-          accounts={accounts}
-          recorded={[...expenses, ...previousExpenses]}
-          onContinue={(draft) => {
-            setSmsOpen(false);
-            setForm({ expense: null, draft });
-          }}
-          onClose={() => setSmsOpen(false)}
         />
       )}
       {budgetOpen && (

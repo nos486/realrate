@@ -386,83 +386,6 @@
   justify-content: flex-end;
 }
 
-/* ── Paste a bank SMS ─────────────────────────────────────────────── */
-
-.sms-preview {
-  border: 1px solid var(--border-color);
-  border-radius: 12px;
-  background: var(--bg-card);
-  padding: 12px 14px;
-}
-
-.sms-preview.is-debit {
-  border-color: var(--color-negative-border);
-}
-
-.sms-preview.is-credit {
-  border-color: var(--color-positive-border);
-}
-
-.sms-preview-head {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.sms-preview-head > div {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  min-width: 0;
-}
-
-.sms-preview-kind {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  font-size: 0.8rem;
-  color: var(--text-secondary);
-}
-
-.sms-preview.is-debit .sms-preview-kind {
-  color: var(--color-negative-text);
-}
-
-.sms-preview.is-credit .sms-preview-kind {
-  color: var(--color-positive-text);
-}
-
-.sms-preview-amount {
-  margin-inline-start: auto;
-  font-weight: 700;
-  font-size: 1.05rem;
-  white-space: nowrap;
-}
-
-.sms-preview-amount small {
-  font-weight: 400;
-  font-size: 0.75rem;
-  color: var(--text-secondary);
-}
-
-.sms-preview-details {
-  display: grid;
-  grid-template-columns: auto 1fr;
-  gap: 6px 12px;
-  margin: 12px 0 0;
-  font-size: 0.85rem;
-}
-
-.sms-preview-details dt {
-  color: var(--text-secondary);
-}
-
-.sms-preview-details dd {
-  margin: 0;
-  min-width: 0;
-  overflow-wrap: anywhere;
-}
-
 /* ── Bank SMS read by the Android app, waiting to be recorded ─────── */
 
 .sms-inbox-card {
@@ -546,4 +469,43 @@
   margin: 8px 0 0;
   font-size: 0.8rem;
   color: var(--text-secondary);
+}
+
+.sms-inbox-setup-text {
+  margin: 0 0 12px;
+  font-size: 0.85rem;
+  line-height: 1.8;
+  color: var(--text-secondary);
+}
+
+.sms-inbox-setup-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.sms-inbox-kind {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  margin-inline-end: 6px;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.sms-inbox-item.is-debit .sms-inbox-kind {
+  color: var(--color-negative-text);
+}
+
+.sms-inbox-item.is-credit .sms-inbox-kind {
+  color: var(--color-positive-text);
+}
+
+/* The Android app's «پیامک‌های بانکی» page (features/sms-inbox) */
+.sms-inbox-page .sms-inbox-page-card {
+  margin-bottom: 16px;
+}
+
+.sms-inbox-page .sms-inbox-card {
+  margin-bottom: 0;
 }
