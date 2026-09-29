@@ -23,7 +23,7 @@ import {
   bytesToBase64,
   base64ToBytes,
 } from '../../lib/e2ee.js';
-import { getVault, saveVault } from './vaultApi.js';
+import { getVault, saveVault, resetVaultData, configureVaultApi } from './vaultApi.js';
 import { isNativeApp } from '../native/nativeApp.js';
 import {
   configureOffline,
@@ -38,6 +38,14 @@ configureOffline({ isEnabled: isNativeApp });
 if (typeof window !== 'undefined') {
   window.addEventListener(VAULT_CHANGED_EVENT, () => bumpVaultEpoch());
 }
+// Records name the vault they were encrypted for; a vault reset on another device makes this
+// tab's key stale, so the vault is loaded again (the setup screen then shows)
+configureVaultApi({
+  epoch: () => state.vault?.createdAt || '',
+  onGone: () => {
+    if (state.userId) loadVault(state.userId, { force: true });
+  },
+});
 
 export const VAULT_MIN_PASSPHRASE_LENGTH = 8;
 const SESSION_KEY = 'rr_vault_session';
@@ -264,6 +272,25 @@ export function resetVault() {
   loadPromise = null;
   writeSession(null);
   setState({ status: 'idle', vault: null, error: null, userId: null, legacyUnlocked: false, hasPlaintextData: false, epoch: state.epoch + 1 });
+}
+
+/**
+ * Forgotten passphrase: delete the vault and every financial record of the account (server), and
+ * this device's copy, then load the vault again — the account sets up a new one like a new
+ * account. Nothing encrypted can be recovered.
+ * @param {{ password?: string }} options the account password, when the account has one
+ */
+export async function resetAccountVault({ password } = {}) {
+  const userId = state.userId;
+  await resetVaultData({ password });
+  await stopOffline({ clear: true }).catch(() => {});
+  rawKeyB64 = null;
+  dataKey = null;
+  portfolioKeys.clear();
+  loadPromise = null;
+  writeSession(null);
+  setState({ status: 'loading', vault: null, legacyUnlocked: false, epoch: state.epoch + 1 });
+  return loadVault(userId, { force: true });
 }
 
 function assertPassphrase(passphrase) {

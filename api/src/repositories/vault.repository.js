@@ -132,9 +132,43 @@ export async function rejectWhenVaultEnabled(env, userId) {
 }
 
 async function requireVault(env, userId) {
-  if (!(await dbHasUserVault(env, userId))) {
+  const vault = await dbGetUserVault(env, userId);
+  if (!vault) {
     throw new AppError("رمزنگاری سرتاسری برای این حساب فعال نیست.", 409, "VAULT_DISABLED");
   }
+  return vault;
+}
+
+/**
+ * Tables holding a user's own financial data (plaintext or encrypted) and the vault itself:
+ * everything a vault reset deletes. Sign-in, sessions and preferences (the home layout) stay.
+ */
+const USER_DATA_TABLES = [
+  "portfolios",
+  "portfolio_holdings",
+  "transactions",
+  "loans",
+  "loan_installment_states",
+  "loan_extra_payments",
+  "incomes",
+  "recurring_incomes",
+  "cheques",
+  "custom_banks",
+  "vault_records",
+  "vault_tombstones",
+  "user_vaults",
+];
+
+/**
+ * Forgotten passphrase: without it the encrypted data can never be read again, so the only way
+ * back is to start over — every record of the user and the vault are deleted in one batch. The
+ * account then sets up a new vault like a new one; devices keeping a copy see a new epoch and
+ * start their copy over.
+ */
+export async function dbResetUserVaultData(env, userId) {
+  if (!userId || !env?.DB) throw new Error("Database connection required");
+  await ensureSchema(env);
+  await env.DB.batch(USER_DATA_TABLES.map((table) => env.DB.prepare(`DELETE FROM ${table} WHERE user_id = ?`).bind(userId)));
 }
 
 // ── Encrypted records ───────────────────────────────────────────────────────
@@ -220,7 +254,7 @@ function deletePlainStatements(env, userId, kind, id) {
  * Create or replace an encrypted record. With `replacePlain`, the plaintext record with the same
  * id is deleted in the same batch (used when encrypting existing data).
  */
-export async function dbPutVaultRecord(env, userId, kind, id, { payload, replacePlain = false, recordDate = "", parentId = "" }) {
+export async function dbPutVaultRecord(env, userId, kind, id, { payload, replacePlain = false, recordDate = "", parentId = "", vaultEpoch = "" }) {
   assertKind(kind);
   assertRecordId(id);
   assertPayload(payload);
@@ -228,7 +262,11 @@ export async function dbPutVaultRecord(env, userId, kind, id, { payload, replace
   const parent = parseParentId(parentId);
   if (PORTFOLIO_ITEM_KINDS.includes(kind) && !parent) throw AppError.badRequest("پورتفوی این مورد مشخص نشده است.");
   if (kind === "expense" && !parent) throw AppError.badRequest("بخش این هزینه مشخص نشده است.");
-  await requireVault(env, userId);
+  const vault = await requireVault(env, userId);
+  // Encrypted with the key of a vault since reset (a device that was offline): unreadable now
+  if (vaultEpoch && vaultEpoch !== vault.createdAt) {
+    throw new AppError("رمزنگاری حساب از نو راه‌اندازی شده است؛ این تغییر با کلید قبلی بود و ذخیره نشد.", 409, "VAULT_CHANGED");
+  }
 
   const now = new Date().toISOString();
   const statements = [

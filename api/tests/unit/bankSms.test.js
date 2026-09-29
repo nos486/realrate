@@ -8,6 +8,7 @@ import {
   isSensitiveSms,
   matchSmsAccount,
   banksForSender,
+  nativeSmsRules,
 } from '../../src/domain/bankSms.js';
 import { BANK_SMS_TEMPLATES } from '../../src/domain/bankSmsTemplates.js';
 
@@ -179,5 +180,32 @@ describe('templates', () => {
 
   it('normalization', () => {
     expect(normalizeSmsText(' a  b \n\n c ')).toBe('a b\nc');
+  });
+});
+
+describe('rules for the Android side (only withdrawals and deposits reach the app)', () => {
+  const rules = nativeSmsRules(BANK_SMS_TEMPLATES);
+
+  it('one rule per bank: its senders and its templates\' pattern sources', () => {
+    expect(rules).toHaveLength(BANK_SMS_TEMPLATES.length);
+    for (const bank of BANK_SMS_TEMPLATES) {
+      const rule = rules.find((r) => r.senders.join() === bank.senders.join());
+      expect(rule.patterns).toEqual(bank.templates.map((t) => t.pattern.source));
+    }
+  });
+
+  // BankSmsRules.java matches the same sources (checked with javac when they change); here the
+  // sources alone, rebuilt, read every sample like the templates do
+  it.each(SAMPLES.map((s, i) => [`${s.bank} #${i + 1}`, s]))('%s is a transaction by the rules', (_name, sample) => {
+    const bank = BANK_SMS_TEMPLATES.find((b) => b.bankId === sample.bank);
+    const rule = rules.find((r) => r.senders.join() === bank.senders.join());
+    expect(rule.patterns.some((source) => new RegExp(source).test(normalizeSmsText(sample.text)))).toBe(true);
+  });
+
+  it('other bank messages are not', () => {
+    const others = ['مشتری گرامی، مانده حساب شما 81,294,045 ریال است.', 'بلو\nبا بلو بیشتر آشنا شوید'];
+    for (const text of others) {
+      expect(rules.some((r) => r.patterns.some((source) => new RegExp(source).test(normalizeSmsText(text))))).toBe(false);
+    }
   });
 });

@@ -125,7 +125,7 @@ describe('SMS inbox', () => {
     expect(await autoReadSms()).toBe(0);
     expect(plugin.read).not.toHaveBeenCalled();
     // Turning it on or off tells the SMS receiver (notifications)
-    expect(plugin.configure).toHaveBeenCalledWith({ enabled: false, senders: SMS_SENDERS });
+    expect(plugin.configure).toHaveBeenCalledWith({ enabled: false, senders: SMS_SENDERS, rules: expect.arrayContaining([expect.objectContaining({ patterns: expect.any(Array) })]) });
 
     const lastRead = Date.now();
     setSmsSettings({ auto: true, startedAt: lastRead - 86_400_000, lastRead });
@@ -155,7 +155,7 @@ describe('turning automatic reading on', () => {
     expect(plugin.read).not.toHaveBeenCalled();
     expect(getSmsSettings()).toMatchObject({ auto: true });
     expect(getSmsSettings().startedAt).toBeGreaterThanOrEqual(before);
-    expect(plugin.configure).toHaveBeenCalledWith({ enabled: true, senders: SMS_SENDERS });
+    expect(plugin.configure).toHaveBeenCalledWith({ enabled: true, senders: SMS_SENDERS, rules: expect.arrayContaining([expect.objectContaining({ patterns: expect.any(Array) })]) });
   });
 
   it('refused: nothing changes', async () => {

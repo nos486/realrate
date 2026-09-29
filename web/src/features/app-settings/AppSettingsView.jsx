@@ -104,7 +104,7 @@ export default function AppSettingsView({ onOpenSms }) {
         <div className="app-setting-row">
           <div>
             <strong>خواندن خودکار و اعلان</strong>
-            <p>با رسیدن هر پیامک بانک اعلانی می‌آید؛ با ضربه روی آن، مبلغ و تاریخ آماده‌ی ثبت است.</p>
+            <p>فقط با رسیدن پیامک برداشت یا واریز اعلانی می‌آید (پیامک‌های دیگر خوانده نمی‌شوند)؛ با ضربه روی آن، مبلغ و تاریخ آماده‌ی ثبت است.</p>
           </div>
           <Switch checked={settings.auto && permission === 'granted'} onChange={handleAuto} label="خواندن خودکار پیامک" />
         </div>

@@ -4,6 +4,11 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 // In-memory stand-in for the vault endpoints
 const server = { vault: null };
 vi.mock('../../../web/src/shared/vault/vaultApi.js', () => ({
+  configureVaultApi: () => {},
+  resetVaultData: vi.fn(async () => {
+    server.vault = null;
+    return { success: true };
+  }),
   getVault: vi.fn(async () => ({ success: true, vault: server.vault })),
   saveVault: vi.fn(async ({ salt, wrappedKey, previousWrappedKey }) => {
     if (server.vault && previousWrappedKey !== server.vault.wrappedKey) {
@@ -116,7 +121,22 @@ describe('account vault store', () => {
     expect(store.getVaultState().status).toBe('error');
   });
 
-  it('changing the passphrase keeps every record readable', async () => {
+  it('a forgotten passphrase: reset forgets the key and asks for a new vault', async () => {
+    await store.loadVault('u1');
+    await store.createVault('longpassphrase');
+    store.lockVault();
+    expect(store.getVaultState().status).toBe('locked');
+    await store.resetAccountVault({ password: 'account-pass' });
+    const api = await import('../../../web/src/shared/vault/vaultApi.js');
+    expect(api.resetVaultData).toHaveBeenCalledWith({ password: 'account-pass' });
+    expect(store.getVaultState()).toMatchObject({ status: 'off', vault: null });
+    expect(store.getVaultUnlockSecret()).toBeNull();
+    // A new vault with a new passphrase, unlocked right away
+    await store.createVault('another-passphrase');
+    expect(store.isVaultUnlocked()).toBe(true);
+  });
+
+    it('changing the passphrase keeps every record readable', async () => {
     await store.loadVault('u1');
     await store.createVault('first passphrase');
     const cipher = await store.encryptVaultRecord({ n: 42 });

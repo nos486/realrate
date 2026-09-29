@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Fingerprint } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import VaultLockCard from '../../features/portfolio/components/VaultLockCard.jsx';
 import { unlockVault } from './vaultStore.js';
 import { isBiometricEnabled, unlockWithBiometric } from '../native/biometricUnlock.js';
@@ -11,9 +12,10 @@ let promptedThisSession = false;
 /**
  * Unlock prompt for the account-wide vault (loans, incomes, account-protected portfolios).
  * One passphrase opens everything for this tab. In the Android app with fingerprint unlock set
- * up (app settings), a fingerprint button opens it too.
+ * up (app settings), a fingerprint button opens it too. "Forgot the passphrase?" leads to the
+ * reset in account settings (VaultResetSection).
  */
-export default function VaultUnlockCard({ title = 'اطلاعات رمزنگاری شده است', description, className = '' }) {
+export default function VaultUnlockCard({ title = 'اطلاعات رمزنگاری شده است', description, className = '', showForgot = true }) {
   const { toast } = useFeedback();
   const [biometric, setBiometric] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -68,6 +70,11 @@ export default function VaultUnlockCard({ title = 'اطلاعات رمزنگار
           <Fingerprint size={16} />
           اثر انگشت
         </button>
+      )}
+      helpLink={showForgot && (
+        <Link to="/settings?vault-reset=1" className="vault-lock-forgot">
+          رمز را فراموش کرده‌اید؟
+        </Link>
       )}
     />
   );

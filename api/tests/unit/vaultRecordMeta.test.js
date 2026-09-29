@@ -5,6 +5,8 @@ const puts = [];
 const lists = [];
 let undatedRecords = [];
 vi.mock('../../../web/src/shared/vault/vaultApi.js', () => ({
+  configureVaultApi: () => {},
+  resetVaultData: vi.fn(async () => ({ success: true })),
   putVaultRecord: vi.fn(async (kind, id, payload, options) => { puts.push({ kind, id, payload, ...options }); }),
   listVaultRecords: vi.fn(async (kind, options, filters) => { lists.push({ kind, ...filters }); return { records: undatedRecords }; }),
 }));

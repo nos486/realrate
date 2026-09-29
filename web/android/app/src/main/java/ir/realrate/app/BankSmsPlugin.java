@@ -15,8 +15,13 @@ import com.getcapacitor.PluginMethod;
 import com.getcapacitor.annotation.CapacitorPlugin;
 import com.getcapacitor.annotation.Permission;
 
+import org.json.JSONArray;
+import org.json.JSONObject;
+
 import java.lang.ref.WeakReference;
+import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Locale;
 import java.util.Set;
 import java.util.regex.Pattern;
@@ -24,16 +29,18 @@ import java.util.regex.Pattern;
 /**
  * Reads bank messages from the phone's SMS inbox (the app's "read SMS automatically").
  *
- * Only messages from the senders the app asks for (the banks in bankSmsTemplates.js) and newer
- * than `since` are returned; nothing else leaves the inbox. The web app reads them with
- * bankSms.js and keeps them on the phone until they are recorded or dismissed.
+ * Only withdrawals and deposits are returned: messages from the banks' senders that one of that
+ * bank's templates reads (`rules`, BankSmsRules), newer than `since`; nothing else leaves the
+ * inbox. The web app reads them with bankSms.js and keeps them on the phone until they are
+ * recorded or dismissed.
  *
  * New messages are caught as they arrive by BankSmsReceiver, which shows a notification and tells
  * the open app (event "smsReceived") to read them.
  *
- * JS: BankSms.read({ senders: string[], since: epochMillis, limit?: number })
+ * JS: BankSms.read({ senders: string[], rules: Rule[], since: epochMillis, limit?: number })
  *     → { messages: [{ id, address, body, date }] }, newest first
- *     BankSms.configure({ enabled: boolean, senders: string[] })   what BankSmsReceiver listens for
+ *     BankSms.configure({ enabled: boolean, senders: string[], rules: Rule[] })   what BankSmsReceiver notifies for
+ *     Rule = { senders: string[], patterns: string[] }   (nativeSmsRules in bankSms.js)
  *     BankSms.addListener('smsReceived', …)   a bank message arrived while the app is running
  *     BankSms.checkPermissions() / requestPermissions()
  *       → { sms: 'granted' | 'denied' | 'prompt', notifications: … }
@@ -52,6 +59,7 @@ public class BankSmsPlugin extends Plugin {
     static final String PREFS = "realrate_bank_sms";
     static final String PREF_ENABLED = "enabled";
     static final String PREF_SENDERS = "senders";
+    static final String PREF_RULES = "rules";
 
     private static WeakReference<BankSmsPlugin> active = new WeakReference<>(null);
 
@@ -78,11 +86,40 @@ public class BankSmsPlugin extends Plugin {
             String s = list.optString(i, "");
             if (!s.isEmpty()) senders.add(normalizeSender(s));
         }
+        JSArray rules = call.getArray("rules", new JSArray());
         prefs(getContext()).edit()
             .putBoolean(PREF_ENABLED, Boolean.TRUE.equals(call.getBoolean("enabled", false)))
             .putStringSet(PREF_SENDERS, senders)
+            .putString(PREF_RULES, rules.toString())
             .apply();
         call.resolve();
+    }
+
+    /** The rules sent by the app (configure / read): [{ senders: [...], patterns: [...] }] */
+    static BankSmsRules parseRules(String json) {
+        List<BankSmsRules.Rule> list = new ArrayList<>();
+        if (json == null || json.isEmpty()) return new BankSmsRules(list);
+        try {
+            JSONArray array = new JSONArray(json);
+            for (int i = 0; i < array.length(); i++) {
+                JSONObject item = array.optJSONObject(i);
+                if (item == null) continue;
+                list.add(BankSmsRules.rule(strings(item.optJSONArray("senders")), strings(item.optJSONArray("patterns"))));
+            }
+        } catch (Exception ignored) {
+            // Unreadable rules: none
+        }
+        return new BankSmsRules(list);
+    }
+
+    private static List<String> strings(JSONArray array) {
+        List<String> out = new ArrayList<>();
+        if (array == null) return out;
+        for (int i = 0; i < array.length(); i++) {
+            String s = array.optString(i, "");
+            if (!s.isEmpty()) out.add(s);
+        }
+        return out;
     }
 
     /** Spaces or the Persian half-space (ZWNJ) between words */
@@ -131,6 +168,7 @@ public class BankSmsPlugin extends Plugin {
             call.reject("فرستنده‌ای برای خواندن مشخص نشده است.", "NO_SENDERS");
             return;
         }
+        BankSmsRules rules = parseRules(call.getArray("rules", new JSArray()).toString());
         // Epoch millis: JSON gives a Long (or a Double), so read it as any number
         Object sinceValue = call.getData().opt("since");
         long since = sinceValue instanceof Number ? ((Number) sinceValue).longValue() : 0L;
@@ -153,11 +191,14 @@ public class BankSmsPlugin extends Plugin {
                 while (cursor.moveToNext() && messages.length() < limit) {
                     String address = cursor.getString(addressCol);
                     if (!senders.contains(normalizeSender(address))) continue;
-                    if (isSensitive(cursor.getString(bodyCol))) continue;
+                    String body = cursor.getString(bodyCol);
+                    if (isSensitive(body)) continue;
+                    // Withdrawals and deposits only (an app without rules: every bank message)
+                    if (!rules.isEmpty() && !rules.isTransaction(address, body)) continue;
                     JSObject message = new JSObject();
                     message.put("id", cursor.getString(idCol));
                     message.put("address", address);
-                    message.put("body", cursor.getString(bodyCol));
+                    message.put("body", body);
                     message.put("date", cursor.getLong(dateCol));
                     messages.put(message);
                 }

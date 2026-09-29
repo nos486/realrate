@@ -5,10 +5,14 @@
  *   GET    /api/vault                                — The account vault (salt + wrapped key) or null,
  *                                                       and whether an account without it has data
  *   PUT    /api/vault                                — Turn on / re-wrap after a passphrase change
+ *   POST   /api/vault/reset                          — Forgotten passphrase: delete the vault and ALL the
+ *                                                       user's financial data ({ confirm: "RESET_ALL_DATA",
+ *                                                       password } — the account password when it has one)
  *   GET    /api/vault/records/:kind                  — Encrypted records of a kind (loan | income | cheque | recurring_income | holding | transaction |
  *                                                       expense_group | expense | bank_account — each only with its feature: config/features.js);
  *                                                       ?from&to&parent&undated=1&order=asc|desc&limit&offset (a page adds `total`)
- *   PUT    /api/vault/records/:kind/:id              — Create/replace one ({ payload, replacePlain })
+ *   PUT    /api/vault/records/:kind/:id              — Create/replace one ({ payload, replacePlain, vaultEpoch }:
+ *                                                       with `vaultEpoch`, refused after a vault reset)
  *   DELETE /api/vault/records/:kind/:id              — Delete one
  *   GET    /api/vault/sync?cursor&limit               — Every change after `cursor` (records stored and
  *                                                       deleted, all kinds the user may see), for devices
@@ -29,7 +33,10 @@ import {
   dbDeleteVaultRecord,
   dbGetLoanDocument,
 } from "../repositories/index.js";
-import { VAULT_KIND_FEATURES, VAULT_RECORD_KINDS, dbSyncVaultRecords } from "../repositories/vault.repository.js";
+import { VAULT_KIND_FEATURES, VAULT_RECORD_KINDS, dbSyncVaultRecords, dbResetUserVaultData } from "../repositories/vault.repository.js";
+import { dbGetUserAuthById } from "../repositories/account.repository.js";
+import { verifyPassword, getRateLimitState, recordRateLimitHit, clearRateLimit } from "../lib/security.js";
+import { logger } from "../lib/logger.js";
 import { isFeatureEnabled } from "../config/features.js";
 import { jsonResponse } from "../lib/helpers.js";
 import { AppError } from "../lib/AppError.js";
@@ -74,6 +81,44 @@ export async function handleSaveVault(request, env) {
   return jsonResponse({ success: true, vault }, 200, request);
 }
 
+/** What the client sends to confirm the reset (after the user typed the Persian phrase) */
+export const VAULT_RESET_CONFIRM = "RESET_ALL_DATA";
+const RESET_LIMIT = { limit: 5, windowSec: 15 * 60 };
+
+/**
+ * Forgotten passphrase: start over. Nothing encrypted can be recovered without it, so every
+ * financial record of the account is deleted with the vault. A stolen session alone cannot do
+ * it: an account with a password must give it (rate limited); a Google-only account is proven by
+ * its sign-in. Demo sessions never reach here (demoGate).
+ */
+export async function handleResetVault(request, env) {
+  const user = await requireUser(request, env);
+  if (user.kind === "demo_view" || user.kind === "demo_edit") {
+    throw new AppError("بازنشانی رمزنگاری در حساب دمو مجاز نیست.", 403, "DEMO_EDIT_FORBIDDEN");
+  }
+  const userId = userIdOf(user);
+  const body = await request.json().catch(() => ({}));
+  if (body.confirm !== VAULT_RESET_CONFIRM) {
+    throw AppError.badRequest("برای بازنشانی، عبارت تأیید را وارد کنید.", "CONFIRM_REQUIRED");
+  }
+
+  const account = await dbGetUserAuthById(env, userId);
+  if (account?.passwordHash) {
+    const key = `vault-reset:${userId}`;
+    const { limited } = await getRateLimitState(env, key, RESET_LIMIT);
+    if (limited) throw new AppError("تعداد تلاش‌ها بیش از حد مجاز است. لطفاً چند دقیقه دیگر دوباره تلاش کنید.", 429, "TOO_MANY_REQUESTS");
+    if (!(await verifyPassword(String(body.password ?? ""), account.passwordHash))) {
+      await recordRateLimitHit(env, key, RESET_LIMIT);
+      throw new AppError("رمز عبور حساب نادرست است.", 400, "INVALID_PASSWORD");
+    }
+    await clearRateLimit(env, key);
+  }
+
+  await dbResetUserVaultData(env, userId);
+  logger.info("[Vault] reset: all data deleted", { userId });
+  return jsonResponse({ success: true }, 200, request);
+}
+
 export async function handleListVaultRecords(request, env, { kind }) {
   const userId = await requireUserId(request, env, kind);
   const params = new URL(request.url).searchParams;
@@ -99,6 +144,7 @@ export async function handlePutVaultRecord(request, env, { kind, id }) {
     replacePlain: Boolean(body.replacePlain),
     recordDate: body.recordDate,
     parentId: body.parentId,
+    vaultEpoch: typeof body.vaultEpoch === "string" ? body.vaultEpoch : "",
   });
   return jsonResponse({ success: true, record }, 200, request);
 }
