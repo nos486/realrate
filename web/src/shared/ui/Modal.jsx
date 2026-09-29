@@ -1,4 +1,9 @@
 import React, { useEffect, useRef } from 'react';
+
+/** Dragged down further than this (px), or flicked, a bottom sheet closes */
+const SWIPE_CLOSE_DISTANCE = 110;
+const SWIPE_CLOSE_VELOCITY = 0.7;
+const isSheetLayout = () => typeof window !== 'undefined' && window.matchMedia?.('(max-width: 640px)').matches;
 import { X } from 'lucide-react';
 import { useBackToClose } from '../hooks/useBackToClose.js';
 
@@ -7,7 +12,8 @@ import { useBackToClose } from '../hooks/useBackToClose.js';
  *
  * Features:
  * - Desktop: Centered pop-in dialog with glassmorphism
- * - Mobile (<640px): Ergonomic touch-friendly Bottom-Sheet drawer with drag handle
+ * - Mobile (<640px): Ergonomic touch-friendly Bottom-Sheet drawer; dragging it down by its
+ *   handle or header closes it (a deliberate gesture, unlike a stray tap outside)
  * - Automatic body scroll lock and cleanup
  * - ESC key dismissal; the phone's back button closes it (useBackToClose)
  * - Pinned header and footer with isolated scrollable body
@@ -29,7 +35,33 @@ export default function Modal({
   bodyClassName = '',
 }) {
   const contentRef = useRef(null);
+  const drag = useRef(null);
   useBackToClose(isOpen, onClose);
+
+  // Bottom sheet (phones): follow the finger down from the handle or header, close past a point
+  const setOffset = (px, animate) => {
+    const el = contentRef.current;
+    if (!el) return;
+    el.style.transition = animate ? 'transform 0.25s cubic-bezier(0.16, 1, 0.3, 1)' : 'none';
+    el.style.transform = px ? `translateY(${px}px)` : '';
+  };
+  const onGripDown = (e) => {
+    if (!isSheetLayout() || e.target.closest('button, a, input, select, textarea')) return;
+    drag.current = { y: e.clientY, t: performance.now() };
+    e.currentTarget.setPointerCapture?.(e.pointerId);
+  };
+  const onGripMove = (e) => {
+    if (drag.current) setOffset(Math.max(0, e.clientY - drag.current.y), false);
+  };
+  const onGripUp = (e) => {
+    if (!drag.current) return;
+    const distance = Math.max(0, e.clientY - drag.current.y);
+    const velocity = distance / Math.max(1, performance.now() - drag.current.t);
+    drag.current = null;
+    if (distance > SWIPE_CLOSE_DISTANCE || velocity > SWIPE_CLOSE_VELOCITY) onClose?.();
+    else setOffset(0, true);
+  };
+  const grip = { onPointerDown: onGripDown, onPointerMove: onGripMove, onPointerUp: onGripUp, onPointerCancel: onGripUp };
 
   useEffect(() => {
     if (!isOpen) return;
@@ -54,8 +86,8 @@ export default function Modal({
 
   const innerContent = (
     <>
-      <div className="modal-drag-handle" />
-      <div className="modal-header">
+      <div className="modal-drag-handle" {...grip} />
+      <div className="modal-header" {...grip}>
         <div className="modal-title-wrap">
           {icon && <span className="modal-icon">{icon}</span>}
           <div>

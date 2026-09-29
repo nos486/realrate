@@ -1019,3 +1019,54 @@ button.app-home-card {
 .app-layout.has-app-shell .feature-page-header-bar:not(:has(.feature-page-header-actions)) {
   display: none;
 }
+
+/* ══ Forms and dialogs (Modal as a bottom sheet) ══ */
+
+/* The handle and header are what the sheet is dragged down by (Modal.jsx) */
+@media (max-width: 640px) {
+  .modal-drag-handle,
+  .modal-header {
+    touch-action: none;
+  }
+
+  .modal-drag-handle {
+    box-sizing: content-box;
+    padding: 8px 40px;
+    background-clip: content-box;
+    margin-top: 2px;
+    margin-bottom: 0;
+    cursor: grab;
+  }
+}
+
+/* Footer buttons (any markup: Button, older .btn-*, with or without a wrapper): the two share
+   the row, the main action a bit wider */
+html.is-native-app .modal-actions-pinned > div {
+  display: flex;
+  width: 100%;
+  gap: 10px;
+}
+
+html.is-native-app .modal-actions-pinned > button,
+html.is-native-app .modal-actions-pinned > div > button {
+  flex: 1 1 0;
+  min-width: 0 !important;
+  min-height: 48px;
+}
+
+html.is-native-app .modal-actions-pinned > button:last-child,
+html.is-native-app .modal-actions-pinned > div > button:last-child {
+  flex-grow: 1.6;
+}
+
+/* Monthly budgets: two fields per row, not fifteen stacked */
+html.is-native-app .budget-grid {
+  grid-template-columns: 1fr 1fr;
+  gap: 4px 10px;
+}
+
+html.is-native-app .budget-grid .ui-input-label {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
