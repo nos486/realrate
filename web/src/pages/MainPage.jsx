@@ -225,7 +225,8 @@ export default function MainPage() {
       if (!subPath.startsWith('/portfolio')) goToTab(lastPortfolioPath('/portfolio'));
     } else if (TAB_PATHS[nextTab]) {
       goToTab(appPath(TAB_PATHS[nextTab]));
-    } else if (subPath !== '/' && subPath !== '/rates') {
+    // On the website /rates is the home page too; in the app it is the market's own page
+    } else if (subPath !== '/' && (isNativeApp() || subPath !== '/rates')) {
       goToTab(appPath('/'));
     }
   };
