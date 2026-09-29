@@ -1070,3 +1070,34 @@ html.is-native-app .budget-grid .ui-input-label {
   overflow: hidden;
   text-overflow: ellipsis;
 }
+
+/* Incomes, expenses, cheques: the summary cards, then the list, then the charts — the list is
+   what is used most, the charts are for a look now and then */
+.app-layout.has-app-shell .incomes-page-container .portfolio-layout-split {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.app-layout.has-app-shell .incomes-page-container .portfolio-sidebar-column {
+  display: contents;
+}
+
+.app-layout.has-app-shell .incomes-page-container .portfolio-sidebar-column > .incomes-summary-grid {
+  order: 0;
+}
+
+.app-layout.has-app-shell .incomes-page-container .portfolio-content-column {
+  order: 1;
+}
+
+.app-layout.has-app-shell .incomes-page-container .portfolio-sidebar-column > :not(.incomes-summary-grid) {
+  order: 2;
+}
+
+.app-layout.has-app-shell .incomes-page-container .portfolio-layout-split > *,
+.app-layout.has-app-shell .incomes-page-container .portfolio-sidebar-column > * {
+  width: 100%;
+  min-width: 0;
+  align-self: stretch;
+}
