@@ -509,3 +509,9 @@
 .sms-inbox-page .sms-inbox-card {
   margin-bottom: 0;
 }
+
+.sms-inbox-info .sms-inbox-maybe {
+  white-space: normal;
+  color: var(--color-warning);
+  font-size: 0.75rem;
+}

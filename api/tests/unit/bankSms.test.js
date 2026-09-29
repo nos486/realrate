@@ -73,6 +73,14 @@ describe('reading messages the way phones deliver them', () => {
     expect(parse('')).toBeNull();
   });
 
+  it('the transaction key: bank, direction, amount, day and time — whatever the wording', () => {
+    const tx = parse(base);
+    expect(tx.key).toBe('parsian|debit|39750|2026-09-28|14:49');
+    // Other spacing and digits, same transaction
+    expect(parse('30101540968603\nمبلغ : -۳۹۷,۵۰۰\nمانده:81,294,045\n07/06\n14:49').key).toBe(tx.key);
+    expect(parse(base.replace('14:49', '14:50')).key).not.toBe(tx.key);
+  });
+
   it('the same message gives the same fingerprint, another message another one', () => {
     expect(smsFingerprint(base)).toBe(smsFingerprint(`‏${base.replace(/\n/g, '\r\n')}`));
     expect(smsFingerprint(base)).not.toBe(smsFingerprint(SAMPLES[1].text));

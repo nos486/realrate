@@ -33,6 +33,8 @@ export function parseIncomeInput(body = {}) {
   const notes = String(body.notes ?? '').trim();
   const category = CATEGORY_KEYS.has(body.category) ? body.category : 'other';
   const recurringId = String(body.recurringId ?? '').trim();
+  // Recorded from a bank SMS: the transaction's key (bankSms.js), so it is not recorded twice
+  const smsKey = String(body.smsKey ?? '').trim().slice(0, 120);
 
   if (!title) throw new IncomeValidationError('عنوان درآمد الزامی است.');
   if (title.length > TITLE_MAX_LENGTH) throw new IncomeValidationError(`عنوان درآمد نباید بیشتر از ${TITLE_MAX_LENGTH} کاراکتر باشد.`);
@@ -44,7 +46,7 @@ export function parseIncomeInput(body = {}) {
 
   if (!isRecurringId(recurringId)) throw new IncomeValidationError('شناسه درآمد ثابت نامعتبر است.');
 
-  return { title, category, amount, incomeDate, notes, recurringId };
+  return { title, category, amount, incomeDate, notes, recurringId, ...(smsKey ? { smsKey } : {}) };
 }
 
 function newIncomeId() {

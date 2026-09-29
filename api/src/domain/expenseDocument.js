@@ -17,8 +17,8 @@
  * Budgets: a project section may carry a total `budget` (tomans); the daily section carries
  * `budgets`, a monthly budget per category plus `total` for the whole month.
  *
- * An expense read from a bank SMS (bankSms.js) has `source: 'sms'`, the bank's `bankId` and the
- * message's `smsFingerprint` (so the same message is not recorded twice).
+ * An expense read from a bank SMS (bankSms.js) has `source: 'sms'`, the bank's `bankId`, the
+ * message's `smsFingerprint` and the transaction's `smsKey` (so it is not recorded twice).
  */
 
 import { isValidIsoDate } from './isoDate.js';
@@ -153,8 +153,9 @@ export function validateExpense(body = {}) {
   const bankId = text(body.bankId).slice(0, 64);
   const accountId = ID_RE.test(text(body.accountId)) ? text(body.accountId) : '';
   const smsFingerprint = source === 'sms' && /^[0-9a-f]{8}$/.test(text(body.smsFingerprint)) ? text(body.smsFingerprint) : '';
+  const smsKey = source === 'sms' ? text(body.smsKey).slice(0, 120) : '';
 
-  return { value: { groupId, title, amount, currency, date, usdRate, notes, category, source, bankId, accountId, smsFingerprint } };
+  return { value: { groupId, title, amount, currency, date, usdRate, notes, category, source, bankId, accountId, smsFingerprint, smsKey } };
 }
 
 /** Newest first; the same day by the time it was recorded */

@@ -11,8 +11,13 @@
  * - a bank message arriving shows a notification (BankSmsReceiver) that opens the SMS page, and
  *   the running app reads it right away
  * - on app start and every return to the app: messages since the last read
- * Older messages are read only on request ("read the last N days", on the SMS page). A message
- * recorded or dismissed is remembered (its fingerprint) and never comes back.
+ * Older messages are read only on request ("read the last N days", on the SMS page).
+ *
+ * The same transaction never shows twice: a message is known by its text (`fingerprint`) and by
+ * its transaction (`key`: bank, direction, amount, day and time — bankSms.js). Recorded or
+ * dismissed ones are remembered here; recorded ones also carry the key in the encrypted expense or
+ * income (`smsKey`), which the SMS page checks (dropRecordedSms), so it holds across devices and
+ * reinstalls.
  */
 
 import { isNativeApp } from './nativeApp.js';
@@ -89,14 +94,33 @@ function handledSet() {
   return new Set(read(HANDLED_KEY, []));
 }
 
-/** Recorded or dismissed: never shown again */
+/**
+ * Recorded or dismissed: never shown again (the message's text and its transaction)
+ * @param {string} fingerprint a waiting message's fingerprint
+ */
 export function markSmsHandled(fingerprint) {
   if (!fingerprint) return;
-  const handled = read(HANDLED_KEY, []).filter((f) => f !== fingerprint);
-  handled.push(fingerprint);
+  const pending = getPendingSms();
+  const item = pending.find((p) => p.fingerprint === fingerprint);
+  const ids = [fingerprint, item?.tx?.key].filter(Boolean);
+  const handled = read(HANDLED_KEY, []).filter((f) => !ids.includes(f));
+  handled.push(...ids);
   write(HANDLED_KEY, handled.slice(-MAX_HANDLED));
-  write(PENDING_KEY, getPendingSms().filter((p) => p.fingerprint !== fingerprint));
+  write(PENDING_KEY, pending.filter((p) => p.fingerprint !== fingerprint));
   notify();
+}
+
+/**
+ * Drop the waiting messages whose transaction is already recorded (an expense or income with
+ * that `smsKey`)
+ * @param {Iterable<string>} recordedKeys
+ * @returns {number} how many were dropped
+ */
+export function dropRecordedSms(recordedKeys) {
+  const recorded = new Set(recordedKeys);
+  const drop = getPendingSms().filter((p) => p.tx?.key && recorded.has(p.tx.key));
+  drop.forEach((p) => markSmsHandled(p.fingerprint));
+  return drop.length;
 }
 
 /**
@@ -107,15 +131,17 @@ export function markSmsHandled(fingerprint) {
 export function addSmsMessages(messages) {
   const handled = handledSet();
   const pending = getPendingSms();
-  const known = new Set(pending.map((p) => p.fingerprint));
+  const known = new Set(pending.flatMap((p) => [p.fingerprint, p.tx?.key]).filter(Boolean));
   let added = 0;
   for (const message of messages) {
     const receivedAt = Number(message.date) || Date.now();
     // Without a year, a message's day is the most recent one up to when it arrived
     const tx = parseBankSms(message.body, BANK_SMS_TEMPLATES, { sender: message.address, today: new Date(receivedAt) });
     if (!tx) continue;
-    if (handled.has(tx.fingerprint) || known.has(tx.fingerprint)) continue;
+    // The same message, or the same transaction worded differently
+    if ([tx.fingerprint, tx.key].some((id) => handled.has(id) || known.has(id))) continue;
     known.add(tx.fingerprint);
+    known.add(tx.key);
     pending.push({ fingerprint: tx.fingerprint, receivedAt, sender: message.address, body: message.body, tx });
     added++;
   }
