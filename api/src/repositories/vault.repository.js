@@ -330,7 +330,8 @@ export async function dbSyncVaultRecords(env, userId, { cursor = "", limit = VAU
   const afterParams = from ? [from.time, from.kind, from.id] : [];
   const [recordRows, tombRows] = await Promise.all([
     env.DB.prepare(`
-      SELECT kind, id, payload, record_date AS recordDate, parent_id AS parentId, updated_at AS updatedAt
+      SELECT kind, id, payload, record_date AS recordDate, parent_id AS parentId,
+             created_at AS createdAt, updated_at AS updatedAt
       FROM vault_records WHERE user_id = ? AND kind IN (${marks}) ${after.replace("TIME", "updated_at")}
       ORDER BY updated_at, kind, id LIMIT ?
     `).bind(userId, ...allowed, ...afterParams, size).all(),

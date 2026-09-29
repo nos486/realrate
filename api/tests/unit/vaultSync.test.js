@@ -101,6 +101,9 @@ describe.skipIf(!PG_URL)('sync against a real Postgres', () => {
     expect(res.pages).toBe(3);
     expect(res.deleted).toEqual([]);
     expect(res.records[1]).toMatchObject({ kind: 'expense', payload: CIPHER('2'), recordDate: '2026-09-02', parentId: 'exg_1' });
+    // Enough to list them on the device exactly as the server does (date, then creation)
+    expect(res.records[1].createdAt).toBeTruthy();
+    expect(res.records[1].updatedAt).toBeTruthy();
     expect(res.epoch).toBeTruthy();
   });
 
