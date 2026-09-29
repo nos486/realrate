@@ -1,0 +1,212 @@
+/**
+ * AppHomeDashboard.jsx — The Android app's home: the user's own month at a glance
+ *
+ *  - this month's spending (vs the same days of last month) and income, and what is left
+ *  - bank messages waiting to be recorded
+ *  - the latest expenses
+ *  - a small rates card (dollar, 18k gold, coin) that opens the market page
+ * Installment and cheque reminders are shown above it by MainPage, as on the website's home.
+ * Everything is decrypted in the browser; nothing shows while the vault is locked (the card to
+ * unlock it does).
+ */
+
+import React, { useEffect, useMemo, useState } from 'react';
+import {
+  ArrowDownLeft, ArrowUpRight, ChevronLeft, MessageSquareText, TrendingUp, TrendingDown, Plus,
+} from 'lucide-react';
+import { useVault } from '../../shared/vault/useVault.js';
+import VaultUnlockCard from '../../shared/vault/VaultUnlockCard.jsx';
+import { usePrivacyMode } from '../../hooks/usePrivacyMode.js';
+import { useFeature } from '../../shared/features/useFeature.js';
+import { todayIso } from '../../shared/utils/dates.js';
+import Skeleton from '../../shared/ui/Skeleton.jsx';
+import { getPendingSms, SMS_INBOX_EVENT } from '../../shared/native/smsInbox.js';
+import { getIncomes } from '../../shared/vault/vaultIncomes.js';
+import { summarizeExpenses, shamsiMonthOf, shamsiMonthRange, shiftShamsiMonth, expenseInToman } from '../../utils/expenseDocument.js';
+import { useDailyExpenses } from '../expenses/hooks/useDailyExpenses.js';
+import { getExpenseCategory } from '../expenses/constants/expenseCategories.js';
+import { formatShamsiMonth, buildIncomeReport } from '../incomes/utils/incomeReport.js';
+import { formatShamsiDisplay } from '../portfolio/components/ShamsiDatePicker.jsx';
+
+const MASK = '••••••';
+const fa = (n) => Math.round(Number(n) || 0).toLocaleString('fa-IR');
+const DAY_MS = 86_400_000;
+
+/** This month's incomes (decrypted), reloaded when the vault changes */
+function useMonthIncomes(range, enabled) {
+  const { epoch } = useVault();
+  const [state, setState] = useState({ total: 0, loading: true });
+  useEffect(() => {
+    if (!enabled) return undefined;
+    let cancelled = false;
+    getIncomes({ from: range.from, to: range.to })
+      .then((res) => !cancelled && setState({ total: buildIncomeReport(res.incomes).total, loading: false }))
+      .catch(() => !cancelled && setState({ total: 0, loading: false }));
+    return () => {
+      cancelled = true;
+    };
+  }, [range.from, range.to, enabled, epoch]);
+  return state;
+}
+
+function usePendingSms() {
+  const [list, setList] = useState(() => getPendingSms());
+  useEffect(() => {
+    const update = () => setList(getPendingSms());
+    window.addEventListener(SMS_INBOX_EVENT, update);
+    return () => window.removeEventListener(SMS_INBOX_EVENT, update);
+  }, []);
+  return list;
+}
+
+export default function AppHomeDashboard({ usdToman = 0, analysis = [], onOpen }) {
+  const vault = useVault();
+  const hideValues = usePrivacyMode();
+  const hasExpenses = useFeature('expenses');
+  const unlocked = vault.status === 'unlocked';
+  const today = todayIso();
+  const month = useMemo(() => shamsiMonthOf(today), [today]);
+  const range = useMemo(() => shamsiMonthRange(month.jy, month.jm), [month]);
+
+  const { expenses, previousExpenses, loading: expensesLoading } = useDailyExpenses(month, { enabled: hasExpenses && unlocked });
+  const incomes = useMonthIncomes(range, unlocked);
+  const pendingSms = usePendingSms();
+
+  const spent = useMemo(() => summarizeExpenses(expenses, { usdToman }).totalToman, [expenses, usdToman]);
+  // Compared with the same number of days of last month
+  const change = useMemo(() => {
+    const days = Math.round((Date.parse(today) - Date.parse(range.from)) / DAY_MS);
+    const prev = shiftShamsiMonth(month, -1);
+    const cutoff = new Date(Date.parse(shamsiMonthRange(prev.jy, prev.jm).from) + days * DAY_MS).toISOString().slice(0, 10);
+    const before = summarizeExpenses(previousExpenses.filter((e) => e.date <= cutoff), { usdToman }).totalToman;
+    return before > 0 ? ((spent - before) / before) * 100 : null;
+  }, [previousExpenses, spent, usdToman, today, range.from, month]);
+  const latest = useMemo(
+    () => [...expenses].sort((a, b) => b.date.localeCompare(a.date) || String(b.createdAt || '').localeCompare(String(a.createdAt || ''))).slice(0, 5),
+    [expenses],
+  );
+
+  const money = (v) => (hideValues ? MASK : fa(v));
+  const price = (id) => {
+    const item = analysis?.find((i) => i.id === id);
+    return item?.market || item?.intrinsic || 0;
+  };
+  const rates = [
+    { key: 'usd', label: 'دلار', value: usdToman },
+    { key: 'gold', label: 'طلای ۱۸ عیار', value: price('gold_18k') },
+    { key: 'coin', label: 'سکه امامی', value: price('full_coin') },
+  ].filter((r) => r.value > 0);
+
+  if (vault.status === 'locked') {
+    return <VaultUnlockCard title="برای دیدن خلاصه‌ی ماه، اطلاعات را باز کنید" />;
+  }
+
+  const loading = (hasExpenses && expensesLoading) || incomes.loading;
+  const left = incomes.total - spent;
+
+  return (
+    <div className="app-home">
+      {/* This month */}
+      <section className="app-home-hero" aria-label={`خلاصه‌ی ${formatShamsiMonth(month.jy, month.jm)}`}>
+        <div className="app-home-hero-top">
+          <span className="app-home-month">{formatShamsiMonth(month.jy, month.jm)}</span>
+          {change !== null && !loading && (
+            <span className={`app-home-change ${change > 0 ? 'is-up' : 'is-down'}`}>
+              {change > 0 ? <TrendingUp size={14} /> : <TrendingDown size={14} />}
+              {fa(Math.abs(change))}٪ {change > 0 ? 'بیشتر' : 'کمتر'} از ماه قبل
+            </span>
+          )}
+        </div>
+        <div className="app-home-hero-label">خرج این ماه</div>
+        <div className="app-home-hero-value">
+          {loading ? <Skeleton width="60%" height={36} radius={10} /> : <>{money(spent)} <small>تومان</small></>}
+        </div>
+        <div className="app-home-hero-split">
+          <button type="button" className="app-home-stat" onClick={() => onOpen?.('incomes')}>
+            <span className="app-home-stat-icon is-in"><ArrowDownLeft size={16} /></span>
+            <span className="app-home-stat-text">
+              <small>درآمد</small>
+              <strong>{loading ? '…' : money(incomes.total)}</strong>
+            </span>
+          </button>
+          <button type="button" className="app-home-stat" onClick={() => onOpen?.('expenses')}>
+            <span className="app-home-stat-icon is-left"><ArrowUpRight size={16} /></span>
+            <span className="app-home-stat-text">
+              <small>{left >= 0 ? 'باقی‌مانده' : 'کسری'}</small>
+              <strong className={left < 0 ? 'is-negative' : ''}>{loading ? '…' : money(Math.abs(left))}</strong>
+            </span>
+          </button>
+        </div>
+      </section>
+
+      {/* Bank messages waiting */}
+      {pendingSms.length > 0 && (
+        <button type="button" className="app-home-card app-home-sms" onClick={() => onOpen?.('sms')}>
+          <span className="app-home-sms-icon"><MessageSquareText size={20} /></span>
+          <span className="app-home-sms-text">
+            <strong>{fa(pendingSms.length)} پیامک بانکی منتظر ثبت</strong>
+            <small>با یک ضربه دسته را انتخاب کنید</small>
+          </span>
+          <ChevronLeft size={18} />
+        </button>
+      )}
+
+      {/* Latest expenses */}
+      {hasExpenses && (
+        <section className="app-home-card">
+          <header className="app-home-card-head">
+            <h2>آخرین هزینه‌ها</h2>
+            <button type="button" className="app-home-link" onClick={() => onOpen?.('expenses')}>
+              همه <ChevronLeft size={16} />
+            </button>
+          </header>
+          {loading ? (
+            <div className="app-home-list">
+              {[0, 1, 2].map((i) => <Skeleton key={i} height={44} radius={12} />)}
+            </div>
+          ) : latest.length ? (
+            <ul className="app-home-list">
+              {latest.map((e) => {
+                const cat = getExpenseCategory(e.category);
+                const toman = expenseInToman(e, usdToman);
+                return (
+                  <li key={e.id} className="app-home-row">
+                    <span className="app-home-row-icon"><cat.Icon size={18} /></span>
+                    <span className="app-home-row-text">
+                      <strong>{e.title || cat.label}</strong>
+                      <small>{cat.label} · {formatShamsiDisplay(`${e.date}T00:00:00`)}</small>
+                    </span>
+                    <span className="app-home-row-amount">{toman === null ? '—' : money(toman)}</span>
+                  </li>
+                );
+              })}
+            </ul>
+          ) : (
+            <button type="button" className="app-home-empty" onClick={() => onOpen?.('add-expense')}>
+              <Plus size={18} />
+              هنوز هزینه‌ای برای این ماه ثبت نشده؛ اولین را ثبت کنید
+            </button>
+          )}
+        </section>
+      )}
+
+      {/* Rates */}
+      {rates.length > 0 && (
+        <button type="button" className="app-home-card app-home-rates" onClick={() => onOpen?.('rates')}>
+          <header className="app-home-card-head">
+            <h2>نرخ‌های امروز</h2>
+            <span className="app-home-link">بازار <ChevronLeft size={16} /></span>
+          </header>
+          <div className="app-home-rates-grid">
+            {rates.map((r) => (
+              <span key={r.key} className="app-home-rate">
+                <small>{r.label}</small>
+                <strong>{fa(r.value)}</strong>
+              </span>
+            ))}
+          </div>
+        </button>
+      )}
+    </div>
+  );
+}

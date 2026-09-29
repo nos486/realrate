@@ -35,6 +35,8 @@ const AppSettingsView = lazy(() => import('../features/app-settings/AppSettingsV
 const SmsInboxPage = lazy(() => import('../features/sms-inbox/SmsInboxPage.jsx'));
 const AdminPage = lazy(() => import('./AdminPage.jsx'));
 const PriceSourcesPage = lazy(() => import('./PriceSourcesPage.jsx'));
+// The Android app's home (its own month at a glance); the website's home is the market
+const AppHomeDashboard = lazy(() => import('../features/home/AppHomeDashboard.jsx'));
 
 function TabLoader() {
   return (
@@ -134,6 +136,9 @@ export default function MainPage() {
       isTransactionsSubView
     );
 
+  // Android app: the market has its own page (the app's home is the user's own dashboard)
+  const isRates = isNativeApp() && subPath.startsWith('/rates');
+
   const isLoans =
     !isSettings && !isSources && !isAdmin && !isIncomes && !isCheques && !isExpenses && !isAccounts && !isPortfolio && (
       subPath.startsWith('/loans') ||
@@ -153,6 +158,7 @@ export default function MainPage() {
     ['accounts', isAccounts],
     ['portfolio', isPortfolio],
     ['loans', isLoans],
+    ['rates', isRates],
   ].find(([, matches]) => matches)?.[0] || 'market';
 
   const tabTitle = useMemo(() => {
@@ -180,6 +186,8 @@ export default function MainPage() {
         return 'پنل مدیریت | RealRate';
       case 'sources':
         return 'مدیریت منابع قیمت | RealRate';
+      case 'rates':
+        return 'نرخ و حباب | RealRate';
       default:
         return 'داشبورد بازار | RealRate';
     }
@@ -208,6 +216,7 @@ export default function MainPage() {
     sms: '/sms',
     admin: '/admin',
     sources: '/admin/sources',
+    rates: '/rates',
   };
 
   const handleTabChange = (nextTab) => {
@@ -231,6 +240,8 @@ export default function MainPage() {
   const tabOptions = useMemo(() => {
     const options = [
       { value: 'market', label: 'نرخ و حباب', icon: <TrendingUp size={16} strokeWidth={2} /> },
+      // Android app: «خانه» is the dashboard, the market is one of the other sections
+      ...(isNativeApp() ? [{ value: 'rates', label: 'نرخ و حباب', icon: <TrendingUp size={16} strokeWidth={2} /> }] : []),
       { value: 'incomes', label: 'درآمدها', icon: <Wallet size={16} strokeWidth={2} /> },
       // Beta (admins): expenses right after incomes, then the accounts they are paid from
       ...(hasExpenses ? [{ value: 'expenses', label: 'هزینه‌ها', icon: <HandCoins size={16} strokeWidth={2} /> }] : []),
@@ -286,6 +297,12 @@ export default function MainPage() {
   const gold18kPrice = gold18kItem?.market || gold18kItem?.intrinsic || null;
 
   const hasUsd = usdNum > 0;
+
+  // The app's home dashboard: its cards open a section, the market, or a form
+  const openFromHome = (target) => {
+    if (target === 'add-expense') navigate(appPath('/expenses?add=expense'));
+    else handleTabChange(target);
+  };
   // Admin tools stay reachable; everything else waits for the encryption passphrase
   const needsVaultSetup =
     Boolean(user) && !isDemo && vault.status === 'off' && !vault.hasPlaintextData && activeTab !== 'admin' && activeTab !== 'sources';
@@ -326,7 +343,9 @@ export default function MainPage() {
         />
       )}
 
-      {/* Modern Segmented Navigation Tabs & Live Rates Ticker */}
+      {/* Modern Segmented Navigation Tabs & Live Rates Ticker (in the Android app the bottom bar
+          navigates, and the rates show on the home page only) */}
+      {(!isNativeApp() || activeTab === 'market' || activeTab === 'rates') && (
       <div className="main-nav-container">
         <div className="main-nav-tabs-bar">
           <FilterPills
@@ -348,9 +367,10 @@ export default function MainPage() {
           />
         </div>
       </div>
+      )}
 
       {/* Only where prices are shown */}
-      {(activeTab === 'market' || activeTab === 'portfolio') && <PriceRefreshStatus />}
+      {(isNativeApp() ? ['rates', 'portfolio'] : ['market', 'portfolio']).includes(activeTab) && <PriceRefreshStatus />}
 
       {/* Tab Views */}
       <section className="tab-view-container">
@@ -369,7 +389,13 @@ export default function MainPage() {
         )}
         {activeTab === 'market' && <UpcomingChequesAlert onOpen={() => handleTabChange('cheques')} />}
 
-        {activeTab === 'market' && (
+        {activeTab === 'market' && isNativeApp() && (
+          <Suspense fallback={<TabLoader />}>
+            <AppHomeDashboard usdToman={usdNum} analysis={analysis} onOpen={openFromHome} />
+          </Suspense>
+        )}
+
+        {activeTab === (isNativeApp() ? 'rates' : 'market') && (
           <div className="market-tab-content">
             {/* The user's own home page: sections of any assets, customizable per user */}
             <HomeDashboard

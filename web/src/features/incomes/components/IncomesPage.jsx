@@ -38,6 +38,7 @@ import { useFeedback } from '../../../shared/ui/FeedbackProvider.jsx';
 import { SkeletonRows } from '../../../shared/ui/Skeleton.jsx';
 import VaultUnlockCard from '../../../shared/vault/VaultUnlockCard.jsx';
 import { useDemo } from '../../demo/index.js';
+import { useQuickAddParam } from '../../../shared/hooks/useQuickAddParam.js';
 
 export default function IncomesPage() {
   const { readOnly } = useDemo();
@@ -116,6 +117,8 @@ export default function IncomesPage() {
 
   const handleOpenAdd = () => openForm();
   const handleOpenEdit = (income) => openForm({ income });
+  // The app's "+" button: /incomes?add=income
+  useQuickAddParam('income', handleOpenAdd, !vaultLocked && !readOnly);
 
   const { confirm, toast } = useFeedback();
 

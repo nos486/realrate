@@ -17,6 +17,7 @@
     "@capacitor/app": "^8.1.1",
     "@capacitor/browser": "^8.0.4",
     "@capacitor/core": "^8.5.2",
+    "@capacitor/haptics": "^8.0.2",
     "@capacitor/splash-screen": "^8.0.2",
     "@capacitor/status-bar": "^8.0.3",
     "@dnd-kit/core": "^6.3.1",

@@ -34,6 +34,7 @@ import ChequeSummaryCards from './ChequeSummaryCards.jsx';
 import ChequeCsvExportButton from './ChequeCsvExportButton.jsx';
 import { ChequeScanButton, ChequeScanModal } from './scan/index.js';
 import { useDemo } from '../../demo/index.js';
+import { useQuickAddParam } from '../../../shared/hooks/useQuickAddParam.js';
 
 const DIRECTION_FILTERS = [
   { value: 'all', label: 'همه' },
@@ -80,6 +81,8 @@ export default function ChequesPage() {
   const [formState, setFormState] = useState(null); // null | { cheque: object|null, initialValues?: object, confidence?: object }
   const [scanModalOpen, setScanModalOpen] = useState(false);
   const [trackingId, setTrackingId] = useState(null);
+  // The app's "+" button: /cheques?add=cheque
+  useQuickAddParam('cheque', () => setFormState({ cheque: null }), !vaultLocked && !readOnly);
 
   const summary = useMemo(() => summarizeCheques(cheques, todayIso()), [cheques]);
   const trackingCheque = cheques.find((c) => c.id === trackingId) || null;

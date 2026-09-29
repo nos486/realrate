@@ -7,6 +7,7 @@
 import React from 'react';
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { render, cleanup, screen, fireEvent } from '@testing-library/react';
+import { MemoryRouter } from 'react-router-dom';
 
 const state = { groups: [], expenses: [] };
 vi.mock('../../../web/src/features/expenses/hooks/useExpenses.js', () => ({
@@ -57,7 +58,7 @@ vi.mock('../../../web/src/shared/vault/VaultUnlockCard.jsx', () => ({ default: (
 const { FeedbackProvider } = await import('../../../web/src/shared/ui/FeedbackProvider.jsx');
 const { default: ExpensesPage } = await import('../../../web/src/features/expenses/components/ExpensesPage.jsx');
 
-const renderPage = (props = {}) => render(<FeedbackProvider><ExpensesPage segment="projects" {...props} /></FeedbackProvider>);
+const renderPage = (props = {}) => render(<MemoryRouter><FeedbackProvider><ExpensesPage segment="projects" {...props} /></FeedbackProvider></MemoryRouter>);
 
 afterEach(() => {
   cleanup();
