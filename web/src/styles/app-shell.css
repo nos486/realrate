@@ -923,3 +923,99 @@ button.app-home-card {
   overflow: hidden;
   text-overflow: ellipsis;
 }
+
+/* ══ Page polish inside the app ══ */
+
+/* Summary cards (totals, averages, counts): two per row, the first one full width, so the
+   list below starts on the first screen */
+.app-layout.has-app-shell .incomes-summary-grid,
+.app-layout.has-app-shell .portfolio-sidebar-column .portfolio-overview-grid,
+.app-layout.has-app-shell .portfolio-overview-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.app-layout.has-app-shell .incomes-summary-grid > :first-child,
+.app-layout.has-app-shell .portfolio-overview-grid > :first-child,
+.app-layout.has-app-shell .portfolio-overview-grid > :not(.portfolio-stat-card),
+.app-layout.has-app-shell .portfolio-overview-grid > .donut-chart-card {
+  grid-column: 1 / -1;
+}
+
+/* One card left alone on the last row takes the whole row */
+.app-layout.has-app-shell .incomes-summary-grid > :last-child:nth-child(even) {
+  grid-column: 1 / -1;
+}
+
+.app-layout.has-app-shell .incomes-summary-grid .ui-mini-card,
+.app-layout.has-app-shell .portfolio-stat-card {
+  min-width: 0;
+  padding: 12px;
+  border-radius: 18px;
+}
+
+.app-layout.has-app-shell .incomes-summary-grid .ui-mini-card:not(:first-child) .mini-card-value {
+  font-size: 16px;
+}
+
+.app-layout.has-app-shell .incomes-summary-grid .mini-card-foot,
+.app-layout.has-app-shell .incomes-summary-grid .mini-card-title {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.app-layout.has-app-shell .portfolio-stat-card:not(:first-child) .stat-number {
+  font-size: 17px;
+}
+
+/* No hover lift on touch screens */
+.app-layout.has-app-shell .ui-mini-card:hover,
+.app-layout.has-app-shell .portfolio-stat-card:hover {
+  transform: none;
+}
+
+/* Horizontal pill rows scroll edge to edge instead of being cut at the card's padding */
+.app-layout.has-app-shell .ui-filter-pills {
+  scrollbar-width: none;
+}
+
+.app-layout.has-app-shell .ui-filter-pills::-webkit-scrollbar {
+  display: none;
+}
+
+/* A closed sheet is gone for the page, the screen reader and a full-page capture alike */
+.app-sheet-root:not(.is-open) {
+  visibility: hidden;
+  transition: visibility 0s linear 0.34s;
+}
+
+/* Account settings: the sections sit on the page, not inside one more big card */
+.app-layout.has-app-shell .account-settings-fullscreen-card {
+  padding: 4px 2px !important;
+  background: none;
+  border: 0;
+  box-shadow: none;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+
+/* Roomy card padding is for wide screens: on the phone the content gets the width */
+.app-layout.has-app-shell .ui-card.p-lg {
+  padding: 16px 14px;
+  border-radius: 20px;
+}
+
+/* The SMS page's first card only frames another card: let the inner one stand alone */
+.app-layout.has-app-shell .sms-inbox-page .sms-inbox-page-card:has(> .sms-inbox-card.is-setup), .app-layout.has-app-shell .sms-inbox-page .sms-inbox-page-card:has(.sms-inbox-card.is-setup) {
+  padding: 0;
+  background: none;
+  border: 0;
+  box-shadow: none;
+}
+
+/* A page header with no buttons has nothing left to show in the app */
+.app-layout.has-app-shell .feature-page-header-bar:not(:has(.feature-page-header-actions)) {
+  display: none;
+}
