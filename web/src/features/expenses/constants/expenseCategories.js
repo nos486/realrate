@@ -5,7 +5,7 @@
 
 import {
   ShoppingBasket, UtensilsCrossed, Car, Receipt, House, ShoppingBag,
-  HeartPulse, GraduationCap, Plane, Wifi, Gift, CircleEllipsis,
+  HeartPulse, GraduationCap, Plane, Wifi, Gift, Landmark, TrendingUp, CircleEllipsis,
 } from 'lucide-react';
 import { DAILY_EXPENSE_CATEGORIES } from '../../../utils/expenseDocument.js';
 
@@ -21,6 +21,8 @@ const DISPLAY = {
   entertainment: { Icon: Plane, color: '#facc15' },
   subscriptions: { Icon: Wifi, color: '#60a5fa' },
   gifts: { Icon: Gift, color: '#e879f9' },
+  installments: { Icon: Landmark, color: '#fb923c' },
+  investment: { Icon: TrendingUp, color: '#34d399' },
   other: { Icon: CircleEllipsis, color: '#94a3b8' },
 };
 

@@ -10,6 +10,7 @@ import { usePortfolio } from '../hooks/usePortfolio.js';
 import { Button, FeaturePageHeader } from '../../../shared/ui/index.js';
 import { useFeedback } from '../../../shared/ui/FeedbackProvider.jsx';
 import { useDemo } from '../../demo/index.js';
+import { useQuickAddParam } from '../../../shared/hooks/useQuickAddParam.js';
 
 export default function PortfolioTracker({
   initialPortfolioId = null,
@@ -65,6 +66,9 @@ export default function PortfolioTracker({
   };
 
   const { toast } = useFeedback();
+
+  // The app's "+" button: /portfolio?add=holding
+  useQuickAddParam('holding', () => holdingsRef.current?.openAdd(), view === 'holdings' && Boolean(activePortfolio) && !readOnly && !holdingsVaultLocked);
 
   const handleCreatePortfolio = async (e) => {
     e.preventDefault();
