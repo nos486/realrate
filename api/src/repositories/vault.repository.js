@@ -232,6 +232,8 @@ export async function dbPutVaultRecord(env, userId, kind, id, { payload, replace
 
   const now = new Date().toISOString();
   const statements = [
+    // Stored again after a delete: no longer deleted
+    env.DB.prepare(`DELETE FROM vault_tombstones WHERE user_id = ? AND kind = ? AND id = ?`).bind(userId, kind, id),
     env.DB.prepare(`
       INSERT INTO vault_records (user_id, kind, id, payload, record_date, parent_id, created_at, updated_at)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?)
@@ -248,7 +250,121 @@ export async function dbPutVaultRecord(env, userId, kind, id, { payload, replace
 export async function dbDeleteVaultRecord(env, userId, kind, id) {
   assertKind(kind);
   await ensureSchema(env);
-  const res = await env.DB.prepare(`DELETE FROM vault_records WHERE user_id = ? AND kind = ? AND id = ?`)
-    .bind(userId, kind, id).run();
+  const now = new Date().toISOString();
+  const [res] = await env.DB.batch([
+    env.DB.prepare(`DELETE FROM vault_records WHERE user_id = ? AND kind = ? AND id = ?`).bind(userId, kind, id),
+    // Devices keeping a copy learn of the deletion at their next sync
+    env.DB.prepare(`
+      INSERT INTO vault_tombstones (user_id, kind, id, deleted_at) VALUES (?, ?, ?, ?)
+      ON CONFLICT(user_id, kind, id) DO UPDATE SET deleted_at = excluded.deleted_at
+    `).bind(userId, kind, id, now),
+  ]);
   return (res?.meta?.changes ?? 0) > 0;
+}
+
+/**
+ * Statements that record the deletion of a portfolio's items (tombstones), to run in the same
+ * batch before they are deleted (portfolio.repository.js: deleting a portfolio)
+ */
+export function vaultTombstoneParentStatements(env, userId, parentId, kinds) {
+  const now = new Date().toISOString();
+  const marks = kinds.map(() => "?").join(", ");
+  return [env.DB.prepare(`
+    INSERT INTO vault_tombstones (user_id, kind, id, deleted_at)
+    SELECT user_id, kind, id, ? FROM vault_records WHERE user_id = ? AND parent_id = ? AND kind IN (${marks})
+    ON CONFLICT(user_id, kind, id) DO UPDATE SET deleted_at = excluded.deleted_at
+  `).bind(now, userId, parentId, ...kinds)];
+}
+
+// ── Incremental sync ────────────────────────────────────────────────────────
+
+export const VAULT_SYNC_PAGE = 200;
+export const VAULT_SYNC_MAX_PAGE = 500;
+export const VAULT_TOMBSTONE_RETENTION_DAYS = 180;
+const DAY_MS = 86_400_000;
+
+/**
+ * A sync position: the (time, kind, id) of the last change a device has, "time|kind|id"
+ * @returns {{ time: string, kind: string, id: string }|null} null = from the start
+ */
+export function parseSyncCursor(cursor) {
+  const raw = String(cursor || "");
+  if (!raw) return null;
+  const [time, kind = "", id = ""] = raw.split("|");
+  if (Number.isNaN(Date.parse(time)) || (kind && !VAULT_RECORD_KINDS.includes(kind)) || (id && !RECORD_ID_RE.test(id))) {
+    throw AppError.badRequest("موقعیت همگام‌سازی نامعتبر است.");
+  }
+  return { time: new Date(time).toISOString(), kind, id };
+}
+
+const cursorOf = (time, kind, id) => `${time}|${kind}|${id}`;
+const compareChange = (a, b) => (a.time < b.time ? -1 : a.time > b.time ? 1 : a.kind < b.kind ? -1 : a.kind > b.kind ? 1 : a.id < b.id ? -1 : a.id > b.id ? 1 : 0);
+
+/**
+ * The changes to a user's encrypted records after `cursor`, oldest first: records stored or
+ * replaced (with their ciphertext) and records deleted (tombstones), one page at a time.
+ *
+ * - `epoch`: the vault's identity (when it was created); a device holding another epoch's copy
+ *   (the demo account was reset, …) starts over
+ * - `reset`: the cursor is older than the tombstones kept: deletions may be missing, so the device
+ *   starts over (from an empty cursor)
+ * - `cursor` / `more`: where the next page starts, and whether there is one
+ * @param {{ cursor?: string, limit?: number, kinds: string[] }} options `kinds`: those the user may see
+ * @returns {Promise<{ epoch: string, records: object[], deleted: object[], cursor: string, more: boolean, reset?: boolean }>}
+ */
+export async function dbSyncVaultRecords(env, userId, { cursor = "", limit = VAULT_SYNC_PAGE, kinds }) {
+  await ensureSchema(env);
+  const vault = await dbGetUserVault(env, userId);
+  const epoch = vault?.createdAt || "";
+  const from = parseSyncCursor(cursor);
+  const size = Math.min(Math.max(Number(limit) || VAULT_SYNC_PAGE, 1), VAULT_SYNC_MAX_PAGE);
+  const allowed = (kinds || []).filter((k) => VAULT_RECORD_KINDS.includes(k));
+  const empty = { epoch, records: [], deleted: [], cursor: String(cursor || ""), more: false };
+  if (!vault || allowed.length === 0) return empty;
+
+  const oldest = new Date(Date.now() - VAULT_TOMBSTONE_RETENTION_DAYS * DAY_MS).toISOString();
+  if (from && from.time < oldest) return { ...empty, cursor: "", reset: true };
+
+  const marks = allowed.map(() => "?").join(", ");
+  const after = from ? "AND (TIME, kind, id) > (?, ?, ?)" : "";
+  const afterParams = from ? [from.time, from.kind, from.id] : [];
+  const [recordRows, tombRows] = await Promise.all([
+    env.DB.prepare(`
+      SELECT kind, id, payload, record_date AS recordDate, parent_id AS parentId, updated_at AS updatedAt
+      FROM vault_records WHERE user_id = ? AND kind IN (${marks}) ${after.replace("TIME", "updated_at")}
+      ORDER BY updated_at, kind, id LIMIT ?
+    `).bind(userId, ...allowed, ...afterParams, size).all(),
+    // From the start there is nothing to delete on the device
+    from
+      ? env.DB.prepare(`
+          SELECT kind, id, deleted_at AS deletedAt FROM vault_tombstones
+          WHERE user_id = ? AND kind IN (${marks}) ${after.replace("TIME", "deleted_at")}
+          ORDER BY deleted_at, kind, id LIMIT ?
+        `).bind(userId, ...allowed, ...afterParams, size).all()
+      : Promise.resolve({ results: [] }),
+  ]);
+  const records = recordRows?.results || [];
+  const tombs = tombRows?.results || [];
+
+  // One ordered stream of changes; a page ends at its size
+  const changes = [
+    ...records.map((r) => ({ time: r.updatedAt, kind: r.kind, id: r.id, record: r })),
+    ...tombs.map((t) => ({ time: t.deletedAt, kind: t.kind, id: t.id, deleted: t })),
+  ].sort(compareChange);
+  const page = changes.slice(0, size);
+  const last = page[page.length - 1];
+  const more = records.length === size || tombs.length === size || changes.length > size;
+
+  // Old tombstones of this user, now and then
+  if (Math.random() < 0.02) {
+    env.DB.prepare(`DELETE FROM vault_tombstones WHERE user_id = ? AND deleted_at < ?`).bind(userId, oldest).run().catch(() => {});
+  }
+
+  return {
+    epoch,
+    records: page.filter((c) => c.record).map((c) => c.record),
+    deleted: page.filter((c) => c.deleted).map(({ kind, id, time }) => ({ kind, id, deletedAt: time })),
+    cursor: last ? cursorOf(last.time, last.kind, last.id) : String(cursor || ""),
+    more,
+  };
 }

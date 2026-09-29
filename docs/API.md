@@ -278,6 +278,7 @@ loan / income / cheque endpoints return `409 VAULT_ENABLED` and portfolio data m
 | `GET` | `/api/v1/vault/records/:kind` | Encrypted records of `loan`, `income`, `cheque`, `recurring_income`, `holding` or `transaction` — newest date first. Filters on the plaintext metadata only: `?from`, `?to` (inclusive `YYYY-MM-DD`), `?parent`, `?undated=1` (date missing or not yet Gregorian); `?order=asc\|desc`; with `?limit` (1–200) and `?offset` one page plus `total` |
 | `PUT` | `/api/v1/vault/records/:kind/:id` | Create/replace a record (`{ payload, replacePlain }` — `replacePlain` deletes the plaintext row with the same id in the same batch) |
 | `DELETE` | `/api/v1/vault/records/:kind/:id` | Delete a record |
+| `GET` | `/api/v1/vault/sync` | Incremental sync for devices keeping a copy (the Android app, offline): every change after `?cursor` (`time\|kind\|id`, empty = from the start), oldest first, `?limit` 1–500 (default 200). `{ epoch, records: [{kind, id, payload, recordDate, parentId, updatedAt}], deleted: [{kind, id, deletedAt}], cursor, more, reset? }` — a different `epoch` (the vault was recreated) or `reset` (cursor older than the 180 days of tombstones kept) means start over. Only kinds the user's features allow |
 
 Portfolios protected by the vault carry `e2eeWrappedKey`; `/api/v1/portfolio/shared` reports `e2eeLinkKey: true` for them
 (the viewer needs the key from the share link's `#k=` fragment).

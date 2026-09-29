@@ -17,6 +17,8 @@ const CIPHER_2 = 'enc:e2ee:v1:SUpLTE1OT1A=';
 function createDb() {
   const vaults = new Map();
   const records = new Map();
+  // Deleted records (vault_tombstones): key → deleted_at
+  const tombstones = new Map();
   const plain = { loans: [], loan_installment_states: [], loan_extra_payments: [], incomes: [], cheques: [], portfolios: [], portfolio_holdings: [], transactions: [] };
   const recordKey = (u, k, i) => `${u}|${k}|${i}`;
   let failNextBatch = false;
@@ -39,7 +41,7 @@ function createDb() {
   };
 
   const db = {
-    vaults, records, plain,
+    vaults, records, plain, tombstones,
     failNextBatch() { failNextBatch = true; },
     prepare(sql) {
       const q = sql.replace(/\s+/g, ' ').trim();
@@ -60,6 +62,15 @@ function createDb() {
           }
           if (q.startsWith('DELETE FROM user_vaults')) {
             vaults.delete(args[0]);
+            return { meta: { changes: 1 } };
+          }
+          if (q.startsWith('DELETE FROM vault_tombstones')) {
+            tombstones.delete(recordKey(...args));
+            return { meta: { changes: 1 } };
+          }
+          if (q.startsWith('INSERT INTO vault_tombstones') && q.includes('VALUES')) {
+            const [user_id, kind, id, deleted_at] = args;
+            tombstones.set(recordKey(user_id, kind, id), deleted_at);
             return { meta: { changes: 1 } };
           }
           if (q.startsWith('INSERT INTO vault_records')) {
@@ -183,6 +194,15 @@ describe('vault records', () => {
     expect(list).toHaveLength(1);
     expect(list[0].payload).toBe(CIPHER_2);
     expect(await dbListVaultRecords(env, 'u1', 'income')).toHaveLength(0);
+  });
+
+  it('a deletion leaves a tombstone (for devices keeping a copy); storing it again clears it', async () => {
+    await dbPutVaultRecord(env, 'u1', 'loan', 'loan_1', { payload: CIPHER });
+    expect(await dbDeleteVaultRecord(env, 'u1', 'loan', 'loan_1')).toBe(true);
+    expect(env.DB.tombstones.has('u1|loan|loan_1')).toBe(true);
+    expect(await dbDeleteVaultRecord(env, 'u1', 'loan', 'loan_1')).toBe(false);
+    await dbPutVaultRecord(env, 'u1', 'loan', 'loan_1', { payload: CIPHER_2 });
+    expect(env.DB.tombstones.has('u1|loan|loan_1')).toBe(false);
   });
 
   it('keeps one plaintext date and parent beside the ciphertext, and filters on them', async () => {

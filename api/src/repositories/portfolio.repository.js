@@ -7,6 +7,7 @@ import { dbGetUserById, generateRandomSlug } from "./user.repository.js";
 import { logger } from "../lib/logger.js";
 import { hashSharePassword, isHashedSharePassword } from "../lib/security.js";
 import { AppError } from "../lib/AppError.js";
+import { vaultTombstoneParentStatements } from "./vault.repository.js";
 
 // Items of a portfolio: plaintext / older encrypted rows plus the account-vault records whose
 // parent is the portfolio
@@ -302,10 +303,13 @@ export async function dbDeletePortfolio(env, portfolioId, userId) {
       DELETE FROM transactions WHERE portfolio_id = ? AND user_id = ?
     `).bind(portfolioId, userId).run();
 
-    // Delete its encrypted items (account vault)
-    await env.DB.prepare(`
-      DELETE FROM vault_records WHERE user_id = ? AND parent_id = ? AND kind IN ('holding', 'transaction')
-    `).bind(userId, portfolioId).run();
+    // Delete its encrypted items (account vault), telling devices that keep a copy
+    await env.DB.batch([
+      ...vaultTombstoneParentStatements(env, userId, portfolioId, ["holding", "transaction"]),
+      env.DB.prepare(`
+        DELETE FROM vault_records WHERE user_id = ? AND parent_id = ? AND kind IN ('holding', 'transaction')
+      `).bind(userId, portfolioId),
+    ]);
 
     // Delete portfolio
     await env.DB.prepare(`

@@ -152,6 +152,7 @@ import {
   handlePutVaultRecord,
   handleDeleteVaultRecord,
   handleGetLoanDocument,
+  handleSyncVaultRecords,
 } from "./handlers/vaultRoutes.js";
 import { handleGetHomeLayout, handleSaveHomeLayout } from "./handlers/homeLayoutRoutes.js";
 import { fetchAllPrices } from "./services/market/priceAggregator.service.js";
@@ -339,6 +340,7 @@ async function handleRequest(request, env, ctx) {
     if (request.method === "GET")    return wrap(handleGetVault)(request, env);
     if (request.method === "PUT")    return wrap(handleSaveVault)(request, env);
   }
+  if (normalizedPath === "/api/vault/sync" && request.method === "GET") return wrap(handleSyncVaultRecords)(request, env);
   const vaultRecordMatch = normalizedPath.match(/^\/api\/vault\/records\/([^/]+)\/([^/]+)$/);
   if (vaultRecordMatch) {
     const [, kind, id] = vaultRecordMatch;
