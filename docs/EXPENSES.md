@@ -30,6 +30,7 @@
 
 - **حساب‌ها** (`bank_account`، ویژگی `bank_accounts`): `{ id, name, type: bank|cash|wallet|other, bankId, bankName, cardLast4, currency, notes, archived }` — `api/src/domain/accountDocument.js`، صفحه `web/src/features/accounts/`.
 - هزینه: `accountId` (حسابی که از آن پرداخت شده).
+- هزینه: `loanId` («تأمین از»؛ خالی = پول خود کاربر). وام درآمد نیست؛ آنچه با آن خریده می‌شود با این فیلد به وام وصل می‌شود و `api/src/domain/loanFunding.js` مصرف هر وام را حساب می‌کند (خرج‌شده، مانده، بیش از اصل). جزئیات وام «مصرف وام» را نشان می‌دهد و فقط هزینه‌های از تاریخ شروع وام را می‌گیرد.
 - بودجه: `budget` روی بخش پروژه (تومان)، و `budgets` روی بخش روزمره: `{ total, [category]: amount }` ماهانه.
 
 ## مرحله ۳ — پیامک‌های بانکی و اپ اندروید

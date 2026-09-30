@@ -733,3 +733,104 @@
   cursor: pointer;
 }
 
+
+/* ── Loan usage (LoanFundingCard): what the principal was spent on ── */
+.loan-funding-card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 14px;
+  padding: 14px;
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.loan-funding-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.loan-funding-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.loan-funding-pct {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+}
+
+.loan-progress-bar.is-over {
+  background: var(--color-negative);
+}
+
+.loan-funding-stats {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin: 0;
+}
+
+.loan-funding-stats dt {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+}
+
+.loan-funding-stats dd {
+  margin: 2px 0 0;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.loan-funding-stats dd.is-over {
+  color: var(--color-negative);
+}
+
+.loan-funding-empty {
+  margin: 0;
+  font-size: 0.8rem;
+  line-height: 1.7;
+  color: var(--text-secondary);
+}
+
+.loan-funding-list {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.loan-funding-list li {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 0;
+  border-top: 1px solid var(--border-color);
+  font-size: 0.82rem;
+}
+
+.loan-funding-item-title {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  color: var(--text-primary);
+}
+
+.loan-funding-item-title small,
+.loan-funding-item-date,
+.loan-funding-more {
+  font-size: 0.72rem;
+  color: var(--text-secondary);
+}
+
+.loan-funding-list li.loan-funding-more {
+  display: block;
+}

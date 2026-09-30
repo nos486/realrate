@@ -13,7 +13,9 @@
  * holds everyday spending, each expense in a category (DAILY_EXPENSE_CATEGORIES) and shown
  * month by month.
  *
- * An expense may say which account paid it (`accountId`, an accountDocument.js account).
+ * An expense may say which account paid it (`accountId`, an accountDocument.js account), and
+ * whether it was funded by a loan (`loanId`, «تأمین از»; empty for the user's own money — see
+ * loanFunding.js).
  * Budgets: a project section may carry a total `budget` (tomans); the daily section carries
  * `budgets`, a monthly budget per category plus `total` for the whole month.
  *
@@ -154,10 +156,11 @@ export function validateExpense(body = {}) {
   const source = EXPENSE_SOURCES.includes(body.source) ? body.source : 'manual';
   const bankId = text(body.bankId).slice(0, 64);
   const accountId = ID_RE.test(text(body.accountId)) ? text(body.accountId) : '';
+  const loanId = ID_RE.test(text(body.loanId)) ? text(body.loanId) : '';
   const smsFingerprint = source === 'sms' && /^[0-9a-f]{8}$/.test(text(body.smsFingerprint)) ? text(body.smsFingerprint) : '';
   const smsKey = source === 'sms' ? text(body.smsKey).slice(0, 120) : '';
 
-  return { value: { groupId, title, amount, currency, date, usdRate, notes, category, source, bankId, accountId, smsFingerprint, smsKey } };
+  return { value: { groupId, title, amount, currency, date, usdRate, notes, category, source, bankId, accountId, loanId, smsFingerprint, smsKey } };
 }
 
 /** Newest first; the same day by the time it was recorded */

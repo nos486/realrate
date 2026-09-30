@@ -1,22 +1,41 @@
 /**
  * ExpensesTable.jsx — Expenses of a section (desktop table / mobile cards via ResponsiveDataTable)
+ * An expense funded by a loan («تأمین از») names the loan under its title.
  */
 
 import React from 'react';
-import { Calendar, MessageSquare, Pencil, Trash2 } from 'lucide-react';
+import { Calendar, Landmark, MessageSquare, Pencil, Trash2 } from 'lucide-react';
 import { ResponsiveDataTable } from '../../../shared/ui/index.js';
 import { formatShamsiDisplay } from '../../portfolio/components/ShamsiDatePicker.jsx';
 import { formatAmount } from '../utils/format.js';
 import { expenseInToman } from '../../../utils/expenseDocument.js';
 import { getExpenseCategory } from '../constants/expenseCategories.js';
 import { accountLabel } from '../../accounts/constants/accountDisplay.js';
+import { useOptionalLoans } from '../../loans/context/LoansContext.jsx';
 
 const MASK = '****';
 
 export default function ExpensesTable({ expenses, usdToman = 0, onEdit, onDelete, deletingId = null, hideValues = false, readOnly = false, showCategory = false, accounts = null }) {
   const accountById = accounts ? new Map(accounts.map((a) => [a.id, a])) : null;
+  const loans = useOptionalLoans();
+  const loanTitle = (id) => (id ? loans.find((l) => l.id === id)?.title || 'وام' : '');
   const columns = [
-    { key: 'title', header: 'عنوان', mobile: 'title', render: (e) => <span className="income-title-text">{e.title}</span> },
+    {
+      key: 'title',
+      header: 'عنوان',
+      mobile: 'title',
+      render: (e) => (
+        <span className="income-title-text">
+          {e.title}
+          {e.loanId && (
+            <small className="expense-loan-badge">
+              <Landmark size={11} />
+              از {loanTitle(e.loanId)}
+            </small>
+          )}
+        </span>
+      ),
+    },
     ...(showCategory
       ? [{
           key: 'category',

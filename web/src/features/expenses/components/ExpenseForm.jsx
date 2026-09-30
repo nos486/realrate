@@ -6,8 +6,9 @@
  * A dollar expense may carry the toman rate of its day; left empty, totals convert it at
  * today's rate. With `accounts`, the account it was paid from can be picked (a new everyday
  * expense starts from the last one used). A new expense may start from a `draft` (a bank SMS:
- * amount, day, account, note, and its source). Mounted only while open, so its state starts from
- * props.
+ * amount, day, account, note, and its source). «تأمین از» says whether it was paid from the user's
+ * own money or from a loan (loanFunding.js) — offered while there is a loan not yet settled.
+ * Mounted only while open, so its state starts from props.
  */
 
 import React, { useState } from 'react';
@@ -22,6 +23,8 @@ import { parseInputNumber, formatNum } from '../../portfolio/utils/holdingHelper
 import { EXPENSE_CURRENCIES, EXPENSE_LIMITS } from '../../../utils/expenseDocument.js';
 import { EXPENSE_CATEGORIES, getExpenseCategory } from '../constants/expenseCategories.js';
 import { accountLabel } from '../../accounts/constants/accountDisplay.js';
+import { useOptionalLoans } from '../../loans/context/LoansContext.jsx';
+import { fundingLoanOptions } from '../../../utils/loanFunding.js';
 
 const LAST_ACCOUNT_KEY = 'realrate_last_expense_account';
 
@@ -48,6 +51,8 @@ export default function ExpenseForm({ group = null, daily = false, expense = nul
     const last = readLastAccount();
     return accounts.some((a) => a.id === last) ? last : '';
   });
+  const [loanId, setLoanId] = useState(expense?.loanId || '');
+  const fundingLoans = fundingLoanOptions(useOptionalLoans(), expense?.loanId);
   const [category, setCategory] = useState(expense?.category || 'groceries');
   // A daily expense titled after its category shows an empty title field (the default)
   const [title, setTitle] = useState(
@@ -76,6 +81,7 @@ export default function ExpenseForm({ group = null, daily = false, expense = nul
         ...(group ? { groupId: group.id } : {}),
         ...(daily ? { category } : {}),
         accountId,
+        loanId: fundingLoans.some((l) => l.id === loanId) ? loanId : '',
         title: title.trim() || getExpenseCategory(category).label,
         amount: amountNum,
         currency,
@@ -204,6 +210,22 @@ export default function ExpenseForm({ group = null, daily = false, expense = nul
               ]}
               activeValue={accountId}
               onChange={setAccountId}
+              size="sm"
+              className="income-category-picker"
+            />
+          </div>
+        )}
+
+        {fundingLoans.length > 0 && (
+          <div className="ui-input-group">
+            <span className="ui-input-label">تأمین از</span>
+            <FilterPills
+              options={[
+                { value: '', label: 'پول خودم' },
+                ...fundingLoans.map((l) => ({ value: l.id, label: l.title })),
+              ]}
+              activeValue={loanId}
+              onChange={setLoanId}
               size="sm"
               className="income-category-picker"
             />

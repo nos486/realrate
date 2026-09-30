@@ -34,6 +34,7 @@ import { useFeedback } from '../../../shared/ui/FeedbackProvider.jsx';
 import { SkeletonRows } from '../../../shared/ui/Skeleton.jsx';
 import { BankLogo, resolveBank, useCustomBanks } from '../../../shared/banks/index.js';
 import LoanBankShareChart from './LoanBankShareChart.jsx';
+import LoanFundingCard from './LoanFundingCard.jsx';
 import VaultUnlockCard from '../../../shared/vault/VaultUnlockCard.jsx';
 import { usePrivacyMode } from '../../../hooks/usePrivacyMode.js';
 import { useDemo } from '../../demo/index.js';
@@ -107,6 +108,7 @@ function LoanDetailModal({ loanId, onClose, onRefreshLoans, readOnly = false }) 
         </div>
       ) : loan ? (
         <div style={{ padding: '4px 0' }}>
+          <LoanFundingCard loan={loan} hideValues={hideValues} />
           <LoanInstallmentsTable
             loan={loan}
             installments={loan.installments || []}
