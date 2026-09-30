@@ -1,6 +1,8 @@
 # Android app: builds the APK from the web app (web/) and its Android shell (web/android).
 # Pull requests get a debug APK to try; main also gets a signed release APK when the signing
-# secrets are set (see docs/ANDROID.md). The APKs are attached to the run as artifacts.
+# secrets are set (see docs/ANDROID.md). The APKs are attached to the run as artifacts, and the
+# signed one is published as a GitHub release (v1.0.<run>), always downloadable as
+# releases/latest/download/realrate.apk.
 name: Android
 
 on:
@@ -18,6 +20,8 @@ concurrency:
 jobs:
   apk:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write # publishing the release
     timeout-minutes: 30
     env:
       VERSION_CODE: ${{ github.run_number }}
@@ -77,3 +81,20 @@ jobs:
           path: web/android/app/build/outputs/apk/release/*.apk
           if-no-files-found: ignore
           retention-days: 90
+
+      - name: Publish the signed APK as a release
+        if: github.event_name != 'pull_request' && env.HAS_SIGNING == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          apk=$(ls web/android/app/build/outputs/apk/release/*.apk | head -n1)
+          cp "$apk" "$RUNNER_TEMP/realrate.apk"
+          # A re-run of the same build replaces the file of its release
+          if gh release view "v$VERSION_NAME" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release upload "v$VERSION_NAME" "$RUNNER_TEMP/realrate.apk" --repo "$GITHUB_REPOSITORY" --clobber
+            exit 0
+          fi
+          gh release create "v$VERSION_NAME" "$RUNNER_TEMP/realrate.apk" \
+            --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --latest \
+            --title "RealRate $VERSION_NAME" \
+            --notes "نسخه‌ی $VERSION_NAME اپ اندروید (امضاشده). همیشه آخرین نسخه: https://github.com/$GITHUB_REPOSITORY/releases/latest/download/realrate.apk"
