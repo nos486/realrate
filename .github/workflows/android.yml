@@ -87,14 +87,20 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
+          tag="v$VERSION_NAME"
           apk=$(ls web/android/app/build/outputs/apk/release/*.apk | head -n1)
           cp "$apk" "$RUNNER_TEMP/realrate.apk"
-          # A re-run of the same build replaces the file of its release
-          if gh release view "v$VERSION_NAME" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
-            gh release upload "v$VERSION_NAME" "$RUNNER_TEMP/realrate.apk" --repo "$GITHUB_REPOSITORY" --clobber
-            exit 0
+          # The tag first: creating it while publishing the release has failed with HTTP 500
+          if ! git ls-remote --exit-code --tags origin "refs/tags/$tag" >/dev/null; then
+            git tag "$tag" "$GITHUB_SHA"
+            git push origin "refs/tags/$tag"
           fi
-          gh release create "v$VERSION_NAME" "$RUNNER_TEMP/realrate.apk" \
-            --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --latest \
-            --title "RealRate $VERSION_NAME" \
-            --notes "نسخه‌ی $VERSION_NAME اپ اندروید (امضاشده). همیشه آخرین نسخه: https://github.com/$GITHUB_REPOSITORY/releases/latest/download/realrate.apk"
+          if gh release view "$tag" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            # A re-run (or a publish that failed half way): replace the file, make sure it is out
+            gh release upload "$tag" "$RUNNER_TEMP/realrate.apk" --repo "$GITHUB_REPOSITORY" --clobber
+            gh release edit "$tag" --repo "$GITHUB_REPOSITORY" --draft=false --latest
+          else
+            gh release create "$tag" "$RUNNER_TEMP/realrate.apk" --repo "$GITHUB_REPOSITORY" --verify-tag --latest \
+              --title "RealRate $VERSION_NAME" \
+              --notes "نسخه‌ی $VERSION_NAME اپ اندروید (امضاشده). همیشه آخرین نسخه: https://github.com/$GITHUB_REPOSITORY/releases/latest/download/realrate.apk"
+          fi
