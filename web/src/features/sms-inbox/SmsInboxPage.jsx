@@ -20,7 +20,7 @@ import { useVault } from '../../shared/vault/useVault.js';
 import { useDemo } from '../demo/index.js';
 import { useAccounts } from '../accounts/hooks/useAccounts.js';
 import { usePricing } from '../market/index.js';
-import { markSmsHandled, readSmsDays, smsPermission, dropRecordedSms, getSmsSettings } from '../../shared/native/smsInbox.js';
+import { markSmsHandled, readSmsDays, smsPermission, getSmsSettings } from '../../shared/native/smsInbox.js';
 import { useSmsInbox } from '../../shared/native/useSmsInbox.js';
 import { createIncome } from '../incomes/api/incomeApi.js';
 import ExpenseForm from '../expenses/components/ExpenseForm.jsx';
@@ -28,8 +28,7 @@ import IncomeForm from '../incomes/components/IncomeForm.jsx';
 import SmsInboxList from './SmsInboxList.jsx';
 import LoanDepositSheet from './LoanDepositSheet.jsx';
 import { smsExpenseDraft, smsIncomeDraft } from './smsDrafts.js';
-import { findRecorded, sameDayKey } from './recordedCheck.js';
-import { saveDailyExpense, recordSmsExpense } from './smsRecord.js';
+import { saveDailyExpense, recordSmsExpense, dropAlreadyRecorded } from './smsRecord.js';
 import { getExpenseCategory } from '../expenses/constants/expenseCategories.js';
 import { bumpVaultEpoch } from '../../shared/vault/vaultStore.js';
 
@@ -62,20 +61,13 @@ export default function SmsInboxPage() {
   useEffect(() => {
     if (vaultStatus !== 'unlocked' || !pendingIds) return undefined;
     let cancelled = false;
-    findRecorded(pending)
-      .then(({ recordedKeys, sameDay: found }) => {
-        if (cancelled) return;
-        const byHand = pending
-          .filter((p) => p.tx?.key && found.has(sameDayKey(p.tx.direction, p.tx.date, p.tx.amount)))
-          .map((p) => p.tx.key);
-        dropRecordedSms([...recordedKeys, ...byHand]);
-      })
-      .catch((err) => console.warn('Checking recorded SMS failed:', err));
+    dropAlreadyRecorded().catch((err) => {
+      if (!cancelled) console.warn('Checking recorded SMS failed:', err);
+    });
     return () => {
       cancelled = true;
     };
-    // `pendingIds` stands for `pending`
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // `pendingIds`: checked again whenever the list changes
   }, [vaultStatus, pendingIds]);
 
   const handleRecord = (item) => {
@@ -116,8 +108,13 @@ export default function SmsInboxPage() {
         toast.error('اجازه‌ی خواندن پیامک داده نشد. از تنظیمات گوشی (برنامه‌ها ← RealRate ← مجوزها) آن را بدهید.', { duration: 8000 });
         return;
       }
-      const { read, added } = await readSmsDays(days);
-      toast.success(`${read.toLocaleString('fa-IR')} پیامک بانکی خوانده شد؛ ${added.toLocaleString('fa-IR')} مورد جدید برای ثبت.`);
+      // With the vault open, recorded ones are read again and checked against it: a message whose
+      // expense or income was deleted comes back
+      const unlocked = vaultStatus === 'unlocked';
+      const { read, added } = await readSmsDays(days, { recheckRecorded: unlocked });
+      const dropped = unlocked && added ? await dropAlreadyRecorded() : 0;
+      const fresh = Math.max(0, added - dropped);
+      toast.success(`${read.toLocaleString('fa-IR')} پیامک بانکی خوانده شد؛ ${fresh.toLocaleString('fa-IR')} مورد جدید برای ثبت.`);
     } catch (err) {
       toast.error(err?.message || 'خواندن پیامک‌ها ممکن نشد.');
     } finally {

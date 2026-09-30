@@ -14,10 +14,13 @@
  * Older messages are read only on request ("read the last N days", on the SMS page).
  *
  * The same transaction never shows twice: a message is known by its text (`fingerprint`) and by
- * its transaction (`key`: bank, direction, amount, day and time — bankSms.js). Recorded or
- * dismissed ones are remembered here; recorded ones also carry the key in the encrypted expense or
- * income (`smsKey`), which the SMS page checks (dropRecordedSms), so it holds across devices and
- * reinstalls.
+ * its transaction (`key`: bank, direction, amount, day and time — bankSms.js). Two kinds of
+ * "done" are remembered here:
+ * - dismissed («رد», or a deposit that was a loan): the user's decision, for good
+ * - recorded: the expense or income carries the key (`smsKey`), so the vault is the truth, not
+ *   this list — reading earlier messages on request (`recheckRecorded`) lets them back in, and
+ *   the SMS page drops those whose record still exists (recordedCheck.js). A record deleted since
+ *   brings its message back.
  */
 
 import { isNativeApp } from './nativeApp.js';
@@ -27,7 +30,9 @@ import { BANK_SMS_TEMPLATES } from '../../utils/bankSmsTemplates.js';
 
 const SETTINGS_KEY = 'realrate_sms_settings';
 const PENDING_KEY = 'realrate_sms_pending';
+/** Recorded (and, before dismissals had their own list, dismissed) */
 const HANDLED_KEY = 'realrate_sms_handled';
+const DISMISSED_KEY = 'realrate_sms_dismissed';
 const MAX_HANDLED = 3000;
 const DAY_MS = 86_400_000;
 const READ_OVERLAP_MS = 60 * 60 * 1000;
@@ -112,24 +117,34 @@ export function getPendingSms() {
   return read(PENDING_KEY, []).map(({ body: _body, ...item }) => item);
 }
 
-function handledSet() {
-  return new Set(read(HANDLED_KEY, []));
-}
-
-/**
- * Recorded or dismissed: never shown again (the message's text and its transaction)
- * @param {string} fingerprint a waiting message's fingerprint
- */
-export function markSmsHandled(fingerprint) {
+/** Take a waiting message out of the inbox, remembering its text and transaction in `listKey` */
+function takeOut(fingerprint, listKey) {
   if (!fingerprint) return;
   const pending = getPendingSms();
   const item = pending.find((p) => p.fingerprint === fingerprint);
   const ids = [fingerprint, item?.tx?.key].filter(Boolean);
-  const handled = read(HANDLED_KEY, []).filter((f) => !ids.includes(f));
-  handled.push(...ids);
-  write(HANDLED_KEY, handled.slice(-MAX_HANDLED));
+  const list = read(listKey, []).filter((f) => !ids.includes(f));
+  list.push(...ids);
+  write(listKey, list.slice(-MAX_HANDLED));
   write(PENDING_KEY, pending.filter((p) => p.fingerprint !== fingerprint));
   notify();
+}
+
+/**
+ * Recorded (an expense or income now carries its key): out of the inbox, and not read again —
+ * unless earlier messages are read on request and its record is gone
+ * @param {string} fingerprint a waiting message's fingerprint
+ */
+export function markSmsHandled(fingerprint) {
+  takeOut(fingerprint, HANDLED_KEY);
+}
+
+/**
+ * Dismissed by the user («رد», or a deposit that was a loan): never shown again
+ * @param {string} fingerprint a waiting message's fingerprint
+ */
+export function dismissSms(fingerprint) {
+  takeOut(fingerprint, DISMISSED_KEY);
 }
 
 /**
@@ -148,10 +163,12 @@ export function dropRecordedSms(recordedKeys) {
 /**
  * Add read messages to the inbox: those the templates read, not handled, not there yet
  * @param {Array<{ address: string, body: string, date: number }>} messages
+ * @param {{ recheckRecorded?: boolean }} [options] let recorded ones back in, to be checked against
+ *   the vault (their record may have been deleted); dismissed ones stay out
  * @returns {number} how many were added
  */
-export function addSmsMessages(messages) {
-  const handled = handledSet();
+export function addSmsMessages(messages, { recheckRecorded = false } = {}) {
+  const handled = new Set([...read(DISMISSED_KEY, []), ...(recheckRecorded ? [] : read(HANDLED_KEY, []))]);
   const pending = getPendingSms();
   const known = new Set(pending.flatMap((p) => [p.fingerprint, p.tx?.key]).filter(Boolean));
   let added = 0;
@@ -208,17 +225,21 @@ export async function enableSmsReading() {
  * Read the bank senders' messages since `since` (epoch millis) into the inbox
  * @returns {Promise<{ read: number, added: number }>}
  */
-export async function readSmsSince(since) {
+export async function readSmsSince(since, options = {}) {
   const now = Date.now();
   const { messages = [] } = await BankSms.read({ senders: SMS_SENDERS, rules: SMS_RULES, since: Math.max(0, Math.floor(since)) });
-  const added = addSmsMessages(messages);
+  const added = addSmsMessages(messages, options);
   setSmsSettings({ lastRead: now });
   return { read: messages.length, added };
 }
 
-/** "Read the last N days" */
-export function readSmsDays(days) {
-  return readSmsSince(Date.now() - days * DAY_MS);
+/**
+ * "Read the last N days"
+ * @param {number} days
+ * @param {{ recheckRecorded?: boolean }} [options] see addSmsMessages
+ */
+export function readSmsDays(days, options = {}) {
+  return readSmsSince(Date.now() - days * DAY_MS, options);
 }
 
 /**

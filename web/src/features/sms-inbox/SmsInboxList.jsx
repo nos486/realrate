@@ -15,7 +15,7 @@ import { Button, EmptyState } from '../../shared/ui/index.js';
 import { useFeedback } from '../../shared/ui/FeedbackProvider.jsx';
 import { BankLogo, resolveBank } from '../../shared/banks/index.js';
 import { useSmsInbox } from '../../shared/native/useSmsInbox.js';
-import { markSmsHandled, smsPermission, enableSmsReading, setSmsSettings, SMS_SENDERS, QUICK_RECORD_MAX } from '../../shared/native/smsInbox.js';
+import { dismissSms, smsPermission, enableSmsReading, setSmsSettings, SMS_SENDERS, QUICK_RECORD_MAX } from '../../shared/native/smsInbox.js';
 import { matchSmsAccount } from '../../utils/bankSms.js';
 import { formatShamsiDisplay } from '../portfolio/components/ShamsiDatePicker.jsx';
 import { accountLabel } from '../accounts/constants/accountDisplay.js';
@@ -157,7 +157,7 @@ export default function SmsInboxList({ accounts = [], onRecord, onQuickRecord, q
                 size="sm"
                 variant="secondary"
                 icon={<X size={14} />}
-                onClick={() => markSmsHandled(item.fingerprint)}
+                onClick={() => dismissSms(item.fingerprint)}
                 aria-label="رد این پیامک"
               >
                 رد

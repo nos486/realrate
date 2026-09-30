@@ -36,7 +36,7 @@ import { BankLogo, resolveBank, useCustomBanks } from '../../../shared/banks/ind
 import LoanBankShareChart from './LoanBankShareChart.jsx';
 import LoanFundingCard from './LoanFundingCard.jsx';
 import { useQuickAddParam } from '../../../shared/hooks/useQuickAddParam.js';
-import { markSmsHandled } from '../../../shared/native/smsInbox.js';
+import { dismissSms } from '../../../shared/native/smsInbox.js';
 import VaultUnlockCard from '../../../shared/vault/VaultUnlockCard.jsx';
 import { usePrivacyMode } from '../../../hooks/usePrivacyMode.js';
 import { useDemo } from '../../demo/index.js';
@@ -302,7 +302,7 @@ export default function LoansPage({ initialLoanId = null }) {
       await updateLoan(editingLoan.id, formData);
     } else {
       await addLoan(formData);
-      if (loanDraft?.smsFingerprint) markSmsHandled(loanDraft.smsFingerprint);
+      if (loanDraft?.smsFingerprint) dismissSms(loanDraft.smsFingerprint);
     }
   };
 

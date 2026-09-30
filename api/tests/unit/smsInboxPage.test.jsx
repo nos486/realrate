@@ -115,6 +115,27 @@ describe('SmsInboxPage', () => {
     expect(getPendingSms()).toHaveLength(2);
   });
 
+  it('reading earlier messages brings back one whose recorded expense was deleted, not one still recorded', async () => {
+    const debitKey = 'blu|debit|2000000|2026-09-28|10:47';
+    // Recorded: the expense carries its key
+    expenses.getExpenses.mockResolvedValue({ expenses: [{ id: 'e1', date: '2026-09-28', amount: 2000000, currency: 'IRT', smsKey: debitKey }] });
+    render(<SmsInboxPage />);
+    await waitFor(() => expect(getPendingSms().map((p) => p.tx.direction)).toEqual(['credit']));
+    plugin.read.mockResolvedValue({ messages: [{ address: '+989999987641', body: BLU_DEBIT, date: RECEIVED }] });
+
+    // Still recorded: read again, checked, gone — nothing new
+    fireEvent.click(screen.getByText('بخوان').closest('button'));
+    await waitFor(() => expect(toast.success).toHaveBeenCalledWith(expect.stringContaining('۰ مورد جدید')));
+    expect(getPendingSms().map((p) => p.tx.direction)).toEqual(['credit']);
+
+    // The expense deleted: it comes back
+    expenses.getExpenses.mockResolvedValue({ expenses: [] });
+    toast.success.mockClear();
+    fireEvent.click(screen.getByText('بخوان').closest('button'));
+    await waitFor(() => expect(toast.success).toHaveBeenCalledWith(expect.stringContaining('۱ مورد جدید')));
+    expect(getPendingSms().map((p) => p.tx.key)).toContain(debitKey);
+  });
+
   it('dismisses a message', async () => {
     render(<SmsInboxPage />);
     await waitFor(() => expect(screen.getAllByLabelText('رد این پیامک')).toHaveLength(2));
