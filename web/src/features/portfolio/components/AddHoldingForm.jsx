@@ -17,6 +17,9 @@ import {
   getItemUnit,
 } from '../../../config/displayEngine.js';
 import { usePricing } from '../../market/index.js';
+import FilterPills from '../../../shared/ui/FilterPills.jsx';
+import { useOptionalLoans } from '../../loans/context/LoansContext.jsx';
+import { fundingLoanOptions } from '../../../utils/loanFunding.js';
 
 const formatNum = (v) => Number(v || 0).toLocaleString('fa-IR');
 
@@ -36,6 +39,9 @@ export default function AddHoldingForm({
   const [buyPrice, setBuyPrice] = useState('');
   const [buyDate, setBuyDate] = useState('');
   const [notes, setNotes] = useState('');
+  // «تأمین از»: bought with the user's own money ('') or with a loan (utils/loanFunding.js)
+  const [loanId, setLoanId] = useState('');
+  const fundingLoans = fundingLoanOptions(useOptionalLoans(), editingHolding?.loanId);
   const [selectedBourseSymbol, setSelectedBourseSymbol] = useState(null);
   const [referenceAsset, setReferenceAsset] = useState(null);
   const [referenceQuantity, setReferenceQuantity] = useState('');
@@ -60,6 +66,7 @@ export default function AddHoldingForm({
       setBuyPrice(editingHolding.buyPrice ? String(editingHolding.buyPrice) : '');
       setBuyDate(editingHolding.buyDate || '');
       setNotes(editingHolding.notes || '');
+      setLoanId(editingHolding.loanId || '');
 
       if (editingHolding.referenceAssetId && editingHolding.referenceQuantity) {
         const refId = editingHolding.referenceAssetId;
@@ -127,6 +134,7 @@ export default function AddHoldingForm({
       setBuyPrice('');
       setBuyDate('');
       setNotes('');
+      setLoanId('');
       setSelectedBourseSymbol(null);
       setReferenceAsset(null);
       setReferenceQuantity('');
@@ -197,6 +205,7 @@ export default function AddHoldingForm({
       buyPrice: finalBuyPrice,
       buyDate: buyDate.trim(),
       notes: notes.trim(),
+      loanId: fundingLoans.some((l) => l.id === loanId) ? loanId : '',
       customPrice: parseInputNumber(customCurrentPrice) || 0,
       referenceAssetId: hasReference ? referenceAsset.id : '',
       referenceQuantity: hasReference ? parsedReferenceQuantity : 0,
@@ -480,6 +489,22 @@ export default function AddHoldingForm({
         onTodayClick={handleTodayClick}
         label="تاریخ خرید (شمسی)"
       />
+
+      {fundingLoans.length > 0 && (
+        <div className="form-item">
+          <label>تأمین از</label>
+          <FilterPills
+            options={[
+              { value: '', label: 'پول خودم' },
+              ...fundingLoans.map((l) => ({ value: l.id, label: l.title })),
+            ]}
+            activeValue={loanId}
+            onChange={setLoanId}
+            size="sm"
+            className="income-category-picker"
+          />
+        </div>
+      )}
 
       {/* Notes */}
       <div className="form-item">

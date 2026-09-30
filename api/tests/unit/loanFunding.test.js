@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { summarizeLoanFunding, fundingLoanOptions, isLoanSettled } from '../../src/domain/loanFunding.js';
+import { summarizeLoanFunding, fundingLoanOptions, isLoanSettled, isoDayOf } from '../../src/domain/loanFunding.js';
 import { validateExpense } from '../../src/domain/expenseDocument.js';
 
 const loan = { id: 'loan_a', principalAmount: 100_000_000, installmentCount: 12, paidCount: 2, remainingBalance: 90_000_000 };
@@ -16,7 +16,32 @@ describe('loanFunding', () => {
     expect(usage.remaining).toBe(60_000_000);
     expect(usage.overspent).toBe(0);
     expect(usage.count).toBe(2);
-    expect(usage.expenses.map((e) => e.id)).toEqual(['2', '1']);
+    expect(usage.items.map((e) => e.id)).toEqual(['2', '1']);
+  });
+
+  it('counts portfolio holdings bought with the loan (Shamsi buy date), newest first', () => {
+    const usage = summarizeLoanFunding(loan, [
+      { id: 'e1', loanId: 'loan_a', amount: 10_000_000, currency: 'IRT', date: '2026-09-01' },
+    ], {
+      holdings: [
+        { id: 'h1', loanId: 'loan_a', amount: 2, buyPrice: 20_000_000, buyDate: '1405/07/08' },
+        { id: 'h2', loanId: 'loan_b', amount: 1, buyPrice: 5_000_000, buyDate: '1405/07/01' },
+        { id: 'h3', amount: 1, buyPrice: 5_000_000, buyDate: '1405/07/01' },
+      ],
+    });
+    expect(usage.spent).toBe(50_000_000);
+    expect(usage.count).toBe(2);
+    expect(usage.items.map((i) => [i.kind, i.id, i.date])).toEqual([
+      ['holding', 'h1', '2026-09-30'],
+      ['expense', 'e1', '2026-09-01'],
+    ]);
+  });
+
+  it('reads Shamsi, Persian-digit and Gregorian days', () => {
+    expect(isoDayOf('1405/07/08')).toBe('2026-09-30');
+    expect(isoDayOf('۱۴۰۵/۰۱/۰۱')).toBe('2026-03-21');
+    expect(isoDayOf('2026-09-30')).toBe('2026-09-30');
+    expect(isoDayOf('')).toBe('');
   });
 
   it('reports spending beyond the principal', () => {

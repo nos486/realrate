@@ -21,6 +21,7 @@ import { putRecord, backfillRecordDates, repairRecordDates } from './vaultRecord
 import { migrateRecordPriceIds, withPriceIdVersion } from '../../utils/priceIds.js';
 import { getKnownPriceIds } from '../../features/market/knownPriceIds.js';
 import { isDemoReadOnly } from '../../features/demo/index.js';
+import { getPortfolioKey, isAccountVaultPortfolio } from './vaultStore.js';
 
 const SILENT = { silent: true };
 const E2EE_PREFIX = 'enc:e2ee:v1:';
@@ -50,6 +51,8 @@ function holdingRecord(portfolioId, h, now = new Date().toISOString()) {
     // "What if I had bought this instead" (comparison only)
     compareAssetId: String(h.compareAssetId || ''),
     comparePriceToman: num(h.comparePriceToman),
+    // Bought with a loan («تأمین از», utils/loanFunding.js), or '' for the user's own money
+    loanId: /^[A-Za-z0-9_-]{1,64}$/.test(String(h.loanId || '')) ? String(h.loanId) : '',
     createdAt: h.createdAt || now,
     updatedAt: now,
   };
@@ -220,6 +223,19 @@ export async function listPortfolioHoldings(portfolio, key) {
   return [...byId.values()]
     .sort((a, b) => String(b.createdAt || '').localeCompare(String(a.createdAt || '')))
     .map(withHoldingDisplay);
+}
+
+/**
+ * The holdings of every portfolio under the account vault, decrypted — as stored, without moving
+ * older rows (reports across portfolios, e.g. what a loan bought)
+ * @param {object[]} portfolios the user's portfolios (getPortfolios)
+ */
+export async function listAccountHoldings(portfolios = []) {
+  const lists = await Promise.all(portfolios.filter(isAccountVaultPortfolio).map(async (portfolio) => {
+    const key = await getPortfolioKey(portfolio);
+    return key ? (await decryptRecords('holding', portfolio.id, key)).items.map(withHoldingDisplay) : [];
+  }));
+  return lists.flat();
 }
 
 /** Create or update a holding */
