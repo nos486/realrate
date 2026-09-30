@@ -3,6 +3,8 @@
  * what — the expenses and portfolio holdings recorded with «تأمین از» this loan
  * (utils/loanFunding.js). Only the expenses dated from the loan's start are downloaded (the vault
  * filters on the plaintext date); holdings are read from every portfolio under the account vault.
+ * For the holdings it bought: their value today at the price book's prices, and the gain as a
+ * yearly rate next to the loan's own interest rate — is the loan paying for itself?
  */
 
 import React, { useEffect, useState } from 'react';
@@ -12,13 +14,50 @@ import { useVault } from '../../../shared/vault/useVault.js';
 import { getExpenses } from '../../../shared/vault/vaultExpenses.js';
 import { listAccountHoldings } from '../../../shared/vault/vaultPortfolioItems.js';
 import { getPortfolios } from '../../portfolio/api/portfolioApi.js';
-import { summarizeLoanFunding } from '../../../utils/loanFunding.js';
+import { summarizeLoanFunding, loanInvestmentReturn } from '../../../utils/loanFunding.js';
+import { getDisplayRatePct } from '../../../utils/loanCalculator.js';
+import { normalizeHolding, resolveHoldingUnitRealPrice } from '../../portfolio/utils/holdingHelpers.js';
 import { getExpenseCategory } from '../../expenses/constants/expenseCategories.js';
 import { formatShamsiDisplay } from '../../portfolio/components/ShamsiDatePicker.jsx';
 import { usePricing } from '../../market/index.js';
 
 const LIST_LIMIT = 5;
 const formatNum = (v) => Math.round(Number(v) || 0).toLocaleString('fa-IR');
+const formatPct = (v) => `${v > 0 ? '+' : ''}${(Math.round(v * 10) / 10).toLocaleString('fa-IR')}٪`;
+
+/** The holdings' gain against the loan's yearly rate (loanInvestmentReturn) */
+function InvestmentReturn({ result, loanRate, money }) {
+  const beats = result.annualPct !== null && loanRate > 0 ? result.annualPct >= loanRate : null;
+  return (
+    <div className="loan-funding-return">
+      <div className="loan-funding-return-row">
+        <span>ارزش امروز خریدهای پورتفو</span>
+        <strong>{money(result.value)} تومان</strong>
+      </div>
+      <div className="loan-funding-return-row">
+        <span>سود / زیان</span>
+        <strong className={result.gain >= 0 ? 'is-gain' : 'is-loss'}>
+          {money(Math.abs(result.gain))} تومان {result.gainPct !== null && `(${formatPct(result.gainPct)})`}
+        </strong>
+      </div>
+      {result.annualPct !== null && (
+        <div className="loan-funding-return-row">
+          <span>بازده سالانه در برابر سود وام</span>
+          <strong>
+            {formatPct(result.annualPct)} <small>در برابر {(Math.round(loanRate * 10) / 10).toLocaleString('fa-IR')}٪</small>
+          </strong>
+        </div>
+      )}
+      {beats !== null && (
+        <p className={`loan-funding-verdict ${beats ? 'is-gain' : 'is-loss'}`}>
+          {beats
+            ? 'تا امروز بازده این خریدها از سود وام بیشتر بوده است.'
+            : 'تا امروز بازده این خریدها از سود وام کمتر بوده؛ وام بیش از سودش هزینه داشته است.'}
+        </p>
+      )}
+    </div>
+  );
+}
 
 /** Loaded one by one: a part that fails leaves the rest */
 async function orNone(load, what) {
@@ -73,6 +112,11 @@ export default function LoanFundingCard({ loan, hideValues = false }) {
 
   if (!data) return null;
   const usage = summarizeLoanFunding(loan, data.expenses, { holdings: data.holdings, usdToman });
+  const valueOf = (h) => {
+    const unit = resolveHoldingUnitRealPrice(normalizeHolding(h, pricing?.itemMap), pricing?.priceMap || {});
+    return unit > 0 ? (Number(h.amount) || 0) * unit : null;
+  };
+  const investment = loanInvestmentReturn(usage.items, valueOf);
   const money = (v) => (hideValues ? '****' : formatNum(v));
   const pct = usage.principal > 0 ? Math.min(100, Math.round((usage.spent / usage.principal) * 100)) : 0;
 
@@ -100,6 +144,8 @@ export default function LoanFundingCard({ loan, hideValues = false }) {
           <dd className={usage.overspent > 0 ? 'is-over' : ''}>{money(usage.overspent || usage.remaining)} تومان</dd>
         </div>
       </dl>
+
+      {investment && <InvestmentReturn result={investment} loanRate={Number(getDisplayRatePct(loan)) || 0} money={money} />}
 
       {usage.count === 0 ? (
         <p className="loan-funding-empty">

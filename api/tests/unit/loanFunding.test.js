@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { summarizeLoanFunding, fundingLoanOptions, isLoanSettled, isoDayOf } from '../../src/domain/loanFunding.js';
+import { summarizeLoanFunding, fundingLoanOptions, isLoanSettled, isoDayOf, loanInvestmentReturn } from '../../src/domain/loanFunding.js';
 import { validateExpense } from '../../src/domain/expenseDocument.js';
 
 const loan = { id: 'loan_a', principalAmount: 100_000_000, installmentCount: 12, paidCount: 2, remainingBalance: 90_000_000 };
@@ -62,5 +62,31 @@ describe('loanFunding', () => {
     expect(validateExpense({ ...base, loanId: 'loan_a' }).value.loanId).toBe('loan_a');
     expect(validateExpense({ ...base, loanId: 'bad id!' }).value.loanId).toBe('');
     expect(validateExpense(base).value.loanId).toBe('');
+  });
+});
+
+describe('loanInvestmentReturn', () => {
+  const items = (list) => summarizeLoanFunding({ id: 'loan_a', principalAmount: 1 }, [], { holdings: list }).items;
+
+  it('values the holdings a loan bought and annualizes the gain by cost-weighted days', () => {
+    const bought = items([
+      { id: 'h1', loanId: 'loan_a', amount: 1, buyPrice: 100, buyDate: '2026-01-01', assetId: 'a' },
+      { id: 'h2', loanId: 'loan_a', amount: 1, buyPrice: 100, buyDate: '2026-07-04', assetId: 'b' },
+    ]);
+    const r = loanInvestmentReturn(bought, (h) => (h.assetId === 'a' ? 150 : 110), { today: '2026-12-31' });
+    expect(r).toMatchObject({ count: 2, cost: 200, value: 260, gain: 60, gainPct: 30 });
+    // (364 + 180) / 2 = 272 days → 30% × 365 / 272
+    expect(r.days).toBe(272);
+    expect(r.annualPct).toBeCloseTo((30 * 365) / 272, 6);
+  });
+
+  it('skips unpriced holdings, and does not annualize a short holding', () => {
+    const bought = items([
+      { id: 'h1', loanId: 'loan_a', amount: 1, buyPrice: 100, buyDate: '2026-12-20' },
+      { id: 'h2', loanId: 'loan_a', amount: 1, buyPrice: 100, buyDate: '2026-12-20', assetId: 'x' },
+    ]);
+    const r = loanInvestmentReturn(bought, (h) => (h.assetId === 'x' ? null : 90), { today: '2026-12-31' });
+    expect(r).toMatchObject({ count: 1, cost: 100, value: 90, gain: -10, gainPct: -10, annualPct: null });
+    expect(loanInvestmentReturn(items([]), () => 1)).toBeNull();
   });
 });

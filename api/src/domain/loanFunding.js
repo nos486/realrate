@@ -73,3 +73,47 @@ export function summarizeLoanFunding(loan, expenses = [], { usdToman = 0, holdin
     items,
   };
 }
+
+const DAY_MS = 86_400_000;
+/** Shorter than this, a yearly figure says more about noise than about the investment */
+export const MIN_ANNUALIZE_DAYS = 30;
+
+/**
+ * How the holdings a loan bought are doing, next to what the loan costs: their cost and value
+ * today, the gain, and that gain as a yearly (simple) rate — comparable with the loan's yearly
+ * interest rate. The holding period is weighted by cost, so a big recent purchase counts more
+ * than a small old one.
+ * @param {object[]} items `summarizeLoanFunding(...).items`; only holdings count
+ * @param {(holding: object) => number|null} valueOf a holding's value today in tomans (null: unknown)
+ * @param {{ today?: string }} [options] YYYY-MM-DD
+ * @returns {{ count: number, cost: number, value: number, gain: number, gainPct: number|null,
+ *   annualPct: number|null, days: number }|null} null when the loan bought no priced holding;
+ *   `annualPct` is null under MIN_ANNUALIZE_DAYS or without buy dates
+ */
+export function loanInvestmentReturn(items = [], valueOf, { today = new Date().toISOString().slice(0, 10) } = {}) {
+  const now = Date.parse(`${today}T00:00:00Z`);
+  let count = 0;
+  let cost = 0;
+  let value = 0;
+  let datedCost = 0;
+  let costDays = 0;
+  for (const item of items) {
+    if (item.kind !== 'holding' || !(item.toman > 0)) continue;
+    const worth = valueOf(item.source);
+    if (worth === null || worth === undefined || !Number.isFinite(worth)) continue;
+    count++;
+    cost += item.toman;
+    value += worth;
+    const bought = item.date ? Date.parse(`${item.date}T00:00:00Z`) : NaN;
+    if (Number.isFinite(bought) && bought <= now) {
+      datedCost += item.toman;
+      costDays += item.toman * ((now - bought) / DAY_MS);
+    }
+  }
+  if (!count) return null;
+  const gain = value - cost;
+  const gainPct = cost > 0 ? (gain / cost) * 100 : null;
+  const days = datedCost > 0 ? costDays / datedCost : 0;
+  const annualPct = gainPct !== null && days >= MIN_ANNUALIZE_DAYS ? (gainPct * 365) / days : null;
+  return { count, cost, value, gain, gainPct, annualPct, days };
+}
