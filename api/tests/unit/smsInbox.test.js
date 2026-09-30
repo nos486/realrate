@@ -32,6 +32,7 @@ import {
   dropRecordedSms,
   getPendingSms,
   markSmsHandled,
+  dismissSms,
   readSmsDays,
   autoReadSms,
   setSmsSettings,
@@ -92,11 +93,20 @@ describe('SMS inbox', () => {
     expect(JSON.stringify(localStorage)).not.toContain('551234');
   });
 
-  it('a recorded or dismissed message never comes back', () => {
-    addSmsMessages([DEBIT]);
-    markSmsHandled(getPendingSms()[0].fingerprint);
+  it('a recorded or dismissed message does not come back by itself', () => {
+    addSmsMessages([DEBIT, CREDIT]);
+    markSmsHandled(getPendingSms().find((p) => p.tx.direction === 'debit').fingerprint);
+    dismissSms(getPendingSms()[0].fingerprint);
     expect(getPendingSms()).toEqual([]);
-    expect(addSmsMessages([DEBIT])).toBe(0);
+    expect(addSmsMessages([DEBIT, CREDIT])).toBe(0);
+  });
+
+  it('reading again with recheckRecorded lets recorded ones back (to check their record), never dismissed ones', () => {
+    addSmsMessages([DEBIT, CREDIT]);
+    markSmsHandled(getPendingSms().find((p) => p.tx.direction === 'debit').fingerprint);
+    dismissSms(getPendingSms()[0].fingerprint);
+    expect(addSmsMessages([DEBIT, CREDIT], { recheckRecorded: true })).toBe(1);
+    expect(getPendingSms().map((p) => p.tx.direction)).toEqual(['debit']);
   });
 
   it('reads the last N days from the bank senders', async () => {

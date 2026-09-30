@@ -12,7 +12,7 @@ import { Landmark, Plus, ChevronLeft } from 'lucide-react';
 import { Button, Modal } from '../../shared/ui/index.js';
 import { useFeedback } from '../../shared/ui/FeedbackProvider.jsx';
 import { appPath } from '../../shared/routes.js';
-import { markSmsHandled } from '../../shared/native/smsInbox.js';
+import { dismissSms } from '../../shared/native/smsInbox.js';
 import { useOptionalLoans } from '../loans/context/LoansContext.jsx';
 import { fundingLoanOptions } from '../../utils/loanFunding.js';
 import { formatAmount } from '../expenses/utils/format.js';
@@ -24,7 +24,7 @@ export default function LoanDepositSheet({ item, onClose }) {
   const { tx } = item;
 
   const handleExisting = (loan) => {
-    markSmsHandled(item.fingerprint);
+    dismissSms(item.fingerprint);
     toast.success(`واریز به‌عنوان دریافت «${loan.title}» کنار رفت؛ درآمد ثبت نشد.`);
     onClose();
   };

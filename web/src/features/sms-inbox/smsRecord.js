@@ -44,6 +44,32 @@ async function accountsOrNone() {
   }
 }
 
+let checking = null;
+
+/**
+ * Drop the waiting messages already recorded — an expense or income carrying their key (here, on
+ * another device), or recorded by hand (same day, amount and kind). Needs the vault open. Calls
+ * made while one runs wait for it and check again, so each drop is counted once.
+ * @returns {Promise<number>} how many were dropped
+ */
+export function dropAlreadyRecorded() {
+  const run = (checking || Promise.resolve()).catch(() => {}).then(async () => {
+    const pending = getPendingSms();
+    if (!pending.length) return 0;
+    const { recordedKeys, sameDay } = await findRecorded(pending);
+    const byHand = pending
+      .filter((p) => p.tx?.key && sameDay.has(sameDayKey(p.tx.direction, p.tx.date, p.tx.amount)))
+      .map((p) => p.tx.key);
+    return dropRecordedSms([...recordedKeys, ...byHand]);
+  });
+  checking = run;
+  run.then(
+    () => { if (checking === run) checking = null; },
+    () => { if (checking === run) checking = null; }
+  );
+  return run;
+}
+
 let running = null;
 
 /**
@@ -60,12 +86,7 @@ export function autoRecordSmallExpenses() {
     if (!small(getPendingSms()).length) return 0;
 
     // Already recorded (here, on another device, or by hand): gone from the inbox first
-    const pending = getPendingSms();
-    const { recordedKeys, sameDay } = await findRecorded(pending);
-    const byHand = pending
-      .filter((p) => p.tx?.key && sameDay.has(sameDayKey(p.tx.direction, p.tx.date, p.tx.amount)))
-      .map((p) => p.tx.key);
-    dropRecordedSms([...recordedKeys, ...byHand]);
+    await dropAlreadyRecorded();
 
     const accounts = await accountsOrNone();
     let recorded = 0;
