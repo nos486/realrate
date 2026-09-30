@@ -27,3 +27,8 @@ export function useLoansContext() {
   }
   return context;
 }
+
+/** The loans, or none outside a LoansProvider (forms that only offer them as a choice) */
+export function useOptionalLoans() {
+  return useContext(LoansContext)?.loans || [];
+}
