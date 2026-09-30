@@ -13,6 +13,7 @@ vi.mock('../../src/repositories/index.js', () => ({
   dbGetUserAuthById: vi.fn(),
   dbGetUserAuthByEmail: vi.fn(),
   dbRecordUserActivity: vi.fn(),
+  dbRecordUserClient: vi.fn(),
 }));
 
 vi.mock('../../src/repositories/demo.repository.js', () => ({
@@ -44,6 +45,19 @@ describe('handleGetMe with feature flags', () => {
     const body = await res.json();
     expect(body.authenticated).toBe(false);
     expect(body.user).toBeNull();
+  });
+
+  it('records the client a signed-in user opens the app with, never for the demo', async () => {
+    getAuthenticatedUser.mockResolvedValue({ userId: 'u1', id: 'u1', email: 'u@example.com', role: 'user' });
+    repo.dbGetUserAuthById.mockResolvedValue({ id: 'u1', emailVerified: true });
+    const fromApp = new Request('https://api.realrate.ir/api/auth/me', { headers: { 'X-RealRate-Client': 'android/1.0.47' } });
+    await handleGetMe(fromApp, env);
+    expect(repo.dbRecordUserClient).toHaveBeenCalledWith(env, 'u1', { platform: 'android', appVersion: '1.0.47' });
+
+    repo.dbRecordUserClient.mockClear();
+    getAuthenticatedUser.mockResolvedValue({ userId: 'demo', id: 'demo', email: 'demo@example.com', role: 'user', kind: 'demo_edit' });
+    await handleGetMe(fromApp, env);
+    expect(repo.dbRecordUserClient).not.toHaveBeenCalled();
   });
 
   it('returns features: ["cheque_scan"] for admin user', async () => {

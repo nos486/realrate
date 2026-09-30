@@ -31,6 +31,42 @@ export async function dbRecordUserActivity(env, userId) {
   }
 }
 
+// Clients already recorded today in this isolate (user, platform, version)
+const recordedClients = new Set();
+
+/**
+ * Record the client a user opened the app with (domain/clientInfo.js): the site or the Android
+ * app and its version — first / last seen, and active today on that client. Idempotent; never
+ * throws.
+ * @param {object} env
+ * @param {string} userId
+ * @param {{ platform: string, appVersion: string }|null} client parseClientHeader's result
+ */
+export async function dbRecordUserClient(env, userId, client) {
+  if (!env?.DB || !userId || !client?.platform) return;
+  const now = new Date().toISOString();
+  const day = now.slice(0, 10);
+  const key = `${userId}|${client.platform}|${client.appVersion}|${day}`;
+  if (recordedClients.has(key)) return;
+  try {
+    await ensureSchema(env);
+    // The latest version seen wins; a request without one keeps the known version
+    await env.DB.prepare(`
+      INSERT INTO user_clients (user_id, platform, app_version, first_seen, last_seen)
+      VALUES (?, ?, ?, ?, ?)
+      ON CONFLICT (user_id, platform) DO UPDATE SET
+        app_version = CASE WHEN excluded.app_version <> '' THEN excluded.app_version ELSE user_clients.app_version END,
+        last_seen = excluded.last_seen
+    `).bind(userId, client.platform, client.appVersion || '', now, now).run();
+    await env.DB.prepare("INSERT INTO client_activity (user_id, platform, day) VALUES (?, ?, ?) ON CONFLICT DO NOTHING")
+      .bind(userId, client.platform, day).run();
+    if (recordedClients.size > 5000) recordedClients.clear();
+    recordedClients.add(key);
+  } catch (e) {
+    logger.error("[DB] dbRecordUserClient error:", { error: e.message });
+  }
+}
+
 /**
  * Generate a random alphanumeric slug for shared URLs
  * @param {number} len

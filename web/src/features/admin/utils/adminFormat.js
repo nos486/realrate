@@ -25,4 +25,7 @@ export function formatDateTime(value) {
 }
 
 /** Display name of a user row */
-export const displayName = (u) => u?.customName || u?.name || u?.email || '-';
+/** An app version name in Persian digits («۱.۰.۴۷»); «نامشخص» when unknown */
+export const faVersion = (v) => (v ? String(v).replace(/\d/g, (d) => '۰۱۲۳۴۵۶۷۸۹'[d]) : 'نامشخص');
+
+export const displayName =(u) => u?.customName || u?.name || u?.email || '-';

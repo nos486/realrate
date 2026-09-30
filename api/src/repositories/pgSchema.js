@@ -378,6 +378,37 @@ export const APP_TABLES = [
     ],
   },
   {
+    // The clients each user opens the app with (domain/clientInfo.js): the site, the Android app
+    // and its latest version, when first and last seen
+    name: "user_clients",
+    columns: ["user_id", "platform", "app_version", "first_seen", "last_seen"],
+    ddl: [
+      `CREATE TABLE IF NOT EXISTS user_clients (
+        user_id TEXT NOT NULL,
+        platform TEXT NOT NULL,
+        app_version TEXT NOT NULL DEFAULT '',
+        first_seen TEXT NOT NULL,
+        last_seen TEXT NOT NULL,
+        PRIMARY KEY (user_id, platform)
+      )`,
+      "CREATE INDEX IF NOT EXISTS idx_user_clients_platform ON user_clients(platform, last_seen)",
+    ],
+  },
+  {
+    // Active users per UTC day and client (user_activity is per day only)
+    name: "client_activity",
+    columns: ["user_id", "platform", "day"],
+    ddl: [
+      `CREATE TABLE IF NOT EXISTS client_activity (
+        user_id TEXT NOT NULL,
+        platform TEXT NOT NULL,
+        day TEXT NOT NULL,
+        PRIMARY KEY (user_id, platform, day)
+      )`,
+      "CREATE INDEX IF NOT EXISTS idx_client_activity_day ON client_activity(day, platform)",
+    ],
+  },
+  {
     // The version of the DDL above that was last applied (see ensurePgSchema)
     name: "app_schema",
     columns: ["id", "version"],

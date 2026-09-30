@@ -17,8 +17,10 @@ import {
   dbGetUserAuthById,
   dbGetUserAuthByEmail,
   dbRecordUserActivity,
+  dbRecordUserClient,
   dbCreateAuthToken,
 } from "../repositories/index.js";
+import { CLIENT_HEADER, parseClientHeader } from "../domain/clientInfo.js";
 import { getDemoVaultPassphrase, DEMO_EMAIL } from "../repositories/demo.repository.js";
 import { ACCOUNT_DISABLED_MESSAGE } from "./accountRoutes.js";
 import { getMaintenance } from "../lib/maintenance.js";
@@ -505,6 +507,10 @@ export async function handleGetMe(request, env) {
   } catch (e) {}
   if (user.kind !== "demo_view") {
     await dbRecordUserActivity(env, userId);
+  }
+  // Which client (the site, the Android app and its version) — not for the shared demo user
+  if (!user.kind?.startsWith("demo")) {
+    await dbRecordUserClient(env, userId, parseClientHeader(request.headers.get(CLIENT_HEADER)));
   }
 
   const isDemo = user.kind === "demo_view" || user.kind === "demo_edit";

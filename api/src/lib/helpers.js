@@ -48,7 +48,8 @@ export function getCorsHeaders(requestOrOrigin) {
   return {
     "Access-Control-Allow-Origin": allowedOrigin,
     "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
-    "Access-Control-Allow-Headers": "Content-Type, Authorization",
+    // X-RealRate-Client: which client (domain/clientInfo.js)
+    "Access-Control-Allow-Headers": "Content-Type, Authorization, X-RealRate-Client",
     "Access-Control-Allow-Credentials": "true",
     "Vary": "Origin",
   };

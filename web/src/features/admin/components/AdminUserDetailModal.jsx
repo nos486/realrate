@@ -6,12 +6,12 @@
  */
 
 import React, { useEffect, useState } from 'react';
-import { UserRound, Ban, LogOut, MailCheck, ShieldCheck, Lock, RotateCcw } from 'lucide-react';
+import { UserRound, Ban, LogOut, MailCheck, ShieldCheck, Lock, RotateCcw, Smartphone, Globe } from 'lucide-react';
 import { AlertBanner, Button, Modal } from '../../../shared/ui/index.js';
 import { useFeedback } from '../../../shared/ui/FeedbackProvider.jsx';
 import { SkeletonRows } from '../../../shared/ui/Skeleton.jsx';
 import { getAdminUserDetail, resendAdminVerification, setAdminUserBlocked, signOutAdminUser } from '../api/adminApi.js';
-import { faNum, formatDateTime, displayName } from '../utils/adminFormat.js';
+import { faNum, faVersion, formatDate, formatDateTime, displayName } from '../utils/adminFormat.js';
 import GoogleIcon from '../../auth/components/GoogleIcon.jsx';
 import { UserBadges } from './AdminUsersCard.jsx';
 
@@ -188,6 +188,28 @@ export default function AdminUserDetailModal({ userId, fallback, onClose, onChan
                 <bdi className="admin-mono">{detail.id}</bdi>
               </Fact>
             </div>
+          </section>
+
+          <section>
+            <h4 className="admin-detail-title">دستگاه‌ها</h4>
+            {detail.clients?.length ? (
+              <ul className="admin-clients">
+                {detail.clients.map((c) => (
+                  <li key={c.platform}>
+                    <span className="admin-client-name">
+                      {c.platform === 'android' ? <Smartphone size={14} /> : <Globe size={14} />}
+                      {c.platform === 'android' ? 'اپ اندروید' : 'سایت'}
+                      {c.appVersion && <bdi className="admin-chip">{faVersion(c.appVersion)}</bdi>}
+                    </span>
+                    <small>
+                      اولین بار {formatDate(c.firstSeen)} · آخرین بار {formatDateTime(c.lastSeen)}
+                    </small>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="admin-detail-note">هنوز ثبت نشده؛ از این پس با هر بار باز کردن برنامه ثبت می‌شود.</p>
+            )}
           </section>
 
           <section>

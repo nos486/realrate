@@ -8,6 +8,7 @@
 
 import { ensureSchema } from "./schema.repository.js";
 import { logger } from "../lib/logger.js";
+import { compareVersions } from "../domain/clientInfo.js";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -31,7 +32,12 @@ export const USER_FILTERS = {
   // Account-wide end-to-end encryption on / off (a user_vaults row means on)
   e2ee: { where: "id IN (SELECT user_id FROM user_vaults)" },
   noE2ee: { where: "id NOT IN (SELECT user_id FROM user_vaults)" },
+  // Has opened the Android app (user_clients, domain/clientInfo.js)
+  app: { where: "id IN (SELECT user_id FROM user_clients WHERE platform = 'android')" },
 };
+
+/** Recent enough to count as a current user of a client (the app's versions in use) */
+const CLIENT_RECENT_DAYS = 30;
 
 const cutoffIso = (days, now = Date.now()) => new Date(now - days * DAY_MS).toISOString();
 
@@ -55,7 +61,9 @@ const USER_LIST_COLUMNS = `
   created_at AS createdAt, last_login AS lastLogin, login_count AS loginCount,
   email_verified AS emailVerified, disabled, google_linked AS googleLinked,
   password_hash != '' AS hasPassword,
-  EXISTS (SELECT 1 FROM user_vaults v WHERE v.user_id = users.id) AS e2eeEnabled
+  EXISTS (SELECT 1 FROM user_vaults v WHERE v.user_id = users.id) AS e2eeEnabled,
+  (SELECT c.app_version FROM user_clients c WHERE c.user_id = users.id AND c.platform = 'android') AS appVersion,
+  (SELECT c.last_seen FROM user_clients c WHERE c.user_id = users.id AND c.platform = 'android') AS appLastSeen
 `;
 
 /** Numeric SQLite flags as booleans */
@@ -68,6 +76,10 @@ function formatListRow(row) {
     googleLinked: Number(row.googleLinked) === 1,
     hasPassword: Number(row.hasPassword) === 1,
     e2eeEnabled: Number(row.e2eeEnabled) === 1,
+    // Opened the Android app at least once: its latest version ('' when unknown) and when
+    usesApp: row.appLastSeen !== null && row.appLastSeen !== undefined,
+    appVersion: row.appVersion || "",
+    appLastSeen: row.appLastSeen || "",
   };
 }
 
@@ -117,7 +129,7 @@ export async function dbGetUsersPage(env, { q = "", filter = "all", limit = 20, 
  *   filters: Record<string, number> }>}
  */
 export async function dbGetUserStats(env, { now = Date.now() } = {}) {
-  const empty = { registeredUsers: 0, publicPortfolios: 0, activeToday: 0, filters: {} };
+  const empty = { registeredUsers: 0, publicPortfolios: 0, activeToday: 0, appActiveToday: 0, appActive30: 0, appVersions: [], filters: {} };
   if (!env || !env.DB) return empty;
   await ensureSchema(env);
   try {
@@ -127,16 +139,31 @@ export async function dbGetUserStats(env, { now = Date.now() } = {}) {
       return `(SELECT COUNT(*) FROM users WHERE ${conditions[0]}) AS "${key}"`;
     });
     const params = filterKeys.flatMap((key) => filterClause(key, now).params);
+    const today = new Date(now).toISOString().slice(0, 10);
+    const recentDay = new Date(now - (CLIENT_RECENT_DAYS - 1) * DAY_MS).toISOString().slice(0, 10);
     const row = await env.DB.prepare(`
       SELECT (SELECT COUNT(*) FROM users) AS registeredUsers,
              (SELECT COUNT(*) FROM portfolios WHERE share_enabled = 1) AS publicPortfolios,
              (SELECT COUNT(*) FROM user_activity WHERE day = ?) AS activeToday,
+             (SELECT COUNT(*) FROM client_activity WHERE platform = 'android' AND day = ?) AS appActiveToday,
+             (SELECT COUNT(DISTINCT user_id) FROM client_activity WHERE platform = 'android' AND day >= ?) AS appActive30,
              ${parts.join(",\n             ")}
-    `).bind(new Date(now).toISOString().slice(0, 10), ...params).first();
+    `).bind(today, today, recentDay, ...params).first();
+    // The app's versions in use (by users seen in the last CLIENT_RECENT_DAYS days), newest first
+    const { results: versionRows = [] } = await env.DB.prepare(`
+      SELECT app_version AS version, COUNT(*) AS users FROM user_clients
+      WHERE platform = 'android' AND last_seen >= ? GROUP BY app_version
+    `).bind(cutoffIso(CLIENT_RECENT_DAYS, now)).all();
+    const appVersions = versionRows
+      .map((r) => ({ version: r.version || "", users: Number(r.users) || 0 }))
+      .sort((a, b) => compareVersions(b.version, a.version));
     return {
       registeredUsers: Number(row?.registeredUsers) || 0,
       publicPortfolios: Number(row?.publicPortfolios) || 0,
       activeToday: Number(row?.activeToday) || 0,
+      appActiveToday: Number(row?.appActiveToday) || 0,
+      appActive30: Number(row?.appActive30) || 0,
+      appVersions,
       filters: Object.fromEntries([
         ["all", Number(row?.registeredUsers) || 0],
         ...filterKeys.map((k) => [k, Number(row?.[k]) || 0]),
@@ -218,7 +245,14 @@ export async function dbGetUserDetail(env, userId, { now = Date.now() } = {}) {
   `).bind(userId).first();
   encrypted.portfolios = Number(encryptedPortfolios?.count) || 0;
 
+  // The clients the user opens RealRate with (the site, the Android app), most recent first
+  const { results: clientRows = [] } = await env.DB.prepare(`
+    SELECT platform, app_version AS appVersion, first_seen AS firstSeen, last_seen AS lastSeen
+    FROM user_clients WHERE user_id = ? ORDER BY last_seen DESC
+  `).bind(userId).all();
+
   return {
+    clients: clientRows.map((c) => ({ platform: c.platform, appVersion: c.appVersion || "", firstSeen: c.firstSeen, lastSeen: c.lastSeen })),
     ...formatListRow(user),
     passwordUpdatedAt: user.passwordUpdatedAt || "",
     activeSessions: Number(usageRow?.activeSessions) || 0,
@@ -235,21 +269,21 @@ export async function dbGetUserDetail(env, userId, { now = Date.now() } = {}) {
 }
 
 /**
- * Sign-ups and active users per UTC day over the last `days` days (oldest first, every day
- * present, zero when nothing happened)
- * @returns {Promise<Array<{ day: string, signups: number, active: number }>>}
+ * Sign-ups, active users and active Android-app users per UTC day over the last `days` days
+ * (oldest first, every day present, zero when nothing happened)
+ * @returns {Promise<Array<{ day: string, signups: number, active: number, appActive: number }>>}
  */
 export async function dbGetDailyGrowth(env, days = 30, { now = Date.now() } = {}) {
   const series = [];
   for (let i = days - 1; i >= 0; i--) {
-    series.push({ day: new Date(now - i * DAY_MS).toISOString().slice(0, 10), signups: 0, active: 0 });
+    series.push({ day: new Date(now - i * DAY_MS).toISOString().slice(0, 10), signups: 0, active: 0, appActive: 0 });
   }
   if (!env?.DB || series.length === 0) return series;
   await ensureSchema(env);
   const from = series[0].day;
   const byDay = new Map(series.map((d) => [d.day, d]));
   try {
-    const [signups, active] = await Promise.all([
+    const [signups, active, appActive] = await Promise.all([
       env.DB.prepare(`
         SELECT substr(created_at, 1, 10) AS day, COUNT(*) AS count FROM users
         WHERE created_at >= ? GROUP BY day
@@ -257,9 +291,13 @@ export async function dbGetDailyGrowth(env, days = 30, { now = Date.now() } = {}
       env.DB.prepare(`
         SELECT day, COUNT(*) AS count FROM user_activity WHERE day >= ? GROUP BY day
       `).bind(from).all(),
+      env.DB.prepare(`
+        SELECT day, COUNT(*) AS count FROM client_activity WHERE platform = 'android' AND day >= ? GROUP BY day
+      `).bind(from).all(),
     ]);
     for (const r of signups.results || []) if (byDay.has(r.day)) byDay.get(r.day).signups = Number(r.count) || 0;
     for (const r of active.results || []) if (byDay.has(r.day)) byDay.get(r.day).active = Number(r.count) || 0;
+    for (const r of appActive.results || []) if (byDay.has(r.day)) byDay.get(r.day).appActive = Number(r.count) || 0;
   } catch (e) {
     logger.error("[DB] dbGetDailyGrowth error:", { error: e.message });
   }
