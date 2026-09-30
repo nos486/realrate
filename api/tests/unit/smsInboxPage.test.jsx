@@ -22,7 +22,13 @@ const expenses = vi.hoisted(() => ({
   getExpenses: vi.fn(async () => ({ expenses: [] })),
   getExpenseGroups: vi.fn(async () => ({ groups: [] })),
   ensureDailyGroup: vi.fn(async () => ({ id: 'exg_daily', type: 'daily' })),
-  saveExpense: vi.fn(async (input) => ({ expense: { id: 'exp_1', ...input } })),
+  // Validated like the real store, so a draft it would refuse fails here too
+  saveExpense: vi.fn(async (input) => {
+    const { validateExpense } = await import('../../src/domain/expenseDocument.js');
+    const { value, error } = validateExpense(input);
+    if (error) throw new Error(error);
+    return { expense: { id: 'exp_1', ...input, ...value } };
+  }),
 }));
 vi.mock('../../../web/src/shared/vault/vaultExpenses.js', () => expenses);
 const incomes = vi.hoisted(() => ({

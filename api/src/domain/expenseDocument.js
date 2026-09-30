@@ -127,7 +127,9 @@ export function validateExpense(body = {}) {
   const groupId = text(body.groupId);
   if (!ID_RE.test(groupId)) return { error: 'بخش این هزینه مشخص نشده است.' };
 
-  const title = text(body.title);
+  // An everyday expense left untitled (the form, «ثبت سریع», automatic SMS recording) is titled
+  // after its category
+  const title = text(body.title) || DAILY_EXPENSE_CATEGORIES.find((c) => c.value === body.category)?.label || '';
   if (!title) return { error: 'عنوان هزینه الزامی است.' };
   if (title.length > EXPENSE_LIMITS.titleLength) return { error: `عنوان نباید بیشتر از ${EXPENSE_LIMITS.titleLength} کاراکتر باشد.` };
 
