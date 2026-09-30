@@ -893,3 +893,45 @@
   font-size: 0.75rem;
   color: var(--text-secondary);
 }
+
+/* What the loan bought in the portfolio, against the loan's rate */
+.loan-funding-return {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.loan-funding-return-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+}
+
+.loan-funding-return-row strong {
+  color: var(--text-primary);
+}
+
+.loan-funding-return-row small {
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+
+.loan-funding-card .is-gain {
+  color: var(--color-positive);
+}
+
+.loan-funding-card .is-loss {
+  color: var(--color-negative);
+}
+
+.loan-funding-verdict {
+  margin: 2px 0 0;
+  font-size: 0.78rem;
+  line-height: 1.7;
+}
