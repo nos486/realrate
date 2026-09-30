@@ -33,6 +33,11 @@ vi.mock('../../../web/src/features/incomes/api/incomeApi.js', () => incomes);
 const toast = vi.hoisted(() => ({ success: vi.fn(), error: vi.fn() }));
 vi.mock('../../../web/src/shared/ui/FeedbackProvider.jsx', () => ({ useFeedback: () => ({ toast, confirm: vi.fn() }) }));
 
+const loans = vi.hoisted(() => ({ list: [] }));
+vi.mock('../../../web/src/features/loans/context/LoansContext.jsx', () => ({ useOptionalLoans: () => loans.list }));
+const navigate = vi.hoisted(() => vi.fn());
+vi.mock('react-router-dom', async (importOriginal) => ({ ...(await importOriginal()), useNavigate: () => navigate }));
+
 import SmsInboxPage from '../../../web/src/features/sms-inbox/SmsInboxPage.jsx';
 import { addSmsMessages, getPendingSms } from '../../../web/src/shared/native/smsInbox.js';
 
@@ -128,5 +133,36 @@ describe('«ثبت سریع» (no form)', () => {
     await waitFor(() => expect(getPendingSms()).toHaveLength(2));
     expect(getPendingSms().some((p) => p.tx.amount === 350000)).toBe(false);
     expect(toast.success).toHaveBeenCalledWith(expect.stringContaining('رستوران'));
+  });
+});
+
+describe('«وام»: a deposit that is a received loan', () => {
+  const loanButton = () => screen.getByText('وام').closest('button');
+
+  it('only on deposits; choosing a loan drops the message without recording income', async () => {
+    loans.list = [
+      { id: 'loan_a', title: 'وام مسکن', principalAmount: 250000, installmentCount: 12, paidCount: 0, remainingBalance: 250000 },
+      { id: 'loan_s', title: 'وام تسویه‌شده', principalAmount: 1000, installmentCount: 1, paidCount: 1, remainingBalance: 0 },
+    ];
+    render(<SmsInboxPage />);
+    await waitFor(() => expect(screen.getAllByText('وام')).toHaveLength(1));
+    fireEvent.click(loanButton());
+    expect(screen.queryByText('وام تسویه‌شده')).toBeNull();
+    fireEvent.click(screen.getByText('وام مسکن').closest('button'));
+    await waitFor(() => expect(getPendingSms()).toHaveLength(1));
+    expect(getPendingSms()[0].tx.direction).toBe('debit');
+    expect(incomes.createIncome).not.toHaveBeenCalled();
+  });
+
+  it('a new loan opens the loans page with the amount, day and bank, keeping the message until saved', async () => {
+    loans.list = [];
+    render(<SmsInboxPage />);
+    await waitFor(() => expect(screen.getAllByText('وام')).toHaveLength(1));
+    fireEvent.click(loanButton());
+    fireEvent.click(screen.getByText('ثبت وام جدید با این مبلغ').closest('button'));
+    const url = new URL(navigate.mock.calls[0][0], 'http://x');
+    expect(url.pathname).toMatch(/\/loans$/);
+    expect(Object.fromEntries(url.searchParams)).toMatchObject({ add: 'loan', amount: '250000', date: '2026-09-25', bank: 'blu' });
+    expect(getPendingSms()).toHaveLength(2);
   });
 });

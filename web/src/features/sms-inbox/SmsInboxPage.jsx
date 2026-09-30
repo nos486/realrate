@@ -2,7 +2,8 @@
  * SmsInboxPage.jsx — «پیامک‌های بانکی»: the bank messages the Android app has read (app only)
  *
  * - the withdrawals and deposits waiting to be recorded (SmsInboxList); «ثبت» opens the everyday
- *   expense form (withdrawal) or the income form (deposit), filled in from the message
+ *   expense form (withdrawal) or the income form (deposit), filled in from the message; «وام»
+ *   marks a deposit as a received loan (LoanDepositSheet), so it is not recorded as income
  * - "read earlier messages": automatic reading only picks up messages from the moment it is on;
  *   older ones are read here on demand (the last 24 hours, 7, 30 or 90 days)
  * Recording writes encrypted records, so the vault must be unlocked for it. Once it is, messages
@@ -25,6 +26,7 @@ import { createIncome } from '../incomes/api/incomeApi.js';
 import ExpenseForm from '../expenses/components/ExpenseForm.jsx';
 import IncomeForm from '../incomes/components/IncomeForm.jsx';
 import SmsInboxList from './SmsInboxList.jsx';
+import LoanDepositSheet from './LoanDepositSheet.jsx';
 import { smsExpenseDraft, smsIncomeDraft } from './smsDrafts.js';
 import { findRecorded, sameDayKey } from './recordedCheck.js';
 import { saveDailyExpense, recordSmsExpense } from './smsRecord.js';
@@ -49,6 +51,7 @@ export default function SmsInboxPage() {
   const [days, setDays] = useState(30);
   const [reading, setReading] = useState(false);
   const [quickId, setQuickId] = useState(null);
+  const [loanItem, setLoanItem] = useState(null);
 
   const locked = vaultStatus === 'locked';
   const { pending } = useSmsInbox();
@@ -138,6 +141,7 @@ export default function SmsInboxPage() {
           onRecord={handleRecord}
           onQuickRecord={handleQuickRecord}
           quickRecordingId={quickId}
+          onLoanDeposit={setLoanItem}
           canRecord={!locked && !readOnly}
         />
       </Card>
@@ -166,6 +170,7 @@ export default function SmsInboxPage() {
           onSubmit={record(saveDailyExpense, expenseDraft, 'هزینه ثبت شد.')}
         />
       )}
+      {loanItem && <LoanDepositSheet item={loanItem} onClose={() => setLoanItem(null)} />}
       {incomeDraft && (
         <IncomeForm
           draft={incomeDraft}

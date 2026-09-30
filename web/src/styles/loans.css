@@ -834,3 +834,62 @@
 .loan-funding-list li.loan-funding-more {
   display: block;
 }
+
+/* ── A bank SMS deposit that is a received loan (sms-inbox/LoanDepositSheet) ── */
+.loan-deposit-body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.loan-deposit-hint {
+  margin: 0;
+  font-size: 0.8rem;
+  line-height: 1.7;
+  color: var(--text-secondary);
+}
+
+.loan-deposit-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.loan-deposit-option {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 12px;
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--text-primary);
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+}
+
+.loan-deposit-option:hover,
+.loan-deposit-option:focus-visible {
+  border-color: var(--color-warning);
+}
+
+.loan-deposit-option > svg:first-child {
+  color: var(--color-warning);
+}
+
+.loan-deposit-option span {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.loan-deposit-option small {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+}
