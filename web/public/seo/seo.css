@@ -275,6 +275,17 @@ a:hover {
   max-width: 900px;
 }
 
+/* A line of small print under the hero's buttons (the Android page) */
+.seo-hero .seo-cta-buttons {
+  margin-top: 1.5rem;
+}
+
+.seo-hero-note {
+  margin-top: 0.9rem;
+  font-size: 0.85rem;
+  color: var(--text-muted, #6b7280);
+}
+
 /* ── Article Sections ───────────────────────────────────── */
 .seo-article {
   display: flex;

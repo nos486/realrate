@@ -10,6 +10,11 @@ export default function Footer() {
   const { canPrompt, promptInstall, isIos, isInstalled } = usePwaInstall();
 
   const triggerPwaInstall = async () => {
+    // On an Android phone, the real app: its download and install guide (a static page, /android)
+    if (/android/i.test(navigator.userAgent || '')) {
+      window.location.assign('/android');
+      return;
+    }
     if (isInstalled) {
       toast.info('اپلیکیشن RealRate روی این دستگاه نصب شده است.');
       return;
@@ -41,7 +46,7 @@ export default function Footer() {
           <button
             type="button"
             onClick={triggerPwaInstall}
-            title="نصب اپلیکیشن RealRate روی صفحه اصلی گوشی"
+            title="نصب اپلیکیشن RealRate روی گوشی"
             className="footer-icon-btn"
           >
             <Smartphone size={18} strokeWidth={2} />
