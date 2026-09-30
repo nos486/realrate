@@ -4,7 +4,7 @@
  * Post-build static SEO generator:
  * - Copies dist/index.html to dist/spa.html (noindex shell)
  * - Enhances dist/index.html with metadata, JSON-LD, and crawlable root fallback
- * - Generates standalone static HTML for /features, /features/*, /about, /faq, and /404
+ * - Generates standalone static HTML for /features, /features/*, /about, /faq, /android and /404
  * - Copies fonts and SEO CSS into dist/seo/
  * - Emits dist/sitemap.xml and dist/robots.txt
  * - Generates dist/_redirects (eliminating catch-all soft 404) and updates dist/_headers
@@ -157,6 +157,7 @@ const crawlableLandingContent = `
             <a href="/features" style="color:#38bdf8;">همه ویژگی‌ها</a>
             <a href="/about" style="color:#f3f4f6;">درباره</a>
             <a href="/faq" style="color:#f3f4f6;">سؤالات متداول</a>
+            <a href="/android" style="color:#f3f4f6;">اپ اندروید</a>
             <a href="/login" style="color:#f3f4f6;">ورود</a>
             <a href="/register" style="color:#10b981;font-weight:700;">ثبت‌نام</a>
           </nav>
@@ -285,6 +286,7 @@ ${jsonLdBlock}
           <a href="/features">ویژگی‌ها</a>
           <a href="/about">درباره</a>
           <a href="/faq">پرسش‌های متداول</a>
+          <a href="/android">اپ اندروید</a>
           <a href="https://github.com/nos486/realrate" target="_blank" rel="noopener noreferrer">گیت‌هاب</a>
         </nav>
 
@@ -339,6 +341,7 @@ ${jsonLdBlock}
               <li><a href="/features">همه امکانات</a></li>
               <li><a href="/about">درباره ریل‌ریت</a></li>
               <li><a href="/faq">پرسش‌های متداول</a></li>
+              <li><a href="/android">دانلود اپ اندروید</a></li>
               <li><a href="/demo">مشاهده محیط دمو</a></li>
               <li><a href="https://github.com/nos486/realrate" target="_blank" rel="noopener noreferrer">مخزن گیت‌هاب</a></li>
               <li><a href="https://github.com/nos486/realrate/blob/main/LICENSE" target="_blank" rel="noopener noreferrer">مجوز انتشار (MIT)</a></li>
@@ -755,6 +758,136 @@ console.log(`✓ Generated ${FEATURE_PAGES.length} feature pages in dist/feature
   console.log('✓ Generated dist/faq.html');
 }
 
+// ── 8b. Generate Android App Page (/android) ─────────────────────────────────
+// Download of the signed APK (the latest GitHub release) and how to install it, including the
+// Play Protect warning a sideloaded app with the SMS permission meets
+{
+  const app = STATIC_PAGES.android;
+  const canonicalUrl = `${SITE.origin}/android`;
+  const breadcrumbs = [
+    { label: 'خانه', url: `${SITE.origin}/` },
+    { label: 'اپ اندروید', url: canonicalUrl },
+  ];
+
+  const appSchema = {
+    '@context': 'https://schema.org',
+    '@type': 'MobileApplication',
+    'name': SITE.name,
+    'applicationCategory': 'FinanceApplication',
+    'operatingSystem': 'Android 7.0+',
+    'inLanguage': 'fa',
+    'downloadUrl': app.downloadUrl,
+    'offers': { '@type': 'Offer', 'price': '0', 'priceCurrency': 'IRR' },
+    'description': app.description,
+  };
+  const faqSchema = {
+    '@context': 'https://schema.org',
+    '@type': 'FAQPage',
+    'mainEntity': app.faq.map((f) => ({
+      '@type': 'Question',
+      'name': f.q,
+      'acceptedAnswer': { '@type': 'Answer', 'text': f.a },
+    })),
+  };
+
+  const bodyHtml = `
+    <!-- Breadcrumb -->
+    <nav aria-label="مسیر راهنما">
+      <ol class="seo-breadcrumb">
+        <li><a href="/">خانه</a></li>
+        <li aria-current="page">اپ اندروید</li>
+      </ol>
+    </nav>
+
+    <!-- Hero -->
+    <header class="seo-hero">
+      <div class="seo-badge">رایگان · متن‌باز · امضاشده</div>
+      <h1>${escapeHtml(app.h1)}</h1>
+      <p class="seo-hero-intro">${escapeHtml(app.intro)}</p>
+      <div class="seo-cta-buttons">
+        <a href="${escapeHtml(app.downloadUrl)}" class="seo-btn seo-btn-primary" download>دانلود اپ اندروید</a>
+        <a href="${escapeHtml(app.releasesUrl)}" target="_blank" rel="noopener noreferrer" class="seo-btn seo-btn-ghost">همه‌ی نسخه‌ها و تغییرات</a>
+      </div>
+      <p class="seo-hero-note">اندروید ۷ به بالا · همیشه آخرین نسخه · به‌روزرسانی روی نسخه‌ی قبلی نصب می‌شود</p>
+    </header>
+
+    <!-- Install steps -->
+    <section class="seo-steps-block">
+      <h2>راهنمای نصب</h2>
+      <div class="seo-steps-grid">
+        ${app.steps
+          .map(
+            (step, i) => `
+          <div class="seo-step-card">
+            <span class="seo-step-num">${(i + 1).toLocaleString('fa-IR')}</span>
+            <h3>${escapeHtml(step.title)}</h3>
+            <p>${escapeHtml(step.description)}</p>
+          </div>`
+          )
+          .join('')}
+      </div>
+    </section>
+
+    <!-- Sections -->
+    <article class="seo-article">
+      ${app.sections
+        .map(
+          (sec) => `
+        <section class="seo-section">
+          <h2>${escapeHtml(sec.h2)}</h2>
+          ${sec.paragraphs.map((p) => `<p>${escapeHtml(p)}</p>`).join('')}
+          ${
+            sec.bullets && sec.bullets.length
+              ? `<ul class="seo-bullets">
+                  ${sec.bullets.map((b) => `<li>${escapeHtml(b)}</li>`).join('')}
+                </ul>`
+              : ''
+          }
+        </section>`
+        )
+        .join('')}
+    </article>
+
+    <!-- FAQ -->
+    <section class="seo-faq-block">
+      <h2>پرسش‌های متداول</h2>
+      <div class="seo-faq-grid">
+        ${app.faq
+          .map(
+            (item) => `
+          <div class="seo-faq-item">
+            <h3 class="seo-faq-q">${escapeHtml(item.q)}</h3>
+            <p class="seo-faq-a">${escapeHtml(item.a)}</p>
+          </div>`
+          )
+          .join('')}
+      </div>
+    </section>
+
+    <!-- CTA -->
+    <section class="seo-cta">
+      <h2>ترجیح می‌دهید بدون نصب شروع کنید؟</h2>
+      <p>همه‌ی امکانات ریل‌ریت در مرورگر هم در دسترس است؛ با همان حساب، هر وقت خواستید اپ را نصب کنید.</p>
+      <div class="seo-cta-buttons">
+        <a href="${escapeHtml(app.downloadUrl)}" class="seo-btn seo-btn-primary" download>دانلود اپ اندروید</a>
+        <a href="/register" class="seo-btn seo-btn-demo">ثبت‌نام در سایت</a>
+      </div>
+    </section>`;
+
+  const androidHtml = renderStaticPage({
+    title: app.title,
+    description: app.description,
+    canonicalUrl,
+    ogImage: app.ogImage,
+    breadcrumbs,
+    jsonLdSchemas: [appSchema, faqSchema],
+    bodyHtml,
+  });
+
+  writeFileSync(resolve(distDir, 'android.html'), androidHtml, 'utf-8');
+  console.log('✓ Generated dist/android.html');
+}
+
 // ── 9. Generate 404 Page (/404.html) ─────────────────────────────────────────
 {
   const canonicalUrl = `${SITE.origin}/404`;
@@ -793,6 +926,7 @@ console.log(`✓ Generated ${FEATURE_PAGES.length} feature pages in dist/feature
     })),
     { loc: `${SITE.origin}/about`, priority: '0.6', changefreq: 'monthly' },
     { loc: `${SITE.origin}/faq`, priority: '0.7', changefreq: 'weekly' },
+    { loc: `${SITE.origin}/android`, priority: '0.8', changefreq: 'weekly' },
   ];
 
   const sitemapXml = `<?xml version="1.0" encoding="UTF-8"?>

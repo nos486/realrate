@@ -204,6 +204,7 @@ export default function LandingPage() {
             <a href="/features">ویژگی‌ها</a>
             <a href="/about">درباره</a>
             <a href="/faq">سؤالات متداول</a>
+            <a href="/android">اپ اندروید</a>
             <a href="#open-source" onClick={(e) => scrollToSection(e, 'open-source')}>
               کد منبع
             </a>
