@@ -19,27 +19,22 @@ import { useVault } from '../../shared/vault/useVault.js';
 import { useDemo } from '../demo/index.js';
 import { useAccounts } from '../accounts/hooks/useAccounts.js';
 import { usePricing } from '../market/index.js';
-import { markSmsHandled, readSmsDays, smsPermission, dropRecordedSms } from '../../shared/native/smsInbox.js';
+import { markSmsHandled, readSmsDays, smsPermission, dropRecordedSms, getSmsSettings } from '../../shared/native/smsInbox.js';
 import { useSmsInbox } from '../../shared/native/useSmsInbox.js';
-import * as expensesApi from '../../shared/vault/vaultExpenses.js';
 import { createIncome } from '../incomes/api/incomeApi.js';
 import ExpenseForm from '../expenses/components/ExpenseForm.jsx';
 import IncomeForm from '../incomes/components/IncomeForm.jsx';
 import SmsInboxList from './SmsInboxList.jsx';
 import { smsExpenseDraft, smsIncomeDraft } from './smsDrafts.js';
 import { findRecorded, sameDayKey } from './recordedCheck.js';
+import { saveDailyExpense, recordSmsExpense } from './smsRecord.js';
+import { getExpenseCategory } from '../expenses/constants/expenseCategories.js';
+import { bumpVaultEpoch } from '../../shared/vault/vaultStore.js';
 
 const DAY_OPTIONS = [
   { value: 1, label: '۲۴ ساعت' },
   ...[7, 30, 90].map((d) => ({ value: d, label: `${d.toLocaleString('fa-IR')} روز` })),
 ];
-
-/** An everyday expense (in the daily section, created on first use) */
-async function saveDailyExpense(input) {
-  const { groups } = await expensesApi.getExpenseGroups();
-  const group = await expensesApi.ensureDailyGroup(groups);
-  return expensesApi.saveExpense({ ...input, groupId: group.id });
-}
 
 export default function SmsInboxPage() {
   const { toast } = useFeedback();
@@ -53,6 +48,7 @@ export default function SmsInboxPage() {
   const [saving, setSaving] = useState(false);
   const [days, setDays] = useState(30);
   const [reading, setReading] = useState(false);
+  const [quickId, setQuickId] = useState(null);
 
   const locked = vaultStatus === 'locked';
   const { pending } = useSmsInbox();
@@ -82,6 +78,20 @@ export default function SmsInboxPage() {
   const handleRecord = (item) => {
     if (item.tx.direction === 'debit') setExpenseDraft(smsExpenseDraft(item.tx, accounts));
     else setIncomeDraft(smsIncomeDraft(item.tx));
+  };
+
+  /** «ثبت سریع»: recorded as it is, in the category of the app settings — no form */
+  const handleQuickRecord = async (item) => {
+    setQuickId(item.fingerprint);
+    try {
+      await recordSmsExpense(item, { accounts: accounts.filter((a) => !a.archived) });
+      bumpVaultEpoch();
+      toast.success(`هزینه در «${getExpenseCategory(getSmsSettings().recordCategory).label}» ثبت شد.`);
+    } catch (err) {
+      toast.error(err?.message || 'ثبت هزینه ممکن نشد.');
+    } finally {
+      setQuickId(null);
+    }
   };
 
   /** Save through `save` (with the transaction's key), then drop the message from the inbox */
@@ -126,6 +136,8 @@ export default function SmsInboxPage() {
         <SmsInboxList
           accounts={accounts}
           onRecord={handleRecord}
+          onQuickRecord={handleQuickRecord}
+          quickRecordingId={quickId}
           canRecord={!locked && !readOnly}
         />
       </Card>

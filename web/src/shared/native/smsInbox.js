@@ -62,13 +62,28 @@ function write(key, value) {
 
 const notify = () => window.dispatchEvent(new Event(SMS_INBOX_EVENT));
 
+/** Withdrawals up to this many tomans get a one-tap «ثبت سریع» (no form) */
+export const QUICK_RECORD_MAX = 1_000_000;
+export const DEFAULT_AUTO_RECORD_MAX = 500_000;
+
 /**
- * @returns {{ auto: boolean, lastRead: number, startedAt: number }} automatic reading is on unless
- *   turned off; `startedAt`: when it started (it never reads messages older than that)
+ * @returns {{ auto: boolean, lastRead: number, startedAt: number, autoRecord: boolean,
+ *   autoRecordMax: number, recordCategory: string }}
+ *   `auto`: automatic reading, on unless turned off; `startedAt`: when it started (it never reads
+ *   messages older than that). `autoRecord`: withdrawals up to `autoRecordMax` tomans are recorded
+ *   as everyday expenses by themselves (off unless turned on); `recordCategory`: the category of
+ *   those and of «ثبت سریع»
  */
 export function getSmsSettings() {
   const s = read(SETTINGS_KEY, {});
-  return { auto: s.auto !== false, lastRead: Number(s.lastRead) || 0, startedAt: Number(s.startedAt) || 0 };
+  return {
+    auto: s.auto !== false,
+    lastRead: Number(s.lastRead) || 0,
+    startedAt: Number(s.startedAt) || 0,
+    autoRecord: s.autoRecord === true,
+    autoRecordMax: Number(s.autoRecordMax) > 0 ? Number(s.autoRecordMax) : DEFAULT_AUTO_RECORD_MAX,
+    recordCategory: typeof s.recordCategory === 'string' && s.recordCategory ? s.recordCategory : 'other',
+  };
 }
 
 export function setSmsSettings(patch) {

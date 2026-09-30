@@ -22,6 +22,7 @@ import { useTabNavigation } from '../shared/hooks/useTabNavigation.js';
 import { useFeature } from '../shared/features/useFeature.js';
 import { isNativeApp } from '../shared/native/nativeApp.js';
 import { startSmsAutoRead } from '../shared/native/smsInbox.js';
+import { useSmsAutoRecord } from '../features/sms-inbox/useSmsAutoRecord.js';
 
 // Each tab other than the market home is loaded on first use, keeping the initial bundle small
 const PortfolioTracker = lazy(() => import('../features/portfolio/components/PortfolioTracker.jsx'));
@@ -63,6 +64,8 @@ export default function MainPage() {
   const navigateRef = useRef(navigate);
   navigateRef.current = navigate;
   useEffect(() => startSmsAutoRead({ onOpenInbox: () => navigateRef.current(appPath('/sms')) }), []);
+  // Small withdrawals recorded by themselves, when turned on in the app settings
+  useSmsAutoRecord(isNativeApp() && hasExpenses && !isDemo);
 
   // Determine active tab from the path below /app (or the ?tab= query param)
   const subPath = getAppSubPath(location.pathname);
