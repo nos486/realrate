@@ -75,6 +75,12 @@ npx cap open android          # باز کردن در Android Studio (Run روی 
 cd android && ./gradlew assembleDebug   # → app/build/outputs/apk/debug/app-debug.apk
 ```
 
+## انتشار برای کاربران
+
+- **صفحه‌ی دانلود**: [realrate.ir/android](https://realrate.ir/android) — صفحه‌ی ایستای سایت (`STATIC_PAGES.android` در `web/src/seo/pages.js`، ساخته‌شده با `scripts/build-seo.mjs`، با JSON-LD از نوع `MobileApplication` و `FAQPage`): دکمه‌ی دانلود آخرین Release، مراحل نصب، مجوزها و پرسش‌های رایج. دکمه‌ی گوشی در فوتر سایت روی اندروید به این صفحه می‌رود و لندینگ هم به آن لینک دارد.
+- **Google Play Protect**: چون اپ خارج از Google Play منتشر می‌شود و `READ_SMS` دارد، Play Protect ممکن است هنگام نصب هشدار دهد («این برنامه را نمی‌شناسد»). کاربر با «جزئیات بیشتر ← نصب در هر صورت» نصب می‌کند؛ برای رفع هشدار می‌توان از فرم «Play Protect appeals» گوگل درخواست بررسی داد (شناسه‌ی اپ `ir.realrate.app`، لینک APK و اثر انگشت SHA-256 گواهی امضا).
+- **آگاهی از کاربران اپ**: هر درخواست اپ سرآیند `X-RealRate-Client: android/<نسخه>` دارد و پنل مدیریت کاربران فعال اپ، نسخه‌ی هر کاربر و چند نفر روی هر نسخه‌اند را نشان می‌دهد ([FEATURES.md](FEATURES.md) بخش ۱۲). نسخه را `VITE_APP_VERSION` در بیلد می‌گذارد.
+
 ## تنظیمات اپ (فقط در اپ)
 
 صفحه‌ی «تنظیمات اپ» (`/app-settings`، `web/src/features/app-settings/`) فقط داخل اپ در منو دیده می‌شود.

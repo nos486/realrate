@@ -1,7 +1,7 @@
 # راه‌اندازی و استقرار
 
 ## پیش‌نیازها
-- Node.js نسخه ۲۰ یا بالاتر، npm نسخه ۹ یا بالاتر
+- Node.js نسخه ۲۲ (همان نسخه‌ی CI)، npm نسخه ۹ یا بالاتر
 - حساب Cloudflare (Workers، KV، Hyperdrive، Pages) و یک پایگاه‌داده Postgres
 
 ## اجرای محلی
@@ -125,6 +125,7 @@ npx wrangler secret put GEMINI_API_KEY
 | :--- | :--- | :--- |
 | فرانت‌اند (`web/`) | Cloudflare Pages | `Cloudflare Pages` |
 | بک‌اند (`api/`) | Cloudflare Workers Builds | `Workers Builds: realrate-api` |
+| اپ اندروید (`web/android`) | GitHub Actions (`.github/workflows/android.yml`) | `apk` |
 
 ### بک‌اند (Cloudflare Workers)
 
@@ -152,3 +153,24 @@ cd api && npx wrangler deploy
 | `VITE_GOOGLE_CLIENT_ID` | شناسه کلاینت گوگل |
 
 دامنه فرانت‌اند باید در `ALLOWED_ORIGINS` در `api/src/lib/helpers.js` باشد (CORS).
+
+## اپ اندروید
+
+هر PR که `web/` را تغییر دهد یک APK دیباگ می‌سازد و هر مرج در `main` یک APK امضاشده را به‌عنوان Release منتشر می‌کند
+(`v1.0.<شماره‌ی اجرا>`، فایل `realrate.apk`؛ لینک ثابت: `https://github.com/nos486/realrate/releases/latest/download/realrate.apk`).
+
+برای امضا، این secretها را در GitHub (Settings → Secrets and variables → Actions) بگذارید — کلید و رمزها هرگز در مخزن نوشته نمی‌شوند:
+
+| Secret | مقدار |
+| :--- | :--- |
+| `ANDROID_KEYSTORE_BASE64` | فایل keystore به base64 |
+| `ANDROID_KEYSTORE_PASSWORD` | رمز keystore |
+| `ANDROID_KEY_ALIAS` | نام کلید (مثلاً `realrate`) |
+| `ANDROID_KEY_PASSWORD` | رمز کلید |
+
+نسخه‌ی اپ (`versionName`) در بیلد وب به‌صورت `VITE_APP_VERSION` در خود اپ قرار می‌گیرد و با سرآیند `X-RealRate-Client` به سرور می‌رسد (آمار «کاربران اپ» در پنل مدیریت).
+ساخت روی سیستم خودتان، ساختن کلید و جزئیات: [ANDROID.md](ANDROID.md).
+
+## صفحه‌های ایستای SEO
+
+`npm run build` در `web/` پس از Vite، `scripts/build-seo.mjs` را اجرا می‌کند که صفحه‌های ایستا (لندینگ بدون جاوااسکریپت، صفحه‌های ویژگی‌ها، `/android`، sitemap) را از `web/src/seo/pages.js` می‌سازد. آزمون‌ها: `npm test --workspace=web`.
