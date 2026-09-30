@@ -5,12 +5,12 @@
  * from then on each bank message is read as it arrives), or to decline it. Afterwards: the
  * withdrawals and deposits (smsInbox.js) neither recorded nor dismissed, newest first.
  * «ثبت» hands the message to `onRecord` (the page opens the expense or income form); a withdrawal
- * up to QUICK_RECORD_MAX also gets «ثبت سریع» (`onQuickRecord`: recorded as it is, no form);
- * «رد» drops it for good.
+ * up to QUICK_RECORD_MAX also gets «ثبت سریع» (`onQuickRecord`: recorded as it is, no form); a
+ * deposit gets «وام» (`onLoanDeposit`: a received loan, not income); «رد» drops it for good.
  */
 
 import React, { useEffect, useState } from 'react';
-import { MessageSquareText, Check, X, ArrowDownLeft, ArrowUpRight, BellRing, Inbox, Zap } from 'lucide-react';
+import { MessageSquareText, Check, X, ArrowDownLeft, ArrowUpRight, BellRing, Inbox, Zap, Landmark } from 'lucide-react';
 import { Button, EmptyState } from '../../shared/ui/index.js';
 import { useFeedback } from '../../shared/ui/FeedbackProvider.jsx';
 import { BankLogo, resolveBank } from '../../shared/banks/index.js';
@@ -72,7 +72,7 @@ function EnableCard({ onChange }) {
 /**
  * @param {{ accounts?: object[], onRecord: (item: object) => void, canRecord?: boolean }} props
  */
-export default function SmsInboxList({ accounts = [], onRecord, onQuickRecord, quickRecordingId = null, canRecord = true }) {
+export default function SmsInboxList({ accounts = [], onRecord, onQuickRecord, quickRecordingId = null, onLoanDeposit, canRecord = true }) {
   const { pending, settings } = useSmsInbox();
   const [permission, setPermission] = useState(null);
 
@@ -141,6 +141,18 @@ export default function SmsInboxList({ accounts = [], onRecord, onQuickRecord, q
               >
                 ثبت
               </Button>
+              {onLoanDeposit && !isDebit && (
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  icon={<Landmark size={14} />}
+                  onClick={() => onLoanDeposit(item)}
+                  disabled={!canRecord}
+                  title="این واریز، دریافت وام است (درآمد نیست)"
+                >
+                  وام
+                </Button>
+              )}
               <Button
                 size="sm"
                 variant="secondary"

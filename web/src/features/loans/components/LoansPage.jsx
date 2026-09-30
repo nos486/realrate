@@ -35,6 +35,8 @@ import { SkeletonRows } from '../../../shared/ui/Skeleton.jsx';
 import { BankLogo, resolveBank, useCustomBanks } from '../../../shared/banks/index.js';
 import LoanBankShareChart from './LoanBankShareChart.jsx';
 import LoanFundingCard from './LoanFundingCard.jsx';
+import { useQuickAddParam } from '../../../shared/hooks/useQuickAddParam.js';
+import { markSmsHandled } from '../../../shared/native/smsInbox.js';
 import VaultUnlockCard from '../../../shared/vault/VaultUnlockCard.jsx';
 import { usePrivacyMode } from '../../../hooks/usePrivacyMode.js';
 import { useDemo } from '../../demo/index.js';
@@ -147,6 +149,8 @@ export default function LoansPage({ initialLoanId = null }) {
 
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [editingLoan, setEditingLoan] = useState(null);
+  // A new loan from a bank SMS deposit (the SMS page: «وام جدید»), whose message is dropped once saved
+  const [loanDraft, setLoanDraft] = useState(null);
   const [selectedLoanId, setSelectedLoanId] = useState(initialLoanId);
 
   // Follow route changes (/loans/:loanId), adjusted during render instead of in an effect
@@ -155,6 +159,17 @@ export default function LoansPage({ initialLoanId = null }) {
     setPrevInitialLoanId(initialLoanId);
     setSelectedLoanId(initialLoanId || null);
   }
+
+  useQuickAddParam('loan', ({ amount, date, bank, sms }) => {
+    setEditingLoan(null);
+    setLoanDraft(amount || date || bank ? {
+      principalAmount: Number(amount) > 0 ? Number(amount) : '',
+      startDate: /^\d{4}-\d{2}-\d{2}$/.test(date) ? date : '',
+      bankId: bank,
+      smsFingerprint: sms,
+    } : null);
+    setIsAddModalOpen(true);
+  }, !vaultLocked && !readOnly, ['amount', 'date', 'bank', 'sms']);
 
   const handleSelectLoan = (loan) => {
     if (!loan?.id) return;
@@ -251,6 +266,7 @@ export default function LoansPage({ initialLoanId = null }) {
   // Handlers
   const handleOpenAddModal = () => {
     setEditingLoan(null);
+    setLoanDraft(null);
     setIsAddModalOpen(true);
   };
 
@@ -286,6 +302,7 @@ export default function LoansPage({ initialLoanId = null }) {
       await updateLoan(editingLoan.id, formData);
     } else {
       await addLoan(formData);
+      if (loanDraft?.smsFingerprint) markSmsHandled(loanDraft.smsFingerprint);
     }
   };
 
@@ -475,9 +492,11 @@ export default function LoansPage({ initialLoanId = null }) {
         onClose={() => {
           setIsAddModalOpen(false);
           setEditingLoan(null);
+          setLoanDraft(null);
         }}
         onSubmit={handleFormSubmit}
         editingLoan={editingLoan}
+        draft={loanDraft}
         submitting={submitting}
       />
 

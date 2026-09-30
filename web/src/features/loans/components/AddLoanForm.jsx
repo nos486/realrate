@@ -35,6 +35,7 @@ export default function AddLoanForm({
   onClose,
   onSubmit,
   editingLoan = null,
+  draft = null,
   submitting = false,
 }) {
   const [title, setTitle] = useState('');
@@ -128,15 +129,17 @@ export default function AddLoanForm({
       );
       setNotes(editingLoan.notes || '');
     } else {
+      // A new loan, empty or from a `draft` (a bank SMS deposit: amount, day, bank)
+      const start = draft?.startDate || todayIso();
       setTitle('');
-      setBank({ bankId: '', lenderName: '' });
-      setPrincipalAmount('');
+      setBank({ bankId: draft?.bankId || '', lenderName: '' });
+      setPrincipalAmount(draft?.principalAmount ? String(draft.principalAmount) : '');
       setAnnualInterestRate('23');
       setInstallmentCount('12');
       setIntervalMonths(1);
 
-      setStartDateIso(todayIso());
-      setStartDateShamsi(getTodayShamsi());
+      setStartDateIso(start);
+      setStartDateShamsi(draft?.startDate ? gregorianToShamsi(start) : getTodayShamsi());
       setAnnualFeeAmount('');
       setNotes('');
     }
@@ -144,7 +147,7 @@ export default function AddLoanForm({
     return () => {
       cancelled = true;
     };
-  }, [isOpen, editingLoan]);
+  }, [isOpen, editingLoan, draft]);
 
   // Clean numeric values for calculations
   const cleanPrincipal = useMemo(() => {
