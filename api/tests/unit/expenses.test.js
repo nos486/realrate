@@ -71,6 +71,12 @@ describe('daily expenses', () => {
     expect(validateExpenseGroup({ name: 'روزمره', type: 'daily' }).value.type).toBe('daily');
   });
 
+  it('titles an untitled everyday expense after its category («ثبت سریع», SMS)', () => {
+    expect(validateExpense({ ...base, title: '', category: 'dining' }).value.title).toBe('رستوران و کافه');
+    expect(validateExpense({ ...base, title: 'شام', category: 'dining' }).value.title).toBe('شام');
+    expect(validateExpense({ ...base, title: '' }).error).toContain('عنوان');
+  });
+
   it('totals per category, largest first, uncategorized as other', () => {
     const list = [
       { ...base, category: 'dining', amount: 100 },
