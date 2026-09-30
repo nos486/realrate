@@ -1072,3 +1072,86 @@
 
 .admin-usage-locked { color: var(--green-emerald); }
 .admin-usage-plain { color: var(--accent-amber); }
+
+/* ── Clients: a user's devices (detail) and the Android app's versions in use ── */
+.admin-clients {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.admin-clients li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px 12px;
+  padding: 10px 12px;
+  border: 1px solid var(--border-subtle);
+  border-radius: 10px;
+}
+
+.admin-client-name {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.admin-clients small {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.admin-app-versions .stat-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.admin-app-version-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 10px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.admin-app-version-list li {
+  display: grid;
+  grid-template-columns: minmax(84px, auto) 1fr auto;
+  align-items: center;
+  gap: 10px;
+  font-size: 0.82rem;
+}
+
+.admin-app-version-name {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.admin-app-version-bar {
+  height: 6px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.06);
+  overflow: hidden;
+}
+
+.admin-app-version-bar span {
+  display: block;
+  height: 100%;
+  border-radius: 6px;
+  background: #8b5cf6;
+}
+
+.admin-app-version-count small {
+  color: var(--text-muted);
+}

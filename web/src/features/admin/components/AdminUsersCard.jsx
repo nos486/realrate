@@ -4,12 +4,12 @@
  */
 
 import React from 'react';
-import { Users, Ban, MailWarning, ShieldCheck, Eye, Lock } from 'lucide-react';
+import { Users, Ban, MailWarning, ShieldCheck, Eye, Lock, Smartphone } from 'lucide-react';
 import { Button, EmptyState, FilterPills, Pagination, ResponsiveDataTable, SearchBar } from '../../../shared/ui/index.js';
 import { SkeletonRows } from '../../../shared/ui/Skeleton.jsx';
 import { useIsMobile } from '../../../hooks/useMediaQuery.js';
 import { USERS_PAGE_SIZE } from '../hooks/useAdminUsers.js';
-import { faNum, formatDateTime, formatDate, displayName } from '../utils/adminFormat.js';
+import { faNum, faVersion, formatDateTime, formatDate, displayName } from '../utils/adminFormat.js';
 import GoogleIcon from '../../auth/components/GoogleIcon.jsx';
 
 const USER_FILTER_OPTIONS = [
@@ -17,6 +17,7 @@ const USER_FILTER_OPTIONS = [
   { value: 'new', label: 'ثبت‌نام این هفته' },
   { value: 'inactive', label: '۳۰ روز غیرفعال' },
   { value: 'unverified', label: 'ایمیل تأییدنشده' },
+  { value: 'app', label: 'کاربران اپ' },
   { value: 'google', label: 'ورود با گوگل' },
   { value: 'blocked', label: 'مسدود' },
   { value: 'noE2ee', label: 'بدون رمزنگاری' },
@@ -86,6 +87,11 @@ export default function AdminUsersCard({ list, filterCounts = {}, onOpenUser }) 
             {u.googleLinked && <GoogleIcon size={13} />}
             {u.hasPassword && <span className="admin-chip">رمز</span>}
           </span>
+          {u.usesApp && (
+            <span className="admin-chip is-blue" title={`اپ اندروید — آخرین بار ${formatDateTime(u.appLastSeen)}`}>
+              <Smartphone size={11} /> اپ{u.appVersion && ` ${faVersion(u.appVersion)}`}
+            </span>
+          )}
           {u.e2eeEnabled && (
             <span className="admin-chip is-green" title="رمزنگاری سرتاسری فعال است">
               <Lock size={11} /> رمزنگاری

@@ -1,5 +1,6 @@
 /**
- * AdminGrowthChart.jsx — Daily active users or sign-ups over the last 30 days (bar chart)
+ * AdminGrowthChart.jsx — Daily active users (all, or in the Android app) or sign-ups over the
+ * last 30 days (bar chart)
  *
  * One series at a time (switched with the shared ChartToggle), oldest day on the left. The
  * readout shows the selected day (the latest by default; hover / tap a bar to pick another)
@@ -15,6 +16,7 @@ const DAYS = 30;
 
 const SERIES = [
   { id: 'active', label: 'کاربران فعال', unit: 'کاربر فعال', color: '#3987e5' },
+  { id: 'appActive', label: 'فعال در اپ', unit: 'کاربر فعال در اپ', color: '#8b5cf6' },
   { id: 'signups', label: 'ثبت‌نام', unit: 'ثبت‌نام', color: '#199e70' },
 ];
 
@@ -46,7 +48,8 @@ export default function AdminGrowthChart({ reloadToken = 0 }) {
   const values = useMemo(() => (series || []).map((d) => Number(d[measure]) || 0), [series, measure]);
   const max = Math.max(1, ...values);
   const sum = values.reduce((a, b) => a + b, 0);
-  const headline = measure === 'active'
+  // Active users (on any client, or in the app) are averaged per day; sign-ups add up
+  const headline = measure !== 'signups'
     ? `میانگین روزانه ${faNum(Math.round((sum / Math.max(values.length, 1)) * 10) / 10)}`
     : `مجموع ${faNum(sum)}`;
 

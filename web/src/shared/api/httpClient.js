@@ -8,10 +8,21 @@
  * - Standardized HttpError handling preserving backend response format
  */
 
+import { Capacitor } from '@capacitor/core';
+import { CLIENT_HEADER, formatClientHeader } from '../../utils/clientInfo.js';
+
 export const API_BASE = (
   (typeof import.meta !== 'undefined' && import.meta.env?.VITE_API_URL) ||
   (typeof import.meta !== 'undefined' && import.meta.env?.PROD ? 'https://realrate-api.geekio.org' : (typeof window !== 'undefined' ? '' : 'http://localhost:8787'))
 ).replace(/\/$/, '');
+
+/**
+ * Which client this is (utils/clientInfo.js): the Android app with its version name (set by the
+ * APK build, VITE_APP_VERSION), or the site
+ */
+const CLIENT_HEADER_VALUE = Capacitor.getPlatform() === 'android'
+  ? formatClientHeader('android', import.meta.env?.VITE_APP_VERSION || '')
+  : formatClientHeader('web');
 
 export class HttpError extends Error {
   constructor(message, status = 0, data = null, code = 'HTTP_ERROR') {
@@ -117,7 +128,8 @@ export async function httpRequest(path, options = {}) {
     const isFormData = typeof FormData !== 'undefined' && options.body instanceof FormData;
     const headers = {
       ...(isFormData ? {} : { 'Content-Type': 'application/json' }),
-      ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+      // Signed-in requests say which client they come from (they are preflighted anyway)
+      ...(token ? { 'Authorization': `Bearer ${token}`, [CLIENT_HEADER]: CLIENT_HEADER_VALUE } : {}),
       ...(options.headers || {}),
     };
     if (isFormData && headers['Content-Type']) {

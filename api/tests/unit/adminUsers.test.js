@@ -55,8 +55,8 @@ describe('admin users list', () => {
     const { env, queries } = recordingEnv();
     await dbGetUsersPage(env, { filter: 'x; DROP TABLE users', sort: 'id; --', dir: 'sideways', now: NOW });
     const list = queries.find((q) => /LIMIT \? OFFSET \?/.test(q.sql));
-    // no filter clause (the only WHERE left is the encryption-flag column's own subquery)
-    expect(list.sql).not.toMatch(/WHERE (?!v\.user_id)/);
+    // no filter clause (the only WHEREs left are the per-user columns' own subqueries)
+    expect(list.sql).not.toMatch(/WHERE (?!v\.user_id|c\.user_id)/);
     expect(list.sql).toMatch(/ORDER BY last_login IS NULL, last_login DESC, id/);
   });
 });
@@ -114,13 +114,14 @@ describe('admin growth series', () => {
     const { env } = recordingEnv([
       [/FROM users/, [{ day: '2026-09-25', count: 2 }]],
       [/FROM user_activity/, [{ day: '2026-09-26', count: 5 }, { day: '2026-09-20', count: 1 }]],
+      [/FROM client_activity/, [{ day: '2026-09-26', count: 3 }]],
     ]);
     const series = await dbGetDailyGrowth(env, 7, { now: Date.parse('2026-09-26T08:00:00Z') });
     expect(series.map((d) => d.day)).toEqual([
       '2026-09-20', '2026-09-21', '2026-09-22', '2026-09-23', '2026-09-24', '2026-09-25', '2026-09-26',
     ]);
-    expect(series.find((d) => d.day === '2026-09-25')).toEqual({ day: '2026-09-25', signups: 2, active: 0 });
-    expect(series.at(-1)).toEqual({ day: '2026-09-26', signups: 0, active: 5 });
+    expect(series.find((d) => d.day === '2026-09-25')).toEqual({ day: '2026-09-25', signups: 2, active: 0, appActive: 0 });
+    expect(series.at(-1)).toEqual({ day: '2026-09-26', signups: 0, active: 5, appActive: 3 });
     expect(series[0].active).toBe(1);
   });
 });

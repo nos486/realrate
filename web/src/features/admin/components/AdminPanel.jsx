@@ -5,7 +5,8 @@
  * - Main column: the users list (search, quick filters, sortable dates, pagination); each user
  *   opens a detail view with the account actions (block, sign out everywhere, resend
  *   verification)
- * - Sidebar: headline numbers, the 30-day growth chart, maintenance mode and site settings
+ * - Sidebar: headline numbers (with the Android app's users), the 30-day growth chart, the app's
+ *   versions in use, maintenance mode and site settings
  */
 
 import React, { useCallback, useEffect, useState } from 'react';
@@ -18,6 +19,7 @@ import { getPriceBook } from '../../market/api/marketApi.js';
 import { useAdminUsers } from '../hooks/useAdminUsers.js';
 import AdminStatsCards from './AdminStatsCards.jsx';
 import AdminGrowthChart from './AdminGrowthChart.jsx';
+import AdminAppVersionsCard from './AdminAppVersionsCard.jsx';
 import AdminUsersCard from './AdminUsersCard.jsx';
 import AdminUserDetailModal from './AdminUserDetailModal.jsx';
 import MaintenanceCard from './MaintenanceCard.jsx';
@@ -126,6 +128,7 @@ export default function AdminPanel() {
             <AdminStatsCards stats={stats} />
             <AdminDemoCard />
             <AdminGrowthChart reloadToken={growthToken} />
+            {stats && <AdminAppVersionsCard versions={stats.appVersions || []} />}
             <MaintenanceCard settings={settings} onSave={saveSettings} />
             <SiteSettingsCard settings={settings} onSave={saveSettings} />
           </div>
