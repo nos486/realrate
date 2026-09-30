@@ -4,17 +4,18 @@
  * Until the app may read SMS: a card to turn automatic reading on (asks for the permission;
  * from then on each bank message is read as it arrives), or to decline it. Afterwards: the
  * withdrawals and deposits (smsInbox.js) neither recorded nor dismissed, newest first.
- * «ثبت» hands the message to `onRecord` (the page opens the expense or income form); «رد» drops
- * it for good.
+ * «ثبت» hands the message to `onRecord` (the page opens the expense or income form); a withdrawal
+ * up to QUICK_RECORD_MAX also gets «ثبت سریع» (`onQuickRecord`: recorded as it is, no form);
+ * «رد» drops it for good.
  */
 
 import React, { useEffect, useState } from 'react';
-import { MessageSquareText, Check, X, ArrowDownLeft, ArrowUpRight, BellRing, Inbox } from 'lucide-react';
+import { MessageSquareText, Check, X, ArrowDownLeft, ArrowUpRight, BellRing, Inbox, Zap } from 'lucide-react';
 import { Button, EmptyState } from '../../shared/ui/index.js';
 import { useFeedback } from '../../shared/ui/FeedbackProvider.jsx';
 import { BankLogo, resolveBank } from '../../shared/banks/index.js';
 import { useSmsInbox } from '../../shared/native/useSmsInbox.js';
-import { markSmsHandled, smsPermission, enableSmsReading, setSmsSettings, SMS_SENDERS } from '../../shared/native/smsInbox.js';
+import { markSmsHandled, smsPermission, enableSmsReading, setSmsSettings, SMS_SENDERS, QUICK_RECORD_MAX } from '../../shared/native/smsInbox.js';
 import { matchSmsAccount } from '../../utils/bankSms.js';
 import { formatShamsiDisplay } from '../portfolio/components/ShamsiDatePicker.jsx';
 import { accountLabel } from '../accounts/constants/accountDisplay.js';
@@ -71,7 +72,7 @@ function EnableCard({ onChange }) {
 /**
  * @param {{ accounts?: object[], onRecord: (item: object) => void, canRecord?: boolean }} props
  */
-export default function SmsInboxList({ accounts = [], onRecord, canRecord = true }) {
+export default function SmsInboxList({ accounts = [], onRecord, onQuickRecord, quickRecordingId = null, canRecord = true }) {
   const { pending, settings } = useSmsInbox();
   const [permission, setPermission] = useState(null);
 
@@ -119,7 +120,27 @@ export default function SmsInboxList({ accounts = [], onRecord, canRecord = true
               </span>
             </div>
             <div className="sms-inbox-actions">
-              <Button size="sm" icon={<Check size={14} />} onClick={() => onRecord(item)} disabled={!canRecord}>ثبت</Button>
+              {onQuickRecord && isDebit && tx.amount <= QUICK_RECORD_MAX && (
+                <Button
+                  size="sm"
+                  icon={<Zap size={14} />}
+                  onClick={() => onQuickRecord(item)}
+                  loading={quickRecordingId === item.fingerprint}
+                  disabled={!canRecord || Boolean(quickRecordingId)}
+                  title="بدون فرم، با دسته‌ی تنظیمات اپ ثبت می‌شود"
+                >
+                  ثبت سریع
+                </Button>
+              )}
+              <Button
+                size="sm"
+                variant={onQuickRecord && isDebit && tx.amount <= QUICK_RECORD_MAX ? 'secondary' : 'primary'}
+                icon={<Check size={14} />}
+                onClick={() => onRecord(item)}
+                disabled={!canRecord}
+              >
+                ثبت
+              </Button>
               <Button
                 size="sm"
                 variant="secondary"

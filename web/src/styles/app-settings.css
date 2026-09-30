@@ -124,3 +124,67 @@
   opacity: 0.5;
   cursor: default;
 }
+
+/* Small withdrawals: automatic recording and the category (SmsRecordSettings) */
+.app-setting-block {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.app-setting-field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-size: 0.85rem;
+}
+
+.app-setting-field > label,
+.app-setting-field > span {
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.app-setting-field > small {
+  color: var(--text-muted);
+  line-height: 1.8;
+}
+
+.app-setting-field .toolbar-input-wrapper,
+.app-setting-field input {
+  max-width: 260px;
+}
+
+.app-category-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.app-category-chip {
+  --chip-color: var(--color-primary-text);
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 10px;
+  border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.08));
+  border-radius: 999px;
+  background: var(--bg-control, rgba(255, 255, 255, 0.04));
+  color: var(--text-secondary);
+  font-family: inherit;
+  font-size: 12.5px;
+  cursor: pointer;
+}
+
+.app-category-chip svg {
+  color: var(--chip-color);
+}
+
+.app-category-chip.is-active {
+  border-color: var(--chip-color);
+  background: color-mix(in srgb, var(--chip-color) 16%, transparent);
+  color: var(--text-heading);
+  font-weight: 700;
+}

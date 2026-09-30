@@ -111,3 +111,22 @@ describe('SmsInboxPage', () => {
     await waitFor(() => expect(getPendingSms()).toHaveLength(1));
   });
 });
+
+describe('«ثبت سریع» (no form)', () => {
+  const SMALL = 'بلو\nبرداشت پول\nسینا عزیز، 3,500,000 ریال از حساب شما پرید.\nموجودی: 73,936,726 ریال\n۱۱:۰۵\n۱۴۰۵.۰۷.۰۶';
+
+  it('only for a withdrawal up to 1 million tomans; records it in the settings category', async () => {
+    addSmsMessages([{ address: '+989999987641', body: SMALL, date: RECEIVED + 1000 }]);
+    localStorage.setItem('realrate_sms_settings', JSON.stringify({ recordCategory: 'dining' }));
+    render(<SmsInboxPage />);
+    await waitFor(() => expect(screen.getAllByText('ثبت سریع')).toHaveLength(1));
+    fireEvent.click(screen.getByText('ثبت سریع').closest('button'));
+    await waitFor(() => expect(expenses.saveExpense).toHaveBeenCalledTimes(1));
+    expect(expenses.saveExpense.mock.calls[0][0]).toMatchObject({
+      amount: 350000, category: 'dining', groupId: 'exg_daily', source: 'sms', accountId: 'acc_1',
+    });
+    await waitFor(() => expect(getPendingSms()).toHaveLength(2));
+    expect(getPendingSms().some((p) => p.tx.amount === 350000)).toBe(false);
+    expect(toast.success).toHaveBeenCalledWith(expect.stringContaining('رستوران'));
+  });
+});
