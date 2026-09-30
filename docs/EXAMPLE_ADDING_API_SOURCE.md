@@ -39,7 +39,7 @@
 
 ## ۲. روش اول: استفاده از پارسر مسیردهی JsonPath (ساده و بدون کدنویسی)
 
-کافی است در فایل [`api/src/config/sources.config.js`](file:///Users/sina/Projects/realrate/api/src/config/sources.config.js) رکورد سورس زیر را اضافه نمایید:
+کافی است در فایل [`api/src/config/sources.config.js`](../api/src/config/sources.config.js) رکورد سورس زیر را اضافه نمایید:
 
 ```javascript
   // ── سورس تتر تومانی با پارسر مسیردهی JsonPath ──
@@ -153,7 +153,7 @@ export const brsTetherAdapter = {
 ```
 
 ### گام ۲: ثبت در ایندکس آداپتورها
-در فایل [`api/src/services/market/sources/index.js`](file:///Users/sina/Projects/realrate/api/src/services/market/sources/index.js):
+در فایل [`api/src/services/market/sources/index.js`](../api/src/services/market/sources/index.js):
 
 ```javascript
 import { brsTetherAdapter } from "./brsTether.source.adapter.js";

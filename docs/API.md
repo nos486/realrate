@@ -12,6 +12,14 @@ RealRate Cloudflare Worker API supports versioned routing starting with **v1**.
 > Any new endpoints, modifications, or feature expansions **MUST** be implemented under `/api/v1/...`.
 > The unversioned `/api/...` routes are retained strictly for backward compatibility with older web client deployments and will mirror v1 controllers.
 
+### Client header
+
+Every authenticated request from the RealRate clients carries `X-RealRate-Client`: `android/<versionName>` from the Android app (e.g. `android/1.0.50`), `web` from the website (`api/src/domain/clientInfo.js`). It is optional; `GET /api/v1/auth/me` records it for the admin's app statistics (see *Admin Endpoints*). CORS allows it.
+
+### Errors
+
+Errors share one shape: `{ success: false, message, error: { code, message } }` with a matching HTTP status (e.g. `400 BAD_REQUEST`, `401 UNAUTHORIZED`, `403 ENCRYPTION_REQUIRED`, `404 NOT_FOUND`, `409 VAULT_CHANGED`, `429 QUOTA_EXCEEDED`). Messages are in Persian.
+
 ---
 
 ## Endpoint Catalog
@@ -203,11 +211,8 @@ Stateless image analysis with Gemini (`api/src/config/ai.config.js`, key in the 
 #### Request Format
 `Content-Type: multipart/form-data`
 - `image`: Image binary file (Accepted MIME types: `image/jpeg`, `image/png`, `image/webp`. Max file size: 2MB). Exceeding 2MB returns `413 Payload Too Large`; unsupported formats return `400 Bad Request`.
-- `model` *(optional)*: Model identifier from the allowed catalog. Supported:
-  - `@cf/meta/llama-4-scout-17b-16e-instruct` (Default)
-  - `@cf/mistralai/mistral-small-3.1-24b-instruct`
-  - `@cf/google/gemma-3-12b-it`
-  *(Any unlisted model string silently falls back to the default).*
+
+The model is chosen by the server (`api/src/config/ai.config.js`), with the busy fallback above.
 
 #### Response Schema (`200 OK`)
 ```json
@@ -234,7 +239,7 @@ Stateless image analysis with Gemini (`api/src/config/ai.config.js`, key in the 
   },
   "warnings": [],
   "raw": "{\"amount\": 500000000, ...}",
-  "model": "@cf/meta/llama-4-scout-17b-16e-instruct",
+  "model": "gemini-3.8-flash",
   "durationMs": 1350
 }
 ```
@@ -276,8 +281,8 @@ loan / income / cheque endpoints return `409 VAULT_ENABLED` and portfolio data m
 | `GET` | `/api/v1/vault` | The account vault `{ salt, wrappedKey, version }` or `null`, plus `hasPlaintextData` (whether an account without it has data) |
 | `PUT` | `/api/v1/vault` | Turn on, or re-wrap after a passphrase change (`previousWrappedKey` required; `409` on mismatch) |
 | `POST` | `/api/v1/vault/reset` | Forgotten passphrase: deletes the vault and **all** the user's financial data (portfolios, holdings, transactions, loans, incomes, fixed incomes, cheques, custom banks, vault records and tombstones). `{ confirm: "RESET_ALL_DATA", password }` — `password` is the account password, required when the account has one (`400 INVALID_PASSWORD`, rate limited); not for the demo account. Sign-in and the home layout stay |
-| `GET` | `/api/v1/vault/records/:kind` | Encrypted records of `loan`, `income`, `cheque`, `recurring_income`, `holding` or `transaction` — newest date first. Filters on the plaintext metadata only: `?from`, `?to` (inclusive `YYYY-MM-DD`), `?parent`, `?undated=1` (date missing or not yet Gregorian); `?order=asc\|desc`; with `?limit` (1–200) and `?offset` one page plus `total` |
-| `PUT` | `/api/v1/vault/records/:kind/:id` | Create/replace a record (`{ payload, replacePlain, vaultEpoch }` — `replacePlain` deletes the plaintext row with the same id in the same batch; `vaultEpoch`, the vault's `createdAt` the record was encrypted for, is refused with `409 VAULT_CHANGED` after a reset) |
+| `GET` | `/api/v1/vault/records/:kind` | Encrypted records of `loan`, `income`, `cheque`, `recurring_income`, `holding`, `transaction`, `portfolio_layout`, `expense_group`, `expense` or `bank_account` (the last three only with the `expenses` / `bank_accounts` feature, else `404`) — newest date first. Filters on the plaintext metadata only: `?from`, `?to` (inclusive `YYYY-MM-DD`), `?parent`, `?undated=1` (date missing or not yet Gregorian); `?order=asc\|desc`; with `?limit` (1–200) and `?offset` one page plus `total` |
+| `PUT` | `/api/v1/vault/records/:kind/:id` | Create/replace a record (`{ payload, recordDate, parentId, replacePlain, vaultEpoch }` — `recordDate` (`YYYY-MM-DD`) and `parentId` (portfolio for `holding`/`transaction`/`portfolio_layout`, required; section for `expense`, required) are the only plaintext; — `replacePlain` deletes the plaintext row with the same id in the same batch; `vaultEpoch`, the vault's `createdAt` the record was encrypted for, is refused with `409 VAULT_CHANGED` after a reset) |
 | `DELETE` | `/api/v1/vault/records/:kind/:id` | Delete a record |
 | `GET` | `/api/v1/vault/sync` | Incremental sync for devices keeping a copy (the Android app, offline): every change after `?cursor` (`time\|kind\|id`, empty = from the start), oldest first, `?limit` 1–500 (default 200). `{ epoch, records: [{kind, id, payload, recordDate, parentId, createdAt, updatedAt}], deleted: [{kind, id, deletedAt}], cursor, more, reset? }` — a different `epoch` (the vault was recreated) or `reset` (cursor older than the 180 days of tombstones kept) means start over. Only kinds the user's features allow |
 
@@ -288,14 +293,21 @@ Portfolios protected by the vault carry `e2eeWrappedKey`; `/api/v1/portfolio/sha
 
 | Method | Endpoint | Description |
 | :--- | :--- | :--- |
-| `GET` | `/api/v1/admin/stats` | System statistics and telemetry |
-| `GET` | `/api/v1/admin/users` | List registered users |
+| `GET` | `/api/v1/admin/stats` | Statistics: `registeredUsers`, `activeToday`, `publicPortfolios`, the users-list filter counts, and the Android app's `appActiveToday`, `appActive30` and `appVersions` (`[{ version, users }]`, newest first) |
+| `GET` | `/api/v1/admin/users` | One page of users: `?page&pageSize` (≤ 100), `?q` (email/name), `?filter=all\|new\|inactive\|unverified\|google\|blocked\|e2ee\|noE2ee\|app`, `?sort=lastLogin\|createdAt&dir=desc\|asc`. Each user carries `usesApp`, `appVersion`, `appLastSeen` |
+| `GET` | `/api/v1/admin/users/detail?userId=` | One user: sign-in method, verification, logins, active days, sessions, encryption, record **counts** only, and `clients` (`[{ platform, appVersion, firstSeen, lastSeen }]`) |
+| `POST` | `/api/v1/admin/users/block` | `{ userId, blocked }` — block (also signs the user out everywhere) or unblock; the admin can't be blocked |
+| `POST` | `/api/v1/admin/users/signout` | `{ userId }` — end all of the user's sessions |
+| `POST` | `/api/v1/admin/users/resend-verification` | `{ userId }` — email the verification link again |
+| `GET` | `/api/v1/admin/growth?days=30` | Daily series `[{ day, signups, active, appActive }]` |
+| `GET` | `/api/v1/admin/users/portfolio` | A user's portfolio summary (`?userId&portfolioId`) |
 | `POST` | `/api/v1/admin/settings` | Save system-wide settings |
 | `GET` | `/api/v1/admin/price-sources` | List all price crawler sources |
 | `POST` | `/api/v1/admin/price-sources` | Add/update crawler price source |
 | `DELETE` | `/api/v1/admin/price-sources` | Remove crawler price source |
 | `POST` | `/api/v1/admin/price-sources/set-primary` | Set primary source for asset type |
 | `POST` | `/api/v1/admin/price-sources/test` | Test fetching from specific source |
+| `POST` | `/api/v1/admin/price-sources/inspect-api` | Fetch a JSON endpoint and list its fields (to write a source's parser) |
 | `POST` | `/api/v1/admin/price-sources/fetch-all` | Trigger immediate fetch across all sources |
 | `GET` | `/api/v1/admin/demo` | Inspect demo account state (existence, non-confidential record counts, last updated) |
 | `POST` | `/api/v1/admin/demo` | Idempotently create / ensure the single demo user account exists |
@@ -314,7 +326,7 @@ Enforced centrally after the maintenance gate and before the encryption gate:
   - Normal app mutations are permitted to allow editing demo holdings, transactions, loans, incomes, cheques, and layouts.
   - Guardrails strictly block:
     - Modifying vault passphrase or re-wrapping vault key (`PUT /api/vault` with `previousWrappedKey`).
-    - Changing credentials or account settings (`POST /api/auth/password`, `POST /api/auth/logout-all`).
+    - Changing credentials or account settings (`POST /api/auth/password`, any `signout-all` route).
     - Deleting account.
     - Enabling public portfolio sharing (`shareEnabled: true`).
 

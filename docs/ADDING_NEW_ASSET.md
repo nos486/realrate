@@ -19,6 +19,7 @@
 - **انواع سکه**: `api/src/domain/specs/coin.spec.js`
 - **ارزهای فیات (فارکس)**: `api/src/domain/specs/forex.spec.js`
 - **ارزهای دیجیتال (کریپتو)**: `api/src/domain/specs/crypto.spec.js`
+- **پول نقد**: `api/src/domain/specs/cash.spec.js`
 
 ### نمونه ساختار اسپک دارایی:
 ```javascript
@@ -40,145 +41,44 @@ ons_gold: {
 }
 ```
 
+سکه‌ها `gold24kWeight` (وزن طلای خالص ۲۴ عیار به گرم، مثلاً `7.3197` برای سکه تمام) هم دارند که ارزش ذاتی از آن حساب می‌شود.
+
 > [!NOTE]
 > در `api/src/domain/specs/registry.js` تمامی الیاس‌ها و کدهای تمامی اسپک‌ها به صورت خودکار و پویا در `CANONICAL_ASSET_REGISTRY` ثبت می‌شوند. بنابراین، با افزودن الیاس به فایل اسپک، جستجوی همگانی و سیستم پورتفو فوراً آن را شناسایی خواهند کرد.
 
 ---
 
-## ۲. اضافه کردن دارایی به کارت‌های صفحه اصلی (`currency-cards-grid`)
+## ۲. قیمت دارایی: دفتر قیمت
 
-کارت‌های صفحه اول در گرید `currency-cards-grid` (کامپوننت `CurrenciesList.jsx`) رندر می‌شوند. اضافه کردن دارایی به این گرید به یکی از دو روش زیر انجام می‌شود:
+مرورگر هیچ قیمتی نمی‌سازد؛ همه‌ی قیمت‌ها از **دفتر قیمت** سرور (`api/src/domain/priceBook.js`، `GET /api/prices/book`) می‌آیند و هر دارایی با شناسه‌ی اسپکش (مثلاً `ons_silver`) یک قلم استاندارد `{ id, price, name, category, unit, sourceId, updatedAt, params }` است:
 
-### حالت اول: دارایی‌های شاخص جهانی یا محاسبه‌شده (مثل انس طلا، انس نقره، نفت و ...)
-این دارایی‌ها مستقیماً در موتور محاسباتی کلاینت (`web/src/utils/calculator.js`) از روی نرخ‌های زنده موجود تولید می‌شوند.
+- **دارایی‌ای که سورس قیمت دارد** (ارز، رمزارز، سکه، نماد بورس، صندوق): سورس را در `api/src/config/sources.config.js` ثبت کنید — [ADDING_NEW_PRICE_SOURCE.md](ADDING_NEW_PRICE_SOURCE.md). قلمِ سورس با اسپک هم‌شناسه ترکیب می‌شود (نام، دسته و واحد از اسپک).
+- **طلا، سکه و نقره**: ارزش ذاتی از روی انس و دلار با `gold24kWeight` (یا `weight` و `silverRatio` برای نقره) اسپک حساب می‌شود. اگر سورسی قیمت بازار بدهد، `params.intrinsic` و `params.bubblePct` به همان قلم اضافه می‌شود؛ وگرنه ارزش ذاتی خودش یک قلم می‌شود (`params.derived: 'intrinsic'`).
+- **ارز بر پایه‌ی دلار**: سورسی که `quote: 'usd_cross'` دارد (مثل فارکس) یک بار با دلار همان دفتر به تومان تبدیل می‌شود.
 
-در تابع `calculateMarketData` در فایل `web/src/utils/calculator.js`:
-```javascript
-// دریافت مشخصات کانونیکال بدون هاردکد
-const onsSpec = getCanonicalAssetSpec('ons_gold') || {};
-const onsToman = usd_toman > 0 ? Math.round(gold_usd * usd_toman) : 0;
+## ۳. نمایش در صفحه اصلی
 
-currencies.push({
-  code: onsSpec.code || 'XAU',
-  id: 'ons_gold',
-  priceType: 'ons_gold',
-  name: onsSpec.name || 'انس طلای جهانی',
-  flag: onsSpec.flag || '🪙',
-  symbol: onsSpec.symbol || 'XAU',
-  unit: onsSpec.unit || 'دلار',
-  price: gold_usd,
-  usd_price: gold_usd,
-  toman_price: onsToman,
-  usd_cross_rate: gold_usd,
-  subPriceText: onsToman > 0 ? `${formatNum(onsToman)} تومان` : null,
-  note: onsToman > 0 ? `معادل ${formatNum(onsToman)} تومان` : 'نرخ جهانی هر اونس طلا',
-  showOnHomePage: true,
-  aliases: onsSpec.aliases || ['انس', 'XAU'],
-});
-```
+صفحه اصلی از چیدمان هر کاربر ساخته می‌شود (`api/src/domain/homeLayout.js`، `web/src/features/home/`):
 
-### حالت دوم: دارایی‌های فید یا وب‌سرویس (ارزها، رمزارزها، صندوق‌ها و نمادهای بورسی)
-اگر دارایی از یک فید یا وب‌سرویس خارجی (مانند TGJU، Nobitex، Emofid، بورس تهران یا Forex API) استخراج می‌شود:
-- سورس یا ادابتور مربوطه در `api/src/config/sources.config.js` ثبت می‌شود (طبق قرارداد یکپارچه `ISourceAdapter`).
-- خروجی ادابتور به صورت اتوماتیک با فرمت استاندارد `{ items: [{ id, name, price }], datetime }` تولید می‌شود.
-- در فرانت‌اند، دارایی‌ها از طریق `unifiedItems` دریافت شده و به کمک **`displayEngine`** نام استاندارد (`{نام دارایی} ({نام سورس})`)، دسته‌بندی و واحد دقیق را دریافت می‌کنند.
-- برای نمایش دارایی‌های کاتالوگ در صفحه اصلی یا لیست ارزها:
-  - در کانفیگ سورس (`sources.config.js`): فیلد `showOnHomePage: true` را فعال کنید.
-  - یا در صورت چندخروجی بودن فید (Multi-Output)، نماد آن را در `homePageOutputs` اضافه نمایید:
-  ```json
-  {
-    "homePageOutputs": ["USD", "EUR", "AED", "XAU", "BTC"]
-  }
-  ```
+- کاربر هر دارایی دفتر قیمت را با «شخصی‌سازی» به هر بخشی اضافه می‌کند؛ کار دیگری لازم نیست.
+- **چیدمان پیش‌فرض** (`buildDefaultLayout` در `web/src/features/home/homeLayoutModel.js`): بخش «طلا و سکه» همه‌ی اقلام تحلیل طلا و سکه، و بخش «ارزها و دارایی‌ها» ارزها به ترتیب `DEFAULT_PRIORITY_CURRENCIES` (همان فایل). برای جلو آوردن یک ارز، کد آن را به این آرایه اضافه کنید.
+- مدیر می‌تواند یک قلم را از صفحه اصلی پیش‌فرض پنهان کند (`showOnHomePage` در تنظیمات سورس ← `params.hideOnHome`).
+- **قالب‌های آماده** (`HOME_PRESETS` در همان فایل) هم از روی کاتالوگ زنده ساخته می‌شوند.
 
----
+## ۴. جستجو و نام‌ها
 
-## ۳. تعیین اولویت و ترتیب نمایش (Display Priority)
+- الیاس‌های اسپک در `CANONICAL_ASSET_REGISTRY` (`api/src/domain/specs/registry.js`) ثبت می‌شوند؛ جستجوی همگانی دارایی‌ها (`UniversalAssetSearch.jsx`)، ورودی CSV پورتفو و فرم‌ها با همین الیاس‌ها دارایی را پیدا می‌کنند.
+- نام نمایشی، واحد، دسته، بج، رنگ و آیکون فقط از `displayEngine.js` می‌آیند؛ هیچ کامپوننتی نام یا واحد را دستی نمی‌نویسد.
 
-برای اینکه دارایی جدید در مکان دلخواه (مثلاً کنار دلار و تتر) در صفحه اول ظاهر شود:
+## ۵. مثال: انس نقره (XAG)
 
-1. **در فایل فرانت‌اند `web/src/features/market/components/CurrenciesList.jsx`:**
-   کد نماد را به آرایه `DEFAULT_PRIORITY_CURRENCIES` اضافه کنید:
-   ```javascript
-   export const DEFAULT_PRIORITY_CURRENCIES = [
-     'USD',  // ۱. دلار آمریکا
-     'USDT', // ۲. تتر (دلار دیجیتال)
-     'XAU',  // ۳. انس جهانی طلا
-     'XAG',  // ۴. انس نقره (در صورت تمایل)
-     'EUR',  // ۵. یورو
-     'AED',  // ۶. درهم امارات
-     // ... سایر ارزها
-   ];
-   ```
+1. اسپک در `api/src/domain/specs/silver.spec.js` (`id: 'ons_silver'`، `code: 'XAG'`، `unit: 'دلار'`، الیاس‌ها).
+2. سورس قیمت انس نقره در `sources.config.js` (مثلاً `https://api.gold-api.com/price/XAG`) با `priceType: 'ons_silver'`. دفتر قیمت از آن گرم نقره و ارزش ذاتی اقلام نقره را هم می‌سازد.
+3. در صورت نیاز `'XAG'` را به `DEFAULT_PRIORITY_CURRENCIES` اضافه کنید تا در چیدمان پیش‌فرض جلو بیاید.
 
-2. **در فایل ماشین حساب `web/src/utils/calculator.js`:**
-   کد نماد را در `DEFAULT_PRIORITY_ORDER` نیز لحاظ کنید.
+## ۶. بررسی
 
----
-
-## ۴. ساختار هوشمند رندر کارت در `CurrenciesList.jsx`
-
-کامپوننت `CurrenciesList` به گونه‌ای طراحی شده که دارایی‌ها را به صورت خودکار و کامپکت نمایش دهد:
-- **نمایش قیمت دلاری یا تومانی:**
-  ```jsx
-  <div className="curr-price-val">
-    {formatNum(c.unit === 'دلار' ? (c.usd_price || c.price) : (c.toman_price || c.price))}
-    <span className="curr-unit">{c.unit || 'تومان'}</span>
-  </div>
-  {c.subPriceText && (
-    <span className="curr-ratio-tag">{c.subPriceText}</span>
-  )}
-  ```
-- **جستجوی هوشمند بر اساس الیاس‌ها:**
-  کاربر می‌تواند با تایپ نام انگلیسی، نماد یا هر یک از الیاس‌های فارسی تعریف‌شده در رجیستری (مانند "اونس"، "طلا"، "XAU") کارت را فیلتر کند.
-
----
-
-## ۵. مثال عملی: افزودن «انس نقره جهانی» (XAG) در ۳ مرحله
-
-اگر بخواهید انس نقره جهانی را نیز به عنوان یک کارت جدید به صفحه اول اضافه کنید:
-
-1. **بررسی اسپک کانونیکال:**
-   در `api/src/domain/specs/silver.spec.js`:
-   مطمئن شوید نماد و کد مشخص است (`code: 'XAG', unit: 'دلار', flag: '🥈'`).
-
-2. **اضافه کردن به محاسبات در `web/src/utils/calculator.js`:**
-   ```javascript
-   if (silver_usd > 0) {
-     const silvSpec = getCanonicalAssetSpec('ons_silver') || {};
-     const silvToman = usd_toman > 0 ? Math.round(silver_usd * usd_toman) : 0;
-     currencies.push({
-       code: 'XAG',
-       id: 'ons_silver',
-       priceType: 'ons_silver',
-       name: silvSpec.name || 'انس نقره جهانی',
-       flag: silvSpec.flag || '🥈',
-       symbol: 'XAG',
-       unit: 'دلار',
-       price: silver_usd,
-       usd_price: silver_usd,
-       toman_price: silvToman,
-       subPriceText: silvToman > 0 ? `${formatNum(silvToman)} تومان` : null,
-       note: silvToman > 0 ? `معادل ${formatNum(silvToman)} تومان` : 'نرخ جهانی هر اونس نقره',
-       showOnHomePage: true,
-       aliases: silvSpec.aliases || ['نقره', 'XAG'],
-     });
-   }
-   ```
-
-3. **تعیین اولویت در `DEFAULT_PRIORITY_CURRENCIES`:**
-   در `CurrenciesList.jsx` مقدار `'XAG'` را به لیست اولویت اضافه کنید.
-
----
-
-## ۶. بررسی و اعتبارسنجی (Verification)
-
-پس از افزودن هر دارایی جدید، تست‌های پروژه را اجرا کنید:
 ```bash
-# اجرای تست‌های واحد بک‌اند
-npm test --workspace=api
-
-# بررسی بیلد بدون خطای فرانت‌اند
+npm test --workspace=api        # از جمله آزمون‌های دفتر قیمت و اسپک‌ها
 npm run build --workspace=web
 ```
-با اجرای دستورات بالا، اطمینان حاصل می‌شود که تمام وابستگی‌ها، ماشین‌حساب و لایوت‌های دسکتاپ و موبایل با موفقیت کامپایل می‌شوند.

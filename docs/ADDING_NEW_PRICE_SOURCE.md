@@ -6,7 +6,7 @@
 
 ## ۱. ساختار کانفیگ سورس در `sources.config.js`
 
-برای افزودن یک منبع جدید، کافی است آن را به آرایه `PRICE_SOURCES_CONFIG` در فایل [`api/src/config/sources.config.js`](file:///Users/sina/Projects/realrate/api/src/config/sources.config.js) اضافه کنید:
+برای افزودن یک منبع جدید، کافی است آن را به آرایه `PRICE_SOURCES_CONFIG` در فایل [`api/src/config/sources.config.js`](../api/src/config/sources.config.js) اضافه کنید:
 
 ```javascript
 // api/src/config/sources.config.js
@@ -22,6 +22,10 @@ export const PRICE_SOURCES_CONFIG = [
     unit: "واحد",                   // واحد شمارش دارایی (تومان، گرم، عدد، برگ سهم، واحد، دلار، تتر)
     isFund: true,                   // آیا ماهیت صندوق یا طرح دارد؟
     fetchIntervalSec: 60,           // دوره پولینگ به ثانیه
+    // اختیاری: واحد مظنه‌ی سورس — "toman" (پیش‌فرض)، "rial"، "usd"، "usd_cross"
+    // quote: "usd",
+    // اختیاری: برای کاتالوگ، بازاری که شناسه‌ها به آن تعلق دارند ("bourse" → "bourse__<نماد>")
+    // market: "bourse",
     // اختیاری — محافظ قیمت نامعقول و قدیمی شدن:
     // maxJumpPct: 25,              // بیشترین تغییر بین دو دریافت (٪)؛ بیشتر از این تا تکرار نشود پذیرفته نمی‌شود
     // confirmTicks: 3,             // چند دریافت پشت‌سرهم تا جهش واقعی پذیرفته شود
@@ -41,7 +45,9 @@ export const PRICE_SOURCES_CONFIG = [
 
 > [!NOTE]
 > **تفکیک مسئولیت متادیتا (قاعده معماری):**
-> فیلدهای `badge`، `badgeColor` و `iconName` دیگر روی سطح سورس تعریف نمی‌شوند؛ این فیلدها مستقیماً و به صورت خودکار از دسته‌بندی مرجع در [`categories.config.js`](file:///Users/sina/Projects/realrate/api/src/config/categories.config.js) استخراج می‌شوند تا هیچ‌گونه دوگانگی یا Drift در داده‌ها رخ ندهد.
+> فیلدهای `badge`، `badgeColor` و `iconName` دیگر روی سطح سورس تعریف نمی‌شوند؛ این فیلدها مستقیماً و به صورت خودکار از دسته‌بندی مرجع در [`categories.config.js`](../api/src/config/categories.config.js) استخراج می‌شوند تا هیچ‌گونه دوگانگی یا Drift در داده‌ها رخ ندهد.
+
+در پنل مدیریت فقط می‌توان سورس را خاموش کرد یا سورس اصلی شناسه‌اش کرد (در KV `price_source_overrides`)؛ سورس آنجا ساخته یا حذف نمی‌شود.
 
 ---
 
@@ -94,7 +100,7 @@ export const PRICE_SOURCES_CONFIG = [
 
 ## ۴. موتور مرکزی نمایش (Display Engine)
 
-هیچ بخشی از فرانت‌اند یا لایه روت‌ها نباید نام سورس یا واحد را به صورت دستی یا شرط‌های `if / switch` رندر کند. تمام فرآیند نمایش از طریق [`displayEngine.js`](file:///Users/sina/Projects/realrate/api/src/domain/displayEngine.js) (که در فرانت‌اند نیز به صورت `web/src/config/displayEngine.js` در دسترس است) انجام می‌شود:
+هیچ بخشی از فرانت‌اند یا لایه روت‌ها نباید نام سورس یا واحد را به صورت دستی یا شرط‌های `if / switch` رندر کند. تمام فرآیند نمایش از طریق [`displayEngine.js`](../api/src/domain/displayEngine.js) (که در فرانت‌اند نیز به صورت `web/src/config/displayEngine.js` در دسترس است) انجام می‌شود:
 
 ```javascript
 import {

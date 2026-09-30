@@ -1,6 +1,8 @@
 # RealRate System Architecture
 
-RealRate is a financial analysis and portfolio management platform designed to calculate the **intrinsic (real) value** and **speculative bubble** of gold, coins, currencies, and capital market assets in Iran's market.
+RealRate is a market analysis and personal finance platform for Iran: it calculates the **intrinsic (real) value** and the **bubble** of gold and coins, tracks currencies, stocks and funds, and manages portfolios, expenses, accounts, loans, incomes and cheques — with account-wide end-to-end encryption. It runs as a website (with a PWA) and as an Android app built from the same code.
+
+> فارسی: این سند فنی به انگلیسی است؛ برای مرور فارسی معماری [PROJECT_STRUCTURE.md](PROJECT_STRUCTURE.md) و [E2EE_VAULT.md](E2EE_VAULT.md) را ببینید.
 
 ---
 
@@ -9,6 +11,7 @@ RealRate is a financial analysis and portfolio management platform designed to c
 The system is built as an ultra-fast, serverless monorepo consisting of:
 - **Backend (`api/`)**: Built as an Edge-native Cloudflare Worker with zero framework overhead, Postgres through Cloudflare Hyperdrive (the app's data and the price history), and Cloudflare KV (the price book, per-source lists, sessions and settings caches).
 - **Frontend (`web/`)**: A modern React SPA built with Vite, utilizing a modular **feature-based architecture**, custom hooks, vanilla CSS design tokens, and Web Crypto API for client-side Zero-Knowledge End-to-End Encryption (E2EE).
+- **Android app (`web/android`)**: The same SPA packaged with Capacitor 8, plus native plugins (bank SMS, fingerprint) and an encrypted offline copy of the user's records.
 - **Display Engine Bridge (`displayEngine.js`)**: Symlinked between `api/src/domain/displayEngine.js` and `web/src/config/displayEngine.js`, guaranteeing 100% identical formatting, naming, unit resolution, and category metadata across both tiers.
 
 ```mermaid
@@ -70,9 +73,10 @@ graph TD
 The backend follows Clean Architecture principles divided into decoupled layers:
 
 ### A. Infrastructure Layer
-- **Error Handling (`api/src/infrastructure/errors.js`)**: Standardized custom application errors (`AppError`, `ValidationError`, `NotFoundError`, `AuthError`, `ConflictError`, `DatabaseError`) mapped to HTTP status codes and uniform JSON responses.
-- **Structured Logger (`api/src/lib/logger.js` & `api/src/infrastructure/logger.js`)**: Level-based logging (`DEBUG`, `INFO`, `WARN`, `ERROR`) outputting structured JSON logs with correlation IDs, timestamps, and request context.
-- **Environment Configuration (`api/src/infrastructure/config.js`)**: Type-safe validation and centralized access for Cloudflare Worker bindings (`DB`, `KV`, secrets, Google OAuth client credentials).
+- **Error Handling (`api/src/lib/AppError.js`, `api/src/middlewares/errorHandler.js`)**: One `AppError` class with an HTTP status and a machine-readable code (`AppError.badRequest`, `.forbidden`, `.notFound`, …); `withErrorHandler` turns any thrown error into the uniform JSON response `{ success: false, message, error: { code, message } }`.
+- **Structured Logger (`api/src/lib/logger.js`)**: Single-line JSON logs by level, with passwords, tokens and E2EE keys redacted recursively.
+- **Environment (`api/src/config/env.js`)**: Validates the Worker's bindings and variables (`HYPERDRIVE`, `REALRATE_KV`, secrets, Google OAuth) and logs what is missing.
+- **Request gates (`api/src/index.js`)**, in order: CORS preflight → CSRF origin check for writes → sign-in routes → maintenance mode (`lib/maintenance.js`) → demo gate (`lib/demoGate.js`) → mandatory encryption (`lib/encryptionGate.js`) → the route. Feature-gated routes also call `requireFeature` (`lib/features.js`), and costly ones `consumeQuota` (`lib/usageQuota.js`).
 
 ### B. Repository Layer (`api/src/repositories/`)
 Decouples database and KV storage queries from business logic. Direct SQL and KV queries are strictly encapsulated in repositories:
@@ -88,12 +92,13 @@ Decouples database and KV storage queries from business logic. Direct SQL and KV
 - `domain/priceIds.js`: **Old stored ids → book ids, in one place.** Data saved before the standard carries ids like `src_def_usd`, `derived_gold_18k`, `EUR`, `forex_eur`, `bourse_فولاد`, `src_def_forex::try`, `gold_ounce`, `full_new`; `toPriceId(id, bookIds)` resolves any of them to the book's id, and `migrateRecordPriceIds` rewrites a record's `assetId` / `referenceAssetId` when the result exists in the book. The web app reads with it everywhere and migrates stored data with it: portfolio holdings and transactions are re-encrypted with the new id the next time they are read (`vaultPortfolioItems.js`), and a home page layout is saved again with book ids when it loads.
 - **Web prices** (`features/market/priceBookAssets.js`, `PricingContext`): the browser never computes a price. It loads `/api/prices/book` (one request, with the global settings) and uses its prices by id — home cards, the header, the calculator's currencies, portfolio values, transactions, the asset search and trend cards alike. The USD / ounce inputs («نرخ مبنا») are the calculator's what-if rates: they change intrinsic value and bubble in the calculator, never a price.
 - `priceHistory.repository.js`: **Price history, kept forever, in Postgres (Cloudflare Hyperdrive, binding `HYPERDRIVE`).** One table, `price_history (item_key, recorded_at, value)`, keyed by the price book's ids, created on the first write; a row is added when an item's value differs from its latest stored value, at the time its source gave the price (never after the sync, never at or before the key's latest row), plus an hourly heartbeat row for live, non-catalog prices — so a flat price and a dead source look different. Each sync records the book's items whose source synced, plus the computed ones. The writer is registered by the Worker entry (`index.js`) through `setPriceHistoryWriter`, because the web app shares market modules with the API and must not import the Postgres driver. `readPriceTrends` serves `GET /api/sparklines` (bucketed series for the home page's trend cards, edge-cached for 5 minutes). Without the binding, or when Postgres is down, nothing is recorded, trends report `available: false`, and the price sync carries on.
-- `userRepository.js`: User accounts, roles, settings, Google OAuth mappings.
-- `portfolioRepository.js`: Portfolios, multi-portfolio management, sharing slugs, salts, and verifiers.
-- `holdingRepository.js`: Encrypted or plaintext holding items, quantities, purchase prices, dates, and notes.
-- `transactionRepository.js`: Persistent storage for client-side encrypted buy/sell transactions with Zero-Knowledge payloads.
+- `user.repository.js`: User accounts, roles, settings, Google links, and the clients each user signs in from (`user_clients`, `client_activity` — see section 7).
+- `session.repository.js`: Sessions (30 days; demo sessions are short-lived).
+- `portfolio.repository.js`, `holdings.repository.js`, `transactionRepository.js`: Portfolios (sharing slugs, wrapped portfolio keys) and the legacy plaintext holdings/transactions tables, which are moved into `vault_records` the first time a portfolio is opened.
+- `vault.repository.js`: The account vault (`user_vaults`), the encrypted records of every kind (`vault_records`), their tombstones (`vault_tombstones`), the incremental sync and the full reset (section 5).
+- `loans.repository.js`, `incomes.repository.js`, `recurringIncomes.repository.js`, `cheques.repository.js`, `customBanks.repository.js`: The plaintext tables of accounts that have not turned encryption on (read and delete only — see [E2EE_VAULT.md](E2EE_VAULT.md)).
+- `admin.repository.js`, `demo.repository.js`, `settings.repository.js`, `kvCache.repository.js`: Admin lists and statistics, the demo account, site settings and KV caches.
 - `schema.repository.js`: Creates the app's tables (`pgSchema.js`) before a repository first uses them.
-- `auditRepository.js`: Security and administrative audit log events.
 
 ### C. Unified Adapter Pattern for Ingestion (`api/src/services/market/sources/`)
 All upstream price sources implement the standardized `ISourceAdapter` contract (`api/src/services/market/sources/ISourceAdapter.js`):
@@ -121,7 +126,7 @@ All upstream price sources implement the standardized `ISourceAdapter` contract 
 - `domain/formulas.js`: Pure financial calculation functions:
   - $\text{Gram}_{24k} = \frac{\text{OuncePrice} \times \text{UsdPrice}}{31.1034768}$
   - $\text{IntrinsicValue} = \text{Gram}_{24k} \times \text{Weight} \times \frac{\text{Karat}}{24}$
-  - $\text{Bubble} = \frac{\text{MarketPrice} - \text{IntrinsicValue}}{\text{MarketPrice}} \times 100$
+  - $\text{Bubble} = \frac{\text{MarketPrice} - \text{IntrinsicValue}}{\text{IntrinsicValue}} \times 100$
 
 ---
 
@@ -132,25 +137,33 @@ The frontend follows a **Feature-Driven Architecture**, keeping related UI, hook
 ### Directory Structure
 ```text
 web/src/
-├── config/
-│   ├── displayEngine.js     # Symlink to api/src/domain/displayEngine.js
-│   ├── sources.config.js    # Symlink to api/src/config/sources.config.js
-│   └── categories.config.js # Symlink to api/src/config/categories.config.js
+├── config/                  # Symlinks to api/src/config (+ displayEngine.js from api/src/domain)
+├── utils/                   # Symlinks to api/src/domain (price book, loans, cheques, expenses, SMS, …)
 ├── features/
-│   ├── market/              # Market rates, analysis cards, forex list
-│   ├── portfolio/           # Portfolio manager, holdings table, date picker, E2EE
-│   ├── transactions/        # Buy/Sell Transactions & Automated Holdings Engine (WAC)
-│   ├── auth/                # AuthContext, Google OAuth, session management
-│   └── admin/               # Admin panel, feeds config, audit logs
-├── components/
-│   ├── UniversalAssetSearch.jsx # Data-driven universal search across all asset types
-│   └── UserSettingsModal.jsx
+│   ├── home/                # Customizable market home (web) and the personal dashboard (app)
+│   ├── market/              # Price book assets, PricingContext, rate cards and calculator
+│   ├── portfolio/           # Portfolios, holdings, custom categories, sharing
+│   ├── transactions/        # Buy/sell transactions and the WAC engine
+│   ├── expenses/            # Everyday expenses (categories, budgets) and projects
+│   ├── accounts/            # Bank accounts, cash, wallets
+│   ├── loans/               # Loans, installments, loan usage («تأمین از»)
+│   ├── incomes/             # Incomes and fixed (recurring) incomes
+│   ├── cheques/             # Cheques, tracking, AI scan
+│   ├── sms-inbox/           # Android: bank SMS waiting to be recorded, quick/auto record
+│   ├── app-settings/        # Android: SMS, fingerprint and recording settings
+│   ├── auth/, demo/, admin/ # Sign-in, demo account, admin panel
 ├── shared/
-│   ├── api/                 # httpClient.js (Fetch wrapper, auth tokens, standard error handling)
-│   ├── components/          # Header, Navigation, Footer
-│   └── ui/                  # AppLayout, Modal, NumericInput, AlertBanner, FilterPills
-├── utils/                   # financialSpecs, pricingEngine, calculator
-└── pages/                   # Top-level route pages (MainPage, SharedPortfolioPage, PriceSourcesPage)
+│   ├── api/httpClient.js    # Fetch wrapper: token, X-RealRate-Client header, errors
+│   ├── vault/               # E2EE state and one encrypted store per record kind
+│   ├── offline/             # IndexedDB ciphertext copy, sync engine, outbox (Android)
+│   ├── native/              # Capacitor bridges: SMS, fingerprint, haptics, isNativeApp
+│   ├── app/                 # Android shell: bottom navigation, quick add, "More"
+│   ├── ui/                  # AppLayout, Modal (bottom sheet in the app), charts, tables
+│   ├── banks/, features/, hooks/, utils/, pwa/
+├── components/              # Header, Footer, mobile drawer, universal asset search, settings
+├── seo/pages.js             # Static SEO pages (built by scripts/build-seo.mjs)
+├── lib/e2ee.js              # Web Crypto primitives
+└── pages/                   # MainPage (every app section), Landing, SharedPortfolio, Admin, Maintenance
 ```
 
 ### Key Frontend Features
@@ -160,12 +173,12 @@ web/src/
    - All presentation logic (names, units, categories, badges, colors, icons) delegates to `displayEngine.js`.
 2. **Feature-Colocated State & Hooks**:
    - `usePortfolio`: Handles portfolio switching, creation, deletion, and synchronizing mode-aware badges.
-   - `useHoldings`: Handles manual holdings retrieval, auto-migration, E2EE decryption, live bourse price synchronization.
-   - `useTransactions`: Handles transaction CRUD with client-side Zero-Knowledge E2EE encryption and decryption.
+   - `useHoldings`: Handles holdings retrieval, id migration, E2EE decryption and live prices.
+   - `useTransactions`: Handles transaction CRUD with client-side E2EE encryption and decryption.
    - `useComputedHoldings`: Automatically derives current holdings and Weighted Average Cost (WAC) from transaction history.
 3. **Account-wide Zero-Knowledge E2EE** (`shared/vault/`, see [E2EE_VAULT.md](E2EE_VAULT.md)):
-   - One passphrase (PBKDF2) unwraps a random account key, which wraps a per-portfolio key and encrypts loan, income and cheque records (AES-GCM 256).
-   - `loanApi` / `incomeApi` / `chequeApi` route to encrypted in-browser stores when the vault is on; loans run on the shared pure engine `domain/loanDocument.js`, cheques validate with the shared `domain/chequeDocument.js`.
+   - One passphrase (PBKDF2) unwraps a random account key, which wraps a per-portfolio key and encrypts every other record (AES-GCM 256): loans, incomes, fixed incomes, cheques, expense sections, expenses and accounts.
+   - Each feature's API module (`loanApi`, `incomeApi`, `chequeApi`, …) has a fixed signature and reads/writes through its vault store (`vaultLoans.js`, `vaultExpenses.js`, `vaultAccounts.js`, …); loans run on the shared pure engine `domain/loanDocument.js`, and every kind validates with its shared domain module.
    - The server only stores ciphertext; passphrases never leave the client.
 4. **Persian / Shamsi Localization**:
    - Native Jalali calendar calculations (`ShamsiDatePicker.jsx`).
@@ -177,52 +190,75 @@ web/src/
 
 ---
 
-## 3. سازوکار ویژگی‌های آزمایشی و بتا (Beta Features / Feature Flags)
+## 3. Feature Flags (Beta Features)
 
-سیستم دارای سازوکار یکپارچه و چندمرحله‌ای Feature Flag بین کلاینت و سرور است تا امکان تست امکانات جدید در محیط پروداکشن واقعی به صورت امن و محدود به مدیر سیستم فراهم شود:
+Features are rolled out through one mechanism shared by the client and the server, so a new feature can be tried in production by the admin alone.
 
-### چرخه عمر ویژگی‌ها (Feature Stages)
-هر ویژگی در فایل مشترک `api/src/config/features.js` (با symlink در `web/src/config/features.js`) تعریف می‌شود:
+### Stages
+Every feature is declared in `api/src/config/features.js` (symlinked as `web/src/config/features.js`):
 ```javascript
 export const FEATURES = {
-  cheque_scan: { stage: 'ga', label: 'اسکن چک با هوش مصنوعی', ... },          // همه کاربران
-  cheque_scan_debug: { stage: 'beta', label: 'ابزار بررسی دقت اسکن چک', ... }, // فقط مدیر
+  cheque_scan: { stage: 'ga', label: 'اسکن چک با هوش مصنوعی', ... },          // every user
+  expenses: { stage: 'ga', ... },
+  bank_accounts: { stage: 'ga', ... },
+  cheque_scan_debug: { stage: 'beta', label: 'ابزار بررسی دقت اسکن چک', ... }, // admin only
 };
 ```
-- `'off'`: کاملاً غیرفعال برای همه کاربران (همیشه `false`).
-- `'beta'`: فعال **فقط برای مدیران سیستم** (`user?.role === 'admin'`). نقش مدیر منحصراً توسط سرور بر اساس `ADMIN_EMAIL` محاسبه می‌شود و کلاینت نقشی در تعیین آن ندارد.
-- `'ga'` (General Availability): فعال عمومی برای تمام کاربران وارد شده (`Boolean(user)`).
+- `'off'`: disabled for everyone.
+- `'beta'`: enabled **only for admins** (`user?.role === 'admin'`). The role is computed by the server from `ADMIN_EMAIL`; the client has no say in it.
+- `'ga'` (general availability): enabled for every signed-in user.
 
-### امنیت در لایه سرور
-- **محافظت مسیرها با `requireFeature` (`api/src/lib/features.js`)**:
-  هر مسیر مربوط به ویژگی آزمایشی قبل از هر کاری `await requireFeature(request, env, 'feature_key')` را فراخوانی می‌کند.
-  اگر ویژگی برای کاربر فعال نباشد، سرور خطای `404 Not Found` برمی‌گرداند تا وجود اندپوینت مخفی بماند.
-- **انتشار در مشخصات کاربر**:
-  پاسخ `GET /api/v1/auth/me` آرایه کلیدهای فعال را در فیلد `features: enabledFeatures(user)` ارسال می‌کند.
+### Server-side enforcement
+- **`requireFeature` (`api/src/lib/features.js`)**: a feature's route calls `await requireFeature(request, env, 'feature_key')` first. When the feature is off for the user the route answers `404 Not Found`, so its existence is not revealed.
+- Vault record kinds that belong to a feature (`VAULT_KIND_FEATURES` in `vault.repository.js`: `expense_group`/`expense` → `expenses`, `bank_account` → `bank_accounts`) are gated the same way, in the record routes and in the sync.
+- **`GET /api/auth/me`** returns the user's enabled keys as `features: enabledFeatures(user)`.
 
-### استفاده در فرانت‌اند
-- **هوک `useFeature(key)`**: با خواندن `user.features` از کانتکست احراز هویت، فعال بودن ویژگی را تعیین می‌کند.
-- **کامپوننت `<Feature name="cheque_scan" fallback={null}>`**: جهت رندر مشروط بخش‌های رابط کاربری.
-- **نشانگر `<BetaBadge />`**: برچسب ظریف «بتا» با استایل هماهنگ با تم برنامه.
-- **قاعده طلایی**: هیچ کامپوننتی نباید مستقیماً `user.role === 'admin'` را برای ویژگی‌های بتا بررسی کند؛ کلیه کامپوننت‌ها ملزم به استفاده از `useFeature` یا `<Feature>` هستند.
+### Client usage
+- **`useFeature(key)`** reads `user.features` from the auth context.
+- **`<Feature name="cheque_scan" fallback={null}>`** renders conditionally.
+- **`<BetaBadge />`** marks beta UI.
+- **Rule:** no component checks `user.role === 'admin'` for a beta feature; always `useFeature` or `<Feature>`.
 
-### راهنمای افزودن ویژگی جدید بتا
-1. ویژگی جدید را با کلید یکتا و مشخصات در `api/src/config/features.js` ثبت کنید (`stage: 'beta'`).
-2. اندپوینت‌های سرور را در ابتدای کار با `await requireFeature(request, env, 'key')` محافظت کنید.
-3. در کلاینت، دکمه‌ها و المان‌های UI را درون `<Feature name="key">` قرار دهید.
-4. پس از اطمینان از پایداری و عملکرد در محیط واقعی، تنها با تغییر `stage: 'ga'` ویژگی را برای عموم کاربران فعال کنید.
+### Adding a beta feature
+1. Declare it in `api/src/config/features.js` with `stage: 'beta'`.
+2. Guard its server routes with `await requireFeature(request, env, 'key')`.
+3. Wrap its UI in `<Feature name="key">`.
+4. Once it is stable in production, switch it to `stage: 'ga'`.
 
-## 4. محدودیت استفاده بر اساس دسته کاربر (Usage Limits)
+## 4. Usage Limits per User Tier
 
-ویژگی‌های پرهزینه (مثل اسکن چک که هر بار به Gemini درخواست می‌دهد) سقف روزانه دارند:
+Costly features (like the cheque scan, which calls Gemini on every use) have a daily limit:
 
-- **`api/src/config/usageLimits.js`**: فهرست ویژگی‌های محدود (`USAGE_LIMITS`) و دسته‌های کاربر (`USER_TIERS`). هر دسته برای هر ویژگی
-  یک سقف روزانه دارد؛ دسته `unlimited` (فعلاً مدیر) محدود نمی‌شود. ویژگی‌ای که دسته‌ای برایش سقف ننوشته، برای آن دسته بسته است.
-  `userTierOf(user)` دسته هر کاربر را تعیین می‌کند (فعلاً از روی نقش مدیر).
-- **`api/src/lib/usageQuota.js`**: `consumeQuota(env, user, key)` یک استفاده را ثبت می‌کند یا با `429 QUOTA_EXCEEDED` رد می‌کند؛
-  `refundQuota` استفاده‌ای را که کار پرهزینه‌اش انجام نشد برمی‌گرداند؛ `getQuota` وضعیت امروز را می‌دهد. شمارنده‌ها در KV
-  (`quota:<feature>:<userId>:<YYYY-MM-DD>`، دو روز) و روز بر اساس ساعت تهران است. شمارنده KV اتمیک نیست و در دو درخواست همزمان
-  ممکن است یک استفاده بیشتر مجاز شود؛ برای سقف روزانه قابل قبول است.
-- **افزودن ویژگی محدود جدید**: آن را به `USAGE_LIMITS` اضافه کنید، سقف هر دسته را بنویسید و پیش از کار پرهزینه `consumeQuota` را صدا بزنید.
-- **افزودن دسته جدید** (مثلاً پلن پولی): آن را به `USER_TIERS` اضافه و از `userTierOf` برگردانید (مثلاً از ستونی در جدول کاربران).
+- **`api/src/config/usageLimits.js`**: the limited features (`USAGE_LIMITS`) and the user tiers (`USER_TIERS`). Each tier has a daily limit per feature; the `unlimited` tier (the admin, for now) is never limited. A feature a tier has no limit for is closed to that tier. `userTierOf(user)` picks a user's tier (from the admin role, for now).
+- **`api/src/lib/usageQuota.js`**: `consumeQuota(env, user, key)` records one use or refuses with `429 QUOTA_EXCEEDED`; `refundQuota` gives back a use whose costly work did not happen; `getQuota` reports today's state. Counters live in KV (`quota:<feature>:<userId>:<YYYY-MM-DD>`, kept two days), and the day is Tehran's. A KV counter is not atomic, so two simultaneous requests may allow one extra use — acceptable for a daily limit.
+- **A new limited feature**: add it to `USAGE_LIMITS`, set each tier's limit, and call `consumeQuota` before the costly work.
+- **A new tier** (e.g. a paid plan): add it to `USER_TIERS` and return it from `userTierOf` (e.g. from a users column).
 
+## 5. Vault Records, Incremental Sync and the Offline Copy
+
+- **One table for all encrypted data**: `vault_records (user_id, kind, id, payload, record_date, parent_id, created_at, updated_at)`. Kinds: `loan`, `income`, `recurring_income`, `cheque`, `holding`, `transaction`, `portfolio_layout`, `expense_group`, `expense`, `bank_account`. Only `record_date` (the record's main date) and `parent_id` (portfolio or expense section) are plaintext, so the server can filter by date range and page lists without seeing amounts.
+- **Tombstones**: deleting a record writes `vault_tombstones (user_id, kind, id, deleted_at)`; saving it again removes the tombstone. Tombstones older than 180 days are pruned.
+- **`GET /api/vault/sync?cursor=`** returns every change after the cursor (`updated_at|kind|id`), oldest first, a page at a time: saved records (the same ciphertext) and deletions, plus the vault's `epoch` (its creation time). The index `idx_vault_records_updated` keeps this proportional to the new changes, not to the data.
+- **Offline client (Android)** — `web/src/shared/offline/`:
+  - `localStore.js`: IndexedDB, one database per user: the ciphertext records, an `outbox` of changes made offline, and `meta` (the vault, the cursor, the epoch). The vault key is only ever in memory.
+  - `offlineSync.js`: sends the outbox first, then pulls `/api/vault/sync` page by page. Runs on start, on reconnect, when the app comes back to the foreground, after an offline change and every 3 minutes (every 15 s while offline). A queued change the server refuses is dropped, reported, and the copy is rebuilt; a new `epoch` or `reset` rebuilds the copy.
+  - `vaultApi.js`: lists are read from the device copy (same filters and order as the server, `filterRecords`) and refreshed in the background (`VAULT_CHANGED_EVENT`). Writes go to the server first and are queued only when there is no connection (network error, 502/503/504).
+- **Epoch guard**: every write carries `vaultEpoch`; after a reset (`POST /api/vault/reset`) a write encrypted for the old vault gets `409 VAULT_CHANGED`, so another device cannot write data the new key can't read.
+
+## 6. Android App
+
+- **Shell**: Capacitor 8 (`web/capacitor.config.json`, app id `ir.realrate.app`). The pages ship inside the APK (`vite build --mode app` → `dist-app`) and load from `https://localhost`, which the API's CORS accepts. `shared/native/nativeApp.js` decides what differs in the app (no service worker, share links to the website, Google sign-in in the system browser).
+- **App shell** (`shared/app/`, `styles/app-shell.css`, class `is-native-app` on `<html>`): bottom navigation, a quick-add sheet that opens a section's form with `?add=expense|income|holding|loan` (`useQuickAddParam`), a "More" sheet, the personal dashboard at home (`features/home/AppHomeDashboard.jsx`), modals as bottom sheets, and haptics.
+- **Native plugins** (`web/android/app/src/main/java/ir/realrate/app/`):
+  - `BankSmsPlugin`, `BankSmsReceiver`, `BankSmsRules`: read the inbox and incoming SMS of the bank senders only, keep only withdrawals and deposits (the same templates as `domain/bankSmsTemplates.js`, passed in by `configure`), drop OTP / verification messages natively, and notify without the message text.
+  - `BiometricVaultPlugin`: keeps the unlocked vault key encrypted under an Android Keystore key usable only right after a fingerprint check.
+- **SMS pipeline** (web side): `shared/native/smsInbox.js` parses with `domain/bankSms.js` and keeps the pending transactions on the device (recorded and dismissed ones remembered separately); `features/sms-inbox/` shows them, fills the expense/income form (`smsDrafts.js`), records in one tap or automatically (`smsRecord.js`, `useSmsAutoRecord.js`), or turns a deposit into a received loan (`LoanDepositSheet.jsx`). A recorded expense/income keeps the transaction's `smsKey`, so nothing is recorded twice, even from another device.
+- **Google sign-in**: the app opens `/api/auth/google/login` in the system browser with a PKCE challenge; the server redirects back to `ir.realrate.app://auth?code=…` with a two-minute one-time code that only the app's verifier can exchange (`POST /api/auth/app/signin`, `lib/appAuth.js`).
+- **Builds and releases** (`.github/workflows/android.yml`): a debug APK on each PR that touches `web/`; on `main`, a release APK signed with the key in the repository secrets, published as GitHub release `v1.0.<run>` with the stable asset `realrate.apk`. `VITE_APP_VERSION` carries the version name into the app. The website's static page `/android` (`web/src/seo/pages.js`, `scripts/build-seo.mjs`) links the latest release.
+- Details: [ANDROID.md](ANDROID.md).
+
+## 7. Client Identification (App Users in the Admin Panel)
+
+- Every authenticated request carries `X-RealRate-Client`: `android/<version>` from the app, `web` from the site (`domain/clientInfo.js`: `formatClientHeader`, `parseClientHeader`, `compareVersions`; sent by `shared/api/httpClient.js`, allowed by CORS).
+- `GET /api/auth/me` — called each time the app opens — records it: `user_clients (user_id, platform)` keeps the first/last time and the latest version of each client, and `client_activity (user_id, platform, day)` the days each client was used. Demo sessions are not recorded.
+- The admin panel reads them (`admin.repository.js`): the "app users" stats (active today / in 30 days), the users on each app version, an "app" filter and badge in the users list, the "active in the app" growth series, and the devices of each user.
