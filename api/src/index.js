@@ -156,6 +156,7 @@ import {
   handleResetVault,
 } from "./handlers/vaultRoutes.js";
 import { handleGetHomeLayout, handleSaveHomeLayout } from "./handlers/homeLayoutRoutes.js";
+import { handleGetLatestAppRelease } from "./handlers/appUpdateRoutes.js";
 import { fetchAllPrices } from "./services/market/priceAggregator.service.js";
 import {
   searchCatalogItems,
@@ -236,6 +237,9 @@ async function handleRequest(request, env, ctx) {
     if (normalizedPath === "/api/auth/password/reset")      return wrap(handleResetPassword)(request, env);
     if (normalizedPath === "/api/auth/password")            return wrap(handleSetPassword)(request, env);
   }
+
+  // ── The Android app's update check (public; answered during maintenance too) ──
+  if (normalizedPath === "/api/app/latest" && request.method === "GET") return wrap(handleGetLatestAppRelease)(request, env);
 
   // ── Maintenance mode: past the sign-in routes, only admins get through ────
   const maintenanceBlock = await wrap(async (req, e) => {

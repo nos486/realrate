@@ -34,6 +34,7 @@ Errors share one shape: `{ success: false, message, error: { code, message } }` 
 | `GET` | `/api/sparklines?keys=usd,gold_18k&range=1d` | Trend series from the Postgres price history, per asset id (`range`: `1d` per minute — the default, `7d`, `30d`, `1y`) |
 | `GET` | `/api/v1/bourse/symbols` | Search and list Tehran Stock Exchange symbols (`?q=...&limit=...`) |
 | `POST` | `/api/v1/bourse/sync` | Force synchronize bourse symbols cache |
+| `GET` | `/api/app/latest` | The Android app's latest release, for its update check: `{ release: { version, tag, url, size, notes, publishedAt } \| null }`. Read from GitHub releases (the API, else the `releases/latest` redirect; optional `GITHUB_TOKEN`), kept 10 minutes in KV, the last known one served when GitHub fails. Answered during maintenance too. |
 | `GET` / `POST` | `/api/v1/portfolio/shared` | Retrieve a publicly shared portfolio (`?slug=...`; a share password is accepted only in a `POST` body `{ slug, password }`) |
 
 #### Unified Market Items Schema (`/api/v1/market/items`)

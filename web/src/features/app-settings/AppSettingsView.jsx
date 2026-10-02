@@ -6,11 +6,11 @@
  *   Small withdrawals: recorded by themselves up to an amount (off by default), in a category
  *   that «ثبت سریع» uses too (features/sms-inbox/smsRecord.js)
  * - Fingerprint: open the encrypted data with the fingerprint instead of the passphrase
- * - The app's version
+ * - The app's version and its updates: automatic check on/off, «بررسی به‌روزرسانی» (shared/native/appUpdate.js)
  */
 
 import React, { useEffect, useState } from 'react';
-import { Smartphone, MessageSquareText, Fingerprint, Info, ArrowLeft } from 'lucide-react';
+import { Smartphone, MessageSquareText, Fingerprint, Info, ArrowLeft, RefreshCw, Download } from 'lucide-react';
 import { AlertBanner, Button, Card, FeaturePageHeader } from '../../shared/ui/index.js';
 import { NumericInput } from '../../shared/ui/NumericInput.jsx';
 import { EXPENSE_CATEGORIES, getExpenseCategory } from '../expenses/constants/expenseCategories.js';
@@ -26,6 +26,8 @@ import {
   enableBiometric,
   disableBiometric,
 } from '../../shared/native/biometricUnlock.js';
+import { useAppUpdate } from '../../shared/native/useAppUpdate.js';
+import { checkForUpdate, setAutoUpdateCheck, openUpdatePrompt } from '../../shared/native/appUpdate.js';
 
 const SUPPORTED_BANKS = SMS_BANK_IDS.map((id) => resolveBank({ bankId: id }).shortName).join('، ');
 
@@ -99,6 +101,47 @@ function SmsRecordSettings({ settings }) {
         </small>
       </div>
     </div>
+  );
+}
+
+const faVersion = (v) => String(v || '').replace(/\d/g, (d) => '۰۱۲۳۴۵۶۷۸۹'[d]);
+
+/** «به‌روزرسانی»: automatic check on/off, and a check right now */
+function AppUpdateSettings() {
+  const { toast } = useFeedback();
+  const update = useAppUpdate();
+  const checking = update.status === 'checking';
+  const hasUpdate = Boolean(update.release && update.installedVersion) && update.status !== 'latest';
+
+  const handleCheck = async () => {
+    const result = await checkForUpdate({ manual: true });
+    if (result.status === 'latest') toast.success('آخرین نسخه‌ی اپ نصب است.');
+    else if (result.status === 'error') toast.error(result.error || 'بررسی به‌روزرسانی ممکن نشد.');
+  };
+
+  return (
+    <>
+      <div className="app-setting-row">
+        <div>
+          <strong>بررسی خودکار به‌روزرسانی</strong>
+          <p>با باز شدن اپ، اگر نسخه‌ی جدیدی منتشر شده باشد خبر می‌دهد تا با یک ضربه دانلود و نصب شود.</p>
+        </div>
+        <Switch checked={update.settings.auto} onChange={setAutoUpdateCheck} label="بررسی خودکار به‌روزرسانی" />
+      </div>
+      <div className="app-setting-row">
+        <div>
+          <strong>{hasUpdate ? `نسخه‌ی ${faVersion(update.release.version)} آماده است` : 'به‌روزرسانی'}</strong>
+          <p>{update.settings.lastCheck ? `آخرین بررسی: ${formatTime(update.settings.lastCheck)}` : 'هنوز بررسی نشده'}</p>
+        </div>
+        {hasUpdate ? (
+          <Button size="sm" icon={<Download size={14} />} onClick={openUpdatePrompt}>به‌روزرسانی</Button>
+        ) : (
+          <Button size="sm" variant="secondary" icon={<RefreshCw size={14} />} loading={checking} onClick={handleCheck}>
+            بررسی به‌روزرسانی
+          </Button>
+        )}
+      </div>
+    </>
   );
 }
 
@@ -226,6 +269,7 @@ export default function AppSettingsView({ onOpenSms }) {
       </Card>
 
       <Card className="app-settings-card" padding="lg" icon={<Info size={18} />} title="درباره اپ">
+        <AppUpdateSettings />
         <dl className="app-setting-facts">
           <dt>نسخه</dt>
           <dd dir="ltr">{version || '—'}</dd>

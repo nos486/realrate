@@ -5,6 +5,7 @@ import { DemoBanner } from '../../features/demo/index.js';
 import OfflineBar from '../offline/OfflineBar.jsx';
 import { isNativeApp } from '../native/nativeApp.js';
 import { AppTopBar, AppBottomNav } from '../app/AppShell.jsx';
+import AppUpdatePrompt from '../app/AppUpdatePrompt.jsx';
 
 /**
  * Standard AppLayout component
@@ -19,7 +20,8 @@ import { AppTopBar, AppBottomNav } from '../app/AppShell.jsx';
  * inside every single view and conditional return branch.
  *
  * Inside the Android app, a page with sections (`navItems`) gets the app's own frame instead
- * (shared/app/AppShell.jsx): a top app bar and a bottom navigation bar, no footer.
+ * (shared/app/AppShell.jsx): a top app bar and a bottom navigation bar, no footer, and the
+ * update prompt (shared/app/AppUpdatePrompt.jsx).
  */
 export default function AppLayout({
   children,
@@ -47,6 +49,8 @@ export default function AppLayout({
           <div key={activeTab} className="app-page">{children}</div>
         </main>
         <AppBottomNav activeTab={activeTab} navItems={navItems} onSelect={setActiveTab} />
+        {/* «نسخه‌ی جدید»: checks for a newer APK and installs it (shared/native/appUpdate.js) */}
+        <AppUpdatePrompt />
       </div>
     );
   }
