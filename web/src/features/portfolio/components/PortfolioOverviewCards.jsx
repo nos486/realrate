@@ -3,6 +3,7 @@ import { ArrowUpRight, ArrowDownRight, Lock } from 'lucide-react';
 import { CategoryIcon, formatNum } from '../utils/holdingHelpers.js';
 import { formatPct } from '../../../shared/utils/formatters.js';
 import DonutChart from '../../../shared/ui/DonutChart.jsx';
+import AllocationTargetsCard from './AllocationTargetsCard.jsx';
 
 const otherCategoriesLabel = (count) => `سایر (${count.toLocaleString('fa-IR')} دسته)`;
 
@@ -14,6 +15,9 @@ export default function PortfolioOverviewCards({
   isVaultLocked = false,
   // Realized profit/loss from sell transactions (null when there is none to show)
   realizedPnl = null,
+  // Category targets against today's mix (utils/allocationTargets.js); null hides the card
+  allocation = null,
+  onEditTargets = null,
 }) {
   const hasData = portfolioMetrics.hasAnyCost;
   const isProfit = (portfolioMetrics.totalPnl || 0) >= 0;
@@ -157,6 +161,11 @@ export default function PortfolioOverviewCards({
           otherLabel={otherCategoriesLabel}
           headerExtra={<span className="count-pill">{categoryGroups.length.toLocaleString('fa-IR')} دسته</span>}
         />
+      )}
+
+      {/* Card 5: target shares per category */}
+      {allocation && !isVaultLocked && (
+        <AllocationTargetsCard allocation={allocation} onEdit={onEditTargets} readOnly={!onEditTargets} />
       )}
     </div>
   );

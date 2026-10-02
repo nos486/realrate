@@ -31,6 +31,7 @@ import CsvImportButton from './CsvImportButton.jsx';
 import VaultLockCard from './VaultLockCard.jsx';
 import HoldingsCustomizeEditor from './HoldingsCustomizeEditor.jsx';
 import AssetLedgerDetails from './AssetLedgerDetails.jsx';
+import TargetAllocationModal from './TargetAllocationModal.jsx';
 import TransactionForm from '../../transactions/components/TransactionForm.jsx';
 
 import { useHoldings } from '../hooks/useHoldings.js';
@@ -42,7 +43,9 @@ import { buildAssetLedgers } from '../utils/assetLedger.js';
 import {
   buildCustomCategoryGroups,
   buildDefaultPortfolioLayout,
+  setTargets,
 } from '../portfolioLayoutModel.js';
+import { buildAllocation, describeDrift, DRIFT_THRESHOLD } from '../utils/allocationTargets.js';
 import { getItemCategory } from '../../../config/displayEngine.js';
 import { usePrivacyMode } from '../../../hooks/usePrivacyMode.js';
 import { useFeedback } from '../../../shared/ui/FeedbackProvider.jsx';
@@ -162,13 +165,38 @@ const HoldingsView = forwardRef(function HoldingsView(
     [customLayout]
   );
 
+  // A layout may hold only targets (no custom groups yet): the editor starts from the standard ones
+  const hasCustomGroups = Boolean(customLayout?.groups?.length);
   const handleToggleCustomize = useCallback(() => {
-    if (!isCustomizing && !customLayout) {
-      const defaultLayout = buildDefaultPortfolioLayout(portfolioMetrics.items);
-      setCustomLayout(defaultLayout);
+    if (!isCustomizing && !hasCustomGroups) {
+      setCustomLayout(buildDefaultPortfolioLayout(portfolioMetrics.items, customLayout?.targets));
     }
     setIsCustomizing((prev) => !prev);
-  }, [isCustomizing, customLayout, portfolioMetrics.items, setCustomLayout]);
+  }, [isCustomizing, hasCustomGroups, customLayout, portfolioMetrics.items, setCustomLayout]);
+
+  // Back to the standard categories: the targets stay
+  const handleResetLayout = useCallback(() => {
+    if (customLayout?.targets) setCustomLayout({ groups: [], targets: customLayout.targets });
+    else resetCustomLayout();
+    setIsCustomizing(false);
+  }, [customLayout, setCustomLayout, resetCustomLayout]);
+
+  // Target shares per category: every category (a targeted one holding nothing too), unfiltered
+  const [targetsOpen, setTargetsOpen] = useState(false);
+  const allCategoryGroups = useMemo(
+    () => buildCustomCategoryGroups(portfolioMetrics.items, customLayout, '', { keepEmpty: true }),
+    [portfolioMetrics.items, customLayout]
+  );
+  const allocation = useMemo(
+    () => buildAllocation(allCategoryGroups, customLayout?.targets),
+    [allCategoryGroups, customLayout]
+  );
+  const handleSaveTargets = useCallback((targets) => {
+    const empty = Object.keys(targets).length === 0;
+    if (empty && !hasCustomGroups) resetCustomLayout();
+    else setCustomLayout(setTargets(customLayout || { groups: [] }, targets));
+    setTargetsOpen(false);
+  }, [customLayout, hasCustomGroups, setCustomLayout, resetCustomLayout]);
 
   const categoryGroups = useMemo(() => {
     return buildCategoryGroups(portfolioMetrics.items, holdingsFilterQuery);
@@ -343,6 +371,8 @@ const HoldingsView = forwardRef(function HoldingsView(
             hideValues={hideValues}
             isVaultLocked={isVaultLocked}
             realizedPnl={ledger.summary.hasRealizedPnl ? ledger.summary.totalRealizedPnl : null}
+            allocation={portfolioMetrics.items.length > 0 ? allocation : null}
+            onEditTargets={readOnly ? null : () => setTargetsOpen(true)}
           />
         }
       >
@@ -392,14 +422,11 @@ const HoldingsView = forwardRef(function HoldingsView(
               </div>
             ) : isCustomizing ? (
               <HoldingsCustomizeEditor
-                layout={customLayout || buildDefaultPortfolioLayout(portfolioMetrics.items)}
+                layout={hasCustomGroups ? customLayout : buildDefaultPortfolioLayout(portfolioMetrics.items, customLayout?.targets)}
                 portfolioMetrics={portfolioMetrics}
                 itemMap={pricing?.itemMap}
                 onChange={setCustomLayout}
-                onReset={() => {
-                  resetCustomLayout();
-                  setIsCustomizing(false);
-                }}
+                onReset={handleResetLayout}
                 onClose={() => setIsCustomizing(false)}
               />
             ) : (
@@ -417,6 +444,19 @@ const HoldingsView = forwardRef(function HoldingsView(
                       />
                     ))}
                   </div>
+                )}
+                {/* The mix has drifted from its targets */}
+                {allocation.drifted.length > 0 && (
+                  <AlertBanner
+                    type="warning"
+                    className="portfolio-drift-banner"
+                    icon={<AlertTriangle size={16} />}
+                    message={`ترکیب پورتفو بیش از ${DRIFT_THRESHOLD.toLocaleString('fa-IR')}٪ از هدف فاصله گرفته: ${allocation.drifted.map(describeDrift).join('، ')}`}
+                    action={readOnly ? null : (
+                      <button type="button" className="ui-btn ui-btn-secondary ui-btn-sm" onClick={() => setTargetsOpen(true)}>هدف‌ها</button>
+                    )}
+                    style={{ marginBottom: '12px' }}
+                  />
                 )}
                 <HoldingsTable
                   categoryGroups={categoryGroups}
@@ -471,6 +511,15 @@ const HoldingsView = forwardRef(function HoldingsView(
       />
 
       {/* User & Share Settings Modal */}
+      {targetsOpen && (
+        <TargetAllocationModal
+          groups={allCategoryGroups}
+          targets={customLayout?.targets || {}}
+          onSave={handleSaveTargets}
+          onClose={() => setTargetsOpen(false)}
+        />
+      )}
+
       <UserSettingsModal
         isOpen={settingsModalOpen}
         onClose={() => setSettingsModalOpen(false)}

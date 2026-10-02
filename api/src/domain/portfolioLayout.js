@@ -10,8 +10,12 @@
  *   groups: [
  *     { id: "g_gold", title: "طلا و سکه", icon: "gold", items: ["gold_18k", "full_coin"] },
  *     { id: "g_saving", title: "پس‌انداز ارزی", icon: "currency", items: ["usd", "eur"] }
- *   ]
+ *   ],
+ *   targets: { "g_gold": 30, "g_fx": 25 }   // optional: the share (%) each category aims for
  * }
+ * A target is keyed by the category's group id; the standard categories (no custom groups) are
+ * keyed `g_<category key>` — the ids buildDefaultPortfolioLayout gives them — so targets survive
+ * switching to a custom layout. «سایر» is `g_other`.
  */
 
 export const PORTFOLIO_LAYOUT_VERSION = 1;
@@ -21,6 +25,7 @@ export const PORTFOLIO_LAYOUT_LIMITS = {
   itemsPerGroup: 100,
   titleLength: 50,
   idLength: 120,
+  targets: 40,
 };
 
 const GROUP_ID_RE = /^[A-Za-z0-9_-]{1,50}$/;
@@ -87,5 +92,27 @@ export function sanitizePortfolioLayout(input) {
     groups.push({ id, title: title || 'دسته جدید', icon, items });
   }
 
-  return { version: PORTFOLIO_LAYOUT_VERSION, groups };
+  const targets = sanitizeTargets(input.targets);
+  return Object.keys(targets).length
+    ? { version: PORTFOLIO_LAYOUT_VERSION, groups, targets }
+    : { version: PORTFOLIO_LAYOUT_VERSION, groups };
+}
+
+/**
+ * Category targets: { groupId: percent }, percent in (0, 100] with one decimal; zero and invalid
+ * entries are dropped
+ * @param {unknown} input
+ * @returns {Record<string, number>}
+ */
+export function sanitizeTargets(input) {
+  const targets = {};
+  if (!input || typeof input !== 'object' || Array.isArray(input)) return targets;
+  for (const [rawKey, rawValue] of Object.entries(input)) {
+    if (Object.keys(targets).length >= PORTFOLIO_LAYOUT_LIMITS.targets) break;
+    const key = String(rawKey).trim();
+    const value = Math.round(Number(rawValue) * 10) / 10;
+    if (!GROUP_ID_RE.test(key) || !Number.isFinite(value) || value <= 0) continue;
+    targets[key] = Math.min(100, value);
+  }
+  return targets;
 }

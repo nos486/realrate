@@ -1,8 +1,9 @@
 /**
  * portfolioLayoutModel.js — Default portfolio layout, category definitions and pure edit operations
  *
- * A portfolio layout is `{ version, groups: [{ id, title, icon, items: [assetKey] }] }`
- * (validated by utils/portfolioLayout.js, shared with the API).
+ * A portfolio layout is `{ version, groups: [{ id, title, icon, items: [assetKey] }], targets? }`
+ * (validated by utils/portfolioLayout.js, shared with the API). `targets` (the share each category
+ * aims for, utils/allocationTargets.js) rides along every edit below.
  * Every operation returns a new layout without mutating input.
  */
 
@@ -43,24 +44,31 @@ export function normalizePortfolioLayout(layout) {
       ...g,
       items: (g.items || []).map((id) => getAssetKey(id)).filter(Boolean),
     })),
+    targets: layout.targets,
   });
 }
 
 /**
- * Helper to ensure a sanitized layout
+ * Helper to ensure a sanitized layout (keeping the targets it had)
  */
-const layoutOf = (groups) =>
+const layoutOf = (groups, targets) =>
   normalizePortfolioLayout({
     version: PORTFOLIO_LAYOUT_VERSION,
     groups,
+    targets,
   });
+
+/** The layout with new category targets (an empty object clears them) */
+export function setTargets(layout, targets) {
+  return layoutOf(layout?.groups || [], targets);
+}
 
 /**
  * Build default editable layout from current portfolio items matching CATEGORY_DEFINITIONS
  * @param {Array<object>} items
  * @returns {object}
  */
-export function buildDefaultPortfolioLayout(items = []) {
+export function buildDefaultPortfolioLayout(items = [], targets = undefined) {
   const groups = [];
   const seenKeys = new Set();
 
@@ -111,7 +119,7 @@ export function buildDefaultPortfolioLayout(items = []) {
     );
   }
 
-  return layoutOf(groups);
+  return layoutOf(groups, targets);
 }
 
 /**
@@ -234,7 +242,7 @@ export function buildCustomCategoryGroups(itemsList = [], layout = null, filterQ
 // ── Pure Edit Operations ─────────────────────────────────────────────────────
 
 const mapGroup = (layout, groupId, fn) =>
-  layoutOf(layout.groups.map((g) => (g.id === groupId ? fn(g) : g)));
+  layoutOf(layout.groups.map((g) => (g.id === groupId ? fn(g) : g)), layout.targets);
 
 const move = (list, index, delta) => {
   const target = index + delta;
@@ -253,19 +261,20 @@ const reorder = (list, fromIndex, toIndex) => {
 };
 
 export function addGroup(layout, { title = 'دسته جدید', icon = 'custom' } = {}) {
-  const current = layoutOf(layout?.groups || []);
+  const current = layoutOf(layout?.groups || [], layout?.targets);
   if (current.groups.length >= PORTFOLIO_LAYOUT_LIMITS.groups) return current;
-  return layoutOf([...current.groups, { id: newGroupId(), title, icon, items: [] }]);
+  return layoutOf([...current.groups, { id: newGroupId(), title, icon, items: [] }], current.targets);
 }
 
 export function removeGroup(layout, groupId) {
-  const current = layoutOf(layout?.groups || []);
+  const current = layoutOf(layout?.groups || [], layout?.targets);
   // Removing group releases its items; they will naturally fall into "سایر"
-  return layoutOf(current.groups.filter((g) => g.id !== groupId));
+  const { [groupId]: _dropped, ...targets } = current.targets || {};
+  return layoutOf(current.groups.filter((g) => g.id !== groupId), targets);
 }
 
 export function updateGroup(layout, groupId, patch) {
-  const current = layoutOf(layout?.groups || []);
+  const current = layoutOf(layout?.groups || [], layout?.targets);
   return mapGroup(current, groupId, (g) => ({
     ...g,
     ...patch,
@@ -275,15 +284,15 @@ export function updateGroup(layout, groupId, patch) {
 }
 
 export function moveGroup(layout, groupId, delta) {
-  const current = layoutOf(layout?.groups || []);
+  const current = layoutOf(layout?.groups || [], layout?.targets);
   const index = current.groups.findIndex((g) => g.id === groupId);
-  return layoutOf(move(current.groups, index, delta));
+  return layoutOf(move(current.groups, index, delta), current.targets);
 }
 
 export function reorderGroups(layout, groupId, overId) {
-  const current = layoutOf(layout?.groups || []);
+  const current = layoutOf(layout?.groups || [], layout?.targets);
   const ids = current.groups.map((g) => g.id);
-  return layoutOf(reorder(current.groups, ids.indexOf(groupId), ids.indexOf(overId)));
+  return layoutOf(reorder(current.groups, ids.indexOf(groupId), ids.indexOf(overId)), current.targets);
 }
 
 /**
@@ -294,7 +303,7 @@ export function reorderGroups(layout, groupId, overId) {
 export function moveAsset(layout, assetKey, targetGroupId) {
   const key = getAssetKey(assetKey);
   if (!key) return layout;
-  const current = layoutOf(layout?.groups || []);
+  const current = layoutOf(layout?.groups || [], layout?.targets);
 
   const groupsWithoutAsset = current.groups.map((g) => ({
     ...g,
@@ -302,7 +311,7 @@ export function moveAsset(layout, assetKey, targetGroupId) {
   }));
 
   if (!targetGroupId || targetGroupId === 'other' || targetGroupId === 'g_other') {
-    return layoutOf(groupsWithoutAsset);
+    return layoutOf(groupsWithoutAsset, current.targets);
   }
 
   const updatedGroups = groupsWithoutAsset.map((g) => {
@@ -315,14 +324,14 @@ export function moveAsset(layout, assetKey, targetGroupId) {
     return g;
   });
 
-  return layoutOf(updatedGroups);
+  return layoutOf(updatedGroups, current.targets);
 }
 
 export function reorderAsset(layout, groupId, assetKey, overKey) {
   const key = getAssetKey(assetKey);
   const over = getAssetKey(overKey);
   if (!key || !over) return layout;
-  const current = layoutOf(layout?.groups || []);
+  const current = layoutOf(layout?.groups || [], layout?.targets);
 
   return mapGroup(current, groupId, (g) => ({
     ...g,
