@@ -36,7 +36,7 @@
 
 ## ساخت APK
 
-- هر مرج به `main`: APK انتشار امضاشده (اگر کلید امضا تنظیم شده باشد) ساخته شده و در **Releases** مخزن منتشر می‌شود (`v1.0.<شماره‌ی اجرا>`، فایل `realrate.apk`). توضیحات انتشار نیز خودکار از فایل `CHANGELOG.md` استخراج و درج می‌شود. لینک ثابت آخرین نسخه، برای دانلود مستقیم روی گوشی: `https://github.com/nos486/realrate/releases/latest/download/realrate.apk`
+- هر مرج به `main`: APK انتشار امضاشده (اگر کلید امضا تنظیم شده باشد) ساخته شده و در **Releases** مخزن منتشر می‌شود (`v1.0.<شماره‌ی اجرا>`، فایل `realrate.apk`). توضیحات انتشار فقط تغییرات همین نسخه است: خط‌هایی که از Release قبلی به `CHANGELOG.md` اضافه شده (و اگر خطی اضافه نشده، عنوان کامیت‌ها از Release قبلی) — `.github/scripts/release-notes.mjs`. لینک ثابت آخرین نسخه، برای دانلود مستقیم روی گوشی: `https://github.com/nos486/realrate/releases/latest/download/realrate.apk`
 - شماره نسخه: `versionCode` = شماره‌ی اجرای Actions، `versionName` = `1.0.<شماره>`؛ هر بیلد روی قبلی نصب می‌شود.
 
 ### کلید امضا (یک‌بار)

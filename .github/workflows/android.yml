@@ -6,7 +6,7 @@ name: Android
 on:
   push:
     branches: [main]
-    paths: ['web/**', 'api/src/domain/**', 'package-lock.json', '.github/workflows/android.yml', 'CHANGELOG.md']
+    paths: ['web/**', 'api/src/domain/**', 'package-lock.json', '.github/workflows/android.yml', '.github/scripts/**', 'CHANGELOG.md']
   workflow_dispatch:
 
 concurrency:
@@ -25,6 +25,8 @@ jobs:
       HAS_SIGNING: ${{ secrets.ANDROID_KEYSTORE_BASE64 != '' }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # the release tags: notes cover only the changes since the last one
 
       - uses: actions/setup-node@v4
         with:
@@ -71,46 +73,9 @@ jobs:
           if-no-files-found: ignore
           retention-days: 90
 
-      - name: Extract Release Notes from CHANGELOG.md
+      - name: Release notes (only what changed since the last release)
         if: env.HAS_SIGNING == 'true'
-        run: |
-          node -e '
-          const fs = require("node:fs");
-          const versionName = process.env.VERSION_NAME;
-          const repo = process.env.GITHUB_REPOSITORY;
-          let notes = "";
-
-          if (fs.existsSync("CHANGELOG.md")) {
-            const content = fs.readFileSync("CHANGELOG.md", "utf8");
-            const sections = content.split(/\n(?=##\s+)/);
-
-            let target = sections.find(s => {
-              const firstLine = (s.split("\n")[0] || "").toLowerCase();
-              return firstLine.includes(versionName.toLowerCase()) ||
-                     firstLine.includes("unreleased") ||
-                     firstLine.includes("در حال انتشار") ||
-                     firstLine.includes("نسخه جدید") ||
-                     firstLine.includes("آخرین تغییرات");
-            });
-
-            if (!target) {
-              target = sections.find(s => s.trim().startsWith("##"));
-            }
-
-            if (target) {
-              const lines = target.trim().split("\n");
-              lines.shift(); // remove the ## header line
-              notes = lines.join("\n").trim();
-            }
-          }
-
-          if (!notes) {
-            notes = `نسخه‌ی ${versionName} اپ اندروید (امضاشده).`;
-          }
-
-          const footer = `\n\n---\n**دانلود مستقیم آخرین نسخه:** [realrate.apk](https://github.com/${repo}/releases/latest/download/realrate.apk)`;
-          fs.writeFileSync(process.env.RUNNER_TEMP + "/release_notes.md", notes + footer, "utf8");
-          '
+        run: node .github/scripts/release-notes.mjs "$VERSION_NAME" "$RUNNER_TEMP/release_notes.md"
 
       - name: Publish the signed APK as a release
         if: env.HAS_SIGNING == 'true'
