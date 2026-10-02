@@ -25,6 +25,11 @@ export async function saveDailyExpense(input) {
   return expensesApi.saveExpense({ ...input, groupId: group.id });
 }
 
+/** Save an expense from a bank SMS in a project (an expense section of type 'project') */
+export async function saveProjectExpense(groupId, input) {
+  return expensesApi.saveExpense({ ...input, groupId });
+}
+
 /**
  * Record a waiting withdrawal as it is, in `category`
  * @param {{ fingerprint: string, tx: object }} item a waiting message (getPendingSms)

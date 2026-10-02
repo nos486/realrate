@@ -1,7 +1,7 @@
 /**
  * smsDrafts.js — What a bank SMS read by the Android app becomes when recorded
  *
- * A withdrawal → an everyday expense; a deposit → an income, or someone's share of a shared
+ * A withdrawal → an everyday expense (or an expense in a project); a deposit → an income, or someone's share of a shared
  * expense coming back (a reimbursement on that expense, ShareDepositSheet.jsx). The form opens filled in from the
  * message (amount in tomans, day, the matched account, a note with the bank and time) and the
  * user only picks the category.
@@ -29,6 +29,11 @@ export function smsExpenseDraft(tx, accounts = []) {
     smsFingerprint: tx.fingerprint,
     smsKey: tx.key,
   };
+}
+
+/** A withdrawal going to a project: its title is required there, so it starts as «برداشت <bank>» */
+export function smsProjectExpenseDraft(tx, accounts = []) {
+  return { ...smsExpenseDraft(tx, accounts), title: `برداشت ${resolveBank({ bankId: tx.bankId }).shortName}` };
 }
 
 /** The income form's draft for a deposit */

@@ -7,13 +7,14 @@
  * Each message shows one main action and a «⋮» menu with the rest (they don't fit a phone's row):
  * «ثبت» hands the message to `onRecord` (the page opens the expense or income form); a withdrawal
  * up to QUICK_RECORD_MAX shows «ثبت سریع» instead (`onQuickRecord`: recorded as it is, no form),
- * with «ثبت با فرم» in the menu; a deposit's menu has «وام» (`onLoanDeposit`: a received loan, not
+ * with «ثبت با فرم» in the menu; a withdrawal can also go to a project («ثبت در یک پروژه»,
+ * `onRecordToProject`); a deposit's menu has «وام» (`onLoanDeposit`: a received loan, not
  * income) and «دنگ» (`onShareDeposit`: someone's share of an expense the user paid, not income);
  * «رد» drops it for good.
  */
 
 import React, { useEffect, useState } from 'react';
-import { MessageSquareText, Check, X, ArrowDownLeft, ArrowUpRight, BellRing, Inbox, Zap, Landmark, HandCoins } from 'lucide-react';
+import { MessageSquareText, Check, X, ArrowDownLeft, ArrowUpRight, BellRing, Inbox, Zap, Landmark, HandCoins, FolderOpen } from 'lucide-react';
 import { ActionMenu, Button, EmptyState } from '../../shared/ui/index.js';
 import { useFeedback } from '../../shared/ui/FeedbackProvider.jsx';
 import { BankLogo, resolveBank } from '../../shared/banks/index.js';
@@ -75,7 +76,7 @@ function EnableCard({ onChange }) {
 /**
  * @param {{ accounts?: object[], onRecord: (item: object) => void, canRecord?: boolean }} props
  */
-export default function SmsInboxList({ accounts = [], onRecord, onQuickRecord, quickRecordingId = null, onLoanDeposit, onShareDeposit, canRecord = true }) {
+export default function SmsInboxList({ accounts = [], onRecord, onQuickRecord, quickRecordingId = null, onLoanDeposit, onShareDeposit, onRecordToProject, canRecord = true }) {
   const { pending, settings } = useSmsInbox();
   const [permission, setPermission] = useState(null);
 
@@ -145,6 +146,9 @@ export default function SmsInboxList({ accounts = [], onRecord, onQuickRecord, q
                 label="گزینه‌های این پیامک"
                 items={[
                   quick && { key: 'record', label: 'ثبت با فرم', icon: <Check size={16} />, onClick: () => onRecord(item), disabled: !canRecord },
+                  onRecordToProject && isDebit && {
+                    key: 'project', label: 'ثبت در یک پروژه', icon: <FolderOpen size={16} />, onClick: () => onRecordToProject(item), disabled: !canRecord,
+                  },
                   onLoanDeposit && !isDebit && {
                     key: 'loan', label: 'دریافت وام (درآمد نیست)', icon: <Landmark size={16} />, onClick: () => onLoanDeposit(item), disabled: !canRecord,
                   },

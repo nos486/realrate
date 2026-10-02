@@ -73,7 +73,7 @@ export default function ExpenseForm({ group = null, daily = false, expense = nul
   }));
   // A daily expense titled after its category shows an empty title field (the default)
   const [title, setTitle] = useState(
-    daily && expense?.title === getExpenseCategory(expense?.category).label ? '' : (expense?.title || ''));
+    daily && start?.title === getExpenseCategory(start?.category).label ? '' : (start?.title || ''));
   const [currency, setCurrency] = useState(expense?.currency || 'IRT');
   const [amount, setAmount] = useState(start?.amount ? String(start.amount) : '');
   const [usdRate, setUsdRate] = useState(expense?.usdRate ? String(expense.usdRate) : '');

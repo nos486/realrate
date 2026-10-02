@@ -4,7 +4,8 @@
  * - the withdrawals and deposits waiting to be recorded (SmsInboxList); «ثبت» opens the everyday
  *   expense form (withdrawal) or the income form (deposit), filled in from the message; «وام»
  *   marks a deposit as a received loan (LoanDepositSheet) and «دنگ» as someone's share of an
- *   expense the user paid (ShareDepositSheet), so neither is recorded as income
+ *   expense the user paid (ShareDepositSheet), so neither is recorded as income; a withdrawal can
+ *   go to a project instead of everyday expenses («ثبت در یک پروژه», ProjectPickSheet)
  * - "read earlier messages": automatic reading only picks up messages from the moment it is on;
  *   older ones are read here on demand (the last 24 hours, 7, 30 or 90 days)
  * Recording writes encrypted records, so the vault must be unlocked for it. Once it is, messages
@@ -29,8 +30,9 @@ import IncomeForm from '../incomes/components/IncomeForm.jsx';
 import SmsInboxList from './SmsInboxList.jsx';
 import LoanDepositSheet from './LoanDepositSheet.jsx';
 import ShareDepositSheet from './ShareDepositSheet.jsx';
-import { smsExpenseDraft, smsIncomeDraft } from './smsDrafts.js';
-import { saveDailyExpense, recordSmsExpense, dropAlreadyRecorded } from './smsRecord.js';
+import ProjectPickSheet from './ProjectPickSheet.jsx';
+import { smsExpenseDraft, smsProjectExpenseDraft, smsIncomeDraft } from './smsDrafts.js';
+import { saveDailyExpense, saveProjectExpense, recordSmsExpense, dropAlreadyRecorded } from './smsRecord.js';
 import { getExpenseCategory } from '../expenses/constants/expenseCategories.js';
 import { bumpVaultEpoch } from '../../shared/vault/vaultStore.js';
 
@@ -54,6 +56,9 @@ export default function SmsInboxPage() {
   const [quickId, setQuickId] = useState(null);
   const [loanItem, setLoanItem] = useState(null);
   const [shareItem, setShareItem] = useState(null);
+  // «ثبت در یک پروژه»: the message, then the project picked for it
+  const [projectItem, setProjectItem] = useState(null);
+  const [projectDraft, setProjectDraft] = useState(null); // { project, draft }
 
   const locked = vaultStatus === 'locked';
   const { pending } = useSmsInbox();
@@ -143,6 +148,7 @@ export default function SmsInboxPage() {
           quickRecordingId={quickId}
           onLoanDeposit={setLoanItem}
           onShareDeposit={setShareItem}
+          onRecordToProject={setProjectItem}
           canRecord={!locked && !readOnly}
         />
       </Card>
@@ -172,6 +178,27 @@ export default function SmsInboxPage() {
         />
       )}
       {loanItem && <LoanDepositSheet item={loanItem} onClose={() => setLoanItem(null)} />}
+      {projectItem && (
+        <ProjectPickSheet
+          item={projectItem}
+          onClose={() => setProjectItem(null)}
+          onPick={(project) => {
+            setProjectDraft({ project, draft: smsProjectExpenseDraft(projectItem.tx, accounts) });
+            setProjectItem(null);
+          }}
+        />
+      )}
+      {projectDraft && (
+        <ExpenseForm
+          group={projectDraft.project}
+          draft={projectDraft.draft}
+          usdToman={usdToman}
+          accounts={accounts.filter((a) => !a.archived)}
+          submitting={saving}
+          onClose={() => setProjectDraft(null)}
+          onSubmit={record((input) => saveProjectExpense(projectDraft.project.id, input), projectDraft.draft, `هزینه در «${projectDraft.project.name}» ثبت شد.`)}
+        />
+      )}
       {shareItem && <ShareDepositSheet item={shareItem} accounts={accounts} onClose={() => setShareItem(null)} />}
       {incomeDraft && (
         <IncomeForm

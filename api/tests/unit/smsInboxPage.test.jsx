@@ -146,6 +146,32 @@ describe('SmsInboxPage', () => {
   });
 });
 
+describe('«ثبت در یک پروژه»: a withdrawal into a project', () => {
+  it('lists the open projects, opens the form for the chosen one and records into it', async () => {
+    expenses.getExpenseGroups.mockResolvedValue({ groups: [
+      { id: 'exg_daily', type: 'daily', name: 'روزمره' },
+      { id: 'exg_trip', type: 'project', name: 'سفر شمال' },
+      { id: 'exg_old', type: 'project', name: 'پروژه‌ی بایگانی', archived: true },
+    ] });
+    render(<SmsInboxPage />);
+    await waitFor(() => expect(screen.getAllByLabelText('گزینه‌های این پیامک')).toHaveLength(2));
+    screen.getAllByLabelText('گزینه‌های این پیامک').forEach((b) => fireEvent.click(b));
+    // Only a withdrawal's menu has it
+    expect(screen.getAllByText('ثبت در یک پروژه')).toHaveLength(1);
+    fireEvent.click(screen.getByText('ثبت در یک پروژه').closest('button'));
+    await waitFor(() => expect(screen.getByText('سفر شمال')).toBeTruthy());
+    expect(screen.queryByText('پروژه‌ی بایگانی')).toBeNull();
+    expect(screen.queryByText('روزمره')).toBeNull();
+    fireEvent.click(screen.getByText('سفر شمال').closest('button'));
+    fireEvent.submit(screen.getAllByText('ثبت هزینه').map((el) => el.closest('form')).find(Boolean));
+    await waitFor(() => expect(expenses.saveExpense).toHaveBeenCalled());
+    expect(expenses.saveExpense.mock.calls[0][0]).toMatchObject({
+      groupId: 'exg_trip', title: 'برداشت بلو', amount: 2000000, source: 'sms', smsKey: 'blu|debit|2000000|2026-09-28|10:47',
+    });
+    await waitFor(() => expect(getPendingSms()).toHaveLength(1));
+  });
+});
+
 describe('«ثبت سریع» (no form)', () => {
   const SMALL = 'بلو\nبرداشت پول\nسینا عزیز، 3,500,000 ریال از حساب شما پرید.\nموجودی: 73,936,726 ریال\n۱۱:۰۵\n۱۴۰۵.۰۷.۰۶';
 
