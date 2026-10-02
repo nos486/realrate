@@ -1102,3 +1102,78 @@ html.is-native-app .budget-grid .ui-input-label {
   min-width: 0;
   align-self: stretch;
 }
+
+/* ── «اپ اندروید» suggestion on Android browsers (shared/app/AppSuggestBanner.jsx) ── */
+.app-suggest-banner {
+  position: relative;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 10px 12px;
+  align-items: center;
+  margin: 10px 16px 0;
+  padding: 12px 14px 12px 40px;
+  border-radius: 14px;
+  z-index: 5;
+  border: 1px solid rgba(52, 211, 153, 0.35);
+  background: linear-gradient(135deg, rgba(16, 185, 129, 0.14), rgba(56, 189, 248, 0.08));
+  color: var(--text-primary);
+}
+.app-suggest-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 11px;
+  background: rgba(16, 185, 129, 0.18);
+  color: #34d399;
+}
+.app-suggest-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.app-suggest-text strong { font-size: 13.5px; }
+.app-suggest-text span {
+  color: var(--text-muted);
+  font-size: 11.5px;
+  line-height: 1.6;
+}
+.app-suggest-actions {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.app-suggest-actions .ui-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  text-decoration: none;
+}
+.app-suggest-guide {
+  color: var(--color-primary-text);
+  font-size: 12.5px;
+  text-decoration: none;
+}
+.app-suggest-close {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  display: inline-flex;
+  padding: 4px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+@media (min-width: 769px) {
+  .app-suggest-banner {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    max-width: 1200px;
+    margin-inline: auto;
+  }
+  .app-suggest-actions { grid-column: auto; }
+}

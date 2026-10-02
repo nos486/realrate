@@ -12,6 +12,7 @@
  * - Zero-Knowledge privacy preview toggle
  * - Clean semantic HTML, accessible, lightweight, and supports prefers-reduced-motion
  */
+import AppSuggestBanner from '../shared/app/AppSuggestBanner.jsx';
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   TrendingUp,
@@ -181,6 +182,7 @@ export default function LandingPage() {
 
   return (
     <div className="landing-root" dir="rtl" lang="fa">
+      <AppSuggestBanner />
       {/* ── Background Mesh Aurora & Dot Grid ───────────────────────────── */}
       <div className="landing-ambient-canvas" aria-hidden="true">
         <div className="landing-aurora-blob aurora-blue" />

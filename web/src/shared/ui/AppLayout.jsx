@@ -6,6 +6,7 @@ import OfflineBar from '../offline/OfflineBar.jsx';
 import { isNativeApp } from '../native/nativeApp.js';
 import { AppTopBar, AppBottomNav } from '../app/AppShell.jsx';
 import AppUpdatePrompt, { AppUpdateBanner } from '../app/AppUpdatePrompt.jsx';
+import AppSuggestBanner from '../app/AppSuggestBanner.jsx';
 
 /**
  * Standard AppLayout component
@@ -60,6 +61,8 @@ export default function AppLayout({
     <div className={`app-layout ${layoutClassName}`}>
       <OfflineBar />
       <DemoBanner />
+      {/* On an Android phone's browser: the app is easier and faster */}
+      <AppSuggestBanner />
       {!hideHeader && (
         <Header
           usdToman={usdToman}

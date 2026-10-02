@@ -461,6 +461,11 @@
     display: none;
   }
 
+  /* …except the alerts bell (shared/alerts/AlertCenter.jsx) */
+  .site-header.has-nav-drawer .btn-privacy-toggle.alert-center-button {
+    display: inline-flex;
+  }
+
   /* The side menu replaces the tab bar */
   .main-nav-tabs-bar {
     display: none !important;

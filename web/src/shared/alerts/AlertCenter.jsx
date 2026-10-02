@@ -3,10 +3,12 @@
  *
  * The bell counts the alerts not dismissed (red with a critical one among them). Its panel lists
  * them all, most severe first — dismissed ones too, dimmed — each with its items, its action and
- * «پنهان کردن». Same store as the banners (alertStore.js), so a dismissal hides both.
+ * «پنهان کردن». Same store as the banners (alertStore.js), so a dismissal hides both. The bell
+ * shows on phones too (the other header buttons move into the menu there).
  */
 
 import React, { useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { Bell, BellOff, AlertOctagon, AlertTriangle, Info, ChevronLeft, EyeOff } from 'lucide-react';
 import Modal from '../ui/Modal.jsx';
@@ -97,7 +99,9 @@ export default function AlertCenterButton({ className = 'btn-privacy-toggle icon
           </span>
         )}
       </button>
-      {open && <AlertCenterPanel onClose={() => setOpen(false)} />}
+      {/* At the page's root: the headers blur what is behind them (backdrop-filter), which would
+          make a fixed dialog inside them sit in the header instead of over the page */}
+      {open && createPortal(<AlertCenterPanel onClose={() => setOpen(false)} />, document.body)}
     </>
   );
 }
