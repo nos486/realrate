@@ -1,10 +1,12 @@
 /**
  * appUpdate.js — The Android app updates itself from its signed GitHub release
  *
- * - Every time the app opens (and on a return to it, at most once an hour) it asks the server for
+ * - Every time the app opens and every time it comes back to the front, it asks the server for
  *   the latest release (GET /api/app/latest, api/src/handlers/appUpdateRoutes.js) and compares
- *   it with its own version name. A newer one shows a banner at the top (AppUpdatePrompt.jsx:
- *   AppUpdateBanner); tapping it opens the update prompt.
+ *   it with its own version name — also while a newer one is already known, since an even newer
+ *   one may have come out. A newer one shows a banner at the top (AppUpdatePrompt.jsx:
+ *   AppUpdateBanner); tapping it opens the update prompt. «به‌روزرسانی» asks once more right
+ *   before downloading, and installs the newest release.
  * - «به‌روزرسانی» downloads the APK inside the app (AppUpdate plugin, with progress) and opens
  *   Android's installer. Android asks the user once for "install unknown apps" for RealRate, and
  *   installs only an APK signed with the same key, over the installed app (the data stays).
@@ -21,8 +23,8 @@ import { AppUpdate } from './nativePlugins.js';
 
 const SETTINGS_KEY = 'realrate_app_update';
 export const APP_UPDATE_EVENT = 'realrate:app-update';
-/** On a return to the app (opening it always checks) */
-export const CHECK_INTERVAL_MS = 60 * 60 * 1000;
+/** Two checks closer than this are one (the app comes back to the front twice in a row) */
+export const MIN_CHECK_GAP_MS = 20 * 1000;
 
 function readSettings() {
   try {
@@ -50,9 +52,9 @@ export function setAutoUpdateCheck(auto) {
   notify();
 }
 
-/** Time for the automatic check: on opening the app, else CHECK_INTERVAL_MS after the last one */
+/** Time for the automatic check: every opening of the app and every return to it */
 export function isCheckDue(settings, now = Date.now(), { launch = false } = {}) {
-  return settings.auto && (launch || now - settings.lastCheck >= CHECK_INTERVAL_MS);
+  return settings.auto && (launch || now - settings.lastCheck >= MIN_CHECK_GAP_MS);
 }
 
 /** The release is newer than the installed version */
@@ -154,11 +156,24 @@ export function openUpdatePrompt() {
   if (state.release) setState({ open: true });
 }
 
+/** The newest release right now (a newer one than the known one may have come out meanwhile) */
+async function newestRelease(known) {
+  try {
+    const data = await httpClient.get('/api/app/latest');
+    const latest = data?.release || null;
+    if (latest && (!known || isNewer(latest, known.version))) {
+      setState({ release: latest });
+      return latest;
+    }
+  } catch {}
+  return known;
+}
+
 /** Download the APK and open Android's installer (asks for the install permission first if needed) */
 export async function downloadAndInstall() {
-  const { release } = state;
-  if (!release || !canUpdate()) return;
+  if (!state.release || !canUpdate()) return;
   try {
+    const release = await newestRelease(state.release);
     const { allowed } = await AppUpdate.canInstall();
     if (!allowed) {
       setState({ status: 'permission', error: '' });

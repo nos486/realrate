@@ -11,7 +11,7 @@ import {
   isNewer,
   hasUpdate,
   releaseNotesText,
-  CHECK_INTERVAL_MS,
+  MIN_CHECK_GAP_MS,
 } from '../../../web/src/shared/native/appUpdate.js';
 
 const githubRelease = {
@@ -92,11 +92,13 @@ describe('GET /api/app/latest', () => {
 describe('app update prompt', () => {
   const release = { version: '1.0.48' };
 
-  it('checks every time the app opens; on a return, once the interval has passed', () => {
+  it('checks every time the app opens and every time it comes back', () => {
     expect(isCheckDue({ auto: true, lastCheck: Date.now() }, Date.now(), { launch: true })).toBe(true);
-    expect(isCheckDue({ auto: true, lastCheck: 0 }, CHECK_INTERVAL_MS)).toBe(true);
-    expect(isCheckDue({ auto: true, lastCheck: 1 }, CHECK_INTERVAL_MS)).toBe(false);
-    expect(isCheckDue({ auto: false, lastCheck: 0 }, CHECK_INTERVAL_MS * 10, { launch: true })).toBe(false);
+    // Every return to the app checks again (two returns in a row are one check)
+    const now = 10 * 60 * 1000;
+    expect(isCheckDue({ auto: true, lastCheck: now - MIN_CHECK_GAP_MS }, now)).toBe(true);
+    expect(isCheckDue({ auto: true, lastCheck: now - 1000 }, now)).toBe(false);
+    expect(isCheckDue({ auto: false, lastCheck: 0 }, now, { launch: true })).toBe(false);
   });
 
   it('compares versions numerically', () => {

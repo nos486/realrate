@@ -15,7 +15,7 @@ import { getStateStore } from "../repositories/stateStore.repository.js";
 import { APP_RELEASE_REPO, parseGithubRelease, releaseFromLatestRedirect } from "../domain/appRelease.js";
 
 const STATE_KEY = "app:latest_release";
-export const RELEASE_CACHE_MS = 10 * 60 * 1000;
+export const RELEASE_CACHE_MS = 5 * 60 * 1000;
 const USER_AGENT = "RealRate-API (+https://realrate.ir)";
 
 async function fetchFromApi(env, repo) {

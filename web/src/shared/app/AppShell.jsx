@@ -34,14 +34,12 @@ const MONEY_TABS = ['market', 'portfolio', 'incomes', 'expenses', 'accounts', 'l
 /** The bottom bar's own sections; everything else is under «بیشتر» */
 function mainTabs(items) {
   const has = (value) => items.some((i) => i.value === value);
-  return [
-    { value: 'market', label: 'خانه', Icon: Home },
-    // Expenses when the user has them, else incomes
-    has('expenses')
-      ? { value: 'expenses', label: 'هزینه‌ها', Icon: HandCoins }
-      : { value: 'incomes', label: 'درآمدها', Icon: Wallet },
-    { value: 'portfolio', label: 'پورتفو', Icon: Briefcase },
-  ];
+  const expenses = { value: 'expenses', label: 'هزینه‌ها', Icon: HandCoins };
+  const incomes = { value: 'incomes', label: 'درآمدها', Icon: Wallet };
+  const portfolio = { value: 'portfolio', label: 'پورتفو', Icon: Briefcase };
+  // Expenses and incomes; without expenses, incomes and the portfolio (it moves to «بیشتر»
+  // otherwise)
+  return [{ value: 'market', label: 'خانه', Icon: Home }, ...(has('expenses') ? [expenses, incomes] : [incomes, portfolio])];
 }
 
 function usePendingSmsCount() {
