@@ -13,7 +13,7 @@ import { accountLabel } from '../../accounts/constants/accountDisplay.js';
 import { getExpenseCategory } from '../constants/expenseCategories.js';
 
 const BASE = ['تاریخ', 'عنوان', 'مبلغ پرداختی', 'سهم من', 'ارز', 'نرخ دلار', 'معادل تومان (سهم من)'];
-const REST = ['معادل دلار (نرخ روز هزینه)', 'به نرخ امروز (تومان)', 'دریافت‌شده از دیگران', 'مانده طلب از دیگران', 'پرداخت از', 'تأمین از', 'ثبت از', 'یادداشت'];
+const REST = ['برچسب‌ها', 'معادل دلار (نرخ روز هزینه)', 'به نرخ امروز (تومان)', 'دریافت‌شده از دیگران', 'مانده طلب از دیگران', 'پرداخت از', 'تأمین از', 'ثبت از', 'یادداشت'];
 
 /** @param {{ withCategory?: boolean }} [options] everyday expenses have a category column */
 export function expenseCsvHeaders({ withCategory = false } = {}) {
@@ -44,6 +44,7 @@ export function expenseCsvRow(e, { withCategory = false, usdToman = 0, accountBy
   ];
   const dollars = e.currency === 'USD' ? null : expenseDollarValue(e, usdToman);
   const rest = [
+    (e.tags || []).join('، '),
     dollars ? Math.round(dollars.usd * 100) / 100 : '',
     dollars && dollars.todayToman !== null ? Math.round(dollars.todayToman) : '',
     shared ? received : '',

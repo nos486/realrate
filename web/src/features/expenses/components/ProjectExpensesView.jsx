@@ -23,7 +23,7 @@ import {
 import { useFeedback } from '../../../shared/ui/FeedbackProvider.jsx';
 import { SkeletonRows } from '../../../shared/ui/Skeleton.jsx';
 import { toEnglishDigits } from '../../../shared/utils/formatters.js';
-import { summarizeExpenses, summarizeDollarValue } from '../../../utils/expenseDocument.js';
+import { summarizeExpenses, summarizeDollarValue, summarizeByTag, hasTag } from '../../../utils/expenseDocument.js';
 import { useDemo } from '../../demo/index.js';
 import { useExpenses } from '../hooks/useExpenses.js';
 import { formatAmount } from '../utils/format.js';
@@ -31,6 +31,7 @@ import ExpenseGroupForm from './ExpenseGroupForm.jsx';
 import ExpenseForm from './ExpenseForm.jsx';
 import ExpensesTable from './ExpensesTable.jsx';
 import ExpenseSummaryCards from './ExpenseSummaryCards.jsx';
+import ExpenseTagTotals from './ExpenseTagTotals.jsx';
 import { GenericCsvExportButton } from '../../../shared/ui/index.js';
 import { useAccounts } from '../../accounts/hooks/useAccounts.js';
 import ReimbursementsModal from './ReimbursementsModal.jsx';
@@ -63,24 +64,35 @@ export default function ProjectExpensesView({ groupId = null, onSelectGroup, usd
   const totalsByGroup = useMemo(() => {
     const byGroup = new Map(groups.map((g) => [g.id, []]));
     for (const e of expenses) byGroup.get(e.groupId)?.push(e);
-    return new Map([...byGroup].map(([id, list]) => [id, { list, summary: summarizeExpenses(list, { usdToman }), dollarView: summarizeDollarValue(list, { usdToman }) }]));
+    return new Map([...byGroup].map(([id, list]) => [id, {
+      list,
+      summary: summarizeExpenses(list, { usdToman }),
+      dollarView: summarizeDollarValue(list, { usdToman }),
+      byTag: summarizeByTag(list, { usdToman }),
+    }]));
   }, [groups, expenses, usdToman]);
 
   const selectedData = selected ? totalsByGroup.get(selected.id) : null;
+  // One tag's expenses only (from the «برچسب‌ها» card or a tag on a row); per project
+  const [tagFilter, setTagFilter] = useState({ groupId: null, tag: null });
+  const activeTag = tagFilter.groupId === selected?.id ? tagFilter.tag : null;
+  const selectTag = (tag) => setTagFilter({ groupId: selected?.id || null, tag });
+  const tagSuggestions = useMemo(() => (selectedData?.byTag.tags || []).map((t) => t.tag), [selectedData]);
   const q = toEnglishDigits(searchQuery.trim().toLowerCase());
   const searching = Boolean(q);
   const listed = useMemo(() => {
     const list = selectedData?.list || [];
     const dir = order === 'asc' ? 1 : -1;
+    const tagged = activeTag ? list.filter((e) => hasTag(e, activeTag)) : list;
     const matches = q
-      ? list.filter((e) => [e.title, e.notes].some((f) => String(f || '').toLowerCase().includes(q)))
-      : list;
+      ? tagged.filter((e) => [e.title, e.notes, ...(e.tags || [])].some((f) => String(f || '').toLowerCase().includes(q)))
+      : tagged;
     return [...matches].sort((a, b) =>
       dir * (String(a.date).localeCompare(String(b.date)) || String(a.createdAt || '').localeCompare(String(b.createdAt || '')))
     );
-  }, [selectedData, q, order]);
+  }, [selectedData, q, order, activeTag]);
 
-  const listKey = `${q}|${selected?.id}|${order}`;
+  const listKey = `${q}|${selected?.id}|${order}|${activeTag || ''}`;
   const lastPage = Math.max(1, Math.ceil(listed.length / EXPENSES_PAGE_SIZE));
   const page = Math.min(paging.key === listKey ? paging.page : 1, lastPage);
   const setPage = (next) => setPaging({ key: listKey, page: next });
@@ -182,7 +194,20 @@ export default function ProjectExpensesView({ groupId = null, onSelectGroup, usd
           </nav>
 
           {selected && (
-            <SplitPageLayout sidebar={<ExpenseSummaryCards summary={selectedData.summary} budget={selected.budget} hideValues={hideValues} dollarView={selectedData.dollarView} />}>
+            <SplitPageLayout
+              sidebar={(
+                <>
+                  <ExpenseSummaryCards summary={selectedData.summary} budget={selected.budget} hideValues={hideValues} dollarView={selectedData.dollarView} />
+                  <ExpenseTagTotals
+                    byTag={selectedData.byTag}
+                    totalToman={selectedData.summary.totalToman}
+                    activeTag={activeTag}
+                    onSelect={selectTag}
+                    hideValues={hideValues}
+                  />
+                </>
+              )}
+            >
               <div className="portfolio-table-card">
                 <div className="portfolio-table-header">
                   <div className="table-title">
@@ -212,7 +237,7 @@ export default function ProjectExpensesView({ groupId = null, onSelectGroup, usd
                       <SearchBar
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
-                        placeholder="جستجو در عنوان یا یادداشت..."
+                        placeholder="جستجو در عنوان، یادداشت یا برچسب..."
                         badge={`${listed.length.toLocaleString('fa-IR')} مورد`}
                         className="incomes-search"
                       />
@@ -259,6 +284,8 @@ export default function ProjectExpensesView({ groupId = null, onSelectGroup, usd
                         sortState={{ key: 'date', dir: order }}
                         onSortChange={() => setOrder(order === 'desc' ? 'asc' : 'desc')}
                         showDollarValue
+                        onTagClick={selectTag}
+                        activeTag={activeTag}
                       />
                       <Pagination
                         page={page}
@@ -296,6 +323,7 @@ export default function ProjectExpensesView({ groupId = null, onSelectGroup, usd
           onSubmit={(input) => saveExpense(input, expenseForm.expense)}
           onClose={() => setExpenseForm(null)}
           submitting={submitting}
+          tagSuggestions={tagSuggestions}
         />
       )}
       {reimburse && (

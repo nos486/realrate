@@ -861,3 +861,143 @@ button.expense-share-chip {
 .expense-dollar-value .is-down,
 .expense-dollar-foot .is-down { color: var(--green-emerald); font-weight: 700; }
 .expense-dollar-foot small { color: var(--text-muted); }
+
+/* ── A project expense's tags (TagInput, ExpensesTable, ExpenseTagTotals) ── */
+.expense-tags-box {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  min-height: 42px;
+  padding: 6px 8px;
+  border-radius: var(--radius-md, 10px);
+  border: 1px solid var(--border-medium);
+  background: var(--bg-input, rgba(255, 255, 255, 0.03));
+}
+.expense-tag-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: rgba(56, 189, 248, 0.14);
+  color: var(--color-primary-text);
+  font-size: 12px;
+}
+.expense-tag-chip button {
+  display: inline-flex;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+}
+.expense-tags-field {
+  flex: 1;
+  min-width: 120px;
+  border: none;
+  outline: none;
+  background: transparent;
+  color: var(--text-primary);
+  font: inherit;
+  font-size: 13px;
+}
+.expense-tags-suggest {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 6px;
+}
+.expense-tag-suggest {
+  padding: 2px 8px;
+  border-radius: 999px;
+  border: 1px dashed var(--border-medium);
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 11.5px;
+  cursor: pointer;
+}
+.expense-row-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 4px;
+}
+.expense-row-tag {
+  padding: 1px 7px;
+  border-radius: 999px;
+  border: none;
+  background: rgba(56, 189, 248, 0.1);
+  color: var(--color-primary-text);
+  font-size: 11px;
+  cursor: pointer;
+}
+.expense-row-tag:disabled { cursor: default; }
+.expense-row-tag.is-active { background: rgba(56, 189, 248, 0.3); }
+.expense-tag-totals {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 12px;
+}
+.expense-tag-totals-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-muted);
+}
+.expense-tag-totals-head span { display: inline-flex; align-items: center; gap: 5px; }
+.expense-tag-clear {
+  padding: 2px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--border-medium);
+  background: transparent;
+  color: var(--text-primary);
+  font-size: 11px;
+  cursor: pointer;
+}
+.expense-tag-totals ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.expense-tag-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 2px 10px;
+  width: 100%;
+  padding: 7px 10px;
+  border-radius: 10px;
+  border: 1px solid transparent;
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--text-primary);
+  text-align: start;
+  font: inherit;
+  cursor: pointer;
+}
+.expense-tag-row.is-active { border-color: rgba(56, 189, 248, 0.5); background: rgba(56, 189, 248, 0.08); }
+.expense-tag-name { font-size: 13px; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.expense-tag-count { grid-row: 2; color: var(--text-muted); font-size: 11px; }
+.expense-tag-sum { grid-row: 1 / span 2; grid-column: 2; align-self: center; font-size: 13px; }
+.expense-tag-sum small { color: var(--text-muted); font-weight: 400; }
+.expense-tag-bar {
+  grid-column: 1 / -1;
+  height: 3px;
+  border-radius: 3px;
+  background: rgba(255, 255, 255, 0.06);
+  overflow: hidden;
+}
+.expense-tag-bar i { display: block; height: 100%; background: var(--color-primary-text); }
+.expense-tag-untagged {
+  display: flex;
+  justify-content: space-between;
+  padding: 4px 10px;
+  color: var(--text-muted);
+  font-size: 12px;
+}
+.expense-tag-untagged small { font-weight: 400; }

@@ -78,7 +78,31 @@ export const EXPENSE_LIMITS = {
   maxAmount: 1e15,
   reimbursementNotesLength: 200,
   maxReimbursements: 100,
+  maxTags: 10,
+  tagLength: 30,
 };
+
+/**
+ * An expense's tags («برچسب»): free words the user groups a project's expenses by (e.g. «مصالح»,
+ * «دستمزد», «طبقه دوم»). Trimmed, inner spaces collapsed, a leading «#» dropped, no repeats
+ * (case-insensitive), at most EXPENSE_LIMITS.maxTags of at most tagLength characters.
+ * @param {unknown} raw an array of words, or one string separated by commas
+ * @returns {string[]}
+ */
+export function normalizeTags(raw) {
+  const list = Array.isArray(raw) ? raw : String(raw ?? '').split(/[,،]/);
+  const seen = new Set();
+  const tags = [];
+  for (const item of list) {
+    const tag = String(item ?? '').replace(/^#+/, '').replace(/\s+/g, ' ').trim().slice(0, EXPENSE_LIMITS.tagLength);
+    const key = tag.toLowerCase();
+    if (!tag || seen.has(key)) continue;
+    seen.add(key);
+    tags.push(tag);
+    if (tags.length >= EXPENSE_LIMITS.maxTags) break;
+  }
+  return tags;
+}
 
 export const REIMBURSEMENT_SOURCES = ['manual', 'sms'];
 /** Rounding slack when comparing amounts (dollar cents) */
@@ -199,6 +223,7 @@ export function validateExpense(body = {}) {
       accountId: paidFrom ? '' : accountId,
       loanId: paidFrom ? '' : loanId,
       smsFingerprint, smsKey, myShare, reimbursements, paidFrom,
+      tags: normalizeTags(body.tags),
     },
   };
 }
@@ -431,6 +456,36 @@ export function summarizeDollarValue(expenses = [], { usdToman = 0 } = {}) {
   }
   return summary;
 }
+
+/**
+ * Per-tag totals in tomans (the user's share), largest first; an expense with several tags counts
+ * under each, so the tags may add up to more than the total. `untagged`: the expenses without a tag.
+ * @returns {{ tags: Array<{ tag: string, totalToman: number, count: number }>, untagged: { totalToman: number, count: number } }}
+ */
+export function summarizeByTag(expenses = [], { usdToman = 0 } = {}) {
+  const byTag = new Map();
+  const untagged = { totalToman: 0, count: 0 };
+  for (const e of expenses) {
+    const inToman = expenseInToman(e, usdToman) || 0;
+    const tags = normalizeTags(e.tags);
+    if (!tags.length) {
+      untagged.totalToman += inToman;
+      untagged.count += 1;
+      continue;
+    }
+    for (const tag of tags) {
+      const key = tag.toLowerCase();
+      if (!byTag.has(key)) byTag.set(key, { tag, totalToman: 0, count: 0 });
+      const entry = byTag.get(key);
+      entry.totalToman += inToman;
+      entry.count += 1;
+    }
+  }
+  return { tags: [...byTag.values()].sort((a, b) => b.totalToman - a.totalToman || a.tag.localeCompare(b.tag)), untagged };
+}
+
+/** Whether an expense carries a tag (case-insensitive) */
+export const hasTag = (expense, tag) => normalizeTags(expense?.tags).some((t) => t.toLowerCase() === String(tag).toLowerCase());
 
 /**
  * Per-category totals in tomans, largest first (expenses without a category count as 'other')

@@ -26,6 +26,7 @@ import ShamsiDatePicker, {
 } from '../../portfolio/components/ShamsiDatePicker.jsx';
 import { parseInputNumber, formatNum } from '../../portfolio/utils/holdingHelpers.js';
 import { formatAmount } from '../utils/format.js';
+import TagInput from './TagInput.jsx';
 import { EXPENSE_CURRENCIES, EXPENSE_LIMITS, isSharedExpense, expenseReceivable } from '../../../utils/expenseDocument.js';
 import { getExpenseCategory } from '../constants/expenseCategories.js';
 import { useCategories } from '../../../shared/categories/useCategories.js';
@@ -54,7 +55,7 @@ const SHARE_OPTIONS = [
 
 const CURRENCY_OPTIONS = EXPENSE_CURRENCIES.map(({ value, label }) => ({ value, label }));
 
-export default function ExpenseForm({ group = null, daily = false, expense = null, draft = null, usdToman = 0, accounts = [], onSubmit, onClose, submitting = false }) {
+export default function ExpenseForm({ group = null, daily = false, expense = null, draft = null, usdToman = 0, accounts = [], onSubmit, onClose, submitting = false, tagSuggestions = [] }) {
   const start = expense || draft;
   const [accountId, setAccountId] = useState(() => {
     if (expense) return expense.accountId || '';
@@ -80,6 +81,8 @@ export default function ExpenseForm({ group = null, daily = false, expense = nul
   const [usdRate, setUsdRate] = useState(expense?.usdRate ? String(expense.usdRate) : '');
   const [dateShamsi, setDateShamsi] = useState(() =>
     start?.date ? gregorianToShamsi(`${start.date}T00:00:00`) : getTodayShamsi());
+  // A project's expense may carry tags (summed per tag beside the list)
+  const [tags, setTags] = useState(() => (Array.isArray(start?.tags) ? start.tags : []));
   const [notes, setNotes] = useState(start?.notes || '');
   const [shared, setShared] = useState(isSharedExpense(expense));
   const [myShare, setMyShare] = useState(isSharedExpense(expense) ? String(expense.myShare) : '');
@@ -158,6 +161,7 @@ export default function ExpenseForm({ group = null, daily = false, expense = nul
         date: dateIso,
         notes: notes.trim(),
         myShare: sharing ? shareNum : null,
+        tags: daily ? (expense?.tags || []) : tags,
         ...(draft && !expense ? { source: draft.source, bankId: draft.bankId, smsFingerprint: draft.smsFingerprint } : {}),
       });
       try {
@@ -384,6 +388,8 @@ export default function ExpenseForm({ group = null, daily = false, expense = nul
         )}
 
         <ShamsiDatePicker label="تاریخ هزینه *" value={dateShamsi} onChange={setDateShamsi} />
+
+        {!daily && <TagInput value={tags} onChange={setTags} suggestions={tagSuggestions} />}
 
         <Input
           id="expense-notes"

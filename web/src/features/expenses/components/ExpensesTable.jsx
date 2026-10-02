@@ -71,6 +71,9 @@ export default function ExpensesTable({
   onSortChange = null,
   // A project's toman expenses with the day's dollar rate: in dollars, and at today's rate
   showDollarValue = false,
+  // Tags under each title; tapping one shows only its expenses
+  onTagClick = null,
+  activeTag = null,
 }) {
   const accountById = accounts ? new Map(accounts.map((a) => [a.id, a])) : null;
   const loans = useOptionalLoans();
@@ -88,6 +91,21 @@ export default function ExpensesTable({
               <Landmark size={11} />
               از {loanTitle(e.loanId)}
             </small>
+          )}
+          {e.tags?.length > 0 && (
+            <span className="expense-row-tags">
+              {e.tags.map((tag) => (
+                <button
+                  key={tag}
+                  type="button"
+                  className={`expense-row-tag ${activeTag && activeTag.toLowerCase() === tag.toLowerCase() ? 'is-active' : ''}`}
+                  onClick={onTagClick ? (ev) => { ev.stopPropagation(); onTagClick(tag); } : undefined}
+                  disabled={!onTagClick}
+                >
+                  #{tag}
+                </button>
+              ))}
+            </span>
           )}
         </span>
       ),
