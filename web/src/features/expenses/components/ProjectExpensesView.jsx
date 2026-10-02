@@ -33,9 +33,10 @@ import { GenericCsvExportButton } from '../../../shared/ui/index.js';
 import { useAccounts } from '../../accounts/hooks/useAccounts.js';
 import { accountLabel } from '../../accounts/constants/accountDisplay.js';
 import { formatShamsiDisplay } from '../../portfolio/components/ShamsiDatePicker.jsx';
-import { expenseInToman } from '../../../utils/expenseDocument.js';
+import { expenseInToman, isSharedExpense } from '../../../utils/expenseDocument.js';
+import ReimbursementsModal from './ReimbursementsModal.jsx';
 
-const CSV_HEADERS = ['تاریخ', 'عنوان', 'مبلغ', 'ارز', 'نرخ دلار', 'معادل تومان', 'پرداخت از', 'یادداشت'];
+const CSV_HEADERS = ['تاریخ', 'عنوان', 'مبلغ', 'سهم من', 'ارز', 'نرخ دلار', 'معادل تومان (سهم من)', 'پرداخت از', 'یادداشت'];
 const EXPENSES_PAGE_SIZE = 20;
 
 export default function ProjectExpensesView({ groupId = null, onSelectGroup, usdToman = 0 }) {
@@ -50,6 +51,7 @@ export default function ProjectExpensesView({ groupId = null, onSelectGroup, usd
   const { confirm } = useFeedback();
   const [groupForm, setGroupForm] = useState(null); // null | { group: object|null }
   const [expenseForm, setExpenseForm] = useState(null); // null | { expense: object|null }
+  const [reimburse, setReimburse] = useState(null); // a shared expense whose «دریافتی‌ها» are open
   const [searchQuery, setSearchQuery] = useState('');
   const [order, setOrder] = useState('desc');
   const [paging, setPaging] = useState({ key: '', page: 1 });
@@ -222,6 +224,7 @@ export default function ProjectExpensesView({ groupId = null, onSelectGroup, usd
                         formatShamsiDisplay(`${e.date}T00:00:00`),
                         e.title,
                         e.amount,
+                        isSharedExpense(e) ? e.myShare : e.amount,
                         e.currency === 'USD' ? 'دلار' : 'تومان',
                         e.usdRate || '',
                         Math.round(expenseInToman(e, usdToman) || 0),
@@ -256,6 +259,7 @@ export default function ProjectExpensesView({ groupId = null, onSelectGroup, usd
                         usdToman={usdToman}
                         onEdit={(expense) => setExpenseForm({ expense })}
                         onDelete={handleDeleteExpense}
+                        onReimburse={setReimburse}
                         deletingId={deletingId}
                         hideValues={hideValues}
                         readOnly={readOnly}
@@ -299,6 +303,15 @@ export default function ProjectExpensesView({ groupId = null, onSelectGroup, usd
           onSubmit={(input) => saveExpense(input, expenseForm.expense)}
           onClose={() => setExpenseForm(null)}
           submitting={submitting}
+        />
+      )}
+      {reimburse && (
+        <ReimbursementsModal
+          expense={reimburse}
+          accounts={accounts.filter((a) => !a.archived || (reimburse.reimbursements || []).some((r) => r.accountId === a.id))}
+          readOnly={readOnly}
+          onSave={(input, existing) => saveExpense(input, existing)}
+          onClose={() => setReimburse(null)}
         />
       )}
     </>

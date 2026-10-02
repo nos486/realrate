@@ -531,3 +531,119 @@
   font-weight: 500;
   color: var(--color-warning-text);
 }
+
+/* Shared expenses («دنگ»): the user's share, what is still owed back, and what came back */
+.expense-share-input {
+  margin-top: 8px;
+}
+
+.expense-share-status {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+
+.expense-share-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 1px 8px;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  font: inherit;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+button.expense-share-chip {
+  cursor: pointer;
+}
+
+.expense-share-chip.is-open {
+  color: var(--color-warning-text);
+  background: var(--color-warning-soft, rgba(245, 158, 11, 0.12));
+  border-color: var(--color-warning-border);
+}
+
+.expense-share-chip.is-settled {
+  color: var(--color-positive-text);
+  background: var(--color-positive-soft);
+  border-color: var(--color-positive-border);
+}
+
+.expense-share-facts {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px 16px;
+  margin: 0;
+  padding: 12px 14px;
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  font-size: 0.85rem;
+}
+
+.expense-share-facts div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.expense-share-facts dt {
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+}
+
+.expense-share-facts dd {
+  margin: 0;
+  font-weight: 700;
+}
+
+.expense-share-facts dd small {
+  font-weight: 400;
+  color: var(--text-muted);
+}
+
+.expense-share-facts .is-total {
+  grid-column: 1 / -1;
+  padding-top: 8px;
+  border-top: 1px solid var(--border-color);
+}
+
+.expense-reimbursement-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.expense-reimbursement-list li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 12px;
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+}
+
+.expense-reimbursement-list li > span {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.expense-reimbursement-list small {
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+}
+
+.expense-open-shares .loan-deposit-option:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}

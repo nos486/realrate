@@ -6,11 +6,12 @@
  * withdrawals and deposits (smsInbox.js) neither recorded nor dismissed, newest first.
  * «ثبت» hands the message to `onRecord` (the page opens the expense or income form); a withdrawal
  * up to QUICK_RECORD_MAX also gets «ثبت سریع» (`onQuickRecord`: recorded as it is, no form); a
- * deposit gets «وام» (`onLoanDeposit`: a received loan, not income); «رد» drops it for good.
+ * deposit gets «وام» (`onLoanDeposit`: a received loan, not income) and «دنگ» (`onShareDeposit`:
+ * someone's share of an expense the user paid, not income); «رد» drops it for good.
  */
 
 import React, { useEffect, useState } from 'react';
-import { MessageSquareText, Check, X, ArrowDownLeft, ArrowUpRight, BellRing, Inbox, Zap, Landmark } from 'lucide-react';
+import { MessageSquareText, Check, X, ArrowDownLeft, ArrowUpRight, BellRing, Inbox, Zap, Landmark, HandCoins } from 'lucide-react';
 import { Button, EmptyState } from '../../shared/ui/index.js';
 import { useFeedback } from '../../shared/ui/FeedbackProvider.jsx';
 import { BankLogo, resolveBank } from '../../shared/banks/index.js';
@@ -72,7 +73,7 @@ function EnableCard({ onChange }) {
 /**
  * @param {{ accounts?: object[], onRecord: (item: object) => void, canRecord?: boolean }} props
  */
-export default function SmsInboxList({ accounts = [], onRecord, onQuickRecord, quickRecordingId = null, onLoanDeposit, canRecord = true }) {
+export default function SmsInboxList({ accounts = [], onRecord, onQuickRecord, quickRecordingId = null, onLoanDeposit, onShareDeposit, canRecord = true }) {
   const { pending, settings } = useSmsInbox();
   const [permission, setPermission] = useState(null);
 
@@ -151,6 +152,18 @@ export default function SmsInboxList({ accounts = [], onRecord, onQuickRecord, q
                   title="این واریز، دریافت وام است (درآمد نیست)"
                 >
                   وام
+                </Button>
+              )}
+              {onShareDeposit && !isDebit && (
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  icon={<HandCoins size={14} />}
+                  onClick={() => onShareDeposit(item)}
+                  disabled={!canRecord}
+                  title="این واریز، سهم دیگران از هزینه‌ای است که پرداختید (درآمد نیست)"
+                >
+                  دنگ
                 </Button>
               )}
               <Button

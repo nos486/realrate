@@ -103,7 +103,8 @@ describe('SmsInboxPage', () => {
     incomes.getIncomes.mockResolvedValue({ incomes: [{ id: 'i1', incomeDate: '2026-09-25', amount: 250000 }] });
     render(<SmsInboxPage />);
     await waitFor(() => expect(getPendingSms()).toHaveLength(0));
-    expect(expenses.getExpenses).toHaveBeenCalledWith({ from: '2026-09-25', to: '2026-09-28' });
+    // Deposits look back a year: a share of an expense («دنگ») comes back after the expense's day
+    expect(expenses.getExpenses).toHaveBeenCalledWith({ from: '2025-09-25', to: '2026-09-28' });
   });
 
   it('keeps a message whose look-alike differs in amount', async () => {

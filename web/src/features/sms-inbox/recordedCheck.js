@@ -6,12 +6,19 @@
  * - recorded by hand: nothing ties it to the message; one on the same day with the same amount
  *   (and the same kind: expense for a withdrawal, income for a deposit) counts as recorded, and
  *   the message is dropped too
- * Only the days the waiting messages cover are fetched (and decrypted).
+ * - a deposit that was someone's share of an expense («دنگ»): kept in that expense's
+ *   reimbursements (with `smsKey` when from an SMS, else the same day and amount)
+ * Only the days the waiting messages cover are fetched (and decrypted) — for deposits, the year
+ * before them too, since a share comes back after the expense's own day.
  */
 
 import * as expensesApi from '../../shared/vault/vaultExpenses.js';
 import { getIncomes } from '../incomes/api/incomeApi.js';
-import { expenseInToman } from '../../utils/expenseDocument.js';
+import { expensePaidInToman } from '../../utils/expenseDocument.js';
+
+/** How far back a share coming back may point (the expense's own day) */
+const SHARE_LOOKBACK_DAYS = 365;
+const daysBefore = (iso, days) => new Date(Date.parse(iso) - days * 86_400_000).toISOString().slice(0, 10);
 
 /** Same day, same amount, same kind: what a hand-recorded twin looks like */
 export const sameDayKey = (direction, date, amount) => `${direction}|${date}|${Math.round(Number(amount) || 0)}`;
@@ -26,14 +33,23 @@ export async function findRecorded(pending) {
   const sameDay = new Set();
   if (!dates.length) return { recordedKeys, sameDay };
   const range = { from: dates[0], to: dates[dates.length - 1] };
+  const creditDates = pending.filter((p) => p.tx?.direction === 'credit' && p.tx?.date).map((p) => p.tx.date).sort();
+  const expenseFrom = creditDates.length ? daysBefore(creditDates[0], SHARE_LOOKBACK_DAYS) : range.from;
 
   const [{ expenses = [] }, { incomes = [] }] = await Promise.all([
-    expensesApi.getExpenses(range),
+    expensesApi.getExpenses({ from: expenseFrom < range.from ? expenseFrom : range.from, to: range.to }),
     getIncomes(range),
   ]);
   for (const e of expenses) {
-    if (e.smsKey) recordedKeys.add(e.smsKey);
-    else sameDay.add(sameDayKey('debit', e.date, expenseInToman(e) || 0));
+    // What was paid (a shared expense's whole amount), as the bank's message says
+    if (e.date >= range.from) {
+      if (e.smsKey) recordedKeys.add(e.smsKey);
+      else sameDay.add(sameDayKey('debit', e.date, expensePaidInToman(e) || 0));
+    }
+    for (const r of e.reimbursements || []) {
+      if (r.smsKey) recordedKeys.add(r.smsKey);
+      else if (e.currency !== 'USD') sameDay.add(sameDayKey('credit', r.date, r.amount));
+    }
   }
   for (const i of incomes) {
     if (i.smsKey) recordedKeys.add(i.smsKey);

@@ -11,7 +11,7 @@
 | نوع رکورد (`kind`) | `parent_id` | `record_date` | محتوای رمزشده |
 |---|---|---|---|
 | `expense_group` | — | روز ساخت | `{ id, name, type, notes, archived, createdAt, updatedAt }` |
-| `expense` | شناسه بخش | تاریخ هزینه | `{ id, groupId, title, amount, currency, usdRate, date, notes, category, accountId, loanId, source, bankId, smsFingerprint, smsKey, createdAt, updatedAt }` |
+| `expense` | شناسه بخش | تاریخ هزینه | `{ id, groupId, title, amount, currency, usdRate, date, notes, category, accountId, loanId, source, bankId, smsFingerprint, smsKey, myShare, reimbursements, createdAt, updatedAt }` |
 
 - `currency`: `IRT` (تومان) یا `USD`. `usdRate`: نرخ دلار روز هزینه به تومان (اختیاری، فقط برای دلار).
 - `source`: `manual` یا `sms`؛ هزینه‌ی پیامکی `bankId`، `smsFingerprint` و `smsKey` تراکنش را دارد تا دو بار ثبت نشود ([BANK_SMS.md](BANK_SMS.md)).
@@ -47,6 +47,17 @@
 5. **واریزِ وام**: واریز می‌تواند وام دریافتی باشد، نه درآمد (به وامی موجود وصل می‌شود یا وام جدید با همان مبلغ ثبت می‌شود).
 
 جزئیات: [ANDROID.md](ANDROID.md#پیامکهای-بانکی) و [BANK_SMS.md](BANK_SMS.md).
+
+## هزینه‌ی مشترک — «دنگ» (انجام شد)
+
+وقتی پول کل جمع را شما می‌دهید (مثلاً ۱۰ میلیون شام) و سهم خودتان فقط بخشی از آن است (مثلاً ۳ میلیون):
+
+- روی هزینه: `myShare` (سهم کاربر، به ارز همان هزینه؛ `null` = هزینه‌ی عادی) و `reimbursements`: `[{ id, amount, date, accountId, notes, source: manual|sms, bankId, smsKey }]` — آنچه از دیگران برگشته، به هر تعداد بخش و به هر حساب.
+- جمع‌ها، دسته‌ها، بودجه‌ها، داشبورد خانه، «هزینه روزمره این ماه» حساب‌ها و مصرف وام فقط سهم کاربر را می‌شمارند (`expenseInToman`)؛ کل پرداختی با `expensePaidInToman` (مثلاً برای تطبیق پیامک برداشت).
+- مانده‌ی طلب: `expenseReceivable` (`owed` = مبلغ − سهم، `received`، `remaining`) و `summarizeReceivables`. جمع دریافتی‌ها نمی‌تواند از سهم دیگران بیشتر شود و تا دریافتی هست، «دنگ» خاموش نمی‌شود.
+- دریافتی‌ها هرگز درآمد نیستند: داخل همان رکورد رمزشده‌ی هزینه می‌مانند.
+- رابط: در فرم هزینه «سهم: با دیگران (دنگ)» و «سهم من»؛ در جدول «سهم شما» و «طلب …/تسویه شد»؛ «دریافتی‌ها» (`ReimbursementsModal.jsx`)؛ کارت «طلب‌های دنگ» در هزینه‌های روزمره و «همه‌ی طلب‌ها» (`OpenSharesModal.jsx`، از همه‌ی بخش‌ها و ماه‌ها).
+- پیامک واریز در اپ: دکمه‌ی «دنگ» (`ShareDepositSheet.jsx`) واریز را با حساب و `smsKey` به دریافتی‌های هزینه‌ی انتخابی اضافه می‌کند؛ `recordedCheck.js` برای واریزها تا یک سال قبل را می‌گردد تا آن را ثبت‌شده بشناسد.
 
 ## بعد
 

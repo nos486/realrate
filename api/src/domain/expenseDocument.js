@@ -21,6 +21,12 @@
  *
  * An expense read from a bank SMS (bankSms.js) has `source: 'sms'`, the bank's `bankId`, the
  * message's `smsFingerprint` and the transaction's `smsKey` (so it is not recorded twice).
+ *
+ * A shared expense («دنگ»): the user paid `amount` for others too, and only `myShare` (same
+ * currency) is theirs. Totals, categories, budgets and loan usage count `myShare`
+ * (expenseInToman); the rest is owed back to the user. What comes back is kept on the expense
+ * itself (`reimbursements`: amount, day, the account it reached, from an SMS too) — never as
+ * income. `myShare: null` is an ordinary expense.
  */
 
 import { isValidIsoDate } from './isoDate.js';
@@ -63,7 +69,13 @@ export const EXPENSE_LIMITS = {
   notesLength: 500,
   categoryLength: 40,
   maxAmount: 1e15,
+  reimbursementNotesLength: 200,
+  maxReimbursements: 100,
 };
+
+export const REIMBURSEMENT_SOURCES = ['manual', 'sms'];
+/** Rounding slack when comparing amounts (dollar cents) */
+const EPSILON = 1e-6;
 
 const CURRENCY_VALUES = new Set(EXPENSE_CURRENCIES.map((c) => c.value));
 const ID_RE = /^[A-Za-z0-9_-]{1,64}$/;
@@ -162,7 +174,124 @@ export function validateExpense(body = {}) {
   const smsFingerprint = source === 'sms' && /^[0-9a-f]{8}$/.test(text(body.smsFingerprint)) ? text(body.smsFingerprint) : '';
   const smsKey = source === 'sms' ? text(body.smsKey).slice(0, 120) : '';
 
-  return { value: { groupId, title, amount, currency, date, usdRate, notes, category, source, bankId, accountId, loanId, smsFingerprint, smsKey } };
+  const shared = validateShare(body, amount);
+  if (shared.error) return { error: shared.error };
+  const { myShare, reimbursements } = shared;
+
+  return {
+    value: {
+      groupId, title, amount, currency, date, usdRate, notes, category, source, bankId, accountId, loanId,
+      smsFingerprint, smsKey, myShare, reimbursements,
+    },
+  };
+}
+
+/**
+ * A shared expense's part: `myShare` (null when not shared) and what has come back
+ * @returns {{ myShare?: number|null, reimbursements?: object[], error?: string }}
+ */
+function validateShare(body, amount) {
+  if (body.myShare === null || body.myShare === undefined || body.myShare === '') {
+    if (Array.isArray(body.reimbursements) && body.reimbursements.length) {
+      return { error: 'این هزینه دریافتی ثبت‌شده دارد؛ ابتدا دریافتی‌ها را حذف کنید.' };
+    }
+    return { myShare: null, reimbursements: [] };
+  }
+  const myShare = Number(body.myShare);
+  if (!Number.isFinite(myShare) || myShare < 0 || myShare >= amount) {
+    return { error: 'سهم شما باید از صفر تا کمتر از مبلغ کل باشد.' };
+  }
+
+  const list = Array.isArray(body.reimbursements) ? body.reimbursements : [];
+  if (list.length > EXPENSE_LIMITS.maxReimbursements) return { error: 'تعداد دریافتی‌های این هزینه بیش از حد است.' };
+  const reimbursements = [];
+  for (const raw of list) {
+    const { value, error } = validateReimbursement(raw);
+    if (error) return { error };
+    reimbursements.push(value);
+  }
+  const received = reimbursements.reduce((sum, r) => sum + r.amount, 0);
+  if (received > amount - myShare + EPSILON) {
+    return { error: 'جمع دریافتی‌ها از سهم دیگران بیشتر می‌شود.' };
+  }
+  reimbursements.sort((a, b) => a.date.localeCompare(b.date));
+  return { myShare, reimbursements };
+}
+
+/**
+ * Money that came back for a shared expense (in the expense's currency)
+ * @returns {{ value?: object, error?: string }}
+ */
+export function validateReimbursement(body = {}) {
+  const id = text(body.id);
+  if (!ID_RE.test(id)) return { error: 'شناسه‌ی دریافتی نامعتبر است.' };
+  const amount = Number(body.amount);
+  if (!Number.isFinite(amount) || amount <= 0 || amount > EXPENSE_LIMITS.maxAmount) {
+    return { error: 'مبلغ دریافتی باید عددی مثبت باشد.' };
+  }
+  const date = text(body.date);
+  if (!isValidIsoDate(date)) return { error: 'تاریخ دریافتی نامعتبر است.' };
+  const notes = text(body.notes);
+  if (notes.length > EXPENSE_LIMITS.reimbursementNotesLength) {
+    return { error: `توضیح دریافتی نباید بیشتر از ${EXPENSE_LIMITS.reimbursementNotesLength} کاراکتر باشد.` };
+  }
+  const accountId = ID_RE.test(text(body.accountId)) ? text(body.accountId) : '';
+  const source = REIMBURSEMENT_SOURCES.includes(body.source) ? body.source : 'manual';
+  const bankId = source === 'sms' ? text(body.bankId).slice(0, 64) : '';
+  const smsKey = source === 'sms' ? text(body.smsKey).slice(0, 120) : '';
+  return { value: { id, amount, date, accountId, notes, source, bankId, smsKey } };
+}
+
+/** The expense is shared («دنگ»): only `myShare` of it is the user's */
+export function isSharedExpense(expense) {
+  return expense?.myShare !== null && expense?.myShare !== undefined && Number.isFinite(Number(expense.myShare));
+}
+
+/** The user's own part of an expense, in its currency (the whole amount when not shared) */
+export function expenseShareAmount(expense) {
+  return isSharedExpense(expense) ? Number(expense.myShare) : Number(expense.amount) || 0;
+}
+
+/**
+ * What others owe back on a shared expense, in its currency
+ * @returns {{ owed: number, received: number, remaining: number }} zeros when not shared
+ */
+export function expenseReceivable(expense) {
+  if (!isSharedExpense(expense)) return { owed: 0, received: 0, remaining: 0 };
+  const owed = Math.max(0, (Number(expense.amount) || 0) - Number(expense.myShare));
+  const received = (expense.reimbursements || []).reduce((sum, r) => sum + (Number(r.amount) || 0), 0);
+  const remaining = Math.max(0, owed - received);
+  return { owed, received, remaining: remaining < EPSILON ? 0 : remaining };
+}
+
+/** Converts an amount in the expense's currency to tomans (null: a dollar amount with no rate) */
+function toToman(expense, value, usdToman) {
+  if (expense.currency !== 'USD') return value;
+  const rate = expense.usdRate || usdToman;
+  return rate > 0 ? value * rate : null;
+}
+
+/**
+ * Shared expenses' receivables in tomans: open ones (something still owed) first, oldest first
+ * @returns {{ count: number, openCount: number, owedToman: number, receivedToman: number,
+ *   remainingToman: number, open: object[] }}
+ */
+export function summarizeReceivables(expenses = [], { usdToman = 0 } = {}) {
+  const summary = { count: 0, openCount: 0, owedToman: 0, receivedToman: 0, remainingToman: 0, open: [] };
+  for (const e of expenses) {
+    if (!isSharedExpense(e)) continue;
+    const { owed, received, remaining } = expenseReceivable(e);
+    summary.count++;
+    summary.owedToman += toToman(e, owed, usdToman) || 0;
+    summary.receivedToman += toToman(e, received, usdToman) || 0;
+    if (remaining > 0) {
+      summary.openCount++;
+      summary.remainingToman += toToman(e, remaining, usdToman) || 0;
+      summary.open.push(e);
+    }
+  }
+  summary.open.sort((a, b) => String(a.date).localeCompare(String(b.date)));
+  return summary;
 }
 
 /** Newest first; the same day by the time it was recorded */
@@ -171,13 +300,17 @@ export function compareExpensesByDate(a, b) {
 }
 
 /**
- * An expense in tomans: as recorded, or a dollar amount at its own rate, else today's rate
+ * An expense in tomans — the user's own part of it (`myShare` of a shared expense): as recorded,
+ * or a dollar amount at its own rate, else today's rate
  * @returns {number|null} null for a dollar expense with no rate at all
  */
 export function expenseInToman(expense, usdToman = 0) {
-  if (expense.currency !== 'USD') return expense.amount;
-  const rate = expense.usdRate || usdToman;
-  return rate > 0 ? expense.amount * rate : null;
+  return toToman(expense, expenseShareAmount(expense), usdToman);
+}
+
+/** What was actually paid, in tomans (the whole amount, shared or not) — e.g. to match a bank SMS */
+export function expensePaidInToman(expense, usdToman = 0) {
+  return toToman(expense, Number(expense.amount) || 0, usdToman);
 }
 
 /**
@@ -186,7 +319,8 @@ export function expenseInToman(expense, usdToman = 0) {
  * @param {{ usdToman?: number }} [options] today's dollar rate, for dollar expenses without one
  * @returns {{ count: number, toman: number, usd: number, totalToman: number,
  *   usesTodayRate: boolean, unpricedUsd: number, firstDate: string, lastDate: string }}
- *   `toman` / `usd`: the sums per currency as recorded; `totalToman`: everything in tomans;
+ *   `toman` / `usd`: the sums per currency as recorded (the user's share of shared expenses);
+ *   `totalToman`: everything in tomans;
  *   `usesTodayRate`: some dollar expense was converted at today's rate; `unpricedUsd`: dollars
  *   left out of `totalToman` because no rate is known
  */
@@ -194,14 +328,15 @@ export function summarizeExpenses(expenses = [], { usdToman = 0 } = {}) {
   const summary = { count: 0, toman: 0, usd: 0, totalToman: 0, usesTodayRate: false, unpricedUsd: 0, firstDate: '', lastDate: '' };
   for (const e of expenses) {
     summary.count++;
+    const share = expenseShareAmount(e);
     if (e.currency === 'USD') {
-      summary.usd += e.amount;
+      summary.usd += share;
       if (!e.usdRate && usdToman > 0) summary.usesTodayRate = true;
     } else {
-      summary.toman += e.amount;
+      summary.toman += share;
     }
     const inToman = expenseInToman(e, usdToman);
-    if (inToman === null) summary.unpricedUsd += e.amount;
+    if (inToman === null) summary.unpricedUsd += share;
     else summary.totalToman += inToman;
     if (!summary.firstDate || e.date < summary.firstDate) summary.firstDate = e.date;
     if (!summary.lastDate || e.date > summary.lastDate) summary.lastDate = e.date;

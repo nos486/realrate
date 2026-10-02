@@ -11,6 +11,7 @@ import {
   validateExpenseGroup,
   validateExpense,
   compareExpensesByDate,
+  expenseReceivable,
   DAILY_GROUP_NAME,
 } from '../../utils/expenseDocument.js';
 import { listVaultRecords, deleteVaultRecord } from './vaultApi.js';
@@ -90,6 +91,22 @@ export async function saveExpense(input, existing = null) {
     : { id: newId('exp'), ...checked(validateExpense(input)), createdAt: now, updatedAt: now };
   await putRecord(EXPENSE_KIND, expense.id, await encryptVaultRecord(expense), expense, { parentId: expense.groupId });
   return { success: true, expense };
+}
+
+/**
+ * Shared expenses («دنگ») with something still owed back, oldest first — from every section and
+ * every month (`from`: only since that day)
+ */
+export async function getOpenSharedExpenses({ from } = {}) {
+  const { expenses } = await getExpenses(from ? { from } : {});
+  return expenses
+    .filter((e) => expenseReceivable(e).remaining > 0)
+    .sort((a, b) => String(a.date).localeCompare(String(b.date)));
+}
+
+/** A new reimbursement (money that came back for a shared expense), ready to add to its list */
+export function newReimbursement(input) {
+  return { id: newId('rmb'), ...input };
 }
 
 export async function deleteExpense(expenseId) {

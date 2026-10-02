@@ -8,6 +8,8 @@
  * expense starts from the last one used). A new expense may start from a `draft` (a bank SMS:
  * amount, day, account, note, and its source). «تأمین از» says whether it was paid from the user's
  * own money or from a loan (loanFunding.js) — offered while there is a loan not yet settled.
+ * «دنگ»: the amount was paid for others too — only «سهم من» counts as the user's expense, the rest
+ * is owed back (what comes back is recorded on the expense, ReimbursementsModal.jsx, not as income).
  * Mounted only while open, so its state starts from props.
  */
 
@@ -20,7 +22,7 @@ import ShamsiDatePicker, {
   shamsiToGregorian,
 } from '../../portfolio/components/ShamsiDatePicker.jsx';
 import { parseInputNumber, formatNum } from '../../portfolio/utils/holdingHelpers.js';
-import { EXPENSE_CURRENCIES, EXPENSE_LIMITS } from '../../../utils/expenseDocument.js';
+import { EXPENSE_CURRENCIES, EXPENSE_LIMITS, isSharedExpense, expenseReceivable } from '../../../utils/expenseDocument.js';
 import { EXPENSE_CATEGORIES, getExpenseCategory } from '../constants/expenseCategories.js';
 import { accountLabel } from '../../accounts/constants/accountDisplay.js';
 import { useOptionalLoans } from '../../loans/context/LoansContext.jsx';
@@ -35,6 +37,11 @@ function readLastAccount() {
     return '';
   }
 }
+
+const SHARE_OPTIONS = [
+  { value: 'own', label: 'همه‌اش سهم من' },
+  { value: 'shared', label: 'با دیگران (دنگ)' },
+];
 
 const CURRENCY_OPTIONS = EXPENSE_CURRENCIES.map(({ value, label }) => ({ value, label }));
 const CATEGORY_OPTIONS = EXPENSE_CATEGORIES.map(({ value, label, Icon }) => ({
@@ -63,13 +70,18 @@ export default function ExpenseForm({ group = null, daily = false, expense = nul
   const [dateShamsi, setDateShamsi] = useState(() =>
     start?.date ? gregorianToShamsi(`${start.date}T00:00:00`) : getTodayShamsi());
   const [notes, setNotes] = useState(start?.notes || '');
+  const [shared, setShared] = useState(isSharedExpense(expense));
+  const [myShare, setMyShare] = useState(isSharedExpense(expense) ? String(expense.myShare) : '');
   const [submitError, setSubmitError] = useState('');
 
   const isUsd = currency === 'USD';
   const amountNum = parseInputNumber(amount);
   const rateNum = parseInputNumber(usdRate);
   const dateIso = shamsiToGregorian(dateShamsi);
-  const isValid = (daily || Boolean(title.trim())) && amountNum > 0 && Boolean(dateIso) && (!usdRate || rateNum > 0) && !submitting;
+  const shareNum = parseInputNumber(myShare);
+  const shareValid = !shared || (myShare.trim() !== '' && shareNum >= 0 && shareNum < amountNum);
+  const received = expenseReceivable(expense).received;
+  const isValid = (daily || Boolean(title.trim())) && amountNum > 0 && Boolean(dateIso) && (!usdRate || rateNum > 0) && shareValid && !submitting;
   const tomanPreview = isUsd && amountNum > 0 ? amountNum * (rateNum || usdToman) : 0;
 
   const handleSubmit = async (e) => {
@@ -88,6 +100,7 @@ export default function ExpenseForm({ group = null, daily = false, expense = nul
         usdRate: isUsd && rateNum > 0 ? rateNum : null,
         date: dateIso,
         notes: notes.trim(),
+        myShare: shared ? shareNum : null,
         ...(draft && !expense ? { source: draft.source, bankId: draft.bankId, smsFingerprint: draft.smsFingerprint } : {}),
       });
       try {
@@ -199,6 +212,39 @@ export default function ExpenseForm({ group = null, daily = false, expense = nul
             )}
           </div>
         )}
+
+        <div className="ui-input-group">
+          <span className="ui-input-label">سهم</span>
+          <FilterPills options={SHARE_OPTIONS} activeValue={shared ? 'shared' : 'own'} onChange={(v) => setShared(v === 'shared')} size="sm" />
+          {shared && (
+            <>
+              <div className="ui-input-wrapper expense-share-input">
+                <NumericInput
+                  id="expense-my-share"
+                  value={myShare}
+                  onValueChange={setMyShare}
+                  allowDecimals={isUsd}
+                  placeholder={`سهم خودم (${isUsd ? 'دلار' : 'تومان'})`}
+                  className="ui-input-control"
+                  aria-label="سهم من"
+                />
+              </div>
+              <p className="expense-form-hint">
+                {amountNum > 0 && myShare.trim() !== '' && shareNum < amountNum ? (
+                  <>
+                    فقط <strong>{formatNum(shareNum)}</strong> هزینه‌ی شما حساب می‌شود؛ <strong>{formatNum(amountNum - shareNum)}</strong>{' '}
+                    {isUsd ? 'دلار' : 'تومان'} طلب از دیگران است و دریافتش درآمد حساب نمی‌شود.
+                  </>
+                ) : amountNum > 0 && shareNum >= amountNum ? (
+                  'سهم شما باید کمتر از مبلغ کل باشد.'
+                ) : (
+                  'مبلغ بالا کل پرداختی است؛ سهم خودتان را بنویسید (صفر: همه برای دیگران بود).'
+                )}
+                {received > 0 && ` تا حالا ${formatNum(received)} دریافت شده.`}
+              </p>
+            </>
+          )}
+        </div>
 
         {accounts.length > 0 && (
           <div className="ui-input-group">

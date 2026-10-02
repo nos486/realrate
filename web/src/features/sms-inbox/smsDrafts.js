@@ -1,7 +1,8 @@
 /**
  * smsDrafts.js — What a bank SMS read by the Android app becomes when recorded
  *
- * A withdrawal → an everyday expense; a deposit → an income. The form opens filled in from the
+ * A withdrawal → an everyday expense; a deposit → an income, or someone's share of a shared
+ * expense coming back (a reimbursement on that expense, ShareDepositSheet.jsx). The form opens filled in from the
  * message (amount in tomans, day, the matched account, a note with the bank and time) and the
  * user only picks the category.
  */
@@ -40,5 +41,18 @@ export function smsIncomeDraft(tx) {
     notes: smsNote(tx),
     smsFingerprint: tx.fingerprint,
     smsKey: tx.key,
+  };
+}
+
+/** The reimbursement a deposit adds to a shared expense («دنگ», in tomans) */
+export function smsReimbursement(tx, accounts = []) {
+  return {
+    amount: Math.round(tx.amount),
+    date: tx.date,
+    accountId: matchSmsAccount(tx, accounts) || '',
+    notes: smsNote(tx),
+    source: 'sms',
+    bankId: tx.bankId || '',
+    smsKey: tx.key || '',
   };
 }

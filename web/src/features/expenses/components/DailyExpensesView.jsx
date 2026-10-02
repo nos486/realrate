@@ -7,10 +7,12 @@
  *   categories; and, with accounts, how much was paid from each
  * - The month's expenses, filterable by category and account, with the form to add and edit
  *   them and a CSV export of the month
+ * - «دنگ»: shared expenses count only the user's share; «طلب‌های دنگ» shows the month's and opens
+ *   every open one (OpenSharesModal), and each expense's «دریافتی‌ها» (ReimbursementsModal)
  */
 
 import React, { useMemo, useState } from 'react';
-import { ChevronRight, ChevronLeft, Plus, Coins, TrendingUp, TrendingDown, CalendarDays, Tag, Target } from 'lucide-react';
+import { ChevronRight, ChevronLeft, Plus, Coins, TrendingUp, TrendingDown, CalendarDays, Tag, Target, HandCoins } from 'lucide-react';
 import { AlertBanner, Button, EmptyState, GenericCsvExportButton, MiniCard, Pagination, SearchBar, SplitPageLayout } from '../../../shared/ui/index.js';
 import DonutChart from '../../../shared/ui/DonutChart.jsx';
 import { useFeedback } from '../../../shared/ui/FeedbackProvider.jsx';
@@ -22,6 +24,8 @@ import {
   summarizeByCategory,
   summarizeByAccount,
   expenseInToman,
+  summarizeReceivables,
+  isSharedExpense,
   shamsiMonthOf,
   shamsiMonthRange,
   shiftShamsiMonth,
@@ -38,9 +42,11 @@ import ExpenseForm from './ExpenseForm.jsx';
 import ExpensesTable from './ExpensesTable.jsx';
 import BudgetForm from './BudgetForm.jsx';
 import BudgetProgress from './BudgetProgress.jsx';
+import ReimbursementsModal from './ReimbursementsModal.jsx';
+import OpenSharesModal from './OpenSharesModal.jsx';
 import { useQuickAddParam } from '../../../shared/hooks/useQuickAddParam.js';
 
-const CSV_HEADERS = ['تاریخ', 'دسته‌بندی', 'عنوان', 'مبلغ', 'ارز', 'نرخ دلار', 'معادل تومان', 'پرداخت از', 'یادداشت'];
+const CSV_HEADERS = ['تاریخ', 'دسته‌بندی', 'عنوان', 'مبلغ', 'سهم من', 'ارز', 'نرخ دلار', 'معادل تومان (سهم من)', 'پرداخت از', 'یادداشت'];
 const EXPENSES_PAGE_SIZE = 20;
 
 const MASK = '****';
@@ -59,6 +65,8 @@ export default function DailyExpensesView({ usdToman = 0, hideValues = false }) 
   const [paging, setPaging] = useState({ key: '', page: 1 });
   const [form, setForm] = useState(null); // null | { expense: object|null }
   const [budgetOpen, setBudgetOpen] = useState(false);
+  const [reimburse, setReimburse] = useState(null); // a shared expense whose «دریافتی‌ها» are open
+  const [sharesOpen, setSharesOpen] = useState(false);
   // The app's "+" button: /expenses?add=expense (this view shows only once the vault is open)
   useQuickAddParam('expense', () => setForm({ expense: null }), !readOnly);
   const {
@@ -92,6 +100,7 @@ export default function DailyExpensesView({ usdToman = 0, hideValues = false }) 
   const money = (v) => (hideValues ? MASK : formatAmount(v));
 
   const byAccount = useMemo(() => summarizeByAccount(expenses, { usdToman }), [expenses, usdToman]);
+  const receivables = useMemo(() => summarizeReceivables(expenses, { usdToman }), [expenses, usdToman]);
   const usesAccounts = byAccount.some((a) => a.accountId);
   const budgetKeys = Object.keys(budgets).filter((k) => k !== 'total');
   const spentIn = new Map(byCategory.map((c) => [c.category, c.totalToman]));
@@ -216,6 +225,21 @@ export default function DailyExpensesView({ usdToman = 0, hideValues = false }) 
           <p className="expense-side-card-empty">برای کل ماه یا هر دسته سقف خرج بگذارید تا نزدیک شدن به آن را ببینید.</p>
         )}
       </div>
+      <div className="expense-side-card">
+        <div className="expense-side-card-head">
+          <h4><HandCoins size={14} /> طلب‌های دنگ</h4>
+          <Button size="sm" variant="secondary" onClick={() => setSharesOpen(true)}>همه‌ی طلب‌ها</Button>
+        </div>
+        {receivables.count > 0 ? (
+          <ul className="expense-account-breakdown">
+            <li><span>سهم دیگران در این ماه</span><strong>{money(receivables.owedToman)} <small>تومان</small></strong></li>
+            <li><span>دریافت‌شده</span><strong>{money(receivables.receivedToman)} <small>تومان</small></strong></li>
+            <li><span>مانده‌ی طلب</span><strong className={receivables.remainingToman > 0 ? 'text-loss' : ''}>{money(receivables.remainingToman)} <small>تومان</small></strong></li>
+          </ul>
+        ) : (
+          <p className="expense-side-card-empty">پول کل جمع را دادید؟ هزینه را با «سهم: با دیگران» ثبت کنید؛ فقط سهم خودتان هزینه حساب می‌شود و دریافتی‌ها درآمد نیستند.</p>
+        )}
+      </div>
       {donutItems.length > 0 && (
         <DonutChart title="تفکیک دسته‌ها" items={donutItems} centerLabel="جمع ماه" masked={hideValues} />
       )}
@@ -289,6 +313,7 @@ export default function DailyExpensesView({ usdToman = 0, hideValues = false }) 
                     getExpenseCategory(e.category).label,
                     e.title,
                     e.amount,
+                    isSharedExpense(e) ? e.myShare : e.amount,
                     e.currency === 'USD' ? 'دلار' : 'تومان',
                     e.usdRate || '',
                     Math.round(expenseInToman(e, usdToman) || 0),
@@ -370,6 +395,7 @@ export default function DailyExpensesView({ usdToman = 0, hideValues = false }) 
                     usdToman={usdToman}
                     onEdit={(expense) => setForm({ expense })}
                     onDelete={handleDelete}
+                    onReimburse={setReimburse}
                     deletingId={deletingId}
                     hideValues={hideValues}
                     readOnly={readOnly}
@@ -403,6 +429,25 @@ export default function DailyExpensesView({ usdToman = 0, hideValues = false }) 
           onSubmit={(input) => saveExpense(input, form.expense)}
           onClose={() => setForm(null)}
           submitting={submitting}
+        />
+      )}
+      {reimburse && (
+        <ReimbursementsModal
+          expense={reimburse}
+          accounts={accounts.filter((a) => !a.archived || (reimburse.reimbursements || []).some((r) => r.accountId === a.id))}
+          readOnly={readOnly}
+          onSave={(input, existing) => saveExpense(input, existing)}
+          onClose={() => setReimburse(null)}
+        />
+      )}
+      {sharesOpen && (
+        <OpenSharesModal
+          accounts={accounts.filter((a) => !a.archived)}
+          usdToman={usdToman}
+          hideValues={hideValues}
+          readOnly={readOnly}
+          onChanged={fetchMonth}
+          onClose={() => setSharesOpen(false)}
         />
       )}
       {budgetOpen && (

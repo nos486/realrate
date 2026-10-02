@@ -13,7 +13,7 @@ Everything is an encrypted vault record (`vault_records`); no new Postgres table
 | Record kind (`kind`) | `parent_id` | `record_date` | Encrypted content |
 |---|---|---|---|
 | `expense_group` | — | Day created | `{ id, name, type, notes, archived, createdAt, updatedAt }` |
-| `expense` | Section id | Expense date | `{ id, groupId, title, amount, currency, usdRate, date, notes, category, accountId, loanId, source, bankId, smsFingerprint, smsKey, createdAt, updatedAt }` |
+| `expense` | Section id | Expense date | `{ id, groupId, title, amount, currency, usdRate, date, notes, category, accountId, loanId, source, bankId, smsFingerprint, smsKey, myShare, reimbursements, createdAt, updatedAt }` |
 
 - `currency`: `IRT` (toman) or `USD`. `usdRate`: the dollar rate on the expense's day, in tomans (optional, dollars only).
 - `source`: `manual` or `sms`; an expense from an SMS carries the transaction's `bankId`, `smsFingerprint` and `smsKey` so it is never recorded twice ([BANK_SMS.md](BANK_SMS.md)).
@@ -49,6 +49,17 @@ The Android app reads bank withdrawal and deposit SMS, extracts the amount, date
 5. **Deposit as a loan**: a deposit can be a received loan, not income (linked to an existing loan, or a new loan is recorded with the same amount).
 
 Details: [ANDROID.md](ANDROID.md#bank-sms) and [BANK_SMS.md](BANK_SMS.md).
+
+## Shared expenses — «دنگ» (done)
+
+When the user pays for the whole group (say 10M for dinner) and only part of it is theirs (say 3M):
+
+- On the expense: `myShare` (the user's part, in the expense's currency; `null` = an ordinary expense) and `reimbursements`: `[{ id, amount, date, accountId, notes, source: manual|sms, bankId, smsKey }]` — what came back from the others, in any number of pieces and into any account.
+- Totals, categories, budgets, the home dashboard, an account's "everyday expenses this month" and loan usage count only the user's share (`expenseInToman`); the whole amount paid is `expensePaidInToman` (e.g. to match a withdrawal SMS).
+- What is still owed: `expenseReceivable` (`owed` = amount − share, `received`, `remaining`) and `summarizeReceivables`. Reimbursements can't exceed the others' part, and sharing can't be turned off while reimbursements remain.
+- Reimbursements are never income: they stay inside the expense's own encrypted record.
+- UI: «سهم: با دیگران (دنگ)» and «سهم من» in the expense form; «سهم شما» and «طلب …/تسویه شد» in the table; «دریافتی‌ها» (`ReimbursementsModal.jsx`); the «طلب‌های دنگ» card in everyday expenses and «همه‌ی طلب‌ها» (`OpenSharesModal.jsx`, across every section and month).
+- Deposit SMS in the app: the «دنگ» button (`ShareDepositSheet.jsx`) adds the deposit, with its account and `smsKey`, to the chosen expense's reimbursements; `recordedCheck.js` looks a year back for deposits so it is known as recorded.
 
 ## Next
 

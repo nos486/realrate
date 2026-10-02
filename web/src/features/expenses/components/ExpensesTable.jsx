@@ -1,25 +1,47 @@
 /**
  * ExpensesTable.jsx — Expenses of a section (desktop table / mobile cards via ResponsiveDataTable)
- * An expense funded by a loan («تأمین از») names the loan under its title.
+ * An expense funded by a loan («تأمین از») names the loan under its title. A shared expense
+ * («دنگ») shows the user's share under the amount, and what is still owed back; «دریافتی‌ها»
+ * (`onReimburse`) records what came back.
  */
 
 import React from 'react';
-import { Calendar, Landmark, MessageSquare, Pencil, Trash2 } from 'lucide-react';
+import { Calendar, HandCoins, Landmark, MessageSquare, Pencil, Trash2 } from 'lucide-react';
 import { ResponsiveDataTable } from '../../../shared/ui/index.js';
 import { formatShamsiDisplay } from '../../portfolio/components/ShamsiDatePicker.jsx';
 import { formatAmount } from '../utils/format.js';
-import { expenseInToman } from '../../../utils/expenseDocument.js';
+import { expenseInToman, isSharedExpense, expenseReceivable } from '../../../utils/expenseDocument.js';
 import { getExpenseCategory } from '../constants/expenseCategories.js';
 import { accountLabel } from '../../accounts/constants/accountDisplay.js';
 import { useOptionalLoans } from '../../loans/context/LoansContext.jsx';
 
 const MASK = '****';
 
+/** «سهم شما» and what is still owed back on a shared expense */
+function ShareStatus({ expense, hideValues, onClick }) {
+  const { remaining } = expenseReceivable(expense);
+  const money = (v) => (hideValues ? MASK : formatAmount(v, expense.currency));
+  const label = remaining > 0 ? `طلب ${money(remaining)}` : 'تسویه شد';
+  return (
+    <span className="expense-share-status">
+      <span>سهم شما {money(expense.myShare)}</span>
+      {onClick ? (
+        <button type="button" className={`expense-share-chip ${remaining > 0 ? 'is-open' : 'is-settled'}`} onClick={onClick}>
+          {label}
+        </button>
+      ) : (
+        <span className={`expense-share-chip ${remaining > 0 ? 'is-open' : 'is-settled'}`}>{label}</span>
+      )}
+    </span>
+  );
+}
+
 export default function ExpensesTable({
   expenses,
   usdToman = 0,
   onEdit,
   onDelete,
+  onReimburse = null,
   deletingId = null,
   hideValues = false,
   readOnly = false,
@@ -94,8 +116,10 @@ export default function ExpensesTable({
             {isUsd && inToman !== null && (
               <span className="expense-toman-equiv" title={e.usdRate ? `نرخ ثبت‌شده: ${formatAmount(e.usdRate)}` : 'به نرخ امروز'}>
                 ≈ {hideValues ? MASK : formatAmount(inToman)} تومان{!e.usdRate && ' (نرخ امروز)'}
+                {isSharedExpense(e) && ' (سهم شما)'}
               </span>
             )}
+            {isSharedExpense(e) && <ShareStatus expense={e} hideValues={hideValues} onClick={onReimburse && (() => onReimburse(e))} />}
           </div>
         );
       },
@@ -134,6 +158,11 @@ export default function ExpensesTable({
           mobile: 'actions',
           render: (e) => (
             <div className="row-actions-group">
+              {onReimburse && isSharedExpense(e) && (
+                <button type="button" className="btn-table-action" title="دریافتی‌های دنگ" onClick={() => onReimburse(e)}>
+                  <HandCoins size={13} strokeWidth={2} />
+                </button>
+              )}
               <button type="button" className="btn-table-action edit" title="ویرایش هزینه" onClick={() => onEdit(e)}>
                 <Pencil size={13} strokeWidth={2} />
               </button>

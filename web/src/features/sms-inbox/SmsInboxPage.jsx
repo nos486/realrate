@@ -3,7 +3,8 @@
  *
  * - the withdrawals and deposits waiting to be recorded (SmsInboxList); «ثبت» opens the everyday
  *   expense form (withdrawal) or the income form (deposit), filled in from the message; «وام»
- *   marks a deposit as a received loan (LoanDepositSheet), so it is not recorded as income
+ *   marks a deposit as a received loan (LoanDepositSheet) and «دنگ» as someone's share of an
+ *   expense the user paid (ShareDepositSheet), so neither is recorded as income
  * - "read earlier messages": automatic reading only picks up messages from the moment it is on;
  *   older ones are read here on demand (the last 24 hours, 7, 30 or 90 days)
  * Recording writes encrypted records, so the vault must be unlocked for it. Once it is, messages
@@ -27,6 +28,7 @@ import ExpenseForm from '../expenses/components/ExpenseForm.jsx';
 import IncomeForm from '../incomes/components/IncomeForm.jsx';
 import SmsInboxList from './SmsInboxList.jsx';
 import LoanDepositSheet from './LoanDepositSheet.jsx';
+import ShareDepositSheet from './ShareDepositSheet.jsx';
 import { smsExpenseDraft, smsIncomeDraft } from './smsDrafts.js';
 import { saveDailyExpense, recordSmsExpense, dropAlreadyRecorded } from './smsRecord.js';
 import { getExpenseCategory } from '../expenses/constants/expenseCategories.js';
@@ -51,6 +53,7 @@ export default function SmsInboxPage() {
   const [reading, setReading] = useState(false);
   const [quickId, setQuickId] = useState(null);
   const [loanItem, setLoanItem] = useState(null);
+  const [shareItem, setShareItem] = useState(null);
 
   const locked = vaultStatus === 'locked';
   const { pending } = useSmsInbox();
@@ -139,6 +142,7 @@ export default function SmsInboxPage() {
           onQuickRecord={handleQuickRecord}
           quickRecordingId={quickId}
           onLoanDeposit={setLoanItem}
+          onShareDeposit={setShareItem}
           canRecord={!locked && !readOnly}
         />
       </Card>
@@ -168,6 +172,7 @@ export default function SmsInboxPage() {
         />
       )}
       {loanItem && <LoanDepositSheet item={loanItem} onClose={() => setLoanItem(null)} />}
+      {shareItem && <ShareDepositSheet item={shareItem} accounts={accounts} onClose={() => setShareItem(null)} />}
       {incomeDraft && (
         <IncomeForm
           draft={incomeDraft}
