@@ -7,6 +7,7 @@ import pg from 'pg';
 import { getStateStore, purgeExpiredState } from '../../src/repositories/stateStore.repository.js';
 import { getPriceBookCache, setPriceBookCache, resetPriceBookMemo, PRICE_BOOK_MEMO_MS } from '../../src/repositories/priceBookStore.repository.js';
 import { readSourceItemsMany, saveSourceItems } from '../../src/repositories/sourceItems.repository.js';
+import { dbGetPriceSources } from '../../src/repositories/priceSource.repository.js';
 import { memoryStateDb } from '../helpers/memoryStateDb.js';
 import { withDatabase } from '../../src/lib/database.js';
 import { resetPgSchemaCache } from '../../src/repositories/pgSchema.js';
@@ -68,6 +69,17 @@ describe('state store', () => {
     expect(db.calls).toEqual(['select']);
     expect(many.get('src_a').items).toEqual([{ id: 'usd', price: 1 }]);
     expect(many.get('src_b').items).toEqual([]);
+  });
+
+  it('lists the price sources (the admin\'s overrides and every list) in one query', async () => {
+    const db = fakeDb();
+    const env = { DB: db };
+    await saveSourceItems(env, 'src_def_usd', [{ id: 'src_def_usd', price: 95000 }]);
+    await db.prepare('INSERT INTO app_state (key, value, expires_at, updated_at) VALUES (?, ?, ?, ?)').bind('price_source_overrides', JSON.stringify({ src_def_usd: { isActive: false } }), null, 0).run();
+    db.calls.length = 0;
+    const sources = await dbGetPriceSources(env, { book: null });
+    expect(db.calls).toEqual(['select']);
+    expect(sources.find((src) => src.id === 'src_def_usd')).toMatchObject({ isActive: false, lastPrice: 95000 });
   });
 
   it('reads the price book once for requests arriving together', async () => {

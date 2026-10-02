@@ -24,7 +24,7 @@ import { CLIENT_HEADER, parseClientHeader } from "../domain/clientInfo.js";
 import { getDemoVaultPassphrase, DEMO_EMAIL } from "../repositories/demo.repository.js";
 import { ACCOUNT_DISABLED_MESSAGE } from "./accountRoutes.js";
 import { getMaintenance } from "../lib/maintenance.js";
-import { jsonResponse, errorResponse, getCorsHeaders } from "../lib/helpers.js";
+import { jsonResponse, errorResponse, getCorsHeaders, safeWaitUntil } from "../lib/helpers.js";
 import { logger } from "../lib/logger.js";
 import { isTrustedOrigin } from "../lib/security.js";
 import { isAppChallenge, appAuthRedirect, appSignInPurpose, APP_SIGNIN_CODE_TTL } from "../lib/appAuth.js";
@@ -479,10 +479,9 @@ export async function handleGoogleAuth(request, env) {
  * GET /api/auth/me
  * Return the currently authenticated user from session
  */
-export async function handleGetMe(request, env) {
-  const user = await getAuthenticatedUser(request, env);
+export async function handleGetMe(request, env, ctx) {
   // Everyone learns about maintenance mode here, so the browser can show its page
-  const maintenance = await getMaintenance(env);
+  const [user, maintenance] = await Promise.all([getAuthenticatedUser(request, env), getMaintenance(env)]);
   if (!user) {
     return jsonResponse({ authenticated: false, user: null, maintenance }, 200, request);
   }
@@ -505,13 +504,17 @@ export async function handleGetMe(request, env) {
       if (userData?.customName) customName = userData.customName;
     }
   } catch (e) {}
-  if (user.kind !== "demo_view") {
-    await dbRecordUserActivity(env, userId);
-  }
-  // Which client (the site, the Android app and its version) — not for the shared demo user
-  if (!user.kind?.startsWith("demo")) {
-    await dbRecordUserClient(env, userId, parseClientHeader(request.headers.get(CLIENT_HEADER)));
-  }
+  // Activity and the client (the site, the Android app and its version) are recorded after the
+  // answer: the user does not wait for the admin panel's stats
+  const record = async () => {
+    if (user.kind !== "demo_view") await dbRecordUserActivity(env, userId);
+    // Not for the shared demo user
+    if (!user.kind?.startsWith("demo")) {
+      await dbRecordUserClient(env, userId, parseClientHeader(request.headers.get(CLIENT_HEADER)));
+    }
+  };
+  if (ctx?.waitUntil) safeWaitUntil(ctx, record());
+  else await record();
 
   const isDemo = user.kind === "demo_view" || user.kind === "demo_edit";
   const demoPayload = isDemo

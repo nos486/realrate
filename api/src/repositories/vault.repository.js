@@ -70,15 +70,35 @@ function assertPayload(payload) {
 
 // ── Account vault ───────────────────────────────────────────────────────────
 
+// The request's gates (encryption, demo) and the handler all ask for the same user's vault: one
+// lookup per request (each request has its own env.DB), forgotten when the vault changes
+const vaultLookups = new WeakMap();
+
+function forgetVaultLookup(env, userId) {
+  if (env?.DB && typeof env.DB === "object") vaultLookups.get(env.DB)?.delete(userId);
+}
+
 /** @returns {Promise<{salt: string, wrappedKey: string, version: number, createdAt: string, updatedAt: string}|null>} */
 export async function dbGetUserVault(env, userId) {
   if (!userId || !env?.DB) return null;
-  await ensureSchema(env);
-  const row = await env.DB.prepare(`
-    SELECT salt, wrapped_key AS wrappedKey, version, created_at AS createdAt, updated_at AS updatedAt
-    FROM user_vaults WHERE user_id = ?
-  `).bind(userId).first();
-  return row ? { ...row, version: Number(row.version) || 1 } : null;
+  let perRequest = vaultLookups.get(env.DB);
+  if (!perRequest) {
+    perRequest = new Map();
+    vaultLookups.set(env.DB, perRequest);
+  }
+  if (!perRequest.has(userId)) {
+    const lookup = (async () => {
+      await ensureSchema(env);
+      const row = await env.DB.prepare(`
+        SELECT salt, wrapped_key AS wrappedKey, version, created_at AS createdAt, updated_at AS updatedAt
+        FROM user_vaults WHERE user_id = ?
+      `).bind(userId).first();
+      return row ? { ...row, version: Number(row.version) || 1 } : null;
+    })();
+    perRequest.set(userId, lookup);
+    lookup.catch(() => perRequest.delete(userId));
+  }
+  return perRequest.get(userId);
 }
 
 export async function dbHasUserVault(env, userId) {
@@ -90,6 +110,7 @@ export async function dbHasUserVault(env, userId) {
  * wrapped key it replaces, so a stale device can never overwrite a newer key and orphan data.
  */
 export async function dbSaveUserVault(env, userId, { salt, wrappedKey, previousWrappedKey }) {
+  forgetVaultLookup(env, userId);
   if (!String(salt || "").trim()) throw AppError.badRequest("salt رمزنگاری الزامی است.");
   if (!isCipherText(wrappedKey)) throw AppError.badRequest("کلید رمزنگاری‌شده نامعتبر است.");
 
@@ -109,6 +130,7 @@ export async function dbSaveUserVault(env, userId, { salt, wrappedKey, previousW
       UPDATE user_vaults SET salt = ?, wrapped_key = ?, updated_at = ? WHERE user_id = ?
     `).bind(String(salt).trim(), wrappedKey, now, userId).run();
   }
+  forgetVaultLookup(env, userId);
   return dbGetUserVault(env, userId);
 }
 
@@ -171,6 +193,7 @@ export async function dbResetUserVaultData(env, userId) {
   if (!userId || !env?.DB) throw new Error("Database connection required");
   await ensureSchema(env);
   await env.DB.batch(USER_DATA_TABLES.map((table) => env.DB.prepare(`DELETE FROM ${table} WHERE user_id = ?`).bind(userId)));
+  forgetVaultLookup(env, userId);
 }
 
 // ── Encrypted records ───────────────────────────────────────────────────────
@@ -202,16 +225,21 @@ export async function dbListVaultRecords(env, userId, kind, {
   const dir = order === "asc" ? "ASC" : "DESC";
   const page = parsePage(limit, offset);
 
+  // A page carries the total matching in the same query (a window count)
   const { results = [] } = await env.DB.prepare(`
     SELECT id, kind, payload, record_date AS recordDate, parent_id AS parentId,
-           created_at AS createdAt, updated_at AS updatedAt
+           created_at AS createdAt, updated_at AS updatedAt${page ? ", COUNT(*) OVER () AS total" : ""}
     FROM vault_records WHERE ${where}
     ORDER BY record_date ${dir}, created_at ${dir}${page ? " LIMIT ? OFFSET ?" : ""}
   `).bind(...params, ...(page ? [page.limit, page.offset] : [])).all();
   if (!page) return results;
 
-  const count = await env.DB.prepare(`SELECT COUNT(*) AS n FROM vault_records WHERE ${where}`).bind(...params).first();
-  return { records: results, total: Number(count?.n) || 0 };
+  const records = results.map(({ total: _total, ...record }) => record);
+  // Past the last page there is no row to carry the total: count separately
+  const total = results.length
+    ? Number(results[0].total) || 0
+    : Number((await env.DB.prepare(`SELECT COUNT(*) AS n FROM vault_records WHERE ${where}`).bind(...params).first())?.n) || 0;
+  return { records, total };
 }
 
 /** A page request, or null for every record */

@@ -121,9 +121,11 @@ describe('records encrypted with a reset vault\'s key', () => {
     const epoch = env.DB.vaults.get('u1').createdAt;
     await expect(dbPutVaultRecord(env, 'u1', 'income', 'inc_1', { payload: CIPHER, vaultEpoch: epoch })).resolves.toBeTruthy();
     env.DB.vaults.set('u1', { ...env.DB.vaults.get('u1'), createdAt: '2026-09-29T00:00:00.000Z' });
-    await expect(dbPutVaultRecord(env, 'u1', 'income', 'inc_1', { payload: CIPHER, vaultEpoch: epoch }))
+    // The next request (each request has its own database handle)
+    const next = { ...env, DB: Object.create(env.DB) };
+    await expect(dbPutVaultRecord(next, 'u1', 'income', 'inc_1', { payload: CIPHER, vaultEpoch: epoch }))
       .rejects.toMatchObject({ statusCode: 409, code: 'VAULT_CHANGED' });
     // Without an epoch (older clients): as before
-    await expect(dbPutVaultRecord(env, 'u1', 'income', 'inc_1', { payload: CIPHER })).resolves.toBeTruthy();
+    await expect(dbPutVaultRecord(next, 'u1', 'income', 'inc_1', { payload: CIPHER })).resolves.toBeTruthy();
   });
 });

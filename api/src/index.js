@@ -222,7 +222,7 @@ async function handleRequest(request, env, ctx) {
   if (normalizedPath === "/api/auth/google/login" && request.method === "GET")    return wrap(handleGoogleLogin)(request, env);
   if (normalizedPath === "/api/auth/google/callback" && request.method === "GET") return wrap(handleGoogleCallback)(request, env);
   if (normalizedPath === "/api/auth/google" && request.method === "POST")         return wrap(handleGoogleAuth)(request, env);
-  if (normalizedPath === "/api/auth/me"     && request.method === "GET")          return wrap(handleGetMe)(request, env);
+  if (normalizedPath === "/api/auth/me"     && request.method === "GET")          return wrap(handleGetMe)(request, env, ctx);
   if (normalizedPath === "/api/auth/logout" && request.method === "POST")         return wrap(handleLogout)(request, env);
 
   // Email/password accounts

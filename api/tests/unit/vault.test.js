@@ -117,7 +117,10 @@ function createDb() {
           if (q.includes('FROM vault_records')) {
             const rows = matching(q, args);
             const page = q.includes('LIMIT ? OFFSET ?') ? args.slice(-2) : null;
-            return { results: page ? rows.slice(page[1], page[1] + page[0]) : rows };
+            if (!page) return { results: rows };
+            // COUNT(*) OVER (): every row of a page carries the total matching
+            const total = q.includes('COUNT(*) OVER ()') ? { total: rows.length } : {};
+            return { results: rows.slice(page[1], page[1] + page[0]).map((r) => ({ ...r, ...total })) };
           }
           return { results: [] };
         },

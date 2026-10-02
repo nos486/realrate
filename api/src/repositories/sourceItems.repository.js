@@ -26,6 +26,9 @@ const SOURCE_ID_ALIASES = {
 
 const canonicalSourceId = (sourceId) => SOURCE_ID_ALIASES[sourceId] || sourceId;
 
+/** The state-store key of a source's list */
+export const sourceItemsKey = (sourceId) => `${SOURCE_ITEMS_KEY_PREFIX}${canonicalSourceId(sourceId)}`;
+
 /** The stored form of a list (compared to skip writing an unchanged one) */
 export const serializeSourceItems = (items) => JSON.stringify(Array.isArray(items) ? items : []);
 
@@ -43,7 +46,7 @@ export async function saveSourceItems(env, sourceId, items, { previous } = {}) {
   const json = serializeSourceItems(items);
   if (previous !== undefined && previous === json) return false;
   try {
-    await store.put(`${SOURCE_ITEMS_KEY_PREFIX}${canonicalSourceId(sourceId)}`, json);
+    await store.put(sourceItemsKey(sourceId), json);
     return true;
   } catch (err) {
     logger.error(`[saveSourceItems] write error for ${sourceId}:`, { error: err.message });
@@ -60,7 +63,7 @@ export async function readSourceItems(env, sourceId) {
   return (await readSourceItemsMany(env, [sourceId])).get(sourceId) || { json: null, items: [] };
 }
 
-function parseStored(json) {
+export function parseStoredItems(json) {
   if (!json) return { json: null, items: [] };
   try {
     const parsed = JSON.parse(json);
@@ -81,10 +84,9 @@ export async function readSourceItemsMany(env, sourceIds) {
   const ids = (sourceIds || []).filter(Boolean);
   const empty = () => { for (const id of ids) result.set(id, { json: null, items: [] }); return result; };
   if (!store || !ids.length) return empty();
-  const keyOf = (id) => `${SOURCE_ITEMS_KEY_PREFIX}${canonicalSourceId(id)}`;
   try {
-    const values = await store.getMany(ids.map(keyOf));
-    for (const id of ids) result.set(id, parseStored(values.get(keyOf(id))));
+    const values = await store.getMany(ids.map(sourceItemsKey));
+    for (const id of ids) result.set(id, parseStoredItems(values.get(sourceItemsKey(id))));
     return result;
   } catch (err) {
     logger.warn("[readSourceItems] read error:", { error: err.message });
@@ -104,5 +106,5 @@ export async function getSourceItems(env, sourceId) {
 export async function deleteSourceItems(env, sourceId) {
   const store = getStateStore(env);
   if (!store || !sourceId) return;
-  await store.delete(`${SOURCE_ITEMS_KEY_PREFIX}${canonicalSourceId(sourceId)}`).catch(() => {});
+  await store.delete(sourceItemsKey(sourceId)).catch(() => {});
 }

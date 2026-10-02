@@ -5,7 +5,7 @@
 
 import { getPriceBookCache } from "./priceBookStore.repository.js";
 import { getStateStore } from "./stateStore.repository.js";
-import { readSourceItems, readSourceItemsMany, saveSourceItems } from "./sourceItems.repository.js";
+import { readSourceItems, saveSourceItems, sourceItemsKey, parseStoredItems } from "./sourceItems.repository.js";
 import {
   getMasterPriceSourcesConfig,
   getMasterPriceSourceById,
@@ -78,12 +78,27 @@ function withRuntimeState(src, stored, state) {
  * @returns {Promise<Array<object>>}
  */
 export async function dbGetPriceSources(env, { book } = {}) {
-  const overrides = env ? await readOverrides(env) : {};
-  const masters = getMasterPriceSourcesConfig().map((src) => withOverrides(src, overrides));
+  const configs = getMasterPriceSourcesConfig();
+  // The admin's overrides and every source's items in one read
+  const store = env ? getStateStore(env) : null;
+  const itemKeys = configs.map((src) => sourceItemsKey(src.id));
+  let values = new Map();
+  if (store) {
+    try {
+      values = await store.getMany([PRICE_SOURCE_OVERRIDES_KEY, ...itemKeys]);
+    } catch {
+      values = new Map();
+    }
+  }
+  let overrides = {};
+  try {
+    overrides = JSON.parse(values.get(PRICE_SOURCE_OVERRIDES_KEY) || "{}") || {};
+  } catch {}
   const priceBook = book !== undefined ? book : (env ? await getPriceBookCache(env) : null);
-  // Every source's items in one read
-  const stored = env ? await readSourceItemsMany(env, masters.map((src) => src.id)) : new Map();
-  return masters.map((src) => withRuntimeState(src, stored.get(src.id) || { json: null, items: [] }, priceBook?.sources?.[src.id] || null));
+  return configs.map((config, i) => {
+    const src = withOverrides(config, overrides);
+    return withRuntimeState(src, parseStoredItems(values.get(itemKeys[i])), priceBook?.sources?.[src.id] || null);
+  });
 }
 
 /**
