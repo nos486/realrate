@@ -163,7 +163,6 @@ export default function MainPage() {
   ].find(([, matches]) => matches)?.[0] || 'market';
 
   const tabTitle = useMemo(() => {
-    if (isTransactionsSubView) return 'تراکنش‌ها | RealRate';
     switch (activeTab) {
       case 'portfolio':
         return 'پورتفو | RealRate';
@@ -192,7 +191,7 @@ export default function MainPage() {
       default:
         return 'داشبورد بازار | RealRate';
     }
-  }, [activeTab, isTransactionsSubView]);
+  }, [activeTab]);
 
   useDocumentTitle(tabTitle);
 
@@ -221,7 +220,8 @@ export default function MainPage() {
   };
 
   const handleTabChange = (nextTab) => {
-    if (nextTab === activeTab && !isTransactionsSubView) return;
+    // An old /transactions link is the portfolio too: «پورتفو» moves it to /portfolio
+    if (nextTab === activeTab && !subPath.startsWith('/transactions')) return;
     if (nextTab === 'portfolio') {
       if (!subPath.startsWith('/portfolio')) goToTab(lastPortfolioPath('/portfolio'));
     } else if (TAB_PATHS[nextTab]) {
