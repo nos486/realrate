@@ -31,7 +31,7 @@ const LogoMark = () => (
 );
 
 /** Tabs that display monetary values and therefore offer the hide-values toggle */
-const PRIVACY_TABS = ['portfolio', 'transactions', 'incomes', 'loans', 'cheques'];
+const PRIVACY_TABS = ['portfolio', 'incomes', 'loans', 'cheques'];
 
 export default function Header({ activeTab, setActiveTab = null, navItems = null }) {
   const { user, triggerLogin, logout } = useAuth();

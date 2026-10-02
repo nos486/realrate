@@ -109,10 +109,6 @@ export default function MainPage() {
       searchParams.get('tab') === 'incomes'
     );
 
-  // Transactions is a sub-tab inside the Portfolio page now, not its own top-level tab —
-  // but /transactions and /transactions/:id stay working deep links into it.
-  const isTransactionsSubView =
-    subPath.startsWith('/transactions') || searchParams.get('tab') === 'transactions';
 
   const isCheques =
     !isSettings && !isSources && !isAdmin && !isIncomes && (
@@ -136,7 +132,9 @@ export default function MainPage() {
     !isSettings && !isSources && !isAdmin && !isIncomes && !isCheques && !isExpenses && !isAccounts && (
       subPath.startsWith('/portfolio') ||
       searchParams.get('tab') === 'portfolio' ||
-      isTransactionsSubView
+      // The transactions screen is now each asset's ledger in the portfolio: old links land there
+      subPath.startsWith('/transactions') ||
+      searchParams.get('tab') === 'transactions'
     );
 
   // Android app: the market has its own page (the app's home is the user's own dashboard)
@@ -234,12 +232,6 @@ export default function MainPage() {
     }
   };
 
-  // Switching between the Holdings and Transactions sub-tabs inside the Portfolio page — keeps
-  // /transactions and /transactions/:id working as their own deep links; a sub-tab replaces the
-  // other (back leaves the portfolio instead of flipping between them)
-  const handlePortfolioViewChange = (nextView) => {
-    navigate(lastPortfolioPath(nextView === 'transactions' ? '/transactions' : '/portfolio'), { replace: true });
-  };
 
   const tabOptions = useMemo(() => {
     const options = [
@@ -430,8 +422,6 @@ export default function MainPage() {
         {activeTab === 'portfolio' && (
           <PortfolioTracker
             initialPortfolioId={params.portfolioId || searchParams.get('p') || searchParams.get('id') || null}
-            initialView={isTransactionsSubView ? 'transactions' : 'holdings'}
-            onViewChange={handlePortfolioViewChange}
           />
         )}
 

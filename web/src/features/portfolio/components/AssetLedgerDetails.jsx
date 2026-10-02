@@ -1,10 +1,12 @@
 /**
  * AssetLedgerDetails.jsx — Everything recorded for one asset, under its row (utils/assetLedger.js)
  *
- * In date order (FIFO reads that way): manual records and buys with what is left of each, sells
- * and spends with what they took from which purchase and their profit or loss («بدون سود/زیان»
- * from a purchase without a price). «خرید» / «فروش» open the transaction form for this asset;
- * each entry opens its own form (a spend is changed through its expense).
+ * One line per entry, in date order (FIFO reads that way): what it was, its day, quantity × price,
+ * what is left of it (a buy) or what it took from (a sale or a spend), and its own profit or loss:
+ *   - a buy: what is left of it at today's price plus what was realized from it when sold
+ *   - a sale or a spend: what it realized («بدون سود/زیان» from a purchase without a price)
+ * «خرید» opens the buy form for this asset, «فروش» the sell form; each entry opens its own form
+ * (a spend is changed through its expense).
  */
 
 import React from 'react';
@@ -12,10 +14,10 @@ import {
   ArrowDownLeft, ArrowUpRight, ClipboardList, Receipt, Pencil, Trash2, Plus, Minus, AlertTriangle, MessageSquare,
 } from 'lucide-react';
 import { formatNum, computeReferenceAssetPnl, computeCompareAssetPnl } from '../utils/holdingHelpers.js';
-import { formatPct, toPersianDigits } from '../../../shared/utils/formatters.js';
+import { toPersianDigits } from '../../../shared/utils/formatters.js';
 
 const KIND = {
-  // A buy recorded in the buy form (a holding record): «خرید» with a price, else «موجودی»
+  // A buy from the buy form (a holding record): «خرید» with a price, else «موجودی»
   manual: { label: 'موجودی', Icon: ClipboardList, tone: 'in' },
   buy: { label: 'خرید', Icon: ArrowDownLeft, tone: 'in' },
   sell: { label: 'فروش', Icon: ArrowUpRight, tone: 'out' },
@@ -23,16 +25,17 @@ const KIND = {
 };
 
 const MASK = '****';
+const EPS = 1e-9;
 const kindOf = (kind, price) => (kind === 'manual' && price > 0 ? { ...KIND.manual, label: 'خرید', Icon: ArrowDownLeft } : KIND[kind] || KIND.buy);
 const qtyText = (n) => Number(n || 0).toLocaleString('fa-IR', { maximumFractionDigits: 6 });
-const dateText = (d) => (d ? <bdi>{toPersianDigits(d)}</bdi> : 'موجودی اولیه');
+const dateLabel = (d) => (d ? toPersianDigits(d) : 'موجودی اولیه');
+const signed = (v) => `${v >= 0 ? '+' : '−'}${formatNum(Math.abs(v))}`;
 
-function Pnl({ value, hideValues }) {
-  if (value === null || value === undefined) return <span className="ledger-pnl is-none">بدون سود/زیان</span>;
-  const up = value >= 0;
+function Pnl({ value, hideValues, title, none = 'بدون سود/زیان' }) {
+  if (value === null || value === undefined) return <span className="ledger-pnl is-none" title={title}>{none}</span>;
   return (
-    <span className={`ledger-pnl ${up ? 'profit' : 'loss'}`}>
-      {hideValues ? MASK : `${up ? '+' : '−'}${formatNum(Math.abs(value))} تومان`}
+    <span className={`ledger-pnl ${value >= 0 ? 'profit' : 'loss'}`} title={title}>
+      {hideValues ? MASK : <>{signed(value)} <small>تومان</small></>}
     </span>
   );
 }
@@ -51,18 +54,24 @@ export default function AssetLedgerDetails({
 }) {
   const money = (v) => (hideValues ? MASK : formatNum(v));
   const entryById = new Map(asset.entries.map((e) => [e.id, e]));
+  // What each purchase realized when sales and spends took from it
+  const realizedByLot = new Map();
+  for (const e of asset.entries) {
+    for (const c of e.consumed || []) {
+      if (c.pnl !== null) realizedByLot.set(c.lotId, (realizedByLot.get(c.lotId) || 0) + c.pnl);
+    }
+  }
+  const unit = asset.unitRealPrice || 0;
 
   return (
     <div className="asset-ledger">
       <div className="asset-ledger-head">
         <div className="asset-ledger-facts">
           {asset.realizedPnl !== null && (
-            <span>
-              سود/زیان تحقق‌یافته: <Pnl value={asset.realizedPnl} hideValues={hideValues} />
-            </span>
+            <span>سود/زیان تحقق‌یافته: <Pnl value={asset.realizedPnl} hideValues={hideValues} /></span>
           )}
-          {asset.unpricedQty > 1e-9 && (
-            <span className="asset-ledger-note">
+          {asset.unpricedQty > EPS && (
+            <span className="asset-ledger-muted">
               {qtyText(asset.unpricedQty)} {asset.unit} بدون قیمت خرید (در سود/زیان حساب نمی‌شود)
             </span>
           )}
@@ -87,68 +96,69 @@ export default function AssetLedgerDetails({
         {asset.entries.map((entry) => {
           const kind = kindOf(entry.kind, entry.price);
           const incoming = kind.tone === 'in';
-          const closed = incoming && entry.remaining <= 1e-9;
+          const closed = incoming && entry.remaining <= EPS;
           const record = entry.record || {};
+
+          // This entry's own profit or loss, and what it is made of (a tooltip)
+          let pnl = null;
+          let pnlTitle = '';
+          let status = '';
+          let statusTitle = '';
+          if (incoming) {
+            const open = entry.price > 0 && entry.remaining > EPS ? entry.remaining * (unit - entry.price) : 0;
+            const realized = realizedByLot.get(entry.id) || 0;
+            if (entry.price > 0) {
+              pnl = open + realized;
+              pnlTitle = `باز: ${signed(open)} · تحقق‌یافته: ${signed(realized)} تومان`;
+            }
+            status = closed ? 'تمام شد' : entry.remaining < entry.qty - EPS ? `مانده ${hideValues ? MASK : qtyText(entry.remaining)}` : 'کامل';
+          } else {
+            pnl = entry.pnl;
+            const parts = (entry.consumed || []).map((c) => `${kindOf(c.lotKind, c.lotPrice).label} ${dateLabel(entryById.get(c.lotId)?.date || c.lotDate)}: ${qtyText(c.qty)}${c.pnl === null ? ' (بی‌قیمت)' : ` (${signed(c.pnl)})`}`);
+            statusTitle = parts.join('\n');
+            status = parts.length ? `از ${parts.length.toLocaleString('fa-IR')} خرید` : '';
+          }
+
           // A purchase's own comparisons (paid with another asset; what else the money could have bought)
-          const lotCost = entry.price > 0 ? entry.qty * entry.price : 0;
-          const lotValue = entry.qty * (asset.unitRealPrice || 0);
-          const reference = incoming ? computeReferenceAssetPnl({ ...record, itemRealVal: lotValue }, priceMap, itemMap) : null;
-          const compare = incoming ? computeCompareAssetPnl({ ...record, itemCost: lotCost, itemRealVal: lotValue }, priceMap, itemMap) : null;
-          const editable = !readOnly && entry.kind !== 'spend' && (onEditEntry || onDeleteEntry);
+          const extras = [];
+          if (incoming && !hideValues) {
+            const lotValue = entry.qty * unit;
+            const reference = computeReferenceAssetPnl({ ...record, itemRealVal: lotValue }, priceMap, itemMap);
+            const compare = computeCompareAssetPnl({ ...record, itemCost: entry.price > 0 ? entry.qty * entry.price : 0, itemRealVal: lotValue }, priceMap, itemMap);
+            if (reference) extras.push(`نسبت به ${reference.referenceAssetName}: ${signed(reference.referencePnl)} تومان`);
+            if (compare) extras.push(`اگر ${compare.compareAssetName} می‌خریدید: ${formatNum(compare.compareCurrentValue)} تومان`);
+          }
+          const notes = showNotes && entry.kind !== 'spend' ? record.notes : '';
+          const editable = !readOnly && entry.kind !== 'spend';
+
           return (
             <li key={`${entry.kind}:${entry.id}`} className={`asset-ledger-entry is-${kind.tone} ${closed ? 'is-closed' : ''}`}>
-              <span className={`asset-ledger-icon is-${kind.tone}`}><kind.Icon size={14} /></span>
-              <div className="asset-ledger-main">
-                <div className="asset-ledger-line">
-                  <strong>{kind.label}</strong>
-                  <span className="asset-ledger-date">{dateText(entry.date)}</span>
-                </div>
-                <div className="asset-ledger-line asset-ledger-amounts">
-                  <span>
-                    {hideValues ? MASK : qtyText(entry.qty)} {asset.unit}
-                    {entry.price > 0 ? <> × {money(entry.price)} تومان</> : <span className="asset-ledger-muted"> — بدون قیمت</span>}
-                  </span>
-                  {incoming ? (
-                    <span className={`asset-ledger-remaining ${closed ? 'is-closed' : ''}`}>
-                      {closed ? 'تمام شد' : entry.remaining < entry.qty ? `مانده ${hideValues ? MASK : qtyText(entry.remaining)}` : 'دست‌نخورده'}
-                    </span>
-                  ) : (
-                    <Pnl value={entry.pnl} hideValues={hideValues} />
-                  )}
-                </div>
-                {!incoming && entry.consumed?.length > 0 && (
-                  <div className="asset-ledger-sources">
-                    از:{' '}
-                    {entry.consumed.map((c, i) => (
-                      <span key={`${c.lotId}:${i}`}>
-                        {i > 0 && '، '}
-                        {kindOf(c.lotKind, c.lotPrice).label} {dateText(entryById.get(c.lotId)?.date || c.lotDate)} ({hideValues ? MASK : qtyText(c.qty)})
-                        {c.pnl === null && ' بی‌قیمت'}
-                      </span>
-                    ))}
-                  </div>
-                )}
+              <span className="asset-ledger-kind">
+                <span className={`asset-ledger-icon is-${kind.tone}`}><kind.Icon size={15} /></span>
+                <strong>{kind.label}</strong>
+              </span>
+              <span className="asset-ledger-date"><bdi>{dateLabel(entry.date)}</bdi></span>
+              <span className="asset-ledger-qty">
+                {hideValues ? MASK : qtyText(entry.qty)} <small>{asset.unit}</small>
+                {entry.price > 0 ? <> × {money(entry.price)}</> : <small className="asset-ledger-muted"> بی‌قیمت</small>}
+              </span>
+              <span className={`asset-ledger-status ${closed ? 'is-closed' : ''}`} title={statusTitle || undefined}>
+                {status}
                 {!incoming && entry.uncoveredQty > 0 && (
-                  <div className="asset-ledger-warning">
-                    <AlertTriangle size={12} /> {qtyText(entry.uncoveredQty)} {asset.unit} بیشتر از موجودی
-                  </div>
+                  <span className="asset-ledger-warning" title={`${qtyText(entry.uncoveredQty)} ${asset.unit} بیشتر از موجودی`}>
+                    <AlertTriangle size={13} />
+                  </span>
                 )}
-                {reference && !hideValues && (
-                  <div className={`asset-ledger-sub ${reference.referencePnl >= 0 ? 'profit' : 'loss'}`}>
-                    نسبت به {reference.referenceAssetName}: {reference.referencePnl >= 0 ? '+' : '−'}{formatNum(Math.abs(reference.referencePnl))} تومان
-                  </div>
+              </span>
+              <span className="asset-ledger-pnl-cell">
+                <Pnl value={pnl} hideValues={hideValues} title={pnlTitle || undefined} none={incoming ? '—' : 'بدون سود/زیان'} />
+                {(notes || extras.length > 0) && (
+                  <span className="asset-ledger-info" title={[notes, ...extras].filter(Boolean).join('\n')}>
+                    <MessageSquare size={13} />
+                  </span>
                 )}
-                {compare && !hideValues && (
-                  <div className={`asset-ledger-sub ${compare.comparePnl >= 0 ? 'profit' : 'loss'}`}>
-                    اگر {compare.compareAssetName} می‌خریدید: {formatNum(compare.compareCurrentValue)} تومان
-                    {compare.comparePnlPct !== null && <> (این خرید {formatPct(Math.abs(compare.comparePnlPct))}٪ {compare.comparePnl >= 0 ? 'بهتر' : 'بدتر'})</>}
-                  </div>
-                )}
-                {showNotes && record.notes && entry.kind !== 'spend' && (
-                  <div className="asset-ledger-notes"><MessageSquare size={11} /> {record.notes}</div>
-                )}
-              </div>
-              <div className="row-actions-group asset-ledger-entry-actions">
+              </span>
+              <span className="row-actions-group asset-ledger-entry-actions">
                 {editable && onEditEntry && (
                   <button type="button" className="btn-table-action edit" title="ویرایش" onClick={() => onEditEntry(entry, asset)}>
                     <Pencil size={13} />
@@ -159,8 +169,8 @@ export default function AssetLedgerDetails({
                     <Trash2 size={13} />
                   </button>
                 )}
-                {entry.kind === 'spend' && !readOnly && <span className="asset-ledger-muted" title="از صفحه‌ی هزینه‌ها ویرایش می‌شود">از هزینه‌ها</span>}
-              </div>
+                {entry.kind === 'spend' && !readOnly && <small className="asset-ledger-muted" title="از صفحه‌ی هزینه‌ها ویرایش می‌شود">از هزینه‌ها</small>}
+              </span>
             </li>
           );
         })}

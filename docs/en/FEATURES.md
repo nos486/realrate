@@ -51,7 +51,7 @@ Every feature in detail. For a summary see the [README](../../README.en.md). Per
 - **Privacy mode** (`****`) hides amounts everywhere.
 
 ## 6. Transactions and cost (FIFO)
-- Buy and sell records with a Shamsi date and a note; the «تراکنش‌ها» tab lists manual records too («ثبت دستی»).
+- There is no separate transactions screen: every entry of an asset (buy/holding, sale, spend) is under that asset, one line each with its date, quantity × price, what is left or «از N خرید», and **its own profit/loss** (a buy: open plus realized from it; a sale or spend: realized). Old `/transactions` links open the portfolio.
 - **FIFO**: a sale or spend takes from the oldest entry first (an undated manual record is the opening balance, first in line). From a priced entry it realizes profit/loss; from an unpriced one it only takes the quantity.
 - Realized profit/loss on a sale, and a warning when selling more than is held.
 - **One ledger per asset**: manual records and transactions are one ledger (per asset and unit). A holding without a buy price counts in the quantity, not in the average or P&L.

@@ -1,10 +1,9 @@
 import React, { useState, useRef } from 'react';
-import { Plus, Briefcase, Receipt, FolderPlus } from 'lucide-react';
+import { Plus, Briefcase, FolderPlus } from 'lucide-react';
 import Modal from '../../../shared/ui/Modal.jsx';
 
 import PortfolioSwitcher from './PortfolioSwitcher.jsx';
 import HoldingsView from './HoldingsView.jsx';
-import { TransactionsView } from '../../transactions/index.js';
 
 import { usePortfolio } from '../hooks/usePortfolio.js';
 import { Button, FeaturePageHeader } from '../../../shared/ui/index.js';
@@ -14,8 +13,6 @@ import { useQuickAddParam } from '../../../shared/hooks/useQuickAddParam.js';
 
 export default function PortfolioTracker({
   initialPortfolioId = null,
-  initialView = 'holdings',
-  onViewChange,
 }) {
   const {
     portfolios,
@@ -27,12 +24,10 @@ export default function PortfolioTracker({
     loadingPortfolios,
   } = usePortfolio(initialPortfolioId);
 
-  const [view, setView] = useState(initialView);
   const { readOnly } = useDemo();
   const holdingsRef = useRef(null);
   // The active view renders its toolbar (search, export / import, settings) into this row
   const [toolbarSlot, setToolbarSlot] = useState(null);
-  const transactionsRef = useRef(null);
   const [holdingsVaultLocked, setHoldingsVaultLocked] = useState(false);
   const [activeViewCount, setActiveViewCount] = useState(null);
 
@@ -40,35 +35,14 @@ export default function PortfolioTracker({
   const [newPortfolioName, setNewPortfolioName] = useState('');
   const [creatingPortfolio, setCreatingPortfolio] = useState(false);
 
-  // Follow route-driven changes to which sub-tab should be shown (e.g. a deep link to
-  // /transactions/:id landing here after initial mount already picked 'holdings'). Adjusted
-  // during render (React's recommended pattern) instead of in an effect, so the new tab shows
-  // in the same render rather than one render late.
-  const [prevInitialView, setPrevInitialView] = useState(initialView);
-  if (initialView !== prevInitialView) {
-    setPrevInitialView(initialView);
-    setView(initialView);
-  }
-
-  const handleViewChange = (nextView) => {
-    setView(nextView);
-    setActiveViewCount(null);
-    onViewChange?.(nextView);
-  };
-
   const handleOpenAdd = () => {
-    if (readOnly) return;
-    if (view === 'holdings') {
-      holdingsRef.current?.openAdd();
-    } else {
-      transactionsRef.current?.openAdd();
-    }
+    if (!readOnly) holdingsRef.current?.openAdd();
   };
 
   const { toast } = useFeedback();
 
   // The app's "+" button: /portfolio?add=holding
-  useQuickAddParam('holding', () => holdingsRef.current?.openAdd(), view === 'holdings' && Boolean(activePortfolio) && !readOnly && !holdingsVaultLocked);
+  useQuickAddParam('holding', () => holdingsRef.current?.openAdd(), Boolean(activePortfolio) && !readOnly && !holdingsVaultLocked);
 
   const handleCreatePortfolio = async (e) => {
     e.preventDefault();
@@ -91,21 +65,17 @@ export default function PortfolioTracker({
   return (
     <div className="portfolio-section">
       <FeaturePageHeader
-        icon={view === 'holdings' ? <Briefcase size={24} /> : <Receipt size={24} />}
-        title={view === 'holdings' ? 'پورتفو' : 'تراکنش‌ها'}
-        subtitle={
-          view === 'holdings'
-            ? 'ارزش‌گذاری دارایی‌ها بر پایه نرخ لحظه‌ای طلا، نقره و ارز'
-            : 'ثبت خرید و فروش، تاریخچه معاملات و گردش مالی هر پورتفو'
-        }
+        icon={<Briefcase size={24} />}
+        title="پورتفو"
+        subtitle="دارایی‌ها با خرید، فروش و سود و زیان هرکدام، بر پایه نرخ لحظه‌ای"
         actions={
           <Button
             icon={<Plus size={16} />}
             onClick={handleOpenAdd}
-            disabled={readOnly || (view === 'holdings' && holdingsVaultLocked)}
+            disabled={readOnly || holdingsVaultLocked}
             title={readOnly ? 'در نسخه دمو غیرفعال است' : undefined}
           >
-            {view === 'holdings' ? 'ثبت دارایی جدید' : 'ثبت تراکنش جدید'}
+            ثبت در پورتفو
           </Button>
         }
       />
@@ -118,54 +88,24 @@ export default function PortfolioTracker({
         onNewPortfolio={readOnly ? undefined : () => setNewPortfolioModalOpen(true)}
         holdingsCount={activeViewCount ?? 0}
         activeCount={activeViewCount}
-        mode={view === 'holdings' ? 'portfolio' : 'transactions'}
       />
 
-      {/* Holdings / Transactions sub-tabs, with the active view's toolbar beside them */}
+      {/* The holdings toolbar (search, export / import, settings) */}
       <div className="portfolio-subtabs-row">
-      <div className="tx-filter-pills-bar">
-        <button
-          type="button"
-          className={`tx-filter-pill ${view === 'holdings' ? 'active' : ''}`}
-          onClick={() => handleViewChange('holdings')}
-        >
-          <Briefcase size={13} style={{ verticalAlign: 'middle', marginLeft: '4px' }} />
-          دارایی‌ها
-        </button>
-        <button
-          type="button"
-          className={`tx-filter-pill ${view === 'transactions' ? 'active' : ''}`}
-          onClick={() => handleViewChange('transactions')}
-        >
-          <Receipt size={13} style={{ verticalAlign: 'middle', marginLeft: '4px' }} />
-          تراکنش‌ها
-        </button>
-      </div>
-      <div className="portfolio-subtabs-toolbar" ref={setToolbarSlot} />
+        <div className="portfolio-subtabs-toolbar" ref={setToolbarSlot} />
       </div>
 
-      {view === 'holdings' ? (
-        <HoldingsView
-          loadingPortfolios={loadingPortfolios}
-          ref={holdingsRef}
-          activePortfolio={activePortfolio}
-          portfolios={portfolios}
-          fetchPortfolios={fetchPortfolios}
-          deletePortfolio={deletePortfolio}
-          onVaultLockChange={setHoldingsVaultLocked}
-          toolbarSlot={toolbarSlot}
-          onCountChange={setActiveViewCount}
-        />
-      ) : (
-        <TransactionsView
-          loadingPortfolios={loadingPortfolios}
-          ref={transactionsRef}
-          activePortfolio={activePortfolio}
-          fetchPortfolios={fetchPortfolios}
-          onCountChange={setActiveViewCount}
-          toolbarSlot={toolbarSlot}
-        />
-      )}
+      <HoldingsView
+        loadingPortfolios={loadingPortfolios}
+        ref={holdingsRef}
+        activePortfolio={activePortfolio}
+        portfolios={portfolios}
+        fetchPortfolios={fetchPortfolios}
+        deletePortfolio={deletePortfolio}
+        onVaultLockChange={setHoldingsVaultLocked}
+        toolbarSlot={toolbarSlot}
+        onCountChange={setActiveViewCount}
+      />
 
       {/* New Portfolio Modal */}
       <Modal
