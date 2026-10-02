@@ -459,29 +459,35 @@ export function summarizeDollarValue(expenses = [], { usdToman = 0 } = {}) {
 
 /**
  * Per-tag totals in tomans (the user's share), largest first; an expense with several tags counts
- * under each, so the tags may add up to more than the total. `untagged`: the expenses without a tag.
- * @returns {{ tags: Array<{ tag: string, totalToman: number, count: number }>, untagged: { totalToman: number, count: number } }}
+ * under each, so the tags may add up to more than the total. Each tag also has its dollar view
+ * (`dollar`: summarizeDollarValue of its expenses — what they were in dollars at each one's day
+ * rate and what that costs at today's rate). `untagged`: the expenses without a tag.
+ * @returns {{ tags: Array<{ tag: string, totalToman: number, count: number, dollar: object }>,
+ *   untagged: { totalToman: number, count: number, dollar: object } }}
  */
 export function summarizeByTag(expenses = [], { usdToman = 0 } = {}) {
   const byTag = new Map();
-  const untagged = { totalToman: 0, count: 0 };
+  const untaggedList = [];
   for (const e of expenses) {
-    const inToman = expenseInToman(e, usdToman) || 0;
     const tags = normalizeTags(e.tags);
     if (!tags.length) {
-      untagged.totalToman += inToman;
-      untagged.count += 1;
+      untaggedList.push(e);
       continue;
     }
     for (const tag of tags) {
       const key = tag.toLowerCase();
-      if (!byTag.has(key)) byTag.set(key, { tag, totalToman: 0, count: 0 });
-      const entry = byTag.get(key);
-      entry.totalToman += inToman;
-      entry.count += 1;
+      if (!byTag.has(key)) byTag.set(key, { tag, list: [] });
+      byTag.get(key).list.push(e);
     }
   }
-  return { tags: [...byTag.values()].sort((a, b) => b.totalToman - a.totalToman || a.tag.localeCompare(b.tag)), untagged };
+  const totalOf = (list) => list.reduce((sum, e) => sum + (expenseInToman(e, usdToman) || 0), 0);
+  const entryOf = (list) => ({ totalToman: totalOf(list), count: list.length, dollar: summarizeDollarValue(list, { usdToman }) });
+  return {
+    tags: [...byTag.values()]
+      .map(({ tag, list }) => ({ tag, ...entryOf(list) }))
+      .sort((a, b) => b.totalToman - a.totalToman || a.tag.localeCompare(b.tag)),
+    untagged: entryOf(untaggedList),
+  };
 }
 
 /** Whether an expense carries a tag (case-insensitive) */

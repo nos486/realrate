@@ -1001,3 +1001,14 @@ button.expense-share-chip {
   font-size: 12px;
 }
 .expense-tag-untagged small { font-weight: 400; }
+.expense-tag-today {
+  grid-column: 1 / -1;
+  color: var(--text-muted);
+  font-size: 11.5px;
+  line-height: 1.6;
+}
+.expense-tag-today strong { color: var(--text-primary); font-weight: 700; }
+.expense-tag-today .is-up { color: #f59e0b; }
+.expense-tag-today .is-down { color: var(--green-emerald); }
+.expense-tag-untagged { flex-wrap: wrap; }
+.expense-tag-untagged .expense-tag-today { flex-basis: 100%; }

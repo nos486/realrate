@@ -43,19 +43,35 @@ describe('tags in the document', () => {
 
   it('sum per tag (an expense under each of its tags) and the untagged apart', () => {
     const s = summarizeByTag([exp('1', 'کاشی', 300, ['مصالح']), exp('2', 'کاشی‌کار', 200, ['دستمزد', 'مصالح']), exp('3', 'تاکسی', 50)]);
-    expect(s.tags).toEqual([{ tag: 'مصالح', totalToman: 500, count: 2 }, { tag: 'دستمزد', totalToman: 200, count: 1 }]);
-    expect(s.untagged).toEqual({ totalToman: 50, count: 1 });
+    expect(s.tags.map(({ dollar: _d, ...t }) => t)).toEqual([{ tag: 'مصالح', totalToman: 500, count: 2 }, { tag: 'دستمزد', totalToman: 200, count: 1 }]);
+    expect(s.untagged).toMatchObject({ totalToman: 50, count: 1 });
+  });
+
+  it('each tag at today\'s rate: its dollars (each expense at its day rate) and what they cost today', () => {
+    const s = summarizeByTag([
+      { ...exp('1', 'کاشی', 30_000_000, ['مصالح']), usdRate: 100_000 },
+      { ...exp('2', 'سیمان', 10_000_000, ['مصالح']), usdRate: 50_000 },
+      { ...exp('3', 'دستمزد', 5_000_000, ['دستمزد']) },
+    ], { usdToman: 125_000 });
+    const materials = s.tags.find((t) => t.tag === 'مصالح');
+    expect(materials.dollar).toMatchObject({ usd: 500, paidToman: 40_000_000, todayToman: 62_500_000, counted: 2, missing: 0 });
+    expect(Math.round(materials.dollar.changePct)).toBe(56);
+    // Without the day's rate: counted apart
+    expect(s.tags.find((t) => t.tag === 'دستمزد').dollar).toMatchObject({ counted: 0, missing: 1, todayToman: null });
   });
 });
 
 describe('tags on the projects page', () => {
   it('shows each tag\'s total beside the list; a tag shows only its expenses', () => {
     state.groups = [{ id: 'exg_1', name: 'تعمیر خانه', type: 'project', createdAt: '2026-01-01' }];
-    state.expenses = [exp('e1', 'کاشی', 3_000_000, ['مصالح']), exp('e2', 'دستمزد کاشی‌کار', 2_000_000, ['دستمزد']), exp('e3', 'سیمان', 1_000_000, ['مصالح'])];
+    state.expenses = [{ ...exp('e1', 'کاشی', 3_000_000, ['مصالح']), usdRate: 50_000 }, exp('e2', 'دستمزد کاشی‌کار', 2_000_000, ['دستمزد']), exp('e3', 'سیمان', 1_000_000, ['مصالح'])];
     render(<MemoryRouter><FeedbackProvider><ExpensesPage segment="projects" /></FeedbackProvider></MemoryRouter>);
 
     const card = document.querySelector('.expense-tag-totals');
     expect(card.textContent).toMatch(/#مصالح/);
+    // «مصالح» has a day rate on one expense: its value today (100,000 today ÷ 50,000 then → ×2)
+    expect(card.textContent).toMatch(/به نرخ امروز\s*۶٬۰۰۰٬۰۰۰|به نرخ امروز\s*۶,۰۰۰,۰۰۰/);
+    expect(card.textContent).toMatch(/بدون نرخ/);
     expect(card.textContent).toMatch(/۴٬۰۰۰٬۰۰۰|۴,۰۰۰,۰۰۰/);
     fireEvent.click([...card.querySelectorAll('.expense-tag-row')].find((b) => b.textContent.includes('دستمزد')));
     expect(screen.queryByText('سیمان')).toBeNull();
