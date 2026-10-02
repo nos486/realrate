@@ -9,8 +9,8 @@ Configuration and shared logic are written only in `api/`; `web/` uses the same 
 realrate/
 ├── package.json                  # Shared scripts (dev, test, deploy)
 ├── README.md / README.en.md      # Introduction (Persian / English)
-├── docs/                         # Persian docs; docs/en English; docs/screenshots images
-├── .github/workflows/android.yml # Debug APK (PRs) and the signed release APK (main → Releases)
+├── CHANGELOG.md                  # Release notes for GitHub Releases
+├── .github/workflows/android.yml # Build and publish signed release APK (main → Releases)
 │
 ├── api/                          # Backend: Cloudflare Worker (Postgres via Hyperdrive + KV)
 │   ├── wrangler.toml             # Bindings, variables and Cron

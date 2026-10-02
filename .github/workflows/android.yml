@@ -1,16 +1,12 @@
-# Android app: builds the APK from the web app (web/) and its Android shell (web/android).
-# Pull requests get a debug APK to try; main also gets a signed release APK when the signing
-# secrets are set (see docs/ANDROID.md). The APKs are attached to the run as artifacts, and the
-# signed one is published as a GitHub release (v1.0.<run>), always downloadable as
-# releases/latest/download/realrate.apk.
+# Android app: builds the signed release APK from the web app (web/) and its Android shell (web/android).
+# Push to main publishes a signed release APK when the signing secrets are set (see docs/ANDROID.md).
+# The APK is published as a GitHub release (v1.0.<run>), always downloadable as releases/latest/download/realrate.apk.
 name: Android
 
 on:
   push:
     branches: [main]
-    paths: ['web/**', 'api/src/domain/**', 'package-lock.json', '.github/workflows/android.yml']
-  pull_request:
-    paths: ['web/**', 'api/src/domain/**', 'package-lock.json', '.github/workflows/android.yml']
+    paths: ['web/**', 'api/src/domain/**', 'package-lock.json', '.github/workflows/android.yml', 'CHANGELOG.md']
   workflow_dispatch:
 
 concurrency:
@@ -53,18 +49,8 @@ jobs:
           npm run build:app
           npx cap sync android
 
-      - name: Debug APK
-        working-directory: web/android
-        run: ./gradlew --no-daemon assembleDebug -PversionCode=$VERSION_CODE -PversionName=$VERSION_NAME
-
-      - uses: actions/upload-artifact@v4
-        with:
-          name: realrate-debug-${{ env.VERSION_NAME }}
-          path: web/android/app/build/outputs/apk/debug/*.apk
-          retention-days: 14
-
       - name: Release APK (signed)
-        if: github.event_name != 'pull_request' && env.HAS_SIGNING == 'true'
+        if: env.HAS_SIGNING == 'true'
         working-directory: web/android
         env:
           KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
@@ -78,15 +64,56 @@ jobs:
           rm -f "$ANDROID_KEYSTORE_PATH"
 
       - uses: actions/upload-artifact@v4
-        if: github.event_name != 'pull_request'
+        if: env.HAS_SIGNING == 'true'
         with:
           name: realrate-release-${{ env.VERSION_NAME }}
           path: web/android/app/build/outputs/apk/release/*.apk
           if-no-files-found: ignore
           retention-days: 90
 
+      - name: Extract Release Notes from CHANGELOG.md
+        if: env.HAS_SIGNING == 'true'
+        run: |
+          node -e '
+          const fs = require("node:fs");
+          const versionName = process.env.VERSION_NAME;
+          const repo = process.env.GITHUB_REPOSITORY;
+          let notes = "";
+
+          if (fs.existsSync("CHANGELOG.md")) {
+            const content = fs.readFileSync("CHANGELOG.md", "utf8");
+            const sections = content.split(/\n(?=##\s+)/);
+
+            let target = sections.find(s => {
+              const firstLine = (s.split("\n")[0] || "").toLowerCase();
+              return firstLine.includes(versionName.toLowerCase()) ||
+                     firstLine.includes("unreleased") ||
+                     firstLine.includes("در حال انتشار") ||
+                     firstLine.includes("نسخه جدید") ||
+                     firstLine.includes("آخرین تغییرات");
+            });
+
+            if (!target) {
+              target = sections.find(s => s.trim().startsWith("##"));
+            }
+
+            if (target) {
+              const lines = target.trim().split("\n");
+              lines.shift(); // remove the ## header line
+              notes = lines.join("\n").trim();
+            }
+          }
+
+          if (!notes) {
+            notes = `نسخه‌ی ${versionName} اپ اندروید (امضاشده).`;
+          }
+
+          const footer = `\n\n---\n**دانلود مستقیم آخرین نسخه:** [realrate.apk](https://github.com/${repo}/releases/latest/download/realrate.apk)`;
+          fs.writeFileSync(process.env.RUNNER_TEMP + "/release_notes.md", notes + footer, "utf8");
+          '
+
       - name: Publish the signed APK as a release
-        if: github.event_name != 'pull_request' && env.HAS_SIGNING == 'true'
+        if: env.HAS_SIGNING == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -101,9 +128,11 @@ jobs:
           if gh release view "$tag" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
             # A re-run (or a publish that failed half way): replace the file, make sure it is out
             gh release upload "$tag" "$RUNNER_TEMP/realrate.apk" --repo "$GITHUB_REPOSITORY" --clobber
-            gh release edit "$tag" --repo "$GITHUB_REPOSITORY" --draft=false --latest
+            gh release edit "$tag" --repo "$GITHUB_REPOSITORY" --draft=false --latest \
+              --title "RealRate $VERSION_NAME" \
+              --notes-file "$RUNNER_TEMP/release_notes.md"
           else
             gh release create "$tag" "$RUNNER_TEMP/realrate.apk" --repo "$GITHUB_REPOSITORY" --verify-tag --latest \
               --title "RealRate $VERSION_NAME" \
-              --notes "نسخه‌ی $VERSION_NAME اپ اندروید (امضاشده). همیشه آخرین نسخه: https://github.com/$GITHUB_REPOSITORY/releases/latest/download/realrate.apk"
+              --notes-file "$RUNNER_TEMP/release_notes.md"
           fi

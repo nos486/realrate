@@ -14,6 +14,7 @@ import {
   AlertBanner,
   Button,
   EmptyState,
+  Pagination,
   SearchBar,
   SplitPageLayout,
 } from '../../../shared/ui/index.js';
@@ -35,6 +36,7 @@ import { formatShamsiDisplay } from '../../portfolio/components/ShamsiDatePicker
 import { expenseInToman } from '../../../utils/expenseDocument.js';
 
 const CSV_HEADERS = ['تاریخ', 'عنوان', 'مبلغ', 'ارز', 'نرخ دلار', 'معادل تومان', 'پرداخت از', 'یادداشت'];
+const EXPENSES_PAGE_SIZE = 20;
 
 export default function ProjectExpensesView({ groupId = null, onSelectGroup, usdToman = 0 }) {
   const { readOnly } = useDemo();
@@ -49,6 +51,8 @@ export default function ProjectExpensesView({ groupId = null, onSelectGroup, usd
   const [groupForm, setGroupForm] = useState(null); // null | { group: object|null }
   const [expenseForm, setExpenseForm] = useState(null); // null | { expense: object|null }
   const [searchQuery, setSearchQuery] = useState('');
+  const [order, setOrder] = useState('desc');
+  const [paging, setPaging] = useState({ key: '', page: 1 });
   // The section in the URL, or the most recent one
   const selected = groups.find((g) => g.id === groupId) || groups[groups.length - 1] || null;
 
@@ -59,12 +63,24 @@ export default function ProjectExpensesView({ groupId = null, onSelectGroup, usd
   }, [groups, expenses, usdToman]);
 
   const selectedData = selected ? totalsByGroup.get(selected.id) : null;
-  const visibleExpenses = useMemo(() => {
+  const q = toEnglishDigits(searchQuery.trim().toLowerCase());
+  const searching = Boolean(q);
+  const listed = useMemo(() => {
     const list = selectedData?.list || [];
-    const q = toEnglishDigits(searchQuery.trim().toLowerCase());
-    if (!q) return list;
-    return list.filter((e) => [e.title, e.notes].some((f) => String(f || '').toLowerCase().includes(q)));
-  }, [selectedData, searchQuery]);
+    const dir = order === 'asc' ? 1 : -1;
+    const matches = q
+      ? list.filter((e) => [e.title, e.notes].some((f) => String(f || '').toLowerCase().includes(q)))
+      : list;
+    return [...matches].sort((a, b) =>
+      dir * (String(a.date).localeCompare(String(b.date)) || String(a.createdAt || '').localeCompare(String(b.createdAt || '')))
+    );
+  }, [selectedData, q, order]);
+
+  const listKey = `${q}|${selected?.id}|${order}`;
+  const lastPage = Math.max(1, Math.ceil(listed.length / EXPENSES_PAGE_SIZE));
+  const page = Math.min(paging.key === listKey ? paging.page : 1, lastPage);
+  const setPage = (next) => setPaging({ key: listKey, page: next });
+  const listRows = listed.slice((page - 1) * EXPENSES_PAGE_SIZE, page * EXPENSES_PAGE_SIZE);
 
   const handleSaveGroup = async (input) => {
     const group = await saveGroup(input, groupForm?.group || null);
@@ -193,15 +209,15 @@ export default function ProjectExpensesView({ groupId = null, onSelectGroup, usd
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
                         placeholder="جستجو در عنوان یا یادداشت..."
-                        badge={`${visibleExpenses.length.toLocaleString('fa-IR')} مورد`}
+                        badge={`${listed.length.toLocaleString('fa-IR')} مورد`}
                         className="incomes-search"
                       />
                     )}
                     <GenericCsvExportButton
-                      items={visibleExpenses}
+                      items={listed}
                       headers={CSV_HEADERS}
                       fileBaseName={`هزینه‌های-${selected.name}`}
-                      disabled={visibleExpenses.length === 0}
+                      disabled={listed.length === 0}
                       mapRow={(e) => [
                         formatShamsiDisplay(`${e.date}T00:00:00`),
                         e.title,
@@ -231,19 +247,31 @@ export default function ProjectExpensesView({ groupId = null, onSelectGroup, usd
                       title="هزینه‌ای در این بخش ثبت نشده"
                       description="اولین هزینه را با عنوان، مبلغ (تومان یا دلار) و تاریخش ثبت کنید."
                     />
-                  ) : visibleExpenses.length === 0 ? (
+                  ) : listed.length === 0 ? (
                     <EmptyState title="موردی یافت نشد" description="هیچ هزینه‌ای با عبارت جستجو شده مطابقت ندارد." />
                   ) : (
-                    <ExpensesTable
-                      expenses={visibleExpenses}
-                      usdToman={usdToman}
-                      onEdit={(expense) => setExpenseForm({ expense })}
-                      onDelete={handleDeleteExpense}
-                      deletingId={deletingId}
-                      hideValues={hideValues}
-                      readOnly={readOnly}
-                      accounts={accounts.length ? accounts : null}
-                    />
+                    <>
+                      <ExpensesTable
+                        expenses={listRows}
+                        usdToman={usdToman}
+                        onEdit={(expense) => setExpenseForm({ expense })}
+                        onDelete={handleDeleteExpense}
+                        deletingId={deletingId}
+                        hideValues={hideValues}
+                        readOnly={readOnly}
+                        accounts={accounts.length ? accounts : null}
+                        sortState={{ key: 'date', dir: order }}
+                        onSortChange={() => setOrder(order === 'desc' ? 'asc' : 'desc')}
+                      />
+                      <Pagination
+                        page={page}
+                        pageSize={EXPENSES_PAGE_SIZE}
+                        total={listed.length}
+                        loading={loading}
+                        onChange={setPage}
+                        label="صفحه‌بندی هزینه‌های پروژه"
+                      />
+                    </>
                   )}
                 </div>
               </div>

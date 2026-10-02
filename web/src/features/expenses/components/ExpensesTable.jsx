@@ -15,7 +15,19 @@ import { useOptionalLoans } from '../../loans/context/LoansContext.jsx';
 
 const MASK = '****';
 
-export default function ExpensesTable({ expenses, usdToman = 0, onEdit, onDelete, deletingId = null, hideValues = false, readOnly = false, showCategory = false, accounts = null }) {
+export default function ExpensesTable({
+  expenses,
+  usdToman = 0,
+  onEdit,
+  onDelete,
+  deletingId = null,
+  hideValues = false,
+  readOnly = false,
+  showCategory = false,
+  accounts = null,
+  sortState = null,
+  onSortChange = null,
+}) {
   const accountById = accounts ? new Map(accounts.map((a) => [a.id, a])) : null;
   const loans = useOptionalLoans();
   const loanTitle = (id) => (id ? loans.find((l) => l.id === id)?.title || 'وام' : '');
@@ -55,6 +67,7 @@ export default function ExpensesTable({ expenses, usdToman = 0, onEdit, onDelete
     {
       key: 'date',
       header: 'تاریخ',
+      sortKey: 'date',
       mobile: 'meta',
       render: (e) => (
         <span className="table-date-text">
@@ -146,6 +159,8 @@ export default function ExpensesTable({ expenses, usdToman = 0, onEdit, onDelete
       wrapperClassName="portfolio-table-responsive"
       tableClassName="portfolio-data-table incomes-table"
       rowClassName={() => 'portfolio-table-row'}
+      sortState={sortState}
+      onSortChange={onSortChange}
     />
   );
 }

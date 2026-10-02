@@ -156,7 +156,7 @@ cd api && npx wrangler deploy
 
 ## اپ اندروید
 
-هر PR که `web/` را تغییر دهد یک APK دیباگ می‌سازد و هر مرج در `main` یک APK امضاشده را به‌عنوان Release منتشر می‌کند
+هر مرج در `main` یک APK امضاشده را همراه توضیحات استخراج‌شده از `CHANGELOG.md` به‌عنوان Release منتشر می‌کند
 (`v1.0.<شماره‌ی اجرا>`، فایل `realrate.apk`؛ لینک ثابت: `https://github.com/nos486/realrate/releases/latest/download/realrate.apk`).
 
 برای امضا، این secretها را در GitHub (Settings → Secrets and variables → Actions) بگذارید — کلید و رمزها هرگز در مخزن نوشته نمی‌شوند:

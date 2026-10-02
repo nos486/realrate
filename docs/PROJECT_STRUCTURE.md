@@ -7,8 +7,8 @@
 realrate/
 ├── package.json                  # اسکریپت‌های مشترک (dev، test، deploy)
 ├── README.md / README.en.md      # معرفی (فارسی / انگلیسی)
-├── docs/                         # مستندات فارسی؛ docs/en انگلیسی؛ docs/screenshots تصاویر
-├── .github/workflows/android.yml # ساخت APK دیباگ (PR) و انتشار APK امضاشده (main → Releases)
+├── CHANGELOG.md                  # یادداشت‌های تغییرات نسخه‌ها جهت درج در Release
+├── .github/workflows/android.yml # ساخت و انتشار APK امضاشده اندروید (main → Releases)
 │
 ├── api/                          # بک‌اند: Cloudflare Worker (Postgres از طریق Hyperdrive + KV)
 │   ├── wrangler.toml             # بایندینگ‌ها، متغیرها و Cron

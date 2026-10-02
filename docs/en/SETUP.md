@@ -160,7 +160,7 @@ The frontend's domain must be in `ALLOWED_ORIGINS` in `api/src/lib/helpers.js` (
 
 ## Android app
 
-Every PR that changes `web/` builds a debug APK, and every merge into `main` publishes a signed APK as a GitHub release
+Every merge into `main` publishes a signed APK with release notes extracted from `CHANGELOG.md` as a GitHub release
 (`v1.0.<run number>`, asset `realrate.apk`; stable link: `https://github.com/nos486/realrate/releases/latest/download/realrate.apk`).
 
 For signing, set these secrets in GitHub (Settings → Secrets and variables → Actions) — the key and passwords are never written in the repository:

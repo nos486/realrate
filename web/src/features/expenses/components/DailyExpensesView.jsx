@@ -11,11 +11,12 @@
 
 import React, { useMemo, useState } from 'react';
 import { ChevronRight, ChevronLeft, Plus, Coins, TrendingUp, TrendingDown, CalendarDays, Tag, Target } from 'lucide-react';
-import { AlertBanner, Button, EmptyState, GenericCsvExportButton, MiniCard, SplitPageLayout } from '../../../shared/ui/index.js';
+import { AlertBanner, Button, EmptyState, GenericCsvExportButton, MiniCard, Pagination, SearchBar, SplitPageLayout } from '../../../shared/ui/index.js';
 import DonutChart from '../../../shared/ui/DonutChart.jsx';
 import { useFeedback } from '../../../shared/ui/FeedbackProvider.jsx';
 import { SkeletonRows } from '../../../shared/ui/Skeleton.jsx';
 import { todayIso } from '../../../shared/utils/dates.js';
+import { toEnglishDigits } from '../../../shared/utils/formatters.js';
 import {
   summarizeExpenses,
   summarizeByCategory,
@@ -40,6 +41,7 @@ import BudgetProgress from './BudgetProgress.jsx';
 import { useQuickAddParam } from '../../../shared/hooks/useQuickAddParam.js';
 
 const CSV_HEADERS = ['تاریخ', 'دسته‌بندی', 'عنوان', 'مبلغ', 'ارز', 'نرخ دلار', 'معادل تومان', 'پرداخت از', 'یادداشت'];
+const EXPENSES_PAGE_SIZE = 20;
 
 const MASK = '****';
 const monthIndex = ({ jy, jm }) => jy * 12 + jm;
@@ -52,6 +54,9 @@ export default function DailyExpensesView({ usdToman = 0, hideValues = false }) 
   const [month, setMonth] = useState(thisMonth);
   const [categoryFilter, setCategoryFilter] = useState('all');
   const [accountFilter, setAccountFilter] = useState('all');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [order, setOrder] = useState('desc');
+  const [paging, setPaging] = useState({ key: '', page: 1 });
   const [form, setForm] = useState(null); // null | { expense: object|null }
   const [budgetOpen, setBudgetOpen] = useState(false);
   // The app's "+" button: /expenses?add=expense (this view shows only once the vault is open)
@@ -91,9 +96,31 @@ export default function DailyExpensesView({ usdToman = 0, hideValues = false }) 
   const budgetKeys = Object.keys(budgets).filter((k) => k !== 'total');
   const spentIn = new Map(byCategory.map((c) => [c.category, c.totalToman]));
 
-  const visible = expenses.filter((e) =>
-    (categoryFilter === 'all' || (e.category || 'other') === categoryFilter) &&
-    (accountFilter === 'all' || (e.accountId || '') === accountFilter));
+  const query = toEnglishDigits(searchQuery.trim().toLowerCase());
+  const searching = Boolean(query);
+  const listed = useMemo(() => {
+    const dir = order === 'asc' ? 1 : -1;
+    const matches = expenses.filter((e) => {
+      const matchCat = categoryFilter === 'all' || (e.category || 'other') === categoryFilter;
+      const matchAcc = accountFilter === 'all' || (e.accountId || '') === accountFilter;
+      if (!matchCat || !matchAcc) return false;
+      if (!query) return true;
+      const catLabel = getExpenseCategory(e.category).label;
+      const accLabel = e.accountId ? accountLabel(accountById.get(e.accountId)) : '';
+      return [e.title, e.notes, catLabel, accLabel]
+        .some((f) => String(f || '').toLowerCase().includes(query));
+    });
+    return [...matches].sort((a, b) =>
+      dir * (String(a.date).localeCompare(String(b.date)) || String(a.createdAt || '').localeCompare(String(b.createdAt || '')))
+    );
+  }, [expenses, categoryFilter, accountFilter, query, order, accountById]);
+
+  const listKey = `${query}|${monthIndex(month)}|${categoryFilter}|${accountFilter}|${order}`;
+  const lastPage = Math.max(1, Math.ceil(listed.length / EXPENSES_PAGE_SIZE));
+  const page = Math.min(paging.key === listKey ? paging.page : 1, lastPage);
+  const setPage = (next) => setPaging({ key: listKey, page: next });
+  const listRows = listed.slice((page - 1) * EXPENSES_PAGE_SIZE, page * EXPENSES_PAGE_SIZE);
+
   const donutItems = byCategory.map((c) => {
     const meta = getExpenseCategory(c.category);
     return { key: c.category, label: meta.label, value: c.totalToman, icon: <meta.Icon size={12} /> };
@@ -102,6 +129,7 @@ export default function DailyExpensesView({ usdToman = 0, hideValues = false }) 
   const goTo = (delta) => {
     setCategoryFilter('all');
     setAccountFilter('all');
+    setSearchQuery('');
     setMonth((m) => shiftShamsiMonth(m, delta));
   };
 
@@ -242,11 +270,20 @@ export default function DailyExpensesView({ usdToman = 0, hideValues = false }) 
                 )}
               </div>
               <div className="expense-table-tools">
+                {expenses.length > 0 && (
+                  <SearchBar
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    placeholder="جستجو در عنوان، دسته یا یادداشت..."
+                    badge={`${listed.length.toLocaleString('fa-IR')} مورد`}
+                    className="incomes-search"
+                  />
+                )}
                 <GenericCsvExportButton
-                  items={visible}
+                  items={listed}
                   headers={CSV_HEADERS}
                   fileBaseName={`هزینه‌های-روزمره-${formatShamsiMonth(month.jy, month.jm)}`}
-                  disabled={visible.length === 0}
+                  disabled={listed.length === 0}
                   mapRow={(e) => [
                     formatShamsiDisplay(`${e.date}T00:00:00`),
                     getExpenseCategory(e.category).label,
@@ -316,18 +353,40 @@ export default function DailyExpensesView({ usdToman = 0, hideValues = false }) 
                     <Button icon={<Plus size={16} />} onClick={() => setForm({ expense: null })}>ثبت اولین هزینه</Button>
                   )}
                 />
-              ) : (
-                <ExpensesTable
-                  expenses={visible}
-                  usdToman={usdToman}
-                  onEdit={(expense) => setForm({ expense })}
-                  onDelete={handleDelete}
-                  deletingId={deletingId}
-                  hideValues={hideValues}
-                  readOnly={readOnly}
-                  showCategory
-                  accounts={accounts.length ? accounts : null}
+              ) : searching && listed.length === 0 ? (
+                <EmptyState
+                  title="موردی یافت نشد"
+                  description="هیچ هزینه‌ای با عبارت جستجو شده مطابقت ندارد."
                 />
+              ) : listed.length === 0 ? (
+                <EmptyState
+                  title="موردی در این فیلتر یافت نشد"
+                  description="برای این دسته‌بندی یا حساب انتخابی هزینه‌ای ثبت نشده است."
+                />
+              ) : (
+                <>
+                  <ExpensesTable
+                    expenses={listRows}
+                    usdToman={usdToman}
+                    onEdit={(expense) => setForm({ expense })}
+                    onDelete={handleDelete}
+                    deletingId={deletingId}
+                    hideValues={hideValues}
+                    readOnly={readOnly}
+                    showCategory
+                    accounts={accounts.length ? accounts : null}
+                    sortState={{ key: 'date', dir: order }}
+                    onSortChange={() => setOrder(order === 'desc' ? 'asc' : 'desc')}
+                  />
+                  <Pagination
+                    page={page}
+                    pageSize={EXPENSES_PAGE_SIZE}
+                    total={listed.length}
+                    loading={loading}
+                    onChange={setPage}
+                    label="صفحه‌بندی هزینه‌های روزمره"
+                  />
+                </>
               )}
             </div>
           </div>

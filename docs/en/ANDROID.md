@@ -40,9 +40,7 @@ Email and password sign-in works as on the site. Email links (verification, pass
 
 ### Automatic (GitHub Actions)
 
-- Every PR that changes `web/`: a debug APK (for testing; installs directly) in that run's Artifacts.
-- Every merge into `main`: a debug APK + a signed release APK (when the signing key is configured).
-- The signed APK of each merge is also published in the repository's **Releases** (`v1.0.<run number>`, asset `realrate.apk`). The stable link to the latest version, for direct download on a phone: `https://github.com/nos486/realrate/releases/latest/download/realrate.apk`
+- Every merge into `main`: a signed release APK (when the signing key is configured) is published in the repository's **Releases** (`v1.0.<run number>`, asset `realrate.apk`), with release notes automatically extracted from `CHANGELOG.md`. The stable link to the latest version, for direct download on a phone: `https://github.com/nos486/realrate/releases/latest/download/realrate.apk`
 - Versioning: `versionCode` = the Actions run number, `versionName` = `1.0.<number>`; each build installs over the previous one.
 
 ### Signing key (once)
