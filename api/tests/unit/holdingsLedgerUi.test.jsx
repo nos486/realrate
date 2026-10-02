@@ -33,10 +33,10 @@ describe('holdings: one row per asset', () => {
       />
     );
     expect(screen.getByText(/۸۰/)).toBeTruthy(); // 200 in − 120 out
-    expect(screen.queryByText('ثبت دستی')).toBeNull();
+    expect(screen.queryByText('موجودی', { selector: 'strong' })).toBeNull();
 
     fireEvent.click(screen.getByText('۳ ثبت').closest('[role="button"]'));
-    expect(screen.getByText('ثبت دستی')).toBeTruthy();
+    expect(screen.getByText('موجودی', { selector: 'strong' })).toBeTruthy(); // the unpriced manual record
     expect(screen.getByText('فروش', { selector: 'strong' })).toBeTruthy();
     expect(screen.getByText('تمام شد')).toBeTruthy(); // the manual record went first
     expect(screen.getByText(/مانده ۸۰/)).toBeTruthy();

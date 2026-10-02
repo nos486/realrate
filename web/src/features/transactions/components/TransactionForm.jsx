@@ -32,6 +32,8 @@ export default function TransactionForm({
   // A new transaction of a known asset (an asset row's «خرید» / «فروش»):
   // { assetId, assetName, unit, transactionType, unitPrice? }
   preset = null,
+  // A new entry's «خرید» goes to the buy form (AddHoldingForm) for the asset chosen here
+  onSwitchToBuy = null,
 }) {
   const [assetId, setAssetId] = useState('gold_18k');
   const [assetName, setAssetName] = useState('طلای ۱۸ عیار');
@@ -185,10 +187,12 @@ export default function TransactionForm({
           <button
             type="button"
             className={`tx-type-btn buy ${transactionType === 'buy' ? 'active' : ''}`}
-            onClick={() => setTransactionType('buy')}
+            onClick={() => (onSwitchToBuy && !editingTransaction
+              ? onSwitchToBuy({ assetId, assetName, unit })
+              : setTransactionType('buy'))}
           >
             <ArrowDownLeft size={16} style={{ verticalAlign: 'middle', marginLeft: '6px' }} />
-            خرید (ورود دارایی)
+            {onSwitchToBuy && !editingTransaction ? 'خرید / موجودی' : 'خرید (ورود دارایی)'}
           </button>
           <button
             type="button"

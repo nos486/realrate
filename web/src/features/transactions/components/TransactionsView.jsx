@@ -367,9 +367,9 @@ const TransactionsView = forwardRef(function TransactionsView(
         const isBuy = txType === 'buy';
         if (txType === 'manual') {
           return (
-            <span className="tx-badge buy" title="ثبت دستی موجودی؛ از تب «دارایی‌ها» ویرایش می‌شود">
+            <span className="tx-badge buy" title="از تب «دارایی‌ها» ویرایش می‌شود">
               <ClipboardList size={13} style={{ verticalAlign: 'middle', marginLeft: '3px' }} />
-              ثبت دستی
+              {Number(tx.unitPrice) > 0 ? 'خرید' : 'موجودی'}
             </span>
           );
         }

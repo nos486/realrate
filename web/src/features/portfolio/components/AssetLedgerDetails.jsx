@@ -15,13 +15,15 @@ import { formatNum, computeReferenceAssetPnl, computeCompareAssetPnl } from '../
 import { formatPct, toPersianDigits } from '../../../shared/utils/formatters.js';
 
 const KIND = {
-  manual: { label: 'ثبت دستی', Icon: ClipboardList, tone: 'in' },
+  // A buy recorded in the buy form (a holding record): «خرید» with a price, else «موجودی»
+  manual: { label: 'موجودی', Icon: ClipboardList, tone: 'in' },
   buy: { label: 'خرید', Icon: ArrowDownLeft, tone: 'in' },
   sell: { label: 'فروش', Icon: ArrowUpRight, tone: 'out' },
   spend: { label: 'پرداخت هزینه', Icon: Receipt, tone: 'out' },
 };
 
 const MASK = '****';
+const kindOf = (kind, price) => (kind === 'manual' && price > 0 ? { ...KIND.manual, label: 'خرید', Icon: ArrowDownLeft } : KIND[kind] || KIND.buy);
 const qtyText = (n) => Number(n || 0).toLocaleString('fa-IR', { maximumFractionDigits: 6 });
 const dateText = (d) => (d ? <bdi>{toPersianDigits(d)}</bdi> : 'موجودی اولیه');
 
@@ -83,7 +85,7 @@ export default function AssetLedgerDetails({
 
       <ol className="asset-ledger-list">
         {asset.entries.map((entry) => {
-          const kind = KIND[entry.kind] || KIND.buy;
+          const kind = kindOf(entry.kind, entry.price);
           const incoming = kind.tone === 'in';
           const closed = incoming && entry.remaining <= 1e-9;
           const record = entry.record || {};
@@ -120,7 +122,7 @@ export default function AssetLedgerDetails({
                     {entry.consumed.map((c, i) => (
                       <span key={`${c.lotId}:${i}`}>
                         {i > 0 && '، '}
-                        {(KIND[c.lotKind] || KIND.buy).label} {dateText(entryById.get(c.lotId)?.date || c.lotDate)} ({hideValues ? MASK : qtyText(c.qty)})
+                        {kindOf(c.lotKind, c.lotPrice).label} {dateText(entryById.get(c.lotId)?.date || c.lotDate)} ({hideValues ? MASK : qtyText(c.qty)})
                         {c.pnl === null && ' بی‌قیمت'}
                       </span>
                     ))}

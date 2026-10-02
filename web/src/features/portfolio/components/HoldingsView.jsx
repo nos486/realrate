@@ -19,8 +19,6 @@ import {
   Briefcase,
   AlertTriangle,
   SlidersHorizontal,
-  ArrowLeftRight,
-  ClipboardList,
 } from 'lucide-react';
 import { usePricing } from '../../market/index.js';
 import UserSettingsModal from '../../../components/UserSettingsModal.jsx';
@@ -38,7 +36,7 @@ import TransactionForm from '../../transactions/components/TransactionForm.jsx';
 import { useHoldings } from '../hooks/useHoldings.js';
 import { usePortfolioLayout } from '../hooks/usePortfolioLayout.js';
 import { useTransactions } from '../../transactions/index.js';
-import { AlertBanner, Button, Modal, SplitPageLayout } from '../../../shared/ui/index.js';
+import { AlertBanner, Button, SplitPageLayout } from '../../../shared/ui/index.js';
 import { normalizeHolding } from '../utils/holdingHelpers.js';
 import { buildAssetLedgers } from '../utils/assetLedger.js';
 import {
@@ -102,13 +100,15 @@ const HoldingsView = forwardRef(function HoldingsView(
   const [editingHolding, setEditingHolding] = useState(null);
   const [settingsModalOpen, setSettingsModalOpen] = useState(false);
 
-  // «+»: a transaction or a manual record
-  const [addChoiceOpen, setAddChoiceOpen] = useState(false);
-  const handleOpenAdd = useCallback(() => setAddChoiceOpen(true), []);
-  const openManualForm = useCallback((holding = null) => {
+  // The one entry form: its buy side (AddHoldingForm, `buyPreset` for an asset row's «خرید») and
+  // its sell side (TransactionForm), each switching to the other for the same asset
+  const [buyPreset, setBuyPreset] = useState(null);
+  const openManualForm = useCallback((holding = null, preset = null) => {
     setEditingHolding(holding);
+    setBuyPreset(preset);
     setModalOpen(true);
   }, []);
+  const handleOpenAdd = useCallback(() => openManualForm(null), [openManualForm]);
   // The transaction form: { editing } to edit one, { preset } for a new one of an asset
   const [txForm, setTxForm] = useState(null);
 
@@ -429,7 +429,7 @@ const HoldingsView = forwardRef(function HoldingsView(
                       readOnly={readOnly}
                       priceMap={realPriceMap}
                       itemMap={liveItemMap}
-                      onBuy={(a) => setTxForm({ preset: presetOf(a, 'buy') })}
+                      onBuy={(a) => openManualForm(null, { assetId: a.assetId, assetName: a.assetName, unit: a.unit })}
                       onSell={(a) => setTxForm({ preset: presetOf(a, 'sell') })}
                       onEditEntry={handleEditEntry}
                       onDeleteEntry={handleDeleteEntry}
@@ -441,46 +441,6 @@ const HoldingsView = forwardRef(function HoldingsView(
           </div>
       </SplitPageLayout>
 
-      {/* «+»: what to record */}
-      <Modal
-        isOpen={addChoiceOpen}
-        onClose={() => setAddChoiceOpen(false)}
-        title="ثبت در پورتفو"
-        icon={<Plus size={18} />}
-        maxWidth="420px"
-      >
-        <div className="holdings-add-choices">
-          <button
-            type="button"
-            className="holdings-add-choice"
-            onClick={() => {
-              setAddChoiceOpen(false);
-              setTxForm({});
-            }}
-          >
-            <ArrowLeftRight size={20} />
-            <span>
-              <strong>خرید یا فروش</strong>
-              <small>تراکنش با تاریخ و قیمت؛ فروش از قدیمی‌ترین خرید کم می‌شود</small>
-            </span>
-          </button>
-          <button
-            type="button"
-            className="holdings-add-choice"
-            onClick={() => {
-              setAddChoiceOpen(false);
-              openManualForm(null);
-            }}
-          >
-            <ClipboardList size={20} />
-            <span>
-              <strong>ثبت دستی موجودی</strong>
-              <small>چیزی که دارید، با یا بدون قیمت خرید (بدون قیمت: در سود/زیان حساب نمی‌شود)</small>
-            </span>
-          </button>
-        </div>
-      </Modal>
-
       <TransactionForm
         isOpen={Boolean(txForm)}
         onClose={() => setTxForm(null)}
@@ -489,6 +449,10 @@ const HoldingsView = forwardRef(function HoldingsView(
         preset={txForm?.preset || null}
         submitting={submittingTx}
         currentHoldingsMap={currentHoldingsMap}
+        onSwitchToBuy={(asset) => {
+          setTxForm(null);
+          openManualForm(null, asset);
+        }}
       />
 
       {/* Add / Edit Holding Modal */}
@@ -497,6 +461,11 @@ const HoldingsView = forwardRef(function HoldingsView(
         onClose={() => setModalOpen(false)}
         onSubmit={handleSubmitHolding}
         editingHolding={editingHolding}
+        presetAsset={buyPreset}
+        onSwitchToSell={(asset) => {
+          setModalOpen(false);
+          setTxForm({ preset: asset ? { ...asset, transactionType: 'sell', unitPrice: realPriceMap[asset.assetId] || 0 } : { transactionType: 'sell' } });
+        }}
         submitting={submitting}
         realPriceMap={realPriceMap}
       />

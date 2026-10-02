@@ -1,5 +1,16 @@
+/**
+ * AddHoldingForm.jsx — «ثبت خرید»: the buy side of the portfolio's one entry form
+ *
+ * An asset, a quantity, and — optional — its buy price and date: without a price it is a holding of
+ * unknown cost (counted in the quantity, not in P&L); without a date it opens the asset's ledger
+ * (the opening balance). Paid with another asset, compared with another, funded by a loan, a
+ * personal asset's own price: all here. «فروش» at the top switches to the sell side
+ * (TransactionForm, `onSwitchToSell`) for the same asset. Stored as a holding record; the ledger
+ * (utils/assetLedger.js) reads it with the transactions.
+ */
+
 import React, { useState, useEffect, useRef } from 'react';
-import { Coins } from 'lucide-react';
+import { Coins, ArrowDownLeft, ArrowUpRight } from 'lucide-react';
 import Modal from '../../../shared/ui/Modal.jsx';
 import NumericInput from '../../../shared/ui/NumericInput.jsx';
 import UniversalAssetSearch from '../../../components/UniversalAssetSearch.jsx';
@@ -29,6 +40,10 @@ export default function AddHoldingForm({
   onSubmit,
   editingHolding = null,
   submitting = false,
+  // A new buy of a known asset (an asset row's «خرید»): { assetId }
+  presetAsset = null,
+  // «فروش» on a new entry: the sell form for the asset chosen here
+  onSwitchToSell = null,
 }) {
   const pricing = usePricing();
   const [selectedAssetId, setSelectedAssetId] = useState('gold_18k');
@@ -126,7 +141,8 @@ export default function AddHoldingForm({
         setSelectedBourseSymbol(null);
       }
     } else {
-      setSelectedAssetId('gold_18k');
+      const presetId = presetAsset?.assetId && !isCustomAssetId(presetAsset.assetId) ? presetAsset.assetId : '';
+      setSelectedAssetId(presetId || 'gold_18k');
       setCustomName('');
       setCustomUnit('واحد');
       setCustomCurrentPrice('');
@@ -135,14 +151,17 @@ export default function AddHoldingForm({
       setBuyDate('');
       setNotes('');
       setLoanId('');
-      setSelectedBourseSymbol(null);
+      const presetCat = presetId ? (getAssetRef.current?.(presetId)?.category || getItemCategory(presetId)) : '';
+      setSelectedBourseSymbol(presetCat === 'bourse' || presetCat === 'bourse_fund'
+        ? { symbol: toPriceId(presetId).split('__').pop(), name: presetAsset.assetName, isFund: presetCat === 'bourse_fund', priceToman: 0 }
+        : null);
       setReferenceAsset(null);
       setReferenceQuantity('');
       setReferencePriceToman('');
       setCompareAsset(null);
       setComparePriceToman('');
     }
-  }, [isOpen, editingHolding]);
+  }, [isOpen, editingHolding, presetAsset]);
 
   const handleAssetSelect = (asset) => {
     if (!asset) return;
@@ -250,7 +269,7 @@ export default function AddHoldingForm({
     <Modal
       isOpen={isOpen}
       onClose={!submitting ? onClose : undefined}
-      title={editingHolding ? 'ویرایش دارایی' : 'افزودن دارایی جدید به پورتفو'}
+      title={editingHolding ? 'ویرایش خرید' : 'ثبت در پورتفو'}
       icon={<Coins size={18} />}
       maxWidth="500px"
       className="asset-modal-box"
@@ -270,11 +289,35 @@ export default function AddHoldingForm({
               ? 'در حال ذخیره...'
               : editingHolding
                 ? 'ذخیره تغییرات'
-                : 'افزودن دارایی'}
+                : 'ثبت خرید'}
           </button>
         </div>
       }
     >
+      {/* The one entry form: buy here, sell in the transaction form */}
+      {!editingHolding && onSwitchToSell && (
+        <div className="form-item">
+          <div className="tx-type-toggle-bar">
+            <button type="button" className="tx-type-btn buy active">
+              <ArrowDownLeft size={16} style={{ verticalAlign: 'middle', marginLeft: '6px' }} />
+              خرید / موجودی
+            </button>
+            <button
+              type="button"
+              className="tx-type-btn sell"
+              onClick={() => onSwitchToSell(isModalCustom ? null : {
+                assetId: toPriceId(selectedAssetId),
+                assetName: selectedAssetTitle,
+                unit: unitLabel,
+              })}
+            >
+              <ArrowUpRight size={16} style={{ verticalAlign: 'middle', marginLeft: '6px' }} />
+              فروش
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Unified Asset Selector Component */}
       <div
         className="unified-asset-picker-card"
@@ -425,7 +468,7 @@ export default function AddHoldingForm({
       {/* Buy Price Input — Toman (default), unless paid/swapped with another asset */}
       {!referenceAsset && (
         <div className="form-item">
-          <label>قیمت خرید هر {unitLabel} (تومان)</label>
+          <label>قیمت خرید هر {unitLabel} (تومان، اختیاری)</label>
           <NumericInput
             placeholder={
               isModalBourse
@@ -487,8 +530,13 @@ export default function AddHoldingForm({
         value={buyDate}
         onChange={setBuyDate}
         onTodayClick={handleTodayClick}
-        label="تاریخ خرید (شمسی)"
+        label="تاریخ خرید (شمسی، اختیاری)"
       />
+      {!(parseInputNumber(buyPrice) > 0) && !referenceAsset && (
+        <span className="field-sub-note">
+          بدون قیمت خرید، موجودی ثبت می‌شود و در سود/زیان حساب نمی‌شود؛ بدون تاریخ، «موجودی اولیه» است و فروش‌ها اول از آن کم می‌شوند.
+        </span>
+      )}
 
       {fundingLoans.length > 0 && (
         <div className="form-item">
