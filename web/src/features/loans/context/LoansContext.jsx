@@ -2,7 +2,7 @@
  * LoansContext.jsx — Unified Loans React Context Provider
  * Feature: features/loans
  * Provides a single shared instance of useLoans across the entire application,
- * ensuring all components (LoansPage, UpcomingInstallmentsAlert, etc.) stay synchronized.
+ * ensuring all components (LoansPage, the loan alerts in shared/alerts, etc.) stay synchronized.
  */
 
 import React, { createContext, useContext } from 'react';

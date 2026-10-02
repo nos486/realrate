@@ -7,5 +7,4 @@ export { default as LoansTable } from './components/LoansTable.jsx';
 export { default as LoanInstallmentsTable } from './components/LoanInstallmentsTable.jsx';
 export { default as AddLoanForm } from './components/AddLoanForm.jsx';
 export { default as ExtraPaymentModal } from './components/ExtraPaymentModal.jsx';
-export { default as UpcomingInstallmentsAlert } from './components/UpcomingInstallmentsAlert.jsx';
 

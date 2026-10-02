@@ -7,4 +7,3 @@ export { default as ChequeForm } from './components/ChequeForm.jsx';
 export { default as ChequesTable } from './components/ChequesTable.jsx';
 export { default as ChequeTrackingModal } from './components/ChequeTrackingModal.jsx';
 export { default as ChequeSummaryCards } from './components/ChequeSummaryCards.jsx';
-export { default as UpcomingChequesAlert } from './components/UpcomingChequesAlert.jsx';

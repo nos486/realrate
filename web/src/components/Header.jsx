@@ -1,4 +1,5 @@
 import React, { useCallback, useState } from 'react';
+import AlertCenterButton from '../shared/alerts/AlertCenter.jsx';
 import { Link } from 'react-router-dom';
 import {
   Eye,
@@ -92,6 +93,9 @@ export default function Header({ activeTab, setActiveTab = null, navItems = null
               {hideValues ? <Eye size={15} strokeWidth={2.2} /> : <EyeOff size={15} strokeWidth={2.2} />}
             </button>
           )}
+
+          {/* Every alert of the app (shared/alerts) */}
+          {user && navItems?.length > 0 && <AlertCenterButton />}
 
           {canLock && (
             <button

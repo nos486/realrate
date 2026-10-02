@@ -1,0 +1,123 @@
+/* ── Alerts (shared/alerts): the header's bell and the alert center ───────── */
+.alert-center-button {
+  position: relative;
+}
+.alert-center-badge {
+  position: absolute;
+  top: -4px;
+  left: -4px;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  border-radius: 999px;
+  background: #f59e0b;
+  color: #111827;
+  font-size: 10px;
+  font-weight: 800;
+  line-height: 16px;
+  text-align: center;
+  pointer-events: none;
+}
+.alert-center-badge.is-critical {
+  background: #ef4444;
+  color: #fff;
+}
+.alert-center-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.alert-center-item {
+  display: grid;
+  grid-template-columns: 30px minmax(0, 1fr);
+  gap: 10px;
+  padding: 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.03);
+}
+.alert-center-item.is-critical {
+  border-color: rgba(239, 68, 68, 0.35);
+  background: rgba(239, 68, 68, 0.06);
+}
+.alert-center-item.is-warning {
+  border-color: rgba(245, 158, 11, 0.3);
+  background: rgba(245, 158, 11, 0.05);
+}
+.alert-center-item.is-dismissed {
+  opacity: 0.55;
+}
+.alert-center-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 9px;
+  background: rgba(255, 255, 255, 0.06);
+}
+.alert-center-item.is-critical .alert-center-icon { color: #ef4444; }
+.alert-center-item.is-warning .alert-center-icon { color: #f59e0b; }
+.alert-center-item.is-info .alert-center-icon { color: var(--color-primary-text); }
+.alert-center-body {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+.alert-center-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8px;
+}
+.alert-center-head strong {
+  font-size: 13.5px;
+}
+.alert-center-head small,
+.alert-center-body p {
+  color: var(--text-muted);
+  font-size: 12px;
+  margin: 0;
+  line-height: 1.7;
+}
+.alert-center-items {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 12px;
+}
+.alert-center-items li {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+}
+.alert-center-amount {
+  white-space: nowrap;
+  font-weight: 700;
+}
+.alert-center-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.alert-center-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 24px 0;
+  color: var(--text-muted);
+}
+.main-system-alerts {
+  margin-bottom: 16px;
+}
+.portfolio-alerts {
+  margin-bottom: 12px;
+}

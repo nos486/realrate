@@ -20,6 +20,7 @@
  *   donut-chart.css     — Shared donut (part-to-whole) chart card
  *   vault.css           — Account-wide end-to-end encryption settings
  *   home.css            — Customizable home page (sections, edit mode, asset picker)
+ *   alerts.css          — The alert center (bell, list) of shared/alerts
  *   incomes.css         — Incomes page, summary cards, category/monthly report
  *   cheques.css         — Cheques page, status badges, tracking timeline
  *   expenses.css        — Expenses page, section chips
@@ -51,6 +52,7 @@
 @import './donut-chart.css';
 @import './vault.css';
 @import './home.css';
+@import './alerts.css';
 @import './incomes.css';
 @import './cheques.css';
 @import './expenses.css';

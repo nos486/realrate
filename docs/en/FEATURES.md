@@ -43,6 +43,7 @@ Every feature in detail. For a summary see the [README](../../README.en.md). Per
   - Totals, profit/loss, return and the mix chart all follow the custom categories.
   - Stored end-to-end encrypted in the vault; the server never sees the plaintext.
   - "Back to default" resets to the system's fixed categories at any time.
+- **Allocation targets**: a target share (%) per category, adding up to 100 («از ترکیب فعلی» starts from today's mix). The «هدف ترکیب پورتفو» card shows a pie of today's mix (targets as an outer ring) and, per category, today's share, the target and the gap; a category more than 5 points from its target raises a warning (on the page and in the alert center). Targets are stored in the portfolio's encrypted layout and survive custom categories. (`utils/allocationTargets.js`)
 - **One list**: each asset is one row with its total quantity, the average buy price of what is left, today's value and profit/loss (open and realized). Tapping a row opens everything recorded for it: manual records and buys with what is left of each, sales and spends with which purchases they took from and their profit/loss; «خرید» and «فروش» for that asset and each entry's edit right there. «+» opens one entry form: «خرید / موجودی» (price and date optional; no price = holding without P&L, no date = opening balance) and «فروش», switching to each other for the same asset. (`utils/assetLedger.js`, `AssetLedgerDetails.jsx`)
 - Live profit and loss, Shamsi dates with a "today" button, CSV export and import (keeping the standard category column).
 - **Compare with buying another asset**: when recording a holding you can pick another asset (e.g. gold) and its price on the purchase day; next to the profit/loss the app shows what the same money in that asset would be worth today and how much better or worse this purchase did (separate from "pay / swap with another asset", which records the asset actually paid).
@@ -172,6 +173,7 @@ Every feature in detail. For a summary see the [README](../../README.en.md). Per
 - **Download**: the page [realrate.ir/android](https://realrate.ir/android) (install guide and FAQ) and the stable link to the latest version `https://github.com/nos486/realrate/releases/latest/download/realrate.apk`. Each merge into `main` publishes an APK signed with the same key, which installs over the previous one. On Android, the website footer's phone button goes to this page.
 - **App shell**: bottom navigation (home · expenses · + · portfolio · more), a + button for "quick add" (expense, income, holding, pending SMS), and "more" for the other sections. The app's home is a personal dashboard: this month's spending and income, the remainder, pending SMS, the latest expenses and today's rates; the market lives under "rates and bubble".
 - **Bank SMS**: after one permission grant, every **withdrawal or deposit** SMS from the bank senders (for now Parsian and Blu) notifies and waits on the "SMS" page; "record" fills the expense or income form with the amount (rials → tomans), date, account and note. Older messages are read only on request (24 hours, 7, 30 or 90 days).
+  - **Record into a project**: from a withdrawal's «⋮» menu, pick an expense project; that project's expense form opens titled «برداشت <bank>» with the SMS's amount and date.
   - **Quick record**: a withdrawal up to 1,000,000 tomans is recorded in one tap, without a form, in the category chosen in the app settings.
   - **Automatic recording of small expenses** (optional): withdrawals up to a set limit (500,000 tomans by default) record themselves.
   - **Deposit as a loan**: a deposit can be a received loan (not income): link it to an existing loan, or open the new-loan form with the same amount and date.
@@ -188,3 +190,9 @@ Every feature in detail. For a summary see the [README](../../README.en.md). Per
 - Sync is incremental (`GET /api/vault/sync`): only changes since the last sync are fetched, deletions included.
 - The phone stores only ciphertext too; the key is only in memory. Signing out clears the phone's copy.
 - The website (PWA) also shows the last prices without internet.
+
+## 19. Alerts and notifications
+- **One system for all**: overdue and upcoming installments, past-due and upcoming cheques, portfolio drift from targets, selling more than held, a new app version and the site announcement share one shape (source, severity critical / warning / info, title, items, amount, due date, action). (`api/src/domain/alerts.js`, `web/src/shared/alerts`)
+- **The «هشدارها» bell** in the header (site and app) with a counter (red when something is critical) and the list of every alert; each page also shows its own section's alerts, with one look.
+- **Dismissing**: a critical alert hides until tomorrow, the others until something new joins them (another overdue installment).
+- **Ready for email**: critical loan and cheque alerts can be chosen for email (once each, amounts only if allowed). The data is end-to-end encrypted, so alerts are raised in the browser and only what the user allows is sent. Sending is not enabled yet; see [ALERTS.md](../ALERTS.md).

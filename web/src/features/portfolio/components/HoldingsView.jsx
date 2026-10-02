@@ -17,7 +17,6 @@ import {
   Settings,
   Plus,
   Briefcase,
-  AlertTriangle,
   SlidersHorizontal,
 } from 'lucide-react';
 import { usePricing } from '../../market/index.js';
@@ -32,12 +31,15 @@ import VaultLockCard from './VaultLockCard.jsx';
 import HoldingsCustomizeEditor from './HoldingsCustomizeEditor.jsx';
 import AssetLedgerDetails from './AssetLedgerDetails.jsx';
 import TargetAllocationModal from './TargetAllocationModal.jsx';
+import AlertStack from '../../../shared/alerts/AlertStack.jsx';
+import { useAlertSource } from '../../../shared/alerts/alertStore.js';
+import { portfolioAlerts } from '../../../shared/alerts/alertRules.js';
 import TransactionForm from '../../transactions/components/TransactionForm.jsx';
 
 import { useHoldings } from '../hooks/useHoldings.js';
 import { usePortfolioLayout } from '../hooks/usePortfolioLayout.js';
 import { useTransactions } from '../../transactions/index.js';
-import { AlertBanner, Button, SplitPageLayout } from '../../../shared/ui/index.js';
+import { Button, SplitPageLayout } from '../../../shared/ui/index.js';
 import { normalizeHolding } from '../utils/holdingHelpers.js';
 import { buildAssetLedgers } from '../utils/assetLedger.js';
 import {
@@ -45,7 +47,7 @@ import {
   buildDefaultPortfolioLayout,
   setTargets,
 } from '../portfolioLayoutModel.js';
-import { buildAllocation, describeDrift, DRIFT_THRESHOLD } from '../utils/allocationTargets.js';
+import { buildAllocation, DRIFT_THRESHOLD } from '../utils/allocationTargets.js';
 import { getItemCategory } from '../../../config/displayEngine.js';
 import { usePrivacyMode } from '../../../hooks/usePrivacyMode.js';
 import { useFeedback } from '../../../shared/ui/FeedbackProvider.jsx';
@@ -191,6 +193,16 @@ const HoldingsView = forwardRef(function HoldingsView(
     () => buildAllocation(allCategoryGroups, customLayout?.targets),
     [allCategoryGroups, customLayout]
   );
+  // This portfolio's alerts (drift from its targets, more sold than held) go to the alert store:
+  // the banners below and the header's bell show them
+  useAlertSource(
+    activePortfolio?.id ? `portfolio:${activePortfolio.id}` : null,
+    useMemo(
+      () => (isVaultLocked ? [] : portfolioAlerts(activePortfolio, allocation, transactionWarnings, { threshold: DRIFT_THRESHOLD })),
+      [isVaultLocked, activePortfolio, allocation, transactionWarnings]
+    )
+  );
+
   const handleSaveTargets = useCallback((targets) => {
     const empty = Object.keys(targets).length === 0;
     if (empty && !hasCustomGroups) resetCustomLayout();
@@ -396,19 +408,7 @@ const HoldingsView = forwardRef(function HoldingsView(
               />
             ) : portfolioMetrics.items.length === 0 ? (
               <div className="portfolio-empty-state">
-                {transactionWarnings.length > 0 && (
-                  <div className="portfolio-tx-warnings-box" style={{ marginBottom: '16px', width: '100%' }}>
-                    {transactionWarnings.map((w) => (
-                      <AlertBanner
-                        key={w.assetId}
-                        type="warning"
-                        message={w.message}
-                        icon={<AlertTriangle size={16} />}
-                        style={{ marginBottom: '8px' }}
-                      />
-                    ))}
-                  </div>
-                )}
+                <AlertStack sources={['portfolio']} scope={activePortfolio?.id} className="portfolio-alerts" />
                 <div className="empty-icon">
                   <Briefcase size={44} strokeWidth={1.5} color="#64748b" />
                 </div>
@@ -431,33 +431,8 @@ const HoldingsView = forwardRef(function HoldingsView(
               />
             ) : (
               <div className="portfolio-dual-tables-container">
-                {/* More sold than held */}
-                {transactionWarnings.length > 0 && (
-                  <div className="portfolio-tx-warnings-box" style={{ marginBottom: '16px' }}>
-                    {transactionWarnings.map((w) => (
-                      <AlertBanner
-                        key={w.assetId}
-                        type="warning"
-                        message={w.message}
-                        icon={<AlertTriangle size={16} />}
-                        style={{ marginBottom: '8px' }}
-                      />
-                    ))}
-                  </div>
-                )}
-                {/* The mix has drifted from its targets */}
-                {allocation.drifted.length > 0 && (
-                  <AlertBanner
-                    type="warning"
-                    className="portfolio-drift-banner"
-                    icon={<AlertTriangle size={16} />}
-                    message={`ترکیب پورتفو بیش از ${DRIFT_THRESHOLD.toLocaleString('fa-IR')}٪ از هدف فاصله گرفته: ${allocation.drifted.map(describeDrift).join('، ')}`}
-                    action={readOnly ? null : (
-                      <button type="button" className="ui-btn ui-btn-secondary ui-btn-sm" onClick={() => setTargetsOpen(true)}>هدف‌ها</button>
-                    )}
-                    style={{ marginBottom: '12px' }}
-                  />
-                )}
+                {/* Drift from the targets, more sold than held (shared/alerts) */}
+                <AlertStack sources={['portfolio']} scope={activePortfolio?.id} className="portfolio-alerts" />
                 <HoldingsTable
                   categoryGroups={categoryGroups}
                   hideValues={hideValues}

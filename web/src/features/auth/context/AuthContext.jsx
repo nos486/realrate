@@ -1,3 +1,4 @@
+import { clearAlerts } from '../../../shared/alerts/alertStore.js';
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getMe, googleLogin, logout as apiLogout, getGoogleLoginUrl, appSignIn } from '../api/authApi.js';
@@ -191,6 +192,7 @@ export function AuthProvider({ children }) {
     writeCachedUser(null);
     resetCustomBanks();
     resetVault();
+    clearAlerts();
     setUser(null);
     navigate(LANDING_PATH, { replace: true });
   }, [navigate]);

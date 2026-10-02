@@ -1,13 +1,13 @@
 import React, { useEffect, useMemo, useRef, lazy, Suspense } from 'react';
 import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { Megaphone, TrendingUp, Briefcase, ShieldCheck, Radio, Settings, Landmark, Wallet, ReceiptText, Wrench, HandCoins, WalletCards, Smartphone, MessageSquareText } from 'lucide-react';
+import { TrendingUp, Briefcase, ShieldCheck, Radio, Settings, Landmark, Wallet, ReceiptText, Wrench, HandCoins, WalletCards, Smartphone, MessageSquareText } from 'lucide-react';
 import { AppLayout, FilterPills, AlertBanner, Button } from '../shared/ui/index.js';
 import MarketInputsToolbar from '../components/MarketInputsToolbar.jsx';
 import { PriceRefreshStatus } from '../features/market/components/index.js';
 import HomeDashboard from '../features/home/HomeDashboard.jsx';
 // Imported from its own file (not the loans barrel) so LoansPage stays in its lazy chunk
-import UpcomingInstallmentsAlert from '../features/loans/components/UpcomingInstallmentsAlert.jsx';
-import UpcomingChequesAlert from '../features/cheques/components/UpcomingChequesAlert.jsx';
+import AlertStack from '../shared/alerts/AlertStack.jsx';
+import AppAlertSources from '../shared/alerts/AppAlertSources.jsx';
 import VaultPendingBanner from '../shared/vault/VaultPendingBanner.jsx';
 import VaultSetupScreen from '../shared/vault/VaultSetupScreen.jsx';
 import { useVault } from '../shared/vault/useVault.js';
@@ -329,15 +329,10 @@ export default function MainPage() {
         />
       )}
 
-      {/* System Announcement Banner */}
-      {announcement && (
-        <AlertBanner
-          type="info"
-          icon={<Megaphone size={16} />}
-          message={announcement}
-          style={{ marginBottom: '20px' }}
-        />
-      )}
+      {/* Every alert goes through one store (shared/alerts): published here, shown by the
+          header's bell and by the banners on the page each one concerns */}
+      <AppAlertSources announcement={isDemo ? '' : announcement} />
+      <AlertStack sources={['system']} className="main-system-alerts" />
 
       {/* Modern Segmented Navigation Tabs & Live Rates Ticker (in the Android app the bottom bar
           navigates, and the rates show on the home page only) */}
@@ -377,13 +372,11 @@ export default function MainPage() {
         <>
         {!isDemo && activeTab !== 'settings' && <VaultPendingBanner onOpenSettings={() => handleTabChange('settings')} />}
 
-        {/* Active Loan Due Reminders Banner */}
-        {/* Due-date reminders: on the home page, and installments on the loans page too — not
-            repeated on every other page */}
-        {(activeTab === 'market' || activeTab === 'loans') && (
-          <UpcomingInstallmentsAlert onSelectLoan={(loanId) => navigate(appPath(loanId ? `/loans/${loanId}` : '/loans'))} />
-        )}
-        {activeTab === 'market' && <UpcomingChequesAlert onOpen={() => handleTabChange('cheques')} />}
+        {/* Due-date alerts: on the home page, and each on its own page — not repeated on every
+            other page (the bell lists them all) */}
+        {activeTab === 'market' && <AlertStack sources={['loan', 'cheque']} />}
+        {activeTab === 'loans' && <AlertStack sources={['loan']} />}
+        {activeTab === 'cheques' && <AlertStack sources={['cheque']} />}
 
         {activeTab === 'market' && isNativeApp() && (
           <Suspense fallback={<TabLoader />}>

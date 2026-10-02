@@ -12,6 +12,7 @@
  * A form opened from "+" is reached with `?add=…` on the section's page (useQuickAddParam).
  */
 
+import AlertCenterButton from '../alerts/AlertCenter.jsx';
 import React, { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
@@ -90,6 +91,7 @@ export function AppTopBar({ activeTab, navItems = [] }) {
             {hideValues ? <Eye size={20} /> : <EyeOff size={20} />}
           </button>
         )}
+        {user && <AlertCenterButton className="app-icon-btn" iconSize={20} />}
         {canLock && (
           <button type="button" className="app-icon-btn" onClick={() => { tap(); lockAll(); }} aria-label="قفل کردن اطلاعات رمزنگاری‌شده">
             <Lock size={20} />
