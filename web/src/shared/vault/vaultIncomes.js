@@ -74,8 +74,11 @@ export async function getIncomes(filters = {}) {
   const res = await listVaultRecords(KIND, undefined, filters);
   const list = [];
   const decrypted = [];
-  for (const record of res?.records || []) {
-    const income = await decryptVaultRecord(record.payload);
+  // Decrypted together (WebCrypto works in parallel), then read in order
+  const records = res?.records || [];
+  const plains = await Promise.all(records.map((r) => decryptVaultRecord(r.payload)));
+  for (const [i, record] of records.entries()) {
+    const income = plains[i];
     if (income?.id) {
       incomes.set(record.id, income);
       list.push(income);

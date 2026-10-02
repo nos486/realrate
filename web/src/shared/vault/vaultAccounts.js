@@ -20,8 +20,11 @@ class AccountValidationError extends Error {
 export async function getAccounts() {
   const res = await listVaultRecords(KIND);
   const accounts = [];
-  for (const record of res?.records || []) {
-    const account = await decryptVaultRecord(record.payload);
+  // Decrypted together (WebCrypto works in parallel), then read in order
+  const records = res?.records || [];
+  const decrypted = await Promise.all(records.map((r) => decryptVaultRecord(r.payload)));
+  for (const [i, record] of records.entries()) {
+    const account = decrypted[i];
     if (account?.id) accounts.push(account);
     else console.warn('Skipped an account that could not be decrypted:', record.id);
   }

@@ -114,7 +114,37 @@ export function stopGlobalLoading() {
 /**
  * Low-level HTTP request method
  */
-export async function httpRequest(path, options = {}) {
+/**
+ * Identical reads already on their way (same URL, same signed-in user): pages mount several
+ * components that ask for the same list at once — they share one request. Each caller gets its
+ * own copy of the answer, so one changing it never affects another.
+ */
+const inflightReads = new Map();
+
+const copyOf = (data) => {
+  if (!data || typeof data !== 'object') return data;
+  try {
+    return structuredClone(data);
+  } catch {
+    return data;
+  }
+};
+
+export function httpRequest(path, options = {}) {
+  const method = String(options.method || 'GET').toUpperCase();
+  const shareable = method === 'GET' && !options.body && !options.signal;
+  if (!shareable) return sendRequest(path, options);
+  const key = `${getToken() || ''} ${path} ${JSON.stringify(options.headers || {})}`;
+  let pending = inflightReads.get(key);
+  const first = !pending;
+  if (first) {
+    pending = sendRequest(path, options).finally(() => inflightReads.delete(key));
+    inflightReads.set(key, pending);
+  }
+  return first ? pending : pending.then(copyOf);
+}
+
+async function sendRequest(path, options = {}) {
   // Reads are silent by default: each view shows its own skeleton instead of the blocking
   // full-screen loader, which is kept for writes (save/delete/import). Pass `silent` to override.
   const method = String(options.method || 'GET').toUpperCase();

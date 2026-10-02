@@ -41,8 +41,11 @@ const newId = (prefix) => `${prefix}_${crypto.randomUUID().replace(/-/g, '').sli
 async function decryptAll(kind, filters) {
   const res = await listVaultRecords(kind, undefined, filters);
   const items = [];
-  for (const record of res?.records || []) {
-    const plain = await decryptVaultRecord(record.payload);
+  // Decrypted together (WebCrypto works in parallel), then read in order
+  const records = res?.records || [];
+  const decrypted = await Promise.all(records.map((r) => decryptVaultRecord(r.payload)));
+  for (const [i, record] of records.entries()) {
+    const plain = decrypted[i];
     if (plain?.id) items.push(plain);
     else console.warn(`Skipped an ${kind} record that could not be decrypted:`, record.id);
   }

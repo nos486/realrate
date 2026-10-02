@@ -42,8 +42,11 @@ export async function getRecurringIncomes() {
   const res = await listVaultRecords(KIND);
   const next = new Map();
   const decrypted = [];
-  for (const record of res?.records || []) {
-    const rule = await decryptVaultRecord(record.payload);
+  // Decrypted together (WebCrypto works in parallel), then read in order
+  const records = res?.records || [];
+  const plains = await Promise.all(records.map((r) => decryptVaultRecord(r.payload)));
+  for (const [i, record] of records.entries()) {
+    const rule = plains[i];
     if (rule?.id) {
       next.set(record.id, rule);
       decrypted.push({ record, plain: rule });

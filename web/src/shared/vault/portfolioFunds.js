@@ -53,13 +53,10 @@ export async function listAssetFunds(assetId) {
         listPortfolioHoldings(portfolio, key),
         listPortfolioTransactions(portfolio, key),
       ]);
-      const manualAmount = holdings
-        .filter((h) => toPriceId(h.assetId) === id)
-        .reduce((sum, h) => sum + (Number(h.amount) || 0), 0);
+      // The ledger counts the manual holdings too
       const { positions } = calculateComputedHoldings(transactions, {}, { manualLots: holdings });
       const position = positions.get(id);
-      const amount = position ? position.amount : manualAmount;
-      return { portfolioId: portfolio.id, portfolioName: portfolio.name || 'پورتفو', amount, averageCost: position?.averageCost || 0 };
+      return { portfolioId: portfolio.id, portfolioName: portfolio.name || 'پورتفو', amount: position?.amount || 0, averageCost: position?.averageCost || 0 };
     } catch (err) {
       console.warn('Reading a portfolio for funds failed:', err);
       return null;

@@ -119,8 +119,11 @@ async function decryptRecords(kind, portfolioId, key, filters = {}) {
   const decrypted = [];
   const migrated = [];
   const knownIds = getKnownPriceIds();
-  for (const record of res?.records || []) {
-    const stored = await e2eeDecrypt(key, record.payload);
+  // Decrypted together (WebCrypto works in parallel), then read in order
+  const records = res?.records || [];
+  const plains = await Promise.all(records.map((r) => e2eeDecrypt(key, r.payload)));
+  for (const [i, record] of records.entries()) {
+    const stored = plains[i];
     if (stored && typeof stored === 'object') {
       // Asset ids saved in an older form become the price book's id
       const { changed, record: value } = migrateRecordPriceIds(stored, knownIds);
