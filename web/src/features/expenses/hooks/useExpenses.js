@@ -7,7 +7,7 @@
  * downloaded here. Totals are computed from them in the view.
  */
 
-import { useState, useEffect, useCallback } from 'react';
+import { useRef, useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../../auth/index.js';
 import { useVault } from '../../../shared/vault/useVault.js';
 import { compareExpensesByDate } from '../../../utils/expenseDocument.js';
@@ -19,6 +19,8 @@ export function useExpenses() {
   const vaultLocked = vaultStatus === 'locked';
   const [groups, setGroups] = useState([]);
   const [expenses, setExpenses] = useState([]);
+  const expensesRef = useRef([]);
+  expensesRef.current = expenses;
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [deletingId, setDeletingId] = useState(null);
@@ -93,7 +95,7 @@ export function useExpenses() {
     setExpenses((prev) => prev.filter((e) => e.groupId !== groupId));
   }), [remove]);
 
-  const deleteExpense = useCallback((expenseId) => remove(expenseId, () => api.deleteExpense(expenseId), () => {
+  const deleteExpense = useCallback((expenseId) => remove(expenseId, () => api.deleteExpense(expenseId, expensesRef.current.find((e) => e.id === expenseId) || null), () => {
     setExpenses((prev) => prev.filter((e) => e.id !== expenseId));
   }), [remove]);
 

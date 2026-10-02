@@ -10,10 +10,13 @@
  * own money or from a loan (loanFunding.js) — offered while there is a loan not yet settled.
  * «دنگ»: the amount was paid for others too — only «سهم من» counts as the user's expense, the rest
  * is owed back (what comes back is recorded on the expense, ReimbursementsModal.jsx, not as income).
+ * A dollar expense is paid from a portfolio's dollars instead of an account (and has no loan): the
+ * dollars leave that portfolio as a «spend» transaction at the expense's rate (portfolioFunds.js),
+ * which is filled in from that day's price history.
  * Mounted only while open, so its state starts from props.
  */
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Receipt, RefreshCw } from 'lucide-react';
 import { AlertBanner, Button, FilterPills, Input, Modal, NumericInput } from '../../../shared/ui/index.js';
 import ShamsiDatePicker, {
@@ -29,6 +32,9 @@ import CategoryManagerModal from '../../../shared/categories/CategoryManagerModa
 import { accountLabel } from '../../accounts/constants/accountDisplay.js';
 import { useOptionalLoans } from '../../loans/context/LoansContext.jsx';
 import { fundingLoanOptions } from '../../../utils/loanFunding.js';
+import { useAssetFunds } from '../../../shared/vault/useAssetFunds.js';
+import { CURRENCY_ASSET, newSpendTxId, rateOnDay } from '../../../shared/vault/portfolioFunds.js';
+import { todayIso } from '../../../shared/utils/dates.js';
 
 const LAST_ACCOUNT_KEY = 'realrate_last_expense_account';
 
@@ -82,10 +88,37 @@ export default function ExpenseForm({ group = null, daily = false, expense = nul
   const amountNum = parseInputNumber(amount);
   const rateNum = parseInputNumber(usdRate);
   const dateIso = shamsiToGregorian(dateShamsi);
+
+  // A dollar expense: paid from a portfolio's dollars (not a toman account, not a loan)
+  const fundAsset = CURRENCY_ASSET[currency] || '';
+  const { funds, loading: loadingFunds } = useAssetFunds(fundAsset, Boolean(fundAsset));
+  const [fundId, setFundId] = useState(expense?.paidFrom?.portfolioId || '');
+  const fund = fundAsset ? funds.find((f) => f.portfolioId === fundId) || null : null;
+  // This expense's own spend is already out of the balance shown
+  const ownSpend = expense?.paidFrom && expense.paidFrom.portfolioId === fundId ? Number(expense.amount) || 0 : 0;
+  const fundAvailable = fund ? fund.amount + ownSpend : 0;
+  const fundAfter = fundAvailable - (amountNum || 0);
+
+  // The day's rate, for an expense paid from a portfolio (when none was typed)
+  const [rateTouched, setRateTouched] = useState(Boolean(expense?.usdRate));
+  useEffect(() => {
+    if (!isUsd || !fundId || rateTouched || !dateIso) return undefined;
+    let cancelled = false;
+    const apply = (rate) => {
+      if (!cancelled && rate > 0) setUsdRate(String(Math.round(rate)));
+    };
+    if (dateIso === todayIso() && usdToman > 0) apply(usdToman);
+    else rateOnDay(fundAsset, dateIso).then(apply);
+    return () => {
+      cancelled = true;
+    };
+  }, [isUsd, fundId, rateTouched, dateIso, usdToman, fundAsset]);
   const shareNum = parseInputNumber(myShare);
   const shareValid = !shared || (myShare.trim() !== '' && shareNum >= 0 && shareNum < amountNum);
   const received = expenseReceivable(expense).received;
-  const isValid = (daily || Boolean(title.trim())) && amountNum > 0 && Boolean(dateIso) && (!usdRate || rateNum > 0) && shareValid && !submitting;
+  const paidFromPortfolio = Boolean(fundAsset && fund);
+  const isValid = (daily || Boolean(title.trim())) && amountNum > 0 && Boolean(dateIso) && (!usdRate || rateNum > 0)
+    && (!paidFromPortfolio || rateNum > 0) && shareValid && !submitting;
   const tomanPreview = isUsd && amountNum > 0 ? amountNum * (rateNum || usdToman) : 0;
 
   const handleSubmit = async (e) => {
@@ -96,8 +129,16 @@ export default function ExpenseForm({ group = null, daily = false, expense = nul
       await onSubmit({
         ...(group ? { groupId: group.id } : {}),
         ...(daily ? { category } : {}),
-        accountId,
-        loanId: fundingLoans.some((l) => l.id === loanId) ? loanId : '',
+        accountId: fundAsset ? '' : accountId,
+        loanId: !fundAsset && fundingLoans.some((l) => l.id === loanId) ? loanId : '',
+        paidFrom: paidFromPortfolio
+          ? {
+            portfolioId: fund.portfolioId,
+            portfolioName: fund.portfolioName,
+            assetId: fundAsset,
+            txId: expense?.paidFrom?.portfolioId === fund.portfolioId ? expense.paidFrom.txId : newSpendTxId(),
+          }
+          : null,
         title: title.trim() || getExpenseCategory(category).label,
         amount: amountNum,
         currency,
@@ -188,7 +229,7 @@ export default function ExpenseForm({ group = null, daily = false, expense = nul
         {isUsd && (
           <div className="ui-input-group">
             <label htmlFor="expense-usd-rate" className="ui-input-label expense-rate-label">
-              نرخ دلار در روز هزینه (تومان، اختیاری)
+              نرخ دلار در روز هزینه (تومان{paidFromPortfolio ? ' *' : '، اختیاری'})
               {usdToman > 0 && (
                 <button
                   type="button"
@@ -204,7 +245,10 @@ export default function ExpenseForm({ group = null, daily = false, expense = nul
               <NumericInput
                 id="expense-usd-rate"
                 value={usdRate}
-                onValueChange={setUsdRate}
+                onValueChange={(v) => {
+                  setRateTouched(true);
+                  setUsdRate(v);
+                }}
                 allowDecimals={false}
                 placeholder={usdToman > 0 ? `خالی: نرخ امروز (${formatNum(usdToman)})` : 'نرخ هر دلار به تومان'}
                 className="ui-input-control"
@@ -252,7 +296,38 @@ export default function ExpenseForm({ group = null, daily = false, expense = nul
           )}
         </div>
 
-        {accounts.length > 0 && (
+        {fundAsset && (
+          <div className="ui-input-group">
+            <span className="ui-input-label">پرداخت از</span>
+            {loadingFunds ? (
+              <p className="expense-form-hint">در حال خواندن دارایی دلاری پورتفوها…</p>
+            ) : (
+              <FilterPills
+                options={[
+                  { value: '', label: 'نامشخص' },
+                  ...funds
+                    .filter((f) => f.amount > 0 || f.portfolioId === fundId)
+                    .map((f) => ({ value: f.portfolioId, label: `${f.portfolioName} — ${formatNum(f.amount)} دلار` })),
+                ]}
+                activeValue={fundId}
+                onChange={setFundId}
+                size="sm"
+                className="income-category-picker"
+              />
+            )}
+            {fund ? (
+              <p className={`expense-form-hint ${fundAfter < 0 ? 'is-warning' : ''}`}>
+                از دلارهای «{fund.portfolioName}» کم می‌شود (تراکنش «پرداخت هزینه»؛ سود یا زیانش نسبت به قیمت خرید در پورتفو ثبت می‌شود).
+                {' '}موجودی پس از پرداخت: <strong>{formatNum(fundAfter)}</strong> دلار
+                {fundAfter < 0 && ' — بیشتر از موجودی است.'}
+              </p>
+            ) : !loadingFunds && funds.every((f) => !(f.amount > 0)) && (
+              <p className="expense-form-hint">هیچ پورتفویی دلار ندارد؛ هزینه بدون منبع ثبت می‌شود.</p>
+            )}
+          </div>
+        )}
+
+        {!fundAsset && accounts.length > 0 && (
           <div className="ui-input-group">
             <span className="ui-input-label">پرداخت از</span>
             <FilterPills
@@ -268,7 +343,7 @@ export default function ExpenseForm({ group = null, daily = false, expense = nul
           </div>
         )}
 
-        {fundingLoans.length > 0 && (
+        {!fundAsset && fundingLoans.length > 0 && (
           <div className="ui-input-group">
             <span className="ui-input-label">تأمین از</span>
             <FilterPills

@@ -30,6 +30,8 @@ export function useDailyExpenses(month, { enabled = true } = {}) {
   const [error, setError] = useState(null);
   // Only the latest request's answer counts (months switched quickly answer out of order)
   const requestRef = useRef(0);
+  const expensesRef = useRef([]);
+  expensesRef.current = expenses;
 
   const range = useMemo(() => shamsiMonthRange(month.jy, month.jm), [month.jy, month.jm]);
   const prevRange = useMemo(() => {
@@ -104,7 +106,8 @@ export function useDailyExpenses(month, { enabled = true } = {}) {
     setDeletingId(expenseId);
     setError(null);
     try {
-      await api.deleteExpense(expenseId);
+      // The stored copy: an expense paid from a portfolio removes its transaction too
+      await api.deleteExpense(expenseId, expensesRef.current.find((e) => e.id === expenseId) || null);
       setExpenses((prev) => prev.filter((e) => e.id !== expenseId));
     } catch (err) {
       setError(err.message || 'خطا در حذف هزینه');

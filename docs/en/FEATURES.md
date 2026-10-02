@@ -55,6 +55,8 @@ Every feature in detail. For a summary see the [README](../../README.en.md). Per
 - Buy and sell records with a Shamsi date and a note.
 - Holdings and average cost are computed automatically in date order.
 - Realized profit/loss on a sale, and a warning when selling more than is held.
+- **One ledger per asset**: manual holdings are the asset's opening buys; sales and spends take from the whole balance (manual and transactions), so manual holdings can be sold too. The «تراکنش‌ها» row is what the transactions changed on top of the manual rows (negative when they took from them), and together they are the real position. A holding without a buy price is unknown cost: counted in the quantity, not in the average or P&L. (`calculationEngine.js`)
+- **Paying an expense from a portfolio**: a dollar expense is paid from a portfolio's dollars («پرداخت از» in the expense form, with each portfolio's balance); that day's dollar rate is filled in from the price history and the portfolio gets a «پرداخت هزینه» transaction (P&L against cost, like a sale). Editing or deleting the expense updates or removes its transaction; a spend isn't edited from the portfolio. Toman accounts and loans aren't offered for dollar expenses. (`shared/vault/portfolioFunds.js`)
 
 ## 7. Loans and installments
 - Automatic amortization schedule (interest rate, annual fee, installment interval).

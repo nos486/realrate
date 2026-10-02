@@ -131,7 +131,9 @@ export default function ExpensesTable({
           mobile: 'meta',
           render: (e) => (
             <span className="expense-account-text">
-              {e.accountId ? accountLabel(accountById.get(e.accountId)) : '—'}
+              {e.paidFrom
+                ? `دلار «${e.paidFrom.portfolioName || 'پورتفو'}»`
+                : e.accountId ? accountLabel(accountById.get(e.accountId)) : '—'}
             </span>
           ),
         }]

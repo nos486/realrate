@@ -762,3 +762,7 @@ button.expense-share-chip {
   font-size: 0.75rem;
   cursor: pointer;
 }
+
+.expense-form-hint.is-warning {
+  color: var(--color-warning-text);
+}

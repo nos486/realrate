@@ -5,6 +5,9 @@
  * every section is an "expense_group" record and every expense an "expense" record whose
  * plaintext metadata is its date and its section (parent_id). Validation is the shared
  * utils/expenseDocument.js.
+ *
+ * A dollar expense paid from a portfolio (`paidFrom`) also writes, moves or deletes its «spend»
+ * transaction in that portfolio (portfolioFunds.js): the transaction first, then the expense.
  */
 
 import {
@@ -66,10 +69,16 @@ export async function saveExpenseGroup(input, existing = null) {
 /** Delete a section with every expense in it (expenses first: a half-done delete leaves the section) */
 export async function deleteExpenseGroup(groupId) {
   const res = await listVaultRecords(EXPENSE_KIND, undefined, { parent: groupId });
-  for (const record of res?.records || []) await deleteVaultRecord(EXPENSE_KIND, record.id);
+  for (const record of res?.records || []) {
+    const plain = await decryptVaultRecord(record.payload).catch(() => null);
+    await deleteExpense(record.id, plain);
+  }
   await deleteVaultRecord(GROUP_KIND, groupId);
   return { success: true };
 }
+
+const funds = () => import('./portfolioFunds.js');
+const sameFunding = (a, b) => Boolean(a && b && a.portfolioId === b.portfolioId && a.txId === b.txId);
 
 /**
  * Expenses, newest first: of one section (`parent`) and/or between two days (`from`, `to`,
@@ -89,7 +98,25 @@ export async function saveExpense(input, existing = null) {
   const expense = existing
     ? { ...existing, ...checked(validateExpense({ ...existing, ...input })), updatedAt: now }
     : { id: newId('exp'), ...checked(validateExpense(input)), createdAt: now, updatedAt: now };
-  await putRecord(EXPENSE_KIND, expense.id, await encryptVaultRecord(expense), expense, { parentId: expense.groupId });
+
+  // Paid from a portfolio: its spend transaction first (moved when the portfolio changed)
+  const before = existing?.paidFrom || null;
+  if (expense.paidFrom) {
+    const { saveSpendTransaction, deleteSpendTransaction } = await funds();
+    if (before && !sameFunding(before, expense.paidFrom)) await deleteSpendTransaction(before);
+    await saveSpendTransaction(expense);
+  }
+  try {
+    await putRecord(EXPENSE_KIND, expense.id, await encryptVaultRecord(expense), expense, { parentId: expense.groupId });
+  } catch (err) {
+    // A new expense that couldn't be saved leaves no transaction behind
+    if (expense.paidFrom && !sameFunding(before, expense.paidFrom)) {
+      await (await funds()).deleteSpendTransaction(expense.paidFrom).catch(() => {});
+    }
+    throw err;
+  }
+  // No longer paid from a portfolio
+  if (before && !expense.paidFrom) await (await funds()).deleteSpendTransaction(before).catch(() => {});
   return { success: true, expense };
 }
 
@@ -109,8 +136,10 @@ export function newReimbursement(input) {
   return { id: newId('rmb'), ...input };
 }
 
-export async function deleteExpense(expenseId) {
+/** Delete an expense (and its spend transaction, when it was paid from a portfolio) */
+export async function deleteExpense(expenseId, expense = null) {
   await deleteVaultRecord(EXPENSE_KIND, expenseId);
+  if (expense?.paidFrom) await (await funds()).deleteSpendTransaction(expense.paidFrom).catch(() => {});
   return { success: true };
 }
 

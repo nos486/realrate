@@ -13,7 +13,7 @@ Everything is an encrypted vault record (`vault_records`); no new Postgres table
 | Record kind (`kind`) | `parent_id` | `record_date` | Encrypted content |
 |---|---|---|---|
 | `expense_group` | — | Day created | `{ id, name, type, notes, archived, createdAt, updatedAt }` |
-| `expense` | Section id | Expense date | `{ id, groupId, title, amount, currency, usdRate, date, notes, category, accountId, loanId, source, bankId, smsFingerprint, smsKey, myShare, reimbursements, createdAt, updatedAt }` |
+| `expense` | Section id | Expense date | `{ id, groupId, title, amount, currency, usdRate, date, notes, category, accountId, loanId, source, bankId, smsFingerprint, smsKey, myShare, reimbursements, paidFrom, createdAt, updatedAt }` — `paidFrom: { portfolioId, portfolioName, assetId, txId }`: a dollar expense paid from a portfolio's dollars (a «spend» transaction in that portfolio; `portfolioFunds.js`) |
 
 - `currency`: `IRT` (toman) or `USD`. `usdRate`: the dollar rate on the expense's day, in tomans (optional, dollars only).
 - `source`: `manual` or `sms`; an expense from an SMS carries the transaction's `bankId`, `smsFingerprint` and `smsKey` so it is never recorded twice ([BANK_SMS.md](BANK_SMS.md)).

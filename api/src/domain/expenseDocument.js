@@ -22,6 +22,10 @@
  * An expense read from a bank SMS (bankSms.js) has `source: 'sms'`, the bank's `bankId`, the
  * message's `smsFingerprint` and the transaction's `smsKey` (so it is not recorded twice).
  *
+ * A dollar expense may be paid from a portfolio's dollars (`paidFrom: { portfolioId, portfolioName,
+ * assetId, txId }`): the portfolio gets a «spend» transaction (`txId`) at the expense's rate
+ * (web/src/shared/vault/portfolioFunds.js); such an expense has no account and no loan.
+ *
  * A shared expense («دنگ»): the user paid `amount` for others too, and only `myShare` (same
  * currency) is theirs. Totals, categories, budgets and loan usage count `myShare`
  * (expenseInToman); the rest is owed back to the user. What comes back is kept on the expense
@@ -181,12 +185,37 @@ export function validateExpense(body = {}) {
   if (shared.error) return { error: shared.error };
   const { myShare, reimbursements } = shared;
 
+  const funding = validatePaidFrom(body.paidFrom, currency);
+  if (funding.error) return { error: funding.error };
+  const { paidFrom } = funding;
+  if (paidFrom && !(usdRate > 0)) return { error: 'برای پرداخت از پورتفو، نرخ دلار روز هزینه لازم است.' };
+
   return {
     value: {
-      groupId, title, amount, currency, date, usdRate, notes, category, source, bankId, accountId, loanId,
-      smsFingerprint, smsKey, myShare, reimbursements,
+      groupId, title, amount, currency, date, usdRate, notes, category, source, bankId,
+      // Paid from a portfolio: no account, no loan
+      accountId: paidFrom ? '' : accountId,
+      loanId: paidFrom ? '' : loanId,
+      smsFingerprint, smsKey, myShare, reimbursements, paidFrom,
     },
   };
+}
+
+/** The asset each currency may be paid with from a portfolio */
+export const PAYABLE_ASSETS = { USD: 'usd' };
+
+/**
+ * Where a dollar expense was paid from in a portfolio, or null
+ * @returns {{ paidFrom?: object|null, error?: string }}
+ */
+function validatePaidFrom(raw, currency) {
+  if (!raw) return { paidFrom: null };
+  const portfolioId = text(raw.portfolioId);
+  const txId = text(raw.txId);
+  const assetId = text(raw.assetId);
+  if (!ID_RE.test(portfolioId) || !ID_RE.test(txId)) return { error: 'پورتفوی پرداخت نامعتبر است.' };
+  if (PAYABLE_ASSETS[currency] !== assetId) return { error: 'این ارز از پورتفو پرداخت‌شدنی نیست.' };
+  return { paidFrom: { portfolioId, portfolioName: text(raw.portfolioName).slice(0, EXPENSE_LIMITS.nameLength), assetId, txId } };
 }
 
 /**

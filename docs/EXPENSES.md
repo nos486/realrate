@@ -11,7 +11,7 @@
 | نوع رکورد (`kind`) | `parent_id` | `record_date` | محتوای رمزشده |
 |---|---|---|---|
 | `expense_group` | — | روز ساخت | `{ id, name, type, notes, archived, createdAt, updatedAt }` |
-| `expense` | شناسه بخش | تاریخ هزینه | `{ id, groupId, title, amount, currency, usdRate, date, notes, category, accountId, loanId, source, bankId, smsFingerprint, smsKey, myShare, reimbursements, createdAt, updatedAt }` |
+| `expense` | شناسه بخش | تاریخ هزینه | `{ id, groupId, title, amount, currency, usdRate, date, notes, category, accountId, loanId, source, bankId, smsFingerprint, smsKey, myShare, reimbursements, paidFrom, createdAt, updatedAt }` — `paidFrom: { portfolioId, portfolioName, assetId, txId }`: هزینه‌ی دلاری که از دلار یک پورتفو پرداخت شده (تراکنش «spend» در آن پورتفو؛ `portfolioFunds.js`) |
 
 - `currency`: `IRT` (تومان) یا `USD`. `usdRate`: نرخ دلار روز هزینه به تومان (اختیاری، فقط برای دلار).
 - `source`: `manual` یا `sms`؛ هزینه‌ی پیامکی `bankId`، `smsFingerprint` و `smsKey` تراکنش را دارد تا دو بار ثبت نشود ([BANK_SMS.md](BANK_SMS.md)).
