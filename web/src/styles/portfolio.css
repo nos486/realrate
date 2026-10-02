@@ -2232,9 +2232,7 @@ tr.is-expandable:focus-visible,
 }
 
 .rdt-mobile-card .rdt-expanded {
-  margin-top: 10px;
-  padding-top: 10px;
-  border-top: 1px solid var(--border-color);
+  margin-top: 8px;
   cursor: default;
 }
 
@@ -2245,12 +2243,15 @@ tr.is-expandable:focus-visible,
   font-size: 0.72rem;
 }
 
-/* One asset's ledger (features/portfolio/components/AssetLedgerDetails.jsx) */
+/* One asset's ledger (features/portfolio/components/AssetLedgerDetails.jsx): a darker panel,
+   one line per entry */
 .asset-ledger {
   display: flex;
   flex-direction: column;
   gap: 10px;
-  padding: 12px 16px 16px;
+  padding: 14px 16px 16px;
+  background: rgba(0, 0, 0, 0.28);
+  border-top: 1px solid var(--border-color);
 }
 
 .asset-ledger-head {
@@ -2263,15 +2264,11 @@ tr.is-expandable:focus-visible,
 
 .asset-ledger-facts {
   display: flex;
-  flex-direction: column;
-  gap: 4px;
-  font-size: 0.8rem;
+  align-items: baseline;
+  gap: 16px;
+  flex-wrap: wrap;
+  font-size: 0.9rem;
   color: var(--text-secondary);
-}
-
-.asset-ledger-note {
-  color: var(--text-muted);
-  font-size: 0.75rem;
 }
 
 .asset-ledger-actions {
@@ -2282,24 +2279,38 @@ tr.is-expandable:focus-visible,
 .asset-ledger-list {
   display: flex;
   flex-direction: column;
-  gap: 6px;
   margin: 0;
   padding: 0;
   list-style: none;
+  border-radius: 10px;
+  background: rgba(0, 0, 0, 0.22);
+  overflow: hidden;
 }
 
+/* kind · date · quantity × price · left / taken from · P&L · actions */
 .asset-ledger-entry {
-  display: flex;
-  align-items: flex-start;
-  gap: 10px;
-  padding: 10px 12px;
-  border: 1px solid var(--border-color);
-  border-radius: 10px;
-  background: var(--bg-card);
+  display: grid;
+  grid-template-columns: minmax(130px, 1.1fr) minmax(96px, 0.8fr) minmax(170px, 1.6fr) minmax(100px, 1fr) minmax(150px, 1.2fr) auto;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  font-size: 0.95rem;
+}
+
+.asset-ledger-entry + .asset-ledger-entry {
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
 }
 
 .asset-ledger-entry.is-closed {
-  opacity: 0.6;
+  opacity: 0.55;
+}
+
+.asset-ledger-kind {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  white-space: nowrap;
 }
 
 .asset-ledger-icon {
@@ -2322,128 +2333,106 @@ tr.is-expandable:focus-visible,
   background: var(--color-negative-soft);
 }
 
-.asset-ledger-main {
-  display: flex;
-  flex: 1;
-  flex-direction: column;
-  gap: 3px;
-  min-width: 0;
-  font-size: 0.82rem;
-}
-
-.asset-ledger-line {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 10px;
-  flex-wrap: wrap;
-}
-
-.asset-ledger-date,
-.asset-ledger-muted,
-.asset-ledger-sources,
-.asset-ledger-notes {
+.asset-ledger-date {
   color: var(--text-secondary);
-  font-size: 0.75rem;
-}
-
-.asset-ledger-remaining {
-  color: var(--color-positive-text);
-  font-size: 0.75rem;
   white-space: nowrap;
 }
 
-.asset-ledger-remaining.is-closed {
+.asset-ledger-qty {
+  white-space: nowrap;
+}
+
+.asset-ledger-qty small,
+.ledger-pnl small {
+  color: var(--text-muted);
+  font-size: 0.75em;
+  font-weight: 400;
+}
+
+.asset-ledger-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--color-positive-text);
+  font-size: 0.85rem;
+  white-space: nowrap;
+}
+
+.asset-ledger-entry.is-out .asset-ledger-status {
+  color: var(--text-secondary);
+  cursor: help;
+}
+
+.asset-ledger-status.is-closed {
   color: var(--text-muted);
 }
 
+.asset-ledger-pnl-cell {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
 .ledger-pnl {
-  font-weight: 600;
+  font-weight: 700;
   white-space: nowrap;
 }
 
-.ledger-pnl.profit,
-.asset-ledger-sub.profit {
+.ledger-pnl.profit {
   color: var(--color-positive-text);
 }
 
-.ledger-pnl.loss,
-.asset-ledger-sub.loss {
+.ledger-pnl.loss {
   color: var(--color-negative-text);
 }
 
 .ledger-pnl.is-none {
   color: var(--text-muted);
   font-weight: 400;
-  font-size: 0.75rem;
+  font-size: 0.85rem;
 }
 
-.asset-ledger-sub {
-  font-size: 0.72rem;
+.asset-ledger-muted {
+  color: var(--text-muted);
 }
 
 .asset-ledger-warning {
   display: inline-flex;
-  align-items: center;
-  gap: 4px;
   color: var(--color-warning-text);
-  font-size: 0.75rem;
+}
+
+.asset-ledger-info {
+  display: inline-flex;
+  color: var(--text-muted);
+  cursor: help;
 }
 
 .asset-ledger-entry-actions {
-  flex-shrink: 0;
-  align-self: center;
+  justify-content: flex-end;
 }
 
-/* «+»: what to record */
-.holdings-add-choices {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.holdings-add-choice {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  width: 100%;
-  padding: 14px;
-  border: 1px solid var(--border-color);
-  border-radius: 12px;
-  background: var(--bg-card);
-  color: var(--text-primary);
-  font: inherit;
-  text-align: start;
-  cursor: pointer;
-}
-
-.holdings-add-choice:hover,
-.holdings-add-choice:focus-visible {
-  border-color: var(--color-primary-border);
-  background: var(--color-primary-soft);
-}
-
-.holdings-add-choice > svg {
-  flex-shrink: 0;
-  color: var(--color-primary-text);
-}
-
-.holdings-add-choice span {
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-}
-
-.holdings-add-choice small {
-  color: var(--text-secondary);
-  font-size: 0.78rem;
-  line-height: 1.6;
+/* Phones: two lines per entry — kind · date · P&L, then quantity · status · actions */
+@media (max-width: 768px) {
+  .asset-ledger-entry {
+    grid-template-columns: 1fr auto;
+    grid-template-areas:
+      "kind pnl"
+      "qty status"
+      "date actions";
+    gap: 6px 10px;
+    padding: 10px 12px;
+    font-size: 0.92rem;
+  }
+  .asset-ledger-kind { grid-area: kind; }
+  .asset-ledger-pnl-cell { grid-area: pnl; }
+  .asset-ledger-qty { grid-area: qty; }
+  .asset-ledger-status { grid-area: status; justify-self: end; }
+  .asset-ledger-date { grid-area: date; font-size: 0.82rem; }
+  .asset-ledger-entry-actions { grid-area: actions; }
 }
 
 .rdt-mobile-card .asset-ledger {
-  padding: 0;
-}
-
-.rdt-mobile-card .asset-ledger-entry {
-  padding: 8px 10px;
+  margin: 0 -12px -12px;
+  border-radius: 0 0 12px 12px;
 }

@@ -28,7 +28,7 @@ import { tap, impact } from '../native/haptics.js';
 import AppSheet from './AppSheet.jsx';
 
 /** Sections whose pages show amounts (the hide-values button is offered there) */
-const MONEY_TABS = ['market', 'portfolio', 'transactions', 'incomes', 'expenses', 'accounts', 'loans', 'cheques'];
+const MONEY_TABS = ['market', 'portfolio', 'incomes', 'expenses', 'accounts', 'loans', 'cheques'];
 
 /** The bottom bar's own sections; everything else is under «بیشتر» */
 function mainTabs(items) {
