@@ -10,7 +10,7 @@
  */
 
 import React, { useState, useMemo } from 'react';
-import { Wallet, Plus, CalendarRange } from 'lucide-react';
+import { Wallet, Plus, CalendarRange, Tags } from 'lucide-react';
 import { useIncomes } from '../hooks/useIncomes.js';
 import { usePrivacyMode } from '../../../hooks/usePrivacyMode.js';
 import {
@@ -34,6 +34,8 @@ import { ruleInput } from '../utils/recurringSync.js';
 import { buildIncomeReport, buildMonthlySeries, monthsSpanned } from '../utils/incomeReport.js';
 import { RECENT_PERIODS, periodMonths } from '../../../shared/utils/recentPeriods.js';
 import { getIncomeCategory } from '../constants/incomeCategories.js';
+import { useCategories } from '../../../shared/categories/useCategories.js';
+import CategoryManagerModal from '../../../shared/categories/CategoryManagerModal.jsx';
 import { useFeedback } from '../../../shared/ui/FeedbackProvider.jsx';
 import { SkeletonRows } from '../../../shared/ui/Skeleton.jsx';
 import VaultUnlockCard from '../../../shared/vault/VaultUnlockCard.jsx';
@@ -42,6 +44,9 @@ import { useQuickAddParam } from '../../../shared/hooks/useQuickAddParam.js';
 
 export default function IncomesPage() {
   const { readOnly } = useDemo();
+  // Re-renders with the user's category names (their own categories included)
+  useCategories('income');
+  const [managingCategories, setManagingCategories] = useState(false);
   const {
     incomes: periodIncomes,
     pageSize,
@@ -193,6 +198,9 @@ export default function IncomesPage() {
           <>
             <IncomeCsvExportButton loadIncomes={loadAllIncomes} disabled={!hasIncomes} />
             <IncomeCsvImportButton saveIncome={saveIncome} onImported={fetchIncomes} disabled={readOnly} />
+            <Button variant="secondary" icon={<Tags size={16} />} onClick={() => setManagingCategories(true)} disabled={readOnly}>
+              دسته‌ها
+            </Button>
             <Button
               icon={<Plus size={16} />}
               onClick={handleOpenAdd}
@@ -326,6 +334,7 @@ export default function IncomesPage() {
           hideValues={hideValues}
         />
       )}
+      {managingCategories && <CategoryManagerModal kind="income" onClose={() => setManagingCategories(false)} />}
     </div>
   );
 }

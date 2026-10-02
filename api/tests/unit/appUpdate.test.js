@@ -8,7 +8,7 @@ import { getLatestRelease, RELEASE_CACHE_MS } from '../../src/handlers/appUpdate
 import {
   isCheckDue,
   isNewer,
-  shouldPrompt,
+  hasUpdate,
   releaseNotesText,
   CHECK_INTERVAL_MS,
 } from '../../../web/src/shared/native/appUpdate.js';
@@ -104,10 +104,11 @@ describe('GET /api/app/latest', () => {
 describe('app update prompt', () => {
   const release = { version: '1.0.48' };
 
-  it('checks only when automatic and the interval has passed', () => {
+  it('checks every time the app opens; on a return, once the interval has passed', () => {
+    expect(isCheckDue({ auto: true, lastCheck: Date.now() }, Date.now(), { launch: true })).toBe(true);
     expect(isCheckDue({ auto: true, lastCheck: 0 }, CHECK_INTERVAL_MS)).toBe(true);
     expect(isCheckDue({ auto: true, lastCheck: 1 }, CHECK_INTERVAL_MS)).toBe(false);
-    expect(isCheckDue({ auto: false, lastCheck: 0 }, CHECK_INTERVAL_MS * 10)).toBe(false);
+    expect(isCheckDue({ auto: false, lastCheck: 0 }, CHECK_INTERVAL_MS * 10, { launch: true })).toBe(false);
   });
 
   it('compares versions numerically', () => {
@@ -117,13 +118,10 @@ describe('app update prompt', () => {
     expect(isNewer(null, '1.0.9')).toBe(false);
   });
 
-  it('respects «بعداً» for that version only, unless checked by hand', () => {
-    const snooze = { version: '1.0.48', until: 2_000 };
-    expect(shouldPrompt(release, '1.0.47', snooze, 1_000)).toBe(false);
-    expect(shouldPrompt(release, '1.0.47', snooze, 3_000)).toBe(true);
-    expect(shouldPrompt({ version: '1.0.49' }, '1.0.47', snooze, 1_000)).toBe(true);
-    expect(shouldPrompt(release, '1.0.47', snooze, 1_000, true)).toBe(true);
-    expect(shouldPrompt(release, '1.0.48', null, 1_000, true)).toBe(false);
+  it('the banner shows while a newer version is known', () => {
+    expect(hasUpdate({ release, installedVersion: '1.0.47' })).toBe(true);
+    expect(hasUpdate({ release, installedVersion: '1.0.48' })).toBe(false);
+    expect(hasUpdate({ release: null, installedVersion: '1.0.47' })).toBe(false);
   });
 
   it('shows the release notes as plain text, without the download footer', () => {

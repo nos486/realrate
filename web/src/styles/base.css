@@ -1805,3 +1805,63 @@ input.search-bar-input:focus-visible {
   user-select: none;
   vertical-align: middle;
 }
+
+/* ActionMenu: "⋮" with a short list of secondary actions (shared/ui/ActionMenu.jsx) */
+.ui-action-menu {
+  position: relative;
+  display: inline-flex;
+}
+
+.ui-action-menu-trigger {
+  padding-inline: 8px;
+}
+
+.ui-action-menu-list {
+  position: absolute;
+  top: calc(100% + 6px);
+  inset-inline-end: 0;
+  z-index: 40;
+  min-width: 170px;
+  margin: 0;
+  padding: 6px;
+  list-style: none;
+  background: var(--bg-surface-elevated);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+}
+
+.ui-action-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 10px 12px;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-primary);
+  font: inherit;
+  font-size: 0.875rem;
+  text-align: start;
+  cursor: pointer;
+}
+
+.ui-action-menu-item:hover:not(:disabled),
+.ui-action-menu-item:focus-visible {
+  background: var(--bg-card-hover);
+}
+
+.ui-action-menu-item:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.ui-action-menu-item svg {
+  flex-shrink: 0;
+  color: var(--text-secondary);
+}
+
+.ui-action-menu-item.is-danger,
+.ui-action-menu-item.is-danger svg {
+  color: var(--color-negative-text);
+}

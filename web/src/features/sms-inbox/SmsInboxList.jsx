@@ -4,15 +4,17 @@
  * Until the app may read SMS: a card to turn automatic reading on (asks for the permission;
  * from then on each bank message is read as it arrives), or to decline it. Afterwards: the
  * withdrawals and deposits (smsInbox.js) neither recorded nor dismissed, newest first.
+ * Each message shows one main action and a «⋮» menu with the rest (they don't fit a phone's row):
  * «ثبت» hands the message to `onRecord` (the page opens the expense or income form); a withdrawal
- * up to QUICK_RECORD_MAX also gets «ثبت سریع» (`onQuickRecord`: recorded as it is, no form); a
- * deposit gets «وام» (`onLoanDeposit`: a received loan, not income) and «دنگ» (`onShareDeposit`:
- * someone's share of an expense the user paid, not income); «رد» drops it for good.
+ * up to QUICK_RECORD_MAX shows «ثبت سریع» instead (`onQuickRecord`: recorded as it is, no form),
+ * with «ثبت با فرم» in the menu; a deposit's menu has «وام» (`onLoanDeposit`: a received loan, not
+ * income) and «دنگ» (`onShareDeposit`: someone's share of an expense the user paid, not income);
+ * «رد» drops it for good.
  */
 
 import React, { useEffect, useState } from 'react';
 import { MessageSquareText, Check, X, ArrowDownLeft, ArrowUpRight, BellRing, Inbox, Zap, Landmark, HandCoins } from 'lucide-react';
-import { Button, EmptyState } from '../../shared/ui/index.js';
+import { ActionMenu, Button, EmptyState } from '../../shared/ui/index.js';
 import { useFeedback } from '../../shared/ui/FeedbackProvider.jsx';
 import { BankLogo, resolveBank } from '../../shared/banks/index.js';
 import { useSmsInbox } from '../../shared/native/useSmsInbox.js';
@@ -102,6 +104,7 @@ export default function SmsInboxList({ accounts = [], onRecord, onQuickRecord, q
         const bank = resolveBank({ bankId: tx.bankId });
         const account = accounts.find((a) => a.id === matchSmsAccount(tx, accounts));
         const isDebit = tx.direction === 'debit';
+        const quick = Boolean(onQuickRecord) && isDebit && tx.amount <= QUICK_RECORD_MAX;
         return (
           <li key={item.fingerprint} className={`sms-inbox-item ${isDebit ? 'is-debit' : 'is-credit'}`}>
             <BankLogo bank={bank} size={30} />
@@ -121,7 +124,8 @@ export default function SmsInboxList({ accounts = [], onRecord, onQuickRecord, q
               </span>
             </div>
             <div className="sms-inbox-actions">
-              {onQuickRecord && isDebit && tx.amount <= QUICK_RECORD_MAX && (
+              {/* One main action; the rest in «⋮» (narrow phones) */}
+              {quick ? (
                 <Button
                   size="sm"
                   icon={<Zap size={14} />}
@@ -132,49 +136,24 @@ export default function SmsInboxList({ accounts = [], onRecord, onQuickRecord, q
                 >
                   ثبت سریع
                 </Button>
-              )}
-              <Button
-                size="sm"
-                variant={onQuickRecord && isDebit && tx.amount <= QUICK_RECORD_MAX ? 'secondary' : 'primary'}
-                icon={<Check size={14} />}
-                onClick={() => onRecord(item)}
-                disabled={!canRecord}
-              >
-                ثبت
-              </Button>
-              {onLoanDeposit && !isDebit && (
-                <Button
-                  size="sm"
-                  variant="secondary"
-                  icon={<Landmark size={14} />}
-                  onClick={() => onLoanDeposit(item)}
-                  disabled={!canRecord}
-                  title="این واریز، دریافت وام است (درآمد نیست)"
-                >
-                  وام
+              ) : (
+                <Button size="sm" icon={<Check size={14} />} onClick={() => onRecord(item)} disabled={!canRecord}>
+                  ثبت
                 </Button>
               )}
-              {onShareDeposit && !isDebit && (
-                <Button
-                  size="sm"
-                  variant="secondary"
-                  icon={<HandCoins size={14} />}
-                  onClick={() => onShareDeposit(item)}
-                  disabled={!canRecord}
-                  title="این واریز، سهم دیگران از هزینه‌ای است که پرداختید (درآمد نیست)"
-                >
-                  دنگ
-                </Button>
-              )}
-              <Button
-                size="sm"
-                variant="secondary"
-                icon={<X size={14} />}
-                onClick={() => dismissSms(item.fingerprint)}
-                aria-label="رد این پیامک"
-              >
-                رد
-              </Button>
+              <ActionMenu
+                label="گزینه‌های این پیامک"
+                items={[
+                  quick && { key: 'record', label: 'ثبت با فرم', icon: <Check size={16} />, onClick: () => onRecord(item), disabled: !canRecord },
+                  onLoanDeposit && !isDebit && {
+                    key: 'loan', label: 'دریافت وام (درآمد نیست)', icon: <Landmark size={16} />, onClick: () => onLoanDeposit(item), disabled: !canRecord,
+                  },
+                  onShareDeposit && !isDebit && {
+                    key: 'share', label: 'دنگ یک هزینه (درآمد نیست)', icon: <HandCoins size={16} />, onClick: () => onShareDeposit(item), disabled: !canRecord,
+                  },
+                  { key: 'dismiss', label: 'رد این پیامک', icon: <X size={16} />, onClick: () => dismissSms(item.fingerprint), danger: true },
+                ]}
+              />
             </div>
           </li>
         );

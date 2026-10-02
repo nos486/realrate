@@ -6,7 +6,6 @@
  */
 
 import { PERSIAN_MONTHS, gregorianToShamsi, getTodayShamsi } from '../../portfolio/components/ShamsiDatePicker.jsx';
-import { INCOME_CATEGORIES } from '../constants/incomeCategories.js';
 
 export const INCOME_PERIODS = [
   { value: 'all', label: 'همه' },
@@ -84,10 +83,11 @@ export function buildIncomeReport(incomes) {
     total += amount;
     if (!largest || amount > Number(largest.amount)) largest = income;
 
-    const cat = categoryTotals.get(income.category) || { total: 0, count: 0 };
+    const key = income.category || 'other';
+    const cat = categoryTotals.get(key) || { total: 0, count: 0 };
     cat.total += amount;
     cat.count += 1;
-    categoryTotals.set(income.category, cat);
+    categoryTotals.set(key, cat);
 
     const ym = getShamsiYearMonth(income.incomeDate);
     if (ym) {
@@ -99,12 +99,11 @@ export function buildIncomeReport(incomes) {
     }
   }
 
-  const byCategory = INCOME_CATEGORIES
-    .filter((c) => categoryTotals.has(c.value))
-    .map((c) => {
-      const { total: catTotal, count } = categoryTotals.get(c.value);
-      return { category: c.value, total: catTotal, count, share: total > 0 ? (catTotal / total) * 100 : 0 };
-    })
+  // Every category used, the user's own included
+  const byCategory = [...categoryTotals.entries()]
+    .map(([category, { total: catTotal, count }]) => (
+      { category, total: catTotal, count, share: total > 0 ? (catTotal / total) * 100 : 0 }
+    ))
     .sort((a, b) => b.total - a.total);
 
   const months = [...monthTotals.values()].sort((a, b) => b.index - a.index);

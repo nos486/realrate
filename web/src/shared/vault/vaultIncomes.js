@@ -6,7 +6,7 @@
  * parseIncomeInput so both paths accept exactly the same data.
  */
 
-import { INCOME_CATEGORIES } from '../../features/incomes/constants/incomeCategories.js';
+import { isCategoryValue } from '../../utils/categoryDocument.js';
 import { isRecurringId } from '../../utils/recurringIncome.js';
 import { listVaultRecords, deleteVaultRecord } from './vaultApi.js';
 import { putRecord, backfillRecordDates, repairRecordDates } from './vaultRecordMeta.js';
@@ -16,7 +16,6 @@ const KIND = 'income';
 const TITLE_MAX_LENGTH = 120;
 const NOTES_MAX_LENGTH = 500;
 const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
-const CATEGORY_KEYS = new Set(INCOME_CATEGORIES.map((c) => c.value));
 
 class IncomeValidationError extends Error {
   constructor(message, status = 400) {
@@ -31,7 +30,7 @@ export function parseIncomeInput(body = {}) {
   const amount = Number(body.amount);
   const incomeDate = String(body.incomeDate ?? body.income_date ?? '').trim();
   const notes = String(body.notes ?? '').trim();
-  const category = CATEGORY_KEYS.has(body.category) ? body.category : 'other';
+  const category = isCategoryValue('income', body.category) ? body.category : 'other';
   const recurringId = String(body.recurringId ?? '').trim();
   // Recorded from a bank SMS: the transaction's key (bankSms.js), so it is not recorded twice
   const smsKey = String(body.smsKey ?? '').trim().slice(0, 120);

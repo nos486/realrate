@@ -12,7 +12,7 @@
  */
 
 import React, { useMemo, useState } from 'react';
-import { ChevronRight, ChevronLeft, Plus, Coins, TrendingUp, TrendingDown, CalendarDays, Tag, Target, HandCoins } from 'lucide-react';
+import { ChevronRight, ChevronLeft, Plus, Coins, TrendingUp, TrendingDown, CalendarDays, Tag, Tags, Target, HandCoins } from 'lucide-react';
 import { AlertBanner, Button, EmptyState, GenericCsvExportButton, MiniCard, Pagination, SearchBar, SplitPageLayout } from '../../../shared/ui/index.js';
 import DonutChart from '../../../shared/ui/DonutChart.jsx';
 import { useFeedback } from '../../../shared/ui/FeedbackProvider.jsx';
@@ -44,6 +44,8 @@ import BudgetForm from './BudgetForm.jsx';
 import BudgetProgress from './BudgetProgress.jsx';
 import ReimbursementsModal from './ReimbursementsModal.jsx';
 import OpenSharesModal from './OpenSharesModal.jsx';
+import { useCategories } from '../../../shared/categories/useCategories.js';
+import CategoryManagerModal from '../../../shared/categories/CategoryManagerModal.jsx';
 import { useQuickAddParam } from '../../../shared/hooks/useQuickAddParam.js';
 
 const CSV_HEADERS = ['تاریخ', 'دسته‌بندی', 'عنوان', 'مبلغ', 'سهم من', 'ارز', 'نرخ دلار', 'معادل تومان (سهم من)', 'پرداخت از', 'یادداشت'];
@@ -54,6 +56,9 @@ const monthIndex = ({ jy, jm }) => jy * 12 + jm;
 
 export default function DailyExpensesView({ usdToman = 0, hideValues = false }) {
   const { readOnly } = useDemo();
+  // Re-renders with the user's category names (their own categories included)
+  useCategories('expense');
+  const [managingCategories, setManagingCategories] = useState(false);
   const { confirm } = useFeedback();
   const today = todayIso();
   const thisMonth = useMemo(() => shamsiMonthOf(today), [today]);
@@ -303,6 +308,9 @@ export default function DailyExpensesView({ usdToman = 0, hideValues = false }) 
                     className="incomes-search"
                   />
                 )}
+                <Button variant="secondary" icon={<Tags size={16} />} onClick={() => setManagingCategories(true)} disabled={readOnly}>
+                  دسته‌ها
+                </Button>
                 <GenericCsvExportButton
                   items={listed}
                   headers={CSV_HEADERS}
@@ -450,6 +458,7 @@ export default function DailyExpensesView({ usdToman = 0, hideValues = false }) 
           onClose={() => setSharesOpen(false)}
         />
       )}
+      {managingCategories && <CategoryManagerModal kind="expense" onClose={() => setManagingCategories(false)} />}
       {budgetOpen && (
         <BudgetForm budgets={budgets} onSubmit={saveBudgets} onClose={() => setBudgetOpen(false)} submitting={submitting} />
       )}

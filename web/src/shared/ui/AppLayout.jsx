@@ -5,7 +5,7 @@ import { DemoBanner } from '../../features/demo/index.js';
 import OfflineBar from '../offline/OfflineBar.jsx';
 import { isNativeApp } from '../native/nativeApp.js';
 import { AppTopBar, AppBottomNav } from '../app/AppShell.jsx';
-import AppUpdatePrompt from '../app/AppUpdatePrompt.jsx';
+import AppUpdatePrompt, { AppUpdateBanner } from '../app/AppUpdatePrompt.jsx';
 
 /**
  * Standard AppLayout component
@@ -44,6 +44,7 @@ export default function AppLayout({
           <AppTopBar activeTab={activeTab} navItems={navItems} />
         </div>
         <DemoBanner />
+        <AppUpdateBanner />
         <main className={`main-content ${className}`}>
           {/* Each section fades in, like switching screens in an app */}
           <div key={activeTab} className="app-page">{children}</div>

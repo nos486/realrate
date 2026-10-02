@@ -1,14 +1,16 @@
 /**
  * appUpdate.js — The Android app updates itself from its signed GitHub release
  *
- * - On start and every return to the app (at most every few hours) the app asks the server for
+ * - Every time the app opens (and on a return to it, at most once an hour) it asks the server for
  *   the latest release (GET /api/app/latest, api/src/handlers/appUpdateRoutes.js) and compares
- *   it with its own version name. A newer one opens the update prompt (AppUpdatePrompt.jsx).
+ *   it with its own version name. A newer one shows a banner at the top (AppUpdatePrompt.jsx:
+ *   AppUpdateBanner); tapping it opens the update prompt.
  * - «به‌روزرسانی» downloads the APK inside the app (AppUpdate plugin, with progress) and opens
  *   Android's installer. Android asks the user once for "install unknown apps" for RealRate, and
  *   installs only an APK signed with the same key, over the installed app (the data stays).
- * - «بعداً» hides that version's prompt for a day; the automatic check can be turned off in the
- *   app's settings, and «بررسی به‌روزرسانی» there checks right away.
+ * - The banner's × hides it until the app opens again; «بعداً» closes the prompt. The automatic
+ *   check can be turned off in the app's settings, and «بررسی به‌روزرسانی» there checks right
+ *   away (and opens the prompt).
  */
 
 import { Capacitor } from '@capacitor/core';
@@ -19,8 +21,8 @@ import { AppUpdate } from './nativePlugins.js';
 
 const SETTINGS_KEY = 'realrate_app_update';
 export const APP_UPDATE_EVENT = 'realrate:app-update';
-export const CHECK_INTERVAL_MS = 6 * 60 * 60 * 1000;
-export const SNOOZE_MS = 24 * 60 * 60 * 1000;
+/** On a return to the app (opening it always checks) */
+export const CHECK_INTERVAL_MS = 60 * 60 * 1000;
 
 function readSettings() {
   try {
@@ -37,10 +39,10 @@ function writeSettings(patch) {
   } catch {}
 }
 
-/** @returns {{ auto: boolean, lastCheck: number, snooze: { version: string, until: number }|null }} */
+/** @returns {{ auto: boolean, lastCheck: number }} */
 export function getAppUpdateSettings() {
   const s = readSettings();
-  return { auto: s.auto !== false, lastCheck: Number(s.lastCheck) || 0, snooze: s.snooze || null };
+  return { auto: s.auto !== false, lastCheck: Number(s.lastCheck) || 0 };
 }
 
 export function setAutoUpdateCheck(auto) {
@@ -48,9 +50,9 @@ export function setAutoUpdateCheck(auto) {
   notify();
 }
 
-/** Time for the automatic check (never sooner than CHECK_INTERVAL_MS after the last one) */
-export function isCheckDue(settings, now = Date.now()) {
-  return settings.auto && now - settings.lastCheck >= CHECK_INTERVAL_MS;
+/** Time for the automatic check: on opening the app, else CHECK_INTERVAL_MS after the last one */
+export function isCheckDue(settings, now = Date.now(), { launch = false } = {}) {
+  return settings.auto && (launch || now - settings.lastCheck >= CHECK_INTERVAL_MS);
 }
 
 /** The release is newer than the installed version */
@@ -58,12 +60,6 @@ export function isNewer(release, installedVersion) {
   return Boolean(release?.version && installedVersion) && compareVersions(release.version, installedVersion) > 0;
 }
 
-/** Open the prompt for this release: newer, and not put off with «بعداً» (a manual check always does) */
-export function shouldPrompt(release, installedVersion, snooze, now = Date.now(), manual = false) {
-  if (!isNewer(release, installedVersion)) return false;
-  if (manual) return true;
-  return !(snooze && snooze.version === release.version && now < Number(snooze.until));
-}
 
 /** The release notes as plain lines (the CHANGELOG's markdown, without the download footer) */
 export function releaseNotesText(notes) {
@@ -83,7 +79,7 @@ export function releaseNotesText(notes) {
  * status: idle | checking | available | downloading | permission | installing | error | latest
  * (permission: Android needs "install unknown apps" for RealRate first)
  */
-let state = { status: 'idle', release: null, installedVersion: '', progress: 0, error: '', open: false };
+let state = { status: 'idle', release: null, installedVersion: '', progress: 0, error: '', open: false, bannerHidden: false };
 
 function setState(patch) {
   state = { ...state, ...patch };
@@ -109,12 +105,13 @@ const canUpdate = () => isNativeApp() && Capacitor.isNativePlatform();
 
 /**
  * Ask the server for the latest release
- * @param {{ manual?: boolean }} [options] manual: from the settings page (no interval, no snooze)
+ * @param {{ manual?: boolean, launch?: boolean }} [options] manual: from the settings page (no
+ *   interval; opens the prompt); launch: the app just opened (no interval)
  */
-export async function checkForUpdate({ manual = false } = {}) {
+export async function checkForUpdate({ manual = false, launch = false } = {}) {
   if (!canUpdate()) return state;
   const settings = getAppUpdateSettings();
-  if (!manual && !isCheckDue(settings)) return state;
+  if (!manual && !isCheckDue(settings, Date.now(), { launch })) return state;
   if (['checking', 'downloading', 'installing'].includes(state.status)) return state;
   setState({ status: 'checking', error: '' });
   try {
@@ -126,7 +123,7 @@ export async function checkForUpdate({ manual = false } = {}) {
         status: 'available',
         release,
         installedVersion: version,
-        open: shouldPrompt(release, version, settings.snooze, Date.now(), manual),
+        open: manual || state.open,
       });
     } else {
       setState({ status: 'latest', release, installedVersion: version, open: false });
@@ -137,11 +134,20 @@ export async function checkForUpdate({ manual = false } = {}) {
   return state;
 }
 
-/** «بعداً»: this version's prompt waits a day */
+/** «بعداً»: close the prompt (a download under way stops); the banner stays */
 export function snoozeUpdate() {
-  if (state.release) writeSettings({ snooze: { version: state.release.version, until: Date.now() + SNOOZE_MS } });
   if (state.status === 'downloading') AppUpdate.cancel().catch(() => {});
   setState({ open: false, status: state.release ? 'available' : 'idle', progress: 0 });
+}
+
+/** The banner's ×: hidden until the app opens again */
+export function hideUpdateBanner() {
+  setState({ bannerHidden: true });
+}
+
+/** A newer version is known (the banner shows) */
+export function hasUpdate(s = state) {
+  return Boolean(s.release && s.installedVersion) && isNewer(s.release, s.installedVersion);
 }
 
 export function openUpdatePrompt() {
@@ -181,15 +187,19 @@ export async function openInstallPermission() {
   await AppUpdate.openInstallSettings().catch(() => {});
 }
 
+let launchChecked = false;
+
 /**
- * Automatic checks: now, and on every return to the app; a return from the install
+ * Automatic checks: once when the app opens, and on returns to it; a return from the install
  * permission page continues the update
  */
 export function startAutoUpdateCheck() {
   if (!canUpdate()) return () => {};
   let handle = null;
   let stopped = false;
-  checkForUpdate();
+  // The layout may mount more than once in one run of the app: the launch check runs once
+  checkForUpdate({ launch: !launchChecked });
+  launchChecked = true;
   import('@capacitor/app').then(async ({ App }) => {
     if (stopped) return;
     handle = await App.addListener('resume', async () => {

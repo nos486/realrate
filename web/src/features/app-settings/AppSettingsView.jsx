@@ -13,7 +13,8 @@ import React, { useEffect, useState } from 'react';
 import { Smartphone, MessageSquareText, Fingerprint, Info, ArrowLeft, RefreshCw, Download } from 'lucide-react';
 import { AlertBanner, Button, Card, FeaturePageHeader } from '../../shared/ui/index.js';
 import { NumericInput } from '../../shared/ui/NumericInput.jsx';
-import { EXPENSE_CATEGORIES, getExpenseCategory } from '../expenses/constants/expenseCategories.js';
+import { getExpenseCategory } from '../expenses/constants/expenseCategories.js';
+import { useCategories } from '../../shared/categories/useCategories.js';
 import { useFeedback } from '../../shared/ui/FeedbackProvider.jsx';
 import { useVault } from '../../shared/vault/useVault.js';
 import { resolveBank } from '../../shared/banks/index.js';
@@ -50,6 +51,7 @@ const digits = (v) => Number(String(v ?? '').replace(/[۰-۹]/g, (d) => '۰۱۲�
 
 /** Small withdrawals: recorded by themselves up to an amount, and the category used for them */
 function SmsRecordSettings({ settings }) {
+  const categories = useCategories('expense', { keep: settings.recordCategory });
   const [max, setMax] = useState(String(settings.autoRecordMax));
   const saveMax = () => {
     const value = digits(max);
@@ -80,7 +82,7 @@ function SmsRecordSettings({ settings }) {
       <div className="app-setting-field">
         <span>دسته‌ی ثبت خودکار و «ثبت سریع»</span>
         <div className="app-category-chips" role="radiogroup" aria-label="دسته‌ی هزینه">
-          {EXPENSE_CATEGORIES.map(({ value, label, Icon, color }) => (
+          {categories.map(({ value, label, Icon, color }) => (
             <button
               key={value}
               type="button"

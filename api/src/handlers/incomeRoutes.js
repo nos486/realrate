@@ -22,10 +22,10 @@ import { jsonResponse } from "../lib/helpers.js";
 import { AppError } from "../lib/AppError.js";
 import { rejectWhenVaultEnabled } from "../repositories/vault.repository.js";
 import {
-  INCOME_CATEGORIES,
   INCOME_TITLE_MAX_LENGTH,
   INCOME_NOTES_MAX_LENGTH,
 } from "../config/constants.js";
+import { isCategoryValue } from "../domain/categoryDocument.js";
 import { isRecurringId } from "../domain/recurringIncome.js";
 
 const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
@@ -53,7 +53,7 @@ export function parseIncomeInput(body = {}) {
   const amount = Number(body.amount);
   const incomeDate = String(body.incomeDate ?? body.income_date ?? "").trim();
   const notes = String(body.notes ?? "").trim();
-  const category = INCOME_CATEGORIES.includes(body.category) ? body.category : "other";
+  const category = isCategoryValue("income", body.category) ? body.category : "other";
   // Set on entries a fixed (recurring) income created; '' for entries typed by the user
   const recurringId = String(body.recurringId ?? "").trim();
 

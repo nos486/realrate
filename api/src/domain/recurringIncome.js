@@ -7,7 +7,7 @@
  * the user deletes is never re-created. Shared by the API and the browser.
  */
 
-import { INCOME_CATEGORIES } from '../config/constants.js';
+import { isCategoryValue } from './categoryDocument.js';
 import { isValidIsoDate } from './isoDate.js';
 import { gregorianToJalali, jalaliToGregorian, getJalaliMonthLength } from './loanCalculator.js';
 
@@ -55,7 +55,7 @@ export function validateRecurringIncome(body = {}) {
   if (!title) return { error: 'عنوان درآمد ثابت الزامی است.' };
   if (title.length > RECURRING_LIMITS.titleLength) return { error: `عنوان نباید بیشتر از ${RECURRING_LIMITS.titleLength} کاراکتر باشد.` };
 
-  const category = INCOME_CATEGORIES.includes(body.category) ? body.category : 'other';
+  const category = isCategoryValue('income', body.category) ? body.category : 'other';
 
   const amount = Number(body.amount);
   if (!Number.isFinite(amount) || amount <= 0) return { error: 'مبلغ درآمد ثابت باید عددی بزرگتر از صفر باشد.' };

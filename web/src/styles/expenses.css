@@ -647,3 +647,118 @@ button.expense-share-chip {
   opacity: 0.5;
   cursor: not-allowed;
 }
+
+/* «مدیریت دسته‌ها» (shared/categories/CategoryManagerModal.jsx) */
+.category-manager-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.category-manager-list li {
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+}
+
+.category-manager-list li.is-hidden .category-manager-row {
+  opacity: 0.55;
+}
+
+.category-manager-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+}
+
+.category-manager-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  flex-shrink: 0;
+  border-radius: 8px;
+  color: var(--swatch);
+  background: color-mix(in srgb, var(--swatch) 15%, transparent);
+}
+
+.category-manager-label {
+  flex: 1;
+  min-width: 0;
+  font-size: 0.875rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.category-manager-label small {
+  margin-inline-start: 6px;
+  color: var(--text-muted);
+  font-size: 0.72rem;
+}
+
+.category-editor {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 8px;
+  padding: 4px 10px 12px;
+}
+
+.category-editor > .ui-btn {
+  align-self: flex-start;
+}
+
+.category-color-grid,
+.category-icon-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.category-color {
+  width: 26px;
+  height: 26px;
+  border: 2px solid transparent;
+  border-radius: 50%;
+  background: var(--swatch);
+  cursor: pointer;
+}
+
+.category-color.is-active {
+  border-color: var(--text-primary);
+}
+
+.category-icon-option {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+
+.category-icon-option.is-active {
+  color: var(--swatch);
+  border-color: var(--swatch);
+  background: color-mix(in srgb, var(--swatch) 15%, transparent);
+}
+
+.category-picker-edit {
+  align-self: flex-start;
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--color-primary-text);
+  font: inherit;
+  font-size: 0.75rem;
+  cursor: pointer;
+}

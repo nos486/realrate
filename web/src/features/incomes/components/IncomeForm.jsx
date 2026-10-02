@@ -18,17 +18,14 @@ import ShamsiDatePicker, {
   shamsiToGregorian,
 } from '../../portfolio/components/ShamsiDatePicker.jsx';
 import { parseInputNumber } from '../../portfolio/utils/holdingHelpers.js';
-import { INCOME_CATEGORIES, DEFAULT_INCOME_CATEGORY } from '../constants/incomeCategories.js';
+import { DEFAULT_INCOME_CATEGORY } from '../constants/incomeCategories.js';
+import { useCategories } from '../../../shared/categories/useCategories.js';
+import CategoryManagerModal from '../../../shared/categories/CategoryManagerModal.jsx';
 import { RECURRING_INTERVALS } from '../../../utils/recurringIncome.js';
 import RecurringIncomesCard from './RecurringIncomesCard.jsx';
 
 const INTERVAL_OPTIONS = RECURRING_INTERVALS.map(({ months, label }) => ({ value: String(months), label }));
 
-const CATEGORY_OPTIONS = INCOME_CATEGORIES.map(({ value, label, Icon }) => ({
-  value,
-  label,
-  icon: <Icon size={14} strokeWidth={2} />,
-}));
 
 export default function IncomeForm({
   onClose,
@@ -49,6 +46,13 @@ export default function IncomeForm({
   const source = editingRule || editingIncome || draft;
   const [title, setTitle] = useState(source?.title || '');
   const [category, setCategory] = useState(source?.category || DEFAULT_INCOME_CATEGORY);
+  const [managing, setManaging] = useState(false);
+  // The user's categories (a hidden one only when this income already has it)
+  const categoryOptions = useCategories('income', { keep: source?.category }).map(({ value, label, Icon }) => ({
+    value,
+    label,
+    icon: <Icon size={14} strokeWidth={2} />,
+  }));
   const [amount, setAmount] = useState(source ? String(source.amount) : '');
   const [dateShamsi, setDateShamsi] = useState(() => {
     const iso = editingRule?.startDate || editingIncome?.incomeDate || draft?.incomeDate;
@@ -135,13 +139,15 @@ export default function IncomeForm({
         <div className="ui-input-group">
           <span className="ui-input-label">دسته‌بندی</span>
           <FilterPills
-            options={CATEGORY_OPTIONS}
+            options={categoryOptions}
             activeValue={category}
             onChange={setCategory}
             size="sm"
             className="income-category-picker"
           />
+          <button type="button" className="category-picker-edit" onClick={() => setManaging(true)}>ویرایش و افزودن دسته</button>
         </div>
+        {managing && <CategoryManagerModal kind="income" onClose={() => setManaging(false)} />}
 
         <div className="ui-input-group">
           <label htmlFor="income-amount" className="ui-input-label">مبلغ (تومان) *</label>

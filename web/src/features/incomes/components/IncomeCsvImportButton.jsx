@@ -1,7 +1,8 @@
 import React from 'react';
 import { GenericCsvImportButton } from '../../../shared/ui/index.js';
 import { parseInputNumber } from '../../portfolio/utils/holdingHelpers.js';
-import { INCOME_CATEGORIES, DEFAULT_INCOME_CATEGORY, LEGACY_CATEGORY_LABELS } from '../constants/incomeCategories.js';
+import { DEFAULT_INCOME_CATEGORY, LEGACY_CATEGORY_LABELS } from '../constants/incomeCategories.js';
+import { listCategories } from '../../../shared/categories/categoryStore.js';
 
 // Column headers must mirror IncomeCsvExportButton.jsx exactly so the exported file round-trips.
 const HEADERS = {
@@ -12,10 +13,11 @@ const HEADERS = {
   notes: 'یادداشت',
 };
 
-const CATEGORY_LABEL_TO_VALUE = new Map([
+/** A category's name in the file → its key (the user's own categories and names too) */
+const categoryFromLabel = (label) => new Map([
   ...Object.entries(LEGACY_CATEGORY_LABELS),
-  ...INCOME_CATEGORIES.map((c) => [c.label, c.value]),
-]);
+  ...listCategories('income', { includeHidden: true }).map((c) => [c.label, c.value]),
+]).get(label);
 
 function parseIncomeRow(row, headerIndex, i) {
   const get = (key) => {
@@ -32,7 +34,7 @@ function parseIncomeRow(row, headerIndex, i) {
     return { status: 'invalid', name: title || `ردیف ${i + 2}` };
   }
 
-  const category = CATEGORY_LABEL_TO_VALUE.get(get('category').trim()) || DEFAULT_INCOME_CATEGORY;
+  const category = categoryFromLabel(get('category').trim()) || DEFAULT_INCOME_CATEGORY;
   const notes = get('notes').trim();
 
   return { status: 'ok', name: title, data: { title, category, amount, incomeDate, notes } };

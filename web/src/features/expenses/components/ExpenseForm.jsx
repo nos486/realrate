@@ -23,7 +23,9 @@ import ShamsiDatePicker, {
 } from '../../portfolio/components/ShamsiDatePicker.jsx';
 import { parseInputNumber, formatNum } from '../../portfolio/utils/holdingHelpers.js';
 import { EXPENSE_CURRENCIES, EXPENSE_LIMITS, isSharedExpense, expenseReceivable } from '../../../utils/expenseDocument.js';
-import { EXPENSE_CATEGORIES, getExpenseCategory } from '../constants/expenseCategories.js';
+import { getExpenseCategory } from '../constants/expenseCategories.js';
+import { useCategories } from '../../../shared/categories/useCategories.js';
+import CategoryManagerModal from '../../../shared/categories/CategoryManagerModal.jsx';
 import { accountLabel } from '../../accounts/constants/accountDisplay.js';
 import { useOptionalLoans } from '../../loans/context/LoansContext.jsx';
 import { fundingLoanOptions } from '../../../utils/loanFunding.js';
@@ -44,11 +46,6 @@ const SHARE_OPTIONS = [
 ];
 
 const CURRENCY_OPTIONS = EXPENSE_CURRENCIES.map(({ value, label }) => ({ value, label }));
-const CATEGORY_OPTIONS = EXPENSE_CATEGORIES.map(({ value, label, Icon }) => ({
-  value,
-  label,
-  icon: <Icon size={14} strokeWidth={2} />,
-}));
 
 export default function ExpenseForm({ group = null, daily = false, expense = null, draft = null, usdToman = 0, accounts = [], onSubmit, onClose, submitting = false }) {
   const start = expense || draft;
@@ -61,6 +58,13 @@ export default function ExpenseForm({ group = null, daily = false, expense = nul
   const [loanId, setLoanId] = useState(expense?.loanId || '');
   const fundingLoans = fundingLoanOptions(useOptionalLoans(), expense?.loanId);
   const [category, setCategory] = useState(expense?.category || 'groceries');
+  const [managing, setManaging] = useState(false);
+  // The user's categories (a hidden one only when this expense already has it)
+  const categoryOptions = useCategories('expense', { keep: expense?.category }).map(({ value, label, Icon }) => ({
+    value,
+    label,
+    icon: <Icon size={14} strokeWidth={2} />,
+  }));
   // A daily expense titled after its category shows an empty title field (the default)
   const [title, setTitle] = useState(
     daily && expense?.title === getExpenseCategory(expense?.category).label ? '' : (expense?.title || ''));
@@ -139,14 +143,16 @@ export default function ExpenseForm({ group = null, daily = false, expense = nul
           <div className="ui-input-group">
             <span className="ui-input-label">دسته‌بندی</span>
             <FilterPills
-              options={CATEGORY_OPTIONS}
+              options={categoryOptions}
               activeValue={category}
               onChange={setCategory}
               size="sm"
               className="income-category-picker"
             />
+            <button type="button" className="category-picker-edit" onClick={() => setManaging(true)}>ویرایش و افزودن دسته</button>
           </div>
         )}
+        {managing && <CategoryManagerModal kind="expense" onClose={() => setManaging(false)} />}
 
         <Input
           id="expense-title"

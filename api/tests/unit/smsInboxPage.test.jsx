@@ -112,7 +112,7 @@ describe('SmsInboxPage', () => {
     incomes.getIncomes.mockResolvedValue({ incomes: [{ id: 'i1', incomeDate: '2026-09-25', amount: 250001 }] });
     render(<SmsInboxPage />);
     await waitFor(() => expect(incomes.getIncomes).toHaveBeenCalled());
-    await waitFor(() => expect(screen.getAllByLabelText('رد این پیامک')).toHaveLength(2));
+    await waitFor(() => expect(screen.getAllByLabelText('گزینه‌های این پیامک')).toHaveLength(2));
     expect(getPendingSms()).toHaveLength(2);
   });
 
@@ -139,8 +139,9 @@ describe('SmsInboxPage', () => {
 
   it('dismisses a message', async () => {
     render(<SmsInboxPage />);
-    await waitFor(() => expect(screen.getAllByLabelText('رد این پیامک')).toHaveLength(2));
-    fireEvent.click(screen.getAllByLabelText('رد این پیامک')[0]);
+    await waitFor(() => expect(screen.getAllByLabelText('گزینه‌های این پیامک')).toHaveLength(2));
+    fireEvent.click(screen.getAllByLabelText('گزینه‌های این پیامک')[0]);
+    fireEvent.click(screen.getByText('رد این پیامک').closest('button'));
     await waitFor(() => expect(getPendingSms()).toHaveLength(1));
   });
 });
@@ -165,7 +166,10 @@ describe('«ثبت سریع» (no form)', () => {
 });
 
 describe('«وام»: a deposit that is a received loan', () => {
-  const loanButton = () => screen.getByText('وام').closest('button');
+  const LOAN = 'دریافت وام (درآمد نیست)';
+  // In each message's «⋮» menu; only a deposit's menu has it
+  const openMenus = () => screen.getAllByLabelText('گزینه‌های این پیامک').forEach((b) => fireEvent.click(b));
+  const loanButton = () => screen.getByText(LOAN).closest('button');
 
   it('only on deposits; choosing a loan drops the message without recording income', async () => {
     loans.list = [
@@ -173,7 +177,9 @@ describe('«وام»: a deposit that is a received loan', () => {
       { id: 'loan_s', title: 'وام تسویه‌شده', principalAmount: 1000, installmentCount: 1, paidCount: 1, remainingBalance: 0 },
     ];
     render(<SmsInboxPage />);
-    await waitFor(() => expect(screen.getAllByText('وام')).toHaveLength(1));
+    await waitFor(() => expect(screen.getAllByLabelText('گزینه‌های این پیامک')).toHaveLength(2));
+    openMenus();
+    expect(screen.getAllByText(LOAN)).toHaveLength(1);
     fireEvent.click(loanButton());
     expect(screen.queryByText('وام تسویه‌شده')).toBeNull();
     fireEvent.click(screen.getByText('وام مسکن').closest('button'));
@@ -185,7 +191,8 @@ describe('«وام»: a deposit that is a received loan', () => {
   it('a new loan opens the loans page with the amount, day and bank, keeping the message until saved', async () => {
     loans.list = [];
     render(<SmsInboxPage />);
-    await waitFor(() => expect(screen.getAllByText('وام')).toHaveLength(1));
+    await waitFor(() => expect(screen.getAllByLabelText('گزینه‌های این پیامک')).toHaveLength(2));
+    openMenus();
     fireEvent.click(loanButton());
     fireEvent.click(screen.getByText('ثبت وام جدید با این مبلغ').closest('button'));
     const url = new URL(navigate.mock.calls[0][0], 'http://x');

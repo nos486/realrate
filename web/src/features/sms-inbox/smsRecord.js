@@ -11,6 +11,7 @@
  * from another device, or by hand.
  */
 
+import { getExpenseCategory } from '../expenses/constants/expenseCategories.js';
 import * as expensesApi from '../../shared/vault/vaultExpenses.js';
 import { getAccounts } from '../../shared/vault/vaultAccounts.js';
 import { getPendingSms, getSmsSettings, markSmsHandled, dropRecordedSms } from '../../shared/native/smsInbox.js';
@@ -30,7 +31,8 @@ export async function saveDailyExpense(input) {
  * @returns {Promise<object>} the expense
  */
 export async function recordSmsExpense(item, { accounts = [], category = getSmsSettings().recordCategory } = {}) {
-  const { expense } = await saveDailyExpense({ ...smsExpenseDraft(item.tx, accounts), category, currency: 'IRT' });
+  // Titled after its category (the user's own categories too)
+  const { expense } = await saveDailyExpense({ ...smsExpenseDraft(item.tx, accounts), category, title: getExpenseCategory(category).label, currency: 'IRT' });
   markSmsHandled(item.fingerprint);
   return expense;
 }

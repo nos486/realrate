@@ -21,6 +21,8 @@ export const VAULT_RECORD_KINDS = [
   "expense_group", "expense",
   // The user's money accounts (bank accounts, cash, ...), the source an expense points to
   "bank_account",
+  // The user's expense and income categories (domain/categoryDocument.js), one record
+  "category_settings",
 ];
 
 /** Kinds that exist only for users of a feature (config/features.js); others get 404 */

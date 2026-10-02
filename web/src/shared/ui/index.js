@@ -21,3 +21,4 @@ export { default as TimeAgoBadge } from './TimeAgoBadge.jsx';
 export { default as RequireAuth } from './RequireAuth.jsx';
 export { FeedbackProvider, useFeedback } from './FeedbackProvider.jsx';
 export { default as Skeleton, SkeletonGroup, SkeletonRows, SkeletonCards } from './Skeleton.jsx';
+export { default as ActionMenu } from './ActionMenu.jsx';

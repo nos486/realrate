@@ -1,12 +1,14 @@
 /**
- * AppUpdatePrompt.jsx — «نسخه‌ی جدید»: the Android app's update prompt (shared/native/appUpdate.js)
+ * AppUpdatePrompt.jsx — «نسخه‌ی جدید»: the Android app's update banner and prompt
+ * (shared/native/appUpdate.js)
  *
- * Starts the automatic checks once the app shell is up, and opens when a newer release is
- * found: its notes, then a download with progress and Android's installer.
+ * AppUpdatePrompt starts the automatic checks once the app shell is up (every time the app
+ * opens). A newer release shows AppUpdateBanner at the top; tapping it opens the prompt: the
+ * release notes, then a download with progress and Android's installer.
  */
 
 import React, { useEffect } from 'react';
-import { Download, ShieldCheck, RefreshCw } from 'lucide-react';
+import { Download, ShieldCheck, RefreshCw, X } from 'lucide-react';
 import { Button, Modal, AlertBanner } from '../ui/index.js';
 import { useAppUpdate } from '../native/useAppUpdate.js';
 import {
@@ -15,10 +17,31 @@ import {
   downloadAndInstall,
   openInstallPermission,
   releaseNotesText,
+  openUpdatePrompt,
+  hideUpdateBanner,
+  hasUpdate,
 } from '../native/appUpdate.js';
 
 const faVersion = (v) => String(v || '').replace(/\d/g, (d) => '۰۱۲۳۴۵۶۷۸۹'[d]);
 const faMb = (bytes) => (Number(bytes) / 1024 / 1024).toLocaleString('fa-IR', { maximumFractionDigits: 1 });
+
+/** «نسخه‌ی … آماده است»: shown while a newer version is known, until its × (or the update) */
+export function AppUpdateBanner() {
+  const update = useAppUpdate();
+  if (!hasUpdate(update) || update.bannerHidden) return null;
+  return (
+    <div className="app-update-banner" role="status">
+      <Download size={16} aria-hidden="true" />
+      <button type="button" className="app-update-banner-text" onClick={openUpdatePrompt}>
+        <strong>نسخه‌ی {faVersion(update.release.version)} آماده است</strong>
+        <span>برای به‌روزرسانی بزنید</span>
+      </button>
+      <button type="button" className="app-update-banner-close" onClick={hideUpdateBanner} aria-label="بستن">
+        <X size={16} />
+      </button>
+    </div>
+  );
+}
 
 export default function AppUpdatePrompt() {
   const update = useAppUpdate();

@@ -7,9 +7,10 @@ import React, { useState } from 'react';
 import { Target } from 'lucide-react';
 import { AlertBanner, Button, Modal, NumericInput } from '../../../shared/ui/index.js';
 import { parseInputNumber } from '../../portfolio/utils/holdingHelpers.js';
-import { EXPENSE_CATEGORIES } from '../constants/expenseCategories.js';
+import { useCategories } from '../../../shared/categories/useCategories.js';
 
 export default function BudgetForm({ budgets = {}, onSubmit, onClose, submitting = false }) {
+  const categories = useCategories('expense', { includeHidden: false });
   const [values, setValues] = useState(() =>
     Object.fromEntries(Object.entries(budgets).map(([k, v]) => [k, String(v)])));
   const [submitError, setSubmitError] = useState('');
@@ -71,7 +72,7 @@ export default function BudgetForm({ budgets = {}, onSubmit, onClose, submitting
         {submitError && <AlertBanner type="error" message={submitError} />}
         {field('total', 'کل ماه')}
         <div className="budget-grid">
-          {EXPENSE_CATEGORIES.map(({ value, label, Icon }) => field(value, label, Icon))}
+          {categories.map(({ value, label, Icon }) => field(value, label, Icon))}
         </div>
       </div>
     </Modal>

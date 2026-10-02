@@ -25,6 +25,7 @@ import { getIncomes } from '../../shared/vault/vaultIncomes.js';
 import { summarizeExpenses, shamsiMonthOf, shamsiMonthRange, shiftShamsiMonth, expenseInToman } from '../../utils/expenseDocument.js';
 import { useDailyExpenses } from '../expenses/hooks/useDailyExpenses.js';
 import { getExpenseCategory } from '../expenses/constants/expenseCategories.js';
+import { useCategories } from '../../shared/categories/useCategories.js';
 import { formatShamsiMonth, buildIncomeReport } from '../incomes/utils/incomeReport.js';
 import { formatShamsiDisplay } from '../portfolio/components/ShamsiDatePicker.jsx';
 
@@ -60,6 +61,7 @@ function usePendingSms() {
 }
 
 export default function AppHomeDashboard({ usdToman = 0, analysis = [], onOpen }) {
+  useCategories('expense'); // the user's category names
   const vault = useVault();
   const hideValues = usePrivacyMode();
   const hasExpenses = useFeature('expenses');
