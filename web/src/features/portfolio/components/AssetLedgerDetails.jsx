@@ -119,14 +119,34 @@ export default function AssetLedgerDetails({
             status = parts.length ? `از ${parts.length.toLocaleString('fa-IR')} خرید` : '';
           }
 
-          // A purchase's own comparisons (paid with another asset; what else the money could have bought)
+          // A purchase's own comparisons, shown under it: what it was paid with (and how that would
+          // be doing now), and what else the same money could have bought
           const extras = [];
-          if (incoming && !hideValues) {
+          if (incoming) {
             const lotValue = entry.qty * unit;
-            const reference = computeReferenceAssetPnl({ ...record, itemRealVal: lotValue }, priceMap, itemMap);
+            const refQty = Number(record.referenceQuantity) || 0;
+            if (record.referenceAssetId && refQty > 0) {
+              const reference = computeReferenceAssetPnl({ ...record, itemRealVal: lotValue }, priceMap, itemMap);
+              const name = reference?.referenceAssetName || record.referenceAssetId;
+              const paid = `پرداخت با ${hideValues ? MASK : qtyText(refQty)} ${reference?.unit || ''} ${name}`.replace(/\s+/g, ' ');
+              extras.push({
+                key: 'reference',
+                text: reference && !hideValues
+                  ? `${paid} — نسبت به نگه داشتن آن: ${signed(reference.referencePnl)} تومان`
+                  : paid,
+                tone: reference && !hideValues ? (reference.referencePnl >= 0 ? 'profit' : 'loss') : '',
+              });
+            }
             const compare = computeCompareAssetPnl({ ...record, itemCost: entry.price > 0 ? entry.qty * entry.price : 0, itemRealVal: lotValue }, priceMap, itemMap);
-            if (reference) extras.push(`نسبت به ${reference.referenceAssetName}: ${signed(reference.referencePnl)} تومان`);
-            if (compare) extras.push(`اگر ${compare.compareAssetName} می‌خریدید: ${formatNum(compare.compareCurrentValue)} تومان`);
+            if (compare) {
+              extras.push({
+                key: 'compare',
+                text: hideValues
+                  ? `مقایسه با ${compare.compareAssetName}`
+                  : `اگر ${compare.compareAssetName} می‌خریدید: ${formatNum(compare.compareCurrentValue)} تومان — این خرید ${signed(compare.comparePnl)} تومان ${compare.comparePnl >= 0 ? 'بهتر' : 'بدتر'}`,
+                tone: hideValues ? '' : compare.comparePnl >= 0 ? 'profit' : 'loss',
+              });
+            }
           }
           const notes = showNotes && entry.kind !== 'spend' ? record.notes : '';
           const editable = !readOnly && entry.kind !== 'spend';
@@ -152,8 +172,8 @@ export default function AssetLedgerDetails({
               </span>
               <span className="asset-ledger-pnl-cell">
                 <Pnl value={pnl} hideValues={hideValues} title={pnlTitle || undefined} none={incoming ? '—' : 'بدون سود/زیان'} />
-                {(notes || extras.length > 0) && (
-                  <span className="asset-ledger-info" title={[notes, ...extras].filter(Boolean).join('\n')}>
+                {notes && (
+                  <span className="asset-ledger-info" title={notes}>
                     <MessageSquare size={13} />
                   </span>
                 )}
@@ -171,6 +191,11 @@ export default function AssetLedgerDetails({
                 )}
                 {entry.kind === 'spend' && !readOnly && <small className="asset-ledger-muted" title="از صفحه‌ی هزینه‌ها ویرایش می‌شود">از هزینه‌ها</small>}
               </span>
+              {extras.length > 0 && (
+                <span className="asset-ledger-extras">
+                  {extras.map((x) => <span key={x.key} className={`asset-ledger-extra ${x.tone}`}>{x.text}</span>)}
+                </span>
+              )}
             </li>
           );
         })}

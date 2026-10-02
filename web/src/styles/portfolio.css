@@ -2419,7 +2419,8 @@ tr.is-expandable:focus-visible,
     grid-template-areas:
       "kind pnl"
       "qty status"
-      "date actions";
+      "date actions"
+      "extras extras";
     gap: 6px 10px;
     padding: 10px 12px;
     font-size: 0.92rem;
@@ -2435,4 +2436,27 @@ tr.is-expandable:focus-visible,
 .rdt-mobile-card .asset-ledger {
   margin: 0 -12px -12px;
   border-radius: 0 0 12px 12px;
+}
+
+/* A purchase's comparisons: paid with another asset, compared with another (a line of their own) */
+.asset-ledger-extras {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 16px;
+  margin-top: -4px;
+  padding-inline-start: 36px;
+  font-size: 0.82rem;
+  color: var(--text-secondary);
+}
+
+.asset-ledger-extra.profit { color: var(--color-positive-text); }
+.asset-ledger-extra.loss { color: var(--color-negative-text); }
+
+@media (max-width: 768px) {
+  .asset-ledger-extras {
+    grid-area: extras;
+    padding-inline-start: 0;
+    margin-top: 0;
+  }
 }

@@ -60,3 +60,20 @@ describe('holdings: one row per asset', () => {
     expect(screen.queryAllByTitle('ویرایش')).toHaveLength(0);
   });
 });
+
+describe('a purchase\'s comparisons are shown under it', () => {
+  it('paid with another asset, and compared with another', () => {
+    const { assets: [coin] } = buildAssetLedgers({
+      priceMap: { coin: 100_000_000, usd: 100_000 },
+      holdings: [{
+        id: 'c1', assetId: 'coin', amount: 1, buyPrice: 80_000_000, buyDate: '1405/01/01',
+        referenceAssetId: 'usd', referenceQuantity: 900,
+        compareAssetId: 'usd', comparePriceToman: 80_000,
+      }],
+    });
+    render(<AssetLedgerDetails asset={coin} priceMap={{ coin: 100_000_000, usd: 100_000 }} />);
+    expect(screen.getByText(/پرداخت با ۹۰۰/)).toBeTruthy();
+    expect(screen.getByText(/نسبت به نگه داشتن آن/)).toBeTruthy();
+    expect(screen.getByText(/می‌خریدید/)).toBeTruthy();
+  });
+});
