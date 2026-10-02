@@ -10,7 +10,7 @@ import { Calendar, HandCoins, Landmark, MessageSquare, Pencil, Trash2 } from 'lu
 import { ResponsiveDataTable } from '../../../shared/ui/index.js';
 import { formatShamsiDisplay } from '../../portfolio/components/ShamsiDatePicker.jsx';
 import { formatAmount } from '../utils/format.js';
-import { expenseInToman, isSharedExpense, expenseReceivable } from '../../../utils/expenseDocument.js';
+import { expenseInToman, isSharedExpense, expenseReceivable, expenseDollarValue } from '../../../utils/expenseDocument.js';
 import { getExpenseCategory } from '../constants/expenseCategories.js';
 import { accountLabel } from '../../accounts/constants/accountDisplay.js';
 import { useOptionalLoans } from '../../loans/context/LoansContext.jsx';
@@ -36,6 +36,26 @@ function ShareStatus({ expense, hideValues, onClick }) {
   );
 }
 
+/** A toman expense in dollars at its day's rate, and what those dollars cost today */
+function DollarValue({ expense, usdToman, hideValues }) {
+  const value = expenseDollarValue(expense, usdToman);
+  if (!value) return null;
+  const up = value.changePct !== null && value.changePct >= 0;
+  return (
+    <span className="expense-dollar-value" title={`نرخ دلار روز هزینه: ${formatAmount(expense.usdRate)} تومان`}>
+      ≈ {hideValues ? MASK : formatAmount(value.usd, 'USD')} دلار
+      {value.todayToman !== null && (
+        <>
+          {' · امروز '}{hideValues ? MASK : formatAmount(value.todayToman)} تومان
+          {value.changePct !== null && (
+            <b className={up ? 'is-up' : 'is-down'}> ({up ? '+' : '−'}{Math.abs(value.changePct).toLocaleString('fa-IR', { maximumFractionDigits: 0 })}٪)</b>
+          )}
+        </>
+      )}
+    </span>
+  );
+}
+
 export default function ExpensesTable({
   expenses,
   usdToman = 0,
@@ -49,6 +69,8 @@ export default function ExpensesTable({
   accounts = null,
   sortState = null,
   onSortChange = null,
+  // A project's toman expenses with the day's dollar rate: in dollars, and at today's rate
+  showDollarValue = false,
 }) {
   const accountById = accounts ? new Map(accounts.map((a) => [a.id, a])) : null;
   const loans = useOptionalLoans();
@@ -119,6 +141,7 @@ export default function ExpensesTable({
                 {isSharedExpense(e) && ' (سهم شما)'}
               </span>
             )}
+            {showDollarValue && !isUsd && <DollarValue expense={e} usdToman={usdToman} hideValues={hideValues} />}
             {isSharedExpense(e) && <ShareStatus expense={e} hideValues={hideValues} onClick={onReimburse && (() => onReimburse(e))} />}
           </div>
         );

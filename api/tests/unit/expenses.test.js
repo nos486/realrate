@@ -39,9 +39,9 @@ const vaultExpenses = await import('../../../web/src/shared/vault/vaultExpenses.
 const base = { groupId: 'exg_1', title: 'کاشی', amount: 1000, date: '2026-09-28' };
 
 describe('validateExpense', () => {
-  it('normalizes a toman expense and drops a rate it does not need', () => {
-    const { value } = validateExpense({ ...base, usdRate: 90000 });
-    expect(value).toMatchObject({ currency: 'IRT', usdRate: null, source: 'manual', category: '' });
+  it('normalizes a toman expense; the day\'s dollar rate is kept when given (its value in dollars)', () => {
+    expect(validateExpense(base).value).toMatchObject({ currency: 'IRT', usdRate: null, source: 'manual', category: '' });
+    expect(validateExpense({ ...base, usdRate: 90000 }).value).toMatchObject({ currency: 'IRT', usdRate: 90000 });
   });
 
   it('keeps the day rate of a dollar expense', () => {

@@ -25,6 +25,7 @@ import ShamsiDatePicker, {
   shamsiToGregorian,
 } from '../../portfolio/components/ShamsiDatePicker.jsx';
 import { parseInputNumber, formatNum } from '../../portfolio/utils/holdingHelpers.js';
+import { formatAmount } from '../utils/format.js';
 import { EXPENSE_CURRENCIES, EXPENSE_LIMITS, isSharedExpense, expenseReceivable } from '../../../utils/expenseDocument.js';
 import { getExpenseCategory } from '../constants/expenseCategories.js';
 import { useCategories } from '../../../shared/categories/useCategories.js';
@@ -99,20 +100,25 @@ export default function ExpenseForm({ group = null, daily = false, expense = nul
   const fundAvailable = fund ? fund.amount + ownSpend : 0;
   const fundAfter = fundAvailable - (amountNum || 0);
 
-  // The day's rate, for an expense paid from a portfolio (when none was typed)
-  const [rateTouched, setRateTouched] = useState(Boolean(expense?.usdRate));
+  // A project's toman expense may keep the dollar's rate on its day (optional): what it was in
+  // dollars then, and what it costs at today's rate (expenseDollarValue)
+  const dollarView = !daily && !isUsd;
+  // The day's rate, filled in from the price history (when none was typed): for an expense paid
+  // from a portfolio, and for a project's toman expense
+  const [rateTouched, setRateTouched] = useState(Boolean(expense?.usdRate) || Boolean(expense && !expense.usdRate && !isUsd));
+  const wantsDayRate = (isUsd && Boolean(fundId)) || dollarView;
   useEffect(() => {
-    if (!isUsd || !fundId || rateTouched || !dateIso) return undefined;
+    if (!wantsDayRate || rateTouched || !dateIso) return undefined;
     let cancelled = false;
     const apply = (rate) => {
       if (!cancelled && rate > 0) setUsdRate(String(Math.round(rate)));
     };
     if (dateIso === todayIso() && usdToman > 0) apply(usdToman);
-    else rateOnDay(fundAsset, dateIso).then(apply);
+    else rateOnDay(fundAsset || 'usd', dateIso).then(apply);
     return () => {
       cancelled = true;
     };
-  }, [isUsd, fundId, rateTouched, dateIso, usdToman, fundAsset]);
+  }, [wantsDayRate, rateTouched, dateIso, usdToman, fundAsset]);
   // «دنگ» is for toman expenses only
   const canShare = !isUsd;
   const sharing = canShare && shared;
@@ -123,6 +129,9 @@ export default function ExpenseForm({ group = null, daily = false, expense = nul
   const isValid = (daily || Boolean(title.trim())) && amountNum > 0 && Boolean(dateIso) && (!usdRate || rateNum > 0)
     && (!paidFromPortfolio || rateNum > 0) && shareValid && !submitting;
   const tomanPreview = isUsd && amountNum > 0 ? amountNum * (rateNum || usdToman) : 0;
+  // A toman expense in dollars at the day's rate, and those dollars at today's rate (my share)
+  const ownPart = sharing && shareValid ? shareNum : amountNum;
+  const dollarPreview = dollarView && rateNum > 0 && ownPart > 0 ? ownPart / rateNum : 0;
 
   const handleSubmit = async (e) => {
     e?.preventDefault?.();
@@ -145,7 +154,7 @@ export default function ExpenseForm({ group = null, daily = false, expense = nul
         title: title.trim() || getExpenseCategory(category).label,
         amount: amountNum,
         currency,
-        usdRate: isUsd && rateNum > 0 ? rateNum : null,
+        usdRate: (isUsd || dollarView) && rateNum > 0 ? rateNum : null,
         date: dateIso,
         notes: notes.trim(),
         myShare: sharing ? shareNum : null,
@@ -229,7 +238,7 @@ export default function ExpenseForm({ group = null, daily = false, expense = nul
           </div>
         </div>
 
-        {isUsd && (
+        {(isUsd || dollarView) && (
           <div className="ui-input-group">
             <label htmlFor="expense-usd-rate" className="ui-input-label expense-rate-label">
               نرخ دلار در روز هزینه (تومان{paidFromPortfolio ? ' *' : '، اختیاری'})
@@ -253,7 +262,7 @@ export default function ExpenseForm({ group = null, daily = false, expense = nul
                   setUsdRate(v);
                 }}
                 allowDecimals={false}
-                placeholder={usdToman > 0 ? `خالی: نرخ امروز (${formatNum(usdToman)})` : 'نرخ هر دلار به تومان'}
+                placeholder={isUsd && usdToman > 0 ? `خالی: نرخ امروز (${formatNum(usdToman)})` : 'نرخ هر دلار به تومان'}
                 className="ui-input-control"
               />
             </div>
@@ -261,6 +270,16 @@ export default function ExpenseForm({ group = null, daily = false, expense = nul
               <p className="expense-form-hint">
                 معادل حدود <strong>{formatNum(tomanPreview)}</strong> تومان
                 {!rateNum && ' (به نرخ امروز)'}
+              </p>
+            )}
+            {dollarView && (
+              <p className="expense-form-hint">
+                {dollarPreview > 0 ? (
+                  <>
+                    یعنی حدود <strong>{formatAmount(dollarPreview, 'USD')}</strong> دلار
+                    {usdToman > 0 && <> — به نرخ امروز <strong>{formatNum(dollarPreview * usdToman)}</strong> تومان</>}
+                  </>
+                ) : 'با نرخ دلار آن روز می‌بینید این هزینه چند دلار بوده و امروز چقدر تمام می‌شود.'}
               </p>
             )}
           </div>

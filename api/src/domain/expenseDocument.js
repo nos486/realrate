@@ -161,9 +161,10 @@ export function validateExpense(body = {}) {
   const date = text(body.date);
   if (!isValidIsoDate(date)) return { error: 'تاریخ هزینه نامعتبر است.' };
 
-  // The toman rate of the day, for dollar expenses only (optional)
+  // The dollar's toman rate on the expense's day (optional): a dollar expense's own rate, or for a
+  // toman expense what it was worth in dollars then (expenseDollarValue)
   let usdRate = null;
-  if (currency === 'USD' && body.usdRate !== null && body.usdRate !== undefined && body.usdRate !== '') {
+  if (body.usdRate !== null && body.usdRate !== undefined && body.usdRate !== '' && Number(body.usdRate) !== 0) {
     usdRate = Number(body.usdRate);
     if (!Number.isFinite(usdRate) || usdRate <= 0 || usdRate > EXPENSE_LIMITS.maxAmount) {
       return { error: 'نرخ دلار باید عددی مثبت باشد.' };
@@ -373,6 +374,60 @@ export function summarizeExpenses(expenses = [], { usdToman = 0 } = {}) {
     else summary.totalToman += inToman;
     if (!summary.firstDate || e.date < summary.firstDate) summary.firstDate = e.date;
     if (!summary.lastDate || e.date > summary.lastDate) summary.lastDate = e.date;
+  }
+  return summary;
+}
+
+/**
+ * What an expense (the user's own part) was in dollars, and what that costs at today's rate: a
+ * dollar expense as it is; a toman expense through the dollar's rate on its day (`usdRate`), when
+ * it has one
+ * @param {object} expense
+ * @param {number} [usdToman] today's dollar rate
+ * @returns {{ usd: number, paidToman: number|null, todayToman: number|null, changePct: number|null }|null}
+ *   null for a toman expense without the day's rate
+ */
+export function expenseDollarValue(expense, usdToman = 0) {
+  const share = expenseShareAmount(expense);
+  const rate = Number(expense.usdRate) || 0;
+  let usd;
+  if (expense.currency === 'USD') usd = share;
+  else if (rate > 0) usd = share / rate;
+  else return null;
+  const paidToman = expense.currency === 'USD' ? (rate > 0 ? share * rate : null) : share;
+  const todayToman = usdToman > 0 ? usd * usdToman : null;
+  const changePct = paidToman > 0 && todayToman !== null ? ((todayToman - paidToman) / paidToman) * 100 : null;
+  return { usd, paidToman, todayToman, changePct };
+}
+
+/**
+ * The dollar view of a list of expenses (a project): the dollars they were, what was paid for
+ * those in tomans, and what they cost at today's rate; `missing` counts toman expenses without
+ * the day's rate (left out)
+ * @returns {{ usd: number, paidToman: number, todayToman: number|null, changePct: number|null,
+ *   counted: number, missing: number }}
+ */
+export function summarizeDollarValue(expenses = [], { usdToman = 0 } = {}) {
+  const summary = { usd: 0, paidToman: 0, todayToman: null, changePct: null, counted: 0, missing: 0 };
+  let comparable = 0; // tomans paid for the expenses whose paid amount is known
+  let comparableUsd = 0;
+  for (const e of expenses) {
+    const value = expenseDollarValue(e, usdToman);
+    if (!value) {
+      summary.missing += 1;
+      continue;
+    }
+    summary.counted += 1;
+    summary.usd += value.usd;
+    if (value.paidToman !== null) {
+      summary.paidToman += value.paidToman;
+      comparable += value.paidToman;
+      comparableUsd += value.usd;
+    }
+  }
+  if (usdToman > 0 && summary.counted > 0) {
+    summary.todayToman = summary.usd * usdToman;
+    if (comparable > 0) summary.changePct = ((comparableUsd * usdToman - comparable) / comparable) * 100;
   }
   return summary;
 }

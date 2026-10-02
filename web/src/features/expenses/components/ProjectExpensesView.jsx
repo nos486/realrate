@@ -23,7 +23,7 @@ import {
 import { useFeedback } from '../../../shared/ui/FeedbackProvider.jsx';
 import { SkeletonRows } from '../../../shared/ui/Skeleton.jsx';
 import { toEnglishDigits } from '../../../shared/utils/formatters.js';
-import { summarizeExpenses } from '../../../utils/expenseDocument.js';
+import { summarizeExpenses, summarizeDollarValue } from '../../../utils/expenseDocument.js';
 import { useDemo } from '../../demo/index.js';
 import { useExpenses } from '../hooks/useExpenses.js';
 import { formatAmount } from '../utils/format.js';
@@ -63,7 +63,7 @@ export default function ProjectExpensesView({ groupId = null, onSelectGroup, usd
   const totalsByGroup = useMemo(() => {
     const byGroup = new Map(groups.map((g) => [g.id, []]));
     for (const e of expenses) byGroup.get(e.groupId)?.push(e);
-    return new Map([...byGroup].map(([id, list]) => [id, { list, summary: summarizeExpenses(list, { usdToman }) }]));
+    return new Map([...byGroup].map(([id, list]) => [id, { list, summary: summarizeExpenses(list, { usdToman }), dollarView: summarizeDollarValue(list, { usdToman }) }]));
   }, [groups, expenses, usdToman]);
 
   const selectedData = selected ? totalsByGroup.get(selected.id) : null;
@@ -182,7 +182,7 @@ export default function ProjectExpensesView({ groupId = null, onSelectGroup, usd
           </nav>
 
           {selected && (
-            <SplitPageLayout sidebar={<ExpenseSummaryCards summary={selectedData.summary} budget={selected.budget} hideValues={hideValues} />}>
+            <SplitPageLayout sidebar={<ExpenseSummaryCards summary={selectedData.summary} budget={selected.budget} hideValues={hideValues} dollarView={selectedData.dollarView} />}>
               <div className="portfolio-table-card">
                 <div className="portfolio-table-header">
                   <div className="table-title">
@@ -258,6 +258,7 @@ export default function ProjectExpensesView({ groupId = null, onSelectGroup, usd
                         accounts={accounts.length ? accounts : null}
                         sortState={{ key: 'date', dir: order }}
                         onSortChange={() => setOrder(order === 'desc' ? 'asc' : 'desc')}
+                        showDollarValue
                       />
                       <Pagination
                         page={page}

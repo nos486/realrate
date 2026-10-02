@@ -2,17 +2,18 @@
  * expenseCsv.js — The columns of the expense CSV files (everyday expenses and each project)
  *
  * Everything an expense holds: what was paid and the user's own share («دنگ»), what others paid
- * back and still owe, the currency and rate, the account it was paid from, what funded it (a loan,
+ * back and still owe, the currency and rate (for a toman expense: what it was in dollars at the
+ * day's rate and what that costs today), the account it was paid from, what funded it (a loan,
  * or a portfolio's dollars), where it was recorded from (a bank SMS) and the note.
  */
 
-import { isSharedExpense, expenseReceivable, expenseInToman } from '../../../utils/expenseDocument.js';
+import { isSharedExpense, expenseReceivable, expenseInToman, expenseDollarValue } from '../../../utils/expenseDocument.js';
 import { formatShamsiDisplay } from '../../portfolio/components/ShamsiDatePicker.jsx';
 import { accountLabel } from '../../accounts/constants/accountDisplay.js';
 import { getExpenseCategory } from '../constants/expenseCategories.js';
 
 const BASE = ['تاریخ', 'عنوان', 'مبلغ پرداختی', 'سهم من', 'ارز', 'نرخ دلار', 'معادل تومان (سهم من)'];
-const REST = ['دریافت‌شده از دیگران', 'مانده طلب از دیگران', 'پرداخت از', 'تأمین از', 'ثبت از', 'یادداشت'];
+const REST = ['معادل دلار (نرخ روز هزینه)', 'به نرخ امروز (تومان)', 'دریافت‌شده از دیگران', 'مانده طلب از دیگران', 'پرداخت از', 'تأمین از', 'ثبت از', 'یادداشت'];
 
 /** @param {{ withCategory?: boolean }} [options] everyday expenses have a category column */
 export function expenseCsvHeaders({ withCategory = false } = {}) {
@@ -41,7 +42,10 @@ export function expenseCsvRow(e, { withCategory = false, usdToman = 0, accountBy
     e.usdRate || '',
     Math.round(expenseInToman(e, usdToman) || 0),
   ];
+  const dollars = e.currency === 'USD' ? null : expenseDollarValue(e, usdToman);
   const rest = [
+    dollars ? Math.round(dollars.usd * 100) / 100 : '',
+    dollars && dollars.todayToman !== null ? Math.round(dollars.todayToman) : '',
     shared ? received : '',
     shared ? remaining : '',
     e.accountId ? accountLabel(accountById.get(e.accountId)) : '',
