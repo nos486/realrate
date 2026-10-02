@@ -21,12 +21,14 @@ export const VAULT_RECORD_KINDS = [
   "expense_group", "expense",
   // The user's money accounts (bank accounts, cash, ...), the source an expense points to
   "bank_account",
+  // Money moved between the user's own accounts (domain/transferDocument.js): not an expense or income
+  "transfer",
   // The user's expense and income categories (domain/categoryDocument.js), one record
   "category_settings",
 ];
 
 /** Kinds that exist only for users of a feature (config/features.js); others get 404 */
-export const VAULT_KIND_FEATURES = { expense_group: "expenses", expense: "expenses", bank_account: "bank_accounts" };
+export const VAULT_KIND_FEATURES = { expense_group: "expenses", expense: "expenses", bank_account: "bank_accounts", transfer: "bank_accounts" };
 /** Kinds that belong to a portfolio: parent_id is the portfolio, encrypted with its own key */
 export const PORTFOLIO_ITEM_KINDS = ["holding", "transaction", "portfolio_layout"];
 export const E2EE_CIPHER_PREFIX = "enc:e2ee:v1:";

@@ -3,12 +3,14 @@
  * `bank_accounts`)
  *
  * Each account is a card (bank logo, name, card's last digits) with this month's everyday
- * spending from it; expenses pick one of them as the account they were paid from. Accounts are
- * end-to-end encrypted vault records.
+ * spending from it and what moved in and out of it between the user's own accounts; expenses pick
+ * one of them as the account they were paid from. Below the cards, «انتقال بین حساب‌ها»: money
+ * moved between the user's accounts (cash management) — never an expense or an income
+ * (TransferForm, utils/transferDocument.js). Everything is end-to-end encrypted.
  */
 
 import React, { useMemo, useState } from 'react';
-import { WalletCards, Plus, Pencil, Trash2, Archive, ArchiveRestore } from 'lucide-react';
+import { WalletCards, Plus, Pencil, Trash2, Archive, ArchiveRestore, ArrowLeftRight, ChevronRight, ChevronLeft, ArrowLeft } from 'lucide-react';
 import { AlertBanner, Button, EmptyState, FeaturePageHeader } from '../../../shared/ui/index.js';
 import { useFeedback } from '../../../shared/ui/FeedbackProvider.jsx';
 import { SkeletonCards } from '../../../shared/ui/Skeleton.jsx';
@@ -18,13 +20,19 @@ import { useFeature } from '../../../shared/features/useFeature.js';
 import { usePrivacyMode } from '../../../hooks/usePrivacyMode.js';
 import { todayIso } from '../../../shared/utils/dates.js';
 import { accountTypeLabel } from '../../../utils/accountDocument.js';
-import { summarizeByAccount, shamsiMonthOf } from '../../../utils/expenseDocument.js';
+import { summarizeByAccount, shamsiMonthOf, shamsiMonthRange, shiftShamsiMonth } from '../../../utils/expenseDocument.js';
+import { summarizeTransfersByAccount } from '../../../utils/transferDocument.js';
+import { formatShamsiMonth } from '../../incomes/utils/incomeReport.js';
+import { formatShamsiDisplay } from '../../portfolio/components/ShamsiDatePicker.jsx';
 import { useDemo } from '../../demo/index.js';
 import { useDailyExpenses } from '../../expenses/hooks/useDailyExpenses.js';
 import { formatAmount } from '../../expenses/utils/format.js';
+import { useQuickAddParam } from '../../../shared/hooks/useQuickAddParam.js';
 import { useAccounts } from '../hooks/useAccounts.js';
-import { getAccountTypeIcon } from '../constants/accountDisplay.js';
+import { useTransfers } from '../hooks/useTransfers.js';
+import { getAccountTypeIcon, accountLabel } from '../constants/accountDisplay.js';
 import AccountForm from './AccountForm.jsx';
+import TransferForm from './TransferForm.jsx';
 
 const HEADER = {
   icon: <WalletCards size={24} />,
@@ -43,6 +51,7 @@ export default function AccountsPage() {
     saveAccount, deleteAccount,
   } = useAccounts();
   const [form, setForm] = useState(null); // null | { account: object|null }
+  const [transferForm, setTransferForm] = useState(null); // null | { transfer: object|null }
 
   // This month's everyday spending per account (only with the expenses feature)
   const thisMonth = useMemo(() => shamsiMonthOf(todayIso()), []);
@@ -51,6 +60,17 @@ export default function AccountsPage() {
     () => new Map(summarizeByAccount(monthExpenses).map((s) => [s.accountId, s])),
     [monthExpenses]
   );
+
+  // Transfers of the month shown (this month to start with)
+  const [transferMonth, setTransferMonth] = useState(thisMonth);
+  const transferRange = useMemo(() => shamsiMonthRange(transferMonth.jy, transferMonth.jm), [transferMonth]);
+  const { transfers, saveTransfer, deleteTransfer, submitting: savingTransfer } = useTransfers({ from: transferRange.from, to: transferRange.to });
+  const movedBy = useMemo(() => summarizeTransfersByAccount(transfers), [transfers]);
+  const isThisMonth = transferMonth.jy === thisMonth.jy && transferMonth.jm === thisMonth.jm;
+  const accountById = useMemo(() => new Map(accounts.map((a) => [a.id, a])), [accounts]);
+  const money = (v) => (hideValues ? '****' : formatAmount(v));
+  // The app's "+" button: /accounts?add=transfer
+  useQuickAddParam('transfer', () => setTransferForm({ transfer: null }), !vaultLocked && !readOnly && !loading);
 
   if (vaultLocked) {
     return (
@@ -76,6 +96,16 @@ export default function AccountsPage() {
     }
   };
 
+  const handleDeleteTransfer = async (transfer) => {
+    const ok = await confirm({
+      title: 'حذف انتقال',
+      message: `انتقال ${formatAmount(transfer.amount)} تومانی حذف شود؟`,
+      confirmLabel: 'حذف',
+      danger: true,
+    });
+    if (ok) deleteTransfer(transfer.id).catch(() => {});
+  };
+
   const toggleArchive = (account) => saveAccount({ archived: !account.archived }, account).catch(() => {});
 
   return (
@@ -83,14 +113,21 @@ export default function AccountsPage() {
       <FeaturePageHeader
         {...HEADER}
         actions={
-          <Button
-            icon={<Plus size={16} />}
-            onClick={() => setForm({ account: null })}
-            disabled={readOnly}
-            title={readOnly ? 'در نسخه دمو غیرفعال است' : undefined}
-          >
-            حساب جدید
-          </Button>
+          <>
+            {accounts.length >= 2 && (
+              <Button variant="secondary" icon={<ArrowLeftRight size={16} />} onClick={() => setTransferForm({ transfer: null })} disabled={readOnly}>
+                انتقال بین حساب‌ها
+              </Button>
+            )}
+            <Button
+              icon={<Plus size={16} />}
+              onClick={() => setForm({ account: null })}
+              disabled={readOnly}
+              title={readOnly ? 'در نسخه دمو غیرفعال است' : undefined}
+            >
+              حساب جدید
+            </Button>
+          </>
         }
       />
 
@@ -146,6 +183,15 @@ export default function AccountsPage() {
                     <strong>{spent ? `${hideValues ? '****' : formatAmount(spent.totalToman)} تومان` : '—'}</strong>
                   </div>
                 )}
+                {movedBy.has(account.id) && (
+                  <div className="account-card-stat">
+                    <span>انتقال {isThisMonth ? 'این ماه' : formatShamsiMonth(transferMonth.jy, transferMonth.jm)}</span>
+                    <strong className="account-card-moved">
+                      {movedBy.get(account.id).in > 0 && <span className="is-in">+{money(movedBy.get(account.id).in)}</span>}
+                      {movedBy.get(account.id).out > 0 && <span className="is-out">−{money(movedBy.get(account.id).out)}</span>}
+                    </strong>
+                  </div>
+                )}
                 {account.notes && <p className="account-card-notes">{account.notes}</p>}
                 {!readOnly && (
                   <div className="row-actions-group account-card-actions">
@@ -175,6 +221,64 @@ export default function AccountsPage() {
             );
           })}
         </div>
+      )}
+
+      {accounts.length >= 2 && (
+        <section className="transfers-section">
+          <header className="transfers-head">
+            <h3><ArrowLeftRight size={17} /> انتقال بین حساب‌ها</h3>
+            <div className="transfers-month">
+              <button type="button" className="btn-table-action" title="ماه قبل" onClick={() => setTransferMonth((m) => shiftShamsiMonth(m, -1))}>
+                <ChevronRight size={15} />
+              </button>
+              <span>{formatShamsiMonth(transferMonth.jy, transferMonth.jm)}</span>
+              <button type="button" className="btn-table-action" title="ماه بعد" disabled={isThisMonth} onClick={() => setTransferMonth((m) => shiftShamsiMonth(m, 1))}>
+                <ChevronLeft size={15} />
+              </button>
+            </div>
+          </header>
+          <p className="transfers-hint">جابه‌جایی پول بین حساب‌های خودتان (کارت به کارت به حساب دیگرتان، برداشت نقدی، شارژ کیف پول) هزینه یا درآمد نیست و در جمع آن‌ها حساب نمی‌شود.</p>
+          {transfers.length === 0 ? (
+            <p className="transfers-empty">انتقالی در این ماه ثبت نشده است.</p>
+          ) : (
+            <ul className="transfers-list">
+              {transfers.map((t) => (
+                <li key={t.id}>
+                  <span className="transfers-date">{formatShamsiDisplay(`${t.date}T00:00:00`)}</span>
+                  <span className="transfers-route">
+                    {accountLabel(accountById.get(t.fromAccountId))} <ArrowLeft size={14} /> {accountLabel(accountById.get(t.toAccountId))}
+                  </span>
+                  <strong className="transfers-amount">
+                    {money(t.amount)} تومان
+                    {t.fee > 0 && <small> (کارمزد {money(t.fee)})</small>}
+                  </strong>
+                  {t.notes && <span className="transfers-notes">{t.notes}</span>}
+                  {!readOnly && (
+                    <span className="row-actions-group">
+                      <button type="button" className="btn-table-action edit" title="ویرایش" onClick={() => setTransferForm({ transfer: t })}>
+                        <Pencil size={13} />
+                      </button>
+                      <button type="button" className="btn-table-action delete" title="حذف" onClick={() => handleDeleteTransfer(t)}>
+                        <Trash2 size={13} />
+                      </button>
+                    </span>
+                  )}
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+      )}
+
+      {transferForm && (
+        <TransferForm
+          key={transferForm.transfer?.id || 'new'}
+          transfer={transferForm.transfer}
+          accounts={accounts.filter((a) => !a.archived || a.id === transferForm.transfer?.fromAccountId || a.id === transferForm.transfer?.toAccountId)}
+          submitting={savingTransfer}
+          onSubmit={(input) => saveTransfer(input, transferForm.transfer)}
+          onClose={() => setTransferForm(null)}
+        />
       )}
 
       {form && (

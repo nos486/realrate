@@ -15,7 +15,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { MessageSquareText, History } from 'lucide-react';
-import { Button, Card, FeaturePageHeader, FilterPills } from '../../shared/ui/index.js';
+import { AlertBanner, Button, Card, FeaturePageHeader, FilterPills } from '../../shared/ui/index.js';
 import { useFeedback } from '../../shared/ui/FeedbackProvider.jsx';
 import VaultUnlockCard from '../../shared/vault/VaultUnlockCard.jsx';
 import { useVault } from '../../shared/vault/useVault.js';
@@ -31,7 +31,9 @@ import SmsInboxList from './SmsInboxList.jsx';
 import LoanDepositSheet from './LoanDepositSheet.jsx';
 import ShareDepositSheet from './ShareDepositSheet.jsx';
 import ProjectPickSheet from './ProjectPickSheet.jsx';
-import { smsExpenseDraft, smsProjectExpenseDraft, smsIncomeDraft } from './smsDrafts.js';
+import TransferForm from '../accounts/components/TransferForm.jsx';
+import { saveTransfer } from '../../shared/vault/vaultTransfers.js';
+import { smsExpenseDraft, smsProjectExpenseDraft, smsIncomeDraft, smsTransferDraft } from './smsDrafts.js';
 import { saveDailyExpense, saveProjectExpense, recordSmsExpense, dropAlreadyRecorded } from './smsRecord.js';
 import { getExpenseCategory } from '../expenses/constants/expenseCategories.js';
 import { bumpVaultEpoch } from '../../shared/vault/vaultStore.js';
@@ -59,6 +61,8 @@ export default function SmsInboxPage() {
   // «ثبت در یک پروژه»: the message, then the project picked for it
   const [projectItem, setProjectItem] = useState(null);
   const [projectDraft, setProjectDraft] = useState(null); // { project, draft }
+  // «انتقال بین حساب‌های خودم»: the message (and the other side's, when it waits too)
+  const [transferDraft, setTransferDraft] = useState(null); // { draft, items: [message, counterpart?] }
 
   const locked = vaultStatus === 'locked';
   const { pending } = useSmsInbox();
@@ -109,6 +113,22 @@ export default function SmsInboxPage() {
     }
   };
 
+  const handleTransfer = (item) => {
+    const { draft, counterpart } = smsTransferDraft(item, pending, accounts.filter((a) => !a.archived));
+    setTransferDraft({ draft, items: [item, counterpart].filter(Boolean) });
+  };
+
+  const handleSaveTransfer = async (input) => {
+    setSaving(true);
+    try {
+      await saveTransfer(input);
+      for (const msg of transferDraft.items) markSmsHandled(msg.fingerprint);
+      toast.success('انتقال بین حساب‌ها ثبت شد (جزو هزینه و درآمد نیست).');
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const handleReadPast = async () => {
     setReading(true);
     try {
@@ -149,6 +169,7 @@ export default function SmsInboxPage() {
           onLoanDeposit={setLoanItem}
           onShareDeposit={setShareItem}
           onRecordToProject={setProjectItem}
+          onTransfer={accounts.filter((a) => !a.archived).length >= 2 ? handleTransfer : undefined}
           canRecord={!locked && !readOnly}
         />
       </Card>
@@ -197,6 +218,18 @@ export default function SmsInboxPage() {
           submitting={saving}
           onClose={() => setProjectDraft(null)}
           onSubmit={record((input) => saveProjectExpense(projectDraft.project.id, input), projectDraft.draft, `هزینه در «${projectDraft.project.name}» ثبت شد.`)}
+        />
+      )}
+      {transferDraft && (
+        <TransferForm
+          draft={transferDraft.draft}
+          accounts={accounts.filter((a) => !a.archived)}
+          submitting={saving}
+          onClose={() => setTransferDraft(null)}
+          onSubmit={handleSaveTransfer}
+          note={transferDraft.items.length > 1 && (
+            <AlertBanner type="info" message="پیامک طرف دیگر این انتقال (همان مبلغ، همان روز) هم پیدا شد و با ثبت آن کنار گذاشته می‌شود." />
+          )}
         />
       )}
       {shareItem && <ShareDepositSheet item={shareItem} accounts={accounts} onClose={() => setShareItem(null)} />}

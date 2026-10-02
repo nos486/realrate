@@ -12,12 +12,11 @@
  * A form opened from "+" is reached with `?add=…` on the section's page (useQuickAddParam).
  */
 
-import AlertCenterButton from '../alerts/AlertCenter.jsx';
 import React, { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Home, HandCoins, Wallet, Briefcase, LayoutGrid, Plus, Eye, EyeOff, Lock, LogOut,
-  MessageSquareText, ChevronLeft,
+  MessageSquareText, ChevronLeft, ArrowLeftRight,
 } from 'lucide-react';
 import { useAuth } from '../../features/auth/index.js';
 import { usePrivacyMode, setPrivacyMode } from '../../hooks/usePrivacyMode.js';
@@ -27,6 +26,7 @@ import { appPath } from '../routes.js';
 import { getPendingSms, SMS_INBOX_EVENT } from '../native/smsInbox.js';
 import { tap, impact } from '../native/haptics.js';
 import AppSheet from './AppSheet.jsx';
+import AlertCenterButton from '../alerts/AlertCenter.jsx';
 
 /** Sections whose pages show amounts (the hide-values button is offered there) */
 const MONEY_TABS = ['market', 'portfolio', 'incomes', 'expenses', 'accounts', 'loans', 'cheques'];
@@ -131,6 +131,7 @@ export function AppBottomNav({ activeTab, navItems = [], onSelect }) {
     has('expenses') && { key: 'expense', label: 'هزینه', hint: 'خرید، قبض، رفت‌وآمد…', Icon: HandCoins, tone: 'rose', path: '/expenses?add=expense' },
     has('incomes') && { key: 'income', label: 'درآمد', hint: 'حقوق، فروش، سود…', Icon: Wallet, tone: 'green', path: '/incomes?add=income' },
     has('portfolio') && { key: 'holding', label: 'پورتفو', hint: 'طلا، سکه، ارز…', Icon: Briefcase, tone: 'amber', path: '/portfolio?add=holding' },
+    has('accounts') && { key: 'transfer', label: 'انتقال', hint: 'بین حساب‌های خودم', Icon: ArrowLeftRight, tone: 'blue', path: '/accounts?add=transfer' },
   ].filter(Boolean);
 
   return (

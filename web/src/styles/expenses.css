@@ -766,3 +766,86 @@ button.expense-share-chip {
 .expense-form-hint.is-warning {
   color: var(--color-warning-text);
 }
+
+/* ── Transfers between the user's own accounts (AccountsPage, TransferForm) ── */
+.account-card-moved {
+  display: inline-flex;
+  gap: 8px;
+}
+.account-card-moved .is-in { color: var(--green-emerald); }
+.account-card-moved .is-out { color: #f59e0b; }
+.transfers-section {
+  margin-top: 20px;
+  padding: 16px;
+  border-radius: var(--card-radius);
+  border: var(--card-border);
+  background: var(--card-bg);
+}
+.transfers-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.transfers-head h3 {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  font-size: 15px;
+}
+.transfers-month {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+}
+.transfers-hint,
+.transfers-empty {
+  color: var(--text-muted);
+  font-size: 12px;
+  line-height: 1.7;
+  margin: 8px 0;
+}
+.transfers-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.transfers-list li {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.03);
+  font-size: 13px;
+}
+.transfers-date { color: var(--text-muted); font-size: 12px; }
+.transfers-route {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.transfers-amount small { color: var(--text-muted); font-weight: 400; }
+.transfers-notes {
+  grid-column: 2 / -1;
+  color: var(--text-muted);
+  font-size: 12px;
+}
+@media (max-width: 640px) {
+  .transfers-list li {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+  .transfers-route { grid-column: 1 / -1; order: -1; }
+  .transfers-notes { grid-column: 1 / -1; }
+}

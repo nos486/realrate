@@ -202,6 +202,7 @@ const VAULT_KIND_KEYS = {
   transaction: "transactions",
   expense: "expenses",
   bank_account: "accounts",
+  transfer: "transfers",
 };
 /** Kinds whose plaintext rows are leftovers once the vault is on (portfolio items of a
  *  portfolio still behind its own older passphrase legitimately stay in their tables) */

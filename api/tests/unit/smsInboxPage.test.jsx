@@ -14,8 +14,9 @@ vi.mock('../../../web/src/shared/native/nativeApp.js', () => ({ isNativeApp: () 
 vi.mock('../../../web/src/shared/native/nativePlugins.js', () => ({ BankSms: plugin, BiometricVault: {} }));
 vi.mock('../../../web/src/shared/vault/useVault.js', () => ({ useVault: () => ({ status: 'unlocked', userId: 'usr_1' }) }));
 vi.mock('../../../web/src/features/demo/index.js', () => ({ useDemo: () => ({ readOnly: false }) }));
+const accountList = vi.hoisted(() => ({ list: [{ id: 'acc_1', name: 'بلو', bankId: 'blu', type: 'bank' }] }));
 vi.mock('../../../web/src/features/accounts/hooks/useAccounts.js', () => ({
-  useAccounts: () => ({ accounts: [{ id: 'acc_1', name: 'بلو', bankId: 'blu', type: 'bank' }] }),
+  useAccounts: () => ({ accounts: accountList.list }),
 }));
 vi.mock('../../../web/src/features/market/index.js', () => ({ usePricing: () => null }));
 const expenses = vi.hoisted(() => ({
@@ -36,6 +37,11 @@ const incomes = vi.hoisted(() => ({
   getIncomes: vi.fn(async () => ({ incomes: [] })),
 }));
 vi.mock('../../../web/src/features/incomes/api/incomeApi.js', () => incomes);
+const transfers = vi.hoisted(() => ({
+  getTransfers: vi.fn(async () => ({ transfers: [] })),
+  saveTransfer: vi.fn(async (input) => ({ transfer: { id: 'trf_1', ...input } })),
+}));
+vi.mock('../../../web/src/shared/vault/vaultTransfers.js', () => transfers);
 const toast = vi.hoisted(() => ({ success: vi.fn(), error: vi.fn() }));
 vi.mock('../../../web/src/shared/ui/FeedbackProvider.jsx', () => ({ useFeedback: () => ({ toast, confirm: vi.fn() }) }));
 
@@ -169,6 +175,43 @@ describe('«ثبت در یک پروژه»: a withdrawal into a project', () => {
       groupId: 'exg_trip', title: 'برداشت بلو', amount: 2000000, source: 'sms', smsKey: 'blu|debit|2000000|2026-09-28|10:47',
     });
     await waitFor(() => expect(getPendingSms()).toHaveLength(1));
+  });
+});
+
+describe('«انتقال بین حساب‌های خودم»: neither expense nor income', () => {
+  afterEach(() => { accountList.list = [{ id: 'acc_1', name: 'بلو', bankId: 'blu', type: 'bank' }]; });
+
+  it('only with two accounts; records a transfer from the matched account and drops the message', async () => {
+    render(<SmsInboxPage />);
+    await waitFor(() => expect(screen.getAllByLabelText('گزینه‌های این پیامک')).toHaveLength(2));
+    screen.getAllByLabelText('گزینه‌های این پیامک').forEach((b) => fireEvent.click(b));
+    expect(screen.queryByText('انتقال بین حساب‌های خودم')).toBeNull();
+    cleanup();
+
+    accountList.list = [
+      { id: 'acc_1', name: 'بلو', bankId: 'blu', type: 'bank' },
+      { id: 'acc_2', name: 'نقد', type: 'cash' },
+    ];
+    render(<SmsInboxPage />);
+    await waitFor(() => expect(screen.getAllByLabelText('گزینه‌های این پیامک')).toHaveLength(2));
+    fireEvent.click(screen.getAllByLabelText('گزینه‌های این پیامک')[0]);
+    fireEvent.click(screen.getByText('انتقال بین حساب‌های خودم').closest('button'));
+    // To: the cash account (from is the withdrawal's account)
+    const toPicker = screen.getByText('به حساب *').closest('.ui-input-group');
+    fireEvent.click([...toPicker.querySelectorAll('button')].find((b) => b.textContent.includes('نقد')));
+    fireEvent.submit(screen.getByText('ثبت انتقال').closest('form'));
+    await waitFor(() => expect(transfers.saveTransfer).toHaveBeenCalled());
+    expect(transfers.saveTransfer.mock.calls[0][0]).toMatchObject({
+      fromAccountId: 'acc_1', toAccountId: 'acc_2', amount: 2000000, date: '2026-09-28', smsKeys: ['blu|debit|2000000|2026-09-28|10:47'],
+    });
+    expect(expenses.saveExpense).not.toHaveBeenCalled();
+    await waitFor(() => expect(getPendingSms()).toHaveLength(1));
+  });
+
+  it('a message already in a transfer leaves the inbox', async () => {
+    transfers.getTransfers.mockResolvedValueOnce({ transfers: [{ id: 't1', date: '2026-09-28', amount: 2000000, smsKeys: ['blu|debit|2000000|2026-09-28|10:47'] }] });
+    render(<SmsInboxPage />);
+    await waitFor(() => expect(getPendingSms().map((p) => p.tx.direction)).toEqual(['credit']));
   });
 });
 

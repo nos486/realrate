@@ -455,6 +455,7 @@ html.is-native-app [role='button']:active {
 .app-quick-add-item.tone-rose { --tone: var(--color-negative-text); --tone-soft: var(--color-negative-soft); }
 .app-quick-add-item.tone-green { --tone: #34d399; --tone-soft: rgba(16, 185, 129, 0.13); }
 .app-quick-add-item.tone-amber { --tone: #fbbf24; --tone-soft: rgba(245, 158, 11, 0.13); }
+.app-quick-add-item.tone-blue { --tone: #60a5fa; --tone-soft: rgba(59, 130, 246, 0.13); }
 
 .app-quick-add-icon {
   width: 48px;

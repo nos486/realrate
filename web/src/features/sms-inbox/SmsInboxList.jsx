@@ -10,11 +10,12 @@
  * with «ثبت با فرم» in the menu; a withdrawal can also go to a project («ثبت در یک پروژه»,
  * `onRecordToProject`); a deposit's menu has «وام» (`onLoanDeposit`: a received loan, not
  * income) and «دنگ» (`onShareDeposit`: someone's share of an expense the user paid, not income);
- * «رد» drops it for good.
+ * either kind can be «انتقال بین حساب‌های خودم» (`onTransfer`: money moved between the user's own
+ * accounts — neither expense nor income); «رد» drops it for good.
  */
 
 import React, { useEffect, useState } from 'react';
-import { MessageSquareText, Check, X, ArrowDownLeft, ArrowUpRight, BellRing, Inbox, Zap, Landmark, HandCoins, FolderOpen } from 'lucide-react';
+import { MessageSquareText, Check, X, ArrowDownLeft, ArrowUpRight, BellRing, Inbox, Zap, Landmark, HandCoins, FolderOpen, ArrowLeftRight } from 'lucide-react';
 import { ActionMenu, Button, EmptyState } from '../../shared/ui/index.js';
 import { useFeedback } from '../../shared/ui/FeedbackProvider.jsx';
 import { BankLogo, resolveBank } from '../../shared/banks/index.js';
@@ -76,7 +77,7 @@ function EnableCard({ onChange }) {
 /**
  * @param {{ accounts?: object[], onRecord: (item: object) => void, canRecord?: boolean }} props
  */
-export default function SmsInboxList({ accounts = [], onRecord, onQuickRecord, quickRecordingId = null, onLoanDeposit, onShareDeposit, onRecordToProject, canRecord = true }) {
+export default function SmsInboxList({ accounts = [], onRecord, onQuickRecord, quickRecordingId = null, onLoanDeposit, onShareDeposit, onRecordToProject, onTransfer, canRecord = true }) {
   const { pending, settings } = useSmsInbox();
   const [permission, setPermission] = useState(null);
 
@@ -154,6 +155,9 @@ export default function SmsInboxList({ accounts = [], onRecord, onQuickRecord, q
                   },
                   onShareDeposit && !isDebit && {
                     key: 'share', label: 'دنگ یک هزینه (درآمد نیست)', icon: <HandCoins size={16} />, onClick: () => onShareDeposit(item), disabled: !canRecord,
+                  },
+                  onTransfer && {
+                    key: 'transfer', label: 'انتقال بین حساب‌های خودم', icon: <ArrowLeftRight size={16} />, onClick: () => onTransfer(item), disabled: !canRecord,
                   },
                   { key: 'dismiss', label: 'رد این پیامک', icon: <X size={16} />, onClick: () => dismissSms(item.fingerprint), danger: true },
                 ]}

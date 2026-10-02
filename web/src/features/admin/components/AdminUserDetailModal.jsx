@@ -25,6 +25,7 @@ const USAGE_LABELS = [
   ['recurringIncomes', 'درآمد ثابت'],
   ['expenses', 'هزینه'],
   ['accounts', 'حساب'],
+  ['transfers', 'انتقال بین حساب‌ها'],
 ];
 
 function Fact({ label, children }) {
