@@ -123,7 +123,7 @@ export async function handleAdminGetUserPortfolio(request, env) {
 
 /**
  * POST /api/admin/settings
- * Save global settings to the database + KV — admin only
+ * Save global settings to the database — admin only
  */
 export async function handleAdminSaveSettings(request, env) {
   const user = await getAuthenticatedUser(request, env);

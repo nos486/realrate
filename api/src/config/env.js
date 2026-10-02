@@ -29,10 +29,6 @@ export function validateEnv(env) {
     missing.push("HYPERDRIVE (Postgres through Hyperdrive)");
   }
 
-  if (!env.REALRATE_KV && !env.KV) {
-    missing.push("REALRATE_KV / KV (KV Namespace binding)");
-  }
-
   if (!env.GOOGLE_CLIENT_ID) {
     missing.push("GOOGLE_CLIENT_ID (OAuth Client ID)");
   }

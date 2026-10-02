@@ -194,7 +194,7 @@ export const charismaPlansSourceAdapter = {
 
     const nowIso = new Date().toISOString();
 
-    // Load existing plans list from memory or KV
+    // Load existing plans list from memory or the state store
     let existingList = inMemoryCharismaPlansList;
     if (!existingList && env) {
       try {
@@ -238,7 +238,7 @@ export const charismaPlansSourceAdapter = {
         message: `تعداد ${count} طرح سرمایه‌گذاری کاریزما با موفقیت دریافت و پردازش شد.`,
       };
     } catch (e) {
-      // Graceful fallback to existing cached plans in KV/memory
+      // Graceful fallback to existing cached plans in the state store / memory
       try {
         const cached = await this.getItems(env);
         if (Array.isArray(cached) && cached.length > 0) {
@@ -270,7 +270,7 @@ export const charismaPlansSourceAdapter = {
           return list;
         }
       } catch (e) {
-        logger.error("Error retrieving charisma plans from KV:", { error: e.message });
+        logger.error("Error retrieving charisma plans from the state store:", { error: e.message });
       }
     }
 

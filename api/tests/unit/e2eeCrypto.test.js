@@ -162,7 +162,10 @@ describe('E2EE client crypto (web/src/lib/e2ee.js)', () => {
         comparePriceToman: 0,
       });
       expect(isHoldingE2eeEncrypted(sent)).toBe(true);
-      const serialized = JSON.stringify(sent);
+      // The ciphertext (random base64) may contain any digits by chance: only the plain fields count
+      const { notes: cipher, ...plain } = sent;
+      expect(cipher).toMatch(/^enc:e2ee:v1:/);
+      const serialized = JSON.stringify(plain);
       for (const secret of ['یادداشت محرمانه', '4200000', '1403/05/10', '950', 'فولاد', '713']) {
         expect(serialized).not.toContain(secret);
       }

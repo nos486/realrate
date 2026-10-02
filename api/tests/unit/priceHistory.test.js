@@ -5,6 +5,7 @@
  *   PRICE_HISTORY_TEST_URL=postgres://postgres@localhost:5432/realrate npx vitest run priceHistory
  */
 
+import { memoryStateDb } from '../helpers/memoryStateDb.js';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { Client } from 'pg';
 import {
@@ -105,8 +106,8 @@ describe('recordPriceHistory', () => {
     expect(client.end).not.toHaveBeenCalled();
   });
 
-  it('saveSourceItems works without Postgres (history is written by the sync, not here)', async () => {
-    const env = { REALRATE_KV: { put: async () => {} } };
+  it('saveSourceItems only stores the list (history is written by the sync, not here)', async () => {
+    const env = { DB: memoryStateDb() };
     await expect(saveSourceItems(env, 'src_x', [{ id: 'usd', price: 1 }])).resolves.toBe(true);
   });
 });

@@ -272,7 +272,7 @@ export const charismaFundsSourceAdapter = {
 
     const nowIso = new Date().toISOString();
 
-    // Load existing funds list from memory or KV
+    // Load existing funds list from memory or the state store
     let existingList = inMemoryCharismaList;
     if (!existingList && env) {
       try {
@@ -316,7 +316,7 @@ export const charismaFundsSourceAdapter = {
         message: `تعداد ${count} صندوق سرمایه‌گذاری کاریزما با موفقیت دریافت و پردازش شد.`,
       };
     } catch (e) {
-      // Graceful fallback to existing cached funds in KV/memory
+      // Graceful fallback to existing cached funds in the state store / memory
       try {
         const cached = await this.getItems(env);
         if (Array.isArray(cached) && cached.length > 0) {
@@ -348,7 +348,7 @@ export const charismaFundsSourceAdapter = {
           return list;
         }
       } catch (e) {
-        logger.error("Error retrieving charisma funds from KV:", { error: e.message });
+        logger.error("Error retrieving charisma funds from the state store:", { error: e.message });
       }
     }
 

@@ -203,8 +203,8 @@ export async function sha256Hex(value) {
 // ─── Rate limiting ───────────────────────────────────────────────────────────────
 
 /**
- * Fixed-window counter in the state store (Postgres; KV without a database). Read-then-write,
- * so this is a best-effort brake against brute force rather than an exact limit.
+ * Counter in the state store (Postgres): each hit is one atomic increment and restarts the
+ * window, so a key stays limited while it keeps being hit.
  * @param {object} env
  * @param {string} key
  * @param {{ limit: number, windowSec: number }} options
@@ -231,9 +231,7 @@ export async function recordRateLimitHit(env, key, { windowSec }) {
   const store = getStateStore(env);
   if (!store) return;
   try {
-    const count = parseInt((await store.get(`rl:${key}`)) || "0", 10) || 0;
-    // KV (the fallback store) requires expirationTtl >= 60
-    await store.put(`rl:${key}`, String(count + 1), { expirationTtl: Math.max(60, windowSec) });
+    await store.increment(`rl:${key}`, 1, { expirationTtl: windowSec });
   } catch {}
 }
 

@@ -5,6 +5,7 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { parseGithubRelease, releaseFromLatestRedirect, versionFromTag } from '../../src/domain/appRelease.js';
 import { getLatestRelease, RELEASE_CACHE_MS } from '../../src/handlers/appUpdateRoutes.js';
+import { memoryStateDb } from '../helpers/memoryStateDb.js';
 import {
   isCheckDue,
   isNewer,
@@ -21,18 +22,6 @@ const githubRelease = {
   published_at: '2026-10-01T10:00:00Z',
   assets: [{ name: 'realrate.apk', size: 12_345_678 }],
 };
-
-function memoryKv() {
-  const store = new Map();
-  return {
-    store,
-    get: vi.fn(async (key, type) => {
-      const v = store.get(key);
-      return v === undefined ? null : type === 'json' ? JSON.parse(v) : v;
-    }),
-    put: vi.fn(async (key, value) => { store.set(key, value); }),
-  };
-}
 
 afterEach(() => vi.unstubAllGlobals());
 
@@ -72,7 +61,7 @@ describe('GET /api/app/latest', () => {
   it('reads GitHub once and keeps the answer for a while', async () => {
     const fetchMock = vi.fn(async () => new Response(JSON.stringify(githubRelease), { status: 200 }));
     vi.stubGlobal('fetch', fetchMock);
-    const env = { REALRATE_KV: memoryKv() };
+    const env = { DB: memoryStateDb() };
     const first = await getLatestRelease(env, 1_000);
     const second = await getLatestRelease(env, 1_000 + RELEASE_CACHE_MS - 1);
     expect(first.version).toBe('1.0.48');
@@ -84,20 +73,19 @@ describe('GET /api/app/latest', () => {
     vi.stubGlobal('fetch', vi.fn(async (url) => (String(url).includes('api.github.com')
       ? new Response('rate limited', { status: 403 })
       : new Response(null, { status: 302, headers: { Location: 'https://github.com/nos486/realrate/releases/tag/v1.0.49' } }))));
-    const release = await getLatestRelease({ REALRATE_KV: memoryKv() });
+    const release = await getLatestRelease({ DB: memoryStateDb() });
     expect(release.version).toBe('1.0.49');
   });
 
   it('serves the last known release when GitHub is down', async () => {
-    const kv = memoryKv();
-    kv.store.set('app:latest_release', JSON.stringify({ fetchedAt: 0, release: { version: '1.0.47' } }));
+    const db = memoryStateDb({ 'app:latest_release': { fetchedAt: 0, release: { version: '1.0.47' } } });
     vi.stubGlobal('fetch', vi.fn(async () => { throw new Error('offline'); }));
-    expect(await getLatestRelease({ REALRATE_KV: kv }, RELEASE_CACHE_MS * 5)).toEqual({ version: '1.0.47' });
+    expect(await getLatestRelease({ DB: db }, RELEASE_CACHE_MS * 5)).toEqual({ version: '1.0.47' });
   });
 
   it('answers null when there is no release yet', async () => {
     vi.stubGlobal('fetch', vi.fn(async () => new Response('', { status: 404 })));
-    expect(await getLatestRelease({ REALRATE_KV: memoryKv() })).toBeNull();
+    expect(await getLatestRelease({ DB: memoryStateDb() })).toBeNull();
   });
 });
 

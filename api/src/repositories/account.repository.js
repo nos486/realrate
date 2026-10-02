@@ -6,7 +6,6 @@
  */
 
 import { ensureSchema } from "./schema.repository.js";
-import { deleteSessionKV } from "./kvCache.repository.js";
 import { generateUrlToken, sha256Hex } from "../lib/security.js";
 import { dbRecordUserActivity } from "./user.repository.js";
 
@@ -138,15 +137,12 @@ export async function dbConsumeAuthToken(env, token, purpose) {
 
 /**
  * Sign a user out everywhere (after a password reset or change), optionally keeping the
- * current session. Sessions live in the database and KV, so both copies are removed.
+ * current session. One statement; returns how many sessions ended.
  */
 export async function dbDeleteUserSessions(env, userId, { exceptToken = null } = {}) {
   await ensureSchema(env);
-  const { results = [] } = await env.DB.prepare(`SELECT token FROM sessions WHERE user_id = ?`).bind(userId).all();
-  const tokens = results.map((r) => r.token).filter((t) => t && t !== exceptToken);
-  for (const token of tokens) {
-    await env.DB.prepare(`DELETE FROM sessions WHERE token = ?`).bind(token).run();
-    await deleteSessionKV(env, token);
-  }
-  return tokens.length;
+  const res = exceptToken
+    ? await env.DB.prepare(`DELETE FROM sessions WHERE user_id = ? AND token <> ?`).bind(userId, exceptToken).run()
+    : await env.DB.prepare(`DELETE FROM sessions WHERE user_id = ?`).bind(userId).run();
+  return res?.meta?.changes ?? 0;
 }

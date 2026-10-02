@@ -3,7 +3,7 @@
  */
 
 export * from "./schema.repository.js";
-export * from "./kvCache.repository.js";
+export * from "./priceBookStore.repository.js";
 export * from "./user.repository.js";
 export * from "./admin.repository.js";
 export * from "./account.repository.js";

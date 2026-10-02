@@ -3,7 +3,7 @@
  * (Postgres, stateStore.repository.js)
  */
 
-import { getPriceBookCache } from "./kvCache.repository.js";
+import { getPriceBookCache } from "./priceBookStore.repository.js";
 import { getStateStore } from "./stateStore.repository.js";
 import { readSourceItems, readSourceItemsMany, saveSourceItems } from "./sourceItems.repository.js";
 import {

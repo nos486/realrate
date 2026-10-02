@@ -1,21 +1,13 @@
 /**
- * usageQuota.test.js — User tiers, daily limits and their KV counters
+ * usageQuota.test.js — User tiers, daily limits and their counters (Postgres app_state)
  */
 
 import { describe, it, expect, vi } from 'vitest';
 import { dailyLimitFor, userTierOf, USER_TIERS } from '../../src/config/usageLimits.js';
 import { consumeQuota, getQuota, refundQuota, tehranDay } from '../../src/lib/usageQuota.js';
+import { memoryStateDb } from '../helpers/memoryStateDb.js';
 
-function memoryEnv() {
-  const store = new Map();
-  return {
-    store,
-    REALRATE_KV: {
-      get: vi.fn(async (k) => (store.has(k) ? store.get(k) : null)),
-      put: vi.fn(async (k, v) => { store.set(k, v); }),
-    },
-  };
-}
+const memoryEnv = () => ({ DB: memoryStateDb() });
 
 const USER = { id: 'u1', role: 'user' };
 const ADMIN = { id: 'a1', role: 'admin' };
@@ -42,6 +34,8 @@ describe('counters', () => {
       expect((await consumeQuota(env, USER, 'cheque_scan')).remaining).toBe(10 - i);
     }
     await expect(consumeQuota(env, USER, 'cheque_scan')).rejects.toMatchObject({ statusCode: 429, code: 'QUOTA_EXCEEDED' });
+    // The refused use is not counted
+    expect((await getQuota(env, USER, 'cheque_scan')).used).toBe(10);
 
     await refundQuota(env, USER, 'cheque_scan');
     expect((await getQuota(env, USER, 'cheque_scan')).remaining).toBe(1);

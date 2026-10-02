@@ -1,85 +1,45 @@
 /**
- * stateStore.test.js — the app's changing state (prices, source items, counters) in Postgres
- * instead of Workers KV: KV's shape, a one-time copy from KV, expiry, and the price book kept in
- * memory for a few seconds
+ * stateStore.test.js — the app's changing state (prices, source items, counters) in Postgres:
+ * get / put / delete, atomic counters, expiry, and the price book kept in memory for a few seconds
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import pg from 'pg';
 import { getStateStore, purgeExpiredState } from '../../src/repositories/stateStore.repository.js';
-import { getPriceBookCache, setPriceBookCache, resetPriceBookMemo, PRICE_BOOK_MEMO_MS } from '../../src/repositories/kvCache.repository.js';
+import { getPriceBookCache, setPriceBookCache, resetPriceBookMemo, PRICE_BOOK_MEMO_MS } from '../../src/repositories/priceBookStore.repository.js';
 import { readSourceItemsMany, saveSourceItems } from '../../src/repositories/sourceItems.repository.js';
+import { memoryStateDb } from '../helpers/memoryStateDb.js';
 import { withDatabase } from '../../src/lib/database.js';
 import { resetPgSchemaCache } from '../../src/repositories/pgSchema.js';
 
-/** An in-memory stand-in for the app_state statements */
-function fakeDb() {
-  const rows = new Map();
-  const calls = [];
-  const db = {
-    rows,
-    calls,
-    prepare(sql) {
-      const make = (params = []) => ({
-        bind: (...p) => make(p),
-        first: async () => null,
-        all: async () => {
-          calls.push('select');
-          const now = params[params.length - 1];
-          const keys = params.slice(0, -1);
-          return { results: keys.filter((k) => rows.has(k) && (rows.get(k).expiresAt === null || rows.get(k).expiresAt > now)).map((k) => ({ key: k, value: rows.get(k).value })) };
-        },
-        run: async () => {
-          if (/INSERT INTO app_state/.test(sql)) {
-            calls.push('put');
-            rows.set(params[0], { value: params[1], expiresAt: params[2] });
-          } else if (/DELETE FROM app_state WHERE key/.test(sql)) {
-            rows.delete(params[0]);
-          } else if (/DELETE FROM app_state WHERE expires_at/.test(sql)) {
-            for (const [k, r] of rows) if (r.expiresAt !== null && r.expiresAt <= params[0]) rows.delete(k);
-          }
-          return {};
-        },
-      });
-      return make();
-    },
-  };
-  return db;
-}
-
-const kvWith = (entries = {}) => {
-  const map = new Map(Object.entries(entries));
-  return { map, get: vi.fn(async (k, type) => (map.has(k) ? (type === 'json' ? JSON.parse(map.get(k)) : map.get(k)) : null)), put: vi.fn(), delete: vi.fn() };
-};
+const fakeDb = () => memoryStateDb();
 
 beforeEach(() => resetPriceBookMemo());
 
 describe('state store', () => {
-  it('uses Postgres when there is a database, KV otherwise', () => {
-    expect(getStateStore({ DB: fakeDb(), REALRATE_KV: kvWith() }).kind).toBe('postgres');
-    expect(getStateStore({ REALRATE_KV: kvWith() }).kind).toBe('kv');
+  it('is Postgres, and nothing without a database', () => {
+    expect(getStateStore({ DB: fakeDb() }).kind).toBe('postgres');
     expect(getStateStore({})).toBeNull();
   });
 
-  it('reads and writes like KV, never touching KV', async () => {
-    const kv = kvWith();
-    const store = getStateStore({ DB: fakeDb(), REALRATE_KV: kv });
+  it('reads, writes and deletes', async () => {
+    const store = getStateStore({ DB: fakeDb() });
     await store.put('a', JSON.stringify({ x: 1 }));
     expect(await store.get('a', 'json')).toEqual({ x: 1 });
     expect(await store.get('a')).toBe('{"x":1}');
     await store.delete('a');
     expect(await store.get('a')).toBeNull();
-    expect(kv.put).not.toHaveBeenCalled();
   });
 
-  it('copies the price book and source items from KV once, nothing else', async () => {
-    const kv = kvWith({ prices: '{"items":{"usd":{}}}', 'source_items:src_a': '[1]', 'rl:x': '3' });
+  it('counts in one statement; an expired counter starts over; never below zero', async () => {
     const db = fakeDb();
-    const store = getStateStore({ DB: db, REALRATE_KV: kv });
-    expect(await store.get('prices', 'json')).toEqual({ items: { usd: {} } });
-    expect(db.rows.has('prices')).toBe(true);
-    await store.get('prices');
-    expect(kv.get).toHaveBeenCalledTimes(1);
-    expect(await store.get('rl:x')).toBeNull(); // counters start empty
+    const store = getStateStore({ DB: db });
+    expect(await store.increment('rl:a', 1, { expirationTtl: 60 })).toBe(1);
+    expect(await store.increment('rl:a', 1, { expirationTtl: 60 })).toBe(2);
+    expect(db.calls.filter((c) => c === 'increment')).toHaveLength(2);
+    expect(db.calls).not.toContain('select');
+    expect(await store.increment('rl:a', -5)).toBe(0);
+    db.rows.set('rl:a', { value: '9', expiresAt: 1 });
+    expect(await store.increment('rl:a', 1, { expirationTtl: 60 })).toBe(1);
   });
 
   it('forgets expired values, and the cron purges them', async () => {
@@ -108,6 +68,17 @@ describe('state store', () => {
     expect(db.calls).toEqual(['select']);
     expect(many.get('src_a').items).toEqual([{ id: 'usd', price: 1 }]);
     expect(many.get('src_b').items).toEqual([]);
+  });
+
+  it('reads the price book once for requests arriving together', async () => {
+    const db = fakeDb();
+    const env = { DB: db };
+    await setPriceBookCache(env, { items: { usd: { price: 1 } } });
+    resetPriceBookMemo();
+    db.calls.length = 0;
+    const books = await Promise.all([getPriceBookCache(env), getPriceBookCache(env), getPriceBookCache(env)]);
+    expect(books.every((b) => b.items.usd.price === 1)).toBe(true);
+    expect(db.calls).toEqual(['select']);
   });
 
   it('keeps the price book in memory for a few seconds; the cron reads it fresh', async () => {
@@ -157,6 +128,13 @@ describe.skipIf(!PG_URL)('state store on a real Postgres', () => {
     expect(await env.DB.prepare('SELECT COUNT(*) AS n FROM app_state').first('n')).toBe(2);
     await store.delete('source_items:a');
     expect(await store.get('source_items:a')).toBeNull();
+    // Counters: atomic, expired ones start over, never below zero
+    expect(await store.increment('rl:n', 1, { expirationTtl: 60 })).toBe(1);
+    expect(await Promise.all([1, 2, 3].map(() => store.increment('rl:n', 1, { expirationTtl: 60 })))).toHaveLength(3);
+    expect(await store.get('rl:n')).toBe('4');
+    expect(await store.increment('rl:n', -10)).toBe(0);
+    await store.put('rl:gone', '7', { expirationTtl: -1 });
+    expect(await store.increment('rl:gone', 1, { expirationTtl: 60 })).toBe(1);
     await close();
   });
 });

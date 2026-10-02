@@ -9,6 +9,8 @@
  * 5. Deduplication of network requests for sources sharing identical endpoints.
  */
 
+import { memoryStateDb } from '../helpers/memoryStateDb.js';
+import { resetPriceBookMemo } from '../../src/repositories/priceBookStore.repository.js';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { syncAllSources, setPriceHistoryWriter } from '../../src/services/market/sourceSync.service.js';
 import { runCronPolling } from '../../src/jobs/cronPolling.job.js';
@@ -79,13 +81,8 @@ describe('Unified Orchestration — sourceSync.service (Phase 4)', () => {
       },
     ];
 
-    mockEnv = {
-      REALRATE_KV: {
-        get: vi.fn(async () => null),
-        put: vi.fn(async () => {}),
-      },
-      DB: {},
-    };
+    resetPriceBookMemo();
+    mockEnv = { DB: memoryStateDb() };
 
     // Mock dbGetPriceSources to return our mock sources
     vi.spyOn(priceSourceRepo, 'dbGetPriceSources').mockResolvedValue(mockSources);
@@ -262,11 +259,10 @@ describe('Unified Orchestration — sourceSync.service (Phase 4)', () => {
     ]));
   });
 
-  it('writes the whole price book as one JSON under the KV key "prices"', async () => {
+  it('writes the whole price book as one JSON under the state key "prices"', async () => {
     await syncAllSources(mockEnv);
-    const call = mockEnv.REALRATE_KV.put.mock.calls.find(([key]) => key === 'prices');
-    expect(call).toBeTruthy();
-    const book = JSON.parse(call[1]);
+    const book = mockEnv.DB.json('prices');
+    expect(book).toBeTruthy();
     expect(book.items.bourse__foolad).toMatchObject({ price: 540, sourceId: 'src_def_bourse' });
     // A fund from two sources is one id: the first source's (the other's copy is prefixed)
     expect(book.items.bourse__ahrom).toMatchObject({ price: 7500, sourceId: 'src_def_charisma' });
@@ -275,24 +271,22 @@ describe('Unified Orchestration — sourceSync.service (Phase 4)', () => {
 
   it('writes nothing but the source lists and the book: no second copy of any price', async () => {
     await syncAllSources(mockEnv);
-    const keys = mockEnv.REALRATE_KV.put.mock.calls.map(([key]) => key);
-    expect(keys).toEqual(['prices']); // source lists go through saveSourceItems (mocked here)
-    const book = JSON.parse(mockEnv.REALRATE_KV.put.mock.calls[0][1]);
+    expect([...mockEnv.DB.rows.keys()]).toEqual(['prices']); // source lists go through saveSourceItems (mocked here)
+    expect(mockEnv.DB.calls.filter((c) => c === 'put')).toHaveLength(1);
+    const book = mockEnv.DB.json('prices');
     expect(book.items.usd).toMatchObject({ price: 95000, sourceId: 'src_def_usd' });
     expect(book.sources.src_def_usd).toMatchObject({ count: 1, fetchedAt: '2026-09-21T10:00:00Z' });
   });
 
   it('skips a source the book says synced within its interval, and still prices it from its stored items', async () => {
     const now = new Date().toISOString();
-    mockEnv.REALRATE_KV.get = vi.fn(async (key) => (key === 'prices'
-      ? { items: {}, sources: { src_def_usd: { syncedAt: now, fetchedAt: now, count: 1 } } }
-      : null));
+    mockEnv.DB = memoryStateDb({ prices: { items: {}, sources: { src_def_usd: { syncedAt: now, fetchedAt: now, count: 1 } } } });
     mockSources[0].items = [{ id: 'src_def_usd', price: 94000 }];
 
     const result = await syncAllSources(mockEnv);
     expect(fetchRawCallCounts.get('src_def_usd')).toBeUndefined();
     expect(result.dueCount).toBe(3);
-    const book = JSON.parse(mockEnv.REALRATE_KV.put.mock.calls.find(([key]) => key === 'prices')[1]);
+    const book = mockEnv.DB.json('prices');
     expect(book.items.usd.price).toBe(94000);
     expect(book.sources.src_def_usd.syncedAt).toBe(now);
   });
@@ -302,7 +296,7 @@ describe('Unified Orchestration — sourceSync.service (Phase 4)', () => {
     const result = await syncAllSources(mockEnv, { forceAll: true, sourceIds: ['src_def_usd'] });
     expect(result.dueCount).toBe(1);
     expect(fetchRawCallCounts.get('src_def_gold_18k')).toBeUndefined();
-    const book = JSON.parse(mockEnv.REALRATE_KV.put.mock.calls.find(([key]) => key === 'prices')[1]);
+    const book = mockEnv.DB.json('prices');
     expect(book.items.usd.price).toBe(95000);
     expect(book.items.gold_18k.price).toBe(4100000);
   });
@@ -316,7 +310,7 @@ describe('Unified Orchestration — sourceSync.service (Phase 4)', () => {
 
     const result = await syncAllSources(mockEnv, { forceAll: true });
     expect(result.failedCount).toBe(1);
-    const book = JSON.parse(mockEnv.REALRATE_KV.put.mock.calls.find(([key]) => key === 'prices')[1]);
+    const book = mockEnv.DB.json('prices');
     expect(book.items.gold_18k.price).toBe(4100000);
     expect(book.sources.src_def_gold_18k).toMatchObject({ error: 'Empty or failed raw fetch' });
   });
@@ -325,7 +319,7 @@ describe('Unified Orchestration — sourceSync.service (Phase 4)', () => {
     mockSources[0].items = [{ id: 'src_def_usd', price: 9500 }]; // the source now says 95,000: ×10
     await syncAllSources(mockEnv, { forceAll: true });
     expect(savedItemsRecord.get('src_def_usd')).toEqual([{ id: 'src_def_usd', price: 9500 }]);
-    const book = JSON.parse(mockEnv.REALRATE_KV.put.mock.calls.find(([key]) => key === 'prices')[1]);
+    const book = mockEnv.DB.json('prices');
     expect(book.items.usd.price).toBe(9500);
     expect(book.sources.src_def_usd.held.src_def_usd).toEqual({ value: 95000, ticks: 1 });
   });

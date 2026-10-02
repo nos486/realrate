@@ -1,9 +1,10 @@
 /**
- * sourceItems.test.js — What each source last gave: one KV key per source, written only when it
+ * sourceItems.test.js — What each source last gave: one state key per source, written only when it
  * changed, and read back as each source's `items`
  */
 
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
+import { memoryStateDb } from '../helpers/memoryStateDb.js';
 import {
   saveSourceItems,
   getSourceItems,
@@ -14,21 +15,12 @@ import {
 import { dbGetPriceSources, dbSavePriceSource, dbSetPrimaryPriceSource, PRICE_SOURCE_OVERRIDES_KEY } from '../../src/repositories/priceSource.repository.js';
 
 describe('source items storage', () => {
-  let store;
+  let db;
   let env;
 
   beforeEach(() => {
-    store = new Map();
-    env = {
-      REALRATE_KV: {
-        get: vi.fn(async (key, type) => {
-          const v = store.get(key) ?? null;
-          return v !== null && type === 'json' ? JSON.parse(v) : v;
-        }),
-        put: vi.fn(async (key, val) => { store.set(key, String(val)); }),
-        delete: vi.fn(async (key) => { store.delete(key); }),
-      },
-    };
+    db = memoryStateDb();
+    env = { DB: db };
   });
 
   it('round-trips a single price and a catalog under one key per source', async () => {
@@ -37,7 +29,7 @@ describe('source items storage', () => {
     expect(await saveSourceItems(env, 'src_def_usd', usd)).toBe(true);
     expect(await saveSourceItems(env, 'src_def_charisma', funds)).toBe(true);
 
-    expect([...store.keys()].sort()).toEqual([`${SOURCE_ITEMS_KEY_PREFIX}src_def_charisma`, `${SOURCE_ITEMS_KEY_PREFIX}src_def_usd`]);
+    expect([...db.rows.keys()].sort()).toEqual([`${SOURCE_ITEMS_KEY_PREFIX}src_def_charisma`, `${SOURCE_ITEMS_KEY_PREFIX}src_def_usd`]);
     expect(await getSourceItems(env, 'src_def_usd')).toEqual(usd);
     expect(await getSourceItems(env, 'charisma_funds')).toEqual(funds); // an old name of the source
   });
@@ -46,9 +38,9 @@ describe('source items storage', () => {
     const items = [{ id: 'src_def_usd', price: 95500 }];
     const previous = serializeSourceItems(items);
     expect(await saveSourceItems(env, 'src_def_usd', items, { previous })).toBe(false);
-    expect(env.REALRATE_KV.put).not.toHaveBeenCalled();
+    expect(db.calls).not.toContain('put');
     expect(await saveSourceItems(env, 'src_def_usd', [{ id: 'src_def_usd', price: 96000 }], { previous })).toBe(true);
-    expect(env.REALRATE_KV.put).toHaveBeenCalledTimes(1);
+    expect(db.calls.filter((c) => c === 'put')).toHaveLength(1);
   });
 
   it('reads nothing for a source that never synced, and the stored form for one that did', async () => {
@@ -78,7 +70,7 @@ describe('source items storage', () => {
     const off = await dbSavePriceSource(env, { id: 'src_def_usd', isActive: false, name: 'ignored', endpoint: 'x' });
     expect(off).toMatchObject({ id: 'src_def_usd', isActive: false });
     expect(off.name).not.toBe('ignored');
-    expect(JSON.parse(store.get(PRICE_SOURCE_OVERRIDES_KEY))).toEqual({ src_def_usd: { isActive: false } });
+    expect(db.json(PRICE_SOURCE_OVERRIDES_KEY)).toEqual({ src_def_usd: { isActive: false } });
     expect((await dbGetPriceSources(env, { book: null })).find((s) => s.id === 'src_def_usd').isActive).toBe(false);
 
     await dbSetPrimaryPriceSource(env, 'src_def_usd');

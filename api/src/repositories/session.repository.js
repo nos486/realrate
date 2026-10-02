@@ -1,15 +1,13 @@
 /**
- * session.repository.js — Sessions, in Postgres (KV only when there is no database: Workers KV's
- * daily write limit is far too small for a write on every sign-in)
+ * session.repository.js — Sessions, in Postgres (table `sessions`)
  */
 
 import { ensureSchema } from "./schema.repository.js";
-import { getSessionKV, setSessionKV, deleteSessionKV } from "./kvCache.repository.js";
 import { logger } from "../lib/logger.js";
 import { SESSION_TTL_SECONDS } from "../config/constants.js";
 
 /**
- * Save a session token to the database and KV
+ * Save a session token to the database
  * @param {object} env
  * @param {object} sessionData - { token, userId, email, name, picture, role, createdAt }
  * @param {number} [ttlSeconds=SESSION_TTL_SECONDS]
@@ -43,12 +41,10 @@ export async function dbSaveSession(env, sessionData, ttlSeconds = SESSION_TTL_S
       logger.error("[DB] dbSaveSession error:", { error: e.message });
     }
   }
-
-  if (!env?.DB) await setSessionKV(env, sessionData.token, { ...sessionData, kind }, ttlSeconds);
 }
 
 /**
- * Retrieve a valid (non-expired) session from the database or KV
+ * Retrieve a valid (non-expired) session from the database
  * @param {object} env
  * @param {string} token
  * @returns {Promise<object|null>}
@@ -72,13 +68,11 @@ export async function dbGetSession(env, token) {
     }
   }
 
-  if (env?.DB) return null;
-  const kv = await getSessionKV(env, token);
-  return kv ? { ...kv, kind: kv.kind || '' } : null;
+  return null;
 }
 
 /**
- * Delete a session from the database and KV on logout
+ * Delete a session from the database on logout
  * @param {object} env
  * @param {string} token
  */
@@ -93,8 +87,6 @@ export async function dbDeleteSession(env, token) {
       logger.error("[DB] dbDeleteSession error:", { error: e.message });
     }
   }
-
-  if (!env?.DB) await deleteSessionKV(env, token);
 }
 
 /**

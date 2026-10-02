@@ -1,7 +1,7 @@
 /**
  * chequeScan.service.js — Read an Iranian cheque from a photo with Gemini
  *
- * Privacy: the image and what is read from it are never stored (database, KV or logs); logs keep
+ * Privacy: the image and what is read from it are never stored (database or logs); logs keep
  * the model, duration, image size and outcome only.
  */
 

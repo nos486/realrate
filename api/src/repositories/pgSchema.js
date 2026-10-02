@@ -410,7 +410,7 @@ export const APP_TABLES = [
   },
   {
     // Small key/value state that changes often: the price book, price sources' items, counters
-    // (stateStore.repository.js) — kept out of Workers KV and its daily write limit
+    // (stateStore.repository.js)
     name: "app_state",
     columns: ["key", "value", "expires_at", "updated_at"],
     ddl: [

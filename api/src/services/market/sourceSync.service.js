@@ -19,7 +19,7 @@
 import { dbGetPriceSources } from "../../repositories/priceSource.repository.js";
 import { getAdapterForSource } from "./sources/index.js";
 import { saveSourceItems } from "../../repositories/sourceItems.repository.js";
-import { getPriceBookCache, setPriceBookCache } from "../../repositories/kvCache.repository.js";
+import { getPriceBookCache, setPriceBookCache } from "../../repositories/priceBookStore.repository.js";
 import { logger } from "../../lib/logger.js";
 import { buildPriceBook } from "../../domain/priceBook.js";
 import { guardSourceItems } from "../../domain/priceGuard.js";

@@ -1,12 +1,12 @@
 /**
  * priceAggregator.service.js — Reading the price book, and admin tools for price sources
  *
- * Every price is in the price book (KV "prices", domain/priceBook.js), written by the sync
+ * Every price is in the price book ("prices" in the state store, domain/priceBook.js), written by the sync
  * (sourceSync.service.js). Nothing here keeps another copy of a price.
  */
 
 import { dbGetPriceSources } from "../../repositories/priceSource.repository.js";
-import { getPriceBookCache, setPriceBookCache } from "../../repositories/kvCache.repository.js";
+import { getPriceBookCache, setPriceBookCache } from "../../repositories/priceBookStore.repository.js";
 import { buildPriceBook } from "../../domain/priceBook.js";
 import { legacyPricesOf } from "../../domain/priceBookViews.js";
 import { getAdapterForSource } from "./sources/index.js";
@@ -39,8 +39,8 @@ export async function refreshPriceBook(env) {
 }
 
 /**
- * The price book: every price in the standard shape (see domain/priceBook.js), from KV "prices".
- * Built from the sources' stored items when KV has none yet.
+ * The price book: every price in the standard shape (see domain/priceBook.js), from the state store ("prices").
+ * Built from the sources' stored items when none is stored yet.
  * @param {object} env
  * @returns {Promise<{ updatedAt: string, items: Record<string, object>, sources?: object }>}
  */

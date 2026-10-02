@@ -1,6 +1,6 @@
 /**
  * bourseSymbols.source.adapter.js — Adapter for Tehran Stock Exchange (TSETMC / BRS API)
- * Fetches, merges incrementally, and caches Iranian stock symbols and mutual funds in KV.
+ * Fetches, merges incrementally, and keeps Iranian stock symbols and mutual funds in the state store (Postgres).
  */
 
 import { getSourceItems } from "../../../repositories/sourceItems.repository.js";

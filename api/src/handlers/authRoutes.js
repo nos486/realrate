@@ -325,7 +325,7 @@ export async function handleGoogleCallback(request, env) {
       return Response.redirect(finishTarget({ auth_error: maintenance.message }), 302);
     }
 
-    // 1. Upsert user in the database (+ KV sync)
+    // 1. Upsert user in the database
     await dbUpsertUser(env, userData);
     if (userData.disabled) {
       return Response.redirect(finishTarget({ auth_error: ACCOUNT_DISABLED_MESSAGE }), 302);
@@ -435,7 +435,7 @@ export async function handleGoogleAuth(request, env) {
     const maintenance = await getMaintenance(env);
     if (maintenance.enabled && !isAdmin) return errorResponse(maintenance.message, 503, request);
 
-    // 1. Upsert user in the database (+ KV sync)
+    // 1. Upsert user in the database
     await dbUpsertUser(env, userData);
     if (userData.disabled) return errorResponse(ACCOUNT_DISABLED_MESSAGE, 403, request);
 
@@ -542,7 +542,7 @@ export async function handleGetMe(request, env) {
 
 /**
  * POST /api/auth/logout
- * Delete session from the database/KV and clear session cookie
+ * Delete session from the database and clear session cookie
  */
 export async function handleLogout(request, env) {
   let token = null;

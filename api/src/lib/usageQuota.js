@@ -2,9 +2,9 @@
  * usageQuota.js — Count and enforce the daily limits of config/usageLimits.js
  *
  * One counter per user, feature and day in the state store (Postgres, stateStore.repository.js):
- * `quota:<feature>:<userId>:<YYYY-MM-DD>`, kept two days. The day is Tehran's, so the count resets at local midnight. Counters are read then written:
- * two requests at the same moment may both pass the last free slot, which is acceptable for a
- * daily limit.
+ * `quota:<feature>:<userId>:<YYYY-MM-DD>`, kept two days. The day is Tehran's, so the count resets
+ * at local midnight. A use is one atomic increment (given back when it went over the limit), so
+ * two requests at the same moment cannot both take the last free slot.
  */
 
 import { AppError } from "./AppError.js";
@@ -49,35 +49,38 @@ export async function getQuota(env, user, key, { now = new Date() } = {}) {
  * @returns the quota after this use
  */
 export async function consumeQuota(env, user, key, { now = new Date() } = {}) {
-  const quota = await getQuota(env, user, key, { now });
-  if (quota.limit !== null && quota.used >= quota.limit) {
+  const limit = dailyLimitFor(user, key);
+  const refuse = () => {
     const { label, unit } = USAGE_LIMITS[key] || { label: key, unit: "بار" };
-    const message = quota.limit === 0
+    const message = limit === 0
       ? `«${label}» برای حساب شما فعال نیست.`
-      : `سقف روزانه «${label}» (${faNum(quota.limit)} ${unit}) تمام شده است. فردا دوباره امتحان کنید.`;
+      : `سقف روزانه «${label}» (${faNum(limit)} ${unit}) تمام شده است. فردا دوباره امتحان کنید.`;
     throw new AppError(message, 429, "QUOTA_EXCEEDED");
-  }
-  const used = quota.used + 1;
+  };
+  if (limit === 0) refuse();
   const store = getStateStore(env);
+  let used = 1;
   if (store) {
+    const name = counterKey(key, user, now);
     try {
-      await store.put(counterKey(key, user, now), String(used), { expirationTtl: COUNTER_TTL_SEC });
+      used = await store.increment(name, 1, { expirationTtl: COUNTER_TTL_SEC });
     } catch (err) {
       logger.warn("[Quota] write failed:", { error: err.message });
     }
+    if (limit !== null && used > limit) {
+      await store.increment(name, -1, { expirationTtl: COUNTER_TTL_SEC }).catch(() => {});
+      refuse();
+    }
   }
-  return { ...quota, used, remaining: quota.limit === null ? null : Math.max(0, quota.limit - used) };
+  return { key, limit, used, remaining: limit === null ? null : Math.max(0, limit - used) };
 }
 
 /** Give back one use (the costly work failed before it cost anything) */
 export async function refundQuota(env, user, key, { now = new Date() } = {}) {
   const store = getStateStore(env);
   if (!store) return;
-  const name = counterKey(key, user, now);
-  const used = await readCount(store, name);
-  if (used <= 0) return;
   try {
-    await store.put(name, String(used - 1), { expirationTtl: COUNTER_TTL_SEC });
+    await store.increment(counterKey(key, user, now), -1, { expirationTtl: COUNTER_TTL_SEC });
   } catch (err) {
     logger.warn("[Quota] refund failed:", { error: err.message });
   }

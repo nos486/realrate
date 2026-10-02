@@ -1,9 +1,8 @@
 /**
- * settings.repository.js — Postgres & KV System Settings Data Access Layer
+ * settings.repository.js — The site's global settings, in Postgres (table `settings`, one row)
  */
 
 import { ensureSchema } from "./schema.repository.js";
-import { getGlobalSettingsKV, setGlobalSettingsKV } from "./kvCache.repository.js";
 import { logger } from "../lib/logger.js";
 import { SETTINGS_MEMORY_CACHE_TTL_MS } from "../config/constants.js";
 
@@ -17,7 +16,7 @@ export const DEFAULT_SETTINGS = {
   maintenance_message: "",
 };
 
-/** Only the known settings, so keys retired from older KV copies never leak back out */
+/** Only the known settings, so retired columns never leak back out */
 function pickSettings(source) {
   const picked = {};
   for (const key of Object.keys(DEFAULT_SETTINGS)) {
@@ -30,7 +29,7 @@ let memorySettings = null;
 let memorySettingsTime = 0;
 
 /**
- * Read global settings from in-memory cache, the database, or KV (fallback)
+ * Read global settings from the in-memory cache or the database
  * @param {object} env
  * @param {boolean} [forceFresh=false]
  * @returns {Promise<object>} settings object
@@ -43,7 +42,7 @@ export async function getGlobalSettings(env, forceFresh = false) {
 
   let loaded = null;
 
-  // 1. Try the database
+  // The database
   if (env && env.DB) {
     await ensureSchema(env);
     try {
@@ -56,21 +55,13 @@ export async function getGlobalSettings(env, forceFresh = false) {
     }
   }
 
-  // 2. Try KV
-  if (!loaded) {
-    const kvSettings = await getGlobalSettingsKV(env);
-    if (kvSettings) {
-      loaded = pickSettings(kvSettings);
-    }
-  }
-
   memorySettings = loaded ? { ...DEFAULT_SETTINGS, ...loaded } : { ...DEFAULT_SETTINGS };
   memorySettingsTime = Date.now();
   return memorySettings;
 }
 
 /**
- * Save global settings to the database and KV
+ * Save global settings to the database
  * @param {object} env
  * @param {object} newSettings - validated settings object
  */
@@ -80,7 +71,6 @@ export async function saveGlobalSettings(env, newSettings) {
     ...pickSettings(newSettings),
   };
 
-  // 1. Save to the database
   if (env && env.DB) {
     await ensureSchema(env);
     try {
@@ -108,9 +98,6 @@ export async function saveGlobalSettings(env, newSettings) {
       logger.error("Error saving settings to the database:", { error: e.message });
     }
   }
-
-  // 2. KV only without a database (Postgres is the store)
-  if (!env?.DB) await setGlobalSettingsKV(env, mergedSettings);
 
   memorySettings = { ...mergedSettings };
   memorySettingsTime = Date.now();

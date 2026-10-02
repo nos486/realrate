@@ -3,6 +3,7 @@
  * what is sent to Gemini, the daily limit per user tier, and that nothing is stored
  */
 
+import { memoryStateDb } from '../helpers/memoryStateDb.js';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 vi.mock('../../src/lib/auth.js', () => ({
@@ -35,51 +36,33 @@ const geminiReply = (text = GEMINI_ANSWER) => new Response(
 
 describe('POST /api/cheques/scan route', () => {
   let env;
-  let kvStore;
+  let counters;
   let dbCalls;
   let fetchMock;
 
   beforeEach(() => {
     vi.clearAllMocks();
-    kvStore = new Map();
     dbCalls = [];
     fetchMock = vi.fn(async () => geminiReply());
     vi.stubGlobal('fetch', fetchMock);
 
-    env = {
-      ADMIN_EMAIL: 'admin@example.com',
-      GEMINI_API_KEY: 'gkey',
-      REALRATE_KV: {
-        get: vi.fn(async (key) => kvStore.get(key) || null),
-        put: vi.fn(async (key, val) => kvStore.set(key, val)),
-      },
-      // The quota counters live in app_state (stateStore.repository.js): kept in `kvStore` here;
-      // any other statement counts as a database write
-      DB: {
-        prepare: vi.fn((sql) => {
-          const statement = (params = []) => ({
-            first: vi.fn(async () => null),
-            all: vi.fn(async () => {
-              if (!/FROM app_state/.test(sql)) return { results: [] };
-              const keys = params.slice(0, -1);
-              return { results: keys.filter((k) => kvStore.has(k)).map((k) => ({ key: k, value: kvStore.get(k) })) };
-            }),
-            run: vi.fn(async () => {
-              if (/INSERT INTO app_state/.test(sql)) kvStore.set(params[0], params[1]);
-              return {};
-            }),
-          });
-          if (!/app_state|app_schema|^\s*(CREATE|ALTER)/.test(sql)) dbCalls.push('prepare');
-          const st = statement();
-          st.bind = vi.fn((...params) => statement(params));
-          return st;
-        }),
-        batch: vi.fn(async () => {
-          dbCalls.push('batch');
-          return [];
-        }),
-      },
+    // The quota counters live in app_state (stateStore.repository.js); any other statement
+    // counts as a database write
+    const db = memoryStateDb();
+    counters = {
+      get: (key) => db.value(key),
+      set: (key, value) => db.rows.set(key, { value, expiresAt: null }),
     };
+    const prepare = db.prepare.bind(db);
+    db.prepare = vi.fn((sql) => {
+      if (!/app_state|app_schema|^\s*(CREATE|ALTER)/.test(sql)) dbCalls.push('prepare');
+      return prepare(sql);
+    });
+    db.batch = vi.fn(async () => {
+      dbCalls.push('batch');
+      return [];
+    });
+    env = { ADMIN_EMAIL: 'admin@example.com', GEMINI_API_KEY: 'gkey', DB: db };
   });
 
   afterEach(() => vi.unstubAllGlobals());
@@ -94,7 +77,7 @@ describe('POST /api/cheques/scan route', () => {
     return new Request('https://api.realrate.ir/api/cheques/scan', { method: 'POST', body: formData });
   }
 
-  const usedToday = (user) => Number(kvStore.get(`quota:cheque_scan:${user.id}:${tehranDay()}`) || 0);
+  const usedToday = (user) => Number(counters.get(`quota:cheque_scan:${user.id}:${tehranDay()}`) || 0);
 
   it('conceals route with 404 when unauthenticated', async () => {
     getAuthenticatedUser.mockResolvedValue(null);
@@ -114,14 +97,14 @@ describe('POST /api/cheques/scan route', () => {
 
   it('refuses a regular user\'s 11th scan of the day with 429', async () => {
     getAuthenticatedUser.mockResolvedValue(USER);
-    kvStore.set(`quota:cheque_scan:${USER.id}:${tehranDay()}`, '10');
+    counters.set(`quota:cheque_scan:${USER.id}:${tehranDay()}`, '10');
     await expect(handleChequeScanRoute(createScanRequest(), env)).rejects.toMatchObject({ statusCode: 429, code: 'QUOTA_EXCEEDED' });
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
   it('never limits the admin', async () => {
     getAuthenticatedUser.mockResolvedValue(ADMIN);
-    kvStore.set(`quota:cheque_scan:${ADMIN.id}:${tehranDay()}`, '500');
+    counters.set(`quota:cheque_scan:${ADMIN.id}:${tehranDay()}`, '500');
     const res = await handleChequeScanRoute(createScanRequest(), env);
     const body = await res.json();
     expect(body.quota).toMatchObject({ limit: null, remaining: null, used: 501 });
@@ -215,7 +198,7 @@ describe('POST /api/cheques/scan route', () => {
 
   it('reports today\'s quota', async () => {
     getAuthenticatedUser.mockResolvedValue(USER);
-    kvStore.set(`quota:cheque_scan:${USER.id}:${tehranDay()}`, '3');
+    counters.set(`quota:cheque_scan:${USER.id}:${tehranDay()}`, '3');
     const res = await handleChequeScanQuotaRoute(new Request('https://api.realrate.ir/api/cheques/scan/quota'), env);
     expect((await res.json()).quota).toEqual({ key: 'cheque_scan', limit: 10, used: 3, remaining: 7 });
   });

@@ -8,6 +8,7 @@ vi.mock('../../src/repositories/index.js', () => ({
   dbUpdatePortfolio: vi.fn(),
 }));
 
+import { memoryStateDb } from '../helpers/memoryStateDb.js';
 import {
   dbGetPortfolioByShareSlug,
   dbGetPortfolioHoldings,
@@ -26,16 +27,6 @@ import { buildFrontendRedirect } from '../../src/handlers/authRoutes.js';
 import { handleGetSharedPortfolio } from '../../src/handlers/portfolioRoutes.js';
 import { dbAddPortfolioHolding } from '../../src/repositories/holdings.repository.js';
 import worker from '../../src/index.js';
-
-function createMemoryKv() {
-  const store = new Map();
-  return {
-    store,
-    get: vi.fn(async (k) => (store.has(k) ? store.get(k) : null)),
-    put: vi.fn(async (k, v) => { store.set(k, v); }),
-    delete: vi.fn(async (k) => { store.delete(k); }),
-  };
-}
 
 describe('isTrustedOrigin', () => {
   it('accepts our own domains and their subdomains over https', () => {
@@ -145,7 +136,7 @@ describe('handleGetSharedPortfolio password protection', () => {
 
   beforeEach(async () => {
     vi.clearAllMocks();
-    env = { REALRATE_KV: createMemoryKv() };
+    env = { DB: memoryStateDb() };
     dbGetPortfolioByShareSlug.mockResolvedValue({
       id: 'p1',
       userId: 'u1',

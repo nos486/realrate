@@ -1,3 +1,4 @@
+import { stateDbFrom } from '../helpers/memoryStateDb.js';
 import { describe, it, expect, vi } from 'vitest';
 import {
   getAllCatalogSources,
@@ -78,8 +79,7 @@ describe('Unified Catalog Feeds Service Tests', () => {
 
   it('fetches and partitions catalog items into bourse and funds', async () => {
     const mockEnv = {
-      REALRATE_KV: {
-        get: vi.fn(async (key) => {
+      DB: stateDbFrom(async (key) => {
           if (key === CHARISMA_FUNDS_KV_KEY) {
             return JSON.stringify([
               { symbol: 'اهرم', name: 'صندوق اهرمی کاریزما', priceToman: 7523, isFund: true },
@@ -104,8 +104,6 @@ describe('Unified Catalog Feeds Service Tests', () => {
           }
           return null;
         }),
-        put: vi.fn(async () => {}),
-      },
     };
 
     const res = await getAllCatalogItems(mockEnv);
@@ -127,8 +125,7 @@ describe('Unified Catalog Feeds Service Tests', () => {
 
   it('searches and ranks items with Persian normalization', async () => {
     const mockEnv = {
-      REALRATE_KV: {
-        get: vi.fn(async (key) => {
+      DB: stateDbFrom(async (key) => {
           if (key === CHARISMA_FUNDS_KV_KEY) {
             return JSON.stringify([
               { symbol: 'اهرم', name: 'صندوق اهرمی کاریزما', priceToman: 7523, isFund: true },
@@ -151,8 +148,6 @@ describe('Unified Catalog Feeds Service Tests', () => {
           }
           return null;
         }),
-        put: vi.fn(async () => {}),
-      },
     };
 
     const searchResults = await searchCatalogItems(mockEnv, { q: 'اهرم', limit: 5 });
@@ -162,8 +157,7 @@ describe('Unified Catalog Feeds Service Tests', () => {
 
   it('looks up exact item detail by symbol', async () => {
     const mockEnv = {
-      REALRATE_KV: {
-        get: vi.fn(async (key) => {
+      DB: stateDbFrom(async (key) => {
           if (key === CHARISMA_FUNDS_KV_KEY) {
             return JSON.stringify([
               { symbol: 'نقران', name: 'صندوق نقره کاریزما', priceToman: 1223, isFund: true },
@@ -171,7 +165,6 @@ describe('Unified Catalog Feeds Service Tests', () => {
           }
           return null;
         }),
-      },
     };
 
     const detail = await getCatalogItemDetail(mockEnv, 'نقران', 'src_def_charisma');

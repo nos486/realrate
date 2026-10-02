@@ -10,6 +10,8 @@
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { syncAllSources } from '../../src/services/market/sourceSync.service.js';
+import { resetPriceBookMemo } from '../../src/repositories/priceBookStore.repository.js';
+import { memoryStateDb } from '../helpers/memoryStateDb.js';
 import { handleGetPriceBook, handleGetPrices } from '../../src/handlers/apiRoutes.js';
 import { handleGetUnifiedMarketItems } from '../../src/handlers/unifiedItemsRoute.js';
 import { resolveHoldingUnitRealPrice } from '../../src/domain/formulas.js';
@@ -18,18 +20,6 @@ import { calculateMarketData } from '../../../web/src/utils/calculator.js';
 import { buildAssetIndex, resolveHomeAsset } from '../../../web/src/features/home/homeAssets.js';
 
 /** A Worker KV namespace in memory */
-function memoryKv() {
-  const store = new Map();
-  return {
-    store,
-    get: vi.fn(async (key, type) => {
-      const v = store.has(key) ? store.get(key) : null;
-      return v !== null && type === 'json' ? JSON.parse(v) : v;
-    }),
-    put: vi.fn(async (key, value) => { store.set(key, String(value)); }),
-    delete: vi.fn(async (key) => { store.delete(key); }),
-  };
-}
 
 const telegramPage = (text) => `<div class="tgme_widget_message_wrap"><div class="tgme_widget_message js-widget_message">
   <div class="tgme_widget_message_text js-message_text" dir="auto">${text}</div>
@@ -55,7 +45,8 @@ describe('a price from its source to every screen', () => {
   let env;
 
   beforeEach(() => {
-    env = { REALRATE_KV: memoryKv() };
+    resetPriceBookMemo();
+    env = { DB: memoryStateDb() };
     responses = {
       tahran_sabza: telegramPage('دلار تهران<br/>234,000 فروش'),
       'gold-api.com/price/XAU': { price: 3700 },
@@ -73,7 +64,7 @@ describe('a price from its source to every screen', () => {
     expect(tick.syncedCount).toBeGreaterThanOrEqual(5);
 
     // Only the book and one list per source are stored
-    const keys = [...env.REALRATE_KV.store.keys()];
+    const keys = [...env.DB.rows.keys()];
     expect(keys.filter((k) => !k.startsWith('source_items:'))).toEqual(['prices']);
 
     const book = await json(await handleGetPriceBook(env, new Request('https://x/api/prices/book')));
@@ -111,7 +102,7 @@ describe('a price from its source to every screen', () => {
 
     const tick = await syncAllSources(env, { forceAll: true });
     expect(tick.failedCount).toBeGreaterThanOrEqual(1);
-    const book = JSON.parse(env.REALRATE_KV.store.get('prices'));
+    const book = env.DB.json('prices');
     expect(book.items.usd.price).toBe(234000);
     expect(book.items.try.price).toBe(Math.round(234000 / 41));
     expect(book.sources.src_def_usd.error).toBeTruthy();
@@ -121,7 +112,7 @@ describe('a price from its source to every screen', () => {
     await syncAllSources(env, { forceAll: true });
     responses.tahran_sabza = telegramPage('دلار تهران<br/>1,999,000 فروش');
     await syncAllSources(env, { forceAll: true });
-    const book = JSON.parse(env.REALRATE_KV.store.get('prices'));
+    const book = env.DB.json('prices');
     expect(book.items.usd.price).toBe(234000);
     expect(book.sources.src_def_usd.held).toBeTruthy();
   });

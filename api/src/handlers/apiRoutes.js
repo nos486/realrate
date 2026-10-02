@@ -1,5 +1,5 @@
 /**
- * apiRoutes.js — Public price routes. Every price comes from the price book (KV "prices").
+ * apiRoutes.js — Public price routes. Every price comes from the price book ("prices" in Postgres).
  */
 
 import { getPriceBook } from "../services/market/priceAggregator.service.js";
@@ -72,7 +72,7 @@ export async function handleGetPriceBook(env, request = null) {
 
 // Every open tab polls the book, which only changes when the cron syncs (once a minute): an
 // isolate reuses its serialized answer for a few seconds instead of reading and re-encoding the
-// whole book from KV on every request
+// whole book from the database on every request
 const PRICE_BOOK_MEMORY_TTL_MS = 10_000;
 let priceBookMemo = null;
 
