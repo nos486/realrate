@@ -4,7 +4,7 @@ Persian: [../SETUP.md](../SETUP.md)
 
 ## Requirements
 - Node.js 22 (the CI's version), npm 9 or later
-- A Cloudflare account (Workers, KV, Hyperdrive, Pages) and a Postgres database
+- A Cloudflare account (Workers, Hyperdrive, Pages) and a Postgres database
 
 ## Running locally
 
@@ -25,25 +25,9 @@ npm test           # Vitest (API and web units) and the SEO page tests
 
 Running locally needs a Postgres (see Postgres below).
 
-## Cloudflare KV
-
-Optional for a new install: with the database bound, everything that changes (prices, source lists, counters) is kept in Postgres (`app_state`). The binding is only read to copy older data over once, and used when there is no database.
-
-```bash
-npx wrangler kv:namespace create REALRATE_KV
-```
-
-Put the id in `api/wrangler.toml`:
-
-```toml
-[[kv_namespaces]]
-binding = "REALRATE_KV"
-id = "YOUR_KV_ID"
-```
-
 ## Postgres (Hyperdrive)
 
-The app's data and the price history live in Postgres, and the Worker reaches it through Cloudflare Hyperdrive (binding `HYPERDRIVE` in `api/wrangler.toml`).
+The app's data and the price history live in Postgres, and the Worker reaches it through Cloudflare Hyperdrive (binding `HYPERDRIVE` in `api/wrangler.toml`). Everything is in Postgres — Workers KV is not used: prices, source lists and counters in `app_state`, sessions in `sessions`, the site settings in `settings`.
 
 Hyperdrive's query cache must be off, or a read right after a save may return old data:
 

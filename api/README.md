@@ -7,7 +7,7 @@ English: [docs/en/PROJECT_STRUCTURE.md](../docs/en/PROJECT_STRUCTURE.md) · [doc
 | :--- | :--- | :--- |
 | اجرا | Cloudflare Workers | REST API (`/api/...` و `/api/v1/...`) و جاب کرون |
 | پایگاه‌داده | PostgreSQL از طریق Cloudflare Hyperdrive (`HYPERDRIVE`) | کاربران، نشست‌ها، گاوصندوق و رکوردهای رمزشده، تاریخچه‌ی قیمت |
-| کش | Cloudflare KV (`REALRATE_KV`) | دفتر قیمت (`prices`)، خروجی هر سورس (`source_items:*`)، تنظیمات، سهمیه‌ها |
+| وضعیت | Postgres (`app_state`) | دفتر قیمت (`prices`)، خروجی هر سورس (`source_items:*`)، شمارنده‌ها و سهمیه‌ها — Workers KV استفاده نمی‌شود |
 | زمان‌بندی | Cron Triggers | همگام‌سازی قیمت‌ها هر دقیقه (`jobs/cronPolling.job.js`) |
 | هوش مصنوعی | Gemini (`GEMINI_API_KEY`) | اسکن چک |
 | ایمیل | Resend (`RESEND_API_KEY`) | تأیید ایمیل و بازیابی رمز |
@@ -24,7 +24,7 @@ src/
 │                    #   هزینه و حساب، پیامک بانک (bankSms، bankSmsTemplates)، clientInfo، چیدمان‌ها
 ├── handlers/        # کنترلرهای HTTP هر بخش (auth، portfolio، transaction، loan، income، cheque،
 │                    #   chequeScan، bank، vault، homeLayout، demo، admin، adminUser، market)
-├── repositories/    # دسترسی به Postgres/KV؛ جدول‌ها در pgSchema.js و خودکار ساخته می‌شوند
+├── repositories/    # دسترسی به Postgres؛ جدول‌ها در pgSchema.js و خودکار ساخته می‌شوند
 ├── services/        # market/ (ادپتورهای سورس، sourceSync.service.js) و ai/ (Gemini)
 ├── jobs/            # جاب کرون
 ├── lib/             # auth، appAuth (ورود اپ)، encryptionGate، demoGate، maintenance، features، usageQuota،
@@ -34,7 +34,7 @@ src/
 
 ## اصول
 
-- **قیمت‌ها**: هر سورس (کد-محور در `config/sources.config.js`) با یک ادپتور `ISourceAdapter` خوانده می‌شود؛ `sourceSync.service.js` در هر تیک سورس‌های سررسیده را می‌گیرد، قیمت‌های نامعقول را نگه می‌دارد (`priceGuard`) و **دفتر قیمت** یکپارچه (`domain/priceBook.js`) را در KV `prices` می‌نویسد. همه‌ی مسیرها و صفحه‌ها فقط از همین دفتر می‌خوانند.
+- **قیمت‌ها**: هر سورس (کد-محور در `config/sources.config.js`) با یک ادپتور `ISourceAdapter` خوانده می‌شود؛ `sourceSync.service.js` در هر تیک سورس‌های سررسیده را می‌گیرد، قیمت‌های نامعقول را نگه می‌دارد (`priceGuard`) و **دفتر قیمت** یکپارچه (`domain/priceBook.js`) را در Postgres (`app_state`، کلید `prices`) می‌نویسد. همه‌ی مسیرها و صفحه‌ها فقط از همین دفتر می‌خوانند.
 - **داده‌ی مالی فقط رمزشده**: `lib/encryptionGate.js` هیچ ذخیره‌ی بدون رمزی را نمی‌پذیرد؛ رکوردها در `vault_records` با فقط تاریخ و والد بدون رمز ([E2EE_VAULT.md](../docs/E2EE_VAULT.md)).
 - **همگام‌سازی افزایشی** برای نسخه‌ی آفلاین اپ: `GET /api/vault/sync` با سنگ‌قبر حذف‌ها.
 - **ویژگی‌ها** با `requireFeature` و **سهمیه‌ها** با `consumeQuota`.

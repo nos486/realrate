@@ -34,7 +34,7 @@ Errors share one shape: `{ success: false, message, error: { code, message } }` 
 | `GET` | `/api/sparklines?keys=usd,gold_18k&range=1d` | Trend series from the Postgres price history, per asset id (`range`: `1d` per minute — the default, `7d`, `30d`, `1y`) |
 | `GET` | `/api/v1/bourse/symbols` | Search and list Tehran Stock Exchange symbols (`?q=...&limit=...`) |
 | `POST` | `/api/v1/bourse/sync` | Force synchronize bourse symbols cache |
-| `GET` | `/api/app/latest` | The Android app's latest release, for its update check: `{ release: { version, tag, url, size, notes, publishedAt } \| null }`. Read from GitHub releases (the API, else the `releases/latest` redirect; optional `GITHUB_TOKEN`), kept 10 minutes in KV, the last known one served when GitHub fails. Answered during maintenance too. |
+| `GET` | `/api/app/latest` | The Android app's latest release, for its update check: `{ release: { version, tag, url, size, notes, publishedAt } \| null }`. Read from GitHub releases (the API, else the `releases/latest` redirect; optional `GITHUB_TOKEN`), kept 10 minutes in Postgres (`app_state`), the last known one served when GitHub fails. Answered during maintenance too. |
 | `GET` / `POST` | `/api/v1/portfolio/shared` | Retrieve a publicly shared portfolio (`?slug=...`; a share password is accepted only in a `POST` body `{ slug, password }`) |
 
 #### Unified Market Items Schema (`/api/v1/market/items`)
@@ -202,7 +202,7 @@ Stateless image analysis with Gemini (`api/src/config/ai.config.js`, key in the 
 - **Not configured**: without `GEMINI_API_KEY` the scan answers `503 SCAN_NOT_CONFIGURED` (the admin is told the secret's name).
 - **Admin debug** (`cheque_scan_debug` feature, beta): the response adds `raw` (the model's answer), and a `502` names Gemini's error.
 - **Encryption Gate Exemption**: This endpoint is explicitly exempted from the mandatory E2EE ciphertext gate because it does not store any financial data.
-- **Privacy & Zero Storage Guarantee**: The image, model prompts, and structured output are **never** persisted to Postgres, KV, disk, or logs.
+- **Privacy & Zero Storage Guarantee**: The image, model prompts, and structured output are **never** persisted to Postgres, disk, or logs.
 
 | Method | Endpoint | Description |
 | :--- | :--- | :--- |

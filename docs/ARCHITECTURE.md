@@ -9,7 +9,7 @@ RealRate is a market analysis and personal finance platform for Iran: it calcula
 ## High-Level Architecture Overview
 
 The system is built as an ultra-fast, serverless monorepo consisting of:
-- **Backend (`api/`)**: Built as an Edge-native Cloudflare Worker with zero framework overhead, Postgres through Cloudflare Hyperdrive (the app's data, the price history, and the small changing state — the price book, per-source lists, counters — in `app_state`). Workers KV is no longer written in production: its free tier allows 1,000 writes a day and the price cron alone needed more (see `stateStore.repository.js`).
+- **Backend (`api/`)**: Built as an Edge-native Cloudflare Worker with zero framework overhead, Postgres through Cloudflare Hyperdrive (the app's data, the price history, and the small changing state — the price book, per-source lists, counters — in `app_state`). Workers KV is not used at all: Postgres is the only store.
 - **Frontend (`web/`)**: A modern React SPA built with Vite, utilizing a modular **feature-based architecture**, custom hooks, vanilla CSS design tokens, and Web Crypto API for client-side Zero-Knowledge End-to-End Encryption (E2EE).
 - **Android app (`web/android`)**: The same SPA packaged with Capacitor 8, plus native plugins (bank SMS, fingerprint) and an encrypted offline copy of the user's records.
 - **Display Engine Bridge (`displayEngine.js`)**: Symlinked between `api/src/domain/displayEngine.js` and `web/src/config/displayEngine.js`, guaranteeing 100% identical formatting, naming, unit resolution, and category metadata across both tiers.
@@ -29,7 +29,7 @@ graph TD
         SyncService[Unified Source Sync Service sourceSync.service.js]
         Adapters[Unified Price Adapters Layer ISourceAdapter.js]
         SourceRepo[Single-Write Repository sourceItems.repository.js]
-        KVStorage[Postgres app_state source_items:*]
+        StateStorage[Postgres app_state source_items:*]
         PgStorage[Postgres via Hyperdrive]
         DisplayEng[Central Display Engine displayEngine.js]
         WorkerApp[Edge Router & Unified API Handlers]
@@ -52,8 +52,8 @@ graph TD
     CFunds --> Adapters
     EFunds --> Adapters
     Adapters --> SourceRepo
-    SourceRepo --> KVStorage
-    KVStorage --> WorkerApp
+    SourceRepo --> StateStorage
+    StateStorage --> WorkerApp
     PgStorage --> WorkerApp
     DisplayEng --> WorkerApp
     WorkerApp --> MarketFeat
@@ -75,13 +75,13 @@ The backend follows Clean Architecture principles divided into decoupled layers:
 ### A. Infrastructure Layer
 - **Error Handling (`api/src/lib/AppError.js`, `api/src/middlewares/errorHandler.js`)**: One `AppError` class with an HTTP status and a machine-readable code (`AppError.badRequest`, `.forbidden`, `.notFound`, …); `withErrorHandler` turns any thrown error into the uniform JSON response `{ success: false, message, error: { code, message } }`.
 - **Structured Logger (`api/src/lib/logger.js`)**: Single-line JSON logs by level, with passwords, tokens and E2EE keys redacted recursively.
-- **Environment (`api/src/config/env.js`)**: Validates the Worker's bindings and variables (`HYPERDRIVE`, `REALRATE_KV`, secrets, Google OAuth) and logs what is missing.
+- **Environment (`api/src/config/env.js`)**: Validates the Worker's bindings and variables (`HYPERDRIVE`, secrets, Google OAuth) and logs what is missing.
 - **Request gates (`api/src/index.js`)**, in order: CORS preflight → CSRF origin check for writes → sign-in routes → maintenance mode (`lib/maintenance.js`) → demo gate (`lib/demoGate.js`) → mandatory encryption (`lib/encryptionGate.js`) → the route. Feature-gated routes also call `requireFeature` (`lib/features.js`), and costly ones `consumeQuota` (`lib/usageQuota.js`).
 
 ### B. Repository Layer (`api/src/repositories/`)
-Decouples database and KV storage queries from business logic. Direct SQL and KV queries are strictly encapsulated in repositories:
+Decouples database queries from business logic. Direct SQL is strictly encapsulated in repositories (Postgres is the only store; Workers KV is not used):
 - **Database (`lib/database.js`, `lib/pgDatabase.js`, `repositories/pgSchema.js`):** Postgres through Hyperdrive (binding `HYPERDRIVE`, query caching off). The repositories talk to `env.DB` through one small interface (`prepare().bind().first()/all()/run()`, `batch()` as one transaction); each request (and each scheduled run) gets one, on one Hyperdrive connection closed once the request and its background work are done. `pgDatabase.js` turns the repositories' SQL into Postgres's: `?`/`?N` → `$N`, camelCase aliases quoted, `LIKE` → `ILIKE`; BIGINT and NUMERIC come back as numbers. `pgSchema.js` holds the tables, created on first use (`schema.repository.js` `ensureSchema`); `npm run db:schema` prints them as SQL.
-- `stateStore.repository.js`: **The small changing state, in Postgres `app_state`** with KV's shape (get / put with expirationTtl / delete / getMany): the price book, source lists, source overrides, the app's latest release, rate-limit and quota counters. A key never written there is copied once from KV (price book, source lists, overrides), so the switch lost nothing; without a database (tests) it falls back to KV. The price book is kept in each isolate's memory for 5 seconds for requests (the cron reads it fresh). Expired counters are purged by the hourly cron.
+- `stateStore.repository.js`: **The small changing state, in Postgres `app_state`** (get / put with expirationTtl / delete / getMany, and an atomic `increment` for counters): the price book, source lists, source overrides, the app's latest release, rate-limit and quota counters. Without a database there is no store (`null`). Expired rows are ignored and purged hourly. `priceBookStore.repository.js` keeps the price book in memory for a few seconds and lets concurrent reads share one query.
 - `sourceItems.repository.js`: **What each source last gave, one state-store key per source** (`source_items:{sourceId}`): the adapter's cleaned `items`, written by the sync only when they changed. It is the only stored copy of a source's output — no backups, no D1 mirror, no per-source price key. Adapters never write: `parse()` only returns items.
 - `sourceSync.service.js`: **The one price pipeline.** Each tick reads the price book (which holds each source's sync state in `sources`), fetches the due sources (one request per endpoint), stores the lists that changed, builds the book from every active source (synced or not) and writes it to `prices` in the state store — one write — then records the tick's prices in the history. Syncing one source (admin, catalog routes) goes through the same function with `sourceIds`, and still rebuilds the whole book.
 - `domain/priceBook.js`: **The price standard.** Every source, automatic or manual, becomes the same item — `{ id, price, name, category, unit, sourceId, updatedAt, params }` — with `price` always in tomans and `id` unique and lower-case. A source declares what it quotes in (`quote`: `toman` by default, `rial`, `usd`, `usd_cross`); dollar quotes are converted once with the book's own USD price (so e.g. the lira is `usdCross × usd`), and gold, coin and silver intrinsic values are computed from the ounce (as items where no source prices them, and as `params.intrinsic`/`bubblePct` where one does). Ids: a single-price source gives its `priceType`, a multi-output feed its item code, a catalog `${sourceId}__${symbol}`; when two sources give the same id, the primary keeps it and the others become `${sourceId}__${id}`. These ids are used everywhere: stored user data, the home page, charts and the history. After every sync the whole book is written as one JSON under the state-store key `prices` (`GET /api/prices/book`), with each source's sync state (`sources: { [sourceId]: { syncedAt, fetchedAt, count, error } }`, not sent to clients). Items the admin hides from the home page carry `params.hideOnHome`.

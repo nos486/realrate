@@ -66,7 +66,7 @@ npm test
 
 مرج در `main` همه‌چیز را خودکار منتشر می‌کند: فرانت‌اند روی Cloudflare Pages، بک‌اند با Cloudflare Workers Builds، و APK امضاشده‌ی اندروید در [Releases](https://github.com/nos486/realrate/releases) (GitHub Actions).
 انتشار دستی بک‌اند در صورت نیاز: `npm run api:deploy`.
-راهنمای کامل (Postgres، KV، ورود با گوگل، ایمیل، Pages، Workers، کلید امضای اندروید): [docs/SETUP.md](docs/SETUP.md)
+راهنمای کامل (Postgres، ورود با گوگل، ایمیل، Pages، Workers، کلید امضای اندروید): [docs/SETUP.md](docs/SETUP.md)
 
 ## مستندات
 

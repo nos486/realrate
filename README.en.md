@@ -70,7 +70,7 @@ Running locally needs a Postgres database: [docs/en/SETUP.md](docs/en/SETUP.md).
 A merge into `main` deploys everything: the frontend to Cloudflare Pages, the backend with Cloudflare Workers Builds, and a
 signed Android APK to [Releases](https://github.com/nos486/realrate/releases) (GitHub Actions).
 Manual backend deploy when needed: `npm run api:deploy`.
-Full guide (Postgres, KV, Google sign-in, email, Pages, Workers, the Android signing key): [docs/en/SETUP.md](docs/en/SETUP.md)
+Full guide (Postgres, Google sign-in, email, Pages, Workers, the Android signing key): [docs/en/SETUP.md](docs/en/SETUP.md)
 
 ## Documentation
 

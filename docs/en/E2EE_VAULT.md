@@ -141,5 +141,5 @@ Details in [API.md](../API.md#end-to-end-encryption-vault-protected).
 
 - **One-time, unencrypted processing**: cheque scanning sends the cheque image once, unencrypted (`multipart/form-data`), to `POST /api/cheques/scan`, and the server sends it to Gemini (Google) to read. The user is told this before scanning.
 - **Explicit exemption in the encryption gate (`encryptionGate.js`)**: the endpoint only processes and is stateless — it **stores nothing on the server or in the database** — so it is explicitly exempted from the ciphertext requirement (`path === '/api/cheques/scan'`).
-- **No image or text storage**: the uploaded image and the model's output are never stored in any database, cloud storage, KV or log.
+- **No image or text storage**: the uploaded image and the model's output are never stored in any database, cloud storage or log.
 - **The saved cheque stays confidential**: the extracted values only prefill the cheque form in the browser. The user reviews and edits them and chooses the cheque type. On save, the cheque is end-to-end encrypted (AES-GCM-256) with the vault key like any other and its ciphertext goes to `vault_records`. The server has no access to the final cheque data.

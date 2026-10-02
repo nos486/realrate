@@ -12,7 +12,7 @@ realrate/
 ├── CHANGELOG.md                  # Release notes for GitHub Releases
 ├── .github/workflows/android.yml # Build and publish signed release APK (main → Releases)
 │
-├── api/                          # Backend: Cloudflare Worker (Postgres via Hyperdrive + KV)
+├── api/                          # Backend: Cloudflare Worker (Postgres via Hyperdrive)
 │   ├── wrangler.toml             # Bindings, variables and Cron
 │   ├── tests/
 │   │   ├── helpers/              # Test tools (in-memory database, …)
@@ -24,7 +24,7 @@ realrate/
 │       │                         #   loans, cheques, expenses, accounts, bank SMS, loan funding, client info, …
 │       ├── handlers/             # HTTP controllers (market, auth, portfolio, transaction, loan, income,
 │       │                         #   cheque, cheque scan, bank, vault, demo, admin)
-│       ├── repositories/         # Postgres/KV access (repository pattern); tables in pgSchema.js
+│       ├── repositories/         # Postgres access (repository pattern); tables in pgSchema.js
 │       ├── services/             # market/ (source adapters and the price sync), ai/ (Gemini)
 │       ├── jobs/                 # Cron job (price sync)
 │       ├── lib/                  # Auth, encryption/demo/maintenance gates, email, CORS, logging, Postgres

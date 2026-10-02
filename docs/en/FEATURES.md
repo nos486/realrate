@@ -95,7 +95,7 @@ Every feature in detail. For a summary see the [README](../../README.en.md). Per
 ## 11. Price sources (code-first)
 - Every adapter returns the same shape: `{ items: [{ id, name, price }], datetime }`.
 - A display engine shared by server and client (`displayEngine.js`) for names, units, categories and icons.
-- Each source's items are stored under one KV key, with one price book, and one polling tick without duplicate requests.
+- Each source's items are stored under one key (Postgres `app_state`), with one price book, and one polling tick without duplicate requests.
 - In the admin panel: "live test", turning a source on or off, and choosing the primary source (no manual editing).
 
 ## 12. Security, PWA and the admin panel
@@ -140,7 +140,7 @@ Every feature in detail. For a summary see the [README](../../README.en.md). Per
   - **Amounts and validation**: amounts printed in rials are converted to tomans. The 16-digit Sayad id, the Shamsi due date and the match between the numeric and the written amount are checked, and the bank is matched to the app's bank list.
   - **Accuracy tools (admin only)**: every field's confidence and mismatch warnings are shown to everyone; the per-field accuracy check (tick/cross), the response time and the model's raw output are for the admin only (the `cheque_scan_debug` beta feature).
   - **Safe prefill**: "fill the cheque form" puts the values into the cheque form and marks low-confidence fields with a yellow border. The cheque's type (received or issued) is always chosen by the user, and the final cheque is saved end-to-end encrypted as usual.
-  - **Privacy**: the image, the extracted values and the model's output are **never** stored in the database, KV, disk or logs; the log records only the image size, the duration and success.
+  - **Privacy**: the image, the extracted values and the model's output are **never** stored in the database, disk or logs; the log records only the image size, the duration and success.
 
 ## 15. Expenses
 - **Two views on one page**: "everyday" (`/expenses`) and "projects" (`/expenses/projects` and `/expenses/:id`).

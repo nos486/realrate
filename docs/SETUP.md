@@ -2,7 +2,7 @@
 
 ## پیش‌نیازها
 - Node.js نسخه ۲۲ (همان نسخه‌ی CI)، npm نسخه ۹ یا بالاتر
-- حساب Cloudflare (Workers، KV، Hyperdrive، Pages) و یک پایگاه‌داده Postgres
+- حساب Cloudflare (Workers، Hyperdrive، Pages) و یک پایگاه‌داده Postgres
 
 ## اجرای محلی
 
@@ -23,25 +23,9 @@ npm test           # آزمون‌های Vitest
 
 برای اجرای محلی یک Postgres لازم است (بخش Postgres را ببینید).
 
-## Cloudflare KV
-
-برای نصب تازه اختیاری است: با وصل بودن پایگاه‌داده، هرچه دائم تغییر می‌کند (قیمت‌ها، لیست سورس‌ها، شمارنده‌ها) در Postgres (`app_state`) نگه داشته می‌شود. KV فقط برای انتقال یک‌باره‌ی داده‌های قبلی خوانده می‌شود و وقتی پایگاه‌داده نیست به کار می‌رود.
-
-```bash
-npx wrangler kv:namespace create REALRATE_KV
-```
-
-شناسه را در `api/wrangler.toml` قرار دهید:
-
-```toml
-[[kv_namespaces]]
-binding = "REALRATE_KV"
-id = "YOUR_KV_ID"
-```
-
 ## Postgres (Hyperdrive)
 
-داده‌های برنامه و تاریخچه قیمت‌ها در Postgres است و Worker از طریق Cloudflare Hyperdrive به آن وصل می‌شود (binding: `HYPERDRIVE` در `api/wrangler.toml`). جدول‌ها خودکار ساخته می‌شوند.
+داده‌های برنامه و تاریخچه قیمت‌ها در Postgres است و Worker از طریق Cloudflare Hyperdrive به آن وصل می‌شود (binding: `HYPERDRIVE` در `api/wrangler.toml`). جدول‌ها خودکار ساخته می‌شوند. همه‌چیز در Postgres است — Workers KV استفاده نمی‌شود: قیمت‌ها، لیست سورس‌ها و شمارنده‌ها در جدول `app_state`، نشست‌ها در `sessions` و تنظیمات سایت در `settings`.
 
 کش کوئری Hyperdrive باید خاموش باشد، وگرنه ممکن است بعد از ذخیره، داده قدیمی خوانده شود:
 
