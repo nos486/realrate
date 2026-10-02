@@ -59,7 +59,7 @@ export function useHoldings(activePortfolio) {
   const fetchSeqRef = useRef(0);
   const loadedPortfolioIdRef = useRef(null);
 
-  // 1. Fetch Holdings for active portfolio + Auto-migration of local storage holdings
+  // 1. Fetch Holdings for active portfolio
   const fetchHoldings = useCallback(async () => {
     const seq = ++fetchSeqRef.current;
     const isStale = () => seq !== fetchSeqRef.current;
@@ -101,33 +101,6 @@ export function useHoldings(activePortfolio) {
 
       if (res && res.success && Array.isArray(res.holdings)) {
         let rawHoldings = res.holdings;
-
-        // Auto-migration: Check if there are local offline holdings from legacy realrate_portfolio_v1
-        try {
-          const localStr = localStorage.getItem('realrate_portfolio_v1');
-          if (localStr && rawHoldings.length === 0) {
-            const localItems = JSON.parse(localStr);
-            if (Array.isArray(localItems) && localItems.length > 0) {
-              for (const itm of localItems) {
-                await addPortfolioHolding({
-                  portfolioId: activePortfolio.id,
-                  assetId: itm.assetId,
-                  amount: itm.amount,
-                  buyPrice: itm.buyPrice || 0,
-                  buyDate: itm.buyDate || '',
-                  notes: itm.notes || '',
-                });
-              }
-              localStorage.removeItem('realrate_portfolio_v1');
-              const refreshed = await getPortfolio(activePortfolio.id);
-              if (refreshed && refreshed.success && Array.isArray(refreshed.holdings)) {
-                rawHoldings = refreshed.holdings;
-              }
-            }
-          }
-        } catch (migrationErr) {
-          console.warn('Auto-migration of local holdings skipped:', migrationErr);
-        }
 
         // Handle E2EE Decryption if portfolio is encrypted
         if (usesEncryption) {

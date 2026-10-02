@@ -10,12 +10,6 @@ export function ThemeProvider({ children }) {
     document.documentElement.setAttribute('data-theme', 'dark');
     try {
       localStorage.setItem('realrate_theme', 'dark');
-      // Clean up legacy custom color keys
-      localStorage.removeItem('realrate_primary_color');
-      localStorage.removeItem('realrate_accent_color');
-      localStorage.removeItem('realrate_border_color');
-      localStorage.removeItem('realrate_card_bg_color');
-      localStorage.removeItem('realrate_color_preset');
     } catch {}
 
     const metaTheme = document.querySelector('meta[name="theme-color"]');

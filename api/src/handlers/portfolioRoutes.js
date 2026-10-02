@@ -511,7 +511,7 @@ export async function handleGetSharedPortfolio(request, env) {
     if (!isHashedSharePassword(storedPassword) && targetPortfolio.shareSlug) {
       try {
         const hashed = await hashSharePassword(password);
-        // Only a real portfolio row owning this slug — not the legacy users-table fallback
+        // Only the portfolio row owning this slug
         const ownRow = await dbGetPortfolioById(env, targetPortfolio.id, targetPortfolio.userId);
         if (ownRow && String(ownRow.shareSlug || "").toLowerCase() === String(targetPortfolio.shareSlug).toLowerCase()) {
           await dbUpdatePortfolio(env, targetPortfolio.id, targetPortfolio.userId, { sharePassword: hashed });

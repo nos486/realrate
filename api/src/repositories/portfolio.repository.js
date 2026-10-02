@@ -65,13 +65,6 @@ export async function dbGetUserPortfolios(env, userId) {
           now
         ).run();
 
-        // Migrate any unassigned holdings for this user
-        await env.DB.prepare(`
-          UPDATE portfolio_holdings
-          SET portfolio_id = ?
-          WHERE user_id = ? AND (portfolio_id IS NULL OR portfolio_id = '')
-        `).bind(defaultPortfolioId, userId).run();
-
         const reQuery = await env.DB.prepare(`
           SELECT p.id, p.user_id AS userId, p.name, p.is_default AS isDefault,
                  p.share_slug AS shareSlug, p.share_password AS sharePassword,
@@ -343,7 +336,6 @@ export async function dbGetPortfolioByShareSlug(env, slug) {
   if (env && env.DB) {
     await ensureSchema(env);
     try {
-      // 1. Search in portfolios table
       const portfolio = await env.DB.prepare(`
         SELECT p.id, p.user_id AS userId, p.name, p.is_default AS isDefault,
                p.share_slug AS shareSlug, p.share_password AS sharePassword,
@@ -356,42 +348,7 @@ export async function dbGetPortfolioByShareSlug(env, slug) {
         WHERE LOWER(p.share_slug) = LOWER(?)
       `).bind(slug.trim()).first();
 
-      if (portfolio) {
-        return portfolio;
-      }
-
-      // 2. Fallback: Search in users table (old slug before migration)
-      const user = await env.DB.prepare(`
-        SELECT id, email, name, custom_name AS customName, picture, role,
-               share_slug AS shareSlug, share_password AS sharePassword,
-               share_enabled AS shareEnabled
-        FROM users
-        WHERE LOWER(share_slug) = LOWER(?)
-      `).bind(slug.trim()).first();
-
-      if (user) {
-        const defP = await env.DB.prepare(`
-          SELECT id, user_id AS userId, name, is_default AS isDefault,
-                 share_slug AS shareSlug, share_password AS sharePassword,
-                 share_enabled AS shareEnabled
-          FROM portfolios
-          WHERE user_id = ?
-          ORDER BY is_default DESC, created_at ASC LIMIT 1
-        `).bind(user.id).first();
-
-        return {
-          id: defP?.id || `p_${user.id}`,
-          userId: user.id,
-          name: defP?.name || 'پورتفوی اصلی',
-          isDefault: 1,
-          shareSlug: user.shareSlug,
-          sharePassword: user.sharePassword,
-          shareEnabled: user.shareEnabled,
-          userName: user.name,
-          userCustomName: user.customName,
-          userEmail: user.email,
-        };
-      }
+      return portfolio || null;
     } catch (e) {
       logger.error("[DB] dbGetPortfolioShareSlug error:", { error: e.message });
     }
