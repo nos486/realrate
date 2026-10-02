@@ -42,6 +42,22 @@ const SAMPLES = [
     text: 'بلو\nواریز پول\n سینا عزیز، 2,500,000 ریال به حساب شما نشست.\n موجودی: 104,451,226 ریال\n۱۸:۲۳\n۱۴۰۵.۰۷.۰۳',
     expect: { templateId: 'blu-balance', direction: 'credit', amount: 250000, balance: 10445122.6, date: '2026-09-25', time: '18:23' },
   },
+  {
+    bank: 'pasargad',
+    text: '232.800.1442198.1\n-80,000\n06/16_19:45\nمانده: 31,516,369',
+    expect: { templateId: 'pasargad-balance', direction: 'debit', amount: 8000, balance: 3151636.9, accountLast4: '1981', date: '2026-09-07', time: '19:45' },
+  },
+  {
+    bank: 'shahr',
+    // Arabic «ي» as delivered, seconds after the time
+    text: '*بانک شهر*\nسود\nواريز به:700814110204\nمبلغ:377,743ريال\nموجودي:89,371,480ريال\n1405/07/1 00:41:16',
+    expect: { templateId: 'shahr-balance', direction: 'credit', amount: 37774.3, balance: 8937148, accountLast4: '0204', date: '2026-09-23', time: '00:41', description: 'سود' },
+  },
+  {
+    bank: 'mellat',
+    text: 'حساب1848394556\nواریز31,500,000\nمانده31,894,014\n05/06/28-13:57',
+    expect: { templateId: 'mellat-balance', direction: 'credit', amount: 3150000, balance: 3189401.4, accountLast4: '4556', date: '2026-09-19', time: '13:57' },
+  },
 ];
 
 describe('bank SMS samples', () => {
@@ -185,10 +201,12 @@ describe('templates', () => {
 
 describe('rules for the Android side (only withdrawals and deposits reach the app)', () => {
   const rules = nativeSmsRules(BANK_SMS_TEMPLATES);
+  // A bank whose sender isn't known yet is read only when pasted, not by the app
+  const withSenders = BANK_SMS_TEMPLATES.filter((b) => b.senders.length);
 
-  it('one rule per bank: its senders and its templates\' pattern sources', () => {
-    expect(rules).toHaveLength(BANK_SMS_TEMPLATES.length);
-    for (const bank of BANK_SMS_TEMPLATES) {
+  it('one rule per bank with senders: its senders and its templates\' pattern sources', () => {
+    expect(rules).toHaveLength(withSenders.length);
+    for (const bank of withSenders) {
       const rule = rules.find((r) => r.senders.join() === bank.senders.join());
       expect(rule.patterns).toEqual(bank.templates.map((t) => t.pattern.source));
     }
@@ -198,8 +216,9 @@ describe('rules for the Android side (only withdrawals and deposits reach the ap
   // sources alone, rebuilt, read every sample like the templates do
   it.each(SAMPLES.map((s, i) => [`${s.bank} #${i + 1}`, s]))('%s is a transaction by the rules', (_name, sample) => {
     const bank = BANK_SMS_TEMPLATES.find((b) => b.bankId === sample.bank);
-    const rule = rules.find((r) => r.senders.join() === bank.senders.join());
-    expect(rule.patterns.some((source) => new RegExp(source).test(normalizeSmsText(sample.text)))).toBe(true);
+    // The same sources, rebuilt, read the sample (the bank's rule is sent once its sender is known)
+    const patterns = bank.templates.map((t) => t.pattern.source);
+    expect(patterns.some((source) => new RegExp(source).test(normalizeSmsText(sample.text)))).toBe(true);
   });
 
   it('other bank messages are not', () => {

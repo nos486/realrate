@@ -64,6 +64,60 @@ export const BANK_SMS_TEMPLATES = [
       },
     ],
   },
+  {
+    bankId: 'pasargad',
+    // TODO: the sender number (the Android app reads only listed senders)
+    senders: [],
+    templates: [
+      {
+        // 232.800.1442198.1
+        // -80,000
+        // 06/16_19:45
+        // مانده: 31,516,369
+        id: 'pasargad-balance',
+        unit: 'rial',
+        direction: 'sign',
+        pattern: re(String.raw`^(?<account>\d[\d.*]{4,30})\n(?<amount>${P.amount})\n(?<date>${P.date})_(?<time>${P.time})\nمانده\s?:\s?(?<balance>${P.balance})$`),
+      },
+    ],
+  },
+  {
+    bankId: 'shahr',
+    // TODO: the sender number (the Android app reads only listed senders)
+    senders: [],
+    templates: [
+      {
+        // *بانک شهر*
+        // سود
+        // واريز به:700814110204
+        // مبلغ:377,743ريال
+        // موجودي:89,371,480ريال
+        // 1405/07/1 00:41:16
+        // (the second line names the transaction and may be missing; a withdrawal: «برداشت از:»)
+        id: 'shahr-balance',
+        unit: 'rial',
+        direction: { debit: ['برداشت', 'خرید', 'پرداخت', 'انتقال'], credit: ['واریز'] },
+        pattern: re(String.raw`^\*?\s?بانک شهر\s?\*?\n(?:(?<desc>[^\n:]+)\n)?(?<kind>[^\n:]+?)\s?(?:به|از)?\s?:\s?(?<account>${P.digits})\nمبلغ\s?:\s?(?<amount>${P.amount})\s?ریال\nموجودی\s?:\s?(?<balance>${P.balance})\s?ریال\n(?<date>${P.date})\s(?<time>${P.time})(?::\d{2})?$`),
+      },
+    ],
+  },
+  {
+    bankId: 'mellat',
+    // TODO: the sender number (the Android app reads only listed senders)
+    senders: [],
+    templates: [
+      {
+        // حساب1848394556
+        // واریز31,500,000
+        // مانده31,894,014
+        // 05/06/28-13:57
+        id: 'mellat-balance',
+        unit: 'rial',
+        direction: { debit: ['برداشت', 'خرید', 'پرداخت', 'انتقال'], credit: ['واریز'] },
+        pattern: re(String.raw`^حساب\s?:?\s?(?<account>${P.digits})\n(?<kind>[^\d\n+-]+?)\s?:?\s?(?<amount>${P.amount})\nمانده\s?:?\s?(?<balance>${P.balance})\n(?<date>${P.date})-(?<time>${P.time})$`),
+      },
+    ],
+  },
 ];
 
 /** The banks that have templates (for "supported banks" lists) */
