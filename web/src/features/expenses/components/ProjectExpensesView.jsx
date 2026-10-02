@@ -7,6 +7,8 @@
  * The page header, the vault lock and the switch to daily expenses are ExpensesPage's.
  */
 
+import { useOptionalLoans } from '../../loans/context/LoansContext.jsx';
+import { expenseCsvHeaders, expenseCsvRow } from '../utils/expenseCsv.js';
 import React, { useMemo, useState } from 'react';
 import { HandCoins, Plus, FolderKanban, Pencil, Trash2 } from 'lucide-react';
 import { usePrivacyMode } from '../../../hooks/usePrivacyMode.js';
@@ -31,12 +33,9 @@ import ExpensesTable from './ExpensesTable.jsx';
 import ExpenseSummaryCards from './ExpenseSummaryCards.jsx';
 import { GenericCsvExportButton } from '../../../shared/ui/index.js';
 import { useAccounts } from '../../accounts/hooks/useAccounts.js';
-import { accountLabel } from '../../accounts/constants/accountDisplay.js';
-import { formatShamsiDisplay } from '../../portfolio/components/ShamsiDatePicker.jsx';
-import { expenseInToman, isSharedExpense } from '../../../utils/expenseDocument.js';
 import ReimbursementsModal from './ReimbursementsModal.jsx';
 
-const CSV_HEADERS = ['تاریخ', 'عنوان', 'مبلغ', 'سهم من', 'ارز', 'نرخ دلار', 'معادل تومان (سهم من)', 'پرداخت از', 'یادداشت'];
+const CSV_HEADERS = expenseCsvHeaders({ withCategory: false });
 const EXPENSES_PAGE_SIZE = 20;
 
 export default function ProjectExpensesView({ groupId = null, onSelectGroup, usdToman = 0 }) {
@@ -48,6 +47,9 @@ export default function ProjectExpensesView({ groupId = null, onSelectGroup, usd
   const hideValues = usePrivacyMode();
   const { accounts } = useAccounts();
   const accountById = useMemo(() => new Map(accounts.map((a) => [a.id, a])), [accounts]);
+  // Loan names for the CSV's «تأمین از»
+  const loans = useOptionalLoans();
+  const loanById = useMemo(() => new Map(loans.map((l) => [l.id, l])), [loans]);
   const { confirm } = useFeedback();
   const [groupForm, setGroupForm] = useState(null); // null | { group: object|null }
   const [expenseForm, setExpenseForm] = useState(null); // null | { expense: object|null }
@@ -220,17 +222,7 @@ export default function ProjectExpensesView({ groupId = null, onSelectGroup, usd
                       headers={CSV_HEADERS}
                       fileBaseName={`هزینه‌های-${selected.name}`}
                       disabled={listed.length === 0}
-                      mapRow={(e) => [
-                        formatShamsiDisplay(`${e.date}T00:00:00`),
-                        e.title,
-                        e.amount,
-                        isSharedExpense(e) ? e.myShare : e.amount,
-                        e.currency === 'USD' ? 'دلار' : 'تومان',
-                        e.usdRate || '',
-                        Math.round(expenseInToman(e, usdToman) || 0),
-                        e.accountId ? accountLabel(accountById.get(e.accountId)) : '',
-                        e.notes || '',
-                      ]}
+                      mapRow={(e) => expenseCsvRow(e, { withCategory: false, usdToman, accountById, loanById })}
                     />
                     <Button
                       icon={<Plus size={16} />}

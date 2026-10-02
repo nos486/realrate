@@ -11,6 +11,8 @@
  *   every open one (OpenSharesModal), and each expense's «دریافتی‌ها» (ReimbursementsModal)
  */
 
+import { useOptionalLoans } from '../../loans/context/LoansContext.jsx';
+import { expenseCsvHeaders, expenseCsvRow } from '../utils/expenseCsv.js';
 import React, { useMemo, useState } from 'react';
 import { ChevronRight, ChevronLeft, Plus, Coins, TrendingUp, TrendingDown, CalendarDays, Tag, Tags, Target, HandCoins } from 'lucide-react';
 import { AlertBanner, Button, EmptyState, GenericCsvExportButton, MiniCard, Pagination, SearchBar, SplitPageLayout } from '../../../shared/ui/index.js';
@@ -23,9 +25,7 @@ import {
   summarizeExpenses,
   summarizeByCategory,
   summarizeByAccount,
-  expenseInToman,
   summarizeReceivables,
-  isSharedExpense,
   shamsiMonthOf,
   shamsiMonthRange,
   shiftShamsiMonth,
@@ -35,7 +35,6 @@ import { useDemo } from '../../demo/index.js';
 import { useDailyExpenses } from '../hooks/useDailyExpenses.js';
 import { useAccounts } from '../../accounts/hooks/useAccounts.js';
 import { accountLabel } from '../../accounts/constants/accountDisplay.js';
-import { formatShamsiDisplay } from '../../portfolio/components/ShamsiDatePicker.jsx';
 import { getExpenseCategory } from '../constants/expenseCategories.js';
 import { formatAmount } from '../utils/format.js';
 import ExpenseForm from './ExpenseForm.jsx';
@@ -48,7 +47,7 @@ import { useCategories } from '../../../shared/categories/useCategories.js';
 import CategoryManagerModal from '../../../shared/categories/CategoryManagerModal.jsx';
 import { useQuickAddParam } from '../../../shared/hooks/useQuickAddParam.js';
 
-const CSV_HEADERS = ['تاریخ', 'دسته‌بندی', 'عنوان', 'مبلغ', 'سهم من', 'ارز', 'نرخ دلار', 'معادل تومان (سهم من)', 'پرداخت از', 'یادداشت'];
+const CSV_HEADERS = expenseCsvHeaders({ withCategory: true });
 const EXPENSES_PAGE_SIZE = 20;
 
 const MASK = '****';
@@ -80,6 +79,9 @@ export default function DailyExpensesView({ usdToman = 0, hideValues = false }) 
   } = useDailyExpenses(month);
   const { accounts } = useAccounts();
   const accountById = useMemo(() => new Map(accounts.map((a) => [a.id, a])), [accounts]);
+  // Loan names for the CSV's «تأمین از»
+  const loans = useOptionalLoans();
+  const loanById = useMemo(() => new Map(loans.map((l) => [l.id, l])), [loans]);
 
   const isThisMonth = monthIndex(month) === monthIndex(thisMonth);
   const summary = useMemo(() => summarizeExpenses(expenses, { usdToman }), [expenses, usdToman]);
@@ -316,18 +318,7 @@ export default function DailyExpensesView({ usdToman = 0, hideValues = false }) 
                   headers={CSV_HEADERS}
                   fileBaseName={`هزینه‌های-روزمره-${formatShamsiMonth(month.jy, month.jm)}`}
                   disabled={listed.length === 0}
-                  mapRow={(e) => [
-                    formatShamsiDisplay(`${e.date}T00:00:00`),
-                    getExpenseCategory(e.category).label,
-                    e.title,
-                    e.amount,
-                    isSharedExpense(e) ? e.myShare : e.amount,
-                    e.currency === 'USD' ? 'دلار' : 'تومان',
-                    e.usdRate || '',
-                    Math.round(expenseInToman(e, usdToman) || 0),
-                    e.accountId ? accountLabel(accountById.get(e.accountId)) : '',
-                    e.notes || '',
-                  ]}
+                  mapRow={(e) => expenseCsvRow(e, { withCategory: true, usdToman, accountById, loanById })}
                 />
                 <Button
                   icon={<Plus size={16} />}

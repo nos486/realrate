@@ -1,24 +1,19 @@
+/**
+ * CsvExportButton.jsx — The portfolio as a CSV file: every entry of every asset (utils/holdingsCsv.js)
+ */
 import React from 'react';
 import { Download } from 'lucide-react';
 import { buildHoldingsCsv } from '../utils/holdingsCsv.js';
 import { todayIso } from '../../../shared/utils/dates.js';
+import { saveTextFile } from '../../../shared/utils/fileExport.js';
+import { safeFilenamePart } from '../../../shared/utils/csv.js';
 
-export default function CsvExportButton({ items = [], portfolioName = 'portfolio', disabled = false }) {
+export default function CsvExportButton({ assets = [], portfolioName = 'portfolio', disabled = false }) {
+  const empty = !assets.some((a) => a.entries?.length);
   const handleExportCSV = () => {
-    if (!items || items.length === 0) return;
-
-    const csvContent = buildHoldingsCsv(items);
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    const safeName = (portfolioName || 'portfolio').replace(/[^a-zA-Z0-9_\u0600-\u06FF-]/g, '_');
-    const dateStr = todayIso();
-    a.download = `portfolio-${safeName}-${dateStr}.csv`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+    if (empty) return;
+    saveTextFile(`portfolio-${safeFilenamePart(portfolioName, 'portfolio')}-${todayIso()}.csv`, buildHoldingsCsv(assets), 'text/csv;charset=utf-8')
+      .catch((err) => console.warn('Saving the CSV failed:', err));
   };
 
   return (
@@ -26,9 +21,9 @@ export default function CsvExportButton({ items = [], portfolioName = 'portfolio
       type="button"
       className="btn-export-csv icon-only"
       onClick={handleExportCSV}
-      title="دریافت خروجی اکسل / CSV از اقلام این پورتفو"
+      title="خروجی CSV از همه‌ی ثبت‌های این پورتفو (خرید، فروش، پرداخت)"
       aria-label="خروجی CSV"
-      disabled={disabled || items.length === 0}
+      disabled={disabled || empty}
     >
       <Download size={15} strokeWidth={2} />
     </button>

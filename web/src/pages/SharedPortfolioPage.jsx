@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import { saveTextFile } from '../shared/utils/fileExport.js';
 import { useParams, Link } from 'react-router-dom';
 import { getSharedPortfolio } from '../features/portfolio/api/portfolioApi.js';
 import Header from '../components/Header.jsx';
@@ -327,17 +328,8 @@ export default function SharedPortfolioPage() {
     });
 
     const csvContent = '\uFEFF' + [headers.map(escapeCSV).join(','), ...rows].join('\r\n');
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
     const safeName = (portfolioName || 'shared-portfolio').replace(/[/\\?%*:|"<>]/g, '-');
-    const dateStr = todayIso();
-    a.download = `portfolio-${safeName}-${dateStr}.csv`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+    saveTextFile(`portfolio-${safeName}-${todayIso()}.csv`, csvContent, 'text/csv;charset=utf-8').catch(() => {});
   };
 
   return (

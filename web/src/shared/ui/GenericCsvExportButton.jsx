@@ -43,7 +43,7 @@ export default function GenericCsvExportButton({
     const rows = list.map(mapRow);
     const content = buildCsvContent(headers, rows);
     const dateStr = todayIso();
-    downloadCsvFile(`${safeFilenamePart(fileBaseName)}-${dateStr}.csv`, content);
+    await downloadCsvFile(`${safeFilenamePart(fileBaseName)}-${dateStr}.csv`, content).catch((err) => console.warn('Saving the CSV failed:', err));
   };
 
   return (

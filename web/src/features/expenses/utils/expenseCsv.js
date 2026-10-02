@@ -1,0 +1,55 @@
+/**
+ * expenseCsv.js — The columns of the expense CSV files (everyday expenses and each project)
+ *
+ * Everything an expense holds: what was paid and the user's own share («دنگ»), what others paid
+ * back and still owe, the currency and rate, the account it was paid from, what funded it (a loan,
+ * or a portfolio's dollars), where it was recorded from (a bank SMS) and the note.
+ */
+
+import { isSharedExpense, expenseReceivable, expenseInToman } from '../../../utils/expenseDocument.js';
+import { formatShamsiDisplay } from '../../portfolio/components/ShamsiDatePicker.jsx';
+import { accountLabel } from '../../accounts/constants/accountDisplay.js';
+import { getExpenseCategory } from '../constants/expenseCategories.js';
+
+const BASE = ['تاریخ', 'عنوان', 'مبلغ پرداختی', 'سهم من', 'ارز', 'نرخ دلار', 'معادل تومان (سهم من)'];
+const REST = ['دریافت‌شده از دیگران', 'مانده طلب از دیگران', 'پرداخت از', 'تأمین از', 'ثبت از', 'یادداشت'];
+
+/** @param {{ withCategory?: boolean }} [options] everyday expenses have a category column */
+export function expenseCsvHeaders({ withCategory = false } = {}) {
+  return withCategory ? [BASE[0], 'دسته‌بندی', ...BASE.slice(1), ...REST] : [...BASE, ...REST];
+}
+
+/**
+ * One expense's row
+ * @param {object} e
+ * @param {{ withCategory?: boolean, usdToman?: number, accountById?: Map, loanById?: Map }} ctx
+ */
+export function expenseCsvRow(e, { withCategory = false, usdToman = 0, accountById = new Map(), loanById = new Map() } = {}) {
+  const shared = isSharedExpense(e);
+  const { received, remaining } = expenseReceivable(e);
+  const funding = e.paidFrom?.portfolioId
+    ? `پورتفو: ${e.paidFrom.portfolioName || 'پورتفو'}`
+    : e.loanId
+      ? `وام: ${loanById.get(e.loanId)?.title || 'وام حذف‌شده'}`
+      : '';
+  const base = [
+    formatShamsiDisplay(`${e.date}T00:00:00`),
+    e.title,
+    e.amount,
+    shared ? e.myShare : e.amount,
+    e.currency === 'USD' ? 'دلار' : 'تومان',
+    e.usdRate || '',
+    Math.round(expenseInToman(e, usdToman) || 0),
+  ];
+  const rest = [
+    shared ? received : '',
+    shared ? remaining : '',
+    e.accountId ? accountLabel(accountById.get(e.accountId)) : '',
+    funding,
+    e.source === 'sms' ? 'پیامک بانک' : '',
+    e.notes || '',
+  ];
+  return withCategory
+    ? [base[0], getExpenseCategory(e.category).label, ...base.slice(1), ...rest]
+    : [...base, ...rest];
+}

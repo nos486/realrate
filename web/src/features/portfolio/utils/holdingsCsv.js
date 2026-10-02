@@ -1,94 +1,120 @@
 /**
  * holdingsCsv.js — The portfolio's CSV file: writing it (CsvExportButton) and reading it back
  * (CsvImportButton). Both sides use the same headers, so an exported file imports again.
+ *
+ * One row per entry of each asset's ledger (utils/assetLedger.js), in date order: «خرید» (a
+ * purchase with a price), «موجودی» (one without), «فروش» and «پرداخت هزینه» (an expense paid
+ * with the asset), with what is left of each purchase and each entry's own profit or loss.
+ * Reading it back: purchases and holdings become the buy side's records, sales become sales;
+ * expense payments are skipped — they belong to their expenses (the full backup restores them).
+ * Files of older versions (one row per manual holding, no «نوع ثبت») still import.
  */
 
 import { parseInputNumber, resolveAssetDisplayName } from './holdingHelpers.js';
 import { CANONICAL_ASSET_REGISTRY } from '../../../utils/financialSpecs.js';
 
+const KIND_LABEL = { buy: 'خرید', holding: 'موجودی', sell: 'فروش', spend: 'پرداخت هزینه' };
+const kindOfEntry = (entry) => (entry.kind === 'manual' ? (entry.price > 0 ? 'buy' : 'holding') : entry.kind);
+
+export const LEDGER_HEADERS = [
+  'نوع ثبت',
+  'نام دارایی',
+  'شناسه سیستمی',
+  'دسته‌بندی',
+  'واحد',
+  'مقدار',
+  'قیمت واحد (تومان)',
+  'تاریخ',
+  'یادداشت',
+  'قیمت دستی دارایی (تومان)',
+  'مانده از این خرید',
+  'سود/زیان این ثبت (تومان)',
+  'ارزش روز واحد (تومان)',
+  'دارایی مرجع (پرداخت/تهاتر)',
+  'شناسه دارایی مرجع',
+  'مقدار دارایی مرجع',
+  'دارایی مقایسه',
+  'شناسه دارایی مقایسه',
+  'قیمت دارایی مقایسه در روز خرید (تومان)',
+];
+
+const escapeCSV = (val) => {
+  if (val === null || val === undefined) return '""';
+  return `"${String(val).replace(/"/g, '""')}"`;
+};
+
 /**
- * The portfolio as CSV text (UTF-8 BOM, CRLF rows). CsvImportButton reads the same headers back,
- * so an exported file can be imported again.
+ * The portfolio as CSV text (UTF-8 BOM, CRLF rows): every entry of every asset's ledger
+ * @param {object[]} assets buildAssetLedgers(...).assets
  */
-export function buildHoldingsCsv(items = []) {
-  const headers = [
-    'نام دارایی',
-    'دسته‌بندی',
-    'نوع',
-    'مقدار',
-    'واحد',
-    'قیمت خرید (تومان)',
-    'سرمایه اولیه (تومان)',
-    'ارزش روز واحد (تومان)',
-    'ارزش روز کل (تومان)',
-    'سود/زیان (تومان)',
-    'درصد بازدهی',
-    'تاریخ خرید',
-    'یادداشت',
-    'شناسه سیستمی',
-    'منبع',
-    'دارایی مرجع (پرداخت/تهاتر)',
-    'شناسه دارایی مرجع',
-    'مقدار دارایی مرجع',
-    'دارایی مقایسه',
-    'شناسه دارایی مقایسه',
-    'قیمت دارایی مقایسه در روز خرید (تومان)',
-    'ارزش امروز در صورت خرید دارایی مقایسه (تومان)'
-  ];
-
-  const escapeCSV = (val) => {
-    if (val === null || val === undefined) return '""';
-    const str = String(val).replace(/"/g, '""');
-    return `"${str}"`;
-  };
-
-  const rows = items.map((item) => {
-    const row = [
-      escapeCSV(item.assetName || item.name || item.assetId),
-      escapeCSV(item.category || item.assetType || 'سفارشی'),
-      escapeCSV(item.assetType || item.category || 'custom'),
-      escapeCSV(item.amount),
-      escapeCSV(item.unit),
-      escapeCSV(item.hasBuyPrice ? item.buyPrice : ''),
-      escapeCSV(item.hasBuyPrice ? item.itemCost : ''),
-      escapeCSV(item.unitRealPrice),
-      escapeCSV(item.itemRealVal),
-      escapeCSV(item.hasBuyPrice ? item.itemPnl : ''),
-      escapeCSV(item.hasBuyPrice && item.itemPnlPct !== null && item.itemPnlPct !== undefined ? item.itemPnlPct.toFixed(1) + '%' : ''),
-      escapeCSV(item.buyDate || ''),
-      escapeCSV(item.notes || ''),
-      escapeCSV(item.assetId || ''),
-      escapeCSV(item.source === 'transactions' ? 'تراکنش‌ها' : 'دستی'),
-      escapeCSV(item.referenceAssetId ? resolveAssetDisplayName(item.referenceAssetId) : ''),
-      escapeCSV(item.referenceAssetId || ''),
-      escapeCSV(item.referenceAssetId && item.referenceQuantity > 0 ? item.referenceQuantity : ''),
-      escapeCSV(item.compareAssetId ? resolveAssetDisplayName(item.compareAssetId) : ''),
-      escapeCSV(item.compareAssetId || ''),
-      escapeCSV(item.compareAssetId && item.comparePriceToman > 0 ? item.comparePriceToman : ''),
-      escapeCSV(item.comparePnlInfo ? Math.round(item.comparePnlInfo.compareCurrentValue) : '')
-    ];
-    return row.join(',');
-  });
-
-  return '\uFEFF' + [headers.map(escapeCSV).join(','), ...rows].join('\r\n');
+export function buildHoldingsCsv(assets = []) {
+  const rows = [];
+  for (const asset of assets) {
+    // What each purchase realized when sales and spends took from it
+    const realizedByLot = new Map();
+    for (const e of asset.entries || []) {
+      for (const c of e.consumed || []) if (c.pnl !== null) realizedByLot.set(c.lotId, (realizedByLot.get(c.lotId) || 0) + c.pnl);
+    }
+    for (const entry of asset.entries || []) {
+      const kind = kindOfEntry(entry);
+      const record = entry.record || {};
+      const incoming = kind === 'buy' || kind === 'holding';
+      let pnl = '';
+      if (incoming && entry.price > 0) {
+        const open = entry.remaining > 0 ? entry.remaining * ((asset.unitRealPrice || 0) - entry.price) : 0;
+        pnl = Math.round(open + (realizedByLot.get(entry.id) || 0));
+      } else if (!incoming && entry.pnl !== null && entry.pnl !== undefined) {
+        pnl = Math.round(entry.pnl);
+      }
+      const hasReference = record.referenceAssetId && Number(record.referenceQuantity) > 0;
+      const hasCompare = record.compareAssetId && Number(record.comparePriceToman) > 0;
+      rows.push([
+        KIND_LABEL[kind] || kind,
+        asset.assetName || asset.assetId,
+        asset.assetId || '',
+        asset.category || asset.assetType || 'custom',
+        asset.unit || '',
+        entry.qty,
+        entry.price > 0 ? entry.price : '',
+        entry.date || '',
+        kind === 'spend' ? '' : (record.notes || ''),
+        Number(record.customPrice || record.currentPrice) > 0 ? Number(record.customPrice || record.currentPrice) : '',
+        incoming ? entry.remaining : '',
+        pnl,
+        asset.unitRealPrice || '',
+        hasReference ? resolveAssetDisplayName(record.referenceAssetId) : '',
+        hasReference ? record.referenceAssetId : '',
+        hasReference ? record.referenceQuantity : '',
+        hasCompare ? resolveAssetDisplayName(record.compareAssetId) : '',
+        hasCompare ? record.compareAssetId : '',
+        hasCompare ? record.comparePriceToman : '',
+      ].map(escapeCSV).join(','));
+    }
+  }
+  return '\uFEFF' + [LEDGER_HEADERS.map(escapeCSV).join(','), ...rows].join('\r\n');
 }
 
-// Column headers must mirror buildHoldingsCsv exactly so the exported file round-trips.
+// Each field's column: this version's header first, then older versions'
 export const HEADERS = {
-  name: 'نام دارایی',
-  category: 'دسته‌بندی',
-  amount: 'مقدار',
-  buyPrice: 'قیمت خرید (تومان)',
-  currentPrice: 'ارزش روز واحد (تومان)',
-  buyDate: 'تاریخ خرید',
-  notes: 'یادداشت',
-  assetId: 'شناسه سیستمی',
-  source: 'منبع',
-  referenceAssetId: 'شناسه دارایی مرجع',
-  referenceQuantity: 'مقدار دارایی مرجع',
-  compareAssetId: 'شناسه دارایی مقایسه',
-  comparePriceToman: 'قیمت دارایی مقایسه در روز خرید (تومان)',
+  kind: ['نوع ثبت'],
+  name: ['نام دارایی'],
+  category: ['دسته‌بندی'],
+  amount: ['مقدار'],
+  price: ['قیمت واحد (تومان)', 'قیمت خرید (تومان)'],
+  customPrice: ['قیمت دستی دارایی (تومان)'],
+  currentPrice: ['ارزش روز واحد (تومان)'],
+  date: ['تاریخ', 'تاریخ خرید'],
+  notes: ['یادداشت'],
+  assetId: ['شناسه سیستمی'],
+  source: ['منبع'],
+  referenceAssetId: ['شناسه دارایی مرجع'],
+  referenceQuantity: ['مقدار دارایی مرجع'],
+  compareAssetId: ['شناسه دارایی مقایسه'],
+  comparePriceToman: ['قیمت دارایی مقایسه در روز خرید (تومان)'],
 };
+
+/** Whether a file is of this version (one row per ledger entry) */
+export const isLedgerFile = (headerIndex) => headerIndex[HEADERS.kind[0]] !== undefined;
 
 // Exact-name → canonical assetId lookup, used only as a best-effort fallback for CSVs
 // that predate the "شناسه سیستمی" column (or were hand-edited without it).
@@ -162,68 +188,88 @@ export function parseCsvText(text) {
 
 export function buildRows(headerIndex, dataRows) {
   const get = (row, key) => {
-    const i = headerIndex[HEADERS[key]];
+    const i = HEADERS[key].map((h) => headerIndex[h]).find((idx) => idx !== undefined);
     return i !== undefined && row[i] !== undefined ? String(row[i]) : '';
   };
-  const hasSourceCol = headerIndex[HEADERS.source] !== undefined;
+  const ledger = isLedgerFile(headerIndex);
+  const hasSourceCol = headerIndex[HEADERS.source[0]] !== undefined;
+  const kindOf = (label) => Object.keys(KIND_LABEL).find((k) => KIND_LABEL[k] === label.trim()) || null;
 
   return dataRows
     .map((row, i) => {
       if (row.length === 0 || (row.length === 1 && !row[0].trim())) return null;
 
       const name = get(row, 'name').trim();
-      const source = get(row, 'source').trim();
       const amount = parseInputNumber(get(row, 'amount'));
-
       if (!name && (amount === null || amount === undefined)) return null;
+      const label = name || `ردیف ${i + 2}`;
 
-      if (hasSourceCol && source.includes('تراکنش')) {
-        return { status: 'skipped', name: name || `ردیف ${i + 2}` };
+      // This version: the entry's kind; older files: every row is a manual holding (rows that
+      // were computed from transactions are skipped)
+      let kind = 'buy';
+      if (ledger) {
+        kind = kindOf(get(row, 'kind'));
+        if (!kind) return { status: 'invalid', name: label };
+        if (kind === 'spend') return { status: 'skipped', name: label };
+      } else if (hasSourceCol && get(row, 'source').includes('تراکنش')) {
+        return { status: 'skipped', name: label };
       }
 
-      if (!amount || amount <= 0) {
-        return { status: 'invalid', name: name || `ردیف ${i + 2}` };
-      }
+      if (!amount || amount <= 0) return { status: 'invalid', name: label };
 
       let assetId = get(row, 'assetId').trim();
       let isFallback = false;
       if (!assetId) {
         const matchedId = name ? NAME_TO_ID.get(name) : null;
-        if (matchedId) {
-          assetId = matchedId;
-        } else {
+        if (matchedId) assetId = matchedId;
+        else {
           assetId = `custom_${Date.now()}_${i}`;
           isFallback = true;
         }
       }
 
-      const buyPrice = parseInputNumber(get(row, 'buyPrice')) || 0;
-      const customPrice = parseInputNumber(get(row, 'currentPrice')) || 0;
-      const buyDate = get(row, 'buyDate').trim();
+      const price = parseInputNumber(get(row, 'price')) || 0;
+      const date = get(row, 'date').trim();
       let notes = get(row, 'notes').trim();
-      if (isFallback && name) {
-        notes = notes ? `${notes} — نام اصلی: ${name}` : `نام اصلی: ${name}`;
-      }
-
-      // Paid/swapped with another asset (see ReferenceAssetInputs) — buyPrice above already
-      // reflects the resulting Toman cost basis, so these are just carried through verbatim
-      // for display/editing; nothing needs to be recomputed.
+      if (isFallback && name) notes = notes ? `${notes} — نام اصلی: ${name}` : `نام اصلی: ${name}`;
+      // Paid / swapped with another asset, and "what if I had bought this instead": carried as they are
       const referenceAssetIdRaw = get(row, 'referenceAssetId').trim();
       const referenceQuantityRaw = parseInputNumber(get(row, 'referenceQuantity'));
       const hasReference = Boolean(referenceAssetIdRaw) && referenceQuantityRaw > 0;
-      // "What if I had bought this instead" (see CompareAssetInputs)
       const compareAssetIdRaw = get(row, 'compareAssetId').trim();
       const comparePriceRaw = parseInputNumber(get(row, 'comparePriceToman'));
       const hasCompare = Boolean(compareAssetIdRaw) && comparePriceRaw > 0;
 
+      if (kind === 'sell') {
+        if (!(price > 0) || !date) return { status: 'invalid', name: label };
+        return {
+          status: isFallback ? 'custom' : 'ok',
+          kind: 'sell',
+          name: label,
+          transaction: {
+            assetId,
+            transactionType: 'sell',
+            quantity: amount,
+            unitPrice: price,
+            transactionDate: date,
+            notes,
+            referenceAssetId: hasReference ? referenceAssetIdRaw : '',
+            referenceQuantity: hasReference ? referenceQuantityRaw : 0,
+          },
+        };
+      }
+
+      // A personal asset's own price (older files: the day's unit value)
+      const customPrice = parseInputNumber(get(row, ledger ? 'customPrice' : 'currentPrice')) || 0;
       return {
         status: isFallback ? 'custom' : 'ok',
-        name: name || assetId,
+        kind: 'buy',
+        name: label,
         holding: {
           assetId,
           amount,
-          buyPrice,
-          buyDate,
+          buyPrice: price,
+          buyDate: date,
           notes,
           customPrice,
           referenceAssetId: hasReference ? referenceAssetIdRaw : '',

@@ -1,9 +1,13 @@
+/**
+ * CsvImportButton.jsx — Read a portfolio CSV back (utils/holdingsCsv.js): purchases and holdings
+ * become the buy side's records, sales become sales; expense payments are skipped.
+ */
 import React, { useState, useRef } from 'react';
 import { Upload, CheckCircle2, AlertTriangle, XCircle } from 'lucide-react';
 import Modal from '../../../shared/ui/Modal.jsx';
-import { HEADERS, parseCsvText, buildRows } from '../utils/holdingsCsv.js';
+import { HEADERS, parseCsvText, buildRows, isLedgerFile } from '../utils/holdingsCsv.js';
 
-export default function CsvImportButton({ addHolding, disabled = false }) {
+export default function CsvImportButton({ addHolding, addTransaction, disabled = false }) {
   const fileInputRef = useRef(null);
   const [step, setStep] = useState(null); // null | 'preview' | 'importing' | 'done'
   const [parsedRows, setParsedRows] = useState([]);
@@ -39,7 +43,7 @@ export default function CsvImportButton({ addHolding, disabled = false }) {
       headerRow.forEach((h, i) => {
         headerIndex[h.trim()] = i;
       });
-      setHasSourceCol(headerIndex[HEADERS.source] !== undefined);
+      setHasSourceCol(isLedgerFile(headerIndex) || headerIndex[HEADERS.source[0]] !== undefined);
       setParsedRows(buildRows(headerIndex, dataRows));
       setStep('preview');
     } catch (err) {
@@ -52,6 +56,7 @@ export default function CsvImportButton({ addHolding, disabled = false }) {
   const skippedCount = parsedRows.filter((r) => r.status === 'skipped').length;
   const invalidCount = parsedRows.filter((r) => r.status === 'invalid').length;
   const customFallbackCount = parsedRows.filter((r) => r.status === 'custom').length;
+  const sellCount = importable.filter((r) => r.kind === 'sell').length;
 
   const handleStartImport = async () => {
     setStep('importing');
@@ -61,7 +66,7 @@ export default function CsvImportButton({ addHolding, disabled = false }) {
     for (let i = 0; i < importable.length; i++) {
       const row = importable[i];
       try {
-        const res = await addHolding(row.holding);
+        const res = row.kind === 'sell' ? await addTransaction?.(row.transaction) : await addHolding(row.holding);
         if (res) {
           success += 1;
         } else {
@@ -121,7 +126,7 @@ export default function CsvImportButton({ addHolding, disabled = false }) {
                 disabled={importable.length === 0}
                 onClick={handleStartImport}
               >
-                درون‌ریزی {importable.length.toLocaleString('fa-IR')} قلم
+                درون‌ریزی {importable.length.toLocaleString('fa-IR')} ثبت
               </button>
             </div>
           ) : step === 'done' ? (
@@ -146,7 +151,10 @@ export default function CsvImportButton({ addHolding, disabled = false }) {
                 <ul className="csv-import-summary-list">
                   <li>
                     <CheckCircle2 size={14} className="ok-icon" />
-                    <span>{importable.length.toLocaleString('fa-IR')} قلم آماده درون‌ریزی</span>
+                    <span>
+                      {importable.length.toLocaleString('fa-IR')} ثبت آماده درون‌ریزی
+                      {sellCount > 0 && ` (${sellCount.toLocaleString('fa-IR')} فروش)`}
+                    </span>
                   </li>
                   {customFallbackCount > 0 && (
                     <li>
@@ -162,8 +170,8 @@ export default function CsvImportButton({ addHolding, disabled = false }) {
                     <li>
                       <XCircle size={14} className="skip-icon" />
                       <span>
-                        {skippedCount.toLocaleString('fa-IR')} مورد که از روی تراکنش‌ها محاسبه شده
-                        بود و مورد مستقلی نیست، نادیده گرفته شد
+                        {skippedCount.toLocaleString('fa-IR')} مورد نادیده گرفته شد («پرداخت هزینه» از
+                        خود هزینه ساخته می‌شود؛ پشتیبان کامل آن را هم برمی‌گرداند)
                       </span>
                     </li>
                   )}
@@ -207,7 +215,7 @@ export default function CsvImportButton({ addHolding, disabled = false }) {
           <div className="csv-import-result">
             <p>
               <CheckCircle2 size={16} className="ok-icon" />
-              <span>{result.success.toLocaleString('fa-IR')} قلم با موفقیت اضافه شد.</span>
+              <span>{result.success.toLocaleString('fa-IR')} ثبت با موفقیت اضافه شد.</span>
             </p>
             {result.failed > 0 && (
               <>

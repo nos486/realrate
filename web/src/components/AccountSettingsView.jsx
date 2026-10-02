@@ -8,6 +8,7 @@ import FeaturePageHeader from '../shared/ui/FeaturePageHeader.jsx';
 import { useAuth } from '../features/auth/index.js';
 import { getUserSettings, updateUserSettings } from '../features/portfolio/api/portfolioApi.js';
 import VaultSettingsSection from '../shared/vault/VaultSettingsSection.jsx';
+import BackupSection from '../shared/vault/BackupSection.jsx';
 import PasswordSettingsSection from '../features/auth/components/PasswordSettingsSection.jsx';
 
 /**
@@ -179,6 +180,8 @@ export default function AccountSettingsView() {
       <PasswordSettingsSection />
 
       <VaultSettingsSection />
+
+      <BackupSection />
     </Card>
     </div>
   );

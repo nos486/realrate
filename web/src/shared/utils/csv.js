@@ -4,6 +4,8 @@
  * (quoted fields, "" escapes, embedded newlines/commas) lives in one place.
  */
 
+import { saveTextFile } from './fileExport.js';
+
 /** RFC4180-ish CSV parser: handles quoted fields, "" escaped quotes, and embedded newlines/commas. */
 export function parseCsvText(text) {
   const rows = [];
@@ -75,17 +77,9 @@ export function buildCsvContent(headers, rows) {
   return '﻿' + lines.join('\r\n');
 }
 
-/** Triggers a browser download of the given CSV content. */
+/** Save the given CSV content (a download; the share sheet in the Android app) */
 export function downloadCsvFile(filename, content) {
-  const blob = new Blob([content], { type: 'text/csv;charset=utf-8;' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = filename;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(url);
+  return saveTextFile(filename, content, 'text/csv;charset=utf-8');
 }
 
 /** Sanitizes an arbitrary string into a safe CSV filename fragment. */

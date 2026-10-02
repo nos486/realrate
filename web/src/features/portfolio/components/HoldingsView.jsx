@@ -349,12 +349,12 @@ const HoldingsView = forwardRef(function HoldingsView(
         )}
 
         <CsvExportButton
-          items={normalizedHoldings}
+          assets={ledger.assets}
           portfolioName={activePortfolio?.name || 'portfolio'}
           disabled={isVaultLocked || holdings.length === 0}
         />
 
-        <CsvImportButton addHolding={addHolding} disabled={readOnly || isVaultLocked} />
+        <CsvImportButton addHolding={addHolding} addTransaction={addTransaction} disabled={readOnly || isVaultLocked} />
 
         {activePortfolio && (
           <button
