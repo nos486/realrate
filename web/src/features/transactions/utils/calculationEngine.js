@@ -1,8 +1,14 @@
 /**
- * calculationEngine.js — Pure client-side calculation engine for transactions
+ * calculationEngine.js — Pure client-side calculation engine for a portfolio's ledger
  *
  * Zero React dependencies — purely functional and 100% testable in any JS runtime.
  * Implements moving Weighted Average Cost (WAC), realized PnL and real-time unrealized PnL.
+ *
+ * One ledger per asset: the manual holdings (`manualLots`, each an opening buy) and the
+ * transactions — buy, sell, and spend (paying an expense with the asset itself, valued at that
+ * day's rate: it realizes P&L like a sale). So a sale or a spend can take from what was recorded
+ * by hand too. A lot without a buy price is "unknown cost": it counts in the quantity but not in
+ * the average or the P&L (those cover the priced part only).
  */
 
 import { resolveHoldingUnitRealPrice } from '../../../utils/financialSpecs.js';
@@ -12,6 +18,10 @@ import {
   resolveAssetUnit,
   resolveCategory,
 } from '../../../config/sourceRegistry.js';
+import { jalaliToGregorian } from '../../../utils/loanCalculator.js';
+
+/** Types that take quantity out of the position at their price (realizing P&L) */
+const OUTFLOW_TYPES = new Set(['sell', 'spend']);
 
 /** Quantities closer to zero than this are treated as zero (float noise from decimal amounts) */
 const QTY_EPSILON = 1e-9;
@@ -29,14 +39,27 @@ function getTransactionDate(t) {
 }
 
 /**
+ * A date comparable as text, whatever the calendar it was typed in (Shamsi «1405/7/4» or
+ * Gregorian «2026-09-26» → «2026-09-26»); '' (sorts first: an opening balance) when none
+ */
+function sortableDate(value) {
+  const digits = String(value || '').replace(/[۰-۹]/g, (d) => '۰۱۲۳۴۵۶۷۸۹'.indexOf(d));
+  const match = digits.match(/^(\d{4})[/.-](\d{1,2})[/.-](\d{1,2})/);
+  if (!match) return '';
+  let [year, month, day] = match.slice(1).map(Number);
+  if (year < 1700) ({ year, month, day } = jalaliToGregorian(year, month, day));
+  return `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+}
+
+/**
  * Order transactions by trade date, then by creation time. On the same day, buys go before
  * sells so a same-day buy-then-sell never looks like an oversell because of entry order.
  */
 function sortTransactionsChronologically(transactions) {
   return [...transactions].sort((a, b) => {
-    const byDate = String(getTransactionDate(a)).localeCompare(String(getTransactionDate(b)));
+    const byDate = sortableDate(getTransactionDate(a)).localeCompare(sortableDate(getTransactionDate(b)));
     if (byDate !== 0) return byDate;
-    const typeRank = (t) => (getTransactionType(t) === 'sell' ? 1 : 0);
+    const typeRank = (t) => (OUTFLOW_TYPES.has(getTransactionType(t)) ? 1 : 0);
     const byType = typeRank(a) - typeRank(b);
     if (byType !== 0) return byType;
     return String(a.createdAt || '').localeCompare(String(b.createdAt || ''));
@@ -48,9 +71,14 @@ function sortTransactionsChronologically(transactions) {
  *
  * @param {Array} transactions - Array of decrypted transaction objects
  * @param {object} [livePriceMap={}] - Mapping of asset IDs to current market prices
- * @returns {{ computedHoldings: Array, warnings: Array, summary: object }}
+ * @param {{ manualLots?: Array }} [options] - the portfolio's manual holdings: each is an opening
+ *   buy in its asset's ledger. A computed row then holds what the transactions changed on top of
+ *   them (it may be negative: a sale or spend that took from the manual lots), so the manual rows
+ *   plus the computed row add up to the asset's real position.
+ * @returns {{ computedHoldings: Array, warnings: Array, summary: object, positions: Map }}
+ *   positions: the real position of every asset that has transactions, by asset id
  */
-export function calculateComputedHoldings(transactions = [], livePriceMap = {}) {
+export function calculateComputedHoldings(transactions = [], livePriceMap = {}, { manualLots = [] } = {}) {
   if (!Array.isArray(transactions) || transactions.length === 0) {
     return {
       computedHoldings: [],
@@ -65,6 +93,7 @@ export function calculateComputedHoldings(transactions = [], livePriceMap = {}) 
         hasRealizedPnl: false,
         count: 0,
       },
+      positions: new Map(),
     };
   }
 
@@ -90,6 +119,7 @@ export function calculateComputedHoldings(transactions = [], livePriceMap = {}) 
         category: resolvedType,
         unit: resolvedUnit,
         transactions: [],
+        manual: [],
       });
     }
 
@@ -108,8 +138,31 @@ export function calculateComputedHoldings(transactions = [], livePriceMap = {}) 
     });
   }
 
+  // Manual holdings join the ledger of the assets that have transactions, as opening buys
+  for (const lot of Array.isArray(manualLots) ? manualLots : []) {
+    const storedId = String(lot?.assetId || '').trim();
+    if (!storedId) continue;
+    const assetId = isCustomAssetId(storedId) ? storedId : toPriceId(storedId, livePriceMap || null);
+    const group = groups.get(assetId);
+    if (!group) continue;
+    group.manual.push(lot);
+    group.transactions.push({
+      id: lot.id,
+      assetId,
+      transactionType: 'buy',
+      quantity: Number(lot.amount) || 0,
+      unitPrice: Number(lot.buyPrice) || 0,
+      transactionDate: lot.buyDate || '',
+      createdAt: lot.createdAt || '',
+      isManualLot: true,
+      referenceAssetId: lot.referenceAssetId || '',
+      referenceQuantity: lot.referenceQuantity || 0,
+    });
+  }
+
   const computedHoldings = [];
   const warnings = [];
+  const positions = new Map();
   let totalRealizedPnl = 0;
   let hasRealizedPnl = false;
 
@@ -122,7 +175,10 @@ export function calculateComputedHoldings(transactions = [], livePriceMap = {}) 
     //  - once the position is fully closed the cost basis resets, so a later re-buy starts a
     //    fresh average instead of being blended with lots that were already sold
     let openQty = 0;
-    let openCost = 0;
+    // The open position's priced part (its cost) and the part of unknown cost
+    let pricedQty = 0;
+    let pricedCost = 0;
+    let unpricedQty = 0;
     let totalBuyQty = 0;
     let totalSellQty = 0;
     let realizedPnl = 0;
@@ -136,7 +192,9 @@ export function calculateComputedHoldings(transactions = [], livePriceMap = {}) 
     let hasMixedReferenceAsset = false;
     let openReferenceQuantity = 0;
     const resetOpenPosition = () => {
-      openCost = 0;
+      pricedQty = 0;
+      pricedCost = 0;
+      unpricedQty = 0;
       commonReferenceAssetId = undefined;
       hasMixedReferenceAsset = false;
       openReferenceQuantity = 0;
@@ -148,7 +206,7 @@ export function calculateComputedHoldings(transactions = [], livePriceMap = {}) 
       const price = Number(t.unitPrice !== undefined ? t.unitPrice : (t.buyPrice || t.price || 0));
       const date = getTransactionDate(t);
 
-      if (date && (!latestTxDate || date > latestTxDate)) {
+      if (date && !t.isManualLot && (!latestTxDate || sortableDate(date) > sortableDate(latestTxDate))) {
         latestTxDate = date;
       }
       if (!(qty > 0)) continue;
@@ -161,8 +219,13 @@ export function calculateComputedHoldings(transactions = [], livePriceMap = {}) 
         const addedQty = qty - coveringQty;
         openQty += qty;
         if (isZeroQty(openQty)) openQty = 0;
-        openCost += addedQty * (price > 0 ? price : 0);
-        if (date && (!latestBuyDate || date > latestBuyDate)) {
+        if (price > 0) {
+          pricedQty += addedQty;
+          pricedCost += addedQty * price;
+        } else {
+          unpricedQty += addedQty;
+        }
+        if (date && !t.isManualLot && (!latestBuyDate || sortableDate(date) > sortableDate(latestBuyDate))) {
           latestBuyDate = date;
         }
 
@@ -181,20 +244,24 @@ export function calculateComputedHoldings(transactions = [], livePriceMap = {}) 
             hasMixedReferenceAsset = true;
           }
         }
-      } else if (type === 'sell') {
+      } else if (OUTFLOW_TYPES.has(type)) {
         totalSellQty += qty;
         const heldQty = openQty > 0 ? openQty : 0;
         const soldFromPosition = Math.min(qty, heldQty);
-        const averageCost = heldQty > 0 ? openCost / heldQty : 0;
 
         if (soldFromPosition > 0) {
-          if (price > 0 && averageCost > 0) {
-            realizedPnl += soldFromPosition * (price - averageCost);
+          // Taken evenly from the priced and the unknown-cost parts
+          const share = soldFromPosition / heldQty;
+          const soldPriced = pricedQty * share;
+          const averageCost = pricedQty > 0 ? pricedCost / pricedQty : 0;
+          if (price > 0 && soldPriced > 0 && averageCost > 0) {
+            realizedPnl += soldPriced * (price - averageCost);
             assetHasRealized = true;
           }
-          const remainingShare = (heldQty - soldFromPosition) / heldQty;
-          openCost *= remainingShare;
-          openReferenceQuantity *= remainingShare;
+          pricedCost -= pricedCost * share;
+          pricedQty -= soldPriced;
+          unpricedQty -= unpricedQty * share;
+          openReferenceQuantity *= 1 - share;
         }
 
         openQty -= qty;
@@ -210,7 +277,14 @@ export function calculateComputedHoldings(transactions = [], livePriceMap = {}) 
 
     const currentQty = openQty;
 
-    // Scenario A: Overselling (User error — sells exceed purchases)
+    // The manual lots as their own rows show them (quantity; cost and quantity of the priced ones)
+    const manualQty = group.manual.reduce((sum, lot) => sum + (Number(lot.amount) || 0), 0);
+    const manualPriced = group.manual.filter((lot) => Number(lot.buyPrice) > 0);
+    const manualPricedQty = manualPriced.reduce((sum, lot) => sum + (Number(lot.amount) || 0), 0);
+    const manualCost = manualPriced.reduce((sum, lot) => sum + (Number(lot.amount) || 0) * Number(lot.buyPrice), 0);
+    const txCount = group.transactions.length - group.manual.length;
+
+    // Scenario A: Overselling (User error — sells exceed what is held, manual lots included)
     if (currentQty < 0) {
       warnings.push({
         assetId,
@@ -221,20 +295,10 @@ export function calculateComputedHoldings(transactions = [], livePriceMap = {}) 
         unit: group.unit,
         message: `موجودی دارایی «${group.assetName}» منفی است (${Math.abs(currentQty).toLocaleString('fa-IR')} ${group.unit} فروش مازاد بر خرید). لطفاً تراکنش‌ها را بازبینی فرمایید.`,
       });
-      // Do NOT include negative-balance assets in computed holdings list
-      continue;
     }
 
-    // Scenario B: Completely sold (zero balance)
-    if (currentQty === 0) {
-      // Omit from computed holdings list silently
-      continue;
-    }
-
-    // Scenario C: Positive balance -> average cost of the lots still held
-    const weightedAveragePrice = openCost / currentQty;
-
-    // Resolve current market price
+    const heldQty = Math.max(0, currentQty);
+    const weightedAveragePrice = pricedQty > 0 ? pricedCost / pricedQty : 0;
     const unitRealPrice = resolveHoldingUnitRealPrice(
       {
         assetId,
@@ -246,31 +310,52 @@ export function calculateComputedHoldings(transactions = [], livePriceMap = {}) 
       },
       livePriceMap
     );
+    positions.set(assetId, {
+      assetId,
+      assetName: group.assetName,
+      unit: group.unit,
+      amount: heldQty,
+      pricedQty: heldQty > 0 ? pricedQty : 0,
+      unpricedQty: heldQty > 0 ? unpricedQty : 0,
+      averageCost: weightedAveragePrice,
+      cost: heldQty > 0 ? pricedCost : 0,
+      realizedPnl: assetHasRealized ? realizedPnl : null,
+      deficit: currentQty < 0 ? -currentQty : 0,
+    });
 
-    const hasBuyPrice = weightedAveragePrice > 0;
-    const itemCost = hasBuyPrice ? currentQty * weightedAveragePrice : 0;
-    const itemRealVal = currentQty * unitRealPrice;
-    const itemPnl = hasBuyPrice ? itemRealVal - itemCost : null;
+    // The computed row: what the transactions changed on top of the manual lots
+    const rowQty = heldQty - manualQty;
+    const rowPricedQty = (heldQty > 0 ? pricedQty : 0) - manualPricedQty;
+    const rowCost = (heldQty > 0 ? pricedCost : 0) - manualCost;
+    // Nothing left to show: closed (or oversold, warned above) with no manual lot to adjust
+    if (isZeroQty(rowQty) && Math.abs(rowCost) < 0.5) continue;
+    if (currentQty <= 0 && group.manual.length === 0) continue;
+
+    const hasBuyPrice = Math.abs(rowPricedQty) > QTY_EPSILON || Math.abs(rowCost) >= 0.5;
+    const itemCost = hasBuyPrice ? rowCost : 0;
+    const itemRealVal = rowQty * unitRealPrice;
+    const itemPnl = hasBuyPrice ? rowPricedQty * unitRealPrice - rowCost : null;
     const itemPnlPct =
       hasBuyPrice && itemCost > 0
         ? parseFloat(((itemPnl / itemCost) * 100).toFixed(1))
         : null;
+    const rowBuyPrice = Math.abs(rowPricedQty) > QTY_EPSILON ? rowCost / rowPricedQty : weightedAveragePrice;
 
-    const hasUniformReferenceAsset = !hasMixedReferenceAsset && Boolean(commonReferenceAssetId);
+    const hasUniformReferenceAsset = !hasMixedReferenceAsset && Boolean(commonReferenceAssetId) && group.manual.length === 0;
     // Already scaled down on every sell alongside the Toman cost basis, so a partially-sold
     // position doesn't overstate what was originally given up for it.
     const scaledReferenceQuantity = hasUniformReferenceAsset ? openReferenceQuantity : 0;
 
     computedHoldings.push({
       id: `computed_${assetId}`,
-      portfolioId: group.transactions[0]?.portfolioId || '',
+      portfolioId: group.transactions.find((t) => !t.isManualLot)?.portfolioId || '',
       assetId,
       assetName: group.assetName,
       assetType: group.assetType,
       category: group.assetType,
       unit: group.unit,
-      amount: currentQty,
-      buyPrice: Math.round(weightedAveragePrice),
+      amount: rowQty,
+      buyPrice: Math.round(rowBuyPrice),
       currentPrice: unitRealPrice,
       unitRealPrice,
       itemCost,
@@ -278,11 +363,17 @@ export function calculateComputedHoldings(transactions = [], livePriceMap = {}) 
       itemPnl,
       itemPnlPct,
       hasBuyPrice,
+      pricedQty: rowPricedQty,
+      unpricedQty: heldQty > 0 ? unpricedQty : 0,
       buyDate: latestBuyDate || latestTxDate || '',
-      notes: `محاسبه خودکار از ${group.transactions.length.toLocaleString('fa-IR')} تراکنش`,
+      notes: group.manual.length && rowQty < 0
+        ? `فروش و پرداخت از دارایی‌های دستی (${txCount.toLocaleString('fa-IR')} تراکنش)`
+        : `محاسبه خودکار از ${txCount.toLocaleString('fa-IR')} تراکنش`,
       source: 'transactions',
       isComputed: true,
-      txCount: group.transactions.length,
+      // Takes from the manual lots: shown as an adjustment of them
+      adjustsManual: group.manual.length > 0,
+      txCount,
       realizedPnl: assetHasRealized ? realizedPnl : null,
       // Only set when every buy transaction for this asset shares one reference asset —
       // otherwise a blended figure across different references would be meaningless.
@@ -302,6 +393,7 @@ export function calculateComputedHoldings(transactions = [], livePriceMap = {}) 
   return {
     computedHoldings,
     warnings,
+    positions,
     summary: {
       totalCost,
       totalRealValue,

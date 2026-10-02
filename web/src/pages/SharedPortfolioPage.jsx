@@ -259,9 +259,10 @@ export default function SharedPortfolioPage() {
 
   // Positions computed from the portfolio's buy/sell transactions (Weighted Average Cost) —
   // the second half of what the authenticated view shows alongside manually-added holdings.
+  // The manual holdings are the opening buys of the same ledger (a sale can take from them)
   const { computedHoldings } = useMemo(
-    () => calculateComputedHoldings(decryptedTransactions, realPriceMap),
-    [decryptedTransactions, realPriceMap]
+    () => calculateComputedHoldings(decryptedTransactions, realPriceMap, { manualLots: portfolioData?.holdings || [] }),
+    [decryptedTransactions, realPriceMap, portfolioData?.holdings]
   );
 
   const portfolioMetrics = useMemo(() => {
@@ -285,10 +286,15 @@ export default function SharedPortfolioPage() {
 
       const unitRealPrice = resolveHoldingUnitRealPrice(h, realPriceMap);
 
-      const itemCost = hasBuyPrice ? amountNum * buyPriceNum : 0;
+      // A computed row carries the ledger's own cost (see HoldingsView)
+      const fromLedger = rawH.isComputed && rawH.itemCost !== undefined;
+      const rowHasPrice = fromLedger ? Boolean(rawH.hasBuyPrice) : hasBuyPrice;
+      const itemCost = fromLedger ? (rowHasPrice ? rawH.itemCost : 0) : (hasBuyPrice ? amountNum * buyPriceNum : 0);
       const itemRealVal = amountNum * unitRealPrice;
-      const itemPnl = hasBuyPrice ? itemRealVal - itemCost : null;
-      const itemPnlPct = hasBuyPrice && itemCost > 0 ? parseFloat(((itemPnl / itemCost) * 100).toFixed(1)) : null;
+      const itemPnl = fromLedger
+        ? (rowHasPrice ? (Number(rawH.pricedQty) || 0) * unitRealPrice - itemCost : null)
+        : (hasBuyPrice ? itemRealVal - itemCost : null);
+      const itemPnlPct = rowHasPrice && itemCost > 0 ? parseFloat(((itemPnl / itemCost) * 100).toFixed(1)) : null;
 
       const referencePnlInfo = computeReferenceAssetPnl({ ...h, itemRealVal }, realPriceMap, liveItemMap);
       const comparePnlInfo = computeCompareAssetPnl({ ...h, itemCost, itemRealVal }, realPriceMap, liveItemMap);
@@ -296,7 +302,7 @@ export default function SharedPortfolioPage() {
       return {
         ...h,
         source: sourceTag,
-        hasBuyPrice,
+        hasBuyPrice: rowHasPrice,
         isCustomItem,
         unitRealPrice,
         itemCost,

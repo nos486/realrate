@@ -12,10 +12,13 @@ export { calculateComputedHoldings };
  *
  * @param {Array} transactions
  * @param {object} livePriceMap
- * @returns {{ computedHoldings: Array, warnings: Array, summary: object }}
+ * @param {Array} [manualLots] the portfolio's manual holdings (opening buys of the same ledger)
+ * @returns {{ computedHoldings: Array, warnings: Array, summary: object, positions: Map }}
  */
-export function useComputedHoldings(transactions = [], livePriceMap = {}) {
+export function useComputedHoldings(transactions = [], livePriceMap = {}, manualLots = EMPTY) {
   return useMemo(() => {
-    return calculateComputedHoldings(transactions, livePriceMap);
-  }, [transactions, livePriceMap]);
+    return calculateComputedHoldings(transactions, livePriceMap, { manualLots });
+  }, [transactions, livePriceMap, manualLots]);
 }
+
+const EMPTY = [];

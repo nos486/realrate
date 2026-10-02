@@ -141,7 +141,9 @@ const HoldingsView = forwardRef(function HoldingsView(
 
   // Transactions & Computed Holdings Hook for active portfolio
   const { transactions } = useTransactions(activePortfolio, activeVaultKey);
-  const { computedHoldings, warnings: transactionWarnings, summary: transactionSummary } = useComputedHoldings(transactions, realPriceMap);
+  // One ledger per asset: the manual holdings are its opening buys, so a sale or a spend can take
+  // from them; a computed row is what the transactions changed on top of the manual rows
+  const { computedHoldings, warnings: transactionWarnings, summary: transactionSummary } = useComputedHoldings(transactions, realPriceMap, holdings);
 
   // Portfolio Metrics (combining manual holdings + computed holdings from transactions)
   const portfolioMetrics = useMemo(() => {
@@ -161,11 +163,17 @@ const HoldingsView = forwardRef(function HoldingsView(
 
       const unitRealPrice = resolveHoldingUnitRealPrice(h, realPriceMap);
 
-      const itemCost = hasBuyPrice ? amountNum * buyPriceNum : 0;
+      // A computed row carries its own cost (the ledger's, possibly negative: an adjustment of the
+      // manual lots) and the quantity it applies to; a manual row is amount × buy price
+      const fromLedger = rawH.isComputed && rawH.itemCost !== undefined;
+      const rowHasPrice = fromLedger ? Boolean(rawH.hasBuyPrice) : hasBuyPrice;
+      const itemCost = fromLedger ? (rowHasPrice ? rawH.itemCost : 0) : (hasBuyPrice ? amountNum * buyPriceNum : 0);
       const itemRealVal = amountNum * unitRealPrice;
-      const itemPnl = hasBuyPrice ? itemRealVal - itemCost : null;
+      const itemPnl = fromLedger
+        ? (rowHasPrice ? (Number(rawH.pricedQty) || 0) * unitRealPrice - itemCost : null)
+        : (hasBuyPrice ? itemRealVal - itemCost : null);
       const itemPnlPct =
-        hasBuyPrice && itemCost > 0
+        rowHasPrice && itemCost > 0
           ? parseFloat(((itemPnl / itemCost) * 100).toFixed(1))
           : null;
 
@@ -184,7 +192,7 @@ const HoldingsView = forwardRef(function HoldingsView(
       return {
         ...h,
         source: sourceTag,
-        hasBuyPrice,
+        hasBuyPrice: rowHasPrice,
         isCustomItem,
         isBourseItem,
         unitRealPrice,

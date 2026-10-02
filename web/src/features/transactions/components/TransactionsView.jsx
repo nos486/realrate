@@ -43,6 +43,9 @@ import Pagination from '../../../shared/ui/Pagination.jsx';
 import PeriodBar from '../../../shared/ui/PeriodBar.jsx';
 import { DEFAULT_RECENT_PERIOD, periodFrom } from '../../../shared/utils/recentPeriods.js';
 import { toIsoDay } from '../../../shared/vault/vaultRecordMeta.js';
+import { usePortfolioVaultKey } from '../../../shared/vault/usePortfolioVaultKey.js';
+import { listPortfolioHoldings } from '../../../shared/vault/vaultPortfolioItems.js';
+import { toPriceId } from '../../../utils/priceIds.js';
 import {
   deriveE2eeKey,
   verifyE2eeKey,
@@ -106,14 +109,32 @@ const TransactionsView = forwardRef(function TransactionsView(
   const { transactions: fullHistory } = useTransactions(activePortfolio, vaultKey, {
     enabled: formOpen && Boolean(periodStart),
   });
-  const { computedHoldings } = useComputedHoldings(periodStart ? fullHistory : transactions, realPriceMap);
+  // What is held counts the manual holdings too (one ledger per asset): read while the form is open
+  const { key: accountKey } = usePortfolioVaultKey(activePortfolio);
+  const holdingsKey = accountKey || vaultKey;
+  const [manualLots, setManualLots] = useState([]);
+  useEffect(() => {
+    if (!formOpen || !activePortfolio?.id || !holdingsKey) return undefined;
+    let cancelled = false;
+    listPortfolioHoldings(activePortfolio, holdingsKey)
+      .then((list) => !cancelled && setManualLots(list))
+      .catch(() => !cancelled && setManualLots([]));
+    return () => {
+      cancelled = true;
+    };
+  }, [formOpen, activePortfolio, holdingsKey]);
+  const { positions } = useComputedHoldings(periodStart ? fullHistory : transactions, realPriceMap, manualLots);
   const currentHoldingsMap = useMemo(() => {
     const map = {};
-    computedHoldings.forEach((h) => {
-      map[h.assetId] = h;
+    for (const lot of manualLots) {
+      const id = toPriceId(lot.assetId);
+      map[id] = { assetId: id, amount: (map[id]?.amount || 0) + (Number(lot.amount) || 0) };
+    }
+    positions.forEach((position, id) => {
+      map[id] = position;
     });
     return map;
-  }, [computedHoldings]);
+  }, [positions, manualLots]);
 
   // UI state
   const hideValues = usePrivacyMode();
@@ -170,7 +191,9 @@ const TransactionsView = forwardRef(function TransactionsView(
   // Filtered transactions
   const filteredTransactions = useMemo(() => {
     return transactions.filter((tx) => {
-      if (typeFilter !== 'all' && (tx.transactionType || tx.type) !== typeFilter) {
+      const txType = tx.transactionType || tx.type;
+      // «فروش» lists the spends too (both take from the position)
+      if (typeFilter !== 'all' && txType !== typeFilter && !(typeFilter === 'sell' && txType === 'spend')) {
         return false;
       }
       if (searchQuery.trim()) {
@@ -281,9 +304,12 @@ const TransactionsView = forwardRef(function TransactionsView(
   const { confirm, toast } = useFeedback();
 
   const handleDeleteTx = async (id) => {
+    const tx = transactions.find((t) => t.id === id);
     const confirmed = await confirm({
       title: 'حذف تراکنش',
-      message: 'آیا از حذف این تراکنش اطمینان دارید؟',
+      message: tx?.expenseId
+        ? 'این تراکنش، پرداخت یک هزینه است. با حذفش، هزینه سر جایش می‌ماند ولی دیگر از این پورتفو کم نمی‌شود. برای تغییر، بهتر است خود هزینه را ویرایش یا حذف کنید. حذف شود؟'
+        : 'آیا از حذف این تراکنش اطمینان دارید؟',
       confirmLabel: 'حذف',
       danger: true,
     });
@@ -312,7 +338,16 @@ const TransactionsView = forwardRef(function TransactionsView(
       tdClassName: 'td-type',
       mobile: 'meta',
       render: (tx) => {
-        const isBuy = (tx.transactionType || tx.type || 'buy').toLowerCase() === 'buy';
+        const txType = (tx.transactionType || tx.type || 'buy').toLowerCase();
+        const isBuy = txType === 'buy';
+        if (txType === 'spend') {
+          return (
+            <span className="tx-badge sell" title={tx.notes || ''}>
+              <Receipt size={13} style={{ verticalAlign: 'middle', marginLeft: '3px' }} />
+              پرداخت هزینه
+            </span>
+          );
+        }
         return (
           <span className={`tx-badge ${isBuy ? 'buy' : 'sell'}`}>
             {isBuy ? (
@@ -447,14 +482,17 @@ const TransactionsView = forwardRef(function TransactionsView(
             mobile: 'actions',
             render: (tx) => (
               <div className="row-actions-group">
-                <button
-                  type="button"
-                  className="btn-table-action edit"
-                  title="ویرایش تراکنش"
-                  onClick={() => handleOpenEdit(tx)}
-                >
-                  <Pencil size={13} strokeWidth={2} />
-                </button>
+                {/* A spend is edited through its expense */}
+                {(tx.transactionType || tx.type) !== 'spend' && (
+                  <button
+                    type="button"
+                    className="btn-table-action edit"
+                    title="ویرایش تراکنش"
+                    onClick={() => handleOpenEdit(tx)}
+                  >
+                    <Pencil size={13} strokeWidth={2} />
+                  </button>
+                )}
                 <button
                   type="button"
                   className={`btn-table-action delete ${deletingId === tx.id ? 'loading' : ''}`}
