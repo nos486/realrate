@@ -113,8 +113,11 @@ export default function ExpenseForm({ group = null, daily = false, expense = nul
       cancelled = true;
     };
   }, [isUsd, fundId, rateTouched, dateIso, usdToman, fundAsset]);
+  // «دنگ» is for toman expenses only
+  const canShare = !isUsd;
+  const sharing = canShare && shared;
   const shareNum = parseInputNumber(myShare);
-  const shareValid = !shared || (myShare.trim() !== '' && shareNum >= 0 && shareNum < amountNum);
+  const shareValid = !sharing || (myShare.trim() !== '' && shareNum >= 0 && shareNum < amountNum);
   const received = expenseReceivable(expense).received;
   const paidFromPortfolio = Boolean(fundAsset && fund);
   const isValid = (daily || Boolean(title.trim())) && amountNum > 0 && Boolean(dateIso) && (!usdRate || rateNum > 0)
@@ -145,7 +148,7 @@ export default function ExpenseForm({ group = null, daily = false, expense = nul
         usdRate: isUsd && rateNum > 0 ? rateNum : null,
         date: dateIso,
         notes: notes.trim(),
-        myShare: shared ? shareNum : null,
+        myShare: sharing ? shareNum : null,
         ...(draft && !expense ? { source: draft.source, bankId: draft.bankId, smsFingerprint: draft.smsFingerprint } : {}),
       });
       try {
@@ -263,38 +266,40 @@ export default function ExpenseForm({ group = null, daily = false, expense = nul
           </div>
         )}
 
-        <div className="ui-input-group">
-          <span className="ui-input-label">سهم</span>
-          <FilterPills options={SHARE_OPTIONS} activeValue={shared ? 'shared' : 'own'} onChange={(v) => setShared(v === 'shared')} size="sm" />
-          {shared && (
-            <>
-              <div className="ui-input-wrapper expense-share-input">
-                <NumericInput
-                  id="expense-my-share"
-                  value={myShare}
-                  onValueChange={setMyShare}
-                  allowDecimals={isUsd}
-                  placeholder={`سهم خودم (${isUsd ? 'دلار' : 'تومان'})`}
-                  className="ui-input-control"
-                  aria-label="سهم من"
-                />
-              </div>
-              <p className="expense-form-hint">
-                {amountNum > 0 && myShare.trim() !== '' && shareNum < amountNum ? (
-                  <>
-                    فقط <strong>{formatNum(shareNum)}</strong> هزینه‌ی شما حساب می‌شود؛ <strong>{formatNum(amountNum - shareNum)}</strong>{' '}
-                    {isUsd ? 'دلار' : 'تومان'} طلب از دیگران است و دریافتش درآمد حساب نمی‌شود.
-                  </>
-                ) : amountNum > 0 && shareNum >= amountNum ? (
-                  'سهم شما باید کمتر از مبلغ کل باشد.'
-                ) : (
-                  'مبلغ بالا کل پرداختی است؛ سهم خودتان را بنویسید (صفر: همه برای دیگران بود).'
-                )}
-                {received > 0 && ` تا حالا ${formatNum(received)} دریافت شده.`}
-              </p>
-            </>
-          )}
-        </div>
+        {canShare && (
+          <div className="ui-input-group">
+            <span className="ui-input-label">سهم</span>
+            <FilterPills options={SHARE_OPTIONS} activeValue={shared ? 'shared' : 'own'} onChange={(v) => setShared(v === 'shared')} size="sm" />
+            {shared && (
+              <>
+                <div className="ui-input-wrapper expense-share-input">
+                  <NumericInput
+                    id="expense-my-share"
+                    value={myShare}
+                    onValueChange={setMyShare}
+                    allowDecimals={isUsd}
+                    placeholder={`سهم خودم (${isUsd ? 'دلار' : 'تومان'})`}
+                    className="ui-input-control"
+                    aria-label="سهم من"
+                  />
+                </div>
+                <p className="expense-form-hint">
+                  {amountNum > 0 && myShare.trim() !== '' && shareNum < amountNum ? (
+                    <>
+                      فقط <strong>{formatNum(shareNum)}</strong> هزینه‌ی شما حساب می‌شود؛ <strong>{formatNum(amountNum - shareNum)}</strong>{' '}
+                      {isUsd ? 'دلار' : 'تومان'} طلب از دیگران است و دریافتش درآمد حساب نمی‌شود.
+                    </>
+                  ) : amountNum > 0 && shareNum >= amountNum ? (
+                    'سهم شما باید کمتر از مبلغ کل باشد.'
+                  ) : (
+                    'مبلغ بالا کل پرداختی است؛ سهم خودتان را بنویسید (صفر: همه برای دیگران بود).'
+                  )}
+                  {received > 0 && ` تا حالا ${formatNum(received)} دریافت شده.`}
+                </p>
+              </>
+            )}
+          </div>
+        )}
 
         {fundAsset && (
           <div className="ui-input-group">

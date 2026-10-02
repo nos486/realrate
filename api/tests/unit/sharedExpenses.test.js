@@ -57,6 +57,11 @@ describe('validateExpense — shared', () => {
     expect(validateExpense({ ...base, myShare: 3_000_000, reimbursements: [rmb('bad id!', 1)] }).error).toBeTruthy();
   });
 
+  it('is for toman expenses only', () => {
+    expect(validateExpense({ ...base, currency: 'USD', amount: 100, myShare: 30 }).value.myShare).toBeNull();
+    expect(validateExpense({ ...base, currency: 'USD', amount: 100, myShare: 30, reimbursements: [rmb('rmb_a', 10)] }).error).toMatch(/تومانی/);
+  });
+
   it('will not drop the share while reimbursements remain', () => {
     expect(validateExpense({ ...base, myShare: null, reimbursements: [rmb('rmb_a', 1)] }).error).toMatch(/دریافتی/);
   });

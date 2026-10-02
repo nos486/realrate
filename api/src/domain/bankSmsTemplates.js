@@ -66,8 +66,7 @@ export const BANK_SMS_TEMPLATES = [
   },
   {
     bankId: 'pasargad',
-    // TODO: the sender number (the Android app reads only listed senders)
-    senders: [],
+    senders: ['B.Pasargad'],
     templates: [
       {
         // 232.800.1442198.1
@@ -83,8 +82,7 @@ export const BANK_SMS_TEMPLATES = [
   },
   {
     bankId: 'shahr',
-    // TODO: the sender number (the Android app reads only listed senders)
-    senders: [],
+    senders: ['Bank Shahr'],
     templates: [
       {
         // *بانک شهر*
@@ -103,8 +101,7 @@ export const BANK_SMS_TEMPLATES = [
   },
   {
     bankId: 'mellat',
-    // TODO: the sender number (the Android app reads only listed senders)
-    senders: [],
+    senders: ['Bank Mellat'],
     templates: [
       {
         // حساب1848394556

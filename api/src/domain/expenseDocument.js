@@ -26,7 +26,7 @@
  * assetId, txId }`): the portfolio gets a «spend» transaction (`txId`) at the expense's rate
  * (web/src/shared/vault/portfolioFunds.js); such an expense has no account and no loan.
  *
- * A shared expense («دنگ»): the user paid `amount` for others too, and only `myShare` (same
+ * A shared expense («دنگ», toman expenses only): the user paid `amount` for others too, and only `myShare` (same
  * currency) is theirs. Totals, categories, budgets and loan usage count `myShare`
  * (expenseInToman); the rest is owed back to the user. What comes back is kept on the expense
  * itself (`reimbursements`: amount, day, the account it reached, from an SMS too) — never as
@@ -181,8 +181,9 @@ export function validateExpense(body = {}) {
   const smsFingerprint = source === 'sms' && /^[0-9a-f]{8}$/.test(text(body.smsFingerprint)) ? text(body.smsFingerprint) : '';
   const smsKey = source === 'sms' ? text(body.smsKey).slice(0, 120) : '';
 
-  const shared = validateShare(body, amount);
-  if (shared.error) return { error: shared.error };
+  // «دنگ» is for toman expenses only
+  const shared = currency === 'IRT' ? validateShare(body, amount) : validateShare({ myShare: null, reimbursements: body.reimbursements }, amount);
+  if (shared.error) return { error: currency === 'IRT' ? shared.error : 'دنگ فقط برای هزینه‌های تومانی است.' };
   const { myShare, reimbursements } = shared;
 
   const funding = validatePaidFrom(body.paidFrom, currency);
