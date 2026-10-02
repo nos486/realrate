@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { ChevronUp, ChevronDown, ChevronsUpDown } from 'lucide-react';
 import { useIsMobile } from '../../hooks/useMediaQuery.js';
 
@@ -42,6 +42,9 @@ function SortIcon({ active, dir }) {
  *   accessors map passed to useSortableRows; its header then becomes a clickable
  *   button with a direction indicator instead of plain text.
  * @param {(key: string) => void} [onSortChange] - toggleSort from useSortableRows.
+ * @param {(row: object) => ReactNode} [renderExpanded] - rows open: tapping a row (not a button
+ *   or link in it) shows this under it, full width — a desktop row gets a row of its own under it,
+ *   a mobile card grows. Which rows are open is kept here.
  */
 export default function ResponsiveDataTable({
   columns,
@@ -54,8 +57,32 @@ export default function ResponsiveDataTable({
   emptyState = null,
   sortState = null,
   onSortChange = null,
+  renderExpanded = null,
 }) {
   const isMobile = useIsMobile(mobileBreakpoint);
+  const [openKeys, setOpenKeys] = useState(() => new Set());
+  const expandable = typeof renderExpanded === 'function';
+  const isOpen = (row) => expandable && openKeys.has(rowKey(row));
+  const toggle = (row) => setOpenKeys((prev) => {
+    const next = new Set(prev);
+    const key = rowKey(row);
+    if (next.has(key)) next.delete(key);
+    else next.add(key);
+    return next;
+  });
+  // A tap on the row itself, not on a control inside it
+  const onRowClick = (row) => (e) => {
+    if (!expandable || e.target.closest('button, a, input, select, textarea, label')) return;
+    toggle(row);
+  };
+  const onRowKey = (row) => (e) => {
+    if (!expandable || e.target !== e.currentTarget || (e.key !== 'Enter' && e.key !== ' ')) return;
+    e.preventDefault();
+    toggle(row);
+  };
+  const rowProps = (row) => (expandable
+    ? { onClick: onRowClick(row), onKeyDown: onRowKey(row), tabIndex: 0, 'aria-expanded': isOpen(row), role: 'button' }
+    : {});
 
   if (!rows || rows.length === 0) {
     return emptyState;
@@ -71,7 +98,11 @@ export default function ResponsiveDataTable({
     return (
       <div className={`rdt-mobile-list ${wrapperClassName}`}>
         {rows.map((row) => (
-          <div key={rowKey(row)} className={`rdt-mobile-card ${rowClassName ? rowClassName(row) : ''}`}>
+          <div
+            key={rowKey(row)}
+            className={`rdt-mobile-card ${rowClassName ? rowClassName(row) : ''} ${expandable ? 'is-expandable' : ''} ${isOpen(row) ? 'is-open' : ''}`}
+            {...rowProps(row)}
+          >
             <div className="rdt-mobile-card-row rdt-mobile-card-top">
               {titleCol && <div className="rdt-mobile-card-title">{titleCol.render(row)}</div>}
               {actionsCol && <div className="rdt-mobile-card-actions">{actionsCol.render(row)}</div>}
@@ -99,6 +130,7 @@ export default function ResponsiveDataTable({
                 ))}
               </div>
             )}
+            {isOpen(row) && <div className="rdt-expanded" onClick={(e) => e.stopPropagation()}>{renderExpanded(row)}</div>}
           </div>
         ))}
       </div>
@@ -136,13 +168,25 @@ export default function ResponsiveDataTable({
         </thead>
         <tbody>
           {rows.map((row) => (
-            <tr key={rowKey(row)} className={rowClassName ? rowClassName(row) : ''}>
-              {columns.map((c) => (
-                <td key={c.key} className={c.tdClassName}>
-                  {c.render(row)}
-                </td>
-              ))}
-            </tr>
+            <React.Fragment key={rowKey(row)}>
+              <tr
+                className={`${rowClassName ? rowClassName(row) : ''} ${expandable ? 'is-expandable' : ''} ${isOpen(row) ? 'is-open' : ''}`}
+                {...rowProps(row)}
+              >
+                {columns.map((c) => (
+                  <td key={c.key} className={c.tdClassName}>
+                    {c.render(row)}
+                  </td>
+                ))}
+              </tr>
+              {isOpen(row) && (
+                <tr className="rdt-expanded-row">
+                  <td colSpan={columns.length}>
+                    <div className="rdt-expanded">{renderExpanded(row)}</div>
+                  </td>
+                </tr>
+              )}
+            </React.Fragment>
           ))}
         </tbody>
       </table>

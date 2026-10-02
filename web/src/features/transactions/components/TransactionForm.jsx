@@ -29,6 +29,9 @@ export default function TransactionForm({
   editingTransaction = null,
   submitting = false,
   currentHoldingsMap = {}, // assetId -> { amount, unit } for sell warnings
+  // A new transaction of a known asset (an asset row's «خرید» / «فروش»):
+  // { assetId, assetName, unit, transactionType, unitPrice? }
+  preset = null,
 }) {
   const [assetId, setAssetId] = useState('gold_18k');
   const [assetName, setAssetName] = useState('طلای ۱۸ عیار');
@@ -74,19 +77,19 @@ export default function TransactionForm({
         setReferencePriceToman('');
       }
     } else {
-      setAssetId('gold_18k');
-      setAssetName('طلای ۱۸ عیار');
-      setUnit('گرم');
-      setTransactionType('buy');
+      setAssetId(preset?.assetId || 'gold_18k');
+      setAssetName(preset?.assetName || 'طلای ۱۸ عیار');
+      setUnit(preset?.unit || 'گرم');
+      setTransactionType(preset?.transactionType === 'sell' ? 'sell' : 'buy');
       setQuantity('');
-      setUnitPrice('');
+      setUnitPrice(preset?.unitPrice > 0 ? String(Math.round(preset.unitPrice)) : '');
       setTransactionDate(getTodayShamsi());
       setNotes('');
       setReferenceAsset(null);
       setReferenceQuantity('');
       setReferencePriceToman('');
     }
-  }, [isOpen, editingTransaction]);
+  }, [isOpen, editingTransaction, preset]);
 
   // Asset selection handler
   const handleAssetSelect = (asset) => {

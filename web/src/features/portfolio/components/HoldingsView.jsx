@@ -1,11 +1,12 @@
 /**
  * HoldingsView.jsx — Holdings sub-tab of the merged Portfolio page
  *
- * Renders the dual (manual + computed-from-transactions) holdings tables, overview cards,
- * and vault/E2EE controls for the portfolio selected by the parent (PortfolioTracker). The
- * portfolio switcher, page header, and "new portfolio" modal live in the parent, shared with
- * the Transactions sub-tab — this view owns only its own holdings data and its add/edit
- * holding + portfolio-settings modals, exactly as it did before the two pages were merged.
+ * One list: every asset once, with its quantity, average buy price of what is left, value and
+ * P&L, from its whole ledger — the manual records and the transactions together, first in first
+ * out (utils/assetLedger.js). A row opens into everything recorded for that asset
+ * (AssetLedgerDetails), with «خرید» / «فروش» and each entry's own edit. «+» asks what to record:
+ * a transaction, or a manual record. Overview cards and vault controls as before; the portfolio
+ * switcher, page header and "new portfolio" modal live in the parent (PortfolioTracker).
  */
 
 import React, { useState, useMemo, useCallback, useEffect, forwardRef, useImperativeHandle } from 'react';
@@ -18,8 +19,8 @@ import {
   Briefcase,
   AlertTriangle,
   SlidersHorizontal,
-  Layers,
-  List,
+  ArrowLeftRight,
+  ClipboardList,
 } from 'lucide-react';
 import { usePricing } from '../../market/index.js';
 import UserSettingsModal from '../../../components/UserSettingsModal.jsx';
@@ -31,17 +32,15 @@ import CsvExportButton from './CsvExportButton.jsx';
 import CsvImportButton from './CsvImportButton.jsx';
 import VaultLockCard from './VaultLockCard.jsx';
 import HoldingsCustomizeEditor from './HoldingsCustomizeEditor.jsx';
+import AssetLedgerDetails from './AssetLedgerDetails.jsx';
+import TransactionForm from '../../transactions/components/TransactionForm.jsx';
 
 import { useHoldings } from '../hooks/useHoldings.js';
 import { usePortfolioLayout } from '../hooks/usePortfolioLayout.js';
-import { useTransactions, useComputedHoldings } from '../../transactions/index.js';
-import { AlertBanner, Button, SplitPageLayout } from '../../../shared/ui/index.js';
-import {
-  normalizeHolding,
-  resolveHoldingUnitRealPrice,
-  computeReferenceAssetPnl,
-  computeCompareAssetPnl,
-} from '../utils/holdingHelpers.js';
+import { useTransactions } from '../../transactions/index.js';
+import { AlertBanner, Button, Modal, SplitPageLayout } from '../../../shared/ui/index.js';
+import { normalizeHolding } from '../utils/holdingHelpers.js';
+import { buildAssetLedgers } from '../utils/assetLedger.js';
 import {
   buildCustomCategoryGroups,
   buildDefaultPortfolioLayout,
@@ -50,18 +49,6 @@ import { getItemCategory } from '../../../config/displayEngine.js';
 import { usePrivacyMode } from '../../../hooks/usePrivacyMode.js';
 import { useFeedback } from '../../../shared/ui/FeedbackProvider.jsx';
 import { SkeletonRows } from '../../../shared/ui/Skeleton.jsx';
-import { aggregateHoldings } from '../utils/holdingAggregates.js';
-
-// «هر خرید» (every lot, editable) or «جمع هر دارایی» (one row per asset); remembered per browser
-const HOLDINGS_VIEW_KEY = 'realrate_holdings_view';
-
-function readHoldingsView() {
-  try {
-    return localStorage.getItem(HOLDINGS_VIEW_KEY) === 'assets' ? 'assets' : 'lots';
-  } catch {
-    return 'lots';
-  }
-}
 import { useDemo } from '../../demo/index.js';
 
 const HoldingsView = forwardRef(function HoldingsView(
@@ -76,7 +63,6 @@ const HoldingsView = forwardRef(function HoldingsView(
     holdings,
     loadingHoldings,
     submitting,
-    deletingId,
     fetchHoldings,
     addHolding,
     updateHolding,
@@ -106,31 +92,25 @@ const HoldingsView = forwardRef(function HoldingsView(
     onVaultLockChange?.(isVaultLocked);
   }, [isVaultLocked, onVaultLockChange]);
 
-  useEffect(() => {
-    onCountChange?.(holdings.length);
-  }, [holdings.length, onCountChange]);
+  // Counted once the ledger is built (below)
 
   // UI State
   const hideValues = usePrivacyMode();
 
   const [holdingsFilterQuery, setHoldingsFilterQuery] = useState('');
-  const [holdingsView, setHoldingsView] = useState(readHoldingsView);
-  const changeHoldingsView = useCallback((view) => {
-    setHoldingsView(view);
-    try {
-      localStorage.setItem(HOLDINGS_VIEW_KEY, view);
-    } catch {
-      // Only a convenience
-    }
-  }, []);
   const [modalOpen, setModalOpen] = useState(false);
   const [editingHolding, setEditingHolding] = useState(null);
   const [settingsModalOpen, setSettingsModalOpen] = useState(false);
 
-  const handleOpenAdd = useCallback(() => {
-    setEditingHolding(null);
+  // «+»: a transaction or a manual record
+  const [addChoiceOpen, setAddChoiceOpen] = useState(false);
+  const handleOpenAdd = useCallback(() => setAddChoiceOpen(true), []);
+  const openManualForm = useCallback((holding = null) => {
+    setEditingHolding(holding);
     setModalOpen(true);
   }, []);
+  // The transaction form: { editing } to edit one, { preset } for a new one of an asset
+  const [txForm, setTxForm] = useState(null);
 
   useImperativeHandle(ref, () => ({ openAdd: handleOpenAdd }));
 
@@ -139,94 +119,40 @@ const HoldingsView = forwardRef(function HoldingsView(
   const liveItemMap = pricing?.itemMap;
   const realPriceMap = useMemo(() => livePriceMap || {}, [livePriceMap]);
 
-  // Transactions & Computed Holdings Hook for active portfolio
-  const { transactions } = useTransactions(activePortfolio, activeVaultKey);
-  // One ledger per asset: the manual holdings are its opening buys, so a sale or a spend can take
-  // from them; a computed row is what the transactions changed on top of the manual rows
-  const { computedHoldings, warnings: transactionWarnings, summary: transactionSummary } = useComputedHoldings(transactions, realPriceMap, holdings);
+  // The portfolio's transactions (all of them: the ledger replays every one)
+  const {
+    transactions,
+    submitting: submittingTx,
+    addTransaction,
+    updateTransaction,
+    deleteTransaction,
+  } = useTransactions(activePortfolio, activeVaultKey);
 
-  // Portfolio Metrics (combining manual holdings + computed holdings from transactions)
+  // One ledger per asset: manual records and transactions together, FIFO
+  const normalizedHoldings = useMemo(
+    () => holdings.map((h) => normalizeHolding(h, liveItemMap)),
+    [holdings, liveItemMap]
+  );
+  const ledger = useMemo(
+    () => buildAssetLedgers({ holdings: normalizedHoldings, transactions, priceMap: realPriceMap }),
+    [normalizedHoldings, transactions, realPriceMap]
+  );
+  const transactionWarnings = ledger.warnings;
+
+  // What is held, by category (a fully sold asset leaves the list; its realized P&L stays in the totals)
   const portfolioMetrics = useMemo(() => {
-    const processHolding = (rawH, sourceTag = 'manual') => {
-      const h = normalizeHolding({ ...rawH, source: sourceTag }, liveItemMap);
-      const amountNum = Number(h.amount) || 0;
-      const buyPriceNum = Number(h.buyPrice) || 0;
-      const hasBuyPrice = buyPriceNum > 0;
-      const cleanAssetId = (h.assetId || '').replace(/^src_def_/, '');
-      const isCustomItem =
-        h.assetType === 'custom' ||
-        h.assetId?.startsWith('custom_') ||
-        cleanAssetId.startsWith('custom_');
-      const isBourseItem = ['bourse', 'bourse_fund'].includes(
-        getItemCategory(h.assetId || h)
-      );
-
-      const unitRealPrice = resolveHoldingUnitRealPrice(h, realPriceMap);
-
-      // A computed row carries its own cost (the ledger's, possibly negative: an adjustment of the
-      // manual lots) and the quantity it applies to; a manual row is amount × buy price
-      const fromLedger = rawH.isComputed && rawH.itemCost !== undefined;
-      const rowHasPrice = fromLedger ? Boolean(rawH.hasBuyPrice) : hasBuyPrice;
-      const itemCost = fromLedger ? (rowHasPrice ? rawH.itemCost : 0) : (hasBuyPrice ? amountNum * buyPriceNum : 0);
-      const itemRealVal = amountNum * unitRealPrice;
-      const itemPnl = fromLedger
-        ? (rowHasPrice ? (Number(rawH.pricedQty) || 0) * unitRealPrice - itemCost : null)
-        : (hasBuyPrice ? itemRealVal - itemCost : null);
-      const itemPnlPct =
-        rowHasPrice && itemCost > 0
-          ? parseFloat(((itemPnl / itemCost) * 100).toFixed(1))
-          : null;
-
-      const referencePnlInfo = computeReferenceAssetPnl(
-        { ...h, itemRealVal },
-        realPriceMap,
-        liveItemMap
-      );
-
-      const comparePnlInfo = computeCompareAssetPnl(
-        { ...h, itemCost, itemRealVal },
-        realPriceMap,
-        liveItemMap
-      );
-
-      return {
-        ...h,
-        source: sourceTag,
-        hasBuyPrice: rowHasPrice,
-        isCustomItem,
-        isBourseItem,
-        unitRealPrice,
-        itemCost,
-        itemRealVal,
-        itemPnl,
-        itemPnlPct,
-        referencePnlInfo,
-        comparePnlInfo,
-      };
-    };
-
-    const manualItems = holdings.map((h) => processHolding(h, 'manual'));
-    const computedItems = computedHoldings.map((h) => processHolding(h, 'transactions'));
-    const allItems = [...manualItems, ...computedItems];
-
-    const costedItems = allItems.filter((it) => it.hasBuyPrice);
-    const totalCost = costedItems.reduce((acc, it) => acc + it.itemCost, 0);
-    const totalRealValue = allItems.reduce((acc, it) => acc + it.itemRealVal, 0);
-    const hasAnyCost = costedItems.length > 0 && totalCost > 0;
-    const totalPnl = costedItems.reduce((sum, it) => sum + (it.itemPnl || 0), 0);
-    const totalPnlPct = hasAnyCost ? parseFloat(((totalPnl / totalCost) * 100).toFixed(1)) : 0;
-
-    return {
-      items: allItems,
-      manualItems,
-      computedItems,
-      totalCost,
-      totalRealValue,
-      totalPnl,
-      totalPnlPct,
-      hasAnyCost,
-    };
-  }, [holdings, computedHoldings, realPriceMap, liveItemMap]);
+    const items = ledger.assets
+      .filter((a) => a.amount > 0)
+      .map((a) => {
+        const cleanAssetId = (a.assetId || '').replace(/^src_def_/, '');
+        return {
+          ...a,
+          isCustomItem: a.assetType === 'custom' || cleanAssetId.startsWith('custom_'),
+          isBourseItem: ['bourse', 'bourse_fund'].includes(getItemCategory(a.assetId || a)),
+        };
+      });
+    return { items, ...ledger.summary };
+  }, [ledger]);
 
   // Category Groups helper (custom layout if saved, otherwise default fixed categories)
   const buildCategoryGroups = useCallback(
@@ -244,36 +170,32 @@ const HoldingsView = forwardRef(function HoldingsView(
     setIsCustomizing((prev) => !prev);
   }, [isCustomizing, customLayout, portfolioMetrics.items, setCustomLayout]);
 
-  const manualCategoryGroups = useMemo(() => {
-    return buildCategoryGroups(portfolioMetrics.manualItems, holdingsFilterQuery);
-  }, [buildCategoryGroups, portfolioMetrics.manualItems, holdingsFilterQuery]);
-
-  const computedCategoryGroups = useMemo(() => {
-    return buildCategoryGroups(portfolioMetrics.computedItems, holdingsFilterQuery);
-  }, [buildCategoryGroups, portfolioMetrics.computedItems, holdingsFilterQuery]);
-
   const categoryGroups = useMemo(() => {
     return buildCategoryGroups(portfolioMetrics.items, holdingsFilterQuery);
   }, [buildCategoryGroups, portfolioMetrics.items, holdingsFilterQuery]);
 
-  // Every lot of an asset (manual and from transactions) added up into one row
-  const assetItems = useMemo(() => aggregateHoldings(portfolioMetrics.items), [portfolioMetrics.items]);
-  const assetCategoryGroups = useMemo(
-    () => buildCategoryGroups(assetItems, holdingsFilterQuery),
-    [buildCategoryGroups, assetItems, holdingsFilterQuery]
-  );
-  const hasRepeatedAssets = assetItems.length < portfolioMetrics.items.length;
+  useEffect(() => {
+    onCountChange?.(portfolioMetrics.items.length);
+  }, [portfolioMetrics.items.length, onCountChange]);
 
-  // «N خرید» on an asset row: its lots, found by name in the per-lot view
-  const handleShowLots = useCallback((item) => {
-    changeHoldingsView('lots');
-    setHoldingsFilterQuery(item.assetName || item.name || '');
-  }, [changeHoldingsView]);
+  // The sell form's balance: what each asset holds, manual records included
+  const currentHoldingsMap = useMemo(
+    () => Object.fromEntries(ledger.assets.map((a) => [a.assetId, { amount: a.amount, unit: a.unit }])),
+    [ledger]
+  );
 
   // Actions & Handlers
-  const handleOpenEdit = (item) => {
-    setEditingHolding(item);
-    setModalOpen(true);
+  const presetOf = (asset, transactionType) => ({
+    assetId: asset.assetId,
+    assetName: asset.assetName,
+    unit: asset.unit,
+    transactionType,
+    unitPrice: asset.unitRealPrice,
+  });
+
+  const handleSubmitTransaction = async (formData) => {
+    const res = formData.id ? await updateTransaction(formData.id, formData) : await addTransaction(formData);
+    if (res) setTxForm(null);
   };
 
   const handleSubmitHolding = async (holdingData) => {
@@ -288,17 +210,46 @@ const HoldingsView = forwardRef(function HoldingsView(
 
   const { confirm, toast } = useFeedback();
 
+  const handleEditEntry = (entry) => {
+    if (entry.kind === 'manual') {
+      const original = holdings.find((h) => h.id === entry.id) || entry.record;
+      openManualForm(original);
+    } else {
+      setTxForm({ editing: transactions.find((t) => t.id === entry.id) || entry.record });
+    }
+  };
+
+  const handleDeleteEntry = async (entry) => {
+    if (entry.kind === 'manual') {
+      await handleDeleteHolding(entry.id);
+      return;
+    }
+    const confirmed = await confirm({
+      title: 'حذف تراکنش',
+      message: 'این تراکنش حذف شود؟',
+      confirmLabel: 'حذف',
+      danger: true,
+    });
+    if (!confirmed) return;
+    try {
+      if (await deleteTransaction(entry.id)) toast.success('تراکنش حذف شد.');
+      else toast.error('حذف تراکنش انجام نشد.');
+    } catch (err) {
+      toast.error(err.message || 'خطا در حذف تراکنش');
+    }
+  };
+
   const handleDeleteHolding = async (id) => {
     const confirmed = await confirm({
-      title: 'حذف دارایی',
-      message: 'آیا از حذف این دارایی از پورتفو اطمینان دارید؟',
+      title: 'حذف ثبت دستی',
+      message: 'این ثبت دستی از پورتفو حذف شود؟',
       confirmLabel: 'حذف',
       danger: true,
     });
     if (!confirmed) return;
     try {
       const ok = await deleteHolding(id);
-      if (ok) toast.success('دارایی حذف شد.');
+      if (ok) toast.success('ثبت دستی حذف شد.');
       else toast.error('حذف دارایی انجام نشد.');
     } catch (err) {
       toast.error(err.message || 'خطا در حذف دارایی');
@@ -343,30 +294,6 @@ const HoldingsView = forwardRef(function HoldingsView(
       )}
 
       <div className="portfolio-header-actions">
-        {!isVaultLocked && portfolioMetrics.items.length > 0 && !isCustomizing && (
-          <div className="holdings-view-switch" role="group" aria-label="نحوه نمایش">
-            <button
-              type="button"
-              className={holdingsView === 'lots' ? 'active' : ''}
-              aria-pressed={holdingsView === 'lots'}
-              onClick={() => changeHoldingsView('lots')}
-              title="هر خرید در یک ردیف (قابل ویرایش)"
-            >
-              <List size={14} />
-              <span>هر خرید</span>
-            </button>
-            <button
-              type="button"
-              className={holdingsView === 'assets' ? 'active' : ''}
-              aria-pressed={holdingsView === 'assets'}
-              onClick={() => changeHoldingsView('assets')}
-              title="جمع تعداد، میانگین قیمت خرید و سود/زیان هر دارایی"
-            >
-              <Layers size={14} />
-              <span>جمع هر دارایی</span>
-            </button>
-          </div>
-        )}
         {!isVaultLocked && portfolioMetrics.items.length > 0 && (
           <button
             type="button"
@@ -382,7 +309,7 @@ const HoldingsView = forwardRef(function HoldingsView(
         )}
 
         <CsvExportButton
-          items={portfolioMetrics.items}
+          items={normalizedHoldings}
           portfolioName={activePortfolio?.name || 'portfolio'}
           disabled={isVaultLocked || holdings.length === 0}
         />
@@ -415,7 +342,7 @@ const HoldingsView = forwardRef(function HoldingsView(
             holdingsCount={holdings.length}
             hideValues={hideValues}
             isVaultLocked={isVaultLocked}
-            realizedPnl={transactionSummary?.hasRealizedPnl ? transactionSummary.totalRealizedPnl : null}
+            realizedPnl={ledger.summary.hasRealizedPnl ? ledger.summary.totalRealizedPnl : null}
           />
         }
       >
@@ -457,10 +384,10 @@ const HoldingsView = forwardRef(function HoldingsView(
                 </div>
                 <h4>پورتفو خالی است</h4>
                 <p>
-                  دارایی‌های خود اعم از طلا، سکه، نقره یا ارز را ثبت کنید یا از تب تراکنش‌ها معامله جدید وارد نمایید.
+                  خرید و فروش طلا، سکه، ارز یا سهام را ثبت کنید، یا موجودی‌ای را که دارید دستی وارد کنید.
                 </p>
-                <Button icon={<Plus size={16} />} onClick={handleOpenAdd}>
-                  ثبت دارایی دستی
+                <Button icon={<Plus size={16} />} onClick={handleOpenAdd} disabled={readOnly}>
+                  ثبت دارایی
                 </Button>
               </div>
             ) : isCustomizing ? (
@@ -475,34 +402,9 @@ const HoldingsView = forwardRef(function HoldingsView(
                 }}
                 onClose={() => setIsCustomizing(false)}
               />
-            ) : holdingsView === 'assets' ? (
-              <div className="portfolio-dual-tables-container">
-                <div className="portfolio-table-group-section">
-                  <div className="portfolio-section-title-row">
-                    <h3 className="portfolio-section-title">جمع هر دارایی</h3>
-                    <span className="portfolio-section-count-badge">
-                      {assetItems.length.toLocaleString('fa-IR')} دارایی از {portfolioMetrics.items.length.toLocaleString('fa-IR')} خرید
-                    </span>
-                  </div>
-                  <HoldingsTable
-                    categoryGroups={assetCategoryGroups}
-                    hideValues={hideValues}
-                    readOnly={readOnly}
-                    itemMap={pricing?.itemMap}
-                    aggregated
-                    onShowLots={handleShowLots}
-                  />
-                </div>
-              </div>
             ) : (
               <div className="portfolio-dual-tables-container">
-                {hasRepeatedAssets && (
-                  <button type="button" className="holdings-repeat-hint" onClick={() => changeHoldingsView('assets')}>
-                    <Layers size={14} />
-                    بعضی دارایی‌ها چند بار خریده شده‌اند — «جمع هر دارایی» تعداد کل و میانگین قیمت خرید هرکدام را نشان می‌دهد
-                  </button>
-                )}
-                {/* Warnings from oversold transactions */}
+                {/* More sold than held */}
                 {transactionWarnings.length > 0 && (
                   <div className="portfolio-tx-warnings-box" style={{ marginBottom: '16px' }}>
                     {transactionWarnings.map((w) => (
@@ -516,52 +418,78 @@ const HoldingsView = forwardRef(function HoldingsView(
                     ))}
                   </div>
                 )}
-
-                {/* Section A: Manual Holdings */}
-                {manualCategoryGroups.length > 0 && (
-                  <div className="portfolio-table-group-section manual-section">
-                    <div className="portfolio-section-title-row">
-                      <h3 className="portfolio-section-title">دارایی‌های ثبت‌شده دستی</h3>
-                      <span className="portfolio-section-count-badge">
-                        {portfolioMetrics.manualItems.length.toLocaleString('fa-IR')} قلم دارایی
-                      </span>
-                    </div>
-                    <HoldingsTable
-                      categoryGroups={manualCategoryGroups}
+                <HoldingsTable
+                  categoryGroups={categoryGroups}
+                  hideValues={hideValues}
+                  itemMap={pricing?.itemMap}
+                  renderDetails={(asset) => (
+                    <AssetLedgerDetails
+                      asset={asset}
                       hideValues={hideValues}
                       readOnly={readOnly}
-                      deletingId={deletingId}
-                      onEdit={handleOpenEdit}
-                      onDelete={handleDeleteHolding}
-                      itemMap={pricing?.itemMap}
+                      priceMap={realPriceMap}
+                      itemMap={liveItemMap}
+                      onBuy={(a) => setTxForm({ preset: presetOf(a, 'buy') })}
+                      onSell={(a) => setTxForm({ preset: presetOf(a, 'sell') })}
+                      onEditEntry={handleEditEntry}
+                      onDeleteEntry={handleDeleteEntry}
                     />
-                  </div>
-                )}
-
-                {/* Section B: Computed Holdings from Transactions */}
-                {computedCategoryGroups.length > 0 && (
-                  <div className="portfolio-table-group-section computed-section">
-                    <div className="portfolio-section-title-row">
-                      <div className="portfolio-section-title-with-pill">
-                        <h3 className="portfolio-section-title">دارایی‌های حاصل از تراکنش‌ها</h3>
-                        <span className="tx-auto-section-pill">محاسبه خودکار</span>
-                      </div>
-                      <span className="portfolio-section-count-badge">
-                        {portfolioMetrics.computedItems.length.toLocaleString('fa-IR')} دارایی از روی تراکنش‌ها
-                      </span>
-                    </div>
-                    <HoldingsTable
-                      categoryGroups={computedCategoryGroups}
-                      hideValues={hideValues}
-                      readOnly={readOnly}
-                      itemMap={pricing?.itemMap}
-                    />
-                  </div>
-                )}
+                  )}
+                />
               </div>
             )}
           </div>
       </SplitPageLayout>
+
+      {/* «+»: what to record */}
+      <Modal
+        isOpen={addChoiceOpen}
+        onClose={() => setAddChoiceOpen(false)}
+        title="ثبت در پورتفو"
+        icon={<Plus size={18} />}
+        maxWidth="420px"
+      >
+        <div className="holdings-add-choices">
+          <button
+            type="button"
+            className="holdings-add-choice"
+            onClick={() => {
+              setAddChoiceOpen(false);
+              setTxForm({});
+            }}
+          >
+            <ArrowLeftRight size={20} />
+            <span>
+              <strong>خرید یا فروش</strong>
+              <small>تراکنش با تاریخ و قیمت؛ فروش از قدیمی‌ترین خرید کم می‌شود</small>
+            </span>
+          </button>
+          <button
+            type="button"
+            className="holdings-add-choice"
+            onClick={() => {
+              setAddChoiceOpen(false);
+              openManualForm(null);
+            }}
+          >
+            <ClipboardList size={20} />
+            <span>
+              <strong>ثبت دستی موجودی</strong>
+              <small>چیزی که دارید، با یا بدون قیمت خرید (بدون قیمت: در سود/زیان حساب نمی‌شود)</small>
+            </span>
+          </button>
+        </div>
+      </Modal>
+
+      <TransactionForm
+        isOpen={Boolean(txForm)}
+        onClose={() => setTxForm(null)}
+        onSubmit={handleSubmitTransaction}
+        editingTransaction={txForm?.editing || null}
+        preset={txForm?.preset || null}
+        submitting={submittingTx}
+        currentHoldingsMap={currentHoldingsMap}
+      />
 
       {/* Add / Edit Holding Modal */}
       <AddHoldingForm

@@ -22,6 +22,7 @@ import {
   Search,
   Calendar,
   MessageSquare,
+  ClipboardList,
 } from 'lucide-react';
 import { useTransactions } from '../hooks/useTransactions.js';
 import { useComputedHoldings } from '../hooks/useComputedHoldings.js';
@@ -109,12 +110,13 @@ const TransactionsView = forwardRef(function TransactionsView(
   const { transactions: fullHistory } = useTransactions(activePortfolio, vaultKey, {
     enabled: formOpen && Boolean(periodStart),
   });
-  // What is held counts the manual holdings too (one ledger per asset): read while the form is open
+  // The manual records belong to the same ledger: listed with the transactions, and counted in
+  // what is held
   const { key: accountKey } = usePortfolioVaultKey(activePortfolio);
   const holdingsKey = accountKey || vaultKey;
   const [manualLots, setManualLots] = useState([]);
   useEffect(() => {
-    if (!formOpen || !activePortfolio?.id || !holdingsKey) return undefined;
+    if (!activePortfolio?.id || !holdingsKey) return undefined;
     let cancelled = false;
     listPortfolioHoldings(activePortfolio, holdingsKey)
       .then((list) => !cancelled && setManualLots(list))
@@ -122,7 +124,7 @@ const TransactionsView = forwardRef(function TransactionsView(
     return () => {
       cancelled = true;
     };
-  }, [formOpen, activePortfolio, holdingsKey]);
+  }, [activePortfolio, holdingsKey]);
   const { positions } = useComputedHoldings(periodStart ? fullHistory : transactions, realPriceMap, manualLots);
   const currentHoldingsMap = useMemo(() => {
     const map = {};
@@ -188,12 +190,35 @@ const TransactionsView = forwardRef(function TransactionsView(
     }
   };
 
+  // Manual records in the list (in the period shown; undated ones always): «ثبت دستی», edited on
+  // the holdings tab
+  const manualRows = useMemo(() => manualLots
+    .filter((h) => !periodStart || !h.buyDate || toIsoDay(h.buyDate) >= periodStart)
+    .map((h) => ({
+      id: `manual:${h.id}`,
+      isManual: true,
+      transactionType: 'manual',
+      assetId: h.assetId,
+      assetName: h.assetName,
+      assetType: h.assetType,
+      category: h.category,
+      unit: h.unit,
+      quantity: Number(h.amount) || 0,
+      unitPrice: Number(h.buyPrice) || 0,
+      transactionDate: h.buyDate || '',
+      notes: h.notes || '',
+    })), [manualLots, periodStart]);
+
   // Filtered transactions
   const filteredTransactions = useMemo(() => {
-    return transactions.filter((tx) => {
+    return [...transactions, ...manualRows].filter((tx) => {
       const txType = tx.transactionType || tx.type;
       // «فروش» lists the spends too (both take from the position)
-      if (typeFilter !== 'all' && txType !== typeFilter && !(typeFilter === 'sell' && txType === 'spend')) {
+      // «خرید» lists the manual records too (both add to the position)
+      const matches = txType === typeFilter
+        || (typeFilter === 'sell' && txType === 'spend')
+        || (typeFilter === 'buy' && txType === 'manual');
+      if (typeFilter !== 'all' && !matches) {
         return false;
       }
       if (searchQuery.trim()) {
@@ -206,7 +231,7 @@ const TransactionsView = forwardRef(function TransactionsView(
       }
       return true;
     });
-  }, [transactions, typeFilter, searchQuery]);
+  }, [transactions, manualRows, typeFilter, searchQuery]);
 
   // Column sorting: the date flips between newest and oldest first; another column sorts
   // ascending, then descending, then back to the date
@@ -340,6 +365,14 @@ const TransactionsView = forwardRef(function TransactionsView(
       render: (tx) => {
         const txType = (tx.transactionType || tx.type || 'buy').toLowerCase();
         const isBuy = txType === 'buy';
+        if (txType === 'manual') {
+          return (
+            <span className="tx-badge buy" title="ثبت دستی موجودی؛ از تب «دارایی‌ها» ویرایش می‌شود">
+              <ClipboardList size={13} style={{ verticalAlign: 'middle', marginLeft: '3px' }} />
+              ثبت دستی
+            </span>
+          );
+        }
         if (txType === 'spend') {
           return (
             <span className="tx-badge sell" title={tx.notes || ''}>
@@ -482,8 +515,9 @@ const TransactionsView = forwardRef(function TransactionsView(
             mobile: 'actions',
             render: (tx) => (
               <div className="row-actions-group">
-                {/* A spend is edited through its expense */}
-                {(tx.transactionType || tx.type) !== 'spend' && (
+                {tx.isManual && <span className="table-notes-text" title="از تب «دارایی‌ها» ویرایش می‌شود">دستی</span>}
+                {/* A spend is edited through its expense; a manual record on the holdings tab */}
+                {(tx.transactionType || tx.type) !== 'spend' && !tx.isManual && (
                   <button
                     type="button"
                     className="btn-table-action edit"
@@ -493,15 +527,17 @@ const TransactionsView = forwardRef(function TransactionsView(
                     <Pencil size={13} strokeWidth={2} />
                   </button>
                 )}
-                <button
-                  type="button"
-                  className={`btn-table-action delete ${deletingId === tx.id ? 'loading' : ''}`}
-                  title="حذف تراکنش"
-                  onClick={() => handleDeleteTx(tx.id)}
-                  disabled={deletingId === tx.id}
-                >
-                  <Trash2 size={13} strokeWidth={2} />
-                </button>
+                {!tx.isManual && (
+                  <button
+                    type="button"
+                    className={`btn-table-action delete ${deletingId === tx.id ? 'loading' : ''}`}
+                    title="حذف تراکنش"
+                    onClick={() => handleDeleteTx(tx.id)}
+                    disabled={deletingId === tx.id}
+                  >
+                    <Trash2 size={13} strokeWidth={2} />
+                  </button>
+                )}
               </div>
             ),
           },

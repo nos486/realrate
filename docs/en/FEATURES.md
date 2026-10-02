@@ -34,7 +34,6 @@ Every feature in detail. For a summary see the [README](../../README.en.md). Per
 
 ## 5. Multiple cloud portfolios
 - Unlimited portfolios with a switcher and item / transaction counters.
-- Separate views for "manual holdings" and "holdings from transactions".
 - Grouped by category by default (gold, coin, currency, crypto, stocks, …) with a "holdings mix" donut chart.
 - **Custom categories**:
   - Create any number of categories with a name and an icon, per portfolio.
@@ -44,18 +43,18 @@ Every feature in detail. For a summary see the [README](../../README.en.md). Per
   - Totals, profit/loss, return and the mix chart all follow the custom categories.
   - Stored end-to-end encrypted in the vault; the server never sees the plaintext.
   - "Back to default" resets to the system's fixed categories at any time.
-- **Two holdings views**: "each purchase" (one editable row per purchase) and "total per asset" — all purchases of an asset (manual and from transactions) in one row: total quantity, weighted average purchase price (only purchases with a price), today's value, profit/loss and the first and last purchase dates; the "N purchases" button shows those purchases in the per-purchase view. The chosen view is remembered in the browser.
+- **One list**: each asset is one row with its total quantity, the average buy price of what is left, today's value and profit/loss (open and realized). Tapping a row opens everything recorded for it: manual records and buys with what is left of each, sales and spends with which purchases they took from and their profit/loss; «خرید» and «فروش» for that asset and each entry's edit right there. «+» asks: a buy/sell, or a manual record. (`utils/assetLedger.js`, `AssetLedgerDetails.jsx`)
 - Live profit and loss, Shamsi dates with a "today" button, CSV export and import (keeping the standard category column).
 - **Compare with buying another asset**: when recording a holding you can pick another asset (e.g. gold) and its price on the purchase day; next to the profit/loss the app shows what the same money in that asset would be worth today and how much better or worse this purchase did (separate from "pay / swap with another asset", which records the asset actually paid).
 - **Funded by («تأمین از»)**: a purchase can say which unsettled loan paid for it (section 7).
 - **Public sharing** with a `/p/:slug` link and an optional password (decrypted custom categories are shown when the link carries the key).
 - **Privacy mode** (`****`) hides amounts everywhere.
 
-## 6. Transactions and weighted average cost (WAC)
-- Buy and sell records with a Shamsi date and a note.
-- Holdings and average cost are computed automatically in date order.
+## 6. Transactions and cost (FIFO)
+- Buy and sell records with a Shamsi date and a note; the «تراکنش‌ها» tab lists manual records too («ثبت دستی»).
+- **FIFO**: a sale or spend takes from the oldest entry first (an undated manual record is the opening balance, first in line). From a priced entry it realizes profit/loss; from an unpriced one it only takes the quantity.
 - Realized profit/loss on a sale, and a warning when selling more than is held.
-- **One ledger per asset**: manual holdings are the asset's opening buys; sales and spends take from the whole balance (manual and transactions), so manual holdings can be sold too. The «تراکنش‌ها» row is what the transactions changed on top of the manual rows (negative when they took from them), and together they are the real position. A holding without a buy price is unknown cost: counted in the quantity, not in the average or P&L. (`calculationEngine.js`)
+- **One ledger per asset**: manual records and transactions are one ledger (per asset and unit). A holding without a buy price counts in the quantity, not in the average or P&L.
 - **Paying an expense from a portfolio**: a dollar expense is paid from a portfolio's dollars («پرداخت از» in the expense form, with each portfolio's balance); that day's dollar rate is filled in from the price history and the portfolio gets a «پرداخت هزینه» transaction (P&L against cost, like a sale). Editing or deleting the expense updates or removes its transaction; a spend isn't edited from the portfolio. Toman accounts and loans aren't offered for dollar expenses. (`shared/vault/portfolioFunds.js`)
 
 ## 7. Loans and installments

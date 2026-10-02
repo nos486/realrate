@@ -2204,3 +2204,246 @@
   opacity: 0.6;
   cursor: default;
 }
+
+/* Rows that open (shared/ui/ResponsiveDataTable: renderExpanded) */
+tr.is-expandable,
+.rdt-mobile-card.is-expandable {
+  cursor: pointer;
+}
+
+tr.is-expandable:focus-visible,
+.rdt-mobile-card.is-expandable:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: -2px;
+}
+
+.holdings-expand-icon {
+  color: var(--text-muted);
+  transition: transform 0.2s ease;
+}
+
+.is-open .holdings-expand-icon {
+  transform: rotate(180deg);
+}
+
+.rdt-expanded-row > td {
+  padding: 0 !important;
+  background: var(--bg-surface);
+}
+
+.rdt-mobile-card .rdt-expanded {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border-color);
+  cursor: default;
+}
+
+.holdings-entry-count {
+  display: block;
+  margin-top: 2px;
+  color: var(--text-muted);
+  font-size: 0.72rem;
+}
+
+/* One asset's ledger (features/portfolio/components/AssetLedgerDetails.jsx) */
+.asset-ledger {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px 16px 16px;
+}
+
+.asset-ledger-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.asset-ledger-facts {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+}
+
+.asset-ledger-note {
+  color: var(--text-muted);
+  font-size: 0.75rem;
+}
+
+.asset-ledger-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.asset-ledger-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.asset-ledger-entry {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  background: var(--bg-card);
+}
+
+.asset-ledger-entry.is-closed {
+  opacity: 0.6;
+}
+
+.asset-ledger-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  flex-shrink: 0;
+  border-radius: 8px;
+}
+
+.asset-ledger-icon.is-in {
+  color: var(--color-positive-text);
+  background: var(--color-positive-soft);
+}
+
+.asset-ledger-icon.is-out {
+  color: var(--color-negative-text);
+  background: var(--color-negative-soft);
+}
+
+.asset-ledger-main {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+  font-size: 0.82rem;
+}
+
+.asset-ledger-line {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.asset-ledger-date,
+.asset-ledger-muted,
+.asset-ledger-sources,
+.asset-ledger-notes {
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+}
+
+.asset-ledger-remaining {
+  color: var(--color-positive-text);
+  font-size: 0.75rem;
+  white-space: nowrap;
+}
+
+.asset-ledger-remaining.is-closed {
+  color: var(--text-muted);
+}
+
+.ledger-pnl {
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.ledger-pnl.profit,
+.asset-ledger-sub.profit {
+  color: var(--color-positive-text);
+}
+
+.ledger-pnl.loss,
+.asset-ledger-sub.loss {
+  color: var(--color-negative-text);
+}
+
+.ledger-pnl.is-none {
+  color: var(--text-muted);
+  font-weight: 400;
+  font-size: 0.75rem;
+}
+
+.asset-ledger-sub {
+  font-size: 0.72rem;
+}
+
+.asset-ledger-warning {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--color-warning-text);
+  font-size: 0.75rem;
+}
+
+.asset-ledger-entry-actions {
+  flex-shrink: 0;
+  align-self: center;
+}
+
+/* «+»: what to record */
+.holdings-add-choices {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.holdings-add-choice {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 14px;
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  background: var(--bg-card);
+  color: var(--text-primary);
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+}
+
+.holdings-add-choice:hover,
+.holdings-add-choice:focus-visible {
+  border-color: var(--color-primary-border);
+  background: var(--color-primary-soft);
+}
+
+.holdings-add-choice > svg {
+  flex-shrink: 0;
+  color: var(--color-primary-text);
+}
+
+.holdings-add-choice span {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.holdings-add-choice small {
+  color: var(--text-secondary);
+  font-size: 0.78rem;
+  line-height: 1.6;
+}
+
+.rdt-mobile-card .asset-ledger {
+  padding: 0;
+}
+
+.rdt-mobile-card .asset-ledger-entry {
+  padding: 8px 10px;
+}

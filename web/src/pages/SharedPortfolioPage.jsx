@@ -9,12 +9,10 @@ import {
   formatAssetName,
   formatNum,
   normalizeHolding,
-  resolveHoldingUnitRealPrice,
-  computeReferenceAssetPnl,
-  computeCompareAssetPnl,
   VaultLockCard,
 } from '../features/portfolio/index.js';
-import { calculateComputedHoldings } from '../features/transactions/index.js';
+import { buildAssetLedgers } from '../features/portfolio/utils/assetLedger.js';
+import AssetLedgerDetails from '../features/portfolio/components/AssetLedgerDetails.jsx';
 import { formatPct } from '../shared/utils/formatters.js';
 import {
   getCategoryBadge,
@@ -257,76 +255,17 @@ export default function SharedPortfolioPage() {
   const liveItemMap = pricing?.itemMap;
   const realPriceMap = useMemo(() => livePriceMap || {}, [livePriceMap]);
 
-  // Positions computed from the portfolio's buy/sell transactions (Weighted Average Cost) —
-  // the second half of what the authenticated view shows alongside manually-added holdings.
-  // The manual holdings are the opening buys of the same ledger (a sale can take from them)
-  const { computedHoldings } = useMemo(
-    () => calculateComputedHoldings(decryptedTransactions, realPriceMap, { manualLots: portfolioData?.holdings || [] }),
-    [decryptedTransactions, realPriceMap, portfolioData?.holdings]
-  );
+  // One ledger per asset, as the owner sees it: manual records and transactions together, FIFO
+  const ledger = useMemo(() => buildAssetLedgers({
+    holdings: (portfolioData?.holdings || []).map((h) => normalizeHolding(h, liveItemMap)),
+    transactions: decryptedTransactions,
+    priceMap: realPriceMap,
+  }), [portfolioData?.holdings, decryptedTransactions, realPriceMap, liveItemMap]);
 
-  const portfolioMetrics = useMemo(() => {
-    if (!portfolioData?.holdings) {
-      return {
-        items: [],
-        totalCost: 0,
-        totalRealValue: 0,
-        totalPnl: 0,
-        totalPnlPct: 0,
-        hasAnyCost: false,
-      };
-    }
-
-    const processHolding = (rawH, sourceTag) => {
-      const h = normalizeHolding({ ...rawH, source: sourceTag }, liveItemMap);
-      const amountNum = Number(h.amount) || 0;
-      const buyPriceNum = Number(h.buyPrice) || 0;
-      const hasBuyPrice = buyPriceNum > 0;
-      const isCustomItem = h.assetType === 'custom' || h.assetId?.startsWith('custom_');
-
-      const unitRealPrice = resolveHoldingUnitRealPrice(h, realPriceMap);
-
-      // A computed row carries the ledger's own cost (see HoldingsView)
-      const fromLedger = rawH.isComputed && rawH.itemCost !== undefined;
-      const rowHasPrice = fromLedger ? Boolean(rawH.hasBuyPrice) : hasBuyPrice;
-      const itemCost = fromLedger ? (rowHasPrice ? rawH.itemCost : 0) : (hasBuyPrice ? amountNum * buyPriceNum : 0);
-      const itemRealVal = amountNum * unitRealPrice;
-      const itemPnl = fromLedger
-        ? (rowHasPrice ? (Number(rawH.pricedQty) || 0) * unitRealPrice - itemCost : null)
-        : (hasBuyPrice ? itemRealVal - itemCost : null);
-      const itemPnlPct = rowHasPrice && itemCost > 0 ? parseFloat(((itemPnl / itemCost) * 100).toFixed(1)) : null;
-
-      const referencePnlInfo = computeReferenceAssetPnl({ ...h, itemRealVal }, realPriceMap, liveItemMap);
-      const comparePnlInfo = computeCompareAssetPnl({ ...h, itemCost, itemRealVal }, realPriceMap, liveItemMap);
-
-      return {
-        ...h,
-        source: sourceTag,
-        hasBuyPrice: rowHasPrice,
-        isCustomItem,
-        unitRealPrice,
-        itemCost,
-        itemRealVal,
-        itemPnl,
-        itemPnlPct,
-        referencePnlInfo,
-        comparePnlInfo,
-      };
-    };
-
-    const manualItems = portfolioData.holdings.map((h) => processHolding(h, 'manual'));
-    const computedItems = computedHoldings.map((h) => processHolding(h, 'transactions'));
-    const items = [...manualItems, ...computedItems];
-
-    const costedItems = items.filter((it) => it.hasBuyPrice);
-    const totalCost = costedItems.reduce((acc, it) => acc + it.itemCost, 0);
-    const totalRealValue = items.reduce((acc, it) => acc + it.itemRealVal, 0);
-    const hasAnyCost = costedItems.length > 0 && totalCost > 0;
-    const totalPnl = costedItems.reduce((acc, it) => acc + (it.itemPnl || 0), 0);
-    const totalPnlPct = hasAnyCost ? parseFloat(((totalPnl / totalCost) * 100).toFixed(1)) : 0;
-
-    return { items, totalCost, totalRealValue, totalPnl, totalPnlPct, hasAnyCost };
-  }, [portfolioData, computedHoldings, realPriceMap, liveItemMap]);
+  const portfolioMetrics = useMemo(() => ({
+    items: portfolioData?.holdings ? ledger.assets.filter((a) => a.amount > 0) : [],
+    ...ledger.summary,
+  }), [ledger, portfolioData?.holdings]);
 
   const categoryGroups = useMemo(() => {
     return buildCustomCategoryGroups(portfolioMetrics.items, portfolioData?.sharedLayout || null);
@@ -382,8 +321,8 @@ export default function SharedPortfolioPage() {
         escapeCSV(item.itemRealVal),
         escapeCSV(item.hasBuyPrice ? item.itemPnl : ''),
         escapeCSV(item.hasBuyPrice && item.itemPnlPct !== null ? item.itemPnlPct.toFixed(1) + '%' : ''),
-        escapeCSV(item.buyDate || ''),
-        escapeCSV(item.notes || '')
+        escapeCSV(item.firstDate || ''),
+        escapeCSV('')
       ].join(',');
     });
 
@@ -564,7 +503,18 @@ export default function SharedPortfolioPage() {
                     <HoldingsTable
                       categoryGroups={categoryGroups}
                       hideValues={hideValues}
-                      readOnly={true}
+                      itemMap={liveItemMap}
+                      renderDetails={(asset) => (
+                        // Dates, quantities and prices; not the owner's notes
+                        <AssetLedgerDetails
+                          asset={asset}
+                          hideValues={hideValues}
+                          readOnly
+                          showNotes={false}
+                          priceMap={realPriceMap}
+                          itemMap={liveItemMap}
+                        />
+                      )}
                     />
                   )}
                 </div>
