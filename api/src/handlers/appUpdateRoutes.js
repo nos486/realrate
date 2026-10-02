@@ -4,17 +4,17 @@
  * Endpoints:
  *   GET /api/app/latest — The latest published APK: { release: { version, url, size, notes, publishedAt } | null }
  *
- * Read from GitHub releases (domain/appRelease.js) and kept in KV for a few minutes, so every
+ * Read from GitHub releases (domain/appRelease.js) and kept in the state store for a few minutes, so every
  * app opening does not reach GitHub. When GitHub does not answer, the last known release is
  * served. Public, and answered during maintenance too (an update may be the fix).
  */
 
 import { jsonResponse } from "../lib/helpers.js";
 import { logger } from "../lib/logger.js";
-import { getKv } from "../repositories/kvCache.repository.js";
+import { getStateStore } from "../repositories/stateStore.repository.js";
 import { APP_RELEASE_REPO, parseGithubRelease, releaseFromLatestRedirect } from "../domain/appRelease.js";
 
-const KV_KEY = "app:latest_release";
+const STATE_KEY = "app:latest_release";
 export const RELEASE_CACHE_MS = 10 * 60 * 1000;
 const USER_AGENT = "RealRate-API (+https://realrate.ir)";
 
@@ -47,12 +47,12 @@ export async function fetchLatestRelease(env, repo = env?.APP_RELEASE_REPO || AP
   }
 }
 
-/** The latest release, from KV while fresh; the last known one when GitHub fails */
+/** The latest release, from the state store while fresh; the last known one when GitHub fails */
 export async function getLatestRelease(env, now = Date.now()) {
-  const kv = getKv(env);
+  const store = getStateStore(env);
   let cached = null;
   try {
-    cached = kv ? await kv.get(KV_KEY, "json") : null;
+    cached = store ? await store.get(STATE_KEY, "json") : null;
   } catch {
     cached = null;
   }
@@ -60,7 +60,7 @@ export async function getLatestRelease(env, now = Date.now()) {
 
   try {
     const release = await fetchLatestRelease(env);
-    if (kv) await kv.put(KV_KEY, JSON.stringify({ fetchedAt: now, release })).catch(() => {});
+    if (store) await store.put(STATE_KEY, JSON.stringify({ fetchedAt: now, release })).catch(() => {});
     return release;
   } catch (err) {
     logger.warn("[AppUpdate] latest release unavailable:", { error: err.message });

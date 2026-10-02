@@ -109,8 +109,8 @@ export async function saveGlobalSettings(env, newSettings) {
     }
   }
 
-  // 2. Save to KV
-  await setGlobalSettingsKV(env, mergedSettings);
+  // 2. KV only without a database (Postgres is the store)
+  if (!env?.DB) await setGlobalSettingsKV(env, mergedSettings);
 
   memorySettings = { ...mergedSettings };
   memorySettingsTime = Date.now();

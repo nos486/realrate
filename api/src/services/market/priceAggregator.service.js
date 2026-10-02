@@ -24,7 +24,7 @@ import { WORLD_FOREX_NAMES } from "../../domain/specs/index.js";
 export async function refreshPriceBook(env) {
   if (!env) return null;
   try {
-    const previous = await getPriceBookCache(env);
+    const previous = await getPriceBookCache(env, { fresh: true });
     const sources = await dbGetPriceSources(env, { book: previous });
     const book = buildPriceBook(sources.filter((s) => s.isActive !== false).map((s) => ({
       ...s,

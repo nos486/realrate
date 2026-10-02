@@ -4,6 +4,7 @@
  */
 
 import { logger } from "../lib/logger.js";
+import { getStateStore } from "./stateStore.repository.js";
 import { SESSION_TTL_SECONDS } from "../config/constants.js";
 
 /**
@@ -80,29 +81,48 @@ export async function setGlobalSettingsKV(env, settings) {
 }
 
 /* ─────────────────────────────────────────────────────────────
- * Price book KV: the latest price of every item, one JSON under "prices"
+ * Price book: the latest price of every item, one JSON under "prices" in the state store
+ * (Postgres; stateStore.repository.js). Every price request reads it, so a read is kept in this
+ * isolate's memory for a few seconds (the cron's own reads skip that: `fresh`).
  * ───────────────────────────────────────────────────────────── */
 
 export const PRICE_BOOK_KV_KEY = "prices";
+export const PRICE_BOOK_MEMO_MS = 5000;
 
-/** @returns {Promise<{ updatedAt: string, items: Record<string, object> }|null>} */
-export async function getPriceBookCache(env) {
-  const kv = getKv(env);
-  if (!kv) return null;
+let bookMemo = null; // { book, at }
+
+/** For tests: forget the price book kept in memory */
+export function resetPriceBookMemo() {
+  bookMemo = null;
+}
+
+/**
+ * @param {object} env
+ * @param {{ fresh?: boolean }} [options] fresh: skip the in-memory copy
+ * @returns {Promise<{ updatedAt: string, items: Record<string, object> }|null>}
+ */
+export async function getPriceBookCache(env, { fresh = false } = {}) {
+  const store = getStateStore(env);
+  if (!store) return null;
+  const memo = store.kind === "postgres";
+  if (memo && !fresh && bookMemo && Date.now() - bookMemo.at < PRICE_BOOK_MEMO_MS) return bookMemo.book;
   try {
-    return await kv.get(PRICE_BOOK_KV_KEY, "json");
+    const book = await store.get(PRICE_BOOK_KV_KEY, "json");
+    if (memo) bookMemo = { book, at: Date.now() };
+    return book;
   } catch (e) {
-    logger.error("KV read error for prices:", { error: e.message });
-    return null;
+    logger.error("State read error for prices:", { error: e.message });
+    return memo && bookMemo ? bookMemo.book : null;
   }
 }
 
 export async function setPriceBookCache(env, book) {
-  const kv = getKv(env);
-  if (!kv) return;
+  const store = getStateStore(env);
+  if (!store) return;
   try {
-    await kv.put(PRICE_BOOK_KV_KEY, JSON.stringify(book));
+    await store.put(PRICE_BOOK_KV_KEY, JSON.stringify(book));
+    if (store.kind === "postgres") bookMemo = { book, at: Date.now() };
   } catch (e) {
-    logger.error("KV write error for prices:", { error: e.message });
+    logger.error("State write error for prices:", { error: e.message });
   }
 }

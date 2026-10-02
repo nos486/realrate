@@ -2,7 +2,7 @@
  * sourceSync.service.js — The one pipeline every price goes through
  *
  * Per tick:
- *   1. Read the price book (KV "prices"): it holds when each source last synced
+ *   1. Read the price book ("prices", the state store in Postgres): it holds when each source last synced
  *   2. Pick the active sources whose fetchIntervalSec is due (all of them with forceAll, or only
  *      `sourceIds` when given)
  *   3. Fetch each endpoint once (sources sharing one are fetched together)
@@ -10,7 +10,7 @@
  *   5. Hold back implausible jumps (priceGuard.js): an item keeps its last value until the new
  *      one repeats for a few syncs
  *   6. Store a source's items (`source_items:${id}`) only when they changed
- *   7. Build the price book from every active source (synced or not) → KV "prices", one write
+ *   7. Build the price book from every active source (synced or not) → "prices", one write
  *   8. Record the prices that came in this tick in the price history, keyed by the same ids
  *
  * Nothing else is written: every screen and route reads the book.
@@ -67,7 +67,7 @@ export async function syncAllSources(env, options = {}) {
   let previousBook = null;
   let sources = [];
   try {
-    previousBook = await getPriceBookCache(env);
+    previousBook = await getPriceBookCache(env, { fresh: true });
     sources = await dbGetPriceSources(env, { book: previousBook });
   } catch (err) {
     logger.error("[SourceSync] Failed to load price sources:", { error: err.message });

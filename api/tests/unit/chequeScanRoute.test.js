@@ -53,10 +53,26 @@ describe('POST /api/cheques/scan route', () => {
         get: vi.fn(async (key) => kvStore.get(key) || null),
         put: vi.fn(async (key, val) => kvStore.set(key, val)),
       },
+      // The quota counters live in app_state (stateStore.repository.js): kept in `kvStore` here;
+      // any other statement counts as a database write
       DB: {
-        prepare: vi.fn(() => {
-          dbCalls.push('prepare');
-          return { bind: vi.fn(() => ({ first: vi.fn(), all: vi.fn(), run: vi.fn() })) };
+        prepare: vi.fn((sql) => {
+          const statement = (params = []) => ({
+            first: vi.fn(async () => null),
+            all: vi.fn(async () => {
+              if (!/FROM app_state/.test(sql)) return { results: [] };
+              const keys = params.slice(0, -1);
+              return { results: keys.filter((k) => kvStore.has(k)).map((k) => ({ key: k, value: kvStore.get(k) })) };
+            }),
+            run: vi.fn(async () => {
+              if (/INSERT INTO app_state/.test(sql)) kvStore.set(params[0], params[1]);
+              return {};
+            }),
+          });
+          if (!/app_state|app_schema|^\s*(CREATE|ALTER)/.test(sql)) dbCalls.push('prepare');
+          const st = statement();
+          st.bind = vi.fn((...params) => statement(params));
+          return st;
         }),
         batch: vi.fn(async () => {
           dbCalls.push('batch');

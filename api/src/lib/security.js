@@ -1,8 +1,8 @@
 /**
- * security.js — Trusted-origin checks, share-password hashing, and simple KV rate limiting
+ * security.js — Trusted-origin checks, share-password hashing, and simple rate limiting (state store)
  */
 
-import { getKv } from "../repositories/kvCache.repository.js";
+import { getStateStore } from "../repositories/stateStore.repository.js";
 
 /**
  * Domains whose origin (or any subdomain of it) may talk to the API with credentials and
@@ -203,18 +203,18 @@ export async function sha256Hex(value) {
 // ─── Rate limiting ───────────────────────────────────────────────────────────────
 
 /**
- * Fixed-window counter in KV. KV is eventually consistent, so this is a best-effort brake
- * against brute force rather than an exact limit.
+ * Fixed-window counter in the state store (Postgres; KV without a database). Read-then-write,
+ * so this is a best-effort brake against brute force rather than an exact limit.
  * @param {object} env
  * @param {string} key
  * @param {{ limit: number, windowSec: number }} options
  * @returns {Promise<{ limited: boolean, count: number }>}
  */
 export async function getRateLimitState(env, key, { limit }) {
-  const kv = getKv(env);
-  if (!kv) return { limited: false, count: 0 };
+  const store = getStateStore(env);
+  if (!store) return { limited: false, count: 0 };
   try {
-    const count = parseInt((await kv.get(`rl:${key}`)) || "0", 10) || 0;
+    const count = parseInt((await store.get(`rl:${key}`)) || "0", 10) || 0;
     return { limited: count >= limit, count };
   } catch {
     return { limited: false, count: 0 };
@@ -228,12 +228,12 @@ export async function getRateLimitState(env, key, { limit }) {
  * @param {{ windowSec: number }} options
  */
 export async function recordRateLimitHit(env, key, { windowSec }) {
-  const kv = getKv(env);
-  if (!kv) return;
+  const store = getStateStore(env);
+  if (!store) return;
   try {
-    const count = parseInt((await kv.get(`rl:${key}`)) || "0", 10) || 0;
-    // KV requires expirationTtl >= 60
-    await kv.put(`rl:${key}`, String(count + 1), { expirationTtl: Math.max(60, windowSec) });
+    const count = parseInt((await store.get(`rl:${key}`)) || "0", 10) || 0;
+    // KV (the fallback store) requires expirationTtl >= 60
+    await store.put(`rl:${key}`, String(count + 1), { expirationTtl: Math.max(60, windowSec) });
   } catch {}
 }
 
@@ -243,9 +243,9 @@ export async function recordRateLimitHit(env, key, { windowSec }) {
  * @param {string} key
  */
 export async function clearRateLimit(env, key) {
-  const kv = getKv(env);
-  if (!kv) return;
+  const store = getStateStore(env);
+  if (!store) return;
   try {
-    await kv.delete(`rl:${key}`);
+    await store.delete(`rl:${key}`);
   } catch {}
 }

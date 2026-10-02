@@ -241,7 +241,8 @@ describe('Unified Orchestration — sourceSync.service (Phase 4)', () => {
 
     const atMinute0 = ctxFor();
     await runCronPolling({ scheduledTime: Date.UTC(2026, 0, 1, 11, 0) }, mockEnv, atMinute0);
-    expect(atMinute0.waitUntil).toHaveBeenCalledTimes(2);
+    // the sync, expired sessions and expired app_state counters
+    expect(atMinute0.waitUntil).toHaveBeenCalledTimes(3);
   });
 
   it('records the tick\'s prices in one history write, catalog items under their market id', async () => {

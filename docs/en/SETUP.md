@@ -27,6 +27,8 @@ Running locally needs a Postgres (see Postgres below).
 
 ## Cloudflare KV
 
+Optional for a new install: with the database bound, everything that changes (prices, source lists, counters) is kept in Postgres (`app_state`). The binding is only read to copy older data over once, and used when there is no database.
+
 ```bash
 npx wrangler kv:namespace create REALRATE_KV
 ```

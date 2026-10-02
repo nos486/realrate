@@ -1,13 +1,14 @@
 /**
- * sourceItems.repository.js — What each price source last gave, one KV key per source
+ * sourceItems.repository.js — What each price source last gave, one state-store key per source
+ * (Postgres, stateStore.repository.js)
  *
  * A source's cleaned output (the adapter's `items`) is kept under `source_items:${sourceId}`.
- * It is the only stored copy: the price book (KV "prices") is built from these lists, and a list
+ * It is the only stored copy: the price book ("prices") is built from these lists, and a list
  * is written again only when its content changed. When each source last synced is kept in the
  * price book itself (`book.sources`), not here.
  */
 
-import { getKv } from "./kvCache.repository.js";
+import { getStateStore } from "./stateStore.repository.js";
 import { logger } from "../lib/logger.js";
 
 export const SOURCE_ITEMS_KEY_PREFIX = "source_items:";
@@ -37,15 +38,15 @@ export const serializeSourceItems = (items) => JSON.stringify(Array.isArray(item
  * @returns {Promise<boolean>} whether the list was written
  */
 export async function saveSourceItems(env, sourceId, items, { previous } = {}) {
-  const kv = getKv(env);
-  if (!kv || !sourceId || !Array.isArray(items)) return false;
+  const store = getStateStore(env);
+  if (!store || !sourceId || !Array.isArray(items)) return false;
   const json = serializeSourceItems(items);
   if (previous !== undefined && previous === json) return false;
   try {
-    await kv.put(`${SOURCE_ITEMS_KEY_PREFIX}${canonicalSourceId(sourceId)}`, json);
+    await store.put(`${SOURCE_ITEMS_KEY_PREFIX}${canonicalSourceId(sourceId)}`, json);
     return true;
   } catch (err) {
-    logger.error(`[saveSourceItems] KV write error for ${sourceId}:`, { error: err.message });
+    logger.error(`[saveSourceItems] write error for ${sourceId}:`, { error: err.message });
     return false;
   }
 }
@@ -55,17 +56,39 @@ export async function saveSourceItems(env, sourceId, items, { previous } = {}) {
  * @returns {Promise<{ json: string|null, items: Array<object> }>}
  */
 export async function readSourceItems(env, sourceId) {
-  const kv = getKv(env);
-  if (!kv || !sourceId) return { json: null, items: [] };
+  if (!sourceId) return { json: null, items: [] };
+  return (await readSourceItemsMany(env, [sourceId])).get(sourceId) || { json: null, items: [] };
+}
+
+function parseStored(json) {
+  if (!json) return { json: null, items: [] };
   try {
-    const json = await kv.get(`${SOURCE_ITEMS_KEY_PREFIX}${canonicalSourceId(sourceId)}`);
-    if (!json) return { json: null, items: [] };
     const parsed = JSON.parse(json);
     const items = Array.isArray(parsed) ? parsed : (Array.isArray(parsed?.items) ? parsed.items : []);
     return { json, items };
-  } catch (err) {
-    logger.warn(`[readSourceItems] KV read error for ${sourceId}:`, { error: err.message });
+  } catch {
     return { json: null, items: [] };
+  }
+}
+
+/**
+ * Several sources' stored lists in one read (the cron reads every source each tick)
+ * @returns {Promise<Map<string, { json: string|null, items: Array<object> }>>} by the ids given
+ */
+export async function readSourceItemsMany(env, sourceIds) {
+  const result = new Map();
+  const store = getStateStore(env);
+  const ids = (sourceIds || []).filter(Boolean);
+  const empty = () => { for (const id of ids) result.set(id, { json: null, items: [] }); return result; };
+  if (!store || !ids.length) return empty();
+  const keyOf = (id) => `${SOURCE_ITEMS_KEY_PREFIX}${canonicalSourceId(id)}`;
+  try {
+    const values = await store.getMany(ids.map(keyOf));
+    for (const id of ids) result.set(id, parseStored(values.get(keyOf(id))));
+    return result;
+  } catch (err) {
+    logger.warn("[readSourceItems] read error:", { error: err.message });
+    return empty();
   }
 }
 
@@ -79,7 +102,7 @@ export async function getSourceItems(env, sourceId) {
 
 /** Forget a source's items */
 export async function deleteSourceItems(env, sourceId) {
-  const kv = getKv(env);
-  if (!kv || !sourceId) return;
-  await kv.delete(`${SOURCE_ITEMS_KEY_PREFIX}${canonicalSourceId(sourceId)}`).catch(() => {});
+  const store = getStateStore(env);
+  if (!store || !sourceId) return;
+  await store.delete(`${SOURCE_ITEMS_KEY_PREFIX}${canonicalSourceId(sourceId)}`).catch(() => {});
 }

@@ -409,6 +409,21 @@ export const APP_TABLES = [
     ],
   },
   {
+    // Small key/value state that changes often: the price book, price sources' items, counters
+    // (stateStore.repository.js) — kept out of Workers KV and its daily write limit
+    name: "app_state",
+    columns: ["key", "value", "expires_at", "updated_at"],
+    ddl: [
+      `CREATE TABLE IF NOT EXISTS app_state (
+        key TEXT PRIMARY KEY,
+        value TEXT NOT NULL,
+        expires_at BIGINT,
+        updated_at BIGINT NOT NULL
+      )`,
+      "CREATE INDEX IF NOT EXISTS idx_app_state_expires ON app_state(expires_at) WHERE expires_at IS NOT NULL",
+    ],
+  },
+  {
     // The version of the DDL above that was last applied (see ensurePgSchema)
     name: "app_schema",
     columns: ["id", "version"],

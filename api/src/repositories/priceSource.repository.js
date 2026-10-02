@@ -1,9 +1,11 @@
 /**
- * priceSource.repository.js — Postgres & KV Price Sources Data Access Layer
+ * priceSource.repository.js — Price sources: config in code, runtime state in the state store
+ * (Postgres, stateStore.repository.js)
  */
 
-import { getPriceBookCache, getKv } from "./kvCache.repository.js";
-import { readSourceItems, saveSourceItems } from "./sourceItems.repository.js";
+import { getPriceBookCache } from "./kvCache.repository.js";
+import { getStateStore } from "./stateStore.repository.js";
+import { readSourceItems, readSourceItemsMany, saveSourceItems } from "./sourceItems.repository.js";
 import {
   getMasterPriceSourcesConfig,
   getMasterPriceSourceById,
@@ -13,7 +15,7 @@ import {
  * Price sources: defined in code (sources.config.js); what each one last gave is its stored
  * item list (sourceItems.repository.js) and when it last synced is in the price book. The admin
  * can switch a source off or make it the primary one for its id without a deploy: those two
- * choices are kept in one KV record (PRICE_SOURCE_OVERRIDES_KEY) laid over the config.
+ * choices are kept in one state-store record (PRICE_SOURCE_OVERRIDES_KEY) laid over the config.
  * ───────────────────────────────────────────────────────────── */
 
 export const PRICE_SOURCE_OVERRIDES_KEY = "price_source_overrides";
@@ -23,19 +25,19 @@ const OVERRIDABLE_FIELDS = ["isActive", "isPrimary"];
 
 /** @returns {Promise<Record<string, { isActive?: boolean, isPrimary?: boolean }>>} */
 async function readOverrides(env) {
-  const kv = getKv(env);
-  if (!kv) return {};
+  const store = getStateStore(env);
+  if (!store) return {};
   try {
-    return (await kv.get(PRICE_SOURCE_OVERRIDES_KEY, "json")) || {};
+    return (await store.get(PRICE_SOURCE_OVERRIDES_KEY, "json")) || {};
   } catch {
     return {};
   }
 }
 
 async function writeOverrides(env, overrides) {
-  const kv = getKv(env);
-  if (!kv) throw new Error("ذخیره‌سازی تنظیمات سورس در دسترس نیست.");
-  await kv.put(PRICE_SOURCE_OVERRIDES_KEY, JSON.stringify(overrides));
+  const store = getStateStore(env);
+  if (!store) throw new Error("ذخیره‌سازی تنظیمات سورس در دسترس نیست.");
+  await store.put(PRICE_SOURCE_OVERRIDES_KEY, JSON.stringify(overrides));
 }
 
 const withOverrides = (src, overrides) => ({ ...src, ...overrides?.[src.id] });
@@ -79,10 +81,9 @@ export async function dbGetPriceSources(env, { book } = {}) {
   const overrides = env ? await readOverrides(env) : {};
   const masters = getMasterPriceSourcesConfig().map((src) => withOverrides(src, overrides));
   const priceBook = book !== undefined ? book : (env ? await getPriceBookCache(env) : null);
-  return Promise.all(masters.map(async (src) => {
-    const stored = env ? await readSourceItems(env, src.id) : { json: null, items: [] };
-    return withRuntimeState(src, stored, priceBook?.sources?.[src.id] || null);
-  }));
+  // Every source's items in one read
+  const stored = env ? await readSourceItemsMany(env, masters.map((src) => src.id)) : new Map();
+  return masters.map((src) => withRuntimeState(src, stored.get(src.id) || { json: null, items: [] }, priceBook?.sources?.[src.id] || null));
 }
 
 /**

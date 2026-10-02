@@ -1,5 +1,6 @@
 /**
- * session.repository.js — Postgres & KV Session Data Access Layer
+ * session.repository.js — Sessions, in Postgres (KV only when there is no database: Workers KV's
+ * daily write limit is far too small for a write on every sign-in)
  */
 
 import { ensureSchema } from "./schema.repository.js";
@@ -43,7 +44,7 @@ export async function dbSaveSession(env, sessionData, ttlSeconds = SESSION_TTL_S
     }
   }
 
-  await setSessionKV(env, sessionData.token, { ...sessionData, kind }, ttlSeconds);
+  if (!env?.DB) await setSessionKV(env, sessionData.token, { ...sessionData, kind }, ttlSeconds);
 }
 
 /**
@@ -71,6 +72,7 @@ export async function dbGetSession(env, token) {
     }
   }
 
+  if (env?.DB) return null;
   const kv = await getSessionKV(env, token);
   return kv ? { ...kv, kind: kv.kind || '' } : null;
 }
@@ -92,7 +94,7 @@ export async function dbDeleteSession(env, token) {
     }
   }
 
-  await deleteSessionKV(env, token);
+  if (!env?.DB) await deleteSessionKV(env, token);
 }
 
 /**
