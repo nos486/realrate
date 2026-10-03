@@ -2,6 +2,7 @@
  * auth.js — Google OAuth verification, session management, and admin role checking
  */
 
+import { DEMO_ENABLED } from "../config/constants.js";
 import { dbGetSession } from "../repositories/session.repository.js";
 import { logger } from "./logger.js";
 
@@ -64,6 +65,8 @@ async function lookupUser(request, env) {
   try {
     const session = await dbGetSession(env, token);
     if (!session || !session.email) return null;
+    // A demo visitor's session ends while the demo is switched off
+    if (!DEMO_ENABLED && session.kind === "demo_view") return null;
 
     // Dynamically evaluate role — changing ADMIN_EMAIL takes effect immediately
     const isAdmin = isUserAdmin(session.email, env);

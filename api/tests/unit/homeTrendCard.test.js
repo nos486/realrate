@@ -83,6 +83,22 @@ describe('full card', () => {
     expect(api.getSparklines.mock.calls.map((c) => c[1])).toEqual(['30d', '180d', '1y']);
   });
 
+  it('starts at 30 days every time it is turned again', async () => {
+    api.getSparklines.mockImplementation(async ([id], range) => ({ available: true, sparklines: { [id]: series(range === '30d' ? 30 : 180) } }));
+    const { container } = card();
+    const root = container.querySelector('.home-pro-card');
+    fireEvent.click(root);
+    await waitFor(() => expect(root.classList.contains('is-flipped')).toBe(true));
+    fireEvent.click(container.querySelectorAll('.pro-card-ranges button')[1]);
+    await waitFor(() => expect(container.querySelectorAll('.trend-candle')).toHaveLength(180));
+    fireEvent.click(root); // to the front
+    expect(root.classList.contains('is-flipped')).toBe(false);
+    fireEvent.click(root); // and back: 30 days (cached, no new request)
+    await waitFor(() => expect(container.querySelectorAll('.trend-candle')).toHaveLength(30));
+    expect(container.querySelector('.pro-card-ranges button.is-active').textContent).toBe('۱ ماه');
+    expect(api.getSparklines).toHaveBeenCalledTimes(2);
+  });
+
   it('says so when there is no history', async () => {
     api.getSparklines.mockResolvedValue({ available: true, sparklines: {} });
     const { container } = card();

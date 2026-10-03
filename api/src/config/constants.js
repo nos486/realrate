@@ -48,3 +48,10 @@ export const INCOME_CATEGORIES = [
 /** Maximum length of an income title / notes field (characters) */
 export const INCOME_TITLE_MAX_LENGTH = 120;
 export const INCOME_NOTES_MAX_LENGTH = 500;
+
+/**
+ * The public read-only demo account («مشاهده نسخه دمو»). Off: its sign-in is refused, open demo
+ * sessions count as signed out, and the web app hides every way in (web/src/shared/routes.js
+ * DEMO_ENABLED). Admins still prepare the demo account from the admin panel.
+ */
+export const DEMO_ENABLED = false;

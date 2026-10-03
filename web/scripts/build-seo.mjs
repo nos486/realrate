@@ -17,6 +17,7 @@ import { createRequire } from 'node:module';
 import { createHash } from 'node:crypto';
 import { SITE, FEATURE_PAGES, STATIC_PAGES } from '../src/seo/pages.js';
 import { generateRedirects } from '../src/seo/spaRoutes.js';
+import { DEMO_ENABLED } from '../src/shared/routes.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -169,7 +170,7 @@ const crawlableLandingContent = `
           </p>
           <div style="display:flex;gap:1rem;margin-bottom:3rem;flex-wrap:wrap;">
             <a href="/register" style="background:#0284c7;color:#fff;padding:0.6rem 1.4rem;border-radius:8px;font-weight:700;text-decoration:none;">شروع رایگان</a>
-            <a href="/demo" style="background:#f59e0b;color:#07090e;padding:0.6rem 1.4rem;border-radius:8px;font-weight:700;text-decoration:none;">مشاهده نسخه دمو</a>
+            ${DEMO_ENABLED ? `<a href="/demo" style="background:#f59e0b;color:#07090e;padding:0.6rem 1.4rem;border-radius:8px;font-weight:700;text-decoration:none;">مشاهده نسخه دمو</a>` : ''}
           </div>
           <section style="margin-bottom:3rem;">
             <h2 style="font-size:1.4rem;color:#fff;margin-bottom:1.2rem;">ویژگی‌ها و امکانات کلیدی</h2>
@@ -291,7 +292,7 @@ ${jsonLdBlock}
         </nav>
 
         <div class="seo-header-actions">
-          <a href="/demo" class="seo-btn seo-btn-demo">نسخه دمو</a>
+          ${DEMO_ENABLED ? `<a href="/demo" class="seo-btn seo-btn-demo">نسخه دمو</a>` : ''}
           <a href="/login" class="seo-btn seo-btn-ghost">ورود</a>
           <a href="/register" class="seo-btn seo-btn-primary">ثبت‌نام</a>
         </div>
@@ -331,7 +332,7 @@ ${jsonLdBlock}
               <li><a href="/features/ai-cheque-scan">اسکن چک با هوش مصنوعی</a></li>
               <li><a href="/features/encryption">رمزنگاری سرتاسری (E2EE)</a></li>
               <li><a href="/features/personal-dashboard">داشبورد شخصی و PWA</a></li>
-              <li><a href="/features/demo">نسخه دموی آزمایشی</a></li>
+              ${DEMO_ENABLED ? `<li><a href="/features/demo">نسخه دموی آزمایشی</a></li>` : ''}
             </ul>
           </div>
 
@@ -342,7 +343,7 @@ ${jsonLdBlock}
               <li><a href="/about">درباره ریل‌ریت</a></li>
               <li><a href="/faq">پرسش‌های متداول</a></li>
               <li><a href="/android">دانلود اپ اندروید</a></li>
-              <li><a href="/demo">مشاهده محیط دمو</a></li>
+              ${DEMO_ENABLED ? `<li><a href="/demo">مشاهده محیط دمو</a></li>` : ''}
               <li><a href="https://github.com/nos486/realrate" target="_blank" rel="noopener noreferrer">مخزن گیت‌هاب</a></li>
               <li><a href="https://github.com/nos486/realrate/blob/main/LICENSE" target="_blank" rel="noopener noreferrer">مجوز انتشار (MIT)</a></li>
             </ul>
@@ -502,7 +503,7 @@ for (const page of FEATURE_PAGES) {
       <p>بدون نیاز به اشتراک یا پرداخت هزینه، حساب کاربری رایگان و امن خود را بسازید یا محیط برنامه را در حالت دمو امتحان کنید.</p>
       <div class="seo-cta-buttons">
         <a href="/register" class="seo-btn seo-btn-primary">ثبت‌نام رایگان</a>
-        <a href="/demo" class="seo-btn seo-btn-demo">مشاهده نسخه دمو</a>
+        ${DEMO_ENABLED ? `<a href="/demo" class="seo-btn seo-btn-demo">مشاهده نسخه دمو</a>` : ''}
       </div>
     </section>`;
 
@@ -581,7 +582,7 @@ console.log(`✓ Generated ${FEATURE_PAGES.length} feature pages in dist/feature
       <p>تنها در چند ثانیه بدون نیاز به شماره همراه، با ایمیل یا حساب گوگل خود وارد دنیای مدیریت مالی شفاف شوید.</p>
       <div class="seo-cta-buttons">
         <a href="/register" class="seo-btn seo-btn-primary">ثبت‌نام رایگان</a>
-        <a href="/demo" class="seo-btn seo-btn-demo">مشاهده نسخه دمو</a>
+        ${DEMO_ENABLED ? `<a href="/demo" class="seo-btn seo-btn-demo">مشاهده نسخه دمو</a>` : ''}
       </div>
     </section>`;
 
@@ -665,7 +666,7 @@ console.log(`✓ Generated ${FEATURE_PAGES.length} feature pages in dist/feature
       <p>از نرم‌افزاری استفاده کنید که برای شما ساخته شده، نه برای فروش داده‌های مالی‌تان به تبلیغ‌دهندگان.</p>
       <div class="seo-cta-buttons">
         <a href="/register" class="seo-btn seo-btn-primary">ثبت‌نام رایگان</a>
-        <a href="/demo" class="seo-btn seo-btn-demo">مشاهده نسخه دمو</a>
+        ${DEMO_ENABLED ? `<a href="/demo" class="seo-btn seo-btn-demo">مشاهده نسخه دمو</a>` : ''}
       </div>
     </section>`;
 
@@ -739,7 +740,7 @@ console.log(`✓ Generated ${FEATURE_PAGES.length} feature pages in dist/feature
       <h2>پاسخ سؤالتان را نیافتید؟</h2>
       <p>می‌توانید محیط برنامه را بدون ثبت‌نام در نسخه دمو تست کنید یا در گیت‌هاب با توسعه‌دهندگان در ارتباط باشید.</p>
       <div class="seo-cta-buttons">
-        <a href="/demo" class="seo-btn seo-btn-demo">مشاهده نسخه دمو</a>
+        ${DEMO_ENABLED ? `<a href="/demo" class="seo-btn seo-btn-demo">مشاهده نسخه دمو</a>` : ''}
         <a href="https://github.com/nos486/realrate/issues" target="_blank" rel="noopener noreferrer" class="seo-btn seo-btn-ghost">طرح سؤال در GitHub</a>
       </div>
     </section>`;

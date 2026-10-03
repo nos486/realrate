@@ -13,6 +13,9 @@ import {
 import { handleGetMe } from "../../src/handlers/authRoutes.js";
 import { handleLogin, handleRegister } from "../../src/handlers/accountRoutes.js";
 
+// These tests cover the demo itself, so it is switched on here (it is off in config/constants.js)
+vi.mock("../../src/config/constants.js", async (importOriginal) => ({ ...(await importOriginal()), DEMO_ENABLED: true }));
+
 vi.mock("../../src/lib/auth.js", () => ({
   getAuthenticatedUser: vi.fn(),
   isUserAdmin: (email) => email === "admin@example.com",

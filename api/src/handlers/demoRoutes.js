@@ -8,6 +8,7 @@
  *      POST /api/admin/demo/reset
  */
 
+import { DEMO_ENABLED } from "../config/constants.js";
 import {
   dbGetDemoUser,
   dbEnsureDemoUser,
@@ -39,6 +40,7 @@ async function requireAdmin(request, env) {
  * Visitor one-click entry to the read-only demo account
  */
 export async function handleDemoLogin(request, env) {
+  if (!DEMO_ENABLED) throw new AppError("نسخه‌ی دمو فعلاً در دسترس نیست.", 403, "DEMO_DISABLED");
   const ip = getClientIp(request);
   const { limited } = await getRateLimitState(env, `demo-ip:${ip}`, DEMO_LOGIN_RATE_LIMIT);
   if (limited) {

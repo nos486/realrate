@@ -4,6 +4,8 @@
  * Pure ESM module — zero React or browser dependencies.
  */
 
+import { DEMO_ENABLED } from '../shared/routes.js';
+
 export const SITE = {
   origin: 'https://realrate.ir',
   name: 'RealRate',
@@ -13,7 +15,7 @@ export const SITE = {
   ogImage: 'https://realrate.ir/og/default.png',
 };
 
-export const FEATURE_PAGES = [
+const ALL_FEATURE_PAGES = [
   {
     slug: 'gold-coin-bubble',
     title: 'تحلیل حباب و ارزش ذاتی طلا و سکه | RealRate',
@@ -794,6 +796,9 @@ export const FEATURE_PAGES = [
     ogImage: 'https://realrate.ir/og/demo.png',
   },
 ];
+
+/** The feature pages built; the demo's only while the demo is on (shared/routes.js) */
+export const FEATURE_PAGES = ALL_FEATURE_PAGES.filter((page) => DEMO_ENABLED || page.slug !== 'demo');
 
 export const STATIC_PAGES = {
   features: {

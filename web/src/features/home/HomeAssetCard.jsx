@@ -162,7 +162,8 @@ const CANDLE_RANGES = [
 /**
  * The full card: details in front; turned (tap, Enter / Space), only its candles on the back.
  * The candles are fetched the first time the card is turned, and again for another window
- * (۱ ماه / ۶ ماه / ۱ سال); while they load the card is locked (it shows it, and doesn't turn).
+ * (۱ ماه / ۶ ماه / ۱ سال — back to ۱ ماه every time it is turned again); while they load the
+ * card is locked (it shows it, and doesn't turn).
  * A tap on the back — the chart included — turns it to the front again.
  */
 function FullCard({ asset, isBest = false, flippable = true }) {
@@ -170,7 +171,8 @@ function FullCard({ asset, isBest = false, flippable = true }) {
   const [opened, setOpened] = useState(false);
   const [range, setRange] = useState('30d');
   const [shown, setShown] = useState(null); // the last series drawn (kept while another window loads)
-  const { status, series } = useAssetCandles(asset.id, flippable && (requested || opened), range);
+  // Only while the back is asked for: the front never fetches
+  const { status, series } = useAssetCandles(asset.id, flippable && requested, range);
   const loading = status === 'loading';
   const settled = status === 'ready' || status === 'empty' || status === 'error';
   // The first answer turns the card; later windows redraw it in place
@@ -187,7 +189,9 @@ function FullCard({ asset, isBest = false, flippable = true }) {
 
   const toggle = () => {
     if (!flippable || loading) return;
-    setRequested((r) => !r);
+    // Turned back to the front: the next turn starts again at 30 days
+    if (requested) setRange('30d');
+    setRequested(!requested);
   };
   const onKeyDown = (e) => {
     if (!flippable || (e.key !== 'Enter' && e.key !== ' ')) return;

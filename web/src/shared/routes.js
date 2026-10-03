@@ -9,6 +9,8 @@
 export const LANDING_PATH = '/';
 export const APP_BASE = '/app';
 export const DEMO_PATH = '/demo';
+/** The public demo («مشاهده نسخه دمو»); off: no way in, /demo goes to the landing page (api: config/constants.js) */
+export const DEMO_ENABLED = false;
 
 /** Sign-in pages (public, outside the app) */
 export const AUTH_PATHS = {

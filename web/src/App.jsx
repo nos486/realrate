@@ -7,7 +7,7 @@ import { useDemo } from './features/demo/index.js';
 import MaintenancePage from './pages/MaintenancePage.jsx';
 import { getToken } from './shared/api/httpClient.js';
 import { isNativeApp } from './shared/native/nativeApp.js';
-import { APP_BASE, LANDING_PATH, AUTH_PATHS, DEMO_PATH } from './shared/routes.js';
+import { APP_BASE, LANDING_PATH, AUTH_PATHS, DEMO_PATH, DEMO_ENABLED } from './shared/routes.js';
 // Direct file imports (not the feature barrels) so the pages below stay in their lazy chunks
 import { PricingProvider } from './features/market/context/PricingContext.jsx';
 import { LoansProvider } from './features/loans/context/LoansContext.jsx';
@@ -124,7 +124,7 @@ export default function App() {
       <Routes>
         {/* Public, no pricing data; signed-in users go to the app */}
         <Route path={LANDING_PATH} element={<GuestLanding />} />
-        <Route path={DEMO_PATH} element={<DemoRoute />} />
+        <Route path={DEMO_PATH} element={DEMO_ENABLED ? <DemoRoute /> : <Navigate to={LANDING_PATH} replace />} />
         {/* Sign in / sign up / email links (public, no pricing data) */}
         {Object.values(AUTH_PATHS).map((path) => (
           <Route key={path} path={path} element={<AuthPage />} />

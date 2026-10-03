@@ -34,7 +34,7 @@ import {
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../features/auth/index.js';
 import { useDemo } from '../features/demo/index.js';
-import { APP_BASE } from '../shared/routes.js';
+import { APP_BASE, DEMO_ENABLED } from '../shared/routes.js';
 import { toPersianDigits } from '../shared/utils/formatters.js';
 import { STATIC_PAGES } from '../seo/pages.js';
 
@@ -262,15 +262,17 @@ export default function LandingPage() {
                     <ArrowLeft size={18} className="cta-arrow" />
                   </button>
 
-                  <button
-                    type="button"
-                    className="landing-cta-demo"
-                    onClick={handleDemoClick}
-                    disabled={enteringDemo}
-                  >
-                    <Sparkles size={18} className="cta-sparkle-icon" />
-                    <span>{enteringDemo ? 'در حال ورود به دمو...' : 'مشاهده نسخه دمو'}</span>
-                  </button>
+                  {DEMO_ENABLED && (
+                    <button
+                      type="button"
+                      className="landing-cta-demo"
+                      onClick={handleDemoClick}
+                      disabled={enteringDemo}
+                    >
+                      <Sparkles size={18} className="cta-sparkle-icon" />
+                      <span>{enteringDemo ? 'در حال ورود به دمو...' : 'مشاهده نسخه دمو'}</span>
+                    </button>
+                  )}
                 </div>
 
                 <div className="landing-cta-sub">
@@ -694,7 +696,7 @@ export default function LandingPage() {
               <a href="/features">همه ویژگی‌ها</a>
               <a href="/about">درباره ریل‌ریت</a>
               <a href="/faq">سؤالات متداول</a>
-              <a href="/demo">مشاهده نسخه دمو</a>
+              {DEMO_ENABLED && <a href="/demo">مشاهده نسخه دمو</a>}
               <a href="#features" onClick={(e) => scrollToSection(e, 'features')}>
                 قابلیت‌ها
               </a>
