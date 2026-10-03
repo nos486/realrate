@@ -537,6 +537,8 @@ export const APP_TABLES = [
         id INTEGER PRIMARY KEY CHECK (id = 1),
         version TEXT NOT NULL
       )`,
+      // Left over from the one-time copy out of Postgres
+      "DROP TABLE IF EXISTS pg_migration",
     ],
   },
 ];

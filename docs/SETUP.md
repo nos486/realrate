@@ -39,14 +39,6 @@ npx wrangler kv namespace create realrate-prices
 
 شناسه‌هایی که چاپ می‌شود را در `api/wrangler.toml` (`database_id` و `id`) بگذارید. جدول‌ها با اولین درخواست به ورکر خودکار ساخته می‌شوند (`api/src/repositories/d1Schema.js`)؛ برای دیدن SQL آن‌ها: `cd api && npm run db:schema`. اجرای محلی (`npm run api:dev`) از D1 و KV محلی wrangler استفاده می‌کند و چیزی لازم ندارد.
 
-### انتقال از Postgres (یک بار، خودکار)
-
-تا وقتی binding `HYPERDRIVE` در `api/wrangler.toml` هست، ورکر خودش داده‌ها را از Postgres به D1 منتقل می‌کند (`api/src/services/pgMigration.service.js`): هر اجرای cron (هر دقیقه) هر چقدر بتواند صفحه‌به‌صفحه کپی می‌کند و تا تمام شدن، همه‌ی درخواست‌های API پیام «در حال انتقال داده‌ها» (503، صفحه‌ی تعمیر) می‌گیرند تا چیزی ثبت نشود که از قلم بیفتد. پیشرفت: `GET /api/migration-status`. وقتی `phase` شد `done`، سایت خودش باز می‌شود؛ بعد binding `HYPERDRIVE` را از `wrangler.toml` حذف کنید.
-
-همه‌ی جدول‌ها منتقل می‌شوند؛ `price_history` به `price_daily` تبدیل می‌شود (آخرین قیمت هر روز)، و از `app_state` فقط تنظیمات سورس‌ها — دفتر قیمت و اقلام سورس‌ها با اولین اجراهای cron بعد از انتقال در KV ساخته می‌شوند. ردیفی بزرگ‌تر از ۲ مگابایت منتقل نمی‌شود و در `oversized` گزارش می‌شود.
-
-راه دستی (اگر به Postgres دسترسی مستقیم دارید): `DATABASE_URL=… node api/scripts/pg-to-d1.mjs d1-import` و بعد `wrangler d1 execute realrate --remote --file` برای هر فایل.
-
 ## ورود با گوگل
 
 1. در [Google Cloud Console](https://console.cloud.google.com/) یک **OAuth 2.0 Client ID (Web Application)** بسازید.

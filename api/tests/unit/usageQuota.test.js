@@ -1,5 +1,5 @@
 /**
- * usageQuota.test.js — User tiers, daily limits and their counters (Postgres app_state)
+ * usageQuota.test.js — User tiers, daily limits and their counters (D1 app_state)
  */
 
 import { describe, it, expect, vi } from 'vitest';

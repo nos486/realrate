@@ -32,13 +32,6 @@ database_id = "2bcc7e2d-08c4-45e1-819b-114dbf1a9358"
 binding = "KV"
 id = "6a9d627b16a245a598b83a37d8254b6f"
 
-# Temporary: the old Postgres, read once by the automatic copy into D1
-# (services/pgMigration.service.js). Remove this block once /api/migration-status says "done".
-[[hyperdrive]]
-binding = "HYPERDRIVE"
-id = "c503e09fe4334a2c8351480139a9bce7"
-localConnectionString = "postgres://postgres:postgres@localhost:5432/realrate"
-
 # Durable Object history: RateGate was added (v1) and removed (v2); keep both entries
 [[migrations]]
 tag = "v1"
