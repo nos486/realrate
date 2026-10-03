@@ -1,19 +1,19 @@
 /**
  * HomeAssetCard.jsx — One asset on the home page, in any of the card styles
  *
- * - detailed (the full card): gold & coins show the bubble analysis (intrinsic value, standard
- *   price, deviation); every other asset its price, daily change and source. Below, the last 30
- *   days from the price history, as a line or as candles (one switch for every card).
+ * - detailed (the full card): a card that turns over. The front: price, the change since
+ *   yesterday and, for gold & coins, the bubble analysis (intrinsic value, standard price,
+ *   deviation). Tapped (or Enter / Space), it turns to its back: the last 30 days as candles,
+ *   today's range, the 30-day range with where the price sits in it, and the 30-day change.
+ *   Without a price history it doesn't turn.
  * - compact: small row card (flag/icon, name, symbol, price).
  * A section saved with the older "trend" style is shown as full cards.
  */
 
-import React from 'react';
-import { ChartLine, ChartCandlestick } from 'lucide-react';
+import React, { useState } from 'react';
+import { ChartCandlestick, RotateCcw } from 'lucide-react';
 import { CategoryIcon } from '../portfolio/utils/holdingHelpers.js';
-import TrendSparkline from './TrendSparkline.jsx';
 import TrendCandles from './TrendCandles.jsx';
-import { useTrendChartStyle } from './trendChartStyle.js';
 
 function formatNum(num) {
   if (num === null || num === undefined || isNaN(num)) return '-';
@@ -63,106 +63,6 @@ function StaleMark({ asset }) {
   return <span className="home-stale-mark" title={title}>قدیمی</span>;
 }
 
-function PriceLine({ value, unit, caption, asset = null }) {
-  return (
-    <div className="main-price-block">
-      <div className="price-big-row">
-        {value ? (
-          <>
-            <span className="price-big-number">{formatNum(value)}</span>
-            <span className="price-big-unit">{unit}</span>
-          </>
-        ) : (
-          <span className="price-unavailable">نرخ در دسترس نیست</span>
-        )}
-      </div>
-      {caption && <span className="home-price-caption">{caption}</span>}
-      <StaleMark asset={asset} />
-    </div>
-  );
-}
-
-function GoldDetailedCard({ asset, isBest, chart = null }) {
-  const item = asset.analysis;
-  const hasMarket = item.market !== null && item.market !== undefined;
-  const badge = bubbleBadge(item);
-  const showStandard = item.target_bubble_pct > 0;
-
-  return (
-    <div className={`fintech-card ${isBest ? 'best-choice' : ''}`}>
-      <div className="card-top-row">
-        <h3 className="card-name">{asset.name}</h3>
-        <span className={`bubble-pill ${badge.className}`}>{badge.text}</span>
-      </div>
-
-      {/* The price book's price; without a market quote the calculator's intrinsic value */}
-      <PriceLine
-        value={asset.price || (hasMarket ? item.market : item.intrinsic)}
-        unit="تومان"
-        caption={hasMarket ? null : 'ارزش ذاتی — نرخ بازار فعلاً در دسترس نیست'}
-        asset={asset}
-      />
-
-      {(hasMarket || showStandard) && (
-        <div className="card-metrics-table">
-          {hasMarket && (
-            <div className="metric-row">
-              <span className="metric-key">ارزش ذاتی</span>
-              <strong className="metric-val gold-val">{formatNum(item.intrinsic)}</strong>
-            </div>
-          )}
-          {showStandard && (
-            <div className="metric-row">
-              <span className="metric-key">قیمت استاندارد</span>
-              <strong className="metric-val blue-val">{formatNum(item.expected_price)}</strong>
-            </div>
-          )}
-          {hasMarket && showStandard && item.diff_from_expected !== null && (
-            <div className="metric-row">
-              <span className="metric-key">انحراف از استاندارد</span>
-              <strong className={`metric-val ${item.diff_from_expected < 0 ? 'good-val' : 'warn-val'}`}>
-                {item.diff_from_expected < 0 ? '−' : '+'}
-                {formatPct(item.diff_from_expected_pct)}٪
-              </strong>
-            </div>
-          )}
-        </div>
-      )}
-      {chart}
-    </div>
-  );
-}
-
-function DetailedCard({ asset, trend = null, chart = null }) {
-  // The source's daily change, or else the history's change since yesterday
-  const fromHistory = asset.changePercent === null || asset.changePercent === undefined ? dayChangePct(trend) : null;
-  const change = changeBadge(fromHistory !== null ? Number(fromHistory.toFixed(2)) : asset.changePercent);
-  const meta = [asset.sourceName, asset.note && asset.note !== asset.sourceName ? asset.note : '']
-    .filter(Boolean)
-    .join('، ');
-  return (
-    <div className="fintech-card">
-      <div className="card-top-row">
-        <div className="home-card-identity">
-          <AssetIcon asset={asset} />
-          <h3 className="card-name">{asset.name}</h3>
-          {asset.code && <span className="curr-code-pill">{asset.code}</span>}
-        </div>
-        {change ? (
-          <span className={`bubble-pill ${change.className}`} title={fromHistory !== null ? 'تغییر نسبت به دیروز' : undefined}>
-            {change.text}
-          </span>
-        ) : (
-          asset.badge && <span className="bubble-pill disabled">{asset.badge}</span>
-        )}
-      </div>
-      <PriceLine value={asset.price || trend?.last || null} unit={asset.unit} asset={asset} />
-      {meta && <p className="home-card-meta" title={meta}>{meta}</p>}
-      {chart}
-    </div>
-  );
-}
-
 function CompactCard({ asset }) {
   const change = changeBadge(asset.changePercent);
   return (
@@ -189,9 +89,6 @@ function CompactCard({ asset }) {
   );
 }
 
-const TREND_WINDOW_DAYS = 30;
-const sinceFormat = new Intl.DateTimeFormat('fa-IR-u-ca-persian', { month: 'long', day: 'numeric' });
-
 /** The change from the point before the last (yesterday's close on a daily series) to the last */
 function dayChangePct(trend) {
   const points = trend?.points || [];
@@ -200,67 +97,231 @@ function dayChangePct(trend) {
   return prev > 0 ? ((points[points.length - 1] - prev) / prev) * 100 : null;
 }
 
-function TrendBody({ asset, unit, trend, status, bucketSec }) {
-  const [chartStyle, setChartStyle] = useTrendChartStyle();
-  if (trend && trend.points.length >= 2) {
-    const direction = trend.changePct > 0 ? 'up' : trend.changePct < 0 ? 'down' : 'flat';
-    // A history younger than the window (fewer points than it holds) says where it starts
-    const young = trend.points.length * bucketSec < 0.95 * TREND_WINDOW_DAYS * 86400;
-    const label = `روند ${asset.name}: از ${formatNum(trend.first)} به ${formatNum(trend.last)} ${unit}`;
-    const hasCandles = Array.isArray(trend.candles) && trend.candles.length === trend.points.length && Array.isArray(trend.days);
-    const showCandles = hasCandles && chartStyle === 'candles';
-    return (
-      <>
-        {showCandles ? (
-          <TrendCandles candles={trend.candles} days={trend.days} unit={unit} label={label} />
-        ) : (
-          <TrendSparkline
-            points={trend.points}
-            since={trend.since}
-            bucketSec={bucketSec}
-            unit={unit}
-            direction={direction}
-            label={label}
-          />
-        )}
-        <div className="home-trend-foot">
-          <p className="home-trend-caption">
-            {young ? `از ${sinceFormat.format(new Date(trend.since))}` : `${TREND_WINDOW_DAYS.toLocaleString('fa-IR')} روز اخیر`}
-          </p>
-          {hasCandles && (
-            <div className="home-trend-switch" role="group" aria-label="نوع نمودار">
-              <button
-                type="button"
-                className={chartStyle !== 'candles' ? 'is-active' : ''}
-                aria-pressed={chartStyle !== 'candles'}
-                title="نمودار خطی"
-                onClick={() => setChartStyle('line')}
-              >
-                <ChartLine size={13} />
-              </button>
-              <button
-                type="button"
-                className={chartStyle === 'candles' ? 'is-active' : ''}
-                aria-pressed={chartStyle === 'candles'}
-                title="نمودار کندلی"
-                onClick={() => setChartStyle('candles')}
-              >
-                <ChartCandlestick size={13} />
-              </button>
-            </div>
+const sinceFormat = new Intl.DateTimeFormat('fa-IR-u-ca-persian', { month: 'long', day: 'numeric' });
+const TREND_WINDOW_DAYS = 30;
+
+/** What the back of a card shows: today's candle, the window's range and where the price sits */
+function trendStats(trend, price) {
+  const candles = Array.isArray(trend?.candles) && trend.candles.length === trend.points?.length ? trend.candles : null;
+  if (!candles || candles.length < 2) return null;
+  const [todayOpen, todayHigh, todayLow] = candles[candles.length - 1];
+  const low = Math.min(...candles.map((c) => c[2]));
+  const high = Math.max(...candles.map((c) => c[1]));
+  const now = Number(price) || trend.last;
+  return {
+    candles,
+    todayOpen,
+    todayHigh,
+    todayLow,
+    low,
+    high,
+    position: high > low ? Math.min(1, Math.max(0, (now - low) / (high - low))) : 0.5,
+    changePct: trend.changePct,
+    young: candles.length < TREND_WINDOW_DAYS * 0.95,
+  };
+}
+
+/** A faint outline of the last days on the front: a hint of the direction, not a chart */
+function FrontSpark({ points }) {
+  if (!Array.isArray(points) || points.length < 2) return null;
+  const W = 200;
+  const H = 40;
+  const min = Math.min(...points);
+  const max = Math.max(...points);
+  const span = max - min || 1;
+  const xy = points.map((v, i) => [(i / (points.length - 1)) * W, 4 + (1 - (v - min) / span) * (H - 8)]);
+  const line = xy.map(([x, y]) => `${x.toFixed(1)},${y.toFixed(1)}`).join(' ');
+  return (
+    <svg className="pro-card-spark" viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" aria-hidden="true" focusable="false" dir="ltr">
+      <polygon points={`0,${H} ${line} ${W},${H}`} />
+      <polyline points={line} />
+    </svg>
+  );
+}
+
+function RangeBar({ low, high, position, lowLabel, highLabel }) {
+  return (
+    <div className="pro-range">
+      <div className="pro-range-track">
+        <span className="pro-range-fill" style={{ width: `${position * 100}%` }} />
+        <span className="pro-range-marker" style={{ insetInlineStart: `${position * 100}%` }} />
+      </div>
+      <div className="pro-range-labels">
+        <span><small>{lowLabel}</small> {formatNum(low)}</span>
+        <span><small>{highLabel}</small> {formatNum(high)}</span>
+      </div>
+    </div>
+  );
+}
+
+function CardHead({ asset, pill }) {
+  return (
+    <div className="pro-card-head">
+      <div className="pro-card-identity">
+        <AssetIcon asset={asset} />
+        <div className="pro-card-names">
+          <h3 className="pro-card-name">{asset.name}</h3>
+          {(asset.code || asset.sourceName) && (
+            <span className="pro-card-sub">
+              {asset.code && <span className="curr-code-pill">{asset.code}</span>}
+              {asset.sourceName && <span>{asset.sourceName}</span>}
+            </span>
           )}
         </div>
-      </>
-    );
-  }
-  if (!trend && status === 'loading') return <div className="home-trend-skeleton" aria-hidden="true" />;
-  // No history for this asset (or none reachable now): the full card simply has no chart
-  return null;
+      </div>
+      {pill}
+    </div>
+  );
+}
+
+/** Gold & coins: the bubble analysis, as three small figures */
+function GoldMetrics({ item }) {
+  const hasMarket = item.market !== null && item.market !== undefined;
+  const showStandard = item.target_bubble_pct > 0;
+  if (!hasMarket && !showStandard) return null;
+  return (
+    <div className="pro-metrics">
+      {hasMarket && (
+        <div className="pro-metric">
+          <span>ارزش ذاتی</span>
+          <strong className="gold-val">{formatNum(item.intrinsic)}</strong>
+        </div>
+      )}
+      {showStandard && (
+        <div className="pro-metric">
+          <span>قیمت استاندارد</span>
+          <strong className="blue-val">{formatNum(item.expected_price)}</strong>
+        </div>
+      )}
+      {hasMarket && showStandard && item.diff_from_expected !== null && (
+        <div className="pro-metric">
+          <span>انحراف</span>
+          <strong className={item.diff_from_expected < 0 ? 'good-val' : 'warn-val'}>
+            {item.diff_from_expected < 0 ? '−' : '+'}
+            {formatPct(item.diff_from_expected_pct)}٪
+          </strong>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** The full card: details in front, the price history on the back */
+function FullCard({ asset, isBest = false, trend = null, trendStatus = 'idle', flippable = true }) {
+  const [flipped, setFlipped] = useState(false);
+  const item = asset.analysis || null;
+  const hasMarket = item ? item.market !== null && item.market !== undefined : true;
+  const price = asset.price || (item ? (hasMarket ? item.market : item.intrinsic) : null) || trend?.last || null;
+  const unit = item ? 'تومان' : asset.unit;
+  // The source's daily change, or else the history's change since yesterday
+  const sourceChange = asset.changePercent === null || asset.changePercent === undefined ? null : asset.changePercent;
+  const historyChange = sourceChange === null ? dayChangePct(trend) : null;
+  const change = changeBadge(historyChange !== null ? Number(historyChange.toFixed(2)) : sourceChange);
+  const stats = trendStats(trend, price);
+  const canFlip = flippable && Boolean(stats);
+  const isFlipped = canFlip && flipped;
+  const direction = stats ? (stats.changePct > 0 ? 'up' : stats.changePct < 0 ? 'down' : 'flat') : change?.className === 'badge-good' ? 'up' : change ? 'down' : 'flat';
+
+  const toggle = () => canFlip && setFlipped((f) => !f);
+  const onKeyDown = (e) => {
+    if (!canFlip || (e.key !== 'Enter' && e.key !== ' ')) return;
+    e.preventDefault();
+    toggle();
+  };
+
+  const changePill = change && (
+    <span className={`bubble-pill ${change.className}`} title={historyChange !== null ? 'تغییر نسبت به دیروز' : undefined}>
+      {change.text}
+    </span>
+  );
+  const pill = item ? <span className={`bubble-pill ${bubbleBadge(item).className}`}>{bubbleBadge(item).text}</span> : changePill;
+
+  return (
+    <div
+      className={`home-pro-card is-${direction} ${isBest ? 'best-choice' : ''} ${canFlip ? 'can-flip' : ''} ${isFlipped ? 'is-flipped' : ''}`}
+      {...(canFlip
+        ? {
+            role: 'button',
+            tabIndex: 0,
+            'aria-pressed': isFlipped,
+            'aria-label': isFlipped ? `${asset.name}: بازگشت به جزئیات` : `${asset.name}: نمایش نمودار ۳۰ روز اخیر`,
+            onClick: toggle,
+            onKeyDown,
+          }
+        : {})}
+    >
+      <div className="pro-card-inner">
+        <div className="pro-card-face is-front" aria-hidden={isFlipped}>
+          <CardHead asset={asset} pill={pill} />
+          <div className="pro-card-price">
+            {price ? (
+              <>
+                <span className="pro-card-price-value">{formatNum(price)}</span>
+                <span className="pro-card-price-unit">{unit}</span>
+              </>
+            ) : (
+              <span className="price-unavailable">نرخ در دسترس نیست</span>
+            )}
+            {item && changePill}
+          </div>
+          {item && !hasMarket && <span className="home-price-caption">ارزش ذاتی — نرخ بازار فعلاً در دسترس نیست</span>}
+          <StaleMark asset={asset} />
+          {item && <GoldMetrics item={item} />}
+          {stats && <FrontSpark points={trend.points} />}
+          <div className="pro-card-foot">
+            {asset.note && asset.note !== asset.sourceName ? <span className="pro-card-note" title={asset.note}>{asset.note}</span> : <span />}
+            {canFlip && (
+              <span className="pro-card-hint">
+                <ChartCandlestick size={13} /> نمودار
+              </span>
+            )}
+            {!stats && trendStatus === 'loading' && <span className="pro-card-hint is-loading" aria-hidden="true" />}
+          </div>
+        </div>
+
+        {stats && (
+          <div className="pro-card-face is-back" aria-hidden={!isFlipped}>
+            <div className="pro-card-head">
+              <div className="pro-card-names">
+                <h3 className="pro-card-name">{asset.name}</h3>
+                <span className="pro-card-sub">
+                  {stats.young ? `از ${sinceFormat.format(new Date(trend.since))}` : `${TREND_WINDOW_DAYS.toLocaleString('fa-IR')} روز اخیر`}
+                </span>
+              </div>
+              <span className={`pro-card-change is-${direction}`} title="تغییر در این بازه">
+                {stats.changePct > 0 ? '▲' : stats.changePct < 0 ? '▼' : ''} {formatPct(stats.changePct, 2)}٪
+              </span>
+            </div>
+            {/* Inspecting a day doesn't turn the card back */}
+            <div className="pro-card-chart" onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()} role="presentation">
+              <TrendCandles candles={stats.candles} days={trend.days} unit={unit} label={`نمودار کندلی ${asset.name}`} />
+            </div>
+            <div className="pro-card-stats">
+              <div className="pro-metric">
+                <span>باز امروز</span>
+                <strong>{formatNum(stats.todayOpen)}</strong>
+              </div>
+              <div className="pro-metric">
+                <span>کمترین امروز</span>
+                <strong className="down-val">{formatNum(stats.todayLow)}</strong>
+              </div>
+              <div className="pro-metric">
+                <span>بیشترین امروز</span>
+                <strong className="up-val">{formatNum(stats.todayHigh)}</strong>
+              </div>
+            </div>
+            <RangeBar low={stats.low} high={stats.high} position={stats.position} lowLabel="کف" highLabel="سقف" />
+            <span className="pro-card-back-hint" aria-hidden="true"><RotateCcw size={12} /> برای بازگشت بزنید</span>
+          </div>
+        )}
+      </div>
+    </div>
+  );
 }
 
 function MissingCard({ asset, style }) {
   return (
-    <div className={`${style === 'compact' ? 'currency-item-card' : 'fintech-card'} home-card-missing`}>
+    <div className={`${style === 'compact' ? 'currency-item-card' : 'home-pro-card'} home-card-missing`}>
       <span className="curr-persian-name">{asset.id}</span>
       <span className="curr-desc">این مورد فعلاً در بازار نرخی ندارد.</span>
     </div>
@@ -268,19 +329,13 @@ function MissingCard({ asset, style }) {
 }
 
 /**
- * @param {{ asset: object, style: 'detailed'|'compact', isBest?: boolean,
- *   trend?: object|null, trendStatus?: string, bucketSec?: number }} props
+ * @param {{ asset: object, style: 'detailed'|'compact', isBest?: boolean, trend?: object|null,
+ *   trendStatus?: string, bucketSec?: number, flippable?: boolean }} props - flippable: false while
+ *   the page is being arranged (a tap there is a drag)
  */
-export default function HomeAssetCard({ asset, style, isBest = false, trend = null, trendStatus = 'idle', bucketSec = 0 }) {
+export default function HomeAssetCard({ asset, style, isBest = false, trend = null, trendStatus = 'idle', flippable = true }) {
   if (!asset.found) return <MissingCard asset={asset} style={style} />;
   if (style === 'compact') return <CompactCard asset={asset} />;
   // The full card (also a section saved with the older "trend" style)
-  const chart = (
-    <div className="home-card-chart">
-      <TrendBody asset={asset} unit={asset.unit} trend={trend} status={trendStatus} bucketSec={bucketSec} />
-    </div>
-  );
-  return asset.analysis
-    ? <GoldDetailedCard asset={asset} isBest={isBest} chart={chart} />
-    : <DetailedCard asset={asset} trend={trend} chart={chart} />;
+  return <FullCard asset={asset} isBest={isBest} trend={trend} trendStatus={trendStatus} flippable={flippable} />;
 }

@@ -119,7 +119,6 @@ function trendProps(section, asset, trends) {
   return {
     trend: trends.trends[String(asset.id).toLowerCase()] || null,
     trendStatus: trends.status,
-    bucketSec: trends.bucketSec,
   };
 }
 
@@ -128,7 +127,7 @@ function SortableItem({ asset, section, isBest, trends, onRemove }) {
   const name = asset.name || asset.id;
   return (
     <div ref={setNodeRef} style={style} className={`home-item ${isDragging ? 'is-dragging' : ''}`}>
-      <HomeAssetCard asset={asset} style={section.style} isBest={isBest} {...trendProps(section, asset, trends)} />
+      <HomeAssetCard asset={asset} style={section.style} isBest={isBest} flippable={false} {...trendProps(section, asset, trends)} />
       <div className="home-item-tools">
         <button
           type="button"

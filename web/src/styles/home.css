@@ -920,11 +920,7 @@
   }
 }
 
-/* ── Trend cards: price, change over the window and a sparkline from the price history ── */
-.home-trend-card {
-  gap: 10px;
-}
-
+/* ── Charts from the price history (the back of a full card): crosshair tooltip shared by them ── */
 .trend-spark {
   position: relative;
   height: 48px;
@@ -939,39 +935,6 @@
   height: 100%;
   overflow: visible;
 }
-
-/* Quiet ink for the path; only the current point carries the direction color */
-.trend-spark-line {
-  fill: none;
-  stroke: var(--text-muted);
-  stroke-width: 2;
-  stroke-linejoin: round;
-  stroke-linecap: round;
-  vector-effect: non-scaling-stroke;
-}
-
-.trend-spark-cross {
-  stroke: rgba(255, 255, 255, 0.18);
-  stroke-width: 1;
-  vector-effect: non-scaling-stroke;
-}
-
-.trend-spark-dot {
-  position: absolute;
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  box-sizing: content-box;
-  transform: translate(-50%, -50%);
-  background: var(--text-muted);
-  /* A ring of the surface color keeps the dot clear of the line under it */
-  border: 2px solid var(--bg-surface);
-  pointer-events: none;
-}
-
-.trend-spark-dot.is-up { background: var(--color-positive); }
-.trend-spark-dot.is-down { background: var(--color-negative); }
-.trend-spark-dot.is-hover { background: var(--text-primary); }
 
 .trend-spark-tip {
   position: absolute;
@@ -1004,33 +967,11 @@
   font-size: 0.72rem;
 }
 
-.home-trend-caption,
-.home-trend-empty {
-  margin: 0;
-  font-size: 0.75rem;
-  color: var(--text-muted);
-}
-
-.home-trend-empty {
-  margin-top: auto;
-  padding: 14px 0;
-  text-align: center;
-  border: 1px dashed var(--border-color);
-  border-radius: 10px;
-}
-
-.home-trend-skeleton {
-  height: 48px;
-  margin-top: auto;
-  border-radius: 10px;
-  background: var(--bg-input);
-}
-
 .curr-price-block .home-stale-mark {
   align-self: auto;
 }
 
-/* ── Trend cards: candles (open → close body, low → high wick) and the line / candles switch ── */
+/* ── Candles (open → close body, low → high wick) ── */
 .trend-candles {
   height: 64px;
 }
@@ -1060,48 +1001,277 @@
   font-size: 0.72rem;
 }
 
-.home-trend-foot {
+/* ══ The full card (HomeAssetCard FullCard): details in front, the price history on the back ══ */
+.home-item > .home-pro-card {
+  flex: 1;
+  min-width: 0;
+}
+
+.home-pro-card {
+  --pro-accent: var(--text-muted);
+  position: relative;
+  min-width: 0;
+  border-radius: 18px;
+  perspective: 1400px;
+  outline: none;
+}
+.home-pro-card.is-up { --pro-accent: var(--color-positive); }
+.home-pro-card.is-down { --pro-accent: var(--color-negative); }
+.home-pro-card.can-flip { cursor: pointer; -webkit-tap-highlight-color: transparent; }
+.home-pro-card:focus-visible { box-shadow: 0 0 0 2px var(--accent-blue, var(--color-primary-text)); }
+
+.pro-card-inner {
+  display: grid;
+  height: 100%;
+  transform-style: preserve-3d;
+  transition: transform 0.65s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+.home-pro-card.is-flipped .pro-card-inner { transform: rotateY(180deg); }
+
+.pro-card-face {
+  grid-area: 1 / 1;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+  padding: 16px;
+  border-radius: 18px;
+  overflow: hidden;
+  background:
+    radial-gradient(120% 90% at 100% 0%, color-mix(in srgb, var(--pro-accent) 9%, transparent) 0%, transparent 55%),
+    linear-gradient(165deg, var(--bg-surface-elevated) 0%, var(--bg-surface) 100%);
+  border: var(--card-border);
+  box-shadow: var(--card-shadow);
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+/* A thin line of the direction color along the top edge */
+.pro-card-face::before {
+  content: '';
+  position: absolute;
+  inset-inline: 16px;
+  top: 0;
+  height: 2px;
+  border-radius: 0 0 2px 2px;
+  background: linear-gradient(90deg, transparent, var(--pro-accent), transparent);
+  opacity: 0.7;
+}
+.pro-card-face.is-back { transform: rotateY(180deg); gap: 10px; }
+.home-pro-card.can-flip:hover .pro-card-face { border-color: color-mix(in srgb, var(--pro-accent) 35%, var(--border-medium)); box-shadow: var(--card-shadow-hover); }
+.home-pro-card.best-choice .pro-card-face.is-front { box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--color-positive) 40%, transparent), var(--card-shadow); }
+
+.pro-card-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+.pro-card-identity {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+.pro-card-identity .home-asset-icon { width: 36px; height: 36px; border-radius: 12px; }
+.pro-card-names { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.pro-card-name {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 800;
+  color: var(--text-heading);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.pro-card-sub {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  font-size: 11px;
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.pro-card-price {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.pro-card-price-value {
+  font-size: 24px;
+  font-weight: 900;
+  letter-spacing: -0.5px;
+  color: var(--text-heading);
+  font-variant-numeric: tabular-nums;
+}
+.pro-card-price-unit { font-size: 11.5px; color: var(--text-secondary); }
+.pro-card-price .bubble-pill { margin-inline-start: auto; align-self: center; }
+
+.pro-metrics,
+.pro-card-stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+}
+.pro-metric {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+  padding: 8px 10px;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--bg-input, rgba(255, 255, 255, 0.04)) 80%, transparent);
+}
+.pro-metric span { font-size: 10.5px; color: var(--text-muted); white-space: nowrap; }
+.pro-metric strong {
+  font-size: 12.5px;
+  font-weight: 800;
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.pro-metric strong.gold-val { color: var(--gold-light); }
+.pro-metric strong.blue-val { color: var(--blue-sky); }
+.pro-metric strong.good-val,
+.pro-metric strong.up-val { color: var(--green-emerald, var(--color-positive)); }
+.pro-metric strong.warn-val,
+.pro-metric strong.down-val { color: var(--rose-red, var(--color-negative)); }
+
+.pro-card-foot {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 8px;
+  margin-top: auto;
+  min-height: 22px;
 }
-
-.home-trend-switch {
+.pro-card-note {
+  font-size: 11px;
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+.pro-card-hint {
   display: inline-flex;
-  gap: 2px;
-  padding: 2px;
-  border-radius: 8px;
-  background: var(--bg-surface-elevated);
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+  padding: 3px 9px;
+  border-radius: 999px;
+  font-size: 10.5px;
+  font-weight: 700;
+  color: var(--text-secondary);
+  background: color-mix(in srgb, var(--pro-accent) 10%, var(--bg-input, transparent));
+  transition: color 0.2s ease, background 0.2s ease;
+}
+.home-pro-card.can-flip:hover .pro-card-hint { color: var(--text-primary); }
+.pro-card-hint.is-loading {
+  width: 52px;
+  height: 20px;
+  padding: 0;
+  animation: pro-pulse 1.2s ease-in-out infinite;
+}
+@keyframes pro-pulse { 50% { opacity: 0.45; } }
+
+.pro-card-change {
+  flex-shrink: 0;
+  padding: 3px 9px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  color: var(--pro-accent);
+  background: color-mix(in srgb, var(--pro-accent) 14%, transparent);
 }
 
-.home-trend-switch button {
+.pro-card-chart { cursor: crosshair; }
+.pro-card-chart .trend-candles { height: 86px; margin-top: 0; }
+
+.pro-range { display: flex; flex-direction: column; gap: 6px; }
+.pro-range-track {
+  position: relative;
+  height: 6px;
+  border-radius: 999px;
+  background: var(--bg-input, rgba(255, 255, 255, 0.06));
+}
+.pro-range-fill {
+  position: absolute;
+  inset-block: 0;
+  inset-inline-start: 0;
+  border-radius: 999px;
+  background: linear-gradient(90deg, color-mix(in srgb, var(--pro-accent) 25%, transparent), var(--pro-accent));
+}
+[dir="rtl"] .pro-range-fill { background: linear-gradient(270deg, color-mix(in srgb, var(--pro-accent) 25%, transparent), var(--pro-accent)); }
+.pro-range-marker {
+  position: absolute;
+  top: 50%;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--text-heading);
+  border: 3px solid var(--bg-surface);
+  box-shadow: 0 0 0 1px var(--pro-accent);
+  transform: translate(50%, -50%);
+}
+[dir="ltr"] .pro-range-marker { transform: translate(-50%, -50%); }
+.pro-range-labels {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+}
+.pro-range-labels small { font-weight: 500; color: var(--text-muted); margin-inline-end: 3px; }
+
+.pro-card-back-hint {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 24px;
-  height: 20px;
-  border: 0;
-  border-radius: 6px;
-  background: transparent;
+  gap: 4px;
+  margin-top: auto;
+  font-size: 10px;
   color: var(--text-muted);
-  cursor: pointer;
 }
 
-.home-trend-switch button.is-active {
-  background: var(--bg-surface);
-  color: var(--text-primary);
-}
-
-/* The full card's price chart (line or candles), under its details */
-.home-card-chart {
+.home-pro-card.home-card-missing {
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  margin-top: auto;
-  padding-top: 6px;
+  gap: 6px;
+  padding: 16px;
+  border: 1px dashed var(--border-medium);
 }
 
-.home-card-chart:empty {
-  display: none;
+@media (prefers-reduced-motion: reduce) {
+  .pro-card-inner { transition: none; }
 }
+
+.pro-card-spark {
+  display: block;
+  width: 100%;
+  /* Fills the room the card has (its back may be the taller face) */
+  flex: 1 1 40px;
+  min-height: 40px;
+  max-height: 120px;
+  margin-top: auto;
+  overflow: visible;
+}
+.pro-card-spark polygon { fill: color-mix(in srgb, var(--pro-accent) 10%, transparent); }
+.pro-card-spark polyline {
+  fill: none;
+  stroke: color-mix(in srgb, var(--pro-accent) 55%, transparent);
+  stroke-width: 1.5;
+  stroke-linejoin: round;
+  vector-effect: non-scaling-stroke;
+}
+.pro-card-spark + .pro-card-foot { margin-top: 0; }
