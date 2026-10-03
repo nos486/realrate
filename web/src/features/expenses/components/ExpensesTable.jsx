@@ -116,11 +116,12 @@ export default function ExpensesTable({
           header: 'دسته‌بندی',
           mobile: 'meta',
           render: (e) => {
-            const { label, Icon, color } = getExpenseCategory(e.category);
+            const { label, Icon, color, excluded } = getExpenseCategory(e.category);
             return (
               <span className="income-category-badge" style={{ '--income-cat-color': color }}>
                 <Icon size={12} />
                 {label}
+                {excluded && <span className="excluded-badge" title="در جمع هزینه‌ها حساب نمی‌شود">خارج از جمع</span>}
               </span>
             );
           },
@@ -230,7 +231,7 @@ export default function ExpensesTable({
       rows={expenses}
       wrapperClassName="portfolio-table-responsive"
       tableClassName="portfolio-data-table incomes-table"
-      rowClassName={() => 'portfolio-table-row'}
+      rowClassName={(e) => `portfolio-table-row ${showCategory && getExpenseCategory(e.category).excluded ? 'is-excluded is-excluded-row' : ''}`}
       sortState={sortState}
       onSortChange={onSortChange}
     />

@@ -7,6 +7,9 @@
  *   categories; and, with accounts, how much was paid from each
  * - The month's expenses, filterable by category and account, with the form to add and edit
  *   them and a CSV export of the month
+ * - Categories left out of the totals («مدیریت نقدینگی», «سرمایه‌گذاری» by default) are listed
+ *   with a badge (or hidden with «خارج از جمع») but not counted in the total, the comparison, the
+ *   budgets or the donut; their own sums show in «خارج از جمع»
  * - «دنگ»: shared expenses count only the user's share; «طلب‌های دنگ» shows the month's and opens
  *   every open one (OpenSharesModal), and each expense's «دریافتی‌ها» (ReimbursementsModal)
  */
@@ -14,7 +17,7 @@
 import { useOptionalLoans } from '../../loans/context/LoansContext.jsx';
 import { expenseCsvHeaders, expenseCsvRow } from '../utils/expenseCsv.js';
 import React, { useMemo, useState } from 'react';
-import { ChevronRight, ChevronLeft, Plus, Coins, TrendingUp, TrendingDown, CalendarDays, Tag, Tags, Target, HandCoins } from 'lucide-react';
+import { ChevronRight, ChevronLeft, Plus, Coins, TrendingUp, TrendingDown, CalendarDays, Tag, Tags, Target, HandCoins, Sigma, Eye, EyeOff } from 'lucide-react';
 import { AlertBanner, Button, EmptyState, GenericCsvExportButton, MiniCard, Pagination, SearchBar, SplitPageLayout } from '../../../shared/ui/index.js';
 import DonutChart from '../../../shared/ui/DonutChart.jsx';
 import { useFeedback } from '../../../shared/ui/FeedbackProvider.jsx';
@@ -44,6 +47,8 @@ import BudgetProgress from './BudgetProgress.jsx';
 import ReimbursementsModal from './ReimbursementsModal.jsx';
 import OpenSharesModal from './OpenSharesModal.jsx';
 import { useCategories } from '../../../shared/categories/useCategories.js';
+import { splitCounted } from '../../../shared/categories/categoryStore.js';
+import { useShowExcluded } from '../../../shared/categories/useShowExcluded.js';
 import CategoryManagerModal from '../../../shared/categories/CategoryManagerModal.jsx';
 import { useQuickAddParam } from '../../../shared/hooks/useQuickAddParam.js';
 
@@ -56,7 +61,10 @@ const monthIndex = ({ jy, jm }) => jy * 12 + jm;
 export default function DailyExpensesView({ usdToman = 0, hideValues = false }) {
   const { readOnly } = useDemo();
   // Re-renders with the user's category names (their own categories included)
-  useCategories('expense');
+  const categories = useCategories('expense', { includeHidden: true });
+  // Recompute the split when a category is switched in or out of the totals
+  const exclusionKey = categories.filter((c) => c.excluded).map((c) => c.value).join(',');
+  const [showExcluded, setShowExcluded] = useShowExcluded('expense');
   const [managingCategories, setManagingCategories] = useState(false);
   const { confirm } = useFeedback();
   const today = todayIso();
@@ -84,8 +92,18 @@ export default function DailyExpensesView({ usdToman = 0, hideValues = false }) 
   const loanById = useMemo(() => new Map(loans.map((l) => [l.id, l])), [loans]);
 
   const isThisMonth = monthIndex(month) === monthIndex(thisMonth);
-  const summary = useMemo(() => summarizeExpenses(expenses, { usdToman }), [expenses, usdToman]);
-  const byCategory = useMemo(() => summarizeByCategory(expenses, { usdToman }), [expenses, usdToman]);
+  // Spending only: the categories left out of the totals are summed on their own
+  const split = useMemo(
+    () => splitCounted('expense', expenses),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [expenses, exclusionKey],
+  );
+  const summary = useMemo(() => summarizeExpenses(split.counted, { usdToman }), [split, usdToman]);
+  const byCategory = useMemo(() => summarizeByCategory(split.counted, { usdToman }), [split, usdToman]);
+  const excludedByCategory = useMemo(() => summarizeByCategory(split.excluded, { usdToman }), [split, usdToman]);
+  // What the list shows: everything, or without the excluded categories
+  const shown = showExcluded ? expenses : split.counted;
+  const shownByCategory = useMemo(() => summarizeByCategory(shown, { usdToman }), [shown, usdToman]);
 
   // Days so far in this month (a past month counts all its days)
   const daysElapsed = isThisMonth
@@ -93,30 +111,34 @@ export default function DailyExpensesView({ usdToman = 0, hideValues = false }) 
     : range.days;
   // A month still running is compared with the same number of days of the month before
   const previous = useMemo(() => {
-    let list = previousExpenses;
+    let list = splitCounted('expense', previousExpenses).counted;
     if (isThisMonth) {
       const prev = shiftShamsiMonth(month, -1);
       const cutoff = new Date(Date.parse(shamsiMonthRange(prev.jy, prev.jm).from) + (daysElapsed - 1) * 86_400_000)
         .toISOString().slice(0, 10);
-      list = previousExpenses.filter((e) => e.date <= cutoff);
+      list = list.filter((e) => e.date <= cutoff);
     }
     return summarizeExpenses(list, { usdToman });
-  }, [previousExpenses, usdToman, isThisMonth, daysElapsed, month]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [previousExpenses, usdToman, isThisMonth, daysElapsed, month, exclusionKey]);
   const change = previous.totalToman > 0 ? ((summary.totalToman - previous.totalToman) / previous.totalToman) * 100 : null;
   const top = byCategory[0] ? getExpenseCategory(byCategory[0].category) : null;
   const money = (v) => (hideValues ? MASK : formatAmount(v));
 
-  const byAccount = useMemo(() => summarizeByAccount(expenses, { usdToman }), [expenses, usdToman]);
+  // The account pills follow the list; «پرداخت از» sums the spending only
+  const byAccount = useMemo(() => summarizeByAccount(shown, { usdToman }), [shown, usdToman]);
+  const spentByAccount = useMemo(() => summarizeByAccount(split.counted, { usdToman }), [split, usdToman]);
   const receivables = useMemo(() => summarizeReceivables(expenses, { usdToman }), [expenses, usdToman]);
-  const usesAccounts = byAccount.some((a) => a.accountId);
+  const usesAccounts = expenses.some((e) => e.accountId);
   const budgetKeys = Object.keys(budgets).filter((k) => k !== 'total');
-  const spentIn = new Map(byCategory.map((c) => [c.category, c.totalToman]));
+  // A category's own budget follows its spending even when it is left out of the month's total
+  const spentIn = new Map([...byCategory, ...excludedByCategory].map((c) => [c.category, c.totalToman]));
 
   const query = toEnglishDigits(searchQuery.trim().toLowerCase());
   const searching = Boolean(query);
   const listed = useMemo(() => {
     const dir = order === 'asc' ? 1 : -1;
-    const matches = expenses.filter((e) => {
+    const matches = shown.filter((e) => {
       const matchCat = categoryFilter === 'all' || (e.category || 'other') === categoryFilter;
       const matchAcc = accountFilter === 'all' || (e.accountId || '') === accountFilter;
       if (!matchCat || !matchAcc) return false;
@@ -129,9 +151,9 @@ export default function DailyExpensesView({ usdToman = 0, hideValues = false }) 
     return [...matches].sort((a, b) =>
       dir * (String(a.date).localeCompare(String(b.date)) || String(a.createdAt || '').localeCompare(String(b.createdAt || '')))
     );
-  }, [expenses, categoryFilter, accountFilter, query, order, accountById]);
+  }, [shown, categoryFilter, accountFilter, query, order, accountById]);
 
-  const listKey = `${query}|${monthIndex(month)}|${categoryFilter}|${accountFilter}|${order}`;
+  const listKey = `${query}|${monthIndex(month)}|${categoryFilter}|${accountFilter}|${order}|${showExcluded}`;
   const lastPage = Math.max(1, Math.ceil(listed.length / EXPENSES_PAGE_SIZE));
   const page = Math.min(paging.key === listKey ? paging.page : 1, lastPage);
   const setPage = (next) => setPaging({ key: listKey, page: next });
@@ -250,11 +272,28 @@ export default function DailyExpensesView({ usdToman = 0, hideValues = false }) 
       {donutItems.length > 0 && (
         <DonutChart title="تفکیک دسته‌ها" items={donutItems} centerLabel="جمع ماه" masked={hideValues} />
       )}
+      {excludedByCategory.length > 0 && (
+        <div className="expense-side-card">
+          <div className="expense-side-card-head"><h4><Sigma size={14} /> خارج از جمع</h4></div>
+          <ul className="expense-account-breakdown">
+            {excludedByCategory.map((c) => {
+              const meta = getExpenseCategory(c.category);
+              return (
+                <li key={c.category}>
+                  <span><meta.Icon size={12} /> {meta.label}</span>
+                  <strong>{money(c.totalToman)} <small>تومان</small></strong>
+                </li>
+              );
+            })}
+          </ul>
+          <p className="expense-side-card-empty">این دسته‌ها هزینه حساب نمی‌شوند (از «دسته‌ها» قابل تغییر است).</p>
+        </div>
+      )}
       {usesAccounts && (
         <div className="expense-side-card">
           <div className="expense-side-card-head"><h4>پرداخت از</h4></div>
           <ul className="expense-account-breakdown">
-            {byAccount.map((a) => (
+            {spentByAccount.map((a) => (
               <li key={a.accountId || 'none'}>
                 <span>{a.accountId ? accountLabel(accountById.get(a.accountId)) : 'نامشخص'}</span>
                 <strong>{money(a.totalToman)} <small>تومان</small></strong>
@@ -313,6 +352,18 @@ export default function DailyExpensesView({ usdToman = 0, hideValues = false }) 
                 <Button variant="secondary" icon={<Tags size={16} />} onClick={() => setManagingCategories(true)} disabled={readOnly}>
                   دسته‌ها
                 </Button>
+                {split.excluded.length > 0 && (
+                  <Button
+                    variant="secondary"
+                    className={`excluded-toggle ${showExcluded ? '' : 'is-active'}`}
+                    icon={showExcluded ? <Eye size={16} /> : <EyeOff size={16} />}
+                    onClick={() => setShowExcluded(!showExcluded)}
+                    aria-pressed={!showExcluded}
+                    title={showExcluded ? 'پنهان کردن مدیریت نقدینگی، سرمایه‌گذاری و دیگر دسته‌های خارج از جمع' : 'نمایش دسته‌های خارج از جمع'}
+                  >
+                    {showExcluded ? 'خارج از جمع' : `خارج از جمع (${split.excluded.length.toLocaleString('fa-IR')} پنهان)`}
+                  </Button>
+                )}
                 <GenericCsvExportButton
                   items={listed}
                   headers={CSV_HEADERS}
@@ -332,9 +383,9 @@ export default function DailyExpensesView({ usdToman = 0, hideValues = false }) 
             </div>
 
             <div className="table-card-body">
-              {byCategory.length > 1 && (
+              {shownByCategory.length > 1 && (
                 <div className="tx-filter-pills-bar expense-category-filter" role="group" aria-label="دسته‌بندی">
-                  {[{ category: 'all', count: expenses.length }, ...byCategory].map(({ category, count }) => (
+                  {[{ category: 'all', count: shown.length }, ...shownByCategory].map(({ category, count }) => (
                     <button
                       key={category}
                       type="button"
@@ -351,7 +402,7 @@ export default function DailyExpensesView({ usdToman = 0, hideValues = false }) 
 
               {usesAccounts && (
                 <div className="tx-filter-pills-bar expense-category-filter" role="group" aria-label="پرداخت از">
-                  {[{ accountId: 'all', count: expenses.length }, ...byAccount].map(({ accountId, count }) => (
+                  {[{ accountId: 'all', count: shown.length }, ...byAccount].map(({ accountId, count }) => (
                     <button
                       key={accountId || 'none'}
                       type="button"

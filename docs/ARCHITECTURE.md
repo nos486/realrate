@@ -97,7 +97,7 @@ Decouples database queries from business logic. Direct SQL is strictly encapsula
 - `session.repository.js`: Sessions (30 days; demo sessions are short-lived).
 - `portfolio.repository.js`, `holdings.repository.js`, `transactionRepository.js`: Portfolios (sharing slugs, wrapped portfolio keys) and the legacy plaintext holdings/transactions tables, which are moved into `vault_records` the first time a portfolio is opened.
 - `vault.repository.js`: The account vault (`user_vaults`), the encrypted records of every kind (`vault_records`), their tombstones (`vault_tombstones`), the incremental sync and the full reset (section 5).
-- `loans.repository.js`, `incomes.repository.js`, `recurringIncomes.repository.js`, `cheques.repository.js`, `customBanks.repository.js`: The plaintext tables of accounts that have not turned encryption on (read and delete only — see [E2EE_VAULT.md](E2EE_VAULT.md)).
+- `loans.repository.js`, `incomes.repository.js`, `cheques.repository.js`, `customBanks.repository.js`: The plaintext tables of accounts that have not turned encryption on (read and delete only — see [E2EE_VAULT.md](E2EE_VAULT.md)).
 - `admin.repository.js`, `demo.repository.js`, `settings.repository.js`, `kvCache.repository.js`: Admin lists and statistics, the demo account, site settings and the price-book cache (state store).
 - `schema.repository.js`: Creates the app's tables (`pgSchema.js`) before a repository first uses them.
 
@@ -148,7 +148,7 @@ web/src/
 │   ├── expenses/            # Everyday expenses (categories, budgets) and projects
 │   ├── accounts/            # Bank accounts, cash, wallets
 │   ├── loans/               # Loans, installments, loan usage («تأمین از»)
-│   ├── incomes/             # Incomes and fixed (recurring) incomes
+│   ├── incomes/             # Incomes
 │   ├── cheques/             # Cheques, tracking, AI scan
 │   ├── sms-inbox/           # Android: bank SMS waiting to be recorded, quick/auto record
 │   ├── app-settings/        # Android: SMS, fingerprint and recording settings
@@ -178,7 +178,7 @@ web/src/
    - `useTransactions`: Handles transaction CRUD with client-side E2EE encryption and decryption.
    - `useComputedHoldings`: Automatically derives current holdings and Weighted Average Cost (WAC) from transaction history.
 3. **Account-wide Zero-Knowledge E2EE** (`shared/vault/`, see [E2EE_VAULT.md](E2EE_VAULT.md)):
-   - One passphrase (PBKDF2) unwraps a random account key, which wraps a per-portfolio key and encrypts every other record (AES-GCM 256): loans, incomes, fixed incomes, cheques, expense sections, expenses and accounts.
+   - One passphrase (PBKDF2) unwraps a random account key, which wraps a per-portfolio key and encrypts every other record (AES-GCM 256): loans, incomes, cheques, expense sections, expenses and accounts.
    - Each feature's API module (`loanApi`, `incomeApi`, `chequeApi`, …) has a fixed signature and reads/writes through its vault store (`vaultLoans.js`, `vaultExpenses.js`, `vaultAccounts.js`, …); loans run on the shared pure engine `domain/loanDocument.js`, and every kind validates with its shared domain module.
    - The server only stores ciphertext; passphrases never leave the client.
 4. **Persian / Shamsi Localization**:

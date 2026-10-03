@@ -10,7 +10,8 @@ import { getIncomeCategory } from '../constants/incomeCategories.js';
 
 const MASK = '****';
 
-export default function IncomeSummaryCards({ report, hideValues = false }) {
+/** `excludedTotal`: the period's records of categories left out of the totals, shown under the total */
+export default function IncomeSummaryCards({ report, hideValues = false, excludedTotal = 0 }) {
   const { total, count, monthlyAverage, largest, byCategory } = report;
   const topCategory = byCategory[0] ? getIncomeCategory(byCategory[0].category) : null;
   const money = (v) => (hideValues ? MASK : formatNum(v));
@@ -24,6 +25,7 @@ export default function IncomeSummaryCards({ report, hideValues = false }) {
         unit="تومان"
         color="green"
         className="incomes-summary-card is-primary"
+        footer={excludedTotal > 0 && <span>{money(excludedTotal)} تومان خارج از جمع (مثل مدیریت نقدینگی)</span>}
       />
       <MiniCard
         icon={<CalendarRange size={14} />}

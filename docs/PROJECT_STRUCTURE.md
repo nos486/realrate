@@ -72,7 +72,6 @@ realrate/
 | `utils/bankSms.js`، `bankSmsTemplates.js` | `domain/` — خواندن پیامک بانک |
 | `utils/clientInfo.js` | `domain/clientInfo.js` — سرآیند کلاینت (اپ/وب و نسخه) |
 | `utils/homeLayout.js`، `portfolioLayout.js` | `domain/` — چیدمان صفحه اصلی و دسته‌های پورتفو |
-| `utils/recurringIncome.js` | `domain/recurringIncome.js` |
 | `utils/financialSpecs.js` | `lib/financialSpecs.js` |
 
 برای تغییر هر کدام، فایل مبدأ در `api/` را ویرایش کنید. `utils/calculator.js` و `utils/pricingEngine.js` مال خود وب‌اند (ماشین‌حساب «نرخ مبنا»).

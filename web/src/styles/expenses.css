@@ -700,6 +700,42 @@ button.expense-share-chip {
   color: var(--text-muted);
   font-size: 0.72rem;
 }
+.category-manager-label small.is-excluded {
+  color: #22d3ee;
+}
+
+.category-count-toggle {
+  color: var(--accent-green, #10b981);
+}
+.category-count-toggle.is-off {
+  color: var(--text-muted);
+  opacity: 0.55;
+  text-decoration: line-through;
+}
+
+/* A record of a category left out of the totals */
+.excluded-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  margin-inline-start: 6px;
+  padding: 1px 6px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 700;
+  color: #22d3ee;
+  background: rgba(34, 211, 238, 0.1);
+  white-space: nowrap;
+}
+tr.is-excluded td,
+.is-excluded-row {
+  opacity: 0.72;
+}
+
+.excluded-toggle.is-active {
+  border-color: rgba(34, 211, 238, 0.45);
+  color: #22d3ee;
+}
 
 .category-editor {
   display: flex;

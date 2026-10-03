@@ -47,6 +47,23 @@ describe('CategoryManagerModal', () => {
     expect(store.listCategories('expense').some((c) => c.value === 'education')).toBe(false);
   });
 
+  it('switches a category in or out of the totals', async () => {
+    const onClose = vi.fn();
+    render(<CategoryManagerModal kind="expense" onClose={onClose} />);
+    // «مدیریت نقدینگی» starts out of the totals; count it, and leave «تفریح و سفر» out
+    expect(screen.getByText('مدیریت نقدینگی').closest('li').textContent).toMatch(/خارج از جمع/);
+    fireEvent.click(screen.getByLabelText('«مدیریت نقدینگی» در جمع حساب شود'));
+    fireEvent.click(screen.getByLabelText('«تفریح و سفر» در جمع حساب نشود'));
+    fireEvent.click(screen.getByText('ذخیره'));
+    await waitFor(() => expect(onClose).toHaveBeenCalled());
+    const saved = JSON.parse(vault.put.mock.calls[0][2]).expense;
+    expect(saved.find((c) => c.value === 'cash_management').excluded).toBe(false);
+    expect(saved.find((c) => c.value === 'entertainment').excluded).toBe(true);
+    expect(saved.find((c) => c.value === 'investment').excluded).toBe(true);
+    expect(store.isExcludedCategory('expense', 'entertainment')).toBe(true);
+    expect(store.isExcludedCategory('expense', 'cash_management')).toBe(false);
+  });
+
   it('needs the vault open to save', () => {
     vault.status = 'locked';
     render(<CategoryManagerModal kind="income" onClose={() => {}} />);

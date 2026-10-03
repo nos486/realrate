@@ -40,7 +40,7 @@ Code: `web/src/lib/e2ee.js` (primitives) and `web/src/shared/vault/` (state, mig
 | Data | Storage |
 | :--- | :--- |
 | Salt and the wrapped data key | Table `user_vaults` (a row = encryption on) |
-| Loans, incomes, fixed incomes, cheques, holdings, transactions, portfolio categories, expense sections, expenses and accounts | Table `vault_records`: the encrypted `payload`, plus `record_date` (the main date, plaintext) and `parent_id` (the portfolio for holdings, transactions and portfolio categories; the section for expenses) |
+| Loans, incomes, cheques, holdings, transactions, portfolio categories, expense sections, expenses and accounts | Table `vault_records`: the encrypted `payload`, plus `record_date` (the main date, plaintext) and `parent_id` (the portfolio for holdings, transactions and portfolio categories; the section for expenses) |
 | Portfolio key | `portfolios.e2ee_wrapped_key` |
 
 **Standard:** everything is encrypted except **one main date** per record, so the server can search and filter by date range:
@@ -50,7 +50,6 @@ Code: `web/src/lib/e2ee.js` (primitives) and `web/src/shared/vault/` (state, mig
 | Income | Date received |
 | Cheque | Due date |
 | Loan | Date the loan was received |
-| Fixed income | Start date |
 | Portfolio holding | Purchase date |
 | Portfolio transaction | Transaction date (Shamsi converted to Gregorian) |
 | Portfolio categories (`portfolio_layout`) | None (empty) |
@@ -81,7 +80,7 @@ The server can't compute on encrypted data, so for encrypted accounts every loan
 
 - Each loan is a "document": `{ loan, states, extraPayments }`, stored as one encrypted record.
 - The engine `api/src/domain/loanDocument.js` (shared with the web app) applies the same rules as `loans.repository.js` to the document.
-- `loanApi.js`, `incomeApi.js` and `chequeApi.js` (in `features/`) keep a fixed signature and route to the encrypted stores (`shared/vault/vaultLoans.js`, `vaultIncomes.js`, `vaultRecurringIncomes.js`, `vaultCheques.js`; expenses and accounts use `vaultExpenses.js` and `vaultAccounts.js`).
+- `loanApi.js`, `incomeApi.js` and `chequeApi.js` (in `features/`) keep a fixed signature and route to the encrypted stores (`shared/vault/vaultLoans.js`, `vaultIncomes.js`, `vaultCheques.js`; expenses and accounts use `vaultExpenses.js` and `vaultAccounts.js`).
 - Cheques validate with the same `api/src/domain/chequeDocument.js` either way.
 - **A parity test** (`tests/unit/loanDocument.test.js`) runs the same scenarios on the server and the engine; the results must match installment by installment.
 

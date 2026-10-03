@@ -65,6 +65,7 @@ export const DAILY_EXPENSE_CATEGORIES = [
   { value: 'gifts', label: 'هدیه و خیریه' },
   { value: 'installments', label: 'پرداخت قسط' },
   { value: 'investment', label: 'سرمایه‌گذاری' },
+  { value: 'cash_management', label: 'مدیریت نقدینگی' },
   { value: 'other', label: 'سایر' },
 ];
 

@@ -40,6 +40,7 @@ export const INCOME_CATEGORIES = [
   "investment",
   "rental",
   "gift",
+  "cash_management",
   "other",
 ];
 

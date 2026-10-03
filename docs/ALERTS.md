@@ -64,7 +64,7 @@ Transient feedback ("saved", "failed") is not an alert: it stays a toast (`Feedb
 - **Email reminders**: server-driven via the minimal plaintext reminder index (`vault_reminders`) and daily cron (08:00 Asia/Tehran).
   - Sent to opted-in accounts with a verified email address (`alert_email_prefs`).
   - Digested into one email per user per day: counts and item kinds only («۱ قسط وام فردا سررسید می‌شود»).
-  - Each lead day is sent on its own (`alert_email_sent.reason` = `lead:7`, `lead:3`, `lead:1`, `due`, `overdue`), so the 1-day reminder still comes after the 3-day one. Fixed incomes are never «overdue».
+  - Each lead day is sent on its own (`alert_email_sent.reason` = `lead:7`, `lead:3`, `lead:1`, `due`, `overdue`),, so the 1-day reminder still comes after the 3-day one. Loans and cheques only (fixed incomes were removed; leftover index rows and email sources of that kind are ignored).
   - Verification is read from the account row (`users.email_verified`), the same column the cron filters on.
   - The cron runs every minute; the digest runs at the tick where Tehran's clock reads 08:00 (Tehran is UTC+3:30, so it is not on the hourly UTC gate).
   - Server sees: dates, intervals, remaining counts, muted flags, and optionally cheque direction (`include_cheque_direction`).

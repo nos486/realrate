@@ -3,12 +3,13 @@
  *
  * Rename a category, give it another icon and color, move it up or down, hide a built-in one from
  * the pickers (its records keep showing under it), add new ones and remove the user's own (their
- * records then show under «سایر», and come back if it is added again — they keep the key).
+ * records then show under «سایر», and come back if it is added again — they keep the key), and
+ * leave a category out of the totals («در جمع حساب نشود»: its records are listed, not counted).
  * Changes are saved together with «ذخیره» (one encrypted record, categoryStore.js).
  */
 
 import React, { useState } from 'react';
-import { Tags, Plus, Pencil, Trash2, Eye, EyeOff, ChevronUp, ChevronDown, Check } from 'lucide-react';
+import { Tags, Plus, Pencil, Trash2, Eye, EyeOff, ChevronUp, ChevronDown, Check, Sigma } from 'lucide-react';
 import { AlertBanner, Button, Input, Modal } from '../ui/index.js';
 import { useVault } from '../vault/useVault.js';
 import {
@@ -22,7 +23,7 @@ import { listCategories, saveCategories } from './categoryStore.js';
 import { categoryIcon } from './categoryIcons.js';
 
 const KIND_LABEL = { expense: 'هزینه', income: 'درآمد' };
-const toDraft = (c) => ({ value: c.value, label: c.label, icon: c.icon, color: c.color, hidden: c.hidden, custom: c.custom });
+const toDraft = (c) => ({ value: c.value, label: c.label, icon: c.icon, color: c.color, hidden: c.hidden, excluded: Boolean(c.excluded), custom: c.custom });
 
 function CategoryEditor({ item, onChange, onDone }) {
   return (
@@ -93,7 +94,7 @@ export default function CategoryManagerModal({ kind, onClose }) {
     return next;
   });
   const add = () => {
-    const item = { value: newCategoryId(), label: '', icon: 'Tag', color: CATEGORY_COLORS[items.length % CATEGORY_COLORS.length], hidden: false, custom: true };
+    const item = { value: newCategoryId(), label: '', icon: 'Tag', color: CATEGORY_COLORS[items.length % CATEGORY_COLORS.length], hidden: false, excluded: false, custom: true };
     // New ones go before «سایر»
     setItems((list) => {
       const at = list.findIndex((c) => c.value === FALLBACK_CATEGORY);
@@ -149,8 +150,19 @@ export default function CategoryManagerModal({ kind, onClose }) {
                   <span className="category-manager-label">
                     {item.label || 'دسته‌ی جدید'}
                     {item.hidden && <small>پنهان</small>}
+                    {item.excluded && <small className="is-excluded">خارج از جمع</small>}
                   </span>
                   <div className="row-actions-group">
+                    <button
+                      type="button"
+                      className={`btn-table-action category-count-toggle ${item.excluded ? 'is-off' : ''}`}
+                      title={item.excluded ? 'در جمع حساب شود' : 'در جمع حساب نشود (مثل مدیریت نقدینگی یا سرمایه‌گذاری)'}
+                      aria-pressed={!item.excluded}
+                      aria-label={item.excluded ? `«${item.label}» در جمع حساب شود` : `«${item.label}» در جمع حساب نشود`}
+                      onClick={() => update(item.value, { excluded: !item.excluded })}
+                    >
+                      <Sigma size={13} />
+                    </button>
                     <button type="button" className="btn-table-action" title="بالا" disabled={index === 0} onClick={() => move(index, -1)}>
                       <ChevronUp size={13} />
                     </button>
@@ -194,6 +206,10 @@ export default function CategoryManagerModal({ kind, onClose }) {
         </Button>
         <p className="expense-form-hint">
           دسته‌ی حذف‌شده از موارد ثبت‌شده پاک نمی‌شود؛ آن موارد در «سایر» نمایش داده می‌شوند.
+        </p>
+        <p className="expense-form-hint">
+          <Sigma size={12} /> با دکمه‌ی Σ دسته‌ای را از جمع کنار بگذارید: موارد آن در فهرست می‌مانند ولی در جمع، نمودارها و بودجه حساب
+          نمی‌شوند — مثل «مدیریت نقدینگی» (جابه‌جایی بین حساب‌های خودتان) یا «سرمایه‌گذاری».
         </p>
       </div>
     </Modal>

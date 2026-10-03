@@ -26,11 +26,12 @@ export default function IncomesTable({ incomes, onEdit, onDelete, deletingId = n
       header: 'دسته‌بندی',
       mobile: 'meta',
       render: (income) => {
-        const { label, Icon, color } = getIncomeCategory(income.category);
+        const { label, Icon, color, excluded } = getIncomeCategory(income.category);
         return (
           <span className="income-category-badge" style={{ '--income-cat-color': color }}>
             <Icon size={12} />
             {label}
+            {excluded && <span className="excluded-badge" title="در جمع درآمدها حساب نمی‌شود">خارج از جمع</span>}
           </span>
         );
       },
@@ -114,7 +115,7 @@ export default function IncomesTable({ incomes, onEdit, onDelete, deletingId = n
       rows={incomes}
       wrapperClassName="portfolio-table-responsive"
       tableClassName="portfolio-data-table incomes-table"
-      rowClassName={() => 'portfolio-table-row'}
+      rowClassName={(income) => `portfolio-table-row ${getIncomeCategory(income.category).excluded ? 'is-excluded is-excluded-row' : ''}`}
       sortState={sortState}
       onSortChange={onSortChange}
     />

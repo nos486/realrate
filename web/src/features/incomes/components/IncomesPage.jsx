@@ -4,13 +4,15 @@
  * - Record / edit / delete income entries (title, category, amount, Shamsi date, notes)
  * - Period picker at the top (last month / 3 / 6 months / a year / all; a year by default):
  *   only that date window is fetched from the server
- * - Summary cards, per-category breakdown and the monthly chart, all of the period (never more)
+ * - Summary cards, per-category breakdown and the monthly chart, all of the period (never more);
+ *   categories left out of the totals («مدیریت نقدینگی» by default) are listed with a badge (or
+ *   hidden with «خارج از جمع») but not counted
  * - The list: 20 per page, sorted by date; paging, sorting and search all work in the browser on
  *   the period already fetched (one query per period — amounts and titles are encrypted)
  */
 
 import React, { useState, useMemo } from 'react';
-import { Wallet, Plus, CalendarRange, Tags } from 'lucide-react';
+import { Wallet, Plus, CalendarRange, Tags, Eye, EyeOff } from 'lucide-react';
 import { useIncomes } from '../hooks/useIncomes.js';
 import { usePrivacyMode } from '../../../hooks/usePrivacyMode.js';
 import {
@@ -34,6 +36,8 @@ import { buildIncomeReport, buildMonthlySeries, monthsSpanned } from '../utils/i
 import { RECENT_PERIODS, periodMonths } from '../../../shared/utils/recentPeriods.js';
 import { getIncomeCategory } from '../constants/incomeCategories.js';
 import { useCategories } from '../../../shared/categories/useCategories.js';
+import { splitCounted } from '../../../shared/categories/categoryStore.js';
+import { useShowExcluded } from '../../../shared/categories/useShowExcluded.js';
 import CategoryManagerModal from '../../../shared/categories/CategoryManagerModal.jsx';
 import { useFeedback } from '../../../shared/ui/FeedbackProvider.jsx';
 import { SkeletonRows } from '../../../shared/ui/Skeleton.jsx';
@@ -44,7 +48,10 @@ import { useQuickAddParam } from '../../../shared/hooks/useQuickAddParam.js';
 export default function IncomesPage() {
   const { readOnly } = useDemo();
   // Re-renders with the user's category names (their own categories included)
-  useCategories('income');
+  const categories = useCategories('income', { includeHidden: true });
+  // Recompute the split when a category is switched in or out of the totals
+  const exclusionKey = categories.filter((c) => c.excluded).map((c) => c.value).join(',');
+  const [showExcluded, setShowExcluded] = useShowExcluded('income');
   const [managingCategories, setManagingCategories] = useState(false);
   const {
     incomes: periodIncomes,
@@ -72,11 +79,18 @@ export default function IncomesPage() {
   const [formOpen, setFormOpen] = useState(false);
   const [editingIncome, setEditingIncome] = useState(null);
 
-  // Everything on the page is the period, exactly what was fetched
-  const report = useMemo(() => buildIncomeReport(periodIncomes), [periodIncomes]);
+  // Everything on the page is the period, exactly what was fetched; the totals count only the
+  // categories that are income (not «مدیریت نقدینگی» and the like)
+  const split = useMemo(
+    () => splitCounted('income', periodIncomes),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [periodIncomes, exclusionKey],
+  );
+  const report = useMemo(() => buildIncomeReport(split.counted), [split]);
   // One bar per Shamsi month of the period («all»: since the first income)
   const chartMonths = periodMonths(period) ?? monthsSpanned(periodIncomes);
-  const monthlySeries = useMemo(() => buildMonthlySeries(periodIncomes, chartMonths), [periodIncomes, chartMonths]);
+  const monthlySeries = useMemo(() => buildMonthlySeries(split.counted, chartMonths), [split, chartMonths]);
+  const shownIncomes = showExcluded ? periodIncomes : split.counted;
   const chartTitle = period === 'all' ? 'از ابتدا' : RECENT_PERIODS.find((p) => p.value === period)?.label;
   // The source donut's order, so the bar chart's stacks take the same colors
   const categoryOrder = useMemo(() => report.byCategory.map((c) => c.category), [report.byCategory]);
@@ -88,16 +102,16 @@ export default function IncomesPage() {
   const listed = useMemo(() => {
     const dir = order === 'asc' ? 1 : -1;
     const matches = query
-      ? periodIncomes.filter((income) =>
+      ? shownIncomes.filter((income) =>
           [income.title, income.notes, getIncomeCategory(income.category).label]
             .some((field) => String(field || '').toLowerCase().includes(query))
         )
-      : periodIncomes;
+      : shownIncomes;
     return [...matches].sort((a, b) =>
       dir * (String(a.incomeDate).localeCompare(String(b.incomeDate)) || String(a.createdAt || '').localeCompare(String(b.createdAt || '')))
     );
-  }, [periodIncomes, query, order]);
-  const listKey = `${query}|${period}|${order}`;
+  }, [shownIncomes, query, order]);
+  const listKey = `${query}|${period}|${order}|${showExcluded}`;
   const lastPage = Math.max(1, Math.ceil(listed.length / pageSize));
   // A delete can leave the last page empty: show the new last page
   const page = Math.min(paging.key === listKey ? paging.page : 1, lastPage);
@@ -195,7 +209,11 @@ export default function IncomesPage() {
         <SplitPageLayout
           sidebar={
             <>
-              <IncomeSummaryCards report={report} hideValues={hideValues} />
+              <IncomeSummaryCards
+                report={report}
+                hideValues={hideValues}
+                excludedTotal={split.excluded.reduce((sum, i) => sum + (Number(i.amount) || 0), 0)}
+              />
               <div className="incomes-report-grid">
                 <MonthlyIncomeChart series={monthlySeries} title={chartTitle} categoryOrder={categoryOrder} hideValues={hideValues} />
                 {report.count > 0 && <IncomeReport report={report} hideValues={hideValues} />}
@@ -219,6 +237,19 @@ export default function IncomesPage() {
                   badge={`${listed.length.toLocaleString('fa-IR')} مورد`}
                   className="incomes-search"
                 />
+              )}
+              {split.excluded.length > 0 && (
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  className={`excluded-toggle ${showExcluded ? '' : 'is-active'}`}
+                  icon={showExcluded ? <Eye size={14} /> : <EyeOff size={14} />}
+                  onClick={() => setShowExcluded(!showExcluded)}
+                  aria-pressed={!showExcluded}
+                  title={showExcluded ? 'پنهان کردن مدیریت نقدینگی و دیگر دسته‌های خارج از جمع' : 'نمایش دسته‌های خارج از جمع'}
+                >
+                  {showExcluded ? 'خارج از جمع' : `خارج از جمع (${split.excluded.length.toLocaleString('fa-IR')} پنهان)`}
+                </Button>
               )}
             </div>
 

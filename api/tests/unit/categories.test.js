@@ -10,6 +10,7 @@ import {
   validateCategorySettings,
   mergeCategories,
   newCategoryId,
+  splitByExclusion,
   CUSTOM_CATEGORY_RE,
 } from '../../src/domain/categoryDocument.js';
 import { validateExpense } from '../../src/domain/expenseDocument.js';
@@ -44,9 +45,9 @@ describe('categoryDocument', () => {
       { value: 'bad', label: 'x' },
     ]);
     expect(value).toEqual([
-      { value: 'dining', label: 'کافه', icon: 'Coffee', color: '#ff0000', hidden: false },
-      { value: 'other', label: 'متفرقه', icon: 'CircleEllipsis', color: '#94a3b8', hidden: false },
-      { value: 'c_pets0001', label: 'حیوان خانگی', icon: 'Tag', color: '#94a3b8', hidden: false },
+      { value: 'dining', label: 'کافه', icon: 'Coffee', color: '#ff0000', hidden: false, excluded: false },
+      { value: 'other', label: 'متفرقه', icon: 'CircleEllipsis', color: '#94a3b8', hidden: false, excluded: false },
+      { value: 'c_pets0001', label: 'حیوان خانگی', icon: 'Tag', color: '#94a3b8', hidden: false, excluded: false },
     ]);
     expect(validateCategoryList('expense', [{ value: 'c_a0000001', label: '' }]).error).toBeTruthy();
     expect(validateCategoryList('expense', [{ value: 'c_a0000001', label: 'الف' }, { value: 'c_b0000001', label: 'الف' }]).error).toMatch(/تکراری/);
@@ -62,8 +63,41 @@ describe('categoryDocument', () => {
     expect(merged[0].custom).toBe(true);
     expect(merged[1]).toMatchObject({ label: 'کافه', hidden: true, custom: false });
     expect(merged.at(-1).value).toBe('other');
-    expect(merged).toHaveLength(15);
+    expect(merged).toHaveLength(16);
     expect(mergeCategories('income', null).map((c) => c.value)[0]).toBe('salary');
+  });
+
+  it('cash management and investment spending are left out of the totals by default; any category can be switched', () => {
+    const byValue = (list) => Object.fromEntries(list.map((c) => [c.value, c]));
+    const expense = byValue(mergeCategories('expense', null));
+    expect(expense.cash_management).toMatchObject({ label: 'مدیریت نقدینگی', excluded: true });
+    expect(expense.investment.excluded).toBe(true);
+    expect(expense.groceries.excluded).toBe(false);
+    const income = byValue(mergeCategories('income', null));
+    expect(income.cash_management.excluded).toBe(true);
+    // Investment returns are income
+    expect(income.investment.excluded).toBe(false);
+    expect(isCategoryValue('income', 'cash_management')).toBe(true);
+    expect(isCategoryValue('expense', 'cash_management')).toBe(true);
+
+    // A list saved before the flag existed keeps the defaults; a saved flag wins
+    const old = byValue(mergeCategories('expense', [{ value: 'investment', label: 'سرمایه‌گذاری' }, { value: 'dining', label: 'کافه' }]));
+    expect(old.investment.excluded).toBe(true);
+    const changed = byValue(mergeCategories('expense', [
+      { value: 'investment', label: 'سرمایه‌گذاری', excluded: false },
+      { value: 'dining', label: 'کافه', excluded: true },
+      { value: 'c_save0001', label: 'پس‌انداز', excluded: true },
+    ]));
+    expect(changed.investment.excluded).toBe(false);
+    expect(changed.dining.excluded).toBe(true);
+    expect(changed.c_save0001.excluded).toBe(true);
+  });
+
+  it('splits records into counted and excluded', () => {
+    const records = [{ id: 1, category: 'groceries' }, { id: 2, category: 'cash_management' }, { id: 3 }];
+    const { counted, excluded } = splitByExclusion(records, (c) => c === 'cash_management');
+    expect(counted.map((r) => r.id)).toEqual([1, 3]);
+    expect(excluded.map((r) => r.id)).toEqual([2]);
   });
 });
 
@@ -105,7 +139,17 @@ describe('categoryStore', () => {
     await store.loadCategories(2);
     expect(store.listCategories('expense').some((c) => c.value === 'dining')).toBe(false);
     expect(store.listCategories('expense', { keep: 'dining' }).some((c) => c.value === 'dining')).toBe(true);
-    expect(store.listCategories('expense', { includeHidden: true })).toHaveLength(14);
+    expect(store.listCategories('expense', { includeHidden: true })).toHaveLength(15);
+  });
+
+  it('splits records by the user\'s exclusions', async () => {
+    const records = [{ id: 1, category: 'groceries' }, { id: 2, category: 'cash_management' }, { id: 3, category: 'investment' }];
+    expect(store.splitCounted('expense', records).counted.map((r) => r.id)).toEqual([1]);
+    expect(store.isExcludedCategory('income', 'cash_management')).toBe(true);
+    vault.records = [{ id: 'main', payload: JSON.stringify({ expense: [{ value: 'investment', label: 'سرمایه‌گذاری', excluded: false }], income: [] }) }];
+    await store.loadCategories(4);
+    expect(store.splitCounted('expense', records).counted.map((r) => r.id)).toEqual([1, 3]);
+    expect(store.splitCounted('expense', records).excluded.map((r) => r.id)).toEqual([2]);
   });
 
   it('saves one kind, keeping the other, as one encrypted record', async () => {

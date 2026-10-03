@@ -31,7 +31,7 @@ The interface is Persian; these are the labels the documents quote.
 | هزینه‌ها · روزمره · پروژه‌ها | Expenses · everyday · projects |
 | حساب‌ها | Accounts |
 | وام و اقساط | Loans and installments |
-| درآمدها · درآمد ثابت | Incomes · fixed (recurring) income |
+| درآمدها | Incomes |
 | چک‌ها | Cheques |
 | پیامک‌ها | SMS (the bank SMS inbox, Android only) |
 | ثبت سریع | Quick record / quick add |

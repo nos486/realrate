@@ -13,6 +13,7 @@ import {
   CATEGORY_RECORD_ID,
   FALLBACK_CATEGORY,
   mergeCategories,
+  splitByExclusion,
   validateCategorySettings,
 } from '../../utils/categoryDocument.js';
 import { listVaultRecords } from '../vault/vaultApi.js';
@@ -65,6 +66,20 @@ export function listCategories(kind, { includeHidden = false, keep = '' } = {}) 
 export function getCategory(kind, value) {
   const { byValue } = current();
   return byValue[kind][value] || byValue[kind][FALLBACK_CATEGORY];
+}
+
+/** Whether a category's records are left out of the totals («مدیریت نقدینگی», «سرمایه‌گذاری», …) */
+export function isExcludedCategory(kind, value) {
+  return Boolean(getCategory(kind, value)?.excluded);
+}
+
+/**
+ * A kind's records split into the ones counted in totals and the excluded ones
+ * @param {'expense'|'income'} kind
+ * @param {object[]} records with a `category`
+ */
+export function splitCounted(kind, records) {
+  return splitByExclusion(records, (category) => isExcludedCategory(kind, category));
 }
 
 /** What is saved (for the manager to edit) */

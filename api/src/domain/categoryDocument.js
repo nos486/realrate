@@ -6,7 +6,12 @@
  * pickers; new ones can be added (id `c_…`) and removed. All of it is one end-to-end encrypted
  * vault record per user (kind "category_settings", id "main"):
  *
- *   { expense: [{ value, label, icon, color, hidden }], income: [...] }
+ *   { expense: [{ value, label, icon, color, hidden, excluded }], income: [...] }
+ *
+ * `excluded`: the category's records are listed but not counted in the totals, charts and budgets
+ * — money that is still the user's (moving it between their own accounts: «مدیریت نقدینگی») or
+ * money put to work rather than spent («سرمایه‌گذاری»). Those two are excluded by default; any
+ * category can be switched. A stored item without the field keeps the built-in's default.
  *
  * The stored list is laid over the built-ins (mergeCategories): it gives the order and the
  * changes; a built-in it doesn't mention (one added in a later release) is still there. "other"
@@ -58,7 +63,8 @@ export const BUILTIN_CATEGORIES = {
     { value: 'subscriptions', label: 'اینترنت و اشتراک‌ها', icon: 'Wifi', color: '#60a5fa' },
     { value: 'gifts', label: 'هدیه و خیریه', icon: 'Gift', color: '#e879f9' },
     { value: 'installments', label: 'پرداخت قسط', icon: 'Landmark', color: '#fb923c' },
-    { value: 'investment', label: 'سرمایه‌گذاری', icon: 'TrendingUp', color: '#34d399' },
+    { value: 'investment', label: 'سرمایه‌گذاری', icon: 'TrendingUp', color: '#34d399', excluded: true },
+    { value: 'cash_management', label: 'مدیریت نقدینگی', icon: 'Wallet', color: '#22d3ee', excluded: true },
     { value: 'other', label: 'سایر', icon: 'CircleEllipsis', color: '#94a3b8' },
   ],
   income: [
@@ -70,6 +76,7 @@ export const BUILTIN_CATEGORIES = {
     { value: 'investment', label: 'سود سرمایه‌گذاری', icon: 'TrendingUp', color: '#10b981' },
     { value: 'rental', label: 'اجاره', icon: 'Home', color: '#fb7185' },
     { value: 'gift', label: 'هدیه و کمک', icon: 'Gift', color: '#f472b6' },
+    { value: 'cash_management', label: 'مدیریت نقدینگی', icon: 'Wallet', color: '#22d3ee', excluded: true },
     { value: 'other', label: 'سایر', icon: 'CircleDollarSign', color: '#94a3b8' },
   ],
 };
@@ -117,7 +124,8 @@ export function validateCategoryList(kind, list) {
     const icon = ICON_SET.has(raw?.icon) ? raw.icon : (builtin?.icon || 'Tag');
     const color = COLOR_RE.test(String(raw?.color ?? '')) ? String(raw.color).toLowerCase() : (builtin?.color || '#94a3b8');
     const hidden = key !== FALLBACK_CATEGORY && Boolean(raw?.hidden);
-    value.push({ value: key, label, icon, color, hidden });
+    const excluded = raw?.excluded === undefined ? Boolean(builtin?.excluded) : Boolean(raw.excluded);
+    value.push({ value: key, label, icon, color, hidden, excluded });
   }
   return { value };
 }
@@ -140,7 +148,7 @@ export function validateCategorySettings(body = {}) {
  * The categories of a kind as shown: the stored list over the built-ins
  * @param {'expense'|'income'} kind
  * @param {object[]|null|undefined} stored
- * @returns {Array<{ value: string, label: string, icon: string, color: string, hidden: boolean, custom: boolean }>}
+ * @returns {Array<{ value: string, label: string, icon: string, color: string, hidden: boolean, excluded: boolean, custom: boolean }>}
  */
 export function mergeCategories(kind, stored) {
   const builtins = BUILTIN_CATEGORIES[kind] || [];
@@ -149,9 +157,22 @@ export function mergeCategories(kind, stored) {
   const merged = [
     ...list,
     // Built-ins the stored list doesn't mention yet, before "other" when it is at the end
-    ...builtins.filter((c) => !listed.has(c.value)).map((c) => ({ ...c, hidden: false })),
+    ...builtins.filter((c) => !listed.has(c.value)).map((c) => ({ ...c, hidden: false, excluded: Boolean(c.excluded) })),
   ].map((c) => ({ ...c, custom: CUSTOM_CATEGORY_RE.test(c.value) }));
   const otherIndex = merged.findIndex((c) => c.value === FALLBACK_CATEGORY);
   if (otherIndex >= 0 && !listed.has(FALLBACK_CATEGORY)) merged.push(...merged.splice(otherIndex, 1));
   return merged;
+}
+
+/**
+ * Split records into the ones counted in totals and the ones of excluded categories
+ * @param {object[]} records
+ * @param {(category: string) => boolean} isExcluded
+ * @returns {{ counted: object[], excluded: object[] }}
+ */
+export function splitByExclusion(records = [], isExcluded = () => false) {
+  const counted = [];
+  const excluded = [];
+  for (const r of records) (isExcluded(r?.category) ? excluded : counted).push(r);
+  return { counted, excluded };
 }

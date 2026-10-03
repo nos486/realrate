@@ -26,6 +26,7 @@ import { summarizeExpenses, shamsiMonthOf, shamsiMonthRange, shiftShamsiMonth, e
 import { useDailyExpenses } from '../expenses/hooks/useDailyExpenses.js';
 import { getExpenseCategory } from '../expenses/constants/expenseCategories.js';
 import { useCategories } from '../../shared/categories/useCategories.js';
+import { splitCounted } from '../../shared/categories/categoryStore.js';
 import { formatShamsiMonth, buildIncomeReport } from '../incomes/utils/incomeReport.js';
 import { formatShamsiDisplay } from '../portfolio/components/ShamsiDatePicker.jsx';
 
@@ -36,13 +37,13 @@ const DAY_MS = 86_400_000;
 /** This month's incomes (decrypted), reloaded when the vault changes */
 function useMonthIncomes(range, enabled) {
   const { epoch } = useVault();
-  const [state, setState] = useState({ total: 0, loading: true });
+  const [state, setState] = useState({ incomes: [], loading: true });
   useEffect(() => {
     if (!enabled) return undefined;
     let cancelled = false;
     getIncomes({ from: range.from, to: range.to })
-      .then((res) => !cancelled && setState({ total: buildIncomeReport(res.incomes).total, loading: false }))
-      .catch(() => !cancelled && setState({ total: 0, loading: false }));
+      .then((res) => !cancelled && setState({ incomes: Array.isArray(res?.incomes) ? res.incomes : [], loading: false }))
+      .catch(() => !cancelled && setState({ incomes: [], loading: false }));
     return () => {
       cancelled = true;
     };
@@ -61,7 +62,10 @@ function usePendingSms() {
 }
 
 export default function AppHomeDashboard({ usdToman = 0, analysis = [], onOpen }) {
-  useCategories('expense'); // the user's category names
+  // The user's category names, and which ones are left out of the totals
+  const expenseCategories = useCategories('expense', { includeHidden: true });
+  const incomeCategories = useCategories('income', { includeHidden: true });
+  const exclusionKey = [...expenseCategories, ...incomeCategories].filter((c) => c.excluded).map((c) => c.value).join(',');
   const vault = useVault();
   const hideValues = usePrivacyMode();
   const hasExpenses = useFeature('expenses');
@@ -71,18 +75,29 @@ export default function AppHomeDashboard({ usdToman = 0, analysis = [], onOpen }
   const range = useMemo(() => shamsiMonthRange(month.jy, month.jm), [month]);
 
   const { expenses, previousExpenses, loading: expensesLoading } = useDailyExpenses(month, { enabled: hasExpenses && unlocked });
-  const incomes = useMonthIncomes(range, unlocked);
+  const monthIncomes = useMonthIncomes(range, unlocked);
+  // Income and spending only: «مدیریت نقدینگی», «سرمایه‌گذاری» and the like are left out
+  const incomes = useMemo(
+    () => ({ loading: monthIncomes.loading, total: buildIncomeReport(splitCounted('income', monthIncomes.incomes).counted).total }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [monthIncomes, exclusionKey],
+  );
+  const counted = useMemo(
+    () => ({ expenses: splitCounted('expense', expenses).counted, previous: splitCounted('expense', previousExpenses).counted }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [expenses, previousExpenses, exclusionKey],
+  );
   const pendingSms = usePendingSms();
 
-  const spent = useMemo(() => summarizeExpenses(expenses, { usdToman }).totalToman, [expenses, usdToman]);
+  const spent = useMemo(() => summarizeExpenses(counted.expenses, { usdToman }).totalToman, [counted, usdToman]);
   // Compared with the same number of days of last month
   const change = useMemo(() => {
     const days = Math.round((Date.parse(today) - Date.parse(range.from)) / DAY_MS);
     const prev = shiftShamsiMonth(month, -1);
     const cutoff = new Date(Date.parse(shamsiMonthRange(prev.jy, prev.jm).from) + days * DAY_MS).toISOString().slice(0, 10);
-    const before = summarizeExpenses(previousExpenses.filter((e) => e.date <= cutoff), { usdToman }).totalToman;
+    const before = summarizeExpenses(counted.previous.filter((e) => e.date <= cutoff), { usdToman }).totalToman;
     return before > 0 ? ((spent - before) / before) * 100 : null;
-  }, [previousExpenses, spent, usdToman, today, range.from, month]);
+  }, [counted, spent, usdToman, today, range.from, month]);
   const latest = useMemo(
     () => [...expenses].sort((a, b) => b.date.localeCompare(a.date) || String(b.createdAt || '').localeCompare(String(a.createdAt || ''))).slice(0, 5),
     [expenses],
