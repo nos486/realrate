@@ -12,10 +12,10 @@
  * income) and «دنگ» (`onShareDeposit`: someone's share of an expense the user paid, not income);
  * either kind can be «انتقال بین حساب‌های خودم» (`onTransfer`: money moved between the user's own
  * accounts — neither expense nor income). «رد» (beside the main action, not in the menu) drops it
- * for good.
+ * for good. With messages from more than one bank, pills above the list filter them by bank.
  */
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { MessageSquareText, Check, X, ArrowDownLeft, ArrowUpRight, BellRing, Inbox, Zap, Landmark, HandCoins, FolderOpen, ArrowLeftRight } from 'lucide-react';
 import { ActionMenu, Button, EmptyState } from '../../shared/ui/index.js';
 import { useFeedback } from '../../shared/ui/FeedbackProvider.jsx';
@@ -81,6 +81,22 @@ function EnableCard({ onChange }) {
 export default function SmsInboxList({ accounts = [], onRecord, onQuickRecord, quickRecordingId = null, onLoanDeposit, onShareDeposit, onRecordToProject, onTransfer, canRecord = true }) {
   const { pending, settings } = useSmsInbox();
   const [permission, setPermission] = useState(null);
+  const [bankFilter, setBankFilter] = useState('all');
+
+  // The banks of the waiting messages, most messages first
+  const banks = useMemo(() => {
+    const map = new Map();
+    for (const item of pending) {
+      const id = item.tx.bankId || '';
+      const entry = map.get(id) || { id, bank: resolveBank({ bankId: item.tx.bankId }), count: 0 };
+      entry.count += 1;
+      map.set(id, entry);
+    }
+    return [...map.values()].sort((a, b) => b.count - a.count);
+  }, [pending]);
+  // A bank whose messages are all handled falls back to «همه»
+  const activeBank = banks.some((b) => b.id === bankFilter) ? bankFilter : 'all';
+  const shown = activeBank === 'all' ? pending : pending.filter((item) => (item.tx.bankId || '') === activeBank);
 
   useEffect(() => {
     smsPermission().then(setPermission);
@@ -101,8 +117,25 @@ export default function SmsInboxList({ accounts = [], onRecord, onQuickRecord, q
   }
 
   return (
+    <>
+    {banks.length > 1 && (
+      <div className="tx-filter-pills-bar sms-bank-filter" role="group" aria-label="فیلتر بانک">
+        {[{ id: 'all', count: pending.length }, ...banks].map(({ id, bank, count }) => (
+          <button
+            key={id || 'unknown'}
+            type="button"
+            className={`tx-filter-pill ${activeBank === id ? 'active' : ''}`}
+            aria-pressed={activeBank === id}
+            onClick={() => setBankFilter(id)}
+          >
+            {id === 'all' ? 'همه‌ی بانک‌ها' : <><BankLogo bank={bank} size={16} /> {bank.shortName}</>}
+            <span className="cheque-filter-count">{count.toLocaleString('fa-IR')}</span>
+          </button>
+        ))}
+      </div>
+    )}
     <ul className="sms-inbox-list" aria-label="پیامک‌های بانکی ثبت‌نشده">
-      {pending.map((item) => {
+      {shown.map((item) => {
         const { tx } = item;
         const bank = resolveBank({ bankId: tx.bankId });
         const account = accounts.find((a) => a.id === matchSmsAccount(tx, accounts));
@@ -177,5 +210,6 @@ export default function SmsInboxList({ accounts = [], onRecord, onQuickRecord, q
         );
       })}
     </ul>
+    </>
   );
 }

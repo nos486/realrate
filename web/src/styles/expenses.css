@@ -407,6 +407,20 @@
   text-align: center;
 }
 
+.sms-bank-filter {
+  flex-wrap: nowrap;
+  max-width: 100%;
+  margin-bottom: 12px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.sms-bank-filter .tx-filter-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+
 .sms-inbox-list {
   list-style: none;
   margin: 0;
