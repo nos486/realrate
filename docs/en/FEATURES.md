@@ -73,8 +73,10 @@ Every feature in detail. For a summary see the [README](../../README.en.md). Per
 
 ## 8. Incomes
 - Incomes with a category (salary, benefits, bonus, freelance, business, investment, rent, gift, other).
-- Report: a stacked monthly bar chart for the chosen period (e.g. the last 6 months) by source (with an average line and the change against the previous month) and a donut by source; CSV export and import.
-- Period picker at the top (last month, 3 months, 6 months, a year, all — a year by default) that fetches only that period from the server; one query per period feeds the 20-row list (sorted by date), the search, the totals and the charts. Portfolio transactions have the same period, paging and sorting.
+- Incomes and everyday expenses share one design: «monthly / yearly» at the top, with the Shamsi month or year shown (previous, next, back to now).
+  - **Monthly**: the month's total, the change against the same days of last month, the daily average and the largest category; a stacked bar chart from the start of the year by category with each month's change against the month before (the month shown highlighted; tapping another month opens it); a donut of the month's categories; the month's list with a category filter above it, search and CSV.
+  - **Yearly**: the year's total, monthly average, best month and largest category; the year month by month with the change; a month-by-month table (total, change, share of the year, count — a row opens that month); a donut of the year's categories.
+  - Each year is fetched once (the year and the month before it); moving between its months makes no new query.
 
 ## 9. Cheques
 - **Received** and **issued** cheques: amount, Shamsi due date, drawer or payee, bank (with logo or a custom bank), cheque number, the 16-digit Sayad id and a note.

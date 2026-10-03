@@ -113,19 +113,6 @@
 }
 
 /* Daily expenses: the month switcher and the category filter */
-.expense-month-bar {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  margin-bottom: 16px;
-}
-
-.expense-month-label {
-  min-width: 110px;
-  font-size: 16px;
-  text-align: center;
-}
-
 .expense-category-filter {
   flex-wrap: nowrap;
   max-width: 100%;

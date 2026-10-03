@@ -1,10 +1,10 @@
 /**
- * useIncomes.js — The user's incomes of a period, and their CRUD operations
+ * useIncomes.js — The user's incomes of a date window, and their CRUD operations
  *
- * One query per period: the server filters on each income's plaintext date and returns only the
- * chosen window (a year by default). Amounts are encrypted, so the totals, the monthly chart
- * and the list's pages are all built in the browser from that one result — nothing is fetched
- * twice and nothing outside the period is fetched at all.
+ * One query per window: the server filters on each income's plaintext date and returns only that
+ * window (the page asks for a Shamsi year and the month before it). Amounts are encrypted, so the
+ * totals, the charts and the list's pages are all built in the browser from that one result —
+ * switching months inside the year fetches nothing.
  */
 
 import { useState, useEffect, useCallback } from 'react';
@@ -16,19 +16,17 @@ import {
   updateIncome as apiUpdateIncome,
   deleteIncome as apiDeleteIncome,
 } from '../api/incomeApi.js';
-import { todayIso } from '../../../shared/utils/dates.js';
-import { DEFAULT_RECENT_PERIOD, periodFrom } from '../../../shared/utils/recentPeriods.js';
 
 export const INCOMES_PAGE_SIZE = 20;
 
-export function useIncomes() {
+/** @param {{ from: string, to: string }} window inclusive YYYY-MM-DD */
+export function useIncomes({ from, to }) {
   const { user } = useAuth();
   // With account-wide encryption on, data is only readable once the vault is unlocked
   const { status: vaultStatus, epoch: vaultEpoch } = useVault();
   const vaultLocked = vaultStatus === 'locked';
   const ready = Boolean(user) && !vaultLocked;
 
-  const [period, setPeriod] = useState(DEFAULT_RECENT_PERIOD);
   const [reloadToken, setReloadToken] = useState(0);
 
   // The result is tagged with the request it answers, so loading is derived, not stored
@@ -37,18 +35,15 @@ export function useIncomes() {
   const [deletingId, setDeletingId] = useState(null);
   const [error, setError] = useState(null);
 
-  const today = todayIso();
-  const from = periodFrom(period, today);
-
   const reload = useCallback(() => setReloadToken((n) => n + 1), []);
 
-  // The whole period: the list, the report, the monthly chart and search all read it
+  // The whole window: the list, the reports, the charts and search all read it
   // (vaultEpoch: reload after unlocking or migrating)
-  const windowKey = `${from}|${reloadToken}|${vaultEpoch}`;
+  const windowKey = `${from}|${to}|${reloadToken}|${vaultEpoch}`;
   useEffect(() => {
     if (!ready) return undefined;
     let active = true;
-    getIncomes({ from })
+    getIncomes({ from, to })
       .then((res) => {
         if (!active) return;
         setWindowData({ key: windowKey, incomes: Array.isArray(res?.incomes) ? res.incomes : [] });
@@ -122,11 +117,9 @@ export function useIncomes() {
   const clearError = useCallback(() => setError(null), []);
 
   return {
-    // Every income of the period (newest first, as the server sorts them)
+    // Every income of the window (newest first, as the server sorts them)
     incomes: ready ? windowData.incomes : [],
     pageSize: INCOMES_PAGE_SIZE,
-    period,
-    setPeriod,
     vaultLocked,
     loadingIncomes,
     submitting,

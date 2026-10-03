@@ -116,30 +116,6 @@
   white-space: nowrap;
 }
 
-/* ── Period picker (shared/ui/PeriodBar) ────────────────────────────────────── */
-.period-bar {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 8px 12px;
-  margin-bottom: 16px;
-}
-
-.period-bar-label {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  color: var(--text-muted);
-  font-size: 12.5px;
-  font-weight: 700;
-  white-space: nowrap;
-}
-
-.period-bar-pills {
-  min-width: 0;
-  max-width: 100%;
-}
-
 /* A paged list while its next page loads */
 .is-refreshing {
   opacity: 0.55;
@@ -148,4 +124,121 @@
 
 @media (prefers-reduced-motion: reduce) {
   .is-refreshing { transition: none; }
+}
+
+/* ── Incomes / expenses: «ماهانه / سالانه» and the month or year shown (shared/flow) ── */
+.flow-period-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px 16px;
+  margin-bottom: 16px;
+}
+
+.flow-period-nav {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.flow-period-label {
+  min-width: 110px;
+  font-size: 16px;
+  text-align: center;
+}
+
+.flow-year-main {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+}
+
+/* The year chart: the change from the month before over each bar */
+.flow-year-plot .monthly-income-col {
+  position: relative;
+}
+
+.flow-bar-pct {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 9.5px;
+  font-weight: 700;
+  white-space: nowrap;
+  pointer-events: none;
+  font-variant-numeric: tabular-nums;
+}
+.flow-bar-pct.is-up { color: var(--color-positive); }
+.flow-bar-pct.is-down { color: var(--color-negative); }
+
+.flow-year-plot .monthly-income-col.is-selected .monthly-income-bar {
+  box-shadow: 0 0 0 2px var(--accent-blue, var(--color-primary-text));
+}
+
+.flow-year-chart .monthly-income-plot {
+  margin-top: 14px;
+}
+
+.flow-year-chart.is-large .monthly-income-plot {
+  height: 240px;
+}
+
+.flow-year-total {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+/* The yearly report's month-by-month table */
+.flow-month-grid {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+.flow-month-grid th,
+.flow-month-grid td {
+  padding: 10px 8px;
+  text-align: start;
+  border-bottom: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.05));
+  white-space: nowrap;
+}
+.flow-month-grid th {
+  color: var(--text-muted);
+  font-weight: 600;
+  font-size: 12px;
+}
+.flow-month-grid td.num { font-variant-numeric: tabular-nums; }
+.flow-month-grid tr.is-clickable { cursor: pointer; }
+.flow-month-grid tr.is-clickable:hover td { background: var(--bg-surface-elevated); }
+
+.flow-share {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 120px;
+}
+.flow-share-track {
+  display: block;
+  width: 100px;
+  height: 6px;
+  border-radius: 999px;
+  background: var(--bg-input, rgba(255, 255, 255, 0.06));
+  overflow: hidden;
+}
+.flow-share-bar {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  min-width: 2px;
+}
+.flow-share-bar.is-income { background: var(--color-positive); }
+.flow-share-bar.is-expense { background: var(--color-negative); }
+.flow-share small { color: var(--text-muted); }
+
+@media (max-width: 640px) {
+  .flow-period-bar { justify-content: center; }
+  .flow-share-col { display: none; }
+  .flow-month-grid th,
+  .flow-month-grid td { padding: 9px 5px; font-size: 12px; }
 }
