@@ -215,8 +215,16 @@
 .home-card-identity {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
   min-width: 0;
+}
+
+.home-card-titles {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  flex-wrap: wrap;
 }
 
 .home-asset-flag {
@@ -230,17 +238,74 @@
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  width: 30px;
-  height: 30px;
+  width: 32px;
+  height: 32px;
   border-radius: 10px;
-  background: var(--bg-surface-elevated);
-  box-shadow: inset 0 0 0 1px var(--border-medium);
+  background: var(--card-inner-bg, #161d2c);
+  border: var(--card-inner-border, 1px solid rgba(255, 255, 255, 0.08));
+  color: var(--text-primary);
+}
+
+.card-badges-cluster {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  flex-shrink: 0;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.best-choice-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 1.5px 7px;
+  border-radius: var(--radius-full);
+  font-size: 10px;
+  font-weight: 800;
+  color: var(--color-positive-text);
+  background: var(--color-positive-soft);
+  border: 1px solid var(--color-positive-border);
+  white-space: nowrap;
+}
+
+.price-top-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  margin-bottom: 2px;
+}
+
+.price-title {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.price-big-number {
+  font-size: 20px;
+  font-weight: 800;
+  color: var(--text-heading);
+  letter-spacing: -0.5px;
+  font-variant-numeric: tabular-nums;
+}
+
+.price-big-unit {
+  font-size: 11.5px;
+  font-weight: 600;
   color: var(--text-secondary);
+}
+
+.price-per-unit {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-muted);
 }
 
 .home-price-caption {
   font-size: 11px;
   color: var(--text-muted);
+  margin-top: 3px;
 }
 
 /* A price whose source hasn't updated for a while */
@@ -263,6 +328,83 @@
   white-space: nowrap;
   font-size: 11px;
   color: var(--text-muted);
+}
+
+/* Card Metrics Table */
+.card-metrics-table {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  padding: 10px 12px;
+  background: var(--card-inner-bg, #161d2c);
+  border: var(--card-inner-border, 1px solid rgba(255, 255, 255, 0.08));
+  border-radius: 12px;
+}
+
+.metric-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 11.5px;
+  gap: 8px;
+  min-width: 0;
+}
+
+.metric-key {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text-secondary);
+  font-size: 11.5px;
+  flex-shrink: 0;
+}
+
+.metric-indicator {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.metric-indicator.is-gold { background: var(--color-warning); }
+.metric-indicator.is-blue { background: var(--color-primary); }
+.metric-indicator.is-good { background: var(--color-positive); }
+.metric-indicator.is-warn { background: var(--color-negative); }
+.metric-indicator.is-neutral { background: var(--text-muted); }
+
+.metric-val {
+  font-weight: 700;
+  color: var(--text-heading);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.metric-val.is-meta {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.metric-unit {
+  font-size: 10px;
+  color: var(--text-muted);
+  font-weight: 400;
+  margin-right: 3px;
+}
+
+.metric-sep {
+  color: var(--border-medium, rgba(255, 255, 255, 0.15));
+  margin: 0 3px;
+}
+
+.metric-source-row {
+  border-top: 1px dashed var(--border-subtle, rgba(255, 255, 255, 0.05));
+  padding-top: 6px;
+  margin-top: 2px;
 }
 
 .home-change {
