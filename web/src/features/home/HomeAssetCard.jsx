@@ -1,11 +1,11 @@
 /**
  * HomeAssetCard.jsx — One asset on the home page, in any of the card styles
  *
- * - detailed: large card. Gold & coins show the bubble analysis (intrinsic value, standard price,
- *   deviation); every other asset shows its price, daily change and source.
+ * - detailed (the full card): gold & coins show the bubble analysis (intrinsic value, standard
+ *   price, deviation); every other asset its price, daily change and source. Below, the last 30
+ *   days from the price history, as a line or as candles (one switch for every card).
  * - compact: small row card (flag/icon, name, symbol, price).
- * - trend: price, its change since yesterday and a daily sparkline of the last 30 days (the price
- *   history keeps each price's daily close).
+ * A section saved with the older "trend" style is shown as full cards.
  */
 
 import React from 'react';
@@ -82,7 +82,7 @@ function PriceLine({ value, unit, caption, asset = null }) {
   );
 }
 
-function GoldDetailedCard({ asset, isBest }) {
+function GoldDetailedCard({ asset, isBest, chart = null }) {
   const item = asset.analysis;
   const hasMarket = item.market !== null && item.market !== undefined;
   const badge = bubbleBadge(item);
@@ -128,12 +128,15 @@ function GoldDetailedCard({ asset, isBest }) {
           )}
         </div>
       )}
+      {chart}
     </div>
   );
 }
 
-function DetailedCard({ asset }) {
-  const change = changeBadge(asset.changePercent);
+function DetailedCard({ asset, trend = null, chart = null }) {
+  // The source's daily change, or else the history's change since yesterday
+  const fromHistory = asset.changePercent === null || asset.changePercent === undefined ? dayChangePct(trend) : null;
+  const change = changeBadge(fromHistory !== null ? Number(fromHistory.toFixed(2)) : asset.changePercent);
   const meta = [asset.sourceName, asset.note && asset.note !== asset.sourceName ? asset.note : '']
     .filter(Boolean)
     .join('، ');
@@ -146,13 +149,16 @@ function DetailedCard({ asset }) {
           {asset.code && <span className="curr-code-pill">{asset.code}</span>}
         </div>
         {change ? (
-          <span className={`bubble-pill ${change.className}`}>{change.text}</span>
+          <span className={`bubble-pill ${change.className}`} title={fromHistory !== null ? 'تغییر نسبت به دیروز' : undefined}>
+            {change.text}
+          </span>
         ) : (
           asset.badge && <span className="bubble-pill disabled">{asset.badge}</span>
         )}
       </div>
-      <PriceLine value={asset.price} unit={asset.unit} asset={asset} />
+      <PriceLine value={asset.price || trend?.last || null} unit={asset.unit} asset={asset} />
       {meta && <p className="home-card-meta" title={meta}>{meta}</p>}
+      {chart}
     </div>
   );
 }
@@ -248,38 +254,8 @@ function TrendBody({ asset, unit, trend, status, bucketSec }) {
     );
   }
   if (!trend && status === 'loading') return <div className="home-trend-skeleton" aria-hidden="true" />;
-  return (
-    <p className="home-trend-empty">
-      {status === 'unavailable' ? 'روند قیمت فعلاً در دسترس نیست' : 'روندی برای این مورد هنوز ثبت نشده'}
-    </p>
-  );
-}
-
-function TrendCard({ asset, trend, status, bucketSec }) {
-  const hasTrend = trend && trend.points.length >= 2;
-  const dayChange = hasTrend ? dayChangePct(trend) : null;
-  const change = dayChange !== null ? changeBadge(Number(dayChange.toFixed(2))) : null;
-  // The card and the history both hold the price book's price, in tomans
-  const unit = asset.unit;
-  const price = asset.price || (hasTrend ? trend.last : null);
-  return (
-    <div className="fintech-card home-trend-card">
-      <div className="card-top-row">
-        <div className="home-card-identity">
-          <AssetIcon asset={asset} />
-          <h3 className="card-name">{asset.name}</h3>
-          {asset.code && <span className="curr-code-pill">{asset.code}</span>}
-        </div>
-        {change && (
-          <span className={`bubble-pill ${change.className}`} title="تغییر نسبت به دیروز">
-            {change.text}
-          </span>
-        )}
-      </div>
-      <PriceLine value={price} unit={unit} asset={asset} />
-      <TrendBody asset={asset} unit={unit} trend={trend} status={status} bucketSec={bucketSec} />
-    </div>
-  );
+  // No history for this asset (or none reachable now): the full card simply has no chart
+  return null;
 }
 
 function MissingCard({ asset, style }) {
@@ -292,12 +268,19 @@ function MissingCard({ asset, style }) {
 }
 
 /**
- * @param {{ asset: object, style: 'detailed'|'compact'|'trend', isBest?: boolean,
+ * @param {{ asset: object, style: 'detailed'|'compact', isBest?: boolean,
  *   trend?: object|null, trendStatus?: string, bucketSec?: number }} props
  */
 export default function HomeAssetCard({ asset, style, isBest = false, trend = null, trendStatus = 'idle', bucketSec = 0 }) {
   if (!asset.found) return <MissingCard asset={asset} style={style} />;
   if (style === 'compact') return <CompactCard asset={asset} />;
-  if (style === 'trend') return <TrendCard asset={asset} trend={trend} status={trendStatus} bucketSec={bucketSec} />;
-  return asset.analysis ? <GoldDetailedCard asset={asset} isBest={isBest} /> : <DetailedCard asset={asset} />;
+  // The full card (also a section saved with the older "trend" style)
+  const chart = (
+    <div className="home-card-chart">
+      <TrendBody asset={asset} unit={asset.unit} trend={trend} status={trendStatus} bucketSec={bucketSec} />
+    </div>
+  );
+  return asset.analysis
+    ? <GoldDetailedCard asset={asset} isBest={isBest} chart={chart} />
+    : <DetailedCard asset={asset} trend={trend} chart={chart} />;
 }

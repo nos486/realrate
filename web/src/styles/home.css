@@ -1092,3 +1092,16 @@
   background: var(--bg-surface);
   color: var(--text-primary);
 }
+
+/* The full card's price chart (line or candles), under its details */
+.home-card-chart {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: auto;
+  padding-top: 6px;
+}
+
+.home-card-chart:empty {
+  display: none;
+}

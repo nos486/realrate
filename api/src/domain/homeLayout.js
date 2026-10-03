@@ -10,19 +10,22 @@
  *   sections: [
  *     { id: "s_gold", title: "طلا و سکه", style: "detailed", items: ["gold_18k", "full_coin"] },
  *     { id: "s_fx",   title: "ارزها",     style: "compact",  items: ["USD", "EUR"] },
- *     { id: "s_trend", title: "روند",     style: "trend",    items: ["USD", "gold_18k"] }
  *   ]
  * }
+ * A section saved with the older "trend" style is read as "detailed" (the full card now carries
+ * the trend chart).
  */
 
 export const HOME_LAYOUT_VERSION = 1;
 
-/** Card styles a section can use */
+/** Card styles a section can use: the full card (with its price chart) and the compact one */
 export const HOME_SECTION_STYLES = {
   detailed: "کارت کامل",
   compact: "کارت فشرده",
-  trend: "کارت روند",
 };
+
+/** Styles of older layouts → today's */
+const LEGACY_STYLES = { trend: "detailed" };
 
 export const HOME_LAYOUT_LIMITS = {
   sections: 12,
@@ -53,7 +56,8 @@ export function sanitizeHomeLayout(input) {
     seenSections.add(id);
 
     const title = String(raw.title ?? "").trim().slice(0, HOME_LAYOUT_LIMITS.titleLength);
-    const style = Object.hasOwn(HOME_SECTION_STYLES, raw.style) ? raw.style : "compact";
+    const rawStyle = LEGACY_STYLES[raw.style] || raw.style;
+    const style = Object.hasOwn(HOME_SECTION_STYLES, rawStyle) ? rawStyle : "compact";
 
     const seenItems = new Set();
     const items = [];

@@ -79,9 +79,9 @@ export const HOME_PRESETS = [
   {
     key: 'trend',
     label: 'روند بازار',
-    description: 'نرخ‌های اصلی با نمودار دقیقه‌ای ۲۴ ساعت اخیر',
+    description: 'نرخ‌های اصلی با نمودار ۳۰ روز اخیر (خطی یا کندلی)',
     build: (ctx) => layoutOf([
-      { id: 's_trend', title: 'روند بازار', style: 'trend', items: ['USD', 'gold_18k', 'full_coin', 'USDT', 'EUR'] },
+      { id: 's_trend', title: 'روند بازار', style: 'detailed', items: ['USD', 'gold_18k', 'full_coin', 'USDT', 'EUR'] },
       { id: 's_gold', title: 'طلا و سکه', style: 'detailed', items: goldIds(ctx) },
     ]),
   },

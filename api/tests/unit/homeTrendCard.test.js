@@ -26,7 +26,7 @@ afterEach(() => {
 
 describe('trend card', () => {
   it('renders a young history with the day it starts', () => {
-    const { container } = render(React.createElement(HomeAssetCard, { asset, style: 'trend', trend: series(10), trendStatus: 'ready', bucketSec: 86400 }));
+    const { container } = render(React.createElement(HomeAssetCard, { asset, style: 'detailed', trend: series(10), trendStatus: 'ready', bucketSec: 86400 }));
     expect(container.querySelector('.trend-spark')).not.toBeNull();
     expect(container.querySelector('.home-trend-caption').textContent).toMatch(/^از \S+ \S+$/);
   });
@@ -34,7 +34,7 @@ describe('trend card', () => {
   it('renders a full window as the last 30 days, with the change since yesterday', () => {
     const trend = { ...series(30), points: [...series(29).points, 101500], changePct: 1.5 };
     const yesterday = trend.points[28];
-    const { container } = render(React.createElement(HomeAssetCard, { asset, style: 'trend', trend, trendStatus: 'ready', bucketSec: 86400 }));
+    const { container } = render(React.createElement(HomeAssetCard, { asset, style: 'detailed', trend, trendStatus: 'ready', bucketSec: 86400 }));
     expect(container.querySelector('.home-trend-caption').textContent).toBe('۳۰ روز اخیر');
     const expected = (((101500 - yesterday) / yesterday) * 100).toFixed(2);
     const pill = container.querySelector('.bubble-pill');
@@ -42,11 +42,12 @@ describe('trend card', () => {
     expect(pill.textContent.replace(/[^۰-۹0-9.٫]/g, '')).toMatch(new RegExp(`^${Number(expected).toLocaleString('fa-IR', { maximumFractionDigits: 2 }).replace(/[^۰-۹0-9.٫]/g, '')}`));
   });
 
-  it('renders without a series, and while loading', () => {
-    const empty = render(React.createElement(HomeAssetCard, { asset, style: 'trend', trend: null, trendStatus: 'ready', bucketSec: 86400 }));
-    expect(empty.container.querySelector('.home-trend-empty')).not.toBeNull();
+  it('a full card without a series has no chart, and a placeholder while loading', () => {
+    const empty = render(React.createElement(HomeAssetCard, { asset, style: 'detailed', trend: null, trendStatus: 'ready', bucketSec: 86400 }));
+    expect(empty.container.querySelector('.trend-spark')).toBeNull();
+    expect(empty.container.querySelector('.card-name').textContent).toBe('دلار');
     cleanup();
-    const loading = render(React.createElement(HomeAssetCard, { asset, style: 'trend', trend: null, trendStatus: 'loading', bucketSec: 60 }));
+    const loading = render(React.createElement(HomeAssetCard, { asset, style: 'detailed', trend: null, trendStatus: 'loading', bucketSec: 60 }));
     expect(loading.container.querySelector('.home-trend-skeleton')).not.toBeNull();
   });
 
@@ -57,7 +58,7 @@ describe('trend card', () => {
       days: ['2026-01-01', '2026-01-02', '2026-01-03', '2026-01-04', '2026-01-05'],
       candles: base.points.map((p, i) => (i === 1 ? [p + 5, p + 8, p - 2, p] : [p, p + 3, p - 3, p + 1])),
     };
-    const { container, getByTitle } = render(React.createElement(HomeAssetCard, { asset, style: 'trend', trend, trendStatus: 'ready', bucketSec: 86400 }));
+    const { container, getByTitle } = render(React.createElement(HomeAssetCard, { asset, style: 'detailed', trend, trendStatus: 'ready', bucketSec: 86400 }));
     expect(container.querySelector('.trend-candles')).toBeNull();
     fireEvent.click(getByTitle('نمودار کندلی'));
     expect(container.querySelectorAll('.trend-candle')).toHaveLength(5);
@@ -69,7 +70,7 @@ describe('trend card', () => {
   });
 
   it('without candles in the series there is no switch', () => {
-    const { container } = render(React.createElement(HomeAssetCard, { asset, style: 'trend', trend: series(5), trendStatus: 'ready', bucketSec: 86400 }));
+    const { container } = render(React.createElement(HomeAssetCard, { asset, style: 'detailed', trend: series(5), trendStatus: 'ready', bucketSec: 86400 }));
     expect(container.querySelector('.home-trend-switch')).toBeNull();
   });
 });

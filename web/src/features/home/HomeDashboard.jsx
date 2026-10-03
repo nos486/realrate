@@ -40,7 +40,6 @@ import {
   ChevronDown,
   Coins,
   LayoutTemplate,
-  TrendingUp,
 } from 'lucide-react';
 import { SearchBar, EmptyState, Modal } from '../../shared/ui/index.js';
 import { SkeletonCards } from '../../shared/ui/Skeleton.jsx';
@@ -70,7 +69,6 @@ import {
 const STYLE_OPTIONS = [
   { id: 'detailed', label: 'کامل', Icon: LayoutGrid },
   { id: 'compact', label: 'فشرده', Icon: Rows3 },
-  { id: 'trend', label: 'روند', Icon: TrendingUp },
 ];
 
 const COLLAPSED_KEY = 'realrate_home_collapsed';
@@ -115,9 +113,9 @@ function useSortableStyle(id) {
   return { ...sortable, style };
 }
 
-/** The trend props of one card (only trend sections use them) */
+/** The trend props of one card (full cards carry the price chart) */
 function trendProps(section, asset, trends) {
-  if (section.style !== 'trend' || !trends) return {};
+  if (section.style !== 'detailed' || !trends) return {};
   return {
     trend: trends.trends[String(asset.id).toLowerCase()] || null,
     trendStatus: trends.status,
@@ -306,9 +304,9 @@ export default function HomeDashboard({
     return { ...section, resolved: q ? items.filter((a) => a.found && a.searchText.includes(q)) : items };
   }), [effective, index, q]);
 
-  // Every asset in a trend section, fetched together
+  // Every asset shown as a full card, its chart fetched together
   const trendIds = useMemo(
-    () => effective.sections.filter((s) => s.style === 'trend').flatMap((s) => s.items),
+    () => effective.sections.filter((s) => s.style === 'detailed').flatMap((s) => s.items),
     [effective],
   );
   const trends = useTrends(trendIds);
