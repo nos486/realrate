@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, lazy, Suspense } from 'react';
 import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { TrendingUp, Briefcase, ShieldCheck, Radio, Settings, Landmark, Wallet, ReceiptText, Wrench, HandCoins, WalletCards, Smartphone, MessageSquareText, History } from 'lucide-react';
+import { TrendingUp, Briefcase, ShieldCheck, Settings, Landmark, Wallet, ReceiptText, Wrench, HandCoins, WalletCards, Smartphone, MessageSquareText } from 'lucide-react';
 import { AppLayout, FilterPills, AlertBanner, Button } from '../shared/ui/index.js';
 import MarketInputsToolbar from '../components/MarketInputsToolbar.jsx';
 import { PriceRefreshStatus } from '../features/market/components/index.js';
@@ -35,9 +35,6 @@ const AccountsPage = lazy(() => import('../features/accounts/components/Accounts
 const AccountSettingsView = lazy(() => import('../components/AccountSettingsView.jsx'));
 const AppSettingsView = lazy(() => import('../features/app-settings/AppSettingsView.jsx'));
 const SmsInboxPage = lazy(() => import('../features/sms-inbox/SmsInboxPage.jsx'));
-const AdminPage = lazy(() => import('./AdminPage.jsx'));
-const PriceSourcesPage = lazy(() => import('./PriceSourcesPage.jsx'));
-const PriceHistoryAdminPage = lazy(() => import('../features/admin/components/PriceHistoryAdmin.jsx'));
 // The Android app's home (its own month at a glance); the website's home is the market
 const AppHomeDashboard = lazy(() => import('../features/home/AppHomeDashboard.jsx'));
 
@@ -93,52 +90,33 @@ export default function MainPage() {
       searchParams.get('tab') === 'sms'
     );
 
-  const isSources =
-    !isSettings && !isAppSettings && !isSms && (
-      subPath.startsWith('/admin/sources') ||
-      subPath.startsWith('/sources') ||
-      searchParams.get('tab') === 'sources'
-    );
-
-  const isHistory =
-    !isSettings && !isSources && (
-      subPath.startsWith('/admin/history') ||
-      searchParams.get('tab') === 'history'
-    );
-
-  const isAdmin =
-    !isSettings && !isSources && !isHistory && (
-      subPath.startsWith('/admin') ||
-      searchParams.get('tab') === 'admin'
-    );
-
   const isIncomes =
-    !isSettings && !isSources && !isAdmin && (
+    !isSettings && (
       subPath.startsWith('/incomes') ||
       searchParams.get('tab') === 'incomes'
     );
 
 
   const isCheques =
-    !isSettings && !isSources && !isAdmin && !isIncomes && (
+    !isSettings && !isIncomes && (
       subPath.startsWith('/cheques') ||
       searchParams.get('tab') === 'cheques'
     );
 
   const isExpenses =
-    hasExpenses && !isSettings && !isSources && !isAdmin && !isIncomes && !isCheques && (
+    hasExpenses && !isSettings && !isIncomes && !isCheques && (
       subPath.startsWith('/expenses') ||
       searchParams.get('tab') === 'expenses'
     );
 
   const isAccounts =
-    hasAccounts && !isSettings && !isSources && !isAdmin && !isIncomes && !isCheques && !isExpenses && (
+    hasAccounts && !isSettings && !isIncomes && !isCheques && !isExpenses && (
       subPath.startsWith('/accounts') ||
       searchParams.get('tab') === 'accounts'
     );
 
   const isPortfolio =
-    !isSettings && !isSources && !isAdmin && !isIncomes && !isCheques && !isExpenses && !isAccounts && (
+    !isSettings && !isIncomes && !isCheques && !isExpenses && !isAccounts && (
       subPath.startsWith('/portfolio') ||
       searchParams.get('tab') === 'portfolio' ||
       // The transactions screen is now each asset's ledger in the portfolio: old links land there
@@ -150,7 +128,7 @@ export default function MainPage() {
   const isRates = isNativeApp() && subPath.startsWith('/rates');
 
   const isLoans =
-    !isSettings && !isSources && !isAdmin && !isIncomes && !isCheques && !isExpenses && !isAccounts && !isPortfolio && (
+    !isSettings && !isIncomes && !isCheques && !isExpenses && !isAccounts && !isPortfolio && (
       subPath.startsWith('/loans') ||
       searchParams.get('tab') === 'loans'
     );
@@ -160,9 +138,6 @@ export default function MainPage() {
     ['settings', isSettings],
     ['app-settings', isAppSettings],
     ['sms', isSms],
-    ['sources', isSources],
-    ['history', isHistory],
-    ['admin', isAdmin],
     ['incomes', isIncomes],
     ['cheques', isCheques],
     ['expenses', isExpenses],
@@ -192,12 +167,6 @@ export default function MainPage() {
         return 'تنظیمات اپ | RealRate';
       case 'sms':
         return 'پیامک‌های بانکی | RealRate';
-      case 'admin':
-        return 'پنل مدیریت | RealRate';
-      case 'sources':
-        return 'مدیریت منابع قیمت | RealRate';
-      case 'history':
-        return 'تاریخچه‌ی قیمت | RealRate';
       case 'rates':
         return 'نرخ و حباب | RealRate';
       default:
@@ -226,15 +195,17 @@ export default function MainPage() {
     settings: '/settings',
     'app-settings': '/app-settings',
     sms: '/sms',
-    admin: '/admin',
-    sources: '/admin/sources',
-    history: '/admin/history',
     rates: '/rates',
   };
 
   const handleTabChange = (nextTab) => {
     // An old /transactions link is the portfolio too: «پورتفو» moves it to /portfolio
     if (nextTab === activeTab && !subPath.startsWith('/transactions')) return;
+    // The admin area is its own page (pages/AdminApp.jsx): back returns here
+    if (nextTab === 'admin') {
+      navigate('/admin');
+      return;
+    }
     if (nextTab === 'portfolio') {
       if (!subPath.startsWith('/portfolio')) goToTab(lastPortfolioPath('/portfolio'));
     } else if (TAB_PATHS[nextTab]) {
@@ -271,9 +242,7 @@ export default function MainPage() {
     }
     if (user?.role === 'admin') {
       options.push(
-        { value: 'admin', label: 'پنل مدیریت و کاربران', icon: <ShieldCheck size={16} strokeWidth={2} /> },
-        { value: 'sources', label: 'سورس‌های قیمت', icon: <Radio size={16} strokeWidth={2} /> },
-        { value: 'history', label: 'تاریخچه‌ی قیمت', icon: <History size={16} strokeWidth={2} /> }
+        { value: 'admin', label: 'پنل مدیریت', icon: <ShieldCheck size={16} strokeWidth={2} /> }
       );
     }
     return options;
@@ -313,9 +282,9 @@ export default function MainPage() {
     if (target === 'add-expense') navigate(appPath('/expenses?add=expense'));
     else handleTabChange(target);
   };
-  // Admin tools stay reachable; everything else waits for the encryption passphrase
+  // Every section waits for the encryption passphrase (the admin area is its own page)
   const needsVaultSetup =
-    Boolean(user) && !isDemo && vault.status === 'off' && !vault.hasPlaintextData && activeTab !== 'admin' && activeTab !== 'sources' && activeTab !== 'history';
+    Boolean(user) && !isDemo && vault.status === 'off' && !vault.hasPlaintextData;
 
 
   return (
@@ -333,11 +302,9 @@ export default function MainPage() {
           icon={<Wrench size={16} />}
           message="حالت توسعه فعال است: فقط مدیران به سایت دسترسی دارند و بقیه صفحه «در حال به‌روزرسانی» را می‌بینند."
           action={
-            activeTab !== 'admin' ? (
-              <Button size="sm" variant="secondary" onClick={() => handleTabChange('admin')}>
-                پنل مدیریت
-              </Button>
-            ) : null
+            <Button size="sm" variant="secondary" onClick={() => handleTabChange('admin')}>
+              پنل مدیریت
+            </Button>
           }
           style={{ marginBottom: '20px' }}
         />
@@ -463,19 +430,6 @@ export default function MainPage() {
 
         {activeTab === 'sms' && <SmsInboxPage />}
 
-        {activeTab === 'admin' && (
-          <AdminPage embedded={true} />
-        )}
-
-        {activeTab === 'history' && <PriceHistoryAdminPage />}
-
-        {activeTab === 'sources' && (
-          <PriceSourcesPage
-            embedded={true}
-            usdToman={usdToman}
-            gold18kPrice={gold18kPrice}
-          />
-        )}
         </Suspense>
         </>
         )}

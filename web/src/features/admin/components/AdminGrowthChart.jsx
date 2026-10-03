@@ -75,6 +75,8 @@ export default function AdminGrowthChart({ reloadToken = 0 }) {
         <div className="stat-sub">{error}</div>
       ) : !series ? (
         <div className="admin-growth-skeleton" aria-label="در حال دریافت آمار" role="status" />
+      ) : series.length === 0 ? (
+        <div className="stat-sub">آماری برای این بازه نیست.</div>
       ) : (
         <>
           <div className="admin-growth-readout" aria-live="polite">

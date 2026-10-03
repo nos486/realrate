@@ -13,9 +13,8 @@ import AppSuggestBanner from '../app/AppSuggestBanner.jsx';
  *
  * Ensures Header and Footer are rendered consistently across all pages:
  * - MainPage (Market & Portfolio)
- * - AdminPage (Dashboard & Users)
- * - PriceSourcesPage (Source Management & History Charts)
  * - SharedPortfolioPage
+ * (The admin area, pages/AdminApp.jsx, has its own shell.)
  *
  * Prevents repeating <div className="app-layout">, <Header />, and <Footer />
  * inside every single view and conditional return branch.

@@ -1393,3 +1393,109 @@
   .history-preview-table th,
   .history-preview-table td { padding: 4px 3px; font-size: 0.72rem; }
 }
+
+/* ── The admin area's own shell (pages/AdminApp.jsx) ── */
+.admin-shell {
+  min-height: 100vh;
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-app, var(--bg-base, #06080d));
+  color: var(--text-primary);
+}
+
+.admin-topbar {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  padding: calc(10px + env(safe-area-inset-top, 0px)) 20px 0;
+  background: var(--bg-surface, rgba(14, 18, 28, 0.95));
+  border-bottom: 1px solid var(--border-medium, rgba(255, 255, 255, 0.06));
+}
+
+.admin-topbar-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+.admin-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 700;
+  font-size: 1rem;
+  color: var(--text-primary);
+  text-decoration: none;
+}
+.admin-brand svg { color: var(--accent-blue, var(--color-primary-text)); }
+
+.admin-user {
+  margin-inline-start: auto;
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+
+.admin-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 10px;
+  border: var(--card-border);
+  color: var(--text-secondary);
+  font-size: 0.82rem;
+  text-decoration: none;
+  white-space: nowrap;
+}
+.admin-back:hover { color: var(--text-primary); background: var(--bg-surface-elevated); }
+
+.admin-nav {
+  display: flex;
+  gap: 4px;
+  max-width: 1400px;
+  margin: 10px auto 0;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.admin-nav::-webkit-scrollbar { display: none; }
+
+.admin-nav-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 14px;
+  border-bottom: 2px solid transparent;
+  color: var(--text-muted);
+  font-size: 0.88rem;
+  text-decoration: none;
+  white-space: nowrap;
+}
+.admin-nav-item:hover { color: var(--text-primary); }
+.admin-nav-item.is-active {
+  color: var(--text-primary);
+  border-bottom-color: var(--accent-blue, var(--color-primary-text));
+  font-weight: 600;
+}
+
+.admin-main {
+  flex: 1;
+  width: 100%;
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 20px 20px calc(32px + env(safe-area-inset-bottom, 0px));
+  box-sizing: border-box;
+}
+
+@media (max-width: 640px) {
+  .admin-topbar { padding-inline: 12px; }
+  .admin-user { display: none; }
+  .admin-back { margin-inline-start: auto; }
+  .admin-main { padding-inline: 12px; }
+}

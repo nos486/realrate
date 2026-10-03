@@ -15,6 +15,7 @@ import { ChequesProvider } from './features/cheques/context/ChequesContext.jsx';
 
 // Route-level code splitting: a visitor only downloads the page they open
 const MainPage = lazy(() => import('./pages/MainPage.jsx'));
+const AdminApp = lazy(() => import('./pages/AdminApp.jsx'));
 const LandingPage = lazy(() => import('./pages/LandingPage.jsx'));
 const AuthPage = lazy(() => import('./features/auth/components/AuthPage.jsx'));
 const SharedPortfolioPage = lazy(() => import('./pages/SharedPortfolioPage.jsx'));
@@ -134,6 +135,8 @@ export default function App() {
 
           {/* Authenticated application — home at /app, every section on its own route */}
           <Route element={<RequireAuth />}>
+            {/* The admin area: its own page and navigation (pages/AdminApp.jsx) */}
+            <Route path="/admin/*" element={<AdminApp />} />
             <Route element={<DueDataScope />}>
               <Route path={APP_BASE} element={<MainPage />} />
               <Route path="/rates" element={<MainPage />} />
@@ -152,12 +155,8 @@ export default function App() {
               <Route path="/settings" element={<MainPage />} />
               <Route path="/app-settings" element={<MainPage />} />
               <Route path="/sms" element={<MainPage />} />
-              <Route path="/admin" element={<MainPage />} />
-              <Route path="/admin/sources" element={<MainPage />} />
-              <Route path="/admin/history" element={<MainPage />} />
-              <Route path="/admin/derived" element={<Navigate to="/admin/sources" replace />} />
               <Route path="/derived-assets" element={<Navigate to="/admin/sources" replace />} />
-              <Route path="/sources" element={<MainPage />} />
+              <Route path="/sources" element={<Navigate to="/admin/sources" replace />} />
               <Route path={`${APP_BASE}/*`} element={<LegacyAppRedirect />} />
             </Route>
           </Route>
