@@ -26,6 +26,10 @@
  * assetId, txId }`): the portfolio gets a «spend» transaction (`txId`) at the expense's rate
  * (web/src/shared/vault/portfolioFunds.js); such an expense has no account and no loan.
  *
+ * Money put into an asset (`investedIn: { portfolioId, portfolioName, assetId, quantity, txId }`,
+ * portfolioLink.js): the portfolio gets a «buy» transaction at the expense's tomans / quantity, so
+ * it needs a toman value (a dollar expense its rate) and is never shared.
+ *
  * A shared expense («دنگ», toman expenses only): the user paid `amount` for others too, and only `myShare` (same
  * currency) is theirs. Totals, categories, budgets and loan usage count `myShare`
  * (expenseInToman); the rest is owed back to the user. What comes back is kept on the expense
@@ -34,6 +38,7 @@
  */
 
 import { isValidIsoDate } from './isoDate.js';
+import { validatePortfolioLink } from './portfolioLink.js';
 import { jalaliToGregorian, getJalaliMonthLength, gregorianToJalali } from './loanCalculator.js';
 import { isCategoryValue } from './categoryDocument.js';
 
@@ -217,13 +222,19 @@ export function validateExpense(body = {}) {
   const { paidFrom } = funding;
   if (paidFrom && !(usdRate > 0)) return { error: 'برای پرداخت از پورتفو، نرخ دلار روز هزینه لازم است.' };
 
+  const invested = validatePortfolioLink(body.investedIn);
+  if (invested.error) return { error: invested.error };
+  const investedIn = invested.link;
+  if (investedIn && currency !== 'IRT' && !(usdRate > 0)) return { error: 'برای افزودن به پورتفو، نرخ دلار روز هزینه لازم است.' };
+  if (investedIn && myShare !== null) return { error: 'هزینه‌ای که به پورتفو اضافه می‌شود دنگ ندارد.' };
+
   return {
     value: {
       groupId, title, amount, currency, date, usdRate, notes, category, source, bankId,
       // Paid from a portfolio: no account, no loan
       accountId: paidFrom ? '' : accountId,
       loanId: paidFrom ? '' : loanId,
-      smsFingerprint, smsKey, myShare, reimbursements, paidFrom,
+      smsFingerprint, smsKey, myShare, reimbursements, paidFrom, investedIn,
       tags: normalizeTags(body.tags),
     },
   };

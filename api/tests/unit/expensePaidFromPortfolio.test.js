@@ -7,10 +7,15 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { validateExpense } from '../../src/domain/expenseDocument.js';
 
 const funds = vi.hoisted(() => ({ calls: [], failPut: false }));
-vi.mock('../../../web/src/shared/vault/portfolioFunds.js', () => ({
-  saveSpendTransaction: vi.fn(async (expense) => funds.calls.push(['save', expense.paidFrom.portfolioId, expense.paidFrom.txId, expense.amount])),
-  deleteSpendTransaction: vi.fn(async (paidFrom) => funds.calls.push(['delete', paidFrom.portfolioId, paidFrom.txId])),
-}));
+vi.mock('../../../web/src/shared/vault/portfolioFunds.js', () => {
+  const remove = vi.fn(async (link) => funds.calls.push(['delete', link.portfolioId, link.txId]));
+  return {
+    saveSpendTransaction: vi.fn(async (expense) => funds.calls.push(['save', expense.paidFrom.portfolioId, expense.paidFrom.txId, expense.amount])),
+    saveLinkedTransaction: vi.fn(async (link, entry) => funds.calls.push(['link', entry.type, link.portfolioId, link.txId, link.quantity, entry.toman, entry.owner])),
+    deleteSpendTransaction: remove,
+    deleteLinkedTransaction: remove,
+  };
+});
 vi.mock('../../../web/src/shared/vault/vaultRecordMeta.js', () => ({
   putRecord: vi.fn(async () => {
     funds.calls.push(['expense']);
@@ -86,5 +91,55 @@ describe('saving with the spend transaction', () => {
     funds.calls = [];
     await api.deleteExpense(expense.id, expense);
     expect(funds.calls).toEqual([['deleteExpense'], ['delete', 'pf_a', 'txs_1']]);
+  });
+});
+
+describe('an investment expense added to a portfolio (investedIn)', () => {
+  const invest = { groupId: 'exg_1', title: 'خرید طلا', amount: 50_000_000, currency: 'IRT', date: '2026-09-20', category: 'investment' };
+  const link = (portfolioId = 'pf_a', txId = 'txl_1', quantity = 2) => ({ portfolioId, portfolioName: 'اصلی', assetId: 'gold_18k', quantity, txId });
+
+  it('validates the link: an asset, a quantity, a toman value, no «دنگ»', () => {
+    expect(validateExpense({ ...invest, investedIn: link() }).value.investedIn).toEqual(link());
+    expect(validateExpense(invest).value.investedIn).toBeNull();
+    expect(validateExpense({ ...invest, investedIn: { ...link(), quantity: 0 } }).error).toMatch(/مقدار/);
+    expect(validateExpense({ ...invest, investedIn: { ...link(), assetId: '' } }).error).toMatch(/دارایی/);
+    expect(validateExpense({ ...invest, investedIn: { ...link(), txId: 'bad id' } }).error).toBeTruthy();
+    expect(validateExpense({ ...invest, currency: 'USD', amount: 100, investedIn: link() }).error).toMatch(/نرخ/);
+    expect(validateExpense({ ...invest, currency: 'USD', amount: 100, usdRate: 100_000, investedIn: link() }).value.investedIn).toBeTruthy();
+    expect(validateExpense({ ...invest, myShare: 10_000_000, investedIn: link() }).error).toMatch(/دنگ/);
+  });
+
+  it('writes a «buy» of the quantity at the expense\'s tomans, before the expense', async () => {
+    const { expense } = await api.saveExpense({ ...invest, investedIn: link() });
+    expect(funds.calls).toEqual([
+      ['link', 'buy', 'pf_a', 'txl_1', 2, 50_000_000, { expenseId: expense.id }],
+      ['expense'],
+    ]);
+  });
+
+  it('a dollar investment is bought at its own rate', async () => {
+    await api.saveExpense({ ...invest, currency: 'USD', amount: 500, usdRate: 100_000, investedIn: link() });
+    expect(funds.calls[0][5]).toBe(50_000_000);
+  });
+
+  it('moves, removes and deletes with the expense', async () => {
+    const { expense } = await api.saveExpense({ ...invest, investedIn: link() });
+    funds.calls = [];
+    const { expense: moved } = await api.saveExpense({ investedIn: link('pf_b', 'txl_2', 3) }, expense);
+    expect(funds.calls).toEqual([['delete', 'pf_a', 'txl_1'], ['link', 'buy', 'pf_b', 'txl_2', 3, 50_000_000, { expenseId: expense.id }], ['expense']]);
+    funds.calls = [];
+    const { expense: plain } = await api.saveExpense({ investedIn: null, category: 'other' }, moved);
+    expect(funds.calls).toEqual([['expense'], ['delete', 'pf_b', 'txl_2']]);
+    funds.calls = [];
+    const { expense: again } = await api.saveExpense({ investedIn: link() }, plain);
+    funds.calls = [];
+    await api.deleteExpense(again.id, again);
+    expect(funds.calls).toEqual([['deleteExpense'], ['delete', 'pf_a', 'txl_1']]);
+  });
+
+  it('a failed save leaves no purchase behind', async () => {
+    funds.failPut = true;
+    await expect(api.saveExpense({ ...invest, investedIn: link() })).rejects.toThrow();
+    expect(funds.calls.at(-1)).toEqual(['delete', 'pf_a', 'txl_1']);
   });
 });

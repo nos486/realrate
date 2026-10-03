@@ -1048,3 +1048,45 @@ tr.is-excluded td,
 .expense-tag-today .is-down { color: var(--green-emerald); }
 .expense-tag-untagged { flex-wrap: wrap; }
 .expense-tag-untagged .expense-tag-today { flex-basis: 100%; }
+
+/* ── «افزودن به / کم کردن از پورتفو» in the expense and income forms (PortfolioLinkFields) ── */
+.portfolio-link {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.portfolio-link-body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 12px;
+  border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.08));
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.portfolio-link-results {
+  max-height: 240px;
+  margin-top: 6px;
+}
+
+.portfolio-link-chosen {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-radius: 10px;
+  background: var(--bg-input);
+}
+.portfolio-link-chosen strong {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.portfolio-link-chosen small {
+  color: var(--text-muted);
+  white-space: nowrap;
+}

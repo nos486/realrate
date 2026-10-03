@@ -2388,12 +2388,6 @@ tr.is-expandable:focus-visible,
   color: var(--color-warning-text);
 }
 
-.asset-ledger-info {
-  display: inline-flex;
-  color: var(--text-muted);
-  cursor: help;
-}
-
 .asset-ledger-entry-actions {
   justify-content: flex-end;
 }
@@ -2436,6 +2430,19 @@ tr.is-expandable:focus-visible,
   color: var(--text-secondary);
 }
 
+.asset-ledger-extra.note {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 5px;
+  color: var(--text-secondary);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.asset-ledger-extra.note svg {
+  flex-shrink: 0;
+  align-self: center;
+  color: var(--text-muted);
+}
 .asset-ledger-extra.profit { color: var(--color-positive-text); }
 .asset-ledger-extra.loss { color: var(--color-negative-text); }
 

@@ -7,7 +7,8 @@
  * utils/expenseDocument.js.
  *
  * A dollar expense paid from a portfolio (`paidFrom`) also writes, moves or deletes its «spend»
- * transaction in that portfolio (portfolioFunds.js): the transaction first, then the expense.
+ * transaction in that portfolio, and an expense put into an asset (`investedIn`) its «buy»
+ * transaction (portfolioFunds.js): the transaction first, then the expense.
  */
 
 import {
@@ -15,8 +16,10 @@ import {
   validateExpense,
   compareExpensesByDate,
   expenseReceivable,
+  expensePaidInToman,
   DAILY_GROUP_NAME,
 } from '../../utils/expenseDocument.js';
+import { sameLink } from '../../utils/portfolioLink.js';
 import { listVaultRecords, deleteVaultRecord } from './vaultApi.js';
 import { putRecord } from './vaultRecordMeta.js';
 import { encryptVaultRecord, decryptVaultRecord } from './vaultStore.js';
@@ -81,7 +84,20 @@ export async function deleteExpenseGroup(groupId) {
 }
 
 const funds = () => import('./portfolioFunds.js');
-const sameFunding = (a, b) => Boolean(a && b && a.portfolioId === b.portfolioId && a.txId === b.txId);
+
+/** The portfolio entries an expense can have, and how each is written */
+const LINKS = [
+  { field: 'paidFrom', write: (f, expense) => f.saveSpendTransaction(expense) },
+  {
+    field: 'investedIn',
+    write: (f, expense) => f.saveLinkedTransaction(expense.investedIn, {
+      type: 'buy',
+      toman: expensePaidInToman(expense) || 0,
+      date: expense.date,
+      owner: { expenseId: expense.id },
+    }),
+  },
+];
 
 /**
  * Expenses, newest first: of one section (`parent`) and/or between two days (`from`, `to`,
@@ -102,24 +118,28 @@ export async function saveExpense(input, existing = null) {
     ? { ...existing, ...checked(validateExpense({ ...existing, ...input })), updatedAt: now }
     : { id: newId('exp'), ...checked(validateExpense(input)), createdAt: now, updatedAt: now };
 
-  // Paid from a portfolio: its spend transaction first (moved when the portfolio changed)
-  const before = existing?.paidFrom || null;
-  if (expense.paidFrom) {
-    const { saveSpendTransaction, deleteSpendTransaction } = await funds();
-    if (before && !sameFunding(before, expense.paidFrom)) await deleteSpendTransaction(before);
-    await saveSpendTransaction(expense);
+  // Its portfolio entries first (moved when the portfolio changed)
+  const links = LINKS.map((l) => ({ ...l, before: existing?.[l.field] || null, after: expense[l.field] || null }));
+  if (links.some((l) => l.before || l.after)) {
+    const f = await funds();
+    for (const l of links.filter((x) => x.after)) {
+      if (l.before && !sameLink(l.before, l.after)) await f.deleteLinkedTransaction(l.before);
+      await l.write(f, expense);
+    }
   }
   try {
     await putRecord(EXPENSE_KIND, expense.id, await encryptVaultRecord(expense), expense, { parentId: expense.groupId });
   } catch (err) {
-    // A new expense that couldn't be saved leaves no transaction behind
-    if (expense.paidFrom && !sameFunding(before, expense.paidFrom)) {
-      await (await funds()).deleteSpendTransaction(expense.paidFrom).catch(() => {});
+    // A new entry of an expense that couldn't be saved is not left behind
+    for (const l of links.filter((x) => x.after && !sameLink(x.before, x.after))) {
+      await (await funds()).deleteLinkedTransaction(l.after).catch(() => {});
     }
     throw err;
   }
-  // No longer paid from a portfolio
-  if (before && !expense.paidFrom) await (await funds()).deleteSpendTransaction(before).catch(() => {});
+  // No longer paid from / put into a portfolio
+  for (const l of links.filter((x) => x.before && !x.after)) {
+    await (await funds()).deleteLinkedTransaction(l.before).catch(() => {});
+  }
   return { success: true, expense };
 }
 
@@ -139,10 +159,12 @@ export function newReimbursement(input) {
   return { id: newId('rmb'), ...input };
 }
 
-/** Delete an expense (and its spend transaction, when it was paid from a portfolio) */
+/** Delete an expense (and its portfolio entries: paid from a portfolio, put into an asset) */
 export async function deleteExpense(expenseId, expense = null) {
   await deleteVaultRecord(EXPENSE_KIND, expenseId);
-  if (expense?.paidFrom) await (await funds()).deleteSpendTransaction(expense.paidFrom).catch(() => {});
+  for (const { field } of LINKS) {
+    if (expense?.[field]) await (await funds()).deleteLinkedTransaction(expense[field]).catch(() => {});
+  }
   return { success: true };
 }
 

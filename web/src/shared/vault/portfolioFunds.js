@@ -11,6 +11,10 @@
  * moves it to another portfolio), deleting it deletes the transaction. The transaction carries no
  * expense title: a shared portfolio link must not reveal the user's expenses.
  *
+ * The same way, an expense in «سرمایه‌گذاری» can be a purchase in a portfolio (`investedIn`: a
+ * «buy» transaction) and an income in «فروش دارایی» a sale (`soldFrom`: a «sell» transaction) —
+ * utils/portfolioLink.js; saveLinkedTransaction / deleteLinkedTransaction.
+ *
  * Only portfolios under the account vault are offered (their key is at hand once it is open).
  */
 
@@ -36,6 +40,40 @@ async function accountPortfolios() {
   const res = await getPortfolios();
   const list = Array.isArray(res) ? res : res?.portfolios || [];
   return list.filter(isAccountVaultPortfolio);
+}
+
+/** The portfolios a record can be linked to: { id, name } */
+export async function listLinkablePortfolios() {
+  return (await accountPortfolios()).map((p) => ({ id: p.id, name: p.name || 'پورتفو', isDefault: Boolean(p.isDefault) }));
+}
+
+/**
+ * What every portfolio holds now (its whole ledger: manual holdings and transactions)
+ * @returns {Promise<Array<{ portfolioId: string, portfolioName: string,
+ *   positions: Array<{ assetId: string, assetName: string, unit: string, amount: number }> }>>}
+ */
+export async function listPortfolioPositions() {
+  const portfolios = await accountPortfolios();
+  const all = await Promise.all(portfolios.map(async (portfolio) => {
+    try {
+      const key = await getPortfolioKey(portfolio);
+      if (!key) return null;
+      const [holdings, transactions] = await Promise.all([
+        listPortfolioHoldings(portfolio, key),
+        listPortfolioTransactions(portfolio, key),
+      ]);
+      const { positions } = calculateComputedHoldings(transactions, {}, { manualLots: holdings });
+      return {
+        portfolioId: portfolio.id,
+        portfolioName: portfolio.name || 'پورتفو',
+        positions: [...positions.values()].map((p) => ({ assetId: p.assetId, assetName: p.assetName, unit: p.unit, amount: p.amount })),
+      };
+    } catch (err) {
+      console.warn('Reading a portfolio for its positions failed:', err);
+      return null;
+    }
+  }));
+  return all.filter(Boolean);
 }
 
 /**
@@ -90,9 +128,9 @@ export async function rateOnDay(assetId, isoDate) {
 
 async function portfolioById(portfolioId) {
   const portfolio = (await accountPortfolios()).find((p) => p.id === portfolioId);
-  if (!portfolio) throw new Error('پورتفوی پرداخت پیدا نشد (یا با رمزنگاری حساب باز نمی‌شود).');
+  if (!portfolio) throw new Error('پورتفوی انتخاب‌شده پیدا نشد (یا با رمزنگاری حساب باز نمی‌شود).');
   const key = await getPortfolioKey(portfolio);
-  if (!key) throw new Error('پورتفوی پرداخت قفل است.');
+  if (!key) throw new Error('پورتفوی انتخاب‌شده قفل است.');
   return { portfolio, key };
 }
 
@@ -120,3 +158,31 @@ export async function deleteSpendTransaction(paidFrom) {
     if (err?.status !== 404) throw err;
   }
 }
+
+export const newLinkTxId = () => `txl_${crypto.randomUUID().replace(/-/g, '').slice(0, 16)}`;
+
+/** Notes the linked transactions carry (never the record's title: share links show them) */
+export const LINK_NOTES = { buy: 'خرید — ثبت‌شده در هزینه‌ها', sell: 'فروش — ثبت‌شده در درآمدها' };
+
+/**
+ * Write the portfolio entry of a linked expense or income (utils/portfolioLink.js)
+ * @param {object} link { portfolioId, assetId, quantity, txId }
+ * @param {{ type: 'buy'|'sell', toman: number, date: string, owner: object }} entry
+ *   toman: what the whole quantity cost or brought; date: YYYY-MM-DD; owner: { expenseId } or { incomeId }
+ */
+export async function saveLinkedTransaction(link, { type, toman, date, owner }) {
+  const { portfolio, key } = await portfolioById(link.portfolioId);
+  const quantity = Number(link.quantity) || 0;
+  await savePortfolioTransaction(portfolio, key, link.txId, {
+    assetId: toPriceId(link.assetId),
+    transactionType: type,
+    quantity,
+    unitPrice: quantity > 0 && toman > 0 ? toman / quantity : 0,
+    transactionDate: gregorianToShamsi(`${date}T00:00:00`),
+    notes: LINK_NOTES[type] || '',
+    ...owner,
+  });
+}
+
+/** Remove a linked record's portfolio entry (gone already is fine) */
+export const deleteLinkedTransaction = deleteSpendTransaction;

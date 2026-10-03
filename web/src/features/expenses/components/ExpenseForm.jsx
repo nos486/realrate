@@ -13,6 +13,8 @@
  * A dollar expense is paid from a portfolio's dollars instead of an account (and has no loan): the
  * dollars leave that portfolio as a «spend» transaction at the expense's rate (portfolioFunds.js),
  * which is filled in from that day's price history.
+ * An everyday expense in «سرمایه‌گذاری» can be added to a portfolio («افزودن به پورتفو»: the asset
+ * and its quantity) — a «buy» there at the expense's tomans (PortfolioLinkFields, `investedIn`).
  * Mounted only while open, so its state starts from props.
  */
 
@@ -35,7 +37,9 @@ import { accountLabel } from '../../accounts/constants/accountDisplay.js';
 import { useOptionalLoans } from '../../loans/context/LoansContext.jsx';
 import { fundingLoanOptions } from '../../../utils/loanFunding.js';
 import { useAssetFunds } from '../../../shared/vault/useAssetFunds.js';
-import { CURRENCY_ASSET, newSpendTxId, rateOnDay } from '../../../shared/vault/portfolioFunds.js';
+import { CURRENCY_ASSET, newSpendTxId, newLinkTxId, rateOnDay } from '../../../shared/vault/portfolioFunds.js';
+import PortfolioLinkFields from '../../../shared/vault/PortfolioLinkFields.jsx';
+import { isLinkComplete } from '../../../utils/portfolioLink.js';
 import { todayIso } from '../../../shared/utils/dates.js';
 
 const LAST_ACCOUNT_KEY = 'realrate_last_expense_account';
@@ -54,6 +58,9 @@ const SHARE_OPTIONS = [
 ];
 
 const CURRENCY_OPTIONS = EXPENSE_CURRENCIES.map(({ value, label }) => ({ value, label }));
+
+/** The category whose expenses can be added to a portfolio */
+const INVESTMENT_CATEGORY = 'investment';
 
 export default function ExpenseForm({ group = null, daily = false, expense = null, draft = null, usdToman = 0, accounts = [], onSubmit, onClose, submitting = false, tagSuggestions = [] }) {
   const start = expense || draft;
@@ -87,6 +94,9 @@ export default function ExpenseForm({ group = null, daily = false, expense = nul
   const [shared, setShared] = useState(isSharedExpense(expense));
   const [myShare, setMyShare] = useState(isSharedExpense(expense) ? String(expense.myShare) : '');
   const [submitError, setSubmitError] = useState('');
+  // «سرمایه‌گذاری»: the asset bought with it, in a portfolio (null: not added)
+  const [investLink, setInvestLink] = useState(expense?.investedIn || null);
+  const investing = daily && category === INVESTMENT_CATEGORY && Boolean(investLink);
 
   const isUsd = currency === 'USD';
   const amountNum = parseInputNumber(amount);
@@ -109,7 +119,7 @@ export default function ExpenseForm({ group = null, daily = false, expense = nul
   // The day's rate, filled in from the price history (when none was typed): for an expense paid
   // from a portfolio, and for a project's toman expense
   const [rateTouched, setRateTouched] = useState(Boolean(expense?.usdRate) || Boolean(expense && !expense.usdRate && !isUsd));
-  const wantsDayRate = (isUsd && Boolean(fundId)) || dollarView;
+  const wantsDayRate = (isUsd && (Boolean(fundId) || investing)) || dollarView;
   useEffect(() => {
     if (!wantsDayRate || rateTouched || !dateIso) return undefined;
     let cancelled = false;
@@ -122,15 +132,16 @@ export default function ExpenseForm({ group = null, daily = false, expense = nul
       cancelled = true;
     };
   }, [wantsDayRate, rateTouched, dateIso, usdToman, fundAsset]);
-  // «دنگ» is for toman expenses only
-  const canShare = !isUsd;
+  // «دنگ» is for toman expenses only (and not for one added to a portfolio)
+  const canShare = !isUsd && !investing;
   const sharing = canShare && shared;
   const shareNum = parseInputNumber(myShare);
   const shareValid = !sharing || (myShare.trim() !== '' && shareNum >= 0 && shareNum < amountNum);
   const received = expenseReceivable(expense).received;
   const paidFromPortfolio = Boolean(fundAsset && fund);
   const isValid = (daily || Boolean(title.trim())) && amountNum > 0 && Boolean(dateIso) && (!usdRate || rateNum > 0)
-    && (!paidFromPortfolio || rateNum > 0) && shareValid && !submitting;
+    && (!paidFromPortfolio || rateNum > 0) && shareValid && !submitting
+    && (!investing || (isLinkComplete(investLink) && (!isUsd || rateNum > 0)));
   const tomanPreview = isUsd && amountNum > 0 ? amountNum * (rateNum || usdToman) : 0;
   // A toman expense in dollars at the day's rate, and those dollars at today's rate (my share)
   const ownPart = sharing && shareValid ? shareNum : amountNum;
@@ -152,6 +163,15 @@ export default function ExpenseForm({ group = null, daily = false, expense = nul
             portfolioName: fund.portfolioName,
             assetId: fundAsset,
             txId: expense?.paidFrom?.portfolioId === fund.portfolioId ? expense.paidFrom.txId : newSpendTxId(),
+          }
+          : null,
+        investedIn: investing
+          ? {
+            portfolioId: investLink.portfolioId,
+            portfolioName: investLink.portfolioName,
+            assetId: investLink.assetId,
+            quantity: Number(investLink.quantity),
+            txId: expense?.investedIn?.portfolioId === investLink.portfolioId ? expense.investedIn.txId : newLinkTxId(),
           }
           : null,
         title: title.trim() || getExpenseCategory(category).label,
@@ -245,7 +265,7 @@ export default function ExpenseForm({ group = null, daily = false, expense = nul
         {(isUsd || dollarView) && (
           <div className="ui-input-group">
             <label htmlFor="expense-usd-rate" className="ui-input-label expense-rate-label">
-              نرخ دلار در روز هزینه (تومان{paidFromPortfolio ? ' *' : '، اختیاری'})
+              نرخ دلار در روز هزینه (تومان{paidFromPortfolio || investing ? ' *' : '، اختیاری'})
               {usdToman > 0 && (
                 <button
                   type="button"
@@ -388,6 +408,15 @@ export default function ExpenseForm({ group = null, daily = false, expense = nul
         )}
 
         <ShamsiDatePicker label="تاریخ هزینه *" value={dateShamsi} onChange={setDateShamsi} />
+
+        {daily && category === INVESTMENT_CATEGORY && (
+          <PortfolioLinkFields
+            mode="buy"
+            value={investLink}
+            onChange={setInvestLink}
+            toman={isUsd ? (amountNum || 0) * (rateNum || 0) : amountNum || 0}
+          />
+        )}
 
         {!daily && <TagInput value={tags} onChange={setTags} suggestions={tagSuggestions} />}
 

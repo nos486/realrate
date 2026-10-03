@@ -46,7 +46,8 @@ describe('holdings: one row per asset', () => {
     expect(from.getAttribute('title')).toMatch(/موجودی ۱۴۰۵\/۰۱\/۰۱: ۱۰۰ \(بی‌قیمت\)/);
     // Each entry's own P&L: the buy = 80 left × (100,000 − 70,000) + 20 sold × 20,000
     expect(screen.getByTitle(/باز: \+2,400,000|باز: \+۲/)).toBeTruthy();
-    expect(document.querySelector('[title*="از قبل"]')).toBeTruthy();
+    // Each entry's notes on a line of their own
+    expect([...document.querySelectorAll('.asset-ledger-extra.note')].some((el) => el.textContent.includes('از قبل'))).toBe(true);
 
     fireEvent.click(screen.getAllByRole('button').find((b) => b.tagName === 'BUTTON' && b.textContent.trim() === 'فروش'));
     expect(onSell).toHaveBeenCalledWith(expect.objectContaining({ assetId: 'usd' }));
@@ -75,5 +76,28 @@ describe('a purchase\'s comparisons are shown under it', () => {
     expect(screen.getByText(/پرداخت با ۹۰۰/)).toBeTruthy();
     expect(screen.getByText(/نسبت به نگه داشتن آن/)).toBeTruthy();
     expect(screen.getByText(/می‌خریدید/)).toBeTruthy();
+  });
+});
+
+describe('entries made by an expense or an income', () => {
+  it('show their notes and say where they are changed, with no edit or delete here', () => {
+    const { assets: linked } = buildAssetLedgers({
+      priceMap: { gold_18k: 9_000_000 },
+      holdings: [{ id: 'h9', assetId: 'gold_18k', amount: 5, buyPrice: 7_000_000, buyDate: '1405/01/01', notes: 'هدیه‌ی\nعروسی' }],
+      transactions: [
+        { id: 'tb', assetId: 'gold_18k', transactionType: 'buy', quantity: 2, unitPrice: 8_000_000, transactionDate: '1405/02/01', expenseId: 'exp_1', notes: 'خرید — ثبت‌شده در هزینه‌ها' },
+        { id: 'ts', assetId: 'gold_18k', transactionType: 'sell', quantity: 1, unitPrice: 9_000_000, transactionDate: '1405/03/01', incomeId: 'inc_1', notes: 'فروش — ثبت‌شده در درآمدها' },
+      ],
+    });
+    const onEditEntry = vi.fn();
+    const onDeleteEntry = vi.fn();
+    render(<AssetLedgerDetails asset={linked[0]} onEditEntry={onEditEntry} onDeleteEntry={onDeleteEntry} />);
+    const notes = [...document.querySelectorAll('.asset-ledger-extra.note')].map((el) => el.textContent);
+    expect(notes).toEqual(['هدیه‌ی\nعروسی', 'خرید — ثبت‌شده در هزینه‌ها', 'فروش — ثبت‌شده در درآمدها']);
+    expect(screen.getByText('از هزینه‌ها')).toBeTruthy();
+    expect(screen.getByText('از درآمدها')).toBeTruthy();
+    // Only the manual record can be edited here
+    expect(document.querySelectorAll('[title="ویرایش"]')).toHaveLength(1);
+    expect(document.querySelectorAll('[title="حذف"]')).toHaveLength(1);
   });
 });

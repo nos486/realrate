@@ -1,6 +1,9 @@
 /**
  * IncomeForm.jsx — Modal form to record or edit an income
  *
+ * An income in «فروش دارایی» can take what was sold out of a portfolio («کم کردن از پورتفو»: the
+ * asset and its quantity) — a «sell» there at the income's tomans (PortfolioLinkFields, `soldFrom`).
+ *
  * Mounted only while open (keyed by what it edits), so its state is initialized straight from
  * props instead of being reset in an effect.
  */
@@ -17,6 +20,12 @@ import { parseInputNumber } from '../../portfolio/utils/holdingHelpers.js';
 import { DEFAULT_INCOME_CATEGORY } from '../constants/incomeCategories.js';
 import { useCategories } from '../../../shared/categories/useCategories.js';
 import CategoryManagerModal from '../../../shared/categories/CategoryManagerModal.jsx';
+import PortfolioLinkFields from '../../../shared/vault/PortfolioLinkFields.jsx';
+import { isLinkComplete } from '../../../utils/portfolioLink.js';
+import { newLinkTxId } from '../../../shared/vault/portfolioFunds.js';
+
+/** The category whose incomes can be a sale from a portfolio */
+const SALE_CATEGORY = 'asset_sale';
 
 export default function IncomeForm({
   onClose,
@@ -43,13 +52,17 @@ export default function IncomeForm({
   });
   const [notes, setNotes] = useState(source?.notes || '');
   const [submitError, setSubmitError] = useState('');
+  // «فروش دارایی»: what was sold, out of a portfolio (null: not taken out)
+  const [saleLink, setSaleLink] = useState(editingIncome?.soldFrom || null);
+  const selling = category === SALE_CATEGORY && Boolean(saleLink);
 
   const amountNum = parseInputNumber(amount);
   // The Shamsi value is the single source of truth; the stored Gregorian date is derived from it
   // (empty while the user is still typing an incomplete date, which keeps submit disabled).
   const dateIso = shamsiToGregorian(dateShamsi);
   const isAmountValid = amountNum !== null && amountNum > 0;
-  const isFormValid = Boolean(title.trim()) && isAmountValid && Boolean(dateIso) && !submitting;
+  const isFormValid = Boolean(title.trim()) && isAmountValid && Boolean(dateIso) && !submitting
+    && (!selling || isLinkComplete(saleLink));
 
   const handleSubmit = async (e) => {
     e?.preventDefault?.();
@@ -63,6 +76,15 @@ export default function IncomeForm({
         amount: amountNum,
         incomeDate: dateIso,
         notes: notes.trim(),
+        soldFrom: selling
+          ? {
+            portfolioId: saleLink.portfolioId,
+            portfolioName: saleLink.portfolioName,
+            assetId: saleLink.assetId,
+            quantity: Number(saleLink.quantity),
+            txId: editingIncome?.soldFrom?.portfolioId === saleLink.portfolioId ? editingIncome.soldFrom.txId : newLinkTxId(),
+          }
+          : null,
       });
       onClose();
     } catch (err) {
@@ -136,6 +158,15 @@ export default function IncomeForm({
           value={dateShamsi}
           onChange={setDateShamsi}
         />
+        {category === SALE_CATEGORY && (
+          <PortfolioLinkFields
+            mode="sell"
+            value={saleLink}
+            onChange={setSaleLink}
+            toman={amountNum || 0}
+            own={editingIncome?.soldFrom || null}
+          />
+        )}
         <Input
           id="income-notes"
           as="textarea"

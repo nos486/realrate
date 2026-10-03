@@ -6,7 +6,8 @@
  *   - a buy: what is left of it at today's price plus what was realized from it when sold
  *   - a sale or a spend: what it realized («بدون سود/زیان» from a purchase without a price)
  * «خرید» opens the buy form for this asset, «فروش» the sell form; each entry opens its own form
- * (a spend is changed through its expense).
+ * (an entry made by an expense or an income — a spend, an investment, a sale — is changed there).
+ * Each entry's notes show on a line under it.
  */
 
 import React from 'react';
@@ -148,8 +149,11 @@ export default function AssetLedgerDetails({
               });
             }
           }
-          const notes = showNotes && entry.kind !== 'spend' ? record.notes : '';
-          const editable = !readOnly && entry.kind !== 'spend';
+          const notes = showNotes ? String(record.notes || '').trim() : '';
+          if (notes && notes !== kind.label) extras.push({ key: 'notes', text: notes, tone: 'note' });
+          // Made by an expense or an income: changed there, not here
+          const linkedTo = record.expenseId ? 'expense' : record.incomeId ? 'income' : '';
+          const editable = !readOnly && !linkedTo;
 
           return (
             <li key={`${entry.kind}:${entry.id}`} className={`asset-ledger-entry is-${kind.tone} ${closed ? 'is-closed' : ''}`}>
@@ -172,11 +176,6 @@ export default function AssetLedgerDetails({
               </span>
               <span className="asset-ledger-pnl-cell">
                 <Pnl value={pnl} hideValues={hideValues} title={pnlTitle || undefined} none={incoming ? '—' : 'بدون سود/زیان'} />
-                {notes && (
-                  <span className="asset-ledger-info" title={notes}>
-                    <MessageSquare size={13} />
-                  </span>
-                )}
               </span>
               <span className="row-actions-group asset-ledger-entry-actions">
                 {editable && onEditEntry && (
@@ -189,11 +188,20 @@ export default function AssetLedgerDetails({
                     <Trash2 size={13} />
                   </button>
                 )}
-                {entry.kind === 'spend' && !readOnly && <small className="asset-ledger-muted" title="از صفحه‌ی هزینه‌ها ویرایش می‌شود">از هزینه‌ها</small>}
+                {linkedTo && !readOnly && (
+                  <small className="asset-ledger-muted" title={linkedTo === 'expense' ? 'از صفحه‌ی هزینه‌ها ویرایش می‌شود' : 'از صفحه‌ی درآمدها ویرایش می‌شود'}>
+                    {linkedTo === 'expense' ? 'از هزینه‌ها' : 'از درآمدها'}
+                  </small>
+                )}
               </span>
               {extras.length > 0 && (
                 <span className="asset-ledger-extras">
-                  {extras.map((x) => <span key={x.key} className={`asset-ledger-extra ${x.tone}`}>{x.text}</span>)}
+                  {extras.map((x) => (
+                    <span key={x.key} className={`asset-ledger-extra ${x.tone}`}>
+                      {x.key === 'notes' && <MessageSquare size={12} aria-label="یادداشت" />}
+                      {x.text}
+                    </span>
+                  ))}
                 </span>
               )}
             </li>

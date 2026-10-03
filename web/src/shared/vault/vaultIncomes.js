@@ -4,9 +4,13 @@
  * Same functions and response shapes as the incomes REST API (features/incomes/api/incomeApi.js),
  * with each income stored as one encrypted vault record. Validation mirrors the server's
  * parseIncomeInput so both paths accept exactly the same data.
+ *
+ * An income that is a sale from a portfolio (`soldFrom`, utils/portfolioLink.js) also writes,
+ * moves or deletes its «sell» transaction there (portfolioFunds.js): the transaction first.
  */
 
 import { isCategoryValue } from '../../utils/categoryDocument.js';
+import { validatePortfolioLink, sameLink } from '../../utils/portfolioLink.js';
 import { listVaultRecords, deleteVaultRecord } from './vaultApi.js';
 import { putRecord, backfillRecordDates, repairRecordDates } from './vaultRecordMeta.js';
 import { encryptVaultRecord, decryptVaultRecord } from './vaultStore.js';
@@ -40,9 +44,11 @@ export function parseIncomeInput(body = {}) {
     throw new IncomeValidationError('تاریخ دریافت درآمد نامعتبر است.');
   }
   if (notes.length > NOTES_MAX_LENGTH) throw new IncomeValidationError(`یادداشت نباید بیشتر از ${NOTES_MAX_LENGTH} کاراکتر باشد.`);
+  // Sold from a portfolio: its «sell» entry (always returned, so an edit can remove it)
+  const sold = validatePortfolioLink(body.soldFrom);
+  if (sold.error) throw new IncomeValidationError(sold.error);
 
-
-  return { title, category, amount, incomeDate, notes, ...(smsKey ? { smsKey } : {}) };
+  return { title, category, amount, incomeDate, notes, soldFrom: sold.link, ...(smsKey ? { smsKey } : {}) };
 }
 
 function newIncomeId() {
@@ -51,8 +57,23 @@ function newIncomeId() {
 
 let incomes = new Map();
 
-async function save(income) {
-  await putRecord(KIND, income.id, await encryptVaultRecord(income), income);
+const funds = () => import('./portfolioFunds.js');
+
+/** Store an income, with its portfolio sale written first (moved, or removed when it no longer has one) */
+async function save(income, before = null) {
+  const after = income.soldFrom || null;
+  if (after) {
+    const f = await funds();
+    if (before && !sameLink(before, after)) await f.deleteLinkedTransaction(before);
+    await f.saveLinkedTransaction(after, { type: 'sell', toman: Number(income.amount) || 0, date: income.incomeDate, owner: { incomeId: income.id } });
+  }
+  try {
+    await putRecord(KIND, income.id, await encryptVaultRecord(income), income);
+  } catch (err) {
+    if (after && !sameLink(before, after)) await (await funds()).deleteLinkedTransaction(after).catch(() => {});
+    throw err;
+  }
+  if (before && !after) await (await funds()).deleteLinkedTransaction(before).catch(() => {});
   incomes.set(income.id, income);
   return income;
 }
@@ -102,11 +123,14 @@ export async function updateIncome(incomeId, incomeData) {
   const existing = await findIncome(incomeId);
   if (!existing) throw new IncomeValidationError('درآمد مورد نظر یافت نشد.', 404);
   const income = { ...existing, ...parseIncomeInput(incomeData), updatedAt: new Date().toISOString() };
-  return { success: true, income: await save(income) };
+  return { success: true, income: await save(income, existing.soldFrom || null) };
 }
 
 export async function deleteIncome(incomeId) {
+  const existing = (await findIncome(incomeId).catch(() => null)) || null;
   await deleteVaultRecord(KIND, incomeId);
   incomes.delete(incomeId);
+  // Its sale leaves the portfolio too
+  if (existing?.soldFrom) await (await funds()).deleteLinkedTransaction(existing.soldFrom).catch(() => {});
   return { success: true };
 }
