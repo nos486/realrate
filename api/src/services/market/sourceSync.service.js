@@ -22,6 +22,7 @@ import { saveSourceItems } from "../../repositories/sourceItems.repository.js";
 import { getPriceBookCache, setPriceBookCache } from "../../repositories/priceBookStore.repository.js";
 import { logger } from "../../lib/logger.js";
 import { buildPriceBook } from "../../domain/priceBook.js";
+import { tehranDay } from "../../repositories/priceHistory.repository.js";
 import { guardSourceItems } from "../../domain/priceGuard.js";
 
 /**
@@ -58,6 +59,32 @@ const endpointKeyOf = (src) => `${src.sourceType}::${src.endpoint || src.apiUrl 
  *   book?: object
  * }>}
  */
+/**
+ * Today's range of every item (Tehran day), carried from the previous book — no database read:
+ * `params.day`, `dayOpen` (the day's first price), `dayHigh`, `dayLow`. A new day starts at the
+ * current price. Home cards show it as a low–high bar.
+ * @param {{ items: Record<string, object> }} book
+ * @param {{ items?: Record<string, object> }|null} previousBook
+ * @param {number} now
+ */
+export function withDayRange(book, previousBook, now) {
+  const day = tehranDay(now);
+  for (const item of Object.values(book?.items || {})) {
+    const price = Number(item.price);
+    if (!Number.isFinite(price) || price <= 0) continue;
+    const prev = previousBook?.items?.[item.id]?.params;
+    const same = prev?.day === day && Number(prev.dayHigh) > 0 && Number(prev.dayLow) > 0;
+    item.params = {
+      ...(item.params || {}),
+      day,
+      dayOpen: same ? Number(prev.dayOpen) || price : price,
+      dayHigh: same ? Math.max(Number(prev.dayHigh), price) : price,
+      dayLow: same ? Math.min(Number(prev.dayLow), price) : price,
+    };
+  }
+  return book;
+}
+
 export async function syncAllSources(env, options = {}) {
   const empty = { totalActive: 0, dueCount: 0, syncedCount: 0, failedCount: 0, results: [] };
   if (!env) return empty;
@@ -173,10 +200,10 @@ export async function syncAllSources(env, options = {}) {
 
   // 4. The price book, from every active source, with each source's sync state. Written even when
   //    nothing synced, so failures show up in the book's `sources`.
-  const book = buildPriceBook(activeSources.map((src) => ({
+  const book = withDayRange(buildPriceBook(activeSources.map((src) => ({
     ...src,
     lastFetched: states[src.id]?.fetchedAt || src.lastFetched || null,
-  })), { now: nowIso, sourceStates: states });
+  })), { now: nowIso, sourceStates: states }), previousBook, Date.parse(nowIso) || Date.now());
   await setPriceBookCache(env, book);
 
   // 5. Price history, keyed by the book's ids (the writer never throws). Items of sources that

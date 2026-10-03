@@ -19,13 +19,24 @@ export function buildAssetIndex({ itemMap = {}, analysis = [] }) {
   };
 }
 
+const tehranDayFormat = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Tehran', year: 'numeric', month: '2-digit', day: '2-digit' });
+
+/** Today's low / high / first price from the book (only when they are today's, Tehran time) */
+function dayRangeOf(params, today = tehranDayFormat.format(new Date())) {
+  if (!params || params.day !== today) return null;
+  const low = Number(params.dayLow);
+  const high = Number(params.dayHigh);
+  if (!(low > 0) || !(high > 0)) return null;
+  return { low, high, open: Number(params.dayOpen) || null };
+}
+
 const num = (v) => (v === null || v === undefined || v === '' || !Number.isFinite(Number(v)) ? null : Number(v));
 
 /**
  * @returns {{ id: string, found: boolean, name?: string, code?: string, flag?: string,
  *   category?: string, badge?: string, price?: number|null, unit?: string, perUnit?: string,
  *   note?: string, sourceName?: string, changePercent?: number|null, stale?: boolean,
- *   staleSince?: string|null, analysis?: object|null,
+ *   staleSince?: string|null, analysis?: object|null, dayRange?: { low: number, high: number, open: number|null }|null,
  *   searchText?: string }}
  */
 export function resolveHomeAsset(id, index) {
@@ -50,6 +61,7 @@ export function resolveHomeAsset(id, index) {
     stale: Boolean(asset.stale),
     staleSince: asset.staleSince || asset.updatedAt || null,
     analysis,
+    dayRange: dayRangeOf(asset.params),
     searchText: asset.searchText || String(asset.name || '').toLowerCase(),
   };
 }

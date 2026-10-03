@@ -1255,8 +1255,7 @@
 .pro-card-price-unit { font-size: 11.5px; color: var(--text-secondary); }
 .pro-card-price .bubble-pill { margin-inline-start: auto; align-self: center; }
 
-.pro-metrics,
-.pro-card-stats {
+.pro-metrics {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 6px;
@@ -1325,19 +1324,42 @@
 }
 @keyframes pro-pulse { 50% { opacity: 0.45; } }
 
-.pro-card-change {
-  flex-shrink: 0;
-  padding: 3px 9px;
-  border-radius: 999px;
-  font-size: 11px;
-  font-weight: 800;
-  font-variant-numeric: tabular-nums;
-  color: var(--pro-accent);
-  background: color-mix(in srgb, var(--pro-accent) 14%, transparent);
+.pro-card-face.is-back {
+  justify-content: center;
+  padding: 14px 12px;
+  /* The day tooltip may rise above the card */
+  overflow: visible;
 }
-
-.pro-card-chart { cursor: crosshair; }
-.pro-card-chart .trend-candles { height: 86px; margin-top: 0; }
+.pro-card-chart {
+  flex: 1;
+  display: flex;
+  min-height: 0;
+  cursor: crosshair;
+}
+.pro-card-chart .trend-spark.trend-candles {
+  width: 100%;
+  height: 100%;
+  min-height: 140px;
+  margin-top: 0;
+}
+.pro-card-back-state {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 140px;
+  font-size: 12px;
+  color: var(--text-muted);
+  text-align: center;
+}
+.pro-card-back-state.is-loading {
+  border-radius: 12px;
+  background: var(--bg-input, rgba(255, 255, 255, 0.05));
+  animation: pro-pulse 1.2s ease-in-out infinite;
+}
+.pro-card-foot .pro-range { flex: 1; min-width: 0; }
+.pro-card-foot { align-items: flex-end; gap: 12px; }
+.pro-card-hint { padding: 5px 7px; }
 
 .pro-range { display: flex; flex-direction: column; gap: 6px; }
 .pro-range-track {
@@ -1376,16 +1398,6 @@
 }
 .pro-range-labels small { font-weight: 500; color: var(--text-muted); margin-inline-end: 3px; }
 
-.pro-card-back-hint {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 4px;
-  margin-top: auto;
-  font-size: 10px;
-  color: var(--text-muted);
-}
-
 .home-pro-card.home-card-missing {
   display: flex;
   flex-direction: column;
@@ -1398,22 +1410,3 @@
   .pro-card-inner { transition: none; }
 }
 
-.pro-card-spark {
-  display: block;
-  width: 100%;
-  /* Fills the room the card has (its back may be the taller face) */
-  flex: 1 1 40px;
-  min-height: 40px;
-  max-height: 120px;
-  margin-top: auto;
-  overflow: visible;
-}
-.pro-card-spark polygon { fill: color-mix(in srgb, var(--pro-accent) 10%, transparent); }
-.pro-card-spark polyline {
-  fill: none;
-  stroke: color-mix(in srgb, var(--pro-accent) 55%, transparent);
-  stroke-width: 1.5;
-  stroke-linejoin: round;
-  vector-effect: non-scaling-stroke;
-}
-.pro-card-spark + .pro-card-foot { margin-top: 0; }

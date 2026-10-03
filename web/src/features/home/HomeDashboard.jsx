@@ -51,7 +51,6 @@ import { HOME_LAYOUT_LIMITS } from '../../utils/homeLayout.js';
 import HomeAssetCard from './HomeAssetCard.jsx';
 import AssetPickerModal from './AssetPickerModal.jsx';
 import { useHomeLayout } from './useHomeLayout.js';
-import { useTrends } from './useTrends.js';
 import { buildAssetIndex, resolveHomeAsset } from './homeAssets.js';
 import {
   HOME_PRESETS,
@@ -113,21 +112,12 @@ function useSortableStyle(id) {
   return { ...sortable, style };
 }
 
-/** The trend props of one card (full cards carry the price chart) */
-function trendProps(section, asset, trends) {
-  if (section.style !== 'detailed' || !trends) return {};
-  return {
-    trend: trends.trends[String(asset.id).toLowerCase()] || null,
-    trendStatus: trends.status,
-  };
-}
-
-function SortableItem({ asset, section, isBest, trends, onRemove }) {
+function SortableItem({ asset, section, isBest, onRemove }) {
   const { setNodeRef, setActivatorNodeRef, attributes, listeners, style, isDragging } = useSortableStyle(asset.id);
   const name = asset.name || asset.id;
   return (
     <div ref={setNodeRef} style={style} className={`home-item ${isDragging ? 'is-dragging' : ''}`}>
-      <HomeAssetCard asset={asset} style={section.style} isBest={isBest} flippable={false} {...trendProps(section, asset, trends)} />
+      <HomeAssetCard asset={asset} style={section.style} isBest={isBest} flippable={false} />
       <div className="home-item-tools">
         <button
           type="button"
@@ -147,7 +137,7 @@ function SortableItem({ asset, section, isBest, trends, onRemove }) {
   );
 }
 
-function SectionItems({ section, editing, recommendation, trends, onReorder, onRemoveItem, onAdd }) {
+function SectionItems({ section, editing, recommendation, onReorder, onRemoveItem, onAdd }) {
   const sensors = useDndSensors();
   const gridClass = section.style === 'compact' ? 'currency-cards-grid home-compact-list' : 'cards-modern-grid';
   const ids = section.resolved.map((a) => a.id);
@@ -161,7 +151,6 @@ function SectionItems({ section, editing, recommendation, trends, onReorder, onR
               asset={asset}
               style={section.style}
               isBest={recommendation?.best_id === asset.id}
-              {...trendProps(section, asset, trends)}
             />
           </div>
         ))}
@@ -183,7 +172,6 @@ function SectionItems({ section, editing, recommendation, trends, onReorder, onR
               asset={asset}
               section={section}
               isBest={recommendation?.best_id === asset.id}
-              trends={trends}
               onRemove={() => onRemoveItem(asset.id)}
             />
           ))}
@@ -303,13 +291,6 @@ export default function HomeDashboard({
     return { ...section, resolved: q ? items.filter((a) => a.found && a.searchText.includes(q)) : items };
   }), [effective, index, q]);
 
-  // Every asset shown as a full card, its chart fetched together
-  const trendIds = useMemo(
-    () => effective.sections.filter((s) => s.style === 'detailed').flatMap((s) => s.items),
-    [effective],
-  );
-  const trends = useTrends(trendIds);
-
   const commit = (fn) => setLayout(fn(effective));
   const pickerSection = effective.sections.find((s) => s.id === pickerSectionId) || null;
   const hasData = Boolean(analysis?.length || currencies?.length || assets?.length);
@@ -377,7 +358,6 @@ export default function HomeDashboard({
       section={section}
       editing={editing}
       recommendation={recommendation}
-      trends={trends}
       onReorder={(activeId, overId) => commit((l) => reorderItems(l, section.id, activeId, overId))}
       onRemoveItem={(assetId) => commit((l) => removeItem(l, section.id, assetId))}
       onAdd={() => setPickerSectionId(section.id)}
