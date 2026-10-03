@@ -113,4 +113,30 @@ describe('backfill', () => {
     const junk = async () => new Response(JSON.stringify({ data: [['x', 'y']] }));
     await expect(backfillPriceHistory(env, { fetchImpl: junk, now })).rejects.toThrow(/قابل خواندن/);
   });
+
+  it('turns a dollar-priced item (the ounce) into tomans with each day\'s dollar candle', async () => {
+    await importDailyCandles(env, 'usd', [
+      { day: '2026-01-07', open: 100000, high: 102000, low: 99000, close: 101000 },
+      { day: '2026-01-08', open: 101000, high: 103000, low: 100000, close: 102000 },
+    ], { now });
+    await recordPriceHistory(env, [{ id: 'ons_gold', price: 4000 * 102000 }], new Date(now).toISOString());
+    const ons = async () => new Response(JSON.stringify({ data: [
+      ['4,000', '3,950', '4,050', '4,010', '2026/01/08'],
+      ['3,900', '3,880', '3,990', '3,980', '2026/01/07'],
+      ['3,800', '3,780', '3,890', '3,880', '2026/01/06'],
+    ] }));
+    const res = await backfillPriceHistory(env, { key: 'ons_gold', fetchImpl: ons, now });
+    expect(res).toMatchObject({ key: 'ons_gold', label: 'انس طلا', written: 2, from: '2026-01-07', to: '2026-01-08' });
+    const row = db.sqlite.prepare("SELECT open, high, low, value FROM price_daily WHERE item_key = 'ons_gold' AND day = '2026-01-08'").get();
+    expect({ ...row }).toEqual({ open: 4000 * 101000, high: 4050 * 103000, low: 3950 * 100000, value: 4010 * 102000 });
+  });
+
+  it('needs the dollar\'s history first, and a live price to check against', async () => {
+    const ons = async () => new Response(JSON.stringify({ data: [['4,000', '3,950', '4,050', '4,010', '2026/01/08']] }));
+    await expect(backfillPriceHistory(env, { key: 'ons_gold', fetchImpl: ons, now })).rejects.toThrow(/دلار/);
+    const coin = async () => new Response(JSON.stringify({ data: [['1,000,000,000', '990,000,000', '1,010,000,000', '1,005,000,000', '2026/01/08']] }));
+    await expect(backfillPriceHistory(env, { key: 'full_coin', fetchImpl: coin, now })).rejects.toThrow(/هنوز قیمتی ثبت نشده/);
+    await recordPriceHistory(env, [{ id: 'full_coin', price: 100000000 }], new Date(now).toISOString());
+    await expect(backfillPriceHistory(env, { key: 'full_coin', fetchImpl: coin, now })).resolves.toMatchObject({ written: 1 });
+  });
 });

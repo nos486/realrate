@@ -100,3 +100,8 @@ export async function getAdminUserPortfolio(userId, portfolioId = null) {
 export async function backfillPriceHistory({ key = 'usd', days = 730, overwrite = false } = {}) {
   return httpClient.post('/api/admin/price-history/backfill', { key, days, overwrite });
 }
+
+/** The items whose daily history can be backfilled: [{ key, label }] */
+export async function getPriceHistoryBackfillSources() {
+  return httpClient.get('/api/admin/price-history/backfill');
+}
