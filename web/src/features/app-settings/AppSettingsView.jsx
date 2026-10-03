@@ -10,7 +10,7 @@
  */
 
 import React, { useEffect, useState } from 'react';
-import { Smartphone, MessageSquareText, Fingerprint, Info, ArrowLeft, RefreshCw, Download } from 'lucide-react';
+import { Smartphone, MessageSquareText, Fingerprint, Info, ArrowLeft, RefreshCw, Download, Bell } from 'lucide-react';
 import { AlertBanner, Button, Card, FeaturePageHeader } from '../../shared/ui/index.js';
 import { NumericInput } from '../../shared/ui/NumericInput.jsx';
 import { getExpenseCategory } from '../expenses/constants/expenseCategories.js';
@@ -21,6 +21,12 @@ import { resolveBank, BankLogo } from '../../shared/banks/index.js';
 import { BANK_SMS_TEMPLATES } from '../../utils/bankSmsTemplates.js';
 import { useSmsInbox } from '../../shared/native/useSmsInbox.js';
 import { setSmsSettings, setSmsBankEnabled, smsPermission, enableSmsReading, QUICK_RECORD_MAX } from '../../shared/native/smsInbox.js';
+import {
+  getDueNotificationSettings,
+  setDueNotificationSettings,
+  checkNotificationPermission,
+  requestNotificationPermission,
+} from '../../shared/native/dueNotifications.js';
 import {
   isBiometricAvailable,
   isBiometricEnabled,
@@ -175,6 +181,142 @@ function AppUpdateSettings() {
   );
 }
 
+const DUE_LEAD_OPTIONS = [
+  { days: 7, label: '۷ روز قبل' },
+  { days: 3, label: '۳ روز قبل' },
+  { days: 1, label: '۱ روز قبل' },
+  { days: 0, label: 'روز سررسید' },
+];
+
+function DueNotificationSettings() {
+  const { toast } = useFeedback();
+  const [settings, setSettings] = useState(getDueNotificationSettings);
+  const [permission, setPermission] = useState('granted');
+
+  useEffect(() => {
+    checkNotificationPermission().then(setPermission);
+  }, []);
+
+  const handleToggleEnabled = async (on) => {
+    if (on && permission !== 'granted') {
+      const res = await requestNotificationPermission();
+      setPermission(res);
+      if (res !== 'granted') {
+        toast.error('مجوز ارسال اعلان به برنامه داده نشده است.');
+        return;
+      }
+    }
+    const next = setDueNotificationSettings({ enabled: on });
+    setSettings(next);
+  };
+
+  const handleToggleLeadDay = (day) => {
+    const prev = settings.leadDays || [];
+    const nextDays = prev.includes(day)
+      ? prev.filter((d) => d !== day)
+      : [...prev, day];
+    const next = setDueNotificationSettings({ leadDays: nextDays });
+    setSettings(next);
+  };
+
+  const handleToggleShowAmount = (on) => {
+    const next = setDueNotificationSettings({ showAmount: on });
+    setSettings(next);
+  };
+
+  const handleRequestPermission = async () => {
+    const res = await requestNotificationPermission();
+    setPermission(res);
+    if (res === 'granted') {
+      toast.success('مجوز ارسال اعلان فعال شد.');
+    } else {
+      toast.error('مجوز ارسال اعلان رد شد.');
+    }
+  };
+
+  return (
+    <Card
+      className="app-settings-card"
+      padding="lg"
+      icon={<Bell size={18} />}
+      title="یادآوری سررسید"
+      subtitle="اعلان روی همین گوشی برای اقساط وام، چک‌ها و درآمد ثابت. عناوین و مبالغ فقط روی گوشی پردازش می‌شوند."
+    >
+      <div className="app-setting-row">
+        <div>
+          <strong>اعلان‌های سررسید روی گوشی</strong>
+          <p>ارسال اعلان در ساعت ۰۹:۰۰ صبح روزهای انتخابی قبل از سررسید و صبح بعد از سررسید برای موارد معوق.</p>
+        </div>
+        <Switch
+          checked={settings.enabled}
+          onChange={handleToggleEnabled}
+          label="اعلان‌های سررسید روی گوشی"
+        />
+      </div>
+
+      {permission !== 'granted' && (
+        <div style={{ marginTop: '12px' }}>
+          <AlertBanner
+            type="warning"
+            message="مجوز ارسال اعلان به برنامه داده نشده است."
+            action={
+              <Button size="sm" variant="secondary" onClick={handleRequestPermission}>
+                درخواست مجوز
+              </Button>
+            }
+          />
+        </div>
+      )}
+
+      {settings.enabled && (
+        <>
+          <div style={{ marginTop: '16px' }}>
+            <strong style={{ fontSize: '13px', display: 'block', marginBottom: '8px' }}>
+              زمان ارسال اعلان:
+            </strong>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+              {DUE_LEAD_OPTIONS.map((opt) => {
+                const active = (settings.leadDays || []).includes(opt.days);
+                return (
+                  <button
+                    key={opt.days}
+                    type="button"
+                    onClick={() => handleToggleLeadDay(opt.days)}
+                    style={{
+                      padding: '5px 12px',
+                      borderRadius: '16px',
+                      fontSize: '12px',
+                      cursor: 'pointer',
+                      border: active ? '1px solid var(--accent-blue, #38bdf8)' : '1px solid var(--border-color, rgba(255,255,255,0.12))',
+                      background: active ? 'rgba(56, 189, 248, 0.15)' : 'transparent',
+                      color: active ? 'var(--accent-blue, #38bdf8)' : 'var(--text-secondary)',
+                      transition: 'all 0.15s ease',
+                    }}
+                  >
+                    {opt.label}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          <div className="app-setting-row" style={{ marginTop: '14px', borderTop: '1px solid var(--border-color, rgba(255,255,255,0.06))', paddingTop: '14px' }}>
+            <div>
+              <strong>نمایش مبلغ در اعلان</strong>
+              <p>در صورت فعال بودن، مبلغ هر قسط، چک یا درآمد در متن اعلان نشان داده می‌شود (در حالت حریم خصوصی پنهان می‌ماند).</p>
+            </div>
+            <Switch
+              checked={settings.showAmount}
+              onChange={handleToggleShowAmount}
+              label="نمایش مبلغ در اعلان"
+            />
+          </div>
+        </>
+      )}
+    </Card>
+  );
+}
+
 export default function AppSettingsView({ onOpenSms }) {
   const { toast } = useFeedback();
   const vault = useVault();
@@ -267,6 +409,8 @@ export default function AppSettingsView({ onOpenSms }) {
           </dd>
         </dl>
       </Card>
+
+      <DueNotificationSettings />
 
       <Card
         className="app-settings-card"

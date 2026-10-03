@@ -22,6 +22,7 @@ import { useTabNavigation } from '../shared/hooks/useTabNavigation.js';
 import { useFeature } from '../shared/features/useFeature.js';
 import { isNativeApp } from '../shared/native/nativeApp.js';
 import { startSmsAutoRead } from '../shared/native/smsInbox.js';
+import { initDueNotificationClicks } from '../shared/native/dueNotifications.js';
 import { useSmsAutoRecord } from '../features/sms-inbox/useSmsAutoRecord.js';
 
 // Each tab other than the market home is loaded on first use, keeping the initial bundle small
@@ -64,6 +65,7 @@ export default function MainPage() {
   const navigateRef = useRef(navigate);
   navigateRef.current = navigate;
   useEffect(() => startSmsAutoRead({ onOpenInbox: () => navigateRef.current(appPath('/sms')) }), []);
+  useEffect(() => initDueNotificationClicks((path) => navigateRef.current(appPath(path))), []);
   // Small withdrawals recorded by themselves, when turned on in the app settings
   useSmsAutoRecord(isNativeApp() && hasExpenses && !isDemo);
 

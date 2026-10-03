@@ -118,24 +118,52 @@ export function reminderOf(kind, plainRecord, { includeDirection = false } = {})
   if (!plainRecord || typeof plainRecord !== 'object') return null;
 
   if (kind === 'loan') {
-    const view = plainRecord.loan ? buildLoanView(plainRecord) : plainRecord;
-    const unpaid = (view.installments || []).filter((i) => !i.isPaid);
-    if (unpaid.length === 0) return null;
+    let nextInst = null;
+    let interval = 1;
+    let muted = false;
+    let recordId = '';
+    let totalRemaining = 0;
 
-    const nextInst = unpaid[0];
-    const dueDate = nextInst.dueDate;
+    if (plainRecord.nextDueInstallment && plainRecord.nextDueInstallment.dueDate) {
+      nextInst = plainRecord.nextDueInstallment;
+      interval = Math.max(0, parseInt(plainRecord.intervalMonths ?? plainRecord.interval_months, 10) || 1);
+      muted = Boolean(plainRecord.remindersMuted);
+      recordId = String(plainRecord.id || '');
+      const total = Number(plainRecord.totalCount ?? plainRecord.installmentCount ?? 1);
+      const paid = Number(plainRecord.paidCount ?? 0);
+      totalRemaining = Math.max(1, total - paid);
+    } else {
+      let view = null;
+      if (plainRecord.installments && Array.isArray(plainRecord.installments)) {
+        view = plainRecord;
+      } else if (plainRecord.loan) {
+        view = buildLoanView(plainRecord);
+      } else {
+        try {
+          view = buildLoanView({ loan: plainRecord, states: plainRecord.states || [] });
+        } catch {
+          view = null;
+        }
+      }
+      if (!view) return null;
+      const unpaid = (view.installments || []).filter((i) => !i.isPaid);
+      if (unpaid.length === 0) return null;
+      nextInst = unpaid[0];
+      interval = Math.max(0, parseInt(view.intervalMonths ?? view.interval_months, 10) || 1);
+      muted = Boolean(plainRecord.loan?.remindersMuted ?? plainRecord.remindersMuted ?? false);
+      recordId = String(view.id || plainRecord.loan?.id || plainRecord.id || '');
+      totalRemaining = unpaid.length;
+    }
+
+    const dueDate = nextInst?.dueDate;
     if (!dueDate || !ISO_DATE_RE.test(dueDate)) return null;
-
-    const interval = Math.max(0, parseInt(view.intervalMonths ?? view.interval_months, 10) || 1);
-    const muted = Boolean(plainRecord.loan?.remindersMuted ?? plainRecord.remindersMuted ?? false);
-    const recordId = String(view.id || plainRecord.loan?.id || plainRecord.id || '');
 
     return {
       kind: 'loan',
       recordId,
       dueDate,
       intervalMonths: interval,
-      remaining: unpaid.length,
+      remaining: totalRemaining,
       direction: '',
       muted,
     };

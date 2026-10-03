@@ -11,6 +11,10 @@ function readHideValues() {
   }
 }
 
+export function isPrivacyMode() {
+  return readHideValues();
+}
+
 /**
  * Turn the app-wide "hide values" mode on or off. Persists the choice and notifies every
  * mounted usePrivacyMode() consumer.

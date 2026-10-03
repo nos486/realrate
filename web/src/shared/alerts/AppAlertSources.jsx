@@ -10,11 +10,16 @@
  * Then the delivery channels run over everything (alertChannels.js).
  */
 
-import { useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useLoansContext } from '../../features/loans/context/LoansContext.jsx';
 import { useChequesContext } from '../../features/cheques/context/ChequesContext.jsx';
 import { useAppUpdate } from '../native/useAppUpdate.js';
 import { hasUpdate } from '../native/appUpdate.js';
+import { isNativeApp } from '../native/nativeApp.js';
+import { scheduleDueNotifications } from '../native/dueNotifications.js';
+import { useVault } from '../vault/useVault.js';
+import { usePrivacyMode } from '../../hooks/usePrivacyMode.js';
+import { getRecurringIncomes } from '../../features/incomes/api/recurringIncomeApi.js';
 import { todayIso } from '../utils/dates.js';
 import { loanAlerts, chequeAlerts } from './alertRules.js';
 import { alertFingerprint } from '../../utils/alerts.js';
@@ -27,7 +32,24 @@ export default function AppAlertSources({ announcement = '' }) {
   const { loans } = useLoansContext();
   const { cheques } = useChequesContext();
   const update = useAppUpdate();
+  const vault = useVault();
+  const hideAmounts = usePrivacyMode();
   const today = todayIso();
+  const [recurringIncomes, setRecurringIncomes] = useState([]);
+
+  useEffect(() => {
+    if (vault?.status !== 'unlocked') {
+      setRecurringIncomes([]);
+      return;
+    }
+    let active = true;
+    getRecurringIncomes()
+      .then((res) => {
+        if (active) setRecurringIncomes(res?.rules || []);
+      })
+      .catch(() => {});
+    return () => { active = false; };
+  }, [vault?.status]);
 
   useAlertSource('loan', useMemo(() => loanAlerts(loans, today), [loans, today]));
   useAlertSource('cheque', useMemo(() => chequeAlerts(cheques, today), [cheques, today]));
@@ -52,6 +74,19 @@ export default function AppAlertSources({ announcement = '' }) {
     if (!deliveryKey) return;
     deliverAlerts(getAlerts(), { appUrl: window.location.origin }).catch((err) => console.warn('Delivering alerts failed:', err));
   }, [deliveryKey]);
+
+  // Local notifications on Android (everything decrypted on device)
+  useEffect(() => {
+    if (!isNativeApp() || vault?.status !== 'unlocked') return;
+    scheduleDueNotifications({
+      loans,
+      cheques,
+      recurringIncomes,
+      isVaultUnlocked: true,
+      today,
+      hideAmounts,
+    }).catch((err) => console.warn('Scheduling due notifications failed:', err));
+  }, [loans, cheques, recurringIncomes, vault?.status, today, hideAmounts]);
 
   return null;
 }
