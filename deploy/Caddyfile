@@ -1,30 +1,12 @@
-# RealRate on one Linux host: the website and the API, with automatic HTTPS (Let's Encrypt)
-#   WEB_DOMAIN  the website        (e.g. realrate.ir)
-#   API_DOMAIN  the API            (e.g. realrate-api.geekio.org — the Android app calls this one)
-#   API_PORT    where the API listens on this host (127.0.0.1)
-# The rules mirror web/public/_headers and the _redirects build-seo.mjs writes for Cloudflare Pages.
-#   EDGE        "direct"     — the domains point straight at this host (DNS only): Let's Encrypt
-#                              certificates, obtained as soon as DNS points here (ports 80 / 443)
-#               "cloudflare" — behind Cloudflare's proxy (orange cloud, SSL mode "Full"): Caddy's
-#                              own certificate for the Cloudflare → host leg
-# Either way the client's address is the connection's, or Cloudflare's Cf-Connecting-Ip only when
-# the request really comes from Cloudflare (trusted_proxies), so it cannot be forged.
+# RealRate website inside its container: the built files, routed and cached like Cloudflare Pages
+# (the rules mirror web/public/_headers and the _redirects build-seo.mjs writes). Plain HTTP on
+# :80 in the container; TLS and the domain are the host's nginx (docs/SELF_HOST.md).
 {
-	servers {
-		trusted_proxies static 173.245.48.0/20 103.21.244.0/22 103.22.200.0/22 103.31.4.0/22 141.101.64.0/18 108.162.192.0/18 190.93.240.0/20 188.114.96.0/20 197.234.240.0/22 198.41.128.0/17 162.158.0.0/15 104.16.0.0/13 104.24.0.0/14 172.64.0.0/13 131.0.72.0/22 2400:cb00::/32 2606:4700::/32 2803:f800::/32 2405:b500::/32 2405:8100::/32 2a06:98c0::/29 2c0f:f248::/32
-		client_ip_headers Cf-Connecting-Ip
-	}
+	auto_https off
+	admin off
 }
 
-(tls_direct) {
-}
-
-(tls_cloudflare) {
-	tls internal
-}
-
-{$WEB_DOMAIN} {
-	import tls_{$EDGE:direct}
+:80 {
 	root * /srv
 	encode zstd gzip
 
@@ -63,15 +45,5 @@
 	handle_errors 404 {
 		rewrite * /404.html
 		file_server
-	}
-}
-
-{$API_DOMAIN} {
-	import tls_{$EDGE:direct}
-	encode zstd gzip
-	reverse_proxy 127.0.0.1:{$API_PORT:8787} {
-		# The real client (see trusted_proxies above); a Cf-Connecting-Ip a client sends is dropped
-		header_up -Cf-Connecting-Ip
-		header_up X-Real-IP {client_ip}
 	}
 }

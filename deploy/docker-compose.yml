@@ -1,24 +1,44 @@
-# RealRate on one Linux host — two containers, Postgres stays where it is (on this host)
+# RealRate on one Linux host, behind the host's own nginx (which keeps ports 80 / 443 and TLS)
 #
-#   api  the API (api/server.js: the same code as the Cloudflare Worker, plus the per-minute cron)
-#   web  Caddy: the website's files and HTTPS for both domains, proxying the API domain to `api`
-#
-# Both use the host's network: the API reaches the host's Postgres on 127.0.0.1 (no pg_hba or
-# listen_addresses change) and listens on 127.0.0.1 only; Caddy takes ports 80 and 443.
+#   web  the website: built files served on 127.0.0.1:${WEB_PORT} (nginx proxies the domain here)
+#   api  the API (api/server.js: the Worker's code plus the per-minute cron) — step 2, off until
+#        COMPOSE_PROFILES=api is set in deploy/.env; until then the site keeps using the Worker
 #
 #   cp deploy/.env.example deploy/.env   # then fill it in
-#   docker compose -f deploy/docker-compose.yml up -d --build
+#   docker compose -f deploy/docker-compose.yml up -d --build --wait
 # Updates: deploy/deploy.sh (the GitHub workflow runs it on every push to main).
 
 name: realrate
 
 services:
+  web:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile.web
+    image: realrate-web:latest
+    restart: unless-stopped
+    ports:
+      # Only this host's nginx can reach it
+      - "127.0.0.1:${WEB_PORT:-8080}:80"
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1/"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
+    logging:
+      driver: json-file
+      options: { max-size: "10m", max-file: "3" }
+
   api:
+    profiles: ["api"]
     build:
       context: ..
       dockerfile: deploy/Dockerfile.api
     image: realrate-api:latest
     restart: unless-stopped
+    # The host's network: Postgres on 127.0.0.1 without changing pg_hba.conf; listens on
+    # 127.0.0.1:${API_PORT} only (nginx proxies the API domain here)
     network_mode: host
     env_file: .env
     environment:
@@ -35,30 +55,3 @@ services:
     logging:
       driver: json-file
       options: { max-size: "10m", max-file: "3" }
-
-  web:
-    build:
-      context: ..
-      dockerfile: deploy/Dockerfile.web
-    image: realrate-web:latest
-    restart: unless-stopped
-    network_mode: host
-    environment:
-      WEB_DOMAIN: ${WEB_DOMAIN:?set WEB_DOMAIN in deploy/.env}
-      API_DOMAIN: ${API_DOMAIN:?set API_DOMAIN in deploy/.env}
-      API_PORT: ${API_PORT:-8787}
-      EDGE: ${EDGE:-direct}
-    volumes:
-      # Certificates survive restarts and rebuilds (Let's Encrypt limits new ones)
-      - caddy_data:/data
-      - caddy_config:/config
-    depends_on:
-      api:
-        condition: service_healthy
-    logging:
-      driver: json-file
-      options: { max-size: "10m", max-file: "3" }
-
-volumes:
-  caddy_data:
-  caddy_config:

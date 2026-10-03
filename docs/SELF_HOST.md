@@ -1,27 +1,25 @@
-# میزبانی روی سرور لینوکسی با Docker
+# میزبانی روی سرور لینوکسی با Docker (پشت nginx خود سرور)
 
-به‌جای Cloudflare Workers و Pages، همه‌چیز روی یک سرور اجرا می‌شود — با همان کد. Postgres همان‌جایی که هست (روی همین سرور) می‌ماند؛ چیزی جابه‌جا نمی‌شود.
+به‌جای Cloudflare Pages و Workers، برنامه روی سرور خودتان اجرا می‌شود — با همان کد. nginx سرور همان‌طور پورت‌های ۸۰ و ۴۴۳ و گواهی‌ها را نگه می‌دارد و فقط به کانتینرها proxy می‌کند. Postgres همان‌جایی که هست می‌ماند.
 
-| کانتینر | چه می‌کند | به‌جای |
-|---|---|---|
-| `api` | `api/server.js`: همان کد Worker روی Node 22، به‌علاوه‌ی کرون هر دقیقه | Worker و Cron Trigger |
-| `web` | Caddy: فایل‌های سایت، HTTPS هر دو دامنه، و رساندن دامنه‌ی API به `api` | Pages |
+جابه‌جایی در دو مرحله است:
 
-وابستگی‌ها فقط Docker (با Compose) و git روی سرور است. ایمیج‌ها روی خود سرور ساخته می‌شوند (رجیستری لازم نیست). فایل‌ها در `deploy/`:
+| مرحله | کانتینر | روی سرور | به‌جای |
+|---|---|---|---|
+| ۱ | `web` | سایت روی `127.0.0.1:8080` (Caddy داخل کانتینر: مسیرها و کش مثل Pages) | Cloudflare Pages |
+| ۲ | `api` | API روی `127.0.0.1:8787` (`api/server.js`: همان کد Worker به‌علاوه‌ی کرون هر دقیقه) | Worker |
 
-- `docker-compose.yml` — دو سرویس، هر دو با شبکه‌ی خود سرور (`network_mode: host`): API با `127.0.0.1` به Postgres وصل می‌شود (بدون تغییر `pg_hba.conf`) و فقط روی `127.0.0.1` گوش می‌دهد؛ Caddy پورت‌های ۸۰ و ۴۴۳ را می‌گیرد.
-- `Dockerfile.api`، `Dockerfile.web`، `Caddyfile` — قواعد `Caddyfile` همان `_headers` و `_redirects` نسخه‌ی Pages است (مسیرهای SPA هنگام build از `_redirects` ساخته می‌شوند: `redirects-to-caddy.mjs`).
-- `.env.example` — همه‌ی تنظیمات و کلیدها.
-- `deploy.sh` — به‌روزرسانی: کامیت تازه، build، جایگزینی کانتینرها و صبر تا سالم بودن API.
+در مرحله‌ی ۱ سایت از سرور شما سرو می‌شود ولی درخواست‌ها هنوز به Worker می‌روند؛ چیزی در API و داده‌ها عوض نمی‌شود.
 
-## نکته‌های مهم پیش از شروع
+وابستگی‌ها روی سرور فقط Docker (با Compose) و git است. ایمیج‌ها روی خود سرور ساخته می‌شوند (رجیستری لازم نیست). فایل‌ها در `deploy/`:
 
-- **دامنه‌ها عوض نمی‌شوند**: سایت `realrate.ir` و API `realrate-api.geekio.org` می‌مانند. آدرس API در اپ اندروید ثابت ساخته شده؛ اگر دامنه‌ی API عوض شود اپ‌های نصب‌شده تا آپدیت کار نمی‌کنند.
-- **دیتابیس همان است**: Hyperdrive الان به همین Postgres وصل است، پس `DATABASE_URL` همان دیتابیس را می‌دهد و در طول جابه‌جایی نسخه‌ی قدیم و جدید هر دو روی یک داده کار می‌کنند — هیچ داده‌ای جابه‌جا یا گم نمی‌شود.
-- **کلیدهای VAPID باید همان قبلی باشند**؛ وگرنه مرورگرهایی که اعلان را فعال کرده‌اند دیگر یادآوری نمی‌گیرند. بقیه‌ی کلیدها (Google، Resend، Gemini، …) هم همان مقدارهای Worker هستند (`npx wrangler secret list` فقط نامشان را نشان می‌دهد).
-- **کرون فقط یک جا اجرا شود**: تا Worker کرون دارد، `CRON_ENABLED=false` بماند.
+- `docker-compose.yml` — سرویس `web`، و سرویس `api` که تا `COMPOSE_PROFILES=api` خاموش است.
+- `Dockerfile.web`، `Caddyfile` — build سایت و سرو آن؛ قواعد همان `_headers` و `_redirects` نسخه‌ی Pages است (مسیرهای SPA هنگام build از `_redirects` ساخته می‌شوند: `redirects-to-caddy.mjs`).
+- `Dockerfile.api` — مرحله‌ی ۲.
+- `nginx-web.conf.example` — نمونه‌ی تنظیم nginx برای `realrate.ir`.
+- `.env.example`، `deploy.sh` — تنظیمات، و به‌روزرسانی (کامیت تازه، build، جایگزینی و صبر تا سالم بودن).
 
-## مراحل جابه‌جایی (بدون قطعی برای کاربر)
+## مرحله‌ی ۱: سایت (کلاینت)
 
 ### ۱. آماده کردن سرور
 
@@ -29,45 +27,30 @@
 # Docker و پلاگین Compose (اگر نصب نیست): https://docs.docker.com/engine/install/
 sudo git clone https://github.com/nos486/realrate.git /opt/realrate
 cd /opt/realrate
-sudo cp deploy/.env.example deploy/.env
-sudo nano deploy/.env        # DATABASE_URL، کلیدها، CRON_ENABLED=false، EDGE=cloudflare
-```
-
-پورت‌های ۸۰ و ۴۴۳ در فایروال باز باشند و چیز دیگری (مثلاً nginx) رویشان نباشد.
-
-### ۲. اجرا و آزمایش، پیش از اینکه کاربری به آن برسد
-
-```sh
-cd /opt/realrate/deploy
+sudo cp deploy/.env.example deploy/.env      # برای مرحله‌ی ۱ فقط WEB_PORT (پیش‌فرض 8080)
+cd deploy
 sudo docker compose up -d --build --wait
-sudo docker compose ps                         # api: healthy
-curl -s http://127.0.0.1:8787/api/prices | head -c 200
-sudo docker compose logs -f api                 # خطای اتصال دیتابیس یا کلیدها
+sudo docker compose ps                       # web: healthy
+curl -sI http://127.0.0.1:8080/expenses | head -3
 ```
 
-تا DNS عوض نشده، هیچ کاربری به این سرور نمی‌رسد؛ با خیال راحت آزمایش کنید.
+### ۲. nginx
 
-### ۳. جابه‌جا کردن دامنه‌ها (در Cloudflare)
+`deploy/nginx-web.conf.example` را در `/etc/nginx/sites-available/realrate.ir` کپی کنید، مسیر گواهی را درست کنید، در `sites-enabled` لینک کنید و `nginx -t && systemctl reload nginx`. هدرهای کش و فشرده‌سازی از کانتینر می‌آیند؛ در nginx آن‌ها را عوض نکنید (به‌خصوص `Cache-Control` فایل `sw.js` که باید `no-cache` بماند).
 
-پیشنهاد: پراکسی Cloudflare (ابر نارنجی) بماند و `EDGE=cloudflare` باشد. در این حالت آدرسی که کاربر می‌بیند همان IPهای Cloudflare است و فقط سرور پشت آن عوض می‌شود: **بدون تأخیر DNS**.
+گواهی، اگر دامنه پشت پراکسی Cloudflare (ابر نارنجی) می‌ماند — پیشنهاد من:
+- در Cloudflare، *SSL/TLS → Origin Server → Create Certificate* یک گواهی ۱۵ ساله برای `realrate.ir` و `*.realrate.ir` بسازید و در `/etc/ssl/realrate.ir/` بگذارید؛ حالت SSL را **Full (strict)** کنید.
+- برای تست قبل از جابه‌جایی: `curl -k --resolve realrate.ir:443:127.0.0.1 https://realrate.ir/faq`.
 
-1. **SSL/TLS** دامنه‌ها روی **Full** باشد (نه Flexible).
-2. **API** (`realrate-api.geekio.org`): در Worker، بخش *Settings → Domains & Routes*، دامنه‌ی سفارشی را حذف کنید و بلافاصله در DNS یک رکورد `A` با IP سرور و **Proxied** بسازید. با `curl https://realrate-api.geekio.org/api/prices` بررسی کنید.
-3. **سایت** (`realrate.ir`): در پروژه‌ی Pages، بخش *Custom domains*، دامنه را حذف کنید و رکورد `A` با IP سرور و **Proxied** بسازید. سایت و چند صفحه‌ی اپ را باز کنید.
+اگر Cloudflare را کنار می‌گذارید (ابر خاکستری): certbot، که فقط بعد از اشاره‌ی DNS به سرور گواهی می‌گیرد (چند دقیقه تأخیر DNS هم دارد) — برای همین حالت پراکسی بی‌دردسرتر است.
 
-فاصله‌ی حذف و ساختن رکورد چند ثانیه است. در این فاصله اپ دوباره تلاش می‌کند و نسخه‌ی آفلاین PWA کار می‌کند.
+### ۳. جابه‌جا کردن دامنه
 
-> حالت `EDGE=direct` (ابر خاکستری، بدون Cloudflare): Caddy گواهی Let's Encrypt می‌گیرد، ولی تا DNS در کش کاربران عوض شود (تا چند دقیقه) بعضی‌ها هنوز به آدرس قبلی می‌روند. اگر این حالت را می‌خواهید، چند ساعت قبل TTL رکوردها را کم کنید.
+در پروژه‌ی Pages، بخش *Custom domains*، `realrate.ir` را حذف کنید و بلافاصله در DNS یک رکورد `A` با IP سرور و **Proxied** بسازید (و اگر `www` دارید، همین‌طور). با پراکسی، IPی که کاربر می‌بیند عوض نمی‌شود و فقط سرور پشت آن عوض می‌شود: قطعی چند ثانیه است و در همان فاصله نسخه‌ی آفلاین PWA کار می‌کند.
 
-### ۴. منتقل کردن کرون
+بررسی: سایت، چند صفحه‌ی اپ (`/expenses`، `/portfolio`)، صفحه‌های `/faq` و `/features/loans`، و یک آدرس اشتباه (باید صفحه‌ی ۴۰۴ بیاید).
 
-بیرون از ساعت‌های ۸ و ۹ صبح به وقت تهران (ارسال یادآوری‌ها):
-
-1. در Worker، بخش *Settings → Triggers*، کرون را حذف کنید.
-2. روی سرور: `CRON_ENABLED=true` در `deploy/.env` و سپس `sudo docker compose up -d`.
-3. در لاگ (`docker compose logs -f api`) هر دقیقه `[SourceSync]` دیده شود.
-
-### ۵. به‌روزرسانی خودکار با push
+### ۴. به‌روزرسانی خودکار با push
 
 1. روی سرور یک کاربر با دسترسی Docker و یک کلید SSH مخصوص deploy:
    ```sh
@@ -80,29 +63,25 @@ sudo docker compose logs -f api                 # خطای اتصال دیتاب
 2. در گیت‌هاب، *Settings → Secrets and variables → Actions*:
    - Secrets: `DEPLOY_HOST` (IP سرور)، `DEPLOY_USER` (`deploy`)، `DEPLOY_SSH_KEY` (کلید خصوصی)، و در صورت نیاز `DEPLOY_PORT` و `DEPLOY_PATH`.
    - Variables: `SELF_HOSTED_DEPLOY` = `true`.
-3. از این به بعد هر push به `main`: تست‌های API اجرا می‌شوند، بعد workflow «Deploy» روی سرور `deploy/deploy.sh <کامیت>` را اجرا می‌کند. اگر کانتینر جدید سالم بالا نیاید، deploy خطا می‌دهد.
-4. deploy خودکار Worker و Pages را در Cloudflare قطع کنید (یا پروژه‌ها را چند روز به‌عنوان پشتیبان نگه دارید و بعد حذف کنید).
+3. از این به بعد هر push به `main`: تست‌ها اجرا می‌شوند، بعد workflow «Deploy» روی سرور `deploy/deploy.sh <کامیت>` را اجرا می‌کند. اگر کانتینر جدید سالم بالا نیاید، deploy خطا می‌دهد و نسخه‌ی قبلی سر جایش می‌ماند تا build تمام شود.
+4. deploy خودکار پروژه‌ی Pages را در Cloudflare قطع کنید (یا چند روز به‌عنوان پشتیبان نگه دارید).
 
-### ۶. بعد از جابه‌جایی
+## مرحله‌ی ۲: API (بعداً)
 
-- اگر Postgres برای Hyperdrive روی اینترنت باز بود، حالا می‌تواند فقط روی `127.0.0.1` گوش دهد (`listen_addresses = 'localhost'`) و پورت ۵۴۳۲ در فایروال بسته شود.
-- پشتیبان روزانه‌ی دیتابیس (cron سرور):
-  ```sh
-  0 3 * * * pg_dump -Fc -d realrate -f /var/backups/realrate-$(date +\%a).dump
-  ```
+خلاصه، تا وقتی به آن برسیم:
+- `deploy/.env`: `COMPOSE_PROFILES=api`، `DATABASE_URL` (همان دیتابیسی که Hyperdrive استفاده می‌کند — داده‌ای جابه‌جا نمی‌شود)، کلیدهای Worker (کلیدهای VAPID حتماً همان قبلی)، و `CRON_ENABLED=false` تا کرون Worker حذف شود.
+- nginx برای `realrate-api.geekio.org` به `127.0.0.1:8787` (دامنه‌ی API عوض نمی‌شود؛ اپ اندروید همین را صدا می‌زند).
+- بعد کرون: حذف از Worker و `CRON_ENABLED=true` روی سرور، بیرون از ساعت ۸ و ۹ صبح تهران.
 
 ## کارهای روزمره
 
 | کار | دستور (در `/opt/realrate/deploy`) |
 |---|---|
 | وضعیت | `docker compose ps` |
-| لاگ API | `docker compose logs -f --tail 100 api` |
-| به‌روزرسانی دستی | `../deploy/deploy.sh` |
-| برگشت به نسخه‌ی قبل | `../deploy/deploy.sh <کامیت قبلی>` |
-| ری‌استارت | `docker compose restart api` |
-
-هر deploy چند ثانیه API را ری‌استارت می‌کند؛ کارهای در حال اجرا (همگام‌سازی قیمت، ایمیل) تا ۳۰ ثانیه فرصت تمام شدن دارند.
+| لاگ | `docker compose logs -f --tail 100 web` |
+| به‌روزرسانی دستی | `./deploy.sh` |
+| برگشت به نسخه‌ی قبل | `./deploy.sh <کامیت قبلی>` |
 
 ## بازگشت به Cloudflare
 
-دامنه‌ها را دوباره به Worker و Pages وصل کنید و کرون Worker را برگردانید (و روی سرور `CRON_ENABLED=false`). دیتابیس مشترک است؛ چیزی از دست نمی‌رود.
+دامنه را دوباره به پروژه‌ی Pages وصل کنید. چیزی از دست نمی‌رود.
