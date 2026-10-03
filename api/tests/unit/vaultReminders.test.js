@@ -162,27 +162,27 @@ describe('vault_reminders database operations', () => {
   });
 
   it('leaves reminder untouched when reminder is undefined (legacy clients)', async () => {
-    await dbPutVaultRecord(env, 'u1', 'recurring_income', 'rinc_1', {
+    await dbPutVaultRecord(env, 'u1', 'loan', 'ln_legacy', {
       payload: CIPHER,
       recordDate: '2026-10-01',
       reminder: {
-        kind: 'recurring_income',
-        recordId: 'rinc_1',
+        kind: 'loan',
+        recordId: 'ln_legacy',
         dueDate: '2026-10-05',
         intervalMonths: 1,
-        remaining: null,
+        remaining: 3,
         direction: '',
         muted: false,
       },
     });
-    expect(env.DB.reminders.has('u1|recurring_income|rinc_1')).toBe(true);
+    expect(env.DB.reminders.has('u1|loan|ln_legacy')).toBe(true);
 
     // Update with undefined reminder leaves existing reminder untouched
-    await dbPutVaultRecord(env, 'u1', 'recurring_income', 'rinc_1', {
+    await dbPutVaultRecord(env, 'u1', 'loan', 'ln_legacy', {
       payload: CIPHER,
       recordDate: '2026-10-01',
     });
-    expect(env.DB.reminders.has('u1|recurring_income|rinc_1')).toBe(true);
+    expect(env.DB.reminders.has('u1|loan|ln_legacy')).toBe(true);
   });
 
   it('dbDeleteVaultRecord deletes reminder row in its batch', async () => {
@@ -253,7 +253,7 @@ describe('vault_reminders database operations', () => {
 });
 
 describe('client reminder computation and offline support', () => {
-  it('putRecord computes and passes reminder automatically for loan, cheque, and recurring_income', async () => {
+  it('putRecord computes and passes reminder automatically for loans and cheques', async () => {
     const putSpy = vi.spyOn(vaultApi, 'putVaultRecord').mockResolvedValue({ success: true });
 
     // 1. Cheque open

@@ -55,7 +55,7 @@ import { SkeletonRows } from '../../../shared/ui/Skeleton.jsx';
 import { useDemo } from '../../demo/index.js';
 
 const HoldingsView = forwardRef(function HoldingsView(
-  { activePortfolio, portfolios, loadingPortfolios = false, fetchPortfolios, deletePortfolio, onVaultLockChange, onCountChange, toolbarSlot = null },
+  { activePortfolio, portfolios, loadingPortfolios = false, fetchPortfolios, deletePortfolio, onVaultLockChange, toolbarSlot = null },
   ref
 ) {
   const pricing = usePricing();
@@ -213,10 +213,6 @@ const HoldingsView = forwardRef(function HoldingsView(
   const categoryGroups = useMemo(() => {
     return buildCategoryGroups(portfolioMetrics.items, holdingsFilterQuery);
   }, [buildCategoryGroups, portfolioMetrics.items, holdingsFilterQuery]);
-
-  useEffect(() => {
-    onCountChange?.(portfolioMetrics.items.length);
-  }, [portfolioMetrics.items.length, onCountChange]);
 
   // The sell form's balance: what each asset holds, manual records included
   const currentHoldingsMap = useMemo(

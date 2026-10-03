@@ -165,7 +165,7 @@ export default function PortfolioOverviewCards({
 
       {/* Card 5: target shares per category */}
       {allocation && !isVaultLocked && (
-        <AllocationTargetsCard allocation={allocation} onEdit={onEditTargets} readOnly={!onEditTargets} />
+        <AllocationTargetsCard allocation={allocation} onEdit={onEditTargets} readOnly={!onEditTargets} hideValues={hideValues} />
       )}
     </div>
   );

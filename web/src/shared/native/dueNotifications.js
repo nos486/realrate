@@ -1,5 +1,5 @@
 /**
- * dueNotifications.js — Android local notifications for due loans, cheques and fixed incomes
+ * dueNotifications.js — Android local notifications for due loans and cheques
  *
  * Uses @capacitor/local-notifications with inexact scheduling (no SCHEDULE_EXACT_ALARM needed).
  * All decrypted data (titles, amounts, counterparties) stays entirely on the device.
@@ -89,10 +89,6 @@ function buildNotificationText({ kind, title, counterparty, direction, amount, r
     else if (reason === 'due' || leadDays === 0) headline = `${dirLabel} امروز سررسید است`;
     else if (leadDays === 1) headline = `${dirLabel} فردا سررسید می‌شود`;
     else headline = `${dirLabel} در ${faNum(leadDays)} روز آینده سررسید می‌شود`;
-  } else if (kind === 'recurring_income') {
-    if (reason === 'due' || leadDays === 0) headline = 'درآمد ثابت امروز باید واریز شود';
-    else if (leadDays === 1) headline = 'درآمد ثابت فردا واریز می‌شود';
-    else headline = `درآمد ثابت در ${faNum(leadDays)} روز آینده واریز می‌شود`;
   }
 
   const namePart = (counterparty || title || '').trim();
@@ -110,7 +106,6 @@ function buildNotificationText({ kind, title, counterparty, direction, amount, r
  * @param {object} params
  * @param {object[]} [params.loans]
  * @param {object[]} [params.cheques]
- * @param {object[]} [params.recurringIncomes]
  * @param {string} params.today - YYYY-MM-DD
  * @param {object} [params.settings]
  * @param {boolean} [params.hideAmounts]
@@ -120,7 +115,6 @@ function buildNotificationText({ kind, title, counterparty, direction, amount, r
 export function planDueNotifications({
   loans = [],
   cheques = [],
-  recurringIncomes = [],
   today,
   settings = {},
   hideAmounts = false,
@@ -345,48 +339,6 @@ export function planDueNotifications({
     }
   }
 
-  // 3. Recurring Incomes
-  for (const inc of recurringIncomes) {
-    const reminder = reminderOf('recurring_income', inc);
-    if (!reminder || reminder.muted) continue;
-
-    const amount = Number(inc.amount || 0);
-    const title = (inc.title || '').trim();
-    const deepLinkPath = '/incomes';
-
-    // A fixed income is never «overdue»: the next one simply comes on its day
-    const occurrences = occurrencesBetween(reminder, today, maxDate);
-    for (const occ of occurrences) {
-      for (const d of leadDays) {
-        const reason = d === 0 ? 'due' : 'lead';
-        const triggerDay = addDaysIso(occ, -d);
-        const fireAt = new Date(`${triggerDay}T09:00:00`);
-        if (fireAt.getTime() > now.getTime()) {
-          const text = buildNotificationText({
-            kind: 'recurring_income',
-            title,
-            amount,
-            reason,
-            leadDays: d,
-            showAmount: !effectiveHideAmounts,
-          });
-          planned.push({
-            id: notificationId('recurring_income', inc.id, occ, `${reason}_${d}`),
-            kind: 'recurring_income',
-            recordId: inc.id,
-            dueDate: occ,
-            reason,
-            leadDays: d,
-            fireAt,
-            title: text.title,
-            body: text.body,
-            extra: { kind: 'due', path: deepLinkPath, recordId: inc.id, dueDate: occ, reason },
-          });
-        }
-      }
-    }
-  }
-
   // Deduplicate by ID and sort chronologically
   const uniqueMap = new Map();
   for (const item of planned) {
@@ -406,7 +358,6 @@ export function planDueNotifications({
 export async function scheduleDueNotifications({
   loans = [],
   cheques = [],
-  recurringIncomes = [],
   isVaultUnlocked = false,
   today,
   settings,
@@ -421,7 +372,6 @@ export async function scheduleDueNotifications({
   const planned = planDueNotifications({
     loans,
     cheques,
-    recurringIncomes,
     today,
     settings: currentSettings,
     hideAmounts: privacyActive,

@@ -7,6 +7,7 @@
 
 import { ensureSchema } from './schema.repository.js';
 import {
+  ALLOWED_EMAIL_SOURCES,
   DEFAULT_ALERT_EMAIL_PREFS,
   validateAlertEmailPrefs,
 } from '../domain/alertEmailPrefs.js';
@@ -20,6 +21,8 @@ function parsePrefsRow(row) {
     if (typeof row.sources === 'string') sources = JSON.parse(row.sources);
     else if (Array.isArray(row.sources)) sources = row.sources;
   } catch {}
+  // A kind no longer offered (fixed incomes were removed) is dropped from older rows
+  sources = (Array.isArray(sources) ? sources : []).filter((s) => ALLOWED_EMAIL_SOURCES.includes(s));
 
   let leadDays = DEFAULT_ALERT_EMAIL_PREFS.leadDays;
   try {
@@ -126,7 +129,7 @@ export async function dbGetRemindersForUsers(env, userIds = []) {
   const { results = [] } = await env.DB.prepare(`
     SELECT user_id, kind, record_id, due_date, interval_months, remaining, direction, muted, updated_at
     FROM vault_reminders
-    WHERE user_id IN (${marks}) AND muted = 0
+    WHERE user_id IN (${marks}) AND muted = 0 AND kind IN ('loan', 'cheque')
   `).bind(...userIds).all();
 
   return results.map((r) => ({

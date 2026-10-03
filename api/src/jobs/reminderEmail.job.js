@@ -66,8 +66,6 @@ function formatGroupLines(groupKey, items) {
         if (direction === 'issued') lines.push(`${cnt} چک صادره سررسیدش گذشته است`);
         else if (direction === 'received') lines.push(`${cnt} چک دریافتی سررسیدش گذشته است`);
         else lines.push(`${cnt} چک سررسیدش گذشته است`);
-      } else if (kind === 'recurring_income') {
-        lines.push(`${cnt} درآمد ثابت واریز نشده است`);
       }
     } else if (groupKey === 'due') {
       if (kind === 'loan') {
@@ -76,8 +74,6 @@ function formatGroupLines(groupKey, items) {
         if (direction === 'issued') lines.push(`${cnt} چک صادره امروز سررسید است — موجودی حسابتان را بررسی کنید`);
         else if (direction === 'received') lines.push(`${cnt} چک دریافتی امروز سررسید است — برای وصول آماده کنید`);
         else lines.push(`${cnt} چک امروز سررسید است`);
-      } else if (kind === 'recurring_income') {
-        lines.push(count === 1 ? 'حقوق/درآمد ثابت امروز باید واریز شود' : `${cnt} درآمد ثابت امروز باید واریز شود`);
       }
     } else if (groupKey.startsWith('lead:')) {
       const d = parseInt(groupKey.split(':')[1], 10);
@@ -87,8 +83,6 @@ function formatGroupLines(groupKey, items) {
           if (direction === 'issued') lines.push(`${cnt} چک صادره فردا سررسید می‌شود`);
           else if (direction === 'received') lines.push(`${cnt} چک دریافتی فردا سررسید می‌شود`);
           else lines.push(`${cnt} چک فردا سررسید می‌شود`);
-        } else if (kind === 'recurring_income') {
-          lines.push(`${cnt} درآمد ثابت فردا باید واریز شود`);
         }
       } else {
         const dFa = toFa(d);
@@ -97,8 +91,6 @@ function formatGroupLines(groupKey, items) {
           if (direction === 'issued') lines.push(`${cnt} چک صادره در ${dFa} روز آینده سررسید می‌شود`);
           else if (direction === 'received') lines.push(`${cnt} چک دریافتی در ${dFa} روز آینده سررسید می‌شود`);
           else lines.push(`${cnt} چک در ${dFa} روز آینده سررسید می‌شود`);
-        } else if (kind === 'recurring_income') {
-          lines.push(`${cnt} درآمد ثابت در ${dFa} روز آینده واریز می‌شود`);
         }
       }
     }
@@ -175,8 +167,7 @@ export async function runReminderEmailDigest(env, options = {}) {
         const remItem = { ...rem, direction: dir };
 
         // 1. Overdue: due_date < today
-        // A fixed income is not «overdue»: the next one simply comes on its day
-        if (prefs.sendOverdue && rem.kind !== 'recurring_income' && rem.dueDate < today) {
+        if (prefs.sendOverdue && rem.dueDate < today) {
           const sentKey = `${userId}|${rem.kind}|${rem.recordId}|${rem.dueDate}|overdue`;
           if (!sentSet.has(sentKey)) {
             toSendGroups.overdue.push(remItem);

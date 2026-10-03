@@ -1,16 +1,16 @@
 /**
  * reminders.js — Plaintext reminder index metadata and occurrence schedule calculation
  *
- * RealRate financial records (loans, cheques, fixed incomes) are client-side encrypted in the
+ * RealRate financial records (loans, cheques) are client-side encrypted in the
  * vault. To deliver due-date reminders (via server email cron, local notifications, or Web Push)
  * without ever decrypting or leaking financial values, each due record maintains a minimal,
  * plaintext reminder row:
  *
  *   {
- *     kind: 'loan' | 'cheque' | 'recurring_income',
+ *     kind: 'loan' | 'cheque',
  *     recordId: string,
  *     dueDate: 'YYYY-MM-DD',  // next unpaid date (Gregorian)
- *     intervalMonths: 0..12,  // 0 = one-off (cheques); >0 = repeats (loan installments, fixed incomes)
+ *     intervalMonths: 0..12,  // 0 = one-off (cheques); >0 = repeats (loan installments)
  *     remaining: 0..600 | null, // occurrences left including dueDate; null for open-ended
  *     direction: 'issued' | 'received' | '', // cheques only, and only if explicitly opted-in
  *     muted: boolean,         // per-record reminder disable flag
@@ -31,9 +31,8 @@ import {
 } from './loanCalculator.js';
 import { buildLoanView } from './loanDocument.js';
 import { isChequeOpen } from './chequeDocument.js';
-import { dueOccurrences, nextOccurrence, shamsiDayOf } from './recurringIncome.js';
 
-export const REMINDER_KINDS = ['loan', 'cheque', 'recurring_income'];
+export const REMINDER_KINDS = ['loan', 'cheque'];
 const RECORD_ID_RE = /^[A-Za-z0-9_-]{1,80}$/;
 const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -109,7 +108,7 @@ export function validateReminder(input) {
  * Derives a minimal plaintext reminder row from a decrypted record. Pure.
  * Returns null if no reminder is needed (loan fully paid, cheque closed, inactive rule).
  *
- * @param {'loan'|'cheque'|'recurring_income'} kind
+ * @param {'loan'|'cheque'} kind
  * @param {object} plainRecord
  * @param {{ includeDirection?: boolean }} [options]
  * @returns {object|null}
@@ -186,46 +185,6 @@ export function reminderOf(kind, plainRecord, { includeDirection = false } = {})
       intervalMonths: 0,
       remaining: 1,
       direction,
-      muted,
-    };
-  }
-
-  if (kind === 'recurring_income') {
-    if (plainRecord.active === false) return null;
-
-    const startDate = plainRecord.startDate;
-    if (!startDate || !isValidIsoDate(startDate)) return null;
-    const interval = Math.max(1, parseInt(plainRecord.intervalMonths, 10) || 1);
-    // A rule saved without its day (older data) gets paid on its start's Shamsi day, as validation fills it
-    const day = parseInt(plainRecord.dayOfMonth, 10);
-    const rule = {
-      ...plainRecord,
-      active: true,
-      intervalMonths: interval,
-      dayOfMonth: day >= 1 && day <= 31 ? day : shamsiDayOf(startDate),
-    };
-
-    // The next occurrence after generatedThrough, or the first one from startDate
-    let nextDate = null;
-    if (rule.generatedThrough) {
-      nextDate = nextOccurrence(rule, rule.generatedThrough);
-    } else {
-      nextDate = dueOccurrences(rule, '9999-12-31')[0] || nextOccurrence(rule, startDate);
-    }
-
-    if (!nextDate || !isValidIsoDate(nextDate)) return null;
-    if (rule.endDate && nextDate > rule.endDate) return null;
-
-    const muted = Boolean(plainRecord.remindersMuted);
-    const recordId = String(plainRecord.id || '');
-
-    return {
-      kind: 'recurring_income',
-      recordId,
-      dueDate: nextDate,
-      intervalMonths: interval,
-      remaining: null,
-      direction: '',
       muted,
     };
   }

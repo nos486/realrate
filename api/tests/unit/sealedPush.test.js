@@ -448,7 +448,7 @@ describe('Sealed Web Push (Part C)', () => {
         deviceId,
         items: [
           {
-            kind: 'recurring_income',
+            kind: 'cheque',
             recordId: 'inc_1',
             dueDate: '2026-10-05',
             reason: 'due',

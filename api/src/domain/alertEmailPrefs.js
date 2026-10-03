@@ -1,17 +1,16 @@
 /**
  * alertEmailPrefs.js — Server-side email reminder preferences validation and defaults
  *
- * Each account can opt in to daily email digests for due loan installments, cheques and fixed
- * incomes. To preserve zero-knowledge encryption, emails only ever contain counts and item kinds
+ * Each account can opt in to daily email digests for due loan installments and cheques. To preserve zero-knowledge encryption, emails only ever contain counts and item kinds
  * (no amounts, counterparties, or bank titles).
  */
 
-export const ALLOWED_EMAIL_SOURCES = ['loan', 'cheque', 'recurring_income'];
+export const ALLOWED_EMAIL_SOURCES = ['loan', 'cheque'];
 export const ALLOWED_LEAD_DAYS = [0, 1, 3, 7];
 
 export const DEFAULT_ALERT_EMAIL_PREFS = {
   enabled: false,
-  sources: ['loan', 'cheque', 'recurring_income'],
+  sources: ['loan', 'cheque'],
   leadDays: [1, 0],
   sendOverdue: true,
   includeChequeDirection: false,

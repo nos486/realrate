@@ -29,7 +29,6 @@ export default function PortfolioTracker({
   // The active view renders its toolbar (search, export / import, settings) into this row
   const [toolbarSlot, setToolbarSlot] = useState(null);
   const [holdingsVaultLocked, setHoldingsVaultLocked] = useState(false);
-  const [activeViewCount, setActiveViewCount] = useState(null);
 
   const [newPortfolioModalOpen, setNewPortfolioModalOpen] = useState(false);
   const [newPortfolioName, setNewPortfolioName] = useState('');
@@ -86,8 +85,6 @@ export default function PortfolioTracker({
         activePortfolioId={activePortfolio?.id}
         onSelect={switchPortfolio}
         onNewPortfolio={readOnly ? undefined : () => setNewPortfolioModalOpen(true)}
-        holdingsCount={activeViewCount ?? 0}
-        activeCount={activeViewCount}
       />
 
       {/* The holdings toolbar (search, export / import, settings) */}
@@ -104,7 +101,6 @@ export default function PortfolioTracker({
         deletePortfolio={deletePortfolio}
         onVaultLockChange={setHoldingsVaultLocked}
         toolbarSlot={toolbarSlot}
-        onCountChange={setActiveViewCount}
       />
 
       {/* New Portfolio Modal */}

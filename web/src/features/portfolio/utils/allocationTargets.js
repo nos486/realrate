@@ -36,7 +36,8 @@ export function targetsTotal(targets = {}) {
  * @param {{ threshold?: number }} [options]
  * @returns {{
  *   rows: Array<{ key: string, targetKey: string, name: string, icon: string, value: number,
- *     currentPct: number, targetPct: number|null, diff: number|null, drifted: boolean }>,
+ *     currentPct: number, targetPct: number|null, diff: number|null, diffValue: number|null,
+ *     drifted: boolean }>,
  *   total: number, targetsTotal: number, hasTargets: boolean, complete: boolean,
  *   drifted: object[]
  * }}
@@ -55,6 +56,8 @@ export function buildAllocation(groups = [], targets = {}, { threshold = DRIFT_T
       const target = Number(targets?.[targetKey]) || 0;
       const targetPct = hasTargets ? target : null;
       const diff = targetPct === null ? null : round1(currentPct - targetPct);
+      // Tomans above (+) or below (−) the target share of today's value
+      const diffValue = targetPct === null ? null : Math.round(value - (total * targetPct) / 100);
       return {
         key: g.key || g.id,
         targetKey,
@@ -64,6 +67,7 @@ export function buildAllocation(groups = [], targets = {}, { threshold = DRIFT_T
         currentPct,
         targetPct,
         diff,
+        diffValue,
         drifted: complete && total > 0 && Math.abs(diff) > threshold,
       };
     })

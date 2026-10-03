@@ -125,12 +125,6 @@ import {
 } from "./handlers/chequeRoutes.js";
 import { handleChequeScanRoute, handleChequeScanQuotaRoute } from "./handlers/chequeScanRoutes.js";
 import {
-  handleGetRecurringIncomes,
-  handleCreateRecurringIncome,
-  handleUpdateRecurringIncome,
-  handleDeleteRecurringIncome,
-} from "./handlers/recurringIncomeRoutes.js";
-import {
   handleRegister,
   handleVerifyEmail,
   handleResendVerification,
@@ -445,18 +439,6 @@ async function handleRequest(request, env, ctx) {
   }
 
   // ── Incomes API Routes ──────────────────────────────────────────────────
-  // Fixed (recurring) income rules — matched before /api/incomes/:id
-  if (normalizedPath === "/api/incomes/recurring") {
-    if (request.method === "GET")  return wrap(handleGetRecurringIncomes)(request, env);
-    if (request.method === "POST") return wrap(handleCreateRecurringIncome)(request, env);
-  }
-  const recurringSingleMatch = normalizedPath.match(/^\/api\/incomes\/recurring\/([^/]+)$/);
-  if (recurringSingleMatch) {
-    const ruleId = recurringSingleMatch[1];
-    if (request.method === "PUT")    return wrap((req, e) => handleUpdateRecurringIncome(req, e, { ruleId }))(request, env);
-    if (request.method === "DELETE") return wrap((req, e) => handleDeleteRecurringIncome(req, e, { ruleId }))(request, env);
-  }
-
   const incomeSingleMatch = normalizedPath.match(/^\/api\/incomes\/([^/]+)$/);
   if (incomeSingleMatch) {
     const incomeId = incomeSingleMatch[1];

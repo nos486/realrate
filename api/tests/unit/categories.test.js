@@ -13,7 +13,6 @@ import {
   CUSTOM_CATEGORY_RE,
 } from '../../src/domain/categoryDocument.js';
 import { validateExpense } from '../../src/domain/expenseDocument.js';
-import { validateRecurringIncome } from '../../src/domain/recurringIncome.js';
 
 const vault = vi.hoisted(() => ({ records: [], put: vi.fn() }));
 vi.mock('../../../web/src/shared/vault/vaultApi.js', () => ({ listVaultRecords: vi.fn(async () => ({ records: vault.records })) }));
@@ -69,14 +68,12 @@ describe('categoryDocument', () => {
 });
 
 describe('records take custom categories', () => {
-  it('expenses, budgets, incomes and fixed incomes', () => {
+  it('expenses, budgets and incomes', () => {
     const exp = validateExpense({ groupId: 'exg_1', title: 'غذای گربه', amount: 1, date: '2026-09-01', category: 'c_pets0001' });
     expect(exp.value.category).toBe('c_pets0001');
     expect(validateExpense({ groupId: 'exg_1', title: 't', amount: 1, date: '2026-09-01', category: 'nope' }).value.category).toBe('');
     expect(parseIncomeInput({ title: 'فروش', amount: 1, incomeDate: '2026-09-01', category: 'c_sale0001' }).category).toBe('c_sale0001');
     expect(parseIncomeInput({ title: 'فروش', amount: 1, incomeDate: '2026-09-01', category: 'nope' }).category).toBe('other');
-    const rule = validateRecurringIncome({ title: 'اجاره', amount: 1, category: 'c_rent0001', startDate: '2026-09-01', intervalMonths: 1 });
-    expect(rule.value?.category ?? rule.category).toBe('c_rent0001');
   });
 });
 

@@ -201,7 +201,7 @@ describe('Alert Email System (Part A)', () => {
       expect(data.emailVerified).toBe(true);
       expect(data.emailConfigured).toBe(true);
       expect(data.prefs.enabled).toBe(false);
-      expect(data.prefs.sources).toEqual(['loan', 'cheque', 'recurring_income']);
+      expect(data.prefs.sources).toEqual(['loan', 'cheque']);
     });
 
     it('updates preferences and clears cheque direction when disabled', async () => {
@@ -301,7 +301,7 @@ describe('Alert Email System (Part A)', () => {
       db.prefs.set(userId, {
         user_id: userId,
         enabled: 1,
-        sources: JSON.stringify(['loan', 'cheque', 'recurring_income']),
+        sources: JSON.stringify(['loan', 'cheque']),
         lead_days: JSON.stringify([1, 0]),
         send_overdue: 1,
         include_cheque_direction: 1,
@@ -332,14 +332,14 @@ describe('Alert Email System (Part A)', () => {
         muted: 0,
       });
 
-      // 3. Fixed income due tomorrow 2026-10-06 (lead day 1)
+      // 3. Cheque due tomorrow 2026-10-06 (lead day 1)
       db.reminders.push({
         user_id: userId,
-        kind: 'recurring_income',
-        record_id: 'inc_1',
+        kind: 'cheque',
+        record_id: 'chk_2',
         due_date: '2026-10-06',
-        interval_months: 1,
-        remaining: null,
+        interval_months: 0,
+        remaining: 1,
         direction: '',
         muted: 0,
       });
@@ -367,7 +367,7 @@ describe('Alert Email System (Part A)', () => {
         expect.arrayContaining([
           expect.objectContaining({ record_id: 'ln_1', reason: 'overdue' }),
           expect.objectContaining({ record_id: 'chk_1', reason: 'due' }),
-          expect.objectContaining({ record_id: 'inc_1', reason: 'lead:1' }),
+          expect.objectContaining({ record_id: 'chk_2', reason: 'lead:1' }),
         ])
       );
 
@@ -437,19 +437,19 @@ describe('Alert Email System (Part A)', () => {
       expect(sendEmail).toHaveBeenCalledTimes(3);
     });
 
-    it('never reports a fixed income as overdue', async () => {
+    it('ignores fixed incomes left from before they were removed (source and index rows)', async () => {
       const userId = 'u_income';
       db.users.set(userId, { email: 'income@example.com', email_verified: 1, disabled: 0 });
       db.prefs.set(userId, {
         user_id: userId,
         enabled: 1,
-        sources: JSON.stringify(['recurring_income']),
+        sources: JSON.stringify(['recurring_income', 'loan']),
         lead_days: JSON.stringify([0]),
         send_overdue: 1,
         include_cheque_direction: 0,
       });
       db.reminders.push({
-        user_id: userId, kind: 'recurring_income', record_id: 'inc_past', due_date: '2026-09-20',
+        user_id: userId, kind: 'recurring_income', record_id: 'inc_old', due_date: '2026-10-05',
         interval_months: 1, remaining: null, direction: '', muted: 0,
       });
 

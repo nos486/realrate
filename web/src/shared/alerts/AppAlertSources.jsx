@@ -10,7 +10,7 @@
  * Then the delivery channels run over everything (alertChannels.js).
  */
 
-import { useState, useEffect, useMemo } from 'react';
+import { useEffect, useMemo } from 'react';
 import { useLoansContext } from '../../features/loans/context/LoansContext.jsx';
 import { useChequesContext } from '../../features/cheques/context/ChequesContext.jsx';
 import { useAppUpdate } from '../native/useAppUpdate.js';
@@ -20,7 +20,6 @@ import { scheduleDueNotifications } from '../native/dueNotifications.js';
 import { syncSealedReminders } from '../push/webPushClient.js';
 import { useVault } from '../vault/useVault.js';
 import { usePrivacyMode } from '../../hooks/usePrivacyMode.js';
-import { getRecurringIncomes } from '../../features/incomes/api/recurringIncomeApi.js';
 import { todayIso } from '../utils/dates.js';
 import { loanAlerts, chequeAlerts } from './alertRules.js';
 import { alertFingerprint } from '../../utils/alerts.js';
@@ -36,22 +35,6 @@ export default function AppAlertSources({ announcement = '' }) {
   const vault = useVault();
   const hideAmounts = usePrivacyMode();
   const today = todayIso();
-  const [recurringIncomes, setRecurringIncomes] = useState([]);
-
-  useEffect(() => {
-    if (vault?.status !== 'unlocked') {
-      setRecurringIncomes([]);
-      return;
-    }
-    let active = true;
-    getRecurringIncomes()
-      .then((res) => {
-        if (active) setRecurringIncomes(res?.rules || []);
-      })
-      .catch(() => {});
-    return () => { active = false; };
-  }, [vault?.status]);
-
   useAlertSource('loan', useMemo(() => loanAlerts(loans, today), [loans, today]));
   useAlertSource('cheque', useMemo(() => chequeAlerts(cheques, today), [cheques, today]));
   useAlertSource('app', hasUpdate(update) ? [{
@@ -82,12 +65,11 @@ export default function AppAlertSources({ announcement = '' }) {
     scheduleDueNotifications({
       loans,
       cheques,
-      recurringIncomes,
       isVaultUnlocked: true,
       today,
       hideAmounts,
     }).catch((err) => console.warn('Scheduling due notifications failed:', err));
-  }, [loans, cheques, recurringIncomes, vault?.status, today, hideAmounts]);
+  }, [loans, cheques, vault?.status, today, hideAmounts]);
 
   // Sealed Web Push reminders for website / PWA (desktop & iPhone users without Android app)
   useEffect(() => {
@@ -95,12 +77,11 @@ export default function AppAlertSources({ announcement = '' }) {
     syncSealedReminders({
       loans,
       cheques,
-      recurringIncomes,
       isVaultUnlocked: true,
       today,
       hideAmounts,
     }).catch((err) => console.warn('Syncing sealed push reminders failed:', err));
-  }, [loans, cheques, recurringIncomes, vault?.status, today, hideAmounts]);
+  }, [loans, cheques, vault?.status, today, hideAmounts]);
 
   return null;
 }

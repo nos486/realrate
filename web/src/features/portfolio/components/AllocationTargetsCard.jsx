@@ -2,8 +2,9 @@
  * AllocationTargetsCard.jsx — «هدف ترکیب»: each category's share today against its target
  *
  * A pie of today's shares (with each category's target as a thin outer ring) and a row per
- * category: today's share, its target, and how far apart they are — red when more than
- * DRIFT_THRESHOLD points (utils/allocationTargets.js). Without targets it invites setting them.
+ * category: today's share, its target, and how far apart they are, in points and in tomans — red
+ * when more than DRIFT_THRESHOLD points (utils/allocationTargets.js). Without targets it invites
+ * setting them.
  */
 
 import React from 'react';
@@ -11,6 +12,7 @@ import { Target, AlertTriangle, Pencil } from 'lucide-react';
 import { CategoryIcon } from '../utils/holdingHelpers.js';
 import { CHART_COLORS, CHART_OTHER_COLOR } from '../../../shared/ui/chartColors.js';
 import { DRIFT_THRESHOLD } from '../utils/allocationTargets.js';
+import { formatCompactAmount } from '../../../shared/utils/formatters.js';
 
 const SIZE = 132;
 const C = SIZE / 2;
@@ -19,6 +21,8 @@ const RING_R = 61;
 
 const faPct = (n) => `${Number(n || 0).toLocaleString('fa-IR', { maximumFractionDigits: 1 })}٪`;
 const signedPct = (n) => `${n > 0 ? '+' : n < 0 ? '−' : ''}${faPct(Math.abs(n))}`;
+/** «+۱۲ میلیون»: how many tomans above or below the target */
+const signedAmount = (n) => `${n > 0 ? '+' : n < 0 ? '−' : ''}${formatCompactAmount(Math.abs(n))}`;
 const colorOf = (i) => CHART_COLORS[i] || CHART_OTHER_COLOR;
 
 const point = (r, a) => [C + r * Math.sin(a), C - r * Math.cos(a)];
@@ -69,7 +73,7 @@ function Pie({ rows }) {
   );
 }
 
-export default function AllocationTargetsCard({ allocation, onEdit, readOnly = false }) {
+export default function AllocationTargetsCard({ allocation, onEdit, readOnly = false, hideValues = false }) {
   const { rows, hasTargets, complete, drifted, targetsTotal } = allocation;
   // Largest share first: the same color order as the pie
   const ordered = [...rows].sort((a, b) => b.currentPct - a.currentPct || (b.targetPct || 0) - (a.targetPct || 0));
@@ -120,7 +124,12 @@ export default function AllocationTargetsCard({ allocation, onEdit, readOnly = f
                 <span className="allocation-targets-now">{faPct(r.currentPct)}</span>
                 <span className="allocation-targets-goal">هدف {faPct(r.targetPct)}</span>
                 <span className={`allocation-targets-diff ${r.drifted ? 'is-off' : ''}`}>
-                  {r.drifted && <AlertTriangle size={12} />} {signedPct(r.diff)}
+                  <span className="allocation-targets-diff-pct">{r.drifted && <AlertTriangle size={12} />} {signedPct(r.diff)}</span>
+                  {r.diffValue !== null && r.diffValue !== 0 && (
+                    <small className="allocation-targets-diff-amount" title={r.diffValue > 0 ? 'بیشتر از هدف (تومان)' : 'کمتر از هدف (تومان)'}>
+                      {hideValues ? '****' : `${signedAmount(r.diffValue)} تومان`}
+                    </small>
+                  )}
                 </span>
               </li>
             ))}

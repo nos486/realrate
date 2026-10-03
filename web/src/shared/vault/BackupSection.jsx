@@ -28,7 +28,6 @@ const KIND_LABELS = {
   portfolio_layout: 'دسته‌بندی و هدف پورتفو',
   loan: 'وام',
   income: 'درآمد',
-  recurring_income: 'درآمد ثابت',
   cheque: 'چک',
   expense_group: 'بخش هزینه',
   expense: 'هزینه',

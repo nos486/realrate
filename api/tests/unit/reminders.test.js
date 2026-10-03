@@ -7,7 +7,6 @@ import {
 } from '../../src/domain/reminders.js';
 import { createLoanDoc, markInstallmentPaidDoc } from '../../src/domain/loanDocument.js';
 import { validateChequeInput } from '../../src/domain/chequeDocument.js';
-import { validateRecurringIncome } from '../../src/domain/recurringIncome.js';
 
 describe('validateReminder', () => {
   it('accepts valid reminder objects for all kinds', () => {
@@ -37,18 +36,8 @@ describe('validateReminder', () => {
     expect(res2.error).toBeUndefined();
     expect(res2.value).toEqual(chequeRem);
 
-    const rincRem = {
-      kind: 'recurring_income',
-      recordId: 'rinc_789',
-      dueDate: '2026-10-20',
-      intervalMonths: 3,
-      remaining: null,
-      direction: '',
-      muted: false,
-    };
-    const res3 = validateReminder(rincRem);
-    expect(res3.error).toBeUndefined();
-    expect(res3.value).toEqual(rincRem);
+    // Fixed incomes were removed: their kind is no longer indexed
+    expect(validateReminder({ ...chequeRem, kind: 'recurring_income' }).error).toBeTruthy();
   });
 
   it('rejects bad input', () => {
@@ -158,42 +147,6 @@ describe('reminderOf', () => {
     }
   });
 
-  it('fixed income: active and ended', () => {
-    const { value: activeRule } = validateRecurringIncome({
-      title: 'حقوق ماهانه',
-      amount: 25_000_000,
-      startDate: '2026-10-01',
-      intervalMonths: 1,
-      dayOfMonth: 10,
-    });
-    activeRule.id = 'rinc_active';
-
-    const remActive = reminderOf('recurring_income', activeRule);
-    expect(remActive).toMatchObject({
-      kind: 'recurring_income',
-      recordId: 'rinc_active',
-      intervalMonths: 1,
-      remaining: null,
-      muted: false,
-    });
-    expect(remActive.dueDate).toMatch(/^\d{4}-\d{2}-\d{2}$/);
-
-    // Paused rule
-    const pausedRule = { ...activeRule, active: false };
-    expect(reminderOf('recurring_income', pausedRule)).toBeNull();
-
-    // Ended rule (endDate passed and generated through end)
-    const { value: endedRule } = validateRecurringIncome({
-      title: 'اجاره تمام‌شده',
-      amount: 10_000_000,
-      startDate: '2026-01-01',
-      endDate: '2026-03-01',
-      generatedThrough: '2026-03-01',
-      intervalMonths: 1,
-    });
-    expect(reminderOf('recurring_income', endedRule)).toBeNull();
-  });
-
   it('muted flag is respected and passed on per-record', () => {
     const loanDoc = createLoanDoc({
       id: 'l_muted',
@@ -215,24 +168,7 @@ describe('reminderOf', () => {
     };
     expect(reminderOf('cheque', cheque).muted).toBe(true);
 
-    const rinc = {
-      id: 'r_muted',
-      title: 'درآمد سایلنت',
-      amount: 100_000,
-      startDate: '2026-10-01',
-      intervalMonths: 1,
-      dayOfMonth: 5,
-      remindersMuted: true,
-      active: true,
-    };
-    expect(reminderOf('recurring_income', rinc).muted).toBe(true);
-  });
-
-  it('a fixed income saved without its day of month is paid on its start\'s Shamsi day', () => {
-    // 2026-09-05 is 14 Shahrivar 1405; the next month's 14th is 2026-10-06
-    const rem = reminderOf('recurring_income', { id: 'inc_old', startDate: '2026-09-05', intervalMonths: 1, generatedThrough: '2026-09-05' });
-    expect(rem).toMatchObject({ kind: 'recurring_income', recordId: 'inc_old', dueDate: '2026-10-06', intervalMonths: 1 });
-    expect(reminderOf('recurring_income', { id: 'inc_off', startDate: '2026-09-05', active: false })).toBeNull();
+    expect(reminderOf('recurring_income', { id: 'r_any', startDate: '2026-10-01', active: true })).toBeNull();
   });
 });
 

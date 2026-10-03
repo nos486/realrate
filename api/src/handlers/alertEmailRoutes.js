@@ -90,7 +90,6 @@ export async function handleSendTestEmailAlert(request, env) {
     items: [
       '۱ قسط وام فردا سررسید می‌شود',
       '۱ چک صادره امروز سررسید است — موجودی حسابتان را بررسی کنید',
-      'حقوق/درآمد ثابت امروز باید واریز شود',
     ],
     appUrl,
     settingsUrl: `${appUrl}/settings`,

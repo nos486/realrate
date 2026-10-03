@@ -6,8 +6,6 @@ export default function PortfolioSwitcher({
   activePortfolioId = null,
   onSelect,
   onNewPortfolio,
-  holdingsCount = 0,
-  activeCount = null,
 }) {
   return (
     <div className="portfolio-nav-bar">
@@ -15,7 +13,6 @@ export default function PortfolioSwitcher({
         <span className="portfolio-nav-label">پورتفوها:</span>
         {portfolios.map((p) => {
           const isActive = p.id === activePortfolioId;
-          const count = isActive ? (activeCount !== null ? activeCount : holdingsCount) : (p.itemCount ?? 0);
           return (
             <button
               key={p.id}
@@ -43,9 +40,6 @@ export default function PortfolioSwitcher({
                   <Share2 size={10} style={{ verticalAlign: 'middle' }} />
                 </span>
               )}
-              <span className="tab-pill-count">
-                {count.toLocaleString('fa-IR')}
-              </span>
             </button>
           );
         })}

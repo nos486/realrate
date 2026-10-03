@@ -173,7 +173,7 @@ export default function VaultSettingsSection() {
   useWarnBeforeUnload(Boolean(progress));
 
   const pendingCount = pending
-    ? pending.plainPortfolios.length + pending.plainLoans + pending.plainIncomes + pending.plainCheques + pending.plainRecurringIncomes
+    ? pending.plainPortfolios.length + pending.plainLoans + pending.plainIncomes + pending.plainCheques
     : 0;
 
   return (

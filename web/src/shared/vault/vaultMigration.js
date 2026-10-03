@@ -37,7 +37,6 @@ import { movePortfolioItemsToVault } from './vaultPortfolioItems.js';
 import { clearVaultLoansCache } from './vaultLoans.js';
 import { clearVaultIncomesCache } from './vaultIncomes.js';
 import { clearVaultChequesCache } from './vaultCheques.js';
-import { clearVaultRecurringIncomesCache } from './vaultRecurringIncomes.js';
 
 const SILENT = { silent: true };
 
@@ -183,23 +182,9 @@ export async function encryptAccountData({ passphrase, onProgress } = {}) {
     tick('چک‌ها');
   }
 
-  // 5. Fixed income rules
-  const rules = await fetchList(report, 'درآمدهای ثابت', () => httpClient.get('/api/incomes/recurring'), 'rules');
-  plan(rules.length, 'درآمدهای ثابت');
-  for (const rule of rules) {
-    try {
-      const { userId: _userId, ...record } = rule;
-      await putRecord('recurring_income', rule.id, await encryptVaultRecord(record), record, { replacePlain: true, ...SILENT });
-    } catch {
-      report.failed.push(`درآمد ثابت «${rule.title}»`);
-    }
-    tick('درآمدهای ثابت');
-  }
-
   clearVaultLoansCache();
   clearVaultIncomesCache();
   clearVaultChequesCache();
-  clearVaultRecurringIncomesCache();
   bumpVaultEpoch();
   return report;
 }
@@ -212,9 +197,8 @@ export async function findPendingPlaintext() {
     httpClient.get('/api/loans'),
     httpClient.get('/api/incomes'),
     httpClient.get('/api/cheques'),
-    httpClient.get('/api/incomes/recurring'),
   ]);
-  const [pRes, loansRes, incomesRes, chequesRes, rulesRes] = settled.map((r) => (r.status === 'fulfilled' ? r.value : null));
+  const [pRes, loansRes, incomesRes, chequesRes] = settled.map((r) => (r.status === 'fulfilled' ? r.value : null));
   if (settled.every((r) => r.status === 'rejected')) throw settled[0].reason;
   const portfolios = pRes?.portfolios || [];
   return {
@@ -223,6 +207,5 @@ export async function findPendingPlaintext() {
     plainLoans: (loansRes?.loans || []).length,
     plainIncomes: (incomesRes?.incomes || []).length,
     plainCheques: (chequesRes?.cheques || []).length,
-    plainRecurringIncomes: (rulesRes?.rules || []).length,
   };
 }

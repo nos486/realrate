@@ -3,7 +3,7 @@
  *
  * The per-section CSV files are for reading in Excel; this file is for keeping and restoring:
  * every encrypted record of every kind (loans with their paid installments and extra payments,
- * incomes and fixed incomes, cheques, expense sections and expenses with their shares and
+ * incomes, cheques, expense sections and expenses with their shares and
  * payments, accounts, transfers between them, categories) and every portfolio with all of its
  * entries (purchases, sales, payments of expenses, its custom categories and targets), plus the
  * user's custom banks and home page.
@@ -38,7 +38,7 @@ export const BACKUP_VERSION = 1;
 
 /** Kinds encrypted with the account key (in the order they are restored) */
 export const ACCOUNT_KINDS = [
-  'category_settings', 'bank_account', 'loan', 'income', 'recurring_income', 'cheque',
+  'category_settings', 'bank_account', 'loan', 'income', 'cheque',
   'expense_group', 'expense', 'transfer',
 ];
 /** Kinds of a portfolio, encrypted with its own key */

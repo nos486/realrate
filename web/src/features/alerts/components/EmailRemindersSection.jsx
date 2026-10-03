@@ -1,5 +1,5 @@
 /**
- * EmailRemindersSection.jsx — Account email reminder settings for loans, cheques and fixed incomes
+ * EmailRemindersSection.jsx — Account email reminder settings for loans and cheques
  *
  * Configures server-side daily email reminders at 08:00 Asia/Tehran.
  * Zero-knowledge guarantee: emails only ever include counts and item kinds; titles, counterparties,
@@ -20,7 +20,6 @@ import { useFeedback } from '../../../shared/ui/FeedbackProvider.jsx';
 const SOURCE_OPTIONS = [
   { id: 'loan', label: 'اقساط وام' },
   { id: 'cheque', label: 'چک‌ها' },
-  { id: 'recurring_income', label: 'درآمد ثابت' },
 ];
 
 const LEAD_DAY_OPTIONS = [
@@ -42,7 +41,7 @@ export default function EmailRemindersSection() {
   const [userEmail, setUserEmail] = useState('');
 
   const [enabled, setEnabled] = useState(false);
-  const [sources, setSources] = useState(['loan', 'cheque', 'recurring_income']);
+  const [sources, setSources] = useState(['loan', 'cheque']);
   const [leadDays, setLeadDays] = useState([1, 0]);
   const [sendOverdue, setSendOverdue] = useState(true);
   const [includeChequeDirection, setIncludeChequeDirection] = useState(false);

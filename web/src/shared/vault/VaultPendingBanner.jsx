@@ -47,7 +47,7 @@ export default function VaultPendingBanner({ onOpenSettings }) {
   }
 
   if (vault.status !== 'unlocked' || !pending || dismissedEpoch === vault.epoch) return null;
-  const plainCount = pending.plainPortfolios.length + pending.plainLoans + pending.plainIncomes + pending.plainCheques + pending.plainRecurringIncomes;
+  const plainCount = pending.plainPortfolios.length + pending.plainLoans + pending.plainIncomes + pending.plainCheques;
   const legacyCount = pending.legacyPortfolios.length;
   if (plainCount === 0 && legacyCount === 0) return null;
 

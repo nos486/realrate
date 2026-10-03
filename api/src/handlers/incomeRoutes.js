@@ -26,7 +26,6 @@ import {
   INCOME_NOTES_MAX_LENGTH,
 } from "../config/constants.js";
 import { isCategoryValue } from "../domain/categoryDocument.js";
-import { isRecurringId } from "../domain/recurringIncome.js";
 
 const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -54,7 +53,7 @@ export function parseIncomeInput(body = {}) {
   const incomeDate = String(body.incomeDate ?? body.income_date ?? "").trim();
   const notes = String(body.notes ?? "").trim();
   const category = isCategoryValue("income", body.category) ? body.category : "other";
-  // Set on entries a fixed (recurring) income created; '' for entries typed by the user
+  // Set on entries the (removed) fixed incomes created; kept as it was on older entries
   const recurringId = String(body.recurringId ?? "").trim();
 
   if (!title) {
@@ -73,7 +72,7 @@ export function parseIncomeInput(body = {}) {
     throw AppError.badRequest(`یادداشت نباید بیشتر از ${INCOME_NOTES_MAX_LENGTH} کاراکتر باشد.`);
   }
 
-  if (!isRecurringId(recurringId)) {
+  if (recurringId && !/^[A-Za-z0-9_-]{1,64}$/.test(recurringId)) {
     throw AppError.badRequest("شناسه درآمد ثابت نامعتبر است.");
   }
 

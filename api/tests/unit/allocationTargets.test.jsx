@@ -56,8 +56,8 @@ describe('buildAllocation', () => {
     const a = buildAllocation(groups, { g_gold: 30, g_currency: 35, g_bourse: 25, g_crypto: 10 });
     expect(a.complete).toBe(true);
     const byKey = Object.fromEntries(a.rows.map((r) => [r.key, r]));
-    expect(byKey.gold).toMatchObject({ currentPct: 40, targetPct: 30, diff: 10, drifted: true });
-    expect(byKey.currency).toMatchObject({ diff: 0, drifted: false });
+    expect(byKey.gold).toMatchObject({ currentPct: 40, targetPct: 30, diff: 10, diffValue: 100, drifted: true });
+    expect(byKey.currency).toMatchObject({ diff: 0, diffValue: 0, drifted: false });
     // Holding nothing, but targeted: shown, and 10 points short
     expect(byKey.crypto).toMatchObject({ currentPct: 0, diff: -10, drifted: true });
     expect(a.drifted.map(describeDrift)).toEqual(['طلا ۱۰٪ بیشتر از هدف', 'رمزارز ۱۰٪ کمتر از هدف']);
@@ -89,6 +89,17 @@ describe('targets UI', () => {
     expect(document.querySelectorAll('.allocation-targets-list li.is-drifted')).toHaveLength(2);
     expect(document.body.textContent).toMatch(/۶۰٪/);
     expect(document.body.textContent).toMatch(/هدف ۵۰٪/);
+  });
+
+  it('shows how many tomans each category is above or below its target, masked in privacy mode', () => {
+    const big = [group('gold', 'طلا', 600_000_000), group('currency', 'ارز', 400_000_000)];
+    const allocation = buildAllocation(big, { g_gold: 50, g_currency: 50 });
+    const { unmount } = render(<AllocationTargetsCard allocation={allocation} onEdit={vi.fn()} />);
+    const amounts = [...document.querySelectorAll('.allocation-targets-diff-amount')].map((el) => el.textContent);
+    expect(amounts).toEqual(['+۱۰۰ میلیون تومان', '−۱۰۰ میلیون تومان']);
+    unmount();
+    render(<AllocationTargetsCard allocation={allocation} onEdit={vi.fn()} hideValues />);
+    expect([...document.querySelectorAll('.allocation-targets-diff-amount')].map((el) => el.textContent)).toEqual(['****', '****']);
   });
 
   it('without targets the card invites setting them', () => {

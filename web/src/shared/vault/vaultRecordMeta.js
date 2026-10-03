@@ -21,7 +21,6 @@ const PRIMARY_DATE = {
   income: (r) => r?.incomeDate,
   cheque: (r) => r?.dueDate,
   loan: (doc) => doc?.loan?.startDate,
-  recurring_income: (r) => r?.startDate,
   holding: (h) => h?.buyDate,
   transaction: (t) => t?.transactionDate || t?.date,
   expense_group: (g) => g?.createdAt,
@@ -110,7 +109,7 @@ export async function putRecord(kind, id, payload, plain, { parentId = '', remin
 }
 
 /**
- * After loans, cheques and fixed incomes are listed and decrypted, store the reminders that are
+ * After loans and cheques are listed and decrypted, store the reminders that are
  * missing or changed since this browser last stored them. A record whose reminder is unchanged
  * is left alone, so opening the app does not re-store every record.
  * @param {string} kind

@@ -228,19 +228,6 @@ describe('Android Due Notifications (Part B)', () => {
     });
   });
 
-  describe('fixed incomes', () => {
-    it('reminds before and on the day, never «overdue»', () => {
-      const res = planDueNotifications({
-        recurringIncomes: [{ id: 'inc_1', title: 'حقوق', amount: 30000000, startDate: '2026-09-05', intervalMonths: 1, active: true }],
-        today: '2026-10-05',
-        settings: { enabled: true, leadDays: [1, 0] },
-        now: new Date('2026-10-05T08:00:00'),
-      });
-      expect(res.filter((n) => n.kind === 'recurring_income').length).toBeGreaterThan(0);
-      expect(res.some((n) => n.reason === 'overdue')).toBe(false);
-    });
-  });
-
   describe('cancelDueNotifications (logout)', () => {
     it('cancels only due notifications, and does nothing on the web', async () => {
       mockLocalNotifications.getPending.mockResolvedValue({

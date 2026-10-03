@@ -7,7 +7,6 @@
  */
 
 import { isCategoryValue } from '../../utils/categoryDocument.js';
-import { isRecurringId } from '../../utils/recurringIncome.js';
 import { listVaultRecords, deleteVaultRecord } from './vaultApi.js';
 import { putRecord, backfillRecordDates, repairRecordDates } from './vaultRecordMeta.js';
 import { encryptVaultRecord, decryptVaultRecord } from './vaultStore.js';
@@ -31,7 +30,6 @@ export function parseIncomeInput(body = {}) {
   const incomeDate = String(body.incomeDate ?? body.income_date ?? '').trim();
   const notes = String(body.notes ?? '').trim();
   const category = isCategoryValue('income', body.category) ? body.category : 'other';
-  const recurringId = String(body.recurringId ?? '').trim();
   // Recorded from a bank SMS: the transaction's key (bankSms.js), so it is not recorded twice
   const smsKey = String(body.smsKey ?? '').trim().slice(0, 120);
 
@@ -43,9 +41,8 @@ export function parseIncomeInput(body = {}) {
   }
   if (notes.length > NOTES_MAX_LENGTH) throw new IncomeValidationError(`یادداشت نباید بیشتر از ${NOTES_MAX_LENGTH} کاراکتر باشد.`);
 
-  if (!isRecurringId(recurringId)) throw new IncomeValidationError('شناسه درآمد ثابت نامعتبر است.');
 
-  return { title, category, amount, incomeDate, notes, recurringId, ...(smsKey ? { smsKey } : {}) };
+  return { title, category, amount, incomeDate, notes, ...(smsKey ? { smsKey } : {}) };
 }
 
 function newIncomeId() {

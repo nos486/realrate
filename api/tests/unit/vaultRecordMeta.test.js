@@ -22,7 +22,6 @@ describe('vault record metadata', () => {
     expect(recordDateOf('income', { incomeDate: '2026-04-18' })).toBe('2026-04-18');
     expect(recordDateOf('cheque', { issueDate: '2026-01-01', dueDate: '2026-02-10' })).toBe('2026-02-10');
     expect(recordDateOf('loan', { loan: { startDate: '2025-10-05T00:00:00.000Z' } })).toBe('2025-10-05');
-    expect(recordDateOf('recurring_income', { startDate: '2026-01-15' })).toBe('2026-01-15');
     expect(recordDateOf('transaction', { transactionDate: '2026-05-01' })).toBe('2026-05-01');
     // Shamsi dates (transactions keep them) are stored on the Gregorian calendar
     expect(recordDateOf('transaction', { transactionDate: '1405/07/04' })).toBe('2026-09-26');

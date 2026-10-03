@@ -240,7 +240,7 @@ function DueNotificationSettings() {
       padding="lg"
       icon={<Bell size={18} />}
       title="یادآوری سررسید"
-      subtitle="اعلان روی همین گوشی برای اقساط وام، چک‌ها و درآمد ثابت. عناوین و مبالغ فقط روی گوشی پردازش می‌شوند."
+      subtitle="اعلان روی همین گوشی برای اقساط وام و چک‌ها. عناوین و مبالغ فقط روی گوشی پردازش می‌شوند."
     >
       <div className="app-setting-row">
         <div>
