@@ -7,6 +7,8 @@ import React from 'react';
 import { describe, it, expect, afterEach } from 'vitest';
 import { render, cleanup } from '@testing-library/react';
 import HomeAssetCard from '../../../web/src/features/home/HomeAssetCard.jsx';
+import { setTrendChartStyle } from '../../../web/src/features/home/trendChartStyle.js';
+import { fireEvent } from '@testing-library/react';
 
 const asset = { id: 'usd', found: true, name: 'دلار', code: 'USD', price: 101500, unit: 'تومان', category: 'currency' };
 const series = (n) => ({
@@ -17,7 +19,10 @@ const series = (n) => ({
   since: '2026-01-01T00:00:00.000Z',
 });
 
-afterEach(cleanup);
+afterEach(() => {
+  cleanup();
+  setTrendChartStyle('line');
+});
 
 describe('trend card', () => {
   it('renders a young history with the day it starts', () => {
@@ -43,5 +48,28 @@ describe('trend card', () => {
     cleanup();
     const loading = render(React.createElement(HomeAssetCard, { asset, style: 'trend', trend: null, trendStatus: 'loading', bucketSec: 60 }));
     expect(loading.container.querySelector('.home-trend-skeleton')).not.toBeNull();
+  });
+
+  it('switches to candles and back, and remembers the choice', () => {
+    const base = series(5);
+    const trend = {
+      ...base,
+      days: ['2026-01-01', '2026-01-02', '2026-01-03', '2026-01-04', '2026-01-05'],
+      candles: base.points.map((p, i) => (i === 1 ? [p + 5, p + 8, p - 2, p] : [p, p + 3, p - 3, p + 1])),
+    };
+    const { container, getByTitle } = render(React.createElement(HomeAssetCard, { asset, style: 'trend', trend, trendStatus: 'ready', bucketSec: 86400 }));
+    expect(container.querySelector('.trend-candles')).toBeNull();
+    fireEvent.click(getByTitle('نمودار کندلی'));
+    expect(container.querySelectorAll('.trend-candle')).toHaveLength(5);
+    expect(container.querySelectorAll('.trend-candle.is-up')).toHaveLength(4);
+    expect(container.querySelectorAll('.trend-candle.is-down')).toHaveLength(1);
+    expect(localStorage.getItem('realrate:trendChartStyle')).toBe('candles');
+    fireEvent.click(getByTitle('نمودار خطی'));
+    expect(container.querySelector('.trend-candles')).toBeNull();
+  });
+
+  it('without candles in the series there is no switch', () => {
+    const { container } = render(React.createElement(HomeAssetCard, { asset, style: 'trend', trend: series(5), trendStatus: 'ready', bucketSec: 86400 }));
+    expect(container.querySelector('.home-trend-switch')).toBeNull();
   });
 });

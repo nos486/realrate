@@ -9,8 +9,11 @@
  */
 
 import React from 'react';
+import { ChartLine, ChartCandlestick } from 'lucide-react';
 import { CategoryIcon } from '../portfolio/utils/holdingHelpers.js';
 import TrendSparkline from './TrendSparkline.jsx';
+import TrendCandles from './TrendCandles.jsx';
+import { useTrendChartStyle } from './trendChartStyle.js';
 
 function formatNum(num) {
   if (num === null || num === undefined || isNaN(num)) return '-';
@@ -192,24 +195,55 @@ function dayChangePct(trend) {
 }
 
 function TrendBody({ asset, unit, trend, status, bucketSec }) {
+  const [chartStyle, setChartStyle] = useTrendChartStyle();
   if (trend && trend.points.length >= 2) {
     const direction = trend.changePct > 0 ? 'up' : trend.changePct < 0 ? 'down' : 'flat';
     // A history younger than the window (fewer points than it holds) says where it starts
     const young = trend.points.length * bucketSec < 0.95 * TREND_WINDOW_DAYS * 86400;
     const label = `روند ${asset.name}: از ${formatNum(trend.first)} به ${formatNum(trend.last)} ${unit}`;
+    const hasCandles = Array.isArray(trend.candles) && trend.candles.length === trend.points.length && Array.isArray(trend.days);
+    const showCandles = hasCandles && chartStyle === 'candles';
     return (
       <>
-        <TrendSparkline
-          points={trend.points}
-          since={trend.since}
-          bucketSec={bucketSec}
-          unit={unit}
-          direction={direction}
-          label={label}
-        />
-        <p className="home-trend-caption">
-          {young ? `از ${sinceFormat.format(new Date(trend.since))}` : `${TREND_WINDOW_DAYS.toLocaleString('fa-IR')} روز اخیر`}
-        </p>
+        {showCandles ? (
+          <TrendCandles candles={trend.candles} days={trend.days} unit={unit} label={label} />
+        ) : (
+          <TrendSparkline
+            points={trend.points}
+            since={trend.since}
+            bucketSec={bucketSec}
+            unit={unit}
+            direction={direction}
+            label={label}
+          />
+        )}
+        <div className="home-trend-foot">
+          <p className="home-trend-caption">
+            {young ? `از ${sinceFormat.format(new Date(trend.since))}` : `${TREND_WINDOW_DAYS.toLocaleString('fa-IR')} روز اخیر`}
+          </p>
+          {hasCandles && (
+            <div className="home-trend-switch" role="group" aria-label="نوع نمودار">
+              <button
+                type="button"
+                className={chartStyle !== 'candles' ? 'is-active' : ''}
+                aria-pressed={chartStyle !== 'candles'}
+                title="نمودار خطی"
+                onClick={() => setChartStyle('line')}
+              >
+                <ChartLine size={13} />
+              </button>
+              <button
+                type="button"
+                className={chartStyle === 'candles' ? 'is-active' : ''}
+                aria-pressed={chartStyle === 'candles'}
+                title="نمودار کندلی"
+                onClick={() => setChartStyle('candles')}
+              >
+                <ChartCandlestick size={13} />
+              </button>
+            </div>
+          )}
+        </div>
       </>
     );
   }

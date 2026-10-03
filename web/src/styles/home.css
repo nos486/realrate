@@ -1029,3 +1029,66 @@
 .curr-price-block .home-stale-mark {
   align-self: auto;
 }
+
+/* ── Trend cards: candles (open → close body, low → high wick) and the line / candles switch ── */
+.trend-candles {
+  height: 64px;
+}
+
+.trend-candle line {
+  stroke: var(--text-muted);
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+}
+
+.trend-candle rect {
+  fill: var(--text-muted);
+}
+
+.trend-candle.is-up line { stroke: var(--color-positive); }
+.trend-candle.is-up rect { fill: var(--color-positive); }
+.trend-candle.is-down line { stroke: var(--color-negative); }
+.trend-candle.is-down rect { fill: var(--color-negative); }
+
+.trend-candle-hover {
+  fill: var(--text-muted);
+  opacity: 0.12;
+}
+
+.trend-candle-ohlc {
+  color: var(--text-secondary);
+  font-size: 0.72rem;
+}
+
+.home-trend-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.home-trend-switch {
+  display: inline-flex;
+  gap: 2px;
+  padding: 2px;
+  border-radius: 8px;
+  background: var(--bg-surface-elevated);
+}
+
+.home-trend-switch button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 20px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.home-trend-switch button.is-active {
+  background: var(--bg-surface);
+  color: var(--text-primary);
+}

@@ -27,7 +27,8 @@ export function useTrends(ids) {
     if (!key) return undefined;
     let active = true;
     const load = () => {
-      getSparklines(key.split(','), TREND_RANGE)
+      // With each day's candle, so a card can switch between the line and candles without asking again
+      getSparklines(key.split(','), TREND_RANGE, { candles: true })
         .then((res) => {
           if (!active) return;
           setState({
