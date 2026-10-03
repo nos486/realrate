@@ -154,6 +154,7 @@ export default function App() {
               <Route path="/sms" element={<MainPage />} />
               <Route path="/admin" element={<MainPage />} />
               <Route path="/admin/sources" element={<MainPage />} />
+              <Route path="/admin/history" element={<MainPage />} />
               <Route path="/admin/derived" element={<Navigate to="/admin/sources" replace />} />
               <Route path="/derived-assets" element={<Navigate to="/admin/sources" replace />} />
               <Route path="/sources" element={<MainPage />} />

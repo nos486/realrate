@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, lazy, Suspense } from 'react';
 import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { TrendingUp, Briefcase, ShieldCheck, Radio, Settings, Landmark, Wallet, ReceiptText, Wrench, HandCoins, WalletCards, Smartphone, MessageSquareText } from 'lucide-react';
+import { TrendingUp, Briefcase, ShieldCheck, Radio, Settings, Landmark, Wallet, ReceiptText, Wrench, HandCoins, WalletCards, Smartphone, MessageSquareText, History } from 'lucide-react';
 import { AppLayout, FilterPills, AlertBanner, Button } from '../shared/ui/index.js';
 import MarketInputsToolbar from '../components/MarketInputsToolbar.jsx';
 import { PriceRefreshStatus } from '../features/market/components/index.js';
@@ -37,6 +37,7 @@ const AppSettingsView = lazy(() => import('../features/app-settings/AppSettingsV
 const SmsInboxPage = lazy(() => import('../features/sms-inbox/SmsInboxPage.jsx'));
 const AdminPage = lazy(() => import('./AdminPage.jsx'));
 const PriceSourcesPage = lazy(() => import('./PriceSourcesPage.jsx'));
+const PriceHistoryAdminPage = lazy(() => import('../features/admin/components/PriceHistoryAdmin.jsx'));
 // The Android app's home (its own month at a glance); the website's home is the market
 const AppHomeDashboard = lazy(() => import('../features/home/AppHomeDashboard.jsx'));
 
@@ -99,8 +100,14 @@ export default function MainPage() {
       searchParams.get('tab') === 'sources'
     );
 
-  const isAdmin =
+  const isHistory =
     !isSettings && !isSources && (
+      subPath.startsWith('/admin/history') ||
+      searchParams.get('tab') === 'history'
+    );
+
+  const isAdmin =
+    !isSettings && !isSources && !isHistory && (
       subPath.startsWith('/admin') ||
       searchParams.get('tab') === 'admin'
     );
@@ -154,6 +161,7 @@ export default function MainPage() {
     ['app-settings', isAppSettings],
     ['sms', isSms],
     ['sources', isSources],
+    ['history', isHistory],
     ['admin', isAdmin],
     ['incomes', isIncomes],
     ['cheques', isCheques],
@@ -188,6 +196,8 @@ export default function MainPage() {
         return 'پنل مدیریت | RealRate';
       case 'sources':
         return 'مدیریت منابع قیمت | RealRate';
+      case 'history':
+        return 'تاریخچه‌ی قیمت | RealRate';
       case 'rates':
         return 'نرخ و حباب | RealRate';
       default:
@@ -218,6 +228,7 @@ export default function MainPage() {
     sms: '/sms',
     admin: '/admin',
     sources: '/admin/sources',
+    history: '/admin/history',
     rates: '/rates',
   };
 
@@ -261,7 +272,8 @@ export default function MainPage() {
     if (user?.role === 'admin') {
       options.push(
         { value: 'admin', label: 'پنل مدیریت و کاربران', icon: <ShieldCheck size={16} strokeWidth={2} /> },
-        { value: 'sources', label: 'سورس‌های قیمت', icon: <Radio size={16} strokeWidth={2} /> }
+        { value: 'sources', label: 'سورس‌های قیمت', icon: <Radio size={16} strokeWidth={2} /> },
+        { value: 'history', label: 'تاریخچه‌ی قیمت', icon: <History size={16} strokeWidth={2} /> }
       );
     }
     return options;
@@ -303,7 +315,7 @@ export default function MainPage() {
   };
   // Admin tools stay reachable; everything else waits for the encryption passphrase
   const needsVaultSetup =
-    Boolean(user) && !isDemo && vault.status === 'off' && !vault.hasPlaintextData && activeTab !== 'admin' && activeTab !== 'sources';
+    Boolean(user) && !isDemo && vault.status === 'off' && !vault.hasPlaintextData && activeTab !== 'admin' && activeTab !== 'sources' && activeTab !== 'history';
 
 
   return (
@@ -454,6 +466,8 @@ export default function MainPage() {
         {activeTab === 'admin' && (
           <AdminPage embedded={true} />
         )}
+
+        {activeTab === 'history' && <PriceHistoryAdminPage />}
 
         {activeTab === 'sources' && (
           <PriceSourcesPage

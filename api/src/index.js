@@ -78,11 +78,10 @@ import {
   handleAdminSetPrimarySource,
   handleAdminTestPriceSource,
   handleAdminFetchAllSources,
-  handleAdminPriceHistoryBackfill,
-  handleAdminPriceHistoryKeys,
   handleAdminInspectApiRoute,
 } from "./handlers/adminRoutes.js";
 import { handleGetPrices, handleGetSparklines, handleGetPriceBook } from "./handlers/apiRoutes.js";
+import { handleAdminHistory } from "./handlers/historyRoutes.js";
 import { handleGetUnifiedMarketItems } from "./handlers/unifiedItemsRoute.js";
 import {
   handleGetPortfolios,
@@ -314,11 +313,8 @@ async function handleRequest(request, env, ctx) {
   if (normalizedPath === "/api/admin/price-sources/fetch-all" && request.method === "POST") {
     return wrap(handleAdminFetchAllSources)(request, env);
   }
-  if (normalizedPath === "/api/admin/price-history/backfill" && (request.method === "GET" || request.method === "POST")) {
-    return wrap(handleAdminPriceHistoryBackfill)(request, env);
-  }
-  if (normalizedPath === "/api/admin/price-history/keys" && request.method === "POST") {
-    return wrap(handleAdminPriceHistoryKeys)(request, env);
+  if (normalizedPath.startsWith("/api/admin/history")) {
+    return wrap(handleAdminHistory)(request, env);
   }
 
 

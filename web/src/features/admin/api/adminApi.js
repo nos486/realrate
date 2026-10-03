@@ -96,22 +96,27 @@ export async function getAdminUserPortfolio(userId, portfolioId = null) {
   return httpClient.get(url);
 }
 
-/** Fill past days of a price book item's daily history from a tgju series */
-export async function backfillPriceHistory({ source, target, usdTarget = 'usd', days = 730, overwrite = false }) {
-  return httpClient.post('/api/admin/price-history/backfill', { source, target, usdTarget, days, overwrite });
+/** The price history page: tgju catalog, mappings, the book's items, the history per id */
+export async function getHistoryAdmin() {
+  return httpClient.get('/api/admin/history');
 }
 
-/** The tgju series, the price book's items and what the history holds per item */
-export async function getPriceHistoryAdmin() {
-  return httpClient.get('/api/admin/price-history/backfill');
+/** Save the tgju → price book mappings */
+export async function saveHistoryMappings(mappings) {
+  return httpClient.post('/api/admin/history/mappings', { mappings });
 }
 
-/** Drop an item's whole history */
-export async function deletePriceHistoryKey(key) {
-  return httpClient.post('/api/admin/price-history/keys', { action: 'delete', key });
+/** A tgju series' latest days and (with a target) the unit that matches the item */
+export async function previewHistorySeries(slug, target = '') {
+  return httpClient.post('/api/admin/history/preview', { slug, target });
 }
 
-/** Move an item's history to a price book id */
-export async function movePriceHistoryKey(key, to) {
-  return httpClient.post('/api/admin/price-history/keys', { action: 'move', key, to });
+/** Fill a price book item's past days from a tgju series */
+export async function runHistoryBackfill({ slug, target, unit, days, overwrite, usdTarget = 'usd' }) {
+  return httpClient.post('/api/admin/history/backfill', { slug, target, unit, days, overwrite, usdTarget });
+}
+
+/** Delete an id's history, move it to a book id, or delete every id the book doesn't know */
+export async function editHistoryKeys(body) {
+  return httpClient.post('/api/admin/history/keys', body);
 }

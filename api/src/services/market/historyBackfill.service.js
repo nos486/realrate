@@ -1,46 +1,33 @@
 /**
- * historyBackfill.service.js — Fill past days of the price history from a source that keeps a
- * daily history (tgju.org), so charts start with years of data instead of the day we started
+ * historyBackfill.service.js — Fill past days of the price history from tgju.org, which keeps a
+ * daily candle for every series it tracks, so charts start with years of data
  *
- * tgju's summary table gives one candle per trading day: open, low, high, close (in rials) and
- * the Gregorian and Jalali dates. Rows are turned into [open, high, low, close] in tomans and
- * written with importDailyCandles (days we already recorded are kept unless `overwrite`).
- * Admin only: POST /api/admin/price-history/backfill.
+ * - Mappings (D1 state, key `tgju_history_mappings`): which tgju series fills which price book
+ *   item, in which unit (rial ÷ 10, toman, or usd × that day's dollar from our own history), with
+ *   the last run's outcome. The admin builds them from the catalog (config/tgjuCatalog.js) or any
+ *   slug, and can preview a series first (its latest days and the unit that matches the item).
+ * - A run writes one candle per day with importDailyCandles: never today (the live sync owns it),
+ *   days already recorded are kept unless `overwrite`, and nothing is written unless the item is
+ *   in the live price book and tgju's newest price is within ×0.5–×2 of the item's live price.
+ * - The history itself can be listed per id, and an id the book doesn't know moved or deleted.
+ * Admin only: /api/admin/history/* (handlers/historyRoutes.js).
  */
 
 import { importDailyCandles, tehranDay, addDays } from "../../repositories/priceHistory.repository.js";
 import { jalaliToGregorian } from "../../domain/loanCalculator.js";
+import { normalizePriceId } from "../../domain/priceBook.js";
 import { AppError } from "../../lib/AppError.js";
 import { logger } from "../../lib/logger.js";
 import { ensureSchema } from "../../repositories/schema.repository.js";
 import { getPriceBookCache } from "../../repositories/priceBookStore.repository.js";
-import { normalizePriceId } from "../../domain/priceBook.js";
-
-/**
- * tgju indicators that can be backfilled, and how their numbers become tomans — `divisor: 10`
- * for rials, `timesUsd` for dollar prices (each day × that day's dollar close from our own
- * history of `usdTarget`, so the dollar goes first). Which price book item a series is written to
- * is the admin's choice (`target`); `suggest` is the book id offered first when the book has it.
- */
-export const BACKFILL_SOURCES = {
-  price_dollar_rl: { divisor: 10, label: "دلار آزاد", suggest: "usd" },
-  geram18: { divisor: 10, label: "طلای ۱۸ عیار", suggest: "gold_18k" },
-  mesghal: { divisor: 10, label: "مثقال طلا", suggest: "mesghal" },
-  sekee: { divisor: 10, label: "سکه تمام بهار آزادی", suggest: "full_coin" },
-  nim: { divisor: 10, label: "نیم سکه", suggest: "half_coin" },
-  rob: { divisor: 10, label: "ربع سکه", suggest: "quarter_coin" },
-  ons: { timesUsd: true, label: "انس طلا (دلار × دلار روز)", suggest: "ons_gold" },
-  silver: { timesUsd: true, label: "انس نقره (دلار × دلار روز)", suggest: "ons_silver" },
-  price_eur: { divisor: 10, label: "یورو", suggest: "eur" },
-  price_gbp: { divisor: 10, label: "پوند", suggest: "gbp" },
-  price_aed: { divisor: 10, label: "درهم امارات", suggest: "aed" },
-  price_try: { divisor: 10, label: "لیر ترکیه", suggest: "try" },
-  price_cny: { divisor: 10, label: "یوان چین", suggest: "cny" },
-};
+import { getStateStore } from "../../repositories/stateStore.repository.js";
+import { TGJU_UNITS, normalizeTgjuSlug } from "../../config/tgjuCatalog.js";
 
 const TGJU_URL = "https://api.tgju.org/v1/market/indicator/summary-table-data/";
 const PAGE = 500;
 const MAX_PAGES = 12;
+export const MAX_BACKFILL_DAYS = 3650;
+export const MAPPINGS_KEY = "tgju_history_mappings";
 
 const toLatinDigits = (s) =>
   s.replace(/[۰-۹]/g, (d) => String(d.charCodeAt(0) - 0x6f0)).replace(/[٠-٩]/g, (d) => String(d.charCodeAt(0) - 0x660));
@@ -86,23 +73,57 @@ export function parseTgjuRows(rows, divisor = 1) {
   return out;
 }
 
-async function fetchTgjuPage(indicator, start, fetchImpl) {
-  const url = `${TGJU_URL}${indicator}?start=${start}&length=${PAGE}&order_dir=desc`;
+async function fetchTgjuPage(slug, start, length, fetchImpl) {
+  const url = `${TGJU_URL}${slug}?start=${start}&length=${length}&order_dir=desc`;
   const res = await fetchImpl(url, {
     headers: { Accept: "application/json", "User-Agent": "Mozilla/5.0 (RealRate price history)" },
   });
+  if (res.status === 404) throw new AppError(`سری «${slug}» در tgju پیدا نشد`, 404, "TGJU_NOT_FOUND");
   if (!res.ok) throw new AppError(`tgju پاسخ ${res.status} داد`, 502, "UPSTREAM_ERROR");
   const body = await res.json().catch(() => null);
   if (!body || !Array.isArray(body.data)) throw new AppError("پاسخ tgju قابل خواندن نبود", 502, "UPSTREAM_ERROR");
   return body.data;
 }
 
-/** Dollar candles × each day's dollar candle from our history (days without one are dropped) */
-async function inTomans(env, candles, fromDay, usdTarget) {
+/**
+ * A tgju series' daily candles, as tgju gives them (its own unit), newest first, back to `fromDay`
+ * @returns {Promise<{ fetched: number, candles: Array<{ day: string, open: number, high: number, low: number, close: number }> }>}
+ */
+export async function fetchTgjuSeries(slug, { fromDay, fetchImpl = fetch, pageSize = PAGE, maxPages = MAX_PAGES } = {}) {
+  const candles = [];
+  let fetched = 0;
+  for (let page = 0; page < maxPages; page++) {
+    const rows = await fetchTgjuPage(slug, page * pageSize, pageSize, fetchImpl);
+    fetched += rows.length;
+    const parsed = parseTgjuRows(rows, 1);
+    if (rows.length && !parsed.length) {
+      logger.warn("[HistoryBackfill] Unreadable tgju rows:", { slug, sample: JSON.stringify(rows[0]).slice(0, 300) });
+      throw new AppError("ردیف‌های tgju قابل خواندن نبودند", 502, "UPSTREAM_ERROR");
+    }
+    candles.push(...(fromDay ? parsed.filter((c) => c.day >= fromDay) : parsed));
+    const oldest = parsed.reduce((min, c) => (c.day < min ? c.day : min), "9999");
+    if (rows.length < pageSize || (fromDay && oldest < fromDay)) break;
+  }
+  candles.sort((a, b) => (a.day < b.day ? 1 : -1));
+  return { fetched, candles };
+}
+
+/** Our dollar candles by day (for usd-priced series) */
+async function usdCandles(env, fromDay, usdTarget) {
   const { results } = await env.DB.prepare(
     "SELECT day, value, open, high, low FROM price_daily WHERE item_key = ? AND day >= ?"
   ).bind(usdTarget, fromDay).all();
-  const usd = new Map((results || []).map((r) => [r.day, r]));
+  return new Map((results || []).map((r) => [r.day, r]));
+}
+
+/**
+ * tgju candles → tomans. usd: each day × that day's dollar candle (days without one are dropped;
+ * high / low are products of the highs / lows, so an upper / lower bound)
+ */
+export async function toTomans(env, candles, unit, { fromDay = "0000-00-00", usdTarget = "usd" } = {}) {
+  if (unit === "rial") return candles.map((c) => ({ day: c.day, open: c.open / 10, high: c.high / 10, low: c.low / 10, close: c.close / 10 }));
+  if (unit === "toman") return candles;
+  const usd = await usdCandles(env, fromDay, normalizePriceId(usdTarget));
   const out = [];
   for (const c of candles) {
     const u = usd.get(c.day);
@@ -111,21 +132,65 @@ async function inTomans(env, candles, fromDay, usdTarget) {
     const num = (v) => (v === null || v === undefined ? close : Number(v));
     out.push({ day: c.day, open: c.open * num(u.open), high: c.high * num(u.high), low: c.low * num(u.low), close: c.close * close });
   }
-  if (candles.length && !out.length) throw new AppError("اول تاریخچه‌ی دلار را بارگذاری کنید", 409, "NEEDS_USD_HISTORY");
+  if (candles.length && !out.length) throw new AppError("اول تاریخچه‌ی دلار را بارگذاری کنید (این سری دلاری است)", 409, "NEEDS_USD_HISTORY");
+  return out;
+}
+
+/** The book item a series may be written to, or an error naming the problem */
+async function liveItem(env, target, getBook) {
+  const id = normalizePriceId(target);
+  const book = await getBook(env);
+  const item = id ? book?.items?.[id] : null;
+  if (!item) throw AppError.badRequest(`«${target || "-"}» در دفتر قیمت نیست؛ مورد مقصد را از فهرست انتخاب کنید`);
+  return { id, item, usdLive: Number(book.items.usd?.price) || null };
+}
+
+/**
+ * Which unit turns a tgju number into the item's live price: the one whose ratio is nearest 1
+ * (within ×0.5–×2), or null
+ */
+export function guessUnit(raw, live, usdLive) {
+  if (!(raw > 0) || !(live > 0)) return null;
+  const options = [
+    { unit: "rial", value: raw / 10 },
+    { unit: "toman", value: raw },
+    ...(usdLive > 0 ? [{ unit: "usd", value: raw * usdLive }] : []),
+  ].map((o) => ({ ...o, ratio: o.value / live }));
+  const fits = options.filter((o) => o.ratio > 0.5 && o.ratio < 2);
+  if (!fits.length) return null;
+  return fits.sort((a, b) => Math.abs(Math.log(a.ratio)) - Math.abs(Math.log(b.ratio)))[0];
+}
+
+/**
+ * A series' latest days, and (with a target) the unit that matches the item's live price
+ * @returns {Promise<{ slug: string, latest: Array<object>, target?: string, live?: number, guess?: object|null }>}
+ */
+export async function previewTgju(env, { slug: rawSlug, target, fetchImpl = fetch, getBook = getPriceBookCache } = {}) {
+  const slug = normalizeTgjuSlug(rawSlug);
+  if (!slug) throw AppError.badRequest("شناسه‌ی سری tgju نامعتبر است");
+  const { candles } = await fetchTgjuSeries(slug, { fetchImpl, pageSize: 7, maxPages: 1 });
+  if (!candles.length) throw new AppError(`سری «${slug}» در tgju داده‌ای ندارد`, 404, "TGJU_EMPTY");
+  const out = { slug, latest: candles.slice(0, 7) };
+  if (target) {
+    const { id, item, usdLive } = await liveItem(env, target, getBook);
+    out.target = id;
+    out.live = Number(item.price) || null;
+    out.guess = guessUnit(candles[0].close, out.live, usdLive);
+  }
   return out;
 }
 
 /**
- * Backfill one price book item's past days from a tgju indicator
+ * Backfill one price book item's past days from a tgju series
  * @param {object} env
- * @param {{ source: string, target: string, usdTarget?: string, days?: number, overwrite?: boolean,
- *   fetchImpl?: typeof fetch, now?: number, getBook?: (env: object) => Promise<object|null> }} options
- *   target: the price book id the days are written to (must be in the live book)
- * @returns {Promise<{ source: string, target: string, label: string, fetched: number, valid: number, written: number, from: string|null, to: string|null }>}
+ * @param {{ slug: string, target: string, unit: 'rial'|'toman'|'usd', usdTarget?: string, days?: number,
+ *   overwrite?: boolean, fetchImpl?: typeof fetch, now?: number, getBook?: (env: object) => Promise<object|null> }} options
+ * @returns {Promise<{ slug: string, target: string, unit: string, fetched: number, valid: number, written: number, from: string|null, to: string|null }>}
  */
 export async function backfillPriceHistory(env, {
-  source: sourceId,
-  target: rawTarget,
+  slug: rawSlug,
+  target,
+  unit,
   usdTarget = "usd",
   days = 730,
   overwrite = false,
@@ -133,50 +198,86 @@ export async function backfillPriceHistory(env, {
   now = Date.now(),
   getBook = getPriceBookCache,
 } = {}) {
-  const source = BACKFILL_SOURCES[sourceId];
-  if (!source) throw AppError.badRequest(`منبع تاریخچه‌ی «${sourceId}» تعریف نشده است`);
+  const slug = normalizeTgjuSlug(rawSlug);
+  if (!slug) throw AppError.badRequest("شناسه‌ی سری tgju نامعتبر است");
+  if (!TGJU_UNITS.includes(unit)) throw AppError.badRequest("واحد سری باید ریال، تومان یا دلار باشد");
   if (!env?.DB?.prepare) throw new AppError("پایگاه‌داده در دسترس نیست", 503, "NO_DATABASE");
   // Only a live price book item can receive history, so nothing lands under an id no card reads
-  const target = normalizePriceId(rawTarget);
-  const book = await getBook(env);
-  const item = target ? book?.items?.[target] : null;
-  if (!item) throw AppError.badRequest(`«${rawTarget || "-"}» در دفتر قیمت نیست؛ مورد مقصد را از فهرست انتخاب کنید`);
+  const { id, item } = await liveItem(env, target, getBook);
   await ensureSchema(env);
-  const span = Math.min(Math.max(Number(days) || 730, 1), 3650);
+  const span = Math.min(Math.max(Number(days) || 730, 1), MAX_BACKFILL_DAYS);
   const fromDay = addDays(tehranDay(now), -span);
 
-  let candles = [];
-  let fetched = 0;
-  for (let page = 0; page < MAX_PAGES; page++) {
-    const rows = await fetchTgjuPage(sourceId, page * PAGE, fetchImpl);
-    fetched += rows.length;
-    const parsed = parseTgjuRows(rows, source.divisor || 1);
-    if (rows.length && !parsed.length) {
-      logger.warn("[HistoryBackfill] Unreadable tgju rows:", { sample: JSON.stringify(rows[0]).slice(0, 300) });
-      throw new AppError("ردیف‌های tgju قابل خواندن نبودند", 502, "UPSTREAM_ERROR");
-    }
-    candles.push(...parsed.filter((c) => c.day >= fromDay));
-    const oldest = parsed.reduce((min, c) => (c.day < min ? c.day : min), "9999");
-    if (rows.length < PAGE || oldest < fromDay) break;
-  }
-
-  if (source.timesUsd) candles = await inTomans(env, candles, fromDay, normalizePriceId(usdTarget));
+  const { fetched, candles: raw } = await fetchTgjuSeries(slug, { fromDay, fetchImpl });
+  const candles = await toTomans(env, raw, unit, { fromDay, usdTarget });
 
   // A wrong unit or a wrong item would poison the chart: the newest candle must be near the
   // item's live price
-  const newest = candles.reduce((a, c) => (!a || c.day > a.day ? c : a), null);
+  const newest = candles[0];
   const live = Number(item.price);
   if (newest && Number.isFinite(live) && live > 0) {
     const ratio = newest.close / live;
     if (!(ratio > 0.5 && ratio < 2)) {
-      throw new AppError(`قیمت tgju (${Math.round(newest.close).toLocaleString("en")}) با قیمت فعلی «${item.name || target}» (${Math.round(live).toLocaleString("en")}) نمی‌خواند`, 502, "UPSTREAM_MISMATCH");
+      throw new AppError(`قیمت tgju (${Math.round(newest.close).toLocaleString("en")}) با قیمت فعلی «${item.name || id}» (${Math.round(live).toLocaleString("en")}) نمی‌خواند؛ واحد یا مقصد را بررسی کنید`, 502, "UPSTREAM_MISMATCH");
     }
   }
 
-  const { written, valid } = await importDailyCandles(env, target, candles, { overwrite, now });
+  const { written, valid } = await importDailyCandles(env, id, candles, { overwrite, now });
   const daysSorted = candles.map((c) => c.day).sort();
-  logger.info("[HistoryBackfill] Done:", { source: sourceId, target, fetched, valid, written });
-  return { source: sourceId, target, label: source.label, fetched, valid, written, from: daysSorted[0] || null, to: daysSorted.at(-1) || null };
+  logger.info("[HistoryBackfill] Done:", { slug, target: id, unit, fetched, valid, written });
+  return { slug, target: id, unit, fetched, valid, written, from: daysSorted[0] || null, to: daysSorted.at(-1) || null };
+}
+
+// ── Mappings ──────────────────────────────────────────────────────────────
+
+/**
+ * @typedef {{ slug: string, label: string, unit: 'rial'|'toman'|'usd', target: string,
+ *   lastRun?: { at: string, ok: boolean, written?: number, from?: string|null, to?: string|null, error?: string } }} TgjuMapping
+ */
+
+/** @returns {Promise<TgjuMapping[]>} */
+export async function getMappings(env) {
+  const list = await getStateStore(env)?.get(MAPPINGS_KEY, "json").catch(() => null);
+  return Array.isArray(list) ? list : [];
+}
+
+/**
+ * Save the mappings (one per slug; unknown units and bad slugs dropped; lastRun kept from the
+ * stored copy, so a client can't write one)
+ * @param {object} env
+ * @param {Array<Partial<TgjuMapping>>} input
+ * @returns {Promise<TgjuMapping[]>}
+ */
+export async function saveMappings(env, input) {
+  const store = getStateStore(env);
+  if (!store) throw new AppError("پایگاه‌داده در دسترس نیست", 503, "NO_DATABASE");
+  const stored = new Map((await getMappings(env)).map((m) => [m.slug, m]));
+  const seen = new Set();
+  const list = [];
+  for (const m of Array.isArray(input) ? input : []) {
+    const slug = normalizeTgjuSlug(m?.slug);
+    if (!slug || seen.has(slug)) continue;
+    seen.add(slug);
+    list.push({
+      slug,
+      label: String(m.label || slug).slice(0, 80),
+      unit: TGJU_UNITS.includes(m.unit) ? m.unit : "rial",
+      target: normalizePriceId(m.target || ""),
+      ...(stored.get(slug)?.lastRun ? { lastRun: stored.get(slug).lastRun } : {}),
+    });
+  }
+  if (list.length > 300) throw AppError.badRequest("حداکثر ۳۰۰ نگاشت");
+  await store.put(MAPPINGS_KEY, JSON.stringify(list));
+  return list;
+}
+
+/** Note a run's outcome on its mapping */
+export async function recordMappingRun(env, slug, run) {
+  const list = await getMappings(env);
+  const m = list.find((x) => x.slug === slug);
+  if (!m) return;
+  m.lastRun = { at: new Date().toISOString(), ...run };
+  await getStateStore(env)?.put(MAPPINGS_KEY, JSON.stringify(list));
 }
 
 // ── What the history holds, and fixing it ─────────────────────────────────
@@ -210,6 +311,25 @@ export async function deleteHistoryKey(env, key) {
   await ensureSchema(env);
   const res = await env.DB.prepare("DELETE FROM price_daily WHERE item_key = ?").bind(itemKey).run();
   return Number(res?.meta?.changes) || 0;
+}
+
+/**
+ * Drop the history of every id the live price book doesn't know (refused while the book is
+ * empty, which would make every id look unknown)
+ * @returns {Promise<{ keys: string[], deleted: number }>}
+ */
+export async function deleteOrphanKeys(env, { getBook = getPriceBookCache } = {}) {
+  const book = await getBook(env);
+  const known = Object.keys(book?.items || {});
+  if (known.length < 5) throw new AppError("دفتر قیمت فعلاً در دسترس نیست؛ بعداً دوباره امتحان کنید", 503, "NO_PRICE_BOOK");
+  await ensureSchema(env);
+  const { results } = await env.DB.prepare(
+    "SELECT DISTINCT item_key FROM price_daily WHERE item_key NOT IN (SELECT value FROM json_each(?))"
+  ).bind(JSON.stringify(known)).all();
+  const keys = (results || []).map((r) => r.item_key);
+  if (!keys.length) return { keys, deleted: 0 };
+  const res = await env.DB.prepare("DELETE FROM price_daily WHERE item_key IN (SELECT value FROM json_each(?))").bind(JSON.stringify(keys)).run();
+  return { keys, deleted: Number(res?.meta?.changes) || 0 };
 }
 
 /**
