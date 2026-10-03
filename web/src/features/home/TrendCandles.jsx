@@ -79,7 +79,7 @@ export default function TrendCandles({ candles, days, unit = '', label }) {
         {geometry.items.map((it, i) => (
           <g key={days[i] || i} className={`trend-candle is-${it.dir}`}>
             <line x1={it.cx} x2={it.cx} y1={it.wickTop} y2={it.wickBottom} />
-            <rect x={it.x} y={it.top} width={it.width} height={it.height} />
+            <rect x={it.x} y={it.top} width={it.width} height={it.height} rx={Math.min(1.2, it.width / 2)} />
           </g>
         ))}
       </svg>
