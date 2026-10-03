@@ -121,6 +121,12 @@ export async function rateOnDay(assetId, isoDate) {
     const res = await getSparklines([assetId], range, { silent: true });
     const series = res?.sparklines?.[assetId];
     if (!series?.points?.length) return null;
+    // A daily series names its days: the close of that day (or the last one before it)
+    if (Array.isArray(series.days) && series.days.length === series.points.length) {
+      let index = -1;
+      for (let i = 0; i < series.days.length && series.days[i] <= isoDate; i++) index = i;
+      return index >= 0 && series.points[index] > 0 ? Math.round(series.points[index]) : null;
+    }
     const size = (Number(res.bucketSec) || 0) * 1000;
     const start = Date.parse(series.since);
     if (!size || target < start) return null;

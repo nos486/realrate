@@ -4,7 +4,8 @@
  * - detailed: large card. Gold & coins show the bubble analysis (intrinsic value, standard price,
  *   deviation); every other asset shows its price, daily change and source.
  * - compact: small row card (flag/icon, name, symbol, price).
- * - trend: price, its change over the last 24 hours and a per-minute sparkline from the price history.
+ * - trend: price, its change since yesterday and a daily sparkline of the last 30 days (the price
+ *   history keeps each price's daily close).
  */
 
 import React from 'react';
@@ -179,15 +180,22 @@ function CompactCard({ asset }) {
   );
 }
 
-const TREND_WINDOW_LABEL = '۲۴ ساعت';
-const TREND_WINDOW_MS = 24 * 3600 * 1000;
-const sinceFormat = new Intl.DateTimeFormat('fa-IR', { hour: '2-digit', minute: '2-digit' });
+const TREND_WINDOW_DAYS = 30;
+const sinceFormat = new Intl.DateTimeFormat('fa-IR-u-ca-persian', { month: 'long', day: 'numeric' });
+
+/** The change from the point before the last (yesterday's close on a daily series) to the last */
+function dayChangePct(trend) {
+  const points = trend?.points || [];
+  if (points.length < 2) return null;
+  const prev = points[points.length - 2];
+  return prev > 0 ? ((points[points.length - 1] - prev) / prev) * 100 : null;
+}
 
 function TrendBody({ asset, unit, trend, status, bucketSec }) {
   if (trend && trend.points.length >= 2) {
     const direction = trend.changePct > 0 ? 'up' : trend.changePct < 0 ? 'down' : 'flat';
     // A history younger than the window (fewer points than it holds) says where it starts
-    const young = trend.points.length * bucketSec * 1000 < 0.95 * TREND_WINDOW_MS;
+    const young = trend.points.length * bucketSec < 0.95 * TREND_WINDOW_DAYS * 86400;
     const label = `روند ${asset.name}: از ${formatNum(trend.first)} به ${formatNum(trend.last)} ${unit}`;
     return (
       <>
@@ -200,7 +208,7 @@ function TrendBody({ asset, unit, trend, status, bucketSec }) {
           label={label}
         />
         <p className="home-trend-caption">
-          {young ? `از ساعت ${sinceFormat.format(new Date(trend.since))}` : `${TREND_WINDOW_LABEL} اخیر`}
+          {young ? `از ${sinceFormat.format(new Date(trend.since))}` : `${TREND_WINDOW_DAYS.toLocaleString('fa-IR')} روز اخیر`}
         </p>
       </>
     );
@@ -215,7 +223,8 @@ function TrendBody({ asset, unit, trend, status, bucketSec }) {
 
 function TrendCard({ asset, trend, status, bucketSec }) {
   const hasTrend = trend && trend.points.length >= 2;
-  const change = hasTrend ? changeBadge(Number(trend.changePct.toFixed(2))) : null;
+  const dayChange = hasTrend ? dayChangePct(trend) : null;
+  const change = dayChange !== null ? changeBadge(Number(dayChange.toFixed(2))) : null;
   // The card and the history both hold the price book's price, in tomans
   const unit = asset.unit;
   const price = asset.price || (hasTrend ? trend.last : null);
@@ -228,7 +237,7 @@ function TrendCard({ asset, trend, status, bucketSec }) {
           {asset.code && <span className="curr-code-pill">{asset.code}</span>}
         </div>
         {change && (
-          <span className={`bubble-pill ${change.className}`} title={`تغییر در ${TREND_WINDOW_LABEL} اخیر`}>
+          <span className={`bubble-pill ${change.className}`} title="تغییر نسبت به دیروز">
             {change.text}
           </span>
         )}

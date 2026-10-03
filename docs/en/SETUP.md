@@ -4,7 +4,7 @@ Persian: [../SETUP.md](../SETUP.md)
 
 ## Requirements
 - Node.js 22 (the CI's version), npm 9 or later
-- A Cloudflare account (Workers, Hyperdrive, Pages) and a Postgres database
+- A Cloudflare account on the Workers paid plan (Workers, D1, KV, Pages)
 
 ## Running locally
 
@@ -23,21 +23,35 @@ npm run web:dev    # the web app only (Vite)
 npm test           # Vitest (API and web units) and the SEO page tests
 ```
 
-Running locally needs a Postgres (see Postgres below).
+Local runs use wrangler's local D1 and KV (see D1 and KV below).
 
-## Postgres (Hyperdrive)
+## D1 and KV
 
-The app's data and the price history live in Postgres, and the Worker reaches it through Cloudflare Hyperdrive (binding `HYPERDRIVE` in `api/wrangler.toml`). Everything is in Postgres — Workers KV is not used: prices, source lists and counters in `app_state`, sessions in `sessions`, the site settings in `settings`.
+The data lives in Cloudflare (needs the Workers paid plan, $5):
+- **D1** (binding `DB`): the app's data, sessions, settings, the daily price history (`price_daily`: each item's last price of each Tehran day), and the state that must always read back exactly (`app_state`: counters, source overrides, the sources' sync state).
+- **KV** (binding `KV`): large, read-mostly blobs — the price book (`prices`) and each source's items (`source_items:*`). KV can lag up to about 60 seconds, which is fine for prices.
 
-Hyperdrive's query cache must be off, or a read right after a save may return old data:
+Create them once:
 
 ```bash
-npx wrangler hyperdrive update <HYPERDRIVE_ID> --caching-disabled true
+cd api
+npx wrangler d1 create realrate
+npx wrangler kv namespace create realrate-prices
 ```
 
-For local runs, point `localConnectionString` at a local Postgres.
+Put the printed ids in `api/wrangler.toml` in place of `REPLACE_WITH_D1_DATABASE_ID` and `REPLACE_WITH_KV_NAMESPACE_ID`. Tables are created on the Worker's first request (`api/src/repositories/d1Schema.js`); to see their SQL: `cd api && npm run db:schema`. Local runs (`npm run api:dev`) use wrangler's local D1 and KV and need nothing else.
 
-Tables are created on the Worker's first request (`api/src/repositories/pgSchema.js`). To see their SQL: `cd api && npm run db:schema`.
+### Moving from Postgres (once)
+
+```bash
+# 1. (optional) turn maintenance mode on in the admin panel
+# 2. export Postgres to SQL files
+DATABASE_URL=postgres://user:pass@host:5432/realrate node api/scripts/pg-to-d1.mjs d1-import
+# 3. import them into D1
+cd api && for f in ../d1-import/*.sql; do npx wrangler d1 execute realrate --remote --file "$f" -y; done
+```
+
+Every table is copied; `price_history` becomes `price_daily` (each day's last price), and of `app_state` only the source overrides (`price_source_overrides`) — the price book and the sources' items are rebuilt in KV by the first cron ticks. A row over 100 KB (D1's per-statement limit) is not written and the script reports it. Once the data is in, merge to main so the Worker and Pages deploy, and remove Hyperdrive when everything checks out.
 
 ## Google sign-in
 

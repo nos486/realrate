@@ -3,9 +3,8 @@
  * after a cursor, stored and deleted, page by page, for devices keeping a copy (offline app)
  */
 import { describe, it, expect, vi, beforeAll, afterAll } from 'vitest';
-import pg from 'pg';
-import { withDatabase } from '../../src/lib/database.js';
-import { APP_TABLES, resetPgSchemaCache } from '../../src/repositories/pgSchema.js';
+import { resetD1SchemaCache } from '../../src/repositories/d1Schema.js';
+import { sqliteD1 } from '../helpers/sqliteD1.js';
 import { ensureSchema } from '../../src/repositories/schema.repository.js';
 import {
   parseSyncCursor,
@@ -56,11 +55,8 @@ describe('sync route', () => {
   });
 });
 
-const PG_URL = process.env.PRICE_HISTORY_TEST_URL;
-
-describe.skipIf(!PG_URL)('sync against a real Postgres', () => {
+describe('sync on real SQLite (D1)', () => {
   let env;
-  let close;
   const kinds = VAULT_RECORD_KINDS;
   const sync = (cursor = '', limit) => dbSyncVaultRecords(env, 'u1', { cursor, limit, kinds });
   const all = async (cursor = '', limit = 2) => {
@@ -78,17 +74,13 @@ describe.skipIf(!PG_URL)('sync against a real Postgres', () => {
   const tick = () => new Promise((r) => setTimeout(r, 5));
 
   beforeAll(async () => {
-    const admin = new pg.Client({ connectionString: PG_URL });
-    await admin.connect();
-    for (const { name } of APP_TABLES) await admin.query(`DROP TABLE IF EXISTS ${name}`);
-    await admin.end();
-    resetPgSchemaCache();
-    ({ env, close } = withDatabase({ HYPERDRIVE: { connectionString: PG_URL } }));
+    resetD1SchemaCache();
+    env = { DB: sqliteD1() };
     await ensureSchema(env);
     await dbSaveUserVault(env, 'u1', { salt: 's', wrappedKey: CIPHER('key') });
     await dbSaveUserVault(env, 'u2', { salt: 's', wrappedKey: CIPHER('key2') });
   });
-  afterAll(async () => close?.());
+  afterAll(() => env.DB.close());
 
   it('from the start: every record, in pages, no deletions', async () => {
     for (const [i, kind] of [['1', 'income'], ['2', 'expense'], ['3', 'bank_account'], ['4', 'income'], ['5', 'cheque']]) {

@@ -1,15 +1,20 @@
 /**
  * priceBookStore.repository.js — The price book: the latest price of every item, one JSON under
- * "prices" in the state store (Postgres, stateStore.repository.js)
+ * "prices" in Workers KV (kvStore.repository.js)
  *
  * Every price request reads it, so a read is kept in this isolate's memory for a few seconds and
- * concurrent reads share one query (the cron's own reads skip the memory: `fresh`).
+ * concurrent reads share one. The sources' sync state (`book.sources`) is also kept in D1
+ * ("source_states", stateStore.repository.js): the cron decides from it which sources are due, and
+ * a KV read may still return the previous minute's book. A `fresh` read — the cron's and an
+ * admin's rebuild — skips the memory and takes `sources` from D1.
  */
 
 import { logger } from "../lib/logger.js";
+import { getBlobStore } from "./kvStore.repository.js";
 import { getStateStore } from "./stateStore.repository.js";
 
 export const PRICE_BOOK_KEY = "prices";
+export const SOURCE_STATES_KEY = "source_states";
 export const PRICE_BOOK_MEMO_MS = 5000;
 
 let bookMemo = null; // { book, at }
@@ -27,13 +32,17 @@ export function resetPriceBookMemo() {
  * @returns {Promise<{ updatedAt: string, items: Record<string, object> }|null>}
  */
 export async function getPriceBookCache(env, { fresh = false } = {}) {
-  const store = getStateStore(env);
+  const store = getBlobStore(env);
   if (!store) return null;
   if (!fresh && bookMemo && Date.now() - bookMemo.at < PRICE_BOOK_MEMO_MS) return bookMemo.book;
   if (!fresh && inFlight) return inFlight;
   const read = (async () => {
     try {
-      const book = await store.get(PRICE_BOOK_KEY, "json");
+      let book = await store.get(PRICE_BOOK_KEY, "json");
+      if (fresh) {
+        const states = await getStateStore(env)?.get(SOURCE_STATES_KEY, "json").catch(() => null);
+        if (states) book = { ...(book || { items: {} }), sources: states };
+      }
       bookMemo = { book, at: Date.now() };
       return book;
     } catch (e) {
@@ -51,9 +60,11 @@ export async function getPriceBookCache(env, { fresh = false } = {}) {
 }
 
 export async function setPriceBookCache(env, book) {
-  const store = getStateStore(env);
+  const store = getBlobStore(env);
   if (!store) return;
   try {
+    // The sync state first: it is what the next tick reads
+    await getStateStore(env)?.put(SOURCE_STATES_KEY, JSON.stringify(book?.sources || {}));
     await store.put(PRICE_BOOK_KEY, JSON.stringify(book));
     bookMemo = { book, at: Date.now() };
   } catch (e) {

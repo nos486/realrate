@@ -14,7 +14,7 @@ Every feature in detail. For a summary see the [README](../../README.en.md). Per
 ## 2. Personal home page
 - The home page is made of **sections**, and each user decides what they see.
 - Any market asset (gold, coin, currency, crypto, stock symbol, fund) can be added to any section.
-- Each section has its own card style: **full card** (with bubble and intrinsic value for gold and coins), **compact card** (one list on mobile) or **trend card**.
+- Each section has its own card style: **full card** (with bubble and intrinsic value for gold and coins), **compact card** (one list on mobile) or **trend card** (the last 30 days from the daily price history, with the change since yesterday).
 - Top bar: search, **base rates** (manual dollar and ounce input — opened automatically when there is no dollar rate) and **customize**.
 - Sections collapse and expand by clicking their title (remembered in the browser).
 - "Customize" mode: move cards and sections by **drag and drop** (mouse, touch and keyboard), add and remove assets and sections, rename and restyle them, and **ready-made presets** (default, gold and coins, currencies and crypto, stocks and funds, summary) from the bottom bar.
@@ -97,7 +97,7 @@ Every feature in detail. For a summary see the [README](../../README.en.md). Per
 ## 11. Price sources (code-first)
 - Every adapter returns the same shape: `{ items: [{ id, name, price }], datetime }`.
 - A display engine shared by server and client (`displayEngine.js`) for names, units, categories and icons.
-- Each source's items are stored under one key (Postgres `app_state`), with one price book, and one polling tick without duplicate requests.
+- Each source's items are stored under one key (Workers KV), with one price book, and one polling tick without duplicate requests.
 - In the admin panel: "live test", turning a source on or off, and choosing the primary source (no manual editing).
 
 ## 12. Security, PWA and the admin panel

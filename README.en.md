@@ -7,7 +7,7 @@
 [![Cloudflare Workers](https://img.shields.io/badge/Cloudflare-Workers-F38020?style=flat-square&logo=cloudflare&logoColor=white)](https://workers.cloudflare.com/)
 [![React 19](https://img.shields.io/badge/React-19-61DAFB?style=flat-square&logo=react&logoColor=black)](https://react.dev/)
 [![Vite](https://img.shields.io/badge/Vite-8-646CFF?style=flat-square&logo=vite&logoColor=white)](https://vitejs.dev/)
-[![PostgreSQL](https://img.shields.io/badge/DB-PostgreSQL_(Hyperdrive)-336791?style=flat-square&logo=postgresql&logoColor=white)](https://developers.cloudflare.com/hyperdrive/)
+[![D1](https://img.shields.io/badge/DB-Cloudflare_D1_+_KV-F38020?style=flat-square&logo=cloudflare&logoColor=white)](https://developers.cloudflare.com/d1/)
 [![Android](https://img.shields.io/badge/Android-Capacitor_8-3DDC84?style=flat-square&logo=android&logoColor=white)](docs/en/ANDROID.md)
 [![Vitest](https://img.shields.io/badge/Tests-Vitest-FCC72B?style=flat-square&logo=vitest&logoColor=black)](https://vitest.dev/)
 ![License: MIT](https://img.shields.io/badge/License-MIT-34D399?style=flat-square)
@@ -63,14 +63,14 @@ npm run dev    # API: http://localhost:8787 — web: http://localhost:5173
 npm test
 ```
 
-Running locally needs a Postgres database: [docs/en/SETUP.md](docs/en/SETUP.md).
+Running locally needs only wrangler (local D1 and KV): [docs/en/SETUP.md](docs/en/SETUP.md).
 
 ## Deployment
 
 A merge into `main` deploys everything: the frontend to Cloudflare Pages, the backend with Cloudflare Workers Builds, and a
 signed Android APK to [Releases](https://github.com/nos486/realrate/releases) (GitHub Actions).
 Manual backend deploy when needed: `npm run api:deploy`.
-Full guide (Postgres, Google sign-in, email, Pages, Workers, the Android signing key): [docs/en/SETUP.md](docs/en/SETUP.md)
+Full guide (D1 and KV, Google sign-in, email, Pages, Workers, the Android signing key): [docs/en/SETUP.md](docs/en/SETUP.md)
 
 ## Documentation
 

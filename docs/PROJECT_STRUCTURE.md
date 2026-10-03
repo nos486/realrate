@@ -10,7 +10,7 @@ realrate/
 ├── CHANGELOG.md                  # یادداشت‌های تغییرات نسخه‌ها جهت درج در Release
 ├── .github/workflows/android.yml # ساخت و انتشار APK امضاشده اندروید (main → Releases)
 │
-├── api/                          # بک‌اند: Cloudflare Worker (Postgres از طریق Hyperdrive)
+├── api/                          # بک‌اند: Cloudflare Worker (D1 و KV)
 │   ├── wrangler.toml             # بایندینگ‌ها، متغیرها و Cron
 │   ├── tests/
 │   │   ├── helpers/              # ابزار تست (دیتابیس شبیه‌سازی‌شده و ...)
@@ -22,10 +22,10 @@ realrate/
 │       │                         #   چک، هزینه، حساب، پیامک بانک، مصرف وام، اطلاعات کلاینت، ...
 │       ├── handlers/             # کنترلرهای HTTP (بازار، احراز هویت، پورتفو، تراکنش، وام، درآمد،
 │       │                         #   چک، اسکن چک، بانک، گاوصندوق، دمو، ادمین)
-│       ├── repositories/         # دسترسی به داده Postgres (الگوی Repository)؛ جدول‌ها در pgSchema.js
+│       ├── repositories/         # دسترسی به داده D1 و KV (الگوی Repository)؛ جدول‌ها در d1Schema.js
 │       ├── services/             # market/ (ادپتورهای سورس و همگام‌سازی قیمت)، ai/ (Gemini)
 │       ├── jobs/                 # جاب کرون (همگام‌سازی قیمت‌ها)
-│       ├── lib/                  # احراز هویت، گیت‌های رمزنگاری/دمو/تعمیر، ایمیل، CORS، لاگ، Postgres
+│       ├── lib/                  # احراز هویت، گیت‌های رمزنگاری/دمو/تعمیر، ایمیل، CORS، لاگ
 │       └── middlewares/          # مدیریت خطا
 │
 └── web/                          # فرانت‌اند: React SPA (سایت + PWA + اپ اندروید)

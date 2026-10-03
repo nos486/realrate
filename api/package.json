@@ -1,23 +1,23 @@
 {
   "name": "realrate-api",
   "version": "1.0.0",
-  "description": "RealRate — Cloudflare Worker API (Gold & Currency)",
+  "description": "RealRate — Cloudflare Worker API (D1 + KV)",
   "type": "module",
   "scripts": {
     "dev": "wrangler dev --port 8787",
     "deploy": "wrangler deploy",
-    "db:schema": "node -e \"import('./src/repositories/pgSchema.js').then((m) => console.log(m.APP_TABLES.flatMap((t) => t.ddl).join(';\\n\\n') + ';'))\"",
+    "db:schema": "node -e \"import('./src/repositories/d1Schema.js').then((m) => console.log(m.APP_TABLES.flatMap((t) => t.ddl).join(';\\n\\n') + ';'))\"",
     "test": "vitest run"
   },
   "devDependencies": {
     "@testing-library/react": "^16.3.3",
     "fake-indexeddb": "^6.2.5",
     "happy-dom": "^20.14.5",
+    "pg": "^8.23.1",
     "vitest": "^5.0.0",
     "wrangler": "^3.80.0"
   },
   "dependencies": {
-    "@block65/webcrypto-web-push": "^2.0.0",
-    "pg": "^8.23.0"
+    "@block65/webcrypto-web-push": "^2.0.0"
   }
 }

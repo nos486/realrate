@@ -1,5 +1,5 @@
 /**
- * loans.repository.js — Postgres Data Access Layer for Loans & Dynamic Amortization
+ * loans.repository.js — Data Access Layer for Loans (D1) & Dynamic Amortization
  *
  * Implements Virtual Schedule Architecture:
  * - loans: stores loan master parameters

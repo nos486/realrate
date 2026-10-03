@@ -1,6 +1,6 @@
 /**
- * sourceItems.repository.js — What each price source last gave, one state-store key per source
- * (Postgres, stateStore.repository.js)
+ * sourceItems.repository.js — What each price source last gave, one key per source in Workers KV
+ * (kvStore.repository.js)
  *
  * A source's cleaned output (the adapter's `items`) is kept under `source_items:${sourceId}`.
  * It is the only stored copy: the price book ("prices") is built from these lists, and a list
@@ -8,7 +8,7 @@
  * price book itself (`book.sources`), not here.
  */
 
-import { getStateStore } from "./stateStore.repository.js";
+import { getBlobStore } from "./kvStore.repository.js";
 import { logger } from "../lib/logger.js";
 
 export const SOURCE_ITEMS_KEY_PREFIX = "source_items:";
@@ -41,7 +41,7 @@ export const serializeSourceItems = (items) => JSON.stringify(Array.isArray(item
  * @returns {Promise<boolean>} whether the list was written
  */
 export async function saveSourceItems(env, sourceId, items, { previous } = {}) {
-  const store = getStateStore(env);
+  const store = getBlobStore(env);
   if (!store || !sourceId || !Array.isArray(items)) return false;
   const json = serializeSourceItems(items);
   if (previous !== undefined && previous === json) return false;
@@ -80,7 +80,7 @@ export function parseStoredItems(json) {
  */
 export async function readSourceItemsMany(env, sourceIds) {
   const result = new Map();
-  const store = getStateStore(env);
+  const store = getBlobStore(env);
   const ids = (sourceIds || []).filter(Boolean);
   const empty = () => { for (const id of ids) result.set(id, { json: null, items: [] }); return result; };
   if (!store || !ids.length) return empty();
@@ -104,7 +104,7 @@ export async function getSourceItems(env, sourceId) {
 
 /** Forget a source's items */
 export async function deleteSourceItems(env, sourceId) {
-  const store = getStateStore(env);
+  const store = getBlobStore(env);
   if (!store || !sourceId) return;
   await store.delete(sourceItemsKey(sourceId)).catch(() => {});
 }

@@ -31,10 +31,10 @@ Errors share one shape: `{ success: false, message, error: { code, message } }` 
 | `GET` | `/api/prices/book` | **The prices.** Every price in the standard shape, plus the public global settings: `{ updatedAt, items: { [id]: { id, price (toman), name, category, unit, sourceId, updatedAt, params } }, globalSettings }`. The web app's only price request. Sent with an `ETag` (`Cache-Control: no-cache`): while no price or setting changed, a revalidation gets `304` and no body. |
 | `GET` | `/api/v1/market/items` | Older shape, kept for clients that haven't updated: unified market items (Gold, Coins, Silver, Forex, Bourse, Funds, Plans), priced from the book |
 | `GET` | `/api/v1/prices` | Older shape, kept for clients that haven't updated: `{ prices: { [id]: { price, … } }, live_usd_toman, gold_usd, forex, reference_rates, globalSettings }`, read off the book (the ounce in dollars and currencies as rates against the dollar, as before) |
-| `GET` | `/api/sparklines?keys=usd,gold_18k&range=1d` | Trend series from the Postgres price history, per asset id (`range`: `1d` per minute — the default, `7d`, `30d`, `1y`) |
+| `GET` | `/api/sparklines?keys=usd,gold_18k&range=30d` | Daily trend series from the D1 price history, per asset id (`range`: `7d`, `30d` — the default, `90d`, `1y`; `1d` is served as `7d`). Each series has `points`, `days` (YYYY-MM-DD, Tehran), `first`, `last`, `changePct`, `since` |
 | `GET` | `/api/v1/bourse/symbols` | Search and list Tehran Stock Exchange symbols (`?q=...&limit=...`) |
 | `POST` | `/api/v1/bourse/sync` | Force synchronize bourse symbols cache |
-| `GET` | `/api/app/latest` | The Android app's latest release, for its update check: `{ release: { version, tag, url, size, notes, publishedAt } \| null }`. Read from GitHub releases (the API, else the `releases/latest` redirect; optional `GITHUB_TOKEN`), kept 10 minutes in Postgres (`app_state`), the last known one served when GitHub fails. Answered during maintenance too. |
+| `GET` | `/api/app/latest` | The Android app's latest release, for its update check: `{ release: { version, tag, url, size, notes, publishedAt } \| null }`. Read from GitHub releases (the API, else the `releases/latest` redirect; optional `GITHUB_TOKEN`), kept 10 minutes in D1 (`app_state`), the last known one served when GitHub fails. Answered during maintenance too. |
 | `GET` / `POST` | `/api/v1/portfolio/shared` | Retrieve a publicly shared portfolio (`?slug=...`; a share password is accepted only in a `POST` body `{ slug, password }`) |
 
 #### Unified Market Items Schema (`/api/v1/market/items`)
@@ -192,7 +192,7 @@ Stateless image analysis with Gemini (`api/src/config/ai.config.js`, key in the 
 - **Not configured**: without `GEMINI_API_KEY` the scan answers `503 SCAN_NOT_CONFIGURED` (the admin is told the secret's name).
 - **Admin debug** (`cheque_scan_debug` feature, beta): the response adds `raw` (the model's answer), and a `502` names Gemini's error.
 - **Encryption Gate Exemption**: This endpoint is explicitly exempted from the mandatory E2EE ciphertext gate because it does not store any financial data.
-- **Privacy & Zero Storage Guarantee**: The image, model prompts, and structured output are **never** persisted to Postgres, disk, or logs.
+- **Privacy & Zero Storage Guarantee**: The image, model prompts, and structured output are **never** persisted to the database, disk, or logs.
 
 | Method | Endpoint | Description |
 | :--- | :--- | :--- |

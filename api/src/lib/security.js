@@ -203,7 +203,7 @@ export async function sha256Hex(value) {
 // ─── Rate limiting ───────────────────────────────────────────────────────────────
 
 /**
- * Counter in the state store (Postgres): each hit is one atomic increment and restarts the
+ * Counter in the state store (D1): each hit is one atomic increment and restarts the
  * window, so a key stays limited while it keeps being hit.
  * @param {object} env
  * @param {string} key

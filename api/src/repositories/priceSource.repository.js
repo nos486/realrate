@@ -1,11 +1,11 @@
 /**
- * priceSource.repository.js — Price sources: config in code, runtime state in the state store
- * (Postgres, stateStore.repository.js)
+ * priceSource.repository.js — Price sources: config in code, the admin's overrides in D1
+ * (stateStore.repository.js), what each source last gave in KV (sourceItems.repository.js)
  */
 
 import { getPriceBookCache } from "./priceBookStore.repository.js";
 import { getStateStore } from "./stateStore.repository.js";
-import { readSourceItems, saveSourceItems, sourceItemsKey, parseStoredItems } from "./sourceItems.repository.js";
+import { readSourceItems, readSourceItemsMany, saveSourceItems, parseStoredItems } from "./sourceItems.repository.js";
 import {
   getMasterPriceSourcesConfig,
   getMasterPriceSourceById,
@@ -79,25 +79,15 @@ function withRuntimeState(src, stored, state) {
  */
 export async function dbGetPriceSources(env, { book } = {}) {
   const configs = getMasterPriceSourcesConfig();
-  // The admin's overrides and every source's items in one read
-  const store = env ? getStateStore(env) : null;
-  const itemKeys = configs.map((src) => sourceItemsKey(src.id));
-  let values = new Map();
-  if (store) {
-    try {
-      values = await store.getMany([PRICE_SOURCE_OVERRIDES_KEY, ...itemKeys]);
-    } catch {
-      values = new Map();
-    }
-  }
-  let overrides = {};
-  try {
-    overrides = JSON.parse(values.get(PRICE_SOURCE_OVERRIDES_KEY) || "{}") || {};
-  } catch {}
-  const priceBook = book !== undefined ? book : (env ? await getPriceBookCache(env) : null);
-  return configs.map((config, i) => {
+  // The admin's overrides (D1) and every source's items (KV), read together
+  const [overrides, items, priceBook] = await Promise.all([
+    env ? readOverrides(env) : {},
+    env ? readSourceItemsMany(env, configs.map((src) => src.id)) : new Map(),
+    book !== undefined ? book : (env ? getPriceBookCache(env) : null),
+  ]);
+  return configs.map((config) => {
     const src = withOverrides(config, overrides);
-    return withRuntimeState(src, parseStoredItems(values.get(itemKeys[i])), priceBook?.sources?.[src.id] || null);
+    return withRuntimeState(src, items.get(src.id) || parseStoredItems(null), priceBook?.sources?.[src.id] || null);
   });
 }
 

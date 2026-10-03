@@ -25,8 +25,11 @@ export function validateEnv(env) {
 
   const missing = [];
 
-  if (!env.HYPERDRIVE?.connectionString) {
-    missing.push("HYPERDRIVE (Postgres through Hyperdrive)");
+  if (!env.DB?.prepare) {
+    missing.push("DB (the D1 database)");
+  }
+  if (!env.KV?.get) {
+    missing.push("KV (the price book's namespace)");
   }
 
   if (!env.GOOGLE_CLIENT_ID) {

@@ -1,7 +1,6 @@
 name = "realrate-api"
 main = "src/index.js"
 compatibility_date = "2024-09-23"
-# The Postgres driver (pg) needs Node.js APIs
 compatibility_flags = ["nodejs_compat"]
 
 [vars]
@@ -16,14 +15,22 @@ GOOGLE_CLIENT_ID = "420432138114-sfg3n1k34ke674192pct6envne50o1c7.apps.googleuse
 crons = ["* * * * *"]
 
 
-# Postgres: the app's database and the price history (tables are created on first use).
-# Query caching must be off for this Hyperdrive, or a page may read data from before a save:
-#   npx wrangler hyperdrive update c503e09fe4334a2c8351480139a9bce7 --caching-disabled true
-# Local dev: point localConnectionString at a local Postgres.
-[[hyperdrive]]
-binding = "HYPERDRIVE"
-id = "c503e09fe4334a2c8351480139a9bce7"
-localConnectionString = "postgres://postgres:postgres@localhost:5432/realrate"
+# Run next to the D1 database (fewer round trips for requests that run several queries)
+[placement]
+mode = "smart"
+
+# D1: every table (users, sessions, the encrypted vault, the daily price history, counters).
+# Created with `npx wrangler d1 create realrate`; tables are created on first use.
+[[d1_databases]]
+binding = "DB"
+database_name = "realrate"
+database_id = "REPLACE_WITH_D1_DATABASE_ID"
+
+# KV: the price book and each price source's items (read on every price request).
+# Created with `npx wrangler kv namespace create realrate-prices`.
+[[kv_namespaces]]
+binding = "KV"
+id = "REPLACE_WITH_KV_NAMESPACE_ID"
 
 # Durable Object history: RateGate was added (v1) and removed (v2); keep both entries
 [[migrations]]

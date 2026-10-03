@@ -23,7 +23,7 @@ import { AppError } from "./lib/AppError.js";
 import { setPriceHistoryWriter } from "./services/market/sourceSync.service.js";
 import { recordPriceHistory } from "./repositories/priceHistory.repository.js";
 
-// Every saved price also goes to the Postgres history (see priceHistory.repository.js)
+// Every saved price also goes to the daily history in D1 (see priceHistory.repository.js)
 setPriceHistoryWriter(recordPriceHistory);
 
 const MAX_CATALOG_SEARCH_LIMIT = 500;
@@ -170,10 +170,9 @@ import {
   syncAllCatalogSources,
 } from "./services/market/catalogFeeds.service.js";
 import { runCronPolling } from "./jobs/cronPolling.job.js";
-import { withDatabase } from "./lib/database.js";
 
 /**
- * One request, with env.DB on the app's current database (lib/database.js)
+ * One request (env.DB: the D1 database; env.KV: the price book's namespace)
  */
 async function handleRequest(request, env, ctx) {
   validateEnv(env);
@@ -566,12 +565,7 @@ async function handleRequest(request, env, ctx) {
 
 export default {
   async fetch(request, env, ctx) {
-    const { env: requestEnv, close } = withDatabase(env);
-    try {
-      return await handleRequest(request, requestEnv, ctx);
-    } finally {
-      ctx?.waitUntil?.(close());
-    }
+    return handleRequest(request, env, ctx);
   },
 
   /**
@@ -579,11 +573,6 @@ export default {
    * Runs automatically every minute to extract due price sources based on fetchIntervalSec
    */
   async scheduled(event, env, ctx) {
-    const { env: runEnv, close } = withDatabase(env);
-    try {
-      await runCronPolling(event, runEnv, ctx);
-    } finally {
-      ctx?.waitUntil?.(close());
-    }
+    await runCronPolling(event, env, ctx);
   },
 };

@@ -1,5 +1,5 @@
 /**
- * apiRoutes.js — Public price routes. Every price comes from the price book ("prices" in Postgres).
+ * apiRoutes.js — Public price routes. Every price comes from the price book ("prices" in Workers KV).
  */
 
 import { getPriceBook } from "../services/market/priceAggregator.service.js";
@@ -8,7 +8,7 @@ import { baseRatesOf, forexCrossRatesOf, legacyPricesOf } from "../domain/priceB
 import { getGlobalSettings } from "../repositories/settings.repository.js";
 import { jsonResponse, getCorsHeaders } from "../lib/helpers.js";
 import { logger } from "../lib/logger.js";
-import { readPriceTrends, TREND_RANGES, DEFAULT_TREND_RANGE } from "../repositories/priceHistory.repository.js";
+import { readPriceTrends, TREND_RANGES, resolveTrendRange } from "../repositories/priceHistory.repository.js";
 
 const SPARKLINE_MAX_KEYS = 200;
 // A series never changes faster than its buckets: cache at most one bucket, up to 5 minutes
@@ -93,17 +93,17 @@ export function resetPriceBookMemo() {
 }
 
 /**
- * GET /api/sparklines?keys=usd,gold_18k,...&range=1d
- * Trend series of the given asset ids from the price history (Postgres): per key a fixed-size
- * list of values across the window (one per `bucketSec`, from `since`), plus its first and last
- * value and the change in percent.
+ * GET /api/sparklines?keys=usd,gold_18k,...&range=30d
+ * Daily series of the given asset ids from the price history (D1, priceHistory.repository.js):
+ * per key one value per day of the window (`days`, from `since`; `bucketSec` is a day), plus its
+ * first and last value and the change in percent. Ranges: 7d, 30d, 90d, 1y ("1d" → 7d).
  * Keys without history are left out; `available: false` means the history can't be read now.
  * Answers are cached at the edge for one bucket, at most 5 minutes (keys are sorted, so any order
  * hits the cache).
  */
 export async function handleGetSparklines(env, request = null) {
   const url = new URL(request?.url || "http://localhost/api/sparklines");
-  const range = Object.hasOwn(TREND_RANGES, url.searchParams.get("range")) ? url.searchParams.get("range") : DEFAULT_TREND_RANGE;
+  const range = resolveTrendRange(url.searchParams.get("range"));
   const { bucketSec } = TREND_RANGES[range];
   const keys = [...new Set(
     (url.searchParams.get("keys") || url.searchParams.get("asset") || "")

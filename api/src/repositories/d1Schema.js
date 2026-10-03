@@ -1,9 +1,9 @@
 /**
- * pgSchema.js — The app's tables in Postgres
+ * d1Schema.js — The app's tables in Cloudflare D1 (SQLite)
  *
- * Created on first use (schema.repository.js ensureSchema). Flags are 0/1 BIGINTs, times in
- * ms are BIGINTs, amounts DOUBLE PRECISION. The price history tables live in
- * priceHistory.repository.js. `npm run db:schema` prints this schema as SQL.
+ * Created on first use (schema.repository.js ensureSchema), once per isolate: a new isolate asks
+ * app_schema one question and runs the DDL only when it changed. Flags are 0/1 INTEGERs, times in
+ * ms are INTEGERs, amounts REAL. `npm run db:schema` prints this schema as SQL.
  */
 
 /** @type {Array<{ name: string, columns: string[], ddl: string[] }>} */
@@ -23,19 +23,18 @@ export const APP_TABLES = [
         role TEXT DEFAULT 'user',
         share_slug TEXT UNIQUE,
         share_password TEXT,
-        share_enabled BIGINT DEFAULT 0,
+        share_enabled INTEGER DEFAULT 0,
         created_at TEXT NOT NULL,
         last_login TEXT NOT NULL,
-        login_count BIGINT DEFAULT 1,
+        login_count INTEGER DEFAULT 1,
         password_hash TEXT NOT NULL DEFAULT '',
-        email_verified BIGINT NOT NULL DEFAULT 1,
+        email_verified INTEGER NOT NULL DEFAULT 1,
         password_updated_at TEXT NOT NULL DEFAULT '',
-        disabled BIGINT NOT NULL DEFAULT 0,
-        google_linked BIGINT NOT NULL DEFAULT 0,
+        disabled INTEGER NOT NULL DEFAULT 0,
+        google_linked INTEGER NOT NULL DEFAULT 0,
         home_layout TEXT NOT NULL DEFAULT '',
-        is_demo BIGINT NOT NULL DEFAULT 0
+        is_demo INTEGER NOT NULL DEFAULT 0
       )`,
-      "ALTER TABLE users ADD COLUMN IF NOT EXISTS is_demo BIGINT NOT NULL DEFAULT 0",
       "CREATE INDEX IF NOT EXISTS idx_users_last_login ON users(last_login DESC)",
       "CREATE INDEX IF NOT EXISTS idx_users_created_at ON users(created_at)",
       "CREATE UNIQUE INDEX IF NOT EXISTS idx_users_one_demo ON users(is_demo) WHERE is_demo = 1",
@@ -53,10 +52,9 @@ export const APP_TABLES = [
         picture TEXT,
         role TEXT NOT NULL,
         created_at TEXT NOT NULL,
-        expires_at BIGINT NOT NULL,
+        expires_at INTEGER NOT NULL,
         kind TEXT NOT NULL DEFAULT ''
       )`,
-      "ALTER TABLE sessions ADD COLUMN IF NOT EXISTS kind TEXT NOT NULL DEFAULT ''",
       "CREATE INDEX IF NOT EXISTS idx_sessions_expires_at ON sessions(expires_at)",
       "CREATE INDEX IF NOT EXISTS idx_sessions_user ON sessions(user_id)",
     ],
@@ -67,12 +65,12 @@ export const APP_TABLES = [
       "maintenance_message", "updated_at"],
     ddl: [
       `CREATE TABLE IF NOT EXISTS settings (
-        id BIGINT PRIMARY KEY CHECK (id = 1),
-        bubble_pct_full DOUBLE PRECISION DEFAULT 15,
-        bubble_pct_half DOUBLE PRECISION DEFAULT 20,
-        bubble_pct_quarter DOUBLE PRECISION DEFAULT 25,
+        id INTEGER PRIMARY KEY CHECK (id = 1),
+        bubble_pct_full REAL DEFAULT 15,
+        bubble_pct_half REAL DEFAULT 20,
+        bubble_pct_quarter REAL DEFAULT 25,
         announcement TEXT DEFAULT '',
-        maintenance_mode BIGINT DEFAULT 0,
+        maintenance_mode INTEGER DEFAULT 0,
         maintenance_message TEXT DEFAULT '',
         updated_at TEXT
       )`,
@@ -87,11 +85,11 @@ export const APP_TABLES = [
         id TEXT PRIMARY KEY,
         user_id TEXT NOT NULL,
         name TEXT NOT NULL,
-        is_default BIGINT DEFAULT 0,
+        is_default INTEGER DEFAULT 0,
         share_slug TEXT UNIQUE,
         share_password TEXT,
-        share_enabled BIGINT DEFAULT 0,
-        is_e2ee BIGINT DEFAULT 0,
+        share_enabled INTEGER DEFAULT 0,
+        is_e2ee INTEGER DEFAULT 0,
         e2ee_salt TEXT DEFAULT '',
         e2ee_verifier TEXT DEFAULT '',
         e2ee_wrapped_key TEXT NOT NULL DEFAULT '',
@@ -111,13 +109,13 @@ export const APP_TABLES = [
         user_id TEXT NOT NULL,
         portfolio_id TEXT,
         asset_id TEXT NOT NULL,
-        amount DOUBLE PRECISION NOT NULL,
-        buy_price DOUBLE PRECISION NOT NULL,
-        current_price DOUBLE PRECISION DEFAULT 0,
+        amount REAL NOT NULL,
+        buy_price REAL NOT NULL,
+        current_price REAL DEFAULT 0,
         buy_date TEXT DEFAULT '',
         notes TEXT DEFAULT '',
         reference_asset_id TEXT NOT NULL DEFAULT '',
-        reference_quantity DOUBLE PRECISION NOT NULL DEFAULT 0,
+        reference_quantity REAL NOT NULL DEFAULT 0,
         created_at TEXT NOT NULL,
         updated_at TEXT NOT NULL
       )`,
@@ -153,12 +151,12 @@ export const APP_TABLES = [
         user_id TEXT NOT NULL,
         title TEXT NOT NULL,
         lender_name TEXT DEFAULT '',
-        principal_amount DOUBLE PRECISION NOT NULL,
-        annual_interest_rate DOUBLE PRECISION NOT NULL DEFAULT 0,
-        installment_count BIGINT NOT NULL,
-        interval_months BIGINT NOT NULL DEFAULT 1,
+        principal_amount REAL NOT NULL,
+        annual_interest_rate REAL NOT NULL DEFAULT 0,
+        installment_count INTEGER NOT NULL,
+        interval_months INTEGER NOT NULL DEFAULT 1,
         start_date TEXT NOT NULL,
-        annual_fee_amount DOUBLE PRECISION NOT NULL DEFAULT 0,
+        annual_fee_amount REAL NOT NULL DEFAULT 0,
         schedule_mode TEXT NOT NULL DEFAULT 'formula',
         bank_id TEXT NOT NULL DEFAULT '',
         notes TEXT DEFAULT '',
@@ -191,16 +189,16 @@ export const APP_TABLES = [
         id TEXT PRIMARY KEY,
         loan_id TEXT NOT NULL,
         user_id TEXT NOT NULL,
-        installment_number BIGINT NOT NULL,
+        installment_number INTEGER NOT NULL,
         due_date TEXT NOT NULL,
-        principal_portion DOUBLE PRECISION NOT NULL,
-        interest_portion DOUBLE PRECISION NOT NULL,
-        total_amount DOUBLE PRECISION NOT NULL,
-        remaining_balance_after DOUBLE PRECISION NOT NULL,
-        is_paid BIGINT DEFAULT 0,
+        principal_portion REAL NOT NULL,
+        interest_portion REAL NOT NULL,
+        total_amount REAL NOT NULL,
+        remaining_balance_after REAL NOT NULL,
+        is_paid INTEGER DEFAULT 0,
         paid_date TEXT DEFAULT '',
-        paid_amount DOUBLE PRECISION DEFAULT 0,
-        is_manual_override BIGINT DEFAULT 0,
+        paid_amount REAL DEFAULT 0,
+        is_manual_override INTEGER DEFAULT 0,
         created_at TEXT NOT NULL,
         updated_at TEXT NOT NULL
       )`,
@@ -218,13 +216,13 @@ export const APP_TABLES = [
         id TEXT PRIMARY KEY,
         loan_id TEXT NOT NULL,
         user_id TEXT NOT NULL,
-        amount DOUBLE PRECISION NOT NULL,
+        amount REAL NOT NULL,
         payment_date TEXT NOT NULL,
         reduction_mode TEXT NOT NULL DEFAULT 'reduce_amount',
         notes TEXT DEFAULT '',
-        anchor_installment_number BIGINT NOT NULL DEFAULT 0,
-        resulting_balance DOUBLE PRECISION NOT NULL DEFAULT 0,
-        resulting_installment_count BIGINT,
+        anchor_installment_number INTEGER NOT NULL DEFAULT 0,
+        resulting_balance REAL NOT NULL DEFAULT 0,
+        resulting_installment_count INTEGER,
         created_at TEXT NOT NULL
       )`,
       "CREATE INDEX IF NOT EXISTS idx_loan_extra_payments_loan ON loan_extra_payments(loan_id)",
@@ -240,7 +238,7 @@ export const APP_TABLES = [
         user_id TEXT NOT NULL,
         title TEXT NOT NULL,
         category TEXT NOT NULL DEFAULT 'other',
-        amount DOUBLE PRECISION NOT NULL,
+        amount REAL NOT NULL,
         income_date TEXT NOT NULL,
         notes TEXT DEFAULT '',
         recurring_id TEXT NOT NULL DEFAULT '',
@@ -260,13 +258,13 @@ export const APP_TABLES = [
         user_id TEXT NOT NULL,
         title TEXT NOT NULL,
         category TEXT NOT NULL DEFAULT 'other',
-        amount DOUBLE PRECISION NOT NULL,
-        day_of_month BIGINT NOT NULL,
-        interval_months BIGINT NOT NULL DEFAULT 1,
+        amount REAL NOT NULL,
+        day_of_month INTEGER NOT NULL,
+        interval_months INTEGER NOT NULL DEFAULT 1,
         start_date TEXT NOT NULL,
         end_date TEXT NOT NULL DEFAULT '',
         notes TEXT NOT NULL DEFAULT '',
-        active BIGINT NOT NULL DEFAULT 1,
+        active INTEGER NOT NULL DEFAULT 1,
         generated_through TEXT NOT NULL DEFAULT '',
         created_at TEXT NOT NULL,
         updated_at TEXT NOT NULL
@@ -284,7 +282,7 @@ export const APP_TABLES = [
         user_id TEXT NOT NULL,
         direction TEXT NOT NULL,
         status TEXT NOT NULL DEFAULT 'pending',
-        amount DOUBLE PRECISION NOT NULL,
+        amount REAL NOT NULL,
         due_date TEXT NOT NULL,
         issue_date TEXT DEFAULT '',
         counterparty TEXT NOT NULL,
@@ -308,7 +306,7 @@ export const APP_TABLES = [
         token_hash TEXT PRIMARY KEY,
         user_id TEXT NOT NULL,
         purpose TEXT NOT NULL,
-        expires_at BIGINT NOT NULL,
+        expires_at INTEGER NOT NULL,
         created_at TEXT NOT NULL
       )`,
       "CREATE INDEX IF NOT EXISTS idx_auth_tokens_user ON auth_tokens(user_id, purpose)",
@@ -322,7 +320,7 @@ export const APP_TABLES = [
         user_id TEXT PRIMARY KEY,
         salt TEXT NOT NULL,
         wrapped_key TEXT NOT NULL,
-        version BIGINT NOT NULL DEFAULT 1,
+        version INTEGER NOT NULL DEFAULT 1,
         created_at TEXT NOT NULL,
         updated_at TEXT NOT NULL
       )`,
@@ -375,10 +373,10 @@ export const APP_TABLES = [
         kind TEXT NOT NULL,
         record_id TEXT NOT NULL,
         due_date TEXT NOT NULL,
-        interval_months BIGINT NOT NULL DEFAULT 0,
-        remaining BIGINT,
+        interval_months INTEGER NOT NULL DEFAULT 0,
+        remaining INTEGER,
         direction TEXT NOT NULL DEFAULT '',
-        muted BIGINT NOT NULL DEFAULT 0,
+        muted INTEGER NOT NULL DEFAULT 0,
         updated_at TEXT NOT NULL,
         PRIMARY KEY (user_id, kind, record_id)
       )`,
@@ -393,11 +391,11 @@ export const APP_TABLES = [
     ddl: [
       `CREATE TABLE IF NOT EXISTS alert_email_prefs (
         user_id TEXT PRIMARY KEY,
-        enabled BIGINT NOT NULL DEFAULT 0,
+        enabled INTEGER NOT NULL DEFAULT 0,
         sources TEXT NOT NULL DEFAULT '["loan","cheque"]',
         lead_days TEXT NOT NULL DEFAULT '[1,0]',
-        send_overdue BIGINT NOT NULL DEFAULT 1,
-        include_cheque_direction BIGINT NOT NULL DEFAULT 0,
+        send_overdue INTEGER NOT NULL DEFAULT 1,
+        include_cheque_direction INTEGER NOT NULL DEFAULT 0,
         updated_at TEXT NOT NULL
       )`,
     ],
@@ -501,27 +499,42 @@ export const APP_TABLES = [
     ],
   },
   {
-    // Small key/value state that changes often: the price book, price sources' items, counters
-    // (stateStore.repository.js)
+      // Small key/value state that must be consistent: counters, the admin's source overrides, the
+    // sources' sync state, the latest app release (stateStore.repository.js)
     name: "app_state",
     columns: ["key", "value", "expires_at", "updated_at"],
     ddl: [
       `CREATE TABLE IF NOT EXISTS app_state (
         key TEXT PRIMARY KEY,
         value TEXT NOT NULL,
-        expires_at BIGINT,
-        updated_at BIGINT NOT NULL
+        expires_at INTEGER,
+        updated_at INTEGER NOT NULL
       )`,
       "CREATE INDEX IF NOT EXISTS idx_app_state_expires ON app_state(expires_at) WHERE expires_at IS NOT NULL",
     ],
   },
   {
-    // The version of the DDL above that was last applied (see ensurePgSchema)
+    // The price of every item, one row per item and (Tehran) day: the day's last price
+    // (priceHistory.repository.js). Written only when it changed.
+    name: "price_daily",
+    columns: ["item_key", "day", "value", "updated_at"],
+    ddl: [
+      `CREATE TABLE IF NOT EXISTS price_daily (
+        item_key TEXT NOT NULL,
+        day TEXT NOT NULL,
+        value REAL NOT NULL,
+        updated_at INTEGER NOT NULL,
+        PRIMARY KEY (item_key, day)
+      ) WITHOUT ROWID`,
+    ],
+  },
+  {
+    // The version of the DDL above that was last applied (see ensureD1Schema)
     name: "app_schema",
     columns: ["id", "version"],
     ddl: [
       `CREATE TABLE IF NOT EXISTS app_schema (
-        id BIGINT PRIMARY KEY CHECK (id = 1),
+        id INTEGER PRIMARY KEY CHECK (id = 1),
         version TEXT NOT NULL
       )`,
     ],
@@ -541,24 +554,21 @@ export const SCHEMA_VERSION = (() => {
 let schemaReady = null;
 
 /** For tests: forget that the schema was created */
-export function resetPgSchemaCache() {
+export function resetD1SchemaCache() {
   schemaReady = null;
 }
 
 /**
- * Create the app's tables in Postgres if they aren't there (idempotent)
- * @param {{ prepare: Function }} db - a pgDatabase
+ * Create the app's tables if they aren't there (idempotent)
+ * @param {{ prepare: Function, batch: Function }} db - the D1 binding
  */
-export function ensurePgSchema(db) {
+export function ensureD1Schema(db) {
   if (!schemaReady) {
     schemaReady = (async () => {
-      // A new isolate asks one question instead of re-running every statement: the ALTERs take
-      // table locks even when there is nothing to change, stalling queries behind them
       const applied = await db.prepare("SELECT version FROM app_schema WHERE id = 1").first().catch(() => null);
       if (applied?.version === SCHEMA_VERSION) return;
-      for (const table of APP_TABLES) {
-        for (const sql of table.ddl) await db.prepare(sql).run();
-      }
+      // All the DDL in one round trip (D1 runs a batch as one transaction)
+      await db.batch(APP_TABLES.flatMap((table) => table.ddl).map((sql) => db.prepare(sql)));
       await db.prepare(
         "INSERT INTO app_schema (id, version) VALUES (1, ?) ON CONFLICT (id) DO UPDATE SET version = excluded.version"
       ).bind(SCHEMA_VERSION).run();

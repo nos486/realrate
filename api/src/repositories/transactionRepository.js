@@ -1,5 +1,5 @@
 /**
- * transactionRepository.js — Postgres Portfolio Transactions Data Access Layer
+ * transactionRepository.js — Portfolio Transactions Data Access Layer (D1)
  *
  * Persists client-side encrypted transactions for Zero-Knowledge portfolio management.
  */

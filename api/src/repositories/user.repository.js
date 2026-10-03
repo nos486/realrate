@@ -1,5 +1,5 @@
 /**
- * user.repository.js — Postgres User Data Access Layer
+ * user.repository.js — User Data Access Layer (D1)
  */
 
 import { ensureSchema } from "./schema.repository.js";

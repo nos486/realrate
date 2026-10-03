@@ -2,7 +2,7 @@
  * sourceSync.service.js — The one pipeline every price goes through
  *
  * Per tick:
- *   1. Read the price book ("prices", the state store in Postgres): it holds when each source last synced
+ *   1. Read the price book ("prices" in KV; the sync state in D1): it holds when each source last synced
  *   2. Pick the active sources whose fetchIntervalSec is due (all of them with forceAll, or only
  *      `sourceIds` when given)
  *   3. Fetch each endpoint once (sources sharing one are fetched together)
@@ -27,7 +27,7 @@ import { guardSourceItems } from "../../domain/priceGuard.js";
 /**
  * Records a tick's prices in the price history. Registered by the Worker entry (index.js)
  * rather than imported here: the web app shares market modules with the API, and its bundle
- * must not pull in the Postgres driver.
+ * must not pull in the database code.
  */
 let priceHistoryWriter = null;
 

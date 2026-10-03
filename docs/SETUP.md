@@ -2,7 +2,7 @@
 
 ## پیش‌نیازها
 - Node.js نسخه ۲۲ (همان نسخه‌ی CI)، npm نسخه ۹ یا بالاتر
-- حساب Cloudflare (Workers، Hyperdrive، Pages) و یک پایگاه‌داده Postgres
+- حساب Cloudflare با پلن پولی Workers (Workers، D1، KV، Pages)
 
 ## اجرای محلی
 
@@ -21,21 +21,35 @@ npm run web:dev    # فقط وب (Vite)
 npm test           # آزمون‌های Vitest
 ```
 
-برای اجرای محلی یک Postgres لازم است (بخش Postgres را ببینید).
+اجرای محلی از D1 و KV محلی wrangler استفاده می‌کند (بخش D1 و KV را ببینید).
 
-## Postgres (Hyperdrive)
+## D1 و KV
 
-داده‌های برنامه و تاریخچه قیمت‌ها در Postgres است و Worker از طریق Cloudflare Hyperdrive به آن وصل می‌شود (binding: `HYPERDRIVE` در `api/wrangler.toml`). جدول‌ها خودکار ساخته می‌شوند. همه‌چیز در Postgres است — Workers KV استفاده نمی‌شود: قیمت‌ها، لیست سورس‌ها و شمارنده‌ها در جدول `app_state`، نشست‌ها در `sessions` و تنظیمات سایت در `settings`.
+داده‌ها در Cloudflare است (پلن پولی Workers، ۵ دلار، لازم است):
+- **D1** (binding: `DB`): داده‌های برنامه، نشست‌ها، تنظیمات، تاریخچه‌ی روزانه‌ی قیمت (`price_daily`: آخرین قیمت هر قلم در هر روز به وقت تهران) و وضعیت‌هایی که باید همیشه درست خوانده شوند (`app_state`: شمارنده‌ها، تنظیمات سورس‌ها، وضعیت همگام‌سازی سورس‌ها).
+- **KV** (binding: `KV`): داده‌های بزرگِ پرخواندن — دفتر قیمت (`prices`) و اقلام هر سورس (`source_items:*`). KV تا حدود ۶۰ ثانیه دیر به‌روز می‌شود، که برای قیمت‌ها اشکالی ندارد.
 
-کش کوئری Hyperdrive باید خاموش باشد، وگرنه ممکن است بعد از ذخیره، داده قدیمی خوانده شود:
+ساخت (یک بار):
 
 ```bash
-npx wrangler hyperdrive update <HYPERDRIVE_ID> --caching-disabled true
+cd api
+npx wrangler d1 create realrate
+npx wrangler kv namespace create realrate-prices
 ```
 
-برای اجرای محلی، `localConnectionString` را به یک Postgres محلی بدهید.
+شناسه‌هایی که چاپ می‌شود را در `api/wrangler.toml` به‌جای `REPLACE_WITH_D1_DATABASE_ID` و `REPLACE_WITH_KV_NAMESPACE_ID` بگذارید. جدول‌ها با اولین درخواست به ورکر خودکار ساخته می‌شوند (`api/src/repositories/d1Schema.js`)؛ برای دیدن SQL آن‌ها: `cd api && npm run db:schema`. اجرای محلی (`npm run api:dev`) از D1 و KV محلی wrangler استفاده می‌کند و چیزی لازم ندارد.
 
-جداول با اولین درخواست به ورکر خودکار ساخته می‌شوند (`api/src/repositories/pgSchema.js`). برای دیدن SQL آن‌ها: `cd api && npm run db:schema`.
+### انتقال از Postgres (یک بار)
+
+```bash
+# ۱. (اختیاری) حالت تعمیر را از پنل مدیریت روشن کنید
+# ۲. خروجی گرفتن از Postgres به فایل‌های SQL
+DATABASE_URL=postgres://user:pass@host:5432/realrate node api/scripts/pg-to-d1.mjs d1-import
+# ۳. وارد کردن در D1
+cd api && for f in ../d1-import/*.sql; do npx wrangler d1 execute realrate --remote --file "$f" -y; done
+```
+
+همه‌ی جدول‌ها منتقل می‌شوند؛ `price_history` به `price_daily` تبدیل می‌شود (آخرین قیمت هر روز)، و از `app_state` فقط تنظیمات سورس‌ها (`price_source_overrides`) — دفتر قیمت و اقلام سورس‌ها با اولین اجراهای cron دوباره در KV ساخته می‌شوند. ردیفی بزرگ‌تر از ۱۰۰ کیلوبایت (محدودیت هر دستور D1) نوشته نمی‌شود و اسکریپت آن را گزارش می‌دهد. بعد از ورود داده‌ها به main مرج کنید تا Worker و Pages منتشر شوند، و پس از اطمینان، Hyperdrive را پاک کنید.
 
 ## ورود با گوگل
 
@@ -122,8 +136,6 @@ npx wrangler secret put VAPID_SUBJECT
 بدون این کلیدها، اعلان مرورگر غیرفعال می‌ماند و کلاینت‌ها پیام عدم پیکربندی سرور را دریافت می‌کنند.
 
 ## استقرار
-
-دو راه: Cloudflare (Workers و Pages، در ادامه) یا **یک سرور لینوکسی با Docker** که با هر push خودکار به‌روز می‌شود — راهنمای کامل و مراحل جابه‌جایی بدون قطعی: [SELF_HOST.md](SELF_HOST.md).
 
 مرج در `main` هر دو بخش را خودکار منتشر می‌کند و در هر PR هم برای هر دو یک پیش‌نمایش ساخته می‌شود:
 

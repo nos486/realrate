@@ -49,7 +49,7 @@ export const PRICE_SOURCES_CONFIG = [
 > **Metadata ownership (an architecture rule):**
 > `badge`, `badgeColor` and `iconName` are no longer set on a source; they come automatically from the category in [`categories.config.js`](../../api/src/config/categories.config.js), so the data can't drift.
 
-In the admin panel a source can only be switched off or made the primary one for its id (kept in Postgres, key `price_source_overrides`); sources are never created or deleted there.
+In the admin panel a source can only be switched off or made the primary one for its id (kept in D1, key `price_source_overrides`); sources are never created or deleted there.
 
 ---
 
@@ -152,7 +152,7 @@ const badge = getItemBadge("src_def_charisma__اهرم");
 ┌─────────────────────────────────────────────────────────┐
 │ saveSourceItems(env, sourceId, items)                   │
 │ (source_items:<id>, only when changed) → price book     │
-│ (prices) → price history (all in Postgres)              │
+│ (prices) → price history (KV and D1)                    │
 └─────────────────────────────────────────────────────────┘
 ```
 

@@ -1,5 +1,5 @@
 /**
- * incomes.repository.js — Postgres Data Access Layer for user income entries
+ * incomes.repository.js — Data Access Layer for user income entries (D1)
  *
  * Each row is one income event (salary, freelance payment, rent, ...) owned by a single user.
  * Input is expected to be validated & normalized by the route handler (see incomeRoutes.js);

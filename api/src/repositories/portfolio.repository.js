@@ -1,5 +1,5 @@
 /**
- * portfolio.repository.js — Postgres Portfolio Data Access Layer
+ * portfolio.repository.js — Portfolio Data Access Layer (D1)
  */
 
 import { ensureSchema } from "./schema.repository.js";

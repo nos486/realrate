@@ -271,8 +271,10 @@ describe('Unified Orchestration — sourceSync.service (Phase 4)', () => {
 
   it('writes nothing but the source lists and the book: no second copy of any price', async () => {
     await syncAllSources(mockEnv);
-    expect([...mockEnv.DB.rows.keys()]).toEqual(['prices']); // source lists go through saveSourceItems (mocked here)
-    expect(mockEnv.DB.calls.filter((c) => c === 'put')).toHaveLength(1);
+    // Source lists go through saveSourceItems (mocked here); the book, and its sync state apart
+    expect([...mockEnv.DB.rows.keys()].sort()).toEqual(['prices', 'source_states']);
+    expect(mockEnv.DB.calls.filter((c) => c === 'put')).toHaveLength(2);
+    expect(mockEnv.DB.json('source_states')).toEqual(mockEnv.DB.json('prices').sources);
     const book = mockEnv.DB.json('prices');
     expect(book.items.usd).toMatchObject({ price: 95000, sourceId: 'src_def_usd' });
     expect(book.sources.src_def_usd).toMatchObject({ count: 1, fetchedAt: '2026-09-21T10:00:00Z' });

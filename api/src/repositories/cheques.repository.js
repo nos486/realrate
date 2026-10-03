@@ -1,5 +1,5 @@
 /**
- * cheques.repository.js — Postgres Data Access Layer for user cheques
+ * cheques.repository.js — Data Access Layer for user cheques (D1)
  *
  * Each row is one received or issued cheque owned by a single user; `history` holds its tracking
  * log (status changes) as JSON. Input is validated & normalized by the route handler with the

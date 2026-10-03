@@ -8,7 +8,7 @@ Expense sections (a project, …) and each section's expenses, in tomans or doll
 
 ### Storage
 
-Everything is an encrypted vault record (`vault_records`); no new Postgres table is needed.
+Everything is an encrypted vault record (`vault_records`); no new database table is needed.
 
 | Record kind (`kind`) | `parent_id` | `record_date` | Encrypted content |
 |---|---|---|---|

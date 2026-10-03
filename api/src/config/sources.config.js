@@ -2,7 +2,7 @@
  * sources.config.js — Master Code-First Price Sources Specification
  *
  * All price sources in RealRate are defined declaratively in code.
- * Version-controlled via Git; runtime prices are kept in Postgres (app_state) and memory.
+ * Version-controlled via Git; runtime prices are kept in Workers KV (the price book) and memory.
  */
 
 import { mergeBourseSymbols } from "../services/market/sources/bourseSymbols.source.adapter.js";

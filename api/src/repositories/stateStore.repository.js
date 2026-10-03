@@ -1,10 +1,12 @@
 /**
- * stateStore.repository.js — The app's small key/value state, in Postgres (table `app_state`)
+ * stateStore.repository.js — The app's small key/value state that must be consistent, in D1
+ * (table `app_state`)
  *
- * What changes all the time — the price book, each price source's items, the admin's source
- * overrides, the app's latest release, rate-limit and daily-quota counters — is kept here, with a
- * get / put (expirationTtl) / delete / getMany interface, and an atomic increment for counters. Without a database (env.DB) there is no
- * store (null): callers treat that as "nothing stored".
+ * Rate-limit and daily-quota counters, the admin's source overrides, the sources' sync state and
+ * the app's latest release — read right after they are written, so not in Workers KV (whose
+ * reads can lag a minute). A get / put (expirationTtl) / delete / getMany interface, and an atomic
+ * increment for counters. Without a database (env.DB) there is no store (null): callers treat
+ * that as "nothing stored". The price book and the sources' items are in KV (kvStore.js).
  *
  * Expired rows are ignored when read and purged by the hourly cron (purgeExpiredState).
  */
@@ -24,7 +26,7 @@ const decode = (value, type) => {
   }
 };
 
-function pgStore(env) {
+function d1Store(env) {
   const db = env.DB;
   const ready = () => ensureSchema(env);
 
@@ -61,7 +63,7 @@ function pgStore(env) {
       `INSERT INTO app_state (key, value, expires_at, updated_at) VALUES (?, ?, ?, ?)
        ON CONFLICT (key) DO UPDATE SET
          value = CASE WHEN app_state.expires_at IS NOT NULL AND app_state.expires_at <= ? THEN excluded.value
-                      ELSE GREATEST(0, COALESCE(NULLIF(app_state.value, '')::bigint, 0) + ?)::text END,
+                      ELSE CAST(CAST(MAX(0, COALESCE(CAST(NULLIF(app_state.value, '') AS INTEGER), 0) + ?) AS INTEGER) AS TEXT) END,
          expires_at = excluded.expires_at, updated_at = excluded.updated_at
        RETURNING value`
     ).bind(key, String(Math.max(0, delta)), expiresAt, now, now, delta).first();
@@ -69,7 +71,7 @@ function pgStore(env) {
   }
 
   return {
-    kind: "postgres",
+    kind: "d1",
     increment,
     async get(key, type) {
       return (await getMany([key], type)).get(key) ?? null;
@@ -85,10 +87,10 @@ function pgStore(env) {
 
 /**
  * The state store for this request (null without a database)
- * @returns {{ kind: 'postgres', get: Function, getMany: Function, put: Function, increment: Function, delete: Function }|null}
+ * @returns {{ kind: 'd1', get: Function, getMany: Function, put: Function, increment: Function, delete: Function }|null}
  */
 export function getStateStore(env) {
-  return hasDatabase(env) ? pgStore(env) : null;
+  return hasDatabase(env) ? d1Store(env) : null;
 }
 /** Delete expired rows (rate-limit and quota counters); run from the hourly cron */
 export async function purgeExpiredState(env) {

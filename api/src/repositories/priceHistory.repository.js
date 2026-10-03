@@ -1,66 +1,65 @@
 /**
- * priceHistory.repository.js — Every price the app has ever seen, in Postgres (via Hyperdrive)
+ * priceHistory.repository.js — The price of every item per day, in D1 (table `price_daily`)
  *
- * One table for all sources: item key, time, value. Rows are never deleted.
- * A row is written each time an item's value changes; a sync that brings the same value again
- * adds nothing, so the table is the full step series of each price without repeats.
+ * One row per item and Tehran day: the last price seen that day. Every sync upserts the day's
+ * rows in one statement (the points go in as one JSON parameter, read with json_each), and a row
+ * is rewritten only when its value changed — so a day costs one insert per item plus its changes.
+ * The first sync of a day inserts every item, so each day has its own row (no gaps to carry over
+ * while the sources work).
  *
- * Postgres is optional: without the HYPERDRIVE binding nothing is recorded, and a failed write
- * is logged and never breaks the price sync that called it.
+ * Reads (readPriceTrends) return one point per day of the window for trend cards and charts, each
+ * carrying the last known value forward; today's point is the latest price.
  *
- * Reads (readPriceTrends) return a small fixed-size series per key for trend cards: the window
- * is cut into equal buckets, each holding the last value known at its end.
+ * Without a database nothing is recorded, and a failed write is logged and never breaks the price
+ * sync that called it.
  */
 
-import { newPgClient } from "../lib/pgClientFactory.js";
 import { logger } from "../lib/logger.js";
 import { normalizePriceId } from "../domain/priceBook.js";
+import { ensureSchema } from "./schema.repository.js";
 
-export const PRICE_HISTORY_SCHEMA = `
-CREATE TABLE IF NOT EXISTS price_history (
-  item_key    text        NOT NULL,
-  recorded_at timestamptz NOT NULL,
-  value       numeric     NOT NULL
-);
-CREATE INDEX IF NOT EXISTS price_history_key_time ON price_history (item_key, recorded_at DESC);
-`;
+export const DAY_SEC = 86400;
 
-/** A price that hasn't changed for this long is written again, so "flat" and "dead" differ */
-export const HEARTBEAT_SEC = 3600;
+/** Trend windows, in days (one point per day). "1d" — the old per-minute day — is a week now */
+export const TREND_RANGES = {
+  "7d": { days: 7, bucketSec: DAY_SEC },
+  "30d": { days: 30, bucketSec: DAY_SEC },
+  "90d": { days: 90, bucketSec: DAY_SEC },
+  "1y": { days: 365, bucketSec: DAY_SEC },
+};
+export const RANGE_ALIASES = { "1d": "7d" };
+export const DEFAULT_TREND_RANGE = "30d";
 
-/**
- * Insert the points whose value differs from the latest stored value of the same key, and the
- * heartbeat points whose key has no row for HEARTBEAT_SEC.
- * $1: keys, $2: values, $3: the time of this update, $4: each point's own time (null: $3),
- * $5: whether a point may be a heartbeat, $6: the heartbeat interval in seconds.
- * A point is recorded at its own time — when its source priced it — but never after this update
- * and never at or before the key's latest row (so the latest row is always the latest value).
- */
-export const INSERT_CHANGED_SQL = `
-INSERT INTO price_history (item_key, recorded_at, value)
-SELECT n.item_key,
-       GREATEST(
-         LEAST(COALESCE(n.at, $3::timestamptz), $3::timestamptz),
-         COALESCE(last.recorded_at + interval '1 millisecond', '-infinity'::timestamptz)
-       ),
-       n.value
-FROM unnest($1::text[], $2::numeric[], $4::timestamptz[], $5::boolean[]) AS n(item_key, value, at, heartbeat)
-LEFT JOIN LATERAL (
-  SELECT h.value, h.recorded_at FROM price_history h
-  WHERE h.item_key = n.item_key
-  ORDER BY h.recorded_at DESC
-  LIMIT 1
-) AS last ON true
-WHERE last.value IS DISTINCT FROM n.value
-   OR (n.heartbeat AND last.recorded_at < $3::timestamptz - make_interval(secs => $6))
-`;
+/** The range a request names (an old name maps to today's), or the default */
+export function resolveTrendRange(name) {
+  const key = RANGE_ALIASES[name] || name;
+  return Object.hasOwn(TREND_RANGES, key) ? key : DEFAULT_TREND_RANGE;
+}
+
+const tehranDayFormat = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Tehran", year: "numeric", month: "2-digit", day: "2-digit" });
+
+/** The Tehran calendar day (YYYY-MM-DD) of a moment */
+export function tehranDay(ms = Date.now()) {
+  return tehranDayFormat.format(new Date(ms));
+}
+
+/** A YYYY-MM-DD day moved by `n` days */
+export function addDays(day, n) {
+  const d = new Date(`${day}T00:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + n);
+  return d.toISOString().slice(0, 10);
+}
+
+/** When a Tehran day starts (Iran has had no daylight saving since 2022: UTC+3:30) */
+export function tehranDayStart(day) {
+  return `${day}T00:00:00+03:30`;
+}
 
 /**
  * Turn items into history points: one per key (the last one wins), positive finite values only.
  * Keys are in the price book's id form (normalizePriceId).
- * @param {Array<{ id: string, price: number|string, at?: string|null, heartbeat?: boolean }>} items
- *   `at`: when the price is from; `heartbeat`: write it again after HEARTBEAT_SEC even if unchanged
- * @returns {{ keys: string[], values: string[], ats: Array<string|null>, heartbeats: boolean[] }}
+ * @param {Array<{ id: string, price: number|string }>} items
+ * @returns {Array<[string, number]>}
  */
 export function toHistoryPoints(items) {
   const byKey = new Map();
@@ -68,144 +67,130 @@ export function toHistoryPoints(items) {
     const key = normalizePriceId(item?.id);
     const value = Number(item?.price);
     if (!key || !Number.isFinite(value) || value <= 0) continue;
-    const at = Date.parse(item?.at || "");
-    byKey.set(key, { value, at: Number.isFinite(at) ? new Date(at).toISOString() : null, heartbeat: Boolean(item?.heartbeat) });
+    byKey.set(key, value);
   }
-  const points = [...byKey.values()];
-  // Values go as strings so numeric keeps them exactly as JS printed them
-  return {
-    keys: [...byKey.keys()],
-    values: points.map((p) => String(p.value)),
-    ats: points.map((p) => p.at),
-    heartbeats: points.map((p) => p.heartbeat),
-  };
+  return [...byKey.entries()];
 }
 
-/** Trend windows: length and bucket size (the day is per minute, as often as prices are synced) */
-export const TREND_RANGES = {
-  "1d": { ms: 24 * 3600e3, bucketSec: 60 },
-  "7d": { ms: 7 * 24 * 3600e3, bucketSec: 3 * 3600 },
-  "30d": { ms: 30 * 24 * 3600e3, bucketSec: 12 * 3600 },
-  "1y": { ms: 365 * 24 * 3600e3, bucketSec: 7 * 24 * 3600 },
-};
-export const DEFAULT_TREND_RANGE = "1d";
-
-/** $1: keys, $2: window start, $3: bucket size in seconds → the last value of each bucket */
-export const TREND_BUCKETS_SQL = `
-SELECT item_key,
-       floor(extract(epoch FROM recorded_at) / $3)::bigint AS bucket,
-       ((array_agg(value ORDER BY recorded_at DESC))[1])::float8 AS value
-FROM price_history
-WHERE item_key = ANY($1::text[]) AND recorded_at >= $2::timestamptz
-GROUP BY item_key, bucket
-`;
-
-/** $1: keys, $2: window start → each key's value when the window starts (its last value before) */
-export const TREND_BASELINE_SQL = `
-SELECT k.item_key, b.value::float8 AS value
-FROM unnest($1::text[]) AS k(item_key)
-CROSS JOIN LATERAL (
-  SELECT h.value FROM price_history h
-  WHERE h.item_key = k.item_key AND h.recorded_at < $2::timestamptz
-  ORDER BY h.recorded_at DESC
-  LIMIT 1
-) AS b
+/**
+ * ?1: the day, ?2: now (ms), ?3: the points as JSON [[key, value], …]. A row is (re)written only
+ * when there is none for the day or its value changed. (`WHERE true` lets SQLite read the
+ * ON CONFLICT clause of an INSERT … SELECT.)
+ */
+export const UPSERT_DAY_SQL = `
+INSERT INTO price_daily (item_key, day, value, updated_at)
+SELECT json_extract(p.value, '$[0]'), ?1, json_extract(p.value, '$[1]'), ?2
+FROM json_each(?3) AS p
+WHERE true
+ON CONFLICT (item_key, day) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at
+WHERE price_daily.value <> excluded.value
 `;
 
 /**
- * One key's series: a value per bucket from the window start to now, each carrying the last
- * known value forward. Buckets before the first known value are dropped.
- * @param {{ baseline?: number|null, buckets: Map<number, number>, fromMs: number, nowMs: number, bucketSec: number }} input
- * @returns {{ points: number[], first: number, last: number, changePct: number, since: string }|null}
+ * Record the prices of one update into their day
+ * @param {object} env - needs env.DB
+ * @param {Array<{ id: string, price: number|string }>} items
+ * @param {string} [recordedAt] - ISO time of the update (defaults to now); its Tehran day is the row's
+ * @returns {Promise<number>} how many rows were written
  */
-export function buildTrendSeries({ baseline = null, buckets, fromMs, nowMs, bucketSec }) {
-  const size = bucketSec * 1000;
-  const firstBucket = Math.floor(fromMs / size);
-  const lastBucket = Math.floor(nowMs / size);
+export async function recordPriceHistory(env, items, recordedAt) {
+  if (!env?.DB?.prepare) return 0;
+  const points = toHistoryPoints(items);
+  if (points.length === 0) return 0;
+  const at = Date.parse(recordedAt || "") || Date.now();
+  try {
+    await ensureSchema(env);
+    const res = await env.DB.prepare(UPSERT_DAY_SQL).bind(tehranDay(at), at, JSON.stringify(points)).run();
+    return Number(res?.meta?.changes) || 0;
+  } catch (err) {
+    logger.warn("[PriceHistory] Write failed:", { error: err.message, points: points.length });
+    return 0;
+  }
+}
+
+/** ?1: keys (JSON array), ?2: first day → the window's rows */
+export const TREND_ROWS_SQL = `
+SELECT item_key, day, value FROM price_daily
+WHERE item_key IN (SELECT value FROM json_each(?1)) AND day >= ?2
+ORDER BY item_key, day
+`;
+
+/** ?1: keys (JSON array), ?2: first day → each key's last value before the window */
+export const TREND_BASELINE_SQL = `
+SELECT p.item_key, p.value FROM price_daily p
+JOIN (
+  SELECT item_key, MAX(day) AS day FROM price_daily
+  WHERE item_key IN (SELECT value FROM json_each(?1)) AND day < ?2
+  GROUP BY item_key
+) last ON last.item_key = p.item_key AND last.day = p.day
+`;
+
+/**
+ * One key's series: a value per day from the window's first day to today, each carrying the last
+ * known value forward. Days before the first known value are dropped.
+ * @param {{ baseline?: number|null, byDay: Map<string, number>, fromDay: string, today: string }} input
+ * @returns {{ points: number[], days: string[], first: number, last: number, changePct: number, since: string }|null}
+ */
+export function buildDailySeries({ baseline = null, byDay, fromDay, today }) {
   const points = [];
+  const days = [];
   let carry = Number.isFinite(baseline) ? baseline : null;
-  let sinceBucket = null;
-  for (let b = firstBucket; b <= lastBucket; b++) {
-    if (buckets.has(b)) carry = buckets.get(b);
+  for (let day = fromDay; day <= today; day = addDays(day, 1)) {
+    if (byDay.has(day)) carry = byDay.get(day);
     if (carry === null) continue;
-    if (sinceBucket === null) sinceBucket = b;
     points.push(carry);
+    days.push(day);
   }
   if (points.length === 0) return null;
   const first = points[0];
   const last = points[points.length - 1];
   return {
     points,
+    days,
     first,
     last,
     changePct: first > 0 ? ((last - first) / first) * 100 : 0,
-    since: new Date(Math.max(sinceBucket * size, fromMs)).toISOString(),
+    since: tehranDayStart(days[0]),
   };
 }
 
-// A dead database must not stall the price sync that is writing
-const CONNECT_TIMEOUT_MS = 5000;
-const QUERY_TIMEOUT_MS = 10000;
-
-// The table is created once per isolate, on the first write
-let schemaReady = null;
-
-/** For tests: forget that the schema was created */
-export function resetPriceHistorySchemaCache() {
-  schemaReady = null;
-}
-
-function connectClient(connectionString, deps) {
-  const createClient = deps.createClient || ((cs) => newPgClient(cs, {
-    connectionTimeoutMillis: CONNECT_TIMEOUT_MS,
-    query_timeout: QUERY_TIMEOUT_MS,
-  }));
-  return createClient(connectionString);
-}
-
 /**
- * Trend series for asset keys over a window
- * @param {object} env - needs env.HYPERDRIVE
+ * Daily series for asset keys over a window
+ * @param {object} env - needs env.DB
  * @param {string[]} keys - asset ids (compared in the price book's id form, as they are recorded)
  * @param {{ range?: string, now?: number }} [options]
- * @param {{ createClient?: (connectionString: string) => object }} [deps] - for tests
- * @returns {Promise<Record<string, ReturnType<typeof buildTrendSeries>>|null>} null when history
- *   is unavailable (no binding or a database error); keys without data are left out
+ * @returns {Promise<Record<string, ReturnType<typeof buildDailySeries>>|null>} null when history
+ *   is unavailable (no database, or a database error); keys without data are left out
  */
-export async function readPriceTrends(env, keys, { range = DEFAULT_TREND_RANGE, now = Date.now() } = {}, deps = {}) {
-  const connectionString = env?.HYPERDRIVE?.connectionString;
-  if (!connectionString) return null;
-  const window = TREND_RANGES[range] || TREND_RANGES[DEFAULT_TREND_RANGE];
+export async function readPriceTrends(env, keys, { range = DEFAULT_TREND_RANGE, now = Date.now() } = {}) {
+  if (!env?.DB?.prepare) return null;
+  const { days } = TREND_RANGES[resolveTrendRange(range)];
   const wanted = [...new Set((keys || []).map(normalizePriceId).filter(Boolean))];
   if (wanted.length === 0) return {};
 
-  const fromMs = now - window.ms;
-  const fromIso = new Date(fromMs).toISOString();
-  const client = connectClient(connectionString, deps);
-  let connected = false;
+  const today = tehranDay(now);
+  const fromDay = addDays(today, -(days - 1));
+  const json = JSON.stringify(wanted);
   try {
-    await client.connect();
-    connected = true;
-    const [bucketRes, baseRes] = await Promise.all([
-      client.query(TREND_BUCKETS_SQL, [wanted, fromIso, window.bucketSec]),
-      client.query(TREND_BASELINE_SQL, [wanted, fromIso]),
+    await ensureSchema(env);
+    const [rowsRes, baseRes] = await env.DB.batch([
+      env.DB.prepare(TREND_ROWS_SQL).bind(json, fromDay),
+      env.DB.prepare(TREND_BASELINE_SQL).bind(json, fromDay),
     ]);
-
-    const bucketsByKey = new Map();
-    for (const row of bucketRes.rows || []) {
-      if (!bucketsByKey.has(row.item_key)) bucketsByKey.set(row.item_key, new Map());
-      bucketsByKey.get(row.item_key).set(Number(row.bucket), Number(row.value));
+    const byKey = new Map();
+    for (const row of rowsRes?.results || []) {
+      if (!byKey.has(row.item_key)) byKey.set(row.item_key, new Map());
+      byKey.get(row.item_key).set(row.day, Number(row.value));
     }
-    const baselineByKey = new Map((baseRes.rows || []).map((row) => [row.item_key, Number(row.value)]));
+    const baselineByKey = new Map((baseRes?.results || []).map((row) => [row.item_key, Number(row.value)]));
 
     const result = {};
     for (const key of wanted) {
-      const series = buildTrendSeries({
+      const series = buildDailySeries({
         baseline: baselineByKey.get(key) ?? null,
-        buckets: bucketsByKey.get(key) || new Map(),
-        fromMs,
-        nowMs: now,
-        bucketSec: window.bucketSec,
+        byDay: byKey.get(key) || new Map(),
+        fromDay,
+        today,
       });
       if (series) result[key] = series;
     }
@@ -213,48 +198,5 @@ export async function readPriceTrends(env, keys, { range = DEFAULT_TREND_RANGE, 
   } catch (err) {
     logger.warn("[PriceHistory] Read failed:", { error: err.message, keys: wanted.length });
     return null;
-  } finally {
-    if (connected) await client.end().catch(() => {});
-  }
-}
-
-/**
- * Record the items of one update in the history
- * @param {object} env - needs env.HYPERDRIVE
- * @param {Array<{ id: string, price: number|string, at?: string|null, heartbeat?: boolean }>} items
- * @param {string} [recordedAt] - ISO time of the update (defaults to now)
- * @param {{ createClient?: (connectionString: string) => object }} [deps] - for tests
- * @returns {Promise<number>} How many rows were inserted
- */
-export async function recordPriceHistory(env, items, recordedAt, deps = {}) {
-  const connectionString = env?.HYPERDRIVE?.connectionString;
-  if (!connectionString) return 0;
-
-  const { keys, values, ats, heartbeats } = toHistoryPoints(items);
-  if (keys.length === 0) return 0;
-
-  const time = recordedAt || new Date().toISOString();
-  const client = connectClient(connectionString, deps);
-  let connected = false;
-  try {
-    await client.connect();
-    connected = true;
-    if (!schemaReady) {
-      schemaReady = client.query(PRICE_HISTORY_SCHEMA)
-        .catch((err) => {
-          schemaReady = null;
-          throw err;
-        });
-    }
-    await schemaReady;
-    const res = await client.query(INSERT_CHANGED_SQL, [keys, values, time, ats, heartbeats, HEARTBEAT_SEC]);
-    return res?.rowCount || 0;
-  } catch (err) {
-    logger.warn("[PriceHistory] Write failed:", { error: err.message, items: keys.length });
-    return 0;
-  } finally {
-    // Hyperdrive keeps the real connection pooled, so closing this one is cheap.
-    // A client that never connected is not closed: its end() would wait forever.
-    if (connected) await client.end().catch(() => {});
   }
 }

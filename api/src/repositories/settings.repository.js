@@ -1,5 +1,5 @@
 /**
- * settings.repository.js — The site's global settings, in Postgres (table `settings`, one row)
+ * settings.repository.js — The site's global settings, in D1 (table `settings`, one row)
  */
 
 import { ensureSchema } from "./schema.repository.js";

@@ -1,7 +1,7 @@
 /**
  * usageQuota.js — Count and enforce the daily limits of config/usageLimits.js
  *
- * One counter per user, feature and day in the state store (Postgres, stateStore.repository.js):
+ * One counter per user, feature and day in the state store (D1, stateStore.repository.js):
  * `quota:<feature>:<userId>:<YYYY-MM-DD>`, kept two days. The day is Tehran's, so the count resets
  * at local midnight. A use is one atomic increment (given back when it went over the limit), so
  * two requests at the same moment cannot both take the last free slot.

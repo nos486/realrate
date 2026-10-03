@@ -1,5 +1,5 @@
 /**
- * session.repository.js — Sessions, in Postgres (table `sessions`)
+ * session.repository.js — Sessions, in D1 (table `sessions`)
  */
 
 import { ensureSchema } from "./schema.repository.js";

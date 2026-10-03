@@ -1,7 +1,7 @@
 // @vitest-environment happy-dom
 /**
- * homeTrendCard.test.js — A trend card renders with a series (full day or younger), without one,
- * and while loading
+ * homeTrendCard.test.js — A trend card renders a daily series (30 days or younger) with the change
+ * since yesterday, without one, and while loading
  */
 import React from 'react';
 import { describe, it, expect, afterEach } from 'vitest';
@@ -20,19 +20,25 @@ const series = (n) => ({
 afterEach(cleanup);
 
 describe('trend card', () => {
-  it('renders a young history with the time it starts', () => {
-    const { container } = render(React.createElement(HomeAssetCard, { asset, style: 'trend', trend: series(30), trendStatus: 'ready', bucketSec: 60 }));
+  it('renders a young history with the day it starts', () => {
+    const { container } = render(React.createElement(HomeAssetCard, { asset, style: 'trend', trend: series(10), trendStatus: 'ready', bucketSec: 86400 }));
     expect(container.querySelector('.trend-spark')).not.toBeNull();
-    expect(container.querySelector('.home-trend-caption').textContent).toMatch(/^از ساعت /);
+    expect(container.querySelector('.home-trend-caption').textContent).toMatch(/^از \S+ \S+$/);
   });
 
-  it('renders a full day as the last 24 hours', () => {
-    const { container } = render(React.createElement(HomeAssetCard, { asset, style: 'trend', trend: series(1441), trendStatus: 'ready', bucketSec: 60 }));
-    expect(container.querySelector('.home-trend-caption').textContent).toBe('۲۴ ساعت اخیر');
+  it('renders a full window as the last 30 days, with the change since yesterday', () => {
+    const trend = { ...series(30), points: [...series(29).points, 101500], changePct: 1.5 };
+    const yesterday = trend.points[28];
+    const { container } = render(React.createElement(HomeAssetCard, { asset, style: 'trend', trend, trendStatus: 'ready', bucketSec: 86400 }));
+    expect(container.querySelector('.home-trend-caption').textContent).toBe('۳۰ روز اخیر');
+    const expected = (((101500 - yesterday) / yesterday) * 100).toFixed(2);
+    const pill = container.querySelector('.bubble-pill');
+    expect(pill.getAttribute('title')).toBe('تغییر نسبت به دیروز');
+    expect(pill.textContent.replace(/[^۰-۹0-9.٫]/g, '')).toMatch(new RegExp(`^${Number(expected).toLocaleString('fa-IR', { maximumFractionDigits: 2 }).replace(/[^۰-۹0-9.٫]/g, '')}`));
   });
 
   it('renders without a series, and while loading', () => {
-    const empty = render(React.createElement(HomeAssetCard, { asset, style: 'trend', trend: null, trendStatus: 'ready', bucketSec: 60 }));
+    const empty = render(React.createElement(HomeAssetCard, { asset, style: 'trend', trend: null, trendStatus: 'ready', bucketSec: 86400 }));
     expect(empty.container.querySelector('.home-trend-empty')).not.toBeNull();
     cleanup();
     const loading = render(React.createElement(HomeAssetCard, { asset, style: 'trend', trend: null, trendStatus: 'loading', bucketSec: 60 }));

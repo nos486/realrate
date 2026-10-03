@@ -1,259 +1,167 @@
 /**
- * priceHistory.test.js — Price history in Postgres (one table: item key, time, value)
- *
- * The SQL itself runs against a real Postgres when PRICE_HISTORY_TEST_URL is set, e.g.
- *   PRICE_HISTORY_TEST_URL=postgres://postgres@localhost:5432/realrate npx vitest run priceHistory
+ * priceHistory.test.js — The daily price history in D1 (table price_daily: one row per item and
+ * Tehran day, the day's last price), run on real SQLite
  */
 
-import { memoryStateDb } from '../helpers/memoryStateDb.js';
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { Client } from 'pg';
+import { describe, it, expect, beforeEach } from 'vitest';
 import {
   toHistoryPoints,
   recordPriceHistory,
-  resetPriceHistorySchemaCache,
-  INSERT_CHANGED_SQL,
-  PRICE_HISTORY_SCHEMA,
-  HEARTBEAT_SEC,
-} from '../../src/repositories/priceHistory.repository.js';
-import {
-  buildTrendSeries,
   readPriceTrends,
-  TREND_BUCKETS_SQL,
-  TREND_BASELINE_SQL,
+  buildDailySeries,
+  resolveTrendRange,
+  tehranDay,
+  addDays,
 } from '../../src/repositories/priceHistory.repository.js';
+import { resetD1SchemaCache } from '../../src/repositories/d1Schema.js';
+import { ensureSchema } from '../../src/repositories/schema.repository.js';
 import { saveSourceItems } from '../../src/repositories/sourceItems.repository.js';
 import { handleGetSparklines } from '../../src/handlers/apiRoutes.js';
+import { memoryStateDb } from '../helpers/memoryStateDb.js';
+import { sqliteD1 } from '../helpers/sqliteD1.js';
 
-function fakeClient({ failQuery = false, failConnect = false } = {}) {
-  return {
-    connect: vi.fn(async () => { if (failConnect) throw new Error('connection attempt failed'); }),
-    query: vi.fn(async (sql) => {
-      if (failQuery) throw new Error('db down');
-      return { rowCount: sql === INSERT_CHANGED_SQL ? 2 : 0 };
-    }),
-    end: vi.fn(async () => {}),
-  };
-}
+let db;
+let env;
+beforeEach(() => {
+  resetD1SchemaCache();
+  db = sqliteD1();
+  env = { DB: db };
+});
 
-const env = { HYPERDRIVE: { connectionString: 'postgres://x' } };
+const rows = () => db.sqlite.prepare('SELECT item_key, day, value FROM price_daily ORDER BY item_key, day').all()
+  .map((r) => ({ ...r }));
+
+describe('days on Tehran\'s clock', () => {
+  it('a Tehran day starts at 20:30 UTC the evening before', () => {
+    expect(tehranDay(Date.parse('2026-01-01T20:29:00Z'))).toBe('2026-01-01');
+    expect(tehranDay(Date.parse('2026-01-01T20:31:00Z'))).toBe('2026-01-02');
+    expect(addDays('2026-02-28', 1)).toBe('2026-03-01');
+    expect(addDays('2026-03-01', -1)).toBe('2026-02-28');
+  });
+
+  it('ranges: 7d / 30d / 90d / 1y; the old per-minute "1d" is a week, anything else the default', () => {
+    expect(resolveTrendRange('1y')).toBe('1y');
+    expect(resolveTrendRange('1d')).toBe('7d');
+    expect(resolveTrendRange('nope')).toBe('30d');
+    expect(resolveTrendRange(null)).toBe('30d');
+  });
+});
 
 describe('toHistoryPoints', () => {
   it('keeps one positive value per key in the book\'s id form, the last one winning', () => {
-    const points = toHistoryPoints([
+    expect(toHistoryPoints([
       { id: 'USD', price: 1000 },
-      { id: 'usd', price: '1100' },
-      { id: 'gold_18k', price: 0 },
-      { id: 'eur', price: 'abc' },
+      { id: 'usd', price: 1010 },
+      { id: 'eur', price: 0 },
+      { id: 'gbp', price: 'abc' },
       { id: '', price: 5 },
-      { id: 'نماد۱', price: 12.5 },
-      { id: 'bourse__فملي', price: 680 },
-    ]);
-    expect(points).toMatchObject({ keys: ['usd', 'نماد1', 'bourse__فملی'], values: ['1100', '12.5', '680'] });
-  });
-
-  it('carries each point\'s own time and whether it may be a heartbeat', () => {
-    const points = toHistoryPoints([
-      { id: 'usd', price: 1, at: '2026-01-01T00:00:00Z', heartbeat: true },
-      { id: 'eur', price: 2, at: 'not a date' },
-    ]);
-    expect(points.ats).toEqual(['2026-01-01T00:00:00.000Z', null]);
-    expect(points.heartbeats).toEqual([true, false]);
-  });
-
-  it('handles a missing list', () => {
-    expect(toHistoryPoints(null)).toEqual({ keys: [], values: [], ats: [], heartbeats: [] });
+      { id: 'try', price: '42.5' },
+    ])).toEqual([['usd', 1010], ['try', 42.5]]);
+    expect(toHistoryPoints(null)).toEqual([]);
   });
 });
 
 describe('recordPriceHistory', () => {
-  beforeEach(() => resetPriceHistorySchemaCache());
-
-  it('does nothing without the Hyperdrive binding', async () => {
-    const createClient = vi.fn();
-    expect(await recordPriceHistory({}, [{ id: 'usd', price: 1 }], null, { createClient })).toBe(0);
-    expect(createClient).not.toHaveBeenCalled();
+  it('does nothing without a database, and never throws', async () => {
+    expect(await recordPriceHistory({}, [{ id: 'usd', price: 1 }])).toBe(0);
+    const broken = { DB: { prepare: () => { throw new Error('db down'); } } };
+    expect(await recordPriceHistory(broken, [{ id: 'usd', price: 1 }])).toBe(0);
   });
 
-  it('creates the table once, then inserts the changed values in one query', async () => {
-    const clients = [];
-    const createClient = vi.fn(() => { const c = fakeClient(); clients.push(c); return c; });
-    const items = [{ id: 'usd', price: 1000 }, { id: 'eur', price: 1200 }];
-
-    expect(await recordPriceHistory(env, items, '2026-01-01T00:00:00Z', { createClient })).toBe(2);
-    await recordPriceHistory(env, items, '2026-01-01T00:01:00Z', { createClient });
-
-    expect(createClient).toHaveBeenCalledWith('postgres://x');
-    expect(clients[0].query).toHaveBeenNthCalledWith(1, PRICE_HISTORY_SCHEMA);
-    expect(clients[0].query).toHaveBeenLastCalledWith(INSERT_CHANGED_SQL, [
-      ['usd', 'eur'], ['1000', '1200'], '2026-01-01T00:00:00Z', [null, null], [false, false], HEARTBEAT_SEC,
+  it('one row per item and day: the first price of the day inserts, a change updates, a repeat writes nothing', async () => {
+    // 10:00 Tehran
+    expect(await recordPriceHistory(env, [{ id: 'USD', price: 1000 }, { id: 'eur', price: 1200 }], '2026-01-01T06:30:00Z')).toBe(2);
+    const before = db.queries;
+    expect(await recordPriceHistory(env, [{ id: 'usd', price: 1000 }, { id: 'eur', price: 1200 }], '2026-01-01T06:31:00Z')).toBe(0);
+    expect(db.queries - before).toBe(1); // one statement for every item
+    expect(await recordPriceHistory(env, [{ id: 'usd', price: 1010.5 }, { id: 'eur', price: 1200 }], '2026-01-01T06:32:00Z')).toBe(1);
+    // Next Tehran day (21:00 UTC): a new row for each item, even unchanged
+    expect(await recordPriceHistory(env, [{ id: 'usd', price: 1010.5 }, { id: 'eur', price: 1200 }], '2026-01-01T21:00:00Z')).toBe(2);
+    expect(rows()).toEqual([
+      { item_key: 'eur', day: '2026-01-01', value: 1200 },
+      { item_key: 'eur', day: '2026-01-02', value: 1200 },
+      { item_key: 'usd', day: '2026-01-01', value: 1010.5 },
+      { item_key: 'usd', day: '2026-01-02', value: 1010.5 },
     ]);
-    // The second update skips the schema
-    expect(clients[1].query).toHaveBeenCalledTimes(1);
-    expect(clients.every((c) => c.end.mock.calls.length === 1)).toBe(true);
   });
 
-  it('never throws: a failed write is logged and the connection closed', async () => {
-    const client = fakeClient({ failQuery: true });
-    const n = await recordPriceHistory(env, [{ id: 'usd', price: 1 }], null, { createClient: () => client });
-    expect(n).toBe(0);
-    expect(client.end).toHaveBeenCalled();
-  });
-
-  it('does not close a client that never connected (its end() would hang)', async () => {
-    const client = fakeClient({ failConnect: true });
-    expect(await recordPriceHistory(env, [{ id: 'usd', price: 1 }], null, { createClient: () => client })).toBe(0);
-    expect(client.end).not.toHaveBeenCalled();
+  it('records thousands of items in one statement', async () => {
+    const many = Array.from({ length: 3000 }, (_, i) => ({ id: `bourse__s${i}`, price: 1000 + i }));
+    await ensureSchema(env); // once per isolate
+    const before = db.queries;
+    expect(await recordPriceHistory(env, many, '2026-01-01T06:30:00Z')).toBe(3000);
+    expect(db.queries - before).toBe(1);
   });
 
   it('saveSourceItems only stores the list (history is written by the sync, not here)', async () => {
-    const env = { DB: memoryStateDb() };
-    await expect(saveSourceItems(env, 'src_x', [{ id: 'usd', price: 1 }])).resolves.toBe(true);
+    const state = { DB: memoryStateDb() };
+    await saveSourceItems(state, 'src_a', [{ id: 'usd', price: 1 }]);
+    expect([...state.DB.rows.keys()]).toEqual(['source_items:src_a']);
   });
 });
 
-describe('buildTrendSeries', () => {
-  const hour = 3600e3;
-  const bucketSec = 3600;
-
-  it('carries the value at the window start forward through empty buckets', () => {
-    const series = buildTrendSeries({
-      baseline: 100,
-      buckets: new Map([[2, 110], [4, 90]]),
-      fromMs: 0,
-      nowMs: 5 * hour,
-      bucketSec,
+describe('buildDailySeries', () => {
+  it('carries the value before the window through days without a row', () => {
+    const byDay = new Map([['2026-01-03', 12], ['2026-01-05', 15]]);
+    expect(buildDailySeries({ baseline: 10, byDay, fromDay: '2026-01-02', today: '2026-01-05' })).toEqual({
+      points: [10, 12, 12, 15],
+      days: ['2026-01-02', '2026-01-03', '2026-01-04', '2026-01-05'],
+      first: 10,
+      last: 15,
+      changePct: 50,
+      since: '2026-01-02T00:00:00+03:30',
     });
-    expect(series.points).toEqual([100, 100, 110, 110, 90, 90]);
-    expect(series.first).toBe(100);
-    expect(series.last).toBe(90);
-    expect(series.changePct).toBeCloseTo(-10);
-    expect(series.since).toBe(new Date(0).toISOString());
   });
 
-  it('starts at the first known value when the history is younger than the window', () => {
-    const series = buildTrendSeries({ buckets: new Map([[3, 50], [4, 55]]), fromMs: 0, nowMs: 4 * hour, bucketSec });
-    expect(series.points).toEqual([50, 55]);
-    expect(series.changePct).toBeCloseTo(10);
-    expect(series.since).toBe(new Date(3 * hour).toISOString());
-  });
-
-  it('is null without any value', () => {
-    expect(buildTrendSeries({ buckets: new Map(), fromMs: 0, nowMs: hour, bucketSec })).toBeNull();
+  it('starts at the first known day when the history is younger than the window; null without values', () => {
+    const series = buildDailySeries({ byDay: new Map([['2026-01-04', 7]]), fromDay: '2026-01-01', today: '2026-01-05' });
+    expect(series.days).toEqual(['2026-01-04', '2026-01-05']);
+    expect(series.points).toEqual([7, 7]);
+    expect(buildDailySeries({ byDay: new Map(), fromDay: '2026-01-01', today: '2026-01-05' })).toBeNull();
   });
 });
 
 describe('readPriceTrends', () => {
-  it('is null without Postgres', async () => {
+  it('is null without a database', async () => {
     expect(await readPriceTrends({}, ['usd'])).toBeNull();
   });
 
-  it('reads buckets and baselines for the lower-cased keys, then builds each series', async () => {
-    const now = Date.UTC(2026, 0, 8);
-    const client = {
-      connect: vi.fn(async () => {}),
-      end: vi.fn(async () => {}),
-      query: vi.fn(async (sql) => {
-        if (sql === TREND_BASELINE_SQL) return { rows: [{ item_key: 'usd', value: 100 }] };
-        if (sql === TREND_BUCKETS_SQL) {
-          return { rows: [{ item_key: 'usd', bucket: String(Math.floor(now / 3600e3 / 3)), value: 120 }] };
-        }
-        return { rows: [] };
-      }),
-    };
-    const result = await readPriceTrends(env, ['USD', 'usd', 'nothing'], { range: '7d', now }, { createClient: () => client });
-    expect(Object.keys(result)).toEqual(['usd']);
-    expect(result.usd.first).toBe(100);
-    expect(result.usd.last).toBe(120);
-    expect(result.usd.points.length).toBe(57);
-    expect(client.query.mock.calls[0][1][0]).toEqual(['usd', 'nothing']);
-    expect(client.end).toHaveBeenCalled();
+  it('a daily series per key over the window, with the value from before it carried in', async () => {
+    const at = (day) => `${addDays(day, -1)}T21:00:00Z`; // early on that Tehran day
+    await recordPriceHistory(env, [{ id: 'usd', price: 900 }], at('2025-12-20')); // before the week
+    await recordPriceHistory(env, [{ id: 'usd', price: 1000 }, { id: 'eur', price: 1200 }], at('2026-01-03'));
+    await recordPriceHistory(env, [{ id: 'usd', price: 1100 }], at('2026-01-06'));
+    const now = Date.parse('2026-01-07T08:00:00Z'); // Jan 7 in Tehran
+    const trends = await readPriceTrends(env, ['USD', 'eur', 'missing'], { range: '7d', now });
+    expect(Object.keys(trends).sort()).toEqual(['eur', 'usd']);
+    expect(trends.usd.days).toEqual(['2026-01-01', '2026-01-02', '2026-01-03', '2026-01-04', '2026-01-05', '2026-01-06', '2026-01-07']);
+    expect(trends.usd.points).toEqual([900, 900, 1000, 1000, 1000, 1100, 1100]);
+    expect(trends.eur.days[0]).toBe('2026-01-03');
+    expect(trends.eur.last).toBe(1200);
   });
 
   it('is null (not an error) when the database fails', async () => {
-    const client = fakeClient({ failConnect: true });
-    expect(await readPriceTrends(env, ['usd'], {}, { createClient: () => client })).toBeNull();
+    const broken = { DB: { prepare: () => ({ bind: () => ({}) }), batch: async () => { throw new Error('db down'); } } };
+    expect(await readPriceTrends(broken, ['usd'])).toBeNull();
   });
 });
 
 describe('GET /api/sparklines', () => {
   it('answers an empty set without touching the database', async () => {
     const res = await handleGetSparklines({}, new Request('https://x/api/sparklines'));
-    expect(await res.json()).toEqual({ success: true, available: true, range: '1d', bucketSec: 60, sparklines: {} });
+    expect(await res.json()).toEqual({ success: true, available: true, range: '30d', bucketSec: 86400, sparklines: {} });
   });
 
-  it('says the history is unavailable when Postgres is not bound', async () => {
-    const res = await handleGetSparklines({}, new Request('https://x/api/sparklines?keys=usd,EUR&range=30d'));
-    expect(await res.json()).toEqual({ success: true, available: false, range: '30d', bucketSec: 43200, sparklines: {} });
-  });
-});
-
-const PG_URL = process.env.PRICE_HISTORY_TEST_URL;
-
-describe.skipIf(!PG_URL)('price_history against a real Postgres', () => {
-  it('stores every change, skips repeats, and keeps all sources in one series per key', async () => {
-    const admin = new Client({ connectionString: PG_URL });
-    await admin.connect();
-    await admin.query('DROP TABLE IF EXISTS price_history');
-    resetPriceHistorySchemaCache();
-    const pgEnv = { HYPERDRIVE: { connectionString: PG_URL } };
-
-    expect(await recordPriceHistory(pgEnv, [{ id: 'USD', price: 1000 }, { id: 'eur', price: 1200 }], '2026-01-01T00:00:00Z')).toBe(2);
-    // Same values again: nothing new
-    expect(await recordPriceHistory(pgEnv, [{ id: 'usd', price: 1000 }, { id: 'eur', price: 1200 }], '2026-01-01T00:01:00Z')).toBe(0);
-    // Another source moves usd, eur unchanged
-    expect(await recordPriceHistory(pgEnv, [{ id: 'usd', price: 1010.5 }, { id: 'eur', price: 1200 }], '2026-01-01T00:02:00Z')).toBe(1);
-    // Back to an earlier value is still a change
-    expect(await recordPriceHistory(pgEnv, [{ id: 'usd', price: 1000 }], '2026-01-01T00:03:00Z')).toBe(1);
-
-    const { rows } = await admin.query(
-      "SELECT item_key, to_char(recorded_at AT TIME ZONE 'UTC', 'HH24:MI') AS t, value::text AS value FROM price_history ORDER BY item_key, recorded_at",
-    );
-    expect(rows).toEqual([
-      { item_key: 'eur', t: '00:00', value: '1200' },
-      { item_key: 'usd', t: '00:00', value: '1000' },
-      { item_key: 'usd', t: '00:02', value: '1010.5' },
-      { item_key: 'usd', t: '00:03', value: '1000' },
-    ]);
-    await admin.end();
+  it('says the history is unavailable without a database', async () => {
+    const res = await handleGetSparklines({}, new Request('https://x/api/sparklines?keys=usd,EUR&range=1d'));
+    expect(await res.json()).toEqual({ success: true, available: false, range: '7d', bucketSec: 86400, sparklines: {} });
   });
 
-  it('records a price at its source\'s time, never before the latest row, and a heartbeat after an hour', async () => {
-    const admin = new Client({ connectionString: PG_URL });
-    await admin.connect();
-    await admin.query("DELETE FROM price_history WHERE item_key LIKE 'hb_%'");
-    const pgEnv = { HYPERDRIVE: { connectionString: PG_URL } };
-    const rec = (price, at, now, heartbeat = true) => recordPriceHistory(pgEnv, [{ id: 'hb_gold', price, at, heartbeat }], now);
-
-    // Priced by its source a minute before the sync
-    expect(await rec(100, '2026-02-01T09:59:00Z', '2026-02-01T10:00:00Z')).toBe(1);
-    // A later change the source dates before the latest row still lands after it
-    expect(await rec(101, '2026-02-01T09:00:00Z', '2026-02-01T10:01:00Z')).toBe(1);
-    // Unchanged within the hour: nothing; after an hour: a heartbeat row
-    expect(await rec(101, null, '2026-02-01T10:30:00Z')).toBe(0);
-    expect(await rec(101, null, '2026-02-01T11:30:00Z')).toBe(1);
-    // A catalog price (no heartbeat) stays change-only
-    expect(await rec(101, null, '2026-02-01T13:30:00Z', false)).toBe(0);
-
-    const { rows } = await admin.query(
-      "SELECT to_char(recorded_at AT TIME ZONE 'UTC', 'HH24:MI:SS.MS') AS t, value::text AS value FROM price_history WHERE item_key = 'hb_gold' ORDER BY recorded_at",
-    );
-    expect(rows).toEqual([
-      { t: '09:59:00.000', value: '100' },
-      { t: '09:59:00.001', value: '101' },
-      { t: '11:30:00.000', value: '101' },
-    ]);
-    await admin.end();
-  });
-
-  it('reads trend series across the window', async () => {
-    const pgEnv = { HYPERDRIVE: { connectionString: PG_URL } };
-    const now = Date.parse('2026-01-01T00:10:00Z');
-    const trends = await readPriceTrends(pgEnv, ['USD', 'eur', 'missing'], { range: '1d', now });
-    expect(Object.keys(trends).sort()).toEqual(['eur', 'usd']);
-    expect(trends.usd.first).toBe(1000);
-    expect(trends.usd.last).toBe(1000);
-    expect(trends.eur.last).toBe(1200);
-    expect(trends.usd.since).toBe('2026-01-01T00:00:00.000Z');
+  it('serves the daily series from D1', async () => {
+    await recordPriceHistory(env, [{ id: 'usd', price: 1000 }]);
+    const res = await handleGetSparklines(env, new Request('https://x/api/sparklines?keys=usd&range=30d'));
+    const body = await res.json();
+    expect(body).toMatchObject({ available: true, range: '30d', bucketSec: 86400 });
+    expect(body.sparklines.usd).toMatchObject({ points: [1000], days: [tehranDay()], last: 1000 });
   });
 });
