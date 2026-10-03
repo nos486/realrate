@@ -42,11 +42,24 @@ export const SMS_INBOX_EVENT = 'realrate:sms-inbox';
 
 /** Every sender the templates know */
 export const SMS_SENDERS = [...new Set(BANK_SMS_TEMPLATES.flatMap((b) => b.senders || []))];
+
 /**
- * How the phone itself tells a withdrawal or deposit from the banks' other messages (balance
- * notices, ads…): only those reach the app and get a notification
+ * The banks whose messages are read: all of them, except those the user turned off in the app
+ * settings (`disabledBanks` — the ones off are kept, so a bank added later starts on)
  */
-const SMS_RULES = nativeSmsRules(BANK_SMS_TEMPLATES);
+export function activeSmsBanks(settings = getSmsSettings()) {
+  const off = new Set(settings.disabledBanks || []);
+  return BANK_SMS_TEMPLATES.filter((b) => !off.has(b.bankId));
+}
+
+/**
+ * The active banks' senders, and how the phone itself tells a withdrawal or deposit from their
+ * other messages (balance notices, ads…): only those reach the app and get a notification
+ */
+function activeSmsConfig() {
+  const banks = activeSmsBanks();
+  return { banks, senders: [...new Set(banks.flatMap((b) => b.senders || []))], rules: nativeSmsRules(banks) };
+}
 
 function read(key, fallback) {
   try {
@@ -73,11 +86,11 @@ export const DEFAULT_AUTO_RECORD_MAX = 500_000;
 
 /**
  * @returns {{ auto: boolean, lastRead: number, startedAt: number, autoRecord: boolean,
- *   autoRecordMax: number, recordCategory: string }}
+ *   autoRecordMax: number, recordCategory: string, disabledBanks: string[] }}
  *   `auto`: automatic reading, on unless turned off; `startedAt`: when it started (it never reads
  *   messages older than that). `autoRecord`: withdrawals up to `autoRecordMax` tomans are recorded
  *   as everyday expenses by themselves (off unless turned on); `recordCategory`: the category of
- *   those and of «ثبت سریع»
+ *   those and of «ثبت سریع»; `disabledBanks`: banks whose messages are not read (activeSmsBanks)
  */
 export function getSmsSettings() {
   const s = read(SETTINGS_KEY, {});
@@ -88,20 +101,41 @@ export function getSmsSettings() {
     autoRecord: s.autoRecord === true,
     autoRecordMax: Number(s.autoRecordMax) > 0 ? Number(s.autoRecordMax) : DEFAULT_AUTO_RECORD_MAX,
     recordCategory: typeof s.recordCategory === 'string' && s.recordCategory ? s.recordCategory : 'other',
+    disabledBanks: Array.isArray(s.disabledBanks) ? s.disabledBanks.filter((id) => typeof id === 'string') : [],
   };
 }
 
 export function setSmsSettings(patch) {
   write(SETTINGS_KEY, { ...getSmsSettings(), ...patch });
-  if ('auto' in patch) syncNativeSmsConfig();
+  if ('auto' in patch || 'disabledBanks' in patch) syncNativeSmsConfig();
+  // A bank turned off: its waiting messages leave the inbox
+  if ('disabledBanks' in patch) dropDisabledBanks();
   notify();
+}
+
+/** Read a bank's messages or not (all are read unless turned off) */
+export function setSmsBankEnabled(bankId, enabled) {
+  const off = new Set(getSmsSettings().disabledBanks);
+  if (enabled) off.delete(bankId);
+  else off.add(bankId);
+  setSmsSettings({ disabledBanks: [...off] });
+}
+
+function dropDisabledBanks() {
+  const off = new Set(getSmsSettings().disabledBanks);
+  if (!off.size) return;
+  const pending = getPendingSms();
+  const kept = pending.filter((p) => !off.has(p.tx?.bankId));
+  if (kept.length !== pending.length) write(PENDING_KEY, kept);
 }
 
 /** Tell BankSmsReceiver (runs without the app) whether to notify, and for which messages */
 export async function syncNativeSmsConfig() {
   if (!isNativeApp()) return;
   try {
-    await BankSms.configure({ enabled: getSmsSettings().auto, senders: SMS_SENDERS, rules: SMS_RULES });
+    const { senders, rules } = activeSmsConfig();
+    // No bank left to read: nothing to notify about
+    await BankSms.configure({ enabled: getSmsSettings().auto && senders.length > 0, senders, rules });
   } catch (err) {
     console.warn('SMS receiver setup failed:', err);
   }
@@ -171,11 +205,12 @@ export function addSmsMessages(messages, { recheckRecorded = false } = {}) {
   const handled = new Set([...read(DISMISSED_KEY, []), ...(recheckRecorded ? [] : read(HANDLED_KEY, []))]);
   const pending = getPendingSms();
   const known = new Set(pending.flatMap((p) => [p.fingerprint, p.tx?.key]).filter(Boolean));
+  const { banks } = activeSmsConfig();
   let added = 0;
   for (const message of messages) {
     const receivedAt = Number(message.date) || Date.now();
     // Without a year, a message's day is the most recent one up to when it arrived
-    const tx = parseBankSms(message.body, BANK_SMS_TEMPLATES, { sender: message.address, today: new Date(receivedAt) });
+    const tx = parseBankSms(message.body, banks, { sender: message.address, today: new Date(receivedAt) });
     if (!tx) continue;
     // The same message, or the same transaction worded differently
     if ([tx.fingerprint, tx.key].some((id) => handled.has(id) || known.has(id))) continue;
@@ -227,7 +262,12 @@ export async function enableSmsReading() {
  */
 export async function readSmsSince(since, options = {}) {
   const now = Date.now();
-  const { messages = [] } = await BankSms.read({ senders: SMS_SENDERS, rules: SMS_RULES, since: Math.max(0, Math.floor(since)) });
+  const { senders, rules } = activeSmsConfig();
+  if (!senders.length) {
+    setSmsSettings({ lastRead: now });
+    return { read: 0, added: 0 };
+  }
+  const { messages = [] } = await BankSms.read({ senders, rules, since: Math.max(0, Math.floor(since)) });
   const added = addSmsMessages(messages, options);
   setSmsSettings({ lastRead: now });
   return { read: messages.length, added };

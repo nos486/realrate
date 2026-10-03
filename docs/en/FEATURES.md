@@ -177,6 +177,8 @@ Every feature in detail. For a summary see the [README](../../README.en.md). Per
 - **App shell**: bottom navigation (home · expenses · + · incomes · more; the portfolio is under «بیشتر»), a + button for "quick add" (expense, income, holding, pending SMS), and "more" for the other sections. The app's home is a personal dashboard: this month's spending and income, the remainder, pending SMS, the latest expenses and today's rates; the market lives under "rates and bubble".
 - **Bank SMS**: after one permission grant, every **withdrawal or deposit** SMS from the bank senders (for now Parsian and Blu) notifies and waits on the "SMS" page; "record" fills the expense or income form with the amount (rials → tomans), date, account and note. Older messages are read only on request (24 hours, 7, 30 or 90 days).
   - **Record into a project**: from a withdrawal's «⋮» menu, pick an expense project; that project's expense form opens titled «برداشت <bank>» with the SMS's amount and date.
+  - **Choosing banks**: in the app settings each bank has an on/off switch (all on by default); a bank turned off is neither read nor notified, and its waiting messages leave the inbox.
+  - **«رد»** sits beside each message's main button (not in the «⋮» menu).
   - **Quick record**: a withdrawal up to 1,000,000 tomans is recorded in one tap, without a form, in the category chosen in the app settings.
   - **Automatic recording of small expenses** (optional): withdrawals up to a set limit (500,000 tomans by default) record themselves.
   - **Deposit as a loan**: a deposit can be a received loan (not income): link it to an existing loan, or open the new-loan form with the same amount and date.

@@ -143,12 +143,13 @@ describe('SmsInboxPage', () => {
     expect(getPendingSms().map((p) => p.tx.key)).toContain(debitKey);
   });
 
-  it('dismisses a message', async () => {
+  it('dismisses a message with «رد» beside the main action (not in the menu)', async () => {
     render(<SmsInboxPage />);
-    await waitFor(() => expect(screen.getAllByLabelText('گزینه‌های این پیامک')).toHaveLength(2));
-    fireEvent.click(screen.getAllByLabelText('گزینه‌های این پیامک')[0]);
-    fireEvent.click(screen.getByText('رد این پیامک').closest('button'));
+    await waitFor(() => expect(screen.getAllByText('رد')).toHaveLength(2));
+    fireEvent.click(screen.getAllByText('رد')[0].closest('button'));
     await waitFor(() => expect(getPendingSms()).toHaveLength(1));
+    fireEvent.click(screen.getAllByLabelText('گزینه‌های این پیامک')[0]);
+    expect(screen.queryByText('رد این پیامک')).toBeNull();
   });
 });
 

@@ -17,10 +17,10 @@ import { getExpenseCategory } from '../expenses/constants/expenseCategories.js';
 import { useCategories } from '../../shared/categories/useCategories.js';
 import { useFeedback } from '../../shared/ui/FeedbackProvider.jsx';
 import { useVault } from '../../shared/vault/useVault.js';
-import { resolveBank } from '../../shared/banks/index.js';
-import { SMS_BANK_IDS } from '../../utils/bankSmsTemplates.js';
+import { resolveBank, BankLogo } from '../../shared/banks/index.js';
+import { BANK_SMS_TEMPLATES } from '../../utils/bankSmsTemplates.js';
 import { useSmsInbox } from '../../shared/native/useSmsInbox.js';
-import { setSmsSettings, smsPermission, enableSmsReading, SMS_SENDERS, QUICK_RECORD_MAX } from '../../shared/native/smsInbox.js';
+import { setSmsSettings, setSmsBankEnabled, smsPermission, enableSmsReading, QUICK_RECORD_MAX } from '../../shared/native/smsInbox.js';
 import {
   isBiometricAvailable,
   isBiometricEnabled,
@@ -30,7 +30,35 @@ import {
 import { useAppUpdate } from '../../shared/native/useAppUpdate.js';
 import { checkForUpdate, setAutoUpdateCheck, openUpdatePrompt } from '../../shared/native/appUpdate.js';
 
-const SUPPORTED_BANKS = SMS_BANK_IDS.map((id) => resolveBank({ bankId: id }).shortName).join('، ');
+
+/**
+ * The banks whose messages are read: all by default; one turned off is neither read nor notified,
+ * and its waiting messages leave the inbox
+ */
+function SmsBankSettings({ settings }) {
+  const off = new Set(settings.disabledBanks);
+  return (
+    <div className="app-setting-banks">
+      <strong>بانک‌ها</strong>
+      <p>پیامک‌های کدام بانک‌ها خوانده شود؟ بانکی را که خاموش کنید، پیامکش خوانده نمی‌شود و اعلانی نمی‌آید.</p>
+      <ul>
+        {BANK_SMS_TEMPLATES.map(({ bankId, senders = [] }) => {
+          const bank = resolveBank({ bankId });
+          return (
+            <li key={bankId} className={off.has(bankId) ? 'is-off' : ''}>
+              <BankLogo bank={bank} size={28} />
+              <span className="app-setting-bank-name">
+                <b>{bank.name || bank.shortName}</b>
+                <small dir="ltr">{senders.join('، ')}</small>
+              </span>
+              <Switch checked={!off.has(bankId)} onChange={(on) => setSmsBankEnabled(bankId, on)} label={`خواندن پیامک ${bank.shortName}`} />
+            </li>
+          );
+        })}
+      </ul>
+    </div>
+  );
+}
 
 function Switch({ checked, onChange, disabled, label }) {
   return (
@@ -217,6 +245,8 @@ export default function AppSettingsView({ onOpenSms }) {
           <Switch checked={settings.auto && permission === 'granted'} onChange={handleAuto} label="خواندن خودکار پیامک" />
         </div>
 
+        <SmsBankSettings settings={settings} />
+
         <SmsRecordSettings key={settings.autoRecordMax} settings={settings} />
 
         {permission === 'denied' && (
@@ -224,8 +254,6 @@ export default function AppSettingsView({ onOpenSms }) {
         )}
 
         <dl className="app-setting-facts">
-          <dt>بانک‌ها</dt>
-          <dd>{SUPPORTED_BANKS} <small dir="ltr">({SMS_SENDERS.join('، ')})</small></dd>
           <dt>آخرین خواندن</dt>
           <dd>{formatTime(settings.lastRead)}</dd>
           <dt>منتظر ثبت</dt>

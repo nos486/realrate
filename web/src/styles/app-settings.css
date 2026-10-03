@@ -274,3 +274,41 @@
   color: var(--text-secondary);
   cursor: pointer;
 }
+
+/* ── The banks whose SMS are read (AppSettingsView: SmsBankSettings) ── */
+.app-setting-banks {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--border-color);
+}
+.app-setting-banks > p {
+  margin: 0 0 4px;
+  color: var(--text-muted);
+  font-size: 12px;
+  line-height: 1.7;
+}
+.app-setting-banks ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.app-setting-banks li {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 4px;
+}
+.app-setting-banks li.is-off { opacity: 0.55; }
+.app-setting-bank-name {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.app-setting-bank-name b { font-size: 13px; }
+.app-setting-bank-name small { color: var(--text-muted); font-size: 11px; text-align: start; }

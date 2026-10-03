@@ -11,7 +11,8 @@
  * `onRecordToProject`); a deposit's menu has «وام» (`onLoanDeposit`: a received loan, not
  * income) and «دنگ» (`onShareDeposit`: someone's share of an expense the user paid, not income);
  * either kind can be «انتقال بین حساب‌های خودم» (`onTransfer`: money moved between the user's own
- * accounts — neither expense nor income); «رد» drops it for good.
+ * accounts — neither expense nor income). «رد» (beside the main action, not in the menu) drops it
+ * for good.
  */
 
 import React, { useEffect, useState } from 'react';
@@ -143,6 +144,16 @@ export default function SmsInboxList({ accounts = [], onRecord, onQuickRecord, q
                   ثبت
                 </Button>
               )}
+              <Button
+                size="sm"
+                variant="secondary"
+                icon={<X size={14} />}
+                className="sms-inbox-dismiss"
+                onClick={() => dismissSms(item.fingerprint)}
+                title="این پیامک کنار گذاشته شود (ثبت نمی‌شود)"
+              >
+                رد
+              </Button>
               <ActionMenu
                 label="گزینه‌های این پیامک"
                 items={[
@@ -159,7 +170,6 @@ export default function SmsInboxList({ accounts = [], onRecord, onQuickRecord, q
                   onTransfer && {
                     key: 'transfer', label: 'انتقال بین حساب‌های خودم', icon: <ArrowLeftRight size={16} />, onClick: () => onTransfer(item), disabled: !canRecord,
                   },
-                  { key: 'dismiss', label: 'رد این پیامک', icon: <X size={16} />, onClick: () => dismissSms(item.fingerprint), danger: true },
                 ]}
               />
             </div>
