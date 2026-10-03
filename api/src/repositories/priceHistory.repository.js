@@ -26,6 +26,7 @@ export const TREND_RANGES = {
   "30d": { days: 30, bucketSec: DAY_SEC },
   "90d": { days: 90, bucketSec: DAY_SEC },
   "1y": { days: 365, bucketSec: DAY_SEC },
+  "2y": { days: 730, bucketSec: DAY_SEC },
 };
 export const RANGE_ALIASES = { "1d": "7d" };
 export const DEFAULT_TREND_RANGE = "30d";
@@ -73,16 +74,22 @@ export function toHistoryPoints(items) {
 }
 
 /**
- * ?1: the day, ?2: now (ms), ?3: the points as JSON [[key, value], …]. A row is (re)written only
- * when there is none for the day or its value changed. (`WHERE true` lets SQLite read the
- * ON CONFLICT clause of an INSERT … SELECT.)
+ * ?1: the day, ?2: now (ms), ?3: the points as JSON [[key, value], …]. A new day starts a candle
+ * at the price (open = high = low = close); later prices move the close and stretch high / low.
+ * A row is rewritten only when its close changed (an unchanged close is already inside
+ * high / low). (`WHERE true` lets SQLite read the ON CONFLICT clause of an INSERT … SELECT.)
  */
 export const UPSERT_DAY_SQL = `
-INSERT INTO price_daily (item_key, day, value, updated_at)
-SELECT json_extract(p.value, '$[0]'), ?1, json_extract(p.value, '$[1]'), ?2
-FROM json_each(?3) AS p
+INSERT INTO price_daily (item_key, day, value, updated_at, open, high, low)
+SELECT k, ?1, v, ?2, v, v, v
+FROM (SELECT json_extract(p.value, '$[0]') AS k, json_extract(p.value, '$[1]') AS v FROM json_each(?3) AS p)
 WHERE true
-ON CONFLICT (item_key, day) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at
+ON CONFLICT (item_key, day) DO UPDATE SET
+  value = excluded.value,
+  updated_at = excluded.updated_at,
+  open = COALESCE(price_daily.open, price_daily.value),
+  high = MAX(COALESCE(price_daily.high, price_daily.value), excluded.value),
+  low = MIN(COALESCE(price_daily.low, price_daily.value), excluded.value)
 WHERE price_daily.value <> excluded.value
 `;
 
@@ -110,7 +117,7 @@ export async function recordPriceHistory(env, items, recordedAt) {
 
 /** ?1: keys (JSON array), ?2: first day → the window's rows */
 export const TREND_ROWS_SQL = `
-SELECT item_key, day, value FROM price_daily
+SELECT item_key, day, value, open, high, low FROM price_daily
 WHERE item_key IN (SELECT value FROM json_each(?1)) AND day >= ?2
 ORDER BY item_key, day
 `;
@@ -127,19 +134,24 @@ JOIN (
 
 /**
  * One key's series: a value per day from the window's first day to today, each carrying the last
- * known value forward. Days before the first known value are dropped.
- * @param {{ baseline?: number|null, byDay: Map<string, number>, fromDay: string, today: string }} input
- * @returns {{ points: number[], days: string[], first: number, last: number, changePct: number, since: string }|null}
+ * known value forward. Days before the first known value are dropped. With `candlesByDay`, the
+ * series also has `candles` ([open, high, low, close] per day; a carried day is flat).
+ * @param {{ baseline?: number|null, byDay: Map<string, number>, fromDay: string, today: string,
+ *   candlesByDay?: Map<string, number[]> }} input
+ * @returns {{ points: number[], days: string[], first: number, last: number, changePct: number, since: string, candles?: number[][] }|null}
  */
-export function buildDailySeries({ baseline = null, byDay, fromDay, today }) {
+export function buildDailySeries({ baseline = null, byDay, fromDay, today, candlesByDay = null }) {
   const points = [];
   const days = [];
+  const candles = [];
   let carry = Number.isFinite(baseline) ? baseline : null;
   for (let day = fromDay; day <= today; day = addDays(day, 1)) {
-    if (byDay.has(day)) carry = byDay.get(day);
+    const recorded = byDay.has(day);
+    if (recorded) carry = byDay.get(day);
     if (carry === null) continue;
     points.push(carry);
     days.push(day);
+    if (candlesByDay) candles.push(recorded && candlesByDay.has(day) ? candlesByDay.get(day) : [carry, carry, carry, carry]);
   }
   if (points.length === 0) return null;
   const first = points[0];
@@ -151,18 +163,27 @@ export function buildDailySeries({ baseline = null, byDay, fromDay, today }) {
     last,
     changePct: first > 0 ? ((last - first) / first) * 100 : 0,
     since: tehranDayStart(days[0]),
+    ...(candlesByDay ? { candles } : {}),
   };
+}
+
+/** A row's candle: [open, high, low, close] (columns missing on old rows fall back to the close) */
+export function candleOf(row) {
+  const close = Number(row.value);
+  const num = (v) => (v === null || v === undefined || !Number.isFinite(Number(v)) ? close : Number(v));
+  return [num(row.open), num(row.high), num(row.low), close];
 }
 
 /**
  * Daily series for asset keys over a window
  * @param {object} env - needs env.DB
  * @param {string[]} keys - asset ids (compared in the price book's id form, as they are recorded)
- * @param {{ range?: string, now?: number }} [options]
+ * @param {{ range?: string, now?: number, candles?: boolean }} [options] - `candles` adds each
+ *   day's [open, high, low, close]
  * @returns {Promise<Record<string, ReturnType<typeof buildDailySeries>>|null>} null when history
  *   is unavailable (no database, or a database error); keys without data are left out
  */
-export async function readPriceTrends(env, keys, { range = DEFAULT_TREND_RANGE, now = Date.now() } = {}) {
+export async function readPriceTrends(env, keys, { range = DEFAULT_TREND_RANGE, now = Date.now(), candles = false } = {}) {
   if (!env?.DB?.prepare) return null;
   const { days } = TREND_RANGES[resolveTrendRange(range)];
   const wanted = [...new Set((keys || []).map(normalizePriceId).filter(Boolean))];
@@ -178,9 +199,14 @@ export async function readPriceTrends(env, keys, { range = DEFAULT_TREND_RANGE, 
       env.DB.prepare(TREND_BASELINE_SQL).bind(json, fromDay),
     ]);
     const byKey = new Map();
+    const candlesByKey = new Map();
     for (const row of rowsRes?.results || []) {
-      if (!byKey.has(row.item_key)) byKey.set(row.item_key, new Map());
+      if (!byKey.has(row.item_key)) {
+        byKey.set(row.item_key, new Map());
+        candlesByKey.set(row.item_key, new Map());
+      }
       byKey.get(row.item_key).set(row.day, Number(row.value));
+      if (candles) candlesByKey.get(row.item_key).set(row.day, candleOf(row));
     }
     const baselineByKey = new Map((baseRes?.results || []).map((row) => [row.item_key, Number(row.value)]));
 
@@ -191,6 +217,7 @@ export async function readPriceTrends(env, keys, { range = DEFAULT_TREND_RANGE, 
         byDay: byKey.get(key) || new Map(),
         fromDay,
         today,
+        candlesByDay: candles ? candlesByKey.get(key) || new Map() : null,
       });
       if (series) result[key] = series;
     }
@@ -199,4 +226,48 @@ export async function readPriceTrends(env, keys, { range = DEFAULT_TREND_RANGE, 
     logger.warn("[PriceHistory] Read failed:", { error: err.message, keys: wanted.length });
     return null;
   }
+}
+
+/**
+ * ?1: the key, ?2: now (ms), ?3: candles as JSON [[day, open, high, low, close], …]. Days already
+ * recorded are kept (OR IGNORE) unless the overwrite variant is used.
+ */
+const importDaysSql = (overwrite) => `
+INSERT ${overwrite ? "OR REPLACE" : "OR IGNORE"} INTO price_daily (item_key, day, value, updated_at, open, high, low)
+SELECT ?1, json_extract(p.value, '$[0]'), json_extract(p.value, '$[4]'), ?2,
+       json_extract(p.value, '$[1]'), json_extract(p.value, '$[2]'), json_extract(p.value, '$[3]')
+FROM json_each(?3) AS p
+`;
+
+/**
+ * Write past days of one item from another source (a backfill). Today belongs to the live sync
+ * and is never written; invalid candles are dropped.
+ * @param {object} env - needs env.DB
+ * @param {string} key - the item's price book id
+ * @param {Array<{ day: string, open: number, high: number, low: number, close: number }>} candles
+ * @param {{ overwrite?: boolean, now?: number }} [options] - overwrite: replace days already recorded
+ * @returns {Promise<{ written: number, valid: number }>}
+ */
+export async function importDailyCandles(env, key, candles, { overwrite = false, now = Date.now() } = {}) {
+  const itemKey = normalizePriceId(key);
+  if (!env?.DB?.prepare || !itemKey) return { written: 0, valid: 0 };
+  const today = tehranDay(now);
+  const rows = [];
+  for (const c of Array.isArray(candles) ? candles : []) {
+    const day = String(c?.day || "");
+    const vals = [c?.open, c?.high, c?.low, c?.close].map(Number);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(day) || day >= today) continue;
+    if (!vals.every((v) => Number.isFinite(v) && v > 0)) continue;
+    const [open, high, low, close] = vals;
+    rows.push([day, open, Math.max(high, open, close), Math.min(low, open, close), close]);
+  }
+  if (!rows.length) return { written: 0, valid: 0 };
+  await ensureSchema(env);
+  let written = 0;
+  // Groups well under D1's 2 MB bound value
+  for (let i = 0; i < rows.length; i += 2000) {
+    const res = await env.DB.prepare(importDaysSql(overwrite)).bind(itemKey, now, JSON.stringify(rows.slice(i, i + 2000))).run();
+    written += Number(res?.meta?.changes) || 0;
+  }
+  return { written, valid: rows.length };
 }

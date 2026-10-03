@@ -93,10 +93,11 @@ export function resetPriceBookMemo() {
 }
 
 /**
- * GET /api/sparklines?keys=usd,gold_18k,...&range=30d
+ * GET /api/sparklines?keys=usd,gold_18k,...&range=30d[&candles=1]
  * Daily series of the given asset ids from the price history (D1, priceHistory.repository.js):
  * per key one value per day of the window (`days`, from `since`; `bucketSec` is a day), plus its
- * first and last value and the change in percent. Ranges: 7d, 30d, 90d, 1y ("1d" → 7d).
+ * first and last value and the change in percent. Ranges: 7d, 30d, 90d, 1y, 2y ("1d" → 7d).
+ * `candles=1` adds each day's [open, high, low, close] (`candles`), for candlestick charts.
  * Keys without history are left out; `available: false` means the history can't be read now.
  * Answers are cached at the edge for one bucket, at most 5 minutes (keys are sorted, so any order
  * hits the cache).
@@ -105,6 +106,7 @@ export async function handleGetSparklines(env, request = null) {
   const url = new URL(request?.url || "http://localhost/api/sparklines");
   const range = resolveTrendRange(url.searchParams.get("range"));
   const { bucketSec } = TREND_RANGES[range];
+  const candles = url.searchParams.get("candles") === "1";
   const keys = [...new Set(
     (url.searchParams.get("keys") || url.searchParams.get("asset") || "")
       .split(",")
@@ -117,13 +119,13 @@ export async function handleGetSparklines(env, request = null) {
   }
 
   const cache = globalThis.caches?.default || null;
-  const cacheKey = new Request(`https://sparklines.cache/${range}?keys=${encodeURIComponent(keys.join(","))}`);
+  const cacheKey = new Request(`https://sparklines.cache/${range}${candles ? "-candles" : ""}?keys=${encodeURIComponent(keys.join(","))}`);
   if (cache) {
     const hit = await cache.match(cacheKey).catch(() => null);
     if (hit) return jsonResponse(await hit.json(), 200, request);
   }
 
-  const sparklines = await readPriceTrends(env, keys, { range });
+  const sparklines = await readPriceTrends(env, keys, { range, candles });
   const body = { success: true, available: sparklines !== null, range, bucketSec, sparklines: sparklines || {} };
   if (cache && sparklines !== null) {
     const toStore = new Response(JSON.stringify(body), {

@@ -6,7 +6,10 @@
  * ms are INTEGERs, amounts REAL. `npm run db:schema` prints this schema as SQL.
  */
 
-/** @type {Array<{ name: string, columns: string[], ddl: string[] }>} */
+/**
+ * @type {Array<{ name: string, columns: string[], ddl: string[],
+ *   addColumns?: Array<{ column: string, sql: string }>, afterAddColumns?: string[] }>}
+ */
 export const APP_TABLES = [
   {
     name: "users",
@@ -514,19 +517,31 @@ export const APP_TABLES = [
     ],
   },
   {
-    // The price of every item, one row per item and (Tehran) day: the day's last price
-    // (priceHistory.repository.js). Written only when it changed.
+    // The price of every item, one row per item and (Tehran) day: the day's candle — `value` is
+    // the last price (close), with the first (open), highest and lowest prices seen that day
+    // (priceHistory.repository.js). Written only when the price changed.
     name: "price_daily",
-    columns: ["item_key", "day", "value", "updated_at"],
+    columns: ["item_key", "day", "value", "updated_at", "open", "high", "low"],
     ddl: [
       `CREATE TABLE IF NOT EXISTS price_daily (
         item_key TEXT NOT NULL,
         day TEXT NOT NULL,
         value REAL NOT NULL,
         updated_at INTEGER NOT NULL,
+        open REAL,
+        high REAL,
+        low REAL,
         PRIMARY KEY (item_key, day)
       ) WITHOUT ROWID`,
     ],
+    // Columns added after the table first shipped (run when missing; see ensureD1Schema)
+    addColumns: [
+      { column: "open", sql: "ALTER TABLE price_daily ADD COLUMN open REAL" },
+      { column: "high", sql: "ALTER TABLE price_daily ADD COLUMN high REAL" },
+      { column: "low", sql: "ALTER TABLE price_daily ADD COLUMN low REAL" },
+    ],
+    // Days recorded before the candle columns: a flat candle at the close
+    afterAddColumns: ["UPDATE price_daily SET open = value, high = value, low = value WHERE open IS NULL"],
   },
   {
     // The version of the DDL above that was last applied (see ensureD1Schema)
@@ -546,7 +561,7 @@ export const APP_TABLES = [
 /** A fingerprint of every DDL statement: any change to the schema above changes it */
 export const SCHEMA_VERSION = (() => {
   let hash = 5381;
-  for (const sql of APP_TABLES.flatMap((t) => t.ddl)) {
+  for (const sql of APP_TABLES.flatMap((t) => [...t.ddl, ...(t.addColumns || []).map((a) => a.sql), ...(t.afterAddColumns || [])])) {
     for (let i = 0; i < sql.length; i++) hash = ((hash * 33) ^ sql.charCodeAt(i)) >>> 0;
   }
   return `v1-${hash.toString(36)}`;
@@ -560,6 +575,18 @@ export function resetD1SchemaCache() {
   schemaReady = null;
 }
 
+/** Columns added to an existing table (SQLite has no ADD COLUMN IF NOT EXISTS) */
+async function addMissingColumns(db) {
+  for (const table of APP_TABLES) {
+    if (!table.addColumns?.length) continue;
+    const { results } = await db.prepare(`SELECT name FROM pragma_table_info('${table.name}')`).all();
+    const have = new Set((results || []).map((r) => r.name));
+    const missing = table.addColumns.filter((a) => !have.has(a.column));
+    if (!missing.length) continue;
+    await db.batch([...missing.map((a) => a.sql), ...(table.afterAddColumns || [])].map((sql) => db.prepare(sql)));
+  }
+}
+
 /**
  * Create the app's tables if they aren't there (idempotent)
  * @param {{ prepare: Function, batch: Function }} db - the D1 binding
@@ -571,6 +598,7 @@ export function ensureD1Schema(db) {
       if (applied?.version === SCHEMA_VERSION) return;
       // All the DDL in one round trip (D1 runs a batch as one transaction)
       await db.batch(APP_TABLES.flatMap((table) => table.ddl).map((sql) => db.prepare(sql)));
+      await addMissingColumns(db);
       await db.prepare(
         "INSERT INTO app_schema (id, version) VALUES (1, ?) ON CONFLICT (id) DO UPDATE SET version = excluded.version"
       ).bind(SCHEMA_VERSION).run();

@@ -95,3 +95,8 @@ export async function getAdminUserPortfolio(userId, portfolioId = null) {
     : `/api/admin/users/portfolio?userId=${encodeURIComponent(userId)}`;
   return httpClient.get(url);
 }
+
+/** Fill past days of an item's daily price history from its history source (tgju) */
+export async function backfillPriceHistory({ key = 'usd', days = 730, overwrite = false } = {}) {
+  return httpClient.post('/api/admin/price-history/backfill', { key, days, overwrite });
+}

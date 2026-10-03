@@ -23,6 +23,7 @@ import AdminAppVersionsCard from './AdminAppVersionsCard.jsx';
 import AdminUsersCard from './AdminUsersCard.jsx';
 import AdminUserDetailModal from './AdminUserDetailModal.jsx';
 import MaintenanceCard from './MaintenanceCard.jsx';
+import PriceHistoryBackfillCard from './PriceHistoryBackfillCard.jsx';
 import SiteSettingsCard from './SiteSettingsCard.jsx';
 import { AdminDemoCard } from '../../demo/index.js';
 
@@ -130,6 +131,7 @@ export default function AdminPanel() {
             <AdminGrowthChart reloadToken={growthToken} />
             {stats && <AdminAppVersionsCard versions={stats.appVersions || []} />}
             <MaintenanceCard settings={settings} onSave={saveSettings} />
+            <PriceHistoryBackfillCard />
             <SiteSettingsCard settings={settings} onSave={saveSettings} />
           </div>
         }

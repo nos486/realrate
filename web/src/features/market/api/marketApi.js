@@ -15,13 +15,15 @@ export async function getPriceBook(options = {}) {
 }
 
 /**
- * Trend series of assets from the price history
+ * Trend series of assets from the price history (one point per day)
  * @param {string[]} keys - asset ids
- * @param {'1d'|'7d'|'30d'|'1y'} [range]
+ * @param {'7d'|'30d'|'90d'|'1y'|'2y'} [range]
+ * @param {{ candles?: boolean }} [options] - candles: also each day's [open, high, low, close]
  * @returns {Promise<{ available: boolean, range: string, bucketSec: number,
- *   sparklines: Record<string, { points: number[], first: number, last: number, changePct: number, since: string }> }>}
+ *   sparklines: Record<string, { points: number[], days: string[], first: number, last: number, changePct: number, since: string, candles?: number[][] }> }>}
  */
-export async function getSparklines(keys, range = '7d', options = {}) {
+export async function getSparklines(keys, range = '7d', { candles = false, ...options } = {}) {
   const query = new URLSearchParams({ keys: keys.join(','), range });
+  if (candles) query.set('candles', '1');
   return httpClient.get(`/api/sparklines?${query}`, options);
 }

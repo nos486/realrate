@@ -23,6 +23,7 @@ import { testPriceSourceConfig, fetchAllPrices, inspectApiEndpointStructure, ref
 import { jsonResponse, errorResponse, forbiddenResponse } from "../lib/helpers.js";
 import { AppError } from "../lib/AppError.js";
 import { logger } from "../lib/logger.js";
+import { backfillPriceHistory, BACKFILL_SOURCES } from "../services/market/historyBackfill.service.js";
 
 /**
  * GET /api/admin/stats
@@ -298,4 +299,25 @@ export async function handleAdminInspectApiRoute(request, env) {
   } catch (e) {
     return errorResponse(e.message, 400, request);
   }
+}
+
+/**
+ * GET  /api/admin/price-history/backfill — the items that can be backfilled
+ * POST /api/admin/price-history/backfill { key, days, overwrite } — fill past days of an item's
+ * daily history from its history source (historyBackfill.service.js) — admin only
+ */
+export async function handleAdminPriceHistoryBackfill(request, env) {
+  const user = await getAuthenticatedUser(request, env);
+  if (!user || user.role !== "admin") return forbiddenResponse(request);
+  if (request.method === "GET") {
+    const sources = Object.entries(BACKFILL_SOURCES).map(([key, s]) => ({ key, label: s.label }));
+    return jsonResponse({ success: true, sources }, 200, request);
+  }
+  const body = await request.json().catch(() => ({}));
+  const result = await backfillPriceHistory(env, {
+    key: String(body.key || "usd"),
+    days: Number(body.days) || 730,
+    overwrite: body.overwrite === true,
+  });
+  return jsonResponse({ success: true, ...result }, 200, request);
 }
