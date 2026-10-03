@@ -1,4 +1,5 @@
 import React, { useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 
 /** Dragged down further than this (px), or flicked, a bottom sheet closes */
 const SWIPE_CLOSE_DISTANCE = 110;
@@ -20,6 +21,11 @@ import { useBackToClose } from '../hooks/useBackToClose.js';
  * - Backdrop click does NOT close the modal — only explicit actions do (the × button, a
  *   footer's cancel/submit, etc.), so an accidental click outside never discards in-progress input
  * - Optional form wrapping via onSubmit prop
+ * - Rendered at the end of <body> (a portal): an ancestor with a transform, filter or
+ *   backdrop-filter (a page's entry animation, another modal's frosted card) would otherwise
+ *   become the box `position: fixed` is measured from — the sheet ends up inside it, clipped or
+ *   under the app's bottom bar, and a modal opened from another modal's form would sit inside that
+ *   <form> (Enter in its fields submitting the form below)
  */
 export default function Modal({
   isOpen,
@@ -117,7 +123,7 @@ export default function Modal({
     </>
   );
 
-  return (
+  const dialog = (
     <div className="modal-backdrop" role="dialog" aria-modal="true">
       <div
         ref={contentRef}
@@ -125,7 +131,9 @@ export default function Modal({
         style={{ maxWidth }}
       >
         {onSubmit ? (
-          <form onSubmit={onSubmit} className="modal-form-layout">
+          // React events bubble through portals: a modal's form must not submit the form of
+          // the modal (or page) it was opened from
+          <form onSubmit={(e) => { e.stopPropagation(); onSubmit(e); }} className="modal-form-layout">
             {innerContent}
           </form>
         ) : (
@@ -134,4 +142,5 @@ export default function Modal({
       </div>
     </div>
   );
+  return typeof document !== 'undefined' && document.body ? createPortal(dialog, document.body) : dialog;
 }
