@@ -122,6 +122,8 @@ Every feature in detail. For a summary see the [README](../../README.en.md). Per
 - **Maintenance mode**: with one switch in the admin panel only admins can sign in and use the site; everyone else (guest or signed in) sees an "updating" page with a configurable message and the server rejects their requests. While it is on, a banner reminds the admin.
 
 ## 13. Demo account and trial visit
+> Switched off for now (`DEMO_ENABLED` in `api/src/config/constants.js` and `web/src/shared/routes.js`): no way in is shown, the demo sign-in is refused and open demo sessions end. Set both to `true` to turn it back on.
+
 - **Quick entry without registering**: visitors can click "view the demo" on the landing page, enter the app directly and try every section (portfolio, transactions, loans, incomes, cheques and home customization) with realistic sample data.
 - **Read-only on the server**: a demo visitor's session (`demo_view`) is strictly read-only in the server's gate (`demoGate`); every create, edit, delete or sign-out-elsewhere request is refused with a structured `403 DEMO_READ_ONLY`. The frontend disables the add and edit buttons with a hint.
 - **Fully compatible with E2EE**: the demo account's data lives in the encrypted vault like any other; the server sends the demo vault's public passphrase to demo clients and the browser opens the vault automatically, with no passphrase prompt or setup banners.
