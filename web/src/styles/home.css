@@ -287,7 +287,7 @@
   font-weight: 800;
   color: var(--text-heading);
   letter-spacing: -0.5px;
-  font-variant-numeric: tabular-nums;
+  font-variant-numeric: proportional-nums;
 }
 
 .price-big-unit {
@@ -1236,17 +1236,20 @@
 }
 .pro-card-price-value {
   font-size: 21px;
-  font-weight: 900;
-  letter-spacing: -0.5px;
+  font-weight: 800;
+  letter-spacing: -0.3px;
   color: var(--text-heading);
-  font-variant-numeric: tabular-nums;
+  /* Proportional digits: Persian digits set to one width look spaced out */
+  font-variant-numeric: proportional-nums;
 }
 .pro-card-price-unit { font-size: 11.5px; color: var(--text-secondary); }
 .pro-card-price .bubble-pill { margin-inline-start: auto; align-self: center; }
 
 .pro-metrics {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  /* As many equal columns as there are figures (one figure takes the whole row) */
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(0, 1fr);
   gap: 6px;
 }
 .pro-metric {
@@ -1263,7 +1266,7 @@
   font-size: 12.5px;
   font-weight: 800;
   color: var(--text-primary);
-  font-variant-numeric: tabular-nums;
+  font-variant-numeric: proportional-nums;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -1398,7 +1401,7 @@
   font-size: 11px;
   font-weight: 700;
   color: var(--text-primary);
-  font-variant-numeric: tabular-nums;
+  font-variant-numeric: proportional-nums;
 }
 .pro-range-labels small { font-weight: 500; color: var(--text-muted); margin-inline-end: 3px; }
 
