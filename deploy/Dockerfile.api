@@ -1,0 +1,19 @@
+# RealRate API on Node (the same Worker code, run by api/server.js)
+FROM node:22-alpine
+WORKDIR /app
+ENV NODE_ENV=production
+
+# Only the API's runtime dependencies (pg, web-push); the lockfile is the monorepo's
+COPY package.json package-lock.json ./
+COPY api/package.json api/
+COPY web/package.json web/
+RUN npm ci --omit=dev --workspace=api --include-workspace-root=false --ignore-scripts --no-audit --no-fund \
+  && npm cache clean --force
+
+COPY api/src api/src
+COPY api/server.js api/
+
+WORKDIR /app/api
+USER node
+EXPOSE 8787
+CMD ["node", "server.js"]

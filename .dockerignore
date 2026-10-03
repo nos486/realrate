@@ -1,0 +1,11 @@
+**/node_modules
+**/dist
+**/dist-app
+web/android
+.git
+.github
+**/.env
+**/.env.*
+!web/.env.production
+**/*.log
+**/.wrangler

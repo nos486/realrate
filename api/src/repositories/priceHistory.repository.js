@@ -12,7 +12,7 @@
  * is cut into equal buckets, each holding the last value known at its end.
  */
 
-import { Client } from "pg";
+import { newPgClient } from "../lib/pgClientFactory.js";
 import { logger } from "../lib/logger.js";
 import { normalizePriceId } from "../domain/priceBook.js";
 
@@ -156,8 +156,7 @@ export function resetPriceHistorySchemaCache() {
 }
 
 function connectClient(connectionString, deps) {
-  const createClient = deps.createClient || ((cs) => new Client({
-    connectionString: cs,
+  const createClient = deps.createClient || ((cs) => newPgClient(cs, {
     connectionTimeoutMillis: CONNECT_TIMEOUT_MS,
     query_timeout: QUERY_TIMEOUT_MS,
   }));

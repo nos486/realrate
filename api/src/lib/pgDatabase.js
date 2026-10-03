@@ -8,13 +8,15 @@
  * (ILIKE), and the older `INSERT OR IGNORE` / `datetime('now')` forms rewritten. Whole numbers and
  * numerics come back as JS numbers.
  *
- * One connection per request (Hyperdrive pools the real ones): opened on the first query and
+ * One connection per request (Hyperdrive pools the real ones; on the Node server a shared pool,
+ * pgClientFactory.js): opened on the first query and
  * closed once the request is done and no query is running — a query from work still running
  * after the response (waitUntil) opens a new one, closed the same way.
  */
 
 import pg from "pg";
 import { logger } from "./logger.js";
+import { newPgClient } from "./pgClientFactory.js";
 
 // BIGINT (COUNT(*), timestamps) and NUMERIC (SUM, AVG) as numbers
 pg.types.setTypeParser(20, (v) => (v === null ? null : Number(v)));
@@ -84,8 +86,7 @@ export function createPgDatabase(connectionString, deps = {}) {
   let pending = 0;
   let closeWhenIdle = false;
 
-  const newClient = deps.createClient || ((cs) => new pg.Client({
-    connectionString: cs,
+  const newClient = deps.createClient || ((cs) => newPgClient(cs, {
     connectionTimeoutMillis: CONNECT_TIMEOUT_MS,
     query_timeout: QUERY_TIMEOUT_MS,
   }));

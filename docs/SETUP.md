@@ -123,6 +123,8 @@ npx wrangler secret put VAPID_SUBJECT
 
 ## استقرار
 
+دو راه: Cloudflare (Workers و Pages، در ادامه) یا **یک سرور لینوکسی با Docker** که با هر push خودکار به‌روز می‌شود — راهنمای کامل و مراحل جابه‌جایی بدون قطعی: [SELF_HOST.md](SELF_HOST.md).
+
 مرج در `main` هر دو بخش را خودکار منتشر می‌کند و در هر PR هم برای هر دو یک پیش‌نمایش ساخته می‌شود:
 
 | بخش | سرویس | چک در GitHub |
