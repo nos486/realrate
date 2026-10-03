@@ -38,7 +38,6 @@ import {
   Rows3,
   GripVertical,
   ChevronDown,
-  Coins,
   LayoutTemplate,
 } from 'lucide-react';
 import { SearchBar, EmptyState, Modal } from '../../shared/ui/index.js';
@@ -257,8 +256,6 @@ export default function HomeDashboard({
   currencies,
   recommendation,
   loading = false,
-  ratesPanel = null,
-  needsRates = false,
 }) {
   const pricing = usePricing();
   const { confirm } = useFeedback();
@@ -267,13 +264,11 @@ export default function HomeDashboard({
   const [editing, setEditing] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   // null = automatic: open while there is no USD rate, so it is clear where to enter it
-  const [ratesChoice, setRatesChoice] = useState(null);
   const [presetsOpen, setPresetsOpen] = useState(false);
   const [query, setQuery] = useState('');
   const [pickerSectionId, setPickerSectionId] = useState(null);
   const [collapsed, toggleCollapsed] = useCollapsedSections();
   const sectionSensors = useDndSensors();
-  const ratesOpen = ratesChoice ?? needsRates;
 
   const assets = pricing?.resolvedAssets;
   const itemMap = pricing?.itemMap;
@@ -383,18 +378,6 @@ export default function HomeDashboard({
             >
               <Search size={16} />
             </button>
-            {ratesPanel && (
-              <button
-                type="button"
-                className={`home-header-btn ${ratesOpen ? 'is-active' : ''} ${needsRates ? 'has-alert' : ''}`}
-                onClick={() => setRatesChoice(!ratesOpen)}
-                aria-expanded={ratesOpen}
-                title="نرخ دلار و انس مبنای محاسبات"
-              >
-                <Coins size={16} />
-                <span>نرخ مبنا</span>
-              </button>
-            )}
             <button
               type="button"
               className="home-header-btn"
@@ -418,13 +401,6 @@ export default function HomeDashboard({
           className="home-search"
           autoFocus
         />
-      )}
-
-      {!editing && ratesOpen && ratesPanel && (
-        <div className="home-rates-panel">
-          {needsRates && <p className="home-rates-hint">برای محاسبه ارزش ذاتی و حباب، نرخ دلار را وارد کنید.</p>}
-          {ratesPanel}
-        </div>
       )}
 
       {saveError && <AlertBanner type="warning" message={saveError} />}

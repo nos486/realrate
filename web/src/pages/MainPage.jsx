@@ -2,7 +2,6 @@ import React, { useEffect, useMemo, useRef, lazy, Suspense } from 'react';
 import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { TrendingUp, Briefcase, ShieldCheck, Settings, Landmark, Wallet, ReceiptText, Wrench, HandCoins, WalletCards, Smartphone, MessageSquareText } from 'lucide-react';
 import { AppLayout, FilterPills, AlertBanner, Button } from '../shared/ui/index.js';
-import MarketInputsToolbar from '../components/MarketInputsToolbar.jsx';
 import { PriceRefreshStatus } from '../features/market/components/index.js';
 import HomeDashboard from '../features/home/HomeDashboard.jsx';
 // Imported from its own file (not the loans barrel) so LoansPage stays in its lazy chunk
@@ -11,7 +10,6 @@ import AppAlertSources from '../shared/alerts/AppAlertSources.jsx';
 import VaultPendingBanner from '../shared/vault/VaultPendingBanner.jsx';
 import VaultSetupScreen from '../shared/vault/VaultSetupScreen.jsx';
 import { useVault } from '../shared/vault/useVault.js';
-import LiveRatesTicker from '../components/LiveRatesTicker.jsx';
 import { useMarketData } from '../features/market/hooks/useMarketData.js';
 import { useAuth } from '../features/auth/index.js';
 import { useDemo } from '../features/demo/index.js';
@@ -254,15 +252,6 @@ export default function MainPage() {
     globalSettings,
     loading: marketLoading,
     usdToman,
-    goldUsd,
-    setUsdToman,
-    setGoldUsd,
-    liveUsdSource,
-    liveUsdDatetime,
-    referenceRates,
-    activeReferenceRate,
-    cycleReferenceRate,
-    setReferenceRateKey,
   } = useMarketData();
 
   const announcement = globalSettings?.announcement;
@@ -275,7 +264,6 @@ export default function MainPage() {
   const gold18kItem = calcData?.analysis?.find((i) => i.id === 'gold_18k');
   const gold18kPrice = gold18kItem?.market || gold18kItem?.intrinsic || null;
 
-  const hasUsd = usdNum > 0;
 
   // The app's home dashboard: its cards open a section, the market, or a form
   const openFromHome = (target) => {
@@ -328,16 +316,6 @@ export default function MainPage() {
             onChange={handleTabChange}
           />
         </div>
-
-        <div className="main-live-ticker-row">
-          <LiveRatesTicker
-            usdPrice={usdToman}
-            activeReferenceRate={activeReferenceRate}
-            referenceRates={referenceRates}
-            onSelectReferenceRate={setReferenceRateKey}
-            onCycleReferenceRate={cycleReferenceRate}
-          />
-        </div>
       </div>
       )}
 
@@ -373,21 +351,6 @@ export default function MainPage() {
               currencies={currencies}
               recommendation={recommendation}
               loading={marketLoading}
-              // Only once prices have loaded — while loading, a missing rate is just not here yet
-              needsRates={!hasUsd && !marketLoading}
-              ratesPanel={
-                <MarketInputsToolbar
-                  usdToman={usdToman}
-                  setUsdToman={setUsdToman}
-                  goldUsd={goldUsd}
-                  setGoldUsd={setGoldUsd}
-                  liveUsdSource={liveUsdSource}
-                  liveUsdDatetime={liveUsdDatetime}
-                  activeReferenceRate={activeReferenceRate}
-                  referenceRates={referenceRates}
-                  onCycleReferenceRate={cycleReferenceRate}
-                />
-              }
             />
           </div>
         )}

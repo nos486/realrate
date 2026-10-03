@@ -74,4 +74,4 @@ realrate/
 | `utils/homeLayout.js`، `portfolioLayout.js` | `domain/` — چیدمان صفحه اصلی و دسته‌های پورتفو |
 | `utils/financialSpecs.js` | `lib/financialSpecs.js` |
 
-برای تغییر هر کدام، فایل مبدأ در `api/` را ویرایش کنید. `utils/calculator.js` و `utils/pricingEngine.js` مال خود وب‌اند (ماشین‌حساب «نرخ مبنا»).
+برای تغییر هر کدام، فایل مبدأ در `api/` را ویرایش کنید. `utils/calculator.js` و `utils/pricingEngine.js` مال خود وب‌اند (ارزش ذاتی و حباب با نرخ زنده).

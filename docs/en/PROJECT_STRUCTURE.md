@@ -76,4 +76,4 @@ realrate/
 | `utils/homeLayout.js`, `portfolioLayout.js` | `domain/` — home layout and portfolio categories |
 | `utils/financialSpecs.js` | `lib/financialSpecs.js` |
 
-To change any of them, edit the source in `api/`. `utils/calculator.js` and `utils/pricingEngine.js` belong to the web app (the "base rates" calculator).
+To change any of them, edit the source in `api/`. `utils/calculator.js` and `utils/pricingEngine.js` belong to the web app (intrinsic value and bubble at the live rates).

@@ -5,7 +5,7 @@
  * File Structure:
  *   tokens.css          — Design tokens, CSS variables, theme definitions
  *   base.css            — Reset, body, layout containers, helpers
- *   header.css          — Sticky header, ticker strip, tab switcher
+ *   header.css          — Sticky header, tab switcher
  *   market.css          — Market controls, cards, currencies tab
  *   portfolio.css       — Portfolio tracker, nav, split layout
  *   modals.css          — Shared modal/bottom-sheet dialogs

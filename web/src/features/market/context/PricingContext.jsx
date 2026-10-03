@@ -10,7 +10,7 @@
 import React, { createContext, useContext, useState, useEffect, useMemo, useCallback, useRef, useSyncExternalStore } from 'react';
 import { getPriceBook } from '../api/marketApi.js';
 import { searchUnifiedAssets } from '../../../utils/pricingEngine.js';
-import { baseRatesOf, referenceRatesOf } from '../../../utils/priceBookViews.js';
+import { baseRatesOf } from '../../../utils/priceBookViews.js';
 import { bookToAssets, priceOf, assetOf } from '../priceBookAssets.js';
 import { setKnownPriceIds } from '../knownPriceIds.js';
 
@@ -32,15 +32,10 @@ function isBrowserOffline() {
 /** How often live prices are refreshed in the background while the tab is visible */
 export const PRICE_REFRESH_INTERVAL_MS = 2 * 60 * 1000;
 
-const REFERENCE_KEY_STORAGE = 'realrate_active_reference_rate';
-
-function storedReferenceKey() {
-  try {
-    return localStorage.getItem(REFERENCE_KEY_STORAGE) || 'usd';
-  } catch {
-    return 'usd';
-  }
-}
+// A dollar rate picked by hand in an earlier version (the old «نرخ مبنا»): forgotten
+try {
+  if (typeof localStorage !== 'undefined') localStorage.removeItem('realrate_active_reference_rate');
+} catch { /* storage unavailable */ }
 
 export function PricingProvider({ children, initialUsdToman = null, initialGoldUsd = null }) {
   const [priceBook, setPriceBook] = useState(null);
@@ -49,51 +44,13 @@ export function PricingProvider({ children, initialUsdToman = null, initialGoldU
   const [error, setError] = useState(null);
   const isOffline = useSyncExternalStore(subscribeOnlineStatus, isBrowserOffline, () => false);
 
-  // The calculator's rates: the live ones from the book, or what the user typed
+  // The calculator's rates: always the live ones from the book
   const [usdToman, setUsdToman] = useState(initialUsdToman || '');
   const [goldUsd, setGoldUsd] = useState(initialGoldUsd || '');
   const [silverUsd, setSilverUsd] = useState('');
 
-  // Which reference rate (dollar, tether, …) the calculator starts from
-  const [activeReferenceKey, setActiveReferenceKey] = useState(storedReferenceKey);
-
-  // The reference rates, each at its price in the book
-  const referenceRates = useMemo(() => referenceRatesOf(priceBook), [priceBook]);
-
-  const activeReferenceRate = useMemo(() => {
-    return referenceRates.find((r) => r.key === activeReferenceKey) || referenceRates[0] || null;
-  }, [referenceRates, activeReferenceKey]);
-
-  const setReferenceRateKey = useCallback((key) => {
-    setActiveReferenceKey(key);
-    try {
-      localStorage.setItem(REFERENCE_KEY_STORAGE, key);
-    } catch { }
-    const targetRate = referenceRates.find((r) => r.key === key);
-    if (targetRate && Number(targetRate.price) > 0) {
-      const priceVal = Math.round(Number(targetRate.price));
-      setUsdToman((prev) => (Number(prev) === priceVal ? prev : priceVal));
-    }
-    if (targetRate) window.dispatchEvent(new CustomEvent('realrate_reference_rate_changed', { detail: targetRate }));
-    return targetRate || null;
-  }, [referenceRates]);
-
-  // Cycle to the next reference rate (dollar → tether → …)
-  const cycleReferenceRate = useCallback(() => {
-    if (referenceRates.length === 0) return null;
-    const currentIdx = referenceRates.findIndex((r) => r.key === activeReferenceKey);
-    const next = referenceRates[currentIdx === -1 ? 0 : (currentIdx + 1) % referenceRates.length];
-    return next ? setReferenceRateKey(next.key) : null;
-  }, [referenceRates, activeReferenceKey, setReferenceRateKey]);
-
   const [lastUpdatedAt, setLastUpdatedAt] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
-
-  // Values the user typed by hand in the calculator must survive background refreshes
-  const manualOverrideRef = useRef({ usd: false, gold: false });
-  const setManualOverride = useCallback((flags) => {
-    manualOverrideRef.current = { ...manualOverrideRef.current, ...flags };
-  }, []);
 
   const fetchSeqRef = useRef(0);
   const inFlightRef = useRef(false);
@@ -129,16 +86,10 @@ export function PricingProvider({ children, initialUsdToman = null, initialGoldU
         setLastUpdatedAt(now);
       }
 
-      // The calculator follows the live rates until the user types their own
+      // The calculator uses the live dollar and ounce
       const base = baseRatesOf(book);
-      const refs = referenceRatesOf(book);
-      const matchedRef = refs.find((r) => r.key === storedReferenceKey()) || refs[0];
-      const liveUsd = matchedRef?.price || base.usdToman;
-      if (liveUsd && !manualOverrideRef.current.usd) {
-        setUsdToman(liveUsd);
-        if (matchedRef?.key) setActiveReferenceKey(matchedRef.key);
-      }
-      if (base.goldUsd && !manualOverrideRef.current.gold) setGoldUsd(base.goldUsd);
+      if (base.usdToman) setUsdToman(base.usdToman);
+      if (base.goldUsd) setGoldUsd(base.goldUsd);
       if (base.silverUsd) setSilverUsd(base.silverUsd);
     } catch (e) {
       if (seq !== fetchSeqRef.current) return;
@@ -223,26 +174,15 @@ export function PricingProvider({ children, initialUsdToman = null, initialGoldU
     itemMap,
     summary,
     usdToman,
-    setUsdToman,
     goldUsd,
-    setGoldUsd,
     silverUsd,
-    setSilverUsd,
-    setManualOverride,
     getAssetPrice,
     getAsset,
     searchAssets,
     refresh,
-    activeReferenceKey,
-    activeReferenceRate,
-    referenceRates,
-    cycleReferenceRate,
-    setReferenceRateKey,
   }), [
     loading, refreshing, error, isOffline, lastUpdatedAt, priceBook, globalSettings, resolvedAssets, priceMap,
-    itemMap, summary, usdToman, goldUsd, silverUsd, setManualOverride, getAssetPrice, getAsset,
-    searchAssets, refresh, activeReferenceKey, activeReferenceRate, referenceRates,
-    cycleReferenceRate, setReferenceRateKey,
+    itemMap, summary, usdToman, goldUsd, silverUsd, getAssetPrice, getAsset, searchAssets, refresh,
   ]);
 
   return (

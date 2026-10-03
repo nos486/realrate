@@ -133,25 +133,17 @@ describe('PricingContext auto-refresh', () => {
     expect(result.current.globalSettings.announcement).toBe('second');
   });
 
-  it("never overwrites a price the user typed in by hand", async () => {
+  it("the calculator's rates always follow the book (no hand-typed rate any more)", async () => {
     const { result } = renderPricing();
     await flush();
-
-    act(() => {
-      result.current.setManualOverride({ usd: true, gold: true });
-      result.current.setUsdToman(95000);
-      result.current.setGoldUsd(3000);
-    });
-
+    expect(result.current.setUsdToman).toBeUndefined();
     getPriceBook.mockResolvedValue(book(130000, 2700));
     await act(async () => {
       vi.advanceTimersByTime(PRICE_REFRESH_INTERVAL_MS);
     });
     await flush();
-
     expect(getPriceBook).toHaveBeenCalledTimes(2);
-    expect(Number(result.current.usdToman)).toBe(95000);
-    expect(Number(result.current.goldUsd)).toBe(3000);
+    expect(Number(result.current.usdToman)).toBe(130000);
   });
 
   it('keeps a stable context value between unrelated renders', async () => {
@@ -173,37 +165,21 @@ describe('useMarketData on top of the shared refresh', () => {
     const { result } = renderMarketData();
     await flush();
     expect(getPriceBook).toHaveBeenCalledTimes(1);
-    expect(result.current.market.usdToman).toBe('100,000');
+    expect(result.current.market.usdToman).toBe(100000);
     expect(result.current.market.globalSettings.announcement).toBe('first');
-    expect(result.current.market.referenceRates.map((r) => [r.key, r.price])).toEqual([['usd', 100000]]);
     // The calculator's currencies are the book's prices
     expect(result.current.market.calcData.currencies.find((c) => c.code === 'TRY').toman_price).toBe(2000);
   });
 
-  it('follows background refreshes until the user edits the value', async () => {
+  it('follows every background refresh', async () => {
     const { result } = renderMarketData();
     await flush();
-
     getPriceBook.mockResolvedValue(book(110000));
     await act(async () => {
       vi.advanceTimersByTime(PRICE_REFRESH_INTERVAL_MS);
     });
     await flush();
-    expect(result.current.market.usdToman).toBe('110,000');
-
-    await act(async () => {
-      result.current.market.setUsdToman('95,000');
-    });
-    await flush();
-
-    getPriceBook.mockResolvedValue(book(130000));
-    await act(async () => {
-      vi.advanceTimersByTime(PRICE_REFRESH_INTERVAL_MS);
-    });
-    await flush();
-    expect(getPriceBook).toHaveBeenCalledTimes(3);
-    expect(result.current.market.usdToman).toBe('95,000');
-    expect(Number(result.current.pricing.usdToman)).toBe(95000);
+    expect(result.current.market.usdToman).toBe(110000);
   });
 });
 
@@ -218,11 +194,4 @@ describe('prices come from the price book only', () => {
     expect(result.current.getAsset('forex_try')?.name).toBe('لیر');
   });
 
-  it('never changes a price when the calculator\'s USD rate is edited', async () => {
-    const { result } = renderPricing();
-    await flush();
-    act(() => result.current.setUsdToman(120000));
-    expect(result.current.getAssetPrice('try')).toBe(2000);
-    expect(result.current.summary.usdToman).toBe(120000);
-  });
 });
