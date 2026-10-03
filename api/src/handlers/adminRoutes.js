@@ -23,7 +23,8 @@ import { testPriceSourceConfig, fetchAllPrices, inspectApiEndpointStructure, ref
 import { jsonResponse, errorResponse, forbiddenResponse } from "../lib/helpers.js";
 import { AppError } from "../lib/AppError.js";
 import { logger } from "../lib/logger.js";
-import { backfillPriceHistory, BACKFILL_SOURCES } from "../services/market/historyBackfill.service.js";
+import { backfillPriceHistory, BACKFILL_SOURCES, listHistoryKeys, deleteHistoryKey, moveHistoryKey } from "../services/market/historyBackfill.service.js";
+import { getPriceBookCache } from "../repositories/priceBookStore.repository.js";
 
 /**
  * GET /api/admin/stats
@@ -302,22 +303,49 @@ export async function handleAdminInspectApiRoute(request, env) {
 }
 
 /**
- * GET  /api/admin/price-history/backfill — the items that can be backfilled
- * POST /api/admin/price-history/backfill { key, days, overwrite } — fill past days of an item's
- * daily history from its history source (historyBackfill.service.js) — admin only
+ * GET  /api/admin/price-history/backfill — the tgju series, the live price book's items (the
+ *      possible targets) and what the history holds per item
+ * POST /api/admin/price-history/backfill { source, target, days, overwrite } — fill past days of
+ *      a price book item from a tgju series (historyBackfill.service.js) — admin only
  */
 export async function handleAdminPriceHistoryBackfill(request, env) {
   const user = await getAuthenticatedUser(request, env);
   if (!user || user.role !== "admin") return forbiddenResponse(request);
   if (request.method === "GET") {
-    const sources = Object.entries(BACKFILL_SOURCES).map(([key, s]) => ({ key, label: s.label }));
-    return jsonResponse({ success: true, sources }, 200, request);
+    const [book, history] = await Promise.all([getPriceBookCache(env), listHistoryKeys(env)]);
+    const items = Object.entries(book?.items || {})
+      .filter(([, item]) => !String(item.category || "").startsWith("bourse"))
+      .map(([id, item]) => ({ id, name: item.name || id, category: item.category || "", price: item.price }))
+      .sort((a, b) => a.category.localeCompare(b.category) || a.name.localeCompare(b.name, "fa"));
+    const sources = Object.entries(BACKFILL_SOURCES).map(([id, s]) => ({ id, label: s.label, suggest: s.suggest, timesUsd: Boolean(s.timesUsd) }));
+    return jsonResponse({ success: true, sources, items, history }, 200, request);
   }
   const body = await request.json().catch(() => ({}));
   const result = await backfillPriceHistory(env, {
-    key: String(body.key || "usd"),
+    source: String(body.source || ""),
+    target: String(body.target || ""),
+    usdTarget: String(body.usdTarget || "usd"),
     days: Number(body.days) || 730,
     overwrite: body.overwrite === true,
   });
   return jsonResponse({ success: true, ...result }, 200, request);
+}
+
+/**
+ * POST /api/admin/price-history/keys { action: "delete", key } | { action: "move", key, to } —
+ * drop an item's history, or move it to a price book id — admin only
+ */
+export async function handleAdminPriceHistoryKeys(request, env) {
+  const user = await getAuthenticatedUser(request, env);
+  if (!user || user.role !== "admin") return forbiddenResponse(request);
+  const body = await request.json().catch(() => ({}));
+  if (body.action === "delete") {
+    const deleted = await deleteHistoryKey(env, String(body.key || ""));
+    return jsonResponse({ success: true, deleted, history: await listHistoryKeys(env) }, 200, request);
+  }
+  if (body.action === "move") {
+    const result = await moveHistoryKey(env, String(body.key || ""), String(body.to || ""));
+    return jsonResponse({ success: true, ...result, history: await listHistoryKeys(env) }, 200, request);
+  }
+  throw AppError.badRequest("عملیات نامعتبر است");
 }

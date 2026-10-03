@@ -5,7 +5,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { recordPriceHistory, readPriceTrends, importDailyCandles, tehranDay, addDays } from '../../src/repositories/priceHistory.repository.js';
 import { resetD1SchemaCache, ensureD1Schema } from '../../src/repositories/d1Schema.js';
-import { parseTgjuRows, backfillPriceHistory, cellDay } from '../../src/services/market/historyBackfill.service.js';
+import { parseTgjuRows, backfillPriceHistory as backfill, cellDay, listHistoryKeys, moveHistoryKey, deleteHistoryKey } from '../../src/services/market/historyBackfill.service.js';
 import { sqliteD1 } from '../helpers/sqliteD1.js';
 
 let db;
@@ -51,6 +51,10 @@ describe('a day is a candle', () => {
 describe('backfill', () => {
   const now = Date.parse('2026-01-10T08:00:00Z');
   const today = tehranDay(now);
+  // The live price book: the targets a series may be written to
+  const book = { items: { usd: { name: 'دلار', price: 101000 }, try: { name: 'لیر', price: 3000 }, ons_gold: { name: 'انس', price: 4000 * 102000 }, full_coin: { name: 'سکه', price: 100000000 } } };
+  const getBook = async () => book;
+  const backfillPriceHistory = (e, o) => backfill(e, { getBook, ...o });
 
   it('imports past days, keeps recorded ones unless overwriting, never today', async () => {
     await recordPriceHistory(env, [{ id: 'usd', price: 105 }], '2026-01-09T08:00:00Z');
@@ -80,8 +84,7 @@ describe('backfill', () => {
     expect(cellDay(['1404/01/01'])).toBe('2025-03-21');
   });
 
-  it('pages through tgju until two years back, then writes', async () => {
-    await recordPriceHistory(env, [{ id: 'usd', price: 101000 }], new Date(now).toISOString());
+  it('pages through tgju until two years back, then writes to the chosen item', async () => {
     const rowFor = (i) => {
       const day = addDays(today, -1 - i);
       return ['1,000,000', '990,000', '1,020,000', '1,010,000', '0', '0%', day.replace(/-/g, '/'), ''];
@@ -93,50 +96,65 @@ describe('backfill', () => {
       const data = Array.from({ length: 500 }, (_, i) => rowFor(start + i)).filter((_, i) => start + i < 800);
       return new Response(JSON.stringify({ data }), { status: 200 });
     };
-    const res = await backfillPriceHistory(env, { key: 'usd', days: 730, fetchImpl, now });
+    const res = await backfillPriceHistory(env, { source: 'price_dollar_rl', target: 'usd', days: 730, fetchImpl, now });
     expect(urls).toHaveLength(2);
-    expect(res).toMatchObject({ key: 'usd', fetched: 800, valid: 730, written: 730, from: addDays(today, -730), to: addDays(today, -1) });
+    expect(urls[0]).toContain('/price_dollar_rl?');
+    expect(res).toMatchObject({ source: 'price_dollar_rl', target: 'usd', fetched: 800, valid: 730, written: 730, from: addDays(today, -730), to: addDays(today, -1) });
     const { usd } = await readPriceTrends(env, ['usd'], { range: '2y', now, candles: true });
     expect(usd.days[0]).toBe(addDays(today, -729));
     expect(usd.candles[0]).toEqual([100000, 102000, 99000, 101000]);
   });
 
-  it('refuses a unit slip, an unknown item and an unreadable answer', async () => {
-    await recordPriceHistory(env, [{ id: 'usd', price: 1000000 }], new Date(now).toISOString());
-    const rials = async () => new Response(JSON.stringify({ data: [['10,000,000', '9,900,000', '10,200,000', '10,100,000', '2026/01/08']] }));
-    await expect(backfillPriceHistory(env, { fetchImpl: rials, now, key: 'usd' })).resolves.toBeDefined();
-    resetD1SchemaCache();
-    db = sqliteD1(); env = { DB: db };
-    await recordPriceHistory(env, [{ id: 'usd', price: 10100 }], new Date(now).toISOString());
-    await expect(backfillPriceHistory(env, { fetchImpl: rials, now })).rejects.toThrow(/نمی‌خواند/);
-    await expect(backfillPriceHistory(env, { key: 'nope', now })).rejects.toThrow(/منبع/);
+  it('writes only to an item of the live price book, near its live price', async () => {
+    const lira = async () => new Response(JSON.stringify({ data: [['30,000', '29,500', '30,500', '30,100', '2026/01/08']] }));
+    await expect(backfillPriceHistory(env, { source: 'price_try', target: 'price_try', fetchImpl: lira, now })).rejects.toThrow(/دفتر قیمت نیست/);
+    await expect(backfillPriceHistory(env, { source: 'price_try', target: '', fetchImpl: lira, now })).rejects.toThrow(/دفتر قیمت نیست/);
+    await expect(backfillPriceHistory(env, { source: 'price_try', target: 'usd', fetchImpl: lira, now })).rejects.toThrow(/نمی‌خواند/);
+    await expect(backfillPriceHistory(env, { source: 'nope', target: 'try', now })).rejects.toThrow(/تعریف نشده/);
+    await expect(backfillPriceHistory(env, { source: 'price_try', target: 'TRY', fetchImpl: lira, now })).resolves.toMatchObject({ target: 'try', written: 1 });
+    expect(candleRows().map((r) => r.item_key)).toEqual(['try']);
     const junk = async () => new Response(JSON.stringify({ data: [['x', 'y']] }));
-    await expect(backfillPriceHistory(env, { fetchImpl: junk, now })).rejects.toThrow(/قابل خواندن/);
+    await expect(backfillPriceHistory(env, { source: 'price_try', target: 'try', fetchImpl: junk, now })).rejects.toThrow(/قابل خواندن/);
   });
 
   it('turns a dollar-priced item (the ounce) into tomans with each day\'s dollar candle', async () => {
-    await importDailyCandles(env, 'usd', [
-      { day: '2026-01-07', open: 100000, high: 102000, low: 99000, close: 101000 },
-      { day: '2026-01-08', open: 101000, high: 103000, low: 100000, close: 102000 },
-    ], { now });
-    await recordPriceHistory(env, [{ id: 'ons_gold', price: 4000 * 102000 }], new Date(now).toISOString());
     const ons = async () => new Response(JSON.stringify({ data: [
       ['4,000', '3,950', '4,050', '4,010', '2026/01/08'],
       ['3,900', '3,880', '3,990', '3,980', '2026/01/07'],
       ['3,800', '3,780', '3,890', '3,880', '2026/01/06'],
     ] }));
-    const res = await backfillPriceHistory(env, { key: 'ons_gold', fetchImpl: ons, now });
-    expect(res).toMatchObject({ key: 'ons_gold', label: 'انس طلا', written: 2, from: '2026-01-07', to: '2026-01-08' });
+    await expect(backfillPriceHistory(env, { source: 'ons', target: 'ons_gold', fetchImpl: ons, now })).rejects.toThrow(/دلار/);
+    await importDailyCandles(env, 'usd', [
+      { day: '2026-01-07', open: 100000, high: 102000, low: 99000, close: 101000 },
+      { day: '2026-01-08', open: 101000, high: 103000, low: 100000, close: 102000 },
+    ], { now });
+    const res = await backfillPriceHistory(env, { source: 'ons', target: 'ons_gold', fetchImpl: ons, now });
+    expect(res).toMatchObject({ target: 'ons_gold', written: 2, from: '2026-01-07', to: '2026-01-08' });
     const row = db.sqlite.prepare("SELECT open, high, low, value FROM price_daily WHERE item_key = 'ons_gold' AND day = '2026-01-08'").get();
     expect({ ...row }).toEqual({ open: 4000 * 101000, high: 4050 * 103000, low: 3950 * 100000, value: 4010 * 102000 });
   });
+});
 
-  it('needs the dollar\'s history first, and a live price to check against', async () => {
-    const ons = async () => new Response(JSON.stringify({ data: [['4,000', '3,950', '4,050', '4,010', '2026/01/08']] }));
-    await expect(backfillPriceHistory(env, { key: 'ons_gold', fetchImpl: ons, now })).rejects.toThrow(/دلار/);
-    const coin = async () => new Response(JSON.stringify({ data: [['1,000,000,000', '990,000,000', '1,010,000,000', '1,005,000,000', '2026/01/08']] }));
-    await expect(backfillPriceHistory(env, { key: 'full_coin', fetchImpl: coin, now })).rejects.toThrow(/هنوز قیمتی ثبت نشده/);
-    await recordPriceHistory(env, [{ id: 'full_coin', price: 100000000 }], new Date(now).toISOString());
-    await expect(backfillPriceHistory(env, { key: 'full_coin', fetchImpl: coin, now })).resolves.toMatchObject({ written: 1 });
+describe('fixing the history', () => {
+  const getBook = async () => ({ items: { try: { name: 'لیر' } } });
+  const now = Date.parse('2026-01-10T08:00:00Z');
+
+  it('lists ids with their days, and moves or deletes the ones the book doesn\'t know', async () => {
+    await importDailyCandles(env, 'price_try', [
+      { day: '2026-01-07', open: 1, high: 1, low: 1, close: 1 },
+      { day: '2026-01-08', open: 2, high: 2, low: 2, close: 2 },
+    ], { now });
+    await importDailyCandles(env, 'try', [{ day: '2026-01-08', open: 3, high: 3, low: 3, close: 3 }], { now });
+    await importDailyCandles(env, 'junk', [{ day: '2026-01-08', open: 3, high: 3, low: 3, close: 3 }], { now });
+    expect(await listHistoryKeys(env, { getBook })).toEqual([
+      { key: 'junk', name: null, inBook: false, days: 1, first: '2026-01-08', last: '2026-01-08' },
+      { key: 'price_try', name: null, inBook: false, days: 2, first: '2026-01-07', last: '2026-01-08' },
+      { key: 'try', name: 'لیر', inBook: true, days: 1, first: '2026-01-08', last: '2026-01-08' },
+    ]);
+    await expect(moveHistoryKey(env, 'price_try', 'nope', { getBook })).rejects.toThrow(/دفتر قیمت نیست/);
+    expect(await moveHistoryKey(env, 'price_try', 'try', { getBook })).toEqual({ moved: 1, dropped: 1 });
+    expect(candleRows().filter((r) => r.item_key === 'try').map((r) => [r.day, r.value])).toEqual([['2026-01-07', 1], ['2026-01-08', 3]]);
+    expect(await deleteHistoryKey(env, 'junk')).toBe(1);
+    expect((await listHistoryKeys(env, { getBook })).map((h) => h.key)).toEqual(['try']);
   });
 });

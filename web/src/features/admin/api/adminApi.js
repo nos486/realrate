@@ -96,12 +96,22 @@ export async function getAdminUserPortfolio(userId, portfolioId = null) {
   return httpClient.get(url);
 }
 
-/** Fill past days of an item's daily price history from its history source (tgju) */
-export async function backfillPriceHistory({ key = 'usd', days = 730, overwrite = false } = {}) {
-  return httpClient.post('/api/admin/price-history/backfill', { key, days, overwrite });
+/** Fill past days of a price book item's daily history from a tgju series */
+export async function backfillPriceHistory({ source, target, usdTarget = 'usd', days = 730, overwrite = false }) {
+  return httpClient.post('/api/admin/price-history/backfill', { source, target, usdTarget, days, overwrite });
 }
 
-/** The items whose daily history can be backfilled: [{ key, label }] */
-export async function getPriceHistoryBackfillSources() {
+/** The tgju series, the price book's items and what the history holds per item */
+export async function getPriceHistoryAdmin() {
   return httpClient.get('/api/admin/price-history/backfill');
+}
+
+/** Drop an item's whole history */
+export async function deletePriceHistoryKey(key) {
+  return httpClient.post('/api/admin/price-history/keys', { action: 'delete', key });
+}
+
+/** Move an item's history to a price book id */
+export async function movePriceHistoryKey(key, to) {
+  return httpClient.post('/api/admin/price-history/keys', { action: 'move', key, to });
 }

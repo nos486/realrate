@@ -79,6 +79,7 @@ import {
   handleAdminTestPriceSource,
   handleAdminFetchAllSources,
   handleAdminPriceHistoryBackfill,
+  handleAdminPriceHistoryKeys,
   handleAdminInspectApiRoute,
 } from "./handlers/adminRoutes.js";
 import { handleGetPrices, handleGetSparklines, handleGetPriceBook } from "./handlers/apiRoutes.js";
@@ -315,6 +316,9 @@ async function handleRequest(request, env, ctx) {
   }
   if (normalizedPath === "/api/admin/price-history/backfill" && (request.method === "GET" || request.method === "POST")) {
     return wrap(handleAdminPriceHistoryBackfill)(request, env);
+  }
+  if (normalizedPath === "/api/admin/price-history/keys" && request.method === "POST") {
+    return wrap(handleAdminPriceHistoryKeys)(request, env);
   }
 
 
