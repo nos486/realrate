@@ -2,16 +2,17 @@
  * HomeAssetCard.jsx — One asset on the home page, in any of the card styles
  *
  * - detailed (the full card):
- *   Gold & coins show the bubble analysis (intrinsic value, standard price, deviation);
- *   currencies and other assets show real-time rates and session metrics.
- *   Assets with historical candle data show a daily candlestick chart.
+ *   Default view shows the 30-day candlestick chart for assets with history.
+ *   A sleek mini toggle allows switching to the information/metrics tab.
+ *   Keeps the card minimal and thin while offering both views.
  * - compact: small row card (flag/icon, name, symbol, price).
  */
 
 import React from 'react';
-import { ChartCandlestick } from 'lucide-react';
+import { ChartCandlestick, SlidersHorizontal } from 'lucide-react';
 import { CategoryIcon } from '../portfolio/utils/holdingHelpers.js';
 import TrendCandles from './TrendCandles.jsx';
+import { useHomeCardTab } from './homeCardTab.js';
 
 function formatNum(num) {
   if (num === null || num === undefined || isNaN(num)) return '-';
@@ -84,7 +85,115 @@ function PriceLine({ value, unit, caption, asset = null, label = 'نرخ روز'
   );
 }
 
-function GoldDetailedCard({ asset, isBest, trend = null, chart = null }) {
+const TREND_WINDOW_DAYS = 30;
+const sinceFormat = new Intl.DateTimeFormat('fa-IR-u-ca-persian', { month: 'long', day: 'numeric' });
+
+/** The change from the point before the last (yesterday's close on a daily series) to the last */
+function dayChangePct(trend) {
+  if (Array.isArray(trend?.candles) && trend.candles.length >= 2) {
+    const prevClose = trend.candles[trend.candles.length - 2][3];
+    const lastClose = trend.candles[trend.candles.length - 1][3];
+    return prevClose > 0 ? ((lastClose - prevClose) / prevClose) * 100 : null;
+  }
+  const points = trend?.points || [];
+  if (points.length < 2) return null;
+  const prev = points[points.length - 2];
+  return prev > 0 ? ((points[points.length - 1] - prev) / prev) * 100 : null;
+}
+
+/**
+ * Interactive card body: defaults to candlestick chart if available,
+ * with a toggle switch to flip to the financial metrics tab.
+ */
+function CardBodyBox({
+  tab,
+  setTab,
+  hasCandles,
+  young,
+  since,
+  candles,
+  days,
+  unit,
+  label,
+  infoCaption,
+  metricsContent,
+  loading = false,
+}) {
+  if (loading) {
+    return (
+      <div className="home-card-body-box">
+        <div className="home-trend-skeleton" aria-hidden="true" />
+      </div>
+    );
+  }
+
+  // If neither candles nor metrics exist, render nothing
+  if (!hasCandles && !metricsContent) return null;
+
+  // If no candles exist, render metrics directly without tabs
+  if (!hasCandles) {
+    return (
+      <div className="home-card-body-box">
+        <div className="home-card-tab-header">
+          <span className="home-card-tab-title">{infoCaption || 'اطلاعات و شاخص‌ها'}</span>
+        </div>
+        <div className="home-card-tab-content">
+          {metricsContent}
+        </div>
+      </div>
+    );
+  }
+
+  // Default is 'chart'
+  const isChart = tab === 'chart';
+  const chartCaption = young && since
+    ? `از ${sinceFormat.format(new Date(since))}`
+    : `${TREND_WINDOW_DAYS.toLocaleString('fa-IR')} روز اخیر`;
+
+  return (
+    <div className="home-card-body-box">
+      <div className="home-card-tab-header">
+        <div className="home-card-tabs" role="tablist" aria-label="انتخاب نمای کارت">
+          <button
+            type="button"
+            role="tab"
+            aria-selected={isChart}
+            className={`home-card-tab-btn ${isChart ? 'is-active' : ''}`}
+            onClick={() => setTab('chart')}
+            title="نمایش نمودار کندلی"
+          >
+            <ChartCandlestick size={12} aria-hidden="true" />
+            <span>نمودار</span>
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={!isChart}
+            className={`home-card-tab-btn ${!isChart ? 'is-active' : ''}`}
+            onClick={() => setTab('info')}
+            title="نمایش مشخصات و آمار"
+          >
+            <SlidersHorizontal size={12} aria-hidden="true" />
+            <span>اطلاعات</span>
+          </button>
+        </div>
+        <span className="home-card-tab-caption home-trend-caption">
+          {isChart ? chartCaption : (infoCaption || 'اطلاعات')}
+        </span>
+      </div>
+
+      <div className="home-card-tab-content">
+        {isChart ? (
+          <TrendCandles candles={candles} days={days} unit={unit} label={label} />
+        ) : (
+          metricsContent
+        )}
+      </div>
+    </div>
+  );
+}
+
+function GoldDetailedCard({ asset, isBest, trend = null, tab, setTab, trendStatus = 'idle', bucketSec = 0 }) {
   const item = asset.analysis;
   const hasMarket = item.market !== null && item.market !== undefined;
   const badge = bubbleBadge(item);
@@ -94,6 +203,53 @@ function GoldDetailedCard({ asset, isBest, trend = null, chart = null }) {
   const changeVal = fromHistory !== null ? Number(fromHistory.toFixed(2)) : asset.changePercent;
   const change = changeBadge(changeVal);
   const changeTitle = fromHistory !== null ? 'تغییر نسبت به دیروز' : (asset.changePercent != null ? 'تغییر ۲۴ ساعت گذشته' : undefined);
+
+  const hasCandles = Array.isArray(trend?.candles) && trend.candles.length >= 2 && Array.isArray(trend?.days);
+  const young = hasCandles && trend.candles.length * bucketSec < 0.95 * TREND_WINDOW_DAYS * 86400;
+  const firstVal = hasCandles ? trend.candles[0][0] : 0;
+  const lastVal = hasCandles ? (trend.last || trend.candles[trend.candles.length - 1][3]) : 0;
+  const label = `روند ${asset.name}: از ${formatNum(firstVal)} به ${formatNum(lastVal)} تومان`;
+
+  const metricsContent = (hasMarket || showStandard) ? (
+    <div className="card-metrics-table">
+      {hasMarket && (
+        <div className="metric-row">
+          <span className="metric-key">
+            <span className="metric-indicator is-gold" aria-hidden="true" />
+            ارزش ذاتی
+          </span>
+          <strong className="metric-val gold-val">
+            {formatNum(item.intrinsic)}
+            <span className="metric-unit">تومان</span>
+          </strong>
+        </div>
+      )}
+      {showStandard && (
+        <div className="metric-row">
+          <span className="metric-key">
+            <span className="metric-indicator is-blue" aria-hidden="true" />
+            قیمت استاندارد
+          </span>
+          <strong className="metric-val blue-val">
+            {formatNum(item.expected_price)}
+            <span className="metric-unit">تومان</span>
+          </strong>
+        </div>
+      )}
+      {hasMarket && showStandard && item.diff_from_expected !== null && (
+        <div className="metric-row">
+          <span className="metric-key">
+            <span className={`metric-indicator ${item.diff_from_expected < 0 ? 'is-good' : 'is-warn'}`} aria-hidden="true" />
+            انحراف از استاندارد
+          </span>
+          <strong className={`metric-val ${item.diff_from_expected < 0 ? 'good-val' : 'warn-val'}`}>
+            {item.diff_from_expected < 0 ? '−' : '+'}
+            {formatPct(item.diff_from_expected_pct)}٪
+          </strong>
+        </div>
+      )}
+    </div>
+  ) : null;
 
   return (
     <div className={`fintech-card ${isBest ? 'best-choice' : ''}`}>
@@ -124,57 +280,35 @@ function GoldDetailedCard({ asset, isBest, trend = null, chart = null }) {
         label={hasMarket ? 'نرخ بازار' : 'ارزش ذاتی'}
       />
 
-      {(hasMarket || showStandard) && (
-        <div className="card-metrics-table">
-          {hasMarket && (
-            <div className="metric-row">
-              <span className="metric-key">
-                <span className="metric-indicator is-gold" aria-hidden="true" />
-                ارزش ذاتی
-              </span>
-              <strong className="metric-val gold-val">
-                {formatNum(item.intrinsic)}
-                <span className="metric-unit">تومان</span>
-              </strong>
-            </div>
-          )}
-          {showStandard && (
-            <div className="metric-row">
-              <span className="metric-key">
-                <span className="metric-indicator is-blue" aria-hidden="true" />
-                قیمت استاندارد
-              </span>
-              <strong className="metric-val blue-val">
-                {formatNum(item.expected_price)}
-                <span className="metric-unit">تومان</span>
-              </strong>
-            </div>
-          )}
-          {hasMarket && showStandard && item.diff_from_expected !== null && (
-            <div className="metric-row">
-              <span className="metric-key">
-                <span className={`metric-indicator ${item.diff_from_expected < 0 ? 'is-good' : 'is-warn'}`} aria-hidden="true" />
-                انحراف از استاندارد
-              </span>
-              <strong className={`metric-val ${item.diff_from_expected < 0 ? 'good-val' : 'warn-val'}`}>
-                {item.diff_from_expected < 0 ? '−' : '+'}
-                {formatPct(item.diff_from_expected_pct)}٪
-              </strong>
-            </div>
-          )}
-        </div>
-      )}
-
-      {chart}
+      <CardBodyBox
+        tab={tab}
+        setTab={setTab}
+        hasCandles={hasCandles}
+        young={young}
+        since={trend?.since}
+        candles={trend?.candles}
+        days={trend?.days}
+        unit="تومان"
+        label={label}
+        infoCaption="تحلیل حباب و ارزش"
+        metricsContent={metricsContent}
+        loading={!trend && trendStatus === 'loading'}
+      />
     </div>
   );
 }
 
-function DetailedCard({ asset, trend = null, chart = null }) {
+function DetailedCard({ asset, trend = null, tab, setTab, trendStatus = 'idle', bucketSec = 0 }) {
   const fromHistory = asset.changePercent === null || asset.changePercent === undefined ? dayChangePct(trend) : null;
   const changeVal = fromHistory !== null ? Number(fromHistory.toFixed(2)) : asset.changePercent;
   const change = changeBadge(changeVal);
   const changeTitle = fromHistory !== null ? 'تغییر نسبت به دیروز' : (asset.changePercent != null ? 'تغییر ۲۴ ساعت گذشته' : undefined);
+
+  const hasCandles = Array.isArray(trend?.candles) && trend.candles.length >= 2 && Array.isArray(trend?.days);
+  const young = hasCandles && trend.candles.length * bucketSec < 0.95 * TREND_WINDOW_DAYS * 86400;
+  const firstVal = hasCandles ? trend.candles[0][0] : 0;
+  const lastVal = hasCandles ? (trend.last || trend.candles[trend.candles.length - 1][3]) : (asset.price || 0);
+  const label = `روند ${asset.name}: از ${formatNum(firstVal)} به ${formatNum(lastVal)} ${asset.unit}`;
 
   const lastCandle = Array.isArray(trend?.candles) && trend.candles.length > 0 ? trend.candles[trend.candles.length - 1] : null;
   const hasCandleMetrics = lastCandle && lastCandle.length >= 4;
@@ -182,6 +316,48 @@ function DetailedCard({ asset, trend = null, chart = null }) {
   const metaText = [asset.sourceName, asset.note && asset.note !== asset.sourceName ? asset.note : '']
     .filter(Boolean)
     .join(' · ');
+
+  const hasMetrics = hasCandleMetrics || Boolean(metaText);
+
+  const metricsContent = hasMetrics ? (
+    <div className="card-metrics-table">
+      {hasCandleMetrics && (
+        <>
+          <div className="metric-row">
+            <span className="metric-key">
+              <span className="metric-indicator is-blue" aria-hidden="true" />
+              دامنه نوسان امروز
+            </span>
+            <strong className="metric-val">
+              {formatNum(lastCandle[1])} <span className="metric-sep">/</span> {formatNum(lastCandle[2])}
+              <span className="metric-unit">{asset.unit}</span>
+            </strong>
+          </div>
+          <div className="metric-row">
+            <span className="metric-key">
+              <span className="metric-indicator is-neutral" aria-hidden="true" />
+              قیمت بازگشایی
+            </span>
+            <strong className="metric-val">
+              {formatNum(lastCandle[0])}
+              <span className="metric-unit">{asset.unit}</span>
+            </strong>
+          </div>
+        </>
+      )}
+      {metaText && (
+        <div className={`metric-row ${hasCandleMetrics ? 'metric-source-row' : ''}`}>
+          <span className="metric-key">
+            <span className="metric-indicator is-neutral" aria-hidden="true" />
+            مرجع قیمت
+          </span>
+          <span className="metric-val is-meta" title={metaText}>
+            {metaText}
+          </span>
+        </div>
+      )}
+    </div>
+  ) : null;
 
   return (
     <div className="fintech-card">
@@ -211,47 +387,20 @@ function DetailedCard({ asset, trend = null, chart = null }) {
         label="نرخ روز"
       />
 
-      {(hasCandleMetrics || metaText) && (
-        <div className="card-metrics-table">
-          {hasCandleMetrics && (
-            <>
-              <div className="metric-row">
-                <span className="metric-key">
-                  <span className="metric-indicator is-blue" aria-hidden="true" />
-                  دامنه نوسان امروز
-                </span>
-                <strong className="metric-val">
-                  {formatNum(lastCandle[1])} <span className="metric-sep">/</span> {formatNum(lastCandle[2])}
-                  <span className="metric-unit">{asset.unit}</span>
-                </strong>
-              </div>
-              <div className="metric-row">
-                <span className="metric-key">
-                  <span className="metric-indicator is-neutral" aria-hidden="true" />
-                  قیمت بازگشایی
-                </span>
-                <strong className="metric-val">
-                  {formatNum(lastCandle[0])}
-                  <span className="metric-unit">{asset.unit}</span>
-                </strong>
-              </div>
-            </>
-          )}
-          {metaText && (
-            <div className={`metric-row ${hasCandleMetrics ? 'metric-source-row' : ''}`}>
-              <span className="metric-key">
-                <span className="metric-indicator is-neutral" aria-hidden="true" />
-                مرجع قیمت
-              </span>
-              <span className="metric-val is-meta" title={metaText}>
-                {metaText}
-              </span>
-            </div>
-          )}
-        </div>
-      )}
-
-      {chart}
+      <CardBodyBox
+        tab={tab}
+        setTab={setTab}
+        hasCandles={hasCandles}
+        young={young}
+        since={trend?.since}
+        candles={trend?.candles}
+        days={trend?.days}
+        unit={asset.unit}
+        label={label}
+        infoCaption="آمار و مرجع نرخ"
+        metricsContent={metricsContent}
+        loading={!trend && trendStatus === 'loading'}
+      />
     </div>
   );
 }
@@ -282,55 +431,6 @@ function CompactCard({ asset }) {
   );
 }
 
-const TREND_WINDOW_DAYS = 30;
-const sinceFormat = new Intl.DateTimeFormat('fa-IR-u-ca-persian', { month: 'long', day: 'numeric' });
-
-/** The change from the point before the last (yesterday's close on a daily series) to the last */
-function dayChangePct(trend) {
-  if (Array.isArray(trend?.candles) && trend.candles.length >= 2) {
-    const prevClose = trend.candles[trend.candles.length - 2][3];
-    const lastClose = trend.candles[trend.candles.length - 1][3];
-    return prevClose > 0 ? ((lastClose - prevClose) / prevClose) * 100 : null;
-  }
-  const points = trend?.points || [];
-  if (points.length < 2) return null;
-  const prev = points[points.length - 2];
-  return prev > 0 ? ((points[points.length - 1] - prev) / prev) * 100 : null;
-}
-
-function TrendBody({ asset, unit, trend, status, bucketSec }) {
-  const hasCandles = Array.isArray(trend?.candles) && trend.candles.length >= 2 && Array.isArray(trend?.days);
-  if (hasCandles) {
-    const young = trend.candles.length * bucketSec < 0.95 * TREND_WINDOW_DAYS * 86400;
-    const firstVal = trend.candles[0][0];
-    const lastVal = trend.last || trend.candles[trend.candles.length - 1][3];
-    const label = `روند ${asset.name}: از ${formatNum(firstVal)} به ${formatNum(lastVal)} ${unit}`;
-    return (
-      <div className="home-card-chart">
-        <div className="home-trend-header">
-          <span className="home-trend-type-tag">
-            <ChartCandlestick size={13} aria-hidden="true" />
-            <span>کندل‌های ۳۰ روزه</span>
-          </span>
-          <span className="home-trend-caption">
-            {young && trend.since ? `از ${sinceFormat.format(new Date(trend.since))}` : `${TREND_WINDOW_DAYS.toLocaleString('fa-IR')} روز اخیر`}
-          </span>
-        </div>
-        <TrendCandles candles={trend.candles} days={trend.days} unit={unit} label={label} />
-      </div>
-    );
-  }
-  if (!trend && status === 'loading') {
-    return (
-      <div className="home-card-chart">
-        <div className="home-trend-skeleton" aria-hidden="true" />
-      </div>
-    );
-  }
-  // Line chart is removed; cards without candle history simply do not render a chart
-  return null;
-}
-
 function MissingCard({ asset, style }) {
   return (
     <div className={`${style === 'compact' ? 'currency-item-card' : 'fintech-card'} home-card-missing`}>
@@ -345,11 +445,11 @@ function MissingCard({ asset, style }) {
  *   trend?: object|null, trendStatus?: string, bucketSec?: number }} props
  */
 export default function HomeAssetCard({ asset, style, isBest = false, trend = null, trendStatus = 'idle', bucketSec = 0 }) {
+  const [tab, setTab] = useHomeCardTab();
   if (!asset.found) return <MissingCard asset={asset} style={style} />;
   if (style === 'compact') return <CompactCard asset={asset} />;
-  // Full card (detailed)
-  const chart = TrendBody({ asset, unit: asset.unit, trend, status: trendStatus, bucketSec });
   return asset.analysis
-    ? <GoldDetailedCard asset={asset} isBest={isBest} trend={trend} chart={chart} />
-    : <DetailedCard asset={asset} trend={trend} chart={chart} />;
+    ? <GoldDetailedCard asset={asset} isBest={isBest} trend={trend} tab={tab} setTab={setTab} trendStatus={trendStatus} bucketSec={bucketSec} />
+    : <DetailedCard asset={asset} trend={trend} tab={tab} setTab={setTab} trendStatus={trendStatus} bucketSec={bucketSec} />;
 }
+

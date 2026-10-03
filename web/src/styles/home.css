@@ -1202,6 +1202,99 @@
   font-size: 0.72rem;
 }
 
+/* ── Tabbed card body box (chart or info) ─────────────────────────────────── */
+.home-card-body-box,
+.home-card-chart {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  padding: 8px 10px 8px;
+  background: var(--card-inner-bg, #161d2c);
+  border: var(--card-inner-border, 1px solid rgba(255, 255, 255, 0.08));
+  border-radius: 12px;
+  margin-top: auto;
+  min-height: 82px;
+  justify-content: center;
+}
+
+.home-card-body-box:empty,
+.home-card-chart:empty {
+  display: none;
+}
+
+.home-card-tab-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-width: 0;
+}
+
+.home-card-tabs {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 2px;
+  background: rgba(0, 0, 0, 0.28);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 8px;
+}
+
+.home-card-tab-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 7px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 10.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+  white-space: nowrap;
+}
+
+.home-card-tab-btn:hover {
+  color: var(--text-primary);
+}
+
+.home-card-tab-btn.is-active {
+  background: var(--bg-surface-elevated, #1c2436);
+  color: var(--text-primary);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+}
+
+.home-card-tab-btn.is-active svg {
+  color: var(--color-primary-text);
+}
+
+.home-card-tab-title,
+.home-card-tab-caption {
+  font-size: 10.5px;
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.home-card-tab-content {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+/* When metrics table is nested inside the card body box, blend seamlessly without double borders */
+.home-card-tab-content .card-metrics-table {
+  background: transparent;
+  border: none;
+  padding: 0;
+  border-radius: 0;
+  margin-top: 0;
+  gap: 6px;
+}
+
 .home-trend-header {
   display: flex;
   align-items: center;
@@ -1228,20 +1321,4 @@
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-}
-
-/* The full card's price chart (candles), under its details */
-.home-card-chart {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  margin-top: auto;
-  padding: 10px 12px 8px;
-  background: var(--card-inner-bg, #161d2c);
-  border: var(--card-inner-border, 1px solid rgba(255, 255, 255, 0.08));
-  border-radius: 12px;
-}
-
-.home-card-chart:empty {
-  display: none;
 }

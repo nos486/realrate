@@ -1,12 +1,13 @@
 // @vitest-environment happy-dom
 /**
- * homeTrendCard.test.js — A trend card renders a daily series with candles,
- * does not render linear sparklines, and shows placeholder while loading.
+ * homeTrendCard.test.js — A trend card renders a daily series with candles by default,
+ * allows toggling to the info tab, does not render linear sparklines, and shows placeholder while loading.
  */
 import React from 'react';
 import { describe, it, expect, afterEach } from 'vitest';
-import { render, cleanup } from '@testing-library/react';
+import { render, cleanup, fireEvent } from '@testing-library/react';
 import HomeAssetCard from '../../../web/src/features/home/HomeAssetCard.jsx';
+import { setHomeCardTab } from '../../../web/src/features/home/homeCardTab.js';
 
 const asset = { id: 'usd', found: true, name: 'دلار', code: 'USD', price: 101500, unit: 'تومان', category: 'currency' };
 const series = (n) => ({
@@ -26,6 +27,7 @@ const candleSeries = (n) => {
 
 afterEach(() => {
   cleanup();
+  setHomeCardTab('chart');
 });
 
 describe('trend card', () => {
@@ -70,10 +72,24 @@ describe('trend card', () => {
     expect(container.querySelector('.trend-spark-line')).toBeNull();
   });
 
+  it('toggles between chart tab and info tab via button', () => {
+    const trend = candleSeries(5);
+    const { container, getByTitle } = render(React.createElement(HomeAssetCard, { asset, style: 'detailed', trend, trendStatus: 'ready', bucketSec: 86400 }));
+    // By default, chart is visible
+    expect(container.querySelector('.trend-candles')).not.toBeNull();
+    // Click info tab
+    fireEvent.click(getByTitle('نمایش مشخصات و آمار'));
+    expect(container.querySelector('.trend-candles')).toBeNull();
+    expect(container.querySelector('.card-metrics-table')).not.toBeNull();
+    // Click chart tab
+    fireEvent.click(getByTitle('نمایش نمودار کندلی'));
+    expect(container.querySelector('.trend-candles')).not.toBeNull();
+  });
+
   it('without candles in the series, no line chart is rendered and card stays clean', () => {
     const { container } = render(React.createElement(HomeAssetCard, { asset, style: 'detailed', trend: series(5), trendStatus: 'ready', bucketSec: 86400 }));
     expect(container.querySelector('.trend-candles')).toBeNull();
     expect(container.querySelector('.trend-spark-line')).toBeNull();
-    expect(container.querySelector('.home-card-chart')).toBeNull();
+    expect(container.querySelector('.home-card-body-box')).toBeNull();
   });
 });
