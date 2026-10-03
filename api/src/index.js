@@ -10,7 +10,7 @@
  * The frontend (React + Vite) is hosted separately on Cloudflare Pages.
  */
 
-import { getCorsHeaders, isOriginAllowed } from "./lib/helpers.js";
+import { getCorsHeaders, isOriginAllowed, jsonResponse } from "./lib/helpers.js";
 import { validateEnv } from "./config/env.js";
 import { withErrorHandler } from "./middlewares/errorHandler.js";
 import { enforceMaintenance } from "./lib/maintenance.js";
@@ -22,6 +22,7 @@ import { getAuthenticatedUser } from "./lib/auth.js";
 import { AppError } from "./lib/AppError.js";
 import { setPriceHistoryWriter } from "./services/market/sourceSync.service.js";
 import { recordPriceHistory } from "./repositories/priceHistory.repository.js";
+import { isMigrationPending, getMigrationStatus, runMigrationTick } from "./services/pgMigration.service.js";
 
 // Every saved price also goes to the daily history in D1 (see priceHistory.repository.js)
 setPriceHistoryWriter(recordPriceHistory);
@@ -222,6 +223,19 @@ async function handleRequest(request, env, ctx) {
   const normalizedPath = url.pathname.startsWith("/api/v1/")
     ? url.pathname.replace("/api/v1/", "/api/")
     : (url.pathname === "/api/v1" ? "/api" : url.pathname);
+
+  // ── One-time copy from Postgres (pgMigration.service.js) ─────────────────
+  // Until it's done every route answers "maintenance", so nothing is saved that it would miss
+  if (normalizedPath === "/api/migration-status" && request.method === "GET") {
+    return wrap(async () => jsonResponse({ success: true, ...(await getMigrationStatus(env)) }, 200, request))(request, env);
+  }
+  if (await isMigrationPending(env)) {
+    const message = "در حال انتقال داده‌ها به سرور جدید؛ چند دقیقه‌ی دیگر دوباره سر بزنید.";
+    return new Response(
+      JSON.stringify({ success: false, message, error: { code: "MAINTENANCE", message } }),
+      { status: 503, headers: { "Content-Type": "application/json", "Retry-After": "60", ...corsHeaders } }
+    );
+  }
 
   // ── Auth API Routes ─────────────────────────────────────────────────────
   if (normalizedPath === "/api/auth/google/login" && request.method === "GET")    return wrap(handleGoogleLogin)(request, env);
@@ -573,6 +587,11 @@ export default {
    * Runs automatically every minute to extract due price sources based on fetchIntervalSec
    */
   async scheduled(event, env, ctx) {
+    // While the copy from Postgres runs, the ticks are its (prices resume once it's done)
+    if (await isMigrationPending(env)) {
+      await runMigrationTick(env);
+      return;
+    }
     await runCronPolling(event, env, ctx);
   },
 };

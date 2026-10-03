@@ -41,17 +41,13 @@ npx wrangler kv namespace create realrate-prices
 
 Put the printed ids in `api/wrangler.toml` (`database_id` and `id`). Tables are created on the Worker's first request (`api/src/repositories/d1Schema.js`); to see their SQL: `cd api && npm run db:schema`. Local runs (`npm run api:dev`) use wrangler's local D1 and KV and need nothing else.
 
-### Moving from Postgres (once)
+### Moving from Postgres (once, automatic)
 
-```bash
-# 1. (optional) turn maintenance mode on in the admin panel
-# 2. export Postgres to SQL files
-DATABASE_URL=postgres://user:pass@host:5432/realrate node api/scripts/pg-to-d1.mjs d1-import
-# 3. import them into D1
-cd api && for f in ../d1-import/*.sql; do npx wrangler d1 execute realrate --remote --file "$f" -y; done
-```
+While `api/wrangler.toml` has the `HYPERDRIVE` binding, the Worker copies the data from Postgres into D1 by itself (`api/src/services/pgMigration.service.js`): every cron tick (each minute) copies as many pages as it can, and until it's done every API request gets "moving data" (503, the maintenance page), so nothing is saved that the copy would miss. Progress: `GET /api/migration-status`. Once `phase` is `done` the site opens by itself; then remove the `HYPERDRIVE` binding from `wrangler.toml`.
 
-Every table is copied; `price_history` becomes `price_daily` (each day's last price), and of `app_state` only the source overrides (`price_source_overrides`) — the price book and the sources' items are rebuilt in KV by the first cron ticks. A row over 100 KB (D1's per-statement limit) is not written and the script reports it. Once the data is in, merge to main so the Worker and Pages deploy, and remove Hyperdrive when everything checks out.
+Every table is copied; `price_history` becomes `price_daily` (each day's last price), and of `app_state` only the source overrides — the price book and the sources' items are rebuilt in KV by the first cron ticks after the copy. A row over 2 MB is not copied and is listed in `oversized`.
+
+By hand (with direct access to Postgres): `DATABASE_URL=… node api/scripts/pg-to-d1.mjs d1-import`, then `wrangler d1 execute realrate --remote --file` for each file.
 
 ## Google sign-in
 
