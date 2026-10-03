@@ -2276,7 +2276,7 @@ tr.is-expandable:focus-visible,
 /* kind · date · quantity × price · left / taken from · P&L · actions */
 .asset-ledger-entry {
   display: grid;
-  grid-template-columns: minmax(130px, 1.1fr) minmax(96px, 0.8fr) minmax(170px, 1.6fr) minmax(100px, 1fr) minmax(150px, 1.2fr) auto;
+  grid-template-columns: minmax(110px, 1fr) minmax(90px, 0.7fr) minmax(150px, 1.4fr) minmax(90px, 0.8fr) minmax(0, 1.4fr) minmax(130px, 1.1fr) auto;
   align-items: center;
   gap: 12px;
   padding: 12px 14px;
@@ -2400,6 +2400,7 @@ tr.is-expandable:focus-visible,
       "kind pnl"
       "qty status"
       "date actions"
+      "notes notes"
       "extras extras";
     gap: 6px 10px;
     padding: 10px 12px;
@@ -2430,18 +2431,33 @@ tr.is-expandable:focus-visible,
   color: var(--text-secondary);
 }
 
-.asset-ledger-extra.note {
+/* An entry's notes: one line in its row (the whole text on hover), under it on phones */
+.asset-ledger-notes {
   display: inline-flex;
-  align-items: baseline;
+  align-items: center;
   gap: 5px;
+  min-width: 0;
+  font-size: 0.82rem;
   color: var(--text-secondary);
-  white-space: pre-wrap;
-  overflow-wrap: anywhere;
 }
-.asset-ledger-extra.note svg {
+.asset-ledger-notes > span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.asset-ledger-notes svg {
   flex-shrink: 0;
-  align-self: center;
   color: var(--text-muted);
+}
+.asset-ledger-notes:empty {
+  display: block;
+}
+@media (max-width: 768px) {
+  .asset-ledger-notes { grid-area: notes; align-items: baseline; }
+  .asset-ledger-notes:empty { display: none; }
+  .asset-ledger-notes > span { white-space: pre-wrap; overflow-wrap: anywhere; text-overflow: clip; }
+  .asset-ledger-notes svg { align-self: center; }
 }
 .asset-ledger-extra.profit { color: var(--color-positive-text); }
 .asset-ledger-extra.loss { color: var(--color-negative-text); }

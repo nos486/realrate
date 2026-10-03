@@ -47,7 +47,7 @@ describe('holdings: one row per asset', () => {
     // Each entry's own P&L: the buy = 80 left × (100,000 − 70,000) + 20 sold × 20,000
     expect(screen.getByTitle(/باز: \+2,400,000|باز: \+۲/)).toBeTruthy();
     // Each entry's notes on a line of their own
-    expect([...document.querySelectorAll('.asset-ledger-extra.note')].some((el) => el.textContent.includes('از قبل'))).toBe(true);
+    expect([...document.querySelectorAll('.asset-ledger-notes')].some((el) => el.textContent.includes('از قبل'))).toBe(true);
 
     fireEvent.click(screen.getAllByRole('button').find((b) => b.tagName === 'BUTTON' && b.textContent.trim() === 'فروش'));
     expect(onSell).toHaveBeenCalledWith(expect.objectContaining({ assetId: 'usd' }));
@@ -92,7 +92,7 @@ describe('entries made by an expense or an income', () => {
     const onEditEntry = vi.fn();
     const onDeleteEntry = vi.fn();
     render(<AssetLedgerDetails asset={linked[0]} onEditEntry={onEditEntry} onDeleteEntry={onDeleteEntry} />);
-    const notes = [...document.querySelectorAll('.asset-ledger-extra.note')].map((el) => el.textContent);
+    const notes = [...document.querySelectorAll('.asset-ledger-notes')].map((el) => el.textContent).filter(Boolean);
     expect(notes).toEqual(['هدیه‌ی\nعروسی', 'خرید — ثبت‌شده در هزینه‌ها', 'فروش — ثبت‌شده در درآمدها']);
     expect(screen.getByText('از هزینه‌ها')).toBeTruthy();
     expect(screen.getByText('از درآمدها')).toBeTruthy();
