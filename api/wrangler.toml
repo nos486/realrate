@@ -24,13 +24,13 @@ mode = "smart"
 [[d1_databases]]
 binding = "DB"
 database_name = "realrate"
-database_id = "REPLACE_WITH_D1_DATABASE_ID"
+database_id = "2bcc7e2d-08c4-45e1-819b-114dbf1a9358"
 
 # KV: the price book and each price source's items (read on every price request).
 # Created with `npx wrangler kv namespace create realrate-prices`.
 [[kv_namespaces]]
 binding = "KV"
-id = "REPLACE_WITH_KV_NAMESPACE_ID"
+id = "6a9d627b16a245a598b83a37d8254b6f"
 
 # Durable Object history: RateGate was added (v1) and removed (v2); keep both entries
 [[migrations]]

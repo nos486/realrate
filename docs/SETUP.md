@@ -37,7 +37,7 @@ npx wrangler d1 create realrate
 npx wrangler kv namespace create realrate-prices
 ```
 
-شناسه‌هایی که چاپ می‌شود را در `api/wrangler.toml` به‌جای `REPLACE_WITH_D1_DATABASE_ID` و `REPLACE_WITH_KV_NAMESPACE_ID` بگذارید. جدول‌ها با اولین درخواست به ورکر خودکار ساخته می‌شوند (`api/src/repositories/d1Schema.js`)؛ برای دیدن SQL آن‌ها: `cd api && npm run db:schema`. اجرای محلی (`npm run api:dev`) از D1 و KV محلی wrangler استفاده می‌کند و چیزی لازم ندارد.
+شناسه‌هایی که چاپ می‌شود را در `api/wrangler.toml` (`database_id` و `id`) بگذارید. جدول‌ها با اولین درخواست به ورکر خودکار ساخته می‌شوند (`api/src/repositories/d1Schema.js`)؛ برای دیدن SQL آن‌ها: `cd api && npm run db:schema`. اجرای محلی (`npm run api:dev`) از D1 و KV محلی wrangler استفاده می‌کند و چیزی لازم ندارد.
 
 ### انتقال از Postgres (یک بار)
 

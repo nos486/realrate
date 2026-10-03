@@ -39,7 +39,7 @@ npx wrangler d1 create realrate
 npx wrangler kv namespace create realrate-prices
 ```
 
-Put the printed ids in `api/wrangler.toml` in place of `REPLACE_WITH_D1_DATABASE_ID` and `REPLACE_WITH_KV_NAMESPACE_ID`. Tables are created on the Worker's first request (`api/src/repositories/d1Schema.js`); to see their SQL: `cd api && npm run db:schema`. Local runs (`npm run api:dev`) use wrangler's local D1 and KV and need nothing else.
+Put the printed ids in `api/wrangler.toml` (`database_id` and `id`). Tables are created on the Worker's first request (`api/src/repositories/d1Schema.js`); to see their SQL: `cd api && npm run db:schema`. Local runs (`npm run api:dev`) use wrangler's local D1 and KV and need nothing else.
 
 ### Moving from Postgres (once)
 
