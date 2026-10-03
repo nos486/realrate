@@ -23,3 +23,9 @@
   Cache-Control: public, max-age=604800, stale-while-revalidate=86400
 /og/*
   Cache-Control: public, max-age=86400, stale-while-revalidate=604800
+
+# No automatic Early Hints: Pages turns the HTML's <link rel="modulepreload"> into preload hints
+# that Chrome cannot match to the module scripts ("preloaded … but not used" warnings). The HTML's
+# own modulepreload links already fetch those chunks early.
+/*
+  ! Link
