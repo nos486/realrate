@@ -31,7 +31,7 @@ import {
 } from './loanCalculator.js';
 import { buildLoanView } from './loanDocument.js';
 import { isChequeOpen } from './chequeDocument.js';
-import { dueOccurrences, nextOccurrence } from './recurringIncome.js';
+import { dueOccurrences, nextOccurrence, shamsiDayOf } from './recurringIncome.js';
 
 export const REMINDER_KINDS = ['loan', 'cheque', 'recurring_income'];
 const RECORD_ID_RE = /^[A-Za-z0-9_-]{1,80}$/;
@@ -193,28 +193,29 @@ export function reminderOf(kind, plainRecord, { includeDirection = false } = {})
   if (kind === 'recurring_income') {
     if (plainRecord.active === false) return null;
 
-    // Find the next occurrence date after generatedThrough or startDate
-    let nextDate = null;
     const startDate = plainRecord.startDate;
     if (!startDate || !isValidIsoDate(startDate)) return null;
+    const interval = Math.max(1, parseInt(plainRecord.intervalMonths, 10) || 1);
+    // A rule saved without its day (older data) gets paid on its start's Shamsi day, as validation fills it
+    const day = parseInt(plainRecord.dayOfMonth, 10);
+    const rule = {
+      ...plainRecord,
+      active: true,
+      intervalMonths: interval,
+      dayOfMonth: day >= 1 && day <= 31 ? day : shamsiDayOf(startDate),
+    };
 
-    if (plainRecord.generatedThrough) {
-      // Find the first occurrence after generatedThrough
-      nextDate = nextOccurrence(plainRecord, plainRecord.generatedThrough);
+    // The next occurrence after generatedThrough, or the first one from startDate
+    let nextDate = null;
+    if (rule.generatedThrough) {
+      nextDate = nextOccurrence(rule, rule.generatedThrough);
     } else {
-      // Find the earliest occurrence >= startDate
-      const dates = dueOccurrences(plainRecord, '9999-12-31');
-      if (dates && dates.length > 0) {
-        nextDate = dates[0];
-      } else {
-        nextDate = nextOccurrence(plainRecord, startDate);
-      }
+      nextDate = dueOccurrences(rule, '9999-12-31')[0] || nextOccurrence(rule, startDate);
     }
 
-    if (!nextDate) return null;
-    if (plainRecord.endDate && nextDate > plainRecord.endDate) return null;
+    if (!nextDate || !isValidIsoDate(nextDate)) return null;
+    if (rule.endDate && nextDate > rule.endDate) return null;
 
-    const interval = Math.max(1, parseInt(plainRecord.intervalMonths, 10) || 1);
     const muted = Boolean(plainRecord.remindersMuted);
     const recordId = String(plainRecord.id || '');
 

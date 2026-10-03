@@ -175,7 +175,8 @@ export async function runReminderEmailDigest(env, options = {}) {
         const remItem = { ...rem, direction: dir };
 
         // 1. Overdue: due_date < today
-        if (prefs.sendOverdue && rem.dueDate < today) {
+        // A fixed income is not «overdue»: the next one simply comes on its day
+        if (prefs.sendOverdue && rem.kind !== 'recurring_income' && rem.dueDate < today) {
           const sentKey = `${userId}|${rem.kind}|${rem.recordId}|${rem.dueDate}|overdue`;
           if (!sentSet.has(sentKey)) {
             toSendGroups.overdue.push(remItem);
@@ -208,7 +209,7 @@ export async function runReminderEmailDigest(env, options = {}) {
 
           for (const d of leadDays) {
             if (d > 0 && occ === addDaysIso(today, d)) {
-              const sentKey = `${userId}|${rem.kind}|${rem.recordId}|${occ}|lead`;
+              const sentKey = `${userId}|${rem.kind}|${rem.recordId}|${occ}|lead:${d}`;
               if (!sentSet.has(sentKey)) {
                 toSendGroups[`lead:${d}`].push(remItem);
                 pendingSentRecords.push({
@@ -216,7 +217,7 @@ export async function runReminderEmailDigest(env, options = {}) {
                   kind: rem.kind,
                   recordId: rem.recordId,
                   dueDate: occ,
-                  reason: 'lead',
+                  reason: `lead:${d}`,
                 });
               }
             }

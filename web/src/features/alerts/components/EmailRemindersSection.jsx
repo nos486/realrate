@@ -7,7 +7,7 @@
  */
 
 import React, { useEffect, useState } from 'react';
-import { Mail, CheckCircle2, AlertTriangle, Send, ShieldAlert, Calendar } from 'lucide-react';
+import { Mail, AlertTriangle, Send, ShieldAlert } from 'lucide-react';
 import Button from '../../../shared/ui/Button.jsx';
 import AlertBanner from '../../../shared/ui/AlertBanner.jsx';
 import {

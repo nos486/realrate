@@ -7,6 +7,9 @@ import { APP_BASE, LANDING_PATH, AUTH_PATHS, isAppPath, rememberPostLoginPath, t
 import { useFeedback } from '../../../shared/ui/FeedbackProvider.jsx';
 import { resetCustomBanks } from '../../../shared/banks/useCustomBanks.js';
 import { loadVault, resetVault } from '../../../shared/vault/vaultStore.js';
+import { clearReminderSignatures } from '../../../shared/vault/vaultRecordMeta.js';
+import { cancelDueNotifications } from '../../../shared/native/dueNotifications.js';
+import { signOutWebPush } from '../../../shared/push/webPushClient.js';
 import {
   isNativeApp,
   startNativeGoogleLogin,
@@ -188,6 +191,10 @@ export function AuthProvider({ children }) {
   const logout = useCallback(async () => {
     // The fingerprint unlock belongs to the account signing out
     if (isNativeApp()) import('../../../shared/native/biometricUnlock.js').then((m) => m.disableBiometric()).catch(() => {});
+    // Due reminders belong to it too: the phone's scheduled notifications, the browser's sealed
+    // pushes (removed on the server while the session still works) and what was stored
+    await Promise.all([cancelDueNotifications(), signOutWebPush()]).catch(() => {});
+    clearReminderSignatures();
     await apiLogout().catch(() => {});
     writeCachedUser(null);
     resetCustomBanks();

@@ -12,7 +12,9 @@
 const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 const DEVICE_ID_RE = /^[a-zA-Z0-9_\-.]{8,64}$/;
 const PUSH_KINDS = ['loan', 'cheque', 'recurring_income'];
-const PUSH_REASONS = ['lead', 'due', 'overdue'];
+const PUSH_REASONS = ['due', 'overdue'];
+/** Each lead day has its own reason ("lead:3", "lead:1"): one row per notification */
+const LEAD_REASON_RE = /^lead:([1-9]|[12]\d|30)$/;
 
 /**
  * Base64 encode a Uint8Array
@@ -239,7 +241,7 @@ export function validatePushRemindersInput(input) {
     }
 
     const reason = String(item.reason || '').trim();
-    if (!PUSH_REASONS.includes(reason)) {
+    if (!PUSH_REASONS.includes(reason) && !LEAD_REASON_RE.test(reason)) {
       return { error: `علت اعلان مورد ${idx + 1} نامعتبر است.` };
     }
 

@@ -42,24 +42,23 @@ export async function runCronPolling(event, env, ctx) {
         }),
       ])
     );
+  }
 
-    // Daily email digest: once a day at 08:00 Asia/Tehran
-    const tehran = tehranTime(scheduledDate);
-    if (tehran.hour === 8) {
-      ctx.waitUntil(
-        runReminderEmailDigest(env, { now: scheduledDate }).catch(err => {
-          logger.error("[CronPolling] Reminder email digest error:", { error: err.message, stack: err.stack });
-        })
-      );
-    }
-
-    // Daily sealed push notifications: once a day at 09:00 Asia/Tehran
-    if (tehran.hour === 9) {
-      ctx.waitUntil(
-        runReminderPushDigest(env, { now: scheduledDate }).catch(err => {
-          logger.error("[CronPolling] Reminder push digest error:", { error: err.message, stack: err.stack });
-        })
-      );
-    }
+  // Daily reminders on Tehran's clock (UTC+3:30, so not on the UTC hour the gate above uses):
+  // the email digest at 08:00, the sealed pushes at 09:00
+  const tehran = tehranTime(scheduledDate);
+  if (tehran.minute === 0 && tehran.hour === 8) {
+    ctx.waitUntil(
+      runReminderEmailDigest(env, { now: scheduledDate }).catch(err => {
+        logger.error("[CronPolling] Reminder email digest error:", { error: err.message, stack: err.stack });
+      })
+    );
+  }
+  if (tehran.minute === 0 && tehran.hour === 9) {
+    ctx.waitUntil(
+      runReminderPushDigest(env, { now: scheduledDate }).catch(err => {
+        logger.error("[CronPolling] Reminder push digest error:", { error: err.message, stack: err.stack });
+      })
+    );
   }
 }

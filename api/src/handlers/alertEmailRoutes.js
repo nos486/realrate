@@ -9,6 +9,7 @@
 
 import { getAuthenticatedUser } from '../lib/auth.js';
 import { dbGetAlertEmailPrefs, dbSaveAlertEmailPrefs } from '../repositories/alertEmail.repository.js';
+import { dbGetUserAuthById } from '../repositories/account.repository.js';
 import { validateAlertEmailPrefs } from '../domain/alertEmailPrefs.js';
 import { isEmailConfigured, sendEmail, reminderDigestEmail } from '../lib/email.js';
 import { getRateLimitState, recordRateLimitHit } from '../lib/security.js';
@@ -26,17 +27,23 @@ async function requireUser(request, env) {
 
 const userIdOf = (user) => user.userId || user.id || user.email;
 
+/** The session holds no verification state; the account row does (the digest cron reads the same column) */
+async function isEmailVerified(env, userId) {
+  const account = await dbGetUserAuthById(env, userId);
+  return Boolean(account?.emailVerified && !account.disabled);
+}
+
 export async function handleGetAlertEmailPrefs(request, env) {
   const user = await requireUser(request, env);
   const userId = userIdOf(user);
-  const prefs = await dbGetAlertEmailPrefs(env, userId);
+  const [prefs, emailVerified] = await Promise.all([dbGetAlertEmailPrefs(env, userId), isEmailVerified(env, userId)]);
 
   return jsonResponse({
     success: true,
     prefs,
     emailConfigured: isEmailConfigured(env),
     email: user.email || '',
-    emailVerified: Boolean(user.emailVerified ?? user.email_verified),
+    emailVerified,
   }, 200, request);
 }
 
@@ -65,7 +72,7 @@ export async function handleSendTestEmailAlert(request, env) {
     throw new AppError('ارسال ایمیل روی سرور تنظیم نشده است.', 503, 'EMAIL_NOT_CONFIGURED');
   }
 
-  const isVerified = Boolean(user.emailVerified ?? user.email_verified);
+  const isVerified = await isEmailVerified(env, userId);
   if (!isVerified || !user.email) {
     throw AppError.badRequest('برای ارسال ایمیل آزمایشی، ابتدا ایمیل حساب خود را تأیید کنید.', 'EMAIL_NOT_VERIFIED');
   }

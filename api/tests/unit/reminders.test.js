@@ -227,6 +227,13 @@ describe('reminderOf', () => {
     };
     expect(reminderOf('recurring_income', rinc).muted).toBe(true);
   });
+
+  it('a fixed income saved without its day of month is paid on its start\'s Shamsi day', () => {
+    // 2026-09-05 is 14 Shahrivar 1405; the next month's 14th is 2026-10-06
+    const rem = reminderOf('recurring_income', { id: 'inc_old', startDate: '2026-09-05', intervalMonths: 1, generatedThrough: '2026-09-05' });
+    expect(rem).toMatchObject({ kind: 'recurring_income', recordId: 'inc_old', dueDate: '2026-10-06', intervalMonths: 1 });
+    expect(reminderOf('recurring_income', { id: 'inc_off', startDate: '2026-09-05', active: false })).toBeNull();
+  });
 });
 
 describe('occurrencesBetween', () => {

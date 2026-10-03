@@ -61,14 +61,20 @@ export async function dbSavePushSubscription(env, userId, input) {
   const now = new Date().toISOString();
   const subJson = JSON.stringify(subscription);
 
-  await env.DB.prepare(`
-    INSERT INTO push_subscriptions (device_id, user_id, subscription_json, created_at, updated_at)
-    VALUES (?, ?, ?, ?, ?)
-    ON CONFLICT(device_id) DO UPDATE SET
-      user_id = excluded.user_id,
-      subscription_json = excluded.subscription_json,
-      updated_at = excluded.updated_at
-  `).bind(deviceId, String(userId), subJson, now, now).run();
+  await env.DB.batch([
+    // A browser that now belongs to another account keeps none of the previous account's reminders
+    env.DB.prepare(`
+      DELETE FROM push_reminders WHERE device_id = ? AND user_id != ?
+    `).bind(deviceId, String(userId)),
+    env.DB.prepare(`
+      INSERT INTO push_subscriptions (device_id, user_id, subscription_json, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?)
+      ON CONFLICT(device_id) DO UPDATE SET
+        user_id = excluded.user_id,
+        subscription_json = excluded.subscription_json,
+        updated_at = excluded.updated_at
+    `).bind(deviceId, String(userId), subJson, now, now),
+  ]);
 
   return { success: true, deviceId };
 }
@@ -77,8 +83,8 @@ export async function dbDeletePushSubscription(env, userId, deviceId) {
   await ensureSchema(env);
   const stmts = [
     env.DB.prepare(`
-      DELETE FROM push_reminders WHERE device_id = ?
-    `).bind(deviceId),
+      DELETE FROM push_reminders WHERE device_id = ? AND user_id = ?
+    `).bind(deviceId, String(userId)),
     env.DB.prepare(`
       DELETE FROM push_subscriptions WHERE device_id = ? AND user_id = ?
     `).bind(deviceId, String(userId)),
@@ -140,7 +146,7 @@ export async function dbGetDuePushReminders(env, fireDate) {
   const { results = [] } = await env.DB.prepare(`
     SELECT r.device_id, r.user_id, r.kind, r.record_id, r.due_date, r.reason, r.fire_date, r.sealed_payload, s.subscription_json
     FROM push_reminders r
-    INNER JOIN push_subscriptions s ON s.device_id = r.device_id
+    INNER JOIN push_subscriptions s ON s.device_id = r.device_id AND s.user_id = r.user_id
     WHERE r.fire_date = ?
   `).bind(fireDate).all();
 

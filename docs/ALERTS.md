@@ -64,6 +64,9 @@ Transient feedback ("saved", "failed") is not an alert: it stays a toast (`Feedb
 - **Email reminders**: server-driven via the minimal plaintext reminder index (`vault_reminders`) and daily cron (08:00 Asia/Tehran).
   - Sent to opted-in accounts with a verified email address (`alert_email_prefs`).
   - Digested into one email per user per day: counts and item kinds only («۱ قسط وام فردا سررسید می‌شود»).
+  - Each lead day is sent on its own (`alert_email_sent.reason` = `lead:7`, `lead:3`, `lead:1`, `due`, `overdue`), so the 1-day reminder still comes after the 3-day one. Fixed incomes are never «overdue».
+  - Verification is read from the account row (`users.email_verified`), the same column the cron filters on.
+  - The cron runs every minute; the digest runs at the tick where Tehran's clock reads 08:00 (Tehran is UTC+3:30, so it is not on the hourly UTC gate).
   - Server sees: dates, intervals, remaining counts, muted flags, and optionally cheque direction (`include_cheque_direction`).
   - Server never sees: amounts, titles, banks, or counterparties.
 - **Android local notifications**: scheduled on-device with full details (titles and optional amounts) via `@capacitor/local-notifications` without sending notifications data to the server.
@@ -72,6 +75,9 @@ Transient feedback ("saved", "failed") is not an alert: it stays a toast (`Feedb
   - Upcoming 30-day notifications (title, deep link path, and optional amount) are encrypted on the client using this key and uploaded as opaque ciphertext (`sealed_payload`) to `push_reminders`.
   - The server transmits the ciphertext over Web Push (RFC 8291 / RFC 8292 with VAPID) without ever having the decryption key or seeing the plaintext details.
   - The Service Worker (`sw.js`) intercepts the push event, retrieves the key from IndexedDB, and decrypts the notification locally. If the key is unavailable, a generic fallback («یک سررسید امروز دارید») is shown.
+  - Rows are keyed by device, record, date and reason (`lead:N` per lead day). A device id that signs into another account drops the previous account's reminders, and deletes are scoped to the owner.
+- **Logout** cancels the phone's scheduled due notifications, removes this browser's push subscription (server and browser) with its sealing key, and forgets the stored reminder signatures (`realrate_reminder_sigs`), so the next person on a shared device gets nothing of the previous account.
+- **Reminder index upkeep**: every save sends the record's reminder; on open, only records whose reminder differs from what this browser last stored are re-sent (`backfillReminders`), so opening the app does not rewrite every record.
 
 ## Adding a new kind of alert
 

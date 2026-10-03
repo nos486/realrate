@@ -6,6 +6,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import {
   planDueNotifications,
   scheduleDueNotifications,
+  cancelDueNotifications,
   notificationId,
   DEFAULT_DUE_NOTIFICATION_SETTINGS,
 } from '../../../web/src/shared/native/dueNotifications.js';
@@ -224,6 +225,34 @@ describe('Android Due Notifications (Part B)', () => {
       });
 
       expect(res.length).toBeLessThanOrEqual(64);
+    });
+  });
+
+  describe('fixed incomes', () => {
+    it('reminds before and on the day, never «overdue»', () => {
+      const res = planDueNotifications({
+        recurringIncomes: [{ id: 'inc_1', title: 'حقوق', amount: 30000000, startDate: '2026-09-05', intervalMonths: 1, active: true }],
+        today: '2026-10-05',
+        settings: { enabled: true, leadDays: [1, 0] },
+        now: new Date('2026-10-05T08:00:00'),
+      });
+      expect(res.filter((n) => n.kind === 'recurring_income').length).toBeGreaterThan(0);
+      expect(res.some((n) => n.reason === 'overdue')).toBe(false);
+    });
+  });
+
+  describe('cancelDueNotifications (logout)', () => {
+    it('cancels only due notifications, and does nothing on the web', async () => {
+      mockLocalNotifications.getPending.mockResolvedValue({
+        notifications: [{ id: 7, extra: { kind: 'due' } }, { id: 8, extra: { kind: 'sms' } }],
+      });
+      await cancelDueNotifications();
+      expect(mockLocalNotifications.cancel).toHaveBeenCalledWith({ notifications: [{ id: 7 }] });
+
+      vi.clearAllMocks();
+      isNativeApp.mockReturnValue(false);
+      await cancelDueNotifications();
+      expect(mockLocalNotifications.getPending).not.toHaveBeenCalled();
     });
   });
 

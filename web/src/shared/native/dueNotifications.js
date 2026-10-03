@@ -90,8 +90,7 @@ function buildNotificationText({ kind, title, counterparty, direction, amount, r
     else if (leadDays === 1) headline = `${dirLabel} فردا سررسید می‌شود`;
     else headline = `${dirLabel} در ${faNum(leadDays)} روز آینده سررسید می‌شود`;
   } else if (kind === 'recurring_income') {
-    if (reason === 'overdue') headline = 'درآمد ثابت سررسیدش گذشته است';
-    else if (reason === 'due' || leadDays === 0) headline = 'درآمد ثابت امروز باید واریز شود';
+    if (reason === 'due' || leadDays === 0) headline = 'درآمد ثابت امروز باید واریز شود';
     else if (leadDays === 1) headline = 'درآمد ثابت فردا واریز می‌شود';
     else headline = `درآمد ثابت در ${faNum(leadDays)} روز آینده واریز می‌شود`;
   }
@@ -355,34 +354,7 @@ export function planDueNotifications({
     const title = (inc.title || '').trim();
     const deepLinkPath = '/incomes';
 
-    // Overdue check
-    if (reminder.dueDate < today) {
-      const overdueDate = addDaysIso(reminder.dueDate, 1);
-      const fireAt = new Date(`${overdueDate}T09:00:00`);
-      if (fireAt.getTime() > now.getTime() && overdueDate <= maxDate) {
-        const text = buildNotificationText({
-          kind: 'recurring_income',
-          title,
-          amount,
-          reason: 'overdue',
-          leadDays: 0,
-          showAmount: !effectiveHideAmounts,
-        });
-        planned.push({
-          id: notificationId('recurring_income', inc.id, reminder.dueDate, 'overdue'),
-          kind: 'recurring_income',
-          recordId: inc.id,
-          dueDate: reminder.dueDate,
-          reason: 'overdue',
-          leadDays: 0,
-          fireAt,
-          title: text.title,
-          body: text.body,
-          extra: { kind: 'due', path: deepLinkPath, recordId: inc.id, dueDate: reminder.dueDate, reason: 'overdue' },
-        });
-      }
-    }
-
+    // A fixed income is never «overdue»: the next one simply comes on its day
     const occurrences = occurrencesBetween(reminder, today, maxDate);
     for (const occ of occurrences) {
       for (const d of leadDays) {
@@ -411,32 +383,6 @@ export function planDueNotifications({
             extra: { kind: 'due', path: deepLinkPath, recordId: inc.id, dueDate: occ, reason },
           });
         }
-      }
-
-      // Next morning overdue
-      const nextMorning = addDaysIso(occ, 1);
-      const overdueFireAt = new Date(`${nextMorning}T09:00:00`);
-      if (overdueFireAt.getTime() > now.getTime() && nextMorning <= maxDate) {
-        const text = buildNotificationText({
-          kind: 'recurring_income',
-          title,
-          amount,
-          reason: 'overdue',
-          leadDays: 0,
-          showAmount: !effectiveHideAmounts,
-        });
-        planned.push({
-          id: notificationId('recurring_income', inc.id, occ, 'overdue'),
-          kind: 'recurring_income',
-          recordId: inc.id,
-          dueDate: occ,
-          reason: 'overdue',
-          leadDays: 0,
-          fireAt: overdueFireAt,
-          title: text.title,
-          body: text.body,
-          extra: { kind: 'due', path: deepLinkPath, recordId: inc.id, dueDate: occ, reason: 'overdue' },
-        });
       }
     }
   }
@@ -513,6 +459,24 @@ export async function scheduleDueNotifications({
   } catch (err) {
     console.warn('[DueNotifications] failed to schedule:', err);
     return [];
+  }
+}
+
+/**
+ * Cancel every scheduled due notification on the device (logout: the next person to use the
+ * phone must not get the previous account's reminders). Best-effort.
+ */
+export async function cancelDueNotifications() {
+  if (!isNativeApp()) return;
+  try {
+    const { LocalNotifications } = await import('@capacitor/local-notifications');
+    const pending = await LocalNotifications.getPending().catch(() => ({ notifications: [] }));
+    const toCancel = (pending?.notifications || [])
+      .filter((n) => n.extra?.kind === 'due')
+      .map((n) => ({ id: n.id }));
+    if (toCancel.length > 0) await LocalNotifications.cancel({ notifications: toCancel });
+  } catch {
+    // Nothing scheduled, or the plugin is unavailable
   }
 }
 

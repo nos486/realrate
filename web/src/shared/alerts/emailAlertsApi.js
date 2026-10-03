@@ -6,7 +6,6 @@
  */
 
 import { httpClient } from '../api/httpClient.js';
-import { DEFAULT_ALERT_EMAIL_PREFS } from '../../utils/alertEmailPrefs.js';
 
 const CACHE_KEY = 'realrate_include_cheque_direction';
 

@@ -53,35 +53,88 @@ export function recordDateOf(kind, plain) {
   return toIsoDay(PRIMARY_DATE[kind]?.(plain));
 }
 
+/**
+ * What this browser last stored as each record's reminder ("kind|id" → JSON), so opening the app
+ * re-stores only the records whose reminder changed (every store bumps the record's updated_at,
+ * which every other device then syncs). Cleared on logout (clearReminderSignatures).
+ */
+const REMINDER_SIGS_KEY = 'realrate_reminder_sigs';
+
+/** Read fresh each time: another tab may have stored some since */
+function loadReminderSigs() {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(REMINDER_SIGS_KEY) || '{}');
+    return parsed && typeof parsed === 'object' ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
+const reminderSig = (rem) => JSON.stringify(rem ?? null);
+
+function rememberReminder(kind, id, rem) {
+  const sigs = loadReminderSigs();
+  sigs[`${kind}|${id}`] = reminderSig(rem);
+  try {
+    localStorage.setItem(REMINDER_SIGS_KEY, JSON.stringify(sigs));
+  } catch {
+    // Storage full or blocked: the next open stores it again
+  }
+}
+
+/** Reminders being stored right now ("kind|id") */
+const remindersInFlight = new Set();
+
+/** Forget what was stored (logout: the next account starts from nothing) */
+export function clearReminderSignatures() {
+  try {
+    localStorage.removeItem(REMINDER_SIGS_KEY);
+  } catch {
+    // Blocked storage: nothing was kept either
+  }
+}
+
 /** Store an already-encrypted record with its plaintext metadata and minimal reminder index */
-export function putRecord(kind, id, payload, plain, { parentId = '', reminder, ...options } = {}) {
+export async function putRecord(kind, id, payload, plain, { parentId = '', reminder, ...options } = {}) {
   const rem = reminder !== undefined
     ? reminder
     : (REMINDER_KINDS.includes(kind) ? reminderOf(kind, plain, { includeDirection: shouldIncludeChequeDirection() }) : undefined);
-  return putVaultRecord(kind, id, payload, {
+  const result = await putVaultRecord(kind, id, payload, {
     recordDate: recordDateOf(kind, plain),
     parentId,
     reminder: rem,
     ...options,
   });
+  if (rem !== undefined) rememberReminder(kind, id, rem);
+  return result;
 }
 
-/** Reminders backfilled in this tab */
-const backfilledReminders = new Set();
-
 /**
- * After loans, cheques and fixed incomes are listed and decrypted, upsert any missing or
- * stale reminders (one-time per kind in this tab).
+ * After loans, cheques and fixed incomes are listed and decrypted, store the reminders that are
+ * missing or changed since this browser last stored them. A record whose reminder is unchanged
+ * is left alone, so opening the app does not re-store every record.
  * @param {string} kind
  * @param {Array<{ record: object, plain: object }>} items
  */
 export function backfillReminders(kind, items) {
-  if (isDemoReadOnly() || !REMINDER_KINDS.includes(kind) || backfilledReminders.has(kind)) return;
-  backfilledReminders.add(kind);
+  if (isDemoReadOnly() || !REMINDER_KINDS.includes(kind)) return;
+  const sigs = loadReminderSigs();
+  const includeDirection = shouldIncludeChequeDirection();
+  const stale = [];
+  for (const { record, plain } of items) {
+    if (!plain || typeof plain !== 'object') continue;
+    const key = `${kind}|${record.id}`;
+    // Several screens may list the same kind at once: one store per record
+    if (remindersInFlight.has(key)) continue;
+    const rem = reminderOf(kind, plain, { includeDirection });
+    if (sigs[key] !== reminderSig(rem)) {
+      remindersInFlight.add(key);
+      stale.push({ key, record, plain, rem });
+    }
+  }
+  if (!stale.length) return;
   (async () => {
-    for (const { record, plain } of items) {
-      if (!plain || typeof plain !== 'object') continue;
-      const rem = reminderOf(kind, plain, { includeDirection: shouldIncludeChequeDirection() });
+    for (const { key, record, plain, rem } of stale) {
       try {
         await putVaultRecord(kind, record.id, record.payload, {
           recordDate: record.recordDate || recordDateOf(kind, plain),
@@ -89,8 +142,11 @@ export function backfillReminders(kind, items) {
           reminder: rem,
           silent: true,
         });
+        rememberReminder(kind, record.id, rem);
       } catch {
-        // Retry next time on failure
+        // Retried the next time the app opens
+      } finally {
+        remindersInFlight.delete(key);
       }
     }
   })();

@@ -85,7 +85,7 @@ function createMockPushDb() {
             const fireDate = bound[0];
             const results = [];
             for (const r of reminders) {
-              if (r.fire_date === fireDate && subscriptions.has(r.device_id)) {
+              if (r.fire_date === fireDate && subscriptions.get(r.device_id)?.user_id === r.user_id) {
                 results.push({
                   ...r,
                   subscription_json: subscriptions.get(r.device_id).subscription_json,
@@ -114,9 +114,15 @@ function createMockPushDb() {
             return { meta: { changes: 1 } };
           }
           if (q.includes('DELETE FROM push_reminders WHERE device_id = ?') && !q.includes('AND kind = ?')) {
-            const devId = bound[0];
+            const [devId, userId] = bound;
+            const matches = (r) => {
+              if (r.device_id !== devId) return false;
+              if (q.includes('AND user_id != ?')) return r.user_id !== String(userId);
+              if (q.includes('AND user_id = ?')) return r.user_id === String(userId);
+              return true;
+            };
             for (let i = reminders.length - 1; i >= 0; i--) {
-              if (reminders[i].device_id === devId) reminders.splice(i, 1);
+              if (matches(reminders[i])) reminders.splice(i, 1);
             }
             return { meta: { changes: 1 } };
           }
@@ -281,7 +287,7 @@ describe('Sealed Web Push (Part C)', () => {
             kind: 'loan',
             recordId: 'ln_1',
             dueDate: '2026-10-10',
-            reason: 'lead',
+            reason: 'lead:1',
             fireDate: '2026-10-09',
             sealed: JSON.stringify({ iv: 'iv_str', data: 'data_str' }),
           },
@@ -291,6 +297,17 @@ describe('Sealed Web Push (Part C)', () => {
       const res = validatePushRemindersInput(validUpload);
       expect(res.error).toBeUndefined();
       expect(res.value.items).toHaveLength(1);
+
+      // Each lead day is its own reason, so the 3-day and the 1-day reminder of one date are two rows
+      const both = validatePushRemindersInput({
+        ...validUpload,
+        items: [validUpload.items[0], { ...validUpload.items[0], reason: 'lead:3', fireDate: '2026-10-07' }],
+      });
+      expect(both.error).toBeUndefined();
+      expect(both.value.items.map((i) => i.reason)).toEqual(['lead:1', 'lead:3']);
+      for (const reason of ['lead', 'lead:0', 'lead:99', 'lead:x']) {
+        expect(validatePushRemindersInput({ ...validUpload, items: [{ ...validUpload.items[0], reason }] }).error).toBeTruthy();
+      }
 
       // Invalid kind
       expect(validatePushRemindersInput({ ...validUpload, items: [{ ...validUpload.items[0], kind: 'unknown' }] }).error).toBeTruthy();
@@ -338,6 +355,34 @@ describe('Sealed Web Push (Part C)', () => {
     });
   });
 
+  describe('4b. Device ownership', () => {
+    const sub = { endpoint: 'https://fcm.googleapis.com/fcm/send/shared', keys: { p256dh: 'p256', auth: 'auth' } };
+    const item = (recordId) => ({
+      kind: 'loan', recordId, dueDate: '2026-10-10', reason: 'due', fireDate: '2026-10-10',
+      sealed: JSON.stringify({ iv: 'IV', data: 'DATA' }),
+    });
+
+    it('another account cannot delete a device\'s reminders it does not own', async () => {
+      const deviceId = 'dev_owned_by_a';
+      await dbSavePushSubscription(env, 'u_a', { deviceId, subscription: sub });
+      await dbSavePushReminders(env, 'u_a', { deviceId, items: [item('ln_a')] });
+
+      await dbDeletePushSubscription(env, 'u_b', deviceId);
+      expect(mockDb.reminders).toHaveLength(1);
+      expect(mockDb.subscriptions.get(deviceId).user_id).toBe('u_a');
+    });
+
+    it('a browser signed into another account keeps none of the previous account\'s reminders', async () => {
+      const deviceId = 'dev_shared_pc';
+      await dbSavePushSubscription(env, 'u_a', { deviceId, subscription: sub });
+      await dbSavePushReminders(env, 'u_a', { deviceId, items: [item('ln_a')] });
+
+      await dbSavePushSubscription(env, 'u_b', { deviceId, subscription: sub });
+      expect(mockDb.reminders).toEqual([]);
+      expect(await dbGetDuePushReminders(env, '2026-10-10')).toEqual([]);
+    });
+  });
+
   describe('5. Cron Selection & Subscription Cleanup on 410', () => {
     it('sends due reminders for today and deletes them, ignoring future ones', async () => {
       const userId = 'u_200';
@@ -364,7 +409,7 @@ describe('Sealed Web Push (Part C)', () => {
             kind: 'cheque',
             recordId: 'chk_future',
             dueDate: '2026-10-12',
-            reason: 'lead',
+            reason: 'lead:1',
             fireDate: '2026-10-11',
             sealed: JSON.stringify({ iv: '2', data: 'future' }),
           },

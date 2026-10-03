@@ -31,7 +31,13 @@ vi.mock('../../src/lib/email.js', () => ({
   })),
 }));
 
+// Verification is read from the account row, not the session
+vi.mock('../../src/repositories/account.repository.js', () => ({
+  dbGetUserAuthById: vi.fn(),
+}));
+
 import { getAuthenticatedUser } from '../../src/lib/auth.js';
+import { dbGetUserAuthById } from '../../src/repositories/account.repository.js';
 import { sendEmail, isEmailConfigured } from '../../src/lib/email.js';
 
 function createMockDb() {
@@ -146,6 +152,11 @@ describe('Alert Email System (Part A)', () => {
     vi.clearAllMocks();
     db = createMockDb();
     env = { DB: db };
+    dbGetUserAuthById.mockImplementation(async (e, id) => {
+      const u = e.DB.users.get(id);
+      return u ? { id, email: u.email, emailVerified: Boolean(u.email_verified), disabled: Boolean(u.disabled) } : null;
+    });
+    db.users.set('usr_1', { email: 'user@example.com', email_verified: 1, disabled: 0 });
   });
 
   describe('Alert Email Routes', () => {
@@ -175,11 +186,11 @@ describe('Alert Email System (Part A)', () => {
       expect(resTest.status).toBe(401);
     });
 
-    it('returns preferences for authenticated user', async () => {
+    it('returns preferences for authenticated user, verification from the account row', async () => {
+      // The session carries no verification flag (session.repository selects none)
       getAuthenticatedUser.mockResolvedValueOnce({
         id: 'usr_1',
         email: 'user@example.com',
-        emailVerified: true,
       });
 
       const res = await wrap(handleGetAlertEmailPrefs)(new Request('https://api.realrate.ir/api/alerts/email'), env);
@@ -253,10 +264,10 @@ describe('Alert Email System (Part A)', () => {
     });
 
     it('rejects test email if user email is unverified', async () => {
+      db.users.set('usr_1', { email: 'user@example.com', email_verified: 0, disabled: 0 });
       getAuthenticatedUser.mockResolvedValueOnce({
         id: 'usr_1',
         email: 'user@example.com',
-        emailVerified: false,
       });
 
       const req = new Request('https://api.realrate.ir/api/alerts/email/test', { method: 'POST' });
@@ -356,7 +367,7 @@ describe('Alert Email System (Part A)', () => {
         expect.arrayContaining([
           expect.objectContaining({ record_id: 'ln_1', reason: 'overdue' }),
           expect.objectContaining({ record_id: 'chk_1', reason: 'due' }),
-          expect.objectContaining({ record_id: 'inc_1', reason: 'lead' }),
+          expect.objectContaining({ record_id: 'inc_1', reason: 'lead:1' }),
         ])
       );
 
@@ -401,6 +412,50 @@ describe('Alert Email System (Part A)', () => {
           reason: 'due',
         }),
       ]);
+    });
+
+    it('sends each lead day on its own (3 days before, then 1 day before)', async () => {
+      const userId = 'u_leads';
+      db.users.set(userId, { email: 'leads@example.com', email_verified: 1, disabled: 0 });
+      db.prefs.set(userId, {
+        user_id: userId,
+        enabled: 1,
+        sources: JSON.stringify(['cheque']),
+        lead_days: JSON.stringify([3, 1, 0]),
+        send_overdue: 0,
+        include_cheque_direction: 0,
+      });
+      db.reminders.push({
+        user_id: userId, kind: 'cheque', record_id: 'chk_lead', due_date: '2026-10-08',
+        interval_months: 0, remaining: 1, direction: '', muted: 0,
+      });
+
+      expect((await runReminderEmailDigest(env, '2026-10-05')).emailsSent).toBe(1);
+      expect((await runReminderEmailDigest(env, '2026-10-07')).emailsSent).toBe(1);
+      expect((await runReminderEmailDigest(env, '2026-10-08')).emailsSent).toBe(1);
+      expect(db.sent.map((x) => x.reason)).toEqual(['lead:3', 'lead:1', 'due']);
+      expect(sendEmail).toHaveBeenCalledTimes(3);
+    });
+
+    it('never reports a fixed income as overdue', async () => {
+      const userId = 'u_income';
+      db.users.set(userId, { email: 'income@example.com', email_verified: 1, disabled: 0 });
+      db.prefs.set(userId, {
+        user_id: userId,
+        enabled: 1,
+        sources: JSON.stringify(['recurring_income']),
+        lead_days: JSON.stringify([0]),
+        send_overdue: 1,
+        include_cheque_direction: 0,
+      });
+      db.reminders.push({
+        user_id: userId, kind: 'recurring_income', record_id: 'inc_past', due_date: '2026-09-20',
+        interval_months: 1, remaining: null, direction: '', muted: 0,
+      });
+
+      const res = await runReminderEmailDigest(env, '2026-10-05');
+      expect(res.emailsSent).toBe(0);
+      expect(db.sent).toEqual([]);
     });
 
     it('purges sent records older than 120 days', async () => {

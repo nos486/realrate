@@ -11,7 +11,7 @@ vi.mock('../../../web/src/shared/vault/vaultApi.js', () => ({
   listVaultRecords: vi.fn(async (kind, options, filters) => { lists.push({ kind, ...filters }); return { records: undatedRecords }; }),
 }));
 
-const { recordDateOf, putRecord, backfillRecordDates, repairRecordDates } = await import('../../../web/src/shared/vault/vaultRecordMeta.js');
+const { recordDateOf, putRecord, backfillRecordDates, repairRecordDates, backfillReminders, clearReminderSignatures } = await import('../../../web/src/shared/vault/vaultRecordMeta.js');
 
 const flush = () => new Promise((r) => setTimeout(r, 0));
 
@@ -77,5 +77,39 @@ describe('vault record metadata', () => {
     // Once per kind and portfolio in this tab
     await repairRecordDates('transaction', async (payload) => contents[payload], 'p_1');
     expect(lists).toHaveLength(1);
+  });
+
+  it('re-stores a reminder only when it changed since this browser stored it', async () => {
+    clearReminderSignatures();
+    const cheque = (id, dueDate) => ({ record: { id, payload: `enc:${id}`, recordDate: dueDate }, plain: { id, dueDate, amount: 1, status: 'pending' } });
+
+    // Nothing stored yet: both get their reminder
+    backfillReminders('cheque', [cheque('chk_a', '2026-11-01'), cheque('chk_b', '2026-12-01')]);
+    await flush();
+    expect(puts.map((p) => p.id)).toEqual(['chk_a', 'chk_b']);
+    expect(puts[0].reminder).toMatchObject({ kind: 'cheque', recordId: 'chk_a', dueDate: '2026-11-01' });
+
+    // The next open: only the cheque whose date moved is stored again
+    puts.length = 0;
+    backfillReminders('cheque', [cheque('chk_a', '2026-11-01'), cheque('chk_b', '2026-12-15')]);
+    await flush();
+    expect(puts.map((p) => p.id)).toEqual(['chk_b']);
+
+    // Saving a record remembers its reminder too
+    puts.length = 0;
+    await putRecord('cheque', 'chk_c', 'enc:chk_c', { id: 'chk_c', dueDate: '2027-01-01', amount: 1, status: 'pending' });
+    backfillReminders('cheque', [cheque('chk_a', '2026-11-01'), cheque('chk_b', '2026-12-15'), cheque('chk_c', '2027-01-01')]);
+    await flush();
+    expect(puts.map((p) => p.id)).toEqual(['chk_c']);
+
+    // Logout forgets everything
+    puts.length = 0;
+    clearReminderSignatures();
+    expect(localStorage.getItem('realrate_reminder_sigs')).toBeNull();
+    backfillReminders('cheque', [cheque('chk_a', '2026-11-01')]);
+    // A second screen listing cheques at the same moment does not store it again
+    backfillReminders('cheque', [cheque('chk_a', '2026-11-01')]);
+    await flush();
+    expect(puts.map((p) => p.id)).toEqual(['chk_a']);
   });
 });

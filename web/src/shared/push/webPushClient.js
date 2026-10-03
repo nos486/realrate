@@ -244,6 +244,30 @@ export async function disableWebPush() {
 }
 
 /**
+ * Logout: stop this browser's sealed reminders for the account signing out — the server drops
+ * the subscription and its reminders (while the session is still valid), the browser's push
+ * subscription and the device key are removed, and push is off for whoever signs in next.
+ * Best-effort; never throws.
+ */
+export async function signOutWebPush() {
+  if (!isWebPushSupported() || !getWebPushSettings().enabled) return;
+  await deletePushOnServer(getPushDeviceId()).catch(() => {});
+  try {
+    const reg = await navigator.serviceWorker.getRegistration();
+    const sub = await reg?.pushManager.getSubscription();
+    if (sub) await sub.unsubscribe();
+  } catch {
+    // No service worker or subscription
+  }
+  await clearDeviceSealingKey();
+  try {
+    setWebPushSettings({ enabled: false });
+  } catch {
+    // Blocked storage
+  }
+}
+
+/**
  * Re-plans and uploads sealed push reminders to the server whenever records change.
  */
 export async function syncSealedReminders({
@@ -278,11 +302,13 @@ export async function syncSealedReminders({
   const items = [];
 
   for (const notif of planned) {
+    // One row per notification: the 3-day and the 1-day reminder of the same date are two
+    const reason = notif.reason === 'lead' ? `lead:${notif.leadDays}` : notif.reason;
     const payload = {
       title: notif.title,
       body: notif.body,
       path: notif.extra?.path || '/',
-      tag: `due_${notif.kind}_${notif.recordId}_${notif.dueDate}_${notif.reason}`,
+      tag: `due_${notif.kind}_${notif.recordId}_${notif.dueDate}_${reason}`,
     };
 
     const sealed = await sealPayload(key, payload);
@@ -294,7 +320,7 @@ export async function syncSealedReminders({
       kind: notif.kind,
       recordId: notif.recordId,
       dueDate: notif.dueDate,
-      reason: notif.reason,
+      reason,
       fireDate,
       sealed,
     });
