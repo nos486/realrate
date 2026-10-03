@@ -81,6 +81,7 @@ export default function IncomeForm({
             portfolioId: saleLink.portfolioId,
             portfolioName: saleLink.portfolioName,
             assetId: saleLink.assetId,
+            ...(saleLink.unit ? { unit: saleLink.unit } : {}),
             quantity: Number(saleLink.quantity),
             txId: editingIncome?.soldFrom?.portfolioId === saleLink.portfolioId ? editingIncome.soldFrom.txId : newLinkTxId(),
           }

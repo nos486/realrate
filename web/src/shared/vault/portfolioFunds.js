@@ -21,6 +21,9 @@
 import { getPortfolios } from '../../features/portfolio/api/portfolioApi.js';
 import { getSparklines } from '../../features/market/api/marketApi.js';
 import { calculateComputedHoldings } from '../../features/transactions/utils/calculationEngine.js';
+import { buildAssetLedgers } from '../../features/portfolio/utils/assetLedger.js';
+import { getKnownPriceIds } from '../../features/market/knownPriceIds.js';
+import { resolveAssetUnit } from '../../config/sourceRegistry.js';
 import { gregorianToShamsi } from '../../features/portfolio/components/ShamsiDatePicker.jsx';
 import { toPriceId } from '../../utils/priceIds.js';
 import { getPortfolioKey, isAccountVaultPortfolio } from './vaultStore.js';
@@ -62,11 +65,13 @@ export async function listPortfolioPositions() {
         listPortfolioHoldings(portfolio, key),
         listPortfolioTransactions(portfolio, key),
       ]);
-      const { positions } = calculateComputedHoldings(transactions, {}, { manualLots: holdings });
+      // One position per asset and unit, under the price book's ids — the same ledgers the
+      // portfolio shows (a sale is then written into the ledger it is taken from)
+      const { assets } = buildAssetLedgers({ holdings, transactions, priceMap: getKnownPriceIds() || {} });
       return {
         portfolioId: portfolio.id,
         portfolioName: portfolio.name || 'پورتفو',
-        positions: [...positions.values()].map((p) => ({ assetId: p.assetId, assetName: p.assetName, unit: p.unit, amount: p.amount })),
+        positions: assets.map((a) => ({ assetId: a.assetId, assetName: a.assetName, unit: a.unit, amount: a.amount })),
       };
     } catch (err) {
       console.warn('Reading a portfolio for its positions failed:', err);
@@ -92,7 +97,7 @@ export async function listAssetFunds(assetId) {
         listPortfolioTransactions(portfolio, key),
       ]);
       // The ledger counts the manual holdings too
-      const { positions } = calculateComputedHoldings(transactions, {}, { manualLots: holdings });
+      const { positions } = calculateComputedHoldings(transactions, getKnownPriceIds() || {}, { manualLots: holdings });
       const position = positions.get(id);
       return { portfolioId: portfolio.id, portfolioName: portfolio.name || 'پورتفو', amount: position?.amount || 0, averageCost: position?.averageCost || 0 };
     } catch (err) {
@@ -173,8 +178,12 @@ export const LINK_NOTES = { buy: 'خرید — ثبت‌شده در هزینه�
 export async function saveLinkedTransaction(link, { type, toman, date, owner }) {
   const { portfolio, key } = await portfolioById(link.portfolioId);
   const quantity = Number(link.quantity) || 0;
+  const assetId = toPriceId(link.assetId, getKnownPriceIds());
+  // A ledger kept in another unit than the asset's usual one (gold in mesghals) is named by it
+  const unit = link.unit && link.unit !== resolveAssetUnit(assetId) ? { unit: link.unit } : {};
   await savePortfolioTransaction(portfolio, key, link.txId, {
-    assetId: toPriceId(link.assetId),
+    assetId,
+    ...unit,
     transactionType: type,
     quantity,
     unitPrice: quantity > 0 && toman > 0 ? toman / quantity : 0,

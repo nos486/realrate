@@ -18,6 +18,8 @@ import { listLinkablePortfolios, listPortfolioPositions } from './portfolioFunds
 
 const RESULT_LIMIT = 8;
 const EPS = 1e-9;
+/** A link names its ledger's unit only when it is not the asset's usual one */
+const sameUnit = (link, position) => !link.unit || link.unit === position.unit;
 const qtyText = (n) => Number(n || 0).toLocaleString('fa-IR', { maximumFractionDigits: 6 });
 
 /** The portfolios (buy) or the portfolios with what they hold (sell), loaded once */
@@ -73,7 +75,7 @@ export default function PortfolioLinkFields({ mode, value, onChange, toman = 0, 
     return (portfolio.positions || [])
       .map((p) => ({
         ...p,
-        amount: p.amount + (own && own.portfolioId === portfolio.id && own.assetId === p.assetId ? Number(own.quantity) || 0 : 0),
+        amount: p.amount + (own && own.portfolioId === portfolio.id && own.assetId === p.assetId && sameUnit(own, p) ? Number(own.quantity) || 0 : 0),
       }))
       .filter((p) => p.amount > EPS);
   }, [selling, portfolio, own]);
@@ -84,7 +86,7 @@ export default function PortfolioLinkFields({ mode, value, onChange, toman = 0, 
       return held
         .filter((p) => !q || [p.assetName, resolveAssetDisplayName(p.assetId), p.assetId].some((f) => String(f || '').toLowerCase().includes(q)))
         .slice(0, RESULT_LIMIT * 3)
-        .map((p) => ({ id: p.assetId, name: p.assetName || resolveAssetDisplayName(p.assetId), category: resolveCategory(p.assetId), unit: p.unit, amount: p.amount }));
+        .map((p) => ({ id: p.assetId, key: `${p.assetId}|${p.unit}`, name: p.assetName || resolveAssetDisplayName(p.assetId), category: resolveCategory(p.assetId), unit: p.unit, amount: p.amount }));
     }
     if (!q || !pricing?.searchAssets) return [];
     return pricing.searchAssets(q, { limit: RESULT_LIMIT }).filter((a) => a?.id && a.category !== 'cash');
@@ -92,7 +94,7 @@ export default function PortfolioLinkFields({ mode, value, onChange, toman = 0, 
 
   const assetName = value?.assetId ? value.assetName || resolveAssetDisplayName(value.assetId) : '';
   const unit = value?.assetId ? value.unit || resolveAssetUnit(value.assetId) : '';
-  const available = selling && value?.assetId ? held.find((p) => p.assetId === value.assetId)?.amount || 0 : null;
+  const available = selling && value?.assetId ? held.find((p) => p.assetId === value.assetId && sameUnit(value, p))?.amount || 0 : null;
   const qtyNum = parseInputNumber(quantity) || 0;
   const unitPrice = qtyNum > 0 && toman > 0 ? toman / qtyNum : 0;
 
@@ -178,7 +180,7 @@ export default function PortfolioLinkFields({ mode, value, onChange, toman = 0, 
                 ) : results.length > 0 ? (
                   <ul className="asset-picker-list portfolio-link-results">
                     {results.map((asset) => (
-                      <li key={asset.id}>
+                      <li key={asset.key || asset.id}>
                         <button type="button" className="asset-picker-row" onClick={() => pickAsset(asset)}>
                           <span className="home-asset-icon" aria-hidden="true">
                             {asset.flag || <CategoryIcon category={asset.category} size={14} />}

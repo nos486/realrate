@@ -4,7 +4,7 @@
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-const store = vi.hoisted(() => ({ saved: [], deleted: [] }));
+const store = vi.hoisted(() => ({ saved: [], deleted: [], extra: [] }));
 vi.mock('../../../web/src/features/market/api/marketApi.js', () => ({ getSparklines: vi.fn() }));
 vi.mock('../../../web/src/features/portfolio/api/portfolioApi.js', () => ({
   getPortfolios: vi.fn(async () => ({ portfolios: [{ id: 'pf_a', name: 'اصلی', isDefault: true }, { id: 'pf_b', name: 'دوم' }] })),
@@ -14,7 +14,10 @@ vi.mock('../../../web/src/shared/vault/vaultPortfolioItems.js', () => ({
   listPortfolioHoldings: vi.fn(async (portfolio) => (portfolio.id === 'pf_a'
     ? [{ id: 'h1', assetId: 'full_coin', amount: 3, buyPrice: 60_000_000, buyDate: '1405/01/10' }]
     : [])),
-  listPortfolioTransactions: vi.fn(async () => store.saved.map((s) => s.data)),
+  listPortfolioTransactions: vi.fn(async (portfolio) => [
+    ...(portfolio.id === 'pf_b' ? store.extra : []),
+    ...store.saved.filter((x) => x.portfolioId === portfolio.id).map((x) => x.data),
+  ]),
   savePortfolioTransaction: vi.fn(async (portfolio, key, id, data) => { store.saved.push({ portfolioId: portfolio.id, id, data: { ...data, id } }); }),
   deletePortfolioTransactionRecord: vi.fn(async (portfolioId, id) => { store.deleted.push([portfolioId, id]); }),
 }));
@@ -24,6 +27,7 @@ const { calculateComputedHoldings } = await import('../../../web/src/features/tr
 beforeEach(() => {
   store.saved = [];
   store.deleted = [];
+  store.extra = [];
 });
 
 describe('linked portfolio entries', () => {
@@ -69,5 +73,32 @@ describe('linked portfolio entries', () => {
     expect((await funds.listLinkablePortfolios()).map((p) => p.id)).toEqual(['pf_a', 'pf_b']);
     await funds.deleteLinkedTransaction({ portfolioId: 'pf_a', txId: 'txl_3' });
     expect(store.deleted).toEqual([['pf_a', 'txl_3']]);
+  });
+
+  it('a sale from gold kept in mesghals is written into that ledger, not the grams one', async () => {
+    store.extra = [
+      { id: 'g1', assetId: 'gold_18k', transactionType: 'buy', quantity: 10, unitPrice: 8_000_000, transactionDate: '1405/01/01' },
+      { id: 'm1', assetId: 'gold_18k', unit: 'مثقال', transactionType: 'buy', quantity: 4, unitPrice: 35_000_000, transactionDate: '1405/01/01' },
+    ];
+    const list = await funds.listPortfolioPositions();
+    const gold = list.find((p) => p.portfolioId === 'pf_b').positions.filter((p) => p.assetId === 'gold_18k');
+    // Two positions, one per unit (not one overwriting the other)
+    expect(gold.map((p) => [p.unit, p.amount]).sort()).toEqual([['گرم', 10], ['مثقال', 4]].sort());
+
+    await funds.saveLinkedTransaction(
+      { portfolioId: 'pf_b', assetId: 'gold_18k', unit: 'مثقال', quantity: 1, txId: 'txl_m' },
+      { type: 'sell', toman: 40_000_000, date: '2026-09-25', owner: { incomeId: 'inc_m' } },
+    );
+    expect(store.saved[0].data.unit).toBe('مثقال');
+    const after = (await funds.listPortfolioPositions()).find((p) => p.portfolioId === 'pf_b').positions;
+    expect(after.find((p) => p.unit === 'مثقال').amount).toBe(3);
+    expect(after.find((p) => p.unit === 'گرم').amount).toBe(10);
+
+    // The usual unit is not written (the catalog's own ledger)
+    await funds.saveLinkedTransaction(
+      { portfolioId: 'pf_b', assetId: 'gold_18k', unit: 'گرم', quantity: 2, txId: 'txl_g' },
+      { type: 'sell', toman: 18_000_000, date: '2026-09-25', owner: { incomeId: 'inc_g' } },
+    );
+    expect(store.saved[1].data.unit).toBeUndefined();
   });
 });

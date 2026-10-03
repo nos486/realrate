@@ -4,7 +4,9 @@
  * Money put into an asset (an expense in «سرمایه‌گذاری») or taken out of one (an income in «فروش
  * دارایی») is recorded once, where the money moved, and its portfolio gets the matching entry:
  *
- *   { portfolioId, portfolioName, assetId, quantity, txId }
+ *   { portfolioId, portfolioName, assetId, quantity, txId, unit? }
+ *
+ * `unit`: the ledger's unit when the asset is kept in another one than usual (a sale from it)
  *
  * - expense.investedIn: a «buy» transaction `txId` of `quantity` at the expense's tomans / quantity
  * - income.soldFrom: a «sell» transaction `txId` of `quantity` at the income's tomans / quantity
@@ -17,6 +19,7 @@
 const ID_RE = /^[A-Za-z0-9_-]{1,80}$/;
 const MAX_ASSET_ID = 160;
 const MAX_NAME = 80;
+const MAX_UNIT = 24;
 const text = (v) => String(v ?? '').trim();
 
 /**
@@ -41,6 +44,7 @@ export function validatePortfolioLink(raw) {
       assetId,
       quantity,
       txId,
+      ...(text(raw.unit) ? { unit: text(raw.unit).slice(0, MAX_UNIT) } : {}),
     },
   };
 }

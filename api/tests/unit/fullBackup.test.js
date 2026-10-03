@@ -129,4 +129,16 @@ describe('full backup', () => {
     expect(vault.records).toHaveLength(before);
     expect(vault.banks).toHaveLength(1);
   });
+
+  it('investments and sales follow a portfolio restored under a new id', async () => {
+    const { remapRecord } = await import('../../../web/src/shared/vault/fullBackup.js');
+    const portfolioIds = new Map([['pf_old', 'pf_new9']]);
+    const link = { portfolioId: 'pf_old', portfolioName: 'اصلی', assetId: 'gold_18k', quantity: 1, txId: 'txl_1' };
+    expect(remapRecord('expense', { investedIn: link, paidFrom: { ...link, assetId: 'usd' } }, { portfolioIds })).toMatchObject({
+      investedIn: { portfolioId: 'pf_new9' },
+      paidFrom: { portfolioId: 'pf_new9' },
+    });
+    expect(remapRecord('income', { soldFrom: link }, { portfolioIds }).soldFrom.portfolioId).toBe('pf_new9');
+    expect(remapRecord('income', { soldFrom: { ...link, portfolioId: 'pf_kept' } }, { portfolioIds }).soldFrom.portfolioId).toBe('pf_kept');
+  });
 });

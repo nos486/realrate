@@ -163,8 +163,12 @@ export function remapRecord(kind, data, { portfolioIds = new Map(), bankIds = ne
   const swapBank = (obj) => (obj && bankIds.has(obj.bankId) ? { ...obj, bankId: bankIds.get(obj.bankId) } : obj);
   if (kind === 'loan' && next?.loan) next = { ...next, loan: swapBank(next.loan) };
   else if (kind === 'bank_account' || kind === 'cheque') next = swapBank(next);
-  if (kind === 'expense' && next?.paidFrom?.portfolioId && portfolioIds.has(next.paidFrom.portfolioId)) {
-    next = { ...next, paidFrom: { ...next.paidFrom, portfolioId: portfolioIds.get(next.paidFrom.portfolioId) } };
+  // Portfolio entries of expenses and incomes follow a portfolio restored under a new id
+  const links = { expense: ['paidFrom', 'investedIn'], income: ['soldFrom'] }[kind] || [];
+  for (const field of links) {
+    if (next?.[field]?.portfolioId && portfolioIds.has(next[field].portfolioId)) {
+      next = { ...next, [field]: { ...next[field], portfolioId: portfolioIds.get(next[field].portfolioId) } };
+    }
   }
   return next;
 }
