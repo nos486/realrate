@@ -17,6 +17,7 @@ import { useAppUpdate } from '../native/useAppUpdate.js';
 import { hasUpdate } from '../native/appUpdate.js';
 import { isNativeApp } from '../native/nativeApp.js';
 import { scheduleDueNotifications } from '../native/dueNotifications.js';
+import { syncSealedReminders } from '../push/webPushClient.js';
 import { useVault } from '../vault/useVault.js';
 import { usePrivacyMode } from '../../hooks/usePrivacyMode.js';
 import { getRecurringIncomes } from '../../features/incomes/api/recurringIncomeApi.js';
@@ -86,6 +87,19 @@ export default function AppAlertSources({ announcement = '' }) {
       today,
       hideAmounts,
     }).catch((err) => console.warn('Scheduling due notifications failed:', err));
+  }, [loans, cheques, recurringIncomes, vault?.status, today, hideAmounts]);
+
+  // Sealed Web Push reminders for website / PWA (desktop & iPhone users without Android app)
+  useEffect(() => {
+    if (isNativeApp() || vault?.status !== 'unlocked') return;
+    syncSealedReminders({
+      loans,
+      cheques,
+      recurringIncomes,
+      isVaultUnlocked: true,
+      today,
+      hideAmounts,
+    }).catch((err) => console.warn('Syncing sealed push reminders failed:', err));
   }, [loans, cheques, recurringIncomes, vault?.status, today, hideAmounts]);
 
   return null;

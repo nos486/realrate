@@ -103,6 +103,24 @@ npx wrangler secret put GEMINI_API_KEY
 **محدودیت استفاده:** هر کاربر روزانه ۱۰ اسکن دارد و مدیر بی‌محدودیت است (`api/src/config/usageLimits.js`؛ بخش
 «محدودیت استفاده» در `docs/ARCHITECTURE.md`).
 
+## اعلان‌های مرورگر (Web Push با VAPID)
+
+برای ارسال اعلان‌های مرورگر (وب‌سایت، دسکتاپ و PWA آیفون)، سرور از استاندارد VAPID (RFC 8292) و رمزنگاری وب‌پوش (RFC 8291) استفاده می‌کند. جفت‌کلید VAPID را یک‌بار بسازید و به‌صورت secret در ورکر ذخیره کنید:
+
+```bash
+# تولید جفت‌کلید VAPID با ابزار استاندارد
+npx web-push generate-vapid-keys
+
+# سپس کلیدها را در Cloudflare Workers ذخیره کنید:
+cd api
+npx wrangler secret put VAPID_PUBLIC_KEY
+npx wrangler secret put VAPID_PRIVATE_KEY
+# ایمیل پشتیبانی برای فیلد sub در VAPID (اختیاری؛ پیش‌فرض: mailto:support@realrate.ir)
+npx wrangler secret put VAPID_SUBJECT
+```
+
+بدون این کلیدها، اعلان مرورگر غیرفعال می‌ماند و کلاینت‌ها پیام عدم پیکربندی سرور را دریافت می‌کنند.
+
 ## استقرار
 
 مرج در `main` هر دو بخش را خودکار منتشر می‌کند و در هر PR هم برای هر دو یک پیش‌نمایش ساخته می‌شود:

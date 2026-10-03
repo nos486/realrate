@@ -8,6 +8,7 @@ import { dbDeleteExpiredSessions } from "../repositories/session.repository.js";
 import { purgeExpiredState } from "../repositories/stateStore.repository.js";
 import { dbPurgeOldAlertEmailSent } from "../repositories/alertEmail.repository.js";
 import { runReminderEmailDigest, tehranTime } from "./reminderEmail.job.js";
+import { runReminderPushDigest, purgeOldPushRemindersJob } from "./reminderPush.job.js";
 import { logger } from "../lib/logger.js";
 
 /**
@@ -36,15 +37,27 @@ export async function runCronPolling(event, env, ctx) {
         dbPurgeOldAlertEmailSent(env).catch(err => {
           logger.error("[CronPolling] Alert email sent purge error:", { error: err.message });
         }),
+        purgeOldPushRemindersJob(env, { now: scheduledDate }).catch(err => {
+          logger.error("[CronPolling] Old push reminders purge error:", { error: err.message });
+        }),
       ])
     );
 
-    // Daily digest: once a day at 08:00 Asia/Tehran
+    // Daily email digest: once a day at 08:00 Asia/Tehran
     const tehran = tehranTime(scheduledDate);
     if (tehran.hour === 8) {
       ctx.waitUntil(
         runReminderEmailDigest(env, { now: scheduledDate }).catch(err => {
           logger.error("[CronPolling] Reminder email digest error:", { error: err.message, stack: err.stack });
+        })
+      );
+    }
+
+    // Daily sealed push notifications: once a day at 09:00 Asia/Tehran
+    if (tehran.hour === 9) {
+      ctx.waitUntil(
+        runReminderPushDigest(env, { now: scheduledDate }).catch(err => {
+          logger.error("[CronPolling] Reminder push digest error:", { error: err.message, stack: err.stack });
         })
       );
     }

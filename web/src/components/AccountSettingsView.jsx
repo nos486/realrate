@@ -11,6 +11,7 @@ import VaultSettingsSection from '../shared/vault/VaultSettingsSection.jsx';
 import BackupSection from '../shared/vault/BackupSection.jsx';
 import PasswordSettingsSection from '../features/auth/components/PasswordSettingsSection.jsx';
 import EmailRemindersSection from '../features/alerts/components/EmailRemindersSection.jsx';
+import WebPushRemindersSection from '../features/alerts/components/WebPushRemindersSection.jsx';
 
 /**
  * AccountSettingsView
@@ -183,6 +184,8 @@ export default function AccountSettingsView() {
       <VaultSettingsSection />
 
       <EmailRemindersSection />
+
+      <WebPushRemindersSection />
 
       <BackupSection />
     </Card>

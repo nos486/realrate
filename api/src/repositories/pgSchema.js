@@ -421,6 +421,43 @@ export const APP_TABLES = [
     ],
   },
   {
+    // Web Push subscriptions registered by browser/PWA clients
+    name: "push_subscriptions",
+    columns: ["device_id", "user_id", "subscription_json", "created_at", "updated_at"],
+    ddl: [
+      `CREATE TABLE IF NOT EXISTS push_subscriptions (
+        device_id TEXT PRIMARY KEY,
+        user_id TEXT NOT NULL,
+        subscription_json TEXT NOT NULL,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+      )`,
+      "CREATE INDEX IF NOT EXISTS idx_push_subs_user ON push_subscriptions(user_id)",
+    ],
+  },
+  {
+    // Sealed push reminder payloads scheduled for Web Push delivery on fire_date
+    name: "push_reminders",
+    columns: ["device_id", "user_id", "kind", "record_id", "due_date", "reason", "fire_date", "sealed_payload", "updated_at"],
+    ddl: [
+      `CREATE TABLE IF NOT EXISTS push_reminders (
+        device_id TEXT NOT NULL,
+        user_id TEXT NOT NULL,
+        kind TEXT NOT NULL,
+        record_id TEXT NOT NULL,
+        due_date TEXT NOT NULL,
+        reason TEXT NOT NULL,
+        fire_date TEXT NOT NULL,
+        sealed_payload TEXT NOT NULL,
+        updated_at TEXT NOT NULL,
+        PRIMARY KEY (device_id, kind, record_id, due_date, reason)
+      )`,
+      "CREATE INDEX IF NOT EXISTS idx_push_reminders_fire ON push_reminders(fire_date)",
+      "CREATE INDEX IF NOT EXISTS idx_push_reminders_user ON push_reminders(user_id)",
+      "CREATE INDEX IF NOT EXISTS idx_push_reminders_dev ON push_reminders(device_id)",
+    ],
+  },
+  {
     name: "user_activity",
     columns: ["user_id", "day"],
     ddl: [

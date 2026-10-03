@@ -66,8 +66,12 @@ Transient feedback ("saved", "failed") is not an alert: it stays a toast (`Feedb
   - Digested into one email per user per day: counts and item kinds only («۱ قسط وام فردا سررسید می‌شود»).
   - Server sees: dates, intervals, remaining counts, muted flags, and optionally cheque direction (`include_cheque_direction`).
   - Server never sees: amounts, titles, banks, or counterparties.
-- **Android local notifications**: scheduled on-device with full details (titles and optional amounts) via `@capacitor/local-notifications`.
-- **Sealed Web Push (PWA)**: end-to-end encrypted push notifications where payloads are sealed on the client with a per-device key.
+- **Android local notifications**: scheduled on-device with full details (titles and optional amounts) via `@capacitor/local-notifications` without sending notifications data to the server.
+- **Sealed Web Push (PWA & Desktop)**: zero-knowledge browser push notifications delivered daily at 09:00 Asia/Tehran.
+  - The client generates a random, non-extractable 256-bit AES-GCM key stored in IndexedDB on the device.
+  - Upcoming 30-day notifications (title, deep link path, and optional amount) are encrypted on the client using this key and uploaded as opaque ciphertext (`sealed_payload`) to `push_reminders`.
+  - The server transmits the ciphertext over Web Push (RFC 8291 / RFC 8292 with VAPID) without ever having the decryption key or seeing the plaintext details.
+  - The Service Worker (`sw.js`) intercepts the push event, retrieves the key from IndexedDB, and decrypts the notification locally. If the key is unavailable, a generic fallback («یک سررسید امروز دارید») is shown.
 
 ## Adding a new kind of alert
 

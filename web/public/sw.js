@@ -167,3 +167,105 @@ async function trimCache(cacheName, maxEntries) {
   if (keys.length <= maxEntries) return;
   await Promise.all(keys.slice(0, keys.length - maxEntries).map((key) => cache.delete(key)));
 }
+
+// ── Sealed Web Push Notifications (Zero-Knowledge) ─────────────────────────
+
+function base64ToUint8(b64) {
+  const binary = atob(b64);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) {
+    bytes[i] = binary.charCodeAt(i);
+  }
+  return bytes;
+}
+
+function getSealingKeyFromIdb() {
+  return new Promise((resolve) => {
+    if (!('indexedDB' in self)) return resolve(null);
+    const req = indexedDB.open('realrate_push_keystore', 1);
+    req.onerror = () => resolve(null);
+    req.onblocked = () => resolve(null);
+    req.onsuccess = () => {
+      const db = req.result;
+      if (!db.objectStoreNames.contains('keys')) {
+        db.close();
+        return resolve(null);
+      }
+      try {
+        const tx = db.transaction('keys', 'readonly');
+        const store = tx.objectStore('keys');
+        const getReq = store.get('device_sealing_key');
+        getReq.onsuccess = () => {
+          db.close();
+          resolve(getReq.result || null);
+        };
+        getReq.onerror = () => {
+          db.close();
+          resolve(null);
+        };
+      } catch {
+        db.close();
+        resolve(null);
+      }
+    };
+  });
+}
+
+async function handlePushEvent(event) {
+  let title = 'یادآوری سررسید';
+  let options = {
+    body: 'یک سررسید امروز دارید',
+    icon: '/icons/icon-192.png',
+    badge: '/icons/icon-192.png',
+    data: { path: '/' },
+  };
+
+  try {
+    const rawText = event.data ? event.data.text() : '';
+    if (rawText) {
+      const parsed = JSON.parse(rawText);
+      if (parsed && parsed.iv && parsed.data) {
+        const key = await getSealingKeyFromIdb();
+        if (key) {
+          const iv = base64ToUint8(parsed.iv);
+          const data = base64ToUint8(parsed.data);
+          const decrypted = await crypto.subtle.decrypt({ name: 'AES-GCM', iv }, key, data);
+          const payload = JSON.parse(new TextDecoder().decode(decrypted));
+          if (payload.title) title = payload.title;
+          if (payload.body) options.body = payload.body;
+          if (payload.path) options.data = { path: payload.path };
+          if (payload.tag) options.tag = payload.tag;
+        }
+      }
+    }
+  } catch (err) {
+    // Key missing or decryption failed — fallback generic options remain
+  }
+
+  return self.registration.showNotification(title, options);
+}
+
+self.addEventListener('push', (event) => {
+  event.waitUntil(handlePushEvent(event));
+});
+
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  const targetPath = event.notification.data?.path || '/';
+
+  event.waitUntil(
+    clients.matchAll({ type: 'window', includeUncontrolled: true }).then((windowClients) => {
+      for (const client of windowClients) {
+        if (client.url && 'focus' in client) {
+          if (typeof client.navigate === 'function') {
+            client.navigate(targetPath);
+          }
+          return client.focus();
+        }
+      }
+      if (clients.openWindow) {
+        return clients.openWindow(targetPath);
+      }
+    })
+  );
+});

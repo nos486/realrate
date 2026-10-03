@@ -294,6 +294,11 @@ loan / income / cheque endpoints return `409 VAULT_ENABLED` and portfolio data m
 | `GET` | `/api/alerts/email` | Get user's email reminder preferences: `{ success: true, prefs: { enabled, sources, leadDays, sendOverdue, includeChequeDirection, updatedAt }, email, emailVerified, emailConfigured }` |
 | `PUT` | `/api/alerts/email` | Update preferences (`{ enabled, sources, leadDays, sendOverdue, includeChequeDirection }`). Disabling `includeChequeDirection` immediately clears stored cheque directions |
 | `POST` | `/api/alerts/email/test` | Send a sample reminder digest email to user's verified address. Strictly rate-limited (3 per hour) |
+| `GET` | `/api/alerts/push/vapid-key` | Get public VAPID key and push provider configuration status: `{ success: true, vapidPublicKey, configured }` |
+| `POST` | `/api/alerts/push/subscription` | Register/update browser Web Push subscription: `{ deviceId, subscription: { endpoint, keys: { p256dh, auth } } }` |
+| `DELETE` | `/api/alerts/push/subscription/:deviceId` | Remove push subscription and scheduled reminders for device |
+| `PUT` | `/api/alerts/push/reminders` | Upload sealed push reminders for device: `{ deviceId, items: [{ kind, recordId, dueDate, reason, fireDate, sealed }] }` |
+| `POST` | `/api/alerts/push/test` | Send immediate test Web Push notification with opaque sealed payload. Rate-limited (5 per hour) |
 
 Portfolios protected by the vault carry `e2eeWrappedKey`; `/api/v1/portfolio/shared` reports `e2eeLinkKey: true` for them
 (the viewer needs the key from the share link's `#k=` fragment).

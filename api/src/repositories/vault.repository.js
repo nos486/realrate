@@ -186,6 +186,8 @@ const USER_DATA_TABLES = [
   "vault_reminders",
   "alert_email_prefs",
   "alert_email_sent",
+  "push_reminders",
+  "push_subscriptions",
   "user_vaults",
 ];
 

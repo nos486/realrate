@@ -160,6 +160,13 @@ import {
   handlePutAlertEmailPrefs,
   handleSendTestEmailAlert,
 } from "./handlers/alertEmailRoutes.js";
+import {
+  handleGetVapidKey,
+  handleSavePushSubscription,
+  handleDeletePushSubscription,
+  handlePutPushReminders,
+  handleSendTestPush,
+} from "./handlers/pushRoutes.js";
 import { handleGetHomeLayout, handleSaveHomeLayout } from "./handlers/homeLayoutRoutes.js";
 import { handleGetLatestAppRelease } from "./handlers/appUpdateRoutes.js";
 import { fetchAllPrices } from "./services/market/priceAggregator.service.js";
@@ -371,6 +378,24 @@ async function handleRequest(request, env, ctx) {
   }
   if (normalizedPath === "/api/alerts/email/test" && request.method === "POST") {
     return wrap(handleSendTestEmailAlert)(request, env);
+  }
+
+  // ── Sealed Web Push Routes ──────────────────────────────────────────────
+  if (normalizedPath === "/api/alerts/push/vapid-key" && request.method === "GET") {
+    return wrap(handleGetVapidKey)(request, env);
+  }
+  if (normalizedPath === "/api/alerts/push/subscription" && request.method === "POST") {
+    return wrap(handleSavePushSubscription)(request, env);
+  }
+  const pushSubDeleteMatch = normalizedPath.match(/^\/api\/alerts\/push\/subscription\/([^/]+)$/);
+  if (pushSubDeleteMatch && request.method === "DELETE") {
+    return wrap((req, e) => handleDeletePushSubscription(req, e, pushSubDeleteMatch[1]))(request, env);
+  }
+  if (normalizedPath === "/api/alerts/push/reminders" && request.method === "PUT") {
+    return wrap(handlePutPushReminders)(request, env);
+  }
+  if (normalizedPath === "/api/alerts/push/test" && request.method === "POST") {
+    return wrap(handleSendTestPush)(request, env);
   }
 
   // ── Loans & Installments API Routes ─────────────────────────────────────
