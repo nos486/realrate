@@ -25,6 +25,7 @@ export const TREND_RANGES = {
   "7d": { days: 7, bucketSec: DAY_SEC },
   "30d": { days: 30, bucketSec: DAY_SEC },
   "90d": { days: 90, bucketSec: DAY_SEC },
+  "180d": { days: 180, bucketSec: DAY_SEC },
   "1y": { days: 365, bucketSec: DAY_SEC },
   "2y": { days: 730, bucketSec: DAY_SEC },
 };

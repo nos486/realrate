@@ -3,8 +3,9 @@
  *
  * - detailed (the full card): a card that turns over. The front: price, the source's change, for
  *   gold & coins the bubble analysis (intrinsic value, standard price, deviation), and today's
- *   low–high bar (from the price book). Tapped (or Enter / Space), it turns to its back: only the
- *   last 30 days as candles, fetched the first time that card is turned — nothing loads before.
+ *   low and high (from the price book). Tapped (or Enter / Space), it turns to its back: only the
+ *   candles (۱ ماه / ۶ ماه / ۱ سال), fetched the first time that card is turned — nothing loads
+ *   before; the card is locked while they load.
  * - compact: small row card (flag/icon, name, symbol, price).
  * A section saved with the older "trend" style is shown as full cards.
  */
@@ -89,22 +90,13 @@ function CompactCard({ asset }) {
   );
 }
 
-/** Today's low–high bar with where the price sits in it (from the price book: no query) */
-function DayRange({ range, price }) {
+/** Today's low and high (from the price book: no query) */
+function DayRange({ range }) {
   if (!range) return null;
-  const { low, high } = range;
-  const now = Number(price) || low;
-  const position = high > low ? Math.min(1, Math.max(0, (now - low) / (high - low))) : 0.5;
   return (
-    <div className="pro-range" title="دامنه‌ی نوسان امروز">
-      <div className="pro-range-track">
-        <span className="pro-range-fill" style={{ width: `${position * 100}%` }} />
-        <span className="pro-range-marker" style={{ insetInlineStart: `${position * 100}%` }} />
-      </div>
-      <div className="pro-range-labels">
-        <span><small>کف امروز</small> {formatNum(low)}</span>
-        <span><small>سقف امروز</small> {formatNum(high)}</span>
-      </div>
+    <div className="pro-range-labels" title="دامنه‌ی نوسان امروز">
+      <span><small>کف امروز</small> {formatNum(range.low)}</span>
+      <span><small>سقف امروز</small> {formatNum(range.high)}</span>
     </div>
   );
 }
@@ -161,60 +153,66 @@ function GoldMetrics({ item }) {
   );
 }
 
-/** The back of a card: only the last 30 days as candles, fetched the first time it is turned */
-function CardBack({ asset, unit, turned }) {
-  const { status, series } = useAssetCandles(asset.id, turned);
-  return (
-    <div className="pro-card-face is-back" aria-hidden={!turned}>
-      {status === 'ready' ? (
-        // Inspecting a day doesn't turn the card back
-        <div className="pro-card-chart" onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()} role="presentation">
-          <TrendCandles candles={series.candles} days={series.days} unit={unit} label={`نمودار کندلی ۳۰ روز اخیر ${asset.name}`} />
-        </div>
-      ) : status === 'loading' ? (
-        <div className="pro-card-back-state is-loading" aria-label="در حال دریافت نمودار" role="status" />
-      ) : status !== 'idle' ? (
-        <div className="pro-card-back-state">{status === 'error' ? 'نمودار فعلاً در دسترس نیست' : 'تاریخچه‌ای برای این مورد ثبت نشده'}</div>
-      ) : null}
-    </div>
-  );
-}
+const CANDLE_RANGES = [
+  { value: '30d', label: '۱ ماه' },
+  { value: '180d', label: '۶ ماه' },
+  { value: '1y', label: '۱ سال' },
+];
 
-/** The full card: details in front; turned (tap, Enter / Space), its candles on the back */
+/**
+ * The full card: details in front; turned (tap, Enter / Space), only its candles on the back.
+ * The candles are fetched the first time the card is turned, and again for another window
+ * (۱ ماه / ۶ ماه / ۱ سال); while they load the card is locked (it shows it, and doesn't turn).
+ * A tap on the back — the chart included — turns it to the front again.
+ */
 function FullCard({ asset, isBest = false, flippable = true }) {
-  const [flipped, setFlipped] = useState(false);
-  const [turnedOnce, setTurnedOnce] = useState(false);
+  const [requested, setRequested] = useState(false);
+  const [opened, setOpened] = useState(false);
+  const [range, setRange] = useState('30d');
+  const [shown, setShown] = useState(null); // the last series drawn (kept while another window loads)
+  const { status, series } = useAssetCandles(asset.id, flippable && (requested || opened), range);
+  const loading = status === 'loading';
+  const settled = status === 'ready' || status === 'empty' || status === 'error';
+  // The first answer turns the card; later windows redraw it in place
+  if (requested && settled && !opened) setOpened(true);
+  if (status === 'ready' && series && series !== shown) setShown(series);
+
   const item = asset.analysis || null;
   const hasMarket = item ? item.market !== null && item.market !== undefined : true;
   const price = asset.price || (item ? (hasMarket ? item.market : item.intrinsic) : null) || null;
   const unit = item ? 'تومان' : asset.unit;
   const change = changeBadge(asset.changePercent);
-  const isFlipped = flippable && flipped;
+  const isFlipped = flippable && requested && opened;
   const direction = change?.className === 'badge-good' ? 'up' : change ? 'down' : 'flat';
 
   const toggle = () => {
-    if (!flippable) return;
-    setTurnedOnce(true);
-    setFlipped((f) => !f);
+    if (!flippable || loading) return;
+    setRequested((r) => !r);
   };
   const onKeyDown = (e) => {
     if (!flippable || (e.key !== 'Enter' && e.key !== ' ')) return;
     e.preventDefault();
     toggle();
   };
+  const pickRange = (e, value) => {
+    e.stopPropagation();
+    if (!loading) setRange(value);
+  };
 
   const changePill = change && <span className={`bubble-pill ${change.className}`}>{change.text}</span>;
   const pill = item ? <span className={`bubble-pill ${bubbleBadge(item).className}`}>{bubbleBadge(item).text}</span> : changePill;
+  const backSeries = status === 'ready' ? series : loading ? shown : null;
 
   return (
     <div
-      className={`home-pro-card is-${direction} ${isBest ? 'best-choice' : ''} ${flippable ? 'can-flip' : ''} ${isFlipped ? 'is-flipped' : ''}`}
+      className={`home-pro-card is-${direction} ${isBest ? 'best-choice' : ''} ${flippable ? 'can-flip' : ''} ${isFlipped ? 'is-flipped' : ''} ${loading ? 'is-loading' : ''}`}
+      aria-busy={loading}
       {...(flippable
         ? {
             role: 'button',
             tabIndex: 0,
             'aria-pressed': isFlipped,
-            'aria-label': isFlipped ? `${asset.name}: بازگشت به جزئیات` : `${asset.name}: نمایش نمودار کندلی ۳۰ روز اخیر`,
+            'aria-label': isFlipped ? `${asset.name}: بازگشت به جزئیات` : `${asset.name}: نمایش نمودار کندلی`,
             onClick: toggle,
             onKeyDown,
           }
@@ -238,15 +236,42 @@ function FullCard({ asset, isBest = false, flippable = true }) {
           <StaleMark asset={asset} />
           {item && <GoldMetrics item={item} />}
           <div className="pro-card-foot">
-            <DayRange range={asset.dayRange} price={price} />
+            <DayRange range={asset.dayRange} />
             {flippable && (
-              <span className="pro-card-hint" aria-hidden="true">
+              <span className={`pro-card-hint ${loading && !opened ? 'is-spinning' : ''}`} aria-hidden="true">
                 <ChartCandlestick size={13} />
               </span>
             )}
           </div>
         </div>
-        {flippable && turnedOnce && <CardBack asset={asset} unit={unit} turned={isFlipped} />}
+        {flippable && opened && (
+          <div className="pro-card-face is-back" aria-hidden={!isFlipped}>
+            <div className="pro-card-ranges" role="group" aria-label="بازه‌ی نمودار">
+              {CANDLE_RANGES.map((r) => (
+                <button
+                  key={r.value}
+                  type="button"
+                  className={range === r.value ? 'is-active' : ''}
+                  aria-pressed={range === r.value}
+                  disabled={loading}
+                  onClick={(e) => pickRange(e, r.value)}
+                  onKeyDown={(e) => e.stopPropagation()}
+                >
+                  {r.label}
+                </button>
+              ))}
+            </div>
+            {backSeries?.candles?.length ? (
+              <div className={`pro-card-chart ${loading ? 'is-loading' : ''}`}>
+                <TrendCandles candles={backSeries.candles} days={backSeries.days} unit={unit} label={`نمودار کندلی ${asset.name}`} />
+              </div>
+            ) : loading ? (
+              <div className="pro-card-back-state is-loading" aria-label="در حال دریافت نمودار" role="status" />
+            ) : (
+              <div className="pro-card-back-state">{status === 'error' ? 'نمودار فعلاً در دسترس نیست' : 'تاریخچه‌ای برای این بازه ثبت نشده'}</div>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );

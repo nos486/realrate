@@ -1,7 +1,8 @@
 // @vitest-environment happy-dom
 /**
- * homeTrendCard.test.js — The full home card: details and today's range in front, no chart and no
- * request until it is turned; turned, its back is only the 30-day candles, fetched then (once)
+ * homeTrendCard.test.js — The full home card: details and today's low / high in front, no chart
+ * and no request until it is turned; locked while its candles load; its back is only the candles
+ * (۱ ماه / ۶ ماه / ۱ سال, each fetched once), and a tap there turns it back
  */
 import React from 'react';
 import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest';
@@ -27,7 +28,7 @@ beforeEach(() => {
 afterEach(cleanup);
 
 describe('full card', () => {
-  it('shows price, change and today\'s range in front, with no chart and no request', () => {
+  it('shows price, change and today\'s low and high in front, with no chart and no request', () => {
     const { container } = card();
     const front = container.querySelector('.pro-card-face.is-front');
     expect(digits(front.querySelector('.pro-card-price-value').textContent)).toBe(digits((101500).toLocaleString('fa-IR')));
@@ -35,29 +36,51 @@ describe('full card', () => {
     const labels = front.querySelector('.pro-range-labels').textContent;
     expect(labels).toContain('کف امروز');
     expect(digits(labels)).toContain(digits((102000).toLocaleString('fa-IR')));
-    // 1500 of 2000 above the low
-    expect(front.querySelector('.pro-range-fill').style.width).toBe('75%');
+    expect(container.querySelector('.pro-range-track')).toBeNull();
     expect(container.querySelector('.trend-candle, .pro-card-face.is-back')).toBeNull();
     expect(api.getSparklines).not.toHaveBeenCalled();
   });
 
-  it('turned, fetches this asset\'s candles once and shows only them', async () => {
-    api.getSparklines.mockResolvedValue({ available: true, sparklines: { usd: series(30) } });
+  it('is locked while its candles load, then turns to only them', async () => {
+    let resolve;
+    api.getSparklines.mockImplementation(() => new Promise((r) => { resolve = r; }));
     const { container } = card();
     const root = container.querySelector('.home-pro-card');
     fireEvent.click(root);
-    expect(root.classList.contains('is-flipped')).toBe(true);
     expect(api.getSparklines).toHaveBeenCalledWith(['usd'], '30d', { candles: true });
-    await waitFor(() => expect(container.querySelectorAll('.pro-card-face.is-back .trend-candle')).toHaveLength(30));
+    await waitFor(() => expect(root.classList.contains('is-loading')).toBe(true));
+    expect(root.classList.contains('is-flipped')).toBe(false);
+    fireEvent.click(root); // locked: ignored
+    resolve({ available: true, sparklines: { usd: series(30) } });
+    await waitFor(() => expect(root.classList.contains('is-flipped')).toBe(true));
+    expect(root.classList.contains('is-loading')).toBe(false);
     const back = container.querySelector('.pro-card-face.is-back');
-    expect(back.querySelector('.pro-range, .pro-metric, .pro-card-name')).toBeNull();
-    // Inspecting the chart keeps the back; a tap elsewhere turns it; turning again asks nothing
+    expect(back.querySelectorAll('.trend-candle')).toHaveLength(30);
+    expect(back.querySelector('.pro-range-labels, .pro-metric, .pro-card-name')).toBeNull();
+    // A tap on the chart turns it back; turning again asks nothing
     fireEvent.click(back.querySelector('.pro-card-chart'));
-    expect(root.classList.contains('is-flipped')).toBe(true);
-    fireEvent.keyDown(root, { key: 'Enter' });
     expect(root.classList.contains('is-flipped')).toBe(false);
     fireEvent.click(root);
+    expect(root.classList.contains('is-flipped')).toBe(true);
     expect(api.getSparklines).toHaveBeenCalledTimes(1);
+  });
+
+  it('6 months and a year ask again (once each), without turning the card', async () => {
+    api.getSparklines.mockImplementation(async ([id], range) => ({ available: true, sparklines: { [id]: series(range === '30d' ? 30 : range === '180d' ? 180 : 365) } }));
+    const { container } = card();
+    const root = container.querySelector('.home-pro-card');
+    fireEvent.click(root);
+    await waitFor(() => expect(root.classList.contains('is-flipped')).toBe(true));
+    const buttons = [...container.querySelectorAll('.pro-card-ranges button')];
+    expect(buttons.map((b) => b.textContent)).toEqual(['۱ ماه', '۶ ماه', '۱ سال']);
+    fireEvent.click(buttons[1]);
+    await waitFor(() => expect(container.querySelectorAll('.trend-candle')).toHaveLength(180));
+    expect(root.classList.contains('is-flipped')).toBe(true);
+    fireEvent.click(buttons[2]);
+    await waitFor(() => expect(container.querySelectorAll('.trend-candle')).toHaveLength(365));
+    fireEvent.click(buttons[0]);
+    await waitFor(() => expect(container.querySelectorAll('.trend-candle')).toHaveLength(30));
+    expect(api.getSparklines.mock.calls.map((c) => c[1])).toEqual(['30d', '180d', '1y']);
   });
 
   it('says so when there is no history', async () => {
@@ -73,7 +96,7 @@ describe('full card', () => {
     expect(root.getAttribute('role')).toBeNull();
     fireEvent.click(root);
     expect(root.classList.contains('is-flipped')).toBe(false);
-    expect(container.querySelector('.pro-range')).toBeNull();
+    expect(container.querySelector('.pro-range-labels')).toBeNull();
     expect(api.getSparklines).not.toHaveBeenCalled();
   });
 

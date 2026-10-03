@@ -14,7 +14,7 @@ Every feature in detail. For a summary see the [README](../../README.en.md). Per
 ## 2. Personal home page
 - The home page is made of **sections**, and each user decides what they see.
 - Any market asset (gold, coin, currency, crypto, stock symbol, fund) can be added to any section.
-- Each section uses one of two card styles: **full card** (front: price, change, bubble and intrinsic value for gold and coins, and today's low–high bar with where the price sits — from the price book, no query; tapped, it turns over to only the last 30 days as candles, fetched the first time that card is turned) or **compact card** (one list on mobile). Sections saved as «trend» show as full cards.
+- Each section uses one of two card styles: **full card** (front: price, change, bubble and intrinsic value for gold and coins, and today's low and high — from the price book, no query; tapped, it turns over to only the candles, with 1 month / 6 months / 1 year buttons — each window fetched when picked, the card locked until it arrives; a tap on the back, the chart included, turns it back) or **compact card** (one list on mobile). Sections saved as «trend» show as full cards.
 - Top bar: search, **base rates** (manual dollar and ounce input — opened automatically when there is no dollar rate) and **customize**.
 - Sections collapse and expand by clicking their title (remembered in the browser).
 - "Customize" mode: move cards and sections by **drag and drop** (mouse, touch and keyboard), add and remove assets and sections, rename and restyle them, and **ready-made presets** (default, gold and coins, currencies and crypto, stocks and funds, summary) from the bottom bar.

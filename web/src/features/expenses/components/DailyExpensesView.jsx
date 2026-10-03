@@ -5,8 +5,7 @@
  * - «ماهانه / سالانه» and the month or year shown; the year (and the month before it) is loaded
  *   once, so switching months inside it fetches nothing
  * - «ماهانه»: the month's total, the change from the same days of last month, the daily average
- *   and the largest category; the chart of the year so far (the month highlighted, a tap opens
- *   another month); a donut of the categories; the monthly budgets (total and per category) as
+ *   and the largest category; a donut of the categories; the monthly budgets (total and per category) as
  *   progress bars; and, with accounts, how much was paid from each
  * - «سالانه»: the year's total, monthly average, costliest month and largest category; the year
  *   month by month with the change from the month before, and a month-by-month table
@@ -229,7 +228,6 @@ export default function DailyExpensesView({ usdToman = 0, hideValues = false }) 
         hideValues={hideValues}
         totalFooter={summary.unpricedUsd > 0 && <span>{formatAmount(summary.unpricedUsd, 'USD')} دلار بدون نرخ حساب نشده</span>}
       />
-      <YearFlowChart series={series} kind="expense" labelOf={labelOf} categoryOrder={categoryOrder} selectedMonth={month.jm} onOpenMonth={openMonth} hideValues={hideValues} />
       {donutItems.length > 0 && (
         <DonutChart title="تفکیک دسته‌ها" items={donutItems} centerLabel="جمع ماه" masked={hideValues} />
       )}
