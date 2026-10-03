@@ -57,6 +57,7 @@ export default function AddLoanForm({
   const [startDateShamsi, setStartDateShamsi] = useState(getTodayShamsi());
   const [annualFeeAmount, setAnnualFeeAmount] = useState('');
   const [notes, setNotes] = useState('');
+  const [remindersEnabled, setRemindersEnabled] = useState(true);
   const [formError, setFormError] = useState('');
 
   // How installment amounts are determined at creation time — creation-only, mutually exclusive:
@@ -128,6 +129,7 @@ export default function AddLoanForm({
         editingLoan.annualFeeAmount ? String(editingLoan.annualFeeAmount) : ''
       );
       setNotes(editingLoan.notes || '');
+      setRemindersEnabled(editingLoan.remindersMuted !== true);
     } else {
       // A new loan, empty or from a `draft` (a bank SMS deposit: amount, day, bank)
       const start = draft?.startDate || todayIso();
@@ -142,6 +144,7 @@ export default function AddLoanForm({
       setStartDateShamsi(draft?.startDate ? gregorianToShamsi(start) : getTodayShamsi());
       setAnnualFeeAmount('');
       setNotes('');
+      setRemindersEnabled(true);
     }
 
     return () => {
@@ -324,6 +327,7 @@ export default function AddLoanForm({
         startDate: startDateIso || todayIso(),
         annualFeeAmount: cleanAnnualFee,
         notes: notes.trim(),
+        remindersMuted: !remindersEnabled,
         totalRepaymentAmount: totalRepaymentAmountToSubmit,
       });
       onClose();
@@ -735,6 +739,18 @@ export default function AddLoanForm({
           onChange={(e) => setNotes(e.target.value)}
           rows={2}
         />
+
+        <label className="income-recurring-toggle" style={{ marginTop: '4px' }}>
+          <input
+            type="checkbox"
+            checked={remindersEnabled}
+            onChange={(e) => setRemindersEnabled(e.target.checked)}
+          />
+          <span>
+            <strong>یادآوری برای این مورد</strong>
+            <small>در صورت فعال بودن، در زمان سررسید اقساط این وام اعلان یا ایمیل یادآوری ارسال می‌شود.</small>
+          </span>
+        </label>
       </div>
     </Modal>
   );

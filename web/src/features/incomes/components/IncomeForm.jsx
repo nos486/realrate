@@ -63,6 +63,7 @@ export default function IncomeForm({
   const canChooseRecurring = Boolean(onSubmitRecurring) && !editingIncome;
   const [recurring, setRecurring] = useState(Boolean(editingRule) || startRecurring);
   const [intervalMonths, setIntervalMonths] = useState(String(editingRule?.intervalMonths || 1));
+  const [remindersEnabled, setRemindersEnabled] = useState(source?.remindersMuted !== true);
   const [submitError, setSubmitError] = useState('');
 
   const amountNum = parseInputNumber(amount);
@@ -85,6 +86,7 @@ export default function IncomeForm({
           amount: amountNum,
           startDate: dateIso,
           intervalMonths: Number(intervalMonths),
+          remindersMuted: !remindersEnabled,
           notes: notes.trim(),
         });
       } else {
@@ -194,6 +196,20 @@ export default function IncomeForm({
           <p className="income-recurring-hint">
             روز همین تاریخ، روز دریافت در هر دوره است. دوره‌هایی که تا امروز گذشته‌اند هم ثبت می‌شوند.
           </p>
+        )}
+
+        {recurring && (
+          <label className="income-recurring-toggle" style={{ marginTop: '4px' }}>
+            <input
+              type="checkbox"
+              checked={remindersEnabled}
+              onChange={(e) => setRemindersEnabled(e.target.checked)}
+            />
+            <span>
+              <strong>یادآوری برای این مورد</strong>
+              <small>در صورت فعال بودن، هنگام سررسید اعلان یا ایمیل یادآوری ارسال می‌شود.</small>
+            </span>
+          </label>
         )}
 
         <Input

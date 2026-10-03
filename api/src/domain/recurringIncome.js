@@ -88,6 +88,7 @@ export function validateRecurringIncome(body = {}) {
       intervalMonths,
       dayOfMonth,
       notes,
+      remindersMuted: Boolean(body.remindersMuted),
       active: body.active === undefined ? true : Boolean(body.active),
       generatedThrough,
     },

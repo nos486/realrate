@@ -58,31 +58,16 @@ They are published to the store by:
 
 Transient feedback ("saved", "failed") is not an alert: it stays a toast (`FeedbackProvider`).
 
-## Delivery channels — `alertChannels.js`
+## Delivery channels
 
-- **In the app**: always. These are the bell and the banners.
-- **Email**: prepared, not enabled yet.
-  - `selectForEmail(alerts, prefs, sent)` picks the critical alerts whose source may be emailed
-    (`ALERT_SOURCES[source].email`: loans, cheques), from the sources the user chose, and not
-    already sent.
-  - `buildEmailDigest(alerts, { includeAmounts })` writes the subject and text. Amounts are left
-    out unless the user allows them.
-  - `deliverAlerts()` runs after every change and remembers the fingerprints it sent.
-
-### Enabling email later
-
-1. Add a server endpoint, for example `POST /api/alerts/email`. It should:
-   - accept `{ subject, text }` from the signed-in user only
-   - rate-limit
-   - send to the account's verified email
-2. In `alertChannels.js`, set `EMAIL_CHANNEL.available = true` and make `send` call that endpoint.
-3. Add the settings UI over `getEmailPrefs()` / `setEmailPrefs()`: on/off, sources, amounts.
-   Consider moving the prefs into an encrypted vault record so they follow the account.
-4. Reminders while the app is closed need the browser or phone to run the rules. Options:
-   - Android: a background job runs the same rules
-   - the user opts in to storing a minimal plaintext schedule (due dates only) on the server
-
-   That is a privacy decision to make explicitly.
+- **In the app**: always. These are the bell (`AlertCenter.jsx`) and the banners (`AlertStack.jsx`).
+- **Email reminders**: server-driven via the minimal plaintext reminder index (`vault_reminders`) and daily cron (08:00 Asia/Tehran).
+  - Sent to opted-in accounts with a verified email address (`alert_email_prefs`).
+  - Digested into one email per user per day: counts and item kinds only («۱ قسط وام فردا سررسید می‌شود»).
+  - Server sees: dates, intervals, remaining counts, muted flags, and optionally cheque direction (`include_cheque_direction`).
+  - Server never sees: amounts, titles, banks, or counterparties.
+- **Android local notifications**: scheduled on-device with full details (titles and optional amounts) via `@capacitor/local-notifications`.
+- **Sealed Web Push (PWA)**: end-to-end encrypted push notifications where payloads are sealed on the client with a per-device key.
 
 ## Adding a new kind of alert
 

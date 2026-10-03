@@ -29,6 +29,8 @@ import { encryptVaultRecord, decryptVaultRecord, getPortfolioKey, isAccountVault
 import { getPortfolios, createPortfolio } from '../../features/portfolio/api/portfolioApi.js';
 import { listCustomBanks, createCustomBank } from '../banks/bankApi.js';
 import { getHomeLayout, saveHomeLayout } from '../../features/home/homeApi.js';
+import { reminderOf, REMINDER_KINDS } from '../../utils/reminders.js';
+import { shouldIncludeChequeDirection } from '../alerts/emailAlertsApi.js';
 
 export const BACKUP_FORMAT = 'realrate-backup';
 export const ENCRYPTED_BACKUP_FORMAT = 'realrate-backup-encrypted';
@@ -236,7 +238,15 @@ export async function restoreFullBackup(backup, { onProgress = () => {} } = {}) 
       if (!order.has(r.kind)) throw new Error('unknown kind');
       const data = remapRecord(r.kind, r.data, { portfolioIds, bankIds });
       const payload = await encryptVaultRecord(data);
-      await putVaultRecord(r.kind, r.id, payload, { recordDate: recordDateOf(r.kind, data) || r.recordDate || '', parentId: r.parentId || '', silent: true });
+      const reminder = REMINDER_KINDS.includes(r.kind)
+        ? reminderOf(r.kind, data, { includeDirection: shouldIncludeChequeDirection() })
+        : undefined;
+      await putVaultRecord(r.kind, r.id, payload, {
+        recordDate: recordDateOf(r.kind, data) || r.recordDate || '',
+        parentId: r.parentId || '',
+        reminder,
+        silent: true,
+      });
       restored += 1;
     } catch {
       skipped += 1;

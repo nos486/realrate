@@ -366,6 +366,61 @@ export const APP_TABLES = [
     ],
   },
   {
+    // Minimal plaintext index for due loan installments, cheques and recurring incomes
+    name: "vault_reminders",
+    columns: ["user_id", "kind", "record_id", "due_date", "interval_months", "remaining", "direction", "muted", "updated_at"],
+    ddl: [
+      `CREATE TABLE IF NOT EXISTS vault_reminders (
+        user_id TEXT NOT NULL,
+        kind TEXT NOT NULL,
+        record_id TEXT NOT NULL,
+        due_date TEXT NOT NULL,
+        interval_months BIGINT NOT NULL DEFAULT 0,
+        remaining BIGINT,
+        direction TEXT NOT NULL DEFAULT '',
+        muted BIGINT NOT NULL DEFAULT 0,
+        updated_at TEXT NOT NULL,
+        PRIMARY KEY (user_id, kind, record_id)
+      )`,
+      "CREATE INDEX IF NOT EXISTS idx_vault_reminders_due ON vault_reminders(due_date)",
+      "CREATE INDEX IF NOT EXISTS idx_vault_reminders_cron ON vault_reminders(muted, due_date)",
+    ],
+  },
+  {
+    // Server-side email reminder preferences per account
+    name: "alert_email_prefs",
+    columns: ["user_id", "enabled", "sources", "lead_days", "send_overdue", "include_cheque_direction", "updated_at"],
+    ddl: [
+      `CREATE TABLE IF NOT EXISTS alert_email_prefs (
+        user_id TEXT PRIMARY KEY,
+        enabled BIGINT NOT NULL DEFAULT 0,
+        sources TEXT NOT NULL DEFAULT '["loan","cheque"]',
+        lead_days TEXT NOT NULL DEFAULT '[1,0]',
+        send_overdue BIGINT NOT NULL DEFAULT 1,
+        include_cheque_direction BIGINT NOT NULL DEFAULT 0,
+        updated_at TEXT NOT NULL
+      )`,
+    ],
+  },
+  {
+    // History of sent reminder emails to prevent duplicate digests
+    name: "alert_email_sent",
+    columns: ["user_id", "kind", "record_id", "due_date", "reason", "sent_at"],
+    ddl: [
+      `CREATE TABLE IF NOT EXISTS alert_email_sent (
+        user_id TEXT NOT NULL,
+        kind TEXT NOT NULL,
+        record_id TEXT NOT NULL,
+        due_date TEXT NOT NULL,
+        reason TEXT NOT NULL,
+        sent_at TEXT NOT NULL,
+        PRIMARY KEY (user_id, kind, record_id, due_date, reason)
+      )`,
+      "CREATE INDEX IF NOT EXISTS idx_alert_email_sent_time ON alert_email_sent(sent_at)",
+      "CREATE INDEX IF NOT EXISTS idx_alert_email_sent_user ON alert_email_sent(user_id)",
+    ],
+  },
+  {
     name: "user_activity",
     columns: ["user_id", "day"],
     ddl: [

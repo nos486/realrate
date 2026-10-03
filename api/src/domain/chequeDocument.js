@@ -162,6 +162,7 @@ export function validateChequeInput(body = {}, { today } = {}) {
       chequeNumber,
       sayadId,
       notes,
+      remindersMuted: Boolean(body.remindersMuted),
       history,
     },
   };

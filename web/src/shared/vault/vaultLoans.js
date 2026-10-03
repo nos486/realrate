@@ -23,7 +23,7 @@ import {
 import { getBankById, isCustomBankId, matchBankIdByName } from '../../config/banks.config.js';
 import { ensureCustomBanks } from '../banks/useCustomBanks.js';
 import { listVaultRecords, deleteVaultRecord } from './vaultApi.js';
-import { putRecord, backfillRecordDates } from './vaultRecordMeta.js';
+import { putRecord, backfillRecordDates, backfillReminders } from './vaultRecordMeta.js';
 import { encryptVaultRecord, decryptVaultRecord } from './vaultStore.js';
 
 const KIND = 'loan';
@@ -70,6 +70,7 @@ async function loadDocs() {
   }
   docs = next;
   backfillRecordDates(KIND, decrypted);
+  backfillReminders(KIND, decrypted);
   return docs;
 }
 

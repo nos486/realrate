@@ -8,7 +8,7 @@
 
 import { validateRecurringIncome } from '../../utils/recurringIncome.js';
 import { listVaultRecords, deleteVaultRecord } from './vaultApi.js';
-import { putRecord, backfillRecordDates } from './vaultRecordMeta.js';
+import { putRecord, backfillRecordDates, backfillReminders } from './vaultRecordMeta.js';
 import { encryptVaultRecord, decryptVaultRecord } from './vaultStore.js';
 
 const KIND = 'recurring_income';
@@ -54,6 +54,7 @@ export async function getRecurringIncomes() {
   }
   rules = next;
   backfillRecordDates(KIND, decrypted);
+  backfillReminders(KIND, decrypted);
   const list = [...rules.values()].sort((a, b) => String(a.createdAt || '').localeCompare(String(b.createdAt || '')));
   return { success: true, count: list.length, rules: list };
 }

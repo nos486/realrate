@@ -145,6 +145,7 @@ export async function handlePutVaultRecord(request, env, { kind, id }) {
     recordDate: body.recordDate,
     parentId: body.parentId,
     vaultEpoch: typeof body.vaultEpoch === "string" ? body.vaultEpoch : "",
+    reminder: body.reminder,
   });
   return jsonResponse({ success: true, record }, 200, request);
 }

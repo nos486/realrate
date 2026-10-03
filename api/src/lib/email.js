@@ -47,24 +47,42 @@ export async function sendEmail(env, { to, subject, html, text }) {
   }
 }
 
-const escapeHtml = (value) => String(value ?? "")
+export const escapeHtml = (value) => String(value ?? "")
   .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 
 /** Minimal RTL layout that renders in every mail client (tables + inline styles) */
-function layout({ title, intro, buttonLabel, url, outro }) {
+export function layout({ title, intro, buttonLabel, url, outro }) {
   const html = `<!doctype html>
 <html lang="fa" dir="rtl"><body style="margin:0;padding:24px;background:#0b0f17;font-family:Tahoma,Arial,sans-serif;">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr><td align="center">
 <table role="presentation" width="100%" style="max-width:520px;background:#111726;border-radius:14px;padding:28px;color:#e5e7eb;text-align:right;" cellpadding="0" cellspacing="0">
 <tr><td style="font-size:20px;font-weight:bold;color:#fde68a;padding-bottom:14px;">RealRate</td></tr>
 <tr><td style="font-size:16px;font-weight:bold;padding-bottom:10px;">${escapeHtml(title)}</td></tr>
-<tr><td style="font-size:14px;line-height:1.9;color:#cbd5e1;padding-bottom:20px;">${escapeHtml(intro)}</td></tr>
+<tr><td style="font-size:14px;line-height:1.9;color:#cbd5e1;padding-bottom:20px;">${intro.includes('<') ? intro : escapeHtml(intro).replace(/\n/g, '<br/>')}</td></tr>
 ${url ? `<tr><td style="padding-bottom:20px;"><a href="${escapeHtml(url)}" style="display:inline-block;background:#0284c7;color:#ffffff;text-decoration:none;font-weight:bold;padding:12px 22px;border-radius:10px;">${escapeHtml(buttonLabel)}</a></td></tr>
 <tr><td style="font-size:12px;line-height:1.8;color:#94a3b8;padding-bottom:16px;direction:ltr;text-align:left;word-break:break-all;">${escapeHtml(url)}</td></tr>` : ""}
-<tr><td style="font-size:12px;line-height:1.9;color:#94a3b8;">${escapeHtml(outro)}</td></tr>
+<tr><td style="font-size:12px;line-height:1.9;color:#94a3b8;">${escapeHtml(outro).replace(/\n/g, '<br/>')}</td></tr>
 </table></td></tr></table></body></html>`;
   const text = [title, "", intro, url ? `\n${buttonLabel}: ${url}` : "", "", outro].join("\n");
   return { html, text };
+}
+
+export function reminderDigestEmail({ subject, items = [], appUrl = '', settingsUrl = '' }) {
+  const title = "یادآوری سررسید RealRate";
+  const introHtml = items.map((i) => `• ${escapeHtml(i)}`).join('<br/>');
+  const introText = items.map((i) => `• ${i}`).join('\n');
+  const outro = `در ایمیل فقط تعداد و نوع موارد می‌آید؛ مبلغ و عنوان رمزنگاری شده‌اند و سرور آنها را نمی‌بیند.${settingsUrl ? `\nتنظیمات یادآوری: ${settingsUrl}` : ''}`;
+  return {
+    subject: subject || "RealRate: یادآوری سررسید",
+    ...layout({
+      title,
+      intro: introHtml,
+      buttonLabel: "مشاهده در برنامه",
+      url: appUrl,
+      outro,
+    }),
+    text: [title, "", introText, appUrl ? `\nمشاهده در برنامه: ${appUrl}` : "", "", outro].join("\n"),
+  };
 }
 
 export function verificationEmail(url) {

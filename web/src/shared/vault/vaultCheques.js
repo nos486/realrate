@@ -9,7 +9,7 @@
 import { validateChequeInput, compareChequesByDue } from '../../utils/chequeDocument.js';
 import { todayIso } from '../utils/dates.js';
 import { listVaultRecords, deleteVaultRecord } from './vaultApi.js';
-import { putRecord, backfillRecordDates } from './vaultRecordMeta.js';
+import { putRecord, backfillRecordDates, backfillReminders } from './vaultRecordMeta.js';
 import { encryptVaultRecord, decryptVaultRecord } from './vaultStore.js';
 
 const KIND = 'cheque';
@@ -59,6 +59,7 @@ export async function getCheques() {
   }
   cheques = next;
   backfillRecordDates(KIND, decrypted);
+  backfillReminders(KIND, decrypted);
   const list = [...cheques.values()].sort(compareChequesByDue);
   return { success: true, count: list.length, cheques: list };
 }

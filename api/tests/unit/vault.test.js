@@ -85,6 +85,12 @@ function createDb() {
             const existed = records.delete(recordKey(user_id, kind, id));
             return { meta: { changes: existed ? 1 : 0 } };
           }
+          if (q.startsWith('DELETE FROM vault_reminders')) {
+            return { meta: { changes: 1 } };
+          }
+          if (q.startsWith('INSERT INTO vault_reminders')) {
+            return { meta: { changes: 1 } };
+          }
           const insert = q.match(/^INSERT INTO (\w+)/);
           if (insert) {
             plain[insert[1]].push(args);

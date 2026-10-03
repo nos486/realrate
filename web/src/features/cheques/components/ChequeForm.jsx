@@ -72,6 +72,7 @@ export default function ChequeForm({
   const [notes, setNotes] = useState(
     editingCheque?.notes || initialValues?.notes || ''
   );
+  const [remindersEnabled, setRemindersEnabled] = useState(editingCheque?.remindersMuted !== true);
   const [submitError, setSubmitError] = useState('');
 
   const isLow = (key) => Boolean(!editingCheque && initialValues && confidence?.[key] === 'low');
@@ -103,6 +104,7 @@ export default function ChequeForm({
       bankName: bank.lenderName || '',
       chequeNumber: toAsciiDigits(chequeNumber).trim(),
       sayadId: sayadDigits,
+      remindersMuted: !remindersEnabled,
       notes: notes.trim(),
     };
     try {
@@ -249,6 +251,18 @@ export default function ChequeForm({
           maxLength={CHEQUE_LIMITS.notesLength}
           rows={2}
         />
+
+        <label className="income-recurring-toggle" style={{ marginTop: '4px' }}>
+          <input
+            type="checkbox"
+            checked={remindersEnabled}
+            onChange={(e) => setRemindersEnabled(e.target.checked)}
+          />
+          <span>
+            <strong>یادآوری برای این مورد</strong>
+            <small>در صورت فعال بودن، در زمان سررسید چک اعلان یا ایمیل یادآوری ارسال می‌شود.</small>
+          </span>
+        </label>
       </div>
     </Modal>
   );

@@ -10,6 +10,7 @@ import { getUserSettings, updateUserSettings } from '../features/portfolio/api/p
 import VaultSettingsSection from '../shared/vault/VaultSettingsSection.jsx';
 import BackupSection from '../shared/vault/BackupSection.jsx';
 import PasswordSettingsSection from '../features/auth/components/PasswordSettingsSection.jsx';
+import EmailRemindersSection from '../features/alerts/components/EmailRemindersSection.jsx';
 
 /**
  * AccountSettingsView
@@ -180,6 +181,8 @@ export default function AccountSettingsView() {
       <PasswordSettingsSection />
 
       <VaultSettingsSection />
+
+      <EmailRemindersSection />
 
       <BackupSection />
     </Card>

@@ -155,6 +155,11 @@ import {
   handleSyncVaultRecords,
   handleResetVault,
 } from "./handlers/vaultRoutes.js";
+import {
+  handleGetAlertEmailPrefs,
+  handlePutAlertEmailPrefs,
+  handleSendTestEmailAlert,
+} from "./handlers/alertEmailRoutes.js";
 import { handleGetHomeLayout, handleSaveHomeLayout } from "./handlers/homeLayoutRoutes.js";
 import { handleGetLatestAppRelease } from "./handlers/appUpdateRoutes.js";
 import { fetchAllPrices } from "./services/market/priceAggregator.service.js";
@@ -357,6 +362,15 @@ async function handleRequest(request, env, ctx) {
   if (vaultRecordsMatch && request.method === "GET") {
     const kind = vaultRecordsMatch[1];
     return wrap((req, e) => handleListVaultRecords(req, e, { kind }))(request, env);
+  }
+
+  // ── Alert Email Routes ──────────────────────────────────────────────────
+  if (normalizedPath === "/api/alerts/email") {
+    if (request.method === "GET") return wrap(handleGetAlertEmailPrefs)(request, env);
+    if (request.method === "PUT") return wrap(handlePutAlertEmailPrefs)(request, env);
+  }
+  if (normalizedPath === "/api/alerts/email/test" && request.method === "POST") {
+    return wrap(handleSendTestEmailAlert)(request, env);
   }
 
   // ── Loans & Installments API Routes ─────────────────────────────────────

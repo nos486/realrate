@@ -21,6 +21,7 @@ const CIPHER = 'enc:e2ee:v1:QUJDREVGR0g=';
 const TABLES = [
   'portfolios', 'portfolio_holdings', 'transactions', 'loans', 'loan_installment_states', 'loan_extra_payments',
   'incomes', 'recurring_incomes', 'cheques', 'custom_banks', 'vault_records', 'vault_tombstones', 'user_vaults',
+  'vault_reminders', 'alert_email_prefs', 'alert_email_sent',
 ];
 
 /** Rows per table, each with its user_id; deletes by user_id only */
@@ -38,7 +39,7 @@ function createDb() {
         async run() {
           const del = q.match(/^DELETE FROM (\w+) WHERE user_id = \?$/);
           if (del) {
-            rows[del[1]] = rows[del[1]].filter((r) => r.user_id !== args[0]);
+            if (rows[del[1]]) rows[del[1]] = rows[del[1]].filter((r) => r.user_id !== args[0]);
             if (del[1] === 'user_vaults') vaults.delete(args[0]);
             return { meta: {} };
           }

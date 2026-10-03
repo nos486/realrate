@@ -212,6 +212,7 @@ export function createLoanDoc(data = {}, options = {}) {
       annualFeeAmount,
       scheduleMode: distributedSchedule.length > 0 ? "distributed" : "formula",
       notes,
+      ...(data.remindersMuted ? { remindersMuted: true } : {}),
       createdAt: now,
       updatedAt: now,
     },
@@ -344,6 +345,7 @@ export function updateLoanDoc(doc, data = {}, options = {}) {
     annualFeeAmount: newAnnualFeeAmount,
     scheduleMode: financialParamsChanged ? "formula" : (existing.scheduleMode || "formula"),
     notes: newNotes,
+    ...(data.remindersMuted !== undefined ? (data.remindersMuted ? { remindersMuted: true } : {}) : (existing.remindersMuted ? { remindersMuted: true } : {})),
     updatedAt: now,
   };
 

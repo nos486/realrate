@@ -10,6 +10,8 @@ import { putVaultRecord, listVaultRecords } from './vaultApi.js';
 import { jalaliToGregorian } from '../../utils/loanCalculator.js';
 import { toEnglishDigits } from '../utils/formatters.js';
 import { isDemoReadOnly } from '../../features/demo/index.js';
+import { reminderOf, REMINDER_KINDS } from '../../utils/reminders.js';
+import { shouldIncludeChequeDirection } from '../alerts/emailAlertsApi.js';
 
 const DAY_RE = /^(\d{4})[-/](\d{1,2})[-/](\d{1,2})/;
 const pad = (n) => String(n).padStart(2, '0');
@@ -51,9 +53,47 @@ export function recordDateOf(kind, plain) {
   return toIsoDay(PRIMARY_DATE[kind]?.(plain));
 }
 
-/** Store an already-encrypted record with its plaintext metadata */
-export function putRecord(kind, id, payload, plain, { parentId = '', ...options } = {}) {
-  return putVaultRecord(kind, id, payload, { recordDate: recordDateOf(kind, plain), parentId, ...options });
+/** Store an already-encrypted record with its plaintext metadata and minimal reminder index */
+export function putRecord(kind, id, payload, plain, { parentId = '', reminder, ...options } = {}) {
+  const rem = reminder !== undefined
+    ? reminder
+    : (REMINDER_KINDS.includes(kind) ? reminderOf(kind, plain, { includeDirection: shouldIncludeChequeDirection() }) : undefined);
+  return putVaultRecord(kind, id, payload, {
+    recordDate: recordDateOf(kind, plain),
+    parentId,
+    reminder: rem,
+    ...options,
+  });
+}
+
+/** Reminders backfilled in this tab */
+const backfilledReminders = new Set();
+
+/**
+ * After loans, cheques and fixed incomes are listed and decrypted, upsert any missing or
+ * stale reminders (one-time per kind in this tab).
+ * @param {string} kind
+ * @param {Array<{ record: object, plain: object }>} items
+ */
+export function backfillReminders(kind, items) {
+  if (isDemoReadOnly() || !REMINDER_KINDS.includes(kind) || backfilledReminders.has(kind)) return;
+  backfilledReminders.add(kind);
+  (async () => {
+    for (const { record, plain } of items) {
+      if (!plain || typeof plain !== 'object') continue;
+      const rem = reminderOf(kind, plain, { includeDirection: shouldIncludeChequeDirection() });
+      try {
+        await putVaultRecord(kind, record.id, record.payload, {
+          recordDate: record.recordDate || recordDateOf(kind, plain),
+          parentId: record.parentId || '',
+          reminder: rem,
+          silent: true,
+        });
+      } catch {
+        // Retry next time on failure
+      }
+    }
+  })();
 }
 
 /**

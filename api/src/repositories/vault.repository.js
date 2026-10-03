@@ -14,6 +14,7 @@
 
 import { ensureSchema } from "./schema.repository.js";
 import { AppError } from "../lib/AppError.js";
+import { REMINDER_KINDS, validateReminder } from "../domain/reminders.js";
 
 export const VAULT_RECORD_KINDS = [
   "loan", "income", "cheque", "recurring_income", "holding", "transaction", "portfolio_layout",
@@ -182,6 +183,9 @@ const USER_DATA_TABLES = [
   "custom_banks",
   "vault_records",
   "vault_tombstones",
+  "vault_reminders",
+  "alert_email_prefs",
+  "alert_email_sent",
   "user_vaults",
 ];
 
@@ -285,8 +289,9 @@ function deletePlainStatements(env, userId, kind, id) {
 /**
  * Create or replace an encrypted record. With `replacePlain`, the plaintext record with the same
  * id is deleted in the same batch (used when encrypting existing data).
+ * Optional `reminder` upserts or removes the minimal plaintext reminder row in the same batch.
  */
-export async function dbPutVaultRecord(env, userId, kind, id, { payload, replacePlain = false, recordDate = "", parentId = "", vaultEpoch = "" }) {
+export async function dbPutVaultRecord(env, userId, kind, id, { payload, replacePlain = false, recordDate = "", parentId = "", vaultEpoch = "", reminder } = {}) {
   assertKind(kind);
   assertRecordId(id);
   assertPayload(payload);
@@ -294,6 +299,13 @@ export async function dbPutVaultRecord(env, userId, kind, id, { payload, replace
   const parent = parseParentId(parentId);
   if (PORTFOLIO_ITEM_KINDS.includes(kind) && !parent) throw AppError.badRequest("پورتفوی این مورد مشخص نشده است.");
   if (kind === "expense" && !parent) throw AppError.badRequest("بخش این هزینه مشخص نشده است.");
+
+  if (reminder !== undefined) {
+    if (!REMINDER_KINDS.includes(kind)) {
+      throw AppError.badRequest("ثبت یادآوری برای این نوع رکورد پشتیبانی نمی‌شود.");
+    }
+  }
+
   const vault = await requireVault(env, userId);
   // Encrypted with the key of a vault since reset (a device that was offline): unreadable now
   if (vaultEpoch && vaultEpoch !== vault.createdAt) {
@@ -312,6 +324,31 @@ export async function dbPutVaultRecord(env, userId, kind, id, { payload, replace
         parent_id = excluded.parent_id, updated_at = excluded.updated_at
     `).bind(userId, kind, id, payload, date, parent, now, now),
   ];
+
+  if (reminder !== undefined) {
+    if (reminder === null) {
+      statements.push(env.DB.prepare(`DELETE FROM vault_reminders WHERE user_id = ? AND kind = ? AND record_id = ?`).bind(userId, kind, id));
+    } else {
+      const validated = validateReminder(reminder);
+      if (validated.error) throw AppError.badRequest(validated.error);
+      if (validated.value.kind !== kind || validated.value.recordId !== id) {
+        throw AppError.badRequest("اطلاعات یادآوری با رکورد همخوانی ندارد.");
+      }
+      const r = validated.value;
+      statements.push(env.DB.prepare(`
+        INSERT INTO vault_reminders (user_id, kind, record_id, due_date, interval_months, remaining, direction, muted, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ON CONFLICT(user_id, kind, record_id) DO UPDATE SET
+          due_date = excluded.due_date,
+          interval_months = excluded.interval_months,
+          remaining = excluded.remaining,
+          direction = excluded.direction,
+          muted = excluded.muted,
+          updated_at = excluded.updated_at
+      `).bind(userId, kind, id, r.dueDate, r.intervalMonths, r.remaining, r.direction, r.muted ? 1 : 0, now));
+    }
+  }
+
   if (replacePlain) statements.push(...deletePlainStatements(env, userId, kind, id));
   await env.DB.batch(statements);
   return { id, kind, payload, recordDate: date, parentId: parent, updatedAt: now };
@@ -323,6 +360,8 @@ export async function dbDeleteVaultRecord(env, userId, kind, id) {
   const now = new Date().toISOString();
   const [res] = await env.DB.batch([
     env.DB.prepare(`DELETE FROM vault_records WHERE user_id = ? AND kind = ? AND id = ?`).bind(userId, kind, id),
+    // Delete reminder row in the same batch
+    env.DB.prepare(`DELETE FROM vault_reminders WHERE user_id = ? AND kind = ? AND record_id = ?`).bind(userId, kind, id),
     // Devices keeping a copy learn of the deletion at their next sync
     env.DB.prepare(`
       INSERT INTO vault_tombstones (user_id, kind, id, deleted_at) VALUES (?, ?, ?, ?)

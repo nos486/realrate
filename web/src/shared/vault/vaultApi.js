@@ -88,9 +88,9 @@ export const listVaultRecords = async (kind, options, filters = {}) => {
   return httpClient.get(`/api/vault/records/${seg(kind)}${query ? `?${query}` : ''}`, options);
 };
 
-/** Store a record: ciphertext + its plaintext metadata (recordDate, parentId) */
-export const putVaultRecord = async (kind, id, payload, { replacePlain = false, recordDate = '', parentId = '', ...options } = {}) => {
-  const body = { payload, replacePlain, recordDate, parentId, vaultEpoch: vaultEpoch() || undefined };
+/** Store a record: ciphertext + its plaintext metadata (recordDate, parentId, reminder) */
+export const putVaultRecord = async (kind, id, payload, { replacePlain = false, recordDate = '', parentId = '', reminder, ...options } = {}) => {
+  const body = { payload, replacePlain, recordDate, parentId, reminder, vaultEpoch: vaultEpoch() || undefined };
   const path = `/api/vault/records/${seg(kind)}/${seg(id)}`;
   if (!offline.isOfflineActive()) {
     return httpClient.put(path, body, options).catch((err) => {
