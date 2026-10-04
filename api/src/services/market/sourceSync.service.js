@@ -85,6 +85,31 @@ export function withDayRange(book, previousBook, now) {
   return book;
 }
 
+/**
+ * The prices a tick records in the history. Each recorded price costs a row read in D1 (the
+ * upsert looks the day's row up), and most prices don't move from one minute to the next — a
+ * catalog of thousands of symbols barely moves outside market hours — so a tick records only
+ * the items whose price differs from the previous book's. The first tick of each hour (and of
+ * each Tehran day) records them all: it starts every item's day row, and repairs a change an
+ * earlier failed write missed. Items of sources that didn't sync keep their value, except those
+ * computed from the dollar and the ounce.
+ * @param {{ updatedAt?: string, items: Record<string, object> }} book
+ * @param {{ updatedAt?: string, items?: Record<string, object> }|null} previousBook
+ * @param {Set<string>} syncedSourceIds
+ * @returns {Array<{ id: string, price: number }>}
+ */
+export function historyPointsOf(book, previousBook, syncedSourceIds) {
+  const at = Date.parse(book?.updatedAt || "") || Date.now();
+  const before = Date.parse(previousBook?.updatedAt || "");
+  const hourOf = (ms) => `${tehranDay(ms)}T${Math.floor(ms / 3_600_000)}`;
+  const everything = !Number.isFinite(before) || hourOf(before) !== hourOf(at);
+  return Object.values(book?.items || {})
+    .filter((item) => !item.sourceId || syncedSourceIds.has(item.sourceId)
+      || item.params?.usd !== undefined || item.params?.usdCross !== undefined)
+    .filter((item) => everything || Number(previousBook?.items?.[item.id]?.price) !== Number(item.price))
+    .map((item) => ({ id: item.id, price: item.price }));
+}
+
 export async function syncAllSources(env, options = {}) {
   const empty = { totalActive: 0, dueCount: 0, syncedCount: 0, failedCount: 0, results: [] };
   if (!env) return empty;
@@ -206,21 +231,11 @@ export async function syncAllSources(env, options = {}) {
   })), { now: nowIso, sourceStates: states }), previousBook, Date.parse(nowIso) || Date.now());
   await setPriceBookCache(env, book);
 
-  // 5. Price history, keyed by the book's ids (the writer never throws). Items of sources that
-  // didn't sync keep their value, except those computed from the dollar and the ounce. Each price
-  // is recorded at the time its source gave it; live, non-catalog prices also get an hourly
-  // heartbeat row, so a flat price and a dead source look different in the history.
+  // 5. Price history, keyed by the book's ids (the writer never throws): only what moved since
+  //    the previous book, all of it once an hour (historyPointsOf)
   if (priceHistoryWriter && syncedCount > 0) {
-    const points = Object.values(book.items)
-      .filter((item) => !item.sourceId || syncedSourceIds.has(item.sourceId)
-        || item.params?.usd !== undefined || item.params?.usdCross !== undefined)
-      .map((item) => ({
-        id: item.id,
-        price: item.price,
-        at: item.updatedAt,
-        heartbeat: !item.params?.stale && !item.params?.symbol,
-      }));
-    await priceHistoryWriter(env, points, book.updatedAt);
+    const points = historyPointsOf(book, previousBook, syncedSourceIds);
+    if (points.length > 0) await priceHistoryWriter(env, points, book.updatedAt);
   }
 
   return {

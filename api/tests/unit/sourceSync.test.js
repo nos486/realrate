@@ -12,7 +12,7 @@
 import { memoryStateDb } from '../helpers/memoryStateDb.js';
 import { resetPriceBookMemo } from '../../src/repositories/priceBookStore.repository.js';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { syncAllSources, setPriceHistoryWriter } from '../../src/services/market/sourceSync.service.js';
+import { syncAllSources, setPriceHistoryWriter, historyPointsOf } from '../../src/services/market/sourceSync.service.js';
 import { runCronPolling } from '../../src/jobs/cronPolling.job.js';
 import * as priceSourceRepo from '../../src/repositories/priceSource.repository.js';
 import * as adapterIndex from '../../src/services/market/sources/index.js';
@@ -325,5 +325,39 @@ describe('Unified Orchestration — sourceSync.service (Phase 4)', () => {
     const book = mockEnv.DB.json('prices');
     expect(book.items.usd.price).toBe(9500);
     expect(book.sources.src_def_usd.held.src_def_usd).toEqual({ value: 95000, ticks: 1 });
+  });
+});
+
+describe('historyPointsOf: what a tick records in the history', () => {
+  const item = (id, price, sourceId = 'src_a') => ({ id, price, sourceId });
+  const bookAt = (iso, items) => ({ updatedAt: iso, items: Object.fromEntries(items.map((i) => [i.id, i])) });
+  const synced = new Set(['src_a']);
+  const prev = bookAt('2026-01-01T10:05:00Z', [item('usd', 100), item('gold', 50), item('bourse__x', 9)]);
+
+  it('within the hour: only the prices that moved', () => {
+    const book = bookAt('2026-01-01T10:06:00Z', [item('usd', 101), item('gold', 50), item('bourse__x', 9), item('eur', 7)]);
+    expect(historyPointsOf(book, prev, synced).map((p) => p.id)).toEqual(['usd', 'eur']);
+  });
+
+  it('nothing moved: nothing to record', () => {
+    const book = bookAt('2026-01-01T10:06:00Z', [item('usd', 100), item('gold', 50), item('bourse__x', 9)]);
+    expect(historyPointsOf(book, prev, synced)).toEqual([]);
+  });
+
+  it('the first tick of an hour, or without a previous book: everything', () => {
+    const book = bookAt('2026-01-01T11:00:00Z', [item('usd', 100), item('gold', 50), item('bourse__x', 9)]);
+    expect(historyPointsOf(book, prev, synced)).toHaveLength(3);
+    expect(historyPointsOf(book, null, synced)).toHaveLength(3);
+  });
+
+  it('the first tick of a Tehran day (20:30 UTC), mid-UTC-hour: everything', () => {
+    const before = bookAt('2026-01-01T20:29:00Z', [item('usd', 100)]);
+    const book = bookAt('2026-01-01T20:31:00Z', [item('usd', 100)]);
+    expect(historyPointsOf(book, before, synced)).toHaveLength(1);
+  });
+
+  it('items of a source that didn\'t sync are left out, unless computed from the dollar', () => {
+    const book = bookAt('2026-01-01T11:00:00Z', [item('a', 1, 'src_b'), { ...item('lira', 2, 'src_b'), params: { usdCross: 0.03 } }]);
+    expect(historyPointsOf(book, prev, synced).map((p) => p.id)).toEqual(['lira']);
   });
 });
