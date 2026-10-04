@@ -23,7 +23,7 @@ import { expenseCsvHeaders, expenseCsvRow } from '../utils/expenseCsv.js';
 import React, { useMemo, useState } from 'react';
 import { useUsdAt } from '../../market/dailyHistory.js';
 import { Plus, Coins, Tags, Target, HandCoins, Eye, EyeOff } from 'lucide-react';
-import { AlertBanner, Button, EmptyState, GenericCsvExportButton, Pagination, SearchBar, SplitPageLayout } from '../../../shared/ui/index.js';
+import { AlertBanner, Button, EmptyState, GenericCsvExportButton, IconButton, Pagination, SearchBar, SplitPageLayout } from '../../../shared/ui/index.js';
 import DonutChart from '../../../shared/ui/DonutChart.jsx';
 import { useFeedback } from '../../../shared/ui/FeedbackProvider.jsx';
 import { SkeletonRows } from '../../../shared/ui/Skeleton.jsx';
@@ -355,20 +355,17 @@ export default function DailyExpensesView({ usdToman = 0, hideValues = false }) 
                     className="incomes-search"
                   />
                 )}
-                <Button variant="secondary" icon={<Tags size={16} />} onClick={() => setManagingCategories(true)} disabled={readOnly}>
-                  دسته‌ها
-                </Button>
+                <IconButton icon={<Tags size={15} />} label="دسته‌ها" onClick={() => setManagingCategories(true)} disabled={readOnly} />
                 {split.excluded.length > 0 && (
-                  <Button
-                    variant="secondary"
-                    className={`excluded-toggle ${showExcluded ? '' : 'is-active'}`}
-                    icon={showExcluded ? <Eye size={16} /> : <EyeOff size={16} />}
-                    onClick={() => setShowExcluded(!showExcluded)}
-                    aria-pressed={!showExcluded}
+                  <IconButton
+                    icon={showExcluded ? <Eye size={15} /> : <EyeOff size={15} />}
+                    label={showExcluded ? 'خارج از جمع: نمایش داده می‌شود' : `خارج از جمع: ${split.excluded.length.toLocaleString('fa-IR')} مورد پنهان`}
                     title={showExcluded ? 'پنهان کردن مدیریت نقدینگی، سرمایه‌گذاری و دیگر دسته‌های خارج از جمع' : 'نمایش دسته‌های خارج از جمع'}
-                  >
-                    {showExcluded ? 'خارج از جمع' : `خارج از جمع (${split.excluded.length.toLocaleString('fa-IR')} پنهان)`}
-                  </Button>
+                    active={!showExcluded}
+                    pressed={!showExcluded}
+                    badge={showExcluded ? null : split.excluded.length.toLocaleString('fa-IR')}
+                    onClick={() => setShowExcluded(!showExcluded)}
+                  />
                 )}
                 <GenericCsvExportButton
                   items={listed}

@@ -127,26 +127,14 @@ describe('PricingContext: when prices are read', () => {
     expect(result.current.priceMap.bourse__foolad).toBe(540);
   });
 
-  it('coming back to the app reads again once the prices are a little old', async () => {
+  it('returning to the browser tab reads nothing again', async () => {
     renderPricing();
     await flush();
     setVisibility('hidden');
     await act(async () => {
-      vi.advanceTimersByTime(PRICE_AUTO_REFRESH_GAP_MS);
+      vi.advanceTimersByTime(10 * 60 * 1000);
     });
     await act(async () => {
-      setVisibility('visible');
-    });
-    await flush();
-    expect(getPriceBook).toHaveBeenCalledTimes(2);
-  });
-
-  it('does not read again on return when the prices are fresh', async () => {
-    renderPricing();
-    await flush();
-    setVisibility('hidden');
-    await act(async () => {
-      vi.advanceTimersByTime(5 * 1000);
       setVisibility('visible');
     });
     await flush();

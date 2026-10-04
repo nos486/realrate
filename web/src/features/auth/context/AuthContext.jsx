@@ -213,28 +213,24 @@ export function AuthProvider({ children }) {
   }, []);
 
   // What the user may use (features, groups, pending join requests) changes when the admin moves
-  // them between groups: read it again on demand, and when the page or app comes back to the
-  // foreground (at most once a minute)
-  const lastAccessCheck = useRef(0);
+  // them between groups: read again on demand only (FeatureOffer, after a request is approved) —
+  // not on returning to the browser tab. Unchanged access keeps the same user object, so nothing
+  // that depends on the user loads its data again.
   const refreshAccess = useCallback(async () => {
-    lastAccessCheck.current = Date.now();
     try {
       const data = await getMe();
-      if (data?.authenticated && data.user) {
-        const { features = [], groups = [], requestedGroups = [] } = data.user;
-        updateUser({ features, groups, requestedGroups });
-      }
+      if (!data?.authenticated || !data.user) return;
+      const { features = [], groups = [], requestedGroups = [] } = data.user;
+      setUser((prev) => {
+        if (!prev) return prev;
+        const same = (a, b) => JSON.stringify(a || []) === JSON.stringify(b || []);
+        if (same(prev.features, features) && same(prev.groups, groups) && same(prev.requestedGroups, requestedGroups)) return prev;
+        const next = { ...prev, features, groups, requestedGroups };
+        writeCachedUser(next);
+        return next;
+      });
     } catch {}
-  }, [updateUser]);
-  useEffect(() => {
-    if (!user?.id) return undefined;
-    const onVisible = () => {
-      if (document.visibilityState === 'visible' && Date.now() - lastAccessCheck.current > 60_000) refreshAccess();
-    };
-    lastAccessCheck.current = Date.now();
-    document.addEventListener('visibilitychange', onVisible);
-    return () => document.removeEventListener('visibilitychange', onVisible);
-  }, [user?.id, refreshAccess]);
+  }, []);
 
   return (
     <AuthContext.Provider value={{ user, loading, maintenance, setMaintenance, triggerLogin, loginWithGoogle, completeLogin, logout, updateUser, refreshAccess, handleGoogleCredential }}>

@@ -74,6 +74,7 @@ describe('daily expenses with categories left out of the totals', () => {
     expect(screen.queryAllByText('t-e2')).toHaveLength(0);
     expect(screen.getAllByText('t-e1').length).toBeGreaterThan(0);
     expect(localStorage.getItem('realrate_show_excluded_expense')).toBe('0');
-    expect(screen.getByText(/پنهان\)/)).toBeTruthy();
+    // The icon button says how many are hidden (its name and a small count on it)
+    expect(screen.getByRole('button', { name: /خارج از جمع: .* مورد پنهان/ })).toBeTruthy();
   });
 });

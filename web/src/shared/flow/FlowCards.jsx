@@ -24,9 +24,10 @@ const KIND = {
 
 /**
  * @param {{ kind: 'income'|'expense', view: ReturnType<import('../../utils/dollarValue.js').summarizeDollarValues>|null,
- *   hideValues?: boolean }} props - nothing while no record has its day's rate
+ *   hideValues?: boolean, wide?: boolean }} props - nothing while no record has its day's rate;
+ *   `wide`: a row of its own in the phone's two-per-row grid (false: it pairs with the card before)
  */
-export function FlowDollarCard({ kind, view, hideValues = false }) {
+export function FlowDollarCard({ kind, view, hideValues = false, wide = true }) {
   if (!view || view.counted === 0) return null;
   return (
     <MiniCard
@@ -35,7 +36,7 @@ export function FlowDollarCard({ kind, view, hideValues = false }) {
       value={hideValues ? '****' : formatUsd(view.usd)}
       unit="دلار"
       color="blue"
-      className="incomes-summary-card is-wide"
+      className={`incomes-summary-card is-dollar${wide ? ' is-wide' : ''}`}
       footer={<DollarValueFoot view={view} noun={KIND[kind].noun} hideValues={hideValues} />}
     />
   );
@@ -89,7 +90,8 @@ export function FlowMonthCards({ kind, monthLabel, total, count, previousTotal, 
         className="incomes-summary-card"
         footer={top && <span>{money(top.total)} تومان</span>}
       />
-      <FlowDollarCard kind={kind} view={dollar} hideValues={hideValues} />
+      {/* Next to «بیشترین دسته» on a phone (two per row) */}
+      <FlowDollarCard kind={kind} view={dollar} hideValues={hideValues} wide={false} />
     </div>
   );
 }
@@ -135,7 +137,8 @@ export function FlowYearCards({ kind, yearLabel, summary, topCategory, hideValue
         className="incomes-summary-card"
         footer={topCategory && <span>{money(topCategory.total)} تومان</span>}
       />
-      <FlowDollarCard kind={kind} view={dollar} hideValues={hideValues} />
+      {/* Next to «بیشترین دسته» on a phone (two per row) */}
+      <FlowDollarCard kind={kind} view={dollar} hideValues={hideValues} wide={false} />
     </div>
   );
 }
