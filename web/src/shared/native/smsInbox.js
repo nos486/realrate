@@ -258,7 +258,7 @@ export async function enableSmsReading() {
 
 /**
  * Read the bank senders' messages since `since` (epoch millis) into the inbox
- * @returns {Promise<{ read: number, added: number }>}
+ * @returns {Promise<{ read: number, added: number, transactions: Array<object> }>} transactions: see readTransactions
  */
 export async function readSmsSince(since, options = {}) {
   const now = Date.now();
@@ -270,11 +270,42 @@ export async function readSmsSince(since, options = {}) {
   const { messages = [] } = await BankSms.read({ senders, rules, since: Math.max(0, Math.floor(since)) });
   const added = addSmsMessages(messages, options);
   setSmsSettings({ lastRead: now });
-  return { read: messages.length, added };
+  return { read: messages.length, added, transactions: readTransactions(messages) };
 }
 
 /**
- * "Read the last N days"
+ * Every withdrawal and deposit the templates read from these messages (one per transaction),
+ * newest first — what a manual read found, waiting or not
+ * @returns {Array<{ fingerprint: string, receivedAt: number, sender: string, tx: object }>}
+ */
+function readTransactions(messages) {
+  const { banks } = activeSmsConfig();
+  const seen = new Set();
+  const list = [];
+  for (const message of messages) {
+    const receivedAt = Number(message.date) || Date.now();
+    const tx = parseBankSms(message.body, banks, { sender: message.address, today: new Date(receivedAt) });
+    if (!tx || seen.has(tx.key)) continue;
+    seen.add(tx.key);
+    list.push({ fingerprint: tx.fingerprint, receivedAt, sender: message.address, tx });
+  }
+  return list.sort((a, b) => b.receivedAt - a.receivedAt);
+}
+
+/**
+ * What became of a read transaction that isn't waiting: 'recorded' (an expense or income carries
+ * it, or one by hand matched it), 'dismissed' («رد»), or null (still waiting / never seen)
+ * @param {{ fingerprint: string, tx: { key: string } }} item
+ */
+export function smsOutcome(item) {
+  const ids = [item?.fingerprint, item?.tx?.key].filter(Boolean);
+  if (read(DISMISSED_KEY, []).some((id) => ids.includes(id))) return 'dismissed';
+  if (read(HANDLED_KEY, []).some((id) => ids.includes(id))) return 'recorded';
+  return null;
+}
+
+/**
+ * "Read the last N days"; `transactions`: everything read, waiting or not
  * @param {number} days
  * @param {{ recheckRecorded?: boolean }} [options] see addSmsMessages
  */

@@ -45,6 +45,13 @@ const SAMPLES = [
     expect: { templateId: 'blu-balance', direction: 'credit', amount: 250000, balance: 10445122.6, date: '2026-09-25', time: '18:23' },
   },
   {
+    bank: 'blu',
+    // As delivered: no space between the amount and «ریال»
+    options: { sender: '+989999987641', today: LATER },
+    text: 'بلو\nبرداشت پول\nسینا عزیز، 3,000,000ریال از حساب شما پرید.\nموجودی: 63,475,726 ریال\n۱۶:۰۰\n۱۴۰۵.۰۷.۱۲',
+    expect: { templateId: 'blu-balance', direction: 'debit', amount: 300000, balance: 6347572.6, date: '2026-10-04', time: '16:00' },
+  },
+  {
     bank: 'pasargad',
     text: '232.800.1442198.1\n-80,000\n06/16_19:45\nمانده: 31,516,369',
     expect: { templateId: 'pasargad-balance', direction: 'debit', amount: 8000, balance: 3151636.9, accountLast4: '1981', date: '2026-09-07', time: '19:45' },

@@ -113,7 +113,7 @@ describe('SMS inbox', () => {
     plugin.read.mockResolvedValue({ messages: [DEBIT, CREDIT] });
     const before = Date.now();
     const res = await readSmsDays(30);
-    expect(res).toEqual({ read: 2, added: 2 });
+    expect(res).toMatchObject({ read: 2, added: 2 });
     const { senders, since } = plugin.read.mock.calls[0][0];
     expect(senders).toContain('PARSIANBANK');
     expect(before - since).toBeGreaterThanOrEqual(30 * 86_400_000 - 1000);

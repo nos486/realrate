@@ -22,7 +22,8 @@ import { useVault } from '../../shared/vault/useVault.js';
 import { useDemo } from '../demo/index.js';
 import { useAccounts } from '../accounts/hooks/useAccounts.js';
 import { usePricing } from '../market/index.js';
-import { markSmsHandled, readSmsDays, smsPermission, getSmsSettings } from '../../shared/native/smsInbox.js';
+import { markSmsHandled, readSmsDays, smsPermission, getSmsSettings, smsOutcome, getPendingSms } from '../../shared/native/smsInbox.js';
+import SmsReadHistory from './SmsReadHistory.jsx';
 import { useSmsInbox } from '../../shared/native/useSmsInbox.js';
 import { createIncome } from '../incomes/api/incomeApi.js';
 import ExpenseForm from '../expenses/components/ExpenseForm.jsx';
@@ -55,6 +56,8 @@ export default function SmsInboxPage() {
   const [saving, setSaving] = useState(false);
   const [days, setDays] = useState(30);
   const [reading, setReading] = useState(false);
+  // What the last «بخوان» found that is already recorded or dismissed: on screen only
+  const [readHistory, setReadHistory] = useState([]);
   const [quickId, setQuickId] = useState(null);
   const [loanItem, setLoanItem] = useState(null);
   const [shareItem, setShareItem] = useState(null);
@@ -139,8 +142,14 @@ export default function SmsInboxPage() {
       // With the vault open, recorded ones are read again and checked against it: a message whose
       // expense or income was deleted comes back
       const unlocked = vaultStatus === 'unlocked';
-      const { read, added } = await readSmsDays(days, { recheckRecorded: unlocked });
+      const { read, added, transactions = [] } = await readSmsDays(days, { recheckRecorded: unlocked });
       const dropped = unlocked && added ? await dropAlreadyRecorded() : 0;
+      // The rest of what it read: not waiting any more (recorded, or dismissed)
+      const waiting = new Set(getPendingSms().map((p) => p.tx?.key));
+      setReadHistory(transactions
+        .filter((item) => !waiting.has(item.tx.key))
+        .map((item) => ({ ...item, outcome: smsOutcome(item) }))
+        .filter((item) => item.outcome));
       const fresh = Math.max(0, added - dropped);
       toast.success(`${read.toLocaleString('fa-IR')} پیامک بانکی خوانده شد؛ ${fresh.toLocaleString('fa-IR')} مورد جدید برای ثبت.`);
     } catch (err) {
@@ -179,13 +188,15 @@ export default function SmsInboxPage() {
         padding="lg"
         icon={<History size={18} />}
         title="خواندن پیامک‌های قبلی"
-        subtitle="خواندن خودکار فقط پیامک‌هایی را می‌گیرد که از زمان روشن شدنش می‌رسند؛ پیامک‌های قبل را اینجا بخوانید (تکراری‌ها و ثبت‌شده‌ها کنار گذاشته می‌شوند)."
+        subtitle="خواندن خودکار فقط پیامک‌هایی را می‌گیرد که از زمان روشن شدنش می‌رسند؛ پیامک‌های قبل را اینجا بخوانید (تکراری‌ها کنار گذاشته می‌شوند؛ ثبت‌شده‌ها زیر همین کارت جدا نشان داده می‌شوند)."
       >
         <div className="app-setting-actions">
           <FilterPills options={DAY_OPTIONS} activeValue={days} onChange={setDays} size="sm" />
           <Button size="sm" onClick={handleReadPast} loading={reading}>بخوان</Button>
         </div>
       </Card>
+
+      <SmsReadHistory items={readHistory} />
 
       {expenseDraft && (
         <ExpenseForm

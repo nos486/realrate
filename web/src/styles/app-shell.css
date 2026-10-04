@@ -1254,3 +1254,30 @@ html.is-app-layout .budget-grid .ui-input-label {
   font-size: 11.5px;
   text-align: center;
 }
+
+/* ── SMS page: what a manual read found already recorded / dismissed (SmsReadHistory) ── */
+.sms-inbox-item.is-past {
+  opacity: 0.85;
+}
+
+.sms-read-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+  padding: 3px 8px;
+  border-radius: 999px;
+  font-size: 11.5px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.sms-read-status.is-recorded {
+  background: var(--color-positive-soft);
+  color: var(--color-positive-text);
+}
+
+.sms-read-status.is-dismissed {
+  background: rgba(148, 163, 184, 0.14);
+  color: var(--text-muted);
+}
