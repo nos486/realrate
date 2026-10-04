@@ -150,7 +150,7 @@ Every feature in detail. For a summary see the [README](../../README.en.md). Per
   - **Privacy**: the image, the extracted values and the model's output are **never** stored in the database, disk or logs; the log records only the image size, the duration and success.
 
 ## 15. Expenses
-- **Two views on one page**: "everyday" (`/expenses`) and "projects" (`/expenses/projects` and `/expenses/:id`).
+- **Two separate sections**: "expenses" (`/expenses`, everyday spending) and "projects" with its own menu entry and page (`/projects` and `/projects/:id`); old `/expenses/projects` and `/expenses/:id` links move to the new address.
 - **Everyday expenses**: quick entry by category (groceries, restaurants and cafés, transport and fuel, bills and service charges, housing and rent, shopping and clothing, health, education, leisure and travel, internet and subscriptions, gifts and charity, installment payments, investment, other); the title is optional (empty: the category's name).
   - Month-by-month view (Shamsi) with previous/next month; only that month and the one before are fetched from the server.
   - The month's total, a comparison with the previous month (for the current month: the same number of days), the daily average, the top category and a donut by category; filter the list by category.

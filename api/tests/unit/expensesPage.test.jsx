@@ -57,8 +57,10 @@ vi.mock('../../../web/src/shared/vault/VaultUnlockCard.jsx', () => ({ default: (
 
 const { FeedbackProvider } = await import('../../../web/src/shared/ui/FeedbackProvider.jsx');
 const { default: ExpensesPage } = await import('../../../web/src/features/expenses/components/ExpensesPage.jsx');
+const { default: ProjectsPage } = await import('../../../web/src/features/expenses/components/ProjectsPage.jsx');
 
-const renderPage = (props = {}) => render(<MemoryRouter><FeedbackProvider><ExpensesPage segment="projects" {...props} /></FeedbackProvider></MemoryRouter>);
+const renderPage = () => render(<MemoryRouter><FeedbackProvider><ExpensesPage /></FeedbackProvider></MemoryRouter>);
+const renderProjects = (props = {}) => render(<MemoryRouter><FeedbackProvider><ProjectsPage {...props} /></FeedbackProvider></MemoryRouter>);
 
 afterEach(() => {
   cleanup();
@@ -72,7 +74,7 @@ afterEach(() => {
 
 describe('ExpensesPage', () => {
   it('invites to create the first section when there is none', () => {
-    renderPage();
+    renderProjects();
     expect(screen.getByText('هنوز بخشی نساخته‌اید')).toBeTruthy();
     fireEvent.click(screen.getByText('ساخت اولین بخش'));
     expect(screen.getByText('بخش هزینه جدید')).toBeTruthy();
@@ -89,7 +91,7 @@ describe('ExpensesPage', () => {
       { id: 'e3', groupId: 'exg_b', title: 'بلیت', amount: 5_000_000, currency: 'IRT', date: '2026-09-15', notes: '' },
     ];
     const onSelectGroup = vi.fn();
-    renderPage({ segment: 'exg_a', onNavigate: onSelectGroup });
+    renderProjects({ groupId: 'exg_a', onSelectGroup });
 
     expect(screen.getByRole('heading', { name: 'بازسازی' })).toBeTruthy();
     expect(screen.getByText('آشپزخانه')).toBeTruthy();
@@ -104,7 +106,7 @@ describe('ExpensesPage', () => {
 
   it('opens the expense form for the selected section', () => {
     state.groups = [{ id: 'exg_a', name: 'بازسازی', notes: '', createdAt: '2026-09-01T00:00:00Z' }];
-    renderPage({ segment: 'exg_a' });
+    renderProjects({ groupId: 'exg_a' });
     fireEvent.click(screen.getByRole('button', { name: /ثبت هزینه/ }));
     expect(screen.getByText('در بخش «بازسازی»')).toBeTruthy();
     fireEvent.click(screen.getAllByText('دلار').map((el) => el.closest('button')).find(Boolean));
@@ -119,7 +121,7 @@ describe('ExpensesPage', () => {
     daily.previousExpenses = [
       { id: 'p1', groupId: 'exg_d', title: 'خرید', category: 'groceries', amount: 200_000, currency: 'IRT', date: '2026-08-24' },
     ];
-    renderPage({ segment: null });
+    renderPage();
     expect(screen.getByRole('heading', { name: /هزینه‌های/ })).toBeTruthy();
     expect(screen.getAllByText((400_000).toLocaleString('fa-IR')).length).toBeGreaterThan(0);
     expect(screen.getAllByText('خوراک و خواربار').length).toBeGreaterThan(0);
@@ -130,11 +132,12 @@ describe('ExpensesPage', () => {
     expect(screen.getByText('عنوان (اختیاری)')).toBeTruthy();
   });
 
-  it('switches between the daily and projects views', () => {
-    const onNavigate = vi.fn();
-    renderPage({ segment: null, onNavigate });
-    fireEvent.click(screen.getAllByText('پروژه‌ها').map((el) => el.closest('button')).find(Boolean));
-    expect(onNavigate).toHaveBeenCalledWith('projects');
+  it('projects are their own page: the expenses page has no projects switch', () => {
+    renderPage();
+    expect(screen.queryByText('پروژه‌ها')).toBeNull();
+    cleanup();
+    renderProjects();
+    expect(screen.getByRole('heading', { name: 'پروژه‌ها' })).toBeTruthy();
   });
 
   it('shows budgets as progress and what was paid from each account', () => {
@@ -144,7 +147,7 @@ describe('ExpensesPage', () => {
       { id: 'd1', groupId: 'exg_d', title: 'کافه', category: 'dining', amount: 150_000, currency: 'IRT', date: '2026-09-24', accountId: 'acc_1' },
       { id: 'd2', groupId: 'exg_d', title: 'نان', category: 'groceries', amount: 50_000, currency: 'IRT', date: '2026-09-24' },
     ];
-    renderPage({ segment: null });
+    renderPage();
     expect(screen.getByText('بودجه ماه')).toBeTruthy();
     // dining: 150,000 of 100,000 — over budget
     expect(screen.getByText(/بیش از بودجه/)).toBeTruthy();

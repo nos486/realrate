@@ -27,7 +27,7 @@ vi.mock('../../../web/src/shared/vault/portfolioFunds.js', () => ({ CURRENCY_ASS
 vi.mock('../../../web/src/shared/vault/useAssetFunds.js', () => ({ useAssetFunds: () => ({ funds: [], loading: false }) }));
 
 const { FeedbackProvider } = await import('../../../web/src/shared/ui/FeedbackProvider.jsx');
-const { default: ExpensesPage } = await import('../../../web/src/features/expenses/components/ExpensesPage.jsx');
+const { default: ProjectsPage } = await import('../../../web/src/features/expenses/components/ProjectsPage.jsx');
 
 afterEach(cleanup);
 const exp = (id, title, amount, tags = []) => ({ id, groupId: 'exg_1', title, amount, currency: 'IRT', date: '2026-09-01', tags, usdRate: null });
@@ -65,7 +65,7 @@ describe('tags on the projects page', () => {
   it('shows each tag\'s total beside the list; a tag shows only its expenses', () => {
     state.groups = [{ id: 'exg_1', name: 'تعمیر خانه', type: 'project', createdAt: '2026-01-01' }];
     state.expenses = [{ ...exp('e1', 'کاشی', 3_000_000, ['مصالح']), usdRate: 50_000 }, exp('e2', 'دستمزد کاشی‌کار', 2_000_000, ['دستمزد']), exp('e3', 'سیمان', 1_000_000, ['مصالح'])];
-    render(<MemoryRouter><FeedbackProvider><ExpensesPage segment="projects" /></FeedbackProvider></MemoryRouter>);
+    render(<MemoryRouter><FeedbackProvider><ProjectsPage /></FeedbackProvider></MemoryRouter>);
 
     const card = document.querySelector('.expense-tag-totals');
     expect(card.textContent).toMatch(/#مصالح/);
@@ -82,7 +82,7 @@ describe('tags on the projects page', () => {
   it('the form adds tags, offering the project\'s', async () => {
     state.groups = [{ id: 'exg_1', name: 'تعمیر خانه', type: 'project', createdAt: '2026-01-01' }];
     state.expenses = [exp('e1', 'کاشی', 3_000_000, ['مصالح'])];
-    render(<MemoryRouter><FeedbackProvider><ExpensesPage segment="projects" /></FeedbackProvider></MemoryRouter>);
+    render(<MemoryRouter><FeedbackProvider><ProjectsPage /></FeedbackProvider></MemoryRouter>);
     fireEvent.click(screen.getAllByText('ثبت هزینه').map((el) => el.closest('button')).find(Boolean));
     fireEvent.change(document.getElementById('expense-title'), { target: { value: 'سیمان' } });
     fireEvent.change(document.getElementById('expense-amount'), { target: { value: '500000' } });

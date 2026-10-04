@@ -45,7 +45,7 @@ export default function ProjectPickSheet({ item, onPick, onClose }) {
             title="پروژه‌ای ندارید"
             description="در صفحه‌ی هزینه‌ها، بخش «پروژه‌ها»، یک پروژه (مثلاً سفر یا تعمیر خانه) بسازید."
             action={(
-              <Button icon={<Plus size={16} />} onClick={() => { onClose(); navigate(appPath('/expenses/projects')); }}>
+              <Button icon={<Plus size={16} />} onClick={() => { onClose(); navigate(appPath('/projects')); }}>
                 ساخت پروژه
               </Button>
             )}
