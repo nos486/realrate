@@ -134,6 +134,9 @@ describe('SmsInboxPage', () => {
     fireEvent.click(screen.getByText('بخوان').closest('button'));
     await waitFor(() => expect(toast.success).toHaveBeenCalledWith(expect.stringContaining('۰ مورد جدید')));
     expect(getPendingSms().map((p) => p.tx.direction)).toEqual(['credit']);
+    // …but shown, apart, as already recorded (on screen only)
+    await waitFor(() => expect(screen.getByText('قبلاً ثبت‌شده')).toBeTruthy());
+    expect(screen.getByText('ثبت شده')).toBeTruthy();
 
     // The expense deleted: it comes back
     expenses.getExpenses.mockResolvedValue({ expenses: [] });
@@ -141,6 +144,8 @@ describe('SmsInboxPage', () => {
     fireEvent.click(screen.getByText('بخوان').closest('button'));
     await waitFor(() => expect(toast.success).toHaveBeenCalledWith(expect.stringContaining('۱ مورد جدید')));
     expect(getPendingSms().map((p) => p.tx.key)).toContain(debitKey);
+    // Waiting again: no longer in the «already recorded» list
+    await waitFor(() => expect(screen.queryByText('قبلاً ثبت‌شده')).toBeNull());
   });
 
   it('dismisses a message with «رد» beside the main action (not in the menu)', async () => {

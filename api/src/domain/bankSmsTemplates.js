@@ -56,11 +56,12 @@ export const BANK_SMS_TEMPLATES = [
         // موجودی: 77,436,726 ریال
         // ۱۰:۴۷
         // ۱۴۰۵.۰۷.۰۶
-        // (a deposit: «واریز پول» … «ریال به حساب شما نشست.»)
+        // (a deposit: «واریز پول» … «ریال به حساب شما نشست.»; the space before «ریال» may be
+        // missing: «3,000,000ریال»)
         id: 'blu-balance',
         unit: 'rial',
         direction: { debit: ['برداشت', 'خرید', 'پرداخت', 'انتقال'], credit: ['واریز'] },
-        pattern: re(String.raw`^بلو\n(?<kind>[^\n]+)\n[^\n]*?(?<amount>${P.amount})\sریال[^\n]*\nموجودی\s?:\s?(?<balance>${P.balance})\sریال\n(?<time>${P.time})\n(?<date>${P.date})$`),
+        pattern: re(String.raw`^بلو\n(?<kind>[^\n]+)\n[^\n]*?(?<amount>${P.amount})\s?ریال[^\n]*\nموجودی\s?:\s?(?<balance>${P.balance})\s?ریال\n(?<time>${P.time})\n(?<date>${P.date})$`),
       },
     ],
   },
