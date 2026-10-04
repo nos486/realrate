@@ -38,7 +38,6 @@ import { AppError } from "../lib/AppError.js";
 import {
   hashPassword,
   verifyPassword,
-  isTrustedOrigin,
   getRateLimitState,
   recordRateLimitHit,
   clearRateLimit,
@@ -47,7 +46,10 @@ import { sendEmail, isEmailConfigured, verificationEmail, passwordResetEmail, ac
 import { SESSION_TTL_SECONDS, SESSION_COOKIE_MAX_AGE } from "../config/constants.js";
 import { userFeatures } from "../lib/features.js";
 import { dbGetUserRequestedGroupKeys } from "../repositories/userGroups.repository.js";
-import { isAppVerifier, appChallengeOf, appSignInPurpose, APP_WEBVIEW_ORIGIN } from "../lib/appAuth.js";
+import { isAppVerifier, appChallengeOf, appSignInPurpose } from "../lib/appAuth.js";
+import { resolveFrontendOrigin } from "../lib/siteOrigin.js";
+
+export { resolveFrontendOrigin };
 
 export const PASSWORD_MIN_LENGTH = 8;
 export const PASSWORD_MAX_LENGTH = 128;
@@ -67,7 +69,6 @@ const LIMITS = {
   passwordChange: { limit: 8, windowSec: 15 * 60 },
 };
 
-const DEFAULT_FRONTEND_ORIGIN = "https://realrate.geekio.org";
 
 const SENT_MESSAGE = "اگر این ایمیل قابل استفاده باشد، لینکی برای آن ارسال شد. صندوق ورودی و پوشه اسپم را بررسی کنید.";
 
@@ -96,18 +97,6 @@ export function parseNewPassword(value) {
 }
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
-
-/**
- * Where links in emails point: the frontend that made the request, when it is one of ours (the
- * Android app's WebView origin is not a website: its links go to the configured frontend)
- */
-export function resolveFrontendOrigin(request, env) {
-  const origin = request.headers.get("Origin");
-  if (origin && origin !== APP_WEBVIEW_ORIGIN && isTrustedOrigin(origin)) return new URL(origin).origin;
-  const configured = String(env?.FRONTEND_URL || "").trim();
-  if (configured && isTrustedOrigin(configured)) return new URL(configured).origin;
-  return DEFAULT_FRONTEND_ORIGIN;
-}
 
 async function readJson(request) {
   const body = await request.json().catch(() => null);

@@ -12,6 +12,7 @@ import { dbGetAlertEmailPrefs, dbSaveAlertEmailPrefs } from '../repositories/ale
 import { dbGetUserAuthById } from '../repositories/account.repository.js';
 import { validateAlertEmailPrefs } from '../domain/alertEmailPrefs.js';
 import { isEmailConfigured, sendEmail, reminderDigestEmail } from '../lib/email.js';
+import { resolveFrontendOrigin } from '../lib/siteOrigin.js';
 import { getRateLimitState, recordRateLimitHit } from '../lib/security.js';
 import { jsonResponse } from '../lib/helpers.js';
 import { AppError } from '../lib/AppError.js';
@@ -84,7 +85,8 @@ export async function handleSendTestEmailAlert(request, env) {
   }
   await recordRateLimitHit(env, key, TEST_LIMIT);
 
-  const appUrl = (new URL(request.url)).origin;
+  // Links go to the site, never to the API's own host
+  const appUrl = resolveFrontendOrigin(request, env);
   const testDigest = reminderDigestEmail({
     subject: 'RealRate: ایمیل آزمایشی یادآوری سررسید',
     items: [

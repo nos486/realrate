@@ -72,7 +72,7 @@ Registration without Google and password reset need email (verification / reset 
    [vars]
    EMAIL_FROM = "RealRate <no-reply@geekio.org>"
    # optional: the frontend URL for links when a request has no Origin
-   # FRONTEND_URL = "https://realrate.geekio.org"
+   # FRONTEND_URL = "https://realrate.ir"
    ```
 
 Until email is configured, registration and password reset are refused with "email is not configured" and Google sign-in
@@ -141,7 +141,7 @@ In **Workers & Pages > Create Application > Pages > Connect to Git**:
 | Framework preset | `Vite` |
 | Build command | `npm run build` |
 | Build output directory | `dist` |
-| `VITE_API_URL` | The Worker's URL (e.g. `https://realrate-api.geekio.org`) |
+| `VITE_API_URL` | The Worker's URL (e.g. `https://api.realrate.ir`) |
 | `VITE_GOOGLE_CLIENT_ID` | The Google client id |
 
 The frontend's domain must be in `ALLOWED_ORIGINS` in `api/src/lib/helpers.js` (CORS).

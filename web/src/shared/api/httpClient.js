@@ -13,7 +13,7 @@ import { CLIENT_HEADER, formatClientHeader } from '../../utils/clientInfo.js';
 
 export const API_BASE = (
   (typeof import.meta !== 'undefined' && import.meta.env?.VITE_API_URL) ||
-  (typeof import.meta !== 'undefined' && import.meta.env?.PROD ? 'https://realrate-api.geekio.org' : (typeof window !== 'undefined' ? '' : 'http://localhost:8787'))
+  (typeof import.meta !== 'undefined' && import.meta.env?.PROD ? 'https://api.realrate.ir' : (typeof window !== 'undefined' ? '' : 'http://localhost:8787'))
 ).replace(/\/$/, '');
 
 /**

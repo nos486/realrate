@@ -9,6 +9,7 @@
  */
 
 import { isUserAdmin, getAuthenticatedUser } from "../lib/auth.js";
+import { SITE_ORIGIN, siteOrigin } from "../lib/siteOrigin.js";
 import {
   dbUpsertUser,
   dbSaveSession,
@@ -73,15 +74,13 @@ function resolveRedirectUri(request, env) {
   return `${url.origin}/api/auth/google/callback`;
 }
 
-const DEFAULT_FRONTEND_ORIGIN = "https://realrate.geekio.org";
-
 /**
  * Build the post-login redirect URL. The final URL is always re-checked against the trusted
  * origin list, so neither an absolute return_to nor a protocol-relative one ("//evil.example")
  * can send the session token off-site.
  */
 export function buildFrontendRedirect(frontendOrigin, returnTo, params = {}) {
-  let baseOrigin = DEFAULT_FRONTEND_ORIGIN;
+  let baseOrigin = SITE_ORIGIN;
   if (frontendOrigin && isTrustedOrigin(frontendOrigin)) {
     baseOrigin = new URL(frontendOrigin).origin;
   }
@@ -123,7 +122,7 @@ export async function handleGoogleLogin(request, env) {
   const returnTo = url.searchParams.get("return_to") || url.searchParams.get("redirect") || "/";
 
   // Determine frontend origin from referer or return_to
-  let frontendOrigin = DEFAULT_FRONTEND_ORIGIN;
+  let frontendOrigin = siteOrigin(env);
   const referer = request.headers.get("referer");
   if (referer) {
     try {
@@ -199,7 +198,7 @@ export async function handleGoogleCallback(request, env) {
     }
   }
 
-  const frontendOrigin = stateData.frontendOrigin || DEFAULT_FRONTEND_ORIGIN;
+  const frontendOrigin = stateData.frontendOrigin || siteOrigin(env);
   const returnTo = stateData.returnTo || "/";
   const redirectUri = stateData.redirectUri || resolveRedirectUri(request, env);
   const appChallenge = isAppChallenge(stateData.app) ? stateData.app : null;
