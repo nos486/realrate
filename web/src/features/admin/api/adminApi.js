@@ -120,3 +120,50 @@ export async function runHistoryBackfill({ slug, target, unit, days, overwrite, 
 export async function editHistoryKeys(body) {
   return httpClient.post('/api/admin/history/keys', body);
 }
+
+// ── Groups of users and who gets which feature ─────────────────────────────
+
+/** `{ groups, requests, features }` */
+export async function getAdminGroups() {
+  return httpClient.get('/api/admin/groups');
+}
+
+export async function createAdminGroup(group) {
+  return httpClient.post('/api/admin/groups', group);
+}
+
+export async function updateAdminGroup(groupId, patch) {
+  return httpClient.put(`/api/admin/groups/${encodeURIComponent(groupId)}`, patch);
+}
+
+export async function deleteAdminGroup(groupId) {
+  return httpClient.delete(`/api/admin/groups/${encodeURIComponent(groupId)}`);
+}
+
+export async function getAdminGroupMembers(groupId, { q = '', page = 1 } = {}) {
+  const query = new URLSearchParams({ page: String(page) });
+  if (q) query.set('q', q);
+  return httpClient.get(`/api/admin/groups/${encodeURIComponent(groupId)}/members?${query}`);
+}
+
+/** @param {{ userId?: string, email?: string }} who */
+export async function addAdminGroupMember(groupId, who) {
+  return httpClient.post(`/api/admin/groups/${encodeURIComponent(groupId)}/members`, who);
+}
+
+export async function removeAdminGroupMember(groupId, userId) {
+  return httpClient.delete(`/api/admin/groups/${encodeURIComponent(groupId)}/members/${encodeURIComponent(userId)}`);
+}
+
+export async function answerAdminGroupRequest(groupId, userId, approve) {
+  return httpClient.post(`/api/admin/groups/${encodeURIComponent(groupId)}/requests/${encodeURIComponent(userId)}`, { approve });
+}
+
+/** @param {{ stage: 'off'|'beta'|'ga', groups: string[] }} rule */
+export async function saveAdminFeatureRule(key, rule) {
+  return httpClient.put(`/api/admin/features/${encodeURIComponent(key)}`, rule);
+}
+
+export async function resetAdminFeatureRule(key) {
+  return httpClient.delete(`/api/admin/features/${encodeURIComponent(key)}`);
+}

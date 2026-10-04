@@ -148,6 +148,8 @@ vi.mock('../../src/repositories/index.js', async (importOriginal) => ({
   dbSetUserDisabled: vi.fn(),
   dbDeleteUserSessions: vi.fn(async () => 3),
   dbCreateAuthToken: vi.fn(async () => 'tok'),
+  dbListGroups: vi.fn(async () => [{ id: 'grp_pro', key: 'pro', name: 'Pro' }]),
+  dbGetUserGroupKeys: vi.fn(async () => []),
 }));
 
 const { getAuthenticatedUser } = await import('../../src/lib/auth.js');

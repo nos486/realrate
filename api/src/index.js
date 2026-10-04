@@ -163,6 +163,22 @@ import {
   handleSendTestPush,
 } from "./handlers/pushRoutes.js";
 import { handleGetHomeLayout, handleSaveHomeLayout } from "./handlers/homeLayoutRoutes.js";
+import { requireFeature } from "./lib/features.js";
+import {
+  handleGetFeatureAccess,
+  handleRequestGroup,
+  handleCancelGroupRequest,
+  handleAdminListGroups,
+  handleAdminCreateGroup,
+  handleAdminUpdateGroup,
+  handleAdminDeleteGroup,
+  handleAdminListMembers,
+  handleAdminAddMember,
+  handleAdminRemoveMember,
+  handleAdminAnswerRequest,
+  handleAdminSaveFeatureRule,
+  handleAdminResetFeatureRule,
+} from "./handlers/groupRoutes.js";
 import { handleGetLatestAppRelease } from "./handlers/appUpdateRoutes.js";
 import { fetchAllPrices } from "./services/market/priceAggregator.service.js";
 import {
@@ -288,6 +304,28 @@ async function handleRequest(request, env, ctx) {
   if (normalizedPath === "/api/admin/users")                                   return wrap(handleAdminUsersRoute)(request, env);
   if (normalizedPath === "/api/admin/settings" && request.method === "POST")   return wrap(handleAdminSaveSettings)(request, env);
 
+  // Admin: groups of users and who gets which feature
+  if (normalizedPath === "/api/admin/groups") {
+    if (request.method === "GET")  return wrap(handleAdminListGroups)(request, env);
+    if (request.method === "POST") return wrap(handleAdminCreateGroup)(request, env);
+  }
+  const adminGroupMatch = normalizedPath.match(/^\/api\/admin\/groups\/([^/]+)(?:\/(members|requests)(?:\/([^/]+))?)?$/);
+  if (adminGroupMatch) {
+    const [, groupId, sub, userId] = adminGroupMatch;
+    if (!sub && request.method === "PUT")    return wrap((req, e) => handleAdminUpdateGroup(req, e, { groupId }))(request, env);
+    if (!sub && request.method === "DELETE") return wrap((req, e) => handleAdminDeleteGroup(req, e, { groupId }))(request, env);
+    if (sub === "members" && !userId && request.method === "GET")    return wrap((req, e) => handleAdminListMembers(req, e, { groupId }))(request, env);
+    if (sub === "members" && !userId && request.method === "POST")   return wrap((req, e) => handleAdminAddMember(req, e, { groupId }))(request, env);
+    if (sub === "members" && userId && request.method === "DELETE")  return wrap((req, e) => handleAdminRemoveMember(req, e, { groupId, userId }))(request, env);
+    if (sub === "requests" && userId && request.method === "POST")   return wrap((req, e) => handleAdminAnswerRequest(req, e, { groupId, userId }))(request, env);
+  }
+  const adminFeatureMatch = normalizedPath.match(/^\/api\/admin\/features\/([a-z0-9_]+)$/);
+  if (adminFeatureMatch) {
+    const key = adminFeatureMatch[1];
+    if (request.method === "PUT")    return wrap((req, e) => handleAdminSaveFeatureRule(req, e, { key }))(request, env);
+    if (request.method === "DELETE") return wrap((req, e) => handleAdminResetFeatureRule(req, e, { key }))(request, env);
+  }
+
   // Admin Demo Management
   if (normalizedPath === "/api/admin/demo") {
     if (request.method === "GET") return wrap(handleAdminGetDemo)(request, env);
@@ -341,6 +379,18 @@ async function handleRequest(request, env, ctx) {
     if (request.method === "POST")   return wrap((req, env) => handleCreateTransaction(req, env, { portfolioId }))(request, env);
     if (request.method === "PUT")    return wrap((req, env) => handleUpdateTransaction(req, env, { portfolioId, txId }))(request, env);
     if (request.method === "DELETE") return wrap((req, env) => handleDeleteTransaction(req, env, { portfolioId, txId }))(request, env);
+  }
+
+  // ── Groups and feature access ───────────────────────────────────────────
+  const featureAccessMatch = normalizedPath.match(/^\/api\/features\/([a-z0-9_]+)\/access$/);
+  if (featureAccessMatch && request.method === "GET") {
+    return wrap((req, e) => handleGetFeatureAccess(req, e, { key: featureAccessMatch[1] }))(request, env);
+  }
+  const groupRequestMatch = normalizedPath.match(/^\/api\/groups\/([a-z0-9_-]+)\/request$/);
+  if (groupRequestMatch) {
+    const key = groupRequestMatch[1];
+    if (request.method === "POST")   return wrap((req, e) => handleRequestGroup(req, e, { key }))(request, env);
+    if (request.method === "DELETE") return wrap((req, e) => handleCancelGroupRequest(req, e, { key }))(request, env);
   }
 
   // ── Customized home page ────────────────────────────────────────────────
@@ -491,8 +541,12 @@ async function handleRequest(request, env, ctx) {
   }
   if (normalizedPath === "/api/prices") return wrap(handleGetPrices)(env, request);
   if (normalizedPath === "/api/prices/book") return wrap(handleGetPriceBook)(env, request);
+  // The market page's charts: only for users with the market page (checked before the edge cache)
   if (normalizedPath === "/api/sparklines" || normalizedPath === "/api/prices/sparklines") {
-    return wrap(handleGetSparklines)(env, request);
+    return wrap(async (req, e) => {
+      await requireFeature(req, e, "market");
+      return handleGetSparklines(e, req);
+    })(request, env);
   }
   if (normalizedPath === "/api/prices/history") return wrap(handleGetPriceHistory)(env, request);
 

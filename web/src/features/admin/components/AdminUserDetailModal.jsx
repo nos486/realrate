@@ -10,7 +10,7 @@ import { UserRound, Ban, LogOut, MailCheck, ShieldCheck, Lock, RotateCcw, Smartp
 import { AlertBanner, Button, Modal } from '../../../shared/ui/index.js';
 import { useFeedback } from '../../../shared/ui/FeedbackProvider.jsx';
 import { SkeletonRows } from '../../../shared/ui/Skeleton.jsx';
-import { getAdminUserDetail, resendAdminVerification, setAdminUserBlocked, signOutAdminUser } from '../api/adminApi.js';
+import { getAdminUserDetail, resendAdminVerification, setAdminUserBlocked, signOutAdminUser, addAdminGroupMember, removeAdminGroupMember } from '../api/adminApi.js';
 import { faNum, faVersion, formatDate, formatDateTime, displayName } from '../utils/adminFormat.js';
 import GoogleIcon from '../../auth/components/GoogleIcon.jsx';
 import { UserBadges } from './AdminUsersCard.jsx';
@@ -92,6 +92,23 @@ export default function AdminUserDetailModal({ userId, fallback, onClose, onChan
       confirmLabel: 'خروج از همه دستگاه‌ها',
     });
     if (ok) run('signout', () => signOutAdminUser(detail.id));
+  };
+
+  // Put the user in a group or take them out; the detail is read again for the new state
+  const toggleGroup = async (group) => {
+    setBusy(`group:${group.id}`);
+    try {
+      const res = group.member
+        ? await removeAdminGroupMember(group.id, detail.id)
+        : await addAdminGroupMember(group.id, { userId: detail.id });
+      toast.success(res.message || 'انجام شد.');
+      setDetail((await getAdminUserDetail(detail.id)).user);
+      onChanged?.();
+    } catch (err) {
+      toast.error(err.message || 'عملیات ناموفق بود.');
+    } finally {
+      setBusy(null);
+    }
   };
 
   const user = detail || fallback;
@@ -190,6 +207,28 @@ export default function AdminUserDetailModal({ userId, fallback, onClose, onChan
               </Fact>
             </div>
           </section>
+
+          {detail.groups?.length > 0 && (
+            <section>
+              <h4 className="admin-detail-title">گروه‌ها</h4>
+              <div className="admin-user-groups">
+                {detail.groups.map((g) => (
+                  <label key={g.id} className={`admin-chip-toggle ${g.member ? 'is-on' : ''}`}>
+                    <input
+                      type="checkbox"
+                      checked={g.member}
+                      disabled={Boolean(busy)}
+                      onChange={() => toggleGroup(g)}
+                    />
+                    {g.name}
+                  </label>
+                ))}
+              </div>
+              <p className="admin-detail-note">
+                ویژگی‌هایی که فقط برای یک گروه باز است (مثل صفحه‌ی نرخ و حباب برای Pro) با عضویت در آن باز می‌شود؛ مدیران همه‌چیز را دارند.
+              </p>
+            </section>
+          )}
 
           <section>
             <h4 className="admin-detail-title">دستگاه‌ها</h4>

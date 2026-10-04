@@ -502,6 +502,58 @@ export const APP_TABLES = [
     ],
   },
   {
+    // Groups of users (e.g. "pro"), made by the admin; a feature can be open only to some groups
+    // (config/features.js, userGroups.repository.js). A system group can't be deleted.
+    name: "user_groups",
+    columns: ["id", "key", "name", "description", "allow_requests", "is_system", "created_at", "updated_at"],
+    ddl: [
+      `CREATE TABLE IF NOT EXISTS user_groups (
+        id TEXT PRIMARY KEY,
+        key TEXT UNIQUE NOT NULL,
+        name TEXT NOT NULL,
+        description TEXT NOT NULL DEFAULT '',
+        allow_requests INTEGER NOT NULL DEFAULT 0,
+        is_system INTEGER NOT NULL DEFAULT 0,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+      )`,
+      // The group the market page belongs to; users may ask to join it
+      `INSERT OR IGNORE INTO user_groups (id, key, name, description, allow_requests, is_system, created_at, updated_at)
+       VALUES ('grp_pro', 'pro', 'Pro', 'دسترسی به صفحه‌ی نرخ و حباب: قیمت‌ها، نمودار و شخصی‌سازی', 1, 1,
+               '2026-10-04T00:00:00.000Z', '2026-10-04T00:00:00.000Z')`,
+    ],
+  },
+  {
+    name: "user_group_members",
+    columns: ["group_id", "user_id", "added_at", "added_by"],
+    ddl: [
+      `CREATE TABLE IF NOT EXISTS user_group_members (
+        group_id TEXT NOT NULL,
+        user_id TEXT NOT NULL,
+        added_at TEXT NOT NULL,
+        added_by TEXT NOT NULL DEFAULT '',
+        PRIMARY KEY (group_id, user_id)
+      )`,
+      "CREATE INDEX IF NOT EXISTS idx_user_group_members_user ON user_group_members(user_id)",
+    ],
+  },
+  {
+    // A user asking to join a group that accepts requests; the admin approves (adds the member)
+    // or rejects it (the request goes away either way)
+    name: "user_group_requests",
+    columns: ["group_id", "user_id", "requested_at", "note"],
+    ddl: [
+      `CREATE TABLE IF NOT EXISTS user_group_requests (
+        group_id TEXT NOT NULL,
+        user_id TEXT NOT NULL,
+        requested_at TEXT NOT NULL,
+        note TEXT NOT NULL DEFAULT '',
+        PRIMARY KEY (group_id, user_id)
+      )`,
+      "CREATE INDEX IF NOT EXISTS idx_user_group_requests_time ON user_group_requests(requested_at)",
+    ],
+  },
+  {
       // Small key/value state that must be consistent: counters, the admin's source overrides, the
     // sources' sync state, the latest app release (stateStore.repository.js)
     name: "app_state",

@@ -33,7 +33,8 @@ import {
   SESSION_COOKIE_MAX_AGE,
   OAUTH_VERIFIER_COOKIE_MAX_AGE,
 } from "../config/constants.js";
-import { enabledFeatures } from "../config/features.js";
+import { userFeatures } from "../lib/features.js";
+import { dbGetUserRequestedGroupKeys } from "../repositories/userGroups.repository.js";
 
 function base64UrlEncode(buffer) {
   const bytes = buffer instanceof Uint8Array ? buffer : new Uint8Array(buffer);
@@ -516,6 +517,11 @@ export async function handleGetMe(request, env, ctx) {
   if (ctx?.waitUntil) safeWaitUntil(ctx, record());
   else await record();
 
+  const [features, requestedGroups] = await Promise.all([
+    userFeatures(env, user),
+    dbGetUserRequestedGroupKeys(env, userId).catch(() => []),
+  ]);
+
   const isDemo = user.kind === "demo_view" || user.kind === "demo_edit";
   const demoPayload = isDemo
     ? {
@@ -537,7 +543,10 @@ export async function handleGetMe(request, env, ctx) {
       isAdmin: user.role === "admin",
       hasPassword,
       emailVerified,
-      features: enabledFeatures(user),
+      features,
+      // The groups the user is in, and those they asked to join (for the feature pages' offers)
+      groups: user.groups || [],
+      requestedGroups,
     },
     ...demoPayload,
   }, 200, request);

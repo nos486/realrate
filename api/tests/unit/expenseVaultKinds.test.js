@@ -60,8 +60,10 @@ describe('expense vault kinds', () => {
 
   it('answers 404 for a kind whose feature is off for the user', async () => {
     const features = await import('../../src/config/features.js');
+    const { resetFeatureRulesMemo } = await import('../../src/lib/features.js');
     const saved = features.FEATURES.bank_accounts.stage;
     features.FEATURES.bank_accounts.stage = 'beta';
+    resetFeatureRulesMemo();
     try {
       getAuthenticatedUser.mockResolvedValue(USER);
       await expect(handleListVaultRecords(req(), {}, { kind: 'bank_account' })).rejects.toMatchObject({ statusCode: 404 });
@@ -69,6 +71,7 @@ describe('expense vault kinds', () => {
       expect((await handleListVaultRecords(req(), {}, { kind: 'bank_account' })).status).toBe(200);
     } finally {
       features.FEATURES.bank_accounts.stage = saved;
+      resetFeatureRulesMemo();
     }
   });
 

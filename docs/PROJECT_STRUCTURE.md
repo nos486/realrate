@@ -71,6 +71,7 @@ realrate/
 | `utils/expenseDocument.js`، `accountDocument.js` | `domain/` — هزینه‌ها و حساب‌ها |
 | `utils/bankSms.js`، `bankSmsTemplates.js` | `domain/` — خواندن پیامک بانک |
 | `utils/clientInfo.js` | `domain/clientInfo.js` — سرآیند کلاینت (اپ/وب و نسخه) |
+| `utils/userGroups.js` | `domain/userGroups.js` — گروه‌های کاربران (شناسه، اعتبارسنجی) |
 | `utils/homeLayout.js`، `portfolioLayout.js` | `domain/` — چیدمان صفحه اصلی و دسته‌های پورتفو |
 | `utils/financialSpecs.js` | `lib/financialSpecs.js` |
 

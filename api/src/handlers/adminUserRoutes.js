@@ -16,6 +16,8 @@ import {
   dbGetDailyGrowth,
   dbGetUserAuthById,
   dbDeleteUserSessions,
+  dbListGroups,
+  dbGetUserGroupKeys,
 } from "../repositories/index.js";
 import { sendVerification } from "./accountRoutes.js";
 
@@ -45,7 +47,13 @@ async function loadAccount(env, userId) {
 async function detailResponse(request, env, userId) {
   const detail = await dbGetUserDetail(env, userId);
   if (!detail) throw AppError.notFound("کاربر مورد نظر یافت نشد.");
-  return { ...detail, isAdmin: isUserAdmin(detail.email, env) };
+  // Every group, and whether the user is in it (the panel toggles membership from here)
+  const [groups, memberOf] = await Promise.all([dbListGroups(env), dbGetUserGroupKeys(env, userId)]);
+  return {
+    ...detail,
+    isAdmin: isUserAdmin(detail.email, env),
+    groups: groups.map((g) => ({ id: g.id, key: g.key, name: g.name, member: memberOf.includes(g.key) })),
+  };
 }
 
 /**

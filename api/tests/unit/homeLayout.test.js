@@ -68,7 +68,16 @@ describe('home layout routes', () => {
 
   beforeEach(() => {
     stored = '';
-    getAuthenticatedUser.mockResolvedValue({ userId: 'u1' });
+    // The layout belongs to the market page, open to the "pro" group by default
+    getAuthenticatedUser.mockResolvedValue({ userId: 'u1', role: 'user', groups: ['pro'] });
+  });
+
+  it('is only for users with the market page (404 for the others)', async () => {
+    getAuthenticatedUser.mockResolvedValue({ userId: 'u2', role: 'user', groups: [] });
+    await expect(handleGetHomeLayout(new Request('https://x/api/user/home-layout'), env)).rejects.toMatchObject({ statusCode: 404 });
+    await expect(handleSaveHomeLayout(put({ layout: null }), env)).rejects.toMatchObject({ statusCode: 404 });
+    getAuthenticatedUser.mockResolvedValue({ userId: 'adm', role: 'admin' });
+    expect((await handleGetHomeLayout(new Request('https://x/api/user/home-layout'), env)).status).toBe(200);
   });
 
   it('requires a signed-in user', async () => {

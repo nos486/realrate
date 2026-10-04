@@ -31,7 +31,7 @@ Errors share one shape: `{ success: false, message, error: { code, message } }` 
 | `GET` | `/api/prices/book` | **The prices.** Every price in the standard shape, plus the public global settings: `{ updatedAt, items: { [id]: { id, price (toman), name, category, unit, sourceId, updatedAt, params } }, globalSettings }`. The web app's only price request. Sent with an `ETag` (`Cache-Control: no-cache`): while no price or setting changed, a revalidation gets `304` and no body. |
 | `GET` | `/api/v1/market/items` | Older shape, kept for clients that haven't updated: unified market items (Gold, Coins, Silver, Forex, Bourse, Funds, Plans), priced from the book |
 | `GET` | `/api/v1/prices` | Older shape, kept for clients that haven't updated: `{ prices: { [id]: { price, … } }, live_usd_toman, gold_usd, forex, reference_rates, globalSettings }`, read off the book (the ounce in dollars and currencies as rates against the dollar, as before) |
-| `GET` | `/api/sparklines?keys=usd,gold_18k&range=30d` | Daily trend series from the D1 price history, per asset id (`range`: `7d`, `30d` — the default, `90d`, `180d`, `1y`, `2y`; `1d` is served as `7d`). Each series has `points` (daily close), `days` (YYYY-MM-DD, Tehran), `first`, `last`, `changePct`, `since`; with `candles=1` also `candles`: `[open, high, low, close]` per day |
+| `GET` | `/api/sparklines?keys=usd,gold_18k&range=30d` | **Signed in, feature `market`** (404 otherwise). Daily trend series from the D1 price history, per asset id (`range`: `7d`, `30d` — the default, `90d`, `180d`, `1y`, `2y`; `1d` is served as `7d`). Each series has `points` (daily close), `days` (YYYY-MM-DD, Tehran), `first`, `last`, `changePct`, `since`; with `candles=1` also `candles`: `[open, high, low, close]` per day |
 | `GET` | `/api/prices/history?key=usd` | One asset's whole daily history from D1: `{ key, since, values }` — `since` its first day (YYYY-MM-DD, Tehran), `values` one close per day from then to today (a quiet day carries the last close; `[]` without history). The client reads every past price it needs off it — the dollar rate on a record's date, a compared asset's price on a purchase day — with one request per asset (`web/src/features/market/dailyHistory.js`). Edge-cached for 5 minutes |
 | `GET` | `/api/admin/history` | Admin: the price history page — the tgju catalog (`config/tgjuCatalog.js`), the saved mappings (with each one's last run), the price book's items (targets) and the history per id (`inBook: false` = read by no card) |
 | `POST` | `/api/admin/history/mappings` | Admin: save the tgju → price book mappings `[{ slug, label, unit: "rial"\|"toman"\|"usd", target }]` |
@@ -94,7 +94,8 @@ Direct password or Google OAuth logins to the demo account (`demo@realrate.inval
 
 `GET /api/v1/auth/me`: Returns current user session details:
 - `user`: `{ id, email, name, role, isDemo, emailVerified, createdAt, updatedAt }`
-- `features`: Array of active feature flag keys enabled for the user (e.g. `['cheque_scan']`; admins also get beta features such as `cheque_scan_debug`).
+- `features`: Array of active feature flag keys enabled for the user (e.g. `['cheque_scan']`; admins also get beta features such as `cheque_scan_debug`, and every group-restricted feature such as `market`).
+- `groups`: the keys of the user's groups (e.g. `['pro']`); `requestedGroups`: the groups they asked to join and are waiting on.
 - For demo sessions (`demo_view` or `demo_edit`), additionally returns:
   - `demo: { mode: 'view' | 'edit' }`
   - `demoVaultPassphrase`: Public passphrase for the demo vault (configured via `DEMO_VAULT_PASSPHRASE`).
@@ -107,8 +108,8 @@ For standard user sessions, demo properties are never included.
 | :--- | :--- | :--- |
 | `GET` | `/api/v1/user/settings` | Retrieve user preferences and settings |
 | `POST` / `PUT` | `/api/v1/user/settings` | Save user preferences |
-| `GET` | `/api/v1/user/home-layout` | The user's customized home page `{ version, sections: [{ id, title, style, items }] }` or `null` (default page) |
-| `PUT` | `/api/v1/user/home-layout` | Save the home page layout (`{ layout }`, sanitized by `domain/homeLayout.js`); `{ layout: null }` resets to default |
+| `GET` | `/api/v1/user/home-layout` | Feature `market` (404 otherwise). The user's customized home page `{ version, sections: [{ id, title, style, items }] }` or `null` (default page) |
+| `PUT` | `/api/v1/user/home-layout` | Feature `market`. Save the home page layout (`{ layout }`, sanitized by `domain/homeLayout.js`); `{ layout: null }` resets to default |
 | `GET` | `/api/v1/portfolios` | List all portfolio groups for user (returns `itemCount` and `transactionCount`) |
 | `POST` | `/api/v1/portfolios` | Create a new portfolio group |
 | `PUT` | `/api/v1/portfolios` | Update portfolio group details |
@@ -298,6 +299,28 @@ loan / income / cheque endpoints return `409 VAULT_ENABLED` and portfolio data m
 
 Portfolios protected by the vault carry `e2eeWrappedKey`; `/api/v1/portfolio/shared` reports `e2eeLinkKey: true` for them
 (the viewer needs the key from the share link's `#k=` fragment).
+
+### Groups and Feature Access
+
+A feature can be open to every user or only to the members of some groups (rules: `api/src/config/features.js`, changed at runtime by the admin; see [ARCHITECTURE.md](ARCHITECTURE.md#3-feature-flags-and-user-groups)). A route of a feature the user doesn't have answers `404`.
+
+| Method | Endpoint | Description |
+| :--- | :--- | :--- |
+| `GET` | `/api/v1/features/:key/access` | Signed in: `{ feature, label, enabled, groups: [{ key, name, description, allowRequests, requested }] }` — the groups that open the feature |
+| `POST` | `/api/v1/groups/:key/request` | Ask to join a group that accepts requests (`{ note? }`); `400 ALREADY_MEMBER`, `404` when the group doesn't accept requests; asking again refreshes the request |
+| `DELETE` | `/api/v1/groups/:key/request` | Take the request back |
+| `GET` | `/api/v1/admin/groups` | Admin: `{ groups: [{ id, key, name, description, allowRequests, isSystem, memberCount, requestCount }], requests: [{ groupId, userId, email, name, requestedAt, note }], features: [{ key, label, description, stage, groups, defaultStage, defaultGroups, customized }] }` |
+| `POST` | `/api/v1/admin/groups` | Admin: create `{ key, name, description?, allowRequests? }` (`key`: lower-case `[a-z][a-z0-9_-]{1,31}`, can't change later); `400 GROUP_EXISTS` |
+| `PUT` | `/api/v1/admin/groups/:id` | Admin: `{ name?, description?, allowRequests? }` (turning requests off drops the pending ones) |
+| `DELETE` | `/api/v1/admin/groups/:id` | Admin: the group, its members and requests; refused for a system group and `400 GROUP_IN_USE` while a feature's rule names it |
+| `GET` | `/api/v1/admin/groups/:id/members?q=&page=` | Admin: `{ members: [{ userId, email, name, picture, addedAt, addedBy }], total, page, pageSize, pageCount }` (20 a page) |
+| `POST` | `/api/v1/admin/groups/:id/members` | Admin: add `{ userId }` or `{ email }` (settles their pending request) |
+| `DELETE` | `/api/v1/admin/groups/:id/members/:userId` | Admin: remove |
+| `POST` | `/api/v1/admin/groups/:id/requests/:userId` | Admin: `{ approve: true }` adds the member, `{ approve: false }` rejects |
+| `PUT` | `/api/v1/admin/features/:key` | Admin: `{ stage: "off"\|"beta"\|"ga", groups: [groupKey] }` (groups only with `ga`; empty = every user) → `{ features }` |
+| `DELETE` | `/api/v1/admin/features/:key` | Admin: back to the code's default → `{ features }` |
+
+`GET /api/v1/admin/users/detail` also returns `groups: [{ id, key, name, member }]` — every group, and whether the user is in it.
 
 ### Admin Endpoints (Admin Role Only)
 

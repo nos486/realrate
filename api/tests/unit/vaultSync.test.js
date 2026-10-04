@@ -38,7 +38,7 @@ describe('sync route', () => {
     vi.resetModules();
     const sync = vi.fn(async () => ({ epoch: 'e', records: [], deleted: [], cursor: '', more: false }));
     vi.doMock('../../src/lib/auth.js', () => ({ getAuthenticatedUser: async () => ({ id: 'u1', role: 'user' }) }));
-    vi.doMock('../../src/config/features.js', () => ({ isFeatureEnabled: (key) => key !== 'expenses' }));
+    vi.doMock('../../src/config/features.js', async (orig) => ({ ...(await orig()), isFeatureEnabled: (key) => key !== 'expenses' }));
     vi.doMock('../../src/repositories/vault.repository.js', async (orig) => ({ ...(await orig()), dbSyncVaultRecords: sync }));
     const { handleSyncVaultRecords } = await import('../../src/handlers/vaultRoutes.js');
     const res = await handleSyncVaultRecords(new Request('https://api/api/vault/sync?cursor=&limit=50'), {});

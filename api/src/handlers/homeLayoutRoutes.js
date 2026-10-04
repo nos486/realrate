@@ -7,6 +7,7 @@
  */
 
 import { getAuthenticatedUser } from "../lib/auth.js";
+import { requireFeature } from "../lib/features.js";
 import { dbGetHomeLayout, dbSaveHomeLayout } from "../repositories/index.js";
 import { jsonResponse } from "../lib/helpers.js";
 import { AppError } from "../lib/AppError.js";
@@ -17,6 +18,8 @@ const MAX_LAYOUT_BYTES = 32 * 1024;
 async function requireUserId(request, env) {
   const user = await getAuthenticatedUser(request, env);
   if (!user) throw AppError.unauthorized("جهت شخصی‌سازی صفحه اصلی، ابتدا وارد حساب کاربری خود شوید.");
+  // The home page's layout belongs to the market page (feature `market`, open to some groups)
+  await requireFeature(request, env, "market");
   return user.userId || user.id || user.email;
 }
 

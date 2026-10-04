@@ -29,6 +29,7 @@
  *   landing.css          — Logged-out landing page
  *   auth.css            — Sign-in / sign-up / email-link pages
  *   shared-page-layout.css — Shared feature-page header bar (Portfolio/Transactions/Loans/Incomes)
+ *   feature-offer.css   — In place of a feature the user doesn't have (join a group)
  */
 
 @import './tokens.css';
@@ -37,6 +38,7 @@
 @import './market.css';
 @import './portfolio.css';
 @import './shared-page-layout.css';
+@import './feature-offer.css';
 @import './modals.css';
 @import './feedback.css';
 @import './admin.css';

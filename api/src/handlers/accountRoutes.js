@@ -45,7 +45,8 @@ import {
 } from "../lib/security.js";
 import { sendEmail, isEmailConfigured, verificationEmail, passwordResetEmail, accountExistsEmail } from "../lib/email.js";
 import { SESSION_TTL_SECONDS, SESSION_COOKIE_MAX_AGE } from "../config/constants.js";
-import { enabledFeatures } from "../config/features.js";
+import { userFeatures } from "../lib/features.js";
+import { dbGetUserRequestedGroupKeys } from "../repositories/userGroups.repository.js";
 import { isAppVerifier, appChallengeOf, appSignInPurpose, APP_WEBVIEW_ORIGIN } from "../lib/appAuth.js";
 
 export const PASSWORD_MIN_LENGTH = 8;
@@ -126,8 +127,13 @@ async function enforceLimit(env, key, limit, message = "تعداد تلاش‌ه
 }
 
 /** The user object the frontend keeps (same shape as /api/auth/me) */
-export function publicUser(account, env) {
+export async function publicUser(account, env) {
   const role = isUserAdmin(account.email, env) ? "admin" : "user";
+  const subject = { id: account.id, userId: account.id, email: account.email, role };
+  const [features, requestedGroups] = await Promise.all([
+    userFeatures(env, subject),
+    dbGetUserRequestedGroupKeys(env, account.id).catch(() => []),
+  ]);
   return {
     id: account.id,
     email: account.email,
@@ -139,7 +145,9 @@ export function publicUser(account, env) {
     hasPassword: Boolean(account.passwordHash),
     emailVerified: account.emailVerified,
     // Same as GET /api/auth/me: a sign-in answer is used as the user without asking again
-    features: enabledFeatures({ id: account.id, email: account.email, role }),
+    features,
+    groups: subject.groups || [],
+    requestedGroups,
   };
 }
 
@@ -149,7 +157,7 @@ export const ACCOUNT_DISABLED_MESSAGE = "حساب کاربری شما توسط �
 async function signIn(request, env, account, message) {
   if (account.disabled) throw new AppError(ACCOUNT_DISABLED_MESSAGE, 403, "ACCOUNT_DISABLED");
   await assertNotMaintenance(env, account.email);
-  const user = publicUser(account, env);
+  const user = await publicUser(account, env);
   const token = crypto.randomUUID();
   await dbSaveSession(env, {
     token,

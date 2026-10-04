@@ -18,6 +18,7 @@ import { toEnglishDigits } from '../shared/utils/formatters.js';
 import { useDocumentTitle } from '../shared/hooks/useDocumentTitle.js';
 import { useTabNavigation } from '../shared/hooks/useTabNavigation.js';
 import { useFeature } from '../shared/features/useFeature.js';
+import FeatureOffer from '../shared/features/FeatureOffer.jsx';
 import { isNativeApp } from '../shared/native/nativeApp.js';
 import { startSmsAutoRead } from '../shared/native/smsInbox.js';
 import { initDueNotificationClicks } from '../shared/native/dueNotifications.js';
@@ -35,6 +36,13 @@ const AppSettingsView = lazy(() => import('../features/app-settings/AppSettingsV
 const SmsInboxPage = lazy(() => import('../features/sms-inbox/SmsInboxPage.jsx'));
 // The Android app's home (its own month at a glance); the website's home is the market
 const AppHomeDashboard = lazy(() => import('../features/home/AppHomeDashboard.jsx'));
+
+/** What the market page gives, shown to users without it (FeatureOffer) */
+const MARKET_BENEFITS = [
+  'قیمت لحظه‌ای طلا، سکه، ارز، رمزارز، نمادهای بورس و صندوق‌ها، با ارزش ذاتی و حباب',
+  'نمودار شمعی و تاریخچه‌ی قیمت هر دارایی',
+  'صفحه‌ی اول شخصی: بخش‌ها و کارت‌های دلخواه، با قالب‌های آماده',
+];
 
 function TabLoader() {
   return (
@@ -55,6 +63,9 @@ export default function MainPage() {
   // Expenses are in beta: only users of the `expenses` feature (admins) see the section
   const hasExpenses = useFeature('expenses');
   const hasAccounts = useFeature('bank_accounts');
+  // The market page (prices, their charts, the customizable home) is open to some groups only
+  // (feature `market`, "pro" by default); the others see what it offers and can ask to join
+  const hasMarket = useFeature('market');
 
   // Android app: read new bank SMS on opening, on every return to the app and as they arrive; a
   // bank SMS notification opens the SMS page, where the messages wait to be recorded
@@ -176,6 +187,16 @@ export default function MainPage() {
 
   const goToTab = useTabNavigation(activeTab === 'market', appPath('/'));
 
+  // Website: without the market page, the app opens on the portfolio; «نرخ و حباب» (/rates) still
+  // shows what the market page offers
+  const marketLocked = Boolean(user) && !hasMarket;
+  const opensOnPortfolio = marketLocked && !isNativeApp() && subPath === '/' && !searchParams.get('tab');
+  useEffect(() => {
+    if (opensOnPortfolio) navigate(lastPortfolioPath('/portfolio'), { replace: true });
+    // Only when it starts on the home path
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [opensOnPortfolio]);
+
   const lastPortfolioPath = (base) => {
     let lastId = null;
     try {
@@ -208,6 +229,9 @@ export default function MainPage() {
       if (!subPath.startsWith('/portfolio')) goToTab(lastPortfolioPath('/portfolio'));
     } else if (TAB_PATHS[nextTab]) {
       goToTab(appPath(TAB_PATHS[nextTab]));
+    // Website without the market page: /app opens the portfolio, so the offer is at /rates
+    } else if (nextTab === 'market' && marketLocked && !isNativeApp()) {
+      goToTab(appPath('/rates'));
     // On the website /rates is the home page too; in the app it is the market's own page
     } else if (subPath !== '/' && (isNativeApp() || subPath !== '/rates')) {
       goToTab(appPath('/'));
@@ -320,7 +344,7 @@ export default function MainPage() {
       )}
 
       {/* Only where prices are shown */}
-      {(isNativeApp() ? ['rates', 'portfolio'] : ['market', 'portfolio']).includes(activeTab) && <PriceRefreshStatus />}
+      {(isNativeApp() ? ['rates', 'portfolio'] : ['market', 'portfolio']).includes(activeTab) && (hasMarket || activeTab === 'portfolio') && <PriceRefreshStatus />}
 
       {/* Tab Views */}
       <section className="tab-view-container">
@@ -345,13 +369,22 @@ export default function MainPage() {
 
         {activeTab === (isNativeApp() ? 'rates' : 'market') && (
           <div className="market-tab-content">
-            {/* The user's own home page: sections of any assets, customizable per user */}
-            <HomeDashboard
-              analysis={analysis}
-              currencies={currencies}
-              recommendation={recommendation}
-              loading={marketLoading}
-            />
+            {hasMarket ? (
+              /* The user's own home page: sections of any assets, customizable per user */
+              <HomeDashboard
+                analysis={analysis}
+                currencies={currencies}
+                recommendation={recommendation}
+                loading={marketLoading}
+              />
+            ) : (
+              <FeatureOffer
+                feature="market"
+                title="صفحه‌ی نرخ و حباب مخصوص کاربران Pro است"
+                subtitle="بازار امروز را یک‌جا ببینید و صفحه‌ی اول را برای خودتان بچینید."
+                benefits={MARKET_BENEFITS}
+              />
+            )}
           </div>
         )}
 
