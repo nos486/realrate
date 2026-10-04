@@ -171,11 +171,19 @@ async function sendRequest(path, options = {}) {
       : `${API_BASE}${path}`;
 
     const { silent: _silent, ...fetchOptions } = options;
-    const res = await fetch(url, {
-      ...fetchOptions,
-      headers,
-      credentials: 'include',
-    });
+    let res;
+    try {
+      res = await fetch(url, {
+        ...fetchOptions,
+        headers,
+        credentials: 'include',
+      });
+    } catch (err) {
+      // A request the caller cancelled stays a cancellation
+      if (err?.name === 'AbortError') throw err;
+      // No answer at all (no connection, DNS, a dropped connection): status 0, NETWORK_ERROR
+      throw new HttpError('اتصال به سرور برقرار نشد.', 0, null, 'NETWORK_ERROR');
+    }
 
     let data = null;
     const contentType = res.headers.get('content-type') || '';
