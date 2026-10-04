@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, lazy, Suspense } from 'react';
 import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { TrendingUp, Briefcase, ShieldCheck, Settings, Landmark, Wallet, ReceiptText, Wrench, HandCoins, WalletCards, Smartphone, MessageSquareText } from 'lucide-react';
+import { TrendingUp, Briefcase, ShieldCheck, Settings, Landmark, Wallet, ReceiptText, Wrench, HandCoins, WalletCards, Smartphone, MessageSquareText, FolderKanban } from 'lucide-react';
 import { AppLayout, FilterPills, AlertBanner, Button } from '../shared/ui/index.js';
 import { PriceRefreshStatus } from '../features/market/components/index.js';
 import HomeDashboard from '../features/home/HomeDashboard.jsx';
@@ -31,6 +31,7 @@ const LoansPage = lazy(() => import('../features/loans/components/LoansPage.jsx'
 const IncomesPage = lazy(() => import('../features/incomes/components/IncomesPage.jsx'));
 const ChequesPage = lazy(() => import('../features/cheques/components/ChequesPage.jsx'));
 const ExpensesPage = lazy(() => import('../features/expenses/components/ExpensesPage.jsx'));
+const ProjectsPage = lazy(() => import('../features/expenses/components/ProjectsPage.jsx'));
 const AccountsPage = lazy(() => import('../features/accounts/components/AccountsPage.jsx'));
 const AccountSettingsView = lazy(() => import('../components/AccountSettingsView.jsx'));
 const AppSettingsView = lazy(() => import('../features/app-settings/AppSettingsView.jsx'));
@@ -116,8 +117,18 @@ export default function MainPage() {
       searchParams.get('tab') === 'cheques'
     );
 
-  const isExpenses =
+  // Projects have their own part (/projects); old /expenses/projects and /expenses/:id links are
+  // sent there below
+  const oldProjectSegment = subPath.match(/^\/expenses\/([^/]+)/)?.[1] || null;
+  const isProjects =
     hasExpenses && !isSettings && !isIncomes && !isCheques && (
+      subPath.startsWith('/projects') ||
+      Boolean(oldProjectSegment) ||
+      searchParams.get('tab') === 'projects'
+    );
+
+  const isExpenses =
+    hasExpenses && !isSettings && !isIncomes && !isCheques && !isProjects && (
       subPath.startsWith('/expenses') ||
       searchParams.get('tab') === 'expenses'
     );
@@ -153,6 +164,7 @@ export default function MainPage() {
     ['sms', isSms],
     ['incomes', isIncomes],
     ['cheques', isCheques],
+    ['projects', isProjects],
     ['expenses', isExpenses],
     ['accounts', isAccounts],
     ['portfolio', isPortfolio],
@@ -172,6 +184,8 @@ export default function MainPage() {
         return 'مدیریت چک‌ها | RealRate';
       case 'expenses':
         return 'هزینه‌ها | RealRate';
+      case 'projects':
+        return 'پروژه‌ها | RealRate';
       case 'accounts':
         return 'حساب‌ها | RealRate';
       case 'settings':
@@ -201,6 +215,14 @@ export default function MainPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [opensOnPortfolio]);
 
+  // Old links to projects under /expenses (/expenses/projects, /expenses/:id) move to /projects
+  useEffect(() => {
+    if (!oldProjectSegment) return;
+    navigate(appPath(oldProjectSegment === 'projects' ? '/projects' : `/projects/${oldProjectSegment}`), { replace: true });
+    // Only when such a link is opened
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [oldProjectSegment]);
+
   const lastPortfolioPath = (base) => {
     let lastId = null;
     try {
@@ -213,6 +235,7 @@ export default function MainPage() {
     incomes: '/incomes',
     cheques: '/cheques',
     expenses: '/expenses',
+    projects: '/projects',
     accounts: '/accounts',
     loans: '/loans',
     settings: '/settings',
@@ -251,6 +274,7 @@ export default function MainPage() {
       { value: 'incomes', label: 'درآمدها', icon: <Wallet size={16} strokeWidth={2} /> },
       // Beta (admins): expenses right after incomes, then the accounts they are paid from
       ...(hasExpenses ? [{ value: 'expenses', label: 'هزینه‌ها', icon: <HandCoins size={16} strokeWidth={2} /> }] : []),
+      ...(hasExpenses ? [{ value: 'projects', label: 'پروژه‌ها', icon: <FolderKanban size={16} strokeWidth={2} /> }] : []),
       ...(hasAccounts ? [{ value: 'accounts', label: 'حساب‌ها', icon: <WalletCards size={16} strokeWidth={2} /> }] : []),
       // Android app: the bank messages it read, next to the expenses and incomes they become
       ...(isNativeApp() && hasExpenses ? [{ value: 'sms', label: 'پیامک‌ها', icon: <MessageSquareText size={16} strokeWidth={2} /> }] : []),
@@ -413,10 +437,12 @@ export default function MainPage() {
 
         {activeTab === 'accounts' && <AccountsPage />}
 
-        {activeTab === 'expenses' && (
-          <ExpensesPage
-            segment={subPath.match(/^\/expenses\/([^/]+)/)?.[1] || null}
-            onNavigate={(segment) => navigate(appPath(segment ? `/expenses/${segment}` : '/expenses'), { replace: true })}
+        {activeTab === 'expenses' && <ExpensesPage />}
+
+        {activeTab === 'projects' && (
+          <ProjectsPage
+            groupId={subPath.match(/^\/projects\/([^/]+)/)?.[1] || null}
+            onSelectGroup={(id) => navigate(appPath(id ? `/projects/${id}` : '/projects'), { replace: true })}
           />
         )}
 

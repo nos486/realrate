@@ -4,7 +4,7 @@
  * - Sections as a row of chips on top (the selected one is in the URL: /expenses/:groupId)
  * - The selected section: its totals (everything in tomans, and per currency as recorded) and
  *   its expenses, in tomans or dollars, newest first
- * The page header, the vault lock and the switch to daily expenses are ExpensesPage's.
+ * The page header and the vault lock are ProjectsPage's (projects are their own part: /projects).
  */
 
 import { useOptionalLoans } from '../../loans/context/LoansContext.jsx';
