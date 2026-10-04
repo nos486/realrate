@@ -4,7 +4,8 @@
  *  - this month's spending (vs the same days of last month) and income, and what is left
  *  - bank messages waiting to be recorded
  *  - the latest expenses
- *  - a small rates card (dollar, 18k gold, coin) that opens the market page
+ *  - a small rates card (dollar, 18k gold, coin) that opens the market page — only for users
+ *    with the market page (feature `market`, the "pro" group); today's rates belong to it
  * Installment and cheque reminders are shown above it by MainPage, as on the website's home.
  * Everything is decrypted in the browser; nothing shows while the vault is locked (the card to
  * unlock it does).
@@ -70,6 +71,7 @@ export default function AppHomeDashboard({ usdToman = 0, analysis = [], onOpen }
   const vault = useVault();
   const hideValues = usePrivacyMode();
   const hasExpenses = useFeature('expenses');
+  const hasMarket = useFeature('market');
   const unlocked = vault.status === 'unlocked';
   const today = todayIso();
   const month = useMemo(() => shamsiMonthOf(today), [today]);
@@ -116,7 +118,7 @@ export default function AppHomeDashboard({ usdToman = 0, analysis = [], onOpen }
     { key: 'usd', label: 'دلار', value: usdToman },
     { key: 'gold', label: 'طلای ۱۸ عیار', value: price('gold_18k') },
     { key: 'coin', label: 'سکه امامی', value: price('full_coin') },
-  ].filter((r) => r.value > 0);
+  ].filter((r) => hasMarket && r.value > 0);
 
   if (vault.status === 'locked') {
     return <VaultUnlockCard title="برای دیدن خلاصه‌ی ماه، اطلاعات را باز کنید" />;
