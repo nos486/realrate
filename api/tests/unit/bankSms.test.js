@@ -14,6 +14,8 @@ import { BANK_SMS_TEMPLATES } from '../../src/domain/bankSmsTemplates.js';
 
 // 1405/07/06 (Mehr 6th)
 const TODAY = new Date(2026, 8, 28);
+// 1405/07/12
+const LATER = new Date(2026, 9, 4);
 const parse = (text, options = {}) => parseBankSms(text, BANK_SMS_TEMPLATES, { today: TODAY, ...options });
 
 /**
@@ -58,11 +60,87 @@ const SAMPLES = [
     text: 'حساب1848394556\nواریز31,500,000\nمانده31,894,014\n05/06/28-13:57',
     expect: { templateId: 'mellat-balance', direction: 'credit', amount: 3150000, balance: 3189401.4, accountLast4: '4556', date: '2026-09-19', time: '13:57' },
   },
+  // The samples below were read on 1405/07/12 (LATER); the sender tells Resalat from Pasargad
+  {
+    bank: 'resalat',
+    options: { sender: 'ResalatBank', today: LATER },
+    text: '10.3372914.1 \n-13,550,000  \n07/11_00:12 \nمانده: 428,428,242',
+    expect: { templateId: 'resalat-balance', direction: 'debit', amount: 1355000, balance: 42842824.2, accountLast4: '9141', date: '2026-10-03', time: '00:12' },
+  },
+  {
+    bank: 'resalat',
+    options: { sender: 'ResalatBank', today: LATER },
+    text: '10.3372914.1 \n+4,692,800  \n07/11_22:01 \nمانده: 433,121,042',
+    expect: { templateId: 'resalat-balance', direction: 'credit', amount: 469280, balance: 43312104.2, date: '2026-10-03', time: '22:01' },
+  },
+  {
+    bank: 'mehr-iran',
+    options: { sender: 'B.QMEHRIRAN', today: LATER },
+    text: '300362322544 \n400,000-\n1405/7/1-16:31\nمانده:2,279,556',
+    expect: { templateId: 'mehr-iran-balance', direction: 'debit', amount: 40000, balance: 227955.6, accountLast4: '2544', date: '2026-09-23', time: '16:31' },
+  },
+  {
+    bank: 'mehr-iran',
+    options: { sender: 'B.QMEHRIRAN', today: LATER },
+    text: ' 300362322544  \n5,000,000+\n1405/7/11-14:40\n مانده:7,239,695',
+    expect: { templateId: 'mehr-iran-balance', direction: 'credit', amount: 500000, balance: 723969.5, date: '2026-10-03', time: '14:40' },
+  },
+  {
+    bank: 'tejarat',
+    options: { sender: 'TejaratBank', today: LATER },
+    // Arabic «ي» in «طريق», as delivered
+    text: '*بانک تجارت*  \nحساب: 0177002186043  \nبرداشت: 60,000 ریال  \nاز طريق: پایانه فروش   \nمانده: 24,502,460 ریال  \n1405/07/11 \n14:15',
+    expect: { templateId: 'tejarat-balance', direction: 'debit', amount: 6000, balance: 2450246, accountLast4: '6043', date: '2026-10-03', time: '14:15', description: 'پایانه فروش' },
+  },
+  {
+    bank: 'tejarat',
+    options: { sender: 'TejaratBank', today: LATER },
+    text: '*بانک تجارت*  \nحساب: 0177002186043  \nواریز: 5,000,000 ریال  \nاز طريق: شتاب   \nمانده: 24,562,460 ریال  \n1405/07/05 \n18:39',
+    expect: { templateId: 'tejarat-balance', direction: 'credit', amount: 500000, balance: 2456246, date: '2026-09-27', time: '18:39', description: 'شتاب' },
+  },
+  {
+    bank: 'melli',
+    options: { sender: '700717', today: LATER },
+    // Arabic «ي/ك» throughout, as delivered
+    text: 'بانك ملي ايران\nبرداشت:500,000-\nحساب:10000\nمانده:23,488,359\n0705-20:46',
+    expect: { templateId: 'melli-balance', direction: 'debit', amount: 50000, balance: 2348835.9, account: '10000', date: '2026-09-27', time: '20:46', description: 'برداشت' },
+  },
+  {
+    bank: 'melli',
+    options: { sender: '700717', today: LATER },
+    text: 'بانك ملي ايران\nانتقال:25,000,000+\nحساب:10000\nمانده:198,088,329\n0625-19:42',
+    expect: { templateId: 'melli-balance', direction: 'credit', amount: 2500000, balance: 19808832.9, date: '2026-09-16', time: '19:42', description: 'انتقال' },
+  },
+  {
+    bank: 'melli',
+    options: { sender: '700717', today: LATER },
+    text: 'بانك ملي ايران\nپايا:140,000,000-\nحساب:10000\nمانده:46,075,429\n0629-15:50',
+    expect: { templateId: 'melli-balance', direction: 'debit', amount: 14000000, date: '2026-09-20', time: '15:50', description: 'پایا' },
+  },
+  {
+    bank: 'melli',
+    options: { sender: '700717', today: LATER },
+    text: 'بانك ملي ايران\nخريداينترنتي:7,714,450-\nحساب:10000\nمانده:186,675,429\n0626-20:17',
+    expect: { templateId: 'melli-balance', direction: 'debit', amount: 771445, date: '2026-09-17', time: '20:17', description: 'خریداینترنتی' },
+  },
+  {
+    bank: 'khavarmianeh',
+    options: { sender: 'KH M BANK', today: LATER },
+    text: 'بانک خاورمیانه\n838/000115456\n-208,000,000\n07/08\n15:58\nمانده 536,365\nبرداشت حواله پل',
+    expect: { templateId: 'khavarmianeh-balance', direction: 'debit', amount: 20800000, balance: 53636.5, account: '838000115456', accountLast4: '5456', date: '2026-09-30', time: '15:58', description: 'برداشت حواله پل' },
+  },
+  {
+    bank: 'khavarmianeh',
+    options: { sender: 'KH M BANK', today: LATER },
+    // Without the closing line
+    text: 'بانک خاورمیانه\n838/000115456\n+200,000,000\n07/08\n15:57\nمانده 208,536,365',
+    expect: { templateId: 'khavarmianeh-balance', direction: 'credit', amount: 20000000, balance: 20853636.5, date: '2026-09-30', time: '15:57', description: '' },
+  },
 ];
 
 describe('bank SMS samples', () => {
   it.each(SAMPLES.map((s, i) => [`${s.bank} #${i + 1}`, s]))('%s reads', (_name, sample) => {
-    const tx = parse(sample.text);
+    const tx = parse(sample.text, sample.options);
     expect(tx).not.toBeNull();
     expect(tx.bankId).toBe(sample.bank);
     expect(tx).toMatchObject(sample.expect);
@@ -140,6 +218,13 @@ describe('dates', () => {
   it('with a year', () => {
     expect(smsDateToIso('1405/07/06', TODAY)).toBe('2026-09-28');
     expect(smsDateToIso('05/07/06', TODAY)).toBe('2026-09-28');
+  });
+
+  it('without separators (MMDD, YYMMDD, YYYYMMDD)', () => {
+    expect(smsDateToIso('0706', TODAY)).toBe('2026-09-28');
+    expect(smsDateToIso('050706', TODAY)).toBe('2026-09-28');
+    expect(smsDateToIso('14050706', TODAY)).toBe('2026-09-28');
+    expect(smsDateToIso('070', TODAY)).toBe('');
   });
 
   it('not a date', () => {
@@ -222,7 +307,13 @@ describe('rules for the Android side (only withdrawals and deposits reach the ap
   });
 
   it('other bank messages are not', () => {
-    const others = ['مشتری گرامی، مانده حساب شما 81,294,045 ریال است.', 'بلو\nبا بلو بیشتر آشنا شوید'];
+    const others = [
+      'مشتری گرامی، مانده حساب شما 81,294,045 ریال است.',
+      'بلو\nبا بلو بیشتر آشنا شوید',
+      'مشتری گرامی شما در۱۴۰۵/۰۷/۰۶ ساعت۲۲:۵۰وارد همراه بانک تجارت شده اید.',
+      // Khavarmianeh's notice of a Pol transfer (its withdrawal comes in a message of its own)
+      'بانک خاورمیانه\nتراکنش:انتقال وجه پرداخت لحظه ای (پل)\nبه:نام گیرنده / فعال\nمبلغ:208,000,000ریال',
+    ];
     for (const text of others) {
       expect(rules.some((r) => r.patterns.some((source) => new RegExp(source).test(normalizeSmsText(text))))).toBe(false);
     }
