@@ -4,10 +4,12 @@
  * Caching policy:
  *  - Static pages (/, /features/*, /about, /faq): bypassed so crawlers/users get fresh static HTML.
  *    Offline fallback for / returns /spa.html so logged-in users can reach the offline app.
- *  - App shell (/spa.html, and SPA client routes): network-first, caching into SHELL_CACHE.
+ *  - App shell (/spa.html, and SPA client routes): network-first, but a slow network waits at most
+ *    SHELL_NETWORK_WAIT_MS before the cached shell is used (the network answer still refreshes it).
  *  - Static assets (/assets/*): cache first (immutable content hash).
  *  - Other same-origin static files (seo, icons, fonts, manifest): stale-while-revalidate.
- *  - Public market data (/api/prices/book, /api/prices): network first with fallback.
+ *  - Public market data (/api/prices/book, /api/prices): network first, the cached copy after
+ *    MARKET_NETWORK_WAIT_MS on a slow network.
  *  - Private user data (auth, portfolios, transactions, etc.): NEVER cached.
  */
 
@@ -19,6 +21,9 @@ const MARKET_CACHE = `rr-market-${VERSION}`;
 const CURRENT_CACHES = [SHELL_CACHE, ASSET_CACHE, STATIC_CACHE, MARKET_CACHE];
 
 const SHELL_URL = '/spa.html';
+// On a slow connection, how long a request waits for the network before the cached copy is used
+const SHELL_NETWORK_WAIT_MS = 2500;
+const MARKET_NETWORK_WAIT_MS = 4000;
 const MAX_ASSET_ENTRIES = 120;
 const PUBLIC_MARKET_PATHS = [
   '/api/prices/book', '/api/v1/prices/book',
@@ -82,12 +87,12 @@ self.addEventListener('fetch', (event) => {
       return;
     }
 
-    event.respondWith(networkFirstShell(request));
+    event.respondWith(networkFirstWithin(event, request, SHELL_CACHE, SHELL_URL, SHELL_NETWORK_WAIT_MS));
     return;
   }
 
   if (PUBLIC_MARKET_PATHS.includes(url.pathname) && !url.searchParams.has('force')) {
-    event.respondWith(networkFirst(request, MARKET_CACHE));
+    event.respondWith(networkFirstWithin(event, request, MARKET_CACHE, request, MARKET_NETWORK_WAIT_MS));
     return;
   }
 
@@ -112,28 +117,27 @@ async function networkFirstLandingWithShellFallback(request) {
   }
 }
 
-async function networkFirstShell(request) {
-  const cache = await caches.open(SHELL_CACHE);
-  try {
-    const res = await fetch(request);
-    // Only cache if successful response from an SPA navigation
-    if (res.ok) cache.put(SHELL_URL, res.clone());
-    return res;
-  } catch {
-    const cached = await cache.match(SHELL_URL);
-    return cached || Response.error();
-  }
-}
-
-async function networkFirst(request, cacheName) {
+/**
+ * Network first, but never stuck on a slow network: with a cached copy, wait at most `waitMs` for
+ * the network, then answer with the copy. The network answer, whenever it comes, refreshes the
+ * cache (kept alive by waitUntil). Without a copy, wait for the network.
+ */
+async function networkFirstWithin(event, request, cacheName, cacheKey, waitMs) {
   const cache = await caches.open(cacheName);
-  try {
-    const res = await fetch(request);
-    if (res.ok) cache.put(request, res.clone());
+  const network = fetch(request).then((res) => {
+    if (res.ok) return cache.put(cacheKey, res.clone()).then(() => res, () => res);
     return res;
-  } catch {
-    const cached = await cache.match(request);
-    return cached || Response.error();
+  });
+  event.waitUntil(network.catch(() => null));
+  const cached = await cache.match(cacheKey);
+  if (!cached) return network.catch(() => Response.error());
+  let timer;
+  const late = new Promise((resolve) => { timer = setTimeout(() => resolve(cached), waitMs); });
+  const fresh = network.catch(() => cached);
+  try {
+    return await Promise.race([fresh, late]);
+  } finally {
+    clearTimeout(timer);
   }
 }
 
