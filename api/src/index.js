@@ -10,7 +10,7 @@
  * The frontend (React + Vite) is hosted separately on Cloudflare Pages.
  */
 
-import { getCorsHeaders, isOriginAllowed } from "./lib/helpers.js";
+import { getCorsHeaders, isOriginAllowed, PREFLIGHT_MAX_AGE_SEC, withServerTiming } from "./lib/helpers.js";
 import { validateEnv } from "./config/env.js";
 import { withErrorHandler } from "./middlewares/errorHandler.js";
 import { enforceMaintenance } from "./lib/maintenance.js";
@@ -622,21 +622,6 @@ async function handleRequest(request, env, ctx) {
     }),
     { status: 404, headers: { "Content-Type": "application/json", ...corsHeaders } }
   );
-}
-
-/** How long a browser may reuse a CORS preflight answer */
-export const PREFLIGHT_MAX_AGE_SEC = 86400;
-
-/**
- * The time the Worker spent on a request, as a Server-Timing header (DevTools → Network → Timing):
- * a long wait with a short `app` time is the network, not the server
- */
-export function withServerTiming(response, request, startedAt) {
-  const headers = new Headers(response.headers);
-  headers.append("Server-Timing", `app;dur=${Math.max(0, Date.now() - startedAt)}`);
-  const origin = request.headers.get("Origin");
-  if (origin && isOriginAllowed(origin)) headers.set("Timing-Allow-Origin", origin);
-  return new Response(response.body, { status: response.status, statusText: response.statusText, headers });
 }
 
 export default {

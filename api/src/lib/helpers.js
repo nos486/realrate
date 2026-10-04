@@ -55,6 +55,22 @@ export function getCorsHeaders(requestOrOrigin) {
   };
 }
 
+/** How long a browser may reuse a CORS preflight answer (Chrome keeps it at most 2 hours) */
+export const PREFLIGHT_MAX_AGE_SEC = 86400;
+
+/**
+ * The time the Worker spent on a request, as a Server-Timing header (DevTools → Network → Timing):
+ * a long wait with a short `app` time is the network, not the server. Readable by our own sites
+ * (Timing-Allow-Origin).
+ */
+export function withServerTiming(response, request, startedAt) {
+  const headers = new Headers(response.headers);
+  headers.append("Server-Timing", `app;dur=${Math.max(0, Date.now() - startedAt)}`);
+  const origin = request.headers.get("Origin");
+  if (origin && isOriginAllowed(origin)) headers.set("Timing-Allow-Origin", origin);
+  return new Response(response.body, { status: response.status, statusText: response.statusText, headers });
+}
+
 /**
  * Build a JSON Response with standard content-type and dynamic CORS headers
  * @param {object} data

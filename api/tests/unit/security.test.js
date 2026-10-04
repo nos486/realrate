@@ -250,3 +250,12 @@ describe('admin-only upstream sync endpoints', () => {
     expect(res.status).toBe(403);
   });
 });
+
+describe('the Worker entry module', () => {
+  // The runtime refuses to start when the entry exports anything but handlers (and Durable Object
+  // classes): a stray constant or helper export there takes the whole API down
+  it('exports nothing but its default handler', async () => {
+    const entry = await import('../../src/index.js');
+    expect(Object.keys(entry)).toEqual(['default']);
+  });
+});
