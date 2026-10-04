@@ -19,8 +19,9 @@ function formatUpdatedAgo(timestamp, now = Date.now()) {
 }
 
 /**
- * PriceRefreshStatus — "last updated" line with a manual refresh button, and a warning banner
- * when the latest refresh failed (the last good prices stay on screen).
+ * PriceRefreshStatus — A warning banner when the prices can't be refreshed (offline, or the latest
+ * refresh failed: the last good prices stay on screen, with a retry button). Nothing otherwise:
+ * refreshing is the header's button (PriceRefreshButton).
  */
 export default function PriceRefreshStatus() {
   const pricing = usePricing();
@@ -81,12 +82,5 @@ export default function PriceRefreshStatus() {
     );
   }
 
-  if (!lastUpdatedAt) return null;
-
-  return (
-    <div className="price-refresh-status" aria-live="polite">
-      <span>به‌روزرسانی قیمت‌ها: {refreshing ? 'در حال دریافت…' : updatedAgo}</span>
-      {refreshButton}
-    </div>
-  );
+  return null;
 }
