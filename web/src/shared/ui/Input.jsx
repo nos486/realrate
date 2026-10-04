@@ -1,5 +1,6 @@
 import React, { forwardRef } from 'react';
 import { X } from 'lucide-react';
+import { useTypedText } from './useTypedText.js';
 
 /**
  * Universal Minimalist Input Component
@@ -13,6 +14,8 @@ import { X } from 'lucide-react';
  * @param {() => void} [onClear]
  * @param {'sm' | 'md' | 'lg'} [size='md']
  * @param {'input' | 'textarea'} [as='input']
+ *
+ * Typed text always reaches `onChange`, whatever the phone keyboard (useTypedText.js).
  */
 export const Input = forwardRef(function Input(
   {
@@ -29,11 +32,16 @@ export const Input = forwardRef(function Input(
     id,
     disabled = false,
     value,
+    onChange,
+    onInput,
+    onCompositionEnd,
+    onBlur,
     ...props
   },
   ref
 ) {
   const Component = as === 'textarea' ? 'textarea' : 'input';
+  const typed = useTypedText(value, onChange, { onInput, onCompositionEnd, onBlur });
   const hasValue = value !== undefined && value !== null && String(value).length > 0;
 
   return (
@@ -54,6 +62,7 @@ export const Input = forwardRef(function Input(
           disabled={disabled}
           value={value}
           {...props}
+          {...typed}
         />
 
         {clearable && hasValue && !disabled && (

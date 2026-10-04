@@ -54,6 +54,7 @@ import { usePrivacyMode } from '../../../hooks/usePrivacyMode.js';
 import { useFeedback } from '../../../shared/ui/FeedbackProvider.jsx';
 import { SkeletonRows } from '../../../shared/ui/Skeleton.jsx';
 import { useDemo } from '../../demo/index.js';
+import TextField from '../../../shared/ui/TextField.jsx';
 
 const HoldingsView = forwardRef(function HoldingsView(
   { activePortfolio, portfolios, loadingPortfolios = false, fetchPortfolios, deletePortfolio, onVaultLockChange, toolbarSlot = null },
@@ -322,7 +323,7 @@ const HoldingsView = forwardRef(function HoldingsView(
       {!isVaultLocked && holdings.length > 0 && (
         <div className="portfolio-search-box">
           <Search size={14} className="portfolio-search-icon" />
-          <input
+          <TextField
             type="text"
             placeholder="جستجو در اقلام پورتفو..."
             value={holdingsFilterQuery}

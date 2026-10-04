@@ -6,6 +6,7 @@ import { normalizeBankName } from '../../config/banks.config.js';
 import { useCustomBanks } from './useCustomBanks.js';
 import { useFeedback } from '../ui/FeedbackProvider.jsx';
 import { useBackToClose } from '../hooks/useBackToClose.js';
+import TextField from '../ui/TextField.jsx';
 
 const BANK_GROUPS = getBankGroups();
 
@@ -118,7 +119,7 @@ export default function BankPicker({ value, onChange, label = 'بانک / وام
         >
           <div className="bank-picker-search">
             <Search size={15} />
-            <input
+            <TextField
               ref={searchRef}
               type="text"
               value={query}

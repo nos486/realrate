@@ -15,6 +15,7 @@ import ShamsiDatePicker, {
   shamsiToGregorian,
 } from '../../portfolio/components/ShamsiDatePicker.jsx';
 import { todayIso } from '../../../shared/utils/dates.js';
+import TextField from '../../../shared/ui/TextField.jsx';
 
 const formatNum = (v) => Number(v || 0).toLocaleString('fa-IR');
 
@@ -288,7 +289,7 @@ export default function ExtraPaymentModal({
           <label className="ui-input-label" style={{ display: 'block', marginBottom: '6px' }}>
             توضیحات یا منبع واریزی (اختیاری)
           </label>
-          <input
+          <TextField
             type="text"
             className="form-input"
             placeholder="مثلاً: پاداش، فروش طلا، تسویه پیش از موعد..."

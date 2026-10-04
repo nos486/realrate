@@ -21,6 +21,7 @@ import {
   resolveAssetUnit,
 } from '../../../config/sourceRegistry.js';
 import { getItemCategory } from '../../../config/displayEngine.js';
+import TextField from '../../../shared/ui/TextField.jsx';
 
 export default function TransactionForm({
   isOpen,
@@ -299,7 +300,7 @@ export default function TransactionForm({
       {/* 5. Notes */}
       <div className="form-item">
         <label>یادداشت (اختیاری)</label>
-        <input
+        <TextField
           type="text"
           placeholder="مثلاً: خرید پله‌ای، صرافی فلان، کارمزد و..."
           value={notes}

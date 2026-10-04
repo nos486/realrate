@@ -54,6 +54,7 @@ import {
 } from '../portfolioLayoutModel.js';
 import { useFeedback } from '../../../shared/ui/FeedbackProvider.jsx';
 import { useBackToClose } from '../../../shared/hooks/useBackToClose.js';
+import TextField from '../../../shared/ui/TextField.jsx';
 
 function useDndSensors() {
   return useSensors(
@@ -298,7 +299,7 @@ function SortableCategoryCard({
             currentIcon={group.icon}
             onSelect={(newIcon) => onUpdateIcon(group.id, newIcon)}
           />
-          <input
+          <TextField
             type="text"
             className="portfolio-category-title-input"
             value={group.title}

@@ -6,6 +6,7 @@
 import React, { useState } from 'react';
 import { X, Tag } from 'lucide-react';
 import { normalizeTags, EXPENSE_LIMITS } from '../../../utils/expenseDocument.js';
+import TextField from '../../../shared/ui/TextField.jsx';
 
 export default function TagInput({ id = 'expense-tags', value = [], onChange, suggestions = [] }) {
   const [draft, setDraft] = useState('');
@@ -30,7 +31,7 @@ export default function TagInput({ id = 'expense-tags', value = [], onChange, su
           </span>
         ))}
         {!full && (
-          <input
+          <TextField
             id={id}
             className="expense-tags-field"
             value={draft}
@@ -50,7 +51,8 @@ export default function TagInput({ id = 'expense-tags', value = [], onChange, su
                 remove(value[value.length - 1]);
               }
             }}
-            onBlur={() => draft.trim() && add(draft)}
+            // The field's own text: a phone keyboard may not have reported it to the state yet
+            onBlur={(e) => e.target.value.trim() && add(e.target.value)}
           />
         )}
       </div>
