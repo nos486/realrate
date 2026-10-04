@@ -17,6 +17,7 @@ vi.mock('../../../web/src/shared/app/AppShell.jsx', () => ({
 }));
 vi.mock('../../../web/src/shared/app/AppUpdatePrompt.jsx', () => ({ default: () => null, AppUpdateBanner: () => null }));
 vi.mock('../../../web/src/shared/app/AppSuggestBanner.jsx', () => ({ default: () => null }));
+vi.mock('../../../web/src/shared/app/AppSetupPrompt.jsx', () => ({ default: () => null }));
 vi.mock('../../../web/src/features/demo/index.js', () => ({ DemoBanner: () => null }));
 vi.mock('../../../web/src/shared/offline/OfflineBar.jsx', () => ({ default: () => null }));
 
