@@ -1,7 +1,8 @@
 /**
  * HomeAssetCard.jsx — One asset on the home page, in any of the card styles
  *
- * - detailed (the full card): a card that turns over. The front: price, the source's change, for
+ * - detailed (the full card): a card that turns over. The front: price, the 24-hour change
+ *   (against yesterday's close, from the price history; the source's own figure without one), for
  *   gold & coins the bubble analysis (intrinsic value, standard price, deviation), and today's
  *   low and high (from the price book). Tapped (or Enter / Space), it turns to its back: only the
  *   candles (۱ ماه / ۶ ماه / ۱ سال), fetched the first time that card is turned — nothing loads
@@ -14,6 +15,7 @@ import React, { useState } from 'react';
 import { ChartCandlestick } from 'lucide-react';
 import { CategoryIcon } from '../portfolio/utils/holdingHelpers.js';
 import TrendCandles from './TrendCandles.jsx';
+import { changeSince } from './useDayChanges.js';
 import { useAssetCandles } from './useAssetCandles.js';
 
 function formatNum(num) {
@@ -36,11 +38,12 @@ function bubbleBadge(item) {
   return { className: 'badge-danger', text: `حباب +${pct}٪` };
 }
 
-function changeBadge(changePercent) {
+function changeBadge(changePercent, label = '') {
   if (changePercent === null || changePercent === undefined || changePercent === 0) return null;
   return {
     className: changePercent > 0 ? 'badge-good' : 'badge-danger',
     text: `${changePercent > 0 ? '▲' : '▼'} ${formatPct(changePercent, 2)}٪`,
+    label,
   };
 }
 
@@ -166,7 +169,7 @@ const CANDLE_RANGES = [
  * card is locked (it shows it, and doesn't turn).
  * A tap on the back — the chart included — turns it to the front again.
  */
-function FullCard({ asset, isBest = false, flippable = true }) {
+function FullCard({ asset, isBest = false, flippable = true, previousClose = null }) {
   const [requested, setRequested] = useState(false);
   const [opened, setOpened] = useState(false);
   const [range, setRange] = useState('30d');
@@ -183,7 +186,10 @@ function FullCard({ asset, isBest = false, flippable = true }) {
   const hasMarket = item ? item.market !== null && item.market !== undefined : true;
   const price = asset.price || (item ? (hasMarket ? item.market : item.intrinsic) : null) || null;
   const unit = item ? 'تومان' : asset.unit;
-  const change = changeBadge(asset.changePercent);
+  // The change over 24 hours (against yesterday's close, from the price history); the source's
+  // own figure while the history has none
+  const change24h = changeSince(previousClose, Number(price));
+  const change = change24h !== null ? changeBadge(change24h, '۲۴ ساعت') : changeBadge(asset.changePercent);
   const isFlipped = flippable && requested && opened;
   const direction = change?.className === 'badge-good' ? 'up' : change ? 'down' : 'flat';
 
@@ -203,7 +209,12 @@ function FullCard({ asset, isBest = false, flippable = true }) {
     if (!loading) setRange(value);
   };
 
-  const changePill = change && <span className={`bubble-pill ${change.className}`}>{change.text}</span>;
+  const changePill = change && (
+    <span className={`bubble-pill ${change.className}`} title={change.label ? `تغییر ${change.label} گذشته` : undefined}>
+      {change.text}
+      {change.label && <small className="bubble-pill-note">{change.label}</small>}
+    </span>
+  );
   const pill = item ? <span className={`bubble-pill ${bubbleBadge(item).className}`}>{bubbleBadge(item).text}</span> : changePill;
   const backSeries = status === 'ready' ? series : loading ? shown : null;
 
@@ -291,12 +302,14 @@ function MissingCard({ asset, style }) {
 }
 
 /**
- * @param {{ asset: object, style: 'detailed'|'compact', isBest?: boolean, flippable?: boolean }} props
- *   flippable: false while the page is being arranged (a tap there is a drag)
+ * @param {{ asset: object, style: 'detailed'|'compact', isBest?: boolean, flippable?: boolean,
+ *   previousClose?: number|null }} props
+ *   flippable: false while the page is being arranged (a tap there is a drag);
+ *   previousClose: its close 24 hours ago (useDayChanges), for the full card's 24-hour change
  */
-export default function HomeAssetCard({ asset, style, isBest = false, flippable = true }) {
+export default function HomeAssetCard({ asset, style, isBest = false, flippable = true, previousClose = null }) {
   if (!asset.found) return <MissingCard asset={asset} style={style} />;
   if (style === 'compact') return <CompactCard asset={asset} />;
   // The full card (also a section saved with the older "trend" style)
-  return <FullCard asset={asset} isBest={isBest} flippable={flippable} />;
+  return <FullCard asset={asset} isBest={isBest} flippable={flippable} previousClose={previousClose} />;
 }
