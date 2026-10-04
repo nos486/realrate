@@ -24,7 +24,8 @@ vi.mock('../../../web/src/shared/api/httpClient.js', async (orig) => {
   const key = (kind, id) => `${kind}|${id}`;
   const tick = () => new Date(Date.UTC(2026, 8, 1) + ++server.clock * 1000).toISOString();
   const offline = () => {
-    if (!server.online) throw new TypeError('Failed to fetch');
+    // What httpClient throws when a request gets no answer
+    if (!server.online) throw new HttpError('اتصال به سرور برقرار نشد.', 0, null, 'NETWORK_ERROR');
   };
   const httpClient = {
     get: vi.fn(async (path) => {
@@ -78,7 +79,7 @@ vi.mock('../../../web/src/shared/api/httpClient.js', async (orig) => {
 import * as offline from '../../../web/src/shared/offline/offlineSync.js';
 import { filterRecords } from '../../../web/src/shared/offline/localStore.js';
 import { listVaultRecords, putVaultRecord, deleteVaultRecord, getVault } from '../../../web/src/shared/vault/vaultApi.js';
-import { httpClient } from '../../../web/src/shared/api/httpClient.js';
+import { httpClient, HttpError } from '../../../web/src/shared/api/httpClient.js';
 
 const C = (n) => `enc:e2ee:v1:${n}`;
 let user = 0;
@@ -97,7 +98,8 @@ beforeEach(() => {
   Object.assign(server, { online: true, epoch: 'epoch-1', clock: 0, refuse: null });
   server.records.clear();
   server.tombstones.clear();
-  offline.configureOffline({ isEnabled: () => true });
+  // Offline at the first failure (the confirmation delay has tests of its own)
+  offline.configureOffline({ isEnabled: () => true, offlineConfirmMs: 0 });
   offline.reportOnline();
 });
 afterEach(async () => {
@@ -238,5 +240,45 @@ describe('offline copy', () => {
     // Reads go to the server again
     await listVaultRecords('income', undefined, {}).catch(() => {});
     expect(httpClient.get).toHaveBeenCalledWith(expect.stringContaining('/api/vault/records/income'), undefined);
+  });
+});
+
+describe('telling offline from a hiccup', () => {
+  const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+
+  it('a failure the next try gets past is never shown as offline', async () => {
+    offline.configureOffline({ offlineConfirmMs: 300 });
+    await start();
+    offline.reportOffline();
+    expect(offline.getOfflineState().online).toBe(true);
+    await offline.syncNow();
+    await wait(400);
+    expect(offline.getOfflineState().online).toBe(true);
+  });
+
+  it('failures that last are shown as offline', async () => {
+    offline.configureOffline({ offlineConfirmMs: 100 });
+    await start();
+    server.online = false;
+    offline.reportOffline();
+    expect(offline.getOfflineState().online).toBe(true);
+    await wait(200);
+    expect(offline.getOfflineState().online).toBe(false);
+  });
+
+  it('the browser saying it is offline is believed at once', async () => {
+    offline.configureOffline({ offlineConfirmMs: 10_000 });
+    await start();
+    window.dispatchEvent(new Event('offline'));
+    expect(offline.getOfflineState().online).toBe(false);
+  });
+
+  it('only no answer or a gateway error is a network problem — never a bug or a refusal', () => {
+    expect(offline.isNetworkError(new HttpError('x', 0))).toBe(true);
+    expect(offline.isNetworkError(new HttpError('x', 503))).toBe(true);
+    expect(offline.isNetworkError(new HttpError('x', 503, { errorCode: 'MAINTENANCE' }))).toBe(false);
+    expect(offline.isNetworkError(new HttpError('x', 409))).toBe(false);
+    expect(offline.isNetworkError(new TypeError("Cannot read properties of undefined (reading 'x')"))).toBe(false);
+    expect(offline.isNetworkError(new DOMException('quota', 'QuotaExceededError'))).toBe(false);
   });
 });

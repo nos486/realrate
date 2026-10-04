@@ -11,6 +11,12 @@
  * after an offline change, and every few minutes. While offline a light probe checks every
  * little while whether the server is reachable again.
  *
+ * Online or offline (the bar at the top): the browser's own offline event is believed at once; a
+ * request that got no answer is only a suspicion — the app tries again and says «آفلاین» only
+ * when nothing reached the server for OFFLINE_CONFIRM_MS (a dropped request while switching
+ * networks or a VPN reconnecting is not "offline"). Only no answer (status 0) or a gateway error
+ * counts as a network problem: any other error is a bug or a refusal, never "offline".
+ *
  * When a round brings changes, VAULT_CHANGED_EVENT tells the screens to read again.
  * vaultApi.js decides, per call, whether to answer from the copy or queue a change.
  */
@@ -24,6 +30,10 @@ export const OFFLINE_SYNC_ERROR_EVENT = 'realrate:offline-sync-error';
 const SYNC_PAGE = 500;
 const PERIODIC_MS = 3 * 60 * 1000;
 const PROBE_MS = 15 * 1000;
+/** How long requests must keep failing before the app says it is offline, and when it retries meanwhile */
+const OFFLINE_CONFIRM_MS = 6 * 1000;
+const RETRY_AFTER_FAILURE_MS = 1500;
+let confirmMs = OFFLINE_CONFIRM_MS;
 /** Each round re-reads the last seconds before its cursor: a change stored a moment late is not missed */
 const CURSOR_OVERLAP_MS = 10 * 1000;
 
@@ -55,12 +65,16 @@ export function getOfflineState() {
 // The browser's own view of the connection (the website too: the bar says when it is offline)
 if (typeof window !== 'undefined') {
   window.addEventListener('online', () => reportOnline());
-  window.addEventListener('offline', () => reportOffline());
+  window.addEventListener('offline', () => reportOffline({ certain: true }));
 }
 
-/** Whether this device keeps a copy at all (the Android app; decided by the caller of configureOffline) */
-export function configureOffline({ isEnabled }) {
-  enabled = isEnabled;
+/**
+ * Whether this device keeps a copy at all (the Android app; decided by the caller of
+ * configureOffline). `offlineConfirmMs`: how long failures must last before «آفلاین» (tests)
+ */
+export function configureOffline({ isEnabled, offlineConfirmMs }) {
+  if (isEnabled) enabled = isEnabled;
+  if (offlineConfirmMs !== undefined) confirmMs = offlineConfirmMs;
 }
 
 /** Offline copy in use for the signed-in user */
@@ -78,25 +92,59 @@ export function getLocalStore() {
 }
 
 /**
- * No answer from the server (no connection, a timeout, a gateway error) as opposed to the server
- * refusing the request
+ * No answer from the server (no connection, a dropped connection, a gateway error) as opposed to
+ * the server refusing the request — or a bug, which is never taken for being offline
  */
 export function isNetworkError(err) {
-  if (!(err instanceof HttpError)) return true;
+  if (!(err instanceof HttpError)) return false;
   if (err.data?.errorCode === 'MAINTENANCE') return false;
   return [0, 502, 503, 504].includes(err.status);
 }
 
-export function reportOffline() {
+/**
+ * A request got no answer. `certain` (the browser says it is offline): offline at once. Otherwise
+ * try again shortly and say offline only if nothing reaches the server for `confirmMs`.
+ */
+export function reportOffline({ certain = false } = {}) {
+  if (!state.online) return;
+  const browserOffline = typeof navigator !== 'undefined' && navigator.onLine === false;
+  if (certain || browserOffline || confirmMs <= 0) {
+    goOffline();
+    return;
+  }
+  if (timers.confirm) return;
+  timers.confirm = setTimeout(() => {
+    timers.confirm = null;
+    goOffline();
+  }, confirmMs);
+  if (state.active) {
+    clearTimeout(timers.retry);
+    timers.retry = setTimeout(() => syncNow().catch(() => {}), RETRY_AFTER_FAILURE_MS);
+  }
+}
+
+function goOffline() {
+  clearTimeout(timers.confirm);
+  timers.confirm = null;
   if (!state.online) return;
   setState({ online: false });
   if (state.active) startProbe();
 }
 
+/** Something reached the server: online (a pending suspicion is dropped) */
 export function reportOnline() {
+  clearTimeout(timers.confirm);
+  timers.confirm = null;
   if (state.online) return;
   setState({ online: true });
   syncSoon();
+}
+
+/** The server answered (inside a sync round: no new round is started) */
+function markReachable() {
+  clearTimeout(timers.confirm);
+  timers.confirm = null;
+  if (!state.online) setState({ online: true });
 }
 
 function startProbe() {
@@ -148,6 +196,8 @@ export async function stopOffline({ clear = false } = {}) {
   clearInterval(timers.periodic);
   clearInterval(timers.probe);
   clearTimeout(timers.soon);
+  clearTimeout(timers.confirm);
+  clearTimeout(timers.retry);
   timers = [];
   unlisten.splice(0).forEach((fn) => fn());
   store?.close();
@@ -219,7 +269,8 @@ async function pushOutbox() {
       window.dispatchEvent(new CustomEvent(OFFLINE_SYNC_ERROR_EVENT, { detail: { op, message: err.message } }));
     }
     await store.dequeue(op.seq);
-    setState({ online: true, pending: Math.max(0, state.pending - 1) });
+    markReachable();
+    setState({ pending: Math.max(0, state.pending - 1) });
   }
   // The copy may now differ from the server: rebuild it
   if (refused) await resetCopy();
@@ -247,7 +298,7 @@ async function pull() {
 
   for (;;) {
     const res = await httpClient.get(`/api/vault/sync?cursor=${seg(request)}&limit=${SYNC_PAGE}`, { silent: true });
-    setState({ online: true });
+    markReachable();
     if (!restarted && (res.reset || (epoch && res.epoch !== epoch))) {
       // Another vault (a reset account) or deletions no longer known: start the copy over
       restarted = true;
