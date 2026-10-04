@@ -222,40 +222,48 @@ asset's profit or loss in dollars (each purchase at its day's rate, valued today
 A new "as of its date" view follows the same rule: read the history by the record's date, don't
 add a stored price.
 
-## 3. Feature Flags (Beta Features)
+## 3. Feature Flags and User Groups
 
-Features are rolled out through one mechanism shared by the client and the server, so a new feature can be tried in production by the admin alone.
+Features are rolled out through one mechanism shared by the client and the server: a feature can be tried in production by the admin alone, opened to everyone, or opened only to some **groups** of users (e.g. "pro").
 
-### Stages
-Every feature is declared in `api/src/config/features.js` (symlinked as `web/src/config/features.js`):
+### Rules
+Every feature is declared in `api/src/config/features.js` (symlinked as `web/src/config/features.js`) with its default rule:
 ```javascript
 export const FEATURES = {
-  cheque_scan: { stage: 'ga', label: 'اسکن چک با هوش مصنوعی', ... },          // every user
+  market: { stage: 'ga', groups: ['pro'], label: 'صفحه‌ی نرخ و حباب', ... }, // members of "pro"
+  cheque_scan: { stage: 'ga', label: 'اسکن چک با هوش مصنوعی', ... },           // every user
   expenses: { stage: 'ga', ... },
   bank_accounts: { stage: 'ga', ... },
-  cheque_scan_debug: { stage: 'beta', label: 'ابزار بررسی دقت اسکن چک', ... }, // admin only
+  cheque_scan_debug: { stage: 'beta', label: 'ابزار بررسی دقت اسکن چک', ... },  // admin only
 };
 ```
 - `'off'`: disabled for everyone.
 - `'beta'`: enabled **only for admins** (`user?.role === 'admin'`). The role is computed by the server from `ADMIN_EMAIL`; the client has no say in it.
-- `'ga'` (general availability): enabled for every signed-in user.
+- `'ga'` (general availability): enabled for every signed-in user, or — when `groups` lists group keys — only for the members of those groups. Admins always pass; so does the demo account (it exists to show everything).
+- **Runtime changes**: the admin changes a feature's `stage` and `groups` from the panel (`PUT /api/admin/features/:key`). The changes are kept in the state store (`app_state`, key `feature_rules`) and laid over the code's defaults (`mergeFeatureRules`); `DELETE` goes back to the default. An isolate keeps the merged rules for 15 seconds.
+
+### Groups
+- Tables (`d1Schema.js`): `user_groups (id, key, name, description, allow_requests, is_system, …)`, `user_group_members (group_id, user_id, added_at, added_by)` and `user_group_requests (group_id, user_id, requested_at, note)`. A rule names groups by their **key** (stable, lower-case; `domain/userGroups.js`), so renaming a group keeps its features.
+- The `pro` group is created with the schema as a system group (it can't be deleted). A group a feature's rule uses can't be deleted either.
+- Repository: `userGroups.repository.js`; routes: `handlers/groupRoutes.js` (the user's access and join requests, and the admin's groups, members, requests and feature rules — see [API.md](API.md#groups-and-feature-access)).
 
 ### Server-side enforcement
-- **`requireFeature` (`api/src/lib/features.js`)**: a feature's route calls `await requireFeature(request, env, 'feature_key')` first. When the feature is off for the user the route answers `404 Not Found`, so its existence is not revealed.
+- **`lib/features.js`**: `loadFeatureRules(env)` (defaults + admin changes), `withUserGroups(env, user)` (the user's group keys, read once per request onto the user object), `userFeatures(env, user)`, `hasFeature(env, user, key)`, and **`requireFeature(request, env, key)`**: a feature's route calls it first; when the feature isn't open to the user the route answers `404 Not Found`, so its existence is not revealed.
+- Feature `market` guards `/api/user/home-layout` (the home page's layout) and `/api/sparklines` (its charts; checked before the edge cache). The price book and `/api/prices/history` stay open: portfolio values, forms and every other section use them.
 - Vault record kinds that belong to a feature (`VAULT_KIND_FEATURES` in `vault.repository.js`: `expense_group`/`expense` → `expenses`, `bank_account` → `bank_accounts`) are gated the same way, in the record routes and in the sync.
-- **`GET /api/auth/me`** returns the user's enabled keys as `features: enabledFeatures(user)`.
+- **`GET /api/auth/me`** (and the sign-in answers) return `features` (the open keys), `groups` (the user's group keys) and `requestedGroups` (groups they asked to join).
 
 ### Client usage
-- **`useFeature(key)`** reads `user.features` from the auth context.
-- **`<Feature name="cheque_scan" fallback={null}>`** renders conditionally.
-- **`<BetaBadge />`** marks beta UI.
-- **Rule:** no component checks `user.role === 'admin'` for a beta feature; always `useFeature` or `<Feature>`.
+- **`useFeature(key)`** reads `user.features` from the auth context; **`<Feature name="…" fallback={…}>`** renders conditionally; **`<BetaBadge />`** marks beta UI.
+- **`<FeatureOffer feature="market" …>`** (`shared/features/FeatureOffer.jsx`) is shown in place of a feature the user doesn't have: what it gives, the groups that open it, and a join request (`GET /api/features/:key/access`, `POST /api/groups/:key/request`).
+- `AuthContext.refreshAccess()` reads the user's features again — on demand, and when the page or app comes back to the foreground (at most once a minute) — so an approval or a removal takes effect without signing in again.
+- **Rule:** no component checks `user.role === 'admin'` or a group for a feature; always `useFeature` or `<Feature>`.
 
-### Adding a beta feature
-1. Declare it in `api/src/config/features.js` with `stage: 'beta'`.
-2. Guard its server routes with `await requireFeature(request, env, 'key')`.
-3. Wrap its UI in `<Feature name="key">`.
-4. Once it is stable in production, switch it to `stage: 'ga'`.
+### Adding a feature (or giving an existing section to some groups)
+1. Declare it in `api/src/config/features.js` — `stage: 'beta'` to try it, or `stage: 'ga'` with `groups: ['…']`.
+2. Guard its server routes with `await requireFeature(request, env, 'key')` (and its vault kinds in `VAULT_KIND_FEATURES`, if any).
+3. Wrap its UI in `<Feature name="key" fallback={<FeatureOffer … />}>` (or hide its tab with `useFeature`).
+4. From then on the admin decides who gets it in **admin → groups and access**, without a deploy.
 
 ## 4. Usage Limits per User Tier
 

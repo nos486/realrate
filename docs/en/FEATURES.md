@@ -11,7 +11,8 @@ Every feature in detail. For a summary see the [README](../../README.en.md). Per
 - **Smart buy suggestion**: the asset with the lowest bubble is highlighted.
 - **Negative bubble and missing prices**: a negative bubble is told apart from items that have no price, without inventing prices.
 
-## 2. Personal home page
+## 2. Personal home page (rates and bubble — Pro users)
+- This page (prices, candle charts and customization) is open only to members of the **Pro** group and to admins (section 21). Anyone else sees what it offers and a «درخواست عضویت در Pro» (request to join Pro) button instead, and the website opens on their portfolio. Prices keep working for everyone in portfolio values, forms and every other section.
 - The home page is made of **sections**, and each user decides what they see.
 - Any market asset (gold, coin, currency, crypto, stock symbol, fund) can be added to any section.
 - Each section uses one of two card styles: **full card** (front: price, change, bubble and intrinsic value for gold and coins, and today's low and high — from the price book, no query; tapped, it turns over to only the candles, with 1 month / 6 months / 1 year buttons — each window fetched when picked, the card locked until it arrives; a tap on the back, the chart included, turns it back) or **compact card** (one list on mobile). Sections saved as «trend» show as full cards.
@@ -217,3 +218,15 @@ Every feature in detail. For a summary see the [README](../../README.en.md). Per
 - An optional password encrypts the whole file; without one it is readable.
 - **Restore** (the same account or another): each record comes back with its id (existing ones replaced, others added; nothing deleted). A portfolio or custom bank that is missing is created and the records that point at it follow. (`shared/vault/fullBackup.js`)
 - In the Android app exported files (CSV and backups) go to Android's share sheet to save or send (`FileExportPlugin.java`).
+
+## 21. User groups and feature access
+- The admin puts users in **groups**, and a feature can be open only to the members of some groups. The **Pro** group exists from the start (a system group, can't be deleted), and the **rates and bubble** page (feature `market`) is open only to it by default.
+- **Join requests**: a user without the feature sees what it offers and the groups that open it instead; when a group accepts requests, they ask to join with one button (and can take it back). Once the admin approves, the feature opens when they come back to the app or reload the page.
+- **Admin panel → groups and access** (`/admin/groups`):
+  - Pending requests, with approve (adds the member) or reject.
+  - Create, edit and delete groups (a fixed English key, name, description, whether it accepts requests). A system group, or one a feature's access depends on, can't be deleted.
+  - Each group's members: search, add by email, remove.
+  - **Feature access**: for each feature off, admins only, or users — all of them or only the chosen groups — and back to the code's default. A change takes effect on the server at once.
+  - Each user's details also add them to or take them out of groups with one tap.
+- **Enforced on the server**: the server checks each feature's rule itself (`404` for someone without it). For `market`: the home page's layout (`/api/user/home-layout`) and the cards' charts (`/api/sparklines`). Admins have everything; so does the demo account, to show everything.
+- Any section (cheques or loans, say) can later be given to some groups only by declaring a feature in `api/src/config/features.js` and using this panel — [ARCHITECTURE.md](../ARCHITECTURE.md#3-feature-flags-and-user-groups).

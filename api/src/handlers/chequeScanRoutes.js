@@ -7,8 +7,7 @@
  * answer and a failure's reason.
  */
 
-import { requireFeature } from '../lib/features.js';
-import { isFeatureEnabled } from '../config/features.js';
+import { requireFeature, hasFeature } from '../lib/features.js';
 import { consumeQuota, getQuota, refundQuota } from '../lib/usageQuota.js';
 import { assertChequeScanReady, processChequeScan } from '../services/ai/chequeScan.service.js';
 import { jsonResponse } from '../lib/helpers.js';
@@ -65,7 +64,7 @@ export async function handleChequeScanRoute(request, env) {
   }
 
   // 8. Today's use of the limit, taken only for a valid upload the scan can serve
-  const debug = isFeatureEnabled('cheque_scan_debug', user);
+  const debug = await hasFeature(env, user, 'cheque_scan_debug');
   assertChequeScanReady(env, { isAdmin: debug });
   const quota = await consumeQuota(env, user, 'cheque_scan');
 

@@ -1499,3 +1499,202 @@
   .admin-back { margin-inline-start: auto; }
   .admin-main { padding-inline: 12px; }
 }
+
+/* Groups of users and feature access (AdminGroupsPage.jsx) */
+.admin-groups-layout {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.admin-group-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.admin-group-row,
+.admin-feature-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.admin-group-row:last-child,
+.admin-feature-row:last-child {
+  border-bottom: 0;
+}
+
+.admin-group-main {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.admin-group-main strong {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  color: var(--text-primary);
+}
+
+.admin-group-main small {
+  color: var(--text-muted);
+  line-height: 1.6;
+}
+
+.admin-group-note {
+  margin: 2px 0 0;
+  color: var(--text-secondary);
+  font-size: 12.5px;
+}
+
+.admin-group-crown {
+  color: var(--color-warning-text);
+}
+
+.admin-group-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  flex: none;
+}
+
+.admin-group-form,
+.admin-group-members {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.admin-group-check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-primary);
+  cursor: pointer;
+}
+
+.admin-group-add {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.admin-group-add .ui-input-group {
+  flex: 1;
+}
+
+.admin-feature-row {
+  align-items: flex-start;
+}
+
+.admin-feature-controls {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+  flex: none;
+  max-width: 55%;
+}
+
+.admin-feature-audience {
+  color: var(--text-secondary);
+  text-align: end;
+}
+
+.admin-segmented {
+  display: inline-flex;
+  padding: 3px;
+  border-radius: var(--radius-full);
+  background: var(--bg-control);
+}
+
+.admin-segmented button {
+  padding: 5px 12px;
+  border: 0;
+  border-radius: var(--radius-full);
+  background: transparent;
+  color: var(--text-secondary);
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.admin-segmented button.is-active {
+  background: var(--color-primary);
+  color: #fff;
+}
+
+.admin-feature-groups {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+.admin-chip-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 10px;
+  border-radius: var(--radius-full);
+  border: 1px solid var(--border-medium);
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.admin-chip-toggle input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.admin-chip-toggle.is-on {
+  border-color: var(--color-warning-border);
+  background: var(--color-warning-soft);
+  color: var(--color-warning-text);
+}
+
+.admin-chip-toggle:focus-within {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+.admin-user-groups {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+@media (max-width: 720px) {
+  .admin-group-row,
+  .admin-feature-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .admin-feature-controls {
+    align-items: stretch;
+    max-width: none;
+  }
+
+  .admin-feature-groups {
+    justify-content: flex-start;
+  }
+
+  .admin-feature-audience {
+    text-align: start;
+  }
+}

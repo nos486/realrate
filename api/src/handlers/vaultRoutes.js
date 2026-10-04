@@ -37,6 +37,7 @@ import { VAULT_KIND_FEATURES, VAULT_RECORD_KINDS, dbSyncVaultRecords, dbResetUse
 import { dbGetUserAuthById } from "../repositories/account.repository.js";
 import { verifyPassword, getRateLimitState, recordRateLimitHit, clearRateLimit } from "../lib/security.js";
 import { logger } from "../lib/logger.js";
+import { loadFeatureRules, withUserGroups } from "../lib/features.js";
 import { isFeatureEnabled } from "../config/features.js";
 import { jsonResponse } from "../lib/helpers.js";
 import { AppError } from "../lib/AppError.js";
@@ -50,15 +51,17 @@ async function requireUser(request, env) {
 const userIdOf = (user) => user.userId || user.id || user.email;
 
 /** Whether a kind's records are open to the user (a kind of a feature they don't have is hidden) */
-function kindAllowed(kind, user) {
+async function kindAllowed(kind, user, env) {
   const feature = VAULT_KIND_FEATURES[kind];
-  return !feature || isFeatureEnabled(feature, user);
+  if (!feature) return true;
+  const [rules] = await Promise.all([loadFeatureRules(env), withUserGroups(env, user)]);
+  return isFeatureEnabled(feature, user, rules);
 }
 
 async function requireUserId(request, env, kind = null) {
   const user = await requireUser(request, env);
   // Records of a feature not open to this user are hidden like the feature itself
-  if (kind && !kindAllowed(kind, user)) throw AppError.notFound("یافت نشد.");
+  if (kind && !(await kindAllowed(kind, user, env))) throw AppError.notFound("یافت نشد.");
   return userIdOf(user);
 }
 
@@ -160,10 +163,11 @@ export async function handleDeleteVaultRecord(request, env, { kind, id }) {
 export async function handleSyncVaultRecords(request, env) {
   const user = await requireUser(request, env);
   const params = new URL(request.url).searchParams;
+  const allowed = await Promise.all(VAULT_RECORD_KINDS.map((kind) => kindAllowed(kind, user, env)));
   const result = await dbSyncVaultRecords(env, userIdOf(user), {
     cursor: params.get("cursor") || "",
     limit: params.get("limit"),
-    kinds: VAULT_RECORD_KINDS.filter((kind) => kindAllowed(kind, user)),
+    kinds: VAULT_RECORD_KINDS.filter((_, i) => allowed[i]),
   });
   return jsonResponse({ success: true, ...result }, 200, request);
 }

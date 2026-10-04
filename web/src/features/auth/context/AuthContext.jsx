@@ -212,8 +212,32 @@ export function AuthProvider({ children }) {
     });
   }, []);
 
+  // What the user may use (features, groups, pending join requests) changes when the admin moves
+  // them between groups: read it again on demand, and when the page or app comes back to the
+  // foreground (at most once a minute)
+  const lastAccessCheck = useRef(0);
+  const refreshAccess = useCallback(async () => {
+    lastAccessCheck.current = Date.now();
+    try {
+      const data = await getMe();
+      if (data?.authenticated && data.user) {
+        const { features = [], groups = [], requestedGroups = [] } = data.user;
+        updateUser({ features, groups, requestedGroups });
+      }
+    } catch {}
+  }, [updateUser]);
+  useEffect(() => {
+    if (!user?.id) return undefined;
+    const onVisible = () => {
+      if (document.visibilityState === 'visible' && Date.now() - lastAccessCheck.current > 60_000) refreshAccess();
+    };
+    lastAccessCheck.current = Date.now();
+    document.addEventListener('visibilitychange', onVisible);
+    return () => document.removeEventListener('visibilitychange', onVisible);
+  }, [user?.id, refreshAccess]);
+
   return (
-    <AuthContext.Provider value={{ user, loading, maintenance, setMaintenance, triggerLogin, loginWithGoogle, completeLogin, logout, updateUser, handleGoogleCredential }}>
+    <AuthContext.Provider value={{ user, loading, maintenance, setMaintenance, triggerLogin, loginWithGoogle, completeLogin, logout, updateUser, refreshAccess, handleGoogleCredential }}>
       {children}
     </AuthContext.Provider>
   );
