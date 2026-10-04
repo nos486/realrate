@@ -27,9 +27,10 @@ import { getPendingSms, SMS_INBOX_EVENT } from '../native/smsInbox.js';
 import { tap, impact } from '../native/haptics.js';
 import AppSheet from './AppSheet.jsx';
 import AlertCenterButton from '../alerts/AlertCenter.jsx';
+import PriceRefreshButton from '../../features/market/components/PriceRefreshButton.jsx';
+import { APP_PRIVATE_VALUE_TABS } from './privacyTabs.js';
 
 /** Sections whose pages show amounts (the hide-values button is offered there) */
-const MONEY_TABS = ['market', 'portfolio', 'incomes', 'expenses', 'accounts', 'loans', 'cheques'];
 
 /** The bottom bar's own sections; everything else is under «بیشتر» */
 function mainTabs(items) {
@@ -75,7 +76,8 @@ export function AppTopBar({ activeTab, navItems = [] }) {
         )}
       </h1>
       <div className="app-topbar-actions">
-        {MONEY_TABS.includes(activeTab) && (
+        <PriceRefreshButton className="app-icon-btn" iconSize={20} onPress={tap} />
+        {APP_PRIVATE_VALUE_TABS.includes(activeTab) && (
           <button
             type="button"
             className="app-icon-btn"

@@ -3,7 +3,7 @@
  */
 
 import { getPriceBook } from "../services/market/priceAggregator.service.js";
-import { priceBookVersion } from "../domain/priceBook.js";
+import { priceBookVersion, splitPriceBook } from "../domain/priceBook.js";
 import { baseRatesOf, forexCrossRatesOf, legacyPricesOf } from "../domain/priceBookViews.js";
 import { getGlobalSettings } from "../repositories/settings.repository.js";
 import { jsonResponse, getCorsHeaders } from "../lib/helpers.js";
@@ -59,9 +59,26 @@ export async function handleGetPrices(env, request = null) {
  * Sources' sync state stays private (its errors may name an endpoint).
  */
 export async function handleGetPriceBook(env, request = null) {
-  const { etag, body } = await readPriceBookResponse(env);
+  const parts = await readPriceBookResponse(env);
+  // ?part=core: everything but the catalogs (they come from /api/prices/catalog); without it the
+  // whole book, for clients that don't know the parts yet
+  const part = new URL(request?.url || "http://localhost/").searchParams.get("part") === "core" ? parts.core : parts.full;
+  return versionedJson(part, request);
+}
+
+/**
+ * GET /api/prices/catalog — the catalog items (exchange symbols, funds, plans): thousands of
+ * prices that change about once an hour, apart from the core book that changes every minute.
+ * The core book names the catalog's `catalogVersion`, so a client reads this only when it moved.
+ */
+export async function handleGetPriceCatalog(env, request = null) {
+  const { catalog } = await readPriceBookResponse(env);
+  return versionedJson(catalog, request);
+}
+
+/** An answer with its ETag: 304 without a body when the client already has this version */
+function versionedJson({ etag, body }, request) {
   const cacheHeaders = { ETag: etag, "Cache-Control": "no-cache" };
-  // Unchanged prices and settings: the client keeps what it has (304, no body)
   if (request?.headers?.get("If-None-Match") === etag) {
     return new Response(null, { status: 304, headers: { ...cacheHeaders, ...getCorsHeaders(request) } });
   }
@@ -71,20 +88,37 @@ export async function handleGetPriceBook(env, request = null) {
   });
 }
 
-// Every open tab polls the book, which only changes when the cron syncs (once a minute): an
-// isolate reuses its serialized answer for a few seconds instead of reading and re-encoding the
-// whole book from the database on every request
+// Every open tab reads the book, which only changes when the cron syncs (once a minute): an
+// isolate reuses its serialized answers for a few seconds instead of reading and re-encoding the
+// whole book on every request
 const PRICE_BOOK_MEMORY_TTL_MS = 10_000;
 let priceBookMemo = null;
 
+/** The book's answers, serialized once: the whole book, its core part and its catalog part */
 async function readPriceBookResponse(env) {
   const now = Date.now();
   if (priceBookMemo && now - priceBookMemo.at < PRICE_BOOK_MEMORY_TTL_MS) return priceBookMemo;
   const [book, globalSettings] = await Promise.all([getPriceBook(env), getGlobalSettings(env)]);
   const version = book.version || priceBookVersion(book.items);
-  const etag = `W/"${version}-${priceBookVersion({ s: { price: JSON.stringify(globalSettings ?? null) } })}"`;
-  const body = JSON.stringify({ success: true, updatedAt: book.updatedAt, version, items: book.items, globalSettings });
-  priceBookMemo = { at: now, etag, body };
+  const settingsVersion = priceBookVersion({ s: { price: JSON.stringify(globalSettings ?? null) } });
+  const { core, catalog } = splitPriceBook(book.items);
+  const coreVersion = priceBookVersion(core);
+  const catalogVersion = priceBookVersion(catalog);
+  priceBookMemo = {
+    at: now,
+    full: {
+      etag: `W/"${version}-${settingsVersion}"`,
+      body: JSON.stringify({ success: true, updatedAt: book.updatedAt, version, items: book.items, globalSettings }),
+    },
+    core: {
+      etag: `W/"c-${coreVersion}-${catalogVersion}-${settingsVersion}"`,
+      body: JSON.stringify({ success: true, updatedAt: book.updatedAt, version: coreVersion, catalogVersion, items: core, globalSettings }),
+    },
+    catalog: {
+      etag: `W/"k-${catalogVersion}"`,
+      body: JSON.stringify({ success: true, updatedAt: book.updatedAt, version: catalogVersion, items: catalog }),
+    },
+  };
   return priceBookMemo;
 }
 

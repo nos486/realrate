@@ -15,6 +15,8 @@ import { APP_BASE, LANDING_PATH } from '../shared/routes.js';
 import { useVault } from '../shared/vault/useVault.js';
 import { lockAll } from '../shared/vault/vaultStore.js';
 import MobileNavDrawer from './MobileNavDrawer.jsx';
+import PriceRefreshButton from '../features/market/components/PriceRefreshButton.jsx';
+import { PRIVATE_VALUE_TABS } from '../shared/app/privacyTabs.js';
 
 const LogoMark = () => (
   <svg width="28" height="28" viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -32,7 +34,6 @@ const LogoMark = () => (
 );
 
 /** Tabs that display monetary values and therefore offer the hide-values toggle */
-const PRIVACY_TABS = ['portfolio', 'incomes', 'loans', 'cheques'];
 
 export default function Header({ activeTab, setActiveTab = null, navItems = null }) {
   const { user, triggerLogin, logout } = useAuth();
@@ -82,7 +83,8 @@ export default function Header({ activeTab, setActiveTab = null, navItems = null
 
         {/* Header Right: User Profile & Auth */}
         <div className="header-right">
-          {PRIVACY_TABS.includes(activeTab) && (
+          {user && <PriceRefreshButton className="btn-privacy-toggle icon-only" iconSize={15} />}
+          {PRIVATE_VALUE_TABS.includes(activeTab) && (
             <button
               type="button"
               className={`btn-privacy-toggle icon-only ${hideValues ? 'active' : ''}`}
