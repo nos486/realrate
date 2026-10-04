@@ -7,6 +7,7 @@ import { useAppLayout } from '../app/appLayout.js';
 import { AppTopBar, AppBottomNav } from '../app/AppShell.jsx';
 import AppUpdatePrompt, { AppUpdateBanner } from '../app/AppUpdatePrompt.jsx';
 import AppSuggestBanner from '../app/AppSuggestBanner.jsx';
+import AppSetupPrompt from '../app/AppSetupPrompt.jsx';
 
 /**
  * Standard AppLayout component
@@ -56,6 +57,8 @@ export default function AppLayout({
         <AppBottomNav activeTab={activeTab} navItems={navItems} onSelect={setActiveTab} />
         {/* «نسخه‌ی جدید»: checks for a newer APK and installs it (shared/native/appUpdate.js) */}
         <AppUpdatePrompt />
+        {/* Right after installing: turn on bank SMS and the fingerprint (Android app only) */}
+        <AppSetupPrompt />
       </div>
     );
   }
