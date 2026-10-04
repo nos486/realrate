@@ -491,10 +491,11 @@ export async function handleGetMe(request, env, ctx) {
   let hasPassword = false;
   let emailVerified = true;
   // One round of reads, side by side: the account, the user's features and their requests
+  const orElse = (read, fallback) => Promise.resolve().then(read).catch(() => fallback);
   const [account, features, requestedGroups] = await Promise.all([
-    dbGetUserAuthById(env, userId).catch(() => null),
+    orElse(() => dbGetUserAuthById(env, userId), null),
     userFeatures(env, user),
-    dbGetUserRequestedGroupKeys(env, userId).catch(() => []),
+    orElse(() => dbGetUserRequestedGroupKeys(env, userId), []),
   ]);
   try {
     if (account?.disabled) {
