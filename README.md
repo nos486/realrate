@@ -18,7 +18,7 @@
 
 **RealRate** سامانه تحلیل بازار طلا، سکه و ارز و مدیریت مالی شخصی است که روی لبه Cloudflare اجرا می‌شود:
 ارزش ذاتی و حباب طلا و سکه، نرخ ارزها و بورس، و مدیریت پورتفو، هزینه‌ها، حساب‌ها، وام‌ها، درآمدها و چک‌ها — همه با رمزنگاری سرتاسری.
-نسخه‌ی وب در [realrate.ir](https://realrate.ir) است و اپ اندروید (با ثبت خودکار هزینه از پیامک بانک) از [صفحه‌ی اپ](https://realrate.ir/android) یا
+نسخه‌ی وب در [realrate.geekio.org](https://realrate.geekio.org) است و اپ اندروید (با ثبت خودکار هزینه از پیامک بانک) از [صفحه‌ی اپ](https://realrate.geekio.org/android) یا
 [آخرین Release](https://github.com/nos486/realrate/releases/latest/download/realrate.apk) دانلود می‌شود.
 
 ## امکانات

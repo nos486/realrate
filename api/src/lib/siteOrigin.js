@@ -2,7 +2,7 @@
  * siteOrigin.js — The site's address, for every link the API builds (emails, the sign-in
  * redirect): one place, not a default per handler
  *
- *   SITE_ORIGIN   the public site (https://realrate.ir); the API itself is at API_ORIGIN
+ *   SITE_ORIGIN   the public site (https://realrate.geekio.org); the API itself is at API_ORIGIN
  *   FRONTEND_URL  optional var: another of our frontends to use instead (a trusted origin only)
  *
  * A link never points at the API's own host: a request's Origin is used only when it is one of
@@ -12,8 +12,8 @@
 import { isTrustedOrigin } from "./security.js";
 import { APP_WEBVIEW_ORIGIN } from "./appAuth.js";
 
-export const SITE_ORIGIN = "https://realrate.ir";
-export const API_ORIGIN = "https://api.realrate.ir";
+export const SITE_ORIGIN = "https://realrate.geekio.org";
+export const API_ORIGIN = "https://realrate-api.geekio.org";
 
 /** The configured site: FRONTEND_URL when it is one of ours, else SITE_ORIGIN */
 export function siteOrigin(env) {

@@ -7,12 +7,12 @@
 import { DEMO_ENABLED } from '../shared/routes.js';
 
 export const SITE = {
-  origin: 'https://realrate.ir',
+  origin: 'https://realrate.geekio.org',
   name: 'RealRate',
   nameFa: 'ریل‌ریت',
   slogan: 'تحلیل ارزش واقعی طلا و سکه و مدیریت مالی شخصی',
   description: 'پلتفرم مستقل و رمزنگاری‌شده برای تحلیل ارزش واقعی و حباب طلا و سکه، مدیریت پورتفوی چنددارایی، وام‌ها و درآمدها — کاملاً رایگان و متن‌باز.',
-  ogImage: 'https://realrate.ir/og/default.png',
+  ogImage: 'https://realrate.geekio.org/og/default.png',
 };
 
 const ALL_FEATURE_PAGES = [
@@ -93,7 +93,7 @@ const ALL_FEATURE_PAGES = [
       },
     ],
     related: ['portfolio', 'transactions', 'personal-dashboard'],
-    ogImage: 'https://realrate.ir/og/gold-coin-bubble.png',
+    ogImage: 'https://realrate.geekio.org/og/gold-coin-bubble.png',
   },
 
   {
@@ -173,7 +173,7 @@ const ALL_FEATURE_PAGES = [
       },
     ],
     related: ['transactions', 'gold-coin-bubble', 'encryption'],
-    ogImage: 'https://realrate.ir/og/portfolio.png',
+    ogImage: 'https://realrate.geekio.org/og/portfolio.png',
   },
 
   {
@@ -253,7 +253,7 @@ const ALL_FEATURE_PAGES = [
       },
     ],
     related: ['portfolio', 'gold-coin-bubble', 'income'],
-    ogImage: 'https://realrate.ir/og/transactions.png',
+    ogImage: 'https://realrate.geekio.org/og/transactions.png',
   },
 
   {
@@ -333,7 +333,7 @@ const ALL_FEATURE_PAGES = [
       },
     ],
     related: ['cheques', 'income', 'personal-dashboard'],
-    ogImage: 'https://realrate.ir/og/loans.png',
+    ogImage: 'https://realrate.geekio.org/og/loans.png',
   },
 
   {
@@ -393,7 +393,7 @@ const ALL_FEATURE_PAGES = [
       },
     ],
     related: ['loans', 'portfolio', 'transactions'],
-    ogImage: 'https://realrate.ir/og/income.png',
+    ogImage: 'https://realrate.geekio.org/og/income.png',
   },
 
   {
@@ -473,7 +473,7 @@ const ALL_FEATURE_PAGES = [
       },
     ],
     related: ['ai-cheque-scan', 'loans', 'encryption'],
-    ogImage: 'https://realrate.ir/og/cheques.png',
+    ogImage: 'https://realrate.geekio.org/og/cheques.png',
   },
 
   {
@@ -553,7 +553,7 @@ const ALL_FEATURE_PAGES = [
       },
     ],
     related: ['cheques', 'encryption', 'personal-dashboard'],
-    ogImage: 'https://realrate.ir/og/ai-cheque-scan.png',
+    ogImage: 'https://realrate.geekio.org/og/ai-cheque-scan.png',
   },
 
   {
@@ -633,7 +633,7 @@ const ALL_FEATURE_PAGES = [
       },
     ],
     related: ['portfolio', 'personal-dashboard', 'cheques'],
-    ogImage: 'https://realrate.ir/og/encryption.png',
+    ogImage: 'https://realrate.geekio.org/og/encryption.png',
   },
 
   {
@@ -701,7 +701,7 @@ const ALL_FEATURE_PAGES = [
       },
     ],
     related: ['portfolio', 'gold-coin-bubble', 'loans'],
-    ogImage: 'https://realrate.ir/og/personal-dashboard.png',
+    ogImage: 'https://realrate.geekio.org/og/personal-dashboard.png',
   },
 
   {
@@ -781,7 +781,7 @@ const ALL_FEATURE_PAGES = [
       },
     ],
     related: ['portfolio', 'gold-coin-bubble', 'personal-dashboard'],
-    ogImage: 'https://realrate.ir/og/demo.png',
+    ogImage: 'https://realrate.geekio.org/og/demo.png',
   },
 ];
 
@@ -795,7 +795,7 @@ export const STATIC_PAGES = {
     description: 'مجموعه کامل ابزارهای تحلیل ارزش طلا و سکه، مدیریت پورتفوی چنددارایی، وام، چک و درآمد در نرم‌افزار مدیریت مالی شخصی ریل‌ریت.',
     h1: 'امکانات و قابلیت‌های پلتفرم مدیریت مالی ریل‌ریت',
     intro: 'ریل‌ریت نرم‌افزار مدیریت مالی شخصی مستقل، متن‌باز و رمزنگاری‌شده است که مجموعه‌ای یکپارچه از ابزارهای تحلیلی، پایش پورتفوی چنددارایی، مدیریت اقساط وام، کنترل چک‌های صیادی و ارزیابی جریان نقدی را در اختیارتان می‌گذارد. همه این امکانات به صورت رایگان، بدون تبلیغات و با حفظ کامل حریم خصوصی عرضه شده است.',
-    ogImage: 'https://realrate.ir/og/default.png',
+    ogImage: 'https://realrate.geekio.org/og/default.png',
   },
 
   about: {
@@ -842,7 +842,7 @@ export const STATIC_PAGES = {
         ],
       },
     ],
-    ogImage: 'https://realrate.ir/og/default.png',
+    ogImage: 'https://realrate.geekio.org/og/default.png',
   },
 
   android: {
@@ -923,7 +923,7 @@ export const STATIC_PAGES = {
         a: 'انتشار در Google Play برای توسعه‌دهندگان ایرانی ممکن نیست؛ انتشار در فروشگاه‌های داخلی در دست بررسی است. تا آن زمان، دانلود مستقیم از همین صفحه راه رسمی است.',
       },
     ],
-    ogImage: 'https://realrate.ir/og/default.png',
+    ogImage: 'https://realrate.geekio.org/og/default.png',
   },
 
   faq: {
@@ -955,7 +955,7 @@ export const STATIC_PAGES = {
       },
       {
         q: 'آیا ریل‌ریت روی گوشی موبایل نصب می‌شود؟',
-        a: 'بله؛ برای اندروید اپ رسمی و امضاشده از صفحه‌ی «اپ اندروید» (realrate.ir/android) دانلود می‌شود که ثبت خودکار از پیامک بانک و باز کردن با اثر انگشت را هم دارد. روی آیفون می‌توانید سایت را به صورت PWA از مرورگر روی صفحه اصلی اضافه کنید.',
+        a: 'بله؛ برای اندروید اپ رسمی و امضاشده از صفحه‌ی «اپ اندروید» (realrate.geekio.org/android) دانلود می‌شود که ثبت خودکار از پیامک بانک و باز کردن با اثر انگشت را هم دارد. روی آیفون می‌توانید سایت را به صورت PWA از مرورگر روی صفحه اصلی اضافه کنید.',
       },
       {
         q: 'اسکن چک با هوش مصنوعی چگونه کار می‌کند؟',
@@ -982,6 +982,6 @@ export const STATIC_PAGES = {
         a: 'پروژه روی گیت‌هاب متن‌باز است؛ می‌توانید با ستاره دادن، گزارش باگ‌ها، پیشنهاد امکانات تازه یا ارسال Pull Request در توسعه آن سهیم شوید.',
       },
     ],
-    ogImage: 'https://realrate.ir/og/default.png',
+    ogImage: 'https://realrate.geekio.org/og/default.png',
   },
 };

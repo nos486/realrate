@@ -68,7 +68,7 @@ npx wrangler kv namespace create realrate-prices
    [vars]
    EMAIL_FROM = "RealRate <no-reply@geekio.org>"
    # اختیاری: آدرس فرانت‌اند برای لینک‌ها وقتی درخواست Origin ندارد
-   # FRONTEND_URL = "https://realrate.ir"
+   # FRONTEND_URL = "https://realrate.geekio.org"
    ```
 
 تا وقتی ارسال ایمیل تنظیم نشده، ثبت‌نام و بازیابی رمز با پیام «ارسال ایمیل تنظیم نشده است» رد می‌شوند و ورود با گوگل
@@ -155,7 +155,7 @@ cd api && npx wrangler deploy
 | Framework preset | `Vite` |
 | Build command | `npm run build` |
 | Build output directory | `dist` |
-| `VITE_API_URL` | آدرس ورکر (مثلاً `https://api.realrate.ir`) |
+| `VITE_API_URL` | آدرس ورکر (مثلاً `https://realrate-api.geekio.org`) |
 | `VITE_GOOGLE_CLIENT_ID` | شناسه کلاینت گوگل |
 
 دامنه فرانت‌اند باید در `ALLOWED_ORIGINS` در `api/src/lib/helpers.js` باشد (CORS).
