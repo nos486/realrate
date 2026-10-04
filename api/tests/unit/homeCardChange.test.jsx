@@ -20,10 +20,10 @@ describe('full card change', () => {
     const pill = screen.getByTitle('تغییر نسبت به قیمت پایانی دیروز');
     expect(pill.textContent).toContain('▲');
     expect(pill.textContent).toContain('۵');
-    expect(pill.textContent).toContain('روزانه');
+    expect(pill.textContent).not.toContain('روزانه');
   });
 
-  it('without history: the source\'s own change, no label', () => {
+  it('without history: the source\'s own change, no tooltip', () => {
     render(<HomeAssetCard asset={asset} style="detailed" />);
     expect(screen.queryByTitle('تغییر نسبت به قیمت پایانی دیروز')).toBeNull();
     expect(screen.getByText(/▲/)).toBeTruthy();

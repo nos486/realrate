@@ -38,12 +38,11 @@ function bubbleBadge(item) {
   return { className: 'badge-danger', text: `حباب +${pct}٪` };
 }
 
-function changeBadge(changePercent, label = '') {
+function changeBadge(changePercent) {
   if (changePercent === null || changePercent === undefined || changePercent === 0) return null;
   return {
     className: changePercent > 0 ? 'badge-good' : 'badge-danger',
     text: `${changePercent > 0 ? '▲' : '▼'} ${formatPct(changePercent, 2)}٪`,
-    label,
   };
 }
 
@@ -189,7 +188,7 @@ function FullCard({ asset, isBest = false, flippable = true, previousClose = nul
   // The change over 24 hours (against yesterday's close, from the price history); the source's
   // own figure while the history has none
   const change24h = changeSince(previousClose, Number(price));
-  const change = change24h !== null ? changeBadge(change24h, 'روزانه') : changeBadge(asset.changePercent);
+  const change = change24h !== null ? changeBadge(change24h) : changeBadge(asset.changePercent);
   const isFlipped = flippable && requested && opened;
   const direction = change?.className === 'badge-good' ? 'up' : change ? 'down' : 'flat';
 
@@ -210,9 +209,8 @@ function FullCard({ asset, isBest = false, flippable = true, previousClose = nul
   };
 
   const changePill = change && (
-    <span className={`bubble-pill ${change.className}`} title={change.label ? 'تغییر نسبت به قیمت پایانی دیروز' : undefined}>
+    <span className={`bubble-pill ${change.className}`} title={change24h !== null ? 'تغییر نسبت به قیمت پایانی دیروز' : undefined}>
       <bdi>{change.text}</bdi>
-      {change.label && <small className="bubble-pill-note">{change.label}</small>}
     </span>
   );
   const pill = item ? <span className={`bubble-pill ${bubbleBadge(item).className}`}>{bubbleBadge(item).text}</span> : changePill;
