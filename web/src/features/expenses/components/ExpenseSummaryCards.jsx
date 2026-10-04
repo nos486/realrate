@@ -54,7 +54,8 @@ export default function ExpenseSummaryCards({ summary, budget = null, hideValues
           color="blue"
           className="incomes-summary-card"
         />
-        <FlowDollarCard kind="expense" view={dollarView} hideValues={hideValues} />
+        {/* Next to «تعداد هزینه‌ها» on a phone (two per row) */}
+        <FlowDollarCard kind="expense" view={dollarView} hideValues={hideValues} wide={false} />
         <MiniCard
           icon={<Hash size={14} />}
           title="تعداد هزینه‌ها"

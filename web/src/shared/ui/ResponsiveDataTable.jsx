@@ -37,11 +37,11 @@ function SortIcon({ active, dir }) {
  * @param {string} [wrapperClassName]
  * @param {number} [mobileBreakpoint=768]
  * @param {ReactNode} [emptyState]
- * @param {object} [sortState] - { key, dir: 'asc'|'desc' } | null — from useSortableRows.
+ * @param {object} [sortState] - { key, dir: 'asc'|'desc' } | null — the current sort.
  *   A column opts into sorting by setting `sortKey` to the same key used in the
- *   accessors map passed to useSortableRows; its header then becomes a clickable
+ *   sort; its header then becomes a clickable
  *   button with a direction indicator instead of plain text.
- * @param {(key: string) => void} [onSortChange] - toggleSort from useSortableRows.
+ * @param {(key: string) => void} [onSortChange] - called with a column's key when its header is clicked.
  * @param {(row: object) => ReactNode} [renderExpanded] - rows open: tapping a row (not a button
  *   or link in it) shows this under it, full width — a desktop row gets a row of its own under it,
  *   a mobile card grows. Which rows are open is kept here.

@@ -355,9 +355,9 @@ export default function MainPage() {
       <AppAlertSources announcement={isDemo ? '' : announcement} />
       <AlertStack sources={['system']} className="main-system-alerts" />
 
-      {/* Modern Segmented Navigation Tabs & Live Rates Ticker (in the Android app the bottom bar
-          navigates, and the rates show on the home page only) */}
-      {(!appLayout || activeTab === 'market' || activeTab === 'rates') && (
+      {/* The site's section tabs (in the app frame — the Android app and phones — the bottom bar
+          navigates) */}
+      {!appLayout && (
       <div className="main-nav-container">
         <div className="main-nav-tabs-bar">
           <FilterPills

@@ -74,7 +74,6 @@ export default function AppLayout({
           usdToman={usdToman}
           gold18kPrice={gold18kPrice}
           activeTab={activeTab}
-          setActiveTab={setActiveTab}
           navItems={navItems}
         />
       )}

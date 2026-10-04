@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react';
+import React from 'react';
 import AlertCenterButton from '../shared/alerts/AlertCenter.jsx';
 import { Link } from 'react-router-dom';
 import {
@@ -6,7 +6,6 @@ import {
   EyeOff,
   LogOut,
   Lock,
-  Menu,
   LogIn,
 } from 'lucide-react';
 import { useAuth } from '../features/auth/index.js';
@@ -14,7 +13,6 @@ import { usePrivacyMode, setPrivacyMode } from '../hooks/usePrivacyMode.js';
 import { APP_BASE, LANDING_PATH } from '../shared/routes.js';
 import { useVault } from '../shared/vault/useVault.js';
 import { lockAll } from '../shared/vault/vaultStore.js';
-import MobileNavDrawer from './MobileNavDrawer.jsx';
 import PriceRefreshButton from '../features/market/components/PriceRefreshButton.jsx';
 import { PRIVATE_VALUE_TABS } from '../shared/app/privacyTabs.js';
 
@@ -33,9 +31,7 @@ const LogoMark = () => (
   </svg>
 );
 
-/** Tabs that display monetary values and therefore offer the hide-values toggle */
-
-export default function Header({ activeTab, setActiveTab = null, navItems = null }) {
+export default function Header({ activeTab, navItems = null }) {
   const { user, triggerLogin, logout } = useAuth();
 
   const hideValues = usePrivacyMode();
@@ -48,9 +44,6 @@ export default function Header({ activeTab, setActiveTab = null, navItems = null
   const canLock = Boolean(user) && (vault.status === 'unlocked' || vault.legacyUnlocked);
 
   // On phones the app's sections live in a side menu instead of the tab bar
-  const hasDrawer = Boolean(navItems?.length);
-  const [drawerOpen, setDrawerOpen] = useState(false);
-  const closeDrawer = useCallback(() => setDrawerOpen(false), []);
 
   const brand = (
     <Link to={user ? APP_BASE : LANDING_PATH} className="brand-link">
@@ -63,21 +56,10 @@ export default function Header({ activeTab, setActiveTab = null, navItems = null
   );
 
   return (
-    <header className={`site-header ${hasDrawer ? 'has-nav-drawer' : ''}`}>
+    <header className="site-header">
       <div className="header-main-row">
         {/* Brand */}
         <div className="header-brand">
-          {hasDrawer && (
-            <button
-              type="button"
-              className="header-menu-btn"
-              onClick={() => setDrawerOpen(true)}
-              aria-label="باز کردن منو"
-              aria-expanded={drawerOpen}
-            >
-              <Menu size={20} strokeWidth={2.2} />
-            </button>
-          )}
           {brand}
         </div>
 
@@ -150,24 +132,6 @@ export default function Header({ activeTab, setActiveTab = null, navItems = null
           </div>
         </div>
       </div>
-
-      {hasDrawer && (
-        <MobileNavDrawer
-          isOpen={drawerOpen}
-          onClose={closeDrawer}
-          items={navItems}
-          activeTab={activeTab}
-          onSelect={setActiveTab}
-          user={user}
-          brand={brand}
-          hideValues={hideValues}
-          onTogglePrivacy={togglePrivacy}
-          canLock={canLock}
-          onLock={lockAll}
-          onLogout={logout}
-          onLogin={triggerLogin}
-        />
-      )}
     </header>
   );
 }

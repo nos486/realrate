@@ -1,11 +1,12 @@
 /**
  * AppHomeDashboard.jsx — The Android app's home: the user's own month at a glance
  *
+ *  - at the top, a small card of today's rates (dollar, 18k gold, coin) that opens the market
+ *    page — only for users with the market page (feature `market`, the "pro" group); shown even
+ *    while the records are locked
  *  - this month's spending (vs the same days of last month) and income, and what is left
  *  - bank messages waiting to be recorded
  *  - the latest expenses
- *  - a small rates card (dollar, 18k gold, coin) that opens the market page — only for users
- *    with the market page (feature `market`, the "pro" group); today's rates belong to it
  * Installment and cheque reminders are shown above it by MainPage, as on the website's home.
  * Everything is decrypted in the browser; nothing shows while the vault is locked (the card to
  * unlock it does).
@@ -120,8 +121,32 @@ export default function AppHomeDashboard({ usdToman = 0, analysis = [], onOpen }
     { key: 'coin', label: 'سکه امامی', value: price('full_coin') },
   ].filter((r) => hasMarket && r.value > 0);
 
+  // Today's rates: at the top of the home, open even while the records are locked (they aren't
+  // encrypted)
+  const ratesCard = rates.length > 0 && (
+    <button type="button" className="app-home-card app-home-rates" onClick={() => onOpen?.('rates')}>
+      <header className="app-home-card-head">
+        <h2>نرخ‌های امروز</h2>
+        <span className="app-home-link">بازار <ChevronLeft size={16} /></span>
+      </header>
+      <div className="app-home-rates-grid">
+        {rates.map((r) => (
+          <span key={r.key} className="app-home-rate">
+            <small>{r.label}</small>
+            <strong>{fa(r.value)}</strong>
+          </span>
+        ))}
+      </div>
+    </button>
+  );
+
   if (vault.status === 'locked') {
-    return <VaultUnlockCard title="برای دیدن خلاصه‌ی ماه، اطلاعات را باز کنید" />;
+    return (
+      <div className="app-home">
+        {ratesCard}
+        <VaultUnlockCard title="برای دیدن خلاصه‌ی ماه، اطلاعات را باز کنید" />
+      </div>
+    );
   }
 
   const loading = (hasExpenses && expensesLoading) || incomes.loading;
@@ -129,6 +154,8 @@ export default function AppHomeDashboard({ usdToman = 0, analysis = [], onOpen }
 
   return (
     <div className="app-home">
+      {ratesCard}
+
       {/* This month */}
       <section className="app-home-hero" aria-label={`خلاصه‌ی ${formatShamsiMonth(month.jy, month.jm)}`}>
         <div className="app-home-hero-top">
@@ -211,24 +238,6 @@ export default function AppHomeDashboard({ usdToman = 0, analysis = [], onOpen }
             </button>
           )}
         </section>
-      )}
-
-      {/* Rates */}
-      {rates.length > 0 && (
-        <button type="button" className="app-home-card app-home-rates" onClick={() => onOpen?.('rates')}>
-          <header className="app-home-card-head">
-            <h2>نرخ‌های امروز</h2>
-            <span className="app-home-link">بازار <ChevronLeft size={16} /></span>
-          </header>
-          <div className="app-home-rates-grid">
-            {rates.map((r) => (
-              <span key={r.key} className="app-home-rate">
-                <small>{r.label}</small>
-                <strong>{fa(r.value)}</strong>
-              </span>
-            ))}
-          </div>
-        </button>
       )}
     </div>
   );
