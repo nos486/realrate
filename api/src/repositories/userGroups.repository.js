@@ -3,10 +3,24 @@
  *
  * Tables: user_groups, user_group_members, user_group_requests (d1Schema.js). A user's groups
  * decide which group-restricted features they get (lib/features.js).
+ *
+ * A user's group keys are read on every request that checks a feature, so they are kept in this
+ * isolate's memory for GROUP_KEYS_MEMO_MS (isolateCache.js); a membership change made here is seen
+ * at once, one made in another isolate within that time.
  */
 
 import { ensureSchema } from "./schema.repository.js";
 import { AppError } from "../lib/AppError.js";
+import { createIsolateCache } from "../lib/isolateCache.js";
+
+export const GROUP_KEYS_MEMO_MS = 30_000;
+const groupKeysMemo = createIsolateCache({ ttlMs: GROUP_KEYS_MEMO_MS, max: 5000 });
+
+/** Forget the group keys kept in memory: one user's, or (no argument) everyone's */
+export function forgetUserGroupKeys(userId) {
+  if (userId) groupKeysMemo.delete(userId);
+  else groupKeysMemo.clear();
+}
 
 const GROUP_COLUMNS = `
   g.id, g.key, g.name, g.description, g.allow_requests AS allowRequests, g.is_system AS isSystem,
@@ -101,6 +115,7 @@ export async function dbDeleteGroup(env, groupId) {
     env.DB.prepare("DELETE FROM user_group_requests WHERE group_id = ?").bind(groupId),
     env.DB.prepare("DELETE FROM user_groups WHERE id = ? AND is_system = 0").bind(groupId),
   ]);
+  forgetUserGroupKeys();
 }
 
 /**
@@ -139,11 +154,13 @@ export async function dbAddGroupMember(env, groupId, userId, addedBy = "") {
     `).bind(groupId, userId, new Date().toISOString(), addedBy),
     env.DB.prepare("DELETE FROM user_group_requests WHERE group_id = ? AND user_id = ?").bind(groupId, userId),
   ]);
+  forgetUserGroupKeys(userId);
 }
 
 export async function dbRemoveGroupMember(env, groupId, userId) {
   await ensureSchema(env);
   await env.DB.prepare("DELETE FROM user_group_members WHERE group_id = ? AND user_id = ?").bind(groupId, userId).run();
+  forgetUserGroupKeys(userId);
 }
 
 /** Pending requests (of one group, or of all), oldest first */
@@ -177,11 +194,14 @@ export async function dbDeleteGroupRequest(env, groupId, userId) {
 /** The keys of the groups a user is in, e.g. ["pro"] */
 export async function dbGetUserGroupKeys(env, userId) {
   if (!env?.DB || !userId) return [];
-  await ensureSchema(env);
-  const { results = [] } = await env.DB.prepare(`
-    SELECT g.key FROM user_group_members m JOIN user_groups g ON g.id = m.group_id WHERE m.user_id = ? ORDER BY g.key
-  `).bind(userId).all();
-  return results.map((row) => row.key);
+  const keys = await groupKeysMemo.getOrLoad(userId, async () => {
+    await ensureSchema(env);
+    const { results = [] } = await env.DB.prepare(`
+      SELECT g.key FROM user_group_members m JOIN user_groups g ON g.id = m.group_id WHERE m.user_id = ? ORDER BY g.key
+    `).bind(userId).all();
+    return results.map((row) => row.key);
+  });
+  return [...keys];
 }
 
 /** The keys of the groups a user has asked to join and is waiting on */

@@ -4,7 +4,7 @@
  */
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { parseGithubRelease, releaseFromLatestRedirect, versionFromTag } from '../../src/domain/appRelease.js';
-import { getLatestRelease, RELEASE_CACHE_MS } from '../../src/handlers/appUpdateRoutes.js';
+import { getLatestRelease, RELEASE_CACHE_MS, resetLatestReleaseMemo } from '../../src/handlers/appUpdateRoutes.js';
 import { memoryStateDb } from '../helpers/memoryStateDb.js';
 import {
   isCheckDue,
@@ -23,7 +23,10 @@ const githubRelease = {
   assets: [{ name: 'realrate.apk', size: 12_345_678 }],
 };
 
-afterEach(() => vi.unstubAllGlobals());
+afterEach(() => {
+  vi.unstubAllGlobals();
+  resetLatestReleaseMemo();
+});
 
 describe('appRelease', () => {
   it('reads the version from the tag', () => {

@@ -8,6 +8,7 @@
 import { ensureSchema } from "./schema.repository.js";
 import { generateUrlToken, sha256Hex } from "../lib/security.js";
 import { dbRecordUserActivity } from "./user.repository.js";
+import { forgetSessions } from "./session.repository.js";
 
 const AUTH_COLUMNS = `
   id, email, name, custom_name AS customName, picture, role,
@@ -144,5 +145,6 @@ export async function dbDeleteUserSessions(env, userId, { exceptToken = null } =
   const res = exceptToken
     ? await env.DB.prepare(`DELETE FROM sessions WHERE user_id = ? AND token <> ?`).bind(userId, exceptToken).run()
     : await env.DB.prepare(`DELETE FROM sessions WHERE user_id = ?`).bind(userId).run();
+  forgetSessions({ userId });
   return res?.meta?.changes ?? 0;
 }
