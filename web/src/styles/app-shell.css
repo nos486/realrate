@@ -619,10 +619,8 @@ html.is-app-layout .site-footer {
   overflow: hidden;
   padding: 18px 18px 14px;
   border-radius: 24px;
-  background:
-    radial-gradient(120% 90% at 100% 0%, rgba(14, 165, 233, 0.22), transparent 60%),
-    linear-gradient(160deg, #111a2c, #0b111d);
-  border: 1px solid rgba(56, 189, 248, 0.14);
+  background: var(--bg-surface-elevated);
+  border: 1px solid rgba(255, 255, 255, 0.06);
   box-shadow: 0 12px 32px rgba(0, 0, 0, 0.35);
 }
 
