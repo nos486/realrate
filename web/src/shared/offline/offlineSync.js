@@ -8,7 +8,8 @@
  *  2. pull: GET /api/vault/sync — every change after the saved cursor (records stored and
  *     deleted), page by page. A new `epoch` or `reset` starts the copy over.
  * Rounds run on start, when the connection comes back, when the app returns to the foreground,
- * after an offline change, and every few minutes. While offline a light probe checks every
+ * after an offline change and on the header's refresh button — never on a timer while online.
+ * While offline a light probe checks every
  * little while whether the server is reachable again.
  *
  * Online or offline (the bar at the top): the browser's own offline event is believed at once; a
@@ -28,7 +29,6 @@ export const VAULT_CHANGED_EVENT = 'realrate:vault-changed';
 export const OFFLINE_SYNC_ERROR_EVENT = 'realrate:offline-sync-error';
 
 const SYNC_PAGE = 500;
-const PERIODIC_MS = 3 * 60 * 1000;
 const PROBE_MS = 15 * 1000;
 /** How long requests must keep failing before the app says it is offline, and when it retries meanwhile */
 const OFFLINE_CONFIRM_MS = 6 * 1000;
@@ -185,7 +185,6 @@ export async function startOffline(id) {
     document.addEventListener('visibilitychange', onVisible);
     unlisten.push(() => document.removeEventListener('visibilitychange', onVisible));
   }
-  timers.periodic = setInterval(() => syncSoon(), PERIODIC_MS);
   if (!state.online) startProbe();
   syncSoon();
 }
@@ -193,7 +192,6 @@ export async function startOffline(id) {
 /** Stop (and with `clear`, delete the copy: signing out) */
 export async function stopOffline({ clear = false } = {}) {
   const id = userId;
-  clearInterval(timers.periodic);
   clearInterval(timers.probe);
   clearTimeout(timers.soon);
   clearTimeout(timers.confirm);

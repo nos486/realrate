@@ -11,8 +11,11 @@ import './styles/index.css'
 import App from './App.jsx'
 import { registerServiceWorker } from './shared/pwa/registerServiceWorker.js'
 import { initNativeApp } from './shared/native/nativeApp.js'
+import { initAppLayoutClass } from './shared/app/appLayout.js'
 
 registerServiceWorker()
+// The app's frame and touch feel (styles/app-shell.css): the Android app and phone-sized screens
+initAppLayoutClass()
 initNativeApp()
 
 createRoot(document.getElementById('root')).render(

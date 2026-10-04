@@ -3,7 +3,7 @@ import Header from '../../components/Header.jsx';
 import Footer from '../../components/Footer.jsx';
 import { DemoBanner } from '../../features/demo/index.js';
 import OfflineBar from '../offline/OfflineBar.jsx';
-import { isNativeApp } from '../native/nativeApp.js';
+import { useAppLayout } from '../app/appLayout.js';
 import { AppTopBar, AppBottomNav } from '../app/AppShell.jsx';
 import AppUpdatePrompt, { AppUpdateBanner } from '../app/AppUpdatePrompt.jsx';
 import AppSuggestBanner from '../app/AppSuggestBanner.jsx';
@@ -19,9 +19,10 @@ import AppSuggestBanner from '../app/AppSuggestBanner.jsx';
  * Prevents repeating <div className="app-layout">, <Header />, and <Footer />
  * inside every single view and conditional return branch.
  *
- * Inside the Android app, a page with sections (`navItems`) gets the app's own frame instead
- * (shared/app/AppShell.jsx): a top app bar and a bottom navigation bar, no footer, and the
- * update prompt (shared/app/AppUpdatePrompt.jsx).
+ * In the Android app and on a phone-sized screen (shared/app/appLayout.js), a page with sections
+ * (`navItems`) gets the app's own frame instead (shared/app/AppShell.jsx): a top app bar and a
+ * bottom navigation bar, no footer — one design for the mobile website and the app. Inside the
+ * app it also has the update prompt (shared/app/AppUpdatePrompt.jsx; nothing on the website).
  */
 export default function AppLayout({
   children,
@@ -35,7 +36,8 @@ export default function AppLayout({
   hideHeader = false,
   hideFooter = false,
 }) {
-  if (isNativeApp() && navItems?.length && !hideHeader) {
+  const appLayout = useAppLayout();
+  if (appLayout && navItems?.length && !hideHeader) {
     return (
       <div className={`app-layout has-app-shell ${layoutClassName}`}>
         {/* One sticky block: the offline bar sits above the app bar instead of under it */}
@@ -44,6 +46,8 @@ export default function AppLayout({
           <AppTopBar activeTab={activeTab} navItems={navItems} />
         </div>
         <DemoBanner />
+        {/* On an Android phone's browser: the app is easier and faster */}
+        <AppSuggestBanner />
         <AppUpdateBanner />
         <main className={`main-content ${className}`}>
           {/* Each section fades in, like switching screens in an app */}

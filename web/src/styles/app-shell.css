@@ -1,7 +1,7 @@
 /* ══════════════════════════════════════════════════════════════════════════
-   Android app — its own frame and touch feel (html.is-native-app, set by initNativeApp)
+   The app frame — the Android app and the website on a phone (html.is-app-layout, shared/app/appLayout.js)
    shared/app/AppShell.jsx: top app bar, bottom navigation with a central +,
-   shared/app/AppSheet.jsx: bottom sheets. The website is not affected.
+   shared/app/AppSheet.jsx: bottom sheets. The website on a wider screen is not affected.
    ══════════════════════════════════════════════════════════════════════════ */
 
 :root {
@@ -12,37 +12,37 @@
 }
 
 /* ── Touch feel ── */
-html.is-native-app {
+html.is-app-layout {
   -webkit-tap-highlight-color: transparent;
   overscroll-behavior-y: none;
 }
 
-html.is-native-app body {
+html.is-app-layout body {
   overscroll-behavior-y: none;
 }
 
 /* Buttons and tappable things: no text selection or long-press callout, a small press */
-html.is-native-app button,
-html.is-native-app [role='button'],
-html.is-native-app a {
+html.is-app-layout button,
+html.is-app-layout [role='button'],
+html.is-app-layout a {
   -webkit-user-select: none;
   user-select: none;
   -webkit-touch-callout: none;
 }
 
-html.is-native-app button:not(:disabled),
-html.is-native-app [role='button'] {
+html.is-app-layout button:not(:disabled),
+html.is-app-layout [role='button'] {
   transition: transform 0.12s var(--app-ease), background-color 0.15s ease, color 0.15s ease, opacity 0.15s ease;
 }
 
-html.is-native-app button:not(:disabled):active,
-html.is-native-app [role='button']:active {
+html.is-app-layout button:not(:disabled):active,
+html.is-app-layout [role='button']:active {
   transform: scale(0.96);
 }
 
 /* Hover styles stick after a tap on touch screens: only where hovering exists */
 @media (hover: none) {
-  html.is-native-app .ui-btn:hover:not(:active) {
+  html.is-app-layout .ui-btn:hover:not(:active) {
     filter: none;
   }
 }
@@ -590,8 +590,8 @@ html.is-native-app [role='button']:active {
 }
 
 /* ── Things the app does not use ── */
-html.is-native-app .site-header,
-html.is-native-app .site-footer {
+html.is-app-layout .site-header,
+html.is-app-layout .site-footer {
   display: none;
 }
 
@@ -1045,31 +1045,31 @@ button.app-home-card {
 
 /* Footer buttons (any markup: Button, older .btn-*, with or without a wrapper): the two share
    the row, the main action a bit wider */
-html.is-native-app .modal-actions-pinned > div {
+html.is-app-layout .modal-actions-pinned > div {
   display: flex;
   width: 100%;
   gap: 10px;
 }
 
-html.is-native-app .modal-actions-pinned > button,
-html.is-native-app .modal-actions-pinned > div > button {
+html.is-app-layout .modal-actions-pinned > button,
+html.is-app-layout .modal-actions-pinned > div > button {
   flex: 1 1 0;
   min-width: 0 !important;
   min-height: 48px;
 }
 
-html.is-native-app .modal-actions-pinned > button:last-child,
-html.is-native-app .modal-actions-pinned > div > button:last-child {
+html.is-app-layout .modal-actions-pinned > button:last-child,
+html.is-app-layout .modal-actions-pinned > div > button:last-child {
   flex-grow: 1.6;
 }
 
 /* Monthly budgets: two fields per row, not fifteen stacked */
-html.is-native-app .budget-grid {
+html.is-app-layout .budget-grid {
   grid-template-columns: 1fr 1fr;
   gap: 4px 10px;
 }
 
-html.is-native-app .budget-grid .ui-input-label {
+html.is-app-layout .budget-grid .ui-input-label {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
