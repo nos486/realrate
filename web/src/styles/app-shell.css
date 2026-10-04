@@ -940,7 +940,8 @@ button.app-home-card {
 .app-layout.has-app-shell .incomes-summary-grid > :first-child,
 .app-layout.has-app-shell .portfolio-overview-grid > :first-child,
 .app-layout.has-app-shell .portfolio-overview-grid > :not(.portfolio-stat-card),
-.app-layout.has-app-shell .portfolio-overview-grid > .donut-chart-card {
+.app-layout.has-app-shell .portfolio-overview-grid > .donut-chart-card,
+.app-layout.has-app-shell .portfolio-overview-grid > .allocation-targets-card {
   grid-column: 1 / -1;
 }
 
