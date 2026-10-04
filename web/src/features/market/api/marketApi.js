@@ -27,3 +27,14 @@ export async function getSparklines(keys, range = '7d', { candles = false, ...op
   if (candles) query.set('candles', '1');
   return httpClient.get(`/api/sparklines?${query}`, options);
 }
+
+/**
+ * Prices on a past day from the daily history: that day's close, or the last recorded day before it
+ * @param {string[]} keys - asset ids
+ * @param {string} day - YYYY-MM-DD
+ * @returns {Promise<{ available: boolean, day: string, prices: Record<string, { value: number, day: string }> }>}
+ */
+export async function getPricesOnDay(keys, day, options = {}) {
+  const query = new URLSearchParams({ keys: keys.join(','), day });
+  return httpClient.get(`/api/prices/on-day?${query}`, options);
+}

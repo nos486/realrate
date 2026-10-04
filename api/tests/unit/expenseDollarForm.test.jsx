@@ -50,6 +50,47 @@ describe('a project expense in dollars', () => {
     expect(onSubmit.mock.calls[0][0].usdRate).toBeNull();
   });
 
+  it('changing the date fills that day\'s rate, also over a typed one', async () => {
+    funds.rateOnDay.mockClear();
+    funds.rateOnDay.mockResolvedValueOnce(61_500);
+    render(<ExpenseForm group={project} usdToman={125_000} onSubmit={vi.fn()} onClose={() => {}} />);
+    await waitFor(() => expect(document.getElementById('expense-usd-rate').value).toMatch(/125/));
+    fireEvent.change(document.getElementById('expense-usd-rate'), { target: { value: '90000' } });
+    fireEvent.change(document.querySelector('.date-text-input'), { target: { value: '1403/01/15' } });
+    await waitFor(() => expect(document.getElementById('expense-usd-rate').value).toMatch(/61/));
+    expect(funds.rateOnDay).toHaveBeenCalledWith('usd', '2024-04-03');
+    expect(document.body.textContent).toMatch(/نرخ دلار همان روز/);
+  });
+
+  it('an edited expense keeps its saved rate until its date changes', async () => {
+    funds.rateOnDay.mockClear();
+    funds.rateOnDay.mockResolvedValueOnce(70_000);
+    const expense = { id: 'exp_1', title: 'کاشی', amount: 1_000_000, currency: 'IRT', date: '2024-04-03', usdRate: 60_000, groupId: 'exg_1' };
+    render(<ExpenseForm group={project} expense={expense} usdToman={125_000} onSubmit={vi.fn()} onClose={() => {}} />);
+    await new Promise((r) => setTimeout(r, 20));
+    expect(document.getElementById('expense-usd-rate').value).toMatch(/60/);
+    expect(funds.rateOnDay).not.toHaveBeenCalled();
+    fireEvent.change(document.querySelector('.date-text-input'), { target: { value: '1403/02/01' } });
+    await waitFor(() => expect(document.getElementById('expense-usd-rate').value).toMatch(/70/));
+  });
+
+  it('a dollar expense without a rate fills the rate of its day', async () => {
+    funds.rateOnDay.mockClear();
+    funds.rateOnDay.mockResolvedValueOnce(58_000);
+    const expense = { id: 'exp_2', title: 'هاست', amount: 20, currency: 'USD', date: '2024-04-03', usdRate: null, groupId: 'exg_1' };
+    render(<ExpenseForm group={project} expense={expense} usdToman={125_000} onSubmit={vi.fn()} onClose={() => {}} />);
+    await waitFor(() => expect(document.getElementById('expense-usd-rate').value).toMatch(/58/));
+    expect(funds.rateOnDay).toHaveBeenCalledWith('usd', '2024-04-03');
+  });
+
+  it('says so when the history has no rate for that day', async () => {
+    funds.rateOnDay.mockResolvedValueOnce(null);
+    render(<ExpenseForm group={project} usdToman={125_000} onSubmit={vi.fn()} onClose={() => {}} />);
+    fireEvent.change(document.querySelector('.date-text-input'), { target: { value: '1390/01/15' } });
+    await waitFor(() => expect(document.body.textContent).toMatch(/در تاریخچه نیست/));
+    expect(document.getElementById('expense-usd-rate').value).toBe('');
+  });
+
   it('everyday expenses in tomans do not ask', () => {
     render(<ExpenseForm daily onSubmit={vi.fn()} onClose={() => {}} />);
     expect(document.getElementById('expense-usd-rate')).toBeNull();

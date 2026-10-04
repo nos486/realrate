@@ -19,7 +19,7 @@
  */
 
 import { getPortfolios } from '../../features/portfolio/api/portfolioApi.js';
-import { getSparklines } from '../../features/market/api/marketApi.js';
+import { priceOnDay } from '../../features/market/priceOnDay.js';
 import { calculateComputedHoldings } from '../../features/transactions/utils/calculationEngine.js';
 import { buildAssetLedgers } from '../../features/portfolio/utils/assetLedger.js';
 import { getKnownPriceIds } from '../../features/market/knownPriceIds.js';
@@ -109,32 +109,12 @@ export async function listAssetFunds(assetId) {
 }
 
 /**
- * The dollar rate (tomans) on a day, from the price history; null when unknown
+ * The dollar rate (tomans) on a day, from the daily price history; null when unknown
  * @param {string} isoDate YYYY-MM-DD
  */
 export async function rateOnDay(assetId, isoDate) {
-  const target = Date.parse(`${isoDate}T23:59:59`);
-  if (!Number.isFinite(target)) return null;
-  const age = Date.now() - target;
-  const range = age <= 25 * 86_400_000 ? '30d' : '1y';
-  try {
-    const res = await getSparklines([assetId], range, { silent: true });
-    const series = res?.sparklines?.[assetId];
-    if (!series?.points?.length) return null;
-    // A daily series names its days: the close of that day (or the last one before it)
-    if (Array.isArray(series.days) && series.days.length === series.points.length) {
-      let index = -1;
-      for (let i = 0; i < series.days.length && series.days[i] <= isoDate; i++) index = i;
-      return index >= 0 && series.points[index] > 0 ? Math.round(series.points[index]) : null;
-    }
-    const size = (Number(res.bucketSec) || 0) * 1000;
-    const start = Date.parse(series.since);
-    if (!size || target < start) return null;
-    const index = Math.min(series.points.length - 1, Math.floor((target - Math.floor(start / size) * size) / size));
-    return series.points[index] > 0 ? Math.round(series.points[index]) : null;
-  } catch {
-    return null;
-  }
+  const rate = await priceOnDay(assetId, isoDate);
+  return rate > 0 ? Math.round(rate) : null;
 }
 
 async function portfolioById(portfolioId) {

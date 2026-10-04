@@ -1,44 +1,51 @@
 /**
- * portfolioFundsRate.test.js — the dollar rate of a past day, read off the price history series
+ * portfolioFundsRate.test.js — the price of a past day from the daily history
+ * (GET /api/prices/on-day, features/market/priceOnDay.js), as rateOnDay gives it to the forms
  */
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-const sparks = vi.hoisted(() => ({ res: null }));
-vi.mock('../../../web/src/features/market/api/marketApi.js', () => ({ getSparklines: vi.fn(async () => sparks.res) }));
+const api = vi.hoisted(() => ({ getPricesOnDay: vi.fn() }));
+vi.mock('../../../web/src/features/market/api/marketApi.js', () => api);
 vi.mock('../../../web/src/features/portfolio/api/portfolioApi.js', () => ({ getPortfolios: vi.fn() }));
 vi.mock('../../../web/src/shared/vault/vaultPortfolioItems.js', () => ({}));
 vi.mock('../../../web/src/shared/vault/vaultStore.js', () => ({ getPortfolioKey: vi.fn(), isAccountVaultPortfolio: () => true }));
 const { rateOnDay } = await import('../../../web/src/shared/vault/portfolioFunds.js');
+const { priceOnDay, clearPriceOnDayCache } = await import('../../../web/src/features/market/priceOnDay.js');
+
+beforeEach(() => {
+  clearPriceOnDayCache();
+  api.getPricesOnDay.mockReset();
+});
 
 describe('rateOnDay', () => {
-  it('picks the bucket of that day, null before the history starts', async () => {
-    const day = 86_400_000;
-    const since = new Date(Date.UTC(2026, 8, 1)).toISOString();
-    // 12-hour buckets from Sep 1: two points a day
-    sparks.res = { bucketSec: 43_200, sparklines: { usd: { since, points: Array.from({ length: 60 }, (_, i) => 100_000 + i * 100) } } };
-    vi.useFakeTimers();
-    vi.setSystemTime(Date.UTC(2026, 8, 30));
-    try {
-      const rate = await rateOnDay('usd', '2026-09-10');
-      expect(rate).toBeGreaterThanOrEqual(100_000 + 18 * 100);
-      expect(rate).toBeLessThanOrEqual(100_000 + 21 * 100);
-      expect(await rateOnDay('usd', '2026-08-01')).toBeNull();
-      sparks.res = { bucketSec: 43_200, sparklines: {} };
-      expect(await rateOnDay('usd', '2026-09-10')).toBeNull();
-    } finally {
-      vi.useRealTimers();
-    }
-    expect(day).toBe(86_400_000);
+  it("asks for that day's price and rounds it", async () => {
+    api.getPricesOnDay.mockResolvedValue({ prices: { usd: { value: 101_234.6, day: '2025-03-01' } } });
+    expect(await rateOnDay('usd', '2025-03-02')).toBe(101_235);
+    expect(api.getPricesOnDay).toHaveBeenCalledWith(['usd'], '2025-03-02', { silent: true });
   });
 
-  it('reads a daily series by its days: that day\'s close, or the last one before it', async () => {
-    sparks.res = {
-      bucketSec: 86400,
-      sparklines: { usd: { since: '2026-09-01T00:00:00+03:30', days: ['2026-09-01', '2026-09-02', '2026-09-04'], points: [100, 110, 130] } },
-    };
-    expect(await rateOnDay('usd', '2026-09-02')).toBe(110);
-    expect(await rateOnDay('usd', '2026-09-03')).toBe(110);
-    expect(await rateOnDay('usd', '2026-09-05')).toBe(130);
-    expect(await rateOnDay('usd', '2026-08-31')).toBeNull();
+  it('is null when the history has nothing for it, or the request fails', async () => {
+    api.getPricesOnDay.mockResolvedValueOnce({ prices: {} });
+    expect(await rateOnDay('usd', '2020-01-01')).toBeNull();
+    api.getPricesOnDay.mockRejectedValueOnce(new Error('offline'));
+    expect(await rateOnDay('usd', '2020-01-02')).toBeNull();
+  });
+});
+
+describe('priceOnDay', () => {
+  it('keeps a past day: one request for repeated and concurrent asks', async () => {
+    api.getPricesOnDay.mockResolvedValue({ prices: { usd: { value: 90_000, day: '2025-01-10' } } });
+    const [a, b] = await Promise.all([priceOnDay('USD', '2025-01-10'), priceOnDay('usd', '2025-01-10')]);
+    expect(await priceOnDay('usd', '2025-01-10')).toBe(90_000);
+    expect([a, b]).toEqual([90_000, 90_000]);
+    expect(api.getPricesOnDay).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not keep an empty answer, and ignores a bad date', async () => {
+    api.getPricesOnDay.mockResolvedValueOnce({ prices: {} }).mockResolvedValueOnce({ prices: { usd: { value: 1, day: '2025-01-11' } } });
+    expect(await priceOnDay('usd', '2025-01-11')).toBeNull();
+    expect(await priceOnDay('usd', '2025-01-11')).toBe(1);
+    expect(await priceOnDay('usd', '1404/01/01')).toBeNull();
+    expect(api.getPricesOnDay).toHaveBeenCalledTimes(2);
   });
 });

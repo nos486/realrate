@@ -494,6 +494,7 @@ export default function AddHoldingForm({
         newAssetAmount={parseInputNumber(amount) || 0}
         newAssetUnitLabel={unitLabel}
         autoFillPrice={!editingHolding}
+        tradeDate={buyDate}
       />
 
       <CompareAssetInputs
@@ -503,6 +504,7 @@ export default function AddHoldingForm({
         onComparePriceChange={setComparePriceToman}
         totalCostToman={previewCostToman}
         autoFillPrice={!editingHolding}
+        tradeDate={buyDate}
       />
 
       {/* Custom or Bourse Asset: Current Market Price field */}

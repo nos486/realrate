@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { ArrowLeftRight, RefreshCw, X } from 'lucide-react';
 import UniversalAssetSearch from '../../../components/UniversalAssetSearch.jsx';
 import NumericInput from '../../../shared/ui/NumericInput.jsx';
@@ -7,8 +7,8 @@ import {
   parseInputNumber,
   formatNum,
   resolveSelectedAsset,
-  resolveReferencePriceToman,
 } from '../utils/holdingHelpers.js';
+import { useTradeDayPrice, tradeDayPriceNote } from '../hooks/useTradeDayPrice.js';
 
 /**
  * Shared "paid / swapped with another asset" inputs, used identically by AddHoldingForm
@@ -21,10 +21,10 @@ import {
  * Toman cost basis for the primary asset is derived automatically as
  * referenceQuantity × referencePriceToman ÷ primary asset's amount.
  *
- * referencePriceToman (the reference asset's OWN Toman price at trade time) defaults to
- * today's live price from the single shared pricing engine (pricing.priceMap/itemMap —
- * never a separate calculation), but stays editable since a trade may have happened days
- * before it's recorded.
+ * referencePriceToman (the reference asset's OWN Toman price at trade time) is filled from
+ * the trade's date (hooks/useTradeDayPrice.js): today's live price from the shared pricing
+ * engine, or that day's close from the price history for a past trade — again whenever the
+ * date changes. It stays editable.
  */
 export default function ReferenceAssetInputs({
   referenceAsset,
@@ -38,11 +38,11 @@ export default function ReferenceAssetInputs({
   // false when editing an existing record: its saved reference price reflects the ORIGINAL
   // trade date and must never be silently overwritten by today's live price.
   autoFillPrice = true,
+  // The trade's date (Shamsi or ISO): a past day fills its price from the price history
+  tradeDate = '',
 }) {
   const pricing = usePricing();
   const [expanded, setExpanded] = useState(Boolean(referenceAsset));
-  const userEditedPrice = useRef(!autoFillPrice);
-  const prevAssetId = useRef(referenceAsset?.id || null);
 
   // AddHoldingForm/TransactionForm populate referenceAsset from the record being edited
   // in an effect that runs AFTER this component's first mount, so on the very first open
@@ -56,34 +56,19 @@ export default function ReferenceAssetInputs({
     }
   }, [referenceAsset]);
 
-  useEffect(() => {
-    const id = referenceAsset?.id || null;
-    if (!id) {
-      prevAssetId.current = null;
-      return;
-    }
-    if (id !== prevAssetId.current) {
-      userEditedPrice.current = !autoFillPrice;
-      prevAssetId.current = id;
-    }
-    if (userEditedPrice.current) return;
-    const live = resolveReferencePriceToman(id, pricing?.priceMap, pricing?.itemMap);
-    if (live > 0) {
-      onReferencePriceChange(String(live));
-    }
-    // Deliberately re-runs whenever pricing data refreshes too (not just on asset change) —
-    // if the reference asset was picked before pricing.priceMap had finished its first load,
-    // this is what lets the auto-fill still land once live data arrives, without ever
-    // overwriting a value the user already typed (guarded above by userEditedPrice).
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [referenceAsset?.id, autoFillPrice, pricing?.priceMap, pricing?.itemMap]);
+  const dayPrice = useTradeDayPrice({
+    assetId: referenceAsset?.id || null,
+    tradeDate,
+    autoFill: autoFillPrice,
+    pricing,
+    onPrice: onReferencePriceChange,
+  });
 
   const handlePick = (asset) => {
     const resolved = resolveSelectedAsset(asset);
     if (!resolved) return; // personal "custom" assets have no live price to reference
     // A newly picked asset starts from today's price, also when editing
-    userEditedPrice.current = false;
-    prevAssetId.current = resolved.id;
+    dayPrice.markAuto(resolved.id);
     onReferenceAssetChange(resolved);
   };
 
@@ -99,7 +84,7 @@ export default function ReferenceAssetInputs({
   };
 
   const handlePriceChange = (v) => {
-    userEditedPrice.current = true;
+    dayPrice.markEdited();
     onReferencePriceChange(v);
   };
 
@@ -166,12 +151,9 @@ export default function ReferenceAssetInputs({
                 <button
                   type="button"
                   className="btn-fx-rate-refresh"
-                  title="استفاده از قیمت لحظه‌ای امروز"
-                  onClick={() =>
-                    handlePriceChange(
-                      String(resolveReferencePriceToman(referenceAsset.id, pricing?.priceMap, pricing?.itemMap) || '')
-                    )
-                  }
+                  title="قیمت در تاریخ معامله"
+                  aria-label="قیمت در تاریخ معامله"
+                  onClick={dayPrice.refill}
                 >
                   <RefreshCw size={11} />
                 </button>
@@ -183,6 +165,7 @@ export default function ReferenceAssetInputs({
                 placeholder="قیمت واحد به تومان"
                 className="form-input"
               />
+              {tradeDayPriceNote(dayPrice.source) && <span className="field-sub-note">{tradeDayPriceNote(dayPrice.source)}</span>}
             </div>
           </div>
 

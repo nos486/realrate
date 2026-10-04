@@ -116,22 +116,41 @@ export default function ExpenseForm({ group = null, daily = false, expense = nul
   // A project's toman expense may keep the dollar's rate on its day (optional): what it was in
   // dollars then, and what it costs at today's rate (expenseDollarValue)
   const dollarView = !daily && !isUsd;
-  // The day's rate, filled in from the price history (when none was typed): for an expense paid
-  // from a portfolio, and for a project's toman expense
+  // The day's rate, filled in from the price history: for a dollar expense and for a project's
+  // toman expense. A new expense fills it at once; an edited one keeps its saved rate until its
+  // date changes. Changing the date fills it again (also over a typed rate), as does the button.
   const [rateTouched, setRateTouched] = useState(Boolean(expense?.usdRate) || Boolean(expense && !expense.usdRate && !isUsd));
-  const wantsDayRate = (isUsd && (Boolean(fundId) || investing)) || dollarView;
+  // null | 'loading' | 'filled' | 'missing': where the shown rate came from
+  const [rateFill, setRateFill] = useState(null);
+  const [refill, setRefill] = useState(0);
+  const wantsDayRate = isUsd || dollarView;
   useEffect(() => {
     if (!wantsDayRate || rateTouched || !dateIso) return undefined;
     let cancelled = false;
     const apply = (rate) => {
-      if (!cancelled && rate > 0) setUsdRate(String(Math.round(rate)));
+      if (cancelled) return;
+      setUsdRate(rate > 0 ? String(Math.round(rate)) : '');
+      setRateFill(rate > 0 ? 'filled' : 'missing');
     };
     if (dateIso === todayIso() && usdToman > 0) apply(usdToman);
-    else rateOnDay(fundAsset || 'usd', dateIso).then(apply);
+    else {
+      setRateFill('loading');
+      rateOnDay(fundAsset || 'usd', dateIso).then(apply);
+    }
     return () => {
       cancelled = true;
     };
-  }, [wantsDayRate, rateTouched, dateIso, usdToman, fundAsset]);
+  }, [wantsDayRate, rateTouched, dateIso, usdToman, fundAsset, refill]);
+  const changeDate = (value) => {
+    if (value !== dateShamsi) setRateTouched(false);
+    setDateShamsi(value);
+  };
+  // The button: the date's rate again, over whatever is in the field
+  const fillDayRate = () => {
+    setRateTouched(false);
+    setRefill((n) => n + 1);
+  };
+
   // «دنگ» is for toman expenses only (and not for one added to a portfolio)
   const canShare = !isUsd && !investing;
   const sharing = canShare && shared;
@@ -266,16 +285,15 @@ export default function ExpenseForm({ group = null, daily = false, expense = nul
           <div className="ui-input-group">
             <label htmlFor="expense-usd-rate" className="ui-input-label expense-rate-label">
               نرخ دلار در روز هزینه (تومان{paidFromPortfolio || investing ? ' *' : '، اختیاری'})
-              {usdToman > 0 && (
-                <button
-                  type="button"
-                  className="btn-fx-rate-refresh"
-                  title="استفاده از نرخ امروز"
-                  onClick={() => setUsdRate(String(Math.round(usdToman)))}
-                >
-                  <RefreshCw size={11} />
-                </button>
-              )}
+              <button
+                type="button"
+                className="btn-fx-rate-refresh"
+                title="نرخ دلار در تاریخ هزینه"
+                aria-label="نرخ دلار در تاریخ هزینه"
+                onClick={fillDayRate}
+              >
+                <RefreshCw size={11} />
+              </button>
             </label>
             <div className="ui-input-wrapper">
               <NumericInput
@@ -283,6 +301,7 @@ export default function ExpenseForm({ group = null, daily = false, expense = nul
                 value={usdRate}
                 onValueChange={(v) => {
                   setRateTouched(true);
+                  setRateFill(null);
                   setUsdRate(v);
                 }}
                 allowDecimals={false}
@@ -290,6 +309,13 @@ export default function ExpenseForm({ group = null, daily = false, expense = nul
                 className="ui-input-control"
               />
             </div>
+            {rateFill && (
+              <p className={`expense-form-hint ${rateFill === 'missing' ? 'is-warning' : ''}`}>
+                {rateFill === 'loading' && 'در حال خواندن نرخ دلار آن روز…'}
+                {rateFill === 'filled' && (dateIso === todayIso() ? 'نرخ امروز' : 'نرخ دلار همان روز، از تاریخچه قیمت')}
+                {rateFill === 'missing' && 'نرخ دلار این روز در تاریخچه نیست؛ دستی وارد کنید.'}
+              </p>
+            )}
             {tomanPreview > 0 && (
               <p className="expense-form-hint">
                 معادل حدود <strong>{formatNum(tomanPreview)}</strong> تومان
@@ -407,7 +433,7 @@ export default function ExpenseForm({ group = null, daily = false, expense = nul
           </div>
         )}
 
-        <ShamsiDatePicker label="تاریخ هزینه *" value={dateShamsi} onChange={setDateShamsi} />
+        <ShamsiDatePicker label="تاریخ هزینه *" value={dateShamsi} onChange={changeDate} />
 
         {daily && category === INVESTMENT_CATEGORY && (
           <PortfolioLinkFields

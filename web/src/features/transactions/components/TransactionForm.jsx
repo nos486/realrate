@@ -265,6 +265,7 @@ export default function TransactionForm({
         newAssetAmount={quantityNum || 0}
         newAssetUnitLabel={unit}
         autoFillPrice={!editingTransaction}
+        tradeDate={transactionDate}
       />
 
       {/* Total Turnover Summary Pill */}

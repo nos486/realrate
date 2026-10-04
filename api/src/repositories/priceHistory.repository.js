@@ -229,6 +229,44 @@ export async function readPriceTrends(env, keys, { range = DEFAULT_TREND_RANGE, 
   }
 }
 
+/** ?1: keys (JSON array), ?2: the day → each key's close on that day (or the last day before it) */
+export const PRICE_ON_DAY_SQL = `
+SELECT p.item_key, p.day, p.value FROM price_daily p
+JOIN (
+  SELECT item_key, MAX(day) AS day FROM price_daily
+  WHERE item_key IN (SELECT value FROM json_each(?1)) AND day <= ?2
+  GROUP BY item_key
+) last ON last.item_key = p.item_key AND last.day = p.day
+`;
+
+/**
+ * Each key's price on a day: that day's close, or the last recorded one before it (a holiday, a
+ * day the sources were quiet). Used to fill in a record's rate from its date.
+ * @param {object} env - needs env.DB
+ * @param {string[]} keys - price book ids
+ * @param {string} day - YYYY-MM-DD (Tehran)
+ * @returns {Promise<Record<string, { value: number, day: string }>|null>} null when the history
+ *   is unavailable; keys without data are left out
+ */
+export async function readPricesOnDay(env, keys, day) {
+  if (!env?.DB?.prepare) return null;
+  const wanted = [...new Set((keys || []).map(normalizePriceId).filter(Boolean))];
+  if (wanted.length === 0 || !/^\d{4}-\d{2}-\d{2}$/.test(String(day || ""))) return {};
+  try {
+    await ensureSchema(env);
+    const res = await env.DB.prepare(PRICE_ON_DAY_SQL).bind(JSON.stringify(wanted), day).all();
+    const result = {};
+    for (const row of res?.results || []) {
+      const value = Number(row.value);
+      if (value > 0) result[row.item_key] = { value, day: row.day };
+    }
+    return result;
+  } catch (err) {
+    logger.warn("[PriceHistory] Day read failed:", { error: err.message, keys: wanted.length });
+    return null;
+  }
+}
+
 /**
  * ?1: the key, ?2: now (ms), ?3: candles as JSON [[day, open, high, low, close], …]. Days already
  * recorded are kept (OR IGNORE) unless the overwrite variant is used.

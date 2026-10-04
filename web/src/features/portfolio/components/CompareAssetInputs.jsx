@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Scale, RefreshCw, X } from 'lucide-react';
 import UniversalAssetSearch from '../../../components/UniversalAssetSearch.jsx';
 import NumericInput from '../../../shared/ui/NumericInput.jsx';
@@ -9,6 +9,7 @@ import {
   resolveSelectedAsset,
   resolveReferencePriceToman,
 } from '../utils/holdingHelpers.js';
+import { useTradeDayPrice, tradeDayPriceNote } from '../hooks/useTradeDayPrice.js';
 
 /**
  * "What if I had bought something else instead" inputs for AddHoldingForm: a comparison asset
@@ -17,8 +18,9 @@ import {
  * same Toman cost would be worth today had it bought the comparison asset
  * (holdingHelpers.computeCompareAssetPnl).
  *
- * The price defaults to today's live price (the purchase is often entered the same day) and
- * stays editable for an older purchase; an edited record keeps its saved price.
+ * The price is filled from the purchase date (hooks/useTradeDayPrice.js): today's live price, or
+ * that day's close from the price history — again whenever the date changes. It stays editable;
+ * an edited record keeps its saved price until its date or asset changes.
  */
 export default function CompareAssetInputs({
   compareAsset,
@@ -27,41 +29,30 @@ export default function CompareAssetInputs({
   onComparePriceChange,
   totalCostToman = 0,
   autoFillPrice = true,
+  // The trade's date (Shamsi or ISO): a past day fills its price from the price history
+  tradeDate = '',
 }) {
   const pricing = usePricing();
   const [expanded, setExpanded] = useState(Boolean(compareAsset));
-  const userEditedPrice = useRef(!autoFillPrice);
-  const prevAssetId = useRef(compareAsset?.id || null);
 
   // The edit form sets compareAsset after this mounts: open the panel when it arrives
   useEffect(() => {
     if (compareAsset) setExpanded(true);
   }, [compareAsset]);
 
-  // Today's price for a newly picked asset (also once prices finish loading), never over a typed one
-  useEffect(() => {
-    const id = compareAsset?.id || null;
-    if (!id) {
-      prevAssetId.current = null;
-      return;
-    }
-    // An asset set from outside (the record being edited) keeps its saved price
-    if (id !== prevAssetId.current) {
-      userEditedPrice.current = !autoFillPrice;
-      prevAssetId.current = id;
-    }
-    if (userEditedPrice.current) return;
-    const live = resolveReferencePriceToman(id, pricing?.priceMap, pricing?.itemMap);
-    if (live > 0) onComparePriceChange(String(live));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [compareAsset?.id, autoFillPrice, pricing?.priceMap, pricing?.itemMap]);
+  const dayPrice = useTradeDayPrice({
+    assetId: compareAsset?.id || null,
+    tradeDate,
+    autoFill: autoFillPrice,
+    pricing,
+    onPrice: onComparePriceChange,
+  });
 
   const handlePick = (asset) => {
     const resolved = resolveSelectedAsset(asset);
     if (!resolved) return; // a personal asset has no market price to compare with
     // A newly picked asset starts from today's price, also when editing
-    userEditedPrice.current = false;
-    prevAssetId.current = resolved.id;
+    dayPrice.markAuto(resolved.id);
     onCompareAssetChange(resolved);
   };
 
@@ -76,7 +67,7 @@ export default function CompareAssetInputs({
   };
 
   const handlePriceChange = (v) => {
-    userEditedPrice.current = true;
+    dayPrice.markEdited();
     onComparePriceChange(v);
   };
 
@@ -129,8 +120,9 @@ export default function CompareAssetInputs({
               <button
                 type="button"
                 className="btn-fx-rate-refresh"
-                title="استفاده از قیمت لحظه‌ای امروز"
-                onClick={() => handlePriceChange(String(priceNow || ''))}
+                title="قیمت در روز خرید"
+                aria-label="قیمت در روز خرید"
+                onClick={dayPrice.refill}
               >
                 <RefreshCw size={11} />
               </button>
@@ -142,6 +134,7 @@ export default function CompareAssetInputs({
               placeholder="قیمت واحد به تومان"
               className="form-input"
             />
+            {tradeDayPriceNote(dayPrice.source) && <span className="field-sub-note">{tradeDayPriceNote(dayPrice.source)}</span>}
           </div>
 
           {totalCostToman <= 0 ? (

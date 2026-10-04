@@ -80,7 +80,7 @@ import {
   handleAdminFetchAllSources,
   handleAdminInspectApiRoute,
 } from "./handlers/adminRoutes.js";
-import { handleGetPrices, handleGetSparklines, handleGetPriceBook } from "./handlers/apiRoutes.js";
+import { handleGetPrices, handleGetSparklines, handleGetPricesOnDay, handleGetPriceBook } from "./handlers/apiRoutes.js";
 import { handleAdminHistory } from "./handlers/historyRoutes.js";
 import { handleGetUnifiedMarketItems } from "./handlers/unifiedItemsRoute.js";
 import {
@@ -494,6 +494,7 @@ async function handleRequest(request, env, ctx) {
   if (normalizedPath === "/api/sparklines" || normalizedPath === "/api/prices/sparklines") {
     return wrap(handleGetSparklines)(env, request);
   }
+  if (normalizedPath === "/api/prices/on-day") return wrap(handleGetPricesOnDay)(env, request);
 
   // ── Bourse (Tehran Stock Exchange) Routes ──────────────────────────────
   if (normalizedPath === "/api/bourse/symbols" || normalizedPath === "/api/bourse/search") {
