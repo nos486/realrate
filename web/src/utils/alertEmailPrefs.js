@@ -1,1 +1,0 @@
-../../../api/src/domain/alertEmailPrefs.js
