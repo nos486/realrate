@@ -25,7 +25,7 @@ const releaseMemo = createIsolateCache({ ttlMs: RELEASE_CACHE_MS, max: 1 });
 export function resetLatestReleaseMemo() {
   releaseMemo.clear();
 }
-const USER_AGENT = "RealRate-API (+https://realrate.ir)";
+const USER_AGENT = "RealRate-API (+https://realrate.geekio.org)";
 
 async function fetchFromApi(env, repo) {
   const headers = { Accept: "application/vnd.github+json", "User-Agent": USER_AGENT };

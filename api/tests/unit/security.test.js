@@ -127,7 +127,7 @@ describe('buildFrontendRedirect (OAuth token redirect)', () => {
 
   it('ignores an untrusted frontend origin from the (unsigned) state', () => {
     const url = new URL(buildFrontendRedirect('https://evil.pages.dev', '/', { auth_token: 't' }));
-    expect(url.origin).toBe('https://realrate.ir');
+    expect(url.origin).toBe('https://realrate.geekio.org');
   });
 });
 

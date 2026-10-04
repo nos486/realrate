@@ -19,8 +19,8 @@
 **RealRate** is a market analysis and personal finance app for Iran, running on Cloudflare's edge.
 It computes the intrinsic value and the bubble of gold and coins, tracks currencies, stocks and funds, and manages
 portfolios, expenses, accounts, loans, incomes and cheques — all end-to-end encrypted.
-The web app is at [realrate.ir](https://realrate.ir); the Android app (which records expenses from bank SMS) is on the
-[app page](https://realrate.ir/android) or the [latest release](https://github.com/nos486/realrate/releases/latest/download/realrate.apk).
+The web app is at [realrate.geekio.org](https://realrate.geekio.org); the Android app (which records expenses from bank SMS) is on the
+[app page](https://realrate.geekio.org/android) or the [latest release](https://github.com/nos486/realrate/releases/latest/download/realrate.apk).
 
 The interface is in Persian (right-to-left, Shamsi calendar, amounts in tomans).
 

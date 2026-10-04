@@ -5,14 +5,14 @@ import { describe, it, expect, vi, afterEach } from 'vitest';
 import { SITE_ORIGIN, siteOrigin, resolveFrontendOrigin } from '../../src/lib/siteOrigin.js';
 import { APP_WEBVIEW_ORIGIN } from '../../src/lib/appAuth.js';
 
-const req = (origin) => new Request('https://api.realrate.ir/api/x', { headers: origin ? { Origin: origin } : {} });
+const req = (origin) => new Request('https://realrate-api.geekio.org/api/x', { headers: origin ? { Origin: origin } : {} });
 
 describe('siteOrigin', () => {
-  it('is realrate.ir, or a trusted FRONTEND_URL', () => {
-    expect(SITE_ORIGIN).toBe('https://realrate.ir');
-    expect(siteOrigin({})).toBe('https://realrate.ir');
+  it('is realrate.geekio.org, or a trusted FRONTEND_URL', () => {
+    expect(SITE_ORIGIN).toBe('https://realrate.geekio.org');
+    expect(siteOrigin({})).toBe('https://realrate.geekio.org');
     expect(siteOrigin({ FRONTEND_URL: 'https://www.realrate.ir/' })).toBe('https://www.realrate.ir');
-    expect(siteOrigin({ FRONTEND_URL: 'https://evil.example' })).toBe('https://realrate.ir');
+    expect(siteOrigin({ FRONTEND_URL: 'https://evil.example' })).toBe('https://realrate.geekio.org');
   });
 });
 
@@ -23,7 +23,7 @@ describe('resolveFrontendOrigin', () => {
 
   it('the site for the Android app, an unknown origin or none — never the API host', () => {
     for (const origin of [APP_WEBVIEW_ORIGIN, 'https://evil.example', null]) {
-      expect(resolveFrontendOrigin(req(origin), {})).toBe('https://realrate.ir');
+      expect(resolveFrontendOrigin(req(origin), {})).toBe('https://realrate.geekio.org');
     }
   });
 });
@@ -39,10 +39,10 @@ describe('the test reminder email', () => {
     vi.doMock('../../src/lib/security.js', async (orig) => ({ ...(await orig()), getRateLimitState: async () => ({ limited: false }), recordRateLimitHit: async () => {} }));
     vi.resetModules();
     const { handleSendTestEmailAlert } = await import('../../src/handlers/alertEmailRoutes.js');
-    const request = new Request('https://api.realrate.ir/api/alerts/email/test', { method: 'POST', headers: { Origin: APP_WEBVIEW_ORIGIN } });
+    const request = new Request('https://realrate-api.geekio.org/api/alerts/email/test', { method: 'POST', headers: { Origin: APP_WEBVIEW_ORIGIN } });
     await handleSendTestEmailAlert(request, {});
     expect(sent).toHaveLength(1);
-    expect(sent[0].html).toContain('https://realrate.ir');
-    expect(sent[0].html).not.toContain('api.realrate.ir');
+    expect(sent[0].html).toContain('https://realrate.geekio.org');
+    expect(sent[0].html).not.toContain('realrate-api.geekio.org');
   });
 });

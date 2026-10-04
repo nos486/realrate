@@ -15,7 +15,7 @@
 import { Capacitor } from '@capacitor/core';
 import { API_BASE } from '../api/httpClient.js';
 
-export const PUBLIC_SITE_ORIGIN = 'https://realrate.ir';
+export const PUBLIC_SITE_ORIGIN = 'https://realrate.geekio.org';
 const APP_AUTH_LINK = 'ir.realrate.app://auth';
 const VERIFIER_KEY = 'realrate_app_signin_verifier';
 
