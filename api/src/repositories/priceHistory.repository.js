@@ -123,14 +123,15 @@ WHERE item_key IN (SELECT value FROM json_each(?1)) AND day >= ?2
 ORDER BY item_key, day
 `;
 
-/** ?1: keys (JSON array), ?2: first day → each key's last value before the window */
+/**
+ * ?1: keys (JSON array), ?2: first day → each key's last value before the window. One lookup per
+ * key on the primary key (item_key, day), newest first: a row read per key, however long the
+ * history before the window is.
+ */
 export const TREND_BASELINE_SQL = `
-SELECT p.item_key, p.value FROM price_daily p
-JOIN (
-  SELECT item_key, MAX(day) AS day FROM price_daily
-  WHERE item_key IN (SELECT value FROM json_each(?1)) AND day < ?2
-  GROUP BY item_key
-) last ON last.item_key = p.item_key AND last.day = p.day
+SELECT k.value AS item_key,
+  (SELECT p.value FROM price_daily p WHERE p.item_key = k.value AND p.day < ?2 ORDER BY p.day DESC LIMIT 1) AS value
+FROM json_each(?1) AS k
 `;
 
 /**
@@ -209,7 +210,9 @@ export async function readPriceTrends(env, keys, { range = DEFAULT_TREND_RANGE, 
       byKey.get(row.item_key).set(row.day, Number(row.value));
       if (candles) candlesByKey.get(row.item_key).set(row.day, candleOf(row));
     }
-    const baselineByKey = new Map((baseRes?.results || []).map((row) => [row.item_key, Number(row.value)]));
+    const baselineByKey = new Map(
+      (baseRes?.results || []).filter((row) => row.value !== null && row.value !== undefined).map((row) => [row.item_key, Number(row.value)]),
+    );
 
     const result = {};
     for (const key of wanted) {
@@ -229,29 +232,31 @@ export async function readPriceTrends(env, keys, { range = DEFAULT_TREND_RANGE, 
   }
 }
 
-/** ?1: the key → every recorded day's close, oldest first */
-export const FULL_HISTORY_SQL = `SELECT day, value FROM price_daily WHERE item_key = ?1 ORDER BY day`;
+/** ?1: the key, ?2: the last day → every recorded day's close up to it, oldest first */
+export const FULL_HISTORY_SQL = `SELECT day, value FROM price_daily WHERE item_key = ?1 AND day <= ?2 ORDER BY day`;
 
 /**
- * One key's whole daily history, as one close per day from its first recorded day to today (a day
- * without a row carries the last close). Clients read any past day's price off it — a record's
- * dollar rate, a compared asset's price on a purchase day — with one request per asset.
+ * One key's whole daily history, as one close per day from its first recorded day to `through`
+ * (today by default; a day without a row carries the last close). Clients read any past day's
+ * price off it — a record's dollar rate, a compared asset's price on a purchase day — through the
+ * snapshot in priceHistoryStore.repository.js, which reads this once a day.
  * @param {object} env - needs env.DB
  * @param {string} key - price book id
+ * @param {{ now?: number, through?: string }} [options] - through: the last day (YYYY-MM-DD)
  * @returns {Promise<{ since: string, values: number[] }|null|undefined>} null when the history is
  *   unavailable, undefined when the key has none
  */
-export async function readFullHistory(env, key, { now = Date.now() } = {}) {
+export async function readFullHistory(env, key, { now = Date.now(), through = tehranDay(now) } = {}) {
   if (!env?.DB?.prepare) return null;
   const id = normalizePriceId(key);
   if (!id) return undefined;
   try {
     await ensureSchema(env);
-    const res = await env.DB.prepare(FULL_HISTORY_SQL).bind(id).all();
+    const res = await env.DB.prepare(FULL_HISTORY_SQL).bind(id, through).all();
     const rows = res?.results || [];
     if (rows.length === 0) return undefined;
     const byDay = new Map(rows.map((r) => [r.day, Number(r.value)]));
-    const series = buildDailySeries({ byDay, fromDay: rows[0].day, today: tehranDay(now) });
+    const series = buildDailySeries({ byDay, fromDay: rows[0].day, today: through });
     return series ? { since: series.days[0], values: series.points } : undefined;
   } catch (err) {
     logger.warn("[PriceHistory] Full read failed:", { error: err.message, key: id });

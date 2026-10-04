@@ -8,7 +8,8 @@ import { baseRatesOf, forexCrossRatesOf, legacyPricesOf } from "../domain/priceB
 import { getGlobalSettings } from "../repositories/settings.repository.js";
 import { jsonResponse, getCorsHeaders } from "../lib/helpers.js";
 import { logger } from "../lib/logger.js";
-import { readPriceTrends, readFullHistory, TREND_RANGES, resolveTrendRange } from "../repositories/priceHistory.repository.js";
+import { readPriceTrends, TREND_RANGES, resolveTrendRange } from "../repositories/priceHistory.repository.js";
+import { getItemHistory } from "../repositories/priceHistoryStore.repository.js";
 
 const SPARKLINE_MAX_KEYS = 200;
 // A series never changes faster than its buckets: cache at most one bucket, up to 5 minutes
@@ -147,7 +148,8 @@ export async function handleGetSparklines(env, request = null) {
  * past price it needs off it — the dollar rate on a record's date, a compared asset's price on a
  * purchase day — instead of asking per record (web/src/features/market/dailyHistory.js).
  * `values: []` when the asset has no history; `available: false` when it can't be read now.
- * Edge-cached for 5 minutes (only today's value moves).
+ * Read from KV, not D1: the past days' snapshot (rebuilt from D1 once a day) and today's price from
+ * the book (priceHistoryStore.repository.js). Edge-cached for 5 minutes (only today's value moves).
  */
 export async function handleGetPriceHistory(env, request = null) {
   const url = new URL(request?.url || "http://localhost/api/prices/history");
@@ -163,7 +165,7 @@ export async function handleGetPriceHistory(env, request = null) {
     if (hit) return jsonResponse(await hit.json(), 200, request);
   }
 
-  const history = await readFullHistory(env, key);
+  const history = await getItemHistory(env, key);
   const body = { success: true, available: history !== null, key, since: history?.since || null, values: history?.values || [] };
   if (cache && history !== null) {
     const toStore = new Response(JSON.stringify(body), {

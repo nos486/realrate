@@ -14,6 +14,7 @@
  */
 
 import { importDailyCandles, tehranDay, addDays } from "../../repositories/priceHistory.repository.js";
+import { dropHistorySnapshots } from "../../repositories/priceHistoryStore.repository.js";
 import { jalaliToGregorian } from "../../domain/loanCalculator.js";
 import { normalizePriceId } from "../../domain/priceBook.js";
 import { AppError } from "../../lib/AppError.js";
@@ -223,6 +224,7 @@ export async function backfillPriceHistory(env, {
   }
 
   const { written, valid } = await importDailyCandles(env, id, candles, { overwrite, now });
+  if (written > 0) await dropHistorySnapshots(env, [id]);
   const daysSorted = candles.map((c) => c.day).sort();
   logger.info("[HistoryBackfill] Done:", { slug, target: id, unit, fetched, valid, written });
   return { slug, target: id, unit, fetched, valid, written, from: daysSorted[0] || null, to: daysSorted.at(-1) || null };
@@ -310,6 +312,7 @@ export async function deleteHistoryKey(env, key) {
   if (!itemKey) throw AppError.badRequest("شناسه لازم است");
   await ensureSchema(env);
   const res = await env.DB.prepare("DELETE FROM price_daily WHERE item_key = ?").bind(itemKey).run();
+  await dropHistorySnapshots(env, [itemKey]);
   return Number(res?.meta?.changes) || 0;
 }
 
@@ -329,6 +332,7 @@ export async function deleteOrphanKeys(env, { getBook = getPriceBookCache } = {}
   const keys = (results || []).map((r) => r.item_key);
   if (!keys.length) return { keys, deleted: 0 };
   const res = await env.DB.prepare("DELETE FROM price_daily WHERE item_key IN (SELECT value FROM json_each(?))").bind(JSON.stringify(keys)).run();
+  await dropHistorySnapshots(env, keys);
   return { keys, deleted: Number(res?.meta?.changes) || 0 };
 }
 
@@ -350,6 +354,7 @@ export async function moveHistoryKey(env, from, to, { getBook = getPriceBookCach
     ).bind(src, dst),
     env.DB.prepare("DELETE FROM price_daily WHERE item_key = ?").bind(src),
   ]);
+  await dropHistorySnapshots(env, [src, dst]);
   const movedCount = Number(moved?.meta?.changes) || 0;
   return { moved: movedCount, dropped: (Number(dropped?.meta?.changes) || 0) - movedCount };
 }
