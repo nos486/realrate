@@ -895,19 +895,55 @@ button.app-home-card {
   cursor: pointer;
 }
 
+/* Today's rates: one compact strip — label, value and the day's change per rate, thin dividers */
+.app-home-card.app-home-rates {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px 14px;
+  text-align: start;
+}
+
+.app-home-rates-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--text-heading);
+}
+
+.app-home-rates-head small {
+  margin-inline-start: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.app-home-rates-head svg {
+  color: #38bdf8;
+}
+
 .app-home-rates-grid {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 8px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
 .app-home-rate {
   display: flex;
   flex-direction: column;
+  align-items: flex-start;
   gap: 2px;
-  padding: 10px;
-  border-radius: 14px;
-  background: rgba(255, 255, 255, 0.04);
+  min-width: 0;
+  padding: 0 10px;
+}
+
+.app-home-rate:first-child {
+  padding-inline-start: 0;
+}
+
+.app-home-rate + .app-home-rate {
+  border-inline-start: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 .app-home-rate small {
@@ -917,12 +953,54 @@ button.app-home-card {
 }
 
 .app-home-rate strong {
-  font-size: 13.5px;
+  max-width: 100%;
+  font-size: 14.5px;
   font-weight: 800;
   color: var(--text-heading);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.app-home-rate em {
+  font-size: 10.5px;
+  font-style: normal;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.app-home-rate em.is-up {
+  color: #34d399;
+}
+
+.app-home-rate em.is-down {
+  color: var(--color-negative-text);
+}
+
+/* The month card's ‹ month › */
+.app-home-month-nav {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.app-home-month-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: none;
+  border-radius: 9px;
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+
+.app-home-month-btn:disabled {
+  opacity: 0.3;
+  cursor: default;
 }
 
 /* ══ Page polish inside the app ══ */
