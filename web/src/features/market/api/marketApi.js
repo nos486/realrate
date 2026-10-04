@@ -15,6 +15,24 @@ export async function getPriceBook(options = {}) {
 }
 
 /**
+ * The price book without its catalogs (currencies, gold, coins… — what moves every minute), with
+ * `catalogVersion`: the version of the catalog part to load with getPriceCatalog
+ * @returns {Promise<{ success: boolean, updatedAt: string, version: string, catalogVersion: string, items: Record<string, object>, globalSettings: object }>}
+ */
+export async function getCorePriceBook(options = {}) {
+  return httpClient.get('/api/prices/book?part=core', options);
+}
+
+/**
+ * The catalog part of the book (exchange symbols, funds, plans): thousands of prices synced about
+ * once an hour — loaded only when the core book names a new `catalogVersion`
+ * @returns {Promise<{ success: boolean, version: string, items: Record<string, object> }>}
+ */
+export async function getPriceCatalog(options = {}) {
+  return httpClient.get('/api/prices/catalog', options);
+}
+
+/**
  * Trend series of assets from the price history (one point per day)
  * @param {string[]} keys - asset ids
  * @param {'7d'|'30d'|'90d'|'1y'|'2y'} [range]

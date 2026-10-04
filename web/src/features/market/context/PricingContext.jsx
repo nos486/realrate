@@ -8,7 +8,8 @@
  */
 
 import React, { createContext, useContext, useState, useEffect, useMemo, useCallback, useRef, useSyncExternalStore } from 'react';
-import { getPriceBook } from '../api/marketApi.js';
+import { useInRouterContext, useLocation } from 'react-router-dom';
+import { getCorePriceBook, getPriceCatalog } from '../api/marketApi.js';
 import { searchUnifiedAssets } from '../../../utils/pricingEngine.js';
 import { baseRatesOf } from '../../../utils/priceBookViews.js';
 import { bookToAssets, priceOf, assetOf } from '../priceBookAssets.js';
@@ -30,7 +31,12 @@ function isBrowserOffline() {
 }
 
 /** How often live prices are refreshed in the background while the tab is visible */
-export const PRICE_REFRESH_INTERVAL_MS = 2 * 60 * 1000;
+/**
+ * Prices are read when the app opens, when the user taps refresh, and when they move to another
+ * tab or come back to the app — never on a timer in the background. Automatic reads closer
+ * together than this are skipped (each is cheap anyway: an unchanged book answers 304).
+ */
+export const PRICE_AUTO_REFRESH_GAP_MS = 30 * 1000;
 
 // A dollar rate picked by hand in an earlier version (the old «نرخ مبنا»): forgotten
 try {
@@ -55,6 +61,8 @@ export function PricingProvider({ children, initialUsdToman = null, initialGoldU
   const fetchSeqRef = useRef(0);
   const inFlightRef = useRef(false);
   const lastUpdatedAtRef = useRef(null);
+  // The catalog part (exchange symbols, funds…): read again only when its version moves
+  const catalogRef = useRef(null);
 
   /**
    * Fetch the price book (one request: every price, plus the global settings).
@@ -70,11 +78,24 @@ export function PricingProvider({ children, initialUsdToman = null, initialGoldU
       if (background) setRefreshing(true);
       else setLoading(true);
 
-      const res = await getPriceBook(background ? { silent: true } : {});
+      const requestOptions = background ? { silent: true } : {};
+      const res = await getCorePriceBook(requestOptions);
       if (seq !== fetchSeqRef.current) return;
       if (!res?.items) throw new Error('دریافت قیمت‌ها از سرور ناموفق بود.');
 
-      const book = { updatedAt: res.updatedAt, items: res.items };
+      // The catalogs change about once an hour: loaded only when the core book names a new version
+      if (res.catalogVersion && catalogRef.current?.version !== res.catalogVersion) {
+        try {
+          const catalog = await getPriceCatalog(requestOptions);
+          if (catalog?.items) catalogRef.current = { version: catalog.version || res.catalogVersion, items: catalog.items };
+        } catch (err) {
+          // The last catalog stays (or none yet): the core prices still show
+          console.warn('Loading the catalog prices failed:', err);
+        }
+        if (seq !== fetchSeqRef.current) return;
+      }
+
+      const book = { updatedAt: res.updatedAt, items: { ...(catalogRef.current?.items || {}), ...res.items } };
       setPriceBook(book);
       if (res.globalSettings) setGlobalSettings(res.globalSettings);
       setError(null);
@@ -108,29 +129,25 @@ export function PricingProvider({ children, initialUsdToman = null, initialGoldU
     fetchItems();
   }, [fetchItems]);
 
-  // Background auto-refresh: every PRICE_REFRESH_INTERVAL_MS while the tab is visible, plus
-  // an immediate refresh when the user comes back to a tab (or network) with stale data.
+  // No timer: prices are read again when the user moves to another tab of the app, comes back to
+  // it (or the connection comes back) — at most once per PRICE_AUTO_REFRESH_GAP_MS
+  const refreshIfDue = useCallback(() => {
+    if (typeof document !== 'undefined' && document.visibilityState !== 'visible') return;
+    const due = !lastUpdatedAtRef.current || Date.now() - lastUpdatedAtRef.current >= PRICE_AUTO_REFRESH_GAP_MS;
+    if (due) fetchItems({ background: true });
+  }, [fetchItems]);
+
   useEffect(() => {
     if (typeof window === 'undefined' || typeof document === 'undefined') return undefined;
-
-    const isStale = () =>
-      !lastUpdatedAtRef.current || Date.now() - lastUpdatedAtRef.current >= PRICE_REFRESH_INTERVAL_MS;
-    const refreshIfVisible = () => {
-      if (document.visibilityState === 'visible') fetchItems({ background: true });
-    };
-    const refreshIfStale = () => {
-      if (document.visibilityState === 'visible' && isStale()) fetchItems({ background: true });
-    };
-
-    const timer = window.setInterval(refreshIfVisible, PRICE_REFRESH_INTERVAL_MS);
-    document.addEventListener('visibilitychange', refreshIfStale);
-    window.addEventListener('online', refreshIfStale);
+    document.addEventListener('visibilitychange', refreshIfDue);
+    window.addEventListener('online', refreshIfDue);
     return () => {
-      window.clearInterval(timer);
-      document.removeEventListener('visibilitychange', refreshIfStale);
-      window.removeEventListener('online', refreshIfStale);
+      document.removeEventListener('visibilitychange', refreshIfDue);
+      window.removeEventListener('online', refreshIfDue);
     };
-  }, [fetchItems]);
+  }, [refreshIfDue]);
+
+  const inRouter = useInRouterContext();
 
   const refresh = useCallback(() => fetchItems({ background: true }), [fetchItems]);
 
@@ -187,9 +204,26 @@ export function PricingProvider({ children, initialUsdToman = null, initialGoldU
 
   return (
     <PricingContext.Provider value={value}>
+      {inRouter && <RefreshOnTabChange onChange={refreshIfDue} />}
       {children}
     </PricingContext.Provider>
   );
+}
+
+/** Calls `onChange` when the user moves to another tab of the app (the route or its ?tab=) */
+function RefreshOnTabChange({ onChange }) {
+  const location = useLocation();
+  const tabKey = `${location.pathname}?${new URLSearchParams(location.search).get('tab') || ''}`;
+  const firstRef = useRef(true);
+  useEffect(() => {
+    if (firstRef.current) {
+      firstRef.current = false;
+      return;
+    }
+    onChange();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tabKey]);
+  return null;
 }
 
 export function usePricing() {

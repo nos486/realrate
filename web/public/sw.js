@@ -26,7 +26,7 @@ const SHELL_NETWORK_WAIT_MS = 2500;
 const MARKET_NETWORK_WAIT_MS = 4000;
 const MAX_ASSET_ENTRIES = 120;
 const PUBLIC_MARKET_PATHS = [
-  '/api/prices/book', '/api/v1/prices/book',
+  '/api/prices/book', '/api/v1/prices/book', '/api/prices/catalog',
   '/api/prices', '/api/v1/prices', '/api/market/items', '/api/v1/market/items',
 ];
 

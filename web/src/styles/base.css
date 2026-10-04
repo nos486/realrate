@@ -1037,7 +1037,8 @@ input.search-bar-input:focus-visible {
   opacity: 0.6;
 }
 
-.price-refresh-btn .is-spinning {
+.price-refresh-btn .is-spinning,
+.is-spinning.lucide-refresh-cw {
   animation: price-refresh-spin 0.9s linear infinite;
 }
 
@@ -1046,7 +1047,8 @@ input.search-bar-input:focus-visible {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .price-refresh-btn .is-spinning { animation: none; }
+  .price-refresh-btn .is-spinning,
+  .is-spinning.lucide-refresh-cw { animation: none; }
 }
 
 /* ── Main Nav Live Rates Ticker (Clean Glass Surface with Dropdown) ────────── */

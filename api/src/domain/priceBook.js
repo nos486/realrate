@@ -372,6 +372,25 @@ export function buildPriceBook(sources, { now = new Date().toISOString(), source
 }
 
 /**
+ * A catalog item (a symbol of a catalog source: the exchange, funds, plans) — thousands of them,
+ * synced about once an hour, so clients load them apart from the rest of the book
+ */
+export const isCatalogItem = (item) => Boolean(item?.params?.symbol);
+
+/**
+ * The book's items in two parts: `core` (currencies, gold, coins… — what moves every minute) and
+ * `catalog` (isCatalogItem)
+ * @param {Record<string, object>} items
+ * @returns {{ core: Record<string, object>, catalog: Record<string, object> }}
+ */
+export function splitPriceBook(items) {
+  const core = {};
+  const catalog = {};
+  for (const [id, item] of Object.entries(items || {})) (isCatalogItem(item) ? catalog : core)[id] = item;
+  return { core, catalog };
+}
+
+/**
  * A short fingerprint of what the book says: every id with its price and whether it is stale
  * (not the timestamps, which move on every sync). Equal versions mean nothing a screen shows
  * changed; it is the book's ETag.

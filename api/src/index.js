@@ -80,7 +80,7 @@ import {
   handleAdminFetchAllSources,
   handleAdminInspectApiRoute,
 } from "./handlers/adminRoutes.js";
-import { handleGetPrices, handleGetSparklines, handleGetPriceHistory, handleGetPriceBook } from "./handlers/apiRoutes.js";
+import { handleGetPrices, handleGetSparklines, handleGetPriceHistory, handleGetPriceBook, handleGetPriceCatalog } from "./handlers/apiRoutes.js";
 import { handleAdminHistory } from "./handlers/historyRoutes.js";
 import { handleGetUnifiedMarketItems } from "./handlers/unifiedItemsRoute.js";
 import {
@@ -543,6 +543,7 @@ async function handleRequest(request, env, ctx) {
   }
   if (normalizedPath === "/api/prices") return wrap(handleGetPrices)(env, request);
   if (normalizedPath === "/api/prices/book") return wrap(handleGetPriceBook)(env, request);
+  if (normalizedPath === "/api/prices/catalog") return wrap(handleGetPriceCatalog)(env, request);
   // The market page's charts: only for users with the market page (checked before the edge cache)
   if (normalizedPath === "/api/sparklines" || normalizedPath === "/api/prices/sparklines") {
     return wrap(async (req, e) => {
