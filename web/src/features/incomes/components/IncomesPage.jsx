@@ -18,6 +18,10 @@
 import React, { useState, useMemo } from 'react';
 import { Wallet, Plus, Tags, Eye, EyeOff } from 'lucide-react';
 import { useIncomes } from '../hooks/useIncomes.js';
+import { usePricing } from '../../market/index.js';
+import { useUsdAt } from '../../market/dailyHistory.js';
+import { summarizeDollarValues } from '../../../utils/dollarValue.js';
+import { incomeDollarValue } from '../utils/incomeReport.js';
 import { usePrivacyMode } from '../../../hooks/usePrivacyMode.js';
 import { AlertBanner, Button, EmptyState, FeaturePageHeader, Pagination, SearchBar, SplitPageLayout } from '../../../shared/ui/index.js';
 import DonutChart from '../../../shared/ui/DonutChart.jsx';
@@ -114,6 +118,11 @@ export default function IncomesPage() {
     deleteIncome,
   } = useIncomes(loadWindow);
 
+  // Each income in dollars at its day's rate, and what those dollars are worth today
+  const pricing = usePricing();
+  const usdToman = Number(pricing?.getAssetPrice?.('usd')) || 0;
+  const usdAt = useUsdAt(loaded.length > 0);
+
   const yearly = mode === 'year';
   const progress = useMemo(() => monthProgress(month, today), [month, today]);
   const monthLabel = formatShamsiMonth(month.jy, month.jm);
@@ -131,6 +140,7 @@ export default function IncomesPage() {
   const total = sumOf(counted);
   const categoryTotals = useMemo(() => byCategory(counted), [counted]);
   const excludedTotals = useMemo(() => byCategory(split.excluded), [split]);
+  const dollar = useMemo(() => summarizeDollarValues(counted.map((i) => incomeDollarValue(i, usdToman, usdAt)), usdToman), [counted, usdToman, usdAt]);
 
   // The month before, cut at the same day while this month is still running
   const previous = useMemo(() => {
@@ -236,6 +246,7 @@ export default function IncomesPage() {
         top={top}
         hideValues={hideValues}
         totalFooter={excludedFooter}
+        dollar={dollar}
       />
       <YearFlowChart series={series} kind="income" labelOf={labelOf} categoryOrder={categoryOrder} selectedMonth={month.jm} onOpenMonth={openMonth} hideValues={hideValues} />
       {donutItems.length > 0 && <DonutChart title="تفکیک دسته‌ها" items={donutItems} centerLabel="جمع ماه" masked={hideValues} />}
@@ -251,6 +262,7 @@ export default function IncomesPage() {
         summary={yearSummary}
         topCategory={top}
         hideValues={hideValues}
+        dollar={dollar}
       />
       {donutItems.length > 0 && <DonutChart title="تفکیک دسته‌ها" items={donutItems} centerLabel="جمع سال" masked={hideValues} />}
       <ExcludedBox kind="income" items={excludedTotals} metaOf={getIncomeCategory} hideValues={hideValues} />
@@ -333,6 +345,8 @@ export default function IncomesPage() {
               readOnly={readOnly}
               sortState={{ key: 'date', dir: order }}
               onSortChange={() => setOrder(order === 'desc' ? 'asc' : 'desc')}
+              usdToman={usdToman}
+              usdAt={usdAt}
             />
             <Pagination page={page} pageSize={pageSize} total={listed.length} loading={loadingIncomes} onChange={setPage} label="صفحه‌بندی درآمدها" />
           </div>

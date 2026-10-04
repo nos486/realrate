@@ -6,6 +6,18 @@
  */
 
 import { PERSIAN_MONTHS, gregorianToShamsi, getTodayShamsi } from '../../portfolio/components/ShamsiDatePicker.jsx';
+import { dollarValueOf } from '../../../utils/dollarValue.js';
+
+/**
+ * An income in dollars at the dollar's rate on the day it came in, and what those dollars are
+ * worth today (utils/dollarValue.js); null while that day's rate is unknown
+ * @param {object} income
+ * @param {number} usdToman - today's rate
+ * @param {(isoDate: string) => number|null} [usdAt] - the rate on a date (price history)
+ */
+export function incomeDollarValue(income, usdToman, usdAt) {
+  return dollarValueOf(income?.amount, typeof usdAt === 'function' ? usdAt(income?.incomeDate) : 0, usdToman);
+}
 
 export const INCOME_PERIODS = [
   { value: 'all', label: 'همه' },

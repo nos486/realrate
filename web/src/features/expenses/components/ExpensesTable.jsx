@@ -6,6 +6,7 @@
  */
 
 import React from 'react';
+import { DollarValueLine } from '../../../shared/ui/DollarValue.jsx';
 import { Calendar, HandCoins, Landmark, MessageSquare, Pencil, Trash2 } from 'lucide-react';
 import { ResponsiveDataTable } from '../../../shared/ui/index.js';
 import { formatShamsiDisplay } from '../../portfolio/components/ShamsiDatePicker.jsx';
@@ -36,25 +37,6 @@ function ShareStatus({ expense, hideValues, onClick }) {
   );
 }
 
-/** A toman expense in dollars at its day's rate, and what those dollars cost today */
-function DollarValue({ expense, usdToman, usdAt, hideValues }) {
-  const value = expenseDollarValue(expense, usdToman, usdAt);
-  if (!value) return null;
-  const up = value.changePct !== null && value.changePct >= 0;
-  return (
-    <span className="expense-dollar-value" title={`نرخ دلار روز هزینه: ${formatAmount(expenseDayRate(expense, usdAt))} تومان`}>
-      ≈ {hideValues ? MASK : formatAmount(value.usd, 'USD')} دلار
-      {value.todayToman !== null && (
-        <>
-          {' · امروز '}{hideValues ? MASK : formatAmount(value.todayToman)} تومان
-          {value.changePct !== null && (
-            <b className={up ? 'is-up' : 'is-down'}> ({up ? '+' : '−'}{Math.abs(value.changePct).toLocaleString('fa-IR', { maximumFractionDigits: 0 })}٪)</b>
-          )}
-        </>
-      )}
-    </span>
-  );
-}
 
 export default function ExpensesTable({
   expenses,
@@ -72,7 +54,6 @@ export default function ExpensesTable({
   sortState = null,
   onSortChange = null,
   // A project's toman expenses with the day's dollar rate: in dollars, and at today's rate
-  showDollarValue = false,
   // Tags under each title; tapping one shows only its expenses
   onTagClick = null,
   activeTag = null,
@@ -163,7 +144,13 @@ export default function ExpensesTable({
                 {isSharedExpense(e) && ' (سهم شما)'}
               </span>
             )}
-            {showDollarValue && !isUsd && <DollarValue expense={e} usdToman={usdToman} usdAt={usdAt} hideValues={hideValues} />}
+            {!isUsd && (
+              <DollarValueLine
+                value={expenseDollarValue(e, usdToman, usdAt)}
+                hideValues={hideValues}
+                title={`نرخ دلار روز هزینه: ${formatAmount(expenseDayRate(e, usdAt))} تومان`}
+              />
+            )}
             {isSharedExpense(e) && <ShareStatus expense={e} hideValues={hideValues} onClick={onReimburse && (() => onReimburse(e))} />}
           </div>
         );

@@ -7,11 +7,14 @@
  *   largest category
  * - CategoryPills: the list's category filter, with counts
  * - ExcludedBox: the categories left out of the totals, with their sums
+ * - FlowDollarCard: the list in dollars, each record at its own day's rate, and what those dollars
+ *   are worth today (in the month and year cards, and a project's)
  */
 
 import React from 'react';
-import { Coins, Wallet, TrendingUp, TrendingDown, CalendarDays, CalendarRange, Tag, Trophy, Sigma } from 'lucide-react';
+import { Coins, Wallet, TrendingUp, TrendingDown, CalendarDays, CalendarRange, Tag, Trophy, Sigma, DollarSign } from 'lucide-react';
 import { MiniCard } from '../ui/index.js';
+import { DollarValueFoot, formatUsd } from '../ui/DollarValue.jsx';
 import { formatAmountMasked } from './flowFormat.js';
 
 const KIND = {
@@ -19,14 +22,34 @@ const KIND = {
   expense: { color: 'rose', Icon: Coins, noun: 'هزینه', nouns: 'هزینه' },
 };
 
+/**
+ * @param {{ kind: 'income'|'expense', view: ReturnType<import('../../utils/dollarValue.js').summarizeDollarValues>|null,
+ *   hideValues?: boolean }} props - nothing while no record has its day's rate
+ */
+export function FlowDollarCard({ kind, view, hideValues = false }) {
+  if (!view || view.counted === 0) return null;
+  return (
+    <MiniCard
+      icon={<DollarSign size={14} />}
+      title="به دلار (نرخ روز هر مورد)"
+      value={hideValues ? '****' : formatUsd(view.usd)}
+      unit="دلار"
+      color="blue"
+      className="incomes-summary-card is-wide"
+      footer={<DollarValueFoot view={view} noun={KIND[kind].noun} hideValues={hideValues} />}
+    />
+  );
+}
+
 const pct = (v) => `${v > 0 ? '+' : ''}${v.toLocaleString('fa-IR', { maximumFractionDigits: 0 })}٪`;
 
 /**
  * @param {{ kind: 'income'|'expense', monthLabel: string, total: number, count: number,
  *   previousTotal: number, previousCount: number, current: boolean, days: number,
- *   top: { label: string, total: number }|null, hideValues?: boolean, totalFooter?: React.ReactNode }} props
+ *   top: { label: string, total: number }|null, hideValues?: boolean, totalFooter?: React.ReactNode,
+ *   dollar?: object|null }} props - dollar: the month in dollars (FlowDollarCard)
  */
-export function FlowMonthCards({ kind, monthLabel, total, count, previousTotal, previousCount, current, days, top, hideValues = false, totalFooter = null }) {
+export function FlowMonthCards({ kind, monthLabel, total, count, previousTotal, previousCount, current, days, top, hideValues = false, totalFooter = null, dollar = null }) {
   const k = KIND[kind];
   const money = (v) => formatAmountMasked(v, hideValues);
   const change = previousTotal > 0 ? ((total - previousTotal) / previousTotal) * 100 : null;
@@ -66,15 +89,16 @@ export function FlowMonthCards({ kind, monthLabel, total, count, previousTotal, 
         className="incomes-summary-card"
         footer={top && <span>{money(top.total)} تومان</span>}
       />
+      <FlowDollarCard kind={kind} view={dollar} hideValues={hideValues} />
     </div>
   );
 }
 
 /**
  * @param {{ kind: 'income'|'expense', yearLabel: string, summary: ReturnType<import('./flowYear.js').summarizeYear>,
- *   topCategory: { label: string, total: number }|null, hideValues?: boolean }} props
+ *   topCategory: { label: string, total: number }|null, hideValues?: boolean, dollar?: object|null }} props
  */
-export function FlowYearCards({ kind, yearLabel, summary, topCategory, hideValues = false }) {
+export function FlowYearCards({ kind, yearLabel, summary, topCategory, hideValues = false, dollar = null }) {
   const k = KIND[kind];
   const money = (v) => formatAmountMasked(v, hideValues);
   return (
@@ -111,6 +135,7 @@ export function FlowYearCards({ kind, yearLabel, summary, topCategory, hideValue
         className="incomes-summary-card"
         footer={topCategory && <span>{money(topCategory.total)} تومان</span>}
       />
+      <FlowDollarCard kind={kind} view={dollar} hideValues={hideValues} />
     </div>
   );
 }

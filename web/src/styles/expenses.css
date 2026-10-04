@@ -887,18 +887,6 @@ tr.is-excluded td,
   .transfers-notes { grid-column: 1 / -1; }
 }
 
-/* ── A project's expenses in dollars (ExpensesTable, ExpenseSummaryCards) ── */
-.expense-dollar-value {
-  display: block;
-  color: var(--text-muted);
-  font-size: 11.5px;
-}
-.expense-dollar-value .is-up,
-.expense-dollar-foot .is-up { color: #f59e0b; font-weight: 700; }
-.expense-dollar-value .is-down,
-.expense-dollar-foot .is-down { color: var(--green-emerald); font-weight: 700; }
-.expense-dollar-foot small { color: var(--text-muted); }
-
 /* ── A project expense's tags (TagInput, ExpensesTable, ExpenseTagTotals) ── */
 .expense-tags-box {
   display: flex;
@@ -1038,17 +1026,9 @@ tr.is-excluded td,
   font-size: 12px;
 }
 .expense-tag-untagged small { font-weight: 400; }
-.expense-tag-today {
-  grid-column: 1 / -1;
-  color: var(--text-muted);
-  font-size: 11.5px;
-  line-height: 1.6;
-}
-.expense-tag-today strong { color: var(--text-primary); font-weight: 700; }
-.expense-tag-today .is-up { color: #f59e0b; }
-.expense-tag-today .is-down { color: var(--green-emerald); }
+.expense-tag-row .dollar-value-line { grid-column: 1 / -1; line-height: 1.6; }
 .expense-tag-untagged { flex-wrap: wrap; }
-.expense-tag-untagged .expense-tag-today { flex-basis: 100%; }
+.expense-tag-untagged .dollar-value-line { flex-basis: 100%; }
 
 /* ── «افزودن به / کم کردن از پورتفو» in the expense and income forms (PortfolioLinkFields) ── */
 .portfolio-link {

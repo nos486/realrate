@@ -260,3 +260,48 @@ export function buildAssetLedgers({ holdings = [], transactions = [], priceMap =
     },
   };
 }
+
+/**
+ * An asset's open position in dollars: what its priced lots still held cost in dollars (each at
+ * the dollar's rate on the day it was bought, «قیمت روز رکورد») against what they are worth in
+ * dollars today — so a holding is judged against having kept dollars instead
+ * @param {object} asset - from buildAssetLedgers
+ * @param {(isoDate: string) => number|null} usdAt - the dollar's rate on a date (price history)
+ * @param {number} usdToday - today's rate
+ * @returns {{ costUsd: number, valueUsd: number, pnlUsd: number, pnlPct: number|null, missingQty: number }|null}
+ *   null while no lot has its day's rate; `missingQty`: held quantity left out (no date, no price
+ *   or no rate for its day)
+ */
+export function assetDollarPnl(asset, usdAt, usdToday) {
+  if (!asset || !(usdToday > 0) || typeof usdAt !== 'function') return null;
+  let costUsd = 0;
+  let countedQty = 0;
+  for (const lot of asset.entries || []) {
+    if (!(lot.remaining > EPSILON) || !(lot.price > 0)) continue;
+    const day = sortableDate(lot.date);
+    const rate = day ? Number(usdAt(day)) || 0 : 0;
+    if (rate <= 0) continue;
+    costUsd += (lot.remaining * lot.price) / rate;
+    countedQty += lot.remaining;
+  }
+  if (countedQty <= EPSILON) return null;
+  const valueUsd = (countedQty * (asset.unitRealPrice || 0)) / usdToday;
+  const pnlUsd = valueUsd - costUsd;
+  return {
+    costUsd,
+    valueUsd,
+    pnlUsd,
+    pnlPct: costUsd > 0 ? (pnlUsd / costUsd) * 100 : null,
+    missingQty: Math.max(0, (asset.amount || 0) - countedQty),
+  };
+}
+
+/** The portfolio's open positions in dollars: the sum of assetDollarPnl (nulls skipped) */
+export function sumDollarPnl(values) {
+  const counted = values.filter(Boolean);
+  if (!counted.length) return null;
+  const costUsd = counted.reduce((s, v) => s + v.costUsd, 0);
+  const valueUsd = counted.reduce((s, v) => s + v.valueUsd, 0);
+  const pnlUsd = valueUsd - costUsd;
+  return { costUsd, valueUsd, pnlUsd, pnlPct: costUsd > 0 ? (pnlUsd / costUsd) * 100 : null, partial: counted.some((v) => v.missingQty > EPSILON) || counted.length < values.length };
+}

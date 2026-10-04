@@ -288,7 +288,6 @@ export default function ProjectExpensesView({ groupId = null, onSelectGroup, usd
                         accounts={accounts.length ? accounts : null}
                         sortState={{ key: 'date', dir: order }}
                         onSortChange={() => setOrder(order === 'desc' ? 'asc' : 'desc')}
-                        showDollarValue
                         onTagClick={selectTag}
                         activeTag={activeTag}
                       />

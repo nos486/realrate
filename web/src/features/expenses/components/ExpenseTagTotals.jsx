@@ -8,27 +8,10 @@
 import React from 'react';
 import { Tags } from 'lucide-react';
 import { formatAmount } from '../utils/format.js';
+import { DollarValueLine } from '../../../shared/ui/DollarValue.jsx';
 
 const MASK = '****';
 const faNum = (n) => Number(n || 0).toLocaleString('fa-IR');
-const faPct = (n) => `${n >= 0 ? '+' : '−'}${Math.abs(n).toLocaleString('fa-IR', { maximumFractionDigits: 0 })}٪`;
-
-/** «≈ X دلار · امروز Y تومان (±٪)» for a tag's expenses with the day's rate */
-function TagDollarLine({ dollar, money }) {
-  if (!dollar || dollar.counted === 0) return null;
-  return (
-    <span className="expense-tag-today">
-      ≈ {money(dollar.usd, 'USD')} دلار
-      {dollar.todayToman !== null && (
-        <>
-          {' · به نرخ امروز '}<strong>{money(dollar.todayToman)}</strong> تومان
-          {dollar.changePct !== null && <b className={dollar.changePct >= 0 ? 'is-up' : 'is-down'}> ({faPct(dollar.changePct)})</b>}
-        </>
-      )}
-      {dollar.missing > 0 && <small> · {faNum(dollar.missing)} بدون نرخ</small>}
-    </span>
-  );
-}
 
 export default function ExpenseTagTotals({ byTag, totalToman = 0, activeTag = null, onSelect, hideValues = false }) {
   if (!byTag?.tags?.length) return null;
@@ -53,7 +36,7 @@ export default function ExpenseTagTotals({ byTag, totalToman = 0, activeTag = nu
               <span className="expense-tag-name">#{t.tag}</span>
               <span className="expense-tag-count">{faNum(t.count)} مورد</span>
               <strong className="expense-tag-sum">{money(t.totalToman)} <small>تومان</small></strong>
-              <TagDollarLine dollar={t.dollar} money={money} />
+              <DollarValueLine value={t.dollar.counted ? t.dollar : null} hideValues={hideValues} />
               <span className="expense-tag-bar" aria-hidden="true"><i style={{ width: `${share(t.totalToman)}%` }} /></span>
             </button>
           </li>
@@ -62,7 +45,7 @@ export default function ExpenseTagTotals({ byTag, totalToman = 0, activeTag = nu
           <li className="expense-tag-untagged">
             <span>بدون برچسب · {faNum(byTag.untagged.count)} مورد</span>
             <strong>{money(byTag.untagged.totalToman)} <small>تومان</small></strong>
-            <TagDollarLine dollar={byTag.untagged.dollar} money={money} />
+            <DollarValueLine value={byTag.untagged.dollar.counted ? byTag.untagged.dollar : null} hideValues={hideValues} />
           </li>
         )}
       </ul>

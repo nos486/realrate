@@ -937,6 +937,7 @@ button.app-home-card {
   gap: 8px;
 }
 
+.app-layout.has-app-shell .incomes-summary-grid > .is-wide,
 .app-layout.has-app-shell .incomes-summary-grid > :first-child,
 .app-layout.has-app-shell .portfolio-overview-grid > :first-child,
 .app-layout.has-app-shell .portfolio-overview-grid > :not(.portfolio-stat-card),
@@ -945,8 +946,9 @@ button.app-home-card {
   grid-column: 1 / -1;
 }
 
-/* One card left alone on the last row takes the whole row */
-.app-layout.has-app-shell .incomes-summary-grid > :last-child:nth-child(even) {
+/* One card left alone on the last row takes the whole row (also before a wide last card) */
+.app-layout.has-app-shell .incomes-summary-grid > :last-child:nth-child(even),
+.app-layout.has-app-shell .incomes-summary-grid > :nth-child(even):has(+ .is-wide:last-child) {
   grid-column: 1 / -1;
 }
 

@@ -34,6 +34,7 @@ import {
   summarizeByCategory,
   summarizeByAccount,
   summarizeReceivables,
+  summarizeDollarValue,
   expenseInToman,
 } from '../../../utils/expenseDocument.js';
 import PeriodSwitcher from '../../../shared/flow/PeriodSwitcher.jsx';
@@ -103,8 +104,8 @@ export default function DailyExpensesView({ usdToman = 0, hideValues = false }) 
     expenses: monthExpenses, previousExpenses, yearExpenses, budgets, loading, submitting, deletingId, error, clearError, fetchMonth,
     saveExpense, saveBudgets, deleteExpense,
   } = useDailyExpenses(month, { year: true });
-  // The dollar's rate on each expense's day, from the price history (loaded only when needed)
-  const usdAt = useUsdAt([monthExpenses, previousExpenses, yearExpenses].some((list) => (list || []).some((e) => e.currency === 'USD' && !e.usdRate)));
+  // The dollar's rate on each expense's day, from the price history (each one in dollars)
+  const usdAt = useUsdAt([monthExpenses, yearExpenses].some((list) => (list || []).length > 0));
   const rates = useMemo(() => ({ usdToman, usdAt }), [usdToman, usdAt]);
   const { accounts } = useAccounts();
   const accountById = useMemo(() => new Map(accounts.map((a) => [a.id, a])), [accounts]);
@@ -129,6 +130,7 @@ export default function DailyExpensesView({ usdToman = 0, hideValues = false }) 
     [expenses, exclusionKey],
   );
   const summary = useMemo(() => summarizeExpenses(split.counted, rates), [split, rates]);
+  const dollar = useMemo(() => summarizeDollarValue(split.counted, rates), [split, rates]);
   const byCategory = useMemo(() => summarizeByCategory(split.counted, rates), [split, rates]);
   const excludedByCategory = useMemo(() => summarizeByCategory(split.excluded, rates), [split, rates]);
   // What the list shows: everything, or without the excluded categories
@@ -231,6 +233,7 @@ export default function DailyExpensesView({ usdToman = 0, hideValues = false }) 
         top={top}
         hideValues={hideValues}
         totalFooter={summary.unpricedUsd > 0 && <span>{formatAmount(summary.unpricedUsd, 'USD')} دلار بدون نرخ حساب نشده</span>}
+        dollar={dollar}
       />
       {donutItems.length > 0 && (
         <DonutChart title="تفکیک دسته‌ها" items={donutItems} centerLabel="جمع ماه" masked={hideValues} />
@@ -301,7 +304,7 @@ export default function DailyExpensesView({ usdToman = 0, hideValues = false }) 
 
   const yearSidebar = (
     <>
-      <FlowYearCards kind="expense" yearLabel={formatShamsiYear(month.jy)} summary={yearSummary} topCategory={top} hideValues={hideValues} />
+      <FlowYearCards kind="expense" yearLabel={formatShamsiYear(month.jy)} summary={yearSummary} topCategory={top} hideValues={hideValues} dollar={dollar} />
       {donutItems.length > 0 && (
         <DonutChart title="تفکیک دسته‌ها" items={donutItems} centerLabel="جمع سال" masked={hideValues} />
       )}

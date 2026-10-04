@@ -22,7 +22,6 @@ import {
 import { getCategoryIconName, getItemBrand, getItemCategory } from '../../../config/displayEngine.js';
 import { toPriceId, isCustomAssetId } from '../../../utils/priceIds.js';
 import { assetOf, priceOf } from '../../market/priceBookAssets.js';
-import { sortableDate } from './assetLedger.js';
 
 export {
   resolveHoldingUnitRealPrice,
@@ -112,52 +111,6 @@ export function computeReferenceAssetPnl(item, priceMap = {}, itemMap = {}) {
     referenceCurrentValue,
     referencePnl,
     referencePnlPct,
-  };
-}
-
-/**
- * "What if I had bought something else with the same money": a holding may name a COMPARISON
- * asset (compareAssetId). Its Toman price on the purchase day comes from the daily price history
- * (`priceAt(id, date)`, features/market/dailyHistory.js) — or from `comparePriceToman` when the
- * user typed one over it. The purchase's Toman cost would then have bought cost ÷ that price of
- * it; valued at today's price, that is what the money would be worth now had it gone into the
- * comparison asset instead. Nothing was actually paid with it (unlike the reference asset above),
- * and the holding's own Toman P&L is unchanged.
- *
- * @param {object} item - a holding with .compareAssetId, .comparePriceToman, .itemCost,
- *   .itemRealVal and its purchase date (.buyDate, or .date)
- * @param {object} [priceMap={}]
- * @param {object} [itemMap={}]
- * @param {(id: string, isoDate: string) => number|null} [priceAt] a price on a date (price history)
- * @returns {null|{compareAssetId, compareAssetName, unit, compareQuantity, compareCurrentValue, comparePnl, comparePnlPct, priceThen}}
- *   comparePnl > 0: this purchase is worth more today than the comparison would be; null while
- *   the purchase day's price is unknown
- */
-export function computeCompareAssetPnl(item, priceMap = {}, itemMap = {}, priceAt = null) {
-  if (!item || !item.compareAssetId) return null;
-  const cost = Number(item.itemCost) || 0;
-  if (cost <= 0) return null;
-  const day = sortableDate(item.buyDate || item.date);
-  const priceThen = Number(item.comparePriceToman) || (typeof priceAt === 'function' && day ? Number(priceAt(item.compareAssetId, day)) || 0 : 0);
-  if (priceThen <= 0) return null;
-
-  const priceNow = resolveReferencePriceToman(item.compareAssetId, priceMap, itemMap);
-  if (priceNow <= 0) return null;
-
-  const compareQuantity = cost / priceThen;
-  const compareCurrentValue = compareQuantity * priceNow;
-  const comparePnl = Number(item.itemRealVal || 0) - compareCurrentValue;
-  const refItem = assetOf(itemMap, item.compareAssetId);
-
-  return {
-    compareAssetId: item.compareAssetId,
-    compareAssetName: refItem?.name || resolveAssetDisplayName(item.compareAssetId) || item.compareAssetId,
-    unit: refItem?.unit || resolveAssetUnit(item.compareAssetId) || 'واحد',
-    compareQuantity,
-    compareCurrentValue,
-    comparePnl,
-    comparePnlPct: compareCurrentValue > 0 ? (comparePnl / compareCurrentValue) * 100 : null,
-    priceThen,
   };
 }
 

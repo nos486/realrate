@@ -48,9 +48,6 @@ function holdingRecord(portfolioId, h, now = new Date().toISOString()) {
     notes: String(h.notes || ''),
     referenceAssetId: String(h.referenceAssetId || ''),
     referenceQuantity: num(h.referenceQuantity),
-    // "What if I had bought this instead" (comparison only)
-    compareAssetId: String(h.compareAssetId || ''),
-    comparePriceToman: num(h.comparePriceToman),
     // Bought with a loan («تأمین از», utils/loanFunding.js), or '' for the user's own money
     loanId: /^[A-Za-z0-9_-]{1,64}$/.test(String(h.loanId || '')) ? String(h.loanId) : '',
     createdAt: h.createdAt || now,

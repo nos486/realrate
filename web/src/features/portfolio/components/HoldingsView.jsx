@@ -20,6 +20,7 @@ import {
   SlidersHorizontal,
 } from 'lucide-react';
 import { usePricing } from '../../market/index.js';
+import { useUsdAt } from '../../market/dailyHistory.js';
 import UserSettingsModal from '../../../components/UserSettingsModal.jsx';
 
 import HoldingsTable from './HoldingsTable.jsx';
@@ -41,7 +42,7 @@ import { usePortfolioLayout } from '../hooks/usePortfolioLayout.js';
 import { useTransactions } from '../../transactions/index.js';
 import { Button, SplitPageLayout } from '../../../shared/ui/index.js';
 import { normalizeHolding } from '../utils/holdingHelpers.js';
-import { buildAssetLedgers } from '../utils/assetLedger.js';
+import { buildAssetLedgers, assetDollarPnl, sumDollarPnl } from '../utils/assetLedger.js';
 import {
   buildCustomCategoryGroups,
   buildDefaultPortfolioLayout,
@@ -143,6 +144,18 @@ const HoldingsView = forwardRef(function HoldingsView(
     [normalizedHoldings, transactions, realPriceMap]
   );
   const transactionWarnings = ledger.warnings;
+
+  // Each asset in dollars: bought at the dollar's rate of each purchase day, valued today
+  const usdAt = useUsdAt(ledger.assets.length > 0);
+  const usdToday = Number(pricing?.getAssetPrice?.('usd')) || 0;
+  const dollarByAsset = useMemo(
+    () => new Map(ledger.assets.map((a) => [a.id, assetDollarPnl(a, usdAt, usdToday)])),
+    [ledger, usdAt, usdToday]
+  );
+  const dollarTotal = useMemo(
+    () => sumDollarPnl(ledger.assets.filter((a) => a.amount > 0 && a.hasBuyPrice).map((a) => dollarByAsset.get(a.id))),
+    [ledger, dollarByAsset]
+  );
 
   // What is held, by category (a fully sold asset leaves the list; its realized P&L stays in the totals)
   const portfolioMetrics = useMemo(() => {
@@ -381,6 +394,7 @@ const HoldingsView = forwardRef(function HoldingsView(
             realizedPnl={ledger.summary.hasRealizedPnl ? ledger.summary.totalRealizedPnl : null}
             allocation={portfolioMetrics.items.length > 0 ? allocation : null}
             onEditTargets={readOnly ? null : () => setTargetsOpen(true)}
+            dollarPnl={dollarTotal}
           />
         }
       >
@@ -444,6 +458,7 @@ const HoldingsView = forwardRef(function HoldingsView(
                       onSell={(a) => setTxForm({ preset: presetOf(a, 'sell') })}
                       onEditEntry={handleEditEntry}
                       onDeleteEntry={handleDeleteEntry}
+                      dollarPnl={dollarByAsset.get(asset.id) || null}
                     />
                   )}
                 />

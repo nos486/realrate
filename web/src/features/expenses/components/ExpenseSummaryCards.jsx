@@ -1,12 +1,13 @@
 /**
- * ExpenseSummaryCards.jsx — Totals of the selected section: everything in tomans, and the sums
- * per currency as recorded; for a project, «به دلار»: what its toman expenses were in dollars (at
- * each one's day rate) and what that costs at today's rate
+ * ExpenseSummaryCards.jsx — A project's totals: everything in tomans, the sums per currency as
+ * recorded, and «به دلار» (FlowDollarCard): what its expenses were in dollars at each one's day
+ * rate and what that costs today
  */
 
 import React from 'react';
-import { Coins, DollarSign, Banknote, Hash, TrendingUp } from 'lucide-react';
+import { Coins, DollarSign, Banknote, Hash } from 'lucide-react';
 import { MiniCard } from '../../../shared/ui/index.js';
+import { FlowDollarCard } from '../../../shared/flow/FlowCards.jsx';
 import { formatAmount } from '../utils/format.js';
 import { formatShamsiDisplay } from '../../portfolio/components/ShamsiDatePicker.jsx';
 import BudgetProgress from './BudgetProgress.jsx';
@@ -53,31 +54,7 @@ export default function ExpenseSummaryCards({ summary, budget = null, hideValues
           color="blue"
           className="incomes-summary-card"
         />
-        {dollarView && dollarView.counted > 0 && (
-          <MiniCard
-            icon={<TrendingUp size={14} />}
-            title="به دلار (نرخ روز هر هزینه)"
-            value={money(dollarView.usd, 'USD')}
-            unit="دلار"
-            color="blue"
-            className="incomes-summary-card is-wide"
-            footer={(
-              <span className="expense-dollar-foot">
-                {dollarView.todayToman !== null && (
-                  <>
-                    به نرخ امروز <strong>{money(dollarView.todayToman)}</strong> تومان
-                    {dollarView.changePct !== null && (
-                      <b className={dollarView.changePct >= 0 ? 'is-up' : 'is-down'}>
-                        {' '}({dollarView.changePct >= 0 ? '+' : '−'}{Math.abs(dollarView.changePct).toLocaleString('fa-IR', { maximumFractionDigits: 0 })}٪)
-                      </b>
-                    )}
-                  </>
-                )}
-                {dollarView.missing > 0 && <small> · {dollarView.missing.toLocaleString('fa-IR')} هزینه بدون نرخ دلار حساب نشده</small>}
-              </span>
-            )}
-          />
-        )}
+        <FlowDollarCard kind="expense" view={dollarView} hideValues={hideValues} />
         <MiniCard
           icon={<Hash size={14} />}
           title="تعداد هزینه‌ها"

@@ -201,8 +201,6 @@ export async function encryptHoldingForApi(arg1, arg2) {
     assetName: holding.assetName || holding.assetId || "",
     referenceAssetId: holding.referenceAssetId || "",
     referenceQuantity: Number(holding.referenceQuantity) || 0,
-    compareAssetId: holding.compareAssetId || "",
-    comparePriceToman: Number(holding.comparePriceToman) || 0,
   };
 
   const encryptedBundle = await e2eeEncrypt(key, sensitiveBundle);
@@ -217,8 +215,6 @@ export async function encryptHoldingForApi(arg1, arg2) {
     assetName: "[گاوصندوق E2EE]",
     referenceAssetId: "",
     referenceQuantity: 0,
-    compareAssetId: "",
-    comparePriceToman: 0,
   };
 }
 
@@ -252,8 +248,6 @@ export async function decryptHoldingFromApi(arg1, arg2) {
         assetName: decrypted.assetName || holding.assetName,
         referenceAssetId: decrypted.referenceAssetId || "",
         referenceQuantity: decrypted.referenceQuantity !== undefined ? decrypted.referenceQuantity : 0,
-        compareAssetId: decrypted.compareAssetId || "",
-        comparePriceToman: decrypted.comparePriceToman !== undefined ? decrypted.comparePriceToman : 0,
         isE2eeEncrypted: true,
       };
     }

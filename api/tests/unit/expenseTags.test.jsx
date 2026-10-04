@@ -70,8 +70,7 @@ describe('tags on the projects page', () => {
     const card = document.querySelector('.expense-tag-totals');
     expect(card.textContent).toMatch(/#مصالح/);
     // «مصالح» has a day rate on one expense: its value today (100,000 today ÷ 50,000 then → ×2)
-    expect(card.textContent).toMatch(/به نرخ امروز\s*۶٬۰۰۰٬۰۰۰|به نرخ امروز\s*۶,۰۰۰,۰۰۰/);
-    expect(card.textContent).toMatch(/بدون نرخ/);
+    expect(card.textContent).toMatch(/امروز\s*۶٬۰۰۰٬۰۰۰|امروز\s*۶,۰۰۰,۰۰۰/);
     expect(card.textContent).toMatch(/۴٬۰۰۰٬۰۰۰|۴,۰۰۰,۰۰۰/);
     fireEvent.click([...card.querySelectorAll('.expense-tag-row')].find((b) => b.textContent.includes('دستمزد')));
     expect(screen.queryByText('سیمان')).toBeNull();

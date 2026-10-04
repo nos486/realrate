@@ -194,9 +194,9 @@ web/src/
 
 ### Past prices of a record («قیمت روز رکورد»)
 
-One rule for every record that is looked at in another asset "as of its date": what a toman
-expense was in dollars on its day and what those dollars cost today, a dollar expense in tomans,
-what the money of a purchase would have bought of gold or dollars instead.
+One rule for every record seen in dollars "as of its date": every expense and income in dollars
+at its day's rate and what those dollars are worth today, a dollar expense in tomans, a portfolio
+asset's profit or loss in dollars (each purchase at its day's rate, valued today).
 
 - **A comparison price is not stored.** It is read in the browser from the asset's daily history
   by the record's date: `web/src/features/market/dailyHistory.js` loads an asset's whole series
@@ -207,18 +207,20 @@ what the money of a purchase would have bought of gold or dollars instead.
 - **A record keeps a price of its own only when it is a fact of the trade**: the price the money
   actually changed hands at — the rate of dollars spent from or bought into a portfolio
   (`expense.usdRate` with `paidFrom` / `investedIn`, which prices the portfolio transaction), the
-  asset a purchase was paid with (`referencePriceToman`) — or when the user typed a rate over the
-  history's (the rate they really got). Forms show the day's price as the field's placeholder and
-  store nothing when it is left alone.
-- Domain code takes the history as a function: `expenseDayRate(expense, usdAt)` is
-  `usdRate`, else `usdAt(date)`; the expense summaries take `{ usdToman, usdAt }`;
-  `computeCompareAssetPnl(item, priceMap, itemMap, priceAt)` reads `comparePriceToman`, else
-  `priceAt(compareAssetId, buyDate)`. A purchase without a date (an opening balance) has no day to
-  read, so its compared price is stored at entry.
-- Pages load a history only when a record needs it (e.g. a dollar expense without its own rate).
+  asset a purchase was paid with (`referencePriceToman`) — or a dollar expense's rate the user
+  typed over the history's (the rate they really got). Forms show the day's rate as the field's
+  placeholder and store nothing when it is left alone; a toman expense has no rate field.
+- **One computation and one look**: `api/src/domain/dollarValue.js` (`dollarValueOf`,
+  `summarizeDollarValues`, shared with the web app) turns an amount on a day into dollars then and
+  tomans today; `expenseDollarValue` (`expenseDayRate(expense, usdAt)`: `usdRate`, else
+  `usdAt(date)`), `incomeDollarValue` and `assetDollarPnl` / `sumDollarPnl` (utils/assetLedger.js:
+  the lots still held, each at its purchase day's rate) build on it, and
+  `shared/ui/DollarValue.jsx` (`DollarValueLine` under a row, `DollarValueFoot` / `FlowDollarCard`
+  in the summary cards, `DollarPnl` for an investment) shows them everywhere.
+- Pages load the history only when they show records.
 
-New "as of its date" views (incomes in dollars, a holding's profit in dollars) follow the same
-rule: read the history by the record's date, don't add a stored price.
+A new "as of its date" view follows the same rule: read the history by the record's date, don't
+add a stored price.
 
 ## 3. Feature Flags (Beta Features)
 

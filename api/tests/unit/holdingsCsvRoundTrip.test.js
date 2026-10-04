@@ -1,8 +1,7 @@
 /**
  * holdingsCsvRoundTrip.test.js — A portfolio exported to CSV (one row per ledger entry) imports
  * back: purchases and holdings as the buy side, sales as sales, expense payments skipped; the
- * "paid with another asset" and "compare with another asset" fields survive; older files (one row
- * per manual holding) still import
+ * "paid with another asset" fields survive; older files (one row per manual holding) still import
  */
 
 import { describe, it, expect } from 'vitest';
@@ -20,7 +19,7 @@ const { assets } = buildAssetLedgers({
   holdings: [
     {
       id: 'h1', assetId: 'gold_18k', amount: 5, buyPrice: 6_000_000, buyDate: '1404/01/15', notes: 'خرید با دلار',
-      referenceAssetId: 'usd', referenceQuantity: 512, compareAssetId: 'bourse__فولاد', comparePriceToman: 500,
+      referenceAssetId: 'usd', referenceQuantity: 512,
     },
     { id: 'h2', assetId: 'usd', amount: 100, buyPrice: 0, buyDate: '' },
   ],
@@ -54,7 +53,7 @@ describe('portfolio CSV round trip', () => {
 
     expect(byKind('buy').find((r) => r.holding.assetId === 'gold_18k').holding).toMatchObject({
       amount: 5, buyPrice: 6_000_000, buyDate: '1404/01/15', notes: 'خرید با دلار',
-      referenceAssetId: 'usd', referenceQuantity: 512, compareAssetId: 'bourse__فولاد', comparePriceToman: 500,
+      referenceAssetId: 'usd', referenceQuantity: 512,
     });
     expect(byKind('buy').find((r) => r.holding.assetId === 'usd').holding).toMatchObject({ amount: 100, buyPrice: 0, buyDate: '' });
     expect(byKind('sell')[0].transaction).toMatchObject({

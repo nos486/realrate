@@ -8,8 +8,14 @@ import { ResponsiveDataTable } from '../../../shared/ui/index.js';
 import { formatShamsiDisplay } from '../../portfolio/components/ShamsiDatePicker.jsx';
 import { formatNum } from '../../portfolio/utils/holdingHelpers.js';
 import { getIncomeCategory } from '../constants/incomeCategories.js';
+import { DollarValueLine } from '../../../shared/ui/DollarValue.jsx';
+import { incomeDollarValue } from '../utils/incomeReport.js';
 
-export default function IncomesTable({ incomes, onEdit, onDelete, deletingId = null, hideValues = false, readOnly = false, sortState = null, onSortChange = null }) {
+/**
+ * @param {{ usdToman?: number, usdAt?: Function }} props - today's dollar rate and the rate on a
+ *   date: each income is also shown in dollars at its day's rate (DollarValueLine)
+ */
+export default function IncomesTable({ incomes, onEdit, onDelete, deletingId = null, hideValues = false, readOnly = false, sortState = null, onSortChange = null, usdToman = 0, usdAt = null }) {
   const columns = [
     {
       key: 'title',
@@ -59,6 +65,7 @@ export default function IncomesTable({ incomes, onEdit, onDelete, deletingId = n
             {hideValues ? '****' : formatNum(income.amount)}
           </strong>
           <span className="cell-unit">تومان</span>
+          <DollarValueLine value={incomeDollarValue(income, usdToman, usdAt)} hideValues={hideValues} />
         </div>
       ),
     },

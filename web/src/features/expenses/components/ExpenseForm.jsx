@@ -27,7 +27,6 @@ import ShamsiDatePicker, {
   shamsiToGregorian,
 } from '../../portfolio/components/ShamsiDatePicker.jsx';
 import { parseInputNumber, formatNum } from '../../portfolio/utils/holdingHelpers.js';
-import { formatAmount } from '../utils/format.js';
 import TagInput from './TagInput.jsx';
 import { EXPENSE_CURRENCIES, EXPENSE_LIMITS, isSharedExpense, expenseReceivable } from '../../../utils/expenseDocument.js';
 import { getExpenseCategory } from '../constants/expenseCategories.js';
@@ -113,14 +112,12 @@ export default function ExpenseForm({ group = null, daily = false, expense = nul
   const fundAvailable = fund ? fund.amount + ownSpend : 0;
   const fundAfter = fundAvailable - (amountNum || 0);
 
-  // A project's toman expense shows what it was in dollars on its day and what that costs today
-  // (expenseDollarValue)
-  const dollarView = !daily && !isUsd;
-  const showsRate = isUsd || dollarView;
-  // The dollar's rate on the expense's date comes from the price history (dailyHistory.js) and is
-  // not stored: the field holds only a rate the user types over it (the rate they actually got).
-  // A rate is stored on the expense only when typed, or when a portfolio transaction needs it
-  // (paid from a portfolio's dollars, bought into a portfolio). Changing the date drops a typed one.
+  // A dollar expense's rate on its date comes from the price history (dailyHistory.js) and is not
+  // stored: the field holds only a rate the user types over it (the rate they actually got). A
+  // rate is stored on the expense only when typed, or when a portfolio transaction needs it (paid
+  // from a portfolio's dollars, bought into a portfolio). Changing the date drops a typed one.
+  // A toman expense has no rate of its own: it is seen in dollars at its day's rate in the lists.
+  const showsRate = isUsd;
   const [dayRate, setDayRate] = useState(0);
   // null | 'loading' | 'filled' | 'missing': the history's rate for the date
   const [rateFill, setRateFill] = useState(null);
@@ -167,9 +164,6 @@ export default function ExpenseForm({ group = null, daily = false, expense = nul
     && (!needsStoredRate || effectiveRate > 0) && shareValid && !submitting
     && (!investing || isLinkComplete(investLink));
   const tomanPreview = isUsd && amountNum > 0 ? amountNum * (effectiveRate || usdToman) : 0;
-  // A toman expense in dollars at the day's rate, and those dollars at today's rate (my share)
-  const ownPart = sharing && shareValid ? shareNum : amountNum;
-  const dollarPreview = dollarView && effectiveRate > 0 && ownPart > 0 ? ownPart / effectiveRate : 0;
 
   const handleSubmit = async (e) => {
     e?.preventDefault?.();
@@ -323,16 +317,6 @@ export default function ExpenseForm({ group = null, daily = false, expense = nul
               <p className="expense-form-hint">
                 معادل حدود <strong>{formatNum(tomanPreview)}</strong> تومان
                 {!effectiveRate && ' (به نرخ امروز)'}
-              </p>
-            )}
-            {dollarView && (
-              <p className="expense-form-hint">
-                {dollarPreview > 0 ? (
-                  <>
-                    یعنی حدود <strong>{formatAmount(dollarPreview, 'USD')}</strong> دلار
-                    {usdToman > 0 && <> — به نرخ امروز <strong>{formatNum(dollarPreview * usdToman)}</strong> تومان</>}
-                  </>
-                ) : 'با نرخ دلار آن روز می‌بینید این هزینه چند دلار بوده و امروز چقدر تمام می‌شود.'}
               </p>
             )}
           </div>

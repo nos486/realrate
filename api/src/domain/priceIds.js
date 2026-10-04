@@ -161,7 +161,7 @@ export function toPriceId(id, knownIds = null) {
 }
 
 /** Fields of stored records that hold a price id */
-export const PRICE_ID_FIELDS = ["assetId", "referenceAssetId", "compareAssetId"];
+export const PRICE_ID_FIELDS = ["assetId", "referenceAssetId"];
 
 /**
  * A record about to be stored, in the current id form (its ids resolved, and stamped so they are

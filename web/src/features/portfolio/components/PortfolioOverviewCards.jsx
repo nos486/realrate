@@ -4,6 +4,7 @@ import { CategoryIcon, formatNum } from '../utils/holdingHelpers.js';
 import { formatPct } from '../../../shared/utils/formatters.js';
 import DonutChart from '../../../shared/ui/DonutChart.jsx';
 import AllocationTargetsCard from './AllocationTargetsCard.jsx';
+import { DollarPnl } from '../../../shared/ui/DollarValue.jsx';
 
 const otherCategoriesLabel = (count) => `سایر (${count.toLocaleString('fa-IR')} دسته)`;
 
@@ -18,6 +19,8 @@ export default function PortfolioOverviewCards({
   // Category targets against today's mix (utils/allocationTargets.js); null hides the card
   allocation = null,
   onEditTargets = null,
+  // The open positions in dollars (utils/assetLedger.js sumDollarPnl), or null
+  dollarPnl = null,
 }) {
   const hasData = portfolioMetrics.hasAnyCost;
   const isProfit = (portfolioMetrics.totalPnl || 0) >= 0;
@@ -120,6 +123,10 @@ export default function PortfolioOverviewCards({
             ? 'از زمان خرید اولیه'
             : 'محاسبه به نرخ روز'}
         </div>
+
+        {!isVaultLocked && dollarPnl && (
+          <div className="stat-sub"><DollarPnl pnl={dollarPnl} hideValues={hideValues} /></div>
+        )}
 
         {!isVaultLocked && realizedPnl !== null && (
           <div className="stat-sub realized-pnl-row">

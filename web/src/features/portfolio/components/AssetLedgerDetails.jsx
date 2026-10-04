@@ -11,11 +11,11 @@
  */
 
 import React from 'react';
-import { useDailyHistory } from '../../market/dailyHistory.js';
 import {
   ArrowDownLeft, ArrowUpRight, ClipboardList, Receipt, Pencil, Trash2, Plus, Minus, AlertTriangle, MessageSquare,
 } from 'lucide-react';
-import { formatNum, computeReferenceAssetPnl, computeCompareAssetPnl } from '../utils/holdingHelpers.js';
+import { formatNum, computeReferenceAssetPnl } from '../utils/holdingHelpers.js';
+import { DollarPnl } from '../../../shared/ui/DollarValue.jsx';
 import { toPersianDigits } from '../../../shared/utils/formatters.js';
 
 const KIND = {
@@ -53,6 +53,8 @@ export default function AssetLedgerDetails({
   onSell,
   onEditEntry,
   onDeleteEntry,
+  // The open position in dollars (utils/assetLedger.js assetDollarPnl), or null
+  dollarPnl = null,
 }) {
   const money = (v) => (hideValues ? MASK : formatNum(v));
   const entryById = new Map(asset.entries.map((e) => [e.id, e]));
@@ -64,12 +66,6 @@ export default function AssetLedgerDetails({
     }
   }
   const unit = asset.unitRealPrice || 0;
-  // A purchase compared with another asset: that asset's price on the purchase day, from the
-  // price history (unless the purchase carries one typed by the user)
-  const compareIds = asset.entries
-    .filter((e) => e.record?.compareAssetId && !(Number(e.record.comparePriceToman) > 0))
-    .map((e) => e.record.compareAssetId);
-  const { priceAt } = useDailyHistory(compareIds);
 
   return (
     <div className="asset-ledger">
@@ -78,6 +74,7 @@ export default function AssetLedgerDetails({
           {asset.realizedPnl !== null && (
             <span>سود/زیان تحقق‌یافته: <Pnl value={asset.realizedPnl} hideValues={hideValues} /></span>
           )}
+          <DollarPnl pnl={dollarPnl} hideValues={hideValues} />
           {asset.unpricedQty > EPS && (
             <span className="asset-ledger-muted">
               {qtyText(asset.unpricedQty)} {asset.unit} بدون قیمت خرید (در سود/زیان حساب نمی‌شود)
@@ -127,8 +124,7 @@ export default function AssetLedgerDetails({
             status = parts.length ? `از ${parts.length.toLocaleString('fa-IR')} خرید` : '';
           }
 
-          // A purchase's own comparisons, shown under it: what it was paid with (and how that would
-          // be doing now), and what else the same money could have bought
+          // What a purchase was paid with, shown under it (and how holding that would be doing now)
           const extras = [];
           if (incoming) {
             const lotValue = entry.qty * unit;
@@ -143,16 +139,6 @@ export default function AssetLedgerDetails({
                   ? `${paid} — نسبت به نگه داشتن آن: ${signed(reference.referencePnl)} تومان`
                   : paid,
                 tone: reference && !hideValues ? (reference.referencePnl >= 0 ? 'profit' : 'loss') : '',
-              });
-            }
-            const compare = computeCompareAssetPnl({ ...record, date: entry.date, itemCost: entry.price > 0 ? entry.qty * entry.price : 0, itemRealVal: lotValue }, priceMap, itemMap, priceAt);
-            if (compare) {
-              extras.push({
-                key: 'compare',
-                text: hideValues
-                  ? `مقایسه با ${compare.compareAssetName}`
-                  : `اگر ${compare.compareAssetName} می‌خریدید: ${formatNum(compare.compareCurrentValue)} تومان — این خرید ${signed(compare.comparePnl)} تومان ${compare.comparePnl >= 0 ? 'بهتر' : 'بدتر'}`,
-                tone: hideValues ? '' : compare.comparePnl >= 0 ? 'profit' : 'loss',
               });
             }
           }
