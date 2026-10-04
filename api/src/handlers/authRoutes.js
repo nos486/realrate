@@ -490,8 +490,13 @@ export async function handleGetMe(request, env, ctx) {
   let customName = user.customName || "";
   let hasPassword = false;
   let emailVerified = true;
+  // One round of reads, side by side: the account, the user's features and their requests
+  const [account, features, requestedGroups] = await Promise.all([
+    dbGetUserAuthById(env, userId).catch(() => null),
+    userFeatures(env, user),
+    dbGetUserRequestedGroupKeys(env, userId).catch(() => []),
+  ]);
   try {
-    const account = await dbGetUserAuthById(env, userId);
     if (account?.disabled) {
       return jsonResponse({ authenticated: false, user: null, maintenance }, 200, request);
     }
@@ -515,11 +520,6 @@ export async function handleGetMe(request, env, ctx) {
   };
   if (ctx?.waitUntil) safeWaitUntil(ctx, record());
   else await record();
-
-  const [features, requestedGroups] = await Promise.all([
-    userFeatures(env, user),
-    dbGetUserRequestedGroupKeys(env, userId).catch(() => []),
-  ]);
 
   const isDemo = user.kind === "demo_view" || user.kind === "demo_edit";
   const demoPayload = isDemo

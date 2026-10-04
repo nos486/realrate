@@ -198,8 +198,10 @@ async function handleRequest(request, env, ctx) {
   const wrap = withErrorHandler;
 
   // ── CORS Preflight ──────────────────────────────────────────────────────
+  // Kept by the browser (Chrome up to 2 hours), so a request with the Authorization header doesn't
+  // pay an extra round trip first every time
   if (request.method === "OPTIONS") {
-    return new Response(null, { status: 204, headers: corsHeaders });
+    return new Response(null, { status: 204, headers: { ...corsHeaders, "Access-Control-Max-Age": String(PREFLIGHT_MAX_AGE_SEC) } });
   }
 
   // ── CSRF guard ──────────────────────────────────────────────────────────
@@ -622,9 +624,28 @@ async function handleRequest(request, env, ctx) {
   );
 }
 
+/** How long a browser may reuse a CORS preflight answer */
+export const PREFLIGHT_MAX_AGE_SEC = 86400;
+
+/**
+ * The time the Worker spent on a request, as a Server-Timing header (DevTools → Network → Timing):
+ * a long wait with a short `app` time is the network, not the server
+ */
+export function withServerTiming(response, request, startedAt) {
+  const headers = new Headers(response.headers);
+  headers.append("Server-Timing", `app;dur=${Math.max(0, Date.now() - startedAt)}`);
+  const origin = request.headers.get("Origin");
+  if (origin && isOriginAllowed(origin)) headers.set("Timing-Allow-Origin", origin);
+  return new Response(response.body, { status: response.status, statusText: response.statusText, headers });
+}
+
 export default {
   async fetch(request, env, ctx) {
-    return handleRequest(request, env, ctx);
+    const startedAt = Date.now();
+    const response = await handleRequest(request, env, ctx);
+    // A WebSocket upgrade is passed through as is
+    if (response.status === 101 || response.webSocket) return response;
+    return withServerTiming(response, request, startedAt);
   },
 
   /**

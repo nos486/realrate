@@ -59,6 +59,26 @@ describe('CORS', () => {
   });
 });
 
+describe('preflight and server timing', () => {
+  it('a preflight answer is kept by the browser for a day', async () => {
+    const res = await worker.fetch(new Request('https://api.realrate.ir/api/auth/me', {
+      method: 'OPTIONS',
+      headers: { Origin: 'https://realrate.ir', 'Access-Control-Request-Method': 'GET', 'Access-Control-Request-Headers': 'authorization' },
+    }), {}, {});
+    expect(res.status).toBe(204);
+    expect(res.headers.get('Access-Control-Max-Age')).toBe('86400');
+    expect(res.headers.get('Access-Control-Allow-Origin')).toBe('https://realrate.ir');
+  });
+
+  it('every answer says how long the Worker took, readable by our site', async () => {
+    const res = await worker.fetch(new Request('https://api.realrate.ir/api/cheques', { headers: { Origin: 'https://realrate.ir' } }), {}, {});
+    expect(res.headers.get('Server-Timing')).toMatch(/^app;dur=\d+$/);
+    expect(res.headers.get('Timing-Allow-Origin')).toBe('https://realrate.ir');
+    const foreign = await worker.fetch(new Request('https://api.realrate.ir/api/cheques', { headers: { Origin: 'https://evil.example' } }), {}, {});
+    expect(foreign.headers.get('Timing-Allow-Origin')).toBeNull();
+  });
+});
+
 describe('CSRF guard', () => {
   const send = (method, origin) => worker.fetch(
     new Request('https://api.realrate.ir/api/cheques', {
