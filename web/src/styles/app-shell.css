@@ -970,6 +970,12 @@ button.app-home-card {
   text-overflow: ellipsis;
 }
 
+/* «به دلار» at half width: its line (today's toman value and the change) wraps instead of being cut */
+.app-layout.has-app-shell .incomes-summary-grid .is-dollar:not(.is-wide) .mini-card-foot {
+  white-space: normal;
+  line-height: 1.5;
+}
+
 .app-layout.has-app-shell .portfolio-stat-card:not(:first-child) .stat-number {
   font-size: 17px;
 }

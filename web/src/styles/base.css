@@ -1606,3 +1606,54 @@ input.search-bar-input:focus-visible {
 .ui-action-menu-item.is-danger svg {
   color: var(--color-negative-text);
 }
+
+/* ── Icon-only toolbar button (IconButton): the CSV button's size and shape ── */
+.ui-icon-btn {
+  position: relative;
+  width: 32px;
+  height: 32px;
+  min-width: 32px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  border-radius: var(--radius-full);
+  border: 1px solid var(--border-color, rgba(148, 163, 184, 0.25));
+  background: var(--bg-card-hover, rgba(148, 163, 184, 0.08));
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: var(--transition-fast);
+}
+
+.ui-icon-btn:hover:not(:disabled) {
+  color: var(--text-primary);
+  border-color: rgba(148, 163, 184, 0.4);
+  transform: translateY(-1px);
+}
+
+.ui-icon-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.ui-icon-btn.is-active {
+  border-color: rgba(34, 211, 238, 0.45);
+  color: #22d3ee;
+}
+
+.ui-icon-btn-badge {
+  position: absolute;
+  top: -5px;
+  inset-inline-start: -5px;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  border-radius: 8px;
+  background: #22d3ee;
+  color: #06080d;
+  font-size: 10px;
+  font-weight: 800;
+  line-height: 16px;
+  text-align: center;
+}

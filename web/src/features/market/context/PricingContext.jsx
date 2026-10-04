@@ -33,7 +33,7 @@ function isBrowserOffline() {
 /** How often live prices are refreshed in the background while the tab is visible */
 /**
  * Prices are read when the app opens, when the user taps refresh, and when they move to another
- * tab or come back to the app — never on a timer in the background. Automatic reads closer
+ * tab of the app — never on a timer, and not on returning to the browser tab. Automatic reads closer
  * together than this are skipped (each is cheap anyway: an unchanged book answers 304).
  */
 export const PRICE_AUTO_REFRESH_GAP_MS = 30 * 1000;
@@ -129,22 +129,18 @@ export function PricingProvider({ children, initialUsdToman = null, initialGoldU
     fetchItems();
   }, [fetchItems]);
 
-  // No timer: prices are read again when the user moves to another tab of the app, comes back to
-  // it (or the connection comes back) — at most once per PRICE_AUTO_REFRESH_GAP_MS
+  // No timer, and not on returning to the browser tab: prices are read again when the user moves
+  // to another tab of the app or the connection comes back — at most once per
+  // PRICE_AUTO_REFRESH_GAP_MS — and on the header's refresh button
   const refreshIfDue = useCallback(() => {
-    if (typeof document !== 'undefined' && document.visibilityState !== 'visible') return;
     const due = !lastUpdatedAtRef.current || Date.now() - lastUpdatedAtRef.current >= PRICE_AUTO_REFRESH_GAP_MS;
     if (due) fetchItems({ background: true });
   }, [fetchItems]);
 
   useEffect(() => {
-    if (typeof window === 'undefined' || typeof document === 'undefined') return undefined;
-    document.addEventListener('visibilitychange', refreshIfDue);
+    if (typeof window === 'undefined') return undefined;
     window.addEventListener('online', refreshIfDue);
-    return () => {
-      document.removeEventListener('visibilitychange', refreshIfDue);
-      window.removeEventListener('online', refreshIfDue);
-    };
+    return () => window.removeEventListener('online', refreshIfDue);
   }, [refreshIfDue]);
 
   const inRouter = useInRouterContext();
