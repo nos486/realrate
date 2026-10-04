@@ -1228,7 +1228,7 @@
 }
 .pro-card-price-unit { font-size: 11.5px; color: var(--text-secondary); }
 .pro-card-price .bubble-pill { margin-inline-start: auto; align-self: center; }
-/* «۲۴ ساعت» after the 24-hour change */
+/* «روزانه» after the change since yesterday's close */
 .bubble-pill-note { margin-inline-start: 4px; font-size: 0.85em; font-weight: 600; opacity: 0.75; }
 
 .pro-metrics {

@@ -189,7 +189,7 @@ function FullCard({ asset, isBest = false, flippable = true, previousClose = nul
   // The change over 24 hours (against yesterday's close, from the price history); the source's
   // own figure while the history has none
   const change24h = changeSince(previousClose, Number(price));
-  const change = change24h !== null ? changeBadge(change24h, '۲۴ ساعت') : changeBadge(asset.changePercent);
+  const change = change24h !== null ? changeBadge(change24h, 'روزانه') : changeBadge(asset.changePercent);
   const isFlipped = flippable && requested && opened;
   const direction = change?.className === 'badge-good' ? 'up' : change ? 'down' : 'flat';
 
@@ -210,8 +210,8 @@ function FullCard({ asset, isBest = false, flippable = true, previousClose = nul
   };
 
   const changePill = change && (
-    <span className={`bubble-pill ${change.className}`} title={change.label ? `تغییر ${change.label} گذشته` : undefined}>
-      {change.text}
+    <span className={`bubble-pill ${change.className}`} title={change.label ? 'تغییر نسبت به قیمت پایانی دیروز' : undefined}>
+      <bdi>{change.text}</bdi>
       {change.label && <small className="bubble-pill-note">{change.label}</small>}
     </span>
   );

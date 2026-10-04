@@ -17,15 +17,15 @@ const asset = { id: 'usd', found: true, name: 'دلار', price: 105000, unit: '
 describe('full card change', () => {
   it('24-hour change against yesterday\'s close, labelled', () => {
     render(<HomeAssetCard asset={asset} style="detailed" previousClose={100000} />);
-    const pill = screen.getByTitle('تغییر ۲۴ ساعت گذشته');
+    const pill = screen.getByTitle('تغییر نسبت به قیمت پایانی دیروز');
     expect(pill.textContent).toContain('▲');
     expect(pill.textContent).toContain('۵');
-    expect(pill.textContent).toContain('۲۴ ساعت');
+    expect(pill.textContent).toContain('روزانه');
   });
 
   it('without history: the source\'s own change, no label', () => {
     render(<HomeAssetCard asset={asset} style="detailed" />);
-    expect(screen.queryByTitle('تغییر ۲۴ ساعت گذشته')).toBeNull();
+    expect(screen.queryByTitle('تغییر نسبت به قیمت پایانی دیروز')).toBeNull();
     expect(screen.getByText(/▲/)).toBeTruthy();
   });
 });
