@@ -8,6 +8,7 @@
  */
 
 import React, { useState } from 'react';
+import { useUsdAt } from '../../market/dailyHistory.js';
 import { HandCoins, ChevronLeft } from 'lucide-react';
 import { AlertBanner, EmptyState, Modal } from '../../../shared/ui/index.js';
 import { SkeletonRows } from '../../../shared/ui/Skeleton.jsx';
@@ -48,7 +49,8 @@ export function OpenSharesList({ expenses, onPick, amountLimit = null, hideValue
 export default function OpenSharesModal({ accounts = [], usdToman = 0, hideValues = false, readOnly = false, onChanged, onClose }) {
   const { loading, error, expenses, reload } = useOpenShares();
   const [selected, setSelected] = useState(null);
-  const summary = summarizeReceivables(expenses, { usdToman });
+  const usdAt = useUsdAt((expenses || []).some((e) => e.currency === 'USD' && !e.usdRate));
+  const summary = summarizeReceivables(expenses, { usdToman, usdAt });
 
   const save = async (input, existing) => {
     const { expense } = await api.saveExpense(input, existing);

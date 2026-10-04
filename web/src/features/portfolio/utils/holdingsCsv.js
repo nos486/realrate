@@ -67,7 +67,8 @@ export function buildHoldingsCsv(assets = []) {
         pnl = Math.round(entry.pnl);
       }
       const hasReference = record.referenceAssetId && Number(record.referenceQuantity) > 0;
-      const hasCompare = record.compareAssetId && Number(record.comparePriceToman) > 0;
+      // The compared asset's price is read from the history by date; a typed one is exported
+      const hasCompare = Boolean(record.compareAssetId);
       rows.push([
         KIND_LABEL[kind] || kind,
         asset.assetName || asset.assetId,
@@ -87,7 +88,7 @@ export function buildHoldingsCsv(assets = []) {
         hasReference ? record.referenceQuantity : '',
         hasCompare ? resolveAssetDisplayName(record.compareAssetId) : '',
         hasCompare ? record.compareAssetId : '',
-        hasCompare ? record.comparePriceToman : '',
+        hasCompare && Number(record.comparePriceToman) > 0 ? record.comparePriceToman : '',
       ].map(escapeCSV).join(','));
     }
   }
@@ -238,7 +239,7 @@ export function buildRows(headerIndex, dataRows) {
       const hasReference = Boolean(referenceAssetIdRaw) && referenceQuantityRaw > 0;
       const compareAssetIdRaw = get(row, 'compareAssetId').trim();
       const comparePriceRaw = parseInputNumber(get(row, 'comparePriceToman'));
-      const hasCompare = Boolean(compareAssetIdRaw) && comparePriceRaw > 0;
+      const hasCompare = Boolean(compareAssetIdRaw);
 
       if (kind === 'sell') {
         if (!(price > 0) || !date) return { status: 'invalid', name: label };
@@ -275,7 +276,7 @@ export function buildRows(headerIndex, dataRows) {
           referenceAssetId: hasReference ? referenceAssetIdRaw : '',
           referenceQuantity: hasReference ? referenceQuantityRaw : 0,
           compareAssetId: hasCompare ? compareAssetIdRaw : '',
-          comparePriceToman: hasCompare ? Math.round(comparePriceRaw) : 0,
+          comparePriceToman: hasCompare && comparePriceRaw > 0 ? Math.round(comparePriceRaw) : 0,
         },
       };
     })

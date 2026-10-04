@@ -50,17 +50,18 @@ export function holdingCostToman(holding = {}) {
  * How much of `loan` was spent, from the expenses and holdings that name it
  * @param {object} loan `{ id, principalAmount }`
  * @param {object[]} expenses any expenses; only those with `loanId === loan.id` count
- * @param {{ usdToman?: number, holdings?: object[] }} [options] today's dollar rate (for dollar
- *   expenses without one), and portfolio holdings (any; only the loan's own count)
+ * @param {{ usdToman?: number, usdAt?: Function, holdings?: object[] }} [options] today's dollar
+ *   rate and the rate on a date (price history), for dollar expenses without a rate of their own,
+ *   and portfolio holdings (any; only the loan's own count)
  * @returns {{ principal: number, spent: number, remaining: number, overspent: number,
  *   count: number, items: { id: string, kind: 'expense'|'holding', source: object, date: string,
  *   toman: number }[] }} `items`: what the loan paid for, newest first
  */
-export function summarizeLoanFunding(loan, expenses = [], { usdToman = 0, holdings = [] } = {}) {
+export function summarizeLoanFunding(loan, expenses = [], { usdToman = 0, usdAt = null, holdings = [] } = {}) {
   const principal = Number(loan?.principalAmount) || 0;
   const own = (list) => list.filter((x) => loan?.id && x.loanId === loan.id);
   const items = [
-    ...own(expenses).map((e) => ({ id: e.id, kind: 'expense', source: e, date: isoDayOf(e.date), toman: expenseInToman(e, usdToman) || 0 })),
+    ...own(expenses).map((e) => ({ id: e.id, kind: 'expense', source: e, date: isoDayOf(e.date), toman: expenseInToman(e, usdToman, usdAt) || 0 })),
     ...own(holdings).map((h) => ({ id: h.id, kind: 'holding', source: h, date: isoDayOf(h.buyDate), toman: holdingCostToman(h) })),
   ].sort((a, b) => b.date.localeCompare(a.date));
   const spent = items.reduce((sum, i) => sum + i.toman, 0);

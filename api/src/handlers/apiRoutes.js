@@ -8,14 +8,11 @@ import { baseRatesOf, forexCrossRatesOf, legacyPricesOf } from "../domain/priceB
 import { getGlobalSettings } from "../repositories/settings.repository.js";
 import { jsonResponse, getCorsHeaders } from "../lib/helpers.js";
 import { logger } from "../lib/logger.js";
-import { readPriceTrends, readPricesOnDay, tehranDay, TREND_RANGES, resolveTrendRange } from "../repositories/priceHistory.repository.js";
+import { readPriceTrends, readFullHistory, TREND_RANGES, resolveTrendRange } from "../repositories/priceHistory.repository.js";
 
 const SPARKLINE_MAX_KEYS = 200;
 // A series never changes faster than its buckets: cache at most one bucket, up to 5 minutes
 const SPARKLINE_MAX_CACHE_SECONDS = 300;
-const PRICE_ON_DAY_MAX_KEYS = 20;
-/** A past day's price never changes */
-const DAY_CACHE_SECONDS = 86400;
 
 /**
  * GET /api/prices
@@ -144,39 +141,33 @@ export async function handleGetSparklines(env, request = null) {
 
 
 /**
- * GET /api/prices/on-day?keys=usd,gold_18k&day=YYYY-MM-DD
- * Each key's price (tomans) on a past day from the daily history: that day's close, or the last
- * recorded day before it (`day` in the answer says which). Forms use it to fill a record's rate
- * from its date. A past day never changes, so its answer is cached at the edge for a day; today's
- * for five minutes.
+ * GET /api/prices/history?key=usd
+ * One asset's whole daily history: `since` (its first day, YYYY-MM-DD Tehran) and `values`, one
+ * close per day from then to today (a quiet day carries the last close). The client reads every
+ * past price it needs off it — the dollar rate on a record's date, a compared asset's price on a
+ * purchase day — instead of asking per record (web/src/features/market/dailyHistory.js).
+ * `values: []` when the asset has no history; `available: false` when it can't be read now.
+ * Edge-cached for 5 minutes (only today's value moves).
  */
-export async function handleGetPricesOnDay(env, request = null) {
-  const url = new URL(request?.url || "http://localhost/api/prices/on-day");
-  const day = String(url.searchParams.get("day") || "").trim();
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(day)) {
-    return jsonResponse({ success: false, error: "day must be YYYY-MM-DD" }, 400, request);
+export async function handleGetPriceHistory(env, request = null) {
+  const url = new URL(request?.url || "http://localhost/api/prices/history");
+  const key = String(url.searchParams.get("key") || "").trim().toLowerCase();
+  if (!key || key.length > 160) {
+    return jsonResponse({ success: false, error: "key is required" }, 400, request);
   }
-  const keys = [...new Set(
-    (url.searchParams.get("keys") || "")
-      .split(",")
-      .map((k) => k.trim().toLowerCase())
-      .filter((k) => k && k.length <= 160),
-  )].sort().slice(0, PRICE_ON_DAY_MAX_KEYS);
-  if (keys.length === 0) return jsonResponse({ success: true, available: true, day, prices: {} }, 200, request);
 
   const cache = globalThis.caches?.default || null;
-  const cacheKey = new Request(`https://prices-on-day.cache/${day}?keys=${encodeURIComponent(keys.join(","))}`);
+  const cacheKey = new Request(`https://price-history.cache/${encodeURIComponent(key)}`);
   if (cache) {
     const hit = await cache.match(cacheKey).catch(() => null);
     if (hit) return jsonResponse(await hit.json(), 200, request);
   }
 
-  const prices = await readPricesOnDay(env, keys, day);
-  const body = { success: true, available: prices !== null, day, prices: prices || {} };
-  if (cache && prices !== null) {
-    const maxAge = day < tehranDay() ? DAY_CACHE_SECONDS : SPARKLINE_MAX_CACHE_SECONDS;
+  const history = await readFullHistory(env, key);
+  const body = { success: true, available: history !== null, key, since: history?.since || null, values: history?.values || [] };
+  if (cache && history !== null) {
     const toStore = new Response(JSON.stringify(body), {
-      headers: { "Content-Type": "application/json", "Cache-Control": `max-age=${maxAge}` },
+      headers: { "Content-Type": "application/json", "Cache-Control": `max-age=${SPARKLINE_MAX_CACHE_SECONDS}` },
     });
     await cache.put(cacheKey, toStore).catch(() => {});
   }

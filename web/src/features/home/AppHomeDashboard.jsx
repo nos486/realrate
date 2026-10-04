@@ -11,6 +11,7 @@
  */
 
 import React, { useEffect, useMemo, useState } from 'react';
+import { useUsdAt } from '../market/dailyHistory.js';
 import {
   ArrowDownLeft, ArrowUpRight, ChevronLeft, MessageSquareText, TrendingUp, TrendingDown, Plus,
 } from 'lucide-react';
@@ -88,16 +89,19 @@ export default function AppHomeDashboard({ usdToman = 0, analysis = [], onOpen }
     [expenses, previousExpenses, exclusionKey],
   );
   const pendingSms = usePendingSms();
+  // The dollar's rate on each expense's day (a dollar expense without its own), from the price history
+  const usdAt = useUsdAt([...(expenses || []), ...(previousExpenses || [])].some((e) => e.currency === 'USD' && !e.usdRate));
+  const dollarRates = useMemo(() => ({ usdToman, usdAt }), [usdToman, usdAt]);
 
-  const spent = useMemo(() => summarizeExpenses(counted.expenses, { usdToman }).totalToman, [counted, usdToman]);
+  const spent = useMemo(() => summarizeExpenses(counted.expenses, dollarRates).totalToman, [counted, dollarRates]);
   // Compared with the same number of days of last month
   const change = useMemo(() => {
     const days = Math.round((Date.parse(today) - Date.parse(range.from)) / DAY_MS);
     const prev = shiftShamsiMonth(month, -1);
     const cutoff = new Date(Date.parse(shamsiMonthRange(prev.jy, prev.jm).from) + days * DAY_MS).toISOString().slice(0, 10);
-    const before = summarizeExpenses(counted.previous.filter((e) => e.date <= cutoff), { usdToman }).totalToman;
+    const before = summarizeExpenses(counted.previous.filter((e) => e.date <= cutoff), dollarRates).totalToman;
     return before > 0 ? ((spent - before) / before) * 100 : null;
-  }, [counted, spent, usdToman, today, range.from, month]);
+  }, [counted, spent, dollarRates, today, range.from, month]);
   const latest = useMemo(
     () => [...expenses].sort((a, b) => b.date.localeCompare(a.date) || String(b.createdAt || '').localeCompare(String(a.createdAt || ''))).slice(0, 5),
     [expenses],
@@ -185,7 +189,7 @@ export default function AppHomeDashboard({ usdToman = 0, analysis = [], onOpen }
             <ul className="app-home-list">
               {latest.map((e) => {
                 const cat = getExpenseCategory(e.category);
-                const toman = expenseInToman(e, usdToman);
+                const toman = expenseInToman(e, usdToman, usdAt);
                 return (
                   <li key={e.id} className="app-home-row">
                     <span className="app-home-row-icon"><cat.Icon size={18} /></span>

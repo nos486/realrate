@@ -7,7 +7,7 @@
  * or a portfolio's dollars), where it was recorded from (a bank SMS) and the note.
  */
 
-import { isSharedExpense, expenseReceivable, expenseInToman, expenseDollarValue } from '../../../utils/expenseDocument.js';
+import { isSharedExpense, expenseReceivable, expenseInToman, expenseDollarValue, expenseDayRate } from '../../../utils/expenseDocument.js';
 import { formatShamsiDisplay } from '../../portfolio/components/ShamsiDatePicker.jsx';
 import { accountLabel } from '../../accounts/constants/accountDisplay.js';
 import { getExpenseCategory } from '../constants/expenseCategories.js';
@@ -23,9 +23,10 @@ export function expenseCsvHeaders({ withCategory = false } = {}) {
 /**
  * One expense's row
  * @param {object} e
- * @param {{ withCategory?: boolean, usdToman?: number, accountById?: Map, loanById?: Map }} ctx
+ * @param {{ withCategory?: boolean, usdToman?: number, usdAt?: Function, accountById?: Map, loanById?: Map }} ctx
+ *   usdAt: the dollar's rate on a date (price history), for the «نرخ دلار» column
  */
-export function expenseCsvRow(e, { withCategory = false, usdToman = 0, accountById = new Map(), loanById = new Map() } = {}) {
+export function expenseCsvRow(e, { withCategory = false, usdToman = 0, usdAt = null, accountById = new Map(), loanById = new Map() } = {}) {
   const shared = isSharedExpense(e);
   const { received, remaining } = expenseReceivable(e);
   const funding = e.paidFrom?.portfolioId
@@ -39,10 +40,10 @@ export function expenseCsvRow(e, { withCategory = false, usdToman = 0, accountBy
     e.amount,
     shared ? e.myShare : e.amount,
     e.currency === 'USD' ? 'دلار' : 'تومان',
-    e.usdRate || '',
-    Math.round(expenseInToman(e, usdToman) || 0),
+    expenseDayRate(e, usdAt) || '',
+    Math.round(expenseInToman(e, usdToman, usdAt) || 0),
   ];
-  const dollars = e.currency === 'USD' ? null : expenseDollarValue(e, usdToman);
+  const dollars = e.currency === 'USD' ? null : expenseDollarValue(e, usdToman, usdAt);
   const rest = [
     (e.tags || []).join('، '),
     dollars ? Math.round(dollars.usd * 100) / 100 : '',

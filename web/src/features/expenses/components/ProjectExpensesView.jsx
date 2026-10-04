@@ -10,6 +10,7 @@
 import { useOptionalLoans } from '../../loans/context/LoansContext.jsx';
 import { expenseCsvHeaders, expenseCsvRow } from '../utils/expenseCsv.js';
 import React, { useMemo, useState } from 'react';
+import { useUsdAt } from '../../market/dailyHistory.js';
 import { HandCoins, Plus, FolderKanban, Pencil, Trash2 } from 'lucide-react';
 import { usePrivacyMode } from '../../../hooks/usePrivacyMode.js';
 import {
@@ -45,6 +46,9 @@ export default function ProjectExpensesView({ groupId = null, onSelectGroup, usd
     groups, expenses, loading, submitting, deletingId, error, clearError, fetchAll,
     saveGroup, deleteGroup, saveExpense, deleteExpense,
   } = useExpenses();
+  // The dollar's rate on each expense's day, from the price history (a project's dollar view)
+  const usdAt = useUsdAt(expenses.length > 0);
+  const rates = useMemo(() => ({ usdToman, usdAt }), [usdToman, usdAt]);
   const hideValues = usePrivacyMode();
   const { accounts } = useAccounts();
   const accountById = useMemo(() => new Map(accounts.map((a) => [a.id, a])), [accounts]);
@@ -66,11 +70,11 @@ export default function ProjectExpensesView({ groupId = null, onSelectGroup, usd
     for (const e of expenses) byGroup.get(e.groupId)?.push(e);
     return new Map([...byGroup].map(([id, list]) => [id, {
       list,
-      summary: summarizeExpenses(list, { usdToman }),
-      dollarView: summarizeDollarValue(list, { usdToman }),
-      byTag: summarizeByTag(list, { usdToman }),
+      summary: summarizeExpenses(list, rates),
+      dollarView: summarizeDollarValue(list, rates),
+      byTag: summarizeByTag(list, rates),
     }]));
-  }, [groups, expenses, usdToman]);
+  }, [groups, expenses, rates]);
 
   const selectedData = selected ? totalsByGroup.get(selected.id) : null;
   // One tag's expenses only (from the «برچسب‌ها» card or a tag on a row); per project
@@ -247,7 +251,7 @@ export default function ProjectExpensesView({ groupId = null, onSelectGroup, usd
                       headers={CSV_HEADERS}
                       fileBaseName={`هزینه‌های-${selected.name}`}
                       disabled={listed.length === 0}
-                      mapRow={(e) => expenseCsvRow(e, { withCategory: false, usdToman, accountById, loanById })}
+                      mapRow={(e) => expenseCsvRow(e, { withCategory: false, usdToman, usdAt, accountById, loanById })}
                     />
                     <Button
                       icon={<Plus size={16} />}
@@ -274,6 +278,7 @@ export default function ProjectExpensesView({ groupId = null, onSelectGroup, usd
                       <ExpensesTable
                         expenses={listRows}
                         usdToman={usdToman}
+                        usdAt={usdAt}
                         onEdit={(expense) => setExpenseForm({ expense })}
                         onDelete={handleDeleteExpense}
                         onReimburse={setReimburse}

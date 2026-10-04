@@ -21,6 +21,7 @@
 import { useOptionalLoans } from '../../loans/context/LoansContext.jsx';
 import { expenseCsvHeaders, expenseCsvRow } from '../utils/expenseCsv.js';
 import React, { useMemo, useState } from 'react';
+import { useUsdAt } from '../../market/dailyHistory.js';
 import { Plus, Coins, Tags, Target, HandCoins, Eye, EyeOff } from 'lucide-react';
 import { AlertBanner, Button, EmptyState, GenericCsvExportButton, Pagination, SearchBar, SplitPageLayout } from '../../../shared/ui/index.js';
 import DonutChart from '../../../shared/ui/DonutChart.jsx';
@@ -102,6 +103,9 @@ export default function DailyExpensesView({ usdToman = 0, hideValues = false }) 
     expenses: monthExpenses, previousExpenses, yearExpenses, budgets, loading, submitting, deletingId, error, clearError, fetchMonth,
     saveExpense, saveBudgets, deleteExpense,
   } = useDailyExpenses(month, { year: true });
+  // The dollar's rate on each expense's day, from the price history (loaded only when needed)
+  const usdAt = useUsdAt([monthExpenses, previousExpenses, yearExpenses].some((list) => (list || []).some((e) => e.currency === 'USD' && !e.usdRate)));
+  const rates = useMemo(() => ({ usdToman, usdAt }), [usdToman, usdAt]);
   const { accounts } = useAccounts();
   const accountById = useMemo(() => new Map(accounts.map((a) => [a.id, a])), [accounts]);
   // Loan names for the CSV's «تأمین از»
@@ -124,34 +128,34 @@ export default function DailyExpensesView({ usdToman = 0, hideValues = false }) 
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [expenses, exclusionKey],
   );
-  const summary = useMemo(() => summarizeExpenses(split.counted, { usdToman }), [split, usdToman]);
-  const byCategory = useMemo(() => summarizeByCategory(split.counted, { usdToman }), [split, usdToman]);
-  const excludedByCategory = useMemo(() => summarizeByCategory(split.excluded, { usdToman }), [split, usdToman]);
+  const summary = useMemo(() => summarizeExpenses(split.counted, rates), [split, rates]);
+  const byCategory = useMemo(() => summarizeByCategory(split.counted, rates), [split, rates]);
+  const excludedByCategory = useMemo(() => summarizeByCategory(split.excluded, rates), [split, rates]);
   // What the list shows: everything, or without the excluded categories
   const shown = showExcluded ? expenses : split.counted;
-  const shownByCategory = useMemo(() => summarizeByCategory(shown, { usdToman }), [shown, usdToman]);
+  const shownByCategory = useMemo(() => summarizeByCategory(shown, rates), [shown, rates]);
 
   // The month before, cut at the same day while this month is still running
   const previous = useMemo(
-    () => summarizeExpenses(splitCounted('expense', previousExpenses).counted.filter((e) => e.date <= progress.cutoff), { usdToman }),
+    () => summarizeExpenses(splitCounted('expense', previousExpenses).counted.filter((e) => e.date <= progress.cutoff), rates),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [previousExpenses, usdToman, progress.cutoff, exclusionKey],
+    [previousExpenses, rates, progress.cutoff, exclusionKey],
   );
   // The year so far, month by month (spending only)
   const series = useMemo(() => {
-    const points = splitCounted('expense', yearExpenses).counted.map((e) => ({ date: e.date, amount: expenseInToman(e, usdToman) || 0, category: e.category }));
+    const points = splitCounted('expense', yearExpenses).counted.map((e) => ({ date: e.date, amount: expenseInToman(e, usdToman, usdAt) || 0, category: e.category }));
     return buildYearSeries(points, month.jy, { throughMonth: month.jy === thisMonth.jy ? thisMonth.jm : 12 });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [yearExpenses, usdToman, month.jy, thisMonth, exclusionKey]);
+  }, [yearExpenses, rates, month.jy, thisMonth, exclusionKey]);
   const yearSummary = useMemo(() => summarizeYear(series), [series]);
   const categoryOrder = useMemo(() => byCategory.map((c) => c.category), [byCategory]);
   const top = byCategory[0] ? { label: labelOf(byCategory[0].category), total: byCategory[0].totalToman } : null;
   const money = (v) => (hideValues ? MASK : formatAmount(v));
 
   // The account pills follow the list; «پرداخت از» sums the spending only
-  const byAccount = useMemo(() => summarizeByAccount(shown, { usdToman }), [shown, usdToman]);
-  const spentByAccount = useMemo(() => summarizeByAccount(split.counted, { usdToman }), [split, usdToman]);
-  const receivables = useMemo(() => summarizeReceivables(expenses, { usdToman }), [expenses, usdToman]);
+  const byAccount = useMemo(() => summarizeByAccount(shown, rates), [shown, rates]);
+  const spentByAccount = useMemo(() => summarizeByAccount(split.counted, rates), [split, rates]);
+  const receivables = useMemo(() => summarizeReceivables(expenses, rates), [expenses, rates]);
   const usesAccounts = expenses.some((e) => e.accountId);
   const budgetKeys = Object.keys(budgets).filter((k) => k !== 'total');
   // A category's own budget follows its spending even when it is left out of the month's total
@@ -368,7 +372,7 @@ export default function DailyExpensesView({ usdToman = 0, hideValues = false }) 
                   headers={CSV_HEADERS}
                   fileBaseName={`هزینه‌های-روزمره-${formatShamsiMonth(month.jy, month.jm)}`}
                   disabled={listed.length === 0}
-                  mapRow={(e) => expenseCsvRow(e, { withCategory: true, usdToman, accountById, loanById })}
+                  mapRow={(e) => expenseCsvRow(e, { withCategory: true, usdToman, usdAt, accountById, loanById })}
                 />
                 <Button
                   icon={<Plus size={16} />}
@@ -433,6 +437,7 @@ export default function DailyExpensesView({ usdToman = 0, hideValues = false }) 
                   <ExpensesTable
                     expenses={listRows}
                     usdToman={usdToman}
+                    usdAt={usdAt}
                     onEdit={(expense) => setForm({ expense })}
                     onDelete={handleDelete}
                     onReimburse={setReimburse}

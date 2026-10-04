@@ -19,7 +19,7 @@
  */
 
 import { getPortfolios } from '../../features/portfolio/api/portfolioApi.js';
-import { priceOnDay } from '../../features/market/priceOnDay.js';
+import { priceOnDay } from '../../features/market/dailyHistory.js';
 import { calculateComputedHoldings } from '../../features/transactions/utils/calculationEngine.js';
 import { buildAssetLedgers } from '../../features/portfolio/utils/assetLedger.js';
 import { getKnownPriceIds } from '../../features/market/knownPriceIds.js';

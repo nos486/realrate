@@ -9,18 +9,19 @@ import {
   resolveSelectedAsset,
   resolveReferencePriceToman,
 } from '../utils/holdingHelpers.js';
-import { useTradeDayPrice, tradeDayPriceNote } from '../hooks/useTradeDayPrice.js';
+import { useDailyHistory } from '../../market/dailyHistory.js';
+import { tradeDayIso } from '../hooks/useTradeDayPrice.js';
+import { todayIso } from '../../../shared/utils/dates.js';
 
 /**
  * "What if I had bought something else instead" inputs for AddHoldingForm: a comparison asset
- * (any priced asset — gold, a currency, a stock, ...) and its Toman price on the purchase day.
- * Nothing is paid with it; the portfolio shows, next to the holding's own Toman P&L, what the
- * same Toman cost would be worth today had it bought the comparison asset
- * (holdingHelpers.computeCompareAssetPnl).
+ * (any priced asset — gold, a currency, a stock, ...). Nothing is paid with it; the portfolio
+ * shows, next to the holding's own Toman P&L, what the same Toman cost would be worth today had
+ * it bought the comparison asset (holdingHelpers.computeCompareAssetPnl).
  *
- * The price is filled from the purchase date (hooks/useTradeDayPrice.js): today's live price, or
- * that day's close from the price history — again whenever the date changes. It stays editable;
- * an edited record keeps its saved price until its date or asset changes.
+ * Its price on the purchase day is read from the daily price history by the purchase date, and is
+ * not stored: the field holds only a price the user types over it. A purchase without a date has
+ * no day to read, so AddHoldingForm stores today's price for it.
  */
 export default function CompareAssetInputs({
   compareAsset,
@@ -28,8 +29,7 @@ export default function CompareAssetInputs({
   comparePriceToman,
   onComparePriceChange,
   totalCostToman = 0,
-  autoFillPrice = true,
-  // The trade's date (Shamsi or ISO): a past day fills its price from the price history
+  // The purchase date (Shamsi or ISO); empty: an opening balance, priced today
   tradeDate = '',
 }) {
   const pricing = usePricing();
@@ -40,19 +40,14 @@ export default function CompareAssetInputs({
     if (compareAsset) setExpanded(true);
   }, [compareAsset]);
 
-  const dayPrice = useTradeDayPrice({
-    assetId: compareAsset?.id || null,
-    tradeDate,
-    autoFill: autoFillPrice,
-    pricing,
-    onPrice: onComparePriceChange,
-  });
+  const day = tradeDayIso(tradeDate);
+  const fromHistory = Boolean(day) && day < todayIso();
+  const { priceAt, loading: historyLoading } = useDailyHistory(compareAsset && fromHistory ? [compareAsset.id] : []);
 
   const handlePick = (asset) => {
     const resolved = resolveSelectedAsset(asset);
     if (!resolved) return; // a personal asset has no market price to compare with
-    // A newly picked asset starts from today's price, also when editing
-    dayPrice.markAuto(resolved.id);
+    onComparePriceChange('');
     onCompareAssetChange(resolved);
   };
 
@@ -66,11 +61,6 @@ export default function CompareAssetInputs({
     setExpanded(false);
   };
 
-  const handlePriceChange = (v) => {
-    dayPrice.markEdited();
-    onComparePriceChange(v);
-  };
-
   if (!expanded) {
     return (
       <button type="button" className="btn-add-reference-asset" onClick={() => setExpanded(true)}>
@@ -80,10 +70,19 @@ export default function CompareAssetInputs({
     );
   }
 
-  const priceThen = parseInputNumber(comparePriceToman) || 0;
   const priceNow = compareAsset
     ? resolveReferencePriceToman(compareAsset.id, pricing?.priceMap, pricing?.itemMap)
     : 0;
+  // The purchase day's price: from the history for a past day, today's for today or no date
+  const dayPrice = fromHistory ? Math.round(priceAt(compareAsset.id, day) || 0) : priceNow;
+  const typed = parseInputNumber(comparePriceToman) || 0;
+  const priceThen = typed || dayPrice;
+  const note = typed > 0
+    ? `قیمت واردشده به جای قیمت آن روز${dayPrice > 0 ? ` (${formatNum(dayPrice)})` : ''} حساب می‌شود.`
+    : fromHistory
+      ? historyLoading ? 'در حال خواندن قیمت آن روز…'
+        : dayPrice > 0 ? 'قیمت همان روز، از تاریخچه قیمت.' : 'قیمت آن روز در تاریخچه نیست؛ اگر می‌دانید وارد کنید.'
+      : day ? 'قیمت امروز.' : 'بدون تاریخ خرید، قیمت امروز ثبت می‌شود.';
   const quantity = totalCostToman > 0 && priceThen > 0 ? totalCostToman / priceThen : 0;
   const valueNow = quantity > 0 && priceNow > 0 ? quantity * priceNow : 0;
 
@@ -120,21 +119,21 @@ export default function CompareAssetInputs({
               <button
                 type="button"
                 className="btn-fx-rate-refresh"
-                title="قیمت در روز خرید"
-                aria-label="قیمت در روز خرید"
-                onClick={dayPrice.refill}
+                title="قیمت همان روز (از تاریخچه)"
+                aria-label="قیمت همان روز (از تاریخچه)"
+                onClick={() => onComparePriceChange('')}
               >
                 <RefreshCw size={11} />
               </button>
             </label>
             <NumericInput
               value={comparePriceToman}
-              onValueChange={handlePriceChange}
+              onValueChange={onComparePriceChange}
               allowDecimals={false}
-              placeholder="قیمت واحد به تومان"
+              placeholder={dayPrice > 0 ? `${formatNum(dayPrice)} — قیمت آن روز` : 'قیمت واحد به تومان'}
               className="form-input"
             />
-            {tradeDayPriceNote(dayPrice.source) && <span className="field-sub-note">{tradeDayPriceNote(dayPrice.source)}</span>}
+            <span className="field-sub-note">{note}</span>
           </div>
 
           {totalCostToman <= 0 ? (

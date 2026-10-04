@@ -93,7 +93,7 @@ Decouples database queries from business logic. Direct SQL is strictly encapsula
 - `domain/priceBookViews.js`: **Everything else is a view of the book.** The header's reference rates (`referenceRatesOf`: the sources marked `isReferenceRate`, at their book price), the calculator's live base rates (`baseRatesOf`) and the older `/api/prices` and `/api/market/items` shapes (`legacyPricesOf`) are read off the book, so no screen or route can show a different number than the book. Shared with the web app.
 - `domain/priceIds.js`: **Old stored ids → book ids, in one place.** Data saved before the standard carries ids like `src_def_usd`, `derived_gold_18k`, `EUR`, `forex_eur`, `bourse_فولاد`, `src_def_forex::try`, `gold_ounce`, `full_new`; `toPriceId(id, bookIds)` resolves any of them to the book's id, and `migrateRecordPriceIds` rewrites a record's `assetId` / `referenceAssetId` when the result exists in the book. The web app reads with it everywhere and migrates stored data with it: portfolio holdings and transactions are re-encrypted with the new id the next time they are read (`vaultPortfolioItems.js`), and a home page layout is saved again with book ids when it loads.
 - **Web prices** (`features/market/priceBookAssets.js`, `PricingContext`): the browser never computes a price. It loads `/api/prices/book` (one request, with the global settings) and uses its prices by id — home cards, the header, the calculator's currencies, portfolio values, transactions, the asset search and trend cards alike. Intrinsic values and bubbles are computed at the book's live dollar and ounce (the hand-typed «نرخ مبنا» and the rates ticker are gone).
-- `priceHistory.repository.js`: **Daily price history, kept forever, in D1 (`price_daily (item_key, day, value, open, high, low)`).** One row per item and Tehran day — a candle: `value` is the day's last price (close), with its first, highest and lowest. Past days can be backfilled from tgju (`services/market/historyBackfill.service.js`, admin page «تاریخچه‌ی قیمت» at `/admin/history`): saved mappings from a tgju series to a price book item and its unit, a preview that finds the matching unit, and checks against the item's live price; the same page lists the history per id and moves or deletes ids the book doesn't know. Each sync upserts the book's items in one statement (the points as one JSON parameter read with `json_each`), rewriting a row only when its value changed. The writer is registered by the Worker entry (`index.js`) through `setPriceHistoryWriter`, because the web app shares market modules with the API. `readPriceTrends` serves `GET /api/sparklines` (one point per day, the last value carried forward; ranges `7d`, `30d` — the default, `90d`, `1y`; the old `1d` is served as `7d`), edge-cached for 5 minutes; `readPricesOnDay` serves `GET /api/prices/on-day` (each key's close on a day, or the last before it) — the dollar rate of an expense's date, and the price of an asset paid or compared with on a trade's date (`web/src/features/market/priceOnDay.js`, `features/portfolio/hooks/useTradeDayPrice.js`), filled again whenever the date changes. Without the binding, or when D1 fails, nothing is recorded, trends report `available: false`, and the price sync carries on.
+- `priceHistory.repository.js`: **Daily price history, kept forever, in D1 (`price_daily (item_key, day, value, open, high, low)`).** One row per item and Tehran day — a candle: `value` is the day's last price (close), with its first, highest and lowest. Past days can be backfilled from tgju (`services/market/historyBackfill.service.js`, admin page «تاریخچه‌ی قیمت» at `/admin/history`): saved mappings from a tgju series to a price book item and its unit, a preview that finds the matching unit, and checks against the item's live price; the same page lists the history per id and moves or deletes ids the book doesn't know. Each sync upserts the book's items in one statement (the points as one JSON parameter read with `json_each`), rewriting a row only when its value changed. The writer is registered by the Worker entry (`index.js`) through `setPriceHistoryWriter`, because the web app shares market modules with the API. `readPriceTrends` serves `GET /api/sparklines` (one point per day, the last value carried forward; ranges `7d`, `30d` — the default, `90d`, `1y`; the old `1d` is served as `7d`), edge-cached for 5 minutes; `readFullHistory` serves `GET /api/prices/history` (one asset's whole series, a close per day) — how the client values a record as of its date (see «قیمت روز رکورد» below). Without the binding, or when D1 fails, nothing is recorded, trends report `available: false`, and the price sync carries on.
 - `user.repository.js`: User accounts, roles, settings, Google links, and the clients each user signs in from (`user_clients`, `client_activity` — see section 7).
 - `session.repository.js`: Sessions (30 days; demo sessions are short-lived).
 - `portfolio.repository.js`, `holdings.repository.js`, `transactionRepository.js`: Portfolios (sharing slugs, wrapped portfolio keys) and the legacy plaintext holdings/transactions tables, which are moved into `vault_records` the first time a portfolio is opened.
@@ -191,6 +191,34 @@ web/src/
    - Global event propagation via `CustomEvent('realrate_privacy_change')`.
 
 ---
+
+### Past prices of a record («قیمت روز رکورد»)
+
+One rule for every record that is looked at in another asset "as of its date": what a toman
+expense was in dollars on its day and what those dollars cost today, a dollar expense in tomans,
+what the money of a purchase would have bought of gold or dollars instead.
+
+- **A comparison price is not stored.** It is read in the browser from the asset's daily history
+  by the record's date: `web/src/features/market/dailyHistory.js` loads an asset's whole series
+  once (`GET /api/prices/history`, about one number per day; kept for the session, past days never
+  change) and `historyPriceAt` / `useDailyHistory(ids)` / `useUsdAt()` read any day off it
+  (that day's close, or the last one before a quiet day). Old records get their values without any
+  change to them, and a backfilled history improves them all at once.
+- **A record keeps a price of its own only when it is a fact of the trade**: the price the money
+  actually changed hands at — the rate of dollars spent from or bought into a portfolio
+  (`expense.usdRate` with `paidFrom` / `investedIn`, which prices the portfolio transaction), the
+  asset a purchase was paid with (`referencePriceToman`) — or when the user typed a rate over the
+  history's (the rate they really got). Forms show the day's price as the field's placeholder and
+  store nothing when it is left alone.
+- Domain code takes the history as a function: `expenseDayRate(expense, usdAt)` is
+  `usdRate`, else `usdAt(date)`; the expense summaries take `{ usdToman, usdAt }`;
+  `computeCompareAssetPnl(item, priceMap, itemMap, priceAt)` reads `comparePriceToman`, else
+  `priceAt(compareAssetId, buyDate)`. A purchase without a date (an opening balance) has no day to
+  read, so its compared price is stored at entry.
+- Pages load a history only when a record needs it (e.g. a dollar expense without its own rate).
+
+New "as of its date" views (incomes in dollars, a holding's profit in dollars) follow the same
+rule: read the history by the record's date, don't add a stored price.
 
 ## 3. Feature Flags (Beta Features)
 

@@ -17,7 +17,8 @@ import UniversalAssetSearch from '../../../components/UniversalAssetSearch.jsx';
 import ShamsiDatePicker from './ShamsiDatePicker.jsx';
 import ReferenceAssetInputs from './ReferenceAssetInputs.jsx';
 import CompareAssetInputs from './CompareAssetInputs.jsx';
-import { parseInputNumber } from '../utils/holdingHelpers.js';
+import { parseInputNumber, resolveReferencePriceToman } from '../utils/holdingHelpers.js';
+import { sortableDate } from '../utils/assetLedger.js';
 import { toPriceId, isCustomAssetId } from '../../../utils/priceIds.js';
 import {
   resolveAssetDisplayName,
@@ -103,7 +104,7 @@ export default function AddHoldingForm({
         setReferencePriceToman('');
       }
 
-      if (editingHolding.compareAssetId && Number(editingHolding.comparePriceToman) > 0) {
+      if (editingHolding.compareAssetId) {
         const cmpId = editingHolding.compareAssetId;
         setCompareAsset({
           id: toPriceId(cmpId),
@@ -111,7 +112,7 @@ export default function AddHoldingForm({
           unit: resolveAssetUnit(cmpId) || 'واحد',
           category: getItemCategory(cmpId),
         });
-        setComparePriceToman(String(editingHolding.comparePriceToman));
+        setComparePriceToman(Number(editingHolding.comparePriceToman) > 0 ? String(editingHolding.comparePriceToman) : '');
       } else {
         setCompareAsset(null);
         setComparePriceToman('');
@@ -214,8 +215,16 @@ export default function AddHoldingForm({
       ? Math.round((parsedReferenceQuantity * parsedReferencePrice) / parsedAmount)
       : (parseInputNumber(buyPrice) || 0);
 
-    const parsedComparePrice = parseInputNumber(comparePriceToman);
-    const hasCompare = Boolean(compareAsset) && parsedComparePrice > 0;
+    // The compared asset's price on the purchase day is read from the price history by the date
+    // (computeCompareAssetPnl): stored only when typed over it, or — without a date to read it
+    // by — today's price
+    const hasCompare = Boolean(compareAsset);
+    const typedComparePrice = parseInputNumber(comparePriceToman) || 0;
+    const comparePrice = typedComparePrice > 0
+      ? typedComparePrice
+      : !sortableDate(buyDate) && hasCompare
+        ? resolveReferencePriceToman(compareAsset.id, pricing?.priceMap, pricing?.itemMap)
+        : 0;
 
     onSubmit?.({
       id: editingHolding?.id,
@@ -229,7 +238,7 @@ export default function AddHoldingForm({
       referenceAssetId: hasReference ? referenceAsset.id : '',
       referenceQuantity: hasReference ? parsedReferenceQuantity : 0,
       compareAssetId: hasCompare ? compareAsset.id : '',
-      comparePriceToman: hasCompare ? Math.round(parsedComparePrice) : 0,
+      comparePriceToman: hasCompare ? Math.round(comparePrice) : 0,
     });
   };
 
@@ -503,7 +512,6 @@ export default function AddHoldingForm({
         comparePriceToman={comparePriceToman}
         onComparePriceChange={setComparePriceToman}
         totalCostToman={previewCostToman}
-        autoFillPrice={!editingHolding}
         tradeDate={buyDate}
       />
 

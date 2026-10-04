@@ -11,6 +11,7 @@
  */
 
 import React from 'react';
+import { useDailyHistory } from '../../market/dailyHistory.js';
 import {
   ArrowDownLeft, ArrowUpRight, ClipboardList, Receipt, Pencil, Trash2, Plus, Minus, AlertTriangle, MessageSquare,
 } from 'lucide-react';
@@ -63,6 +64,12 @@ export default function AssetLedgerDetails({
     }
   }
   const unit = asset.unitRealPrice || 0;
+  // A purchase compared with another asset: that asset's price on the purchase day, from the
+  // price history (unless the purchase carries one typed by the user)
+  const compareIds = asset.entries
+    .filter((e) => e.record?.compareAssetId && !(Number(e.record.comparePriceToman) > 0))
+    .map((e) => e.record.compareAssetId);
+  const { priceAt } = useDailyHistory(compareIds);
 
   return (
     <div className="asset-ledger">
@@ -138,7 +145,7 @@ export default function AssetLedgerDetails({
                 tone: reference && !hideValues ? (reference.referencePnl >= 0 ? 'profit' : 'loss') : '',
               });
             }
-            const compare = computeCompareAssetPnl({ ...record, itemCost: entry.price > 0 ? entry.qty * entry.price : 0, itemRealVal: lotValue }, priceMap, itemMap);
+            const compare = computeCompareAssetPnl({ ...record, date: entry.date, itemCost: entry.price > 0 ? entry.qty * entry.price : 0, itemRealVal: lotValue }, priceMap, itemMap, priceAt);
             if (compare) {
               extras.push({
                 key: 'compare',

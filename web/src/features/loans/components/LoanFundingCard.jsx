@@ -8,6 +8,7 @@
  */
 
 import React, { useEffect, useState } from 'react';
+import { useUsdAt } from '../../market/dailyHistory.js';
 import { Wallet } from 'lucide-react';
 import { useFeature } from '../../../shared/features/useFeature.js';
 import { useVault } from '../../../shared/vault/useVault.js';
@@ -110,8 +111,11 @@ export default function LoanFundingCard({ loan, hideValues = false }) {
     };
   }, [hasExpenses, vaultStatus, vaultEpoch, loan?.id, from]);
 
+  // The dollar's rate on a dollar expense's day (one without its own), from the price history
+  const usdAt = useUsdAt((data?.expenses || []).some((e) => e.loanId === loan?.id && e.currency === 'USD' && !e.usdRate));
+
   if (!data) return null;
-  const usage = summarizeLoanFunding(loan, data.expenses, { holdings: data.holdings, usdToman });
+  const usage = summarizeLoanFunding(loan, data.expenses, { holdings: data.holdings, usdToman, usdAt });
   const valueOf = (h) => {
     const unit = resolveHoldingUnitRealPrice(normalizeHolding(h, pricing?.itemMap), pricing?.priceMap || {});
     return unit > 0 ? (Number(h.amount) || 0) * unit : null;

@@ -218,7 +218,8 @@ describe('Unified Orchestration — sourceSync.service (Phase 4)', () => {
       }),
     };
 
-    await runCronPolling({}, mockEnv, mockCtx);
+    // Not the top-of-hour tick (that one also queues the hourly cleanups)
+    await runCronPolling({ scheduledTime: Date.UTC(2026, 0, 1, 10, 5) }, mockEnv, mockCtx);
     expect(mockCtx.waitUntil).toHaveBeenCalledTimes(1);
 
     await waitUntilPromise;

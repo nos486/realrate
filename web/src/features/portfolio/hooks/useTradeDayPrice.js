@@ -1,6 +1,6 @@
 /**
  * useTradeDayPrice.js — Fills an asset's toman price for a trade's day: today's live price, or the
- * day's close from the price history for a past day (features/market/priceOnDay.js)
+ * day's close from the price history for a past day (features/market/dailyHistory.js)
  *
  * Shared by ReferenceAssetInputs (the asset paid with) and CompareAssetInputs (the asset compared
  * with). A price the user typed is kept until the asset or the trade's date changes; an edited
@@ -9,7 +9,7 @@
  */
 
 import { useEffect, useRef, useState } from 'react';
-import { priceOnDay } from '../../market/priceOnDay.js';
+import { priceOnDay } from '../../market/dailyHistory.js';
 import { shamsiToGregorian } from '../components/ShamsiDatePicker.jsx';
 import { todayIso } from '../../../shared/utils/dates.js';
 import { resolveReferencePriceToman } from '../utils/holdingHelpers.js';

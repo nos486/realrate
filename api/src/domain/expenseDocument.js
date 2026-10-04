@@ -6,8 +6,11 @@
  * planned server-side intake (bank SMS read by the Android app) will produce the same expense
  * shape.
  *
- * An expense is in tomans or in US dollars. A dollar expense may carry the toman rate of its day
- * (`usdRate`); totals in tomans use that rate, or today's rate when it is missing.
+ * An expense is in tomans or in US dollars. The dollar's rate on its day comes from the daily
+ * price history (`usdAt(date)`, web features/market/dailyHistory.js); an expense carries a rate of
+ * its own (`usdRate`) only when it is the one the money actually changed hands at (paid from a
+ * portfolio's dollars, bought into a portfolio) or one the user typed over the history's. Totals
+ * in tomans use usdRate, else the day's rate, else today's.
  *
  * Section `type`: 'project' (a project, a trip, ...) or 'daily' — the one section per user that
  * holds everyday spending, each expense in a category (DAILY_EXPENSE_CATEGORIES) and shown
@@ -335,10 +338,23 @@ export function expenseReceivable(expense) {
   return { owed, received, remaining: remaining < EPSILON ? 0 : remaining };
 }
 
+/**
+ * The dollar's rate (tomans) on an expense's day: its own `usdRate`, else the price history's
+ * rate for its date; 0 when neither is known
+ * @param {object} expense
+ * @param {(isoDate: string) => number|null} [usdAt] the dollar's rate on a date (price history)
+ */
+export function expenseDayRate(expense, usdAt) {
+  const own = Number(expense?.usdRate) || 0;
+  if (own > 0) return own;
+  const fromHistory = typeof usdAt === 'function' && expense?.date ? Number(usdAt(expense.date)) || 0 : 0;
+  return fromHistory > 0 ? fromHistory : 0;
+}
+
 /** Converts an amount in the expense's currency to tomans (null: a dollar amount with no rate) */
-function toToman(expense, value, usdToman) {
+function toToman(expense, value, usdToman, usdAt) {
   if (expense.currency !== 'USD') return value;
-  const rate = expense.usdRate || usdToman;
+  const rate = expenseDayRate(expense, usdAt) || usdToman;
   return rate > 0 ? value * rate : null;
 }
 
@@ -347,17 +363,17 @@ function toToman(expense, value, usdToman) {
  * @returns {{ count: number, openCount: number, owedToman: number, receivedToman: number,
  *   remainingToman: number, open: object[] }}
  */
-export function summarizeReceivables(expenses = [], { usdToman = 0 } = {}) {
+export function summarizeReceivables(expenses = [], { usdToman = 0, usdAt = null } = {}) {
   const summary = { count: 0, openCount: 0, owedToman: 0, receivedToman: 0, remainingToman: 0, open: [] };
   for (const e of expenses) {
     if (!isSharedExpense(e)) continue;
     const { owed, received, remaining } = expenseReceivable(e);
     summary.count++;
-    summary.owedToman += toToman(e, owed, usdToman) || 0;
-    summary.receivedToman += toToman(e, received, usdToman) || 0;
+    summary.owedToman += toToman(e, owed, usdToman, usdAt) || 0;
+    summary.receivedToman += toToman(e, received, usdToman, usdAt) || 0;
     if (remaining > 0) {
       summary.openCount++;
-      summary.remainingToman += toToman(e, remaining, usdToman) || 0;
+      summary.remainingToman += toToman(e, remaining, usdToman, usdAt) || 0;
       summary.open.push(e);
     }
   }
@@ -372,22 +388,23 @@ export function compareExpensesByDate(a, b) {
 
 /**
  * An expense in tomans — the user's own part of it (`myShare` of a shared expense): as recorded,
- * or a dollar amount at its own rate, else today's rate
+ * or a dollar amount at its day's rate (expenseDayRate), else today's rate
  * @returns {number|null} null for a dollar expense with no rate at all
  */
-export function expenseInToman(expense, usdToman = 0) {
-  return toToman(expense, expenseShareAmount(expense), usdToman);
+export function expenseInToman(expense, usdToman = 0, usdAt = null) {
+  return toToman(expense, expenseShareAmount(expense), usdToman, usdAt);
 }
 
 /** What was actually paid, in tomans (the whole amount, shared or not) — e.g. to match a bank SMS */
-export function expensePaidInToman(expense, usdToman = 0) {
-  return toToman(expense, Number(expense.amount) || 0, usdToman);
+export function expensePaidInToman(expense, usdToman = 0, usdAt = null) {
+  return toToman(expense, Number(expense.amount) || 0, usdToman, usdAt);
 }
 
 /**
  * Totals of a list of expenses
  * @param {object[]} expenses
- * @param {{ usdToman?: number }} [options] today's dollar rate, for dollar expenses without one
+ * @param {{ usdToman?: number, usdAt?: Function }} [options] today's dollar rate, and the rate on a
+ *   date (price history), for dollar expenses without a rate of their own
  * @returns {{ count: number, toman: number, usd: number, totalToman: number,
  *   usesTodayRate: boolean, unpricedUsd: number, firstDate: string, lastDate: string }}
  *   `toman` / `usd`: the sums per currency as recorded (the user's share of shared expenses);
@@ -395,18 +412,18 @@ export function expensePaidInToman(expense, usdToman = 0) {
  *   `usesTodayRate`: some dollar expense was converted at today's rate; `unpricedUsd`: dollars
  *   left out of `totalToman` because no rate is known
  */
-export function summarizeExpenses(expenses = [], { usdToman = 0 } = {}) {
+export function summarizeExpenses(expenses = [], { usdToman = 0, usdAt = null } = {}) {
   const summary = { count: 0, toman: 0, usd: 0, totalToman: 0, usesTodayRate: false, unpricedUsd: 0, firstDate: '', lastDate: '' };
   for (const e of expenses) {
     summary.count++;
     const share = expenseShareAmount(e);
     if (e.currency === 'USD') {
       summary.usd += share;
-      if (!e.usdRate && usdToman > 0) summary.usesTodayRate = true;
+      if (!expenseDayRate(e, usdAt) && usdToman > 0) summary.usesTodayRate = true;
     } else {
       summary.toman += share;
     }
-    const inToman = expenseInToman(e, usdToman);
+    const inToman = expenseInToman(e, usdToman, usdAt);
     if (inToman === null) summary.unpricedUsd += share;
     else summary.totalToman += inToman;
     if (!summary.firstDate || e.date < summary.firstDate) summary.firstDate = e.date;
@@ -417,16 +434,16 @@ export function summarizeExpenses(expenses = [], { usdToman = 0 } = {}) {
 
 /**
  * What an expense (the user's own part) was in dollars, and what that costs at today's rate: a
- * dollar expense as it is; a toman expense through the dollar's rate on its day (`usdRate`), when
- * it has one
+ * dollar expense as it is; a toman expense through the dollar's rate on its day (expenseDayRate)
  * @param {object} expense
  * @param {number} [usdToman] today's dollar rate
+ * @param {(isoDate: string) => number|null} [usdAt] the dollar's rate on a date (price history)
  * @returns {{ usd: number, paidToman: number|null, todayToman: number|null, changePct: number|null }|null}
- *   null for a toman expense without the day's rate
+ *   null for a toman expense whose day's rate is unknown
  */
-export function expenseDollarValue(expense, usdToman = 0) {
+export function expenseDollarValue(expense, usdToman = 0, usdAt = null) {
   const share = expenseShareAmount(expense);
-  const rate = Number(expense.usdRate) || 0;
+  const rate = expenseDayRate(expense, usdAt);
   let usd;
   if (expense.currency === 'USD') usd = share;
   else if (rate > 0) usd = share / rate;
@@ -444,12 +461,12 @@ export function expenseDollarValue(expense, usdToman = 0) {
  * @returns {{ usd: number, paidToman: number, todayToman: number|null, changePct: number|null,
  *   counted: number, missing: number }}
  */
-export function summarizeDollarValue(expenses = [], { usdToman = 0 } = {}) {
+export function summarizeDollarValue(expenses = [], { usdToman = 0, usdAt = null } = {}) {
   const summary = { usd: 0, paidToman: 0, todayToman: null, changePct: null, counted: 0, missing: 0 };
   let comparable = 0; // tomans paid for the expenses whose paid amount is known
   let comparableUsd = 0;
   for (const e of expenses) {
-    const value = expenseDollarValue(e, usdToman);
+    const value = expenseDollarValue(e, usdToman, usdAt);
     if (!value) {
       summary.missing += 1;
       continue;
@@ -477,7 +494,7 @@ export function summarizeDollarValue(expenses = [], { usdToman = 0 } = {}) {
  * @returns {{ tags: Array<{ tag: string, totalToman: number, count: number, dollar: object }>,
  *   untagged: { totalToman: number, count: number, dollar: object } }}
  */
-export function summarizeByTag(expenses = [], { usdToman = 0 } = {}) {
+export function summarizeByTag(expenses = [], { usdToman = 0, usdAt = null } = {}) {
   const byTag = new Map();
   const untaggedList = [];
   for (const e of expenses) {
@@ -492,8 +509,8 @@ export function summarizeByTag(expenses = [], { usdToman = 0 } = {}) {
       byTag.get(key).list.push(e);
     }
   }
-  const totalOf = (list) => list.reduce((sum, e) => sum + (expenseInToman(e, usdToman) || 0), 0);
-  const entryOf = (list) => ({ totalToman: totalOf(list), count: list.length, dollar: summarizeDollarValue(list, { usdToman }) });
+  const totalOf = (list) => list.reduce((sum, e) => sum + (expenseInToman(e, usdToman, usdAt) || 0), 0);
+  const entryOf = (list) => ({ totalToman: totalOf(list), count: list.length, dollar: summarizeDollarValue(list, { usdToman, usdAt }) });
   return {
     tags: [...byTag.values()]
       .map(({ tag, list }) => ({ tag, ...entryOf(list) }))
@@ -509,12 +526,12 @@ export const hasTag = (expense, tag) => normalizeTags(expense?.tags).some((t) =>
  * Per-category totals in tomans, largest first (expenses without a category count as 'other')
  * @returns {Array<{ category: string, totalToman: number, count: number }>}
  */
-export function summarizeByCategory(expenses = [], { usdToman = 0 } = {}) {
+export function summarizeByCategory(expenses = [], { usdToman = 0, usdAt = null } = {}) {
   const byCategory = new Map();
   for (const e of expenses) {
     const key = e.category || 'other';
     const entry = byCategory.get(key) || { category: key, totalToman: 0, count: 0 };
-    entry.totalToman += expenseInToman(e, usdToman) || 0;
+    entry.totalToman += expenseInToman(e, usdToman, usdAt) || 0;
     entry.count++;
     byCategory.set(key, entry);
   }
@@ -550,12 +567,12 @@ export function shamsiMonthOf(isoDay) {
  * Per-account totals in tomans, largest first (expenses without an account under '')
  * @returns {Array<{ accountId: string, totalToman: number, count: number }>}
  */
-export function summarizeByAccount(expenses = [], { usdToman = 0 } = {}) {
+export function summarizeByAccount(expenses = [], { usdToman = 0, usdAt = null } = {}) {
   const byAccount = new Map();
   for (const e of expenses) {
     const key = e.accountId || '';
     const entry = byAccount.get(key) || { accountId: key, totalToman: 0, count: 0 };
-    entry.totalToman += expenseInToman(e, usdToman) || 0;
+    entry.totalToman += expenseInToman(e, usdToman, usdAt) || 0;
     entry.count++;
     byAccount.set(key, entry);
   }

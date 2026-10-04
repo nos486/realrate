@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 /**
- * tradeDayPrice.test.jsx — The asset paid or compared with gets the price of the trade's day:
+ * tradeDayPrice.test.jsx — The asset paid with (a trade price, stored) gets the price of the trade's day:
  * today's live price, or the day's close from the price history for a past date — again when the
  * date changes, and an edited record keeps its saved price until then (hooks/useTradeDayPrice.js)
  */
@@ -14,11 +14,10 @@ const pricing = vi.hoisted(() => ({
 }));
 vi.mock('../../../web/src/features/market/index.js', () => ({ usePricing: () => pricing }));
 const day = vi.hoisted(() => ({ priceOnDay: vi.fn(async () => 61000) }));
-vi.mock('../../../web/src/features/market/priceOnDay.js', () => day);
+vi.mock('../../../web/src/features/market/dailyHistory.js', () => day);
 vi.mock('../../../web/src/components/UniversalAssetSearch.jsx', () => ({ default: () => <div>search</div> }));
 
 const { default: ReferenceAssetInputs } = await import('../../../web/src/features/portfolio/components/ReferenceAssetInputs.jsx');
-const { default: CompareAssetInputs } = await import('../../../web/src/features/portfolio/components/CompareAssetInputs.jsx');
 const { tradeDayIso } = await import('../../../web/src/features/portfolio/hooks/useTradeDayPrice.js');
 
 afterEach(() => {
@@ -58,7 +57,7 @@ describe('the price of the trade day', () => {
   it('without history for that day the live price stands in, and says so', async () => {
     day.priceOnDay.mockResolvedValueOnce(null);
     const onPrice = vi.fn();
-    render(<CompareAssetInputs compareAsset={usd} onCompareAssetChange={() => {}} comparePriceToman="" onComparePriceChange={onPrice} totalCostToman={1000000} tradeDate="1390/01/01" />);
+    render(ref({ onReferencePriceChange: onPrice, tradeDate: '1390/01/01' }));
     await waitFor(() => expect(screen.getByText(/در تاریخچه نیست/)).toBeDefined());
     expect(onPrice).toHaveBeenLastCalledWith('120000');
   });
