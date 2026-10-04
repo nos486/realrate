@@ -12,10 +12,19 @@
 import { jsonResponse } from "../lib/helpers.js";
 import { logger } from "../lib/logger.js";
 import { getStateStore } from "../repositories/stateStore.repository.js";
+import { createIsolateCache } from "../lib/isolateCache.js";
 import { APP_RELEASE_REPO, parseGithubRelease, releaseFromLatestRedirect } from "../domain/appRelease.js";
 
 const STATE_KEY = "app:latest_release";
 export const RELEASE_CACHE_MS = 5 * 60 * 1000;
+// Every app start asks: an isolate keeps the stored copy, so D1 is read once per isolate per
+// RELEASE_CACHE_MS (isolateCache.js)
+const releaseMemo = createIsolateCache({ ttlMs: RELEASE_CACHE_MS, max: 1 });
+
+/** For tests */
+export function resetLatestReleaseMemo() {
+  releaseMemo.clear();
+}
 const USER_AGENT = "RealRate-API (+https://realrate.ir)";
 
 async function fetchFromApi(env, repo) {
@@ -50,17 +59,24 @@ export async function fetchLatestRelease(env, repo = env?.APP_RELEASE_REPO || AP
 /** The latest release, from the state store while fresh; the last known one when GitHub fails */
 export async function getLatestRelease(env, now = Date.now()) {
   const store = getStateStore(env);
-  let cached = null;
+  const isFresh = (record) => record && now - Number(record.fetchedAt || 0) < RELEASE_CACHE_MS;
+  let cached = releaseMemo.get(STATE_KEY, now);
+  if (isFresh(cached)) return cached.release ?? null;
   try {
     cached = store ? await store.get(STATE_KEY, "json") : null;
   } catch {
     cached = null;
   }
-  if (cached && now - Number(cached.fetchedAt || 0) < RELEASE_CACHE_MS) return cached.release ?? null;
+  if (isFresh(cached)) {
+    releaseMemo.set(STATE_KEY, cached, now);
+    return cached.release ?? null;
+  }
 
   try {
     const release = await fetchLatestRelease(env);
-    if (store) await store.put(STATE_KEY, JSON.stringify({ fetchedAt: now, release })).catch(() => {});
+    const record = { fetchedAt: now, release };
+    releaseMemo.set(STATE_KEY, record, now);
+    if (store) await store.put(STATE_KEY, JSON.stringify(record)).catch(() => {});
     return release;
   } catch (err) {
     logger.warn("[AppUpdate] latest release unavailable:", { error: err.message });

@@ -4,6 +4,7 @@
 
 import { ensureSchema } from "./schema.repository.js";
 import { logger } from "../lib/logger.js";
+import { forgetSessions } from "./session.repository.js";
 
 export const DEMO_EMAIL = "demo@realrate.invalid";
 export const DEMO_USER_ID = "usr_demo_account";
@@ -183,6 +184,7 @@ export async function dbResetDemoData(env) {
       env.DB.prepare("DELETE FROM sessions WHERE user_id = ?").bind(userId),
       env.DB.prepare("UPDATE users SET home_layout = '' WHERE id = ?").bind(userId),
     ]);
+    forgetSessions({ userId });
     return true;
   } catch (e) {
     logger.error("[DB] dbResetDemoData error:", { error: e.message });
