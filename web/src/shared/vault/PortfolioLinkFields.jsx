@@ -15,6 +15,7 @@ import { usePricing } from '../../features/market/context/PricingContext.jsx';
 import { CategoryIcon, parseInputNumber, formatNum } from '../../features/portfolio/utils/holdingHelpers.js';
 import { resolveAssetDisplayName, resolveAssetUnit, resolveCategory } from '../../config/sourceRegistry.js';
 import { listLinkablePortfolios, listPortfolioPositions } from './portfolioFunds.js';
+import TextField from '../ui/TextField.jsx';
 
 const RESULT_LIMIT = 8;
 const EPS = 1e-9;
@@ -165,7 +166,7 @@ export default function PortfolioLinkFields({ mode, value, onChange, toman = 0, 
               <>
                 <div className="asset-picker-search portfolio-link-search">
                   <Search size={15} aria-hidden="true" />
-                  <input
+                  <TextField
                     type="search"
                     value={query}
                     onChange={(e) => setQuery(e.target.value)}

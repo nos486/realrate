@@ -14,6 +14,7 @@ import { rawKeyToLinkToken } from '../lib/e2ee.js';
 import { useVault } from '../shared/vault/useVault.js';
 import { getPortfolioRawKey, isAccountVaultPortfolio } from '../shared/vault/vaultStore.js';
 import { publicOrigin } from '../shared/native/nativeApp.js';
+import TextField from '../shared/ui/TextField.jsx';
 
 export function generateRandomSlug(len = 8) {
   const chars = '23456789abcdefghjkmnpqrstuvwxyz';
@@ -208,7 +209,7 @@ export default function UserSettingsModal({ isOpen, portfolio, onClose, onSaved,
             {/* Portfolio Name */}
             <div className="form-group">
               <label htmlFor="settingsPortfolioName">نام پورتفو</label>
-              <input
+              <TextField
                 type="text"
                 id="settingsPortfolioName"
                 placeholder="نام پورتفو..."

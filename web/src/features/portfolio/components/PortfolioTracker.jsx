@@ -10,6 +10,7 @@ import { Button, FeaturePageHeader } from '../../../shared/ui/index.js';
 import { useFeedback } from '../../../shared/ui/FeedbackProvider.jsx';
 import { useDemo } from '../../demo/index.js';
 import { useQuickAddParam } from '../../../shared/hooks/useQuickAddParam.js';
+import TextField from '../../../shared/ui/TextField.jsx';
 
 export default function PortfolioTracker({
   initialPortfolioId = null,
@@ -134,7 +135,7 @@ export default function PortfolioTracker({
       >
         <div className="form-item">
           <label>نام پورتفو</label>
-          <input
+          <TextField
             type="text"
             placeholder="مثلاً: پس‌انداز طلا، سبد ارزی..."
             value={newPortfolioName}

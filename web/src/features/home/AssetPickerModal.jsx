@@ -7,6 +7,7 @@ import { Plus, Check, Search } from 'lucide-react';
 import Modal from '../../shared/ui/Modal.jsx';
 import { usePricing } from '../market/context/PricingContext.jsx';
 import { CategoryIcon } from '../portfolio/utils/holdingHelpers.js';
+import TextField from '../../shared/ui/TextField.jsx';
 
 const CATEGORY_FILTERS = [
   { key: '', label: 'همه' },
@@ -54,7 +55,7 @@ export default function AssetPickerModal({ isOpen, onClose, section, onToggle })
       <div className="asset-picker">
         <div className="asset-picker-search">
           <Search size={15} aria-hidden="true" />
-          <input
+          <TextField
             type="search"
             value={query}
             onChange={(e) => setQuery(e.target.value)}

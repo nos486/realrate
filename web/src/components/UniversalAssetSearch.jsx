@@ -29,6 +29,7 @@ import {
   getCanonicalAssetSpec,
   getCanonicalAssetName,
 } from '../utils/financialSpecs.js';
+import TextField from '../shared/ui/TextField.jsx';
 
 export const PROMINENT_FOREX_CURRENCIES = FOREX_SPECS;
 
@@ -572,7 +573,7 @@ export default function UniversalAssetSearch({
       {/* Search Input Bar */}
       <div className="universal-search-bar">
         <Search size={16} className="universal-search-icon" />
-        <input
+        <TextField
           type="text"
           value={query}
           onChange={(e) => {

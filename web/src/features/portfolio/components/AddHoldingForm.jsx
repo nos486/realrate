@@ -30,6 +30,7 @@ import { usePricing } from '../../market/index.js';
 import FilterPills from '../../../shared/ui/FilterPills.jsx';
 import { useOptionalLoans } from '../../loans/context/LoansContext.jsx';
 import { fundingLoanOptions } from '../../../utils/loanFunding.js';
+import TextField from '../../../shared/ui/TextField.jsx';
 
 const formatNum = (v) => Number(v || 0).toLocaleString('fa-IR');
 
@@ -396,7 +397,7 @@ export default function AddHoldingForm({
         <div className="form-row-dual">
           <div className="form-item flex-1">
             <label>نام دارایی شخصی</label>
-            <input
+            <TextField
               type="text"
               placeholder="مثلاً زمین دماوند، خودرو، نقاشی..."
               value={customName}
@@ -407,7 +408,7 @@ export default function AddHoldingForm({
           </div>
           <div className="form-item flex-1">
             <label>واحد شمارش</label>
-            <input
+            <TextField
               type="text"
               placeholder="مثلاً متر، عدد، تن، سهم..."
               value={customUnit}
@@ -516,7 +517,7 @@ export default function AddHoldingForm({
       {/* Notes */}
       <div className="form-item">
         <label>یادداشت یا توضیحات</label>
-        <input
+        <TextField
           type="text"
           placeholder="مثلاً خرید از بورس یا بازار تهران..."
           value={notes}

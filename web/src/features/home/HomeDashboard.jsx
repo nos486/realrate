@@ -63,6 +63,7 @@ import {
   reorderSections,
   reorderItems,
 } from './homeLayoutModel.js';
+import TextField from '../../shared/ui/TextField.jsx';
 
 const STYLE_OPTIONS = [
   { id: 'detailed', label: 'کامل', Icon: LayoutGrid },
@@ -201,7 +202,7 @@ function EditableSection({ section, children, onChange, onRemove }) {
         >
           <GripVertical size={16} />
         </button>
-        <input
+        <TextField
           className="home-section-title-input"
           value={section.title}
           maxLength={HOME_LAYOUT_LIMITS.titleLength}

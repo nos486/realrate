@@ -1,5 +1,6 @@
 import React from 'react';
 import { Search, X } from 'lucide-react';
+import TextField from './TextField.jsx';
 
 /**
  * Standard SearchBar component with clear button and focus ring
@@ -26,7 +27,7 @@ export default function SearchBar({
   return (
     <div className={`ui-search-bar ${className}`} style={style}>
       <Search size={15} strokeWidth={2} className="search-bar-icon" />
-      <input
+      <TextField
         type="text"
         className="search-bar-input"
         value={value}
