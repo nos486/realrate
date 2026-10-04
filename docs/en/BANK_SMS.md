@@ -45,7 +45,7 @@ Both modules are also in `web/src/utils/` through symlinks (like the other domai
 | `balance` | | The balance after the transaction |
 | `account` | | The account number (digits, masked allowed); its last 4 digits match the account |
 | `card` | | The card number (usually masked); its last 4 digits are kept |
-| `date` | | Shamsi date: `MM/DD`, `YY/MM/DD` or `YYYY/MM/DD` (separators `/` `-` `.`). Without a year: the nearest such day up to today |
+| `date` | | Shamsi date: `MM/DD`, `YY/MM/DD` or `YYYY/MM/DD` (separators `/` `-` `.`, or none: `MMDD`, `YYMMDD`, `YYYYMMDD`). Without a year: the nearest such day up to today |
 | `time` | | `HH:MM` |
 | `kind` | | The transaction word (withdrawal/deposit/purchase …) for a word-based `direction` |
 | `desc` | | Free text (shop, terminal, …) |
@@ -106,3 +106,8 @@ Tips:
 | Pasargad | Sender `B.Pasargad`; `pasargad-balance` — dotted account number, signed amount (rials), `MM/DD_HH:MM`, «مانده» |
 | Shahr | Sender `Bank Shahr`; `shahr-balance` — «*بانک شهر*», an optional description (e.g. «سود»), «واریز به / برداشت از:» account, amount and balance in rials, `YYYY/MM/D HH:MM:SS` |
 | Mellat | Sender `Bank Mellat`; `mellat-balance` — «حساب…», «واریز/برداشت…» amount (rials), «مانده…», `YY/MM/DD-HH:MM` |
+| Resalat | Sender `ResalatBank`; `resalat-balance` — the same shape as Pasargad's (the sender tells them apart): dotted account number, signed amount (rials), `MM/DD_HH:MM`, «مانده» |
+| Mehr Iran | Sender `B.QMEHRIRAN`; `mehr-iran-balance` — account number, amount with the sign after it (rials), `YYYY/M/D-HH:MM`, «مانده» |
+| Tejarat | Sender `TejaratBank`; `tejarat-balance` — «*بانک تجارت*», «حساب:», «برداشت/واریز:» amount in rials, optional «از طریق:» (the description), «مانده:» in rials, `YYYY/MM/DD` and the time on the next line |
+| Melli | Sender `700717`; `melli-balance` — «بانک ملی ایران», the transaction kind (برداشت/انتقال/پایا/خریداینترنتی …, the description) with a signed amount (rials), «حساب:», «مانده:», `MMDD-HH:MM` |
+| Khavarmianeh | Sender `KH M BANK`; `khavarmianeh-balance` — «بانک خاورمیانه», account `branch/account`, signed amount (rials), `MM/DD` and the time on the next line, «مانده», optional description on the last line |

@@ -115,6 +115,98 @@ export const BANK_SMS_TEMPLATES = [
       },
     ],
   },
+  {
+    bankId: 'resalat',
+    senders: ['ResalatBank'],
+    templates: [
+      {
+        // 10.3372914.1
+        // -13,550,000
+        // 07/11_00:12
+        // مانده: 428,428,242
+        // (the same shape as Pasargad's: the sender tells them apart)
+        id: 'resalat-balance',
+        unit: 'rial',
+        direction: 'sign',
+        pattern: re(String.raw`^(?<account>\d[\d.*]{4,30})\n(?<amount>${P.amount})\n(?<date>${P.date})_(?<time>${P.time})\nمانده\s?:\s?(?<balance>${P.balance})$`),
+      },
+    ],
+  },
+  {
+    bankId: 'mehr-iran',
+    senders: ['B.QMEHRIRAN'],
+    templates: [
+      {
+        // 300362322544
+        // 400,000-
+        // 1405/7/1-16:31
+        // مانده:2,279,556
+        id: 'mehr-iran-balance',
+        unit: 'rial',
+        direction: 'sign',
+        pattern: re(String.raw`^(?<account>${P.digits})\n(?<amount>${P.amount})\n(?<date>${P.date})-(?<time>${P.time})\nمانده\s?:\s?(?<balance>${P.balance})$`),
+      },
+    ],
+  },
+  {
+    bankId: 'tejarat',
+    senders: ['TejaratBank'],
+    templates: [
+      {
+        // *بانک تجارت*
+        // حساب: 0177002186043
+        // برداشت: 60,000 ریال
+        // از طريق: پایانه فروش
+        // مانده: 24,502,460 ریال
+        // 1405/07/11
+        // 14:15
+        // (a deposit: «واریز:»; the «از طریق» line, the channel, may be missing)
+        id: 'tejarat-balance',
+        unit: 'rial',
+        direction: { debit: ['برداشت', 'خرید', 'پرداخت', 'انتقال'], credit: ['واریز'] },
+        pattern: re(String.raw`^\*?\s?بانک تجارت\s?\*?\nحساب\s?:\s?(?<account>${P.digits})\n(?<kind>[^\d\n:+-]+?)\s?:\s?(?<amount>${P.amount})\s?ریال\n(?:از طریق\s?:\s?(?<desc>[^\n]+)\n)?مانده\s?:\s?(?<balance>${P.balance})\s?ریال\n(?<date>${P.date})\s(?<time>${P.time})$`),
+      },
+    ],
+  },
+  {
+    bankId: 'melli',
+    senders: ['700717'],
+    templates: [
+      {
+        // بانك ملي ايران
+        // برداشت:500,000-
+        // حساب:10000
+        // مانده:23,488,359
+        // 0705-20:46
+        // (the first word names the transaction: برداشت / انتقال / پايا / خريداينترنتي …, the
+        // amount's sign its direction; the date is MMDD, no separator)
+        id: 'melli-balance',
+        unit: 'rial',
+        direction: 'sign',
+        pattern: re(String.raw`^بانک ملی ایران\n(?<desc>[^\d\n:+-]+?)\s?:\s?(?<amount>${P.amount})\nحساب\s?:\s?(?<account>${P.digits})\nمانده\s?:\s?(?<balance>${P.balance})\n(?<date>\d{4})-(?<time>${P.time})$`),
+      },
+    ],
+  },
+  {
+    bankId: 'khavarmianeh',
+    senders: ['KH M BANK'],
+    templates: [
+      {
+        // بانک خاورمیانه
+        // 838/000115456
+        // -208,000,000
+        // 07/08
+        // 15:58
+        // مانده 536,365
+        // برداشت حواله پل
+        // (the last line, what it was, may be missing)
+        id: 'khavarmianeh-balance',
+        unit: 'rial',
+        direction: 'sign',
+        pattern: re(String.raw`^بانک خاورمیانه\n(?<account>\d[\d/*]{4,30})\n(?<amount>${P.amount})\n(?<date>${P.date})\s(?<time>${P.time})\nمانده\s?:?\s?(?<balance>${P.balance})(?:\n(?<desc>[^\n]+))?$`),
+      },
+    ],
+  },
 ];
 
 /** The banks that have templates (for "supported banks" lists) */

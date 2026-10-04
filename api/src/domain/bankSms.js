@@ -18,7 +18,8 @@
  *   balance  the balance after it
  *   account  the account number (digits; masked digits like "123***4567" are fine)
  *   card     the card number (usually masked): its last 4 digits are kept
- *   date     "MM/DD", "YY/MM/DD" or "YYYY/MM/DD", Shamsi ("/", "-" or "." between)
+ *   date     "MM/DD", "YY/MM/DD" or "YYYY/MM/DD", Shamsi ("/", "-" or "." between, or none:
+ *            "MMDD", "YYMMDD", "YYYYMMDD")
  *   time     "HH:MM"
  *   kind     a word naming the direction (برداشت / واریز / ...), mapped by `direction`
  *   desc     free text (the merchant, a terminal, ...)
@@ -136,7 +137,10 @@ const pad = (n) => String(n).padStart(2, '0');
  * @returns {string} YYYY-MM-DD, or '' when it is not a date
  */
 export function smsDateToIso(raw, today = new Date()) {
-  const parts = String(raw ?? '').split(/[/.-]/).map((p) => Number(p));
+  const text = String(raw ?? '');
+  // Without separators: MMDD, YYMMDD or YYYYMMDD
+  const compact = /^\d{4}$|^\d{6}$|^\d{8}$/.test(text) ? text.match(/^(\d{2,4}?)?(\d{2})(\d{2})$/) : null;
+  const parts = (compact ? compact.slice(1).filter(Boolean) : text.split(/[/.-]/)).map((p) => Number(p));
   if (parts.some((p) => !Number.isInteger(p))) return '';
   let jy;
   let jm;
