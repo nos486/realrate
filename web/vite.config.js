@@ -21,7 +21,7 @@ export default defineConfig(({ mode }) => ({
     proxy: {
       // Proxy /api requests to live backend (or local worker if set)
       '/api': {
-        target: process.env.VITE_PROXY_TARGET || 'https://realrate-api.geekio.org',
+        target: process.env.VITE_PROXY_TARGET || 'https://api.realrate.ir',
         changeOrigin: true,
         secure: false,
       },

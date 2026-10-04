@@ -14,6 +14,7 @@ import {
 } from '../repositories/alertEmail.repository.js';
 import { occurrencesBetween } from '../domain/reminders.js';
 import { sendEmail, reminderDigestEmail, isEmailConfigured } from '../lib/email.js';
+import { siteOrigin } from '../lib/siteOrigin.js';
 import { logger } from '../lib/logger.js';
 
 const toFa = (n) => Number(n || 0).toLocaleString('fa-IR');
@@ -228,7 +229,7 @@ export async function runReminderEmailDigest(env, options = {}) {
 
       if (!allLines.length) continue;
 
-      const baseAppUrl = (appUrl || 'https://realrate.ir').replace(/\/$/, '');
+      const baseAppUrl = (appUrl || siteOrigin(env)).replace(/\/$/, '');
       const digest = reminderDigestEmail({
         subject: `RealRate: ${toFa(allLines.length)} یادآوری سررسید`,
         items: allLines,
