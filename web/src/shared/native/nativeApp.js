@@ -46,10 +46,7 @@ export function publicOrigin() {
 
 /** Colors and splash screen, once on start (inside the app only) */
 export async function initNativeApp() {
-  if (!isNativeApp()) return;
-  // The app's own layout and touch feel (styles/app-shell.css), before the first render
-  document.documentElement.classList.add('is-native-app');
-  if (!Capacitor.isNativePlatform()) return;
+  if (!isNativeApp() || !Capacitor.isNativePlatform()) return;
   try {
     const [{ StatusBar, Style }, { SplashScreen }] = await Promise.all([
       import('@capacitor/status-bar'),

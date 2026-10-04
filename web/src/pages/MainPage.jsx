@@ -19,6 +19,7 @@ import { useDocumentTitle } from '../shared/hooks/useDocumentTitle.js';
 import { useTabNavigation } from '../shared/hooks/useTabNavigation.js';
 import { useFeature } from '../shared/features/useFeature.js';
 import FeatureOffer from '../shared/features/FeatureOffer.jsx';
+import { useAppLayout } from '../shared/app/appLayout.js';
 import { isNativeApp } from '../shared/native/nativeApp.js';
 import { startSmsAutoRead } from '../shared/native/smsInbox.js';
 import { initDueNotificationClicks } from '../shared/native/dueNotifications.js';
@@ -66,6 +67,9 @@ export default function MainPage() {
   // The market page (prices, their charts, the customizable home) is open to some groups only
   // (feature `market`, "pro" by default); the others see what it offers and can ask to join
   const hasMarket = useFeature('market');
+  // The app's frame (the Android app, or the website on a phone): home is the user's dashboard and
+  // the market is its own page; what only the Android app can do still asks isNativeApp()
+  const appLayout = useAppLayout();
 
   // Android app: read new bank SMS on opening, on every return to the app and as they arrive; a
   // bank SMS notification opens the SMS page, where the messages wait to be recorded
@@ -133,8 +137,8 @@ export default function MainPage() {
       searchParams.get('tab') === 'transactions'
     );
 
-  // Android app: the market has its own page (the app's home is the user's own dashboard)
-  const isRates = isNativeApp() && subPath.startsWith('/rates');
+  // App frame: the market has its own page (the home is the user's own dashboard)
+  const isRates = appLayout && subPath.startsWith('/rates');
 
   const isLoans =
     !isSettings && !isIncomes && !isCheques && !isExpenses && !isAccounts && !isPortfolio && (
@@ -190,7 +194,7 @@ export default function MainPage() {
   // Website: without the market page, the app opens on the portfolio; «نرخ و حباب» (/rates) still
   // shows what the market page offers
   const marketLocked = Boolean(user) && !hasMarket;
-  const opensOnPortfolio = marketLocked && !isNativeApp() && subPath === '/' && !searchParams.get('tab');
+  const opensOnPortfolio = marketLocked && !appLayout && subPath === '/' && !searchParams.get('tab');
   useEffect(() => {
     if (opensOnPortfolio) navigate(lastPortfolioPath('/portfolio'), { replace: true });
     // Only when it starts on the home path
@@ -230,10 +234,10 @@ export default function MainPage() {
     } else if (TAB_PATHS[nextTab]) {
       goToTab(appPath(TAB_PATHS[nextTab]));
     // Website without the market page: /app opens the portfolio, so the offer is at /rates
-    } else if (nextTab === 'market' && marketLocked && !isNativeApp()) {
+    } else if (nextTab === 'market' && marketLocked && !appLayout) {
       goToTab(appPath('/rates'));
     // On the website /rates is the home page too; in the app it is the market's own page
-    } else if (subPath !== '/' && (isNativeApp() || subPath !== '/rates')) {
+    } else if (subPath !== '/' && (appLayout || subPath !== '/rates')) {
       goToTab(appPath('/'));
     }
   };
@@ -242,8 +246,8 @@ export default function MainPage() {
   const tabOptions = useMemo(() => {
     const options = [
       { value: 'market', label: 'نرخ و حباب', icon: <TrendingUp size={16} strokeWidth={2} /> },
-      // Android app: «خانه» is the dashboard, the market is one of the other sections
-      ...(isNativeApp() ? [{ value: 'rates', label: 'نرخ و حباب', icon: <TrendingUp size={16} strokeWidth={2} /> }] : []),
+      // App frame: «خانه» is the dashboard, the market is one of the other sections
+      ...(appLayout ? [{ value: 'rates', label: 'نرخ و حباب', icon: <TrendingUp size={16} strokeWidth={2} /> }] : []),
       { value: 'incomes', label: 'درآمدها', icon: <Wallet size={16} strokeWidth={2} /> },
       // Beta (admins): expenses right after incomes, then the accounts they are paid from
       ...(hasExpenses ? [{ value: 'expenses', label: 'هزینه‌ها', icon: <HandCoins size={16} strokeWidth={2} /> }] : []),
@@ -268,7 +272,7 @@ export default function MainPage() {
       );
     }
     return options;
-  }, [user, isDemo, hasExpenses, hasAccounts]);
+  }, [user, isDemo, hasExpenses, hasAccounts, appLayout]);
 
 
   const {
@@ -329,7 +333,7 @@ export default function MainPage() {
 
       {/* Modern Segmented Navigation Tabs & Live Rates Ticker (in the Android app the bottom bar
           navigates, and the rates show on the home page only) */}
-      {(!isNativeApp() || activeTab === 'market' || activeTab === 'rates') && (
+      {(!appLayout || activeTab === 'market' || activeTab === 'rates') && (
       <div className="main-nav-container">
         <div className="main-nav-tabs-bar">
           <FilterPills
@@ -344,7 +348,7 @@ export default function MainPage() {
       )}
 
       {/* Only where prices are shown */}
-      {(isNativeApp() ? ['rates', 'portfolio'] : ['market', 'portfolio']).includes(activeTab) && (hasMarket || activeTab === 'portfolio') && <PriceRefreshStatus />}
+      {(appLayout ? ['rates', 'portfolio'] : ['market', 'portfolio']).includes(activeTab) && (hasMarket || activeTab === 'portfolio') && <PriceRefreshStatus />}
 
       {/* Tab Views */}
       <section className="tab-view-container">
@@ -361,13 +365,13 @@ export default function MainPage() {
         {activeTab === 'loans' && <AlertStack sources={['loan']} />}
         {activeTab === 'cheques' && <AlertStack sources={['cheque']} />}
 
-        {activeTab === 'market' && isNativeApp() && (
+        {activeTab === 'market' && appLayout && (
           <Suspense fallback={<TabLoader />}>
             <AppHomeDashboard usdToman={usdNum} analysis={analysis} onOpen={openFromHome} />
           </Suspense>
         )}
 
-        {activeTab === (isNativeApp() ? 'rates' : 'market') && (
+        {activeTab === (appLayout ? 'rates' : 'market') && (
           <div className="market-tab-content">
             {hasMarket ? (
               /* The user's own home page: sections of any assets, customizable per user */
