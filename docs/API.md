@@ -42,7 +42,8 @@ Errors share one shape: `{ success: false, message, error: { code, message } }` 
 | `GET` | `/api/v1/bourse/symbols` | Search and list Tehran Stock Exchange symbols (`?q=...&limit=...`) |
 | `POST` | `/api/v1/bourse/sync` | Force synchronize bourse symbols cache |
 | `GET` | `/api/app/latest` | The Android app's latest release, for its update check: `{ release: { version, tag, url, size, notes, publishedAt } \| null }`. Read from GitHub releases (the API, else the `releases/latest` redirect; optional `GITHUB_TOKEN`), kept 10 minutes in D1 (`app_state`), the last known one served when GitHub fails. Answered during maintenance too. |
-| `GET` | `/api/news` | Market news picked from Telegram channels, newest first: `{ items: [{ id, channel, channelTitle, postId, url, title, summary, text, category, importance (1–3), image, publishedAt (ms), ai }], hasMore, categories }`. `?limit` (≤ 50, default 20), `?before=<publishedAt>` (next page), `?category=currency\|gold\|metals\|oil\|economy\|crypto`, `?important=1` (importance ≥ 2). Cached 30 s. Filled by the minute cron (`services/news/news.service.js`) |
+| `GET` | `/api/news` | Market news picked from Telegram channels, newest first: `{ items: [{ id, channel, channelTitle, postId, url, title, summary, text, category, importance (1–3), image, publishedAt (ms), ai }], hasMore, categories }`. `?limit` (≤ 50, default 20), `?page=<n>` (with `total`) or `?before=<publishedAt>`, `?category=currency\|gold\|metals\|oil\|bourse\|economy\|crypto`, `?important=1` (importance ≥ 2). Cached 30 s. Filled by the minute cron (`services/news/news.service.js`) |
+| `GET` | `/api/news/today` | `{ analysis, top }`: the analyst's card written by Workers AI from the day's news and main prices (`{ title, summary, outlook: [{ asset: usd\|gold\|coin\|bourse\|oil, direction: up\|down\|flat, note }], points, risk, at, newsCount }`, or null) and today's 6 most important items (the last 24 hours early in the day). Cached 30 s |
 | `GET` / `POST` | `/api/v1/portfolio/shared` | Retrieve a publicly shared portfolio (`?slug=...`; a share password is accepted only in a `POST` body `{ slug, password }`) |
 
 #### Unified Market Items Schema (`/api/v1/market/items`)
@@ -346,6 +347,7 @@ A feature can be open to every user or only to the members of some groups (rules
 | `POST` | `/api/v1/admin/price-sources/fetch-all` | Trigger immediate fetch across all sources |
 | `GET` | `/api/v1/admin/news/channels` | The news section's channels `[{ username, enabled }]` (the default list until one is saved), the last run by channel (`status`), `aiConfigured` (the `AI` binding) and the limits |
 | `PUT` | `/api/v1/admin/news/channels` | `{ channels: [{ username, enabled }] }` — save the list (`@name`, `t.me/name` accepted; repeats dropped). A new channel's last 10 posts are reviewed on its first read |
+| `POST` | `/api/v1/admin/news/analysis` | Write the analyst's card now (whatever the interval) |
 | `POST` | `/api/v1/admin/news/run` | Read the channels now; `{ result: { checked, candidates, published, aiCalls }, status }` |
 | `POST` | `/api/v1/admin/news/<channel>/<postId>/hidden` | `{ hidden }` — take a news item down (or put it back) |
 | `GET` | `/api/v1/admin/demo` | Inspect demo account state (existence, non-confidential record counts, last updated) |

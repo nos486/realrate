@@ -7,6 +7,7 @@ export const NEWS_CATEGORIES = {
   gold: 'طلا و سکه',
   metals: 'فلزات',
   oil: 'نفت و انرژی',
+  bourse: 'بورس و شاخص',
   economy: 'اقتصاد',
   crypto: 'رمزارز',
 };

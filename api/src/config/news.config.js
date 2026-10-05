@@ -55,6 +55,7 @@ export const NEWS_CATEGORIES = {
   gold: "طلا و سکه",
   metals: "فلزات",
   oil: "نفت و انرژی",
+  bourse: "بورس و شاخص",
   economy: "اقتصاد",
   crypto: "رمزارز",
 };
@@ -71,11 +72,14 @@ export const NEWS_KEYWORDS = {
     "تورم", "نرخ بهره", "بانک مرکزی", "فدرال رزرو", "فدرال", "نقدینگی", "رکود", "ارزش پول", "پول ملی",
     "تحریم", "مذاکره", "برجام", "اسنپ بک", "آژانس", "شورای امنیت",
     "نفت", "برنت", "اوپک", "بیت کوین", "بیتکوین", "تتر",
+    // The stock market as a whole (one symbol's news is not wanted: see negative)
+    "شاخص کل", "شاخص بورس", "شاخص هم وزن", "بورس تهران", "ارزش معاملات", "پول حقیقی", "صندوق تثبیت",
   ],
   weak: [
     "قیمت", "بازار", "اقتصاد", "اقتصادی", "بانک", "بودجه", "مالیات", "یارانه", "بنزین", "صادرات",
     "واردات", "گمرک", "کسری", "رشد", "سقوط", "جهش", "افزایش", "کاهش", "رکورد", "ریال", "تومان",
-    "جنگ", "حمله", "آتش بس", "ترامپ", "آمریکا", "اسرائیل", "شاخص کل", "بورس", "وزیر اقتصاد",
+    "جنگ", "حمله", "آتش بس", "ترامپ", "آمریکا", "اسرائیل", "بورس", "فرابورس", "وزیر اقتصاد",
+    "مسکن", "خودرو", "حقوق", "دستمزد", "سود بانکی", "اوراق",
   ],
   negative: [
     "نماد", "عرضه اولیه", "صف خرید", "صف فروش", "مجمع عمومی", "افزایش سرمایه", "سود تقسیمی",
@@ -84,5 +88,26 @@ export const NEWS_KEYWORDS = {
 };
 
 export const NEWS_KEYWORD_MIN_SCORE = 2;
+
+/**
+ * The analyst's card: the model reads the day's news (headlines and summaries, with today's main
+ * prices) and writes its view of where the dollar, gold, coins, the stock index and oil are going.
+ * Written again when new news came in, at most every `minIntervalMinutes`.
+ */
+export const NEWS_ANALYSIS = {
+  /** A larger model: one request now and then, where reasoning matters more than cost */
+  models: ["@cf/meta/llama-3.3-70b-instruct-fp8-fast", "@cf/google/gemma-3-12b-it"],
+  minIntervalMinutes: 30,
+  /** The day's first analysis waits for this much news */
+  minNews: 3,
+  /** News read for one analysis (the most important and the newest) */
+  maxNews: 30,
+  /** Characters of each item's summary sent */
+  summaryChars: 220,
+  perDay: 30,
+  maxTokens: 900,
+  /** Prices shown to the model (price book ids) */
+  priceIds: ["usd", "eur", "gold_18k", "full_coin", "mesghal", "ons_gold", "ons_silver", "usdt"],
+};
 /** Without the model (not bound, out of budget, failing), a post needs this score to publish */
 export const NEWS_KEYWORD_ONLY_SCORE = 5;

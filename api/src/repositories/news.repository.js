@@ -44,12 +44,13 @@ export async function dbInsertNews(env, items) {
 /**
  * Published news, newest first
  * @param {object} env
- * @param {{ limit?: number, before?: number, category?: string, importance?: number }} [opts]
- *   before: only news published before this time (ms), for the next page
- * @returns {Promise<{ items: object[], hasMore: boolean }>}
+ * @param {{ limit?: number, page?: number, before?: number, category?: string, importance?: number }} [opts]
+ *   page: 1-based page of `limit` items (with the total); before: only news published before this
+ *   time (ms) — either one
+ * @returns {Promise<{ items: object[], hasMore: boolean, total: number }>}
  */
-export async function dbListNews(env, { limit = 20, before = 0, category = "", importance = 0 } = {}) {
-  if (!hasDatabase(env)) return { items: [], hasMore: false };
+export async function dbListNews(env, { limit = 20, page = 0, before = 0, category = "", importance = 0 } = {}) {
+  if (!hasDatabase(env)) return { items: [], hasMore: false, total: 0 };
   await ensureSchema(env);
   const where = ["hidden = 0"];
   const params = [];
@@ -65,10 +66,42 @@ export async function dbListNews(env, { limit = 20, before = 0, category = "", i
     where.push("importance >= ?");
     params.push(importance);
   }
+  const whereSql = where.join(" AND ");
+  const offset = page > 1 ? (page - 1) * limit : 0;
+  const [list, count] = await env.DB.batch([
+    env.DB.prepare(`SELECT * FROM news WHERE ${whereSql} ORDER BY published_at DESC, id DESC LIMIT ? OFFSET ?`)
+      .bind(...params, limit + 1, offset),
+    env.DB.prepare(`SELECT COUNT(*) AS n FROM news WHERE ${whereSql}`).bind(...params),
+  ]);
+  const results = list?.results || [];
+  return {
+    items: results.slice(0, limit).map(toItem),
+    hasMore: results.length > limit,
+    total: Number(count?.results?.[0]?.n || 0),
+  };
+}
+
+/**
+ * The news published since `since` (ms), most important first then newest
+ * @returns {Promise<object[]>}
+ */
+export async function dbTopNewsSince(env, since, limit = 8) {
+  if (!hasDatabase(env)) return [];
+  await ensureSchema(env);
   const { results = [] } = await env.DB.prepare(
-    `SELECT * FROM news WHERE ${where.join(" AND ")} ORDER BY published_at DESC, id DESC LIMIT ?`
-  ).bind(...params, limit + 1).all();
-  return { items: results.slice(0, limit).map(toItem), hasMore: results.length > limit };
+    "SELECT * FROM news WHERE hidden = 0 AND published_at >= ? ORDER BY importance DESC, published_at DESC LIMIT ?"
+  ).bind(since, limit).all();
+  return results.map(toItem);
+}
+
+/** How many news items were published since `since` (ms), and when the newest was saved */
+export async function dbNewsStatsSince(env, since) {
+  if (!hasDatabase(env)) return { count: 0, lastSavedAt: 0 };
+  await ensureSchema(env);
+  const row = await env.DB.prepare(
+    "SELECT COUNT(*) AS n, MAX(created_at) AS last FROM news WHERE hidden = 0 AND published_at >= ?"
+  ).bind(since).first();
+  return { count: Number(row?.n || 0), lastSavedAt: Number(row?.last || 0) };
 }
 
 /** The text of news published since `since` (ms), hidden ones too: a post like them is a repeat */

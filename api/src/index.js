@@ -186,6 +186,8 @@ import {
   handleAdminSaveNewsChannels,
   handleAdminRunNews,
   handleAdminSetNewsHidden,
+  handleGetNewsToday,
+  handleAdminRunNewsAnalysis,
 } from "./handlers/newsRoutes.js";
 import { fetchAllPrices } from "./services/market/priceAggregator.service.js";
 import {
@@ -366,6 +368,7 @@ async function handleRequest(request, env, ctx) {
     if (request.method === "PUT") return wrap(handleAdminSaveNewsChannels)(request, env);
   }
   if (normalizedPath === "/api/admin/news/run" && request.method === "POST") return wrap(handleAdminRunNews)(request, env);
+  if (normalizedPath === "/api/admin/news/analysis" && request.method === "POST") return wrap(handleAdminRunNewsAnalysis)(request, env);
   const adminNewsHiddenMatch = normalizedPath.match(/^\/api\/admin\/news\/([a-z0-9_]+\/\d+)\/hidden$/);
   if (adminNewsHiddenMatch && request.method === "POST") {
     return wrap((req, e) => handleAdminSetNewsHidden(req, e, { id: adminNewsHiddenMatch[1] }))(request, env);
@@ -378,6 +381,7 @@ async function handleRequest(request, env, ctx) {
 
   // ── News (public: market news picked from Telegram channels) ────────────
   if (normalizedPath === "/api/news" && request.method === "GET") return wrap(handleGetNews)(request, env);
+  if (normalizedPath === "/api/news/today" && request.method === "GET") return wrap(handleGetNewsToday)(request, env);
 
   // ── Portfolio API Routes ────────────────────────────────────────────────
   if (normalizedPath === "/api/portfolio/shared")                              return wrap(handleGetSharedPortfolio)(request, env);

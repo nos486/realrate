@@ -1,6 +1,7 @@
 /**
  * NewsCard.jsx — «آخرین اخبار» on the home page (the website's and the app's): the latest few
- * headlines with their source and time; an item or «همه» opens the news page
+ * headlines (one line each) with their source and time; an item or «همه» opens the news page.
+ * On the website's home (`is-web-home`) the four latest stand side by side.
  */
 
 import React from 'react';
@@ -41,7 +42,7 @@ export default function NewsCard({ count = 4, className = '' }) {
               <button type="button" className="news-card-row" onClick={() => open(n.id)}>
                 <span className={`news-dot is-${n.importance >= 3 ? 'high' : n.importance === 2 ? 'mid' : 'low'}`} aria-hidden="true" />
                 <span className="news-card-text">
-                  <strong>{n.title}</strong>
+                  <strong title={n.title}>{n.title}</strong>
                   <small>
                     <bdi>{newsSource(n)}</bdi> · <time dateTime={new Date(n.publishedAt).toISOString()} title={newsFullTime(n.publishedAt)}>{newsTimeAgo(n.publishedAt)}</time>
                   </small>
