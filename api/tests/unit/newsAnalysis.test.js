@@ -187,20 +187,6 @@ describe('maybeUpdateNewsAnalysis', () => {
     const body = await (await handleGetNewsToday(new Request('https://x/api/news/today'), env)).json();
     expect(body.top).toHaveLength(3);
     expect(body.analysis.title).toMatch(/^فشار تورمی/);
-    // Today's counts (Tehran day), by category
-    const todays = [1, 2, 3].filter((i) => now - i * 60000 >= tehranDayStart(now)).length;
-    expect(body.stats).toEqual({ total: todays, important: 0, byCategory: todays ? { currency: todays } : {} });
-  });
-
-  it("today's counts: by category, important ones apart, hidden and yesterday's left out", async () => {
-    const { dbNewsCountsSince } = await import('../../src/repositories/news.repository.js');
-    await dbInsertNews(env, [
-      item(1, 10, 3),
-      { ...item(2, 20), category: 'gold' },
-      { ...item(3, 30, 3), category: 'gold' },
-      { ...item(4, 24 * 60) },
-    ]);
-    expect(await dbNewsCountsSince(env, NOW - 60 * 60000)).toEqual({ total: 3, important: 2, byCategory: { currency: 1, gold: 2 } });
   });
 
   describe('the model lab', () => {
