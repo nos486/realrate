@@ -63,6 +63,12 @@ const endpointKeyOf = (src) => `${src.sourceType}::${src.endpoint || src.apiUrl 
  * Today's range of every item (Tehran day), carried from the previous book — no database read:
  * `params.day`, `dayOpen` (the day's first price), `dayHigh`, `dayLow`. A new day starts at the
  * current price. Home cards show it as a low–high bar.
+ *
+ * Also each item's change, the standard the cards show (`params.changePercent`), for items whose
+ * source gives none: the change of its last session — against `prevClose`, the price before its
+ * first move on `closeDay`. A session starts at an item's first move on a new Tehran day, so a
+ * source that hasn't updated for hours (a holiday, a stalled feed) keeps showing its last
+ * session's change instead of none. A source's own change (the bourse's) is kept as it is.
  * @param {{ items: Record<string, object> }} book
  * @param {{ items?: Record<string, object> }|null} previousBook
  * @param {number} now
@@ -81,8 +87,31 @@ export function withDayRange(book, previousBook, now) {
       dayHigh: same ? Math.max(Number(prev.dayHigh), price) : price,
       dayLow: same ? Math.min(Number(prev.dayLow), price) : price,
     };
+    if (!Number.isFinite(Number(item.params.changePercent))) Object.assign(item.params, sessionChange(prev, previousBook?.items?.[item.id]?.price, price, day));
   }
   return book;
+}
+
+/**
+ * An item's last-session change: { prevClose, closeDay, changePercent }, or {} before it has a base
+ * @param {object|undefined} prev - its params in the previous book
+ * @param {number|undefined} prevPrice - its price in the previous book
+ */
+function sessionChange(prev, prevPrice, price, day) {
+  const before = Number(prevPrice);
+  let prevClose = Number(prev?.prevClose);
+  let closeDay = prev?.closeDay;
+  if (before > 0 && before !== price && closeDay !== day) {
+    // Its first move today: the price before it closed the last session
+    prevClose = before;
+    closeDay = day;
+  } else if (!(prevClose > 0) && before > 0) {
+    // No base yet (an item new to the book): today's first price
+    prevClose = prev?.day === day && Number(prev.dayOpen) > 0 ? Number(prev.dayOpen) : before;
+    closeDay = day;
+  }
+  if (!(prevClose > 0)) return {};
+  return { prevClose, closeDay, changePercent: Math.round(((price - prevClose) / prevClose) * 10000) / 100 };
 }
 
 /**

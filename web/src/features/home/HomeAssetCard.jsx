@@ -1,9 +1,8 @@
 /**
  * HomeAssetCard.jsx — One asset on the home page, in any of the card styles
  *
- * - detailed (the full card): a card that turns over. The front: price, the 24-hour change
- *   (against yesterday's close, from the price history; the source's own figure without one), for
- *   gold & coins the bubble analysis (intrinsic value, standard price, deviation), and today's
+ * - detailed (the full card): a card that turns over. The front: price, its change (the last
+ *   session's, from the price book), for gold & coins the bubble analysis (intrinsic value, standard price, deviation), and today's
  *   low and high (from the price book). Tapped (or Enter / Space), it turns to its back: only the
  *   candles (۱ ماه / ۶ ماه / ۱ سال), fetched the first time that card is turned — nothing loads
  *   before; the card is locked while they load.
@@ -15,7 +14,6 @@ import React, { useState } from 'react';
 import { ChartCandlestick } from 'lucide-react';
 import { CategoryIcon } from '../portfolio/utils/holdingHelpers.js';
 import TrendCandles from './TrendCandles.jsx';
-import { changeSince } from './useDayChanges.js';
 import { useAssetCandles } from './useAssetCandles.js';
 
 function formatNum(num) {
@@ -168,7 +166,7 @@ const CANDLE_RANGES = [
  * card is locked (it shows it, and doesn't turn).
  * A tap on the back — the chart included — turns it to the front again.
  */
-function FullCard({ asset, isBest = false, flippable = true, previousClose = null }) {
+function FullCard({ asset, isBest = false, flippable = true }) {
   const [requested, setRequested] = useState(false);
   const [opened, setOpened] = useState(false);
   const [range, setRange] = useState('30d');
@@ -185,10 +183,8 @@ function FullCard({ asset, isBest = false, flippable = true, previousClose = nul
   const hasMarket = item ? item.market !== null && item.market !== undefined : true;
   const price = asset.price || (item ? (hasMarket ? item.market : item.intrinsic) : null) || null;
   const unit = item ? 'تومان' : asset.unit;
-  // The change over 24 hours (against yesterday's close, from the price history); the source's
-  // own figure while the history has none
-  const change24h = changeSince(previousClose, Number(price));
-  const change = change24h !== null ? changeBadge(change24h) : changeBadge(asset.changePercent);
+  // The book's change of its last session (params.changePercent, set by the sync)
+  const change = changeBadge(asset.changePercent);
   const isFlipped = flippable && requested && opened;
   const direction = change?.className === 'badge-good' ? 'up' : change ? 'down' : 'flat';
 
@@ -209,7 +205,7 @@ function FullCard({ asset, isBest = false, flippable = true, previousClose = nul
   };
 
   const changePill = change && (
-    <span className={`bubble-pill ${change.className}`} title={change24h !== null ? 'تغییر نسبت به قیمت پایانی دیروز' : undefined}>
+    <span className={`bubble-pill ${change.className}`} title="تغییر نسبت به پایانی جلسه‌ی قبل">
       <bdi>{change.text}</bdi>
     </span>
   );
@@ -300,14 +296,12 @@ function MissingCard({ asset, style }) {
 }
 
 /**
- * @param {{ asset: object, style: 'detailed'|'compact', isBest?: boolean, flippable?: boolean,
- *   previousClose?: number|null }} props
- *   flippable: false while the page is being arranged (a tap there is a drag);
- *   previousClose: its close 24 hours ago (useDayChanges), for the full card's 24-hour change
+ * @param {{ asset: object, style: 'detailed'|'compact', isBest?: boolean, flippable?: boolean }} props
+ *   flippable: false while the page is being arranged (a tap there is a drag)
  */
-export default function HomeAssetCard({ asset, style, isBest = false, flippable = true, previousClose = null }) {
+export default function HomeAssetCard({ asset, style, isBest = false, flippable = true }) {
   if (!asset.found) return <MissingCard asset={asset} style={style} />;
   if (style === 'compact') return <CompactCard asset={asset} />;
   // The full card (also a section saved with the older "trend" style)
-  return <FullCard asset={asset} isBest={isBest} flippable={flippable} previousClose={previousClose} />;
+  return <FullCard asset={asset} isBest={isBest} flippable={flippable} />;
 }
