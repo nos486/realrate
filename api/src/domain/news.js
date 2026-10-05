@@ -204,7 +204,7 @@ PUBLISH (k=1) only real, new news — an event, a decision, a statement or a dat
 
 REJECT (k=0): news of a single stock, symbol, fund or company; ads, promotions, channel invitations, signals or buy/sell calls; opinion, analysis or predictions without a new event; bare price lists or market reports with nothing but prices; greetings, quotes, jokes; anything not about markets or the economy; a recap of older news; a post with vulgar or insulting language.
 
-POLITICS AND SECURITY: publish them only as a new event that changes the situation — a new attack or strike, a ceasefire or its collapse, new sanctions or their lifting, an agreement, a decision or a concrete step in talks. Reject statements, speeches, accusations, threats, interviews and commentary about what happened before, even by a president or a minister, unless they announce such a decision.
+POLITICS AND SECURITY: publish them only as a new event that changes the situation — a new attack or strike, a ceasefire or its collapse, new sanctions or their lifting, an agreement, a decision or a concrete step in talks. Reject statements, speeches, accusations, denials, threats, interviews and commentary, even by a president or a minister, unless they announce such a decision — for example an official defending the nuclear program, blaming another country, recounting earlier attacks or inspections, or a report of what a country "was ready to do". Publish politics only when it has a direct, concrete effect on the markets.
 
 IMPORTANCE p (market impact):
 3 = can move the dollar or gold directly: sanctions or talks, war or military escalation, the central bank's FX or rate decisions, the Fed's decisions, OPEC decisions, a sharp move in world gold or oil, an official change in the FX regime.
