@@ -44,15 +44,13 @@ export const NEWS_LIMITS = {
 const JSON_ANSWER = { response_format: { type: "json_object" } };
 
 /**
- * The models screening and summarizing posts, on Workers AI (the `AI` binding in wrangler.toml),
- * tried in order (services/news/workersAi.js): GLM 5.3 Flash (no reasoning: a verdict per post
- * doesn't need it), then Gemma 4 and Llama 3.3 when it fails. The answer is a JSON array, so no
- * `json_object` here.
+ * The model screening and summarizing posts, on Workers AI (the `AI` binding in wrangler.toml):
+ * GLM 5.3 Flash (no reasoning: a verdict per post doesn't need it), and only it — when it fails, no
+ * other model is tried; the error shows in the admin's panel and only posts with many keywords are
+ * published. The answer is a JSON array, so no `json_object` here.
  */
 export const NEWS_AI_MODELS = [
-  { id: "@cf/zai-org/glm-5.3-flash", options: { chat_template_kwargs: { enable_thinking: false } } },
-  { id: "@cf/google/gemma-4-26b-a4b-it", options: { chat_template_kwargs: { enable_thinking: false } } },
-  "@cf/meta/llama-3.3-70b-instruct-fp8-fast",
+  { id: "@cf/zai-org/glm-5.3-flash", label: "GLM 5.3 Flash", options: { chat_template_kwargs: { enable_thinking: false } } },
 ];
 
 /** What a news item is about (the page's filters) */
@@ -101,9 +99,8 @@ export const NEWS_KEYWORD_MIN_SCORE = 2;
  * Written again when new news came in, at most every `minIntervalMinutes`.
  */
 export const NEWS_ANALYSIS = {
-  /** The model when the admin hasn't chosen one (NEWS_ANALYSIS_MODELS), and the ones tried after it */
+  /** The model when the admin hasn't chosen one (NEWS_ANALYSIS_MODELS); no other is tried when it fails */
   defaultModel: "@cf/zai-org/glm-5.3-flash",
-  fallbackModels: ["@cf/google/gemma-4-26b-a4b-it", "@cf/meta/llama-3.3-70b-instruct-fp8-fast"],
   /** 0: the same news gives the same view (as far as the model allows) */
   temperature: 0,
   minIntervalMinutes: 30,

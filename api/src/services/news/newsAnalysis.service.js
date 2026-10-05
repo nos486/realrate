@@ -13,8 +13,9 @@
  * NEWS_ANALYSIS.minIntervalMinutes and NEWS_ANALYSIS.perDay times a day; the day's first one waits
  * for NEWS_ANALYSIS.minNews items. Stored in the state store (`news:analysis`).
  *
- * The model is the admin's choice (`news:analysis:model`, one of NEWS_ANALYSIS_MODELS), with
- * NEWS_ANALYSIS.fallbackModels after it. The model lab builds today's input once, runs it on the
+ * The model is the admin's choice (`news:analysis:model`, one of NEWS_ANALYSIS_MODELS) and only
+ * that one: when it fails or its answer isn't usable, no other model is tried — the last analysis
+ * stays and the failure is kept for the admin's panel (`news:analysis:status`). The model lab builds today's input once, runs it on the
  * models the admin picks (one request per model, so each answer comes back on its own), and lets
  * the admin choose a model — and publish that model's answer.
  */
@@ -25,9 +26,11 @@ import { dbTopNewsSince, dbNewsStatsSince } from "../../repositories/news.reposi
 import { getStateStore } from "../../repositories/stateStore.repository.js";
 import { getItemHistory } from "../../repositories/priceHistoryStore.repository.js";
 import { getPriceBook } from "../market/priceAggregator.service.js";
-import { askWorkersAi, hasWorkersAi, runWorkersAiModel } from "./workersAi.js";
+import { hasWorkersAi, runWorkersAiModel } from "./workersAi.js";
+import { logger } from "../../lib/logger.js";
 
 const ANALYSIS_KEY = "news:analysis";
+const STATUS_KEY = "news:analysis:status";
 const MODEL_KEY = "news:analysis:model";
 const LAB_KEY = "news:analysis:lab";
 const LAB_TTL = 3 * 3600;
@@ -65,6 +68,26 @@ async function readTrends(env) {
   return rows.filter(Boolean);
 }
 
+/** Why an answer isn't usable: no JSON object in it ("bad-answer"), or words of another language in its text */
+function unusableReason(answer) {
+  let body = answer;
+  if (typeof answer === "string") {
+    try {
+      body = JSON.parse(answer.slice(answer.indexOf("{"), answer.lastIndexOf("}") + 1));
+    } catch {
+      return "bad-answer";
+    }
+  }
+  // The fields the model writes in Persian (the rest are codes: asset, direction, numbers)
+  const texts = [body?.t, body?.s, body?.r, ...(Array.isArray(body?.k) ? body.k : []), ...(Array.isArray(body?.o) ? body.o.map((o) => o?.n) : [])];
+  return texts.some((t) => typeof t === "string" && hasForeignText(t)) ? "foreign-text" : "bad-answer";
+}
+
+/** The last attempt to write the analysis: { at, model, ok, error? }, or null */
+export async function getNewsAnalysisStatus(env) {
+  return (await getStateStore(env)?.get(STATUS_KEY, "json").catch(() => null)) || null;
+}
+
 /** The latest analysis, or null */
 export async function getNewsAnalysis(env) {
   return (await getStateStore(env)?.get(ANALYSIS_KEY, "json").catch(() => null)) || null;
@@ -74,12 +97,6 @@ export async function getNewsAnalysis(env) {
 export async function getNewsAnalysisModel(env) {
   const chosen = await getStateStore(env)?.get(MODEL_KEY).catch(() => null);
   return newsAnalysisModel(chosen) ? chosen : NEWS_ANALYSIS.defaultModel;
-}
-
-/** The models asked, in order: the chosen one, then the fallbacks */
-function modelsAfter(chosen) {
-  return [chosen, ...NEWS_ANALYSIS.fallbackModels.filter((id) => id !== chosen)]
-    .map((id) => newsAnalysisModel(id) || id);
 }
 
 /**
@@ -129,19 +146,24 @@ export async function maybeUpdateNewsAnalysis(env, { now = Date.now(), force = f
 
   const input = await buildAnalysisInput(env, { now, readPrices, readTrendRows, current });
   await store.increment(countKey(dayStart), 1, { expirationTtl: 2 * 86400 });
-  // The first model whose answer is usable (parseAnalysis: JSON, all in Persian)
-  let analysis;
-  let model;
+  // The chosen model only; a failure is kept for the panel and the last analysis stays
+  const model = await getNewsAnalysisModel(env);
+  let analysis = null;
+  let error = "";
   try {
-    ({ value: analysis, model } = await askWorkersAi(
-      env,
-      modelsAfter(await getNewsAnalysisModel(env)),
-      input.messages,
-      { maxTokens: NEWS_ANALYSIS.maxTokens, temperature: NEWS_ANALYSIS.temperature, accept: (answer) => parseAnalysis(answer, input.news) },
-    ));
+    const { answer } = await runWorkersAiModel(env, newsAnalysisModel(model) || model, input.messages, {
+      maxTokens: NEWS_ANALYSIS.maxTokens,
+      temperature: NEWS_ANALYSIS.temperature,
+    });
+    analysis = parseAnalysis(answer, input.news);
+    if (!analysis) error = unusableReason(answer);
   } catch (err) {
-    if (/unusable answer/.test(err?.message || "")) return { updated: false, reason: "bad-answer" };
-    throw err;
+    error = String(err?.message || err).slice(0, 300);
+  }
+  await store.put(STATUS_KEY, JSON.stringify({ at: now, model, ok: !error, ...(error ? { error } : {}) }));
+  if (error) {
+    logger.warn("[News] analysis failed:", { model, error });
+    return { updated: false, reason: "model-error", error };
   }
 
   await saveAnalysis(store, analysis, { dayStart, at: now, newsCount: input.news.length, lastSavedAt: stats.lastSavedAt, model });
@@ -210,7 +232,7 @@ export async function runNewsAnalysisLabModel(env, labId, modelId) {
     const raw = typeof answer === "string" ? answer : JSON.stringify(answer);
     const analysis = parseAnalysis(answer, lab.news);
     let error;
-    if (!analysis) error = hasForeignText(raw) ? "foreign-text" : "bad-answer";
+    if (!analysis) error = unusableReason(raw);
     result = { model: modelId, ok: Boolean(analysis), durationMs: Date.now() - started, usage, cost: costOf(usage, model.price), analysis, raw: raw.slice(0, 8000), ...(error ? { error } : {}) };
   } catch (err) {
     result = { model: modelId, ok: false, durationMs: Date.now() - started, usage: null, cost: null, analysis: null, raw: "", error: String(err?.message || err).slice(0, 300) };

@@ -22,6 +22,7 @@ import {
   getNewsAnalysis,
   maybeUpdateNewsAnalysis,
   getNewsAnalysisModel,
+  getNewsAnalysisStatus,
   createNewsAnalysisLab,
   runNewsAnalysisLabModel,
   chooseNewsAnalysisModel,
@@ -64,7 +65,12 @@ async function requireAdmin(request, env) {
 
 export async function handleAdminGetNewsChannels(request, env) {
   await requireAdmin(request, env);
-  const [channels, status] = await Promise.all([getNewsChannels(env), getNewsStatus(env)]);
+  const [channels, status, analysisStatus, analysisModel] = await Promise.all([
+    getNewsChannels(env),
+    getNewsStatus(env),
+    getNewsAnalysisStatus(env),
+    getNewsAnalysisModel(env),
+  ]);
   return jsonResponse({
     success: true,
     channels,
@@ -72,7 +78,8 @@ export async function handleAdminGetNewsChannels(request, env) {
     defaults: DEFAULT_NEWS_CHANNELS,
     limits: { maxChannels: NEWS_LIMITS.maxChannels, aiCallsPerDay: NEWS_LIMITS.aiCallsPerDay },
     aiConfigured: typeof env.AI?.run === "function",
-    analysisModel: newsAnalysisModel(await getNewsAnalysisModel(env)),
+    analysisModel: newsAnalysisModel(analysisModel),
+    analysisStatus,
   }, 200, request);
 }
 
@@ -101,7 +108,8 @@ export async function handleAdminSetNewsHidden(request, env, { id }) {
 export async function handleAdminRunNewsAnalysis(request, env) {
   await requireAdmin(request, env);
   const result = await maybeUpdateNewsAnalysis(env, { force: true });
-  return jsonResponse({ success: true, result, analysis: await getNewsAnalysis(env) }, 200, request);
+  const [analysis, analysisStatus] = await Promise.all([getNewsAnalysis(env), getNewsAnalysisStatus(env)]);
+  return jsonResponse({ success: true, result, analysis, analysisStatus }, 200, request);
 }
 
 export async function handleAdminNewsAnalysisLab(request, env) {

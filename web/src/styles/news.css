@@ -836,6 +836,18 @@
   color: var(--text-secondary);
 }
 
+.admin-news-ai small {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+  line-height: 1.8;
+}
+
+.admin-news-ai small svg {
+  flex-shrink: 0;
+  align-self: center;
+}
+
 .admin-news-ai span {
   display: inline-flex;
   align-items: center;

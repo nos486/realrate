@@ -225,11 +225,20 @@ describe('runNewsPolling', () => {
     pages.chan_one = page('chan_one', [post('chan_one', 1, 'دلار و طلا و سکه بعد از تصمیم بانک مرکزی و فدرال رزرو جهش کرد', at(0))]);
     env.AI = { run: vi.fn(async () => { throw new Error('3040: capacity'); }) };
     await runNewsPolling(env, { now: NOW, fetchPage });
-    expect(env.AI.run).toHaveBeenCalledTimes(NEWS_AI_MODELS.length); // every model
+    expect(env.AI.run).toHaveBeenCalledTimes(1); // GLM 5.3 Flash only: no other model
+    expect(NEWS_AI_MODELS.map((m) => m.id)).toEqual(['@cf/zai-org/glm-5.3-flash']);
     expect((await dbListNews(env)).items).toHaveLength(1);
     const status = await getNewsStatus(env);
-    expect(status.aiError).toMatch(/capacity/);
+    expect(status).toMatchObject({ aiModel: 'GLM 5.3 Flash', aiError: expect.stringMatching(/capacity/) });
     expect(status.channels.chan_two).toMatchObject({ ok: false, error: 'HTTP 404' });
+  });
+
+  it('an answer with no verdict is a failure the panel shows', async () => {
+    pages.chan_one = page('chan_one', [post('chan_one', 1, 'دلار و طلا و سکه بعد از تصمیم بانک مرکزی و فدرال رزرو جهش کرد', at(0))]);
+    env.AI = { run: vi.fn(async () => ({ response: 'Sorry, I cannot help.' })) };
+    await runNewsPolling(env, { now: NOW, fetchPage });
+    expect(env.AI.run).toHaveBeenCalledTimes(1);
+    expect((await getNewsStatus(env)).aiError).toMatch(/unreadable answer/);
   });
 
   it("posts beyond the run's model budget wait for the next minute", async () => {
