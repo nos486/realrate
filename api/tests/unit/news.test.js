@@ -125,6 +125,12 @@ describe('the model', () => {
     expect(parseNewsVerdicts([{ i: 1, k: 1, t: 'x', s: 'y', c: 'oil', p: 2 }], 1).get(0).category).toBe('oil');
   });
 
+  it('a headline or summary with words of another language is marked', () => {
+    const v = parseNewsVerdicts([{ i: 1, k: 1, c: 'currency', p: 2, t: 'افزایش nhẹ دلار', s: 'خلاصه' }, { i: 2, k: 1, c: 'oil', p: 1, t: 'تصمیم OPEC', s: 'خلاصه' }], 2);
+    expect(v.get(0).foreign).toBe(true);
+    expect(v.get(1).foreign).toBeUndefined();
+  });
+
   it('without the model: the first line is the headline', () => {
     expect(fallbackNewsItem('دلار ۱۰۰ هزار تومانی شد\nجزئیات خبر')).toMatchObject({ title: 'دلار ۱۰۰ هزار تومانی شد', summary: 'جزئیات خبر', category: 'currency' });
   });
@@ -173,7 +179,7 @@ describe('runNewsPolling', () => {
     const result = await runNewsPolling(env, { now: NOW, fetchPage });
     expect(result.checked).toBe(NEWS_LIMITS.firstReadPosts + 1); // chan_two's one post too
     expect(run).toHaveBeenCalled();
-    expect(run.mock.calls[0][0]).toBe('@cf/google/gemma-3-12b-it');
+    expect(run.mock.calls[0][0]).toBe('@cf/google/gemma-4-26b-a4b-it');
     const { items } = await dbListNews(env);
     expect(items.length).toBe(result.published);
     expect(items[0]).toMatchObject({ channel: 'chan_one', channelTitle: 'کانال یک', category: 'currency', importance: 2, ai: true });

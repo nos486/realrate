@@ -203,6 +203,18 @@ export function buildNewsPrompt(posts) {
 /** Output tokens for a batch: enough for every post to be kept with its summary */
 export const newsMaxTokens = (count) => 40 + count * 140;
 
+/**
+ * Letters a Persian text never has — a model slipping into another language mid-sentence (e.g.
+ * Vietnamese «nhẹ» for «جزئی»): Latin letters with accents, Greek, Cyrillic, Hebrew, Devanagari,
+ * Thai, Japanese, Chinese, Korean
+ */
+const FOREIGN_LETTERS = /[\u00C0-\u024F\u1E00-\u1EFF\u0370-\u03FF\u0400-\u04FF\u0590-\u05FF\u0900-\u097F\u0E00-\u0E7F\u3040-\u30FF\u3400-\u9FFF\uAC00-\uD7AF]/;
+/** A lowercase Latin word (acronyms and names — USD, OPEC, Fed — are fine) */
+const LATIN_WORD = /(^|[^A-Za-z])[a-z]{2,}(?![A-Za-z])/;
+
+/** Whether a text the model wrote in Persian has words of another language */
+export const hasForeignText = (text) => FOREIGN_LETTERS.test(String(text || "")) || LATIN_WORD.test(String(text || ""));
+
 const clip = (s, n) => {
   const t = String(s || "").replace(/\s+/g, " ").trim();
   return t.length > n ? `${t.slice(0, n - 1).trim()}…` : t;
@@ -247,6 +259,8 @@ export function parseNewsVerdicts(answer, count) {
       importance,
       title,
       summary: summary || title,
+      // Words of another language in what it wrote: the post's own text is shown instead
+      ...(hasForeignText(title) || hasForeignText(summary) ? { foreign: true } : {}),
     });
   }
   return verdicts;
@@ -314,7 +328,8 @@ export function buildAnalysisPrompt(news, prices, { summaryChars = 220 } = {}) {
 }
 
 /**
- * The analyst's answer, or null when it isn't usable
+ * The analyst's answer, or null when it isn't usable (no headline or analysis, broken JSON, words
+ * of another language)
  * @returns {{ title: string, summary: string, outlook: Array<{ asset: string, direction: string, note: string }>, points: string[], risk: string }|null}
  */
 export function parseAnalysis(answer) {
@@ -338,7 +353,10 @@ export function parseAnalysis(answer) {
     .filter((o) => ANALYSIS_ASSETS.includes(o?.a) && !seen.has(o.a) && seen.add(o.a))
     .map((o) => ({ asset: o.a, direction: DIRECTIONS.includes(o.d) ? o.d : "flat", note: clip(o.n, 120) }));
   const points = (Array.isArray(body.k) ? body.k : []).map((k) => clip(k, 160)).filter(Boolean).slice(0, 4);
-  return { title, summary, outlook, points, risk: clip(body.r, 240) };
+  const risk = clip(body.r, 240);
+  // Words of another language anywhere: not usable (the next model is asked)
+  if ([title, summary, risk, ...points, ...outlook.map((o) => o.note)].some(hasForeignText)) return null;
+  return { title, summary, outlook, points, risk };
 }
 
 /** The start (ms) of the Tehran day `now` is in (Iran keeps UTC+3:30 all year) */

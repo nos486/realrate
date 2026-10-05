@@ -44,6 +44,10 @@ describe('the prompt and the answer', () => {
     expect(a.risk).toBe('نتیجه‌ی مذاکرات');
     expect(parseAnalysis('{"t":"","s":"x"}')).toBeNull();
     expect(parseAnalysis('nothing')).toBeNull();
+    // Words of another language: not usable
+    expect(parseAnalysis(JSON.stringify({ ...JSON.parse(ANSWER), k: ['رشد 小幅 قیمت'] }))).toBeNull();
+    expect(parseAnalysis(JSON.stringify({ ...JSON.parse(ANSWER), r: 'ریسک slightly بالا' }))).toBeNull();
+    expect(parseAnalysis(JSON.stringify({ ...JSON.parse(ANSWER), r: 'تصمیم Fed و OPEC' }))).not.toBeNull();
   });
 
   it('the Tehran day starts at 20:30 UTC', () => {
@@ -71,7 +75,7 @@ describe('maybeUpdateNewsAnalysis', () => {
     await dbInsertNews(env, [item(3, 10, 3)]);
     expect(await maybeUpdateNewsAnalysis(env, { now: NOW, readPrices })).toEqual({ updated: true });
     expect(env.AI.run).toHaveBeenCalledTimes(1);
-    expect(env.AI.run.mock.calls[0][0]).toBe(NEWS_ANALYSIS.models[0]);
+    expect(env.AI.run.mock.calls[0][0]).toBe(NEWS_ANALYSIS.models[0].id);
     expect(env.AI.run.mock.calls[0][1].messages[1].content).toContain('دلار: 105,000');
     const saved = await getNewsAnalysis(env);
     expect(saved).toMatchObject({ day: tehranDayStart(NOW), at: NOW, newsCount: 3 });
@@ -93,11 +97,24 @@ describe('maybeUpdateNewsAnalysis', () => {
     expect((await maybeUpdateNewsAnalysis({ DB: env.DB }, { now: NOW, force: true, readPrices })).reason).toBe('no-model');
   });
 
-  it('a bad answer keeps the last analysis', async () => {
+  it('no model answers usably: the last analysis is kept', async () => {
     await dbInsertNews(env, [item(1, 30)]);
-    env.AI.run.mockResolvedValueOnce({ response: 'not json' });
+    env.AI.run.mockResolvedValue({ response: 'not json' });
     expect((await maybeUpdateNewsAnalysis(env, { now: NOW, force: true, readPrices })).reason).toBe('bad-answer');
+    expect(env.AI.run).toHaveBeenCalledTimes(NEWS_ANALYSIS.models.length);
     expect(await getNewsAnalysis(env)).toBeNull();
+  });
+
+  it('an answer with words of another language: the next model writes it', async () => {
+    await dbInsertNews(env, [item(1, 30)]);
+    const foreign = JSON.stringify({ ...JSON.parse(ANSWER), s: 'قیمت دلار با افزایش nhẹ همراه بود.' });
+    env.AI.run.mockResolvedValueOnce({ choices: [{ message: { content: foreign } }] });
+    expect(await maybeUpdateNewsAnalysis(env, { now: NOW, force: true, readPrices })).toEqual({ updated: true });
+    expect(env.AI.run.mock.calls.map((c) => c[0])).toEqual(NEWS_ANALYSIS.models.slice(0, 2).map((m) => m.id));
+    // Each model's own options go with its request
+    expect(env.AI.run.mock.calls[0][1]).toMatchObject({ reasoning_effort: 'low', response_format: { type: 'json_object' } });
+    expect(await getNewsAnalysis(env)).toMatchObject({ model: NEWS_ANALYSIS.models[1].id });
+    expect((await getNewsAnalysis(env)).summary).not.toContain('nhẹ');
   });
 
   it("today's top: most important first", async () => {

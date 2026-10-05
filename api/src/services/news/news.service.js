@@ -208,9 +208,14 @@ async function pollChannels(env, store, now, fetchPage) {
     }
 
     batch.forEach((post, i) => {
-      const verdict = verdicts
+      let verdict = verdicts
         ? verdicts.get(i)
         : post.score >= NEWS_KEYWORD_ONLY_SCORE ? fallbackNewsItem(post.text) : null;
+      // The model's headline slipped into another language: the post's own words, its verdict kept
+      if (verdict?.keep && verdict.foreign) {
+        const own = fallbackNewsItem(post.text);
+        verdict = { ...verdict, title: own.title, summary: own.summary };
+      }
       if (!verdict?.keep) return;
       published.push({
         id: `${post.channel}/${post.postId}`,
