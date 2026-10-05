@@ -64,14 +64,20 @@ export async function maybeUpdateNewsAnalysis(env, { now = Date.now(), force = f
   const news = (await dbTopNewsSince(env, dayStart, NEWS_ANALYSIS.maxNews)).sort((a, b) => a.publishedAt - b.publishedAt);
   const prices = await readPrices(env).catch(() => []);
   await store.increment(countKey(dayStart), 1, { expirationTtl: 2 * 86400 });
-  const { answer, model } = await askWorkersAi(
-    env,
-    NEWS_ANALYSIS.models,
-    buildAnalysisPrompt(news, prices, NEWS_ANALYSIS),
-    { maxTokens: NEWS_ANALYSIS.maxTokens, temperature: 0.3 },
-  );
-  const analysis = parseAnalysis(answer);
-  if (!analysis) return { updated: false, reason: "bad-answer" };
+  // The first model whose answer is usable (parseAnalysis: JSON, all in Persian)
+  let analysis;
+  let model;
+  try {
+    ({ value: analysis, model } = await askWorkersAi(
+      env,
+      NEWS_ANALYSIS.models,
+      buildAnalysisPrompt(news, prices, NEWS_ANALYSIS),
+      { maxTokens: NEWS_ANALYSIS.maxTokens, temperature: 0.3, accept: parseAnalysis },
+    ));
+  } catch (err) {
+    if (/unusable answer/.test(err?.message || "")) return { updated: false, reason: "bad-answer" };
+    throw err;
+  }
 
   await store.put(ANALYSIS_KEY, JSON.stringify({
     ...analysis,

@@ -40,12 +40,17 @@ export const NEWS_LIMITS = {
   duplicateWindowHours: 36,
 };
 
+/** JSON only, the request's own way (models that take it; the prompt asks for JSON anyway) */
+const JSON_ANSWER = { response_format: { type: "json_object" } };
+
 /**
- * The model, on Workers AI (the `AI` binding in wrangler.toml). Gemma 3 reads and writes Persian
- * well at a small size; the second one is tried when the first fails.
+ * The models screening posts, on Workers AI (the `AI` binding in wrangler.toml), tried in order
+ * (services/news/workersAi.js): Gemma 4 writes Persian well and is cheap for many small requests
+ * (no reasoning: a verdict per post doesn't need it); Llama 3.3 when it fails. The answer is a
+ * JSON array, so no `json_object` here.
  */
 export const NEWS_AI_MODELS = [
-  "@cf/google/gemma-3-12b-it",
+  { id: "@cf/google/gemma-4-26b-a4b-it", options: { chat_template_kwargs: { enable_thinking: false } } },
   "@cf/meta/llama-3.3-70b-instruct-fp8-fast",
 ];
 
@@ -95,8 +100,16 @@ export const NEWS_KEYWORD_MIN_SCORE = 2;
  * Written again when new news came in, at most every `minIntervalMinutes`.
  */
 export const NEWS_ANALYSIS = {
-  /** A larger model: one request now and then, where reasoning matters more than cost */
-  models: ["@cf/meta/llama-3.3-70b-instruct-fp8-fast", "@cf/google/gemma-3-12b-it"],
+  /**
+   * A strong reasoning model: one request now and then, where reasoning matters more than cost.
+   * DeepSeek V4 Pro (a little reasoning is enough), then Gemma 4, then Llama 3.3 — the next one also
+   * when an answer isn't usable (broken JSON, words of another language: domain/news.js).
+   */
+  models: [
+    { id: "@cf/deepseek-ai/deepseek-v4-pro-0813", options: { ...JSON_ANSWER, reasoning_effort: "low" } },
+    { id: "@cf/google/gemma-4-26b-a4b-it", options: { ...JSON_ANSWER, chat_template_kwargs: { enable_thinking: false } } },
+    "@cf/meta/llama-3.3-70b-instruct-fp8-fast",
+  ],
   minIntervalMinutes: 30,
   /** The day's first analysis waits for this much news */
   minNews: 3,
@@ -105,7 +118,8 @@ export const NEWS_ANALYSIS = {
   /** Characters of each item's summary sent */
   summaryChars: 220,
   perDay: 30,
-  maxTokens: 900,
+  /** Output tokens, with the reasoning's */
+  maxTokens: 4000,
   /** Prices shown to the model (price book ids) */
   priceIds: ["usd", "eur", "gold_18k", "full_coin", "mesghal", "ons_gold", "ons_silver", "usdt"],
 };
