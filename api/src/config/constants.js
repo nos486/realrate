@@ -13,9 +13,6 @@ export const SESSION_COOKIE_MAX_AGE = 2592000;
 export const OAUTH_VERIFIER_COOKIE_MAX_AGE = 600;
 
 // ─── Cache TTLs & Fetch Intervals ──────────────────────────────────────────
-/** Default price source fetch interval: 5 minutes in seconds */
-export const DEFAULT_FETCH_INTERVAL_SEC = 300;
-
 /** In-memory global settings cache TTL: 60 seconds in ms */
 export const SETTINGS_MEMORY_CACHE_TTL_MS = 60000;
 

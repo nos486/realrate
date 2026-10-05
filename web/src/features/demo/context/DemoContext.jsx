@@ -20,7 +20,7 @@ import { useAuth } from '../../auth/index.js';
 import { authDemo } from '../api/demoApi.js';
 import { logout as apiLogout } from '../../auth/api/authApi.js';
 import { setToken, DEMO_READ_ONLY_EVENT } from '../../../shared/api/httpClient.js';
-import { APP_BASE, AUTH_PATHS, appPath } from '../../../shared/routes.js';
+import { AUTH_PATHS, appPath } from '../../../shared/routes.js';
 import { useFeedback } from '../../../shared/ui/FeedbackProvider.jsx';
 import {
   getVaultState,

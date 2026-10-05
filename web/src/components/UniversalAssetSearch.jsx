@@ -15,11 +15,9 @@ import {
 } from 'lucide-react';
 import { usePricing } from '../features/market/index.js';
 import { toPriceId } from '../utils/priceIds.js';
-import { getSourceDisplayName, getSourceCategoryConfig } from '../config/displayEngine.js';
+import { getSourceDisplayName } from '../config/displayEngine.js';
 import {
   getItemCategory,
-  getItemBadge,
-  getItemUnit,
   getSourceBrand,
 } from '../config/displayEngine.js';
 import { getCategoryIconName } from '../config/categories.config.js';
@@ -44,53 +42,6 @@ export const WORLD_CURRENCY_NAMES = new Proxy({}, {
     return Boolean(spec && spec.name);
   },
 });
-
-export function getPriceTypeLabel(priceType, priceTypeInfo = null) {
-  if (!priceType) return '';
-  const rawStr = String(priceType).trim();
-  const clean = rawStr.toLowerCase();
-  const upper = rawStr.toUpperCase();
-  if (priceTypeInfo && priceTypeInfo[priceType]?.label) return priceTypeInfo[priceType].label;
-  if (priceTypeInfo && priceTypeInfo[clean]?.label) return priceTypeInfo[clean].label;
-
-  const canonicalName = getCanonicalAssetName(rawStr);
-  if (canonicalName && canonicalName !== rawStr && canonicalName !== clean && canonicalName !== upper) {
-    return canonicalName;
-  }
-
-  const stripped = upper.replace(/^(FOREX_|CUR_|FX_|SRC_DEF_)/, '');
-  const strippedName = getCanonicalAssetName(stripped);
-  if (strippedName && strippedName !== stripped) return strippedName;
-
-  const srcConfig = getSourceCategoryConfig(clean);
-  if (srcConfig?.name) return srcConfig.name;
-
-  if (clean === 'bourse') return 'بورس اوراق بهادار';
-  if (clean === 'bourse_fund') return 'صندوق سرمایه‌گذاری بورس';
-  if (clean === 'forex') return 'ارزهای جهانی (فارکس)';
-  if (clean === 'crypto') return 'رمزارز';
-
-  return priceType;
-}
-
-export const STANDARD_PRICE_TYPE_LABELS = new Proxy({}, {
-  get(target, prop) {
-    if (typeof prop !== 'string') return target[prop];
-    return getPriceTypeLabel(prop);
-  },
-  has(target, prop) {
-    if (typeof prop !== 'string') return prop in target;
-    return Boolean(getPriceTypeLabel(prop));
-  },
-});
-
-export function getCategoryMetadata(priceType) {
-  return {
-    category: getItemCategory(priceType),
-    badge: getItemBadge(priceType),
-    unit: getItemUnit(priceType),
-  };
-}
 
 export function calculateUsdCrossRate(code, rawVal) {
   const num = Number(rawVal);

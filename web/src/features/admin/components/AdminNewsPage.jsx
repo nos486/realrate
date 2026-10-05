@@ -1,16 +1,17 @@
 /**
- * AdminNewsPage.jsx — The news section's Telegram channels: add, pause or remove a channel, see
- * how each one did on the last run, and read them all now; and the model lab of «تحلیل روز»
- * (AdminNewsAnalysisLab.jsx)
+ * AdminNewsPage.jsx — The news section in the admin panel:
+ *  - «گزارش اخبار»: today's totals (posts checked, not market news, repeats, sent to the model,
+ *    rejected by it, published), the last runs one per row, and the last published news
+ *  - the Telegram channels: add, pause or remove a channel, see how each one did on the last run,
+ *    and read them all now; write «تحلیل روز» now
  */
 
 import React, { useEffect, useState } from 'react';
-import { Newspaper, Plus, Trash2, RefreshCw, Save, CheckCircle2, AlertTriangle, Sparkles } from 'lucide-react';
+import { Newspaper, Plus, Trash2, RefreshCw, Save, CheckCircle2, AlertTriangle, Sparkles, BarChart3 } from 'lucide-react';
 import { Button, Input, AlertBanner, EmptyState } from '../../../shared/ui/index.js';
 import { useFeedback } from '../../../shared/ui/FeedbackProvider.jsx';
 import { getNewsChannels, saveNewsChannels, runNewsNow, runNewsAnalysisNow } from '../../news/newsApi.js';
-import { newsTimeAgo } from '../../news/newsFormat.js';
-import AdminNewsAnalysisLab from './AdminNewsAnalysisLab.jsx';
+import { newsTimeAgo, newsClock, NEWS_CATEGORIES } from '../../news/newsFormat.js';
 
 const fa = (n) => Number(n || 0).toLocaleString('fa-IR');
 const MODEL_ERRORS = {
@@ -18,6 +19,99 @@ const MODEL_ERRORS = {
   'foreign-text': 'متن جواب کلمه‌ی غیرفارسی داشت',
 };
 const modelError = (error) => MODEL_ERRORS[error] || error || 'خطای نامعلوم';
+/** Today's totals, in the order a post goes through */
+const TOTALS = [
+  { key: 'checked', label: 'پست بررسی‌شده' },
+  { key: 'notMarket', label: 'غیربازاری (کلیدواژه)' },
+  { key: 'duplicates', label: 'تکراری' },
+  { key: 'sent', label: 'فرستاده به مدل' },
+  { key: 'rejected', label: 'رد مدل' },
+  { key: 'published', label: 'منتشرشده', tone: 'is-ok' },
+];
+
+/** «گزارش اخبار»: today's totals, the last runs, the last published news */
+function NewsReport({ status, latest, model }) {
+  const today = status?.today;
+  const runs = status?.runs || [];
+  return (
+    <div className="portfolio-stat-card admin-news-report">
+      <div className="stat-header">
+        <span className="stat-label"><BarChart3 size={14} /> گزارش اخبار</span>
+        {status?.at && <small className="admin-news-muted">آخرین اجرا {newsTimeAgo(status.at)}</small>}
+      </div>
+
+      <div className="admin-news-totals" aria-label="امروز">
+        {TOTALS.map((t) => (
+          <div key={t.key} className={t.tone || ''}>
+            <strong>{fa(today?.[t.key])}</strong>
+            <small>{t.label}</small>
+          </div>
+        ))}
+        <div className={today?.errors ? 'is-warn' : ''}>
+          <strong>{fa(today?.errors)}</strong>
+          <small>خطای مدل</small>
+        </div>
+        <div>
+          <strong>{fa(today?.aiCalls)}</strong>
+          <small>درخواست به {model}</small>
+        </div>
+      </div>
+      <p className="admin-card-hint">آمار امروز (از ساعت ۰۰:۰۰ تهران). هر پست یک بار شمرده می‌شود؛ پستی که منتظر اجرای بعد مانده، وقتی تکلیفش روشن شود.</p>
+
+      {runs.length > 0 && (
+        <div className="admin-news-table-wrap">
+          <table className="admin-news-table">
+            <caption>آخرین اجراها</caption>
+            <thead>
+              <tr>
+                <th scope="col">زمان</th>
+                <th scope="col">بررسی</th>
+                <th scope="col">غیربازاری</th>
+                <th scope="col">تکراری</th>
+                <th scope="col">به مدل</th>
+                <th scope="col">رد</th>
+                <th scope="col">منتشر</th>
+                <th scope="col">منتظر</th>
+              </tr>
+            </thead>
+            <tbody>
+              {runs.map((r) => (
+                <tr key={r.at} className={r.error ? 'is-warn' : ''} title={r.error ? `خطای مدل: ${modelError(r.error)}` : undefined}>
+                  <td>{newsClock(r.at)}</td>
+                  <td>{fa(r.checked)}</td>
+                  <td>{fa(r.notMarket)}</td>
+                  <td>{fa(r.duplicates)}</td>
+                  <td>{fa(r.sent)}</td>
+                  <td>{fa(r.rejected)}</td>
+                  <td className="is-ok">{fa(r.published)}</td>
+                  <td>{r.waiting ? fa(r.waiting) : '—'}{r.error && <AlertTriangle size={12} className="is-warn" aria-label="خطای مدل" />}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {latest?.length > 0 && (
+        <div className="admin-news-latest">
+          <h3>آخرین خبرهای منتشرشده</h3>
+          <ul>
+            {latest.map((n) => (
+              <li key={n.id}>
+                <a href={n.url} target="_blank" rel="noopener noreferrer">{n.title}</a>
+                <small>
+                  {n.importance >= 3 && <span className="admin-news-hot">مهم</span>}
+                  {NEWS_CATEGORIES[n.category] || 'اقتصاد'} · <bdi>{n.channelTitle || `@${n.channel}`}</bdi> · {newsTimeAgo(n.publishedAt)}
+                </small>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </div>
+  );
+}
+
 const cleanName = (s) => String(s || '').trim().replace(/^(https?:\/\/)?(www\.)?t\.me\/(s\/)?/i, '').replace(/^@/, '').split(/[/?#]/)[0].toLowerCase();
 
 export default function AdminNewsPage() {
@@ -78,6 +172,8 @@ export default function AdminNewsPage() {
     try {
       const res = await runNewsNow();
       setData((d) => ({ ...d, status: res.status }));
+      // The report's last news too (the channels being edited stay as they are)
+      getNewsChannels().then((fresh) => setData((d) => ({ ...d, latest: fresh.latest }))).catch(() => {});
       const r = res.result || {};
       toast.success(`${fa(r.checked)} پست تازه، ${fa(r.candidates)} نامزد، ${fa(r.published)} خبر منتشر شد.`);
     } catch (err) {
@@ -107,6 +203,8 @@ export default function AdminNewsPage() {
 
   return (
     <div className="admin-news">
+      <NewsReport status={status} latest={data.latest} model={data.model} />
+
       <div className="portfolio-stat-card">
         <div className="stat-header">
           <span className="stat-label"><Newspaper size={14} /> کانال‌های خبری</span>
@@ -136,7 +234,7 @@ export default function AdminNewsPage() {
               <AlertTriangle size={12} /> بررسی خبرها: مدل {status.aiModel || ''} در آخرین اجرا خطا داد ({modelError(status.aiError)}) — مدل دیگری امتحان نشد و خبری منتشر نشد؛ همان پست‌ها در اجرای بعدی دوباره بررسی می‌شوند.
             </small>
           )}
-          {data.analysisModel && <small>مدل «تحلیل روز»: {data.analysisModel.label}</small>}
+          <small>مدل بررسی خبرها و «تحلیل روز»: {data.model}{data.analysisModel !== data.model ? ` / ${data.analysisModel}` : ''}</small>
           {data.analysisStatus && (data.analysisStatus.ok ? (
             <small><CheckCircle2 size={12} className="is-ok" /> آخرین تحلیل روز {newsTimeAgo(data.analysisStatus.at)} بدون خطا نوشته شد.</small>
           ) : (
@@ -144,7 +242,6 @@ export default function AdminNewsPage() {
               <AlertTriangle size={12} /> تحلیل روز {newsTimeAgo(data.analysisStatus.at)}: مدل خطا داد ({modelError(data.analysisStatus.error)}) — مدل دیگری امتحان نشد و تحلیل قبلی مانده است.
             </small>
           ))}
-          {status?.at && <small>آخرین اجرا: {newsTimeAgo(status.at)} · {fa(status.published)} خبر</small>}
         </div>
 
         {channels.length === 0 ? (
@@ -207,12 +304,6 @@ export default function AdminNewsPage() {
           {dirty && <Button size="sm" variant="ghost" onClick={() => setChannels(data.channels || [])}>انصراف</Button>}
         </div>
       </div>
-
-      <AdminNewsAnalysisLab
-        aiConfigured={data.aiConfigured}
-        current={data.analysisModel?.id}
-        onChosen={(model) => setData((d) => ({ ...d, analysisModel: model }))}
-      />
     </div>
   );
 }

@@ -18,11 +18,10 @@
 import {
   DEFAULT_NEWS_CHANNELS,
   NEWS_LIMITS,
-  NEWS_AI_MODELS,
+  NEWS_AI_MODEL,
 } from "../../config/news.config.js";
 import {
   parseTelegramPosts,
-  keywordScore,
   isNewsCandidate,
   wordSet,
   isDuplicateNews,
@@ -31,6 +30,7 @@ import {
   parseNewsVerdicts,
   fallbackNewsItem,
   normalizeChannel,
+  tehranDayStart,
 } from "../../domain/news.js";
 import { dbInsertNews, dbRecentNewsTexts } from "../../repositories/news.repository.js";
 import { getStateStore } from "../../repositories/stateStore.repository.js";
@@ -130,11 +130,33 @@ export async function runNewsPolling(env, { now = Date.now(), force = false, fet
   }
 }
 
+/** Runs kept in the report (only those that read something, waited or failed) */
+const REPORT_RUNS = 12;
+const REPORT_COUNTS = ["checked", "notMarket", "duplicates", "sent", "rejected", "published", "aiCalls"];
+
+/**
+ * The admin's report, carried in the status (no extra read or write): this run, today's totals
+ * (Tehran day) and the last runs that did something
+ * @param {object} previous - the previous status
+ * @param {{ at: number, checked: number, notMarket: number, duplicates: number, sent: number,
+ *   rejected: number, published: number, waiting: number, aiCalls: number, error: string }} run
+ * @returns {{ run: object, today: object, runs: object[] }}
+ */
+export function newsReport(previous, run) {
+  const day = tehranDayStart(run.at);
+  const today = previous?.today?.day === day ? { ...previous.today } : { day, ...Object.fromEntries(REPORT_COUNTS.map((k) => [k, 0])) };
+  for (const k of REPORT_COUNTS) today[k] = (Number(today[k]) || 0) + (Number(run[k]) || 0);
+  if (run.error) today.errors = (Number(today.errors) || 0) + 1;
+  const busy = run.checked || run.waiting || run.error;
+  const runs = [...(busy ? [run] : []), ...(Array.isArray(previous?.runs) ? previous.runs : [])].slice(0, REPORT_RUNS);
+  return { run, today, runs };
+}
+
 async function pollChannels(env, store, now, fetchPage) {
   const channels = (await getNewsChannels(env)).filter((c) => c.enabled !== false).map((c) => c.username);
   const cursors = await store.getMany(channels.map(cursorKey));
   const previous = (await getNewsStatus(env)) || {};
-  const status = { at: now, channels: {}, published: 0, aiCalls: 0, aiError: "", aiModel: NEWS_AI_MODELS[0]?.label || "" };
+  const status = { at: now, channels: {}, published: 0, aiCalls: 0, aiError: "", aiModel: NEWS_AI_MODEL.label };
 
   // 1. New posts of every channel
   const pages = await mapLimited(channels, FETCH_CONCURRENCY, async (channel) => {
@@ -172,11 +194,18 @@ async function pollChannels(env, store, now, fetchPage) {
   const recent = (await dbRecentNewsTexts(env, now - NEWS_LIMITS.duplicateWindowHours * 3600_000))
     .map((r) => wordSet(`${r.title}\n${r.text}`));
   const candidates = [];
+  let notMarket = 0;
+  let duplicates = 0;
   for (const post of fresh) {
-    post.score = keywordScore(post.text);
-    if (!isNewsCandidate(post.text)) continue;
+    if (!isNewsCandidate(post.text)) {
+      notMarket++;
+      continue;
+    }
     const words = wordSet(post.text);
-    if (recent.some((r) => isDuplicateNews(words, r)) || candidates.some((c) => isDuplicateNews(words, c.words))) continue;
+    if (recent.some((r) => isDuplicateNews(words, r)) || candidates.some((c) => isDuplicateNews(words, c.words))) {
+      duplicates++;
+      continue;
+    }
     candidates.push({ ...post, words });
   }
 
@@ -200,7 +229,7 @@ async function pollChannels(env, store, now, fetchPage) {
     let verdicts;
     try {
       status.aiCalls++;
-      const { answer } = await askWorkersAi(env, NEWS_AI_MODELS, buildNewsPrompt(batch), { maxTokens: newsMaxTokens(batch.length) });
+      const answer = await askWorkersAi(env, NEWS_AI_MODEL, buildNewsPrompt(batch), { maxTokens: newsMaxTokens(batch.length), temperature: 0 });
       verdicts = parseNewsVerdicts(answer, batch.length);
       // An answer that says nothing about any post: the model failed
       if (verdicts.size === 0) throw new Error("unreadable answer (no JSON verdicts)");
@@ -209,7 +238,7 @@ async function pollChannels(env, store, now, fetchPage) {
       // wait for the next run, and the error is logged and shown in the admin's panel
       status.aiError = String(err?.message || err).slice(0, 160);
       logger.error("[News] model failed — nothing published, posts kept for the next run", {
-        model: NEWS_AI_MODELS[0]?.id,
+        model: NEWS_AI_MODEL.id,
         posts: batches.slice(b).flat().length,
         error: status.aiError,
       });
@@ -265,6 +294,19 @@ async function pollChannels(env, store, now, fetchPage) {
     status.aiError = "AI binding is not configured";
     logger.error("[News] no model (AI binding) — nothing published", { candidates: candidates.length });
   }
+  Object.assign(status, newsReport(previous, {
+    at: now,
+    // Posts left for the next run are counted when they are decided
+    checked: fresh.length - deferred.length,
+    notMarket,
+    duplicates,
+    sent: candidates.length - deferred.length,
+    rejected: candidates.length - deferred.length - published.length,
+    published: published.length,
+    waiting: deferred.length,
+    aiCalls: status.aiCalls,
+    error: status.aiError,
+  }));
 
   await Promise.all([
     ...Object.entries(nextCursor).map(([channel, id]) => (id > 0 ? store.put(cursorKey(channel), String(id)) : null)),

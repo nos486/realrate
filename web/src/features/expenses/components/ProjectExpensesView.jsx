@@ -83,7 +83,6 @@ export default function ProjectExpensesView({ groupId = null, onSelectGroup, usd
   const selectTag = (tag) => setTagFilter({ groupId: selected?.id || null, tag });
   const tagSuggestions = useMemo(() => (selectedData?.byTag.tags || []).map((t) => t.tag), [selectedData]);
   const q = toEnglishDigits(searchQuery.trim().toLowerCase());
-  const searching = Boolean(q);
   const listed = useMemo(() => {
     const list = selectedData?.list || [];
     const dir = order === 'asc' ? 1 : -1;

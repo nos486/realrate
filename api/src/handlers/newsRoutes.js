@@ -4,13 +4,10 @@
  * Endpoints:
  *   GET    /api/news                     — Published news, newest first (?limit, ?page or ?before, ?category, ?important=1)
  *   GET    /api/news/today               — The analyst's card and today's most important news
- *   GET    /api/admin/news/channels      — The channels read, and the last run of each (admin)
+ *   GET    /api/admin/news/channels      — The channels read, the last runs' report, the last published news (admin)
  *   PUT    /api/admin/news/channels      — Save the channels ({ channels: [{ username, enabled }] }) (admin)
  *   POST   /api/admin/news/run           — Read the channels now (admin)
  *   POST   /api/admin/news/analysis      — Write the analyst's card now (admin)
- *   POST   /api/admin/news/analysis/lab  — The model lab: build today's input once ({ lab, models, current }) (admin)
- *   POST   /api/admin/news/analysis/lab/run — Run the lab's input on one model ({ labId, model }) (admin)
- *   PUT    /api/admin/news/analysis/model   — Choose the analysis's model ({ model, publishLabId? }) (admin)
  *   POST   /api/admin/news/:id/hidden    — Take an item down or put it back ({ hidden }) (admin)
  */
 
@@ -21,15 +18,14 @@ import { dbListNews, dbSetNewsHidden, dbTopNewsSince } from "../repositories/new
 import {
   getNewsAnalysis,
   maybeUpdateNewsAnalysis,
-  getNewsAnalysisModel,
   getNewsAnalysisStatus,
-  createNewsAnalysisLab,
-  runNewsAnalysisLabModel,
-  chooseNewsAnalysisModel,
 } from "../services/news/newsAnalysis.service.js";
 import { tehranDayStart } from "../domain/news.js";
 import { getNewsChannels, saveNewsChannels, getNewsStatus, runNewsPolling } from "../services/news/news.service.js";
-import { NEWS_CATEGORIES, DEFAULT_NEWS_CHANNELS, NEWS_LIMITS, newsAnalysisModel } from "../config/news.config.js";
+import { NEWS_CATEGORIES, DEFAULT_NEWS_CHANNELS, NEWS_LIMITS, NEWS_ANALYSIS, NEWS_AI_MODEL } from "../config/news.config.js";
+
+/** The last published news shown in the admin's report */
+const ADMIN_LATEST = 8;
 
 const MAX_PAGE = 50;
 
@@ -65,11 +61,11 @@ async function requireAdmin(request, env) {
 
 export async function handleAdminGetNewsChannels(request, env) {
   await requireAdmin(request, env);
-  const [channels, status, analysisStatus, analysisModel] = await Promise.all([
+  const [channels, status, analysisStatus, latest] = await Promise.all([
     getNewsChannels(env),
     getNewsStatus(env),
     getNewsAnalysisStatus(env),
-    getNewsAnalysisModel(env),
+    dbListNews(env, { limit: ADMIN_LATEST }),
   ]);
   return jsonResponse({
     success: true,
@@ -78,8 +74,10 @@ export async function handleAdminGetNewsChannels(request, env) {
     defaults: DEFAULT_NEWS_CHANNELS,
     limits: { maxChannels: NEWS_LIMITS.maxChannels, aiCallsPerDay: NEWS_LIMITS.aiCallsPerDay },
     aiConfigured: typeof env.AI?.run === "function",
-    analysisModel: newsAnalysisModel(analysisModel),
+    model: NEWS_AI_MODEL.label,
+    analysisModel: NEWS_ANALYSIS.model.label,
     analysisStatus,
+    latest: latest.items,
   }, 200, request);
 }
 
@@ -110,24 +108,4 @@ export async function handleAdminRunNewsAnalysis(request, env) {
   const result = await maybeUpdateNewsAnalysis(env, { force: true });
   const [analysis, analysisStatus] = await Promise.all([getNewsAnalysis(env), getNewsAnalysisStatus(env)]);
   return jsonResponse({ success: true, result, analysis, analysisStatus }, 200, request);
-}
-
-export async function handleAdminNewsAnalysisLab(request, env) {
-  await requireAdmin(request, env);
-  return jsonResponse({ success: true, ...(await createNewsAnalysisLab(env)) }, 200, request);
-}
-
-export async function handleAdminRunNewsAnalysisLabModel(request, env) {
-  await requireAdmin(request, env);
-  const body = await request.json().catch(() => null);
-  if (typeof body?.labId !== "string" || typeof body?.model !== "string") throw AppError.badRequest("ورودی نامعتبر است.");
-  return jsonResponse({ success: true, result: await runNewsAnalysisLabModel(env, body.labId, body.model) }, 200, request);
-}
-
-export async function handleAdminChooseNewsAnalysisModel(request, env) {
-  await requireAdmin(request, env);
-  const body = await request.json().catch(() => null);
-  if (!newsAnalysisModel(body?.model)) throw AppError.badRequest("این مدل در فهرست نیست.");
-  const result = await chooseNewsAnalysisModel(env, body.model, { publishLabId: typeof body.publishLabId === "string" ? body.publishLabId : "" });
-  return jsonResponse({ success: true, ...result, analysis: await getNewsAnalysis(env) }, 200, request);
 }

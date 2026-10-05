@@ -14,8 +14,6 @@ import { dbGetCustomBank } from "./customBanks.repository.js";
 import { logger } from "../lib/logger.js";
 import { AppError } from "../lib/AppError.js";
 import {
-  generateAmortizationSchedule,
-  recalculateFromBalance,
   calculateFixedInstallmentAmount,
   calculatePayoffScheduleFixedAmount,
   computeEffectiveSchedule,

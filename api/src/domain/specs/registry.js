@@ -144,42 +144,6 @@ export function getCanonicalAssetName(assetId, fallbackName = '') {
   return fallbackName || assetId || '';
 }
 
-/**
- * Retrieve the canonical unit of an asset by ID
- * @param {string} assetId
- * @param {string} fallbackUnit
- * @returns {string}
- */
-export function getCanonicalAssetUnit(assetId, fallbackUnit = 'واحد') {
-  const spec = getCanonicalAssetSpec(assetId);
-  if (spec && spec.unit) return spec.unit;
-  return fallbackUnit;
-}
-
-/**
- * Retrieve the canonical category of an asset by ID
- * @param {string} assetId
- * @param {string} fallbackCategory
- * @returns {string}
- */
-export function getCanonicalAssetCategory(assetId, fallbackCategory = 'custom') {
-  const spec = getCanonicalAssetSpec(assetId);
-  if (spec && spec.category) return spec.category;
-  return fallbackCategory;
-}
-
-/**
- * Retrieve the canonical badge text of an asset by ID
- * @param {string} assetId
- * @param {string} fallbackBadge
- * @returns {string}
- */
-export function getCanonicalAssetBadge(assetId, fallbackBadge = '') {
-  const spec = getCanonicalAssetSpec(assetId);
-  if (spec && spec.badge) return spec.badge;
-  return fallbackBadge;
-}
-
 import { CATEGORIES_CONFIG, CATEGORY_MAP } from '../../config/categories.config.js';
 import { resolveCategory } from '../../config/sourceRegistry.js';
 
@@ -199,8 +163,6 @@ export const PORTFOLIO_CATEGORIES = CATEGORIES_CONFIG.map((c) => ({
 }));
 
 export const CATEGORY_DEFINITIONS = PORTFOLIO_CATEGORIES;
-
-export const PORTFOLIO_CATEGORY_DICT = CATEGORY_MAP;
 
 export function getCategoryLabel(categoryKey, fallback = '') {
   return CATEGORY_MAP[categoryKey]?.name || fallback || categoryKey || '';
@@ -227,25 +189,3 @@ export const WORLD_FOREX_NAMES = new Proxy({}, {
   },
 });
 
-/**
- * Dynamic Proxy providing complete currency metadata (name, flag, symbol)
- * for all world currencies directly resolved from canonical specifications.
- */
-export const CURRENCY_METADATA_MAP = new Proxy({}, {
-  get(target, prop) {
-    if (typeof prop !== 'string') return target[prop];
-    const spec = getCanonicalAssetSpec(prop);
-    if (spec) {
-      return {
-        name: spec.name,
-        flag: spec.flag || '🌐',
-        symbol: spec.symbol || prop,
-      };
-    }
-    return { name: prop, flag: '🌐', symbol: prop };
-  },
-  has(target, prop) {
-    if (typeof prop !== 'string') return false;
-    return Boolean(getCanonicalAssetSpec(prop));
-  },
-});

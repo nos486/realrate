@@ -30,7 +30,6 @@ export async function handleGetUnifiedMarketItems(env, request) {
   try {
     const url = new URL(request.url);
     const q = (url.searchParams.get("q") || "").trim().toLowerCase();
-    const categoryFilter = url.searchParams.get("category") || "";
     const rawLimit = parseInt(url.searchParams.get("limit") || String(MAX_MARKET_ITEMS_LIMIT), 10);
     const limit = Number.isFinite(rawLimit) && rawLimit > 0 ? Math.min(rawLimit, MAX_MARKET_ITEMS_LIMIT) : MAX_MARKET_ITEMS_LIMIT;
 

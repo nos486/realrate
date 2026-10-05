@@ -1,7 +1,7 @@
 /**
  * newsAnalysis.test.js — the analyst's card: its prompt (numbered news, prices, trends, the previous
  * outlook) and answer (directions grounded in news, the day's drivers), when it is written again
- * (new news, the interval, the day's budget), the admin's model choice and the model lab — on real
+ * (new news, the interval, the day's budget), one model only — on real
  * SQLite (D1) with a fake model
  */
 
@@ -10,16 +10,12 @@ import { buildAnalysisPrompt, parseAnalysis, tehranDayStart } from '../../src/do
 import {
   maybeUpdateNewsAnalysis,
   getNewsAnalysis,
-  getNewsAnalysisModel,
   getNewsAnalysisStatus,
-  createNewsAnalysisLab,
-  runNewsAnalysisLabModel,
-  chooseNewsAnalysisModel,
 } from '../../src/services/news/newsAnalysis.service.js';
 import { answerOf } from '../../src/services/news/workersAi.js';
 import { dbInsertNews, dbTopNewsSince } from '../../src/repositories/news.repository.js';
 import { resetD1SchemaCache } from '../../src/repositories/d1Schema.js';
-import { NEWS_ANALYSIS, NEWS_ANALYSIS_MODELS } from '../../src/config/news.config.js';
+import { NEWS_ANALYSIS } from '../../src/config/news.config.js';
 import { handleGetNewsToday } from '../../src/handlers/newsRoutes.js';
 import { sqliteD1 } from '../helpers/sqliteD1.js';
 
@@ -38,7 +34,7 @@ const ANSWER = JSON.stringify({
   k: ['نرخ بهره بالا رفت', 'انس طلا رکورد زد'],
   r: 'نتیجه‌ی مذاکرات',
 });
-const DEFAULT = NEWS_ANALYSIS.defaultModel;
+const DEFAULT = NEWS_ANALYSIS.model.id;
 
 describe('the prompt and the answer', () => {
   const news = [{ id: 'c/1', title: 'تیتر', summary: 'خلاصه', importance: 3, category: 'currency', url: 'https://t.me/c/1', publishedAt: Date.parse('2026-10-05T06:00:00Z') }];
@@ -83,7 +79,6 @@ describe('the prompt and the answer', () => {
   it("reads every reply shape Workers AI gives", () => {
     expect(answerOf({ response: 'a' })).toBe('a');
     expect(answerOf({ choices: [{ message: { content: 'b' } }] })).toBe('b');
-    expect(answerOf({ output: [{ type: 'reasoning' }, { type: 'message', content: [{ type: 'output_text', text: 'c' }] }] })).toBe('c');
   });
 
   it('the Tehran day starts at 20:30 UTC', () => {
@@ -165,16 +160,6 @@ describe('maybeUpdateNewsAnalysis', () => {
     expect(await getNewsAnalysis(env)).toMatchObject({ at: NOW, title: expect.stringMatching(/^فشار/) });
   });
 
-  it("the admin's model is asked first", async () => {
-    await dbInsertNews(env, [item(1, 30)]);
-    const kimi = NEWS_ANALYSIS_MODELS.find((m) => m.id.includes('kimi')).id;
-    await chooseNewsAnalysisModel(env, kimi);
-    expect(await getNewsAnalysisModel(env)).toBe(kimi);
-    await maybeUpdateNewsAnalysis(env, opts({ now: NOW, force: true }));
-    expect(env.AI.run.mock.calls[0][0]).toBe(kimi);
-    await expect(chooseNewsAnalysisModel(env, '@cf/unknown')).rejects.toThrow('unknown-model');
-  });
-
   it("today's top: most important first", async () => {
     await dbInsertNews(env, [item(1, 30, 1), item(2, 20, 3), item(3, 10, 2)]);
     expect((await dbTopNewsSince(env, tehranDayStart(NOW))).map((n) => n.postId)).toEqual([2, 3, 1]);
@@ -187,43 +172,5 @@ describe('maybeUpdateNewsAnalysis', () => {
     const body = await (await handleGetNewsToday(new Request('https://x/api/news/today'), env)).json();
     expect(body.top).toHaveLength(3);
     expect(body.analysis.title).toMatch(/^فشار تورمی/);
-  });
-
-  describe('the model lab', () => {
-    it('one input for every model; each answer on its own; choose a model and publish its answer', async () => {
-      await dbInsertNews(env, [item(1, 30, 3), item(2, 20)]);
-      const { lab, models, current } = await createNewsAnalysisLab(env, opts({ now: NOW }));
-      expect(current).toBe(DEFAULT);
-      expect(models.map((m) => m.id)).toEqual(NEWS_ANALYSIS_MODELS.map((m) => m.id));
-      expect(lab.messages[1].content).toContain('N1');
-      expect(lab.newsCount).toBe(2);
-
-      const gemma = NEWS_ANALYSIS_MODELS.find((m) => m.id.includes('gemma')).id;
-      env.AI.run.mockResolvedValueOnce({ choices: [{ message: { content: ANSWER } }], usage: { prompt_tokens: 1000, completion_tokens: 500 } });
-      const good = await runNewsAnalysisLabModel(env, lab.id, gemma);
-      expect(good).toMatchObject({ model: gemma, ok: true, analysis: { title: expect.stringMatching(/^فشار/) } });
-      expect(good.cost).toBeCloseTo((1000 * 0.1 + 500 * 0.3) / 1e6);
-      expect(env.AI.run.mock.calls[0][1].messages).toEqual(lab.messages);
-
-      env.AI.run.mockResolvedValueOnce({ response: '{"t":"تیتر","s":"قیمت nhẹ"}' });
-      expect(await runNewsAnalysisLabModel(env, lab.id, DEFAULT)).toMatchObject({ ok: false, error: 'foreign-text' });
-      env.AI.run.mockRejectedValueOnce(new Error('3040: capacity'));
-      expect(await runNewsAnalysisLabModel(env, lab.id, DEFAULT)).toMatchObject({ ok: false, error: '3040: capacity' });
-      expect(await runNewsAnalysisLabModel(env, 'old', DEFAULT)).toMatchObject({ ok: false, error: 'lab-expired' });
-      expect(await runNewsAnalysisLabModel(env, lab.id, '@cf/x')).toMatchObject({ ok: false, error: 'unknown-model' });
-
-      // Choose gemma and publish its answer: no new request
-      const calls = env.AI.run.mock.calls.length;
-      expect(await chooseNewsAnalysisModel(env, gemma, { publishLabId: lab.id, now: NOW + 1000 })).toEqual({ model: gemma, published: true });
-      expect(env.AI.run.mock.calls.length).toBe(calls);
-      expect(await getNewsAnalysisModel(env)).toBe(gemma);
-      expect(await getNewsAnalysis(env)).toMatchObject({ model: gemma, at: NOW + 1000, newsCount: 2, drivers: [{ id: 'c/1' }] });
-      // A model whose answer failed can still be chosen; nothing is published
-      expect(await chooseNewsAnalysisModel(env, DEFAULT, { publishLabId: lab.id })).toEqual({ model: DEFAULT, published: false });
-    });
-
-    it('no news yet: no lab', async () => {
-      expect(await createNewsAnalysisLab(env, opts({ now: NOW }))).toMatchObject({ lab: null, reason: 'no-news' });
-    });
   });
 });

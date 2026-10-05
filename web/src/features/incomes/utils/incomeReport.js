@@ -19,12 +19,6 @@ export function incomeDollarValue(income, usdToman, usdAt) {
   return dollarValueOf(income?.amount, typeof usdAt === 'function' ? usdAt(income?.incomeDate) : 0, usdToman);
 }
 
-export const INCOME_PERIODS = [
-  { value: 'all', label: 'همه' },
-  { value: 'year', label: 'امسال' },
-  { value: 'month', label: 'ماه جاری' },
-];
-
 /**
  * Split a Shamsi "YYYY/MM/DD" string into numeric parts
  * @param {string} shamsi
@@ -52,24 +46,6 @@ export function getShamsiYearMonth(isoDate) {
 export function formatShamsiMonth(year, month) {
   const monthLabel = PERSIAN_MONTHS[month - 1]?.label || '';
   return `${monthLabel} ${Number(year).toLocaleString('fa-IR', { useGrouping: false })}`;
-}
-
-/**
- * Keep only the incomes that fall within the given period (relative to today, Shamsi)
- * @param {Array<object>} incomes
- * @param {'all'|'year'|'month'} period
- * @param {string} [todayShamsi] - injectable for deterministic callers
- */
-export function filterIncomesByPeriod(incomes, period, todayShamsi = getTodayShamsi()) {
-  if (period === 'all') return incomes;
-  const today = parseShamsiYearMonth(todayShamsi);
-  if (!today) return incomes;
-
-  return incomes.filter((income) => {
-    const ym = getShamsiYearMonth(income.incomeDate);
-    if (!ym || ym.year !== today.year) return false;
-    return period === 'year' || ym.month === today.month;
-  });
 }
 
 /**

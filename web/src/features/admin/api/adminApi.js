@@ -58,10 +58,6 @@ export async function savePriceSource(sourceData) {
   return httpClient.post('/api/admin/price-sources', sourceData);
 }
 
-export async function deletePriceSource(id) {
-  return httpClient.delete(`/api/admin/price-sources?id=${encodeURIComponent(id)}`);
-}
-
 export async function setPrimarySource(id, priceType = null) {
   return httpClient.post('/api/admin/price-sources/set-primary', { id, priceType });
 }
@@ -79,21 +75,8 @@ export async function testPriceSource(config) {
   }
 }
 
-export async function inspectApiSource(apiUrl, headers = {}) {
-  return httpClient.post('/api/admin/price-sources/inspect-api', { apiUrl, headers });
-}
-
 export async function fetchAllSourcesNow() {
   return httpClient.post('/api/admin/price-sources/fetch-all', {});
-}
-
-
-
-export async function getAdminUserPortfolio(userId, portfolioId = null) {
-  const url = portfolioId
-    ? `/api/admin/users/portfolio?userId=${encodeURIComponent(userId)}&portfolioId=${encodeURIComponent(portfolioId)}`
-    : `/api/admin/users/portfolio?userId=${encodeURIComponent(userId)}`;
-  return httpClient.get(url);
 }
 
 /** The price history page: tgju catalog, mappings, the book's items, the history per id */

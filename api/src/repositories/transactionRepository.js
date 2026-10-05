@@ -198,7 +198,5 @@ export async function dbDeleteTransaction(env, id, userId) {
 
 // Aliases matching prompt conventions
 export const createTransaction = dbCreateTransaction;
-export const listTransactionsByPortfolio = dbGetTransactionsByPortfolio;
 export const updateTransaction = dbUpdateTransaction;
 export const deleteTransaction = dbDeleteTransaction;
-export const getTransactionById = dbGetTransactionById;

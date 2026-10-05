@@ -31,7 +31,6 @@ export function ChequeScanModal({ isOpen, onClose, onFillForm }) {
   const {
     status,
     quota,
-    file,
     resized,
     previewUrl,
     result,

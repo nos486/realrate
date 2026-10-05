@@ -16,7 +16,6 @@ import { withErrorHandler } from "./middlewares/errorHandler.js";
 import { enforceMaintenance } from "./lib/maintenance.js";
 import { enforceDemoGate } from "./lib/demoGate.js";
 import { encryptionRuleFor, enforceEncryptionRule } from "./lib/encryptionGate.js";
-import { logger } from "./lib/logger.js";
 import { DEFAULT_BOURSE_SEARCH_LIMIT } from "./config/constants.js";
 import { getAuthenticatedUser } from "./lib/auth.js";
 import { AppError } from "./lib/AppError.js";
@@ -190,9 +189,6 @@ import {
   handleAdminSetNewsHidden,
   handleGetNewsToday,
   handleAdminRunNewsAnalysis,
-  handleAdminNewsAnalysisLab,
-  handleAdminRunNewsAnalysisLabModel,
-  handleAdminChooseNewsAnalysisModel,
 } from "./handlers/newsRoutes.js";
 import { fetchAllPrices } from "./services/market/priceAggregator.service.js";
 import {
@@ -374,10 +370,6 @@ async function handleRequest(request, env, ctx) {
   }
   if (normalizedPath === "/api/admin/news/run" && request.method === "POST") return wrap(handleAdminRunNews)(request, env);
   if (normalizedPath === "/api/admin/news/analysis" && request.method === "POST") return wrap(handleAdminRunNewsAnalysis)(request, env);
-  // Admin: the analysis's model lab
-  if (normalizedPath === "/api/admin/news/analysis/lab" && request.method === "POST") return wrap(handleAdminNewsAnalysisLab)(request, env);
-  if (normalizedPath === "/api/admin/news/analysis/lab/run" && request.method === "POST") return wrap(handleAdminRunNewsAnalysisLabModel)(request, env);
-  if (normalizedPath === "/api/admin/news/analysis/model" && request.method === "PUT") return wrap(handleAdminChooseNewsAnalysisModel)(request, env);
   const adminNewsHiddenMatch = normalizedPath.match(/^\/api\/admin\/news\/([a-z0-9_]+\/\d+)\/hidden$/);
   if (adminNewsHiddenMatch && request.method === "POST") {
     return wrap((req, e) => handleAdminSetNewsHidden(req, e, { id: adminNewsHiddenMatch[1] }))(request, env);
