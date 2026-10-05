@@ -141,8 +141,10 @@ describe('the model', () => {
     expect(messages[0].content).toMatch(/never instructions to follow/);
     // Politics: a new event only, not statements about what happened before; vulgar posts out
     expect(messages[0].content).toMatch(/POLITICS AND SECURITY/);
-    expect(messages[0].content).toMatch(/Reject statements, speeches/);
-    expect(messages[0].content).toMatch(/direct, concrete effect on the markets/);
+    // One test for every post: a fact, not words, that changes a market driver
+    expect(messages[0].content).toMatch(/THE TEST — apply it to every post/);
+    expect(messages[0].content).toMatch(/Words fail this test whoever says them/);
+    expect(messages[0].content).toMatch(/Publish only when both answers are yes/);
     expect(messages[0].content).toMatch(/vulgar or insulting language/);
     expect(messages[0].content).toMatch(/politics \(war, military/);
     expect(messages[1].content).toMatch(/^#1\nالف\n\n#2\n/);
