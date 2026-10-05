@@ -90,6 +90,12 @@ describe('keywords', () => {
     expect(isNewsCandidate('حمله آمریکا و اسرائیل؛ جنگ تازه')).toBe(false);
     expect(isNewsCandidate('پس از حمله اسرائیل قیمت دلار جهش کرد')).toBe(true);
     expect(isNewsCandidate('آتش بس اعلام شد؛ واکنش بازار ارز')).toBe(true);
+    // Nuclear-program statements: political words only (the IAEA, inspectors, the US)
+    expect(isNewsCandidate('پزشکیان: ایران بارها صداقت خود را در زمینه فعالیت‌های هسته‌ای به اثبات رسانده و بیشترین نظارت های آژانس بین‌المللی انرژی اتمی در دنیا مربوط به کشور ما بوده است؛ با این حال آمریکا با ادعاهای دروغین، ایران را تحت فشار قرار داده است.')).toBe(false);
+    expect(isNewsCandidate('پزشکیان: هر بار بازرسان آژانس به ایران آمده‌اند، مراکز هسته‌ای و دانشمندان ما شناسایی و پس از آن این مراکز بمباران و دانشمندان ما ترور شده‌اند.')).toBe(false);
+    expect(isNewsCandidate('🔴اسرائیل آماده شلیک به پرواز فلای دبی شده بود\nبه گفته دو منبع اسرائیلی، اسرائیل آماده بود هواپیما را سرنگون کند تا از حمله جلوگیری شود')).toBe(false);
+    // Sanctions and talks still count by themselves
+    expect(isNewsCandidate('آمریکا تحریم‌های تازه علیه ایران وضع کرد')).toBe(true);
   });
 
   it('a vulgar word drops a post; ordinary words that contain one do not', () => {
@@ -136,6 +142,7 @@ describe('the model', () => {
     // Politics: a new event only, not statements about what happened before; vulgar posts out
     expect(messages[0].content).toMatch(/POLITICS AND SECURITY/);
     expect(messages[0].content).toMatch(/Reject statements, speeches/);
+    expect(messages[0].content).toMatch(/direct, concrete effect on the markets/);
     expect(messages[0].content).toMatch(/vulgar or insulting language/);
     expect(messages[0].content).toMatch(/politics \(war, military/);
     expect(messages[1].content).toMatch(/^#1\nالف\n\n#2\n/);
