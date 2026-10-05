@@ -2,6 +2,7 @@
  * user.repository.js — User Data Access Layer (D1)
  */
 
+import { tehranDay } from "./priceHistory.repository.js";
 import { ensureSchema } from "./schema.repository.js";
 import { logger } from "../lib/logger.js";
 import { sanitizeHomeLayout } from "../domain/homeLayout.js";
@@ -18,7 +19,8 @@ const recordedActivity = new Set();
  */
 export async function dbRecordUserActivity(env, userId) {
   if (!env?.DB || !userId) return;
-  const day = new Date().toISOString().slice(0, 10);
+  // The user's day is Iran's (a visit at 01:00 Tehran is today's, not yesterday's UTC day)
+  const day = tehranDay();
   const key = `${userId}|${day}`;
   if (recordedActivity.has(key)) return;
   try {

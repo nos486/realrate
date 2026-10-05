@@ -40,10 +40,17 @@ export async function runCronPolling(event, env, ctx) {
   const scheduledDate = Number.isFinite(scheduledTime) && scheduledTime > 0 ? new Date(scheduledTime) : new Date();
 
   if (scheduledDate.getUTCMinutes() === 0) {
-    ctx.waitUntil(dbDeleteExpiredSessions(env));
+    // Each cleanup on its own: one failing never leaves a rejection unhandled or stops the others
+    ctx.waitUntil(
+      dbDeleteExpiredSessions(env).catch(err => {
+        logger.error("[CronPolling] Expired sessions purge error:", { error: err.message });
+      })
+    );
     ctx.waitUntil(
       Promise.all([
-        purgeExpiredState(env),
+        purgeExpiredState(env).catch(err => {
+          logger.error("[CronPolling] Expired state purge error:", { error: err.message });
+        }),
         dbPurgeOldAlertEmailSent(env).catch(err => {
           logger.error("[CronPolling] Alert email sent purge error:", { error: err.message });
         }),

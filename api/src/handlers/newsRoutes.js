@@ -14,6 +14,7 @@
 import { getAuthenticatedUser } from "../lib/auth.js";
 import { jsonResponse } from "../lib/helpers.js";
 import { AppError } from "../lib/AppError.js";
+import { edgeCachedJson } from "../lib/edgeCache.js";
 import { dbListNews, dbSetNewsHidden, dbTopNewsSince } from "../repositories/news.repository.js";
 import {
   getNewsAnalysis,
@@ -28,6 +29,8 @@ import { NEWS_CATEGORIES, DEFAULT_NEWS_CHANNELS, NEWS_LIMITS, NEWS_ANALYSIS, NEW
 const ADMIN_LATEST = 8;
 
 const MAX_PAGE = 50;
+/** How long the public news answers are shared at the edge (new news comes at most once a minute) */
+const PUBLIC_CACHE_SEC = 30;
 
 export async function handleGetNews(request, env) {
   const params = new URL(request.url).searchParams;
@@ -36,22 +39,26 @@ export async function handleGetNews(request, env) {
   const page = Math.min(1000, Math.max(0, parseInt(params.get("page") || "0", 10) || 0));
   const category = Object.hasOwn(NEWS_CATEGORIES, params.get("category") || "") ? params.get("category") : "";
   const importance = params.get("important") === "1" ? 2 : 0;
-  const { items, hasMore, total } = await dbListNews(env, { limit, page, before, category, importance });
-  // New news comes at most once a minute: a short cache spares repeated reads
+  // New news comes at most once a minute: every visitor of a data center shares one read per 30 s
+  const query = new URLSearchParams({ limit, page, before, category, importance }).toString();
+  const { items, hasMore, total } = await edgeCachedJson(`https://news.cache/list?${query}`, PUBLIC_CACHE_SEC, () =>
+    dbListNews(env, { limit, page, before, category, importance }));
   return jsonResponse({ success: true, items, hasMore, total, categories: NEWS_CATEGORIES }, 200, request, {
-    "Cache-Control": "public, max-age=30",
+    "Cache-Control": `public, max-age=${PUBLIC_CACHE_SEC}`,
   });
 }
 
 const TODAY_TOP = 6;
 
 export async function handleGetNewsToday(request, env) {
-  const now = Date.now();
-  let top = await dbTopNewsSince(env, tehranDayStart(now), TODAY_TOP);
-  // Early in the day: the last 24 hours instead
-  if (top.length < 3) top = await dbTopNewsSince(env, now - 86400000, TODAY_TOP);
-  const analysis = await getNewsAnalysis(env);
-  return jsonResponse({ success: true, analysis, top }, 200, request, { "Cache-Control": "public, max-age=30" });
+  const body = await edgeCachedJson("https://news.cache/today", PUBLIC_CACHE_SEC, async () => {
+    const now = Date.now();
+    let top = await dbTopNewsSince(env, tehranDayStart(now), TODAY_TOP);
+    // Early in the day: the last 24 hours instead
+    if (top.length < 3) top = await dbTopNewsSince(env, now - 86400000, TODAY_TOP);
+    return { analysis: await getNewsAnalysis(env), top };
+  });
+  return jsonResponse({ success: true, ...body }, 200, request, { "Cache-Control": `public, max-age=${PUBLIC_CACHE_SEC}` });
 }
 
 async function requireAdmin(request, env) {

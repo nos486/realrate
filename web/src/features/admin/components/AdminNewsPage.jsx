@@ -30,7 +30,7 @@ const TOTALS = [
 ];
 
 /** «گزارش اخبار»: today's totals, the last runs, the last published news */
-function NewsReport({ status, latest, model }) {
+function NewsReport({ status, latest, model, dayBudget }) {
   const today = status?.today;
   const runs = status?.runs || [];
   return (
@@ -56,6 +56,15 @@ function NewsReport({ status, latest, model }) {
           <small>درخواست به {model}</small>
         </div>
       </div>
+      {status?.budgetUsedUp && (
+        <p className="admin-news-error">
+          <AlertTriangle size={14} aria-hidden="true" />
+          <span>
+            <strong>سهمیه‌ی امروز مدل ({fa(dayBudget)} درخواست) تمام شده است.</strong>
+            <small>{fa(status.run?.waiting)} پست در صف منتظر است و با شروع روز بعد (تهران) بررسی می‌شود؛ پست‌های قدیمی‌تر از ۶ ساعت از صف حذف می‌شوند.</small>
+          </span>
+        </p>
+      )}
       {status?.aiError && (
         <p className="admin-news-error">
           <AlertTriangle size={14} aria-hidden="true" />
@@ -212,7 +221,7 @@ export default function AdminNewsPage() {
 
   return (
     <div className="admin-news">
-      <NewsReport status={status} latest={data.latest} model={data.model} />
+      <NewsReport status={status} latest={data.latest} model={data.model} dayBudget={data.limits?.aiCallsPerDay} />
 
       <div className="portfolio-stat-card">
         <div className="stat-header">

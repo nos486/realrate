@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useRef, lazy, Suspense } from 'react';
 import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import ErrorBoundary from '../shared/ui/ErrorBoundary.jsx';
 import { TrendingUp, Briefcase, ShieldCheck, Settings, Landmark, Wallet, ReceiptText, Wrench, HandCoins, WalletCards, Smartphone, MessageSquareText, FolderKanban, Newspaper } from 'lucide-react';
 import { AppLayout, FilterPills, AlertBanner, Button } from '../shared/ui/index.js';
 import { PriceRefreshStatus } from '../features/market/components/index.js';
@@ -435,6 +436,8 @@ export default function MainPage() {
           </div>
         )}
 
+        {/* A section that fails to render shows a message; the navigation stays (another tab tries again) */}
+        <ErrorBoundary resetKey={activeTab}>
         <Suspense fallback={<TabLoader />}>
         {activeTab === 'portfolio' && (
           <PortfolioTracker
@@ -478,6 +481,7 @@ export default function MainPage() {
         {activeTab === 'news' && <NewsPage />}
 
         </Suspense>
+        </ErrorBoundary>
         </>
         )}
       </section>

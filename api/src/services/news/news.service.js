@@ -12,9 +12,10 @@
  *   4. the rest go to Workers AI in batches: one short prompt for several posts decides what is
  *      published and writes its headline and summary. Nothing is published without the model:
  *      no keyword-only publishing, and no other model is tried when it fails.
- * Posts beyond the run's model budget, and those of a batch the model failed on (the error is
- * logged and kept for the admin's panel), stay for the next minute (the channel's cursor stops
- * before them).
+ * Posts the model hasn't decided yet — beyond the run's or the day's budget, or in a batch it failed
+ * on (the error is logged and kept for the admin's panel) — wait in a queue (`news:pending`, at
+ * most NEWS_LIMITS.pendingMax, dropped after NEWS_LIMITS.pendingMaxHours) and go first next run.
+ * The channels' cursors always move on: a post is read from Telegram once, and never decided twice.
  */
 
 import {
@@ -46,8 +47,10 @@ import { logger } from "../../lib/logger.js";
 const CHANNELS_KEY = "news:channels";
 const STATUS_KEY = "news:status";
 const LOCK_KEY = "news:lock";
+const PENDING_KEY = "news:pending";
 const cursorKey = (channel) => `news:cursor:${channel}`;
-const aiDayKey = (now) => `news:ai:${new Date(now).toISOString().slice(0, 10)}`;
+/** The model calls of a Tehran day (the budget and the report share the same day) */
+const aiDayKey = (now) => `news:ai:${tehranDayStart(now)}`;
 const FETCH_TIMEOUT_MS = 10000;
 const FETCH_CONCURRENCY = 6;
 
@@ -110,7 +113,7 @@ async function mapLimited(items, limit, fn) {
  * One run over every channel
  * @param {object} env - env.DB, env.AI (Workers AI; optional), env.KV not used
  * @param {{ now?: number, force?: boolean }} [opts] - force: run even while another run holds the lock (admin)
- * @returns {Promise<{ skipped?: boolean, checked: number, candidates: number, published: number, aiCalls: number }>}
+ * @returns {Promise<{ skipped?: boolean, checked: number, candidates: number, published: number, waiting?: number, aiCalls: number }>}
  */
 export async function runNewsPolling(env, { now = Date.now(), force = false, fetchPage = fetchChannelPage, readPrices } = {}) {
   const store = getStateStore(env);
@@ -129,11 +132,36 @@ export async function runNewsPolling(env, { now = Date.now(), force = false, fet
     });
     return result;
   } finally {
-    await store.delete(LOCK_KEY).catch(() => {});
+    // The lock is the scheduled run's: an admin's forced run alongside it leaves it be
+    if (holders === 1) await store.delete(LOCK_KEY).catch(() => {});
   }
 }
 
-/** Runs kept in the report (only those that read something, waited or failed) */
+const postKey = (p) => `${p.channel}/${p.postId}`;
+
+/** The queue as stored: posts not older than NEWS_LIMITS.pendingMaxHours */
+function readPending(raw, now) {
+  let list = [];
+  try {
+    list = JSON.parse(raw || "[]");
+  } catch {
+    list = [];
+  }
+  const oldest = now - NEWS_LIMITS.pendingMaxHours * 3600_000;
+  return (Array.isArray(list) ? list : [])
+    .filter((p) => p && p.channel && Number.isInteger(p.postId) && typeof p.text === "string" && (p.publishedAt || now) >= oldest);
+}
+
+/** The queue to store: what the posts need to be decided later, at most NEWS_LIMITS.pendingMax (the oldest go first) */
+function writePendingList(posts) {
+  const list = posts.map(({ channel, postId, url, text, image, publishedAt }) => ({ channel, postId, url, text, image, publishedAt }));
+  if (list.length > NEWS_LIMITS.pendingMax) {
+    logger.warn("[News] the queue is full — the oldest waiting posts are dropped", { dropped: list.length - NEWS_LIMITS.pendingMax });
+  }
+  return list.slice(-NEWS_LIMITS.pendingMax);
+}
+
+/** Runs kept in the report (only those that decided something or failed) */
 const REPORT_RUNS = 12;
 const REPORT_COUNTS = ["checked", "notMarket", "duplicates", "sent", "rejected", "published", "aiCalls"];
 
@@ -150,14 +178,17 @@ export function newsReport(previous, run) {
   const today = previous?.today?.day === day ? { ...previous.today } : { day, ...Object.fromEntries(REPORT_COUNTS.map((k) => [k, 0])) };
   for (const k of REPORT_COUNTS) today[k] = (Number(today[k]) || 0) + (Number(run[k]) || 0);
   if (run.error) today.errors = (Number(today.errors) || 0) + 1;
-  const busy = run.checked || run.waiting || run.error;
+  // A run kept only for what it did (posts merely waiting in the queue add nothing new)
+  const busy = run.checked || run.error;
   const runs = [...(busy ? [run] : []), ...(Array.isArray(previous?.runs) ? previous.runs : [])].slice(0, REPORT_RUNS);
   return { run, today, runs };
 }
 
 async function pollChannels(env, store, now, fetchPage) {
   const channels = (await getNewsChannels(env)).filter((c) => c.enabled !== false).map((c) => c.username);
-  const cursors = await store.getMany(channels.map(cursorKey));
+  const cursors = await store.getMany([...channels.map(cursorKey), PENDING_KEY]);
+  // Candidates left undecided by earlier runs (newest-first cap; stale ones dropped)
+  const pending = readPending(cursors.get(PENDING_KEY), now);
   const previous = (await getNewsStatus(env)) || {};
   const status = { at: now, channels: {}, published: 0, aiCalls: 0, aiError: "", aiModel: NEWS_AI_MODEL.label };
 
@@ -199,9 +230,12 @@ async function pollChannels(env, store, now, fetchPage) {
   const candidates = [];
   let notMarket = 0;
   let duplicates = 0;
-  for (const post of fresh) {
+  const pendingIds = new Set(pending.map(postKey));
+  // The waiting ones first (already past the keywords), then the new ones
+  for (const post of [...pending, ...fresh.filter((p) => !pendingIds.has(postKey(p)))]) {
+    const waited = pendingIds.has(postKey(post));
     // Not market news, or vulgar: never sent to the model
-    if (hasProfanity(post.text) || !isNewsCandidate(post.text)) {
+    if (!waited && (hasProfanity(post.text) || !isNewsCandidate(post.text))) {
       notMarket++;
       continue;
     }
@@ -222,12 +256,13 @@ async function pollChannels(env, store, now, fetchPage) {
 
   const published = [];
   let deferred = [];
+  let decided = 0;
   for (let b = 0; b < batches.length; b++) {
     const batch = batches[b];
-    // No model, or over the day's budget: nothing is published without it (no keyword-only
-    // publishing). Over this run's budget but not the day's: the next minute takes them.
+    // No model, or over the run's or the day's budget: nothing is published without it (no
+    // keyword-only publishing); they wait in the queue
     if (!hasModel || b >= callsLeft) {
-      if (hasModel && usedToday + status.aiCalls < NEWS_LIMITS.aiCallsPerDay) deferred = batches.slice(b).flat();
+      deferred = batches.slice(b).flat();
       break;
     }
     let verdicts;
@@ -250,6 +285,7 @@ async function pollChannels(env, store, now, fetchPage) {
       break;
     }
 
+    decided += batch.length;
     batch.forEach((post, i) => {
       let verdict = verdicts.get(i);
       // The model's headline slipped into another language: the post's own words, its verdict kept
@@ -277,10 +313,8 @@ async function pollChannels(env, store, now, fetchPage) {
   }
   if (status.aiCalls) await store.increment(aiDayKey(now), status.aiCalls, { expirationTtl: 2 * 86400 });
 
-  // A channel's cursor stops before its first post left for the next run
-  for (const post of deferred) {
-    nextCursor[post.channel] = Math.min(nextCursor[post.channel], post.postId - 1);
-  }
+  // The undecided wait in the queue (the cursors move on regardless)
+  const waiting = writePendingList(deferred);
 
   await dbInsertNews(env, published);
   // Important fresh news: a push to the browsers that asked for it
@@ -294,29 +328,38 @@ async function pollChannels(env, store, now, fetchPage) {
   }
   status.published = published.length;
   status.aiCallsToday = usedToday + status.aiCalls;
+  // The day's budget used up is not a model error: a note for the panel (logged once a day)
+  status.budgetUsedUp = hasModel && deferred.length > 0 && usedToday + status.aiCalls >= NEWS_LIMITS.aiCallsPerDay;
+  if (status.budgetUsedUp && !previous.budgetUsedUp) {
+    logger.warn("[News] the day's model budget is used up — posts wait in the queue", { waiting: waiting.length });
+  }
   if (!status.aiError && !hasModel && candidates.length) {
     status.aiError = "AI binding is not configured";
     logger.error("[News] no model (AI binding) — nothing published", { candidates: candidates.length });
   }
   Object.assign(status, newsReport(previous, {
     at: now,
-    // Posts left for the next run are counted when they are decided
-    checked: fresh.length - deferred.length,
+    // A post is counted once, when it is decided (a waiting one, the run that decides it)
+    checked: notMarket + duplicates + decided,
     notMarket,
     duplicates,
-    sent: candidates.length - deferred.length,
-    rejected: candidates.length - deferred.length - published.length,
+    sent: decided,
+    rejected: decided - published.length,
     published: published.length,
-    waiting: deferred.length,
+    waiting: waiting.length,
     aiCalls: status.aiCalls,
     error: status.aiError,
   }));
 
   await Promise.all([
-    ...Object.entries(nextCursor).map(([channel, id]) => (id > 0 ? store.put(cursorKey(channel), String(id)) : null)),
+    ...Object.entries(nextCursor)
+      .filter(([channel, id]) => id > 0 && String(id) !== cursors.get(cursorKey(channel)))
+      .map(([channel, id]) => store.put(cursorKey(channel), String(id))),
+    // The queue is written only when it has or had posts
+    waiting.length || pending.length ? store.put(PENDING_KEY, JSON.stringify(waiting)) : null,
     store.put(STATUS_KEY, JSON.stringify(status)),
   ]);
 
   if (published.length) logger.info("[News] published", { count: published.length, candidates: candidates.length });
-  return { checked: fresh.length, candidates: candidates.length, published: published.length, aiCalls: status.aiCalls };
+  return { checked: status.run.checked, candidates: candidates.length, published: published.length, waiting: waiting.length, aiCalls: status.aiCalls };
 }

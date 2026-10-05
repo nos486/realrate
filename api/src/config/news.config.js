@@ -20,6 +20,9 @@ export const DEFAULT_NEWS_CHANNELS = [
 export const NEWS_LIMITS = {
   /** A channel read for the first time: its latest posts, so the page starts with some news */
   firstReadPosts: 10,
+  /** Posts waiting for the model (its budget, or a failure): at most this many, for this long */
+  pendingMax: 60,
+  pendingMaxHours: 6,
   /** Channels in the list (each one is a fetch every minute) */
   maxChannels: 30,
   /** Posts sent to the model in one request (one prompt for several posts) */

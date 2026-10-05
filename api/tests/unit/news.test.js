@@ -178,6 +178,8 @@ describe('the model', () => {
     expect(status.today).toMatchObject({ checked: 12, notMarket: 6, duplicates: 1, sent: 5, rejected: 3, published: 2, aiCalls: 2, errors: 1 });
     // The idle run isn't kept
     expect(status.runs.map((r) => r.at)).toEqual([at + 120000, at]);
+    // Posts only waiting in the queue: not kept either
+    expect(newsReport(status, run({ at: at + 180000, waiting: 5 })).runs).toHaveLength(2);
     // 20:31 UTC: a new Tehran day
     const next = newsReport(status, run({ at: Date.parse('2026-10-05T20:31:00Z'), checked: 1, notMarket: 1 }));
     expect(next.today).toMatchObject({ checked: 1, notMarket: 1, published: 0 });
@@ -338,7 +340,7 @@ describe('runNewsPolling', () => {
     error.mockRestore();
   });
 
-  it("posts beyond the run's model budget wait for the next minute", async () => {
+  it("posts beyond the run's model budget wait in the queue: Telegram is read once, each post decided once", async () => {
     const words = ['تورم', 'تحریم', 'نفت', 'سکه', 'نقره', 'یورو', 'بودجه', 'مالیات', 'اوپک', 'برجام'];
     const texts = Array.from({ length: 40 }, (_, i) => `دلار ${words[i % 10]} ${'الف'.repeat(1)} رویداد${i} موضوع${i * 7} بخش${i * 13} شهر${i * 3}`);
     pages.chan_one = page('chan_one', texts.slice(0, 20).map((t, i) => post('chan_one', i + 1, t, at(i))));
@@ -352,9 +354,23 @@ describe('runNewsPolling', () => {
       NEWS_LIMITS.aiBatchSize = 4;
       const first = await runNewsPolling(env, { now: NOW, fetchPage });
       expect(env.AI.run).toHaveBeenCalledTimes(1);
+      expect(first).toMatchObject({ checked: 4, waiting: 16 });
       const second = await runNewsPolling(env, { now: NOW + 60000, fetchPage });
-      expect(second.checked).toBeGreaterThan(0);
-      expect(second.checked).toBeLessThan(first.checked);
+      // Nothing new on Telegram: the queue's next batch, none of the first one again
+      expect(second).toMatchObject({ checked: 4, waiting: 12 });
+      const sent = env.AI.run.mock.calls.map((c) => c[1].messages[1].content);
+      expect(sent[1]).not.toBe(sent[0]);
+      const report = await getNewsStatus(env);
+      expect(report.today).toMatchObject({ checked: 8, sent: 8, rejected: 8 });
+      // A day's budget used up: they keep waiting, and the panel says why
+      NEWS_LIMITS.aiCallsPerDay = 2;
+      const third = await runNewsPolling(env, { now: NOW + 120000, fetchPage });
+      expect(third).toMatchObject({ checked: 0, waiting: 12, aiCalls: 0 });
+      // Not a model error, and an idle run doesn't fill the report
+      const after = await getNewsStatus(env);
+      expect(after).toMatchObject({ aiError: '', budgetUsedUp: true });
+      expect(after.today.errors).toBeUndefined();
+      expect(after.runs).toHaveLength(2);
     } finally {
       Object.assign(NEWS_LIMITS, budget);
     }
