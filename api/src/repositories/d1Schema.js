@@ -596,6 +596,35 @@ export const APP_TABLES = [
     afterAddColumns: ["UPDATE price_daily SET open = value, high = value, low = value WHERE open IS NULL"],
   },
   {
+    // The news section: market news picked from Telegram channels (services/news/news.service.js).
+    // `id` is "<channel>/<post id>"; `ai` 1 when the model approved and summarized it; `hidden`
+    // 1 when an admin took it down. Deleted after NEWS_LIMITS.retentionDays.
+    name: "news",
+    columns: ["id", "channel", "channel_title", "post_id", "url", "title", "summary", "text", "category",
+      "importance", "image", "published_at", "created_at", "ai", "hidden"],
+    ddl: [
+      `CREATE TABLE IF NOT EXISTS news (
+        id TEXT PRIMARY KEY,
+        channel TEXT NOT NULL,
+        channel_title TEXT NOT NULL DEFAULT '',
+        post_id INTEGER NOT NULL,
+        url TEXT NOT NULL,
+        title TEXT NOT NULL,
+        summary TEXT NOT NULL DEFAULT '',
+        text TEXT NOT NULL DEFAULT '',
+        category TEXT NOT NULL DEFAULT 'economy',
+        importance INTEGER NOT NULL DEFAULT 1,
+        image TEXT NOT NULL DEFAULT '',
+        published_at INTEGER NOT NULL,
+        created_at INTEGER NOT NULL,
+        ai INTEGER NOT NULL DEFAULT 0,
+        hidden INTEGER NOT NULL DEFAULT 0
+      )`,
+      "CREATE INDEX IF NOT EXISTS idx_news_published ON news(hidden, published_at DESC)",
+      "CREATE INDEX IF NOT EXISTS idx_news_category ON news(category, published_at DESC)",
+    ],
+  },
+  {
     // The version of the DDL above that was last applied (see ensureD1Schema)
     name: "app_schema",
     columns: ["id", "version"],

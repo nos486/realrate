@@ -12,7 +12,7 @@
 
 import React, { Suspense, lazy } from 'react';
 import { NavLink, Link, Navigate, Route, Routes } from 'react-router-dom';
-import { ShieldCheck, Users, Radio, History, ArrowRight, Ban, UsersRound } from 'lucide-react';
+import { ShieldCheck, Users, Radio, History, ArrowRight, Ban, UsersRound, Newspaper } from 'lucide-react';
 import { useAuth } from '../features/auth/index.js';
 import { EmptyState } from '../shared/ui/index.js';
 import { APP_BASE } from '../shared/routes.js';
@@ -22,12 +22,14 @@ const AdminPanel = lazy(() => import('../features/admin/components/AdminPanel.js
 const PriceSourcesPage = lazy(() => import('./PriceSourcesPage.jsx'));
 const PriceHistoryAdmin = lazy(() => import('../features/admin/components/PriceHistoryAdmin.jsx'));
 const AdminGroupsPage = lazy(() => import('../features/admin/components/AdminGroupsPage.jsx'));
+const AdminNewsPage = lazy(() => import('../features/admin/components/AdminNewsPage.jsx'));
 
 const SECTIONS = [
   { path: '/admin', label: 'کاربران و تنظیمات', icon: Users, end: true },
   { path: '/admin/groups', label: 'گروه‌ها و دسترسی‌ها', icon: UsersRound },
   { path: '/admin/sources', label: 'سورس‌های قیمت', icon: Radio },
   { path: '/admin/history', label: 'تاریخچه‌ی قیمت', icon: History },
+  { path: '/admin/news', label: 'اخبار', icon: Newspaper },
 ];
 
 function SectionLoader() {
@@ -83,6 +85,7 @@ export default function AdminApp() {
               <Route path="derived" element={<Navigate to="/admin/sources" replace />} />
               <Route path="history" element={<PriceHistoryAdmin />} />
               <Route path="groups" element={<AdminGroupsPage />} />
+              <Route path="news" element={<AdminNewsPage />} />
               <Route path="*" element={<Navigate to="/admin" replace />} />
             </Routes>
           </Suspense>

@@ -180,6 +180,13 @@ import {
   handleAdminResetFeatureRule,
 } from "./handlers/groupRoutes.js";
 import { handleGetLatestAppRelease } from "./handlers/appUpdateRoutes.js";
+import {
+  handleGetNews,
+  handleAdminGetNewsChannels,
+  handleAdminSaveNewsChannels,
+  handleAdminRunNews,
+  handleAdminSetNewsHidden,
+} from "./handlers/newsRoutes.js";
 import { fetchAllPrices } from "./services/market/priceAggregator.service.js";
 import {
   searchCatalogItems,
@@ -353,10 +360,24 @@ async function handleRequest(request, env, ctx) {
   if (normalizedPath === "/api/admin/price-sources/fetch-all" && request.method === "POST") {
     return wrap(handleAdminFetchAllSources)(request, env);
   }
+  // Admin: the news section's channels
+  if (normalizedPath === "/api/admin/news/channels") {
+    if (request.method === "GET") return wrap(handleAdminGetNewsChannels)(request, env);
+    if (request.method === "PUT") return wrap(handleAdminSaveNewsChannels)(request, env);
+  }
+  if (normalizedPath === "/api/admin/news/run" && request.method === "POST") return wrap(handleAdminRunNews)(request, env);
+  const adminNewsHiddenMatch = normalizedPath.match(/^\/api\/admin\/news\/([a-z0-9_]+\/\d+)\/hidden$/);
+  if (adminNewsHiddenMatch && request.method === "POST") {
+    return wrap((req, e) => handleAdminSetNewsHidden(req, e, { id: adminNewsHiddenMatch[1] }))(request, env);
+  }
+
   if (normalizedPath.startsWith("/api/admin/history")) {
     return wrap(handleAdminHistory)(request, env);
   }
 
+
+  // ── News (public: market news picked from Telegram channels) ────────────
+  if (normalizedPath === "/api/news" && request.method === "GET") return wrap(handleGetNews)(request, env);
 
   // ── Portfolio API Routes ────────────────────────────────────────────────
   if (normalizedPath === "/api/portfolio/shared")                              return wrap(handleGetSharedPortfolio)(request, env);

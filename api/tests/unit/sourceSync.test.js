@@ -214,13 +214,14 @@ describe('Unified Orchestration — sourceSync.service (Phase 4)', () => {
     let waitUntilPromise = null;
     const mockCtx = {
       waitUntil: vi.fn((p) => {
-        waitUntilPromise = p;
+        // The first is the price sync (the second, the news section's channels)
+        waitUntilPromise ??= p;
       }),
     };
 
     // Not the top-of-hour tick (that one also queues the hourly cleanups)
     await runCronPolling({ scheduledTime: Date.UTC(2026, 0, 1, 10, 5) }, mockEnv, mockCtx);
-    expect(mockCtx.waitUntil).toHaveBeenCalledTimes(1);
+    expect(mockCtx.waitUntil).toHaveBeenCalledTimes(2);
 
     await waitUntilPromise;
 
@@ -235,12 +236,13 @@ describe('Unified Orchestration — sourceSync.service (Phase 4)', () => {
 
     const atMinute5 = ctxFor();
     await runCronPolling({ scheduledTime: Date.UTC(2026, 0, 1, 10, 5) }, mockEnv, atMinute5);
-    expect(atMinute5.waitUntil).toHaveBeenCalledTimes(1);
+    // the sync and the news
+    expect(atMinute5.waitUntil).toHaveBeenCalledTimes(2);
 
     const atMinute0 = ctxFor();
     await runCronPolling({ scheduledTime: Date.UTC(2026, 0, 1, 11, 0) }, mockEnv, atMinute0);
-    // the sync, expired sessions and expired app_state counters
-    expect(atMinute0.waitUntil).toHaveBeenCalledTimes(3);
+    // the sync, the news, expired sessions and the other hourly cleanups
+    expect(atMinute0.waitUntil).toHaveBeenCalledTimes(4);
   });
 
   it('records the tick\'s prices in one history write, catalog items under their market id', async () => {

@@ -1,9 +1,10 @@
 import React, { useEffect, useMemo, useRef, lazy, Suspense } from 'react';
 import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { TrendingUp, Briefcase, ShieldCheck, Settings, Landmark, Wallet, ReceiptText, Wrench, HandCoins, WalletCards, Smartphone, MessageSquareText, FolderKanban } from 'lucide-react';
+import { TrendingUp, Briefcase, ShieldCheck, Settings, Landmark, Wallet, ReceiptText, Wrench, HandCoins, WalletCards, Smartphone, MessageSquareText, FolderKanban, Newspaper } from 'lucide-react';
 import { AppLayout, FilterPills, AlertBanner, Button } from '../shared/ui/index.js';
 import { PriceRefreshStatus } from '../features/market/components/index.js';
 import HomeDashboard from '../features/home/HomeDashboard.jsx';
+import NewsCard from '../features/news/NewsCard.jsx';
 // Imported from its own file (not the loans barrel) so LoansPage stays in its lazy chunk
 import AlertStack from '../shared/alerts/AlertStack.jsx';
 import AppAlertSources from '../shared/alerts/AppAlertSources.jsx';
@@ -36,6 +37,7 @@ const AccountsPage = lazy(() => import('../features/accounts/components/Accounts
 const AccountSettingsView = lazy(() => import('../components/AccountSettingsView.jsx'));
 const AppSettingsView = lazy(() => import('../features/app-settings/AppSettingsView.jsx'));
 const SmsInboxPage = lazy(() => import('../features/sms-inbox/SmsInboxPage.jsx'));
+const NewsPage = lazy(() => import('../features/news/NewsPage.jsx'));
 // The Android app's home (its own month at a glance); the website's home is the market
 const AppHomeDashboard = lazy(() => import('../features/home/AppHomeDashboard.jsx'));
 
@@ -148,6 +150,13 @@ export default function MainPage() {
       searchParams.get('tab') === 'transactions'
     );
 
+  // Market news (open to every user)
+  const isNews =
+    !isSettings && (
+      subPath.startsWith('/news') ||
+      searchParams.get('tab') === 'news'
+    );
+
   // App frame: the market has its own page (the home is the user's own dashboard)
   const isRates = appLayout && subPath.startsWith('/rates');
 
@@ -170,6 +179,7 @@ export default function MainPage() {
     ['portfolio', isPortfolio],
     ['loans', isLoans],
     ['rates', isRates],
+    ['news', isNews],
   ].find(([, matches]) => matches)?.[0] || 'market';
 
   const tabTitle = useMemo(() => {
@@ -196,6 +206,8 @@ export default function MainPage() {
         return 'پیامک‌های بانکی | RealRate';
       case 'rates':
         return 'نرخ و حباب | RealRate';
+      case 'news':
+        return 'اخبار | RealRate';
       default:
         return 'داشبورد بازار | RealRate';
     }
@@ -242,6 +254,7 @@ export default function MainPage() {
     'app-settings': '/app-settings',
     sms: '/sms',
     rates: '/rates',
+    news: '/news',
   };
 
   const handleTabChange = (nextTab) => {
@@ -271,6 +284,7 @@ export default function MainPage() {
       { value: 'market', label: 'نرخ و حباب', icon: <TrendingUp size={16} strokeWidth={2} /> },
       // App frame: «خانه» is the dashboard, the market is one of the other sections
       ...(appLayout ? [{ value: 'rates', label: 'نرخ و حباب', icon: <TrendingUp size={16} strokeWidth={2} /> }] : []),
+      { value: 'news', label: 'اخبار', icon: <Newspaper size={16} strokeWidth={2} /> },
       { value: 'incomes', label: 'درآمدها', icon: <Wallet size={16} strokeWidth={2} /> },
       // Beta (admins): expenses right after incomes, then the accounts they are paid from
       ...(hasExpenses ? [{ value: 'expenses', label: 'هزینه‌ها', icon: <HandCoins size={16} strokeWidth={2} /> }] : []),
@@ -397,6 +411,8 @@ export default function MainPage() {
 
         {activeTab === (appLayout ? 'rates' : 'market') && (
           <div className="market-tab-content">
+            {/* The website's home: the latest news above the market (the app's home has its own) */}
+            {!appLayout && <NewsCard className="is-web-home" />}
             {hasMarket ? (
               /* The user's own home page: sections of any assets, customizable per user */
               <HomeDashboard
@@ -455,6 +471,8 @@ export default function MainPage() {
         )}
 
         {activeTab === 'sms' && <SmsInboxPage />}
+
+        {activeTab === 'news' && <NewsPage />}
 
         </Suspense>
         </>

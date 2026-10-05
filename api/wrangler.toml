@@ -34,6 +34,10 @@ database_id = "2bcc7e2d-08c4-45e1-819b-114dbf1a9358"
 binding = "KV"
 id = "6a9d627b16a245a598b83a37d8254b6f"
 
+# Workers AI: picks and summarizes the news section's posts (services/news/news.service.js)
+[ai]
+binding = "AI"
+
 # Durable Object history: RateGate was added (v1) and removed (v2); keep both entries
 [[migrations]]
 tag = "v1"

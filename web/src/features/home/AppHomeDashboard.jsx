@@ -7,6 +7,7 @@
  *  - this month's spending (vs the same days of last month) and income, and what is left; ‹ ›
  *    browse earlier months (the home opens on the current one again)
  *  - bank messages waiting to be recorded
+ *  - the latest news (headlines with their source and time; the news page has the rest)
  *  - the latest expenses
  * Installment and cheque reminders are shown above it by MainPage, as on the website's home.
  * Everything is decrypted in the browser; nothing shows while the vault is locked (the card to
@@ -34,6 +35,7 @@ import { useCategories } from '../../shared/categories/useCategories.js';
 import { splitCounted } from '../../shared/categories/categoryStore.js';
 import { formatShamsiMonth, buildIncomeReport } from '../incomes/utils/incomeReport.js';
 import { formatShamsiDisplay } from '../portfolio/components/ShamsiDatePicker.jsx';
+import NewsCard from '../news/NewsCard.jsx';
 
 const MASK = '••••••';
 const fa = (n) => Math.round(Number(n) || 0).toLocaleString('fa-IR');
@@ -167,6 +169,7 @@ export default function AppHomeDashboard({ usdToman = 0, analysis = [], onOpen }
       <div className="app-home">
         {ratesCard}
         <VaultUnlockCard title="برای دیدن خلاصه‌ی ماه، اطلاعات را باز کنید" />
+        <NewsCard count={3} />
       </div>
     );
   }
@@ -230,6 +233,9 @@ export default function AppHomeDashboard({ usdToman = 0, analysis = [], onOpen }
           <ChevronLeft size={18} />
         </button>
       )}
+
+      {/* Latest news */}
+      <NewsCard count={3} />
 
       {/* Latest expenses */}
       {hasExpenses && (

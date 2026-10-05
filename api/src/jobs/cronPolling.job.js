@@ -9,6 +9,9 @@ import { purgeExpiredState } from "../repositories/stateStore.repository.js";
 import { dbPurgeOldAlertEmailSent } from "../repositories/alertEmail.repository.js";
 import { runReminderEmailDigest, tehranTime } from "./reminderEmail.job.js";
 import { runReminderPushDigest, purgeOldPushRemindersJob } from "./reminderPush.job.js";
+import { runNewsPolling } from "../services/news/news.service.js";
+import { dbPurgeOldNews } from "../repositories/news.repository.js";
+import { NEWS_LIMITS } from "../config/news.config.js";
 import { logger } from "../lib/logger.js";
 
 /**
@@ -21,6 +24,13 @@ export async function runCronPolling(event, env, ctx) {
   ctx.waitUntil(
     syncAllSources(env).catch(err => {
       logger.error("[CronPolling] Source sync error:", { error: err.message, stack: err.stack });
+    })
+  );
+
+  // The news section: new posts of the Telegram channels (news.service.js)
+  ctx.waitUntil(
+    runNewsPolling(env).catch(err => {
+      logger.error("[CronPolling] News polling error:", { error: err.message, stack: err.stack });
     })
   );
 
@@ -39,6 +49,9 @@ export async function runCronPolling(event, env, ctx) {
         }),
         purgeOldPushRemindersJob(env, { now: scheduledDate }).catch(err => {
           logger.error("[CronPolling] Old push reminders purge error:", { error: err.message });
+        }),
+        dbPurgeOldNews(env, scheduledDate.getTime() - NEWS_LIMITS.retentionDays * 86400_000).catch(err => {
+          logger.error("[CronPolling] Old news purge error:", { error: err.message });
         }),
       ])
     );
