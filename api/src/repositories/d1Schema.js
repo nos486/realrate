@@ -424,16 +424,21 @@ export const APP_TABLES = [
   {
     // Web Push subscriptions registered by browser/PWA clients
     name: "push_subscriptions",
-    columns: ["device_id", "user_id", "subscription_json", "created_at", "updated_at"],
+    // news_alerts: 1 when the browser wants a push for the news section's important news
+    columns: ["device_id", "user_id", "subscription_json", "created_at", "updated_at", "news_alerts"],
     ddl: [
       `CREATE TABLE IF NOT EXISTS push_subscriptions (
         device_id TEXT PRIMARY KEY,
         user_id TEXT NOT NULL,
         subscription_json TEXT NOT NULL,
         created_at TEXT NOT NULL,
-        updated_at TEXT NOT NULL
+        updated_at TEXT NOT NULL,
+        news_alerts INTEGER NOT NULL DEFAULT 0
       )`,
       "CREATE INDEX IF NOT EXISTS idx_push_subs_user ON push_subscriptions(user_id)",
+    ],
+    addColumns: [
+      { column: "news_alerts", sql: "ALTER TABLE push_subscriptions ADD COLUMN news_alerts INTEGER NOT NULL DEFAULT 0" },
     ],
   },
   {

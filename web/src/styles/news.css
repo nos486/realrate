@@ -53,6 +53,43 @@
   cursor: pointer;
 }
 
+.news-card-analysis {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-width: 0;
+  padding: 9px 12px;
+  border: 1px solid var(--color-primary-border);
+  border-radius: 12px;
+  background: var(--color-primary-soft);
+  color: var(--text-primary);
+  font-family: inherit;
+  text-align: start;
+  cursor: pointer;
+}
+
+.news-card-analysis svg {
+  flex-shrink: 0;
+  color: var(--color-primary-text);
+}
+
+.news-card-analysis-label {
+  flex-shrink: 0;
+  color: var(--color-primary-text);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.news-card-analysis-text {
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-size: 13px;
+  font-weight: 700;
+}
+
 .news-card-list {
   display: flex;
   flex-direction: column;
@@ -650,6 +687,60 @@
 }
 
 .news-more:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+/* The live price of what a news item is about */
+.news-price {
+  display: inline-flex;
+  align-items: center;
+  align-self: flex-start;
+  gap: 6px;
+  padding: 3px 10px;
+  border: 1px solid var(--border-color);
+  border-radius: 999px;
+  background: var(--bg-input);
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.news-price strong {
+  color: var(--text-primary);
+  font-weight: 800;
+}
+
+.news-price em {
+  font-style: normal;
+  font-weight: 700;
+}
+
+.news-price.is-up em { color: var(--color-positive-text); }
+.news-price.is-down em { color: var(--color-negative-text); }
+
+/* «اعلان خبرهای مهم» */
+.news-alerts-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  background: var(--bg-input);
+  color: var(--text-secondary);
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.news-alerts-toggle.is-on {
+  border-color: var(--color-primary-border);
+  background: var(--color-primary-soft);
+  color: var(--color-primary-text);
+}
+
+.news-alerts-toggle:disabled {
   opacity: 0.6;
   cursor: default;
 }

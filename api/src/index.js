@@ -161,6 +161,8 @@ import {
   handleDeletePushSubscription,
   handlePutPushReminders,
   handleSendTestPush,
+  handleGetNewsAlerts,
+  handleSetNewsAlerts,
 } from "./handlers/pushRoutes.js";
 import { handleGetHomeLayout, handleSaveHomeLayout } from "./handlers/homeLayoutRoutes.js";
 import { requireFeature } from "./lib/features.js";
@@ -467,6 +469,10 @@ async function handleRequest(request, env, ctx) {
   }
   if (normalizedPath === "/api/alerts/push/reminders" && request.method === "PUT") {
     return wrap(handlePutPushReminders)(request, env);
+  }
+  if (normalizedPath === "/api/alerts/push/news") {
+    if (request.method === "GET") return wrap(handleGetNewsAlerts)(request, env);
+    if (request.method === "PUT") return wrap(handleSetNewsAlerts)(request, env);
   }
   if (normalizedPath === "/api/alerts/push/test" && request.method === "POST") {
     return wrap(handleSendTestPush)(request, env);

@@ -467,7 +467,8 @@ export function initDueNotificationClicks(onNavigate) {
   import('@capacitor/local-notifications').then(({ LocalNotifications }) => {
     LocalNotifications.addListener('localNotificationActionPerformed', (notificationAction) => {
       const extra = notificationAction.notification?.extra;
-      if (extra?.kind === 'due' && extra?.path) {
+      // A due date, or an important news item (features/news/newsAlerts.js)
+      if ((extra?.kind === 'due' || extra?.kind === 'news') && extra?.path) {
         onNavigate?.(extra.path);
       }
     }).then((h) => {

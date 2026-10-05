@@ -15,7 +15,7 @@
 
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Newspaper, ExternalLink, Share2, EyeOff, ChevronDown, Sparkles, Flame } from 'lucide-react';
+import { Newspaper, ExternalLink, Share2, EyeOff, ChevronDown, Sparkles, Flame, Bell, BellOff } from 'lucide-react';
 import { FeaturePageHeader, FilterPills, EmptyState, AlertBanner, Pagination } from '../../shared/ui/index.js';
 import Skeleton from '../../shared/ui/Skeleton.jsx';
 import { useFeedback } from '../../shared/ui/FeedbackProvider.jsx';
@@ -23,6 +23,9 @@ import { useAuth } from '../auth/index.js';
 import { useNews, useNewsToday } from './useNews.js';
 import { setNewsHidden } from './newsApi.js';
 import NewsAnalysisCard from './NewsAnalysisCard.jsx';
+import { usePricing } from '../market/context/PricingContext.jsx';
+import { priceIdOfNews } from './newsPrice.js';
+import { newsAlertsSupported, getNewsAlertsEnabled, setNewsAlertsEnabled } from './newsAlerts.js';
 import { NEWS_CATEGORIES, newsTimeAgo, newsFullTime, newsSource } from './newsFormat.js';
 
 const PAGE_SIZE = 12;
@@ -33,6 +36,59 @@ const FILTERS = [
   { value: 'important', label: 'مهم‌ها' },
   ...Object.entries(NEWS_CATEGORIES).map(([value, label]) => ({ value, label })),
 ];
+
+const fa = (n, digits = 0) => Number(n).toLocaleString('fa-IR', { maximumFractionDigits: digits });
+
+/** The live price of what a news item is about, with its change («دلار ۱۰۵٬۰۰۰ ▲ ۰٫۵٪») */
+function NewsPriceChip({ item }) {
+  const pricing = usePricing();
+  const id = priceIdOfNews(item);
+  const book = id ? pricing?.priceBook?.items?.[id] : null;
+  if (!book || !(Number(book.price) > 0)) return null;
+  const change = Number(book.params?.changePercent);
+  const hasChange = Number.isFinite(change) && Math.abs(change) >= 0.01;
+  const usd = book.unit === 'دلار';
+  return (
+    <span className={`news-price ${hasChange ? (change > 0 ? 'is-up' : 'is-down') : ''}`} title="قیمت لحظه‌ای و تغییر نسبت به جلسه‌ی قبل">
+      <span className="news-price-name">{book.name}</span>
+      <strong>{fa(book.price, usd ? 2 : 0)}</strong>
+      {hasChange && <em>{change > 0 ? '▲' : '▼'} {fa(Math.abs(change), 2)}٪</em>}
+    </span>
+  );
+}
+
+/** «اعلان خبرهای مهم»: on or off for this device */
+function NewsAlertsToggle() {
+  const { toast } = useFeedback();
+  const [enabled, setEnabled] = useState(null);
+  const [busy, setBusy] = useState(false);
+  const supported = newsAlertsSupported();
+
+  useEffect(() => {
+    if (supported) getNewsAlertsEnabled().then(setEnabled).catch(() => setEnabled(false));
+  }, [supported]);
+  if (!supported || enabled === null) return null;
+
+  const toggle = async () => {
+    setBusy(true);
+    try {
+      const next = await setNewsAlertsEnabled(!enabled);
+      setEnabled(next);
+      toast.success(next ? 'اعلان خبرهای مهم روشن شد.' : 'اعلان خبرهای مهم خاموش شد.');
+    } catch (err) {
+      toast.error(err?.message || 'تغییر نکرد.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <button type="button" className={`news-alerts-toggle ${enabled ? 'is-on' : ''}`} onClick={toggle} disabled={busy} aria-pressed={enabled}>
+      {enabled ? <Bell size={16} /> : <BellOff size={16} />}
+      <span>{enabled ? 'اعلان خبرهای مهم: روشن' : 'اعلان خبرهای مهم'}</span>
+    </button>
+  );
+}
 
 const domId = (id) => `news-${String(id).replace('/', '-')}`;
 
@@ -63,6 +119,7 @@ function NewsItem({ item, open, onToggle, isAdmin, onHide }) {
         </span>
         <h3 className="news-item-title">{item.title}</h3>
         {showSummary && <p className="news-item-summary">{item.summary}</p>}
+        <NewsPriceChip item={item} />
         <span className="news-item-meta">
           <span className="news-source-avatar" aria-hidden="true">{newsSource(item).replace(/^@/, '').slice(0, 1)}</span>
           <bdi className="news-item-source">{newsSource(item)}</bdi>
@@ -203,6 +260,7 @@ export default function NewsPage() {
         icon={<Newspaper size={22} />}
         title="اخبار"
         subtitle="خبرهای مهم دلار، طلا، بورس و اقتصاد — هر دقیقه از کانال‌های خبری"
+        actions={<NewsAlertsToggle />}
       />
 
       <div className="news-layout">

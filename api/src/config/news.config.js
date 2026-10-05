@@ -111,3 +111,13 @@ export const NEWS_ANALYSIS = {
 };
 /** Without the model (not bound, out of budget, failing), a post needs this score to publish */
 export const NEWS_KEYWORD_ONLY_SCORE = 5;
+
+/** Pushes for important news (services/news/newsPush.service.js) */
+export const NEWS_PUSH = {
+  /** Only news published this recently (not a new channel's backlog) */
+  freshMinutes: 30,
+  /** One notification at most this often */
+  minIntervalMinutes: 10,
+  /** Browsers reached in one run (each is a request) */
+  maxDevices: 200,
+};

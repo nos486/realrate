@@ -10,7 +10,11 @@ import { render, cleanup, screen, fireEvent, waitFor } from '@testing-library/re
 import { MemoryRouter, Routes, Route, useLocation } from 'react-router-dom';
 
 const getNews = vi.fn();
-vi.mock('../../../web/src/features/news/newsApi.js', () => ({ getNews: (...args) => getNews(...args) }));
+const getNewsToday = vi.fn(async () => ({ analysis: null, top: [] }));
+vi.mock('../../../web/src/features/news/newsApi.js', () => ({
+  getNews: (...args) => getNews(...args),
+  getNewsToday: (...args) => getNewsToday(...args),
+}));
 import NewsCard from '../../../web/src/features/news/NewsCard.jsx';
 import { newsTimeAgo } from '../../../web/src/features/news/newsFormat.js';
 
@@ -47,6 +51,15 @@ describe('NewsCard', () => {
 
     fireEvent.click(screen.getByText('دلار ۱۰۰ هزار تومانی شد'));
     expect(screen.getByTestId('where').textContent).toBe('/news?open=khabari%2F2');
+  });
+
+  it("the day's analysis in one line above the news", async () => {
+    getNews.mockResolvedValueOnce({ items: [item(5, 'سکه ارزان شد', 3)], hasMore: false });
+    getNewsToday.mockResolvedValueOnce({ analysis: { title: 'دلار در کانال صعودی می‌ماند', summary: 'x', at: NOW }, top: [] });
+    renderCard({ count: 4, className: 'is-analysis-test' });
+    expect(await screen.findByText('دلار در کانال صعودی می‌ماند')).toBeTruthy();
+    fireEvent.click(screen.getByText('تحلیل روز'));
+    expect(screen.getByTestId('where').textContent).toBe('/news');
   });
 
   it('no news: no card', async () => {

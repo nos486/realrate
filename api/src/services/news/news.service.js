@@ -37,6 +37,7 @@ import { getStateStore } from "../../repositories/stateStore.repository.js";
 import { USER_AGENT } from "../market/sources/parsingUtils.js";
 import { askWorkersAi, hasWorkersAi } from "./workersAi.js";
 import { maybeUpdateNewsAnalysis } from "./newsAnalysis.service.js";
+import { notifyImportantNews } from "./newsPush.service.js";
 import { logger } from "../../lib/logger.js";
 
 const CHANNELS_KEY = "news:channels";
@@ -236,6 +237,12 @@ async function pollChannels(env, store, now, fetchPage) {
   }
 
   await dbInsertNews(env, published);
+  // Important fresh news: a push to the browsers that asked for it
+  if (published.length) {
+    await notifyImportantNews(env, published, { now }).catch((err) => {
+      logger.warn("[News] push failed:", { error: err?.message });
+    });
+  }
   for (const item of published) {
     if (status.channels[item.channel]) status.channels[item.channel].published++;
   }

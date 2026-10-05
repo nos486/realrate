@@ -192,3 +192,40 @@ export async function dbResetUserPushData(env, userId) {
     env.DB.prepare(`DELETE FROM push_subscriptions WHERE user_id = ?`).bind(uid),
   ]);
 }
+
+/** Whether this browser gets a push for important news (false without a subscription) */
+export async function dbGetNewsAlerts(env, userId, deviceId) {
+  await ensureSchema(env);
+  const row = await env.DB.prepare(
+    "SELECT news_alerts FROM push_subscriptions WHERE device_id = ? AND user_id = ?"
+  ).bind(deviceId, String(userId)).first();
+  return { subscribed: Boolean(row), enabled: Boolean(row?.news_alerts) };
+}
+
+/** Turn important-news pushes on or off for a subscribed browser; false when it isn't subscribed */
+export async function dbSetNewsAlerts(env, userId, deviceId, enabled) {
+  await ensureSchema(env);
+  const res = await env.DB.prepare(
+    "UPDATE push_subscriptions SET news_alerts = ? WHERE device_id = ? AND user_id = ?"
+  ).bind(enabled ? 1 : 0, deviceId, String(userId)).run();
+  return Number(res?.meta?.changes ?? 0) > 0;
+}
+
+/** The browsers that want important news */
+export async function dbGetNewsAlertSubscriptions(env, limit = 200) {
+  await ensureSchema(env);
+  const { results = [] } = await env.DB.prepare(
+    "SELECT device_id, user_id, subscription_json FROM push_subscriptions WHERE news_alerts = 1 ORDER BY updated_at DESC LIMIT ?"
+  ).bind(limit).all();
+  return results;
+}
+
+/** Forget a browser whose subscription the push service no longer knows */
+export async function dbDeleteExpiredPushSubscription(env, deviceId) {
+  await ensureSchema(env);
+  await env.DB.batch([
+    env.DB.prepare("DELETE FROM push_reminders WHERE device_id = ?").bind(deviceId),
+    env.DB.prepare("DELETE FROM push_subscriptions WHERE device_id = ?").bind(deviceId),
+  ]);
+}
+

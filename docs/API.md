@@ -347,6 +347,7 @@ A feature can be open to every user or only to the members of some groups (rules
 | `POST` | `/api/v1/admin/price-sources/fetch-all` | Trigger immediate fetch across all sources |
 | `GET` | `/api/v1/admin/news/channels` | The news section's channels `[{ username, enabled }]` (the default list until one is saved), the last run by channel (`status`), `aiConfigured` (the `AI` binding) and the limits |
 | `PUT` | `/api/v1/admin/news/channels` | `{ channels: [{ username, enabled }] }` — save the list (`@name`, `t.me/name` accepted; repeats dropped). A new channel's last 10 posts are reviewed on its first read |
+| `GET` / `PUT` | `/api/alerts/push/news` | Signed in: whether this browser (`?deviceId=` / `{ deviceId, enabled }`) gets a Web Push for important news; the browser must be subscribed first (`/api/alerts/push/subscription`). The push is plain `{ plain: 1, title, body, path, tag }` |
 | `POST` | `/api/v1/admin/news/analysis` | Write the analyst's card now (whatever the interval) |
 | `POST` | `/api/v1/admin/news/run` | Read the channels now; `{ result: { checked, candidates, published, aiCalls }, status }` |
 | `POST` | `/api/v1/admin/news/<channel>/<postId>/hidden` | `{ hidden }` — take a news item down (or put it back) |

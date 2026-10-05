@@ -7,6 +7,8 @@
  *   DELETE /api/alerts/push/subscription/:dev  — Remove device push subscription
  *   PUT    /api/alerts/push/reminders          — Upload sealed push reminders for device
  *   POST   /api/alerts/push/test               — Send test push notification (strictly rate-limited: 5/hr)
+ *   GET    /api/alerts/push/news?deviceId=     — Whether this browser gets important news
+ *   PUT    /api/alerts/push/news               — Turn important news on or off ({ deviceId, enabled })
  */
 
 import { getAuthenticatedUser } from '../lib/auth.js';
@@ -15,8 +17,10 @@ import {
   dbSavePushSubscription,
   dbDeletePushSubscription,
   dbSavePushReminders,
+  dbGetNewsAlerts,
+  dbSetNewsAlerts,
 } from '../repositories/push.repository.js';
-import { validatePushSubscriptionInput, validatePushRemindersInput } from '../domain/sealedPush.js';
+import { validatePushSubscriptionInput, validatePushRemindersInput, DEVICE_ID_RE } from '../domain/sealedPush.js';
 import { isWebPushConfigured, sendWebPush } from '../lib/webPush.js';
 import { getRateLimitState, recordRateLimitHit } from '../lib/security.js';
 import { jsonResponse } from '../lib/helpers.js';
@@ -132,3 +136,23 @@ export async function handleSendTestPush(request, env) {
 
   return jsonResponse({ success: true, message: 'اعلان آزمایشی ارسال شد.' }, 200, request);
 }
+
+const validDeviceId = (id) => typeof id === 'string' && DEVICE_ID_RE.test(id);
+
+export async function handleGetNewsAlerts(request, env) {
+  const user = await requireUser(request, env);
+  const deviceId = new URL(request.url).searchParams.get('deviceId') || '';
+  if (!validDeviceId(deviceId)) throw AppError.badRequest('شناسه‌ی دستگاه نامعتبر است.');
+  const state = await dbGetNewsAlerts(env, userIdOf(user), deviceId);
+  return jsonResponse({ success: true, ...state, configured: isWebPushConfigured(env) }, 200, request);
+}
+
+export async function handleSetNewsAlerts(request, env) {
+  const user = await requireUser(request, env);
+  const body = await request.json().catch(() => ({}));
+  if (!validDeviceId(body?.deviceId)) throw AppError.badRequest('شناسه‌ی دستگاه نامعتبر است.');
+  const found = await dbSetNewsAlerts(env, userIdOf(user), body.deviceId, body.enabled !== false);
+  if (!found) throw AppError.badRequest('این مرورگر هنوز برای اعلان ثبت نشده است.');
+  return jsonResponse({ success: true, enabled: body.enabled !== false }, 200, request);
+}
+
