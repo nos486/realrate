@@ -19,7 +19,7 @@ import {
 import { runNewsPolling, saveNewsChannels, getNewsChannels, getNewsStatus } from '../../src/services/news/news.service.js';
 import { dbListNews, dbSetNewsHidden, dbPurgeOldNews } from '../../src/repositories/news.repository.js';
 import { resetD1SchemaCache } from '../../src/repositories/d1Schema.js';
-import { DEFAULT_NEWS_CHANNELS, NEWS_LIMITS } from '../../src/config/news.config.js';
+import { DEFAULT_NEWS_CHANNELS, NEWS_LIMITS, NEWS_AI_MODELS } from '../../src/config/news.config.js';
 import { sqliteD1 } from '../helpers/sqliteD1.js';
 
 const post = (channel, id, text, time = '2026-10-05T08:00:00+00:00', extra = '') => `
@@ -179,7 +179,7 @@ describe('runNewsPolling', () => {
     const result = await runNewsPolling(env, { now: NOW, fetchPage });
     expect(result.checked).toBe(NEWS_LIMITS.firstReadPosts + 1); // chan_two's one post too
     expect(run).toHaveBeenCalled();
-    expect(run.mock.calls[0][0]).toBe('@cf/google/gemma-4-26b-a4b-it');
+    expect(run.mock.calls[0][0]).toBe('@cf/zai-org/glm-5.3-flash');
     const { items } = await dbListNews(env);
     expect(items.length).toBe(result.published);
     expect(items[0]).toMatchObject({ channel: 'chan_one', channelTitle: 'کانال یک', category: 'currency', importance: 2, ai: true });
@@ -225,7 +225,7 @@ describe('runNewsPolling', () => {
     pages.chan_one = page('chan_one', [post('chan_one', 1, 'دلار و طلا و سکه بعد از تصمیم بانک مرکزی و فدرال رزرو جهش کرد', at(0))]);
     env.AI = { run: vi.fn(async () => { throw new Error('3040: capacity'); }) };
     await runNewsPolling(env, { now: NOW, fetchPage });
-    expect(env.AI.run).toHaveBeenCalledTimes(2); // both models
+    expect(env.AI.run).toHaveBeenCalledTimes(NEWS_AI_MODELS.length); // every model
     expect((await dbListNews(env)).items).toHaveLength(1);
     const status = await getNewsStatus(env);
     expect(status.aiError).toMatch(/capacity/);

@@ -44,12 +44,13 @@ export const NEWS_LIMITS = {
 const JSON_ANSWER = { response_format: { type: "json_object" } };
 
 /**
- * The models screening posts, on Workers AI (the `AI` binding in wrangler.toml), tried in order
- * (services/news/workersAi.js): Gemma 4 writes Persian well and is cheap for many small requests
- * (no reasoning: a verdict per post doesn't need it); Llama 3.3 when it fails. The answer is a
- * JSON array, so no `json_object` here.
+ * The models screening and summarizing posts, on Workers AI (the `AI` binding in wrangler.toml),
+ * tried in order (services/news/workersAi.js): GLM 5.3 Flash (no reasoning: a verdict per post
+ * doesn't need it), then Gemma 4 and Llama 3.3 when it fails. The answer is a JSON array, so no
+ * `json_object` here.
  */
 export const NEWS_AI_MODELS = [
+  { id: "@cf/zai-org/glm-5.3-flash", options: { chat_template_kwargs: { enable_thinking: false } } },
   { id: "@cf/google/gemma-4-26b-a4b-it", options: { chat_template_kwargs: { enable_thinking: false } } },
   "@cf/meta/llama-3.3-70b-instruct-fp8-fast",
 ];
@@ -101,7 +102,7 @@ export const NEWS_KEYWORD_MIN_SCORE = 2;
  */
 export const NEWS_ANALYSIS = {
   /** The model when the admin hasn't chosen one (NEWS_ANALYSIS_MODELS), and the ones tried after it */
-  defaultModel: "@cf/deepseek-ai/deepseek-v4-flash-0731",
+  defaultModel: "@cf/zai-org/glm-5.3-flash",
   fallbackModels: ["@cf/google/gemma-4-26b-a4b-it", "@cf/meta/llama-3.3-70b-instruct-fp8-fast"],
   /** 0: the same news gives the same view (as far as the model allows) */
   temperature: 0,
