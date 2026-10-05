@@ -76,6 +76,12 @@ describe('the prompt and the answer', () => {
     expect(parseAnalysis(JSON.stringify({ ...JSON.parse(ANSWER), r: 'تصمیم Fed و OPEC' }))).not.toBeNull();
   });
 
+  it('a completion with no text says why', () => {
+    expect(() => answerOf({ choices: [{ message: { content: null, reasoning_content: '…' }, finish_reason: 'length' }] }))
+      .toThrow(/token limit ran out during the model's reasoning/);
+    expect(() => answerOf({ choices: [{ message: { content: '' }, finish_reason: 'stop' }] })).toThrow(/finish_reason: stop/);
+  });
+
   it("reads every reply shape Workers AI gives", () => {
     expect(answerOf({ response: 'a' })).toBe('a');
     expect(answerOf({ choices: [{ message: { content: 'b' } }] })).toBe('b');

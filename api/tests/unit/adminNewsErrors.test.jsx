@@ -60,7 +60,8 @@ describe('model errors in the news panel', () => {
   it('shows the screening and the analysis errors, and that no other model was tried', async () => {
     api.getNewsChannels.mockResolvedValue(DATA);
     render(<AdminNewsPage />);
-    expect(await screen.findByText(/مدل GLM 5.3 Flash در آخرین اجرا خطا داد \(3040: capacity\)/)).toBeTruthy();
+    expect(await screen.findByText(/خطای مدل GLM 5.3 Flash در آخرین اجرا/)).toBeTruthy();
+    expect(screen.getByText('3040: capacity')).toBeTruthy();
     expect(screen.getByText(/متن جواب کلمه‌ی غیرفارسی داشت/)).toBeTruthy();
     expect(screen.getAllByText(/مدل دیگری امتحان نشد/)).toHaveLength(2);
   });

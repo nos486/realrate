@@ -8,10 +8,20 @@
  * @typedef {{ id: string, options?: object }} WorkersAiModel
  */
 
-/** The answer's text, or already-parsed JSON: older models give `response`, newer ones a chat completion */
+/**
+ * The answer's text, or already-parsed JSON: older models give `response`, newer ones a chat
+ * completion. A completion with no text says why (the output tokens ran out while the model was
+ * still reasoning, …) instead of passing on an empty answer.
+ */
 export function answerOf(res) {
   if (res?.response !== undefined && res.response !== null) return res.response;
-  return res?.choices?.[0]?.message?.content ?? res;
+  const choice = res?.choices?.[0];
+  if (!choice) return res;
+  const content = choice.message?.content;
+  if (typeof content === "string" && content.trim()) return content;
+  throw new Error(choice.finish_reason === "length"
+    ? "no answer: the output token limit ran out during the model's reasoning"
+    : `no answer (finish_reason: ${choice.finish_reason || "none"})`);
 }
 
 /**
