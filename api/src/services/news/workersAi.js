@@ -11,9 +11,42 @@
 
 const modelId = (model) => (typeof model === "string" ? model : model.id);
 
-/** The answer's text, or already-parsed JSON (older models give `response`, newer ones an OpenAI-like body) */
-function answerOf(res) {
-  return res?.response ?? res?.choices?.[0]?.message?.content ?? res;
+/**
+ * The answer's text, or already-parsed JSON: older models give `response`, newer ones a chat
+ * completion (`choices`), a few a Responses-API body (`output`)
+ */
+export function answerOf(res) {
+  if (res?.response !== undefined && res.response !== null) return res.response;
+  const choice = res?.choices?.[0]?.message?.content;
+  if (choice !== undefined && choice !== null) return choice;
+  if (typeof res?.output_text === "string") return res.output_text;
+  if (Array.isArray(res?.output)) {
+    const text = res.output
+      .filter((o) => o?.type === "message")
+      .flatMap((o) => o.content || [])
+      .map((c) => c?.text || "")
+      .join("");
+    if (text) return text;
+  }
+  return res;
+}
+
+/**
+ * One model's raw reply
+ * @param {object} env - env.AI
+ * @param {WorkersAiModel} model
+ * @param {Array<{ role: string, content: string }>} messages
+ * @param {{ maxTokens: number, temperature?: number }} opts
+ * @returns {Promise<{ answer: string|object, usage: object|null }>}
+ */
+export async function runWorkersAiModel(env, model, messages, { maxTokens, temperature = 0.1 }) {
+  const res = await env.AI.run(modelId(model), {
+    messages,
+    max_tokens: maxTokens,
+    temperature,
+    ...(typeof model === "string" ? {} : model.options),
+  });
+  return { answer: answerOf(res), usage: res?.usage || null };
 }
 
 /**
@@ -30,13 +63,7 @@ export async function askWorkersAi(env, models, messages, { maxTokens, temperatu
   let lastError = null;
   for (const model of models) {
     try {
-      const res = await env.AI.run(modelId(model), {
-        messages,
-        max_tokens: maxTokens,
-        temperature,
-        ...(typeof model === "string" ? {} : model.options),
-      });
-      const answer = answerOf(res);
+      const { answer } = await runWorkersAiModel(env, model, messages, { maxTokens, temperature });
       if (!answer || (typeof answer === "string" && !answer.trim())) {
         lastError = new Error("empty answer");
         continue;

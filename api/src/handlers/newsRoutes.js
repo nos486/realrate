@@ -8,6 +8,9 @@
  *   PUT    /api/admin/news/channels      — Save the channels ({ channels: [{ username, enabled }] }) (admin)
  *   POST   /api/admin/news/run           — Read the channels now (admin)
  *   POST   /api/admin/news/analysis      — Write the analyst's card now (admin)
+ *   POST   /api/admin/news/analysis/lab  — The model lab: build today's input once ({ lab, models, current }) (admin)
+ *   POST   /api/admin/news/analysis/lab/run — Run the lab's input on one model ({ labId, model }) (admin)
+ *   PUT    /api/admin/news/analysis/model   — Choose the analysis's model ({ model, publishLabId? }) (admin)
  *   POST   /api/admin/news/:id/hidden    — Take an item down or put it back ({ hidden }) (admin)
  */
 
@@ -15,10 +18,17 @@ import { getAuthenticatedUser } from "../lib/auth.js";
 import { jsonResponse } from "../lib/helpers.js";
 import { AppError } from "../lib/AppError.js";
 import { dbListNews, dbSetNewsHidden, dbTopNewsSince } from "../repositories/news.repository.js";
-import { getNewsAnalysis, maybeUpdateNewsAnalysis } from "../services/news/newsAnalysis.service.js";
+import {
+  getNewsAnalysis,
+  maybeUpdateNewsAnalysis,
+  getNewsAnalysisModel,
+  createNewsAnalysisLab,
+  runNewsAnalysisLabModel,
+  chooseNewsAnalysisModel,
+} from "../services/news/newsAnalysis.service.js";
 import { tehranDayStart } from "../domain/news.js";
 import { getNewsChannels, saveNewsChannels, getNewsStatus, runNewsPolling } from "../services/news/news.service.js";
-import { NEWS_CATEGORIES, DEFAULT_NEWS_CHANNELS, NEWS_LIMITS } from "../config/news.config.js";
+import { NEWS_CATEGORIES, DEFAULT_NEWS_CHANNELS, NEWS_LIMITS, newsAnalysisModel } from "../config/news.config.js";
 
 const MAX_PAGE = 50;
 
@@ -62,6 +72,7 @@ export async function handleAdminGetNewsChannels(request, env) {
     defaults: DEFAULT_NEWS_CHANNELS,
     limits: { maxChannels: NEWS_LIMITS.maxChannels, aiCallsPerDay: NEWS_LIMITS.aiCallsPerDay },
     aiConfigured: typeof env.AI?.run === "function",
+    analysisModel: newsAnalysisModel(await getNewsAnalysisModel(env)),
   }, 200, request);
 }
 
@@ -91,4 +102,24 @@ export async function handleAdminRunNewsAnalysis(request, env) {
   await requireAdmin(request, env);
   const result = await maybeUpdateNewsAnalysis(env, { force: true });
   return jsonResponse({ success: true, result, analysis: await getNewsAnalysis(env) }, 200, request);
+}
+
+export async function handleAdminNewsAnalysisLab(request, env) {
+  await requireAdmin(request, env);
+  return jsonResponse({ success: true, ...(await createNewsAnalysisLab(env)) }, 200, request);
+}
+
+export async function handleAdminRunNewsAnalysisLabModel(request, env) {
+  await requireAdmin(request, env);
+  const body = await request.json().catch(() => null);
+  if (typeof body?.labId !== "string" || typeof body?.model !== "string") throw AppError.badRequest("ورودی نامعتبر است.");
+  return jsonResponse({ success: true, result: await runNewsAnalysisLabModel(env, body.labId, body.model) }, 200, request);
+}
+
+export async function handleAdminChooseNewsAnalysisModel(request, env) {
+  await requireAdmin(request, env);
+  const body = await request.json().catch(() => null);
+  if (!newsAnalysisModel(body?.model)) throw AppError.badRequest("این مدل در فهرست نیست.");
+  const result = await chooseNewsAnalysisModel(env, body.model, { publishLabId: typeof body.publishLabId === "string" ? body.publishLabId : "" });
+  return jsonResponse({ success: true, ...result, analysis: await getNewsAnalysis(env) }, 200, request);
 }

@@ -1,14 +1,24 @@
 /**
- * newsAnalysis.test.js — the analyst's card: its prompt and answer, and when it is written again
- * (new news, the interval, the day's budget) on real SQLite (D1) with a fake model
+ * newsAnalysis.test.js — the analyst's card: its prompt (numbered news, prices, trends, the previous
+ * outlook) and answer (directions grounded in news, the day's drivers), when it is written again
+ * (new news, the interval, the day's budget), the admin's model choice and the model lab — on real
+ * SQLite (D1) with a fake model
  */
 
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { buildAnalysisPrompt, parseAnalysis, tehranDayStart } from '../../src/domain/news.js';
-import { maybeUpdateNewsAnalysis, getNewsAnalysis } from '../../src/services/news/newsAnalysis.service.js';
+import {
+  maybeUpdateNewsAnalysis,
+  getNewsAnalysis,
+  getNewsAnalysisModel,
+  createNewsAnalysisLab,
+  runNewsAnalysisLabModel,
+  chooseNewsAnalysisModel,
+} from '../../src/services/news/newsAnalysis.service.js';
+import { answerOf } from '../../src/services/news/workersAi.js';
 import { dbInsertNews, dbTopNewsSince } from '../../src/repositories/news.repository.js';
 import { resetD1SchemaCache } from '../../src/repositories/d1Schema.js';
-import { NEWS_ANALYSIS } from '../../src/config/news.config.js';
+import { NEWS_ANALYSIS, NEWS_ANALYSIS_MODELS } from '../../src/config/news.config.js';
 import { handleGetNewsToday } from '../../src/handlers/newsRoutes.js';
 import { sqliteD1 } from '../helpers/sqliteD1.js';
 
@@ -16,30 +26,49 @@ const NOW = Date.parse('2026-10-05T10:00:00Z'); // 13:30 in Tehran
 const ANSWER = JSON.stringify({
   t: 'فشار تورمی و مذاکرات، دلار را در کانال صعودی نگه می‌دارد',
   s: 'با افزایش نرخ بهره و اخبار مذاکرات، بازار ارز در کوتاه‌مدت نوسانی می‌ماند.',
-  o: [{ a: 'usd', d: 'up', n: 'انتظارات تورمی' }, { a: 'gold', d: 'sideways', n: 'انس ثابت' }, { a: 'usd', d: 'down', n: 'تکراری' }, { a: 'x', d: 'up' }],
+  o: [
+    { a: 'usd', d: 'up', c: 2, n: 'انتظارات تورمی', e: [1] },
+    { a: 'gold', d: 'sideways', n: 'انس ثابت', e: [1] },
+    { a: 'usd', d: 'down', n: 'تکراری', e: [1] },
+    { a: 'coin', d: 'up', c: 3, n: 'بی‌پشتوانه', e: [] },
+    { a: 'x', d: 'up' },
+  ],
+  n: [{ i: 1, w: 3, a: ['usd', 'x'] }, { i: 'N1', w: 1 }, { i: 99, w: 2 }],
   k: ['نرخ بهره بالا رفت', 'انس طلا رکورد زد'],
   r: 'نتیجه‌ی مذاکرات',
 });
+const DEFAULT = NEWS_ANALYSIS.defaultModel;
 
 describe('the prompt and the answer', () => {
-  it('gives the prices and the news in Tehran time, important ones marked', () => {
+  const news = [{ id: 'c/1', title: 'تیتر', summary: 'خلاصه', importance: 3, category: 'currency', url: 'https://t.me/c/1', publishedAt: Date.parse('2026-10-05T06:00:00Z') }];
+
+  it('numbers the news in Tehran time, with prices, trends and the previous outlook', () => {
     const [system, user] = buildAnalysisPrompt(
-      [{ title: 'تیتر', summary: 'خلاصه', importance: 3, publishedAt: Date.parse('2026-10-05T06:00:00Z') }],
+      news,
       [{ name: 'دلار', price: 105000, unit: 'تومان', changePercent: -0.5 }, { name: 'صفر', price: 0 }],
+      { trends: [{ name: 'انس طلا', week: 1.2, month: -3 }, { name: 'بی‌داده' }], previous: { at: Date.parse('2026-10-05T05:00:00Z'), outlook: [{ asset: 'usd', direction: 'up', confidence: 2 }] } },
     );
-    expect(system.content).toMatch(/analyst/);
-    expect(user.content).toContain('دلار: 105,000 تومان (-0.50%)');
+    expect(system.content).toMatch(/STABILITY/);
+    expect(system.content).toMatch(/never predict prices/);
+    expect(user.content).toContain('- دلار: 105,000 تومان (last session -0.50%)');
     expect(user.content).not.toContain('صفر');
-    expect(user.content).toContain('[09:30 !] تیتر — خلاصه');
+    expect(user.content).toContain('- انس طلا: 7 days +1.20%, 30 days -3.00%');
+    expect(user.content).not.toContain('بی‌داده');
+    expect(user.content).toContain('PREVIOUS OUTLOOK (written at 08:30 Tehran):\n- usd: up, confidence 2');
+    // Published after the previous outlook: NEW
+    expect(user.content).toContain('N1 [09:30 currency ! NEW] تیتر — خلاصه');
   });
 
-  it('reads the answer: each asset once, an unknown direction as flat', () => {
-    const a = parseAnalysis(`پاسخ:\n${ANSWER}`);
+  it('reads the answer: each asset once, directions grounded in news, the drivers', () => {
+    const a = parseAnalysis(`پاسخ:\n${ANSWER}`, news);
     expect(a.title).toMatch(/^فشار تورمی/);
     expect(a.outlook).toEqual([
-      { asset: 'usd', direction: 'up', note: 'انتظارات تورمی' },
-      { asset: 'gold', direction: 'flat', note: 'انس ثابت' },
+      { asset: 'usd', direction: 'up', confidence: 2, note: 'انتظارات تورمی', evidence: ['c/1'] },
+      { asset: 'gold', direction: 'flat', confidence: 1, note: 'انس ثابت', evidence: ['c/1'] },
+      // Up without news behind it: flat
+      { asset: 'coin', direction: 'flat', confidence: 1, note: 'بی‌پشتوانه', evidence: [] },
     ]);
+    expect(a.drivers).toEqual([{ id: 'c/1', title: 'تیتر', url: 'https://t.me/c/1', impact: 3, assets: ['usd'] }]);
     expect(a.points).toHaveLength(2);
     expect(a.risk).toBe('نتیجه‌ی مذاکرات');
     expect(parseAnalysis('{"t":"","s":"x"}')).toBeNull();
@@ -50,6 +79,12 @@ describe('the prompt and the answer', () => {
     expect(parseAnalysis(JSON.stringify({ ...JSON.parse(ANSWER), r: 'تصمیم Fed و OPEC' }))).not.toBeNull();
   });
 
+  it("reads every reply shape Workers AI gives", () => {
+    expect(answerOf({ response: 'a' })).toBe('a');
+    expect(answerOf({ choices: [{ message: { content: 'b' } }] })).toBe('b');
+    expect(answerOf({ output: [{ type: 'reasoning' }, { type: 'message', content: [{ type: 'output_text', text: 'c' }] }] })).toBe('c');
+  });
+
   it('the Tehran day starts at 20:30 UTC', () => {
     expect(new Date(tehranDayStart(NOW)).toISOString()).toBe('2026-10-04T20:30:00.000Z');
   });
@@ -58,6 +93,8 @@ describe('the prompt and the answer', () => {
 describe('maybeUpdateNewsAnalysis', () => {
   let env;
   const readPrices = async () => [{ name: 'دلار', price: 105000, unit: 'تومان', changePercent: 1 }];
+  const readTrendRows = async () => [{ name: 'دلار', week: 2, month: 5 }];
+  const opts = (extra) => ({ readPrices, readTrendRows, ...extra });
   const item = (id, minutesAgo, importance = 1) => ({
     id: `c/${id}`, channel: 'c', postId: id, url: `https://t.me/c/${id}`, title: `خبر ${id}`, summary: `خلاصه ${id}`,
     text: '', category: 'currency', importance, publishedAt: NOW - minutesAgo * 60000,
@@ -70,38 +107,45 @@ describe('maybeUpdateNewsAnalysis', () => {
 
   it("waits for the day's first news, then writes it once until more news comes and the interval passes", async () => {
     await dbInsertNews(env, [item(1, 30), item(2, 20)]);
-    expect(await maybeUpdateNewsAnalysis(env, { now: NOW, readPrices })).toMatchObject({ updated: false, reason: 'too-few' });
+    expect(await maybeUpdateNewsAnalysis(env, opts({ now: NOW }))).toMatchObject({ updated: false, reason: 'too-few' });
 
     await dbInsertNews(env, [item(3, 10, 3)]);
-    expect(await maybeUpdateNewsAnalysis(env, { now: NOW, readPrices })).toEqual({ updated: true });
+    expect(await maybeUpdateNewsAnalysis(env, opts({ now: NOW }))).toEqual({ updated: true });
     expect(env.AI.run).toHaveBeenCalledTimes(1);
-    expect(env.AI.run.mock.calls[0][0]).toBe(NEWS_ANALYSIS.models[0].id);
-    expect(env.AI.run.mock.calls[0][1].messages[1].content).toContain('دلار: 105,000');
+    const [model, request] = env.AI.run.mock.calls[0];
+    expect(model).toBe(DEFAULT);
+    expect(request).toMatchObject({ temperature: 0, reasoning_effort: 'low', response_format: { type: 'json_object' } });
+    expect(request.messages[1].content).toContain('دلار: 105,000');
+    expect(request.messages[1].content).toContain('7 days +2.00%');
     const saved = await getNewsAnalysis(env);
-    expect(saved).toMatchObject({ day: tehranDayStart(NOW), at: NOW, newsCount: 3 });
+    expect(saved).toMatchObject({ day: tehranDayStart(NOW), at: NOW, newsCount: 3, model: DEFAULT });
 
     // Nothing new: not again
-    expect((await maybeUpdateNewsAnalysis(env, { now: NOW + 3600000, readPrices })).reason).toBe('nothing-new');
+    expect((await maybeUpdateNewsAnalysis(env, opts({ now: NOW + 3600000 }))).reason).toBe('nothing-new');
 
     // New news, but too soon
     await new Promise((r) => setTimeout(r, 5));
     await dbInsertNews(env, [item(4, 1)]);
-    expect((await maybeUpdateNewsAnalysis(env, { now: NOW + 60000, readPrices })).reason).toBe('too-soon');
-    expect((await maybeUpdateNewsAnalysis(env, { now: NOW + NEWS_ANALYSIS.minIntervalMinutes * 60000, readPrices })).updated).toBe(true);
+    expect((await maybeUpdateNewsAnalysis(env, opts({ now: NOW + 60000 }))).reason).toBe('too-soon');
+    expect((await maybeUpdateNewsAnalysis(env, opts({ now: NOW + NEWS_ANALYSIS.minIntervalMinutes * 60000 }))).updated).toBe(true);
     expect(env.AI.run).toHaveBeenCalledTimes(2);
+    // The previous outlook is the next one's starting point; the news after it is NEW
+    const next = env.AI.run.mock.calls[1][1].messages[1].content;
+    expect(next).toContain('PREVIOUS OUTLOOK');
+    expect(next).toMatch(/N4 \[[\d:]+ currency NEW\]/);
   });
 
   it('force (admin) writes it whatever the interval; without the model nothing happens', async () => {
     await dbInsertNews(env, [item(1, 30)]);
-    expect((await maybeUpdateNewsAnalysis(env, { now: NOW, force: true, readPrices })).updated).toBe(true);
-    expect((await maybeUpdateNewsAnalysis({ DB: env.DB }, { now: NOW, force: true, readPrices })).reason).toBe('no-model');
+    expect((await maybeUpdateNewsAnalysis(env, opts({ now: NOW, force: true }))).updated).toBe(true);
+    expect((await maybeUpdateNewsAnalysis({ DB: env.DB }, opts({ now: NOW, force: true }))).reason).toBe('no-model');
   });
 
   it('no model answers usably: the last analysis is kept', async () => {
     await dbInsertNews(env, [item(1, 30)]);
     env.AI.run.mockResolvedValue({ response: 'not json' });
-    expect((await maybeUpdateNewsAnalysis(env, { now: NOW, force: true, readPrices })).reason).toBe('bad-answer');
-    expect(env.AI.run).toHaveBeenCalledTimes(NEWS_ANALYSIS.models.length);
+    expect((await maybeUpdateNewsAnalysis(env, opts({ now: NOW, force: true }))).reason).toBe('bad-answer');
+    expect(env.AI.run).toHaveBeenCalledTimes(1 + NEWS_ANALYSIS.fallbackModels.length);
     expect(await getNewsAnalysis(env)).toBeNull();
   });
 
@@ -109,12 +153,20 @@ describe('maybeUpdateNewsAnalysis', () => {
     await dbInsertNews(env, [item(1, 30)]);
     const foreign = JSON.stringify({ ...JSON.parse(ANSWER), s: 'قیمت دلار با افزایش nhẹ همراه بود.' });
     env.AI.run.mockResolvedValueOnce({ choices: [{ message: { content: foreign } }] });
-    expect(await maybeUpdateNewsAnalysis(env, { now: NOW, force: true, readPrices })).toEqual({ updated: true });
-    expect(env.AI.run.mock.calls.map((c) => c[0])).toEqual(NEWS_ANALYSIS.models.slice(0, 2).map((m) => m.id));
-    // Each model's own options go with its request
-    expect(env.AI.run.mock.calls[0][1]).toMatchObject({ reasoning_effort: 'low', response_format: { type: 'json_object' } });
-    expect(await getNewsAnalysis(env)).toMatchObject({ model: NEWS_ANALYSIS.models[1].id });
+    expect(await maybeUpdateNewsAnalysis(env, opts({ now: NOW, force: true }))).toEqual({ updated: true });
+    expect(env.AI.run.mock.calls.map((c) => c[0])).toEqual([DEFAULT, NEWS_ANALYSIS.fallbackModels[0]]);
+    expect(await getNewsAnalysis(env)).toMatchObject({ model: NEWS_ANALYSIS.fallbackModels[0] });
     expect((await getNewsAnalysis(env)).summary).not.toContain('nhẹ');
+  });
+
+  it("the admin's model is asked first", async () => {
+    await dbInsertNews(env, [item(1, 30)]);
+    const kimi = NEWS_ANALYSIS_MODELS.find((m) => m.id.includes('kimi')).id;
+    await chooseNewsAnalysisModel(env, kimi);
+    expect(await getNewsAnalysisModel(env)).toBe(kimi);
+    await maybeUpdateNewsAnalysis(env, opts({ now: NOW, force: true }));
+    expect(env.AI.run.mock.calls[0][0]).toBe(kimi);
+    await expect(chooseNewsAnalysisModel(env, '@cf/unknown')).rejects.toThrow('unknown-model');
   });
 
   it("today's top: most important first", async () => {
@@ -125,9 +177,47 @@ describe('maybeUpdateNewsAnalysis', () => {
   it('GET /api/news/today: the analysis and the top news', async () => {
     const now = Date.now();
     await dbInsertNews(env, [1, 2, 3].map((i) => ({ ...item(i, 0), publishedAt: now - i * 60000 })));
-    await maybeUpdateNewsAnalysis(env, { now, force: true, readPrices });
+    await maybeUpdateNewsAnalysis(env, opts({ now, force: true }));
     const body = await (await handleGetNewsToday(new Request('https://x/api/news/today'), env)).json();
     expect(body.top).toHaveLength(3);
     expect(body.analysis.title).toMatch(/^فشار تورمی/);
+  });
+
+  describe('the model lab', () => {
+    it('one input for every model; each answer on its own; choose a model and publish its answer', async () => {
+      await dbInsertNews(env, [item(1, 30, 3), item(2, 20)]);
+      const { lab, models, current } = await createNewsAnalysisLab(env, opts({ now: NOW }));
+      expect(current).toBe(DEFAULT);
+      expect(models.map((m) => m.id)).toEqual(NEWS_ANALYSIS_MODELS.map((m) => m.id));
+      expect(lab.messages[1].content).toContain('N1');
+      expect(lab.newsCount).toBe(2);
+
+      const gemma = NEWS_ANALYSIS_MODELS.find((m) => m.id.includes('gemma')).id;
+      env.AI.run.mockResolvedValueOnce({ choices: [{ message: { content: ANSWER } }], usage: { prompt_tokens: 1000, completion_tokens: 500 } });
+      const good = await runNewsAnalysisLabModel(env, lab.id, gemma);
+      expect(good).toMatchObject({ model: gemma, ok: true, analysis: { title: expect.stringMatching(/^فشار/) } });
+      expect(good.cost).toBeCloseTo((1000 * 0.1 + 500 * 0.3) / 1e6);
+      expect(env.AI.run.mock.calls[0][1].messages).toEqual(lab.messages);
+
+      env.AI.run.mockResolvedValueOnce({ response: '{"t":"تیتر","s":"قیمت nhẹ"}' });
+      expect(await runNewsAnalysisLabModel(env, lab.id, DEFAULT)).toMatchObject({ ok: false, error: 'foreign-text' });
+      env.AI.run.mockRejectedValueOnce(new Error('3040: capacity'));
+      expect(await runNewsAnalysisLabModel(env, lab.id, DEFAULT)).toMatchObject({ ok: false, error: '3040: capacity' });
+      expect(await runNewsAnalysisLabModel(env, 'old', DEFAULT)).toMatchObject({ ok: false, error: 'lab-expired' });
+      expect(await runNewsAnalysisLabModel(env, lab.id, '@cf/x')).toMatchObject({ ok: false, error: 'unknown-model' });
+
+      // Choose gemma and publish its answer: no new request
+      const calls = env.AI.run.mock.calls.length;
+      expect(await chooseNewsAnalysisModel(env, gemma, { publishLabId: lab.id, now: NOW + 1000 })).toEqual({ model: gemma, published: true });
+      expect(env.AI.run.mock.calls.length).toBe(calls);
+      expect(await getNewsAnalysisModel(env)).toBe(gemma);
+      expect(await getNewsAnalysis(env)).toMatchObject({ model: gemma, at: NOW + 1000, newsCount: 2, drivers: [{ id: 'c/1' }] });
+      // A model whose answer failed can still be chosen; nothing is published
+      expect(await chooseNewsAnalysisModel(env, DEFAULT, { publishLabId: lab.id })).toEqual({ model: DEFAULT, published: false });
+    });
+
+    it('no news yet: no lab', async () => {
+      expect(await createNewsAnalysisLab(env, opts({ now: NOW }))).toMatchObject({ lab: null, reason: 'no-news' });
+    });
   });
 });

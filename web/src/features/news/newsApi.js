@@ -32,3 +32,14 @@ export const runNewsNow = () => httpClient.post('/api/admin/news/run', {});
 /** Admin: take an item down (or put it back) */
 export const setNewsHidden = (id, hidden = true) =>
   httpClient.post(`/api/admin/news/${id}/hidden`, { hidden }, { silent: true });
+
+/** Admin, the analysis's model lab: build today's input once ({ lab, models, current, reason? }) */
+export const createNewsAnalysisLab = () => httpClient.post('/api/admin/news/analysis/lab', {});
+
+/** Admin, the model lab: run the lab's input on one model ({ result }) */
+export const runNewsAnalysisLabModel = (labId, model) =>
+  httpClient.post('/api/admin/news/analysis/lab/run', { labId, model }, { silent: true });
+
+/** Admin: choose the analysis's model; with publishLabId, that model's answer in the lab becomes the analysis */
+export const chooseNewsAnalysisModel = (model, publishLabId = '') =>
+  httpClient.put('/api/admin/news/analysis/model', { model, ...(publishLabId ? { publishLabId } : {}) });

@@ -1,6 +1,7 @@
 /**
  * AdminNewsPage.jsx — The news section's Telegram channels: add, pause or remove a channel, see
- * how each one did on the last run, and read them all now
+ * how each one did on the last run, and read them all now; and the model lab of «تحلیل روز»
+ * (AdminNewsAnalysisLab.jsx)
  */
 
 import React, { useEffect, useState } from 'react';
@@ -9,6 +10,7 @@ import { Button, Input, AlertBanner, EmptyState } from '../../../shared/ui/index
 import { useFeedback } from '../../../shared/ui/FeedbackProvider.jsx';
 import { getNewsChannels, saveNewsChannels, runNewsNow, runNewsAnalysisNow } from '../../news/newsApi.js';
 import { newsTimeAgo } from '../../news/newsFormat.js';
+import AdminNewsAnalysisLab from './AdminNewsAnalysisLab.jsx';
 
 const fa = (n) => Number(n || 0).toLocaleString('fa-IR');
 const cleanName = (s) => String(s || '').trim().replace(/^(https?:\/\/)?(www\.)?t\.me\/(s\/)?/i, '').replace(/^@/, '').split(/[/?#]/)[0].toLowerCase();
@@ -122,6 +124,7 @@ export default function AdminNewsPage() {
           ) : (
             <span className="is-warn"><AlertTriangle size={14} /> هوش مصنوعی (Workers AI) وصل نیست؛ فقط پست‌هایی با کلیدواژه‌های زیاد منتشر می‌شود.</span>
           )}
+          {data.analysisModel && <small>مدل «تحلیل روز»: {data.analysisModel.label}</small>}
           {status?.aiError && data.aiConfigured && <small className="is-warn">آخرین خطای مدل: {status.aiError}</small>}
           {status?.at && <small>آخرین اجرا: {newsTimeAgo(status.at)} · {fa(status.published)} خبر</small>}
         </div>
@@ -186,6 +189,12 @@ export default function AdminNewsPage() {
           {dirty && <Button size="sm" variant="ghost" onClick={() => setChannels(data.channels || [])}>انصراف</Button>}
         </div>
       </div>
+
+      <AdminNewsAnalysisLab
+        aiConfigured={data.aiConfigured}
+        current={data.analysisModel?.id}
+        onChosen={(model) => setData((d) => ({ ...d, analysisModel: model }))}
+      />
     </div>
   );
 }
