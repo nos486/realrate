@@ -23,8 +23,6 @@ import { useAuth } from '../auth/index.js';
 import { useNews, useNewsToday } from './useNews.js';
 import { setNewsHidden } from './newsApi.js';
 import NewsAnalysisCard from './NewsAnalysisCard.jsx';
-import { usePricing } from '../market/context/PricingContext.jsx';
-import { priceIdOfNews } from './newsPrice.js';
 import { newsAlertsSupported, getNewsAlertsEnabled, setNewsAlertsEnabled } from './newsAlerts.js';
 import { NEWS_CATEGORIES, newsTimeAgo, newsFullTime, newsSource } from './newsFormat.js';
 
@@ -36,26 +34,6 @@ const FILTERS = [
   { value: 'important', label: 'مهم‌ها' },
   ...Object.entries(NEWS_CATEGORIES).map(([value, label]) => ({ value, label })),
 ];
-
-const fa = (n, digits = 0) => Number(n).toLocaleString('fa-IR', { maximumFractionDigits: digits });
-
-/** The live price of what a news item is about, with its change («دلار ۱۰۵٬۰۰۰ ▲ ۰٫۵٪») */
-function NewsPriceChip({ item }) {
-  const pricing = usePricing();
-  const id = priceIdOfNews(item);
-  const book = id ? pricing?.priceBook?.items?.[id] : null;
-  if (!book || !(Number(book.price) > 0)) return null;
-  const change = Number(book.params?.changePercent);
-  const hasChange = Number.isFinite(change) && Math.abs(change) >= 0.01;
-  const usd = book.unit === 'دلار';
-  return (
-    <span className={`news-price ${hasChange ? (change > 0 ? 'is-up' : 'is-down') : ''}`} title="قیمت لحظه‌ای و تغییر نسبت به جلسه‌ی قبل">
-      <span className="news-price-name">{book.name}</span>
-      <strong>{fa(book.price, usd ? 2 : 0)}</strong>
-      {hasChange && <em>{change > 0 ? '▲' : '▼'} {fa(Math.abs(change), 2)}٪</em>}
-    </span>
-  );
-}
 
 /** «اعلان خبرهای مهم»: on or off for this device */
 function NewsAlertsToggle() {
@@ -119,7 +97,6 @@ function NewsItem({ item, open, onToggle, isAdmin, onHide }) {
         </span>
         <h3 className="news-item-title">{item.title}</h3>
         {showSummary && <p className="news-item-summary">{item.summary}</p>}
-        <NewsPriceChip item={item} />
         <span className="news-item-meta">
           <span className="news-source-avatar" aria-hidden="true">{newsSource(item).replace(/^@/, '').slice(0, 1)}</span>
           <bdi className="news-item-source">{newsSource(item)}</bdi>
