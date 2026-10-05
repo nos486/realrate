@@ -28,8 +28,6 @@ export function getBourseApiUrl(env = null) {
   return key ? `${BOURSE_API_BASE_URL}&key=${key}` : BOURSE_API_BASE_URL;
 }
 
-export const BOURSE_API_URL = BOURSE_API_BASE_URL;
-
 let inMemoryBourseList = null;
 
 /**
@@ -222,12 +220,11 @@ export const bourseSymbolsSourceAdapter = {
     }
 
     const nowIso = new Date().toISOString();
-    const { mergedList, stats } = mergeBourseSymbols(previousList, rawArray, nowIso, sourceConfig);
+    const { mergedList } = mergeBourseSymbols(previousList, rawArray, nowIso, sourceConfig);
 
     if (mergedList.length === 0) {
       throw new Error("هیچ نماد معتبری از پاسخ بورس استخراج یا ابقا نشد.");
     }
-
 
     inMemoryBourseList = mergedList;
 

@@ -19,7 +19,6 @@ import {
 } from "../repositories/index.js";
 import { jsonResponse } from "../lib/helpers.js";
 import { AppError } from "../lib/AppError.js";
-import { logger } from "../lib/logger.js";
 
 /**
  * Helper to authenticate user and verify portfolio ownership

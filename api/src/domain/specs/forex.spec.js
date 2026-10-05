@@ -68,4 +68,3 @@ export const FOREX_SPECS = [
   { code: 'DZD', name: 'دینار الجزایر', flag: '🇩🇿', symbol: 'DA', defaultCross: 0.0074, category: 'currency', badge: 'ارز', unit: 'دینار', aliases: ['دینار الجزایر', 'DZD'] },
 ];
 
-export const FOREX_DICT = Object.fromEntries(FOREX_SPECS.map(c => [c.code, c]));

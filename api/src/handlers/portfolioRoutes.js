@@ -46,7 +46,6 @@ const SHARE_PASSWORD_RATE_LIMIT = { limit: 10, windowSec: 15 * 60 };
 import { AppError } from "../lib/AppError.js";
 import { logger } from "../lib/logger.js";
 import {
-  resolveAssetDisplayName,
   resolveAssetDisplayWithSource,
   resolveAssetUnit,
   resolveCategory,

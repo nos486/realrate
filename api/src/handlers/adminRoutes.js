@@ -22,7 +22,6 @@ import { getAdminStats } from "../lib/analytics.js";
 import { testPriceSourceConfig, fetchAllPrices, inspectApiEndpointStructure, refreshPriceBook } from "../services/market/priceAggregator.service.js";
 import { jsonResponse, errorResponse, forbiddenResponse } from "../lib/helpers.js";
 import { AppError } from "../lib/AppError.js";
-import { logger } from "../lib/logger.js";
 
 /**
  * GET /api/admin/stats

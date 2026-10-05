@@ -39,64 +39,6 @@ if (Array.isArray(PRICE_SOURCES_CONFIG)) {
   }
 }
 
-export const FOREX_PRESETS = [
-  {
-    id: 'iran_market',
-    title: 'ارزهای پرکاربرد بازار ایران',
-    icon: '⭐',
-    keys: ['EUR', 'TRY', 'AED', 'GBP', 'CHF', 'CAD', 'AUD', 'CNY'],
-  },
-  {
-    id: 'neighbors',
-    title: 'ارزهای همسایه و منطقه',
-    icon: '🌍',
-    keys: ['TRY', 'AED', 'SAR', 'QAR', 'KWD', 'OMR', 'AFN', 'IQD', 'AZN', 'RUB', 'PKR'],
-  },
-  {
-    id: 'g10',
-    title: 'ارزهای بین‌المللی G10',
-    icon: '🌐',
-    keys: ['EUR', 'GBP', 'JPY', 'CHF', 'CAD', 'AUD', 'NZD', 'SEK', 'NOK', 'USD'],
-  },
-  {
-    id: 'brics',
-    title: 'ارزهای آسیایی و بریکس',
-    icon: '🌏',
-    keys: ['CNY', 'INR', 'RUB', 'BRL', 'ZAR', 'AED', 'SAR'],
-  },
-];
-
-export const DEFAULT_SOURCE_FORM = {
-  id: null,
-  name: '',
-  priceType: 'usd',
-  unit: 'تومان',
-  sourceType: 'telegram',
-  channelUsername: '',
-  apiUrl: '',
-  jsonPath: '',
-  fieldMapping: null,
-  excludedOutputs: [],
-  displayConfig: null,
-  showOnHomePage: true,
-  regexPattern: '([\\d,]+)\\s*فروش',
-  regexGroupIndex: 1,
-  fetchIntervalMinutes: 5,
-  isActive: true,
-  isPrimary: false,
-};
-
-export const DEFAULT_MULTI_FEED_FORM = {
-  id: null,
-  name: '',
-  priceType: 'custom_feed',
-  apiUrl: '',
-  fetchIntervalMinutes: 60,
-  isActive: true,
-  showOnHomePage: true,
-  homePageOutputsText: '',
-};
-
 export function isSourceMultiOutput(s, priceTypeInfo = {}) {
   if (!s) return false;
   if (s.isCatalog || s.category === 'multi_output' || s.isMultiOutput) return true;
@@ -126,7 +68,6 @@ export function formatNum(num, priceType = 'usd', unit = '') {
   }
   return Math.round(num).toLocaleString('fa-IR');
 }
-
 
 export function formatPersianDate(isoStr) {
   if (!isoStr) return '-';

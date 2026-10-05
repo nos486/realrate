@@ -82,11 +82,6 @@ export function splitCounted(kind, records) {
   return splitByExclusion(records, (category) => isExcludedCategory(kind, category));
 }
 
-/** What is saved (for the manager to edit) */
-export function getStoredCategories() {
-  return stored;
-}
-
 /** Load the record (once per vault opening); the built-ins stay when there is none */
 export function loadCategories(epoch = 0) {
   if (loadedFor === epoch && !loading) return Promise.resolve(stored);

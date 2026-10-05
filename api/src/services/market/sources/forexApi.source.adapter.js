@@ -13,24 +13,6 @@ export { PROMINENT_FOREX_CURRENCIES };
 
 export const FOREX_API_DEFAULT_URL = "https://open.er-api.com/v6/latest/USD";
 
-export const FOREX_FALLBACK = {
-  EUR: 0.915,
-  AED: 3.6725,
-  TRY: 33.50,
-  CNY: 7.18,
-  GBP: 0.782,
-  CAD: 1.370,
-  AUD: 1.520,
-  CHF: 0.865,
-  JPY: 147.50,
-  SAR: 3.75,
-  QAR: 3.64,
-  KWD: 0.306,
-  RUB: 88.50,
-  IQD: 1310.0,
-  AFN: 70.50,
-};
-
 /**
  * Forex Source Adapter Implementation
  * @type {import("./ISourceAdapter.js").SourceAdapter}

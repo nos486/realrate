@@ -122,10 +122,6 @@ const CURRENCY_VALUES = new Set(EXPENSE_CURRENCIES.map((c) => c.value));
 const ID_RE = /^[A-Za-z0-9_-]{1,64}$/;
 const text = (v) => String(v ?? '').trim();
 
-export function currencyLabel(currency) {
-  return EXPENSE_CURRENCIES.find((c) => c.value === currency)?.label || 'تومان';
-}
-
 /**
  * Validate & normalize an expense section
  * @returns {{ value?: object, error?: string }}

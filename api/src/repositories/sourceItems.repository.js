@@ -102,9 +102,3 @@ export async function getSourceItems(env, sourceId) {
   return (await readSourceItems(env, sourceId)).items;
 }
 
-/** Forget a source's items */
-export async function deleteSourceItems(env, sourceId) {
-  const store = getBlobStore(env);
-  if (!store || !sourceId) return;
-  await store.delete(sourceItemsKey(sourceId)).catch(() => {});
-}

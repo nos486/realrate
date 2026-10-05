@@ -40,18 +40,16 @@ export const NEWS_LIMITS = {
   duplicateWindowHours: 36,
 };
 
-/** JSON only, the request's own way (models that take it; the prompt asks for JSON anyway) */
-const JSON_ANSWER = { response_format: { type: "json_object" } };
+/** The news section's model, on Workers AI (the `AI` binding in wrangler.toml): GLM 5.3 Flash */
+const GLM_FLASH = { id: "@cf/zai-org/glm-5.3-flash", label: "GLM 5.3 Flash" };
 
 /**
- * The model screening and summarizing posts, on Workers AI (the `AI` binding in wrangler.toml):
- * GLM 5.3 Flash (no reasoning: a verdict per post doesn't need it), and only it — when it fails, no
- * other model is tried and nothing is published; the posts wait for the next run, and the error
- * is logged and shown in the admin's panel. The answer is a JSON array, so no `json_object` here.
+ * The model screening and summarizing posts, and only it: when it fails no other model is tried
+ * and nothing is published; the posts wait for the next run, and the error is logged and shown in
+ * the admin's panel. No reasoning (a verdict per post doesn't need it); the answer is a JSON array,
+ * so no `json_object` here.
  */
-export const NEWS_AI_MODELS = [
-  { id: "@cf/zai-org/glm-5.3-flash", label: "GLM 5.3 Flash", options: { chat_template_kwargs: { enable_thinking: false } } },
-];
+export const NEWS_AI_MODEL = { ...GLM_FLASH, options: { chat_template_kwargs: { enable_thinking: false } } };
 
 /** What a news item is about (the page's filters) */
 export const NEWS_CATEGORIES = {
@@ -99,8 +97,11 @@ export const NEWS_KEYWORD_MIN_SCORE = 2;
  * Written again when new news came in, at most every `minIntervalMinutes`.
  */
 export const NEWS_ANALYSIS = {
-  /** The model when the admin hasn't chosen one (NEWS_ANALYSIS_MODELS); no other is tried when it fails */
-  defaultModel: "@cf/zai-org/glm-5.3-flash",
+  /**
+   * The model, and only it (no other is tried when it fails): a little reasoning (the method is in
+   * the prompt) and a JSON object as the answer
+   */
+  model: { ...GLM_FLASH, options: { response_format: { type: "json_object" }, reasoning_effort: "low" } },
   /** 0: the same news gives the same view (as far as the model allows) */
   temperature: 0,
   minIntervalMinutes: 30,
@@ -120,31 +121,6 @@ export const NEWS_ANALYSIS = {
   /** A previous outlook younger than this is the starting point of the next one (stability) */
   previousMaxHours: 24,
 };
-/**
- * The models the analyst's card can use — all on Workers AI (Cloudflare-hosted), compared side by
- * side in the admin's model lab, one of them chosen (services/news/newsAnalysis.service.js). Each
- * request asks for little reasoning (the method is in the prompt) and JSON where the model takes it;
- * price: USD per million tokens, in / out (Cloudflare's list price).
- */
-const LOW_REASONING = { reasoning_effort: "low" };
-const NO_THINKING = { chat_template_kwargs: { enable_thinking: false } };
-export const NEWS_ANALYSIS_MODELS = [
-  { id: "@cf/deepseek-ai/deepseek-v4-flash-0731", label: "DeepSeek V4 Flash", vendor: "DeepSeek", price: [0.44, 1.32], options: { ...JSON_ANSWER, ...LOW_REASONING } },
-  { id: "@cf/deepseek-ai/deepseek-v4-pro-0813", label: "DeepSeek V4 Pro", vendor: "DeepSeek", price: [1.32, 3.96], options: { ...JSON_ANSWER, ...LOW_REASONING } },
-  { id: "@cf/moonshotai/kimi-k2.6", label: "Kimi K2.6", vendor: "Moonshot", price: [0.95, 4], options: { ...JSON_ANSWER, ...LOW_REASONING } },
-  { id: "@cf/zai-org/glm-5.3", label: "GLM 5.3", vendor: "Z.ai", price: [1.4, 4.4], options: { ...JSON_ANSWER, ...LOW_REASONING } },
-  { id: "@cf/zai-org/glm-5.3-flash", label: "GLM 5.3 Flash", vendor: "Z.ai", price: [0.15, 0.5], options: { ...JSON_ANSWER, ...LOW_REASONING } },
-  { id: "@cf/qwen/qwen3.8-27b", label: "Qwen 3.8 27B", vendor: "Alibaba", price: [0.45, 3.2], options: { ...JSON_ANSWER, ...LOW_REASONING } },
-  { id: "@cf/google/gemma-4-26b-a4b-it", label: "Gemma 4 26B", vendor: "Google", price: [0.1, 0.3], options: { ...JSON_ANSWER, ...NO_THINKING } },
-  { id: "@cf/openai/gpt-oss-120b", label: "GPT-OSS 120B", vendor: "OpenAI", price: [0.35, 0.75], options: { ...JSON_ANSWER, reasoning: { effort: "low" } } },
-  { id: "@cf/nvidia/nemotron-3-120b-a12b", label: "Nemotron 3 Super", vendor: "NVIDIA", price: [0.5, 1.5], options: { ...JSON_ANSWER, ...NO_THINKING } },
-  { id: "@cf/meta/llama-4-scout-17b-16e-instruct", label: "Llama 4 Scout", vendor: "Meta", price: [0.27, 0.85], options: { ...JSON_ANSWER } },
-  { id: "@cf/meta/llama-3.3-70b-instruct-fp8-fast", label: "Llama 3.3 70B", vendor: "Meta", price: [0.29, 2.25], options: {} },
-];
-
-/** A model of the catalog by id, or null */
-export const newsAnalysisModel = (id) => NEWS_ANALYSIS_MODELS.find((m) => m.id === id) || null;
-
 
 /** Pushes for important news (services/news/newsPush.service.js) */
 export const NEWS_PUSH = {

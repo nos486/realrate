@@ -95,14 +95,6 @@ if (_registry.size === 0) {
   _init();
 }
 
-/**
- * Re-initialize registry (useful if configuration is dynamically reloaded)
- */
-export function reloadSourceRegistry() {
-  _registry.clear();
-  _init();
-}
-
 /* ---------- Public API ---------- */
 
 /**
@@ -231,11 +223,4 @@ export function resolveCategory(assetOrItem, fallbackType = null) {
  * Alias for resolveCategory matching previous domain/specs/registry signature
  */
 export const resolveItemCategory = resolveCategory;
-
-/**
- * Exports internal registry keys for debugging and introspection
- */
-export function getAllRegisteredSourceKeys() {
-  return Array.from(_registry.keys());
-}
 

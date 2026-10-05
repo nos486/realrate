@@ -184,15 +184,6 @@ export async function dbPurgeOldPushReminders(env, beforeDate) {
   `).bind(beforeDate).run();
 }
 
-export async function dbResetUserPushData(env, userId) {
-  await ensureSchema(env);
-  const uid = String(userId);
-  await env.DB.batch([
-    env.DB.prepare(`DELETE FROM push_reminders WHERE user_id = ?`).bind(uid),
-    env.DB.prepare(`DELETE FROM push_subscriptions WHERE user_id = ?`).bind(uid),
-  ]);
-}
-
 /** Whether this browser gets a push for important news (false without a subscription) */
 export async function dbGetNewsAlerts(env, userId, deviceId) {
   await ensureSchema(env);

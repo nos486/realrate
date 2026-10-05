@@ -124,22 +124,6 @@ export async function testPriceSourceConfig(config = {}, env = null) {
 }
 
 /**
- * Fetch raw endpoint content using appropriate adapter
- */
-export async function fetchRawEndpointContent(sourceType, endpoint, env = null) {
-  const adapter = getAdapterForSource({ sourceType, endpoint });
-  return await adapter.fetchRaw({ sourceType, endpoint }, env);
-}
-
-/**
- * Parse raw content using appropriate adapter
- */
-export async function parseSourceContent(sourceConfig, rawContent, env = null) {
-  const adapter = getAdapterForSource(sourceConfig);
-  return await adapter.parse(rawContent, sourceConfig, env);
-}
-
-/**
  * Inspect an API endpoint structure to discover candidate arrays and JSON keys
  * @param {string} endpointUrl
  * @param {object} [customHeaders]

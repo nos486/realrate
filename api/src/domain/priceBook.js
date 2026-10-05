@@ -452,6 +452,3 @@ export function findPrimaryIdConflicts(sources) {
   return [...owners].filter(([, ids]) => ids.size > 1).map(([id, ids]) => ({ id, sourceIds: [...ids] }));
 }
 
-/** The book's items as history points */
-export const priceBookPoints = (book) =>
-  Object.values(book?.items || {}).map((item) => ({ id: item.id, price: item.price }));

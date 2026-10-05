@@ -440,21 +440,3 @@ export function getSourceDisplayName(sourceOrItem, customSources = []) {
   return "";
 }
 
-/**
- * Resolves display metadata for a catalog item using source's knownItems.
- *
- * @param {string} assetId
- * @returns {{ name: string, unit: string }|null}
- */
-export function getSourceItemDisplayName(assetId) {
-  if (!assetId || typeof assetId !== "string") return null;
-  const { sourceId, itemKey } = parseItemId(assetId);
-  const cfg = getSourceConfig(sourceId) || getSourceCategoryConfig(assetId);
-  if (cfg?.knownItems?.[itemKey]) {
-    return cfg.knownItems[itemKey];
-  }
-  if (cfg?.knownItems?.[itemKey.toLowerCase()]) {
-    return cfg.knownItems[itemKey.toLowerCase()];
-  }
-  return null;
-}

@@ -29,7 +29,6 @@ import {
 import { jsonResponse } from "../lib/helpers.js";
 import { AppError } from "../lib/AppError.js";
 import { rejectWhenVaultEnabled } from "../repositories/vault.repository.js";
-import { logger } from "../lib/logger.js";
 import { isValidIsoDate } from "../domain/isoDate.js";
 
 /** An optional date field must, when present, be a real Gregorian ISO date */

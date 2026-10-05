@@ -230,5 +230,3 @@ export const BANK_SMS_TEMPLATES = [
   },
 ];
 
-/** The banks that have templates (for "supported banks" lists) */
-export const SMS_BANK_IDS = BANK_SMS_TEMPLATES.map((b) => b.bankId);
