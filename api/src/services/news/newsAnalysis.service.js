@@ -162,7 +162,7 @@ export async function maybeUpdateNewsAnalysis(env, { now = Date.now(), force = f
   }
   await store.put(STATUS_KEY, JSON.stringify({ at: now, model, ok: !error, ...(error ? { error } : {}) }));
   if (error) {
-    logger.warn("[News] analysis failed:", { model, error });
+    logger.error("[News] analysis failed — the last analysis stays", { model, error });
     return { updated: false, reason: "model-error", error };
   }
 

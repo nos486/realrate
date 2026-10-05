@@ -8,9 +8,10 @@
  *   2. keywords drop what is clearly not market news (no model tokens spent on it)
  *   3. a post that repeats news already published (another channel's repost) is dropped
  *   4. the rest go to Workers AI in batches: one short prompt for several posts decides what is
- *      published and writes its headline and summary. Without the model (no `AI` binding, the
- *      day's budget spent, an error) a post is published only on a high keyword score.
- * Posts beyond the run's model budget stay for the next minute (the channel's cursor stops
+ *      published and writes its headline and summary. Nothing is published without the model:
+ *      no keyword-only publishing, and no other model is tried when it fails.
+ * Posts beyond the run's model budget, and those of a batch the model failed on (the error is
+ * logged and kept for the admin's panel), stay for the next minute (the channel's cursor stops
  * before them).
  */
 
@@ -18,7 +19,6 @@ import {
   DEFAULT_NEWS_CHANNELS,
   NEWS_LIMITS,
   NEWS_AI_MODELS,
-  NEWS_KEYWORD_ONLY_SCORE,
 } from "../../config/news.config.js";
 import {
   parseTelegramPosts,
@@ -191,31 +191,34 @@ async function pollChannels(env, store, now, fetchPage) {
   let deferred = [];
   for (let b = 0; b < batches.length; b++) {
     const batch = batches[b];
-    let verdicts = null;
-    if (hasModel && b < callsLeft) {
-      try {
-        status.aiCalls++;
-        const { answer } = await askWorkersAi(env, NEWS_AI_MODELS, buildNewsPrompt(batch), { maxTokens: newsMaxTokens(batch.length) });
-        verdicts = parseNewsVerdicts(answer, batch.length);
-        // An answer that says nothing about any post: the model failed (no other is tried)
-        if (verdicts.size === 0) {
-          verdicts = null;
-          throw new Error("unreadable answer (no JSON verdicts)");
-        }
-      } catch (err) {
-        status.aiError = String(err?.message || err).slice(0, 160);
-        logger.warn("[News] model failed:", { error: status.aiError });
-      }
-    } else if (hasModel && usedToday + status.aiCalls < NEWS_LIMITS.aiCallsPerDay) {
-      // Over this run's budget but not the day's: the next minute takes them
+    // No model, or over the day's budget: nothing is published without it (no keyword-only
+    // publishing). Over this run's budget but not the day's: the next minute takes them.
+    if (!hasModel || b >= callsLeft) {
+      if (hasModel && usedToday + status.aiCalls < NEWS_LIMITS.aiCallsPerDay) deferred = batches.slice(b).flat();
+      break;
+    }
+    let verdicts;
+    try {
+      status.aiCalls++;
+      const { answer } = await askWorkersAi(env, NEWS_AI_MODELS, buildNewsPrompt(batch), { maxTokens: newsMaxTokens(batch.length) });
+      verdicts = parseNewsVerdicts(answer, batch.length);
+      // An answer that says nothing about any post: the model failed
+      if (verdicts.size === 0) throw new Error("unreadable answer (no JSON verdicts)");
+    } catch (err) {
+      // The model failed: no other model and no keyword-only publishing; these posts and the rest
+      // wait for the next run, and the error is logged and shown in the admin's panel
+      status.aiError = String(err?.message || err).slice(0, 160);
+      logger.error("[News] model failed — nothing published, posts kept for the next run", {
+        model: NEWS_AI_MODELS[0]?.id,
+        posts: batches.slice(b).flat().length,
+        error: status.aiError,
+      });
       deferred = batches.slice(b).flat();
       break;
     }
 
     batch.forEach((post, i) => {
-      let verdict = verdicts
-        ? verdicts.get(i)
-        : post.score >= NEWS_KEYWORD_ONLY_SCORE ? fallbackNewsItem(post.text) : null;
+      let verdict = verdicts.get(i);
       // The model's headline slipped into another language: the post's own words, its verdict kept
       if (verdict?.keep && verdict.foreign) {
         const own = fallbackNewsItem(post.text);
@@ -235,7 +238,7 @@ async function pollChannels(env, store, now, fetchPage) {
         importance: verdict.importance,
         image: post.image,
         publishedAt: post.publishedAt || now,
-        ai: Boolean(verdicts),
+        ai: true,
       });
     });
   }
@@ -258,7 +261,10 @@ async function pollChannels(env, store, now, fetchPage) {
   }
   status.published = published.length;
   status.aiCallsToday = usedToday + status.aiCalls;
-  if (!status.aiError && !hasModel) status.aiError = "AI binding is not configured";
+  if (!status.aiError && !hasModel && candidates.length) {
+    status.aiError = "AI binding is not configured";
+    logger.error("[News] no model (AI binding) — nothing published", { candidates: candidates.length });
+  }
 
   await Promise.all([
     ...Object.entries(nextCursor).map(([channel, id]) => (id > 0 ? store.put(cursorKey(channel), String(id)) : null)),
