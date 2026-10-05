@@ -157,6 +157,7 @@ export default function App() {
               <Route path="/settings" element={<MainPage />} />
               <Route path="/app-settings" element={<MainPage />} />
               <Route path="/sms" element={<MainPage />} />
+              <Route path="/news" element={<MainPage />} />
               <Route path="/derived-assets" element={<Navigate to="/admin/sources" replace />} />
               <Route path="/sources" element={<Navigate to="/admin/sources" replace />} />
               <Route path={`${APP_BASE}/*`} element={<LegacyAppRedirect />} />
