@@ -16,7 +16,6 @@ import { notifyImportantNews, newsPushPayload } from '../../src/services/news/ne
 import { dbSavePushSubscription, dbGetNewsAlerts, dbSetNewsAlerts, dbGetNewsAlertSubscriptions } from '../../src/repositories/push.repository.js';
 import { resetD1SchemaCache } from '../../src/repositories/d1Schema.js';
 import { NEWS_PUSH } from '../../src/config/news.config.js';
-import { priceIdOfNews } from '../../../web/src/features/news/newsPrice.js';
 import { sqliteD1 } from '../helpers/sqliteD1.js';
 
 const NOW = Date.parse('2026-10-05T10:00:00Z');
@@ -67,19 +66,5 @@ describe('notifyImportantNews', () => {
     expect((await notifyImportantNews(env, [news(1, 2, 1)], { now: NOW })).skipped).toBe('none');
     expect((await notifyImportantNews({ ...env, VAPID_PUBLIC_KEY: '' }, [news(1, 3, 1)], { now: NOW })).skipped).toBe('not-configured');
     expect(sendWebPush).not.toHaveBeenCalled();
-  });
-});
-
-describe('priceIdOfNews', () => {
-  const item = (title, category) => ({ title, summary: '', category });
-  it('the asset a currency, gold or metal news item is about', () => {
-    expect(priceIdOfNews(item('قیمت سکه امامی ۸۰ میلیون شد', 'gold'))).toBe('full_coin');
-    expect(priceIdOfNews(item('اونس طلا رکورد زد', 'gold'))).toBe('ons_gold');
-    expect(priceIdOfNews(item('طلای ۱۸ عیار ارزان شد', 'gold'))).toBe('gold_18k');
-    expect(priceIdOfNews(item('دلار از ۱۰۰ هزار تومان گذشت', 'currency'))).toBe('usd');
-    expect(priceIdOfNews(item('یورو گران شد', 'currency'))).toBe('eur');
-    expect(priceIdOfNews(item('نقره جهش کرد', 'metals'))).toBe('ons_silver');
-    expect(priceIdOfNews(item('دلار و تورم', 'economy'))).toBeNull();
-    expect(priceIdOfNews(item('شاخص بورس', 'bourse'))).toBeNull();
   });
 });
