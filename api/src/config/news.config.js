@@ -102,11 +102,11 @@ export const NEWS_KEYWORD_MIN_SCORE = 2;
 export const NEWS_ANALYSIS = {
   /**
    * A strong reasoning model: one request now and then, where reasoning matters more than cost.
-   * DeepSeek V4 Pro (a little reasoning is enough), then Gemma 4, then Llama 3.3 — the next one also
+   * DeepSeek V4 Flash (a little reasoning is enough), then Gemma 4, then Llama 3.3 — the next one also
    * when an answer isn't usable (broken JSON, words of another language: domain/news.js).
    */
   models: [
-    { id: "@cf/deepseek-ai/deepseek-v4-pro-0813", options: { ...JSON_ANSWER, reasoning_effort: "low" } },
+    { id: "@cf/deepseek-ai/deepseek-v4-flash-0731", options: { ...JSON_ANSWER, reasoning_effort: "low" } },
     { id: "@cf/google/gemma-4-26b-a4b-it", options: { ...JSON_ANSWER, chat_template_kwargs: { enable_thinking: false } } },
     "@cf/meta/llama-3.3-70b-instruct-fp8-fast",
   ],
