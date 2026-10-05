@@ -5,7 +5,9 @@
  * Each run (from the minute cron, cronPolling.job.js):
  *   1. every channel's public page (t.me/s/<channel>) is read; a post newer than the last one seen
  *      is new (a channel read for the first time gives its latest NEWS_LIMITS.firstReadPosts)
- *   2. keywords drop what is clearly not market news (no model tokens spent on it)
+ *   2. keywords drop what is clearly not market news (political or security words alone are not
+ *      enough: an economic word is needed too), and a vulgar word drops a post (no model tokens
+ *      spent on either)
  *   3. a post that repeats news already published (another channel's repost) is dropped
  *   4. the rest go to Workers AI in batches: one short prompt for several posts decides what is
  *      published and writes its headline and summary. Nothing is published without the model:
@@ -23,6 +25,7 @@ import {
 import {
   parseTelegramPosts,
   isNewsCandidate,
+  hasProfanity,
   wordSet,
   isDuplicateNews,
   buildNewsPrompt,
@@ -197,7 +200,8 @@ async function pollChannels(env, store, now, fetchPage) {
   let notMarket = 0;
   let duplicates = 0;
   for (const post of fresh) {
-    if (!isNewsCandidate(post.text)) {
+    // Not market news, or vulgar: never sent to the model
+    if (hasProfanity(post.text) || !isNewsCandidate(post.text)) {
       notMarket++;
       continue;
     }

@@ -61,12 +61,14 @@ export const NEWS_CATEGORIES = {
   bourse: "بورس و شاخص",
   economy: "اقتصاد",
   crypto: "رمزارز",
+  politics: "سیاسی و امنیتی",
 };
 
 /**
  * Keywords (Persian text is normalized first: ي→ی, ك→ک, no half-spaces). A post needs a score of
- * NEWS_KEYWORD_MIN_SCORE to reach the model: a strong word is 2, a weak one 1, a word that marks
- * a single symbol's news or an ad takes 2 off.
+ * NEWS_KEYWORD_MIN_SCORE to reach the model, and at least one economic word (strong or weak): a
+ * strong word is 2, a weak one 1, a political or security word (context) 1, a word that marks a
+ * single symbol's news or an ad takes 2 off.
  */
 export const NEWS_KEYWORDS = {
   strong: [
@@ -81,9 +83,12 @@ export const NEWS_KEYWORDS = {
   weak: [
     "قیمت", "بازار", "اقتصاد", "اقتصادی", "بانک", "بودجه", "مالیات", "یارانه", "بنزین", "صادرات",
     "واردات", "گمرک", "کسری", "رشد", "سقوط", "جهش", "افزایش", "کاهش", "رکورد", "ریال", "تومان",
-    "جنگ", "حمله", "آتش بس", "ترامپ", "آمریکا", "اسرائیل", "بورس", "فرابورس", "وزیر اقتصاد",
+    "بورس", "فرابورس", "وزیر اقتصاد",
     "مسکن", "خودرو", "حقوق", "دستمزد", "سود بانکی", "اوراق",
   ],
+  // Politics and security: they count, but never alone — a post needs an economic word too
+  // (a statement about a war is not market news by itself)
+  context: ["جنگ", "حمله", "آتش بس", "ترامپ", "آمریکا", "اسرائیل", "نظامی", "موشک"],
   negative: [
     "نماد", "عرضه اولیه", "صف خرید", "صف فروش", "مجمع عمومی", "افزایش سرمایه", "سود تقسیمی",
     "تبلیغ", "عضو شوید", "عضویت", "کد تخفیف", "سیگنال", "vip", "ثبت نام", "لینک ورود", "پیج",
@@ -91,6 +96,13 @@ export const NEWS_KEYWORDS = {
 };
 
 export const NEWS_KEYWORD_MIN_SCORE = 2;
+
+/** Vulgar words: a post with one is never published (dropped before the model) */
+export const NEWS_PROFANITY = [
+  "کیر", "کیری", "کیرم", "کون", "کونی", "جنده", "مادرجنده", "کسکش", "کس کش", "کصکش", "کسخل", "کس خل",
+  "کس ننت", "حرومزاده", "حرامزاده", "پدرسگ", "پدر سگ", "گاییدن", "گاییدم", "گایید", "بگا", "گوه", "گه خوری",
+  "تخمی", "لاشی", "جاکش",
+];
 
 /**
  * The analyst's card: the model reads the day's news (headlines and summaries, with today's main

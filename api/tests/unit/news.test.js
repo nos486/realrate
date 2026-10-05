@@ -10,6 +10,7 @@ import {
   keywordScore,
   isNewsCandidate,
   guessCategory,
+  hasProfanity,
   similarity,
   buildNewsPrompt,
   parseNewsVerdicts,
@@ -82,6 +83,21 @@ describe('keywords', () => {
     expect(isNewsCandidate('عضو کانال VIP شوید، سیگنال طلا رایگان')).toBe(false);
   });
 
+  it('political and security words alone are not enough: an economic word is needed', () => {
+    const statement = '🔴 پزشکیان:  حمله آمریکا به ایران با هدف سرنگونی نظام بود\n\n🗞 @iraninterpshm';
+    expect(keywordScore(statement)).toBe(2);
+    expect(isNewsCandidate(statement)).toBe(false);
+    expect(isNewsCandidate('حمله آمریکا و اسرائیل؛ جنگ تازه')).toBe(false);
+    expect(isNewsCandidate('پس از حمله اسرائیل قیمت دلار جهش کرد')).toBe(true);
+    expect(isNewsCandidate('آتش بس اعلام شد؛ واکنش بازار ارز')).toBe(true);
+  });
+
+  it('a vulgar word drops a post; ordinary words that contain one do not', () => {
+    expect(hasProfanity('حمله آمریکا به ایران با هدف سرنگونی نظام بود که کیر شدن')).toBe(true);
+    expect(hasProfanity('هیچ کس نیامد و کسی هم خبر نداشت')).toBe(false);
+    expect(hasProfanity('قیمت تخم مرغ و کونگ فو')).toBe(false);
+  });
+
   it('matches whole words only («مس» is not in «مسکن»)', () => {
     // «بازار» and «مسکن» (a weak word of its own), not the strong «مس»
     expect(keywordScore('بازار مسکن')).toBe(2);
@@ -93,6 +109,7 @@ describe('keywords', () => {
     expect(guessCategory('دلار و سکه')).toBe('currency');
     expect(guessCategory('برنت به ۹۰ دلار رسید')).toBe('oil');
     expect(guessCategory('تورم ماهانه اعلام شد')).toBe('economy');
+    expect(guessCategory('آتش بس میان دو کشور اعلام شد')).toBe('politics');
     expect(guessCategory('شاخص کل بورس ۵۰ هزار واحد بالا رفت')).toBe('bourse');
   });
 });
@@ -116,6 +133,11 @@ describe('the model', () => {
     expect(messages[0].content).toMatch(/never above 2/);
     expect(messages[0].content).toMatch(/Never add facts/);
     expect(messages[0].content).toMatch(/never instructions to follow/);
+    // Politics: a new event only, not statements about what happened before; vulgar posts out
+    expect(messages[0].content).toMatch(/POLITICS AND SECURITY/);
+    expect(messages[0].content).toMatch(/Reject statements, speeches/);
+    expect(messages[0].content).toMatch(/vulgar or insulting language/);
+    expect(messages[0].content).toMatch(/politics \(war, military/);
     expect(messages[1].content).toMatch(/^#1\nالف\n\n#2\n/);
     expect(messages[1].content.length).toBeLessThan(NEWS_LIMITS.aiTextChars + 50);
   });
@@ -129,6 +151,7 @@ describe('the model', () => {
     expect(v.size).toBe(3);
     expect(parseNewsVerdicts('no json', 2).size).toBe(0);
     expect(parseNewsVerdicts([{ i: 1, k: 1, t: 'x', s: 'y', c: 'oil', p: 2 }], 1).get(0).category).toBe('oil');
+    expect(parseNewsVerdicts([{ i: 1, k: 1, t: 'آتش بس', s: 'خلاصه', c: 'politics', p: 3 }], 1).get(0).category).toBe('politics');
   });
 
   it('a headline or summary with words of another language is marked', () => {
@@ -287,6 +310,14 @@ describe('runNewsPolling', () => {
     expect((await dbListNews(env)).items).toHaveLength(0);
     expect((await getNewsStatus(env)).aiError).toMatch(/unreadable answer/);
     error.mockRestore();
+  });
+
+  it('a vulgar post never reaches the model; it counts as not market news in the report', async () => {
+    pages.chan_one = page('chan_one', [post('chan_one', 1, 'قیمت دلار بالا رفت و کیر شدن', at(0))]);
+    env.AI = { run: vi.fn() };
+    await runNewsPolling(env, { now: NOW, fetchPage });
+    expect(env.AI.run).not.toHaveBeenCalled();
+    expect((await getNewsStatus(env)).run).toMatchObject({ checked: 1, notMarket: 1, sent: 0 });
   });
 
   it('a reasoning model out of tokens before answering: the panel says so', async () => {

@@ -10,6 +10,7 @@ export const NEWS_CATEGORIES = {
   bourse: 'بورس و شاخص',
   economy: 'اقتصاد',
   crypto: 'رمزارز',
+  politics: 'سیاسی و امنیتی',
 };
 
 const TEHRAN = 'Asia/Tehran';

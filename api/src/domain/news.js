@@ -8,7 +8,7 @@
  *  - fallbackNewsItem: a post published on its keywords alone, when the model can't be asked
  */
 
-import { NEWS_KEYWORDS, NEWS_CATEGORIES, NEWS_KEYWORD_MIN_SCORE, NEWS_LIMITS } from "../config/news.config.js";
+import { NEWS_KEYWORDS, NEWS_CATEGORIES, NEWS_KEYWORD_MIN_SCORE, NEWS_LIMITS, NEWS_PROFANITY } from "../config/news.config.js";
 
 const ENTITIES = { amp: "&", lt: "<", gt: ">", quot: '"', apos: "'", nbsp: " ", zwnj: "‌" };
 
@@ -114,17 +114,34 @@ const NORMALIZED_KEYWORDS = Object.fromEntries(
   Object.entries(NEWS_KEYWORDS).map(([kind, words]) => [kind, words.map(normalizeNewsText)]),
 );
 
+const countWords = (t, words) => words.filter((w) => hasWord(t, w)).length;
+
 /**
- * How much a post looks like market news: strong words 2, weak words 1 (each once), words of a
- * single symbol's news or an ad −2
+ * How much a post looks like market news: strong words 2, weak and political/security words 1
+ * (each once), words of a single symbol's news or an ad −2
  */
 export function keywordScore(text) {
   const t = normalizeNewsText(text);
-  const count = (words) => words.filter((w) => hasWord(t, w)).length;
-  return count(NORMALIZED_KEYWORDS.strong) * 2 + count(NORMALIZED_KEYWORDS.weak) - count(NORMALIZED_KEYWORDS.negative) * 2;
+  return countWords(t, NORMALIZED_KEYWORDS.strong) * 2
+    + countWords(t, NORMALIZED_KEYWORDS.weak)
+    + countWords(t, NORMALIZED_KEYWORDS.context)
+    - countWords(t, NORMALIZED_KEYWORDS.negative) * 2;
 }
 
-export const isNewsCandidate = (text) => keywordScore(text) >= NEWS_KEYWORD_MIN_SCORE;
+/** Worth the model: enough score, and an economic word (political words alone are not enough) */
+export function isNewsCandidate(text) {
+  const t = normalizeNewsText(text);
+  const economic = countWords(t, NORMALIZED_KEYWORDS.strong) + countWords(t, NORMALIZED_KEYWORDS.weak);
+  return economic > 0 && keywordScore(text) >= NEWS_KEYWORD_MIN_SCORE;
+}
+
+const PROFANITY = NEWS_PROFANITY.map(normalizeNewsText);
+
+/** A vulgar word in the post: never published */
+export const hasProfanity = (text) => {
+  const t = normalizeNewsText(text);
+  return PROFANITY.some((w) => hasWord(t, w));
+};
 
 const CATEGORY_WORDS = [
   ["gold", ["طلا", "سکه", "انس", "اونس", "مثقال", "آبشده"]],
@@ -132,6 +149,7 @@ const CATEGORY_WORDS = [
   ["currency", ["دلار", "یورو", "درهم", "ارز", "حواله", "نیما", "ریال"]],
   ["oil", ["نفت", "برنت", "اوپک", "بنزین", "گاز"]],
   ["crypto", ["بیت کوین", "بیتکوین", "تتر", "رمزارز", "کریپتو"]],
+  ["politics", ["جنگ", "حمله", "آتش بس", "نظامی", "موشک", "مذاکره", "برجام", "آژانس", "شورای امنیت", "اسنپ بک"]],
   ["bourse", ["شاخص کل", "شاخص بورس", "شاخص هم وزن", "بورس", "فرابورس", "پول حقیقی", "ارزش معاملات", "صندوق تثبیت"]],
 ].map(([cat, words]) => [cat, words.map(normalizeNewsText)]);
 
@@ -184,7 +202,9 @@ const NEWS_DESK_SYSTEM = `You are the news desk editor of an Iranian financial a
 
 PUBLISH (k=1) only real, new news — an event, a decision, a statement or a data release — that can move at least one of: the free-market dollar/rial rate and other currencies; gold and coins; precious and industrial metals; oil and energy; crypto; the Tehran stock market as a whole (the total index, total trading value, money flows); the economy of Iran or the world (central bank, inflation, interest rates, liquidity, budget, wages, housing and car markets, sanctions, nuclear talks, war and security, the Fed, OPEC).
 
-REJECT (k=0): news of a single stock, symbol, fund or company; ads, promotions, channel invitations, signals or buy/sell calls; opinion, analysis or predictions without a new event; bare price lists or market reports with nothing but prices; greetings, quotes, jokes; anything not about markets or the economy; a recap of older news.
+REJECT (k=0): news of a single stock, symbol, fund or company; ads, promotions, channel invitations, signals or buy/sell calls; opinion, analysis or predictions without a new event; bare price lists or market reports with nothing but prices; greetings, quotes, jokes; anything not about markets or the economy; a recap of older news; a post with vulgar or insulting language.
+
+POLITICS AND SECURITY: publish them only as a new event that changes the situation — a new attack or strike, a ceasefire or its collapse, new sanctions or their lifting, an agreement, a decision or a concrete step in talks. Reject statements, speeches, accusations, threats, interviews and commentary about what happened before, even by a president or a minister, unless they announce such a decision.
 
 IMPORTANCE p (market impact):
 3 = can move the dollar or gold directly: sanctions or talks, war or military escalation, the central bank's FX or rate decisions, the Fed's decisions, OPEC decisions, a sharp move in world gold or oil, an official change in the FX regime.
@@ -192,7 +212,7 @@ IMPORTANCE p (market impact):
 1 = minor, local or indirect: a sector's news, a minor official's statement, a follow-up of earlier news.
 A report or rumour (unnamed sources, «گفته می‌شود», «شنیده‌ها», «احتمالاً») rather than an official or confirmed fact is one level lower, and never above 2.
 
-CATEGORY c: currency (the dollar and other currencies, remittances, the exchange center) | gold (gold and coins) | metals (silver, platinum, copper, steel) | oil (oil, gas, energy, OPEC) | bourse (the Tehran stock market as a whole) | crypto | economy (anything else economic).
+CATEGORY c: currency (the dollar and other currencies, remittances, the exchange center) | gold (gold and coins) | metals (silver, platinum, copper, steel) | oil (oil, gas, energy, OPEC) | bourse (the Tehran stock market as a whole) | crypto | politics (war, military and security events, ceasefires, sanctions decisions, nuclear talks and agreements) | economy (anything else economic).
 
 WRITING, in fluent Persian only (no words of another language; write names like the Fed or OPEC in Persian):
 t = a neutral, factual headline of at most 12 words: who did or said what. No emoji, no channel name, no hype or clickbait («فوری»، «مهم»، «ببینید»), no exclamation marks.
