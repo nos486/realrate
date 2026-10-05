@@ -200,24 +200,18 @@
   width: 100%;
 }
 
-/* Phone: the side panel's cards (the analysis compact), then the list. Large screens: the list on
-   the right, the side panel on the left (sticky, scrolling on its own) */
+/* Phone: the analysis, today's top, the list. Large screens: the list on the right, today's top
+   on the left (sticky) */
 .news-layout {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
-  grid-template-areas: "aside" "main";
+  grid-template-areas: "analysis" "aside" "main";
   gap: 16px;
   align-items: start;
 }
 
-.news-layout-aside {
-  grid-area: aside;
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-  min-width: 0;
-}
-
+.news-layout-analysis { grid-area: analysis; }
+.news-layout-aside { grid-area: aside; min-width: 0; }
 .news-layout-main {
   grid-area: main;
   display: flex;
@@ -229,256 +223,15 @@
 
 @media (min-width: 1024px) {
   .news-layout {
-    grid-template-columns: minmax(0, 1fr) 360px;
-    grid-template-areas: "main aside";
-    gap: 20px;
+    grid-template-columns: minmax(0, 1fr) 340px;
+    grid-template-areas: "analysis aside" "main aside";
   }
 
   .news-layout-aside {
     position: sticky;
     top: 90px;
-    max-height: calc(100vh - 106px);
-    overflow-y: auto;
-    overscroll-behavior: contain;
-    scrollbar-width: thin;
-    padding-inline-end: 2px;
+    align-self: start;
   }
-}
-
-/* The main prices at a glance */
-.news-market {
-  display: grid;
-  grid-auto-flow: column;
-  grid-auto-columns: minmax(112px, 1fr);
-  gap: 8px;
-  overflow-x: auto;
-  scrollbar-width: none;
-}
-
-.news-market::-webkit-scrollbar {
-  display: none;
-}
-
-.news-market-item {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  padding: 8px 12px;
-  border: var(--card-border);
-  border-radius: 14px;
-  background: var(--card-bg);
-  white-space: nowrap;
-}
-
-.news-market-item small {
-  color: var(--text-muted);
-  font-size: 11.5px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.news-market-item strong {
-  color: var(--text-heading);
-  font-size: 15px;
-  font-weight: 800;
-  font-variant-numeric: tabular-nums;
-}
-
-.news-market-item em {
-  color: var(--text-muted);
-  font-size: 11.5px;
-  font-style: normal;
-  font-weight: 700;
-}
-
-.news-market-item.is-up em { color: var(--color-positive-text); }
-.news-market-item.is-down em { color: var(--color-negative-text); }
-
-/* Filters and the live status */
-.news-toolbar {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  min-width: 0;
-}
-
-.news-toolbar .news-filters {
-  flex: 1;
-  min-width: 0;
-}
-
-.news-live {
-  display: inline-flex;
-  flex-shrink: 0;
-  align-items: center;
-  gap: 6px;
-  color: var(--text-muted);
-  font-size: 12px;
-  white-space: nowrap;
-}
-
-.news-live i {
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  background: var(--color-positive-text);
-  box-shadow: 0 0 0 0 var(--color-positive-soft);
-  animation: news-live-pulse 2s ease-out infinite;
-}
-
-@keyframes news-live-pulse {
-  0% { box-shadow: 0 0 0 0 var(--color-positive-soft); }
-  70% { box-shadow: 0 0 0 7px transparent; }
-  100% { box-shadow: 0 0 0 0 transparent; }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .news-live i { animation: none; }
-}
-
-@media (max-width: 640px) {
-  .news-live { display: none; }
-}
-
-/* The list, by day */
-.news-day {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.news-day-head {
-  position: sticky;
-  top: 64px;
-  z-index: 1;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  margin: 4px 0 0;
-  padding: 6px 0;
-  background: var(--bg-app);
-  color: var(--text-secondary);
-  font-size: 13px;
-  font-weight: 800;
-}
-
-.news-day-head::after {
-  content: "";
-  flex: 1;
-  height: 1px;
-  background: var(--border-subtle);
-}
-
-/* «امروز در یک نگاه» */
-.news-stats {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  padding: 14px;
-  border: var(--card-border);
-  border-radius: var(--card-radius);
-  background: var(--card-bg);
-}
-
-.news-stats-totals {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 8px;
-}
-
-.news-stats-totals button,
-.news-stats-bars button {
-  border: 1px solid transparent;
-  background: none;
-  color: inherit;
-  font-family: inherit;
-  cursor: pointer;
-}
-
-.news-stats-totals button {
-  display: flex;
-  align-items: baseline;
-  justify-content: center;
-  gap: 6px;
-  padding: 10px;
-  border-radius: 12px;
-  background: var(--bg-input);
-}
-
-.news-stats-totals strong {
-  color: var(--text-heading);
-  font-size: 20px;
-  font-weight: 800;
-}
-
-.news-stats-totals small {
-  color: var(--text-muted);
-  font-size: 12px;
-}
-
-.news-stats-totals .is-hot strong {
-  color: var(--color-negative-text);
-}
-
-.news-stats-totals button.is-active,
-.news-stats-bars button.is-active {
-  border-color: var(--color-primary-border);
-}
-
-.news-stats-bars {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.news-stats-bars button {
-  display: grid;
-  grid-template-columns: 84px 1fr auto;
-  align-items: center;
-  gap: 8px;
-  width: 100%;
-  padding: 5px 6px;
-  border-radius: 8px;
-  font-size: 12.5px;
-  text-align: start;
-}
-
-.news-stats-bars button:hover {
-  background: var(--bg-input);
-}
-
-.news-stats-label {
-  color: var(--text-secondary);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.news-stats-bar {
-  height: 6px;
-  border-radius: 999px;
-  background: var(--bg-input);
-  overflow: hidden;
-}
-
-.news-stats-bar i {
-  display: block;
-  height: 100%;
-  border-radius: 999px;
-  background: var(--color-primary-text);
-}
-
-.news-stats-bar i.is-gold,
-.news-stats-bar i.is-metals { background: var(--color-warning-text); }
-.news-stats-bar i.is-currency { background: var(--color-positive-text); }
-.news-stats-bar i.is-bourse { background: #a78bfa; }
-
-.news-stats-count {
-  color: var(--text-muted);
-  font-variant-numeric: tabular-nums;
 }
 
 /* The analyst's card */
@@ -490,49 +243,6 @@
   border: 1px solid var(--color-primary-border);
   border-radius: var(--card-radius);
   background: linear-gradient(160deg, rgba(2, 132, 199, 0.14), rgba(2, 132, 199, 0.03) 60%), var(--card-bg);
-}
-
-.news-analysis.is-compact {
-  gap: 10px;
-  padding: 14px;
-}
-
-.news-analysis.is-compact .news-analysis-title {
-  font-size: 15.5px;
-}
-
-.news-analysis.is-compact .news-analysis-outlook {
-  grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
-  gap: 6px;
-}
-
-.news-analysis.is-compact .news-analysis-outlook li {
-  padding: 8px 10px;
-}
-
-.news-analysis.is-compact .news-analysis-summary {
-  font-size: 13.5px;
-  line-height: 2;
-}
-
-.news-analysis-more {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 4px;
-  padding: 8px;
-  border: 1px solid var(--border-subtle);
-  border-radius: 10px;
-  background: var(--bg-input);
-  color: var(--color-primary-text);
-  font-family: inherit;
-  font-size: 13px;
-  font-weight: 700;
-  cursor: pointer;
-}
-
-.news-analysis-more[aria-expanded="true"] svg {
-  transform: rotate(180deg);
 }
 
 .news-analysis-head {
@@ -818,6 +528,12 @@
   font-size: 11.5px;
 }
 
+/* Phone: the first four */
+@media (max-width: 1023px) {
+  .news-today-list li:nth-child(n + 5) {
+    display: none;
+  }
+}
 
 .news-filters {
   overflow-x: auto;
@@ -1374,16 +1090,4 @@
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
-}
-
-/* The news page on a phone: the main prices above the side panel's cards, «امروز در یک نگاه» left
-   out and today's top three; on large screens the prices above the list (kept last: it overrides) */
-@media (max-width: 1023px) {
-  .news-market.is-wide,
-  .news-stats { display: none; }
-  .news-today-list li:nth-child(n + 4) { display: none; }
-}
-
-@media (min-width: 1024px) {
-  .news-market.is-phone { display: none; }
 }

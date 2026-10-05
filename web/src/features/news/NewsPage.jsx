@@ -4,19 +4,18 @@
  * Only what can move the dollar, gold, coins, metals, the stock index or the economy is published
  * (the server picks and summarizes it with AI, api/src/services/news/news.service.js).
  *
- *   ┌──────────────────────────────┬──────────────────────┐
- *   │ main prices (live, change)   │ تحلیل روز (AI)       │   large screens: two columns; the
- *   │ filters · live status        │ امروز در یک نگاه     │   side panel on the left (sticky,
- *   │ list, by day · pages         │ مهم‌ترین‌های امروز    │   scrolls on its own)
- *   └──────────────────────────────┴──────────────────────┘
- * On a phone: the main prices, the analysis (compact) and today's top three, then the list. Each item shows
- * its headline, summary, source and time; a tap opens the post's full text and its link on
- * Telegram. The list comes in pages, grouped by day; new news comes in by itself every minute.
+ *   ┌──────────────────────────────┬──────────────────┐
+ *   │ تحلیل روز (AI)               │ مهم‌ترین‌های امروز │   large screens: two columns,
+ *   │ filters · list · pages       │ (sticky)          │   today's top on the left
+ *   └──────────────────────────────┴──────────────────┘
+ * On a phone: the analysis, today's top, then the list. Each item shows its headline, summary,
+ * source and time; a tap opens the post's full text and its link on Telegram. The list comes in
+ * pages; new news comes in by itself every minute.
  */
 
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Newspaper, ExternalLink, Share2, EyeOff, ChevronDown, Sparkles, Flame, Bell, BellOff, BarChart3 } from 'lucide-react';
+import { Newspaper, ExternalLink, Share2, EyeOff, ChevronDown, Sparkles, Flame, Bell, BellOff } from 'lucide-react';
 import { FeaturePageHeader, FilterPills, EmptyState, AlertBanner, Pagination } from '../../shared/ui/index.js';
 import Skeleton from '../../shared/ui/Skeleton.jsx';
 import { useFeedback } from '../../shared/ui/FeedbackProvider.jsx';
@@ -27,7 +26,7 @@ import NewsAnalysisCard from './NewsAnalysisCard.jsx';
 import { usePricing } from '../market/context/PricingContext.jsx';
 import { priceIdOfNews } from './newsPrice.js';
 import { newsAlertsSupported, getNewsAlertsEnabled, setNewsAlertsEnabled } from './newsAlerts.js';
-import { NEWS_CATEGORIES, newsTimeAgo, newsFullTime, newsSource, newsClock, newsDayKey, newsDayLabel } from './newsFormat.js';
+import { NEWS_CATEGORIES, newsTimeAgo, newsFullTime, newsSource } from './newsFormat.js';
 
 const PAGE_SIZE = 12;
 const FRESH_MS = 30 * 60000;
@@ -56,93 +55,6 @@ function NewsPriceChip({ item }) {
       {hasChange && <em>{change > 0 ? '▲' : '▼'} {fa(Math.abs(change), 2)}٪</em>}
     </span>
   );
-}
-
-/** The main prices at a glance, live from the price book, with their change */
-const STRIP_IDS = ['usd', 'eur', 'gold_18k', 'full_coin', 'ons_gold', 'usdt'];
-
-function MarketStrip({ className = '' }) {
-  const pricing = usePricing();
-  const items = STRIP_IDS.map((id) => pricing?.priceBook?.items?.[id]).filter((b) => b && Number(b.price) > 0);
-  if (!items.length) return null;
-  return (
-    <div className={`news-market ${className}`} role="list" aria-label="قیمت‌های اصلی">
-      {items.map((b) => {
-        const change = Number(b.params?.changePercent);
-        const hasChange = Number.isFinite(change) && Math.abs(change) >= 0.01;
-        const usd = b.unit === 'دلار';
-        return (
-          <span key={b.id} role="listitem" className={`news-market-item ${hasChange ? (change > 0 ? 'is-up' : 'is-down') : ''}`}>
-            <small>{b.name}</small>
-            <strong>{fa(b.price, usd ? 2 : 0)}</strong>
-            <em>{hasChange ? `${change > 0 ? '▲' : '▼'} ${fa(Math.abs(change), 2)}٪` : '—'}</em>
-          </span>
-        );
-      })}
-    </div>
-  );
-}
-
-/** «امروز در یک نگاه»: today's count, the important ones, and each subject (a tap filters the list) */
-function TodayStats({ stats, active, onFilter }) {
-  if (!stats?.total) return null;
-  const rows = Object.entries(NEWS_CATEGORIES)
-    .map(([value, label]) => ({ value, label, count: stats.byCategory?.[value] || 0 }))
-    .filter((r) => r.count > 0)
-    .sort((a, b) => b.count - a.count);
-  const max = Math.max(...rows.map((r) => r.count), 1);
-  return (
-    <section className="news-stats" aria-label="امروز در یک نگاه">
-      <h2 className="news-today-head">
-        <BarChart3 size={16} aria-hidden="true" />
-        امروز در یک نگاه
-      </h2>
-      <div className="news-stats-totals">
-        <button type="button" className={active === 'all' ? 'is-active' : ''} onClick={() => onFilter('all')}>
-          <strong>{fa(stats.total)}</strong>
-          <small>خبر</small>
-        </button>
-        <button type="button" className={`is-hot ${active === 'important' ? 'is-active' : ''}`} onClick={() => onFilter('important')}>
-          <strong>{fa(stats.important)}</strong>
-          <small>مهم</small>
-        </button>
-      </div>
-      <ul className="news-stats-bars">
-        {rows.map((r) => (
-          <li key={r.value}>
-            <button type="button" className={active === r.value ? 'is-active' : ''} onClick={() => onFilter(r.value)} aria-pressed={active === r.value}>
-              <span className="news-stats-label">{r.label}</span>
-              <span className="news-stats-bar"><i className={`is-${r.value}`} style={{ width: `${Math.max(6, (r.count / max) * 100)}%` }} /></span>
-              <span className="news-stats-count">{fa(r.count)}</span>
-            </button>
-          </li>
-        ))}
-      </ul>
-    </section>
-  );
-}
-
-/** The list's live status: it refreshes itself every minute */
-function LiveStatus({ updatedAt }) {
-  if (!updatedAt) return null;
-  return (
-    <span className="news-live" title="خبرهای تازه هر دقیقه خودشان می‌آیند">
-      <i aria-hidden="true" />
-      به‌روز · {newsClock(updatedAt)}
-    </span>
-  );
-}
-
-/** The page's items under a heading per day («امروز», «دیروز», «یکشنبه ۱۲ مهر») */
-function groupByDay(items) {
-  const groups = [];
-  for (const item of items) {
-    const key = newsDayKey(item.publishedAt);
-    const last = groups[groups.length - 1];
-    if (last?.key === key) last.items.push(item);
-    else groups.push({ key, label: newsDayLabel(item.publishedAt), items: [item] });
-  }
-  return groups;
 }
 
 /** «اعلان خبرهای مهم»: on or off for this device */
@@ -298,7 +210,7 @@ export default function NewsPage() {
     important: filter === 'important',
     category: filter !== 'all' && filter !== 'important' ? filter : '',
   }), [filter, page]);
-  const { items, total, loading, error, updatedAt, removeItem } = useNews(query);
+  const { items, total, loading, error, removeItem } = useNews(query);
   const today = useNewsToday();
 
   // Opened from the home card: that item is open and in view
@@ -352,21 +264,15 @@ export default function NewsPage() {
       />
 
       <div className="news-layout">
-        <aside className="news-layout-aside" aria-label="تحلیل و خلاصه‌ی امروز">
-          <MarketStrip className="is-phone" />
-          <NewsAnalysisCard analysis={today.analysis} compact />
-          <TodayStats stats={today.stats} active={filter} onFilter={changeFilter} />
+        <NewsAnalysisCard analysis={today.analysis} className="news-layout-analysis" />
+
+        <aside className="news-layout-aside">
           <TodayTop items={today.top} loading={today.loading} onOpen={openTop} />
         </aside>
 
         <div className="news-layout-main" ref={listRef}>
-          <MarketStrip className="is-wide" />
-
-          <div className="news-toolbar">
-            <div className="news-filters">
-              <FilterPills options={FILTERS} activeValue={filter} onChange={changeFilter} size="sm" />
-            </div>
-            <LiveStatus updatedAt={updatedAt} />
+          <div className="news-filters">
+            <FilterPills options={FILTERS} activeValue={filter} onChange={changeFilter} size="sm" />
           </div>
 
           {error && !items.length && <AlertBanner type="warning" message={error} />}
@@ -382,23 +288,18 @@ export default function NewsPage() {
             />
           ) : (
             <>
-              {groupByDay(items).map((group) => (
-                <section key={group.key} className="news-day" aria-label={group.label}>
-                  <h2 className="news-day-head">{group.label}</h2>
-                  <div className="news-list">
-                    {group.items.map((item) => (
-                      <NewsItem
-                        key={item.id}
-                        item={item}
-                        open={openId === item.id}
-                        onToggle={() => setOpenId((id) => (id === item.id ? null : item.id))}
-                        isAdmin={isAdmin}
-                        onHide={hide}
-                      />
-                    ))}
-                  </div>
-                </section>
-              ))}
+              <div className="news-list">
+                {items.map((item) => (
+                  <NewsItem
+                    key={item.id}
+                    item={item}
+                    open={openId === item.id}
+                    onToggle={() => setOpenId((id) => (id === item.id ? null : item.id))}
+                    isAdmin={isAdmin}
+                    onHide={hide}
+                  />
+                ))}
+              </div>
               <Pagination page={page} pageSize={PAGE_SIZE} total={total} onChange={changePage} label="صفحه‌های اخبار" />
             </>
           )}

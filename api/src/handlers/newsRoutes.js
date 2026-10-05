@@ -3,7 +3,7 @@
  *
  * Endpoints:
  *   GET    /api/news                     — Published news, newest first (?limit, ?page or ?before, ?category, ?important=1)
- *   GET    /api/news/today               — The analyst's card, today's most important news and today's counts by category
+ *   GET    /api/news/today               — The analyst's card and today's most important news
  *   GET    /api/admin/news/channels      — The channels read, and the last run of each (admin)
  *   PUT    /api/admin/news/channels      — Save the channels ({ channels: [{ username, enabled }] }) (admin)
  *   POST   /api/admin/news/run           — Read the channels now (admin)
@@ -17,7 +17,7 @@
 import { getAuthenticatedUser } from "../lib/auth.js";
 import { jsonResponse } from "../lib/helpers.js";
 import { AppError } from "../lib/AppError.js";
-import { dbListNews, dbSetNewsHidden, dbTopNewsSince, dbNewsCountsSince } from "../repositories/news.repository.js";
+import { dbListNews, dbSetNewsHidden, dbTopNewsSince } from "../repositories/news.repository.js";
 import {
   getNewsAnalysis,
   maybeUpdateNewsAnalysis,
@@ -51,15 +51,11 @@ const TODAY_TOP = 6;
 
 export async function handleGetNewsToday(request, env) {
   const now = Date.now();
-  const dayStart = tehranDayStart(now);
-  let [top, stats, analysis] = await Promise.all([
-    dbTopNewsSince(env, dayStart, TODAY_TOP),
-    dbNewsCountsSince(env, dayStart),
-    getNewsAnalysis(env),
-  ]);
+  let top = await dbTopNewsSince(env, tehranDayStart(now), TODAY_TOP);
   // Early in the day: the last 24 hours instead
   if (top.length < 3) top = await dbTopNewsSince(env, now - 86400000, TODAY_TOP);
-  return jsonResponse({ success: true, analysis, top, stats }, 200, request, { "Cache-Control": "public, max-age=30" });
+  const analysis = await getNewsAnalysis(env);
+  return jsonResponse({ success: true, analysis, top }, 200, request, { "Cache-Control": "public, max-age=30" });
 }
 
 async function requireAdmin(request, env) {

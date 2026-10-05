@@ -105,29 +105,6 @@ export async function dbNewsStatsSince(env, since) {
   return { count: Number(row?.n || 0), lastSavedAt: Number(row?.last || 0) };
 }
 
-/**
- * How many news items were published since `since` (ms), by category, and how many are important
- * (one grouped read of the day's rows, on idx_news_published)
- * @returns {Promise<{ total: number, important: number, byCategory: Record<string, number> }>}
- */
-export async function dbNewsCountsSince(env, since) {
-  if (!hasDatabase(env)) return { total: 0, important: 0, byCategory: {} };
-  await ensureSchema(env);
-  const { results = [] } = await env.DB.prepare(
-    "SELECT category, COUNT(*) AS n, SUM(CASE WHEN importance >= 3 THEN 1 ELSE 0 END) AS hot FROM news WHERE hidden = 0 AND published_at >= ? GROUP BY category"
-  ).bind(since).all();
-  const byCategory = {};
-  let total = 0;
-  let important = 0;
-  for (const row of results) {
-    const n = Number(row.n) || 0;
-    byCategory[row.category] = n;
-    total += n;
-    important += Number(row.hot) || 0;
-  }
-  return { total, important, byCategory };
-}
-
 /** The text of news published since `since` (ms), hidden ones too: a post like them is a repeat */
 export async function dbRecentNewsTexts(env, since) {
   if (!hasDatabase(env)) return [];
