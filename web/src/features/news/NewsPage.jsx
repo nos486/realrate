@@ -1,22 +1,35 @@
 /**
  * NewsPage.jsx — «اخبار»: market news picked from Telegram news channels
  *
- * Only what can move the dollar, gold, coins, metals or the economy is published (the server picks
- * and summarizes it with AI, api/src/services/news/news.service.js). Each item shows its headline,
- * a short summary, its source and time; a tap opens the post's full text and its link on Telegram.
- * Filters: all, important only, or one subject. New news comes in by itself every minute.
+ * Only what can move the dollar, gold, coins, metals, the stock index or the economy is published
+ * (the server picks and summarizes it with AI, api/src/services/news/news.service.js).
+ *
+ *   ┌──────────────────────────────┬──────────────────┐
+ *   │ تحلیل روز (AI)               │ مهم‌ترین‌های امروز │   large screens: two columns,
+ *   │ filters · list · pages       │ (sticky)          │   today's top on the left
+ *   └──────────────────────────────┴──────────────────┘
+ * On a phone: the analysis, today's top, then the list. Each item shows its headline, summary,
+ * source and time; a tap opens the post's full text and its link on Telegram. The list comes in
+ * pages; new news comes in by itself every minute.
  */
 
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Newspaper, ExternalLink, Share2, EyeOff, ChevronDown, Sparkles } from 'lucide-react';
-import { FeaturePageHeader, FilterPills, EmptyState, AlertBanner } from '../../shared/ui/index.js';
+import { Newspaper, ExternalLink, Share2, EyeOff, ChevronDown, Sparkles, Flame, Bell, BellOff } from 'lucide-react';
+import { FeaturePageHeader, FilterPills, EmptyState, AlertBanner, Pagination } from '../../shared/ui/index.js';
 import Skeleton from '../../shared/ui/Skeleton.jsx';
 import { useFeedback } from '../../shared/ui/FeedbackProvider.jsx';
 import { useAuth } from '../auth/index.js';
-import { useNews } from './useNews.js';
+import { useNews, useNewsToday } from './useNews.js';
 import { setNewsHidden } from './newsApi.js';
+import NewsAnalysisCard from './NewsAnalysisCard.jsx';
+import { usePricing } from '../market/context/PricingContext.jsx';
+import { priceIdOfNews } from './newsPrice.js';
+import { newsAlertsSupported, getNewsAlertsEnabled, setNewsAlertsEnabled } from './newsAlerts.js';
 import { NEWS_CATEGORIES, newsTimeAgo, newsFullTime, newsSource } from './newsFormat.js';
+
+const PAGE_SIZE = 12;
+const FRESH_MS = 30 * 60000;
 
 const FILTERS = [
   { value: 'all', label: 'همه' },
@@ -24,9 +37,65 @@ const FILTERS = [
   ...Object.entries(NEWS_CATEGORIES).map(([value, label]) => ({ value, label })),
 ];
 
+const fa = (n, digits = 0) => Number(n).toLocaleString('fa-IR', { maximumFractionDigits: digits });
+
+/** The live price of what a news item is about, with its change («دلار ۱۰۵٬۰۰۰ ▲ ۰٫۵٪») */
+function NewsPriceChip({ item }) {
+  const pricing = usePricing();
+  const id = priceIdOfNews(item);
+  const book = id ? pricing?.priceBook?.items?.[id] : null;
+  if (!book || !(Number(book.price) > 0)) return null;
+  const change = Number(book.params?.changePercent);
+  const hasChange = Number.isFinite(change) && Math.abs(change) >= 0.01;
+  const usd = book.unit === 'دلار';
+  return (
+    <span className={`news-price ${hasChange ? (change > 0 ? 'is-up' : 'is-down') : ''}`} title="قیمت لحظه‌ای و تغییر نسبت به جلسه‌ی قبل">
+      <span className="news-price-name">{book.name}</span>
+      <strong>{fa(book.price, usd ? 2 : 0)}</strong>
+      {hasChange && <em>{change > 0 ? '▲' : '▼'} {fa(Math.abs(change), 2)}٪</em>}
+    </span>
+  );
+}
+
+/** «اعلان خبرهای مهم»: on or off for this device */
+function NewsAlertsToggle() {
+  const { toast } = useFeedback();
+  const [enabled, setEnabled] = useState(null);
+  const [busy, setBusy] = useState(false);
+  const supported = newsAlertsSupported();
+
+  useEffect(() => {
+    if (supported) getNewsAlertsEnabled().then(setEnabled).catch(() => setEnabled(false));
+  }, [supported]);
+  if (!supported || enabled === null) return null;
+
+  const toggle = async () => {
+    setBusy(true);
+    try {
+      const next = await setNewsAlertsEnabled(!enabled);
+      setEnabled(next);
+      toast.success(next ? 'اعلان خبرهای مهم روشن شد.' : 'اعلان خبرهای مهم خاموش شد.');
+    } catch (err) {
+      toast.error(err?.message || 'تغییر نکرد.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <button type="button" className={`news-alerts-toggle ${enabled ? 'is-on' : ''}`} onClick={toggle} disabled={busy} aria-pressed={enabled}>
+      {enabled ? <Bell size={16} /> : <BellOff size={16} />}
+      <span>{enabled ? 'اعلان خبرهای مهم: روشن' : 'اعلان خبرهای مهم'}</span>
+    </button>
+  );
+}
+
+const domId = (id) => `news-${String(id).replace('/', '-')}`;
+
 function NewsItem({ item, open, onToggle, isAdmin, onHide }) {
   const { toast } = useFeedback();
   const showSummary = item.summary && item.summary !== item.title;
+  const fresh = Date.now() - item.publishedAt < FRESH_MS;
 
   const share = async (e) => {
     e.stopPropagation();
@@ -41,18 +110,18 @@ function NewsItem({ item, open, onToggle, isAdmin, onHide }) {
   };
 
   return (
-    <article
-      id={`news-${item.id.replace('/', '-')}`}
-      className={`news-item ${open ? 'is-open' : ''} ${item.importance >= 3 ? 'is-important' : ''}`}
-    >
+    <article id={domId(item.id)} className={`news-item ${open ? 'is-open' : ''} ${item.importance >= 3 ? 'is-important' : ''}`}>
       <button type="button" className="news-item-main" onClick={onToggle} aria-expanded={open}>
         <span className="news-item-tags">
           {item.importance >= 3 && <span className="news-tag is-important">مهم</span>}
           <span className={`news-tag is-${item.category}`}>{NEWS_CATEGORIES[item.category] || 'اقتصاد'}</span>
+          {fresh && <span className="news-tag is-fresh">تازه</span>}
         </span>
         <h3 className="news-item-title">{item.title}</h3>
         {showSummary && <p className="news-item-summary">{item.summary}</p>}
+        <NewsPriceChip item={item} />
         <span className="news-item-meta">
+          <span className="news-source-avatar" aria-hidden="true">{newsSource(item).replace(/^@/, '').slice(0, 1)}</span>
           <bdi className="news-item-source">{newsSource(item)}</bdi>
           <span aria-hidden="true">·</span>
           <time dateTime={new Date(item.publishedAt).toISOString()} title={newsFullTime(item.publishedAt)}>
@@ -92,34 +161,88 @@ function NewsItem({ item, open, onToggle, isAdmin, onHide }) {
   );
 }
 
+/** «مهم‌ترین‌های امروز»: today's news, most important first */
+function TodayTop({ items, loading, onOpen }) {
+  if (!loading && !items.length) return null;
+  return (
+    <section className="news-today" aria-label="مهم‌ترین‌های امروز">
+      <h2 className="news-today-head">
+        <Flame size={16} aria-hidden="true" />
+        مهم‌ترین‌های امروز
+      </h2>
+      {loading ? (
+        <div className="news-today-list">
+          {[0, 1, 2].map((i) => <Skeleton key={i} height={52} radius={12} />)}
+        </div>
+      ) : (
+        <ol className="news-today-list">
+          {items.map((n, i) => (
+            <li key={n.id}>
+              <button type="button" className="news-today-row" onClick={() => onOpen(n)}>
+                <span className={`news-today-rank ${n.importance >= 3 ? 'is-high' : ''}`}>{(i + 1).toLocaleString('fa-IR')}</span>
+                <span className="news-today-text">
+                  <strong>{n.title}</strong>
+                  <small><bdi>{newsSource(n)}</bdi> · {newsTimeAgo(n.publishedAt)}</small>
+                </span>
+              </button>
+            </li>
+          ))}
+        </ol>
+      )}
+    </section>
+  );
+}
+
 export default function NewsPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const { user } = useAuth();
   const isAdmin = user?.role === 'admin';
   const { toast } = useFeedback();
   const [filter, setFilter] = useState('all');
+  const [page, setPage] = useState(1);
   const openParam = searchParams.get('open');
   const [openId, setOpenId] = useState(openParam);
+  const listRef = useRef(null);
 
   const query = useMemo(() => ({
-    limit: 20,
+    limit: PAGE_SIZE,
+    page,
     important: filter === 'important',
     category: filter !== 'all' && filter !== 'important' ? filter : '',
-  }), [filter]);
-  const { items, loading, error, hasMore, loadingMore, loadMore, removeItem } = useNews(query);
+  }), [filter, page]);
+  const { items, total, loading, error, removeItem } = useNews(query);
+  const today = useNewsToday();
 
   // Opened from the home card: that item is open and in view
   useEffect(() => {
     if (!openParam || loading) return;
     setOpenId(openParam);
-    const el = document.getElementById(`news-${openParam.replace('/', '-')}`);
-    el?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    document.getElementById(domId(openParam))?.scrollIntoView({ block: 'center', behavior: 'smooth' });
     const next = new URLSearchParams(searchParams);
     next.delete('open');
     setSearchParams(next, { replace: true });
     // Once, when the list is there
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [openParam, loading]);
+
+  const changeFilter = (value) => {
+    setFilter(value);
+    setPage(1);
+  };
+  const changePage = (next) => {
+    setPage(next);
+    listRef.current?.scrollIntoView({ block: 'start', behavior: 'smooth' });
+  };
+
+  // An item of today's top: open it in the list when it is on this page, else on Telegram
+  const openTop = (item) => {
+    if (items.some((n) => n.id === item.id)) {
+      setOpenId(item.id);
+      document.getElementById(domId(item.id))?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    } else {
+      window.open(item.url, '_blank', 'noopener,noreferrer');
+    }
+  };
 
   const hide = async (item) => {
     try {
@@ -136,43 +259,52 @@ export default function NewsPage() {
       <FeaturePageHeader
         icon={<Newspaper size={22} />}
         title="اخبار"
-        subtitle="خبرهای مهم دلار، طلا، فلزات و اقتصاد — هر دقیقه از کانال‌های خبری"
+        subtitle="خبرهای مهم دلار، طلا، بورس و اقتصاد — هر دقیقه از کانال‌های خبری"
+        actions={<NewsAlertsToggle />}
       />
 
-      <div className="news-filters">
-        <FilterPills options={FILTERS} activeValue={filter} onChange={setFilter} size="sm" />
-      </div>
+      <div className="news-layout">
+        <NewsAnalysisCard analysis={today.analysis} className="news-layout-analysis" />
 
-      {error && !items.length && <AlertBanner type="warning" message={error} />}
+        <aside className="news-layout-aside">
+          <TodayTop items={today.top} loading={today.loading} onOpen={openTop} />
+        </aside>
 
-      {loading ? (
-        <div className="news-list">
-          {[0, 1, 2, 3].map((i) => <Skeleton key={i} height={96} radius={16} />)}
-        </div>
-      ) : items.length === 0 ? (
-        <EmptyState
-          title="خبری نیست"
-          description={filter === 'all' ? 'به‌زودی خبرهای مهم بازار اینجا می‌آید.' : 'در این دسته فعلاً خبری نیست.'}
-        />
-      ) : (
-        <div className="news-list">
-          {items.map((item) => (
-            <NewsItem
-              key={item.id}
-              item={item}
-              open={openId === item.id}
-              onToggle={() => setOpenId((id) => (id === item.id ? null : item.id))}
-              isAdmin={isAdmin}
-              onHide={hide}
+        <div className="news-layout-main" ref={listRef}>
+          <div className="news-filters">
+            <FilterPills options={FILTERS} activeValue={filter} onChange={changeFilter} size="sm" />
+          </div>
+
+          {error && !items.length && <AlertBanner type="warning" message={error} />}
+
+          {loading ? (
+            <div className="news-list">
+              {[0, 1, 2, 3].map((i) => <Skeleton key={i} height={110} radius={16} />)}
+            </div>
+          ) : items.length === 0 ? (
+            <EmptyState
+              title="خبری نیست"
+              description={filter === 'all' ? 'به‌زودی خبرهای مهم بازار اینجا می‌آید.' : 'در این دسته فعلاً خبری نیست.'}
             />
-          ))}
-          {hasMore && (
-            <button type="button" className="news-more" onClick={loadMore} disabled={loadingMore}>
-              {loadingMore ? 'در حال خواندن…' : 'خبرهای قبلی'}
-            </button>
+          ) : (
+            <>
+              <div className="news-list">
+                {items.map((item) => (
+                  <NewsItem
+                    key={item.id}
+                    item={item}
+                    open={openId === item.id}
+                    onToggle={() => setOpenId((id) => (id === item.id ? null : item.id))}
+                    isAdmin={isAdmin}
+                    onHide={hide}
+                  />
+                ))}
+              </div>
+              <Pagination page={page} pageSize={PAGE_SIZE} total={total} onChange={changePage} label="صفحه‌های اخبار" />
+            </>
           )}
         </div>
-      )}
+      </div>
     </div>
   );
 }

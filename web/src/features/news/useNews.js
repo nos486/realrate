@@ -1,62 +1,41 @@
 /**
- * useNews.js — The latest news, kept fresh: read again every minute while the page is in view
- * and when it comes back into view. The last answer of each filter is kept for this visit, so
- * the home card and the news page open with it at once.
+ * useNews.js — News, kept fresh: read again every minute while the page is in view and when it
+ * comes back into view. The last answer of each query is kept for this visit, so the home card
+ * and the news page open with it at once.
+ *
+ *   useNews({ limit, page, category, important }) — one page of the list, with the total
+ *   useNewsToday()                                — the analyst's card and today's top news
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { getNews } from './newsApi.js';
+import { getNews, getNewsToday } from './newsApi.js';
 
 const REFRESH_MS = 60_000;
 const cache = new Map();
 
-/** Two lists into one, newest first, each item once */
-function merge(a, b) {
-  const seen = new Set();
-  return [...a, ...b]
-    .filter((n) => (seen.has(n.id) ? false : seen.add(n.id)))
-    .sort((x, y) => y.publishedAt - x.publishedAt);
-}
-
-/**
- * @param {{ limit?: number, category?: string, important?: boolean }} [opts]
- * @returns {{ items: object[], loading: boolean, error: string, hasMore: boolean, loadingMore: boolean,
- *   loadMore: () => void, refresh: () => Promise<void>, removeItem: (id: string) => void }}
- */
-export function useNews({ limit = 20, category = '', important = false } = {}) {
-  const key = `${limit}|${category}|${important ? 1 : 0}`;
+/** `load` now, every minute while visible, and on coming back into view */
+function useFreshQuery(key, load) {
   const cached = cache.get(key);
-  const [state, setState] = useState(() => ({
-    items: cached?.items || [],
-    hasMore: cached?.hasMore || false,
-    loading: !cached,
-    loadingMore: false,
-    error: '',
-  }));
+  const [state, setState] = useState(() => ({ data: cached || null, loading: !cached, error: '' }));
   const keyRef = useRef(key);
-  keyRef.current = key;
 
   const refresh = useCallback(async () => {
     const forKey = key;
     try {
-      const res = await getNews({ limit, category, important });
-      if (keyRef.current !== forKey) return;
-      setState((s) => {
-        // Pages already loaded below the first stay
-        const items = s.items.length > limit ? merge(res.items || [], s.items) : res.items || [];
-        const hasMore = s.items.length > limit ? s.hasMore : Boolean(res.hasMore);
-        cache.set(forKey, { items: items.slice(0, limit), hasMore: Boolean(res.hasMore) });
-        return { ...s, items, hasMore, loading: false, error: '' };
-      });
+      const data = await load();
+      cache.set(forKey, data);
+      if (keyRef.current === forKey) setState({ data, loading: false, error: '' });
     } catch (err) {
-      if (keyRef.current !== forKey) return;
-      setState((s) => ({ ...s, loading: false, error: err?.message || 'خبرها خوانده نشد.' }));
+      if (keyRef.current === forKey) setState((s) => ({ ...s, loading: false, error: err?.message || 'خبرها خوانده نشد.' }));
     }
-  }, [key, limit, category, important]);
+    // `load` is built from the same values as `key`
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [key]);
 
   useEffect(() => {
+    keyRef.current = key;
     const entry = cache.get(key);
-    setState({ items: entry?.items || [], hasMore: entry?.hasMore || false, loading: !entry, loadingMore: false, error: '' });
+    setState({ data: entry || null, loading: !entry, error: '' });
     refresh();
     const timer = setInterval(() => {
       if (document.visibilityState === 'visible') refresh();
@@ -69,25 +48,30 @@ export function useNews({ limit = 20, category = '', important = false } = {}) {
     };
   }, [key, refresh]);
 
-  const loadMore = useCallback(async () => {
-    const last = state.items[state.items.length - 1];
-    if (!last || state.loadingMore) return;
-    const forKey = key;
-    setState((s) => ({ ...s, loadingMore: true }));
-    try {
-      const res = await getNews({ limit, category, important, before: last.publishedAt });
-      if (keyRef.current !== forKey) return;
-      setState((s) => ({ ...s, items: merge(s.items, res.items || []), hasMore: Boolean(res.hasMore), loadingMore: false }));
-    } catch (err) {
-      if (keyRef.current !== forKey) return;
-      setState((s) => ({ ...s, loadingMore: false, error: err?.message || 'خبرها خوانده نشد.' }));
-    }
-  }, [state.items, state.loadingMore, key, limit, category, important]);
+  return { ...state, refresh, setData: (fn) => setState((s) => ({ ...s, data: s.data && fn(s.data) })) };
+}
+
+/**
+ * @param {{ limit?: number, page?: number, category?: string, important?: boolean }} [opts]
+ * @returns {{ items: object[], total: number, loading: boolean, error: string, refresh: () => Promise<void>,
+ *   removeItem: (id: string) => void }}
+ */
+export function useNews({ limit = 20, page = 1, category = '', important = false } = {}) {
+  const key = `list|${limit}|${page}|${category}|${important ? 1 : 0}`;
+  const { data, loading, error, refresh, setData } = useFreshQuery(key, () => getNews({ limit, page, category, important }));
 
   const removeItem = useCallback((id) => {
-    setState((s) => ({ ...s, items: s.items.filter((n) => n.id !== id) }));
-    for (const [k, v] of cache) cache.set(k, { ...v, items: v.items.filter((n) => n.id !== id) });
+    const drop = (d) => ({ ...d, items: (d.items || []).filter((n) => n.id !== id), total: Math.max(0, (d.total || 0) - 1) });
+    setData(drop);
+    for (const [k, v] of cache) if (k.startsWith('list|')) cache.set(k, drop(v));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  return { ...state, loadMore, refresh, removeItem };
+  return { items: data?.items || [], total: data?.total || 0, loading, error, refresh, removeItem };
+}
+
+/** @returns {{ analysis: object|null, top: object[], loading: boolean }} */
+export function useNewsToday() {
+  const { data, loading } = useFreshQuery('today', () => getNewsToday());
+  return { analysis: data?.analysis || null, top: data?.top || [], loading };
 }

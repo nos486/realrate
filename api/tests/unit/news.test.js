@@ -78,11 +78,13 @@ describe('keywords', () => {
     expect(isNewsCandidate('اونس طلا رکورد زد')).toBe(true);
     expect(isNewsCandidate('تیم ملی فوتبال برنده شد')).toBe(false);
     expect(isNewsCandidate('صف خرید در نماد فولاد؛ افزایش سرمایه تصویب شد')).toBe(false);
+    expect(isNewsCandidate('شاخص کل بورس تهران امروز ۲ درصد رشد کرد')).toBe(true);
     expect(isNewsCandidate('عضو کانال VIP شوید، سیگنال طلا رایگان')).toBe(false);
   });
 
   it('matches whole words only («مس» is not in «مسکن»)', () => {
-    expect(keywordScore('بازار مسکن')).toBe(1);
+    // «بازار» and «مسکن» (a weak word of its own), not the strong «مس»
+    expect(keywordScore('بازار مسکن')).toBe(2);
     expect(keywordScore('بازار مس')).toBe(3);
   });
 
@@ -91,6 +93,7 @@ describe('keywords', () => {
     expect(guessCategory('دلار و سکه')).toBe('currency');
     expect(guessCategory('برنت به ۹۰ دلار رسید')).toBe('oil');
     expect(guessCategory('تورم ماهانه اعلام شد')).toBe('economy');
+    expect(guessCategory('شاخص کل بورس ۵۰ هزار واحد بالا رفت')).toBe('bourse');
   });
 });
 
@@ -270,6 +273,10 @@ describe('channels and the list', () => {
     const first = await dbListNews(env, { limit: 2 });
     expect(first.items.map((i) => i.postId)).toEqual([4, 3]);
     expect(first.hasMore).toBe(true);
+    expect(first.total).toBe(4);
+    const second = await dbListNews(env, { limit: 3, page: 2 });
+    expect(second).toMatchObject({ total: 4, hasMore: false });
+    expect(second.items.map((i) => i.postId)).toEqual([1]);
     expect((await dbListNews(env, { limit: 2, before: 3000 })).items.map((i) => i.postId)).toEqual([2, 1]);
     expect((await dbListNews(env, { category: 'currency' })).items.map((i) => i.postId)).toEqual([2]);
     expect(await dbSetNewsHidden(env, 'c/4', true)).toBe(true);

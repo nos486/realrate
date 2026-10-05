@@ -132,6 +132,7 @@ const CATEGORY_WORDS = [
   ["currency", ["دلار", "یورو", "درهم", "ارز", "حواله", "نیما", "ریال"]],
   ["oil", ["نفت", "برنت", "اوپک", "بنزین", "گاز"]],
   ["crypto", ["بیت کوین", "بیتکوین", "تتر", "رمزارز", "کریپتو"]],
+  ["bourse", ["شاخص کل", "شاخص بورس", "شاخص هم وزن", "بورس", "فرابورس", "پول حقیقی", "ارزش معاملات", "صندوق تثبیت"]],
 ].map(([cat, words]) => [cat, words.map(normalizeNewsText)]);
 
 /** The category whose words come first in the text ("economy" when none) */
@@ -183,9 +184,10 @@ const CATEGORY_IDS = Object.keys(NEWS_CATEGORIES);
 export function buildNewsPrompt(posts) {
   const system = [
     "You screen Persian Telegram posts for an Iranian market app.",
-    "Keep a post (k=1) only if it is real, fresh news that can move the dollar/rial rate, gold, coins, precious metals, oil, crypto or the economy of Iran or the world",
-    "(central bank, inflation, interest rates, sanctions, negotiations, war, Fed, OPEC, budget, major policy).",
-    "Reject (k=0): a single stock or symbol's news, ads, promotions, signals, opinion without news, bare price lists, greetings, unrelated topics.",
+    "Keep a post (k=1) only if it is real, fresh news that can move the dollar/rial rate, gold, coins, precious metals, oil, crypto, the Tehran stock market as a whole or the economy of Iran or the world",
+    "(central bank, inflation, interest rates, sanctions, negotiations, war, Fed, OPEC, budget, wages, housing and car markets, major policy;",
+    "the stock market's total index, total trading value and money flows count, c=bourse).",
+    "Reject (k=0): a single stock, symbol or company's news, ads, promotions, signals, opinion without news, bare price lists, greetings, unrelated topics.",
     'Answer only a JSON array, one item per post: {"i":<n>,"k":0} or',
     `{"i":<n>,"k":1,"c":"${CATEGORY_IDS.join("|")}","p":<1-3 market impact>,"t":"<Persian headline, max 12 words>","s":"<Persian summary, 1-2 sentences, max 40 words>"}.`,
   ].join(" ");
@@ -274,3 +276,74 @@ export function normalizeChannel(input) {
     .toLowerCase();
   return /^[a-z][a-z0-9_]{3,31}$/.test(name) ? name : "";
 }
+
+const ANALYSIS_ASSETS = ["usd", "gold", "coin", "bourse", "oil"];
+const DIRECTIONS = ["up", "down", "flat"];
+
+/**
+ * The analyst's prompt: the day's news (headline and summary, most important first) and today's
+ * main prices. Instructions in English, the answer in Persian JSON.
+ * @param {Array<{ title: string, summary: string, importance: number, publishedAt: number, category: string }>} news
+ * @param {Array<{ name: string, price: number, unit?: string, changePercent?: number|null }>} prices
+ * @param {{ summaryChars: number }} opts
+ */
+export function buildAnalysisPrompt(news, prices, { summaryChars = 220 } = {}) {
+  const system = [
+    "You are a senior Iranian market and macro analyst writing for ordinary investors.",
+    "From today's news and prices below, write your professional view of what they mean for the next days:",
+    "the free-market dollar, gold and coins, the Tehran stock index and oil. Be concrete, balanced and cautious;",
+    "use only the facts given (no invented numbers or events); say what to watch. Not financial advice.",
+    "Answer only JSON, all text in fluent Persian:",
+    '{"t":"<headline of your view, max 12 words>","s":"<analysis, 4-6 sentences>",',
+    `"o":[{"a":"${ANALYSIS_ASSETS.join("|")}","d":"${DIRECTIONS.join("|")}","n":"<reason, max 12 words>"}],`,
+    '"k":["<key point, max 15 words>", ... at most 4],"r":"<main risk or what to watch, max 25 words>"}',
+  ].join(" ");
+  const tehran = (ts) => new Date(ts + 3.5 * 3600000).toISOString().slice(11, 16);
+  const priceLines = prices
+    .filter((p) => p && Number(p.price) > 0)
+    .map((p) => `${p.name}: ${Math.round(p.price).toLocaleString("en-US")} ${p.unit || ""}${Number.isFinite(p.changePercent) ? ` (${p.changePercent > 0 ? "+" : ""}${p.changePercent.toFixed(2)}%)` : ""}`.trim());
+  const newsLines = news.map((n) => {
+    const summary = n.summary && n.summary !== n.title ? ` — ${String(n.summary).slice(0, summaryChars)}` : "";
+    return `[${tehran(n.publishedAt)}${n.importance >= 3 ? " !" : ""}] ${n.title}${summary}`;
+  });
+  const user = `${priceLines.length ? `Prices now:\n${priceLines.join("\n")}\n\n` : ""}Today's news (Tehran time, ! = important):\n${newsLines.join("\n")}`;
+  return [
+    { role: "system", content: system },
+    { role: "user", content: user },
+  ];
+}
+
+/**
+ * The analyst's answer, or null when it isn't usable
+ * @returns {{ title: string, summary: string, outlook: Array<{ asset: string, direction: string, note: string }>, points: string[], risk: string }|null}
+ */
+export function parseAnalysis(answer) {
+  let body = answer;
+  if (typeof answer === "string") {
+    const start = answer.indexOf("{");
+    const end = answer.lastIndexOf("}");
+    if (start < 0 || end <= start) return null;
+    try {
+      body = JSON.parse(answer.slice(start, end + 1));
+    } catch {
+      return null;
+    }
+  }
+  if (!body || typeof body !== "object") return null;
+  const title = clip(body.t, 140);
+  const summary = clip(body.s, 1200);
+  if (!title || !summary) return null;
+  const seen = new Set();
+  const outlook = (Array.isArray(body.o) ? body.o : [])
+    .filter((o) => ANALYSIS_ASSETS.includes(o?.a) && !seen.has(o.a) && seen.add(o.a))
+    .map((o) => ({ asset: o.a, direction: DIRECTIONS.includes(o.d) ? o.d : "flat", note: clip(o.n, 120) }));
+  const points = (Array.isArray(body.k) ? body.k : []).map((k) => clip(k, 160)).filter(Boolean).slice(0, 4);
+  return { title, summary, outlook, points, risk: clip(body.r, 240) };
+}
+
+/** The start (ms) of the Tehran day `now` is in (Iran keeps UTC+3:30 all year) */
+export function tehranDayStart(now) {
+  const offset = 3.5 * 3600000;
+  return Math.floor((now + offset) / 86400000) * 86400000 - offset;
+}
+

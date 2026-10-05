@@ -35,6 +35,9 @@ import {
 import { dbInsertNews, dbRecentNewsTexts } from "../../repositories/news.repository.js";
 import { getStateStore } from "../../repositories/stateStore.repository.js";
 import { USER_AGENT } from "../market/sources/parsingUtils.js";
+import { askWorkersAi, hasWorkersAi } from "./workersAi.js";
+import { maybeUpdateNewsAnalysis } from "./newsAnalysis.service.js";
+import { notifyImportantNews } from "./newsPush.service.js";
 import { logger } from "../../lib/logger.js";
 
 const CHANNELS_KEY = "news:channels";
@@ -100,29 +103,13 @@ async function mapLimited(items, limit, fn) {
   return results;
 }
 
-/** The model's text answer (Workers AI gives `response`; some models an OpenAI-like body) */
-async function askModel(env, messages, maxTokens) {
-  let lastError = null;
-  for (const model of NEWS_AI_MODELS) {
-    try {
-      const res = await env.AI.run(model, { messages, max_tokens: maxTokens, temperature: 0.1 });
-      const answer = res?.response ?? res?.choices?.[0]?.message?.content ?? res;
-      if (answer && (typeof answer !== "string" || answer.trim())) return answer;
-      lastError = new Error("empty answer");
-    } catch (err) {
-      lastError = err;
-    }
-  }
-  throw lastError || new Error("no model");
-}
-
 /**
  * One run over every channel
  * @param {object} env - env.DB, env.AI (Workers AI; optional), env.KV not used
  * @param {{ now?: number, force?: boolean }} [opts] - force: run even while another run holds the lock (admin)
  * @returns {Promise<{ skipped?: boolean, checked: number, candidates: number, published: number, aiCalls: number }>}
  */
-export async function runNewsPolling(env, { now = Date.now(), force = false, fetchPage = fetchChannelPage } = {}) {
+export async function runNewsPolling(env, { now = Date.now(), force = false, fetchPage = fetchChannelPage, readPrices } = {}) {
   const store = getStateStore(env);
   if (!store) return { skipped: true, checked: 0, candidates: 0, published: 0, aiCalls: 0 };
 
@@ -131,7 +118,13 @@ export async function runNewsPolling(env, { now = Date.now(), force = false, fet
   if (holders > 1 && !force) return { skipped: true, checked: 0, candidates: 0, published: 0, aiCalls: 0 };
 
   try {
-    return await pollChannels(env, store, now, fetchPage);
+    const result = await pollChannels(env, store, now, fetchPage);
+    // The analyst's card, when new news came in (at most every NEWS_ANALYSIS.minIntervalMinutes)
+    result.analysis = await maybeUpdateNewsAnalysis(env, { now, readPrices }).catch((err) => {
+      logger.warn("[News] analysis failed:", { error: err?.message });
+      return { updated: false, reason: "error" };
+    });
+    return result;
   } finally {
     await store.delete(LOCK_KEY).catch(() => {});
   }
@@ -190,7 +183,7 @@ async function pollChannels(env, store, now, fetchPage) {
   // 4. The model, within the run's and the day's budget
   const usedToday = parseInt((await store.get(aiDayKey(now))) || "0", 10) || 0;
   const callsLeft = Math.max(0, Math.min(NEWS_LIMITS.aiCallsPerRun, NEWS_LIMITS.aiCallsPerDay - usedToday));
-  const hasModel = typeof env.AI?.run === "function";
+  const hasModel = hasWorkersAi(env);
   const batches = [];
   for (let i = 0; i < candidates.length; i += NEWS_LIMITS.aiBatchSize) batches.push(candidates.slice(i, i + NEWS_LIMITS.aiBatchSize));
 
@@ -202,7 +195,7 @@ async function pollChannels(env, store, now, fetchPage) {
     if (hasModel && b < callsLeft) {
       try {
         status.aiCalls++;
-        const answer = await askModel(env, buildNewsPrompt(batch), newsMaxTokens(batch.length));
+        const { answer } = await askWorkersAi(env, NEWS_AI_MODELS, buildNewsPrompt(batch), { maxTokens: newsMaxTokens(batch.length) });
         verdicts = parseNewsVerdicts(answer, batch.length);
       } catch (err) {
         status.aiError = String(err?.message || err).slice(0, 160);
@@ -244,6 +237,12 @@ async function pollChannels(env, store, now, fetchPage) {
   }
 
   await dbInsertNews(env, published);
+  // Important fresh news: a push to the browsers that asked for it
+  if (published.length) {
+    await notifyImportantNews(env, published, { now }).catch((err) => {
+      logger.warn("[News] push failed:", { error: err?.message });
+    });
+  }
   for (const item of published) {
     if (status.channels[item.channel]) status.channels[item.channel].published++;
   }

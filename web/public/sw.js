@@ -228,7 +228,13 @@ async function handlePushEvent(event) {
     const rawText = event.data ? event.data.text() : '';
     if (rawText) {
       const parsed = JSON.parse(rawText);
-      if (parsed && parsed.iv && parsed.data) {
+      // Public content (the news section's important news): shown as it is
+      if (parsed && parsed.plain === 1 && parsed.title) {
+        title = String(parsed.title);
+        options.body = String(parsed.body || '');
+        if (parsed.path) options.data = { path: parsed.path };
+        if (parsed.tag) options.tag = parsed.tag;
+      } else if (parsed && parsed.iv && parsed.data) {
         const key = await getSealingKeyFromIdb();
         if (key) {
           const iv = base64ToUint8(parsed.iv);

@@ -7,7 +7,7 @@ import React, { useEffect, useState } from 'react';
 import { Newspaper, Plus, Trash2, RefreshCw, Save, CheckCircle2, AlertTriangle, Sparkles } from 'lucide-react';
 import { Button, Input, AlertBanner, EmptyState } from '../../../shared/ui/index.js';
 import { useFeedback } from '../../../shared/ui/FeedbackProvider.jsx';
-import { getNewsChannels, saveNewsChannels, runNewsNow } from '../../news/newsApi.js';
+import { getNewsChannels, saveNewsChannels, runNewsNow, runNewsAnalysisNow } from '../../news/newsApi.js';
 import { newsTimeAgo } from '../../news/newsFormat.js';
 
 const fa = (n) => Number(n || 0).toLocaleString('fa-IR');
@@ -80,6 +80,19 @@ export default function AdminNewsPage() {
     }
   };
 
+  const analyze = async () => {
+    setBusy('analysis');
+    try {
+      const res = await runNewsAnalysisNow();
+      if (res.result?.updated) toast.success('تحلیل روز نوشته شد.');
+      else toast.warning(res.result?.reason === 'no-news' ? 'امروز هنوز خبری نیست.' : `تحلیل نوشته نشد (${res.result?.reason || 'خطا'}).`);
+    } catch (err) {
+      toast.error(err?.message || 'اجرا نشد.');
+    } finally {
+      setBusy(null);
+    }
+  };
+
   if (error && !data) return <AlertBanner type="error" message={error} />;
   if (!data) return <div className="require-auth-loading"><div className="spinner-glow" /></div>;
 
@@ -88,14 +101,19 @@ export default function AdminNewsPage() {
       <div className="portfolio-stat-card">
         <div className="stat-header">
           <span className="stat-label"><Newspaper size={14} /> کانال‌های خبری</span>
-          <Button size="sm" variant="secondary" icon={<RefreshCw size={14} />} loading={busy === 'run'} disabled={Boolean(busy)} onClick={run}>
-            خواندن الان
-          </Button>
+          <span className="admin-news-actions">
+            <Button size="sm" variant="secondary" icon={<Sparkles size={14} />} loading={busy === 'analysis'} disabled={Boolean(busy) || !data.aiConfigured} onClick={analyze}>
+              تحلیل الان
+            </Button>
+            <Button size="sm" variant="secondary" icon={<RefreshCw size={14} />} loading={busy === 'run'} disabled={Boolean(busy)} onClick={run}>
+              خواندن الان
+            </Button>
+          </span>
         </div>
         <p className="admin-card-hint">
           هر دقیقه پست‌های تازه‌ی این کانال‌ها خوانده می‌شود؛ کلیدواژه‌ها پست‌های بی‌ربط را کنار می‌گذارند و
           هوش مصنوعی کلادفلر از بقیه فقط خبرهای مؤثر بر دلار، طلا، فلزات و اقتصاد را انتخاب و خلاصه می‌کند.
-          کانالی که تازه اضافه شود، ۱۰ پست آخرش بررسی می‌شود.
+          کانالی که تازه اضافه شود، ۱۰ پست آخرش بررسی می‌شود. «تحلیل روز» با رسیدن خبر تازه، حداکثر هر ۳۰ دقیقه، دوباره نوشته می‌شود.
         </p>
 
         <div className="admin-news-ai">

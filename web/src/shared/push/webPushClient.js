@@ -195,7 +195,12 @@ export async function sendTestPushOnServer({ deviceId, sealed }) {
 
 // ── Orchestration ───────────────────────────────────────────────────────────
 
-export async function enableWebPush(settingsUpdate = {}) {
+/**
+ * This browser's push subscription, registered on the server (asks for the permission first).
+ * Shared by the due-date reminders and the news section's important news.
+ * @returns {Promise<{ deviceId: string }>}
+ */
+export async function ensurePushSubscription() {
   if (!isWebPushSupported()) {
     throw new Error('مرورگر شما از اعلان وب پشتیبانی نمی‌کند.');
   }
@@ -222,6 +227,11 @@ export async function enableWebPush(settingsUpdate = {}) {
   const deviceId = getPushDeviceId();
   await getOrCreateDeviceSealingKey();
   await registerPushOnServer({ deviceId, subscription: sub.toJSON() });
+  return { deviceId };
+}
+
+export async function enableWebPush(settingsUpdate = {}) {
+  await ensurePushSubscription();
 
   const updatedSettings = setWebPushSettings({ enabled: true, ...settingsUpdate });
   return { success: true, settings: updatedSettings };
@@ -249,8 +259,18 @@ export async function disableWebPush() {
  * subscription and the device key are removed, and push is off for whoever signs in next.
  * Best-effort; never throws.
  */
+/** Important-news pushes were turned on in this browser (features/news/newsAlerts.js) */
+export const NEWS_PUSH_FLAG_KEY = 'realrate_news_push';
+function hasNewsPushFlag() {
+  try {
+    return localStorage.getItem(NEWS_PUSH_FLAG_KEY) === '1';
+  } catch {
+    return false;
+  }
+}
+
 export async function signOutWebPush() {
-  if (!isWebPushSupported() || !getWebPushSettings().enabled) return;
+  if (!isWebPushSupported() || !(getWebPushSettings().enabled || hasNewsPushFlag())) return;
   await deletePushOnServer(getPushDeviceId()).catch(() => {});
   try {
     const reg = await navigator.serviceWorker.getRegistration();
@@ -262,6 +282,7 @@ export async function signOutWebPush() {
   await clearDeviceSealingKey();
   try {
     setWebPushSettings({ enabled: false });
+    localStorage.removeItem(NEWS_PUSH_FLAG_KEY);
   } catch {
     // Blocked storage
   }
