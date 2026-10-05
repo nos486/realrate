@@ -34,6 +34,26 @@ const SAMPLES = [
     expect: { templateId: 'parsian-balance', direction: 'credit', amount: 258280000, balance: 261682054.5, date: '2026-09-26', time: '09:22' },
   },
   {
+    bank: 'ewano',
+    // From PARSIANBANK, Parsian's sender: not a Parsian account message
+    options: { sender: 'PARSIANBANK', today: LATER },
+    text: 'برداشت مبلغ 98,306,141 ریال از موجودی اوانو کارت\nمانده کارت: 0 ریال\nزمان: 1405/07/12-08:46:38\newano \nPowered by Vee',
+    expect: { templateId: 'ewano-balance', direction: 'debit', amount: 9830614.1, balance: 0, date: '2026-10-04', time: '08:46' },
+  },
+  {
+    bank: 'ewano',
+    options: { sender: 'PARSIANBANK', today: LATER },
+    text: 'واریز مبلغ 98,306,141 ریال به موجودی اوانوکارت\nمانده کارت: 98,306,141 ریال\nزمان: 1405/07/12-08:46:37 \newano \nPowered by Vee',
+    expect: { templateId: 'ewano-balance', direction: 'credit', amount: 9830614.1, balance: 9830614.1, date: '2026-10-04', time: '08:46' },
+  },
+  {
+    bank: 'ewano',
+    // Without the closing lines
+    options: { sender: 'PARSIANBANK', today: LATER },
+    text: 'برداشت مبلغ 10,000 ریال از موجودی اوانو کارت\nمانده کارت: 5,000 ریال\nزمان: 1405/07/12-09:01:02',
+    expect: { templateId: 'ewano-balance', direction: 'debit', amount: 1000, balance: 500, date: '2026-10-04', time: '09:01' },
+  },
+  {
     bank: 'blu',
     text: 'بلو\nبرداشت پول\nسینا عزیز، 20,000,000 ریال از حساب شما پرید.\nموجودی: 77,436,726 ریال\n۱۰:۴۷\n۱۴۰۵.۰۷.۰۶',
     expect: { templateId: 'blu-balance', direction: 'debit', amount: 2000000, balance: 7743672.6, date: '2026-09-28', time: '10:47' },
@@ -298,10 +318,11 @@ describe('rules for the Android side (only withdrawals and deposits reach the ap
 
   it('one rule per bank with senders: its senders and its templates\' pattern sources', () => {
     expect(rules).toHaveLength(withSenders.length);
-    for (const bank of withSenders) {
-      const rule = rules.find((r) => r.senders.join() === bank.senders.join());
-      expect(rule.patterns).toEqual(bank.templates.map((t) => t.pattern.source));
-    }
+    // In the banks' order (two banks may share a sender: Parsian and its Ewano card)
+    withSenders.forEach((bank, i) => {
+      expect(rules[i].senders).toEqual(bank.senders);
+      expect(rules[i].patterns).toEqual(bank.templates.map((t) => t.pattern.source));
+    });
   });
 
   // BankSmsRules.java matches the same sources (checked with javac when they change); here the

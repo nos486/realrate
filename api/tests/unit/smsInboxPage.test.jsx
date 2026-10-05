@@ -224,9 +224,16 @@ describe('«انتقال بین حساب‌های خودم»: neither expense no
 describe('«ثبت سریع» (no form)', () => {
   const SMALL = 'بلو\nبرداشت پول\nسینا عزیز، 3,500,000 ریال از حساب شما پرید.\nموجودی: 73,936,726 ریال\n۱۱:۰۵\n۱۴۰۵.۰۷.۰۶';
 
-  it('only for a withdrawal up to 1 million tomans; records it in the settings category', async () => {
+  it('off by default: every message shows «ثبت»', async () => {
     addSmsMessages([{ address: '+989999987641', body: SMALL, date: RECEIVED + 1000 }]);
-    localStorage.setItem('realrate_sms_settings', JSON.stringify({ recordCategory: 'dining' }));
+    render(<SmsInboxPage />);
+    await waitFor(() => expect(screen.getAllByText('ثبت')).toHaveLength(3));
+    expect(screen.queryByText('ثبت سریع')).toBeNull();
+  });
+
+  it('turned on in the settings: only for a withdrawal up to 1 million tomans; records it in the settings category', async () => {
+    addSmsMessages([{ address: '+989999987641', body: SMALL, date: RECEIVED + 1000 }]);
+    localStorage.setItem('realrate_sms_settings', JSON.stringify({ recordCategory: 'dining', quickRecord: true }));
     render(<SmsInboxPage />);
     await waitFor(() => expect(screen.getAllByText('ثبت سریع')).toHaveLength(1));
     fireEvent.click(screen.getByText('ثبت سریع').closest('button'));

@@ -46,6 +46,26 @@ export const BANK_SMS_TEMPLATES = [
     ],
   },
   {
+    // Ewano card, Parsian's wallet: its own balance (not a Parsian account), sent from PARSIANBANK
+    // too — the sender's Parsian templates are tried first, then these
+    bankId: 'ewano',
+    senders: ['PARSIANBANK'],
+    templates: [
+      {
+        // برداشت مبلغ 98,306,141 ریال از موجودی اوانو کارت
+        // مانده کارت: 0 ریال
+        // زمان: 1405/07/12-08:46:38
+        // ewano
+        // Powered by Vee
+        // (a deposit: «واریز مبلغ … ریال به موجودی اوانوکارت»; the closing lines may be missing)
+        id: 'ewano-balance',
+        unit: 'rial',
+        direction: { debit: ['برداشت', 'خرید', 'پرداخت', 'انتقال'], credit: ['واریز'] },
+        pattern: re(String.raw`^(?<kind>[^\d\n]+?)\s?مبلغ\s?(?<amount>${P.amount})\s?ریال\s?(?:از|به)\s?موجودی\s?اوانو[\s\u200c]?کارت\nمانده کارت\s?:\s?(?<balance>${P.balance})\s?ریال\nزمان\s?:\s?(?<date>${P.date})-(?<time>${P.time})(?::\d{2})?(?:\n[A-Za-z][A-Za-z ]*)*$`),
+      },
+    ],
+  },
+  {
     bankId: 'blu',
     senders: ['+989999987641'],
     templates: [

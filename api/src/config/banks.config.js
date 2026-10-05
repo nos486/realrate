@@ -75,6 +75,8 @@ export const BANKS = [
 
   // ── Digital ───────────────────────────────────────────────────────────────
   { id: "blu", name: "بلوبانک", shortName: "بلو", enName: "Blu Bank", type: "digital", aliases: ["بلو بانک"] },
+  // Parsian's wallet card (its SMS comes from PARSIANBANK)
+  { id: "ewano", name: "اوانو کارت (پارسیان)", shortName: "اوانو", enName: "Ewano Card", type: "digital", aliases: ["اوانو", "اوانوکارت", "اوانو کارت"] },
 
   // ── Joint & international ─────────────────────────────────────────────────
   { id: "iran-europe", name: "بانک ایران و اروپا", shortName: "ایران و اروپا", enName: "Europäisch-Iranische Handelsbank", type: "joint" },
