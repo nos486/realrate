@@ -13,6 +13,11 @@ import { newsTimeAgo } from '../../news/newsFormat.js';
 import AdminNewsAnalysisLab from './AdminNewsAnalysisLab.jsx';
 
 const fa = (n) => Number(n || 0).toLocaleString('fa-IR');
+const MODEL_ERRORS = {
+  'bad-answer': 'جواب قالب درستی نداشت (JSON)',
+  'foreign-text': 'متن جواب کلمه‌ی غیرفارسی داشت',
+};
+const modelError = (error) => MODEL_ERRORS[error] || error || 'خطای نامعلوم';
 const cleanName = (s) => String(s || '').trim().replace(/^(https?:\/\/)?(www\.)?t\.me\/(s\/)?/i, '').replace(/^@/, '').split(/[/?#]/)[0].toLowerCase();
 
 export default function AdminNewsPage() {
@@ -86,7 +91,9 @@ export default function AdminNewsPage() {
     setBusy('analysis');
     try {
       const res = await runNewsAnalysisNow();
+      if (res.analysisStatus) setData((d) => ({ ...d, analysisStatus: res.analysisStatus }));
       if (res.result?.updated) toast.success('تحلیل روز نوشته شد.');
+      else if (res.result?.reason === 'model-error') toast.error(`مدل خطا داد: ${modelError(res.result.error)}`, { duration: 8000 });
       else toast.warning(res.result?.reason === 'no-news' ? 'امروز هنوز خبری نیست.' : `تحلیل نوشته نشد (${res.result?.reason || 'خطا'}).`);
     } catch (err) {
       toast.error(err?.message || 'اجرا نشد.');
@@ -124,8 +131,19 @@ export default function AdminNewsPage() {
           ) : (
             <span className="is-warn"><AlertTriangle size={14} /> هوش مصنوعی (Workers AI) وصل نیست؛ فقط پست‌هایی با کلیدواژه‌های زیاد منتشر می‌شود.</span>
           )}
+          {status?.aiError && data.aiConfigured && (
+            <small className="is-warn">
+              <AlertTriangle size={12} /> بررسی خبرها: مدل {status.aiModel || ''} در آخرین اجرا خطا داد ({modelError(status.aiError)}) — مدل دیگری امتحان نشد؛ فقط پست‌هایی با کلیدواژه‌های زیاد منتشر شد.
+            </small>
+          )}
           {data.analysisModel && <small>مدل «تحلیل روز»: {data.analysisModel.label}</small>}
-          {status?.aiError && data.aiConfigured && <small className="is-warn">آخرین خطای مدل: {status.aiError}</small>}
+          {data.analysisStatus && (data.analysisStatus.ok ? (
+            <small><CheckCircle2 size={12} className="is-ok" /> آخرین تحلیل روز {newsTimeAgo(data.analysisStatus.at)} بدون خطا نوشته شد.</small>
+          ) : (
+            <small className="is-warn">
+              <AlertTriangle size={12} /> تحلیل روز {newsTimeAgo(data.analysisStatus.at)}: مدل خطا داد ({modelError(data.analysisStatus.error)}) — مدل دیگری امتحان نشد و تحلیل قبلی مانده است.
+            </small>
+          ))}
           {status?.at && <small>آخرین اجرا: {newsTimeAgo(status.at)} · {fa(status.published)} خبر</small>}
         </div>
 

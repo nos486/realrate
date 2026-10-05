@@ -134,7 +134,7 @@ async function pollChannels(env, store, now, fetchPage) {
   const channels = (await getNewsChannels(env)).filter((c) => c.enabled !== false).map((c) => c.username);
   const cursors = await store.getMany(channels.map(cursorKey));
   const previous = (await getNewsStatus(env)) || {};
-  const status = { at: now, channels: {}, published: 0, aiCalls: 0, aiError: "" };
+  const status = { at: now, channels: {}, published: 0, aiCalls: 0, aiError: "", aiModel: NEWS_AI_MODELS[0]?.label || "" };
 
   // 1. New posts of every channel
   const pages = await mapLimited(channels, FETCH_CONCURRENCY, async (channel) => {
@@ -197,6 +197,11 @@ async function pollChannels(env, store, now, fetchPage) {
         status.aiCalls++;
         const { answer } = await askWorkersAi(env, NEWS_AI_MODELS, buildNewsPrompt(batch), { maxTokens: newsMaxTokens(batch.length) });
         verdicts = parseNewsVerdicts(answer, batch.length);
+        // An answer that says nothing about any post: the model failed (no other is tried)
+        if (verdicts.size === 0) {
+          verdicts = null;
+          throw new Error("unreadable answer (no JSON verdicts)");
+        }
       } catch (err) {
         status.aiError = String(err?.message || err).slice(0, 160);
         logger.warn("[News] model failed:", { error: status.aiError });

@@ -11,6 +11,7 @@ import {
   maybeUpdateNewsAnalysis,
   getNewsAnalysis,
   getNewsAnalysisModel,
+  getNewsAnalysisStatus,
   createNewsAnalysisLab,
   runNewsAnalysisLabModel,
   chooseNewsAnalysisModel,
@@ -141,22 +142,27 @@ describe('maybeUpdateNewsAnalysis', () => {
     expect((await maybeUpdateNewsAnalysis({ DB: env.DB }, opts({ now: NOW, force: true }))).reason).toBe('no-model');
   });
 
-  it('no model answers usably: the last analysis is kept', async () => {
+  it('the model fails or answers unusably: no other model, the last analysis stays, the panel is told', async () => {
     await dbInsertNews(env, [item(1, 30)]);
-    env.AI.run.mockResolvedValue({ response: 'not json' });
-    expect((await maybeUpdateNewsAnalysis(env, opts({ now: NOW, force: true }))).reason).toBe('bad-answer');
-    expect(env.AI.run).toHaveBeenCalledTimes(1 + NEWS_ANALYSIS.fallbackModels.length);
-    expect(await getNewsAnalysis(env)).toBeNull();
-  });
+    expect((await maybeUpdateNewsAnalysis(env, opts({ now: NOW, force: true }))).updated).toBe(true);
+    expect(await getNewsAnalysisStatus(env)).toEqual({ at: NOW, model: DEFAULT, ok: true });
+    env.AI.run.mockClear();
 
-  it('an answer with words of another language: the next model writes it', async () => {
-    await dbInsertNews(env, [item(1, 30)]);
+    env.AI.run.mockResolvedValueOnce({ response: 'not json' });
+    expect(await maybeUpdateNewsAnalysis(env, opts({ now: NOW + 1, force: true }))).toEqual({ updated: false, reason: 'model-error', error: 'bad-answer' });
+    expect(env.AI.run).toHaveBeenCalledTimes(1);
+    expect(await getNewsAnalysisStatus(env)).toEqual({ at: NOW + 1, model: DEFAULT, ok: false, error: 'bad-answer' });
+
     const foreign = JSON.stringify({ ...JSON.parse(ANSWER), s: 'قیمت دلار با افزایش nhẹ همراه بود.' });
     env.AI.run.mockResolvedValueOnce({ choices: [{ message: { content: foreign } }] });
-    expect(await maybeUpdateNewsAnalysis(env, opts({ now: NOW, force: true }))).toEqual({ updated: true });
-    expect(env.AI.run.mock.calls.map((c) => c[0])).toEqual([DEFAULT, NEWS_ANALYSIS.fallbackModels[0]]);
-    expect(await getNewsAnalysis(env)).toMatchObject({ model: NEWS_ANALYSIS.fallbackModels[0] });
-    expect((await getNewsAnalysis(env)).summary).not.toContain('nhẹ');
+    expect((await maybeUpdateNewsAnalysis(env, opts({ now: NOW + 2, force: true }))).error).toBe('foreign-text');
+
+    env.AI.run.mockRejectedValueOnce(new Error('3040: capacity'));
+    expect((await maybeUpdateNewsAnalysis(env, opts({ now: NOW + 3, force: true }))).error).toBe('3040: capacity');
+    expect(env.AI.run).toHaveBeenCalledTimes(3);
+    expect(await getNewsAnalysisStatus(env)).toMatchObject({ ok: false, error: '3040: capacity' });
+    // The last good analysis is still there
+    expect(await getNewsAnalysis(env)).toMatchObject({ at: NOW, title: expect.stringMatching(/^فشار/) });
   });
 
   it("the admin's model is asked first", async () => {
