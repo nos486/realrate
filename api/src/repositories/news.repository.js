@@ -19,6 +19,7 @@ const toItem = (row) => ({
   importance: row.importance,
   image: row.image || "",
   publishedAt: row.published_at,
+  ...(row.created_at ? { savedAt: row.created_at } : {}),
   ai: Boolean(row.ai),
 });
 

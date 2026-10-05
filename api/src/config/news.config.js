@@ -100,16 +100,11 @@ export const NEWS_KEYWORD_MIN_SCORE = 2;
  * Written again when new news came in, at most every `minIntervalMinutes`.
  */
 export const NEWS_ANALYSIS = {
-  /**
-   * A strong reasoning model: one request now and then, where reasoning matters more than cost.
-   * DeepSeek V4 Flash (a little reasoning is enough), then Gemma 4, then Llama 3.3 — the next one also
-   * when an answer isn't usable (broken JSON, words of another language: domain/news.js).
-   */
-  models: [
-    { id: "@cf/deepseek-ai/deepseek-v4-flash-0731", options: { ...JSON_ANSWER, reasoning_effort: "low" } },
-    { id: "@cf/google/gemma-4-26b-a4b-it", options: { ...JSON_ANSWER, chat_template_kwargs: { enable_thinking: false } } },
-    "@cf/meta/llama-3.3-70b-instruct-fp8-fast",
-  ],
+  /** The model when the admin hasn't chosen one (NEWS_ANALYSIS_MODELS), and the ones tried after it */
+  defaultModel: "@cf/deepseek-ai/deepseek-v4-flash-0731",
+  fallbackModels: ["@cf/google/gemma-4-26b-a4b-it", "@cf/meta/llama-3.3-70b-instruct-fp8-fast"],
+  /** 0: the same news gives the same view (as far as the model allows) */
+  temperature: 0,
   minIntervalMinutes: 30,
   /** The day's first analysis waits for this much news */
   minNews: 3,
@@ -122,7 +117,36 @@ export const NEWS_ANALYSIS = {
   maxTokens: 4000,
   /** Prices shown to the model (price book ids) */
   priceIds: ["usd", "eur", "gold_18k", "full_coin", "mesghal", "ons_gold", "ons_silver", "usdt"],
+  /** Their 7- and 30-day trend shown too (from the daily history: KV, no database read) */
+  trendIds: ["usd", "ons_gold", "gold_18k", "full_coin"],
+  /** A previous outlook younger than this is the starting point of the next one (stability) */
+  previousMaxHours: 24,
 };
+/**
+ * The models the analyst's card can use — all on Workers AI (Cloudflare-hosted), compared side by
+ * side in the admin's model lab, one of them chosen (services/news/newsAnalysis.service.js). Each
+ * request asks for little reasoning (the method is in the prompt) and JSON where the model takes it;
+ * price: USD per million tokens, in / out (Cloudflare's list price).
+ */
+const LOW_REASONING = { reasoning_effort: "low" };
+const NO_THINKING = { chat_template_kwargs: { enable_thinking: false } };
+export const NEWS_ANALYSIS_MODELS = [
+  { id: "@cf/deepseek-ai/deepseek-v4-flash-0731", label: "DeepSeek V4 Flash", vendor: "DeepSeek", price: [0.44, 1.32], options: { ...JSON_ANSWER, ...LOW_REASONING } },
+  { id: "@cf/deepseek-ai/deepseek-v4-pro-0813", label: "DeepSeek V4 Pro", vendor: "DeepSeek", price: [1.32, 3.96], options: { ...JSON_ANSWER, ...LOW_REASONING } },
+  { id: "@cf/moonshotai/kimi-k2.6", label: "Kimi K2.6", vendor: "Moonshot", price: [0.95, 4], options: { ...JSON_ANSWER, ...LOW_REASONING } },
+  { id: "@cf/zai-org/glm-5.3", label: "GLM 5.3", vendor: "Z.ai", price: [1.4, 4.4], options: { ...JSON_ANSWER, ...LOW_REASONING } },
+  { id: "@cf/zai-org/glm-5.3-flash", label: "GLM 5.3 Flash", vendor: "Z.ai", price: [0.15, 0.5], options: { ...JSON_ANSWER, ...LOW_REASONING } },
+  { id: "@cf/qwen/qwen3.8-27b", label: "Qwen 3.8 27B", vendor: "Alibaba", price: [0.45, 3.2], options: { ...JSON_ANSWER, ...LOW_REASONING } },
+  { id: "@cf/google/gemma-4-26b-a4b-it", label: "Gemma 4 26B", vendor: "Google", price: [0.1, 0.3], options: { ...JSON_ANSWER, ...NO_THINKING } },
+  { id: "@cf/openai/gpt-oss-120b", label: "GPT-OSS 120B", vendor: "OpenAI", price: [0.35, 0.75], options: { ...JSON_ANSWER, reasoning: { effort: "low" } } },
+  { id: "@cf/nvidia/nemotron-3-120b-a12b", label: "Nemotron 3 Super", vendor: "NVIDIA", price: [0.5, 1.5], options: { ...JSON_ANSWER, ...NO_THINKING } },
+  { id: "@cf/meta/llama-4-scout-17b-16e-instruct", label: "Llama 4 Scout", vendor: "Meta", price: [0.27, 0.85], options: { ...JSON_ANSWER } },
+  { id: "@cf/meta/llama-3.3-70b-instruct-fp8-fast", label: "Llama 3.3 70B", vendor: "Meta", price: [0.29, 2.25], options: {} },
+];
+
+/** A model of the catalog by id, or null */
+export const newsAnalysisModel = (id) => NEWS_ANALYSIS_MODELS.find((m) => m.id === id) || null;
+
 /** Without the model (not bound, out of budget, failing), a post needs this score to publish */
 export const NEWS_KEYWORD_ONLY_SCORE = 5;
 

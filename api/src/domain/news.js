@@ -293,46 +293,104 @@ export function normalizeChannel(input) {
 
 const ANALYSIS_ASSETS = ["usd", "gold", "coin", "bourse", "oil"];
 const DIRECTIONS = ["up", "down", "flat"];
+const ASSET_NAMES = {
+  usd: "the free-market US dollar in Iran (in toman)",
+  gold: "18k gold in Iran",
+  coin: "the Emami gold coin",
+  bourse: "the Tehran Stock Exchange total index (TEDPIX)",
+  oil: "crude oil (Brent)",
+};
+
+/** What the analyst is told: its role, method and answer format (instructions in English: fewer tokens, the answer in Persian) */
+const ANALYST_SYSTEM = `You are the head of market research at an Iranian financial publication. Each day you read the market news published so far and write a short, sober outlook for ordinary investors in Iran.
+
+ASSETS (key = asset):
+${ANALYSIS_ASSETS.map((a) => `- ${a}: ${ASSET_NAMES[a]}`).join("\n")}
+
+METHOD — follow it in this order:
+1. Read every news item. Each has a number (N1, N2, …), its Tehran time, its category, and "!" when the news desk marked it important.
+2. Score each item's market impact from 1 to 3:
+   3 = changes the fundamentals: sanctions, nuclear talks or agreements, war or military escalation, the central bank's FX or interest-rate policy, oil exports, the Fed, a sharp move in world gold;
+   2 = a meaningful but limited factor: inflation or liquidity data, government FX rules, budget, a large policy statement;
+   1 = minor, local, opinion, or a rumour.
+   Confirmed and official news weighs more than reports and rumours. The same news repeated by several channels weighs more. Newer news weighs more than older news on the same subject.
+3. For each asset, weigh only the items that bear on it and decide a direction for the coming days:
+   "up" or "down" only when the weighed news clearly points one way; "flat" when the news is mixed, weak, or says nothing about the asset.
+   confidence: 3 = several strong items agree; 2 = one strong item or several moderate ones; 1 = weak or mixed evidence (always 1 for "flat" without evidence).
+   Every "up" or "down" must cite the numbers of the news items behind it.
+4. Known relationships (use them, do not state them as news): gold and coins in Iran follow world gold (the ounce) times the dollar; coins can carry a bubble over their gold value; progress in talks, eased sanctions or higher oil exports strengthen the rial (the dollar down); escalation, new sanctions or failed talks weaken it; risk and a rising dollar usually lift gold and coins and pressure stocks, though a rising dollar can lift exporters on the stock market.
+5. Prices and trends are context only: never extrapolate a trend by itself, never predict prices, levels or percentages, never invent facts, numbers or events that are not in the news.
+
+STABILITY: when a previous outlook is given, it is the starting point. Keep each asset's direction unless news marked NEW (published after it) gives a clear reason to change it; when you change it, the reason must name that news. Do not change a direction because of wording or a small price move.
+
+ANSWER: only one JSON object, no markdown, every text in fluent, plain Persian (no words of another language; the asset names and numbers may be Persian):
+{"t":"<headline of the outlook, at most 12 words>",
+"s":"<the analysis, 3 to 5 sentences: what happened, why it matters, what it means for the assets>",
+"o":[{"a":"<asset>","d":"up|down|flat","c":1|2|3,"n":"<the reason, at most 12 words>","e":[<news numbers>]}, … one per asset, all five],
+"n":[{"i":<news number>,"w":1|2|3,"a":["<asset>", …]}, … the up to 5 most important items, most important first],
+"k":["<key point, at most 15 words>", … at most 4],
+"r":"<the main risk or what to watch next, at most 25 words>"}`;
+
+/** Whether a news item came in after the previous outlook (saved after the newest it read; else published after it) */
+const isNewSince = (n, previous) => (n.savedAt && previous.lastSavedAt ? n.savedAt > previous.lastSavedAt : n.publishedAt > previous.at);
+
+const fmtPct = (v) => `${v > 0 ? "+" : ""}${v.toFixed(2)}%`;
+const tehranClock = (ts) => new Date(ts + 3.5 * 3600000).toISOString().slice(11, 16);
 
 /**
- * The analyst's prompt: the day's news (headline and summary, most important first) and today's
- * main prices. Instructions in English, the answer in Persian JSON.
+ * The analyst's prompt: today's prices and their recent trend, the previous outlook (for
+ * stability), and the day's news, numbered, oldest first
  * @param {Array<{ title: string, summary: string, importance: number, publishedAt: number, category: string }>} news
  * @param {Array<{ name: string, price: number, unit?: string, changePercent?: number|null }>} prices
- * @param {{ summaryChars: number }} opts
+ * @param {{ summaryChars?: number, trends?: Array<{ name: string, week?: number|null, month?: number|null }>,
+ *   previous?: { at: number, lastSavedAt?: number, outlook: Array<{ asset: string, direction: string, confidence?: number }> }|null }} [opts]
+ * @returns {Array<{ role: string, content: string }>}
  */
-export function buildAnalysisPrompt(news, prices, { summaryChars = 220 } = {}) {
-  const system = [
-    "You are a senior Iranian market and macro analyst writing for ordinary investors.",
-    "From today's news and prices below, write your professional view of what they mean for the next days:",
-    "the free-market dollar, gold and coins, the Tehran stock index and oil. Be concrete, balanced and cautious;",
-    "use only the facts given (no invented numbers or events); say what to watch. Not financial advice.",
-    "Answer only JSON, all text in fluent Persian:",
-    '{"t":"<headline of your view, max 12 words>","s":"<analysis, 4-6 sentences>",',
-    `"o":[{"a":"${ANALYSIS_ASSETS.join("|")}","d":"${DIRECTIONS.join("|")}","n":"<reason, max 12 words>"}],`,
-    '"k":["<key point, max 15 words>", ... at most 4],"r":"<main risk or what to watch, max 25 words>"}',
-  ].join(" ");
-  const tehran = (ts) => new Date(ts + 3.5 * 3600000).toISOString().slice(11, 16);
+export function buildAnalysisPrompt(news, prices, { summaryChars = 220, trends = [], previous = null } = {}) {
+  const sections = [];
   const priceLines = prices
     .filter((p) => p && Number(p.price) > 0)
-    .map((p) => `${p.name}: ${Math.round(p.price).toLocaleString("en-US")} ${p.unit || ""}${Number.isFinite(p.changePercent) ? ` (${p.changePercent > 0 ? "+" : ""}${p.changePercent.toFixed(2)}%)` : ""}`.trim());
-  const newsLines = news.map((n) => {
+    .map((p) => `- ${p.name}: ${Math.round(p.price).toLocaleString("en-US")} ${p.unit || ""}${Number.isFinite(p.changePercent) ? ` (last session ${fmtPct(p.changePercent)})` : ""}`.replace(/\s+\(/, " (").trimEnd());
+  if (priceLines.length) sections.push(`PRICES NOW:\n${priceLines.join("\n")}`);
+
+  const trendLines = trends
+    .filter((t) => Number.isFinite(t?.week) || Number.isFinite(t?.month))
+    .map((t) => `- ${t.name}: ${[Number.isFinite(t.week) ? `7 days ${fmtPct(t.week)}` : "", Number.isFinite(t.month) ? `30 days ${fmtPct(t.month)}` : ""].filter(Boolean).join(", ")}`);
+  if (trendLines.length) sections.push(`RECENT TREND (context only):\n${trendLines.join("\n")}`);
+
+  const prev = (previous?.outlook || []).filter((o) => ANALYSIS_ASSETS.includes(o.asset));
+  if (prev.length) {
+    sections.push(`PREVIOUS OUTLOOK (written at ${tehranClock(previous.at)} Tehran):\n${prev.map((o) => `- ${o.asset}: ${o.direction}${o.confidence ? `, confidence ${o.confidence}` : ""}`).join("\n")}`);
+  }
+
+  const newsLines = news.map((n, i) => {
     const summary = n.summary && n.summary !== n.title ? ` — ${String(n.summary).slice(0, summaryChars)}` : "";
-    return `[${tehran(n.publishedAt)}${n.importance >= 3 ? " !" : ""}] ${n.title}${summary}`;
+    const marks = [n.importance >= 3 ? "!" : "", previous && isNewSince(n, previous) ? "NEW" : ""].filter(Boolean).join(" ");
+    return `N${i + 1} [${tehranClock(n.publishedAt)}${n.category ? ` ${n.category}` : ""}${marks ? ` ${marks}` : ""}] ${n.title}${summary}`;
   });
-  const user = `${priceLines.length ? `Prices now:\n${priceLines.join("\n")}\n\n` : ""}Today's news (Tehran time, ! = important):\n${newsLines.join("\n")}`;
+  sections.push(`TODAY'S NEWS (Tehran time, oldest first):\n${newsLines.join("\n")}`);
+
   return [
-    { role: "system", content: system },
-    { role: "user", content: user },
+    { role: "system", content: ANALYST_SYSTEM },
+    { role: "user", content: sections.join("\n\n") },
   ];
 }
 
+const newsNumber = (v) => {
+  const n = parseInt(String(v ?? "").replace(/^N/i, ""), 10);
+  return Number.isInteger(n) && n > 0 ? n : null;
+};
+const level = (v, fallback = 1) => Math.min(3, Math.max(1, Math.round(Number(v)) || fallback));
+
 /**
  * The analyst's answer, or null when it isn't usable (no headline or analysis, broken JSON, words
- * of another language)
- * @returns {{ title: string, summary: string, outlook: Array<{ asset: string, direction: string, note: string }>, points: string[], risk: string }|null}
+ * of another language). A direction without news behind it is "flat".
+ * @param {string|object} answer
+ * @param {Array<{ id: string, title: string, url?: string }>} [news] - the news the prompt numbered (N1 = news[0])
+ * @returns {{ title: string, summary: string, outlook: Array<{ asset: string, direction: string, confidence: number, note: string, evidence: string[] }>,
+ *   drivers: Array<{ id: string, title: string, url: string, impact: number, assets: string[] }>, points: string[], risk: string }|null}
  */
-export function parseAnalysis(answer) {
+export function parseAnalysis(answer, news = []) {
   let body = answer;
   if (typeof answer === "string") {
     const start = answer.indexOf("{");
@@ -348,15 +406,38 @@ export function parseAnalysis(answer) {
   const title = clip(body.t, 140);
   const summary = clip(body.s, 1200);
   if (!title || !summary) return null;
+
+  const itemAt = (v) => {
+    const n = newsNumber(v);
+    return n && n <= news.length ? news[n - 1] : null;
+  };
   const seen = new Set();
   const outlook = (Array.isArray(body.o) ? body.o : [])
     .filter((o) => ANALYSIS_ASSETS.includes(o?.a) && !seen.has(o.a) && seen.add(o.a))
-    .map((o) => ({ asset: o.a, direction: DIRECTIONS.includes(o.d) ? o.d : "flat", note: clip(o.n, 120) }));
+    .map((o) => {
+      const evidence = [...new Set((Array.isArray(o.e) ? o.e : []).map(itemAt).filter(Boolean).map((n) => n.id))];
+      // Up or down needs news behind it (when the news is known)
+      const grounded = !news.length || evidence.length > 0;
+      const direction = DIRECTIONS.includes(o.d) && grounded ? o.d : "flat";
+      return { asset: o.a, direction, confidence: grounded ? level(o.c) : 1, note: clip(o.n, 120), evidence };
+    });
+  const used = new Set();
+  const drivers = (Array.isArray(body.n) ? body.n : [])
+    .map((d) => ({ d, item: itemAt(d?.i) }))
+    .filter(({ item }) => item && !used.has(item.id) && used.add(item.id))
+    .slice(0, 5)
+    .map(({ d, item }) => ({
+      id: item.id,
+      title: item.title,
+      url: item.url || "",
+      impact: level(d.w),
+      assets: (Array.isArray(d.a) ? d.a : []).filter((a) => ANALYSIS_ASSETS.includes(a)),
+    }));
   const points = (Array.isArray(body.k) ? body.k : []).map((k) => clip(k, 160)).filter(Boolean).slice(0, 4);
   const risk = clip(body.r, 240);
   // Words of another language anywhere: not usable (the next model is asked)
   if ([title, summary, risk, ...points, ...outlook.map((o) => o.note)].some(hasForeignText)) return null;
-  return { title, summary, outlook, points, risk };
+  return { title, summary, outlook, drivers, points, risk };
 }
 
 /** The start (ms) of the Tehran day `now` is in (Iran keeps UTC+3:30 all year) */
