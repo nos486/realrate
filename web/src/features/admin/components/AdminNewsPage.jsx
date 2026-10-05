@@ -56,6 +56,15 @@ function NewsReport({ status, latest, model }) {
           <small>درخواست به {model}</small>
         </div>
       </div>
+      {status?.aiError && (
+        <p className="admin-news-error">
+          <AlertTriangle size={14} aria-hidden="true" />
+          <span>
+            <strong>خطای مدل {status.aiModel || model} در آخرین اجرا:</strong> <bdi dir="ltr">{modelError(status.aiError)}</bdi>
+            <small>مدل دیگری امتحان نشد و خبری منتشر نشد؛ همان پست‌ها در اجرای بعدی دوباره بررسی می‌شوند.</small>
+          </span>
+        </p>
+      )}
       <p className="admin-card-hint">آمار امروز (از ساعت ۰۰:۰۰ تهران). هر پست یک بار شمرده می‌شود؛ پستی که منتظر اجرای بعد مانده، وقتی تکلیفش روشن شود.</p>
 
       {runs.length > 0 && (
@@ -228,11 +237,6 @@ export default function AdminNewsPage() {
             <span className="is-ok"><Sparkles size={14} /> هوش مصنوعی فعال است · {fa(status?.aiCallsToday)} از {fa(data.limits?.aiCallsPerDay)} درخواست امروز</span>
           ) : (
             <span className="is-warn"><AlertTriangle size={14} /> هوش مصنوعی (Workers AI) وصل نیست؛ بدون آن هیچ خبری منتشر نمی‌شود.</span>
-          )}
-          {status?.aiError && data.aiConfigured && (
-            <small className="is-warn">
-              <AlertTriangle size={12} /> بررسی خبرها: مدل {status.aiModel || ''} در آخرین اجرا خطا داد ({modelError(status.aiError)}) — مدل دیگری امتحان نشد و خبری منتشر نشد؛ همان پست‌ها در اجرای بعدی دوباره بررسی می‌شوند.
-            </small>
           )}
           <small>مدل بررسی خبرها و «تحلیل روز»: {data.model}{data.analysisModel !== data.model ? ` / ${data.analysisModel}` : ''}</small>
           {data.analysisStatus && (data.analysisStatus.ok ? (

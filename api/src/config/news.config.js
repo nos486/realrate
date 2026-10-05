@@ -46,10 +46,11 @@ const GLM_FLASH = { id: "@cf/zai-org/glm-5.3-flash", label: "GLM 5.3 Flash" };
 /**
  * The model screening and summarizing posts, and only it: when it fails no other model is tried
  * and nothing is published; the posts wait for the next run, and the error is logged and shown in
- * the admin's panel. No reasoning (a verdict per post doesn't need it); the answer is a JSON array,
- * so no `json_object` here.
+ * the admin's panel. GLM 5.3 Flash always reasons (it can't be turned off: `enable_thinking` must
+ * stay true, and is not sent); the least of it is asked, and `reasoningTokens` more output tokens
+ * are allowed for it on top of the answer's. The answer is a JSON array, so no `json_object` here.
  */
-export const NEWS_AI_MODEL = { ...GLM_FLASH, options: { chat_template_kwargs: { enable_thinking: false } } };
+export const NEWS_AI_MODEL = { ...GLM_FLASH, options: { reasoning_effort: "low" }, reasoningTokens: 2000 };
 
 /** What a news item is about (the page's filters) */
 export const NEWS_CATEGORIES = {

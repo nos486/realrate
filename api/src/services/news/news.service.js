@@ -229,7 +229,7 @@ async function pollChannels(env, store, now, fetchPage) {
     let verdicts;
     try {
       status.aiCalls++;
-      const answer = await askWorkersAi(env, NEWS_AI_MODEL, buildNewsPrompt(batch), { maxTokens: newsMaxTokens(batch.length), temperature: 0 });
+      const answer = await askWorkersAi(env, NEWS_AI_MODEL, buildNewsPrompt(batch), { maxTokens: newsMaxTokens(batch.length) + NEWS_AI_MODEL.reasoningTokens, temperature: 0 });
       verdicts = parseNewsVerdicts(answer, batch.length);
       // An answer that says nothing about any post: the model failed
       if (verdicts.size === 0) throw new Error("unreadable answer (no JSON verdicts)");

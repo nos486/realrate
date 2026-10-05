@@ -1071,3 +1071,31 @@
   color: var(--color-negative-text);
   font-weight: 700;
 }
+
+.admin-news-error {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin: 0 0 8px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: var(--color-warning-soft);
+  color: var(--color-warning-text);
+  font-size: 13px;
+  line-height: 1.8;
+}
+
+.admin-news-error svg {
+  flex-shrink: 0;
+  margin-top: 5px;
+}
+
+.admin-news-error bdi {
+  word-break: break-word;
+}
+
+.admin-news-error small {
+  display: block;
+  color: var(--text-muted);
+  font-size: 12px;
+}

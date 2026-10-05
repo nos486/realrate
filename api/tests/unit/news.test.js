@@ -199,8 +199,13 @@ describe('runNewsPolling', () => {
 
     const result = await runNewsPolling(env, { now: NOW, fetchPage });
     expect(result.checked).toBe(NEWS_LIMITS.firstReadPosts + 1); // chan_two's one post too
-    // The model is asked with temperature 0 (the same post, the same verdict)
-    expect(run.mock.calls[0][1].temperature).toBe(0);
+    // The model is asked with temperature 0 (the same post, the same verdict), the least reasoning
+    // (GLM 5.3 Flash can't turn it off: enable_thinking false is refused) and room for it
+    const request = run.mock.calls[0][1];
+    expect(request.temperature).toBe(0);
+    expect(request.reasoning_effort).toBe('low');
+    expect(request.chat_template_kwargs).toBeUndefined();
+    expect(request.max_tokens).toBeGreaterThan(NEWS_AI_MODEL.reasoningTokens);
     // The report adds up: every post checked is not market news, a repeat, rejected or published
     const report = await getNewsStatus(env);
     expect(report.run.checked).toBe(result.checked);
@@ -281,6 +286,15 @@ describe('runNewsPolling', () => {
     expect(env.AI.run).toHaveBeenCalledTimes(1);
     expect((await dbListNews(env)).items).toHaveLength(0);
     expect((await getNewsStatus(env)).aiError).toMatch(/unreadable answer/);
+    error.mockRestore();
+  });
+
+  it('a reasoning model out of tokens before answering: the panel says so', async () => {
+    const error = vi.spyOn(console, 'error').mockImplementation(() => {});
+    pages.chan_one = page('chan_one', [post('chan_one', 1, 'دلار و طلا و سکه بعد از تصمیم بانک مرکزی و فدرال رزرو جهش کرد', at(0))]);
+    env.AI = { run: vi.fn(async () => ({ choices: [{ message: { content: null }, finish_reason: 'length' }] })) };
+    await runNewsPolling(env, { now: NOW, fetchPage });
+    expect((await getNewsStatus(env)).aiError).toMatch(/token limit ran out/);
     error.mockRestore();
   });
 
