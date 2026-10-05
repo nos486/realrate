@@ -126,16 +126,16 @@ export default function AppHomeDashboard({ usdToman = 0, analysis = [], onOpen }
     const item = analysis?.find((i) => i.id === id);
     return item?.market || item?.intrinsic || 0;
   };
-  // Today's change of each rate: against the day's first price (the book's params.dayOpen)
+  // Each rate's change: its last session's, as the price book gives it (params.changePercent)
   const pricing = usePricing();
-  const dayChange = (id, value) => {
-    const open = Number(pricing?.priceBook?.items?.[id]?.params?.dayOpen);
-    return open > 0 && value > 0 ? ((value - open) / open) * 100 : null;
+  const changeOf = (id) => {
+    const change = Number(pricing?.priceBook?.items?.[id]?.params?.changePercent);
+    return Number.isFinite(change) ? change : null;
   };
   const rates = [
-    { key: 'usd', label: 'دلار', value: usdToman, change: dayChange('usd', usdToman) },
-    { key: 'gold', label: 'طلای ۱۸', value: price('gold_18k'), change: dayChange('gold_18k', price('gold_18k')) },
-    { key: 'coin', label: 'سکه امامی', value: price('full_coin'), change: dayChange('full_coin', price('full_coin')) },
+    { key: 'usd', label: 'دلار', value: usdToman, change: changeOf('usd') },
+    { key: 'gold', label: 'طلای ۱۸', value: price('gold_18k'), change: changeOf('gold_18k') },
+    { key: 'coin', label: 'سکه امامی', value: price('full_coin'), change: changeOf('full_coin') },
   ].filter((r) => hasMarket && r.value > 0);
 
   // Today's rates: at the top of the home, open even while the records are locked (they aren't
@@ -151,9 +151,9 @@ export default function AppHomeDashboard({ usdToman = 0, analysis = [], onOpen }
           <span key={r.key} className="app-home-rate">
             <small>{r.label}</small>
             <strong>{fa(r.value)}</strong>
-            {r.change !== null && Math.abs(r.change) >= 0.05 && (
+            {r.change !== null && Math.abs(r.change) >= 0.01 && (
               <em className={r.change > 0 ? 'is-up' : 'is-down'}>
-                {r.change > 0 ? '▲' : '▼'} {Math.abs(r.change).toLocaleString('fa-IR', { maximumFractionDigits: 1 })}٪
+                {r.change > 0 ? '▲' : '▼'} {Math.abs(r.change).toLocaleString('fa-IR', { maximumFractionDigits: 2 })}٪
               </em>
             )}
           </span>

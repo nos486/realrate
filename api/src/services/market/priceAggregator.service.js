@@ -14,10 +14,12 @@ import { resolveApiUrl } from "./sources/apiUrl.source.adapter.js";
 import { logger } from "../../lib/logger.js";
 import { getMasterPriceSourceById } from "../../config/sources.config.js";
 import { WORLD_FOREX_NAMES } from "../../domain/specs/index.js";
+import { withDayRange } from "./sourceSync.service.js";
 
 /**
  * Rebuild the price book from what every source last gave (no fetching), keeping each source's
- * sync state. Called after an admin changes a source.
+ * sync state and each item's day range and change (withDayRange). Called after an admin changes a
+ * source.
  * @param {object} env
  * @returns {Promise<object|null>} the book
  */
@@ -26,10 +28,10 @@ export async function refreshPriceBook(env) {
   try {
     const previous = await getPriceBookCache(env, { fresh: true });
     const sources = await dbGetPriceSources(env, { book: previous });
-    const book = buildPriceBook(sources.filter((s) => s.isActive !== false).map((s) => ({
+    const book = withDayRange(buildPriceBook(sources.filter((s) => s.isActive !== false).map((s) => ({
       ...s,
       lastFetched: s.lastFetched || null,
-    })), { sourceStates: previous?.sources || {} });
+    })), { sourceStates: previous?.sources || {} }), previous, Date.now());
     await setPriceBookCache(env, book);
     return book;
   } catch (e) {

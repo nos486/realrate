@@ -48,7 +48,6 @@ import { usePricing } from '../market/context/PricingContext.jsx';
 import { useDemo } from '../demo/index.js';
 import { HOME_LAYOUT_LIMITS } from '../../utils/homeLayout.js';
 import HomeAssetCard from './HomeAssetCard.jsx';
-import { useDayChanges } from './useDayChanges.js';
 import AssetPickerModal from './AssetPickerModal.jsx';
 import { useHomeLayout } from './useHomeLayout.js';
 import { buildAssetIndex, resolveHomeAsset } from './homeAssets.js';
@@ -138,7 +137,7 @@ function SortableItem({ asset, section, isBest, onRemove }) {
   );
 }
 
-function SectionItems({ section, editing, recommendation, previousCloses = {}, onReorder, onRemoveItem, onAdd }) {
+function SectionItems({ section, editing, recommendation, onReorder, onRemoveItem, onAdd }) {
   const sensors = useDndSensors();
   const gridClass = section.style === 'compact' ? 'currency-cards-grid home-compact-list' : 'cards-modern-grid';
   const ids = section.resolved.map((a) => a.id);
@@ -152,7 +151,6 @@ function SectionItems({ section, editing, recommendation, previousCloses = {}, o
               asset={asset}
               style={section.style}
               isBest={recommendation?.best_id === asset.id}
-              previousClose={previousCloses[String(asset.id).toLowerCase()] ?? null}
             />
           </div>
         ))}
@@ -289,13 +287,6 @@ export default function HomeDashboard({
     return { ...section, resolved: q ? items.filter((a) => a.found && a.searchText.includes(q)) : items };
   }), [effective, index, q]);
 
-  // The full cards' 24-hour change: yesterday's close of every asset shown as a full card
-  const fullCardIds = useMemo(
-    () => sections.filter((s) => s.style !== 'compact').flatMap((s) => s.resolved.filter((a) => a.found !== false).map((a) => a.id)),
-    [sections],
-  );
-  const previousCloses = useDayChanges(fullCardIds);
-
   const commit = (fn) => setLayout(fn(effective));
   const pickerSection = effective.sections.find((s) => s.id === pickerSectionId) || null;
   const hasData = Boolean(analysis?.length || currencies?.length || assets?.length);
@@ -363,7 +354,6 @@ export default function HomeDashboard({
       section={section}
       editing={editing}
       recommendation={recommendation}
-      previousCloses={previousCloses}
       onReorder={(activeId, overId) => commit((l) => reorderItems(l, section.id, activeId, overId))}
       onRemoveItem={(assetId) => commit((l) => removeItem(l, section.id, assetId))}
       onAdd={() => setPickerSectionId(section.id)}
