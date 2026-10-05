@@ -11,6 +11,7 @@
  * (account vault) cheques. Summaries and reminders are computed client-side from the list.
  */
 
+import { tehranDay } from "../repositories/priceHistory.repository.js";
 import { getAuthenticatedUser } from "../lib/auth.js";
 import {
   dbGetUserCheques,
@@ -34,7 +35,7 @@ async function requireUserId(request, env) {
  * @returns {object} the normalized cheque fields
  */
 export function parseChequeInput(body) {
-  const { value, error } = validateChequeInput(body, { today: new Date().toISOString().slice(0, 10) });
+  const { value, error } = validateChequeInput(body, { today: tehranDay() });
   if (error) throw AppError.badRequest(error);
   return value;
 }

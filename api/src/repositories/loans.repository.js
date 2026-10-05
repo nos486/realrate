@@ -8,6 +8,7 @@
  * - computeEffectiveSchedule: dynamically reconstructs the full installments list on read
  */
 
+import { tehranDay } from "./priceHistory.repository.js";
 import { ensureSchema } from "./schema.repository.js";
 import { getBankById, isCustomBankId, matchBankIdByName } from "../config/banks.config.js";
 import { dbGetCustomBank } from "./customBanks.repository.js";
@@ -137,7 +138,7 @@ export async function dbCreateLoan(env, userId, data) {
   const annualInterestRate = Number(data.annualInterestRate ?? data.annualRatePct ?? 0);
   const installmentCount = parseInt(data.installmentCount ?? data.installment_count ?? 0, 10);
   const intervalMonths = parseInt(data.intervalMonths ?? data.interval_months ?? 1, 10);
-  const startDate = String(data.startDate || data.start_date || new Date().toISOString().split("T")[0]).trim();
+  const startDate = String(data.startDate || data.start_date || tehranDay()).trim();
   const annualFeeAmount = Math.max(0, Number(data.annualFeeAmount ?? data.annual_fee_amount ?? 0) || 0);
   const notes = String(data.notes || "").trim();
   const nowIso = new Date().toISOString();

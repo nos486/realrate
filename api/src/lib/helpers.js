@@ -3,6 +3,7 @@
  */
 
 import { isTrustedOrigin } from "./security.js";
+import { logger } from "./logger.js";
 
 /**
  * Allowed origins for CORS.
@@ -139,15 +140,15 @@ export function getClientIp(request) {
 }
 
 /**
- * Safe ctx.waitUntil() wrapper — works even when ctx is undefined (e.g., unit tests)
+ * Safe ctx.waitUntil() wrapper — works even when ctx is undefined (e.g., unit tests), and a
+ * failure of the background work is logged, never left as an unhandled rejection
  * @param {ExecutionContext|undefined} ctx
  * @param {Promise} promise
  */
 export function safeWaitUntil(ctx, promise) {
-  if (ctx && typeof ctx.waitUntil === "function") {
-    ctx.waitUntil(promise);
-  } else if (promise && typeof promise.catch === "function") {
-    promise.catch(() => {});
-  }
+  const settled = promise && typeof promise.catch === "function"
+    ? promise.catch((err) => logger.warn("[waitUntil] background work failed:", { error: err?.message || String(err) }))
+    : promise;
+  if (ctx && typeof ctx.waitUntil === "function") ctx.waitUntil(settled);
 }
 

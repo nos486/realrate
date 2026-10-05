@@ -1,6 +1,8 @@
 import { lazy, Suspense, useEffect, useRef } from 'react';
 import { Routes, Route, Navigate, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import FullscreenLoader from './shared/ui/FullscreenLoader.jsx';
+import ErrorBoundary from './shared/ui/ErrorBoundary.jsx';
+import { forgetChunkReload } from './shared/ui/chunkReload.js';
 import RequireAuth from './shared/ui/RequireAuth.jsx';
 import { useAuth } from './features/auth/context/AuthContext.jsx';
 import { useDemo } from './features/demo/index.js';
@@ -117,8 +119,16 @@ function DueDataScope() {
 }
 
 export default function App() {
+  const { pathname } = useLocation();
+  // Loaded fine: a missing chunk after a later deploy may reload the app once more
+  useEffect(() => {
+    const timer = setTimeout(forgetChunkReload, 30_000);
+    return () => clearTimeout(timer);
+  }, []);
   return (
     <>
+      {/* A page that fails to render shows a message, not a blank app; another page tries again */}
+      <ErrorBoundary resetKey={pathname}>
       <Suspense fallback={<RouteLoader />}>
       <MaintenanceGate>
       <Routes>
@@ -170,6 +180,7 @@ export default function App() {
       </Routes>
       </MaintenanceGate>
       </Suspense>
+      </ErrorBoundary>
       <FullscreenLoader />
     </>
   );

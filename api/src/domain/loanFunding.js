@@ -79,6 +79,9 @@ const DAY_MS = 86_400_000;
 /** Shorter than this, a yearly figure says more about noise than about the investment */
 export const MIN_ANNUALIZE_DAYS = 30;
 
+/** Today in Iran (YYYY-MM-DD): the users' calendar day, whatever the device or server clock zone */
+const tehranToday = () => new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Tehran", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date());
+
 /**
  * How the holdings a loan bought are doing, next to what the loan costs: their cost and value
  * today, the gain, and that gain as a yearly (simple) rate — comparable with the loan's yearly
@@ -91,7 +94,7 @@ export const MIN_ANNUALIZE_DAYS = 30;
  *   annualPct: number|null, days: number }|null} null when the loan bought no priced holding;
  *   `annualPct` is null under MIN_ANNUALIZE_DAYS or without buy dates
  */
-export function loanInvestmentReturn(items = [], valueOf, { today = new Date().toISOString().slice(0, 10) } = {}) {
+export function loanInvestmentReturn(items = [], valueOf, { today = tehranToday() } = {}) {
   const now = Date.parse(`${today}T00:00:00Z`);
   let count = 0;
   let cost = 0;

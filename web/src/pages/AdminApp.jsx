@@ -11,7 +11,8 @@
  */
 
 import React, { Suspense, lazy } from 'react';
-import { NavLink, Link, Navigate, Route, Routes } from 'react-router-dom';
+import { NavLink, Link, Navigate, Route, Routes, useLocation } from 'react-router-dom';
+import ErrorBoundary from '../shared/ui/ErrorBoundary.jsx';
 import { ShieldCheck, Users, Radio, History, ArrowRight, Ban, UsersRound, Newspaper } from 'lucide-react';
 import { useAuth } from '../features/auth/index.js';
 import { EmptyState } from '../shared/ui/index.js';
@@ -41,6 +42,7 @@ function SectionLoader() {
 }
 
 export default function AdminApp() {
+  const { pathname } = useLocation();
   const { user } = useAuth();
   useDocumentTitle('مدیریت | RealRate');
 
@@ -78,6 +80,7 @@ export default function AdminApp() {
             description={`حساب ${user?.email || ''} به عنوان مدیر سیستم ثبت نشده است.`}
           />
         ) : (
+          <ErrorBoundary resetKey={pathname}>
           <Suspense fallback={<SectionLoader />}>
             <Routes>
               <Route index element={<AdminPanel />} />
@@ -89,6 +92,7 @@ export default function AdminApp() {
               <Route path="*" element={<Navigate to="/admin" replace />} />
             </Routes>
           </Suspense>
+          </ErrorBoundary>
         )}
       </main>
     </div>

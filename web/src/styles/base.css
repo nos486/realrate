@@ -1424,6 +1424,64 @@ input.search-bar-input:focus-visible {
   background: var(--bg-app);
 }
 
+/* A page that failed to render (shared/ui/ErrorBoundary.jsx) */
+.error-boundary {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  max-width: 440px;
+  margin: 15vh auto;
+  padding: 24px 20px;
+  text-align: center;
+  color: var(--text-secondary);
+}
+
+.error-boundary svg {
+  color: var(--color-warning-text);
+}
+
+.error-boundary h2 {
+  margin: 0;
+  font-size: 17px;
+  color: var(--text-heading);
+}
+
+.error-boundary p {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.9;
+}
+
+.error-boundary-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 6px;
+}
+
+.error-boundary-actions button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 9px 16px;
+  border: 1px solid var(--border-subtle);
+  border-radius: 10px;
+  background: var(--bg-input);
+  color: var(--text-primary);
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.error-boundary-actions .error-boundary-retry {
+  border-color: var(--color-primary-border);
+  background: var(--color-primary-soft);
+  color: var(--color-primary-text);
+}
+
 /* Beta Badge for Beta Features */
 .beta-badge {
   display: inline-flex;
