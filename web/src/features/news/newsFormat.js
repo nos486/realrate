@@ -41,3 +41,14 @@ export function newsTimeAgo(ts, now = Date.now()) {
 
 /** The channel's name as it calls itself, or its @username */
 export const newsSource = (item) => item.channelTitle || `@${item.channel}`;
+
+/** The Tehran day a time is in ("2026-10-05"), for grouping news by day */
+export const newsDayKey = (ts) => new Date(ts).toLocaleDateString('en-CA', { timeZone: TEHRAN });
+
+/** A day's heading: "امروز", "دیروز", else "یکشنبه ۱۲ مهر" */
+export function newsDayLabel(ts, now = Date.now()) {
+  const key = newsDayKey(ts);
+  if (key === newsDayKey(now)) return 'امروز';
+  if (key === newsDayKey(now - 86400000)) return 'دیروز';
+  return new Date(ts).toLocaleDateString('fa-IR', { weekday: 'long', day: 'numeric', month: 'long', timeZone: TEHRAN });
+}
