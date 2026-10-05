@@ -129,11 +129,11 @@ export default function AdminNewsPage() {
           {data.aiConfigured ? (
             <span className="is-ok"><Sparkles size={14} /> هوش مصنوعی فعال است · {fa(status?.aiCallsToday)} از {fa(data.limits?.aiCallsPerDay)} درخواست امروز</span>
           ) : (
-            <span className="is-warn"><AlertTriangle size={14} /> هوش مصنوعی (Workers AI) وصل نیست؛ فقط پست‌هایی با کلیدواژه‌های زیاد منتشر می‌شود.</span>
+            <span className="is-warn"><AlertTriangle size={14} /> هوش مصنوعی (Workers AI) وصل نیست؛ بدون آن هیچ خبری منتشر نمی‌شود.</span>
           )}
           {status?.aiError && data.aiConfigured && (
             <small className="is-warn">
-              <AlertTriangle size={12} /> بررسی خبرها: مدل {status.aiModel || ''} در آخرین اجرا خطا داد ({modelError(status.aiError)}) — مدل دیگری امتحان نشد؛ فقط پست‌هایی با کلیدواژه‌های زیاد منتشر شد.
+              <AlertTriangle size={12} /> بررسی خبرها: مدل {status.aiModel || ''} در آخرین اجرا خطا داد ({modelError(status.aiError)}) — مدل دیگری امتحان نشد و خبری منتشر نشد؛ همان پست‌ها در اجرای بعدی دوباره بررسی می‌شوند.
             </small>
           )}
           {data.analysisModel && <small>مدل «تحلیل روز»: {data.analysisModel.label}</small>}

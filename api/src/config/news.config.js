@@ -46,8 +46,8 @@ const JSON_ANSWER = { response_format: { type: "json_object" } };
 /**
  * The model screening and summarizing posts, on Workers AI (the `AI` binding in wrangler.toml):
  * GLM 5.3 Flash (no reasoning: a verdict per post doesn't need it), and only it — when it fails, no
- * other model is tried; the error shows in the admin's panel and only posts with many keywords are
- * published. The answer is a JSON array, so no `json_object` here.
+ * other model is tried and nothing is published; the posts wait for the next run, and the error
+ * is logged and shown in the admin's panel. The answer is a JSON array, so no `json_object` here.
  */
 export const NEWS_AI_MODELS = [
   { id: "@cf/zai-org/glm-5.3-flash", label: "GLM 5.3 Flash", options: { chat_template_kwargs: { enable_thinking: false } } },
@@ -145,8 +145,6 @@ export const NEWS_ANALYSIS_MODELS = [
 /** A model of the catalog by id, or null */
 export const newsAnalysisModel = (id) => NEWS_ANALYSIS_MODELS.find((m) => m.id === id) || null;
 
-/** Without the model (not bound, out of budget, failing), a post needs this score to publish */
-export const NEWS_KEYWORD_ONLY_SCORE = 5;
 
 /** Pushes for important news (services/news/newsPush.service.js) */
 export const NEWS_PUSH = {
