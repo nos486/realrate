@@ -3,10 +3,13 @@
  * when new news comes in (api/src/services/news/newsAnalysis.service.js) — a headline, the
  * analysis, where the dollar, gold, coins, the stock index and oil may go (with how sure the
  * model is), the day's most important news and their impact, the key points and the main risk
+ *
+ * `compact` (the news page's side panel): the headline and the directions first, the rest behind
+ * «ادامه‌ی تحلیل».
  */
 
-import React from 'react';
-import { Sparkles, TrendingUp, TrendingDown, Minus, AlertTriangle } from 'lucide-react';
+import React, { useState } from 'react';
+import { Sparkles, TrendingUp, TrendingDown, Minus, AlertTriangle, ChevronDown } from 'lucide-react';
 import { newsTimeAgo, newsFullTime } from './newsFormat.js';
 
 const ASSETS = { usd: 'دلار', gold: 'طلا', coin: 'سکه', bourse: 'بورس', oil: 'نفت' };
@@ -19,12 +22,15 @@ const CONFIDENCE = { 1: 'اطمینان کم', 2: 'اطمینان متوسط', 3
 const IMPACT = { 1: 'اثر کم', 2: 'اثر متوسط', 3: 'اثر زیاد' };
 const fa = (n) => Number(n || 0).toLocaleString('fa-IR');
 
-export default function NewsAnalysisCard({ analysis, className = '' }) {
+export default function NewsAnalysisCard({ analysis, className = '', compact = false }) {
+  const [expanded, setExpanded] = useState(false);
   if (!analysis?.title) return null;
   const outlook = (analysis.outlook || []).filter((o) => ASSETS[o.asset]);
+  const full = !compact || expanded;
+  const hasMore = Boolean(analysis.summary || analysis.drivers?.length || analysis.points?.length || analysis.risk);
 
   return (
-    <section className={`news-analysis ${className}`} aria-label="تحلیل روز">
+    <section className={`news-analysis ${compact ? 'is-compact' : ''} ${className}`} aria-label="تحلیل روز">
       <header className="news-analysis-head">
         <span className="news-analysis-badge">
           <Sparkles size={14} aria-hidden="true" />
@@ -36,7 +42,7 @@ export default function NewsAnalysisCard({ analysis, className = '' }) {
       </header>
 
       <h2 className="news-analysis-title">{analysis.title}</h2>
-      <p className="news-analysis-summary">{analysis.summary}</p>
+      {full && <p className="news-analysis-summary">{analysis.summary}</p>}
 
       {outlook.length > 0 && (
         <ul className="news-analysis-outlook">
@@ -54,14 +60,14 @@ export default function NewsAnalysisCard({ analysis, className = '' }) {
                     </span>
                   )}
                 </span>
-                {o.note && <small>{o.note}</small>}
+                {o.note && full && <small>{o.note}</small>}
               </li>
             );
           })}
         </ul>
       )}
 
-      {analysis.drivers?.length > 0 && (
+      {full && analysis.drivers?.length > 0 && (
         <div className="news-analysis-drivers">
           <h3>مهم‌ترین خبرهای امروز</h3>
           <ol>
@@ -75,20 +81,27 @@ export default function NewsAnalysisCard({ analysis, className = '' }) {
         </div>
       )}
 
-      {analysis.points?.length > 0 && (
+      {full && analysis.points?.length > 0 && (
         <ul className="news-analysis-points">
           {analysis.points.map((p) => <li key={p}>{p}</li>)}
         </ul>
       )}
 
-      {analysis.risk && (
+      {full && analysis.risk && (
         <p className="news-analysis-risk">
           <AlertTriangle size={14} aria-hidden="true" />
           <span><strong>زیر نظر بگیرید:</strong> {analysis.risk}</span>
         </p>
       )}
 
-      <p className="news-analysis-note">این تحلیل را هوش مصنوعی از خبرهای امروز نوشته است و توصیه‌ی خرید یا فروش نیست.</p>
+      {compact && hasMore && (
+        <button type="button" className="news-analysis-more" aria-expanded={expanded} onClick={() => setExpanded((v) => !v)}>
+          {expanded ? 'بستن تحلیل' : 'ادامه‌ی تحلیل'}
+          <ChevronDown size={16} aria-hidden="true" />
+        </button>
+      )}
+
+      {full && <p className="news-analysis-note">این تحلیل را هوش مصنوعی از خبرهای امروز نوشته است و توصیه‌ی خرید یا فروش نیست.</p>}
     </section>
   );
 }

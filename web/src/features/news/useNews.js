@@ -4,7 +4,7 @@
  * and the news page open with it at once.
  *
  *   useNews({ limit, page, category, important }) — one page of the list, with the total
- *   useNewsToday()                                — the analyst's card and today's top news
+ *   useNewsToday()                                — the analyst's card, today's top news and counts
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -16,7 +16,7 @@ const cache = new Map();
 /** `load` now, every minute while visible, and on coming back into view */
 function useFreshQuery(key, load) {
   const cached = cache.get(key);
-  const [state, setState] = useState(() => ({ data: cached || null, loading: !cached, error: '' }));
+  const [state, setState] = useState(() => ({ data: cached || null, loading: !cached, error: '', updatedAt: cached ? Date.now() : 0 }));
   const keyRef = useRef(key);
 
   const refresh = useCallback(async () => {
@@ -24,7 +24,7 @@ function useFreshQuery(key, load) {
     try {
       const data = await load();
       cache.set(forKey, data);
-      if (keyRef.current === forKey) setState({ data, loading: false, error: '' });
+      if (keyRef.current === forKey) setState({ data, loading: false, error: '', updatedAt: Date.now() });
     } catch (err) {
       if (keyRef.current === forKey) setState((s) => ({ ...s, loading: false, error: err?.message || 'خبرها خوانده نشد.' }));
     }
@@ -35,7 +35,7 @@ function useFreshQuery(key, load) {
   useEffect(() => {
     keyRef.current = key;
     const entry = cache.get(key);
-    setState({ data: entry || null, loading: !entry, error: '' });
+    setState((s) => ({ data: entry || null, loading: !entry, error: '', updatedAt: entry ? s.updatedAt : 0 }));
     refresh();
     const timer = setInterval(() => {
       if (document.visibilityState === 'visible') refresh();
@@ -53,12 +53,12 @@ function useFreshQuery(key, load) {
 
 /**
  * @param {{ limit?: number, page?: number, category?: string, important?: boolean }} [opts]
- * @returns {{ items: object[], total: number, loading: boolean, error: string, refresh: () => Promise<void>,
- *   removeItem: (id: string) => void }}
+ * @returns {{ items: object[], total: number, loading: boolean, error: string, updatedAt: number,
+ *   refresh: () => Promise<void>, removeItem: (id: string) => void }}
  */
 export function useNews({ limit = 20, page = 1, category = '', important = false } = {}) {
   const key = `list|${limit}|${page}|${category}|${important ? 1 : 0}`;
-  const { data, loading, error, refresh, setData } = useFreshQuery(key, () => getNews({ limit, page, category, important }));
+  const { data, loading, error, updatedAt, refresh, setData } = useFreshQuery(key, () => getNews({ limit, page, category, important }));
 
   const removeItem = useCallback((id) => {
     const drop = (d) => ({ ...d, items: (d.items || []).filter((n) => n.id !== id), total: Math.max(0, (d.total || 0) - 1) });
@@ -67,11 +67,14 @@ export function useNews({ limit = 20, page = 1, category = '', important = false
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  return { items: data?.items || [], total: data?.total || 0, loading, error, refresh, removeItem };
+  return { items: data?.items || [], total: data?.total || 0, loading, error, updatedAt, refresh, removeItem };
 }
 
-/** @returns {{ analysis: object|null, top: object[], loading: boolean }} */
+/**
+ * @returns {{ analysis: object|null, top: object[], stats: { total: number, important: number,
+ *   byCategory: Record<string, number> }|null, loading: boolean }}
+ */
 export function useNewsToday() {
   const { data, loading } = useFreshQuery('today', () => getNewsToday());
-  return { analysis: data?.analysis || null, top: data?.top || [], loading };
+  return { analysis: data?.analysis || null, top: data?.top || [], stats: data?.stats || null, loading };
 }
