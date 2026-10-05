@@ -5,9 +5,10 @@
  * from then on each bank message is read as it arrives), or to decline it. Afterwards: the
  * withdrawals and deposits (smsInbox.js) neither recorded nor dismissed, newest first.
  * Each message shows one main action and a «⋮» menu with the rest (they don't fit a phone's row):
- * «ثبت» hands the message to `onRecord` (the page opens the expense or income form); a withdrawal
- * up to QUICK_RECORD_MAX shows «ثبت سریع» instead (`onQuickRecord`: recorded as it is, no form),
- * with «ثبت با فرم» in the menu; a withdrawal can also go to a project («ثبت در یک پروژه»,
+ * «ثبت» hands the message to `onRecord` (the page opens the expense or income form); with «ثبت سریع»
+ * turned on in the app's settings (`quickRecord`, off by default), a withdrawal up to
+ * QUICK_RECORD_MAX shows «ثبت سریع» instead (`onQuickRecord`: recorded as it is, no form), with
+ * «ثبت با فرم» in the menu; a withdrawal can also go to a project («ثبت در یک پروژه»,
  * `onRecordToProject`); a deposit's menu has «وام» (`onLoanDeposit`: a received loan, not
  * income) and «دنگ» (`onShareDeposit`: someone's share of an expense the user paid, not income);
  * either kind can be «انتقال بین حساب‌های خودم» (`onTransfer`: money moved between the user's own
@@ -140,7 +141,8 @@ export default function SmsInboxList({ accounts = [], onRecord, onQuickRecord, q
         const bank = resolveBank({ bankId: tx.bankId });
         const account = accounts.find((a) => a.id === matchSmsAccount(tx, accounts));
         const isDebit = tx.direction === 'debit';
-        const quick = Boolean(onQuickRecord) && isDebit && tx.amount <= QUICK_RECORD_MAX;
+        // «ثبت سریع» only when turned on in the app's settings; «ثبت» otherwise
+        const quick = Boolean(onQuickRecord) && settings.quickRecord && isDebit && tx.amount <= QUICK_RECORD_MAX;
         return (
           <li key={item.fingerprint} className={`sms-inbox-item ${isDebit ? 'is-debit' : 'is-credit'}`}>
             <BankLogo bank={bank} size={30} />

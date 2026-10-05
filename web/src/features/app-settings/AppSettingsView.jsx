@@ -83,7 +83,7 @@ function formatTime(ms) {
 const faNum = (n) => Number(n || 0).toLocaleString('fa-IR');
 const digits = (v) => Number(String(v ?? '').replace(/[۰-۹]/g, (d) => '۰۱۲۳۴۵۶۷۸۹'.indexOf(d)).replace(/[^\d]/g, '')) || 0;
 
-/** Small withdrawals: recorded by themselves up to an amount, and the category used for them */
+/** Small withdrawals: recorded by themselves up to an amount, the «ثبت سریع» button, and the category used for them */
 function SmsRecordSettings({ settings }) {
   const categories = useCategories('expense', { keep: settings.recordCategory });
   const [max, setMax] = useState(String(settings.autoRecordMax));
@@ -113,6 +113,13 @@ function SmsRecordSettings({ settings }) {
           />
         </div>
       )}
+      <div className="app-setting-row">
+        <div>
+          <strong>دکمه‌ی «ثبت سریع»</strong>
+          <p>کنار برداشت‌های تا {faNum(QUICK_RECORD_MAX)} تومان در صفحه‌ی پیامک‌ها، به‌جای «ثبت»، دکمه‌ای می‌آید که بدون فرم و با یک ضربه ثبت می‌کند.</p>
+        </div>
+        <Switch checked={settings.quickRecord} onChange={(on) => setSmsSettings({ quickRecord: on })} label="دکمه‌ی ثبت سریع" />
+      </div>
       <div className="app-setting-field">
         <span>دسته‌ی ثبت خودکار و «ثبت سریع»</span>
         <div className="app-category-chips" role="radiogroup" aria-label="دسته‌ی هزینه">
@@ -132,8 +139,7 @@ function SmsRecordSettings({ settings }) {
           ))}
         </div>
         <small>
-          «ثبت سریع» کنار برداشت‌های تا {faNum(QUICK_RECORD_MAX)} تومان در صفحه‌ی پیامک‌ها می‌آید و با یک ضربه در
-          «{getExpenseCategory(settings.recordCategory).label}» ثبت می‌کند. بعداً می‌توانید دسته را در فهرست هزینه‌ها عوض کنید.
+          ثبت خودکار و «ثبت سریع» در «{getExpenseCategory(settings.recordCategory).label}» ثبت می‌کنند. بعداً می‌توانید دسته را در فهرست هزینه‌ها عوض کنید.
         </small>
       </div>
     </div>

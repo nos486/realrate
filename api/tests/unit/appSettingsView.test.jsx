@@ -35,7 +35,17 @@ describe('AppSettingsView', () => {
   it('shows the banks read and their senders', () => {
     render(<AppSettingsView />);
     expect(screen.getByText('پیامک‌های بانکی')).toBeTruthy();
-    expect(screen.getByText(/PARSIANBANK/)).toBeTruthy();
+    // Parsian and its Ewano card send from the same number
+    expect(screen.getAllByText(/PARSIANBANK/)).toHaveLength(2);
+    expect(screen.getByText(/اوانو/)).toBeTruthy();
+  });
+
+  it('«ثبت سریع» is off until turned on', () => {
+    render(<AppSettingsView />);
+    const toggle = screen.getByLabelText('دکمه‌ی ثبت سریع');
+    expect(toggle.checked).toBe(false);
+    fireEvent.click(toggle);
+    expect(JSON.parse(localStorage.getItem('realrate_sms_settings')).quickRecord).toBe(true);
   });
 
   it('turning on automatic reading asks for the permission', async () => {
