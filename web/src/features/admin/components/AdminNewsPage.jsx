@@ -22,7 +22,7 @@ const modelError = (error) => MODEL_ERRORS[error] || error || 'خطای نامع
 /** Today's totals, in the order a post goes through */
 const TOTALS = [
   { key: 'checked', label: 'پست بررسی‌شده' },
-  { key: 'notMarket', label: 'غیربازاری (کلیدواژه)' },
+  { key: 'notMarket', label: 'غیربازاری یا نامناسب' },
   { key: 'duplicates', label: 'تکراری' },
   { key: 'sent', label: 'فرستاده به مدل' },
   { key: 'rejected', label: 'رد مدل' },

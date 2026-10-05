@@ -626,6 +626,11 @@
   color: #c4b5fd;
 }
 
+.news-tag.is-politics {
+  background: var(--color-negative-soft);
+  color: var(--color-negative-text);
+}
+
 .news-tag.is-currency {
   background: var(--color-positive-soft);
   color: var(--color-positive-text);
