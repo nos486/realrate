@@ -8,6 +8,13 @@ import Modal from '../../shared/ui/Modal.jsx';
 import { usePricing } from '../market/context/PricingContext.jsx';
 import { CategoryIcon } from '../portfolio/utils/holdingHelpers.js';
 import TextField from '../../shared/ui/TextField.jsx';
+import { ownPriceOf, formatPrice } from '../market/assetPrice.js';
+
+/** Its own price: a dollar-priced asset in dollars ("$" before it), the rest in tomans */
+function OwnPrice({ asset }) {
+  const own = ownPriceOf(asset);
+  return own.currency === 'usd' ? <bdi>${formatPrice(own.value, 'usd')}</bdi> : formatPrice(own.value);
+}
 
 const CATEGORY_FILTERS = [
   { key: '', label: 'همه' },
@@ -102,7 +109,7 @@ export default function AssetPickerModal({ isOpen, onClose, section, onToggle })
                       </small>
                     </span>
                     <span className="asset-picker-price">
-                      {asset.price ? Math.round(asset.price).toLocaleString('fa-IR') : '—'}
+                      {asset.price ? <OwnPrice asset={asset} /> : '—'}
                     </span>
                     <span className="asset-picker-action">{isAdded ? <Check size={16} /> : <Plus size={16} />}</span>
                   </button>

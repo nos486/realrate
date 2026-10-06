@@ -15,13 +15,11 @@ import { ChartCandlestick } from 'lucide-react';
 import { CategoryIcon } from '../portfolio/utils/holdingHelpers.js';
 import TrendCandles from './TrendCandles.jsx';
 import { useAssetCandles } from './useAssetCandles.js';
+import { formatPrice } from '../market/assetPrice.js';
 
-function formatNum(num) {
-  if (num === null || num === undefined || isNaN(num)) return '-';
-  // A price under 100 tomans keeps its fraction (a coin worth 0.37 toman is not 0)
-  if (Math.abs(num) > 0 && Math.abs(num) < 100) return Number(num).toLocaleString('fa-IR', { maximumSignificantDigits: 4 });
-  return Math.round(num).toLocaleString('fa-IR');
-}
+// In the asset's own currency: dollars keep their cents, tomans are whole (a coin worth 0.37
+// toman is not 0)
+const formatNum = (num, currency = 'toman') => formatPrice(num, currency);
 
 const formatPct = (v, digits = 1) =>
   Math.abs(v).toLocaleString('fa-IR', { minimumFractionDigits: digits, maximumFractionDigits: digits });
@@ -80,7 +78,7 @@ function CompactCard({ asset }) {
       </div>
       <div className="curr-price-block">
         <div className="curr-price-val">
-          {asset.price ? formatNum(asset.price) : '—'}
+          {asset.price ? formatNum(asset.price, asset.currency) : '—'}
           <span className="curr-unit">{asset.unit}</span>
         </div>
         {change && <span className={`home-change ${change.className}`}>{change.text}</span>}
@@ -91,12 +89,12 @@ function CompactCard({ asset }) {
 }
 
 /** Today's low and high (from the price book: no query) */
-function DayRange({ range }) {
+function DayRange({ range, currency }) {
   if (!range) return null;
   return (
     <div className="pro-range-labels" title="دامنه‌ی نوسان امروز">
-      <span><small>کف امروز</small> {formatNum(range.low)}</span>
-      <span><small>سقف امروز</small> {formatNum(range.high)}</span>
+      <span><small>کف امروز</small> {formatNum(range.low, currency)}</span>
+      <span><small>سقف امروز</small> {formatNum(range.high, currency)}</span>
     </div>
   );
 }
@@ -172,7 +170,8 @@ function FullCard({ asset, isBest = false, flippable = true }) {
   const [range, setRange] = useState('30d');
   const [shown, setShown] = useState(null); // the last series drawn (kept while another window loads)
   // Only while the back is asked for: the front never fetches
-  const { status, series } = useAssetCandles(asset.id, flippable && requested, range);
+  // A dollar-priced asset's chart is its dollar closes (`${id}@usd`)
+  const { status, series } = useAssetCandles(asset.seriesId || asset.id, flippable && requested, range);
   const loading = status === 'loading';
   const settled = status === 'ready' || status === 'empty' || status === 'error';
   // The first answer turns the card; later windows redraw it in place
@@ -183,6 +182,7 @@ function FullCard({ asset, isBest = false, flippable = true }) {
   const hasMarket = item ? item.market !== null && item.market !== undefined : true;
   const price = asset.price || (item ? (hasMarket ? item.market : item.intrinsic) : null) || null;
   const unit = item ? 'تومان' : asset.unit;
+  const currency = item ? 'toman' : asset.currency;
   // The book's change of its last session (params.changePercent, set by the sync)
   const change = changeBadge(asset.changePercent);
   const isFlipped = flippable && requested && opened;
@@ -233,7 +233,7 @@ function FullCard({ asset, isBest = false, flippable = true }) {
           <div className="pro-card-price">
             {price ? (
               <>
-                <span className="pro-card-price-value">{formatNum(price)}</span>
+                <span className="pro-card-price-value">{formatNum(price, currency)}</span>
                 <span className="pro-card-price-unit">{unit}</span>
               </>
             ) : (
@@ -245,7 +245,7 @@ function FullCard({ asset, isBest = false, flippable = true }) {
           <StaleMark asset={asset} />
           {item && <GoldMetrics item={item} />}
           <div className="pro-card-foot">
-            <DayRange range={asset.dayRange} />
+            <DayRange range={asset.dayRange} currency={asset.currency} />
             {flippable && (
               <span className={`pro-card-hint ${loading && !opened ? 'is-spinning' : ''}`} aria-hidden="true">
                 <ChartCandlestick size={13} />
@@ -272,7 +272,7 @@ function FullCard({ asset, isBest = false, flippable = true }) {
             </div>
             {backSeries?.candles?.length ? (
               <div className={`pro-card-chart ${loading ? 'is-loading' : ''}`}>
-                <TrendCandles candles={backSeries.candles} days={backSeries.days} unit={unit} label={`نمودار کندلی ${asset.name}`} />
+                <TrendCandles candles={backSeries.candles} days={backSeries.days} unit={unit} currency={currency} label={`نمودار کندلی ${asset.name}`} />
               </div>
             ) : loading ? (
               <div className="pro-card-back-state is-loading" aria-label="در حال دریافت نمودار" role="status" />

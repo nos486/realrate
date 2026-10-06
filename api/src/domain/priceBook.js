@@ -3,12 +3,21 @@
  *
  * Every source, automatic or manual, ends up here as the same kind of item:
  *
- *   { id, price, name, category, unit, sourceId, updatedAt, params }
+ *   { id, price, name, category, unit, sourceId, updatedAt, params, currency?, priceUsd? }
  *
  * - `price` is always in tomans. A source says what it quotes in (`quote` in its config):
  *   "toman" (default), "rial", "usd" (e.g. the world ounce) or "usd_cross" (a currency's value
  *   in dollars, e.g. the forex feed). Dollar quotes are turned into tomans with the book's own
  *   USD price, so e.g. the lira is computed once here and is the same number everywhere.
+ * - `currency` is what the asset is priced in on its own market: "usd" for a dollar-quoted asset
+ *   (the world ounce of gold, silver or platinum, oil, bitcoin) — its dollar price is `priceUsd`
+ *   and `price` is that in tomans at the book's dollar; absent for everything priced in tomans
+ *   (currencyOf). So the same id is the one asset (the ounce is "ons_gold" whatever it is shown
+ *   in) and a screen knows which number is the asset's own: the ounce reads "$2,650", never as a
+ *   toman price that moved only because the dollar did. Stored records keep holding the id and
+ *   toman amounts; the dollar price is a view of the same item, never a second id.
+ * - The history keeps each item's toman close under its id, and a dollar-priced item's dollar
+ *   close under `${id}@usd` (usdSeriesKey) — the chart of the ounce in dollars.
  * - `id` names the asset, never the provider: unique, lower-case, with Persian letters in one form.
  *   A single-price source gives its priceType ("usd", "gold_18k"), a multi-output feed its item
  *   code ("eur"), a catalog `${market}__${symbol}` ("bourse__فولاد": there is one فولاد whichever
@@ -28,6 +37,7 @@ import { SILVER_SPECS } from "./specs/silver.spec.js";
 import { FOREX_SPECS } from "./specs/forex.spec.js";
 import { CRYPTO_SPECS } from "./specs/crypto.spec.js";
 import { CASH_SPECS } from "./specs/cash.spec.js";
+import { COMMODITY_SPECS } from "./specs/commodity.spec.js";
 import { calculateGold24kGram, calculateSilverGram, calculateBubble } from "./formulas.js";
 
 /** The items other prices are computed from */
@@ -48,6 +58,46 @@ export const staleAfterSecOf = (src) =>
 
 /** What a source's numbers are quoted in */
 export const PRICE_QUOTES = ["toman", "rial", "usd", "usd_cross"];
+
+/** What an asset is priced in on its own market (an item's `currency`; absent = toman) */
+export const PRICE_CURRENCIES = ["toman", "usd"];
+
+/** An item's currency: "usd" for a dollar-priced asset, else "toman" */
+export const currencyOf = (item) => (item?.currency === "usd" ? "usd" : "toman");
+
+/** The history key of a dollar-priced item's dollar closes */
+export const USD_SERIES_SUFFIX = "@usd";
+export const usdSeriesKey = (id) => `${normalizePriceId(id)}${USD_SERIES_SUFFIX}`;
+
+/**
+ * A history key's live value in the book: an item's toman price under its id, a dollar-priced
+ * item's dollar price under `${id}@usd`, else 0
+ * @param {Record<string, object>} items
+ * @param {string} key
+ */
+export function liveSeriesValue(items, key) {
+  const id = normalizePriceId(key);
+  const usdBase = id.endsWith(USD_SERIES_SUFFIX) ? id.slice(0, -USD_SERIES_SUFFIX.length) : null;
+  const value = usdBase !== null ? Number(items?.[usdBase]?.priceUsd) : Number(items?.[id]?.price);
+  return Number.isFinite(value) && value > 0 ? value : 0;
+}
+
+/** Every history key the book's items fill: each id, and a dollar-priced item's `${id}@usd` */
+export function historyKeysOf(items) {
+  const keys = [];
+  for (const [id, item] of Object.entries(items || {})) {
+    keys.push(id);
+    if (currencyOf(item) === "usd") keys.push(usdSeriesKey(id));
+  }
+  return keys;
+}
+
+/** A dollar price, rounded to what matters: cents from 1 up, four significant digits below */
+export function roundUsd(value) {
+  const n = Number(value);
+  if (!Number.isFinite(n) || n <= 0) return 0;
+  return n >= 1 ? Math.round(n * 100) / 100 : Number(n.toPrecision(4));
+}
 
 // ── Ids ──────────────────────────────────────────────────────────────────────
 
@@ -118,6 +168,7 @@ export const SPEC_BY_ID = (() => {
   Object.values(SILVER_SPECS).forEach((s) => add(s));
   Object.values(CRYPTO_SPECS).forEach((s) => add(s));
   Object.values(CASH_SPECS).forEach((s) => add(s));
+  Object.values(COMMODITY_SPECS).forEach((s) => add(s));
   FOREX_SPECS.forEach((s) => add({ ...s, id: s.code, category: s.category || "currency" }, s.code));
   return index;
 })();
@@ -268,8 +319,7 @@ function toItem(entry, price, extraParams = {}) {
     price,
     name: spec?.name || entry.meta.name || entry.src.name || entry.id,
     category: spec?.category || (entry.meta.params.isFund ? "bourse_fund" : entry.src.category) || "",
-    // A dollar-quoted spec names its currency as the unit ("دلار"); in tomans the unit is what
-    // is priced (the source's "اونس")
+    // What one unit is (اونس, بشکه, گرم, …): the source's word for a dollar-priced asset, else the spec's
     unit: (entry.quote === "usd" ? entry.src.unit || spec?.unit : spec?.unit || entry.src.unit) || "",
     sourceId: entry.src.id,
     updatedAt: entry.meta.updatedAt || entry.src.lastFetched || null,
@@ -305,11 +355,13 @@ export function buildPriceBook(sources, { now = new Date().toISOString(), source
     else if (entry.quote === "rial") items[entry.id] = toItem(entry, roundToman(entry.value / 10));
   }
 
-  // 2. Dollar quotes, through the book's own USD price
+  // 2. Dollar quotes, through the book's own USD price. A dollar-priced asset says so
+  //    (`currency`, `priceUsd`); `params.usd` stays for the clients that read it there.
   const usdToman = positive(items[BASE_PRICE_IDS.usd]?.price);
   for (const entry of entries) {
     if (entry.quote === "usd" && usdToman) {
-      items[entry.id] = toItem(entry, roundToman(entry.value * usdToman), { usd: entry.value });
+      const usd = roundUsd(entry.value);
+      items[entry.id] = { ...toItem(entry, roundToman(usd * usdToman), { usd }), currency: "usd", priceUsd: usd };
     } else if (entry.quote === "usd_cross" && usdToman) {
       items[entry.id] = toItem(entry, roundToman(entry.value * usdToman), { usdCross: entry.value });
     }
@@ -391,7 +443,7 @@ export function splitPriceBook(items) {
 }
 
 /**
- * A short fingerprint of what the book says: every id with its price and whether it is stale
+ * A short fingerprint of what the book says: every id with its price (and dollar price) and whether it is stale
  * (not the timestamps, which move on every sync). Equal versions mean nothing a screen shows
  * changed; it is the book's ETag.
  * @param {Record<string, object>} items
@@ -400,7 +452,7 @@ export function priceBookVersion(items) {
   // FNV-1a, 32 bits, over "id=price[!];" in id order
   let hash = 0x811c9dc5;
   const text = Object.keys(items || {}).sort()
-    .map((id) => `${id}=${items[id]?.price}${items[id]?.params?.stale ? "!" : ""};`).join("");
+    .map((id) => `${id}=${items[id]?.price}${items[id]?.priceUsd ? `$${items[id].priceUsd}` : ""}${items[id]?.params?.stale ? "!" : ""};`).join("");
   for (let i = 0; i < text.length; i++) {
     hash ^= text.charCodeAt(i);
     hash = Math.imul(hash, 0x01000193) >>> 0;

@@ -1376,6 +1376,15 @@
   white-space: nowrap;
 }
 
+/* A dollar-priced asset's own price, under its toman unit price */
+.cell-usd-price {
+  display: block;
+  margin-top: 2px;
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 600;
+}
+
 /* Currency Wrap & Values */
 .cell-currency-wrap {
   display: inline-flex;

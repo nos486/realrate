@@ -5,6 +5,7 @@ import {
   Award,
   Coins,
   Disc,
+  Fuel,
   Banknote,
   Zap,
   TrendingUp,
@@ -28,6 +29,7 @@ import {
   getCanonicalAssetName,
 } from '../utils/financialSpecs.js';
 import TextField from '../shared/ui/TextField.jsx';
+import { ownPriceOf, formatPrice } from '../features/market/assetPrice.js';
 
 export const PROMINENT_FOREX_CURRENCIES = FOREX_SPECS;
 
@@ -318,6 +320,7 @@ export function extractMultiItems(src) {
 }
 
 const ICON_COMPONENT_MAP = {
+  Fuel,
   Award,
   Coins,
   Disc,
@@ -381,7 +384,10 @@ export default function UniversalAssetSearch({
       badgeClass: category,
       category,
       aliases: asset.aliases || [],
+      // `price` stays in tomans (what a picked asset fills in a form); a dollar-priced asset is
+      // shown at its dollar price (assetPrice.js)
       price: asset.price,
+      shown: ownPriceOf(asset),
       unit: asset.unit,
       type: category === 'currency' ? 'forex' : (isBourse ? 'bourse' : 'standard'),
       changePercent: asset.changePercent,
@@ -616,11 +622,13 @@ export default function UniversalAssetSearch({
                       {item.price > 0 ? (
                         <>
                           <span className="universal-result-price">
-                            {item.price % 1 !== 0
-                              ? Number(item.price).toLocaleString('fa-IR', { minimumFractionDigits: 2, maximumFractionDigits: 4 })
-                              : Math.round(item.price).toLocaleString('fa-IR')}
+                            {item.shown?.currency === 'usd'
+                              ? formatPrice(item.shown.value, 'usd')
+                              : item.price % 1 !== 0
+                                ? Number(item.price).toLocaleString('fa-IR', { minimumFractionDigits: 2, maximumFractionDigits: 4 })
+                                : Math.round(item.price).toLocaleString('fa-IR')}
                           </span>
-                          <span className="universal-result-unit">{item.unit || 'تومان'}</span>
+                          <span className="universal-result-unit">{item.shown?.currency === 'usd' ? 'دلار' : item.unit || 'تومان'}</span>
                         </>
                       ) : (
                         <span className="universal-result-badge" style={{ color: 'var(--color-primary-text)' }}>
@@ -670,11 +678,13 @@ export default function UniversalAssetSearch({
                       {item.price > 0 ? (
                         <>
                           <span className="universal-result-price">
-                            {item.price % 1 !== 0
-                              ? Number(item.price).toLocaleString('fa-IR', { minimumFractionDigits: 2, maximumFractionDigits: 4 })
-                              : Math.round(item.price).toLocaleString('fa-IR')}
+                            {item.shown?.currency === 'usd'
+                              ? formatPrice(item.shown.value, 'usd')
+                              : item.price % 1 !== 0
+                                ? Number(item.price).toLocaleString('fa-IR', { minimumFractionDigits: 2, maximumFractionDigits: 4 })
+                                : Math.round(item.price).toLocaleString('fa-IR')}
                           </span>
-                          <span className="universal-result-unit">{item.unit || 'تومان'}</span>
+                          <span className="universal-result-unit">{item.shown?.currency === 'usd' ? 'دلار' : item.unit || 'تومان'}</span>
                         </>
                       ) : (
                         <span className="universal-result-badge" style={{ color: 'var(--color-primary-text)' }}>

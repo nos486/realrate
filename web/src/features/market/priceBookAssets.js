@@ -4,11 +4,13 @@
  * Prices are never computed here: every price is the book's (tomans, one id per item, see
  * utils/priceBook.js). This only adds what screens show next to a price — flag, badge, search
  * aliases, a one-line description — from the asset specs, and indexes the list by id.
+ * A dollar-priced asset keeps `currency: "usd"` and `priceUsd` (its own price, assetPrice.js).
  */
 
 import { SPEC_BY_ID } from '../../utils/priceBook.js';
 import { toPriceId } from '../../utils/priceIds.js';
 import { CATEGORY_MAP } from '../../config/categories.config.js';
+import { currencyOf } from '../../utils/priceBook.js';
 
 const fa = (n, digits = 0) => Number(n).toLocaleString('fa-IR', { maximumFractionDigits: digits });
 
@@ -16,6 +18,8 @@ const fa = (n, digits = 0) => Number(n).toLocaleString('fa-IR', { maximumFractio
 function describe(item) {
   const p = item.params || {};
   if (p.usdCross !== undefined) return `بر مبنای دلار (${fa(p.usdCross, 4)} $)`;
+  // A dollar-priced asset shows its dollar price; the line under it is the toman equivalent
+  if (currencyOf(item) === 'usd') return `≈ ${fa(item.price)} تومان`;
   if (p.usd !== undefined) return `${fa(p.usd, 2)} دلار`;
   if (p.derived === 'intrinsic') return 'ارزش ذاتی (محاسبه از انس و دلار)';
   if (p.symbol) return p.sourceName ? `نماد: ${p.symbol} • ${p.sourceName}` : `نماد: ${p.symbol}`;
@@ -40,6 +44,8 @@ export function toAsset(item) {
   ].filter(Boolean))];
   return {
     ...item,
+    currency: currencyOf(item),
+    priceUsd: currencyOf(item) === 'usd' ? Number(item.priceUsd) || null : null,
     code: spec?.code || '',
     symbol,
     flag: spec?.flag || '',

@@ -8,6 +8,7 @@ import { SILVER_SPECS } from './silver.spec.js';
 import { FOREX_SPECS } from './forex.spec.js';
 import { CRYPTO_SPECS } from './crypto.spec.js';
 import { CASH_SPECS } from './cash.spec.js';
+import { COMMODITY_SPECS } from './commodity.spec.js';
 // ── Master Canonical Asset Registry ──────────────────────────────────────────
 export const CANONICAL_ASSET_REGISTRY = {};
 
@@ -49,6 +50,12 @@ FOREX_SPECS.forEach(item => {
 
 // Register Crypto
 Object.values(CRYPTO_SPECS).forEach(item => {
+  CANONICAL_ASSET_REGISTRY[item.id] = item;
+  CANONICAL_ASSET_REGISTRY[item.id.toLowerCase()] = item;
+});
+
+// Register world commodities (priced in dollars)
+Object.values(COMMODITY_SPECS).forEach(item => {
   CANONICAL_ASSET_REGISTRY[item.id] = item;
   CANONICAL_ASSET_REGISTRY[item.id.toLowerCase()] = item;
 });
