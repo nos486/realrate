@@ -116,6 +116,48 @@ export const putVaultRecord = async (kind, id, payload, { replacePlain = false, 
   }
 };
 
+/** Records stored in one request at most (the server's VAULT_BATCH_MAX) */
+export const VAULT_BATCH_MAX = 100;
+
+/**
+ * Store several records of one kind in one request, all or none (up to VAULT_BATCH_MAX) — e.g.
+ * expenses moved to a project. Without a connection each is kept in the device's copy and queued
+ * on its own, like putVaultRecord.
+ * @param {string} kind
+ * @param {Array<{ id: string, payload: string, recordDate?: string, parentId?: string }>} records
+ */
+export const putVaultRecords = async (kind, records, options = {}) => {
+  const epoch = vaultEpoch() || undefined;
+  const items = records.map(({ id, payload, recordDate = '', parentId = '' }) => ({ id, payload, recordDate, parentId }));
+  const send = () => httpClient.put(`/api/vault/records/${seg(kind)}`, { records: items, vaultEpoch: epoch }, options);
+  if (!offline.isOfflineActive()) {
+    return send().catch((err) => {
+      watchVaultGone(err);
+      throw err;
+    });
+  }
+  try {
+    const res = await send();
+    offline.reportOnline();
+    const stored = new Map((res?.records || []).map((r) => [r.id, r]));
+    for (const { id, payload, recordDate, parentId } of items) {
+      await offline.keepRecord(kind, id, { payload, recordDate, parentId, updatedAt: stored.get(id)?.updatedAt });
+    }
+    return res;
+  } catch (err) {
+    if (!offline.isNetworkError(err)) {
+      watchVaultGone(err);
+      throw err;
+    }
+    offline.reportOffline();
+    for (const { id, payload, recordDate, parentId } of items) {
+      await offline.keepRecord(kind, id, { payload, recordDate, parentId });
+      await offline.queueChange({ op: 'put', kind, id, body: { payload, replacePlain: false, recordDate, parentId, vaultEpoch: epoch } });
+    }
+    return { success: true, queued: true, records: items.map((r) => ({ ...r, kind })) };
+  }
+};
+
 export const deleteVaultRecord = async (kind, id, options) => {
   const path = `/api/vault/records/${seg(kind)}/${seg(id)}`;
   if (!offline.isOfflineActive()) return httpClient.delete(path, options);

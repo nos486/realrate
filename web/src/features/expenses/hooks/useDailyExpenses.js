@@ -29,6 +29,8 @@ export function useDailyExpenses(month, { enabled = true, year = false } = {}) {
   const { status: vaultStatus, epoch: vaultEpoch } = useVault();
   const vaultLocked = vaultStatus === 'locked';
   const [dailyGroup, setDailyGroup] = useState(null);
+  // The other sections (projects), read in the same request: where expenses can be moved
+  const [projects, setProjects] = useState([]);
   const [expenses, setExpenses] = useState([]); // the year and the month before it
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -65,6 +67,7 @@ export function useDailyExpenses(month, { enabled = true, year = false } = {}) {
       const res = group ? await api.getExpenses({ parent: group.id, from: loadWindow.from, to: loadWindow.to }) : { expenses: [] };
       if (!isLatest()) return;
       setDailyGroup(group);
+      setProjects(groups.filter((g) => g.type !== 'daily'));
       setExpenses(res.expenses);
     } catch (err) {
       if (isLatest()) setError(err.message || 'خطا در بارگذاری هزینه‌های روزمره');
@@ -127,6 +130,30 @@ export function useDailyExpenses(month, { enabled = true, year = false } = {}) {
     }
   }, []);
 
+  /**
+   * Move expenses into a project (an existing one by id, or a new one `{ name }`): they leave the
+   * everyday expenses — one request per 100 expenses, plus one for a new project
+   * @returns {Promise<{ group: object, moved: number }>}
+   */
+  const moveToProject = useCallback(async (ids, target) => {
+    setSubmitting(true);
+    setError(null);
+    try {
+      const group = typeof target === 'string'
+        ? projects.find((g) => g.id === target)
+        : (await api.saveExpenseGroup({ name: target?.name, type: 'project' })).group;
+      if (!group) throw new Error('پروژه پیدا نشد.');
+      if (typeof target !== 'string') setProjects((prev) => [...prev, group]);
+      const wanted = new Set(ids);
+      const moved = await api.moveExpenses(expensesRef.current.filter((e) => wanted.has(e.id)), group.id);
+      const gone = new Set(moved.map((e) => e.id));
+      setExpenses((prev) => prev.filter((e) => !gone.has(e.id)));
+      return { group, moved: moved.length };
+    } finally {
+      setSubmitting(false);
+    }
+  }, [projects]);
+
   const monthExpenses = useMemo(() => expenses.filter((e) => inRange(e, range)), [expenses, range]);
   const previousExpenses = useMemo(() => expenses.filter((e) => inRange(e, prevRange)), [expenses, prevRange]);
 
@@ -136,6 +163,7 @@ export function useDailyExpenses(month, { enabled = true, year = false } = {}) {
     yearExpenses: expenses,
     range,
     budgets: dailyGroup?.budgets || {},
+    projects,
     vaultLocked,
     loading,
     submitting,
@@ -146,5 +174,6 @@ export function useDailyExpenses(month, { enabled = true, year = false } = {}) {
     saveExpense,
     saveBudgets,
     deleteExpense,
+    moveToProject,
   };
 }

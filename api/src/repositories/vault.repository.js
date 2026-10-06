@@ -288,33 +288,24 @@ function deletePlainStatements(env, userId, kind, id) {
   return [];
 }
 
+/** Records stored in one request at most (dbPutVaultRecords) */
+export const VAULT_BATCH_MAX = 100;
+
 /**
- * Create or replace an encrypted record. With `replacePlain`, the plaintext record with the same
- * id is deleted in the same batch (used when encrypting existing data).
- * Optional `reminder` upserts or removes the minimal plaintext reminder row in the same batch.
+ * One record checked, and the statements that store it (with its reminder and, with
+ * `replacePlain`, the delete of its plaintext copy)
  */
-export async function dbPutVaultRecord(env, userId, kind, id, { payload, replacePlain = false, recordDate = "", parentId = "", vaultEpoch = "", reminder } = {}) {
-  assertKind(kind);
+function putRecordStatements(env, userId, kind, id, { payload, replacePlain = false, recordDate = "", parentId = "", reminder } = {}, now) {
   assertRecordId(id);
   assertPayload(payload);
   const date = parseRecordDate(recordDate);
   const parent = parseParentId(parentId);
   if (PORTFOLIO_ITEM_KINDS.includes(kind) && !parent) throw AppError.badRequest("پورتفوی این مورد مشخص نشده است.");
   if (kind === "expense" && !parent) throw AppError.badRequest("بخش این هزینه مشخص نشده است.");
-
-  if (reminder !== undefined) {
-    if (!REMINDER_KINDS.includes(kind)) {
-      throw AppError.badRequest("ثبت یادآوری برای این نوع رکورد پشتیبانی نمی‌شود.");
-    }
+  if (reminder !== undefined && !REMINDER_KINDS.includes(kind)) {
+    throw AppError.badRequest("ثبت یادآوری برای این نوع رکورد پشتیبانی نمی‌شود.");
   }
 
-  const vault = await requireVault(env, userId);
-  // Encrypted with the key of a vault since reset (a device that was offline): unreadable now
-  if (vaultEpoch && vaultEpoch !== vault.createdAt) {
-    throw new AppError("رمزنگاری حساب از نو راه‌اندازی شده است؛ این تغییر با کلید قبلی بود و ذخیره نشد.", 409, "VAULT_CHANGED");
-  }
-
-  const now = new Date().toISOString();
   const statements = [
     // Stored again after a delete: no longer deleted
     env.DB.prepare(`DELETE FROM vault_tombstones WHERE user_id = ? AND kind = ? AND id = ?`).bind(userId, kind, id),
@@ -352,8 +343,55 @@ export async function dbPutVaultRecord(env, userId, kind, id, { payload, replace
   }
 
   if (replacePlain) statements.push(...deletePlainStatements(env, userId, kind, id));
+  return { statements, record: { id, kind, payload, recordDate: date, parentId: parent, updatedAt: now } };
+}
+
+/** The user's vault, refusing a change encrypted with the key of a vault since reset */
+async function requireCurrentVault(env, userId, vaultEpoch) {
+  const vault = await requireVault(env, userId);
+  // Encrypted with the key of a vault since reset (a device that was offline): unreadable now
+  if (vaultEpoch && vaultEpoch !== vault.createdAt) {
+    throw new AppError("رمزنگاری حساب از نو راه‌اندازی شده است؛ این تغییر با کلید قبلی بود و ذخیره نشد.", 409, "VAULT_CHANGED");
+  }
+  return vault;
+}
+
+/**
+ * Create or replace an encrypted record. With `replacePlain`, the plaintext record with the same
+ * id is deleted in the same batch (used when encrypting existing data).
+ * Optional `reminder` upserts or removes the minimal plaintext reminder row in the same batch.
+ */
+export async function dbPutVaultRecord(env, userId, kind, id, { vaultEpoch = "", ...input } = {}) {
+  assertKind(kind);
+  const now = new Date().toISOString();
+  const { statements, record } = putRecordStatements(env, userId, kind, id, input, now);
+  await requireCurrentVault(env, userId, vaultEpoch);
   await env.DB.batch(statements);
-  return { id, kind, payload, recordDate: date, parentId: parent, updatedAt: now };
+  return record;
+}
+
+/**
+ * Create or replace several records of one kind at once (e.g. expenses moved to another
+ * section): every one is checked first, then all are stored in one batch — all or none, one read
+ * of the vault and one round trip however many there are
+ * @param {Array<{ id: string, payload: string, recordDate?: string, parentId?: string, reminder?: object|null }>} records
+ */
+export async function dbPutVaultRecords(env, userId, kind, records, { vaultEpoch = "" } = {}) {
+  assertKind(kind);
+  if (!Array.isArray(records) || records.length === 0) throw AppError.badRequest("موردی برای ذخیره فرستاده نشده است.");
+  if (records.length > VAULT_BATCH_MAX) throw AppError.badRequest(`در هر درخواست حداکثر ${VAULT_BATCH_MAX} مورد ذخیره می‌شود.`);
+  const ids = new Set();
+  const now = new Date().toISOString();
+  const built = records.map((r) => {
+    const id = r?.id;
+    if (ids.has(id)) throw AppError.badRequest("یک مورد دو بار فرستاده شده است.");
+    ids.add(id);
+    // Encrypting plaintext data stays one record at a time (dbPutVaultRecord)
+    return putRecordStatements(env, userId, kind, id, { ...r, replacePlain: false }, now);
+  });
+  await requireCurrentVault(env, userId, vaultEpoch);
+  await env.DB.batch(built.flatMap((b) => b.statements));
+  return built.map((b) => b.record);
 }
 
 export async function dbDeleteVaultRecord(env, userId, kind, id) {

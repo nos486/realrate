@@ -20,8 +20,8 @@ import {
   DAILY_GROUP_NAME,
 } from '../../utils/expenseDocument.js';
 import { sameLink } from '../../utils/portfolioLink.js';
-import { listVaultRecords, deleteVaultRecord } from './vaultApi.js';
-import { putRecord } from './vaultRecordMeta.js';
+import { listVaultRecords, deleteVaultRecord, putVaultRecords, VAULT_BATCH_MAX } from './vaultApi.js';
+import { putRecord, recordDateOf } from './vaultRecordMeta.js';
 import { encryptVaultRecord, decryptVaultRecord } from './vaultStore.js';
 
 const GROUP_KIND = 'expense_group';
@@ -141,6 +141,32 @@ export async function saveExpense(input, existing = null) {
     await (await funds()).deleteLinkedTransaction(l.before).catch(() => {});
   }
   return { success: true, expense };
+}
+
+/**
+ * Move expenses to another section (e.g. everyday expenses into a project), each re-encrypted
+ * with its new section and all stored together: one request per VAULT_BATCH_MAX expenses, all or
+ * none in each. What they are paid from or put into doesn't depend on the section and stays.
+ * @param {object[]} expenses their stored copies
+ * @param {string} groupId the section they move to
+ * @returns {Promise<object[]>} the moved expenses
+ */
+export async function moveExpenses(expenses, groupId) {
+  const now = new Date().toISOString();
+  const moved = expenses
+    .filter((e) => e.groupId !== groupId)
+    .map((e) => ({ ...e, ...checked(validateExpense({ ...e, groupId })), updatedAt: now }));
+  for (let i = 0; i < moved.length; i += VAULT_BATCH_MAX) {
+    const chunk = moved.slice(i, i + VAULT_BATCH_MAX);
+    const records = await Promise.all(chunk.map(async (e) => ({
+      id: e.id,
+      payload: await encryptVaultRecord(e),
+      recordDate: recordDateOf(EXPENSE_KIND, e),
+      parentId: groupId,
+    })));
+    await putVaultRecords(EXPENSE_KIND, records);
+  }
+  return moved;
 }
 
 /**

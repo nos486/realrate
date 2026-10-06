@@ -190,18 +190,17 @@
   }
 }
 
-/* News page */
+/* News page: as wide as the other pages */
 .news-page {
   display: flex;
   flex-direction: column;
   gap: 14px;
-  max-width: 1240px;
-  margin: 0 auto;
   width: 100%;
 }
 
-/* Phone: the analysis, today's top, the list. Large screens: the list on the right, today's top
-   on the left (sticky) */
+/* Phone: the analysis, today's top, the list. Large screens: two columns — the list on the
+   right, and on the left a wide column with the day's analysis (it matters; it stays wide and in
+   view at the top) and today's top under it */
 .news-layout {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
@@ -223,14 +222,16 @@
 
 @media (min-width: 1024px) {
   .news-layout {
-    grid-template-columns: minmax(0, 1fr) 340px;
-    grid-template-areas: "analysis aside" "main aside";
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    grid-template-rows: auto 1fr;
+    grid-template-areas: "main analysis" "main aside";
+    gap: 18px 22px;
   }
+}
 
-  .news-layout-aside {
-    position: sticky;
-    top: 90px;
-    align-self: start;
+@media (min-width: 1440px) {
+  .news-layout {
+    grid-template-columns: minmax(0, 7fr) minmax(0, 6fr);
   }
 }
 

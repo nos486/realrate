@@ -1,16 +1,15 @@
 /**
- * DailyExpensesView.jsx — Everyday expenses, one Shamsi month or one Shamsi year at a time (the
- * same layout as the incomes page: shared/flow)
+ * DailyExpensesView.jsx — Everyday expenses, one Shamsi month at a time (the same layout as the
+ * incomes page: shared/flow). The year month by month is on the reports page (features/reports).
  *
- * - «ماهانه / سالانه» and the month or year shown; the year (and the month before it) is loaded
- *   once, so switching months inside it fetches nothing
- * - «ماهانه»: the month's total, the change from the same days of last month, the daily average
- *   and the largest category; a donut of the categories; the monthly budgets (total and per category) as
+ * - The month shown; only it and the month before are loaded
+ * - The month's total, the change from the same days of last month, the daily average and the
+ *   largest category; a donut of the categories; the monthly budgets (total and per category) as
  *   progress bars; and, with accounts, how much was paid from each
- * - «سالانه»: the year's total, monthly average, costliest month and largest category; the year
- *   month by month with the change from the month before, and a month-by-month table
  * - The month's expenses, filterable by category and account, with the form to add and edit
  *   them and a CSV export of the month
+ * - Expenses can be picked (one by one, the page's rows, or every one listed) and moved into a
+ *   project (MoveToProjectModal): they leave the everyday expenses
  * - Categories left out of the totals («مدیریت نقدینگی», «سرمایه‌گذاری» by default) are listed
  *   with a badge (or hidden with «خارج از جمع») but not counted in the total, the comparison, the
  *   budgets or the donut; their own sums show in «خارج از جمع»
@@ -22,7 +21,7 @@ import { useOptionalLoans } from '../../loans/context/LoansContext.jsx';
 import { expenseCsvHeaders, expenseCsvRow } from '../utils/expenseCsv.js';
 import React, { useMemo, useState } from 'react';
 import { useUsdAt } from '../../market/dailyHistory.js';
-import { Plus, Coins, Tags, Target, HandCoins, Eye, EyeOff } from 'lucide-react';
+import { Plus, Coins, Tags, Target, HandCoins, Eye, EyeOff, FolderInput, X } from 'lucide-react';
 import { AlertBanner, Button, EmptyState, GenericCsvExportButton, IconButton, Pagination, SearchBar, SplitPageLayout } from '../../../shared/ui/index.js';
 import DonutChart from '../../../shared/ui/DonutChart.jsx';
 import { useFeedback } from '../../../shared/ui/FeedbackProvider.jsx';
@@ -35,22 +34,10 @@ import {
   summarizeByAccount,
   summarizeReceivables,
   summarizeDollarValue,
-  expenseInToman,
 } from '../../../utils/expenseDocument.js';
 import PeriodSwitcher from '../../../shared/flow/PeriodSwitcher.jsx';
-import YearFlowChart from '../../../shared/flow/YearFlowChart.jsx';
-import YearMonthTable from '../../../shared/flow/YearMonthTable.jsx';
-import { FlowMonthCards, FlowYearCards, CategoryPills, ExcludedBox } from '../../../shared/flow/FlowCards.jsx';
-import {
-  buildYearSeries,
-  formatShamsiMonth,
-  formatShamsiYear,
-  monthIndex,
-  monthProgress,
-  shamsiMonthOf,
-  shamsiYearRange,
-  summarizeYear,
-} from '../../../shared/flow/flowYear.js';
+import { FlowMonthCards, CategoryPills, ExcludedBox } from '../../../shared/flow/FlowCards.jsx';
+import { formatShamsiMonth, monthIndex, monthProgress, shamsiMonthOf } from '../../../shared/flow/flowYear.js';
 import { useDemo } from '../../demo/index.js';
 import { useDailyExpenses } from '../hooks/useDailyExpenses.js';
 import { useAccounts } from '../../accounts/hooks/useAccounts.js';
@@ -63,6 +50,7 @@ import BudgetForm from './BudgetForm.jsx';
 import BudgetProgress from './BudgetProgress.jsx';
 import ReimbursementsModal from './ReimbursementsModal.jsx';
 import OpenSharesModal from './OpenSharesModal.jsx';
+import MoveToProjectModal from './MoveToProjectModal.jsx';
 import { useCategories } from '../../../shared/categories/useCategories.js';
 import { splitCounted } from '../../../shared/categories/categoryStore.js';
 import { useShowExcluded } from '../../../shared/categories/useShowExcluded.js';
@@ -74,7 +62,6 @@ const EXPENSES_PAGE_SIZE = 20;
 
 const MASK = '****';
 const labelOf = (category) => getExpenseCategory(category).label;
-const inRange = (e, { from, to }) => e.date >= from && e.date <= to;
 
 export default function DailyExpensesView({ usdToman = 0, hideValues = false }) {
   const { readOnly } = useDemo();
@@ -84,10 +71,9 @@ export default function DailyExpensesView({ usdToman = 0, hideValues = false }) 
   const exclusionKey = categories.filter((c) => c.excluded).map((c) => c.value).join(',');
   const [showExcluded, setShowExcluded] = useShowExcluded('expense');
   const [managingCategories, setManagingCategories] = useState(false);
-  const { confirm } = useFeedback();
+  const { confirm, toast } = useFeedback();
   const today = todayIso();
   const thisMonth = useMemo(() => shamsiMonthOf(today), [today]);
-  const [mode, setMode] = useState('month');
   const [month, setMonth] = useState(thisMonth);
   const [categoryFilter, setCategoryFilter] = useState('all');
   const [accountFilter, setAccountFilter] = useState('all');
@@ -98,14 +84,17 @@ export default function DailyExpensesView({ usdToman = 0, hideValues = false }) 
   const [budgetOpen, setBudgetOpen] = useState(false);
   const [reimburse, setReimburse] = useState(null); // a shared expense whose «دریافتی‌ها» are open
   const [sharesOpen, setSharesOpen] = useState(false);
+  // Picked expenses (ids, kept across the list's pages) and the ones being moved to a project
+  const [selected, setSelected] = useState(() => new Set());
+  const [moving, setMoving] = useState(null); // null | string[]
   // The app's "+" button: /expenses?add=expense (this view shows only once the vault is open)
   useQuickAddParam('expense', () => setForm({ expense: null }), !readOnly);
   const {
-    expenses: monthExpenses, previousExpenses, yearExpenses, budgets, loading, submitting, deletingId, error, clearError, fetchMonth,
-    saveExpense, saveBudgets, deleteExpense,
-  } = useDailyExpenses(month, { year: true });
+    expenses, previousExpenses, budgets, projects, loading, submitting, deletingId, error, clearError, fetchMonth,
+    saveExpense, saveBudgets, deleteExpense, moveToProject,
+  } = useDailyExpenses(month);
   // The dollar's rate on each expense's day, from the price history (each one in dollars)
-  const usdAt = useUsdAt([monthExpenses, yearExpenses].some((list) => (list || []).length > 0));
+  const usdAt = useUsdAt(expenses.length > 0);
   const rates = useMemo(() => ({ usdToman, usdAt }), [usdToman, usdAt]);
   const { accounts } = useAccounts();
   const accountById = useMemo(() => new Map(accounts.map((a) => [a.id, a])), [accounts]);
@@ -113,16 +102,9 @@ export default function DailyExpensesView({ usdToman = 0, hideValues = false }) 
   const loans = useOptionalLoans();
   const loanById = useMemo(() => new Map(loans.map((l) => [l.id, l])), [loans]);
 
-  const yearly = mode === 'year';
   const progress = useMemo(() => monthProgress(month, today), [month, today]);
   const isThisMonth = progress.current;
   const daysElapsed = progress.days;
-  const yearRange = useMemo(() => shamsiYearRange(month.jy), [month.jy]);
-  // What the page shows: the month, or the whole year
-  const expenses = useMemo(
-    () => (yearly ? yearExpenses.filter((e) => inRange(e, yearRange)) : monthExpenses),
-    [yearly, yearExpenses, yearRange, monthExpenses],
-  );
   // Spending only: the categories left out of the totals are summed on their own
   const split = useMemo(
     () => splitCounted('expense', expenses),
@@ -143,14 +125,6 @@ export default function DailyExpensesView({ usdToman = 0, hideValues = false }) 
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [previousExpenses, rates, progress.cutoff, exclusionKey],
   );
-  // The year so far, month by month (spending only)
-  const series = useMemo(() => {
-    const points = splitCounted('expense', yearExpenses).counted.map((e) => ({ date: e.date, amount: expenseInToman(e, usdToman, usdAt) || 0, category: e.category }));
-    return buildYearSeries(points, month.jy, { throughMonth: month.jy === thisMonth.jy ? thisMonth.jm : 12 });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [yearExpenses, rates, month.jy, thisMonth, exclusionKey]);
-  const yearSummary = useMemo(() => summarizeYear(series), [series]);
-  const categoryOrder = useMemo(() => byCategory.map((c) => c.category), [byCategory]);
   const top = byCategory[0] ? { label: labelOf(byCategory[0].category), total: byCategory[0].totalToman } : null;
   const money = (v) => (hideValues ? MASK : formatAmount(v));
 
@@ -182,7 +156,7 @@ export default function DailyExpensesView({ usdToman = 0, hideValues = false }) 
     );
   }, [shown, categoryFilter, accountFilter, query, order, accountById]);
 
-  const listKey = `${query}|${monthIndex(month)}|${mode}|${categoryFilter}|${accountFilter}|${order}|${showExcluded}`;
+  const listKey = `${query}|${monthIndex(month)}|${categoryFilter}|${accountFilter}|${order}|${showExcluded}`;
   const lastPage = Math.max(1, Math.ceil(listed.length / EXPENSES_PAGE_SIZE));
   const page = Math.min(paging.key === listKey ? paging.page : 1, lastPage);
   const setPage = (next) => setPaging({ key: listKey, page: next });
@@ -197,11 +171,38 @@ export default function DailyExpensesView({ usdToman = 0, hideValues = false }) 
     setCategoryFilter('all');
     setAccountFilter('all');
     setSearchQuery('');
+    setSelected(new Set());
     setMonth(next);
   };
-  const openMonth = (jm) => {
-    changeMonth({ jy: month.jy, jm });
-    setMode('month');
+
+  // Picking: one, the page's rows, or every expense listed; only the month's own count
+  const picked = useMemo(() => expenses.filter((e) => selected.has(e.id)), [expenses, selected]);
+  const pickedTotal = useMemo(() => summarizeExpenses(picked, rates).totalToman, [picked, rates]);
+  const toggle = (e) => setSelected((prev) => {
+    const next = new Set(prev);
+    if (next.has(e.id)) next.delete(e.id);
+    else next.add(e.id);
+    return next;
+  });
+  const togglePage = (checked) => setSelected((prev) => {
+    const next = new Set(prev);
+    for (const e of listRows) {
+      if (checked) next.add(e.id);
+      else next.delete(e.id);
+    }
+    return next;
+  });
+  const selection = readOnly ? null : { selected, onToggle: toggle, onToggleAll: togglePage, label: (e) => `انتخاب «${e.title}»` };
+  const movingTotal = useMemo(() => {
+    if (!moving) return 0;
+    const ids = new Set(moving);
+    return summarizeExpenses(expenses.filter((e) => ids.has(e.id)), rates).totalToman;
+  }, [moving, expenses, rates]);
+
+  const handleMove = async (target) => {
+    const { group, moved } = await moveToProject(moving, target);
+    setSelected((prev) => new Set([...prev].filter((id) => !moving.includes(id))));
+    toast.success(`${moved.toLocaleString('fa-IR')} هزینه به پروژه‌ی «${group.name}» منتقل شد.`);
   };
 
   const handleDelete = async (expense) => {
@@ -302,19 +303,9 @@ export default function DailyExpensesView({ usdToman = 0, hideValues = false }) 
     </>
   );
 
-  const yearSidebar = (
-    <>
-      <FlowYearCards kind="expense" yearLabel={formatShamsiYear(month.jy)} summary={yearSummary} topCategory={top} hideValues={hideValues} dollar={dollar} />
-      {donutItems.length > 0 && (
-        <DonutChart title="تفکیک دسته‌ها" items={donutItems} centerLabel="جمع سال" masked={hideValues} />
-      )}
-      <ExcludedBox kind="expense" items={excludedByCategory.map((c) => ({ category: c.category, total: c.totalToman }))} metaOf={getExpenseCategory} hideValues={hideValues} />
-    </>
-  );
-
   return (
     <>
-      <PeriodSwitcher mode={mode} month={month} thisMonth={thisMonth} onModeChange={setMode} onMonthChange={changeMonth} />
+      <PeriodSwitcher month={month} thisMonth={thisMonth} onMonthChange={changeMonth} />
 
       {error && (
         <AlertBanner
@@ -326,13 +317,7 @@ export default function DailyExpensesView({ usdToman = 0, hideValues = false }) 
       )}
 
       <div className="expenses-daily">
-        <SplitPageLayout sidebar={yearly ? yearSidebar : monthSidebar}>
-          {yearly ? (
-            <div className="flow-year-main">
-              <YearFlowChart series={series} kind="expense" labelOf={labelOf} categoryOrder={categoryOrder} onOpenMonth={openMonth} hideValues={hideValues} large />
-              <YearMonthTable series={series} kind="expense" onOpenMonth={openMonth} hideValues={hideValues} />
-            </div>
-          ) : (
+        <SplitPageLayout sidebar={monthSidebar}>
           <div className="portfolio-table-card">
             <div className="portfolio-table-header">
               <div className="table-title">
@@ -434,6 +419,23 @@ export default function DailyExpensesView({ usdToman = 0, hideValues = false }) 
                 />
               ) : (
                 <>
+                  {picked.length > 0 && (
+                    <div className="expense-selection-bar" role="region" aria-label="هزینه‌های انتخاب‌شده">
+                      <span className="expense-selection-count">
+                        <strong>{picked.length.toLocaleString('fa-IR')}</strong> هزینه انتخاب شد
+                        {pickedTotal > 0 && <> · {money(pickedTotal)} تومان</>}
+                      </span>
+                      {picked.length < listed.length && (
+                        <Button size="sm" variant="secondary" onClick={() => setSelected(new Set(listed.map((e) => e.id)))}>
+                          انتخاب همه‌ی {listed.length.toLocaleString('fa-IR')} مورد
+                        </Button>
+                      )}
+                      <Button size="sm" icon={<FolderInput size={15} />} onClick={() => setMoving(picked.map((e) => e.id))}>
+                        انتقال به پروژه
+                      </Button>
+                      <IconButton icon={<X size={15} />} label="لغو انتخاب" onClick={() => setSelected(new Set())} />
+                    </div>
+                  )}
                   <ExpensesTable
                     expenses={listRows}
                     usdToman={usdToman}
@@ -448,6 +450,8 @@ export default function DailyExpensesView({ usdToman = 0, hideValues = false }) 
                     accounts={accounts.length ? accounts : null}
                     sortState={{ key: 'date', dir: order }}
                     onSortChange={() => setOrder(order === 'desc' ? 'asc' : 'desc')}
+                    selection={selection}
+                    onMove={readOnly ? null : (e) => setMoving([e.id])}
                   />
                   <Pagination
                     page={page}
@@ -461,7 +465,6 @@ export default function DailyExpensesView({ usdToman = 0, hideValues = false }) 
               )}
             </div>
           </div>
-          )}
         </SplitPageLayout>
       </div>
 
@@ -494,6 +497,17 @@ export default function DailyExpensesView({ usdToman = 0, hideValues = false }) 
           readOnly={readOnly}
           onChanged={fetchMonth}
           onClose={() => setSharesOpen(false)}
+        />
+      )}
+      {moving && (
+        <MoveToProjectModal
+          count={moving.length}
+          totalToman={movingTotal}
+          projects={projects}
+          hideValues={hideValues}
+          onSubmit={handleMove}
+          onClose={() => setMoving(null)}
+          submitting={submitting}
         />
       )}
       {managingCategories && <CategoryManagerModal kind="expense" onClose={() => setManagingCategories(false)} />}

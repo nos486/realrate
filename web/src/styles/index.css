@@ -22,6 +22,7 @@
  *   home.css            — Customizable home page (sections, edit mode, asset picker)
  *   alerts.css          — The alert center (bell, list) of shared/alerts
  *   incomes.css         — Incomes page, summary cards, category/monthly report
+ *   reports.css         — Reports page, month bar chart, picking rows, move to project
  *   cheques.css         — Cheques page, status badges, tracking timeline
  *   expenses.css        — Expenses page, section chips
  *   app-settings.css    — Settings of the Android app
@@ -64,4 +65,5 @@
 @import './auth.css';
 @import './demo.css';
 @import './news.css';
+@import './reports.css';
 @import './app-shell.css';

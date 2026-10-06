@@ -1,14 +1,11 @@
 /**
- * IncomesPage.jsx — Incomes, one Shamsi month or one Shamsi year at a time (the same layout as the
- * everyday expenses: shared/flow)
+ * IncomesPage.jsx — Incomes, one Shamsi month at a time (the same layout as the everyday expenses:
+ * shared/flow). The year month by month is on the reports page (features/reports).
  *
- * - «ماهانه»: the month's total, the change from the same days of the month before, the daily
+ * - The month's total, the change from the same days of the month before, the daily
  *   average and the largest category; the chart of the year so far (the month highlighted, a tap
  *   opens another month); the month's categories as a donut; the month's incomes, filterable by
  *   category, with search, CSV export / import and the form
- * - «سالانه»: the year's total, monthly average, best month and largest category; the year's
- *   chart month by month with the change from the month before; a month-by-month table (a row
- *   opens that month); the year's categories as a donut
  * - Categories left out of the totals («مدیریت نقدینگی» by default) are listed with a badge (or
  *   hidden with «خارج از جمع») but not counted; their own sums show in «خارج از جمع»
  * - One download per year (the year and the month before it); amounts and titles are encrypted,
@@ -42,25 +39,21 @@ import { useQuickAddParam } from '../../../shared/hooks/useQuickAddParam.js';
 import { todayIso } from '../../../shared/utils/dates.js';
 import PeriodSwitcher from '../../../shared/flow/PeriodSwitcher.jsx';
 import YearFlowChart from '../../../shared/flow/YearFlowChart.jsx';
-import YearMonthTable from '../../../shared/flow/YearMonthTable.jsx';
-import { FlowMonthCards, FlowYearCards, CategoryPills, ExcludedBox } from '../../../shared/flow/FlowCards.jsx';
+import { FlowMonthCards, CategoryPills, ExcludedBox } from '../../../shared/flow/FlowCards.jsx';
 import { formatAmountMasked } from '../../../shared/flow/flowFormat.js';
 import {
   buildYearSeries,
   flowWindow,
   formatShamsiMonth,
-  formatShamsiYear,
   monthIndex,
   monthProgress,
   shamsiMonthOf,
-  shamsiYearRange,
-  summarizeYear,
 } from '../../../shared/flow/flowYear.js';
 
 const HEADER = {
   icon: <Wallet size={24} />,
   title: 'درآمدها',
-  subtitle: 'ورودی‌ها ماه‌به‌ماه و سال‌به‌سال، به تفکیک منبع',
+  subtitle: 'ورودی‌ها ماه‌به‌ماه، به تفکیک منبع',
 };
 
 const inRange = (income, { from, to }) => income.incomeDate >= from && income.incomeDate <= to;
@@ -93,7 +86,6 @@ export default function IncomesPage() {
   const hideValues = usePrivacyMode();
   const today = todayIso();
   const thisMonth = useMemo(() => shamsiMonthOf(today), [today]);
-  const [mode, setMode] = useState('month');
   const [month, setMonth] = useState(thisMonth);
   const [categoryFilter, setCategoryFilter] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
@@ -123,13 +115,11 @@ export default function IncomesPage() {
   const usdToman = Number(pricing?.getAssetPrice?.('usd')) || 0;
   const usdAt = useUsdAt(loaded.length > 0);
 
-  const yearly = mode === 'year';
   const progress = useMemo(() => monthProgress(month, today), [month, today]);
   const monthLabel = formatShamsiMonth(month.jy, month.jm);
-  const yearLabel = formatShamsiYear(month.jy);
 
-  // What the page shows: the month, or the year; the totals count only what is income
-  const scopeRange = yearly ? shamsiYearRange(month.jy) : progress.range;
+  // What the page shows: the month; the totals count only what is income
+  const scopeRange = progress.range;
   const scoped = useMemo(() => loaded.filter((i) => inRange(i, scopeRange)), [loaded, scopeRange.from, scopeRange.to]); // eslint-disable-line react-hooks/exhaustive-deps
   const split = useMemo(
     () => splitCounted('income', scoped),
@@ -155,7 +145,6 @@ export default function IncomesPage() {
     return buildYearSeries(points, month.jy, { throughMonth: month.jy === thisMonth.jy ? thisMonth.jm : 12 });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loaded, month.jy, thisMonth, exclusionKey]);
-  const yearSummary = useMemo(() => summarizeYear(series), [series]);
   const categoryOrder = useMemo(() => categoryTotals.map((c) => c.category), [categoryTotals]);
 
   // The list: the month, without the excluded categories unless shown, filtered, searched, sorted
@@ -174,7 +163,7 @@ export default function IncomesPage() {
       dir * (String(a.incomeDate).localeCompare(String(b.incomeDate)) || String(a.createdAt || '').localeCompare(String(b.createdAt || '')))
     );
   }, [shown, categoryFilter, query, order]);
-  const listKey = `${query}|${monthIndex(month)}|${mode}|${categoryFilter}|${order}|${showExcluded}`;
+  const listKey = `${query}|${monthIndex(month)}|${categoryFilter}|${order}|${showExcluded}`;
   const lastPage = Math.max(1, Math.ceil(listed.length / pageSize));
   const page = Math.min(paging.key === listKey ? paging.page : 1, lastPage);
   const setPage = (next) => setPaging({ key: listKey, page: next });
@@ -191,10 +180,7 @@ export default function IncomesPage() {
     setSearchQuery('');
     setMonth(next);
   };
-  const openMonth = (jm) => {
-    changeMonth({ jy: month.jy, jm });
-    setMode('month');
-  };
+  const openMonth = (jm) => changeMonth({ jy: month.jy, jm });
 
   const openForm = (income = null) => {
     setEditingIncome(income);
@@ -250,21 +236,6 @@ export default function IncomesPage() {
       />
       <YearFlowChart series={series} kind="income" labelOf={labelOf} categoryOrder={categoryOrder} selectedMonth={month.jm} onOpenMonth={openMonth} hideValues={hideValues} />
       {donutItems.length > 0 && <DonutChart title="تفکیک دسته‌ها" items={donutItems} centerLabel="جمع ماه" masked={hideValues} />}
-      <ExcludedBox kind="income" items={excludedTotals} metaOf={getIncomeCategory} hideValues={hideValues} />
-    </>
-  );
-
-  const yearSidebar = (
-    <>
-      <FlowYearCards
-        kind="income"
-        yearLabel={yearLabel}
-        summary={yearSummary}
-        topCategory={top}
-        hideValues={hideValues}
-        dollar={dollar}
-      />
-      {donutItems.length > 0 && <DonutChart title="تفکیک دسته‌ها" items={donutItems} centerLabel="جمع سال" masked={hideValues} />}
       <ExcludedBox kind="income" items={excludedTotals} metaOf={getIncomeCategory} hideValues={hideValues} />
     </>
   );
@@ -356,7 +327,7 @@ export default function IncomesPage() {
     <div className="incomes-page-container">
       <FeaturePageHeader {...HEADER} />
 
-      <PeriodSwitcher mode={mode} month={month} thisMonth={thisMonth} onModeChange={setMode} onMonthChange={changeMonth} />
+      <PeriodSwitcher month={month} thisMonth={thisMonth} onMonthChange={changeMonth} />
 
       {error && (
         <AlertBanner
@@ -367,14 +338,7 @@ export default function IncomesPage() {
         />
       )}
 
-      <SplitPageLayout sidebar={yearly ? yearSidebar : monthSidebar}>
-        {yearly ? (
-          <div className="flow-year-main">
-            <YearFlowChart series={series} kind="income" labelOf={labelOf} categoryOrder={categoryOrder} onOpenMonth={openMonth} hideValues={hideValues} large />
-            <YearMonthTable series={series} kind="income" onOpenMonth={openMonth} hideValues={hideValues} />
-          </div>
-        ) : list}
-      </SplitPageLayout>
+      <SplitPageLayout sidebar={monthSidebar}>{list}</SplitPageLayout>
 
       {formOpen && (
         <IncomeForm

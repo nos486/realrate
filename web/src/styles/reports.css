@@ -1,0 +1,206 @@
+/* Reports page (features/reports) */
+.reports-page .report-summary {
+  margin-bottom: 4px;
+}
+
+/* The summary cards in a row across the page on the website (the app's frame has its own
+   two-per-row grid, app-shell.css) */
+.app-layout:not(.has-app-shell) .reports-page .incomes-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  gap: 12px;
+}
+
+.reports-loading {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.report-section {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.report-section-head h2 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 800;
+  color: var(--text-primary);
+}
+
+.report-section-head p {
+  margin: 4px 0 0;
+  font-size: 12px;
+  line-height: 1.9;
+  color: var(--text-muted);
+}
+
+/* Chart and its table side by side on a wide screen */
+.report-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 14px;
+  align-items: start;
+}
+
+@media (min-width: 1100px) {
+  .report-grid {
+    grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+  }
+}
+
+.report-readout-detail {
+  color: var(--text-secondary) !important;
+  font-size: 11.5px;
+}
+
+.report-footnote {
+  margin: 0;
+  font-size: 11.5px;
+  color: var(--text-muted);
+}
+
+.report-table-card .table-card-body {
+  overflow-x: auto;
+}
+
+.report-month-grid td {
+  font-variant-numeric: tabular-nums;
+}
+
+/* MonthBarChart: bars from a zero line (below it for a negative value), one slot per series */
+.report-bar-plot {
+  height: 180px;
+}
+
+.report-bar-col {
+  position: relative;
+  align-items: stretch;
+  gap: 2px; /* surface gap between the two series */
+}
+
+.report-bar-slot {
+  position: relative;
+  flex: 1;
+  max-width: 16px;
+  height: 100%;
+}
+
+.report-bar {
+  position: absolute;
+  inset-inline: 0;
+  min-height: 2px;
+  border-radius: 4px 4px 0 0;
+  opacity: 0.6;
+  transition: opacity 0.15s ease;
+}
+
+.report-bar.is-negative {
+  border-radius: 0 0 4px 4px;
+}
+
+.report-bar-col.is-active .report-bar {
+  opacity: 1;
+}
+
+.report-zero-line {
+  position: absolute;
+  inset-inline: 0;
+  border-top: 1px solid var(--border-strong, var(--text-muted));
+  opacity: 0.7;
+  pointer-events: none;
+}
+
+/* Every month named where there is room */
+@media (min-width: 700px) {
+  .report-bar-chart .monthly-income-axis span.is-minor {
+    visibility: visible;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .report-bar { transition: none; }
+}
+
+/* Picking rows (ResponsiveDataTable `selection`) */
+.rdt-select-cell {
+  width: 36px;
+  text-align: center;
+}
+
+.rdt-select {
+  width: 17px;
+  height: 17px;
+  accent-color: var(--color-primary, #3987e5);
+  cursor: pointer;
+}
+
+.rdt-mobile-card-top .rdt-select {
+  flex-shrink: 0;
+  margin-inline-end: 8px;
+}
+
+tr.is-selected td,
+.rdt-mobile-card.is-selected {
+  background: var(--color-primary-soft, rgba(57, 135, 229, 0.08));
+}
+
+/* Everyday expenses picked: how many, their sum, and what to do with them */
+.expense-selection-bar {
+  position: sticky;
+  top: 76px;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 10px;
+  margin-bottom: 10px;
+  padding: 8px 12px;
+  border: 1px solid var(--color-primary-border, rgba(57, 135, 229, 0.35));
+  border-radius: 12px;
+  background: var(--card-bg);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.18);
+}
+
+.expense-selection-count {
+  flex: 1;
+  min-width: 140px;
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.expense-selection-count strong {
+  color: var(--text-primary);
+}
+
+/* «انتقال به پروژه»: the projects to choose from */
+.move-project-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 280px;
+  overflow-y: auto;
+}
+
+.move-project-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  border: 1px solid var(--border-subtle);
+  border-radius: 10px;
+  font-size: 13.5px;
+  color: var(--text-primary);
+  cursor: pointer;
+}
+
+.move-project-option.is-active {
+  border-color: var(--color-primary-border, rgba(57, 135, 229, 0.5));
+  background: var(--color-primary-soft, rgba(57, 135, 229, 0.08));
+}
+
+.move-project-option input {
+  accent-color: var(--color-primary, #3987e5);
+}
