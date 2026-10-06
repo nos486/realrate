@@ -163,6 +163,20 @@ describe('the model', () => {
     expect(parseNewsVerdicts([{ i: 1, k: 1, t: 'آتش بس', s: 'خلاصه', c: 'politics', p: 3 }], 1).get(0).category).toBe('politics');
   });
 
+  it('an answer cut off by the token limit, or after reasoning with brackets, still gives the finished items', () => {
+    const cut = '[{"i":1,"k":0},{"i":2,"k":1,"c":"gold","p":2,"t":"سکه {گران} شد","s":"قیمت \\"سکه\\" بالا رفت."},{"i":3,"k":1,"c":"oil","p":1,"t":"نفت ارز';
+    const v = parseNewsVerdicts(cut, 3);
+    expect(v.get(0)).toEqual({ keep: false });
+    expect(v.get(1)).toMatchObject({ keep: true, title: 'سکه {گران} شد', summary: 'قیمت "سکه" بالا رفت.' });
+    expect(v.has(2)).toBe(false);
+
+    const reasoned = '<think>post [1] is opinion, so {"i":1,"k":1,"t":"x"}</think>\nPost [2] is ads. Answer:\n[{"i":1,"k":0},{"i":2,"k":0}]';
+    const r = parseNewsVerdicts(reasoned, 2);
+    expect(r.get(0)).toEqual({ keep: false });
+    expect(r.get(1)).toEqual({ keep: false });
+    expect(parseNewsVerdicts('{"items":[{"i":1,"k":0}]}', 1).get(0)).toEqual({ keep: false });
+  });
+
   it('a headline or summary with words of another language is marked', () => {
     const v = parseNewsVerdicts([{ i: 1, k: 1, c: 'currency', p: 2, t: 'افزایش nhẹ دلار', s: 'خلاصه' }, { i: 2, k: 1, c: 'oil', p: 1, t: 'تصمیم OPEC', s: 'خلاصه' }], 2);
     expect(v.get(0).foreign).toBe(true);
@@ -319,8 +333,28 @@ describe('runNewsPolling', () => {
     await runNewsPolling(env, { now: NOW, fetchPage });
     expect(env.AI.run).toHaveBeenCalledTimes(1);
     expect((await dbListNews(env)).items).toHaveLength(0);
-    expect((await getNewsStatus(env)).aiError).toMatch(/unreadable answer/);
+    expect((await getNewsStatus(env)).aiError).toMatch(/unreadable answer.*«Sorry, I cannot help\.»/);
     error.mockRestore();
+  });
+
+  it('an answer cut off midway: the finished verdicts count, the posts it left out wait for the next run', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    pages.chan_one = page('chan_one', [
+      post('chan_one', 1, 'دلار و طلا و سکه بعد از تصمیم بانک مرکزی و فدرال رزرو جهش کرد', at(0)),
+      post('chan_one', 2, 'بانک مرکزی اعلام کرد نرخ تورم نقطه به نقطه در شهریور به ۴۵ درصد رسید', at(1)),
+    ]);
+    env.AI = { run: vi.fn(async () => ({ choices: [{ message: { content: '[{"i":1,"k":1,"c":"currency","p":2,"t":"جهش دلار و طلا","s":"خلاصه"},{"i":2,"k":1,"c":"econ' }, finish_reason: 'length' }] })) };
+    const first = await runNewsPolling(env, { now: NOW, fetchPage });
+    expect(first).toMatchObject({ waiting: 1 });
+    expect((await getNewsStatus(env)).aiError).toBe('');
+    expect((await dbListNews(env)).items.map((n) => n.postId)).toEqual([1]);
+
+    env.AI.run = vi.fn(async () => ({ response: '[{"i":1,"k":1,"c":"economy","p":2,"t":"تورم ۴۵ درصد شد","s":"خلاصه"}]' }));
+    const second = await runNewsPolling(env, { now: NOW + 60000, fetchPage });
+    expect(env.AI.run.mock.calls[0][1].messages[1].content).toMatch(/۴۵ درصد/);
+    expect(second).toMatchObject({ waiting: 0 });
+    expect((await dbListNews(env)).items.map((n) => n.postId).sort()).toEqual([1, 2]);
+    warn.mockRestore();
   });
 
   it('a vulgar post never reaches the model; it counts as not market news in the report', async () => {

@@ -53,7 +53,7 @@ const GLM_FLASH = { id: "@cf/zai-org/glm-5.3-flash", label: "GLM 5.3 Flash" };
  * stay true, and is not sent); the least of it is asked, and `reasoningTokens` more output tokens
  * are allowed for it on top of the answer's. The answer is a JSON array, so no `json_object` here.
  */
-export const NEWS_AI_MODEL = { ...GLM_FLASH, options: { reasoning_effort: "low" }, reasoningTokens: 2000 };
+export const NEWS_AI_MODEL = { ...GLM_FLASH, options: { reasoning_effort: "low" }, reasoningTokens: 4000 };
 
 /** What a news item is about (the page's filters) */
 export const NEWS_CATEGORIES = {
