@@ -33,6 +33,9 @@ The interface is in Persian (right-to-left, Shamsi calendar, amounts in tomans).
 - **Loans**: installment schedule, payments and extra payments, banks with logos, and loan usage (what the loan paid for, and how those purchases did against the loan's rate)
 - **Incomes**: by source and month, and fixed incomes (salary, rent) that repeat on their own
 - **Cheques**: received and issued, due dates, status tracking with history, reminders, and AI cheque scanning
+- **Market news** (new): dollar, gold, oil and economy news from news channels, checked and sorted every minute by AI (Workers AI) — no ads, signals or duplicates; importance 1–3, the day's and week's top stories, and notifications for the important ones
+- **AI day's analysis** (new): what today's news says, how the stories connect and what to watch — no price predictions; the latest analysis is also on the website's landing page
+- **Yearly report** (new): a Shamsi year on one page — income and expenses, savings rate, the share of income invested, dollar value and the year's highlights; PDF and CSV export
 - **Android app**: bottom navigation and quick add, automatic reading of bank withdrawal and deposit SMS (the text never leaves the phone), one-tap and automatic recording of small expenses, fingerprint unlock, offline use
 - **End-to-end encryption**: all financial data is encrypted on the user's device; the server only sees ciphertext
 - **Accounts and admin**: Google or email sign-in, a demo account, an admin panel (users, groups and feature access, Android app users and their versions, price sources)

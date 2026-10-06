@@ -189,6 +189,7 @@ import {
   handleAdminRunNews,
   handleAdminSetNewsHidden,
   handleGetNewsToday,
+  handleGetNewsAnalysis,
   handleAdminRunNewsAnalysis,
 } from "./handlers/newsRoutes.js";
 import { fetchAllPrices } from "./services/market/priceAggregator.service.js";
@@ -384,6 +385,7 @@ async function handleRequest(request, env, ctx) {
   // ── News (public: market news picked from Telegram channels) ────────────
   if (normalizedPath === "/api/news" && request.method === "GET") return wrap(handleGetNews)(request, env);
   if (normalizedPath === "/api/news/today" && request.method === "GET") return wrap(handleGetNewsToday)(request, env);
+  if (normalizedPath === "/api/news/analysis" && request.method === "GET") return wrap(handleGetNewsAnalysis)(request, env);
 
   // ── Portfolio API Routes ────────────────────────────────────────────────
   if (normalizedPath === "/api/portfolio/shared")                              return wrap(handleGetSharedPortfolio)(request, env);
