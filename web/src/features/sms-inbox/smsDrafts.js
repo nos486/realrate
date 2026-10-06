@@ -37,11 +37,20 @@ export function smsProjectExpenseDraft(tx, accounts = []) {
   return { ...smsExpenseDraft(tx, accounts), title: `برداشت ${resolveBank({ bankId: tx.bankId }).shortName}` };
 }
 
-/** The income form's draft for a deposit */
+/** Interest paid by the bank: the message names it (e.g. Shahr's «سود» line) */
+const INTEREST_RE = /^سود(\s|$)/;
+
+/**
+ * The income form's draft for a deposit: titled after what the message says it is (e.g. «سود
+ * بانک شهر») or «واریز <bank>»; the bank's interest starts as «سود سرمایه‌گذاری»
+ */
 export function smsIncomeDraft(tx) {
   const bank = resolveBank({ bankId: tx.bankId });
+  const desc = String(tx.description || '').trim();
+  const interest = INTEREST_RE.test(desc);
   return {
-    title: `واریز ${bank.shortName}`,
+    title: desc ? `${desc} ${bank.shortName}`.slice(0, 80) : `واریز ${bank.shortName}`,
+    ...(interest ? { category: 'investment' } : {}),
     amount: Math.round(tx.amount),
     incomeDate: tx.date,
     notes: smsNote(tx),

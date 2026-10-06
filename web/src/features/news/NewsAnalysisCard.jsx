@@ -1,27 +1,20 @@
 /**
- * NewsAnalysisCard.jsx — «تحلیل روز»: the model's view of the day's news, written by the server
+ * NewsAnalysisCard.jsx — «تحلیل روز»: the model's reading of the day's news, written by the server
  * when new news comes in (api/src/services/news/newsAnalysis.service.js) — a headline, the
- * analysis, where the dollar, gold, coins, the stock index and oil may go (with how sure the
- * model is), the day's most important news and their impact, the key points and the main risk
+ * analysis, the day's most important news and their impact, the key points and what to watch.
+ * No forecast of any market: the day's news alone can't call one (an older analysis's `outlook`
+ * is not shown).
  */
 
 import React from 'react';
-import { Sparkles, TrendingUp, TrendingDown, Minus, AlertTriangle } from 'lucide-react';
+import { Sparkles, AlertTriangle } from 'lucide-react';
 import { newsTimeAgo, newsFullTime } from './newsFormat.js';
 
-const ASSETS = { usd: 'دلار', gold: 'طلا', coin: 'سکه', bourse: 'بورس', oil: 'نفت' };
-const DIRECTIONS = {
-  up: { label: 'صعودی', Icon: TrendingUp },
-  down: { label: 'نزولی', Icon: TrendingDown },
-  flat: { label: 'خنثی', Icon: Minus },
-};
-const CONFIDENCE = { 1: 'اطمینان کم', 2: 'اطمینان متوسط', 3: 'اطمینان زیاد' };
 const IMPACT = { 1: 'اثر کم', 2: 'اثر متوسط', 3: 'اثر زیاد' };
 const fa = (n) => Number(n || 0).toLocaleString('fa-IR');
 
 export default function NewsAnalysisCard({ analysis, className = '' }) {
   if (!analysis?.title) return null;
-  const outlook = (analysis.outlook || []).filter((o) => ASSETS[o.asset]);
 
   return (
     <section className={`news-analysis ${className}`} aria-label="تحلیل روز">
@@ -37,29 +30,6 @@ export default function NewsAnalysisCard({ analysis, className = '' }) {
 
       <h2 className="news-analysis-title">{analysis.title}</h2>
       <p className="news-analysis-summary">{analysis.summary}</p>
-
-      {outlook.length > 0 && (
-        <ul className="news-analysis-outlook">
-          {outlook.map((o) => {
-            const d = DIRECTIONS[o.direction] || DIRECTIONS.flat;
-            return (
-              <li key={o.asset} className={`is-${o.direction}`} title={o.note}>
-                <span className="news-analysis-asset">{ASSETS[o.asset]}</span>
-                <span className="news-analysis-dir">
-                  <d.Icon size={14} aria-hidden="true" />
-                  {d.label}
-                  {CONFIDENCE[o.confidence] && (
-                    <span className={`news-analysis-conf is-${o.confidence}`} title={CONFIDENCE[o.confidence]} aria-label={CONFIDENCE[o.confidence]}>
-                      {[1, 2, 3].map((i) => <i key={i} className={i <= o.confidence ? 'is-on' : ''} />)}
-                    </span>
-                  )}
-                </span>
-                {o.note && <small>{o.note}</small>}
-              </li>
-            );
-          })}
-        </ul>
-      )}
 
       {analysis.drivers?.length > 0 && (
         <div className="news-analysis-drivers">

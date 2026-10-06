@@ -16,7 +16,7 @@ Both modules are also in `web/src/utils/` through symlinks (like the other domai
 ## Reading a message
 
 1. **Normalize** (`normalizeSmsText`): Persian/Arabic digits → ASCII, «ي/ك» → «ی/ک», remove invisible direction marks (RLM, …), «٬» → «,», trim each line and drop empty lines; lines are joined with `\n`.
-2. **Pick the bank**: when the sender is known (the Android app), the templates of the banks whose `senders` include it; otherwise all banks.
+2. **Pick the bank**: when the sender is known (the Android app), the templates of the banks whose `senders` include it; otherwise all banks. Senders are compared normalized (`normalizeSender`, the same in Java): a number without the Iranian prefixes; a name in lower case without spaces, dots, dashes or underscores — «Bank Shahr», «BankShahr» and «BANK-SHAHR» are one sender. The Android app reads only messages from the banks' senders, so this matters there.
 3. **Templates in order**: the first `pattern` that matches the whole text wins.
 4. **Named groups** of the regex become the transaction.
 
@@ -104,7 +104,7 @@ Tips:
 | Parsian | Sender `PARSIANBANK`; `parsian-balance` — account number, signed amount, balance, date `MM/DD`, time |
 | Blu | Sender `+989999987641`; `blu-balance` — «برداشت پول / واریز پول» (direction from the word), amount and balance in rials, time, date `YYYY.MM.DD` |
 | Pasargad | Sender `B.Pasargad`; `pasargad-balance` — dotted account number, signed amount (rials), `MM/DD_HH:MM`, «مانده» |
-| Shahr | Sender `Bank Shahr`; `shahr-balance` — «*بانک شهر*», an optional description (e.g. «سود»), «واریز به / برداشت از:» account, amount and balance in rials, `YYYY/MM/D HH:MM:SS` |
+| Shahr | Sender `Bank Shahr` (or `Shahr Bank`, in any spacing); an interest deposit («سود») becomes an income titled «سود …» in «سود سرمایه‌گذاری»; `shahr-balance` — «*بانک شهر*», an optional description (e.g. «سود»), «واریز به / برداشت از:» account, amount and balance in rials, `YYYY/MM/D HH:MM:SS` |
 | Mellat | Sender `Bank Mellat`; `mellat-balance` — «حساب…», «واریز/برداشت…» amount (rials), «مانده…», `YY/MM/DD-HH:MM` |
 | Resalat | Sender `ResalatBank`; `resalat-balance` — the same shape as Pasargad's (the sender tells them apart): dotted account number, signed amount (rials), `MM/DD_HH:MM`, «مانده» |
 | Mehr Iran | Sender `B.QMEHRIRAN`; `mehr-iran-balance` — account number, amount with the sign after it (rials), `YYYY/M/D-HH:MM`, «مانده» |

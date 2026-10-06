@@ -1,6 +1,6 @@
 /**
- * newsAnalysis.test.js — the analyst's card: its prompt (numbered news, prices, trends, the previous
- * outlook) and answer (directions grounded in news, the day's drivers), when it is written again
+ * newsAnalysis.test.js — the analyst's card: its prompt (the day's numbered news only; no
+ * forecast of any market) and answer (the analysis, the day's drivers), when it is written again
  * (new news, the interval, the day's budget), one model only — on real
  * SQLite (D1) with a fake model
  */
@@ -23,13 +23,6 @@ const NOW = Date.parse('2026-10-05T10:00:00Z'); // 13:30 in Tehran
 const ANSWER = JSON.stringify({
   t: 'فشار تورمی و مذاکرات، دلار را در کانال صعودی نگه می‌دارد',
   s: 'با افزایش نرخ بهره و اخبار مذاکرات، بازار ارز در کوتاه‌مدت نوسانی می‌ماند.',
-  o: [
-    { a: 'usd', d: 'up', c: 2, n: 'انتظارات تورمی', e: [1] },
-    { a: 'gold', d: 'sideways', n: 'انس ثابت', e: [1] },
-    { a: 'usd', d: 'down', n: 'تکراری', e: [1] },
-    { a: 'coin', d: 'up', c: 3, n: 'بی‌پشتوانه', e: [] },
-    { a: 'x', d: 'up' },
-  ],
   n: [{ i: 1, w: 3, a: ['usd', 'x'] }, { i: 'N1', w: 1 }, { i: 99, w: 2 }],
   k: ['نرخ بهره بالا رفت', 'انس طلا رکورد زد'],
   r: 'نتیجه‌ی مذاکرات',
@@ -39,32 +32,20 @@ const DEFAULT = NEWS_ANALYSIS.model.id;
 describe('the prompt and the answer', () => {
   const news = [{ id: 'c/1', title: 'تیتر', summary: 'خلاصه', importance: 3, category: 'currency', url: 'https://t.me/c/1', publishedAt: Date.parse('2026-10-05T06:00:00Z') }];
 
-  it('numbers the news in Tehran time, with prices, trends and the previous outlook', () => {
-    const [system, user] = buildAnalysisPrompt(
-      news,
-      [{ name: 'دلار', price: 105000, unit: 'تومان', changePercent: -0.5 }, { name: 'صفر', price: 0 }],
-      { trends: [{ name: 'انس طلا', week: 1.2, month: -3 }, { name: 'بی‌داده' }], previous: { at: Date.parse('2026-10-05T05:00:00Z'), outlook: [{ asset: 'usd', direction: 'up', confidence: 2 }] } },
-    );
-    expect(system.content).toMatch(/STABILITY/);
-    expect(system.content).toMatch(/never predict prices/);
-    expect(user.content).toContain('- دلار: 105,000 تومان (last session -0.50%)');
-    expect(user.content).not.toContain('صفر');
-    expect(user.content).toContain('- انس طلا: 7 days +1.20%, 30 days -3.00%');
-    expect(user.content).not.toContain('بی‌داده');
-    expect(user.content).toContain('PREVIOUS OUTLOOK (written at 08:30 Tehran):\n- usd: up, confidence 2');
-    // Published after the previous outlook: NEW
-    expect(user.content).toContain('N1 [09:30 currency ! NEW] تیتر — خلاصه');
+  it('numbers the news in Tehran time, and asks for an explanation of it, not a forecast', () => {
+    const [system, user] = buildAnalysisPrompt(news);
+    expect(system.content).toMatch(/EXPLAIN THE NEWS, NOT TO FORECAST/);
+    expect(system.content).toMatch(/never give a direction, a prediction, a price/);
+    // A strong item may be said to raise a likelihood, in the text
+    expect(system.content).toMatch(/clearly makes a move in a market more likely/);
+    expect(system.content).not.toMatch(/"o":|STABILITY|PREVIOUS OUTLOOK/);
+    expect(user.content).toBe("TODAY'S NEWS (Tehran time, oldest first):\nN1 [09:30 currency !] تیتر — خلاصه");
   });
 
-  it('reads the answer: each asset once, directions grounded in news, the drivers', () => {
-    const a = parseAnalysis(`پاسخ:\n${ANSWER}`, news);
+  it('reads the answer: the analysis and the drivers; an old answer\'s directions are dropped', () => {
+    const a = parseAnalysis(`پاسخ:\n${JSON.stringify({ ...JSON.parse(ANSWER), o: [{ a: 'usd', d: 'up', c: 3 }] })}`, news);
     expect(a.title).toMatch(/^فشار تورمی/);
-    expect(a.outlook).toEqual([
-      { asset: 'usd', direction: 'up', confidence: 2, note: 'انتظارات تورمی', evidence: ['c/1'] },
-      { asset: 'gold', direction: 'flat', confidence: 1, note: 'انس ثابت', evidence: ['c/1'] },
-      // Up without news behind it: flat
-      { asset: 'coin', direction: 'flat', confidence: 1, note: 'بی‌پشتوانه', evidence: [] },
-    ]);
+    expect(a).not.toHaveProperty('outlook');
     expect(a.drivers).toEqual([{ id: 'c/1', title: 'تیتر', url: 'https://t.me/c/1', impact: 3, assets: ['usd'] }]);
     expect(a.points).toHaveLength(2);
     expect(a.risk).toBe('نتیجه‌ی مذاکرات');
@@ -94,9 +75,7 @@ describe('the prompt and the answer', () => {
 
 describe('maybeUpdateNewsAnalysis', () => {
   let env;
-  const readPrices = async () => [{ name: 'دلار', price: 105000, unit: 'تومان', changePercent: 1 }];
-  const readTrendRows = async () => [{ name: 'دلار', week: 2, month: 5 }];
-  const opts = (extra) => ({ readPrices, readTrendRows, ...extra });
+  const opts = (extra) => ({ ...extra });
   const item = (id, minutesAgo, importance = 1) => ({
     id: `c/${id}`, channel: 'c', postId: id, url: `https://t.me/c/${id}`, title: `خبر ${id}`, summary: `خلاصه ${id}`,
     text: '', category: 'currency', importance, publishedAt: NOW - minutesAgo * 60000,
@@ -117,8 +96,9 @@ describe('maybeUpdateNewsAnalysis', () => {
     const [model, request] = env.AI.run.mock.calls[0];
     expect(model).toBe(DEFAULT);
     expect(request).toMatchObject({ temperature: 0, reasoning_effort: 'low', response_format: { type: 'json_object' } });
-    expect(request.messages[1].content).toContain('دلار: 105,000');
-    expect(request.messages[1].content).toContain('7 days +2.00%');
+    // The day's news only: no prices, trends or earlier outlook
+    expect(request.messages[1].content).toMatch(/^TODAY'S NEWS/);
+    expect(request.messages[1].content).toContain('N3 [');
     const saved = await getNewsAnalysis(env);
     expect(saved).toMatchObject({ day: tehranDayStart(NOW), at: NOW, newsCount: 3, model: DEFAULT });
 
@@ -131,10 +111,7 @@ describe('maybeUpdateNewsAnalysis', () => {
     expect((await maybeUpdateNewsAnalysis(env, opts({ now: NOW + 60000 }))).reason).toBe('too-soon');
     expect((await maybeUpdateNewsAnalysis(env, opts({ now: NOW + NEWS_ANALYSIS.minIntervalMinutes * 60000 }))).updated).toBe(true);
     expect(env.AI.run).toHaveBeenCalledTimes(2);
-    // The previous outlook is the next one's starting point; the news after it is NEW
-    const next = env.AI.run.mock.calls[1][1].messages[1].content;
-    expect(next).toContain('PREVIOUS OUTLOOK');
-    expect(next).toMatch(/N4 \[[\d:]+ currency NEW\]/);
+    expect(env.AI.run.mock.calls[1][1].messages[1].content).toMatch(/N4 \[[\d:]+ currency\] خبر 4/);
   });
 
   it('force (admin) writes it whatever the interval; without the model nothing happens', async () => {

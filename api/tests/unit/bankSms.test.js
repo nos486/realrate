@@ -264,7 +264,24 @@ describe('senders and accounts', () => {
   it('normalizes sender numbers', () => {
     expect(normalizeSender('+98 9123456789')).toBe('9123456789');
     expect(normalizeSender('09123456789')).toBe('9123456789');
-    expect(normalizeSender('Bank-X')).toBe('bank-x');
+    expect(normalizeSender('Bank-X')).toBe('bankx');
+  });
+
+  it('a sender name is the same however the phone spaces or punctuates it', () => {
+    for (const name of ['Bank Shahr', 'BankShahr', 'BANK-SHAHR', ' bank  shahr ', 'Bank.Shahr', 'bank_shahr']) {
+      expect(normalizeSender(name)).toBe('bankshahr');
+    }
+    expect(normalizeSender('B.Pasargad')).toBe(normalizeSender('B Pasargad'));
+  });
+
+  it("Bank Shahr's message is read from every form of its sender, not from another bank's", () => {
+    const text = '*بانک شهر*\nسود\nواريز به:700814110204\nمبلغ:377,743ريال\nموجودي:89,371,480ريال\n1405/07/1 00:41:16';
+    for (const sender of ['Bank Shahr', 'BankShahr', 'BANK-SHAHR', 'ShahrBank']) {
+      expect(banksForSender(BANK_SMS_TEMPLATES, sender).map((b) => b.bankId)).toEqual(['shahr']);
+      expect(parseBankSms(text, BANK_SMS_TEMPLATES, { sender })).toMatchObject({ bankId: 'shahr', direction: 'credit', description: 'سود' });
+    }
+    // Another bank's sender: none of its templates reads it
+    expect(parseBankSms(text, BANK_SMS_TEMPLATES, { sender: 'B.Pasargad' })).toBeNull();
   });
 
   it('tries the sender\'s bank first, every bank for an unknown sender', () => {

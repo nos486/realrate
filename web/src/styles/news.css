@@ -199,18 +199,24 @@
 }
 
 /* Phone: the analysis, today's top, the list. Large screens: two columns — the list on the
-   right, and on the left a wide column with the day's analysis (it matters; it stays wide and in
-   view at the top) and today's top under it */
+   right, and on the left a wide column with the day's analysis (it matters) and today's top
+   under it, which stays in place while the list scrolls (scrolling on its own when taller than
+   the screen) */
 .news-layout {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
-  grid-template-areas: "analysis" "aside" "main";
+  grid-template-areas: "side" "main";
   gap: 16px;
   align-items: start;
 }
 
-.news-layout-analysis { grid-area: analysis; }
-.news-layout-aside { grid-area: aside; min-width: 0; }
+.news-layout-side {
+  grid-area: side;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+}
 .news-layout-main {
   grid-area: main;
   display: flex;
@@ -223,9 +229,18 @@
 @media (min-width: 1024px) {
   .news-layout {
     grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-    grid-template-rows: auto 1fr;
-    grid-template-areas: "main analysis" "main aside";
+    grid-template-areas: "main side";
     gap: 18px 22px;
+  }
+
+  .news-layout-side {
+    /* Under the site's sticky header */
+    position: sticky;
+    top: 84px;
+    max-height: calc(100vh - 100px);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-width: thin;
   }
 }
 
@@ -281,69 +296,6 @@
   font-size: 14px;
   line-height: 2.05;
   color: var(--text-primary);
-}
-
-.news-analysis-outlook {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
-  gap: 8px;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.news-analysis-outlook li {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  padding: 10px 12px;
-  border: 1px solid var(--border-subtle);
-  border-radius: 12px;
-  background: var(--bg-input);
-}
-
-.news-analysis-asset {
-  font-size: 12px;
-  font-weight: 700;
-  color: var(--text-secondary);
-}
-
-.news-analysis-dir {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  font-size: 14px;
-  font-weight: 800;
-  color: var(--text-secondary);
-}
-
-.news-analysis-outlook .is-up .news-analysis-dir { color: var(--color-positive-text); }
-.news-analysis-outlook .is-down .news-analysis-dir { color: var(--color-negative-text); }
-.news-analysis-outlook .is-up { border-color: var(--color-positive-border); }
-.news-analysis-outlook .is-down { border-color: var(--color-negative-border); }
-
-.news-analysis-outlook small {
-  color: var(--text-muted);
-  font-size: 11.5px;
-  line-height: 1.7;
-}
-
-.news-analysis-conf {
-  display: inline-flex;
-  gap: 2px;
-  margin-inline-start: 6px;
-}
-
-.news-analysis-conf i {
-  width: 5px;
-  height: 5px;
-  border-radius: 50%;
-  background: currentColor;
-  opacity: 0.25;
-}
-
-.news-analysis-conf i.is-on {
-  opacity: 0.9;
 }
 
 /* The day's most important news, with their impact */

@@ -111,9 +111,9 @@ export const NEWS_PROFANITY = [
 ];
 
 /**
- * The analyst's card: the model reads the day's news (headlines and summaries, with today's main
- * prices) and writes its view of where the dollar, gold, coins, the stock index and oil are going.
- * Written again when new news came in, at most every `minIntervalMinutes`.
+ * The analyst's card: the model reads the day's news (headlines and summaries) and explains it —
+ * no forecast of any market (the day's news alone can't call one). Written again when new news
+ * came in, at most every `minIntervalMinutes`.
  */
 export const NEWS_ANALYSIS = {
   /**
@@ -133,12 +133,6 @@ export const NEWS_ANALYSIS = {
   perDay: 30,
   /** Output tokens, with the reasoning's */
   maxTokens: 4000,
-  /** Prices shown to the model (price book ids) */
-  priceIds: ["usd", "eur", "gold_18k", "full_coin", "mesghal", "ons_gold", "ons_silver", "usdt"],
-  /** Their 7- and 30-day trend shown too (from the daily history: KV, no database read) */
-  trendIds: ["usd", "ons_gold", "gold_18k", "full_coin"],
-  /** A previous outlook younger than this is the starting point of the next one (stability) */
-  previousMaxHours: 24,
 };
 
 /** Pushes for important news (services/news/newsPush.service.js) */
