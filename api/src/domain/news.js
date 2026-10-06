@@ -242,7 +242,7 @@ export function buildNewsPrompt(posts) {
 }
 
 /** Output tokens for a batch: enough for every post to be kept with its summary */
-export const newsMaxTokens = (count) => 40 + count * 140;
+export const newsMaxTokens = (count) => 60 + count * 260;
 
 /**
  * Letters a Persian text never has — a model slipping into another language mid-sentence (e.g.
@@ -262,28 +262,54 @@ const clip = (s, n) => {
 };
 
 /**
+ * The verdict objects in the model's text, read one by one: its reasoning (`<think>…</think>`,
+ * prose with brackets), a markdown fence or a wrapping object around the array don't matter, and
+ * an answer cut off by the output token limit still gives every item it finished
+ */
+function verdictObjects(text) {
+  const body = text.replace(/<think>[\s\S]*?(<\/think>|$)/gi, " ");
+  const found = [];
+  let depth = 0;
+  let start = -1;
+  let inString = false;
+  for (let i = 0; i < body.length; i++) {
+    const ch = body[i];
+    if (inString) {
+      if (ch === "\\") i++;
+      else if (ch === '"') inString = false;
+      continue;
+    }
+    if (ch === '"' && depth > 0) inString = true;
+    else if (ch === "{") {
+      if (depth++ === 0) start = i;
+    } else if (ch === "}" && depth > 0 && --depth === 0) {
+      try {
+        const obj = JSON.parse(body.slice(start, i + 1));
+        if (obj && typeof obj === "object") {
+          if (Array.isArray(obj.items)) found.push(...obj.items);
+          else if ("i" in obj) found.push(obj);
+        }
+      } catch {
+        // not a verdict
+      }
+    }
+  }
+  // The answer comes after any reasoning: for a post named twice, the last one counts
+  return found.reverse();
+}
+
+/**
  * The model's answer, by post (index from 0); a post the answer leaves out is not in the map
  * @param {string|object} answer - Workers AI's `response` (text, or already parsed JSON)
  * @param {number} count
  * @returns {Map<number, { keep: boolean, category?: string, importance?: number, title?: string, summary?: string }>}
  */
 export function parseNewsVerdicts(answer, count) {
-  let list = answer;
-  if (typeof answer === "string") {
-    const start = answer.indexOf("[");
-    const end = answer.lastIndexOf("]");
-    if (start < 0 || end <= start) return new Map();
-    try {
-      list = JSON.parse(answer.slice(start, end + 1));
-    } catch {
-      return new Map();
-    }
-  }
-  if (list && !Array.isArray(list) && Array.isArray(list.items)) list = list.items;
-  if (!Array.isArray(list)) return new Map();
+  const list = typeof answer === "string" ? verdictObjects(answer) : answer;
+  const items = Array.isArray(list) ? list : Array.isArray(list?.items) ? list.items : [];
 
   const verdicts = new Map();
-  for (const v of list) {
+  for (const v of items) {
     const index = Number(v?.i) - 1;
     if (!Number.isInteger(index) || index < 0 || index >= count || verdicts.has(index)) continue;
     const keep = Number(v.k) === 1 || v.k === true;

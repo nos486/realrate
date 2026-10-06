@@ -255,14 +255,14 @@ async function pollChannels(env, store, now, fetchPage) {
   for (let i = 0; i < candidates.length; i += NEWS_LIMITS.aiBatchSize) batches.push(candidates.slice(i, i + NEWS_LIMITS.aiBatchSize));
 
   const published = [];
-  let deferred = [];
+  const deferred = [];
   let decided = 0;
   for (let b = 0; b < batches.length; b++) {
     const batch = batches[b];
     // No model, or over the run's or the day's budget: nothing is published without it (no
     // keyword-only publishing); they wait in the queue
     if (!hasModel || b >= callsLeft) {
-      deferred = batches.slice(b).flat();
+      deferred.push(...batches.slice(b).flat());
       break;
     }
     let verdicts;
@@ -271,21 +271,30 @@ async function pollChannels(env, store, now, fetchPage) {
       const answer = await askWorkersAi(env, NEWS_AI_MODEL, buildNewsPrompt(batch), { maxTokens: newsMaxTokens(batch.length) + NEWS_AI_MODEL.reasoningTokens, temperature: 0 });
       verdicts = parseNewsVerdicts(answer, batch.length);
       // An answer that says nothing about any post: the model failed
-      if (verdicts.size === 0) throw new Error("unreadable answer (no JSON verdicts)");
+      if (verdicts.size === 0) {
+        const text = typeof answer === "string" ? answer : JSON.stringify(answer ?? null);
+        throw new Error(`unreadable answer (no JSON verdicts): «${text.replace(/\s+/g, " ").trim().slice(0, 100)}»`);
+      }
     } catch (err) {
       // The model failed: no other model and no keyword-only publishing; these posts and the rest
       // wait for the next run, and the error is logged and shown in the admin's panel
-      status.aiError = String(err?.message || err).slice(0, 160);
+      status.aiError = String(err?.message || err).slice(0, 240);
       logger.error("[News] model failed — nothing published, posts kept for the next run", {
         model: NEWS_AI_MODEL.id,
         posts: batches.slice(b).flat().length,
         error: status.aiError,
       });
-      deferred = batches.slice(b).flat();
+      deferred.push(...batches.slice(b).flat());
       break;
     }
 
-    decided += batch.length;
+    // A post the answer left out (cut off by the output limit, skipped) waits for the next run
+    const missed = batch.filter((_, i) => !verdicts.has(i));
+    if (missed.length) {
+      deferred.push(...missed);
+      logger.warn("[News] the model's answer left posts out — kept for the next run", { posts: missed.length });
+    }
+    decided += batch.length - missed.length;
     batch.forEach((post, i) => {
       let verdict = verdicts.get(i);
       // The model's headline slipped into another language: the post's own words, its verdict kept
