@@ -198,10 +198,11 @@
   width: 100%;
 }
 
-/* Phone: the analysis, the top news, the list. A medium screen: the top news above the list, the
-   analysis beside them (in place). A wide screen: three columns — a narrow one with today's and
-   the week's top news, the list, and the analysis; the side ones stay in place under the site's
-   sticky header while the list scrolls (scrolling on their own when taller than the screen) */
+/* Phone: the analysis, then the list (the top lists are left out). A medium screen: the top news
+   above the list, the analysis beside them. A wide screen: three columns — a narrow one with
+   today's and the week's top news, the list, and the analysis. The analysis stays in place under
+   the site's sticky header while the list scrolls (scrolling on its own when taller than the
+   screen); the top news scroll with the page */
 .news-layout {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
@@ -218,7 +219,7 @@
   min-width: 0;
 }
 
-.news-layout-rail { grid-area: rail; }
+.news-layout-rail { grid-area: rail; display: none; }
 .news-layout-side { grid-area: side; }
 .news-layout-main {
   grid-area: main;
@@ -266,12 +267,6 @@
 
   .news-layout-rail {
     display: flex;
-    position: sticky;
-    top: 84px;
-    max-height: calc(100vh - 100px);
-    overflow-y: auto;
-    overscroll-behavior: contain;
-    scrollbar-width: thin;
   }
 }
 
@@ -281,9 +276,30 @@
   flex-direction: column;
   gap: 12px;
   padding: 18px;
-  border: 1px solid var(--color-primary-border);
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+  border: 1px solid rgba(139, 92, 246, 0.35);
   border-radius: var(--card-radius);
-  background: linear-gradient(160deg, rgba(2, 132, 199, 0.14), rgba(2, 132, 199, 0.03) 60%), var(--card-bg);
+  /* A soft glow of two hues over the card, and a faint dot grid: it reads as the AI's own card */
+  background:
+    radial-gradient(120% 70% at 100% 0%, rgba(139, 92, 246, 0.24), transparent 60%),
+    radial-gradient(90% 60% at 0% 100%, rgba(14, 165, 233, 0.18), transparent 65%),
+    linear-gradient(180deg, rgba(139, 92, 246, 0.06), transparent 40%),
+    var(--card-bg);
+  box-shadow: 0 10px 30px -18px rgba(139, 92, 246, 0.55);
+}
+
+.news-analysis::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background-image: radial-gradient(rgba(255, 255, 255, 0.07) 1px, transparent 1px);
+  background-size: 14px 14px;
+  mask-image: linear-gradient(180deg, rgba(0, 0, 0, 0.9), transparent 55%);
+  -webkit-mask-image: linear-gradient(180deg, rgba(0, 0, 0, 0.9), transparent 55%);
 }
 
 .news-analysis-head {
@@ -302,8 +318,8 @@
   gap: 6px;
   padding: 4px 10px;
   border-radius: 999px;
-  background: var(--color-primary-soft);
-  color: var(--color-primary-text);
+  background: linear-gradient(90deg, rgba(139, 92, 246, 0.22), rgba(14, 165, 233, 0.18));
+  color: #c4b5fd;
   font-size: 12px;
   font-weight: 800;
 }
@@ -513,11 +529,14 @@
   }
 }
 
+/* The topics: a bar of their own above the columns */
 .news-filters {
   overflow-x: auto;
   scrollbar-width: none;
-  margin: 0 -2px;
-  padding: 0 2px;
+  padding: 6px;
+  border: var(--card-border);
+  border-radius: var(--radius-full, 999px);
+  background: var(--card-bg);
 }
 
 .news-filters::-webkit-scrollbar {
