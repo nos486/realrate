@@ -16,7 +16,7 @@ import { answerOf } from '../../src/services/news/workersAi.js';
 import { dbInsertNews, dbTopNewsSince } from '../../src/repositories/news.repository.js';
 import { resetD1SchemaCache } from '../../src/repositories/d1Schema.js';
 import { NEWS_ANALYSIS } from '../../src/config/news.config.js';
-import { handleGetNewsToday, handleGetNewsAnalysis } from '../../src/handlers/newsRoutes.js';
+import { handleGetNewsToday } from '../../src/handlers/newsRoutes.js';
 import { sqliteD1 } from '../helpers/sqliteD1.js';
 
 const NOW = Date.parse('2026-10-05T10:00:00Z'); // 13:30 in Tehran
@@ -146,28 +146,6 @@ describe('maybeUpdateNewsAnalysis', () => {
   it("today's top: most important first", async () => {
     await dbInsertNews(env, [item(1, 30, 1), item(2, 20, 3), item(3, 10, 2)]);
     expect((await dbTopNewsSince(env, tehranDayStart(NOW))).map((n) => n.postId)).toEqual([2, 3, 1]);
-  });
-
-  it('the public copy goes to KV; the landing page reads it from there, not the database', async () => {
-    const kv = new Map();
-    env.KV = { get: vi.fn(async (k) => kv.get(k) ?? null), put: vi.fn(async (k, v) => { kv.set(k, v); }), delete: vi.fn() };
-    // Before any analysis: none
-    expect((await (await handleGetNewsAnalysis(new Request('https://x/api/news/analysis'), env)).json()).analysis).toBeNull();
-
-    await dbInsertNews(env, [item(1, 30), item(2, 20), item(3, 10, 3)]);
-    await maybeUpdateNewsAnalysis(env, opts({ now: NOW, force: true }));
-    const copy = JSON.parse(kv.get('news:analysis:public'));
-    expect(copy).toMatchObject({ title: expect.stringMatching(/^فشار تورمی/), at: NOW, newsCount: 3 });
-    // Only what the public pages show
-    expect(copy).not.toHaveProperty('model');
-    expect(copy).not.toHaveProperty('lastSavedAt');
-
-    const prepare = vi.spyOn(env.DB, 'prepare');
-    const res = await handleGetNewsAnalysis(new Request('https://x/api/news/analysis'), env);
-    expect(res.headers.get('Cache-Control')).toMatch(/max-age=300/);
-    expect((await res.json()).analysis.title).toBe(copy.title);
-    expect(prepare).not.toHaveBeenCalled();
-    prepare.mockRestore();
   });
 
   it("GET /api/news/today: the analysis, today's top news and the week's (today's left out)", async () => {
