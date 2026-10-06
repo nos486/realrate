@@ -6,10 +6,11 @@
  *
  *   ┌──────────────┬──────────────────────────┬────────────────────────┐
  *   │ مهم‌ترین‌های   │ filters · list · pages   │ تحلیل روز (AI)         │   wide screens: three columns;
- *   │ امروز / هفته  │                          │                        │   the side ones stay in place
- *   └──────────────┴──────────────────────────┴────────────────────────┘   while the list scrolls
- * A medium screen: the top news above the list, the analysis beside them (in place).
- * On a phone: the analysis, the top news, then the list. Each item shows its headline, summary,
+ *   │ امروز / هفته  │                          │ (stays in place)       │
+ *   └──────────────┴──────────────────────────┴────────────────────────┘
+ * The topics are a bar of their own above the columns. A medium screen: the top news above the
+ * list, the analysis beside them (in place). A phone: the analysis, then the list (no top lists).
+ * The analysis stays in place while the list scrolls; the top news scroll with it. Each item shows its headline, summary,
  * source and time; a tap opens the post's full text and its link on Telegram. The list comes in
  * pages; new news comes in by itself every minute.
  */
@@ -241,6 +242,12 @@ export default function NewsPage() {
         actions={<NewsAlertsToggle />}
       />
 
+      {/* The topics: a bar of their own above the columns, so the list, the top news and the
+          analysis start level */}
+      <nav className="news-filters" aria-label="موضوع خبرها">
+        <FilterPills options={FILTERS} activeValue={filter} onChange={changeFilter} size="sm" />
+      </nav>
+
       <div className="news-layout">
         {/* Today's and the week's most important news: a narrow column */}
         <aside className="news-layout-rail" aria-label="مهم‌ترین خبرها">
@@ -254,10 +261,6 @@ export default function NewsPage() {
         </aside>
 
         <div className="news-layout-main" ref={listRef}>
-          <div className="news-filters">
-            <FilterPills options={FILTERS} activeValue={filter} onChange={changeFilter} size="sm" />
-          </div>
-
           {error && !items.length && <AlertBanner type="warning" message={error} />}
 
           {loading ? (
