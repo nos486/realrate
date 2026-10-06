@@ -7,8 +7,10 @@
  *     (not a network problem) is dropped and the copy is rebuilt from the server.
  *  2. pull: GET /api/vault/sync — every change after the saved cursor (records stored and
  *     deleted), page by page. A new `epoch` or `reset` starts the copy over.
- * Rounds run on start, when the connection comes back, when the app returns to the foreground,
- * after an offline change and on the header's refresh button — never on a timer while online.
+ * Rounds run on start, when the connection comes back, after an offline change, when the app
+ * returns to the foreground with changes still queued, and when the open tab's records are read
+ * again (the header's refresh button and the window's focus: shared/refresh/pageRefresh.js) —
+ * never on a timer while online.
  * While offline a light probe checks every
  * little while whether the server is reachable again.
  *
@@ -179,8 +181,10 @@ export async function startOffline(id) {
   setState({ active: true, ready: Boolean(ready), pending });
 
   if (typeof document !== 'undefined') {
+    // Back in the foreground: send what is still queued (reading new data is the open tab's
+    // refresh, pageRefresh.js)
     const onVisible = () => {
-      if (document.visibilityState === 'visible') syncSoon();
+      if (document.visibilityState === 'visible' && state.pending > 0) syncSoon();
     };
     document.addEventListener('visibilitychange', onVisible);
     unlisten.push(() => document.removeEventListener('visibilitychange', onVisible));

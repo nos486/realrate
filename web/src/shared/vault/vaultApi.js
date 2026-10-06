@@ -5,7 +5,8 @@
  * that shows its own progress instead of the full-screen loader).
  *
  * With the device's offline copy on (the Android app, shared/offline/offlineSync.js):
- * - records are listed from the copy once it is complete (fast, and without a connection)
+ * - records are listed from the copy once it is complete (fast, and without a connection); the
+ *   copy is synced on start, on the open tab's refresh and after a change (offlineSync.js)
  * - a change goes to the server as before; without a connection it is kept in the copy and
  *   queued, and sent when the connection is back (a refusal from the server still fails as before)
  * - the vault itself (salt + wrapped key) is remembered, so it can be unlocked offline
@@ -73,8 +74,9 @@ export const resetVaultData = ({ password } = {}, options) =>
  */
 export const listVaultRecords = async (kind, options, filters = {}) => {
   if (offline.isOfflineReady()) {
+    // From the copy only: it is brought up to date by the open tab's refresh (the header's
+    // button, the window's focus), not by every read
     const res = await offline.getLocalStore().queryRecords(kind, filters);
-    offline.syncSoon(2000);
     return { success: true, ...res };
   }
   const params = new URLSearchParams();

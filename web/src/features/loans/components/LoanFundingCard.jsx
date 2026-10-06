@@ -8,6 +8,7 @@
  */
 
 import React, { useEffect, useState } from 'react';
+import { useRefreshToken } from '../../../shared/refresh/pageRefresh.js';
 import { useUsdAt } from '../../market/dailyHistory.js';
 import { Wallet } from 'lucide-react';
 import { useFeature } from '../../../shared/features/useFeature.js';
@@ -94,6 +95,8 @@ export default function LoanFundingCard({ loan, hideValues = false }) {
   const pricing = usePricing();
   const usdToman = Number(pricing?.getAssetPrice?.('usd')) || 0;
   const { status: vaultStatus, epoch: vaultEpoch } = useVault();
+  // Read again with the loans tab's refresh (header button, window focus)
+  const refreshToken = useRefreshToken('loans');
   const [data, setData] = useState(null);
   const from = String(loan?.startDate || '').slice(0, 10);
 
@@ -109,7 +112,7 @@ export default function LoanFundingCard({ loan, hideValues = false }) {
     return () => {
       cancelled = true;
     };
-  }, [hasExpenses, vaultStatus, vaultEpoch, loan?.id, from]);
+  }, [hasExpenses, vaultStatus, vaultEpoch, refreshToken, loan?.id, from]);
 
   // The dollar's rate on a dollar expense's day (one without its own), from the price history
   const usdAt = useUsdAt((data?.expenses || []).some((e) => e.loanId === loan?.id && e.currency === 'USD' && !e.usdRate));

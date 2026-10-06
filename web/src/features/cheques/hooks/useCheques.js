@@ -6,6 +6,7 @@
  */
 
 import { useState, useEffect, useCallback } from 'react';
+import { useRefreshHandler } from '../../../shared/refresh/pageRefresh.js';
 import { useAuth } from '../../auth/index.js';
 import { useVault } from '../../../shared/vault/useVault.js';
 import { compareChequesByDue, applyChequeStatus } from '../../../utils/chequeDocument.js';
@@ -59,6 +60,8 @@ export function useCheques() {
   useEffect(() => {
     fetchCheques();
   }, [fetchCheques]);
+  // The open tab's refresh (header button, window focus) reads them again
+  useRefreshHandler('cheques', fetchCheques);
 
   const store = useCallback((cheque) => {
     setCheques((prev) => [...prev.filter((c) => c.id !== cheque.id), cheque].sort(compareChequesByDue));

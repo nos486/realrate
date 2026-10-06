@@ -6,6 +6,7 @@
  */
 
 import { useState, useEffect, useCallback } from 'react';
+import { useRefreshHandler } from '../../../shared/refresh/pageRefresh.js';
 import { useAuth } from '../../auth/index.js';
 import { useVault } from '../../../shared/vault/useVault.js';
 import { useFeature } from '../../../shared/features/useFeature.js';
@@ -45,6 +46,8 @@ export function useTransfers(range = {}) {
   useEffect(() => {
     fetchTransfers();
   }, [fetchTransfers]);
+  // The open tab's refresh (header button, window focus) reads them again
+  useRefreshHandler('accounts', fetchTransfers);
 
   /** Errors are re-thrown so the open form can show them */
   const saveTransfer = useCallback(async (input, existing = null) => {

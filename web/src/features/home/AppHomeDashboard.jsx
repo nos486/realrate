@@ -15,6 +15,7 @@
  */
 
 import React, { useEffect, useMemo, useState } from 'react';
+import { useRefreshToken } from '../../shared/refresh/pageRefresh.js';
 import { useUsdAt } from '../market/dailyHistory.js';
 import {
   ArrowDownLeft, ArrowUpRight, ChevronLeft, ChevronRight, MessageSquareText, TrendingUp, TrendingDown, Plus,
@@ -44,6 +45,8 @@ const DAY_MS = 86_400_000;
 /** This month's incomes (decrypted), reloaded when the vault changes */
 function useMonthIncomes(range, enabled) {
   const { epoch } = useVault();
+  // Read again with the home tab's refresh (header button, window focus)
+  const refreshToken = useRefreshToken('incomes');
   const [state, setState] = useState({ incomes: [], loading: true });
   useEffect(() => {
     if (!enabled) return undefined;
@@ -54,7 +57,7 @@ function useMonthIncomes(range, enabled) {
     return () => {
       cancelled = true;
     };
-  }, [range.from, range.to, enabled, epoch]);
+  }, [range.from, range.to, enabled, epoch, refreshToken]);
   return state;
 }
 

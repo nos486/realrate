@@ -26,7 +26,7 @@ Every feature in detail. For a summary see the [README](../../README.en.md). Per
 - Cross rates against the dollar, converted to tomans, for 16 currencies (USD, EUR, AED, TRY, GBP, CAD, AUD, CHF, KWD, QAR, SAR, CNY, RUB, JPY, IQD, AFN).
 - Live USDT price and the USDT/dollar spread.
 - Ticker at the top switching between 18k gold, dollar and USDT, with the daily change.
-- Prices update with the refresh button at the top (next to the hide-amounts button), on moving to another tab and on coming back to the app — no background refresh; a warning with a retry button when a refresh fails or the connection is down. Exchange prices (updated about hourly) are loaded apart, and again only when they changed.
+- The refresh button at the top (next to the hide-amounts button) reads again only what the open tab shows — the prices on the market tab, the news on the news tab, the records on a records tab; the open tab also updates when the window gets focus again (or the app comes back). Nothing refreshes in the background or on switching tabs; a warning with a retry button when a refresh fails or the connection is down. Exchange prices (updated about hourly) are loaded apart, and again only when they changed.
 
 ## 4. Stocks and funds
 - Dynamic processing of the Tehran Stock Exchange board with no hard-coded symbols.
