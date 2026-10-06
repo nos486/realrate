@@ -26,6 +26,19 @@ const P = {
 
 const re = (source) => new RegExp(source, 'u');
 
+/**
+ * The category a recorded message starts in, from what the message itself says it is (the `desc`
+ * a template reads, e.g. Shahr's «سود»), for every bank: the first rule of the transaction's
+ * direction with one of its words in the description (a whole word) wins; the user can still
+ * change it in the form. To add one: a row here, with a category of the incomes (credit) or the
+ * expenses (debit) — utils/categoryDocument.js. Docs: docs/BANK_SMS.md.
+ * @type {Array<{ direction: 'credit'|'debit', words: string[], category: string }>}
+ */
+export const SMS_DESCRIPTION_CATEGORIES = [
+  // The bank's interest on a deposit account
+  { direction: 'credit', words: ['سود'], category: 'investment' },
+];
+
 /** @type {import('./bankSms.js').BankSmsBank[]} */
 export const BANK_SMS_TEMPLATES = [
   {

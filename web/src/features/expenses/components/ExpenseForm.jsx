@@ -71,10 +71,10 @@ export default function ExpenseForm({ group = null, daily = false, expense = nul
   });
   const [loanId, setLoanId] = useState(expense?.loanId || '');
   const fundingLoans = fundingLoanOptions(useOptionalLoans(), expense?.loanId);
-  const [category, setCategory] = useState(expense?.category || 'groceries');
+  const [category, setCategory] = useState(start?.category || 'groceries');
   const [managing, setManaging] = useState(false);
   // The user's categories (a hidden one only when this expense already has it)
-  const categoryOptions = useCategories('expense', { keep: expense?.category }).map(({ value, label, Icon }) => ({
+  const categoryOptions = useCategories('expense', { keep: start?.category }).map(({ value, label, Icon }) => ({
     value,
     label,
     icon: <Icon size={14} strokeWidth={2} />,

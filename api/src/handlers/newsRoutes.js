@@ -3,7 +3,7 @@
  *
  * Endpoints:
  *   GET    /api/news                     — Published news, newest first (?limit, ?page or ?before, ?category, ?important=1)
- *   GET    /api/news/today               — The analyst's card and today's most important news
+ *   GET    /api/news/today               — The analyst's card, today's and the week's most important news
  *   GET    /api/admin/news/channels      — The channels read, the last runs' report, the last published news (admin)
  *   PUT    /api/admin/news/channels      — Save the channels ({ channels: [{ username, enabled }] }) (admin)
  *   POST   /api/admin/news/run           — Read the channels now (admin)
@@ -49,14 +49,22 @@ export async function handleGetNews(request, env) {
 }
 
 const TODAY_TOP = 6;
+/** The week's most important news shown beside today's (the last 7 days, today's left out) */
+const WEEK_TOP = 6;
 
 export async function handleGetNewsToday(request, env) {
   const body = await edgeCachedJson("https://news.cache/today", PUBLIC_CACHE_SEC, async () => {
     const now = Date.now();
-    let top = await dbTopNewsSince(env, tehranDayStart(now), TODAY_TOP);
+    const [today, lastWeek, analysis] = await Promise.all([
+      dbTopNewsSince(env, tehranDayStart(now), TODAY_TOP),
+      dbTopNewsSince(env, now - 7 * 86400000, WEEK_TOP + TODAY_TOP),
+      getNewsAnalysis(env),
+    ]);
     // Early in the day: the last 24 hours instead
-    if (top.length < 3) top = await dbTopNewsSince(env, now - 86400000, TODAY_TOP);
-    return { analysis: await getNewsAnalysis(env), top };
+    const top = today.length >= 3 ? today : await dbTopNewsSince(env, now - 86400000, TODAY_TOP);
+    const shown = new Set(top.map((n) => n.id));
+    const week = lastWeek.filter((n) => !shown.has(n.id)).slice(0, WEEK_TOP);
+    return { analysis, top, week };
   });
   return jsonResponse({ success: true, ...body }, 200, request, { "Cache-Control": `public, max-age=${PUBLIC_CACHE_SEC}` });
 }

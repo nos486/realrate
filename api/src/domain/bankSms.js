@@ -277,6 +277,20 @@ export function parseBankSms(text, banks, { sender = '', today = new Date() } = 
 }
 
 /**
+ * The category a transaction starts in, from its own description (SMS_DESCRIPTION_CATEGORIES in
+ * bankSmsTemplates.js): the first rule of its direction with one of its words in the description,
+ * as a whole word; '' when none applies
+ * @param {{ direction: string, description?: string }} tx
+ * @param {Array<{ direction: string, words: string[], category: string }>} rules
+ */
+export function smsCategoryOf(tx, rules = []) {
+  const words = new Set(normalizeSmsText(tx?.description || '').split(/[\s،,.:؛-]+/).filter(Boolean));
+  if (!words.size) return '';
+  const rule = rules.find((r) => r.direction === tx.direction && (r.words || []).some((w) => words.has(normalizeSmsText(w))));
+  return rule?.category || '';
+}
+
+/**
  * The user's account a transaction belongs to: the same bank and the same last 4 digits of the
  * account number or card; else the only account of that bank
  * @param {BankSmsTransaction} tx

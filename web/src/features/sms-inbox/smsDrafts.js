@@ -9,7 +9,8 @@
  */
 
 import { resolveBank } from '../../shared/banks/resolveBank.js';
-import { matchSmsAccount } from '../../utils/bankSms.js';
+import { matchSmsAccount, smsCategoryOf } from '../../utils/bankSms.js';
+import { SMS_DESCRIPTION_CATEGORIES } from '../../utils/bankSmsTemplates.js';
 
 const faTime = (time) => time.replace(/\d/g, (d) => '۰۱۲۳۴۵۶۷۸۹'[d]);
 
@@ -18,9 +19,16 @@ function smsNote(tx) {
   return [`پیامک ${bank.shortName}`, tx.time && `ساعت ${faTime(tx.time)}`].filter(Boolean).join(' · ');
 }
 
+/** The category a message starts in, from its own description (a rule of SMS_DESCRIPTION_CATEGORIES) */
+function categoryOf(tx) {
+  const category = smsCategoryOf(tx, SMS_DESCRIPTION_CATEGORIES);
+  return category ? { category } : {};
+}
+
 /** The expense form's draft for a withdrawal */
 export function smsExpenseDraft(tx, accounts = []) {
   return {
+    ...categoryOf(tx),
     amount: Math.round(tx.amount),
     date: tx.date,
     accountId: matchSmsAccount(tx, accounts),
@@ -37,20 +45,17 @@ export function smsProjectExpenseDraft(tx, accounts = []) {
   return { ...smsExpenseDraft(tx, accounts), title: `برداشت ${resolveBank({ bankId: tx.bankId }).shortName}` };
 }
 
-/** Interest paid by the bank: the message names it (e.g. Shahr's «سود» line) */
-const INTEREST_RE = /^سود(\s|$)/;
-
 /**
- * The income form's draft for a deposit: titled after what the message says it is (e.g. «سود
- * بانک شهر») or «واریز <bank>»; the bank's interest starts as «سود سرمایه‌گذاری»
+ * The income form's draft for a deposit: titled after what the message says it is (its
+ * description and the bank, e.g. «سود بانک شهر») or «واریز <bank>», in the category its
+ * description points to
  */
 export function smsIncomeDraft(tx) {
   const bank = resolveBank({ bankId: tx.bankId });
   const desc = String(tx.description || '').trim();
-  const interest = INTEREST_RE.test(desc);
   return {
     title: desc ? `${desc} ${bank.shortName}`.slice(0, 80) : `واریز ${bank.shortName}`,
-    ...(interest ? { category: 'investment' } : {}),
+    ...categoryOf(tx),
     amount: Math.round(tx.amount),
     incomeDate: tx.date,
     notes: smsNote(tx),

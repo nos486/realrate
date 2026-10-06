@@ -148,12 +148,20 @@ describe('maybeUpdateNewsAnalysis', () => {
     expect((await dbTopNewsSince(env, tehranDayStart(NOW))).map((n) => n.postId)).toEqual([2, 3, 1]);
   });
 
-  it('GET /api/news/today: the analysis and the top news', async () => {
+  it("GET /api/news/today: the analysis, today's top news and the week's (today's left out)", async () => {
     const now = Date.now();
+    const DAY = 86400000;
     await dbInsertNews(env, [1, 2, 3].map((i) => ({ ...item(i, 0), publishedAt: now - i * 60000 })));
+    // Earlier this week (one very important), and older than a week
+    await dbInsertNews(env, [
+      { ...item(10, 0, 3), publishedAt: now - 3 * DAY },
+      { ...item(11, 0, 1), publishedAt: now - 5 * DAY },
+      { ...item(12, 0, 3), publishedAt: now - 8 * DAY },
+    ]);
     await maybeUpdateNewsAnalysis(env, opts({ now, force: true }));
     const body = await (await handleGetNewsToday(new Request('https://x/api/news/today'), env)).json();
-    expect(body.top).toHaveLength(3);
+    expect(body.top.map((n) => n.id)).toEqual(['c/1', 'c/2', 'c/3']);
+    expect(body.week.map((n) => n.id)).toEqual(['c/10', 'c/11']);
     expect(body.analysis.title).toMatch(/^فشار تورمی/);
   });
 });
