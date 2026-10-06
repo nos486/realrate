@@ -1,8 +1,9 @@
 // @vitest-environment happy-dom
 /**
- * pricingAutoRefresh.test.js — When the app reads prices: on opening, on the refresh button, on
- * another tab and on coming back to the app (never on a timer); the catalog part (exchange
- * symbols) only when its version moves
+ * pricingAutoRefresh.test.js — When the app reads prices: on opening, and then only with the
+ * refresh of a tab that shows them (pageRefresh.js: the header's button, the window's focus) —
+ * never on a timer or by switching tabs; the catalog part (exchange symbols) only when its
+ * version moves
  */
 import React from 'react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
@@ -18,8 +19,8 @@ import { getCorePriceBook as getPriceBook, getPriceCatalog } from '../../../web/
 import {
   PricingProvider,
   usePricing,
-  PRICE_AUTO_REFRESH_GAP_MS,
 } from '../../../web/src/features/market/context/PricingContext.jsx';
+import { refreshScopes, resetPageRefresh } from '../../../web/src/shared/refresh/pageRefresh.js';
 import { useMarketData } from '../../../web/src/features/market/hooks/useMarketData.js';
 
 // The one response the app's prices come from
@@ -141,7 +142,7 @@ describe('PricingContext: when prices are read', () => {
     expect(getPriceBook).toHaveBeenCalledTimes(1);
   });
 
-  it('moving to another tab reads again (not twice within the gap)', async () => {
+  it('moving to another tab reads nothing again', async () => {
     let navigate;
     const Nav = ({ children }) => {
       navigate = useNavigate();
@@ -154,14 +155,45 @@ describe('PricingContext: when prices are read', () => {
     expect(getPriceBook).toHaveBeenCalledTimes(1);
 
     await act(async () => {
-      vi.advanceTimersByTime(PRICE_AUTO_REFRESH_GAP_MS);
-      navigate('/app/expenses');
+      vi.advanceTimersByTime(10 * 60 * 1000);
+      navigate('/app/news');
+    });
+    await flush();
+    await act(async () => {
+      navigate('/app/incomes');
+    });
+    await flush();
+    expect(getPriceBook).toHaveBeenCalledTimes(1);
+  });
+
+  it('a refresh of the prices scope reads them again; of another scope, not', async () => {
+    resetPageRefresh();
+    renderPricing();
+    await flush();
+    await act(async () => {
+      await refreshScopes({ scopes: ['news'] });
+    });
+    await flush();
+    expect(getPriceBook).toHaveBeenCalledTimes(1);
+    await act(async () => {
+      await refreshScopes({ scopes: ['prices'] });
     });
     await flush();
     expect(getPriceBook).toHaveBeenCalledTimes(2);
+  });
 
+  it('a first read that failed offline is read again once the connection is back — and only then', async () => {
+    getPriceBook.mockRejectedValueOnce(new Error('offline'));
+    renderPricing();
+    await flush();
+    expect(getPriceBook).toHaveBeenCalledTimes(1);
     await act(async () => {
-      navigate('/app/incomes');
+      window.dispatchEvent(new Event('online'));
+    });
+    await flush();
+    expect(getPriceBook).toHaveBeenCalledTimes(2);
+    await act(async () => {
+      window.dispatchEvent(new Event('online'));
     });
     await flush();
     expect(getPriceBook).toHaveBeenCalledTimes(2);

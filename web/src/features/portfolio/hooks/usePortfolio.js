@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { useRefreshHandler } from '../../../shared/refresh/pageRefresh.js';
 import {
   getPortfolios,
   createPortfolio as apiCreatePortfolio,
@@ -78,6 +79,9 @@ export function usePortfolio(initialPortfolioId = null) {
   useEffect(() => {
     fetchPortfolios();
   }, [fetchPortfolios, vaultEpoch]);
+  // The open tab's refresh (header button, window focus) reads them again; the active portfolio
+  // then is a new object, so its holdings and transactions are read again with it
+  useRefreshHandler('portfolio', fetchPortfolios);
 
   const switchPortfolio = useCallback((portfolioId) => {
     setActivePortfolioId(portfolioId);

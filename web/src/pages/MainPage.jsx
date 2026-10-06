@@ -27,6 +27,8 @@ import { startSmsAutoRead } from '../shared/native/smsInbox.js';
 import { initDueNotificationClicks } from '../shared/native/dueNotifications.js';
 import { startNewsAlerts } from '../features/news/newsAlerts.js';
 import { useSmsAutoRecord } from '../features/sms-inbox/useSmsAutoRecord.js';
+import { usePageScopes, startFocusRefresh } from '../shared/refresh/pageRefresh.js';
+import { refreshScopesOf } from '../shared/refresh/tabScopes.js';
 
 // Each tab other than the market home is loaded on first use, keeping the initial bundle small
 const PortfolioTracker = lazy(() => import('../features/portfolio/components/PortfolioTracker.jsx'));
@@ -194,6 +196,11 @@ export default function MainPage() {
     ['news', isNews],
     ['reports', isReports],
   ].find(([, matches]) => matches)?.[0] || 'market';
+
+  // The header's refresh button and the window getting focus again read only what this tab
+  // shows (shared/refresh): never the prices on the news tab, never on a timer
+  usePageScopes(refreshScopesOf(activeTab, { appLayout, hasMarket }));
+  useEffect(() => startFocusRefresh(), []);
 
   const tabTitle = useMemo(() => {
     switch (activeTab) {

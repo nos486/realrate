@@ -10,6 +10,7 @@
  */
 
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { useRefreshHandler } from '../../../shared/refresh/pageRefresh.js';
 import { useAuth } from '../../auth/index.js';
 import { useVault } from '../../../shared/vault/useVault.js';
 import { compareExpensesByDate, shamsiMonthRange, shiftShamsiMonth } from '../../../utils/expenseDocument.js';
@@ -81,6 +82,8 @@ export function useDailyExpenses(month, { enabled = true, year = false } = {}) {
   useEffect(() => {
     fetchMonth();
   }, [fetchMonth]);
+  // The open tab's refresh (header button, window focus) reads them again
+  useRefreshHandler('expenses', fetchMonth);
 
   /** Create or update an everyday expense; errors are re-thrown for the open form */
   const saveExpense = useCallback(async (input, existing = null) => {

@@ -3,6 +3,7 @@
  */
 
 import { useState, useEffect, useCallback } from 'react';
+import { useRefreshHandler } from '../../../shared/refresh/pageRefresh.js';
 import {
   getLoanDetail,
   markInstallmentPaid as apiMarkPaid,
@@ -74,6 +75,8 @@ export function useLoanDetail(loanId) {
   useEffect(() => {
     fetchLoan();
   }, [fetchLoan]);
+  // The open tab's refresh (header button, window focus) reads them again
+  useRefreshHandler('loans', fetchLoan);
 
   /**
    * Mark an installment as paid with optimistic UI update and server synchronization

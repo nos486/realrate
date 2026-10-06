@@ -3,6 +3,7 @@
  */
 
 import { useState, useEffect, useCallback } from 'react';
+import { useRefreshHandler } from '../../../shared/refresh/pageRefresh.js';
 import { useAuth } from '../../auth/index.js';
 import { useVault } from '../../../shared/vault/useVault.js';
 import {
@@ -55,6 +56,8 @@ export function useLoans() {
   useEffect(() => {
     fetchLoans();
   }, [fetchLoans]);
+  // The open tab's refresh (header button, window focus) reads them again
+  useRefreshHandler('loans', fetchLoans);
 
   /**
    * Create a new loan (supports atomic customFirstInstallmentAmount)

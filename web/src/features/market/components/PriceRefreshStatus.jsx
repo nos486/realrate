@@ -21,7 +21,7 @@ function formatUpdatedAgo(timestamp, now = Date.now()) {
 /**
  * PriceRefreshStatus — A warning banner when the prices can't be refreshed (offline, or the latest
  * refresh failed: the last good prices stay on screen, with a retry button). Nothing otherwise:
- * refreshing is the header's button (PriceRefreshButton).
+ * refreshing is the header's button (shared/refresh/PageRefreshButton).
  */
 export default function PriceRefreshStatus() {
   const pricing = usePricing();

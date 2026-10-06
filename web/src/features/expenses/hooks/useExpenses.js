@@ -8,6 +8,7 @@
  */
 
 import { useRef, useState, useEffect, useCallback } from 'react';
+import { useRefreshHandler } from '../../../shared/refresh/pageRefresh.js';
 import { useAuth } from '../../auth/index.js';
 import { useVault } from '../../../shared/vault/useVault.js';
 import { compareExpensesByDate } from '../../../utils/expenseDocument.js';
@@ -53,6 +54,8 @@ export function useExpenses() {
   useEffect(() => {
     fetchAll();
   }, [fetchAll]);
+  // The open tab's refresh (header button, window focus) reads them again
+  useRefreshHandler('expenses', fetchAll);
 
   /** Errors are re-thrown so the open form can show them */
   const withSubmit = useCallback(async (fn) => {

@@ -8,12 +8,12 @@
  */
 
 import React, { createContext, useContext, useState, useEffect, useMemo, useCallback, useRef, useSyncExternalStore } from 'react';
-import { useInRouterContext, useLocation } from 'react-router-dom';
 import { getCorePriceBook, getPriceCatalog } from '../api/marketApi.js';
 import { searchUnifiedAssets } from '../../../utils/pricingEngine.js';
 import { baseRatesOf } from '../../../utils/priceBookViews.js';
 import { bookToAssets, priceOf, assetOf } from '../priceBookAssets.js';
 import { setKnownPriceIds } from '../knownPriceIds.js';
+import { useRefreshHandler } from '../../../shared/refresh/pageRefresh.js';
 
 const PricingContext = createContext(null);
 
@@ -30,13 +30,11 @@ function isBrowserOffline() {
   return typeof navigator !== 'undefined' && navigator.onLine === false;
 }
 
-/** How often live prices are refreshed in the background while the tab is visible */
-/**
- * Prices are read when the app opens, when the user taps refresh, and when they move to another
- * tab of the app — never on a timer, and not on returning to the browser tab. Automatic reads closer
- * together than this are skipped (each is cheap anyway: an unchanged book answers 304).
+/*
+ * Prices are read when the app opens, and then only with the rest of a tab that shows them
+ * (shared/refresh/pageRefresh.js, scope `prices`): the header's refresh button and the window
+ * getting focus again. Never on a timer, and never by switching tabs.
  */
-export const PRICE_AUTO_REFRESH_GAP_MS = 30 * 1000;
 
 // A dollar rate picked by hand in an earlier version (the old «نرخ مبنا»): forgotten
 try {
@@ -129,23 +127,24 @@ export function PricingProvider({ children, initialUsdToman = null, initialGoldU
     fetchItems();
   }, [fetchItems]);
 
-  // No timer, and not on returning to the browser tab: prices are read again when the user moves
-  // to another tab of the app or the connection comes back — at most once per
-  // PRICE_AUTO_REFRESH_GAP_MS — and on the header's refresh button
-  const refreshIfDue = useCallback(() => {
-    const due = !lastUpdatedAtRef.current || Date.now() - lastUpdatedAtRef.current >= PRICE_AUTO_REFRESH_GAP_MS;
-    if (due) fetchItems({ background: true });
-  }, [fetchItems]);
-
+  // The first read failed without a connection: read once the connection is back (an update
+  // after that waits for the button or the window's focus)
+  const hasBookRef = useRef(false);
+  useEffect(() => {
+    hasBookRef.current = Boolean(priceBook);
+  }, [priceBook]);
   useEffect(() => {
     if (typeof window === 'undefined') return undefined;
-    window.addEventListener('online', refreshIfDue);
-    return () => window.removeEventListener('online', refreshIfDue);
-  }, [refreshIfDue]);
-
-  const inRouter = useInRouterContext();
+    const onOnline = () => {
+      if (!hasBookRef.current) fetchItems({ background: true });
+    };
+    window.addEventListener('online', onOnline);
+    return () => window.removeEventListener('online', onOnline);
+  }, [fetchItems]);
 
   const refresh = useCallback(() => fetchItems({ background: true }), [fetchItems]);
+  // A tab showing prices reads them again on its refresh
+  useRefreshHandler('prices', refresh);
 
   // Every price is the book's; nothing here recomputes one
   const { assets: resolvedAssets, priceMap, itemMap } = useMemo(() => bookToAssets(priceBook), [priceBook]);
@@ -200,26 +199,9 @@ export function PricingProvider({ children, initialUsdToman = null, initialGoldU
 
   return (
     <PricingContext.Provider value={value}>
-      {inRouter && <RefreshOnTabChange onChange={refreshIfDue} />}
       {children}
     </PricingContext.Provider>
   );
-}
-
-/** Calls `onChange` when the user moves to another tab of the app (the route or its ?tab=) */
-function RefreshOnTabChange({ onChange }) {
-  const location = useLocation();
-  const tabKey = `${location.pathname}?${new URLSearchParams(location.search).get('tab') || ''}`;
-  const firstRef = useRef(true);
-  useEffect(() => {
-    if (firstRef.current) {
-      firstRef.current = false;
-      return;
-    }
-    onChange();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tabKey]);
-  return null;
 }
 
 export function usePricing() {

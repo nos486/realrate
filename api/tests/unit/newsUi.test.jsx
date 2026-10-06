@@ -5,7 +5,7 @@
  * relative, then by day.
  */
 import React from 'react';
-import { describe, it, expect, afterEach, vi } from 'vitest';
+import { describe, it, expect, afterEach, beforeEach, vi } from 'vitest';
 import { render, cleanup, screen, fireEvent, waitFor } from '@testing-library/react';
 import { MemoryRouter, Routes, Route, useLocation } from 'react-router-dom';
 
@@ -17,7 +17,10 @@ vi.mock('../../../web/src/features/news/newsApi.js', () => ({
 }));
 import NewsCard from '../../../web/src/features/news/NewsCard.jsx';
 import { newsTimeAgo } from '../../../web/src/features/news/newsFormat.js';
+import { clearNewsCache } from '../../../web/src/features/news/useNews.js';
 
+// News is kept for the visit once read: each test starts without it
+beforeEach(clearNewsCache);
 afterEach(cleanup);
 
 const NOW = Date.now();

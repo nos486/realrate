@@ -8,6 +8,7 @@
  */
 
 import { useState, useEffect, useCallback } from 'react';
+import { useRefreshHandler } from '../../../shared/refresh/pageRefresh.js';
 import { useAuth } from '../../auth/index.js';
 import { useVault } from '../../../shared/vault/useVault.js';
 import {
@@ -36,6 +37,8 @@ export function useIncomes({ from, to }) {
   const [error, setError] = useState(null);
 
   const reload = useCallback(() => setReloadToken((n) => n + 1), []);
+  // The open tab's refresh (header button, window focus) reads the window again
+  useRefreshHandler('incomes', reload);
 
   // The whole window: the list, the reports, the charts and search all read it
   // (vaultEpoch: reload after unlocking or migrating)
