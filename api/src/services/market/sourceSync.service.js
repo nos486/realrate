@@ -63,7 +63,9 @@ const endpointKeyOf = (src) => `${src.sourceType}::${src.endpoint || src.apiUrl 
  * Today's range of every item (Tehran day), carried from the previous book — no database read:
  * `params.day`, `dayOpen` (the day's first price), `dayHigh`, `dayLow`. A new day starts at the
  * current price. Home cards show it as a low–high bar. All in the item's own currency: a
- * dollar-priced item's are dollars (`params.dayCurrency: "usd"`), like its change.
+ * dollar-priced item's are dollars (`params.dayCurrency: "usd"`), like its change, and it also
+ * carries its toman range and change under `params.toman` ({ dayOpen, dayHigh, dayLow,
+ * prevClose, closeDay, changePercent }) for a card shown in tomans.
  *
  * Also each item's change, the standard the cards show (`params.changePercent`), for items whose
  * source gives none: the change of its last session — against `prevClose`, the price before its
@@ -88,18 +90,32 @@ export function withDayRange(book, previousBook, now) {
     const sameCurrency = (prevItem?.params?.dayCurrency || "toman") === (usd ? "usd" : "toman");
     const prev = sameCurrency ? prevItem?.params : undefined;
     const prevPrice = sameCurrency ? (usd ? prevItem?.priceUsd : prevItem?.price) : undefined;
-    const same = prev?.day === day && Number(prev.dayHigh) > 0 && Number(prev.dayLow) > 0;
     item.params = {
       ...(item.params || {}),
       day,
-      dayOpen: same ? Number(prev.dayOpen) || price : price,
-      dayHigh: same ? Math.max(Number(prev.dayHigh), price) : price,
-      dayLow: same ? Math.min(Number(prev.dayLow), price) : price,
+      ...rangeOf(prev, price, day),
       ...(usd ? { dayCurrency: "usd" } : {}),
     };
     if (!Number.isFinite(Number(item.params.changePercent))) Object.assign(item.params, sessionChange(prev, prevPrice, price, day));
+    // A dollar-priced asset's toman range and change too (`params.toman`), for a home card the
+    // user shows in tomans: carried from the previous book's the same way
+    const toman = Number(item.price);
+    if (usd && toman > 0) {
+      const prevToman = prev?.toman ? { ...prev.toman, day: prev.day } : undefined;
+      item.params.toman = { ...rangeOf(prevToman, toman, day), ...sessionChange(prevToman, prevItem?.price, toman, day) };
+    }
   }
   return book;
+}
+
+/** Today's open / high / low at `price`, carried from the previous book's on the same day */
+function rangeOf(prev, price, day) {
+  const same = prev?.day === day && Number(prev.dayHigh) > 0 && Number(prev.dayLow) > 0;
+  return {
+    dayOpen: same ? Number(prev.dayOpen) || price : price,
+    dayHigh: same ? Math.max(Number(prev.dayHigh), price) : price,
+    dayLow: same ? Math.min(Number(prev.dayLow), price) : price,
+  };
 }
 
 /**
