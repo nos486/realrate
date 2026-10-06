@@ -627,6 +627,8 @@ export const APP_TABLES = [
       )`,
       "CREATE INDEX IF NOT EXISTS idx_news_published ON news(hidden, published_at DESC)",
       "CREATE INDEX IF NOT EXISTS idx_news_category ON news(category, published_at DESC)",
+      // The repeat check reads recent news hidden or not (idx_news_published needs `hidden`)
+      "CREATE INDEX IF NOT EXISTS idx_news_recent ON news(published_at DESC)",
     ],
   },
   {

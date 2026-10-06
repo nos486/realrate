@@ -110,7 +110,7 @@ export async function dbRecentNewsTexts(env, since) {
   if (!hasDatabase(env)) return [];
   await ensureSchema(env);
   const { results = [] } = await env.DB.prepare(
-    "SELECT id, title, text FROM news WHERE published_at >= ? ORDER BY published_at DESC LIMIT 400"
+    "SELECT title, text FROM news WHERE published_at >= ? ORDER BY published_at DESC LIMIT 400"
   ).bind(since).all();
   return results;
 }

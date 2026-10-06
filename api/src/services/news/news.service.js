@@ -224,21 +224,25 @@ async function pollChannels(env, store, now, fetchPage) {
   }
   fresh.sort((a, b) => a.publishedAt - b.publishedAt || a.postId - b.postId);
 
-  // 2. Keywords, then 3. repeats of published news (and of each other)
-  const recent = (await dbRecentNewsTexts(env, now - NEWS_LIMITS.duplicateWindowHours * 3600_000))
-    .map((r) => wordSet(`${r.title}\n${r.text}`));
-  const candidates = [];
-  let notMarket = 0;
-  let duplicates = 0;
+  // 2. Keywords: not market news, or vulgar, is never sent to the model (the waiting ones are
+  // already past them)
   const pendingIds = new Set(pending.map(postKey));
-  // The waiting ones first (already past the keywords), then the new ones
-  for (const post of [...pending, ...fresh.filter((p) => !pendingIds.has(postKey(p)))]) {
-    const waited = pendingIds.has(postKey(post));
-    // Not market news, or vulgar: never sent to the model
-    if (!waited && (hasProfanity(post.text) || !isNewsCandidate(post.text))) {
-      notMarket++;
-      continue;
-    }
+  const screened = [...pending];
+  let notMarket = 0;
+  for (const post of fresh) {
+    if (pendingIds.has(postKey(post))) continue;
+    if (hasProfanity(post.text) || !isNewsCandidate(post.text)) notMarket++;
+    else screened.push(post);
+  }
+
+  // 3. Repeats of published news (and of each other); recent news is read only when there is a
+  // post to compare with it — most runs have none
+  const recent = screened.length
+    ? (await dbRecentNewsTexts(env, now - NEWS_LIMITS.duplicateWindowHours * 3600_000)).map((r) => wordSet(`${r.title}\n${r.text}`))
+    : [];
+  const candidates = [];
+  let duplicates = 0;
+  for (const post of screened) {
     const words = wordSet(post.text);
     if (recent.some((r) => isDuplicateNews(words, r)) || candidates.some((c) => isDuplicateNews(words, c.words))) {
       duplicates++;

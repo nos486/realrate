@@ -357,6 +357,21 @@ describe('runNewsPolling', () => {
     warn.mockRestore();
   });
 
+  it('recent news is read for the repeat check only when a post passed the keywords', async () => {
+    const prepare = vi.spyOn(db, 'prepare');
+    const recentReads = () => prepare.mock.calls.filter(([sql]) => /SELECT title, text FROM news/.test(sql)).length;
+    pages.chan_one = page('chan_one', [post('chan_one', 1, 'تیم ملی برد', at(0))]);
+    await runNewsPolling(env, { now: NOW, fetchPage });
+    await runNewsPolling(env, { now: NOW + 60000, fetchPage });
+    expect(recentReads()).toBe(0);
+
+    pages.chan_one = page('chan_one', [post('chan_one', 2, 'دلار و طلا و سکه بعد از تصمیم بانک مرکزی و فدرال رزرو جهش کرد', at(1))]);
+    env.AI = { run: vi.fn(async () => ({ response: '[{"i":1,"k":0}]' })) };
+    await runNewsPolling(env, { now: NOW + 120000, fetchPage });
+    expect(recentReads()).toBe(1);
+    prepare.mockRestore();
+  });
+
   it('a vulgar post never reaches the model; it counts as not market news in the report', async () => {
     pages.chan_one = page('chan_one', [post('chan_one', 1, 'قیمت دلار بالا رفت و کیر شدن', at(0))]);
     env.AI = { run: vi.fn() };
