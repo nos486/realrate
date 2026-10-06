@@ -1,6 +1,7 @@
 /**
- * PeriodSwitcher.jsx — «ماهانه / سالانه», and the Shamsi month or year shown (previous / next /
- * back to now), the same on the incomes and expenses pages
+ * PeriodSwitcher.jsx — The Shamsi month or year shown (previous / next / back to now), and
+ * «ماهانه / سالانه» where a page has both (without `onModeChange`, months only: the incomes and
+ * expenses pages; the reports page shows years)
  */
 
 import React from 'react';
@@ -14,11 +15,11 @@ const MODES = [
 ];
 
 /**
- * @param {{ mode: 'month'|'year', month: { jy: number, jm: number }, thisMonth: { jy: number, jm: number },
- *   onModeChange: (mode: string) => void, onMonthChange: (month: object) => void }} props
+ * @param {{ mode?: 'month'|'year', month: { jy: number, jm: number }, thisMonth: { jy: number, jm: number },
+ *   onModeChange?: (mode: string) => void, onMonthChange: (month: object) => void }} props
  *   the year shown is `month.jy`; moving a year keeps the month (capped at this month)
  */
-export default function PeriodSwitcher({ mode, month, thisMonth, onModeChange, onMonthChange }) {
+export default function PeriodSwitcher({ mode = 'month', month, thisMonth, onModeChange = null, onMonthChange }) {
   const yearly = mode === 'year';
   const atNow = yearly ? month.jy >= thisMonth.jy : monthIndex(month) >= monthIndex(thisMonth);
   const step = (delta) => {
@@ -28,7 +29,7 @@ export default function PeriodSwitcher({ mode, month, thisMonth, onModeChange, o
   };
   return (
     <div className="flow-period-bar">
-      <FilterPills options={MODES} activeValue={mode} onChange={onModeChange} size="sm" />
+      {onModeChange && <FilterPills options={MODES} activeValue={mode} onChange={onModeChange} size="sm" />}
       <div className="flow-period-nav">
         <Button size="sm" variant="secondary" icon={<ChevronRight size={16} />} onClick={() => step(-1)} aria-label={yearly ? 'سال قبل' : 'ماه قبل'} />
         <strong className="flow-period-label">{yearly ? `سال ${formatShamsiYear(month.jy)}` : formatShamsiMonth(month.jy, month.jm)}</strong>

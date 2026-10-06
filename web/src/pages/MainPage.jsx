@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef, lazy, Suspense } from 'react';
 import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import ErrorBoundary from '../shared/ui/ErrorBoundary.jsx';
-import { TrendingUp, Briefcase, ShieldCheck, Settings, Landmark, Wallet, ReceiptText, Wrench, HandCoins, WalletCards, Smartphone, MessageSquareText, FolderKanban, Newspaper } from 'lucide-react';
+import { TrendingUp, Briefcase, ShieldCheck, Settings, Landmark, Wallet, ReceiptText, Wrench, HandCoins, WalletCards, Smartphone, MessageSquareText, FolderKanban, Newspaper, ChartColumn } from 'lucide-react';
 import { AppLayout, FilterPills, AlertBanner, Button } from '../shared/ui/index.js';
 import { PriceRefreshStatus } from '../features/market/components/index.js';
 import HomeDashboard from '../features/home/HomeDashboard.jsx';
@@ -40,6 +40,7 @@ const AccountSettingsView = lazy(() => import('../components/AccountSettingsView
 const AppSettingsView = lazy(() => import('../features/app-settings/AppSettingsView.jsx'));
 const SmsInboxPage = lazy(() => import('../features/sms-inbox/SmsInboxPage.jsx'));
 const NewsPage = lazy(() => import('../features/news/NewsPage.jsx'));
+const ReportsPage = lazy(() => import('../features/reports/ReportsPage.jsx'));
 // The Android app's home (its own month at a glance); the website's home is the market
 const AppHomeDashboard = lazy(() => import('../features/home/AppHomeDashboard.jsx'));
 
@@ -161,6 +162,13 @@ export default function MainPage() {
       searchParams.get('tab') === 'news'
     );
 
+  // Reports across incomes, expenses and the portfolios (the user's own amounts)
+  const isReports =
+    Boolean(user) && !isSettings && (
+      subPath.startsWith('/reports') ||
+      searchParams.get('tab') === 'reports'
+    );
+
   // App frame: the market has its own page (the home is the user's own dashboard)
   const isRates = appLayout && subPath.startsWith('/rates');
 
@@ -184,6 +192,7 @@ export default function MainPage() {
     ['loans', isLoans],
     ['rates', isRates],
     ['news', isNews],
+    ['reports', isReports],
   ].find(([, matches]) => matches)?.[0] || 'market';
 
   const tabTitle = useMemo(() => {
@@ -212,6 +221,8 @@ export default function MainPage() {
         return 'نرخ و حباب | RealRate';
       case 'news':
         return 'اخبار | RealRate';
+      case 'reports':
+        return 'گزارش‌ها | RealRate';
       default:
         return 'داشبورد بازار | RealRate';
     }
@@ -259,6 +270,7 @@ export default function MainPage() {
     sms: '/sms',
     rates: '/rates',
     news: '/news',
+    reports: '/reports',
   };
 
   const handleTabChange = (nextTab) => {
@@ -299,6 +311,7 @@ export default function MainPage() {
       { value: 'portfolio', label: 'پورتفو', icon: <Briefcase size={16} strokeWidth={2} /> },
       { value: 'loans', label: 'وام و اقساط', icon: <Landmark size={16} strokeWidth={2} /> },
       { value: 'cheques', label: 'چک‌ها', icon: <ReceiptText size={16} strokeWidth={2} /> },
+      ...(user ? [{ value: 'reports', label: 'گزارش‌ها', icon: <ChartColumn size={16} strokeWidth={2} /> }] : []),
     ];
     if (user && !isDemo) {
       options.push(
@@ -479,6 +492,8 @@ export default function MainPage() {
         {activeTab === 'sms' && <SmsInboxPage />}
 
         {activeTab === 'news' && <NewsPage />}
+
+        {activeTab === 'reports' && <ReportsPage />}
 
         </Suspense>
         </ErrorBoundary>

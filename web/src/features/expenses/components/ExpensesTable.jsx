@@ -2,12 +2,13 @@
  * ExpensesTable.jsx — Expenses of a section (desktop table / mobile cards via ResponsiveDataTable)
  * An expense funded by a loan («تأمین از») names the loan under its title. A shared expense
  * («دنگ») shows the user's share under the amount, and what is still owed back; «دریافتی‌ها»
- * (`onReimburse`) records what came back.
+ * (`onReimburse`) records what came back. Everyday expenses can be picked (`selection`) and moved
+ * to a project (`onMove`).
  */
 
 import React from 'react';
 import { DollarValueLine } from '../../../shared/ui/DollarValue.jsx';
-import { Calendar, HandCoins, Landmark, MessageSquare, Pencil, Trash2 } from 'lucide-react';
+import { Calendar, FolderInput, HandCoins, Landmark, MessageSquare, Pencil, Trash2 } from 'lucide-react';
 import { ResponsiveDataTable } from '../../../shared/ui/index.js';
 import { formatShamsiDisplay } from '../../portfolio/components/ShamsiDatePicker.jsx';
 import { formatAmount } from '../utils/format.js';
@@ -57,6 +58,9 @@ export default function ExpensesTable({
   // Tags under each title; tapping one shows only its expenses
   onTagClick = null,
   activeTag = null,
+  // Rows can be picked (ResponsiveDataTable's selection), and each moved to a project
+  selection = null,
+  onMove = null,
 }) {
   const accountById = accounts ? new Map(accounts.map((a) => [a.id, a])) : null;
   const loans = useOptionalLoans();
@@ -197,6 +201,11 @@ export default function ExpensesTable({
                   <HandCoins size={13} strokeWidth={2} />
                 </button>
               )}
+              {onMove && (
+                <button type="button" className="btn-table-action" title="انتقال به پروژه" aria-label="انتقال به پروژه" onClick={() => onMove(e)}>
+                  <FolderInput size={13} strokeWidth={2} />
+                </button>
+              )}
               <button type="button" className="btn-table-action edit" title="ویرایش هزینه" onClick={() => onEdit(e)}>
                 <Pencil size={13} strokeWidth={2} />
               </button>
@@ -224,6 +233,7 @@ export default function ExpensesTable({
       rowClassName={(e) => `portfolio-table-row ${showCategory && getExpenseCategory(e.category).excluded ? 'is-excluded is-excluded-row' : ''}`}
       sortState={sortState}
       onSortChange={onSortChange}
+      selection={selection}
     />
   );
 }

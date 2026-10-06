@@ -144,6 +144,7 @@ import {
   handleSaveVault,
   handleListVaultRecords,
   handlePutVaultRecord,
+  handlePutVaultRecords,
   handleDeleteVaultRecord,
   handleGetLoanDocument,
   handleSyncVaultRecords,
@@ -441,9 +442,10 @@ async function handleRequest(request, env, ctx) {
     if (request.method === "DELETE") return wrap((req, e) => handleDeleteVaultRecord(req, e, { kind, id }))(request, env);
   }
   const vaultRecordsMatch = normalizedPath.match(/^\/api\/vault\/records\/([^/]+)$/);
-  if (vaultRecordsMatch && request.method === "GET") {
+  if (vaultRecordsMatch) {
     const kind = vaultRecordsMatch[1];
-    return wrap((req, e) => handleListVaultRecords(req, e, { kind }))(request, env);
+    if (request.method === "GET") return wrap((req, e) => handleListVaultRecords(req, e, { kind }))(request, env);
+    if (request.method === "PUT") return wrap((req, e) => handlePutVaultRecords(req, e, { kind }))(request, env);
   }
 
   // ── Alert Email Routes ──────────────────────────────────────────────────

@@ -11,6 +11,9 @@
  *   GET    /api/vault/records/:kind                  — Encrypted records of a kind (loan | income | cheque | recurring_income | holding | transaction |
  *                                                       expense_group | expense | bank_account | transfer — each only with its feature: config/features.js);
  *                                                       ?from&to&parent&undated=1&order=asc|desc&limit&offset (a page adds `total`)
+ *   PUT    /api/vault/records/:kind                  — Create/replace several of one kind at once
+ *                                                       ({ records: [{ id, payload, recordDate,
+ *                                                       parentId }], vaultEpoch }; all or none)
  *   PUT    /api/vault/records/:kind/:id              — Create/replace one ({ payload, replacePlain, vaultEpoch }:
  *                                                       with `vaultEpoch`, refused after a vault reset)
  *   DELETE /api/vault/records/:kind/:id              — Delete one
@@ -30,6 +33,7 @@ import {
   dbSaveUserVault,
   dbListVaultRecords,
   dbPutVaultRecord,
+  dbPutVaultRecords,
   dbDeleteVaultRecord,
   dbGetLoanDocument,
 } from "../repositories/index.js";
@@ -151,6 +155,15 @@ export async function handlePutVaultRecord(request, env, { kind, id }) {
     reminder: body.reminder,
   });
   return jsonResponse({ success: true, record }, 200, request);
+}
+
+export async function handlePutVaultRecords(request, env, { kind }) {
+  const userId = await requireUserId(request, env, kind);
+  const body = await request.json().catch(() => ({}));
+  const records = await dbPutVaultRecords(env, userId, kind, body.records, {
+    vaultEpoch: typeof body.vaultEpoch === "string" ? body.vaultEpoch : "",
+  });
+  return jsonResponse({ success: true, records }, 200, request);
 }
 
 export async function handleDeleteVaultRecord(request, env, { kind, id }) {

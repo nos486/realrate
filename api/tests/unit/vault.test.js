@@ -1,9 +1,11 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import {
   dbGetUserVault,
   dbSaveUserVault,
   dbListVaultRecords,
   dbPutVaultRecord,
+  dbPutVaultRecords,
+  VAULT_BATCH_MAX,
   dbDeleteVaultRecord,
   rejectWhenVaultEnabled,
   dbUserHasPlaintextData,
@@ -203,6 +205,41 @@ describe('vault records', () => {
     expect(list).toHaveLength(1);
     expect(list[0].payload).toBe(CIPHER_2);
     expect(await dbListVaultRecords(env, 'u1', 'income')).toHaveLength(0);
+  });
+
+  it('stores several records of a kind in one batch, all or none (expenses moved to a project)', async () => {
+    await dbPutVaultRecord(env, 'u1', 'expense', 'exp_1', { payload: CIPHER, recordDate: '2026-09-01', parentId: 'exg_daily' });
+    await dbPutVaultRecord(env, 'u1', 'expense', 'exp_2', { payload: CIPHER, recordDate: '2026-09-02', parentId: 'exg_daily' });
+    const batch = vi.spyOn(env.DB, 'batch');
+
+    const moved = await dbPutVaultRecords(env, 'u1', 'expense', [
+      { id: 'exp_1', payload: CIPHER_2, recordDate: '2026-09-01', parentId: 'exg_proj' },
+      { id: 'exp_2', payload: CIPHER_2, recordDate: '2026-09-02', parentId: 'exg_proj' },
+    ]);
+    expect(moved.map((r) => [r.id, r.parentId])).toEqual([['exp_1', 'exg_proj'], ['exp_2', 'exg_proj']]);
+    expect(batch).toHaveBeenCalledTimes(1);
+    expect((await dbListVaultRecords(env, 'u1', 'expense', { parentId: 'exg_proj' })).map((r) => r.id).sort()).toEqual(['exp_1', 'exp_2']);
+    expect(await dbListVaultRecords(env, 'u1', 'expense', { parentId: 'exg_daily' })).toHaveLength(0);
+
+    // One bad record: nothing is stored
+    batch.mockClear();
+    await expect(dbPutVaultRecords(env, 'u1', 'expense', [
+      { id: 'exp_1', payload: CIPHER, recordDate: '2026-09-01', parentId: 'exg_daily' },
+      { id: 'exp_2', payload: 'plain text', parentId: 'exg_daily' },
+    ])).rejects.toMatchObject({ statusCode: 400 });
+    await expect(dbPutVaultRecords(env, 'u1', 'expense', [{ id: 'exp_1', payload: CIPHER }])).rejects.toMatchObject({ statusCode: 400 });
+    await expect(dbPutVaultRecords(env, 'u1', 'expense', [
+      { id: 'exp_1', payload: CIPHER, parentId: 'exg_daily' },
+      { id: 'exp_1', payload: CIPHER, parentId: 'exg_daily' },
+    ])).rejects.toMatchObject({ statusCode: 400 });
+    expect(batch).not.toHaveBeenCalled();
+    expect(await dbListVaultRecords(env, 'u1', 'expense', { parentId: 'exg_daily' })).toHaveLength(0);
+
+    await expect(dbPutVaultRecords(env, 'u1', 'expense', [])).rejects.toMatchObject({ statusCode: 400 });
+    const many = Array.from({ length: VAULT_BATCH_MAX + 1 }, (_, i) => ({ id: `exp_${i}`, payload: CIPHER, parentId: 'exg_proj' }));
+    await expect(dbPutVaultRecords(env, 'u1', 'expense', many)).rejects.toMatchObject({ statusCode: 400 });
+    await expect(dbPutVaultRecords(env, 'u2', 'expense', [{ id: 'exp_9', payload: CIPHER, parentId: 'exg_proj' }])).rejects.toMatchObject({ statusCode: 409 });
+    await expect(dbPutVaultRecords(env, 'u1', 'expense', [{ id: 'exp_9', payload: CIPHER, parentId: 'exg_proj' }], { vaultEpoch: 'old' })).rejects.toMatchObject({ statusCode: 409 });
   });
 
   it('a deletion leaves a tombstone (for devices keeping a copy); storing it again clears it', async () => {

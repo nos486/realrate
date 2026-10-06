@@ -4,10 +4,10 @@
  * Only what can move the dollar, gold, coins, metals, the stock index or the economy is published
  * (the server picks and summarizes it with AI, api/src/services/news/news.service.js).
  *
- *   ┌──────────────────────────────┬──────────────────┐
- *   │ تحلیل روز (AI)               │ مهم‌ترین‌های امروز │   large screens: two columns,
- *   │ filters · list · pages       │ (sticky)          │   today's top on the left
- *   └──────────────────────────────┴──────────────────┘
+ *   ┌──────────────────────────────┬──────────────────────────┐
+ *   │ filters · list · pages       │ تحلیل روز (AI), wide     │   large screens: two columns,
+ *   │                              │ مهم‌ترین‌های امروز         │   the analysis on the left
+ *   └──────────────────────────────┴──────────────────────────┘
  * On a phone: the analysis, today's top, then the list. Each item shows its headline, summary,
  * source and time; a tap opens the post's full text and its link on Telegram. The list comes in
  * pages; new news comes in by itself every minute.

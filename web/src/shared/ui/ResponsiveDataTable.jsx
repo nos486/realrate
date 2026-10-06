@@ -45,6 +45,9 @@ function SortIcon({ active, dir }) {
  * @param {(row: object) => ReactNode} [renderExpanded] - rows open: tapping a row (not a button
  *   or link in it) shows this under it, full width — a desktop row gets a row of its own under it,
  *   a mobile card grows. Which rows are open is kept here.
+ * @param {object} [selection] - rows can be picked: { selected: Set of row keys, onToggle(row),
+ *   onToggleAll(checked) for the rows shown, label(row) for the checkbox's name }. A checkbox
+ *   starts each desktop row (and the header picks every row shown) and each mobile card.
  */
 export default function ResponsiveDataTable({
   columns,
@@ -58,6 +61,7 @@ export default function ResponsiveDataTable({
   sortState = null,
   onSortChange = null,
   renderExpanded = null,
+  selection = null,
 }) {
   const isMobile = useIsMobile(mobileBreakpoint);
   const [openKeys, setOpenKeys] = useState(() => new Set());
@@ -88,6 +92,19 @@ export default function ResponsiveDataTable({
     return emptyState;
   }
 
+  const isSelected = (row) => Boolean(selection?.selected.has(rowKey(row)));
+  const selectedClass = (row) => (isSelected(row) ? 'is-selected' : '');
+  const checkbox = (row) => (
+    <input
+      type="checkbox"
+      className="rdt-select"
+      checked={isSelected(row)}
+      onChange={() => selection.onToggle(row)}
+      aria-label={selection.label ? selection.label(row) : 'انتخاب'}
+    />
+  );
+  const shownSelected = selection ? rows.filter(isSelected).length : 0;
+
   if (isMobile) {
     const titleCol = columns.find((c) => c.mobile === 'title');
     const metaCols = columns.filter((c) => c.mobile === 'meta');
@@ -100,10 +117,11 @@ export default function ResponsiveDataTable({
         {rows.map((row) => (
           <div
             key={rowKey(row)}
-            className={`rdt-mobile-card ${rowClassName ? rowClassName(row) : ''} ${expandable ? 'is-expandable' : ''} ${isOpen(row) ? 'is-open' : ''}`}
+            className={`rdt-mobile-card ${rowClassName ? rowClassName(row) : ''} ${expandable ? 'is-expandable' : ''} ${isOpen(row) ? 'is-open' : ''} ${selectedClass(row)}`}
             {...rowProps(row)}
           >
             <div className="rdt-mobile-card-row rdt-mobile-card-top">
+              {selection && checkbox(row)}
               {titleCol && <div className="rdt-mobile-card-title">{titleCol.render(row)}</div>}
               {actionsCol && <div className="rdt-mobile-card-actions">{actionsCol.render(row)}</div>}
             </div>
@@ -142,6 +160,18 @@ export default function ResponsiveDataTable({
       <table className={tableClassName}>
         <thead>
           <tr>
+            {selection && (
+              <th className="rdt-select-cell">
+                <input
+                  type="checkbox"
+                  className="rdt-select"
+                  checked={shownSelected === rows.length}
+                  ref={(el) => { if (el) el.indeterminate = shownSelected > 0 && shownSelected < rows.length; }}
+                  onChange={(e) => selection.onToggleAll(e.target.checked)}
+                  aria-label="انتخاب همه‌ی ردیف‌های این صفحه"
+                />
+              </th>
+            )}
             {columns.map((c) =>
               c.sortKey ? (
                 <th
@@ -170,9 +200,10 @@ export default function ResponsiveDataTable({
           {rows.map((row) => (
             <React.Fragment key={rowKey(row)}>
               <tr
-                className={`${rowClassName ? rowClassName(row) : ''} ${expandable ? 'is-expandable' : ''} ${isOpen(row) ? 'is-open' : ''}`}
+                className={`${rowClassName ? rowClassName(row) : ''} ${expandable ? 'is-expandable' : ''} ${isOpen(row) ? 'is-open' : ''} ${selectedClass(row)}`}
                 {...rowProps(row)}
               >
+                {selection && <td className="rdt-select-cell">{checkbox(row)}</td>}
                 {columns.map((c) => (
                   <td key={c.key} className={c.tdClassName}>
                     {c.render(row)}
@@ -181,7 +212,7 @@ export default function ResponsiveDataTable({
               </tr>
               {isOpen(row) && (
                 <tr className="rdt-expanded-row">
-                  <td colSpan={columns.length}>
+                  <td colSpan={columns.length + (selection ? 1 : 0)}>
                     <div className="rdt-expanded">{renderExpanded(row)}</div>
                   </td>
                 </tr>

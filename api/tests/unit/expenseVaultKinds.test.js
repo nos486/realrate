@@ -13,13 +13,14 @@ vi.mock('../../src/repositories/index.js', () => ({
   dbSaveUserVault: vi.fn(),
   dbListVaultRecords: vi.fn(async () => []),
   dbPutVaultRecord: vi.fn(async (_env, _user, kind, id) => ({ id, kind })),
+  dbPutVaultRecords: vi.fn(async (_env, _user, kind, records) => records.map(({ id }) => ({ id, kind }))),
   dbDeleteVaultRecord: vi.fn(async () => true),
   dbGetLoanDocument: vi.fn(),
 }));
 
 import { getAuthenticatedUser } from '../../src/lib/auth.js';
 import * as repo from '../../src/repositories/index.js';
-import { handleListVaultRecords, handlePutVaultRecord, handleDeleteVaultRecord } from '../../src/handlers/vaultRoutes.js';
+import { handleListVaultRecords, handlePutVaultRecord, handlePutVaultRecords, handleDeleteVaultRecord } from '../../src/handlers/vaultRoutes.js';
 
 const ADMIN = { userId: 'a1', role: 'admin' };
 const USER = { userId: 'u1', role: 'user' };
@@ -38,6 +39,15 @@ describe('expense vault kinds', () => {
     expect((await handlePutVaultRecord(req('PUT', { payload: 'x', parentId: 'grp_1' }), {}, { kind, id: 'e1' })).status).toBe(200);
     expect((await handleDeleteVaultRecord(req('DELETE'), {}, { kind, id: 'e1' })).status).toBe(200);
     expect(repo.dbPutVaultRecord).toHaveBeenCalledWith({}, 'u1', kind, 'e1', expect.anything());
+  });
+
+  it('stores several expenses in one request (moved to a project), with the vault epoch', async () => {
+    getAuthenticatedUser.mockResolvedValue(USER);
+    const records = [{ id: 'exp_1', payload: 'c1', parentId: 'grp_2' }, { id: 'exp_2', payload: 'c2', parentId: 'grp_2' }];
+    const res = await handlePutVaultRecords(req('PUT', { records, vaultEpoch: 'v1' }), {}, { kind: 'expense' });
+    expect(res.status).toBe(200);
+    expect((await res.json()).records.map((r) => r.id)).toEqual(['exp_1', 'exp_2']);
+    expect(repo.dbPutVaultRecords).toHaveBeenCalledWith({}, 'u1', 'expense', records, { vaultEpoch: 'v1' });
   });
 
   it('still requires a signed-in user', async () => {
