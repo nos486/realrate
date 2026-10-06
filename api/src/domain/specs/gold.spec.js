@@ -78,7 +78,7 @@ export const GOLD_SPECS = {
     name: 'انس طلای جهانی',
     category: 'gold',
     badge: 'انس',
-    unit: 'دلار',
+    unit: 'اونس', // one troy ounce; priced in dollars (the price book's `currency`)
     weight: TROY_OUNCE_GRAMS,
     carat: 24,
     gold24kWeight: TROY_OUNCE_GRAMS,

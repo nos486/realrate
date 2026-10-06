@@ -117,6 +117,8 @@ describe("Phase 1 Contract Verification — All Adapters output strictly {items:
       id: "src_def_ons_gold",
       name: "انس طلا جهانی (XAU)",
       priceType: "ons_gold",
+      // A dollar-quoted source keeps its cents (its `quote`, never its id)
+      quote: "usd",
       sourceType: "api_url",
       jsonPath: "price",
     };

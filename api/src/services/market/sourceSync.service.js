@@ -21,7 +21,7 @@ import { getAdapterForSource } from "./sources/index.js";
 import { saveSourceItems } from "../../repositories/sourceItems.repository.js";
 import { getPriceBookCache, setPriceBookCache } from "../../repositories/priceBookStore.repository.js";
 import { logger } from "../../lib/logger.js";
-import { buildPriceBook } from "../../domain/priceBook.js";
+import { buildPriceBook, currencyOf, usdSeriesKey } from "../../domain/priceBook.js";
 import { tehranDay } from "../../repositories/priceHistory.repository.js";
 import { guardSourceItems } from "../../domain/priceGuard.js";
 
@@ -62,7 +62,8 @@ const endpointKeyOf = (src) => `${src.sourceType}::${src.endpoint || src.apiUrl 
 /**
  * Today's range of every item (Tehran day), carried from the previous book — no database read:
  * `params.day`, `dayOpen` (the day's first price), `dayHigh`, `dayLow`. A new day starts at the
- * current price. Home cards show it as a low–high bar.
+ * current price. Home cards show it as a low–high bar. All in the item's own currency: a
+ * dollar-priced item's are dollars (`params.dayCurrency: "usd"`), like its change.
  *
  * Also each item's change, the standard the cards show (`params.changePercent`), for items whose
  * source gives none: the change of its last session — against `prevClose`, the price before its
@@ -76,9 +77,17 @@ const endpointKeyOf = (src) => `${src.sourceType}::${src.endpoint || src.apiUrl 
 export function withDayRange(book, previousBook, now) {
   const day = tehranDay(now);
   for (const item of Object.values(book?.items || {})) {
-    const price = Number(item.price);
+    // In the asset's own currency: a dollar-priced asset's range and change are its dollar
+    // price's (the ounce didn't move because the dollar did)
+    const usd = currencyOf(item) === "usd";
+    const price = Number(usd ? item.priceUsd : item.price);
     if (!Number.isFinite(price) || price <= 0) continue;
-    const prev = previousBook?.items?.[item.id]?.params;
+    const prevItem = previousBook?.items?.[item.id];
+    // What the previous book measured in (`dayCurrency`; absent = toman): a range or a base in
+    // another currency is not carried over
+    const sameCurrency = (prevItem?.params?.dayCurrency || "toman") === (usd ? "usd" : "toman");
+    const prev = sameCurrency ? prevItem?.params : undefined;
+    const prevPrice = sameCurrency ? (usd ? prevItem?.priceUsd : prevItem?.price) : undefined;
     const same = prev?.day === day && Number(prev.dayHigh) > 0 && Number(prev.dayLow) > 0;
     item.params = {
       ...(item.params || {}),
@@ -86,8 +95,9 @@ export function withDayRange(book, previousBook, now) {
       dayOpen: same ? Number(prev.dayOpen) || price : price,
       dayHigh: same ? Math.max(Number(prev.dayHigh), price) : price,
       dayLow: same ? Math.min(Number(prev.dayLow), price) : price,
+      ...(usd ? { dayCurrency: "usd" } : {}),
     };
-    if (!Number.isFinite(Number(item.params.changePercent))) Object.assign(item.params, sessionChange(prev, previousBook?.items?.[item.id]?.price, price, day));
+    if (!Number.isFinite(Number(item.params.changePercent))) Object.assign(item.params, sessionChange(prev, prevPrice, price, day));
   }
   return book;
 }
@@ -121,7 +131,8 @@ function sessionChange(prev, prevPrice, price, day) {
  * the items whose price differs from the previous book's. The first tick of each hour (and of
  * each Tehran day) records them all: it starts every item's day row, and repairs a change an
  * earlier failed write missed. Items of sources that didn't sync keep their value, except those
- * computed from the dollar and the ounce.
+ * computed from the dollar and the ounce. A dollar-priced item records its dollar close too
+ * (`${id}@usd`, priceBook.js).
  * @param {{ updatedAt?: string, items: Record<string, object> }} book
  * @param {{ updatedAt?: string, items?: Record<string, object> }|null} previousBook
  * @param {Set<string>} syncedSourceIds
@@ -135,8 +146,12 @@ export function historyPointsOf(book, previousBook, syncedSourceIds) {
   return Object.values(book?.items || {})
     .filter((item) => !item.sourceId || syncedSourceIds.has(item.sourceId)
       || item.params?.usd !== undefined || item.params?.usdCross !== undefined)
-    .filter((item) => everything || Number(previousBook?.items?.[item.id]?.price) !== Number(item.price))
-    .map((item) => ({ id: item.id, price: item.price }));
+    .filter((item) => everything || Number(previousBook?.items?.[item.id]?.price) !== Number(item.price)
+      || (currencyOf(item) === "usd" && Number(previousBook?.items?.[item.id]?.priceUsd) !== Number(item.priceUsd)))
+    // A dollar-priced asset also records its dollar close, under its own key (`${id}@usd`)
+    .flatMap((item) => (currencyOf(item) === "usd" && item.priceUsd > 0
+      ? [{ id: item.id, price: item.price }, { id: usdSeriesKey(item.id), price: item.priceUsd }]
+      : [{ id: item.id, price: item.price }]));
 }
 
 export async function syncAllSources(env, options = {}) {

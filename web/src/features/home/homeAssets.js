@@ -7,6 +7,8 @@
  */
 
 import { assetOf } from '../market/priceBookAssets.js';
+import { ownPriceOf } from '../market/assetPrice.js';
+import { usdSeriesKey } from '../../utils/priceBook.js';
 
 /**
  * Lookup tables built once per data refresh
@@ -43,6 +45,8 @@ export function resolveHomeAsset(id, index) {
   const asset = assetOf(index.itemMap, id);
   if (!asset) return { id, found: false };
   const analysis = index.analysisById.get(asset.id) || null;
+  // Its own price: a dollar-priced asset (the ounce, oil) in dollars, the rest in tomans
+  const own = ownPriceOf(asset);
   return {
     id: asset.id,
     found: true,
@@ -51,10 +55,13 @@ export function resolveHomeAsset(id, index) {
     flag: asset.flag || '',
     category: asset.category || '',
     badge: asset.badge || '',
-    price: num(asset.price),
-    // Every book price is in tomans; `perUnit` is what one unit is (گرم, عدد, یورو, …)
-    unit: 'تومان',
+    price: num(own.value),
+    currency: own.currency,
+    // تومان, or دلار for a dollar-priced asset; `perUnit` is what one unit is (گرم, اونس, بشکه, …)
+    unit: own.unit,
     perUnit: asset.unit || '',
+    // The history its chart reads: a dollar-priced asset's dollar closes (`${id}@usd`)
+    seriesId: own.currency === 'usd' ? usdSeriesKey(asset.id) : asset.id,
     note: asset.subText || '',
     sourceName: asset.sourceName || '',
     changePercent: num(asset.changePercent),

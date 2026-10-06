@@ -8,6 +8,7 @@ export * from './silver.spec.js';
 export * from './forex.spec.js';
 export * from './crypto.spec.js';
 export * from './cash.spec.js';
+export * from './commodity.spec.js';
 export * from './registry.js';
 export * from '../formulas.js';
 export {

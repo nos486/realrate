@@ -139,6 +139,48 @@ export const PRICE_SOURCES_CONFIG = [
     isPrimary: true,
     displayConfig: { showOnHomePage: true },
   },
+  // ── Dollar-priced world assets (quote: "usd") ──
+  // Their numbers are dollars: the price book keeps them as the asset's own price (`currency:
+  // "usd"`, `priceUsd`) and gives the toman price at the book's dollar.
+  ...[
+    { id: "src_def_ons_platinum", name: "انس پلاتین جهانی (XPT)", priceType: "ons_platinum", symbol: "XPT", category: "commodity", unit: "اونس" },
+    { id: "src_def_ons_palladium", name: "انس پالادیوم جهانی (XPD)", priceType: "ons_palladium", symbol: "XPD", category: "commodity", unit: "اونس" },
+    { id: "src_def_btc", name: "بیت‌کوین (BTC)", priceType: "BTC", symbol: "BTC", category: "crypto", unit: "عدد" },
+    { id: "src_def_eth", name: "اتریوم (ETH)", priceType: "ETH", symbol: "ETH", category: "crypto", unit: "عدد" },
+  ].map(({ symbol, ...src }) => ({
+    ...src,
+    brand: "بازار جهانی",
+    quote: "usd",
+    sourceType: "api_url",
+    endpoint: `https://api.gold-api.com/price/${symbol}`,
+    jsonPath: "price",
+    fetchIntervalSec: 60,
+    isActive: true,
+    isPrimary: true,
+    displayConfig: { showOnHomePage: true },
+  })),
+  // Crude oil: the front-month futures (Yahoo Finance's chart API, no key), dollars per barrel
+  ...[
+    { id: "src_def_oil_brent", name: "نفت برنت (Brent)", priceType: "oil_brent", ticker: "BZ=F" },
+    { id: "src_def_oil_wti", name: "نفت WTI", priceType: "oil_wti", ticker: "CL=F" },
+  ].map(({ ticker, ...src }) => ({
+    ...src,
+    brand: "بازار جهانی",
+    quote: "usd",
+    sourceType: "api_url",
+    endpoint: `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(ticker)}?interval=1d&range=1d`,
+    category: "commodity",
+    unit: "بشکه",
+    fetchIntervalSec: 300,
+    isActive: true,
+    isPrimary: true,
+    displayConfig: { showOnHomePage: true },
+    customParser: (data) => {
+      const price = Number(data?.chart?.result?.[0]?.meta?.regularMarketPrice);
+      if (!(price > 0)) throw new Error("قیمت نفت در پاسخ وب‌سرویس یافت نشد.");
+      return price;
+    },
+  })),
   // ── سورس تتر با فانکشن پارسر اختصاصی ──
   {
     id: "src_brs_usdt",

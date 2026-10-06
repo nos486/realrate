@@ -16,7 +16,7 @@
 import { importDailyCandles, tehranDay, addDays } from "../../repositories/priceHistory.repository.js";
 import { dropHistorySnapshots } from "../../repositories/priceHistoryStore.repository.js";
 import { jalaliToGregorian } from "../../domain/loanCalculator.js";
-import { normalizePriceId } from "../../domain/priceBook.js";
+import { normalizePriceId, currencyOf, usdSeriesKey, historyKeysOf, USD_SERIES_SUFFIX } from "../../domain/priceBook.js";
 import { AppError } from "../../lib/AppError.js";
 import { logger } from "../../lib/logger.js";
 import { ensureSchema } from "../../repositories/schema.repository.js";
@@ -224,7 +224,12 @@ export async function backfillPriceHistory(env, {
   }
 
   const { written, valid } = await importDailyCandles(env, id, candles, { overwrite, now });
-  if (written > 0) await dropHistorySnapshots(env, [id]);
+  // A dollar series of a dollar-priced item (the ounce, oil) also fills its dollar history as is
+  let usdWritten = 0;
+  if (unit === "usd" && currencyOf(item) === "usd") {
+    usdWritten = (await importDailyCandles(env, usdSeriesKey(id), raw, { overwrite, now })).written;
+  }
+  if (written > 0 || usdWritten > 0) await dropHistorySnapshots(env, [id, usdSeriesKey(id)]);
   const daysSorted = candles.map((c) => c.day).sort();
   logger.info("[HistoryBackfill] Done:", { slug, target: id, unit, fetched, valid, written });
   return { slug, target: id, unit, fetched, valid, written, from: daysSorted[0] || null, to: daysSorted.at(-1) || null };
@@ -296,10 +301,13 @@ export async function listHistoryKeys(env, { getBook = getPriceBookCache } = {})
     getBook(env),
   ]);
   const items = book?.items || {};
+  const known = new Set(historyKeysOf(items));
+  // A dollar series (`${id}@usd`) is named after its item
+  const nameOf = (key) => items[key]?.name || (known.has(key) ? `${items[key.slice(0, -USD_SERIES_SUFFIX.length)]?.name} (دلار)` : null);
   return (results || []).map((r) => ({
     key: r.item_key,
-    name: items[r.item_key]?.name || null,
-    inBook: Boolean(items[r.item_key]),
+    name: nameOf(r.item_key),
+    inBook: known.has(r.item_key),
     days: Number(r.days),
     first: r.first,
     last: r.last,
@@ -323,7 +331,8 @@ export async function deleteHistoryKey(env, key) {
  */
 export async function deleteOrphanKeys(env, { getBook = getPriceBookCache } = {}) {
   const book = await getBook(env);
-  const known = Object.keys(book?.items || {});
+  // The items' ids and the dollar series of the dollar-priced ones
+  const known = historyKeysOf(book?.items);
   if (known.length < 5) throw new AppError("دفتر قیمت فعلاً در دسترس نیست؛ بعداً دوباره امتحان کنید", 503, "NO_PRICE_BOOK");
   await ensureSchema(env);
   const { results } = await env.DB.prepare(

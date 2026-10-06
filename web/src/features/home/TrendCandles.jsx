@@ -7,6 +7,7 @@
  */
 
 import React, { useMemo, useState } from 'react';
+import { formatPrice } from '../market/assetPrice.js';
 
 const W = 200;
 const H = 64;
@@ -14,16 +15,13 @@ const PAD_Y = 3;
 
 const dayFormat = new Intl.DateTimeFormat('fa-IR-u-ca-persian', { month: 'short', day: 'numeric', weekday: 'short' });
 
-function formatValue(v) {
-  if (!Number.isFinite(v)) return '-';
-  return v >= 100 ? Math.round(v).toLocaleString('fa-IR') : v.toLocaleString('fa-IR', { maximumFractionDigits: 2 });
-}
+const formatValue = (v, currency) => (Number.isFinite(v) ? formatPrice(v, currency) : '-');
 
 /**
  * @param {{ candles: number[][], days: string[], unit?: string, label: string }} props - candles:
  *   [open, high, low, close] per day, days: YYYY-MM-DD (Tehran)
  */
-export default function TrendCandles({ candles, days, unit = '', label }) {
+export default function TrendCandles({ candles, days, unit = '', currency = 'toman', label }) {
   const [hover, setHover] = useState(null);
   const n = candles.length;
 
@@ -86,11 +84,11 @@ export default function TrendCandles({ candles, days, unit = '', label }) {
       {at && c && (
         <span className={`trend-spark-tip ${at.cx > W / 2 ? 'is-left' : ''}`} style={{ left: `${(at.cx / W) * 100}%` }} dir="rtl">
           <strong>
-            {formatValue(c[3])}
+            {formatValue(c[3], currency)}
             {unit && <small> {unit}</small>}
           </strong>
           <span className="trend-candle-ohlc">
-            باز {formatValue(c[0])} · بیشترین {formatValue(c[1])} · کمترین {formatValue(c[2])}
+            باز {formatValue(c[0], currency)} · بیشترین {formatValue(c[1], currency)} · کمترین {formatValue(c[2], currency)}
           </span>
           <span className="trend-spark-tip-time">{dayLabel(hover)}</span>
         </span>

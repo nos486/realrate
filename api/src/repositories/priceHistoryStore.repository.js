@@ -17,7 +17,7 @@
  */
 
 import { logger } from "../lib/logger.js";
-import { normalizePriceId } from "../domain/priceBook.js";
+import { normalizePriceId, liveSeriesValue } from "../domain/priceBook.js";
 import { getBlobStore } from "./kvStore.repository.js";
 import { getPriceBookCache } from "./priceBookStore.repository.js";
 import { readFullHistory, tehranDay, addDays } from "./priceHistory.repository.js";
@@ -101,8 +101,8 @@ export async function getItemHistory(env, key, { now = Date.now(), getBook = get
   const [past, book] = await Promise.all([getPastHistory(env, id, { now }), getBook(env).catch(() => null)]);
   if (past === null) return null;
 
-  const live = Number(book?.items?.[id]?.price);
-  const todayValue = Number.isFinite(live) && live > 0 ? live : null;
+  // An item's toman price, or a dollar-priced item's dollar price for its `@usd` series
+  const todayValue = liveSeriesValue(book?.items, id) || null;
   if (!past) return todayValue === null ? undefined : { since: today, values: [todayValue] };
 
   const values = [...past.values];

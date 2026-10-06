@@ -10,7 +10,7 @@ export const SILVER_SPECS = {
     name: 'انس نقره جهانی (XAG)',
     category: 'silver',
     badge: 'انس',
-    unit: 'دلار',
+    unit: 'اونس', // one troy ounce; priced in dollars (the price book's `currency`)
     weight: TROY_OUNCE_GRAMS,
     formulaText: 'نرخ لحظه‌ای هر تروا انس نقره در بازارهای بین‌المللی',
     aliases: ['انس نقره', 'اونس نقره', 'نقره جهانی', 'XAG', 'xag'],

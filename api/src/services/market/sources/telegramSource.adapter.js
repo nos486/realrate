@@ -10,6 +10,7 @@ import {
   extractPriceWithRegex,
 } from "./parsingUtils.js";
 import { getCanonicalAssetName } from "../../../domain/specs/index.js";
+import { roundUsd } from "../../../domain/priceBook.js";
 
 /**
  * Parse USD/Toman price from Telegram channel HTML
@@ -195,8 +196,8 @@ export const telegramSourceAdapter = {
         const parsedNum = extractPriceWithRegex(rawText, regex);
 
         if (parsedNum && parsedNum > 0) {
-          const isUsdAsset = priceType === "ons_gold" || priceType === "ons_silver";
-          const finalPrice = isUsdAsset ? Math.round(parsedNum * 100) / 100 : Math.round(parsedNum);
+          // A dollar-quoted source (`quote: "usd"`) keeps its cents
+          const finalPrice = sourceConfig.quote === "usd" ? roundUsd(parsedNum) : Math.round(parsedNum);
           return {
             items: [{
               id: sourceId,

@@ -9,6 +9,8 @@ import { ChevronDown } from 'lucide-react';
 import { CategoryIcon, formatAssetName, formatNum, getItemBrand } from '../utils/holdingHelpers.js';
 import { formatPct, toPersianDigits } from '../../../shared/utils/formatters.js';
 import ResponsiveDataTable from '../../../shared/ui/ResponsiveDataTable.jsx';
+import { assetOf } from '../../market/priceBookAssets.js';
+import { isUsdPriced, formatPrice } from '../../market/assetPrice.js';
 
 export default function HoldingsTable({
   categoryGroups = [],
@@ -17,6 +19,11 @@ export default function HoldingsTable({
   renderDetails = null,
 }) {
   if (!categoryGroups || categoryGroups.length === 0) return null;
+  // The dollar price of a dollar-priced asset (the book's own, today)
+  const usdPriceOf = (item) => {
+    const asset = assetOf(itemMap, item.assetId || item.id);
+    return isUsdPriced(asset) ? asset.priceUsd : 0;
+  };
   // Each date isolated (bdi): mixed with Persian words, slashed dates reorder
   const lotsRange = (item) => {
     if (!item.firstDate) return '—';
@@ -87,14 +94,21 @@ export default function HoldingsTable({
       header: 'ارزش روز واحد',
       thClassName: 'th-real-price',
       tdClassName: 'td-real-price',
-      render: (item) => (
-        <div className="cell-currency-wrap">
-          <span className={`cell-val real-val ${hideValues ? 'is-masked' : ''}`} title="محاسبه مستقیم بر مبنای ارزش واقعی">
-            {hideValues ? '****' : formatNum(item.unitRealPrice)}
-          </span>
-          <span className="cell-unit">تومان</span>
-        </div>
-      ),
+      render: (item) => {
+        // A dollar-priced asset (the ounce, oil) also shows its own price, in dollars
+        const usd = !hideValues && usdPriceOf(item);
+        return (
+          <>
+            <div className="cell-currency-wrap">
+              <span className={`cell-val real-val ${hideValues ? 'is-masked' : ''}`} title="محاسبه مستقیم بر مبنای ارزش واقعی">
+                {hideValues ? '****' : formatNum(item.unitRealPrice)}
+              </span>
+              <span className="cell-unit">تومان</span>
+            </div>
+            {usd && <span className="cell-usd-price"><bdi>${formatPrice(usd, 'usd')}</bdi></span>}
+          </>
+        );
+      },
     },
     {
       key: 'totalVal',

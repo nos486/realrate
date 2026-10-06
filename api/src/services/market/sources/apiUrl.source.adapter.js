@@ -9,6 +9,7 @@ import {
   extractValueByPath,
 } from "./parsingUtils.js";
 import { normalizeForexToUsdCrossRate } from "../../../domain/formulas.js";
+import { roundUsd } from "../../../domain/priceBook.js";
 
 /**
  * Generic environment variable interpolator.
@@ -256,14 +257,15 @@ export const apiUrlSourceAdapter = {
     }
 
     const priceType = (sourceConfig.priceType || sourceConfig.price_type || "").toLowerCase();
-    const isUsdAsset = priceType === "ons_gold" || priceType === "ons_silver";
+    // A dollar-quoted source (`quote: "usd"`: the ounce, oil, …) keeps its cents
+    const isUsdAsset = sourceConfig.quote === "usd";
     const isForexSingle = ['eur', 'try', 'aed', 'gbp', 'chf', 'cad', 'aud', 'cny'].includes(priceType);
 
     let finalPrice;
     if (isForexSingle) {
       finalPrice = normalizeForexToUsdCrossRate(priceType, extractedVal);
     } else if (isUsdAsset) {
-      finalPrice = Math.round(Number(extractedVal) * 100) / 100;
+      finalPrice = roundUsd(extractedVal);
     } else if (sourceConfig.decimals !== undefined && sourceConfig.decimals !== null) {
       finalPrice = Number(Number(extractedVal).toFixed(Number(sourceConfig.decimals)));
     } else if (Number(extractedVal) < 100 && !Number.isInteger(Number(extractedVal))) {

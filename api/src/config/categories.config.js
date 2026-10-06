@@ -73,12 +73,21 @@ export const CATEGORIES_CONFIG = [
     order: 7,
   },
   {
+    // World commodities priced in dollars (oil, platinum, palladium): the price book's `currency: "usd"`
+    key: 'commodity',
+    name: 'کالاهای جهانی',
+    badge: 'کالا',
+    iconName: 'Fuel',
+    color: 'rose',
+    order: 8,
+  },
+  {
     key: 'custom',
     name: 'دارایی‌های شخصی و سفارشی',
     badge: 'سفارشی',
     iconName: 'Sparkles',
     color: 'blue',
-    order: 8,
+    order: 9,
   },
 ];
 
