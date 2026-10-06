@@ -569,6 +569,40 @@
   color: var(--color-negative-text);
 }
 
+/* Edit mode, a dollar-priced asset: «دلاری / تومانی», a pill beside the grip and remove */
+.home-item-display {
+  display: inline-flex;
+  align-items: center;
+  height: 28px;
+  padding: 2px;
+  gap: 2px;
+  border-radius: 14px;
+  background: var(--bg-surface-elevated);
+  box-shadow: 0 0 0 1px var(--border-medium);
+}
+
+.home-item-display button {
+  height: 24px;
+  padding: 0 9px;
+  border: none;
+  border-radius: 12px;
+  background: transparent;
+  color: var(--text-secondary);
+  font: inherit;
+  font-size: 11px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.home-item-display button:hover {
+  color: var(--text-primary);
+}
+
+.home-item-display button.is-active {
+  background: var(--color-primary-soft);
+  color: var(--color-primary-text);
+}
+
 .is-editing .home-item > .fintech-card,
 .is-editing .home-item > .currency-item-card {
   transform: none;

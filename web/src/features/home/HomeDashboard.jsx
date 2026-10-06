@@ -4,7 +4,8 @@
  * The page is a list of sections; each section shows any market assets in one card style
  * (detailed or compact). The header holds search, the base rates (USD / ounce inputs) and
  * "شخصی‌سازی", which switches to edit mode: drag cards and sections to reorder them, add or
- * remove assets, rename, change card style, start from a ready-made preset, or reset to default.
+ * remove assets, rename, change card style, show a dollar-priced asset in dollars or tomans,
+ * start from a ready-made preset, or reset to default.
  * The layout is saved per user on the server (synced across devices); collapsed sections are
  * remembered per browser.
  */
@@ -46,7 +47,7 @@ import AlertBanner from '../../shared/ui/AlertBanner.jsx';
 import { useFeedback } from '../../shared/ui/FeedbackProvider.jsx';
 import { usePricing } from '../market/context/PricingContext.jsx';
 import { useDemo } from '../demo/index.js';
-import { HOME_LAYOUT_LIMITS } from '../../utils/homeLayout.js';
+import { HOME_LAYOUT_LIMITS, HOME_PRICE_DISPLAYS } from '../../utils/homeLayout.js';
 import HomeAssetCard from './HomeAssetCard.jsx';
 import AssetPickerModal from './AssetPickerModal.jsx';
 import { useHomeLayout } from './useHomeLayout.js';
@@ -60,6 +61,7 @@ import {
   updateSection,
   addItem,
   removeItem,
+  setItemDisplay,
   reorderSections,
   reorderItems,
 } from './homeLayoutModel.js';
@@ -112,7 +114,26 @@ function useSortableStyle(id) {
   return { ...sortable, style };
 }
 
-function SortableItem({ asset, section, isBest, onRemove }) {
+/** Edit mode, a dollar-priced asset's card: «نمایش قیمت: دلاری / تومانی» */
+function PriceDisplayToggle({ asset, onChange }) {
+  return (
+    <div className="home-item-display" role="group" aria-label={`نمایش قیمت ${asset.name || asset.id}`} title="نمایش قیمت">
+      {Object.entries(HOME_PRICE_DISPLAYS).map(([id, label]) => (
+        <button
+          key={id}
+          type="button"
+          className={asset.display === id ? 'is-active' : ''}
+          aria-pressed={asset.display === id}
+          onClick={() => asset.display !== id && onChange(id)}
+        >
+          {label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function SortableItem({ asset, section, isBest, onRemove, onDisplay }) {
   const { setNodeRef, setActivatorNodeRef, attributes, listeners, style, isDragging } = useSortableStyle(asset.id);
   const name = asset.name || asset.id;
   return (
@@ -129,6 +150,7 @@ function SortableItem({ asset, section, isBest, onRemove }) {
         >
           <GripVertical size={15} />
         </button>
+        {asset.usdPriced && <PriceDisplayToggle asset={asset} onChange={onDisplay} />}
         <button type="button" className="home-item-tool is-danger" onClick={onRemove} aria-label={`حذف ${name}`}>
           <X size={15} />
         </button>
@@ -137,7 +159,7 @@ function SortableItem({ asset, section, isBest, onRemove }) {
   );
 }
 
-function SectionItems({ section, editing, recommendation, onReorder, onRemoveItem, onAdd }) {
+function SectionItems({ section, editing, recommendation, onReorder, onRemoveItem, onItemDisplay, onAdd }) {
   const sensors = useDndSensors();
   const gridClass = section.style === 'compact' ? 'currency-cards-grid home-compact-list' : 'cards-modern-grid';
   const ids = section.resolved.map((a) => a.id);
@@ -173,6 +195,7 @@ function SectionItems({ section, editing, recommendation, onReorder, onRemoveIte
               section={section}
               isBest={recommendation?.best_id === asset.id}
               onRemove={() => onRemoveItem(asset.id)}
+              onDisplay={(display) => onItemDisplay(asset.id, display)}
             />
           ))}
           {section.items.length < HOME_LAYOUT_LIMITS.itemsPerSection && (
@@ -283,7 +306,7 @@ export default function HomeDashboard({
   // Search only filters the normal view; edit mode always shows everything
   const q = !editing && searchOpen ? query.trim().toLowerCase() : '';
   const sections = useMemo(() => effective.sections.map((section) => {
-    const items = section.items.map((id) => resolveHomeAsset(id, index));
+    const items = section.items.map((id) => resolveHomeAsset(id, index, section.display?.[id]));
     return { ...section, resolved: q ? items.filter((a) => a.found && a.searchText.includes(q)) : items };
   }), [effective, index, q]);
 
@@ -356,6 +379,7 @@ export default function HomeDashboard({
       recommendation={recommendation}
       onReorder={(activeId, overId) => commit((l) => reorderItems(l, section.id, activeId, overId))}
       onRemoveItem={(assetId) => commit((l) => removeItem(l, section.id, assetId))}
+      onItemDisplay={(assetId, display) => commit((l) => setItemDisplay(l, section.id, assetId, display))}
       onAdd={() => setPickerSectionId(section.id)}
     />
   );

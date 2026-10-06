@@ -1,7 +1,7 @@
 /**
  * homeLayoutModel.js — Default home page, ready-made presets and pure edit operations
  *
- * A layout is `{ version, sections: [{ id, title, style, items: [assetId] }] }` (validated by
+ * A layout is `{ version, sections: [{ id, title, style, items: [assetId], display? }] }` (validated by
  * utils/homeLayout.js, shared with the API). Every operation returns a new layout.
  */
 
@@ -25,7 +25,11 @@ export function newSectionId() {
 // Items are price book ids (lower-case), whatever form a preset or an old layout gives them in
 const layoutOf = (sections) => sanitizeHomeLayout({
   version: HOME_LAYOUT_VERSION,
-  sections: sections.map((s) => ({ ...s, items: (s.items || []).map((id) => toPriceId(id)) })),
+  sections: sections.map((s) => ({
+    ...s,
+    items: (s.items || []).map((id) => toPriceId(id)),
+    ...(s.display ? { display: Object.fromEntries(Object.entries(s.display).map(([id, v]) => [toPriceId(id), v])) } : {}),
+  })),
 });
 
 const byPriority = (a, b) => {
@@ -160,7 +164,20 @@ export function moveSection(layout, sectionId, delta) {
 }
 
 export function updateSection(layout, sectionId, patch) {
-  return mapSection(layout, sectionId, (s) => ({ ...s, ...patch, id: s.id, items: s.items }));
+  return mapSection(layout, sectionId, (s) => ({ ...s, ...patch, id: s.id, items: s.items, display: s.display }));
+}
+
+/**
+ * How one card shows a dollar-priced asset's price: 'toman' (its toman price large) or 'usd'
+ * (its own, the default — not stored)
+ */
+export function setItemDisplay(layout, sectionId, assetId, display) {
+  return mapSection(layout, sectionId, (s) => {
+    const next = { ...(s.display || {}) };
+    if (display === 'toman') next[assetId] = 'toman';
+    else delete next[assetId];
+    return { ...s, display: next };
+  });
 }
 
 export function addItem(layout, sectionId, assetId) {

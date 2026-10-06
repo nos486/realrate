@@ -7,6 +7,8 @@
  *   candles (۱ ماه / ۶ ماه / ۱ سال), fetched the first time that card is turned — nothing loads
  *   before; the card is locked while they load.
  * - compact: small row card (flag/icon, name, symbol, price).
+ * A dollar-priced asset (the ounce, oil) reads in dollars, or in tomans when its card is set so
+ * (`asset.display: 'toman'`, homeAssets.js): then the dollar price is the small line under it.
  * A section saved with the older "trend" style is shown as full cards.
  */
 
@@ -241,6 +243,7 @@ function FullCard({ asset, isBest = false, flippable = true }) {
             )}
             {item && changePill}
           </div>
+          {asset.display === 'toman' && asset.note && <span className="home-price-caption">{asset.note}</span>}
           {item && !hasMarket && <span className="home-price-caption">ارزش ذاتی — نرخ بازار فعلاً در دسترس نیست</span>}
           <StaleMark asset={asset} />
           {item && <GoldMetrics item={item} />}

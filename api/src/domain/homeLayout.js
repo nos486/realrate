@@ -14,6 +14,10 @@
  * }
  * A section saved with the older "trend" style is read as "detailed" (the full card now carries
  * the trend chart).
+ *
+ * A section can also say how a dollar-priced asset's card shows its price (the ounce, oil):
+ * `display: { ons_gold: "toman" }` — its toman price large and the dollar one under it. Absent
+ * means its own currency, dollars. Only the display changes: the item and its id stay the same.
  */
 
 export const HOME_LAYOUT_VERSION = 1;
@@ -22,6 +26,12 @@ export const HOME_LAYOUT_VERSION = 1;
 export const HOME_SECTION_STYLES = {
   detailed: "کارت کامل",
   compact: "کارت فشرده",
+};
+
+/** How a dollar-priced asset's card shows its price: in dollars (its own, the default) or in tomans */
+export const HOME_PRICE_DISPLAYS = {
+  usd: "دلاری",
+  toman: "تومانی",
 };
 
 /** Styles of older layouts → today's */
@@ -40,7 +50,7 @@ const SECTION_ID_RE = /^[A-Za-z0-9_-]{1,40}$/;
  * Normalize a layout into the valid shape, dropping anything malformed. Returns null when the
  * input isn't a layout at all (so callers can fall back to the default home page).
  * @param {unknown} input
- * @returns {{ version: number, sections: Array<{ id: string, title: string, style: string, items: string[] }> }|null}
+ * @returns {{ version: number, sections: Array<{ id: string, title: string, style: string, items: string[], display?: Record<string, "toman"> }> }|null}
  */
 export function sanitizeHomeLayout(input) {
   if (!input || typeof input !== "object" || !Array.isArray(input.sections)) return null;
@@ -69,7 +79,14 @@ export function sanitizeHomeLayout(input) {
       items.push(assetId);
     }
 
-    sections.push({ id, title, style, items });
+    // Only the cards in the section that aren't shown in their own currency
+    const display = {};
+    const rawDisplay = raw.display && typeof raw.display === "object" ? raw.display : {};
+    for (const assetId of items) {
+      if (Object.hasOwn(rawDisplay, assetId) && rawDisplay[assetId] === "toman") display[assetId] = "toman";
+    }
+
+    sections.push({ id, title, style, items, ...(Object.keys(display).length ? { display } : {}) });
   }
 
   return { version: HOME_LAYOUT_VERSION, sections };
