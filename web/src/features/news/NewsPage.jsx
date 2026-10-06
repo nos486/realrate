@@ -6,8 +6,8 @@
  *
  *   ┌──────────────────────────────┬──────────────────────────┐
  *   │ filters · list · pages       │ تحلیل روز (AI), wide     │   large screens: two columns,
- *   │                              │ مهم‌ترین‌های امروز         │   the analysis on the left
- *   └──────────────────────────────┴──────────────────────────┘
+ *   │                              │ مهم‌ترین‌های امروز         │   the left one stays in place
+ *   └──────────────────────────────┴──────────────────────────┘   while the list scrolls
  * On a phone: the analysis, today's top, then the list. Each item shows its headline, summary,
  * source and time; a tap opens the post's full text and its link on Telegram. The list comes in
  * pages; new news comes in by itself every minute.
@@ -241,9 +241,9 @@ export default function NewsPage() {
       />
 
       <div className="news-layout">
-        <NewsAnalysisCard analysis={today.analysis} className="news-layout-analysis" />
-
-        <aside className="news-layout-aside">
+        {/* The day's analysis and today's top: one column that stays in view on a large screen */}
+        <aside className="news-layout-side" aria-label="تحلیل و مهم‌ترین‌های امروز">
+          <NewsAnalysisCard analysis={today.analysis} />
           <TodayTop items={today.top} loading={today.loading} onOpen={openTop} />
         </aside>
 

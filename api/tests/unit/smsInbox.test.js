@@ -192,6 +192,14 @@ describe('recording a message', () => {
     expect(smsIncomeDraft(tx)).toMatchObject({
       title: 'واریز پارسیان', amount: 258280000, incomeDate: '2026-09-26', smsFingerprint: tx.fingerprint,
     });
+    expect(smsIncomeDraft(tx).category).toBeUndefined();
+  });
+
+  it("a bank's interest deposit is titled after the message and starts as investment income", () => {
+    const tx = parseBankSms('*بانک شهر*\nسود\nواريز به:700814110204\nمبلغ:377,743ريال\nموجودي:89,371,480ريال\n1405/07/1 00:41:16', BANK_SMS_TEMPLATES, { sender: 'Bank Shahr' });
+    const draft = smsIncomeDraft(tx);
+    expect(draft).toMatchObject({ category: 'investment', amount: 37774, incomeDate: '2026-09-23' });
+    expect(draft.title).toMatch(/^سود /);
   });
 });
 

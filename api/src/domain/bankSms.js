@@ -106,11 +106,15 @@ export function isSensitiveSms(text) {
   return SENSITIVE_RE.test(String(text ?? '').replace(/ي/g, 'ی').replace(/ك/g, 'ک'));
 }
 
-/** Sender digits without the Iranian prefixes ("+98", "0098", "98", "0") */
+/**
+ * Sender digits without the Iranian prefixes ("+98", "0098", "98", "0"); a name in lower case
+ * without spaces, dots, dashes or underscores — phones show the same sender as «Bank Shahr»,
+ * «BankShahr» or «BANK-SHAHR»
+ */
 export function normalizeSender(sender) {
   const raw = String(sender ?? '').trim().toLowerCase();
   const digits = raw.replace(/[^\d]/g, '');
-  if (!digits) return raw;
+  if (!digits) return raw.replace(/[\s._-]+/g, '');
   return digits.replace(/^(0098|98|0)/, '');
 }
 

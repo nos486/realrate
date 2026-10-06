@@ -143,11 +143,14 @@ public class BankSmsPlugin extends Plugin {
         return SENSITIVE.matcher(text).find();
     }
 
-    /** Same as normalizeSender in bankSms.js: digits without Iranian prefixes, else lower case */
+    /**
+     * Same as normalizeSender in bankSms.js: digits without Iranian prefixes, else lower case
+     * without spaces, dots, dashes or underscores («Bank Shahr», «BankShahr», «BANK-SHAHR»)
+     */
     static String normalizeSender(String sender) {
         String raw = sender == null ? "" : sender.trim().toLowerCase(Locale.ROOT);
         String digits = raw.replaceAll("[^0-9]", "");
-        if (digits.isEmpty()) return raw;
+        if (digits.isEmpty()) return raw.replaceAll("[\\s._-]+", "");
         return digits.replaceFirst("^(0098|98|0)", "");
     }
 

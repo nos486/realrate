@@ -1,13 +1,12 @@
 /**
  * newsAnalysis.service.js — The analyst's card on the news page
  *
- * The model reads the day's (Tehran) news — numbered, with the news desk's importance — today's
- * main prices with their 7- and 30-day trend, and its own previous outlook (the starting point:
- * a direction changes only for news published after it), and writes a headline, a short analysis,
- * a direction with a confidence and the news behind it for the dollar, gold, coins, the stock
- * index and oil, the day's most important news with their impact, the key points and the main
- * risk (domain/news.js: buildAnalysisPrompt, parseAnalysis). Temperature 0: the same input gives
- * the same view, as far as the model allows.
+ * The model reads the day's (Tehran) news — numbered, with the news desk's importance — and
+ * writes a headline, a short analysis of it, the day's most important news with their impact, the
+ * key points and what to watch (domain/news.js: buildAnalysisPrompt, parseAnalysis). No forecast
+ * of any market: the day's news alone can't call one; a strong item that clearly makes a move more
+ * likely is said to in the text. Temperature 0: the same input gives the same view, as far as the
+ * model allows.
  *
  * Kept small: written only when news came in since the last one, at most every
  * NEWS_ANALYSIS.minIntervalMinutes and NEWS_ANALYSIS.perDay times a day; the day's first one waits
@@ -22,45 +21,12 @@ import { NEWS_ANALYSIS } from "../../config/news.config.js";
 import { buildAnalysisPrompt, parseAnalysis, tehranDayStart, hasForeignText } from "../../domain/news.js";
 import { dbTopNewsSince, dbNewsStatsSince } from "../../repositories/news.repository.js";
 import { getStateStore } from "../../repositories/stateStore.repository.js";
-import { getItemHistory } from "../../repositories/priceHistoryStore.repository.js";
-import { getPriceBook } from "../market/priceAggregator.service.js";
 import { askWorkersAi, hasWorkersAi } from "./workersAi.js";
 import { logger } from "../../lib/logger.js";
 
 const ANALYSIS_KEY = "news:analysis";
 const STATUS_KEY = "news:analysis:status";
 const countKey = (dayStart) => `news:analysis:count:${dayStart}`;
-
-/** Today's main prices from the price book (name, price, unit, the last session's change) */
-async function readBookPrices(env) {
-  const book = await getPriceBook(env).catch(() => null);
-  return NEWS_ANALYSIS.priceIds
-    .map((id) => book?.items?.[id])
-    .filter(Boolean)
-    .map((item) => {
-      const change = Number(item.params?.changePercent);
-      return { name: item.name || item.id, price: Number(item.price), unit: item.unit || "", changePercent: Number.isFinite(change) ? change : null };
-    });
-}
-
-/** The change over the last `days` days of a daily series, in percent */
-function changeOver(values, days) {
-  const last = Number(values[values.length - 1]);
-  const before = Number(values[values.length - 1 - days]);
-  return last > 0 && before > 0 ? ((last - before) / before) * 100 : null;
-}
-
-/** The 7- and 30-day trend of NEWS_ANALYSIS.trendIds (the daily history in KV: no database read) */
-async function readTrends(env) {
-  const book = await getPriceBook(env).catch(() => null);
-  const rows = await Promise.all(NEWS_ANALYSIS.trendIds.map(async (id) => {
-    const history = await getItemHistory(env, id).catch(() => null);
-    const values = history?.values || [];
-    if (values.length < 8) return null;
-    return { name: book?.items?.[id]?.name || id, week: changeOver(values, 7), month: values.length > 30 ? changeOver(values, 30) : null };
-  }));
-  return rows.filter(Boolean);
-}
 
 /** Why an answer isn't usable: no JSON object in it ("bad-answer"), or words of another language in its text */
 function unusableReason(answer) {
@@ -72,8 +38,8 @@ function unusableReason(answer) {
       return "bad-answer";
     }
   }
-  // The fields the model writes in Persian (the rest are codes: asset, direction, numbers)
-  const texts = [body?.t, body?.s, body?.r, ...(Array.isArray(body?.k) ? body.k : []), ...(Array.isArray(body?.o) ? body.o.map((o) => o?.n) : [])];
+  // The fields the model writes in Persian (the rest are codes and numbers)
+  const texts = [body?.t, body?.s, body?.r, ...(Array.isArray(body?.k) ? body.k : [])];
   return texts.some((t) => typeof t === "string" && hasForeignText(t)) ? "foreign-text" : "bad-answer";
 }
 
@@ -88,17 +54,14 @@ export async function getNewsAnalysis(env) {
 }
 
 /**
- * What the model reads now: the day's news (most important first, then oldest first in the
- * prompt), prices, trends and the previous outlook
+ * What the model reads now: the day's news (the most important, then oldest first in the prompt)
  * @returns {Promise<{ dayStart: number, stats: object, news: object[], messages: object[] }>}
  */
-async function buildAnalysisInput(env, { now, readPrices = readBookPrices, readTrendRows = readTrends, current }) {
+async function buildAnalysisInput(env, { now }) {
   const dayStart = tehranDayStart(now);
   const stats = await dbNewsStatsSince(env, dayStart);
   const news = (await dbTopNewsSince(env, dayStart, NEWS_ANALYSIS.maxNews)).sort((a, b) => a.publishedAt - b.publishedAt);
-  const [prices, trends] = await Promise.all([readPrices(env).catch(() => []), readTrendRows(env).catch(() => [])]);
-  const previous = current?.outlook?.length && now - current.at < NEWS_ANALYSIS.previousMaxHours * 3600000 ? current : null;
-  const messages = buildAnalysisPrompt(news, prices, { summaryChars: NEWS_ANALYSIS.summaryChars, trends, previous });
+  const messages = buildAnalysisPrompt(news, { summaryChars: NEWS_ANALYSIS.summaryChars });
   return { dayStart, stats, news, messages };
 }
 
@@ -109,11 +72,11 @@ async function saveAnalysis(store, analysis, { dayStart, at, newsCount, lastSave
 /**
  * Write the analysis again when it is due
  * @param {object} env
- * @param {{ now?: number, force?: boolean, readPrices?: Function, readTrendRows?: Function }} [opts]
+ * @param {{ now?: number, force?: boolean }} [opts]
  *   force: now, whatever the interval (admin)
  * @returns {Promise<{ updated: boolean, reason?: string }>}
  */
-export async function maybeUpdateNewsAnalysis(env, { now = Date.now(), force = false, readPrices, readTrendRows } = {}) {
+export async function maybeUpdateNewsAnalysis(env, { now = Date.now(), force = false } = {}) {
   const store = getStateStore(env);
   if (!store) return { updated: false, reason: "no-store" };
   if (!hasWorkersAi(env)) return { updated: false, reason: "no-model" };
@@ -130,7 +93,7 @@ export async function maybeUpdateNewsAnalysis(env, { now = Date.now(), force = f
     if (used >= NEWS_ANALYSIS.perDay) return { updated: false, reason: "budget" };
   }
 
-  const input = await buildAnalysisInput(env, { now, readPrices, readTrendRows, current });
+  const input = await buildAnalysisInput(env, { now });
   await store.increment(countKey(dayStart), 1, { expirationTtl: 2 * 86400 });
   // The chosen model only; a failure is kept for the panel and the last analysis stays
   const model = NEWS_ANALYSIS.model.id;

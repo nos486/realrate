@@ -103,7 +103,8 @@ export const BANK_SMS_TEMPLATES = [
   },
   {
     bankId: 'shahr',
-    senders: ['Bank Shahr'],
+    // Spaces, dots and dashes don't matter (normalizeSender): «BankShahr», «BANK-SHAHR» too
+    senders: ['Bank Shahr', 'Shahr Bank'],
     templates: [
       {
         // *بانک شهر*
