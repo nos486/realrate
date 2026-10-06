@@ -3,6 +3,112 @@
   margin-bottom: 4px;
 }
 
+/* The views and the year on one bar (the year's own bar keeps no margin here) */
+.reports-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px 16px;
+}
+
+.reports-toolbar .flow-period-bar {
+  margin-bottom: 0;
+}
+
+.reports-tabs {
+  max-width: 100%;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.reports-tabs::-webkit-scrollbar {
+  display: none;
+}
+
+.reports-tabs > div,
+.reports-tabs .filter-pills {
+  flex-wrap: nowrap;
+}
+
+.report-view {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* What stands out in the year */
+.report-insights h3 {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0 0 10px;
+  font-size: 14px;
+  font-weight: 800;
+  color: var(--text-primary);
+}
+
+.report-insights ul {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 8px 18px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.report-insights li {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  font-size: 13px;
+  line-height: 1.9;
+  color: var(--text-secondary);
+}
+
+.report-insights li svg {
+  flex-shrink: 0;
+  margin-top: 5px;
+}
+
+.report-insights li strong {
+  color: var(--text-primary);
+}
+
+.report-insights li.is-good svg { color: var(--color-positive); }
+.report-insights li.is-bad svg { color: var(--color-negative); }
+.report-insights li.is-info svg { color: var(--color-primary, #3987e5); }
+
+/* A month whose items had no dollar rate says so under its name */
+.report-unpriced {
+  display: block;
+  margin-top: 2px;
+  font-size: 10.5px;
+  font-weight: 500;
+  color: var(--color-warning, #f59e0b);
+}
+
+/* The year's totals under a table */
+.report-month-grid tfoot th,
+.report-month-grid tfoot td {
+  border-top: 1px solid var(--border-strong, var(--border-subtle));
+  border-bottom: none;
+  font-weight: 800;
+  color: var(--text-primary);
+}
+
+.report-month-grid tbody th {
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+@media (max-width: 640px) {
+  .reports-toolbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}
+
 /* The summary cards in a row across the page on the website (the app's frame has its own
    two-per-row grid, app-shell.css) */
 .app-layout:not(.has-app-shell) .reports-page .incomes-summary-grid {
