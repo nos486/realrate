@@ -1,12 +1,11 @@
 /**
  * LandingAnalysis.jsx — The landing page's live «تحلیل روز»: the latest analyst's card, read only
  * when the section scrolls into view (GET /api/news/today, the news page's own answer: kept in
- * Cloudflare's edge cache, so visitors share one read), with a way into the news page. Nothing
- * shows when there is no analysis yet.
+ * Cloudflare's edge cache, so visitors share one read). The news page needs signing in, so nothing
+ * here links to it. Nothing shows when there is no analysis yet.
  */
 
 import React, { useEffect, useRef, useState } from 'react';
-import { ArrowLeft } from 'lucide-react';
 import NewsAnalysisCard from './NewsAnalysisCard.jsx';
 import { getNewsToday } from './newsApi.js';
 
@@ -49,10 +48,6 @@ export default function LandingAnalysis({ head, className = '', id }) {
           {head}
           <div className="landing-analysis">
             <NewsAnalysisCard analysis={analysis} />
-            <a href="/news" className="lp-more">
-              <span>همه‌ی خبرهای مهم بازار</span>
-              <ArrowLeft size={16} />
-            </a>
           </div>
         </div>
       )}

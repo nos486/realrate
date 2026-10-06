@@ -6,7 +6,7 @@
  * is not shown).
  *
  * The day's news are never links out to Telegram: `onOpenNews(id)` gives a handler that opens one
- * here (the news page), else (the landing page) they link to it on the news page.
+ * here (the news page), else (the landing page, where the news page is out of reach) they are text.
  */
 
 import React from 'react';
@@ -14,10 +14,9 @@ import { Sparkles, AlertTriangle } from 'lucide-react';
 import { newsTimeAgo, newsFullTime } from './newsFormat.js';
 
 const IMPACT = { 1: 'اثر کم', 2: 'اثر متوسط', 3: 'اثر زیاد' };
-/** One of the day's news: opened here when the page can, else a link to it on the news page */
+/** One of the day's news: opened here when the page can, else just its headline */
 function NewsLink({ id, title, onOpenNews }) {
-  if (!onOpenNews) return <a href={`/news?open=${encodeURIComponent(id)}`}>{title}</a>;
-  const open = onOpenNews(id);
+  const open = onOpenNews?.(id);
   return open ? <button type="button" className="news-analysis-link" onClick={open}>{title}</button> : <span>{title}</span>;
 }
 
