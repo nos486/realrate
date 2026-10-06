@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   normalizeSmsText,
   normalizeSender,
+  smsCategoryOf,
   parseBankSms,
   smsDateToIso,
   smsFingerprint,
@@ -10,7 +11,8 @@ import {
   banksForSender,
   nativeSmsRules,
 } from '../../src/domain/bankSms.js';
-import { BANK_SMS_TEMPLATES } from '../../src/domain/bankSmsTemplates.js';
+import { BANK_SMS_TEMPLATES, SMS_DESCRIPTION_CATEGORIES } from '../../src/domain/bankSmsTemplates.js';
+import { BUILTIN_CATEGORIES } from '../../src/domain/categoryDocument.js';
 
 // 1405/07/06 (Mehr 6th)
 const TODAY = new Date(2026, 8, 28);
@@ -362,5 +364,37 @@ describe('rules for the Android side (only withdrawals and deposits reach the ap
     for (const text of others) {
       expect(rules.some((r) => r.patterns.some((source) => new RegExp(source).test(normalizeSmsText(text))))).toBe(false);
     }
+  });
+});
+
+describe('the category a message starts in, from its own description', () => {
+  const rules = [
+    { direction: 'credit', words: ['سود'], category: 'investment' },
+    { direction: 'debit', words: ['کارمزد', 'قبض'], category: 'bills' },
+  ];
+
+  it('the first rule of its direction with one of its words, as a whole word', () => {
+    expect(smsCategoryOf({ direction: 'credit', description: 'سود' }, rules)).toBe('investment');
+    expect(smsCategoryOf({ direction: 'credit', description: 'واريز سود سپرده' }, rules)).toBe('investment');
+    expect(smsCategoryOf({ direction: 'debit', description: 'پرداخت قبض' }, rules)).toBe('bills');
+    // Another direction, part of a word, no description: none
+    expect(smsCategoryOf({ direction: 'debit', description: 'سود' }, rules)).toBe('');
+    expect(smsCategoryOf({ direction: 'credit', description: 'سودا' }, rules)).toBe('');
+    expect(smsCategoryOf({ direction: 'credit', description: '' }, rules)).toBe('');
+    expect(smsCategoryOf({ direction: 'credit' })).toBe('');
+  });
+
+  it('every rule names a category of its kind (incomes for deposits, expenses for withdrawals)', () => {
+    for (const rule of SMS_DESCRIPTION_CATEGORIES) {
+      const kind = rule.direction === 'credit' ? 'income' : 'expense';
+      expect(['credit', 'debit']).toContain(rule.direction);
+      expect(rule.words.length).toBeGreaterThan(0);
+      expect(BUILTIN_CATEGORIES[kind].map((c) => c.value)).toContain(rule.category);
+    }
+  });
+
+  it("Shahr's interest deposit starts as investment income", () => {
+    const tx = parse('*بانک شهر*\nسود\nواريز به:700814110204\nمبلغ:377,743ريال\nموجودي:89,371,480ريال\n1405/07/1 00:41:16');
+    expect(smsCategoryOf(tx, SMS_DESCRIPTION_CATEGORIES)).toBe('investment');
   });
 });

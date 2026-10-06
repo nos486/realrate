@@ -4,18 +4,19 @@
  * Only what can move the dollar, gold, coins, metals, the stock index or the economy is published
  * (the server picks and summarizes it with AI, api/src/services/news/news.service.js).
  *
- *   ┌──────────────────────────────┬──────────────────────────┐
- *   │ filters · list · pages       │ تحلیل روز (AI), wide     │   large screens: two columns,
- *   │                              │ مهم‌ترین‌های امروز         │   the left one stays in place
- *   └──────────────────────────────┴──────────────────────────┘   while the list scrolls
- * On a phone: the analysis, today's top, then the list. Each item shows its headline, summary,
+ *   ┌──────────────┬──────────────────────────┬────────────────────────┐
+ *   │ مهم‌ترین‌های   │ filters · list · pages   │ تحلیل روز (AI)         │   wide screens: three columns;
+ *   │ امروز / هفته  │                          │                        │   the side ones stay in place
+ *   └──────────────┴──────────────────────────┴────────────────────────┘   while the list scrolls
+ * A medium screen: the top news above the list, the analysis beside them (in place).
+ * On a phone: the analysis, the top news, then the list. Each item shows its headline, summary,
  * source and time; a tap opens the post's full text and its link on Telegram. The list comes in
  * pages; new news comes in by itself every minute.
  */
 
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Newspaper, ExternalLink, Share2, EyeOff, ChevronDown, Sparkles, Flame, Bell, BellOff } from 'lucide-react';
+import { Newspaper, ExternalLink, Share2, EyeOff, ChevronDown, Sparkles, Flame, CalendarDays, Bell, BellOff } from 'lucide-react';
 import { FeaturePageHeader, FilterPills, EmptyState, AlertBanner, Pagination } from '../../shared/ui/index.js';
 import Skeleton from '../../shared/ui/Skeleton.jsx';
 import { useFeedback } from '../../shared/ui/FeedbackProvider.jsx';
@@ -138,14 +139,14 @@ function NewsItem({ item, open, onToggle, isAdmin, onHide }) {
   );
 }
 
-/** «مهم‌ترین‌های امروز»: today's news, most important first */
-function TodayTop({ items, loading, onOpen }) {
+/** A list of the most important news (today's, the week's), most important first */
+function TopList({ title, Icon, items, loading, onOpen }) {
   if (!loading && !items.length) return null;
   return (
-    <section className="news-today" aria-label="مهم‌ترین‌های امروز">
+    <section className="news-today" aria-label={title}>
       <h2 className="news-today-head">
-        <Flame size={16} aria-hidden="true" />
-        مهم‌ترین‌های امروز
+        <Icon size={16} aria-hidden="true" />
+        {title}
       </h2>
       {loading ? (
         <div className="news-today-list">
@@ -241,10 +242,15 @@ export default function NewsPage() {
       />
 
       <div className="news-layout">
-        {/* The day's analysis and today's top: one column that stays in view on a large screen */}
-        <aside className="news-layout-side" aria-label="تحلیل و مهم‌ترین‌های امروز">
+        {/* Today's and the week's most important news: a narrow column */}
+        <aside className="news-layout-rail" aria-label="مهم‌ترین خبرها">
+          <TopList title="مهم‌ترین‌های امروز" Icon={Flame} items={today.top} loading={today.loading} onOpen={openTop} />
+          <TopList title="مهم‌ترین‌های هفته" Icon={CalendarDays} items={today.week} loading={today.loading} onOpen={openTop} />
+        </aside>
+
+        {/* The day's analysis: stays in view while the list scrolls */}
+        <aside className="news-layout-side" aria-label="تحلیل روز">
           <NewsAnalysisCard analysis={today.analysis} />
-          <TodayTop items={today.top} loading={today.loading} onOpen={openTop} />
         </aside>
 
         <div className="news-layout-main" ref={listRef}>

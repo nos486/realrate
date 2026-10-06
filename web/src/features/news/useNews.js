@@ -4,7 +4,7 @@
  * and the news page open with it at once.
  *
  *   useNews({ limit, page, category, important }) — one page of the list, with the total
- *   useNewsToday()                                — the analyst's card and today's top news
+ *   useNewsToday()                                — the analyst's card, today's and the week's top news
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -73,5 +73,5 @@ export function useNews({ limit = 20, page = 1, category = '', important = false
 /** @returns {{ analysis: object|null, top: object[], loading: boolean }} */
 export function useNewsToday() {
   const { data, loading } = useFreshQuery('today', () => getNewsToday());
-  return { analysis: data?.analysis || null, top: data?.top || [], loading };
+  return { analysis: data?.analysis || null, top: data?.top || [], week: data?.week || [], loading };
 }

@@ -198,25 +198,28 @@
   width: 100%;
 }
 
-/* Phone: the analysis, today's top, the list. Large screens: two columns — the list on the
-   right, and on the left a wide column with the day's analysis (it matters) and today's top
-   under it, which stays in place while the list scrolls (scrolling on its own when taller than
-   the screen) */
+/* Phone: the analysis, the top news, the list. A medium screen: the top news above the list, the
+   analysis beside them (in place). A wide screen: three columns — a narrow one with today's and
+   the week's top news, the list, and the analysis; the side ones stay in place under the site's
+   sticky header while the list scrolls (scrolling on their own when taller than the screen) */
 .news-layout {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
-  grid-template-areas: "side" "main";
+  grid-template-areas: "side" "rail" "main";
   gap: 16px;
   align-items: start;
 }
 
+.news-layout-rail,
 .news-layout-side {
-  grid-area: side;
   display: flex;
   flex-direction: column;
   gap: 16px;
   min-width: 0;
 }
+
+.news-layout-rail { grid-area: rail; }
+.news-layout-side { grid-area: side; }
 .news-layout-main {
   grid-area: main;
   display: flex;
@@ -228,13 +231,24 @@
 
 @media (min-width: 1024px) {
   .news-layout {
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-    grid-template-areas: "main side";
+    grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
+    grid-template-areas: "rail side" "main side";
     gap: 18px 22px;
   }
 
+  /* Today's and the week's side by side above the list */
+  .news-layout-rail {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  }
+
+  .news-layout-side,
+  .news-layout-rail {
+    align-self: start;
+  }
+
+  /* Under the site's sticky header */
   .news-layout-side {
-    /* Under the site's sticky header */
     position: sticky;
     top: 84px;
     max-height: calc(100vh - 100px);
@@ -244,9 +258,20 @@
   }
 }
 
-@media (min-width: 1440px) {
+@media (min-width: 1280px) {
   .news-layout {
-    grid-template-columns: minmax(0, 7fr) minmax(0, 6fr);
+    grid-template-columns: 270px minmax(0, 1.25fr) minmax(0, 1fr);
+    grid-template-areas: "rail main side";
+  }
+
+  .news-layout-rail {
+    display: flex;
+    position: sticky;
+    top: 84px;
+    max-height: calc(100vh - 100px);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-width: thin;
   }
 }
 

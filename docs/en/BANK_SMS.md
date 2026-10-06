@@ -97,6 +97,17 @@ Tips:
 - Put the more specific template first; the first template that matches wins.
 - The Android app runs the same patterns in Java too (`BankSmsRules.java`) so only withdrawal/deposit messages notify and reach the app. So use only syntax common to JS and Java (named groups `(?<name>…)`, `\d`, `\s`, `[^\n]`, quantifiers); not `\p{…}` or JS-only flags. A template Java can't compile is ignored on the phone.
 
+## The category from the message's description
+When a template reads the message's description (the `desc` group, e.g. «سود» in Bank Shahr's message), the form opens titled «<description> <bank>» in the category that description points to. The rule is the same for every bank and lives in `SMS_DESCRIPTION_CATEGORIES` (`api/src/domain/bankSmsTemplates.js`); `smsCategoryOf` in `bankSms.js` returns the first rule of the transaction's direction with one of its words in the description, as a whole word. The user can still change the category in the form.
+
+```js
+export const SMS_DESCRIPTION_CATEGORIES = [
+  { direction: 'credit', words: ['سود'], category: 'investment' },   // income: investment returns
+  // { direction: 'debit', words: ['کارمزد'], category: 'bills' },   // expense: one more row
+];
+```
+`direction` is a deposit (`credit`, an income category) or a withdrawal (`debit`, an expense category); `category` must be one of that kind's categories in `utils/categoryDocument.js` — a test checks every row.
+
 ## Supported banks
 
 | Bank | Templates |
@@ -104,7 +115,7 @@ Tips:
 | Parsian | Sender `PARSIANBANK`; `parsian-balance` — account number, signed amount, balance, date `MM/DD`, time |
 | Blu | Sender `+989999987641`; `blu-balance` — «برداشت پول / واریز پول» (direction from the word), amount and balance in rials, time, date `YYYY.MM.DD` |
 | Pasargad | Sender `B.Pasargad`; `pasargad-balance` — dotted account number, signed amount (rials), `MM/DD_HH:MM`, «مانده» |
-| Shahr | Sender `Bank Shahr` (or `Shahr Bank`, in any spacing); an interest deposit («سود») becomes an income titled «سود …» in «سود سرمایه‌گذاری»; `shahr-balance` — «*بانک شهر*», an optional description (e.g. «سود»), «واریز به / برداشت از:» account, amount and balance in rials, `YYYY/MM/D HH:MM:SS` |
+| Shahr | Sender `Bank Shahr` (or `Shahr Bank`, in any spacing); `shahr-balance` — «*بانک شهر*», an optional description (e.g. «سود»), «واریز به / برداشت از:» account, amount and balance in rials, `YYYY/MM/D HH:MM:SS` |
 | Mellat | Sender `Bank Mellat`; `mellat-balance` — «حساب…», «واریز/برداشت…» amount (rials), «مانده…», `YY/MM/DD-HH:MM` |
 | Resalat | Sender `ResalatBank`; `resalat-balance` — the same shape as Pasargad's (the sender tells them apart): dotted account number, signed amount (rials), `MM/DD_HH:MM`, «مانده» |
 | Mehr Iran | Sender `B.QMEHRIRAN`; `mehr-iran-balance` — account number, amount with the sign after it (rials), `YYYY/M/D-HH:MM`, «مانده» |
