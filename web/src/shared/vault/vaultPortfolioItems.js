@@ -238,35 +238,6 @@ export async function listAccountHoldings(portfolios = []) {
   return lists.flat();
 }
 
-/**
- * The holdings and transactions of every portfolio under the account vault dated between two
- * days (reports across portfolios, e.g. what was invested each month): one request per kind for
- * all the portfolios, each record opened with its portfolio's key — as stored, without moving
- * older rows
- * @param {object[]} portfolios the user's portfolios (getPortfolios)
- * @param {{ from: string, to: string }} range inclusive YYYY-MM-DD
- * @returns {Promise<{ holdings: object[], transactions: object[] }>}
- */
-export async function listAccountItemsBetween(portfolios = [], { from, to }) {
-  const owned = portfolios.filter(isAccountVaultPortfolio);
-  if (!owned.length) return { holdings: [], transactions: [] };
-  const [keyList, holdingRes, transactionRes] = await Promise.all([
-    Promise.all(owned.map(async (p) => [p.id, await getPortfolioKey(p)])),
-    listVaultRecords('holding', SILENT, { from, to }),
-    listVaultRecords('transaction', SILENT, { from, to }),
-  ]);
-  const keys = new Map(keyList.filter(([, key]) => key));
-  const open = async (res) => {
-    const records = (res?.records || []).filter((r) => keys.has(r.parentId));
-    const plains = await Promise.all(records.map((r) => e2eeDecrypt(keys.get(r.parentId), r.payload).catch(() => null)));
-    return records
-      .map((r, i) => (plains[i] && typeof plains[i] === 'object' ? { ...plains[i], id: r.id, portfolioId: r.parentId } : null))
-      .filter(Boolean);
-  };
-  const [holdings, transactions] = await Promise.all([open(holdingRes), open(transactionRes)]);
-  return { holdings, transactions };
-}
-
 /** Create or update a holding */
 export async function savePortfolioHolding(portfolio, key, data) {
   const record = holdingRecord(portfolio.id, data);

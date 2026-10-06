@@ -2,8 +2,8 @@
  * useReportData.js — Everything the reports page shows for one Shamsi year, worked out once
  *
  * One download per year for each source: incomes (1 request), everyday expenses (2: the sections,
- * then the year's expenses), the portfolios (3: the list, then every portfolio's holdings and
- * transactions of the year), and the dollar's daily history (cached for the session). Everything
+ * then the year's expenses) and the dollar's daily history (cached for the session). What was
+ * invested is the expenses recorded as «سرمایه‌گذاری» — the portfolios are not read. Everything
  * is end-to-end encrypted, so the figures are worked out here, each memoized on what it reads —
  * switching tabs recomputes nothing.
  *
@@ -23,12 +23,11 @@ import { useUsdAt } from '../market/dailyHistory.js';
 import { useIncomes } from '../incomes/hooks/useIncomes.js';
 import { incomeDollarValue } from '../incomes/utils/incomeReport.js';
 import { useDailyExpenses } from '../expenses/hooks/useDailyExpenses.js';
-import { useInvestmentFlows } from './useInvestmentFlows.js';
 import {
   investmentPoints,
   investmentShareByMonth,
   summarizeInvestmentShare,
-  investmentByAsset,
+  investmentBreakdown,
   dollarPoints,
   dollarFlowByMonth,
   cashFlowByMonth,
@@ -52,7 +51,6 @@ export function useReportData(jy, throughMonth) {
   const month = useMemo(() => ({ jy, jm: 1 }), [jy]);
   const { incomes, loadingIncomes, error: incomeError } = useIncomes(loadWindow);
   const { yearExpenses, loading: loadingExpenses, error: expenseError } = useDailyExpenses(month, { enabled: hasExpenses, year: true });
-  const invest = useInvestmentFlows(range);
   const pricing = usePricing();
   const usdToman = Number(pricing?.getAssetPrice?.('usd')) || 0;
   const usdAt = useUsdAt(true);
@@ -81,14 +79,17 @@ export function useReportData(jy, throughMonth) {
   const cashMonths = useMemo(() => cashFlowByMonth(incomeSeries, expenseSeries), [incomeSeries, expenseSeries]);
   const cash = useMemo(() => summarizeCashFlow(cashMonths), [cashMonths]);
 
-  // What went into the portfolios
-  const points = useMemo(() => investmentPoints(invest.holdings, invest.transactions), [invest.holdings, invest.transactions]);
+  // What was invested: the expenses recorded as «سرمایه‌گذاری» (left out of the expense totals)
+  const points = useMemo(
+    () => (hasExpenses ? investmentPoints(yearExpenses, (e) => expenseInToman(e, usdToman, usdAt)) : []),
+    [hasExpenses, yearExpenses, usdToman, usdAt],
+  );
   const shareMonths = useMemo(
     () => investmentShareByMonth(counted.incomes.map((i) => ({ date: i.incomeDate, amount: Number(i.amount) || 0 })), points, jy, { throughMonth }),
     [counted, points, jy, throughMonth],
   );
   const shareYear = useMemo(() => summarizeInvestmentShare(shareMonths), [shareMonths]);
-  const byAsset = useMemo(() => investmentByAsset(points, range), [points, range]);
+  const investedIn = useMemo(() => investmentBreakdown(points, range), [points, range]);
 
   // In dollars, each at its own day's rate (none at today's)
   const dollars = useMemo(() => {
@@ -113,14 +114,14 @@ export function useReportData(jy, throughMonth) {
   );
 
   const insights = useMemo(
-    () => reportInsights({ cash, expenseYear: hasExpenses ? expenseYear : null, invest: shareYear }),
+    () => reportInsights({ cash, expenseYear: hasExpenses ? expenseYear : null, invest: hasExpenses ? shareYear : null }),
     [cash, expenseYear, hasExpenses, shareYear],
   );
 
   return {
     hasExpenses,
-    loading: loadingIncomes || (hasExpenses && loadingExpenses) || invest.loading,
-    errors: [incomeError, hasExpenses && expenseError, invest.error].filter(Boolean),
+    loading: loadingIncomes || (hasExpenses && loadingExpenses),
+    errors: [incomeError, hasExpenses && expenseError].filter(Boolean),
     incomeSeries,
     expenseSeries,
     incomeYear,
@@ -131,7 +132,7 @@ export function useReportData(jy, throughMonth) {
     cash,
     shareMonths,
     shareYear,
-    byAsset,
+    investedIn,
     dollars,
     insights,
   };

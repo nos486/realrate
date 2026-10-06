@@ -20,9 +20,10 @@ import React, { useMemo, useState } from 'react';
  *   average?: number|null, averageLabel?: string,
  *   negativeColor?: string,
  *   ariaValue: (m: object) => string,
+ *   compact?: boolean,             // a card of the reports grid: a lower plot, wider bars
  * }} props
  */
-export default function MonthBarChart({ title, months, series, format, readout, average = null, averageLabel = '', negativeColor = null, ariaValue }) {
+export default function MonthBarChart({ title, months, series, format, readout, average = null, averageLabel = '', negativeColor = null, ariaValue, compact = false }) {
   const [activeIndex, setActiveIndex] = useState(null);
   const { top, bottom } = useMemo(() => {
     const values = months.flatMap((m) => series.map((s) => Number(s.value(m)) || 0));
@@ -42,7 +43,7 @@ export default function MonthBarChart({ title, months, series, format, readout, 
   const month = months[index];
 
   return (
-    <div className="portfolio-stat-card monthly-income-chart report-bar-chart">
+    <div className={`portfolio-stat-card monthly-income-chart report-bar-chart ${compact ? 'is-compact' : ''} ${series.length > 1 ? 'is-paired' : 'is-single'}`}>
       <div className="stat-header">
         <span className="stat-label">{title}</span>
         {average !== null && (

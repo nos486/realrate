@@ -3,54 +3,120 @@
   margin-bottom: 4px;
 }
 
-/* The views and the year on one bar (the year's own bar keeps no margin here) */
-.reports-toolbar {
+/* The whole year on one page: a grid of cards — 12 columns on a wide screen, 2 on a medium
+   one, 1 on a phone (ReportDashboard) */
+.report-dash {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 14px;
+  align-items: stretch;
+}
+
+.report-dash > * {
+  min-width: 0;
+}
+
+/* A grid cell's card fills its cell */
+.report-dash > div > .portfolio-stat-card,
+.report-dash > div > .donut-chart-card,
+.report-dash > div > * {
+  height: 100%;
+}
+
+@media (min-width: 720px) {
+  .report-dash {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .report-dash > .span-12,
+  .report-dash > .span-7,
+  .report-dash > .span-5 {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (min-width: 1100px) {
+  .report-dash {
+    grid-template-columns: repeat(12, minmax(0, 1fr));
+  }
+
+  .report-dash > .span-4 { grid-column: span 4; }
+  .report-dash > .span-5 { grid-column: span 5; }
+  .report-dash > .span-6 { grid-column: span 6; }
+  .report-dash > .span-7 { grid-column: span 7; }
+  .report-dash > .span-12 { grid-column: 1 / -1; }
+}
+
+/* The year's figures: one row across the page */
+.app-layout:not(.has-app-shell) .report-dash .report-kpis {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: 12px;
+}
+
+/* A card with a title (insights, tables, the method): its content from the top */
+.report-card {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  gap: 10px;
+}
+
+/* The year charts in the grid: bars that fill their month */
+.report-dash .flow-year-chart .monthly-income-bar {
+  max-width: 34px;
+}
+
+.report-card-head {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  flex-wrap: wrap;
-  gap: 10px 16px;
+  gap: 10px;
 }
 
-.reports-toolbar .flow-period-bar {
-  margin-bottom: 0;
-}
-
-.reports-tabs {
-  max-width: 100%;
-  overflow-x: auto;
-  scrollbar-width: none;
-}
-
-.reports-tabs::-webkit-scrollbar {
-  display: none;
-}
-
-.reports-tabs > div,
-.reports-tabs .filter-pills {
-  flex-wrap: nowrap;
-}
-
-.report-view {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-}
-
-/* What stands out in the year */
-.report-insights h3 {
+.report-card-head h3 {
   display: flex;
   align-items: center;
   gap: 6px;
-  margin: 0 0 10px;
+  margin: 0;
   font-size: 14px;
   font-weight: 800;
   color: var(--text-primary);
 }
 
+.report-table-scroll {
+  overflow-x: auto;
+}
+
+.report-empty {
+  margin: 0;
+  font-size: 12.5px;
+  line-height: 1.9;
+  color: var(--text-muted);
+}
+
+.report-method ul {
+  margin: 0;
+  padding-inline-start: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 12px;
+  line-height: 1.9;
+  color: var(--text-secondary);
+}
+
+.report-unpriced-mark {
+  margin-inline-start: 3px;
+  color: var(--color-warning, #f59e0b);
+  font-weight: 800;
+  cursor: help;
+}
+
+/* What stands out in the year */
 .report-insights ul {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
   gap: 8px 18px;
   margin: 0;
   padding: 0;
@@ -102,59 +168,11 @@
   color: var(--text-secondary);
 }
 
-@media (max-width: 640px) {
-  .reports-toolbar {
-    flex-direction: column;
-    align-items: stretch;
-  }
-}
-
-/* The summary cards in a row across the page on the website (the app's frame has its own
-   two-per-row grid, app-shell.css) */
-.app-layout:not(.has-app-shell) .reports-page .incomes-summary-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
-  gap: 12px;
-}
 
 .reports-loading {
   display: flex;
   flex-direction: column;
   gap: 14px;
-}
-
-.report-section {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.report-section-head h2 {
-  margin: 0;
-  font-size: 16px;
-  font-weight: 800;
-  color: var(--text-primary);
-}
-
-.report-section-head p {
-  margin: 4px 0 0;
-  font-size: 12px;
-  line-height: 1.9;
-  color: var(--text-muted);
-}
-
-/* Chart and its table side by side on a wide screen */
-.report-grid {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  gap: 14px;
-  align-items: start;
-}
-
-@media (min-width: 1100px) {
-  .report-grid {
-    grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
-  }
 }
 
 .report-readout-detail {
@@ -192,6 +210,33 @@
   flex: 1;
   max-width: 16px;
   height: 100%;
+}
+
+/* A card of the reports grid: a lower plot, bars that fill their month (not thin sticks) */
+.report-bar-chart.is-compact .report-bar-plot {
+  height: 120px;
+}
+
+.report-bar-chart.is-compact .report-bar-col {
+  padding: 0 14%;
+  gap: 3px;
+}
+
+.report-bar-chart.is-compact .report-bar-slot {
+  max-width: none;
+}
+
+.report-bar-chart.is-compact .monthly-income-readout {
+  margin: 2px 0 8px;
+}
+
+.report-bar-chart.is-compact .monthly-income-readout strong {
+  font-size: 16px;
+}
+
+.report-bar-chart.is-compact .monthly-income-legend {
+  margin-top: 8px;
+  padding-top: 8px;
 }
 
 .report-bar {

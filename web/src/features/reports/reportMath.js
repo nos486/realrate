@@ -2,10 +2,9 @@
  * reportMath.js — The reports page's figures, month by month over a Shamsi year (pure: no React,
  * no storage)
  *
- * - What was invested: every portfolio's buys and dated holdings (money in) less its sells and
- *   spends (money out), at each one's own price in tomans. Money moving inside the portfolios (a
- *   buy paid with another asset, a sale for one: `referenceAssetId`) is not new money, and a buy
- *   with a loan (`loanId`) isn't the user's income; neither counts.
+ * - What was invested: the everyday expenses recorded in the «سرمایه‌گذاری» category (the money
+ *   the user spent on investments), by month and by what it went into — the portfolios' own
+ *   records are not read
  * - The share of income invested: what was invested ÷ the month's income (the incomes counted in
  *   the totals: «مدیریت نقدینگی» and the like are left out by the caller).
  * - Income and expenses in dollars: each one at the dollar's rate on its own day (its stored rate
@@ -13,42 +12,36 @@
  */
 
 import { buildYearSeries } from '../../shared/flow/flowYear.js';
-import { sortableDate } from '../portfolio/utils/assetLedger.js';
 
 const num = (v) => Number(v) || 0;
-const txType = (t) => String(t.transactionType || t.type || 'buy').toLowerCase();
-const txQty = (t) => num(t.quantity !== undefined ? t.quantity : t.amount);
-const txPrice = (t) => num(t.unitPrice !== undefined ? t.unitPrice : (t.buyPrice || t.price));
+
+/** The expense category whose expenses are money put into investments */
+export const INVESTMENT_CATEGORY = 'investment';
 
 /**
- * Money that went into investments (+) or came out of them (−) as dated points, or nothing for
- * what doesn't count (no date, no price, a swap, bought with a loan)
- * @returns {Array<{ date: string, amount: number, category: 'buy'|'sell', assetId: string, assetName: string }>}
+ * Everyday expenses recorded as investment (category «سرمایه‌گذاری») as dated points in tomans
+ * (`amountOf`: the user's share, a dollar expense at its day's rate), each with what it went into:
+ * the asset it was added to in a portfolio (`investedIn`), else its own title
+ * @param {object[]} expenses
+ * @param {(e: object) => number} amountOf
+ * @returns {Array<{ date: string, amount: number, key: string, assetId: string, title: string }>}
  */
-export function investmentPoints(holdings = [], transactions = []) {
+export function investmentPoints(expenses = [], amountOf) {
   const points = [];
-  for (const h of holdings) {
-    const date = sortableDate(h?.buyDate);
-    const value = num(h?.amount) * num(h?.buyPrice);
-    if (!date || !(value > 0) || h.referenceAssetId || h.loanId) continue;
-    points.push({ date, amount: value, category: 'buy', assetId: String(h.assetId || ''), assetName: String(h.assetName || '') });
-  }
-  for (const t of transactions) {
-    if (!t) continue;
-    const date = sortableDate(t.transactionDate || t.date);
-    const value = txQty(t) * txPrice(t);
-    const type = txType(t);
-    if (!date || !(value > 0) || t.referenceAssetId) continue;
-    const asset = { assetId: String(t.assetId || t.symbol || ''), assetName: String(t.assetName || '') };
-    if (type === 'buy' && !t.loanId) points.push({ date, amount: value, category: 'buy', ...asset });
-    else if (type === 'sell' || type === 'spend') points.push({ date, amount: -value, category: 'sell', ...asset });
+  for (const e of expenses) {
+    if (e?.category !== INVESTMENT_CATEGORY) continue;
+    const amount = num(amountOf(e));
+    if (!e.date || !(amount > 0)) continue;
+    const assetId = String(e.investedIn?.assetId || '');
+    const title = String(e.title || '').trim();
+    points.push({ date: e.date, amount, key: assetId ? `asset:${assetId}` : `title:${title}`, assetId, title });
   }
   return points;
 }
 
 /**
- * The year month by month: income, bought, sold, net invested and its share of the income
- * (null when the month had no income)
+ * The year month by month: income, what was invested and its share of the income (null when the
+ * month had no income)
  * @param {Array<{ date: string, amount: number }>} incomePoints tomans
  * @param {ReturnType<typeof investmentPoints>} investPoints
  * @param {number} jy
@@ -58,30 +51,45 @@ export function investmentShareByMonth(incomePoints, investPoints, jy, { through
   const income = buildYearSeries(incomePoints, jy, { throughMonth });
   const invest = buildYearSeries(investPoints, jy, { throughMonth });
   return income.map((m, i) => {
-    const bought = num(invest[i]?.byCategory.buy);
-    const sold = Math.abs(num(invest[i]?.byCategory.sell));
-    const net = bought - sold;
+    const invested = invest[i]?.total || 0;
     return {
       key: m.key,
       jm: m.jm,
       label: m.label,
       monthLabel: m.monthLabel,
       income: m.total,
-      bought,
-      sold,
-      net,
-      share: m.total > 0 ? (net / m.total) * 100 : null,
+      invested,
+      count: invest[i]?.count || 0,
+      share: m.total > 0 ? (invested / m.total) * 100 : null,
     };
   });
 }
 
-/** The year's totals of investmentShareByMonth: income, net invested and the share of it */
+/** The year's totals of investmentShareByMonth: income, what was invested and its share */
 export function summarizeInvestmentShare(months) {
   const income = months.reduce((s, m) => s + m.income, 0);
-  const bought = months.reduce((s, m) => s + m.bought, 0);
-  const sold = months.reduce((s, m) => s + m.sold, 0);
-  const net = bought - sold;
-  return { income, bought, sold, net, share: income > 0 ? (net / income) * 100 : null };
+  const invested = months.reduce((s, m) => s + m.invested, 0);
+  const count = months.reduce((s, m) => s + m.count, 0);
+  return { income, invested, count, share: income > 0 ? (invested / income) * 100 : null };
+}
+
+/**
+ * What the year's investment went into, largest first: one entry per asset (added to a
+ * portfolio) or per title
+ * @param {ReturnType<typeof investmentPoints>} points
+ * @param {{ from: string, to: string }} range inclusive YYYY-MM-DD
+ * @returns {Array<{ key: string, assetId: string, title: string, total: number, count: number }>}
+ */
+export function investmentBreakdown(points, { from, to }) {
+  const byKey = new Map();
+  for (const p of points) {
+    if (p.date < from || p.date > to) continue;
+    const entry = byKey.get(p.key) || { key: p.key, assetId: p.assetId, title: p.title, total: 0, count: 0 };
+    entry.total += p.amount;
+    entry.count += 1;
+    byKey.set(p.key, entry);
+  }
+  return [...byKey.values()].sort((a, b) => b.total - a.total);
 }
 
 /**
@@ -123,27 +131,6 @@ export function dollarFlowByMonth(incomePoints, expensePoints, jy, { throughMont
     expense: expense[i]?.total || 0,
     net: m.total - (expense[i]?.total || 0),
   }));
-}
-
-/**
- * What went into each asset over a period: bought, sold and net, largest buy first (a name of the
- * record's own when it has one, e.g. a custom asset)
- * @param {ReturnType<typeof investmentPoints>} points
- * @param {{ from: string, to: string }} range inclusive YYYY-MM-DD
- * @returns {Array<{ assetId: string, assetName: string, bought: number, sold: number, net: number }>}
- */
-export function investmentByAsset(points, { from, to }) {
-  const byAsset = new Map();
-  for (const p of points) {
-    if (!p.assetId || p.date < from || p.date > to) continue;
-    const entry = byAsset.get(p.assetId) || { assetId: p.assetId, assetName: '', bought: 0, sold: 0, net: 0 };
-    if (!entry.assetName && p.assetName) entry.assetName = p.assetName;
-    if (p.amount > 0) entry.bought += p.amount;
-    else entry.sold += -p.amount;
-    entry.net = entry.bought - entry.sold;
-    byAsset.set(p.assetId, entry);
-  }
-  return [...byAsset.values()].sort((a, b) => b.bought - a.bought || b.sold - a.sold);
 }
 
 /**
@@ -195,7 +182,7 @@ export function summarizeCashFlow(months) {
  * the months that spent more than came in, the largest expense category's share, the share of
  * income invested, the costliest month against the monthly average. Only the ones the data holds.
  * @param {{ cash: ReturnType<typeof summarizeCashFlow>, expenseYear?: { total: number, monthlyAverage: number, top: object|null, byCategory: Array<{ category: string, total: number }> }|null,
- *   invest?: { share: number|null, net: number }|null }} input
+ *   invest?: { share: number|null, invested: number }|null }} input
  * @returns {Array<{ id: string, tone: 'good'|'bad'|'info', [key: string]: any }>}
  */
 export function reportInsights({ cash, expenseYear = null, invest = null }) {
@@ -211,6 +198,6 @@ export function reportInsights({ cash, expenseYear = null, invest = null }) {
   if (top && expenseYear.monthlyAverage > 0 && top.total > expenseYear.monthlyAverage * 1.25) {
     out.push({ id: 'costly-month', tone: 'info', month: top.label, total: top.total, over: ((top.total - expenseYear.monthlyAverage) / expenseYear.monthlyAverage) * 100 });
   }
-  if (invest && invest.share !== null && invest.net > 0) out.push({ id: 'invested-share', tone: 'good', share: invest.share, net: invest.net });
+  if (invest && invest.share !== null && invest.invested > 0) out.push({ id: 'invested-share', tone: 'good', share: invest.share, invested: invest.invested });
   return out;
 }

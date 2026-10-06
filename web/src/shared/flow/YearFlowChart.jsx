@@ -74,6 +74,8 @@ export default function YearFlowChart({ series, kind, labelOf, categoryOrder = [
   const year = series[0].jy;
   // Every month when there is room, else every other / third one (counting back from the latest)
   const labelStep = large || series.length <= 4 ? 1 : series.length <= 8 ? 2 : 3;
+  // As many columns as months shown (the current year so far fills the width)
+  const columns = { gridTemplateColumns: `repeat(${series.length}, minmax(0, 1fr))` };
 
   return (
     <div className={`portfolio-stat-card monthly-income-chart flow-year-chart ${large ? 'is-large' : ''}`}>
@@ -105,7 +107,7 @@ export default function YearFlowChart({ series, kind, labelOf, categoryOrder = [
         )}
       </div>
 
-      <div className="monthly-income-plot flow-year-plot" onMouseLeave={() => setActiveIndex(null)}>
+      <div className="monthly-income-plot flow-year-plot" style={columns} onMouseLeave={() => setActiveIndex(null)}>
         {average > 0 && <div className="monthly-income-average" style={{ bottom: `${height(average)}%` }} aria-hidden="true" />}
         {series.map((m, i) => (
           <button
@@ -137,7 +139,7 @@ export default function YearFlowChart({ series, kind, labelOf, categoryOrder = [
           </button>
         ))}
       </div>
-      <div className="monthly-income-axis" aria-hidden="true">
+      <div className="monthly-income-axis" style={columns} aria-hidden="true">
         {series.map((m, i) => (
           <span key={m.key} className={`${i === index ? 'is-active' : ''} ${(series.length - 1 - i) % labelStep === 0 || i === index ? '' : 'is-minor'}`}>{m.monthLabel}</span>
         ))}
