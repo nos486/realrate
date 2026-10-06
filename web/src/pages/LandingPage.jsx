@@ -47,7 +47,7 @@ const FEATURES = [
   { Icon: Wallet, tone: 'green', title: 'هزینه و بودجه', text: 'هزینه‌های روزمره با دسته و بودجه‌ی ماهانه، حساب‌ها و پروژه‌ها.', href: '/features' },
   { Icon: Landmark, tone: 'cyan', title: 'درآمد، وام و چک', text: 'اقساط و سررسیدها، درآمدهای ثابت و چک‌ها با یادآوری.', href: '/features/loans' },
   { Icon: ChartColumn, tone: 'violet', title: 'گزارش سالانه', text: 'درآمد و هزینه، پس‌انداز و سرمایه‌گذاری سال در یک صفحه؛ خروجی PDF.', href: '/features' },
-  { Icon: Newspaper, tone: 'rose', title: 'اخبار و تحلیل هوش مصنوعی', text: 'فقط خبرهایی که روی بازار اثر دارند، و تحلیل هر روز.', href: '/news' },
+  { Icon: Newspaper, tone: 'rose', title: 'اخبار و تحلیل هوش مصنوعی', text: 'فقط خبرهایی که روی بازار اثر دارند، و تحلیل هر روز.', href: '/features' },
 ];
 
 /** Why trust it with your money */
@@ -165,9 +165,9 @@ export default function LandingPage() {
           </a>
           <nav className="lp-nav" aria-label="منوی اصلی">
             <a href="/features">امکانات</a>
-            <a href="/news">اخبار</a>
             <a href="/android">اپ اندروید</a>
             <a href="/faq">سؤالات</a>
+            <a href="/about">درباره</a>
           </nav>
           <button type="button" className="lp-btn lp-btn-small" onClick={enterApp}>
             <span>ورود</span>
@@ -298,7 +298,6 @@ export default function LandingPage() {
           </div>
           <nav className="lp-footer-links" aria-label="پیوندها">
             <a href="/features">امکانات</a>
-            <a href="/news">اخبار</a>
             <a href="/android">اپ اندروید</a>
             <a href="/about">درباره</a>
             <a href="/faq">سؤالات</a>

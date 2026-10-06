@@ -151,47 +151,47 @@ landingHtml = landingHtml.replace('</head>', landingJsonLdScript);
 // Inject static crawlable content inside <div id="root"></div>
 const crawlableLandingContent = `
     <div id="root">
-      <div class="landing-ssr-fallback" style="display:block;color:#f3f4f6;background:#07090e;min-height:100vh;padding:2.5rem 1.25rem;font-family:Vazirmatn,system-ui,sans-serif;max-width:960px;margin:0 auto;line-height:1.8;" dir="rtl">
-        <header style="margin-bottom:2rem;border-bottom:1px solid rgba(255,255,255,0.08);padding-bottom:1rem;display:flex;align-items:center;justify-content:space-between;">
-          <strong style="font-size:1.4rem;color:#f59e0b;">RealRate | ریل‌ریت</strong>
-          <nav style="display:flex;gap:1.2rem;font-size:0.95rem;">
-            <a href="/features" style="color:#38bdf8;">همه ویژگی‌ها</a>
-            <a href="/about" style="color:#f3f4f6;">درباره</a>
-            <a href="/faq" style="color:#f3f4f6;">سؤالات متداول</a>
-            <a href="/android" style="color:#f3f4f6;">اپ اندروید</a>
-            <a href="/login" style="color:#f3f4f6;">ورود</a>
-            <a href="/register" style="color:#10b981;font-weight:700;">ثبت‌نام</a>
+      <div class="landing-ssr-fallback" style="display:block;color:#f3f4f6;background:#07090e;min-height:100vh;padding:1.5rem 1rem 2.5rem;font-family:Vazirmatn,system-ui,sans-serif;max-width:1120px;margin:0 auto;line-height:1.8;" dir="rtl">
+        <header style="display:flex;align-items:center;gap:1.5rem;flex-wrap:wrap;padding-bottom:1rem;border-bottom:1px solid rgba(255,255,255,0.08);">
+          <strong style="font-size:1.15rem;">RealRate</strong>
+          <nav style="display:flex;gap:1.2rem;font-size:0.92rem;margin-inline-end:auto;">
+            <a href="/features" style="color:#9ca3af;text-decoration:none;">امکانات</a>
+            <a href="/android" style="color:#9ca3af;text-decoration:none;">اپ اندروید</a>
+            <a href="/faq" style="color:#9ca3af;text-decoration:none;">سؤالات</a>
+            <a href="/about" style="color:#9ca3af;text-decoration:none;">درباره</a>
           </nav>
+          <a href="/login" style="background:#f5b942;color:#1a1204;padding:0.45rem 1rem;border-radius:10px;font-weight:700;text-decoration:none;">ورود</a>
         </header>
-        <main>
-          <h1 style="font-size:2rem;font-weight:800;margin-bottom:1rem;color:#fff;">ارزش واقعی دارایی‌هایت را بشناس</h1>
-          <p style="font-size:1.1rem;color:#9ca3af;margin-bottom:2rem;">
-            پلتفرم تحلیلی، مستقل و رمزنگاری‌شده برای محاسبه ارزش ذاتی و حباب طلا و سکه، مدیریت پورتفوی سرمایه‌گذاری، وام‌ها، اقساط، چک‌ها و درآمدها — ۱۰۰٪ رایگان و متن‌باز.
+        <main style="text-align:center;">
+          <h1 style="font-size:2.2rem;font-weight:900;line-height:1.35;margin:4rem 0 1rem;">پول و دارایی‌هایت را <span style="color:#f5b942;">یک‌جا و واقعی</span> ببین</h1>
+          <p style="font-size:1.05rem;color:#9ca3af;max-width:640px;margin:0 auto 2rem;">
+            ارزش واقعی طلا و ارز، پورتفو، هزینه‌ها، درآمد، وام و چک — با گزارش سالانه و خبرهای مهم بازار. رایگان، متن‌باز و رمزنگاری‌شده روی دستگاه خودت.
           </p>
-          <div style="display:flex;gap:1rem;margin-bottom:3rem;flex-wrap:wrap;">
-            <a href="/register" style="background:#0284c7;color:#fff;padding:0.6rem 1.4rem;border-radius:8px;font-weight:700;text-decoration:none;">شروع رایگان</a>
-            ${DEMO_ENABLED ? `<a href="/demo" style="background:#f59e0b;color:#07090e;padding:0.6rem 1.4rem;border-radius:8px;font-weight:700;text-decoration:none;">مشاهده نسخه دمو</a>` : ''}
+          <div style="display:flex;gap:0.75rem;justify-content:center;flex-wrap:wrap;margin-bottom:4rem;">
+            <a href="/register" style="background:#fff;color:#0b0d12;padding:0.7rem 1.4rem;border-radius:12px;font-weight:700;text-decoration:none;">شروع رایگان</a>
+            ${DEMO_ENABLED ? `<a href="/demo" style="border:1px solid rgba(255,255,255,0.14);color:#f3f4f6;padding:0.7rem 1.4rem;border-radius:12px;font-weight:700;text-decoration:none;">دیدن نسخه‌ی دمو</a>` : ''}
           </div>
-          <section style="margin-bottom:3rem;">
-            <h2 style="font-size:1.4rem;color:#fff;margin-bottom:1.2rem;">ویژگی‌ها و امکانات کلیدی</h2>
+          <section style="text-align:right;">
+            <h2 style="font-size:1.6rem;text-align:center;margin-bottom:1.5rem;">همه‌ی کارهای مالی در یک جا</h2>
             <ul style="list-style:none;padding:0;display:grid;grid-template-columns:repeat(auto-fit, minmax(260px, 1fr));gap:1rem;">
               ${FEATURE_PAGES.map(
                 (p) => `
-                <li style="background:#0e121a;border:1px solid rgba(255,255,255,0.08);padding:1.2rem;border-radius:12px;">
-                  <h3 style="font-size:1.05rem;margin-bottom:0.5rem;"><a href="/features/${p.slug}" style="color:#38bdf8;text-decoration:none;">${escapeHtml(p.h1)}</a></h3>
-                  <p style="font-size:0.88rem;color:#9ca3af;line-height:1.6;">${escapeHtml(p.description)}</p>
+                <li style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);padding:1.3rem;border-radius:18px;">
+                  <h3 style="font-size:1.02rem;margin-bottom:0.4rem;"><a href="/features/${p.slug}" style="color:#f3f4f6;text-decoration:none;">${escapeHtml(p.h1)}</a></h3>
+                  <p style="font-size:0.9rem;color:#9ca3af;line-height:1.8;">${escapeHtml(p.description)}</p>
                 </li>`
               ).join('')}
             </ul>
           </section>
         </main>
         <footer style="margin-top:3rem;border-top:1px solid rgba(255,255,255,0.08);padding-top:1.5rem;font-size:0.85rem;color:#6b7280;display:flex;justify-content:space-between;flex-wrap:wrap;gap:1rem;">
-          <span>© RealRate — پلتفرم آزاد تحت مجوز MIT</span>
-          <div>
+          <span>© RealRate · متن‌باز با مجوز MIT</span>
+          <span>
             <a href="/features" style="color:#9ca3af;margin-left:1rem;">امکانات</a>
-            <a href="/about" style="color:#9ca3af;margin-left:1rem;">درباره ریل‌ریت</a>
-            <a href="/faq" style="color:#9ca3af;">پرسش‌های متداول</a>
-          </div>
+            <a href="/android" style="color:#9ca3af;margin-left:1rem;">اپ اندروید</a>
+            <a href="/about" style="color:#9ca3af;margin-left:1rem;">درباره</a>
+            <a href="/faq" style="color:#9ca3af;">سؤالات</a>
+          </span>
         </footer>
       </div>
     </div>`;
@@ -201,6 +201,27 @@ writeFileSync(rawIndexHtmlPath, landingHtml, 'utf-8');
 console.log('✓ Updated dist/index.html with metadata, JSON-LD, and crawlable fallback');
 
 // ── 4. Shared HTML Template Generator for Static Pages ───────────────────────
+// They look like the landing page (pages/LandingPage.jsx): its header, footer, colors and buttons
+const BRAND_ICON = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"></polyline><polyline points="16 7 22 7 22 13"></polyline></svg>';
+
+/** A question and its answer, opened with a tap (the question stays a heading for crawlers) */
+const faqItem = (item, tag = 'h3') => `
+          <details class="seo-faq-item">
+            <summary><${tag} class="seo-faq-q">${escapeHtml(item.q)}</${tag}></summary>
+            <p class="seo-faq-a">${escapeHtml(item.a)}</p>
+          </details>`;
+
+/** The closing call to start, the same on every page */
+const ctaBlock = (title, text, buttons = null) => `
+    <section class="seo-cta">
+      <h2>${escapeHtml(title)}</h2>
+      <p>${escapeHtml(text)}</p>
+      <div class="seo-cta-buttons">
+        ${buttons ?? `<a href="/register" class="seo-btn seo-btn-primary">شروع رایگان <span aria-hidden="true">←</span></a>
+        ${DEMO_ENABLED ? '<a href="/demo" class="seo-btn seo-btn-ghost">دیدن نسخه‌ی دمو</a>' : ''}`}
+      </div>
+    </section>`;
+
 function renderStaticPage({
   title,
   description,
@@ -274,28 +295,20 @@ function renderStaticPage({
 ${jsonLdBlock}
   </head>
   <body>
-    <!-- Header -->
+    <!-- Header: the same as the landing page's -->
     <header class="seo-header">
       <div class="seo-container seo-header-inner">
-        <a href="/" class="seo-brand" aria-label="صفحه اصلی RealRate">
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"></polyline><polyline points="16 7 22 7 22 13"></polyline></svg>
+        <a href="/" class="seo-brand" aria-label="RealRate — صفحه‌ی اصلی">
+          <span class="seo-brand-icon">${BRAND_ICON}</span>
           <span>${escapeHtml(SITE.name)}</span>
-          <span class="seo-brand-tag">متن‌باز</span>
         </a>
-
-        <nav class="seo-nav" aria-label="منوی سایت">
-          <a href="/features">ویژگی‌ها</a>
-          <a href="/about">درباره</a>
-          <a href="/faq">پرسش‌های متداول</a>
+        <nav class="seo-nav" aria-label="منوی اصلی">
+          <a href="/features">امکانات</a>
           <a href="/android">اپ اندروید</a>
-          <a href="https://github.com/nos486/realrate" target="_blank" rel="noopener noreferrer">گیت‌هاب</a>
+          <a href="/faq">سؤالات</a>
+          <a href="/about">درباره</a>
         </nav>
-
-        <div class="seo-header-actions">
-          ${DEMO_ENABLED ? `<a href="/demo" class="seo-btn seo-btn-demo">نسخه دمو</a>` : ''}
-          <a href="/login" class="seo-btn seo-btn-ghost">ورود</a>
-          <a href="/register" class="seo-btn seo-btn-primary">ثبت‌نام</a>
-        </div>
+        <a href="/login" class="seo-btn seo-btn-small">ورود <span aria-hidden="true">‹</span></a>
       </div>
     </header>
 
@@ -306,54 +319,27 @@ ${jsonLdBlock}
       </div>
     </main>
 
-    <!-- Footer -->
+    <!-- Footer: the same as the landing page's -->
     <footer class="seo-footer">
-      <div class="seo-container">
-        <div class="seo-footer-grid">
-          <div class="seo-footer-about">
-            <h3>
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"></polyline><polyline points="16 7 22 7 22 13"></polyline></svg>
-              <span>RealRate | ریل‌ریت</span>
-            </h3>
-            <p>
-              پلتفرم مستقل، آزاد و رمزنگاری‌شده برای تحلیل ارزش واقعی طلا و سکه، مدیریت متمرکز پورتفوی چنددارایی، وام‌ها و درآمدها. بدون تبلیغات، کاملاً رایگان تحت مجوز MIT.
-            </p>
-          </div>
-
-          <div class="seo-footer-col">
-            <h4>امکانات کلیدی</h4>
-            <ul class="seo-footer-links">
-              <li><a href="/features/gold-coin-bubble">ارزش ذاتی و حباب سکه</a></li>
-              <li><a href="/features/portfolio">مدیریت پورتفوی ابری</a></li>
-              <li><a href="/features/transactions">تراکنش‌ها و میانگین موزون</a></li>
-              <li><a href="/features/loans">وام‌ها و جدول اقساط</a></li>
-              <li><a href="/features/income">مدیریت درآمدهای ماهانه</a></li>
-              <li><a href="/features/cheques">مدیریت چک‌های صیادی</a></li>
-              <li><a href="/features/ai-cheque-scan">اسکن چک با هوش مصنوعی</a></li>
-              <li><a href="/features/encryption">رمزنگاری سرتاسری (E2EE)</a></li>
-              <li><a href="/features/personal-dashboard">داشبورد شخصی و PWA</a></li>
-              ${DEMO_ENABLED ? `<li><a href="/features/demo">نسخه دموی آزمایشی</a></li>` : ''}
-            </ul>
-          </div>
-
-          <div class="seo-footer-col">
-            <h4>دسترسی و توسعه</h4>
-            <ul class="seo-footer-links">
-              <li><a href="/features">همه امکانات</a></li>
-              <li><a href="/about">درباره ریل‌ریت</a></li>
-              <li><a href="/faq">پرسش‌های متداول</a></li>
-              <li><a href="/android">دانلود اپ اندروید</a></li>
-              ${DEMO_ENABLED ? `<li><a href="/demo">مشاهده محیط دمو</a></li>` : ''}
-              <li><a href="https://github.com/nos486/realrate" target="_blank" rel="noopener noreferrer">مخزن گیت‌هاب</a></li>
-              <li><a href="https://github.com/nos486/realrate/blob/main/LICENSE" target="_blank" rel="noopener noreferrer">مجوز انتشار (MIT)</a></li>
-            </ul>
-          </div>
+      <div class="seo-container seo-footer-inner">
+        <div class="seo-footer-brand">
+          <a href="/" class="seo-brand">
+            <span class="seo-brand-icon">${BRAND_ICON}</span>
+            <span>${escapeHtml(SITE.name)}</span>
+          </a>
+          <p>ابزار رایگان و متن‌باز برای دیدن ارزش واقعی دارایی‌ها و مدیریت مالی شخصی.</p>
         </div>
-
-        <div class="seo-footer-bottom">
-          <span>© ${new Date().getFullYear()} RealRate. تمام حقوق بر پایه پروانه آزاد MIT برای جامعه محفوظ است.</span>
-          <span>امنیت Zero-Knowledge و احترام کامل به حریم خصوصی</span>
-        </div>
+        <nav class="seo-footer-links" aria-label="پیوندها">
+          <a href="/features">امکانات</a>
+          <a href="/android">اپ اندروید</a>
+          <a href="/about">درباره</a>
+          <a href="/faq">سؤالات</a>
+          ${DEMO_ENABLED ? '<a href="/demo">دمو</a>' : ''}
+          <a href="https://github.com/nos486/realrate" target="_blank" rel="noopener noreferrer">GitHub</a>
+        </nav>
+      </div>
+      <div class="seo-container seo-footer-bottom">
+        © ${new Date().getFullYear().toLocaleString('fa-IR', { useGrouping: false })} RealRate · متن‌باز با مجوز MIT
       </div>
     </footer>
   </body>
@@ -404,7 +390,7 @@ for (const page of FEATURE_PAGES) {
 
     <!-- Hero -->
     <header class="seo-hero">
-      <div class="seo-badge">قابلیت رسمی RealRate</div>
+      <div class="seo-badge">امکانات</div>
       <h1>${escapeHtml(page.h1)}</h1>
       <p class="seo-hero-intro">${escapeHtml(page.intro)}</p>
     </header>
@@ -460,11 +446,7 @@ for (const page of FEATURE_PAGES) {
       <div class="seo-faq-grid">
         ${page.faq
           .map(
-            (item) => `
-          <div class="seo-faq-item">
-            <h3 class="seo-faq-q">${escapeHtml(item.q)}</h3>
-            <p class="seo-faq-a">${escapeHtml(item.a)}</p>
-          </div>`
+            (item) => faqItem(item)
           )
           .join('')}
       </div>
@@ -477,7 +459,7 @@ for (const page of FEATURE_PAGES) {
       relatedPages.length
         ? `
     <section class="seo-related-block">
-      <h2>سایر امکانات مرتبط</h2>
+      <h2>امکانات مرتبط</h2>
       <div class="seo-related-grid">
         ${relatedPages
           .map(
@@ -486,7 +468,7 @@ for (const page of FEATURE_PAGES) {
             <h3>${escapeHtml(rel.h1)}</h3>
             <p>${escapeHtml(rel.description)}</p>
             <a href="/features/${rel.slug}" class="seo-related-link">
-              <span>مطالعه بیشتر</span>
+              <span>بیشتر</span>
               <span aria-hidden="true">←</span>
             </a>
           </div>`
@@ -498,14 +480,7 @@ for (const page of FEATURE_PAGES) {
     }
 
     <!-- Call to Action Banner -->
-    <section class="seo-cta">
-      <h2>همین حالا مدیریت مالی خود را متحول کنید</h2>
-      <p>بدون نیاز به اشتراک یا پرداخت هزینه، حساب کاربری رایگان و امن خود را بسازید یا محیط برنامه را در حالت دمو امتحان کنید.</p>
-      <div class="seo-cta-buttons">
-        <a href="/register" class="seo-btn seo-btn-primary">ثبت‌نام رایگان</a>
-        ${DEMO_ENABLED ? `<a href="/demo" class="seo-btn seo-btn-demo">مشاهده نسخه دمو</a>` : ''}
-      </div>
-    </section>`;
+    ${ctaBlock('همین حالا رایگان شروع کن', 'چند ثانیه با ایمیل یا حساب گوگل — بدون کارت بانکی و بدون تبلیغ.')}`;
 
   const html = renderStaticPage({
     title: page.title,
@@ -556,7 +531,7 @@ console.log(`✓ Generated ${FEATURE_PAGES.length} feature pages in dist/feature
 
     <!-- Hero -->
     <header class="seo-hero">
-      <div class="seo-badge">مرکز امکانات RealRate</div>
+      <div class="seo-badge">امکانات</div>
       <h1>${escapeHtml(STATIC_PAGES.features.h1)}</h1>
       <p class="seo-hero-intro">${escapeHtml(STATIC_PAGES.features.intro)}</p>
     </header>
@@ -569,7 +544,7 @@ console.log(`✓ Generated ${FEATURE_PAGES.length} feature pages in dist/feature
           <h2>${escapeHtml(p.h1)}</h2>
           <p>${escapeHtml(p.description)}</p>
           <a href="/features/${p.slug}" class="seo-hub-more">
-            <span>بررسی قابلیت و جزئیات</span>
+            <span>بیشتر</span>
             <span aria-hidden="true">←</span>
           </a>
         </article>`
@@ -577,14 +552,7 @@ console.log(`✓ Generated ${FEATURE_PAGES.length} feature pages in dist/feature
     </div>
 
     <!-- Call to Action Banner -->
-    <section class="seo-cta">
-      <h2>شروع رایگان با امنیت Zero-Knowledge</h2>
-      <p>تنها در چند ثانیه بدون نیاز به شماره همراه، با ایمیل یا حساب گوگل خود وارد دنیای مدیریت مالی شفاف شوید.</p>
-      <div class="seo-cta-buttons">
-        <a href="/register" class="seo-btn seo-btn-primary">ثبت‌نام رایگان</a>
-        ${DEMO_ENABLED ? `<a href="/demo" class="seo-btn seo-btn-demo">مشاهده نسخه دمو</a>` : ''}
-      </div>
-    </section>`;
+    ${ctaBlock('همین حالا رایگان شروع کن', 'چند ثانیه با ایمیل یا حساب گوگل — بدون کارت بانکی و بدون تبلیغ.')}`;
 
   const hubHtml = renderStaticPage({
     title: STATIC_PAGES.features.title,
@@ -635,7 +603,7 @@ console.log(`✓ Generated ${FEATURE_PAGES.length} feature pages in dist/feature
 
     <!-- Hero -->
     <header class="seo-hero">
-      <div class="seo-badge">درباره RealRate</div>
+      <div class="seo-badge">درباره</div>
       <h1>${escapeHtml(about.h1)}</h1>
       <p class="seo-hero-intro">${escapeHtml(about.intro)}</p>
     </header>
@@ -661,14 +629,7 @@ console.log(`✓ Generated ${FEATURE_PAGES.length} feature pages in dist/feature
     </article>
 
     <!-- CTA -->
-    <section class="seo-cta">
-      <h2>به جامعه کاربران RealRate بپیوندید</h2>
-      <p>از نرم‌افزاری استفاده کنید که برای شما ساخته شده، نه برای فروش داده‌های مالی‌تان به تبلیغ‌دهندگان.</p>
-      <div class="seo-cta-buttons">
-        <a href="/register" class="seo-btn seo-btn-primary">ثبت‌نام رایگان</a>
-        ${DEMO_ENABLED ? `<a href="/demo" class="seo-btn seo-btn-demo">مشاهده نسخه دمو</a>` : ''}
-      </div>
-    </section>`;
+    ${ctaBlock('همین حالا رایگان شروع کن', 'چند ثانیه با ایمیل یا حساب گوگل — بدون کارت بانکی و بدون تبلیغ.')}`;
 
   const aboutHtml = renderStaticPage({
     title: about.title,
@@ -717,7 +678,7 @@ console.log(`✓ Generated ${FEATURE_PAGES.length} feature pages in dist/feature
 
     <!-- Hero -->
     <header class="seo-hero">
-      <div class="seo-badge">مرکز پاسخگویی</div>
+      <div class="seo-badge">سؤالات</div>
       <h1>${escapeHtml(faqPage.h1)}</h1>
       <p class="seo-hero-intro">${escapeHtml(faqPage.intro)}</p>
     </header>
@@ -726,22 +687,18 @@ console.log(`✓ Generated ${FEATURE_PAGES.length} feature pages in dist/feature
     <div class="seo-faq-grid">
       ${faqPage.faqs
         .map(
-          (item) => `
-        <div class="seo-faq-item">
-          <h2 class="seo-faq-q" style="font-size:1.1rem;display:block;">${escapeHtml(item.q)}</h2>
-          <p class="seo-faq-a">${escapeHtml(item.a)}</p>
-        </div>`
+          (item) => faqItem(item, 'h2')
         )
         .join('')}
     </div>
 
     <!-- CTA -->
     <section class="seo-cta">
-      <h2>پاسخ سؤالتان را نیافتید؟</h2>
-      <p>می‌توانید محیط برنامه را بدون ثبت‌نام در نسخه دمو تست کنید یا در گیت‌هاب با توسعه‌دهندگان در ارتباط باشید.</p>
+      <h2>جواب سؤالت را پیدا نکردی؟</h2>
+      <p>برنامه را رایگان امتحان کن یا سؤالت را در گیت‌هاب بپرس.</p>
       <div class="seo-cta-buttons">
-        ${DEMO_ENABLED ? `<a href="/demo" class="seo-btn seo-btn-demo">مشاهده نسخه دمو</a>` : ''}
-        <a href="https://github.com/nos486/realrate/issues" target="_blank" rel="noopener noreferrer" class="seo-btn seo-btn-ghost">طرح سؤال در GitHub</a>
+        <a href="/register" class="seo-btn seo-btn-primary">شروع رایگان <span aria-hidden="true">←</span></a>
+        <a href="https://github.com/nos486/realrate/issues" target="_blank" rel="noopener noreferrer" class="seo-btn seo-btn-ghost">پرسیدن در GitHub</a>
       </div>
     </section>`;
 
@@ -855,11 +812,7 @@ console.log(`✓ Generated ${FEATURE_PAGES.length} feature pages in dist/feature
       <div class="seo-faq-grid">
         ${app.faq
           .map(
-            (item) => `
-          <div class="seo-faq-item">
-            <h3 class="seo-faq-q">${escapeHtml(item.q)}</h3>
-            <p class="seo-faq-a">${escapeHtml(item.a)}</p>
-          </div>`
+            (item) => faqItem(item)
           )
           .join('')}
       </div>
@@ -871,7 +824,7 @@ console.log(`✓ Generated ${FEATURE_PAGES.length} feature pages in dist/feature
       <p>همه‌ی امکانات ریل‌ریت در مرورگر هم در دسترس است؛ با همان حساب، هر وقت خواستید اپ را نصب کنید.</p>
       <div class="seo-cta-buttons">
         <a href="${escapeHtml(app.downloadUrl)}" class="seo-btn seo-btn-primary" download>دانلود اپ اندروید</a>
-        <a href="/register" class="seo-btn seo-btn-demo">ثبت‌نام در سایت</a>
+        <a href="/register" class="seo-btn seo-btn-ghost">ثبت‌نام در سایت</a>
       </div>
     </section>`;
 
@@ -966,6 +919,8 @@ Disallow: /accounts
 Disallow: /settings
 Disallow: /app-settings
 Disallow: /sms
+Disallow: /news
+Disallow: /reports
 Disallow: /admin
 Disallow: /sources
 Disallow: /derived-assets
