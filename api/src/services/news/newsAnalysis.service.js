@@ -10,7 +10,9 @@
  *
  * Kept small: written only when news came in since the last one, at most every
  * NEWS_ANALYSIS.minIntervalMinutes and NEWS_ANALYSIS.perDay times a day; the day's first one waits
- * for NEWS_ANALYSIS.minNews items. Stored in the state store (`news:analysis`).
+ * for NEWS_ANALYSIS.minNews items. Stored in the state store (`news:analysis`, D1: read back by
+ * the next run), and its public part copied to KV (`news:analysis:public`) for the public pages
+ * (the news page, the landing page): read at the nearest Cloudflare location, no database read.
  *
  * The model is NEWS_ANALYSIS.model, and only it: when it fails or its answer isn't usable, no other
  * model is tried — the last analysis stays and the failure is kept for the admin's panel
@@ -21,10 +23,12 @@ import { NEWS_ANALYSIS } from "../../config/news.config.js";
 import { buildAnalysisPrompt, parseAnalysis, tehranDayStart, hasForeignText } from "../../domain/news.js";
 import { dbTopNewsSince, dbNewsStatsSince } from "../../repositories/news.repository.js";
 import { getStateStore } from "../../repositories/stateStore.repository.js";
+import { getBlobStore } from "../../repositories/kvStore.repository.js";
 import { askWorkersAi, hasWorkersAi } from "./workersAi.js";
 import { logger } from "../../lib/logger.js";
 
 const ANALYSIS_KEY = "news:analysis";
+const PUBLIC_KEY = "news:analysis:public";
 const STATUS_KEY = "news:analysis:status";
 const countKey = (dayStart) => `news:analysis:count:${dayStart}`;
 
@@ -65,8 +69,34 @@ async function buildAnalysisInput(env, { now }) {
   return { dayStart, stats, news, messages };
 }
 
-async function saveAnalysis(store, analysis, { dayStart, at, newsCount, lastSavedAt, model }) {
-  await store.put(ANALYSIS_KEY, JSON.stringify({ ...analysis, day: dayStart, at, newsCount, lastSavedAt, model }));
+/** What the public pages show of an analysis (not the run's bookkeeping) */
+const publicView = (a) => ({
+  title: a.title,
+  summary: a.summary,
+  drivers: a.drivers || [],
+  points: a.points || [],
+  risk: a.risk || "",
+  at: a.at,
+  newsCount: a.newsCount || 0,
+});
+
+async function saveAnalysis(env, store, analysis, { dayStart, at, newsCount, lastSavedAt, model }) {
+  const saved = { ...analysis, day: dayStart, at, newsCount, lastSavedAt, model };
+  await store.put(ANALYSIS_KEY, JSON.stringify(saved));
+  // The public copy: a failure leaves the last one, and the next analysis writes it again
+  await getBlobStore(env)?.put(PUBLIC_KEY, JSON.stringify(publicView(saved)))
+    .catch((err) => logger.warn("[News] the analysis' public copy was not saved", { error: err?.message }));
+}
+
+/**
+ * The latest analysis for the public pages, from KV — or, before the first copy was written, from
+ * the state store
+ */
+export async function getPublicNewsAnalysis(env) {
+  const copy = await getBlobStore(env)?.get(PUBLIC_KEY, "json").catch(() => null);
+  if (copy?.title) return copy;
+  const latest = await getNewsAnalysis(env);
+  return latest?.title ? publicView(latest) : null;
 }
 
 /**
@@ -115,6 +145,6 @@ export async function maybeUpdateNewsAnalysis(env, { now = Date.now(), force = f
     return { updated: false, reason: "model-error", error };
   }
 
-  await saveAnalysis(store, analysis, { dayStart, at: now, newsCount: input.news.length, lastSavedAt: stats.lastSavedAt, model });
+  await saveAnalysis(env, store, analysis, { dayStart, at: now, newsCount: input.news.length, lastSavedAt: stats.lastSavedAt, model });
   return { updated: true };
 }

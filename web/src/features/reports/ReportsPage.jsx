@@ -4,12 +4,14 @@
  * against expenses, by source and category, what was invested and where, the year in dollars, and
  * every month in one table — laid out in a grid of cards to read (and later print) as one report.
  *
- * The year is loaded once (useReportData); every card reads the same figures.
+ * The year is loaded once (useReportData); every card reads the same figures. «خروجی PDF» prints
+ * the page on its own (printReport.js: the browser's «Save as PDF»; the website — the Android
+ * app's web view can't print).
  */
 
-import React, { useMemo, useState } from 'react';
-import { ChartColumn } from 'lucide-react';
-import { AlertBanner, FeaturePageHeader } from '../../shared/ui/index.js';
+import React, { useMemo, useRef, useState } from 'react';
+import { ChartColumn, FileDown } from 'lucide-react';
+import { AlertBanner, Button, FeaturePageHeader } from '../../shared/ui/index.js';
 import Skeleton from '../../shared/ui/Skeleton.jsx';
 import VaultUnlockCard from '../../shared/vault/VaultUnlockCard.jsx';
 import { useVault } from '../../shared/vault/useVault.js';
@@ -20,6 +22,8 @@ import { formatShamsiYear, shamsiMonthOf } from '../../shared/flow/flowYear.js';
 import { useReportData } from './useReportData.js';
 import { reportFormatters } from './reportFormat.js';
 import ReportDashboard from './ReportDashboard.jsx';
+import { printReport } from './printReport.js';
+import { isNativeApp } from '../../shared/native/nativeApp.js';
 
 const HEADER = {
   icon: <ChartColumn size={24} />,
@@ -54,6 +58,9 @@ export default function ReportsPage() {
   const thisMonth = useMemo(() => shamsiMonthOf(today), [today]);
   const [month, setMonth] = useState(thisMonth);
   const throughMonth = month.jy === thisMonth.jy ? thisMonth.jm : 12;
+  const pageRef = useRef(null);
+  const yearLabel = formatShamsiYear(month.jy);
+  const canPrint = !isNativeApp() && typeof window !== 'undefined' && typeof window.print === 'function';
 
   if (vaultStatus === 'locked') {
     return (
@@ -65,8 +72,16 @@ export default function ReportsPage() {
   }
 
   return (
-    <div className="incomes-page-container reports-page">
-      <FeaturePageHeader {...HEADER} />
+    <div className="incomes-page-container reports-page" ref={pageRef}>
+      <FeaturePageHeader
+        {...HEADER}
+        actions={canPrint && (
+          <Button variant="secondary" icon={<FileDown size={16} />} onClick={() => printReport(pageRef.current, `گزارش ${yearLabel} — RealRate`)}>
+            خروجی PDF
+          </Button>
+        )}
+      />
+      <p className="report-print-meta">گزارش سال {yearLabel} · ساخته‌شده در {new Date().toLocaleDateString('fa-IR')} · RealRate</p>
       <PeriodSwitcher mode="year" month={month} thisMonth={thisMonth} onMonthChange={setMonth} />
       <ReportBody jy={month.jy} throughMonth={throughMonth} hideValues={hideValues} />
     </div>

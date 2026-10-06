@@ -30,6 +30,8 @@ import {
   Star,
   ArrowLeft,
   Code2,
+  Newspaper,
+  ChartColumn,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../features/auth/index.js';
@@ -37,6 +39,7 @@ import { useDemo } from '../features/demo/index.js';
 import { APP_BASE, DEMO_ENABLED } from '../shared/routes.js';
 import { toPersianDigits } from '../shared/utils/formatters.js';
 import { STATIC_PAGES } from '../seo/pages.js';
+import LandingAnalysis from '../features/news/LandingAnalysis.jsx';
 
 const LANDING_FAQS = STATIC_PAGES.faq.faqs.slice(0, 5);
 
@@ -551,6 +554,60 @@ export default function LandingPage() {
               <ArrowLeft size={16} />
             </a>
           </div>
+        </section>
+
+        {/* ── 2b. NEW: market news, the AI's analysis, reports — and the latest analysis, live ── */}
+        <section id="whats-new" className="landing-features-compact-section landing-new-section">
+          <div className="landing-section-header compact">
+            <span className="section-pill">تازه در RealRate</span>
+            <h2 className="section-title">خبر، تحلیل با هوش مصنوعی و گزارش سالانه</h2>
+          </div>
+
+          <div className="features-single-row is-three">
+            <a href="/news" className="feature-compact-card" onMouseMove={handleBentoMouseMove}>
+              <div className="bento-spotlight" />
+              <div className="feature-compact-icon icon-blue">
+                <Newspaper size={22} />
+              </div>
+              <h3 className="feature-compact-title">اخبار مهم بازار</h3>
+              <p className="feature-compact-desc">
+                هر دقیقه کانال‌های خبری خوانده می‌شوند و هوش مصنوعی فقط خبرهایی را که روی دلار، طلا، بورس و اقتصاد اثر دارند جدا، دسته‌بندی و خلاصه می‌کند.
+              </p>
+              <div className="feature-compact-tag text-cyan">
+                <span>بدون خبرهای بی‌ربط و تکراری</span>
+              </div>
+            </a>
+
+            <a href="/news" className="feature-compact-card" onMouseMove={handleBentoMouseMove}>
+              <div className="bento-spotlight" />
+              <div className="feature-compact-icon icon-gold">
+                <Sparkles size={22} />
+              </div>
+              <h3 className="feature-compact-title">تحلیل روز با هوش مصنوعی</h3>
+              <p className="feature-compact-desc">
+                خبرهای هر روز با هم خوانده و تحلیل می‌شوند: چه شد، چه ربطی به هم دارد و چرا برای بازار مهم است — بدون پیش‌بینی قیمت.
+              </p>
+              <div className="feature-compact-tag text-amber">
+                <span>مهم‌ترین خبرهای روز و هفته</span>
+              </div>
+            </a>
+
+            <a href="/features" className="feature-compact-card" onMouseMove={handleBentoMouseMove}>
+              <div className="bento-spotlight" />
+              <div className="feature-compact-icon icon-emerald">
+                <ChartColumn size={22} />
+              </div>
+              <h3 className="feature-compact-title">گزارش سالانه</h3>
+              <p className="feature-compact-desc">
+                درآمد و هزینه، نرخ پس‌انداز، سهم سرمایه‌گذاری از درآمد و ارزش دلاری هر ماه در یک صفحه، با نکته‌های سال و خروجی PDF و CSV.
+              </p>
+              <div className="feature-compact-tag text-emerald">
+                <span>محاسبه در مرورگر، رمزنگاری‌شده</span>
+              </div>
+            </a>
+          </div>
+
+          <LandingAnalysis />
         </section>
 
         {/* ── 3. OPEN SOURCE SHOWCASE ─────────────────────────────────── */}

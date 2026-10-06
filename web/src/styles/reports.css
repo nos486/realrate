@@ -355,3 +355,95 @@ tr.is-selected td,
 .move-project-option input {
   accent-color: var(--color-primary, #3987e5);
 }
+
+/* ── «خروجی PDF»: the report printed on its own (features/reports/printReport.js) ───────────
+   An A4 landscape page in the page's own colors and its 12-column grid; everything but the
+   report (header, navigation, banners) and its controls is left out. */
+.report-print-meta {
+  display: none;
+}
+
+@media print {
+  @page {
+    size: A4 landscape;
+    margin: 8mm;
+  }
+
+  html.printing-report,
+  html.printing-report body {
+    background: var(--bg-app, #07090e) !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  /* Only the way down to the report, and the report */
+  html.printing-report body :not(.print-path):not(.reports-page):not(.reports-page *) {
+    display: none !important;
+  }
+
+  html.printing-report .print-path {
+    margin: 0 !important;
+    padding: 0 !important;
+    max-width: none !important;
+    min-height: 0 !important;
+    border: none !important;
+    box-shadow: none !important;
+    background: transparent !important;
+    overflow: visible !important;
+  }
+
+  /* A little smaller than on screen, so a page holds more of the report */
+  html.printing-report .reports-page {
+    width: 100%;
+    gap: 10px;
+    zoom: 0.8;
+  }
+
+  /* The controls are not part of the report */
+  html.printing-report .reports-page .feature-page-header-actions,
+  html.printing-report .reports-page .flow-period-bar,
+  html.printing-report .reports-page .btn-export-csv {
+    display: none !important;
+  }
+
+  html.printing-report .report-print-meta {
+    display: block;
+    margin: -6px 0 4px;
+    font-size: 11px;
+    color: var(--text-muted);
+  }
+
+  /* The wide screen's grid, whatever the paper's width */
+  html.printing-report .report-dash {
+    grid-template-columns: repeat(12, minmax(0, 1fr));
+    gap: 10px;
+  }
+
+  html.printing-report .report-dash > .span-4 { grid-column: span 4; }
+  html.printing-report .report-dash > .span-5 { grid-column: span 5; }
+  html.printing-report .report-dash > .span-6 { grid-column: span 6; }
+  html.printing-report .report-dash > .span-7 { grid-column: span 7; }
+  html.printing-report .report-dash > .span-12 { grid-column: 1 / -1; }
+
+  html.printing-report .report-dash .report-kpis {
+    display: grid !important;
+    grid-template-columns: repeat(auto-fit, minmax(0, 1fr)) !important;
+    grid-auto-flow: column;
+    gap: 8px;
+  }
+
+  /* A card is never cut between pages */
+  html.printing-report .report-dash > * {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  html.printing-report .report-bar,
+  html.printing-report .monthly-income-bar {
+    opacity: 1 !important;
+  }
+
+  html.printing-report .report-table-scroll {
+    overflow: visible;
+  }
+}

@@ -17,6 +17,9 @@ export function getNews({ limit = 20, page = 0, before = 0, category = '', impor
 /** The analyst's card and today's most important news: { analysis, top } */
 export const getNewsToday = () => httpClient.get('/api/news/today');
 
+/** The latest analyst's card only (the landing page; served from KV, cached at the edge): { analysis } */
+export const getLatestNewsAnalysis = () => httpClient.get('/api/news/analysis', { silent: true });
+
 /** Admin: write the analyst's card now */
 export const runNewsAnalysisNow = () => httpClient.post('/api/admin/news/analysis', {});
 
