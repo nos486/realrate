@@ -1,15 +1,20 @@
 /**
  * LandingAnalysis.jsx — The landing page's live «تحلیل روز»: the latest analyst's card, read only
- * when the section scrolls into view (GET /api/news/analysis: a KV copy, cached at the edge — no
- * database read), with a way into the news page. Nothing shows when there is no analysis yet.
+ * when the section scrolls into view (GET /api/news/today, the news page's own answer: kept in
+ * Cloudflare's edge cache, so visitors share one read), with a way into the news page. Nothing
+ * shows when there is no analysis yet.
  */
 
 import React, { useEffect, useRef, useState } from 'react';
 import { ArrowLeft } from 'lucide-react';
 import NewsAnalysisCard from './NewsAnalysisCard.jsx';
-import { getLatestNewsAnalysis } from './newsApi.js';
+import { getNewsToday } from './newsApi.js';
 
-export default function LandingAnalysis() {
+/**
+ * @param {{ head: React.ReactNode, className?: string, id?: string }} props the section's heading
+ * and look: the whole section shows only once there is an analysis
+ */
+export default function LandingAnalysis({ head, className = '', id }) {
   const ref = useRef(null);
   const [analysis, setAnalysis] = useState(null);
 
@@ -20,7 +25,7 @@ export default function LandingAnalysis() {
     const load = () => {
       if (done) return;
       done = true;
-      getLatestNewsAnalysis().then((res) => setAnalysis(res?.analysis || null)).catch(() => {});
+      getNewsToday({ silent: true }).then((res) => setAnalysis(res?.analysis || null)).catch(() => {});
     };
     if (typeof IntersectionObserver !== 'function') {
       load();
@@ -31,22 +36,26 @@ export default function LandingAnalysis() {
         load();
         observer.disconnect();
       }
-    }, { rootMargin: '300px' });
+    // Near (400px below the screen), or already scrolled past (a jump to the bottom)
+    }, { rootMargin: '100000px 0px 400px 0px' });
     observer.observe(el);
     return () => observer.disconnect();
   }, []);
 
   return (
-    <div ref={ref} className="landing-analysis">
+    <section ref={ref} id={id} className={`${className} ${analysis ? '' : 'is-empty'}`} aria-hidden={!analysis}>
       {analysis && (
-        <>
-          <NewsAnalysisCard analysis={analysis} />
-          <a href="/news" className="features-view-all-link">
-            <span>همه‌ی خبرهای مهم بازار و تحلیل روز</span>
-            <ArrowLeft size={16} />
-          </a>
-        </>
+        <div className="lp-container">
+          {head}
+          <div className="landing-analysis">
+            <NewsAnalysisCard analysis={analysis} />
+            <a href="/news" className="lp-more">
+              <span>همه‌ی خبرهای مهم بازار</span>
+              <ArrowLeft size={16} />
+            </a>
+          </div>
+        </div>
       )}
-    </div>
+    </section>
   );
 }

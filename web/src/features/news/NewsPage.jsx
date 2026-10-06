@@ -11,14 +11,15 @@
  * The topics are a bar of their own above the columns. A medium screen: the top news above the
  * list, the analysis beside them (in place). A phone: the analysis, then the list (no top lists).
  * The analysis stays in place while the list scrolls; the top news scroll with it. Each item shows its headline, summary,
- * source and time; a tap opens the post's full text and its link on Telegram. The list comes in
- * pages; new news comes in by itself every minute.
+ * source and time; a tap opens the post's full text and image (no link out to Telegram: the news is
+ * read here). An item of the top lists or of the analysis that isn't on the list's page opens in a
+ * window of its own. The list comes in pages; new news comes in by itself every minute.
  */
 
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Newspaper, ExternalLink, Share2, EyeOff, ChevronDown, Sparkles, Flame, CalendarDays, Bell, BellOff } from 'lucide-react';
-import { FeaturePageHeader, FilterPills, EmptyState, AlertBanner, Pagination } from '../../shared/ui/index.js';
+import { Newspaper, Share2, EyeOff, ChevronDown, Sparkles, Flame, CalendarDays, Bell, BellOff } from 'lucide-react';
+import { FeaturePageHeader, FilterPills, EmptyState, AlertBanner, Pagination, Modal } from '../../shared/ui/index.js';
 import Skeleton from '../../shared/ui/Skeleton.jsx';
 import { useFeedback } from '../../shared/ui/FeedbackProvider.jsx';
 import { useAuth } from '../auth/index.js';
@@ -79,7 +80,9 @@ function NewsItem({ item, open, onToggle, isAdmin, onHide }) {
 
   const share = async (e) => {
     e.stopPropagation();
-    const text = `${item.title}\n\n${item.summary || ''}\n\nمنبع: ${newsSource(item)}\n${item.url}`;
+    // The link is to the item here, not to its post on Telegram
+    const link = `${window.location.origin}/news?open=${encodeURIComponent(item.id)}`;
+    const text = `${item.title}\n\n${item.summary || ''}\n\n${link}`;
     try {
       if (navigator.share) await navigator.share({ title: item.title, text });
       else {
@@ -115,10 +118,6 @@ function NewsItem({ item, open, onToggle, isAdmin, onHide }) {
           {item.image && <img className="news-item-image" src={item.image} alt="" loading="lazy" referrerPolicy="no-referrer" onError={(e) => { e.currentTarget.style.display = 'none'; }} />}
           {item.text && <p className="news-item-text">{item.text}</p>}
           <div className="news-item-actions">
-            <a className="news-action" href={item.url} target="_blank" rel="noopener noreferrer">
-              <ExternalLink size={15} />
-              مشاهده در تلگرام
-            </a>
             <button type="button" className="news-action" onClick={share}>
               <Share2 size={15} />
               اشتراک‌گذاری
@@ -194,15 +193,14 @@ export default function NewsPage() {
 
   // Opened from the home card: that item is open and in view
   useEffect(() => {
-    if (!openParam || loading) return;
-    setOpenId(openParam);
-    document.getElementById(domId(openParam))?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    if (!openParam || loading || today.loading) return;
+    if (!openById(openParam)) setOpenId(openParam);
     const next = new URLSearchParams(searchParams);
     next.delete('open');
     setSearchParams(next, { replace: true });
     // Once, when the list is there
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [openParam, loading]);
+  }, [openParam, loading, today.loading]);
 
   const changeFilter = (value) => {
     setFilter(value);
@@ -213,14 +211,22 @@ export default function NewsPage() {
     listRef.current?.scrollIntoView({ block: 'start', behavior: 'smooth' });
   };
 
-  // An item of today's top: open it in the list when it is on this page, else on Telegram
+  // An item of the top lists: open it in the list when it is on this page, else in a window
+  const [shownItem, setShownItem] = useState(null);
   const openTop = (item) => {
     if (items.some((n) => n.id === item.id)) {
       setOpenId(item.id);
       document.getElementById(domId(item.id))?.scrollIntoView({ block: 'center', behavior: 'smooth' });
     } else {
-      window.open(item.url, '_blank', 'noopener,noreferrer');
+      setShownItem(item);
     }
+  };
+  // An item by its id (the analysis's news, a link from the home card or a notification)
+  const findItem = (id) => items.find((n) => n.id === id) || today.top.find((n) => n.id === id) || today.week.find((n) => n.id === id);
+  const openById = (id) => {
+    const item = findItem(id);
+    if (item) openTop(item);
+    return Boolean(item);
   };
 
   const hide = async (item) => {
@@ -257,7 +263,7 @@ export default function NewsPage() {
 
         {/* The day's analysis: stays in view while the list scrolls */}
         <aside className="news-layout-side" aria-label="تحلیل روز">
-          <NewsAnalysisCard analysis={today.analysis} />
+          <NewsAnalysisCard analysis={today.analysis} onOpenNews={(id) => (findItem(id) ? () => openById(id) : null)} />
         </aside>
 
         <div className="news-layout-main" ref={listRef}>
@@ -291,6 +297,12 @@ export default function NewsPage() {
           )}
         </div>
       </div>
+
+      <Modal isOpen={Boolean(shownItem)} onClose={() => setShownItem(null)} title="خبر" icon={<Newspaper size={18} />} maxWidth="640px">
+        {shownItem && (
+          <NewsItem item={shownItem} open onToggle={() => {}} isAdmin={isAdmin} onHide={(item) => { setShownItem(null); hide(item); }} />
+        )}
+      </Modal>
     </div>
   );
 }

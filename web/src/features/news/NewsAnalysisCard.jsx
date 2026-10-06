@@ -4,6 +4,9 @@
  * analysis, the day's most important news and their impact, the key points and what to watch.
  * No forecast of any market: the day's news alone can't call one (an older analysis's `outlook`
  * is not shown).
+ *
+ * The day's news are never links out to Telegram: `onOpenNews(id)` gives a handler that opens one
+ * here (the news page), else (the landing page) they link to it on the news page.
  */
 
 import React from 'react';
@@ -11,9 +14,16 @@ import { Sparkles, AlertTriangle } from 'lucide-react';
 import { newsTimeAgo, newsFullTime } from './newsFormat.js';
 
 const IMPACT = { 1: 'اثر کم', 2: 'اثر متوسط', 3: 'اثر زیاد' };
+/** One of the day's news: opened here when the page can, else a link to it on the news page */
+function NewsLink({ id, title, onOpenNews }) {
+  if (!onOpenNews) return <a href={`/news?open=${encodeURIComponent(id)}`}>{title}</a>;
+  const open = onOpenNews(id);
+  return open ? <button type="button" className="news-analysis-link" onClick={open}>{title}</button> : <span>{title}</span>;
+}
+
 const fa = (n) => Number(n || 0).toLocaleString('fa-IR');
 
-export default function NewsAnalysisCard({ analysis, className = '' }) {
+export default function NewsAnalysisCard({ analysis, className = '', onOpenNews = null }) {
   if (!analysis?.title) return null;
 
   return (
@@ -38,7 +48,7 @@ export default function NewsAnalysisCard({ analysis, className = '' }) {
             {analysis.drivers.map((n) => (
               <li key={n.id}>
                 <span className={`news-analysis-impact is-${n.impact}`}>{IMPACT[n.impact]}</span>
-                {n.url ? <a href={n.url} target="_blank" rel="noopener noreferrer">{n.title}</a> : <span>{n.title}</span>}
+                <NewsLink id={n.id} title={n.title} onOpenNews={onOpenNews} />
               </li>
             ))}
           </ol>

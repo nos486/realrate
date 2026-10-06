@@ -364,12 +364,23 @@
   line-height: 1.8;
 }
 
-.news-analysis-drivers a {
+.news-analysis-drivers a,
+.news-analysis-link {
   color: var(--text-primary);
   text-decoration: none;
 }
 
-.news-analysis-drivers a:hover {
+.news-analysis-link {
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+}
+
+.news-analysis-drivers a:hover,
+.news-analysis-link:hover {
   text-decoration: underline;
 }
 

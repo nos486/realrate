@@ -4,7 +4,6 @@
  * Endpoints:
  *   GET    /api/news                     — Published news, newest first (?limit, ?page or ?before, ?category, ?important=1)
  *   GET    /api/news/today               — The analyst's card, today's and the week's most important news
- *   GET    /api/news/analysis            — The latest analyst's card only (the landing page; from KV)
  *   GET    /api/admin/news/channels      — The channels read, the last runs' report, the last published news (admin)
  *   PUT    /api/admin/news/channels      — Save the channels ({ channels: [{ username, enabled }] }) (admin)
  *   POST   /api/admin/news/run           — Read the channels now (admin)
@@ -19,7 +18,6 @@ import { edgeCachedJson } from "../lib/edgeCache.js";
 import { dbListNews, dbSetNewsHidden, dbTopNewsSince } from "../repositories/news.repository.js";
 import {
   getNewsAnalysis,
-  getPublicNewsAnalysis,
   maybeUpdateNewsAnalysis,
   getNewsAnalysisStatus,
 } from "../services/news/newsAnalysis.service.js";
@@ -60,7 +58,7 @@ export async function handleGetNewsToday(request, env) {
     const [today, lastWeek, analysis] = await Promise.all([
       dbTopNewsSince(env, tehranDayStart(now), TODAY_TOP),
       dbTopNewsSince(env, now - 7 * 86400000, WEEK_TOP + TODAY_TOP),
-      getPublicNewsAnalysis(env),
+      getNewsAnalysis(env),
     ]);
     // Early in the day: the last 24 hours instead
     const top = today.length >= 3 ? today : await dbTopNewsSince(env, now - 86400000, TODAY_TOP);
@@ -69,15 +67,6 @@ export async function handleGetNewsToday(request, env) {
     return { analysis, top, week };
   });
   return jsonResponse({ success: true, ...body }, 200, request, { "Cache-Control": `public, max-age=${PUBLIC_CACHE_SEC}` });
-}
-
-/** The landing page's card changes a few times a day: kept longer at the edge */
-const ANALYSIS_CACHE_SEC = 300;
-
-/** The latest analyst's card (KV, cached at the edge): no database read */
-export async function handleGetNewsAnalysis(request, env) {
-  const body = await edgeCachedJson("https://news.cache/analysis", ANALYSIS_CACHE_SEC, async () => ({ analysis: await getPublicNewsAnalysis(env) }));
-  return jsonResponse({ success: true, ...body }, 200, request, { "Cache-Control": `public, max-age=${ANALYSIS_CACHE_SEC}` });
 }
 
 async function requireAdmin(request, env) {

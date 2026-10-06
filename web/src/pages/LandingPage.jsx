@@ -1,39 +1,35 @@
 /**
- * LandingPage.jsx — Modern, Minimalist, High-End Landing Page for RealRate
+ * LandingPage.jsx — The logged-out landing page: what RealRate is, in a few calm sections
  *
- * Inspired by Linear, Vercel, and Raycast aesthetics:
- * - Pure Persian RTL layout with Vazirmatn typography
- * - High-end dark theme (#07090e) with subtle glassmorphism and animated ambient aurora
- * - CRITICAL: Absolutely NO real prices — only abstract charts, percentages, ratios & mock sparklines
- * - Interactive 3D tilt Hero mockup reacting to mouse movement
- * - Bento Grid with mouse spotlight glow
- * - Dynamic mock counters with soft pulse animations
- * - Interactive terminal card with one-click copy
- * - Zero-Knowledge privacy preview toggle
- * - Clean semantic HTML, accessible, lightweight, and supports prefers-reduced-motion
+ *   header (brand · links · ورود)
+ *   1. hero — one sentence, one paragraph, two buttons, three promises
+ *   2. «همه در یک جا» — the six things the app does, one line each
+ *   3. «تحلیل امروز بازار» — the AI's latest analysis, live (LandingAnalysis: read only when near)
+ *   4. «چرا RealRate» — private (E2EE), the Android app, open source
+ *   5. questions (the first five of the FAQ page), then a closing call to start
+ *   footer
+ *
+ * No prices are shown: nothing here is stale when cached or crawled. Styles: styles/landing.css.
  */
-import AppSuggestBanner from '../shared/app/AppSuggestBanner.jsx';
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useCallback, useState } from 'react';
 import {
   TrendingUp,
-  ShieldCheck,
-  Landmark,
-  PieChart,
-  Lock,
-  Scale,
-  CalendarCheck,
-  Sparkles,
-  Check,
-  Copy,
-  ExternalLink,
-  ChevronLeft,
-  Star,
   ArrowLeft,
-  Code2,
-  Newspaper,
+  ChevronLeft,
+  Sparkles,
+  Scale,
+  PieChart,
+  Wallet,
+  Landmark,
   ChartColumn,
+  Newspaper,
+  Lock,
+  Smartphone,
+  Code2,
+  Check,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import AppSuggestBanner from '../shared/app/AppSuggestBanner.jsx';
 import { useAuth } from '../features/auth/index.js';
 import { useDemo } from '../features/demo/index.js';
 import { APP_BASE, DEMO_ENABLED } from '../shared/routes.js';
@@ -42,6 +38,26 @@ import { STATIC_PAGES } from '../seo/pages.js';
 import LandingAnalysis from '../features/news/LandingAnalysis.jsx';
 
 const LANDING_FAQS = STATIC_PAGES.faq.faqs.slice(0, 5);
+const GITHUB_URL = 'https://github.com/nos486/realrate';
+
+/** What the app does: one line each, each to its own page */
+const FEATURES = [
+  { Icon: Scale, tone: 'gold', title: 'بازار و حباب', text: 'ارزش ذاتی و حباب طلا و سکه، ارزها، تتر و بورس — به‌روز و خودکار.', href: '/features/gold-coin-bubble' },
+  { Icon: PieChart, tone: 'blue', title: 'پورتفو', text: 'همه‌ی دارایی‌ها در یک جا، با سود و زیان زنده و میانگین خرید.', href: '/features/portfolio' },
+  { Icon: Wallet, tone: 'green', title: 'هزینه و بودجه', text: 'هزینه‌های روزمره با دسته و بودجه‌ی ماهانه، حساب‌ها و پروژه‌ها.', href: '/features' },
+  { Icon: Landmark, tone: 'cyan', title: 'درآمد، وام و چک', text: 'اقساط و سررسیدها، درآمدهای ثابت و چک‌ها با یادآوری.', href: '/features/loans' },
+  { Icon: ChartColumn, tone: 'violet', title: 'گزارش سالانه', text: 'درآمد و هزینه، پس‌انداز و سرمایه‌گذاری سال در یک صفحه؛ خروجی PDF.', href: '/features' },
+  { Icon: Newspaper, tone: 'rose', title: 'اخبار و تحلیل هوش مصنوعی', text: 'فقط خبرهایی که روی بازار اثر دارند، و تحلیل هر روز.', href: '/news' },
+];
+
+/** Why trust it with your money */
+const PILLARS = [
+  { Icon: Lock, title: 'فقط برای خودت', text: 'داده‌های مالی روی دستگاه خودت رمز می‌شوند؛ سرور فقط متن رمزشده را می‌بیند.', link: { href: '/features/encryption', label: 'رمزنگاری سرتاسری' } },
+  { Icon: Smartphone, title: 'اپ اندروید', text: 'پیامک بانک را خودش می‌خواند و هزینه را ثبت می‌کند — متن پیامک از گوشی بیرون نمی‌رود.', link: { href: '/android', label: 'دانلود اپ' } },
+  { Icon: Code2, title: 'رایگان و متن‌باز', text: 'بدون تبلیغ و ردیاب تجاری؛ کد کامل در گیت‌هاب است و هر کس می‌تواند بررسی‌اش کند.', link: { href: GITHUB_URL, label: 'کد در GitHub', external: true } },
+];
+
+const PROMISES = ['رایگان', 'رمزنگاری سرتاسری', 'وب و اندروید'];
 
 // Clean standard GitHub SVG icon
 function GithubIcon({ size = 18, className = '' }) {
@@ -87,6 +103,17 @@ function GoogleLogo({ size = 20 }) {
   );
 }
 
+/** A section's small label, title and one line under it */
+function SectionHead({ eyebrow, title, text }) {
+  return (
+    <div className="lp-section-head">
+      {eyebrow && <span className="lp-eyebrow">{eyebrow}</span>}
+      <h2>{title}</h2>
+      {text && <p>{text}</p>}
+    </div>
+  );
+}
+
 export default function LandingPage() {
   const { user, triggerLogin } = useAuth();
   const { enterDemo } = useDemo();
@@ -110,690 +137,177 @@ export default function LandingPage() {
     }
   }, [enterDemo]);
 
-  // Mouse tilt for Hero Mockup
-  const [tilt, setTilt] = useState({ x: 0, y: 0 });
-  const heroCardRef = useRef(null);
-
-  const handleHeroMouseMove = useCallback((e) => {
-    if (!heroCardRef.current) return;
-    const rect = heroCardRef.current.getBoundingClientRect();
-    const x = e.clientX - rect.left - rect.width / 2;
-    const y = e.clientY - rect.top - rect.height / 2;
-    // Normalized subtle tilt angle (max ±6 degrees)
-    const rotateY = (x / (rect.width / 2)) * 5;
-    const rotateX = -(y / (rect.height / 2)) * 5;
-    setTilt({ x: rotateX, y: rotateY });
-  }, []);
-
-  const handleHeroMouseLeave = useCallback(() => {
-    setTilt({ x: 0, y: 0 });
-  }, []);
-
-  // Dynamic subtle mock ticker simulation (percentages only, no real prices)
-  const [mockBubble, setMockBubble] = useState(8.4);
-  const [mockYield, setMockYield] = useState(24.2);
-  const [tickActive, setTickActive] = useState(false);
-
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setTickActive(true);
-      setMockBubble((prev) => {
-        const delta = (Math.random() * 0.4 - 0.2);
-        return parseFloat(Math.max(6.5, Math.min(10.5, prev + delta)).toFixed(1));
-      });
-      setMockYield((prev) => {
-        const delta = (Math.random() * 0.6 - 0.25);
-        return parseFloat(Math.max(21.0, Math.min(27.0, prev + delta)).toFixed(1));
-      });
-      setTimeout(() => setTickActive(false), 900);
-    }, 3200);
-
-    return () => clearInterval(interval);
-  }, []);
-
-  // Spotlight mouse effect on Bento cards
-  const handleBentoMouseMove = (e) => {
-    const card = e.currentTarget;
-    const rect = card.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
-    card.style.setProperty('--spotlight-x', `${x}px`);
-    card.style.setProperty('--spotlight-y', `${y}px`);
-  };
-
-  // Copy command for Terminal card
-  const [copied, setCopied] = useState(false);
-  const cloneCmd = 'git clone https://github.com/nos486/realrate.git';
-
-  const handleCopyCmd = () => {
-    if (navigator.clipboard) {
-      navigator.clipboard.writeText(cloneCmd).then(() => {
-        setCopied(true);
-        setTimeout(() => setCopied(false), 2400);
-      });
-    }
-  };
-
-  // Smooth scroll handler
-  const scrollToSection = (e, id) => {
-    e.preventDefault();
-    const el = document.getElementById(id);
-    if (el) {
-      el.scrollIntoView({ behavior: 'smooth' });
-    }
-  };
+  const startButtons = (
+    <div className="lp-actions">
+      <button type="button" className="lp-btn lp-btn-primary" onClick={enterApp}>
+        <GoogleLogo size={18} />
+        <span>{user ? 'ورود به برنامه' : 'شروع رایگان با گوگل'}</span>
+        <ArrowLeft size={17} />
+      </button>
+      {DEMO_ENABLED && !user && (
+        <button type="button" className="lp-btn lp-btn-ghost" onClick={handleDemoClick} disabled={enteringDemo}>
+          <Sparkles size={17} />
+          <span>{enteringDemo ? 'در حال ورود…' : 'دیدن نسخه‌ی دمو'}</span>
+        </button>
+      )}
+    </div>
+  );
 
   return (
     <div className="landing-root" dir="rtl" lang="fa">
       <AppSuggestBanner />
-      {/* ── Background Mesh Aurora & Dot Grid ───────────────────────────── */}
-      <div className="landing-ambient-canvas" aria-hidden="true">
-        <div className="landing-aurora-blob aurora-blue" />
-        <div className="landing-aurora-blob aurora-gold" />
-        <div className="landing-aurora-blob aurora-cyan" />
-        <div className="landing-dot-grid" />
-      </div>
 
-      {/* ── Sticky Minimal Glass Header ─────────────────────────────────── */}
-      <header className="landing-header">
-        <div className="landing-header-inner">
-          <a href="/" className="landing-brand" aria-label="صفحه اصلی RealRate">
-            <span className="landing-brand-icon">
-              <TrendingUp size={20} />
-            </span>
-            <span className="landing-brand-name">RealRate</span>
-            <span className="landing-brand-tag">متن‌باز</span>
+      <header className="lp-header">
+        <div className="lp-container lp-header-inner">
+          <a href="/" className="lp-brand" aria-label="RealRate — صفحه‌ی اصلی">
+            <span className="lp-brand-icon"><TrendingUp size={18} /></span>
+            <span>RealRate</span>
           </a>
-
-          <nav className="landing-nav" aria-label="منوی اصلی لندینگ">
-            <a href="/features">ویژگی‌ها</a>
-            <a href="/about">درباره</a>
-            <a href="/faq">سؤالات متداول</a>
+          <nav className="lp-nav" aria-label="منوی اصلی">
+            <a href="/features">امکانات</a>
+            <a href="/news">اخبار</a>
             <a href="/android">اپ اندروید</a>
-            <a href="#open-source" onClick={(e) => scrollToSection(e, 'open-source')}>
-              کد منبع
-            </a>
+            <a href="/faq">سؤالات</a>
           </nav>
-
-          <div className="landing-header-actions">
-            <button
-              type="button"
-              className="landing-btn-primary"
-              onClick={enterApp}
-              aria-label="ورود به برنامه RealRate"
-            >
-              <span>ورود به برنامه</span>
-              <ChevronLeft size={16} />
-            </button>
-          </div>
+          <button type="button" className="lp-btn lp-btn-small" onClick={enterApp}>
+            <span>ورود</span>
+            <ChevronLeft size={15} />
+          </button>
         </div>
       </header>
 
-      {/* ── Main Landing Body ───────────────────────────────────────────── */}
-      <main className="landing-main-content">
-        {/* ── 1. HERO SECTION ─────────────────────────────────────────── */}
-        <section className="landing-hero-section">
-          <div className="landing-hero-grid">
-            {/* Hero Left / Text Info */}
-            <div className="landing-hero-copy">
-              <div className="landing-badge">
-                <span className="landing-badge-star">⭐</span>
-                <span>کاملاً رایگان و ۱۰۰٪ متن‌باز</span>
-                <span className="landing-badge-dot" />
-                <span className="landing-badge-sub">بدون ردیاب تجاری</span>
-              </div>
+      <main>
+        {/* 1. Hero */}
+        <section className="lp-hero">
+          <div className="lp-container lp-hero-inner">
+            <span className="lp-pill">
+              <Sparkles size={14} aria-hidden="true" />
+              تازه: اخبار بازار، تحلیل روز با هوش مصنوعی و گزارش سالانه
+            </span>
+            <h1>
+              پول و دارایی‌هایت را
+              <br />
+              <span className="lp-accent">یک‌جا و واقعی</span> ببین
+            </h1>
+            <p className="lp-lead">
+              ارزش واقعی طلا و ارز، پورتفو، هزینه‌ها، درآمد، وام و چک — با گزارش سالانه و خبرهای مهم بازار.
+              رایگان، متن‌باز و رمزنگاری‌شده روی دستگاه خودت.
+            </p>
+            {startButtons}
+            <ul className="lp-promises" aria-label="ویژگی‌های اصلی">
+              {PROMISES.map((p) => (
+                <li key={p}><Check size={15} aria-hidden="true" />{p}</li>
+              ))}
+            </ul>
+          </div>
+        </section>
 
-              <h1 className="landing-title">
-                ارزش واقعی <span className="text-gradient-gold">دارایی‌هایت</span> را بشناس
-              </h1>
+        {/* 2. What it does */}
+        <section id="features" className="lp-section">
+          <div className="lp-container">
+            <SectionHead eyebrow="امکانات" title="همه‌ی کارهای مالی در یک جا" text="از قیمت لحظه‌ای بازار تا گزارش آخر سال." />
+            <div className="lp-features">
+              {FEATURES.map(({ Icon, tone, title, text, href }) => (
+                <a key={title} href={href} className="lp-feature">
+                  <span className={`lp-feature-icon is-${tone}`}><Icon size={20} aria-hidden="true" /></span>
+                  <h3>{title}</h3>
+                  <p>{text}</p>
+                </a>
+              ))}
+            </div>
+            <a href="/features" className="lp-more">
+              <span>همه‌ی امکانات</span>
+              <ArrowLeft size={15} />
+            </a>
+          </div>
+        </section>
 
-              <p className="landing-lead">
-                تحلیل حباب طلا و سکه، مدیریت پورتفو، وام‌ها و درآمدها — همه در یک جا،
-                امن و رایگان بر پایه‌ی فرمول‌های واقعی بازار و انس جهانی.
-              </p>
+        {/* 3. The day's analysis, live */}
+        <LandingAnalysis
+          id="analysis"
+          className="lp-section lp-section-tint"
+          head={(
+            <SectionHead
+              eyebrow="هوش مصنوعی"
+              title="تحلیل امروز بازار"
+              text="هوش مصنوعی خبرهای مهم امروز را با هم می‌خواند: چه شد و چرا برای بازار مهم است — بدون پیش‌بینی قیمت."
+            />
+          )}
+        />
 
-              <div className="landing-cta-group">
-                <div className="landing-cta-actions">
-                  <button
-                    type="button"
-                    className="landing-cta-main"
-                    onClick={enterApp}
-                  >
-                    <span className="cta-shimmer" />
-                    <GoogleLogo size={20} />
-                    <span>شروع رایگان با گوگل</span>
-                    <ArrowLeft size={18} className="cta-arrow" />
-                  </button>
-
-                  {DEMO_ENABLED && (
-                    <button
-                      type="button"
-                      className="landing-cta-demo"
-                      onClick={handleDemoClick}
-                      disabled={enteringDemo}
-                    >
-                      <Sparkles size={18} className="cta-sparkle-icon" />
-                      <span>{enteringDemo ? 'در حال ورود به دمو...' : 'مشاهده نسخه دمو'}</span>
-                    </button>
-                  )}
-                </div>
-
-                <div className="landing-cta-sub">
-                  <a
-                    href="https://github.com/nos486/realrate"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="landing-cta-github-link"
-                  >
-                    <GithubIcon size={16} />
-                    <span>کد منبع در GitHub</span>
-                    <ExternalLink size={13} className="ghost-ext-icon" />
+        {/* 4. Why */}
+        <section id="why" className="lp-section">
+          <div className="lp-container">
+            <SectionHead eyebrow="چرا RealRate" title="امن، همراه و آزاد" />
+            <div className="lp-pillars">
+              {PILLARS.map(({ Icon, title, text, link }) => (
+                <div key={title} className="lp-pillar">
+                  <span className="lp-pillar-icon"><Icon size={22} aria-hidden="true" /></span>
+                  <h3>{title}</h3>
+                  <p>{text}</p>
+                  <a href={link.href} className="lp-more" {...(link.external ? { target: '_blank', rel: 'noopener noreferrer' } : {})}>
+                    {link.external && <GithubIcon size={15} />}
+                    <span>{link.label}</span>
+                    <ArrowLeft size={15} />
                   </a>
-                  <span className="landing-cta-sub-divider" aria-hidden="true">•</span>
-                  <span className="landing-cta-sub-badge">۱۰۰٪ رایگان و متن‌باز</span>
                 </div>
-              </div>
-            </div>
-
-            {/* Hero Right / 3D Floating Interactive Dashboard Mockup */}
-            <div
-              className="landing-hero-visual-wrapper"
-              onMouseMove={handleHeroMouseMove}
-              onMouseLeave={handleHeroMouseLeave}
-            >
-              <div
-                className="landing-mockup-card"
-                ref={heroCardRef}
-                style={{
-                  transform: `perspective(1100px) rotateX(${tilt.x}deg) rotateY(${tilt.y}deg)`,
-                }}
-              >
-                {/* Mockup Header bar */}
-                <div className="mockup-topbar">
-                  <div className="mockup-dots">
-                    <span className="dot dot-red" />
-                    <span className="dot dot-yellow" />
-                    <span className="dot dot-green" />
-                  </div>
-                  <div className="mockup-title-status">
-                    <span className="status-ping" />
-                    <span>داشبورد ارزش‌سنجی زنده RealRate</span>
-                  </div>
-                  <div className="mockup-pill-badge">
-                    <Lock size={12} />
-                    <span>E2EE فعال</span>
-                  </div>
-                </div>
-
-                {/* Mockup Quick Metrics Strip (Percentages only, no static prices) */}
-                <div className="mockup-metrics-grid">
-                  <div className={`mockup-metric-box ${tickActive ? 'is-ticking' : ''}`}>
-                    <div className="metric-box-header">
-                      <span className="metric-label">شاخص حباب کل</span>
-                      <span className="metric-badge-ok">مطلوب</span>
-                    </div>
-                    <div className="metric-value-row">
-                      <span className="metric-val text-amber">
-                        +{toPersianDigits(mockBubble)}٪
-                      </span>
-                      <Scale size={16} className="metric-icon" />
-                    </div>
-                    <div className="metric-progress-track">
-                      <div
-                        className="metric-progress-fill fill-amber"
-                        style={{ width: `${Math.min(100, mockBubble * 8)}%` }}
-                      />
-                    </div>
-                  </div>
-
-                  <div className={`mockup-metric-box ${tickActive ? 'is-ticking' : ''}`}>
-                    <div className="metric-box-header">
-                      <span className="metric-label">بازدهی تجمیعی پورتفو</span>
-                      <span className="metric-badge-green">صعودی</span>
-                    </div>
-                    <div className="metric-value-row">
-                      <span className="metric-val text-emerald">
-                        +{toPersianDigits(mockYield)}٪
-                      </span>
-                      <TrendingUp size={16} className="metric-icon text-emerald" />
-                    </div>
-                    <div className="metric-progress-track">
-                      <div
-                        className="metric-progress-fill fill-emerald"
-                        style={{ width: `${Math.min(100, mockYield * 3)}%` }}
-                      />
-                    </div>
-                  </div>
-
-                  <div className="mockup-metric-box">
-                    <div className="metric-box-header">
-                      <span className="metric-label">استهلاک اقساط ماه</span>
-                      <span className="metric-badge-blue">۲ از ۳ قسط</span>
-                    </div>
-                    <div className="metric-value-row">
-                      <span className="metric-val text-cyan">
-                        {toPersianDigits('۶۷')}٪
-                      </span>
-                      <CalendarCheck size={16} className="metric-icon text-cyan" />
-                    </div>
-                    <div className="metric-progress-track">
-                      <div className="metric-progress-fill fill-cyan" style={{ width: '67%' }} />
-                    </div>
-                  </div>
-                </div>
-
-                {/* Mockup Abstract Dynamic Curve Chart */}
-                <div className="mockup-chart-container">
-                  <div className="chart-legend-row">
-                    <div className="chart-legend-item">
-                      <span className="legend-indicator gold" />
-                      <span>ارزش واقعی طلا بر مبنای انس</span>
-                    </div>
-                    <div className="chart-legend-item">
-                      <span className="legend-indicator blue" />
-                      <span>روند میانگین سبد سرمایه‌گذاری</span>
-                    </div>
-                    <div className="chart-range-pill">۶ ماه اخیر</div>
-                  </div>
-
-                  <svg
-                    className="mockup-svg-chart"
-                    viewBox="0 0 540 160"
-                    preserveAspectRatio="none"
-                    aria-hidden="true"
-                  >
-                    <defs>
-                      <linearGradient id="areaGradientBlue" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor="#0284c7" stopOpacity="0.36" />
-                        <stop offset="100%" stopColor="#0284c7" stopOpacity="0.0" />
-                      </linearGradient>
-                      <linearGradient id="lineStrokeGold" x1="0" y1="0" x2="1" y2="0">
-                        <stop offset="0%" stopColor="#fbbf24" />
-                        <stop offset="100%" stopColor="#0284c7" />
-                      </linearGradient>
-                    </defs>
-
-                    {/* Subtle grid lines */}
-                    <line x1="0" y1="40" x2="540" y2="40" stroke="rgba(255,255,255,0.06)" strokeDasharray="3 3" />
-                    <line x1="0" y1="80" x2="540" y2="80" stroke="rgba(255,255,255,0.06)" strokeDasharray="3 3" />
-                    <line x1="0" y1="120" x2="540" y2="120" stroke="rgba(255,255,255,0.06)" strokeDasharray="3 3" />
-
-                    {/* Shaded Area */}
-                    <path
-                      d="M 0 130 C 70 120, 120 100, 180 105 C 240 110, 290 65, 360 60 C 430 55, 480 30, 540 22 L 540 160 L 0 160 Z"
-                      fill="url(#areaGradientBlue)"
-                    />
-
-                    {/* Main Trend Line */}
-                    <path
-                      d="M 0 130 C 70 120, 120 100, 180 105 C 240 110, 290 65, 360 60 C 430 55, 480 30, 540 22"
-                      fill="none"
-                      stroke="url(#lineStrokeGold)"
-                      strokeWidth="3.2"
-                      strokeLinecap="round"
-                    />
-
-                    {/* Secondary benchmark curve */}
-                    <path
-                      d="M 0 145 C 90 140, 160 125, 240 120 C 320 115, 400 90, 540 75"
-                      fill="none"
-                      stroke="rgba(255,255,255,0.22)"
-                      strokeWidth="1.8"
-                      strokeDasharray="4 4"
-                    />
-
-                    {/* Live pulsating point at tip */}
-                    <circle cx="538" cy="22" r="5" fill="#38bdf8" />
-                    <circle cx="538" cy="22" r="10" fill="#38bdf8" opacity="0.4" className="chart-pulse-ring" />
-                  </svg>
-                </div>
-
-                {/* Mockup Asset Allocation mini rows */}
-                <div className="mockup-allocation-bar">
-                  <div className="alloc-label-group">
-                    <span className="alloc-title">توزیع دارایی‌های پورتفو:</span>
-                    <span className="alloc-tag tag-gold">طلا و سکه ۳۸٪</span>
-                    <span className="alloc-tag tag-blue">ارزهای اصلی ۳۲٪</span>
-                    <span className="alloc-tag tag-purple">صندوق و سهام ۱۸٪</span>
-                    <span className="alloc-tag tag-green">نقد ۱۲٪</span>
-                  </div>
-                  <div className="alloc-multi-track">
-                    <div className="track-segment bg-gold" style={{ width: '38%' }} />
-                    <div className="track-segment bg-blue" style={{ width: '32%' }} />
-                    <div className="track-segment bg-purple" style={{ width: '18%' }} />
-                    <div className="track-segment bg-green" style={{ width: '12%' }} />
-                  </div>
-                </div>
-
-                {/* Floating pill overlays */}
-                <div className="mockup-floating-badge badge-top-right">
-                  <Sparkles size={14} className="text-amber" />
-                  <span>محاسبه حباب بدون تاخیر</span>
-                </div>
-                <div className="mockup-floating-badge badge-bottom-left">
-                  <ShieldCheck size={14} className="text-emerald" />
-                  <span>کلید خصوصی فقط در دستگاه شما</span>
-                </div>
-              </div>
+              ))}
             </div>
           </div>
         </section>
 
-        {/* ── 2. CORE FEATURES (Single Row) ─────────────────────────── */}
-        <section id="features" className="landing-features-compact-section">
-          <div className="landing-section-header compact">
-            <span className="section-pill">ویژگی‌های کلیدی</span>
-            <h2 className="section-title">ابزار یکپارچه مدیریت مالی شخصی</h2>
-          </div>
-
-          <div className="features-single-row">
-            {/* Feature 1 */}
-            <a href="/features/gold-coin-bubble" className="feature-compact-card" onMouseMove={handleBentoMouseMove}>
-              <div className="bento-spotlight" />
-              <div className="feature-compact-icon icon-gold">
-                <Scale size={22} />
-              </div>
-              <h3 className="feature-compact-title">تحلیل حباب طلا و سکه</h3>
-              <p className="feature-compact-desc">
-                سنجش دقیق حباب و ارزش ذاتی بر پایه انس جهانی و فرمول‌های رسمی بازار بدون قیمت‌گذاری فرضی.
-              </p>
-              <div className="feature-compact-tag text-amber">
-                <span>سنجش لحظه‌ای حباب</span>
-              </div>
-            </a>
-
-            {/* Feature 2 */}
-            <a href="/features/portfolio" className="feature-compact-card" onMouseMove={handleBentoMouseMove}>
-              <div className="bento-spotlight" />
-              <div className="feature-compact-icon icon-blue">
-                <PieChart size={22} />
-              </div>
-              <h3 className="feature-compact-title">مدیریت پورتفوی چنددارایی</h3>
-              <p className="feature-compact-desc">
-                پایش متمرکز طلا، ارز، صندوق‌های بورس و نقدینگی همراه با محاسبه خودکار سود و زیان محقق‌شده.
-              </p>
-              <div className="feature-compact-tag text-cyan">
-                <span>تنوع‌بخشی و بازدهی</span>
-              </div>
-            </a>
-
-            {/* Feature 3 */}
-            <a href="/features/encryption" className="feature-compact-card" onMouseMove={handleBentoMouseMove}>
-              <div className="bento-spotlight" />
-              <div className="feature-compact-icon icon-emerald">
-                <Lock size={22} />
-              </div>
-              <h3 className="feature-compact-title">امنیت Zero-Knowledge</h3>
-              <p className="feature-compact-desc">
-                رمزنگاری داده‌ها با کلید شخصی در مرورگر؛ حتی سرورهای RealRate به ارقام دارایی شما دسترسی ندارند.
-              </p>
-              <div className="feature-compact-tag text-emerald">
-                <span>رمزنگاری سرتاسری</span>
-              </div>
-            </a>
-
-            {/* Feature 4 */}
-            <a href="/features/loans" className="feature-compact-card" onMouseMove={handleBentoMouseMove}>
-              <div className="bento-spotlight" />
-              <div className="feature-compact-icon icon-cyan">
-                <Landmark size={22} />
-              </div>
-              <h3 className="feature-compact-title">وام‌ها، اقساط و درآمدها</h3>
-              <p className="feature-compact-desc">
-                محاسبه استهلاک اقساط، یادآوری سررسید و ثبت منظم درآمدهای ماهانه با خروجی‌های استاندارد.
-              </p>
-              <div className="feature-compact-tag text-cyan">
-                <span>انضباط مالی جامع</span>
-              </div>
-            </a>
-          </div>
-
-          <div style={{ textAlign: 'center', marginTop: '20px' }}>
-            <a href="/features" className="features-view-all-link">
-              <span>مشاهده تمام امکانات و ویژگی‌ها</span>
-              <ArrowLeft size={16} />
+        {/* 5. Questions */}
+        <section id="faq" className="lp-section">
+          <div className="lp-container lp-narrow">
+            <SectionHead eyebrow="سؤالات" title="پرسش‌های پرتکرار" />
+            <div className="lp-faq">
+              {LANDING_FAQS.map((faq) => (
+                <details key={faq.q} className="lp-faq-item">
+                  <summary>{faq.q}</summary>
+                  <p>{faq.a}</p>
+                </details>
+              ))}
+            </div>
+            <a href="/faq" className="lp-more">
+              <span>همه‌ی سؤالات</span>
+              <ArrowLeft size={15} />
             </a>
           </div>
         </section>
 
-        {/* ── 2b. NEW: market news, the AI's analysis, reports — and the latest analysis, live ── */}
-        <section id="whats-new" className="landing-features-compact-section landing-new-section">
-          <div className="landing-section-header compact">
-            <span className="section-pill">تازه در RealRate</span>
-            <h2 className="section-title">خبر، تحلیل با هوش مصنوعی و گزارش سالانه</h2>
-          </div>
-
-          <div className="features-single-row is-three">
-            <a href="/news" className="feature-compact-card" onMouseMove={handleBentoMouseMove}>
-              <div className="bento-spotlight" />
-              <div className="feature-compact-icon icon-blue">
-                <Newspaper size={22} />
-              </div>
-              <h3 className="feature-compact-title">اخبار مهم بازار</h3>
-              <p className="feature-compact-desc">
-                هر دقیقه کانال‌های خبری خوانده می‌شوند و هوش مصنوعی فقط خبرهایی را که روی دلار، طلا، بورس و اقتصاد اثر دارند جدا، دسته‌بندی و خلاصه می‌کند.
-              </p>
-              <div className="feature-compact-tag text-cyan">
-                <span>بدون خبرهای بی‌ربط و تکراری</span>
-              </div>
-            </a>
-
-            <a href="/news" className="feature-compact-card" onMouseMove={handleBentoMouseMove}>
-              <div className="bento-spotlight" />
-              <div className="feature-compact-icon icon-gold">
-                <Sparkles size={22} />
-              </div>
-              <h3 className="feature-compact-title">تحلیل روز با هوش مصنوعی</h3>
-              <p className="feature-compact-desc">
-                خبرهای هر روز با هم خوانده و تحلیل می‌شوند: چه شد، چه ربطی به هم دارد و چرا برای بازار مهم است — بدون پیش‌بینی قیمت.
-              </p>
-              <div className="feature-compact-tag text-amber">
-                <span>مهم‌ترین خبرهای روز و هفته</span>
-              </div>
-            </a>
-
-            <a href="/features" className="feature-compact-card" onMouseMove={handleBentoMouseMove}>
-              <div className="bento-spotlight" />
-              <div className="feature-compact-icon icon-emerald">
-                <ChartColumn size={22} />
-              </div>
-              <h3 className="feature-compact-title">گزارش سالانه</h3>
-              <p className="feature-compact-desc">
-                درآمد و هزینه، نرخ پس‌انداز، سهم سرمایه‌گذاری از درآمد و ارزش دلاری هر ماه در یک صفحه، با نکته‌های سال و خروجی PDF و CSV.
-              </p>
-              <div className="feature-compact-tag text-emerald">
-                <span>محاسبه در مرورگر، رمزنگاری‌شده</span>
-              </div>
-            </a>
-          </div>
-
-          <LandingAnalysis />
-        </section>
-
-        {/* ── 3. OPEN SOURCE SHOWCASE ─────────────────────────────────── */}
-        <section id="open-source" className="landing-opensource-section">
-          <div className="opensource-container">
-            <div className="opensource-header">
-              <div className="os-badge">
-                <Code2 size={16} />
-                <span>۱۰۰٪ Open Source</span>
-              </div>
-              <h2 className="os-title">متن‌باز، شفاف، برای همه</h2>
-              <p className="os-subtitle">
-                کد RealRate کاملاً آزاد است. معماری را بررسی کن، ستاره بده، ویژگی‌های جدید پیشنهاد کن
-                یا نسخه مستقل خودت را راه‌اندازی کن.
-              </p>
+        {/* Closing call */}
+        <section className="lp-section">
+          <div className="lp-container">
+            <div className="lp-cta">
+              <h2>همین حالا رایگان شروع کن</h2>
+              <p>چند ثانیه با حساب گوگل — بدون کارت بانکی و بدون تبلیغ.</p>
+              {startButtons}
             </div>
-
-            {/* Interactive Terminal Card */}
-            <div className="terminal-card">
-              <div className="terminal-topbar">
-                <div className="terminal-dots">
-                  <span className="dot dot-red" />
-                  <span className="dot dot-yellow" />
-                  <span className="dot dot-green" />
-                </div>
-                <span className="terminal-title">bash — clone & run</span>
-                <button
-                  type="button"
-                  className="terminal-copy-btn"
-                  onClick={handleCopyCmd}
-                  aria-label="کپی دستور در کلیپ‌بورد"
-                >
-                  {copied ? (
-                    <>
-                      <Check size={14} className="text-emerald" />
-                      <span className="text-emerald">کپی شد!</span>
-                    </>
-                  ) : (
-                    <>
-                      <Copy size={14} />
-                      <span>کپی دستور</span>
-                    </>
-                  )}
-                </button>
-              </div>
-
-              <div className="terminal-body" dir="ltr">
-                <div className="term-line">
-                  <span className="term-prompt">$</span>
-                  <span className="term-cmd">git clone https://github.com/nos486/realrate.git</span>
-                </div>
-                <div className="term-line">
-                  <span className="term-prompt">$</span>
-                  <span className="term-cmd">cd realrate && npm install</span>
-                </div>
-                <div className="term-line">
-                  <span className="term-prompt">$</span>
-                  <span className="term-cmd">npm run dev</span>
-                </div>
-                <div className="term-line text-comment">
-                  <span className="term-comment"># Ready at http://localhost:5173</span>
-                </div>
-              </div>
-            </div>
-
-            {/* Action Buttons for GitHub */}
-            <div className="opensource-actions">
-              <a
-                href="https://github.com/nos486/realrate"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="os-btn-star"
-              >
-                <Star size={18} className="star-icon" />
-                <span>ثبت ستاره در GitHub</span>
-              </a>
-
-              <a
-                href="https://github.com/nos486/realrate/pulls"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="os-btn-contribute"
-              >
-                <GithubIcon size={18} />
-                <span>مشارکت در توسعه پروژه</span>
-              </a>
-            </div>
-
-            {/* Technology Stack Badges */}
-            <div className="tech-stack-row">
-              <span className="tech-badge">React 19</span>
-              <span className="tech-badge">Vite</span>
-              <span className="tech-badge">Cloudflare Workers</span>
-              <span className="tech-badge">Cloudflare D1</span>
-              <span className="tech-badge">Web Crypto (E2EE)</span>
-            </div>
-          </div>
-        </section>
-
-        {/* ── 4. FREQUENTLY ASKED QUESTIONS (FAQ) ────────────────────────── */}
-        <section id="faq" className="landing-faq-section">
-          <div className="landing-section-header compact">
-            <span className="section-pill">پرسش‌های متداول</span>
-            <h2 className="section-title">پاسخ به سوالات پرتکرار شما</h2>
-          </div>
-
-          <div className="landing-faq-grid">
-            {LANDING_FAQS.map((faq, i) => (
-              <div key={i} className="landing-faq-card">
-                <h3 className="landing-faq-question">{faq.q}</h3>
-                <p className="landing-faq-answer">{faq.a}</p>
-              </div>
-            ))}
-          </div>
-
-          <div className="landing-faq-footer">
-            <a href="/faq" className="landing-faq-more-link">
-              <span>مشاهده همه سؤالات و پاسخ‌ها</span>
-              <ArrowLeft size={16} />
-            </a>
           </div>
         </section>
       </main>
 
-      {/* ── 5. MINIMAL CLEAN FOOTER ─────────────────────────────────────── */}
-      <footer className="landing-footer">
-        <div className="landing-footer-inner">
-          <div className="footer-brand-side">
-            <div className="footer-logo-row">
-              <span className="landing-brand-icon">
-                <TrendingUp size={18} />
-              </span>
-              <span className="footer-brand-title">RealRate</span>
-            </div>
-            <p className="footer-motto">
-              ابزار آزاد، مستقل و رمزنگاری‌شده برای تحلیل ارزش ذاتی و مدیریت امور مالی شخصی.
-            </p>
+      <footer className="lp-footer">
+        <div className="lp-container lp-footer-inner">
+          <div className="lp-footer-brand">
+            <a href="/" className="lp-brand">
+              <span className="lp-brand-icon"><TrendingUp size={16} /></span>
+              <span>RealRate</span>
+            </a>
+            <p>ابزار رایگان و متن‌باز برای دیدن ارزش واقعی دارایی‌ها و مدیریت مالی شخصی.</p>
           </div>
-
-          <div className="footer-links-side">
-            <div className="footer-col">
-              <span className="footer-col-title">دسترسی سریع</span>
-              <a href="/features">همه ویژگی‌ها</a>
-              <a href="/about">درباره ریل‌ریت</a>
-              <a href="/faq">سؤالات متداول</a>
-              {DEMO_ENABLED && <a href="/demo">مشاهده نسخه دمو</a>}
-              <a href="#features" onClick={(e) => scrollToSection(e, 'features')}>
-                قابلیت‌ها
-              </a>
-              <a href="#open-source" onClick={(e) => scrollToSection(e, 'open-source')}>
-                کد منبع
-              </a>
-            </div>
-
-            <div className="footer-col">
-              <span className="footer-col-title">ارتباط و توسعه</span>
-              <a
-                href="https://github.com/nos486/realrate"
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                مخزن گیت‌هاب
-              </a>
-              <a
-                href="https://github.com/nos486/realrate/issues"
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                گزارش باگ و ایده
-              </a>
-              <a
-                href="https://github.com/nos486/realrate/blob/main/LICENSE"
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                مجوز MIT
-              </a>
-            </div>
-          </div>
+          <nav className="lp-footer-links" aria-label="پیوندها">
+            <a href="/features">امکانات</a>
+            <a href="/news">اخبار</a>
+            <a href="/android">اپ اندروید</a>
+            <a href="/about">درباره</a>
+            <a href="/faq">سؤالات</a>
+            {DEMO_ENABLED && <a href="/demo">دمو</a>}
+            <a href={GITHUB_URL} target="_blank" rel="noopener noreferrer">GitHub</a>
+          </nav>
         </div>
-
-        <div className="footer-bottom-bar">
-          <p className="footer-copy">
-            ساخته‌شده با <span className="text-rose">❤️</span> به‌صورت متن‌باز برای جامعه مالی ایران.
-          </p>
-          <span className="footer-license">© {toPersianDigits('2026')} RealRate. آزاد تحت مجوز MIT.</span>
+        <div className="lp-container lp-footer-bottom">
+          © {toPersianDigits('2026')} RealRate · متن‌باز با مجوز MIT
         </div>
       </footer>
     </div>
