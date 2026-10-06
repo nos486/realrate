@@ -32,6 +32,8 @@ export default function MonthBarChart({ title, months, series, format, readout, 
 
   if (!months.length) return null;
   const range = top - bottom || 1;
+  // As many columns as months shown (the current year so far fills the width)
+  const columns = { gridTemplateColumns: `repeat(${months.length}, minmax(0, 1fr))` };
   // Where zero sits, from the bottom of the plot (%)
   const zero = (-bottom / range) * 100;
   const pos = (v) => ((v - bottom) / range) * 100;
@@ -53,7 +55,7 @@ export default function MonthBarChart({ title, months, series, format, readout, 
 
       <div className="monthly-income-readout" aria-live="polite">{readout(month)}</div>
 
-      <div className="monthly-income-plot report-bar-plot" onMouseLeave={() => setActiveIndex(null)}>
+      <div className="monthly-income-plot report-bar-plot" style={columns} onMouseLeave={() => setActiveIndex(null)}>
         {bottom < 0 && <div className="report-zero-line" style={{ bottom: `${zero}%` }} aria-hidden="true" />}
         {average !== null && <div className="monthly-income-average" style={{ bottom: `${pos(average)}%` }} aria-hidden="true" />}
         {months.map((m, i) => (
@@ -89,7 +91,7 @@ export default function MonthBarChart({ title, months, series, format, readout, 
           </button>
         ))}
       </div>
-      <div className="monthly-income-axis" aria-hidden="true">
+      <div className="monthly-income-axis" style={columns} aria-hidden="true">
         {months.map((m, i) => (
           // On a phone every other month is named (counting back from the latest), the active one always
           <span key={m.key} className={i === index ? 'is-active' : (months.length - 1 - i) % 2 ? 'is-minor' : ''}>{m.monthLabel}</span>

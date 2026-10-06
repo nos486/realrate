@@ -23,7 +23,7 @@ const txPrice = (t) => num(t.unitPrice !== undefined ? t.unitPrice : (t.buyPrice
 /**
  * Money that went into investments (+) or came out of them (−) as dated points, or nothing for
  * what doesn't count (no date, no price, a swap, bought with a loan)
- * @returns {Array<{ date: string, amount: number, category: 'buy'|'sell' }>}
+ * @returns {Array<{ date: string, amount: number, category: 'buy'|'sell', assetId: string, assetName: string }>}
  */
 export function investmentPoints(holdings = [], transactions = []) {
   const points = [];
@@ -31,7 +31,7 @@ export function investmentPoints(holdings = [], transactions = []) {
     const date = sortableDate(h?.buyDate);
     const value = num(h?.amount) * num(h?.buyPrice);
     if (!date || !(value > 0) || h.referenceAssetId || h.loanId) continue;
-    points.push({ date, amount: value, category: 'buy' });
+    points.push({ date, amount: value, category: 'buy', assetId: String(h.assetId || ''), assetName: String(h.assetName || '') });
   }
   for (const t of transactions) {
     if (!t) continue;
@@ -39,8 +39,9 @@ export function investmentPoints(holdings = [], transactions = []) {
     const value = txQty(t) * txPrice(t);
     const type = txType(t);
     if (!date || !(value > 0) || t.referenceAssetId) continue;
-    if (type === 'buy' && !t.loanId) points.push({ date, amount: value, category: 'buy' });
-    else if (type === 'sell' || type === 'spend') points.push({ date, amount: -value, category: 'sell' });
+    const asset = { assetId: String(t.assetId || t.symbol || ''), assetName: String(t.assetName || '') };
+    if (type === 'buy' && !t.loanId) points.push({ date, amount: value, category: 'buy', ...asset });
+    else if (type === 'sell' || type === 'spend') points.push({ date, amount: -value, category: 'sell', ...asset });
   }
   return points;
 }
@@ -93,23 +94,27 @@ export function summarizeInvestmentShare(months) {
  */
 export function dollarPoints(items = [], dateOf, dollarOf) {
   const points = [];
-  let unpriced = 0;
+  // The days of the ones without a rate, so each month can say what it left out
+  const missing = [];
   for (const item of items) {
     const usd = dollarOf(item)?.usd;
     if (usd > 0) points.push({ date: dateOf(item), amount: usd });
-    else if (usd === undefined || usd === null) unpriced++;
+    else if (usd === undefined || usd === null) missing.push({ date: dateOf(item), amount: 0 });
   }
-  return { points, unpriced };
+  return { points, missing, unpriced: missing.length };
 }
 
 /**
- * Income and expenses in dollars month by month, and what was left (income − expenses)
- * @returns {Array<{ key: string, jm: number, label: string, monthLabel: string, income: number, expense: number, net: number }>}
+ * Income and expenses in dollars month by month, and what was left (income − expenses);
+ * `unpriced`: the month's items left out for want of a rate (`missing`, from dollarPoints)
+ * @returns {Array<{ key: string, jm: number, label: string, monthLabel: string, income: number, expense: number, net: number, unpriced: number }>}
  */
-export function dollarFlowByMonth(incomePoints, expensePoints, jy, { throughMonth = 12 } = {}) {
+export function dollarFlowByMonth(incomePoints, expensePoints, jy, { throughMonth = 12, missing = [] } = {}) {
   const income = buildYearSeries(incomePoints, jy, { throughMonth });
   const expense = buildYearSeries(expensePoints, jy, { throughMonth });
+  const left = buildYearSeries(missing, jy, { throughMonth });
   return income.map((m, i) => ({
+    unpriced: left[i]?.count || 0,
     key: m.key,
     jm: m.jm,
     label: m.label,
@@ -118,4 +123,94 @@ export function dollarFlowByMonth(incomePoints, expensePoints, jy, { throughMont
     expense: expense[i]?.total || 0,
     net: m.total - (expense[i]?.total || 0),
   }));
+}
+
+/**
+ * What went into each asset over a period: bought, sold and net, largest buy first (a name of the
+ * record's own when it has one, e.g. a custom asset)
+ * @param {ReturnType<typeof investmentPoints>} points
+ * @param {{ from: string, to: string }} range inclusive YYYY-MM-DD
+ * @returns {Array<{ assetId: string, assetName: string, bought: number, sold: number, net: number }>}
+ */
+export function investmentByAsset(points, { from, to }) {
+  const byAsset = new Map();
+  for (const p of points) {
+    if (!p.assetId || p.date < from || p.date > to) continue;
+    const entry = byAsset.get(p.assetId) || { assetId: p.assetId, assetName: '', bought: 0, sold: 0, net: 0 };
+    if (!entry.assetName && p.assetName) entry.assetName = p.assetName;
+    if (p.amount > 0) entry.bought += p.amount;
+    else entry.sold += -p.amount;
+    entry.net = entry.bought - entry.sold;
+    byAsset.set(p.assetId, entry);
+  }
+  return [...byAsset.values()].sort((a, b) => b.bought - a.bought || b.sold - a.sold);
+}
+
+/**
+ * Income and expenses month by month (two buildYearSeries of the same year): what was left and
+ * the savings rate (null without income)
+ * @returns {Array<{ key: string, jm: number, label: string, monthLabel: string, income: number, expense: number, net: number, savingsRate: number|null }>}
+ */
+export function cashFlowByMonth(incomeSeries, expenseSeries) {
+  return incomeSeries.map((m, i) => {
+    const expense = expenseSeries[i]?.total || 0;
+    const net = m.total - expense;
+    return {
+      key: m.key,
+      jm: m.jm,
+      label: m.label,
+      monthLabel: m.monthLabel,
+      income: m.total,
+      expense,
+      net,
+      savingsRate: m.total > 0 ? (net / m.total) * 100 : null,
+    };
+  });
+}
+
+/**
+ * The year's cash flow: totals, the savings rate, the monthly average left, the months that spent
+ * more than came in, and the best and worst months (by what was left)
+ */
+export function summarizeCashFlow(months) {
+  const income = months.reduce((s, m) => s + m.income, 0);
+  const expense = months.reduce((s, m) => s + m.expense, 0);
+  const active = months.filter((m) => m.income > 0 || m.expense > 0);
+  const byNet = [...active].sort((a, b) => b.net - a.net);
+  return {
+    income,
+    expense,
+    net: income - expense,
+    savingsRate: income > 0 ? ((income - expense) / income) * 100 : null,
+    monthlyNet: active.length ? (income - expense) / active.length : 0,
+    months: active.length,
+    negativeMonths: active.filter((m) => m.net < 0).length,
+    best: byNet[0] || null,
+    worst: byNet.length > 1 ? byNet[byNet.length - 1] : null,
+  };
+}
+
+/**
+ * What stands out in the year, as facts the page words: the best and worst month for saving,
+ * the months that spent more than came in, the largest expense category's share, the share of
+ * income invested, the costliest month against the monthly average. Only the ones the data holds.
+ * @param {{ cash: ReturnType<typeof summarizeCashFlow>, expenseYear?: { total: number, monthlyAverage: number, top: object|null, byCategory: Array<{ category: string, total: number }> }|null,
+ *   invest?: { share: number|null, net: number }|null }} input
+ * @returns {Array<{ id: string, tone: 'good'|'bad'|'info', [key: string]: any }>}
+ */
+export function reportInsights({ cash, expenseYear = null, invest = null }) {
+  const out = [];
+  if (cash.best && cash.best.net > 0) out.push({ id: 'best-month', tone: 'good', month: cash.best.label, net: cash.best.net, rate: cash.best.savingsRate });
+  if (cash.negativeMonths > 0) out.push({ id: 'negative-months', tone: 'bad', count: cash.negativeMonths, months: cash.months });
+  if (cash.worst && cash.worst.net < 0) out.push({ id: 'worst-month', tone: 'bad', month: cash.worst.label, net: cash.worst.net });
+  const topCategory = expenseYear?.byCategory?.[0];
+  if (topCategory && expenseYear.total > 0) {
+    out.push({ id: 'top-category', tone: 'info', category: topCategory.category, total: topCategory.total, share: (topCategory.total / expenseYear.total) * 100 });
+  }
+  const top = expenseYear?.top;
+  if (top && expenseYear.monthlyAverage > 0 && top.total > expenseYear.monthlyAverage * 1.25) {
+    out.push({ id: 'costly-month', tone: 'info', month: top.label, total: top.total, over: ((top.total - expenseYear.monthlyAverage) / expenseYear.monthlyAverage) * 100 });
+  }
+  if (invest && invest.share !== null && invest.net > 0) out.push({ id: 'invested-share', tone: 'good', share: invest.share, net: invest.net });
+  return out;
 }
