@@ -5,6 +5,8 @@
  * asset and its quantity) — a «sell» there at the income's tomans (PortfolioLinkFields, `soldFrom`).
  * A deposit in «تسویه بدهی اعتباری» names the bank credit whose debt it pays (`creditAccountId`):
  * that credit's debt goes down by it (utils/creditAccount.js).
+ * A new income in «مدیریت نقدینگی» offers to record it as a transfer between the user's accounts
+ * instead (`onCashMove`, CashMoveNotice).
  *
  * Mounted only while open (keyed by what it edits), so its state is initialized straight from
  * props instead of being reset in an effect.
@@ -27,6 +29,8 @@ import { isLinkComplete } from '../../../utils/portfolioLink.js';
 import { newLinkTxId } from '../../../shared/vault/portfolioFunds.js';
 import { CREDIT_SETTLEMENT_CATEGORY } from '../../../utils/creditAccount.js';
 import CreditAccountPicker from './CreditAccountPicker.jsx';
+import CashMoveNotice from '../../accounts/components/CashMoveNotice.jsx';
+import { CASH_MANAGEMENT_CATEGORY } from '../../../utils/categoryDocument.js';
 
 /** The category whose incomes can be a sale from a portfolio */
 const SALE_CATEGORY = 'asset_sale';
@@ -38,6 +42,8 @@ export default function IncomeForm({
   submitting = false,
   // A new income filled in from elsewhere (a bank SMS deposit): { title, amount, incomeDate, notes }
   draft = null,
+  // «مدیریت نقدینگی»: record it as a transfer instead — called with { amount, date, notes }
+  onCashMove = null,
 }) {
   const source = editingIncome || draft;
   const [title, setTitle] = useState(source?.title || '');
@@ -169,6 +175,9 @@ export default function IncomeForm({
           onChange={setDateShamsi}
         />
         {settling && <CreditAccountPicker value={creditAccountId} onChange={setCreditAccountId} />}
+        {!editingIncome && onCashMove && category === CASH_MANAGEMENT_CATEGORY && (
+          <CashMoveNotice onMove={() => onCashMove({ amount: amountNum || 0, date: dateIso || '', notes: notes.trim() || title.trim() })} />
+        )}
         {category === SALE_CATEGORY && (
           <PortfolioLinkFields
             mode="sell"

@@ -45,6 +45,7 @@ import { accountLabel } from '../../accounts/constants/accountDisplay.js';
 import { getExpenseCategory } from '../constants/expenseCategories.js';
 import { formatAmount } from '../utils/format.js';
 import ExpenseForm from './ExpenseForm.jsx';
+import CashMoveTransferForm from '../../accounts/components/CashMoveTransferForm.jsx';
 import ExpensesTable from './ExpensesTable.jsx';
 import BudgetForm from './BudgetForm.jsx';
 import BudgetProgress from './BudgetProgress.jsx';
@@ -81,6 +82,8 @@ export default function DailyExpensesView({ usdToman = 0, hideValues = false }) 
   const [order, setOrder] = useState('desc');
   const [paging, setPaging] = useState({ key: '', page: 1 });
   const [form, setForm] = useState(null); // null | { expense: object|null }
+  // «مدیریت نقدینگی» recorded as a transfer between the user's accounts: its draft
+  const [cashMove, setCashMove] = useState(null);
   const [budgetOpen, setBudgetOpen] = useState(false);
   const [reimburse, setReimburse] = useState(null); // a shared expense whose «دریافتی‌ها» are open
   const [sharesOpen, setSharesOpen] = useState(false);
@@ -478,8 +481,13 @@ export default function DailyExpensesView({ usdToman = 0, hideValues = false }) 
           onSubmit={(input) => saveExpense(input, form.expense)}
           onClose={() => setForm(null)}
           submitting={submitting}
+          onCashMove={(move) => {
+            setForm(null);
+            setCashMove(move);
+          }}
         />
       )}
+      {cashMove && <CashMoveTransferForm draft={cashMove} onClose={() => setCashMove(null)} />}
       {reimburse && (
         <ReimbursementsModal
           expense={reimburse}

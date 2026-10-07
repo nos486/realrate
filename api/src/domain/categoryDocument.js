@@ -49,6 +49,12 @@ export const CATEGORY_COLORS = [
 const ICON_SET = new Set(CATEGORY_ICON_NAMES);
 const COLOR_RE = /^#[0-9a-f]{6}$/i;
 
+/**
+ * Moving money between the user's own accounts (expense and income): recorded as a transfer
+ * between the accounts when both are in the app (transferDocument.js), else as an excluded record
+ */
+export const CASH_MANAGEMENT_CATEGORY = 'cash_management';
+
 /** The built-in categories of a kind, with their default icon and color */
 export const BUILTIN_CATEGORIES = {
   expense: [

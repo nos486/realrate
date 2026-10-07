@@ -1,6 +1,8 @@
 Bank logos in this folder are exported from @iran-utils/iranian-banks-icons-core v1.0.4
 (https://github.com/houtan-rocky/iranian-banks-react-icons), optimized with svgo.
 Logos are trademarks of their respective banks and are used only to identify them.
+ewano.svg (Ewano card) is a simple placeholder mark drawn for this app, not the brand's logo; replace it
+with the official file when available.
 
 MIT License
 

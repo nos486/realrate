@@ -53,6 +53,8 @@ export default function SmsInboxPage() {
   const usdToman = Number(pricing?.getAssetPrice?.('usd')) || 0;
   const [expenseDraft, setExpenseDraft] = useState(null);
   const [incomeDraft, setIncomeDraft] = useState(null);
+  // The message the open expense or income form was filled from («مدیریت نقدینگی» → a transfer)
+  const [draftItem, setDraftItem] = useState(null);
   const [saving, setSaving] = useState(false);
   const [days, setDays] = useState(30);
   const [reading, setReading] = useState(false);
@@ -86,6 +88,7 @@ export default function SmsInboxPage() {
   }, [vaultStatus, pendingIds]);
 
   const handleRecord = (item) => {
+    setDraftItem(item);
     if (item.tx.direction === 'debit') setExpenseDraft(smsExpenseDraft(item.tx, accounts));
     else setIncomeDraft(smsIncomeDraft(item.tx));
   };
@@ -207,6 +210,10 @@ export default function SmsInboxPage() {
           submitting={saving}
           onClose={() => setExpenseDraft(null)}
           onSubmit={record(saveDailyExpense, expenseDraft, 'هزینه ثبت شد.')}
+          onCashMove={() => {
+            setExpenseDraft(null);
+            handleTransfer(draftItem);
+          }}
         />
       )}
       {loanItem && <LoanDepositSheet item={loanItem} onClose={() => setLoanItem(null)} />}
@@ -250,6 +257,10 @@ export default function SmsInboxPage() {
           submitting={saving}
           onClose={() => setIncomeDraft(null)}
           onSubmit={record(createIncome, incomeDraft, 'درآمد ثبت شد.')}
+          onCashMove={() => {
+            setIncomeDraft(null);
+            handleTransfer(draftItem);
+          }}
         />
       )}
     </div>
