@@ -173,10 +173,15 @@ Every feature in detail. For a summary see the [README](../../README.en.md). Per
 - Data model: [EXPENSES.md](EXPENSES.md)
 
 ## 16. Accounts
-- Bank accounts (bank, logo, last four digits of the card and the account number), cash, e-wallets and other; in tomans or dollars.
+- Bank accounts (bank, logo, last four digits of the card and the account number), bank credits, cash, e-wallets and other; in tomans or dollars.
 - Each account is a card with its everyday spending this month; edit, archive (hidden from the expense form) and delete.
 - The source of each expense (everyday or project) is one of these accounts; bank SMS are matched to the right account by bank and the last four digits of the account or card number.
 - **Transfers between accounts (cash management)**: moving money between your own accounts (card to card to your other account, a cash withdrawal, topping up a wallet) is neither spending nor income and is kept out of their totals. From the accounts page (or the app's +): from, to, amount, an optional fee, day and note; each month's transfers, and each account's money in and out on its card. In the SMS inbox, «انتقال بین حساب‌های خودم» on a withdrawal or a deposit: the other side's message (same amount, within a day) is found and dropped too. (`api/src/domain/transferDocument.js`)
+- **Bank credit** (account type «اعتبار بانکی», e.g. a 100M purchase credit): the limit, the (Shamsi) day each month's statement closes and the days after it to pay, when it can be paid («هر زمان تا سررسید» or «فقط در روز سررسید»), the settlement fee (%), and what a statement not settled by its due day becomes — how many monthly installments at what annual profit; plus the debt already owed when it is added and the date to count from.
+  - **Spending from the credit**: an expense paid from it — counted as an expense on the day of the purchase, and owed on the credit. Cash taken out of it (a transfer from it) is owed too.
+  - **Paying it back**: a transfer from another of your accounts into the credit — never a second expense. «پرداخت بدهی» on its card fills the form with the next payment and records the settlement fee or the installment's profit as an expense of its own, category «کارمزد و سود اعتبار».
+  - **The credit's card**: the debt, a bar of the limit used (free and limit), the next payment with its due day and fee or profit, overdue installments, the installments of statements not settled in time, and the fees and profit paid.
+  - **How it is worked out**: a payment goes to the earliest due first (an overdue installment, then the next statement); a payment beyond the debt is prepaid and covers the next purchases; a statement still owed after its due day becomes installments the next day. Everything is computed on the device from the expenses and transfers (`api/src/domain/creditAccount.js`).
 - Encrypted vault records (`bank_account`, `transfer`), the `bank_accounts` feature (every user).
 
 ## 17. Android app

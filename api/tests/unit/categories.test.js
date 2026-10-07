@@ -12,6 +12,7 @@ import {
   newCategoryId,
   splitByExclusion,
   CUSTOM_CATEGORY_RE,
+  BUILTIN_CATEGORIES,
 } from '../../src/domain/categoryDocument.js';
 import { validateExpense } from '../../src/domain/expenseDocument.js';
 
@@ -63,7 +64,8 @@ describe('categoryDocument', () => {
     expect(merged[0].custom).toBe(true);
     expect(merged[1]).toMatchObject({ label: 'کافه', hidden: true, custom: false });
     expect(merged.at(-1).value).toBe('other');
-    expect(merged).toHaveLength(16);
+    // Every built-in, plus the custom one
+    expect(merged).toHaveLength(BUILTIN_CATEGORIES.expense.length + 1);
     expect(mergeCategories('income', null).map((c) => c.value)[0]).toBe('salary');
   });
 
@@ -139,7 +141,7 @@ describe('categoryStore', () => {
     await store.loadCategories(2);
     expect(store.listCategories('expense').some((c) => c.value === 'dining')).toBe(false);
     expect(store.listCategories('expense', { keep: 'dining' }).some((c) => c.value === 'dining')).toBe(true);
-    expect(store.listCategories('expense', { includeHidden: true })).toHaveLength(15);
+    expect(store.listCategories('expense', { includeHidden: true })).toHaveLength(BUILTIN_CATEGORIES.expense.length);
   });
 
   it('splits records by the user\'s exclusions', async () => {

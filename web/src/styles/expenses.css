@@ -373,6 +373,164 @@
   justify-content: flex-end;
 }
 
+/* ── A bank credit on its account card (CreditSummary) ───────────── */
+
+.credit-summary {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border-color);
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.credit-usage-head,
+.credit-usage-foot {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+/* The page's main number for the credit: what is still owed (amber, the remaining debt) */
+.credit-usage-head strong {
+  font-size: 15px;
+  color: var(--color-warning-text);
+}
+
+.credit-usage-track {
+  height: 6px;
+  margin: 6px 0;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--card-inner-bg);
+}
+
+.credit-usage-track span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--color-warning);
+}
+
+.credit-usage-foot {
+  color: var(--text-muted);
+  font-size: 11.5px;
+}
+
+.credit-overdue {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  padding: 6px 10px;
+  border: 1px solid var(--color-negative-border);
+  border-radius: 10px;
+  background: var(--color-negative-soft);
+  color: var(--color-negative-text);
+}
+
+.credit-next {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 2px 8px;
+  padding: 8px 10px;
+  border: var(--card-inner-border);
+  border-radius: 10px;
+  background: var(--card-inner-bg);
+}
+
+.credit-next strong {
+  color: var(--text-primary);
+}
+
+.credit-next small {
+  grid-column: 1 / -1;
+  color: var(--text-muted);
+}
+
+.credit-next.is-overdue strong {
+  color: var(--color-negative-text);
+}
+
+.credit-settled,
+.credit-terms {
+  margin: 0;
+  color: var(--text-muted);
+}
+
+.credit-terms {
+  font-size: 11px;
+  line-height: 1.7;
+}
+
+.credit-terms svg {
+  vertical-align: -2px;
+}
+
+.credit-plan summary {
+  cursor: pointer;
+  color: var(--text-secondary);
+}
+
+.credit-plan ul {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 8px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.credit-plan li {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.credit-plan li em {
+  margin-inline-start: 6px;
+  font-style: normal;
+  font-size: 11px;
+}
+
+.credit-plan li.is-paid {
+  color: var(--text-muted);
+  text-decoration: line-through;
+}
+
+.credit-plan li.is-paid em {
+  color: var(--color-positive-text);
+}
+
+.credit-plan li.is-overdue,
+.credit-plan li.is-overdue em {
+  color: var(--color-negative-text);
+}
+
+.credit-plan li.is-due em {
+  color: var(--color-warning-text);
+}
+
+/* The credit's terms in its form */
+.credit-terms-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.credit-terms-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+@media (max-width: 480px) {
+  .credit-terms-row {
+    grid-template-columns: 1fr;
+  }
+}
+
 /* ── Bank SMS read by the Android app, waiting to be recorded ─────── */
 
 .sms-inbox-card {

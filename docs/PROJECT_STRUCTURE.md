@@ -68,7 +68,7 @@ realrate/
 | `utils/loanCalculator.js`، `loanDocument.js` | `domain/` — محاسبه و سند وام |
 | `utils/loanFunding.js` | `domain/loanFunding.js` — مصرف وام و بازده خریدها |
 | `utils/chequeDocument.js`، `chequeScan.js` | `domain/` — اعتبارسنجی و اسکن چک |
-| `utils/expenseDocument.js`، `accountDocument.js` | `domain/` — هزینه‌ها و حساب‌ها |
+| `utils/expenseDocument.js`، `accountDocument.js`، `creditAccount.js` | `domain/` — هزینه‌ها، حساب‌ها و اعتبار بانکی |
 | `utils/bankSms.js`، `bankSmsTemplates.js` | `domain/` — خواندن پیامک بانک |
 | `utils/clientInfo.js` | `domain/clientInfo.js` — سرآیند کلاینت (اپ/وب و نسخه) |
 | `utils/userGroups.js` | `domain/userGroups.js` — گروه‌های کاربران (شناسه، اعتبارسنجی) |
