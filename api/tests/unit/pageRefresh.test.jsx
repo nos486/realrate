@@ -2,7 +2,8 @@
 /**
  * pageRefresh.test.jsx — The header's refresh button and the window's focus read only what the
  * open tab shows: the news tab never reads the price book, a records tab never reads the others'
- * records; focus refreshes at most once per gap; news is read once and then only on a refresh
+ * records; focus refreshes at most once per gap, coming back from the background (the Android
+ * app's resume, the page visible again) every time; news is read once and then only on a refresh
  * (no timer)
  */
 import React from 'react';
@@ -13,6 +14,16 @@ const offline = { active: false, syncNow: vi.fn(async () => {}) };
 vi.mock('../../../web/src/shared/offline/offlineSync.js', () => ({
   isOfflineActive: () => offline.active,
   syncNow: () => offline.syncNow(),
+}));
+const native = { on: false, resume: [] };
+vi.mock('../../../web/src/shared/native/nativeApp.js', () => ({ isNativeApp: () => native.on }));
+vi.mock('@capacitor/app', () => ({
+  App: {
+    addListener: vi.fn(async (event, fn) => {
+      if (event === 'resume') native.resume.push(fn);
+      return { remove: () => { native.resume = native.resume.filter((f) => f !== fn); } };
+    }),
+  },
 }));
 vi.mock('../../../web/src/features/news/newsApi.js', () => ({
   getNews: vi.fn(async () => ({ items: [{ id: 'n1' }], total: 1 })),
@@ -28,6 +39,7 @@ import {
   startFocusRefresh,
   resetPageRefresh,
   AUTO_REFRESH_GAP_MS,
+  RETURN_MERGE_MS,
 } from '../../../web/src/shared/refresh/pageRefresh.js';
 import PageRefreshButton from '../../../web/src/shared/refresh/PageRefreshButton.jsx';
 import { refreshScopesOf } from '../../../web/src/shared/refresh/tabScopes.js';
@@ -52,6 +64,8 @@ beforeEach(() => {
   resetPageRefresh();
   clearNewsCache();
   offline.active = false;
+  native.on = false;
+  native.resume = [];
   vi.clearAllMocks();
 });
 
@@ -191,6 +205,79 @@ describe('the window getting focus again', () => {
     });
     expect(news).toHaveBeenCalledTimes(2);
     stop();
+  });
+});
+
+describe('coming back from the background', () => {
+  const setVisibility = (value) => {
+    Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => value });
+    document.dispatchEvent(new Event('visibilitychange'));
+  };
+
+  it('a page hidden and shown again refreshes the open tab every time, even right after a refresh', async () => {
+    vi.useFakeTimers();
+    setVisibility('visible');
+    const incomes = vi.fn();
+    render(<Page scopes={['incomes']} loaders={{ incomes }} />);
+    let stop;
+    act(() => {
+      stop = startFocusRefresh();
+    });
+
+    // Minimized for a few seconds, well inside the focus gap
+    await act(async () => {
+      setVisibility('hidden');
+      vi.advanceTimersByTime(5000);
+      setVisibility('visible');
+      // The focus that comes with it: the same return
+      window.dispatchEvent(new Event('focus'));
+    });
+    await flush();
+    expect(incomes).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      vi.advanceTimersByTime(RETURN_MERGE_MS);
+      setVisibility('hidden');
+      vi.advanceTimersByTime(3000);
+      setVisibility('visible');
+    });
+    await flush();
+    expect(incomes).toHaveBeenCalledTimes(2);
+
+    // Visible without having been hidden is not a return
+    await act(async () => {
+      vi.advanceTimersByTime(RETURN_MERGE_MS);
+      setVisibility('visible');
+    });
+    await flush();
+    expect(incomes).toHaveBeenCalledTimes(2);
+    stop();
+  });
+
+  it("the Android app's resume refreshes the open tab; with the page's own events, once", async () => {
+    vi.useFakeTimers();
+    native.on = true;
+    setVisibility('visible');
+    const news = vi.fn();
+    render(<Page scopes={['news']} loaders={{ news }} />);
+    let stop;
+    await act(async () => {
+      stop = startFocusRefresh();
+    });
+    await flush();
+    expect(native.resume).toHaveLength(1);
+
+    await act(async () => {
+      vi.advanceTimersByTime(4000);
+      native.resume[0]();
+      setVisibility('hidden');
+      setVisibility('visible');
+    });
+    await flush();
+    expect(news).toHaveBeenCalledTimes(1);
+
+    stop();
+    expect(native.resume).toHaveLength(0);
   });
 });
 
