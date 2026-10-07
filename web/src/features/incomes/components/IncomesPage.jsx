@@ -23,6 +23,7 @@ import { usePrivacyMode } from '../../../hooks/usePrivacyMode.js';
 import { AlertBanner, Button, EmptyState, FeaturePageHeader, IconButton, Pagination, SearchBar, SplitPageLayout } from '../../../shared/ui/index.js';
 import DonutChart from '../../../shared/ui/DonutChart.jsx';
 import IncomeForm from './IncomeForm.jsx';
+import CashMoveTransferForm from '../../accounts/components/CashMoveTransferForm.jsx';
 import IncomesTable from './IncomesTable.jsx';
 import IncomeCsvExportButton from './IncomeCsvExportButton.jsx';
 import IncomeCsvImportButton from './IncomeCsvImportButton.jsx';
@@ -93,6 +94,8 @@ export default function IncomesPage() {
   const [paging, setPaging] = useState({ key: '', page: 1 });
   const [formOpen, setFormOpen] = useState(false);
   const [editingIncome, setEditingIncome] = useState(null);
+  // «مدیریت نقدینگی» recorded as a transfer between the user's accounts: its draft
+  const [cashMove, setCashMove] = useState(null);
 
   const loadWindow = useMemo(() => flowWindow(month.jy), [month.jy]);
   const {
@@ -347,8 +350,13 @@ export default function IncomesPage() {
           onSubmit={(data) => saveIncome(data, editingIncome?.id)}
           editingIncome={editingIncome}
           submitting={submitting}
+          onCashMove={(move) => {
+            setFormOpen(false);
+            setCashMove(move);
+          }}
         />
       )}
+      {cashMove && <CashMoveTransferForm draft={cashMove} onClose={() => setCashMove(null)} />}
       {managingCategories && <CategoryManagerModal kind="income" onClose={() => setManagingCategories(false)} />}
     </div>
   );

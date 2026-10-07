@@ -15,6 +15,8 @@
  * which is filled in from that day's price history.
  * An everyday expense in «سرمایه‌گذاری» can be added to a portfolio («افزودن به پورتفو»: the asset
  * and its quantity) — a «buy» there at the expense's tomans (PortfolioLinkFields, `investedIn`).
+ * A new everyday toman expense in «مدیریت نقدینگی» offers to record it as a transfer between the
+ * user's accounts instead (`onCashMove`, CashMoveNotice).
  * Mounted only while open, so its state starts from props.
  */
 
@@ -28,6 +30,8 @@ import ShamsiDatePicker, {
 } from '../../portfolio/components/ShamsiDatePicker.jsx';
 import { parseInputNumber, formatNum } from '../../portfolio/utils/holdingHelpers.js';
 import TagInput from './TagInput.jsx';
+import CashMoveNotice from '../../accounts/components/CashMoveNotice.jsx';
+import { CASH_MANAGEMENT_CATEGORY } from '../../../utils/categoryDocument.js';
 import { EXPENSE_CURRENCIES, EXPENSE_LIMITS, isSharedExpense, expenseReceivable } from '../../../utils/expenseDocument.js';
 import { getExpenseCategory } from '../constants/expenseCategories.js';
 import { useCategories } from '../../../shared/categories/useCategories.js';
@@ -61,7 +65,7 @@ const CURRENCY_OPTIONS = EXPENSE_CURRENCIES.map(({ value, label }) => ({ value, 
 /** The category whose expenses can be added to a portfolio */
 const INVESTMENT_CATEGORY = 'investment';
 
-export default function ExpenseForm({ group = null, daily = false, expense = null, draft = null, usdToman = 0, accounts = [], onSubmit, onClose, submitting = false, tagSuggestions = [] }) {
+export default function ExpenseForm({ group = null, daily = false, expense = null, draft = null, usdToman = 0, accounts = [], onSubmit, onClose, submitting = false, tagSuggestions = [], onCashMove = null }) {
   const start = expense || draft;
   const [accountId, setAccountId] = useState(() => {
     if (expense) return expense.accountId || '';
@@ -421,6 +425,10 @@ export default function ExpenseForm({ group = null, daily = false, expense = nul
         )}
 
         <ShamsiDatePicker label="تاریخ هزینه *" value={dateShamsi} onChange={changeDate} />
+
+        {daily && !expense && !isUsd && onCashMove && category === CASH_MANAGEMENT_CATEGORY && (
+          <CashMoveNotice onMove={() => onCashMove({ amount: amountNum || 0, date: dateIso || '', notes: notes.trim() || title.trim(), fromAccountId: accountId || '' })} />
+        )}
 
         {daily && category === INVESTMENT_CATEGORY && (
           <PortfolioLinkFields
