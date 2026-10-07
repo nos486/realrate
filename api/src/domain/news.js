@@ -17,7 +17,8 @@ export function decodeEntities(text) {
   return String(text || "").replace(/&(#x[0-9a-f]+|#\d+|[a-z]+);/gi, (match, code) => {
     if (code[0] === "#") {
       const n = code[1] === "x" || code[1] === "X" ? parseInt(code.slice(2), 16) : parseInt(code.slice(1), 10);
-      return Number.isFinite(n) && n > 0 && n < 0x110000 ? String.fromCodePoint(n) : match;
+      // A surrogate code point alone (&#55357;) is half a character: not text
+      return Number.isFinite(n) && n > 0 && n < 0x110000 && !(n >= 0xd800 && n <= 0xdfff) ? String.fromCodePoint(n) : match;
     }
     return ENTITIES[code.toLowerCase()] ?? match;
   });
@@ -233,7 +234,8 @@ ANSWER: only a JSON array, one item per post, in order:
  */
 export function buildNewsPrompt(posts) {
   const user = posts
-    .map((p, i) => `#${i + 1}\n${String(p.text || "").slice(0, NEWS_LIMITS.aiTextChars)}`)
+    // Cut by characters, never inside one (half an emoji makes the request invalid)
+    .map((p, i) => `#${i + 1}\n${Array.from(String(p.text || "")).slice(0, NEWS_LIMITS.aiTextChars).join("")}`)
     .join("\n\n");
   return [
     { role: "system", content: NEWS_DESK_SYSTEM },

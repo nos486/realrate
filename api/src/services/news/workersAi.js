@@ -33,7 +33,15 @@ export function answerOf(res) {
  * @returns {Promise<string|object>}
  */
 export async function askWorkersAi(env, model, messages, { maxTokens, temperature = 0.1 }) {
-  return answerOf(await env.AI.run(model.id, { messages, max_tokens: maxTokens, temperature, ...model.options }));
+  // Only well-formed text goes out: a lone surrogate (half an emoji, cut by a slice or written as
+  // an entity) makes the request body invalid JSON for Workers AI ("8006: Invalid data for body")
+  const clean = messages.map((m) => ({ ...m, content: wellFormed(m.content) }));
+  return answerOf(await env.AI.run(model.id, { messages: clean, max_tokens: maxTokens, temperature, ...model.options }));
+}
+
+/** A string with every lone UTF-16 surrogate replaced by U+FFFD (what toWellFormed does) */
+export function wellFormed(text) {
+  return String(text ?? "").replace(/[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/g, "\uFFFD");
 }
 
 export const hasWorkersAi = (env) => typeof env?.AI?.run === "function";
