@@ -369,8 +369,13 @@
   color: var(--text-muted);
 }
 
+/* Cards in a row are as tall as the tallest: the actions sit at the bottom, so a shorter card
+   is filled down to its edge and every card's actions line up */
 .account-card-actions {
   justify-content: flex-end;
+  margin-top: auto;
+  padding-top: 10px;
+  border-top: 1px solid var(--border-color);
 }
 
 /* ── A bank credit on its account card (CreditSummary) ───────────── */
