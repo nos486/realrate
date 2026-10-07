@@ -512,6 +512,66 @@
   color: var(--color-warning-text);
 }
 
+/* A closed statement still owed: settle it or turn it into installments */
+.credit-statement {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 10px;
+  border: var(--card-inner-border);
+  border-radius: 10px;
+  background: var(--card-inner-bg);
+}
+
+.credit-statement > span {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.credit-statement small {
+  color: var(--text-muted);
+}
+
+.credit-statement.is-overdue {
+  border-color: var(--color-negative-border);
+}
+
+.credit-statement.is-overdue small {
+  color: var(--color-negative-text);
+}
+
+.credit-link-btn {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  border: 1px solid var(--color-primary-border);
+  border-radius: 8px;
+  background: var(--color-primary-soft);
+  color: var(--color-primary-text);
+  font: inherit;
+  font-size: 11.5px;
+  cursor: pointer;
+}
+
+.credit-link-btn.is-danger {
+  border-color: var(--color-negative-border);
+  background: transparent;
+  color: var(--color-negative-text);
+}
+
+.credit-plan-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 10px;
+  margin: 8px 0 0;
+  color: var(--text-muted);
+}
+
 /* The credit's terms in its form */
 .credit-terms-fields {
   display: flex;

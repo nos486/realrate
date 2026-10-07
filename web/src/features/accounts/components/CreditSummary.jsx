@@ -1,18 +1,19 @@
 /**
  * CreditSummary.jsx — A bank credit on its account card: how much of the limit is used, the next
- * payment (a statement to settle, with its fee, or an installment, with its profit), overdue
- * installments, the installment plans of statements not settled in time, and «پرداخت»
- * (utils/creditAccount.js for the figures)
+ * payment (a statement to settle, with its fee, or an installment, with its profit), what is
+ * overdue, the statements not settled in time — each with «تبدیل به اقساط», since only the user
+ * turns one into installments, as the bank set them — the installment plans (each can be undone),
+ * and «پرداخت بدهی» (utils/creditAccount.js for the figures)
  */
 
 import React from 'react';
-import { CreditCard, AlertTriangle } from 'lucide-react';
+import { CreditCard, AlertTriangle, CalendarClock, Trash2 } from 'lucide-react';
 import { Button } from '../../../shared/ui/index.js';
 import { formatShamsiDisplay } from '../../portfolio/components/ShamsiDatePicker.jsx';
 import { formatAmount } from '../../expenses/utils/format.js';
 import { todayIso } from '../../../shared/utils/dates.js';
 
-const fa = (n) => Number(n).toLocaleString('fa-IR');
+const fa = (n) => Number(n).toLocaleString('fa-IR', { maximumFractionDigits: 2 });
 const day = (iso) => formatShamsiDisplay(`${iso}T00:00:00`);
 
 const STATUS_LABELS = { paid: 'پرداخت‌شده', overdue: 'معوق', due: 'سررسید امروز', upcoming: '' };
@@ -24,15 +25,16 @@ function termsLine(terms) {
     terms.graceDays > 0 ? `مهلت ${fa(terms.graceDays)} روز` : null,
     terms.payMode === 'due_day' ? 'پرداخت فقط در روز سررسید' : 'پرداخت در هر زمان',
     terms.settleFeePct > 0 ? `کارمزد تسویه ${fa(terms.settleFeePct)}٪` : 'تسویه بدون کارمزد',
-    `وگرنه ${fa(terms.installmentCount)} قسط${terms.installmentRatePct > 0 ? ` با سود ${fa(terms.installmentRatePct)}٪` : ''}`,
+    `قسط‌بندی معمول: ${fa(terms.installmentCount)} قسط${terms.installmentRatePct > 0 ? ` با سود حدود ${fa(terms.installmentRatePct)}٪` : ''}`,
   ].filter(Boolean).join(' · ');
 }
 
 /**
  * @param {{ account: object, status: object|null, costsPaid?: number, hideValues?: boolean,
- *   onPay?: () => void, readOnly?: boolean }} props
+ *   onPay?: () => void, onConvert?: (statement: object) => void, onUndoConversion?: (plan: object) => void,
+ *   readOnly?: boolean }} props
  */
-export default function CreditSummary({ account, status, costsPaid = 0, hideValues = false, onPay, readOnly = false }) {
+export default function CreditSummary({ account, status, costsPaid = 0, hideValues = false, onPay, onConvert, onUndoConversion, readOnly = false }) {
   if (!status) return null;
   const money = (v) => (hideValues ? '****' : formatAmount(v));
   const terms = account.credit;
@@ -58,7 +60,7 @@ export default function CreditSummary({ account, status, costsPaid = 0, hideValu
       {status.overdue.count > 0 && (
         <p className="credit-overdue">
           <AlertTriangle size={14} />
-          {fa(status.overdue.count)} قسط معوق — {money(status.overdue.amount)} تومان
+          {fa(status.overdue.count)} پرداخت معوق — {money(status.overdue.amount)} تومان
         </p>
       )}
 
@@ -78,11 +80,35 @@ export default function CreditSummary({ account, status, costsPaid = 0, hideValu
         <p className="credit-settled">بدهی‌ای ندارید{status.prepaid > 0 ? ` · پیش‌پرداخت ${money(status.prepaid)} تومان` : ''}</p>
       )}
 
+      {/* Closed statements still owed: settle them, or turn them into installments by hand */}
+      {status.statements.filter((s) => !s.open && s.remaining > 0).map((s) => (
+        <div key={s.closeDate} className={`credit-statement ${s.overdue ? 'is-overdue' : ''}`}>
+          <span>
+            صورت‌حساب {day(s.closeDate)} · مانده {money(s.remaining)} تومان
+            <small>{s.overdue ? `سررسید ${day(s.dueDate)} گذشته` : `سررسید ${day(s.dueDate)}`}</small>
+          </span>
+          {!readOnly && onConvert && (
+            <button type="button" className="credit-link-btn" onClick={() => onConvert(s)}>
+              <CalendarClock size={13} /> تبدیل به اقساط
+            </button>
+          )}
+        </div>
+      ))}
+
       {status.plans.map((plan) => (
-        <details key={plan.closeDate} className="credit-plan">
+        <details key={plan.id} className="credit-plan">
           <summary>
             اقساط صورت‌حساب {day(plan.closeDate)} · مانده {money(plan.remaining)} تومان
           </summary>
+          <p className="credit-plan-meta">
+            {fa(plan.count)} قسط × {money(plan.payment)} تومان از {day(plan.firstDueDate)}
+            {plan.ratePct > 0 && ` · سود حدود ${fa(plan.ratePct)}٪ سالانه`}
+            {!readOnly && onUndoConversion && (
+              <button type="button" className="credit-link-btn is-danger" onClick={() => onUndoConversion(plan)} title="حذف این قسط‌بندی">
+                <Trash2 size={12} /> حذف قسط‌بندی
+              </button>
+            )}
+          </p>
           <ul>
             {plan.installments.map((i) => (
               <li key={i.n} className={`is-${i.status}`}>

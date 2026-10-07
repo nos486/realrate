@@ -1,7 +1,9 @@
 /**
- * creditAccount.test.js — A bank credit line as an account: its terms, its statements (closed on
- * a Shamsi day of the month), settling them on time (with a fee), and what isn't settled turning
- * into monthly installments; paying back is a transfer into the credit, spending an expense from it
+ * creditAccount.test.js — A bank credit line as an account: its terms (a fee or an installment
+ * rate given as a percent or worked out from amounts), its statements (closed on a Shamsi day of
+ * the month), settling them on time (with a fee), and what isn't settled turned into installments
+ * by the user, as the bank set them; paying back is a transfer into the credit, spending an
+ * expense from it
  */
 import { describe, it, expect } from 'vitest';
 import {
@@ -9,6 +11,10 @@ import {
   closingDateOf,
   installmentPlanOf,
   creditStatus,
+  conversionDraft,
+  validateConversion,
+  feePctFromAmounts,
+  installmentRateFromAmounts,
   creditCostsPaid,
   addDaysIso,
 } from '../../src/domain/creditAccount.js';
@@ -52,6 +58,27 @@ describe('terms', () => {
   });
 });
 
+describe('fee and installments from amounts', () => {
+  it('«۱۰ میلیون استفاده، ۱۰٫۲ میلیون برگشت»: a 2% fee', () => {
+    expect(feePctFromAmounts(10_000_000, 10_200_000)).toEqual({ pct: 2 });
+    expect(feePctFromAmounts('10,000,000', '10,215,000')).toEqual({ pct: 2.15 });
+    expect(feePctFromAmounts(10_000_000, 9_000_000).error).toBeTruthy();
+    const t = terms({ settleFeePct: 0, feeSample: { used: 10_000_000, repaid: 10_200_000 } });
+    expect(t).toMatchObject({ settleFeePct: 2, feeSample: { used: 10_000_000, repaid: 10_200_000 } });
+  });
+
+  it('the installments\' rate from the installment the bank quotes, like a loan', () => {
+    const { ratePct, total } = installmentRateFromAmounts(10_000_000, 1_850_000, 6);
+    expect(total).toBe(11_100_000);
+    expect(ratePct).toBeGreaterThan(36);
+    expect(installmentRateFromAmounts(10_000_000, 1_000_000, 6).error).toBeTruthy();
+    expect(installmentRateFromAmounts(12_000_000, 2_000_000, 6).ratePct).toBe(0);
+    const t = terms({ installmentRatePct: 0, installmentSample: { principal: 10_000_000, payment: 1_850_000 } });
+    expect(t.installmentRatePct).toBe(ratePct);
+    expect(t.installmentSample).toEqual({ principal: 10_000_000, payment: 1_850_000 });
+  });
+});
+
 describe('statements', () => {
   it('purchases up to the closing day are one statement; after it, the next', () => {
     expect(closingDateOf('2026-09-10', 15)).toBe(MEHR_15); // 19 Shahrivar → 15 Mehr
@@ -72,34 +99,52 @@ describe('statements', () => {
     expect(after).toMatchObject({ debt: 0, available: 100_000_000, plans: [], next: null });
   });
 
-  it('not settled by the due day: six monthly installments from the next month', () => {
-    const a = account();
-    const s = creditStatus(a, { expenses: [buy('2026-09-10', 12_000_000)] }, addDaysIso(MEHR_15, 1));
+  it('not settled by the due day: owed and overdue — never turned into installments by itself', () => {
+    const s = creditStatus(account(), { expenses: [buy('2026-09-10', 12_000_000)] }, ABAN_15);
+    expect(s.plans).toEqual([]);
+    expect(s.statements[0]).toMatchObject({ closeDate: MEHR_15, remaining: 12_000_000, overdue: true, open: false });
+    expect(s.overdue).toEqual({ count: 1, amount: 12_240_000 });
+    expect(s.next).toMatchObject({ kind: 'statement', dueDate: MEHR_15 });
+  });
+
+  it('the user turns it into installments as the bank set them: count, first due day, each installment', () => {
+    const a = account({ installmentSample: { principal: 10_000_000, payment: 1_850_000 } });
+    const today = addDaysIso(MEHR_15, 13);
+    const before = creditStatus(a, { expenses: [buy('2026-09-10', 12_000_000)] }, today);
+    const draft = conversionDraft(a, before.statements[0], today);
+    // The quoted installment scaled to this amount; the first due a month after the statement's
+    expect(draft).toMatchObject({ closeDate: MEHR_15, principal: 12_000_000, count: 6, payment: 2_220_000, firstDueDate: ABAN_15, date: today });
+
+    // The bank moved the first due to the 20th
+    a.credit = terms({ conversions: [{ id: 'cv1', ...draft, firstDueDate: '2026-11-11' }] });
+    const s = creditStatus(a, { expenses: [buy('2026-09-10', 12_000_000)] }, today);
     expect(s.statements).toEqual([]);
-    expect(s.plans).toHaveLength(1);
-    const { installments } = s.plans[0];
-    expect(installments).toHaveLength(6);
-    expect(installments[0]).toMatchObject({ n: 1, dueDate: ABAN_15, principal: 2_000_000, interest: 0, status: 'upcoming' });
-    expect(installments.reduce((sum, i) => sum + i.principal, 0)).toBe(12_000_000);
-    expect(s.next).toMatchObject({ kind: 'installment', dueDate: ABAN_15, amount: 2_000_000, label: 'قسط ۱ از ۶' });
     expect(s.debt).toBe(12_000_000);
+    const [plan] = s.plans;
+    expect(plan).toMatchObject({ id: 'cv1', principal: 12_000_000, count: 6, payment: 2_220_000 });
+    expect(plan.ratePct).toBeGreaterThan(36);
+    expect(plan.installments.map((i) => i.dueDate)).toEqual(['2026-11-11', '2026-12-11', '2027-01-10', '2027-02-09', '2027-03-11', '2027-04-09']);
+    expect(plan.installments.reduce((sum, i) => sum + i.principal, 0)).toBe(12_000_000);
+    expect(plan.installments.every((i) => i.principal + i.interest === 2_220_000)).toBe(true);
+    expect(s.next).toMatchObject({ kind: 'installment', dueDate: '2026-11-11', amount: 2_220_000, label: 'قسط ۱ از ۶' });
   });
 
-  it('only what is left of a statement becomes installments', () => {
-    const s = creditStatus(account(), { expenses: [buy('2026-09-10', 12_000_000)], transfers: [pay(MEHR_15, 6_000_000)] }, ABAN_15);
-    expect(s.plans[0].principal).toBe(6_000_000);
-    expect(s.plans[0].installments[0]).toMatchObject({ principal: 1_000_000, status: 'due' });
-  });
+  it('a conversion is checked; only what was left of the statement leaves it', () => {
+    const base = { id: 'cv', date: MEHR_15, closeDate: MEHR_15, principal: 6_000_000, count: 6, payment: 1_000_000, firstDueDate: ABAN_15 };
+    expect(validateConversion(base).value).toEqual(base);
+    expect(validateConversion({ ...base, payment: 900_000 }).error).toBeTruthy();
+    expect(validateConversion({ ...base, firstDueDate: '2026-10-01' }).error).toBeTruthy();
+    expect(validateCreditTerms({ limit: 1, conversions: [{ ...base, count: 0 }] }).error).toBeTruthy();
 
-  it('installments with profit: the principal adds up, each with its profit', () => {
-    const plan = installmentPlanOf(12_000_000, { installmentCount: 6, installmentRatePct: 24 }, MEHR_15);
-    expect(plan.reduce((sum, i) => sum + i.principal, 0)).toBe(12_000_000);
-    expect(plan[0].interest).toBe(240_000);
-    expect(plan[5].interest).toBeLessThan(plan[0].interest);
+    const a = account({ conversions: [{ ...base, date: addDaysIso(MEHR_15, 1) }] });
+    const s = creditStatus(a, { expenses: [buy('2026-09-10', 12_000_000)], transfers: [pay(MEHR_15, 6_000_000)] }, ABAN_15);
+    expect(s.statements).toEqual([]);
+    expect(s.plans[0].installments[0]).toMatchObject({ principal: 1_000_000, interest: 0, status: 'due' });
   });
 
   it('a payment goes to the earliest due; overdue installments are counted', () => {
-    const a = account();
+    const conversions = [{ id: 'cv', date: addDaysIso(MEHR_15, 1), closeDate: MEHR_15, principal: 6_000_000, count: 6, payment: 1_000_000, firstDueDate: ABAN_15 }];
+    const a = account({ conversions });
     const expenses = [buy('2026-09-10', 6_000_000)];
     const later = '2026-12-10'; // after 15 Aban and 15 Azar
     const s = creditStatus(a, { expenses }, later);
@@ -107,6 +152,14 @@ describe('statements', () => {
     const paid = creditStatus(a, { expenses, transfers: [pay(later, 1_500_000)] }, later);
     expect(paid.overdue).toEqual({ count: 1, amount: 500_000 });
     expect(paid.next).toMatchObject({ kind: 'installment', principal: 500_000 });
+  });
+
+  it('installments with profit: the principal adds up, each the same payment', () => {
+    const plan = installmentPlanOf(12_000_000, { count: 6, payment: 2_200_000 }, MEHR_15);
+    expect(plan.reduce((sum, i) => sum + i.principal, 0)).toBe(12_000_000);
+    expect(plan.every((i) => i.principal + i.interest === 2_200_000)).toBe(true);
+    expect(plan[5].interest).toBeLessThan(plan[0].interest);
+    expect(plan[0].dueDate).toBe(MEHR_15);
   });
 
   it('paid back any day: the credit is free again at once, and an overpayment covers the next purchases', () => {
