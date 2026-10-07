@@ -30,7 +30,7 @@ The interface is in Persian (right-to-left, Shamsi calendar, amounts in tomans).
 - **Portfolio**: multiple portfolios, buy/sell transactions with weighted average cost, live profit and loss, custom categories, public sharing
 - **Expenses**: everyday expenses by category with monthly budgets, projects in tomans or dollars, the account that paid («پرداخت از») and the loan that funded it («تأمین از»)
 - **Accounts**: bank accounts, cash and wallets; the source of every expense and the match for bank SMS
-- **Bank credit** (new): a limit, monthly statements, the due day and settlement fee, and a statement not paid in time turned into installments by itself; spending from the credit and «پرداخت بدهی» with the fee and profit apart
+- **Bank credit** (new): a limit, monthly statements, the due day and settlement fee (a percent or amounts), and «تبدیل به اقساط» for a statement not paid in time, with the dates and installments the bank set; spending from the credit and «پرداخت بدهی» with the fee and profit apart
 - **Loans**: installment schedule, payments and extra payments, banks with logos, and loan usage (what the loan paid for, and how those purchases did against the loan's rate)
 - **Incomes**: by source and month, and fixed incomes (salary, rent) that repeat on their own
 - **Cheques**: received and issued, due dates, status tracking with history, reminders, and AI cheque scanning

@@ -7,8 +7,8 @@
  * one of them as the account they were paid from. Below the cards, «انتقال بین حساب‌ها»: money
  * moved between the user's accounts (cash management) — never an expense or an income
  * (TransferForm, utils/transferDocument.js). A bank credit's card also shows its debt, the next
- * payment and its installments, with «پرداخت بدهی» (CreditSummary, CreditPaymentForm,
- * utils/creditAccount.js). Everything is end-to-end encrypted.
+ * payment and its installments, with «پرداخت بدهی» and, for a statement not settled in time,
+ * «تبدیل به اقساط» (CreditSummary, CreditPaymentForm, CreditConversionForm, utils/creditAccount.js). Everything is end-to-end encrypted.
  */
 
 import React, { useMemo, useState } from 'react';
@@ -38,6 +38,7 @@ import AccountForm from './AccountForm.jsx';
 import TransferForm from './TransferForm.jsx';
 import CreditSummary from './CreditSummary.jsx';
 import CreditPaymentForm from './CreditPaymentForm.jsx';
+import CreditConversionForm from './CreditConversionForm.jsx';
 
 const HEADER = {
   icon: <WalletCards size={24} />,
@@ -58,6 +59,7 @@ export default function AccountsPage() {
   const [form, setForm] = useState(null); // null | { account: object|null }
   const [transferForm, setTransferForm] = useState(null); // null | { transfer: object|null }
   const [payCredit, setPayCredit] = useState(null); // null | the credit account being paid
+  const [convert, setConvert] = useState(null); // null | { account, statement } being turned into installments
   // Each bank credit's debt, next payment and installments
   const credit = useCreditStatus(accounts);
 
@@ -112,6 +114,18 @@ export default function AccountsPage() {
       danger: true,
     });
     if (ok) deleteTransfer(transfer.id).then(credit.reload).catch(() => {});
+  };
+
+  // A statement's installments are kept on the credit account, as the bank set them
+  const saveConversions = (account, conversions) => saveAccount({ credit: { ...account.credit, conversions } }, account);
+  const handleUndoConversion = async (account, plan) => {
+    const ok = await confirm({
+      title: 'حذف قسط‌بندی',
+      message: 'این قسط‌بندی حذف شود؟ مانده‌ی آن دوباره بدهی همان صورت‌حساب می‌شود و پرداخت‌ها دوباره به آن حساب می‌شوند.',
+      confirmLabel: 'حذف',
+      danger: true,
+    });
+    if (ok) saveConversions(account, (account.credit.conversions || []).filter((c) => c.id !== plan.id)).catch(() => {});
   };
 
   const toggleArchive = (account) => saveAccount({ archived: !account.archived }, account).catch(() => {});
@@ -193,6 +207,8 @@ export default function AccountsPage() {
                     hideValues={hideValues}
                     readOnly={readOnly}
                     onPay={() => setPayCredit(account)}
+                    onConvert={(statement) => setConvert({ account, statement })}
+                    onUndoConversion={(plan) => handleUndoConversion(account, plan)}
                   />
                 )}
                 {hasExpenses && (
@@ -300,6 +316,15 @@ export default function AccountsPage() {
             credit.reload();
           }}
           onClose={() => setTransferForm(null)}
+        />
+      )}
+
+      {convert && (
+        <CreditConversionForm
+          account={convert.account}
+          statement={convert.statement}
+          onSave={(conversion) => saveConversions(convert.account, [...(convert.account.credit.conversions || []), conversion])}
+          onClose={() => setConvert(null)}
         />
       )}
 

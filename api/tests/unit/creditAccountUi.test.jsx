@@ -84,14 +84,44 @@ describe('a bank credit on the accounts page', () => {
     expect(within(card()).getByText(/پرداخت فقط در روز سررسید/)).toBeTruthy();
   });
 
-  it('a statement not paid in time shows as installments, the overdue ones counted', async () => {
-    ACCOUNTS[1].credit = credit({ closingDay: 1, startDate: addDaysIso(today, -150) });
+  it('a statement not paid in time stays overdue until the user turns it into installments, as the bank set them', async () => {
+    ACCOUNTS[1].credit = credit({ closingDay: 1, startDate: addDaysIso(today, -150), installmentRatePct: 0 });
     store.expenses = [{ id: 'e1', accountId: 'cr_1', date: addDaysIso(today, -140), amount: 6_000_000, currency: 'IRT' }];
     store.transfers = [];
     renderPage();
-    await waitFor(() => expect(within(card()).getByText(/قسط معوق/)).toBeTruthy());
-    expect(within(card()).getByText(/اقساط صورت‌حساب/)).toBeTruthy();
+    await waitFor(() => expect(within(card()).getByText(/پرداخت معوق/)).toBeTruthy());
+    expect(within(card()).queryByText(/اقساط صورت‌حساب/)).toBeNull();
+    expect(within(card()).getByText(/گذشته/)).toBeTruthy();
+
+    fireEvent.click(within(card()).getByText(/تبدیل به اقساط/));
+    const dialog = await screen.findByText('سررسید اولین قسط *');
+    const form = dialog.closest('form');
+    // The bank set 6 × 1,050,000
+    fireEvent.change(form.querySelector('#conversion-payment'), { target: { value: '1050000' } });
+    expect(within(form).getByText(/جمع اقساط ۶٬۳۰۰٬۰۰۰ تومان/)).toBeTruthy();
+    fireEvent.submit(form);
+    await waitFor(() => expect(store.saveAccount).toHaveBeenCalled());
+    const [input, existing] = store.saveAccount.mock.calls[0];
+    expect(existing.id).toBe('cr_1');
+    expect(input.credit.conversions).toHaveLength(1);
+    expect(input.credit.conversions[0]).toMatchObject({ principal: 6_000_000, count: 6, payment: 1_050_000, date: today });
+    expect(input.credit.conversions[0].firstDueDate >= today).toBe(true);
+  });
+
+  it('a plan the user set shows its installments, and can be undone', async () => {
+    const conversion = { id: 'cnv_1', date: addDaysIso(today, -100), closeDate: addDaysIso(today, -110), principal: 6_000_000, count: 6, payment: 1_000_000, firstDueDate: addDaysIso(today, -70) };
+    ACCOUNTS[1].credit = credit({ startDate: addDaysIso(today, -150), conversions: [conversion] });
+    // The purchase is on the statement the conversion names
+    ACCOUNTS[1].credit.closingDay = Number(new Intl.DateTimeFormat('en-US-u-ca-persian', { day: 'numeric' }).format(new Date(`${conversion.closeDate}T12:00:00`)));
+    store.expenses = [{ id: 'e1', accountId: 'cr_1', date: addDaysIso(today, -115), amount: 6_000_000, currency: 'IRT' }];
+    store.transfers = [];
+    renderPage();
+    await waitFor(() => expect(within(card()).getByText(/اقساط صورت‌حساب/)).toBeTruthy());
     expect(within(card()).getByText(/قسط .* از ۶/)).toBeTruthy();
+    expect(within(card()).getByText(/پرداخت معوق/)).toBeTruthy();
+    fireEvent.click(within(card()).getByText(/حذف قسط‌بندی/));
+    await waitFor(() => expect(store.saveAccount).toHaveBeenCalled());
+    expect(store.saveAccount.mock.calls[0][0].credit.conversions).toEqual([]);
   });
 
   it('«پرداخت بدهی»: a transfer into the credit, and the fee as an expense of its own', async () => {
@@ -115,6 +145,30 @@ describe('a bank credit on the accounts page', () => {
 });
 
 describe('the account form', () => {
+  it('the fee and the installments can be given by amounts: the percent and the rate are worked out', async () => {
+    const onSubmit = vi.fn(async () => {});
+    render(<AccountForm onSubmit={onSubmit} onClose={vi.fn()} />);
+    fireEvent.click(screen.getByText('اعتبار بانکی'));
+    fireEvent.change(screen.getByLabelText('سقف اعتبار (تومان) *'), { target: { value: '100000000' } });
+    fireEvent.change(screen.getByLabelText('نام حساب (اختیاری)'), { target: { value: 'اوانو' } });
+    fireEvent.click(screen.getByText('با مبلغ'));
+    fireEvent.change(screen.getByLabelText('مبلغ استفاده‌شده (تومان)'), { target: { value: '10000000' } });
+    fireEvent.change(screen.getByLabelText('مبلغ برگشتی (تومان)'), { target: { value: '10200000' } });
+    expect(screen.getByText(/کارمزد: ۲٪/)).toBeTruthy();
+    fireEvent.click(screen.getByText('مبلغ قسط را می‌دانم'));
+    fireEvent.change(screen.getByLabelText('برای مبلغ (تومان)'), { target: { value: '10000000' } });
+    fireEvent.change(screen.getByLabelText('مبلغ هر قسط (تومان)'), { target: { value: '1850000' } });
+    expect(screen.getByText(/جمع اقساط ۱۱٬۱۰۰٬۰۰۰ تومان؛ سود سالانه حدود/)).toBeTruthy();
+    fireEvent.submit(screen.getByText('افزودن حساب').closest('form'));
+    await waitFor(() => expect(onSubmit).toHaveBeenCalled());
+    expect(onSubmit.mock.calls[0][0].credit).toMatchObject({
+      feeSample: { used: 10_000_000, repaid: 10_200_000 },
+      installmentSample: { principal: 10_000_000, payment: 1_850_000 },
+      installmentCount: 6,
+      conversions: [],
+    });
+  });
+
   it('a bank credit takes its terms', async () => {
     const onSubmit = vi.fn(async () => {});
     render(<AccountForm onSubmit={onSubmit} onClose={vi.fn()} />);

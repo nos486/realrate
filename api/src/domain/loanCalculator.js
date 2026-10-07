@@ -365,6 +365,8 @@ export function solveAnnualRateFromKnownPayments({
  * @param {number} params.installmentCount
  * @param {number} params.totalRepayment - The full amount expected to be repaid (principal + interest)
  * @param {number} [params.intervalMonths=1]
+ * @param {number} [params.decimals=2] - Decimals the rate is rounded to (more reproduces the
+ *   installments exactly, e.g. a bank credit's terms derived from its known installment)
  * @returns {{ annualRatePct: number, installmentAmount: number }}
  */
 export function solveAnnualRateFromTotalRepayment({
@@ -372,6 +374,7 @@ export function solveAnnualRateFromTotalRepayment({
   installmentCount,
   totalRepayment,
   intervalMonths = 1,
+  decimals = 2,
 }) {
   const p = Number(principal) || 0;
   const n = parseInt(installmentCount, 10) || 0;
@@ -419,7 +422,8 @@ export function solveAnnualRateFromTotalRepayment({
     if (f(mid) < 0) lo = mid; else hi = mid;
   }
 
-  const annualRatePct = Math.round(((lo + hi) / 2) * 100) / 100;
+  const scale = 10 ** decimals;
+  const annualRatePct = Math.round(((lo + hi) / 2) * scale) / scale;
   const installmentAmount = calculateFixedInstallmentAmount({ principal: p, annualRatePct, installmentCount: n, intervalMonths: interval });
   return { annualRatePct, installmentAmount };
 }
