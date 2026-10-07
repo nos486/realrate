@@ -4,6 +4,7 @@ import { CategoryIcon, formatNum } from '../utils/holdingHelpers.js';
 import { formatPct } from '../../../shared/utils/formatters.js';
 import DonutChart from '../../../shared/ui/DonutChart.jsx';
 import AllocationTargetsCard from './AllocationTargetsCard.jsx';
+import RiskMixPie, { mixItemsOf } from './RiskMixPie.jsx';
 import { profileOf } from '../../../utils/riskProfile.js';
 import { DollarPnl } from '../../../shared/ui/DollarValue.jsx';
 
@@ -185,10 +186,13 @@ export default function PortfolioOverviewCards({
             <span className="stat-label"><Gauge size={13} /> آزمون ریسک‌پذیری</span>
           </div>
           {riskResult ? (
-            <p className="stat-sub risk-profile-card-result">
-              <strong>{profileOf(riskResult.score).title}</strong>
-              {' '}— {riskResult.score.toLocaleString('fa-IR', { maximumFractionDigits: 1 })}٪
-            </p>
+            <>
+              <p className="stat-sub risk-profile-card-result">
+                <strong>{profileOf(riskResult.score).title}</strong>
+                {' '}— {riskResult.score.toLocaleString('fa-IR', { maximumFractionDigits: 1 })}٪
+              </p>
+              <RiskMixPie items={mixItemsOf(profileOf(riskResult.score).allocation)} />
+            </>
           ) : (
             <p className="stat-sub">با چند سؤال کوتاه بسنجید چقدر ریسک‌پذیر هستید و چه ترکیبی برای این پورتفو مناسب است.</p>
           )}

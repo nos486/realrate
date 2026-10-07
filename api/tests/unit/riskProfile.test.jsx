@@ -14,6 +14,7 @@ import {
   outcomeOf,
   validateRiskResult,
 } from '../../src/domain/riskProfile.js';
+import RiskMixPie, { mixItemsOf } from '../../../web/src/features/portfolio/components/RiskMixPie.jsx';
 import RiskToleranceModal from '../../../web/src/features/portfolio/components/RiskToleranceModal.jsx';
 
 afterEach(cleanup);
@@ -88,5 +89,22 @@ describe('RiskToleranceModal', () => {
     expect(screen.getByRole('heading', { name: 'ریسک‌پذیر' })).toBeTruthy();
     fireEvent.click(screen.getByText('از نو'));
     expect(screen.getByText('چقدر ریسک‌پذیر هستید؟')).toBeTruthy();
+  });
+
+  it('tests the portfolio value, not a typed amount, and needs one', () => {
+    const { unmount } = render(<RiskToleranceModal portfolioValue={2500000} onSave={vi.fn()} onClose={() => {}} />);
+    expect(screen.getByText(/۲٬۵۰۰٬۰۰۰ تومان/)).toBeTruthy();
+    expect(screen.queryByRole('textbox')).toBeNull();
+    unmount();
+    render(<RiskToleranceModal portfolioValue={0} onSave={vi.fn()} onClose={() => {}} />);
+    expect(screen.getByText('شروع آزمون').closest('button').disabled).toBe(true);
+  });
+});
+
+describe('RiskMixPie', () => {
+  it('lists the profile mix with its shares', () => {
+    render(<RiskMixPie items={mixItemsOf(profileOf(30).allocation)} />);
+    expect(screen.getByText('درآمد ثابت')).toBeTruthy();
+    expect(screen.getByText('۶۰٪')).toBeTruthy();
   });
 });
