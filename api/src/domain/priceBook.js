@@ -455,9 +455,16 @@ export function splitPriceBook(items) {
   return { core, catalog };
 }
 
+/** An item's averages in its fingerprint (priceAverages.js: params.avg and params.toman.avg) */
+const avgMarkOf = (params) => {
+  const marks = [params?.avg, params?.toman?.avg].flatMap((avg) => Object.values(avg || {}).map((a) => a?.value));
+  return marks.length ? `~${marks.join(",")}` : "";
+};
+
 /**
- * A short fingerprint of what the book says: every id with its price (and dollar price) and whether it is stale
- * (not the timestamps, which move on every sync). Equal versions mean nothing a screen shows
+ * A short fingerprint of what the book says: every id with its price (and dollar price), whether
+ * it is stale and its averages (they move once a day, a market closed or not) — not the
+ * timestamps, which move on every sync. Equal versions mean nothing a screen shows
  * changed; it is the book's ETag.
  * @param {Record<string, object>} items
  */
@@ -465,7 +472,7 @@ export function priceBookVersion(items) {
   // FNV-1a, 32 bits, over "id=price[!];" in id order
   let hash = 0x811c9dc5;
   const text = Object.keys(items || {}).sort()
-    .map((id) => `${id}=${items[id]?.price}${items[id]?.priceUsd ? `$${items[id].priceUsd}` : ""}${items[id]?.params?.stale ? "!" : ""};`).join("");
+    .map((id) => `${id}=${items[id]?.price}${items[id]?.priceUsd ? `$${items[id].priceUsd}` : ""}${items[id]?.params?.stale ? "!" : ""}${avgMarkOf(items[id]?.params)};`).join("");
   for (let i = 0; i < text.length; i++) {
     hash ^= text.charCodeAt(i);
     hash = Math.imul(hash, 0x01000193) >>> 0;

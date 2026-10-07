@@ -6,11 +6,23 @@
  * carry the calculator's analysis (intrinsic value and bubble at the rates the user entered).
  * A dollar-priced asset (the ounce, oil) shows its dollar price, or — when its card is set to
  * "toman" in the layout — its toman price, with the toman day range, change and chart.
+ * What else a card shows comes from its settings in the layout (utils/cardMetrics.js): its main
+ * figure (the last price or an average) and a full card's slots — values of the asset itself or of
+ * a linked asset (a coin's bubble), all read off the price book.
  */
 
 import { assetOf } from '../market/priceBookAssets.js';
 import { ownPriceOf, formatPrice } from '../market/assetPrice.js';
 import { usdSeriesKey } from '../../utils/priceBook.js';
+import {
+  CARD_METRICS,
+  MAIN_METRICS,
+  cardSlotsOf,
+  slotOptionsOf,
+  linkedItemId,
+  metricValue,
+  parseSlotKey,
+} from '../../utils/cardMetrics.js';
 
 /**
  * Lookup tables built once per data refresh
@@ -42,16 +54,60 @@ function dayRangeOf(params, range = params, today = tehranDayFormat.format(new D
 const num = (v) => (v === null || v === undefined || v === '' || !Number.isFinite(Number(v)) ? null : Number(v));
 
 /**
+ * A card's slots as shown: each one's label, the linked asset's name (a slot of a linked asset)
+ * and its value; a slot whose value isn't there now shows a dash
+ * @param {object} asset - the card's book asset
+ * @param {string[]} keys - slot keys
+ */
+function resolveSlots(asset, keys, index, display) {
+  const slots = [];
+  for (const key of keys) {
+    const parsed = parseSlotKey(key);
+    if (!parsed) continue;
+    const linkedId = parsed.link ? linkedItemId(asset.id, parsed.link) : null;
+    const item = parsed.link ? (linkedId ? assetOf(index.itemMap, linkedId) : null) : asset;
+    if (parsed.link && !item) continue;
+    const def = CARD_METRICS[parsed.metric];
+    const value = metricValue(item, parsed.metric, {
+      analysis: index.analysisById.get(item.id) || null,
+      display: parsed.link ? null : display,
+    });
+    slots.push({
+      key,
+      label: def.label,
+      kind: def.kind,
+      window: def.window || null,
+      linkedName: parsed.link ? item.name : '',
+      ...(value || { value: null }),
+    });
+  }
+  return slots;
+}
+
+/**
+ * A card's main figure when it isn't the last price (an average), else null; `mainMissing` when
+ * the chosen average isn't there yet (a newer item)
+ */
+function resolveMain(asset, main, display) {
+  if (!main || main === 'price') return { main: null, mainMissing: '' };
+  const value = metricValue(asset, main, { display });
+  if (!value) return { main: null, mainMissing: CARD_METRICS[main]?.label || '' };
+  return { main: { key: main, label: CARD_METRICS[main].label, window: CARD_METRICS[main].window, ...value }, mainMissing: '' };
+}
+
+/**
  * @returns {{ id: string, found: boolean, name?: string, code?: string, flag?: string,
  *   category?: string, badge?: string, price?: number|null, unit?: string, perUnit?: string,
  *   note?: string, sourceName?: string, changePercent?: number|null, stale?: boolean,
  *   staleSince?: string|null, analysis?: object|null, dayRange?: { low: number, high: number, open: number|null }|null,
- *   searchText?: string, usdPriced?: boolean, display?: 'usd'|'toman'|null }}
+ *   searchText?: string, usdPriced?: boolean, display?: 'usd'|'toman'|null, updatedAt?: string|null,
+ *   main?: object|null, mainMissing?: string, slots?: Array<object> }}
  * @param {string} id
  * @param {object} index - buildAssetIndex()
  * @param {'usd'|'toman'} [display] - how the card shows a dollar-priced asset (the layout's)
+ * @param {{ main?: string, slots?: string[] }} [card] - the card's settings (the layout's `cards`)
  */
-export function resolveHomeAsset(id, index, display) {
+export function resolveHomeAsset(id, index, display, card = null) {
   const asset = assetOf(index.itemMap, id);
   if (!asset) return { id, found: false };
   const analysis = index.analysisById.get(asset.id) || null;
@@ -85,12 +141,22 @@ export function resolveHomeAsset(id, index, display) {
     usdPriced,
     display: usdPriced ? 'usd' : null,
   };
-  if (!usdPriced || display !== 'toman' || !(own.toman > 0)) return base;
+  const shownIn = usdPriced && display === 'toman' && own.toman > 0 ? 'toman' : null;
+  const extras = {
+    // When its source last gave it (the card says «۳۰ دقیقه پیش»)
+    updatedAt: asset.updatedAt || null,
+    ...resolveMain(asset, card?.main, shownIn),
+    // Chosen slots show a dash while a value isn't there; the default ones only what they have
+    slots: resolveSlots(asset, cardSlotsOf(card?.slots, analysis), index, shownIn)
+      .filter((slot) => Array.isArray(card?.slots) || slot.value !== null),
+  };
+  if (!shownIn) return { ...base, ...extras };
   // In tomans: the toman price large, the dollar one under it; the toman range, change
   // (`params.toman`, kept by the sync) and history (the item's own id)
   const toman = asset.params?.toman || null;
   return {
     ...base,
+    ...extras,
     display: 'toman',
     price: own.toman,
     currency: 'toman',
@@ -100,4 +166,26 @@ export function resolveHomeAsset(id, index, display) {
     changePercent: num(toman?.changePercent),
     dayRange: dayRangeOf(asset.params, toman),
   };
+}
+
+/**
+ * What a card can be set to show (the card settings): its main figures (the last price, and each
+ * average it has) and its slot options — its own metrics and its linked assets', with the
+ * linked asset's name
+ * @param {string} id
+ * @param {object} index - buildAssetIndex()
+ * @param {'usd'|'toman'|null} [display] - a dollar-priced asset shown in tomans
+ */
+export function cardOptionsOf(id, index, display = null) {
+  const asset = assetOf(index.itemMap, id);
+  if (!asset) return { main: [], slots: [] };
+  const shownIn = display === 'toman' ? 'toman' : null;
+  const main = MAIN_METRICS
+    .map((key) => ({ key, label: CARD_METRICS[key].label, ...(metricValue(asset, key, { display: shownIn }) || { value: null }) }))
+    .filter((m) => m.key === 'price' || m.value !== null);
+  const slots = slotOptionsOf(asset.id, (linkedId) => assetOf(index.itemMap, linkedId), {
+    analysisOf: (linkedId) => index.analysisById.get(linkedId) || null,
+    display: shownIn,
+  }).map((o) => ({ ...o, linkedName: o.linkedId ? assetOf(index.itemMap, o.linkedId)?.name || o.linkedId : '' }));
+  return { main, slots };
 }

@@ -12,6 +12,7 @@ const api = vi.hoisted(() => ({ getSparklines: vi.fn() }));
 vi.mock('../../../web/src/features/market/api/marketApi.js', () => api);
 const { default: HomeAssetCard } = await import('../../../web/src/features/home/HomeAssetCard.jsx');
 const { clearAssetCandlesCache } = await import('../../../web/src/features/home/useAssetCandles.js');
+const { buildAssetIndex, resolveHomeAsset } = await import('../../../web/src/features/home/homeAssets.js');
 
 const asset = { id: 'usd', found: true, name: 'دلار', code: 'USD', price: 101500, unit: 'تومان', category: 'currency', changePercent: 0.8, dayRange: { low: 100000, high: 102000, open: 100500 } };
 const series = (n) => {
@@ -117,7 +118,9 @@ describe('full card', () => {
   });
 
   it('gold shows its bubble analysis in front', () => {
-    const gold = { id: 'gold_18k', found: true, name: 'طلا', price: 9800000, unit: 'تومان', analysis: { market: 9800000, intrinsic: 9650000, target_bubble_pct: 2, expected_price: 9840000, diff_from_expected: -40000, diff_from_expected_pct: 0.4, bubble_pct: 1.5 } };
+    const analysis = { id: 'gold_18k', market: 9800000, intrinsic: 9650000, target_bubble_pct: 2, expected_price: 9840000, diff_from_expected: -40000, diff_from_expected_pct: 0.4, bubble_pct: 1.5 };
+    const index = buildAssetIndex({ itemMap: { gold_18k: { id: 'gold_18k', name: 'طلا', price: 9800000, sourceId: 's', params: {} } }, analysis: [analysis] });
+    const gold = resolveHomeAsset('gold_18k', index);
     const { container } = render(React.createElement(HomeAssetCard, { asset: gold, style: 'detailed' }));
     expect(container.querySelectorAll('.pro-card-face.is-front .pro-metric')).toHaveLength(3);
     expect(container.querySelector('.pro-card-head .bubble-pill').textContent).toContain('حباب');

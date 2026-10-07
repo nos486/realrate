@@ -17,6 +17,7 @@
 import { logger } from "../lib/logger.js";
 import { normalizePriceId } from "../domain/priceBook.js";
 import { ensureSchema } from "./schema.repository.js";
+import { AVERAGE_WINDOWS, AVERAGE_WINDOW_KEYS, AVERAGE_MAX_DAYS, windowStart } from "../domain/priceAverages.js";
 
 export const DAY_SEC = 86400;
 
@@ -306,4 +307,59 @@ export async function importDailyCandles(env, key, candles, { overwrite = false,
     written += Number(res?.meta?.changes) || 0;
   }
   return { written, valid: rows.length };
+}
+
+// ── Averages (domain/priceAverages.js) ─────────────────────────────────────────────────────
+
+/**
+ * ?1: keys (JSON array), ?2: the last day, ?3: the first day read, then each window's first day
+ * in AVERAGE_WINDOWS order → per key, each window's sum and count of closes. One primary-key range
+ * per key: only the rows inside the longest window are read.
+ */
+export const AVERAGE_SUMS_SQL = `
+SELECT item_key, ${AVERAGE_WINDOW_KEYS.map((w, i) => `SUM(CASE WHEN day >= ?${i + 4} THEN value END) AS sum_${w}, COUNT(CASE WHEN day >= ?${i + 4} THEN 1 END) AS n_${w}`).join(", ")}
+FROM price_daily
+WHERE item_key IN (SELECT value FROM json_each(?1)) AND day >= ?3 AND day <= ?2
+GROUP BY item_key
+`;
+
+/** ?1: keys (JSON array), ?2: days (JSON array) → those days' closes: a lookup per key and day */
+export const AVERAGE_DAYS_SQL = `
+SELECT item_key, day, value FROM price_daily
+WHERE item_key IN (SELECT value FROM json_each(?1)) AND day IN (SELECT value FROM json_each(?2))
+`;
+
+/**
+ * Each key's sum and count of closes per averaging window ending on `through`
+ * @returns {Promise<Array<object>|null>} null when the history is unavailable
+ */
+export async function readAverageSums(env, keys, through) {
+  if (!env?.DB?.prepare) return null;
+  const starts = AVERAGE_WINDOW_KEYS.map((w) => windowStart(through, AVERAGE_WINDOWS[w].days));
+  try {
+    await ensureSchema(env);
+    const res = await env.DB.prepare(AVERAGE_SUMS_SQL)
+      .bind(JSON.stringify(keys), through, windowStart(through, AVERAGE_MAX_DAYS), ...starts)
+      .all();
+    return res?.results || [];
+  } catch (err) {
+    logger.warn("[PriceHistory] Average sums failed:", { error: err.message, keys: keys.length });
+    return null;
+  }
+}
+
+/**
+ * The closes of a few days (the days an averages move reads)
+ * @returns {Promise<Array<{ item_key: string, day: string, value: number }>|null>}
+ */
+export async function readDayCloses(env, keys, days) {
+  if (!env?.DB?.prepare) return null;
+  try {
+    await ensureSchema(env);
+    const res = await env.DB.prepare(AVERAGE_DAYS_SQL).bind(JSON.stringify(keys), JSON.stringify(days)).all();
+    return res?.results || [];
+  } catch (err) {
+    logger.warn("[PriceHistory] Day closes failed:", { error: err.message, keys: keys.length });
+    return null;
+  }
 }

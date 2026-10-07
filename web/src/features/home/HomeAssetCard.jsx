@@ -1,12 +1,14 @@
 /**
  * HomeAssetCard.jsx — One asset on the home page, in any of the card styles
  *
- * - detailed (the full card): a card that turns over. The front: price, its change (the last
- *   session's, from the price book), for gold & coins the bubble analysis (intrinsic value, standard price, deviation), and today's
- *   low and high (from the price book). Tapped (or Enter / Space), it turns to its back: only the
+ * - detailed (the full card): a card that turns over. The front: its main figure (the last price,
+ *   or the 30-day / one-year average the user chose), its change (the last session's, from the
+ *   price book), when it was last updated («۳۰ دقیقه پیش»), its slots (up to three values of the
+ *   asset or of a linked one — a coin's bubble; for gold & coins the bubble analysis until chosen),
+ *   and today's low and high (from the price book). Tapped (or Enter / Space), it turns to its back: only the
  *   candles (۱ ماه / ۶ ماه / ۱ سال), fetched the first time that card is turned — nothing loads
  *   before; the card is locked while they load.
- * - compact: small row card (flag/icon, name, symbol, price).
+ * - compact: small row card (flag/icon, name, symbol, its main figure).
  * A dollar-priced asset (the ounce, oil) reads in dollars, or in tomans when its card is set so
  * (`asset.display: 'toman'`, homeAssets.js): then the dollar price is the small line under it.
  * A section saved with the older "trend" style is shown as full cards.
@@ -18,6 +20,8 @@ import { CategoryIcon } from '../portfolio/utils/holdingHelpers.js';
 import TrendCandles from './TrendCandles.jsx';
 import { useAssetCandles } from './useAssetCandles.js';
 import { formatPrice } from '../market/assetPrice.js';
+import { AVERAGE_WINDOWS } from '../../utils/priceAverages.js';
+import { timeAgo } from '../../shared/utils/timeAgo.js';
 
 // In the asset's own currency: dollars keep their cents, tomans are whole (a coin worth 0.37
 // toman is not 0)
@@ -79,10 +83,11 @@ function CompactCard({ asset }) {
         </div>
       </div>
       <div className="curr-price-block">
-        <div className="curr-price-val">
-          {asset.price ? formatNum(asset.price, asset.currency) : '—'}
+        <div className="curr-price-val" title={asset.main ? `${asset.main.label} — آخرین قیمت ${formatNum(asset.price, asset.currency)}` : undefined}>
+          {asset.main ? formatNum(asset.main.value, asset.main.currency) : asset.price ? formatNum(asset.price, asset.currency) : '—'}
           <span className="curr-unit">{asset.unit}</span>
         </div>
+        {asset.main && <span className="curr-main-label">{asset.main.label}</span>}
         {change && <span className={`home-change ${change.className}`}>{change.text}</span>}
         <StaleMark asset={asset} />
       </div>
@@ -121,36 +126,60 @@ function CardHead({ asset, pill }) {
   );
 }
 
-/** Gold & coins: the bubble analysis, as three small figures */
-function GoldMetrics({ item }) {
-  const hasMarket = item.market !== null && item.market !== undefined;
-  const showStandard = item.target_bubble_pct > 0;
-  if (!hasMarket && !showStandard) return null;
+const signed = (v, digits = 1) => `${v < 0 ? '−' : v > 0 ? '+' : ''}${formatPct(v, digits)}٪`;
+
+/** How a slot's value reads: its tone (a CSS class) by what it is */
+function slotTone(slot) {
+  if (slot.value === null) return '';
+  if (slot.key.endsWith('intrinsic')) return 'gold-val';
+  if (slot.key.endsWith('standard')) return 'blue-val';
+  // Below the standard price is the better buy
+  if (slot.key.endsWith('deviation')) return slot.value < 0 ? 'good-val' : 'warn-val';
+  if (slot.key.endsWith('change')) return slot.value > 0 ? 'up-val' : slot.value < 0 ? 'down-val' : '';
+  return '';
+}
+
+/** An average of fewer days than its window says how many («از ۲۰۰ روز») */
+const daysNote = (window, days) => (window && days && days < AVERAGE_WINDOWS[window]?.days ? `از ${Number(days).toLocaleString('fa-IR')} روز ثبت‌شده` : '');
+
+function slotText(slot) {
+  if (slot.value === null) return '—';
+  if (slot.kind === 'pct') return slot.key.endsWith('change') || slot.key.endsWith('deviation') ? signed(slot.value) : `${formatPct(slot.value)}٪`;
+  return `${slot.currency === 'usd' ? '$' : ''}${formatNum(slot.value, slot.currency)}`;
+}
+
+/** The card's slots: up to three small figures (its own values, or a linked asset's) */
+function CardSlots({ slots }) {
+  if (!slots?.length) return null;
   return (
     <div className="pro-metrics">
-      {hasMarket && (
-        <div className="pro-metric">
-          <span>ارزش ذاتی</span>
-          <strong className="gold-val">{formatNum(item.intrinsic)}</strong>
-        </div>
-      )}
-      {showStandard && (
-        <div className="pro-metric">
-          <span>قیمت استاندارد</span>
-          <strong className="blue-val">{formatNum(item.expected_price)}</strong>
-        </div>
-      )}
-      {hasMarket && showStandard && item.diff_from_expected !== null && (
-        <div className="pro-metric">
-          <span>انحراف</span>
-          <strong className={item.diff_from_expected < 0 ? 'good-val' : 'warn-val'}>
-            {item.diff_from_expected < 0 ? '−' : '+'}
-            {formatPct(item.diff_from_expected_pct)}٪
-          </strong>
-        </div>
-      )}
+      {slots.map((slot) => {
+        const label = slot.linkedName ? `${slot.label} · ${slot.linkedName}` : slot.label;
+        const note = daysNote(slot.window, slot.days);
+        return (
+          <div key={slot.key} className="pro-metric" title={note ? `${label} (${note})` : label}>
+            <span>{slot.label}</span>
+            {slot.linkedName && <small>{slot.linkedName}</small>}
+            <strong className={slotTone(slot)}><bdi>{slotText(slot)}</bdi></strong>
+          </div>
+        );
+      })}
     </div>
   );
+}
+
+/** «میانگین ۳۰ روز · آخرین قیمت ۱۲۰٬۰۰۰» under a main figure that isn't the last price */
+function MainCaption({ asset, price, currency }) {
+  if (asset.main) {
+    const note = daysNote(asset.main.window, asset.main.days);
+    return (
+      <span className="home-price-caption">
+        {asset.main.label}{note ? ` (${note})` : ''} · آخرین قیمت {price ? formatNum(price, currency) : '—'}
+      </span>
+    );
+  }
+  if (asset.mainMissing) return <span className="home-price-caption">{asset.mainMissing} هنوز ثبت نشده — آخرین قیمت</span>;
+  return null;
 }
 
 const CANDLE_RANGES = [
@@ -233,7 +262,12 @@ function FullCard({ asset, isBest = false, flippable = true }) {
         <div className="pro-card-face is-front" aria-hidden={isFlipped}>
           <CardHead asset={asset} pill={pill} />
           <div className="pro-card-price">
-            {price ? (
+            {asset.main ? (
+              <>
+                <span className="pro-card-price-value">{formatNum(asset.main.value, asset.main.currency)}</span>
+                <span className="pro-card-price-unit">{unit}</span>
+              </>
+            ) : price ? (
               <>
                 <span className="pro-card-price-value">{formatNum(price, currency)}</span>
                 <span className="pro-card-price-unit">{unit}</span>
@@ -243,10 +277,16 @@ function FullCard({ asset, isBest = false, flippable = true }) {
             )}
             {item && changePill}
           </div>
+          <MainCaption asset={asset} price={price} currency={currency} />
           {asset.display === 'toman' && asset.note && <span className="home-price-caption">{asset.note}</span>}
           {item && !hasMarket && <span className="home-price-caption">ارزش ذاتی — نرخ بازار فعلاً در دسترس نیست</span>}
           <StaleMark asset={asset} />
-          {item && <GoldMetrics item={item} />}
+          {asset.updatedAt && (
+            <span className="pro-card-updated" title={new Date(asset.updatedAt).toLocaleString('fa-IR')}>
+              به‌روزرسانی {timeAgo(asset.updatedAt)}
+            </span>
+          )}
+          <CardSlots slots={asset.slots} />
           <div className="pro-card-foot">
             <DayRange range={asset.dayRange} currency={asset.currency} />
             {flippable && (
