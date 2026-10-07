@@ -6,9 +6,10 @@
  * spending from it and what moved in and out of it between the user's own accounts; expenses pick
  * one of them as the account they were paid from. Below the cards, «انتقال بین حساب‌ها»: money
  * moved between the user's accounts (cash management) — never an expense or an income
- * (TransferForm, utils/transferDocument.js). A bank credit's card also shows its debt, the next
- * payment and its installments, with «پرداخت بدهی» and, for a statement not settled in time,
- * «تبدیل به اقساط» (CreditSummary, CreditPaymentForm, CreditConversionForm, utils/creditAccount.js). Everything is end-to-end encrypted.
+ * (TransferForm, utils/transferDocument.js). A bank credit's card shows its limit and debt, with
+ * «تسویه بدهی», «تبدیل به قسط» and each installment's «پرداخت» — all by hand, the fees worked out
+ * from the amounts entered (CreditSummary, CreditPaymentForm, CreditConversionForm,
+ * utils/creditAccount.js). Everything is end-to-end encrypted.
  */
 
 import React, { useMemo, useState } from 'react';
@@ -33,6 +34,8 @@ import { useQuickAddParam } from '../../../shared/hooks/useQuickAddParam.js';
 import { useAccounts } from '../hooks/useAccounts.js';
 import { useTransfers } from '../hooks/useTransfers.js';
 import { useCreditStatus } from '../hooks/useCreditStatus.js';
+import { CREDIT_COST_CATEGORY } from '../../../utils/creditAccount.js';
+import { getExpenseGroups, ensureDailyGroup, saveExpense, deleteExpense } from '../../../shared/vault/vaultExpenses.js';
 import { getAccountTypeIcon, accountLabel } from '../constants/accountDisplay.js';
 import AccountForm from './AccountForm.jsx';
 import TransferForm from './TransferForm.jsx';
@@ -58,8 +61,9 @@ export default function AccountsPage() {
   } = useAccounts();
   const [form, setForm] = useState(null); // null | { account: object|null }
   const [transferForm, setTransferForm] = useState(null); // null | { transfer: object|null }
-  const [payCredit, setPayCredit] = useState(null); // null | the credit account being paid
-  const [convert, setConvert] = useState(null); // null | { account, statement } being turned into installments
+  // null | { accountId, installment?: { planId, n, count, dueDate, amount } }: settling a credit, or paying an installment
+  const [payCredit, setPayCredit] = useState(null);
+  const [convertId, setConvertId] = useState(null); // null | the credit account whose debt is turned into installments
   // Each bank credit's debt, next payment and installments
   const credit = useCreditStatus(accounts);
 
@@ -116,17 +120,60 @@ export default function AccountsPage() {
     if (ok) deleteTransfer(transfer.id).then(credit.reload).catch(() => {});
   };
 
-  // A statement's installments are kept on the credit account, as the bank set them
-  const saveConversions = (account, conversions) => saveAccount({ credit: { ...account.credit, conversions } }, account);
+  // A credit's installment plans are kept on its account, as the user entered them (always the
+  // latest copy of the account: one may have just been saved)
+  const saveConversions = (accountId, change) => {
+    const account = accountById.get(accountId);
+    return saveAccount({ credit: { ...account.credit, conversions: change(account.credit.conversions || []) } }, account);
+  };
+
+  // «تبدیل به قسط»: the installments' fee is an expense charged to the credit itself, so the credit
+  // owes the installments' total
+  const handleConvert = async (accountId, conversion, cost) => {
+    const account = accountById.get(accountId);
+    let feeExpenseId = '';
+    if (cost > 0) {
+      const group = await ensureDailyGroup((await getExpenseGroups()).groups || []);
+      const { expense } = await saveExpense({
+        groupId: group.id,
+        title: `کارمزد قسط‌بندی ${account.name}`,
+        amount: cost,
+        currency: 'IRT',
+        date: conversion.date,
+        category: CREDIT_COST_CATEGORY,
+        accountId: account.id,
+        creditAccountId: account.id,
+      });
+      feeExpenseId = expense.id;
+    }
+    await saveConversions(accountId, (list) => [...list, { ...conversion, ...(feeExpenseId ? { feeExpenseId } : {}) }]);
+    credit.reload();
+  };
+
   const handleUndoConversion = async (account, plan) => {
     const ok = await confirm({
       title: 'حذف قسط‌بندی',
-      message: 'این قسط‌بندی حذف شود؟ مانده‌ی آن دوباره بدهی همان صورت‌حساب می‌شود و پرداخت‌ها دوباره به آن حساب می‌شوند.',
+      message: 'این قسط‌بندی و کارمزدش حذف شود؟ پرداخت‌هایی که برای اقساطش ثبت کرده‌اید باقی می‌مانند و از بدهی کم می‌شوند.',
       confirmLabel: 'حذف',
       danger: true,
     });
-    if (ok) saveConversions(account, (account.credit.conversions || []).filter((c) => c.id !== plan.id)).catch(() => {});
+    if (!ok) return;
+    try {
+      if (plan.feeExpenseId) await deleteExpense(plan.feeExpenseId).catch(() => {});
+      await saveConversions(account.id, (list) => list.filter((c) => c.id !== plan.id));
+      credit.reload();
+    } catch {
+      // Surfaced through the hook's `error` banner
+    }
   };
+
+  // An installment paid: the transfer is recorded by the form, then the installment is marked paid
+  const markInstallmentPaid = (accountId, { planId, n }, transfer, date) => saveConversions(accountId, (list) => list.map((c) => (
+    c.id !== planId ? c : {
+      ...c,
+      installments: c.installments.map((i, k) => (k + 1 === n ? { ...i, paidOn: date, transferId: transfer.id } : i)),
+    }
+  )));
 
   const toggleArchive = (account) => saveAccount({ archived: !account.archived }, account).catch(() => {});
 
@@ -201,13 +248,13 @@ export default function AccountsPage() {
                 )}
                 {isCreditAccount(account) && (
                   <CreditSummary
-                    account={account}
                     status={credit.statusById.get(account.id)}
                     costsPaid={credit.costsById.get(account.id) || 0}
                     hideValues={hideValues}
                     readOnly={readOnly}
-                    onPay={() => setPayCredit(account)}
-                    onConvert={(statement) => setConvert({ account, statement })}
+                    onSettle={() => setPayCredit({ accountId: account.id })}
+                    onConvert={() => setConvertId(account.id)}
+                    onPayInstallment={(plan, i) => setPayCredit({ accountId: account.id, installment: { planId: plan.id, n: i.n, count: plan.installments.length, dueDate: i.dueDate, amount: i.amount } })}
                     onUndoConversion={(plan) => handleUndoConversion(account, plan)}
                   />
                 )}
@@ -319,22 +366,26 @@ export default function AccountsPage() {
         />
       )}
 
-      {convert && (
+      {convertId && accountById.get(convertId) && (
         <CreditConversionForm
-          account={convert.account}
-          statement={convert.statement}
-          onSave={(conversion) => saveConversions(convert.account, [...(convert.account.credit.conversions || []), conversion])}
-          onClose={() => setConvert(null)}
+          account={accountById.get(convertId)}
+          debt={credit.statusById.get(convertId)?.freeDebt || 0}
+          onSave={(conversion, cost) => handleConvert(convertId, conversion, cost)}
+          onClose={() => setConvertId(null)}
         />
       )}
 
-      {payCredit && (
+      {payCredit && accountById.get(payCredit.accountId) && (
         <CreditPaymentForm
-          account={payCredit}
-          status={credit.statusById.get(payCredit.id)}
+          account={accountById.get(payCredit.accountId)}
+          debt={credit.statusById.get(payCredit.accountId)?.freeDebt || 0}
+          installment={payCredit.installment || null}
           payers={accounts.filter((a) => !a.archived && !isCreditAccount(a) && a.currency !== 'USD')}
           saveTransfer={(input) => saveTransfer(input)}
-          onPaid={credit.reload}
+          onPaid={async (transfer, date) => {
+            if (payCredit.installment) await markInstallmentPaid(payCredit.accountId, payCredit.installment, transfer, date);
+            credit.reload();
+          }}
           onClose={() => setPayCredit(null)}
         />
       )}

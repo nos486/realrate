@@ -1,45 +1,49 @@
 /**
- * CreditPaymentForm.jsx — «پرداخت بدهی»: paying a bank credit back from another of the user's
- * accounts
+ * CreditPaymentForm.jsx — Paying a bank credit back from another of the user's accounts, by hand
  *
- * Filled with the next payment (utils/creditAccount.js): the part that pays the credit back is
- * a transfer into it — never an expense, the purchases already were — and the settlement fee or
- * the installment's profit is an expense of its own («کارمزد و سود اعتبار», with the credit's id),
- * paid from the same account. Either amount can be changed to what was really paid.
+ * Two uses:
+ *  - «تسویه بدهی»: the debt settled and what was actually paid for it. What was paid is a
+ *    transfer into the credit (never an expense — the purchases already were), the part beyond
+ *    the debt settled its `fee`: the settlement fee, shown as it is typed (amount and percent) and
+ *    recorded as an expense of its own («کارمزد و سود اعتبار», with the credit's id), paid from
+ *    the same account.
+ *  - an installment (`installment`): its amount, paid into the credit; the page then marks it paid.
+ * (utils/creditAccount.js)
  */
 
 import React, { useState } from 'react';
 import { CreditCard } from 'lucide-react';
 import { AlertBanner, Button, FilterPills, Modal, NumericInput } from '../../../shared/ui/index.js';
-import ShamsiDatePicker, { getTodayShamsi, gregorianToShamsi, shamsiToGregorian } from '../../portfolio/components/ShamsiDatePicker.jsx';
-import { CREDIT_COST_CATEGORY } from '../../../utils/creditAccount.js';
+import ShamsiDatePicker, { getTodayShamsi, shamsiToGregorian, formatShamsiDisplay } from '../../portfolio/components/ShamsiDatePicker.jsx';
+import { CREDIT_COST_CATEGORY, settlementOf } from '../../../utils/creditAccount.js';
 import { getExpenseGroups, ensureDailyGroup, saveExpense } from '../../../shared/vault/vaultExpenses.js';
-import { todayIso } from '../../../shared/utils/dates.js';
 import { formatAmount } from '../../expenses/utils/format.js';
 import { accountLabel } from '../constants/accountDisplay.js';
 
 const digitsOnly = (v) => Number(String(v || '').replace(/[^\d]/g, '')) || 0;
+const faPct = (v) => Number(v).toLocaleString('fa-IR', { maximumFractionDigits: 2 });
 
 /**
- * @param {{ account: object, status: object, payers: object[], saveTransfer: (input: object) => Promise<object>,
- *   onPaid?: () => void, onClose: () => void }} props - payers: the accounts it can be paid from
+ * @param {{ account: object, debt?: number, installment?: { n: number, count: number, dueDate: string, amount: number }|null,
+ *   payers: object[], saveTransfer: (input: object) => Promise<object>, onPaid?: (transfer: object, date: string) => unknown,
+ *   onClose: () => void }} props - payers: the accounts it can be paid from; debt: what is owed
+ *   outside the installments (the settlement's starting amount)
  */
-export default function CreditPaymentForm({ account, status, payers = [], saveTransfer, onPaid, onClose }) {
-  const next = status?.next || null;
+export default function CreditPaymentForm({ account, debt = 0, installment = null, payers = [], saveTransfer, onPaid, onClose }) {
+  const start = installment ? installment.amount : debt;
   const [fromAccountId, setFrom] = useState(payers.length === 1 ? payers[0].id : '');
-  const [principal, setPrincipal] = useState(next ? String(next.principal) : '');
-  const [cost, setCost] = useState(next?.cost ? String(next.cost) : '');
-  // Paid only on the due day: that day, when it is today or still ahead
-  const dueDay = account.credit.payMode === 'due_day' && next && next.dueDate >= todayIso() ? next.dueDate : '';
-  const [dateShamsi, setDateShamsi] = useState(() => (dueDay ? gregorianToShamsi(`${dueDay}T00:00:00`) : getTodayShamsi()));
+  const [settled, setSettled] = useState(start ? String(start) : '');
+  const [paid, setPaid] = useState(start ? String(start) : '');
+  const [dateShamsi, setDateShamsi] = useState(getTodayShamsi);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
 
-  const principalNum = digitsOnly(principal);
-  const costNum = digitsOnly(cost);
   const dateIso = shamsiToGregorian(dateShamsi);
-  const isValid = Boolean(fromAccountId) && principalNum > 0 && Boolean(dateIso) && !submitting;
-  const costLabel = next?.kind === 'installment' ? 'سود قسط' : 'کارمزد تسویه';
+  const settledNum = digitsOnly(settled);
+  // An installment is paid as it is; a settlement may cost a fee
+  const result = installment ? { fee: 0, pct: 0 } : settlementOf(settledNum, digitsOnly(paid));
+  const isValid = Boolean(fromAccountId) && settledNum > 0 && !result.error && Boolean(dateIso) && !submitting;
+  const what = installment ? `قسط ${faPct(installment.n)} از ${faPct(installment.count)}` : 'تسویه‌ی بدهی';
 
   const handleSubmit = async (e) => {
     e?.preventDefault?.();
@@ -47,22 +51,30 @@ export default function CreditPaymentForm({ account, status, payers = [], saveTr
     setSubmitting(true);
     setError('');
     try {
-      const what = next?.label || 'پرداخت';
-      await saveTransfer({ fromAccountId, toAccountId: account.id, amount: principalNum, fee: 0, date: dateIso, notes: `${what} — ${account.name}` });
-      if (costNum > 0) {
+      const transfer = await saveTransfer({
+        fromAccountId,
+        toAccountId: account.id,
+        // What left the account; the fee is the part of it that didn't pay the debt (transferDocument.js)
+        amount: settledNum + result.fee,
+        fee: result.fee,
+        date: dateIso,
+        notes: `${what} — ${account.name}`,
+      });
+      if (result.fee > 0) {
         const group = await ensureDailyGroup((await getExpenseGroups()).groups || []);
         await saveExpense({
           groupId: group.id,
-          title: `${costLabel} ${account.name}`,
-          amount: costNum,
+          title: `کارمزد تسویه ${account.name}`,
+          amount: result.fee,
           currency: 'IRT',
           date: dateIso,
           category: CREDIT_COST_CATEGORY,
           accountId: fromAccountId,
           creditAccountId: account.id,
+          notes: `${faPct(result.pct)}٪ از ${formatAmount(settledNum)} تومان`,
         });
       }
-      onPaid?.();
+      await onPaid?.(transfer, dateIso);
       onClose();
     } catch (err) {
       setError(err.message || 'ثبت پرداخت ممکن نشد.');
@@ -74,8 +86,10 @@ export default function CreditPaymentForm({ account, status, payers = [], saveTr
     <Modal
       isOpen
       onClose={onClose}
-      title={`پرداخت بدهی «${account.name}»`}
-      subtitle="بازپرداخت اعتبار انتقال به همین حساب است و دوباره هزینه حساب نمی‌شود؛ فقط کارمزد یا سود، هزینه است"
+      title={installment ? `پرداخت ${what}` : `تسویه بدهی «${account.name}»`}
+      subtitle={installment
+        ? `سررسید ${formatShamsiDisplay(`${installment.dueDate}T00:00:00`)}`
+        : 'بدهی تسویه‌شده انتقال به همین حساب است و دوباره هزینه حساب نمی‌شود؛ مابه‌التفاوت، کارمزد تسویه است'}
       icon={<CreditCard size={18} />}
       maxWidth="520px"
       onSubmit={handleSubmit}
@@ -88,12 +102,6 @@ export default function CreditPaymentForm({ account, status, payers = [], saveTr
     >
       <div className="income-form-body">
         {error && <AlertBanner type="error" message={error} />}
-        {next && (
-          <AlertBanner
-            type="info"
-            message={`${next.label}: ${formatAmount(next.amount)} تومان${dueDay ? ' — این اعتبار فقط در روز سررسید پرداخت می‌شود' : ''}`}
-          />
-        )}
         {payers.length === 0 ? (
           <AlertBanner type="info" message="برای پرداخت، حسابی که از آن پرداخت می‌کنید را در صفحه‌ی «حساب‌ها» اضافه کنید." />
         ) : (
@@ -110,19 +118,25 @@ export default function CreditPaymentForm({ account, status, payers = [], saveTr
         )}
 
         <div className="ui-input-group">
-          <label htmlFor="credit-pay-principal" className="ui-input-label">بازپرداخت اعتبار (تومان) *</label>
+          <label htmlFor="credit-pay-settled" className="ui-input-label">{installment ? 'مبلغ قسط (تومان) *' : 'بدهی تسویه‌شده (تومان) *'}</label>
           <div className="ui-input-wrapper">
-            <NumericInput id="credit-pay-principal" value={principal} onValueChange={setPrincipal} className="ui-input-control" required />
+            <NumericInput id="credit-pay-settled" value={settled} onValueChange={setSettled} className="ui-input-control" required />
           </div>
         </div>
 
-        <div className="ui-input-group">
-          <label htmlFor="credit-pay-cost" className="ui-input-label">{costLabel} (تومان، اختیاری)</label>
-          <div className="ui-input-wrapper">
-            <NumericInput id="credit-pay-cost" value={cost} onValueChange={setCost} placeholder="۰" className="ui-input-control" />
+        {!installment && (
+          <div className="ui-input-group">
+            <label htmlFor="credit-pay-paid" className="ui-input-label">مبلغ پرداختی (تومان) *</label>
+            <div className="ui-input-wrapper">
+              <NumericInput id="credit-pay-paid" value={paid} onValueChange={setPaid} className="ui-input-control" required />
+            </div>
+            <p className="expense-form-hint">
+              {result.error || (result.fee > 0
+                ? `کارمزد تسویه: ${formatAmount(result.fee)} تومان (${faPct(result.pct)}٪) — جدا به‌عنوان هزینه ثبت می‌شود`
+                : 'بدون کارمزد')}
+            </p>
           </div>
-          <p className="expense-form-hint">به‌عنوان هزینه با دسته‌ی «کارمزد و سود اعتبار» ثبت می‌شود.</p>
-        </div>
+        )}
 
         <ShamsiDatePicker label="تاریخ پرداخت *" value={dateShamsi} onChange={setDateShamsi} />
       </div>

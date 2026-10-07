@@ -572,6 +572,59 @@
   color: var(--text-muted);
 }
 
+.credit-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+.credit-plan li > span:last-child {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* «تبدیل به قسط»: quick fill, then a row per installment */
+.credit-fill {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 0;
+  padding: 10px 12px 12px;
+  border: var(--card-inner-border);
+  border-radius: 12px;
+}
+
+.credit-fill legend {
+  padding: 0 6px;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.credit-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.credit-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr auto;
+  align-items: end;
+  gap: 8px;
+}
+
+@media (max-width: 480px) {
+  .credit-row {
+    grid-template-columns: 1fr auto;
+  }
+
+  .credit-row > :first-child {
+    grid-column: 1 / -1;
+  }
+}
+
 /* The credit's terms in its form */
 .credit-terms-fields {
   display: flex;
