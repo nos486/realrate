@@ -2,9 +2,9 @@
  * accountDisplay.js — How an account is shown: its icon and its one-line label
  */
 
-import { Landmark, Banknote, Smartphone, WalletMinimal } from 'lucide-react';
+import { Landmark, Banknote, Smartphone, WalletMinimal, CreditCard } from 'lucide-react';
 
-const TYPE_ICONS = { bank: Landmark, cash: Banknote, wallet: Smartphone, other: WalletMinimal };
+const TYPE_ICONS = { bank: Landmark, credit: CreditCard, cash: Banknote, wallet: Smartphone, other: WalletMinimal };
 
 export function getAccountTypeIcon(type) {
   return TYPE_ICONS[type] || WalletMinimal;

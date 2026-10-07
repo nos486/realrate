@@ -6,7 +6,9 @@
  * spending from it and what moved in and out of it between the user's own accounts; expenses pick
  * one of them as the account they were paid from. Below the cards, «انتقال بین حساب‌ها»: money
  * moved between the user's accounts (cash management) — never an expense or an income
- * (TransferForm, utils/transferDocument.js). Everything is end-to-end encrypted.
+ * (TransferForm, utils/transferDocument.js). A bank credit's card also shows its debt, the next
+ * payment and its installments, with «پرداخت بدهی» (CreditSummary, CreditPaymentForm,
+ * utils/creditAccount.js). Everything is end-to-end encrypted.
  */
 
 import React, { useMemo, useState } from 'react';
@@ -19,7 +21,7 @@ import { BankLogo, resolveBank, useCustomBanks } from '../../../shared/banks/ind
 import { useFeature } from '../../../shared/features/useFeature.js';
 import { usePrivacyMode } from '../../../hooks/usePrivacyMode.js';
 import { todayIso } from '../../../shared/utils/dates.js';
-import { accountTypeLabel } from '../../../utils/accountDocument.js';
+import { accountTypeLabel, isCreditAccount } from '../../../utils/accountDocument.js';
 import { summarizeByAccount, shamsiMonthOf, shamsiMonthRange, shiftShamsiMonth } from '../../../utils/expenseDocument.js';
 import { summarizeTransfersByAccount } from '../../../utils/transferDocument.js';
 import { formatShamsiMonth } from '../../incomes/utils/incomeReport.js';
@@ -30,14 +32,17 @@ import { formatAmount } from '../../expenses/utils/format.js';
 import { useQuickAddParam } from '../../../shared/hooks/useQuickAddParam.js';
 import { useAccounts } from '../hooks/useAccounts.js';
 import { useTransfers } from '../hooks/useTransfers.js';
+import { useCreditStatus } from '../hooks/useCreditStatus.js';
 import { getAccountTypeIcon, accountLabel } from '../constants/accountDisplay.js';
 import AccountForm from './AccountForm.jsx';
 import TransferForm from './TransferForm.jsx';
+import CreditSummary from './CreditSummary.jsx';
+import CreditPaymentForm from './CreditPaymentForm.jsx';
 
 const HEADER = {
   icon: <WalletCards size={24} />,
   title: 'حساب‌ها',
-  subtitle: 'حساب‌های بانکی، پول نقد و کیف پول؛ منبع هزینه‌های شما',
+  subtitle: 'حساب‌های بانکی، اعتبارها، پول نقد و کیف پول؛ منبع هزینه‌های شما',
 };
 
 export default function AccountsPage() {
@@ -52,6 +57,9 @@ export default function AccountsPage() {
   } = useAccounts();
   const [form, setForm] = useState(null); // null | { account: object|null }
   const [transferForm, setTransferForm] = useState(null); // null | { transfer: object|null }
+  const [payCredit, setPayCredit] = useState(null); // null | the credit account being paid
+  // Each bank credit's debt, next payment and installments
+  const credit = useCreditStatus(accounts);
 
   // This month's everyday spending per account (only with the expenses feature)
   const thisMonth = useMemo(() => shamsiMonthOf(todayIso()), []);
@@ -103,7 +111,7 @@ export default function AccountsPage() {
       confirmLabel: 'حذف',
       danger: true,
     });
-    if (ok) deleteTransfer(transfer.id).catch(() => {});
+    if (ok) deleteTransfer(transfer.id).then(credit.reload).catch(() => {});
   };
 
   const toggleArchive = (account) => saveAccount({ archived: !account.archived }, account).catch(() => {});
@@ -156,7 +164,7 @@ export default function AccountsPage() {
           {accounts.map((account) => {
             const Icon = getAccountTypeIcon(account.type);
             const spent = spentBy.get(account.id);
-            const bank = account.type === 'bank' && account.bankId
+            const bank = (account.type === 'bank' || account.type === 'credit') && account.bankId
               ? resolveBank({ bankId: account.bankId, lenderName: account.bankName }, customBanks)
               : null;
             return (
@@ -176,6 +184,16 @@ export default function AccountsPage() {
                   <div className="account-card-number" dir="ltr">
                     •••• •••• •••• {account.cardLast4}
                   </div>
+                )}
+                {isCreditAccount(account) && (
+                  <CreditSummary
+                    account={account}
+                    status={credit.statusById.get(account.id)}
+                    costsPaid={credit.costsById.get(account.id) || 0}
+                    hideValues={hideValues}
+                    readOnly={readOnly}
+                    onPay={() => setPayCredit(account)}
+                  />
                 )}
                 {hasExpenses && (
                   <div className="account-card-stat">
@@ -276,8 +294,23 @@ export default function AccountsPage() {
           transfer={transferForm.transfer}
           accounts={accounts.filter((a) => !a.archived || a.id === transferForm.transfer?.fromAccountId || a.id === transferForm.transfer?.toAccountId)}
           submitting={savingTransfer}
-          onSubmit={(input) => saveTransfer(input, transferForm.transfer)}
+          onSubmit={async (input) => {
+            await saveTransfer(input, transferForm.transfer);
+            // A transfer into or out of a credit changes what is owed on it
+            credit.reload();
+          }}
           onClose={() => setTransferForm(null)}
+        />
+      )}
+
+      {payCredit && (
+        <CreditPaymentForm
+          account={payCredit}
+          status={credit.statusById.get(payCredit.id)}
+          payers={accounts.filter((a) => !a.archived && !isCreditAccount(a) && a.currency !== 'USD')}
+          saveTransfer={(input) => saveTransfer(input)}
+          onPaid={credit.reload}
+          onClose={() => setPayCredit(null)}
         />
       )}
 
