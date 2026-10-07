@@ -32,6 +32,8 @@ import VaultLockCard from './VaultLockCard.jsx';
 import HoldingsCustomizeEditor from './HoldingsCustomizeEditor.jsx';
 import AssetLedgerDetails from './AssetLedgerDetails.jsx';
 import TargetAllocationModal from './TargetAllocationModal.jsx';
+import PortfolioPlanCards from './PortfolioPlanCards.jsx';
+import { useMediaQuery } from '../../../hooks/useMediaQuery.js';
 import RiskToleranceModal from './RiskToleranceModal.jsx';
 import { useRiskProfile } from '../hooks/useRiskProfile.js';
 import AlertStack from '../../../shared/alerts/AlertStack.jsx';
@@ -91,6 +93,8 @@ const HoldingsView = forwardRef(function HoldingsView(
 
   const { result: riskResult, save: saveRiskResult } = useRiskProfile(activePortfolio, activeVaultKey, isVaultLocked);
   const [riskOpen, setRiskOpen] = useState(false);
+  // Where the page stacks into one column, the plan cards go below the holdings
+  const stacked = useMediaQuery('(max-width: 1024px)');
 
   const [isCustomizing, setIsCustomizing] = useState(false);
 
@@ -402,6 +406,7 @@ const HoldingsView = forwardRef(function HoldingsView(
             onEditTargets={readOnly ? null : () => setTargetsOpen(true)}
             riskResult={riskResult}
             onOpenRisk={readOnly && !riskResult ? null : () => setRiskOpen(true)}
+            hidePlanCards={stacked}
             dollarPnl={dollarTotal}
           />
         }
@@ -473,6 +478,18 @@ const HoldingsView = forwardRef(function HoldingsView(
               </div>
             )}
           </div>
+          {stacked && (
+            <div className="portfolio-plan-cards">
+              <PortfolioPlanCards
+                allocation={portfolioMetrics.items.length > 0 ? allocation : null}
+                onEditTargets={readOnly ? null : () => setTargetsOpen(true)}
+                riskResult={riskResult}
+                onOpenRisk={readOnly && !riskResult ? null : () => setRiskOpen(true)}
+                hideValues={hideValues}
+                isVaultLocked={isVaultLocked}
+              />
+            </div>
+          )}
       </SplitPageLayout>
 
       <TransactionForm

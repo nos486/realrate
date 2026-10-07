@@ -16,6 +16,7 @@ import {
   validateRiskResult,
 } from '../../src/domain/riskProfile.js';
 import RiskMixPie from '../../../web/src/features/portfolio/components/RiskMixPie.jsx';
+import PortfolioPlanCards from '../../../web/src/features/portfolio/components/PortfolioPlanCards.jsx';
 import RiskToleranceModal from '../../../web/src/features/portfolio/components/RiskToleranceModal.jsx';
 
 afterEach(cleanup);
@@ -125,5 +126,24 @@ describe('RiskMixPie', () => {
     cleanup();
     render(<RiskMixPie items={mixItemsOf(profileOf(0).allocation)} />);
     expect(screen.queryByText('ارز دیجیتال')).toBeNull();
+  });
+});
+
+describe('PortfolioPlanCards', () => {
+  const result = validateRiskResult({ totalAsset: 1000, answers: Array(6).fill(500) }).value;
+
+  it('shows the risk card with the profile and opens the test', () => {
+    const onOpenRisk = vi.fn();
+    render(<PortfolioPlanCards riskResult={result} onOpenRisk={onOpenRisk} />);
+    expect(screen.getByText('متعادل')).toBeTruthy();
+    fireEvent.click(screen.getByText('مشاهدهٔ نتیجه'));
+    expect(onOpenRisk).toHaveBeenCalledTimes(1);
+  });
+
+  it('shows nothing with a locked vault or without an opener', () => {
+    const { container, rerender } = render(<PortfolioPlanCards riskResult={result} onOpenRisk={() => {}} isVaultLocked />);
+    expect(container.innerHTML).toBe('');
+    rerender(<PortfolioPlanCards riskResult={result} />);
+    expect(container.innerHTML).toBe('');
   });
 });
