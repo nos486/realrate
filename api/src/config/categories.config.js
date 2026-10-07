@@ -82,18 +82,34 @@ export const CATEGORIES_CONFIG = [
     order: 8,
   },
   {
+    // Market indicators, not assets: a coin's bubble (its price above its gold's value). Shown on
+    // cards and charts, never bought or held — `holdable: false` keeps them out of the portfolio
+    key: 'bubble',
+    name: 'حباب سکه و طلا',
+    badge: 'حباب',
+    iconName: 'Gauge',
+    color: 'amber',
+    order: 9,
+    holdable: false,
+  },
+  {
     key: 'custom',
     name: 'دارایی‌های شخصی و سفارشی',
     badge: 'سفارشی',
     iconName: 'Sparkles',
     color: 'blue',
-    order: 9,
+    order: 10,
   },
 ];
 
 export const CATEGORY_MAP = Object.fromEntries(
   CATEGORIES_CONFIG.map((c) => [c.key, c])
 );
+
+/** Whether assets of a category can be held (bought, sold, priced in a portfolio); default yes */
+export function isHoldableCategory(key) {
+  return CATEGORY_MAP[key]?.holdable !== false;
+}
 
 export function getCategoryConfig(key) {
   return CATEGORY_MAP[key] || null;

@@ -26,6 +26,9 @@
  * - Prices computed from others are items too: the intrinsic value of gold, coins and silver with
  *   no market source (from the ounce and USD), and cash (1 toman). Items that also have a market
  *   price carry their intrinsic value and bubble in `params`.
+ * - Market indicators are items too (a coin's bubble from tgju, category `bubble`): a value in
+ *   tomans like any price, not holdable (categories.config.js). One that measures another item
+ *   (`bubbleOf` in its spec) also carries its percent of it (`params.bubblePct`).
  *
  * The same ids are used for stored user data, the home page, charts and the price history.
  * Pure: no I/O. Shared with the web app (it recomputes bubbles for the calculator with it).
@@ -38,6 +41,7 @@ import { FOREX_SPECS } from "./specs/forex.spec.js";
 import { CRYPTO_SPECS } from "./specs/crypto.spec.js";
 import { CASH_SPECS } from "./specs/cash.spec.js";
 import { COMMODITY_SPECS } from "./specs/commodity.spec.js";
+import { BUBBLE_SPECS } from "./specs/bubble.spec.js";
 import { calculateGold24kGram, calculateSilverGram, calculateBubble } from "./formulas.js";
 
 /** The items other prices are computed from */
@@ -169,6 +173,7 @@ export const SPEC_BY_ID = (() => {
   Object.values(CRYPTO_SPECS).forEach((s) => add(s));
   Object.values(CASH_SPECS).forEach((s) => add(s));
   Object.values(COMMODITY_SPECS).forEach((s) => add(s));
+  Object.values(BUBBLE_SPECS).forEach((s) => add(s));
   FOREX_SPECS.forEach((s) => add({ ...s, id: s.code, category: s.category || "currency" }, s.code));
   return index;
 })();
@@ -399,7 +404,15 @@ export function buildPriceBook(sources, { now = new Date().toISOString(), source
     }
   }
 
-  // 4. Fixed prices (cash)
+  // 4. Indicators of another item (a coin's bubble, `bubbleOf` in its spec): their percent of
+  //    that item's value without them (the coin's gold), at the book's own price
+  for (const item of Object.values(items)) {
+    const of = SPEC_BY_ID.get(item.id)?.bubbleOf;
+    const base = of ? positive(items[normalizePriceId(of)]?.price) - item.price : 0;
+    if (base > 0) item.params = { ...item.params, bubblePct: Math.round((item.price / base) * 10000) / 100, bubbleOf: normalizePriceId(of) };
+  }
+
+  // 5. Fixed prices (cash)
   for (const spec of Object.values(CASH_SPECS)) {
     const id = normalizePriceId(spec.id);
     if (!items[id] && positive(spec.staticPrice)) {
@@ -416,7 +429,7 @@ export function buildPriceBook(sources, { now = new Date().toISOString(), source
     }
   }
 
-  // 5. Staleness: a source that hasn't synced for a while marks its prices, and prices computed
+  // 6. Staleness: a source that hasn't synced for a while marks its prices, and prices computed
   //    from a stale dollar or ounce are stale too
   markStale(items, list, sourceStates || {}, Date.parse(now) || Date.now());
 

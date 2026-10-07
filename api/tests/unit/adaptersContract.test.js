@@ -264,9 +264,9 @@ describe("Phase 1 Contract Verification — All Adapters output strictly {items:
     expect(charismaPlansSourceAdapter.getLatestPlans).toBeUndefined();
   });
 
-  // 9. All 7 adapters have getItems()
+  // 9. All 8 adapters have getItems()
   test("9. All registered adapters in sourceAdapters implement getItems()", () => {
-    expect(sourceAdapters.length).toBe(7);
+    expect(sourceAdapters.length).toBe(8);
     for (const adapter of sourceAdapters) {
       expect(
         typeof adapter.getItems,
@@ -305,6 +305,10 @@ describe("Phase 1 Contract Verification — All Adapters output strictly {items:
       api_url: {
         raw: { price: "72000" },
         config: { id: "src_test_api", name: "تست وب سرویس", priceType: "custom", endpoint: "https://api.test/price" },
+      },
+      tgju_indicators: {
+        raw: [{ slug: "coin_blubber", id: "bubble_full_coin", name: "حباب سکه امامی", latest: { day: "2026-10-06", close: 92000000 } }],
+        config: { id: "src_test_tgju", sourceType: "tgju_indicators", series: [{ slug: "coin_blubber", id: "bubble_full_coin" }] },
       },
     };
 

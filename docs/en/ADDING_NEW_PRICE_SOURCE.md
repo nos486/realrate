@@ -53,6 +53,13 @@ In the admin panel a source can only be switched off or made the primary one for
 
 ---
 
+### tgju series and indicators that are not assets
+
+- **A tgju source** (`sourceType: "tgju_indicators"`) lists its series in `series: [{ slug, id, name }]` (`tgju.org/profile/<slug>`); each one's latest value in tgju's daily table becomes the item `id` (`services/market/tgju.client.js`, the same reader the history backfill uses), in the source's `quote` (tgju is usually in rials). A series that fails is left out; the others still update.
+- **A category that can't be held** (`holdable: false` in `categories.config.js`, e.g. `bubble`) shows on cards and charts but never in the portfolio or its asset search (`isHoldableCategory`).
+- **An indicator of another item:** a spec with `bubbleOf` (`bubble.spec.js`) gets its percent of that item's value without it in `params.bubblePct`.
+- For past days, add the slug with `suggest` to `config/tgjuCatalog.js` so the admin's history panel offers it.
+
 ## 2. The adapter contract
 
 Every source adapter (in `api/src/services/market/sources/` or a custom one) **must** follow this contract:

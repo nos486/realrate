@@ -9,6 +9,7 @@ import { emofidFundsSourceAdapter } from "./emofidFunds.source.adapter.js";
 import { charismaFundsSourceAdapter } from "./charismaFunds.source.adapter.js";
 import { charismaPlansSourceAdapter } from "./charismaPlans.source.adapter.js";
 import { apiUrlSourceAdapter } from "./apiUrl.source.adapter.js";
+import { tgjuIndicatorsSourceAdapter } from "./tgjuIndicators.source.adapter.js";
 
 export {
   telegramSourceAdapter,
@@ -18,6 +19,7 @@ export {
   charismaFundsSourceAdapter,
   charismaPlansSourceAdapter,
   apiUrlSourceAdapter,
+  tgjuIndicatorsSourceAdapter,
 };
 
 export * from "./parsingUtils.js";
@@ -31,6 +33,7 @@ export const sourceAdapters = [
   emofidFundsSourceAdapter,
   charismaFundsSourceAdapter,
   charismaPlansSourceAdapter,
+  tgjuIndicatorsSourceAdapter,
   telegramSourceAdapter,
   apiUrlSourceAdapter,
 ];

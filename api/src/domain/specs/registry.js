@@ -9,6 +9,7 @@ import { FOREX_SPECS } from './forex.spec.js';
 import { CRYPTO_SPECS } from './crypto.spec.js';
 import { CASH_SPECS } from './cash.spec.js';
 import { COMMODITY_SPECS } from './commodity.spec.js';
+import { BUBBLE_SPECS } from './bubble.spec.js';
 // ── Master Canonical Asset Registry ──────────────────────────────────────────
 export const CANONICAL_ASSET_REGISTRY = {};
 
@@ -54,8 +55,8 @@ Object.values(CRYPTO_SPECS).forEach(item => {
   CANONICAL_ASSET_REGISTRY[item.id.toLowerCase()] = item;
 });
 
-// Register world commodities (priced in dollars)
-Object.values(COMMODITY_SPECS).forEach(item => {
+// Register world commodities (priced in dollars) and coin bubbles (market indicators)
+[...Object.values(COMMODITY_SPECS), ...Object.values(BUBBLE_SPECS)].forEach(item => {
   CANONICAL_ASSET_REGISTRY[item.id] = item;
   CANONICAL_ASSET_REGISTRY[item.id.toLowerCase()] = item;
 });
@@ -164,7 +165,8 @@ export function resolveItemCategory(item, fallbackType = null) {
 }
 
 // ── Master Portfolio Category Definitions (Derived from categories.config.js) ─
-export const PORTFOLIO_CATEGORIES = CATEGORIES_CONFIG.map((c) => ({
+// Only categories an asset can be held in (market indicators such as bubbles are not)
+export const PORTFOLIO_CATEGORIES = CATEGORIES_CONFIG.filter((c) => c.holdable !== false).map((c) => ({
   ...c,
   match: (item) => resolveCategory(item) === c.key,
 }));

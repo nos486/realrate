@@ -10,6 +10,7 @@ import {
   Sparkles,
   Wallet,
   Fuel,
+  Gauge,
 } from 'lucide-react';
 import {
   resolveItemCategory,
@@ -226,6 +227,7 @@ export function normalizeHolding(h, itemMap = null) {
 
 const ICON_COMPONENT_MAP = {
   Fuel,
+  Gauge,
   Award,
   Coins,
   Disc,
@@ -244,6 +246,7 @@ const ICON_COMPONENT_MAP = {
   bourse: TrendingUp,
   bourse_fund: Layers,
   commodity: Fuel,
+  bubble: Gauge,
   custom: Wallet,
   sparkles: Sparkles,
 };

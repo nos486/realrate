@@ -6,6 +6,7 @@ import {
   Coins,
   Disc,
   Fuel,
+  Gauge,
   Banknote,
   Zap,
   TrendingUp,
@@ -21,7 +22,7 @@ import {
   getItemCategory,
   getSourceBrand,
 } from '../config/displayEngine.js';
-import { getCategoryIconName } from '../config/categories.config.js';
+import { getCategoryIconName, isHoldableCategory } from '../config/categories.config.js';
 import {
   FOREX_SPECS,
   PORTFOLIO_CATEGORIES,
@@ -321,6 +322,7 @@ export function extractMultiItems(src) {
 
 const ICON_COMPONENT_MAP = {
   Fuel,
+  Gauge,
   Award,
   Coins,
   Disc,
@@ -370,7 +372,8 @@ export default function UniversalAssetSearch({
 
   // 3. Every asset of the price book — the one list, the one id and the one price the whole app uses
   const resolvedAssets = pricingContext?.resolvedAssets;
-  const allItems = useMemo(() => (resolvedAssets || []).map((asset) => {
+  // Only what can be held: market indicators (a coin's bubble) are never bought or paid with
+  const allItems = useMemo(() => (resolvedAssets || []).filter((asset) => isHoldableCategory(asset.category)).map((asset) => {
     const category = asset.category || 'custom';
     const isBourse = category.startsWith('bourse');
     return {
