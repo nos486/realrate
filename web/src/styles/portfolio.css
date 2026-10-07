@@ -2696,3 +2696,15 @@ tr.is-expandable:focus-visible,
 .risk-amount strong { font-size: 18px; color: var(--text-primary); }
 .risk-profile-card .risk-mix { justify-content: flex-start; margin-bottom: 8px; }
 .risk-link { align-self: flex-start; background: none; border: 0; padding: 0; font: inherit; font-size: 12px; color: var(--color-primary-text); cursor: pointer; }
+
+/* Plan cards below the holdings (narrow screens): one full-width card per row */
+.portfolio-plan-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 12px;
+}
+.portfolio-plan-cards > .portfolio-stat-card {
+  width: 100%;
+  min-width: 0;
+}
