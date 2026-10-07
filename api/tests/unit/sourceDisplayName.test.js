@@ -36,25 +36,12 @@ describe('SourceRegistry – display name & unit resolution', () => {
 });
 
 describe('Dynamic Source Display Name Resolution Tests', () => {
-  it('correctly maps Charisma funds to Charisma source without hardcoded if/else', () => {
-    // 1. By ticker in knownSymbols
-    expect(getSourceDisplayName({ symbol: 'اهرم', name: 'صندوق س سهامی کاریزما- اهرمی' }))
+  it('maps an item to its source by sourceId, or by the source brand in its name', () => {
+    expect(getSourceDisplayName({ symbol: 'اهرم', sourceId: 'src_def_charisma' }))
       .toBe('صندوق‌های سرمایه‌گذاری کاریزما (Charisma)');
-
-    // 2. By brand name in title
     expect(getSourceDisplayName({ symbol: 'نقران', name: 'صندوق س سرمایه گذاری نقره کاریزما' }))
       .toBe('صندوق‌های سرمایه‌گذاری کاریزما (Charisma)');
-
-    // 3. By known symbol alone
-    expect(getSourceDisplayName({ symbol: 'کهربا', name: 'صندوق س پشتوانه طلا کهربا-س' }))
-      .toBe('صندوق‌های سرمایه‌گذاری کاریزما (Charisma)');
-  });
-
-  it('correctly maps Emofid funds to Emofid source', () => {
-    expect(getSourceDisplayName({ symbol: 'عیار', name: 'صندوق س طلا عیار مفید-س' }))
-      .toBe('صندوق‌های سرمایه‌گذاری مفید (Emofid)');
-
-    expect(getSourceDisplayName({ symbol: 'پیشتاز', name: 'صندوق پیشتاز' }))
+    expect(getSourceDisplayName({ symbol: 'عیار', sourceId: 'src_def_emofid' }))
       .toBe('صندوق‌های سرمایه‌گذاری مفید (Emofid)');
   });
 

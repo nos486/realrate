@@ -77,7 +77,8 @@ import {
   handleAdminSetPrimarySource,
   handleAdminTestPriceSource,
   handleAdminFetchAllSources,
-  handleAdminInspectApiRoute,
+  handleAdminGetPriceSourceItems,
+  handleAdminSyncPriceSource,
 } from "./handlers/adminRoutes.js";
 import { handleGetPrices, handleGetSparklines, handleGetPriceHistory, handleGetPriceBook, handleGetPriceCatalog } from "./handlers/apiRoutes.js";
 import { handleAdminHistory } from "./handlers/historyRoutes.js";
@@ -358,8 +359,11 @@ async function handleRequest(request, env, ctx) {
   if (normalizedPath === "/api/admin/price-sources/test" && request.method === "POST") {
     return wrap(handleAdminTestPriceSource)(request, env);
   }
-  if (normalizedPath === "/api/admin/price-sources/inspect-api" && request.method === "POST") {
-    return wrap(handleAdminInspectApiRoute)(request, env);
+  if (normalizedPath === "/api/admin/price-sources/items" && request.method === "GET") {
+    return wrap(handleAdminGetPriceSourceItems)(request, env);
+  }
+  if (normalizedPath === "/api/admin/price-sources/sync" && request.method === "POST") {
+    return wrap(handleAdminSyncPriceSource)(request, env);
   }
   if (normalizedPath === "/api/admin/price-sources/fetch-all" && request.method === "POST") {
     return wrap(handleAdminFetchAllSources)(request, env);

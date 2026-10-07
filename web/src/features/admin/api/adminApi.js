@@ -3,7 +3,7 @@
  * Interfaces with RealRate Admin Endpoints via httpClient
  */
 
-import { httpClient, HttpError } from '../../../shared/api/httpClient.js';
+import { httpClient } from '../../../shared/api/httpClient.js';
 
 export async function getAdminStats() {
   return httpClient.get('/api/admin/stats');
@@ -50,31 +50,43 @@ export async function saveAdminSettings(settings) {
   return httpClient.post('/api/admin/settings', settings);
 }
 
+/**
+ * Every price source with its kind, fetch interval, last and next sync, status and a preview
+ * @returns {Promise<{ tickSec: number, summary: Record<string, number>, sources: object[] }>}
+ */
 export async function getPriceSources() {
   return httpClient.get('/api/admin/price-sources');
 }
 
-export async function savePriceSource(sourceData) {
-  return httpClient.post('/api/admin/price-sources', sourceData);
+/** A source's items as its last sync stored them */
+export async function getPriceSourceItems(id) {
+  return httpClient.get(`/api/admin/price-sources/items?id=${encodeURIComponent(id)}`);
 }
 
-export async function setPrimarySource(id, priceType = null) {
-  return httpClient.post('/api/admin/price-sources/set-primary', { id, priceType });
+/** Switch a source on or off */
+export async function setPriceSourceActive(id, isActive) {
+  return httpClient.post('/api/admin/price-sources', { id, isActive });
+}
+
+/** Make a source the primary one for its id */
+export async function setPrimarySource(id) {
+  return httpClient.post('/api/admin/price-sources/set-primary', { id });
 }
 
 /**
- * Test a source config. A failed test is a result to show (the server answers 400 with the
- * details), not an exception: the result body is returned either way.
+ * A dry run of a source: fetched and parsed now, nothing kept
+ * @returns {Promise<{ success: boolean, error?: string, count?: number, sample?: object[], price?: number|null, ms: number }>}
  */
-export async function testPriceSource(config) {
-  try {
-    return await httpClient.post('/api/admin/price-sources/test', config);
-  } catch (err) {
-    if (err instanceof HttpError && err.data && typeof err.data === 'object') return err.data;
-    throw err;
-  }
+export async function testPriceSource(id) {
+  return httpClient.post('/api/admin/price-sources/test', { id });
 }
 
+/** Sync one source now, through the same pipeline as the cron */
+export async function syncPriceSource(id) {
+  return httpClient.post('/api/admin/price-sources/sync', { id });
+}
+
+/** Sync every active source now */
 export async function fetchAllSourcesNow() {
   return httpClient.post('/api/admin/price-sources/fetch-all', {});
 }

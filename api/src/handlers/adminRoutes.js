@@ -11,15 +11,15 @@ import {
   dbGetUserById,
   dbGetPortfolioHoldings,
   dbGetUserPortfolios,
-  dbGetPriceSources,
   dbSavePriceSource,
   dbSetPrimaryPriceSource,
-  dbStoreTestedSourceItems,
   saveGlobalSettings,
   getGlobalSettings,
 } from "../repositories/index.js";
 import { getAdminStats } from "../lib/analytics.js";
-import { testPriceSourceConfig, fetchAllPrices, inspectApiEndpointStructure, refreshPriceBook } from "../services/market/priceAggregator.service.js";
+import { testPriceSource, refreshPriceBook } from "../services/market/priceAggregator.service.js";
+import { listPriceSourcesForAdmin, priceSourceItemsForAdmin, syncPriceSourceNow } from "../services/market/priceSourcesAdmin.service.js";
+import { syncAllSources } from "../services/market/sourceSync.service.js";
 import { jsonResponse, errorResponse, forbiddenResponse } from "../lib/helpers.js";
 import { AppError } from "../lib/AppError.js";
 
@@ -155,40 +155,49 @@ export async function handleAdminSaveSettings(request, env) {
   }
 }
 
-/**
- * GET /api/admin/price-sources
- * List all configured price sources — admin only
- */
-export async function handleAdminGetPriceSources(request, env) {
+/** The admin, or a 403 response */
+async function requireAdmin(request, env) {
   const user = await getAuthenticatedUser(request, env);
-  if (!user || user.role !== "admin") return forbiddenResponse(request);
-
-  try {
-    const sources = await dbGetPriceSources(env);
-    return jsonResponse({ success: true, sources }, 200, request);
-  } catch (e) {
-    return errorResponse(e.message, 500, request);
-  }
+  return user?.role === "admin" ? null : forbiddenResponse(request);
 }
 
 /**
- * POST /api/admin/price-sources
- * Switch a source on or off (or make it primary): the only changes kept for a source defined in
- * code — admin only
+ * GET /api/admin/price-sources
+ * Every source with its kind, schedule (interval, last and next sync) and status, a preview of
+ * what it gives, and a summary — admin only
+ */
+export async function handleAdminGetPriceSources(request, env) {
+  const denied = await requireAdmin(request, env);
+  if (denied) return denied;
+  return jsonResponse({ success: true, ...(await listPriceSourcesForAdmin(env)) }, 200, request);
+}
+
+/**
+ * GET /api/admin/price-sources/items?id=
+ * A source's items as its last sync stored them — admin only
+ */
+export async function handleAdminGetPriceSourceItems(request, env) {
+  const denied = await requireAdmin(request, env);
+  if (denied) return denied;
+  const id = new URL(request.url).searchParams.get("id") || "";
+  const items = await priceSourceItemsForAdmin(env, id);
+  if (!items) return errorResponse("سورس پیدا نشد.", 404, request);
+  return jsonResponse({ success: true, id, items }, 200, request);
+}
+
+/**
+ * POST /api/admin/price-sources { id, isActive }
+ * Switch a source on or off: with "primary", the only change kept for a source defined in code
+ * — admin only
  */
 export async function handleAdminSavePriceSource(request, env) {
-  const user = await getAuthenticatedUser(request, env);
-  if (!user || user.role !== "admin") return forbiddenResponse(request);
-
+  const denied = await requireAdmin(request, env);
+  if (denied) return denied;
   try {
     const body = await request.json();
-    const saved = await dbSavePriceSource(env, body);
+    await dbSavePriceSource(env, { id: body?.id, isActive: body?.isActive });
     await refreshPriceBook(env).catch(() => {});
-    return jsonResponse({
-      success: true,
-      message: "سورس قیمت با موفقیت ذخیره شد.",
-      source: saved,
-    }, 200, request);
+    return jsonResponse({ success: true }, 200, request);
   } catch (e) {
     return errorResponse(e.message, 400, request);
   }
@@ -200,101 +209,59 @@ export async function handleAdminSavePriceSource(request, env) {
  * one off does the same for the prices — admin only
  */
 export async function handleAdminDeletePriceSource(request, env) {
-  const user = await getAuthenticatedUser(request, env);
-  if (!user || user.role !== "admin") return forbiddenResponse(request);
+  const denied = await requireAdmin(request, env);
+  if (denied) return denied;
   return errorResponse("سورس‌ها در کد تعریف شده‌اند و حذف نمی‌شوند؛ برای کنار گذاشتن، سورس را غیرفعال کنید.", 400, request);
 }
 
 /**
- * POST /api/admin/price-sources/set-primary
- * Set a price source as primary for its price type — admin only
+ * POST /api/admin/price-sources/set-primary { id }
+ * Make a source the primary one for its id (it keeps the id; the others become `${sourceId}__id`)
+ * — admin only
  */
 export async function handleAdminSetPrimarySource(request, env) {
-  const user = await getAuthenticatedUser(request, env);
-  if (!user || user.role !== "admin") return forbiddenResponse(request);
-
+  const denied = await requireAdmin(request, env);
+  if (denied) return denied;
   try {
-    const body = await request.json();
-    const { id, priceType } = body;
+    const { id } = await request.json();
     if (!id) return errorResponse("شناسه سورس الزامی است.", 400, request);
-
-    const updated = await dbSetPrimaryPriceSource(env, id, priceType);
+    await dbSetPrimaryPriceSource(env, id);
     await refreshPriceBook(env).catch(() => {});
-    return jsonResponse({
-      success: true,
-      message: "سورس مرجع با موفقیت تعیین شد.",
-      source: updated,
-    }, 200, request);
+    return jsonResponse({ success: true }, 200, request);
   } catch (e) {
     return errorResponse(e.message, 400, request);
   }
 }
 
 /**
- * POST /api/admin/price-sources/test
- * Test a price source config without saving — admin only.
- * If body.id is provided and the test succeeds, what it returned becomes the source's items and
- * the price book is rebuilt.
+ * POST /api/admin/price-sources/test { id }
+ * A dry run of a source: fetched and parsed now, nothing kept — admin only
  */
 export async function handleAdminTestPriceSource(request, env) {
-  const user = await getAuthenticatedUser(request, env);
-  if (!user || user.role !== "admin") return forbiddenResponse(request);
+  const denied = await requireAdmin(request, env);
+  if (denied) return denied;
+  const { id } = await request.json().catch(() => ({}));
+  return jsonResponse(await testPriceSource(env, id), 200, request);
+}
 
-  try {
-    const body = await request.json();
-    const testResult = await testPriceSourceConfig(body, env);
-
-    if (testResult.success && body.id && Array.isArray(testResult.items) && testResult.items.length > 0) {
-      await dbStoreTestedSourceItems(env, body.id, testResult.items);
-      await refreshPriceBook(env);
-      testResult.saved = true;
-    }
-
-    return jsonResponse(testResult, testResult.success ? 200 : 400, request);
-  } catch (e) {
-    return errorResponse(e.message, 500, request);
-  }
+/**
+ * POST /api/admin/price-sources/sync { id }
+ * Sync one source now through the pipeline (guard, storage, price book, history) — admin only
+ */
+export async function handleAdminSyncPriceSource(request, env) {
+  const denied = await requireAdmin(request, env);
+  if (denied) return denied;
+  const { id } = await request.json().catch(() => ({}));
+  return jsonResponse(await syncPriceSourceNow(env, id), 200, request);
 }
 
 /**
  * POST /api/admin/price-sources/fetch-all
- * Force refresh all active price sources, update last_price and record history — admin only
+ * Sync every active source now — admin only
  */
 export async function handleAdminFetchAllSources(request, env) {
-  const user = await getAuthenticatedUser(request, env);
-  if (!user || user.role !== "admin") return forbiddenResponse(request);
-
-  try {
-    const prices = await fetchAllPrices(env, true);
-    const updatedSources = await dbGetPriceSources(env);
-    return jsonResponse({
-      success: true,
-      message: "تمامی سورس‌های فعال با موفقیت فراخوانی و بروز شدند.",
-      prices,
-      sources: updatedSources,
-    }, 200, request);
-  } catch (e) {
-    return errorResponse(e.message, 500, request);
-  }
-}
-
-/**
- * POST /api/admin/price-sources/inspect-api
- * Analyze any API endpoint structure and return candidate arrays and keys — admin only
- */
-export async function handleAdminInspectApiRoute(request, env) {
-  const user = await getAuthenticatedUser(request, env);
-  if (!user || user.role !== "admin") return forbiddenResponse(request);
-
-  try {
-    const body = await request.json();
-    const apiUrl = body.apiUrl || body.url || body.endpoint;
-    if (!apiUrl) {
-      return errorResponse("آدرس وب‌سرویس الزامی است.", 400, request);
-    }
-    const result = await inspectApiEndpointStructure(apiUrl, body.headers || {}, env);
-    return jsonResponse(result, 200, request);
-  } catch (e) {
-    return errorResponse(e.message, 400, request);
-  }
+  const denied = await requireAdmin(request, env);
+  if (denied) return denied;
+  const { syncedCount, failedCount } = await syncAllSources(env, { forceAll: true });
+  return jsonResponse({ success: true, syncedCount, failedCount }, 200, request);
 }

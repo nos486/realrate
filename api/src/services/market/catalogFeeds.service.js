@@ -7,14 +7,14 @@
  * - Emofid Investment Funds (صندوق‌های مفید)
  * - Future Fund/Catalog feeds (Agah, Kian, Lotus, etc.)
  *
- * Automatically discovers active catalog sources from sources.config.js (isCatalog: true),
- * fetches/merges them, normalizes search, and provides standardized items across RealRate.
+ * The active catalog sources (sources.config.js `isCatalog`), read from what their last sync stored
+ * (never fetched here), normalized for search.
  */
 
 import { PRICE_SOURCES_CONFIG } from "../../config/sources.config.js";
 import { getSourceDisplayName } from "../../domain/displayEngine.js";
 import { getItemCategory, getItemUnit, getItemBadge } from "../../domain/displayEngine.js";
-import { getAdapterForSource } from "./sources/index.js";
+import { getSourceItems } from "../../repositories/sourceItems.repository.js";
 import { normalizePersian } from "./sources/parsingUtils.js";
 import { DEFAULT_BOURSE_SEARCH_LIMIT } from "../../config/constants.js";
 import { logger } from "../../lib/logger.js";
@@ -83,42 +83,21 @@ export function standardizeCatalogItem(item, sourceConfig = {}) {
 }
 
 /**
- * Fetches items for a specific catalog source
+ * A catalog source's items: what its last sync stored (no fetching here)
  * @param {object} env - Cloudflare Worker env
- * @param {object} sourceConfig - Source configuration object
+ * @param {object} sourceConfig
  * @returns {Promise<Array<object>>}
  */
 export async function getCatalogItemsBySource(env, sourceConfig) {
-  if (!sourceConfig) return [];
-  const adapter = getAdapterForSource(sourceConfig);
-  if (!adapter) return [];
-
-  let rawList = [];
-
+  if (!sourceConfig?.id || !env) return [];
   try {
-    if (typeof adapter.getItems === "function") {
-      rawList = await adapter.getItems(env);
-    } else if (typeof adapter.getLatestFunds === "function") {
-      rawList = await adapter.getLatestFunds(env);
-    } else if (typeof adapter.getFunds === "function") {
-      rawList = await adapter.getFunds(env);
-    } else if (typeof adapter.getSymbols === "function") {
-      rawList = await adapter.getSymbols(env);
-    } else if (typeof adapter.fetchRaw === "function" && typeof adapter.parse === "function") {
-      const raw = await adapter.fetchRaw(sourceConfig, env);
-      const parsed = await adapter.parse(raw, sourceConfig, env);
-      rawList = parsed.multiOutput || parsed.multiData?.items || parsed.compactList || [];
-    }
+    return (await getSourceItems(env, sourceConfig.id))
+      .map((item) => standardizeCatalogItem(item, sourceConfig))
+      .filter(Boolean);
   } catch (err) {
-    logger.error(`[CatalogEngine] Failed to get items for ${sourceConfig.id}:`, { error: err.message });
+    logger.error(`[CatalogEngine] Failed to read items of ${sourceConfig.id}:`, { error: err.message });
     return [];
   }
-
-  if (!Array.isArray(rawList)) return [];
-
-  return rawList
-    .map((item) => standardizeCatalogItem(item, sourceConfig))
-    .filter(Boolean);
 }
 
 /**
@@ -153,9 +132,11 @@ export async function getAllCatalogItems(env, options = {}) {
   const seenSymbols = new Set();
   const allItems = [];
 
-  // Dedicated funds first to preserve dedicated managers (Charisma, Emofid)
-  const fundResults = results.filter((r) => r.sourceId !== "src_def_bourse");
-  const bourseResults = results.find((r) => r.sourceId === "src_def_bourse");
+  // Fund sources first (their managers' own prices), then the exchange's list (its funds only
+  // where no fund source priced them)
+  const isFundSource = new Map(sources.map((src) => [src.id, Boolean(src.isFund)]));
+  const fundResults = results.filter((r) => isFundSource.get(r.sourceId));
+  const marketResults = results.filter((r) => !isFundSource.get(r.sourceId));
 
   for (const { sourceId, items } of fundResults) {
     bySource[sourceId] = items;
@@ -167,20 +148,13 @@ export async function getAllCatalogItems(env, options = {}) {
     }
   }
 
-  // Then general Bourse items (avoiding duplicating fund items already precisely provided)
-  if (bourseResults) {
-    bySource[bourseResults.sourceId] = bourseResults.items;
-    for (const item of bourseResults.items) {
+  for (const { sourceId, items } of marketResults) {
+    bySource[sourceId] = items;
+    for (const item of items) {
       const normSym = normalizePersian(item.symbol);
-      if (item.isFund && normSym && seenSymbols.has(normSym)) {
-        continue;
-      }
+      if (item.isFund && normSym && seenSymbols.has(normSym)) continue;
       if (normSym) seenSymbols.add(normSym);
-      if (item.isFund) {
-        funds.push(item);
-      } else {
-        bourse.push(item);
-      }
+      (item.isFund ? funds : bourse).push(item);
       allItems.push(item);
     }
   }

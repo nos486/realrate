@@ -91,9 +91,8 @@ describe('Master Sources Configuration & Schema Validation Tests (CI / Integrity
   test('every configured source maps to an active adapter', () => {
     for (const source of PRICE_SOURCES_CONFIG) {
       const adapter = getAdapterForSource(source);
-      expect(adapter, `Source ${source.id} could not be resolved to any adapter`).toBeDefined();
-      expect(typeof adapter.id).toBe('string');
-      expect(typeof adapter.supports).toBe('function');
+      expect(adapter, `Source ${source.id} could not be resolved to any adapter`).toBeTruthy();
+      expect(adapter.id).toBe(source.sourceType);
       expect(typeof adapter.fetchRaw).toBe('function');
       expect(typeof adapter.parse).toBe('function');
     }

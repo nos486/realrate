@@ -109,7 +109,7 @@ describe("Phase 1 Contract Verification — All Adapters output strictly {items:
     expect(parsed.items.map((it) => it.id)).not.toContain("USD");
   });
 
-  // 3. apiUrlSourceAdapter (both Single-Output and Multi-Output)
+  // 3. apiUrlSourceAdapter (one price per source)
   test("3. apiUrlSourceAdapter.parse returns {items: [{id, name, price}], datetime}", () => {
     // 3a. Single-output JSON
     const singleData = { price: 2650.5 };
@@ -131,30 +131,7 @@ describe("Phase 1 Contract Verification — All Adapters output strictly {items:
       price: 2650.5,
     });
 
-    // 3b. Multi-output Array
-    const multiArray = [
-      { code: "USD_IRT", title: "دلار تهران", val: 620000 },
-      { code: "EUR_IRT", title: "یورو تهران", val: 680000 },
-    ];
-    const multiConfig = {
-      id: "custom_multi",
-      name: "فید چند ارز",
-      category: "multi_output",
-      fieldMapping: {
-        symbolField: "code",
-        nameField: "title",
-        priceField: "val",
-        priceUnit: "rial",
-      },
-    };
-    const parsedMulti = apiUrlSourceAdapter.parse(JSON.stringify(multiArray), multiConfig);
-    assertStrictParseResult(parsedMulti, "apiUrlSourceAdapter (multi)");
-    expect(parsedMulti.items).toHaveLength(2);
-    expect(parsedMulti.items[0]).toEqual({
-      id: "USD_IRT",
-      name: "دلار تهران",
-      price: 62000,
-    });
+
   });
 
   // 4. bourseSymbolsSourceAdapter
@@ -182,8 +159,8 @@ describe("Phase 1 Contract Verification — All Adapters output strictly {items:
   // 5. emofidFundsSourceAdapter
   test("5. emofidFundsSourceAdapter.parse returns {items: [{id, name, price}], datetime}", async () => {
     const rawFunds = [
-      { key: "ayyar", fullTitle: "صندوق طلای عیار مفید", subscriptionNav: "145000" },
-      { key: "pishtaz", fullTitle: "صندوق پیشتاز مفید", subscriptionNav: "250000" },
+      { enTitle: "ayyar", fullTitle: "صندوق طلای عیار مفید", subscriptionNav: "145000" },
+      { enTitle: "pishtaz", fullTitle: "صندوق پیشتاز مفید", subscriptionNav: "250000" },
     ];
     const sourceConfig = {
       id: "src_def_emofid",
@@ -204,8 +181,8 @@ describe("Phase 1 Contract Verification — All Adapters output strictly {items:
   // 6. charismaFundsSourceAdapter
   test("6. charismaFundsSourceAdapter.parse returns {items: [{id, name, price}], datetime}", async () => {
     const rawFunds = [
-      { symbol: "اهرم", subtitle: "صندوق اهرمی کاریزما", closedPriceRials: 75230 },
-      { symbol: "کهربا", subtitle: "صندوق طلا کهربا", closedPriceRials: 217650 },
+      { shortSymbol: "اهرم", subtitle: "صندوق اهرمی کاریزما", fields: [{ key: "sellOrClosedPriceInfo", value: 75230 }] },
+      { shortSymbol: "کهربا", subtitle: "صندوق طلا کهربا", fields: [{ key: "sellOrClosedPriceInfo", value: 217650 }] },
     ];
     const sourceConfig = {
       id: "src_def_charisma",
@@ -245,33 +222,14 @@ describe("Phase 1 Contract Verification — All Adapters output strictly {items:
     });
   });
 
-  // 8. Catalog adapters method hygiene (deprecated methods removed, getItems active)
-  test("8. Catalog adapters only expose getItems(env) and removed legacy method names", () => {
-    // bourseSymbols
-    expect(typeof bourseSymbolsSourceAdapter.getItems).toBe("function");
-    expect(bourseSymbolsSourceAdapter.getSymbols).toBeUndefined();
-
-    // emofidFunds
-    expect(typeof emofidFundsSourceAdapter.getItems).toBe("function");
-    expect(emofidFundsSourceAdapter.getFunds).toBeUndefined();
-
-    // charismaFunds
-    expect(typeof charismaFundsSourceAdapter.getItems).toBe("function");
-    expect(charismaFundsSourceAdapter.getLatestFunds).toBeUndefined();
-
-    // charismaPlans
-    expect(typeof charismaPlansSourceAdapter.getItems).toBe("function");
-    expect(charismaPlansSourceAdapter.getLatestPlans).toBeUndefined();
-  });
-
-  // 9. All 8 adapters have getItems()
-  test("9. All registered adapters in sourceAdapters implement getItems()", () => {
+  // 8. The registry: one adapter per sourceType, each only reads (no state, no legacy methods)
+  test("8. Every adapter is registered once, under its sourceType, with the contract's methods only", () => {
     expect(sourceAdapters.length).toBe(8);
+    expect(new Set(sourceAdapters.map((a) => a.id)).size).toBe(sourceAdapters.length);
     for (const adapter of sourceAdapters) {
-      expect(
-        typeof adapter.getItems,
-        `Adapter ${adapter.id} (${adapter.name}) must implement getItems()`
-      ).toBe("function");
+      for (const legacy of ["supports", "getItems", "test", "getSymbols", "getFunds", "getLatestFunds", "getLatestPlans"]) {
+        expect(adapter[legacy], `${adapter.id} must not expose ${legacy}()`).toBeUndefined();
+      }
     }
   });
 
@@ -287,15 +245,15 @@ describe("Phase 1 Contract Verification — All Adapters output strictly {items:
         config: { id: "src_test_forex", name: "تست فارکس", priceType: "forex", sourceType: "forex_api" },
       },
       bourse_symbols: {
-        raw: [{ s: "فولاد", n: "فولاد مبارکه", p: 5400 }],
+        raw: [{ l18: "فولاد", l30: "فولاد مبارکه", pl: 5400 }],
         config: { id: "src_def_bourse", name: "بورس", priceType: "bourse" },
       },
       emofid_funds: {
-        raw: [{ symbol: "عیار", name: "صندوق عیار", price: 18500 }],
+        raw: [{ enTitle: "ayar", fullTitle: "صندوق عیار", subscriptionNav: 185000 }],
         config: { id: "src_def_emofid", name: "صندوق‌های مفید", priceType: "emofid_funds" },
       },
       charisma_funds: {
-        raw: [{ symbol: "اهرم", subtitle: "صندوق اهرمی", closedPriceRials: 84000 }],
+        raw: [{ shortSymbol: "اهرم", subtitle: "صندوق اهرمی", fields: [{ key: "sellOrClosedPriceInfo", value: 84000 }] }],
         config: { id: "src_def_charisma", name: "صندوق‌های کاریزما", priceType: "charisma_funds" },
       },
       charisma_plans: {
@@ -321,10 +279,8 @@ describe("Phase 1 Contract Verification — All Adapters output strictly {items:
           expect(typeof adapter.name, `${adapter.id}: name must be string`).toBe("string");
           expect(adapter.name.length, `${adapter.id}: name must not be empty`).toBeGreaterThan(0);
 
-          expect(typeof adapter.supports, `${adapter.id}: supports must be function`).toBe("function");
           expect(typeof adapter.fetchRaw, `${adapter.id}: fetchRaw must be function`).toBe("function");
           expect(typeof adapter.parse, `${adapter.id}: parse must be function`).toBe("function");
-          expect(typeof adapter.getItems, `${adapter.id}: getItems must be function`).toBe("function");
         });
 
         it(`parse() strictly outputs { items: [{ id, name, price }], datetime }`, async () => {

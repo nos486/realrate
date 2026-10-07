@@ -338,13 +338,14 @@ A feature can be open to every user or only to the members of some groups (rules
 | `GET` | `/api/v1/admin/growth?days=30` | Daily series `[{ day, signups, active, appActive }]` |
 | `GET` | `/api/v1/admin/users/portfolio` | A user's portfolio summary (`?userId&portfolioId`) |
 | `POST` | `/api/v1/admin/settings` | Save system-wide settings |
-| `GET` | `/api/v1/admin/price-sources` | List all price crawler sources |
-| `POST` | `/api/v1/admin/price-sources` | Add/update crawler price source |
-| `DELETE` | `/api/v1/admin/price-sources` | Remove crawler price source |
-| `POST` | `/api/v1/admin/price-sources/set-primary` | Set primary source for asset type |
-| `POST` | `/api/v1/admin/price-sources/test` | Test fetching from specific source |
-| `POST` | `/api/v1/admin/price-sources/inspect-api` | Fetch a JSON endpoint and list its fields (to write a source's parser) |
-| `POST` | `/api/v1/admin/price-sources/fetch-all` | Trigger immediate fetch across all sources |
+| `GET` | `/api/v1/admin/price-sources` | Every source as the sources page shows it: `{ tickSec, summary: { total, ok, error, stale, pending, off }, sources: [{ id, name, kind (single\|multi\|catalog), kindLabel, quote, quoteLabel, adapterName, category, categoryName, unit, endpoint, series, isActive, isPrimary, isReferenceRate, guard: { maxJumpPct, confirmTicks }, schedule: { status, intervalSec, staleAfterSec, syncedAt, failedAt, error, nextDueAt }, count, held, price, preview }] }` — a catalog sends only its size and three items |
+| `GET` | `/api/v1/admin/price-sources/items?id=` | A source's items as its last sync stored them `{ id, items: [{ id, name, price }] }` (404 for an unknown id) |
+| `POST` | `/api/v1/admin/price-sources` | `{ id, isActive }` — switch a source on or off (sources are defined in code; nothing else is saved) and rebuild the book |
+| `DELETE` | `/api/v1/admin/price-sources` | Always 400: sources are defined in code; switch one off instead |
+| `POST` | `/api/v1/admin/price-sources/set-primary` | `{ id }` — the source keeps the id it gives; the others' copies become `${sourceId}__${id}` |
+| `POST` | `/api/v1/admin/price-sources/test` | `{ id }` — a dry run: fetched and parsed now, nothing stored, guarded or put in the book. `{ success, error?, count, sample (≤ 50), price (one item), datetime, ms }` |
+| `POST` | `/api/v1/admin/price-sources/sync` | `{ id }` — fetch one source now through the full pipeline (merge, guard, storage, book, history): `{ success, count?, error? }` |
+| `POST` | `/api/v1/admin/price-sources/fetch-all` | Fetch every active source now: `{ success, syncedCount, failedCount }` |
 | `GET` | `/api/v1/admin/news/channels` | The news section's channels `[{ username, enabled }]` (the default list until one is saved), the last run by channel (`status`), `aiConfigured` (the `AI` binding) and the limits |
 | `PUT` | `/api/v1/admin/news/channels` | `{ channels: [{ username, enabled }] }` — save the list (`@name`, `t.me/name` accepted; repeats dropped). A new channel's last 10 posts are reviewed on its first read |
 | `GET` / `PUT` | `/api/alerts/push/news` | Signed in: whether this browser (`?deviceId=` / `{ deviceId, enabled }`) gets a Web Push for important news; the browser must be subscribed first (`/api/alerts/push/subscription`). The push is plain `{ plain: 1, title, body, path, tag }` |

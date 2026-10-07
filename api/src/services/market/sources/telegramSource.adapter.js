@@ -140,13 +140,9 @@ export const telegramSourceAdapter = {
   id: "telegram",
   name: "کانال‌های تلگرام",
 
-  supports(sourceConfig) {
-    const type = sourceConfig.sourceType || sourceConfig.source_type;
-    return type === "telegram" || (!type && Boolean(sourceConfig.channelUsername));
-  },
 
   async fetchRaw(sourceConfig) {
-    const endpoint = sourceConfig.endpoint || sourceConfig.channelUsername || "tahran_sabza";
+    const endpoint = sourceConfig.endpoint;
     const target = getTelegramFetchTarget(endpoint);
 
     const res = await fetch(target.url, {
@@ -170,9 +166,9 @@ export const telegramSourceAdapter = {
   },
 
   parse(rawContent, sourceConfig) {
-    const endpoint = sourceConfig.endpoint || sourceConfig.channelUsername || "tahran_sabza";
+    const endpoint = sourceConfig.endpoint;
     const target = getTelegramFetchTarget(endpoint);
-    const regex = (sourceConfig.regex || sourceConfig.regexPattern || "").trim();
+    const regex = (sourceConfig.regex || "").trim();
     const priceType = (sourceConfig.priceType || sourceConfig.price_type || "usd").toLowerCase();
     const nowIso = new Date().toISOString();
     const html = String(rawContent || "");
@@ -243,37 +239,5 @@ export const telegramSourceAdapter = {
     }
 
     throw new Error(`قیمت ${priceType} در پیام‌های کانال «${target.channel}» یافت نشد.`);
-  },
-
-  async getItems(env = null) {
-    return [];
-  },
-
-  async test(sourceConfig) {
-    const endpoint = (sourceConfig.endpoint || sourceConfig.channelUsername || "tahran_sabza").trim();
-    if (!endpoint) {
-      return { success: false, error: "لطفاً نام یا لینک کانال تلگرام را وارد کنید." };
-    }
-
-    try {
-      const raw = await this.fetchRaw(sourceConfig);
-      const parsed = this.parse(raw, sourceConfig);
-      const firstItem = parsed.items?.[0];
-      const price = firstItem?.price || 0;
-      const rawSnippet = raw && raw.length > 2500 ? raw.slice(0, 2500) + "\n... (ادامه متن کوتاه شد)" : raw;
-
-      return {
-        success: true,
-        source_type: "telegram",
-        price,
-        datetime: parsed.datetime,
-        label: firstItem?.name || endpoint,
-        channel: endpoint,
-        rawSnippet,
-        message: `قیمت با موفقیت از کانال تلگرام «${endpoint}» خوانده شد: ${price.toLocaleString("fa-IR")}`,
-      };
-    } catch (e) {
-      return { success: false, error: e.message || "خطا در ارتباط با سرورهای تلگرام" };
-    }
   },
 };

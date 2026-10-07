@@ -11,6 +11,16 @@ import {
   CATEGORY_MAP,
   getCategoryConfig,
 } from "./categories.config.js";
+import {
+  parseItemId,
+  getItemBaseName,
+  getItemDisplayName,
+  getItemUnit,
+  getItemCategory,
+  getItemBadge,
+  getCategoryIconName,
+  getSourceBrand,
+} from "../domain/displayEngine.js";
 
 export { CATEGORIES_CONFIG, CATEGORY_MAP, getCategoryConfig };
 
@@ -38,23 +48,10 @@ function _init() {
       unit,
       isFund,
       isCatalog,
-      knownSymbols = [],
-      knownItems = {},
-      customParser,
       isActive = true,
       isPrimary = false,
       ...rest
     } = src;
-
-    // Build reverse maps for fast item lookup
-    const symbolToItem = {};
-    if (knownItems && typeof knownItems === "object") {
-      for (const [sym, data] of Object.entries(knownItems)) {
-        if (!sym || !data) continue;
-        symbolToItem[sym] = data;
-        symbolToItem[sym.toLowerCase()] = data;
-      }
-    }
 
     const normalizedConfig = {
       id,
@@ -67,10 +64,6 @@ function _init() {
       unit: unit || null,
       isFund: Boolean(isFund),
       isCatalog: Boolean(isCatalog),
-      knownSymbols: Array.isArray(knownSymbols) ? knownSymbols : [],
-      knownItems: knownItems || {},
-      symbolToItem,
-      customParser: typeof customParser === "function" ? customParser : null,
       isActive: Boolean(isActive),
       isPrimary: Boolean(isPrimary),
       ...rest,
@@ -125,17 +118,6 @@ export function getSourceConfig(key) {
     (s) => s.id?.toLowerCase() === clean || s.priceType?.toLowerCase() === clean
   );
 }
-
-import {
-  parseItemId,
-  getItemBaseName,
-  getItemDisplayName,
-  getItemUnit,
-  getItemCategory,
-  getItemBadge,
-  getCategoryIconName,
-  getSourceBrand,
-} from "../domain/displayEngine.js";
 
 export {
   parseItemId,
@@ -195,16 +177,6 @@ export function resolveAssetDisplayWithSource(assetId, rawItem = null) {
 export function resolveAssetUnit(assetId, rawItem = null, fallbackUnit = "واحد") {
   const item = rawItem ? { ...rawItem, id: assetId || rawItem.id } : assetId;
   return getItemUnit(item, null, fallbackUnit);
-}
-
-/**
- * Return parser function for a source (if any).
- * @param {string} key – priceType or id
- * @returns {Function|null}
- */
-export function getSourceParser(key) {
-  const cfg = getSourceConfig(key);
-  return cfg?.customParser || null;
 }
 
 /**

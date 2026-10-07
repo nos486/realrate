@@ -4,8 +4,6 @@ import React from 'react';
  * Standard Unified Card / Surface Component
  *
  * Single source of truth for:
- * - sources-page-hero-banner
- * - source-tabs-header
  * - admin-container
  * - admin-profile-bar
  * - all general .ui-card containers

@@ -113,20 +113,20 @@ Decouples database queries from business logic. Direct SQL is strictly encapsula
 
 ### C. Unified Adapter Pattern for Ingestion (`api/src/services/market/sources/`)
 All upstream price sources implement the standardized `ISourceAdapter` contract (`api/src/services/market/sources/ISourceAdapter.js`):
-- **Unified Interface**:
-  - `id`: Unique adapter identifier (e.g. `telegram`, `forex_api`, `bourse_symbols`, `emofid_funds`, `charisma_funds`, `charisma_plans`, `api_url`).
-  - `name`: Human-readable Persian display name.
-  - `supports(sourceConfig)`: Determines whether the adapter handles the specified configuration.
-  - `fetchRaw(sourceConfig, env?)`: Fetches raw payload/HTML/JSON from the external endpoint.
-  - `parse(raw, sourceConfig, env?)`: **Always** returns `{ items: [{ id, name, price }], datetime }`.
-  - `getItems(env?)`: Unified method name across all adapters to retrieve current active items (retiring legacy method names).
+- **Unified Interface** (an adapter reads one kind of endpoint and nothing else):
+  - `id`: the `sourceType` it serves (`telegram`, `api_url`, `forex_api`, `tgju_indicators`, `bourse_symbols`, `emofid_funds`, `charisma_funds`, `charisma_plans`); `sources/index.js` picks the adapter by the `sourceType` a source names, and an unknown type has none.
+  - `name`: its Persian name (shown on the admin page).
+  - `fetchRaw(sourceConfig, env?)`: reads the endpoint; a failure **throws** with a message the admin can act on, and the sync records that message.
+  - `parse(raw, sourceConfig)`: **always** returns `{ items: [{ id, name, price }], datetime }` with `price` in the source's `quote`, and throws when the answer holds no price.
+  - No state, cache, stored-data reads, merging or default URLs/ids: everything an adapter needs is in its source's config (endpoint, `jsonPath`, `series`, `symbolMap`, …); its item extraction is a pure exported function tested on its own.
+- **Source kinds and schedule** (`domain/priceSources.js`, pure): a source is `single`, `multi` (`outputs: "multi"`) or `catalog` (`isCatalog`); `isSourceDue` makes a source due one `fetchIntervalSec` after its last try, successful or not (a failing source isn't retried every minute); `sourceScheduleOf` gives its status (`off`, `pending`, `error`, `stale`, `ok`), current error and next fetch; `mergeCatalogItems` keeps a catalog's symbols a fetch left out at their last price.
 - **Universal ID Convention**: ids name the asset, never the provider. A catalog item is `${market}__${symbol}` — the source's `market` (`bourse__فولاد`, `bourse__اهرم`, `charisma_plan__gold`) — so an asset keeps its id if its source is replaced, and a fund listed by the exchange and by its fund house is one id (the first source in config order prices it; another source's copy is `${sourceId}__${market}__${symbol}`). `normalizePriceId` writes every id in one form: lower-case, Arabic ي/ك as ی/ک, Persian/Arabic digits as 0–9, no zero-width characters.
 - **Id versions**: stored holdings and transactions carry `priceIdVersion` (`PRICE_ID_VERSION` in `domain/priceIds.js`). Records are stamped when stored; older ones are migrated on read (re-encrypted with the new ids) and then stamped, so the old-form rules and symbol matching only ever apply to old data — an id in today's form is never guessed at.
 
 ### D. Single-Tick Polling Orchestrator (`api/src/services/market/sourceSync.service.js`)
-- Replaces legacy parallel polling loops with a single unified function: `syncAllSources(env)`.
-- Eliminates redundant network calls by automatically deduplicating endpoints shared by multiple sources.
-- Executed on every minute tick by Cloudflare Worker Cron (`cronPolling.job.js`).
+- One function, `syncAllSources(env)`, run on every minute tick by the Cloudflare Worker Cron (`cronPolling.job.js`): due sources only → one request per endpoint shared by several sources → `fetchRaw` → `parse` → a catalog merged with its previous list → the jump guard → `saveSourceItems` (only when changed) → the price book (each source's `syncedAt`, `failedAt`, `error`) → the history.
+- A failed source keeps its last prices; the real fetch or parse error is recorded in the book's `sources`.
+- The admin's sources page (`/admin/sources`) reads one light row per source from `services/market/priceSourcesAdmin.service.js` (kind, quote, interval, last and next fetch, status, guard, a price or a three-item preview); a feed's full list, a dry-run test and a one-source sync are separate calls (`docs/API.md`).
 
 ### E. Domain Specifications, Display Engine & Formulas (`api/src/domain/`)
 - `domain/displayEngine.js`: **Central Master Display Engine** responsible for:

@@ -1,6 +1,10 @@
 /**
- * apiUrl.source.adapter.js — Adapter for Generic JSON API Endpoints
- * Supports single-value extraction via jsonPath/regex, unit multipliers, and custom multi-output arrays.
+ * apiUrl.source.adapter.js — Any JSON (or plain-text) endpoint giving one price
+ *
+ * The price is read with the source's `customParser(data, src)` (a number, or `{ items }` for a
+ * list), else its `jsonPath` (with an optional `regex` over the value or the raw text). Units and
+ * rounding are the price book's (the source's `quote`); a dollar quote keeps its cents here.
+ * Endpoints may name secrets as ${VAR} (resolveApiUrl): they are filled from the Worker's env.
  */
 
 import {
@@ -8,7 +12,6 @@ import {
   extractPriceWithRegex,
   extractValueByPath,
 } from "./parsingUtils.js";
-import { normalizeForexToUsdCrossRate } from "../../../domain/formulas.js";
 import { roundUsd } from "../../../domain/priceBook.js";
 
 /**
@@ -69,252 +72,58 @@ export function resolveApiUrl(urlOrConfig, env = null) {
   return url;
 }
 
-/**
- * Generic API URL Source Adapter Implementation
- * @type {import("./ISourceAdapter.js").SourceAdapter}
- */
+/** One item under the source's own id and name */
+const ownItem = (src, price) => ({ id: src.id || src.priceType, name: src.name || src.id, price });
+
+/** @type {import("./ISourceAdapter.js").SourceAdapter} */
 export const apiUrlSourceAdapter = {
   id: "api_url",
-  name: "وب‌سرویس عمومی JSON",
+  name: "وب‌سرویس JSON",
 
-  supports(sourceConfig) {
-    const type = (sourceConfig.sourceType || sourceConfig.source_type || "").toLowerCase();
-    return type === "api_url" || Boolean(sourceConfig.apiUrl || sourceConfig.endpoint);
-  },
-
-  async fetchRaw(sourceConfig, env = null) {
-    const url = resolveApiUrl(sourceConfig, env);
-    if (!url) {
-      throw new Error("آدرس وب‌سرویس وارد نشده است.");
-    }
-    if (!/^https?:\/\//i.test(url)) {
-      throw new Error("آدرس وب‌سرویس باید با http:// یا https:// آغاز شود.");
-    }
-
-    const headers = {
-      "User-Agent": USER_AGENT,
-      "Accept": "application/json, text/plain, */*",
-    };
-    if (sourceConfig.headers && typeof sourceConfig.headers === "object") {
-      for (const [k, v] of Object.entries(sourceConfig.headers)) {
-        headers[k] = interpolateEnvVariables(String(v), env);
-      }
-    }
-
+  async fetchRaw(src, env = null) {
+    const url = resolveApiUrl(src, env);
+    if (!/^https?:\/\//i.test(url)) throw new Error("آدرس وب‌سرویس سورس معتبر نیست.");
+    const headers = { "User-Agent": USER_AGENT, Accept: "application/json, text/plain, */*" };
+    for (const [k, v] of Object.entries(src.headers || {})) headers[k] = interpolateEnvVariables(String(v), env);
     const res = await fetch(url, { headers });
-
-    if (!res.ok) {
-      throw new Error(`خطای ارتباط با وب‌سرویس API (کد ${res.status} ${res.statusText})`);
-    }
-
-    return await res.text();
+    if (!res.ok) throw new Error(`پاسخ وب‌سرویس: ${res.status} ${res.statusText}`.trim());
+    return res.text();
   },
 
-  parse(rawContent, sourceConfig) {
-    const nowIso = new Date().toISOString();
-    let data;
-
-    if (rawContent && typeof rawContent === "object") {
-      data = rawContent;
-    } else {
-      const rawStr = String(rawContent || "").trim();
-      try {
-        data = JSON.parse(rawStr);
-      } catch {
-        const directNum = extractPriceWithRegex(rawStr, sourceConfig.regex || "([\\d,]+)");
-        if (directNum && directNum > 0) {
-          return {
-            items: [{
-              id: sourceConfig.id || sourceConfig.priceType || "api_source",
-              name: sourceConfig.name || "API URL",
-              price: Math.round(directNum),
-            }],
-            datetime: nowIso,
-          };
-        }
-        throw new Error("پاسخ وب‌سرویس JSON معتبر نیست.");
-      }
-    }
-
-    // 0. Custom parser function support directly on sourceConfig
-    if (typeof sourceConfig.customParser === "function") {
-      try {
-        const parsed = sourceConfig.customParser(data, sourceConfig);
-        if (typeof parsed === "number" && !isNaN(parsed)) {
-          return {
-            items: [{
-              id: sourceConfig.id || sourceConfig.priceType || "api_source",
-              name: sourceConfig.name || "سورس سفارشی",
-              price: parsed,
-            }],
-            datetime: nowIso,
-          };
-        }
-        if (parsed && typeof parsed === "object") {
-          const rawItems = Array.isArray(parsed.items)
-            ? parsed.items
-            : (Array.isArray(parsed.compactList) ? parsed.compactList : null);
-
-          if (Array.isArray(rawItems)) {
-            const items = rawItems.map((it) => ({
-              id: String(it.id || it.symbol || it.s || "").trim(),
-              name: String(it.name || it.n || it.title || "").trim(),
-              price: Number(it.price || it.priceToman || it.p || 0),
-            }));
-            return {
-              items,
-              datetime: parsed.datetime || nowIso,
-            };
-          }
-          if (parsed.price !== undefined) {
-            return {
-              items: [{
-                id: sourceConfig.id || sourceConfig.priceType || "api_source",
-                name: sourceConfig.name || parsed.label || "سورس سفارشی",
-                price: Number(parsed.price),
-              }],
-              datetime: parsed.datetime || nowIso,
-            };
-          }
-        }
-      } catch (err) {
-        throw new Error(`خطا در اجرای customParser سورس: ${err.message}`);
-      }
-    }
-
-    let fieldMapping = null;
-    if (sourceConfig.fieldMapping) {
-      try {
-        fieldMapping = typeof sourceConfig.fieldMapping === "string" ? JSON.parse(sourceConfig.fieldMapping) : sourceConfig.fieldMapping;
-      } catch {}
-    } else if (sourceConfig.field_mapping) {
-      try {
-        fieldMapping = typeof sourceConfig.field_mapping === "string" ? JSON.parse(sourceConfig.field_mapping) : sourceConfig.field_mapping;
-      } catch {}
-    }
-
-    // 1. Multi-Output Array Feeds
-    if (sourceConfig.category === "multi_output" || (fieldMapping && (fieldMapping.isMultiOutput || fieldMapping.symbolField))) {
-      let rawArray = Array.isArray(data) ? data : (data.data || data.items || data.symbols || []);
-      if (Array.isArray(rawArray) && rawArray.length > 0) {
-        const symKey = fieldMapping?.symbolField || "symbol";
-        const nameKey = fieldMapping?.nameField || "name";
-        const priceKey = fieldMapping?.priceField || "price";
-        const isRialFeed = (fieldMapping && fieldMapping.priceUnit === "rial");
-        const multiplier = Number(fieldMapping?.multiplier) > 0 ? Number(fieldMapping.multiplier) : (isRialFeed ? 0.1 : 1);
-
-        const items = [];
-        for (const item of rawArray) {
-          if (!item || typeof item !== "object") continue;
-          const sym = String(item[symKey] || "").trim();
-          const name = String(item[nameKey] || sym).trim();
-          const rawPrice = Number(item[priceKey] || item.pl || item.pc) || 0;
-          if ((!sym && !name) || rawPrice <= 0) continue;
-
-          const priceToman = Math.round(rawPrice * multiplier);
-          items.push({
-            id: sym || name,
-            name: name,
-            price: priceToman,
-          });
-        }
-
-        if (items.length > 0) {
-          return {
-            items,
-            datetime: nowIso,
-          };
-        }
-      }
-    }
-
-    // 2. Standard Single-Output JSON parsing
-    const jsonPath = sourceConfig.jsonPath || sourceConfig.json_path || "";
-    let extractedVal = extractValueByPath(data, jsonPath);
-
-    if (sourceConfig.regex && (typeof extractedVal === "string" || typeof extractedVal === "number")) {
-      const regexNum = extractPriceWithRegex(String(extractedVal), sourceConfig.regex);
-      if (regexNum && regexNum > 0) extractedVal = regexNum;
-    } else if (sourceConfig.regex && extractedVal === null) {
-      const regexNum = extractPriceWithRegex(rawStr, sourceConfig.regex);
-      if (regexNum && regexNum > 0) extractedVal = regexNum;
-    }
-
-    if (extractedVal === null || isNaN(extractedVal) || extractedVal <= 0) {
-      throw new Error(
-        jsonPath
-          ? `مقدار معتبری در مسیر «${jsonPath}» پاسخ JSON یافت نشد.`
-          : "قیمت معتبری در پاسخ وب‌سرویس JSON یافت نشد."
-      );
-    }
-
-    // Optional multiplier support (e.g. 0.1 for Rial to Toman conversion)
-    const isRialFeed = (fieldMapping && fieldMapping.priceUnit === "rial");
-    if (fieldMapping && Number(fieldMapping.multiplier) > 0) {
-      extractedVal = Number(extractedVal) * Number(fieldMapping.multiplier);
-    } else if (isRialFeed) {
-      extractedVal = Number(extractedVal) * 0.1;
-    }
-
-    const priceType = (sourceConfig.priceType || sourceConfig.price_type || "").toLowerCase();
-    // A dollar-quoted source (`quote: "usd"`: the ounce, oil, …) keeps its cents
-    const isUsdAsset = sourceConfig.quote === "usd";
-    const isForexSingle = ['eur', 'try', 'aed', 'gbp', 'chf', 'cad', 'aud', 'cny'].includes(priceType);
-
-    let finalPrice;
-    if (isForexSingle) {
-      finalPrice = normalizeForexToUsdCrossRate(priceType, extractedVal);
-    } else if (isUsdAsset) {
-      finalPrice = roundUsd(extractedVal);
-    } else if (sourceConfig.decimals !== undefined && sourceConfig.decimals !== null) {
-      finalPrice = Number(Number(extractedVal).toFixed(Number(sourceConfig.decimals)));
-    } else if (Number(extractedVal) < 100 && !Number.isInteger(Number(extractedVal))) {
-      finalPrice = Number(Number(extractedVal).toFixed(4));
-    } else {
-      finalPrice = Math.round(Number(extractedVal));
-    }
-
-    return {
-      items: [{
-        id: sourceConfig.id || sourceConfig.priceType || sourceConfig.price_type || "api_source",
-        name: sourceConfig.name || "سورس خارجی API",
-        price: finalPrice,
-      }],
-      datetime: nowIso,
-    };
-  },
-
-  async getItems(env = null) {
-    return [];
-  },
-
-  async test(sourceConfig, env = null) {
-    const url = (sourceConfig.endpoint || sourceConfig.apiUrl || "").trim();
-    if (!url) {
-      return { success: false, error: "لطفاً آدرس API URL را وارد کنید." };
-    }
-
+  parse(raw, src) {
+    const text = typeof raw === "string" ? raw.trim() : JSON.stringify(raw ?? null);
+    let data = null;
     try {
-      const raw = await this.fetchRaw(sourceConfig, env);
-      const parsed = this.parse(raw, sourceConfig);
-      const count = parsed.items?.length || 0;
-      const firstPrice = parsed.items?.[0]?.price || 0;
-      const rawSnippet = raw && raw.length > 2500 ? raw.slice(0, 2500) + "\n... (ادامه متن کوتاه شد)" : (typeof raw === "object" ? JSON.stringify(raw, null, 2).slice(0, 2500) : String(raw || ""));
-
-      return {
-        success: true,
-        source_type: "api_url",
-        price: firstPrice,
-        items: parsed.items,
-        datetime: parsed.datetime,
-        label: sourceConfig.name || "وب‌سرویس JSON",
-        rawSnippet,
-        message: count > 1
-          ? `تعداد ${count} آیتم با موفقیت دریافت و پردازش شد.`
-          : `قیمت با موفقیت دریافت شد: ${firstPrice.toLocaleString("fa-IR")}`,
-      };
-    } catch (e) {
-      return { success: false, error: e.message || "خطا در برقراری ارتباط با منبع API" };
+      data = typeof raw === "string" ? JSON.parse(text) : raw;
+    } catch {
+      // Not JSON: only a regex can read it
+      const value = extractPriceWithRegex(text, src.regex || "([\\d,]+)");
+      if (!(value > 0)) throw new Error("پاسخ وب‌سرویس JSON نیست و عددی در آن پیدا نشد.");
+      return { items: [ownItem(src, value)], datetime: new Date().toISOString() };
     }
+
+    if (typeof src.customParser === "function") {
+      let out;
+      try {
+        out = src.customParser(data, src);
+      } catch (err) {
+        throw new Error(`پارسر سورس: ${err.message}`);
+      }
+      if (Array.isArray(out?.items)) return { items: out.items, datetime: out.datetime || new Date().toISOString() };
+      if (!(Number(out) > 0)) throw new Error("پارسر سورس قیمتی برنگرداند.");
+      return { items: [ownItem(src, this.priceOf(out, src))], datetime: new Date().toISOString() };
+    }
+
+    let value = extractValueByPath(data, src.jsonPath || "");
+    if (src.regex) value = extractPriceWithRegex(String(value ?? text), src.regex) || value;
+    if (!(Number(value) > 0)) {
+      throw new Error(src.jsonPath ? `مقداری در مسیر «${src.jsonPath}» پاسخ پیدا نشد.` : "قیمتی در پاسخ وب‌سرویس پیدا نشد.");
+    }
+    return { items: [ownItem(src, this.priceOf(value, src))], datetime: new Date().toISOString() };
+  },
+
+  /** The price as the feed gives it; a dollar quote keeps its cents (the book rounds the rest) */
+  priceOf(value, src) {
+    return src.quote === "usd" ? roundUsd(value) : Number(value);
   },
 };

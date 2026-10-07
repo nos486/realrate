@@ -6,7 +6,8 @@
  *   2. Pick the active sources whose fetchIntervalSec is due (all of them with forceAll, or only
  *      `sourceIds` when given)
  *   3. Fetch each endpoint once (sources sharing one are fetched together)
- *   4. adapter.parse(raw, src) → { items: [{ id, name, price }], datetime }
+ *   4. adapter.parse(raw, src) → { items: [{ id, name, price }], datetime }; a catalog's list is
+ *      merged with its previous one (a symbol the fetch left out keeps its last price)
  *   5. Hold back implausible jumps (priceGuard.js): an item keeps its last value until the new
  *      one repeats for a few syncs
  *   6. Store a source's items (`source_items:${id}`) only when they changed
@@ -24,6 +25,9 @@ import { logger } from "../../lib/logger.js";
 import { buildPriceBook, currencyOf, usdSeriesKey } from "../../domain/priceBook.js";
 import { tehranDay } from "../../repositories/priceHistory.repository.js";
 import { guardSourceItems } from "../../domain/priceGuard.js";
+import { fetchIntervalSecOf, isSourceDue, sourceKindOf, mergeCatalogItems } from "../../domain/priceSources.js";
+
+export { fetchIntervalSecOf };
 
 /**
  * Records a tick's prices in the price history. Registered by the Worker entry (index.js)
@@ -36,9 +40,6 @@ let priceHistoryWriter = null;
 export function setPriceHistoryWriter(writer) {
   priceHistoryWriter = writer;
 }
-
-/** Seconds between two fetches of a source */
-export const fetchIntervalSecOf = (src) => Math.max(15, Number(src.fetchIntervalSec) || 60);
 
 // Sources reading the same endpoint share one request; one without an endpoint (it names its
 // own requests, e.g. tgju series) is a request of its own
@@ -199,12 +200,9 @@ export async function syncAllSources(env, options = {}) {
   const nowIso = new Date(nowMs).toISOString();
   const states = { ...(previousBook?.sources || {}) };
 
-  // 1. Due sources
-  const dueSources = selected.filter((src) => {
-    if (forceAll) return true;
-    const last = Date.parse(states[src.id]?.syncedAt || "") || 0;
-    return nowMs - last >= fetchIntervalSecOf(src) * 1000;
-  });
+  // 1. Due sources: one interval after the last try, successful or not (a failing endpoint is
+  //    retried at its own pace, not every minute)
+  const dueSources = selected.filter((src) => forceAll || isSourceDue(src, states[src.id], nowMs));
 
   logger.info(`[SourceSync] Running sync for ${dueSources.length}/${activeSources.length} due sources.`);
   if (dueSources.length === 0) {
@@ -217,12 +215,13 @@ export async function syncAllSources(env, options = {}) {
     const key = endpointKeyOf(src);
     if (requests.has(key)) continue;
     const adapter = getAdapterForSource(src);
+    // { raw } or { error }: a failed fetch's own message reaches the admin
     requests.set(key, adapter
-      ? adapter.fetchRaw(src, env).catch((err) => {
+      ? adapter.fetchRaw(src, env).then((raw) => ({ raw }), (err) => {
         logger.warn(`[SourceSync] Fetch failed for ${key}:`, { error: err.message });
-        return null;
+        return { error: err?.message || "دریافت ناموفق" };
       })
-      : Promise.resolve(null));
+      : Promise.resolve({ error: `آداپتری برای «${src.sourceType}» نیست.` }));
   }
   const keys = [...requests.keys()];
   const raws = await Promise.all(requests.values());
@@ -239,22 +238,25 @@ export async function syncAllSources(env, options = {}) {
   for (const src of dueSources) {
     const adapter = getAdapterForSource(src);
     if (!adapter) {
-      fail(src, "No adapter registered");
+      fail(src, `آداپتری برای «${src.sourceType}» نیست.`);
       continue;
     }
-    const raw = rawByEndpoint.get(endpointKeyOf(src));
-    if (!raw) {
-      fail(src, "Empty or failed raw fetch");
+    const fetched = rawByEndpoint.get(endpointKeyOf(src));
+    if (!fetched?.raw) {
+      fail(src, fetched?.error || "پاسخ خالی");
       continue;
     }
+    const { raw } = fetched;
 
     try {
       const parsed = await adapter.parse(raw, src, env);
-      const parsedItems = Array.isArray(parsed?.items) ? parsed.items : [];
-      if (parsedItems.length === 0) {
-        fail(src, "Adapter returned 0 items");
+      const fresh = Array.isArray(parsed?.items) ? parsed.items : [];
+      if (fresh.length === 0) {
+        fail(src, "هیچ قیمتی برنگشت.");
         continue;
       }
+      // A catalog keeps the symbols a fetch left out (or gave without a price) at their last price
+      const parsedItems = sourceKindOf(src) === "catalog" ? mergeCatalogItems(src.items, fresh) : fresh;
       const { items, held, rejected } = guardSourceItems(src.items, parsedItems, {
         maxJumpPct: src.maxJumpPct,
         confirmTicks: src.confirmTicks,

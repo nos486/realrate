@@ -95,7 +95,7 @@ describe('state store', () => {
     db.calls.length = 0;
     const sources = await dbGetPriceSources(env, { book: null });
     expect(db.calls).toEqual(['select', 'select']);
-    expect(sources.find((src) => src.id === 'src_def_usd')).toMatchObject({ isActive: false, lastPrice: 95000 });
+    expect(sources.find((src) => src.id === 'src_def_usd')).toMatchObject({ isActive: false, items: [{ id: 'src_def_usd', price: 95000 }] });
   });
 
   it('reads the price book once for requests arriving together', async () => {

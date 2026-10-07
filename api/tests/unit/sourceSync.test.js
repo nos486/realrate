@@ -317,7 +317,22 @@ describe('Unified Orchestration — sourceSync.service (Phase 4)', () => {
     expect(result.failedCount).toBe(1);
     const book = mockEnv.DB.json('prices');
     expect(book.items.gold_18k.price).toBe(4100000);
-    expect(book.sources.src_def_gold_18k).toMatchObject({ error: 'Empty or failed raw fetch' });
+    expect(book.sources.src_def_gold_18k).toMatchObject({ error: 'down' });
+  });
+
+  it('waits a failed source\'s interval before trying it again', async () => {
+    const failedAt = new Date(Date.now() - 10_000).toISOString();
+    mockEnv.DB = memoryStateDb({ prices: { items: {}, sources: { src_def_usd: { syncedAt: '2026-01-01T00:00:00Z', failedAt, error: 'down' } } } });
+    await syncAllSources(mockEnv);
+    expect(fetchRawCallCounts.get('src_def_usd')).toBeUndefined();
+    expect(fetchRawCallCounts.get('src_def_gold_18k')).toBe(1);
+  });
+
+  it('merges a catalog with its previous list: a symbol the fetch left out keeps its price', async () => {
+    mockSources[2].items = [{ id: 'shepna', name: 'شپنا', price: 480 }, { id: 'foolad', name: 'فولاد', price: 500 }];
+    await syncAllSources(mockEnv, { forceAll: true, sourceIds: ['src_def_bourse'] });
+    const saved = Object.fromEntries(savedItemsRecord.get('src_def_bourse').map((i) => [i.id, i.price]));
+    expect(saved).toEqual({ shepna: 480, foolad: 540, femi: 680 });
   });
 
   it('holds back an implausible price instead of storing it, and remembers it in the book', async () => {

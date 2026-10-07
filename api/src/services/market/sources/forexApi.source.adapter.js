@@ -7,11 +7,8 @@ import { USER_AGENT } from "./parsingUtils.js";
 import {
   FOREX_SPECS as PROMINENT_FOREX_CURRENCIES,
 } from "../../../domain/specs/index.js";
-import { getSourceItems } from "../../../repositories/sourceItems.repository.js";
 
 export { PROMINENT_FOREX_CURRENCIES };
-
-export const FOREX_API_DEFAULT_URL = "https://open.er-api.com/v6/latest/USD";
 
 /**
  * Forex Source Adapter Implementation
@@ -21,17 +18,9 @@ export const forexApiSourceAdapter = {
   id: "forex_api",
   name: "نرخ‌های جهانی فارکس (Open ER-API)",
 
-  supports(sourceConfig) {
-    const sType = (sourceConfig.sourceType || sourceConfig.source_type || "").toLowerCase();
-    if (sType === "forex_api") return true;
-    if (sType === "api_url") return false;
-    const pType = (sourceConfig.priceType || sourceConfig.price_type || "").toLowerCase();
-    return pType === "forex";
-  },
 
   async fetchRaw(sourceConfig) {
-    const url = (sourceConfig.endpoint || sourceConfig.apiUrl || FOREX_API_DEFAULT_URL).trim();
-    const res = await fetch(url, {
+    const res = await fetch(sourceConfig.endpoint, {
       headers: {
         "User-Agent": USER_AGENT,
         "Accept": "application/json, text/plain, */*",
@@ -81,34 +70,5 @@ export const forexApiSourceAdapter = {
       items,
       datetime: nowIso,
     };
-  },
-
-  async getItems(env = null) {
-    // What the last sync stored
-    const stored = env ? await getSourceItems(env, "src_def_forex") : [];
-    if (stored.length > 0) return stored;
-    const raw = await this.fetchRaw({ endpoint: FOREX_API_DEFAULT_URL }, env);
-    const parsed = await this.parse(raw, { name: this.name }, env);
-    return parsed.items || [];
-  },
-
-  async test(sourceConfig) {
-    try {
-      const raw = await this.fetchRaw(sourceConfig);
-      const parsed = await this.parse(raw, sourceConfig);
-      const count = parsed.items.length;
-      return {
-        success: true,
-        source_type: "api_url",
-        price: count,
-        items: parsed.items,
-        sampleItems: parsed.items.slice(0, 30),
-        datetime: parsed.datetime,
-        label: sourceConfig.name || "نرخ‌های جهانی فارکس (Open ER-API)",
-        message: `تعداد ${count} نرخ جهانی فارکس با موفقیت دریافت و پردازش شد.`,
-      };
-    } catch (e) {
-      return { success: false, error: e.message || "خطا در تست وب‌سرویس فارکس" };
-    }
   },
 };
