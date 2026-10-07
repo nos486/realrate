@@ -298,9 +298,9 @@ export async function dbDeletePortfolio(env, portfolioId, userId) {
 
     // Delete its encrypted items (account vault), telling devices that keep a copy
     await env.DB.batch([
-      ...vaultTombstoneParentStatements(env, userId, portfolioId, ["holding", "transaction"]),
+      ...vaultTombstoneParentStatements(env, userId, portfolioId, ["holding", "transaction", "portfolio_layout", "risk_profile"]),
       env.DB.prepare(`
-        DELETE FROM vault_records WHERE user_id = ? AND parent_id = ? AND kind IN ('holding', 'transaction')
+        DELETE FROM vault_records WHERE user_id = ? AND parent_id = ? AND kind IN ('holding', 'transaction', 'portfolio_layout', 'risk_profile')
       `).bind(userId, portfolioId),
     ]);
 

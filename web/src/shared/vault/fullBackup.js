@@ -42,7 +42,7 @@ export const ACCOUNT_KINDS = [
   'expense_group', 'expense', 'transfer',
 ];
 /** Kinds of a portfolio, encrypted with its own key */
-export const PORTFOLIO_KINDS = ['holding', 'transaction', 'portfolio_layout'];
+export const PORTFOLIO_KINDS = ['holding', 'transaction', 'portfolio_layout', 'risk_profile'];
 
 const SILENT = { silent: true };
 

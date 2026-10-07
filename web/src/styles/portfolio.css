@@ -2665,3 +2665,31 @@ tr.is-expandable:focus-visible,
 .allocation-target-sum.is-off {
   color: #f59e0b;
 }
+
+/* ── Risk-tolerance test (RiskToleranceModal, RiskProfile card) ────────────── */
+.risk-profile-card .stat-label { display: inline-flex; align-items: center; gap: 5px; }
+.risk-profile-card .stat-sub { margin: 0 0 8px; line-height: 1.7; }
+.risk-step { display: flex; flex-direction: column; gap: 12px; padding: 4px 2px; }
+.risk-heading { margin: 0; text-align: center; font-size: 17px; color: var(--text-primary); }
+.risk-text { margin: 0; line-height: 1.9; font-size: 13px; color: var(--text-secondary); text-align: justify; }
+.risk-label { font-size: 12px; color: var(--text-muted); }
+.risk-link { align-self: flex-start; background: none; border: 0; padding: 0; font: inherit; font-size: 12px; color: var(--color-primary-text); cursor: pointer; }
+.risk-progress { text-align: center; font-size: 12px; color: var(--text-muted); }
+.risk-loss { color: var(--color-negative-text); }
+.risk-gain { color: var(--color-positive-text); }
+.risk-slider { width: 100%; accent-color: var(--color-primary); margin: 10px 0; }
+.risk-outcome { margin: 0; text-align: center; line-height: 2; font-size: 14px; color: var(--text-primary); }
+.risk-guide-art { display: flex; align-items: center; justify-content: center; gap: 12px; color: var(--text-muted); padding: 18px 0; }
+.risk-guide-line { flex: 1; max-width: 160px; height: 2px; background: var(--border-strong); }
+.risk-result { align-items: center; }
+.risk-gauge { max-width: 100%; }
+.risk-gauge-band { fill: var(--color-primary); }
+.risk-gauge-needle { stroke: var(--text-primary); stroke-width: 4; stroke-linecap: round; }
+.risk-gauge-hub { fill: var(--text-primary); }
+.risk-score { font-size: 13px; color: var(--text-secondary); }
+.risk-profile-title { margin: 0; align-self: flex-start; font-size: 15px; color: var(--text-primary); }
+.risk-subtitle { margin: 4px 0 0; align-self: flex-start; font-size: 13px; color: var(--text-secondary); }
+.risk-mix { display: flex; align-items: center; justify-content: center; gap: 18px; flex-wrap: wrap; }
+.risk-mix-legend { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; font-size: 13px; color: var(--text-secondary); }
+.risk-mix-legend i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-inline-end: 4px; }
+.risk-note { margin: 0; font-size: 11px; color: var(--text-muted); text-align: center; }

@@ -26,6 +26,7 @@ const KIND_LABELS = {
   holding: 'خرید و موجودی پورتفو',
   transaction: 'فروش و پرداخت از پورتفو',
   portfolio_layout: 'دسته‌بندی و هدف پورتفو',
+  risk_profile: 'نتیجه آزمون ریسک‌پذیری',
   loan: 'وام',
   income: 'درآمد',
   cheque: 'چک',

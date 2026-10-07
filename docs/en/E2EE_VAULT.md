@@ -53,6 +53,7 @@ Code: `web/src/lib/e2ee.js` (primitives) and `web/src/shared/vault/` (state, mig
 | Portfolio holding | Purchase date |
 | Portfolio transaction | Transaction date (Shamsi converted to Gregorian) |
 | Portfolio categories (`portfolio_layout`) | None (empty) |
+| Risk-tolerance result (`risk_profile`, one per portfolio) | None (empty) |
 | Expense section (`expense_group`) | Day created |
 | Expense (`expense`) | Expense date |
 | Account (`bank_account`) | Day created |
