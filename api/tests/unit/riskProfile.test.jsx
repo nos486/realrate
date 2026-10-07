@@ -11,10 +11,11 @@ import {
   RISK_ASSET_CLASSES,
   scoreRisk,
   profileOf,
+  mixItemsOf,
   outcomeOf,
   validateRiskResult,
 } from '../../src/domain/riskProfile.js';
-import RiskMixPie, { mixItemsOf } from '../../../web/src/features/portfolio/components/RiskMixPie.jsx';
+import RiskMixPie from '../../../web/src/features/portfolio/components/RiskMixPie.jsx';
 import RiskToleranceModal from '../../../web/src/features/portfolio/components/RiskToleranceModal.jsx';
 
 afterEach(cleanup);

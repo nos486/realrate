@@ -11,13 +11,14 @@
 import React, { useMemo, useState } from 'react';
 import { Gauge, ArrowLeft, RotateCcw, PiggyBank, ChartColumn } from 'lucide-react';
 import { AlertBanner, Button, Modal } from '../../../shared/ui/index.js';
-import RiskMixPie, { mixItemsOf } from './RiskMixPie.jsx';
+import RiskMixPie from './RiskMixPie.jsx';
 import {
   RISK_RATIOS,
   RISK_PROFILES,
   RISK_SLIDER_STEPS,
   outcomeOf,
   profileOf,
+  mixItemsOf,
   scoreRisk,
 } from '../../../utils/riskProfile.js';
 

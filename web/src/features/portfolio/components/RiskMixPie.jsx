@@ -7,13 +7,8 @@
 
 import React from 'react';
 import { CHART_COLORS, CHART_OTHER_COLOR } from '../../../shared/ui/chartColors.js';
-import { RISK_ASSET_CLASSES } from '../../../utils/riskProfile.js';
 
 const fa = (n) => Number(n || 0).toLocaleString('fa-IR');
-
-/** A profile's allocation as legend items, in the profile's order */
-export const mixItemsOf = (allocation = {}) =>
-  Object.entries(allocation).map(([key, value]) => ({ key, label: RISK_ASSET_CLASSES[key] || key, value }));
 
 const PIE = { size: 120, r: 54 };
 

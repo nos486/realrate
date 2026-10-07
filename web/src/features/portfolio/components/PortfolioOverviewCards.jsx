@@ -4,8 +4,8 @@ import { CategoryIcon, formatNum } from '../utils/holdingHelpers.js';
 import { formatPct } from '../../../shared/utils/formatters.js';
 import DonutChart from '../../../shared/ui/DonutChart.jsx';
 import AllocationTargetsCard from './AllocationTargetsCard.jsx';
-import RiskMixPie, { mixItemsOf } from './RiskMixPie.jsx';
-import { profileOf } from '../../../utils/riskProfile.js';
+import RiskMixPie from './RiskMixPie.jsx';
+import { profileOf, mixItemsOf } from '../../../utils/riskProfile.js';
 import { DollarPnl } from '../../../shared/ui/DollarValue.jsx';
 
 const otherCategoriesLabel = (count) => `سایر (${count.toLocaleString('fa-IR')} دسته)`;

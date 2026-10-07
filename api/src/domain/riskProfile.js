@@ -74,6 +74,11 @@ export function profileOf(score) {
   return RISK_PROFILES.find((p) => s >= p.from && s < p.to) || RISK_PROFILES[RISK_PROFILES.length - 1];
 }
 
+/** A profile's suggested mix as legend items { key, label, value }, in the profile's order */
+export function mixItemsOf(allocation = {}) {
+  return Object.entries(allocation).map(([key, value]) => ({ key, label: RISK_ASSET_CLASSES[key] || key, value }));
+}
+
 /** What a question's answer means: the loss accepted and the gain hoped for (same unit as the answer) */
 export function outcomeOf(answer, ratio) {
   const loss = Number(answer) || 0;
