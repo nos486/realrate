@@ -85,7 +85,7 @@ describe('RiskToleranceModal', () => {
   it('opens on the saved result and can start over', () => {
     const result = validateRiskResult({ totalAsset: 1000, answers: Array(6).fill(750) }).value;
     render(<RiskToleranceModal result={result} onSave={vi.fn()} onClose={() => {}} />);
-    expect(screen.getByRole('heading', { name: 'جسور و ریسک‌پذیر' })).toBeTruthy();
+    expect(screen.getByRole('heading', { name: 'ریسک‌پذیر' })).toBeTruthy();
     fireEvent.click(screen.getByText('از نو'));
     expect(screen.getByText('چقدر ریسک‌پذیر هستید؟')).toBeTruthy();
   });
