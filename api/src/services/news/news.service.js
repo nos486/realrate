@@ -154,7 +154,7 @@ function readPending(raw, now) {
 
 /** The queue to store: what the posts need to be decided later, at most NEWS_LIMITS.pendingMax (the oldest go first) */
 function writePendingList(posts) {
-  const list = posts.map(({ channel, postId, url, text, image, publishedAt }) => ({ channel, postId, url, text, image, publishedAt }));
+  const list = posts.map(({ channel, postId, url, text, image, publishedAt, tries }) => ({ channel, postId, url, text, image, publishedAt, ...(tries ? { tries } : {}) }));
   if (list.length > NEWS_LIMITS.pendingMax) {
     logger.warn("[News] the queue is full — the oldest waiting posts are dropped", { dropped: list.length - NEWS_LIMITS.pendingMax });
   }
@@ -255,8 +255,17 @@ async function pollChannels(env, store, now, fetchPage) {
   const usedToday = parseInt((await store.get(aiDayKey(now))) || "0", 10) || 0;
   const callsLeft = Math.max(0, Math.min(NEWS_LIMITS.aiCallsPerRun, NEWS_LIMITS.aiCallsPerDay - usedToday));
   const hasModel = hasWorkersAi(env);
+  // Posts whose request already failed: set aside after NEWS_LIMITS.aiMaxTries, else tried alone
+  // and last, so a post the model can't take never holds the others back
+  const gaveUp = candidates.filter((p) => (p.tries || 0) >= NEWS_LIMITS.aiMaxTries);
+  if (gaveUp.length) {
+    logger.error("[News] posts the model failed on repeatedly — set aside", { posts: gaveUp.map(postKey), tries: NEWS_LIMITS.aiMaxTries });
+  }
+  const firstTry = candidates.filter((p) => !p.tries);
+  const retried = candidates.filter((p) => p.tries > 0 && p.tries < NEWS_LIMITS.aiMaxTries);
   const batches = [];
-  for (let i = 0; i < candidates.length; i += NEWS_LIMITS.aiBatchSize) batches.push(candidates.slice(i, i + NEWS_LIMITS.aiBatchSize));
+  for (let i = 0; i < firstTry.length; i += NEWS_LIMITS.aiBatchSize) batches.push(firstTry.slice(i, i + NEWS_LIMITS.aiBatchSize));
+  for (const post of retried) batches.push([post]);
 
   const published = [];
   const deferred = [];
@@ -288,7 +297,12 @@ async function pollChannels(env, store, now, fetchPage) {
         posts: batches.slice(b).flat().length,
         error: status.aiError,
       });
-      deferred.push(...batches.slice(b).flat());
+      // The failed request's posts count a try
+      deferred.push(...batch.map((p) => ({ ...p, tries: (p.tries || 0) + 1 })));
+      // A post retried alone failed on its own: the next one is still asked. A first try failing
+      // means the model is likely down: the rest wait as they are
+      if (batch.length === 1 && batch[0].tries > 0) continue;
+      deferred.push(...batches.slice(b + 1).flat());
       break;
     }
 

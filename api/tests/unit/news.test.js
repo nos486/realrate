@@ -326,6 +326,48 @@ describe('runNewsPolling', () => {
     error.mockRestore();
   });
 
+  it('a post the model refuses is retried alone, never holds the others back, and is set aside after a few tries', async () => {
+    const error = vi.spyOn(console, 'error').mockImplementation(() => {});
+    pages.chan_one = page('chan_one', [
+      post('chan_one', 1, 'خبر بد: دلار و طلا و سکه بعد از تصمیم بانک مرکزی جهش کرد', at(0)),
+      post('chan_one', 2, 'نرخ تورم نقطه به نقطه شهریور به ۴۵ درصد رسید و بانک مرکزی ارز را گران کرد', at(1)),
+    ]);
+    // Workers AI refuses any request with the bad post in it
+    const run = vi.fn(async (model, { messages }) => {
+      const body = messages[1].content;
+      if (body.includes('خبر بد')) throw new Error('8006: Invalid data for body - reason must be valid JSON');
+      return { response: '[{"i":1,"k":1,"c":"economy","p":2,"t":"تورم ۴۵ درصد شد","s":"خلاصه"}]' };
+    });
+    env.AI = { run };
+    await runNewsPolling(env, { now: NOW, fetchPage });
+    expect((await dbListNews(env)).items).toHaveLength(0);
+
+    // Next run: each failed post alone — the good one is published, the bad one fails again
+    run.mockClear();
+    await runNewsPolling(env, { now: NOW + 60000, fetchPage });
+    expect((await dbListNews(env)).items.map((n) => n.postId)).toEqual([2]);
+    expect(run.mock.calls.every(([, { messages }]) => (messages[1].content.match(/^#\d+$/gm) || []).length === 1)).toBe(true);
+
+    // Its third try fails; after it the post is set aside: no more requests for it
+    await runNewsPolling(env, { now: NOW + 120000, fetchPage });
+    run.mockClear();
+    await runNewsPolling(env, { now: NOW + 180000, fetchPage });
+    expect(run).not.toHaveBeenCalled();
+    expect(error.mock.calls.flat().join(' ')).toMatch(/set aside/);
+    error.mockRestore();
+  });
+
+  it('only well-formed text goes to the model (half an emoji would make the request invalid)', async () => {
+    const half = '\uD83D'; // a lone high surrogate
+    pages.chan_one = page('chan_one', [post('chan_one', 1, `دلار و طلا و سکه بعد از تصمیم بانک مرکزی جهش کرد ${half} &#55357; پایان`, at(0))]);
+    const run = vi.fn(async () => ({ response: '[{"i":1,"k":0}]' }));
+    env.AI = { run };
+    await runNewsPolling(env, { now: NOW, fetchPage });
+    const sent = run.mock.calls[0][1].messages.map((m) => m.content).join('');
+    expect(sent).not.toMatch(/[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/);
+    expect(sent.isWellFormed()).toBe(true);
+  });
+
   it('an answer with no verdict is a failure the panel shows', async () => {
     const error = vi.spyOn(console, 'error').mockImplementation(() => {});
     pages.chan_one = page('chan_one', [post('chan_one', 1, 'دلار و طلا و سکه بعد از تصمیم بانک مرکزی و فدرال رزرو جهش کرد', at(0))]);

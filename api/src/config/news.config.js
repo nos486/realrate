@@ -27,6 +27,12 @@ export const NEWS_LIMITS = {
   maxChannels: 30,
   /** Posts sent to the model in one request (one prompt for several posts) */
   aiBatchSize: 8,
+  /**
+   * A post whose request failed is tried again on its own (so it never holds others back), at most
+   * this many times in all; then it is set aside and logged, so one post the model can't take
+   * never blocks the queue
+   */
+  aiMaxTries: 3,
   /** Model requests in one run (posts beyond this wait for the next minute) */
   aiCallsPerRun: 3,
   /** Model requests in one (UTC) day; past it the keywords alone decide */
